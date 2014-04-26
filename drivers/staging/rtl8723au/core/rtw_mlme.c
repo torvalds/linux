@@ -347,9 +347,9 @@ u16 rtw_get_capability23a(struct wlan_bssid_ex *bss)
 	return le16_to_cpu(val);
 }
 
-u8 *rtw_get_beacon_interval23a_from_ie(u8 *ie)
+__le16 *rtw_get_beacon_interval23a_from_ie(u8 *ie)
 {
-	return ie + 8;
+	return (__le16 *)(ie + 8);
 }
 
 int rtw_init_mlme_priv23a (struct rtw_adapter *padapter)
