@@ -450,8 +450,6 @@ void rtw_clear_scan_deny(struct rtw_adapter *adapter);
 void rtw_set_scan_deny_timer_hdl(unsigned long data);
 void rtw_set_scan_deny(struct rtw_adapter *adapter, u32 ms);
 
-int _rtw_init_mlme_priv23a(struct rtw_adapter *padapter);
-
 void rtw23a_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv);
 
 void _rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv);

@@ -45,7 +45,7 @@ static void rtw_init_mlme_timer(struct rtw_adapter *padapter)
 		    rtw_set_scan_deny_timer_hdl, (unsigned long)padapter);
 }
 
-int _rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
+int rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	int res = _SUCCESS;
@@ -350,15 +350,6 @@ u16 rtw_get_capability23a(struct wlan_bssid_ex *bss)
 __le16 *rtw_get_beacon_interval23a_from_ie(u8 *ie)
 {
 	return (__le16 *)(ie + 8);
-}
-
-int rtw_init_mlme_priv23a (struct rtw_adapter *padapter)
-{
-	int	res;
-
-	res = _rtw_init_mlme_priv23a(padapter);
-
-	return res;
 }
 
 static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
