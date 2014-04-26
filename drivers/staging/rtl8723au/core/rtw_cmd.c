@@ -250,14 +250,6 @@ void _rtw_free_evt_priv23a (struct evt_priv *pevtpriv)
 		 ("-_rtw_free_evt_priv23a\n"));
 }
 
-void _rtw_free_cmd_priv23a(struct cmd_priv *pcmdpriv)
-{
-	if (pcmdpriv) {
-		kfree(pcmdpriv->cmd_allocated_buf);
-		kfree(pcmdpriv->rsp_allocated_buf);
-	}
-}
-
 u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 {
 	int res;
@@ -278,7 +270,11 @@ void rtw_free_cmd_priv23a(struct cmd_priv *pcmdpriv)
 {
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
 		 ("rtw_free_cmd_priv23a\n"));
-	_rtw_free_cmd_priv23a(pcmdpriv);
+
+	if (pcmdpriv) {
+		kfree(pcmdpriv->cmd_allocated_buf);
+		kfree(pcmdpriv->rsp_allocated_buf);
+	}
 }
 
 static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
