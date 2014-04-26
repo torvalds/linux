@@ -337,7 +337,7 @@ void rtw_free_cmd_obj23a(struct cmd_obj *pcmd)
 
 static void rtw_cmd_work(struct work_struct *work)
 {
-	u8 (*cmd_hdl)(struct rtw_adapter *padapter, u8* pbuf);
+	u8 (*cmd_hdl)(struct rtw_adapter *padapter, const u8 *pbuf);
 	void (*pcmd_callback)(struct rtw_adapter *dev, struct cmd_obj *pcmd);
 	struct cmd_priv *pcmdpriv;
 	struct cmd_obj *pcmd = container_of(work, struct cmd_obj, work);
@@ -1444,7 +1444,7 @@ static void c2h_wk_callback(struct work_struct *work)
 	evtpriv->c2h_wk_alive = false;
 }
 
-u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct drvextra_cmd_parm *pdrvextra_cmd;
 

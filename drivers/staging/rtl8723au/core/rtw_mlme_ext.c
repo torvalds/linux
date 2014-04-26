@@ -5834,12 +5834,12 @@ void init_mlme_ext_timer23a(struct rtw_adapter *padapter)
 		    (unsigned long)padapter);
 }
 
-u8 NULL_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
+u8 NULL_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	return H2C_SUCCESS;
 }
 
-u8 setopmode_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
+u8 setopmode_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	u8	type;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -5864,7 +5864,7 @@ u8 setopmode_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	return H2C_SUCCESS;
 }
 
-u8 createbss_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
+u8 createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -5920,7 +5920,7 @@ u8 createbss_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	return H2C_SUCCESS;
 }
 
-u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
+u8 join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct ndis_802_11_var_ies *	pIE;
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
@@ -6043,7 +6043,7 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	return H2C_SUCCESS;
 }
 
-u8 disconnect_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct disconnect_parm *param = (struct disconnect_parm *)pbuf;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -6154,7 +6154,7 @@ static int rtw_scan_ch_decision(struct rtw_adapter *padapter, struct rtw_ieee802
 	return j;
 }
 
-u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
+u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct sitesurvey_parm *pparm = (struct sitesurvey_parm *)pbuf;
@@ -6236,7 +6236,7 @@ u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	return H2C_SUCCESS;
 }
 
-u8 setauth_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct setauth_parm		*pparm = (struct setauth_parm *)pbuf;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -6250,7 +6250,7 @@ u8 setauth_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	return	H2C_SUCCESS;
 }
 
-u8 setkey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
+u8 setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	unsigned short				ctrl;
 	struct setkey_parm		*pparm = (struct setkey_parm *)pbuf;
@@ -6275,7 +6275,7 @@ u8 setkey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	return H2C_SUCCESS;
 }
 
-u8 set_stakey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
+u8 set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	u16 ctrl = 0;
 	u8 cam_id;/* cam_entry */
@@ -6362,7 +6362,7 @@ u8 set_stakey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	return H2C_SUCCESS;
 }
 
-u8 add_ba_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct addBaReq_parm	*pparm = (struct addBaReq_parm *)pbuf;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -6432,7 +6432,7 @@ exit:
 	return res;
 }
 
-u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	u8 evt_code, evt_seq;
 	u16 evt_sz;
@@ -6475,7 +6475,7 @@ _abort_event_:
 	return H2C_SUCCESS;
 }
 
-u8 h2c_msg_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 h2c_msg_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	if (!pbuf)
 		return H2C_PARAMETERS_ERROR;
@@ -6483,7 +6483,7 @@ u8 h2c_msg_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	return H2C_SUCCESS;
 }
 
-u8 tx_beacon_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	if (send_beacon23a(padapter) == _FAIL)
 	{
@@ -6542,7 +6542,7 @@ u8 tx_beacon_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	return H2C_SUCCESS;
 }
 
-u8 set_ch_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
+u8 set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct set_ch_parm *set_ch_parm;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -6565,7 +6565,7 @@ u8 set_ch_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	return	H2C_SUCCESS;
 }
 
-u8 set_chplan_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 set_chplan_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct SetChannelPlan_param *setChannelPlan_param;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -6581,7 +6581,7 @@ u8 set_chplan_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	return	H2C_SUCCESS;
 }
 
-u8 led_blink_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 led_blink_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct LedBlink_param *ledBlink_param;
 
@@ -6593,7 +6593,7 @@ u8 led_blink_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	return	H2C_SUCCESS;
 }
 
-u8 set_csa_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 set_csa_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	return	H2C_REJECTED;
 }
@@ -6611,7 +6611,7 @@ u8 set_csa_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 /*  TDLS_CKALV_PH1	: check alive timer phase1 */
 /*  TDLS_CKALV_PH2	: check alive timer phase2 */
 /*  TDLS_FREE_STA	: free tdls sta */
-u8 tdls_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
+u8 tdls_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	return H2C_REJECTED;
 }

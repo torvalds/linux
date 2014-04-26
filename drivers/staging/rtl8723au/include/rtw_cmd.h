@@ -719,7 +719,7 @@ u8 rtw_tdls_cmd(struct rtw_adapter*padapter, u8 *addr, u8 option);
 
 u8 rtw_c2h_wk_cmd23a(struct rtw_adapter *padapter, u8 *c2h_evt);
 
-u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);
+u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
 
 void rtw_survey_cmd_callback23a(struct rtw_adapter  *padapter, struct cmd_obj *pcmd);
 void rtw_disassoc_cmd23a_callback(struct rtw_adapter  *padapter, struct cmd_obj *pcmd);

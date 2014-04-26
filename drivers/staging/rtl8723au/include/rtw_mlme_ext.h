@@ -639,7 +639,7 @@ void correct_TSF23a(struct rtw_adapter *padapter, struct mlme_ext_priv *pmlmeext
 
 struct cmd_hdl {
 	uint	parmsize;
-	u8 (*h2cfuns)(struct rtw_adapter *padapter, u8 *pbuf);
+	u8 (*h2cfuns)(struct rtw_adapter *padapter, const u8 *pbuf);
 };
 
 
@@ -651,27 +651,27 @@ u8 read_rfreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
 u8 write_rfreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
 
 
-u8 NULL_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 disconnect_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 createbss_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 setopmode_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 setauth_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 setkey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 set_stakey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 set_assocsta_hdl(struct rtw_adapter *padapter, u8 *pbuf);
-u8 del_assocsta_hdl(struct rtw_adapter *padapter, u8 *pbuf);
-u8 add_ba_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);
+u8 NULL_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 setopmode_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 set_assocsta_hdl(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 del_assocsta_hdl(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
 
-u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);
-u8 h2c_msg_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);
-u8 tx_beacon_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);
-u8 set_ch_hdl23a(struct rtw_adapter *padapter, u8 *pbuf);
-u8 set_chplan_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);
-u8 led_blink_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);
-u8 set_csa_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);	/* Kurt: Handling DFS channel switch announcement ie. */
-u8 tdls_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf);
+u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 h2c_msg_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 set_chplan_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 led_blink_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+u8 set_csa_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);	/* Kurt: Handling DFS channel switch announcement ie. */
+u8 tdls_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
 
 #define GEN_DRV_CMD_HANDLER(size, cmd)	{size, &cmd ## _hdl23a},
 #define GEN_MLME_EXT_HANDLER(size, cmd)	{size, cmd},
