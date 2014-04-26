@@ -256,16 +256,6 @@ struct reg_protocol_wt {
 };
 
 
-
-/*
-Below is the data structure used by _io_handler
-
-*/
-
-struct io_priv{
-	struct intf_hdl intf;
-};
-
 uint register_intf_hdl(u8 *dev, struct intf_hdl *pintfhdl);
 void unregister_intf_hdl(struct intf_hdl *pintfhdl);
 

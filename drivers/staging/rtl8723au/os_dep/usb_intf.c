@@ -622,7 +622,6 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;
 
-	/* step init_io_priv */
 	rtl8723au_set_intf_ops(padapter);
 
 	/* step read_chip_version */

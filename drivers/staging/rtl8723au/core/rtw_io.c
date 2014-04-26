@@ -44,8 +44,7 @@ jackson@realtek.com.tw
 u8 _rtw_read823a(struct rtw_adapter *adapter, u32 addr)
 {
 	u8 r_val;
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 
 	r_val = pintfhdl->io_ops._read8(pintfhdl, addr);
 
@@ -55,8 +54,7 @@ u8 _rtw_read823a(struct rtw_adapter *adapter, u32 addr)
 u16 _rtw_read1623a(struct rtw_adapter *adapter, u32 addr)
 {
 	u16 r_val;
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 
 	r_val = pintfhdl->io_ops._read16(pintfhdl, addr);
 
@@ -66,8 +64,7 @@ u16 _rtw_read1623a(struct rtw_adapter *adapter, u32 addr)
 u32 _rtw_read3223a(struct rtw_adapter *adapter, u32 addr)
 {
 	u32 r_val;
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 
 	r_val = pintfhdl->io_ops._read32(pintfhdl, addr);
 
@@ -76,8 +73,7 @@ u32 _rtw_read3223a(struct rtw_adapter *adapter, u32 addr)
 
 int _rtw_write823a(struct rtw_adapter *adapter, u32 addr, u8 val)
 {
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl		*pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 	int ret;
 
 	ret = pintfhdl->io_ops._write8(pintfhdl, addr, val);
@@ -87,8 +83,7 @@ int _rtw_write823a(struct rtw_adapter *adapter, u32 addr, u8 val)
 
 int _rtw_write1623a(struct rtw_adapter *adapter, u32 addr, u16 val)
 {
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl		*pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 	int ret;
 
 	val = cpu_to_le16(val);
@@ -96,10 +91,10 @@ int _rtw_write1623a(struct rtw_adapter *adapter, u32 addr, u16 val)
 
 	return RTW_STATUS_CODE23a(ret);
 }
+
 int _rtw_write3223a(struct rtw_adapter *adapter, u32 addr, u32 val)
 {
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 	int ret;
 
 	val = cpu_to_le32(val);
@@ -110,8 +105,7 @@ int _rtw_write3223a(struct rtw_adapter *adapter, u32 addr, u32 val)
 
 int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr , u32 length , u8 *pdata)
 {
-	struct io_priv *pio_priv = &adapter->iopriv;
-        struct intf_hdl *pintfhdl = (struct intf_hdl*)&pio_priv->intf;
+        struct intf_hdl *pintfhdl = &adapter->intf;
 	int ret;
 
 	ret = pintfhdl->io_ops._writeN(pintfhdl, addr, length, pdata);
@@ -120,8 +114,7 @@ int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr , u32 length , u8 *pdat
 }
 void _rtw_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 
 	if ((adapter->bDriverStopped == true) ||
 	    (adapter->bSurpriseRemoved == true)) {
@@ -137,8 +130,7 @@ void _rtw_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 void _rtw_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 
 	pintfhdl->io_ops._write_mem(pintfhdl, addr, cnt, pmem);
 }
@@ -146,8 +138,7 @@ void _rtw_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 void _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 		    struct recv_buf *rbuf)
 {
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 
 	if ((adapter->bDriverStopped == true) ||
 	    (adapter->bSurpriseRemoved == true)) {
@@ -164,8 +155,7 @@ void _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 void _rtw_read_port23a_cancel(struct rtw_adapter *adapter)
 {
 	void (*_read_port_cancel)(struct intf_hdl *pintfhdl);
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 
 	_read_port_cancel = pintfhdl->io_ops._read_port_cancel;
 
@@ -176,8 +166,7 @@ void _rtw_read_port23a_cancel(struct rtw_adapter *adapter)
 u32 _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 		    struct xmit_buf *xbuf)
 {
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 	u32 ret = _SUCCESS;
 
 	ret = pintfhdl->io_ops._write_port(pintfhdl, addr, cnt, xbuf);
@@ -188,8 +177,7 @@ u32 _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 void _rtw_write_port23a_cancel(struct rtw_adapter *adapter)
 {
 	void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
+	struct intf_hdl *pintfhdl = &adapter->intf;
 
 	_write_port_cancel = pintfhdl->io_ops._write_port_cancel;
 
