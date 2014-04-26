@@ -1077,7 +1077,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 {
 	char *alg_name;
 	u32 param_len;
-	struct ieee_param *param = NULL;
+	struct ieee_param *param;
 	int ret = 0;
 	struct wireless_dev *rtw_wdev = wiphy_to_wdev(wiphy);
 	struct rtw_adapter *padapter = wiphy_to_adapter(wiphy);
@@ -1093,8 +1093,8 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	param_len = sizeof(struct ieee_param) + params->key_len;
 	param = kzalloc(param_len, GFP_KERNEL);
-	if (param == NULL)
-		return -1;
+	if (!param)
+		return -ENOMEM;
 
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
 	eth_broadcast_addr(param->sta_addr);
