@@ -186,8 +186,6 @@ struct dvobj_priv {
 	int	RtOutPipe[3];
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];/* for out pipe mapping */
 
-	u8	irq_alloc;
-
 /*-------- below is for USB INTERFACE --------*/
 
 	u8	nr_endpoint;
@@ -195,8 +193,6 @@ struct dvobj_priv {
 	u8	RtNumInPipes;
 	u8	RtNumOutPipes;
 	int	ep_num[5]; /* endpoint number */
-
-	int	RegUsbSS;
 
 	struct semaphore usb_suspend_sema;
 

@@ -2042,7 +2042,6 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 		    are trying to enter IPS/HW&SW radio off. For
 		    S3/S4/S5/Disable, we can stop 8051 because */
 		/*  we will init FW when power on again. */
-		/* if (!pDevice->RegUsbSS) */
 		/*  If we want to SS mode, we can not reset 8051. */
 		if (rtw_read8(padapter, REG_MCUFWDL) & BIT1) {
 			/* IF fw in RAM code, do reset */
