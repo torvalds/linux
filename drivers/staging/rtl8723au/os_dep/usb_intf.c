@@ -396,7 +396,7 @@ int rtw_hw_suspend23a(struct rtw_adapter *padapter)
 		rtw_free_assoc_resources23a(padapter, 1);
 
 		/* s2-4. */
-		rtw_free_network_queue23a(padapter, true);
+		rtw_free_network_queue23a(padapter);
 		rtw_ips_dev_unload23a(padapter);
 		pwrpriv->rf_pwrstate = rf_off;
 		pwrpriv->bips_processing = false;
@@ -500,7 +500,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	/* s2-3. */
 	rtw_free_assoc_resources23a(padapter, 1);
 	/* s2-4. */
-	rtw_free_network_queue23a(padapter, true);
+	rtw_free_network_queue23a(padapter);
 
 	rtw_dev_unload(padapter);
 	up(&pwrpriv->lock);

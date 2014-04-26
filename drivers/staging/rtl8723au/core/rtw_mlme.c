@@ -214,7 +214,7 @@ exit:
 	return pnetwork;
 }
 
-void rtw_free_network_queue23a(struct rtw_adapter *padapter, u8 isfreeall)
+void rtw_free_network_queue23a(struct rtw_adapter *padapter)
 {
 	struct list_head *phead, *plist, *ptmp;
 	struct wlan_network *pnetwork;

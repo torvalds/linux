@@ -345,7 +345,7 @@ void rtw_cpwm_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf);
 int event_thread(void *context);
 void rtw23a_join_to_handler(unsigned long);
 
-void rtw_free_network_queue23a(struct rtw_adapter *adapter, u8 isfreeall);
+void rtw_free_network_queue23a(struct rtw_adapter *adapter);
 int rtw_init_mlme_priv23a(struct rtw_adapter *adapter);
 
 void rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv);

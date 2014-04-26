@@ -417,7 +417,7 @@ u8 rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 		return _FAIL;
 	}
 
-	rtw_free_network_queue23a(padapter, false);
+	rtw_free_network_queue23a(padapter);
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
 		 ("%s: flush network queue\n", __func__));

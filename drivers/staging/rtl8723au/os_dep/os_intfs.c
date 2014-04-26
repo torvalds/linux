@@ -861,7 +861,7 @@ static int netdev_close(struct net_device *pnetdev)
 		/* s2-3. */
 		rtw_free_assoc_resources23a(padapter, 1);
 		/* s2-4. */
-		rtw_free_network_queue23a(padapter, true);
+		rtw_free_network_queue23a(padapter);
 		/*  Close LED */
 		rtw_led_control(padapter, LED_CTL_POWER_OFF);
 	}
