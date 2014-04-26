@@ -8479,6 +8479,13 @@ M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
 S:	Odd Fixes
 F:	drivers/staging/rtl8712/
 
+STAGING - REALTEK RTL8723U WIRELESS DRIVER
+M:	Larry Finger <Larry.Finger@lwfinger.net>
+M:	Jes Sorensen <Jes.Sorensen@redhat.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/rtl8723au/
+
 STAGING - SILICON MOTION SM7XX FRAME BUFFER DRIVER
 M:	Teddy Wang <teddy.wang@siliconmotion.com.cn>
 S:	Odd Fixes
