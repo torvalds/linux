@@ -155,10 +155,16 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 
 	/* Create all LCD controllers */
 	for (n = 0; n < ARRAY_SIZE(priv->dcrtc); n++) {
+		int irq;
+
 		if (!res[n])
 			break;
 
-		ret = armada_drm_crtc_create(dev, n, res[n]);
+		irq = platform_get_irq(dev->platformdev, n);
+		if (irq < 0)
+			goto err_kms;
+
+		ret = armada_drm_crtc_create(dev, n, res[n], irq);
 		if (ret)
 			goto err_kms;
 	}
@@ -173,22 +179,16 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_kms;
 
-	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
-	if (ret)
-		goto err_kms;
-
 	dev->vblank_disable_allowed = 1;
 
 	ret = armada_fbdev_init(dev);
 	if (ret)
-		goto err_irq;
+		goto err_kms;
 
 	drm_kms_helper_poll_init(dev);
 
 	return 0;
 
- err_irq:
-	drm_irq_uninstall(dev);
  err_kms:
 	drm_mode_config_cleanup(dev);
 	drm_mm_takedown(&priv->linear);
@@ -203,7 +203,6 @@ static int armada_drm_unload(struct drm_device *dev)
 
 	drm_kms_helper_poll_fini(dev);
 	armada_fbdev_fini(dev);
-	drm_irq_uninstall(dev);
 	drm_mode_config_cleanup(dev);
 	drm_mm_takedown(&priv->linear);
 	flush_work(&priv->fb_unref_work);
@@ -259,52 +258,6 @@ static void armada_drm_disable_vblank(struct drm_device *dev, int crtc)
 	armada_drm_crtc_disable_irq(priv->dcrtc[crtc], VSYNC_IRQ_ENA);
 }
 
-static irqreturn_t armada_drm_irq_handler(int irq, void *arg)
-{
-	struct drm_device *dev = arg;
-	struct armada_private *priv = dev->dev_private;
-	struct armada_crtc *dcrtc = priv->dcrtc[0];
-	uint32_t v, stat = readl_relaxed(dcrtc->base + LCD_SPU_IRQ_ISR);
-	irqreturn_t handled = IRQ_NONE;
-
-	/*
-	 * This is rediculous - rather than writing bits to clear, we
-	 * have to set the actual status register value.  This is racy.
-	 */
-	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
-
-	/* Mask out those interrupts we haven't enabled */
-	v = stat & dcrtc->irq_ena;
-
-	if (v & (VSYNC_IRQ|GRA_FRAME_IRQ|DUMB_FRAMEDONE)) {
-		armada_drm_crtc_irq(dcrtc, stat);
-		handled = IRQ_HANDLED;
-	}
-
-	return handled;
-}
-
-static int armada_drm_irq_postinstall(struct drm_device *dev)
-{
-	struct armada_private *priv = dev->dev_private;
-	struct armada_crtc *dcrtc = priv->dcrtc[0];
-
-	spin_lock_irq(&dev->vbl_lock);
-	writel_relaxed(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
-	writel(0, dcrtc->base + LCD_SPU_IRQ_ISR);
-	spin_unlock_irq(&dev->vbl_lock);
-
-	return 0;
-}
-
-static void armada_drm_irq_uninstall(struct drm_device *dev)
-{
-	struct armada_private *priv = dev->dev_private;
-	struct armada_crtc *dcrtc = priv->dcrtc[0];
-
-	writel(0, dcrtc->base + LCD_SPU_IRQ_ENA);
-}
-
 static struct drm_ioctl_desc armada_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_CREATE, armada_gem_create_ioctl,
 		DRM_UNLOCKED),
@@ -340,9 +293,6 @@ static struct drm_driver armada_drm_driver = {
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= armada_drm_enable_vblank,
 	.disable_vblank		= armada_drm_disable_vblank,
-	.irq_handler		= armada_drm_irq_handler,
-	.irq_postinstall	= armada_drm_irq_postinstall,
-	.irq_uninstall		= armada_drm_irq_uninstall,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init		= armada_drm_debugfs_init,
 	.debugfs_cleanup	= armada_drm_debugfs_cleanup,
@@ -362,7 +312,7 @@ static struct drm_driver armada_drm_driver = {
 	.desc			= "Armada SoC DRM",
 	.date			= "20120730",
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
-				  DRIVER_HAVE_IRQ | DRIVER_PRIME,
+				  DRIVER_PRIME,
 	.ioctls			= armada_ioctls,
 	.fops			= &armada_drm_fops,
 };

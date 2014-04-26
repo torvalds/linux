@@ -349,7 +349,7 @@ static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
+static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 {
 	struct armada_vbl_event *e, *n;
 	void __iomem *base = dcrtc->base;
@@ -408,6 +408,27 @@ void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 
 		wake_up(&dcrtc->frame_wait);
 	}
+}
+
+static irqreturn_t armada_drm_irq(int irq, void *arg)
+{
+	struct armada_crtc *dcrtc = arg;
+	u32 v, stat = readl_relaxed(dcrtc->base + LCD_SPU_IRQ_ISR);
+
+	/*
+	 * This is rediculous - rather than writing bits to clear, we
+	 * have to set the actual status register value.  This is racy.
+	 */
+	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
+
+	/* Mask out those interrupts we haven't enabled */
+	v = stat & dcrtc->irq_ena;
+
+	if (v & (VSYNC_IRQ|GRA_FRAME_IRQ|DUMB_FRAMEDONE)) {
+		armada_drm_crtc_irq(dcrtc, stat);
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
 }
 
 /* These are locked by dev->vbl_lock */
@@ -888,6 +909,8 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
 	if (!IS_ERR(dcrtc->clk))
 		clk_disable_unprepare(dcrtc->clk);
 
+	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ENA);
+
 	kfree(dcrtc);
 }
 
@@ -1028,7 +1051,7 @@ static int armada_drm_crtc_create_properties(struct drm_device *dev)
 }
 
 int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
-	struct resource *res)
+	struct resource *res, int irq)
 {
 	struct armada_private *priv = dev->dev_private;
 	struct armada_crtc *dcrtc;
@@ -1074,6 +1097,15 @@ int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
 		       CFG_PDWN64x66, dcrtc->base + LCD_SPU_SRAM_PARA1);
 	writel_relaxed(0x2032ff81, dcrtc->base + LCD_SPU_DMA_CTRL1);
 	writel_relaxed(0x00000000, dcrtc->base + LCD_SPU_GRA_OVSA_HPXL_VLN);
+	writel_relaxed(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
+	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
+
+	ret = devm_request_irq(dev, irq, armada_drm_irq, 0, "armada_drm_crtc",
+			       dcrtc);
+	if (ret < 0) {
+		kfree(dcrtc);
+		return ret;
+	}
 
 	if (priv->variant->crtc_init) {
 		ret = priv->variant->crtc_init(dcrtc);

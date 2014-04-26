@@ -72,10 +72,10 @@ struct armada_crtc {
 };
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
 
-int armada_drm_crtc_create(struct drm_device *, unsigned, struct resource *);
+int armada_drm_crtc_create(struct drm_device *, unsigned, struct resource *,
+	int);
 void armada_drm_crtc_gamma_set(struct drm_crtc *, u16, u16, u16, int);
 void armada_drm_crtc_gamma_get(struct drm_crtc *, u16 *, u16 *, u16 *, int);
-void armada_drm_crtc_irq(struct armada_crtc *, u32);
 void armada_drm_crtc_disable_irq(struct armada_crtc *, u32);
 void armada_drm_crtc_enable_irq(struct armada_crtc *, u32);
 void armada_drm_crtc_update_regs(struct armada_crtc *, struct armada_regs *);
