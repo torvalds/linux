@@ -144,9 +144,11 @@ void tipc_node_stop(void)
 void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	struct tipc_link **active = &n_ptr->active_links[0];
+	u32 addr = n_ptr->addr;
 
 	n_ptr->working_links++;
-
+	tipc_nametbl_publish(TIPC_LINK_STATE, addr, addr, TIPC_NODE_SCOPE,
+			     l_ptr->bearer_id, addr);
 	pr_info("Established link <%s> on network plane %c\n",
 		l_ptr->name, l_ptr->net_plane);
 
@@ -203,8 +205,10 @@ static void node_select_active_links(struct tipc_node *n_ptr)
 void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	struct tipc_link **active;
+	u32 addr = n_ptr->addr;
 
 	n_ptr->working_links--;
+	tipc_nametbl_withdraw(TIPC_LINK_STATE, addr, l_ptr->bearer_id, addr);
 
 	if (!tipc_link_is_active(l_ptr)) {
 		pr_info("Lost standby link <%s> on network plane %c\n",
@@ -433,4 +437,31 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	}
 	rcu_read_unlock();
 	return buf;
+}
+
+/**
+ * tipc_node_get_linkname - get the name of a link
+ *
+ * @bearer_id: id of the bearer
+ * @node: peer node address
+ * @linkname: link name output buffer
+ *
+ * Returns 0 on success
+ */
+int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
+{
+	struct tipc_link *link;
+	struct tipc_node *node = tipc_node_find(addr);
+
+	if ((bearer_id > MAX_BEARERS) || !node)
+		return -EINVAL;
+	tipc_node_lock(node);
+	link = node->links[bearer_id];
+	if (link) {
+		strncpy(linkname, link->name, len);
+		tipc_node_unlock(node);
+		return 0;
+	}
+	tipc_node_unlock(node);
+	return -EINVAL;
 }

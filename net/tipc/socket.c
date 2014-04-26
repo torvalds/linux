@@ -36,6 +36,7 @@
 
 #include "core.h"
 #include "port.h"
+#include "node.h"
 
 #include <linux/export.h>
 
@@ -1905,6 +1906,28 @@ static int tipc_getsockopt(struct socket *sock, int lvl, int opt,
 	return put_user(sizeof(value), ol);
 }
 
+int tipc_ioctl(struct socket *sk, unsigned int cmd, unsigned long arg)
+{
+	struct tipc_sioc_ln_req lnr;
+	void __user *argp = (void __user *)arg;
+
+	switch (cmd) {
+	case SIOCGETLINKNAME:
+		if (copy_from_user(&lnr, argp, sizeof(lnr)))
+			return -EFAULT;
+		if (!tipc_node_get_linkname(lnr.bearer_id, lnr.peer,
+					    lnr.linkname, TIPC_MAX_LINK_NAME)) {
+			if (copy_to_user(argp, &lnr, sizeof(lnr)))
+				return -EFAULT;
+			return 0;
+		}
+		return -EADDRNOTAVAIL;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
 /* Protocol switches for the various types of TIPC sockets */
 
 static const struct proto_ops msg_ops = {
@@ -1917,7 +1940,7 @@ static const struct proto_ops msg_ops = {
 	.accept		= sock_no_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= tipc_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= tipc_shutdown,
 	.setsockopt	= tipc_setsockopt,
@@ -1938,7 +1961,7 @@ static const struct proto_ops packet_ops = {
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= tipc_ioctl,
 	.listen		= tipc_listen,
 	.shutdown	= tipc_shutdown,
 	.setsockopt	= tipc_setsockopt,
@@ -1959,7 +1982,7 @@ static const struct proto_ops stream_ops = {
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= tipc_ioctl,
 	.listen		= tipc_listen,
 	.shutdown	= tipc_shutdown,
 	.setsockopt	= tipc_setsockopt,
