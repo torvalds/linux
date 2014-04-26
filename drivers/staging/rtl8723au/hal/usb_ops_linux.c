@@ -824,8 +824,7 @@ void rtl8723au_xmit_tasklet(void *priv)
 
 void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
 {
-	struct intf_hdl *pintf = &padapter->intf;
-	struct _io_ops *pops = &pintf->io_ops;
+	struct _io_ops *pops = &padapter->io_ops;
 
 	memset((u8 *)pops, 0, sizeof(struct _io_ops));
 

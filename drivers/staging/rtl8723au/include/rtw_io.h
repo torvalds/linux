@@ -97,7 +97,6 @@
 #define _INTF_ASYNC_	BIT(0)	/* support async io */
 
 struct intf_priv;
-struct intf_hdl;
 
 struct _io_ops
 {
@@ -133,10 +132,6 @@ struct io_req {
 
 	void (*_async_io_callback)(struct rtw_adapter *padater, struct io_req *pio_req, u8 *cnxt);
 	u8 *cnxt;
-};
-
-struct	intf_hdl {
-	struct _io_ops	io_ops;
 };
 
 struct reg_protocol_rd {
