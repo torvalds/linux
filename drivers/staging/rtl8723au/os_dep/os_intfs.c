@@ -377,26 +377,6 @@ struct net_device *rtw_init_netdev23a(struct rtw_adapter *old_padapter)
 	return pnetdev;
 }
 
-u32 rtw_start_drv_threads23a(struct rtw_adapter *padapter)
-{
-	u32 _status = _SUCCESS;
-
-	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("+rtw_start_drv_threads23a\n"));
-
-	rtw_hal_start_thread23a(padapter);
-	return _status;
-}
-
-void rtw_stop_drv_threads23a(struct rtw_adapter *padapter)
-{
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_stop_drv_threads23a\n"));
-
-	flush_workqueue(padapter->cmdpriv.wq);
-
-	rtw_hal_stop_thread23a(padapter);
-}
-
 static u8 rtw_init_default_value(struct rtw_adapter *padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
@@ -713,12 +693,6 @@ int netdev_open23a(struct net_device *pnetdev)
 
 		DBG_8723A("MAC Address = "MAC_FMT"\n",
 			  MAC_ARG(pnetdev->dev_addr));
-
-		status = rtw_start_drv_threads23a(padapter);
-		if (status == _FAIL) {
-			DBG_8723A("Initialize driver software resource Failed!\n");
-			goto netdev_open23a_error;
-		}
 
 		if (init_hw_mlme_ext23a(padapter) == _FAIL) {
 			DBG_8723A("can't init mlme_ext_priv\n");

@@ -262,19 +262,6 @@ void	rtw_hal_add_ra_tid23a(struct rtw_adapter *padapter, u32 bitmap, u8 arg, u8 
 		padapter->HalFunc.Add_RateATid(padapter, bitmap, arg, rssi_level);
 }
 
-/*	Start specifical interface thread		*/
-void	rtw_hal_start_thread23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.run_thread)
-		padapter->HalFunc.run_thread(padapter);
-}
-/*	Start specifical interface thread		*/
-void	rtw_hal_stop_thread23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.cancel_thread)
-		padapter->HalFunc.cancel_thread(padapter);
-}
-
 u32	rtw_hal_read_bbreg23a(struct rtw_adapter *padapter, u32 RegAddr, u32 BitMask)
 {
 	u32 data = 0;

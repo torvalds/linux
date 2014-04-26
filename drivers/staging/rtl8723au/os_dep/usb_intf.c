@@ -333,7 +333,7 @@ static void rtw_dev_unload(struct rtw_adapter *padapter)
 
 		/* s4. */
 		if (!padapter->pwrctrlpriv.bInternalAutoSuspend)
-			rtw_stop_drv_threads23a(padapter);
+			flush_workqueue(padapter->cmdpriv.wq);
 
 		/* s5. */
 		if (!padapter->bSurpriseRemoved) {

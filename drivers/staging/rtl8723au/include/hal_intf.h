@@ -123,8 +123,6 @@ struct hal_ops {
 
 	void (*Add_RateATid)(struct rtw_adapter *padapter, u32 bitmap,
 			     u8 arg, u8 rssi_level);
-	void (*run_thread)(struct rtw_adapter *padapter);
-	void (*cancel_thread)(struct rtw_adapter *padapter);
 
 	u8 (*interface_ps_func)(struct rtw_adapter *padapter,
 				enum hal_intf_ps_func efunc_id, u8 *val);
@@ -274,8 +272,6 @@ void	rtw_hal_free_recv_priv23a(struct rtw_adapter *padapter);
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level);
 void	rtw_hal_add_ra_tid23a(struct rtw_adapter *padapter, u32 bitmap, u8 arg, u8 rssi_level);
 void	rtw_hal_clone_data(struct rtw_adapter *dst_padapter, struct rtw_adapter *src_padapter);
-void	rtw_hal_start_thread23a(struct rtw_adapter *padapter);
-void	rtw_hal_stop_thread23a(struct rtw_adapter *padapter);
 
 void rtw_hal_bcn_related_reg_setting23a(struct rtw_adapter *padapter);
 

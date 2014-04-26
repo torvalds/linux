@@ -26,8 +26,6 @@ u8 rtw_init_drv_sw23a(struct rtw_adapter *padapter);
 u8 rtw_free_drv_sw23a(struct rtw_adapter *padapter);
 u8 rtw_reset_drv_sw23a(struct rtw_adapter *padapter);
 
-u32 rtw_start_drv_threads23a(struct rtw_adapter *padapter);
-void rtw_stop_drv_threads23a (struct rtw_adapter *padapter);
 void rtw_cancel_all_timer23a(struct rtw_adapter *padapter);
 
 int rtw_init_netdev23a_name23a(struct net_device *pnetdev, const char *ifname);
