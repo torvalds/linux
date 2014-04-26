@@ -503,11 +503,8 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 		return _FAIL;
 	}
 
-	if ((*wpa_ie != WLAN_EID_VENDOR_SPECIFIC) ||
-	    (*(wpa_ie+1) != (u8)(wpa_ie_len - 2)) ||
-	    memcmp(wpa_ie + 2, RTW_WPA_OUI23A_TYPE, WPA_SELECTOR_LEN)) {
+	if (wpa_ie[1] != (u8)(wpa_ie_len - 2))
 		return _FAIL;
-	}
 
 	pos = wpa_ie;
 
