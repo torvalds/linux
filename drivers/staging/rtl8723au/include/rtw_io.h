@@ -365,14 +365,6 @@ int dbg_rtw_writeN23a(struct rtw_adapter *adapter, u32 addr ,u32 length , u8 *da
 
 void rtw_write_scsi(struct rtw_adapter *adapter, u32 cnt, u8 *pmem);
 
-/* ioreq */
-void ioreq_read8(struct rtw_adapter *adapter, u32 addr, u8 *pval);
-void ioreq_read16(struct rtw_adapter *adapter, u32 addr, u16 *pval);
-void ioreq_read32(struct rtw_adapter *adapter, u32 addr, u32 *pval);
-void ioreq_write8(struct rtw_adapter *adapter, u32 addr, u8 val);
-void ioreq_write16(struct rtw_adapter *adapter, u32 addr, u16 val);
-void ioreq_write32(struct rtw_adapter *adapter, u32 addr, u32 val);
-
 uint alloc_io_queue(struct rtw_adapter *adapter);
 void free_io_queue(struct rtw_adapter *adapter);
 void async_bus_io(struct io_queue *pio_q);
