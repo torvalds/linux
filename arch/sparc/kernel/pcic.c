@@ -783,7 +783,7 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 void pcic_nmi(unsigned int pend, struct pt_regs *regs)
 {
 
-	pend = flip_dword(pend);
+	pend = swab32(pend);
 
 	if (!pcic_speculative || (pend & PCI_SYS_INT_PENDING_PIO) == 0) {
 		/*
