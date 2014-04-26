@@ -136,8 +136,6 @@ struct io_req {
 };
 
 struct	intf_hdl {
-	struct rtw_adapter *padapter;
-
 	struct _io_ops	io_ops;
 };
 

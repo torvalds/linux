@@ -827,8 +827,6 @@ void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
 	struct intf_hdl *pintf = &padapter->intf;
 	struct _io_ops *pops = &pintf->io_ops;
 
-	pintf->padapter = padapter;
-
 	memset((u8 *)pops, 0, sizeof(struct _io_ops));
 
 	pops->_read8 = &usb_read8;
