@@ -185,23 +185,6 @@ u32 _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 	return ret;
 }
 
-u32 _rtw_write_port23a_and_wait23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
-			     struct xmit_buf *pxmitbuf, int timeout_ms)
-{
-	int ret = _SUCCESS;
-	struct submit_ctx sctx;
-
-	rtw_sctx_init23a(&sctx, timeout_ms);
-	pxmitbuf->sctx = &sctx;
-
-	ret = _rtw_write_port23a(adapter, addr, cnt, pxmitbuf);
-
-	if (ret == _SUCCESS)
-		ret = rtw_sctx_wait23a(&sctx);
-
-	return ret;
-}
-
 void _rtw_write_port23a_cancel(struct rtw_adapter *adapter)
 {
 	void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
