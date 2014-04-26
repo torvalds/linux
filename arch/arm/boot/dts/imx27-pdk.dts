@@ -42,8 +42,6 @@
 	status = "okay";
 
 	pmic: mc13783@0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "fsl,mc13783";
 		reg = <0>;
 		spi-cs-high;

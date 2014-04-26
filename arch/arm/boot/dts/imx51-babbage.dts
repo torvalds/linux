@@ -191,8 +191,6 @@
 	status = "okay";
 
 	pmic: mc13892@0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "fsl,mc13892";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
