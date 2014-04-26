@@ -26,7 +26,6 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
-#include <linux/reset.h>
 #include <linux/slab.h>
 
 #include "../core.h"
@@ -781,7 +780,6 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	struct device_node *node = pdev->dev.of_node;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
-	struct reset_control *rstc;
 	struct resource *res;
 	int i, ret, last_pin;
 	struct clk *clk;
@@ -875,17 +873,10 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	if (ret)
 		goto gpiochip_error;
 
-	rstc = devm_reset_control_get_optional(&pdev->dev, NULL);
-	if (!IS_ERR(rstc)) {
-		ret = reset_control_deassert(rstc);
-		if (ret)
-			goto clk_error;
-	}
-
 	pctl->irq = irq_of_parse_and_map(node, 0);
 	if (!pctl->irq) {
 		ret = -EINVAL;
-		goto rstc_error;
+		goto clk_error;
 	}
 
 	pctl->domain = irq_domain_add_linear(node, SUNXI_IRQ_NUMBER,
@@ -893,7 +884,7 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	if (!pctl->domain) {
 		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
 		ret = -ENOMEM;
-		goto rstc_error;
+		goto clk_error;
 	}
 
 	for (i = 0; i < SUNXI_IRQ_NUMBER; i++) {
@@ -911,9 +902,6 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 
 	return 0;
 
-rstc_error:
-	if (!IS_ERR(rstc))
-		reset_control_assert(rstc);
 clk_error:
 	clk_disable_unprepare(clk);
 gpiochip_error:

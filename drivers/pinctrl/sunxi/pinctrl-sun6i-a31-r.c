@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/reset.h>
 
 #include "pinctrl-sunxi.h"
 
@@ -96,8 +97,26 @@ static const struct sunxi_pinctrl_desc sun6i_a31_r_pinctrl_data = {
 
 static int sun6i_a31_r_pinctrl_probe(struct platform_device *pdev)
 {
-	return sunxi_pinctrl_init(pdev,
-				  &sun6i_a31_r_pinctrl_data);
+	struct reset_control *rstc;
+	int ret;
+
+	rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(rstc)) {
+		dev_err(&pdev->dev, "Reset controller missing\n");
+		return PTR_ERR(rstc);
+	}
+
+	ret = reset_control_deassert(rstc);
+	if (ret)
+		return ret;
+
+	ret = sunxi_pinctrl_init(pdev,
+				 &sun6i_a31_r_pinctrl_data);
+
+	if (ret)
+		reset_control_assert(rstc);
+
+	return ret;
 }
 
 static struct of_device_id sun6i_a31_r_pinctrl_match[] = {
