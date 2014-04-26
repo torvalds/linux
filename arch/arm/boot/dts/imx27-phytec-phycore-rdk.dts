@@ -39,10 +39,6 @@
 	};
 
 	usbphy {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		usbphy2: usbphy@2 {
 			compatible = "usb-nop-xceiv";
 			reg = <0>;
