@@ -1401,6 +1401,13 @@ static void rbd_obj_request_put(struct rbd_obj_request *obj_request)
 	kref_put(&obj_request->kref, rbd_obj_request_destroy);
 }
 
+static void rbd_img_request_get(struct rbd_img_request *img_request)
+{
+	dout("%s: img %p (was %d)\n", __func__, img_request,
+	     atomic_read(&img_request->kref.refcount));
+	kref_get(&img_request->kref);
+}
+
 static bool img_request_child_test(struct rbd_img_request *img_request);
 static void rbd_parent_request_destroy(struct kref *kref);
 static void rbd_img_request_destroy(struct kref *kref);
@@ -2154,6 +2161,7 @@ static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
 	img_request->next_completion = which;
 out:
 	spin_unlock_irq(&img_request->completion_lock);
+	rbd_img_request_put(img_request);
 
 	if (!more)
 		rbd_img_request_complete(img_request);
@@ -2250,6 +2258,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 			goto out_partial;
 		obj_request->osd_req = osd_req;
 		obj_request->callback = rbd_img_obj_callback;
+		rbd_img_request_get(img_request);
 
 		osd_req_op_extent_init(osd_req, 0, opcode, offset, length,
 						0, 0);
