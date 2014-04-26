@@ -147,7 +147,7 @@ static umode_t p9mode2unixmode(struct v9fs_session_info *v9ses,
 		int major = -1, minor = -1;
 
 		strlcpy(ext, stat->extension, sizeof(ext));
-		sscanf(ext, "%c %u %u", &type, &major, &minor);
+		sscanf(ext, "%c %i %i", &type, &major, &minor);
 		switch (type) {
 		case 'c':
 			res |= S_IFCHR;
