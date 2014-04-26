@@ -8,8 +8,6 @@
 #include <asm/page.h>      /* IO address mapping routines need this */
 #include <asm-generic/pci_iomap.h>
 
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
-
 static inline u32 flip_dword (u32 l)
 {
 	return ((l&0xff)<<24) | (((l>>8)&0xff)<<16) | (((l>>16)&0xff)<<8)| ((l>>24)&0xff);

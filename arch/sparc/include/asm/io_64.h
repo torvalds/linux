@@ -15,7 +15,6 @@
 
 /* BIO layer definitions. */
 extern unsigned long kern_base, kern_size;
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 static inline u8 _inb(unsigned long addr)
 {
