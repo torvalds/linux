@@ -530,10 +530,9 @@ exit:
 }
 
 u8 rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
-		      struct wlan_network * pnetwork)
+		      struct wlan_network *pnetwork)
 {
 	u8 *auth, res = _SUCCESS;
-	uint t_len = 0;
 	struct wlan_bssid_ex *psecnetwork;
 	struct cmd_obj *pcmd;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
@@ -567,8 +566,6 @@ u8 rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 			  "fail!!!\n"));
 		goto exit;
 	}
-	/* for IEs is fix buf size */
-	t_len = sizeof(struct wlan_bssid_ex);
 
 	/* for hidden ap to set fw_state here */
 	if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE)) {
@@ -586,7 +583,7 @@ u8 rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 		}
 	}
 
-	psecnetwork = (struct wlan_bssid_ex *)&psecuritypriv->sec_bss;
+	psecnetwork = &psecuritypriv->sec_bss;
 	if (!psecnetwork) {
 		if (pcmd)
 			kfree(pcmd);
@@ -599,7 +596,7 @@ u8 rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 		goto exit;
 	}
 
-	memset(psecnetwork, 0, t_len);
+	memset(psecnetwork, 0, sizeof(struct wlan_bssid_ex));
 
 	memcpy(psecnetwork, &pnetwork->network,
 	       get_wlan_bssid_ex_sz(&pnetwork->network));
