@@ -1721,12 +1721,12 @@ out:
  * Make the FIEMAP get_info call and returns the result.
  */
 static int ll_do_fiemap(struct inode *inode, struct ll_user_fiemap *fiemap,
-			int num_bytes)
+			size_t num_bytes)
 {
 	struct obd_export *exp = ll_i2dtexp(inode);
 	struct lov_stripe_md *lsm = NULL;
 	struct ll_fiemap_info_key fm_key = { .name = KEY_FIEMAP, };
-	int vallen = num_bytes;
+	__u32 vallen = num_bytes;
 	int rc;
 
 	/* Checks for fiemap flags */
@@ -3080,15 +3080,18 @@ static int ll_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	fiemap->fm_extent_count = fieinfo->fi_extents_max;
 	fiemap->fm_start = start;
 	fiemap->fm_length = len;
-	memcpy(&fiemap->fm_extents[0], fieinfo->fi_extents_start,
-	       sizeof(struct ll_fiemap_extent));
+	if (extent_count > 0)
+		memcpy(&fiemap->fm_extents[0], fieinfo->fi_extents_start,
+		       sizeof(struct ll_fiemap_extent));
 
 	rc = ll_do_fiemap(inode, fiemap, num_bytes);
 
 	fieinfo->fi_flags = fiemap->fm_flags;
 	fieinfo->fi_extents_mapped = fiemap->fm_mapped_extents;
-	memcpy(fieinfo->fi_extents_start, &fiemap->fm_extents[0],
-	       fiemap->fm_mapped_extents * sizeof(struct ll_fiemap_extent));
+	if (extent_count > 0)
+		memcpy(fieinfo->fi_extents_start, &fiemap->fm_extents[0],
+		       fiemap->fm_mapped_extents *
+		       sizeof(struct ll_fiemap_extent));
 
 	OBD_FREE_LARGE(fiemap, num_bytes);
 	return rc;

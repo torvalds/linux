@@ -2248,11 +2248,12 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	if (fm_end_offset == -EINVAL)
 		GOTO(out, rc = -EINVAL);
 
+	if (fiemap_count_to_size(fiemap->fm_extent_count) > *vallen)
+		fiemap->fm_extent_count = fiemap_size_to_count(*vallen);
 	if (fiemap->fm_extent_count == 0) {
 		get_num_extents = 1;
 		count_local = 0;
 	}
-
 	/* Check each stripe */
 	for (cur_stripe = start_stripe, i = 0; i < stripe_count;
 	     i++, cur_stripe = (cur_stripe + 1) % lsm->lsm_stripe_count) {
