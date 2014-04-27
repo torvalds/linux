@@ -982,8 +982,7 @@ void ll_lli_init(struct ll_inode_info *lli)
 		spin_lock_init(&lli->lli_sa_lock);
 		lli->lli_opendir_pid = 0;
 	} else {
-		sema_init(&lli->lli_size_sem, 1);
-		lli->lli_size_sem_owner = NULL;
+		mutex_init(&lli->lli_size_mutex);
 		lli->lli_symlink_name = NULL;
 		init_rwsem(&lli->lli_trunc_sem);
 		mutex_init(&lli->lli_write_mutex);
@@ -1700,10 +1699,7 @@ void ll_inode_size_lock(struct inode *inode)
 	LASSERT(!S_ISDIR(inode->i_mode));
 
 	lli = ll_i2info(inode);
-	LASSERT(lli->lli_size_sem_owner != current);
-	down(&lli->lli_size_sem);
-	LASSERT(lli->lli_size_sem_owner == NULL);
-	lli->lli_size_sem_owner = current;
+	mutex_lock(&lli->lli_size_mutex);
 }
 
 void ll_inode_size_unlock(struct inode *inode)
@@ -1711,9 +1707,7 @@ void ll_inode_size_unlock(struct inode *inode)
 	struct ll_inode_info *lli;
 
 	lli = ll_i2info(inode);
-	LASSERT(lli->lli_size_sem_owner == current);
-	lli->lli_size_sem_owner = NULL;
-	up(&lli->lli_size_sem);
+	mutex_unlock(&lli->lli_size_mutex);
 }
 
 void ll_update_inode(struct inode *inode, struct lustre_md *md)
