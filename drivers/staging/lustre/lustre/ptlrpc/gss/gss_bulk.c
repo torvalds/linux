@@ -176,31 +176,31 @@ int gss_cli_ctx_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	switch (SPTLRPC_FLVR_SVC(req->rq_flvr.sf_rpc)) {
 	case SPTLRPC_SVC_NULL:
 		vmsg = req->rq_repdata;
+		LASSERT(vmsg != NULL && vmsg->lm_bufcount >= 3);
 		voff = vmsg->lm_bufcount - 1;
-		LASSERT(vmsg && vmsg->lm_bufcount >= 3);
 
 		rmsg = req->rq_reqbuf;
+		LASSERT(rmsg != NULL && rmsg->lm_bufcount >= 3);
 		roff = rmsg->lm_bufcount - 1; /* last segment */
-		LASSERT(rmsg && rmsg->lm_bufcount >= 3);
 		break;
 	case SPTLRPC_SVC_AUTH:
 	case SPTLRPC_SVC_INTG:
 		vmsg = req->rq_repdata;
+		LASSERT(vmsg != NULL && vmsg->lm_bufcount >= 4);
 		voff = vmsg->lm_bufcount - 2;
-		LASSERT(vmsg && vmsg->lm_bufcount >= 4);
 
 		rmsg = req->rq_reqbuf;
+		LASSERT(rmsg != NULL && rmsg->lm_bufcount >= 4);
 		roff = rmsg->lm_bufcount - 2; /* second last segment */
-		LASSERT(rmsg && rmsg->lm_bufcount >= 4);
 		break;
 	case SPTLRPC_SVC_PRIV:
 		vmsg = req->rq_repdata;
+		LASSERT(vmsg != NULL && vmsg->lm_bufcount >= 2);
 		voff = vmsg->lm_bufcount - 1;
-		LASSERT(vmsg && vmsg->lm_bufcount >= 2);
 
 		rmsg = req->rq_clrbuf;
+		LASSERT(rmsg != NULL && rmsg->lm_bufcount >= 2);
 		roff = rmsg->lm_bufcount - 1; /* last segment */
-		LASSERT(rmsg && rmsg->lm_bufcount >= 2);
 		break;
 	default:
 		LBUG();
