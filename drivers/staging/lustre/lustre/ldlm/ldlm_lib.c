@@ -514,7 +514,7 @@ int client_connect_import(const struct lu_env *env,
 		LASSERT (imp->imp_state == LUSTRE_IMP_DISCON);
 		GOTO(out_ldlm, rc);
 	}
-	LASSERT((*exp)->exp_connection);
+	LASSERT(*exp != NULL && (*exp)->exp_connection);
 
 	if (data) {
 		LASSERTF((ocd->ocd_connect_flags & data->ocd_connect_flags) ==
