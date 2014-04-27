@@ -132,6 +132,13 @@ static inline bool lsm_has_objects(struct lov_stripe_md *lsm)
 	return true;
 }
 
+static inline int lov_stripe_md_size(unsigned int stripe_count)
+{
+	struct lov_stripe_md lsm;
+
+	return sizeof(lsm) + stripe_count * sizeof(lsm.lsm_oinfo[0]);
+}
+
 struct obd_info;
 
 typedef int (*obd_enqueue_update_f)(void *cookie, int rc);

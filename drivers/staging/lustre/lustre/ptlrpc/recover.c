@@ -49,7 +49,6 @@
 #include <obd.h>
 #include <obd_ost.h>
 #include <obd_class.h>
-#include <obd_lov.h> /* for IOC_LOV_SET_OSC_ACTIVE */
 #include <linux/list.h>
 
 #include "ptlrpc_internal.h"

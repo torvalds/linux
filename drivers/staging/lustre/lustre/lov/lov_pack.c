@@ -44,7 +44,6 @@
 
 #include <lustre_net.h>
 #include <obd.h>
-#include <obd_lov.h>
 #include <obd_class.h>
 #include <obd_support.h>
 #include <lustre/lustre_user.h>
@@ -177,8 +176,9 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 		 * Anyway, this is pretty inaccurate since ld_tgt_count now
 		 * represents max index and we should rely on the actual number
 		 * of OSTs instead */
-		stripe_count = lov_mds_md_stripecnt(lov->lov_ocd.ocd_max_easize,
-						    lmm_magic);
+		stripe_count = lov_mds_md_max_stripe_count(
+			lov->lov_ocd.ocd_max_easize, lmm_magic);
+
 		if (stripe_count > lov->desc.ld_tgt_count)
 			stripe_count = lov->desc.ld_tgt_count;
 	}
@@ -264,8 +264,8 @@ __u16 lov_get_stripecnt(struct lov_obd *lov, __u32 magic, __u16 stripe_count)
 	 * larger EA sizes */
 	if (lov->lov_ocd.ocd_connect_flags & OBD_CONNECT_MAX_EASIZE &&
 	    lov->lov_ocd.ocd_max_easize)
-		max_stripes = lov_mds_md_stripecnt(lov->lov_ocd.ocd_max_easize,
-						   magic);
+		max_stripes = lov_mds_md_max_stripe_count(
+			lov->lov_ocd.ocd_max_easize, magic);
 
 	if (stripe_count > max_stripes)
 		stripe_count = max_stripes;

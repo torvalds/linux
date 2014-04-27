@@ -42,7 +42,6 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 #include "lov_cl_internal.h"
-#include <lustre_debug.h>
 
 /** \addtogroup lov
  *  @{

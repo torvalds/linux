@@ -39,8 +39,6 @@
 #include <linux/libcfs/libcfs.h>
 
 #include <obd_class.h>
-#include <obd_lov.h>
-
 #include "lov_internal.h"
 
 /** Merge the lock value block(&lvb) attributes and KMS from each of the

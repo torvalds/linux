@@ -711,15 +711,6 @@ static inline int obd_size_diskmd(struct obd_export *exp,
 	return obd_packmd(exp, NULL, mem_src);
 }
 
-/* helper functions */
-static inline int obd_alloc_diskmd(struct obd_export *exp,
-				   struct lov_mds_md **disk_tgt)
-{
-	LASSERT(disk_tgt);
-	LASSERT(*disk_tgt == NULL);
-	return obd_packmd(exp, disk_tgt, NULL);
-}
-
 static inline int obd_free_diskmd(struct obd_export *exp,
 				  struct lov_mds_md **disk_tgt)
 {

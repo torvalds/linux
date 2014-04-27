@@ -47,7 +47,6 @@
 #include <lustre_fid.h>
 #include <lustre_acl.h>
 #include <lustre_net.h>
-#include <obd_lov.h>
 
 #include "echo_internal.h"
 

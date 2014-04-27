@@ -50,9 +50,7 @@
 #include <lustre/lustre_idl.h>
 #include <lustre_dlm.h>
 #include <lustre_mds.h>
-#include <lustre_debug.h>
 #include <obd_class.h>
-#include <obd_lov.h>
 #include <obd_ost.h>
 #include <lprocfs_status.h>
 #include <lustre_param.h>
@@ -725,8 +723,8 @@ void lov_fix_desc_stripe_size(__u64 *val)
 		if (*val != 0)
 			LCONSOLE_INFO("Increasing default stripe size to "
 				      "minimum %u\n",
-				      LOV_DEFAULT_STRIPE_SIZE);
-		*val = LOV_DEFAULT_STRIPE_SIZE;
+				      LOV_DESC_STRIPE_SIZE_DEFAULT);
+		*val = LOV_DESC_STRIPE_SIZE_DEFAULT;
 	} else if (*val & (LOV_MIN_STRIPE_SIZE - 1)) {
 		*val &= ~(LOV_MIN_STRIPE_SIZE - 1);
 		LCONSOLE_WARN("Changing default stripe size to "LPU64" (a "
@@ -752,9 +750,8 @@ void lov_fix_desc_pattern(__u32 *val)
 
 void lov_fix_desc_qos_maxage(__u32 *val)
 {
-	/* fix qos_maxage */
 	if (*val == 0)
-		*val = QOS_DEFAULT_MAXAGE;
+		*val = LOV_DESC_QOS_MAXAGE_DEFAULT;
 }
 
 void lov_fix_desc(struct lov_desc *desc)
