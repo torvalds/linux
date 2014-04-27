@@ -197,7 +197,7 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 		f2fs_sync_fs(sbi->sb, true);
 }
 
-int issue_flush_thread(void *data)
+static int issue_flush_thread(void *data)
 {
 	struct f2fs_sb_info *sbi = data;
 	struct flush_cmd_control *fcc = SM_I(sbi)->cmd_control_info;
@@ -262,6 +262,40 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 	ret = cmd->ret;
 	kmem_cache_free(flush_cmd_slab, cmd);
 	return ret;
+}
+
+int create_flush_cmd_control(struct f2fs_sb_info *sbi)
+{
+	dev_t dev = sbi->sb->s_bdev->bd_dev;
+	struct flush_cmd_control *fcc;
+	int err = 0;
+
+	fcc = kzalloc(sizeof(struct flush_cmd_control), GFP_KERNEL);
+	if (!fcc)
+		return -ENOMEM;
+	spin_lock_init(&fcc->issue_lock);
+	init_waitqueue_head(&fcc->flush_wait_queue);
+	fcc->f2fs_issue_flush = kthread_run(issue_flush_thread, sbi,
+				"f2fs_flush-%u:%u", MAJOR(dev), MINOR(dev));
+	if (IS_ERR(fcc->f2fs_issue_flush)) {
+		err = PTR_ERR(fcc->f2fs_issue_flush);
+		kfree(fcc);
+		return err;
+	}
+	sbi->sm_info->cmd_control_info = fcc;
+
+	return err;
+}
+
+void destroy_flush_cmd_control(struct f2fs_sb_info *sbi)
+{
+	struct flush_cmd_control *fcc =
+				sbi->sm_info->cmd_control_info;
+
+	if (fcc && fcc->f2fs_issue_flush)
+		kthread_stop(fcc->f2fs_issue_flush);
+	kfree(fcc);
+	sbi->sm_info->cmd_control_info = NULL;
 }
 
 static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
@@ -1845,7 +1879,6 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
-	dev_t dev = sbi->sb->s_bdev->bd_dev;
 	struct f2fs_sm_info *sm_info;
 	int err;
 
@@ -1874,22 +1907,9 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 	sm_info->max_discards = 0;
 
 	if (test_opt(sbi, FLUSH_MERGE) && !f2fs_readonly(sbi->sb)) {
-		struct flush_cmd_control *fcc =
-			kzalloc(sizeof(struct flush_cmd_control), GFP_KERNEL);
-
-		if (!fcc)
-			return -ENOMEM;
-		spin_lock_init(&fcc->issue_lock);
-		init_waitqueue_head(&fcc->flush_wait_queue);
-
-		fcc->f2fs_issue_flush = kthread_run(issue_flush_thread, sbi,
-				"f2fs_flush-%u:%u", MAJOR(dev), MINOR(dev));
-		if (IS_ERR(fcc->f2fs_issue_flush)) {
-			err = PTR_ERR(fcc->f2fs_issue_flush);
-			kfree(fcc);
+		err = create_flush_cmd_control(sbi);
+		if (err)
 			return err;
-		}
-		sm_info->cmd_control_info = fcc;
 	}
 
 	err = build_sit_info(sbi);
@@ -1998,14 +2018,10 @@ static void destroy_sit_info(struct f2fs_sb_info *sbi)
 void destroy_segment_manager(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_sm_info *sm_info = SM_I(sbi);
-	struct flush_cmd_control *fcc;
 
 	if (!sm_info)
 		return;
-	fcc = sm_info->cmd_control_info;
-	if (fcc && fcc->f2fs_issue_flush)
-		kthread_stop(fcc->f2fs_issue_flush);
-	kfree(fcc);
+	destroy_flush_cmd_control(sbi);
 	destroy_dirty_segmap(sbi);
 	destroy_curseg(sbi);
 	destroy_free_segmap(sbi);
