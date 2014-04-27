@@ -1445,7 +1445,7 @@ static inline void unlock_res(struct ldlm_resource *res)
 /** Check if resource is already locked, assert if not. */
 static inline void check_res_locked(struct ldlm_resource *res)
 {
-	LASSERT(spin_is_locked(&res->lr_lock));
+	assert_spin_locked(&res->lr_lock);
 }
 
 struct ldlm_resource * lock_res_and_lock(struct ldlm_lock *lock);

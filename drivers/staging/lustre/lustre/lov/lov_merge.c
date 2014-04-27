@@ -58,7 +58,7 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	int i;
 	int rc = 0;
 
-	LASSERT(spin_is_locked(&lsm->lsm_lock));
+	assert_spin_locked(&lsm->lsm_lock);
 	LASSERT(lsm->lsm_lock_owner == current_pid());
 
 	CDEBUG(D_INODE, "MDT ID "DOSTID" initial value: s="LPU64" m="LPU64
@@ -145,7 +145,7 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 	int stripe = 0;
 	__u64 kms;
 
-	LASSERT(spin_is_locked(&lsm->lsm_lock));
+	assert_spin_locked(&lsm->lsm_lock);
 	LASSERT(lsm->lsm_lock_owner == current_pid());
 
 	if (shrink) {

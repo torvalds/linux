@@ -66,7 +66,7 @@
  * - spin_unlock(x)
  * - spin_unlock_bh(x)
  * - spin_trylock(x)
- * - spin_is_locked(x)
+ * - assert_spin_locked(x)
  *
  * - spin_lock_irq(x)
  * - spin_lock_irqsave(x, f)

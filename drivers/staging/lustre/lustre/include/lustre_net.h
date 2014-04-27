@@ -719,7 +719,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *			 \a nrq
 	 * \param[in,out] nrq	 The request
 	 *
-	 * \pre spin_is_locked(&svcpt->scp_req_lock)
+	 * \pre assert_spin_locked(&svcpt->scp_req_lock)
 	 *
 	 * \see ptlrpc_nrs_req_stop_nolock()
 	 */

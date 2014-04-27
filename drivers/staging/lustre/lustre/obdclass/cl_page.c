@@ -130,7 +130,7 @@ struct cl_page *cl_page_lookup(struct cl_object_header *hdr, pgoff_t index)
 {
 	struct cl_page *page;
 
-	LASSERT(spin_is_locked(&hdr->coh_page_guard));
+	assert_spin_locked(&hdr->coh_page_guard);
 
 	page = radix_tree_lookup(&hdr->coh_tree, index);
 	if (page != NULL)

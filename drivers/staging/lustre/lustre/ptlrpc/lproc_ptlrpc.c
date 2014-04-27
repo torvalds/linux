@@ -449,7 +449,7 @@ void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
 {
 	LASSERT(policy != NULL);
 	LASSERT(info != NULL);
-	LASSERT(spin_is_locked(&policy->pol_nrs->nrs_lock));
+	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
 	memcpy(info->pi_name, policy->pol_desc->pd_name, NRS_POL_NAME_MAX);
 

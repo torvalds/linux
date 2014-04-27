@@ -368,7 +368,7 @@ EXPORT_SYMBOL(ptlrpc_pinger_sending_on_import);
 void ptlrpc_pinger_commit_expected(struct obd_import *imp)
 {
 	ptlrpc_update_next_ping(imp, 1);
-	LASSERT(spin_is_locked(&imp->imp_lock));
+	assert_spin_locked(&imp->imp_lock);
 	/*
 	 * Avoid reading stale imp_connect_data.  When not sure if pings are
 	 * expected or not on next connection, we assume they are not and force
