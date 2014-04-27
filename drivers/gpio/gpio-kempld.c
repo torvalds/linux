@@ -24,7 +24,7 @@
 #include <linux/mfd/kempld.h>
 
 #define KEMPLD_GPIO_MAX_NUM		16
-#define KEMPLD_GPIO_MASK(x)		(1 << ((x) % 8))
+#define KEMPLD_GPIO_MASK(x)		(BIT((x) % 8))
 #define KEMPLD_GPIO_DIR_NUM(x)		(0x40 + (x) / 8)
 #define KEMPLD_GPIO_LVL_NUM(x)		(0x42 + (x) / 8)
 #define KEMPLD_GPIO_EVT_LVL_EDGE	0x46
