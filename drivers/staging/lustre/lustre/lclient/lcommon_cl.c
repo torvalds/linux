@@ -63,7 +63,7 @@
 
 #include "../llite/llite_internal.h"
 
-const struct cl_req_operations ccc_req_ops;
+static const struct cl_req_operations ccc_req_ops;
 
 /*
  * ccc_ prefix stands for "Common Client Code".
@@ -962,7 +962,7 @@ void ccc_req_attr_set(const struct lu_env *env,
 	       JOBSTATS_JOBID_SIZE);
 }
 
-const struct cl_req_operations ccc_req_ops = {
+static const struct cl_req_operations ccc_req_ops = {
 	.cro_attr_set   = ccc_req_attr_set,
 	.cro_completion = ccc_req_completion
 };

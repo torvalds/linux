@@ -120,8 +120,8 @@ static int vvp_attr_set(const struct lu_env *env, struct cl_object *obj,
 	return 0;
 }
 
-int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
-		const struct cl_object_conf *conf)
+static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
+			const struct cl_object_conf *conf)
 {
 	struct ll_inode_info *lli = ll_i2info(conf->coc_inode);
 

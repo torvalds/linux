@@ -190,7 +190,7 @@ static void vvp_io_fault_fini(const struct lu_env *env,
 	vvp_io_fini(env, ios);
 }
 
-enum cl_lock_mode vvp_mode_from_vma(struct vm_area_struct *vma)
+static enum cl_lock_mode vvp_mode_from_vma(struct vm_area_struct *vma)
 {
 	/*
 	 * we only want to hold PW locks if the mmap() can generate

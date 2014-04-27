@@ -232,7 +232,7 @@ static int ll_xattr_cache_list(struct list_head *cache,
  * \retval 0 @cache is not initialized
  * \retval 1 @cache is initialized
  */
-int ll_xattr_cache_valid(struct ll_inode_info *lli)
+static int ll_xattr_cache_valid(struct ll_inode_info *lli)
 {
 	return !!(lli->lli_flags & LLIF_XATTR_CACHE);
 }

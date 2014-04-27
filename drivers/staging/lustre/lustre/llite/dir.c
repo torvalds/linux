@@ -632,7 +632,7 @@ out:
 	return rc;
 }
 
-int ll_send_mgc_param(struct obd_export *mgc, char *string)
+static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 {
 	struct mgs_send_param *msp;
 	int rc = 0;
@@ -1964,17 +1964,17 @@ out:
 	return ret;
 }
 
-int ll_dir_open(struct inode *inode, struct file *file)
+static int ll_dir_open(struct inode *inode, struct file *file)
 {
 	return ll_file_open(inode, file);
 }
 
-int ll_dir_release(struct inode *inode, struct file *file)
+static int ll_dir_release(struct inode *inode, struct file *file)
 {
 	return ll_file_release(inode, file);
 }
 
-struct file_operations ll_dir_operations = {
+const struct file_operations ll_dir_operations = {
 	.llseek   = ll_dir_seek,
 	.open     = ll_dir_open,
 	.release  = ll_dir_release,

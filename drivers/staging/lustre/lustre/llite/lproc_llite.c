@@ -41,9 +41,9 @@
 #include <obd_support.h>
 
 #include "llite_internal.h"
+#include "vvp_internal.h"
 
 /* /proc/lustre/llite mount point registration */
-extern struct file_operations vvp_dump_pgcache_file_ops;
 static struct file_operations ll_rw_extents_stats_fops;
 static struct file_operations ll_rw_extents_stats_pp_fops;
 static struct file_operations ll_rw_offset_stats_fops;
@@ -837,7 +837,7 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 
 #define MAX_STRING_SIZE 128
 
-struct llite_file_opcode {
+static const struct llite_file_opcode {
 	__u32       opcode;
 	__u32       type;
 	const char *opname;

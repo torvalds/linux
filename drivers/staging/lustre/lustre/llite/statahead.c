@@ -1230,9 +1230,7 @@ do_it:
 			 */
 			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
 					      LDF_COLLIDE);
-			sai->sai_in_readpage = 1;
 			page = ll_get_dir_page(dir, pos, &chain);
-			sai->sai_in_readpage = 0;
 		} else {
 			LASSERT(le32_to_cpu(dp->ldp_flags) & LDF_COLLIDE);
 			ll_release_page(page, 1);
@@ -1562,12 +1560,6 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 			ll_sai_unplug(sai, entry);
 			return entry ? 1 : -EAGAIN;
 		}
-
-		/* if statahead is busy in readdir, help it do post-work */
-		while (!ll_sa_entry_stated(entry) &&
-		       sai->sai_in_readpage &&
-		       !sa_received_empty(sai))
-			ll_post_statahead(sai);
 
 		if (!ll_sa_entry_stated(entry)) {
 			sai->sai_index_wait = entry->se_index;

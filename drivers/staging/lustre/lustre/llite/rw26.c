@@ -529,9 +529,9 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 }
 
 #ifdef CONFIG_MIGRATION
-int ll_migratepage(struct address_space *mapping,
-		struct page *newpage, struct page *page
-		, enum migrate_mode mode
+static int ll_migratepage(struct address_space *mapping,
+			 struct page *newpage, struct page *page,
+			 enum migrate_mode mode
 		)
 {
 	/* Always fail page migration until we have a proper implementation */
@@ -540,9 +540,8 @@ int ll_migratepage(struct address_space *mapping,
 #endif
 
 #ifndef MS_HAS_NEW_AOPS
-struct address_space_operations ll_aops = {
-	.readpage       = ll_readpage,
-//	.readpages      = ll_readpages,
+const struct address_space_operations ll_aops = {
+	.readpage	= ll_readpage,
 	.direct_IO      = ll_direct_IO_26,
 	.writepage      = ll_writepage,
 	.writepages     = ll_writepages,
@@ -554,10 +553,9 @@ struct address_space_operations ll_aops = {
 #ifdef CONFIG_MIGRATION
 	.migratepage    = ll_migratepage,
 #endif
-	.bmap	   = NULL
 };
 #else
-struct address_space_operations_ext ll_aops = {
+const struct address_space_operations_ext ll_aops = {
 	.orig_aops.readpage       = ll_readpage,
 //	.orig_aops.readpages      = ll_readpages,
 	.orig_aops.direct_IO      = ll_direct_IO_26,
@@ -571,7 +569,6 @@ struct address_space_operations_ext ll_aops = {
 #ifdef CONFIG_MIGRATION
 	.orig_aops.migratepage    = ll_migratepage,
 #endif
-	.orig_aops.bmap	   = NULL,
 	.write_begin    = ll_write_begin,
 	.write_end      = ll_write_end
 };
