@@ -842,7 +842,7 @@ static void ptlrpc_server_free_request(struct ptlrpc_request *req)
 		/* NB request buffers use an embedded
 		 * req if the incoming req unlinked the
 		 * MD; this isn't one of them! */
-		OBD_FREE(req, sizeof(*req));
+		ptlrpc_request_cache_free(req);
 	}
 }
 
@@ -1305,14 +1305,12 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	}
 	newdl = cfs_time_current_sec() + at_get(&svcpt->scp_at_estimate);
 
-	OBD_ALLOC(reqcopy, sizeof(*reqcopy));
+	reqcopy = ptlrpc_request_cache_alloc(__GFP_IO);
 	if (reqcopy == NULL)
 		return -ENOMEM;
 	OBD_ALLOC_LARGE(reqmsg, req->rq_reqlen);
-	if (!reqmsg) {
-		OBD_FREE(reqcopy, sizeof(*reqcopy));
-		return -ENOMEM;
-	}
+	if (!reqmsg)
+		GOTO(out_free, rc = -ENOMEM);
 
 	*reqcopy = *req;
 	reqcopy->rq_reply_state = NULL;
@@ -1369,7 +1367,8 @@ out_put:
 out:
 	sptlrpc_svc_ctx_decref(reqcopy);
 	OBD_FREE_LARGE(reqmsg, req->rq_reqlen);
-	OBD_FREE(reqcopy, sizeof(*reqcopy));
+out_free:
+	ptlrpc_request_cache_free(reqcopy);
 	return rc;
 }
 
