@@ -377,7 +377,7 @@ static struct sk_buff *rndis_add_header(struct gether *port,
 	if (skb2)
 		rndis_add_hdr(skb2);
 
-	dev_kfree_skb_any(skb);
+	dev_kfree_skb(skb);
 	return skb2;
 }
 

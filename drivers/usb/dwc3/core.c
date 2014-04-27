@@ -821,6 +821,7 @@ static void dwc3_complete(struct device *dev)
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
+	dwc3_event_buffers_setup(dwc);
 	switch (dwc->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
 	case USB_DR_MODE_OTG:
@@ -828,7 +829,6 @@ static void dwc3_complete(struct device *dev)
 		/* FALLTHROUGH */
 	case USB_DR_MODE_HOST:
 	default:
-		dwc3_event_buffers_setup(dwc);
 		break;
 	}
 
