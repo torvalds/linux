@@ -248,6 +248,18 @@ void rcu_idle_exit(void);
 void rcu_irq_enter(void);
 void rcu_irq_exit(void);
 
+#ifdef CONFIG_RCU_STALL_COMMON
+void rcu_sysrq_start(void);
+void rcu_sysrq_end(void);
+#else /* #ifdef CONFIG_RCU_STALL_COMMON */
+static inline void rcu_sysrq_start(void)
+{
+}
+static inline void rcu_sysrq_end(void)
+{
+}
+#endif /* #else #ifdef CONFIG_RCU_STALL_COMMON */
+
 #ifdef CONFIG_RCU_USER_QS
 void rcu_user_enter(void);
 void rcu_user_exit(void);
