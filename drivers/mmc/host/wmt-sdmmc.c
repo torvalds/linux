@@ -829,7 +829,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 		goto fail3;
 	}
 
-	ret = request_irq(dma_irq, wmt_mci_dma_isr, 32, "sdmmc", priv);
+	ret = request_irq(dma_irq, wmt_mci_dma_isr, 0, "sdmmc", priv);
 	if (ret) {
 		dev_err(&pdev->dev, "Register DMA IRQ fail\n");
 		goto fail4;
