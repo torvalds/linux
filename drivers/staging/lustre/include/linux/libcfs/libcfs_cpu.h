@@ -203,6 +203,11 @@ void cfs_cpt_clear(struct cfs_cpt_table *cptab, int cpt);
 int cfs_cpt_spread_node(struct cfs_cpt_table *cptab, int cpt);
 
 /**
+ * return number of HTs in the same core of \a cpu
+ */
+int cfs_cpu_ht_nsiblings(int cpu);
+
+/**
  * iterate over all CPU partitions in \a cptab
  */
 #define cfs_cpt_for_each(i, cptab)	\
