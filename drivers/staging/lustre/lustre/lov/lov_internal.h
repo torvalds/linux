@@ -251,10 +251,6 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 			    __u32 *indexp, int *genp);
 int lov_del_target(struct obd_device *obd, __u32 index,
 		   struct obd_uuid *uuidp, int gen);
-/* lov_log.c */
-int lov_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
-		  struct obd_device *tgt, int *idx);
-int lov_llog_finish(struct obd_device *obd, int count);
 
 /* lov_pack.c */
 int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmm,

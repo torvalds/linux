@@ -59,7 +59,6 @@
 #include <cl_object.h>
 #include <lclient.h> /* for cl_client_lru */
 #include <lustre/ll_fiemap.h>
-#include <lustre_log.h>
 #include <lustre_fid.h>
 
 #include "lov_internal.h"
@@ -861,12 +860,10 @@ static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		}
 		break;
 	}
-	case OBD_CLEANUP_EXPORTS:
-		rc = obd_llog_finish(obd, 0);
-		if (rc != 0)
-			CERROR("failed to cleanup llogging subsystems\n");
+	default:
 		break;
 	}
+
 	return rc;
 }
 
@@ -2808,8 +2805,6 @@ struct obd_ops lov_obd_ops = {
 	.o_get_info	    = lov_get_info,
 	.o_set_info_async      = lov_set_info_async,
 	.o_extent_calc	 = lov_extent_calc,
-	.o_llog_init	   = lov_llog_init,
-	.o_llog_finish	 = lov_llog_finish,
 	.o_notify	      = lov_notify,
 	.o_pool_new	    = lov_pool_new,
 	.o_pool_rem	    = lov_pool_remove,
