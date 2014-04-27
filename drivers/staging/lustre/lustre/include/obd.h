@@ -316,9 +316,10 @@ struct client_obd {
 	int		      cl_conn_count;
 	/* max_mds_easize is purely a performance thing so we don't have to
 	 * call obd_size_diskmd() all the time. */
-	int		      cl_default_mds_easize;
-	int		      cl_max_mds_easize;
-	int		      cl_max_mds_cookiesize;
+	int			 cl_default_mds_easize;
+	int			 cl_max_mds_easize;
+	int			 cl_default_mds_cookiesize;
+	int			 cl_max_mds_cookiesize;
 
 	enum lustre_sec_part     cl_sp_me;
 	enum lustre_sec_part     cl_sp_to;
@@ -605,6 +606,7 @@ struct lmv_obd {
 	int			max_easize;
 	int			max_def_easize;
 	int			max_cookiesize;
+	int			max_def_cookiesize;
 	int			server_timeout;
 
 	int			tgts_size; /* size of tgts array */
@@ -996,7 +998,10 @@ enum obd_cleanup_stage {
 #define KEY_LOCK_TO_STRIPE      "lock_to_stripe"
 #define KEY_LOVDESC	     "lovdesc"
 #define KEY_LOV_IDX	     "lov_idx"
-#define KEY_MAX_EASIZE	  "max_easize"
+#define KEY_MAX_EASIZE		"max_easize"
+#define KEY_DEFAULT_EASIZE	"default_easize"
+#define KEY_MAX_COOKIESIZE	"max_cookiesize"
+#define KEY_DEFAULT_COOKIESIZE	"default_cookiesize"
 #define KEY_MDS_CONN	    "mds_conn"
 #define KEY_MGSSEC	      "mgssec"
 #define KEY_NEXT_ID	     "next_id"
@@ -1390,7 +1395,7 @@ struct md_ops {
 			  const char *, int, int, int,
 			  struct ptlrpc_request **);
 
-	int (*m_init_ea_size)(struct obd_export *, int, int, int);
+	int (*m_init_ea_size)(struct obd_export *, int, int, int, int);
 
 	int (*m_get_lustre_md)(struct obd_export *, struct ptlrpc_request *,
 			       struct obd_export *, struct obd_export *,

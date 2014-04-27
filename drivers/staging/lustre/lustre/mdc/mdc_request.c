@@ -903,9 +903,9 @@ int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_close_pack(req, op_data);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_easize);
+			     obd->u.cli.cl_default_mds_easize);
 	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_cookiesize);
+			     obd->u.cli.cl_default_mds_cookiesize);
 
 	ptlrpc_request_set_replen(req);
 
@@ -2153,11 +2153,39 @@ int mdc_get_info(const struct lu_env *env, struct obd_export *exp,
 
 		if (*vallen != sizeof(int))
 			return -EINVAL;
-		mdsize = *(int*)val;
+		mdsize = *(int *)val;
 		if (mdsize > exp->exp_obd->u.cli.cl_max_mds_easize)
 			exp->exp_obd->u.cli.cl_max_mds_easize = mdsize;
 		max_easize = val;
 		*max_easize = exp->exp_obd->u.cli.cl_max_mds_easize;
+		return 0;
+	} else if (KEY_IS(KEY_DEFAULT_EASIZE)) {
+		int *default_easize;
+
+		if (*vallen != sizeof(int))
+			return -EINVAL;
+		default_easize = val;
+		*default_easize = exp->exp_obd->u.cli.cl_default_mds_easize;
+		return 0;
+	} else if (KEY_IS(KEY_MAX_COOKIESIZE)) {
+		int mdsize, *max_cookiesize;
+
+		if (*vallen != sizeof(int))
+			return -EINVAL;
+		mdsize = *(int *)val;
+		if (mdsize > exp->exp_obd->u.cli.cl_max_mds_cookiesize)
+			exp->exp_obd->u.cli.cl_max_mds_cookiesize = mdsize;
+		max_cookiesize = val;
+		*max_cookiesize = exp->exp_obd->u.cli.cl_max_mds_cookiesize;
+		return 0;
+	} else if (KEY_IS(KEY_DEFAULT_COOKIESIZE)) {
+		int *default_cookiesize;
+
+		if (*vallen != sizeof(int))
+			return -EINVAL;
+		default_cookiesize = val;
+		*default_cookiesize =
+			exp->exp_obd->u.cli.cl_default_mds_cookiesize;
 		return 0;
 	} else if (KEY_IS(KEY_CONN_DATA)) {
 		struct obd_import *imp = class_exp2cliimp(exp);
@@ -2439,11 +2467,15 @@ err_rpc_lock:
 }
 
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows
- * us to make MDS RPCs with large enough reply buffers to hold the
- * maximum-sized (= maximum striped) EA and cookie without having to
- * calculate this (via a call into the LOV + OSCs) each time we make an RPC. */
+ * us to make MDS RPCs with large enough reply buffers to hold a default
+ * sized EA and cookie without having to calculate this (via a call into the
+ * LOV + OSCs) each time we make an RPC.  The maximum size is also tracked
+ * but not used to avoid wastefully vmalloc()'ing large reply buffers when
+ * a large number of stripes is possible.  If a larger reply buffer is
+ * required it will be reallocated in the ptlrpc layer due to overflow.
+ */
 static int mdc_init_ea_size(struct obd_export *exp, int easize,
-		     int def_easize, int cookiesize)
+			    int def_easize, int cookiesize, int def_cookiesize)
 {
 	struct obd_device *obd = exp->exp_obd;
 	struct client_obd *cli = &obd->u.cli;
@@ -2456,6 +2488,9 @@ static int mdc_init_ea_size(struct obd_export *exp, int easize,
 
 	if (cli->cl_max_mds_cookiesize < cookiesize)
 		cli->cl_max_mds_cookiesize = cookiesize;
+
+	if (cli->cl_default_mds_cookiesize < def_cookiesize)
+		cli->cl_default_mds_cookiesize = def_cookiesize;
 
 	return 0;
 }

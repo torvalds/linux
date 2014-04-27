@@ -681,7 +681,7 @@ static ssize_t ll_lazystatfs_seq_write(struct file *file, const char *buffer,
 }
 LPROC_SEQ_FOPS(ll_lazystatfs);
 
-static int ll_maxea_size_seq_show(struct seq_file *m, void *v)
+static int ll_max_easize_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -694,7 +694,52 @@ static int ll_maxea_size_seq_show(struct seq_file *m, void *v)
 
 	return seq_printf(m, "%u\n", ealen);
 }
-LPROC_SEQ_FOPS_RO(ll_maxea_size);
+LPROC_SEQ_FOPS_RO(ll_max_easize);
+
+static int ll_defult_easize_seq_show(struct seq_file *m, void *v)
+{
+	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	unsigned int ealen;
+	int rc;
+
+	rc = ll_get_default_mdsize(sbi, &ealen);
+	if (rc)
+		return rc;
+
+	return seq_printf(m, "%u\n", ealen);
+}
+LPROC_SEQ_FOPS_RO(ll_defult_easize);
+
+static int ll_max_cookiesize_seq_show(struct seq_file *m, void *v)
+{
+	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	unsigned int cookielen;
+	int rc;
+
+	rc = ll_get_max_cookiesize(sbi, &cookielen);
+	if (rc)
+		return rc;
+
+	return seq_printf(m, "%u\n", cookielen);
+}
+LPROC_SEQ_FOPS_RO(ll_max_cookiesize);
+
+static int ll_defult_cookiesize_seq_show(struct seq_file *m, void *v)
+{
+	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	unsigned int cookielen;
+	int rc;
+
+	rc = ll_get_default_cookiesize(sbi, &cookielen);
+	if (rc)
+		return rc;
+
+	return seq_printf(m, "%u\n", cookielen);
+}
+LPROC_SEQ_FOPS_RO(ll_defult_cookiesize);
 
 static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 {
@@ -781,7 +826,10 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "statahead_agl",    &ll_statahead_agl_fops, 0 },
 	{ "statahead_stats",  &ll_statahead_stats_fops, 0, 0 },
 	{ "lazystatfs",       &ll_lazystatfs_fops, 0 },
-	{ "max_easize",       &ll_maxea_size_fops, 0, 0 },
+	{ "max_easize",       &ll_max_easize_fops, 0, 0 },
+	{ "default_easize",   &ll_defult_easize_fops, 0, 0 },
+	{ "max_cookiesize",   &ll_max_cookiesize_fops, 0, 0 },
+	{ "default_cookiesize", &ll_defult_cookiesize_fops, 0, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, 0, 0 },
 	{ "xattr_cache",      &ll_xattr_cache_fops, 0, 0 },
 	{ 0 }
