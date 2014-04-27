@@ -338,7 +338,7 @@ lnet_counters_get(lnet_counters_t *counters)
 		counters->send_count   += ctr->send_count;
 		counters->recv_count   += ctr->recv_count;
 		counters->route_count  += ctr->route_count;
-		counters->drop_length  += ctr->drop_length;
+		counters->drop_count   += ctr->drop_count;
 		counters->send_length  += ctr->send_length;
 		counters->recv_length  += ctr->recv_length;
 		counters->route_length += ctr->route_length;
