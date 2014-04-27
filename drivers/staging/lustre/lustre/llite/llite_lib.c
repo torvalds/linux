@@ -2456,11 +2456,12 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 			path = ll_d_path(dentry, buf, PAGE_SIZE);
 	}
 
-	CWARN("%s: dirty page discard: %s/fid: "DFID"/%s may get corrupted "
-	      "(rc %d)\n", ll_get_fsname(page->mapping->host->i_sb, NULL, 0),
-	      s2lsi(page->mapping->host->i_sb)->lsi_lmd->lmd_dev,
-	      PFID(&obj->cob_header.coh_lu.loh_fid),
-	      (path && !IS_ERR(path)) ? path : "", ioret);
+	CDEBUG(D_WARNING,
+	       "%s: dirty page discard: %s/fid: "DFID"/%s may get corrupted "
+	       "(rc %d)\n", ll_get_fsname(page->mapping->host->i_sb, NULL, 0),
+	       s2lsi(page->mapping->host->i_sb)->lsi_lmd->lmd_dev,
+	       PFID(&obj->cob_header.coh_lu.loh_fid),
+	       (path && !IS_ERR(path)) ? path : "", ioret);
 
 	if (dentry != NULL)
 		dput(dentry);
