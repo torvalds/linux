@@ -326,22 +326,24 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	}
 }
 
+static inline unsigned long *
+scratch_reg(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	return (auprobe->def.fixups & UPROBE_FIX_RIP_AX) ? &regs->ax : &regs->cx;
+}
+
 /*
  * If we're emulating a rip-relative instruction, save the contents
  * of the scratch register and store the target address in that register.
  */
 static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	struct uprobe_task *utask = current->utask;
+	if (auprobe->def.fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) {
+		struct uprobe_task *utask = current->utask;
+		unsigned long *sr = scratch_reg(auprobe, regs);
 
-	if (auprobe->def.fixups & UPROBE_FIX_RIP_AX) {
-		utask->autask.saved_scratch_register = regs->ax;
-		regs->ax = utask->vaddr;
-		regs->ax += auprobe->def.riprel_target;
-	} else if (auprobe->def.fixups & UPROBE_FIX_RIP_CX) {
-		utask->autask.saved_scratch_register = regs->cx;
-		regs->cx = utask->vaddr;
-		regs->cx += auprobe->def.riprel_target;
+		utask->autask.saved_scratch_register = *sr;
+		*sr = utask->vaddr + auprobe->def.riprel_target;
 	}
 }
 
@@ -349,14 +351,10 @@ static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
 				long *correction)
 {
 	if (auprobe->def.fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) {
-		struct arch_uprobe_task *autask;
+		struct uprobe_task *utask = current->utask;
+		unsigned long *sr = scratch_reg(auprobe, regs);
 
-		autask = &current->utask->autask;
-		if (auprobe->def.fixups & UPROBE_FIX_RIP_AX)
-			regs->ax = autask->saved_scratch_register;
-		else
-			regs->cx = autask->saved_scratch_register;
-
+		*sr = utask->autask.saved_scratch_register;
 		/*
 		 * The original instruction includes a displacement, and so
 		 * is 4 bytes longer than what we've just single-stepped.
