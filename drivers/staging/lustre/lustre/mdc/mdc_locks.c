@@ -462,6 +462,7 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 					       OBD_MD_FLRMTPERM : OBD_MD_FLACL);
 	struct ldlm_intent    *lit;
 	int		    rc;
+	int		    easize;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_LDLM_INTENT_GETATTR);
@@ -482,12 +483,15 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 	lit = req_capsule_client_get(&req->rq_pill, &RMF_LDLM_INTENT);
 	lit->opc = (__u64)it->it_op;
 
-	/* pack the intended request */
-	mdc_getattr_pack(req, valid, it->it_flags, op_data,
-			 obddev->u.cli.cl_default_mds_easize);
+	if (obddev->u.cli.cl_default_mds_easize > 0)
+		easize = obddev->u.cli.cl_default_mds_easize;
+	else
+		easize = obddev->u.cli.cl_max_mds_easize;
 
-	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obddev->u.cli.cl_default_mds_easize);
+	/* pack the intended request */
+	mdc_getattr_pack(req, valid, it->it_flags, op_data, easize);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER, easize);
 	if (client_is_remote(exp))
 		req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
 				     sizeof(struct mdt_remote_perm));
