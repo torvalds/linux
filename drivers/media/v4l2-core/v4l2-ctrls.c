@@ -1304,29 +1304,84 @@ static const struct v4l2_ctrl_type_ops std_type_ops = {
 	.validate = std_validate,
 };
 
-/* Helper function: copy the current control value back to the caller */
-static int cur_to_user(struct v4l2_ext_control *c,
-		       struct v4l2_ctrl *ctrl)
+/* Helper function: copy the given control value back to the caller */
+static int ptr_to_user(struct v4l2_ext_control *c,
+		       struct v4l2_ctrl *ctrl,
+		       union v4l2_ctrl_ptr ptr)
 {
 	u32 len;
 
 	if (ctrl->is_ptr && !ctrl->is_string)
-		return copy_to_user(c->ptr, ctrl->cur.p, ctrl->elem_size);
+		return copy_to_user(c->ptr, ptr.p, ctrl->elem_size);
 
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_STRING:
-		len = strlen(ctrl->cur.string);
+		len = strlen(ptr.p_char);
 		if (c->size < len + 1) {
 			c->size = len + 1;
 			return -ENOSPC;
 		}
-		return copy_to_user(c->string, ctrl->cur.string,
-						len + 1) ? -EFAULT : 0;
+		return copy_to_user(c->string, ptr.p_char, len + 1) ?
+								-EFAULT : 0;
 	case V4L2_CTRL_TYPE_INTEGER64:
-		c->value64 = ctrl->cur.val64;
+		c->value64 = *ptr.p_s64;
 		break;
 	default:
-		c->value = ctrl->cur.val;
+		c->value = *ptr.p_s32;
+		break;
+	}
+	return 0;
+}
+
+/* Helper function: copy the current control value back to the caller */
+static int cur_to_user(struct v4l2_ext_control *c,
+		       struct v4l2_ctrl *ctrl)
+{
+	return ptr_to_user(c, ctrl, ctrl->p_cur);
+}
+
+/* Helper function: copy the new control value back to the caller */
+static int new_to_user(struct v4l2_ext_control *c,
+		       struct v4l2_ctrl *ctrl)
+{
+	return ptr_to_user(c, ctrl, ctrl->p_new);
+}
+
+/* Helper function: copy the caller-provider value to the given control value */
+static int user_to_ptr(struct v4l2_ext_control *c,
+		       struct v4l2_ctrl *ctrl,
+		       union v4l2_ctrl_ptr ptr)
+{
+	int ret;
+	u32 size;
+
+	ctrl->is_new = 1;
+	if (ctrl->is_ptr && !ctrl->is_string)
+		return copy_from_user(ptr.p, c->ptr, ctrl->elem_size);
+
+	switch (ctrl->type) {
+	case V4L2_CTRL_TYPE_INTEGER64:
+		*ptr.p_s64 = c->value64;
+		break;
+	case V4L2_CTRL_TYPE_STRING:
+		size = c->size;
+		if (size == 0)
+			return -ERANGE;
+		if (size > ctrl->maximum + 1)
+			size = ctrl->maximum + 1;
+		ret = copy_from_user(ptr.p_char, c->string, size);
+		if (!ret) {
+			char last = ptr.p_char[size - 1];
+
+			ptr.p_char[size - 1] = 0;
+			/* If the string was longer than ctrl->maximum,
+			   then return an error. */
+			if (strlen(ptr.p_char) == ctrl->maximum && last)
+				return -ERANGE;
+		}
+		return ret ? -EFAULT : 0;
+	default:
+		*ptr.p_s32 = c->value;
 		break;
 	}
 	return 0;
@@ -1336,100 +1391,42 @@ static int cur_to_user(struct v4l2_ext_control *c,
 static int user_to_new(struct v4l2_ext_control *c,
 		       struct v4l2_ctrl *ctrl)
 {
-	int ret;
-	u32 size;
-
-	ctrl->is_new = 1;
-	if (ctrl->is_ptr && !ctrl->is_string)
-		return copy_from_user(ctrl->p, c->ptr, ctrl->elem_size);
-
-	switch (ctrl->type) {
-	case V4L2_CTRL_TYPE_INTEGER64:
-		ctrl->val64 = c->value64;
-		break;
-	case V4L2_CTRL_TYPE_STRING:
-		size = c->size;
-		if (size == 0)
-			return -ERANGE;
-		if (size > ctrl->maximum + 1)
-			size = ctrl->maximum + 1;
-		ret = copy_from_user(ctrl->string, c->string, size);
-		if (!ret) {
-			char last = ctrl->string[size - 1];
-
-			ctrl->string[size - 1] = 0;
-			/* If the string was longer than ctrl->maximum,
-			   then return an error. */
-			if (strlen(ctrl->string) == ctrl->maximum && last)
-				return -ERANGE;
-		}
-		return ret ? -EFAULT : 0;
-	default:
-		ctrl->val = c->value;
-		break;
-	}
-	return 0;
+	return user_to_ptr(c, ctrl, ctrl->p_new);
 }
 
-/* Helper function: copy the new control value back to the caller */
-static int new_to_user(struct v4l2_ext_control *c,
-		       struct v4l2_ctrl *ctrl)
+/* Copy the one value to another. */
+static void ptr_to_ptr(struct v4l2_ctrl *ctrl,
+		       union v4l2_ctrl_ptr from, union v4l2_ctrl_ptr to)
 {
-	u32 len;
-
-	if (ctrl->is_ptr && !ctrl->is_string)
-		return copy_to_user(c->ptr, ctrl->p, ctrl->elem_size);
-
+	if (ctrl == NULL)
+		return;
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_STRING:
-		len = strlen(ctrl->string);
-		if (c->size < len + 1) {
-			c->size = ctrl->maximum + 1;
-			return -ENOSPC;
-		}
-		return copy_to_user(c->string, ctrl->string,
-						len + 1) ? -EFAULT : 0;
+		/* strings are always 0-terminated */
+		strcpy(to.p_char, from.p_char);
+		break;
 	case V4L2_CTRL_TYPE_INTEGER64:
-		c->value64 = ctrl->val64;
+		*to.p_s64 = *from.p_s64;
 		break;
 	default:
-		c->value = ctrl->val;
+		if (ctrl->is_ptr)
+			memcpy(to.p, from.p, ctrl->elem_size);
+		else
+			*to.p_s32 = *from.p_s32;
 		break;
 	}
-	return 0;
 }
 
 /* Copy the new value to the current value. */
 static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 {
-	bool changed = false;
+	bool changed;
 
 	if (ctrl == NULL)
 		return;
+	changed = !ctrl->type_ops->equal(ctrl, ctrl->p_cur, ctrl->p_new);
+	ptr_to_ptr(ctrl, ctrl->p_new, ctrl->p_cur);
 
-	switch (ctrl->type) {
-	case V4L2_CTRL_TYPE_BUTTON:
-		changed = true;
-		break;
-	case V4L2_CTRL_TYPE_STRING:
-		/* strings are always 0-terminated */
-		changed = strcmp(ctrl->string, ctrl->cur.string);
-		strcpy(ctrl->cur.string, ctrl->string);
-		break;
-	case V4L2_CTRL_TYPE_INTEGER64:
-		changed = ctrl->val64 != ctrl->cur.val64;
-		ctrl->cur.val64 = ctrl->val64;
-		break;
-	default:
-		if (ctrl->is_ptr) {
-			changed = memcmp(ctrl->p, ctrl->cur.p, ctrl->elem_size);
-			memcpy(ctrl->cur.p, ctrl->p, ctrl->elem_size);
-		} else {
-			changed = ctrl->val != ctrl->cur.val;
-			ctrl->cur.val = ctrl->val;
-		}
-		break;
-	}
 	if (ch_flags & V4L2_EVENT_CTRL_CH_FLAGS) {
 		/* Note: CH_FLAGS is only set for auto clusters. */
 		ctrl->flags &=
@@ -1458,21 +1455,7 @@ static void cur_to_new(struct v4l2_ctrl *ctrl)
 {
 	if (ctrl == NULL)
 		return;
-	switch (ctrl->type) {
-	case V4L2_CTRL_TYPE_STRING:
-		/* strings are always 0-terminated */
-		strcpy(ctrl->string, ctrl->cur.string);
-		break;
-	case V4L2_CTRL_TYPE_INTEGER64:
-		ctrl->val64 = ctrl->cur.val64;
-		break;
-	default:
-		if (ctrl->is_ptr)
-			memcpy(ctrl->p, ctrl->cur.p, ctrl->elem_size);
-		else
-			ctrl->val = ctrl->cur.val;
-		break;
-	}
+	ptr_to_ptr(ctrl, ctrl->p_cur, ctrl->p_new);
 }
 
 /* Return non-zero if one or more of the controls in the cluster has a new
