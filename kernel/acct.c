@@ -448,17 +448,66 @@ static u32 encode_float(u64 value)
  *  do_exit() or when switching to a different output file.
  */
 
+static void fill_ac(acct_t *ac)
+{
+	struct pacct_struct *pacct = &current->signal->pacct;
+	u64 elapsed, run_time;
+	struct tty_struct *tty;
+
+	/*
+	 * Fill the accounting struct with the needed info as recorded
+	 * by the different kernel functions.
+	 */
+	memset(ac, 0, sizeof(acct_t));
+
+	ac->ac_version = ACCT_VERSION | ACCT_BYTEORDER;
+	strlcpy(ac->ac_comm, current->comm, sizeof(ac->ac_comm));
+
+	/* calculate run_time in nsec*/
+	run_time = ktime_get_ns();
+	run_time -= current->group_leader->start_time;
+	/* convert nsec -> AHZ */
+	elapsed = nsec_to_AHZ(run_time);
+#if ACCT_VERSION==3
+	ac->ac_etime = encode_float(elapsed);
+#else
+	ac->ac_etime = encode_comp_t(elapsed < (unsigned long) -1l ?
+	                       (unsigned long) elapsed : (unsigned long) -1l);
+#endif
+#if ACCT_VERSION==1 || ACCT_VERSION==2
+	{
+		/* new enlarged etime field */
+		comp2_t etime = encode_comp2_t(elapsed);
+		ac->ac_etime_hi = etime >> 16;
+		ac->ac_etime_lo = (u16) etime;
+	}
+#endif
+	do_div(elapsed, AHZ);
+	ac->ac_btime = get_seconds() - elapsed;
+#if ACCT_VERSION==2
+	ac->ac_ahz = AHZ;
+#endif
+
+	spin_lock_irq(&current->sighand->siglock);
+	tty = current->signal->tty;	/* Safe as we hold the siglock */
+	ac->ac_tty = tty ? old_encode_dev(tty_devnum(tty)) : 0;
+	ac->ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));
+	ac->ac_stime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_stime)));
+	ac->ac_flag = pacct->ac_flag;
+	ac->ac_mem = encode_comp_t(pacct->ac_mem);
+	ac->ac_minflt = encode_comp_t(pacct->ac_minflt);
+	ac->ac_majflt = encode_comp_t(pacct->ac_majflt);
+	ac->ac_exitcode = pacct->ac_exitcode;
+	spin_unlock_irq(&current->sighand->siglock);
+}
 /*
  *  do_acct_process does all actual work. Caller holds the reference to file.
  */
 static void do_acct_process(struct bsd_acct_struct *acct,
 		struct pid_namespace *ns, struct file *file)
 {
-	struct pacct_struct *pacct = &current->signal->pacct;
 	acct_t ac;
 	unsigned long flim;
-	u64 elapsed, run_time;
-	struct tty_struct *tty;
 	const struct cred *orig_cred;
 
 	/*
@@ -476,42 +525,10 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	if (!check_free_space(acct, file))
 		goto out;
 
-	/*
-	 * Fill the accounting struct with the needed info as recorded
-	 * by the different kernel functions.
-	 */
-	memset(&ac, 0, sizeof(acct_t));
-
-	ac.ac_version = ACCT_VERSION | ACCT_BYTEORDER;
-	strlcpy(ac.ac_comm, current->comm, sizeof(ac.ac_comm));
-
-	/* calculate run_time in nsec*/
-	run_time = ktime_get_ns();
-	run_time -= current->group_leader->start_time;
-	/* convert nsec -> AHZ */
-	elapsed = nsec_to_AHZ(run_time);
-#if ACCT_VERSION==3
-	ac.ac_etime = encode_float(elapsed);
-#else
-	ac.ac_etime = encode_comp_t(elapsed < (unsigned long) -1l ?
-	                       (unsigned long) elapsed : (unsigned long) -1l);
-#endif
-#if ACCT_VERSION==1 || ACCT_VERSION==2
-	{
-		/* new enlarged etime field */
-		comp2_t etime = encode_comp2_t(elapsed);
-		ac.ac_etime_hi = etime >> 16;
-		ac.ac_etime_lo = (u16) etime;
-	}
-#endif
-	do_div(elapsed, AHZ);
-	ac.ac_btime = get_seconds() - elapsed;
+	fill_ac(&ac);
 	/* we really need to bite the bullet and change layout */
 	ac.ac_uid = from_kuid_munged(file->f_cred->user_ns, orig_cred->uid);
 	ac.ac_gid = from_kgid_munged(file->f_cred->user_ns, orig_cred->gid);
-#if ACCT_VERSION==2
-	ac.ac_ahz = AHZ;
-#endif
 #if ACCT_VERSION==1 || ACCT_VERSION==2
 	/* backward-compatible 16 bit fields */
 	ac.ac_uid16 = ac.ac_uid;
@@ -523,19 +540,6 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	ac.ac_ppid = task_tgid_nr_ns(rcu_dereference(current->real_parent), ns);
 	rcu_read_unlock();
 #endif
-
-	spin_lock_irq(&current->sighand->siglock);
-	tty = current->signal->tty;	/* Safe as we hold the siglock */
-	ac.ac_tty = tty ? old_encode_dev(tty_devnum(tty)) : 0;
-	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));
-	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_stime)));
-	ac.ac_flag = pacct->ac_flag;
-	ac.ac_mem = encode_comp_t(pacct->ac_mem);
-	ac.ac_minflt = encode_comp_t(pacct->ac_minflt);
-	ac.ac_majflt = encode_comp_t(pacct->ac_majflt);
-	ac.ac_exitcode = pacct->ac_exitcode;
-	spin_unlock_irq(&current->sighand->siglock);
-
 	/*
 	 * Get freeze protection. If the fs is frozen, just skip the write
 	 * as we could deadlock the system otherwise.
