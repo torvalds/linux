@@ -1512,6 +1512,9 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	if (changes & BSS_CHANGED_IDLE && !bss_conf->idle)
+		iwl_mvm_sched_scan_stop(mvm, true);
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		iwl_mvm_bss_info_changed_station(mvm, vif, bss_conf, changes);
