@@ -624,7 +624,10 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LL_IOC_LLOOP_INFO: {
 		struct lu_fid fid;
 
-		LASSERT(lo->lo_backing_file != NULL);
+		if (lo->lo_backing_file == NULL) {
+			err = -ENOENT;
+			break;
+		}
 		if (inode == NULL)
 			inode = lo->lo_backing_file->f_dentry->d_inode;
 		if (lo->lo_state == LLOOP_BOUND)
