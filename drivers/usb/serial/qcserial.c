@@ -190,13 +190,6 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	}
 
-	/* allow any number of interfaces when doing direct interface match */
-	if (id->match_flags & USB_DEVICE_ID_MATCH_INT_NUMBER) {
-		dev_dbg(dev, "Generic Qualcomm serial interface found\n");
-		altsetting = 0;
-		goto done;
-	}
-
 	/* default to enabling interface */
 	altsetting = 0;
 
