@@ -1193,7 +1193,7 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 
 	data[count] = '\0';
 
-	rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd/%d %s",
+	rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd/%u %s",
 		&host[0], &host[1], &host[2], &host[3], &m, smack);
 	if (rc != 6) {
 		rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd %s",
