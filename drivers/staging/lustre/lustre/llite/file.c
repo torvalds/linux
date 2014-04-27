@@ -2653,7 +2653,7 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (!err)
 		ptlrpc_req_finished(req);
 
-	if (datasync && S_ISREG(inode->i_mode)) {
+	if (S_ISREG(inode->i_mode)) {
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
 		err = cl_sync_file_range(inode, 0, OBD_OBJECT_EOF,
