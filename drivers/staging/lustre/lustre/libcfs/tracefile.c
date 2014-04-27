@@ -416,12 +416,12 @@ console:
 			cdls->cdls_delay /= libcfs_console_backoff * 4;
 		} else {
 			cdls->cdls_delay *= libcfs_console_backoff;
-
-			if (cdls->cdls_delay < libcfs_console_min_delay)
-				cdls->cdls_delay = libcfs_console_min_delay;
-			else if (cdls->cdls_delay > libcfs_console_max_delay)
-				cdls->cdls_delay = libcfs_console_max_delay;
 		}
+
+		if (cdls->cdls_delay < libcfs_console_min_delay)
+			cdls->cdls_delay = libcfs_console_min_delay;
+		else if (cdls->cdls_delay > libcfs_console_max_delay)
+			cdls->cdls_delay = libcfs_console_max_delay;
 
 		/* ensure cdls_next is never zero after it's been seen */
 		cdls->cdls_next = (cfs_time_current() + cdls->cdls_delay) | 1;
