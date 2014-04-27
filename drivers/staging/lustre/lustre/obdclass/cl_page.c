@@ -292,7 +292,7 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 	struct lu_object_header *head;
 
 	OBD_ALLOC_GFP(page, cl_object_header(o)->coh_page_bufsize,
-			__GFP_IO);
+			GFP_NOFS);
 	if (page != NULL) {
 		int result = 0;
 		atomic_set(&page->cp_ref, 1);

@@ -120,7 +120,7 @@ static int ll_xattr_cache_add(struct list_head *cache,
 		return -EPROTO;
 	}
 
-	OBD_SLAB_ALLOC_PTR_GFP(xattr, xattr_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(xattr, xattr_kmem, GFP_NOFS);
 	if (xattr == NULL) {
 		CDEBUG(D_CACHE, "failed to allocate xattr\n");
 		return -ENOMEM;

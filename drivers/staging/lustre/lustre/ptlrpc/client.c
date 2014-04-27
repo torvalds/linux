@@ -455,7 +455,7 @@ void ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq)
 		struct lustre_msg *msg;
 
 		spin_unlock(&pool->prp_lock);
-		req = ptlrpc_request_cache_alloc(__GFP_IO);
+		req = ptlrpc_request_cache_alloc(GFP_NOFS);
 		if (!req)
 			return;
 		OBD_ALLOC_LARGE(msg, size);
@@ -696,7 +696,7 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
 		request = ptlrpc_prep_req_from_pool(pool);
 
 	if (!request)
-		request = ptlrpc_request_cache_alloc(__GFP_IO);
+		request = ptlrpc_request_cache_alloc(GFP_NOFS);
 
 	if (request) {
 		LASSERTF((unsigned long)imp > 0x1000, "%p", imp);
@@ -3051,7 +3051,7 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 		return ERR_PTR(-EINVAL);
 
 	/* copy some code from deprecated fakereq. */
-	req = ptlrpc_request_cache_alloc(__GFP_IO);
+	req = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (req == NULL) {
 		CERROR("ptlrpc: run out of memory!\n");
 		return ERR_PTR(-ENOMEM);

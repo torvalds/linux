@@ -80,7 +80,7 @@ static void *vvp_key_init(const struct lu_context *ctx,
 {
 	struct vvp_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, vvp_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, vvp_thread_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -98,7 +98,7 @@ static void *vvp_session_key_init(const struct lu_context *ctx,
 {
 	struct vvp_session *session;
 
-	OBD_SLAB_ALLOC_PTR_GFP(session, vvp_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(session, vvp_session_kmem, GFP_NOFS);
 	if (session == NULL)
 		session = ERR_PTR(-ENOMEM);
 	return session;

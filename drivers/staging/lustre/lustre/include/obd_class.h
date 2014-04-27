@@ -2133,7 +2133,7 @@ extern struct kmem_cache *obdo_cachep;
 
 #define OBDO_ALLOC(ptr)						       \
 do {									  \
-	OBD_SLAB_ALLOC_PTR_GFP((ptr), obdo_cachep, __GFP_IO);	     \
+	OBD_SLAB_ALLOC_PTR_GFP((ptr), obdo_cachep, GFP_NOFS);             \
 } while(0)
 
 #define OBDO_FREE(ptr)							\

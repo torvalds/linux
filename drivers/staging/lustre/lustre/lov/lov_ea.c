@@ -101,7 +101,7 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 		return NULL;
 
 	for (i = 0; i < stripe_count; i++) {
-		OBD_SLAB_ALLOC_PTR_GFP(loi, lov_oinfo_slab, __GFP_IO);
+		OBD_SLAB_ALLOC_PTR_GFP(loi, lov_oinfo_slab, GFP_NOFS);
 		if (loi == NULL)
 			goto err;
 		lsm->lsm_oinfo[i] = loi;

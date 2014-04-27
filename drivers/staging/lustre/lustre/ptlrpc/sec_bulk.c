@@ -421,7 +421,7 @@ static int enc_pools_add_pages(int npages)
 			goto out_pools;
 
 		for (j = 0; j < PAGES_PER_POOL && alloced < npages; j++) {
-			pools[i][j] = alloc_page(__GFP_IO |
+			pools[i][j] = alloc_page(GFP_NOFS |
 						     __GFP_HIGHMEM);
 			if (pools[i][j] == NULL)
 				goto out_pools;

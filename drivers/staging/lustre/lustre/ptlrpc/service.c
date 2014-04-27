@@ -1305,7 +1305,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	}
 	newdl = cfs_time_current_sec() + at_get(&svcpt->scp_at_estimate);
 
-	reqcopy = ptlrpc_request_cache_alloc(__GFP_IO);
+	reqcopy = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (reqcopy == NULL)
 		return -ENOMEM;
 	OBD_ALLOC_LARGE(reqmsg, req->rq_reqlen);

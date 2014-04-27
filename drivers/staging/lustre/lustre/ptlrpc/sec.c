@@ -904,7 +904,7 @@ int sptlrpc_import_check_ctx(struct obd_import *imp)
 		return -EACCES;
 	}
 
-	req = ptlrpc_request_cache_alloc(__GFP_IO);
+	req = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (!req)
 		return -ENOMEM;
 
@@ -1088,7 +1088,7 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	int		     early_bufsz, early_size;
 	int		     rc;
 
-	early_req = ptlrpc_request_cache_alloc(__GFP_IO);
+	early_req = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (early_req == NULL)
 		return -ENOMEM;
 
