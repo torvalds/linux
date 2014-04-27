@@ -2570,7 +2570,7 @@ static int ll_flush(struct file *file, fl_owner_t id)
 
 /**
  * Called to make sure a portion of file has been written out.
- * if @local_only is not true, it will send OST_SYNC RPCs to ost.
+ * if @mode is not CL_FSYNC_LOCAL, it will send OST_SYNC RPCs to OST.
  *
  * Return how many pages have been written.
  */
@@ -2667,8 +2667,7 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (S_ISREG(inode->i_mode)) {
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
-		err = cl_sync_file_range(inode, 0, OBD_OBJECT_EOF,
-				CL_FSYNC_ALL, 0);
+		err = cl_sync_file_range(inode, start, end, CL_FSYNC_ALL, 0);
 		if (rc == 0 && err < 0)
 			rc = err;
 		if (rc < 0)
