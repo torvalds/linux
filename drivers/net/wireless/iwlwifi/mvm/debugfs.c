@@ -65,7 +65,6 @@
 #include "mvm.h"
 #include "sta.h"
 #include "iwl-io.h"
-#include "iwl-prph.h"
 #include "debugfs.h"
 #include "iwl-fw-error-dump.h"
 
@@ -691,7 +690,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 				      size_t count, loff_t *ppos)
 {
-	iwl_write_prph(mvm->trans, DEVICE_SET_NMI_REG, 1);
+	iwl_force_nmi(mvm->trans);
 
 	return count;
 }

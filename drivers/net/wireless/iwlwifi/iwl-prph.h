@@ -105,6 +105,9 @@
 
 /* Device NMI register */
 #define DEVICE_SET_NMI_REG 0x00a01c30
+#define DEVICE_SET_NMI_VAL 0x1
+#define DEVICE_SET_NMI_8000B_REG 0x00a01c24
+#define DEVICE_SET_NMI_8000B_VAL 0x1000000
 
 /* Shared registers (0x0..0x3ff, via target indirect or periphery */
 #define SHR_BASE	0x00a10000
