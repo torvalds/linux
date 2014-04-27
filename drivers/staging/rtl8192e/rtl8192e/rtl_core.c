@@ -3029,7 +3029,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 		RT_TRACE(COMP_ERR, "ERR!!! %s(): Driver is already down!\n",
 			 __func__);
 		priv->bdisable_nic = false;
-		return RT_STATUS_FAILURE;
+		return false;
 	}
 
 	RT_TRACE(COMP_PS, "===========>%s()\n", __func__);
@@ -3039,7 +3039,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 		RT_TRACE(COMP_ERR, "ERR!!! %s(): initialization is failed!\n",
 			 __func__);
 		priv->bdisable_nic = false;
-		return -1;
+		return false;
 	}
 	RT_TRACE(COMP_INIT, "start adapter finished\n");
 	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
