@@ -330,16 +330,17 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
  * If we're emulating a rip-relative instruction, save the contents
  * of the scratch register and store the target address in that register.
  */
-static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
-				struct arch_uprobe_task *autask)
+static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
+	struct uprobe_task *utask = current->utask;
+
 	if (auprobe->def.fixups & UPROBE_FIX_RIP_AX) {
-		autask->saved_scratch_register = regs->ax;
-		regs->ax = current->utask->vaddr;
+		utask->autask.saved_scratch_register = regs->ax;
+		regs->ax = utask->vaddr;
 		regs->ax += auprobe->def.riprel_target;
 	} else if (auprobe->def.fixups & UPROBE_FIX_RIP_CX) {
-		autask->saved_scratch_register = regs->cx;
-		regs->cx = current->utask->vaddr;
+		utask->autask.saved_scratch_register = regs->cx;
+		regs->cx = utask->vaddr;
 		regs->cx += auprobe->def.riprel_target;
 	}
 }
@@ -377,8 +378,7 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
 static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 {
 }
-static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
-				struct arch_uprobe_task *autask)
+static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 }
 static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
@@ -401,7 +401,7 @@ static inline int sizeof_long(void)
 
 static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	riprel_pre_xol(auprobe, regs, &current->utask->autask);
+	riprel_pre_xol(auprobe, regs);
 	return 0;
 }
 
