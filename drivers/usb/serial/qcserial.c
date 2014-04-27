@@ -225,12 +225,14 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	/* default to enabling interface */
 	altsetting = 0;
 
-	/* Composite mode; don't bind to the QMI/net interface as that
+	/*
+	 * Composite mode; don't bind to the QMI/net interface as that
 	 * gets handled by other drivers.
 	 */
 
 	if (is_gobi1k) {
-		/* Gobi 1K USB layout:
+		/*
+		 * Gobi 1K USB layout:
 		 * 0: DM/DIAG (use libqcdm from ModemManager for communication)
 		 * 1: serial port (doesn't respond)
 		 * 2: AT-capable modem port
@@ -244,7 +246,8 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		else
 			altsetting = -1;
 	} else {
-		/* Gobi 2K+ USB layout:
+		/*
+		 * Gobi 2K+ USB layout:
 		 * 0: QMI/net
 		 * 1: DM/DIAG (use libqcdm from ModemManager for communication)
 		 * 2: AT-capable modem port
