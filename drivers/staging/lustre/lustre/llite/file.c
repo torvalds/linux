@@ -3436,7 +3436,7 @@ static int ll_layout_lock_set(struct lustre_handle *lockh, ldlm_mode_t mode,
 		if (lvb_ready) {
 			/* layout_gen must be valid if layout lock is not
 			 * cancelled and stripe has already set */
-			*gen = lli->lli_layout_gen;
+			*gen = ll_layout_version_get(lli);
 			rc = 0;
 		}
 		GOTO(out, rc);
@@ -3534,32 +3534,20 @@ int ll_layout_refresh(struct inode *inode, __u32 *gen)
 	};
 	int rc;
 
-	*gen = lli->lli_layout_gen;
-	if (!(sbi->ll_flags & LL_SBI_LAYOUT_LOCK))
+	*gen = ll_layout_version_get(lli);
+	if (!(sbi->ll_flags & LL_SBI_LAYOUT_LOCK) || *gen != LL_LAYOUT_GEN_NONE)
 		return 0;
 
 	/* sanity checks */
 	LASSERT(fid_is_sane(ll_inode2fid(inode)));
 	LASSERT(S_ISREG(inode->i_mode));
 
-	/* mostly layout lock is caching on the local side, so try to match
-	 * it before grabbing layout lock mutex. */
-	mode = ll_take_md_lock(inode, MDS_INODELOCK_LAYOUT, &lockh, 0,
-			       LCK_CR | LCK_CW | LCK_PR | LCK_PW);
-	if (mode != 0) { /* hit cached lock */
-		rc = ll_layout_lock_set(&lockh, mode, inode, gen, false);
-		if (rc == 0)
-			return 0;
-
-		/* better hold lli_layout_mutex to try again otherwise
-		 * it will have starvation problem. */
-	}
-
 	/* take layout lock mutex to enqueue layout lock exclusively. */
 	mutex_lock(&lli->lli_layout_mutex);
 
 again:
-	/* try again. Maybe somebody else has done this. */
+	/* mostly layout lock is caching on the local side, so try to match
+	 * it before grabbing layout lock mutex. */
 	mode = ll_take_md_lock(inode, MDS_INODELOCK_LAYOUT, &lockh, 0,
 			       LCK_CR | LCK_CW | LCK_PR | LCK_PW);
 	if (mode != 0) { /* hit cached lock */
