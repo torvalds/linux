@@ -597,6 +597,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 
 	/* run hbuf acquire last so we don't have to undo */
 	if (!mei_cl_is_other_connecting(cl) && mei_hbuf_acquire(dev)) {
+		cl->state = MEI_FILE_CONNECTING;
 		if (mei_hbm_cl_connect_req(dev, cl)) {
 			rets = -ENODEV;
 			goto out;
