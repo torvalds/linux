@@ -881,7 +881,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 			break;
 		}
 
-		if (sscanf(str, "%u%n", &cpt, &n) < 1) {
+		if (sscanf(str, "%d%n", &cpt, &n) < 1) {
 			CERROR("Invalid cpu pattern %s\n", str);
 			goto failed;
 		}
