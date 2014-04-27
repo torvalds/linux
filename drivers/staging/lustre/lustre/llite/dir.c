@@ -1804,6 +1804,11 @@ out_rmdir:
 		/* Compute the whole struct size */
 		totalsize = hur_len(hur);
 		OBD_FREE_PTR(hur);
+
+		/* Final size will be more than double totalsize */
+		if (totalsize >= MDS_MAXREQSIZE / 3)
+			return -E2BIG;
+
 		OBD_ALLOC_LARGE(hur, totalsize);
 		if (hur == NULL)
 			return -ENOMEM;

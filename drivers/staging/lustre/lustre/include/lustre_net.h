@@ -264,6 +264,8 @@
 #define LDLM_MAXREQSIZE   (5 * 1024)
 #define LDLM_MAXREPSIZE   (1024)
 
+#define MDS_MAXREQSIZE		(5 * 1024)	/* >= 4736 */
+
 #define OST_MAXREQSIZE		(5 * 1024)
 
 /* Macro to hide a typecast. */
