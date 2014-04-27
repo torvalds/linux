@@ -568,8 +568,10 @@ static int ethtool_copy_validate_indir(u32 *indir, void __user *useraddr,
 
 	/* Validate ring indices */
 	for (i = 0; i < size; i++) {
-		if (indir[i] >= rx_rings->data)
+		if (indir[i] >= rx_rings->data) {
 			ret = -EINVAL;
+			break;
+		}
 	}
 	return ret;
 }
