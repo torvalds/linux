@@ -406,7 +406,7 @@ struct client_obd {
 	struct mdc_rpc_lock     *cl_close_lock;
 
 	/* mgc datastruct */
-	struct semaphore	 cl_mgc_sem;
+	struct mutex		 cl_mgc_mutex;
 	struct local_oid_storage *cl_mgc_los;
 	struct dt_object	*cl_mgc_configs_dir;
 	atomic_t	     cl_mgc_refcount;
