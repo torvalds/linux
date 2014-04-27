@@ -381,6 +381,11 @@ void ptlrpc_activate_import(struct obd_import *imp)
 	struct obd_device *obd = imp->imp_obd;
 
 	spin_lock(&imp->imp_lock);
+	if (imp->imp_deactive != 0) {
+		spin_unlock(&imp->imp_lock);
+		return;
+	}
+
 	imp->imp_invalid = 0;
 	spin_unlock(&imp->imp_lock);
 	obd_import_event(obd, imp, IMP_EVENT_ACTIVE);
