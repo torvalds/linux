@@ -212,7 +212,7 @@ static void __em_gio_set(struct gpio_chip *chip, unsigned int reg,
 {
 	/* upper 16 bits contains mask and lower 16 actual value */
 	em_gio_write(gpio_to_priv(chip), reg,
-		     (1 << (shift + 16)) | (value << shift));
+		     (BIT(shift + 16)) | (value << shift));
 }
 
 static void em_gio_set(struct gpio_chip *chip, unsigned offset, int value)
