@@ -1042,9 +1042,6 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 		return;
 
 	exp->exp_last_request_time = new_time;
-	CDEBUG(D_HA, "updating export %s at "CFS_TIME_T" exp %p\n",
-	       exp->exp_client_uuid.uuid,
-	       exp->exp_last_request_time, exp);
 
 	/* exports may get disconnected from the chain even though the
 	   export has references, so we must keep the spin lock while
