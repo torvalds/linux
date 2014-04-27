@@ -22,8 +22,14 @@
 #define DRIVER_AUTHOR "Qualcomm Inc"
 #define DRIVER_DESC "Qualcomm USB Serial driver"
 
+/* standard device layouts supported by this driver */
+enum qcserial_layouts {
+	QCSERIAL_G2K = 0,	/* Gobi 2000 */
+	QCSERIAL_G1K = 1,	/* Gobi 1000 */
+};
+
 #define DEVICE_G1K(v, p) \
-	USB_DEVICE(v, p), .driver_info = 1
+	USB_DEVICE(v, p), .driver_info = QCSERIAL_G1K
 
 static const struct usb_device_id id_table[] = {
 	/* Gobi 1000 devices */
@@ -178,10 +184,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	int retval = -ENODEV;
 	__u8 nintf;
 	__u8 ifnum;
-	bool is_gobi1k = id->driver_info ? true : false;
 	int altsetting = -1;
-
-	dev_dbg(dev, "Is Gobi 1000 = %d\n", is_gobi1k);
 
 	nintf = serial->dev->actconfig->desc.bNumInterfaces;
 	dev_dbg(dev, "Num Interfaces = %d\n", nintf);
@@ -230,7 +233,8 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	 * gets handled by other drivers.
 	 */
 
-	if (is_gobi1k) {
+	switch (id->driver_info) {
+	case QCSERIAL_G1K:
 		/*
 		 * Gobi 1K USB layout:
 		 * 0: DM/DIAG (use libqcdm from ModemManager for communication)
@@ -245,7 +249,8 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			dev_dbg(dev, "Modem port found\n");
 		else
 			altsetting = -1;
-	} else {
+		break;
+	case QCSERIAL_G2K:
 		/*
 		 * Gobi 2K+ USB layout:
 		 * 0: QMI/net
@@ -273,6 +278,11 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			dev_dbg(dev, "Gobi 2K+ NMEA GPS interface found\n");
 			break;
 		}
+		break;
+	default:
+		dev_err(dev, "unsupported device layout type: %lu\n",
+			id->driver_info);
+		break;
 	}
 
 done:
