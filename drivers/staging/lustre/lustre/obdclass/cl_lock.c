@@ -533,6 +533,7 @@ static struct cl_lock *cl_lock_find(const struct lu_env *env,
 			spin_lock(&head->coh_lock_guard);
 			ghost = cl_lock_lookup(env, obj, io, need);
 			if (ghost == NULL) {
+				cl_lock_get_trust(lock);
 				list_add_tail(&lock->cll_linkage,
 						  &head->coh_locks);
 				spin_unlock(&head->coh_lock_guard);
@@ -791,14 +792,21 @@ static void cl_lock_delete0(const struct lu_env *env, struct cl_lock *lock)
 	LINVRNT(cl_lock_invariant(env, lock));
 
 	if (lock->cll_state < CLS_FREEING) {
+		bool in_cache;
+
 		LASSERT(lock->cll_state != CLS_INTRANSIT);
 		cl_lock_state_set(env, lock, CLS_FREEING);
 
 		head = cl_object_header(lock->cll_descr.cld_obj);
 
 		spin_lock(&head->coh_lock_guard);
-		list_del_init(&lock->cll_linkage);
+		in_cache = !list_empty(&lock->cll_linkage);
+		if (in_cache)
+			list_del_init(&lock->cll_linkage);
 		spin_unlock(&head->coh_lock_guard);
+
+		if (in_cache) /* coh_locks cache holds a refcount. */
+			cl_lock_put(env, lock);
 
 		/*
 		 * From now on, no new references to this lock can be acquired
