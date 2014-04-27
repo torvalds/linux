@@ -667,7 +667,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 			break;
 
 		freq = mt9v032->pdata->link_freqs[mt9v032->link_freq->val];
-		mt9v032->pixel_rate->val64 = freq;
+		*mt9v032->pixel_rate->p_new.p_s64 = freq;
 		mt9v032->sysclk = freq;
 		break;
 

@@ -362,7 +362,7 @@ will result in a deadlock since these helpers lock the handler as well.
 You can also take the handler lock yourself:
 
 	mutex_lock(&state->ctrl_handler.lock);
-	printk(KERN_INFO "String value is '%s'\n", ctrl1->cur.string);
+	pr_info("String value is '%s'\n", ctrl1->p_cur.p_char);
 	printk(KERN_INFO "Integer value is '%s'\n", ctrl2->cur.val);
 	mutex_unlock(&state->ctrl_handler.lock);
 

@@ -1135,7 +1135,7 @@ static void fill_event(struct v4l2_event *ev, struct v4l2_ctrl *ctrl, u32 change
 	if (ctrl->is_ptr)
 		ev->u.ctrl.value64 = 0;
 	else
-		ev->u.ctrl.value64 = ctrl->cur.val64;
+		ev->u.ctrl.value64 = *ctrl->p_cur.p_s64;
 	ev->u.ctrl.minimum = ctrl->minimum;
 	ev->u.ctrl.maximum = ctrl->maximum;
 	if (ctrl->type == V4L2_CTRL_TYPE_MENU
@@ -1801,7 +1801,9 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		flags |= V4L2_CTRL_FLAG_WRITE_ONLY;
 	else if (type == V4L2_CTRL_TYPE_CTRL_CLASS)
 		flags |= V4L2_CTRL_FLAG_READ_ONLY;
-	else if (type == V4L2_CTRL_TYPE_STRING || type >= V4L2_CTRL_COMPOUND_TYPES)
+	else if (type == V4L2_CTRL_TYPE_INTEGER64 ||
+		 type == V4L2_CTRL_TYPE_STRING ||
+		 type >= V4L2_CTRL_COMPOUND_TYPES)
 		sz_extra += 2 * elem_size;
 
 	ctrl = kzalloc(sizeof(*ctrl) + sz_extra, GFP_KERNEL);
@@ -1833,10 +1835,10 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		ctrl->qmenu_int = qmenu_int;
 	ctrl->priv = priv;
 	ctrl->cur.val = ctrl->val = def;
-	data = &ctrl->cur + 1;
+	data = &ctrl[1];
 
-	if (ctrl->is_ptr) {
-		ctrl->p = ctrl->p_new.p = data;
+	if (!ctrl->is_int) {
+		ctrl->p_new.p = data;
 		ctrl->p_cur.p = data + elem_size;
 	} else {
 		ctrl->p_new.p = &ctrl->val;
@@ -3103,10 +3105,10 @@ int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 	ctrl->maximum = max;
 	ctrl->step = step;
 	ctrl->default_value = def;
-	c.value = ctrl->cur.val;
+	c.value = *ctrl->p_cur.p_s32;
 	if (validate_new(ctrl, &c))
 		c.value = def;
-	if (c.value != ctrl->cur.val)
+	if (c.value != *ctrl->p_cur.p_s32)
 		ret = set_ctrl(NULL, ctrl, &c, V4L2_EVENT_CTRL_CH_RANGE);
 	else
 		send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_RANGE);

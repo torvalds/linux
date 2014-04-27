@@ -187,17 +187,9 @@ struct v4l2_ctrl {
 	};
 	unsigned long flags;
 	void *priv;
-	union {
+	s32 val;
+	struct {
 		s32 val;
-		s64 val64;
-		char *string;
-		void *p;
-	};
-	union {
-		s32 val;
-		s64 val64;
-		char *string;
-		void *p;
 	} cur;
 
 	union v4l2_ctrl_ptr p_new;

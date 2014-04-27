@@ -648,13 +648,13 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 	snprintf(str, sizeof(str), " int32 %d, int64 %lld, bitmask %08x ",
 			dev->int32->cur.val,
-			dev->int64->cur.val64,
+			*dev->int64->p_cur.p_s64,
 			dev->bitmask->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 	snprintf(str, sizeof(str), " boolean %d, menu %s, string \"%s\" ",
 			dev->boolean->cur.val,
 			dev->menu->qmenu[dev->menu->cur.val],
-			dev->string->cur.string);
+			dev->string->p_cur.p_char);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 	snprintf(str, sizeof(str), " integer_menu %lld, value %d ",
 			dev->int_menu->qmenu_int[dev->int_menu->cur.val],

@@ -1098,11 +1098,11 @@ static int si4713_s_ctrl(struct v4l2_ctrl *ctrl)
 
 		switch (ctrl->id) {
 		case V4L2_CID_RDS_TX_PS_NAME:
-			ret = si4713_set_rds_ps_name(sdev, ctrl->string);
+			ret = si4713_set_rds_ps_name(sdev, ctrl->p_new.p_char);
 			break;
 
 		case V4L2_CID_RDS_TX_RADIO_TEXT:
-			ret = si4713_set_rds_radio_text(sdev, ctrl->string);
+			ret = si4713_set_rds_radio_text(sdev, ctrl->p_new.p_char);
 			break;
 
 		case V4L2_CID_TUNE_ANTENNA_CAPACITOR:

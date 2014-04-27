@@ -1131,7 +1131,7 @@ static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
 		solo_motion_toggle(solo_enc, ctrl->val);
 		return 0;
 	case V4L2_CID_OSD_TEXT:
-		strcpy(solo_enc->osd_text, ctrl->string);
+		strcpy(solo_enc->osd_text, ctrl->p_new.p_char);
 		err = solo_osd_print(solo_enc);
 		return err;
 	default:

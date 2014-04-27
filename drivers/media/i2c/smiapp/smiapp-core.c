@@ -297,8 +297,8 @@ static int smiapp_pll_update(struct smiapp_sensor *sensor)
 	if (rval < 0)
 		return rval;
 
-	sensor->pixel_rate_parray->cur.val64 = pll->vt_pix_clk_freq_hz;
-	sensor->pixel_rate_csi->cur.val64 = pll->pixel_rate_csi;
+	*sensor->pixel_rate_parray->p_cur.p_s64 = pll->vt_pix_clk_freq_hz;
+	*sensor->pixel_rate_csi->p_cur.p_s64 = pll->pixel_rate_csi;
 
 	return 0;
 }
