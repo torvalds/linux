@@ -200,20 +200,20 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 int issue_flush_thread(void *data)
 {
 	struct f2fs_sb_info *sbi = data;
-	struct f2fs_sm_info *sm_i = SM_I(sbi);
-	wait_queue_head_t *q = &sm_i->flush_wait_queue;
+	struct flush_cmd_control *fcc = SM_I(sbi)->cmd_control_info;
+	wait_queue_head_t *q = &fcc->flush_wait_queue;
 repeat:
 	if (kthread_should_stop())
 		return 0;
 
-	spin_lock(&sm_i->issue_lock);
-	if (sm_i->issue_list) {
-		sm_i->dispatch_list = sm_i->issue_list;
-		sm_i->issue_list = sm_i->issue_tail = NULL;
+	spin_lock(&fcc->issue_lock);
+	if (fcc->issue_list) {
+		fcc->dispatch_list = fcc->issue_list;
+		fcc->issue_list = fcc->issue_tail = NULL;
 	}
-	spin_unlock(&sm_i->issue_lock);
+	spin_unlock(&fcc->issue_lock);
 
-	if (sm_i->dispatch_list) {
+	if (fcc->dispatch_list) {
 		struct bio *bio = bio_alloc(GFP_NOIO, 0);
 		struct flush_cmd *cmd, *next;
 		int ret;
@@ -221,22 +221,23 @@ repeat:
 		bio->bi_bdev = sbi->sb->s_bdev;
 		ret = submit_bio_wait(WRITE_FLUSH, bio);
 
-		for (cmd = sm_i->dispatch_list; cmd; cmd = next) {
+		for (cmd = fcc->dispatch_list; cmd; cmd = next) {
 			cmd->ret = ret;
 			next = cmd->next;
 			complete(&cmd->wait);
 		}
 		bio_put(bio);
-		sm_i->dispatch_list = NULL;
+		fcc->dispatch_list = NULL;
 	}
 
-	wait_event_interruptible(*q, kthread_should_stop() || sm_i->issue_list);
+	wait_event_interruptible(*q,
+			kthread_should_stop() || fcc->issue_list);
 	goto repeat;
 }
 
 int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 {
-	struct f2fs_sm_info *sm_i = SM_I(sbi);
+	struct flush_cmd_control *fcc = SM_I(sbi)->cmd_control_info;
 	struct flush_cmd *cmd;
 	int ret;
 
@@ -246,16 +247,16 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 	cmd = f2fs_kmem_cache_alloc(flush_cmd_slab, GFP_ATOMIC | __GFP_ZERO);
 	init_completion(&cmd->wait);
 
-	spin_lock(&sm_i->issue_lock);
-	if (sm_i->issue_list)
-		sm_i->issue_tail->next = cmd;
+	spin_lock(&fcc->issue_lock);
+	if (fcc->issue_list)
+		fcc->issue_tail->next = cmd;
 	else
-		sm_i->issue_list = cmd;
-	sm_i->issue_tail = cmd;
-	spin_unlock(&sm_i->issue_lock);
+		fcc->issue_list = cmd;
+	fcc->issue_tail = cmd;
+	spin_unlock(&fcc->issue_lock);
 
-	if (!sm_i->dispatch_list)
-		wake_up(&sm_i->flush_wait_queue);
+	if (!fcc->dispatch_list)
+		wake_up(&fcc->flush_wait_queue);
 
 	wait_for_completion(&cmd->wait);
 	ret = cmd->ret;
@@ -1873,12 +1874,22 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 	sm_info->max_discards = 0;
 
 	if (test_opt(sbi, FLUSH_MERGE) && !f2fs_readonly(sbi->sb)) {
-		spin_lock_init(&sm_info->issue_lock);
-		init_waitqueue_head(&sm_info->flush_wait_queue);
-		sm_info->f2fs_issue_flush = kthread_run(issue_flush_thread, sbi,
+		struct flush_cmd_control *fcc =
+			kzalloc(sizeof(struct flush_cmd_control), GFP_KERNEL);
+
+		if (!fcc)
+			return -ENOMEM;
+		spin_lock_init(&fcc->issue_lock);
+		init_waitqueue_head(&fcc->flush_wait_queue);
+
+		fcc->f2fs_issue_flush = kthread_run(issue_flush_thread, sbi,
 				"f2fs_flush-%u:%u", MAJOR(dev), MINOR(dev));
-		if (IS_ERR(sm_info->f2fs_issue_flush))
-			return PTR_ERR(sm_info->f2fs_issue_flush);
+		if (IS_ERR(fcc->f2fs_issue_flush)) {
+			err = PTR_ERR(fcc->f2fs_issue_flush);
+			kfree(fcc);
+			return err;
+		}
+		sm_info->cmd_control_info = fcc;
 	}
 
 	err = build_sit_info(sbi);
@@ -1987,10 +1998,14 @@ static void destroy_sit_info(struct f2fs_sb_info *sbi)
 void destroy_segment_manager(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_sm_info *sm_info = SM_I(sbi);
+	struct flush_cmd_control *fcc;
+
 	if (!sm_info)
 		return;
-	if (sm_info->f2fs_issue_flush)
-		kthread_stop(sm_info->f2fs_issue_flush);
+	fcc = sm_info->cmd_control_info;
+	if (fcc && fcc->f2fs_issue_flush)
+		kthread_stop(fcc->f2fs_issue_flush);
+	kfree(fcc);
 	destroy_dirty_segmap(sbi);
 	destroy_curseg(sbi);
 	destroy_free_segmap(sbi);

@@ -641,29 +641,33 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 * or if flush_merge is not passed in mount option.
 	 */
 	if ((*flags & MS_RDONLY) || !test_opt(sbi, FLUSH_MERGE)) {
-		struct f2fs_sm_info *sm_info = sbi->sm_info;
+		struct flush_cmd_control *fcc =
+					sbi->sm_info->cmd_control_info;
 
-		if (sm_info->f2fs_issue_flush)
-			kthread_stop(sm_info->f2fs_issue_flush);
-		sm_info->issue_list = sm_info->dispatch_list = NULL;
-		sm_info->f2fs_issue_flush = NULL;
-	} else if (test_opt(sbi, FLUSH_MERGE)) {
-		struct f2fs_sm_info *sm_info = sbi->sm_info;
+		if (fcc && fcc->f2fs_issue_flush)
+			kthread_stop(fcc->f2fs_issue_flush);
+		kfree(fcc);
+		sbi->sm_info->cmd_control_info = NULL;
+	} else if (test_opt(sbi, FLUSH_MERGE) &&
+					!sbi->sm_info->cmd_control_info) {
+		dev_t dev = sbi->sb->s_bdev->bd_dev;
+		struct flush_cmd_control *fcc =
+			kzalloc(sizeof(struct flush_cmd_control), GFP_KERNEL);
 
-		if (!sm_info->f2fs_issue_flush) {
-			dev_t dev = sbi->sb->s_bdev->bd_dev;
-
-			spin_lock_init(&sm_info->issue_lock);
-			init_waitqueue_head(&sm_info->flush_wait_queue);
-			sm_info->f2fs_issue_flush =
-				kthread_run(issue_flush_thread, sbi,
-				"f2fs_flush-%u:%u", MAJOR(dev), MINOR(dev));
-			if (IS_ERR(sm_info->f2fs_issue_flush)) {
-				err = PTR_ERR(sm_info->f2fs_issue_flush);
-				sm_info->f2fs_issue_flush = NULL;
-				goto restore_gc;
-			}
+		if (!fcc) {
+			err = -ENOMEM;
+			goto restore_gc;
 		}
+		spin_lock_init(&fcc->issue_lock);
+		init_waitqueue_head(&fcc->flush_wait_queue);
+		fcc->f2fs_issue_flush = kthread_run(issue_flush_thread, sbi,
+				"f2fs_flush-%u:%u", MAJOR(dev), MINOR(dev));
+		if (IS_ERR(fcc->f2fs_issue_flush)) {
+			err = PTR_ERR(fcc->f2fs_issue_flush);
+			kfree(fcc);
+			goto restore_gc;
+		}
+		sbi->sm_info->cmd_control_info = fcc;
 	}
 skip:
 	/* Update the POSIXACL Flag */
