@@ -268,8 +268,7 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
  *  - There's never a SIB byte.
  *  - The displacement is always 4 bytes.
  */
-static void
-handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
+static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	u8 *cursor;
 	u8 reg;
@@ -331,8 +330,7 @@ handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
  * If we're emulating a rip-relative instruction, save the contents
  * of the scratch register and store the target address in that register.
  */
-static void
-pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
+static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
 				struct arch_uprobe_task *autask)
 {
 	if (auprobe->def.fixups & UPROBE_FIX_RIP_AX) {
@@ -346,8 +344,8 @@ pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
 	}
 }
 
-static void
-handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
+static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
+				long *correction)
 {
 	if (auprobe->def.fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) {
 		struct arch_uprobe_task *autask;
@@ -376,14 +374,14 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
 /*
  * No RIP-relative addressing on 32-bit
  */
-static void handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
+static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 {
 }
-static void pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
+static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
 				struct arch_uprobe_task *autask)
 {
 }
-static void handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
+static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
 					long *correction)
 {
 }
@@ -403,7 +401,7 @@ static inline int sizeof_long(void)
 
 static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	pre_xol_rip_insn(auprobe, regs, &current->utask->autask);
+	riprel_pre_xol(auprobe, regs, &current->utask->autask);
 	return 0;
 }
 
@@ -423,7 +421,7 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 	struct uprobe_task *utask = current->utask;
 	long correction = (long)(utask->vaddr - utask->xol_vaddr);
 
-	handle_riprel_post_xol(auprobe, regs, &correction);
+	riprel_post_xol(auprobe, regs, &correction);
 	if (auprobe->def.fixups & UPROBE_FIX_IP) {
 		regs->ip += correction;
 	} else if (auprobe->def.fixups & UPROBE_FIX_CALL) {
@@ -440,7 +438,7 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 
 static void default_abort_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	handle_riprel_post_xol(auprobe, regs, NULL);
+	riprel_post_xol(auprobe, regs, NULL);
 }
 
 static struct uprobe_xol_ops default_xol_ops = {
@@ -663,7 +661,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 		}
 		/* fall through */
 	default:
-		handle_riprel_insn(auprobe, &insn);
+		riprel_analyze(auprobe, &insn);
 	}
 
 	auprobe->def.ilen = insn.length;
