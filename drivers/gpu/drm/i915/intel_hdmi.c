@@ -821,11 +821,11 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	}
 }
 
-static int hdmi_portclock_limit(struct intel_hdmi *hdmi)
+static int hdmi_portclock_limit(struct intel_hdmi *hdmi, bool respect_dvi_limit)
 {
 	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
 
-	if (!hdmi->has_hdmi_sink || IS_G4X(dev))
+	if ((respect_dvi_limit && !hdmi->has_hdmi_sink) || IS_G4X(dev))
 		return 165000;
 	else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8)
 		return 300000;
@@ -837,7 +837,8 @@ static enum drm_mode_status
 intel_hdmi_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
 {
-	if (mode->clock > hdmi_portclock_limit(intel_attached_hdmi(connector)))
+	if (mode->clock > hdmi_portclock_limit(intel_attached_hdmi(connector),
+					       true))
 		return MODE_CLOCK_HIGH;
 	if (mode->clock < 20000)
 		return MODE_CLOCK_LOW;
@@ -879,7 +880,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	int clock_12bpc = pipe_config->adjusted_mode.crtc_clock * 3 / 2;
-	int portclock_limit = hdmi_portclock_limit(intel_hdmi);
+	int portclock_limit = hdmi_portclock_limit(intel_hdmi, false);
 	int desired_bpp;
 
 	if (intel_hdmi->color_range_auto) {
