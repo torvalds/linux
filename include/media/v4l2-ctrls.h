@@ -36,6 +36,19 @@ struct v4l2_subscribed_event;
 struct v4l2_fh;
 struct poll_table_struct;
 
+/** union v4l2_ctrl_ptr - A pointer to a control value.
+ * @p_s32:	Pointer to a 32-bit signed value.
+ * @p_s64:	Pointer to a 64-bit signed value.
+ * @p_char:	Pointer to a string.
+ * @p:		Pointer to a compound value.
+ */
+union v4l2_ctrl_ptr {
+	s32 *p_s32;
+	s64 *p_s64;
+	char *p_char;
+	void *p;
+};
+
 /** struct v4l2_ctrl_ops - The control operations that the driver has to provide.
   * @g_volatile_ctrl: Get a new value for this control. Generally only relevant
   *		for volatile (and usually read-only) controls such as a control
@@ -52,6 +65,23 @@ struct v4l2_ctrl_ops {
 	int (*g_volatile_ctrl)(struct v4l2_ctrl *ctrl);
 	int (*try_ctrl)(struct v4l2_ctrl *ctrl);
 	int (*s_ctrl)(struct v4l2_ctrl *ctrl);
+};
+
+/** struct v4l2_ctrl_type_ops - The control type operations that the driver has to provide.
+  * @equal: return true if both values are equal.
+  * @init: initialize the value.
+  * @log: log the value.
+  * @validate: validate the value. Return 0 on success and a negative value otherwise.
+  */
+struct v4l2_ctrl_type_ops {
+	bool (*equal)(const struct v4l2_ctrl *ctrl,
+		      union v4l2_ctrl_ptr ptr1,
+		      union v4l2_ctrl_ptr ptr2);
+	void (*init)(const struct v4l2_ctrl *ctrl,
+		     union v4l2_ctrl_ptr ptr);
+	void (*log)(const struct v4l2_ctrl *ctrl);
+	int (*validate)(const struct v4l2_ctrl *ctrl,
+			union v4l2_ctrl_ptr ptr);
 };
 
 typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
@@ -89,6 +119,7 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
   *		value, then the whole cluster is in manual mode. Drivers should
   *		never set this flag directly.
   * @ops:	The control ops.
+  * @type_ops:	The control type ops.
   * @id:	The control ID.
   * @name:	The control name.
   * @type:	The control type.
@@ -137,6 +168,7 @@ struct v4l2_ctrl {
 	unsigned int manual_mode_value:8;
 
 	const struct v4l2_ctrl_ops *ops;
+	const struct v4l2_ctrl_type_ops *type_ops;
 	u32 id;
 	const char *name;
 	enum v4l2_ctrl_type type;
@@ -164,6 +196,9 @@ struct v4l2_ctrl {
 		char *string;
 		void *p;
 	} cur;
+
+	union v4l2_ctrl_ptr p_new;
+	union v4l2_ctrl_ptr p_cur;
 };
 
 /** struct v4l2_ctrl_ref - The control reference.
@@ -217,6 +252,7 @@ struct v4l2_ctrl_handler {
 
 /** struct v4l2_ctrl_config - Control configuration structure.
   * @ops:	The control ops.
+  * @type_ops:	The control type ops. Only needed for compound controls.
   * @id:	The control ID.
   * @name:	The control name.
   * @type:	The control type.
@@ -241,6 +277,7 @@ struct v4l2_ctrl_handler {
   */
 struct v4l2_ctrl_config {
 	const struct v4l2_ctrl_ops *ops;
+	const struct v4l2_ctrl_type_ops *type_ops;
 	u32 id;
 	const char *name;
 	enum v4l2_ctrl_type type;
