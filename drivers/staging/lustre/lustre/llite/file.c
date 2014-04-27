@@ -2882,9 +2882,10 @@ static int ll_inode_revalidate_fini(struct inode *inode, int rc)
 		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
 			return 0;
 	} else if (rc != 0) {
-		CERROR("%s: revalidate FID "DFID" error: rc = %d\n",
-		       ll_get_fsname(inode->i_sb, NULL, 0),
-		       PFID(ll_inode2fid(inode)), rc);
+		CDEBUG_LIMIT((rc == -EACCES || rc == -EIDRM) ? D_INFO : D_ERROR,
+			     "%s: revalidate FID "DFID" error: rc = %d\n",
+			     ll_get_fsname(inode->i_sb, NULL, 0),
+			     PFID(ll_inode2fid(inode)), rc);
 	}
 
 	return rc;
