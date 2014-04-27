@@ -174,15 +174,25 @@ static int osc_cached_mb_seq_show(struct seq_file *m, void *v)
 }
 
 /* shrink the number of caching pages to a specific number */
-static ssize_t osc_cached_mb_seq_write(struct file *file, const char *buffer,
-				   size_t count, loff_t *off)
+static ssize_t osc_cached_mb_seq_write(struct file *file,
+				       const char __user *buffer,
+				       size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &dev->u.cli;
 	int pages_number, mult, rc;
+	char kernbuf[128];
+
+	if (count >= sizeof(kernbuf))
+		return -EINVAL;
+
+	if (copy_from_user(kernbuf, buffer, count))
+		return -EFAULT;
+	kernbuf[count] = 0;
 
 	mult = 1 << (20 - PAGE_CACHE_SHIFT);
-	buffer = lprocfs_find_named_value(buffer, "used_mb:", &count);
+	buffer += lprocfs_find_named_value(kernbuf, "used_mb:", &count) -
+		  kernbuf;
 	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
 	if (rc)
 		return rc;

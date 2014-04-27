@@ -367,8 +367,9 @@ static int ll_max_cached_mb_seq_show(struct seq_file *m, void *v)
 			cache->ccc_lru_shrinkers);
 }
 
-static ssize_t ll_max_cached_mb_seq_write(struct file *file, const char *buffer,
-				      size_t count, loff_t *off)
+static ssize_t ll_max_cached_mb_seq_write(struct file *file,
+					  const char __user *buffer,
+					  size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -376,9 +377,18 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file, const char *buffer,
 	int mult, rc, pages_number;
 	int diff = 0;
 	int nrpages = 0;
+	char kernbuf[128];
+
+	if (count >= sizeof(kernbuf))
+		return -EINVAL;
+
+	if (copy_from_user(kernbuf, buffer, count))
+		return -EFAULT;
+	kernbuf[count] = 0;
 
 	mult = 1 << (20 - PAGE_CACHE_SHIFT);
-	buffer = lprocfs_find_named_value(buffer, "max_cached_mb:", &count);
+	buffer += lprocfs_find_named_value(kernbuf, "max_cached_mb:", &count) -
+		  kernbuf;
 	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
 	if (rc)
 		return rc;
@@ -1163,7 +1173,8 @@ static int ll_rw_extents_stats_pp_seq_show(struct seq_file *seq, void *v)
 }
 
 static ssize_t ll_rw_extents_stats_pp_seq_write(struct file *file,
-						const char *buf, size_t len,
+						const char __user *buf,
+						size_t len,
 						loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
@@ -1172,10 +1183,24 @@ static ssize_t ll_rw_extents_stats_pp_seq_write(struct file *file,
 	int i;
 	int value = 1, rc = 0;
 
+	if (len == 0)
+		return -EINVAL;
+
 	rc = lprocfs_write_helper(buf, len, &value);
-	if (rc < 0 && (strcmp(buf, "disabled") == 0 ||
-		       strcmp(buf, "Disabled") == 0))
-		value = 0;
+	if (rc < 0 && len < 16) {
+		char kernbuf[16];
+
+		if (copy_from_user(kernbuf, buf, len))
+			return -EFAULT;
+		kernbuf[len] = 0;
+
+		if (kernbuf[len - 1] == '\n')
+			kernbuf[len - 1] = 0;
+
+		if (strcmp(kernbuf, "disabled") == 0 ||
+		    strcmp(kernbuf, "Disabled") == 0)
+			value = 0;
+	}
 
 	if (value == 0)
 		sbi->ll_rw_stats_on = 0;
@@ -1222,8 +1247,9 @@ static int ll_rw_extents_stats_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static ssize_t ll_rw_extents_stats_seq_write(struct file *file, const char *buf,
-					size_t len, loff_t *off)
+static ssize_t ll_rw_extents_stats_seq_write(struct file *file,
+					     const char __user *buf,
+					     size_t len, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	struct ll_sb_info *sbi = seq->private;
@@ -1231,15 +1257,30 @@ static ssize_t ll_rw_extents_stats_seq_write(struct file *file, const char *buf,
 	int i;
 	int value = 1, rc = 0;
 
+	if (len == 0)
+		return -EINVAL;
+
 	rc = lprocfs_write_helper(buf, len, &value);
-	if (rc < 0 && (strcmp(buf, "disabled") == 0 ||
-		       strcmp(buf, "Disabled") == 0))
-		value = 0;
+	if (rc < 0 && len < 16) {
+		char kernbuf[16];
+
+		if (copy_from_user(kernbuf, buf, len))
+			return -EFAULT;
+		kernbuf[len] = 0;
+
+		if (kernbuf[len - 1] == '\n')
+			kernbuf[len - 1] = 0;
+
+		if (strcmp(kernbuf, "disabled") == 0 ||
+		    strcmp(kernbuf, "Disabled") == 0)
+			value = 0;
+	}
 
 	if (value == 0)
 		sbi->ll_rw_stats_on = 0;
 	else
 		sbi->ll_rw_stats_on = 1;
+
 	spin_lock(&sbi->ll_pp_extent_lock);
 	for (i = 0; i <= LL_PROCESS_HIST_MAX; i++) {
 		io_extents->pp_extents[i].pid = 0;
@@ -1250,7 +1291,6 @@ static ssize_t ll_rw_extents_stats_seq_write(struct file *file, const char *buf,
 
 	return len;
 }
-
 LPROC_SEQ_FOPS(ll_rw_extents_stats);
 
 void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
@@ -1410,8 +1450,9 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static ssize_t ll_rw_offset_stats_seq_write(struct file *file, const char *buf,
-				       size_t len, loff_t *off)
+static ssize_t ll_rw_offset_stats_seq_write(struct file *file,
+					    const char __user *buf,
+					    size_t len, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	struct ll_sb_info *sbi = seq->private;
@@ -1419,11 +1460,25 @@ static ssize_t ll_rw_offset_stats_seq_write(struct file *file, const char *buf,
 	struct ll_rw_process_info *offset_info = sbi->ll_rw_offset_info;
 	int value = 1, rc = 0;
 
+	if (len == 0)
+		return -EINVAL;
+
 	rc = lprocfs_write_helper(buf, len, &value);
 
-	if (rc < 0 && (strcmp(buf, "disabled") == 0 ||
-			   strcmp(buf, "Disabled") == 0))
-		value = 0;
+	if (rc < 0 && len < 16) {
+		char kernbuf[16];
+
+		if (copy_from_user(kernbuf, buf, len))
+			return -EFAULT;
+		kernbuf[len] = 0;
+
+		if (kernbuf[len - 1] == '\n')
+			kernbuf[len - 1] = 0;
+
+		if (strcmp(kernbuf, "disabled") == 0 ||
+		    strcmp(kernbuf, "Disabled") == 0)
+			value = 0;
+	}
 
 	if (value == 0)
 		sbi->ll_rw_stats_on = 0;
