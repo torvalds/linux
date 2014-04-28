@@ -2489,7 +2489,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 			goto fail_ldev;
 		}
 
-		if (device->state.conn != C_CONNECTED) {
+		if (device->state.conn != C_CONNECTED && !rs.resize_force) {
 			retcode = ERR_MD_LAYOUT_CONNECTED;
 			goto fail_ldev;
 		}
