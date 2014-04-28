@@ -106,6 +106,8 @@ static inline struct virtio_device *dev_to_virtio(struct device *_dev)
 int register_virtio_device(struct virtio_device *dev);
 void unregister_virtio_device(struct virtio_device *dev);
 
+void virtio_break_device(struct virtio_device *dev);
+
 /**
  * virtio_driver - operations for a virtio I/O driver
  * @driver: underlying device driver (populate name and owner).
