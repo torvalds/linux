@@ -432,7 +432,6 @@ static const struct of_device_id v2m_dt_bus_match[] __initconst = {
 
 static void __init v2m_dt_init(void)
 {
-	l2x0_of_init(0x00400000, 0xfe0fffff);
 	of_platform_populate(NULL, v2m_dt_bus_match, NULL, NULL);
 }
 
@@ -443,6 +442,8 @@ static const char * const v2m_dt_match[] __initconst = {
 
 DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.dt_compat	= v2m_dt_match,
+	.l2c_aux_val	= 0x00400000,
+	.l2c_aux_mask	= 0xfe0fffff,
 	.smp		= smp_ops(vexpress_smp_ops),
 	.smp_init	= smp_init_ops(vexpress_smp_init_ops),
 	.map_io		= v2m_dt_map_io,
