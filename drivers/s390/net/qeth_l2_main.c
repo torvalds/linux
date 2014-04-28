@@ -725,14 +725,19 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int elements = 0;
 	struct qeth_card *card = dev->ml_priv;
 	struct sk_buff *new_skb = skb;
-	int ipv = qeth_get_ip_version(skb);
 	int cast_type = qeth_l2_get_cast_type(card, skb);
-	struct qeth_qdio_out_q *queue = card->qdio.out_qs
-		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
+	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
 	int data_offset = -1;
 	int elements_needed = 0;
 	int hd_len = 0;
+
+	if (card->qdio.do_prio_queueing || (cast_type &&
+					card->info.is_multicast_different))
+		queue = card->qdio.out_qs[qeth_get_priority_queue(card, skb,
+					qeth_get_ip_version(skb), cast_type)];
+	else
+		queue = card->qdio.out_qs[card->qdio.default_out_queue];
 
 	if ((card->state != CARD_STATE_UP) || !card->lan_online) {
 		card->stats.tx_carrier_errors++;

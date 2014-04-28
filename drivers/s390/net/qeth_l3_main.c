@@ -2926,8 +2926,11 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff *new_skb = NULL;
 	int ipv = qeth_get_ip_version(skb);
 	int cast_type = qeth_l3_get_cast_type(card, skb);
-	struct qeth_qdio_out_q *queue = card->qdio.out_qs
-		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
+	struct qeth_qdio_out_q *queue =
+		card->qdio.out_qs[card->qdio.do_prio_queueing
+			|| (cast_type && card->info.is_multicast_different) ?
+			qeth_get_priority_queue(card, skb, ipv, cast_type) :
+			card->qdio.default_out_queue];
 	int tx_bytes = skb->len;
 	bool large_send;
 	int data_offset = -1;
