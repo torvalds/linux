@@ -236,6 +236,7 @@ certainly invest a bit more effort into libata core layer).
 MEM
   devm_kzalloc()
   devm_kfree()
+  devm_kmemdup()
 
 IIO
   devm_iio_device_alloc()
