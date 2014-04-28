@@ -39,6 +39,7 @@ struct ccsr_ssi {
 	__be32 saccdis; /* 0x.0058 - SSI AC97 Channel Disable Register */
 };
 
+#define CCSR_SSI_SCR_SYNC_TX_FS		0x00001000
 #define CCSR_SSI_SCR_RFR_CLK_DIS	0x00000800
 #define CCSR_SSI_SCR_TFR_CLK_DIS	0x00000400
 #define CCSR_SSI_SCR_TCH_EN		0x00000100
