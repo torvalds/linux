@@ -238,11 +238,18 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 			return NULL;
 		}
 	} else {
+		/* SW and REGULATORY sections are mandatory */
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
-		    !mvm->nvm_sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data ||
 		    !mvm->nvm_sections[NVM_SECTION_TYPE_REGULATORY].data) {
 			IWL_ERR(mvm,
 				"Can't parse empty family 8000 NVM sections\n");
+			return NULL;
+		}
+		/* MAC_OVERRIDE or at least HW section must exist */
+		if (!mvm->cfg->nvm_hw_section_num &&
+		    !mvm->nvm_sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data) {
+			IWL_ERR(mvm,
+				"Can't parse mac_address, empty sections\n");
 			return NULL;
 		}
 	}
