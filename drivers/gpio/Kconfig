@@ -244,9 +244,10 @@ config GPIO_OCTEON
 	  family of SOCs.
 
 config GPIO_OMAP
-	bool "TI OMAP GPIO support"
+	bool "TI OMAP GPIO support" if COMPILE_TEST && !ARCH_OMAP2PLUS
 	default y if ARCH_OMAP
-	depends on ARM && ARCH_OMAP
+	depends on ARM
+	select GENERIC_IRQ_CHIP
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to enable GPIO support for TI OMAP SoCs.
