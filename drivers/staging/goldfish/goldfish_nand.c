@@ -67,7 +67,7 @@ static u32 goldfish_nand_cmd_with_params(struct mtd_info *mtd,
 	cps->addr_high = (u32)(addr >> 32);
 	cps->addr_low = (u32)addr;
 	cps->transfer_size = len;
-	cps->data = (u32)ptr;
+	cps->data = (unsigned long)ptr;
 	writel(cmdp, base + NAND_COMMAND);
 	*rv = cps->result;
 	return 0;
@@ -87,6 +87,9 @@ static u32 goldfish_nand_cmd(struct mtd_info *mtd, enum nand_cmd cmd,
 		writel((u32)addr, base + NAND_ADDR_LOW);
 		writel(len, base + NAND_TRANSFER_SIZE);
 		writel((u32)ptr, base + NAND_DATA);
+#ifdef CONFIG_64BIT
+		writel((u32)((u64)ptr >> 32), base + NAND_DATA_HIGH);
+#endif
 		writel(cmd, base + NAND_COMMAND);
 		rv = readl(base + NAND_RESULT);
 	}
