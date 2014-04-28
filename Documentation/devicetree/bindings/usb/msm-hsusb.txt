@@ -59,6 +59,12 @@ Optional properties:
                 For example: qcom,phy-init-sequence = < -1 0x63 >;
                 Will update only value at address ULPI_EXT_VENDOR_SPECIFIC + 1.
 
+- qcom,phy-num: Select number of pyco-phy to use, can be one of
+                0 - PHY one, default
+                1 - Second PHY
+                Some platforms may have configuration to allow USB
+                controller work with any of the two HSPHYs present.
+
 Example HSUSB OTG controller device node:
 
     usb@f9a55000 {

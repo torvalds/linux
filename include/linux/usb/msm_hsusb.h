@@ -158,6 +158,7 @@ struct msm_otg {
 	atomic_t in_lpm;
 	int async_int;
 	unsigned cur_power;
+	int phy_number;
 	struct delayed_work chg_work;
 	enum usb_chg_state chg_state;
 	enum usb_chg_type chg_type;
