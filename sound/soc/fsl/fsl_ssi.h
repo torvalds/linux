@@ -206,5 +206,64 @@ struct ccsr_ssi {
 #define CCSR_SSI_SACNT_FV		0x00000002
 #define CCSR_SSI_SACNT_AC97EN		0x00000001
 
-#endif
 
+struct device;
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+
+struct fsl_ssi_dbg {
+	struct dentry *dbg_dir;
+	struct dentry *dbg_stats;
+
+	struct {
+		unsigned int rfrc;
+		unsigned int tfrc;
+		unsigned int cmdau;
+		unsigned int cmddu;
+		unsigned int rxt;
+		unsigned int rdr1;
+		unsigned int rdr0;
+		unsigned int tde1;
+		unsigned int tde0;
+		unsigned int roe1;
+		unsigned int roe0;
+		unsigned int tue1;
+		unsigned int tue0;
+		unsigned int tfs;
+		unsigned int rfs;
+		unsigned int tls;
+		unsigned int rls;
+		unsigned int rff1;
+		unsigned int rff0;
+		unsigned int tfe1;
+		unsigned int tfe0;
+	} stats;
+};
+
+void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *ssi_dbg, u32 sisr);
+
+int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev);
+
+void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg);
+
+#else
+
+struct fsl_ssi_dbg {
+};
+
+static inline void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *stats, u32 sisr)
+{
+}
+
+static inline int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg,
+		struct device *dev)
+{
+	return 0;
+}
+
+static inline void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg)
+{
+}
+#endif  /* ! IS_ENABLED(CONFIG_DEBUG_FS) */
+
+#endif

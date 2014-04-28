@@ -35,7 +35,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
-#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -113,8 +112,6 @@ static inline void write_ssi_mask(u32 __iomem *addr, u32 clear, u32 set)
 #define FSLSSI_SIER_DBG_TX_FLAGS (CCSR_SSI_SIER_TFE0_EN | \
 		CCSR_SSI_SIER_TLS_EN | CCSR_SSI_SIER_TFS_EN | \
 		CCSR_SSI_SIER_TUE0_EN | CCSR_SSI_SIER_TFRC_EN)
-#define FSLSSI_SISR_MASK (FSLSSI_SIER_DBG_RX_FLAGS | FSLSSI_SIER_DBG_TX_FLAGS)
-
 
 enum fsl_ssi_type {
 	FSL_SSI_MCP8610,
@@ -177,31 +174,7 @@ struct fsl_ssi_private {
 	/* Register values for rx/tx configuration */
 	struct fsl_ssi_rxtx_reg_val rxtx_reg_val;
 
-	struct {
-		unsigned int rfrc;
-		unsigned int tfrc;
-		unsigned int cmdau;
-		unsigned int cmddu;
-		unsigned int rxt;
-		unsigned int rdr1;
-		unsigned int rdr0;
-		unsigned int tde1;
-		unsigned int tde0;
-		unsigned int roe1;
-		unsigned int roe0;
-		unsigned int tue1;
-		unsigned int tue0;
-		unsigned int tfs;
-		unsigned int rfs;
-		unsigned int tls;
-		unsigned int rls;
-		unsigned int rff1;
-		unsigned int rff0;
-		unsigned int tfe1;
-		unsigned int tfe0;
-	} stats;
-	struct dentry *dbg_dir;
-	struct dentry *dbg_stats;
+	struct fsl_ssi_dbg dbg_stats;
 
 	char name[1];
 };
@@ -231,7 +204,6 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 {
 	struct fsl_ssi_private *ssi_private = dev_id;
 	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
-	irqreturn_t ret = IRQ_NONE;
 	__be32 sisr;
 	__be32 sisr2;
 	__be32 sisr_write_mask = 0;
@@ -258,216 +230,17 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 	   were interrupted for.  We mask it with the Interrupt Enable register
 	   so that we only check for events that we're interested in.
 	 */
-	sisr = read_ssi(&ssi->sisr) & FSLSSI_SISR_MASK;
-
-	if (sisr & CCSR_SSI_SISR_RFRC) {
-		ssi_private->stats.rfrc++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TFRC) {
-		ssi_private->stats.tfrc++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_CMDAU) {
-		ssi_private->stats.cmdau++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_CMDDU) {
-		ssi_private->stats.cmddu++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_RXT) {
-		ssi_private->stats.rxt++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_RDR1) {
-		ssi_private->stats.rdr1++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_RDR0) {
-		ssi_private->stats.rdr0++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TDE1) {
-		ssi_private->stats.tde1++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TDE0) {
-		ssi_private->stats.tde0++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_ROE1) {
-		ssi_private->stats.roe1++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_ROE0) {
-		ssi_private->stats.roe0++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TUE1) {
-		ssi_private->stats.tue1++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TUE0) {
-		ssi_private->stats.tue0++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TFS) {
-		ssi_private->stats.tfs++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_RFS) {
-		ssi_private->stats.rfs++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TLS) {
-		ssi_private->stats.tls++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_RLS) {
-		ssi_private->stats.rls++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_RFF1) {
-		ssi_private->stats.rff1++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_RFF0) {
-		ssi_private->stats.rff0++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TFE1) {
-		ssi_private->stats.tfe1++;
-		ret = IRQ_HANDLED;
-	}
-
-	if (sisr & CCSR_SSI_SISR_TFE0) {
-		ssi_private->stats.tfe0++;
-		ret = IRQ_HANDLED;
-	}
+	sisr = read_ssi(&ssi->sisr);
 
 	sisr2 = sisr & sisr_write_mask;
 	/* Clear the bits that we set */
 	if (sisr2)
 		write_ssi(sisr2, &ssi->sisr);
 
-	return ret;
+	fsl_ssi_dbg_isr(&ssi_private->dbg_stats, sisr);
+
+	return IRQ_HANDLED;
 }
-
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-/* Show the statistics of a flag only if its interrupt is enabled.  The
- * compiler will optimze this code to a no-op if the interrupt is not
- * enabled.
- */
-#define SIER_SHOW(flag, name) \
-	do { \
-		if (FSLSSI_SISR_MASK & CCSR_SSI_SIER_##flag) \
-			seq_printf(s, #name "=%u\n", ssi_private->stats.name); \
-	} while (0)
-
-
-/**
- * fsl_sysfs_ssi_show: display SSI statistics
- *
- * Display the statistics for the current SSI device.  To avoid confusion,
- * we only show those counts that are enabled.
- */
-static int fsl_ssi_stats_show(struct seq_file *s, void *unused)
-{
-	struct fsl_ssi_private *ssi_private = s->private;
-
-	SIER_SHOW(RFRC_EN, rfrc);
-	SIER_SHOW(TFRC_EN, tfrc);
-	SIER_SHOW(CMDAU_EN, cmdau);
-	SIER_SHOW(CMDDU_EN, cmddu);
-	SIER_SHOW(RXT_EN, rxt);
-	SIER_SHOW(RDR1_EN, rdr1);
-	SIER_SHOW(RDR0_EN, rdr0);
-	SIER_SHOW(TDE1_EN, tde1);
-	SIER_SHOW(TDE0_EN, tde0);
-	SIER_SHOW(ROE1_EN, roe1);
-	SIER_SHOW(ROE0_EN, roe0);
-	SIER_SHOW(TUE1_EN, tue1);
-	SIER_SHOW(TUE0_EN, tue0);
-	SIER_SHOW(TFS_EN, tfs);
-	SIER_SHOW(RFS_EN, rfs);
-	SIER_SHOW(TLS_EN, tls);
-	SIER_SHOW(RLS_EN, rls);
-	SIER_SHOW(RFF1_EN, rff1);
-	SIER_SHOW(RFF0_EN, rff0);
-	SIER_SHOW(TFE1_EN, tfe1);
-	SIER_SHOW(TFE0_EN, tfe0);
-
-	return 0;
-}
-
-static int fsl_ssi_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fsl_ssi_stats_show, inode->i_private);
-}
-
-static const struct file_operations fsl_ssi_stats_ops = {
-	.open = fsl_ssi_stats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int fsl_ssi_debugfs_create(struct fsl_ssi_private *ssi_private,
-		struct device *dev)
-{
-	ssi_private->dbg_dir = debugfs_create_dir(dev_name(dev), NULL);
-	if (!ssi_private->dbg_dir)
-		return -ENOMEM;
-
-	ssi_private->dbg_stats = debugfs_create_file("stats", S_IRUGO,
-			ssi_private->dbg_dir, ssi_private, &fsl_ssi_stats_ops);
-	if (!ssi_private->dbg_stats) {
-		debugfs_remove(ssi_private->dbg_dir);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void fsl_ssi_debugfs_remove(struct fsl_ssi_private *ssi_private)
-{
-	debugfs_remove(ssi_private->dbg_stats);
-	debugfs_remove(ssi_private->dbg_dir);
-}
-
-#else
-
-static int fsl_ssi_debugfs_create(struct fsl_ssi_private *ssi_private,
-		struct device *dev)
-{
-	return 0;
-}
-
-static void fsl_ssi_debugfs_remove(struct fsl_ssi_private *ssi_private)
-{
-}
-
-#endif /* IS_ENABLED(CONFIG_DEBUG_FS) */
 
 /*
  * Enable/Disable all rx/tx config flags at once.
@@ -1452,7 +1225,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		goto error_dev;
 	}
 
-	ret = fsl_ssi_debugfs_create(ssi_private, &pdev->dev);
+	ret = fsl_ssi_debugfs_create(&ssi_private->dbg_stats, &pdev->dev);
 	if (ret)
 		goto error_dbgfs;
 
@@ -1522,7 +1295,7 @@ error_dai:
 		imx_pcm_fiq_exit(pdev);
 
 error_pcm:
-	fsl_ssi_debugfs_remove(ssi_private);
+	fsl_ssi_debugfs_remove(&ssi_private->dbg_stats);
 
 error_dbgfs:
 	snd_soc_unregister_component(&pdev->dev);
@@ -1548,7 +1321,7 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 {
 	struct fsl_ssi_private *ssi_private = dev_get_drvdata(&pdev->dev);
 
-	fsl_ssi_debugfs_remove(ssi_private);
+	fsl_ssi_debugfs_remove(&ssi_private->dbg_stats);
 
 	if (!ssi_private->new_binding)
 		platform_device_unregister(ssi_private->pdev);
