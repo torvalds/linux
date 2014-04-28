@@ -490,13 +490,6 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 	if (is_bad_inode(inode))
 		return -EIO;
 
-	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	if (err)
-		return err;
-
-	if ((!isdir && fc->no_fsync) || (isdir && fc->no_fsyncdir))
-		return 0;
-
 	mutex_lock(&inode->i_mutex);
 
 	/*
@@ -504,7 +497,7 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 	 * wait for all outstanding writes, before sending the FSYNC
 	 * request.
 	 */
-	err = write_inode_now(inode, 0);
+	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (err)
 		goto out;
 
@@ -515,6 +508,8 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 		if (err)
 			goto out;
 	}
+	if ((!isdir && fc->no_fsync) || (isdir && fc->no_fsyncdir))
+		goto out;
 
 	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req)) {
