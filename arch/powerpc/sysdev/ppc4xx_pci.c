@@ -1058,7 +1058,7 @@ static int __init apm821xx_pciex_core_init(struct device_node *np)
 	return 1;
 }
 
-static int apm821xx_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+static int __init apm821xx_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 {
 	u32 val;
 
