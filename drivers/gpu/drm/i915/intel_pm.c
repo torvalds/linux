@@ -3260,6 +3260,10 @@ static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 	if (INTEL_INFO(dev)->gen == 5 && !IS_IRONLAKE_M(dev))
 		return 0;
 
+	/* Disable RC6 on Broadwell for now */
+	if (IS_BROADWELL(dev))
+		return 0;
+
 	/* Respect the kernel parameter if it is set */
 	if (enable_rc6 >= 0) {
 		int mask;
