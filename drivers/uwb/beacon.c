@@ -397,7 +397,6 @@ int uwbd_evt_handle_rc_beacon(struct uwb_event *evt)
 	struct uwb_rc_evt_beacon *be;
 	struct uwb_beacon_frame *bf;
 	struct uwb_beca_e *bce;
-	unsigned long last_ts;
 
 	rc = evt->rc;
 	be = container_of(evt->notif.rceb, struct uwb_rc_evt_beacon, rceb);
@@ -440,8 +439,6 @@ int uwbd_evt_handle_rc_beacon(struct uwb_event *evt)
 	mutex_lock(&bce->mutex);
 	/* purge old beacon data */
 	kfree(bce->be);
-
-	last_ts = bce->ts_jiffies;
 
 	/* Update commonly used fields */
 	bce->ts_jiffies = evt->ts_jiffies;
