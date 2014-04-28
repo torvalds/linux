@@ -81,6 +81,7 @@ struct fsl_spdif_priv {
 	struct clk *txclk[SPDIF_TXRATE_MAX];
 	struct clk *rxclk;
 	struct clk *coreclk;
+	struct clk *sysclk;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 
@@ -767,7 +768,7 @@ static int spdif_get_rxclk_rate(struct fsl_spdif_priv *spdif_priv,
 	clksrc = (phaseconf >> SRPC_CLKSRC_SEL_OFFSET) & 0xf;
 	if (srpc_dpll_locked[clksrc] && (phaseconf & SRPC_DPLL_LOCKED)) {
 		/* Get bus clock from system */
-		busclk_freq = clk_get_rate(spdif_priv->rxclk);
+		busclk_freq = clk_get_rate(spdif_priv->sysclk);
 	}
 
 	/* FreqMeas_CLK = (BUS_CLK * FreqMeas) / 2 ^ 10 / GAINSEL / 128 */
@@ -1145,6 +1146,13 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "could not claim irq %u\n", irq);
 		return ret;
+	}
+
+	/* Get system clock for rx clock rate calculation */
+	spdif_priv->sysclk = devm_clk_get(&pdev->dev, "rxtx5");
+	if (IS_ERR(spdif_priv->sysclk)) {
+		dev_err(&pdev->dev, "no sys clock (rxtx5) in devicetree\n");
+		return PTR_ERR(spdif_priv->sysclk);
 	}
 
 	/* Get core clock for data register access via DMA */
