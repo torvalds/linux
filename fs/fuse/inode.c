@@ -1004,7 +1004,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (sb->s_flags & MS_MANDLOCK)
 		goto err;
 
-	sb->s_flags &= ~MS_NOSEC;
+	sb->s_flags &= ~(MS_NOSEC | MS_I_VERSION);
 
 	if (!parse_fuse_opt((char *) data, &d, is_bdev))
 		goto err;
