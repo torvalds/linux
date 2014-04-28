@@ -203,7 +203,7 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 
 	BUG_ON(!bdev->md_bdev);
 
-	drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
+	dynamic_drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
 	     current->comm, current->pid, __func__,
 	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ",
 	     (void*)_RET_IP_ );
@@ -275,7 +275,6 @@ bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval 
 	return _al_get(device, first, true);
 }
 
-static
 bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i)
 {
 	/* for bios crossing activity log extent boundaries,

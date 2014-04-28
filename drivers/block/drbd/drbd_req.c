@@ -1242,6 +1242,7 @@ void do_submit(struct work_struct *ws)
 		if (list_empty(&incoming))
 			break;
 
+skip_fast_path:
 		wait_event(device->al_wait, prepare_al_transaction_nonblock(device, &incoming, &pending));
 		/* Maybe more was queued, while we prepared the transaction?
 		 * Try to stuff them into this transaction as well.
@@ -1279,6 +1280,25 @@ void do_submit(struct work_struct *ws)
 		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
 			list_del_init(&req->tl_requests);
 			drbd_send_and_submit(device, req);
+		}
+
+		/* If all currently hot activity log extents are kept busy by
+		 * incoming requests, we still must not totally starve new
+		 * requests to cold extents. In that case, prepare one request
+		 * in blocking mode. */
+		list_for_each_entry_safe(req, tmp, &incoming, tl_requests) {
+			list_del_init(&req->tl_requests);
+			req->rq_state |= RQ_IN_ACT_LOG;
+			if (!drbd_al_begin_io_prepare(device, &req->i)) {
+				/* Corresponding extent was hot after all? */
+				drbd_send_and_submit(device, req);
+			} else {
+				/* Found a request to a cold extent.
+				 * Put on "pending" list,
+				 * and try to cumulate with more. */
+				list_add(&req->tl_requests, &pending);
+				goto skip_fast_path;
+			}
 		}
 	}
 }
