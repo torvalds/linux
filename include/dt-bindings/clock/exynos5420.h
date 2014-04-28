@@ -178,6 +178,8 @@
 
 /* mux clocks */
 #define CLK_MOUT_HDMI		640
+#define CLK_MOUT_G3D		641
+#define CLK_MOUT_VPLL		642
 
 /* divider clocks */
 #define CLK_DOUT_PIXEL		768
