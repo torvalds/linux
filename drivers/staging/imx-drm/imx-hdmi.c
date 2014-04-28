@@ -157,6 +157,7 @@ static inline u8 hdmi_readb(struct imx_hdmi *hdmi, int offset)
 static void hdmi_modb(struct imx_hdmi *hdmi, u8 data, u8 mask, unsigned reg)
 {
 	u8 val = hdmi_readb(hdmi, reg) & ~mask;
+
 	val |= data & mask;
 	hdmi_writeb(hdmi, val, reg);
 }
@@ -1606,6 +1607,7 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	if (of_id) {
 		const struct platform_device_id *device_id = of_id->data;
+
 		hdmi->dev_type = device_id->driver_data;
 	}
 
