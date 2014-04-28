@@ -485,6 +485,8 @@ static int kernfs_fop_mmap(struct file *file, struct vm_area_struct *vma)
 
 	ops = kernfs_ops(of->kn);
 	rc = ops->mmap(of, vma);
+	if (rc)
+		goto out_put;
 
 	/*
 	 * PowerPC's pci_mmap of legacy_mem uses shmem_zero_setup()

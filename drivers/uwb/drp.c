@@ -59,6 +59,7 @@ static void uwb_rc_set_drp_cmd_done(struct uwb_rc *rc, void *arg,
 				    struct uwb_rceb *reply, ssize_t reply_size)
 {
 	struct uwb_rc_evt_set_drp_ie *r = (struct uwb_rc_evt_set_drp_ie *)reply;
+	unsigned long flags;
 
 	if (r != NULL) {
 		if (r->bResultCode != UWB_RC_RES_SUCCESS)
@@ -67,14 +68,14 @@ static void uwb_rc_set_drp_cmd_done(struct uwb_rc *rc, void *arg,
 	} else
 		dev_err(&rc->uwb_dev.dev, "SET-DRP-IE: timeout\n");
 
-	spin_lock_irq(&rc->rsvs_lock);
+	spin_lock_irqsave(&rc->rsvs_lock, flags);
 	if (rc->set_drp_ie_pending > 1) {
 		rc->set_drp_ie_pending = 0;
-		uwb_rsv_queue_update(rc);	
+		uwb_rsv_queue_update(rc);
 	} else {
-		rc->set_drp_ie_pending = 0;	
+		rc->set_drp_ie_pending = 0;
 	}
-	spin_unlock_irq(&rc->rsvs_lock);
+	spin_unlock_irqrestore(&rc->rsvs_lock, flags);
 }
 
 /**

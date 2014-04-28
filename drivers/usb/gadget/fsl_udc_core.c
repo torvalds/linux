@@ -1219,6 +1219,10 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 	struct fsl_udc *udc;
 
 	udc = container_of(gadget, struct fsl_udc, gadget);
+
+	if (!udc->vbus_active)
+		return -EOPNOTSUPP;
+
 	udc->softconnect = (is_on != 0);
 	if (can_pullup(udc))
 		fsl_writel((fsl_readl(&dr_regs->usbcmd) | USB_CMD_RUN_STOP),
@@ -2532,8 +2536,8 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 	if (!udc_controller)
 		return -ENODEV;
 
-	usb_del_gadget_udc(&udc_controller->gadget);
 	udc_controller->done = &done;
+	usb_del_gadget_udc(&udc_controller->gadget);
 
 	fsl_udc_clk_release();
 
