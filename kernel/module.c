@@ -3193,6 +3193,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 {
 	struct module *mod;
 	long err;
+	char *after_dashes;
 
 	err = module_sig_check(info);
 	if (err)
@@ -3277,10 +3278,15 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto ddebug_cleanup;
 
 	/* Module is ready to execute: parsing args may do that. */
-	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
-			 -32768, 32767, unknown_module_param_cb);
-	if (err < 0)
+	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
+				  -32768, 32767, unknown_module_param_cb);
+	if (IS_ERR(after_dashes)) {
+		err = PTR_ERR(after_dashes);
 		goto bug_cleanup;
+	} else if (after_dashes) {
+		pr_warn("%s: parameters '%s' after `--' ignored\n",
+		       mod->name, after_dashes);
+	}
 
 	/* Link in to syfs. */
 	err = mod_sysfs_setup(mod, info, mod->kp, mod->num_kp);

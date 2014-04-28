@@ -321,7 +321,7 @@ extern bool parameq(const char *name1, const char *name2);
 extern bool parameqn(const char *name1, const char *name2, size_t n);
 
 /* Called on module insert or kernel boot */
-extern int parse_args(const char *name,
+extern char *parse_args(const char *name,
 		      char *args,
 		      const struct kernel_param *params,
 		      unsigned num,
