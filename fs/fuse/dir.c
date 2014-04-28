@@ -1518,7 +1518,7 @@ static bool update_mtime(unsigned ivalid, bool trust_local_mtime)
 }
 
 static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg,
-			   bool trust_local_mtime)
+			   bool trust_local_cmtime)
 {
 	unsigned ivalid = iattr->ia_valid;
 
@@ -1537,12 +1537,17 @@ static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg,
 		if (!(ivalid & ATTR_ATIME_SET))
 			arg->valid |= FATTR_ATIME_NOW;
 	}
-	if ((ivalid & ATTR_MTIME) && update_mtime(ivalid, trust_local_mtime)) {
+	if ((ivalid & ATTR_MTIME) && update_mtime(ivalid, trust_local_cmtime)) {
 		arg->valid |= FATTR_MTIME;
 		arg->mtime = iattr->ia_mtime.tv_sec;
 		arg->mtimensec = iattr->ia_mtime.tv_nsec;
-		if (!(ivalid & ATTR_MTIME_SET) && !trust_local_mtime)
+		if (!(ivalid & ATTR_MTIME_SET) && !trust_local_cmtime)
 			arg->valid |= FATTR_MTIME_NOW;
+	}
+	if ((ivalid & ATTR_CTIME) && trust_local_cmtime) {
+		arg->valid |= FATTR_CTIME;
+		arg->ctime = iattr->ia_ctime.tv_sec;
+		arg->ctimensec = iattr->ia_ctime.tv_nsec;
 	}
 }
 
@@ -1666,7 +1671,7 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 	bool is_wb = fc->writeback_cache;
 	loff_t oldsize;
 	int err;
-	bool trust_local_mtime = is_wb && S_ISREG(inode->i_mode);
+	bool trust_local_cmtime = is_wb && S_ISREG(inode->i_mode);
 
 	if (!(fc->flags & FUSE_DEFAULT_PERMISSIONS))
 		attr->ia_valid |= ATTR_FORCE;
@@ -1691,13 +1696,13 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 	if (is_truncate) {
 		fuse_set_nowrite(inode);
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
-		if (trust_local_mtime && attr->ia_size != inode->i_size)
-			attr->ia_valid |= ATTR_MTIME;
+		if (trust_local_cmtime && attr->ia_size != inode->i_size)
+			attr->ia_valid |= ATTR_MTIME | ATTR_CTIME;
 	}
 
 	memset(&inarg, 0, sizeof(inarg));
 	memset(&outarg, 0, sizeof(outarg));
-	iattr_to_fattr(attr, &inarg, trust_local_mtime);
+	iattr_to_fattr(attr, &inarg, trust_local_cmtime);
 	if (file) {
 		struct fuse_file *ff = file->private_data;
 		inarg.valid |= FATTR_FH;
@@ -1726,8 +1731,11 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 
 	spin_lock(&fc->lock);
 	/* the kernel maintains i_mtime locally */
-	if (trust_local_mtime && (attr->ia_valid & ATTR_MTIME)) {
-		inode->i_mtime = attr->ia_mtime;
+	if (trust_local_cmtime) {
+		if (attr->ia_valid & ATTR_MTIME)
+			inode->i_mtime = attr->ia_mtime;
+		if (attr->ia_valid & ATTR_CTIME)
+			inode->i_ctime = attr->ia_ctime;
 		/* FIXME: clear I_DIRTY_SYNC? */
 	}
 
