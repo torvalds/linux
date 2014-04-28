@@ -48,6 +48,7 @@
 #define DRIVER_NAME	"msm_otg"
 
 #define ULPI_IO_TIMEOUT_USEC	(10 * 1000)
+#define LINK_RESET_TIMEOUT_USEC	(250 * 1000)
 
 #define USB_PHY_3P3_VOL_MIN	3050000 /* uV */
 #define USB_PHY_3P3_VOL_MAX	3300000 /* uV */
@@ -267,77 +268,35 @@ static int msm_otg_phy_clk_reset(struct msm_otg *motg)
 	return ret;
 }
 
-static int msm_otg_phy_reset(struct msm_otg *motg)
+static int msm_link_reset(struct msm_otg *motg)
 {
 	u32 val;
 	int ret;
-	int retries;
 
 	ret = msm_otg_link_clk_reset(motg, 1);
 	if (ret)
 		return ret;
-	ret = msm_otg_phy_clk_reset(motg);
-	if (ret)
-		return ret;
+
+	/* wait for 1ms delay as suggested in HPG. */
+	usleep_range(1000, 1200);
+
 	ret = msm_otg_link_clk_reset(motg, 0);
 	if (ret)
 		return ret;
 
-	val = readl(USB_PORTSC) & ~PORTSC_PTS_MASK;
-	writel(val | PORTSC_PTS_ULPI, USB_PORTSC);
-
-	for (retries = 3; retries > 0; retries--) {
-		ret = ulpi_write(&motg->phy, ULPI_FUNC_CTRL_SUSPENDM,
-				ULPI_CLR(ULPI_FUNC_CTRL));
-		if (!ret)
-			break;
-		ret = msm_otg_phy_clk_reset(motg);
-		if (ret)
-			return ret;
-	}
-	if (!retries)
-		return -ETIMEDOUT;
-
-	/* This reset calibrates the phy, if the above write succeeded */
-	ret = msm_otg_phy_clk_reset(motg);
-	if (ret)
-		return ret;
-
-	for (retries = 3; retries > 0; retries--) {
-		ret = ulpi_read(&motg->phy, ULPI_DEBUG);
-		if (ret != -ETIMEDOUT)
-			break;
-		ret = msm_otg_phy_clk_reset(motg);
-		if (ret)
-			return ret;
-	}
-	if (!retries)
-		return -ETIMEDOUT;
-
 	if (motg->phy_number)
 		writel(readl(USB_PHY_CTRL2) | BIT(16), USB_PHY_CTRL2);
 
-	dev_info(motg->phy.dev, "phy_reset: success\n");
+	val = readl(USB_PORTSC) & ~PORTSC_PTS_MASK;
+	writel(val | PORTSC_PTS_ULPI, USB_PORTSC);
+
 	return 0;
 }
 
-#define LINK_RESET_TIMEOUT_USEC		(250 * 1000)
 static int msm_otg_reset(struct usb_phy *phy)
 {
 	struct msm_otg *motg = container_of(phy, struct msm_otg, phy);
-	struct msm_otg_platform_data *pdata = motg->pdata;
 	int cnt = 0;
-	int ret;
-	u32 val = 0;
-	u32 ulpi_val = 0;
-
-	ret = msm_otg_phy_reset(motg);
-	if (ret) {
-		dev_err(phy->dev, "phy_reset failed\n");
-		return ret;
-	}
-
-	ulpi_init(motg);
 
 	writel(USBCMD_RESET, USB_USBCMD);
 	while (cnt < LINK_RESET_TIMEOUT_USEC) {
@@ -351,11 +310,86 @@ static int msm_otg_reset(struct usb_phy *phy)
 
 	/* select ULPI phy */
 	writel(0x80000000, USB_PORTSC);
+	writel(0x0, USB_AHBBURST);
+	writel(0x08, USB_AHBMODE);
+
+	if (motg->phy_number)
+		writel(readl(USB_PHY_CTRL2) | BIT(16), USB_PHY_CTRL2);
+	return 0;
+}
+
+static void msm_phy_reset(struct msm_otg *motg)
+{
+	void __iomem *addr;
+
+	if (motg->pdata->phy_type != SNPS_28NM_INTEGRATED_PHY) {
+		msm_otg_phy_clk_reset(motg);
+		return;
+	}
+
+	addr = USB_PHY_CTRL;
+	if (motg->phy_number)
+		addr = USB_PHY_CTRL2;
+
+	/* Assert USB PHY_POR */
+	writel(readl(addr) | PHY_POR_ASSERT, addr);
+
+	/*
+	 * wait for minimum 10 microseconds as suggested in HPG.
+	 * Use a slightly larger value since the exact value didn't
+	 * work 100% of the time.
+	 */
+	udelay(12);
+
+	/* Deassert USB PHY_POR */
+	writel(readl(addr) & ~PHY_POR_ASSERT, addr);
+}
+
+static int msm_usb_reset(struct usb_phy *phy)
+{
+	struct msm_otg *motg = container_of(phy, struct msm_otg, phy);
+	int ret;
+
+	if (!IS_ERR(motg->core_clk))
+		clk_prepare_enable(motg->core_clk);
+
+	ret = msm_link_reset(motg);
+	if (ret) {
+		dev_err(phy->dev, "phy_reset failed\n");
+		return ret;
+	}
+
+	ret = msm_otg_reset(&motg->phy);
+	if (ret) {
+		dev_err(phy->dev, "link reset failed\n");
+		return ret;
+	}
 
 	msleep(100);
 
-	writel(0x0, USB_AHBBURST);
-	writel(0x00, USB_AHBMODE);
+	/* Reset USB PHY after performing USB Link RESET */
+	msm_phy_reset(motg);
+
+	if (!IS_ERR(motg->core_clk))
+		clk_disable_unprepare(motg->core_clk);
+
+	return 0;
+}
+
+static int msm_phy_init(struct usb_phy *phy)
+{
+	struct msm_otg *motg = container_of(phy, struct msm_otg, phy);
+	struct msm_otg_platform_data *pdata = motg->pdata;
+	u32 val, ulpi_val = 0;
+
+	/* Program USB PHY Override registers. */
+	ulpi_init(motg);
+
+	/*
+	 * It is recommended in HPG to reset USB PHY after programming
+	 * USB PHY Override registers.
+	 */
+	msm_phy_reset(motg);
 
 	if (pdata->otg_control == OTG_PHY_CONTROL) {
 		val = readl(USB_OTGSC);
@@ -1574,7 +1608,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 		goto disable_ldo;
 	}
 
-	phy->init = msm_otg_reset;
+	phy->init = msm_phy_init;
 	phy->set_power = msm_otg_set_power;
 
 	phy->io_ops = &msm_otg_io_ops;
@@ -1582,6 +1616,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	phy->otg->phy = &motg->phy;
 	phy->otg->set_host = msm_otg_set_host;
 	phy->otg->set_peripheral = msm_otg_set_peripheral;
+
+	msm_usb_reset(phy);
 
 	ret = usb_add_phy(&motg->phy, USB_PHY_TYPE_USB2);
 	if (ret) {

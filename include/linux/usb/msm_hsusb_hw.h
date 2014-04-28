@@ -42,9 +42,14 @@
 #define ULPI_DATA(n)          ((n) & 255)
 #define ULPI_DATA_READ(n)     (((n) >> 8) & 255)
 
+/* synopsys 28nm phy registers */
+#define ULPI_PWR_CLK_MNG_REG	0x88
+#define OTG_COMP_DISABLE	BIT(0)
+
 #define ASYNC_INTR_CTRL         (1 << 29) /* Enable async interrupt */
 #define ULPI_STP_CTRL           (1 << 30) /* Block communication with PHY */
 #define PHY_RETEN               (1 << 1) /* PHY retention enable/disable */
+#define PHY_POR_ASSERT		(1 << 0) /* USB2 28nm PHY POR ASSERT */
 
 /* OTG definitions */
 #define OTGSC_INTSTS_MASK	(0x7f << 16)
