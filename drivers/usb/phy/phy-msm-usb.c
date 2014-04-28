@@ -1663,6 +1663,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 	phy->init = msm_phy_init;
 	phy->set_power = msm_otg_set_power;
 	phy->notify_disconnect = msm_phy_notify_disconnect;
+	phy->type = USB_PHY_TYPE_USB2;
 
 	phy->io_ops = &msm_otg_io_ops;
 
@@ -1672,7 +1673,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	msm_usb_reset(phy);
 
-	ret = usb_add_phy(&motg->phy, USB_PHY_TYPE_USB2);
+	ret = usb_add_phy_dev(&motg->phy);
 	if (ret) {
 		dev_err(&pdev->dev, "usb_add_phy failed\n");
 		goto disable_ldo;
