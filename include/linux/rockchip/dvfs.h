@@ -98,14 +98,15 @@ struct dvfs_node {
 	unsigned int		max_rate;	//limit max frequency
 	unsigned int		last_set_rate;
 	unsigned int		temp_channel;
-	int			temp;
+	unsigned long		temp_limit_rate;
 	struct clk 		*clk;
 	struct pd_node		*pd;
 	struct vd_node		*vd;
 	struct list_head	node;
 	struct notifier_block	*dvfs_nb;
 	struct cpufreq_frequency_table	*dvfs_table;
-	struct cpufreq_frequency_table	*temp_limit_table;
+	struct cpufreq_frequency_table	*per_temp_limit_table;
+	struct cpufreq_frequency_table  *nor_temp_limit_table;
 	clk_set_rate_callback 	clk_dvfs_target;
 };
 
@@ -162,6 +163,7 @@ void dvfs_clk_disable_unprepare(struct dvfs_node *clk_dvfs_node);
 int dvfs_set_freq_volt_table(struct dvfs_node *clk_dvfs_node, struct cpufreq_frequency_table *table);
 int dvfs_clk_register_set_rate_callback(struct dvfs_node *clk_dvfs_node, clk_set_rate_callback clk_dvfs_target);
 int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate, unsigned max_rate);
+int dvfs_clk_get_limit(struct dvfs_node *clk_dvfs_node, unsigned int *min_rate, unsigned int *max_rate) ;
 int dvfs_clk_disable_limit(struct dvfs_node *clk_dvfs_node);
 int clk_disable_dvfs(struct dvfs_node *clk_dvfs_node);
 int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node);
@@ -185,6 +187,7 @@ static inline void dvfs_clk_disable_unprepare(struct dvfs_node *clk_dvfs_node){ 
 static inline int dvfs_set_freq_volt_table(struct dvfs_node *clk_dvfs_node, struct cpufreq_frequency_table *table){ return 0; };
 static inline int dvfs_clk_register_set_rate_callback(struct dvfs_node *clk_dvfs_node, clk_set_rate_callback clk_dvfs_target){ return 0; };
 static inline int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate, unsigned max_rate){ return 0; };
+static inline int dvfs_clk_get_limit(struct dvfs_node *clk_dvfs_node, unsigned int *min_rate, unsigned int *max_rate) { return 0; };
 static inline int dvfs_clk_disable_limit(struct dvfs_node *clk_dvfs_node){ return 0; };
 static inline int clk_disable_dvfs(struct dvfs_node *clk_dvfs_node){ return 0; };
 static inline int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node){ return 0; };
