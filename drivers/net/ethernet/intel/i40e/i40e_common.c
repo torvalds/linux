@@ -975,6 +975,13 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	hw_link_info->an_info = resp->an_info;
 	hw_link_info->ext_info = resp->ext_info;
 	hw_link_info->loopback = resp->loopback;
+	hw_link_info->max_frame_size = le16_to_cpu(resp->max_frame_size);
+	hw_link_info->pacing = resp->config & I40E_AQ_CONFIG_PACING_MASK;
+
+	if (resp->config & I40E_AQ_CONFIG_CRC_ENA)
+		hw_link_info->crc_enable = true;
+	else
+		hw_link_info->crc_enable = false;
 
 	if (resp->command_flags & cpu_to_le16(I40E_AQ_LSE_ENABLE))
 		hw_link_info->lse_enable = true;
@@ -1300,6 +1307,7 @@ i40e_status i40e_aq_send_driver_version(struct i40e_hw *hw,
 	struct i40e_aqc_driver_version *cmd =
 		(struct i40e_aqc_driver_version *)&desc.params.raw;
 	i40e_status status;
+	u16 len;
 
 	if (dv == NULL)
 		return I40E_ERR_PARAM;
@@ -1311,7 +1319,14 @@ i40e_status i40e_aq_send_driver_version(struct i40e_hw *hw,
 	cmd->driver_minor_ver = dv->minor_version;
 	cmd->driver_build_ver = dv->build_version;
 	cmd->driver_subbuild_ver = dv->subbuild_version;
-	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	len = 0;
+	while (len < sizeof(dv->driver_string) &&
+	       (dv->driver_string[len] < 0x80) &&
+	       dv->driver_string[len])
+		len++;
+	status = i40e_asq_send_command(hw, &desc, dv->driver_string,
+				       len, cmd_details);
 
 	return status;
 }
@@ -2094,8 +2109,8 @@ i40e_status i40e_aq_start_lldp(struct i40e_hw *hw,
  * @cmd_details: pointer to command details structure or NULL
  **/
 i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
-				u16 udp_port, u8 header_len,
-				u8 protocol_index, u8 *filter_index,
+				u16 udp_port, u8 protocol_index,
+				u8 *filter_index,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;

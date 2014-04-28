@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 43
+#define DRV_VERSION_BUILD 46
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -4027,6 +4027,8 @@ static void i40e_dcb_reconfigure(struct i40e_pf *pf)
 				 pf->vsi[v]->seid);
 			/* Will try to configure as many components */
 		} else {
+			/* Re-configure VSI vectors based on updated TC map */
+			i40e_vsi_map_rings_to_vectors(pf->vsi[v]);
 			if (pf->vsi[v]->netdev)
 				i40e_dcbnl_set_all(pf->vsi[v]);
 		}
@@ -4066,6 +4068,9 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 				       DCB_CAP_DCBX_VER_IEEE;
 			pf->flags |= I40E_FLAG_DCB_ENABLED;
 		}
+	} else {
+		dev_info(&pf->pdev->dev, "AQ Querying DCB configuration failed: %d\n",
+			 pf->hw.aq.asq_last_status);
 	}
 
 out:
@@ -5603,7 +5608,6 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
  **/
 static void i40e_sync_vxlan_filters_subtask(struct i40e_pf *pf)
 {
-	const int vxlan_hdr_qwords = 4;
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret;
 	u8 filter_index;
@@ -5621,7 +5625,6 @@ static void i40e_sync_vxlan_filters_subtask(struct i40e_pf *pf)
 			port = pf->vxlan_ports[i];
 			ret = port ?
 			      i40e_aq_add_udp_tunnel(hw, ntohs(port),
-						     vxlan_hdr_qwords,
 						     I40E_AQC_TUNNEL_TYPE_VXLAN,
 						     &filter_index, NULL)
 			      : i40e_aq_del_udp_tunnel(hw, i, NULL);
@@ -6778,9 +6781,11 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 			   NETIF_F_TSO_ECN	       |
 			   NETIF_F_TSO6		       |
 			   NETIF_F_RXCSUM	       |
-			   NETIF_F_NTUPLE	       |
 			   NETIF_F_RXHASH	       |
 			   0;
+
+	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
+		netdev->features |= NETIF_F_NTUPLE;
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
@@ -8298,7 +8303,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		dev_info(&pdev->dev, "init_pf_dcb failed: %d\n", err);
 		pf->flags &= ~I40E_FLAG_DCB_ENABLED;
-		goto err_init_dcb;
+		/* Continue without DCB enabled */
 	}
 #endif /* CONFIG_I40E_DCB */
 
@@ -8394,6 +8399,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dv.minor_version = DRV_VERSION_MINOR;
 	dv.build_version = DRV_VERSION_BUILD;
 	dv.subbuild_version = 0;
+	strncpy(dv.driver_string, DRV_VERSION, sizeof(dv.driver_string));
 	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
 
 	/* since everything's happy, start the service_task timer */
@@ -8435,9 +8441,6 @@ err_vsis:
 err_switch_setup:
 	i40e_reset_interrupt_capability(pf);
 	del_timer_sync(&pf->service_timer);
-#ifdef CONFIG_I40E_DCB
-err_init_dcb:
-#endif /* CONFIG_I40E_DCB */
 err_mac_addr:
 err_configure_lan_hmc:
 	(void)i40e_shutdown_lan_hmc(hw);

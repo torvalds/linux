@@ -1825,9 +1825,6 @@ static int i40e_tsyn(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	*cd_type_cmd_tso_mss |= (u64)I40E_TX_CTX_DESC_TSYN <<
 				I40E_TXD_CTX_QW1_CMD_SHIFT;
 
-	pf->ptp_tx_start = jiffies;
-	schedule_work(&pf->ptp_tx_work);
-
 	return 1;
 }
 

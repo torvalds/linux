@@ -329,9 +329,7 @@ struct i40e_pf {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	struct sk_buff *ptp_tx_skb;
-	struct work_struct ptp_tx_work;
 	struct hwtstamp_config tstamp_config;
-	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
 	spinlock_t tmreg_lock; /* Used to protect the device time registers. */
 	u64 ptp_base_adj;

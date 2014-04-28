@@ -2049,10 +2049,11 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	}
 
 	/* delete the temporary mac address */
-	i40e_del_filter(vsi, vf->default_lan_addr.addr, 0, true, false);
+	i40e_del_filter(vsi, vf->default_lan_addr.addr, vf->port_vlan_id,
+			true, false);
 
 	/* add the new mac address */
-	f = i40e_add_filter(vsi, mac, 0, true, false);
+	f = i40e_add_filter(vsi, mac, vf->port_vlan_id, true, false);
 	if (!f) {
 		dev_err(&pf->pdev->dev,
 			"Unable to add VF ucast filter\n");
@@ -2128,11 +2129,15 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 
 	/* Check for condition where there was already a port VLAN ID
 	 * filter set and now it is being deleted by setting it to zero.
+	 * Additionally check for the condition where there was a port
+	 * VLAN but now there is a new and different port VLAN being set.
 	 * Before deleting all the old VLAN filters we must add new ones
 	 * with -1 (I40E_VLAN_ANY) or otherwise we're left with all our
 	 * MAC addresses deleted.
 	 */
-	if (!(vlan_id || qos) && vsi->info.pvid)
+	if ((!(vlan_id || qos) ||
+	    (vlan_id | qos) != le16_to_cpu(vsi->info.pvid)) &&
+	    vsi->info.pvid)
 		ret = i40e_vsi_add_vlan(vsi, I40E_VLAN_ANY);
 
 	if (vsi->info.pvid) {

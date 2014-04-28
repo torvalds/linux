@@ -25,13 +25,15 @@
 #include "i40e_prototype.h"
 static int i40evf_setup_all_tx_resources(struct i40evf_adapter *adapter);
 static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter);
+static void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter);
+static void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter);
 static int i40evf_close(struct net_device *netdev);
 
 char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710 X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "0.9.21"
+#define DRV_VERSION "0.9.23"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2014 Intel Corporation.";
@@ -1309,7 +1311,6 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		goto restart_watchdog;
 
 	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) {
-		dev_info(&adapter->pdev->dev, "Checking for redemption\n");
 		if ((rd32(hw, I40E_VFGEN_RSTAT) & 0x3) == I40E_VFR_VFACTIVE) {
 			/* A chance for redemption! */
 			dev_err(&adapter->pdev->dev, "Hardware came out of reset. Attempting reinit.\n");
@@ -1534,9 +1535,13 @@ static void i40evf_reset_task(struct work_struct *work)
 			rstat_val);
 		adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
 
-		if (netif_running(adapter->netdev))
-			i40evf_close(adapter->netdev);
-
+		if (netif_running(adapter->netdev)) {
+			set_bit(__I40E_DOWN, &adapter->vsi.state);
+			i40evf_down(adapter);
+			i40evf_free_traffic_irqs(adapter);
+			i40evf_free_all_tx_resources(adapter);
+			i40evf_free_all_rx_resources(adapter);
+		}
 		i40evf_free_misc_irq(adapter);
 		i40evf_reset_interrupt_capability(adapter);
 		i40evf_free_queues(adapter);
