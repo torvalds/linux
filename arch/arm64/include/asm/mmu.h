@@ -22,6 +22,9 @@ typedef struct {
 	void *vdso;
 } mm_context_t;
 
+#define INIT_MM_CONTEXT(name) \
+	.context.id_lock = __RAW_SPIN_LOCK_UNLOCKED(name.context.id_lock),
+
 #define ASID(mm)	((mm)->context.id & 0xffff)
 
 extern void paging_init(void);

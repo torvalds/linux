@@ -29,7 +29,7 @@
 /* 10 (register bit affects spdif_in and spdif_out) */
 #define TEGRA124_CLK_I2S1 11
 #define TEGRA124_CLK_I2C1 12
-#define TEGRA124_CLK_NDFLASH 13
+/* 13 */
 #define TEGRA124_CLK_SDMMC1 14
 #define TEGRA124_CLK_SDMMC4 15
 /* 16 */
@@ -83,7 +83,7 @@
 
 /* 64 */
 #define TEGRA124_CLK_UARTD 65
-#define TEGRA124_CLK_UARTE 66
+/* 66 */
 #define TEGRA124_CLK_I2C3 67
 #define TEGRA124_CLK_SBC4 68
 #define TEGRA124_CLK_SDMMC3 69
@@ -97,7 +97,7 @@
 #define TEGRA124_CLK_TRACE 77
 #define TEGRA124_CLK_SOC_THERM 78
 #define TEGRA124_CLK_DTV 79
-#define TEGRA124_CLK_NDSPEED 80
+/* 80 */
 #define TEGRA124_CLK_I2CSLOW 81
 #define TEGRA124_CLK_DSIB 82
 #define TEGRA124_CLK_TSEC 83

@@ -233,7 +233,7 @@ static void acpi_gpiochip_request_interrupts(struct acpi_gpio_chip *acpi_gpio)
 {
 	struct gpio_chip *chip = acpi_gpio->chip;
 
-	if (!chip->dev || !chip->to_irq)
+	if (!chip->to_irq)
 		return;
 
 	INIT_LIST_HEAD(&acpi_gpio->events);
@@ -253,7 +253,7 @@ static void acpi_gpiochip_free_interrupts(struct acpi_gpio_chip *acpi_gpio)
 	struct acpi_gpio_event *event, *ep;
 	struct gpio_chip *chip = acpi_gpio->chip;
 
-	if (!chip->dev || !chip->to_irq)
+	if (!chip->to_irq)
 		return;
 
 	list_for_each_entry_safe_reverse(event, ep, &acpi_gpio->events, node) {
@@ -451,7 +451,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		if (function == ACPI_WRITE)
 			gpiod_set_raw_value(desc, !!((1 << i) & *value));
 		else
-			*value |= gpiod_get_raw_value(desc) << i;
+			*value |= (u64)gpiod_get_raw_value(desc) << i;
 	}
 
 out:
@@ -501,6 +501,9 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 	acpi_handle handle;
 	acpi_status status;
 
+	if (!chip || !chip->dev)
+		return;
+
 	handle = ACPI_HANDLE(chip->dev);
 	if (!handle)
 		return;
@@ -530,6 +533,9 @@ void acpi_gpiochip_remove(struct gpio_chip *chip)
 	struct acpi_gpio_chip *acpi_gpio;
 	acpi_handle handle;
 	acpi_status status;
+
+	if (!chip || !chip->dev)
+		return;
 
 	handle = ACPI_HANDLE(chip->dev);
 	if (!handle)

@@ -221,6 +221,7 @@ static int cm32181_read_raw(struct iio_dev *indio_dev,
 		*val = cm32181->calibscale;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
+		*val = 0;
 		ret = cm32181_read_als_it(cm32181, val2);
 		return ret;
 	}

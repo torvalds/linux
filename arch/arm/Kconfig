@@ -30,9 +30,9 @@ config ARM
 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_BPF_JIT
+	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
-	select HAVE_CC_STACKPROTECTOR
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
@@ -311,6 +311,7 @@ config ARCH_MULTIPLATFORM
 	select ARM_HAS_SG_CHAIN
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR
+	select CLKSRC_OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select MULTI_IRQ_HANDLER
@@ -422,8 +423,8 @@ config ARCH_EFM32
 	bool "Energy Micro efm32"
 	depends on !MMU
 	select ARCH_REQUIRE_GPIOLIB
-	select AUTO_ZRELADDR
 	select ARM_NVIC
+	select AUTO_ZRELADDR
 	select CLKSRC_OF
 	select COMMON_CLK
 	select CPU_V7M
@@ -511,8 +512,8 @@ config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
-	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
 	select CPU_XSCALE
 	select DMABOUNCE if PCI
@@ -1110,9 +1111,9 @@ config ARM_NR_BANKS
 	default 8
 
 config IWMMXT
-	bool "Enable iWMMXt support" if !CPU_PJ4
-	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4
-	default y if PXA27x || PXA3xx || ARCH_MMP || CPU_PJ4
+	bool "Enable iWMMXt support"
+	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4 || CPU_PJ4B
+	default y if PXA27x || PXA3xx || ARCH_MMP || CPU_PJ4 || CPU_PJ4B
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
@@ -1575,8 +1576,8 @@ config BIG_LITTLE
 config BL_SWITCHER
 	bool "big.LITTLE switcher support"
 	depends on BIG_LITTLE && MCPM && HOTPLUG_CPU
-	select CPU_PM
 	select ARM_CPU_SUSPEND
+	select CPU_PM
 	help
 	  The big.LITTLE "switcher" provides the core functionality to
 	  transparently handle transition between a cluster of A15's
@@ -1920,9 +1921,9 @@ config XEN
 	depends on CPU_V7 && !CPU_V6
 	depends on !GENERIC_ATOMIC64
 	depends on MMU
+	select ARCH_DMA_ADDR_T_64BIT
 	select ARM_PSCI
 	select SWIOTLB_XEN
-	select ARCH_DMA_ADDR_T_64BIT
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 

@@ -810,7 +810,7 @@ retry:
 
 			newes.es_lblk = end + 1;
 			newes.es_len = len2;
-			block = 0x7FDEADBEEF;
+			block = 0x7FDEADBEEFULL;
 			if (ext4_es_is_written(&orig_es) ||
 			    ext4_es_is_unwritten(&orig_es))
 				block = ext4_es_pblock(&orig_es) +
