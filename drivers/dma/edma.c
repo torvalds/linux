@@ -583,8 +583,8 @@ struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 	 * on completion of every TR, and enable transfer-completion
 	 * interrupt on completion of the whole transfer.
 	 */
-	edesc->pset[0].opt |= ITCCHEN;
-	edesc->pset[0].opt |= TCINTEN;
+	edesc->pset[0].param.opt |= ITCCHEN;
+	edesc->pset[0].param.opt |= TCINTEN;
 
 	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
 }
