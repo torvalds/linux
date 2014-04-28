@@ -184,11 +184,6 @@ static int goldfish_pdev_bus_probe(struct platform_device *pdev)
 	pdev_bus_addr = r->start;
 	pdev_bus_len = resource_size(r);
 
-	if (request_mem_region(pdev_bus_addr, pdev_bus_len, "goldfish")) {
-		dev_err(&pdev->dev, "unable to reserve Goldfish MMIO.\n");
-		return -EBUSY;
-	}
-
 	pdev_bus_base = ioremap(pdev_bus_addr, pdev_bus_len);
 	if (pdev_bus_base == NULL) {
 		ret = -ENOMEM;
