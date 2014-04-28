@@ -179,24 +179,25 @@ static inline int obd_ioctl_packlen(struct obd_ioctl_data *data)
 
 static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 {
-	if (data->ioc_len > (1<<30)) {
-		CERROR("OBD ioctl: ioc_len larger than 1<<30\n");
+	if (data->ioc_len > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_len larger than %d\n",
+		       OBD_MAX_IOCTL_BUFFER);
 		return 1;
 	}
-	if (data->ioc_inllen1 > (1<<30)) {
-		CERROR("OBD ioctl: ioc_inllen1 larger than 1<<30\n");
+	if (data->ioc_inllen1 > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_inllen1 larger than ioc_len\n");
 		return 1;
 	}
-	if (data->ioc_inllen2 > (1<<30)) {
-		CERROR("OBD ioctl: ioc_inllen2 larger than 1<<30\n");
+	if (data->ioc_inllen2 > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_inllen2 larger than ioc_len\n");
 		return 1;
 	}
-	if (data->ioc_inllen3 > (1<<30)) {
-		CERROR("OBD ioctl: ioc_inllen3 larger than 1<<30\n");
+	if (data->ioc_inllen3 > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_inllen3 larger than ioc_len\n");
 		return 1;
 	}
-	if (data->ioc_inllen4 > (1<<30)) {
-		CERROR("OBD ioctl: ioc_inllen4 larger than 1<<30\n");
+	if (data->ioc_inllen4 > OBD_MAX_IOCTL_BUFFER) {
+		CERROR("OBD ioctl: ioc_inllen4 larger than ioc_len\n");
 		return 1;
 	}
 	if (data->ioc_inlbuf1 && !data->ioc_inllen1) {
