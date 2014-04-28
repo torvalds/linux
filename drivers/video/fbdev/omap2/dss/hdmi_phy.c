@@ -237,7 +237,6 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
 {
 	int r;
 	struct resource *res;
-	struct resource temp_res;
 
 	r = hdmi_phy_init_features(pdev);
 	if (r)
@@ -245,25 +244,11 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
 	if (!res) {
-		DSSDBG("can't get PHY mem resource by name\n");
-		/*
-		 * if hwmod/DT doesn't have the memory resource information
-		 * split into HDMI sub blocks by name, we try again by getting
-		 * the platform's first resource. this code will be removed when
-		 * the driver can get the mem resources by name
-		 */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get PHY mem resource\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start + PHY_OFFSET;
-		temp_res.end = temp_res.start + PHY_SIZE - 1;
-		res = &temp_res;
+		DSSERR("can't get PHY mem resource\n");
+		return -EINVAL;
 	}
 
-	phy->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	phy->base = devm_ioremap_resource(&pdev->dev, res);
 	if (!phy->base) {
 		DSSERR("can't ioremap TX PHY\n");
 		return -ENOMEM;
