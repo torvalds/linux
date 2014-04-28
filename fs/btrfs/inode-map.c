@@ -176,7 +176,11 @@ static void start_caching(struct btrfs_root *root)
 
 	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu\n",
 			  root->root_key.objectid);
-	BUG_ON(IS_ERR(tsk)); /* -ENOMEM */
+	if (IS_ERR(tsk)) {
+		btrfs_warn(root->fs_info, "failed to start inode caching task");
+		btrfs_clear_and_info(root, CHANGE_INODE_CACHE,
+				"disabling inode map caching");
+	}
 }
 
 int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
@@ -205,24 +209,14 @@ again:
 
 void btrfs_return_ino(struct btrfs_root *root, u64 objectid)
 {
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	struct btrfs_free_space_ctl *pinned = root->free_ino_pinned;
 
 	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
 		return;
-
 again:
 	if (root->cached == BTRFS_CACHE_FINISHED) {
-		__btrfs_add_free_space(ctl, objectid, 1);
+		__btrfs_add_free_space(pinned, objectid, 1);
 	} else {
-		/*
-		 * If we are in the process of caching free ino chunks,
-		 * to avoid adding the same inode number to the free_ino
-		 * tree twice due to cross transaction, we'll leave it
-		 * in the pinned tree until a transaction is committed
-		 * or the caching work is done.
-		 */
-
 		down_write(&root->fs_info->commit_root_sem);
 		spin_lock(&root->cache_lock);
 		if (root->cached == BTRFS_CACHE_FINISHED) {
@@ -234,11 +228,7 @@ again:
 
 		start_caching(root);
 
-		if (objectid <= root->cache_progress ||
-		    objectid >= root->highest_objectid)
-			__btrfs_add_free_space(ctl, objectid, 1);
-		else
-			__btrfs_add_free_space(pinned, objectid, 1);
+		__btrfs_add_free_space(pinned, objectid, 1);
 
 		up_write(&root->fs_info->commit_root_sem);
 	}

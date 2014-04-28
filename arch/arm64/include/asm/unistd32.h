@@ -403,8 +403,9 @@ __SYSCALL(378, sys_kcmp)
 __SYSCALL(379, sys_finit_module)
 __SYSCALL(380, sys_sched_setattr)
 __SYSCALL(381, sys_sched_getattr)
+__SYSCALL(382, sys_renameat2)
 
-#define __NR_compat_syscalls		379
+#define __NR_compat_syscalls		383
 
 /*
  * Compat syscall numbers used by the AArch64 kernel.

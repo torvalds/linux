@@ -152,7 +152,7 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 
 	node = of_find_compatible_node(NULL, NULL, "rockchip,rk3066-pmu");
 	if (!node) {
-		pr_err("%s: could not find sram dt node\n", __func__);
+		pr_err("%s: could not find pmu dt node\n", __func__);
 		return;
 	}
 

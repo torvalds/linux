@@ -2058,6 +2058,20 @@ struct btrfs_ioctl_defrag_range_args {
 #define btrfs_raw_test_opt(o, opt)	((o) & BTRFS_MOUNT_##opt)
 #define btrfs_test_opt(root, opt)	((root)->fs_info->mount_opt & \
 					 BTRFS_MOUNT_##opt)
+#define btrfs_set_and_info(root, opt, fmt, args...)			\
+{									\
+	if (!btrfs_test_opt(root, opt))					\
+		btrfs_info(root->fs_info, fmt, ##args);			\
+	btrfs_set_opt(root->fs_info->mount_opt, opt);			\
+}
+
+#define btrfs_clear_and_info(root, opt, fmt, args...)			\
+{									\
+	if (btrfs_test_opt(root, opt))					\
+		btrfs_info(root->fs_info, fmt, ##args);			\
+	btrfs_clear_opt(root->fs_info->mount_opt, opt);			\
+}
+
 /*
  * Inode flags
  */

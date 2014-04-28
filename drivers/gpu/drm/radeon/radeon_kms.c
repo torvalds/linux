@@ -107,11 +107,9 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		flags |= RADEON_IS_PCI;
 	}
 
-	if (radeon_runtime_pm == 1)
-		flags |= RADEON_IS_PX;
-	else if ((radeon_runtime_pm == -1) &&
-		 radeon_has_atpx() &&
-		 ((flags & RADEON_IS_IGP) == 0))
+	if ((radeon_runtime_pm != 0) &&
+	    radeon_has_atpx() &&
+	    ((flags & RADEON_IS_IGP) == 0))
 		flags |= RADEON_IS_PX;
 
 	/* radeon_device_init should report only fatal error

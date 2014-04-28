@@ -137,6 +137,7 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, int unbusy)
 	 * lock such that the kblockd_schedule_work() call happens
 	 * before blk_cleanup_queue() finishes.
 	 */
+	cmd->result = 0;
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_requeue_request(q, cmd->request);
 	kblockd_schedule_work(q, &device->requeue_work);
@@ -1044,6 +1045,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
  */
 int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 {
+	struct scsi_device *sdev = cmd->device;
 	struct request *rq = cmd->request;
 
 	int error = scsi_init_sgtable(rq, &cmd->sdb, gfp_mask);
@@ -1091,7 +1093,7 @@ err_exit:
 	scsi_release_buffers(cmd);
 	cmd->request->special = NULL;
 	scsi_put_command(cmd);
-	put_device(&cmd->device->sdev_gendev);
+	put_device(&sdev->sdev_gendev);
 	return error;
 }
 EXPORT_SYMBOL(scsi_init_io);
@@ -1273,7 +1275,7 @@ int scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 			struct scsi_cmnd *cmd = req->special;
 			scsi_release_buffers(cmd);
 			scsi_put_command(cmd);
-			put_device(&cmd->device->sdev_gendev);
+			put_device(&sdev->sdev_gendev);
 			req->special = NULL;
 		}
 		break;
