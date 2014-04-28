@@ -234,8 +234,16 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_device *device)
  * @retry:	whether to retry, if not enough pages are available right now
  *
  * Tries to allocate number pages, first from our own page pool, then from
- * the kernel, unless this allocation would exceed the max_buffers setting.
+ * the kernel.
  * Possibly retry until DRBD frees sufficient pages somewhere else.
+ *
+ * If this allocation would exceed the max_buffers setting, we throttle
+ * allocation (schedule_timeout) to give the system some room to breathe.
+ *
+ * We do not use max-buffers as hard limit, because it could lead to
+ * congestion and further to a distributed deadlock during online-verify or
+ * (checksum based) resync, if the max-buffers, socket buffer sizes and
+ * resync-rate settings are mis-configured.
  *
  * Returns a page chain linked via page->private.
  */
@@ -246,10 +254,8 @@ struct page *drbd_alloc_pages(struct drbd_peer_device *peer_device, unsigned int
 	struct page *page = NULL;
 	struct net_conf *nc;
 	DEFINE_WAIT(wait);
-	int mxb;
+	unsigned int mxb;
 
-	/* Yes, we may run up to @number over max_buffers. If we
-	 * follow it strictly, the admin will get it wrong anyways. */
 	rcu_read_lock();
 	nc = rcu_dereference(peer_device->connection->net_conf);
 	mxb = nc ? nc->max_buffers : 1000000;
@@ -277,7 +283,8 @@ struct page *drbd_alloc_pages(struct drbd_peer_device *peer_device, unsigned int
 			break;
 		}
 
-		schedule();
+		if (schedule_timeout(HZ/10) == 0)
+			mxb = UINT_MAX;
 	}
 	finish_wait(&drbd_pp_wait, &wait);
 

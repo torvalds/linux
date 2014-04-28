@@ -492,10 +492,9 @@ struct fifo_buffer *fifo_alloc(int fifo_size)
 	return fb;
 }
 
-static int drbd_rs_controller(struct drbd_device *device)
+static int drbd_rs_controller(struct drbd_device *device, unsigned int sect_in)
 {
 	struct disk_conf *dc;
-	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
 	unsigned int want;     /* The number of sectors we want in the proxy */
 	int req_sect; /* Number of sectors to request in this turn */
 	int correction; /* Number of sectors more we need in the proxy*/
@@ -504,9 +503,6 @@ static int drbd_rs_controller(struct drbd_device *device)
 	int curr_corr;
 	int max_sect;
 	struct fifo_buffer *plan;
-
-	sect_in = atomic_xchg(&device->rs_sect_in, 0); /* Number of sectors that came in */
-	device->rs_in_flight -= sect_in;
 
 	dc = rcu_dereference(device->ldev->disk_conf);
 	plan = rcu_dereference(device->rs_plan_s);
@@ -550,11 +546,16 @@ static int drbd_rs_controller(struct drbd_device *device)
 
 static int drbd_rs_number_requests(struct drbd_device *device)
 {
-	int number;
+	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
+	int number, mxb;
+
+	sect_in = atomic_xchg(&device->rs_sect_in, 0);
+	device->rs_in_flight -= sect_in;
 
 	rcu_read_lock();
+	mxb = drbd_get_max_buffers(device) / 2;
 	if (rcu_dereference(device->rs_plan_s)->size) {
-		number = drbd_rs_controller(device) >> (BM_BLOCK_SHIFT - 9);
+		number = drbd_rs_controller(device, sect_in) >> (BM_BLOCK_SHIFT - 9);
 		device->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
 	} else {
 		device->c_sync_rate = rcu_dereference(device->ldev->disk_conf)->resync_rate;
@@ -562,8 +563,14 @@ static int drbd_rs_number_requests(struct drbd_device *device)
 	}
 	rcu_read_unlock();
 
-	/* ignore the amount of pending requests, the resync controller should
-	 * throttle down to incoming reply rate soon enough anyways. */
+	/* Don't have more than "max-buffers"/2 in-flight.
+	 * Otherwise we may cause the remote site to stall on drbd_alloc_pages(),
+	 * potentially causing a distributed deadlock on congestion during
+	 * online-verify or (checksum-based) resync, if max-buffers,
+	 * socket buffer sizes and resync rate settings are mis-configured. */
+	if (mxb - device->rs_in_flight < number)
+		number = mxb - device->rs_in_flight;
+
 	return number;
 }
 
@@ -597,7 +604,7 @@ static int make_resync_request(struct drbd_device *device, int cancel)
 
 	max_bio_size = queue_max_hw_sectors(device->rq_queue) << 9;
 	number = drbd_rs_number_requests(device);
-	if (number == 0)
+	if (number <= 0)
 		goto requeue;
 
 	for (i = 0; i < number; i++) {
