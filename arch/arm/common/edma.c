@@ -994,29 +994,23 @@ void edma_set_dest(unsigned slot, dma_addr_t dest_port,
 EXPORT_SYMBOL(edma_set_dest);
 
 /**
- * edma_get_position - returns the current transfer points
+ * edma_get_position - returns the current transfer point
  * @slot: parameter RAM slot being examined
- * @src: pointer to source port position
- * @dst: pointer to destination port position
+ * @dst:  true selects the dest position, false the source
  *
- * Returns current source and destination addresses for a particular
- * parameter RAM slot.  Its channel should not be active when this is called.
+ * Returns the position of the current active slot
  */
-void edma_get_position(unsigned slot, dma_addr_t *src, dma_addr_t *dst)
+dma_addr_t edma_get_position(unsigned slot, bool dst)
 {
-	struct edmacc_param temp;
-	unsigned ctlr;
+	u32 offs, ctlr = EDMA_CTLR(slot);
 
-	ctlr = EDMA_CTLR(slot);
 	slot = EDMA_CHAN_SLOT(slot);
 
-	edma_read_slot(EDMA_CTLR_CHAN(ctlr, slot), &temp);
-	if (src != NULL)
-		*src = temp.src;
-	if (dst != NULL)
-		*dst = temp.dst;
+	offs = PARM_OFFSET(slot);
+	offs += dst ? PARM_DST : PARM_SRC;
+
+	return edma_read(ctlr, offs);
 }
-EXPORT_SYMBOL(edma_get_position);
 
 /**
  * edma_set_src_index - configure DMA source address indexing
