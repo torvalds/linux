@@ -57,6 +57,10 @@
 #define EDMA_MAX_SLOTS		MAX_NR_SG
 #define EDMA_DESCRIPTORS	16
 
+struct edma_pset {
+	struct edmacc_param		param;
+};
+
 struct edma_desc {
 	struct virt_dma_desc		vdesc;
 	struct list_head		node;
@@ -65,7 +69,7 @@ struct edma_desc {
 	int				pset_nr;
 	int				processed;
 	u32				residue;
-	struct edmacc_param		pset[0];
+	struct edma_pset		pset[0];
 };
 
 struct edma_cc;
@@ -141,7 +145,7 @@ static void edma_execute(struct edma_chan *echan)
 	/* Write descriptor PaRAM set(s) */
 	for (i = 0; i < nslots; i++) {
 		j = i + edesc->processed;
-		edma_write_slot(echan->slot[i], &edesc->pset[j]);
+		edma_write_slot(echan->slot[i], &edesc->pset[j].param);
 		dev_vdbg(echan->vchan.chan.device->dev,
 			"\n pset[%d]:\n"
 			"  chnum\t%d\n"
@@ -155,14 +159,14 @@ static void edma_execute(struct edma_chan *echan)
 			"  cidx\t%08x\n"
 			"  lkrld\t%08x\n",
 			j, echan->ch_num, echan->slot[i],
-			edesc->pset[j].opt,
-			edesc->pset[j].src,
-			edesc->pset[j].dst,
-			edesc->pset[j].a_b_cnt,
-			edesc->pset[j].ccnt,
-			edesc->pset[j].src_dst_bidx,
-			edesc->pset[j].src_dst_cidx,
-			edesc->pset[j].link_bcntrld);
+			edesc->pset[j].param.opt,
+			edesc->pset[j].param.src,
+			edesc->pset[j].param.dst,
+			edesc->pset[j].param.a_b_cnt,
+			edesc->pset[j].param.ccnt,
+			edesc->pset[j].param.src_dst_bidx,
+			edesc->pset[j].param.src_dst_cidx,
+			edesc->pset[j].param.link_bcntrld);
 		/* Link to the previous slot if not the last set */
 		if (i != (nslots - 1))
 			edma_link(echan->slot[i], echan->slot[i+1]);
@@ -305,13 +309,14 @@ static int edma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
  * @dma_length: Total length of the DMA transfer
  * @direction: Direction of the transfer
  */
-static int edma_config_pset(struct dma_chan *chan, struct edmacc_param *pset,
+static int edma_config_pset(struct dma_chan *chan, struct edma_pset *epset,
 	dma_addr_t src_addr, dma_addr_t dst_addr, u32 burst,
 	enum dma_slave_buswidth dev_width, unsigned int dma_length,
 	enum dma_transfer_direction direction)
 {
 	struct edma_chan *echan = to_edma_chan(chan);
 	struct device *dev = chan->device->dev;
+	struct edmacc_param *param = &epset->param;
 	int acnt, bcnt, ccnt, cidx;
 	int src_bidx, dst_bidx, src_cidx, dst_cidx;
 	int absync;
@@ -391,26 +396,26 @@ static int edma_config_pset(struct dma_chan *chan, struct edmacc_param *pset,
 		return -EINVAL;
 	}
 
-	pset->opt = EDMA_TCC(EDMA_CHAN_SLOT(echan->ch_num));
+	param->opt = EDMA_TCC(EDMA_CHAN_SLOT(echan->ch_num));
 	/* Configure A or AB synchronized transfers */
 	if (absync)
-		pset->opt |= SYNCDIM;
+		param->opt |= SYNCDIM;
 
-	pset->src = src_addr;
-	pset->dst = dst_addr;
+	param->src = src_addr;
+	param->dst = dst_addr;
 
-	pset->src_dst_bidx = (dst_bidx << 16) | src_bidx;
-	pset->src_dst_cidx = (dst_cidx << 16) | src_cidx;
+	param->src_dst_bidx = (dst_bidx << 16) | src_bidx;
+	param->src_dst_cidx = (dst_cidx << 16) | src_cidx;
 
-	pset->a_b_cnt = bcnt << 16 | acnt;
-	pset->ccnt = ccnt;
+	param->a_b_cnt = bcnt << 16 | acnt;
+	param->ccnt = ccnt;
 	/*
 	 * Only time when (bcntrld) auto reload is required is for
 	 * A-sync case, and in this case, a requirement of reload value
 	 * of SZ_64K-1 only is assured. 'link' is initially set to NULL
 	 * and then later will be populated by edma_execute.
 	 */
-	pset->link_bcntrld = 0xffffffff;
+	param->link_bcntrld = 0xffffffff;
 	return absync;
 }
 
@@ -498,11 +503,11 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 		/* If this is the last in a current SG set of transactions,
 		   enable interrupts so that next set is processed */
 		if (!((i+1) % MAX_NR_SG))
-			edesc->pset[i].opt |= TCINTEN;
+			edesc->pset[i].param.opt |= TCINTEN;
 
 		/* If this is the last set, enable completion interrupt flag */
 		if (i == sg_len - 1)
-			edesc->pset[i].opt |= TCINTEN;
+			edesc->pset[i].param.opt |= TCINTEN;
 	}
 
 	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
@@ -661,14 +666,14 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 			"  cidx\t%08x\n"
 			"  lkrld\t%08x\n",
 			i, echan->ch_num, echan->slot[i],
-			edesc->pset[i].opt,
-			edesc->pset[i].src,
-			edesc->pset[i].dst,
-			edesc->pset[i].a_b_cnt,
-			edesc->pset[i].ccnt,
-			edesc->pset[i].src_dst_bidx,
-			edesc->pset[i].src_dst_cidx,
-			edesc->pset[i].link_bcntrld);
+			edesc->pset[i].param.opt,
+			edesc->pset[i].param.src,
+			edesc->pset[i].param.dst,
+			edesc->pset[i].param.a_b_cnt,
+			edesc->pset[i].param.ccnt,
+			edesc->pset[i].param.src_dst_bidx,
+			edesc->pset[i].param.src_dst_cidx,
+			edesc->pset[i].param.link_bcntrld);
 
 		edesc->absync = ret;
 
@@ -676,7 +681,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 		 * Enable interrupts for every period because callback
 		 * has to be called for every period.
 		 */
-		edesc->pset[i].opt |= TCINTEN;
+		edesc->pset[i].param.opt |= TCINTEN;
 	}
 
 	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
