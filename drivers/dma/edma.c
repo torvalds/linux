@@ -58,12 +58,15 @@
 #define EDMA_DESCRIPTORS	16
 
 struct edma_pset {
+	u32				len;
+	dma_addr_t			addr;
 	struct edmacc_param		param;
 };
 
 struct edma_desc {
 	struct virt_dma_desc		vdesc;
 	struct list_head		node;
+	enum dma_transfer_direction	direction;
 	int				cyclic;
 	int				absync;
 	int				pset_nr;
@@ -376,16 +379,20 @@ static int edma_config_pset(struct dma_chan *chan, struct edma_pset *epset,
 		cidx = acnt * bcnt;
 	}
 
+	epset->len = dma_length;
+
 	if (direction == DMA_MEM_TO_DEV) {
 		src_bidx = acnt;
 		src_cidx = cidx;
 		dst_bidx = 0;
 		dst_cidx = 0;
+		epset->addr = src_addr;
 	} else if (direction == DMA_DEV_TO_MEM)  {
 		src_bidx = 0;
 		src_cidx = 0;
 		dst_bidx = acnt;
 		dst_cidx = cidx;
+		epset->addr = dst_addr;
 	} else if (direction == DMA_MEM_TO_MEM)  {
 		src_bidx = acnt;
 		src_cidx = cidx;
@@ -463,6 +470,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 
 	edesc->pset_nr = sg_len;
 	edesc->residue = 0;
+	edesc->direction = direction;
 
 	/* Allocate a PaRAM slot, if needed */
 	nslots = min_t(unsigned, MAX_NR_SG, sg_len);
@@ -615,6 +623,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 	edesc->cyclic = 1;
 	edesc->pset_nr = nslots;
 	edesc->residue = buf_len;
+	edesc->direction = direction;
 
 	dev_dbg(dev, "%s: channel=%d nslots=%d period_len=%zu buf_len=%zu\n",
 		__func__, echan->ch_num, nslots, period_len, buf_len);
