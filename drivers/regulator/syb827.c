@@ -233,7 +233,7 @@ static int syb827_dcdc_set_voltage_time_sel(struct regulator_dev *dev,   unsigne
 	if (new_volt < 0)
 		return new_volt;
 
-	return DIV_ROUND_UP(abs(old_volt - new_volt), 10000);
+	return DIV_ROUND_UP(abs(old_volt - new_volt)*4, 10000);
 }
 static int syb827_dcdc_suspend_enable(struct regulator_dev *dev)
 {
@@ -498,6 +498,8 @@ static int syb827_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 		printk("The device is not syb827 %x \n",ret);
 		goto err;
 	}
+	
+	ret = syb827_set_bits(syb827,SYB827_CONTR_REG1,(1 << 6),(1<<6));  //10mv/2.4us
 
 	if (syb827->dev->of_node)
 		pdev = syb827_parse_dt(syb827);
