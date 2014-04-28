@@ -147,6 +147,11 @@ static struct attribute_group input_polldev_attribute_group = {
 	.attrs = sysfs_attrs
 };
 
+static const struct attribute_group *input_polldev_attribute_groups[] = {
+	&input_polldev_attribute_group,
+	NULL
+};
+
 /**
  * input_allocate_polled_device - allocate memory for polled device
  *
@@ -204,23 +209,20 @@ int input_register_polled_device(struct input_polled_dev *dev)
 
 	input_set_drvdata(input, dev);
 	INIT_DELAYED_WORK(&dev->work, input_polled_device_work);
+
 	if (!dev->poll_interval)
 		dev->poll_interval = 500;
 	if (!dev->poll_interval_max)
 		dev->poll_interval_max = dev->poll_interval;
+
 	input->open = input_open_polled_device;
 	input->close = input_close_polled_device;
+
+	input->dev.groups = input_polldev_attribute_groups;
 
 	error = input_register_device(input);
 	if (error)
 		return error;
-
-	error = sysfs_create_group(&input->dev.kobj,
-				   &input_polldev_attribute_group);
-	if (error) {
-		input_unregister_device(input);
-		return error;
-	}
 
 	/*
 	 * Take extra reference to the underlying input device so
@@ -245,9 +247,6 @@ EXPORT_SYMBOL(input_register_polled_device);
  */
 void input_unregister_polled_device(struct input_polled_dev *dev)
 {
-	sysfs_remove_group(&dev->input->dev.kobj,
-			   &input_polldev_attribute_group);
-
 	input_unregister_device(dev->input);
 }
 EXPORT_SYMBOL(input_unregister_polled_device);
