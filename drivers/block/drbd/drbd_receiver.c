@@ -4846,6 +4846,12 @@ static int drbd_do_auth(struct drbd_connection *connection)
 		goto fail;
 	}
 
+	if (pi.size < CHALLENGE_LEN) {
+		drbd_err(connection, "AuthChallenge payload too small.\n");
+		rv = -1;
+		goto fail;
+	}
+
 	peers_ch = kmalloc(pi.size, GFP_NOIO);
 	if (peers_ch == NULL) {
 		drbd_err(connection, "kmalloc of peers_ch failed\n");
@@ -4856,6 +4862,12 @@ static int drbd_do_auth(struct drbd_connection *connection)
 	err = drbd_recv_all_warn(connection, peers_ch, pi.size);
 	if (err) {
 		rv = 0;
+		goto fail;
+	}
+
+	if (!memcmp(my_challenge, peers_ch, CHALLENGE_LEN)) {
+		drbd_err(connection, "Peer presented the same challenge!\n");
+		rv = -1;
 		goto fail;
 	}
 
