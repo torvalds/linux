@@ -81,10 +81,12 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		struct vm_area_struct *vma = current->vmacache[i];
 
-		if (vma && vma->vm_start <= addr && vma->vm_end > addr) {
-			BUG_ON(vma->vm_mm != mm);
+		if (!vma)
+			continue;
+		if (WARN_ON_ONCE(vma->vm_mm != mm))
+			break;
+		if (vma->vm_start <= addr && vma->vm_end > addr)
 			return vma;
-		}
 	}
 
 	return NULL;
