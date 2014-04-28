@@ -1765,19 +1765,19 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 static enum drbd_state_rv
 _conn_rq_cond(struct drbd_connection *connection, union drbd_state mask, union drbd_state val)
 {
-	enum drbd_state_rv rv;
+	enum drbd_state_rv err, rv = SS_UNKNOWN_ERROR; /* continue waiting */;
 
 	if (test_and_clear_bit(CONN_WD_ST_CHG_OKAY, &connection->flags))
-		return SS_CW_SUCCESS;
+		rv = SS_CW_SUCCESS;
 
 	if (test_and_clear_bit(CONN_WD_ST_CHG_FAIL, &connection->flags))
-		return SS_CW_FAILED_BY_PEER;
+		rv = SS_CW_FAILED_BY_PEER;
 
-	rv = conn_is_valid_transition(connection, mask, val, 0);
-	if (rv == SS_SUCCESS && connection->cstate == C_WF_REPORT_PARAMS)
-		rv = SS_UNKNOWN_ERROR; /* continue waiting */
+	err = conn_is_valid_transition(connection, mask, val, 0);
+	if (err == SS_SUCCESS && connection->cstate == C_WF_REPORT_PARAMS)
+		return rv;
 
-	return rv;
+	return err;
 }
 
 enum drbd_state_rv
