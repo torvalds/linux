@@ -297,7 +297,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 	snd_soc_limit_volume(codec, "TPA6130A2 Headphone Playback Volume", 42);
 
-	err = omap_mcbsp_st_add_controls(rtd);
+	err = omap_mcbsp_st_add_controls(rtd, 2);
 	if (err < 0)
 		return err;
 
