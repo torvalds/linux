@@ -1489,6 +1489,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct msm_otg *motg;
 	struct usb_phy *phy;
+	void __iomem *phy_select;
 
 	motg = devm_kzalloc(&pdev->dev, sizeof(struct msm_otg), GFP_KERNEL);
 	if (!motg) {
@@ -1552,6 +1553,19 @@ static int msm_otg_probe(struct platform_device *pdev)
 	motg->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (IS_ERR(motg->regs))
 		return PTR_ERR(motg->regs);
+
+	/*
+	 * NOTE: The PHYs can be multiplexed between the chipidea controller
+	 * and the dwc3 controller, using a single bit. It is important that
+	 * the dwc3 driver does not set this bit in an incompatible way.
+	 */
+	if (motg->phy_number) {
+		phy_select = devm_ioremap_nocache(&pdev->dev, USB2_PHY_SEL, 4);
+		if (IS_ERR(phy_select))
+			return PTR_ERR(phy_select);
+		/* Enable second PHY with the OTG port */
+		writel_relaxed(0x1, phy_select);
+	}
 
 	dev_info(&pdev->dev, "OTG regs = %p\n", motg->regs);
 

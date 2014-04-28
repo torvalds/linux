@@ -16,6 +16,9 @@
 #ifndef __LINUX_USB_GADGET_MSM72K_UDC_H__
 #define __LINUX_USB_GADGET_MSM72K_UDC_H__
 
+/* USB phy selector - in TCSR address range */
+#define USB2_PHY_SEL         0xfd4ab000
+
 #define USB_AHBBURST         (MSM_USB_BASE + 0x0090)
 #define USB_AHBMODE          (MSM_USB_BASE + 0x0098)
 #define USB_CAPLENGTH        (MSM_USB_BASE + 0x0100) /* 8 bit */
