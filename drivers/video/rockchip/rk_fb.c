@@ -1618,6 +1618,18 @@ err:
 	mutex_unlock(&dev_drv->output_lock);
 	return ret;
 }
+static int cfgdone_last_time_ms = 0;
+static int cfgdone_interval_ms = 0;
+int rk_get_real_fps()
+{
+    struct timespec now;
+    int interval_ms = 0;
+    getnstimeofday(&now);
+    interval_ms = (now.tv_sec *1000 + now.tv_nsec/1000000) - cfgdone_last_time_ms;
+    interval_ms = (interval_ms > cfgdone_interval_ms) ? interval_ms : cfgdone_interval_ms;
+	return 1000 / interval_ms;
+}
+EXPORT_SYMBOL(rk_get_real_fps);
 
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
@@ -1730,6 +1742,14 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 	}
 #endif
 	case RK_FBIOSET_CONFIG_DONE:
+		{
+			struct timespec now;
+			int curr_time_ms = 0;
+			getnstimeofday(&now);
+			curr_time_ms = now.tv_sec *1000 + now.tv_nsec/1000000;
+			cfgdone_interval_ms = curr_time_ms - cfgdone_last_time_ms;
+			cfgdone_last_time_ms = curr_time_ms;
+		}
 		if(copy_from_user(&win_data,
 			(struct rk_fb_win_cfg_data __user *)argp,
 			sizeof(win_data))){

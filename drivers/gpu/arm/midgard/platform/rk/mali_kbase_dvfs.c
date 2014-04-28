@@ -87,7 +87,8 @@ static void update_time_in_state(int level);
 #endif
 /*dvfs status*/
 static mali_dvfs_status mali_dvfs_status_current;
-
+extern int rk_get_real_fps(void);
+#define limit_fps 60
 static void mali_dvfs_event_proc(struct work_struct *w)
 {
 	unsigned long flags;
@@ -95,7 +96,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	static int level_down_time = 0;
 	static int level_up_time = 0;
 	struct rk_context *platform;
-
+	u32 fps=0;
 	mutex_lock(&mali_enable_clock_lock);
 	dvfs_status = &mali_dvfs_status_current;
 
@@ -105,19 +106,21 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	}
 	platform = (struct rk_context *)dvfs_status->kbdev->platform_context;
 	
+	fps = rk_get_real_fps();
+
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
-	if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) && (dvfs_status->step < MALI_DVFS_STEP-1)) 
+	if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) && (dvfs_status->step < MALI_DVFS_STEP-1) && (fps < limit_fps)) 
 	{
 		level_up_time++;
 		if(level_up_time == MALI_DVFS_TIME_INTERVAL)
 		{
 			/*
-			printk("up,utilisation=%d,current clock=%d,",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock);
+			printk("up,utilisation=%d,current clock=%d,fps = %d",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock,fps);
 			*/
 			dvfs_status->step++;
 			level_up_time = 0;
 			/*
-			printk("next clock=%d\n",mali_dvfs_infotbl[dvfs_status->step].clock);
+			printk(" next clock=%d\n",mali_dvfs_infotbl[dvfs_status->step].clock);
 			*/
 			BUG_ON(dvfs_status->step >= MALI_DVFS_STEP);
 		}
@@ -131,7 +134,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 		if(level_down_time==MALI_DVFS_TIME_INTERVAL)
 		{
 			/*
-			printk("down,utilisation=%d,current clock=%d,",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock);
+			printk("down,utilisation=%d,current clock=%d,fps = %d",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock,fps);
 			*/
 			BUG_ON(dvfs_status->step <= 0);
 			dvfs_status->step--;
@@ -147,8 +150,8 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 		level_down_time = 0;
 		level_up_time = 0;
 		/*
-		printk("keep,utilisation=%d,current clock=%d\n",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock);
-		*/
+		printk("keep,utilisation=%d,current clock=%d,fps = %d\n",dvfs_status->utilisation,mali_dvfs_infotbl[dvfs_status->step].clock,fps);
+		*/		
 	}
 #ifdef CONFIG_MALI_MIDGARD_FREQ_LOCK
 	if ((dvfs_status->upper_lock >= 0) && (dvfs_status->step > dvfs_status->upper_lock)) 
