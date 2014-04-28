@@ -2157,6 +2157,7 @@ MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rt5640_of_match[] = {
+	{ .compatible = "realtek,rt5639", },
 	{ .compatible = "realtek,rt5640", },
 	{},
 };
