@@ -298,20 +298,26 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "LINE1R");
 
 	err = tpa6130a2_add_controls(codec);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(card->dev, "Failed to add TPA6130A2 controls\n");
 		return err;
+	}
 	snd_soc_limit_volume(codec, "TPA6130A2 Headphone Playback Volume", 42);
 
 	err = omap_mcbsp_st_add_controls(rtd, 2);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(card->dev, "Failed to add MCBSP controls\n");
 		return err;
+	}
 
 	/* AV jack detection */
 	err = snd_soc_jack_new(codec, "AV Jack",
 			       SND_JACK_HEADSET | SND_JACK_VIDEOOUT,
 			       &rx51_av_jack);
-	if (err)
+	if (err) {
+		dev_err(card->dev, "Failed to add AV Jack\n");
 		return err;
+	}
 
 	/* prepare gpio for snd_soc_jack_add_gpios */
 	rx51_av_jack_gpios[0].gpio = desc_to_gpio(pdata->jack_detection_gpio);
@@ -320,6 +326,10 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	err = snd_soc_jack_add_gpios(&rx51_av_jack,
 				     ARRAY_SIZE(rx51_av_jack_gpios),
 				     rx51_av_jack_gpios);
+	if (err) {
+		dev_err(card->dev, "Failed to add GPIOs\n");
+		return err;
+	}
 
 	return err;
 }
