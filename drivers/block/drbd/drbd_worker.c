@@ -1686,11 +1686,15 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 	}
 	clear_bit(B_RS_H_DONE, &device->flags);
 
-	write_lock_irq(&global_state_lock);
+	/* req_lock: serialize with drbd_send_and_submit() and others
+	 * global_state_lock: for stable sync-after dependencies */
+	spin_lock_irq(&device->resource->req_lock);
+	write_lock(&global_state_lock);
 	/* Did some connection breakage or IO error race with us? */
 	if (device->state.conn < C_CONNECTED
 	|| !get_ldev_if_state(device, D_NEGOTIATING)) {
-		write_unlock_irq(&global_state_lock);
+		write_unlock(&global_state_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 		mutex_unlock(device->state_mutex);
 		return;
 	}
@@ -1730,7 +1734,8 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		}
 		_drbd_pause_after(device);
 	}
-	write_unlock_irq(&global_state_lock);
+	write_unlock(&global_state_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	if (r == SS_SUCCESS) {
 		/* reset rs_last_bcast when a resync or verify is started,
