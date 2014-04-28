@@ -1986,7 +1986,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, void
 		if (! len && check_input_term(state, desc->baSourceID[i], &iterm) >= 0)
 			len = get_term_name(state, &iterm, namelist[i], MAX_ITEM_NAME_LEN, 0);
 		if (! len)
-			sprintf(namelist[i], "Input %d", i);
+			sprintf(namelist[i], "Input %u", i);
 	}
 
 	kctl = snd_ctl_new1(&mixer_selectunit_ctl, cval);
