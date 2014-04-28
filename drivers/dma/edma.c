@@ -64,6 +64,7 @@ struct edma_desc {
 	int				absync;
 	int				pset_nr;
 	int				processed;
+	u32				residue;
 	struct edmacc_param		pset[0];
 };
 
@@ -456,6 +457,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 	}
 
 	edesc->pset_nr = sg_len;
+	edesc->residue = 0;
 
 	/* Allocate a PaRAM slot, if needed */
 	nslots = min_t(unsigned, MAX_NR_SG, sg_len);
@@ -491,6 +493,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 		}
 
 		edesc->absync = ret;
+		edesc->residue += sg_dma_len(sg);
 
 		/* If this is the last in a current SG set of transactions,
 		   enable interrupts so that next set is processed */
@@ -606,6 +609,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 
 	edesc->cyclic = 1;
 	edesc->pset_nr = nslots;
+	edesc->residue = buf_len;
 
 	dev_dbg(dev, "%s: channel=%d nslots=%d period_len=%zu buf_len=%zu\n",
 		__func__, echan->ch_num, nslots, period_len, buf_len);
@@ -700,6 +704,7 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 				vchan_cyclic_callback(&edesc->vdesc);
 			} else if (edesc->processed == edesc->pset_nr) {
 				dev_dbg(dev, "Transfer complete, stopping channel %d\n", ch_num);
+				edesc->residue = 0;
 				edma_stop(echan->ch_num);
 				vchan_cookie_complete(&edesc->vdesc);
 				edma_execute(echan);
@@ -832,25 +837,6 @@ static void edma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&echan->vchan.lock, flags);
 }
 
-static size_t edma_desc_size(struct edma_desc *edesc)
-{
-	int i;
-	size_t size;
-
-	if (edesc->absync)
-		for (size = i = 0; i < edesc->pset_nr; i++)
-			size += (edesc->pset[i].a_b_cnt & 0xffff) *
-				(edesc->pset[i].a_b_cnt >> 16) *
-				 edesc->pset[i].ccnt;
-	else
-		size = (edesc->pset[0].a_b_cnt & 0xffff) *
-			(edesc->pset[0].a_b_cnt >> 16) +
-			(edesc->pset[0].a_b_cnt & 0xffff) *
-			(SZ_64K - 1) * edesc->pset[0].ccnt;
-
-	return size;
-}
-
 /* Check request completion status */
 static enum dma_status edma_tx_status(struct dma_chan *chan,
 				      dma_cookie_t cookie,
@@ -867,12 +853,10 @@ static enum dma_status edma_tx_status(struct dma_chan *chan,
 
 	spin_lock_irqsave(&echan->vchan.lock, flags);
 	vdesc = vchan_find_desc(&echan->vchan, cookie);
-	if (vdesc) {
-		txstate->residue = edma_desc_size(to_edma_desc(&vdesc->tx));
-	} else if (echan->edesc && echan->edesc->vdesc.tx.cookie == cookie) {
-		struct edma_desc *edesc = echan->edesc;
-		txstate->residue = edma_desc_size(edesc);
-	}
+	if (vdesc)
+		txstate->residue = to_edma_desc(&vdesc->tx)->residue;
+	else if (echan->edesc && echan->edesc->vdesc.tx.cookie == cookie)
+		txstate->residue = echan->edesc->residue;
 	spin_unlock_irqrestore(&echan->vchan.lock, flags);
 
 	return ret;
