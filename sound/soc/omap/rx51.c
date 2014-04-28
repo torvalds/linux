@@ -386,6 +386,7 @@ static struct snd_soc_card rx51_sound_card = {
 static int rx51_soc_probe(struct platform_device *pdev)
 {
 	struct rx51_audio_pdata *pdata;
+	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_card *card = &rx51_sound_card;
 	int err;
 
@@ -393,6 +394,49 @@ static int rx51_soc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	card->dev = &pdev->dev;
+
+	if (np) {
+		struct device_node *dai_node;
+
+		dai_node = of_parse_phandle(np, "nokia,cpu-dai", 0);
+		if (!dai_node) {
+			dev_err(&pdev->dev, "McBSP node is not provided\n");
+			return -EINVAL;
+		}
+		rx51_dai[0].cpu_dai_name = NULL;
+		rx51_dai[0].platform_name = NULL;
+		rx51_dai[0].cpu_of_node = dai_node;
+		rx51_dai[0].platform_of_node = dai_node;
+
+		dai_node = of_parse_phandle(np, "nokia,audio-codec", 0);
+		if (!dai_node) {
+			dev_err(&pdev->dev, "Codec node is not provided\n");
+			return -EINVAL;
+		}
+		rx51_dai[0].codec_name = NULL;
+		rx51_dai[0].codec_of_node = dai_node;
+
+		dai_node = of_parse_phandle(np, "nokia,audio-codec", 1);
+		if (!dai_node) {
+			dev_err(&pdev->dev, "Auxiliary Codec node is not provided\n");
+			return -EINVAL;
+		}
+		rx51_aux_dev[0].codec_name = NULL;
+		rx51_aux_dev[0].codec_of_node = dai_node;
+		rx51_codec_conf[0].dev_name = NULL;
+		rx51_codec_conf[0].of_node = dai_node;
+
+		dai_node = of_parse_phandle(np, "nokia,headphone-amplifier", 0);
+		if (!dai_node) {
+			dev_err(&pdev->dev, "Headphone amplifier node is not provided\n");
+			return -EINVAL;
+		}
+
+		/* TODO: tpa6130a2a driver supports only a single instance, so
+		 * this driver ignores the headphone-amplifier node for now.
+		 * It's already mandatory in the DT binding to be future proof.
+		 */
+	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (pdata == NULL) {
@@ -463,10 +507,19 @@ static int rx51_soc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id rx51_audio_of_match[] = {
+	{ .compatible = "nokia,n900-audio", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rx51_audio_of_match);
+#endif
+
 static struct platform_driver rx51_soc_driver = {
 	.driver = {
 		.name = "rx51-audio",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(rx51_audio_of_match),
 	},
 	.probe = rx51_soc_probe,
 	.remove = rx51_soc_remove,
