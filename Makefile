@@ -255,18 +255,18 @@ endif
 KBUILD_MODULES :=
 KBUILD_BUILTIN := 1
 
-#	If we have only "make modules", don't compile built-in objects.
-#	When we're building modules with modversions, we need to consider
-#	the built-in objects during the descend as well, in order to
-#	make sure the checksums are up to date before we record them.
+# If we have only "make modules", don't compile built-in objects.
+# When we're building modules with modversions, we need to consider
+# the built-in objects during the descend as well, in order to
+# make sure the checksums are up to date before we record them.
 
 ifeq ($(MAKECMDGOALS),modules)
   KBUILD_BUILTIN := $(if $(CONFIG_MODVERSIONS),1)
 endif
 
-#	If we have "make <whatever> modules", compile modules
-#	in addition to whatever we do anyway.
-#	Just "make" or "make all" shall build modules as well
+# If we have "make <whatever> modules", compile modules
+# in addition to whatever we do anyway.
+# Just "make" or "make all" shall build modules as well
 
 ifneq ($(filter all _all modules,$(MAKECMDGOALS)),)
   KBUILD_MODULES := 1
@@ -342,7 +342,6 @@ $(srctree)/scripts/Kbuild.include: ;
 include $(srctree)/scripts/Kbuild.include
 
 # Make variables (CC, etc...)
-
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
 CC		= $(CROSS_COMPILE)gcc
@@ -781,10 +780,10 @@ MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
 
 #
-#  INSTALL_MOD_STRIP, if defined, will cause modules to be
-#  stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
-#  the default option --strip-debug will be used.  Otherwise,
-#  INSTALL_MOD_STRIP value will be used as the options to the strip command.
+# INSTALL_MOD_STRIP, if defined, will cause modules to be
+# stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
+# the default option --strip-debug will be used.  Otherwise,
+# INSTALL_MOD_STRIP value will be used as the options to the strip command.
 
 ifdef INSTALL_MOD_STRIP
 ifeq ($(INSTALL_MOD_STRIP),1)
@@ -1027,11 +1026,11 @@ ifdef CONFIG_MODULES
 
 all: modules
 
-#	Build modules
+# Build modules
 #
-#	A module can be listed more than once in obj-m resulting in
-#	duplicate lines in modules.order files.  Those are removed
-#	using awk while concatenating to the final file.
+# A module can be listed more than once in obj-m resulting in
+# duplicate lines in modules.order files.  Those are removed
+# using awk while concatenating to the final file.
 
 PHONY += modules
 modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux) modules.builtin
@@ -1110,7 +1109,7 @@ CLEAN_DIRS  += $(MODVERDIR)
 
 # Directories & files removed with 'make mrproper'
 MRPROPER_DIRS  += include/config usr/include include/generated          \
-                  arch/*/include/generated .tmp_objdiff
+		  arch/*/include/generated .tmp_objdiff
 MRPROPER_FILES += .config .config.old .version .old_version $(version_h) \
 		  Module.symvers tags TAGS cscope* GPATH GTAGS GRTAGS GSYMS \
 		  signing_key.priv signing_key.x509 x509.genkey		\
