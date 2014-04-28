@@ -19,10 +19,16 @@ enum{
 
 /* Color Space Convertion Mode */
 enum {
-	CSC_RGB_TO_ITU601 = 0,	//RGB input to YCbCr output according BT601
-	CSC_RGB_TO_ITU709,	//RGB input to YCbCr output accroding BT709
-	CSC_ITU601_TO_RGB,	//YCbCr input to RGB output according BT601
-	CSC_ITU709_TO_RGB,	//YCbCr input to RGB output according BT709
+	CSC_RGB_0_255_TO_RGB_16_235_8BIT,	//RGB 0-255 input to RGB 16-235 output that is 8bit clolor depth
+	CSC_RGB_0_255_TO_RGB_16_235_10BIT,	//RGB 0-255 input to RGB 16-235 output that is 8bit clolor depth
+	CSC_RGB_0_255_TO_ITU601_16_235_8BIT,	//RGB 0-255 input to YCbCr 16-235 output according BT601 that is 8bit clolor depth
+	CSC_RGB_0_255_TO_ITU601_16_235_10BIT,	//RGB 0-255 input to YCbCr 16-235 output according BT601 that is 10bit clolor depth
+	CSC_RGB_0_255_TO_ITU709_16_235_8BIT,	//RGB 0-255 input to YCbCr 16-235 output accroding BT709 that is 8bit clolor depth
+	CSC_RGB_0_255_TO_ITU709_16_235_10BIT,	//RGB 0-255 input to YCbCr 16-235 output accroding BT709 that is 10bit clolor depth
+	CSC_ITU601_16_235_TO_RGB_16_235_8BIT,	//YCbCr 16-235 input to RGB 16-235 output according BT601 that is 8bit clolor depth
+	CSC_ITU709_16_235_TO_RGB_16_235_8BIT,	//YCbCr 16-235 input to RGB 16-235 output according BT709 that is 8bit clolor depth
+	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,	//YCbCr 16-235 input to RGB 0-255 output according BT601 that is 8bit clolor depth
+	CSC_ITU709_16_235_TO_RGB_0_255_8BIT	//YCbCr 16-235 input to RGB 0-255 output according BT709 that is 8bit clolor depth
 };
 
 /*VIC VIDEO FORMAT*/
@@ -480,7 +486,11 @@ enum {
 	ACTIVE_ASPECT_RATE_16_9,
 	ACTIVE_ASPECT_RATE_14_9
 };
-
+enum {
+	AVI_QUANTIZATION_RANGE_DEFAULT = 0,
+	AVI_QUANTIZATION_RANGE_LIMITED,
+	AVI_QUANTIZATION_RANGE_FULL
+};
 
 #define	FC_AVICONF0			0x1019
 #define m_FC_RGC_YCC_2		(1 << 7)	//use for HDMI2.0 TX

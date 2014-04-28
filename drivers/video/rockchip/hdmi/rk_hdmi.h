@@ -273,6 +273,7 @@ struct hdmi_video_para {
 	unsigned char color_depth;	//color depth: 8bit; 10bit; 12bit; 16bit;
 	unsigned char pixel_repet;	//pixel repettion
 	unsigned char pixel_pack_phase;	//pixel packing default phase
+	unsigned char color_limit_range;//quantization range 0: full range(0~255) 1:limit range(16~235)
 };
 
 struct hdmi {

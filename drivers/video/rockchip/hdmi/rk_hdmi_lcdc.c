@@ -558,6 +558,7 @@ int hdmi_init_video_para(struct hdmi *hdmi_drv, struct hdmi_video_para *video)
 	video->output_mode = hdmi_drv->edid.sink_hdmi;
 	video->format_3d = 0; 	/*TODO modify according to EDID if need*/
 	video->pixel_repet = 0;
+	video->color_limit_range = 1; //0:IT Video Format  1:CE Video Format --TODO modify according to EDID
 
 #ifdef SOURCE_ABOVE_10BIT
 	if (hdmi_drv->edid.deepcolor & HDMI_COLOR_DEPTH_16BIT)
