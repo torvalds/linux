@@ -267,7 +267,12 @@ void drbd_request_endio(struct bio *bio, int error)
 
 	/* to avoid recursion in __req_mod */
 	if (unlikely(error)) {
-		what = (bio_data_dir(bio) == WRITE)
+		if (bio->bi_rw & REQ_DISCARD)
+			what = (error == -EOPNOTSUPP)
+				? DISCARD_COMPLETED_NOTSUPP
+				: DISCARD_COMPLETED_WITH_ERROR;
+		else
+			what = (bio_data_dir(bio) == WRITE)
 			? WRITE_COMPLETED_WITH_ERROR
 			: (bio_rw(bio) == READ)
 			  ? READ_COMPLETED_WITH_ERROR

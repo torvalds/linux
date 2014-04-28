@@ -1607,8 +1607,8 @@ static u32 bio_flags_to_wire(struct drbd_connection *connection, unsigned long b
 		return bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
 }
 
-/* Used to send write requests
- * R_PRIMARY -> Peer	(P_DATA)
+/* Used to send write or TRIM aka REQ_DISCARD requests
+ * R_PRIMARY -> Peer	(P_DATA, P_TRIM)
  */
 int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *req)
 {
@@ -1640,6 +1640,16 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 			dp_flags |= DP_SEND_WRITE_ACK;
 	}
 	p->dp_flags = cpu_to_be32(dp_flags);
+
+	if (dp_flags & DP_DISCARD) {
+		struct p_trim *t = (struct p_trim*)p;
+		t->size = cpu_to_be32(req->i.size);
+		err = __send_command(peer_device->connection, device->vnr, sock, P_TRIM, sizeof(*t), NULL, 0);
+		goto out;
+	}
+
+	/* our digest is still only over the payload.
+	 * TRIM does not carry any payload. */
 	if (dgs)
 		drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, p + 1);
 	err = __send_command(peer_device->connection, device->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
@@ -1675,6 +1685,7 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 		     ... Be noisy about digest too large ...
 		} */
 	}
+out:
 	mutex_unlock(&sock->mutex);  /* locked by drbd_prepare_command() */
 
 	return err;
