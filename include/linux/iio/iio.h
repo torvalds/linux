@@ -177,6 +177,12 @@ struct iio_event_spec {
  *			shift:		Shift right by this before masking out
  *					realbits.
  *			endianness:	little or big endian
+ *			repeat:		Number of times real/storage bits
+ *					repeats. When the repeat element is
+ *					more than 1, then the type element in
+ *					sysfs will show a repeat value.
+ *					Otherwise, the number of repetitions is
+ *					omitted.
  * @info_mask_separate: What information is to be exported that is specific to
  *			this channel.
  * @info_mask_shared_by_type: What information is to be exported that is shared
@@ -219,6 +225,7 @@ struct iio_chan_spec {
 		u8	realbits;
 		u8	storagebits;
 		u8	shift;
+		u8	repeat;
 		enum iio_endian endianness;
 	} scan_type;
 	long			info_mask_separate;
