@@ -262,7 +262,7 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 		goto out_unmap;
 	}
 
-	ret = request_irq(host->irq, cumanascsi_intr, IRQF_DISABLED,
+	ret = request_irq(host->irq, cumanascsi_intr, 0,
 			  "CumanaSCSI-1", host);
 	if (ret) {
 		printk("scsi%d: IRQ%d not free: %d\n",
