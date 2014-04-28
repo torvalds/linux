@@ -2570,6 +2570,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 	INIT_LIST_HEAD(&resource->connections);
 	list_add_tail_rcu(&resource->resources, &drbd_resources);
 	mutex_init(&resource->conf_update);
+	mutex_init(&resource->adm_mutex);
 	spin_lock_init(&resource->req_lock);
 	return resource;
 
