@@ -277,13 +277,11 @@ bool init_firmware(struct net_device *dev)
 		 *   and Tx descriptor info
 		 * */
 		rt_status = fw_download_code(dev,mapped_file,file_length);
-		if (rst_opt == OPT_SYSTEM_RESET) {
+		if (rst_opt == OPT_SYSTEM_RESET)
 			release_firmware(fw_entry);
-		}
 
-		if (rt_status != TRUE) {
+		if (rt_status != TRUE)
 			goto download_firmware_fail;
-		}
 
 		switch (init_step) {
 		case FW_INIT_STEP0_BOOT:

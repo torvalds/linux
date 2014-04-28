@@ -183,9 +183,8 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 	curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 	curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
 
-	if((curTxOkCnt + curRxOkCnt) < 15000000) {
+	if ((curTxOkCnt + curRxOkCnt) < 15000000)
 		return;
-	}
 
 	if(curTxOkCnt > 4*curRxOkCnt) {
 		if (priv->bCurrentRxAggrEnable) {
@@ -1646,9 +1645,8 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 			write_nic_byte(dev, UFWP, 1);
 	}
 	//Restore TX Power Tracking Index
-	if(priv->btxpower_trackingInit && priv->btxpower_tracking){
+	if (priv->btxpower_trackingInit && priv->btxpower_tracking)
 		dm_txpower_reset_recovery(dev);
-	}
 
 	//
 	//Restore BB Initial Gain
