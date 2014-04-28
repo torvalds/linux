@@ -348,10 +348,10 @@ static int msm_otg_reset(struct usb_phy *phy)
 
 	if (pdata->otg_control == OTG_PHY_CONTROL) {
 		val = readl(USB_OTGSC);
-		if (pdata->mode == USB_OTG) {
+		if (pdata->mode == USB_DR_MODE_OTG) {
 			ulpi_val = ULPI_INT_IDGRD | ULPI_INT_SESS_VALID;
 			val |= OTGSC_IDIE | OTGSC_BSVIE;
-		} else if (pdata->mode == USB_PERIPHERAL) {
+		} else if (pdata->mode == USB_DR_MODE_PERIPHERAL) {
 			ulpi_val = ULPI_INT_SESS_VALID;
 			val |= OTGSC_BSVIE;
 		}
@@ -637,7 +637,7 @@ static int msm_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 	 * Fail host registration if this board can support
 	 * only peripheral configuration.
 	 */
-	if (motg->pdata->mode == USB_PERIPHERAL) {
+	if (motg->pdata->mode == USB_DR_MODE_PERIPHERAL) {
 		dev_info(otg->phy->dev, "Host mode is not supported\n");
 		return -ENODEV;
 	}
@@ -666,7 +666,7 @@ static int msm_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 	 * Kick the state machine work, if peripheral is not supported
 	 * or peripheral is already registered with us.
 	 */
-	if (motg->pdata->mode == USB_HOST || otg->gadget) {
+	if (motg->pdata->mode == USB_DR_MODE_HOST || otg->gadget) {
 		pm_runtime_get_sync(otg->phy->dev);
 		schedule_work(&motg->sm_work);
 	}
@@ -710,7 +710,7 @@ static int msm_otg_set_peripheral(struct usb_otg *otg,
 	 * Fail peripheral registration if this board can support
 	 * only host configuration.
 	 */
-	if (motg->pdata->mode == USB_HOST) {
+	if (motg->pdata->mode == USB_DR_MODE_HOST) {
 		dev_info(otg->phy->dev, "Peripheral mode is not supported\n");
 		return -ENODEV;
 	}
@@ -735,7 +735,7 @@ static int msm_otg_set_peripheral(struct usb_otg *otg,
 	 * Kick the state machine work, if host is not supported
 	 * or host is already registered with us.
 	 */
-	if (motg->pdata->mode == USB_PERIPHERAL || otg->host) {
+	if (motg->pdata->mode == USB_DR_MODE_PERIPHERAL || otg->host) {
 		pm_runtime_get_sync(otg->phy->dev);
 		schedule_work(&motg->sm_work);
 	}
@@ -1056,7 +1056,7 @@ static void msm_otg_init_sm(struct msm_otg *motg)
 	u32 otgsc = readl(USB_OTGSC);
 
 	switch (pdata->mode) {
-	case USB_OTG:
+	case USB_DR_MODE_OTG:
 		if (pdata->otg_control == OTG_PHY_CONTROL) {
 			if (otgsc & OTGSC_ID)
 				set_bit(ID, &motg->inputs);
@@ -1068,21 +1068,14 @@ static void msm_otg_init_sm(struct msm_otg *motg)
 			else
 				clear_bit(B_SESS_VLD, &motg->inputs);
 		} else if (pdata->otg_control == OTG_USER_CONTROL) {
-			if (pdata->default_mode == USB_HOST) {
-				clear_bit(ID, &motg->inputs);
-			} else if (pdata->default_mode == USB_PERIPHERAL) {
-				set_bit(ID, &motg->inputs);
-				set_bit(B_SESS_VLD, &motg->inputs);
-			} else {
 				set_bit(ID, &motg->inputs);
 				clear_bit(B_SESS_VLD, &motg->inputs);
-			}
 		}
 		break;
-	case USB_HOST:
+	case USB_DR_MODE_HOST:
 		clear_bit(ID, &motg->inputs);
 		break;
-	case USB_PERIPHERAL:
+	case USB_DR_MODE_PERIPHERAL:
 		set_bit(ID, &motg->inputs);
 		if (otgsc & OTGSC_BSV)
 			set_bit(B_SESS_VLD, &motg->inputs);
@@ -1258,7 +1251,7 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 	char buf[16];
 	struct usb_otg *otg = motg->phy.otg;
 	int status = count;
-	enum usb_mode_type req_mode;
+	enum usb_dr_mode req_mode;
 
 	memset(buf, 0x00, sizeof(buf));
 
@@ -1268,18 +1261,18 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 	}
 
 	if (!strncmp(buf, "host", 4)) {
-		req_mode = USB_HOST;
+		req_mode = USB_DR_MODE_HOST;
 	} else if (!strncmp(buf, "peripheral", 10)) {
-		req_mode = USB_PERIPHERAL;
+		req_mode = USB_DR_MODE_PERIPHERAL;
 	} else if (!strncmp(buf, "none", 4)) {
-		req_mode = USB_NONE;
+		req_mode = USB_DR_MODE_UNKNOWN;
 	} else {
 		status = -EINVAL;
 		goto out;
 	}
 
 	switch (req_mode) {
-	case USB_NONE:
+	case USB_DR_MODE_UNKNOWN:
 		switch (otg->phy->state) {
 		case OTG_STATE_A_HOST:
 		case OTG_STATE_B_PERIPHERAL:
@@ -1290,7 +1283,7 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 			goto out;
 		}
 		break;
-	case USB_PERIPHERAL:
+	case USB_DR_MODE_PERIPHERAL:
 		switch (otg->phy->state) {
 		case OTG_STATE_B_IDLE:
 		case OTG_STATE_A_HOST:
@@ -1301,7 +1294,7 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 			goto out;
 		}
 		break;
-	case USB_HOST:
+	case USB_DR_MODE_HOST:
 		switch (otg->phy->state) {
 		case OTG_STATE_B_IDLE:
 		case OTG_STATE_B_PERIPHERAL:
@@ -1511,7 +1504,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, motg);
 	device_init_wakeup(&pdev->dev, 1);
 
-	if (motg->pdata->mode == USB_OTG &&
+	if (motg->pdata->mode == USB_DR_MODE_OTG &&
 			motg->pdata->otg_control == OTG_USER_CONTROL) {
 		ret = msm_otg_debugfs_init(motg);
 		if (ret)

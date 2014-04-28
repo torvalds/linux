@@ -23,21 +23,6 @@
 #include <linux/clk.h>
 
 /**
- * Supported USB modes
- *
- * USB_PERIPHERAL       Only peripheral mode is supported.
- * USB_HOST             Only host mode is supported.
- * USB_OTG              OTG mode is supported.
- *
- */
-enum usb_mode_type {
-	USB_NONE = 0,
-	USB_PERIPHERAL,
-	USB_HOST,
-	USB_OTG,
-};
-
-/**
  * OTG control
  *
  * OTG_NO_CONTROL	Id/VBUS notifications not required. Useful in host
@@ -121,8 +106,6 @@ enum usb_chg_type {
  * @power_budget: VBUS power budget in mA (0 will be treated as 500mA).
  * @mode: Supported mode (OTG/peripheral/host).
  * @otg_control: OTG switch controlled by user/Id pin
- * @default_mode: Default operational mode. Applicable only if
- *              OTG switch is controller by user.
  * @pclk_src_name: pclk is derived from ebi1_usb_clk in case of 7x27 and 8k
  *              dfab_usb_hs_clk in case of 8660 and 8960.
  */
@@ -130,9 +113,8 @@ struct msm_otg_platform_data {
 	int *phy_init_seq;
 	void (*vbus_power)(bool on);
 	unsigned power_budget;
-	enum usb_mode_type mode;
+	enum usb_dr_mode mode;
 	enum otg_control_type otg_control;
-	enum usb_mode_type default_mode;
 	enum msm_usb_phy_type phy_type;
 	void (*setup_gpio)(enum usb_otg_state state);
 	char *pclk_src_name;
