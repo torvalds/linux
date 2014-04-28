@@ -18,6 +18,7 @@
 #include "altera_utils.h"
 #include "altera_tse.h"
 #include "altera_msgdmahw.h"
+#include "altera_msgdma.h"
 
 /* No initialization work to do for MSGDMA */
 int msgdma_initialize(struct altera_tse_private *priv)
