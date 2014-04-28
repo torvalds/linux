@@ -30,9 +30,12 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/of.h>
 #include <linux/usb/ulpi.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/hcd.h>
@@ -217,16 +220,16 @@ static struct usb_phy_io_ops msm_otg_io_ops = {
 static void ulpi_init(struct msm_otg *motg)
 {
 	struct msm_otg_platform_data *pdata = motg->pdata;
-	int *seq = pdata->phy_init_seq;
+	int *seq = pdata->phy_init_seq, idx;
+	u32 addr = ULPI_EXT_VENDOR_SPECIFIC;
 
-	if (!seq)
-		return;
+	for (idx = 0; idx < pdata->phy_init_sz; idx++) {
+		if (seq[idx] == -1)
+			continue;
 
-	while (seq[0] >= 0) {
 		dev_vdbg(motg->phy.dev, "ulpi: write 0x%02x to 0x%02x\n",
-				seq[0], seq[1]);
-		ulpi_write(&motg->phy, seq[0], seq[1]);
-		seq += 2;
+				seq[idx], addr + idx);
+		ulpi_write(&motg->phy, seq[idx], addr + idx);
 	}
 }
 
@@ -1343,24 +1346,94 @@ static void msm_otg_debugfs_cleanup(void)
 	debugfs_remove(msm_otg_dbg_root);
 }
 
+static struct of_device_id msm_otg_dt_match[] = {
+	{
+		.compatible = "qcom,usb-otg-ci",
+		.data = (void *) CI_45NM_INTEGRATED_PHY
+	},
+	{
+		.compatible = "qcom,usb-otg-snps",
+		.data = (void *) SNPS_28NM_INTEGRATED_PHY
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, msm_otg_dt_match);
+
+static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
+{
+	struct msm_otg_platform_data *pdata;
+	const struct of_device_id *id;
+	struct device_node *node = pdev->dev.of_node;
+	struct property *prop;
+	int len, ret, words;
+	u32 val;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	motg->pdata = pdata;
+
+	id = of_match_device(msm_otg_dt_match, &pdev->dev);
+	pdata->phy_type = (int) id->data;
+
+	pdata->mode = of_usb_get_dr_mode(node);
+	if (pdata->mode == USB_DR_MODE_UNKNOWN)
+		pdata->mode = USB_DR_MODE_OTG;
+
+	pdata->otg_control = OTG_PHY_CONTROL;
+	if (!of_property_read_u32(node, "qcom,otg-control", &val))
+		if (val == OTG_PMIC_CONTROL)
+			pdata->otg_control = val;
+
+	prop = of_find_property(node, "qcom,phy-init-sequence", &len);
+	if (!prop || !len)
+		return 0;
+
+	words = len / sizeof(u32);
+
+	if (words >= ULPI_EXT_VENDOR_SPECIFIC) {
+		dev_warn(&pdev->dev, "Too big PHY init sequence %d\n", words);
+		return 0;
+	}
+
+	pdata->phy_init_seq = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
+	if (!pdata->phy_init_seq) {
+		dev_warn(&pdev->dev, "No space for PHY init sequence\n");
+		return 0;
+	}
+
+	ret = of_property_read_u32_array(node, "qcom,phy-init-sequence",
+					 pdata->phy_init_seq, words);
+	if (!ret)
+		pdata->phy_init_sz = words;
+
+	return 0;
+}
+
 static int msm_otg_probe(struct platform_device *pdev)
 {
 	struct regulator_bulk_data regs[3];
 	int ret = 0;
+	struct device_node *np = pdev->dev.of_node;
+	struct msm_otg_platform_data *pdata;
 	struct resource *res;
 	struct msm_otg *motg;
 	struct usb_phy *phy;
-
-	dev_info(&pdev->dev, "msm_otg probe\n");
-	if (!dev_get_platdata(&pdev->dev)) {
-		dev_err(&pdev->dev, "No platform data given. Bailing out\n");
-		return -ENODEV;
-	}
 
 	motg = devm_kzalloc(&pdev->dev, sizeof(struct msm_otg), GFP_KERNEL);
 	if (!motg) {
 		dev_err(&pdev->dev, "unable to allocate msm_otg\n");
 		return -ENOMEM;
+	}
+
+	pdata = dev_get_platdata(&pdev->dev);
+	if (!pdata) {
+		if (!np)
+			return -ENXIO;
+		ret = msm_otg_read_dt(pdev, motg);
+		if (ret)
+			return ret;
 	}
 
 	motg->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
@@ -1370,17 +1443,17 @@ static int msm_otg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	motg->pdata = dev_get_platdata(&pdev->dev);
 	phy = &motg->phy;
 	phy->dev = &pdev->dev;
 
-	motg->phy_reset_clk = devm_clk_get(&pdev->dev, "usb_phy_clk");
+	motg->phy_reset_clk = devm_clk_get(&pdev->dev,
+					   np ? "phy" : "usb_phy_clk");
 	if (IS_ERR(motg->phy_reset_clk)) {
 		dev_err(&pdev->dev, "failed to get usb_phy_clk\n");
 		return PTR_ERR(motg->phy_reset_clk);
 	}
 
-	motg->clk = devm_clk_get(&pdev->dev, "usb_hs_clk");
+	motg->clk = devm_clk_get(&pdev->dev, np ? "core" : "usb_hs_clk");
 	if (IS_ERR(motg->clk)) {
 		dev_err(&pdev->dev, "failed to get usb_hs_clk\n");
 		return PTR_ERR(motg->clk);
@@ -1392,7 +1465,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 	 * operation and USB core cannot tolerate frequency changes on
 	 * CORE CLK.
 	 */
-	motg->pclk = devm_clk_get(&pdev->dev, "usb_hs_pclk");
+	motg->pclk = devm_clk_get(&pdev->dev, np ? "iface" : "usb_hs_pclk");
 	if (IS_ERR(motg->pclk)) {
 		dev_err(&pdev->dev, "failed to get usb_hs_pclk\n");
 		return PTR_ERR(motg->pclk);
@@ -1403,7 +1476,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	 * clock is introduced to remove the dependency on AXI
 	 * bus frequency.
 	 */
-	motg->core_clk = devm_clk_get(&pdev->dev, "usb_hs_core_clk");
+	motg->core_clk = devm_clk_get(&pdev->dev,
+				      np ? "alt_core" : "usb_hs_core_clk");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	motg->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
@@ -1486,7 +1560,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 
 	if (motg->pdata->mode == USB_DR_MODE_OTG &&
-			motg->pdata->otg_control == OTG_USER_CONTROL) {
+		motg->pdata->otg_control == OTG_USER_CONTROL) {
 		ret = msm_otg_debugfs_init(motg);
 		if (ret)
 			dev_dbg(&pdev->dev, "Can not create mode change file\n");
@@ -1639,6 +1713,7 @@ static struct platform_driver msm_otg_driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
 		.pm = &msm_otg_dev_pm_ops,
+		.of_match_table = msm_otg_dt_match,
 	},
 };
 

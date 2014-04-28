@@ -100,8 +100,9 @@ enum usb_chg_type {
 /**
  * struct msm_otg_platform_data - platform device data
  *              for msm_otg driver.
- * @phy_init_seq: PHY configuration sequence. val, reg pairs
- *              terminated by -1.
+ * @phy_init_seq: PHY configuration sequence values. Value of -1 is reserved as
+ *              "do not overwrite default vaule at this address".
+ * @phy_init_sz: PHY configuration sequence size.
  * @vbus_power: VBUS power on/off routine.
  * @power_budget: VBUS power budget in mA (0 will be treated as 500mA).
  * @mode: Supported mode (OTG/peripheral/host).
@@ -109,6 +110,7 @@ enum usb_chg_type {
  */
 struct msm_otg_platform_data {
 	int *phy_init_seq;
+	int phy_init_sz;
 	void (*vbus_power)(bool on);
 	unsigned power_budget;
 	enum usb_dr_mode mode;
