@@ -250,11 +250,13 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 	}
 
 	tmp = strsep((char **) &buf, "\n");
-	if (!strcmp(tmp, "prio_queueing_prec"))
+	if (!strcmp(tmp, "prio_queueing_prec")) {
 		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_PREC;
-	else if (!strcmp(tmp, "prio_queueing_tos"))
+		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
+	} else if (!strcmp(tmp, "prio_queueing_tos")) {
 		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_TOS;
-	else if (!strcmp(tmp, "no_prio_queueing:0")) {
+		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
+	} else if (!strcmp(tmp, "no_prio_queueing:0")) {
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 0;
 	} else if (!strcmp(tmp, "no_prio_queueing:1")) {
