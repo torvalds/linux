@@ -24,6 +24,7 @@
 			device_type = "cpu";
 			reg = <0>;
 			clocks = <&clkc 3>;
+			clock-latency = <1000>;
 			operating-points = <
 				/* kHz    uV */
 				666667  1000000
@@ -53,6 +54,28 @@
 		#size-cells = <1>;
 		interrupt-parent = <&intc>;
 		ranges;
+
+		i2c0: zynq-i2c@e0004000 {
+			compatible = "cdns,i2c-r1p10";
+			status = "disabled";
+			clocks = <&clkc 38>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 25 4>;
+			reg = <0xe0004000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c1: zynq-i2c@e0005000 {
+			compatible = "cdns,i2c-r1p10";
+			status = "disabled";
+			clocks = <&clkc 39>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 48 4>;
+			reg = <0xe0005000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 
 		intc: interrupt-controller@f8f01000 {
 			compatible = "arm,cortex-a9-gic";

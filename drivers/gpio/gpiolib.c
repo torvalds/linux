@@ -1387,8 +1387,8 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 {
 	struct gpio_chip *chip = d->host_data;
 
-	irq_set_chip_and_handler(irq, chip->irqchip, chip->irq_handler);
 	irq_set_chip_data(irq, chip);
+	irq_set_chip_and_handler(irq, chip->irqchip, chip->irq_handler);
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, IRQF_VALID);
 #else

@@ -2861,7 +2861,7 @@ retry_root_backup:
 			printk(KERN_ERR "BTRFS: failed to read log tree\n");
 			free_extent_buffer(log_tree_root->node);
 			kfree(log_tree_root);
-			goto fail_trans_kthread;
+			goto fail_qgroup;
 		}
 		/* returns with log_tree_root freed on success */
 		ret = btrfs_recover_log_trees(log_tree_root);
@@ -2870,24 +2870,24 @@ retry_root_backup:
 				    "Failed to recover log tree");
 			free_extent_buffer(log_tree_root->node);
 			kfree(log_tree_root);
-			goto fail_trans_kthread;
+			goto fail_qgroup;
 		}
 
 		if (sb->s_flags & MS_RDONLY) {
 			ret = btrfs_commit_super(tree_root);
 			if (ret)
-				goto fail_trans_kthread;
+				goto fail_qgroup;
 		}
 	}
 
 	ret = btrfs_find_orphan_roots(tree_root);
 	if (ret)
-		goto fail_trans_kthread;
+		goto fail_qgroup;
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		ret = btrfs_cleanup_fs_roots(fs_info);
 		if (ret)
-			goto fail_trans_kthread;
+			goto fail_qgroup;
 
 		ret = btrfs_recover_relocation(tree_root);
 		if (ret < 0) {

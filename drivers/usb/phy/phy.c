@@ -132,6 +132,9 @@ struct usb_phy *usb_get_phy(enum usb_phy_type type)
 	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
 		pr_debug("PHY: unable to find transceiver of type %s\n",
 			usb_phy_type_string(type));
+		if (!IS_ERR(phy))
+			phy = ERR_PTR(-ENODEV);
+
 		goto err0;
 	}
 

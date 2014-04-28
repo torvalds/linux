@@ -385,20 +385,6 @@ static match_table_t tokens = {
 	{Opt_err, NULL},
 };
 
-#define btrfs_set_and_info(root, opt, fmt, args...)			\
-{									\
-	if (!btrfs_test_opt(root, opt))					\
-		btrfs_info(root->fs_info, fmt, ##args);			\
-	btrfs_set_opt(root->fs_info->mount_opt, opt);			\
-}
-
-#define btrfs_clear_and_info(root, opt, fmt, args...)			\
-{									\
-	if (btrfs_test_opt(root, opt))					\
-		btrfs_info(root->fs_info, fmt, ##args);			\
-	btrfs_clear_opt(root->fs_info->mount_opt, opt);			\
-}
-
 /*
  * Regular mount options parser.  Everything that is needed only when
  * reading in a new superblock is parsed here.
@@ -1186,7 +1172,6 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 		return ERR_PTR(-ENOMEM);
 	mnt = vfs_kern_mount(&btrfs_fs_type, flags, device_name,
 			     newargs);
-	kfree(newargs);
 
 	if (PTR_RET(mnt) == -EBUSY) {
 		if (flags & MS_RDONLY) {
@@ -1196,16 +1181,21 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 			int r;
 			mnt = vfs_kern_mount(&btrfs_fs_type, flags | MS_RDONLY, device_name,
 					     newargs);
-			if (IS_ERR(mnt))
+			if (IS_ERR(mnt)) {
+				kfree(newargs);
 				return ERR_CAST(mnt);
+			}
 
 			r = btrfs_remount(mnt->mnt_sb, &flags, NULL);
 			if (r < 0) {
 				/* FIXME: release vfsmount mnt ??*/
+				kfree(newargs);
 				return ERR_PTR(r);
 			}
 		}
 	}
+
+	kfree(newargs);
 
 	if (IS_ERR(mnt))
 		return ERR_CAST(mnt);
