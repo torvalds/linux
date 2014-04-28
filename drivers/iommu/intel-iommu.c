@@ -1009,11 +1009,13 @@ static struct page *dma_pte_list_pagetables(struct dmar_domain *domain,
 	if (level == 1)
 		return freelist;
 
-	for (pte = page_address(pg); !first_pte_in_page(pte); pte++) {
+	pte = page_address(pg);
+	do {
 		if (dma_pte_present(pte) && !dma_pte_superpage(pte))
 			freelist = dma_pte_list_pagetables(domain, level - 1,
 							   pte, freelist);
-	}
+		pte++;
+	} while (!first_pte_in_page(pte));
 
 	return freelist;
 }
@@ -2235,7 +2237,9 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 				bridge_devfn = dev_tmp->devfn;
 			}
 			spin_lock_irqsave(&device_domain_lock, flags);
-			info = dmar_search_domain_by_dev_info(segment, bus, devfn);
+			info = dmar_search_domain_by_dev_info(segment,
+							      bridge_bus,
+							      bridge_devfn);
 			if (info) {
 				iommu = info->iommu;
 				domain = info->domain;

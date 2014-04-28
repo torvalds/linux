@@ -841,16 +841,6 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 	rsi_dbg(MGMT_TX_ZONE,
 		"%s: Sending scan req frame\n", __func__);
 
-	skb = dev_alloc_skb(FRAME_DESC_SZ);
-	if (!skb) {
-		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
-			__func__);
-		return -ENOMEM;
-	}
-
-	memset(skb->data, 0, FRAME_DESC_SZ);
-	mgmt_frame = (struct rsi_mac_frame *)skb->data;
-
 	if (common->band == IEEE80211_BAND_5GHZ) {
 		if ((channel >= 36) && (channel <= 64))
 			channel = ((channel - 32) / 4);
@@ -867,6 +857,16 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 			return -EINVAL;
 		}
 	}
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	mgmt_frame = (struct rsi_mac_frame *)skb->data;
 
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(SCAN_REQUEST);
@@ -966,6 +966,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	if (!selected_rates) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
 			__func__);
+		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
 

@@ -1443,8 +1443,10 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	i2c_set_clientdata(i2c_client, cs42l73);
 
 	if (cs42l73->pdata.reset_gpio) {
-		ret = gpio_request_one(cs42l73->pdata.reset_gpio,
-				       GPIOF_OUT_INIT_HIGH, "CS42L73 /RST");
+		ret = devm_gpio_request_one(&i2c_client->dev,
+					    cs42l73->pdata.reset_gpio,
+					    GPIOF_OUT_INIT_HIGH,
+					    "CS42L73 /RST");
 		if (ret < 0) {
 			dev_err(&i2c_client->dev, "Failed to request /RST %d: %d\n",
 				cs42l73->pdata.reset_gpio, ret);

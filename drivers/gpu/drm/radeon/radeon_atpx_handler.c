@@ -59,7 +59,7 @@ struct atpx_mux {
 	u16 mux;
 } __packed;
 
-bool radeon_is_px(void) {
+bool radeon_has_atpx(void) {
 	return radeon_atpx_priv.atpx_detected;
 }
 

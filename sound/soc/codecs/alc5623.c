@@ -1018,13 +1018,13 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to read vendor ID1: %d\n", ret);
 		return ret;
 	}
-	vid1 = ((vid1 & 0xff) << 8) | (vid1 >> 8);
 
 	ret = regmap_read(alc5623->regmap, ALC5623_VENDOR_ID2, &vid2);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to read vendor ID2: %d\n", ret);
 		return ret;
 	}
+	vid2 >>= 8;
 
 	if ((vid1 != 0x10ec) || (vid2 != id->driver_data)) {
 		dev_err(&client->dev, "unknown or wrong codec\n");

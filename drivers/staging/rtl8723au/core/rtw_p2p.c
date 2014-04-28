@@ -2535,7 +2535,7 @@ u8 process_p2p_group_negotation_req23a(struct wifidirect_info *pwdinfo, u8 *pfra
 	u16		wps_devicepassword_id = 0x0000;
 	uint	wps_devicepassword_id_len = 0;
 #ifdef CONFIG_8723AU_P2P
-	u8	wfd_ie[ 128 ] = { 0x00 };
+	u8	wfd_ie[MAX_WFD_IE_LEN] = { 0x00 };
 	u32	wfd_ielen = 0;
 #endif /*  CONFIG_8723AU_P2P */
 
@@ -2741,7 +2741,7 @@ u8 process_p2p_group_negotation_resp23a(struct wifidirect_info *pwdinfo, u8 *pfr
 	u32 ies_len;
 	u8 * p2p_ie;
 #ifdef CONFIG_8723AU_P2P
-	u8	wfd_ie[ 128 ] = { 0x00 };
+	u8	wfd_ie[MAX_WFD_IE_LEN] = { 0x00 };
 	u32	wfd_ielen = 0;
 #endif /*  CONFIG_8723AU_P2P */
 

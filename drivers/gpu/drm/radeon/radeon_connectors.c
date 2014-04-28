@@ -1261,21 +1261,6 @@ static const struct drm_connector_funcs radeon_dvi_connector_funcs = {
 	.force = radeon_dvi_force,
 };
 
-static void radeon_dp_connector_destroy(struct drm_connector *connector)
-{
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
-
-	if (radeon_connector->edid)
-		kfree(radeon_connector->edid);
-	if (radeon_dig_connector->dp_i2c_bus)
-		radeon_i2c_destroy(radeon_dig_connector->dp_i2c_bus);
-	kfree(radeon_connector->con_priv);
-	drm_sysfs_connector_remove(connector);
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
 static int radeon_dp_get_modes(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -1553,7 +1538,7 @@ static const struct drm_connector_funcs radeon_dp_connector_funcs = {
 	.detect = radeon_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = radeon_connector_set_property,
-	.destroy = radeon_dp_connector_destroy,
+	.destroy = radeon_connector_destroy,
 	.force = radeon_dvi_force,
 };
 
@@ -1562,7 +1547,7 @@ static const struct drm_connector_funcs radeon_edp_connector_funcs = {
 	.detect = radeon_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = radeon_lvds_set_property,
-	.destroy = radeon_dp_connector_destroy,
+	.destroy = radeon_connector_destroy,
 	.force = radeon_dvi_force,
 };
 
@@ -1571,7 +1556,7 @@ static const struct drm_connector_funcs radeon_lvds_bridge_connector_funcs = {
 	.detect = radeon_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = radeon_lvds_set_property,
-	.destroy = radeon_dp_connector_destroy,
+	.destroy = radeon_connector_destroy,
 	.force = radeon_dvi_force,
 };
 
@@ -1668,17 +1653,10 @@ radeon_add_atom_connector(struct drm_device *dev,
 		radeon_dig_connector->igp_lane_info = igp_lane_info;
 		radeon_connector->con_priv = radeon_dig_connector;
 		if (i2c_bus->valid) {
-			/* add DP i2c bus */
-			if (connector_type == DRM_MODE_CONNECTOR_eDP)
-				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "eDP-auxch");
-			else
-				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
-			if (radeon_dig_connector->dp_i2c_bus)
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
+			if (radeon_connector->ddc_bus)
 				has_aux = true;
 			else
-				DRM_ERROR("DP: Failed to assign dp ddc bus! Check dmesg for i2c errors.\n");
-			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
-			if (!radeon_connector->ddc_bus)
 				DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
 		}
 		switch (connector_type) {
@@ -1893,10 +1871,6 @@ radeon_add_atom_connector(struct drm_device *dev,
 			drm_connector_init(dev, &radeon_connector->base, &radeon_dp_connector_funcs, connector_type);
 			drm_connector_helper_add(&radeon_connector->base, &radeon_dp_connector_helper_funcs);
 			if (i2c_bus->valid) {
-				/* add DP i2c bus */
-				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
-				if (!radeon_dig_connector->dp_i2c_bus)
-					DRM_ERROR("DP: Failed to assign dp ddc bus! Check dmesg for i2c errors.\n");
 				radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 				if (radeon_connector->ddc_bus)
 					has_aux = true;
@@ -1942,14 +1916,10 @@ radeon_add_atom_connector(struct drm_device *dev,
 			drm_connector_init(dev, &radeon_connector->base, &radeon_edp_connector_funcs, connector_type);
 			drm_connector_helper_add(&radeon_connector->base, &radeon_dp_connector_helper_funcs);
 			if (i2c_bus->valid) {
-				/* add DP i2c bus */
-				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "eDP-auxch");
-				if (radeon_dig_connector->dp_i2c_bus)
+				radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
+				if (radeon_connector->ddc_bus)
 					has_aux = true;
 				else
-					DRM_ERROR("DP: Failed to assign dp ddc bus! Check dmesg for i2c errors.\n");
-				radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
-				if (!radeon_connector->ddc_bus)
 					DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
 			}
 			drm_object_attach_property(&radeon_connector->base.base,

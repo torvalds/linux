@@ -295,7 +295,7 @@ static void asc_receive_chars(struct uart_port *port)
 			status & ASC_STA_OE) {
 
 			if (c & ASC_RXBUF_FE) {
-				if (c == ASC_RXBUF_FE) {
+				if (c == (ASC_RXBUF_FE | ASC_RXBUF_DUMMY_RX)) {
 					port->icount.brk++;
 					if (uart_handle_break(port))
 						continue;
@@ -325,7 +325,7 @@ static void asc_receive_chars(struct uart_port *port)
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(port, c))
+		if (uart_handle_sysrq_char(port, c & 0xff))
 			continue;
 
 		uart_insert_char(port, c, ASC_RXBUF_DUMMY_OE, c & 0xff, flag);
