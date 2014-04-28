@@ -1662,7 +1662,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (device->state.conn < C_CONNECTED &&
-	    device->state.role == R_PRIMARY &&
+	    device->state.role == R_PRIMARY && device->ed_uuid &&
 	    (device->ed_uuid & ~((u64)1)) != (nbc->md.uuid[UI_CURRENT] & ~((u64)1))) {
 		drbd_err(device, "Can only attach to data with current UUID=%016llX\n",
 		    (unsigned long long)device->ed_uuid);
