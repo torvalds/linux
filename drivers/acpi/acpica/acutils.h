@@ -176,8 +176,7 @@ acpi_status acpi_ut_init_globals(void);
 
 char *acpi_ut_get_mutex_name(u32 mutex_id);
 
-const char *acpi_ut_get_notify_name(u32 notify_value);
-
+const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type);
 #endif
 
 char *acpi_ut_get_type_name(acpi_object_type type);
@@ -736,5 +735,12 @@ acpi_ut_method_error(const char *module_name,
 		     const char *message,
 		     struct acpi_namespace_node *node,
 		     const char *path, acpi_status lookup_status);
+
+/*
+ * Utility functions for ACPI names and IDs
+ */
+const struct ah_predefined_name *acpi_ah_match_predefined_name(char *nameseg);
+
+const struct ah_device_id *acpi_ah_match_hardware_id(char *hid);
 
 #endif				/* _ACUTILS_H */

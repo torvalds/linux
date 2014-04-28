@@ -733,7 +733,8 @@ union acpi_parse_value {
 #define ACPI_DASM_MATCHOP               0x06	/* Parent opcode is a Match() operator */
 #define ACPI_DASM_LNOT_PREFIX           0x07	/* Start of a Lnot_equal (etc.) pair of opcodes */
 #define ACPI_DASM_LNOT_SUFFIX           0x08	/* End  of a Lnot_equal (etc.) pair of opcodes */
-#define ACPI_DASM_IGNORE                0x09	/* Not used at this time */
+#define ACPI_DASM_HID_STRING            0x09	/* String is a _HID or _CID */
+#define ACPI_DASM_IGNORE                0x0A	/* Not used at this time */
 
 /*
  * Generic operation (for example:  If, While, Store)
@@ -1145,6 +1146,11 @@ struct ah_predefined_name {
 #ifndef ACPI_ASL_COMPILER
 	char *action;
 #endif
+};
+
+struct ah_device_id {
+	char *name;
+	char *description;
 };
 
 #endif				/* __ACLOCAL_H__ */

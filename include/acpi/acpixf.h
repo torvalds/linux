@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20140214
+#define ACPI_CA_VERSION                 0x20140325
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -75,7 +75,7 @@ extern u8 acpi_gbl_auto_serialize_methods;
 extern u8 acpi_gbl_copy_dsdt_locally;
 extern u8 acpi_gbl_create_osi_method;
 extern u8 acpi_gbl_disable_auto_repair;
-extern u8 acpi_gbl_disable_ssdt_table_load;
+extern u8 acpi_gbl_disable_ssdt_table_install;
 extern u8 acpi_gbl_do_not_use_xsdt;
 extern u8 acpi_gbl_enable_aml_debug_object;
 extern u8 acpi_gbl_enable_interpreter_slack;
@@ -164,6 +164,9 @@ acpi_decode_pld_buffer(u8 *in_buffer,
 /*
  * ACPI table load/unload interfaces
  */
+acpi_status __init
+acpi_install_table(acpi_physical_address address, u8 physical);
+
 acpi_status acpi_load_table(struct acpi_table_header *table);
 
 acpi_status acpi_unload_parent_table(acpi_handle object);
