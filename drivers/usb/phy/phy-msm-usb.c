@@ -464,9 +464,6 @@ static int msm_otg_suspend(struct msm_otg *motg)
 	if (!IS_ERR(motg->core_clk))
 		clk_disable_unprepare(motg->core_clk);
 
-	if (!IS_ERR(motg->pclk_src))
-		clk_disable_unprepare(motg->pclk_src);
-
 	if (motg->pdata->phy_type == SNPS_28NM_INTEGRATED_PHY &&
 			motg->pdata->otg_control == OTG_PMIC_CONTROL) {
 		msm_hsusb_ldo_set_mode(motg, 0);
@@ -495,9 +492,6 @@ static int msm_otg_resume(struct msm_otg *motg)
 
 	if (!atomic_read(&motg->in_lpm))
 		return 0;
-
-	if (!IS_ERR(motg->pclk_src))
-		clk_prepare_enable(motg->pclk_src);
 
 	clk_prepare_enable(motg->pclk);
 	clk_prepare_enable(motg->clk);
@@ -1396,17 +1390,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	 * If USB Core is running its protocol engine based on CORE CLK,
 	 * CORE CLK  must be running at >55Mhz for correct HSUSB
 	 * operation and USB core cannot tolerate frequency changes on
-	 * CORE CLK. For such USB cores, vote for maximum clk frequency
-	 * on pclk source
+	 * CORE CLK.
 	 */
-	 motg->pclk_src = ERR_PTR(-ENOENT);
-	 if (motg->pdata->pclk_src_name) {
-		motg->pclk_src = devm_clk_get(&pdev->dev,
-					motg->pdata->pclk_src_name);
-		if (IS_ERR(motg->pclk_src))
-			return PTR_ERR(motg->pclk_src);
-	}
-
 	motg->pclk = devm_clk_get(&pdev->dev, "usb_hs_pclk");
 	if (IS_ERR(motg->pclk)) {
 		dev_err(&pdev->dev, "failed to get usb_hs_pclk\n");
@@ -1446,10 +1431,6 @@ static int msm_otg_probe(struct platform_device *pdev)
 	motg->v1p8  = regs[2].consumer;
 
 	clk_set_rate(motg->clk, 60000000);
-	if (!IS_ERR(motg->pclk_src)) {
-		clk_set_rate(motg->pclk_src, INT_MAX);
-		clk_prepare_enable(motg->pclk_src);
-	}
 
 	clk_prepare_enable(motg->clk);
 	clk_prepare_enable(motg->pclk);
@@ -1525,8 +1506,6 @@ disable_clks:
 	clk_disable_unprepare(motg->clk);
 	if (!IS_ERR(motg->core_clk))
 		clk_disable_unprepare(motg->core_clk);
-	if (!IS_ERR(motg->pclk_src))
-		clk_disable_unprepare(motg->pclk_src);
 	return ret;
 }
 
@@ -1571,9 +1550,6 @@ static int msm_otg_remove(struct platform_device *pdev)
 	clk_disable_unprepare(motg->clk);
 	if (!IS_ERR(motg->core_clk))
 		clk_disable_unprepare(motg->core_clk);
-	if (!IS_ERR(motg->pclk_src))
-		clk_disable_unprepare(motg->pclk_src);
-
 	msm_hsusb_ldo_init(motg, 0);
 
 	pm_runtime_set_suspended(&pdev->dev);
