@@ -18,7 +18,7 @@ include $(srctree)/$(obj)/Makefile
 include scripts/Makefile.host
 
 mod-fw := $(fw-shipped-m)
-# If CONFIG_FIRMWARE_IN_KERNEL isn't set, then install the 
+# If CONFIG_FIRMWARE_IN_KERNEL isn't set, then install the
 # firmware for in-kernel drivers too.
 ifndef CONFIG_FIRMWARE_IN_KERNEL
 mod-fw += $(fw-shipped-y)

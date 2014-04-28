@@ -589,7 +589,7 @@ while ($repeat) {
 
     # Now we need to see if we have to check selects;
     loop_select;
-}	    
+}
 
 my %setconfigs;
 
