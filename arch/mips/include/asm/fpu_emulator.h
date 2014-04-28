@@ -23,9 +23,12 @@
 #ifndef _ASM_FPU_EMULATOR_H
 #define _ASM_FPU_EMULATOR_H
 
+#include <linux/sched.h>
 #include <asm/break.h>
+#include <asm/thread_info.h>
 #include <asm/inst.h>
 #include <asm/local.h>
+#include <asm/processor.h>
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -70,5 +73,18 @@ int mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
  * Break instruction with special math emu break code set
  */
 #define BREAK_MATH (0x0000000d | (BRK_MEMU << 16))
+
+#define SIGNALLING_NAN 0x7ff800007ff80000LL
+
+static inline void fpu_emulator_init_fpu(void)
+{
+	struct task_struct *t = current;
+	int i;
+
+	t->thread.fpu.fcr31 = 0;
+
+	for (i = 0; i < 32; i++)
+		set_fpr64(&t->thread.fpu.fpr[i], 0, SIGNALLING_NAN);
+}
 
 #endif /* _ASM_FPU_EMULATOR_H */
