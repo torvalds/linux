@@ -33,6 +33,7 @@ static void qlcnic_83xx_get_beacon_state(struct qlcnic_adapter *);
 #define RSS_HASHTYPE_IP_TCP		0x3
 #define QLC_83XX_FW_MBX_CMD		0
 #define QLC_SKIP_INACTIVE_PCI_REGS	7
+#define QLC_MAX_LEGACY_FUNC_SUPP	8
 
 static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_CONFIGURE_IP_ADDR, 6, 1},
@@ -357,8 +358,15 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 	if (!ahw->intr_tbl)
 		return -ENOMEM;
 
-	if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
+		if (adapter->ahw->pci_func >= QLC_MAX_LEGACY_FUNC_SUPP) {
+			dev_err(&adapter->pdev->dev, "PCI function number 8 and higher are not supported with legacy interrupt, func 0x%x\n",
+				ahw->pci_func);
+			return -EOPNOTSUPP;
+		}
+
 		qlcnic_83xx_enable_legacy(adapter);
+	}
 
 	for (i = 0; i < num_msix; i++) {
 		if (adapter->flags & QLCNIC_MSIX_ENABLED)
@@ -879,6 +887,9 @@ int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 			return 0;
 		}
 	}
+
+	dev_err(&adapter->pdev->dev, "%s: Invalid mailbox command opcode 0x%x\n",
+		__func__, type);
 	return -EINVAL;
 }
 

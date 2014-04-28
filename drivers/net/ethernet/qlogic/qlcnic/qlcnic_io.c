@@ -305,7 +305,6 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 {
 	struct vlan_ethhdr *vh = (struct vlan_ethhdr *)(skb->data);
 	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
-	struct net_device *netdev = adapter->netdev;
 	u16 protocol = ntohs(skb->protocol);
 	struct qlcnic_filter *fil, *tmp_fil;
 	struct hlist_head *head;
@@ -330,13 +329,6 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 			return;
 	}
 
-	if (adapter->fhash.fnum >= adapter->fhash.fmax) {
-		adapter->stats.mac_filter_limit_overrun++;
-		netdev_info(netdev, "Can not add more than %d mac-vlan filters, configured %d\n",
-			    adapter->fhash.fmax, adapter->fhash.fnum);
-		return;
-	}
-
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
 	hval = qlcnic_mac_hash(src_addr, vlan_id);
 	hindex = hval & (adapter->fhash.fbucket_size - 1);
@@ -351,6 +343,11 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 			tmp_fil->ftime = jiffies;
 			return;
 		}
+	}
+
+	if (unlikely(adapter->fhash.fnum >= adapter->fhash.fmax)) {
+		adapter->stats.mac_filter_limit_overrun++;
+		return;
 	}
 
 	fil = kzalloc(sizeof(struct qlcnic_filter), GFP_ATOMIC);
@@ -1216,8 +1213,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	if (adapter->drv_mac_learn &&
-	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+	if (adapter->rx_mac_learn) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
 		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
@@ -1293,8 +1289,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	if (adapter->drv_mac_learn &&
-	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+	if (adapter->rx_mac_learn) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
 		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);

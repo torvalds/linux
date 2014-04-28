@@ -2181,6 +2181,8 @@ int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 		max_sds_rings = QLCNIC_MAX_SDS_RINGS;
 		max_tx_rings = QLCNIC_MAX_TX_RINGS;
 	} else {
+		dev_err(&adapter->pdev->dev, "%s: Invalid opmode %d\n",
+			__func__, ret);
 		return -EIO;
 	}
 
