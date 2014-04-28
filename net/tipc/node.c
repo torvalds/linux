@@ -453,7 +453,7 @@ int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
 	struct tipc_link *link;
 	struct tipc_node *node = tipc_node_find(addr);
 
-	if ((bearer_id > MAX_BEARERS) || !node)
+	if ((bearer_id >= MAX_BEARERS) || !node)
 		return -EINVAL;
 	tipc_node_lock(node);
 	link = node->links[bearer_id];
