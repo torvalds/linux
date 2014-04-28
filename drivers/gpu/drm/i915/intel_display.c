@@ -1887,8 +1887,7 @@ static void intel_enable_primary_hw_plane(struct drm_i915_private *dev_priv,
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	if (val & DISPLAY_PLANE_ENABLE)
-		return;
+	WARN_ON(val & DISPLAY_PLANE_ENABLE);
 
 	I915_WRITE(reg, val | DISPLAY_PLANE_ENABLE);
 	intel_flush_primary_plane(dev_priv, plane);
@@ -1918,8 +1917,7 @@ static void intel_disable_primary_hw_plane(struct drm_i915_private *dev_priv,
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	if ((val & DISPLAY_PLANE_ENABLE) == 0)
-		return;
+	WARN_ON((val & DISPLAY_PLANE_ENABLE) == 0);
 
 	I915_WRITE(reg, val & ~DISPLAY_PLANE_ENABLE);
 	intel_flush_primary_plane(dev_priv, plane);
