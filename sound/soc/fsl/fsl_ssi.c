@@ -1027,16 +1027,12 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	if (!strcmp(sprop, "ac97-slave"))
 		ac97 = true;
 
-	/* The DAI name is the last part of the full name of the node. */
-	p = strrchr(np->full_name, '/') + 1;
-	ssi_private = devm_kzalloc(&pdev->dev, sizeof(*ssi_private) + strlen(p),
-			      GFP_KERNEL);
+	ssi_private = devm_kzalloc(&pdev->dev, sizeof(*ssi_private),
+			GFP_KERNEL);
 	if (!ssi_private) {
 		dev_err(&pdev->dev, "could not allocate DAI object\n");
 		return -ENOMEM;
 	}
-
-	strcpy(ssi_private->name, p);
 
 	ssi_private->use_dma = !of_property_read_bool(np,
 			"fsl,fiq-stream-filter");
@@ -1055,7 +1051,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		memcpy(&ssi_private->cpu_dai_drv, &fsl_ssi_dai_template,
 		       sizeof(fsl_ssi_dai_template));
 	}
-	ssi_private->cpu_dai_drv.name = ssi_private->name;
+	ssi_private->cpu_dai_drv.name = dev_name(&pdev->dev);
 
 	/* Get the addresses and IRQ */
 	ret = of_address_to_resource(np, 0, &res);
@@ -1203,7 +1199,6 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	 * different writeable interrupt status registers.
 	 */
 	if (ssi_private->use_dma) {
-		/* The 'name' should not have any slashes in it. */
 		ret = devm_request_irq(&pdev->dev, ssi_private->irq,
 					fsl_ssi_isr, 0, ssi_private->name,
 					ssi_private);
