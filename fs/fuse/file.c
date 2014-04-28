@@ -3030,12 +3030,8 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
 		bool changed = fuse_write_update_size(inode, offset + length);
 
-		if (changed && fc->writeback_cache) {
-			struct fuse_inode *fi = get_fuse_inode(inode);
-
-			inode->i_mtime = current_fs_time(inode->i_sb);
-			set_bit(FUSE_I_MTIME_DIRTY, &fi->state);
-		}
+		if (changed && fc->writeback_cache)
+			file_update_time(file);
 	}
 
 	if (mode & FALLOC_FL_PUNCH_HOLE)
