@@ -10,12 +10,47 @@ extensions to the Synopsys Designware Mobile Storage Host Controller.
 Required Properties:
 
 * compatible: should be
-	- "rockchip,rk2928-dw-mshc": for Rockchip RK2928 and following
+	- "rockchip,rk3188-sdmmc": for Rockchip RK3188 and following
+    - "rockchip,rk3288-sdmmc": for Rockchip RK3288 and following
+
+* num-slots: 
+	The number of slave devices supported for this single controller,
+    default 1.
+
+* clock-frequency: 
+	Stable clk freq for data transfer
+
+* clock-freq-min-max:
+    Host issue slave devices for timing supportted ranges from this clk gap
+
+* supports-highspeed:
+	Indicate if this controller support highspeed mode or not
+
+* supports-emmc:
+	Indicate this controller works as emmc
+
+* supports-sd:
+	Indicate this controller works as sd/mmc card
+
+* supports-sdio:
+	Indicate this controller works as sdio function(card)
+
+* ignore-pm-notify:
+	Indicate this controller will ignore pm notify
+
+* keep-power-in-suspend:
+	Indicate this controller should keep power in system suspend
+
+* broken-cd:
+	For SD/MMC card, detect card insert/remove with controller's register flag
+
+* card-detect-delay:
+	For SD/MMC card insert/remove debounce time
 
 Example:
 
 	rkdwmmc0@12200000 {
-		compatible = "rockchip,rk2928-dw-mshc";
+		compatible = "rockchip,rk3288-dw-mshc";
 		reg = <0x12200000 0x1000>;
 		interrupts = <0 75 0>;
 		#address-cells = <1>;
