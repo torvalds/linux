@@ -1418,9 +1418,9 @@ static int msm_otg_probe(struct platform_device *pdev)
 		return motg->irq;
 	}
 
-	regs[0].supply = "HSUSB_VDDCX";
-	regs[1].supply = "HSUSB_3p3";
-	regs[2].supply = "HSUSB_1p8";
+	regs[0].supply = "vddcx";
+	regs[1].supply = "v3p3";
+	regs[2].supply = "v1p8";
 
 	ret = devm_regulator_bulk_get(motg->phy.dev, ARRAY_SIZE(regs), regs);
 	if (ret)
