@@ -44,6 +44,8 @@ EXPORT_SYMBOL(memstart_addr);
 	/* string / mem functions */
 EXPORT_SYMBOL(strchr);
 EXPORT_SYMBOL(strrchr);
+EXPORT_SYMBOL(strcmp);
+EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
