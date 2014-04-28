@@ -90,6 +90,19 @@
 			};
 		};
 	};
+
+	sound: n900-audio {
+		compatible = "nokia,n900-audio";
+
+		nokia,cpu-dai = <&mcbsp2>;
+		nokia,audio-codec = <&tlv320aic3x>, <&tlv320aic3x_aux>;
+		nokia,headphone-amplifier = <&tpa6130a2>;
+
+		tvout-selection-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>; /* 40 */
+		jack-detection-gpios = <&gpio6 17 GPIO_ACTIVE_HIGH>; /* 177 */
+		eci-switch-gpios = <&gpio6 22 GPIO_ACTIVE_HIGH>; /* 182 */
+		speaker-amplifier-gpios = <&twl_gpio 7 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &omap3_pmx_core {
@@ -701,4 +714,8 @@
 			ti,channels = <1>;
 		};
 	};
+};
+
+&mcbsp2 {
+	status = "ok";
 };
