@@ -287,8 +287,9 @@ static int msm_link_reset(struct msm_otg *motg)
 	if (motg->phy_number)
 		writel(readl(USB_PHY_CTRL2) | BIT(16), USB_PHY_CTRL2);
 
+	/* put transceiver in serial mode as part of reset */
 	val = readl(USB_PORTSC) & ~PORTSC_PTS_MASK;
-	writel(val | PORTSC_PTS_ULPI, USB_PORTSC);
+	writel(val | PORTSC_PTS_SERIAL, USB_PORTSC);
 
 	return 0;
 }
@@ -308,8 +309,9 @@ static int msm_otg_reset(struct usb_phy *phy)
 	if (cnt >= LINK_RESET_TIMEOUT_USEC)
 		return -ETIMEDOUT;
 
-	/* select ULPI phy */
-	writel(0x80000000, USB_PORTSC);
+	/* select ULPI phy and clear other status/control bits in PORTSC */
+	writel(PORTSC_PTS_ULPI, USB_PORTSC);
+
 	writel(0x0, USB_AHBBURST);
 	writel(0x08, USB_AHBMODE);
 
