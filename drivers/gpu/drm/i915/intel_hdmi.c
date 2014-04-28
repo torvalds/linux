@@ -1469,7 +1469,14 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
-	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	if (IS_CHERRYVIEW(dev)) {
+		if (port == PORT_D)
+			intel_encoder->crtc_mask = 1 << 2;
+		else
+			intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+	} else {
+		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	}
 	intel_encoder->cloneable = 1 << INTEL_OUTPUT_ANALOG;
 	/*
 	 * BSpec is unclear about HDMI+HDMI cloning on g4x, but it seems

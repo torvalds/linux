@@ -4249,7 +4249,14 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_dig_port->dp.output_reg = output_reg;
 
 	intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
-	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	if (IS_CHERRYVIEW(dev)) {
+		if (port == PORT_D)
+			intel_encoder->crtc_mask = 1 << 2;
+		else
+			intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+	} else {
+		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	}
 	intel_encoder->cloneable = 0;
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
