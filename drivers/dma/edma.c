@@ -71,7 +71,11 @@ struct edma_desc {
 	int				absync;
 	int				pset_nr;
 	int				processed;
+	int				processed_stat;
 	u32				residue;
+	u32				sg_len;
+	u32				residue_stat;
+	struct edma_chan		*echan;
 	struct edma_pset		pset[0];
 };
 
@@ -144,11 +148,13 @@ static void edma_execute(struct edma_chan *echan)
 	/* Find out how many left */
 	left = edesc->pset_nr - edesc->processed;
 	nslots = min(MAX_NR_SG, left);
+	edesc->sg_len = 0;
 
 	/* Write descriptor PaRAM set(s) */
 	for (i = 0; i < nslots; i++) {
 		j = i + edesc->processed;
 		edma_write_slot(echan->slot[i], &edesc->pset[j].param);
+		edesc->sg_len += edesc->pset[j].len;
 		dev_vdbg(echan->vchan.chan.device->dev,
 			"\n pset[%d]:\n"
 			"  chnum\t%d\n"
@@ -471,6 +477,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 	edesc->pset_nr = sg_len;
 	edesc->residue = 0;
 	edesc->direction = direction;
+	edesc->echan = echan;
 
 	/* Allocate a PaRAM slot, if needed */
 	nslots = min_t(unsigned, MAX_NR_SG, sg_len);
@@ -517,6 +524,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 		if (i == sg_len - 1)
 			edesc->pset[i].param.opt |= TCINTEN;
 	}
+	edesc->residue_stat = edesc->residue;
 
 	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
 }
@@ -622,8 +630,9 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 
 	edesc->cyclic = 1;
 	edesc->pset_nr = nslots;
-	edesc->residue = buf_len;
+	edesc->residue = edesc->residue_stat = buf_len;
 	edesc->direction = direction;
+	edesc->echan = echan;
 
 	dev_dbg(dev, "%s: channel=%d nslots=%d period_len=%zu buf_len=%zu\n",
 		__func__, echan->ch_num, nslots, period_len, buf_len);
@@ -724,6 +733,12 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 				edma_execute(echan);
 			} else {
 				dev_dbg(dev, "Intermediate transfer complete on channel %d\n", ch_num);
+
+				/* Update statistics for tx_status */
+				edesc->residue -= edesc->sg_len;
+				edesc->residue_stat = edesc->residue;
+				edesc->processed_stat = edesc->processed;
+
 				edma_execute(echan);
 			}
 		}
@@ -851,6 +866,54 @@ static void edma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&echan->vchan.lock, flags);
 }
 
+static u32 edma_residue(struct edma_desc *edesc)
+{
+	bool dst = edesc->direction == DMA_DEV_TO_MEM;
+	struct edma_pset *pset = edesc->pset;
+	dma_addr_t done, pos;
+	int i;
+
+	/*
+	 * We always read the dst/src position from the first RamPar
+	 * pset. That's the one which is active now.
+	 */
+	pos = edma_get_position(edesc->echan->slot[0], dst);
+
+	/*
+	 * Cyclic is simple. Just subtract pset[0].addr from pos.
+	 *
+	 * We never update edesc->residue in the cyclic case, so we
+	 * can tell the remaining room to the end of the circular
+	 * buffer.
+	 */
+	if (edesc->cyclic) {
+		done = pos - pset->addr;
+		edesc->residue_stat = edesc->residue - done;
+		return edesc->residue_stat;
+	}
+
+	/*
+	 * For SG operation we catch up with the last processed
+	 * status.
+	 */
+	pset += edesc->processed_stat;
+
+	for (i = edesc->processed_stat; i < edesc->processed; i++, pset++) {
+		/*
+		 * If we are inside this pset address range, we know
+		 * this is the active one. Get the current delta and
+		 * stop walking the psets.
+		 */
+		if (pos >= pset->addr && pos < pset->addr + pset->len)
+			return edesc->residue_stat - (pos - pset->addr);
+
+		/* Otherwise mark it done and update residue_stat. */
+		edesc->processed_stat++;
+		edesc->residue_stat -= pset->len;
+	}
+	return edesc->residue_stat;
+}
+
 /* Check request completion status */
 static enum dma_status edma_tx_status(struct dma_chan *chan,
 				      dma_cookie_t cookie,
@@ -867,7 +930,7 @@ static enum dma_status edma_tx_status(struct dma_chan *chan,
 
 	spin_lock_irqsave(&echan->vchan.lock, flags);
 	if (echan->edesc && echan->edesc->vdesc.tx.cookie == cookie)
-		txstate->residue = echan->edesc->residue;
+		txstate->residue = edma_residue(echan->edesc);
 	else if ((vdesc = vchan_find_desc(&echan->vchan, cookie)))
 		txstate->residue = to_edma_desc(&vdesc->tx)->residue;
 	spin_unlock_irqrestore(&echan->vchan.lock, flags);
