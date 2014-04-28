@@ -1402,7 +1402,7 @@ static void msm_otg_debugfs_cleanup(void)
 	debugfs_remove(msm_otg_dbg_root);
 }
 
-static int __init msm_otg_probe(struct platform_device *pdev)
+static int msm_otg_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct resource *res;
@@ -1736,6 +1736,7 @@ static const struct dev_pm_ops msm_otg_dev_pm_ops = {
 };
 
 static struct platform_driver msm_otg_driver = {
+	.probe = msm_otg_probe,
 	.remove = msm_otg_remove,
 	.driver = {
 		.name = DRIVER_NAME,
@@ -1744,7 +1745,7 @@ static struct platform_driver msm_otg_driver = {
 	},
 };
 
-module_platform_driver_probe(msm_otg_driver, msm_otg_probe);
+module_platform_driver(msm_otg_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MSM USB transceiver driver");
