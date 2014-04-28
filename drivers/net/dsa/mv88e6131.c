@@ -155,7 +155,7 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 
 static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 {
-	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = REG_PORT(p);
 	u16 val;
 
@@ -274,7 +274,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 
 static int mv88e6131_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i;
 	int ret;
 
