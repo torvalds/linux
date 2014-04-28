@@ -123,3 +123,4 @@ visorutil_mod_exit(void)
 module_init(visorutil_mod_init);
 module_exit(visorutil_mod_exit);
 
+MODULE_LICENSE("GPL");
