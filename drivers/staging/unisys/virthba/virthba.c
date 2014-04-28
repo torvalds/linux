@@ -1699,6 +1699,9 @@ virthba_mod_init(void)
 	int error;
 	int i;
 
+	if (!unisys_spar_platform)
+		return -ENODEV;
+
 	LOGINF("Entering virthba_mod_init...\n");
 
 	POSTCODE_LINUX_2(VHBA_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);

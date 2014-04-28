@@ -39,6 +39,7 @@
 #include <linux/version.h>
 #include "version.h"
 #include "guestlinuxdebug.h"
+#include "timskmodutils.h"
 
 struct driver_private {
 	struct kobject kobj;
@@ -1686,6 +1687,9 @@ static int __init virtpci_mod_init(void)
 {
 	int ret;
 
+
+	if (!unisys_spar_platform)
+		return -ENODEV;
 
 	LOGINF("Module build: Date:%s Time:%s...\n", __DATE__, __TIME__);
 

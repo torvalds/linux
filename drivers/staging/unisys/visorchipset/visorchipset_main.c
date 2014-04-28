@@ -2699,6 +2699,9 @@ visorchipset_init(void)
 	struct proc_dir_entry *toolaction_file;
 	struct proc_dir_entry *bootToTool_file;
 
+	if (!unisys_spar_platform)
+		return -ENODEV;
+
 	LOGINF("chipset driver version %s loaded", VERSION);
 	/* process module options */
 	POSTCODE_LINUX_2(DRIVER_ENTRY_PC, POSTCODE_SEVERITY_INFO);

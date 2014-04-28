@@ -25,11 +25,14 @@
 
 #include "channel.h"
 #include "chanstub.h"
+#include "timskmodutils.h"
 #include "version.h"
 
 static __init int
 channel_mod_init(void)
 {
+	if (!unisys_spar_platform)
+		return -ENODEV;
 	return 0;
 }
 

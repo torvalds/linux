@@ -2277,6 +2277,9 @@ static int __init
 uislib_mod_init(void)
 {
 
+	if (!unisys_spar_platform)
+		return -ENODEV;
+
 	LOGINF("MONITORAPIS");
 
 	LOGINF("sizeof(struct uiscmdrsp):%lu bytes\n",

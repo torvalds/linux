@@ -72,4 +72,6 @@ char *cyclesToSomethingsPerSecond(u64 cycles, u64 cyclesPerSecond,
 struct seq_file *visor_seq_file_new_buffer(void *buf, size_t buf_size);
 void visor_seq_file_done_buffer(struct seq_file *m);
 
+extern int unisys_spar_platform;
+
 #endif
