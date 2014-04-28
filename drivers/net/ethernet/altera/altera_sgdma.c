@@ -20,15 +20,15 @@
 #include "altera_sgdmahw.h"
 #include "altera_sgdma.h"
 
-static void sgdma_descrip(struct sgdma_descrip *desc,
-			  struct sgdma_descrip *ndesc,
-			  dma_addr_t ndesc_phys,
-			  dma_addr_t raddr,
-			  dma_addr_t waddr,
-			  u16 length,
-			  int generate_eop,
-			  int rfixed,
-			  int wfixed);
+static void sgdma_setup_descrip(struct sgdma_descrip *desc,
+				struct sgdma_descrip *ndesc,
+				dma_addr_t ndesc_phys,
+				dma_addr_t raddr,
+				dma_addr_t waddr,
+				u16 length,
+				int generate_eop,
+				int rfixed,
+				int wfixed);
 
 static int sgdma_async_write(struct altera_tse_private *priv,
 			      struct sgdma_descrip *desc);
@@ -71,7 +71,7 @@ int sgdma_initialize(struct altera_tse_private *priv)
 		      SGDMA_CTRLREG_INTEN |
 		      SGDMA_CTRLREG_ILASTD;
 
-	priv->sgdmadesclen = sizeof(sgdma_descrip);
+	priv->sgdmadesclen = sizeof(struct sgdma_descrip);
 
 	INIT_LIST_HEAD(&priv->txlisthd);
 	INIT_LIST_HEAD(&priv->rxlisthd);
@@ -197,15 +197,15 @@ int sgdma_tx_buffer(struct altera_tse_private *priv, struct tse_buffer *buffer)
 	if (sgdma_txbusy(priv))
 		return 0;
 
-	sgdma_descrip(cdesc,			/* current descriptor */
-		      ndesc,			/* next descriptor */
-		      sgdma_txphysaddr(priv, ndesc),
-		      buffer->dma_addr,		/* address of packet to xmit */
-		      0,			/* write addr 0 for tx dma */
-		      buffer->len,		/* length of packet */
-		      SGDMA_CONTROL_EOP,	/* Generate EOP */
-		      0,			/* read fixed */
-		      SGDMA_CONTROL_WR_FIXED);	/* Generate SOP */
+	sgdma_setup_descrip(cdesc,			/* current descriptor */
+			    ndesc,			/* next descriptor */
+			    sgdma_txphysaddr(priv, ndesc),
+			    buffer->dma_addr,		/* address of packet to xmit */
+			    0,				/* write addr 0 for tx dma */
+			    buffer->len,		/* length of packet */
+			    SGDMA_CONTROL_EOP,		/* Generate EOP */
+			    0,				/* read fixed */
+			    SGDMA_CONTROL_WR_FIXED);	/* Generate SOP */
 
 	pktstx = sgdma_async_write(priv, cdesc);
 
@@ -310,15 +310,15 @@ u32 sgdma_rx_status(struct altera_tse_private *priv)
 
 
 /* Private functions */
-static void sgdma_descrip(struct sgdma_descrip *desc,
-			  struct sgdma_descrip *ndesc,
-			  dma_addr_t ndesc_phys,
-			  dma_addr_t raddr,
-			  dma_addr_t waddr,
-			  u16 length,
-			  int generate_eop,
-			  int rfixed,
-			  int wfixed)
+static void sgdma_setup_descrip(struct sgdma_descrip *desc,
+				struct sgdma_descrip *ndesc,
+				dma_addr_t ndesc_phys,
+				dma_addr_t raddr,
+				dma_addr_t waddr,
+				u16 length,
+				int generate_eop,
+				int rfixed,
+				int wfixed)
 {
 	/* Clear the next descriptor as not owned by hardware */
 	u32 ctrl = ndesc->control;
@@ -366,15 +366,15 @@ static int sgdma_async_read(struct altera_tse_private *priv)
 			return 0;
 		}
 
-		sgdma_descrip(cdesc,		/* current descriptor */
-			      ndesc,		/* next descriptor */
-			      sgdma_rxphysaddr(priv, ndesc),
-			      0,		/* read addr 0 for rx dma */
-			      rxbuffer->dma_addr, /* write addr for rx dma */
-			      0,		/* read 'til EOP */
-			      0,		/* EOP: NA for rx dma */
-			      0,		/* read fixed: NA for rx dma */
-			      0);		/* SOP: NA for rx DMA */
+		sgdma_setup_descrip(cdesc,		/* current descriptor */
+				    ndesc,		/* next descriptor */
+				    sgdma_rxphysaddr(priv, ndesc),
+				    0,			/* read addr 0 for rx dma */
+				    rxbuffer->dma_addr, /* write addr for rx dma */
+				    0,			/* read 'til EOP */
+				    0,			/* EOP: NA for rx dma */
+				    0,			/* read fixed: NA for rx dma */
+				    0);			/* SOP: NA for rx DMA */
 
 		dma_sync_single_for_device(priv->device,
 					   priv->rxdescphys,
