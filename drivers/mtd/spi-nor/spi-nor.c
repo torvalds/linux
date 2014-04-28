@@ -98,7 +98,7 @@ static inline int spi_nor_read_dummy_cycles(struct spi_nor *nor)
 	case SPI_NOR_FAST:
 	case SPI_NOR_DUAL:
 	case SPI_NOR_QUAD:
-		return 1;
+		return 8;
 	case SPI_NOR_NORMAL:
 		return 0;
 	}

@@ -128,8 +128,11 @@ static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 	struct spi_device *spi = flash->spi;
 	struct spi_transfer t[2];
 	struct spi_message m;
-	int dummy = nor->read_dummy;
+	unsigned int dummy = nor->read_dummy;
 	int ret;
+
+	/* convert the dummy cycles to the number of bytes */
+	dummy /= 8;
 
 	/* Wait till previous write/erase is done. */
 	ret = nor->wait_till_ready(nor);
