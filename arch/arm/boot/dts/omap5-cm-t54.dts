@@ -23,6 +23,28 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	vwlan_pdn_fixed: fixed-regulator-vwlan-pdn {
+		compatible = "regulator-fixed";
+		regulator-name = "vwlan_pdn_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&ldo2_reg>;
+		gpio = <&gpio4 13 GPIO_ACTIVE_HIGH>;   /* gpio4_109 */
+		startup-delay-us = <1000>;
+		enable-active-high;
+	};
+
+	vwlan_fixed: fixed-regulator-vwlan {
+		compatible = "regulator-fixed";
+		regulator-name = "vwlan_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vwlan_pdn_fixed>;
+		gpio = <&gpio4 14 GPIO_ACTIVE_HIGH>;   /* gpio4_110 */
+		startup-delay-us = <1000>;
+		enable-active-high;
+	};
+
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
@@ -92,6 +114,24 @@
 		>;
 	};
 
+	mmc3_pins: pinmux_mmc3_pins {
+		pinctrl-single,pins = <
+			OMAP5_CORE_IOPAD(0x29a4, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_clk */
+			OMAP5_CORE_IOPAD(0x29a6, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_cmd */
+			OMAP5_CORE_IOPAD(0x29a8, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data0 */
+			OMAP5_CORE_IOPAD(0x29aa, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data1 */
+			OMAP5_CORE_IOPAD(0x29ac, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data2 */
+			OMAP5_CORE_IOPAD(0x29ae, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data3 */
+		>;
+	};
+
+	wlan_gpios_pins: pinmux_wlan_gpios_pins {
+		pinctrl-single,pins = <
+			OMAP5_CORE_IOPAD(0x299c, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* gpio4_109 */
+			OMAP5_CORE_IOPAD(0x299e, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* gpio4_110 */
+		>;
+	};
+
 	usbhost_pins: pinmux_usbhost_pins {
 		pinctrl-single,pins = <
 			OMAP5_CORE_IOPAD(0x28c4, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_strobe */
@@ -118,6 +158,17 @@
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <8>;
+	ti,non-removable;
+};
+
+&mmc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&mmc3_pins
+		&wlan_gpios_pins
+	>;
+	vmmc-supply = <&vwlan_fixed>;
+	bus-width = <4>;
 	ti,non-removable;
 };
 
@@ -255,7 +306,7 @@
 					regulator-name = "ldo2";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
-					regulator-boot-on;
+					startup-delay-us = <1000>;
 				};
 
 				ldo3_reg: ldo3 {
