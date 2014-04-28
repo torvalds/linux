@@ -1,0 +1,32 @@
+Device-Tree bindings for rockchip hdmi driver
+
+Required properties:
+- compatible: value should be "rockchip,rk3288-hdmi".
+- reg: physical base address of the hdmi and length of memory mapped
+        region.
+- interrupts: interrupt number to the cpu.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+- clocks: must include clock specifiers corresponding to entries in the
+        clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+               property. Must contain "pclk_hdmi" and "hdcp_clk_hdmi".
+- rockchips,hdmi_audio_source: hdmi audio source that is described as follow
+	<0>: hdmi audio source from the I2S interface
+	<1>: hdmi audio source from the SPDIF interface				
+
+Example:
+
+	hdmi: hdmi@ff980000 {
+                compatible = "rockchip,rk3288-hdmi";
+                reg = <0xff980000 0x20000>;
+                interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+                pinctrl-names = "default", "gpio";
+                pinctrl-0 = <&i2c5_sda &i2c5_scl>;
+                pinctrl-1 = <&i2c5_gpio>;
+                clocks = <&clk_gates16 9>, <&clk_gates5 12>;
+                clock-names = "pclk_hdmi", "hdcp_clk_hdmi";
+		rockchips,hdmi_audio_source = <0>;
+        };
+
