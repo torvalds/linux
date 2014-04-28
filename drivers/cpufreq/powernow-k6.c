@@ -227,8 +227,9 @@ have_busfreq:
 static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 {
 	unsigned int i;
-	for (i = 0; i < 8; i++) {
-		if (i == max_multiplier)
+
+	for (i = 0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
+		if (clock_ratio[i].driver_data == max_multiplier)
 			powernow_k6_target(policy, i);
 	}
 	return 0;
