@@ -316,12 +316,6 @@ static int __init exynos_core_init(void)
 }
 core_initcall(exynos_core_init);
 
-static int __init exynos4_l2x0_cache_init(void)
-{
-	return l2x0_of_init(0x3c400001, 0xc20fffff);
-}
-early_initcall(exynos4_l2x0_cache_init);
-
 static void __init exynos_dt_machine_init(void)
 {
 	struct device_node *i2c_np;
@@ -387,6 +381,8 @@ static void __init exynos_reserve(void)
 DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
 	/* Maintainer: Thomas Abraham <thomas.abraham@linaro.org> */
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
+	.l2c_aux_val	= 0x3c400001,
+	.l2c_aux_mask	= 0xc20fffff,
 	.smp		= smp_ops(exynos_smp_ops),
 	.map_io		= exynos_init_io,
 	.init_early	= exynos_firmware_init,
