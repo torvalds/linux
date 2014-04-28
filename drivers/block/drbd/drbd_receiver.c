@@ -1026,23 +1026,26 @@ randomize:
 	if (drbd_send_protocol(connection) == -EOPNOTSUPP)
 		return -1;
 
+	/* Prevent a race between resync-handshake and
+	 * being promoted to Primary.
+	 *
+	 * Grab and release the state mutex, so we know that any current
+	 * drbd_set_role() is finished, and any incoming drbd_set_role
+	 * will see the STATE_SENT flag, and wait for it to be cleared.
+	 */
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
+		mutex_lock(peer_device->device->state_mutex);
+
 	set_bit(STATE_SENT, &connection->flags);
+
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
+		mutex_unlock(peer_device->device->state_mutex);
 
 	rcu_read_lock();
 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 		struct drbd_device *device = peer_device->device;
 		kref_get(&device->kref);
 		rcu_read_unlock();
-
-		/* Prevent a race between resync-handshake and
-		 * being promoted to Primary.
-		 *
-		 * Grab and release the state mutex, so we know that any current
-		 * drbd_set_role() is finished, and any incoming drbd_set_role
-		 * will see the STATE_SENT flag, and wait for it to be cleared.
-		 */
-		mutex_lock(device->state_mutex);
-		mutex_unlock(device->state_mutex);
 
 		if (discard_my_data)
 			set_bit(DISCARD_MY_DATA, &device->flags);
