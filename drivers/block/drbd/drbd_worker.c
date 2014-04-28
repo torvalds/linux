@@ -452,9 +452,9 @@ void resync_timer_fn(unsigned long data)
 {
 	struct drbd_device *device = (struct drbd_device *) data;
 
-	if (list_empty(&device->resync_work.list))
-		drbd_queue_work(&first_peer_device(device)->connection->sender_work,
-				&device->resync_work);
+	drbd_queue_work_if_unqueued(
+		&first_peer_device(device)->connection->sender_work,
+		&device->resync_work);
 }
 
 static void fifo_set(struct fifo_buffer *fb, int value)
@@ -1968,7 +1968,7 @@ static void do_unqueued_work(struct drbd_connection *connection)
 static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_list)
 {
 	spin_lock_irq(&queue->q_lock);
-	list_splice_init(&queue->q, work_list);
+	list_splice_tail_init(&queue->q, work_list);
 	spin_unlock_irq(&queue->q_lock);
 	return !list_empty(work_list);
 }

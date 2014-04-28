@@ -1778,6 +1778,17 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
 }
 
 static inline void
+drbd_queue_work_if_unqueued(struct drbd_work_queue *q, struct drbd_work *w)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&q->q_lock, flags);
+	if (list_empty_careful(&w->list))
+		list_add_tail(&w->list, &q->q);
+	spin_unlock_irqrestore(&q->q_lock, flags);
+	wake_up(&q->q_wait);
+}
+
+static inline void
 drbd_device_post_work(struct drbd_device *device, int work_bit)
 {
 	if (!test_and_set_bit(work_bit, &device->flags)) {
