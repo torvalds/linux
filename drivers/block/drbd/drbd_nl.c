@@ -1194,8 +1194,14 @@ void drbd_reconsider_max_bio_size(struct drbd_device *device)
 			peer = DRBD_MAX_BIO_SIZE_P95;  /* drbd 8.3.8 onwards, before 8.4.0 */
 		else
 			peer = DRBD_MAX_BIO_SIZE;
-	}
 
+		/* We may later detach and re-attach on a disconnected Primary.
+		 * Avoid this setting to jump back in that case.
+		 * We want to store what we know the peer DRBD can handle,
+		 * not what the peer IO backend can handle. */
+		if (peer > device->peer_max_bio_size)
+			device->peer_max_bio_size = peer;
+	}
 	new = min(local, peer);
 
 	if (device->state.role == R_PRIMARY && new < now)
