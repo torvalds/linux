@@ -159,6 +159,14 @@ static int open_dso(struct dso *dso, struct machine *machine)
 	return fd;
 }
 
+void dso__data_close(struct dso *dso)
+{
+	if (dso->data.fd >= 0) {
+		close(dso->data.fd);
+		dso->data.fd = -1;
+	}
+}
+
 int dso__data_fd(struct dso *dso, struct machine *machine)
 {
 	enum dso_binary_type binary_type_data[] = {
@@ -168,8 +176,13 @@ int dso__data_fd(struct dso *dso, struct machine *machine)
 	};
 	int i = 0;
 
-	if (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND)
-		return open_dso(dso, machine);
+	if (dso->data.fd >= 0)
+		return dso->data.fd;
+
+	if (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND) {
+		dso->data.fd = open_dso(dso, machine);
+		return dso->data.fd;
+	}
 
 	do {
 		int fd;
@@ -178,7 +191,7 @@ int dso__data_fd(struct dso *dso, struct machine *machine)
 
 		fd = open_dso(dso, machine);
 		if (fd >= 0)
-			return fd;
+			return dso->data.fd = fd;
 
 	} while (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND);
 
@@ -301,7 +314,7 @@ dso_cache__read(struct dso *dso, struct machine *machine,
 	if (ret <= 0)
 		free(cache);
 
-	close(fd);
+	dso__data_close(dso);
 	return ret;
 }
 
@@ -474,6 +487,7 @@ struct dso *dso__new(const char *name)
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
 		dso->data.cache = RB_ROOT;
+		dso->data.fd = -1;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->binary_type = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->loaded = 0;
@@ -506,6 +520,7 @@ void dso__delete(struct dso *dso)
 		dso->long_name_allocated = false;
 	}
 
+	dso__data_close(dso);
 	dso_cache__free(&dso->data.cache);
 	dso__free_a2l(dso);
 	zfree(&dso->symsrc_filename);

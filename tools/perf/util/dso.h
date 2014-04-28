@@ -102,6 +102,7 @@ struct dso {
 	/* dso data file */
 	struct {
 		struct rb_root	 cache;
+		int		 fd;
 	} data;
 
 	char		 name[0];
@@ -147,6 +148,8 @@ int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type t
 				   char *root_dir, char *filename, size_t size);
 
 int dso__data_fd(struct dso *dso, struct machine *machine);
+void dso__data_close(struct dso *dso);
+
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 			      u64 offset, u8 *data, ssize_t size);
 ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
