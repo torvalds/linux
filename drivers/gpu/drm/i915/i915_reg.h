@@ -661,6 +661,7 @@ enum punit_power_well {
 
 #define _VLV_PCS_DW1_CH0		0x8204
 #define _VLV_PCS_DW1_CH1		0x8404
+#define   CHV_PCS_REQ_SOFTRESET_EN	(1<<23)
 #define   DPIO_PCS_CLK_CRI_RXEB_EIOS_EN	(1<<22)
 #define   DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN (1<<21)
 #define   DPIO_PCS_CLK_DATAWIDTH_SHIFT	(6)

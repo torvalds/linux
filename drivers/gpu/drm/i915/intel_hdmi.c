@@ -1259,6 +1259,10 @@ static void chv_hdmi_post_disable(struct intel_encoder *encoder)
 	mutex_lock(&dev_priv->dpio_lock);
 
 	/* Propagate soft reset to data lane reset */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW1(ch));
+	val |= CHV_PCS_REQ_SOFTRESET_EN;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW1(ch), val);
+
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(ch));
 	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(ch), val);
@@ -1281,6 +1285,10 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 	mutex_lock(&dev_priv->dpio_lock);
 
 	/* Deassert soft data lane reset*/
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW1(ch));
+	val |= CHV_PCS_REQ_SOFTRESET_EN;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW1(ch), val);
+
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(ch));
 	val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(ch), val);
