@@ -258,9 +258,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"b Mic Bias", NULL, "HS Mic"}
 };
 
-static const char *spk_function[] = {"Off", "On"};
-static const char *input_function[] = {"ADC", "Digital Mic"};
-static const char *jack_function[] = {"Off", "TV-OUT", "Headphone", "Headset"};
+static const char * const spk_function[] = {"Off", "On"};
+static const char * const input_function[] = {"ADC", "Digital Mic"};
+static const char * const jack_function[] = {
+	"Off", "TV-OUT", "Headphone", "Headset"
+};
 
 static const struct soc_enum rx51_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(spk_function), spk_function),
