@@ -512,14 +512,12 @@
 	};
 	
 	ts@01 {
-		compatible = "ct,ct36x";
+		compatible = "ct,vtl_ts";
 		reg = <0x01>;
-		ct-model = <365>;
-		touch-gpio = <&gpio7 GPIO_A6 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpio = <&gpio7 GPIO_A5 GPIO_ACTIVE_HIGH>;
-		max-x = <1280>;
-		max-y = <800>;
-		orientation=<1 0 0 1>;
+		screen_max_x = <2048>;
+		screen_max_y = <1536>;
+		irq_gpio_number = <&gpio7 GPIO_A6 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio7 GPIO_A5 GPIO_ACTIVE_HIGH>;
 	};
 };
 

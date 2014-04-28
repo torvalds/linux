@@ -19,8 +19,11 @@ config TOUCHSCREEN_GT8XX
 	  code includes that in its table of IIC devices.
 	  If unsure, say N.
 
-config CT36X_TS
+config TOUCHSCREEN_CT36X_TS
 	tristate "CT36X touchscreens support"
+	
+config TOUCHSCREEN_VTL_CT36X
+	tristate "VTL touchscreens support"
 	  
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
