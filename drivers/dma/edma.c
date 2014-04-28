@@ -70,12 +70,34 @@ struct edma_desc {
 	int				cyclic;
 	int				absync;
 	int				pset_nr;
-	int				processed;
-	int				processed_stat;
-	u32				residue;
-	u32				sg_len;
-	u32				residue_stat;
 	struct edma_chan		*echan;
+	int				processed;
+
+	/*
+	 * The following 4 elements are used for residue accounting.
+	 *
+	 * - processed_stat: the number of SG elements we have traversed
+	 * so far to cover accounting. This is updated directly to processed
+	 * during edma_callback and is always <= processed, because processed
+	 * refers to the number of pending transfer (programmed to EDMA
+	 * controller), where as processed_stat tracks number of transfers
+	 * accounted for so far.
+	 *
+	 * - residue: The amount of bytes we have left to transfer for this desc
+	 *
+	 * - residue_stat: The residue in bytes of data we have covered
+	 * so far for accounting. This is updated directly to residue
+	 * during callbacks to keep it current.
+	 *
+	 * - sg_len: Tracks the length of the current intermediate transfer,
+	 * this is required to update the residue during intermediate transfer
+	 * completion callback.
+	 */
+	int				processed_stat;
+	u32				sg_len;
+	u32				residue;
+	u32				residue_stat;
+
 	struct edma_pset		pset[0];
 };
 
