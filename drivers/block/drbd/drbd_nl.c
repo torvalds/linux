@@ -426,6 +426,14 @@ static enum drbd_fencing_p highest_fencing_policy(struct drbd_connection *connec
 	}
 	rcu_read_unlock();
 
+	if (fp == FP_NOT_AVAIL) {
+		/* IO Suspending works on the whole resource.
+		   Do it only for one device. */
+		vnr = 0;
+		peer_device = idr_get_next(&connection->peer_devices, &vnr);
+		drbd_change_state(peer_device->device, CS_VERBOSE | CS_HARD, NS(susp_fen, 0));
+	}
+
 	return fp;
 }
 
