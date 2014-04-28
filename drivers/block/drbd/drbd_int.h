@@ -853,7 +853,7 @@ static inline struct drbd_device *minor_to_device(unsigned int minor)
 
 static inline struct drbd_peer_device *first_peer_device(struct drbd_device *device)
 {
-	return list_first_entry(&device->peer_devices, struct drbd_peer_device, peer_devices);
+	return list_first_entry_or_null(&device->peer_devices, struct drbd_peer_device, peer_devices);
 }
 
 #define for_each_resource(resource, _resources) \
@@ -2222,7 +2222,7 @@ static inline void drbd_md_flush(struct drbd_device *device)
 
 static inline struct drbd_connection *first_connection(struct drbd_resource *resource)
 {
-	return list_first_entry(&resource->connections,
+	return list_first_entry_or_null(&resource->connections,
 				struct drbd_connection, connections);
 }
 
