@@ -369,6 +369,7 @@ static inline void s2dhms(struct dhms *ts, time_t secs)
 #define JOBSTATS_JOBID_VAR_MAX_LEN	20
 #define JOBSTATS_DISABLE		"disable"
 #define JOBSTATS_PROCNAME_UID		"procname_uid"
+#define JOBSTATS_NODELOCAL		"nodelocal"
 
 extern int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
 				     int *val, int mult);
