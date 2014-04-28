@@ -442,12 +442,13 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 	char *ex_to_string;
 	int r;
 
+	spin_lock_irq(&connection->resource->req_lock);
 	if (connection->cstate >= C_WF_REPORT_PARAMS) {
 		drbd_err(connection, "Expected cstate < C_WF_REPORT_PARAMS\n");
+		spin_unlock_irq(&connection->resource->req_lock);
 		return false;
 	}
 
-	spin_lock_irq(&connection->resource->req_lock);
 	connect_cnt = connection->connect_cnt;
 	spin_unlock_irq(&connection->resource->req_lock);
 
