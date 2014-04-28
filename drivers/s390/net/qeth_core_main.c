@@ -3677,11 +3677,8 @@ EXPORT_SYMBOL_GPL(qeth_qdio_output_handler);
 int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 			int ipv, int cast_type)
 {
+	__be16 *tci;
 	u8 tos;
-
-	if (!ipv && (card->info.type == QETH_CARD_TYPE_OSD ||
-		     card->info.type == QETH_CARD_TYPE_OSX))
-		return card->qdio.default_out_queue;
 
 	if (cast_type && card->info.is_multicast_different)
 		return card->info.is_multicast_different &
@@ -3710,6 +3707,16 @@ int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 			return 1;
 		if (tos & IPTOS_LOWDELAY)
 			return 0;
+		break;
+	case QETH_PRIO_Q_ING_SKB:
+		if (skb->priority > 5)
+			return 0;
+		return ~skb->priority >> 1 & 3;
+	case QETH_PRIO_Q_ING_VLAN:
+		tci = &((struct ethhdr *)skb->data)->h_proto;
+		if (*tci == ETH_P_8021Q)
+			return ~*(tci + 1) >> (VLAN_PRIO_SHIFT + 1) & 3;
+		break;
 	default:
 		break;
 	}
