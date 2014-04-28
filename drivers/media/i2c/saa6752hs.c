@@ -643,10 +643,10 @@ static const struct v4l2_ctrl_ops saa6752hs_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops saa6752hs_core_ops = {
 	.init = saa6752hs_init,
-	.s_std = saa6752hs_s_std,
 };
 
 static const struct v4l2_subdev_video_ops saa6752hs_video_ops = {
+	.s_std = saa6752hs_s_std,
 	.s_mbus_fmt = saa6752hs_s_mbus_fmt,
 	.try_mbus_fmt = saa6752hs_try_mbus_fmt,
 	.g_mbus_fmt = saa6752hs_g_mbus_fmt,

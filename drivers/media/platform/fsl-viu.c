@@ -964,7 +964,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 	struct viu_fh *fh = priv;
 
 	fh->dev->std = id;
-	decoder_call(fh->dev, core, s_std, id);
+	decoder_call(fh->dev, video, s_std, id);
 	return 0;
 }
 

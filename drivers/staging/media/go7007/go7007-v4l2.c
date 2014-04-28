@@ -665,7 +665,7 @@ static int go7007_s_std(struct go7007 *go)
 		go->sensor_framerate = 30000;
 	}
 
-	call_all(&go->v4l2_dev, core, s_std, go->std);
+	call_all(&go->v4l2_dev, video, s_std, go->std);
 	set_capture_size(go, NULL, 0);
 	return 0;
 }

@@ -347,7 +347,7 @@ static int timblogiw_s_std(struct file *file, void  *priv, v4l2_std_id std)
 	mutex_lock(&lw->lock);
 
 	if (TIMBLOGIW_HAS_DECODER(lw))
-		err = v4l2_subdev_call(lw->sd_enc, core, s_std, std);
+		err = v4l2_subdev_call(lw->sd_enc, video, s_std, std);
 
 	if (!err)
 		fh->cur_norm = timblogiw_get_norm(std);

@@ -1400,7 +1400,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 			   &v4l2->hscale, &v4l2->vscale);
 
 	em28xx_resolution_set(dev);
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_std, v4l2->norm);
+	v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_std, v4l2->norm);
 
 	return 0;
 }
@@ -2440,7 +2440,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 	/* set default norm */
 	v4l2->norm = V4L2_STD_PAL;
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_std, v4l2->norm);
+	v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_std, v4l2->norm);
 	v4l2->interlaced_fieldmode = EM28XX_INTERLACED_DEFAULT;
 
 	/* Analog specific initialization */

@@ -1198,7 +1198,6 @@ static const struct v4l2_subdev_core_ops saa717x_core_ops = {
 	.g_register = saa717x_g_register,
 	.s_register = saa717x_s_register,
 #endif
-	.s_std = saa717x_s_std,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
 	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
@@ -1216,6 +1215,7 @@ static const struct v4l2_subdev_tuner_ops saa717x_tuner_ops = {
 };
 
 static const struct v4l2_subdev_video_ops saa717x_video_ops = {
+	.s_std = saa717x_s_std,
 	.s_routing = saa717x_s_video_routing,
 	.s_mbus_fmt = saa717x_s_mbus_fmt,
 	.s_stream = saa717x_s_stream,

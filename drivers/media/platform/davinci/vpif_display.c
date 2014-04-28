@@ -718,7 +718,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 		return ret;
 	}
 
-	ret = v4l2_device_call_until_err(&vpif_obj.v4l2_dev, 1, core,
+	ret = v4l2_device_call_until_err(&vpif_obj.v4l2_dev, 1, video,
 							s_std, std_id);
 	if (ret < 0)
 		vpif_err("Failed to set standard for sub devices\n");

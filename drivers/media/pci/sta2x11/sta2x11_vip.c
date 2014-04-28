@@ -444,7 +444,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 	int status;
 
 	if (V4L2_STD_ALL == std) {
-		v4l2_subdev_call(vip->decoder, core, s_std, std);
+		v4l2_subdev_call(vip->decoder, video, s_std, std);
 		ssleep(2);
 		v4l2_subdev_call(vip->decoder, video, querystd, &newstd);
 		v4l2_subdev_call(vip->decoder, video, g_input_status, &status);
@@ -467,7 +467,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 			vip->format = formats_50[0];
 	}
 
-	return v4l2_subdev_call(vip->decoder, core, s_std, std);
+	return v4l2_subdev_call(vip->decoder, video, s_std, std);
 }
 
 /**

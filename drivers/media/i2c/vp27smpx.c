@@ -124,7 +124,6 @@ static int vp27smpx_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops vp27smpx_core_ops = {
 	.log_status = vp27smpx_log_status,
-	.s_std = vp27smpx_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops vp27smpx_tuner_ops = {
@@ -133,9 +132,14 @@ static const struct v4l2_subdev_tuner_ops vp27smpx_tuner_ops = {
 	.g_tuner = vp27smpx_g_tuner,
 };
 
+static const struct v4l2_subdev_video_ops vp27smpx_video_ops = {
+	.s_std = vp27smpx_s_std,
+};
+
 static const struct v4l2_subdev_ops vp27smpx_ops = {
 	.core = &vp27smpx_core_ops,
 	.tuner = &vp27smpx_tuner_ops,
+	.video = &vp27smpx_video_ops,
 };
 
 /* ----------------------------------------------------------------------- */
