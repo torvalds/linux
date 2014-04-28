@@ -1424,6 +1424,8 @@ static int vcodec_probe(struct platform_device *pdev)
     INIT_DELAYED_WORK(&pservice->power_off_work, vpu_power_off_work);
 
     vpu_service_power_on(pservice);
+    
+    mdelay(1);
 
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -1579,9 +1581,6 @@ err:
     wake_lock_destroy(&pservice->wake_lock);
 
     if (res) {
-        if (regs) {
-            devm_ioremap_release(&pdev->dev, res);
-        }
         devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
     }
 
@@ -1619,7 +1618,6 @@ static int vcodec_remove(struct platform_device *pdev)
     free_irq(pservice->irq_enc, (void *)&pservice->enc_dev);
     free_irq(pservice->irq_dec, (void *)&pservice->dec_dev);
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-    devm_ioremap_release(&pdev->dev, res);
     devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
     vpu_put_clk(pservice);
     wake_lock_destroy(&pservice->wake_lock);
