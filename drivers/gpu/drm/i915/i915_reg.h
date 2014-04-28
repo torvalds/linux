@@ -1452,6 +1452,7 @@ enum punit_power_well {
  */
 #define DPLL_A_OFFSET 0x6014
 #define DPLL_B_OFFSET 0x6018
+#define CHV_DPLL_C_OFFSET 0x6030
 #define DPLL(pipe) (dev_priv->info.dpll_offsets[pipe] + \
 		    dev_priv->info.display_mmio_offset)
 
@@ -1543,6 +1544,7 @@ enum punit_power_well {
 
 #define DPLL_A_MD_OFFSET 0x601c /* 965+ only */
 #define DPLL_B_MD_OFFSET 0x6020 /* 965+ only */
+#define CHV_DPLL_C_MD_OFFSET 0x603c
 #define DPLL_MD(pipe) (dev_priv->info.dpll_md_offsets[pipe] + \
 		       dev_priv->info.display_mmio_offset)
 
@@ -1739,6 +1741,7 @@ enum punit_power_well {
  */
 #define PALETTE_A_OFFSET 0xa000
 #define PALETTE_B_OFFSET 0xa800
+#define CHV_PALETTE_C_OFFSET 0xc000
 #define PALETTE(pipe) (dev_priv->info.palette_offsets[pipe] + \
 		       dev_priv->info.display_mmio_offset)
 
@@ -2228,6 +2231,7 @@ enum punit_power_well {
 #define TRANSCODER_A_OFFSET 0x60000
 #define TRANSCODER_B_OFFSET 0x61000
 #define TRANSCODER_C_OFFSET 0x62000
+#define CHV_TRANSCODER_C_OFFSET 0x63000
 #define TRANSCODER_EDP_OFFSET 0x6f000
 
 #define _TRANSCODER2(pipe, reg) (dev_priv->info.trans_offsets[(pipe)] - \
@@ -3556,9 +3560,10 @@ enum punit_power_well {
 #define PIPESTAT_INT_ENABLE_MASK		0x7fff0000
 #define PIPESTAT_INT_STATUS_MASK		0x0000ffff
 
-#define PIPE_A_OFFSET	0x70000
-#define PIPE_B_OFFSET	0x71000
-#define PIPE_C_OFFSET	0x72000
+#define PIPE_A_OFFSET		0x70000
+#define PIPE_B_OFFSET		0x71000
+#define PIPE_C_OFFSET		0x72000
+#define CHV_PIPE_C_OFFSET	0x74000
 /*
  * There's actually no pipe EDP. Some pipe registers have
  * simply shifted from the pipe to the transcoder, while

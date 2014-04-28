@@ -49,6 +49,17 @@ static struct drm_driver driver;
 	.dpll_md_offsets = { DPLL_A_MD_OFFSET, DPLL_B_MD_OFFSET }, \
 	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET }
 
+#define GEN_CHV_PIPEOFFSETS \
+	.pipe_offsets = { PIPE_A_OFFSET, PIPE_B_OFFSET, \
+			  CHV_PIPE_C_OFFSET }, \
+	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
+			   CHV_TRANSCODER_C_OFFSET, }, \
+	.dpll_offsets = { DPLL_A_OFFSET, DPLL_B_OFFSET, \
+			  CHV_DPLL_C_OFFSET }, \
+	.dpll_md_offsets = { DPLL_A_MD_OFFSET, DPLL_B_MD_OFFSET, \
+			     CHV_DPLL_C_MD_OFFSET }, \
+	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET, \
+			     CHV_PALETTE_C_OFFSET }
 
 static const struct intel_device_info intel_i830_info = {
 	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
@@ -306,6 +317,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
+	GEN_CHV_PIPEOFFSETS,
 };
 
 /*
