@@ -22,6 +22,8 @@
 #include <linux/ion.h>
 #endif
 
+#define ROCKCHIP_ION_VERSION	"v1.0"
+
 enum ion_heap_ids {
 	INVALID_HEAP_ID = -1,
 	ION_CMA_HEAP_ID = 1,

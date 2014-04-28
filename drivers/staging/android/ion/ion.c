@@ -116,7 +116,6 @@ struct ion_handle {
 	int id;
 };
 
-static void ion_iommu_force_unmap(struct ion_buffer *buffer);
 extern char *rockchip_ion_snapshot_get(unsigned *size);
 extern int rockchip_ion_snapshot_debugfs(struct dentry* root);
 
@@ -281,6 +280,7 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	buffer->heap->ops->unmap_dma(buffer->heap, buffer);
 #ifdef CONFIG_ROCKCHIP_IOMMU
+	static void ion_iommu_force_unmap(struct ion_buffer *buffer);
 	ion_iommu_force_unmap(buffer);
 #endif
 	buffer->heap->ops->free(buffer);
@@ -937,7 +937,7 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 			buffer->heap->ops->phys(buffer->heap, buffer, &pa, &len);
 
 		seq_printf(s, "%16.16s:   0x%08lx   0x%08lx %8zuKB %4d %4d %4d\n",
-			buffer->heap->name, buffer->vaddr, pa, len>>10, buffer->handle_count,
+			buffer->heap->name, (unsigned long)buffer->vaddr, pa, len>>10, buffer->handle_count,
 			atomic_read(&buffer->ref.refcount), atomic_read(&handle->ref.refcount));
 #ifdef CONFIG_ROCKCHIP_IOMMU
 		ion_debug_client_show_buffer_map(s, buffer);

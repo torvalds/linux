@@ -109,13 +109,13 @@ static int rockchip_ion_get_heap_base_size(struct device_node *node,
 	int ret = 0;
 
 	ret = of_property_read_u32_array(node,
-			"memory-reservation", val, 2);
+			"reg", val, 2);
 	if (!ret) {
 		heap->base = val[0];
 		heap->size = val[1];
 	}
 
-	printk("heap: %x@%x\n", heap->size, heap->base);
+	pr_debug("heap: %x@%lx\n", heap->size, heap->base);
 
 	return 0;
 }
@@ -147,7 +147,7 @@ static struct ion_platform_data *rockchip_ion_parse_dt(
 	pdata->nr = num_heaps;
         
 	for_each_child_of_node(dt_node, node) {
-		ret = of_property_read_u32(node, "reg", &val);
+		ret = of_property_read_u32(node, "rockchip,ion_heap", &val);
 		if (ret) {
 			pr_err("%s: Unable to find reg key", __func__);
 			goto free_heaps;
@@ -372,7 +372,7 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 	if (pdata_needs_to_be_freed)
 		kfree(pdata);
 
-	pr_info("Rockchip ion module is successfully loaded\n");
+	pr_info("Rockchip ion module is successfully loaded (%s)\n", ROCKCHIP_ION_VERSION);
 	return 0;
 err:
 	for (i = 0; i < num_heaps; i++) {
@@ -410,14 +410,14 @@ int __init rockchip_ion_find_reserve_mem(unsigned long node, const char *uname,
 	if (!of_flat_dt_is_compatible(node, "rockchip,ion-reserve"))
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "memory-reservation", &len);
+	prop = of_get_flat_dt_prop(node, "reg", &len);
 	if (!prop || (len != 2 * sizeof(unsigned long)))
 		return 0;
 
 	base = be32_to_cpu(prop[0]);
 	size = be32_to_cpu(prop[1]);
 
-	prop = of_get_flat_dt_prop(node, "reg", &len);
+	prop = of_get_flat_dt_prop(node, "rockchip,ion_heap", &len);
 	if (!prop || (len != sizeof(unsigned long)))
 		return 0;
 
