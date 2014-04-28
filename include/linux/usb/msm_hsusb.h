@@ -183,6 +183,9 @@ struct msm_otg {
 	enum usb_chg_state chg_state;
 	enum usb_chg_type chg_type;
 	u8 dcd_retries;
+	struct regulator *v3p3;
+	struct regulator *v1p8;
+	struct regulator *vddcx;
 };
 
 #endif
