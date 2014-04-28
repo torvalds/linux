@@ -143,6 +143,48 @@ static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	return (struct fimd_driver_data *)of_id->data;
 }
 
+static void fimd_wait_for_vblank(struct exynos_drm_manager *mgr)
+{
+	struct fimd_context *ctx = mgr->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	atomic_set(&ctx->wait_vsync_event, 1);
+
+	/*
+	 * wait for FIMD to signal VSYNC interrupt or return after
+	 * timeout which is set to 50ms (refresh rate of 20).
+	 */
+	if (!wait_event_timeout(ctx->wait_vsync_queue,
+				!atomic_read(&ctx->wait_vsync_event),
+				HZ/20))
+		DRM_DEBUG_KMS("vblank wait timed out.\n");
+}
+
+
+static void fimd_clear_channel(struct exynos_drm_manager *mgr)
+{
+	struct fimd_context *ctx = mgr->ctx;
+	int win, ch_enabled = 0;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/* Check if any channel is enabled. */
+	for (win = 0; win < WINDOWS_NR; win++) {
+		u32 val = readl(ctx->regs + SHADOWCON);
+		if (val & SHADOWCON_CHx_ENABLE(win)) {
+			val &= ~SHADOWCON_CHx_ENABLE(win);
+			writel(val, ctx->regs + SHADOWCON);
+			ch_enabled = 1;
+		}
+	}
+
+	/* Wait for vsync, as disable channel takes effect at next vsync */
+	if (ch_enabled)
+		fimd_wait_for_vblank(mgr);
+}
+
 static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
 			struct drm_device *drm_dev, int pipe)
 {
@@ -169,8 +211,14 @@ static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
 	drm_dev->vblank_disable_allowed = true;
 
 	/* attach this sub driver to iommu mapping if supported. */
-	if (is_drm_iommu_supported(ctx->drm_dev))
+	if (is_drm_iommu_supported(ctx->drm_dev)) {
+		/*
+		 * If any channel is already active, iommu will throw
+		 * a PAGE FAULT when enabled. So clear any channel if enabled.
+		 */
+		fimd_clear_channel(mgr);
 		drm_iommu_attach_device(ctx->drm_dev, ctx->dev);
+	}
 
 	return 0;
 }
@@ -322,25 +370,6 @@ static void fimd_disable_vblank(struct exynos_drm_manager *mgr)
 
 		writel(val, ctx->regs + VIDINTCON0);
 	}
-}
-
-static void fimd_wait_for_vblank(struct exynos_drm_manager *mgr)
-{
-	struct fimd_context *ctx = mgr->ctx;
-
-	if (ctx->suspended)
-		return;
-
-	atomic_set(&ctx->wait_vsync_event, 1);
-
-	/*
-	 * wait for FIMD to signal VSYNC interrupt or return after
-	 * timeout which is set to 50ms (refresh rate of 20).
-	 */
-	if (!wait_event_timeout(ctx->wait_vsync_queue,
-				!atomic_read(&ctx->wait_vsync_event),
-				HZ/20))
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
 static void fimd_win_mode_set(struct exynos_drm_manager *mgr,
