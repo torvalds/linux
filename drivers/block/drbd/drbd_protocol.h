@@ -160,6 +160,8 @@ struct p_block_req {
  *   ReportParams
  */
 
+#define FF_TRIM      1
+
 struct p_connection_features {
 	u32 protocol_min;
 	u32 feature_flags;

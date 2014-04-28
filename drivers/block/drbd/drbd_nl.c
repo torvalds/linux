@@ -1133,6 +1133,26 @@ static void drbd_setup_queue_param(struct drbd_device *device, unsigned int max_
 
 	if (get_ldev_if_state(device, D_ATTACHING)) {
 		struct request_queue * const b = device->ldev->backing_bdev->bd_disk->queue;
+		struct drbd_connection *connection = first_peer_device(device)->connection;
+
+		if (blk_queue_discard(b) &&
+		    (connection->cstate < C_CONNECTED || connection->agreed_features & FF_TRIM)) {
+			/* inherit from backing queue */
+			q->limits.discard_zeroes_data = 1;
+			/* For now, don't allow more than one activity log extent worth of data
+			 * to be discarded in one go. We may need to rework drbd_al_begin_io()
+			 * to allow for even larger discard ranges */
+			q->limits.max_discard_sectors = DRBD_MAX_DISCARD_SECTORS;
+
+			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+			/* REALLY? Is stacking secdiscard "legal"? */
+			if (blk_queue_secdiscard(b))
+				queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD, q);
+		} else {
+			q->limits.max_discard_sectors = 0;
+			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
+			queue_flag_clear_unlocked(QUEUE_FLAG_SECDISCARD, q);
+		}
 
 		blk_queue_stack_limits(q, b);
 
