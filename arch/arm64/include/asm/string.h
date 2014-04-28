@@ -28,6 +28,12 @@ extern int strcmp(const char *, const char *);
 #define __HAVE_ARCH_STRNCMP
 extern int strncmp(const char *, const char *, __kernel_size_t);
 
+#define __HAVE_ARCH_STRLEN
+extern __kernel_size_t strlen(const char *);
+
+#define __HAVE_ARCH_STRNLEN
+extern __kernel_size_t strnlen(const char *, __kernel_size_t);
+
 #define __HAVE_ARCH_MEMCPY
 extern void *memcpy(void *, const void *, __kernel_size_t);
 
