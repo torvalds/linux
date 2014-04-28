@@ -1678,6 +1678,8 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 	if (is_truncate) {
 		fuse_set_nowrite(inode);
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
+		if (trust_local_mtime && attr->ia_size != inode->i_size)
+			attr->ia_valid |= ATTR_MTIME;
 	}
 
 	memset(&inarg, 0, sizeof(inarg));
