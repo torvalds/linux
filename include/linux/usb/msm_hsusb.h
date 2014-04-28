@@ -169,6 +169,7 @@ struct msm_otg {
 
 	struct reset_control *phy_rst;
 	struct reset_control *link_rst;
+	int vdd_levels[3];
 };
 
 #endif

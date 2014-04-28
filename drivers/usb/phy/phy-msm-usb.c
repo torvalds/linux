@@ -62,6 +62,13 @@
 
 #define USB_PHY_VDD_DIG_VOL_MIN	1000000 /* uV */
 #define USB_PHY_VDD_DIG_VOL_MAX	1320000 /* uV */
+#define USB_PHY_SUSP_DIG_VOL	500000  /* uV */
+
+enum vdd_levels {
+	VDD_LEVEL_NONE = 0,
+	VDD_LEVEL_MIN,
+	VDD_LEVEL_MAX,
+};
 
 static int msm_hsusb_init_vddcx(struct msm_otg *motg, int init)
 {
@@ -69,8 +76,8 @@ static int msm_hsusb_init_vddcx(struct msm_otg *motg, int init)
 
 	if (init) {
 		ret = regulator_set_voltage(motg->vddcx,
-				USB_PHY_VDD_DIG_VOL_MIN,
-				USB_PHY_VDD_DIG_VOL_MAX);
+				motg->vdd_levels[VDD_LEVEL_MIN],
+				motg->vdd_levels[VDD_LEVEL_MAX]);
 		if (ret) {
 			dev_err(motg->phy.dev, "Cannot set vddcx voltage\n");
 			return ret;
@@ -81,7 +88,7 @@ static int msm_hsusb_init_vddcx(struct msm_otg *motg, int init)
 			dev_err(motg->phy.dev, "unable to enable hsusb vddcx\n");
 	} else {
 		ret = regulator_set_voltage(motg->vddcx, 0,
-			USB_PHY_VDD_DIG_VOL_MAX);
+				motg->vdd_levels[VDD_LEVEL_MAX]);
 		if (ret)
 			dev_err(motg->phy.dev, "Cannot set vddcx voltage\n");
 		ret = regulator_disable(motg->vddcx);
@@ -435,17 +442,16 @@ static int msm_phy_init(struct usb_phy *phy)
 
 #ifdef CONFIG_PM
 
-#define USB_PHY_SUSP_DIG_VOL  500000
 static int msm_hsusb_config_vddcx(struct msm_otg *motg, int high)
 {
-	int max_vol = USB_PHY_VDD_DIG_VOL_MAX;
+	int max_vol = motg->vdd_levels[VDD_LEVEL_MAX];
 	int min_vol;
 	int ret;
 
 	if (high)
-		min_vol = USB_PHY_VDD_DIG_VOL_MIN;
+		min_vol = motg->vdd_levels[VDD_LEVEL_MIN];
 	else
-		min_vol = USB_PHY_SUSP_DIG_VOL;
+		min_vol = motg->vdd_levels[VDD_LEVEL_NONE];
 
 	ret = regulator_set_voltage(motg->vddcx, min_vol, max_vol);
 	if (ret) {
@@ -1441,7 +1447,7 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	struct device_node *node = pdev->dev.of_node;
 	struct property *prop;
 	int len, ret, words;
-	u32 val;
+	u32 val, tmp[3];
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -1471,6 +1477,19 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 
 	if (!of_property_read_u32(node, "qcom,phy-num", &val) && val < 2)
 		motg->phy_number = val;
+
+	motg->vdd_levels[VDD_LEVEL_NONE] = USB_PHY_SUSP_DIG_VOL;
+	motg->vdd_levels[VDD_LEVEL_MIN] = USB_PHY_VDD_DIG_VOL_MIN;
+	motg->vdd_levels[VDD_LEVEL_MAX] = USB_PHY_VDD_DIG_VOL_MAX;
+
+	if (of_get_property(node, "qcom,vdd-levels", &len) &&
+	    len == sizeof(tmp)) {
+		of_property_read_u32_array(node, "qcom,vdd-levels",
+					   tmp, len / sizeof(*tmp));
+		motg->vdd_levels[VDD_LEVEL_NONE] = tmp[VDD_LEVEL_NONE];
+		motg->vdd_levels[VDD_LEVEL_MIN] = tmp[VDD_LEVEL_MIN];
+		motg->vdd_levels[VDD_LEVEL_MAX] = tmp[VDD_LEVEL_MAX];
+	}
 
 	prop = of_find_property(node, "qcom,phy-init-sequence", &len);
 	if (!prop || !len)
