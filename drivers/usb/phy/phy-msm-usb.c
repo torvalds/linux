@@ -32,6 +32,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/reset.h>
 
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
@@ -235,12 +236,15 @@ static void ulpi_init(struct msm_otg *motg)
 
 static int msm_otg_link_clk_reset(struct msm_otg *motg, bool assert)
 {
-	int ret = 0;
+	int ret;
 
-	if (!motg->pdata->link_clk_reset)
-		return ret;
+	if (motg->pdata->link_clk_reset)
+		ret = motg->pdata->link_clk_reset(motg->clk, assert);
+	else if (assert)
+		ret = reset_control_assert(motg->link_rst);
+	else
+		ret = reset_control_deassert(motg->link_rst);
 
-	ret = motg->pdata->link_clk_reset(motg->clk, assert);
 	if (ret)
 		dev_err(motg->phy.dev, "usb link clk reset %s failed\n",
 			assert ? "assert" : "deassert");
@@ -250,12 +254,13 @@ static int msm_otg_link_clk_reset(struct msm_otg *motg, bool assert)
 
 static int msm_otg_phy_clk_reset(struct msm_otg *motg)
 {
-	int ret = 0;
+	int ret;
 
-	if (!motg->pdata->phy_clk_reset)
-		return ret;
+	if (motg->pdata->phy_clk_reset)
+		ret = motg->pdata->phy_clk_reset(motg->phy_reset_clk);
+	else
+		ret = reset_control_reset(motg->phy_rst);
 
-	ret = motg->pdata->phy_clk_reset(motg->phy_reset_clk);
 	if (ret)
 		dev_err(motg->phy.dev, "usb phy clk reset failed\n");
 
@@ -1376,6 +1381,14 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 
 	id = of_match_device(msm_otg_dt_match, &pdev->dev);
 	pdata->phy_type = (int) id->data;
+
+	motg->link_rst = devm_reset_control_get(&pdev->dev, "link");
+	if (IS_ERR(motg->link_rst))
+		return PTR_ERR(motg->link_rst);
+
+	motg->phy_rst = devm_reset_control_get(&pdev->dev, "phy");
+	if (IS_ERR(motg->phy_rst))
+		return PTR_ERR(motg->phy_rst);
 
 	pdata->mode = of_usb_get_dr_mode(node);
 	if (pdata->mode == USB_DR_MODE_UNKNOWN)
