@@ -1283,6 +1283,10 @@ extern void conn_try_outdate_peer_async(struct drbd_connection *connection);
 extern int drbd_khelper(struct drbd_device *device, char *cmd);
 
 /* drbd_worker.c */
+/* bi_end_io handlers */
+extern void drbd_md_io_complete(struct bio *bio, int error);
+extern void drbd_peer_request_endio(struct bio *bio, int error);
+extern void drbd_request_endio(struct bio *bio, int error);
 extern int drbd_worker(struct drbd_thread *thi);
 enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *device, int o_minor);
 void drbd_resync_after_changed(struct drbd_device *device);
@@ -1399,6 +1403,37 @@ static inline void drbd_tcp_quickack(struct socket *sock)
 	int val = 2;
 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
 			(char*)&val, sizeof(val));
+}
+
+/* sets the number of 512 byte sectors of our virtual device */
+static inline void drbd_set_my_capacity(struct drbd_device *device,
+					sector_t size)
+{
+	/* set_capacity(device->this_bdev->bd_disk, size); */
+	set_capacity(device->vdisk, size);
+	device->this_bdev->bd_inode->i_size = (loff_t)size << 9;
+}
+
+/*
+ * used to submit our private bio
+ */
+static inline void drbd_generic_make_request(struct drbd_device *device,
+					     int fault_type, struct bio *bio)
+{
+	__release(local);
+	if (!bio->bi_bdev) {
+		printk(KERN_ERR "drbd%d: drbd_generic_make_request: "
+				"bio->bi_bdev == NULL\n",
+		       device_to_minor(device));
+		dump_stack();
+		bio_endio(bio, -ENODEV);
+		return;
+	}
+
+	if (drbd_insert_fault(device, fault_type))
+		bio_endio(bio, -EIO);
+	else
+		generic_make_request(bio);
 }
 
 void drbd_bump_write_ordering(struct drbd_connection *connection, enum write_ordering_e wo);
