@@ -255,9 +255,9 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 
 	if (whence == SEEK_DATA)
 		goto fail;
-	else
-		data_ofs = isize;
 found:
+	if (whence == SEEK_HOLE && data_ofs > isize)
+		data_ofs = isize;
 	mutex_unlock(&inode->i_mutex);
 	return vfs_setpos(file, data_ofs, maxbytes);
 fail:
