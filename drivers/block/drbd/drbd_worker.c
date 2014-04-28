@@ -118,7 +118,7 @@ static void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __rele
 
 /* writes on behalf of the partner, or resync writes,
  * "submitted" by the receiver, final stage.  */
-static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(local)
+void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
 	struct drbd_peer_device *peer_device = peer_req->peer_device;
@@ -150,7 +150,9 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 
 	do_wake = list_empty(block_id == ID_SYNCER ? &device->sync_ee : &device->active_ee);
 
-	if (test_bit(__EE_WAS_ERROR, &peer_req->flags))
+	/* FIXME do we want to detach for failed REQ_DISCARD?
+	 * ((peer_req->flags & (EE_WAS_ERROR|EE_IS_TRIM)) == EE_WAS_ERROR) */
+	if (peer_req->flags & EE_WAS_ERROR)
 		__drbd_chk_io_error(device, DRBD_WRITE_ERROR);
 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
@@ -176,10 +178,12 @@ void drbd_peer_request_endio(struct bio *bio, int error)
 	struct drbd_device *device = peer_req->peer_device->device;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 	int is_write = bio_data_dir(bio) == WRITE;
+	int is_discard = !!(bio->bi_rw & REQ_DISCARD);
 
 	if (error && __ratelimit(&drbd_ratelimit_state))
 		drbd_warn(device, "%s: error=%d s=%llus\n",
-				is_write ? "write" : "read", error,
+				is_write ? (is_discard ? "discard" : "write")
+					: "read", error,
 				(unsigned long long)peer_req->i.sector);
 	if (!error && !uptodate) {
 		if (__ratelimit(&drbd_ratelimit_state))
@@ -395,7 +399,7 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector, 
 	/* GFP_TRY, because if there is no memory available right now, this may
 	 * be rescheduled for later. It is "only" background resync, after all. */
 	peer_req = drbd_alloc_peer_req(peer_device, ID_SYNCER /* unused */, sector,
-				       size, GFP_TRY);
+				       size, true /* has real payload */, GFP_TRY);
 	if (!peer_req)
 		goto defer;
 

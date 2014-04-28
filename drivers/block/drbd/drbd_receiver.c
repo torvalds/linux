@@ -65,7 +65,7 @@ enum finish_epoch {
 static int drbd_do_features(struct drbd_connection *connection);
 static int drbd_do_auth(struct drbd_connection *connection);
 static int drbd_disconnected(struct drbd_peer_device *);
-
+static void conn_wait_active_ee_empty(struct drbd_connection *connection);
 static enum finish_epoch drbd_may_finish_epoch(struct drbd_connection *, struct drbd_epoch *, enum epoch_event);
 static int e_end_block(struct drbd_work *, int);
 
@@ -338,7 +338,7 @@ You must not have the req_lock:
 
 struct drbd_peer_request *
 drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
-		    unsigned int data_size, gfp_t gfp_mask) __must_hold(local)
+		    unsigned int data_size, bool has_payload, gfp_t gfp_mask) __must_hold(local)
 {
 	struct drbd_device *device = peer_device->device;
 	struct drbd_peer_request *peer_req;
@@ -355,7 +355,7 @@ drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t secto
 		return NULL;
 	}
 
-	if (data_size) {
+	if (has_payload && data_size) {
 		page = drbd_alloc_pages(peer_device, nr_pages, (gfp_mask & __GFP_WAIT));
 		if (!page)
 			goto fail;
@@ -1325,6 +1325,20 @@ int drbd_submit_peer_request(struct drbd_device *device,
 	unsigned nr_pages = (ds + PAGE_SIZE -1) >> PAGE_SHIFT;
 	int err = -ENOMEM;
 
+	if (peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) {
+		/* wait for all pending IO completions, before we start
+		 * zeroing things out. */
+		conn_wait_active_ee_empty(first_peer_device(device)->connection);
+		if (blkdev_issue_zeroout(device->ldev->backing_bdev,
+			sector, ds >> 9, GFP_NOIO))
+			peer_req->flags |= EE_WAS_ERROR;
+		drbd_endio_write_sec_final(peer_req);
+		return 0;
+	}
+
+	if (peer_req->flags & EE_IS_TRIM)
+		nr_pages = 0; /* discards don't have any payload. */
+
 	/* In most cases, we will only need one bio.  But in case the lower
 	 * level restrictions happen to be different at this offset on this
 	 * side than those of the sending peer, we may need to submit the
@@ -1336,7 +1350,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
 next_bio:
 	bio = bio_alloc(GFP_NOIO, nr_pages);
 	if (!bio) {
-		drbd_err(device, "submit_ee: Allocation of a bio failed\n");
+		drbd_err(device, "submit_ee: Allocation of a bio failed (nr_pages=%u)\n", nr_pages);
 		goto fail;
 	}
 	/* > peer_req->i.sector, unless this is the first bio */
@@ -1349,6 +1363,11 @@ next_bio:
 	bio->bi_next = bios;
 	bios = bio;
 	++n_bios;
+
+	if (rw & REQ_DISCARD) {
+		bio->bi_iter.bi_size = ds;
+		goto submit;
+	}
 
 	page_chain_for_each(page) {
 		unsigned len = min_t(unsigned, ds, PAGE_SIZE);
@@ -1370,8 +1389,9 @@ next_bio:
 		sector += len >> 9;
 		--nr_pages;
 	}
-	D_ASSERT(device, page == NULL);
 	D_ASSERT(device, ds == 0);
+submit:
+	D_ASSERT(device, page == NULL);
 
 	atomic_set(&peer_req->pending_bios, n_bios);
 	do {
@@ -1500,19 +1520,21 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
  * and from receive_Data */
 static struct drbd_peer_request *
 read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
-	      int data_size) __must_hold(local)
+	      struct packet_info *pi) __must_hold(local)
 {
 	struct drbd_device *device = peer_device->device;
 	const sector_t capacity = drbd_get_capacity(device->this_bdev);
 	struct drbd_peer_request *peer_req;
 	struct page *page;
 	int dgs, ds, err;
+	int data_size = pi->size;
 	void *dig_in = peer_device->connection->int_dig_in;
 	void *dig_vv = peer_device->connection->int_dig_vv;
 	unsigned long *data;
+	struct p_trim *trim = (pi->cmd == P_TRIM) ? pi->data : NULL;
 
 	dgs = 0;
-	if (peer_device->connection->peer_integrity_tfm) {
+	if (!trim && peer_device->connection->peer_integrity_tfm) {
 		dgs = crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
 		/*
 		 * FIXME: Receive the incoming digest into the receive buffer
@@ -1524,9 +1546,15 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
 		data_size -= dgs;
 	}
 
+	if (trim) {
+		D_ASSERT(peer_device, data_size == 0);
+		data_size = be32_to_cpu(trim->size);
+	}
+
 	if (!expect(IS_ALIGNED(data_size, 512)))
 		return NULL;
-	if (!expect(data_size <= DRBD_MAX_BIO_SIZE))
+	/* prepare for larger trim requests. */
+	if (!trim && !expect(data_size <= DRBD_MAX_BIO_SIZE))
 		return NULL;
 
 	/* even though we trust out peer,
@@ -1542,11 +1570,11 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
 	 * which in turn might block on the other node at this very place.  */
-	peer_req = drbd_alloc_peer_req(peer_device, id, sector, data_size, GFP_NOIO);
+	peer_req = drbd_alloc_peer_req(peer_device, id, sector, data_size, trim == NULL, GFP_NOIO);
 	if (!peer_req)
 		return NULL;
 
-	if (!data_size)
+	if (trim)
 		return peer_req;
 
 	ds = data_size;
@@ -1686,12 +1714,12 @@ static int e_end_resync_block(struct drbd_work *w, int unused)
 }
 
 static int recv_resync_read(struct drbd_peer_device *peer_device, sector_t sector,
-			    int data_size) __releases(local)
+			    struct packet_info *pi) __releases(local)
 {
 	struct drbd_device *device = peer_device->device;
 	struct drbd_peer_request *peer_req;
 
-	peer_req = read_in_block(peer_device, ID_SYNCER, sector, data_size);
+	peer_req = read_in_block(peer_device, ID_SYNCER, sector, pi);
 	if (!peer_req)
 		goto fail;
 
@@ -1707,7 +1735,7 @@ static int recv_resync_read(struct drbd_peer_device *peer_device, sector_t secto
 	list_add(&peer_req->w.list, &device->sync_ee);
 	spin_unlock_irq(&device->resource->req_lock);
 
-	atomic_add(data_size >> 9, &device->rs_sect_ev);
+	atomic_add(pi->size >> 9, &device->rs_sect_ev);
 	if (drbd_submit_peer_request(device, peer_req, WRITE, DRBD_FAULT_RS_WR) == 0)
 		return 0;
 
@@ -1795,7 +1823,7 @@ static int receive_RSDataReply(struct drbd_connection *connection, struct packet
 		/* data is submitted to disk within recv_resync_read.
 		 * corresponding put_ldev done below on error,
 		 * or in drbd_peer_request_endio. */
-		err = recv_resync_read(peer_device, sector, pi->size);
+		err = recv_resync_read(peer_device, sector, pi);
 	} else {
 		if (__ratelimit(&drbd_ratelimit_state))
 			drbd_err(device, "Can not write resync data to local disk.\n");
@@ -2206,7 +2234,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	 */
 
 	sector = be64_to_cpu(p->sector);
-	peer_req = read_in_block(peer_device, p->block_id, sector, pi->size);
+	peer_req = read_in_block(peer_device, p->block_id, sector, pi);
 	if (!peer_req) {
 		put_ldev(device);
 		return -EIO;
@@ -2216,7 +2244,15 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 
 	dp_flags = be32_to_cpu(p->dp_flags);
 	rw |= wire_flags_to_bio(dp_flags);
-	if (peer_req->pages == NULL) {
+	if (pi->cmd == P_TRIM) {
+		struct request_queue *q = bdev_get_queue(device->ldev->backing_bdev);
+		peer_req->flags |= EE_IS_TRIM;
+		if (!blk_queue_discard(q))
+			peer_req->flags |= EE_IS_TRIM_USE_ZEROOUT;
+		D_ASSERT(peer_device, peer_req->i.size > 0);
+		D_ASSERT(peer_device, rw & REQ_DISCARD);
+		D_ASSERT(peer_device, peer_req->pages == NULL);
+	} else if (peer_req->pages == NULL) {
 		D_ASSERT(device, peer_req->i.size == 0);
 		D_ASSERT(device, dp_flags & DP_FLUSH);
 	}
@@ -2252,7 +2288,12 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 		update_peer_seq(peer_device, peer_seq);
 		spin_lock_irq(&device->resource->req_lock);
 	}
-	list_add(&peer_req->w.list, &device->active_ee);
+	/* if we use the zeroout fallback code, we process synchronously
+	 * and we wait for all pending requests, respectively wait for
+	 * active_ee to become empty in drbd_submit_peer_request();
+	 * better not add ourselves here. */
+	if ((peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) == 0)
+		list_add(&peer_req->w.list, &device->active_ee);
 	spin_unlock_irq(&device->resource->req_lock);
 
 	if (device->state.conn == C_SYNC_TARGET)
@@ -2451,7 +2492,8 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
 	 * which in turn might block on the other node at this very place.  */
-	peer_req = drbd_alloc_peer_req(peer_device, p->block_id, sector, size, GFP_NOIO);
+	peer_req = drbd_alloc_peer_req(peer_device, p->block_id, sector, size,
+			true /* has real payload */, GFP_NOIO);
 	if (!peer_req) {
 		put_ldev(device);
 		return -ENOMEM;
@@ -4438,6 +4480,7 @@ static struct data_cmd drbd_cmd_handler[] = {
 	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), receive_out_of_sync },
 	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), receive_req_conn_state },
 	[P_PROTOCOL_UPDATE] = { 1, sizeof(struct p_protocol), receive_protocol },
+	[P_TRIM]	    = { 0, sizeof(struct p_trim), receive_Data },
 };
 
 static void drbdd(struct drbd_connection *connection)
