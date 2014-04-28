@@ -501,7 +501,7 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 	fuse_sync_writes(inode);
 
 	if (test_bit(FUSE_I_MTIME_DIRTY, &get_fuse_inode(inode)->state)) {
-		int err = fuse_flush_mtime(file, false);
+		err = fuse_flush_mtime(file, false);
 		if (err)
 			goto out;
 	}
