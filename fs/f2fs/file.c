@@ -19,6 +19,7 @@
 #include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/mount.h>
+#include <linux/pagevec.h>
 
 #include "f2fs.h"
 #include "node.h"
@@ -194,13 +195,48 @@ out:
 	return ret;
 }
 
+static pgoff_t __get_first_dirty_index(struct address_space *mapping,
+						pgoff_t pgofs, int whence)
+{
+	struct pagevec pvec;
+	int nr_pages;
+
+	if (whence != SEEK_DATA)
+		return 0;
+
+	/* find first dirty page index */
+	pagevec_init(&pvec, 0);
+	nr_pages = pagevec_lookup_tag(&pvec, mapping, &pgofs, PAGECACHE_TAG_DIRTY, 1);
+	pgofs = nr_pages ? pvec.pages[0]->index: LONG_MAX;
+	pagevec_release(&pvec);
+	return pgofs;
+}
+
+static bool __found_offset(block_t blkaddr, pgoff_t dirty, pgoff_t pgofs,
+							int whence)
+{
+	switch (whence) {
+	case SEEK_DATA:
+		if ((blkaddr == NEW_ADDR && dirty == pgofs) ||
+			(blkaddr != NEW_ADDR && blkaddr != NULL_ADDR))
+			return true;
+		break;
+	case SEEK_HOLE:
+		if (blkaddr == NULL_ADDR)
+			return true;
+		break;
+	}
+	return false;
+}
+
 static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	loff_t maxbytes = inode->i_sb->s_maxbytes;
 	struct dnode_of_data dn;
-	pgoff_t pgofs, end_offset;
-	loff_t data_ofs = offset, isize;
+	pgoff_t pgofs, end_offset, dirty;
+	loff_t data_ofs = offset;
+	loff_t isize;
 	int err = 0;
 
 	mutex_lock(&inode->i_mutex);
@@ -217,6 +253,8 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 	}
 
 	pgofs = (pgoff_t)(offset >> PAGE_CACHE_SHIFT);
+
+	dirty = __get_first_dirty_index(inode->i_mapping, pgofs, whence);
 
 	for (; data_ofs < isize; data_ofs = pgofs << PAGE_CACHE_SHIFT) {
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
@@ -244,8 +282,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 			block_t blkaddr;
 			blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
 
-			if ((whence == SEEK_DATA && blkaddr != NULL_ADDR) ||
-				(whence == SEEK_HOLE && blkaddr == NULL_ADDR)) {
+			if (__found_offset(blkaddr, dirty, pgofs, whence)) {
 				f2fs_put_dnode(&dn);
 				goto found;
 			}
