@@ -69,7 +69,9 @@
 
 /* Default NVM size to read */
 #define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
-#define IWL_MAX_NVM_SECTION_SIZE 7000
+#define IWL_MAX_NVM_SECTION_SIZE	0x1b58
+#define IWL_MAX_NVM_8000A_SECTION_SIZE	0xffc
+#define IWL_MAX_NVM_8000B_SECTION_SIZE	0x1ffc
 
 #define NVM_WRITE_OPCODE 1
 #define NVM_READ_OPCODE 0
@@ -326,6 +328,7 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 		u8 data[];
 	} *file_sec;
 	const u8 *eof, *temp;
+	int max_section_size;
 
 #define NVM_WORD1_LEN(x) (8 * (x & 0x03FF))
 #define NVM_WORD2_ID(x) (x >> 12)
@@ -333,6 +336,14 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 #define NVM_WORD1_ID_FAMILY_8000(x) (x >> 4)
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
+
+	/* Maximal size depends on HW family and step */
+	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
+	else if ((mvm->trans->hw_rev & 0xc) == 0) /* Family 8000 A-step */
+		max_section_size = IWL_MAX_NVM_8000A_SECTION_SIZE;
+	else /* Family 8000 B-step */
+		max_section_size = IWL_MAX_NVM_8000B_SECTION_SIZE;
 
 	/*
 	 * Obtain NVM image via request_firmware. Since we already used
@@ -392,7 +403,7 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 						le16_to_cpu(file_sec->word1));
 		}
 
-		if (section_size > IWL_MAX_NVM_SECTION_SIZE) {
+		if (section_size > max_section_size) {
 			IWL_ERR(mvm, "ERROR - section too large (%d)\n",
 				section_size);
 			ret = -EINVAL;
