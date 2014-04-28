@@ -679,6 +679,14 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 	return create_new_entry(fc, req, dir, entry, S_IFLNK);
 }
 
+static inline void fuse_update_ctime(struct inode *inode)
+{
+	if (!IS_NOCMTIME(inode)) {
+		inode->i_ctime = current_fs_time(inode->i_sb);
+		mark_inode_dirty_sync(inode);
+	}
+}
+
 static int fuse_unlink(struct inode *dir, struct dentry *entry)
 {
 	int err;
@@ -713,6 +721,7 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 		fuse_invalidate_attr(inode);
 		fuse_invalidate_attr(dir);
 		fuse_invalidate_entry_cache(entry);
+		fuse_update_ctime(inode);
 	} else if (err == -EINTR)
 		fuse_invalidate_entry(entry);
 	return err;
@@ -771,6 +780,7 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 	if (!err) {
 		/* ctime changes */
 		fuse_invalidate_attr(oldent->d_inode);
+		fuse_update_ctime(oldent->d_inode);
 
 		fuse_invalidate_attr(olddir);
 		if (olddir != newdir)
@@ -780,6 +790,7 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 		if (newent->d_inode) {
 			fuse_invalidate_attr(newent->d_inode);
 			fuse_invalidate_entry_cache(newent);
+			fuse_update_ctime(newent->d_inode);
 		}
 	} else if (err == -EINTR) {
 		/* If request was interrupted, DEITY only knows if the
@@ -829,6 +840,7 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 		inc_nlink(inode);
 		spin_unlock(&fc->lock);
 		fuse_invalidate_attr(inode);
+		fuse_update_ctime(inode);
 	} else if (err == -EINTR) {
 		fuse_invalidate_attr(inode);
 	}
@@ -846,6 +858,8 @@ static void fuse_fillattr(struct inode *inode, struct fuse_attr *attr,
 		attr->size = i_size_read(inode);
 		attr->mtime = inode->i_mtime.tv_sec;
 		attr->mtimensec = inode->i_mtime.tv_nsec;
+		attr->ctime = inode->i_ctime.tv_sec;
+		attr->ctimensec = inode->i_ctime.tv_nsec;
 	}
 
 	stat->dev = inode->i_sb->s_dev;
@@ -1811,8 +1825,10 @@ static int fuse_setxattr(struct dentry *entry, const char *name,
 		fc->no_setxattr = 1;
 		err = -EOPNOTSUPP;
 	}
-	if (!err)
+	if (!err) {
 		fuse_invalidate_attr(inode);
+		fuse_update_ctime(inode);
+	}
 	return err;
 }
 
@@ -1942,8 +1958,10 @@ static int fuse_removexattr(struct dentry *entry, const char *name)
 		fc->no_removexattr = 1;
 		err = -EOPNOTSUPP;
 	}
-	if (!err)
+	if (!err) {
 		fuse_invalidate_attr(inode);
+		fuse_update_ctime(inode);
+	}
 	return err;
 }
 
