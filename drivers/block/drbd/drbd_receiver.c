@@ -2323,14 +2323,33 @@ out_interrupted:
  * The current sync rate used here uses only the most recent two step marks,
  * to have a short time average so we can react faster.
  */
-int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
+bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
+{
+	struct lc_element *tmp;
+	bool throttle = true;
+
+	if (!drbd_rs_c_min_rate_throttle(device))
+		return false;
+
+	spin_lock_irq(&device->al_lock);
+	tmp = lc_find(device->resync, BM_SECT_TO_EXT(sector));
+	if (tmp) {
+		struct bm_extent *bm_ext = lc_entry(tmp, struct bm_extent, lce);
+		if (test_bit(BME_PRIORITY, &bm_ext->flags))
+			throttle = false;
+		/* Do not slow down if app IO is already waiting for this extent */
+	}
+	spin_unlock_irq(&device->al_lock);
+
+	return throttle;
+}
+
+bool drbd_rs_c_min_rate_throttle(struct drbd_device *device)
 {
 	struct gendisk *disk = device->ldev->backing_bdev->bd_contains->bd_disk;
 	unsigned long db, dt, dbdt;
-	struct lc_element *tmp;
-	int curr_events;
-	int throttle = 0;
 	unsigned int c_min_rate;
+	int curr_events;
 
 	rcu_read_lock();
 	c_min_rate = rcu_dereference(device->ldev->disk_conf)->c_min_rate;
@@ -2338,24 +2357,11 @@ int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
 
 	/* feature disabled? */
 	if (c_min_rate == 0)
-		return 0;
-
-	spin_lock_irq(&device->al_lock);
-	tmp = lc_find(device->resync, BM_SECT_TO_EXT(sector));
-	if (tmp) {
-		struct bm_extent *bm_ext = lc_entry(tmp, struct bm_extent, lce);
-		if (test_bit(BME_PRIORITY, &bm_ext->flags)) {
-			spin_unlock_irq(&device->al_lock);
-			return 0;
-		}
-		/* Do not slow down if app IO is already waiting for this extent */
-	}
-	spin_unlock_irq(&device->al_lock);
+		return false;
 
 	curr_events = (int)part_stat_read(&disk->part0, sectors[0]) +
 		      (int)part_stat_read(&disk->part0, sectors[1]) -
 			atomic_read(&device->rs_sect_ev);
-
 	if (!device->rs_last_events || curr_events - device->rs_last_events > 64) {
 		unsigned long rs_left;
 		int i;
@@ -2378,11 +2384,10 @@ int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
 		dbdt = Bit2KB(db/dt);
 
 		if (dbdt > c_min_rate)
-			throttle = 1;
+			return true;
 	}
-	return throttle;
+	return false;
 }
-
 
 static int receive_DataRequest(struct drbd_connection *connection, struct packet_info *pi)
 {

@@ -1022,8 +1022,7 @@ int drbd_rs_begin_io(struct drbd_device *device, sector_t sector)
 	unsigned int enr = BM_SECT_TO_EXT(sector);
 	struct bm_extent *bm_ext;
 	int i, sig;
-	int sa = 200; /* Step aside 200 times, then grab the extent and let app-IO wait.
-			 200 times -> 20 seconds. */
+	bool sa;
 
 retry:
 	sig = wait_event_interruptible(device->al_wait,
@@ -1034,12 +1033,15 @@ retry:
 	if (test_bit(BME_LOCKED, &bm_ext->flags))
 		return 0;
 
+	/* step aside only while we are above c-min-rate; unless disabled. */
+	sa = drbd_rs_c_min_rate_throttle(device);
+
 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
 		sig = wait_event_interruptible(device->al_wait,
 					       !_is_in_al(device, enr * AL_EXT_PER_BM_SECT + i) ||
-					       test_bit(BME_PRIORITY, &bm_ext->flags));
+					       (sa && test_bit(BME_PRIORITY, &bm_ext->flags)));
 
-		if (sig || (test_bit(BME_PRIORITY, &bm_ext->flags) && sa)) {
+		if (sig || (sa && test_bit(BME_PRIORITY, &bm_ext->flags))) {
 			spin_lock_irq(&device->al_lock);
 			if (lc_put(device->resync, &bm_ext->lce) == 0) {
 				bm_ext->flags = 0; /* clears BME_NO_WRITES and eventually BME_PRIORITY */
@@ -1051,9 +1053,6 @@ retry:
 				return -EINTR;
 			if (schedule_timeout_interruptible(HZ/10))
 				return -EINTR;
-			if (sa && --sa == 0)
-				drbd_warn(device, "drbd_rs_begin_io() stepped aside for 20sec."
-					 "Resync stalled?\n");
 			goto retry;
 		}
 	}

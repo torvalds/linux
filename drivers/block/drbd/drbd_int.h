@@ -1339,7 +1339,8 @@ extern void start_resync_timer_fn(unsigned long data);
 /* drbd_receiver.c */
 extern int drbd_receiver(struct drbd_thread *thi);
 extern int drbd_asender(struct drbd_thread *thi);
-extern int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector);
+extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
+extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector);
 extern int drbd_submit_peer_request(struct drbd_device *,
 				    struct drbd_peer_request *, const unsigned,
 				    const int);
