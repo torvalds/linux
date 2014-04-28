@@ -852,11 +852,10 @@ static enum dma_status edma_tx_status(struct dma_chan *chan,
 		return ret;
 
 	spin_lock_irqsave(&echan->vchan.lock, flags);
-	vdesc = vchan_find_desc(&echan->vchan, cookie);
-	if (vdesc)
-		txstate->residue = to_edma_desc(&vdesc->tx)->residue;
-	else if (echan->edesc && echan->edesc->vdesc.tx.cookie == cookie)
+	if (echan->edesc && echan->edesc->vdesc.tx.cookie == cookie)
 		txstate->residue = echan->edesc->residue;
+	else if ((vdesc = vchan_find_desc(&echan->vchan, cookie)))
+		txstate->residue = to_edma_desc(&vdesc->tx)->residue;
 	spin_unlock_irqrestore(&echan->vchan.lock, flags);
 
 	return ret;
