@@ -563,6 +563,14 @@
 			interrupts = <24>;
 		};
 
+		pwm: pwm@01c20e00 {
+			compatible = "allwinner,sun4i-a10-pwm";
+			reg = <0x01c20e00 0xc>;
+			clocks = <&osc24M>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		sid: eeprom@01c23800 {
 			compatible = "allwinner,sun4i-a10-sid";
 			reg = <0x01c23800 0x10>;
