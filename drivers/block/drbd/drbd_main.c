@@ -2687,14 +2687,16 @@ static int init_submitter(struct drbd_device *device)
 	return 0;
 }
 
-enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned int minor, int vnr)
+enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsigned int minor)
 {
+	struct drbd_resource *resource = adm_ctx->resource;
 	struct drbd_connection *connection;
 	struct drbd_device *device;
 	struct drbd_peer_device *peer_device, *tmp_peer_device;
 	struct gendisk *disk;
 	struct request_queue *q;
 	int id;
+	int vnr = adm_ctx->volume;
 	enum drbd_ret_code err = ERR_NOMEM;
 
 	device = minor_to_device(minor);
@@ -2763,7 +2765,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
 	if (id < 0) {
 		if (id == -ENOSPC) {
 			err = ERR_MINOR_EXISTS;
-			drbd_msg_put_info("requested minor exists already");
+			drbd_msg_put_info(adm_ctx->reply_skb, "requested minor exists already");
 		}
 		goto out_no_minor_idr;
 	}
@@ -2773,7 +2775,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
 	if (id < 0) {
 		if (id == -ENOSPC) {
 			err = ERR_MINOR_EXISTS;
-			drbd_msg_put_info("requested minor exists already");
+			drbd_msg_put_info(adm_ctx->reply_skb, "requested minor exists already");
 		}
 		goto out_idr_remove_minor;
 	}
@@ -2794,7 +2796,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
 		if (id < 0) {
 			if (id == -ENOSPC) {
 				err = ERR_INVALID_REQUEST;
-				drbd_msg_put_info("requested volume exists already");
+				drbd_msg_put_info(adm_ctx->reply_skb, "requested volume exists already");
 			}
 			goto out_idr_remove_from_resource;
 		}
@@ -2803,7 +2805,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
 
 	if (init_submitter(device)) {
 		err = ERR_NOMEM;
-		drbd_msg_put_info("unable to create submit workqueue");
+		drbd_msg_put_info(adm_ctx->reply_skb, "unable to create submit workqueue");
 		goto out_idr_remove_vol;
 	}
 

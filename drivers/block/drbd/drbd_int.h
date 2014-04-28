@@ -814,6 +814,28 @@ struct drbd_device {
 	struct submit_worker submit;
 };
 
+struct drbd_config_context {
+	/* assigned from drbd_genlmsghdr */
+	unsigned int minor;
+	/* assigned from request attributes, if present */
+	unsigned int volume;
+#define VOLUME_UNSPECIFIED		(-1U)
+	/* pointer into the request skb,
+	 * limited lifetime! */
+	char *resource_name;
+	struct nlattr *my_addr;
+	struct nlattr *peer_addr;
+
+	/* reply buffer */
+	struct sk_buff *reply_skb;
+	/* pointer into reply buffer */
+	struct drbd_genlmsghdr *reply_dh;
+	/* resolved from attributes, if possible */
+	struct drbd_device *device;
+	struct drbd_resource *resource;
+	struct drbd_connection *connection;
+};
+
 static inline struct drbd_device *minor_to_device(unsigned int minor)
 {
 	return (struct drbd_device *)idr_find(&drbd_devices, minor);
@@ -1229,9 +1251,9 @@ extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
 extern rwlock_t global_state_lock;
 
 extern int conn_lowest_minor(struct drbd_connection *connection);
-enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned int minor, int vnr);
+extern enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsigned int minor);
 extern void drbd_destroy_device(struct kref *kref);
-extern void drbd_delete_device(struct drbd_device *mdev);
+extern void drbd_delete_device(struct drbd_device *device);
 
 extern struct drbd_resource *drbd_create_resource(const char *name);
 extern void drbd_free_resource(struct drbd_resource *resource);
@@ -1257,7 +1279,7 @@ extern int is_valid_ar_handle(struct drbd_request *, sector_t);
 
 
 /* drbd_nl.c */
-extern int drbd_msg_put_info(const char *info);
+extern int drbd_msg_put_info(struct sk_buff *skb, const char *info);
 extern void drbd_suspend_io(struct drbd_device *device);
 extern void drbd_resume_io(struct drbd_device *device);
 extern char *ppsize(char *buf, unsigned long long size);
