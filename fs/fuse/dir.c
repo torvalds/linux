@@ -1597,23 +1597,17 @@ static void fuse_setattr_fill(struct fuse_conn *fc, struct fuse_req *req,
 /*
  * Flush inode->i_mtime to the server
  */
-int fuse_flush_mtime(struct file *file, bool nofail)
+int fuse_flush_mtime(struct inode *inode, struct fuse_file *ff)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req = NULL;
+	struct fuse_req *req;
 	struct fuse_setattr_in inarg;
 	struct fuse_attr_out outarg;
 	int err;
 
-	if (nofail) {
-		req = fuse_get_req_nofail_nopages(fc, file);
-	} else {
-		req = fuse_get_req_nopages(fc);
-		if (IS_ERR(req))
-			return PTR_ERR(req);
-	}
+	req = fuse_get_req_nopages(fc);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	memset(&inarg, 0, sizeof(inarg));
 	memset(&outarg, 0, sizeof(outarg));
@@ -1621,14 +1615,14 @@ int fuse_flush_mtime(struct file *file, bool nofail)
 	inarg.valid |= FATTR_MTIME;
 	inarg.mtime = inode->i_mtime.tv_sec;
 	inarg.mtimensec = inode->i_mtime.tv_nsec;
-
+	if (ff) {
+		inarg.valid |= FATTR_FH;
+		inarg.fh = ff->fh;
+	}
 	fuse_setattr_fill(fc, req, inode, &inarg, &outarg);
 	fuse_request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
-
-	if (!err)
-		clear_bit(FUSE_I_MTIME_DIRTY, &fi->state);
 
 	return err;
 }
@@ -1715,7 +1709,7 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 	/* the kernel maintains i_mtime locally */
 	if (trust_local_mtime && (attr->ia_valid & ATTR_MTIME)) {
 		inode->i_mtime = attr->ia_mtime;
-		clear_bit(FUSE_I_MTIME_DIRTY, &fi->state);
+		/* FIXME: clear I_DIRTY_SYNC? */
 	}
 
 	fuse_change_attributes_common(inode, &outarg.attr,
@@ -1953,7 +1947,7 @@ static int fuse_update_time(struct inode *inode, struct timespec *now,
 {
 	if (flags & S_MTIME) {
 		inode->i_mtime = *now;
-		set_bit(FUSE_I_MTIME_DIRTY, &get_fuse_inode(inode)->state);
+		mark_inode_dirty_sync(inode);
 		BUG_ON(!S_ISREG(inode->i_mode));
 	}
 	return 0;

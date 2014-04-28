@@ -324,10 +324,7 @@ static int fuse_release(struct inode *inode, struct file *file)
 
 	/* see fuse_vma_close() for !writeback_cache case */
 	if (fc->writeback_cache)
-		filemap_write_and_wait(file->f_mapping);
-
-	if (test_bit(FUSE_I_MTIME_DIRTY, &get_fuse_inode(inode)->state))
-		fuse_flush_mtime(file, true);
+		write_inode_now(inode, 1);
 
 	fuse_release_common(file, FUSE_RELEASE);
 
@@ -449,7 +446,7 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	if (fc->no_flush)
 		return 0;
 
-	err = filemap_write_and_wait(file->f_mapping);
+	err = write_inode_now(inode, 1);
 	if (err)
 		return err;
 
@@ -502,12 +499,10 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 		goto out;
 
 	fuse_sync_writes(inode);
+	err = sync_inode_metadata(inode, 1);
+	if (err)
+		goto out;
 
-	if (test_bit(FUSE_I_MTIME_DIRTY, &get_fuse_inode(inode)->state)) {
-		err = fuse_flush_mtime(file, false);
-		if (err)
-			goto out;
-	}
 	if ((!isdir && fc->no_fsync) || (isdir && fc->no_fsyncdir))
 		goto out;
 
@@ -1664,13 +1659,13 @@ static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_req *req)
 	fuse_writepage_free(fc, req);
 }
 
-static struct fuse_file *fuse_write_file_get(struct fuse_conn *fc,
-					     struct fuse_inode *fi)
+static struct fuse_file *__fuse_write_file_get(struct fuse_conn *fc,
+					       struct fuse_inode *fi)
 {
 	struct fuse_file *ff = NULL;
 
 	spin_lock(&fc->lock);
-	if (!WARN_ON(list_empty(&fi->write_files))) {
+	if (!list_empty(&fi->write_files)) {
 		ff = list_entry(fi->write_files.next, struct fuse_file,
 				write_entry);
 		fuse_file_get(ff);
@@ -1678,6 +1673,29 @@ static struct fuse_file *fuse_write_file_get(struct fuse_conn *fc,
 	spin_unlock(&fc->lock);
 
 	return ff;
+}
+
+static struct fuse_file *fuse_write_file_get(struct fuse_conn *fc,
+					     struct fuse_inode *fi)
+{
+	struct fuse_file *ff = __fuse_write_file_get(fc, fi);
+	WARN_ON(!ff);
+	return ff;
+}
+
+int fuse_write_inode(struct inode *inode, struct writeback_control *wbc)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_file *ff;
+	int err;
+
+	ff = __fuse_write_file_get(fc, fi);
+	err = fuse_flush_mtime(inode, ff);
+	if (ff)
+		fuse_file_put(ff, 0);
+
+	return err;
 }
 
 static int fuse_writepage_locked(struct page *page)

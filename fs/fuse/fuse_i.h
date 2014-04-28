@@ -119,8 +119,6 @@ enum {
 	FUSE_I_INIT_RDPLUS,
 	/** An operation changing file size is in progress  */
 	FUSE_I_SIZE_UNSTABLE,
-	/** i_mtime has been updated locally; a flush to userspace needed */
-	FUSE_I_MTIME_DIRTY,
 };
 
 struct fuse_conn;
@@ -891,7 +889,8 @@ int fuse_dev_release(struct inode *inode, struct file *file);
 
 bool fuse_write_update_size(struct inode *inode, loff_t pos);
 
-int fuse_flush_mtime(struct file *file, bool nofail);
+int fuse_flush_mtime(struct inode *inode, struct fuse_file *ff);
+int fuse_write_inode(struct inode *inode, struct writeback_control *wbc);
 
 int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 		    struct file *file);
