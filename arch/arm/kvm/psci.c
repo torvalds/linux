@@ -27,6 +27,16 @@
  * as described in ARM document number ARM DEN 0022A.
  */
 
+#define AFFINITY_MASK(level)	~((0x1UL << ((level) * MPIDR_LEVEL_BITS)) - 1)
+
+static unsigned long psci_affinity_mask(unsigned long affinity_level)
+{
+	if (affinity_level <= 3)
+		return MPIDR_HWID_BITMASK & AFFINITY_MASK(affinity_level);
+
+	return 0;
+}
+
 static void kvm_psci_vcpu_off(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.pause = true;
@@ -85,6 +95,42 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 	return PSCI_RET_SUCCESS;
 }
 
+static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
+{
+	int i;
+	unsigned long mpidr;
+	unsigned long target_affinity;
+	unsigned long target_affinity_mask;
+	unsigned long lowest_affinity_level;
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_vcpu *tmp;
+
+	target_affinity = *vcpu_reg(vcpu, 1);
+	lowest_affinity_level = *vcpu_reg(vcpu, 2);
+
+	/* Determine target affinity mask */
+	target_affinity_mask = psci_affinity_mask(lowest_affinity_level);
+	if (!target_affinity_mask)
+		return PSCI_RET_INVALID_PARAMS;
+
+	/* Ignore other bits of target affinity */
+	target_affinity &= target_affinity_mask;
+
+	/*
+	 * If one or more VCPU matching target affinity are running
+	 * then ON else OFF
+	 */
+	kvm_for_each_vcpu(i, tmp, kvm) {
+		mpidr = kvm_vcpu_get_mpidr(tmp);
+		if (((mpidr & target_affinity_mask) == target_affinity) &&
+		    !tmp->arch.pause) {
+			return PSCI_0_2_AFFINITY_LEVEL_ON;
+		}
+	}
+
+	return PSCI_0_2_AFFINITY_LEVEL_OFF;
+}
+
 static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type)
 {
 	memset(&vcpu->run->system_event, 0, sizeof(vcpu->run->system_event));
@@ -132,6 +178,10 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 	case PSCI_0_2_FN64_CPU_ON:
 		val = kvm_psci_vcpu_on(vcpu);
 		break;
+	case PSCI_0_2_FN_AFFINITY_INFO:
+	case PSCI_0_2_FN64_AFFINITY_INFO:
+		val = kvm_psci_vcpu_affinity_info(vcpu);
+		break;
 	case PSCI_0_2_FN_SYSTEM_OFF:
 		kvm_psci_system_off(vcpu);
 		/*
@@ -157,12 +207,10 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 		ret = 0;
 		break;
 	case PSCI_0_2_FN_CPU_SUSPEND:
-	case PSCI_0_2_FN_AFFINITY_INFO:
 	case PSCI_0_2_FN_MIGRATE:
 	case PSCI_0_2_FN_MIGRATE_INFO_TYPE:
 	case PSCI_0_2_FN_MIGRATE_INFO_UP_CPU:
 	case PSCI_0_2_FN64_CPU_SUSPEND:
-	case PSCI_0_2_FN64_AFFINITY_INFO:
 	case PSCI_0_2_FN64_MIGRATE:
 	case PSCI_0_2_FN64_MIGRATE_INFO_UP_CPU:
 		val = PSCI_RET_NOT_SUPPORTED;
