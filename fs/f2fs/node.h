@@ -272,7 +272,7 @@ static inline void set_nid(struct page *p, int off, nid_t nid, bool i)
 {
 	struct f2fs_node *rn = F2FS_NODE(p);
 
-	wait_on_page_writeback(p);
+	f2fs_wait_on_page_writeback(p, NODE);
 
 	if (i)
 		rn->i.i_nid[off - NODE_DIR1_BLOCK] = cpu_to_le32(nid);

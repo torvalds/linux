@@ -853,8 +853,7 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return ERR_PTR(-EPERM);
 
-	page = grab_cache_page_write_begin(NODE_MAPPING(sbi),
-					dn->nid, AOP_FLAG_NOFS);
+	page = grab_cache_page(NODE_MAPPING(sbi), dn->nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -871,6 +870,7 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	new_ni.ino = dn->inode->i_ino;
 	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
 
+	f2fs_wait_on_page_writeback(page, NODE);
 	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
 	set_cold_node(dn->inode, page);
 	SetPageUptodate(page);
@@ -950,8 +950,7 @@ struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 	struct page *page;
 	int err;
 repeat:
-	page = grab_cache_page_write_begin(NODE_MAPPING(sbi),
-					nid, AOP_FLAG_NOFS);
+	page = grab_cache_page(NODE_MAPPING(sbi), nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -1562,6 +1561,7 @@ static void recover_inline_xattr(struct inode *inode, struct page *page)
 	src_addr = inline_xattr_addr(page);
 	inline_size = inline_xattr_size(inode);
 
+	f2fs_wait_on_page_writeback(ipage, NODE);
 	memcpy(dst_addr, src_addr, inline_size);
 
 	update_inode(inode, ipage);

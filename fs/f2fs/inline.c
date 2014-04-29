@@ -156,6 +156,7 @@ int f2fs_write_inline_data(struct inode *inode,
 		return err;
 	ipage = dn.inode_page;
 
+	f2fs_wait_on_page_writeback(ipage, NODE);
 	zero_user_segment(ipage, INLINE_DATA_OFFSET,
 				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);
 	src_addr = kmap(page);
@@ -188,6 +189,8 @@ void truncate_inline_data(struct inode *inode, u64 from)
 	if (IS_ERR(ipage))
 		return;
 
+	f2fs_wait_on_page_writeback(ipage, NODE);
+
 	zero_user_segment(ipage, INLINE_DATA_OFFSET + from,
 				INLINE_DATA_OFFSET + MAX_INLINE_DATA);
 	set_page_dirty(ipage);
@@ -218,6 +221,8 @@ process_inline:
 		ipage = get_node_page(sbi, inode->i_ino);
 		f2fs_bug_on(IS_ERR(ipage));
 
+		f2fs_wait_on_page_writeback(ipage, NODE);
+
 		src_addr = inline_data_addr(npage);
 		dst_addr = inline_data_addr(ipage);
 		memcpy(dst_addr, src_addr, MAX_INLINE_DATA);
@@ -229,6 +234,7 @@ process_inline:
 	if (f2fs_has_inline_data(inode)) {
 		ipage = get_node_page(sbi, inode->i_ino);
 		f2fs_bug_on(IS_ERR(ipage));
+		f2fs_wait_on_page_writeback(ipage, NODE);
 		zero_user_segment(ipage, INLINE_DATA_OFFSET,
 				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);
 		clear_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
