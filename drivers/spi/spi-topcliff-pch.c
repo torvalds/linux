@@ -1578,14 +1578,11 @@ static int pch_spi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct pch_pd_dev_save *pd_dev_save;
 
 	pd_dev_save = kzalloc(sizeof(struct pch_pd_dev_save), GFP_KERNEL);
-	if (!pd_dev_save) {
-		dev_err(&pdev->dev, "%s Can't allocate pd_dev_sav\n", __func__);
+	if (!pd_dev_save)
 		return -ENOMEM;
-	}
 
 	board_dat = kzalloc(sizeof(struct pch_spi_board_data), GFP_KERNEL);
 	if (!board_dat) {
-		dev_err(&pdev->dev, "%s Can't allocate board_dat\n", __func__);
 		retval = -ENOMEM;
 		goto err_no_mem;
 	}
