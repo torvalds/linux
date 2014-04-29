@@ -751,26 +751,6 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 /* raw reads, only for fast reads of display block, no need for forcewake etc. */
 #define __raw_i915_read32(dev_priv__, reg__) readl((dev_priv__)->regs + (reg__))
 
-static bool ilk_pipe_in_vblank_locked(struct drm_device *dev, enum pipe pipe)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t status;
-	int reg;
-
-	if (INTEL_INFO(dev)->gen >= 8) {
-		status = GEN8_PIPE_VBLANK;
-		reg = GEN8_DE_PIPE_ISR(pipe);
-	} else if (INTEL_INFO(dev)->gen >= 7) {
-		status = DE_PIPE_VBLANK_IVB(pipe);
-		reg = DEISR;
-	} else {
-		status = DE_PIPE_VBLANK(pipe);
-		reg = DEISR;
-	}
-
-	return __raw_i915_read32(dev_priv, reg) & status;
-}
-
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 				    unsigned int flags, int *vpos, int *hpos,
 				    ktime_t *stime, ktime_t *etime)
@@ -780,7 +760,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	const struct drm_display_mode *mode = &intel_crtc->config.adjusted_mode;
 	int position;
-	int vbl_start, vbl_end, htotal, vtotal;
+	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
 	int ret = 0;
 	unsigned long irqflags;
@@ -792,6 +772,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	}
 
 	htotal = mode->crtc_htotal;
+	hsync_start = mode->crtc_hsync_start;
 	vtotal = mode->crtc_vtotal;
 	vbl_start = mode->crtc_vblank_start;
 	vbl_end = mode->crtc_vblank_end;
@@ -810,7 +791,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	 * following code must not block on uncore.lock.
 	 */
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-	
+
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
 	/* Get optional system timestamp before query. */
@@ -826,63 +807,15 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		else
 			position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
-		if (HAS_DDI(dev)) {
-			/*
-			 * On HSW HDMI outputs there seems to be a 2 line
-			 * difference, whereas eDP has the normal 1 line
-			 * difference that earlier platforms have. External
-			 * DP is unknown. For now just check for the 2 line
-			 * difference case on all output types on HSW+.
-			 *
-			 * This might misinterpret the scanline counter being
-			 * one line too far along on eDP, but that's less
-			 * dangerous than the alternative since that would lead
-			 * the vblank timestamp code astray when it sees a
-			 * scanline count before vblank_start during a vblank
-			 * interrupt.
-			 */
-			in_vbl = ilk_pipe_in_vblank_locked(dev, pipe);
-			if ((in_vbl && (position == vbl_start - 2 ||
-					position == vbl_start - 1)) ||
-			    (!in_vbl && (position == vbl_end - 2 ||
-					 position == vbl_end - 1)))
-				position = (position + 2) % vtotal;
-		} else if (HAS_PCH_SPLIT(dev)) {
-			/*
-			 * The scanline counter increments at the leading edge
-			 * of hsync, ie. it completely misses the active portion
-			 * of the line. Fix up the counter at both edges of vblank
-			 * to get a more accurate picture whether we're in vblank
-			 * or not.
-			 */
-			in_vbl = ilk_pipe_in_vblank_locked(dev, pipe);
-			if ((in_vbl && position == vbl_start - 1) ||
-			    (!in_vbl && position == vbl_end - 1))
-				position = (position + 1) % vtotal;
-		} else {
-			/*
-			 * ISR vblank status bits don't work the way we'd want
-			 * them to work on non-PCH platforms (for
-			 * ilk_pipe_in_vblank_locked()), and there doesn't
-			 * appear any other way to determine if we're currently
-			 * in vblank.
-			 *
-			 * Instead let's assume that we're already in vblank if
-			 * we got called from the vblank interrupt and the
-			 * scanline counter value indicates that we're on the
-			 * line just prior to vblank start. This should result
-			 * in the correct answer, unless the vblank interrupt
-			 * delivery really got delayed for almost exactly one
-			 * full frame/field.
-			 */
-			if (flags & DRM_CALLED_FROM_VBLIRQ &&
-			    position == vbl_start - 1) {
-				position = (position + 1) % vtotal;
-
-				/* Signal this correction as "applied". */
-				ret |= 0x8;
-			}
-		}
+		/*
+		 * Scanline counter increments at leading edge of hsync, and
+		 * it starts counting from vtotal-1 on the first active line.
+		 * That means the scanline counter value is always one less
+		 * than what we would expect. Ie. just after start of vblank,
+		 * which also occurs at start of hsync (on the last active line),
+		 * the scanline counter will read vblank_start-1.
+		 */
+		position = (position + 1) % vtotal;
 	} else {
 		/* Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
@@ -894,6 +827,17 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		vbl_start *= htotal;
 		vbl_end *= htotal;
 		vtotal *= htotal;
+
+		/*
+		 * Start of vblank interrupt is triggered at start of hsync,
+		 * just prior to the first active line of vblank. However we
+		 * consider lines to start at the leading edge of horizontal
+		 * active. So, should we get here before we've crossed into
+		 * the horizontal active of the first line in vblank, we would
+		 * not set the DRM_SCANOUTPOS_INVBL flag. In order to fix that,
+		 * always add htotal-hsync_start to the current pixel position.
+		 */
+		position = (position + htotal - hsync_start) % vtotal;
 	}
 
 	/* Get optional system timestamp after query. */
