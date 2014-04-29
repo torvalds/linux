@@ -48,6 +48,25 @@ static int read_sr(struct spi_nor *nor)
 }
 
 /*
+ * Read the flag status register, returning its value in the location
+ * Return the status register value.
+ * Returns negative if error occurred.
+ */
+static int read_fsr(struct spi_nor *nor)
+{
+	int ret;
+	u8 val;
+
+	ret = nor->read_reg(nor, SPINOR_OP_RDFSR, &val, 1);
+	if (ret < 0) {
+		pr_err("error %d reading FSR\n", ret);
+		return ret;
+	}
+
+	return val;
+}
+
+/*
  * Read configuration register, returning its value in the
  * location. Return the configuration register value.
  * Returns negative if error occured.
@@ -160,6 +179,32 @@ static int spi_nor_wait_till_ready(struct spi_nor *nor)
 			break;
 		else if (!(sr & SR_WIP))
 			return 0;
+	} while (!time_after_eq(jiffies, deadline));
+
+	return -ETIMEDOUT;
+}
+
+static int spi_nor_wait_till_fsr_ready(struct spi_nor *nor)
+{
+	unsigned long deadline;
+	int sr;
+	int fsr;
+
+	deadline = jiffies + MAX_READY_WAIT_JIFFIES;
+
+	do {
+		cond_resched();
+
+		sr = read_sr(nor);
+		if (sr < 0) {
+			break;
+		} else if (!(sr & SR_WIP)) {
+			fsr = read_fsr(nor);
+			if (fsr < 0)
+				break;
+			if (fsr & FSR_READY)
+				return 0;
+		}
 	} while (!time_after_eq(jiffies, deadline));
 
 	return -ETIMEDOUT;
@@ -402,6 +447,7 @@ struct flash_info {
 #define	SECT_4K_PMC		0x10	/* SPINOR_OP_BE_4K_PMC works uniformly */
 #define	SPI_NOR_DUAL_READ	0x20    /* Flash supports Dual Read */
 #define	SPI_NOR_QUAD_READ	0x40    /* Flash supports Quad Read */
+#define	USE_FSR			0x80	/* use flag status register */
 };
 
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
@@ -488,6 +534,8 @@ const struct spi_device_id spi_nor_ids[] = {
 	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024,  256, 0) },
 	{ "n25q256a",    INFO(0x20ba19, 0, 64 * 1024,  512, SECT_4K) },
 	{ "n25q512a",    INFO(0x20bb20, 0, 64 * 1024, 1024, SECT_4K) },
+	{ "n25q512ax3",  INFO(0x20ba20, 0, 64 * 1024, 1024, USE_FSR) },
+	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, USE_FSR) },
 
 	/* PMC */
 	{ "pm25lv512",   INFO(0,        0, 32 * 1024,    2, SECT_4K_PMC) },
@@ -964,6 +1012,10 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 		mtd->_write = sst_write;
 	else
 		mtd->_write = spi_nor_write;
+
+	if ((info->flags & USE_FSR) &&
+	    nor->wait_till_ready == spi_nor_wait_till_ready)
+		nor->wait_till_ready = spi_nor_wait_till_fsr_ready;
 
 	/* prefer "small sector" erase if possible */
 	if (info->flags & SECT_4K) {
