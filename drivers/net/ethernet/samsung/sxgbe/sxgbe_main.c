@@ -2070,6 +2070,24 @@ static int sxgbe_hw_init(struct sxgbe_priv_data * const priv)
 	return 0;
 }
 
+static int sxgbe_sw_reset(void __iomem *addr)
+{
+	int retry_count = 10;
+
+	writel(SXGBE_DMA_SOFT_RESET, addr + SXGBE_DMA_MODE_REG);
+	while (retry_count--) {
+		if (!(readl(addr + SXGBE_DMA_MODE_REG) &
+		      SXGBE_DMA_SOFT_RESET))
+			break;
+		mdelay(10);
+	}
+
+	if (retry_count < 0)
+		return -EBUSY;
+
+	return 0;
+}
+
 /**
  * sxgbe_drv_probe
  * @device: device pointer
@@ -2101,6 +2119,10 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 	sxgbe_set_ethtool_ops(ndev);
 	priv->plat = plat_dat;
 	priv->ioaddr = addr;
+
+	ret = sxgbe_sw_reset(priv->ioaddr);
+	if (ret)
+		goto error_free_netdev;
 
 	/* Verify driver arguments */
 	sxgbe_verify_args();
