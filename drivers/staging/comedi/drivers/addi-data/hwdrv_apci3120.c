@@ -1106,6 +1106,7 @@ static int apci3120_cyclic_ai(int mode,
 		}
 	} else {
 		/* If DMA Enabled */
+		unsigned int scan_bytes = cmd->scan_end_arg * sizeof(short);
 
 		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
 		/* inw(dev->iobase+0); reset EOC bit */
@@ -1125,27 +1126,27 @@ static int apci3120_cyclic_ai(int mode,
 		dmalen1 = devpriv->ui_DmaBufferSize[1];
 
 		if (!devpriv->b_AiContinuous) {
-
-			if (dmalen0 > (devpriv->ui_AiNbrofScans * devpriv->ui_AiScanLength * 2)) {	/*  must we fill full first buffer? */
-				dmalen0 =
-					devpriv->ui_AiNbrofScans *
-					devpriv->ui_AiScanLength * 2;
-			} else if (dmalen1 > (devpriv->ui_AiNbrofScans * devpriv->ui_AiScanLength * 2 - dmalen0))	/*  and must we fill full second buffer when first is once filled? */
-				dmalen1 =
-					devpriv->ui_AiNbrofScans *
-					devpriv->ui_AiScanLength * 2 - dmalen0;
+			/*
+			 * Must we fill full first buffer? And must we fill
+			 * full second buffer when first is once filled?
+			 */
+			if (dmalen0 > (devpriv->ui_AiNbrofScans * scan_bytes)) {
+				dmalen0 = devpriv->ui_AiNbrofScans * scan_bytes;
+			} else if (dmalen1 > (devpriv->ui_AiNbrofScans * scan_bytes - dmalen0))
+				dmalen1 = devpriv->ui_AiNbrofScans *
+					  scan_bytes - dmalen0;
 		}
 
 		if (cmd->flags & TRIG_WAKE_EOS) {
 			/*  don't we want wake up every scan? */
-			if (dmalen0 > (devpriv->ui_AiScanLength * 2)) {
-				dmalen0 = devpriv->ui_AiScanLength * 2;
-				if (devpriv->ui_AiScanLength & 1)
+			if (dmalen0 > scan_bytes) {
+				dmalen0 = scan_bytes;
+				if (cmd->scan_end_arg & 1)
 					dmalen0 += 2;
 			}
-			if (dmalen1 > (devpriv->ui_AiScanLength * 2)) {
-				dmalen1 = devpriv->ui_AiScanLength * 2;
-				if (devpriv->ui_AiScanLength & 1)
+			if (dmalen1 > scan_bytes) {
+				dmalen1 = scan_bytes;
+				if (cmd->scan_end_arg & 1)
 					dmalen1 -= 2;
 				if (dmalen1 < 4)
 					dmalen1 = 4;
@@ -1337,7 +1338,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 
 	/* loading private structure with cmd structure inputs */
 	devpriv->ui_AiNbrofChannels = cmd->chanlist_len;
-	devpriv->ui_AiScanLength = cmd->scan_end_arg;
 	devpriv->pui_AiChannelList = cmd->chanlist;
 
 	/* UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len; */
@@ -1390,11 +1390,12 @@ static void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 						  unsigned int num_samples)
 {
 	struct addi_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	devpriv->ui_AiActualScan +=
-		(s->async->cur_chan + num_samples) / devpriv->ui_AiScanLength;
+		(s->async->cur_chan + num_samples) / cmd->scan_end_arg;
 	s->async->cur_chan += num_samples;
-	s->async->cur_chan %= devpriv->ui_AiScanLength;
+	s->async->cur_chan %= cmd->scan_end_arg;
 
 	cfc_write_array_to_buffer(s, dma_buffer, num_samples * sizeof(short));
 }
