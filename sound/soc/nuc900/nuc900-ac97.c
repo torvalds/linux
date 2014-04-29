@@ -28,6 +28,7 @@
 
 static DEFINE_MUTEX(ac97_mutex);
 struct nuc900_audio *nuc900_ac97_data;
+EXPORT_SYMBOL_GPL(nuc900_ac97_data);
 
 static int nuc900_checkready(void)
 {

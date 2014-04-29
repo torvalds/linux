@@ -4,6 +4,7 @@
 config SND_SOC_NUC900
 	tristate "SoC Audio for NUC900 series"
 	depends on ARCH_W90X900
+	select SND_SOC_NUC900_AC97
 	help
 	  This option enables support for AC97 mode on the NUC900 SoC.
 
