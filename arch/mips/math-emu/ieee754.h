@@ -133,10 +133,6 @@ enum {
 #define IEEE754_RD	2	/* round toward -Infinity */
 #define IEEE754_RU	3	/* round toward +Infinity */
 
-/* other naming */
-#define IEEE754_RM	IEEE754_RD
-#define IEEE754_RP	IEEE754_RU
-
 /* "normal" comparisons
 */
 static inline int ieee754sp_eq(union ieee754sp x, union ieee754sp y)

@@ -139,7 +139,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 		oldcsr.sx |= IEEE754_INEXACT;
 
 		switch (oldcsr.rm) {
-		case IEEE754_RP:
+		case IEEE754_RU:
 			y.bits += 1;
 			/* drop through */
 		case IEEE754_RN:

@@ -100,7 +100,7 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 	if (ix != 0) {
 		ieee754_setcx(IEEE754_INEXACT);
 		switch (ieee754_csr.rm) {
-		case IEEE754_RP:
+		case IEEE754_RU:
 			q += 2;
 			break;
 		case IEEE754_RN:
