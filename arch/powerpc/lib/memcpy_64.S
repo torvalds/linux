@@ -12,12 +12,27 @@
 	.align	7
 _GLOBAL(memcpy)
 BEGIN_FTR_SECTION
+#ifdef __LITTLE_ENDIAN__
+	cmpdi	cr7,r5,0
+#else
 	std	r3,48(r1)	/* save destination pointer for return value */
+#endif
 FTR_SECTION_ELSE
 #ifndef SELFTEST
 	b	memcpy_power7
 #endif
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
+#ifdef __LITTLE_ENDIAN__
+	/* dumb little-endian memcpy that will get replaced at runtime */
+	addi r9,r3,-1
+	addi r4,r4,-1
+	beqlr cr7
+	mtctr r5
+1:	lbzu r10,1(r4)
+	stbu r10,1(r9)
+	bdnz 1b
+	blr
+#else
 	PPC_MTOCRF(0x01,r5)
 	cmpldi	cr1,r5,16
 	neg	r6,r3		# LS 3 bits = # bytes to 8-byte dest bdry
@@ -203,3 +218,4 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 	stb	r0,0(r3)
 4:	ld	r3,48(r1)	/* return dest pointer */
 	blr
+#endif
