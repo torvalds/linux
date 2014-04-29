@@ -328,9 +328,11 @@ static void mvebu_pcie_add_windows(struct mvebu_pcie_port *port,
 		ret = mvebu_mbus_add_window_remap_by_id(target, attribute, base,
 							sz, remap);
 		if (ret) {
+			phys_addr_t end = base + sz - 1;
+
 			dev_err(&port->pcie->pdev->dev,
-				"Could not create MBus window at 0x%x, size 0x%x: %d\n",
-				base, sz, ret);
+				"Could not create MBus window at [mem %pa-%pa]: %d\n",
+				&base, &end, ret);
 			mvebu_pcie_del_windows(port, base - size_mapped,
 					       size_mapped);
 			return;
