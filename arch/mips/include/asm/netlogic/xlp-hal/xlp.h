@@ -99,7 +99,7 @@ void *xlp_dt_init(void *fdtp);
 
 static inline int cpu_is_xlpii(void)
 {
-	int chip = read_c0_prid() & 0xff00;
+	int chip = read_c0_prid() & PRID_IMP_MASK;
 
 	return chip == PRID_IMP_NETLOGIC_XLP2XX ||
 		chip == PRID_IMP_NETLOGIC_XLP9XX;
@@ -107,7 +107,7 @@ static inline int cpu_is_xlpii(void)
 
 static inline int cpu_is_xlp9xx(void)
 {
-	int chip = read_c0_prid() & 0xff00;
+	int chip = read_c0_prid() & PRID_IMP_MASK;
 
 	return chip == PRID_IMP_NETLOGIC_XLP9XX;
 }

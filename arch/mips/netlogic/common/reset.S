@@ -35,6 +35,7 @@
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/cpu.h>
 #include <asm/cacheops.h>
 #include <asm/regdef.h>
 #include <asm/mipsregs.h>
@@ -92,7 +93,7 @@
  */
 .macro	xlp_flush_l1_dcache
 	mfc0	t0, CP0_EBASE, 0
-	andi	t0, t0, 0xff00
+	andi	t0, t0, PRID_IMP_MASK
 	slt	t1, t0, 0x1200
 	beqz	t1, 15f
 	nop
@@ -171,7 +172,7 @@ FEXPORT(nlm_reset_entry)
 
 1:	/* Entry point on core wakeup */
 	mfc0	t0, CP0_EBASE, 0	/* processor ID */
-	andi	t0, 0xff00
+	andi	t0, PRID_IMP_MASK
 	li	t1, 0x1500		/* XLP 9xx */
 	beq	t0, t1, 2f		/* does not need to set coherent */
 	nop

@@ -139,7 +139,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		} else {
 			fusemask = nlm_read_sys_reg(nodep->sysbase,
 						SYS_EFUSE_DEVICE_CFG_STATUS0);
-			switch (read_c0_prid() & 0xff00) {
+			switch (read_c0_prid() & PRID_IMP_MASK) {
 			case PRID_IMP_NETLOGIC_XLP3XX:
 				mask = 0xf;
 				break;
