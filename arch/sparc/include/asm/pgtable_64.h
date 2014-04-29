@@ -916,7 +916,7 @@ static inline bool kern_addr_valid(unsigned long addr)
 {
 	unsigned long paddr = __pa(addr);
 
-	if ((paddr >> 41UL) != 0UL)
+	if ((paddr >> MAX_PHYS_ADDRESS_BITS) != 0UL)
 		return false;
 	return test_bit(paddr >> 22, sparc64_valid_addr_bitmap);
 }
