@@ -6,15 +6,6 @@ menu "USB Physical Layer drivers"
 config USB_PHY
 	def_bool n
 
-config USB_OTG_FSM
-	tristate "USB 2.0 OTG FSM implementation"
-	depends on USB
-	select USB_OTG
-	select USB_PHY
-	help
-	  Implements OTG Final State Machine as specified in On-The-Go
-	  and Embedded Host Supplement to the USB Revision 2.0 Specification.
-
 #
 # USB Transceiver Drivers
 #
