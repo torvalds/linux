@@ -124,11 +124,19 @@ extern void secondary_startup(void);
 
 static void __init rk3288_dt_map_io(void)
 {
+	u32 v;
+
+	rockchip_soc_id = ROCKCHIP_SOC_RK3288;
+
 	iotable_init(rk3288_io_desc, ARRAY_SIZE(rk3288_io_desc));
 	debug_ll_io_init();
 	usb_uart_init();
 
-	rockchip_soc_id = ROCKCHIP_SOC_RK3288;
+	/* pmu reset by second global soft reset */
+	v = readl_relaxed(RK_CRU_VIRT + RK3288_CRU_GLB_RST_CON);
+	v &= ~(3 << 2);
+	v |= 1 << 2;
+	writel_relaxed(v, RK_CRU_VIRT + RK3288_CRU_GLB_RST_CON);
 
 	/* rkpwm is used instead of old pwm */
 	writel_relaxed(0x00010001, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
