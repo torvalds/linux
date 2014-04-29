@@ -132,7 +132,10 @@ boot_args=$6
 
 cd $KVM
 kstarttime=`awk 'BEGIN { print systime() }' < /dev/null`
-echo ' ---' `date`: Starting kernel
+if test -z "$TORTURE_BUILDONLY"
+then
+	echo ' ---' `date`: Starting kernel
+fi
 
 # Generate -smp qemu argument.
 qemu_args="-nographic $qemu_args"
@@ -158,12 +161,13 @@ boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
 # Generate kernel-version-specific boot parameters
 boot_args="`per_version_boot_params "$boot_args" $builddir/.config $seconds`"
 
-echo $QEMU $qemu_args -m 512 -kernel $builddir/$BOOT_IMAGE -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
 if test -n "$TORTURE_BUILDONLY"
 then
 	echo Build-only run specified, boot/test omitted.
+	touch $resdir/buildonly
 	exit 0
 fi
+echo $QEMU $qemu_args -m 512 -kernel $builddir/$BOOT_IMAGE -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
 ( $QEMU $qemu_args -m 512 -kernel $builddir/$BOOT_IMAGE -append "$qemu_append $boot_args"; echo $? > $resdir/qemu-retval ) &
 qemu_pid=$!
 commandcompleted=0
