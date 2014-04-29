@@ -637,6 +637,15 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		case KVM_REG_PPC_TAR:
 			val = get_reg_val(reg->id, vcpu->arch.tar);
 			break;
+		case KVM_REG_PPC_EBBHR:
+			val = get_reg_val(reg->id, vcpu->arch.ebbhr);
+			break;
+		case KVM_REG_PPC_EBBRR:
+			val = get_reg_val(reg->id, vcpu->arch.ebbrr);
+			break;
+		case KVM_REG_PPC_BESCR:
+			val = get_reg_val(reg->id, vcpu->arch.bescr);
+			break;
 		default:
 			r = -EINVAL;
 			break;
@@ -731,6 +740,15 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			break;
 		case KVM_REG_PPC_TAR:
 			vcpu->arch.tar = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_EBBHR:
+			vcpu->arch.ebbhr = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_EBBRR:
+			vcpu->arch.ebbrr = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_BESCR:
+			vcpu->arch.bescr = set_reg_val(reg->id, val);
 			break;
 		default:
 			r = -EINVAL;
