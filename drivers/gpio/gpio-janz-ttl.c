@@ -158,7 +158,6 @@ static int ttl_probe(struct platform_device *pdev)
 
 	mod = kzalloc(sizeof(*mod), GFP_KERNEL);
 	if (!mod) {
-		dev_err(dev, "unable to allocate private data\n");
 		ret = -ENOMEM;
 		goto out_return;
 	}
