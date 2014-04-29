@@ -438,6 +438,9 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_GQR7:
 		to_book3s(vcpu)->gqr[sprn - SPRN_GQR0] = spr_val;
 		break;
+	case SPRN_FSCR:
+		vcpu->arch.fscr = spr_val;
+		break;
 	case SPRN_ICTC:
 	case SPRN_THRM1:
 	case SPRN_THRM2:
@@ -544,6 +547,9 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_GQR6:
 	case SPRN_GQR7:
 		*spr_val = to_book3s(vcpu)->gqr[sprn - SPRN_GQR0];
+		break;
+	case SPRN_FSCR:
+		*spr_val = vcpu->arch.fscr;
 		break;
 	case SPRN_THRM1:
 	case SPRN_THRM2:

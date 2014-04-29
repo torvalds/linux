@@ -145,6 +145,7 @@ static int kvmppc_book3s_vec2irqprio(unsigned int vec)
 	case 0xd00: prio = BOOK3S_IRQPRIO_DEBUG;		break;
 	case 0xf20: prio = BOOK3S_IRQPRIO_ALTIVEC;		break;
 	case 0xf40: prio = BOOK3S_IRQPRIO_VSX;			break;
+	case 0xf60: prio = BOOK3S_IRQPRIO_FAC_UNAVAIL;		break;
 	default:    prio = BOOK3S_IRQPRIO_MAX;			break;
 	}
 
@@ -274,6 +275,9 @@ int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 		break;
 	case BOOK3S_IRQPRIO_PERFORMANCE_MONITOR:
 		vec = BOOK3S_INTERRUPT_PERFMON;
+		break;
+	case BOOK3S_IRQPRIO_FAC_UNAVAIL:
+		vec = BOOK3S_INTERRUPT_FAC_UNAVAIL;
 		break;
 	default:
 		deliver = 0;
@@ -627,6 +631,9 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			val = get_reg_val(reg->id, kvmppc_xics_get_icp(vcpu));
 			break;
 #endif /* CONFIG_KVM_XICS */
+		case KVM_REG_PPC_FSCR:
+			val = get_reg_val(reg->id, vcpu->arch.fscr);
+			break;
 		default:
 			r = -EINVAL;
 			break;
@@ -716,6 +723,9 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 						set_reg_val(reg->id, val));
 			break;
 #endif /* CONFIG_KVM_XICS */
+		case KVM_REG_PPC_FSCR:
+			vcpu->arch.fscr = set_reg_val(reg->id, val);
+			break;
 		default:
 			r = -EINVAL;
 			break;

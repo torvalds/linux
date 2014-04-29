@@ -104,6 +104,7 @@ struct kvmppc_host_state {
 #ifdef CONFIG_PPC_BOOK3S_64
 	u64 cfar;
 	u64 ppr;
+	u64 host_fscr;
 #endif
 };
 
@@ -133,6 +134,7 @@ struct kvmppc_book3s_shadow_vcpu {
 		u64     esid;
 		u64     vsid;
 	} slb[64];			/* guest SLB */
+	u64 shadow_fscr;
 #endif
 };
 

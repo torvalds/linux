@@ -475,6 +475,7 @@ struct kvm_vcpu_arch {
 	ulong ppr;
 	ulong pspb;
 	ulong fscr;
+	ulong shadow_fscr;
 	ulong ebbhr;
 	ulong ebbrr;
 	ulong bescr;

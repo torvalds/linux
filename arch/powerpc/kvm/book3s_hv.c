@@ -879,9 +879,6 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_IAMR:
 		*val = get_reg_val(id, vcpu->arch.iamr);
 		break;
-	case KVM_REG_PPC_FSCR:
-		*val = get_reg_val(id, vcpu->arch.fscr);
-		break;
 	case KVM_REG_PPC_PSPB:
 		*val = get_reg_val(id, vcpu->arch.pspb);
 		break;
@@ -1090,9 +1087,6 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		break;
 	case KVM_REG_PPC_IAMR:
 		vcpu->arch.iamr = set_reg_val(id, *val);
-		break;
-	case KVM_REG_PPC_FSCR:
-		vcpu->arch.fscr = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_PSPB:
 		vcpu->arch.pspb = set_reg_val(id, *val);
