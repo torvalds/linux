@@ -240,13 +240,13 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_SOC_DRA7XX
-static const char *dra7xx_boards_compat[] __initconst = {
-	"ti,dra7xx",
+static const char *dra74x_boards_compat[] __initconst = {
+	"ti,dra742",
 	"ti,dra7",
 	NULL,
 };
 
-DT_MACHINE_START(DRA7XX_DT, "Generic DRA7XX (Flattened Device Tree)")
+DT_MACHINE_START(DRA74X_DT, "Generic DRA74X (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.smp		= smp_ops(omap4_smp_ops),
 	.map_io		= omap5_map_io,
@@ -255,7 +255,24 @@ DT_MACHINE_START(DRA7XX_DT, "Generic DRA7XX (Flattened Device Tree)")
 	.init_irq	= omap_gic_of_init,
 	.init_machine	= omap_generic_init,
 	.init_time	= omap5_realtime_timer_init,
-	.dt_compat	= dra7xx_boards_compat,
+	.dt_compat	= dra74x_boards_compat,
+	.restart	= omap44xx_restart,
+MACHINE_END
+
+static const char *dra72x_boards_compat[] __initconst = {
+	"ti,dra722",
+	NULL,
+};
+
+DT_MACHINE_START(DRA72X_DT, "Generic DRA72X (Flattened Device Tree)")
+	.reserve	= omap_reserve,
+	.map_io		= omap5_map_io,
+	.init_early	= dra7xx_init_early,
+	.init_late	= dra7xx_init_late,
+	.init_irq	= omap_gic_of_init,
+	.init_machine	= omap_generic_init,
+	.init_time	= omap5_realtime_timer_init,
+	.dt_compat	= dra72x_boards_compat,
 	.restart	= omap44xx_restart,
 MACHINE_END
 #endif
