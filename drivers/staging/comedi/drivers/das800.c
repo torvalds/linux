@@ -275,19 +275,15 @@ static void das800_disable(struct comedi_device *dev)
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
-static int das800_set_frequency(struct comedi_device *dev)
+static void das800_set_frequency(struct comedi_device *dev)
 {
 	struct das800_private *devpriv = dev->private;
-	int err = 0;
+	unsigned long timer_base = dev->iobase + DAS800_8254;
 
-	if (i8254_load(dev->iobase + DAS800_8254, 0, 1, devpriv->divisor1, 2))
-		err++;
-	if (i8254_load(dev->iobase + DAS800_8254, 0, 2, devpriv->divisor2, 2))
-		err++;
-	if (err)
-		return -1;
-
-	return 0;
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
 }
 
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -448,10 +444,7 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	if (async->cmd.convert_src == TRIG_TIMER) {
 		conv_bits |= CASC | ITE;
 		/* set conversion frequency */
-		if (das800_set_frequency(dev) < 0) {
-			comedi_error(dev, "Error setting up counters");
-			return -1;
-		}
+		das800_set_frequency(dev);
 	}
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
