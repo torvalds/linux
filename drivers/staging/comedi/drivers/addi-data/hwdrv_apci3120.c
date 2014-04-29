@@ -613,7 +613,6 @@ static int apci3120_reset(struct comedi_device *dev)
 	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 	devpriv->ui_EocEosConversionTime = 0;	/*  set eoc eos conv time to 0 */
-	devpriv->b_OutputMemoryStatus = 0;
 
 	/*  variables used in timer subdevice */
 	devpriv->b_Timer2Mode = 0;
