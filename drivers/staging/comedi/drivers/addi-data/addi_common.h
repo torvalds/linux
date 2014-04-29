@@ -121,7 +121,6 @@ struct addi_private {
 	unsigned char b_AiContinuous;	/*  we do unlimited AI */
 	unsigned int ui_AiActualScan;	/* how many scans we finished */
 	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
-	unsigned int *pui_AiChannelList;	/*  actual chanlist */
 	unsigned int ui_AiChannelList[32];	/*  actual chanlist */
 	unsigned int ui_AiReadData[32];
 	unsigned int ui_AiTimer0;	/* Timer Constant for Timer0 */

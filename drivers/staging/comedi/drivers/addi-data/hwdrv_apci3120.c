@@ -901,7 +901,7 @@ static int apci3120_cyclic_ai(int mode,
 	/* Initializes the sequence array */
    /**********************************/
 	if (!apci3120_setup_chan_list(dev, s, devpriv->ui_AiNbrofChannels,
-			devpriv->pui_AiChannelList, 0))
+			cmd->chanlist, 0))
 		return -EINVAL;
 
 	us_TmpValue = (unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
@@ -1338,7 +1338,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 
 	/* loading private structure with cmd structure inputs */
 	devpriv->ui_AiNbrofChannels = cmd->chanlist_len;
-	devpriv->pui_AiChannelList = cmd->chanlist;
 
 	/* UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len; */
 	devpriv->ui_AiDataLength = s->async->prealloc_bufsz;
