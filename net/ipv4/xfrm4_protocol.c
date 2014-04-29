@@ -50,8 +50,12 @@ int xfrm4_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
 {
 	int ret;
 	struct xfrm4_protocol *handler;
+	struct xfrm4_protocol __rcu **head = proto_handlers(protocol);
 
-	for_each_protocol_rcu(*proto_handlers(protocol), handler)
+	if (!head)
+		return 0;
+
+	for_each_protocol_rcu(*head, handler)
 		if ((ret = handler->cb_handler(skb, err)) <= 0)
 			return ret;
 
@@ -64,15 +68,20 @@ int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
 {
 	int ret;
 	struct xfrm4_protocol *handler;
+	struct xfrm4_protocol __rcu **head = proto_handlers(nexthdr);
 
 	XFRM_TUNNEL_SKB_CB(skb)->tunnel.ip4 = NULL;
 	XFRM_SPI_SKB_CB(skb)->family = AF_INET;
 	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct iphdr, daddr);
 
-	for_each_protocol_rcu(*proto_handlers(nexthdr), handler)
+	if (!head)
+		goto out;
+
+	for_each_protocol_rcu(*head, handler)
 		if ((ret = handler->input_handler(skb, nexthdr, spi, encap_type)) != -EINVAL)
 			return ret;
 
+out:
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
 	kfree_skb(skb);
@@ -208,6 +217,9 @@ int xfrm4_protocol_register(struct xfrm4_protocol *handler,
 	int ret = -EEXIST;
 	int priority = handler->priority;
 
+	if (!proto_handlers(protocol) || !netproto(protocol))
+		return -EINVAL;
+
 	mutex_lock(&xfrm4_protocol_mutex);
 
 	if (!rcu_dereference_protected(*proto_handlers(protocol),
@@ -249,6 +261,9 @@ int xfrm4_protocol_deregister(struct xfrm4_protocol *handler,
 	struct xfrm4_protocol __rcu **pprev;
 	struct xfrm4_protocol *t;
 	int ret = -ENOENT;
+
+	if (!proto_handlers(protocol) || !netproto(protocol))
+		return -EINVAL;
 
 	mutex_lock(&xfrm4_protocol_mutex);
 
