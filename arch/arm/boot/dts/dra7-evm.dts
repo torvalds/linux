@@ -7,11 +7,11 @@
  */
 /dts-v1/;
 
-#include "dra7.dtsi"
+#include "dra74x.dtsi"
 
 / {
-	model = "TI DRA7";
-	compatible = "ti,dra7-evm", "ti,dra7";
+	model = "TI DRA742";
+	compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7";
 
 	memory {
 		device_type = "memory";
