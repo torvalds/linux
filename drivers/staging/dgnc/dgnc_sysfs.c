@@ -739,7 +739,7 @@ void dgnc_create_tty_sysfs(struct un_t *un, struct device *c)
 
 	ret = sysfs_create_group(&c->kobj, &dgnc_tty_attribute_group);
 	if (ret) {
-		printk(KERN_ERR "dgnc: failed to create sysfs tty device attributes.\n");
+		dev_err(c, "dgnc: failed to create sysfs tty device attributes.\n");
 		sysfs_remove_group(&c->kobj, &dgnc_tty_attribute_group);
 		return;
 	}
