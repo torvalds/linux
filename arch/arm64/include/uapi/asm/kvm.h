@@ -31,6 +31,7 @@
 #define KVM_NR_SPSR	5
 
 #ifndef __ASSEMBLY__
+#include <linux/psci.h>
 #include <asm/types.h>
 #include <asm/ptrace.h>
 
@@ -77,6 +78,7 @@ struct kvm_regs {
 
 #define KVM_ARM_VCPU_POWER_OFF		0 /* CPU is started in OFF state */
 #define KVM_ARM_VCPU_EL1_32BIT		1 /* CPU running a 32bit VM */
+#define KVM_ARM_VCPU_PSCI_0_2		2 /* CPU uses PSCI v0.2 */
 
 struct kvm_vcpu_init {
 	__u32 target;
@@ -186,10 +188,10 @@ struct kvm_arch_memory_slot {
 #define KVM_PSCI_FN_CPU_ON		KVM_PSCI_FN(2)
 #define KVM_PSCI_FN_MIGRATE		KVM_PSCI_FN(3)
 
-#define KVM_PSCI_RET_SUCCESS		0
-#define KVM_PSCI_RET_NI			((unsigned long)-1)
-#define KVM_PSCI_RET_INVAL		((unsigned long)-2)
-#define KVM_PSCI_RET_DENIED		((unsigned long)-3)
+#define KVM_PSCI_RET_SUCCESS		PSCI_RET_SUCCESS
+#define KVM_PSCI_RET_NI			PSCI_RET_NOT_SUPPORTED
+#define KVM_PSCI_RET_INVAL		PSCI_RET_INVALID_PARAMS
+#define KVM_PSCI_RET_DENIED		PSCI_RET_DENIED
 
 #endif
 
