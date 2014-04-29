@@ -751,6 +751,34 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 /* raw reads, only for fast reads of display block, no need for forcewake etc. */
 #define __raw_i915_read32(dev_priv__, reg__) readl((dev_priv__)->regs + (reg__))
 
+static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct drm_display_mode *mode = &crtc->config.adjusted_mode;
+	enum pipe pipe = crtc->pipe;
+	int vtotal = mode->crtc_vtotal;
+	int position;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vtotal /= 2;
+
+	if (IS_GEN2(dev))
+		position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
+	else
+		position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
+
+	/*
+	 * Scanline counter increments at leading edge of hsync, and
+	 * it starts counting from vtotal-1 on the first active line.
+	 * That means the scanline counter value is always one less
+	 * than what we would expect. Ie. just after start of vblank,
+	 * which also occurs at start of hsync (on the last active line),
+	 * the scanline counter will read vblank_start-1.
+	 */
+	return (position + 1) % vtotal;
+}
+
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 				    unsigned int flags, int *vpos, int *hpos,
 				    ktime_t *stime, ktime_t *etime)
@@ -802,20 +830,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */
-		if (IS_GEN2(dev))
-			position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
-		else
-			position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
-
-		/*
-		 * Scanline counter increments at leading edge of hsync, and
-		 * it starts counting from vtotal-1 on the first active line.
-		 * That means the scanline counter value is always one less
-		 * than what we would expect. Ie. just after start of vblank,
-		 * which also occurs at start of hsync (on the last active line),
-		 * the scanline counter will read vblank_start-1.
-		 */
-		position = (position + 1) % vtotal;
+		position = __intel_get_crtc_scanline(intel_crtc);
 	} else {
 		/* Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
@@ -874,6 +889,19 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		ret |= DRM_SCANOUTPOS_INVBL;
 
 	return ret;
+}
+
+int intel_get_crtc_scanline(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	unsigned long irqflags;
+	int position;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	position = __intel_get_crtc_scanline(crtc);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+
+	return position;
 }
 
 static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
