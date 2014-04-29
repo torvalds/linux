@@ -891,7 +891,7 @@ static int apci3120_cyclic_ai(int mode,
 	devpriv->ui_DmaActualBuffer = 0;
 
 	/*  value for timer2  minus -2 has to be done .....dunno y?? */
-	ui_TimerValue2 = devpriv->ui_AiNbrofScans - 2;
+	ui_TimerValue2 = cmd->stop_arg - 2;
 	ui_ConvertTiming = cmd->convert_arg;
 
 	if (mode == 2)
@@ -1130,11 +1130,12 @@ static int apci3120_cyclic_ai(int mode,
 			 * Must we fill full first buffer? And must we fill
 			 * full second buffer when first is once filled?
 			 */
-			if (dmalen0 > (devpriv->ui_AiNbrofScans * scan_bytes)) {
-				dmalen0 = devpriv->ui_AiNbrofScans * scan_bytes;
-			} else if (dmalen1 > (devpriv->ui_AiNbrofScans * scan_bytes - dmalen0))
-				dmalen1 = devpriv->ui_AiNbrofScans *
-					  scan_bytes - dmalen0;
+			if (dmalen0 > (cmd->stop_arg * scan_bytes)) {
+				dmalen0 = cmd->stop_arg * scan_bytes;
+			} else if (dmalen1 > (cmd->stop_arg * scan_bytes -
+					      dmalen0))
+				dmalen1 = cmd->stop_arg * scan_bytes -
+					  dmalen0;
 		}
 
 		if (cmd->flags & TRIG_WAKE_EOS) {
@@ -1339,12 +1340,7 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	/* loading private structure with cmd structure inputs */
 	devpriv->ui_AiNbrofChannels = cmd->chanlist_len;
 
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ui_AiNbrofScans = cmd->stop_arg;
-	else
-		devpriv->ui_AiNbrofScans = 0;
-
-	if ((devpriv->ui_AiNbrofScans == 0) || (devpriv->ui_AiNbrofScans == -1))
+	if (cmd->stop_src == TRIG_NONE)
 		devpriv->b_AiContinuous = 1;	/*  user want neverending analog acquisition */
 	/*  stopped using cancel */
 
@@ -1486,7 +1482,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		}
 	}
 	if (!devpriv->b_AiContinuous)
-		if (devpriv->ui_AiActualScan >= devpriv->ui_AiNbrofScans) {
+		if (devpriv->ui_AiActualScan >= cmd->stop_arg) {
 			/*  all data sampled */
 			apci3120_cancel(dev, s);
 			devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
