@@ -958,16 +958,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int mode;
-
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->start_src == TRIG_EXT)
-			mode = 2;
-		else
-			mode = 1;
-	} else {	/* TRIG_EXT */
-		mode = 3;
-	}
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
@@ -987,30 +977,27 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->divisor1 = devpriv->next_divisor1;
 	devpriv->divisor2 = devpriv->next_divisor2;
 
-	switch (mode) {
-	case 1:
-	case 2:
+	if (cmd->convert_src == TRIG_TIMER) {
 		devpriv->CntrlReg |= Control_PACER | Control_IRQEN;
-		if (mode == 2) {
+		if (cmd->start_src == TRIG_EXT) {
 			devpriv->ai_et_CntrlReg = devpriv->CntrlReg;
 			devpriv->CntrlReg &=
 			    ~(Control_PACER | Control_ONEFH | Control_GATE);
 			devpriv->CntrlReg |= Control_EXT;
 			devpriv->ai_et = 1;
-		} else {
+		} else {	/* TRIG_NOW */
 			devpriv->ai_et = 0;
 		}
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
-		if (mode != 2) {
+
+		if (cmd->start_src == TRIG_NOW) {
 			/*  start pacer */
-			start_pacer(dev, mode,
+			start_pacer(dev, 1,
 				    devpriv->divisor1, devpriv->divisor2);
 		}
-		break;
-	case 3:
+	} else {	/* TRIG_EXT */
 		devpriv->CntrlReg |= Control_EXT | Control_IRQEN;
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
-		break;
 	}
 
 	return 0;
