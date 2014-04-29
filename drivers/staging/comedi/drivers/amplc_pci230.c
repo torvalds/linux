@@ -519,10 +519,6 @@ struct pci230_private {
 					 * level threshold (PCI230+/260+). */
 	unsigned short adcg;	/* ADCG register value. */
 	unsigned char int_en;	/* Interrupt enables bits. */
-	unsigned char ao_continuous;	/* Flag set when cmd->stop_src ==
-					 * TRIG_NONE - user chooses to stop
-					 * continuous conversion by
-					 * cancelation. */
 	unsigned char ai_bipolar;	/* Set if bipolar input range so we
 					 * know to mangle it. */
 	unsigned char ao_bipolar;	/* Set if bipolar output range so we
@@ -1164,7 +1160,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 
-	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0))
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_scan_count == 0)
 		return;
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		/* Read sample from Comedi's circular buffer. */
@@ -1179,7 +1175,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 		pci230_ao_write_nofifo(dev, data, CR_CHAN(cmd->chanlist[i]));
 	}
 	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	if (!devpriv->ao_continuous) {
+	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ao_scan_count--;
 		if (devpriv->ao_scan_count == 0) {
 			/* End of acquisition. */
@@ -1210,7 +1206,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 	/* Determine number of scans available in buffer. */
 	bytes_per_scan = cmd->chanlist_len * sizeof(short);
 	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
-	if (!devpriv->ao_continuous) {
+	if (cmd->stop_src == TRIG_COUNT) {
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_scan_count)
 			num_scans = devpriv->ao_scan_count;
@@ -1260,7 +1256,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 			}
 		}
 		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
-		if (!devpriv->ao_continuous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			devpriv->ao_scan_count -= num_scans;
 			if (devpriv->ao_scan_count == 0) {
 				/* All data for the command has been written
@@ -1338,7 +1334,7 @@ static void pci230_ao_start(struct comedi_device *dev,
 	unsigned long irqflags;
 
 	set_bit(AO_CMD_STARTED, &devpriv->state);
-	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0)) {
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_scan_count == 0) {
 		/* An empty acquisition! */
 		async->events |= COMEDI_CB_EOA;
 		pci230_ao_stop(dev, s);
@@ -1451,14 +1447,10 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* Get number of scans required. */
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ao_scan_count = cmd->stop_arg;
-		devpriv->ao_continuous = 0;
-	} else {
-		/* TRIG_NONE, user calls cancel. */
+	else	/* TRIG_NONE, user calls cancel */
 		devpriv->ao_scan_count = 0;
-		devpriv->ao_continuous = 1;
-	}
 
 	/* Set range - see analogue output range table; 0 => unipolar 10V,
 	 * 1 => bipolar +/-10V range scale */
