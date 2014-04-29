@@ -403,6 +403,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct a2150_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned long timer_base = dev->iobase + I8253_BASE_REG;
 	unsigned long lock_flags;
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
@@ -470,7 +471,8 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
 	/*  may need to wait 72 sampling periods if timing was changed */
-	i8254_load(dev->iobase + I8253_BASE_REG, 0, 2, 72, 0);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
+	i8254_write(timer_base, 0, 2, 72);
 
 	/*  setup start triggering */
 	trigger_bits = 0;
