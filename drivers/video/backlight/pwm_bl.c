@@ -359,6 +359,14 @@ static int pwm_backlight_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void pwm_backlight_shutdown(struct platform_device *pdev)
+{
+	struct backlight_device *bl = platform_get_drvdata(pdev);
+	struct pwm_bl_data *pb = bl_get_data(bl);
+
+	pwm_backlight_power_off(pb);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int pwm_backlight_suspend(struct device *dev)
 {
@@ -404,6 +412,7 @@ static struct platform_driver pwm_backlight_driver = {
 	},
 	.probe		= pwm_backlight_probe,
 	.remove		= pwm_backlight_remove,
+	.shutdown	= pwm_backlight_shutdown,
 };
 
 module_platform_driver(pwm_backlight_driver);
