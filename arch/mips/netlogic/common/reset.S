@@ -74,6 +74,18 @@
 .endm
 
 /*
+ * Allow access to physical mem >64G by enabling ELPA in PAGEGRAIN
+ * register. This is needed before going to C code since the SP can
+ * in this region. Called from all HW threads.
+ */
+.macro xlp_early_mmu_init
+	mfc0	t0, CP0_PAGEMASK, 1
+	li	t1, (1 << 29)		/* ELPA bit */
+	or	t0, t1
+	mtc0	t0, CP0_PAGEMASK, 1
+.endm
+
+/*
  * L1D cache has to be flushed before enabling threads in XLP.
  * On XLP8xx/XLP3xx, we do a low level flush using processor control
  * registers. On XLPII CPUs, usual cache instructions work.
@@ -228,6 +240,8 @@ EXPORT(nlm_boot_siblings)
 #endif
 	mtc0	t1, CP0_STATUS
 
+	xlp_early_mmu_init
+
 	/* mark CPU ready */
 	li	t3, CKSEG1ADDR(RESET_DATA_PHYS)
 	ADDIU	t1, t3, BOOT_CPU_READY
@@ -254,6 +268,7 @@ EXPORT(nlm_reset_entry_end)
 LEAF(nlm_init_boot_cpu)
 #ifdef CONFIG_CPU_XLP
 	xlp_config_lsu
+	xlp_early_mmu_init
 #endif
 	jr	ra
 	nop
