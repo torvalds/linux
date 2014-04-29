@@ -298,7 +298,6 @@ static const struct boardtype boardtypes[] = {
 
 struct pci1710_private {
 	unsigned int CntrlReg;	/*  Control register */
-	unsigned int i8254_osc_base;	/*  frequence of onboard oscilator */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_act_chan;	/*  actual position in actual scan */
 	unsigned char ai_et;
@@ -1022,7 +1021,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
 					  &devpriv->next_divisor1,
 					  &devpriv->next_divisor2,
 					  &cmd->convert_arg, cmd->flags);
@@ -1183,7 +1182,6 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 			s->do_cmd = pci171x_ai_cmd;
 			s->cancel = pci171x_ai_cancel;
 		}
-		devpriv->i8254_osc_base = I8254_OSC_BASE_10MHZ;
 		subdev++;
 	}
 
