@@ -765,15 +765,12 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER)	/* Test Delay timing */
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, 100000);
 
-	if (cmd->convert_src == TRIG_TIMER) {	/*  Test Acquisition timing */
-		if (cmd->scan_begin_src == TRIG_TIMER) {
-			if (cmd->convert_arg)
-				err |= cfc_check_trigger_arg_min(
-						&cmd->convert_arg, 10000);
-		} else {
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		if (cmd->convert_arg)
 			err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-							10000);
-		}
+							 10000);
+	} else {
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
 	}
 
 	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
@@ -789,15 +786,10 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 
 	/*  step 4: fix up any arguments */
 
-	if (cmd->convert_src == TRIG_TIMER) {
-
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-			cmd->scan_begin_arg <
-			cmd->convert_arg * cmd->scan_end_arg) {
-			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->scan_end_arg;
-			err++;
-		}
+	if (cmd->scan_begin_src == TRIG_TIMER &&
+	    cmd->scan_begin_arg < cmd->convert_arg * cmd->scan_end_arg) {
+		cmd->scan_begin_arg = cmd->convert_arg * cmd->scan_end_arg;
+		err |= -EINVAL;
 	}
 
 	if (err)
@@ -1344,23 +1336,10 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	else
 		devpriv->b_ExttrigEnable = APCI3120_DISABLE;
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/*  mode 1 or 3 */
-		if (cmd->convert_src == TRIG_TIMER) {
-			/*  mode 1 */
-
-			/* return this_board->ai_cmd(1,dev,s); */
-			return apci3120_cyclic_ai(1, dev, s);
-		}
-
-	}
-	if ((cmd->scan_begin_src == TRIG_TIMER)
-		&& (cmd->convert_src == TRIG_TIMER)) {
-		/*  mode 2 */
-		/* return this_board->ai_cmd(2,dev,s); */
+	if (cmd->scan_begin_src == TRIG_FOLLOW)
+		return apci3120_cyclic_ai(1, dev, s);
+	else	/* TRIG_TIMER */
 		return apci3120_cyclic_ai(2, dev, s);
-	}
-	return -1;
 }
 
 /*
