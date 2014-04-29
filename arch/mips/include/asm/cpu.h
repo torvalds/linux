@@ -201,6 +201,7 @@
 #define PRID_IMP_NETLOGIC_XLP3XX	0x1100
 #define PRID_IMP_NETLOGIC_XLP2XX	0x1200
 #define PRID_IMP_NETLOGIC_XLP9XX	0x1500
+#define PRID_IMP_NETLOGIC_XLP5XX	0x1300
 
 /*
  * Particular Revision values for bits 7:0 of the PRId register.

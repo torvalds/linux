@@ -177,6 +177,10 @@ FEXPORT(nlm_reset_entry)
 	beq	t0, t1, 2f		/* does not need to set coherent */
 	nop
 
+	li	t1, 0x1300		/* XLP 5xx */
+	beq	t0, t1, 2f		/* does not need to set coherent */
+	nop
+
 	/* set bit in SYS coherent register for the core */
 	mfc0	t0, CP0_EBASE, 1
 	mfc0	t1, CP0_EBASE, 1

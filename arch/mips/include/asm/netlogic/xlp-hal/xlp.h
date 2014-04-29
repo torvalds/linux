@@ -102,14 +102,16 @@ static inline int cpu_is_xlpii(void)
 	int chip = read_c0_prid() & PRID_IMP_MASK;
 
 	return chip == PRID_IMP_NETLOGIC_XLP2XX ||
-		chip == PRID_IMP_NETLOGIC_XLP9XX;
+		chip == PRID_IMP_NETLOGIC_XLP9XX ||
+		chip == PRID_IMP_NETLOGIC_XLP5XX;
 }
 
 static inline int cpu_is_xlp9xx(void)
 {
 	int chip = read_c0_prid() & PRID_IMP_MASK;
 
-	return chip == PRID_IMP_NETLOGIC_XLP9XX;
+	return chip == PRID_IMP_NETLOGIC_XLP9XX ||
+		chip == PRID_IMP_NETLOGIC_XLP5XX;
 }
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_NLM_XLP_H */

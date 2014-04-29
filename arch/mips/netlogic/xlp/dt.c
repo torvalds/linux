@@ -51,6 +51,7 @@ void __init *xlp_dt_init(void *fdtp)
 		switch (current_cpu_data.processor_id & PRID_IMP_MASK) {
 #ifdef CONFIG_DT_XLP_GVP
 		case PRID_IMP_NETLOGIC_XLP9XX:
+		case PRID_IMP_NETLOGIC_XLP5XX:
 			fdtp = __dtb_xlp_gvp_begin;
 			break;
 #endif
