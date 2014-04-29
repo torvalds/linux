@@ -302,7 +302,6 @@ struct pci1710_private {
 	unsigned int i8254_osc_base;	/*  frequence of onboard oscilator */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_act_chan;	/*  actual position in actual scan */
-	unsigned char ai_eos;	/*  1=EOS wake up */
 	unsigned char ai_et;
 	unsigned int ai_et_CntrlReg;
 	unsigned int ai_et_MuxVal;
@@ -916,9 +915,15 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pci1710_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
+	struct comedi_cmd *cmd;
 
 	if (!dev->attached)	/*  is device attached? */
 		return IRQ_NONE;	/*  no, exit */
+
+	s = dev->read_subdev;
+	cmd = &s->async->cmd;
+
 	/*  is this interrupt from our board? */
 	if (!(inw(dev->iobase + PCI171x_STATUS) & Status_IRQ))
 		return IRQ_NONE;	/*  no, exit */
@@ -937,11 +942,12 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 		start_pacer(dev, 1, devpriv->ai_et_div1, devpriv->ai_et_div2);
 		return IRQ_HANDLED;
 	}
-	if (devpriv->ai_eos) {	/*  We use FIFO half full INT or not? */
+
+	if (cmd->flags & TRIG_WAKE_EOS)
 		interrupt_pci1710_every_sample(d);
-	} else {
+	else
 		interrupt_pci1710_half_fifo(d);
-	}
+
 	return IRQ_HANDLED;
 }
 
@@ -973,13 +979,8 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	s->async->cur_chan = 0;
 
 	devpriv->CntrlReg &= Control_CNT0;
-	/*  don't we want wake up every scan?  devpriv->ai_eos=1; */
-	if (cmd->flags & TRIG_WAKE_EOS) {
-		devpriv->ai_eos = 1;
-	} else {
+	if ((cmd->flags & TRIG_WAKE_EOS) == 0)
 		devpriv->CntrlReg |= Control_ONEFH;
-		devpriv->ai_eos = 0;
-	}
 
 	switch (mode) {
 	case 1:
