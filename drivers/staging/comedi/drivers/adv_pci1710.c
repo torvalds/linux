@@ -310,8 +310,7 @@ struct pci1710_private {
 	unsigned int ai_et_MuxVal;
 	unsigned int ai_et_div1, ai_et_div2;
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
-	unsigned char act_chanlist_len;	/*  len of scanlist */
-	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
+	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
 	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
@@ -330,6 +329,7 @@ static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_cmd *cmd)
 {
+	struct pci1710_private *devpriv = dev->private;
 	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
 	unsigned int last_aref = CR_AREF(cmd->chanlist[0]);
 	unsigned int next_chan = (chan0 + 1) % s->n_chan;
@@ -337,8 +337,10 @@ static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 	unsigned int seglen;
 	int i;
 
-	if (cmd->chanlist_len == 1)
-		return 1; /* seglen=1 */
+	if (cmd->chanlist_len == 1) {
+		devpriv->saved_seglen = cmd->chanlist_len;
+		return 0;
+	}
 
 	/* first channel is always ok */
 	chansegment[0] = cmd->chanlist[0];
@@ -353,7 +355,7 @@ static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 		if (aref == AREF_DIFF && (chan & 1)) {
 			dev_err(dev->class_dev,
 				"Odd channel cannot be differential input!\n");
-			return 0;
+			return -EINVAL;
 		}
 
 		if (last_aref == AREF_DIFF)
@@ -362,7 +364,7 @@ static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 			dev_err(dev->class_dev,
 				"channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
 				i, chan, next_chan, chan0);
-			return 0;
+			return -EINVAL;
 		}
 
 		/* next correct channel in list */
@@ -381,10 +383,12 @@ static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 				CR_CHAN(cmd->chanlist[i % seglen]),
 				CR_RANGE(cmd->chanlist[i % seglen]),
 				CR_AREF(chansegment[i % seglen]));
-			return 0;
+			return -EINVAL;
 		}
 	}
-	return seglen;
+	devpriv->saved_seglen = seglen;
+
+	return 0;
 }
 
 static void setup_channel_list(struct comedi_device *dev,
@@ -395,9 +399,6 @@ static void setup_channel_list(struct comedi_device *dev,
 	const struct boardtype *this_board = comedi_board(dev);
 	struct pci1710_private *devpriv = dev->private;
 	unsigned int i, range, chanprog;
-
-	devpriv->act_chanlist_len = seglen;
-	devpriv->act_chanlist_pos = 0;
 
 	for (i = 0; i < seglen; i++) {	/*  store range list to card */
 		chanprog = muxonechan[CR_CHAN(chanlist[i])];
@@ -953,7 +954,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int divisor1 = 0, divisor2 = 0;
-	unsigned int seglen;
 	int mode;
 
 	if (cmd->convert_src == TRIG_TIMER) {
@@ -967,10 +967,8 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
-	seglen = pci171x_ai_check_chanlist(dev, s, cmd);
-	if (seglen < 1)
-		return -EINVAL;
-	setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len, seglen);
+	setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len,
+			   devpriv->saved_seglen);
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
@@ -1104,7 +1102,9 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 5: check channel list */
 
-	if (!pci171x_ai_check_chanlist(dev, s, cmd))
+	err |= pci171x_ai_check_chanlist(dev, s, cmd);
+
+	if (err)
 		return 5;
 
 	return 0;
