@@ -299,7 +299,6 @@ static const struct boardtype boardtypes[] = {
 struct pci1710_private {
 	unsigned int CntrlReg;	/*  Control register */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
-	unsigned int ai_act_chan;	/*  actual position in actual scan */
 	unsigned char ai_et;
 	unsigned int ai_et_CntrlReg;
 	unsigned int ai_et_MuxVal;
