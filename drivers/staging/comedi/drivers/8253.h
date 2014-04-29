@@ -30,8 +30,6 @@
 #define I8254_OSC_BASE_2MHZ		500
 #define I8254_OSC_BASE_1MHZ		1000
 
-#define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
-
 static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base,
 						      unsigned int *d1,
 						      unsigned int *d2,
@@ -125,11 +123,11 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base,
 	*d2 = div2 & 0xffff;
 }
 
-static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
-						  unsigned int *d1,
-						  unsigned int *d2,
-						  unsigned int *nanosec,
-						  int round_mode)
+static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
+					     unsigned int *d1,
+					     unsigned int *d2,
+					     unsigned int *nanosec,
+					     int round_mode)
 {
 	unsigned int divider;
 	unsigned int div1, div2;
