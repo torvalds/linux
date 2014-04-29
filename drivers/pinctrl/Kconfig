@@ -224,6 +224,7 @@ config PINCTRL_MSM
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
 
 config PINCTRL_APQ8064
 	tristate "Qualcomm APQ8064 pin controller driver"
