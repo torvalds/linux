@@ -1096,7 +1096,7 @@ long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable)
 	hva_t hva;
 	long rc;
 
-	hva = gmap_fault(gpa, vcpu->arch.gmap);
+	hva = gmap_fault(vcpu->arch.gmap, gpa);
 	if (IS_ERR_VALUE(hva))
 		return (long)hva;
 	down_read(&mm->mmap_sem);
@@ -1683,7 +1683,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 #endif
 	case KVM_S390_VCPU_FAULT: {
-		r = gmap_fault(arg, vcpu->arch.gmap);
+		r = gmap_fault(vcpu->arch.gmap, arg);
 		if (!IS_ERR_VALUE(r))
 			r = 0;
 		break;

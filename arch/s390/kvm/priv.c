@@ -729,7 +729,7 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 			/* invalid entry */
 			break;
 		/* try to free backing */
-		__gmap_zap(cbrle, gmap);
+		__gmap_zap(gmap, cbrle);
 	}
 	up_read(&gmap->mm->mmap_sem);
 	if (i < entries)

@@ -834,7 +834,7 @@ struct gmap_pgtable {
  */
 struct gmap_notifier {
 	struct list_head list;
-	void (*notifier_call)(struct gmap *gmap, unsigned long address);
+	void (*notifier_call)(struct gmap *gmap, unsigned long gaddr);
 };
 
 struct gmap *gmap_alloc(struct mm_struct *mm);
@@ -844,12 +844,12 @@ void gmap_disable(struct gmap *gmap);
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		     unsigned long to, unsigned long len);
 int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
-unsigned long __gmap_translate(unsigned long address, struct gmap *);
-unsigned long gmap_translate(unsigned long address, struct gmap *);
-unsigned long __gmap_fault(unsigned long address, struct gmap *);
-unsigned long gmap_fault(unsigned long address, struct gmap *);
-void gmap_discard(unsigned long from, unsigned long to, struct gmap *);
-void __gmap_zap(unsigned long address, struct gmap *);
+unsigned long __gmap_translate(struct gmap *, unsigned long gaddr);
+unsigned long gmap_translate(struct gmap *, unsigned long gaddr);
+unsigned long __gmap_fault(struct gmap *, unsigned long gaddr);
+unsigned long gmap_fault(struct gmap *, unsigned long gaddr);
+void gmap_discard(struct gmap *, unsigned long from, unsigned long to);
+void __gmap_zap(struct gmap *, unsigned long gaddr);
 bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *);
 
 

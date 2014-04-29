@@ -1241,7 +1241,7 @@ static int kvm_s390_adapter_map(struct kvm *kvm, unsigned int id, __u64 addr)
 	}
 	INIT_LIST_HEAD(&map->list);
 	map->guest_addr = addr;
-	map->addr = gmap_translate(addr, kvm->arch.gmap);
+	map->addr = gmap_translate(kvm->arch.gmap, addr);
 	if (map->addr == -EFAULT) {
 		ret = -EFAULT;
 		goto out;

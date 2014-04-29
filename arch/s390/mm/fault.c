@@ -445,7 +445,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	gmap = (struct gmap *)
 		((current->flags & PF_VCPU) ? S390_lowcore.gmap : 0);
 	if (gmap) {
-		address = __gmap_fault(address, gmap);
+		address = __gmap_fault(gmap, address);
 		if (address == -EFAULT) {
 			fault = VM_FAULT_BADMAP;
 			goto out_up;
