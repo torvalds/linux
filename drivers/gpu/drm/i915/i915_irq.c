@@ -915,6 +915,18 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		vtotal *= htotal;
 
 		/*
+		 * In interlaced modes, the pixel counter counts all pixels,
+		 * so one field will have htotal more pixels. In order to avoid
+		 * the reported position from jumping backwards when the pixel
+		 * counter is beyond the length of the shorter field, just
+		 * clamp the position the length of the shorter field. This
+		 * matches how the scanline counter based position works since
+		 * the scanline counter doesn't count the two half lines.
+		 */
+		if (position >= vtotal)
+			position = vtotal - 1;
+
+		/*
 		 * Start of vblank interrupt is triggered at start of hsync,
 		 * just prior to the first active line of vblank. However we
 		 * consider lines to start at the leading edge of horizontal
