@@ -112,7 +112,7 @@ struct  intel_ring_buffer {
 	void		(*set_seqno)(struct intel_ring_buffer *ring,
 				     u32 seqno);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
-					       u32 offset, u32 length,
+					       u64 offset, u32 length,
 					       unsigned flags);
 #define I915_DISPATCH_SECURE 0x1
 #define I915_DISPATCH_PINNED 0x2

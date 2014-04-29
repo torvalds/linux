@@ -1049,7 +1049,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct i915_hw_context *ctx;
 	struct i915_address_space *vm;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
-	u32 exec_start = args->batch_start_offset, exec_len;
+	u64 exec_start = args->batch_start_offset, exec_len;
 	u32 mask, flags;
 	int ret, mode, i;
 	bool need_relocs;
