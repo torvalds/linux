@@ -690,7 +690,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	rtnl_lock();
 	rdev->wiphy.registered = false;
 
-	BUG_ON(!list_empty(&rdev->wdev_list));
+	WARN_ON(!list_empty(&rdev->wdev_list));
 
 	/*
 	 * First remove the hardware from everywhere, this makes
