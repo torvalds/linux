@@ -691,7 +691,7 @@ static void __init setup_bootmem_allocator(void)
 	/* Reserve any memory excluded by "memmap" arguments. */
 	for (i = 0; i < memmap_nr; ++i) {
 		struct memmap_entry *m = &memmap_map[i];
-		reserve_bootmem(m->addr, m->size, 0);
+		reserve_bootmem(m->addr, m->size, BOOTMEM_DEFAULT);
 	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -715,7 +715,8 @@ static void __init setup_bootmem_allocator(void)
 
 #ifdef CONFIG_KEXEC
 	if (crashk_res.start != crashk_res.end)
-		reserve_bootmem(crashk_res.start, resource_size(&crashk_res), 0);
+		reserve_bootmem(crashk_res.start, resource_size(&crashk_res),
+				BOOTMEM_DEFAULT);
 #endif
 }
 
