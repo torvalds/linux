@@ -230,10 +230,8 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips = devm_kzalloc(dev,
 			     ngpio * sizeof(struct davinci_gpio_controller),
 			     GFP_KERNEL);
-	if (!chips) {
-		dev_err(dev, "Memory allocation failed\n");
+	if (!chips)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
