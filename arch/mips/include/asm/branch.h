@@ -20,6 +20,24 @@ extern int __compute_return_epc_for_insn(struct pt_regs *regs,
 extern int __microMIPS_compute_return_epc(struct pt_regs *regs);
 extern int __MIPS16e_compute_return_epc(struct pt_regs *regs);
 
+/*
+ * microMIPS bitfields
+ */
+#define MM_POOL32A_MINOR_MASK	0x3f
+#define MM_POOL32A_MINOR_SHIFT	0x6
+#define MM_MIPS32_COND_FC	0x30
+
+extern int __mm_isBranchInstr(struct pt_regs *regs,
+	struct mm_decoded_insn dec_insn, unsigned long *contpc);
+
+static inline int mm_isBranchInstr(struct pt_regs *regs,
+	struct mm_decoded_insn dec_insn, unsigned long *contpc)
+{
+	if (!cpu_has_mmips)
+		return 0;
+
+	return __mm_isBranchInstr(regs, dec_insn, contpc);
+}
 
 static inline int delay_slot(struct pt_regs *regs)
 {
