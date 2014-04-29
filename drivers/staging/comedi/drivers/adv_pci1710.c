@@ -305,7 +305,10 @@ struct pci1710_private {
 	unsigned char ai_et;
 	unsigned int ai_et_CntrlReg;
 	unsigned int ai_et_MuxVal;
-	unsigned int ai_et_div1, ai_et_div2;
+	unsigned int next_divisor1;
+	unsigned int next_divisor2;
+	unsigned int divisor1;
+	unsigned int divisor2;
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
@@ -939,7 +942,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 		outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 		/*  start pacer */
-		start_pacer(dev, 1, devpriv->ai_et_div1, devpriv->ai_et_div2);
+		start_pacer(dev, 1, devpriv->divisor1, devpriv->divisor2);
 		return IRQ_HANDLED;
 	}
 
@@ -955,7 +958,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int divisor1 = 0, divisor2 = 0;
 	int mode;
 
 	if (cmd->convert_src == TRIG_TIMER) {
@@ -982,6 +984,9 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if ((cmd->flags & TRIG_WAKE_EOS) == 0)
 		devpriv->CntrlReg |= Control_ONEFH;
 
+	devpriv->divisor1 = devpriv->next_divisor1;
+	devpriv->divisor2 = devpriv->next_divisor2;
+
 	switch (mode) {
 	case 1:
 	case 2:
@@ -995,17 +1000,11 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		} else {
 			devpriv->ai_et = 0;
 		}
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
-					  &divisor1, &divisor2,
-					  &cmd->convert_arg,
-					  cmd->flags);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 		if (mode != 2) {
 			/*  start pacer */
-			start_pacer(dev, mode, divisor1, divisor2);
-		} else {
-			devpriv->ai_et_div1 = divisor1;
-			devpriv->ai_et_div2 = divisor2;
+			start_pacer(dev, mode,
+				    devpriv->divisor1, devpriv->divisor2);
 		}
 		break;
 	case 3:
@@ -1028,7 +1027,6 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	struct pci1710_private *devpriv = dev->private;
 	int err = 0;
 	int tmp;
-	unsigned int divisor1 = 0, divisor2 = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -1078,7 +1076,8 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
-					  &divisor1, &divisor2,
+					  &devpriv->next_divisor1,
+					  &devpriv->next_divisor2,
 					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
