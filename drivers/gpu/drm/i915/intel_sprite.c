@@ -73,6 +73,8 @@ static bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl
 
 	local_irq_disable();
 
+	trace_i915_pipe_update_start(crtc, min, max);
+
 	for (;;) {
 		/*
 		 * prepare_to_wait() has a memory barrier, which guarantees
@@ -104,6 +106,8 @@ static bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl
 
 	*start_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
 
+	trace_i915_pipe_update_vblank_evaded(crtc, min, max, *start_vbl_count);
+
 	return true;
 }
 
@@ -112,6 +116,8 @@ static void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count)
 	struct drm_device *dev = crtc->base.dev;
 	enum pipe pipe = crtc->pipe;
 	u32 end_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
+
+	trace_i915_pipe_update_end(crtc, end_vbl_count);
 
 	local_irq_enable();
 
