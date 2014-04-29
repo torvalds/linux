@@ -1494,6 +1494,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		 */
 		if (value == 0) {
 			INFO (dev, "configuration #%d\n", dev->current_config);
+			usb_gadget_set_state(gadget, USB_STATE_CONFIGURED);
 			if (dev->usermode_setup) {
 				dev->setup_can_stall = 0;
 				goto delegate;
