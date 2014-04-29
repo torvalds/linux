@@ -48,6 +48,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 	struct kvm_vcpu *vcpu = NULL, *tmp;
 	wait_queue_head_t *wq;
 	unsigned long cpu_id;
+	unsigned long context_id;
 	unsigned long mpidr;
 	phys_addr_t target_pc;
 	int i;
@@ -68,10 +69,17 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 	 * Make sure the caller requested a valid CPU and that the CPU is
 	 * turned off.
 	 */
-	if (!vcpu || !vcpu->arch.pause)
+	if (!vcpu)
 		return PSCI_RET_INVALID_PARAMS;
+	if (!vcpu->arch.pause) {
+		if (kvm_psci_version(source_vcpu) != KVM_ARM_PSCI_0_1)
+			return PSCI_RET_ALREADY_ON;
+		else
+			return PSCI_RET_INVALID_PARAMS;
+	}
 
 	target_pc = *vcpu_reg(source_vcpu, 2);
+	context_id = *vcpu_reg(source_vcpu, 3);
 
 	kvm_reset_vcpu(vcpu);
 
@@ -86,6 +94,11 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 		kvm_vcpu_set_be(vcpu);
 
 	*vcpu_pc(vcpu) = target_pc;
+	/*
+	 * NOTE: We always update r0 (or x0) because for PSCI v0.1
+	 * the general puspose registers are undefined upon CPU_ON.
+	 */
+	*vcpu_reg(vcpu, 0) = context_id;
 	vcpu->arch.pause = false;
 	smp_mb();		/* Make sure the above is visible */
 
