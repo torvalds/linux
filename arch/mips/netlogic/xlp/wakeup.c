@@ -159,10 +159,6 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		 */
 		syscoremask = (1 << hweight32(~fusemask & mask)) - 1;
 
-		/* The boot cpu */
-		if (n == 0)
-			nodep->coremask = 1;
-
 		pr_info("Node %d - SYS/FUSE coremask %x\n", n, syscoremask);
 		for (core = 0; core < nlm_cores_per_node(); core++) {
 			/* we will be on node 0 core 0 */

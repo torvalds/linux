@@ -54,6 +54,8 @@ void nlm_node_init(int node)
 	struct nlm_soc_info *nodep;
 
 	nodep = nlm_get_node(node);
+	if (node == 0)
+		nodep->coremask = 1;	/* node 0, boot cpu */
 	nodep->sysbase = nlm_get_sys_regbase(node);
 	nodep->picbase = nlm_get_pic_regbase(node);
 	nodep->ebase = read_c0_ebase() & (~((1 << 12) - 1));
