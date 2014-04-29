@@ -327,16 +327,16 @@
 		reg = <0x1c>;
 		status = "okay";
  	};
-		syb827b: syb827b@40 {
-		compatible = "silergy,syb827";
+		syr827: syr827@40 {
+		compatible = "silergy,syr82x";
   	reg = <0x40>;
 		status = "okay";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;	
-			syb827b_dc1: regulator@0 {
+			syr827_dc1: regulator@0 {
 			reg = <0>;
-			regulator-compatible = "syb827_dcdc1";
+			regulator-compatible = "syr82x_dcdc1";
 			regulator-name = "vdd_arm";
 			regulator-min-microvolt = <712500>;
 			regulator-max-microvolt = <1500000>;
@@ -352,16 +352,16 @@
 		};
 	   };
 	};
-	syb827c: syb827c@41 {
-		compatible = "silergy,syb827";
+	syr828: syr828@41 {
+		compatible = "silergy,syr82x";
 		reg = <0x41>;
 		status = "okay";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;	
-			syb827c_dc1: regulator@0 {
+			syr828_dc1: regulator@0 {
 			reg = <0>;
-			regulator-compatible = "syb827_dcdc1";
+			regulator-compatible = "syr82x_dcdc1";
 			regulator-name = "vdd_gpu";
 			regulator-min-microvolt = <712500>;
 			regulator-max-microvolt = <1500000>;

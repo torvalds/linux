@@ -74,7 +74,7 @@ obj-$(CONFIG_REGULATOR_WM8350) += wm8350-regulator.o
 obj-$(CONFIG_REGULATOR_WM8400) += wm8400-regulator.o
 obj-$(CONFIG_REGULATOR_WM8994) += wm8994-regulator.o
 obj-$(CONFIG_REGULATOR_ACT8846) += act8846.o
-obj-$(CONFIG_REGULATOR_SYB827) += syb827.o
+obj-$(CONFIG_REGULATOR_SYR82X) += syr82x.o
 obj-$(CONFIG_REGULATOR_RICOH619) += ricoh619-regulator.o
 
 obj-$(CONFIG_ARCH_ROCKCHIP) += rockchip_io_vol_domain.o

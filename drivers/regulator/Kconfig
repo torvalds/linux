@@ -267,11 +267,11 @@ config ROCKCHIP_PWM_REGULATOR
 	help
 	  Say Y to enable support for the voltage regulators control on the ROCKCHIP.
 
-config REGULATOR_SYB827
-	tristate "SYB827 DCDC SUPPORT REGULATOR"
+config REGULATOR_SYR82X
+	tristate "SYR82X DCDC SUPPORT REGULATOR"
 	depends on I2C
 	help
-	  Support the voltage and current regulators of the SYB827 series of DCDC devices.
+	  Support the voltage and current regulators of the SYR82X series of DCDC devices.
 
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
