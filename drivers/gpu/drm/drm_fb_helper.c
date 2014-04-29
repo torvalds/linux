@@ -45,13 +45,13 @@ static LIST_HEAD(kernel_fb_helper_list);
  * DOC: fbdev helpers
  *
  * The fb helper functions are useful to provide an fbdev on top of a drm kernel
- * mode setting driver. They can be used mostly independantely from the crtc
+ * mode setting driver. They can be used mostly independently from the crtc
  * helper functions used by many drivers to implement the kernel mode setting
  * interfaces.
  *
  * Initialization is done as a three-step process with drm_fb_helper_init(),
  * drm_fb_helper_single_add_all_connectors() and drm_fb_helper_initial_config().
- * Drivers with fancier requirements than the default beheviour can override the
+ * Drivers with fancier requirements than the default behaviour can override the
  * second step with their own code.  Teardown is done with drm_fb_helper_fini().
  *
  * At runtime drivers should restore the fbdev console by calling
@@ -59,7 +59,7 @@ static LIST_HEAD(kernel_fb_helper_list);
  * should also notify the fb helper code from updates to the output
  * configuration by calling drm_fb_helper_hotplug_event(). For easier
  * integration with the output polling code in drm_crtc_helper.c the modeset
- * code proves a ->output_poll_changed callback.
+ * code provides a ->output_poll_changed callback.
  *
  * All other functions exported by the fb helper library can be used to
  * implement the fbdev driver interface by the driver.
