@@ -962,68 +962,29 @@ static int control_c_bits(const struct comedi_cmd *cmd)
 	return control_c;
 }
 
-/* loads counters with divisor1, divisor2 from private structure */
-static int das1800_set_frequency(struct comedi_device *dev)
+static void das1800_setup_counters(struct comedi_device *dev,
+				   const struct comedi_cmd *cmd)
 {
 	struct das1800_private *devpriv = dev->private;
-	int err = 0;
+	unsigned long timer_base = dev->iobase + DAS1800_COUNTER;
 
-	/*  counter 1, mode 2 */
-	if (i8254_load(dev->iobase + DAS1800_COUNTER, 0, 1, devpriv->divisor1,
-		       2))
-		err++;
-	/*  counter 2, mode 2 */
-	if (i8254_load(dev->iobase + DAS1800_COUNTER, 0, 2, devpriv->divisor2,
-		       2))
-		err++;
-	if (err)
-		return -1;
+	/* setup cascaded counters for conversion/scan frequency */
+	if ((cmd->scan_begin_src == TRIG_FOLLOW ||
+	     cmd->scan_begin_src == TRIG_TIMER) &&
+	    cmd->convert_src == TRIG_TIMER) {
+		i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+		i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
 
-	return 0;
-}
-
-/* sets up counters */
-static int setup_counters(struct comedi_device *dev,
-			  const struct comedi_cmd *cmd)
-{
-	struct das1800_private *devpriv = dev->private;
-	unsigned int period;
-
-	/*  setup cascaded counters for conversion/scan frequency */
-	switch (cmd->scan_begin_src) {
-	case TRIG_FOLLOW:	/*  not in burst mode */
-		if (cmd->convert_src == TRIG_TIMER) {
-			/* set conversion frequency */
-			period = cmd->convert_arg;
-			i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
-						  &devpriv->divisor1,
-						  &devpriv->divisor2,
-						  &period, cmd->flags);
-			if (das1800_set_frequency(dev) < 0)
-				return -1;
-		}
-		break;
-	case TRIG_TIMER:	/*  in burst mode */
-		/* set scan frequency */
-		period = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &period, cmd->flags);
-		if (das1800_set_frequency(dev) < 0)
-			return -1;
-		break;
-	default:
-		break;
+		i8254_write(timer_base, 0, 1, devpriv->divisor1);
+		i8254_write(timer_base, 0, 2, devpriv->divisor2);
 	}
 
-	/*  setup counter 0 for 'about triggering' */
+	/* setup counter 0 for 'about triggering' */
 	if (cmd->stop_src == TRIG_EXT) {
-		/*  load counter 0 in mode 0 */
-		i8254_load(dev->iobase + DAS1800_COUNTER, 0, 0, 1, 0);
-	}
+		i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
 
-	return 0;
+		i8254_write(timer_base, 0, 0, 1);
+	}
 }
 
 /* utility function that suggests a dma transfer size based on the conversion period 'ns' */
@@ -1136,7 +1097,6 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
-	int ret;
 	int control_a, control_c;
 	struct comedi_async *async = s->async;
 	const struct comedi_cmd *cmd = &async->cmd;
@@ -1167,11 +1127,7 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 
 	/* setup card and start */
 	program_chanlist(dev, cmd);
-	ret = setup_counters(dev, cmd);
-	if (ret < 0) {
-		comedi_error(dev, "Error setting up counters");
-		return ret;
-	}
+	das1800_setup_counters(dev, cmd);
 	setup_dma(dev, cmd);
 	outb(control_c, dev->iobase + DAS1800_CONTROL_C);
 	/*  set conversion rate and length for burst mode */
