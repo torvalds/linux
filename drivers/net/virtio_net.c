@@ -1724,6 +1724,13 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ))
 		vi->has_cvq = true;
 
+	if (vi->any_header_sg) {
+		if (vi->mergeable_rx_bufs)
+			dev->needed_headroom = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+		else
+			dev->needed_headroom = sizeof(struct virtio_net_hdr);
+	}
+
 	/* Use single tx/rx queue pair as default */
 	vi->curr_queue_pairs = 1;
 	vi->max_queue_pairs = max_queue_pairs;
