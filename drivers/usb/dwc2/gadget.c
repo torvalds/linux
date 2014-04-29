@@ -551,7 +551,7 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 		ureq->length, ureq->actual);
 	if (0)
 		dev_dbg(hsotg->dev,
-			"REQ buf %p len %d dma 0x%pad noi=%d zp=%d snok=%d\n",
+			"REQ buf %p len %d dma %pad noi=%d zp=%d snok=%d\n",
 			ureq->buf, length, &ureq->dma,
 			ureq->no_interrupt, ureq->zero, ureq->short_not_ok);
 
@@ -620,7 +620,7 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 		dma_reg = dir_in ? DIEPDMA(index) : DOEPDMA(index);
 		writel(ureq->dma, hsotg->regs + dma_reg);
 
-		dev_dbg(hsotg->dev, "%s: 0x%pad => 0x%08x\n",
+		dev_dbg(hsotg->dev, "%s: %pad => 0x%08x\n",
 			__func__, &ureq->dma, dma_reg);
 	}
 
