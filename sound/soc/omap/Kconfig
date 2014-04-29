@@ -37,7 +37,7 @@ config SND_OMAP_SOC_RX51
 
 config SND_OMAP_SOC_AMS_DELTA
 	tristate "SoC Audio support for Amstrad E3 (Delta) videophone"
-	depends on SND_OMAP_SOC && MACH_AMS_DELTA
+	depends on SND_OMAP_SOC && MACH_AMS_DELTA && TTY
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_CX20442
 	help
