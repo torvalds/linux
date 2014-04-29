@@ -262,10 +262,12 @@ static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 
 static int
 relocate_entry_cpu(struct drm_i915_gem_object *obj,
-		   struct drm_i915_gem_relocation_entry *reloc)
+		   struct drm_i915_gem_relocation_entry *reloc,
+		   uint64_t target_offset)
 {
 	struct drm_device *dev = obj->base.dev;
 	uint32_t page_offset = offset_in_page(reloc->offset);
+	uint64_t delta = reloc->delta + target_offset;
 	char *vaddr;
 	int ret;
 
@@ -275,7 +277,7 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 
 	vaddr = kmap_atomic(i915_gem_object_get_page(obj,
 				reloc->offset >> PAGE_SHIFT));
-	*(uint32_t *)(vaddr + page_offset) = reloc->delta;
+	*(uint32_t *)(vaddr + page_offset) = lower_32_bits(delta);
 
 	if (INTEL_INFO(dev)->gen >= 8) {
 		page_offset = offset_in_page(page_offset + sizeof(uint32_t));
@@ -286,7 +288,7 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
 		}
 
-		*(uint32_t *)(vaddr + page_offset) = 0;
+		*(uint32_t *)(vaddr + page_offset) = upper_32_bits(delta);
 	}
 
 	kunmap_atomic(vaddr);
@@ -296,10 +298,12 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 
 static int
 relocate_entry_gtt(struct drm_i915_gem_object *obj,
-		   struct drm_i915_gem_relocation_entry *reloc)
+		   struct drm_i915_gem_relocation_entry *reloc,
+		   uint64_t target_offset)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint64_t delta = reloc->delta + target_offset;
 	uint32_t __iomem *reloc_entry;
 	void __iomem *reloc_page;
 	int ret;
@@ -318,7 +322,7 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 			reloc->offset & PAGE_MASK);
 	reloc_entry = (uint32_t __iomem *)
 		(reloc_page + offset_in_page(reloc->offset));
-	iowrite32(reloc->delta, reloc_entry);
+	iowrite32(lower_32_bits(delta), reloc_entry);
 
 	if (INTEL_INFO(dev)->gen >= 8) {
 		reloc_entry += 1;
@@ -331,7 +335,7 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 			reloc_entry = reloc_page;
 		}
 
-		iowrite32(0, reloc_entry);
+		iowrite32(upper_32_bits(delta), reloc_entry);
 	}
 
 	io_mapping_unmap_atomic(reloc_page);
@@ -348,7 +352,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	struct drm_gem_object *target_obj;
 	struct drm_i915_gem_object *target_i915_obj;
 	struct i915_vma *target_vma;
-	uint32_t target_offset;
+	uint64_t target_offset;
 	int ret;
 
 	/* we've already hold a reference to all valid objects */
@@ -426,11 +430,10 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	if (obj->active && in_atomic())
 		return -EFAULT;
 
-	reloc->delta += target_offset;
 	if (use_cpu_reloc(obj))
-		ret = relocate_entry_cpu(obj, reloc);
+		ret = relocate_entry_cpu(obj, reloc, target_offset);
 	else
-		ret = relocate_entry_gtt(obj, reloc);
+		ret = relocate_entry_gtt(obj, reloc, target_offset);
 
 	if (ret)
 		return ret;
