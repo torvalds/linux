@@ -315,7 +315,7 @@ static int adav80x_set_deemph(struct snd_soc_codec *codec)
 static int adav80x_put_deemph(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 	unsigned int deemph = ucontrol->value.enumerated.item[0];
 
@@ -330,7 +330,7 @@ static int adav80x_put_deemph(struct snd_kcontrol *kcontrol,
 static int adav80x_get_deemph(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = adav80x->deemph;

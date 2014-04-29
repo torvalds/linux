@@ -106,7 +106,7 @@ static int txsrc_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec;
 	unsigned int src;
 
-	codec = snd_kcontrol_chip(kcontrol);
+	codec = snd_soc_kcontrol_codec(kcontrol);
 	src = snd_soc_read(codec, WM8804_SPDTX4);
 	if (src & 0x40)
 		ucontrol->value.integer.value[0] = 1;
@@ -122,7 +122,7 @@ static int txsrc_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec;
 	unsigned int src, txpwr;
 
-	codec = snd_kcontrol_chip(kcontrol);
+	codec = snd_soc_kcontrol_codec(kcontrol);
 
 	if (ucontrol->value.integer.value[0] != 0
 			&& ucontrol->value.integer.value[0] != 1)
