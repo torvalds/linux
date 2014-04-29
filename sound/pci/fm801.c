@@ -224,6 +224,30 @@ MODULE_DEVICE_TABLE(pci, snd_fm801_ids);
  *  common I/O routines
  */
 
+static bool fm801_ac97_is_ready(struct fm801 *chip, unsigned int iterations)
+{
+	unsigned int idx;
+
+	for (idx = 0; idx < iterations; idx++) {
+		if (!(fm801_readw(chip, AC97_CMD) & FM801_AC97_BUSY))
+			return true;
+		udelay(10);
+	}
+	return false;
+}
+
+static bool fm801_ac97_is_valid(struct fm801 *chip, unsigned int iterations)
+{
+	unsigned int idx;
+
+	for (idx = 0; idx < iterations; idx++) {
+		if (fm801_readw(chip, AC97_CMD) & FM801_AC97_VALID)
+			return true;
+		udelay(10);
+	}
+	return false;
+}
+
 static int snd_fm801_update_bits(struct fm801 *chip, unsigned short reg,
 				 unsigned short mask, unsigned short value)
 {
@@ -246,72 +270,53 @@ static void snd_fm801_codec_write(struct snd_ac97 *ac97,
 				  unsigned short val)
 {
 	struct fm801 *chip = ac97->private_data;
-	int idx;
 
 	/*
 	 *  Wait until the codec interface is not ready..
 	 */
-	for (idx = 0; idx < 100; idx++) {
-		if (!(fm801_readw(chip, AC97_CMD) & FM801_AC97_BUSY))
-			goto ok1;
-		udelay(10);
+	if (!fm801_ac97_is_ready(chip, 100)) {
+		dev_err(chip->card->dev, "AC'97 interface is busy (1)\n");
+		return;
 	}
-	dev_err(chip->card->dev, "AC'97 interface is busy (1)\n");
-	return;
 
- ok1:
 	/* write data and address */
 	fm801_writew(chip, AC97_DATA, val);
 	fm801_writew(chip, AC97_CMD, reg | (ac97->addr << FM801_AC97_ADDR_SHIFT));
 	/*
 	 *  Wait until the write command is not completed..
-         */
-	for (idx = 0; idx < 1000; idx++) {
-		if (!(fm801_readw(chip, AC97_CMD) & FM801_AC97_BUSY))
-			return;
-		udelay(10);
-	}
-	dev_err(chip->card->dev, "AC'97 interface #%d is busy (2)\n", ac97->num);
+	 */
+	if (!fm801_ac97_is_ready(chip, 1000))
+		dev_err(chip->card->dev, "AC'97 interface #%d is busy (2)\n",
+		ac97->num);
 }
 
 static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	struct fm801 *chip = ac97->private_data;
-	int idx;
 
 	/*
 	 *  Wait until the codec interface is not ready..
 	 */
-	for (idx = 0; idx < 100; idx++) {
-		if (!(fm801_readw(chip, AC97_CMD) & FM801_AC97_BUSY))
-			goto ok1;
-		udelay(10);
+	if (!fm801_ac97_is_ready(chip, 100)) {
+		dev_err(chip->card->dev, "AC'97 interface is busy (1)\n");
+		return 0;
 	}
-	dev_err(chip->card->dev, "AC'97 interface is busy (1)\n");
-	return 0;
 
- ok1:
 	/* read command */
 	fm801_writew(chip, AC97_CMD,
 		     reg | (ac97->addr << FM801_AC97_ADDR_SHIFT) | FM801_AC97_READ);
-	for (idx = 0; idx < 100; idx++) {
-		if (!(fm801_readw(chip, AC97_CMD) & FM801_AC97_BUSY))
-			goto ok2;
-		udelay(10);
+	if (!fm801_ac97_is_ready(chip, 100)) {
+		dev_err(chip->card->dev, "AC'97 interface #%d is busy (2)\n",
+			ac97->num);
+		return 0;
 	}
-	dev_err(chip->card->dev, "AC'97 interface #%d is busy (2)\n", ac97->num);
-	return 0;
 
- ok2:
-	for (idx = 0; idx < 1000; idx++) {
-		if (fm801_readw(chip, AC97_CMD) & FM801_AC97_VALID)
-			goto ok3;
-		udelay(10);
+	if (!fm801_ac97_is_valid(chip, 1000)) {
+		dev_err(chip->card->dev,
+			"AC'97 interface #%d is not valid (2)\n", ac97->num);
+		return 0;
 	}
-	dev_err(chip->card->dev, "AC'97 interface #%d is not valid (2)\n", ac97->num);
-	return 0;
 
- ok3:
 	return fm801_readw(chip, AC97_DATA);
 }
 
