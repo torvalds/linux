@@ -496,7 +496,7 @@ static inline int set_dawr(struct arch_hw_breakpoint *brk)
 	return 0;
 }
 
-void set_breakpoint(struct arch_hw_breakpoint *brk)
+void __set_breakpoint(struct arch_hw_breakpoint *brk)
 {
 	__get_cpu_var(current_brk) = *brk;
 
@@ -504,6 +504,13 @@ void set_breakpoint(struct arch_hw_breakpoint *brk)
 		set_dawr(brk);
 	else
 		set_dabr(brk);
+}
+
+void set_breakpoint(struct arch_hw_breakpoint *brk)
+{
+	preempt_disable();
+	__set_breakpoint(brk);
+	preempt_enable();
 }
 
 #ifdef CONFIG_PPC64
@@ -835,7 +842,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
  */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
 	if (unlikely(!hw_brk_match(&__get_cpu_var(current_brk), &new->thread.hw_brk)))
-		set_breakpoint(&new->thread.hw_brk);
+		__set_breakpoint(&new->thread.hw_brk);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 
