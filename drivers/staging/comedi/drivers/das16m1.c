@@ -272,6 +272,7 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	struct das16m1_private_struct *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned long timer_base = dev->iobase + DAS16M1_8254_FIRST;
 	unsigned int byte, i;
 
 	/* disable interrupts and internal pacer */
@@ -283,11 +284,11 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	/* Initialize lower half of hardware counter, used to determine how
 	 * many samples are in fifo.  Value doesn't actually load into counter
 	 * until counter's next clock (the next a/d conversion) */
-	i8254_load(dev->iobase + DAS16M1_8254_FIRST, 0, 1, 0, 2);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_write(timer_base, 0, 1, 0);
 	/* remember current reading of counter so we know when counter has
 	 * actually been loaded */
-	devpriv->initial_hw_count =
-	    i8254_read(dev->iobase + DAS16M1_8254_FIRST, 0, 1);
+	devpriv->initial_hw_count = i8254_read(timer_base, 0, 1);
 	/* setup channel/gain queue */
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		outb(i, dev->iobase + DAS16M1_QUEUE_ADDR);
