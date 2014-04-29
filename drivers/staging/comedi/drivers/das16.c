@@ -740,9 +740,10 @@ static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 				  &devpriv->divisor1, &devpriv->divisor2,
 				  &ns, rounding_flags);
 
-	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(timer_base, 0, 1, devpriv->divisor1, 2);
-	i8254_load(timer_base, 0, 2, devpriv->divisor2, 2);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
 
 	return ns;
 }
