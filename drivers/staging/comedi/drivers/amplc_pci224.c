@@ -868,6 +868,7 @@ static void pci224_ao_start_pacer(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
 	struct pci224_private *devpriv = dev->private;
+	unsigned long timer_base = devpriv->iobase1 + PCI224_Z2_CT0;
 
 	/*
 	 * The output of timer Z2-0 will be used as the scan trigger
@@ -881,13 +882,13 @@ static void pci224_ao_start_pacer(struct comedi_device *dev,
 	/* Z2-2 needs 10 MHz clock. */
 	outb(CLK_CONFIG(2, CLK_10MHZ), devpriv->iobase1 + PCI224_ZCLK_SCE);
 	/* Load Z2-2 mode (2) and counter (div1). */
-	i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0,
-			2, devpriv->cached_div1, 2);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_write(timer_base, 0, 2, devpriv->cached_div1);
 	/* Z2-0 is clocked from Z2-2's output. */
 	outb(CLK_CONFIG(0, CLK_OUTNM1), devpriv->iobase1 + PCI224_ZCLK_SCE);
 	/* Load Z2-0 mode (2) and counter (div2). */
-	i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0,
-		   0, devpriv->cached_div2, 2);
+	i8254_set_mode(timer_base, 0, 0, I8254_MODE2 | I8254_BINARY);
+	i8254_write(timer_base, 0, 0, devpriv->cached_div2);
 }
 
 static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
