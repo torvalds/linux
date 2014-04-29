@@ -1595,14 +1595,13 @@ bad_std_timing(u8 a, u8 b)
  * @connector: connector of for the EDID block
  * @edid: EDID block to scan
  * @t: standard timing params
- * @revision: standard timing level
  *
  * Take the standard timing params (in this case width, aspect, and refresh)
  * and convert them into a real mode using CVT/GTF/DMT.
  */
 static struct drm_display_mode *
 drm_mode_std(struct drm_connector *connector, struct edid *edid,
-	     struct std_timing *t, int revision)
+	     struct std_timing *t)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *m, *mode = NULL;
@@ -1623,7 +1622,7 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 	vrefresh_rate = vfreq + 60;
 	/* the vdisplay is calculated based on the aspect ratio */
 	if (aspect_ratio == 0) {
-		if (revision < 3)
+		if (edid->revision < 3)
 			vsize = hsize;
 		else
 			vsize = (hsize * 10) / 16;
@@ -2191,8 +2190,7 @@ do_standard_modes(struct detailed_timing *timing, void *c)
 			struct drm_display_mode *newmode;
 
 			std = &data->data.timings[i];
-			newmode = drm_mode_std(connector, edid, std,
-					       edid->revision);
+			newmode = drm_mode_std(connector, edid, std);
 			if (newmode) {
 				drm_mode_probed_add(connector, newmode);
 				closure->modes++;
@@ -2221,8 +2219,7 @@ add_standard_modes(struct drm_connector *connector, struct edid *edid)
 		struct drm_display_mode *newmode;
 
 		newmode = drm_mode_std(connector, edid,
-				       &edid->standard_timings[i],
-				       edid->revision);
+				       &edid->standard_timings[i]);
 		if (newmode) {
 			drm_mode_probed_add(connector, newmode);
 			modes++;
