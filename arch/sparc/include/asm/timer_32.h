@@ -32,7 +32,7 @@ static inline unsigned int timer_value(unsigned int value)
 	return (value + 1) << TIMER_VALUE_SHIFT;
 }
 
-extern __volatile__ unsigned int *master_l10_counter;
+extern volatile unsigned int __iomem *master_l10_counter;
 
 extern irqreturn_t notrace timer_interrupt(int dummy, void *dev_id);
 

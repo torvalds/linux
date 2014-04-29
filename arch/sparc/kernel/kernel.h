@@ -51,6 +51,11 @@ extern void sun4m_clear_profile_irq(int cpu);
 /* sun4m_smp.c */
 void sun4m_cpu_pre_starting(void *arg);
 void sun4m_cpu_pre_online(void *arg);
+void __init smp4m_boot_cpus(void);
+int smp4m_boot_one_cpu(int i, struct task_struct *idle);
+void __init smp4m_smp_done(void);
+void smp4m_cross_call_irq(void);
+void smp4m_percpu_timer_interrupt(struct pt_regs *regs);
 
 /* sun4d_irq.c */
 extern spinlock_t sun4d_imsk_lock;
@@ -67,10 +72,17 @@ extern void sun4d_free_irq(unsigned int irq, void *dev_id);
 /* sun4d_smp.c */
 void sun4d_cpu_pre_starting(void *arg);
 void sun4d_cpu_pre_online(void *arg);
+void __init smp4d_boot_cpus(void);
+int smp4d_boot_one_cpu(int i, struct task_struct *idle);
+void __init smp4d_smp_done(void);
+void smp4d_cross_call_irq(void);
+void smp4d_percpu_timer_interrupt(struct pt_regs *regs);
 
 /* leon_smp.c */
 void leon_cpu_pre_starting(void *arg);
 void leon_cpu_pre_online(void *arg);
+void leonsmp_ipi_interrupt(void);
+void leon_cross_call_irq(void);
 
 /* head_32.S */
 extern unsigned int t_nmi[];
@@ -94,6 +106,38 @@ extern void floppy_hardint(void);
 /* trampoline_32.S */
 extern unsigned long sun4m_cpu_startup;
 extern unsigned long sun4d_cpu_startup;
+
+/* process_32.c */
+asmlinkage int sparc_do_fork(unsigned long clone_flags,
+                             unsigned long stack_start,
+                             struct pt_regs *regs,
+                             unsigned long stack_size);
+
+/* signal_32.c */
+asmlinkage void do_sigreturn(struct pt_regs *regs);
+asmlinkage void do_rt_sigreturn(struct pt_regs *regs);
+void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0,
+                      unsigned long thread_info_flags);
+asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
+                               struct sigstack __user *ossptr,
+                               unsigned long sp);
+
+/* ptrace_32.c */
+asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p);
+
+/* unaligned_32.c */
+asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
+asmlinkage void user_unaligned_trap(struct pt_regs *regs, unsigned int insn);
+
+/* windows.c */
+void try_to_clear_window_buffer(struct pt_regs *regs, int who);
+
+/* tadpole.c */
+void __init clock_stop_probe(void);
+
+/* auxio_32.c */
+void __init auxio_probe(void);
+void __init auxio_power_probe(void);
 
 #else /* CONFIG_SPARC32 */
 #endif /* CONFIG_SPARC32 */

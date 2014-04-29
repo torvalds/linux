@@ -10,6 +10,7 @@
 
 #include <stdarg.h>
 
+#include <linux/elfcore.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -23,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/cpu.h>
 
 #include <asm/auxio.h>
 #include <asm/oplib.h>
@@ -37,6 +39,8 @@
 #include <asm/prom.h>
 #include <asm/unistd.h>
 #include <asm/setup.h>
+
+#include "kernel.h"
 
 /* 
  * Power management idle function 

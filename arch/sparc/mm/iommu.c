@@ -27,6 +27,8 @@
 #include <asm/iommu.h>
 #include <asm/dma.h>
 
+#include "mm_32.h"
+
 /*
  * This can be sized dynamically, but we will do this
  * only when we have a guidance about actual I/O pressures.
@@ -37,9 +39,6 @@
 #define IOMMU_NPTES	(IOMMU_WINSIZE/PAGE_SIZE)	/* 64K PTEs, 256KB */
 #define IOMMU_ORDER	6				/* 4096 * (1<<6) */
 
-/* srmmu.c */
-extern int viking_mxcc_present;
-extern int flush_page_for_dma_global;
 static int viking_flush;
 /* viking.S */
 extern void viking_flush_page(unsigned long page);
