@@ -326,12 +326,21 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		return false;
 
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
-		if (helper->dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		struct drm_device *dev = helper->dev;
+
+		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 			continue;
+
+		if (!mutex_trylock(&dev->mode_config.mutex)) {
+			error = true;
+			continue;
+		}
 
 		ret = drm_fb_helper_restore_fbdev_mode(helper);
 		if (ret)
 			error = true;
+
+		mutex_unlock(&dev->mode_config.mutex);
 	}
 	return error;
 }
