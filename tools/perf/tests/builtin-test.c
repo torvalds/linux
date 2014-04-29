@@ -124,6 +124,18 @@ static struct test {
 #endif
 #endif
 	{
+		.desc = "Test filtering hist entries",
+		.func = test__hists_filter,
+	},
+	{
+		.desc = "Test mmap thread lookup",
+		.func = test__mmap_thread_lookup,
+	},
+	{
+		.desc = "Test thread mg sharing",
+		.func = test__thread_mg_share,
+	},
+	{
 		.func = NULL,
 	},
 };
