@@ -281,10 +281,10 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 found:
 		csum += count * csum_size;
 		nblocks -= count;
+		bio_index += count;
 		while (count--) {
 			disk_bytenr += bvec->bv_len;
 			offset += bvec->bv_len;
-			bio_index++;
 			bvec++;
 		}
 	}
