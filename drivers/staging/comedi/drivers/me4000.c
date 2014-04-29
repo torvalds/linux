@@ -1352,6 +1352,7 @@ static int me4000_cnt_insn_config(struct comedi_device *dev,
 				  unsigned int *data)
 {
 	struct me4000_info *info = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int err;
 
 	switch (data[0]) {
@@ -1359,16 +1360,17 @@ static int me4000_cnt_insn_config(struct comedi_device *dev,
 		if (insn->n != 1)
 			return -EINVAL;
 
-		err = i8254_load(info->timer_regbase, 0, insn->chanspec, 0,
-				I8254_MODE0 | I8254_BINARY);
+		err = i8254_set_mode(info->timer_regbase, 0, chan,
+				     I8254_MODE0 | I8254_BINARY);
 		if (err)
 			return err;
+		i8254_write(info->timer_regbase, 0, chan, 0);
 		break;
 	case GPCT_SET_OPERATION:
 		if (insn->n != 2)
 			return -EINVAL;
 
-		err = i8254_set_mode(info->timer_regbase, 0, insn->chanspec,
+		err = i8254_set_mode(info->timer_regbase, 0, chan,
 				(data[1] << 1) | I8254_BINARY);
 		if (err)
 			return err;
