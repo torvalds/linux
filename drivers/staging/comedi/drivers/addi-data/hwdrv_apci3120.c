@@ -609,7 +609,7 @@ static int apci3120_reset(struct comedi_device *dev)
 	unsigned int i;
 	unsigned short us_TmpValue;
 
-	devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
+	devpriv->ai_running = 0;
 	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 	devpriv->ui_EocEosConversionTime = 0;	/*  set eoc eos conv time to 0 */
@@ -722,7 +722,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 	s->async->cur_chan = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
-	devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
+	devpriv->ai_running = 0;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 	apci3120_reset(dev);
@@ -817,10 +817,6 @@ static int apci3120_cyclic_ai(int mode,
 		0, ui_TimerValue0, ui_ConvertTiming;
 	unsigned short us_TmpValue;
 
-	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
-	/* devpriv->b_AiCyclicAcquisition=APCI3120_ENABLE; */
-	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
-
 	/*******************/
 	/* Resets the FIFO */
 	/*******************/
@@ -830,12 +826,7 @@ static int apci3120_cyclic_ai(int mode,
 	/* inw(dev->iobase+APCI3120_RD_STATUS); */
 	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
-	/***************************/
-	/* Acquisition initialized */
-	/***************************/
-	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
-	devpriv->b_AiCyclicAcquisition = APCI3120_ENABLE;
-	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+	devpriv->ai_running = 1;
 
 	/*  clear software  registers */
 	devpriv->b_TimerSelectMode = 0;
@@ -1388,8 +1379,6 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	if (samplesinbuf & 1) {
 		comedi_error(dev, "Odd count of bytes in DMA ring!");
 		apci3120_cancel(dev, s);
-		devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
-
 		return;
 	}
 	samplesinbuf = samplesinbuf >> 1;	/*  number of received samples */
@@ -1459,7 +1448,6 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		if (devpriv->ui_AiActualScan >= cmd->stop_arg) {
 			/*  all data sampled */
 			apci3120_cancel(dev, s);
-			devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(dev, s);
 			return;
@@ -1609,7 +1597,7 @@ static void apci3120_interrupt(int irq, void *d)
 
 		if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {	/*  enable this in without DMA ??? */
 
-			if (devpriv->b_AiCyclicAcquisition == APCI3120_ENABLE) {
+			if (devpriv->ai_running) {
 				ui_Check = 0;
 				apci3120_interrupt_handle_eos(dev);
 				devpriv->ui_AiActualScan++;
@@ -1651,8 +1639,6 @@ static void apci3120_interrupt(int irq, void *d)
 
 		switch (devpriv->b_Timer2Mode) {
 		case APCI3120_COUNTER:
-
-			devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister & APCI3120_DISABLE_EOS_INT;
@@ -1668,7 +1654,6 @@ static void apci3120_interrupt(int irq, void *d)
 
 			/* stop timer 0 and timer 1 */
 			apci3120_cancel(dev, s);
-			devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
 
 			/* UPDATE-0.7.57->0.7.68comedi_done(dev,s); */
 			s->async->events |= COMEDI_CB_EOA;
@@ -1707,7 +1692,7 @@ static void apci3120_interrupt(int irq, void *d)
 	}
 
 	if ((int_daq & 0x4) && (devpriv->b_InterruptMode == APCI3120_DMA_MODE)) {
-		if (devpriv->b_AiCyclicAcquisition == APCI3120_ENABLE) {
+		if (devpriv->ai_running) {
 
 			/****************************/
 			/* Clear Timer Write TC int */
