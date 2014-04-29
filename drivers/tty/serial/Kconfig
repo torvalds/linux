@@ -76,6 +76,8 @@ config SERIAL_AMBA_PL011_CONSOLE
 config SERIAL_EARLYCON_ARM_SEMIHOST
 	bool "Early console using ARM semihosting"
 	depends on ARM64 || ARM
+	select SERIAL_CORE
+	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
 	  Support for early debug console using ARM semihosting. This enables
@@ -1539,6 +1541,7 @@ config SERIAL_ST_ASC_CONSOLE
 
 config SERIAL_MEN_Z135
 	tristate "MEN 16z135 Support"
+	select SERIAL_CORE
 	depends on MCB
 	help
 	  Say yes here to enable support for the MEN 16z135 High Speed UART IP-Core
