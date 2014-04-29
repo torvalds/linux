@@ -892,7 +892,7 @@ static int apci3120_cyclic_ai(int mode,
 
 	/*  value for timer2  minus -2 has to be done .....dunno y?? */
 	ui_TimerValue2 = devpriv->ui_AiNbrofScans - 2;
-	ui_ConvertTiming = devpriv->ui_AiTimer0;
+	ui_ConvertTiming = cmd->convert_arg;
 
 	if (mode == 2)
 		ui_DelayTiming = devpriv->ui_AiTimer1;
@@ -1347,7 +1347,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	else
 		devpriv->ui_AiNbrofScans = 0;
 
-	devpriv->ui_AiTimer0 = 0;	/*  variables changed to timer0,timer1 */
 	devpriv->ui_AiTimer1 = 0;
 	if ((devpriv->ui_AiNbrofScans == 0) || (devpriv->ui_AiNbrofScans == -1))
 		devpriv->b_AiContinuous = 1;	/*  user want neverending analog acquisition */
@@ -1363,7 +1362,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 		if (cmd->convert_src == TRIG_TIMER) {
 			/*  mode 1 */
 
-			devpriv->ui_AiTimer0 = cmd->convert_arg;	/*  timer constant in nano seconds */
 			/* return this_board->ai_cmd(1,dev,s); */
 			return apci3120_cyclic_ai(1, dev, s);
 		}
@@ -1373,7 +1371,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 		&& (cmd->convert_src == TRIG_TIMER)) {
 		/*  mode 2 */
 		devpriv->ui_AiTimer1 = cmd->scan_begin_arg;
-		devpriv->ui_AiTimer0 = cmd->convert_arg;	/*  variable changed timer2 to timer0 */
 		/* return this_board->ai_cmd(2,dev,s); */
 		return apci3120_cyclic_ai(2, dev, s);
 	}
