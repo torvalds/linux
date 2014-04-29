@@ -736,14 +736,10 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-static void interrupt_pci1710_every_sample(void *d)
+static void pci1710_handle_every_sample(struct comedi_device *dev,
+					struct comedi_subdevice *s)
 {
-	struct comedi_device *dev = d;
 	struct pci1710_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int m;
 #ifdef PCI171x_PARANOIDCHECK
@@ -860,15 +856,11 @@ static int move_block_from_fifo(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-static void interrupt_pci1710_half_fifo(void *d)
+static void pci1710_handle_fifo(struct comedi_device *dev,
+				struct comedi_subdevice *s)
 {
-	struct comedi_device *dev = d;
 	const struct boardtype *this_board = comedi_board(dev);
 	struct pci1710_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int m, samplesinbuf;
 
@@ -947,9 +939,9 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 	}
 
 	if (cmd->flags & TRIG_WAKE_EOS)
-		interrupt_pci1710_every_sample(d);
+		pci1710_handle_every_sample(dev, s);
 	else
-		interrupt_pci1710_half_fifo(d);
+		pci1710_handle_fifo(dev, s);
 
 	return IRQ_HANDLED;
 }
