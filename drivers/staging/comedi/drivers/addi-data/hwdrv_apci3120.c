@@ -1152,10 +1152,10 @@ static int apci3120_cyclic_ai(int mode,
 					dmalen1 = 4;
 			}
 		} else {	/*  isn't output buff smaller that our DMA buff? */
-			if (dmalen0 > (devpriv->ui_AiDataLength))
-				dmalen0 = devpriv->ui_AiDataLength;
-			if (dmalen1 > (devpriv->ui_AiDataLength))
-				dmalen1 = devpriv->ui_AiDataLength;
+			if (dmalen0 > s->async->prealloc_bufsz)
+				dmalen0 = s->async->prealloc_bufsz;
+			if (dmalen1 > s->async->prealloc_bufsz)
+				dmalen1 = s->async->prealloc_bufsz;
 		}
 		devpriv->ui_DmaBufferUsesize[0] = dmalen0;
 		devpriv->ui_DmaBufferUsesize[1] = dmalen1;
@@ -1338,9 +1338,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 
 	/* loading private structure with cmd structure inputs */
 	devpriv->ui_AiNbrofChannels = cmd->chanlist_len;
-
-	/* UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len; */
-	devpriv->ui_AiDataLength = s->async->prealloc_bufsz;
 
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ui_AiNbrofScans = cmd->stop_arg;
