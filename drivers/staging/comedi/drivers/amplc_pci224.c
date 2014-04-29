@@ -377,7 +377,6 @@ struct pci224_private {
 	unsigned int cached_div1;
 	unsigned int cached_div2;
 	unsigned int ao_stop_count;
-	short ao_stop_continuous;
 	unsigned short ao_enab;	/* max 16 channels so 'short' will do */
 	unsigned char intsce;
 };
@@ -521,7 +520,7 @@ static void pci224_ao_start(struct comedi_device *dev,
 	unsigned long flags;
 
 	set_bit(AO_CMD_STARTED, &devpriv->state);
-	if (!devpriv->ao_stop_continuous && devpriv->ao_stop_count == 0) {
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
@@ -560,7 +559,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 	}
 	/* Determine number of scans available in buffer. */
 	num_scans = comedi_buf_read_n_available(s->async) / bytes_per_scan;
-	if (!devpriv->ao_stop_continuous) {
+	if (cmd->stop_src == TRIG_COUNT) {
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_stop_count)
 			num_scans = devpriv->ao_stop_count;
@@ -572,7 +571,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 	switch (dacstat & PCI224_DACCON_FIFOFL_MASK) {
 	case PCI224_DACCON_FIFOFL_EMPTY:
 		room = PCI224_FIFO_ROOM_EMPTY;
-		if (!devpriv->ao_stop_continuous && devpriv->ao_stop_count == 0) {
+		if (cmd->stop_src == TRIG_COUNT && devpriv->ao_stop_count == 0) {
 			/* FIFO empty at end of counted acquisition. */
 			s->async->events |= COMEDI_CB_EOA;
 			cfc_handle_events(dev, s);
@@ -614,7 +613,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 			     dev->iobase + PCI224_DACDATA);
 		}
 	}
-	if (!devpriv->ao_stop_continuous) {
+	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ao_stop_count -= num_scans;
 		if (devpriv->ao_stop_count == 0) {
 			/*
@@ -952,18 +951,10 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*
 	 * Sort out end of acquisition.
 	 */
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		/* Fixed number of scans.  */
-		devpriv->ao_stop_continuous = 0;
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ao_stop_count = cmd->stop_arg;
-		break;
-	default:
-		/* Continuous scans. */
-		devpriv->ao_stop_continuous = 1;
+	else	/* TRIG_EXT | TRIG_NONE */
 		devpriv->ao_stop_count = 0;
-		break;
-	}
 
 	spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 	if (cmd->start_src == TRIG_INT) {
