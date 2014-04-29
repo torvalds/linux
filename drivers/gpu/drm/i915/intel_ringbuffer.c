@@ -663,18 +663,28 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 	ring->scratch.obj = NULL;
 }
 
-static void gen6_signal(struct intel_ring_buffer *signaller)
+static int gen6_signal(struct intel_ring_buffer *signaller,
+		       unsigned int num_dwords)
 {
-	struct drm_i915_private *dev_priv = signaller->dev->dev_private;
+	struct drm_device *dev = signaller->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *useless;
-	int i;
+	int i, ret;
 
-/* NB: In order to be able to do semaphore MBOX updates for varying number
- * of rings, it's easiest if we round up each individual update to a
- * multiple of 2 (since ring updates must always be a multiple of 2)
- * even though the actual update only requires 3 dwords.
- */
+	/* NB: In order to be able to do semaphore MBOX updates for varying
+	 * number of rings, it's easiest if we round up each individual update
+	 * to a multiple of 2 (since ring updates must always be a multiple of
+	 * 2) even though the actual update only requires 3 dwords.
+	 */
 #define MBOX_UPDATE_DWORDS 4
+	if (i915_semaphore_is_enabled(dev))
+		num_dwords += ((I915_NUM_RINGS-1) * MBOX_UPDATE_DWORDS);
+
+	ret = intel_ring_begin(signaller, num_dwords);
+	if (ret)
+		return ret;
+#undef MBOX_UPDATE_DWORDS
+
 	for_each_ring(useless, dev_priv, i) {
 		u32 mbox_reg = signaller->semaphore.mbox.signal[i];
 		if (mbox_reg != GEN6_NOSYNC) {
@@ -689,6 +699,8 @@ static void gen6_signal(struct intel_ring_buffer *signaller)
 			intel_ring_emit(signaller, MI_NOOP);
 		}
 	}
+
+	return 0;
 }
 
 /**
@@ -703,18 +715,11 @@ static void gen6_signal(struct intel_ring_buffer *signaller)
 static int
 gen6_add_request(struct intel_ring_buffer *ring)
 {
-	struct drm_device *dev = ring->dev;
-	int ret, num_dwords = 4;
+	int ret;
 
-	if (i915_semaphore_is_enabled(dev))
-		num_dwords += ((I915_NUM_RINGS-1) * MBOX_UPDATE_DWORDS);
-#undef MBOX_UPDATE_DWORDS
-
-	ret = intel_ring_begin(ring, num_dwords);
+	ret = ring->semaphore.signal(ring, 4);
 	if (ret)
 		return ret;
-
-	ring->semaphore.signal(ring);
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);

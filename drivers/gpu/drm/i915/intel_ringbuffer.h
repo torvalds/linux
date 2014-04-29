@@ -132,7 +132,9 @@ struct  intel_ring_buffer {
 		int	(*sync_to)(struct intel_ring_buffer *ring,
 				   struct intel_ring_buffer *to,
 				   u32 seqno);
-		void	(*signal)(struct intel_ring_buffer *signaller);
+		int	(*signal)(struct intel_ring_buffer *signaller,
+				  /* num_dwords needed by caller */
+				  unsigned int num_dwords);
 	} semaphore;
 
 	/**
