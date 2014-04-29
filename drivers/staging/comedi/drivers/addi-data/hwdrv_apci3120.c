@@ -895,7 +895,7 @@ static int apci3120_cyclic_ai(int mode,
 	ui_ConvertTiming = cmd->convert_arg;
 
 	if (mode == 2)
-		ui_DelayTiming = devpriv->ui_AiTimer1;
+		ui_DelayTiming = cmd->scan_begin_arg;
 
    /**********************************/
 	/* Initializes the sequence array */
@@ -1347,7 +1347,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	else
 		devpriv->ui_AiNbrofScans = 0;
 
-	devpriv->ui_AiTimer1 = 0;
 	if ((devpriv->ui_AiNbrofScans == 0) || (devpriv->ui_AiNbrofScans == -1))
 		devpriv->b_AiContinuous = 1;	/*  user want neverending analog acquisition */
 	/*  stopped using cancel */
@@ -1370,7 +1369,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	if ((cmd->scan_begin_src == TRIG_TIMER)
 		&& (cmd->convert_src == TRIG_TIMER)) {
 		/*  mode 2 */
-		devpriv->ui_AiTimer1 = cmd->scan_begin_arg;
 		/* return this_board->ai_cmd(2,dev,s); */
 		return apci3120_cyclic_ai(2, dev, s);
 	}
