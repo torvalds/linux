@@ -171,32 +171,39 @@ static const struct labpc_boardinfo labpc_boards[] = {
 };
 #endif
 
-static int labpc_counter_load(struct comedi_device *dev,
-			      unsigned long base_address,
-			      unsigned int counter_number,
-			      unsigned int count, unsigned int mode)
+static void labpc_counter_load(struct comedi_device *dev,
+			       unsigned long base_address,
+			       unsigned int counter_number,
+			       unsigned int count,
+			       unsigned int mode)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 
-	if (board->has_mmio)
-		return i8254_mm_load((void __iomem *)base_address, 0,
-				     counter_number, count, mode);
-	else
-		return i8254_load(base_address, 0, counter_number, count, mode);
+	if (board->has_mmio) {
+		void __iomem *mmio_base = (void __iomem *)base_address;
+
+		i8254_mm_set_mode(mmio_base, 0, counter_number, mode);
+		i8254_mm_write(mmio_base, 0, counter_number, count);
+	} else {
+		i8254_set_mode(base_address, 0, counter_number, mode);
+		i8254_write(base_address, 0, counter_number, count);
+	}
 }
 
-static int labpc_counter_set_mode(struct comedi_device *dev,
-				  unsigned long base_address,
-				  unsigned int counter_number,
-				  unsigned int mode)
+static void labpc_counter_set_mode(struct comedi_device *dev,
+				   unsigned long base_address,
+				   unsigned int counter_number,
+				   unsigned int mode)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 
-	if (board->has_mmio)
-		return i8254_mm_set_mode((void __iomem *)base_address, 0,
-					 counter_number, mode);
-	else
-		return i8254_set_mode(base_address, 0, counter_number, mode);
+	if (board->has_mmio) {
+		void __iomem *mmio_base = (void __iomem *)base_address;
+
+		i8254_mm_set_mode(mmio_base, 0, counter_number, mode);
+	} else {
+		i8254_set_mode(base_address, 0, counter_number, mode);
+	}
 }
 
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -349,10 +356,8 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	devpriv->write_byte(devpriv->cmd4, dev->iobase + CMD4_REG);
 
 	/* initialize pacer counter to prevent any problems */
-	ret = labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
-				     0, I8254_MODE2);
-	if (ret)
-		return ret;
+	labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+			       0, I8254_MODE2);
 
 	labpc_clear_adc_fifo(dev);
 
@@ -730,7 +735,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int aref = CR_AREF(chanspec);
 	enum transfer_type xfer;
 	unsigned long flags;
-	int ret;
 
 	/* make sure board is disabled before setting up acquisition */
 	labpc_cancel(dev, s);
@@ -745,17 +749,12 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * load counter a1 with count of 3
 		 * (pc+ manual says this is minimum allowed) using mode 0
 		 */
-		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
-					 1, 3, I8254_MODE0);
+		labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
+				   1, 3, I8254_MODE0);
 	} else	{
 		/* just put counter a1 in mode 0 to set its output low */
-		ret = labpc_counter_set_mode(dev,
-					     dev->iobase + COUNTER_A_BASE_REG,
-					     1, I8254_MODE0);
-	}
-	if (ret) {
-		comedi_error(dev, "error loading counter a1");
-		return ret;
+		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+				       1, I8254_MODE0);
 	}
 
 	/* figure out what method we will use to transfer data */
@@ -800,38 +799,25 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*  set up pacing */
 		labpc_adc_timing(dev, cmd, mode);
 		/*  load counter b0 in mode 3 */
-		ret = labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
-					 0, devpriv->divisor_b0, I8254_MODE3);
-		if (ret < 0) {
-			comedi_error(dev, "error loading counter b0");
-			return -1;
-		}
+		labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
+				   0, devpriv->divisor_b0, I8254_MODE3);
 	}
 	/*  set up conversion pacing */
 	if (labpc_ai_convert_period(cmd, mode)) {
 		/*  load counter a0 in mode 2 */
-		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
-					 0, devpriv->divisor_a0, I8254_MODE2);
+		labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
+				   0, devpriv->divisor_a0, I8254_MODE2);
 	} else {
 		/* initialize pacer counter to prevent any problems */
-		ret = labpc_counter_set_mode(dev,
-					     dev->iobase + COUNTER_A_BASE_REG,
-					     0, I8254_MODE2);
-	}
-	if (ret) {
-		comedi_error(dev, "error loading counter a0");
-		return ret;
+		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+				       0, I8254_MODE2);
 	}
 
 	/*  set up scan pacing */
 	if (labpc_ai_scan_period(cmd, mode)) {
 		/*  load counter b1 in mode 2 */
-		ret = labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
-					 1, devpriv->divisor_b1, I8254_MODE2);
-		if (ret < 0) {
-			comedi_error(dev, "error loading counter b1");
-			return -1;
-		}
+		labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
+				   1, devpriv->divisor_b1, I8254_MODE2);
 	}
 
 	labpc_clear_adc_fifo(dev);
