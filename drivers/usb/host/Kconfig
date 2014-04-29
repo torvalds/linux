@@ -342,6 +342,17 @@ config USB_FOTG210_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called fotg210-hcd.
 
+config USB_MAX3421_HCD
+	tristate "MAX3421 HCD (USB-over-SPI) support"
+	depends on USB && SPI
+	---help---
+	  The Maxim MAX3421E chip supports standard USB 2.0-compliant
+	  full-speed devices either in host or peripheral mode.  This
+	  driver supports the host-mode of the MAX3421E only.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called max3421-hcd.
+
 config USB_OHCI_HCD
 	tristate "OHCI HCD (USB 1.1) support"
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
