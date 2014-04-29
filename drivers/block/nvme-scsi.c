@@ -681,6 +681,7 @@ static int nvme_trans_standard_inquiry_page(struct nvme_ns *ns,
 	u8 resp_data_format = 0x02;
 	u8 protect;
 	u8 cmdque = 0x01 << 1;
+	u8 fw_offset = sizeof(dev->firmware_rev);
 
 	mem = dma_alloc_coherent(&dev->pci_dev->dev, sizeof(struct nvme_id_ns),
 				&dma_addr, GFP_KERNEL);
@@ -716,7 +717,11 @@ static int nvme_trans_standard_inquiry_page(struct nvme_ns *ns,
 	inq_response[7] = cmdque;	/* wbus16=0 | sync=0 | vs=0 */
 	strncpy(&inq_response[8], "NVMe    ", 8);
 	strncpy(&inq_response[16], dev->model, 16);
-	strncpy(&inq_response[32], dev->firmware_rev, 4);
+
+	while (dev->firmware_rev[fw_offset - 1] == ' ' && fw_offset > 4)
+		fw_offset--;
+	fw_offset -= 4;
+	strncpy(&inq_response[32], dev->firmware_rev + fw_offset, 4);
 
 	xfer_len = min(alloc_len, STANDARD_INQUIRY_LENGTH);
 	res = nvme_trans_copy_to_user(hdr, inq_response, xfer_len);
