@@ -728,6 +728,11 @@ static struct ricoh619_platform_data *ricoh619_parse_dt(struct ricoh619 *ricoh61
 			if (!gpio_is_valid(pdata->pmic_sleep_gpio)) {
 				printk("invalid gpio: %d\n",  pdata->pmic_sleep_gpio);
 		}
+
+	pdata->dc_det = of_get_named_gpio(ricoh619_pmic_np,"gpios",2);
+			if (!gpio_is_valid(pdata->dc_det)) {
+				printk("invalid gpio: %d\n",  pdata->dc_det);
+		}
 	pdata->pmic_sleep = true;
 	
 	pdata->pm_off = of_property_read_bool(ricoh619_pmic_np,"ricoh619,system-power-controller");
@@ -812,7 +817,10 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 	
 	if (ricoh619->dev->of_node)
 		pdata = ricoh619_parse_dt(ricoh619);
-
+	
+	if (gpio_is_valid(pdata->dc_det)) 
+		ricoh619->dc_det = pdata->dc_det;
+	
 	/******************************set sleep vol & dcdc mode******************/
 	#ifdef CONFIG_OF
 	if (pdata->pmic_sleep_gpio) {

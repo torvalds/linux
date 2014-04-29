@@ -1,0 +1,229 @@
+ricoh619 Power Management Integrated Circuit
+
+Required properties:
+- compatible: "rockchip,ricoh619" 
+- reg: I2C slave address
+- gpios: the interrupt pin\ sleep pin \dc_dec pin
+  use gpio get IRQ number
+  get adp plug in or out
+- regulators: This is the list of child nodes that specify the regulator
+  initialization data for defined regulators. Not all regulators for the given
+  device need to be present. The definition for each of these nodes is defined
+  using the standard binding for regulators found at
+  Documentation/devicetree/bindings/regulator/regulator.txt.
+  The regulator is matched with the regulator-compatible.
+
+  The valid regulator-compatible values are:
+  ricoh619: ricoh619_dc1, ricoh619_dc2, ricoh619_dc3, ricoh619_dc4, ricoh619_dc5,ricoh619_ldo1, ricoh619_ldo2, ricoh619_ldo3, ricoh619_ldo4, ricoh619_ldo5, ricoh619_ldo6,
+            ricoh619_ldo7, ricoh619_ldo8,ricoh619_ldo9,ricoh619_ldo10,ricoh619_ldortc1,ricoh619_ldortc2
+
+Optional properties:
+- gpios: 
+	gpios 0 :irq pin gpio
+	gpios 1 :sleep pin gpio
+	gpios 2 :dc det pin
+- regulator-initial-mode: default mode to set on startup
+- regulator-initial-state: suspend state to set at init
+- regulator-state-mem, regulator-state-disk, regulator-state-standby:
+	defines regulator suspend to memory, suspend to disk (hibernate) and standby respectively.
+	have following sub-constarints:
+	- regulator-state-uv: suspend voltage
+	- regulator-state-mode: suspend regulator operating mode
+	- regulator-state-enabled: is regulator enabled in this suspend state
+	- regulator-state-disabled: is the regulator disbled in this suspend state
+-regulator-initial-mode and regulator-state-mode is set as:
+	REGULATOR_MODE_FAST			0x1
+	REGULATOR_MODE_NORMAL			0x2
+	REGULATOR_MODE_IDLE			0x4
+	REGULATOR_MODE_STANDBY			0x8
+ 
+Example:
+
+	ricoh619: ricoh619@32 {
+		reg = <0x32>;
+		status = "okay";
+	};
+
+	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>,<&gpio0 GPIO_B0 GPIO_ACTIVE_HIGH>;
+	ricoh619,system-power-controller;  //support power off
+
+&ricoh619 {
+	compatible = "ricoh,ricoh619";
+	
+	regulators {
+		#address-cells = <1>;
+		#size-cells = <0>;	
+
+		regulators {
+		ricoh619_dcdc1_reg: regulator@0 {
+			regulator-name = "vdd_logic";
+			regulator-min-microvolt = < 700000>;
+			regulator-max-microvolt = <1500000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <900000>;
+			};	
+		};
+		ricoh619_dcdc2_reg: regulator@1 {
+			regulator-name = "ricoh619_dcdc2";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <1200000>;
+			};	
+		};
+		ricoh619_dcdc3_reg: regulator@2 {
+			regulator-name = "ricoh619_dcdc3";
+			regulator-min-microvolt = < 1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <1200000>;
+			};	
+		};
+		ricoh619_dcdc4_reg: regulator@3 {
+			regulator-name = "ricoh619_dcdc4";
+			regulator-min-microvolt = < 3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <2800000>;
+			};	
+		};
+		ricoh619_dcdc5_reg: regulator@4 {
+			regulator-name = "ricoh619_dcdc5";
+			regulator-min-microvolt = < 2000000>;
+			regulator-max-microvolt = <2000000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <2000000>;
+			};	
+		};
+		ricoh619_ldo1_reg: regulator@5  {
+			regulator-name = "ricoh619_ldo1";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};	
+		};
+		ricoh619_ldo2_reg: regulator@6  {
+			regulator-name = "ricoh619_ldo2";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+		ricoh619_ldo3_reg: regulator@7  {
+			regulator-name = "ricoh619_ldo3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+		ricoh619_ldo4_reg: regulator@8  {
+			regulator-name = "vcc_sd";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+		ricoh619_ldo5_reg: regulator@9  {
+			regulator-name = "ricoh619_ldo5";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+		ricoh619_ldo6_reg: regulator@10  {
+			regulator-name = "ricoh619_ldo6";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <1800000>;
+			};
+		};
+		ricoh619_ldo7_reg: regulator@11  {
+			regulator-name = "ricoh619_ldo7";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+		ricoh619_ldo8_reg: regulator@12  {
+			regulator-name = "ricoh619_ldo8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+		ricoh619_ldo9_reg: regulator@13  {
+			regulator-name = "ricoh619_ldo9";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+		ricoh619_ldo10_reg: regulator@14  {
+			regulator-name = "ricoh619_ldo10";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+		ricoh619_ldortc1_reg: regulator@15  {
+			regulator-name = "ricoh619_ldortc1";
+			regulator-min-microvolt = < 3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+		ricoh619_ldortc2_reg: regulator@16  {
+			regulator-name = "ricoh619_ldortc2";
+			regulator-min-microvolt = < 3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
+};

@@ -3071,7 +3071,7 @@ static int get_power_supply_Android_status(struct ricoh619_battery_info *info)
 
 	return POWER_SUPPLY_STATUS_UNKNOWN;
 }
-
+extern struct ricoh619 *g_ricoh619;
 static void charger_irq_work(struct work_struct *work)
 {
 	struct ricoh619_battery_info *info
@@ -3088,11 +3088,34 @@ static void charger_irq_work(struct work_struct *work)
 	
 	if (info->chg_stat1 & 0x01) {
 		ricoh619_read(info->dev->parent, CHGSTATE_REG, &reg_val);
-		if (reg_val & 0x40) { /* USE ADP */
-			/* set adp limit current 2A */
-			ricoh619_write(info->dev->parent, REGISET1_REG, 0x13);
-			/* set charge current 2A */
-			ricoh619_write(info->dev->parent, CHGISET_REG, 0xD3);
+		if (reg_val & 0x40) { /* USE ADP */	
+			if (gpio_is_valid(g_ricoh619->dc_det)){
+				ret = gpio_request(g_ricoh619->dc_det, "ricoh619_dc_det");
+				if (ret < 0) {
+					RICOH_FG_DBG("Failed to request gpio %d with ret:""%d\n",g_ricoh619->dc_det, ret);
+				}
+				gpio_direction_input(g_ricoh619->dc_det);
+				ret = gpio_get_value(g_ricoh619->dc_det);
+				if (ret ==0){
+					/* set adp limit current 2A */
+					ricoh619_write(info->dev->parent, REGISET1_REG, 0x13);
+					/* set charge current 2A */
+					ricoh619_write(info->dev->parent, CHGISET_REG, 0xD3);
+ 				}
+				else {
+					/* set adp limit current 500ma */
+					ricoh619_write(info->dev->parent, REGISET1_REG, 0x04);
+					/* set charge current 500ma */
+					ricoh619_write(info->dev->parent, CHGISET_REG, 0xc4); 
+				}
+				gpio_free(g_ricoh619->dc_det);
+			}
+			else{
+				/* set adp limit current 2A */
+				ricoh619_write(info->dev->parent, REGISET1_REG, 0x13);
+				/* set charge current 2A */
+				ricoh619_write(info->dev->parent, CHGISET_REG, 0xD3); 
+			}
 		}
 		else if (reg_val & 0x80) { /* USE USB */
 			queue_work(info->usb_workqueue, &info->usb_irq_work);

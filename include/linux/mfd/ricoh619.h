@@ -319,6 +319,7 @@ struct ricoh619 {
 
 	int			bank_num;
 	struct irq_domain *irq_domain;
+	int dc_det;
 };
 
 struct ricoh619_platform_data {
@@ -334,6 +335,7 @@ struct ricoh619_platform_data {
 	struct regulator_init_data *reg_init_data[RICOH619_NUM_REGULATOR];
 	int irq_gpio;
 	int pmic_sleep_gpio; /* */
+	int dc_det; 
 	bool pmic_sleep;
 };
 

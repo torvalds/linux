@@ -807,7 +807,7 @@ rockchip,power_type = <GPIO>;
 
 /include/ "ricoh619.dtsi"
 &ricoh619 {
-	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>;
+	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>,<&gpio0 GPIO_B0 GPIO_ACTIVE_HIGH>;
 	ricoh619,system-power-controller;
 	
 	regulators {
