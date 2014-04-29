@@ -1667,10 +1667,11 @@ static int vgic_ioaddr_assign(struct kvm *kvm, phys_addr_t *ioaddr,
 	if (addr + size < addr)
 		return -EINVAL;
 
+	*ioaddr = addr;
 	ret = vgic_ioaddr_overlap(kvm);
 	if (ret)
-		return ret;
-	*ioaddr = addr;
+		*ioaddr = VGIC_ADDR_UNDEF;
+
 	return ret;
 }
 
