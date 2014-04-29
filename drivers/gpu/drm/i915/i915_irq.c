@@ -754,7 +754,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long high_frame;
 	unsigned long low_frame;
-	u32 high1, high2, low, pixel, vbl_start;
+	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
 		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
@@ -768,16 +768,27 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 		const struct drm_display_mode *mode =
 			&intel_crtc->config.adjusted_mode;
 
-		vbl_start = mode->crtc_vblank_start * mode->crtc_htotal;
+		htotal = mode->crtc_htotal;
+		hsync_start = mode->crtc_hsync_start;
+		vbl_start = mode->crtc_vblank_start;
+		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+			vbl_start = DIV_ROUND_UP(vbl_start, 2);
 	} else {
 		enum transcoder cpu_transcoder = (enum transcoder) pipe;
-		u32 htotal;
 
 		htotal = ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff) + 1;
+		hsync_start = (I915_READ(HSYNC(cpu_transcoder))  & 0x1fff) + 1;
 		vbl_start = (I915_READ(VBLANK(cpu_transcoder)) & 0x1fff) + 1;
-
-		vbl_start *= htotal;
+		if ((I915_READ(PIPECONF(cpu_transcoder)) &
+		     PIPECONF_INTERLACE_MASK) != PIPECONF_PROGRESSIVE)
+			vbl_start = DIV_ROUND_UP(vbl_start, 2);
 	}
+
+	/* Convert to pixel count */
+	vbl_start *= htotal;
+
+	/* Start of vblank event occurs at start of hsync */
+	vbl_start -= htotal - hsync_start;
 
 	high_frame = PIPEFRAME(pipe);
 	low_frame = PIPEFRAMEPIXEL(pipe);
