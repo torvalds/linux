@@ -206,7 +206,7 @@ i2c_dp_aux_prepare_bus(struct i2c_adapter *adapter)
  * i2c_dp_aux_add_bus() - register an i2c adapter using the aux ch helper
  * @adapter: i2c adapter to register
  *
- * This registers an i2c adapater that uses dp aux channel as it's underlaying
+ * This registers an i2c adapter that uses dp aux channel as it's underlaying
  * transport. The driver needs to fill out the &i2c_algo_dp_aux_data structure
  * and store it in the algo_data member of the @adapter argument. This will be
  * used by the i2c over dp aux algorithm to drive the hardware.
