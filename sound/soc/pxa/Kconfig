@@ -140,7 +140,7 @@ config SND_PXA910_SOC
 
 config SND_SOC_TTC_DKB
 	bool "SoC Audio support for TTC DKB"
-	depends on SND_PXA910_SOC && MACH_TTC_DKB
+	depends on SND_PXA910_SOC && MACH_TTC_DKB && I2C=y
 	select PXA_SSP
 	select SND_PXA_SOC_SSP
 	select SND_MMP_SOC
