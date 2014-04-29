@@ -562,7 +562,15 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	struct isert_device *device;
 	struct ib_device *ib_dev = cma_id->device;
 	int ret = 0;
-	u8 pi_support = np->tpg_np->tpg->tpg_attrib.t10_pi;
+	u8 pi_support;
+
+	spin_lock_bh(&np->np_thread_lock);
+	if (!np->enabled) {
+		spin_unlock_bh(&np->np_thread_lock);
+		pr_debug("iscsi_np is not enabled, reject connect request\n");
+		return rdma_reject(cma_id, NULL, 0);
+	}
+	spin_unlock_bh(&np->np_thread_lock);
 
 	pr_debug("Entering isert_connect_request cma_id: %p, context: %p\n",
 		 cma_id, cma_id->context);
@@ -653,6 +661,7 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		goto out_mr;
 	}
 
+	pi_support = np->tpg_np->tpg->tpg_attrib.t10_pi;
 	if (pi_support && !device->pi_capable) {
 		pr_err("Protection information requested but not supported\n");
 		ret = -EINVAL;
