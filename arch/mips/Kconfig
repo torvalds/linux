@@ -2267,8 +2267,8 @@ config NR_CPUS_DEFAULT_64
 	bool
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-64)"
-	range 2 64
+	int "Maximum number of CPUs (2-256)"
+	range 2 256
 	depends on SMP
 	default "4" if NR_CPUS_DEFAULT_4
 	default "8" if NR_CPUS_DEFAULT_8
