@@ -73,6 +73,9 @@ Configuration options:
 #define PCI171x_DAREF	14	/* W:   D/A reference control */
 #define PCI171x_DI	16	/* R:   digi inputs */
 #define PCI171x_DO	16	/* R:   digi inputs */
+
+#define PCI171X_TIMER_BASE	0x18
+
 #define PCI171x_CNT0	24	/* R/W: 8254 counter 0 */
 #define PCI171x_CNT1	26	/* R/W: 8254 counter 1 */
 #define PCI171x_CNT2	28	/* R/W: 8254 counter 2 */
@@ -567,20 +570,18 @@ static int pci171x_insn_bits_do(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
-static void start_pacer(struct comedi_device *dev, int mode,
-			unsigned int divisor1, unsigned int divisor2)
+static void pci171x_start_pacer(struct comedi_device *dev,
+				bool load_counters)
 {
-	outw(0xb4, dev->iobase + PCI171x_CNTCTRL);
-	outw(0x74, dev->iobase + PCI171x_CNTCTRL);
+	struct pci1710_private *devpriv = dev->private;
+	unsigned long timer_base = dev->iobase + PCI171X_TIMER_BASE;
 
-	if (mode == 1) {
-		outw(divisor2 & 0xff, dev->iobase + PCI171x_CNT2);
-		outw((divisor2 >> 8) & 0xff, dev->iobase + PCI171x_CNT2);
-		outw(divisor1 & 0xff, dev->iobase + PCI171x_CNT1);
-		outw((divisor1 >> 8) & 0xff, dev->iobase + PCI171x_CNT1);
+	i8254_set_mode(timer_base, 1, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 1, 1, I8254_MODE2 | I8254_BINARY);
+
+	if (load_counters) {
+		i8254_write(timer_base, 1, 2, devpriv->divisor2);
+		i8254_write(timer_base, 1, 1, devpriv->divisor1);
 	}
 }
 
@@ -723,7 +724,7 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 		devpriv->CntrlReg |= Control_SW;
 
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);	/*  reset any operations */
-		start_pacer(dev, -1, 0, 0);
+		pci171x_start_pacer(dev, false);
 		outb(0, dev->iobase + PCI171x_CLRFIFO);
 		outb(0, dev->iobase + PCI171x_CLRINT);
 		break;
@@ -941,8 +942,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 		outb(0, dev->iobase + PCI171x_CLRINT);
 		outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
-		/*  start pacer */
-		start_pacer(dev, 1, devpriv->divisor1, devpriv->divisor2);
+		pci171x_start_pacer(dev, true);
 		return IRQ_HANDLED;
 	}
 
@@ -959,7 +959,7 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
+	pci171x_start_pacer(dev, false);
 
 	setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len,
 			   devpriv->saved_seglen);
@@ -990,11 +990,8 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 
-		if (cmd->start_src == TRIG_NOW) {
-			/*  start pacer */
-			start_pacer(dev, 1,
-				    devpriv->divisor1, devpriv->divisor2);
-		}
+		if (cmd->start_src == TRIG_NOW)
+			pci171x_start_pacer(dev, true);
 	} else {	/* TRIG_EXT */
 		devpriv->CntrlReg |= Control_EXT | Control_IRQEN;
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
@@ -1098,7 +1095,7 @@ static int pci171x_reset(struct comedi_device *dev)
 	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);	/*  reset any operations */
 	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
-	start_pacer(dev, -1, 0, 0);	/*  stop 8254 */
+	pci171x_start_pacer(dev, false);
 	devpriv->da_ranges = 0;
 	if (this_board->n_aochan) {
 		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);	/*  set DACs to 0..5V */
