@@ -1625,7 +1625,7 @@ static void noflush_work(struct thin_c *tc, void (*fn)(struct work_struct *))
 {
 	struct noflush_work w;
 
-	INIT_WORK(&w.worker, fn);
+	INIT_WORK_ONSTACK(&w.worker, fn);
 	w.tc = tc;
 	atomic_set(&w.complete, 0);
 	init_waitqueue_head(&w.wait);
