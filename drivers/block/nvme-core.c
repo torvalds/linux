@@ -197,15 +197,12 @@ static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
 #define CMD_CTX_CANCELLED	(0x30C + CMD_CTX_BASE)
 #define CMD_CTX_COMPLETED	(0x310 + CMD_CTX_BASE)
 #define CMD_CTX_INVALID		(0x314 + CMD_CTX_BASE)
-#define CMD_CTX_FLUSH		(0x318 + CMD_CTX_BASE)
-#define CMD_CTX_ABORT		(0x31C + CMD_CTX_BASE)
+#define CMD_CTX_ABORT		(0x318 + CMD_CTX_BASE)
 
 static void special_completion(struct nvme_queue *nvmeq, void *ctx,
 						struct nvme_completion *cqe)
 {
 	if (ctx == CMD_CTX_CANCELLED)
-		return;
-	if (ctx == CMD_CTX_FLUSH)
 		return;
 	if (ctx == CMD_CTX_ABORT) {
 		++nvmeq->dev->abort_limit;
@@ -629,16 +626,6 @@ static int nvme_submit_flush(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	return 0;
 }
 
-int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns)
-{
-	int cmdid = alloc_cmdid(nvmeq, (void *)CMD_CTX_FLUSH,
-					special_completion, NVME_IO_TIMEOUT);
-	if (unlikely(cmdid < 0))
-		return cmdid;
-
-	return nvme_submit_flush(nvmeq, ns, cmdid);
-}
-
 static int nvme_submit_iod(struct nvme_queue *nvmeq, struct nvme_iod *iod)
 {
 	struct bio *bio = iod->private;
@@ -654,7 +641,7 @@ static int nvme_submit_iod(struct nvme_queue *nvmeq, struct nvme_iod *iod)
 
 	if (bio->bi_rw & REQ_DISCARD)
 		return nvme_submit_discard(nvmeq, ns, bio, iod, cmdid);
-	if ((bio->bi_rw & REQ_FLUSH) && !iod->nents)
+	if (bio->bi_rw & REQ_FLUSH)
 		return nvme_submit_flush(nvmeq, ns, cmdid);
 
 	control = 0;
@@ -688,6 +675,26 @@ static int nvme_submit_iod(struct nvme_queue *nvmeq, struct nvme_iod *iod)
 	return 0;
 }
 
+static int nvme_split_flush_data(struct nvme_queue *nvmeq, struct bio *bio)
+{
+	struct bio *split = bio_clone(bio, GFP_ATOMIC);
+	if (!split)
+		return -ENOMEM;
+
+	split->bi_iter.bi_size = 0;
+	split->bi_phys_segments = 0;
+	bio->bi_rw &= ~REQ_FLUSH;
+	bio_chain(split, bio);
+
+	if (!waitqueue_active(&nvmeq->sq_full))
+		add_wait_queue(&nvmeq->sq_full, &nvmeq->sq_cong_wait);
+	bio_list_add(&nvmeq->sq_cong, split);
+	bio_list_add(&nvmeq->sq_cong, bio);
+	wake_up_process(nvme_thread);
+
+	return 0;
+}
+
 /*
  * Called with local interrupts disabled and the q_lock held.  May not sleep.
  */
@@ -698,11 +705,8 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	int psegs = bio_phys_segments(ns->queue, bio);
 	int result;
 
-	if ((bio->bi_rw & REQ_FLUSH) && psegs) {
-		result = nvme_submit_flush_data(nvmeq, ns);
-		if (result)
-			return result;
-	}
+	if ((bio->bi_rw & REQ_FLUSH) && psegs)
+		return nvme_split_flush_data(nvmeq, bio);
 
 	iod = nvme_alloc_iod(psegs, bio->bi_iter.bi_size, GFP_ATOMIC);
 	if (!iod)
