@@ -326,60 +326,61 @@ static const unsigned int muxonechan[] = {
 	0x1818, 0x1919, 0x1a1a, 0x1b1b, 0x1c1c, 0x1d1d, 0x1e1e, 0x1f1f
 };
 
-/*
-==============================================================================
- Check if channel list from user is built correctly
- If it's ok, then program scan/gain logic.
- This works for all cards.
-*/
 static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_cmd *cmd)
 {
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int last_aref = CR_AREF(cmd->chanlist[0]);
+	unsigned int next_chan = (chan0 + 1) % s->n_chan;
 	unsigned int chansegment[32];
-	unsigned int i, nowmustbechan, seglen, segpos;
-	unsigned int *chanlist = cmd->chanlist;
-	unsigned int n_chan = cmd->chanlist_len;
+	unsigned int seglen;
+	int i;
 
-	/* correct channel and range number check itself comedi/range.c */
-	if (n_chan < 1) {
-		comedi_error(dev, "range/channel list is empty!");
-		return 0;
-	}
-
-	if (n_chan == 1)
+	if (cmd->chanlist_len == 1)
 		return 1; /* seglen=1 */
 
-	chansegment[0] = chanlist[0]; /*  first channel is every time ok */
-	for (i = 1, seglen = 1; i < n_chan; i++, seglen++) {
-		if (chanlist[0] == chanlist[i])
-			break;	/*  we detected a loop, stop */
-		if ((CR_CHAN(chanlist[i]) & 1) &&
-		    (CR_AREF(chanlist[i]) == AREF_DIFF)) {
-			comedi_error(dev, "Odd channel cannot be differential input!\n");
-			return 0;
-		}
-		nowmustbechan = (CR_CHAN(chansegment[i - 1]) + 1) % s->n_chan;
-		if (CR_AREF(chansegment[i - 1]) == AREF_DIFF)
-			nowmustbechan = (nowmustbechan + 1) % s->n_chan;
-		if (nowmustbechan != CR_CHAN(chanlist[i])) {
-			printk("channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
-			       i, CR_CHAN(chanlist[i]), nowmustbechan,
-			       CR_CHAN(chanlist[0]));
-			return 0;
-		}
-		chansegment[i] = chanlist[i]; /* next correct channel in list */
-	}
+	/* first channel is always ok */
+	chansegment[0] = cmd->chanlist[0];
 
-	for (i = 0, segpos = 0; i < n_chan; i++) {
-		if (chanlist[i] != chansegment[i % seglen]) {
-			printk("bad channel, reference or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
-			       i, CR_CHAN(chansegment[i]),
-			       CR_RANGE(chansegment[i]),
-			       CR_AREF(chansegment[i]),
-			       CR_CHAN(chanlist[i % seglen]),
-			       CR_RANGE(chanlist[i % seglen]),
-			       CR_AREF(chansegment[i % seglen]));
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (cmd->chanlist[0] == cmd->chanlist[i])
+			break;	/*  we detected a loop, stop */
+
+		if (aref == AREF_DIFF && (chan & 1)) {
+			dev_err(dev->class_dev,
+				"Odd channel cannot be differential input!\n");
+			return 0;
+		}
+
+		if (last_aref == AREF_DIFF)
+			next_chan = (next_chan + 1) % s->n_chan;
+		if (chan != next_chan) {
+			dev_err(dev->class_dev,
+				"channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
+				i, chan, next_chan, chan0);
+			return 0;
+		}
+
+		/* next correct channel in list */
+		chansegment[i] = cmd->chanlist[i];
+		last_aref = aref;
+	}
+	seglen = i;
+
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		if (cmd->chanlist[i] != chansegment[i % seglen]) {
+			dev_err(dev->class_dev,
+				"bad channel, reference or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
+				i, CR_CHAN(chansegment[i]),
+				CR_RANGE(chansegment[i]),
+				CR_AREF(chansegment[i]),
+				CR_CHAN(cmd->chanlist[i % seglen]),
+				CR_RANGE(cmd->chanlist[i % seglen]),
+				CR_AREF(chansegment[i % seglen]));
 			return 0;
 		}
 	}
