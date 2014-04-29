@@ -32,14 +32,6 @@
 #define NUM_INT_REG 2
 #define TOTAL_NUM_REG 0x18
 
-/* interrupt status registers */
-#define TPS65090_INT_STS	0x0
-#define TPS65090_INT_STS2	0x1
-
-/* interrupt mask registers */
-#define TPS65090_INT_MSK	0x2
-#define TPS65090_INT_MSK2	0x3
-
 #define TPS65090_INT1_MASK_VAC_STATUS_CHANGE		1
 #define TPS65090_INT1_MASK_VSYS_STATUS_CHANGE		2
 #define TPS65090_INT1_MASK_BAT_STATUS_CHANGE		3
@@ -64,11 +56,16 @@ static struct resource charger_resources[] = {
 	}
 };
 
-static const struct mfd_cell tps65090s[] = {
-	{
+enum tps65090_cells {
+	PMIC = 0,
+	CHARGER = 1,
+};
+
+static struct mfd_cell tps65090s[] = {
+	[PMIC] = {
 		.name = "tps65090-pmic",
 	},
-	{
+	[CHARGER] = {
 		.name = "tps65090-charger",
 		.num_resources = ARRAY_SIZE(charger_resources),
 		.resources = &charger_resources[0],
@@ -139,17 +136,26 @@ static struct regmap_irq_chip tps65090_irq_chip = {
 	.irqs = tps65090_irqs,
 	.num_irqs = ARRAY_SIZE(tps65090_irqs),
 	.num_regs = NUM_INT_REG,
-	.status_base = TPS65090_INT_STS,
-	.mask_base = TPS65090_INT_MSK,
+	.status_base = TPS65090_REG_INTR_STS,
+	.mask_base = TPS65090_REG_INTR_MASK,
 	.mask_invert = true,
 };
 
 static bool is_volatile_reg(struct device *dev, unsigned int reg)
 {
-	if ((reg == TPS65090_INT_STS) || (reg == TPS65090_INT_STS2))
-		return true;
-	else
+	/* Nearly all registers have status bits mixed in, except a few */
+	switch (reg) {
+	case TPS65090_REG_INTR_MASK:
+	case TPS65090_REG_INTR_MASK2:
+	case TPS65090_REG_CG_CTRL0:
+	case TPS65090_REG_CG_CTRL1:
+	case TPS65090_REG_CG_CTRL2:
+	case TPS65090_REG_CG_CTRL3:
+	case TPS65090_REG_CG_CTRL4:
+	case TPS65090_REG_CG_CTRL5:
 		return false;
+	}
+	return true;
 }
 
 static const struct regmap_config tps65090_regmap_config = {
@@ -211,6 +217,9 @@ static int tps65090_i2c_probe(struct i2c_client *client,
 					"IRQ init failed with err: %d\n", ret);
 			return ret;
 		}
+	} else {
+		/* Don't tell children they have an IRQ that'll never fire */
+		tps65090s[CHARGER].num_resources = 0;
 	}
 
 	ret = mfd_add_devices(tps65090->dev, -1, tps65090s,

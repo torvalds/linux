@@ -679,7 +679,7 @@ xfs_file_dio_aio_write(
 		goto out;
 
 	if (mapping->nrpages) {
-		ret = -filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						    pos, -1);
 		if (ret)
 			goto out;
