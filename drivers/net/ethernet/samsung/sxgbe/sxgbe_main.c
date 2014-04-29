@@ -1076,6 +1076,9 @@ static int sxgbe_open(struct net_device *dev)
 
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->ioaddr);
+	SXGBE_FOR_EACH_QUEUE(SXGBE_RX_QUEUES, queue_num) {
+		priv->hw->mac->enable_rxqueue(priv->ioaddr, queue_num);
+	}
 
 	/* Request the IRQ lines */
 	ret = devm_request_irq(priv->device, priv->irq, sxgbe_common_interrupt,
@@ -2240,8 +2243,13 @@ error_free_netdev:
 int sxgbe_drv_remove(struct net_device *ndev)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(ndev);
+	u8 queue_num;
 
 	netdev_info(ndev, "%s: removing driver\n", __func__);
+
+	SXGBE_FOR_EACH_QUEUE(SXGBE_RX_QUEUES, queue_num) {
+		priv->hw->mac->disable_rxqueue(priv->ioaddr, queue_num);
+	}
 
 	priv->hw->dma->stop_rx(priv->ioaddr, SXGBE_RX_QUEUES);
 	priv->hw->dma->stop_tx(priv->ioaddr, SXGBE_TX_QUEUES);
