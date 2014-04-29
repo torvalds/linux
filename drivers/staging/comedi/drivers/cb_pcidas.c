@@ -943,7 +943,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static void cb_pcidas_load_counters(struct comedi_device *dev)
+static void cb_pcidas_ai_load_counters(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned long timer_base = devpriv->pacer_counter_dio + ADC8254;
@@ -991,7 +991,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 
 	/*  load counters */
 	if (cmd->scan_begin_src == TRIG_TIMER || cmd->convert_src == TRIG_TIMER)
-		cb_pcidas_load_counters(dev);
+		cb_pcidas_ai_load_counters(dev);
 
 	/*  set number of conversions */
 	if (cmd->stop_src == TRIG_COUNT)
@@ -1196,6 +1196,18 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	return 0;
 }
 
+static void cb_pcidas_ao_load_counters(struct comedi_device *dev)
+{
+	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned long timer_base = devpriv->pacer_counter_dio + DAC8254;
+
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+
+	i8254_write(timer_base, 0, 1, devpriv->ao_divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->ao_divisor2);
+}
+
 static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -1225,18 +1237,9 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	outw(0, devpriv->ao_registers + DACFIFOCLR);
 
 	/*  load counters */
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &devpriv->ao_divisor1,
-					  &devpriv->ao_divisor2,
-					  &cmd->scan_begin_arg, cmd->flags);
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		cb_pcidas_ao_load_counters(dev);
 
-		/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-		i8254_load(devpriv->pacer_counter_dio + DAC8254, 0, 1,
-			   devpriv->ao_divisor1, 2);
-		i8254_load(devpriv->pacer_counter_dio + DAC8254, 0, 2,
-			   devpriv->ao_divisor2, 2);
-	}
 	/*  set number of conversions */
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ao_count = cmd->chanlist_len * cmd->stop_arg;
