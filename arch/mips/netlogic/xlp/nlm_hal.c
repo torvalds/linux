@@ -206,32 +206,79 @@ int nlm_irq_to_irt(int irq)
 		return xlp_irq_to_irt(irq);
 }
 
-unsigned int nlm_get_core_frequency(int node, int core)
+static unsigned int nlm_xlp2_get_core_frequency(int node, int core)
+{
+	unsigned int pll_post_div, ctrl_val0, ctrl_val1, denom;
+	uint64_t num, sysbase, clockbase;
+
+	if (cpu_is_xlp9xx()) {
+		clockbase = nlm_get_clock_regbase(node);
+		ctrl_val0 = nlm_read_sys_reg(clockbase,
+					SYS_9XX_CPU_PLL_CTRL0(core));
+		ctrl_val1 = nlm_read_sys_reg(clockbase,
+					SYS_9XX_CPU_PLL_CTRL1(core));
+	} else {
+		sysbase = nlm_get_node(node)->sysbase;
+		ctrl_val0 = nlm_read_sys_reg(sysbase,
+						SYS_CPU_PLL_CTRL0(core));
+		ctrl_val1 = nlm_read_sys_reg(sysbase,
+						SYS_CPU_PLL_CTRL1(core));
+	}
+
+	/* Find PLL post divider value */
+	switch ((ctrl_val0 >> 24) & 0x7) {
+	case 1:
+		pll_post_div = 2;
+		break;
+	case 3:
+		pll_post_div = 4;
+		break;
+	case 7:
+		pll_post_div = 8;
+		break;
+	case 6:
+		pll_post_div = 16;
+		break;
+	case 0:
+	default:
+		pll_post_div = 1;
+		break;
+	}
+
+	num = 1000000ULL * (400 * 3 + 100 * (ctrl_val1 & 0x3f));
+	denom = 3 * pll_post_div;
+	do_div(num, denom);
+
+	return (unsigned int)num;
+}
+
+static unsigned int nlm_xlp_get_core_frequency(int node, int core)
 {
 	unsigned int pll_divf, pll_divr, dfs_div, ext_div;
 	unsigned int rstval, dfsval, denom;
 	uint64_t num, sysbase;
 
 	sysbase = nlm_get_node(node)->sysbase;
-	if (cpu_is_xlp9xx())
-		rstval = nlm_read_sys_reg(sysbase, SYS_9XX_POWER_ON_RESET_CFG);
-	else
-		rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
-	if (cpu_is_xlpii()) {
-		num = 1000000ULL * (400 * 3 + 100 * (rstval >> 26));
-		denom = 3;
-	} else {
-		dfsval = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIV_VALUE);
-		pll_divf = ((rstval >> 10) & 0x7f) + 1;
-		pll_divr = ((rstval >> 8)  & 0x3) + 1;
-		ext_div  = ((rstval >> 30) & 0x3) + 1;
-		dfs_div  = ((dfsval >> (core * 4)) & 0xf) + 1;
+	rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
+	dfsval = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIV_VALUE);
+	pll_divf = ((rstval >> 10) & 0x7f) + 1;
+	pll_divr = ((rstval >> 8)  & 0x3) + 1;
+	ext_div  = ((rstval >> 30) & 0x3) + 1;
+	dfs_div  = ((dfsval >> (core * 4)) & 0xf) + 1;
 
-		num = 800000000ULL * pll_divf;
-		denom = 3 * pll_divr * ext_div * dfs_div;
-	}
+	num = 800000000ULL * pll_divf;
+	denom = 3 * pll_divr * ext_div * dfs_div;
 	do_div(num, denom);
+
 	return (unsigned int)num;
+}
+
+unsigned int nlm_get_core_frequency(int node, int core)
+{
+	if (cpu_is_xlpii())
+		return nlm_xlp2_get_core_frequency(node, core);
+	else
+		return nlm_xlp_get_core_frequency(node, core);
 }
 
 /*

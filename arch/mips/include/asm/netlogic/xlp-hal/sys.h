@@ -118,6 +118,10 @@
 #define SYS_SCRTCH3				0x4c
 
 /* PLL registers XLP2XX */
+#define SYS_CPU_PLL_CTRL0(core)			(0x1c0 + (core * 4))
+#define SYS_CPU_PLL_CTRL1(core)			(0x1c1 + (core * 4))
+#define SYS_CPU_PLL_CTRL2(core)			(0x1c2 + (core * 4))
+#define SYS_CPU_PLL_CTRL3(core)			(0x1c3 + (core * 4))
 #define SYS_PLL_CTRL0				0x240
 #define SYS_PLL_CTRL1				0x241
 #define SYS_PLL_CTRL2				0x242
@@ -148,6 +152,10 @@
 #define SYS_PLL_MEM_STAT			0x2a4
 
 /* PLL registers XLP9XX */
+#define SYS_9XX_CPU_PLL_CTRL0(core)		(0xc0 + (core * 4))
+#define SYS_9XX_CPU_PLL_CTRL1(core)		(0xc1 + (core * 4))
+#define SYS_9XX_CPU_PLL_CTRL2(core)		(0xc2 + (core * 4))
+#define SYS_9XX_CPU_PLL_CTRL3(core)		(0xc3 + (core * 4))
 #define SYS_9XX_DMC_PLL_CTRL0			0x140
 #define SYS_9XX_DMC_PLL_CTRL1			0x141
 #define SYS_9XX_DMC_PLL_CTRL2			0x142
