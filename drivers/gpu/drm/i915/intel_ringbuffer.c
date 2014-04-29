@@ -663,20 +663,32 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 	ring->scratch.obj = NULL;
 }
 
-static void
-update_mboxes(struct intel_ring_buffer *ring,
-	      u32 mmio_offset)
+static void gen6_signal(struct intel_ring_buffer *signaller)
 {
+	struct drm_i915_private *dev_priv = signaller->dev->dev_private;
+	struct intel_ring_buffer *useless;
+	int i;
+
 /* NB: In order to be able to do semaphore MBOX updates for varying number
  * of rings, it's easiest if we round up each individual update to a
  * multiple of 2 (since ring updates must always be a multiple of 2)
  * even though the actual update only requires 3 dwords.
  */
 #define MBOX_UPDATE_DWORDS 4
-	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, mmio_offset);
-	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
-	intel_ring_emit(ring, MI_NOOP);
+	for_each_ring(useless, dev_priv, i) {
+		u32 mbox_reg = signaller->semaphore.mbox.signal[i];
+		if (mbox_reg != GEN6_NOSYNC) {
+			intel_ring_emit(signaller, MI_LOAD_REGISTER_IMM(1));
+			intel_ring_emit(signaller, mbox_reg);
+			intel_ring_emit(signaller, signaller->outstanding_lazy_seqno);
+			intel_ring_emit(signaller, MI_NOOP);
+		} else {
+			intel_ring_emit(signaller, MI_NOOP);
+			intel_ring_emit(signaller, MI_NOOP);
+			intel_ring_emit(signaller, MI_NOOP);
+			intel_ring_emit(signaller, MI_NOOP);
+		}
+	}
 }
 
 /**
@@ -692,9 +704,7 @@ static int
 gen6_add_request(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *useless;
-	int i, ret, num_dwords = 4;
+	int ret, num_dwords = 4;
 
 	if (i915_semaphore_is_enabled(dev))
 		num_dwords += ((I915_NUM_RINGS-1) * MBOX_UPDATE_DWORDS);
@@ -704,13 +714,7 @@ gen6_add_request(struct intel_ring_buffer *ring)
 	if (ret)
 		return ret;
 
-	if (i915_semaphore_is_enabled(dev)) {
-		for_each_ring(useless, dev_priv, i) {
-			u32 mbox_reg = ring->semaphore.mbox.signal[i];
-			if (mbox_reg != GEN6_NOSYNC)
-				update_mboxes(ring, mbox_reg);
-		}
-	}
+	ring->semaphore.signal(ring);
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
@@ -1920,6 +1924,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->get_seqno = gen6_ring_get_seqno;
 		ring->set_seqno = ring_set_seqno;
 		ring->semaphore.sync_to = gen6_ring_sync;
+		ring->semaphore.signal = gen6_signal;
 		/*
 		 * The current semaphore is only applied on pre-gen8 platform.
 		 * And there is no VCS2 ring on the pre-gen8 platform. So the
@@ -2104,6 +2109,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 				gen6_ring_dispatch_execbuffer;
 		}
 		ring->semaphore.sync_to = gen6_ring_sync;
+		ring->semaphore.signal = gen6_signal;
 		/*
 		 * The current semaphore is only applied on pre-gen8 platform.
 		 * And there is no VCS2 ring on the pre-gen8 platform. So the
@@ -2221,6 +2227,7 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	}
 	ring->semaphore.sync_to = gen6_ring_sync;
+	ring->semaphore.signal = gen6_signal;
 	/*
 	 * The current semaphore is only applied on pre-gen8 platform. And
 	 * there is no VCS2 ring on the pre-gen8 platform. So the semaphore
@@ -2270,6 +2277,7 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	}
 	ring->semaphore.sync_to = gen6_ring_sync;
+	ring->semaphore.signal = gen6_signal;
 	ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_VER;
 	ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_VEV;
 	ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_VEB;

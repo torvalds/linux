@@ -120,16 +120,19 @@ struct  intel_ring_buffer {
 
 	struct {
 		u32	sync_seqno[I915_NUM_RINGS-1];
-		/* AKA wait() */
-		int	(*sync_to)(struct intel_ring_buffer *ring,
-				   struct intel_ring_buffer *to,
-				   u32 seqno);
+
 		struct {
 			/* our mbox written by others */
 			u32		wait[I915_NUM_RINGS];
 			/* mboxes this ring signals to */
 			u32		signal[I915_NUM_RINGS];
 		} mbox;
+
+		/* AKA wait() */
+		int	(*sync_to)(struct intel_ring_buffer *ring,
+				   struct intel_ring_buffer *to,
+				   u32 seqno);
+		void	(*signal)(struct intel_ring_buffer *signaller);
 	} semaphore;
 
 	/**
