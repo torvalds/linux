@@ -93,7 +93,7 @@ int kvm_psci_version(struct kvm_vcpu *vcpu)
 	return KVM_ARM_PSCI_0_1;
 }
 
-static bool kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
+static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 {
 	unsigned long psci_fn = *vcpu_reg(vcpu, 0) & ~((u32) 0);
 	unsigned long val;
@@ -128,14 +128,14 @@ static bool kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 		val = PSCI_RET_NOT_SUPPORTED;
 		break;
 	default:
-		return false;
+		return -EINVAL;
 	}
 
 	*vcpu_reg(vcpu, 0) = val;
-	return true;
+	return 1;
 }
 
-static bool kvm_psci_0_1_call(struct kvm_vcpu *vcpu)
+static int kvm_psci_0_1_call(struct kvm_vcpu *vcpu)
 {
 	unsigned long psci_fn = *vcpu_reg(vcpu, 0) & ~((u32) 0);
 	unsigned long val;
@@ -153,11 +153,11 @@ static bool kvm_psci_0_1_call(struct kvm_vcpu *vcpu)
 		val = PSCI_RET_NOT_SUPPORTED;
 		break;
 	default:
-		return false;
+		return -EINVAL;
 	}
 
 	*vcpu_reg(vcpu, 0) = val;
-	return true;
+	return 1;
 }
 
 /**
@@ -165,12 +165,16 @@ static bool kvm_psci_0_1_call(struct kvm_vcpu *vcpu)
  * @vcpu: Pointer to the VCPU struct
  *
  * Handle PSCI calls from guests through traps from HVC instructions.
- * The calling convention is similar to SMC calls to the secure world where
- * the function number is placed in r0 and this function returns true if the
- * function number specified in r0 is withing the PSCI range, and false
- * otherwise.
+ * The calling convention is similar to SMC calls to the secure world
+ * where the function number is placed in r0.
+ *
+ * This function returns: > 0 (success), 0 (success but exit to user
+ * space), and < 0 (errors)
+ *
+ * Errors:
+ * -EINVAL: Unrecognized PSCI function
  */
-bool kvm_psci_call(struct kvm_vcpu *vcpu)
+int kvm_psci_call(struct kvm_vcpu *vcpu)
 {
 	switch (kvm_psci_version(vcpu)) {
 	case KVM_ARM_PSCI_0_2:
@@ -178,6 +182,6 @@ bool kvm_psci_call(struct kvm_vcpu *vcpu)
 	case KVM_ARM_PSCI_0_1:
 		return kvm_psci_0_1_call(vcpu);
 	default:
-		return false;
+		return -EINVAL;
 	};
 }
