@@ -90,7 +90,6 @@ struct  intel_ring_buffer {
 	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		trace_irq_seqno;
-	u32		sync_seqno[I915_NUM_RINGS-1];
 	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
 	void		(*irq_put)(struct intel_ring_buffer *ring);
 
@@ -118,14 +117,20 @@ struct  intel_ring_buffer {
 #define I915_DISPATCH_SECURE 0x1
 #define I915_DISPATCH_PINNED 0x2
 	void		(*cleanup)(struct intel_ring_buffer *ring);
-	int		(*sync_to)(struct intel_ring_buffer *ring,
+
+	struct {
+		u32	sync_seqno[I915_NUM_RINGS-1];
+		/* AKA wait() */
+		int	(*sync_to)(struct intel_ring_buffer *ring,
 				   struct intel_ring_buffer *to,
 				   u32 seqno);
-
-	/* our mbox written by others */
-	u32		semaphore_register[I915_NUM_RINGS];
-	/* mboxes this ring signals to */
-	u32		signal_mbox[I915_NUM_RINGS];
+		struct {
+			/* our mbox written by others */
+			u32		wait[I915_NUM_RINGS];
+			/* mboxes this ring signals to */
+			u32		signal[I915_NUM_RINGS];
+		} mbox;
+	} semaphore;
 
 	/**
 	 * List of objects currently involved in rendering from the

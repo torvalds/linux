@@ -757,14 +757,14 @@ static void i915_record_ring_state(struct drm_device *dev,
 			= I915_READ(RING_SYNC_0(ring->mmio_base));
 		ering->semaphore_mboxes[1]
 			= I915_READ(RING_SYNC_1(ring->mmio_base));
-		ering->semaphore_seqno[0] = ring->sync_seqno[0];
-		ering->semaphore_seqno[1] = ring->sync_seqno[1];
+		ering->semaphore_seqno[0] = ring->semaphore.sync_seqno[0];
+		ering->semaphore_seqno[1] = ring->semaphore.sync_seqno[1];
 	}
 
 	if (HAS_VEBOX(dev)) {
 		ering->semaphore_mboxes[2] =
 			I915_READ(RING_SYNC_2(ring->mmio_base));
-		ering->semaphore_seqno[2] = ring->sync_seqno[2];
+		ering->semaphore_seqno[2] = ring->semaphore.sync_seqno[2];
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {

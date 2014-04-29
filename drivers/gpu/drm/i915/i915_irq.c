@@ -2582,8 +2582,7 @@ semaphore_wait_to_signaller_ring(struct intel_ring_buffer *ring, u32 ipehr)
 			if(ring == signaller)
 				continue;
 
-			if (sync_bits ==
-			    signaller->semaphore_register[ring->id])
+			if (sync_bits == signaller->semaphore.mbox.wait[ring->id])
 				return signaller;
 		}
 	}

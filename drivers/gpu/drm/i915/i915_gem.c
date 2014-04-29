@@ -2119,8 +2119,8 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 	for_each_ring(ring, dev_priv, i) {
 		intel_ring_init_seqno(ring, seqno);
 
-		for (j = 0; j < ARRAY_SIZE(ring->sync_seqno); j++)
-			ring->sync_seqno[j] = 0;
+		for (j = 0; j < ARRAY_SIZE(ring->semaphore.sync_seqno); j++)
+			ring->semaphore.sync_seqno[j] = 0;
 	}
 
 	return 0;
@@ -2692,7 +2692,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	idx = intel_ring_sync_index(from, to);
 
 	seqno = obj->last_read_seqno;
-	if (seqno <= from->sync_seqno[idx])
+	if (seqno <= from->semaphore.sync_seqno[idx])
 		return 0;
 
 	ret = i915_gem_check_olr(obj->ring, seqno);
@@ -2700,13 +2700,13 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		return ret;
 
 	trace_i915_gem_ring_sync_to(from, to, seqno);
-	ret = to->sync_to(to, from, seqno);
+	ret = to->semaphore.sync_to(to, from, seqno);
 	if (!ret)
 		/* We use last_read_seqno because sync_to()
 		 * might have just caused seqno wrap under
 		 * the radar.
 		 */
-		from->sync_seqno[idx] = obj->last_read_seqno;
+		from->semaphore.sync_seqno[idx] = obj->last_read_seqno;
 
 	return ret;
 }
