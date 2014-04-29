@@ -1463,4 +1463,4 @@ _GLOBAL(return_to_handler)
 	blr
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
-#endif /* CONFIG_MCOUNT */
+#endif /* CONFIG_FUNCTION_TRACER */
