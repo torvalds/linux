@@ -219,7 +219,7 @@ configure_resizer_out_params(struct vpfe_resizer_device *resizer, int index,
  * @resizer: Pointer to VPFE resizer subdevice.
  * @index: index RSZ_A-resizer-A RSZ_B-resizer-B.
  */
-void
+static void
 resizer_calculate_resize_ratios(struct vpfe_resizer_device *resizer, int index)
 {
 	struct resizer_params *param = &resizer->config;
@@ -310,7 +310,7 @@ resizer_calculate_sdram_offsets(struct vpfe_resizer_device *resizer, int index)
 	return 0;
 }
 
-int resizer_configure_output_win(struct vpfe_resizer_device *resizer)
+static int resizer_configure_output_win(struct vpfe_resizer_device *resizer)
 {
 	struct resizer_params *param = &resizer->config;
 	struct vpfe_rsz_output_spec output_specs;
