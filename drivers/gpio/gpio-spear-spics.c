@@ -129,10 +129,8 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	spics = devm_kzalloc(&pdev->dev, sizeof(*spics), GFP_KERNEL);
-	if (!spics) {
-		dev_err(&pdev->dev, "memory allocation fail\n");
+	if (!spics)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	spics->base = devm_ioremap_resource(&pdev->dev, res);
