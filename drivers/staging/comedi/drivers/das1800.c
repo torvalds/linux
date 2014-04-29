@@ -731,7 +731,7 @@ static irqreturn_t das1800_interrupt(int irq, void *d)
 /* converts requested conversion timing to timing compatible with
  * hardware, used only when card is in 'burst mode'
  */
-static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
+static unsigned int burst_convert_arg(unsigned int convert_arg, int flags)
 {
 	unsigned int micro_sec;
 
@@ -740,7 +740,7 @@ static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
 		convert_arg = 64000;
 
 	/*  the conversion time must be an integral number of microseconds */
-	switch (round_mode) {
+	switch (flags & TRIG_ROUND_MASK) {
 	case TRIG_ROUND_NEAREST:
 	default:
 		micro_sec = (convert_arg + 500) / 1000;
@@ -785,7 +785,7 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 	const struct das1800_board *thisboard = comedi_board(dev);
 	struct das1800_private *devpriv = dev->private;
 	int err = 0;
-	unsigned int tmp_arg;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -843,48 +843,39 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		/*  if we are not in burst mode */
-		if (cmd->scan_begin_src == TRIG_FOLLOW) {
-			tmp_arg = cmd->convert_arg;
-			/* calculate counter values that give desired timing */
+	if (cmd->scan_begin_src == TRIG_FOLLOW &&
+	    cmd->convert_src == TRIG_TIMER) {
+		/* we are not in burst mode */
+		arg = cmd->convert_arg;
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->convert_arg, cmd->flags);
+		if (arg != cmd->convert_arg)
+			err++;
+	} else if (cmd->convert_src == TRIG_TIMER) {
+		/* we are in burst mode */
+		arg = cmd->convert_arg;
+		cmd->convert_arg = burst_convert_arg(cmd->convert_arg,
+						     cmd->flags);
+		if (arg != cmd->convert_arg)
+			err++;
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			arg = cmd->convert_arg * cmd->chanlist_len;
+			if (arg > cmd->scan_begin_arg) {
+				cmd->scan_begin_arg = arg;
+				err++;
+			}
+
+			arg = cmd->scan_begin_arg;
 			i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
 						  &devpriv->divisor1,
 						  &devpriv->divisor2,
-						  &cmd->convert_arg,
+						  &cmd->scan_begin_arg,
 						  cmd->flags);
-			if (tmp_arg != cmd->convert_arg)
+			if (arg != cmd->scan_begin_arg)
 				err++;
-		}
-		/*  if we are in burst mode */
-		else {
-			/*  check that convert_arg is compatible */
-			tmp_arg = cmd->convert_arg;
-			cmd->convert_arg =
-			    burst_convert_arg(cmd->convert_arg,
-					      cmd->flags & TRIG_ROUND_MASK);
-			if (tmp_arg != cmd->convert_arg)
-				err++;
-
-			if (cmd->scan_begin_src == TRIG_TIMER) {
-				/*  if scans are timed faster than conversion rate allows */
-				if (cmd->convert_arg * cmd->chanlist_len >
-				    cmd->scan_begin_arg) {
-					cmd->scan_begin_arg =
-					    cmd->convert_arg *
-					    cmd->chanlist_len;
-					err++;
-				}
-				tmp_arg = cmd->scan_begin_arg;
-				/* calculate counter values that give desired timing */
-				i8253_cascade_ns_to_timer(I8254_OSC_BASE_5MHZ,
-							  &devpriv->divisor1,
-							  &devpriv->divisor2,
-							  &cmd->scan_begin_arg,
-							  cmd->flags);
-				if (tmp_arg != cmd->scan_begin_arg)
-					err++;
-			}
 		}
 	}
 
