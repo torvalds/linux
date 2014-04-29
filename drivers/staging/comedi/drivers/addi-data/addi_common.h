@@ -127,7 +127,6 @@ struct addi_private {
 	unsigned int ui_AiReadData[32];
 	unsigned int ui_AiTimer0;	/* Timer Constant for Timer0 */
 	unsigned int ui_AiTimer1;	/* Timer constant for Timer1 */
-	unsigned int ui_AiFlags;
 	unsigned int ui_AiDataLength;
 	unsigned int ui_AiNbrofScans;	/*  number of scans to do */
 	unsigned short us_UseDma;	/*  To use Dma or not */

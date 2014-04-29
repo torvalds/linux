@@ -819,6 +819,7 @@ static int apci3120_cyclic_ai(int mode,
 {
 	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned char b_Tmp;
 	unsigned int ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
 		0, dmalen1 = 0, ui_TimerValue2 =
@@ -1135,7 +1136,7 @@ static int apci3120_cyclic_ai(int mode,
 					devpriv->ui_AiScanLength * 2 - dmalen0;
 		}
 
-		if (devpriv->ui_AiFlags & TRIG_WAKE_EOS) {
+		if (cmd->flags & TRIG_WAKE_EOS) {
 			/*  don't we want wake up every scan? */
 			if (dmalen0 > (devpriv->ui_AiScanLength * 2)) {
 				dmalen0 = devpriv->ui_AiScanLength * 2;
@@ -1335,7 +1336,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/* loading private structure with cmd structure inputs */
-	devpriv->ui_AiFlags = cmd->flags;
 	devpriv->ui_AiNbrofChannels = cmd->chanlist_len;
 	devpriv->ui_AiScanLength = cmd->scan_end_arg;
 	devpriv->pui_AiChannelList = cmd->chanlist;
@@ -1410,6 +1410,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int next_dma_buf, samplesinbuf;
 	unsigned long low_word, high_word, var;
 	unsigned int ui_Tmp;
@@ -1487,7 +1488,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 			devpriv->ul_DmaBufferVirtual[devpriv->
 				ui_DmaActualBuffer], samplesinbuf);
 
-		if (!(devpriv->ui_AiFlags & TRIG_WAKE_EOS)) {
+		if (!(cmd->flags & TRIG_WAKE_EOS)) {
 			s->async->events |= COMEDI_CB_EOS;
 			comedi_event(dev, s);
 		}
