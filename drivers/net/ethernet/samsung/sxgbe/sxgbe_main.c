@@ -1456,6 +1456,7 @@ static void sxgbe_rx_refill(struct sxgbe_priv_data *priv)
 		/* Added memory barrier for RX descriptor modification */
 		wmb();
 		priv->hw->desc->set_rx_owner(p);
+		priv->hw->desc->set_rx_int_on_com(p);
 		/* Added memory barrier for RX descriptor modification */
 		wmb();
 	}

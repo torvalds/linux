@@ -258,6 +258,9 @@ struct sxgbe_desc_ops {
 	/* Set own bit */
 	void (*set_rx_owner)(struct sxgbe_rx_norm_desc *p);
 
+	/* Set Interrupt on completion bit */
+	void (*set_rx_int_on_com)(struct sxgbe_rx_norm_desc *p);
+
 	/* Get the receive frame size */
 	int (*get_rx_frame_len)(struct sxgbe_rx_norm_desc *p);
 
