@@ -794,9 +794,27 @@ static void kvmppc_emulate_fac(struct kvm_vcpu *vcpu, ulong fac)
 /* Enable facilities (TAR, EBB, DSCR) for the guest */
 static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac)
 {
+	bool guest_fac_enabled;
 	BUG_ON(!cpu_has_feature(CPU_FTR_ARCH_207S));
 
-	if (!(vcpu->arch.fscr & (1ULL << fac))) {
+	/*
+	 * Not every facility is enabled by FSCR bits, check whether the
+	 * guest has this facility enabled at all.
+	 */
+	switch (fac) {
+	case FSCR_TAR_LG:
+	case FSCR_EBB_LG:
+		guest_fac_enabled = (vcpu->arch.fscr & (1ULL << fac));
+		break;
+	case FSCR_TM_LG:
+		guest_fac_enabled = kvmppc_get_msr(vcpu) & MSR_TM;
+		break;
+	default:
+		guest_fac_enabled = false;
+		break;
+	}
+
+	if (!guest_fac_enabled) {
 		/* Facility not enabled by the guest */
 		kvmppc_trigger_fac_interrupt(vcpu, fac);
 		return RESUME_GUEST;
