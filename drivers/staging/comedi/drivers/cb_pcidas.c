@@ -943,20 +943,16 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
-				    int rounding_flags)
+static void cb_pcidas_load_counters(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned long timer_base = devpriv->pacer_counter_dio + ADC8254;
 
-	i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-				  &devpriv->divisor1, &devpriv->divisor2,
-				  ns, rounding_flags);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
 
-	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 1,
-		   devpriv->divisor1, 2);
-	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 2,
-		   devpriv->divisor2, 2);
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
 }
 
 static int cb_pcidas_ai_cmd(struct comedi_device *dev,
@@ -994,12 +990,8 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
 	/*  load counters */
-	if (cmd->convert_src == TRIG_TIMER)
-		cb_pcidas_load_counters(dev, &cmd->convert_arg,
-					cmd->flags & TRIG_ROUND_MASK);
-	else if (cmd->scan_begin_src == TRIG_TIMER)
-		cb_pcidas_load_counters(dev, &cmd->scan_begin_arg,
-					cmd->flags & TRIG_ROUND_MASK);
+	if (cmd->scan_begin_src == TRIG_TIMER || cmd->convert_src == TRIG_TIMER)
+		cb_pcidas_load_counters(dev);
 
 	/*  set number of conversions */
 	if (cmd->stop_src == TRIG_COUNT)
