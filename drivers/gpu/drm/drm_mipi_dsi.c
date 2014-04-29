@@ -282,6 +282,14 @@ static int mipi_dsi_drv_remove(struct device *dev)
 	return drv->remove(dsi);
 }
 
+static void mipi_dsi_drv_shutdown(struct device *dev)
+{
+	struct mipi_dsi_driver *drv = to_mipi_dsi_driver(dev->driver);
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+
+	drv->shutdown(dsi);
+}
+
 /**
  * mipi_dsi_driver_register - register a driver for DSI devices
  * @drv: DSI driver structure
@@ -293,6 +301,8 @@ int mipi_dsi_driver_register(struct mipi_dsi_driver *drv)
 		drv->driver.probe = mipi_dsi_drv_probe;
 	if (drv->remove)
 		drv->driver.remove = mipi_dsi_drv_remove;
+	if (drv->shutdown)
+		drv->driver.shutdown = mipi_dsi_drv_shutdown;
 
 	return driver_register(&drv->driver);
 }
