@@ -1214,7 +1214,9 @@ void bch_flash_dev_release(struct kobject *kobj)
 static void flash_dev_free(struct closure *cl)
 {
 	struct bcache_device *d = container_of(cl, struct bcache_device, cl);
+	mutex_lock(&bch_register_lock);
 	bcache_device_free(d);
+	mutex_unlock(&bch_register_lock);
 	kobject_put(&d->kobj);
 }
 
@@ -1222,7 +1224,9 @@ static void flash_dev_flush(struct closure *cl)
 {
 	struct bcache_device *d = container_of(cl, struct bcache_device, cl);
 
+	mutex_lock(&bch_register_lock);
 	bcache_device_unlink(d);
+	mutex_unlock(&bch_register_lock);
 	kobject_del(&d->kobj);
 	continue_at(cl, flash_dev_free, system_wq);
 }
