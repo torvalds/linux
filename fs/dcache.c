@@ -787,47 +787,9 @@ restart:
 }
 EXPORT_SYMBOL(d_prune_aliases);
 
-/*
- * Try to throw away a dentry - free the inode, dput the parent.
- * Requires dentry->d_lock is held, and dentry->d_count == 0.
- * Releases dentry->d_lock.
- *
- * This may fail if locks cannot be acquired no problem, just try again.
- */
-static struct dentry * try_prune_one_dentry(struct dentry *dentry)
-	__releases(dentry->d_lock)
-{
-	struct dentry *parent;
-
-	parent = dentry_kill(dentry, 0);
-	/*
-	 * If dentry_kill returns NULL, we have nothing more to do.
-	 * if it returns the same dentry, trylocks failed. In either
-	 * case, just loop again.
-	 *
-	 * Otherwise, we need to prune ancestors too. This is necessary
-	 * to prevent quadratic behavior of shrink_dcache_parent(), but
-	 * is also expected to be beneficial in reducing dentry cache
-	 * fragmentation.
-	 */
-	if (!parent)
-		return NULL;
-	if (parent == dentry)
-		return dentry;
-
-	/* Prune ancestors. */
-	dentry = parent;
-	while (dentry) {
-		if (lockref_put_or_lock(&dentry->d_lockref))
-			return NULL;
-		dentry = dentry_kill(dentry, 1);
-	}
-	return NULL;
-}
-
 static void shrink_dentry_list(struct list_head *list)
 {
-	struct dentry *dentry;
+	struct dentry *dentry, *parent;
 
 	rcu_read_lock();
 	for (;;) {
@@ -863,22 +825,35 @@ static void shrink_dentry_list(struct list_head *list)
 		}
 		rcu_read_unlock();
 
+		parent = dentry_kill(dentry, 0);
 		/*
-		 * If 'try_to_prune()' returns a dentry, it will
-		 * be the same one we passed in, and d_lock will
-		 * have been held the whole time, so it will not
-		 * have been added to any other lists. We failed
-		 * to get the inode lock.
-		 *
-		 * We just add it back to the shrink list.
+		 * If dentry_kill returns NULL, we have nothing more to do.
 		 */
-		dentry = try_prune_one_dentry(dentry);
-
-		rcu_read_lock();
-		if (dentry) {
+		if (!parent) {
+			rcu_read_lock();
+			continue;
+		}
+		if (unlikely(parent == dentry)) {
+			/*
+			 * trylocks have failed and d_lock has been held the
+			 * whole time, so it could not have been added to any
+			 * other lists. Just add it back to the shrink list.
+			 */
+			rcu_read_lock();
 			d_shrink_add(dentry, list);
 			spin_unlock(&dentry->d_lock);
+			continue;
 		}
+		/*
+		 * We need to prune ancestors too. This is necessary to prevent
+		 * quadratic behavior of shrink_dcache_parent(), but is also
+		 * expected to be beneficial in reducing dentry cache
+		 * fragmentation.
+		 */
+		dentry = parent;
+		while (dentry && !lockref_put_or_lock(&dentry->d_lockref))
+			dentry = dentry_kill(dentry, 1);
+		rcu_read_lock();
 	}
 	rcu_read_unlock();
 }
