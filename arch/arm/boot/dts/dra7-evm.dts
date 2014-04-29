@@ -11,7 +11,7 @@
 
 / {
 	model = "TI DRA7";
-	compatible = "ti,dra7-evm", "ti,dra752", "ti,dra7";
+	compatible = "ti,dra7-evm", "ti,dra7";
 
 	memory {
 		device_type = "memory";
