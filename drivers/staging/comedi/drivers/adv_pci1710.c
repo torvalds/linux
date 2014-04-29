@@ -298,7 +298,6 @@ static const struct boardtype boardtypes[] = {
 };
 
 struct pci1710_private {
-	char neverending_ai;	/*  we do unlimited AI */
 	unsigned int CntrlReg;	/*  Control register */
 	unsigned int i8254_osc_base;	/*  frequence of onboard oscilator */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
@@ -732,7 +731,6 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 	devpriv->ai_act_scan = 0;
 	s->async->cur_chan = 0;
 	devpriv->ai_buf_ptr = 0;
-	devpriv->neverending_ai = 0;
 
 	return 0;
 }
@@ -800,8 +798,8 @@ static void interrupt_pci1710_every_sample(void *d)
 
 		if (s->async->cur_chan == 0) {	/*  one scan done */
 			devpriv->ai_act_scan++;
-			if ((!devpriv->neverending_ai) &&
-			    (devpriv->ai_act_scan >= cmd->stop_arg)) {
+			if (cmd->stop_src == TRIG_COUNT &&
+			    devpriv->ai_act_scan >= cmd->stop_arg) {
 				/*  all data sampled */
 				s->async->events |= COMEDI_CB_EOA;
 				cfc_handle_events(dev, s);
@@ -901,13 +899,13 @@ static void interrupt_pci1710_half_fifo(void *d)
 			return;
 	}
 
-	if (!devpriv->neverending_ai)
-		if (devpriv->ai_act_scan >= cmd->stop_arg) {
-			/* all data sampled */
-			s->async->events |= COMEDI_CB_EOA;
-			cfc_handle_events(dev, s);
-			return;
-		}
+	if (cmd->stop_src == TRIG_COUNT &&
+	    devpriv->ai_act_scan >= cmd->stop_arg) {
+		/* all data sampled */
+		s->async->events |= COMEDI_CB_EOA;
+		cfc_handle_events(dev, s);
+		return;
+	}
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
 
 	cfc_handle_events(dev, s);
@@ -976,7 +974,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_act_scan = 0;
 	s->async->cur_chan = 0;
 	devpriv->ai_buf_ptr = 0;
-	devpriv->neverending_ai = 0;
 
 	devpriv->CntrlReg &= Control_CNT0;
 	/*  don't we want wake up every scan?  devpriv->ai_eos=1; */
@@ -986,12 +983,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->CntrlReg |= Control_ONEFH;
 		devpriv->ai_eos = 0;
 	}
-
-	if (cmd->stop_arg == 0)
-		devpriv->neverending_ai = 1;
-	/* well, user want neverending */
-	else
-		devpriv->neverending_ai = 0;
 
 	switch (mode) {
 	case 1:
