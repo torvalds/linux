@@ -720,7 +720,6 @@ static int apci3120_cancel(struct comedi_device *dev,
 	inw(dev->iobase + APCI3120_RD_STATUS);
 	devpriv->ui_AiActualScan = 0;
 	s->async->cur_chan = 0;
-	devpriv->b_AiContinuous = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
 	devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
@@ -1038,7 +1037,7 @@ static int apci3120_cyclic_ai(int mode,
 		outb(devpriv->b_ModeSelectRegister,
 			dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-		if (!devpriv->b_AiContinuous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 /*
  * configure Timer2 For counting EOS Reset gate 2 of Timer 2 to
  * disable it (Set Bit D14 to 0)
@@ -1125,7 +1124,7 @@ static int apci3120_cyclic_ai(int mode,
 		dmalen0 = devpriv->ui_DmaBufferSize[0];
 		dmalen1 = devpriv->ui_DmaBufferSize[1];
 
-		if (!devpriv->b_AiContinuous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			/*
 			 * Must we fill full first buffer? And must we fill
 			 * full second buffer when first is once filled?
@@ -1294,8 +1293,8 @@ static int apci3120_cyclic_ai(int mode,
 		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 	}
 
-	if ((devpriv->us_UseDma == APCI3120_DISABLE)
-		&& !devpriv->b_AiContinuous) {
+	if (devpriv->us_UseDma == APCI3120_DISABLE &&
+	    cmd->stop_src == TRIG_COUNT) {
 		/*  set gate 2   to start conversion */
 		devpriv->us_OutputRegister =
 			devpriv->us_OutputRegister | APCI3120_ENABLE_TIMER2;
@@ -1339,10 +1338,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 
 	/* loading private structure with cmd structure inputs */
 	devpriv->ui_AiNbrofChannels = cmd->chanlist_len;
-
-	if (cmd->stop_src == TRIG_NONE)
-		devpriv->b_AiContinuous = 1;	/*  user want neverending analog acquisition */
-	/*  stopped using cancel */
 
 	if (cmd->start_src == TRIG_EXT)
 		devpriv->b_ExttrigEnable = APCI3120_ENABLE;
@@ -1481,7 +1476,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 			comedi_event(dev, s);
 		}
 	}
-	if (!devpriv->b_AiContinuous)
+	if (cmd->stop_src == TRIG_COUNT)
 		if (devpriv->ui_AiActualScan >= cmd->stop_arg) {
 			/*  all data sampled */
 			apci3120_cancel(dev, s);

@@ -118,7 +118,6 @@ struct addi_private {
 	int i_IobaseAmcc;	/*  base+size for AMCC chip */
 	int i_IobaseAddon;	/* addon base address */
 	int i_IobaseReserved;
-	unsigned char b_AiContinuous;	/*  we do unlimited AI */
 	unsigned int ui_AiActualScan;	/* how many scans we finished */
 	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
 	unsigned int ui_AiChannelList[32];	/*  actual chanlist */
