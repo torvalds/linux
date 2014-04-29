@@ -363,7 +363,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		list->master = dev->primary->master;
 	*maplist = list;
 	return 0;
-	}
+}
 
 int drm_addmap(struct drm_device * dev, resource_size_t offset,
 	       unsigned int size, enum drm_map_type type,
