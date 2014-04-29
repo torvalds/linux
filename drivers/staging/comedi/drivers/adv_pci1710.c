@@ -51,10 +51,6 @@ Configuration options:
 #include "8253.h"
 #include "amcc_s5933.h"
 
-#define PCI171x_PARANOIDCHECK	/* if defined, then is used code which control
-				 * correct channel number on every 12 bit
-				 * sample */
-
 /* hardware types of the cards */
 #define TYPE_PCI171X	0
 #define TYPE_PCI1713	2
@@ -328,6 +324,26 @@ static const unsigned int muxonechan[] = {
 	0x1818, 0x1919, 0x1a1a, 0x1b1b, 0x1c1c, 0x1d1d, 0x1e1e, 0x1f1f
 };
 
+static int pci171x_ai_dropout(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      unsigned int chan,
+			      unsigned int val)
+{
+	const struct boardtype *board = comedi_board(dev);
+	struct pci1710_private *devpriv = dev->private;
+
+	if (board->cardtype != TYPE_PCI1713) {
+		if ((val & 0xf000) != devpriv->act_chanlist[chan]) {
+			dev_err(dev->class_dev,
+				"A/D data droput: received from channel %d, expected %d\n",
+				(val >> 12) & 0xf,
+				(devpriv->act_chanlist[chan] >> 12) & 0xf);
+			return -ENODATA;
+		}
+	}
+	return 0;
+}
+
 static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_cmd *cmd)
@@ -410,17 +426,13 @@ static void setup_channel_list(struct comedi_device *dev,
 		if (CR_AREF(chanlist[i]) == AREF_DIFF)
 			range |= 0x0020;
 		outw(range, dev->iobase + PCI171x_RANGE); /* select gain */
-#ifdef PCI171x_PARANOIDCHECK
 		devpriv->act_chanlist[i] =
 			(CR_CHAN(chanlist[i]) << 12) & 0xf000;
-#endif
 	}
-#ifdef PCI171x_PARANOIDCHECK
 	for ( ; i < n_chan; i++) { /* store remainder of channel list */
 		devpriv->act_chanlist[i] =
 			(CR_CHAN(chanlist[i]) << 12) & 0xf000;
 	}
-#endif
 
 	devpriv->ai_et_MuxVal =
 		CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen - 1]) << 8);
@@ -446,12 +458,9 @@ static int pci171x_insn_read_ai(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci1710_private *devpriv = dev->private;
-	int ret;
-	int n;
-#ifdef PCI171x_PARANOIDCHECK
-	const struct boardtype *this_board = comedi_board(dev);
-	unsigned int idata;
-#endif
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int ret = 0;
+	int i;
 
 	devpriv->CntrlReg &= Control_CNT0;
 	devpriv->CntrlReg |= Control_SW;	/*  set software trigger */
@@ -461,34 +470,27 @@ static int pci171x_insn_read_ai(struct comedi_device *dev,
 
 	setup_channel_list(dev, s, &insn->chanspec, 1, 1);
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val;
+
 		outw(0, dev->iobase + PCI171x_SOFTTRG);	/* start conversion */
 
 		ret = comedi_timeout(dev, s, insn, pci171x_ai_eoc, 0);
-		if (ret) {
-			outb(0, dev->iobase + PCI171x_CLRFIFO);
-			outb(0, dev->iobase + PCI171x_CLRINT);
-			return ret;
-		}
+		if (ret)
+			break;
 
-#ifdef PCI171x_PARANOIDCHECK
-		idata = inw(dev->iobase + PCI171x_AD_DATA);
-		if (this_board->cardtype != TYPE_PCI1713)
-			if ((idata & 0xf000) != devpriv->act_chanlist[0]) {
-				comedi_error(dev, "A/D insn data droput!");
-				return -ETIME;
-			}
-		data[n] = idata & 0x0fff;
-#else
-		data[n] = inw(dev->iobase + PCI171x_AD_DATA) & 0x0fff;
-#endif
+		val = inw(dev->iobase + PCI171x_AD_DATA);
+		ret = pci171x_ai_dropout(dev, s, chan, val);
+		if (ret)
+			break;
 
+		data[i] = val & s->maxdata;
 	}
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
 
-	return n;
+	return ret ? ret : insn->n;
 }
 
 /*
@@ -741,22 +743,20 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 {
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int m;
-#ifdef PCI171x_PARANOIDCHECK
-	const struct boardtype *this_board = comedi_board(dev);
-	unsigned short sampl;
-#endif
+	unsigned int status;
+	unsigned int val;
+	int ret;
 
-	m = inw(dev->iobase + PCI171x_STATUS);
-	if (m & Status_FE) {
-		dev_dbg(dev->class_dev, "A/D FIFO empty (%4x)\n", m);
+	status = inw(dev->iobase + PCI171x_STATUS);
+	if (status & Status_FE) {
+		dev_dbg(dev->class_dev, "A/D FIFO empty (%4x)\n", status);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		cfc_handle_events(dev, s);
 		return;
 	}
-	if (m & Status_FF) {
+	if (status & Status_FF) {
 		dev_dbg(dev->class_dev,
-			"A/D FIFO Full status (Fatal Error!) (%4x)\n", m);
+			"A/D FIFO Full status (Fatal Error!) (%4x)\n", status);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		cfc_handle_events(dev, s);
 		return;
@@ -765,30 +765,16 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
 
 	for (; !(inw(dev->iobase + PCI171x_STATUS) & Status_FE);) {
-#ifdef PCI171x_PARANOIDCHECK
-		sampl = inw(dev->iobase + PCI171x_AD_DATA);
-		if (this_board->cardtype != TYPE_PCI1713)
-			if ((sampl & 0xf000) !=
-			    devpriv->act_chanlist[s->async->cur_chan]) {
-				printk
-				    ("comedi: A/D data dropout: received data from channel %d, expected %d!\n",
-				     (sampl & 0xf000) >> 12,
-				     (devpriv->
-				      act_chanlist[s->
-						   async->cur_chan] & 0xf000) >>
-				     12);
-				s->async->events |=
-				    COMEDI_CB_EOA | COMEDI_CB_ERROR;
-				cfc_handle_events(dev, s);
-				return;
-			}
-		comedi_buf_put(s->async, sampl & 0x0fff);
-#else
-		comedi_buf_put(s->async,
-			       inw(dev->iobase + PCI171x_AD_DATA) & 0x0fff);
-#endif
-		++s->async->cur_chan;
+		val = inw(dev->iobase + PCI171x_AD_DATA);
+		ret = pci171x_ai_dropout(dev, s, s->async->cur_chan, val);
+		if (ret) {
+			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			break;
+		}
 
+		comedi_buf_put(s->async, val & s->maxdata);
+
+		s->async->cur_chan++;
 		if (s->async->cur_chan >= cmd->chanlist_len)
 			s->async->cur_chan = 0;
 
@@ -799,8 +785,7 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 			    devpriv->ai_act_scan >= cmd->stop_arg) {
 				/*  all data sampled */
 				s->async->events |= COMEDI_CB_EOA;
-				cfc_handle_events(dev, s);
-				return;
+				break;
 			}
 		}
 	}
@@ -818,41 +803,27 @@ static int move_block_from_fifo(struct comedi_device *dev,
 {
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int i, j;
-#ifdef PCI171x_PARANOIDCHECK
-	const struct boardtype *this_board = comedi_board(dev);
-	unsigned short sampl;
-#endif
+	unsigned int val;
+	int ret;
+	int i;
 
-	j = s->async->cur_chan;
 	for (i = 0; i < n; i++) {
-#ifdef PCI171x_PARANOIDCHECK
-		sampl = inw(dev->iobase + PCI171x_AD_DATA);
-		if (this_board->cardtype != TYPE_PCI1713)
-			if ((sampl & 0xf000) != devpriv->act_chanlist[j]) {
-				dev_dbg(dev->class_dev,
-					"A/D FIFO data dropout: received data from channel %d, expected %d! (%d/%d/%d/%d/%d/%4x)\n",
-					(sampl & 0xf000) >> 12,
-					(devpriv->act_chanlist[j] & 0xf000) >> 12,
-					i, j, devpriv->ai_act_scan, n, turn,
-					sampl);
-				s->async->events |=
-				    COMEDI_CB_EOA | COMEDI_CB_ERROR;
-				cfc_handle_events(dev, s);
-				return 1;
-			}
-		comedi_buf_put(s->async, sampl & 0x0fff);
-#else
-		comedi_buf_put(s->async,
-			       inw(dev->iobase + PCI171x_AD_DATA) & 0x0fff);
-#endif
-		j++;
-		if (j >= cmd->chanlist_len) {
-			j = 0;
+		val = inw(dev->iobase + PCI171x_AD_DATA);
+
+		ret = pci171x_ai_dropout(dev, s, s->async->cur_chan, val);
+		if (ret) {
+			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			return ret;
+		}
+
+		comedi_buf_put(s->async, val & s->maxdata);
+
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= cmd->chanlist_len) {
+			s->async->cur_chan = 0;
 			devpriv->ai_act_scan++;
 		}
 	}
-	s->async->cur_chan = j;
 	return 0;
 }
 
