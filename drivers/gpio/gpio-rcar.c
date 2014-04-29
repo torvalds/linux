@@ -363,7 +363,6 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		dev_err(dev, "failed to allocate driver data\n");
 		ret = -ENOMEM;
 		goto err0;
 	}
