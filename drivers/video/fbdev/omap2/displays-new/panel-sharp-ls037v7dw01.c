@@ -26,11 +26,11 @@ struct panel_drv_data {
 
 	struct omap_video_timings videomode;
 
-	int resb_gpio;
-	int ini_gpio;
-	int mo_gpio;
-	int lr_gpio;
-	int ud_gpio;
+	struct gpio_desc *resb_gpio;	/* low = reset active min 20 us */
+	struct gpio_desc *ini_gpio;	/* high = power on */
+	struct gpio_desc *mo_gpio;	/* low = 480x640, high = 240x320 */
+	struct gpio_desc *lr_gpio;	/* high = conventional horizontal scanning */
+	struct gpio_desc *ud_gpio;	/* high = conventional vertical scanning */
 };
 
 static const struct omap_video_timings sharp_ls_timings = {
@@ -105,11 +105,11 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 	/* wait couple of vsyncs until enabling the LCD */
 	msleep(50);
 
-	if (gpio_is_valid(ddata->resb_gpio))
-		gpio_set_value_cansleep(ddata->resb_gpio, 1);
+	if (ddata->resb_gpio)
+		gpiod_set_value_cansleep(ddata->resb_gpio, 1);
 
-	if (gpio_is_valid(ddata->ini_gpio))
-		gpio_set_value_cansleep(ddata->ini_gpio, 1);
+	if (ddata->ini_gpio)
+		gpiod_set_value_cansleep(ddata->ini_gpio, 1);
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
@@ -124,11 +124,11 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
-	if (gpio_is_valid(ddata->ini_gpio))
-		gpio_set_value_cansleep(ddata->ini_gpio, 0);
+	if (ddata->ini_gpio)
+		gpiod_set_value_cansleep(ddata->ini_gpio, 0);
 
-	if (gpio_is_valid(ddata->resb_gpio))
-		gpio_set_value_cansleep(ddata->resb_gpio, 0);
+	if (ddata->resb_gpio)
+		gpiod_set_value_cansleep(ddata->resb_gpio, 0);
 
 	/* wait at least 5 vsyncs after disabling the LCD */
 
@@ -182,11 +182,32 @@ static struct omap_dss_driver sharp_ls_ops = {
 	.get_resolution	= omapdss_default_get_resolution,
 };
 
+static int sharp_ls_get_gpio(struct device *dev, int gpio, unsigned long flags,
+		  char *desc, struct gpio_desc **gpiod)
+{
+	struct gpio_desc *gd;
+	int r;
+
+	*gpiod = NULL;
+
+	r = devm_gpio_request_one(dev, gpio, flags, desc);
+	if (r)
+		return r == -ENOENT ? 0 : r;
+
+	gd = gpio_to_desc(gpio);
+	if (IS_ERR(gd))
+		return PTR_ERR(gd) == -ENOENT ? 0 : PTR_ERR(gd);
+
+	*gpiod = gd;
+	return 0;
+}
+
 static int sharp_ls_probe_pdata(struct platform_device *pdev)
 {
 	const struct panel_sharp_ls037v7dw01_platform_data *pdata;
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev, *in;
+	int r;
 
 	pdata = dev_get_platdata(&pdev->dev);
 
@@ -204,11 +225,26 @@ static int sharp_ls_probe_pdata(struct platform_device *pdev)
 	dssdev = &ddata->dssdev;
 	dssdev->name = pdata->name;
 
-	ddata->resb_gpio = pdata->resb_gpio;
-	ddata->ini_gpio = pdata->ini_gpio;
-	ddata->mo_gpio = pdata->mo_gpio;
-	ddata->lr_gpio = pdata->lr_gpio;
-	ddata->ud_gpio = pdata->ud_gpio;
+	r = sharp_ls_get_gpio(&pdev->dev, pdata->mo_gpio, GPIOF_OUT_INIT_LOW,
+		"lcd MO", &ddata->mo_gpio);
+	if (r)
+		return r;
+	r = sharp_ls_get_gpio(&pdev->dev, pdata->lr_gpio, GPIOF_OUT_INIT_HIGH,
+		"lcd LR", &ddata->lr_gpio);
+	if (r)
+		return r;
+	r = sharp_ls_get_gpio(&pdev->dev, pdata->ud_gpio, GPIOF_OUT_INIT_HIGH,
+		"lcd UD", &ddata->ud_gpio);
+	if (r)
+		return r;
+	r = sharp_ls_get_gpio(&pdev->dev, pdata->resb_gpio, GPIOF_OUT_INIT_LOW,
+		"lcd RESB", &ddata->resb_gpio);
+	if (r)
+		return r;
+	r = sharp_ls_get_gpio(&pdev->dev, pdata->ini_gpio, GPIOF_OUT_INIT_LOW,
+		"lcd INI", &ddata->ini_gpio);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -233,41 +269,6 @@ static int sharp_ls_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (gpio_is_valid(ddata->mo_gpio)) {
-		r = devm_gpio_request_one(&pdev->dev, ddata->mo_gpio,
-				GPIOF_OUT_INIT_LOW, "lcd MO");
-		if (r)
-			goto err_gpio;
-	}
-
-	if (gpio_is_valid(ddata->lr_gpio)) {
-		r = devm_gpio_request_one(&pdev->dev, ddata->lr_gpio,
-				GPIOF_OUT_INIT_HIGH, "lcd LR");
-		if (r)
-			goto err_gpio;
-	}
-
-	if (gpio_is_valid(ddata->ud_gpio)) {
-		r = devm_gpio_request_one(&pdev->dev, ddata->ud_gpio,
-				GPIOF_OUT_INIT_HIGH, "lcd UD");
-		if (r)
-			goto err_gpio;
-	}
-
-	if (gpio_is_valid(ddata->resb_gpio)) {
-		r = devm_gpio_request_one(&pdev->dev, ddata->resb_gpio,
-				GPIOF_OUT_INIT_LOW, "lcd RESB");
-		if (r)
-			goto err_gpio;
-	}
-
-	if (gpio_is_valid(ddata->ini_gpio)) {
-		r = devm_gpio_request_one(&pdev->dev, ddata->ini_gpio,
-				GPIOF_OUT_INIT_LOW, "lcd INI");
-		if (r)
-			goto err_gpio;
-	}
-
 	ddata->videomode = sharp_ls_timings;
 
 	dssdev = &ddata->dssdev;
@@ -287,7 +288,6 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	return 0;
 
 err_reg:
-err_gpio:
 	omap_dss_put_device(ddata->in);
 	return r;
 }
