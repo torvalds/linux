@@ -71,6 +71,23 @@
 
 #include <linux/sched.h>
 
+extern unsigned long sparc64_valid_addr_bitmap[];
+
+/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
+static inline bool __kern_addr_valid(unsigned long paddr)
+{
+	if ((paddr >> MAX_PHYS_ADDRESS_BITS) != 0UL)
+		return false;
+	return test_bit(paddr >> ILOG2_4MB, sparc64_valid_addr_bitmap);
+}
+
+static inline bool kern_addr_valid(unsigned long addr)
+{
+	unsigned long paddr = __pa(addr);
+
+	return __kern_addr_valid(paddr);
+}
+
 /* Entries per page directory level. */
 #define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-3))
 #define PTRS_PER_PMD	(1UL << PMD_BITS)
@@ -743,6 +760,20 @@ static inline int pmd_present(pmd_t pmd)
 
 #define pmd_none(pmd)			(!pmd_val(pmd))
 
+/* pmd_bad() is only called on non-trans-huge PMDs.  Our encoding is
+ * very simple, it's just the physical address.  PTE tables are of
+ * size PAGE_SIZE so make sure the sub-PAGE_SIZE bits are clear and
+ * the top bits outside of the range of any physical address size we
+ * support are clear as well.  We also validate the physical itself.
+ */
+#define pmd_bad(pmd)			((pmd_val(pmd) & ~PAGE_MASK) || \
+					 !__kern_addr_valid(pmd_val(pmd)))
+
+#define pud_none(pud)			(!pud_val(pud))
+
+#define pud_bad(pud)			((pud_val(pud) & ~PAGE_MASK) || \
+					 !__kern_addr_valid(pud_val(pud)))
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		       pmd_t *pmdp, pmd_t pmd);
@@ -776,10 +807,7 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 #define pud_page_vaddr(pud)		\
 	((unsigned long) __va(pud_val(pud)))
 #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
-#define pmd_bad(pmd)			(0)
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
-#define pud_none(pud)			(!pud_val(pud))
-#define pud_bad(pud)			(0)
 #define pud_present(pud)		(pud_val(pud) != 0U)
 #define pud_clear(pudp)			(pud_val(*(pudp)) = 0UL)
 
@@ -908,18 +936,6 @@ extern unsigned long pte_file(pte_t);
 #define pte_to_pgoff(pte)	(pte_val(pte) >> PAGE_SHIFT)
 extern pte_t pgoff_to_pte(unsigned long);
 #define PTE_FILE_MAX_BITS	(64UL - PAGE_SHIFT - 1UL)
-
-extern unsigned long sparc64_valid_addr_bitmap[];
-
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
-static inline bool kern_addr_valid(unsigned long addr)
-{
-	unsigned long paddr = __pa(addr);
-
-	if ((paddr >> MAX_PHYS_ADDRESS_BITS) != 0UL)
-		return false;
-	return test_bit(paddr >> ILOG2_4MB, sparc64_valid_addr_bitmap);
-}
 
 extern int page_in_phys_avail(unsigned long paddr);
 
