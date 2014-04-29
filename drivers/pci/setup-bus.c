@@ -1113,8 +1113,7 @@ handle_done:
 	;
 }
 
-void __ref __pci_bus_size_bridges(struct pci_bus *bus,
-			struct list_head *realloc_head)
+void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 {
 	struct pci_dev *dev;
 	unsigned long mask, prefmask;
@@ -1178,15 +1177,15 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 	}
 }
 
-void __ref pci_bus_size_bridges(struct pci_bus *bus)
+void pci_bus_size_bridges(struct pci_bus *bus)
 {
 	__pci_bus_size_bridges(bus, NULL);
 }
 EXPORT_SYMBOL(pci_bus_size_bridges);
 
-void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
-				      struct list_head *realloc_head,
-				      struct list_head *fail_head)
+void __pci_bus_assign_resources(const struct pci_bus *bus,
+				struct list_head *realloc_head,
+				struct list_head *fail_head)
 {
 	struct pci_bus *b;
 	struct pci_dev *dev;
@@ -1218,15 +1217,15 @@ void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
 	}
 }
 
-void __ref pci_bus_assign_resources(const struct pci_bus *bus)
+void pci_bus_assign_resources(const struct pci_bus *bus)
 {
 	__pci_bus_assign_resources(bus, NULL, NULL);
 }
 EXPORT_SYMBOL(pci_bus_assign_resources);
 
-static void __ref __pci_bridge_assign_resources(const struct pci_dev *bridge,
-					 struct list_head *add_head,
-					 struct list_head *fail_head)
+static void __pci_bridge_assign_resources(const struct pci_dev *bridge,
+					  struct list_head *add_head,
+					  struct list_head *fail_head)
 {
 	struct pci_bus *b;
 
@@ -1304,9 +1303,9 @@ enum release_type {
  * try to release pci bridge resources that is from leaf bridge,
  * so we can allocate big new one later
  */
-static void __ref pci_bus_release_bridge_resources(struct pci_bus *bus,
-						   unsigned long type,
-						   enum release_type rel_type)
+static void pci_bus_release_bridge_resources(struct pci_bus *bus,
+					     unsigned long type,
+					     enum release_type rel_type)
 {
 	struct pci_dev *dev;
 	bool is_leaf_bridge = true;

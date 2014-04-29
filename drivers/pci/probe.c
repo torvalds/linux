@@ -719,7 +719,7 @@ add_dev:
 	return child;
 }
 
-struct pci_bus *__ref pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr)
+struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr)
 {
 	struct pci_bus *child;
 
@@ -1369,7 +1369,7 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	WARN_ON(ret < 0);
 }
 
-struct pci_dev *__ref pci_scan_single_device(struct pci_bus *bus, int devfn)
+struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
 
@@ -1617,7 +1617,7 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
  */
 void pcie_bus_configure_settings(struct pci_bus *bus)
 {
-	u8 smpss;
+	u8 smpss = 0;
 
 	if (!bus->self)
 		return;
@@ -1958,7 +1958,7 @@ EXPORT_SYMBOL(pci_scan_bus);
  *
  * Returns the max number of subordinate bus discovered.
  */
-unsigned int __ref pci_rescan_bus_bridge_resize(struct pci_dev *bridge)
+unsigned int pci_rescan_bus_bridge_resize(struct pci_dev *bridge)
 {
 	unsigned int max;
 	struct pci_bus *bus = bridge->subordinate;
@@ -1981,7 +1981,7 @@ unsigned int __ref pci_rescan_bus_bridge_resize(struct pci_dev *bridge)
  *
  * Returns the max number of subordinate bus discovered.
  */
-unsigned int __ref pci_rescan_bus(struct pci_bus *bus)
+unsigned int pci_rescan_bus(struct pci_bus *bus)
 {
 	unsigned int max;
 

@@ -10,7 +10,6 @@
 #include <linux/mm.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/export.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
@@ -544,22 +543,18 @@ static int populate_msi_sysfs(struct pci_dev *pdev)
 	if (!msi_attrs)
 		return -ENOMEM;
 	list_for_each_entry(entry, &pdev->msi_list, list) {
-		char *name = kmalloc(20, GFP_KERNEL);
-		if (!name)
-			goto error_attrs;
-
 		msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
-		if (!msi_dev_attr) {
-			kfree(name);
+		if (!msi_dev_attr)
 			goto error_attrs;
-		}
+		msi_attrs[count] = &msi_dev_attr->attr;
 
-		sprintf(name, "%d", entry->irq);
 		sysfs_attr_init(&msi_dev_attr->attr);
-		msi_dev_attr->attr.name = name;
+		msi_dev_attr->attr.name = kasprintf(GFP_KERNEL, "%d",
+						    entry->irq);
+		if (!msi_dev_attr->attr.name)
+			goto error_attrs;
 		msi_dev_attr->attr.mode = S_IRUGO;
 		msi_dev_attr->show = msi_mode_show;
-		msi_attrs[count] = &msi_dev_attr->attr;
 		++count;
 	}
 

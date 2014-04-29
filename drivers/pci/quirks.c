@@ -2954,6 +2954,7 @@ static void disable_igfx_irq(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0102, disable_igfx_irq);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x010a, disable_igfx_irq);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0152, disable_igfx_irq);
 
 /*
  * PCI devices which are on Intel chips can skip the 10ms delay
@@ -3453,6 +3454,8 @@ static const u16 pci_quirk_intel_pch_acs_ids[] = {
 	/* Wildcat PCH */
 	0x9c90, 0x9c91, 0x9c92, 0x9c93, 0x9c94, 0x9c95, 0x9c96, 0x9c97,
 	0x9c98, 0x9c99, 0x9c9a, 0x9c9b,
+	/* Patsburg (X79) PCH */
+	0x1d10, 0x1d12, 0x1d14, 0x1d16, 0x1d18, 0x1d1a, 0x1d1c, 0x1d1e,
 };
 
 static bool pci_quirk_intel_pch_acs_match(struct pci_dev *dev)

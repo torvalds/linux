@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/proc_fs.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 
 #include "pci.h"

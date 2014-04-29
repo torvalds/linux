@@ -34,7 +34,7 @@
 #include "../pci.h"
 #include "shpchp.h"
 
-int __ref shpchp_configure_device(struct slot *p_slot)
+int shpchp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
 	struct controller *ctrl = p_slot->ctrl;
