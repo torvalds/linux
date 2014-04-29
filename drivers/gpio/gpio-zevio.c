@@ -178,10 +178,8 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	int status, i;
 
 	controller = devm_kzalloc(&pdev->dev, sizeof(*controller), GFP_KERNEL);
-	if (!controller) {
-		dev_err(&pdev->dev, "not enough free memory\n");
+	if (!controller)
 		return -ENOMEM;
-	}
 
 	/* Copy our reference */
 	controller->chip.gc = zevio_gpio_chip;
