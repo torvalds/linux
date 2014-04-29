@@ -360,6 +360,18 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static void pcl711_ai_load_counters(struct comedi_device *dev)
+{
+	struct pcl711_private *devpriv = dev->private;
+	unsigned long timer_base = dev->iobase + PCL711_TIMER_BASE;
+
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
+}
+
 static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl711_private *devpriv = dev->private;
@@ -378,13 +390,8 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
-			   1, devpriv->divisor1, I8254_MODE2 | I8254_BINARY);
-		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
-			   2, devpriv->divisor2, I8254_MODE2 | I8254_BINARY);
-
+		pcl711_ai_load_counters(dev);
 		outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
-
 		pcl711_ai_set_mode(dev, PCL711_MODE_PACER_IRQ);
 	} else {
 		pcl711_ai_set_mode(dev, PCL711_MODE_EXT_IRQ);
