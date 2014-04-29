@@ -780,6 +780,18 @@ next_slot:
 			extent_end = search_start;
 		}
 
+		/*
+		 * Don't skip extent items representing 0 byte lengths. They
+		 * used to be created (bug) if while punching holes we hit
+		 * -ENOSPC condition. So if we find one here, just ensure we
+		 * delete it, otherwise we would insert a new file extent item
+		 * with the same key (offset) as that 0 bytes length file
+		 * extent item in the call to setup_items_for_insert() later
+		 * in this function.
+		 */
+		if (extent_end == key.offset && extent_end >= search_start)
+			goto delete_extent_item;
+
 		if (extent_end <= search_start) {
 			path->slots[0]++;
 			goto next_slot;
@@ -893,6 +905,7 @@ next_slot:
 		 *    | ------ extent ------ |
 		 */
 		if (start <= key.offset && end >= extent_end) {
+delete_extent_item:
 			if (del_nr == 0) {
 				del_slot = path->slots[0];
 				del_nr = 1;
@@ -2348,7 +2361,12 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	}
 
 	trans->block_rsv = &root->fs_info->trans_block_rsv;
-	if (cur_offset < ino_size) {
+	/*
+	 * Don't insert file hole extent item if it's for a range beyond eof
+	 * (because it's useless) or if it represents a 0 bytes range (when
+	 * cur_offset == drop_end).
+	 */
+	if (cur_offset < ino_size && cur_offset < drop_end) {
 		ret = fill_holes(trans, inode, path, cur_offset, drop_end);
 		if (ret) {
 			err = ret;
