@@ -567,6 +567,8 @@ static void __init early_reserve_mem_dt(void)
 	unsigned long i, len, dt_root;
 	const __be32 *prop;
 
+	early_init_fdt_scan_reserved_mem();
+
 	dt_root = of_get_flat_dt_root();
 
 	prop = of_get_flat_dt_prop(dt_root, "reserved-ranges", &len);
@@ -589,8 +591,6 @@ static void __init early_reserve_mem_dt(void)
 			memblock_reserve(base, size);
 		}
 	}
-
-	early_init_fdt_scan_reserved_mem();
 }
 
 static void __init early_reserve_mem(void)
