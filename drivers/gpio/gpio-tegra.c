@@ -458,10 +458,8 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tegra_gpio_banks = devm_kzalloc(&pdev->dev,
 			tegra_gpio_bank_count * sizeof(*tegra_gpio_banks),
 			GFP_KERNEL);
-	if (!tegra_gpio_banks) {
-		dev_err(&pdev->dev, "Couldn't allocate bank structure\n");
+	if (!tegra_gpio_banks)
 		return -ENODEV;
-	}
 
 	irq_domain = irq_domain_add_linear(pdev->dev.of_node,
 					   tegra_gpio_chip.ngpio,
