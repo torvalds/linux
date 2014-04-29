@@ -186,10 +186,8 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 		cs = devm_kzalloc(&spi->dev,
 				  sizeof(struct s3c24xx_spi_devstate),
 				  GFP_KERNEL);
-		if (!cs) {
-			dev_err(&spi->dev, "no memory for controller state\n");
+		if (!cs)
 			return -ENOMEM;
-		}
 
 		cs->spcon = SPCON_DEFAULT;
 		cs->hz = -1;
