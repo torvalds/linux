@@ -24,25 +24,23 @@ ifndef CONFIG_FIRMWARE_IN_KERNEL
 mod-fw += $(fw-shipped-y)
 endif
 
+ifneq ($(KBUILD_SRC),)
+# Create output directory if not already present
+_dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
+
+firmware-dirs := $(sort $(addprefix $(objtree)/$(obj)/,$(dir $(fw-external-y) $(fw-shipped-all))))
+# Create directories for firmware in subdirectories
+_dummy := $(foreach d,$(firmware-dirs), $(shell [ -d $(d) ] || mkdir -p $(d)))
+endif
+
 installed-mod-fw := $(addprefix $(INSTALL_FW_PATH)/,$(mod-fw))
 
 installed-fw := $(addprefix $(INSTALL_FW_PATH)/,$(fw-shipped-all))
-installed-fw-dirs := $(sort $(dir $(installed-fw))) $(INSTALL_FW_PATH)/./
-
-# Workaround for make < 3.81, where .SECONDEXPANSION doesn't work.
-PHONY += $(INSTALL_FW_PATH)/$$(%) install-all-dirs
-$(INSTALL_FW_PATH)/$$(%): install-all-dirs
-	@true
-install-all-dirs: $(installed-fw-dirs)
-	@true
 
 quiet_cmd_install = INSTALL $(subst $(srctree)/,,$@)
-      cmd_install = $(INSTALL) -m0644 $< $@
+      cmd_install = mkdir -p $(@D); $(INSTALL) -m0644 $< $@
 
-$(installed-fw-dirs):
-	$(call cmd,mkdir)
-
-$(installed-fw): $(INSTALL_FW_PATH)/%: $(obj)/% | $(INSTALL_FW_PATH)/$$(dir %)
+$(installed-fw): $(INSTALL_FW_PATH)/%: $(obj)/%
 	$(call cmd,install)
 
 PHONY +=  __fw_install __fw_modinst FORCE
