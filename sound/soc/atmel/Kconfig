@@ -35,7 +35,7 @@ config SND_AT91_SOC_SAM9G20_WM8731
 
 config SND_ATMEL_SOC_WM8904
 	tristate "Atmel ASoC driver for boards using WM8904 codec"
-	depends on ARCH_AT91 && ATMEL_SSC && SND_ATMEL_SOC
+	depends on ARCH_AT91 && ATMEL_SSC && SND_ATMEL_SOC && I2C
 	select SND_ATMEL_SOC_SSC
 	select SND_ATMEL_SOC_DMA
 	select SND_SOC_WM8904
