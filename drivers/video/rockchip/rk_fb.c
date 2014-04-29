@@ -1620,14 +1620,17 @@ err:
 }
 static int cfgdone_last_time_ms = 0;
 static int cfgdone_interval_ms = 0;
-int rk_get_real_fps()
+int rk_get_real_fps(void)
 {
     struct timespec now;
     int interval_ms = 0;
     getnstimeofday(&now);
     interval_ms = (now.tv_sec *1000 + now.tv_nsec/1000000) - cfgdone_last_time_ms;
     interval_ms = (interval_ms > cfgdone_interval_ms) ? interval_ms : cfgdone_interval_ms;
-	return 1000 / interval_ms;
+	if(!interval_ms)
+		return 60;/*keep cpu clock*/
+	else
+		return 1000 / interval_ms;
 }
 EXPORT_SYMBOL(rk_get_real_fps);
 

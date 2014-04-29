@@ -39,6 +39,8 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
+#include <linux/rk_fb.h>
+
 #include <platform/rk/mali_kbase_platform.h>
 #include <platform/rk/mali_kbase_dvfs.h>
 #include <mali_kbase_gator.h>
@@ -87,8 +89,9 @@ static void update_time_in_state(int level);
 #endif
 /*dvfs status*/
 static mali_dvfs_status mali_dvfs_status_current;
-extern int rk_get_real_fps(void);
-#define limit_fps 60
+
+#define LIMIT_FPS 60
+
 static void mali_dvfs_event_proc(struct work_struct *w)
 {
 	unsigned long flags;
@@ -109,7 +112,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	fps = rk_get_real_fps();
 
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
-	if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) && (dvfs_status->step < MALI_DVFS_STEP-1) && (fps < limit_fps)) 
+	if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) && (dvfs_status->step < MALI_DVFS_STEP-1) && (fps < LIMIT_FPS)) 
 	{
 		level_up_time++;
 		if(level_up_time == MALI_DVFS_TIME_INTERVAL)

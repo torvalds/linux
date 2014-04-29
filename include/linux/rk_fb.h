@@ -575,4 +575,5 @@ extern int rkfb_create_sysfs(struct fb_info *fbi);
 extern char *get_format_string(enum data_format, char *fmt);
 extern int support_uboot_display(void);
 extern int  rk_fb_calc_fps(struct rk_screen * screen, u32 pixclock);
+extern int rk_get_real_fps(void);
 #endif
