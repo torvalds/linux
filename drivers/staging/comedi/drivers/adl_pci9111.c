@@ -355,7 +355,7 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 {
 	struct pci9111_private_data *dev_private = dev->private;
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -413,41 +413,31 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/*  Step 4 : fix up any arguments */
+	/* Step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
 					  &dev_private->div1,
 					  &dev_private->div2,
 					  &cmd->convert_arg, cmd->flags);
-		if (tmp != cmd->convert_arg)
+		if (cmd->convert_arg != arg)
 			err |= -EINVAL;
 	}
-	/*  There's only one timer on this card, so the scan_begin timer must */
-	/*  be a multiple of chanlist_len*convert_arg */
 
+	/*
+	 * There's only one timer on this card, so the scan_begin timer
+	 * must be a multiple of chanlist_len*convert_arg
+	 */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
+		arg = cmd->chanlist_len * cmd->convert_arg;
 
-		unsigned int scan_begin_min;
-		unsigned int scan_begin_arg;
-		unsigned int scan_factor;
+		if (arg < cmd->scan_begin_arg)
+			arg *= (cmd->scan_begin_arg / arg);
 
-		scan_begin_min = cmd->chanlist_len * cmd->convert_arg;
-
-		if (cmd->scan_begin_arg != scan_begin_min) {
-			if (scan_begin_min < cmd->scan_begin_arg) {
-				scan_factor =
-				    cmd->scan_begin_arg / scan_begin_min;
-				scan_begin_arg = scan_factor * scan_begin_min;
-				if (cmd->scan_begin_arg != scan_begin_arg) {
-					cmd->scan_begin_arg = scan_begin_arg;
-					err |= -EINVAL;
-				}
-			} else {
-				cmd->scan_begin_arg = scan_begin_min;
-				err |= -EINVAL;
-			}
+		if (cmd->scan_begin_arg != arg) {
+			cmd->scan_begin_arg = arg;
+			err |= -EINVAL;
 		}
 	}
 
