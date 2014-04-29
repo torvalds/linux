@@ -187,30 +187,13 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 		if (phost_endp) {
 			pendp_desc = &phost_endp->desc;
 
-			DBG_88E("\nusb_endpoint_descriptor(%d):\n", i);
-			DBG_88E("bLength=%x\n", pendp_desc->bLength);
-			DBG_88E("bDescriptorType=%x\n",
-				pendp_desc->bDescriptorType);
-			DBG_88E("bEndpointAddress=%x\n",
-				pendp_desc->bEndpointAddress);
-			DBG_88E("wMaxPacketSize=%d\n",
-				le16_to_cpu(pendp_desc->wMaxPacketSize));
-			DBG_88E("bInterval=%x\n", pendp_desc->bInterval);
-
 			if (RT_usb_endpoint_is_bulk_in(pendp_desc)) {
-				DBG_88E("RT_usb_endpoint_is_bulk_in = %x\n",
-					RT_usb_endpoint_num(pendp_desc));
 				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] = RT_usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumInPipes++;
 			} else if (usb_endpoint_is_int(pendp_desc)) {
-				DBG_88E("usb_endpoint_is_int = %x, Interval = %x\n",
-					RT_usb_endpoint_num(pendp_desc),
-					pendp_desc->bInterval);
 				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] = RT_usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumInPipes++;
 			} else if (RT_usb_endpoint_is_bulk_out(pendp_desc)) {
-				DBG_88E("RT_usb_endpoint_is_bulk_out = %x\n",
-					RT_usb_endpoint_num(pendp_desc));
 				pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] = RT_usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumOutPipes++;
 			}
@@ -218,25 +201,14 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 		}
 	}
 
-	DBG_88E("nr_endpoint=%d, in_num=%d, out_num=%d\n\n",
-		pdvobjpriv->nr_endpoint, pdvobjpriv->RtNumInPipes,
-		pdvobjpriv->RtNumOutPipes);
-
-	if (pusbd->speed == USB_SPEED_HIGH) {
+	if (pusbd->speed == USB_SPEED_HIGH)
 		pdvobjpriv->ishighspeed = true;
-		DBG_88E("USB_SPEED_HIGH\n");
-	} else {
+	else
 		pdvobjpriv->ishighspeed = false;
-		DBG_88E("NON USB_SPEED_HIGH\n");
-	}
 
-	if (rtw_init_intf_priv(pdvobjpriv) == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("\n Can't INIT rtw_init_intf_priv\n"));
+	if (rtw_init_intf_priv(pdvobjpriv) == _FAIL)
 		goto free_dvobj;
-	}
 
-	/* 3 misc */
 	sema_init(&(pdvobjpriv->usb_suspend_sema), 0);
 	rtw_reset_continual_urb_error(pdvobjpriv);
 
