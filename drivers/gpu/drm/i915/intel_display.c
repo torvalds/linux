@@ -10566,6 +10566,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		intel_crtc->plane = !pipe;
 	}
 
+	init_waitqueue_head(&intel_crtc->vbl_wait);
+
 	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
 	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
 	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;

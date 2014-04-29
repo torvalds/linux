@@ -1556,6 +1556,19 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 	}
 }
 
+static bool intel_pipe_handle_vblank(struct drm_device *dev, enum pipe pipe)
+{
+	struct intel_crtc *crtc;
+
+	if (!drm_handle_vblank(dev, pipe))
+		return false;
+
+	crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
+	wake_up(&crtc->vbl_wait);
+
+	return true;
+}
+
 static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1607,7 +1620,7 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 
 	for_each_pipe(pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
-			drm_handle_vblank(dev, pipe);
+			intel_pipe_handle_vblank(dev, pipe);
 
 		if (pipe_stats[pipe] & PLANE_FLIP_DONE_INT_STATUS_VLV) {
 			intel_prepare_page_flip(dev, pipe);
@@ -1850,7 +1863,7 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 
 	for_each_pipe(pipe) {
 		if (de_iir & DE_PIPE_VBLANK(pipe))
-			drm_handle_vblank(dev, pipe);
+			intel_pipe_handle_vblank(dev, pipe);
 
 		if (de_iir & DE_PIPE_FIFO_UNDERRUN(pipe))
 			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
@@ -1900,7 +1913,7 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 
 	for_each_pipe(pipe) {
 		if (de_iir & (DE_PIPE_VBLANK_IVB(pipe)))
-			drm_handle_vblank(dev, pipe);
+			intel_pipe_handle_vblank(dev, pipe);
 
 		/* plane/pipes map 1:1 on ilk+ */
 		if (de_iir & DE_PLANE_FLIP_DONE_IVB(pipe)) {
@@ -2043,7 +2056,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 
 		pipe_iir = I915_READ(GEN8_DE_PIPE_IIR(pipe));
 		if (pipe_iir & GEN8_PIPE_VBLANK)
-			drm_handle_vblank(dev, pipe);
+			intel_pipe_handle_vblank(dev, pipe);
 
 		if (pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE) {
 			intel_prepare_page_flip(dev, pipe);
@@ -3390,7 +3403,7 @@ static bool i8xx_handle_vblank(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u16 flip_pending = DISPLAY_PLANE_FLIP_PENDING(plane);
 
-	if (!drm_handle_vblank(dev, pipe))
+	if (!intel_pipe_handle_vblank(dev, pipe))
 		return false;
 
 	if ((iir & flip_pending) == 0)
@@ -3575,7 +3588,7 @@ static bool i915_handle_vblank(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 flip_pending = DISPLAY_PLANE_FLIP_PENDING(plane);
 
-	if (!drm_handle_vblank(dev, pipe))
+	if (!intel_pipe_handle_vblank(dev, pipe))
 		return false;
 
 	if ((iir & flip_pending) == 0)

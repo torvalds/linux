@@ -401,6 +401,8 @@ struct intel_crtc {
 		/* watermarks currently being used  */
 		struct intel_pipe_wm active;
 	} wm;
+
+	wait_queue_head_t vbl_wait;
 };
 
 struct intel_plane_wm_parameters {
