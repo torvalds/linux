@@ -271,8 +271,8 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 			 dev->interrupt_in_buffer[6],
 			 dev->interrupt_in_buffer[7]);
 #if SUPPRESS_EXTRA_OFFLINE_EVENTS
-	if (dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff)
-		goto resubmit;
+		if (dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff)
+			goto resubmit;
 		if (dev->offline == 1 && dev->interrupt_in_buffer[1] == 0xff) {
 			dev->offline = 2;
 			goto resubmit;
@@ -285,8 +285,8 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 			dev->offline = 1;
 
 #endif	/* SUPPRESS_EXTRA_OFFLINE_EVENTS */
-	   dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n",
-		__func__, dev->ring_head, dev->ring_tail);
+		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n",
+			 __func__, dev->ring_head, dev->ring_tail);
 
 		next_ring_head = (dev->ring_head + 1) % ring_buffer_size;
 
