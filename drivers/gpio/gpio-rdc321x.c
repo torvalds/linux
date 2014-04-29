@@ -143,10 +143,8 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 
 	rdc321x_gpio_dev = devm_kzalloc(&pdev->dev, sizeof(struct rdc321x_gpio),
 					GFP_KERNEL);
-	if (!rdc321x_gpio_dev) {
-		dev_err(&pdev->dev, "failed to allocate private data\n");
+	if (!rdc321x_gpio_dev)
 		return -ENOMEM;
-	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg1");
 	if (!r) {
