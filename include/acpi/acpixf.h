@@ -338,16 +338,9 @@ acpi_status __init acpi_reallocate_root_table(void);
 
 acpi_status __init acpi_find_root_pointer(acpi_size *rsdp_address);
 
-acpi_status acpi_unload_table_id(acpi_owner_id id);
-
 acpi_status
 acpi_get_table_header(acpi_string signature,
 		      u32 instance, struct acpi_table_header *out_table_header);
-
-acpi_status
-acpi_get_table_with_size(acpi_string signature,
-	       u32 instance, struct acpi_table_header **out_table,
-	       acpi_size *tbl_size);
 
 acpi_status
 acpi_get_table(acpi_string signature,
@@ -391,10 +384,6 @@ acpi_attach_data(acpi_handle object, acpi_object_handler handler, void *data);
 acpi_status acpi_detach_data(acpi_handle object, acpi_object_handler handler);
 
 acpi_status
-acpi_get_data_full(acpi_handle object, acpi_object_handler handler, void **data,
-		   void (*callback)(void *));
-
-acpi_status
 acpi_get_data(acpi_handle object, acpi_object_handler handler, void **data);
 
 acpi_status
@@ -428,8 +417,6 @@ acpi_get_next_object(acpi_object_type type,
 		     acpi_handle child, acpi_handle * out_handle);
 
 acpi_status acpi_get_type(acpi_handle object, acpi_object_type * out_type);
-
-acpi_status acpi_get_id(acpi_handle object, acpi_owner_id * out_type);
 
 acpi_status acpi_get_parent(acpi_handle object, acpi_handle * out_handle);
 
@@ -747,4 +734,21 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
 						     const char *module_name,
 						     u32 component_id,
 						     const char *format, ...))
+
+/*
+ * Divergences
+ */
+acpi_status acpi_get_id(acpi_handle object, acpi_owner_id * out_type);
+
+acpi_status acpi_unload_table_id(acpi_owner_id id);
+
+acpi_status
+acpi_get_table_with_size(acpi_string signature,
+	       u32 instance, struct acpi_table_header **out_table,
+	       acpi_size *tbl_size);
+
+acpi_status
+acpi_get_data_full(acpi_handle object, acpi_object_handler handler, void **data,
+		   void (*callback)(void *));
+
 #endif				/* __ACXFACE_H__ */
