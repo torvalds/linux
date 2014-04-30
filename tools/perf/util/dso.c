@@ -1,3 +1,4 @@
+#include <asm/bug.h>
 #include "symbol.h"
 #include "dso.h"
 #include "machine.h"
@@ -137,18 +138,23 @@ int dso__read_binary_type_filename(const struct dso *dso,
 }
 
 /*
- * Global list of open DSOs.
+ * Global list of open DSOs and the counter.
  */
 static LIST_HEAD(dso__data_open);
+static long dso__data_open_cnt;
 
 static void dso__list_add(struct dso *dso)
 {
 	list_add_tail(&dso->data.open_entry, &dso__data_open);
+	dso__data_open_cnt++;
 }
 
 static void dso__list_del(struct dso *dso)
 {
 	list_del(&dso->data.open_entry);
+	WARN_ONCE(dso__data_open_cnt <= 0,
+		  "DSO data fd counter out of bounds.");
+	dso__data_open_cnt--;
 }
 
 static int __open_dso(struct dso *dso, struct machine *machine)
