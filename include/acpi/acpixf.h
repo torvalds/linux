@@ -185,22 +185,33 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_ssdt_table_install, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_osi_data, 0);
 
 /*
- * Other miscellaneous public globals
+ * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
+ * that the ACPI hardware is no longer required. A flag in the FADT indicates
+ * a reduced HW machine, and that flag is duplicated here for convenience.
  */
-extern u32 acpi_current_gpe_count;
-extern struct acpi_table_fadt acpi_gbl_FADT;
-extern u8 acpi_gbl_system_awake_and_running;
-extern u8 acpi_gbl_reduced_hardware;	/* ACPI 5.0 */
+ACPI_INIT_GLOBAL(u8, acpi_gbl_reduced_hardware, FALSE);
 
-/* Runtime configuration of debug print levels */
+/*
+ * This mechanism is used to trace a specified AML method. The method is
+ * traced each time it is executed.
+ */
+ACPI_INIT_GLOBAL(u32, acpi_gbl_trace_flags, 0);
+ACPI_INIT_GLOBAL(acpi_name, acpi_gbl_trace_method_name, 0);
 
-extern u32 acpi_dbg_level;
-extern u32 acpi_dbg_layer;
+/*
+ * Runtime configuration of debug output control masks. We want the debug
+ * switches statically initialized so they are already set when the debugger
+ * is entered.
+ */
+ACPI_INIT_GLOBAL(u32, acpi_dbg_level, ACPI_DEBUG_DEFAULT);
+ACPI_INIT_GLOBAL(u32, acpi_dbg_layer, 0);
 
-/* ACPICA runtime options */
-
-extern u32 acpi_gbl_trace_flags;
-extern acpi_name acpi_gbl_trace_method_name;
+/*
+ * Globals that are publically available
+ */
+ACPI_GLOBAL(u32, acpi_current_gpe_count);
+ACPI_GLOBAL(struct acpi_table_fadt, acpi_gbl_FADT);
+ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 
 /*
  * Hardware-reduced prototypes. All interfaces that use these macros will
