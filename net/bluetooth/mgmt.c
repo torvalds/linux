@@ -2850,10 +2850,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	sec_level = BT_SECURITY_MEDIUM;
-	if (cp->io_cap == 0x03)
-		auth_type = HCI_AT_DEDICATED_BONDING;
-	else
-		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
+	auth_type = HCI_AT_DEDICATED_BONDING;
 
 	if (cp->addr.type == BDADDR_BREDR) {
 		conn = hci_connect_acl(hdev, &cp->addr.bdaddr, sec_level,
@@ -3351,6 +3348,8 @@ static int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
 
 static void start_discovery_complete(struct hci_dev *hdev, u8 status)
 {
+	unsigned long timeout = 0;
+
 	BT_DBG("status %d", status);
 
 	if (status) {
@@ -3366,13 +3365,11 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status)
 
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_LE:
-		queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
-				   DISCOV_LE_TIMEOUT);
+		timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
 		break;
 
 	case DISCOV_TYPE_INTERLEAVED:
-		queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
-				   DISCOV_INTERLEAVED_TIMEOUT);
+		timeout = msecs_to_jiffies(hdev->discov_interleaved_timeout);
 		break;
 
 	case DISCOV_TYPE_BREDR:
@@ -3381,6 +3378,11 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status)
 	default:
 		BT_ERR("Invalid discovery type %d", hdev->discovery.type);
 	}
+
+	if (!timeout)
+		return;
+
+	queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable, timeout);
 }
 
 static int start_discovery(struct sock *sk, struct hci_dev *hdev,
@@ -5668,8 +5670,9 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 }
 
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-		       u8 addr_type, u8 *dev_class, s8 rssi, u8 cfm_name, u8
-		       ssp, u8 *eir, u16 eir_len)
+		       u8 addr_type, u8 *dev_class, s8 rssi, u8 cfm_name,
+		       u8 ssp, u8 *eir, u16 eir_len, u8 *scan_rsp,
+		       u8 scan_rsp_len)
 {
 	char buf[512];
 	struct mgmt_ev_device_found *ev = (void *) buf;
@@ -5679,8 +5682,10 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	if (!hci_discovery_active(hdev))
 		return;
 
-	/* Leave 5 bytes for a potential CoD field */
-	if (sizeof(*ev) + eir_len + 5 > sizeof(buf))
+	/* Make sure that the buffer is big enough. The 5 extra bytes
+	 * are for the potential CoD field.
+	 */
+	if (sizeof(*ev) + eir_len + scan_rsp_len + 5 > sizeof(buf))
 		return;
 
 	memset(buf, 0, sizeof(buf));
@@ -5707,8 +5712,11 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		eir_len = eir_append_data(ev->eir, eir_len, EIR_CLASS_OF_DEV,
 					  dev_class, 3);
 
-	ev->eir_len = cpu_to_le16(eir_len);
-	ev_size = sizeof(*ev) + eir_len;
+	if (scan_rsp_len > 0)
+		memcpy(ev->eir + eir_len, scan_rsp, scan_rsp_len);
+
+	ev->eir_len = cpu_to_le16(eir_len + scan_rsp_len);
+	ev_size = sizeof(*ev) + eir_len + scan_rsp_len;
 
 	mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev, ev_size, NULL);
 }
