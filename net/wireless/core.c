@@ -210,15 +210,12 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	}
 }
 
-static int cfg80211_rfkill_set_block(void *data, bool blocked)
+void cfg80211_shutdown_all_interfaces(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev = data;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct wireless_dev *wdev;
 
-	if (!blocked)
-		return 0;
-
-	rtnl_lock();
+	ASSERT_RTNL();
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		if (wdev->netdev) {
@@ -234,7 +231,18 @@ static int cfg80211_rfkill_set_block(void *data, bool blocked)
 			break;
 		}
 	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_shutdown_all_interfaces);
 
+static int cfg80211_rfkill_set_block(void *data, bool blocked)
+{
+	struct cfg80211_registered_device *rdev = data;
+
+	if (!blocked)
+		return 0;
+
+	rtnl_lock();
+	cfg80211_shutdown_all_interfaces(&rdev->wiphy);
 	rtnl_unlock();
 
 	return 0;

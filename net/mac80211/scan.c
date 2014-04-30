@@ -1076,12 +1076,8 @@ void ieee80211_sched_scan_results(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(ieee80211_sched_scan_results);
 
-void ieee80211_sched_scan_stopped_work(struct work_struct *work)
+void ieee80211_sched_scan_end(struct ieee80211_local *local)
 {
-	struct ieee80211_local *local =
-		container_of(work, struct ieee80211_local,
-			     sched_scan_stopped_work);
-
 	mutex_lock(&local->mtx);
 
 	if (!rcu_access_pointer(local->sched_scan_sdata)) {
@@ -1097,6 +1093,15 @@ void ieee80211_sched_scan_stopped_work(struct work_struct *work)
 	mutex_unlock(&local->mtx);
 
 	cfg80211_sched_scan_stopped(local->hw.wiphy);
+}
+
+void ieee80211_sched_scan_stopped_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local,
+			     sched_scan_stopped_work);
+
+	ieee80211_sched_scan_end(local);
 }
 
 void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw)
