@@ -366,17 +366,26 @@ static int rk3288_sys_set_power_domain(enum pmu_power_domain pd, bool on)
 
 	switch (pd) {
 	case PD_GPU:
+		/* gpu */
 		clks_ungating[5] = 1 << 7;
 		break;
 	case PD_VIDEO:
+		/* aclk_vdpu_src hclk_vpu aclk_vepu_src */
 		clks_ungating[3] = 1 << 11 | 1 << 10 | 1 << 9;
+		/* hclk_video aclk_video */
+		clks_ungating[9] = 1 << 1 | 1 << 0;
 		break;
 	case PD_VIO:
+		/* aclk_lcdc0/1_src dclk_lcdc0/1_src rga_core aclk_rga_src */
+		/* edp_24m edp isp isp_jpeg */
 		clks_ungating[3] =
 		    1 << 0 | 1 << 1 | 1 << 2 | 1 << 3 | 1 << 4 | 1 << 5 |
-		    1 << 11 | 1 << 12 | 1 << 13 | 1 << 14 | 1 << 15;
+		    1 << 12 | 1 << 13 | 1 << 14 | 1 << 15;
+		clks_ungating[15] = 0xffff;
+		clks_ungating[16] = 0x0fff;
 		break;
 	case PD_HEVC:
+		/* hevc_core hevc_cabac aclk_hevc */
 		clks_ungating[13] = 1 << 15 | 1 << 14 | 1 << 13;
 		break;
 #if 0
