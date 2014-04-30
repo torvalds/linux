@@ -206,6 +206,9 @@ static int handle_test_block(struct kvm_vcpu *vcpu)
 
 	kvm_s390_get_regs_rre(vcpu, NULL, &reg2);
 	addr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
+	addr = kvm_s390_logical_to_effective(vcpu, addr);
+	if (kvm_s390_check_low_addr_protection(vcpu, addr))
+		return kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
 	addr = kvm_s390_real_to_abs(vcpu, addr);
 
 	if (kvm_is_error_gpa(vcpu->kvm, addr))
@@ -650,6 +653,11 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	start = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
+	if (vcpu->run->s.regs.gprs[reg1] & PFMF_CF) {
+		if (kvm_s390_check_low_addr_protection(vcpu, start))
+			return kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
+	}
+
 	switch (vcpu->run->s.regs.gprs[reg1] & PFMF_FSC) {
 	case 0x00000000:
 		end = (start + (1UL << 12)) & ~((1UL << 12) - 1);
@@ -665,10 +673,15 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	}
 	while (start < end) {
-		unsigned long useraddr;
+		unsigned long useraddr, abs_addr;
 
-		useraddr = gmap_translate(start, vcpu->arch.gmap);
-		if (IS_ERR((void *)useraddr))
+		/* Translate guest address to host address */
+		if ((vcpu->run->s.regs.gprs[reg1] & PFMF_FSC) == 0)
+			abs_addr = kvm_s390_real_to_abs(vcpu, start);
+		else
+			abs_addr = start;
+		useraddr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(abs_addr));
+		if (kvm_is_error_hva(useraddr))
 			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 
 		if (vcpu->run->s.regs.gprs[reg1] & PFMF_CF) {

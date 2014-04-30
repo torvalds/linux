@@ -72,6 +72,7 @@ struct sca_block {
 #define CPUSTAT_ZARCH      0x00000800
 #define CPUSTAT_MCDS       0x00000100
 #define CPUSTAT_SM         0x00000080
+#define CPUSTAT_IBS        0x00000040
 #define CPUSTAT_G          0x00000008
 #define CPUSTAT_GED        0x00000004
 #define CPUSTAT_J          0x00000002
@@ -411,6 +412,7 @@ struct kvm_arch{
 	int use_cmma;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
+	spinlock_t start_stop_lock;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)

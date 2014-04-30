@@ -1,7 +1,7 @@
 /*
  * in-kernel handling for sie intercepts
  *
- * Copyright IBM Corp. 2008, 2009
+ * Copyright IBM Corp. 2008, 2014
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -65,8 +65,7 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	trace_kvm_s390_stop_request(vcpu->arch.local_int.action_bits);
 
 	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
-		atomic_set_mask(CPUSTAT_STOPPED,
-				&vcpu->arch.sie_block->cpuflags);
+		kvm_s390_vcpu_stop(vcpu);
 		vcpu->arch.local_int.action_bits &= ~ACTION_STOP_ON_STOP;
 		VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
 		rc = -EOPNOTSUPP;
@@ -234,6 +233,58 @@ static int handle_instruction_and_prog(struct kvm_vcpu *vcpu)
 	return rc2;
 }
 
+/**
+ * Handle MOVE PAGE partial execution interception.
+ *
+ * This interception can only happen for guests with DAT disabled and
+ * addresses that are currently not mapped in the host. Thus we try to
+ * set up the mappings for the corresponding user pages here (or throw
+ * addressing exceptions in case of illegal guest addresses).
+ */
+static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
+{
+	unsigned long hostaddr, srcaddr, dstaddr;
+	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+	struct mm_struct *mm = current->mm;
+	int reg1, reg2, rc;
+
+	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
+	srcaddr = kvm_s390_real_to_abs(vcpu, vcpu->run->s.regs.gprs[reg2]);
+	dstaddr = kvm_s390_real_to_abs(vcpu, vcpu->run->s.regs.gprs[reg1]);
+
+	/* Make sure that the source is paged-in */
+	hostaddr = gmap_fault(srcaddr, vcpu->arch.gmap);
+	if (IS_ERR_VALUE(hostaddr))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	down_read(&mm->mmap_sem);
+	rc = get_user_pages(current, mm, hostaddr, 1, 0, 0, NULL, NULL);
+	up_read(&mm->mmap_sem);
+	if (rc < 0)
+		return rc;
+
+	/* Make sure that the destination is paged-in */
+	hostaddr = gmap_fault(dstaddr, vcpu->arch.gmap);
+	if (IS_ERR_VALUE(hostaddr))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	down_read(&mm->mmap_sem);
+	rc = get_user_pages(current, mm, hostaddr, 1, 1, 0, NULL, NULL);
+	up_read(&mm->mmap_sem);
+	if (rc < 0)
+		return rc;
+
+	psw->addr = __rewind_psw(*psw, 4);
+
+	return 0;
+}
+
+static int handle_partial_execution(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.sie_block->ipa == 0xb254)	/* MVPG */
+		return handle_mvpg_pei(vcpu);
+
+	return -EOPNOTSUPP;
+}
+
 static const intercept_handler_t intercept_funcs[] = {
 	[0x00 >> 2] = handle_noop,
 	[0x04 >> 2] = handle_instruction,
@@ -245,6 +296,7 @@ static const intercept_handler_t intercept_funcs[] = {
 	[0x1C >> 2] = kvm_s390_handle_wait,
 	[0x20 >> 2] = handle_validity,
 	[0x28 >> 2] = handle_stop,
+	[0x38 >> 2] = handle_partial_execution,
 };
 
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
