@@ -996,10 +996,21 @@ osl_map_table(acpi_size address,
 
 	/* If specified, signature must match */
 
-	if (signature && !ACPI_COMPARE_NAME(signature, mapped_table->signature)) {
-		acpi_os_unmap_memory(mapped_table,
-				     sizeof(struct acpi_table_header));
-		return (AE_BAD_SIGNATURE);
+	if (signature) {
+		if (ACPI_VALIDATE_RSDP_SIG(signature)) {
+			if (!ACPI_VALIDATE_RSDP_SIG(mapped_table->signature)) {
+				acpi_os_unmap_memory(mapped_table,
+						     sizeof(struct
+							    acpi_table_header));
+				return (AE_BAD_SIGNATURE);
+			}
+		} else
+		    if (!ACPI_COMPARE_NAME(signature, mapped_table->signature))
+		{
+			acpi_os_unmap_memory(mapped_table,
+					     sizeof(struct acpi_table_header));
+			return (AE_BAD_SIGNATURE);
+		}
 	}
 
 	/* Map the entire table */
@@ -1135,12 +1146,22 @@ osl_read_table_from_file(char *filename,
 
 	/* If signature is specified, it must match the table */
 
-	if (signature && !ACPI_COMPARE_NAME(signature, header.signature)) {
-		fprintf(stderr,
-			"Incorrect signature: Expecting %4.4s, found %4.4s\n",
-			signature, header.signature);
-		status = AE_BAD_SIGNATURE;
-		goto exit;
+	if (signature) {
+		if (ACPI_VALIDATE_RSDP_SIG(signature)) {
+			if (!ACPI_VALIDATE_RSDP_SIG(header.signature)) {
+				fprintf(stderr,
+					"Incorrect RSDP signature: found %8.8s\n",
+					header.signature);
+				status = AE_BAD_SIGNATURE;
+				goto exit;
+			}
+		} else if (!ACPI_COMPARE_NAME(signature, header.signature)) {
+			fprintf(stderr,
+				"Incorrect signature: Expecting %4.4s, found %4.4s\n",
+				signature, header.signature);
+			status = AE_BAD_SIGNATURE;
+			goto exit;
+		}
 	}
 
 	table_length = ap_get_table_length(&header);
