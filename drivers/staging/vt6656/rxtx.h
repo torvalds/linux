@@ -247,7 +247,7 @@ struct vnt_beacon_buffer {
 } __packed;
 
 void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb);
-int nsDMA_tx_packet(struct vnt_private *, u32 uDMAIdx, struct sk_buff *skb);
+int nsDMA_tx_packet(struct vnt_private *, struct sk_buff *skb);
 CMD_STATUS csMgmt_xmit(struct vnt_private *, struct vnt_tx_mgmt *);
 CMD_STATUS csBeacon_xmit(struct vnt_private *, struct vnt_tx_mgmt *);
 int bRelayPacketSend(struct vnt_private *, u8 *pbySkbData, u32 uDataLen,

@@ -675,7 +675,7 @@ void vRunCommand(struct work_struct *work)
 					pDevice->bMoreData = true;
 				}
 
-				if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0)
+				if (nsDMA_tx_packet(pDevice, skb) != 0)
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail\n");
 
 				pMgmt->sNodeDBTable[0].wEnQueueCnt--;
@@ -698,7 +698,7 @@ void vRunCommand(struct work_struct *work)
 						pDevice->bMoreData = true;
 					}
 
-					if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0)
+					if (nsDMA_tx_packet(pDevice, skb) != 0)
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail\n");
 
 					pMgmt->sNodeDBTable[ii].wEnQueueCnt--;

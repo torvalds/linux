@@ -1192,7 +1192,7 @@ static int device_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
-	if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb)) {
+	if (nsDMA_tx_packet(pDevice, skb)) {
 		if (netif_queue_stopped(dev))
 			netif_wake_queue(dev);
 	}
