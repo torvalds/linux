@@ -241,6 +241,21 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
 /*
+ * Error-message prototypes. All interfaces that use these macros will
+ * be configured out of the ACPICA build if the ACPI_NO_ERROR_MESSAGE flag
+ * is defined.
+ */
+#ifndef ACPI_NO_ERROR_MESSAGES
+#define ACPI_MSG_DEPENDENT_RETURN_VOID(prototype) \
+	prototype;
+
+#else
+#define ACPI_MSG_DEPENDENT_RETURN_VOID(prototype) \
+	static ACPI_INLINE prototype {return;}
+
+#endif				/* ACPI_NO_ERROR_MESSAGES */
+
+/*
  * Initialization
  */
 acpi_status __init
@@ -666,38 +681,42 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 /*
  * Error/Warning output
  */
-ACPI_PRINTF_LIKE(3)
-void ACPI_INTERNAL_VAR_XFACE
-acpi_error(const char *module_name, u32 line_number, const char *format, ...);
-
-ACPI_PRINTF_LIKE(4)
-void ACPI_INTERNAL_VAR_XFACE
-acpi_exception(const char *module_name,
-	       u32 line_number, acpi_status status, const char *format, ...);
-
-ACPI_PRINTF_LIKE(3)
-void ACPI_INTERNAL_VAR_XFACE
-acpi_warning(const char *module_name, u32 line_number, const char *format, ...);
-
-ACPI_PRINTF_LIKE(3)
-void ACPI_INTERNAL_VAR_XFACE
-acpi_info(const char *module_name, u32 line_number, const char *format, ...);
-
-ACPI_PRINTF_LIKE(3)
-void ACPI_INTERNAL_VAR_XFACE
-acpi_bios_error(const char *module_name,
-		u32 line_number, const char *format, ...);
-
-ACPI_PRINTF_LIKE(3)
-void ACPI_INTERNAL_VAR_XFACE
-acpi_bios_warning(const char *module_name,
-		  u32 line_number, const char *format, ...);
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
+			       void ACPI_INTERNAL_VAR_XFACE
+			       acpi_error(const char *module_name,
+					  u32 line_number,
+					  const char *format, ...))
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(4)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_exception(const char *module_name,
+					       u32 line_number,
+					       acpi_status status,
+					       const char *format, ...))
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_warning(const char *module_name,
+					     u32 line_number,
+					     const char *format, ...))
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_info(const char *module_name,
+					  u32 line_number,
+					  const char *format, ...))
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_bios_error(const char *module_name,
+						u32 line_number,
+						const char *format, ...))
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_bios_warning(const char *module_name,
+						  u32 line_number,
+						  const char *format, ...))
 
 /*
  * Debug output
  */
 #ifdef ACPI_DEBUG_OUTPUT
-
 ACPI_PRINTF_LIKE(6)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_debug_print(u32 requested_debug_level,
