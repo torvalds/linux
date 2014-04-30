@@ -1615,6 +1615,9 @@ static int _regmap_raw_multi_reg_write(struct regmap *map,
 	size_t pair_size = reg_bytes + pad_bytes + val_bytes;
 	size_t len = pair_size * num_regs;
 
+	if (!len)
+		return -EINVAL;
+
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
