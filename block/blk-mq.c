@@ -599,7 +599,6 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 	for_each_set_bit(bit, hctx->ctx_map, hctx->nr_ctx) {
 		clear_bit(bit, hctx->ctx_map);
 		ctx = hctx->ctxs[bit];
-		BUG_ON(bit != ctx->index_hw);
 
 		spin_lock(&ctx->lock);
 		list_splice_tail_init(&ctx->rq_list, &rq_list);
