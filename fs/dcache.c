@@ -501,7 +501,12 @@ relock:
 	if ((dentry->d_flags & DCACHE_OP_PRUNE) && !d_unhashed(dentry))
 		dentry->d_op->d_prune(dentry);
 
-	dentry_lru_del(dentry);
+	if (dentry->d_flags & DCACHE_LRU_LIST) {
+		if (!(dentry->d_flags & DCACHE_SHRINK_LIST))
+			d_lru_del(dentry);
+		else
+			d_shrink_del(dentry);
+	}
 	/* if it was on the hash then remove it */
 	__d_drop(dentry);
 	list_del(&dentry->d_u.d_child);
