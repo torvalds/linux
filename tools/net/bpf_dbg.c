@@ -820,7 +820,7 @@ do_div:
 		r->A &= r->X;
 		break;
 	case BPF_ALU_AND | BPF_K:
-		r->A &= r->X;
+		r->A &= K;
 		break;
 	case BPF_ALU_OR | BPF_X:
 		r->A |= r->X;
