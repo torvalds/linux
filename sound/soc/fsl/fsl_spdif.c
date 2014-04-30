@@ -76,6 +76,7 @@ struct fsl_spdif_priv {
 	struct regmap *regmap;
 	bool dpll_locked;
 	u8 txclk_df[SPDIF_TXRATE_MAX];
+	u8 sysclk_df[SPDIF_TXRATE_MAX];
 	u8 txclk_src[SPDIF_TXRATE_MAX];
 	u8 rxclk_src;
 	struct clk *txclk[SPDIF_TXRATE_MAX];
@@ -351,7 +352,7 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 	struct platform_device *pdev = spdif_priv->pdev;
 	unsigned long csfs = 0;
 	u32 stc, mask, rate;
-	u8 clk, txclk_df;
+	u8 clk, txclk_df, sysclk_df;
 	int ret;
 
 	switch (sample_rate) {
@@ -384,6 +385,8 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	sysclk_df = spdif_priv->sysclk_df[rate];
+
 	/* Don't mess up the clocks from other modules */
 	if (clk != STC_TXCLK_SPDIF_ROOT)
 		goto clk_set_bypass;
@@ -400,7 +403,7 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 
 clk_set_bypass:
 	dev_dbg(&pdev->dev, "expected clock rate = %d\n",
-			(64 * sample_rate * txclk_df));
+			(64 * sample_rate * txclk_df * sysclk_df));
 	dev_dbg(&pdev->dev, "actual clock rate = %ld\n",
 			clk_get_rate(spdif_priv->txclk[rate]));
 
@@ -411,6 +414,9 @@ clk_set_bypass:
 	stc = STC_TXCLK_ALL_EN | STC_TXCLK_SRC_SET(clk) | STC_TXCLK_DF(txclk_df);
 	mask = STC_TXCLK_ALL_EN_MASK | STC_TXCLK_SRC_MASK | STC_TXCLK_DF_MASK;
 	regmap_update_bits(regmap, REG_SPDIF_STC, mask, stc);
+
+	regmap_update_bits(regmap, REG_SPDIF_STC,
+			   STC_SYSCLK_DF_MASK, STC_SYSCLK_DF(sysclk_df));
 
 	dev_dbg(&pdev->dev, "set sample rate to %d\n", sample_rate);
 
@@ -1018,43 +1024,55 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 				enum spdif_txrate index, bool round)
 {
 	const u32 rate[] = { 32000, 44100, 48000 };
+	bool is_sysclk = clk == spdif_priv->sysclk;
 	u64 rate_ideal, rate_actual, sub;
-	u32 txclk_df, arate;
+	u32 sysclk_dfmin, sysclk_dfmax;
+	u32 txclk_df, sysclk_df, arate;
 
-	for (txclk_df = 1; txclk_df <= 128; txclk_df++) {
-		rate_ideal = rate[index] * (txclk_df + 1) * 64;
-		if (round)
-			rate_actual = clk_round_rate(clk, rate_ideal);
-		else
-			rate_actual = clk_get_rate(clk);
+	/* The sysclk has an extra divisor [2, 512] */
+	sysclk_dfmin = is_sysclk ? 2 : 1;
+	sysclk_dfmax = is_sysclk ? 512 : 1;
 
-		arate = rate_actual / 64;
-		arate /= txclk_df;
+	for (sysclk_df = sysclk_dfmin; sysclk_df <= sysclk_dfmax; sysclk_df++) {
+		for (txclk_df = 1; txclk_df <= 128; txclk_df++) {
+			rate_ideal = rate[index] * (txclk_df + 1) * 64;
+			if (round)
+				rate_actual = clk_round_rate(clk, rate_ideal);
+			else
+				rate_actual = clk_get_rate(clk);
 
-		if (arate == rate[index]) {
-			/* We are lucky */
-			savesub = 0;
-			spdif_priv->txclk_df[index] = txclk_df;
-			break;
-		} else if (arate / rate[index] == 1) {
-			/* A little bigger than expect */
-			sub = (arate - rate[index]) * 100000;
-			do_div(sub, rate[index]);
-			if (sub < savesub) {
+			arate = rate_actual / 64;
+			arate /= txclk_df * sysclk_df;
+
+			if (arate == rate[index]) {
+				/* We are lucky */
+				savesub = 0;
+				spdif_priv->txclk_df[index] = txclk_df;
+				spdif_priv->sysclk_df[index] = sysclk_df;
+				goto out;
+			} else if (arate / rate[index] == 1) {
+				/* A little bigger than expect */
+				sub = (arate - rate[index]) * 100000;
+				do_div(sub, rate[index]);
+				if (sub >= savesub)
+					continue;
 				savesub = sub;
 				spdif_priv->txclk_df[index] = txclk_df;
-			}
-		} else if (rate[index] / arate == 1) {
-			/* A little smaller than expect */
-			sub = (rate[index] - arate) * 100000;
-			do_div(sub, rate[index]);
-			if (sub < savesub) {
+				spdif_priv->sysclk_df[index] = sysclk_df;
+			} else if (rate[index] / arate == 1) {
+				/* A little smaller than expect */
+				sub = (rate[index] - arate) * 100000;
+				do_div(sub, rate[index]);
+				if (sub >= savesub)
+					continue;
 				savesub = sub;
 				spdif_priv->txclk_df[index] = txclk_df;
+				spdif_priv->sysclk_df[index] = sysclk_df;
 			}
 		}
 	}
 
+out:
 	return savesub;
 }
 
@@ -1097,6 +1115,9 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 			spdif_priv->txclk_src[index], rate[index]);
 	dev_dbg(&pdev->dev, "use txclk df %d for %dHz sample rate\n",
 			spdif_priv->txclk_df[index], rate[index]);
+	if (spdif_priv->txclk[index] == spdif_priv->sysclk)
+		dev_dbg(&pdev->dev, "use sysclk df %d for %dHz sample rate\n",
+				spdif_priv->sysclk_df[index], rate[index]);
 
 	return 0;
 }
