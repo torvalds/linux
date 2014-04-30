@@ -151,6 +151,7 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 
 static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 {
+	struct cpufreq_frequency_table *pos;
 	unsigned int i, f;
 	unsigned khz;
 
@@ -168,12 +169,11 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 		}
 	}
 	if (param_max_multiplier) {
-		for (i = 0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
-			if (clock_ratio[i].driver_data == param_max_multiplier) {
+		cpufreq_for_each_entry(pos, clock_ratio)
+			if (pos->driver_data == param_max_multiplier) {
 				max_multiplier = param_max_multiplier;
 				goto have_max_multiplier;
 			}
-		}
 		printk(KERN_ERR "powernow-k6: invalid max_multiplier parameter, valid parameters 20, 30, 35, 40, 45, 50, 55, 60\n");
 		return -EINVAL;
 	}
@@ -201,12 +201,12 @@ have_busfreq:
 	param_busfreq = busfreq * 10;
 
 	/* table init */
-	for (i = 0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
-		f = clock_ratio[i].driver_data;
+	cpufreq_for_each_entry(pos, clock_ratio) {
+		f = pos->driver_data;
 		if (f > max_multiplier)
-			clock_ratio[i].frequency = CPUFREQ_ENTRY_INVALID;
+			pos->frequency = CPUFREQ_ENTRY_INVALID;
 		else
-			clock_ratio[i].frequency = busfreq * f;
+			pos->frequency = busfreq * f;
 	}
 
 	/* cpuinfo and default policy values */

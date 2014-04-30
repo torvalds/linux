@@ -67,9 +67,10 @@ static int set_pmode(unsigned int cpu, unsigned int slow_mode)
 
 static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
+	struct cpufreq_frequency_table *pos;
 	const u32 *max_freqp;
 	u32 max_freq;
-	int i, cur_pmode;
+	int cur_pmode;
 	struct device_node *cpu;
 
 	cpu = of_get_cpu_node(policy->cpu, NULL);
@@ -102,9 +103,9 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	pr_debug("initializing frequency table\n");
 
 	/* initialize frequency table */
-	for (i=0; cbe_freqs[i].frequency!=CPUFREQ_TABLE_END; i++) {
-		cbe_freqs[i].frequency = max_freq / cbe_freqs[i].driver_data;
-		pr_debug("%d: %d\n", i, cbe_freqs[i].frequency);
+	cpufreq_for_each_entry(pos, cbe_freqs) {
+		pos->frequency = max_freq / pos->driver_data;
+		pr_debug("%d: %d\n", (int)(pos - cbe_freqs), pos->frequency);
 	}
 
 	/* if DEBUG is enabled set_pmode() measures the latency

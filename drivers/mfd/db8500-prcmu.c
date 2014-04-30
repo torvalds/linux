@@ -1734,18 +1734,17 @@ static struct cpufreq_frequency_table db8500_cpufreq_table[] = {
 
 static long round_armss_rate(unsigned long rate)
 {
+	struct cpufreq_frequency_table *pos;
 	long freq = 0;
-	int i = 0;
 
 	/* cpufreq table frequencies is in KHz. */
 	rate = rate / 1000;
 
 	/* Find the corresponding arm opp from the cpufreq table. */
-	while (db8500_cpufreq_table[i].frequency != CPUFREQ_TABLE_END) {
-		freq = db8500_cpufreq_table[i].frequency;
+	cpufreq_for_each_entry(pos, db8500_cpufreq_table) {
+		freq = pos->frequency;
 		if (freq == rate)
 			break;
-		i++;
 	}
 
 	/* Return the last valid value, even if a match was not found. */
@@ -1886,23 +1885,21 @@ static void set_clock_rate(u8 clock, unsigned long rate)
 
 static int set_armss_rate(unsigned long rate)
 {
-	int i = 0;
+	struct cpufreq_frequency_table *pos;
 
 	/* cpufreq table frequencies is in KHz. */
 	rate = rate / 1000;
 
 	/* Find the corresponding arm opp from the cpufreq table. */
-	while (db8500_cpufreq_table[i].frequency != CPUFREQ_TABLE_END) {
-		if (db8500_cpufreq_table[i].frequency == rate)
+	cpufreq_for_each_entry(pos, db8500_cpufreq_table)
+		if (pos->frequency == rate)
 			break;
-		i++;
-	}
 
-	if (db8500_cpufreq_table[i].frequency != rate)
+	if (pos->frequency != rate)
 		return -EINVAL;
 
 	/* Set the new arm opp. */
-	return db8500_prcmu_set_arm_opp(db8500_cpufreq_table[i].driver_data);
+	return db8500_prcmu_set_arm_opp(pos->driver_data);
 }
 
 static int set_plldsi_rate(unsigned long rate)
