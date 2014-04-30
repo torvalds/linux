@@ -1253,7 +1253,8 @@ EXPORT_SYMBOL_GPL(hid_output_report);
 
 static int hid_report_len(struct hid_report *report)
 {
-	return ((report->size - 1) >> 3) + 1 + (report->id > 0) + 7;
+	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
+	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
 }
 
 /*
@@ -1266,7 +1267,7 @@ u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags)
 	 * of implement() working on 8 byte chunks
 	 */
 
-	int len = hid_report_len(report);
+	int len = hid_report_len(report) + 7;
 
 	return kmalloc(len, flags);
 }
