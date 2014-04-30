@@ -14,6 +14,7 @@
 
 / {
 	compatible = "renesas,r8a7740";
+	interrupt-parent = <&gic>;
 
 	cpus {
 		#address-cells = <1>;
@@ -49,7 +50,6 @@
 			<0xe6900020 1>,
 			<0xe6900040 1>,
 			<0xe6900060 1>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
@@ -70,7 +70,6 @@
 			<0xe6900024 1>,
 			<0xe6900044 1>,
 			<0xe6900064 1>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
@@ -91,7 +90,6 @@
 			<0xe6900028 1>,
 			<0xe6900048 1>,
 			<0xe6900068 1>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
@@ -112,7 +110,6 @@
 			<0xe690002c 1>,
 			<0xe690004c 1>,
 			<0xe690006c 1>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
@@ -141,7 +138,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,iic-r8a7740", "renesas,rmobile-iic";
 		reg = <0xfff20000 0x425>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 201 IRQ_TYPE_LEVEL_HIGH
 			      0 202 IRQ_TYPE_LEVEL_HIGH
 			      0 203 IRQ_TYPE_LEVEL_HIGH
@@ -154,7 +150,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,iic-r8a7740", "renesas,rmobile-iic";
 		reg = <0xe6c20000 0x425>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 70 IRQ_TYPE_LEVEL_HIGH
 			      0 71 IRQ_TYPE_LEVEL_HIGH
 			      0 72 IRQ_TYPE_LEVEL_HIGH
@@ -189,7 +184,6 @@
 	mmcif0: mmc@e6bd0000 {
 		compatible = "renesas,mmcif-r8a7740", "renesas,sh-mmcif";
 		reg = <0xe6bd0000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 56 IRQ_TYPE_LEVEL_HIGH
 			      0 57 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -198,7 +192,6 @@
 	sdhi0: sd@e6850000 {
 		compatible = "renesas,sdhi-r8a7740";
 		reg = <0xe6850000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 117 IRQ_TYPE_LEVEL_HIGH
 			      0 118 IRQ_TYPE_LEVEL_HIGH
 			      0 119 IRQ_TYPE_LEVEL_HIGH>;
@@ -210,7 +203,6 @@
 	sdhi1: sd@e6860000 {
 		compatible = "renesas,sdhi-r8a7740";
 		reg = <0xe6860000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 121 IRQ_TYPE_LEVEL_HIGH
 			      0 122 IRQ_TYPE_LEVEL_HIGH
 			      0 123 IRQ_TYPE_LEVEL_HIGH>;
@@ -222,7 +214,6 @@
 	sdhi2: sd@e6870000 {
 		compatible = "renesas,sdhi-r8a7740";
 		reg = <0xe6870000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH
 			      0 126 IRQ_TYPE_LEVEL_HIGH
 			      0 127 IRQ_TYPE_LEVEL_HIGH>;
@@ -235,7 +226,6 @@
 		#sound-dai-cells = <1>;
 		compatible = "renesas,fsi2-r8a7740", "renesas,sh_fsi2";
 		reg = <0xfe1f0000 0x400>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 9 0x4>;
 		status = "disabled";
 	};
