@@ -257,8 +257,6 @@
 		i2c@11000 {
 			status = "okay";
 			clock-frequency = <400000>;
-			pinctrl-0 = <&pmx_twsi0>;
-			pinctrl-names = "default";
 
 			rs5c372: rs5c372@32 {
 				status = "disabled";
