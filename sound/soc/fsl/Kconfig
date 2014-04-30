@@ -3,9 +3,14 @@ menu "SoC Audio for Freescale CPUs"
 comment "Common SoC Audio options for Freescale CPUs:"
 
 config SND_SOC_FSL_SAI
-	tristate
+	tristate "Synchronous Audio Interface (SAI) module support"
 	select REGMAP_MMIO
 	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y if you want to add Synchronous Audio Interface (SAI)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
 
 config SND_SOC_FSL_SSI
 	tristate "Synchronous Serial Interface module support"
