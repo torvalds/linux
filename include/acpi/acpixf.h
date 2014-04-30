@@ -207,7 +207,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_ssdt_table_install, FALSE);
 
 /*
  * We keep track of the latest version of Windows that has been requested by
- * the BIOS.  ACPI 5.0.
+ * the BIOS. ACPI 5.0.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_osi_data, 0);
 
