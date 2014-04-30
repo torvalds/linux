@@ -128,7 +128,10 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 	kref_init(&master->refcount);
 	spin_lock_init(&master->lock.spinlock);
 	init_waitqueue_head(&master->lock.lock_queue);
-	drm_ht_create(&master->magiclist, DRM_MAGIC_HASH_ORDER);
+	if (drm_ht_create(&master->magiclist, DRM_MAGIC_HASH_ORDER)) {
+		kfree(master);
+		return NULL;
+	}
 	INIT_LIST_HEAD(&master->magicfree);
 	master->minor = minor;
 

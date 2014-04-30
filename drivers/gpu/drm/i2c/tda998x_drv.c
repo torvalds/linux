@@ -568,11 +568,11 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 
 static uint8_t tda998x_cksum(uint8_t *buf, size_t bytes)
 {
-	uint8_t sum = 0;
+	int sum = 0;
 
 	while (bytes--)
-		sum += *buf++;
-	return (255 - sum) + 1;
+		sum -= *buf++;
+	return sum;
 }
 
 #define HB(x) (x)

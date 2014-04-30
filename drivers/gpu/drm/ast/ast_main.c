@@ -411,16 +411,13 @@ static void ast_bo_unref(struct ast_bo **bo)
 
 	tbo = &((*bo)->bo);
 	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
-
+	*bo = NULL;
 }
+
 void ast_gem_free_object(struct drm_gem_object *obj)
 {
 	struct ast_bo *ast_bo = gem_to_ast_bo(obj);
 
-	if (!ast_bo)
-		return;
 	ast_bo_unref(&ast_bo);
 }
 
