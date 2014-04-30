@@ -103,6 +103,7 @@ struct dso {
 	struct {
 		struct rb_root	 cache;
 		int		 fd;
+		struct list_head open_entry;
 	} data;
 
 	char		 name[0];

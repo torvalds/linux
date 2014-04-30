@@ -136,7 +136,22 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	return ret;
 }
 
-static int open_dso(struct dso *dso, struct machine *machine)
+/*
+ * Global list of open DSOs.
+ */
+static LIST_HEAD(dso__data_open);
+
+static void dso__list_add(struct dso *dso)
+{
+	list_add_tail(&dso->data.open_entry, &dso__data_open);
+}
+
+static void dso__list_del(struct dso *dso)
+{
+	list_del(&dso->data.open_entry);
+}
+
+static int __open_dso(struct dso *dso, struct machine *machine)
 {
 	int fd;
 	char *root_dir = (char *)"";
@@ -159,12 +174,33 @@ static int open_dso(struct dso *dso, struct machine *machine)
 	return fd;
 }
 
-void dso__data_close(struct dso *dso)
+static int open_dso(struct dso *dso, struct machine *machine)
+{
+	int fd = __open_dso(dso, machine);
+
+	if (fd > 0)
+		dso__list_add(dso);
+
+	return fd;
+}
+
+static void close_data_fd(struct dso *dso)
 {
 	if (dso->data.fd >= 0) {
 		close(dso->data.fd);
 		dso->data.fd = -1;
+		dso__list_del(dso);
 	}
+}
+
+static void close_dso(struct dso *dso)
+{
+	close_data_fd(dso);
+}
+
+void dso__data_close(struct dso *dso)
+{
+	close_dso(dso);
 }
 
 int dso__data_fd(struct dso *dso, struct machine *machine)
@@ -499,6 +535,7 @@ struct dso *dso__new(const char *name)
 		dso->kernel = DSO_TYPE_USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		INIT_LIST_HEAD(&dso->node);
+		INIT_LIST_HEAD(&dso->data.open_entry);
 	}
 
 	return dso;
