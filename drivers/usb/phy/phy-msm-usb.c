@@ -1600,7 +1600,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 		if (IS_ERR(phy_select))
 			return PTR_ERR(phy_select);
 		/* Enable second PHY with the OTG port */
-		writel_relaxed(0x1, phy_select);
+		writel(0x1, phy_select);
 	}
 
 	dev_info(&pdev->dev, "OTG regs = %p\n", motg->regs);
