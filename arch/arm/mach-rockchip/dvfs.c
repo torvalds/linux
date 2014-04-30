@@ -504,9 +504,9 @@ static void dvfs_temp_limit_work_func(struct work_struct *work)
 		for (i=0; clk_cpu_dvfs_node->per_temp_limit_table[i].frequency != CPUFREQ_TABLE_END; i++) {
 			if (temp > clk_cpu_dvfs_node->per_temp_limit_table[i].index) {
 				clk_cpu_dvfs_node->temp_limit_rate = clk_cpu_dvfs_node->per_temp_limit_table[i].frequency;
-				dvfs_clk_set_rate(clk_cpu_dvfs_node, clk_cpu_dvfs_node->last_set_rate);
 			}
 		}
+		dvfs_clk_set_rate(clk_cpu_dvfs_node, clk_cpu_dvfs_node->last_set_rate);
 	} else if (ROCKCHIP_PM_POLICY_NORMAL == rockchip_pm_get_policy()){
 		if (!clk_cpu_dvfs_node->nor_temp_limit_table) {
 			return;
