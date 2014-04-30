@@ -116,8 +116,13 @@ struct ion_handle {
 	int id;
 };
 
+#ifdef CONFIG_ROCKCHIP_IOMMU
+static void ion_iommu_force_unmap(struct ion_buffer *buffer);
+#endif
+#ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
 extern char *rockchip_ion_snapshot_get(unsigned *size);
 extern int rockchip_ion_snapshot_debugfs(struct dentry* root);
+#endif
 
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
 {
@@ -280,7 +285,6 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	buffer->heap->ops->unmap_dma(buffer->heap, buffer);
 #ifdef CONFIG_ROCKCHIP_IOMMU
-	static void ion_iommu_force_unmap(struct ion_buffer *buffer);
 	ion_iommu_force_unmap(buffer);
 #endif
 	buffer->heap->ops->free(buffer);
