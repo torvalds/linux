@@ -1903,20 +1903,17 @@ static void ieee80211_process_action(struct ieee80211_device *ieee,
 	}
 	tmp = *act;
 	act ++;
-	switch (tmp)
-	{
-		case ACT_CAT_BA:
-			if (*act == ACT_ADDBAREQ)
+	switch (tmp) {
+	case ACT_CAT_BA:
+		if (*act == ACT_ADDBAREQ)
 			ieee80211_rx_ADDBAReq(ieee, skb);
-			else if (*act == ACT_ADDBARSP)
+		else if (*act == ACT_ADDBARSP)
 			ieee80211_rx_ADDBARsp(ieee, skb);
-			else if (*act == ACT_DELBA)
+		else if (*act == ACT_DELBA)
 			ieee80211_rx_DELBA(ieee, skb);
-			break;
-		default:
-//			if (net_ratelimit())
-//			IEEE80211_DEBUG(IEEE80211_DL_BA, "unknown action frame(%d)\n", tmp);
-			break;
+		break;
+	default:
+		break;
 	}
 	return;
 
