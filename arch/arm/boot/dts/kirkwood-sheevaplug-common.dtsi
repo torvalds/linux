@@ -71,8 +71,6 @@
 };
 
 &nand {
-	pinctrl-0 = <&pmx_nand>;
-	pinctrl-names = "default";
 	status = "okay";
 
 	partition@0 {

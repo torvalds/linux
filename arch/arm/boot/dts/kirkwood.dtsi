@@ -61,6 +61,8 @@
 			chip-delay = <25>;
 			/* set partition map and/or chip-delay in board dts */
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 	};

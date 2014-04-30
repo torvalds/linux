@@ -105,8 +105,6 @@
 
 &nand {
 	status = "okay";
-	pinctrl-0 = <&pmx_nand>;
-	pinctrl-names = "default";
 
 	partition@0 {
 		label = "u-boot";

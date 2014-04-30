@@ -57,8 +57,6 @@
 };
 
 &nand {
-	pinctrl-0 = <&pmx_nand>;
-	pinctrl-names = "default";
 	chip-delay = <25>;
 	status = "okay";
 

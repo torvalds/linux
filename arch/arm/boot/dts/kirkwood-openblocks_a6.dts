@@ -130,8 +130,6 @@
 &nand {
 	chip-delay = <25>;
 	status = "okay";
-	pinctrl-0 = <&pmx_nand>;
-	pinctrl-names = "default";
 
 	partition@0 {
 		label = "uboot";

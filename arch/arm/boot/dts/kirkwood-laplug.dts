@@ -138,7 +138,6 @@
 &nand {
 	/* Total size : 512MB */
 	status = "okay";
-	pinctrl-0 = <&pmx_nand>;
 
 	partition@0 {
 		label = "u-boot";
