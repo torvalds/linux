@@ -841,7 +841,7 @@ static const struct drm_connector_funcs qxl_connector_funcs = {
 	.save = qxl_conn_save,
 	.restore = qxl_conn_restore,
 	.detect = qxl_conn_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
+	.fill_modes = drm_helper_probe_single_connector_modes_nomerge,
 	.set_property = qxl_conn_set_property,
 	.destroy = qxl_conn_destroy,
 };

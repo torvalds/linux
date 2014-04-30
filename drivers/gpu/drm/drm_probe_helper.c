@@ -82,26 +82,8 @@ static void drm_mode_validate_flag(struct drm_connector *connector,
 	return;
 }
 
-/**
- * drm_helper_probe_single_connector_modes - get complete set of display modes
- * @connector: connector to probe
- * @maxX: max width for modes
- * @maxY: max height for modes
- *
- * Based on the helper callbacks implemented by @connector try to detect all
- * valid modes.  Modes will first be added to the connector's probed_modes list,
- * then culled (based on validity and the @maxX, @maxY parameters) and put into
- * the normal modes list.
- *
- * Intended to be use as a generic implementation of the ->fill_modes()
- * @connector vfunc for drivers that use the crtc helpers for output mode
- * filtering and detection.
- *
- * Returns:
- * The number of modes found on @connector.
- */
-int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
-					    uint32_t maxX, uint32_t maxY)
+static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connector *connector,
+							      uint32_t maxX, uint32_t maxY, bool merge_type_bits)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
@@ -155,7 +137,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	if (count == 0)
 		goto prune;
 
-	drm_mode_connector_list_update(connector);
+	drm_mode_connector_list_update(connector, merge_type_bits);
 
 	if (maxX && maxY)
 		drm_mode_validate_size(dev, &connector->modes, maxX, maxY);
@@ -194,7 +176,47 @@ prune:
 
 	return count;
 }
+
+/**
+ * drm_helper_probe_single_connector_modes - get complete set of display modes
+ * @connector: connector to probe
+ * @maxX: max width for modes
+ * @maxY: max height for modes
+ *
+ * Based on the helper callbacks implemented by @connector try to detect all
+ * valid modes.  Modes will first be added to the connector's probed_modes list,
+ * then culled (based on validity and the @maxX, @maxY parameters) and put into
+ * the normal modes list.
+ *
+ * Intended to be use as a generic implementation of the ->fill_modes()
+ * @connector vfunc for drivers that use the crtc helpers for output mode
+ * filtering and detection.
+ *
+ * Returns:
+ * The number of modes found on @connector.
+ */
+int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
+					    uint32_t maxX, uint32_t maxY)
+{
+	return drm_helper_probe_single_connector_modes_merge_bits(connector, maxX, maxY, true);
+}
 EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
+
+/**
+ * drm_helper_probe_single_connector_modes_nomerge - get complete set of display modes
+ * @connector: connector to probe
+ * @maxX: max width for modes
+ * @maxY: max height for modes
+ *
+ * This operates like drm_hehlper_probe_single_connector_modes except it
+ * replaces the mode bits instead of merging them for preferred modes.
+ */
+int drm_helper_probe_single_connector_modes_nomerge(struct drm_connector *connector,
+					    uint32_t maxX, uint32_t maxY)
+{
+	return drm_helper_probe_single_connector_modes_merge_bits(connector, maxX, maxY, false);
+}
+EXPORT_SYMBOL(drm_helper_probe_single_connector_modes_nomerge);
 
 /**
  * drm_kms_helper_hotplug_event - fire off KMS hotplug events

@@ -2001,7 +2001,7 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 	if (du->pref_mode)
 		list_move(&du->pref_mode->head, &connector->probed_modes);
 
-	drm_mode_connector_list_update(connector);
+	drm_mode_connector_list_update(connector, true);
 
 	return 1;
 }
