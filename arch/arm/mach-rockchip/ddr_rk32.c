@@ -1556,18 +1556,18 @@ static uint32 (*p_ddr_set_pll)(uint32 nMHz, uint32 set);
 static void __sramfunc idle_port(void)
 {
     register int i,j;
-    uint32 clk_gate[14];
+    uint32 clk_gate[19];
 
     pPMU_Reg->PMU_IDLE_REQ |= idle_req_core_cfg;
     dsb();
     while( (pPMU_Reg->PMU_IDLE_ST & idle_core) == 0 );
 
     //save clock gate status
-    for(i=0;i<14;i++)
+    for(i=0;i<19;i++)
         clk_gate[i]=pCRU_Reg->CRU_CLKGATE_CON[i];
 
     //enable all clock gate for request idle
-    for(i=0;i<14;i++)
+    for(i=0;i<19;i++)
         pCRU_Reg->CRU_CLKGATE_CON[i]=0xffff0000;
 
     i = pPMU_Reg->PMU_PWRDN_ST;
@@ -1603,21 +1603,21 @@ static void __sramfunc idle_port(void)
     while( (pPMU_Reg->PMU_IDLE_ST & j) != j );
 
     //resume clock gate status
-    for(i=0;i<14;i++)
+    for(i=0;i<19;i++)
         pCRU_Reg->CRU_CLKGATE_CON[i]=  (clk_gate[i] | 0xffff0000);
 }
 
 static void __sramfunc deidle_port(void)
 {
     register int i,j;
-    uint32 clk_gate[14];
+    uint32 clk_gate[19];
 
     //save clock gate status
-    for(i=0;i<14;i++)
+    for(i=0;i<19;i++)
         clk_gate[i]=pCRU_Reg->CRU_CLKGATE_CON[i];
 
     //enable all clock gate for request idle
-    for(i=0;i<14;i++)
+    for(i=0;i<19;i++)
         pCRU_Reg->CRU_CLKGATE_CON[i]=0xffff0000;
 
     i = pPMU_Reg->PMU_PWRDN_ST;
@@ -1657,7 +1657,7 @@ static void __sramfunc deidle_port(void)
     while( (pPMU_Reg->PMU_IDLE_ST & idle_core) != 0 );
 
     //resume clock gate status
-    for(i=0;i<14;i++)
+    for(i=0;i<19;i++)
         pCRU_Reg->CRU_CLKGATE_CON[i]=  (clk_gate[i] | 0xffff0000);
 
 }
@@ -3786,8 +3786,6 @@ static noinline uint32 ddr_change_freq_sram(uint32 nMHz , struct ddr_freq_t ddr_
     /** 1. Make sure there is no host access */
     local_irq_save(flags);
     local_fiq_disable();
-    flush_cache_all();
-    outer_flush_all();
     flush_tlb_all();
     isb();
 
@@ -3893,6 +3891,71 @@ static uint32 ddr_change_freq_gpll_dpll(uint32 nMHz)
 }
 #endif
 
+bool DEFINE_PIE_DATA(cpu_pause[NR_CPUS]);
+volatile bool *DATA(p_cpu_pause);
+static inline bool is_cpu0_paused(unsigned int cpu) { smp_rmb(); return DATA(cpu_pause)[0]; }
+static inline void set_cpuX_paused(unsigned int cpu, bool pause) { DATA(cpu_pause)[cpu] = pause; smp_wmb(); }
+static inline bool is_cpuX_paused(unsigned int cpu) { smp_rmb(); return DATA(p_cpu_pause)[cpu]; }
+static inline void set_cpu0_paused(bool pause) { DATA(p_cpu_pause)[0] = pause; smp_wmb();}
+
+#define MAX_TIMEOUT (16000000UL << 6) //>0.64s
+
+/* Do not use stack, safe on SMP */
+void PIE_FUNC(_pause_cpu)(void *arg)
+{       
+    unsigned int cpu = (unsigned int)arg;
+    
+    set_cpuX_paused(cpu, true);
+    while (is_cpu0_paused(cpu));
+    set_cpuX_paused(cpu, false);
+}
+
+static void pause_cpu(void *info)
+{
+    unsigned int cpu = raw_smp_processor_id();
+
+    call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(_pause_cpu)),
+            (void *)cpu,
+            rockchip_sram_stack-(cpu-1)*PAUSE_CPU_STACK_SZIE);
+}
+
+static void wait_cpu(void *info)
+{
+}
+
+static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
+{
+    u32 timeout = MAX_TIMEOUT;
+    unsigned int cpu;
+    unsigned int this_cpu = smp_processor_id();
+    int ret = 0;
+
+    cpu_maps_update_begin();
+    local_bh_disable();
+    set_cpu0_paused(true);
+    smp_call_function((smp_call_func_t)pause_cpu, NULL, 0);
+
+    for_each_online_cpu(cpu) {
+        if (cpu == this_cpu)
+            continue;
+        while (!is_cpuX_paused(cpu) && --timeout);
+        if (timeout == 0) {
+            pr_err("pause cpu %d timeout\n", cpu);
+            goto out;
+        }
+    }
+
+    ret = ddr_change_freq_sram(nMHz, ddr_freq_t);
+
+out:
+    set_cpu0_paused(false);
+    local_bh_enable();
+    smp_call_function(wait_cpu, NULL, true);
+    cpu_maps_update_done();
+
+    return ret;
+}
+
 static int _ddr_change_freq(uint32 nMHz)
 {
 	struct ddr_freq_t ddr_freq_t;
@@ -3916,13 +3979,11 @@ static int _ddr_change_freq(uint32 nMHz)
                         }
 			usleep_range(ddr_freq_t.screen_ft_us-test_count*1000,ddr_freq_t.screen_ft_us-test_count*1000);
 
-			flush_cache_all();
-			outer_flush_all();
 			flush_tlb_all();
 		}
-	}while(ddr_change_freq_sram(nMHz, ddr_freq_t)==0);
+	}while(__ddr_change_freq(nMHz, ddr_freq_t)==0);
 #else
-	return ddr_change_freq_sram(nMHz, ddr_freq_t);
+	return __ddr_change_freq(nMHz, ddr_freq_t);
 #endif
 }
 
@@ -4234,7 +4295,7 @@ static int ddr_init(uint32 dram_speed_bin, uint32 freq)
 
     p_ddr_reg = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_reg));
     p_ddr_set_pll = fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_set_pll));
-    //p_cpu_pause = kern_to_pie(rockchip_pie_chunk, &DATA(cpu_pause[0]));
+    DATA(p_cpu_pause) = kern_to_pie(rockchip_pie_chunk, &DATA(cpu_pause[0]));
 
     tmp = clk_get_rate(clk_get(NULL, "clk_ddr"))/1000000;
     *kern_to_pie(rockchip_pie_chunk, &DATA(ddr_freq)) = tmp;
