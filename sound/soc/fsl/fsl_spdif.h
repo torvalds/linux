@@ -157,6 +157,8 @@ enum spdif_gainsel {
 #define STC_TXCLK_DIV(x)		((((x) - 1) << STC_TXCLK_DIV_OFFSET) & STC_TXCLK_DIV_MASK)
 #define STC_TXCLK_SRC_MAX		8
 
+#define STC_TXCLK_SPDIF_ROOT		1
+
 /* SPDIF tx rate */
 enum spdif_txrate {
 	SPDIF_TXRATE_32000 = 0,

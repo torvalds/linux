@@ -384,6 +384,10 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	/* Don't mess up the clocks from other modules */
+	if (clk != STC_TXCLK_SPDIF_ROOT)
+		goto clk_set_bypass;
+
 	/*
 	 * The S/PDIF block needs a clock of 64 * fs * div.  The S/PDIF block
 	 * will divide by (div).  So request 64 * fs * (div+1) which will
@@ -395,6 +399,7 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+clk_set_bypass:
 	dev_dbg(&pdev->dev, "expected clock rate = %d\n",
 			(64 * sample_rate * div));
 	dev_dbg(&pdev->dev, "actual clock rate = %ld\n",
@@ -1011,7 +1016,7 @@ static struct regmap_config fsl_spdif_regmap_config = {
 
 static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 				struct clk *clk, u64 savesub,
-				enum spdif_txrate index)
+				enum spdif_txrate index, bool round)
 {
 	const u32 rate[] = { 32000, 44100, 48000 };
 	u64 rate_ideal, rate_actual, sub;
@@ -1019,7 +1024,10 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 
 	for (div = 1; div <= 128; div++) {
 		rate_ideal = rate[index] * (div + 1) * 64;
-		rate_actual = clk_round_rate(clk, rate_ideal);
+		if (round)
+			rate_actual = clk_round_rate(clk, rate_ideal);
+		else
+			rate_actual = clk_get_rate(clk);
 
 		arate = rate_actual / 64;
 		arate /= div;
@@ -1072,7 +1080,8 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 		if (!clk_get_rate(clk))
 			continue;
 
-		ret = fsl_spdif_txclk_caldiv(spdif_priv, clk, savesub, index);
+		ret = fsl_spdif_txclk_caldiv(spdif_priv, clk, savesub, index,
+					     i == STC_TXCLK_SPDIF_ROOT);
 		if (savesub == ret)
 			continue;
 
