@@ -1880,7 +1880,8 @@ static void intel_enable_primary_hw_plane(struct drm_i915_private *dev_priv,
 	/* If the pipe isn't enabled, we can't pump pixels and may hang */
 	assert_pipe_enabled(dev_priv, pipe);
 
-	WARN(intel_crtc->primary_enabled, "Primary plane already enabled\n");
+	if (intel_crtc->primary_enabled)
+		return;
 
 	intel_crtc->primary_enabled = true;
 
@@ -1910,7 +1911,8 @@ static void intel_disable_primary_hw_plane(struct drm_i915_private *dev_priv,
 	int reg;
 	u32 val;
 
-	WARN(!intel_crtc->primary_enabled, "Primary plane already disabled\n");
+	if (!intel_crtc->primary_enabled)
+		return;
 
 	intel_crtc->primary_enabled = false;
 
@@ -11579,6 +11581,16 @@ void i915_redisable_vga(struct drm_device *dev)
 	i915_redisable_vga_power_on(dev);
 }
 
+static bool primary_get_hw_state(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	if (!crtc->active)
+		return false;
+
+	return I915_READ(DSPCNTR(crtc->plane)) & DISPLAY_PLANE_ENABLE;
+}
+
 static void intel_modeset_readout_hw_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -11598,7 +11610,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 								 &crtc->config);
 
 		crtc->base.enabled = crtc->active;
-		crtc->primary_enabled = crtc->active;
+		crtc->primary_enabled = primary_get_hw_state(crtc);
 
 		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
 			      crtc->base.base.id,
