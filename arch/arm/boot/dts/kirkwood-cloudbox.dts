@@ -28,7 +28,6 @@
 		serial@12000 {
 			pinctrl-0 = <&pmx_uart0>;
 			pinctrl-names = "default";
-			clock-frequency = <166666667>;
 			status = "okay";
 		};
 

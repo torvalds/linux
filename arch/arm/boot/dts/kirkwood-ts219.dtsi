@@ -35,13 +35,11 @@
 			};
 		};
 		serial@12000 {
-			clock-frequency = <200000000>;
 			status = "okay";
 			pinctrl-0 = <&pmx_uart0>;
 			pinctrl-names = "default";
 		};
 		serial@12100 {
-			clock-frequency = <200000000>;
 			status = "okay";
 			pinctrl-0 = <&pmx_uart1>;
 			pinctrl-names = "default";
