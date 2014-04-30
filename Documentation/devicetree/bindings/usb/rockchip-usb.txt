@@ -1,0 +1,254 @@
+Rockchip SoC USB controller
+
+The USB devices interface with USB controllers on Rockchip SOCs.
+The device node has following properties.
+
+DWC_OTG OTG20
+Required properties:
+ - compatible : Should be "rockchip,rk3188_usb20_otg" or
+   "rockchip,rk3288_usb20_otg" and so on, depending upon the SoC.
+ - reg : Physical base address of the controller and
+   length of memory mapped region.
+ - interrupts : interrupt number to the cpu.
+ - clocks : Clock IDs array as required by the controller. 
+ - clock-names : Names of clock correseponding IDs clock
+   property as requested by the controller driver.
+ - rockchip,usb-mode : This signifies the otg controller mode.
+   "0" represents that otg supports both host and slave mode,
+   "1" represents that force otg to host only mode,
+   "2" represents that force otg to device only mode.
+
+Example:
+ - RK3288
+
+	usb0: usb@ff580000 {
+		compatible = "rockchip,rk3288_usb20_otg";
+		reg = <0xff580000 0x40000>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates13 4>, <&clk_gates7 4>;
+		clock-names = "clk_usbphy0", "hclk_usb0";
+		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
+		rockchip,usb-mode = <0>;
+	};
+
+DWC_OTG HOST20
+Required properties:
+ - compatible : Should be "rockchip,rk3188_usb20_host" or
+   "rockchip,rk3288_usb20_host" and so on, depending upon the SoC.
+ - reg : Physical base address of the controller and
+   length of memory mapped region.
+ - interrupts : Interrupt number to the cpu.
+ - clocks : Clock IDs array as required by the controller.
+ - clock-names : Names of clock correseponding IDs clock
+   property as requested by the controller driver.
+
+Example:
+ - RK3288
+
+	usb1: usb@ff540000 {
+		compatible = "rockchip,rk3288_usb20_host";
+		reg = <0xff540000 0x40000>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates13 6>, <&clk_gates7 7>,
+			 <&usbphy_480m>;
+		clock-names = "clk_usbphy1", "hclk_usb1",
+			      "usbphy_480m";
+	};
+
+EHCI
+Required properties:
+ - compatible : Should be "rockchip,rk3188_rk_ehci_host" or
+   "rockchip,rk3288_rk_ehci_host" and so on, for USB 2.0 EHCI
+   controller in host mode, depending upon the SoC.
+ - reg : Physical base address of the controller and
+   length of memory mapped region.
+ - interrupts : Interrupt number to the cpu.
+ - clocks : Clock IDs array as required by the controller.
+ - clock-names : Names of clock correseponding IDs clock
+   property as requested by the controller driver. 
+
+Example:
+ - RK3288
+
+	usb2: usb@ff500000 {
+		compatible = "rockchip,rk3288_rk_ehci_host";
+		reg = <0xff500000 0x20000>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates13 5>, <&clk_gates7 6>;
+		clock-names = "clk_usbphy2", "hclk_usb2";
+	};
+
+OHCI
+Required properties:
+ - compatible : Should be "rockchip,rk3188_rk_ohci_host" or
+   "rockchip,rk3288_rk_ohci_host" and so on, for USB 2.0 OHCI
+   companion controller in host mode, depending upon the SoC.
+ - reg : Physical base address of the controller and
+   length of memory mapped region.
+ - interrupts : Interrupt number to the cpu.
+ - clocks : Clock IDs array as required by the controller.
+ - clock-names : Names of clock correseponding IDs clock
+   property as requested by the controller driver.
+
+Example:
+ - RK3288
+
+	usb3: usb@ff520000 {
+		compatible = "rockchip,rk3288_rk_ohci_host";
+		reg = <0xff520000 0x20000>;
+		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates13 5>, <&clk_gates7 6>;
+		clock-names = "clk_usbphy3", "hclk_usb3";
+	};
+
+
+HSIC
+Required properties:
+ - compatible : Should be "rockchip,rk3188_rk_hsic_host" or
+   "rockchip,rk3288_rk_hsic_host" and so on, depending upon
+   the SoC.
+ - reg : Physical base address of the controller and
+   length of memory mapped region.
+ - interrupts : Interrupt number to the cpu.
+ - clocks : Clock IDs array as required by the controller.
+ - clock-names : Names of clock correseponding IDs clock
+   property as requested by the controller driver.
+
+Example:
+ - RK3288
+
+	hsic: hsic@ff5c0000 {
+		compatible = "rockchip,rk3288_rk_hsic_host";
+		reg = <0xff5c0000 0x40000>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&hsicphy_480m>, <&clk_gates7 8>,
+			 <&hsicphy_12m>, <&usbphy_480m>,
+			 <&otgphy1_480m>, <&otgphy2_480m>;
+		clock-names = "hsicphy_480m", "hclk_hsic",
+			      "hsicphy_12m", "usbphy_480m",
+			      "hsic_usbphy1", "hsic_usbphy2";
+	};	
+
+ROCKCHIP USB-PHY CONTROL
+Required properties:
+ - compatible : Should be "rockchip,rk3188-dwc-control-usb"
+   or "rockchip,rk3288-dwc-control-usb" and so on, depending
+   upon the SoC.
+ - reg : Physical base address of USB-PHY GRF registers.
+   It contains the address of "GRF_SOC_STATUSX" and
+   "GRF_UOCX_BASE" depending upon the number of usb controllers
+   that the SoC has. 
+ - reg-names : The names of the register addresses corresponding
+   to the registers filled in "reg".
+ - interrupts : Interrupt number to the cpu.
+ - interrupt-names : The names of the interrupts corresponding
+   to the registers filled in "interrupts".
+ - clocks : Clock IDs array as required by the controller.
+ - clock-names : Names of clock correseponding IDs clock
+   property as requested by the controller driver.
+
+Child nodes:
+ The child node 'usb_bc' to the node 'dwc_control_usb' is for
+ USB Battery Charging detect. It is used to differentiate the
+ Charging Port(i.e. CDP, DCP or SDP).
+ Required properties:
+ - compatible : Should be "synopsys,phy", "inno,phy" or
+   "rockchip,ctrl" depending upon the vendor of usb phy 
+   that the SoC used.
+
+Optional properties:
+ The following properties represent the control and status
+ registers of usb otg battery charging. All these properties
+ are of type <u32>. Each property contains three tuples.
+ The layout of each tuple is:
+
+ offset, start bit, and bitmask.
+ 
+ - rk_usb,bvalid
+ - rk_usb,dcdenb
+ - rk_usb,dcdenb
+ - rk_usb,vdatdetenb
+ - rk_usb,chrgsel
+ - rk_usb,chgdet
+ - rk_usb,fsvminus
+ - rk_usb,fsvplus
+ - rk_usb,line
+ - rk_usb,softctrl
+ - rk_usb,opmode
+ - rk_usb,xcvrsel
+ - rk_usb,termsel
+
+Example:
+ - RK3288
+
+	dwc_control_usb: dwc-control-usb@ff770284 {
+		compatible = "rockchip,rk3288-dwc-control-usb";
+		reg = <0xff770284 0x04>, <0xff770288 0x04>,
+		      <0xff7702cc 0x04>, <0xff7702d4 0x04>,
+		      <0xff770320 0x14>, <0xff770334 0x14>,
+		      <0xff770348 0x10>, <0xff770358 0x08>,
+		      <0xff770360 0x08>;
+		reg-names = "GRF_SOC_STATUS1" ,"GRF_SOC_STATUS2",
+			    "GRF_SOC_STATUS19", "GRF_SOC_STATUS21",
+			    "GRF_UOC0_BASE", "GRF_UOC1_BASE",
+			    "GRF_UOC2_BASE", "GRF_UOC3_BASE",
+			    "GRF_UOC4_BASE";
+		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "otg_id",
+				  "otg_bvalid",
+				  "otg_linestate",
+				  "host0_linestate",
+				  "host1_linestate";
+		clocks = <&clk_gates7 9>, <&usbphy_480m>,
+			 <&otgphy1_480m>, <&otgphy2_480m>;
+		clock-names = "hclk_usb_peri", "usbphy_480m",
+			      "usbphy1_480m", "usbphy2_480m";
+
+		usb_bc{
+			compatible = "synopsys,phy";
+			/* offset bit mask */
+			rk_usb,bvalid     = <0x288 14 1>;
+			rk_usb,dcdenb     = <0x328 14 1>;
+			rk_usb,vdatsrcenb = <0x328  7 1>;
+			rk_usb,vdatdetenb = <0x328  6 1>;
+			rk_usb,chrgsel    = <0x328  5 1>;
+			rk_usb,chgdet     = <0x2cc 23 1>;
+			rk_usb,fsvminus   = <0x2cc 25 1>;
+			rk_usb,fsvplus    = <0x2cc 24 1>;
+		};
+	};
+
+ROCKCHIP USB-COMMON CONTROL
+Required properties:
+ - compatible : Should be "rockchip,rk3188-usb-control" or
+   "rockchip,rk3288-usb-control" and so on, depending upon
+   the SoC.
+
+Optional properties:
+ - host_drv_gpio : If present, specifies the GPIO that needs
+   to be pulled up for the host bus to be powered.
+ - otg_drv_gpio : If present, specifies the GPIO that needs
+   to be pulled up for the otg bus to be powered.
+ - rockchip,remote_wakeup : If present, host can be resumed
+   from suspend state by remote wakeup signal.
+ - rockchip,usb_irq_wakeup : If present, supports usb irqs to
+   wake up the system. The usb irqs are described in ROCKCHIP
+   USB-PHY CONTROL node, which include: "otg_id","otg_bvalid",
+   "linestate" and so on.
+
+Example:
+ - RK3288
+
+	usb_control {
+		compatible = "rockchip,rk3288-usb-control";
+
+		host_drv_gpio = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>;
+		otg_drv_gpio = <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;
+
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
+	};
