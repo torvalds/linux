@@ -1779,6 +1779,14 @@ cifs_invalidate_mapping(struct inode *inode)
 	return rc;
 }
 
+int
+cifs_revalidate_mapping(struct inode *inode)
+{
+	if (test_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags))
+		return cifs_invalidate_mapping(inode);
+	return 0;
+}
+
 int cifs_revalidate_file_attr(struct file *filp)
 {
 	int rc = 0;
@@ -1845,9 +1853,7 @@ int cifs_revalidate_file(struct file *filp)
 	if (rc)
 		return rc;
 
-	if (test_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags))
-		rc = cifs_invalidate_mapping(inode);
-	return rc;
+	return cifs_revalidate_mapping(inode);
 }
 
 /* revalidate a dentry's inode attributes */
@@ -1860,9 +1866,7 @@ int cifs_revalidate_dentry(struct dentry *dentry)
 	if (rc)
 		return rc;
 
-	if (test_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags))
-		rc = cifs_invalidate_mapping(inode);
-	return rc;
+	return cifs_revalidate_mapping(inode);
 }
 
 int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
