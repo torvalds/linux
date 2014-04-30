@@ -258,9 +258,10 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			pci_write_config_dword(dev, pos, 0);
 			pci_write_config_dword(dev, pos + 4, 0);
 			res->flags |= IORESOURCE_UNSET;
-			region.start = 0;
-			region.end = sz64;
+			res->start = 0;
+			res->end = sz64;
 			bar_disabled = true;
+			goto out;
 		} else {
 			region.start = l64;
 			region.end = l64 + sz64;
