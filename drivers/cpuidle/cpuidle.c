@@ -65,26 +65,6 @@ int cpuidle_play_dead(void)
 }
 
 /**
- * cpuidle_enabled - check if the cpuidle framework is ready
- * @dev: cpuidle device for this cpu
- * @drv: cpuidle driver for this cpu
- *
- * Return 0 on success, otherwise:
- * -NODEV : the cpuidle framework is not available
- * -EBUSY : the cpuidle framework is not initialized
- */
-int cpuidle_enabled(struct cpuidle_driver *drv, struct cpuidle_device *dev)
-{
-	if (off || !initialized)
-		return -ENODEV;
-
-	if (!drv || !dev || !dev->enabled)
-		return -EBUSY;
-
-	return 0;
-}
-
-/**
  * cpuidle_enter_state - enter the state and update stats
  * @dev: cpuidle device for this cpu
  * @drv: cpuidle driver for this cpu
@@ -138,6 +118,12 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
  */
 int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
+	if (off || !initialized)
+		return -ENODEV;
+
+	if (!drv || !dev || !dev->enabled)
+		return -EBUSY;
+
 	return cpuidle_curr_governor->select(drv, dev);
 }
 
