@@ -174,7 +174,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	u64 l64, sz64, mask64;
 	u16 orig_cmd;
 	struct pci_bus_region region, inverted_region;
-	bool bar_too_big = false, bar_disabled = false;
+	bool bar_too_big = false, bar_too_high = false;
 
 	mask = type ? PCI_ROM_ADDRESS_MASK : ~0;
 
@@ -254,13 +254,11 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		}
 
 		if ((sizeof(dma_addr_t) < 8) && l) {
-			/* Address above 32-bit boundary; disable the BAR */
-			pci_write_config_dword(dev, pos, 0);
-			pci_write_config_dword(dev, pos + 4, 0);
+			/* Above 32-bit boundary; try to reallocate */
 			res->flags |= IORESOURCE_UNSET;
 			res->start = 0;
 			res->end = sz64;
-			bar_disabled = true;
+			bar_too_high = true;
 			goto out;
 		} else {
 			region.start = l64;
@@ -311,7 +309,10 @@ out:
 	if (bar_too_big)
 		dev_err(&dev->dev, "reg 0x%x: can't handle BAR larger than 4GB (size %#010llx)\n",
 			pos, (unsigned long long) sz64);
-	if (res->flags && !bar_disabled)
+	if (bar_too_high)
+		dev_info(&dev->dev, "reg 0x%x: can't handle BAR above 4G (bus address %#010llx)\n",
+			 pos, (unsigned long long) l64);
+	if (res->flags)
 		dev_printk(KERN_DEBUG, &dev->dev, "reg 0x%x: %pR\n", pos, res);
 
 	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
