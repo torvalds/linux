@@ -246,7 +246,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 			return NULL;
 		}
 		/* MAC_OVERRIDE or at least HW section must exist */
-		if (!mvm->cfg->nvm_hw_section_num &&
+		if (!mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data &&
 		    !mvm->nvm_sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data) {
 			IWL_ERR(mvm,
 				"Can't parse mac_address, empty sections\n");
