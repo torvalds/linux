@@ -639,7 +639,7 @@ static int kv_force_lowest_valid(struct radeon_device *rdev)
 
 static int kv_unforce_levels(struct radeon_device *rdev)
 {
-	if (rdev->family == CHIP_KABINI)
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
 		return kv_notify_message_to_smu(rdev, PPSMC_MSG_NoForcedLevel);
 	else
 		return kv_set_enabled_levels(rdev);
@@ -1617,7 +1617,7 @@ static void kv_dpm_powergate_acp(struct radeon_device *rdev, bool gate)
 	if (pi->acp_power_gated == gate)
 		return;
 
-	if (rdev->family == CHIP_KABINI)
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
 		return;
 
 	pi->acp_power_gated = gate;
@@ -1786,7 +1786,7 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 		}
 	}
 
-	if (rdev->family == CHIP_KABINI) {
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS) {
 		if (pi->enable_dpm) {
 			kv_set_valid_clock_range(rdev, new_ps);
 			kv_update_dfs_bypass_settings(rdev, new_ps);
@@ -1862,7 +1862,7 @@ void kv_dpm_reset_asic(struct radeon_device *rdev)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
 
-	if (rdev->family == CHIP_KABINI) {
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS) {
 		kv_force_lowest_valid(rdev);
 		kv_init_graphics_levels(rdev);
 		kv_program_bootup_state(rdev);
@@ -1941,7 +1941,7 @@ static int kv_force_dpm_highest(struct radeon_device *rdev)
 			break;
 	}
 
-	if (rdev->family == CHIP_KABINI)
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
 		return kv_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_DPM_ForceState, i);
 	else
 		return kv_set_enabled_level(rdev, i);
@@ -1961,7 +1961,7 @@ static int kv_force_dpm_lowest(struct radeon_device *rdev)
 			break;
 	}
 
-	if (rdev->family == CHIP_KABINI)
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
 		return kv_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_DPM_ForceState, i);
 	else
 		return kv_set_enabled_level(rdev, i);
@@ -2118,7 +2118,7 @@ static void kv_apply_state_adjust_rules(struct radeon_device *rdev,
 	else
 		pi->battery_state = false;
 
-	if (rdev->family == CHIP_KABINI) {
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS) {
 		ps->dpm0_pg_nb_ps_lo = 0x1;
 		ps->dpm0_pg_nb_ps_hi = 0x0;
 		ps->dpmx_nb_ps_lo = 0x1;
@@ -2179,7 +2179,7 @@ static int kv_calculate_nbps_level_settings(struct radeon_device *rdev)
 	if (pi->lowest_valid > pi->highest_valid)
 		return -EINVAL;
 
-	if (rdev->family == CHIP_KABINI) {
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS) {
 		for (i = pi->lowest_valid; i <= pi->highest_valid; i++) {
 			pi->graphics_level[i].GnbSlow = 1;
 			pi->graphics_level[i].ForceNbPs1 = 0;
@@ -2324,7 +2324,7 @@ static void kv_program_nbps_index_settings(struct radeon_device *rdev,
 	struct kv_power_info *pi = kv_get_pi(rdev);
 	u32 nbdpmconfig1;
 
-	if (rdev->family == CHIP_KABINI)
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
 		return;
 
 	if (pi->sys_info.nb_dpm_enable) {
@@ -2631,7 +2631,7 @@ int kv_dpm_init(struct radeon_device *rdev)
 
         pi->sram_end = SMC_RAM_END;
 
-	if (rdev->family == CHIP_KABINI)
+	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
 		pi->high_voltage_t = 4001;
 
 	pi->enable_nb_dpm = true;
