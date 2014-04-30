@@ -1,0 +1,47 @@
+* Sensor Controller
+
+Required properties:
+- compatible: the sensor name,exampel: "gs_mma8452";
+- reg: i2c slave address;
+- type: sensor type;
+- irq-gpio: sensor interrupt gpio pin;
+- irq_enable: 1 use irq; 0 use pull mode;
+- poll_delay_ms: pull delay time if use pull mode;
+- layout: sensor orientation, choose 1-8 to make product work fine;
+
+Example:
+
+  	sensor@1d {
+		compatible = "gs_mma8452";
+		reg = <0x1d>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_EDGE_FALLING>;
+		irq_enable = <1>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+	};
+		sensor@19 {
+		compatible = "gs_lis3dh";
+		reg = <0x19>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq-gpio = <&gpio0 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <1>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+	};
+
+
+
+TYPE: 
+      
+	 SENSOR_TYPE_NULL  0     
+	 SENSOR_TYPE_ANGLE 1
+	 SENSOR_TYPE_ACCEL 2
+	 SENSOR_TYPE_COMPASS 3   
+	 SENSOR_TYPE_GYROSCOPE 4 
+	 SENSOR_TYPE_LIGHT 5     
+	 SENSOR_TYPE_PROXIMITY 6
+	 SENSOR_TYPE_TEMPERATURE 7       
+ 	 SENSOR_TYPE_PRESSURE 8
+	 SENSOR_TYPE_HALL 9
+	 define SENSOR_NUM_TYPES 10
