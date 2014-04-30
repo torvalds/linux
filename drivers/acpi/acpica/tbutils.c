@@ -49,8 +49,6 @@
 ACPI_MODULE_NAME("tbutils")
 
 /* Local prototypes */
-static acpi_status acpi_tb_validate_xsdt(acpi_physical_address address);
-
 static acpi_physical_address
 acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size);
 
@@ -251,87 +249,6 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_validate_xsdt
- *
- * PARAMETERS:  address             - Physical address of the XSDT (from RSDP)
- *
- * RETURN:      Status. AE_OK if the table appears to be valid.
- *
- * DESCRIPTION: Validate an XSDT to ensure that it is of minimum size and does
- *              not contain any NULL entries. A problem that is seen in the
- *              field is that the XSDT exists, but is actually useless because
- *              of one or more (or all) NULL entries.
- *
- ******************************************************************************/
-
-static acpi_status acpi_tb_validate_xsdt(acpi_physical_address xsdt_address)
-{
-	struct acpi_table_header *table;
-	u8 *next_entry;
-	acpi_physical_address address;
-	u32 length;
-	u32 entry_count;
-	acpi_status status;
-	u32 i;
-
-	/* Get the XSDT length */
-
-	table =
-	    acpi_os_map_memory(xsdt_address, sizeof(struct acpi_table_header));
-	if (!table) {
-		return (AE_NO_MEMORY);
-	}
-
-	length = table->length;
-	acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
-
-	/*
-	 * Minimum XSDT length is the size of the standard ACPI header
-	 * plus one physical address entry
-	 */
-	if (length < (sizeof(struct acpi_table_header) + ACPI_XSDT_ENTRY_SIZE)) {
-		return (AE_INVALID_TABLE_LENGTH);
-	}
-
-	/* Map the entire XSDT */
-
-	table = acpi_os_map_memory(xsdt_address, length);
-	if (!table) {
-		return (AE_NO_MEMORY);
-	}
-
-	/* Get the number of entries and pointer to first entry */
-
-	status = AE_OK;
-	next_entry = ACPI_ADD_PTR(u8, table, sizeof(struct acpi_table_header));
-	entry_count = (u32)((table->length - sizeof(struct acpi_table_header)) /
-			    ACPI_XSDT_ENTRY_SIZE);
-
-	/* Validate each entry (physical address) within the XSDT */
-
-	for (i = 0; i < entry_count; i++) {
-		address =
-		    acpi_tb_get_root_table_entry(next_entry,
-						 ACPI_XSDT_ENTRY_SIZE);
-		if (!address) {
-
-			/* Detected a NULL entry, XSDT is invalid */
-
-			status = AE_NULL_ENTRY;
-			break;
-		}
-
-		next_entry += ACPI_XSDT_ENTRY_SIZE;
-	}
-
-	/* Unmap table */
-
-	acpi_os_unmap_memory(table, length);
-	return (status);
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_tb_parse_root_table
  *
  * PARAMETERS:  rsdp                    - Pointer to the RSDP
@@ -355,7 +272,6 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	u32 table_count;
 	struct acpi_table_header *table;
 	acpi_physical_address address;
-	acpi_physical_address rsdt_address;
 	u32 length;
 	u8 *table_entry;
 	acpi_status status;
@@ -384,14 +300,11 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 		 * as per the ACPI specification.
 		 */
 		address = (acpi_physical_address) rsdp->xsdt_physical_address;
-		rsdt_address =
-		    (acpi_physical_address) rsdp->rsdt_physical_address;
 		table_entry_size = ACPI_XSDT_ENTRY_SIZE;
 	} else {
 		/* Root table is an RSDT (32-bit physical addresses) */
 
 		address = (acpi_physical_address) rsdp->rsdt_physical_address;
-		rsdt_address = address;
 		table_entry_size = ACPI_RSDT_ENTRY_SIZE;
 	}
 
@@ -400,24 +313,6 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	 * so unmap the RSDP here before mapping other tables
 	 */
 	acpi_os_unmap_memory(rsdp, sizeof(struct acpi_table_rsdp));
-
-	/*
-	 * If it is present and used, validate the XSDT for access/size
-	 * and ensure that all table entries are at least non-NULL
-	 */
-	if (table_entry_size == ACPI_XSDT_ENTRY_SIZE) {
-		status = acpi_tb_validate_xsdt(address);
-		if (ACPI_FAILURE(status)) {
-			ACPI_BIOS_WARNING((AE_INFO,
-					   "XSDT is invalid (%s), using RSDT",
-					   acpi_format_exception(status)));
-
-			/* Fall back to the RSDT */
-
-			address = rsdt_address;
-			table_entry_size = ACPI_RSDT_ENTRY_SIZE;
-		}
-	}
 
 	/* Map the RSDT/XSDT table header to get the full table length */
 
