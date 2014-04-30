@@ -39,14 +39,22 @@
 #define EC_MSG_PREAMBLE_COUNT		32
 
 /*
-  * We must get a response from the EC in 5ms. This is a very long
-  * time, but the flash write command can take 2-3ms. The EC command
-  * processing is currently not very fast (about 500us). We could
-  * look at speeding this up and making the flash write command a
-  * 'slow' command, requiring a GET_STATUS wait loop, like flash
-  * erase.
-  */
-#define EC_MSG_DEADLINE_MS		5
+ * Allow for a long time for the EC to respond.  We support i2c
+ * tunneling and support fairly long messages for the tunnel (249
+ * bytes long at the moment).  If we're talking to a 100 kHz device
+ * on the other end and need to transfer ~256 bytes, then we need:
+ *  10 us/bit * ~10 bits/byte * ~256 bytes = ~25ms
+ *
+ * We'll wait 4 times that to handle clock stretching and other
+ * paranoia.
+ *
+ * It's pretty unlikely that we'll really see a 249 byte tunnel in
+ * anything other than testing.  If this was more common we might
+ * consider having slow commands like this require a GET_STATUS
+ * wait loop.  The 'flash write' command would be another candidate
+ * for this, clocking in at 2-3ms.
+ */
+#define EC_MSG_DEADLINE_MS		100
 
 /*
   * Time between raising the SPI chip select (for the end of a
