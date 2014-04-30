@@ -54,7 +54,7 @@ static volatile unsigned char thread_running_flag =0;
 // Globel or static variables
 // ****************************************************************************
 static struct ts_driver	g_driver;
-
+static int vtl_first_init_flag = 1;
 struct ts_info	g_ts = {
 	.driver = &g_driver,
 	.debug  = DEBUG_ENABLE,
@@ -317,10 +317,10 @@ int vtl_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct ts_info *ts;	
 	unsigned char i;
 	ts =pg_ts;
-
 	DEBUG();
 	if(ts->config_info.ctp_used)
 	{
+		vtl_first_init_flag = 0;
 		disable_irq(ts->config_info.irq_number);
 		chip_enter_sleep_mode();
 	
@@ -354,8 +354,8 @@ int vtl_ts_resume(struct i2c_client *client)
 			//input_mt_report_slot_state(ts->driver->input_dev, MT_TOOL_FINGER, false);
 		}
 		input_sync(ts->driver->input_dev);
-
-		enable_irq(ts->config_info.irq_number);
+		if(vtl_first_init_flag==0)
+			enable_irq(ts->config_info.irq_number);
 	}
 	return 0;
 }
@@ -374,7 +374,6 @@ static void vtl_ts_early_resume(struct early_suspend *handler)
 {
 	struct ts_info *ts;	
 	ts =pg_ts;
-
 	DEBUG();
 
 	vtl_ts_resume(ts->driver->client);
@@ -531,9 +530,7 @@ static int vtl_ts_handler(void *data)
 	//ts->driver->early_suspend.suspend = vtl_ts_early_suspend;
 	//ts->driver->early_suspend.resume = vtl_ts_early_resume;
 	//register_early_suspend(&ts->driver->early_suspend);
-	ts->tp.tp_resume = vtl_ts_early_resume;
-    ts->tp.tp_suspend = vtl_ts_early_suspend;
-    tp_register_fb(&ts->tp);
+	
 	
 //#endif
 
@@ -543,8 +540,13 @@ static int vtl_ts_handler(void *data)
 		dev_err(dev, "Unable to request irq for device %s.\n", DRIVER_NAME);
 		goto ERR_IRQ_REQ;
 	}
-
+	//disable_irq(pg_ts->config_info.irq_number);
 	ts->config_info.ctp_used =1;
+	
+	ts->tp.tp_resume = vtl_ts_early_resume;
+    ts->tp.tp_suspend = vtl_ts_early_suspend;
+    tp_register_fb(&ts->tp);
+	
 	while (!kthread_should_stop())//while(1)
 	{
 		//set_current_state(TASK_INTERRUPTIBLE);	
@@ -564,7 +566,7 @@ static int vtl_ts_handler(void *data)
 		// Enable ts interrupt
 		enable_irq(pg_ts->config_info.irq_number);
 	}
-	disable_irq(pg_ts->config_info.irq_number);
+	
 	printk("vtl_ts_Kthread exit,%s(%d)\n",__func__,__LINE__);
 	return 0;
 
