@@ -41,6 +41,18 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+/*
+ * Global variables. Defined in main.c only, externed in all other files
+ */
+#ifdef _DECLARE_GLOBALS
+#define EXTERN
+#define INIT_GLOBAL(a,b)        a=b
+#define DEFINE_ACPI_GLOBALS     1
+#else
+#define EXTERN                  extern
+#define INIT_GLOBAL(a,b)        a
+#endif
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "actables.h"
@@ -50,23 +62,13 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-/*
- * Global variables. Defined in main.c only, externed in all other files
- */
-#ifdef _DECLARE_GLOBALS
-#define EXTERN
-#define INIT_GLOBAL(a,b)        a=b
-#else
-#define EXTERN                  extern
-#define INIT_GLOBAL(a,b)        a
-#endif
-
 /* Globals */
 
 EXTERN u8 INIT_GLOBAL(gbl_summary_mode, FALSE);
 EXTERN u8 INIT_GLOBAL(gbl_verbose_mode, FALSE);
 EXTERN u8 INIT_GLOBAL(gbl_binary_mode, FALSE);
 EXTERN u8 INIT_GLOBAL(gbl_dump_customized_tables, FALSE);
+EXTERN u8 INIT_GLOBAL(gbl_do_not_dump_xsdt, FALSE);
 EXTERN FILE INIT_GLOBAL(*gbl_output_file, NULL);
 EXTERN char INIT_GLOBAL(*gbl_output_filename, NULL);
 EXTERN u64 INIT_GLOBAL(gbl_rsdp_base, 0);
@@ -74,10 +76,7 @@ EXTERN u64 INIT_GLOBAL(gbl_rsdp_base, 0);
 /* Globals required for use with ACPICA modules */
 
 #ifdef _DECLARE_GLOBALS
-u8 acpi_gbl_enable_interpreter_slack = FALSE;
 u8 acpi_gbl_integer_byte_width = 8;
-u32 acpi_dbg_level = 0;
-u32 acpi_dbg_layer = 0;
 #endif
 
 /* Action table used to defer requested options */

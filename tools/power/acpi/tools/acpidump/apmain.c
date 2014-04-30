@@ -80,7 +80,7 @@ struct ap_dump_action action_table[AP_MAX_ACTIONS];
 u32 current_action = 0;
 
 #define AP_UTILITY_NAME             "ACPI Binary Table Dump Utility"
-#define AP_SUPPORTED_OPTIONS        "?a:bcf:hn:o:r:svz"
+#define AP_SUPPORTED_OPTIONS        "?a:bcf:hn:o:r:svxz"
 
 /******************************************************************************
  *
@@ -109,6 +109,8 @@ static void ap_display_usage(void)
 	ACPI_OPTION("-a <Address>", "Get table via a physical address");
 	ACPI_OPTION("-f <BinaryFile>", "Get table via a binary file");
 	ACPI_OPTION("-n <Signature>", "Get table via a name/signature");
+	ACPI_OPTION("-x", "Do not use but dump XSDT");
+	ACPI_OPTION("-x -x", "Do not use or dump XSDT");
 
 	printf("\n"
 	       "Invocation without parameters dumps all available tables\n"
@@ -208,6 +210,15 @@ static int ap_do_options(int argc, char **argv)
 		case 's':	/* Print table summaries only */
 
 			gbl_summary_mode = TRUE;
+			continue;
+
+		case 'x':	/* Do not use XSDT */
+
+			if (!acpi_gbl_do_not_use_xsdt) {
+				acpi_gbl_do_not_use_xsdt = TRUE;
+			} else {
+				gbl_do_not_dump_xsdt = TRUE;
+			}
 			continue;
 
 		case 'v':	/* Revision/version */

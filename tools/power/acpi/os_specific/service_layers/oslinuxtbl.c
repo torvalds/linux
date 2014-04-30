@@ -505,6 +505,28 @@ static acpi_status osl_load_rsdp(void)
 
 /******************************************************************************
  *
+ * FUNCTION:    osl_can_use_xsdt
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      TRUE if XSDT is allowed to be used.
+ *
+ * DESCRIPTION: This function collects logic that can be used to determine if
+ *              XSDT should be used instead of RSDT.
+ *
+ *****************************************************************************/
+
+static u8 osl_can_use_xsdt(void)
+{
+	if (gbl_revision && !acpi_gbl_do_not_use_xsdt) {
+		return (TRUE);
+	} else {
+		return (FALSE);
+	}
+}
+
+/******************************************************************************
+ *
  * FUNCTION:    osl_table_initialize
  *
  * PARAMETERS:  None
@@ -535,7 +557,7 @@ static acpi_status osl_table_initialize(void)
 
 	/* Get XSDT from memory */
 
-	if (gbl_rsdp.revision) {
+	if (gbl_rsdp.revision && !gbl_do_not_dump_xsdt) {
 		if (gbl_xsdt) {
 			free(gbl_xsdt);
 			gbl_xsdt = NULL;
@@ -668,7 +690,7 @@ static acpi_status osl_list_bios_tables(void)
 	acpi_status status = AE_OK;
 	u32 i;
 
-	if (gbl_revision) {
+	if (osl_can_use_xsdt()) {
 		item_size = sizeof(u64);
 		table_data =
 		    ACPI_CAST8(gbl_xsdt) + sizeof(struct acpi_table_header);
@@ -690,7 +712,7 @@ static acpi_status osl_list_bios_tables(void)
 	/* Search RSDT/XSDT for the requested table */
 
 	for (i = 0; i < number_of_tables; ++i, table_data += item_size) {
-		if (gbl_revision) {
+		if (osl_can_use_xsdt()) {
 			table_address =
 			    (acpi_physical_address) (*ACPI_CAST64(table_data));
 		} else {
@@ -809,7 +831,7 @@ osl_get_bios_table(char *signature,
 		table_length = ap_get_table_length(mapped_table);
 	} else {		/* Case for a normal ACPI table */
 
-		if (gbl_revision) {
+		if (osl_can_use_xsdt()) {
 			item_size = sizeof(u64);
 			table_data =
 			    ACPI_CAST8(gbl_xsdt) +
@@ -833,7 +855,7 @@ osl_get_bios_table(char *signature,
 		/* Search RSDT/XSDT for the requested table */
 
 		for (i = 0; i < number_of_tables; ++i, table_data += item_size) {
-			if (gbl_revision) {
+			if (osl_can_use_xsdt()) {
 				table_address =
 				    (acpi_physical_address) (*ACPI_CAST64
 							     (table_data));
