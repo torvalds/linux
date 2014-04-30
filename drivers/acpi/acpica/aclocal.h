@@ -450,9 +450,9 @@ struct acpi_gpe_event_info {
 struct acpi_gpe_register_info {
 	struct acpi_generic_address status_address;	/* Address of status reg */
 	struct acpi_generic_address enable_address;	/* Address of enable reg */
+	u16 base_gpe_number;	/* Base GPE number for this register */
 	u8 enable_for_wake;	/* GPEs to keep enabled when sleeping */
 	u8 enable_for_run;	/* GPEs to keep enabled when running */
-	u8 base_gpe_number;	/* Base GPE number for this register */
 };
 
 /*
@@ -466,11 +466,12 @@ struct acpi_gpe_block_info {
 	struct acpi_gpe_xrupt_info *xrupt_block;	/* Backpointer to interrupt block */
 	struct acpi_gpe_register_info *register_info;	/* One per GPE register pair */
 	struct acpi_gpe_event_info *event_info;	/* One for each GPE */
-	struct acpi_generic_address block_address;	/* Base address of the block */
+	u64 address;		/* Base address of the block */
 	u32 register_count;	/* Number of register pairs in block */
 	u16 gpe_count;		/* Number of individual GPEs in block */
-	u8 block_base_number;	/* Base GPE number for this block */
-	u8 initialized;         /* TRUE if this block is initialized */
+	u16 block_base_number;	/* Base GPE number for this block */
+	u8 space_id;
+	u8 initialized;		/* TRUE if this block is initialized */
 };
 
 /* Information about GPE interrupt handlers, one per each interrupt level used for GPEs */
