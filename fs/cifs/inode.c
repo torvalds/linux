@@ -117,7 +117,7 @@ cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 
 	cifs_dbg(FYI, "%s: invalidating inode %llu mapping\n",
 		 __func__, cifs_i->uniqueid);
-	cifs_i->invalid_mapping = true;
+	set_bit(CIFS_INO_INVALID_MAPPING, &cifs_i->flags);
 }
 
 /*
@@ -177,7 +177,10 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	else
 		cifs_i->time = jiffies;
 
-	cifs_i->delete_pending = fattr->cf_flags & CIFS_FATTR_DELETE_PENDING;
+	if (fattr->cf_flags & CIFS_FATTR_DELETE_PENDING)
+		set_bit(CIFS_INO_DELETE_PENDING, &cifs_i->flags);
+	else
+		clear_bit(CIFS_INO_DELETE_PENDING, &cifs_i->flags);
 
 	cifs_i->server_eof = fattr->cf_eof;
 	/*
@@ -1121,7 +1124,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 	}
 
 	/* try to set DELETE_ON_CLOSE */
-	if (!cifsInode->delete_pending) {
+	if (!test_bit(CIFS_INO_DELETE_PENDING, &cifsInode->flags)) {
 		rc = CIFSSMBSetFileDisposition(xid, tcon, true, fid.netfid,
 					       current->tgid);
 		/*
@@ -1138,7 +1141,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 			rc = -EBUSY;
 			goto undo_rename;
 		}
-		cifsInode->delete_pending = true;
+		set_bit(CIFS_INO_DELETE_PENDING, &cifsInode->flags);
 	}
 
 out_close:
@@ -1761,14 +1764,14 @@ cifs_invalidate_mapping(struct inode *inode)
 	int rc = 0;
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 
-	cifs_i->invalid_mapping = false;
+	clear_bit(CIFS_INO_INVALID_MAPPING, &cifs_i->flags);
 
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = invalidate_inode_pages2(inode->i_mapping);
 		if (rc) {
 			cifs_dbg(VFS, "%s: could not invalidate inode %p\n",
 				 __func__, inode);
-			cifs_i->invalid_mapping = true;
+			set_bit(CIFS_INO_INVALID_MAPPING, &cifs_i->flags);
 		}
 	}
 
@@ -1842,7 +1845,7 @@ int cifs_revalidate_file(struct file *filp)
 	if (rc)
 		return rc;
 
-	if (CIFS_I(inode)->invalid_mapping)
+	if (test_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags))
 		rc = cifs_invalidate_mapping(inode);
 	return rc;
 }
@@ -1857,7 +1860,7 @@ int cifs_revalidate_dentry(struct dentry *dentry)
 	if (rc)
 		return rc;
 
-	if (CIFS_I(inode)->invalid_mapping)
+	if (test_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags))
 		rc = cifs_invalidate_mapping(inode);
 	return rc;
 }

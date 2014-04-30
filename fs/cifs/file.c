@@ -392,7 +392,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 		 * again and get at least level II oplock.
 		 */
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO)
-			CIFS_I(inode)->invalid_mapping = true;
+			set_bit(CIFS_INO_INVALID_MAPPING, &cifsi->flags);
 		cifs_set_oplock_level(cifsi, 0);
 	}
 	spin_unlock(&cifs_file_list_lock);
@@ -2562,7 +2562,7 @@ ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
 
 	written = cifs_iovec_write(iocb->ki_filp, iov, nr_segs, &pos);
 	if (written > 0) {
-		CIFS_I(inode)->invalid_mapping = true;
+		set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags);
 		iocb->ki_pos = pos;
 	}
 

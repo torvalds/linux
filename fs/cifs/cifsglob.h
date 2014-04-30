@@ -1113,12 +1113,12 @@ struct cifsInodeInfo {
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
 	unsigned int oplock;		/* oplock/lease level we have */
 	unsigned int epoch;		/* used to track lease state changes */
-	bool delete_pending;		/* DELETE_ON_CLOSE is set */
-	bool invalid_mapping;		/* pagecache is invalid */
-	unsigned long flags;
 #define CIFS_INODE_PENDING_OPLOCK_BREAK   (0) /* oplock break in progress */
 #define CIFS_INODE_PENDING_WRITERS	  (1) /* Writes in progress */
 #define CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2 (2) /* Downgrade oplock to L2 */
+#define CIFS_INO_DELETE_PENDING		  (3) /* delete pending on server */
+#define CIFS_INO_INVALID_MAPPING	  (4) /* pagecache is invalid */
+	unsigned long flags;
 	spinlock_t writers_lock;
 	unsigned int writers;		/* Number of writers on this inode */
 	unsigned long time;		/* jiffies of last update of inode */
