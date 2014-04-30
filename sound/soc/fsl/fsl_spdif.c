@@ -69,6 +69,27 @@ struct spdif_mixer_control {
 	u32 ready_buf;
 };
 
+/**
+ * fsl_spdif_priv: Freescale SPDIF private data
+ *
+ * @fsl_spdif_control: SPDIF control data
+ * @cpu_dai_drv: cpu dai driver
+ * @pdev: platform device pointer
+ * @regmap: regmap handler
+ * @dpll_locked: dpll lock flag
+ * @txrate: the best rates for playback
+ * @txclk_df: STC_TXCLK_DF dividers value for playback
+ * @sysclk_df: STC_SYSCLK_DF dividers value for playback
+ * @txclk_src: STC_TXCLK_SRC values for playback
+ * @rxclk_src: SRPC_CLKSRC_SEL values for capture
+ * @txclk: tx clock sources for playback
+ * @rxclk: rx clock sources for capture
+ * @coreclk: core clock for register access via DMA
+ * @sysclk: system clock for rx clock rate measurement
+ * @dma_params_tx: DMA parameters for transmit channel
+ * @dma_params_rx: DMA parameters for receive channel
+ * @name: driver name
+ */
 struct fsl_spdif_priv {
 	struct spdif_mixer_control fsl_spdif_control;
 	struct snd_soc_dai_driver cpu_dai_drv;
