@@ -458,7 +458,7 @@ static int i2c_imx_write(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs)
 	return 0;
 }
 
-static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs)
+static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs, bool is_lastmsg)
 {
 	int i, result;
 	unsigned int temp;
@@ -515,15 +515,30 @@ static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs)
 			msgs->len += len;
 		}
 		if (i == (msgs->len - 1)) {
-			/* It must generate STOP before read I2DR to prevent
-			   controller from generating another clock cycle */
-			dev_dbg(&i2c_imx->adapter.dev,
-				"<%s> clear MSTA\n", __func__);
-			temp = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2CR);
-			temp &= ~(I2CR_MSTA | I2CR_MTX);
-			imx_i2c_write_reg(temp, i2c_imx, IMX_I2C_I2CR);
-			i2c_imx_bus_busy(i2c_imx, 0);
-			i2c_imx->stopped = 1;
+			if (is_lastmsg) {
+				/*
+				 * It must generate STOP before read I2DR to prevent
+				 * controller from generating another clock cycle
+				 */
+				dev_dbg(&i2c_imx->adapter.dev,
+					"<%s> clear MSTA\n", __func__);
+				temp = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2CR);
+				temp &= ~(I2CR_MSTA | I2CR_MTX);
+				imx_i2c_write_reg(temp, i2c_imx, IMX_I2C_I2CR);
+				i2c_imx_bus_busy(i2c_imx, 0);
+				i2c_imx->stopped = 1;
+			} else {
+				/*
+				 * For i2c master receiver repeat restart operation like:
+				 * read -> repeat MSTA -> read/write
+				 * The controller must set MTX before read the last byte in
+				 * the first read operation, otherwise the first read cost
+				 * one extra clock cycle.
+				 */
+				temp = readb(i2c_imx->base + IMX_I2C_I2CR);
+				temp |= I2CR_MTX;
+				writeb(temp, i2c_imx->base + IMX_I2C_I2CR);
+			}
 		} else if (i == (msgs->len - 2)) {
 			dev_dbg(&i2c_imx->adapter.dev,
 				"<%s> set TXAK\n", __func__);
@@ -547,6 +562,7 @@ static int i2c_imx_xfer(struct i2c_adapter *adapter,
 {
 	unsigned int i, temp;
 	int result;
+	bool is_lastmsg = false;
 	struct imx_i2c_struct *i2c_imx = i2c_get_adapdata(adapter);
 
 	dev_dbg(&i2c_imx->adapter.dev, "<%s>\n", __func__);
@@ -558,6 +574,9 @@ static int i2c_imx_xfer(struct i2c_adapter *adapter,
 
 	/* read/write data */
 	for (i = 0; i < num; i++) {
+		if (i == num - 1)
+			is_lastmsg = true;
+
 		if (i) {
 			dev_dbg(&i2c_imx->adapter.dev,
 				"<%s> repeated start\n", __func__);
@@ -588,7 +607,7 @@ static int i2c_imx_xfer(struct i2c_adapter *adapter,
 			(temp & I2SR_RXAK ? 1 : 0));
 #endif
 		if (msgs[i].flags & I2C_M_RD)
-			result = i2c_imx_read(i2c_imx, &msgs[i]);
+			result = i2c_imx_read(i2c_imx, &msgs[i], is_lastmsg);
 		else
 			result = i2c_imx_write(i2c_imx, &msgs[i]);
 		if (result)
