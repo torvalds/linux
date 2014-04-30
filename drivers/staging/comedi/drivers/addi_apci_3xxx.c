@@ -699,7 +699,8 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 		if (chan < 16)
 			return -EINVAL;
 		else
-			/* changing any channel in port 2 changes the entire port */
+			/* changing any channel in port 2 */
+			/* changes the entire port        */
 			mask = 0xff0000;
 	}
 
