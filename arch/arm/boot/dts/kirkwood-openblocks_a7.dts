@@ -207,8 +207,6 @@
 
 &eth1 {
 	status = "okay";
-	pinctrl-0 = <&pmx_ge1>;
-	pinctrl-names = "default";
 	ethernet1-port@0 {
 		phy-handle = <&ethphy1>;
 	};
