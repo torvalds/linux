@@ -256,6 +256,21 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 #endif				/* ACPI_NO_ERROR_MESSAGES */
 
 /*
+ * Debugging-output prototypes. All interfaces that use these macros will
+ * be configured out of the ACPICA build if the ACPI_DEBUG_OUTPUT flag is
+ * not defined.
+ */
+#ifdef ACPI_DEBUG_OUTPUT
+#define ACPI_DBG_DEPENDENT_RETURN_VOID(prototype) \
+	prototype;
+
+#else
+#define ACPI_DBG_DEPENDENT_RETURN_VOID(prototype) \
+	static ACPI_INLINE prototype {return;}
+
+#endif				/* ACPI_DEBUG_OUTPUT */
+
+/*
  * Initialization
  */
 acpi_status __init
@@ -716,22 +731,20 @@ ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 /*
  * Debug output
  */
-#ifdef ACPI_DEBUG_OUTPUT
-ACPI_PRINTF_LIKE(6)
-void ACPI_INTERNAL_VAR_XFACE
-acpi_debug_print(u32 requested_debug_level,
-		 u32 line_number,
-		 const char *function_name,
-		 const char *module_name,
-		 u32 component_id, const char *format, ...);
-
-ACPI_PRINTF_LIKE(6)
-void ACPI_INTERNAL_VAR_XFACE
-acpi_debug_print_raw(u32 requested_debug_level,
-		     u32 line_number,
-		     const char *function_name,
-		     const char *module_name,
-		     u32 component_id, const char *format, ...);
-#endif
-
+ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
+			       void ACPI_INTERNAL_VAR_XFACE
+			       acpi_debug_print(u32 requested_debug_level,
+						u32 line_number,
+						const char *function_name,
+						const char *module_name,
+						u32 component_id,
+						const char *format, ...))
+ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_debug_print_raw(u32 requested_debug_level,
+						     u32 line_number,
+						     const char *function_name,
+						     const char *module_name,
+						     u32 component_id,
+						     const char *format, ...))
 #endif				/* __ACXFACE_H__ */
