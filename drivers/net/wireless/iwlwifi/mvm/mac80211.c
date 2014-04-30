@@ -689,6 +689,16 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 		iwl_mvm_restart_cleanup(mvm);
 
 	ret = iwl_mvm_up(mvm);
+
+	if (ret && test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		/* Something went wrong - we need to finish some cleanup
+		 * that normally iwl_mvm_mac_restart_complete() below
+		 * would do.
+		 */
+		clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
+		iwl_mvm_d0i3_enable_tx(mvm, NULL);
+	}
+
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
