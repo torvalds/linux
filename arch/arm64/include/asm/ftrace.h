@@ -18,6 +18,21 @@
 
 #ifndef __ASSEMBLY__
 extern void _mcount(unsigned long);
+
+struct dyn_arch_ftrace {
+	/* No extra data needed for arm64 */
+};
+
+extern unsigned long ftrace_graph_call;
+
+static inline unsigned long ftrace_call_adjust(unsigned long addr)
+{
+	/*
+	 * addr is the address of the mcount call instruction.
+	 * recordmcount does the necessary offset calculation.
+	 */
+	return addr;
+}
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ASM_FTRACE_H */

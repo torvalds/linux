@@ -86,6 +86,7 @@
 	add	\reg, \reg, #8
 	.endm
 
+#ifndef CONFIG_DYNAMIC_FTRACE
 /*
  * void _mcount(unsigned long return_address)
  * @return_address: return address to instrumented function
@@ -133,6 +134,48 @@ skip_ftrace_call:
 	mcount_exit
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 ENDPROC(_mcount)
+
+#else /* CONFIG_DYNAMIC_FTRACE */
+/*
+ * _mcount() is used to build the kernel with -pg option, but all the branch
+ * instructions to _mcount() are replaced to NOP initially at kernel start up,
+ * and later on, NOP to branch to ftrace_caller() when enabled or branch to
+ * NOP when disabled per-function base.
+ */
+ENTRY(_mcount)
+	ret
+ENDPROC(_mcount)
+
+/*
+ * void ftrace_caller(unsigned long return_address)
+ * @return_address: return address to instrumented function
+ *
+ * This function is a counterpart of _mcount() in 'static' ftrace, and
+ * makes calls to:
+ *     - tracer function to probe instrumented function's entry,
+ *     - ftrace_graph_caller to set up an exit hook
+ */
+ENTRY(ftrace_caller)
+	mcount_enter
+
+	mcount_get_pc0	x0		//     function's pc
+	mcount_get_lr	x1		//     function's lr
+
+	.global ftrace_call
+ftrace_call:				// tracer(pc, lr);
+	nop				// This will be replaced with "bl xxx"
+					// where xxx can be any kind of tracer.
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	.global ftrace_graph_call
+ftrace_graph_call:			// ftrace_graph_caller();
+	nop				// If enabled, this will be replaced
+					// "b ftrace_graph_caller"
+#endif
+
+	mcount_exit
+ENDPROC(ftrace_caller)
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 ENTRY(ftrace_stub)
 	ret
