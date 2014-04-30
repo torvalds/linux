@@ -26,7 +26,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pinctrl-0 = <&pmx_unknown>;
 			pinctrl-names = "default";
 

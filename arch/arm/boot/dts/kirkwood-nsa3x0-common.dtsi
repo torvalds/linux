@@ -5,7 +5,7 @@
 	model = "ZyXEL NSA310";
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 
 			pmx_usb_power: pmx-usb-power {
 				marvell,pins = "mpp21";

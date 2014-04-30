@@ -32,7 +32,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl@10000 {
+		pin-controller@10000 {
 			pmx_usb_led: pmx-usb-led {
 				marvell,pins = "mpp12";
 				marvell,function = "gpo";

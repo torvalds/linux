@@ -41,7 +41,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pinctrl-0 = <&pmx_i2s &pmx_sysrst>;
 			pinctrl-names = "default";
 

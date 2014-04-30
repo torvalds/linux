@@ -26,7 +26,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl@10000 {
+		pin-controller@10000 {
 			pmx_sdio_gpios: pmx-sdio-gpios {
 				marvell,pins = "mpp37", "mpp38";
 				marvell,function = "gpio";

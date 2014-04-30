@@ -46,7 +46,7 @@
 			};
 		};
 
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pinctrl-0 = <&pmx_dip_switches &pmx_gpio_header>;
 			pinctrl-names = "default";
 
