@@ -52,6 +52,7 @@
 #define BONAIRE_RLC_UCODE_SIZE       2048
 #define KB_RLC_UCODE_SIZE            2560
 #define KV_RLC_UCODE_SIZE            2560
+#define ML_RLC_UCODE_SIZE            2560
 
 /* MC */
 #define BTC_MC_UCODE_SIZE            6024

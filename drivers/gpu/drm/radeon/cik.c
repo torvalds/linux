@@ -63,6 +63,12 @@ MODULE_FIRMWARE("radeon/KABINI_ce.bin");
 MODULE_FIRMWARE("radeon/KABINI_mec.bin");
 MODULE_FIRMWARE("radeon/KABINI_rlc.bin");
 MODULE_FIRMWARE("radeon/KABINI_sdma.bin");
+MODULE_FIRMWARE("radeon/MULLINS_pfp.bin");
+MODULE_FIRMWARE("radeon/MULLINS_me.bin");
+MODULE_FIRMWARE("radeon/MULLINS_ce.bin");
+MODULE_FIRMWARE("radeon/MULLINS_mec.bin");
+MODULE_FIRMWARE("radeon/MULLINS_rlc.bin");
+MODULE_FIRMWARE("radeon/MULLINS_sdma.bin");
 
 extern int r600_ih_ring_alloc(struct radeon_device *rdev);
 extern void r600_ih_ring_fini(struct radeon_device *rdev);
@@ -1473,6 +1479,43 @@ static const u32 hawaii_mgcg_cgcg_init[] =
 	0xd80c, 0xff000ff0, 0x00000100
 };
 
+static const u32 godavari_golden_registers[] =
+{
+	0x55e4, 0xff607fff, 0xfc000100,
+	0x6ed8, 0x00010101, 0x00010000,
+	0x9830, 0xffffffff, 0x00000000,
+	0x98302, 0xf00fffff, 0x00000400,
+	0x6130, 0xffffffff, 0x00010000,
+	0x5bb0, 0x000000f0, 0x00000070,
+	0x5bc0, 0xf0311fff, 0x80300000,
+	0x98f8, 0x73773777, 0x12010001,
+	0x98fc, 0xffffffff, 0x00000010,
+	0x8030, 0x00001f0f, 0x0000100a,
+	0x2f48, 0x73773777, 0x12010001,
+	0x2408, 0x000fffff, 0x000c007f,
+	0x8a14, 0xf000003f, 0x00000007,
+	0x8b24, 0xffffffff, 0x00ff0fff,
+	0x30a04, 0x0000ff0f, 0x00000000,
+	0x28a4c, 0x07ffffff, 0x06000000,
+	0x4d8, 0x00000fff, 0x00000100,
+	0xd014, 0x00010000, 0x00810001,
+	0xd814, 0x00010000, 0x00810001,
+	0x3e78, 0x00000001, 0x00000002,
+	0xc768, 0x00000008, 0x00000008,
+	0xc770, 0x00000f00, 0x00000800,
+	0xc774, 0x00000f00, 0x00000800,
+	0xc798, 0x00ffffff, 0x00ff7fbf,
+	0xc79c, 0x00ffffff, 0x00ff7faf,
+	0x8c00, 0x000000ff, 0x00000001,
+	0x214f8, 0x01ff01ff, 0x00000002,
+	0x21498, 0x007ff800, 0x00200000,
+	0x2015c, 0xffffffff, 0x00000f40,
+	0x88c4, 0x001f3ae3, 0x00000082,
+	0x88d4, 0x0000001f, 0x00000010,
+	0x30934, 0xffffffff, 0x00000000
+};
+
+
 static void cik_init_golden_registers(struct radeon_device *rdev)
 {
 	switch (rdev->family) {
@@ -1497,6 +1540,20 @@ static void cik_init_golden_registers(struct radeon_device *rdev)
 		radeon_program_register_sequence(rdev,
 						 kalindi_golden_registers,
 						 (const u32)ARRAY_SIZE(kalindi_golden_registers));
+		radeon_program_register_sequence(rdev,
+						 kalindi_golden_common_registers,
+						 (const u32)ARRAY_SIZE(kalindi_golden_common_registers));
+		radeon_program_register_sequence(rdev,
+						 kalindi_golden_spm_registers,
+						 (const u32)ARRAY_SIZE(kalindi_golden_spm_registers));
+		break;
+	case CHIP_MULLINS:
+		radeon_program_register_sequence(rdev,
+						 kalindi_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(kalindi_mgcg_cgcg_init));
+		radeon_program_register_sequence(rdev,
+						 godavari_golden_registers,
+						 (const u32)ARRAY_SIZE(godavari_golden_registers));
 		radeon_program_register_sequence(rdev,
 						 kalindi_golden_common_registers,
 						 (const u32)ARRAY_SIZE(kalindi_golden_common_registers));
@@ -1832,6 +1889,15 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		ce_req_size = CIK_CE_UCODE_SIZE * 4;
 		mec_req_size = CIK_MEC_UCODE_SIZE * 4;
 		rlc_req_size = KB_RLC_UCODE_SIZE * 4;
+		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
+		break;
+	case CHIP_MULLINS:
+		chip_name = "MULLINS";
+		pfp_req_size = CIK_PFP_UCODE_SIZE * 4;
+		me_req_size = CIK_ME_UCODE_SIZE * 4;
+		ce_req_size = CIK_CE_UCODE_SIZE * 4;
+		mec_req_size = CIK_MEC_UCODE_SIZE * 4;
+		rlc_req_size = ML_RLC_UCODE_SIZE * 4;
 		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
 		break;
 	default: BUG();
@@ -3272,6 +3338,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_KABINI:
+	case CHIP_MULLINS:
 	default:
 		rdev->config.cik.max_shader_engines = 1;
 		rdev->config.cik.max_tile_pipes = 2;
@@ -5801,6 +5868,9 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 	case CHIP_KABINI:
 		size = KB_RLC_UCODE_SIZE;
 		break;
+	case CHIP_MULLINS:
+		size = ML_RLC_UCODE_SIZE;
+		break;
 	}
 
 	cik_rlc_stop(rdev);
@@ -6549,6 +6619,7 @@ void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer)
 		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	case CHIP_KABINI:
+	case CHIP_MULLINS:
 		buffer[count++] = cpu_to_le32(0x00000000); /* XXX */
 		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
