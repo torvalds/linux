@@ -40,7 +40,7 @@
 		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256 MiB memory space */
 		pcie-io-aperture  = <0xf2000000 0x100000>;   /*   1 MiB    I/O space */
 
-		crypto@0301 {
+		cesa: crypto@0301 {
 			compatible = "marvell,orion-crypto";
 			reg = <MBUS_ID(0xf0, 0x01) 0x30000 0x10000>,
 			      <MBUS_ID(0x03, 0x01) 0 0x800>;
@@ -77,7 +77,7 @@
 			#clock-cells = <1>;
 		};
 
-		spi@10600 {
+		spi0: spi@10600 {
 			compatible = "marvell,orion-spi";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -123,7 +123,7 @@
 			status = "disabled";
 		};
 
-		serial@12000 {
+		uart0: serial@12000 {
 			compatible = "ns16550a";
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
@@ -132,7 +132,7 @@
 			status = "disabled";
 		};
 
-		serial@12100 {
+		uart1: serial@12100 {
 			compatible = "ns16550a";
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
@@ -146,7 +146,7 @@
 			reg = <0x20000 0x80>, <0x1500 0x20>;
 		};
 
-		system-controller@20000 {
+		sysc: system-controller@20000 {
 			compatible = "marvell,orion-system-controller";
 			reg = <0x20000 0x120>;
 		};
@@ -196,7 +196,7 @@
 			status = "okay";
 		};
 
-		ehci@50000 {
+		usb0: ehci@50000 {
 			compatible = "marvell,orion-ehci";
 			reg = <0x50000 0x1000>;
 			interrupts = <19>;
@@ -204,7 +204,7 @@
 			status = "okay";
 		};
 
-		xor@60800 {
+		dma0: xor@60800 {
 			compatible = "marvell,orion-xor";
 			reg = <0x60800 0x100
 			       0x60A00 0x100>;
@@ -224,7 +224,7 @@
 			};
 		};
 
-		xor@60900 {
+		dma1: xor@60900 {
 			compatible = "marvell,orion-xor";
 			reg = <0x60900 0x100
 			       0x60B00 0x100>;
