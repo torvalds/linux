@@ -30,7 +30,7 @@ int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 	uint8_t *out;
 	int csum, i;
 
-	BUG_ON(msg->out_len > EC_HOST_PARAM_SIZE);
+	BUG_ON(msg->out_len > EC_PROTO2_MAX_PARAM_SIZE);
 	out = ec_dev->dout;
 	out[0] = EC_CMD_VERSION0 + msg->version;
 	out[1] = msg->cmd;
