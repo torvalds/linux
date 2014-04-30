@@ -457,7 +457,7 @@ struct acpi_dmar_pci_path {
 };
 
 /*
- * DMAR Sub-tables, correspond to Type in struct acpi_dmar_header
+ * DMAR Subtables, correspond to Type in struct acpi_dmar_header
  */
 
 /* 0: Hardware Unit Definition */
@@ -885,7 +885,7 @@ struct acpi_lpit_io {
 
 /*******************************************************************************
  *
- * MCFG - PCI Memory Mapped Configuration table and sub-table
+ * MCFG - PCI Memory Mapped Configuration table and subtable
  *        Version 1
  *
  * Conforms to "PCI Firmware Specification", Revision 3.0, June 20, 2005
@@ -988,7 +988,7 @@ enum acpi_slic_type {
 };
 
 /*
- * SLIC Sub-tables, correspond to Type in struct acpi_slic_header
+ * SLIC Subtables, correspond to Type in struct acpi_slic_header
  */
 
 /* 0: Public Key Structure */
