@@ -90,6 +90,11 @@ static const struct mfd_cell cros_devs[] = {
 		.id = 1,
 		.of_compatible = "google,cros-ec-keyb",
 	},
+	{
+		.name = "cros-ec-i2c-tunnel",
+		.id = 2,
+		.of_compatible = "google,cros-ec-i2c-tunnel",
+	},
 };
 
 int cros_ec_register(struct cros_ec_device *ec_dev)

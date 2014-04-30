@@ -993,6 +993,15 @@ config I2C_SIBYTE
 	help
 	  Supports the SiByte SOC on-chip I2C interfaces (2 channels).
 
+config I2C_CROS_EC_TUNNEL
+	tristate "ChromeOS EC tunnel I2C bus"
+	depends on MFD_CROS_EC
+	help
+	  If you say yes here you get an I2C bus that will tunnel i2c commands
+	  through to the other side of the ChromeOS EC to the i2c bus
+	  connected there. This will work whatever the interface used to
+	  talk to the EC (SPI, I2C or LPC).
+
 config SCx200_I2C
 	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"
 	depends on SCx200_GPIO
