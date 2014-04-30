@@ -279,7 +279,6 @@ ACPI_GLOBAL(acpi_exception_handler, acpi_gbl_exception_handler);
 ACPI_GLOBAL(acpi_init_handler, acpi_gbl_init_handler);
 ACPI_GLOBAL(acpi_table_handler, acpi_gbl_table_handler);
 ACPI_GLOBAL(void *, acpi_gbl_table_handler_context);
-ACPI_GLOBAL(struct acpi_walk_state *, acpi_gbl_breakpoint_walk);
 ACPI_GLOBAL(acpi_interface_handler, acpi_gbl_interface_handler);
 ACPI_GLOBAL(struct acpi_sci_handler_info *, acpi_gbl_sci_handler_list);
 
@@ -296,7 +295,6 @@ ACPI_GLOBAL(u8, acpi_gbl_reg_methods_executed);
 /* Misc */
 
 ACPI_GLOBAL(u32, acpi_gbl_original_mode);
-ACPI_GLOBAL(u32, acpi_gbl_rsdp_original_location);
 ACPI_GLOBAL(u32, acpi_gbl_ns_lookup_count);
 ACPI_GLOBAL(u32, acpi_gbl_ps_find_count);
 ACPI_GLOBAL(u16, acpi_gbl_pm1_enable_register_save);
@@ -482,11 +480,6 @@ ACPI_GLOBAL(u16, acpi_gbl_obj_type_count_misc);
 ACPI_GLOBAL(u16, acpi_gbl_node_type_count_misc);
 ACPI_GLOBAL(u32, acpi_gbl_num_nodes);
 ACPI_GLOBAL(u32, acpi_gbl_num_objects);
-
-ACPI_GLOBAL(u32, acpi_gbl_size_of_parse_tree);
-ACPI_GLOBAL(u32, acpi_gbl_size_of_method_trees);
-ACPI_GLOBAL(u32, acpi_gbl_size_of_node_entries);
-ACPI_GLOBAL(u32, acpi_gbl_size_of_acpi_objects);
 
 #endif				/* ACPI_DEBUGGER */
 
