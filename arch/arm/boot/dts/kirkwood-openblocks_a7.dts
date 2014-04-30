@@ -45,8 +45,6 @@
 
 		i2c@11100 {
 			status = "okay";
-			pinctrl-0 = <&pmx_twsi1>;
-			pinctrl-names = "default";
 
 			s24c02: s24c02@50 {
 				compatible = "24c02";

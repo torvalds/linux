@@ -68,6 +68,10 @@
 				marvell,function = "sata1";
 			};
 
+			/*
+			 * Default I2C1 pinctrl setting on mpp36/mpp37,
+			 * overwrite marvell,pins on board level if required.
+			 */
 			pmx_twsi1: pmx-twsi1 {
 				marvell,pins = "mpp36", "mpp37";
 				marvell,function = "twsi1";
@@ -101,6 +105,8 @@
 			interrupts = <32>;
 			clock-frequency = <100000>;
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_twsi1>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
