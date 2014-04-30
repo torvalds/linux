@@ -195,7 +195,7 @@
 /* SW Reset & Device ID (0x00) */
 #define RT5640_ID_MASK				(0x3 << 1)
 #define RT5640_ID_5639				(0x0 << 1)
-#define RT5640_ID_5640				(0x1 << 1)
+#define RT5640_ID_5640				(0x2 << 1)
 #define RT5640_ID_5642				(0x3 << 1)
 
 
