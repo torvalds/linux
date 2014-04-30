@@ -75,7 +75,7 @@ struct fsl_spdif_priv {
 	struct platform_device *pdev;
 	struct regmap *regmap;
 	bool dpll_locked;
-	u8 txclk_div[SPDIF_TXRATE_MAX];
+	u8 txclk_df[SPDIF_TXRATE_MAX];
 	u8 txclk_src[SPDIF_TXRATE_MAX];
 	u8 rxclk_src;
 	struct clk *txclk[SPDIF_TXRATE_MAX];
@@ -351,7 +351,7 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 	struct platform_device *pdev = spdif_priv->pdev;
 	unsigned long csfs = 0;
 	u32 stc, mask, rate;
-	u8 clk, div;
+	u8 clk, txclk_df;
 	int ret;
 
 	switch (sample_rate) {
@@ -378,9 +378,9 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	div = spdif_priv->txclk_div[rate];
-	if (div == 0) {
-		dev_err(&pdev->dev, "the divisor can't be zero\n");
+	txclk_df = spdif_priv->txclk_df[rate];
+	if (txclk_df == 0) {
+		dev_err(&pdev->dev, "the txclk_df can't be zero\n");
 		return -EINVAL;
 	}
 
@@ -389,11 +389,10 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 		goto clk_set_bypass;
 
 	/*
-	 * The S/PDIF block needs a clock of 64 * fs * div.  The S/PDIF block
-	 * will divide by (div).  So request 64 * fs * (div+1) which will
-	 * get rounded.
+	 * The S/PDIF block needs a clock of 64 * fs * txclk_df.
+	 * So request 64 * fs * (txclk_df + 1) to get rounded.
 	 */
-	ret = clk_set_rate(spdif_priv->txclk[rate], 64 * sample_rate * (div + 1));
+	ret = clk_set_rate(spdif_priv->txclk[rate], 64 * sample_rate * (txclk_df + 1));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set tx clock rate\n");
 		return ret;
@@ -401,7 +400,7 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 
 clk_set_bypass:
 	dev_dbg(&pdev->dev, "expected clock rate = %d\n",
-			(64 * sample_rate * div));
+			(64 * sample_rate * txclk_df));
 	dev_dbg(&pdev->dev, "actual clock rate = %ld\n",
 			clk_get_rate(spdif_priv->txclk[rate]));
 
@@ -409,8 +408,8 @@ clk_set_bypass:
 	spdif_set_cstatus(ctrl, IEC958_AES3_CON_FS, csfs);
 
 	/* select clock source and divisor */
-	stc = STC_TXCLK_ALL_EN | STC_TXCLK_SRC_SET(clk) | STC_TXCLK_DIV(div);
-	mask = STC_TXCLK_ALL_EN_MASK | STC_TXCLK_SRC_MASK | STC_TXCLK_DIV_MASK;
+	stc = STC_TXCLK_ALL_EN | STC_TXCLK_SRC_SET(clk) | STC_TXCLK_DF(txclk_df);
+	mask = STC_TXCLK_ALL_EN_MASK | STC_TXCLK_SRC_MASK | STC_TXCLK_DF_MASK;
 	regmap_update_bits(regmap, REG_SPDIF_STC, mask, stc);
 
 	dev_dbg(&pdev->dev, "set sample rate to %d\n", sample_rate);
@@ -1020,22 +1019,22 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 {
 	const u32 rate[] = { 32000, 44100, 48000 };
 	u64 rate_ideal, rate_actual, sub;
-	u32 div, arate;
+	u32 txclk_df, arate;
 
-	for (div = 1; div <= 128; div++) {
-		rate_ideal = rate[index] * (div + 1) * 64;
+	for (txclk_df = 1; txclk_df <= 128; txclk_df++) {
+		rate_ideal = rate[index] * (txclk_df + 1) * 64;
 		if (round)
 			rate_actual = clk_round_rate(clk, rate_ideal);
 		else
 			rate_actual = clk_get_rate(clk);
 
 		arate = rate_actual / 64;
-		arate /= div;
+		arate /= txclk_df;
 
 		if (arate == rate[index]) {
 			/* We are lucky */
 			savesub = 0;
-			spdif_priv->txclk_div[index] = div;
+			spdif_priv->txclk_df[index] = txclk_df;
 			break;
 		} else if (arate / rate[index] == 1) {
 			/* A little bigger than expect */
@@ -1043,7 +1042,7 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 			do_div(sub, rate[index]);
 			if (sub < savesub) {
 				savesub = sub;
-				spdif_priv->txclk_div[index] = div;
+				spdif_priv->txclk_df[index] = txclk_df;
 			}
 		} else if (rate[index] / arate == 1) {
 			/* A little smaller than expect */
@@ -1051,7 +1050,7 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 			do_div(sub, rate[index]);
 			if (sub < savesub) {
 				savesub = sub;
-				spdif_priv->txclk_div[index] = div;
+				spdif_priv->txclk_df[index] = txclk_df;
 			}
 		}
 	}
@@ -1096,8 +1095,8 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 
 	dev_dbg(&pdev->dev, "use rxtx%d as tx clock source for %dHz sample rate\n",
 			spdif_priv->txclk_src[index], rate[index]);
-	dev_dbg(&pdev->dev, "use divisor %d for %dHz sample rate\n",
-			spdif_priv->txclk_div[index], rate[index]);
+	dev_dbg(&pdev->dev, "use txclk df %d for %dHz sample rate\n",
+			spdif_priv->txclk_df[index], rate[index]);
 
 	return 0;
 }
