@@ -1112,7 +1112,6 @@ osl_read_table_from_file(char *filename,
 	struct acpi_table_header *local_table = NULL;
 	u32 table_length;
 	s32 count;
-	u32 total = 0;
 	acpi_status status = AE_OK;
 
 	/* Open the file */
@@ -1163,16 +1162,12 @@ osl_read_table_from_file(char *filename,
 
 	fseek(table_file, file_offset, SEEK_SET);
 
-	while (!feof(table_file) && total < table_length) {
-		count = fread(local_table + total, 1, table_length - total, table_file);
-		if (count < 0) {
-			fprintf(stderr, "%4.4s: Could not read table content\n",
-				header.signature);
-			status = AE_INVALID_TABLE_LENGTH;
-			goto exit;
-		}
-
-		total += count;
+	count = fread(local_table, 1, table_length, table_file);
+	if (count != table_length) {
+		fprintf(stderr, "%4.4s: Could not read table content\n",
+			header.signature);
+		status = AE_INVALID_TABLE_LENGTH;
+		goto exit;
 	}
 
 	/* Validate checksum */
