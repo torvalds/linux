@@ -373,31 +373,19 @@ static void aw_twi_disable_sys_clk(struct sunxi_i2c *i2c)
 
 static int aw_twi_request_gpio(struct sunxi_i2c *i2c)
 {
-	if(i2c->bus_num == 0) {
-		/* pb0-pb1 TWI0 SDA,SCK */
-		i2c_dbg("config i2c gpio with gpio_config api \n");
+	char name[] = "twi%d_para";
 
-		i2c->gpio_hdle = gpio_request_ex("twi0_para", NULL);
-		if(!i2c->gpio_hdle) {
-			pr_warning("twi0 request gpio fail!\n");
-			return -1;
-		}
-	}
-	else if(i2c->bus_num == 1) {
-		/* pb18-pb19 TWI1 scl,sda */
-		i2c->gpio_hdle = gpio_request_ex("twi1_para", NULL);
-		if(!i2c->gpio_hdle) {
-			pr_warning("twi1 request gpio fail!\n");
-			return -1;
-		}
-	}
-	else if(i2c->bus_num == 2) {
-		/* pb20-pb21 TWI2 scl,sda */
-		i2c->gpio_hdle = gpio_request_ex("twi2_para", NULL);
-		if(!i2c->gpio_hdle) {
-			pr_warning("twi2 request gpio fail!\n");
-			return -1;
-		}
+	if (i2c->bus_num > 4)
+		return 0;
+
+	sprintf(name, "twi%d_para", i2c->bus_num);
+
+	i2c_dbg("config i2c gpio with gpio_config api\n");
+
+	i2c->gpio_hdle = gpio_request_ex(name, NULL);
+	if(!i2c->gpio_hdle) {
+		pr_warning("twi%d request gpio fail!\n", i2c->bus_num);
+		return -1;
 	}
 
 	return 0;
@@ -405,18 +393,10 @@ static int aw_twi_request_gpio(struct sunxi_i2c *i2c)
 
 static void aw_twi_release_gpio(struct sunxi_i2c *i2c)
 {
-	if(i2c->bus_num == 0) {
-		/* pb0-pb1 TWI0 SDA,SCK */
-		gpio_release(i2c->gpio_hdle, 0);
-	}
-	else if(i2c->bus_num == 1) {
-		/* pb18-pb19 TWI1 scl,sda */
-		gpio_release(i2c->gpio_hdle, 0);
-	}
-	else if(i2c->bus_num == 2) {
-		/* pb20-pb21 TWI2 scl,sda */
-		gpio_release(i2c->gpio_hdle, 0);
-	}
+	if (i2c->bus_num > 4)
+		return;
+
+	gpio_release(i2c->gpio_hdle, 0);
 }
 
 
@@ -1006,8 +986,8 @@ static int i2c_sunxi_probe(struct platform_device *dev)
 	struct sunxi_i2c *i2c = NULL;
 	struct resource *res = NULL;
 	struct sunxi_i2c_platform_data *pdata = NULL;
-	char *i2c_clk[] ={"twi0","twi1","twi2"};
-	char *i2c_pclk[] ={"apb_twi0","apb_twi1","apb_twi2"};
+	char *i2c_clk[] = {"twi0", "twi1", "twi2", "twi3", "twi4"};
+	char *i2c_pclk[] = {"apb_twi0", "apb_twi1", "apb_twi2", "apb_twi3", "apb_twi4"};
 	int ret;
 	int irq;
 
