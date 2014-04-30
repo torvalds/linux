@@ -30,9 +30,14 @@ config SND_SOC_FSL_SPDIF
 	  in-tree drivers select it automatically.
 
 config SND_SOC_FSL_ESAI
-	tristate
+	tristate "Enhanced Serial Audio Interface (ESAI) module support"
 	select REGMAP_MMIO
 	select SND_SOC_FSL_UTILS
+	help
+	  Say Y if you want to add Enhanced Synchronous Audio Interface
+	  (ESAI) support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
 
 config SND_SOC_FSL_UTILS
 	tristate
