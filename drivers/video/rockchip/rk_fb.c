@@ -2889,7 +2889,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fbi->pseudo_palette = dev_drv->win[i]->pseudo_pal;
 		if (i == 0){ /* only alloc memory for main fb*/
 		#ifdef CONFIG_ROCKCHIP_IOMMU
-			mmu_dev = rockchip_get_sysmmu_device_by_compatible(dev_drv->mmu_dts_name);
+			mmu_dev = rockchip_get_sysmmu_device_by_compatible("iommu,vopl_mmu");
 			if (mmu_dev) {
 				platform_set_sysmmu(mmu_dev, dev_drv->dev);
 				rockchip_sysmmu_set_fault_handler(dev_drv->dev, rk_fb_sysmmu_fault_handler);
