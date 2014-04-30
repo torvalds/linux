@@ -33,12 +33,12 @@ struct page *grab_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
 	struct address_space *mapping = META_MAPPING(sbi);
 	struct page *page = NULL;
 repeat:
-	page = grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
+	page = grab_cache_page(mapping, index);
 	if (!page) {
 		cond_resched();
 		goto repeat;
 	}
-
+	f2fs_wait_on_page_writeback(page, META);
 	SetPageUptodate(page);
 	return page;
 }
