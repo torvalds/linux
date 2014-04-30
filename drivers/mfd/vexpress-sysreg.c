@@ -16,8 +16,10 @@
 #include <linux/io.h>
 #include <linux/leds.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/timer.h>
@@ -72,8 +74,17 @@
 
 static void __iomem *vexpress_sysreg_base;
 static struct device *vexpress_sysreg_dev;
-static int vexpress_master_site;
+static LIST_HEAD(vexpress_sysreg_config_funcs);
+static struct device *vexpress_sysreg_config_bridge;
 
+
+static int vexpress_sysreg_get_master(void)
+{
+	if (readl(vexpress_sysreg_base + SYS_MISC) & SYS_MISC_MASTERSITE)
+		return VEXPRESS_SITE_DB2;
+
+	return VEXPRESS_SITE_DB1;
+}
 
 void vexpress_flags_set(u32 data)
 {
@@ -84,7 +95,7 @@ void vexpress_flags_set(u32 data)
 u32 vexpress_get_procid(int site)
 {
 	if (site == VEXPRESS_SITE_MASTER)
-		site = vexpress_master_site;
+		site = vexpress_sysreg_get_master();
 
 	return readl(vexpress_sysreg_base + (site == VEXPRESS_SITE_DB1 ?
 			SYS_PROCID0 : SYS_PROCID1));
@@ -114,130 +125,33 @@ void __iomem *vexpress_get_24mhz_clock_base(void)
 }
 
 
-static void vexpress_sysreg_find_prop(struct device_node *node,
-		const char *name, u32 *val)
-{
-	of_node_get(node);
-	while (node) {
-		if (of_property_read_u32(node, name, val) == 0) {
-			of_node_put(node);
-			return;
-		}
-		node = of_get_next_parent(node);
-	}
-}
-
-unsigned __vexpress_get_site(struct device *dev, struct device_node *node)
-{
-	u32 site = 0;
-
-	WARN_ON(dev && node && dev->of_node != node);
-	if (dev && !node)
-		node = dev->of_node;
-
-	if (node) {
-		vexpress_sysreg_find_prop(node, "arm,vexpress,site", &site);
-	} else if (dev && dev->bus == &platform_bus_type) {
-		struct platform_device *pdev = to_platform_device(dev);
-
-		if (pdev->num_resources == 1 &&
-				pdev->resource[0].flags == IORESOURCE_BUS)
-			site = pdev->resource[0].start;
-	} else if (dev && strncmp(dev_name(dev), "ct:", 3) == 0) {
-		site = VEXPRESS_SITE_MASTER;
-	}
-
-	if (site == VEXPRESS_SITE_MASTER)
-		site = vexpress_master_site;
-
-	return site;
-}
-
-
 struct vexpress_sysreg_config_func {
-	u32 template;
-	u32 device;
+	struct list_head list;
+	struct regmap *regmap;
+	int num_templates;
+	u32 template[0]; /* Keep this last */
 };
 
-static struct vexpress_config_bridge *vexpress_sysreg_config_bridge;
-static struct timer_list vexpress_sysreg_config_timer;
-static u32 *vexpress_sysreg_config_data;
-static int vexpress_sysreg_config_tries;
-
-static void *vexpress_sysreg_config_func_get(struct device *dev,
-		struct device_node *node)
+static int vexpress_sysreg_config_exec(struct vexpress_sysreg_config_func *func,
+		int index, bool write, u32 *data)
 {
-	struct vexpress_sysreg_config_func *config_func;
-	u32 site = 0;
-	u32 position = 0;
-	u32 dcc = 0;
-	u32 func_device[2];
-	int err = -EFAULT;
-
-	if (node) {
-		of_node_get(node);
-		vexpress_sysreg_find_prop(node, "arm,vexpress,site", &site);
-		vexpress_sysreg_find_prop(node, "arm,vexpress,position",
-				&position);
-		vexpress_sysreg_find_prop(node, "arm,vexpress,dcc", &dcc);
-		err = of_property_read_u32_array(node,
-				"arm,vexpress-sysreg,func", func_device,
-				ARRAY_SIZE(func_device));
-		of_node_put(node);
-	} else if (dev && dev->bus == &platform_bus_type) {
-		struct platform_device *pdev = to_platform_device(dev);
-
-		if (pdev->num_resources == 1 &&
-				pdev->resource[0].flags == IORESOURCE_BUS) {
-			site = pdev->resource[0].start;
-			func_device[0] = pdev->resource[0].end;
-			func_device[1] = pdev->id;
-			err = 0;
-		}
-	}
-	if (err)
-		return NULL;
-
-	config_func = kzalloc(sizeof(*config_func), GFP_KERNEL);
-	if (!config_func)
-		return NULL;
-
-	config_func->template = SYS_CFGCTRL_DCC(dcc);
-	config_func->template |= SYS_CFGCTRL_FUNC(func_device[0]);
-	config_func->template |= SYS_CFGCTRL_SITE(site == VEXPRESS_SITE_MASTER ?
-			vexpress_master_site : site);
-	config_func->template |= SYS_CFGCTRL_POSITION(position);
-	config_func->device |= func_device[1];
-
-	dev_dbg(vexpress_sysreg_dev, "func 0x%p = 0x%x, %d\n", config_func,
-			config_func->template, config_func->device);
-
-	return config_func;
-}
-
-static void vexpress_sysreg_config_func_put(void *func)
-{
-	kfree(func);
-}
-
-static int vexpress_sysreg_config_func_exec(void *func, int offset,
-		bool write, u32 *data)
-{
-	int status;
-	struct vexpress_sysreg_config_func *config_func = func;
-	u32 command;
+	u32 command, status;
+	int tries;
+	long timeout;
 
 	if (WARN_ON(!vexpress_sysreg_base))
 		return -ENOENT;
+
+	if (WARN_ON(index > func->num_templates))
+		return -EINVAL;
 
 	command = readl(vexpress_sysreg_base + SYS_CFGCTRL);
 	if (WARN_ON(command & SYS_CFGCTRL_START))
 		return -EBUSY;
 
-	command = SYS_CFGCTRL_START;
+	command = func->template[index];
+	command |= SYS_CFGCTRL_START;
 	command |= write ? SYS_CFGCTRL_WRITE : 0;
-	command |= config_func->template;
-	command |= SYS_CFGCTRL_DEVICE(config_func->device + offset);
 
 	/* Use a canary for reads */
 	if (!write)
@@ -250,90 +164,190 @@ static int vexpress_sysreg_config_func_exec(void *func, int offset,
 	writel(command, vexpress_sysreg_base + SYS_CFGCTRL);
 	mb();
 
-	if (vexpress_sysreg_dev) {
-		/* Schedule completion check */
-		if (!write)
-			vexpress_sysreg_config_data = data;
-		vexpress_sysreg_config_tries = 100;
-		mod_timer(&vexpress_sysreg_config_timer,
-				jiffies + usecs_to_jiffies(100));
-		status = VEXPRESS_CONFIG_STATUS_WAIT;
-	} else {
-		/* Early execution, no timer available, have to spin */
-		u32 cfgstat;
+	/* The operation can take ages... Go to sleep, 100us initially */
+	tries = 100;
+	timeout = 100;
+	do {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(timeout));
+		if (signal_pending(current))
+			return -EINTR;
 
-		do {
-			cpu_relax();
-			cfgstat = readl(vexpress_sysreg_base + SYS_CFGSTAT);
-		} while (!cfgstat);
+		status = readl(vexpress_sysreg_base + SYS_CFGSTAT);
+		if (status & SYS_CFGSTAT_ERR)
+			return -EFAULT;
 
-		if (!write && (cfgstat & SYS_CFGSTAT_COMPLETE))
-			*data = readl(vexpress_sysreg_base + SYS_CFGDATA);
-		status = VEXPRESS_CONFIG_STATUS_DONE;
+		if (timeout > 20)
+			timeout -= 20;
+	} while (--tries && !(status & SYS_CFGSTAT_COMPLETE));
+	if (WARN_ON_ONCE(!tries))
+		return -ETIMEDOUT;
 
-		if (cfgstat & SYS_CFGSTAT_ERR)
-			status = -EINVAL;
+	if (!write) {
+		*data = readl(vexpress_sysreg_base + SYS_CFGDATA);
+		dev_dbg(vexpress_sysreg_dev, "func %p, read data %x\n",
+				func, *data);
 	}
 
-	return status;
+	return 0;
 }
 
-struct vexpress_config_bridge_info vexpress_sysreg_config_bridge_info = {
-	.name = "vexpress-sysreg",
-	.func_get = vexpress_sysreg_config_func_get,
-	.func_put = vexpress_sysreg_config_func_put,
-	.func_exec = vexpress_sysreg_config_func_exec,
+static int vexpress_sysreg_config_read(void *context, unsigned int index,
+		unsigned int *val)
+{
+	struct vexpress_sysreg_config_func *func = context;
+
+	return vexpress_sysreg_config_exec(func, index, false, val);
+}
+
+static int vexpress_sysreg_config_write(void *context, unsigned int index,
+		unsigned int val)
+{
+	struct vexpress_sysreg_config_func *func = context;
+
+	return vexpress_sysreg_config_exec(func, index, true, &val);
+}
+
+struct regmap_config vexpress_sysreg_regmap_config = {
+	.lock = vexpress_config_lock,
+	.unlock = vexpress_config_unlock,
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_read = vexpress_sysreg_config_read,
+	.reg_write = vexpress_sysreg_config_write,
+	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
-static void vexpress_sysreg_config_complete(unsigned long data)
+static struct regmap *vexpress_sysreg_config_regmap_init(struct device *dev,
+		void *context)
 {
-	int status = VEXPRESS_CONFIG_STATUS_DONE;
-	u32 cfgstat = readl(vexpress_sysreg_base + SYS_CFGSTAT);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct vexpress_sysreg_config_func *func;
+	struct property *prop;
+	const __be32 *val = NULL;
+	__be32 energy_quirk[4];
+	int num;
+	u32 site, position, dcc;
+	int err;
+	int i;
 
-	if (cfgstat & SYS_CFGSTAT_ERR)
-		status = -EINVAL;
-	if (!vexpress_sysreg_config_tries--)
-		status = -ETIMEDOUT;
+	if (dev->of_node) {
+		err = vexpress_config_get_topo(dev->of_node, &site, &position,
+				&dcc);
+		if (err)
+			return ERR_PTR(err);
 
-	if (status < 0) {
-		dev_err(vexpress_sysreg_dev, "error %d\n", status);
-	} else if (!(cfgstat & SYS_CFGSTAT_COMPLETE)) {
-		mod_timer(&vexpress_sysreg_config_timer,
-				jiffies + usecs_to_jiffies(50));
-		return;
+		prop = of_find_property(dev->of_node,
+				"arm,vexpress-sysreg,func", NULL);
+		if (!prop)
+			return ERR_PTR(-EINVAL);
+
+		num = prop->length / sizeof(u32) / 2;
+		val = prop->value;
+	} else {
+		if (pdev->num_resources != 1 ||
+				pdev->resource[0].flags != IORESOURCE_BUS)
+			return ERR_PTR(-EFAULT);
+
+		site = pdev->resource[0].start;
+		if (site == VEXPRESS_SITE_MASTER)
+			site = vexpress_sysreg_get_master();
+		position = 0;
+		dcc = 0;
+		num = 1;
 	}
 
-	if (vexpress_sysreg_config_data) {
-		*vexpress_sysreg_config_data = readl(vexpress_sysreg_base +
-				SYS_CFGDATA);
-		dev_dbg(vexpress_sysreg_dev, "read data %x\n",
-				*vexpress_sysreg_config_data);
-		vexpress_sysreg_config_data = NULL;
+	/*
+	 * "arm,vexpress-energy" function used to be described
+	 * by its first device only, now it requires both
+	 */
+	if (num == 1 && of_device_is_compatible(dev->of_node,
+			"arm,vexpress-energy")) {
+		num = 2;
+		energy_quirk[0] = *val;
+		energy_quirk[2] = *val++;
+		energy_quirk[1] = *val;
+		energy_quirk[3] = cpu_to_be32(be32_to_cpup(val) + 1);
+		val = energy_quirk;
 	}
 
-	vexpress_config_complete(vexpress_sysreg_config_bridge, status);
-}
+	func = kzalloc(sizeof(*func) + sizeof(*func->template) * num,
+			GFP_KERNEL);
+	if (!func)
+		return NULL;
 
+	func->num_templates = num;
 
-void vexpress_sysreg_setup(struct device_node *node)
-{
-	if (WARN_ON(!vexpress_sysreg_base))
-		return;
+	for (i = 0; i < num; i++) {
+		u32 function, device;
 
-	if (readl(vexpress_sysreg_base + SYS_MISC) & SYS_MISC_MASTERSITE)
-		vexpress_master_site = VEXPRESS_SITE_DB2;
+		if (dev->of_node) {
+			function = be32_to_cpup(val++);
+			device = be32_to_cpup(val++);
+		} else {
+			function = pdev->resource[0].end;
+			device = pdev->id;
+		}
+
+		dev_dbg(dev, "func %p: %u/%u/%u/%u/%u\n",
+				func, site, position, dcc,
+				function, device);
+
+		func->template[i] = SYS_CFGCTRL_DCC(dcc);
+		func->template[i] |= SYS_CFGCTRL_SITE(site);
+		func->template[i] |= SYS_CFGCTRL_POSITION(position);
+		func->template[i] |= SYS_CFGCTRL_FUNC(function);
+		func->template[i] |= SYS_CFGCTRL_DEVICE(device);
+	}
+
+	vexpress_sysreg_regmap_config.max_register = num - 1;
+
+	func->regmap = regmap_init(dev, NULL, func,
+			&vexpress_sysreg_regmap_config);
+
+	if (IS_ERR(func->regmap))
+		kfree(func);
 	else
-		vexpress_master_site = VEXPRESS_SITE_DB1;
+		list_add(&func->list, &vexpress_sysreg_config_funcs);
 
-	vexpress_sysreg_config_bridge = vexpress_config_bridge_register(
-			node, &vexpress_sysreg_config_bridge_info);
-	WARN_ON(!vexpress_sysreg_config_bridge);
+	return func->regmap;
 }
+
+static void vexpress_sysreg_config_regmap_exit(struct regmap *regmap,
+		void *context)
+{
+	struct vexpress_sysreg_config_func *func, *tmp;
+
+	regmap_exit(regmap);
+
+	list_for_each_entry_safe(func, tmp, &vexpress_sysreg_config_funcs,
+			list) {
+		if (func->regmap == regmap) {
+			list_del(&vexpress_sysreg_config_funcs);
+			kfree(func);
+			break;
+		}
+	}
+}
+
+static struct vexpress_config_bridge_ops vexpress_sysreg_config_bridge_ops = {
+	.regmap_init = vexpress_sysreg_config_regmap_init,
+	.regmap_exit = vexpress_sysreg_config_regmap_exit,
+};
+
+int vexpress_sysreg_config_device_register(struct platform_device *pdev)
+{
+	pdev->dev.parent = vexpress_sysreg_config_bridge;
+
+	return platform_device_register(pdev);
+}
+
 
 void __init vexpress_sysreg_early_init(void __iomem *base)
 {
 	vexpress_sysreg_base = base;
-	vexpress_sysreg_setup(NULL);
+	vexpress_config_set_master(vexpress_sysreg_get_master());
 }
 
 void __init vexpress_sysreg_of_early_init(void)
@@ -344,10 +358,14 @@ void __init vexpress_sysreg_of_early_init(void)
 		return;
 
 	node = of_find_compatible_node(NULL, NULL, "arm,vexpress-sysreg");
-	if (node) {
-		vexpress_sysreg_base = of_iomap(node, 0);
-		vexpress_sysreg_setup(node);
-	}
+	if (WARN_ON(!node))
+		return;
+
+	vexpress_sysreg_base = of_iomap(node, 0);
+	if (WARN_ON(!vexpress_sysreg_base))
+		return;
+
+	vexpress_config_set_master(vexpress_sysreg_get_master());
 }
 
 
@@ -470,28 +488,22 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	if (!vexpress_sysreg_base) {
+	if (!vexpress_sysreg_base)
 		vexpress_sysreg_base = devm_ioremap(&pdev->dev, res->start,
 				resource_size(res));
-		vexpress_sysreg_setup(pdev->dev.of_node);
-	}
 
 	if (!vexpress_sysreg_base) {
 		dev_err(&pdev->dev, "Failed to obtain base address!\n");
 		return -EFAULT;
 	}
 
-	setup_timer(&vexpress_sysreg_config_timer,
-			vexpress_sysreg_config_complete, 0);
-
+	vexpress_config_set_master(vexpress_sysreg_get_master());
 	vexpress_sysreg_dev = &pdev->dev;
 
 #ifdef CONFIG_GPIOLIB
 	vexpress_sysreg_gpio_chip.dev = &pdev->dev;
 	err = gpiochip_add(&vexpress_sysreg_gpio_chip);
 	if (err) {
-		vexpress_config_bridge_unregister(
-				vexpress_sysreg_config_bridge);
 		dev_err(&pdev->dev, "Failed to register GPIO chip! (%d)\n",
 				err);
 		return err;
@@ -501,6 +513,10 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 			PLATFORM_DEVID_AUTO, &vexpress_sysreg_leds_pdata,
 			sizeof(vexpress_sysreg_leds_pdata));
 #endif
+
+	vexpress_sysreg_config_bridge = vexpress_config_bridge_register(
+			&pdev->dev, &vexpress_sysreg_config_bridge_ops, NULL);
+	WARN_ON(!vexpress_sysreg_config_bridge);
 
 	device_create_file(vexpress_sysreg_dev, &dev_attr_sys_id);
 
@@ -522,7 +538,12 @@ static struct platform_driver vexpress_sysreg_driver = {
 
 static int __init vexpress_sysreg_init(void)
 {
-	vexpress_sysreg_of_early_init();
+	struct device_node *node;
+
+	/* Need the sysreg early, before any other device... */
+	for_each_matching_node(node, vexpress_sysreg_match)
+		of_platform_device_create(node, NULL, NULL);
+
 	return platform_driver_register(&vexpress_sysreg_driver);
 }
 core_initcall(vexpress_sysreg_init);

@@ -27,24 +27,45 @@ Example:
 This block also can also act a bridge to the platform's configuration
 bus via "system control" interface, addressing devices with site number,
 position in the board stack, config controller, function and device
-numbers - see motherboard's TRM for more details.
-
-The node describing a config device must refer to the sysreg node via
-"arm,vexpress,config-bridge" phandle (can be also defined in the node's
-parent) and relies on the board topology properties - see main vexpress
-node documentation for more details. It must also define the following
-property:
-- arm,vexpress-sysreg,func : must contain two cells:
-  - first cell defines function number (eg. 1 for clock generator,
-    2 for voltage regulators etc.)
-  - device number (eg. osc 0, osc 1 etc.)
+numbers - see motherboard's TRM for more details. All configuration
+controller accessible via this interface must reference the sysreg
+node via "arm,vexpress,config-bridge" phandle and define appropriate
+topology properties - see main vexpress node documentation for more
+details. Each child of such node describes one function and must
+define the following properties:
+- compatible value : must be one of (corresponding to the TRM):
+	"arm,vexpress-amp"
+	"arm,vexpress-dvimode"
+	"arm,vexpress-energy"
+	"arm,vexpress-muxfpga"
+	"arm,vexpress-osc"
+	"arm,vexpress-power"
+	"arm,vexpress-reboot"
+	"arm,vexpress-reset"
+	"arm,vexpress-scc"
+	"arm,vexpress-shutdown"
+	"arm,vexpress-temp"
+	"arm,vexpress-volt"
+- arm,vexpress-sysreg,func : must contain a set of two cells long groups:
+  - first cell of each group defines the function number
+    (eg. 1 for clock generator, 2 for voltage regulators etc.)
+  - second cell of each group defines device number (eg. osc 0,
+    osc 1 etc.)
+  - some functions (eg. energy meter, with its 64 bit long counter)
+    are using more than one function/device number pair
 
 Example:
 	mcc {
+		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
 		osc@0 {
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 0>;
+		};
+
+		energy@0 {
+			compatible = "arm,vexpress-energy";
+			arm,vexpress-sysreg,func = <13 0>, <13 1>;
 		};
 	};

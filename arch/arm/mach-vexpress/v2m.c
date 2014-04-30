@@ -340,11 +340,6 @@ static void __init v2m_init(void)
 	regulator_register_fixed(0, v2m_eth_supplies,
 			ARRAY_SIZE(v2m_eth_supplies));
 
-	platform_device_register(&v2m_muxfpga_device);
-	platform_device_register(&v2m_shutdown_device);
-	platform_device_register(&v2m_reboot_device);
-	platform_device_register(&v2m_dvimode_device);
-
 	platform_device_register(&v2m_sysreg_device);
 	platform_device_register(&v2m_pcie_i2c_device);
 	platform_device_register(&v2m_ddc_i2c_device);
@@ -355,6 +350,11 @@ static void __init v2m_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(v2m_amba_devs); i++)
 		amba_device_register(v2m_amba_devs[i], &iomem_resource);
+
+	vexpress_sysreg_config_device_register(&v2m_muxfpga_device);
+	vexpress_sysreg_config_device_register(&v2m_shutdown_device);
+	vexpress_sysreg_config_device_register(&v2m_reboot_device);
+	vexpress_sysreg_config_device_register(&v2m_dvimode_device);
 
 	ct_desc->init_tile();
 }
@@ -423,17 +423,11 @@ void __init v2m_dt_init_early(void)
 	versatile_sched_clock_init(vexpress_get_24mhz_clock_base(), 24000000);
 }
 
-static const struct of_device_id v2m_dt_bus_match[] __initconst = {
-	{ .compatible = "simple-bus", },
-	{ .compatible = "arm,amba-bus", },
-	{ .compatible = "arm,vexpress,config-bus", },
-	{}
-};
 
 static void __init v2m_dt_init(void)
 {
 	l2x0_of_init(0x00400000, 0xfe0fffff);
-	of_platform_populate(NULL, v2m_dt_bus_match, NULL, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char * const v2m_dt_match[] __initconst = {
