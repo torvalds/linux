@@ -474,12 +474,19 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 
 		/* Get the table physical address (32-bit for RSDT, 64-bit for XSDT) */
 
-		status =
-		    acpi_tb_install_standard_table(acpi_tb_get_root_table_entry
-						   (table_entry,
-						    table_entry_size),
-						   ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
-						   FALSE, TRUE, &table_index);
+		address =
+		    acpi_tb_get_root_table_entry(table_entry, table_entry_size);
+
+		/* Skip NULL entries in RSDT/XSDT */
+
+		if (!address) {
+			goto next_table;
+		}
+
+		status = acpi_tb_install_standard_table(address,
+							ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
+							FALSE, TRUE,
+							&table_index);
 
 		if (ACPI_SUCCESS(status) &&
 		    ACPI_COMPARE_NAME(&acpi_gbl_root_table_list.
@@ -487,6 +494,8 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 				      ACPI_SIG_FADT)) {
 			acpi_tb_parse_fadt(table_index);
 		}
+
+next_table:
 
 		table_entry += table_entry_size;
 	}

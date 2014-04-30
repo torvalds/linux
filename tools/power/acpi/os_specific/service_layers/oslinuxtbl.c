@@ -720,6 +720,12 @@ static acpi_status osl_list_bios_tables(void)
 			    (acpi_physical_address) (*ACPI_CAST32(table_data));
 		}
 
+		/* Skip NULL entries in RSDT/XSDT */
+
+		if (!table_address) {
+			continue;
+		}
+
 		status = osl_map_table(table_address, NULL, &mapped_table);
 		if (ACPI_FAILURE(status)) {
 			return (status);
@@ -863,6 +869,12 @@ osl_get_bios_table(char *signature,
 				table_address =
 				    (acpi_physical_address) (*ACPI_CAST32
 							     (table_data));
+			}
+
+			/* Skip NULL entries in RSDT/XSDT */
+
+			if (!table_address) {
+				continue;
 			}
 
 			status =
