@@ -1092,18 +1092,8 @@ retry:
  */
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable)
 {
-	struct mm_struct *mm = current->mm;
-	hva_t hva;
-	long rc;
-
-	hva = gmap_fault(vcpu->arch.gmap, gpa);
-	if (IS_ERR_VALUE(hva))
-		return (long)hva;
-	down_read(&mm->mmap_sem);
-	rc = get_user_pages(current, mm, hva, 1, writable, 0, NULL, NULL);
-	up_read(&mm->mmap_sem);
-
-	return rc < 0 ? rc : 0;
+	return gmap_fault(vcpu->arch.gmap, gpa,
+			  writable ? FAULT_FLAG_WRITE : 0);
 }
 
 static void __kvm_inject_pfault_token(struct kvm_vcpu *vcpu, bool start_token,
@@ -1683,9 +1673,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 #endif
 	case KVM_S390_VCPU_FAULT: {
-		r = gmap_fault(vcpu->arch.gmap, arg);
-		if (!IS_ERR_VALUE(r))
-			r = 0;
+		r = gmap_fault(vcpu->arch.gmap, arg, 0);
 		break;
 	}
 	case KVM_ENABLE_CAP:
