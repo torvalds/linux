@@ -51,6 +51,7 @@ static int gpio_get_time(struct timed_output_dev *dev)
 	if (hrtimer_active(&data->timer)) {
 		ktime_t r = hrtimer_get_remaining(&data->timer);
 		struct timeval t = ktime_to_timeval(r);
+
 		return t.tv_sec * 1000 + t.tv_usec / 1000;
 	} else
 		return 0;
