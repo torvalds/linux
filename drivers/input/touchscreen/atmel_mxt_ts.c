@@ -2177,8 +2177,8 @@ static void mxt_probe_regulators(struct mxt_data *data)
 	}
 
 	data->reg_avdd = regulator_get(dev, "avdd");
-	if (IS_ERR(data->reg_vdd)) {
-		error = PTR_ERR(data->reg_vdd);
+	if (IS_ERR(data->reg_avdd)) {
+		error = PTR_ERR(data->reg_avdd);
 		dev_err(dev, "Error %d getting avdd regulator\n", error);
 		goto fail_release;
 	}
