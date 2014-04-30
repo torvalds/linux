@@ -71,6 +71,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		pinctrl: pin-controller@10000 {
+			/* set compatible property in SoC file */
+			reg = <0x10000 0x20>;
+		};
+
 		core_clk: core-clocks@10030 {
 			compatible = "marvell,kirkwood-core-clock";
 			reg = <0x10030 0x4>;
