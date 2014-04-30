@@ -519,7 +519,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_USE_AGP |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
 	    DRIVER_PRIME | DRIVER_RENDER,
-	.dev_priv_size = 0,
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
 	.preclose = radeon_driver_preclose_kms,

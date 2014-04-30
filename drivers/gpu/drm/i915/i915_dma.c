@@ -1280,12 +1280,13 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_
 static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	bool can_switch;
 
-	spin_lock(&dev->count_lock);
-	can_switch = (dev->open_count == 0);
-	spin_unlock(&dev->count_lock);
-	return can_switch;
+	/*
+	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
+	 * locking inversion with the driver load path. And the access here is
+	 * completely racy anyway. So don't bother with locking for now.
+	 */
+	return dev->open_count == 0;
 }
 
 static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
@@ -1329,7 +1330,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_power_domains_init_hw(dev_priv);
 
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, dev->pdev->irq);
 	if (ret)
 		goto cleanup_gem_stolen;
 

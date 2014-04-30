@@ -72,9 +72,6 @@ static void
 drm_unset_busid(struct drm_device *dev,
 		struct drm_master *master)
 {
-	kfree(dev->devname);
-	dev->devname = NULL;
-
 	kfree(master->unique);
 	master->unique = NULL;
 	master->unique_len = 0;
@@ -93,7 +90,8 @@ drm_unset_busid(struct drm_device *dev,
  * Copies the bus id from userspace into drm_device::unique, and verifies that
  * it matches the device this DRM is attached to (EINVAL otherwise).  Deprecated
  * in interface version 1.1 and will return EBUSY when setversion has requested
- * version 1.1 or greater.
+ * version 1.1 or greater. Also note that KMS is all version 1.1 and later and
+ * UMS was only ever supported on pci devices.
  */
 int drm_setunique(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
@@ -108,10 +106,13 @@ int drm_setunique(struct drm_device *dev, void *data,
 	if (!u->unique_len || u->unique_len > 1024)
 		return -EINVAL;
 
-	if (!dev->driver->bus->set_unique)
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return 0;
+
+	if (WARN_ON(!dev->pdev))
 		return -EINVAL;
 
-	ret = dev->driver->bus->set_unique(dev, master, u);
+	ret = drm_pci_set_unique(dev, master, u);
 	if (ret)
 		goto err;
 

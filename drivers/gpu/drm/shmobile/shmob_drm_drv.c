@@ -185,7 +185,7 @@ static int shmob_drm_load(struct drm_device *dev, unsigned long flags)
 		goto done;
 	}
 
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to install IRQ handler\n");
 		goto done;

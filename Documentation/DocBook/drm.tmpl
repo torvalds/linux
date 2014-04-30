@@ -342,21 +342,13 @@ char *date;</synopsis>
         <sect4>
           <title>Managed IRQ Registration</title>
           <para>
-            Both the <function>drm_irq_install</function> and
-	    <function>drm_irq_uninstall</function> functions get the device IRQ by
-	    calling <function>drm_dev_to_irq</function>. This inline function will
-	    call a bus-specific operation to retrieve the IRQ number. For platform
-	    devices, <function>platform_get_irq</function>(..., 0) is used to
-	    retrieve the IRQ number.
-          </para>
-          <para>
             <function>drm_irq_install</function> starts by calling the
             <methodname>irq_preinstall</methodname> driver operation. The operation
             is optional and must make sure that the interrupt will not get fired by
             clearing all pending interrupt flags or disabling the interrupt.
           </para>
           <para>
-            The IRQ will then be requested by a call to
+            The passed-in IRQ will then be requested by a call to
             <function>request_irq</function>. If the DRIVER_IRQ_SHARED driver
             feature flag is set, a shared (IRQF_SHARED) IRQ handler will be
             requested.
