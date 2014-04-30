@@ -67,21 +67,6 @@ static int fpux_emu(struct pt_regs *,
 /* Determine rounding mode from the RM bits of the FCSR */
 #define modeindex(v) ((v) & FPU_CSR_RM)
 
-/* Convert MIPS rounding mode (0..3) to IEEE library modes. */
-static const unsigned char ieee_rm[4] = {
-	[FPU_CSR_RN] = IEEE754_RN,
-	[FPU_CSR_RZ] = IEEE754_RZ,
-	[FPU_CSR_RU] = IEEE754_RU,
-	[FPU_CSR_RD] = IEEE754_RD,
-};
-/* Convert IEEE library modes to MIPS rounding mode (0..3). */
-static const unsigned char mips_rm[4] = {
-	[IEEE754_RN] = FPU_CSR_RN,
-	[IEEE754_RZ] = FPU_CSR_RZ,
-	[IEEE754_RD] = FPU_CSR_RD,
-	[IEEE754_RU] = FPU_CSR_RU,
-};
-
 /* convert condition code register number to csr bit */
 static const unsigned int fpucondbit[8] = {
 	FPU_CSR_COND0,
@@ -907,8 +892,7 @@ emul:
 			/* cop control register rd -> gpr[rt] */
 			if (MIPSInst_RD(ir) == FPCREG_CSR) {
 				value = ctx->fcr31;
-				value = (value & ~FPU_CSR_RM) |
-					mips_rm[modeindex(value)];
+				value = (value & ~FPU_CSR_RM) | modeindex(value);
 				pr_debug("%p gpr[%d]<-csr=%08x\n",
 					 (void *) (xcp->cp0_epc),
 					 MIPSInst_RT(ir), value);
@@ -939,9 +923,8 @@ emul:
 				 * Don't write reserved bits,
 				 * and convert to ieee library modes
 				 */
-				ctx->fcr31 = (value &
-						~(FPU_CSR_RSVD | FPU_CSR_RM)) |
-						ieee_rm[modeindex(value)];
+				ctx->fcr31 = (value & ~(FPU_CSR_RSVD | FPU_CSR_RM)) |
+					     modeindex(value);
 			}
 			if ((ctx->fcr31 >> 5) & ctx->fcr31 & FPU_CSR_ALL_E) {
 				return SIGFPE;
@@ -1515,7 +1498,7 @@ copcsr:
 
 			oldrm = ieee754_csr.rm;
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
+			ieee754_csr.rm = modeindex(MIPSInst_FUNC(ir));
 			rv.w = ieee754sp_tint(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
@@ -1539,7 +1522,7 @@ copcsr:
 
 			oldrm = ieee754_csr.rm;
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
+			ieee754_csr.rm = modeindex(MIPSInst_FUNC(ir));
 			rv.l = ieee754sp_tlong(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = l_fmt;
@@ -1692,7 +1675,7 @@ dcopuop:
 
 			oldrm = ieee754_csr.rm;
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
+			ieee754_csr.rm = modeindex(MIPSInst_FUNC(ir));
 			rv.w = ieee754dp_tint(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
@@ -1716,7 +1699,7 @@ dcopuop:
 
 			oldrm = ieee754_csr.rm;
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			ieee754_csr.rm = ieee_rm[modeindex(MIPSInst_FUNC(ir))];
+			ieee754_csr.rm = modeindex(MIPSInst_FUNC(ir));
 			rv.l = ieee754dp_tlong(fs);
 			ieee754_csr.rm = oldrm;
 			rfmt = l_fmt;
@@ -1926,11 +1909,7 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			 * ieee754_csr.	 But ieee754_csr.rm is ieee
 			 * library modes. (not mips rounding mode)
 			 */
-			/* convert to ieee library modes */
-			ieee754_csr.rm = ieee_rm[ieee754_csr.rm];
 			sig = cop1Emulate(xcp, ctx, dec_insn, fault_addr);
-			/* revert to mips rounding mode */
-			ieee754_csr.rm = mips_rm[ieee754_csr.rm];
 		}
 
 		if (has_fpu)

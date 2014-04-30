@@ -91,7 +91,7 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 		if (xs != ys)
 			return x;
 		else
-			return ieee754dp_zero(ieee754_csr.rm == IEEE754_RD);
+			return ieee754dp_zero(ieee754_csr.rm == FPU_CSR_RD);
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_ZERO):
@@ -171,7 +171,7 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 			xs = ys;
 		}
 		if (xm == 0) {
-			if (ieee754_csr.rm == IEEE754_RD)
+			if (ieee754_csr.rm == FPU_CSR_RD)
 				return ieee754dp_zero(1);	/* round negative inf. => sign = -1 */
 			else
 				return ieee754dp_zero(0);	/* other round modes   => sign = 1 */

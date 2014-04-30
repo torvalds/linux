@@ -67,17 +67,17 @@ static u64 ieee754dp_get_rounding(int sn, u64 xm)
 	 */
 	if (xm & (DP_MBIT(3) - 1)) {
 		switch (ieee754_csr.rm) {
-		case IEEE754_RZ:
+		case FPU_CSR_RZ:
 			break;
-		case IEEE754_RN:
+		case FPU_CSR_RN:
 			xm += 0x3 + ((xm >> 3) & 1);
 			/* xm += (xm&0x8)?0x4:0x3 */
 			break;
-		case IEEE754_RU:	/* toward +Infinity */
+		case FPU_CSR_RU:	/* toward +Infinity */
 			if (!sn)	/* ?? */
 				xm += 0x8;
 			break;
-		case IEEE754_RD:	/* toward -Infinity */
+		case FPU_CSR_RD:	/* toward -Infinity */
 			if (sn) /* ?? */
 				xm += 0x8;
 			break;
@@ -108,15 +108,15 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 			ieee754_setcx(IEEE754_INEXACT);
 
 			switch(ieee754_csr.rm) {
-			case IEEE754_RN:
-			case IEEE754_RZ:
+			case FPU_CSR_RN:
+			case FPU_CSR_RZ:
 				return ieee754dp_zero(sn);
-			case IEEE754_RU:    /* toward +Infinity */
+			case FPU_CSR_RU:    /* toward +Infinity */
 				if (sn == 0)
 					return ieee754dp_min(0);
 				else
 					return ieee754dp_zero(1);
-			case IEEE754_RD:    /* toward -Infinity */
+			case FPU_CSR_RD:    /* toward -Infinity */
 				if (sn == 0)
 					return ieee754dp_zero(0);
 				else
@@ -172,16 +172,16 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 		ieee754_setcx(IEEE754_INEXACT);
 		/* -O can be table indexed by (rm,sn) */
 		switch (ieee754_csr.rm) {
-		case IEEE754_RN:
+		case FPU_CSR_RN:
 			return ieee754dp_inf(sn);
-		case IEEE754_RZ:
+		case FPU_CSR_RZ:
 			return ieee754dp_max(sn);
-		case IEEE754_RU:	/* toward +Infinity */
+		case FPU_CSR_RU:	/* toward +Infinity */
 			if (sn == 0)
 				return ieee754dp_inf(0);
 			else
 				return ieee754dp_max(1);
-		case IEEE754_RD:	/* toward -Infinity */
+		case FPU_CSR_RD:	/* toward -Infinity */
 			if (sn == 0)
 				return ieee754dp_max(0);
 			else

@@ -79,17 +79,17 @@ int ieee754sp_tint(union ieee754sp x)
 		}
 		odd = (xm & 0x1) != 0x0;
 		switch (ieee754_csr.rm) {
-		case IEEE754_RN:
+		case FPU_CSR_RN:
 			if (round && (sticky || odd))
 				xm++;
 			break;
-		case IEEE754_RZ:
+		case FPU_CSR_RZ:
 			break;
-		case IEEE754_RU:	/* toward +Infinity */
+		case FPU_CSR_RU:	/* toward +Infinity */
 			if ((round || sticky) && !xs)
 				xm++;
 			break;
-		case IEEE754_RD:	/* toward -Infinity */
+		case FPU_CSR_RD:	/* toward -Infinity */
 			if ((round || sticky) && xs)
 				xm++;
 			break;

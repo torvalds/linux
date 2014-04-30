@@ -80,7 +80,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 	oldcsr = ieee754_csr;
 	ieee754_csr.mx &= ~IEEE754_INEXACT;
 	ieee754_csr.sx &= ~IEEE754_INEXACT;
-	ieee754_csr.rm = IEEE754_RN;
+	ieee754_csr.rm = FPU_CSR_RN;
 
 	/* adjust exponent to prevent overflow */
 	scalx = 0;
@@ -122,7 +122,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 	/* twiddle last bit to force y correctly rounded */
 
 	/* set RZ, clear INEX flag */
-	ieee754_csr.rm = IEEE754_RZ;
+	ieee754_csr.rm = FPU_CSR_RZ;
 	ieee754_csr.sx &= ~IEEE754_INEXACT;
 
 	/* t=x/y; ...chopped quotient, possibly inexact */
@@ -139,10 +139,10 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 		oldcsr.sx |= IEEE754_INEXACT;
 
 		switch (oldcsr.rm) {
-		case IEEE754_RU:
+		case FPU_CSR_RU:
 			y.bits += 1;
 			/* drop through */
-		case IEEE754_RN:
+		case FPU_CSR_RN:
 			t.bits += 1;
 			break;
 		}

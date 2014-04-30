@@ -126,13 +126,6 @@ enum {
 #define IEEE754_CGT	0x04
 #define IEEE754_CUN	0x08
 
-/* rounding mode
-*/
-#define IEEE754_RN	0	/* round to nearest */
-#define IEEE754_RZ	1	/* round toward zero  */
-#define IEEE754_RD	2	/* round toward -Infinity */
-#define IEEE754_RU	3	/* round toward +Infinity */
-
 /* "normal" comparisons
 */
 static inline int ieee754sp_eq(union ieee754sp x, union ieee754sp y)

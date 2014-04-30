@@ -57,8 +57,8 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 		/* can't possibly be sp representable */
 		ieee754_setcx(IEEE754_UNDERFLOW);
 		ieee754_setcx(IEEE754_INEXACT);
-		if ((ieee754_csr.rm == IEEE754_RU && !xs) ||
-				(ieee754_csr.rm == IEEE754_RD && xs))
+		if ((ieee754_csr.rm == FPU_CSR_RU && !xs) ||
+				(ieee754_csr.rm == FPU_CSR_RD && xs))
 			return ieee754sp_mind(xs);
 		return ieee754sp_zero(xs);
 
