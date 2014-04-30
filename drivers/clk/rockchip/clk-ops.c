@@ -572,6 +572,7 @@ static long clk_3288_dclk_lcdc0_determine_rate(struct clk_hw *hw, unsigned long 
 	if((rate <= (297*MHZ)) && ((297*MHZ)%rate == 0)) {
 		*best_parent_p = gpll;
 		best = rate;
+		*best_parent_rate = 297*MHZ;
 	} else {
 		*best_parent_p = cpll;
 		div = RK3288_LIMIT_PLL_VIO0/rate;
@@ -630,6 +631,7 @@ static long clk_3288_dclk_lcdc1_determine_rate(struct clk_hw *hw, unsigned long 
 	if((rate <= (297*MHZ)) && ((297*MHZ)%rate == 0)) {
 		*best_parent_p = gpll;
 		best = rate;
+		*best_parent_rate = 297*MHZ;
 	} else {
 		*best_parent_p = cpll;
 		div = RK3288_LIMIT_PLL_VIO1/rate;
