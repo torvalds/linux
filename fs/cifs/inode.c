@@ -22,6 +22,7 @@
 #include <linux/stat.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/freezer.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -1762,29 +1763,60 @@ int
 cifs_invalidate_mapping(struct inode *inode)
 {
 	int rc = 0;
-	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
-
-	clear_bit(CIFS_INO_INVALID_MAPPING, &cifs_i->flags);
 
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = invalidate_inode_pages2(inode->i_mapping);
-		if (rc) {
+		if (rc)
 			cifs_dbg(VFS, "%s: could not invalidate inode %p\n",
 				 __func__, inode);
-			set_bit(CIFS_INO_INVALID_MAPPING, &cifs_i->flags);
-		}
 	}
 
 	cifs_fscache_reset_inode_cookie(inode);
 	return rc;
 }
 
+/**
+ * cifs_wait_bit_killable - helper for functions that are sleeping on bit locks
+ * @word: long word containing the bit lock
+ */
+static int
+cifs_wait_bit_killable(void *word)
+{
+	if (fatal_signal_pending(current))
+		return -ERESTARTSYS;
+	freezable_schedule_unsafe();
+	return 0;
+}
+
 int
 cifs_revalidate_mapping(struct inode *inode)
 {
-	if (test_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags))
-		return cifs_invalidate_mapping(inode);
-	return 0;
+	int rc;
+	unsigned long *flags = &CIFS_I(inode)->flags;
+
+	rc = wait_on_bit_lock(flags, CIFS_INO_LOCK, cifs_wait_bit_killable,
+				TASK_KILLABLE);
+	if (rc)
+		return rc;
+
+	if (test_and_clear_bit(CIFS_INO_INVALID_MAPPING, flags)) {
+		rc = cifs_invalidate_mapping(inode);
+		if (rc)
+			set_bit(CIFS_INO_INVALID_MAPPING, flags);
+	}
+
+	clear_bit_unlock(CIFS_INO_LOCK, flags);
+	smp_mb__after_clear_bit();
+	wake_up_bit(flags, CIFS_INO_LOCK);
+
+	return rc;
+}
+
+int
+cifs_zap_mapping(struct inode *inode)
+{
+	set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags);
+	return cifs_revalidate_mapping(inode);
 }
 
 int cifs_revalidate_file_attr(struct file *filp)
