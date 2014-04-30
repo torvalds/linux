@@ -6,9 +6,9 @@
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
 
-void blk_mq_wait_for_tags(struct blk_mq_tags *tags)
+void blk_mq_wait_for_tags(struct blk_mq_tags *tags, bool reserved)
 {
-	int tag = blk_mq_get_tag(tags, __GFP_WAIT, false);
+	int tag = blk_mq_get_tag(tags, __GFP_WAIT, reserved);
 	blk_mq_put_tag(tags, tag);
 }
 

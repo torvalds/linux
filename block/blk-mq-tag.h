@@ -24,7 +24,7 @@ extern struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags, unsigned int r
 extern void blk_mq_free_tags(struct blk_mq_tags *tags);
 
 extern unsigned int blk_mq_get_tag(struct blk_mq_tags *tags, gfp_t gfp, bool reserved);
-extern void blk_mq_wait_for_tags(struct blk_mq_tags *tags);
+extern void blk_mq_wait_for_tags(struct blk_mq_tags *tags, bool reserved);
 extern void blk_mq_put_tag(struct blk_mq_tags *tags, unsigned int tag);
 extern void blk_mq_tag_busy_iter(struct blk_mq_tags *tags, void (*fn)(void *data, unsigned long *), void *data);
 extern bool blk_mq_has_free_tags(struct blk_mq_tags *tags);

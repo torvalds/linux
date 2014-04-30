@@ -218,7 +218,7 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 			break;
 		}
 
-		blk_mq_wait_for_tags(hctx->tags);
+		blk_mq_wait_for_tags(hctx->tags, reserved);
 	} while (1);
 
 	return rq;
