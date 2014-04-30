@@ -368,6 +368,8 @@ static int rk3288_sys_set_power_domain(enum pmu_power_domain pd, bool on)
 	case PD_GPU:
 		/* gpu */
 		clks_ungating[5] = 1 << 7;
+		/* aclk_gpu */
+		clks_ungating[18] = 1 << 0;
 		break;
 	case PD_VIDEO:
 		/* aclk_vdpu_src hclk_vpu aclk_vepu_src */
