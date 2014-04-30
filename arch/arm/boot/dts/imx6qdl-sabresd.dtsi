@@ -391,7 +391,6 @@
 
 		pinctrl_pcie: pciegrp {
 			fsl,pins = <
-				MX6QDL_PAD_EIM_D19__GPIO3_IO19	0x80000000
 				MX6QDL_PAD_GPIO_17__GPIO7_IO12	0x80000000
 			>;
 		};
@@ -483,7 +482,6 @@
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
-	power-on-gpio = <&gpio3 19 0>;
 	reset-gpio = <&gpio7 12 0>;
 	status = "okay";
 };
