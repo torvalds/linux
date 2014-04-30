@@ -31,10 +31,6 @@
  * register AuxCoreBoot0.
  */
 ENTRY(omap5_secondary_startup)
-.arm
-THUMB( adr     r9, BSYM(wait)  )       @ CPU may be entered in ARM mode.
-THUMB( bx      r9              )       @ If this is a Thumb-2 kernel,
-THUMB( .thumb                  )       @ switch to Thumb now.
 wait:	ldr	r2, =AUX_CORE_BOOT0_PA	@ read from AuxCoreBoot0
 	ldr	r0, [r2]
 	mov	r0, r0, lsr #5
@@ -43,7 +39,7 @@ wait:	ldr	r2, =AUX_CORE_BOOT0_PA	@ read from AuxCoreBoot0
 	cmp	r0, r4
 	bne	wait
 	b	secondary_startup
-END(omap5_secondary_startup)
+ENDPROC(omap5_secondary_startup)
 /*
  * OMAP4 specific entry point for secondary CPU to jump from ROM
  * code.  This routine also provides a holding flag into which
