@@ -18,6 +18,7 @@
 
 #ifndef __ASSEMBLY__
 extern void _mcount(unsigned long);
+extern void *return_address(unsigned int);
 
 struct dyn_arch_ftrace {
 	/* No extra data needed for arm64 */
@@ -33,6 +34,8 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	 */
 	return addr;
 }
-#endif /* __ASSEMBLY__ */
+
+#define ftrace_return_address(n) return_address(n)
+#endif /* ifndef __ASSEMBLY__ */
 
 #endif /* __ASM_FTRACE_H */
