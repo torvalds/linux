@@ -143,10 +143,11 @@
 
 	abe_iclk: abe_iclk {
 		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clocks = <&abe_clk>;
-		clock-mult = <1>;
-		clock-div = <2>;
+		compatible = "ti,divider-clock";
+		clocks = <&aess_fclk>;
+		ti,bit-shift = <24>;
+		reg = <0x0528>;
+		ti,dividers = <2>, <1>;
 	};
 
 	abe_lp_clk_div: abe_lp_clk_div {
