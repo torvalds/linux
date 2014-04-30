@@ -1456,7 +1456,7 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	motg->pdata = pdata;
 
 	id = of_match_device(msm_otg_dt_match, &pdev->dev);
-	pdata->phy_type = (int) id->data;
+	pdata->phy_type = (enum msm_usb_phy_type) id->data;
 
 	motg->link_rst = devm_reset_control_get(&pdev->dev, "link");
 	if (IS_ERR(motg->link_rst))
