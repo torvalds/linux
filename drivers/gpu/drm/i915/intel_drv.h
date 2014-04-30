@@ -81,8 +81,8 @@
 /* Maximum cursor sizes */
 #define GEN2_CURSOR_WIDTH 64
 #define GEN2_CURSOR_HEIGHT 64
-#define CURSOR_WIDTH 256
-#define CURSOR_HEIGHT 256
+#define MAX_CURSOR_WIDTH 256
+#define MAX_CURSOR_HEIGHT 256
 
 #define INTEL_I2C_BUS_DVO 1
 #define INTEL_I2C_BUS_SDVO 2
@@ -306,6 +306,9 @@ struct intel_crtc_config {
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
 
+	/* m2_n2 for eDP downclock */
+	struct intel_link_m_n dp_m2_n2;
+
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
 	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode. This is also
@@ -343,6 +346,9 @@ struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
 	uint32_t linetime;
 	bool fbc_wm_enabled;
+	bool pipe_enabled;
+	bool sprites_enabled;
+	bool sprites_scaled;
 };
 
 struct intel_crtc {
@@ -374,7 +380,6 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
-	int16_t max_cursor_width, max_cursor_height;
 	bool cursor_visible;
 
 	struct intel_plane_config plane_config;
@@ -484,6 +489,17 @@ struct intel_hdmi {
 
 #define DP_MAX_DOWNSTREAM_PORTS		0x10
 
+/**
+ * HIGH_RR is the highest eDP panel refresh rate read from EDID
+ * LOW_RR is the lowest eDP panel refresh rate found from EDID
+ * parsing for same resolution.
+ */
+enum edp_drrs_refresh_rate_type {
+	DRRS_HIGH_RR,
+	DRRS_LOW_RR,
+	DRRS_MAX_RR, /* RR count */
+};
+
 struct intel_dp {
 	uint32_t output_reg;
 	uint32_t aux_ch_ctl_reg;
@@ -522,6 +538,12 @@ struct intel_dp {
 				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider);
+	struct {
+		enum drrs_support_type type;
+		enum edp_drrs_refresh_rate_type refresh_rate_type;
+		struct mutex mutex;
+	} drrs_state;
+
 };
 
 struct intel_digital_port {
@@ -629,8 +651,8 @@ void ilk_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void ilk_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void snb_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void hsw_runtime_pm_disable_interrupts(struct drm_device *dev);
-void hsw_runtime_pm_restore_interrupts(struct drm_device *dev);
+void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
+void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
 
 
 /* intel_crt.c */
@@ -666,6 +688,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 const char *intel_output_name(int output);
 bool intel_has_pending_fb_unpin(struct drm_device *dev);
 int intel_pch_rawclk(struct drm_device *dev);
+int valleyview_cur_cdclk(struct drm_i915_private *dev_priv);
 void intel_mark_busy(struct drm_device *dev);
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 			struct intel_ring_buffer *ring);
@@ -774,7 +797,7 @@ void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_edp_psr_enable(struct intel_dp *intel_dp);
 void intel_edp_psr_disable(struct intel_dp *intel_dp);
 void intel_edp_psr_update(struct drm_device *dev);
-
+void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate);
 
 /* intel_dsi.c */
 bool intel_dsi_init(struct drm_device *dev);

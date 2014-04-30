@@ -190,6 +190,8 @@
  * Memory interface instructions used by the kernel
  */
 #define MI_INSTR(opcode, flags) (((opcode) << 23) | (flags))
+/* Many MI commands use bit 22 of the header dword for GGTT vs PPGTT */
+#define  MI_GLOBAL_GTT    (1<<22)
 
 #define MI_NOOP			MI_INSTR(0, 0)
 #define MI_USER_INTERRUPT	MI_INSTR(0x02, 0)
@@ -244,7 +246,8 @@
 #define   MI_SEMAPHORE_SYNC_BVE	    (0<<16) /* VECS wait for BCS  (VEBSYNC) */
 #define   MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
 #define   MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
-#define   MI_SEMAPHORE_SYNC_INVALID  (3<<16)
+#define   MI_SEMAPHORE_SYNC_INVALID (3<<16)
+#define   MI_SEMAPHORE_SYNC_MASK    (3<<16)
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)
@@ -262,13 +265,16 @@
  * - One can actually load arbitrary many arbitrary registers: Simply issue x
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
-#define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
-#define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*x-1)
+#define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*(x)-1)
+#define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*(x)-1)
+#define MI_STORE_REGISTER_MEM_GEN8(x) MI_INSTR(0x24, 3*(x)-1)
 #define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
 #define   MI_INVALIDATE_TLB		(1<<18)
 #define   MI_FLUSH_DW_OP_STOREDW	(1<<14)
+#define   MI_FLUSH_DW_OP_MASK		(3<<14)
+#define   MI_FLUSH_DW_NOTIFY		(1<<8)
 #define   MI_INVALIDATE_BSD		(1<<7)
 #define   MI_FLUSH_DW_USE_GTT		(1<<2)
 #define   MI_FLUSH_DW_USE_PPGTT		(0<<2)
@@ -330,9 +336,12 @@
 #define   DISPLAY_PLANE_B           (1<<20)
 #define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|(len-2))
 #define   PIPE_CONTROL_GLOBAL_GTT_IVB			(1<<24) /* gen7+ */
+#define   PIPE_CONTROL_MMIO_WRITE			(1<<23)
+#define   PIPE_CONTROL_STORE_DATA_INDEX			(1<<21)
 #define   PIPE_CONTROL_CS_STALL				(1<<20)
 #define   PIPE_CONTROL_TLB_INVALIDATE			(1<<18)
 #define   PIPE_CONTROL_QW_WRITE				(1<<14)
+#define   PIPE_CONTROL_POST_SYNC_OP_MASK                (3<<14)
 #define   PIPE_CONTROL_DEPTH_STALL			(1<<13)
 #define   PIPE_CONTROL_WRITE_FLUSH			(1<<12)
 #define   PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH	(1<<12) /* gen6+ */
@@ -347,6 +356,94 @@
 #define   PIPE_CONTROL_DEPTH_CACHE_FLUSH		(1<<0)
 #define   PIPE_CONTROL_GLOBAL_GTT (1<<2) /* in addr dword */
 
+/*
+ * Commands used only by the command parser
+ */
+#define MI_SET_PREDICATE        MI_INSTR(0x01, 0)
+#define MI_ARB_CHECK            MI_INSTR(0x05, 0)
+#define MI_RS_CONTROL           MI_INSTR(0x06, 0)
+#define MI_URB_ATOMIC_ALLOC     MI_INSTR(0x09, 0)
+#define MI_PREDICATE            MI_INSTR(0x0C, 0)
+#define MI_RS_CONTEXT           MI_INSTR(0x0F, 0)
+#define MI_TOPOLOGY_FILTER      MI_INSTR(0x0D, 0)
+#define MI_LOAD_SCAN_LINES_EXCL MI_INSTR(0x13, 0)
+#define MI_URB_CLEAR            MI_INSTR(0x19, 0)
+#define MI_UPDATE_GTT           MI_INSTR(0x23, 0)
+#define MI_CLFLUSH              MI_INSTR(0x27, 0)
+#define MI_REPORT_PERF_COUNT    MI_INSTR(0x28, 0)
+#define   MI_REPORT_PERF_COUNT_GGTT (1<<0)
+#define MI_LOAD_REGISTER_MEM    MI_INSTR(0x29, 0)
+#define MI_LOAD_REGISTER_REG    MI_INSTR(0x2A, 0)
+#define MI_RS_STORE_DATA_IMM    MI_INSTR(0x2B, 0)
+#define MI_LOAD_URB_MEM         MI_INSTR(0x2C, 0)
+#define MI_STORE_URB_MEM        MI_INSTR(0x2D, 0)
+#define MI_CONDITIONAL_BATCH_BUFFER_END MI_INSTR(0x36, 0)
+
+#define PIPELINE_SELECT                ((0x3<<29)|(0x1<<27)|(0x1<<24)|(0x4<<16))
+#define GFX_OP_3DSTATE_VF_STATISTICS   ((0x3<<29)|(0x1<<27)|(0x0<<24)|(0xB<<16))
+#define MEDIA_VFE_STATE                ((0x3<<29)|(0x2<<27)|(0x0<<24)|(0x0<<16))
+#define  MEDIA_VFE_STATE_MMIO_ACCESS_MASK (0x18)
+#define GPGPU_OBJECT                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x4<<16))
+#define GPGPU_WALKER                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x5<<16))
+#define GFX_OP_3DSTATE_DX9_CONSTANTF_VS \
+	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x39<<16))
+#define GFX_OP_3DSTATE_DX9_CONSTANTF_PS \
+	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x3A<<16))
+#define GFX_OP_3DSTATE_SO_DECL_LIST \
+	((0x3<<29)|(0x3<<27)|(0x1<<24)|(0x17<<16))
+
+#define GFX_OP_3DSTATE_BINDING_TABLE_EDIT_VS \
+	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x43<<16))
+#define GFX_OP_3DSTATE_BINDING_TABLE_EDIT_GS \
+	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x44<<16))
+#define GFX_OP_3DSTATE_BINDING_TABLE_EDIT_HS \
+	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x45<<16))
+#define GFX_OP_3DSTATE_BINDING_TABLE_EDIT_DS \
+	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x46<<16))
+#define GFX_OP_3DSTATE_BINDING_TABLE_EDIT_PS \
+	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x47<<16))
+
+#define MFX_WAIT  ((0x3<<29)|(0x1<<27)|(0x0<<16))
+
+#define COLOR_BLT     ((0x2<<29)|(0x40<<22))
+#define SRC_COPY_BLT  ((0x2<<29)|(0x43<<22))
+
+/*
+ * Registers used only by the command parser
+ */
+#define BCS_SWCTRL 0x22200
+
+#define HS_INVOCATION_COUNT 0x2300
+#define DS_INVOCATION_COUNT 0x2308
+#define IA_VERTICES_COUNT   0x2310
+#define IA_PRIMITIVES_COUNT 0x2318
+#define VS_INVOCATION_COUNT 0x2320
+#define GS_INVOCATION_COUNT 0x2328
+#define GS_PRIMITIVES_COUNT 0x2330
+#define CL_INVOCATION_COUNT 0x2338
+#define CL_PRIMITIVES_COUNT 0x2340
+#define PS_INVOCATION_COUNT 0x2348
+#define PS_DEPTH_COUNT      0x2350
+
+/* There are the 4 64-bit counter registers, one for each stream output */
+#define GEN7_SO_NUM_PRIMS_WRITTEN(n) (0x5200 + (n) * 8)
+
+#define GEN7_SO_PRIM_STORAGE_NEEDED(n)  (0x5240 + (n) * 8)
+
+#define GEN7_3DPRIM_END_OFFSET          0x2420
+#define GEN7_3DPRIM_START_VERTEX        0x2430
+#define GEN7_3DPRIM_VERTEX_COUNT        0x2434
+#define GEN7_3DPRIM_INSTANCE_COUNT      0x2438
+#define GEN7_3DPRIM_START_INSTANCE      0x243C
+#define GEN7_3DPRIM_BASE_VERTEX         0x2440
+
+#define OACONTROL 0x2360
+
+#define _GEN7_PIPEA_DE_LOAD_SL	0x70068
+#define _GEN7_PIPEB_DE_LOAD_SL	0x71068
+#define GEN7_PIPE_DE_LOAD_SL(pipe) _PIPE(pipe, \
+					 _GEN7_PIPEA_DE_LOAD_SL, \
+					 _GEN7_PIPEB_DE_LOAD_SL)
 
 /*
  * Reset registers
@@ -748,6 +845,7 @@ enum punit_power_well {
 #define RING_INSTDONE(base)	((base)+0x6c)
 #define RING_INSTPS(base)	((base)+0x70)
 #define RING_DMA_FADD(base)	((base)+0x78)
+#define RING_DMA_FADD_UDW(base)	((base)+0x60) /* gen8+ */
 #define RING_INSTPM(base)	((base)+0xc0)
 #define RING_MI_MODE(base)	((base)+0x9c)
 #define INSTPS		0x02070 /* 965+ only */
@@ -842,7 +940,7 @@ enum punit_power_well {
 #define GFX_MODE_GEN7	0x0229c
 #define RING_MODE_GEN7(ring)	((ring)->mmio_base+0x29c)
 #define   GFX_RUN_LIST_ENABLE		(1<<15)
-#define   GFX_TLB_INVALIDATE_ALWAYS	(1<<13)
+#define   GFX_TLB_INVALIDATE_EXPLICIT	(1<<13)
 #define   GFX_SURFACE_FAULT_ENABLE	(1<<12)
 #define   GFX_REPLAY_MODE		(1<<11)
 #define   GFX_PSMI_GRANULARITY		(1<<10)
@@ -973,6 +1071,7 @@ enum punit_power_well {
 #define   ECO_FLIP_DONE		(1<<0)
 
 #define CACHE_MODE_0_GEN7	0x7000 /* IVB+ */
+#define RC_OP_FLUSH_ENABLE (1<<0)
 #define   HIZ_RAW_STALL_OPT_DISABLE (1<<2)
 #define CACHE_MODE_1		0x7004 /* IVB+ */
 #define   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE	(1<<6)
@@ -3258,6 +3357,7 @@ enum punit_power_well {
 #define   PIPECONF_INTERLACED_DBL_ILK		(4 << 21) /* ilk/snb only */
 #define   PIPECONF_PFIT_PF_INTERLACED_DBL_ILK	(5 << 21) /* ilk/snb only */
 #define   PIPECONF_INTERLACE_MODE_MASK		(7 << 21)
+#define   PIPECONF_EDP_RR_MODE_SWITCH		(1 << 20)
 #define   PIPECONF_CXSR_DOWNCLOCK	(1<<16)
 #define   PIPECONF_COLOR_RANGE_SELECT	(1 << 13)
 #define   PIPECONF_BPC_MASK	(0x7 << 5)
@@ -3535,9 +3635,9 @@ enum punit_power_well {
 #define   PIPE_PIXEL_MASK         0x00ffffff
 #define   PIPE_PIXEL_SHIFT        0
 /* GM45+ just has to be different */
-#define _PIPEA_FRMCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x70040)
-#define _PIPEA_FLIPCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x70044)
-#define PIPE_FRMCOUNT_GM45(pipe) _PIPE(pipe, _PIPEA_FRMCOUNT_GM45, _PIPEB_FRMCOUNT_GM45)
+#define _PIPEA_FRMCOUNT_GM45	0x70040
+#define _PIPEA_FLIPCOUNT_GM45	0x70044
+#define PIPE_FRMCOUNT_GM45(pipe) _PIPE2(pipe, _PIPEA_FRMCOUNT_GM45)
 
 /* Cursor A & B regs */
 #define _CURACNTR		(dev_priv->info.display_mmio_offset + 0x70080)
@@ -4120,7 +4220,7 @@ enum punit_power_well {
 #define  GEN8_PIPE_SPRITE_FAULT		(1 << 9)
 #define  GEN8_PIPE_PRIMARY_FAULT	(1 << 8)
 #define  GEN8_PIPE_SPRITE_FLIP_DONE	(1 << 5)
-#define  GEN8_PIPE_FLIP_DONE		(1 << 4)
+#define  GEN8_PIPE_PRIMARY_FLIP_DONE	(1 << 4)
 #define  GEN8_PIPE_SCAN_LINE_EVENT	(1 << 2)
 #define  GEN8_PIPE_VSYNC		(1 << 1)
 #define  GEN8_PIPE_VBLANK		(1 << 0)

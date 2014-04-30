@@ -95,8 +95,10 @@ struct intel_dsi {
 	u32 video_mode_format;
 
 	/* eot for MIPI_EOT_DISABLE register */
-	u32 eot_disable;
+	u8 eotp_pkt;
+	u8 clock_stop;
 
+	u8 escape_clk_div;
 	u32 port_bits;
 	u32 bw_timer;
 	u32 dphy_reg;

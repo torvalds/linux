@@ -41,12 +41,16 @@ static inline int ring_space(struct intel_ring_buffer *ring)
 	return space;
 }
 
-void __intel_ring_advance(struct intel_ring_buffer *ring)
+static bool intel_ring_stopped(struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	return dev_priv->gpu_error.stop_rings & intel_ring_flag(ring);
+}
 
+void __intel_ring_advance(struct intel_ring_buffer *ring)
+{
 	ring->tail &= ring->size - 1;
-	if (dev_priv->gpu_error.stop_rings & intel_ring_flag(ring))
+	if (intel_ring_stopped(ring))
 		return;
 	ring->write_tail(ring, ring->tail);
 }
@@ -601,13 +605,15 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
 
 	/* Required for the hardware to program scanline values for waiting */
+	/* WaEnableFlushTlbInvalidationMode:snb */
 	if (INTEL_INFO(dev)->gen == 6)
 		I915_WRITE(GFX_MODE,
-			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_ALWAYS));
+			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT));
 
+	/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
 	if (IS_GEN7(dev))
 		I915_WRITE(GFX_MODE_GEN7,
-			   _MASKED_BIT_DISABLE(GFX_TLB_INVALIDATE_ALWAYS) |
+			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT) |
 			   _MASKED_BIT_ENABLE(GFX_REPLAY_MODE));
 
 	if (INTEL_INFO(dev)->gen >= 5) {
@@ -624,13 +630,6 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		 */
 		I915_WRITE(CACHE_MODE_0,
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
-
-		/* This is not explicitly set for GEN6, so read the register.
-		 * see intel_ring_mi_set_context() for why we care.
-		 * TODO: consider explicitly setting the bit for GEN5
-		 */
-		ring->itlb_before_ctx_switch =
-			!!(I915_READ(GFX_MODE) & GFX_TLB_INVALIDATE_ALWAYS);
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6)

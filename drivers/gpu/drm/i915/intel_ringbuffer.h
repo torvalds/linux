@@ -153,10 +153,6 @@ struct  intel_ring_buffer {
 
 	wait_queue_head_t irq_queue;
 
-	/**
-	 * Do an explicit TLB flush before MI_SET_CONTEXT
-	 */
-	bool itlb_before_ctx_switch;
 	struct i915_hw_context *default_context;
 	struct i915_hw_context *last_context;
 

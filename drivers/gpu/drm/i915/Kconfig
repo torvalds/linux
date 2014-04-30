@@ -71,7 +71,7 @@ config DRM_I915_PRELIMINARY_HW_SUPPORT
 
 config DRM_I915_UMS
 	bool "Enable userspace modesetting on Intel hardware (DEPRECATED)"
-	depends on DRM_I915
+	depends on DRM_I915 && BROKEN
 	default n
 	help
 	  Choose this option if you still need userspace modesetting.

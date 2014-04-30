@@ -182,6 +182,14 @@ u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum pipe pipe, int reg)
 
 	vlv_sideband_rw(dev_priv, DPIO_DEVFN, DPIO_PHY_IOSF_PORT(DPIO_PHY(pipe)),
 			DPIO_OPCODE_REG_READ, reg, &val);
+
+	/*
+	 * FIXME: There might be some registers where all 1's is a valid value,
+	 * so ideally we should check the register offset instead...
+	 */
+	WARN(val == 0xffffffff, "DPIO read pipe %c reg 0x%x == 0x%x\n",
+	     pipe_name(pipe), reg, val);
+
 	return val;
 }
 

@@ -240,7 +240,15 @@ __create_hw_context(struct drm_device *dev,
 			goto err_out;
 		}
 
-		if (INTEL_INFO(dev)->gen >= 7) {
+		/*
+		 * Try to make the context utilize L3 as well as LLC.
+		 *
+		 * On VLV we don't have L3 controls in the PTEs so we
+		 * shouldn't touch the cache level, especially as that
+		 * would make the object snooped which might have a
+		 * negative performance impact.
+		 */
+		if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev)) {
 			ret = i915_gem_object_set_cache_level(ctx->obj,
 							      I915_CACHE_L3_LLC);
 			/* Failure shouldn't ever happen this early */
@@ -549,7 +557,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 	 * explicitly, so we rely on the value at ring init, stored in
 	 * itlb_before_ctx_switch.
 	 */
-	if (IS_GEN6(ring->dev) && ring->itlb_before_ctx_switch) {
+	if (IS_GEN6(ring->dev)) {
 		ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, 0);
 		if (ret)
 			return ret;
@@ -559,8 +567,8 @@ mi_set_context(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw */
-	if (IS_GEN7(ring->dev))
+	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw */
+	if (INTEL_INFO(ring->dev)->gen >= 7)
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 	else
 		intel_ring_emit(ring, MI_NOOP);
@@ -578,7 +586,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 	 */
 	intel_ring_emit(ring, MI_NOOP);
 
-	if (IS_GEN7(ring->dev))
+	if (INTEL_INFO(ring->dev)->gen >= 7)
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 	else
 		intel_ring_emit(ring, MI_NOOP);

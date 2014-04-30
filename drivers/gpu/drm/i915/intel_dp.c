@@ -738,6 +738,20 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	}
 }
 
+static void
+intel_dp_set_m2_n2(struct intel_crtc *crtc, struct intel_link_m_n *m_n)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder transcoder = crtc->config.cpu_transcoder;
+
+	I915_WRITE(PIPE_DATA_M2(transcoder),
+		TU_SIZE(m_n->tu) | m_n->gmch_m);
+	I915_WRITE(PIPE_DATA_N2(transcoder), m_n->gmch_n);
+	I915_WRITE(PIPE_LINK_M2(transcoder), m_n->link_m);
+	I915_WRITE(PIPE_LINK_N2(transcoder), m_n->link_n);
+}
+
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_config *pipe_config)
@@ -841,6 +855,14 @@ found:
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n);
+
+	if (intel_connector->panel.downclock_mode != NULL &&
+		intel_dp->drrs_state.type == SEAMLESS_DRRS_SUPPORT) {
+			intel_link_compute_m_n(bpp, lane_count,
+				intel_connector->panel.downclock_mode->clock,
+				pipe_config->port_clock,
+				&pipe_config->dp_m2_n2);
+	}
 
 	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
 
@@ -1044,7 +1066,10 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 static bool _edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	u32 pp;
 	u32 pp_stat_reg, pp_ctrl_reg;
 	bool need_to_disable = !intel_dp->want_panel_vdd;
@@ -1057,7 +1082,8 @@ static bool _edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (edp_have_panel_vdd(intel_dp))
 		return need_to_disable;
 
-	intel_runtime_pm_get(dev_priv);
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	DRM_DEBUG_KMS("Turning eDP VDD on\n");
 
@@ -1104,6 +1130,11 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	if (!intel_dp->want_panel_vdd && edp_have_panel_vdd(intel_dp)) {
+		struct intel_digital_port *intel_dig_port =
+						dp_to_dig_port(intel_dp);
+		struct intel_encoder *intel_encoder = &intel_dig_port->base;
+		enum intel_display_power_domain power_domain;
+
 		DRM_DEBUG_KMS("Turning eDP VDD off\n");
 
 		pp = ironlake_get_pp_control(intel_dp);
@@ -1122,7 +1153,8 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 		if ((pp & POWER_TARGET_ON) == 0)
 			intel_dp->last_power_cycle = jiffies;
 
-		intel_runtime_pm_put(dev_priv);
+		power_domain = intel_display_port_power_domain(intel_encoder);
+		intel_display_power_put(dev_priv, power_domain);
 	}
 }
 
@@ -1206,8 +1238,11 @@ void intel_edp_panel_on(struct intel_dp *intel_dp)
 
 void intel_edp_panel_off(struct intel_dp *intel_dp)
 {
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	u32 pp;
 	u32 pp_ctrl_reg;
 
@@ -1237,7 +1272,8 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 	wait_panel_off(intel_dp);
 
 	/* We got a reference when we enabled the VDD. */
-	intel_runtime_pm_put(dev_priv);
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_put(dev_priv, power_domain);
 }
 
 void intel_edp_backlight_on(struct intel_dp *intel_dp)
@@ -1778,17 +1814,23 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 		intel_dp_link_down(intel_dp);
 }
 
-static void intel_post_disable_dp(struct intel_encoder *encoder)
+static void g4x_post_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
-	struct drm_device *dev = encoder->base.dev;
 
-	if (port == PORT_A || IS_VALLEYVIEW(dev)) {
-		intel_dp_link_down(intel_dp);
-		if (!IS_VALLEYVIEW(dev))
-			ironlake_edp_pll_off(intel_dp);
-	}
+	if (port != PORT_A)
+		return;
+
+	intel_dp_link_down(intel_dp);
+	ironlake_edp_pll_off(intel_dp);
+}
+
+static void vlv_post_disable_dp(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+	intel_dp_link_down(intel_dp);
 }
 
 static void intel_enable_dp(struct intel_encoder *encoder)
@@ -3613,6 +3655,130 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		      I915_READ(pp_div_reg));
 }
 
+void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_encoder *encoder;
+	struct intel_dp *intel_dp = NULL;
+	struct intel_crtc_config *config = NULL;
+	struct intel_crtc *intel_crtc = NULL;
+	struct intel_connector *intel_connector = dev_priv->drrs.connector;
+	u32 reg, val;
+	enum edp_drrs_refresh_rate_type index = DRRS_HIGH_RR;
+
+	if (refresh_rate <= 0) {
+		DRM_DEBUG_KMS("Refresh rate should be positive non-zero.\n");
+		return;
+	}
+
+	if (intel_connector == NULL) {
+		DRM_DEBUG_KMS("DRRS supported for eDP only.\n");
+		return;
+	}
+
+	if (INTEL_INFO(dev)->gen < 8 && intel_edp_is_psr_enabled(dev)) {
+		DRM_DEBUG_KMS("DRRS is disabled as PSR is enabled\n");
+		return;
+	}
+
+	encoder = intel_attached_encoder(&intel_connector->base);
+	intel_dp = enc_to_intel_dp(&encoder->base);
+	intel_crtc = encoder->new_crtc;
+
+	if (!intel_crtc) {
+		DRM_DEBUG_KMS("DRRS: intel_crtc not initialized\n");
+		return;
+	}
+
+	config = &intel_crtc->config;
+
+	if (intel_dp->drrs_state.type < SEAMLESS_DRRS_SUPPORT) {
+		DRM_DEBUG_KMS("Only Seamless DRRS supported.\n");
+		return;
+	}
+
+	if (intel_connector->panel.downclock_mode->vrefresh == refresh_rate)
+		index = DRRS_LOW_RR;
+
+	if (index == intel_dp->drrs_state.refresh_rate_type) {
+		DRM_DEBUG_KMS(
+			"DRRS requested for previously set RR...ignoring\n");
+		return;
+	}
+
+	if (!intel_crtc->active) {
+		DRM_DEBUG_KMS("eDP encoder disabled. CRTC not Active\n");
+		return;
+	}
+
+	if (INTEL_INFO(dev)->gen > 6 && INTEL_INFO(dev)->gen < 8) {
+		reg = PIPECONF(intel_crtc->config.cpu_transcoder);
+		val = I915_READ(reg);
+		if (index > DRRS_HIGH_RR) {
+			val |= PIPECONF_EDP_RR_MODE_SWITCH;
+			intel_dp_set_m2_n2(intel_crtc, &config->dp_m2_n2);
+		} else {
+			val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
+		}
+		I915_WRITE(reg, val);
+	}
+
+	/*
+	 * mutex taken to ensure that there is no race between differnt
+	 * drrs calls trying to update refresh rate. This scenario may occur
+	 * in future when idleness detection based DRRS in kernel and
+	 * possible calls from user space to set differnt RR are made.
+	 */
+
+	mutex_lock(&intel_dp->drrs_state.mutex);
+
+	intel_dp->drrs_state.refresh_rate_type = index;
+
+	mutex_unlock(&intel_dp->drrs_state.mutex);
+
+	DRM_DEBUG_KMS("eDP Refresh Rate set to : %dHz\n", refresh_rate);
+}
+
+static struct drm_display_mode *
+intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
+			struct intel_connector *intel_connector,
+			struct drm_display_mode *fixed_mode)
+{
+	struct drm_connector *connector = &intel_connector->base;
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_display_mode *downclock_mode = NULL;
+
+	if (INTEL_INFO(dev)->gen <= 6) {
+		DRM_DEBUG_KMS("DRRS supported for Gen7 and above\n");
+		return NULL;
+	}
+
+	if (dev_priv->vbt.drrs_type != SEAMLESS_DRRS_SUPPORT) {
+		DRM_INFO("VBT doesn't support DRRS\n");
+		return NULL;
+	}
+
+	downclock_mode = intel_find_panel_downclock
+					(dev, fixed_mode, connector);
+
+	if (!downclock_mode) {
+		DRM_INFO("DRRS not supported\n");
+		return NULL;
+	}
+
+	dev_priv->drrs.connector = intel_connector;
+
+	mutex_init(&intel_dp->drrs_state.mutex);
+
+	intel_dp->drrs_state.type = dev_priv->vbt.drrs_type;
+
+	intel_dp->drrs_state.refresh_rate_type = DRRS_HIGH_RR;
+	DRM_INFO("seamless DRRS supported for eDP panel.\n");
+	return downclock_mode;
+}
+
 static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *intel_connector,
 				     struct edp_power_seq *power_seq)
@@ -3623,9 +3789,12 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *fixed_mode = NULL;
+	struct drm_display_mode *downclock_mode = NULL;
 	bool has_dpcd;
 	struct drm_display_mode *scan;
 	struct edid *edid;
+
+	intel_dp->drrs_state.type = DRRS_NOT_SUPPORTED;
 
 	if (!is_edp(intel_dp))
 		return true;
@@ -3677,6 +3846,9 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
 			fixed_mode = drm_mode_duplicate(dev, scan);
+			downclock_mode = intel_dp_drrs_init(
+						intel_dig_port,
+						intel_connector, fixed_mode);
 			break;
 		}
 	}
@@ -3690,7 +3862,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 	intel_panel_setup_backlight(connector);
 
 	return true;
@@ -3841,16 +4013,17 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->compute_config = intel_dp_compute_config;
 	intel_encoder->mode_set = intel_dp_mode_set;
 	intel_encoder->disable = intel_disable_dp;
-	intel_encoder->post_disable = intel_post_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
 	if (IS_VALLEYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = vlv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
+		intel_encoder->post_disable = vlv_post_disable_dp;
 	} else {
 		intel_encoder->pre_enable = g4x_pre_enable_dp;
 		intel_encoder->enable = g4x_enable_dp;
+		intel_encoder->post_disable = g4x_post_disable_dp;
 	}
 
 	intel_dig_port->port = port;

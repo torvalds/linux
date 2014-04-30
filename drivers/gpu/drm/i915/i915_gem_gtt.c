@@ -55,59 +55,6 @@ bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 		return HAS_ALIASING_PPGTT(dev);
 }
 
-#define GEN6_PPGTT_PD_ENTRIES 512
-#define I915_PPGTT_PT_ENTRIES (PAGE_SIZE / sizeof(gen6_gtt_pte_t))
-typedef uint64_t gen8_gtt_pte_t;
-typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
-
-/* PPGTT stuff */
-#define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
-#define HSW_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0x7f0))
-
-#define GEN6_PDE_VALID			(1 << 0)
-/* gen6+ has bit 11-4 for physical addr bit 39-32 */
-#define GEN6_PDE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
-
-#define GEN6_PTE_VALID			(1 << 0)
-#define GEN6_PTE_UNCACHED		(1 << 1)
-#define HSW_PTE_UNCACHED		(0)
-#define GEN6_PTE_CACHE_LLC		(2 << 1)
-#define GEN7_PTE_CACHE_L3_LLC		(3 << 1)
-#define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
-#define HSW_PTE_ADDR_ENCODE(addr)	HSW_GTT_ADDR_ENCODE(addr)
-
-/* Cacheability Control is a 4-bit value. The low three bits are stored in *
- * bits 3:1 of the PTE, while the fourth bit is stored in bit 11 of the PTE.
- */
-#define HSW_CACHEABILITY_CONTROL(bits)	((((bits) & 0x7) << 1) | \
-					 (((bits) & 0x8) << (11 - 3)))
-#define HSW_WB_LLC_AGE3			HSW_CACHEABILITY_CONTROL(0x2)
-#define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
-#define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
-#define HSW_WB_ELLC_LLC_AGE3		HSW_CACHEABILITY_CONTROL(0x8)
-#define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
-#define HSW_WT_ELLC_LLC_AGE3		HSW_CACHEABILITY_CONTROL(0x7)
-
-#define GEN8_PTES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_gtt_pte_t))
-#define GEN8_PDES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_ppgtt_pde_t))
-
-/* GEN8 legacy style addressis defined as a 3 level page table:
- * 31:30 | 29:21 | 20:12 |  11:0
- * PDPE  |  PDE  |  PTE  | offset
- * The difference as compared to normal x86 3 level page table is the PDPEs are
- * programmed via register.
- */
-#define GEN8_PDPE_SHIFT			30
-#define GEN8_PDPE_MASK			0x3
-#define GEN8_PDE_SHIFT			21
-#define GEN8_PDE_MASK			0x1ff
-#define GEN8_PTE_SHIFT			12
-#define GEN8_PTE_MASK			0x1ff
-
-#define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
-#define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
-#define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
-#define PPAT_DISPLAY_ELLC_INDEX		_PAGE_PCD /* WT eLLC */
 
 static void ppgtt_bind_vma(struct i915_vma *vma,
 			   enum i915_cache_level cache_level,
@@ -186,9 +133,6 @@ static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
 
 	return pte;
 }
-
-#define BYT_PTE_WRITEABLE		(1 << 1)
-#define BYT_PTE_SNOOPED_BY_CPU_CACHES	(1 << 2)
 
 static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level,
@@ -1057,8 +1001,6 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 
 static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
 {
-#define GEN6_PD_ALIGN (PAGE_SIZE * 16)
-#define GEN6_PD_SIZE (GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE)
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool retried = false;
@@ -1848,17 +1790,6 @@ static int ggtt_probe_common(struct drm_device *dev,
  * writing this data shouldn't be harmful even in those cases. */
 static void gen8_setup_private_ppat(struct drm_i915_private *dev_priv)
 {
-#define GEN8_PPAT_UC		(0<<0)
-#define GEN8_PPAT_WC		(1<<0)
-#define GEN8_PPAT_WT		(2<<0)
-#define GEN8_PPAT_WB		(3<<0)
-#define GEN8_PPAT_ELLC_OVERRIDE	(0<<2)
-/* FIXME(BDW): Bspec is completely confused about cache control bits. */
-#define GEN8_PPAT_LLC		(1<<2)
-#define GEN8_PPAT_LLCELLC	(2<<2)
-#define GEN8_PPAT_LLCeLLC	(3<<2)
-#define GEN8_PPAT_AGE(x)	(x<<4)
-#define GEN8_PPAT(i, x) ((uint64_t) (x) << ((i) * 8))
 	uint64_t pat;
 
 	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC)     | /* for normal objects, no eLLC */
@@ -2031,6 +1962,10 @@ int i915_gem_gtt_init(struct drm_device *dev)
 		 gtt->base.total >> 20);
 	DRM_DEBUG_DRIVER("GMADR size = %ldM\n", gtt->mappable_end >> 20);
 	DRM_DEBUG_DRIVER("GTT stolen size = %zdM\n", gtt->stolen_size >> 20);
+#ifdef CONFIG_INTEL_IOMMU
+	if (intel_iommu_gfx_mapped)
+		DRM_INFO("VT-d active for gfx access\n");
+#endif
 
 	return 0;
 }

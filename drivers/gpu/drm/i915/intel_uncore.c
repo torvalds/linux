@@ -253,8 +253,7 @@ static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
 
 }
 
-void vlv_force_wake_get(struct drm_i915_private *dev_priv,
-						int fw_engine)
+static void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 {
 	unsigned long irqflags;
 
@@ -273,8 +272,7 @@ void vlv_force_wake_get(struct drm_i915_private *dev_priv,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-void vlv_force_wake_put(struct drm_i915_private *dev_priv,
-						int fw_engine)
+static void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 {
 	unsigned long irqflags;
 
@@ -485,6 +483,17 @@ void assert_force_wake_inactive(struct drm_i915_private *dev_priv)
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
 	 ((reg) < 0x40000 && (reg) != FORCEWAKE)
+
+#define FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg) \
+	(((reg) >= 0x2000 && (reg) < 0x4000) ||\
+	((reg) >= 0x5000 && (reg) < 0x8000) ||\
+	((reg) >= 0xB000 && (reg) < 0x12000) ||\
+	((reg) >= 0x2E000 && (reg) < 0x30000))
+
+#define FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)\
+	(((reg) >= 0x12000 && (reg) < 0x14000) ||\
+	((reg) >= 0x22000 && (reg) < 0x24000) ||\
+	((reg) >= 0x30000 && (reg) < 0x40000))
 
 static void
 ilk_dummy_write(struct drm_i915_private *dev_priv)
@@ -852,12 +861,15 @@ void intel_uncore_fini(struct drm_device *dev)
 	intel_uncore_forcewake_reset(dev, false);
 }
 
+#define GEN_RANGE(l, h) GENMASK(h, l)
+
 static const struct register_whitelist {
 	uint64_t offset;
 	uint32_t size;
-	uint32_t gen_bitmask; /* support gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
+	/* supported gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
+	uint32_t gen_bitmask;
 } whitelist[] = {
-	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, 0x1F0 },
+	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, GEN_RANGE(4, 8) },
 };
 
 int i915_reg_read_ioctl(struct drm_device *dev,

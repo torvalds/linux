@@ -891,7 +891,36 @@ static int i915_pm_poweroff(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
-static int i915_runtime_suspend(struct device *device)
+static void snb_runtime_suspend(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	intel_runtime_pm_disable_interrupts(dev);
+}
+
+static void hsw_runtime_suspend(struct drm_i915_private *dev_priv)
+{
+	hsw_enable_pc8(dev_priv);
+}
+
+static void snb_runtime_resume(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	intel_runtime_pm_restore_interrupts(dev);
+	intel_init_pch_refclk(dev);
+	i915_gem_init_swizzling(dev);
+	mutex_lock(&dev_priv->rps.hw_lock);
+	gen6_update_ring_freq(dev);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
+static void hsw_runtime_resume(struct drm_i915_private *dev_priv)
+{
+	hsw_disable_pc8(dev_priv);
+}
+
+static int intel_runtime_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -902,8 +931,12 @@ static int i915_runtime_suspend(struct device *device)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
-	if (HAS_PC8(dev))
-		hsw_enable_pc8(dev_priv);
+	if (IS_GEN6(dev))
+		snb_runtime_suspend(dev_priv);
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		hsw_runtime_suspend(dev_priv);
+	else
+		WARN_ON(1);
 
 	i915_gem_release_all_mmaps(dev_priv);
 
@@ -923,7 +956,7 @@ static int i915_runtime_suspend(struct device *device)
 	return 0;
 }
 
-static int i915_runtime_resume(struct device *device)
+static int intel_runtime_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -936,8 +969,12 @@ static int i915_runtime_resume(struct device *device)
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
 
-	if (HAS_PC8(dev))
-		hsw_disable_pc8(dev_priv);
+	if (IS_GEN6(dev))
+		snb_runtime_resume(dev_priv);
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		hsw_runtime_resume(dev_priv);
+	else
+		WARN_ON(1);
 
 	DRM_DEBUG_KMS("Device resumed\n");
 	return 0;
@@ -954,8 +991,8 @@ static const struct dev_pm_ops i915_pm_ops = {
 	.poweroff = i915_pm_poweroff,
 	.restore_early = i915_pm_resume_early,
 	.restore = i915_pm_resume,
-	.runtime_suspend = i915_runtime_suspend,
-	.runtime_resume = i915_runtime_resume,
+	.runtime_suspend = intel_runtime_suspend,
+	.runtime_resume = intel_runtime_resume,
 };
 
 static const struct vm_operations_struct i915_gem_vm_ops = {

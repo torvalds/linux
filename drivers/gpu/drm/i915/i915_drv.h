@@ -35,6 +35,7 @@
 #include "i915_reg.h"
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
+#include "i915_gem_gtt.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -358,7 +359,7 @@ struct drm_i915_error_state {
 		u64 bbaddr;
 		u64 acthd;
 		u32 fault_reg;
-		u32 faddr;
+		u64 faddr;
 		u32 rc_psmi; /* sleep state */
 		u32 semaphore_mboxes[I915_NUM_RINGS - 1];
 
@@ -572,168 +573,6 @@ enum i915_cache_level {
 	I915_CACHE_WT, /* hsw:gt3e WriteThrough for scanouts */
 };
 
-typedef uint32_t gen6_gtt_pte_t;
-
-/**
- * A VMA represents a GEM BO that is bound into an address space. Therefore, a
- * VMA's presence cannot be guaranteed before binding, or after unbinding the
- * object into/from the address space.
- *
- * To make things as simple as possible (ie. no refcounting), a VMA's lifetime
- * will always be <= an objects lifetime. So object refcounting should cover us.
- */
-struct i915_vma {
-	struct drm_mm_node node;
-	struct drm_i915_gem_object *obj;
-	struct i915_address_space *vm;
-
-	/** This object's place on the active/inactive lists */
-	struct list_head mm_list;
-
-	struct list_head vma_link; /* Link in the object's VMA list */
-
-	/** This vma's place in the batchbuffer or on the eviction list */
-	struct list_head exec_list;
-
-	/**
-	 * Used for performing relocations during execbuffer insertion.
-	 */
-	struct hlist_node exec_node;
-	unsigned long exec_handle;
-	struct drm_i915_gem_exec_object2 *exec_entry;
-
-	/**
-	 * How many users have pinned this object in GTT space. The following
-	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
-	 * (via user_pin_count), execbuffer (objects are not allowed multiple
-	 * times for the same batchbuffer), and the framebuffer code. When
-	 * switching/pageflipping, the framebuffer code has at most two buffers
-	 * pinned per crtc.
-	 *
-	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
-	 * bits with absolutely no headroom. So use 4 bits. */
-	unsigned int pin_count:4;
-#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
-
-	/** Unmap an object from an address space. This usually consists of
-	 * setting the valid PTE entries to a reserved scratch page. */
-	void (*unbind_vma)(struct i915_vma *vma);
-	/* Map an object into an address space with the given cache flags. */
-#define GLOBAL_BIND (1<<0)
-	void (*bind_vma)(struct i915_vma *vma,
-			 enum i915_cache_level cache_level,
-			 u32 flags);
-};
-
-struct i915_address_space {
-	struct drm_mm mm;
-	struct drm_device *dev;
-	struct list_head global_link;
-	unsigned long start;		/* Start offset always 0 for dri2 */
-	size_t total;		/* size addr space maps (ex. 2GB for ggtt) */
-
-	struct {
-		dma_addr_t addr;
-		struct page *page;
-	} scratch;
-
-	/**
-	 * List of objects currently involved in rendering.
-	 *
-	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives.  last_rendering_seqno
-	 * represents when the rendering involved will be completed.
-	 *
-	 * A reference is held on the buffer while on this list.
-	 */
-	struct list_head active_list;
-
-	/**
-	 * LRU list of objects which are not in the ringbuffer and
-	 * are ready to unbind, but are still in the GTT.
-	 *
-	 * last_rendering_seqno is 0 while an object is in this list.
-	 *
-	 * A reference is not held on the buffer while on this list,
-	 * as merely being GTT-bound shouldn't prevent its being
-	 * freed, and we'll pull it off the list in the free path.
-	 */
-	struct list_head inactive_list;
-
-	/* FIXME: Need a more generic return type */
-	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
-				     enum i915_cache_level level,
-				     bool valid); /* Create a valid PTE */
-	void (*clear_range)(struct i915_address_space *vm,
-			    uint64_t start,
-			    uint64_t length,
-			    bool use_scratch);
-	void (*insert_entries)(struct i915_address_space *vm,
-			       struct sg_table *st,
-			       uint64_t start,
-			       enum i915_cache_level cache_level);
-	void (*cleanup)(struct i915_address_space *vm);
-};
-
-/* The Graphics Translation Table is the way in which GEN hardware translates a
- * Graphics Virtual Address into a Physical Address. In addition to the normal
- * collateral associated with any va->pa translations GEN hardware also has a
- * portion of the GTT which can be mapped by the CPU and remain both coherent
- * and correct (in cases like swizzling). That region is referred to as GMADR in
- * the spec.
- */
-struct i915_gtt {
-	struct i915_address_space base;
-	size_t stolen_size;		/* Total size of stolen memory */
-
-	unsigned long mappable_end;	/* End offset that we can CPU map */
-	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
-	phys_addr_t mappable_base;	/* PA of our GMADR */
-
-	/** "Graphics Stolen Memory" holds the global PTEs */
-	void __iomem *gsm;
-
-	bool do_idle_maps;
-
-	int mtrr;
-
-	/* global gtt ops */
-	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
-			  size_t *stolen, phys_addr_t *mappable_base,
-			  unsigned long *mappable_end);
-};
-#define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
-
-#define GEN8_LEGACY_PDPS 4
-struct i915_hw_ppgtt {
-	struct i915_address_space base;
-	struct kref ref;
-	struct drm_mm_node node;
-	unsigned num_pd_entries;
-	unsigned num_pd_pages; /* gen8+ */
-	union {
-		struct page **pt_pages;
-		struct page **gen8_pt_pages[GEN8_LEGACY_PDPS];
-	};
-	struct page *pd_pages;
-	union {
-		uint32_t pd_offset;
-		dma_addr_t pd_dma_addr[GEN8_LEGACY_PDPS];
-	};
-	union {
-		dma_addr_t *pt_dma_addr;
-		dma_addr_t *gen8_pt_dma_addr[4];
-	};
-
-	struct i915_hw_context *ctx;
-
-	int (*enable)(struct i915_hw_ppgtt *ppgtt);
-	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
-			 struct intel_ring_buffer *ring,
-			 bool synchronous);
-	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
-};
-
 struct i915_ctx_hang_stats {
 	/* This context had batch pending when hang was declared */
 	unsigned batch_pending;
@@ -792,6 +631,10 @@ struct i915_fbc {
 		FBC_MODULE_PARAM,
 		FBC_CHIP_DEFAULT, /* disabled by default on this chip */
 	} no_fbc_reason;
+};
+
+struct i915_drrs {
+	struct intel_connector *connector;
 };
 
 struct i915_psr {
@@ -1260,8 +1103,12 @@ struct i915_gpu_error {
 	 */
 	wait_queue_head_t reset_queue;
 
-	/* For gpu hang simulation. */
-	unsigned int stop_rings;
+	/* Userspace knobs for gpu hang simulation;
+	 * combines both a ring mask, and extra flags
+	 */
+	u32 stop_rings;
+#define I915_STOP_RING_ALLOW_BAN       (1 << 31)
+#define I915_STOP_RING_ALLOW_WARN      (1 << 30)
 
 	/* For missed irq/seqno simulation. */
 	unsigned int test_irq_rings;
@@ -1281,6 +1128,12 @@ struct ddi_vbt_port_info {
 	uint8_t supports_dp:1;
 };
 
+enum drrs_support_type {
+	DRRS_NOT_SUPPORTED = 0,
+	STATIC_DRRS_SUPPORT = 1,
+	SEAMLESS_DRRS_SUPPORT = 2
+};
+
 struct intel_vbt_data {
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
@@ -1295,6 +1148,8 @@ struct intel_vbt_data {
 	unsigned int fdi_rx_polarity_inverted:1;
 	int lvds_ssc_freq;
 	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
+
+	enum drrs_support_type drrs_type;
 
 	/* eDP */
 	int edp_rate;
@@ -1315,6 +1170,12 @@ struct intel_vbt_data {
 	/* MIPI DSI */
 	struct {
 		u16 panel_id;
+		struct mipi_config *config;
+		struct mipi_pps_data *pps;
+		u8 seq_version;
+		u32 size;
+		u8 *data;
+		u8 *sequence[MIPI_SEQ_MAX];
 	} dsi;
 
 	int crt_ddc_pin;
@@ -1366,23 +1227,13 @@ struct ilk_wm_values {
  * goes back to false exactly before we reenable the IRQs. We use this variable
  * to check if someone is trying to enable/disable IRQs while they're supposed
  * to be disabled. This shouldn't happen and we'll print some error messages in
- * case it happens, but if it actually happens we'll also update the variables
- * inside struct regsave so when we restore the IRQs they will contain the
- * latest expected values.
+ * case it happens.
  *
  * For more, read the Documentation/power/runtime_pm.txt.
  */
 struct i915_runtime_pm {
 	bool suspended;
 	bool irqs_disabled;
-
-	struct {
-		uint32_t deimr;
-		uint32_t sdeimr;
-		uint32_t gtimr;
-		uint32_t gtier;
-		uint32_t gen6_pmimr;
-	} regsave;
 };
 
 enum intel_pipe_crc_source {
@@ -1415,7 +1266,7 @@ struct intel_pipe_crc {
 	wait_queue_head_t wq;
 };
 
-typedef struct drm_i915_private {
+struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
 
@@ -1484,6 +1335,7 @@ typedef struct drm_i915_private {
 	struct timer_list hotplug_reenable_timer;
 
 	struct i915_fbc fbc;
+	struct i915_drrs drrs;
 	struct intel_opregion opregion;
 	struct intel_vbt_data vbt;
 
@@ -1501,6 +1353,7 @@ typedef struct drm_i915_private {
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
+	unsigned int vlv_cdclk_freq;
 
 	/**
 	 * wq - Driver workqueue for GEM.
@@ -1524,7 +1377,7 @@ typedef struct drm_i915_private {
 	struct mutex modeset_restore_lock;
 
 	struct list_head vm_list; /* Global list of all address spaces */
-	struct i915_gtt gtt; /* VMA representing the global address space */
+	struct i915_gtt gtt; /* VM representing the global address space */
 
 	struct i915_gem_mm mm;
 
@@ -1620,7 +1473,7 @@ typedef struct drm_i915_private {
 	struct i915_dri1_state dri1;
 	/* Old ums support infrastructure, same warning applies. */
 	struct i915_ums_state ums;
-} drm_i915_private_t;
+};
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
@@ -1894,11 +1747,17 @@ struct drm_i915_cmd_descriptor {
 	 * the expected value, the parser rejects it. Only valid if flags has
 	 * the CMD_DESC_BITMASK bit set. Only entries where mask is non-zero
 	 * are valid.
+	 *
+	 * If the check specifies a non-zero condition_mask then the parser
+	 * only performs the check when the bits specified by condition_mask
+	 * are non-zero.
 	 */
 	struct {
 		u32 offset;
 		u32 mask;
 		u32 expected;
+		u32 condition_offset;
+		u32 condition_mask;
 	} bits[MAX_CMD_DESC_BITMASKS];
 };
 
@@ -1940,8 +1799,9 @@ struct drm_i915_cmd_table {
 				 (dev)->pdev->device == 0x0106 || \
 				 (dev)->pdev->device == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
+#define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
-#define IS_BROADWELL(dev)	(INTEL_INFO(dev)->gen == 8)
+#define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0xFF00) == 0x0C00)
@@ -2022,8 +1882,8 @@ struct drm_i915_cmd_table {
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev))
-#define HAS_PC8(dev)		(IS_HASWELL(dev)) /* XXX HSW:ULX */
-#define HAS_RUNTIME_PM(dev)	(IS_HASWELL(dev))
+#define HAS_RUNTIME_PM(dev)	(IS_GEN6(dev) || IS_HASWELL(dev) || \
+				 IS_BROADWELL(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
@@ -2080,6 +1940,7 @@ struct i915_params {
 	bool prefault_disable;
 	bool reset;
 	bool disable_display;
+	bool disable_vtd_wa;
 };
 extern struct i915_params i915 __read_mostly;
 
@@ -2302,6 +2163,18 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 	return ((atomic_read(&error->reset_counter) & ~I915_WEDGED) + 1) / 2;
 }
 
+static inline bool i915_stop_ring_allow_ban(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->gpu_error.stop_rings == 0 ||
+		dev_priv->gpu_error.stop_rings & I915_STOP_RING_ALLOW_BAN;
+}
+
+static inline bool i915_stop_ring_allow_warn(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->gpu_error.stop_rings == 0 ||
+		dev_priv->gpu_error.stop_rings & I915_STOP_RING_ALLOW_WARN;
+}
+
 void i915_gem_reset(struct drm_device *dev);
 bool i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
@@ -2466,23 +2339,12 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 int i915_gem_evict_everything(struct drm_device *dev);
 
-/* i915_gem_gtt.c */
-void i915_check_and_clear_faults(struct drm_device *dev);
-void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
-void i915_gem_restore_gtt_mappings(struct drm_device *dev);
-int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
-void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
-void i915_gem_init_global_gtt(struct drm_device *dev);
-void i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
-			       unsigned long mappable_end, unsigned long end);
-int i915_gem_gtt_init(struct drm_device *dev);
+/* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_device *dev)
 {
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gtt_chipset_flush();
 }
-int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
-bool intel_enable_ppgtt(struct drm_device *dev, bool full);
 
 /* i915_gem_stolen.c */
 int i915_gem_init_stolen(struct drm_device *dev);
@@ -2550,6 +2412,7 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone);
 const char *i915_cache_level_str(int type);
 
 /* i915_cmd_parser.c */
+int i915_cmd_parser_get_version(void);
 void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring);
 bool i915_needs_cmd_parser(struct intel_ring_buffer *ring);
 int i915_parse_cmds(struct intel_ring_buffer *ring,
@@ -2700,20 +2563,6 @@ void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
-
-void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine);
-void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
-
-#define FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg) \
-	(((reg) >= 0x2000 && (reg) < 0x4000) ||\
-	((reg) >= 0x5000 && (reg) < 0x8000) ||\
-	((reg) >= 0xB000 && (reg) < 0x12000) ||\
-	((reg) >= 0x2E000 && (reg) < 0x30000))
-
-#define FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)\
-	(((reg) >= 0x12000 && (reg) < 0x14000) ||\
-	((reg) >= 0x22000 && (reg) < 0x24000) ||\
-	((reg) >= 0x30000 && (reg) < 0x40000))
 
 #define FORCEWAKE_RENDER	(1 << 0)
 #define FORCEWAKE_MEDIA		(1 << 1)
