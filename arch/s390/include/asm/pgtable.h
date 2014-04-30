@@ -856,7 +856,7 @@ bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *);
 void gmap_register_ipte_notifier(struct gmap_notifier *);
 void gmap_unregister_ipte_notifier(struct gmap_notifier *);
 int gmap_ipte_notify(struct gmap *, unsigned long start, unsigned long len);
-void gmap_do_ipte_notify(struct mm_struct *, pte_t *);
+void gmap_do_ipte_notify(struct mm_struct *, unsigned long addr, pte_t *);
 
 static inline pgste_t pgste_ipte_notify(struct mm_struct *mm,
 					unsigned long addr,
@@ -865,7 +865,7 @@ static inline pgste_t pgste_ipte_notify(struct mm_struct *mm,
 #ifdef CONFIG_PGSTE
 	if (pgste_val(pgste) & PGSTE_IN_BIT) {
 		pgste_val(pgste) &= ~PGSTE_IN_BIT;
-		gmap_do_ipte_notify(mm, ptep);
+		gmap_do_ipte_notify(mm, addr, ptep);
 	}
 #endif
 	return pgste;

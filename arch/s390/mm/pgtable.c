@@ -809,12 +809,13 @@ EXPORT_SYMBOL_GPL(gmap_ipte_notify);
 /**
  * gmap_do_ipte_notify - call all invalidation callbacks for a specific pte.
  * @mm: pointer to the process mm_struct
+ * @addr: virtual address in the process address space
  * @pte: pointer to the page table entry
  *
  * This function is assumed to be called with the page table lock held
  * for the pte to notify.
  */
-void gmap_do_ipte_notify(struct mm_struct *mm, pte_t *pte)
+void gmap_do_ipte_notify(struct mm_struct *mm, unsigned long addr, pte_t *pte)
 {
 	unsigned long segment_offset;
 	struct gmap_notifier *nb;
