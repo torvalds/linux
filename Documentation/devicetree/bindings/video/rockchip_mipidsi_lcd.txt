@@ -1,0 +1,173 @@
+Device-Tree bindings for rockchip mipi dsi lcd driver
+
+Required properties:
+ - rockchip,screen_init: Whether you need this screen initialization.
+	<0>: Don't need to be initialized.
+	<1>: Do need to be initialized.
+	
+ - rockchip,dsi_lane: mipi lcd data lane number.
+
+ - rockchip,dsi_hs_clk: mipi lcd high speed clock.
+
+ - rockchip,mipi_dsi_num: mipi lcd dsi number.
+
+ - mipi_lcd_rst:mipi_lcd_rst: Should specify pin control groups used for reset this lcd.
+
+ - mipi_lcd_en:mipi_lcd_en: Should specify pin control groups used for enable this lcd.
+
+ - rockchip,gpios: gpio pin
+
+ - rockchip,delay: delay the millisecond.
+
+ - rockchip,cmd_debug : debug the cammands.
+	<0>: close the debug;
+	<1>: open the debug;
+	
+ - rockchip,on-cmds1: write cammand to mipi lcd.
+
+- rockchip,cmd_type:
+	<LPDT>: close the debug;
+	<HSDT>: open the debug;
+	
+ - rockchip,dsi_id: write cammand to mipi lcd(left and right).
+	<0>: left dsi;
+	<1>: right dsi;
+	<2>: left and right dsis;
+	
+ - rockchip,cmd: cammand context.
+ 	The first parameter was data type;
+ 	The second parameter was index(register);
+ 	The third and ... parameter are cammand context;
+
+ - rockchip,cmd_delay: delay the millisecond.
+
+ - screen-type: mipi lcd type.
+ 	<SCREEN_DUAL_MIPI>: Dual channel mipi lcd. 
+ 	<SCREEN_MIPI>: single channel mipi lcd. 
+ 	
+ - lvds-format:No relationship.
+ 
+ - out-face: DPI color coding as follows:
+ 	<OUT_P888>:24bit
+ 	<OUT_P666>:18bit
+ 	<OUT_P565>:16bit
+ 	
+ - hactive, vactive: display resolution
+ - hfront-porch, hback-porch, hsync-len: horizontal display timing parameters
+   in pixels
+   vfront-porch, vback-porch, vsync-len: vertical display timing parameters in
+   lines
+ - clock-frequency: display clock in Hz
+
+ - swap-rb :exchange of red and blue.
+ - swap-rg :exchange of red and green.
+ - swap-gb :exchange of green and blue.
+ 
+ - hsync-active: hsync pulse is active low/high/ignored
+ - vsync-active: vsync pulse is active low/high/ignored
+ - de-active: data-enable pulse is active low/high/ignored
+ - pixelclk-active: with
+			- active high = drive pixel data on rising edge/
+					sample data on falling edge
+			- active low  = drive pixel data on falling edge/
+					sample data on rising edge
+			- ignored     = ignored
+ - interlaced (bool): boolean to enable interlaced mode
+ - doublescan (bool): boolean to enable doublescan mode
+
+All the optional properties that are not bool follow the following logic:
+    <1>: high active
+    <0>: low active
+    omitted: not used on hardware
+
+There are different ways of describing the capabilities of a display. The
+devicetree representation corresponds to the one commonly found in datasheets
+for displays. If a display supports multiple signal timings, the native-mode
+can be specified.
+
+The parameters are defined as:
+
+  +----------+-------------------------------------+----------+-------+
+  |          |        Å™                            |          |       |
+  |          |        |vback_porch                 |          |       |
+  |          |        Å´                            |          |       |
+  +----------#######################################----------+-------+
+  |          #        Å™                            #          |       |
+  |          #        |                            #          |       |
+  |  hback   #        |                            #  hfront  | hsync |
+  |   porch  #        |       hactive              #  porch   |  len  |
+  |<-------->#<-------+--------------------------->#<-------->|<----->|
+  |          #        |                            #          |       |
+  |          #        |vactive                     #          |       |
+  |          #        |                            #          |       |
+  |          #        Å´                            #          |       |
+  +----------#######################################----------+-------+
+  |          |        Å™                            |          |       |
+  |          |        |vfront_porch                |          |       |
+  |          |        Å´                            |          |       |
+  +----------+-------------------------------------+----------+-------+
+  |          |        Å™                            |          |       |
+  |          |        |vsync_len                   |          |       |
+  |          |        Å´                            |          |       |
+  +----------+-------------------------------------+----------+-------+
+
+
+Example:
+
+{
+		/* about mipi */
+		disp_mipi_init: mipi_dsi_init{
+					rockchip,screen_init	= <1>;
+					rockchip,dsi_lane		= <4>;
+					rockchip,dsi_hs_clk		= <1020>;
+					rockchip,mipi_dsi_num	= <2>;
+		};
+		disp_mipi_power_ctr: mipi_power_ctr {
+					mipi_lcd_rst:mipi_lcd_rst{
+							rockchip,gpios = <&gpio7 GPIO_B2 GPIO_ACTIVE_HIGH>;
+							rockchip,delay = <10>;
+					};
+					/*mipi_lcd_en:mipi_lcd_en {
+							rockchip,gpios = <&gpio6 GPIO_A7 GPIO_ACTIVE_HIGH>;
+							rockchip,delay = <10>;
+					};*/
+		};
+		disp_mipi_init_cmds: screen-on-cmds {
+					rockchip,cmd_debug = <0>;
+                    rockchip,on-cmds1 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x05 0x01>; //set soft reset
+							rockchip,cmd_delay = <10>;
+					};
+		};
+
+		disp_timings: display-timings {
+                        native-mode = <&timing0>;
+                        timing0: timing0 {
+				screen-type = <SCREEN_DUAL_MIPI>;
+				lvds-format = <LVDS_8BIT_2>;
+				out-face    = <OUT_P888>;
+				clock-frequency = <285000000>;
+				hactive = <2560>;
+				vactive = <1600>;
+				
+				hsync-len = <38>;//19
+				hback-porch = <80>;//40
+				hfront-porch = <246>;//123
+				
+				vsync-len = <4>;
+				vback-porch = <4>;
+				vfront-porch = <12>;
+				
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+				swap-rb = <0>;
+				swap-rg = <0>;
+				swap-gb = <0>;
+                     	};
+               };
+};
+

@@ -1,0 +1,39 @@
+Device-Tree bindings for rockchip mipi dsi driver
+
+Required properties:
+- compatible: value should be "rockchip,rk32-dsi".
+- rockchip,prop: dsi number.
+- reg: physical base address of the hdmi and length of memory mapped
+        region.
+- interrupts: interrupt number to the cpu.
+
+- clocks: must include clock specifiers corresponding to entries in the
+        clock-names property.
+- clocks-names: list of clock names sorted in the same order as the clocks
+               property. Must contain "pclk_hdmi" and "hdcp_clk_hdmi".
+- status: the dsi host status;
+	<disabled>: open the dsi host;
+	<okay>:close the dsi host;
+
+Example:
+
+	dsihost0: mipi@ff960000{
+		compatible = "rockchip,rk32-dsi";
+		rockchip,prop = <0>;
+		reg = <0xff960000 0x4000>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates5 15>, <&clk_gates16 4> , <&pd_mipidsi>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pd_mipi_dsi";
+		status = "okay";
+	};
+
+	dsihost1: mipi@ff964000{
+		compatible = "rockchip,rk32-dsi";
+		rockchip,prop = <1>;
+		reg = <0xff964000 0x4000>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates5 15>, <&clk_gates16 5>, <&pd_mipidsi>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pd_mipi_dsi";
+		status = "okay"; 
+	};
+
