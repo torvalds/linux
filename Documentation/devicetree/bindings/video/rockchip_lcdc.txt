@@ -1,0 +1,66 @@
+Device-Tree bindings for Rockchip SoC display controller (VOP / LCDC)
+VOP (Video Output Process) / LCDC is the Display Controller for the
+ROCKCHIP series of SoCs which transfers the image data from a video memory
+buffer to an external LCD interface.
+
+Required properties:
+- compatible: value should be one of the following
+		"rockchip,rk3288-lcdc"; /* for RK3288 SoCs */
+- rockchip,prop: set the lcdc as primary or extend display.
+- rochchip,pwr18: set the controller IO voltage,0 is 3.3v,1 is 1.8v.
+- reg: physical base address and length of the LCDC registers set.
+- interrupts: interrupt number to the cpu and interrupt proterties.
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-1: pin control group to be used for gpio.
+- clocks: must include clock specifiers corresponding to entries in the
+         clock-names property.
+- clock-names: list of clock names sorted in the same order as the clocks
+               property..
+
+Optional Properties:
+- rockchip,debug: printk debug message.
+- rockchip,mirror: the lcdc mirror function.
+- lcd_en:lcd_en: contain power control for lcd.
+	- rockchip,power_type: power type,GPIO or REGULATOR.
+	- gpios: pin number for gpio.
+	- rockchip,delay: delay time after set power.
+
+Example:
+
+SoC specific DT entry:
+	lcdc1: lcdc@ff940000 {
+		compatible = "rockchip,rk3288-lcdc";
+		rockchip,prop = <PRMRY>;
+		rochchip,pwr18 = <0>;
+		reg = <0xff940000 0x10000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&lcdc0_lcdc>;
+		pinctrl-1 = <&lcdc0_gpio>;		
+		status = "disabled";
+		clocks = <&clk_gates15 7>, <&dclk_lcdc1>, <&clk_gates15 8>, <&pd_vop1>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "pd_lcdc";
+	};
+
+
+Board specific DT entry:
+
+&lcdc1 {
+	status = "okay";
+	power_ctr: power_ctr {
+		rockchip,debug = <0>;
+		rockchip,mirror = <NO_MIRROR>;
+		lcd_en:lcd_en {
+			rockchip,power_type = <GPIO>;
+			gpios = <&gpio7 GPIO_A3 GPIO_ACTIVE_HIGH>;
+			rockchip,delay = <10>;
+		};	
+		lcd_cs:lcd_cs {
+			rockchip,power_type = <GPIO>;
+			gpios = <&gpio7 GPIO_A4 GPIO_ACTIVE_HIGH>;
+			rockchip,delay = <10>;
+		};
+	};
+};
+

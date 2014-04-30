@@ -1,0 +1,15 @@
+Device-Tree bindings for Rockchip framebuffer.
+ 
+Required properties:
+- compatible: value should be "rockchip,rk-fb".
+- rockchip,disp-mode: DUAL :for dual lcdc and dual display;
+					  ONE_DUAL : for one lcdc and dual display.
+
+Example:
+
+DT entry:
+	fb: fb{
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <DUAL>;
+	};
+        

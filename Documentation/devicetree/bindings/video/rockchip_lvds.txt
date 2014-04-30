@@ -1,0 +1,22 @@
+The Rockchip display port interface should be configured based on
+the type of panel connected to it.
+ 
+Required properties:
+- compatible: value should be "rockchip,rk32-lvds".
+- reg: physical base address and length of the LVDS registers set.
+- interrupts: interrupt number to the cpu and interrupt proterties.
+- clocks: must include clock specifiers corresponding to entries in the
+         clock-names property.
+- clock-names: list of clock names sorted in the same order as the clocks
+               property..
+
+Example:
+
+SoC specific DT entry:
+	lvds: lvds@ff96c000 {
+		compatible = "rockchip,rk32-lvds";
+		reg = <0xff96c000 0x4000>;
+		clocks = <&clk_gates16 7>;
+		clock-names = "pclk_lvds";
+        };
+        
