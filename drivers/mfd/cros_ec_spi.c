@@ -113,7 +113,9 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
-	do {
+	while (true) {
+		unsigned long start_jiffies = jiffies;
+
 		memset(&trans, 0, sizeof(trans));
 		trans.cs_change = 1;
 		trans.rx_buf = ptr = ec_dev->din;
@@ -134,12 +136,19 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 				break;
 			}
 		}
+		if (ptr != end)
+			break;
 
-		if (time_after(jiffies, deadline)) {
+		/*
+		 * Use the time at the start of the loop as a timeout.  This
+		 * gives us one last shot at getting the transfer and is useful
+		 * in case we got context switched out for a while.
+		 */
+		if (time_after(start_jiffies, deadline)) {
 			dev_warn(ec_dev->dev, "EC failed to respond in time\n");
 			return -ETIMEDOUT;
 		}
-	} while (ptr == end);
+	}
 
 	/*
 	 * ptr now points to the header byte. Copy any valid data to the
