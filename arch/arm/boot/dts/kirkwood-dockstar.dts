@@ -14,6 +14,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk root=/dev/sda1 rootdelay=10";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {

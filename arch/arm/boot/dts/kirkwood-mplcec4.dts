@@ -12,9 +12,10 @@
                 reg = <0x00000000 0x20000000>;
         };
 
-        chosen {
-                bootargs = "console=ttyS0,115200n8 earlyprintk";
-        };
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
+	};
 
 	mbus {
 		pcie-controller {
