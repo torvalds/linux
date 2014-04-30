@@ -709,6 +709,13 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	u64 dval;
 	int sig;
 
+	/*
+	 * These are giving gcc a gentle hint about what to expect in
+	 * dec_inst in order to do better optimization.
+	 */
+	if (!cpu_has_mmips && dec_insn.micro_mips_mode)
+		unreachable();
+
 	/* XXX NEC Vr54xx bug workaround */
 	if (delay_slot(xcp)) {
 		if (dec_insn.micro_mips_mode) {
