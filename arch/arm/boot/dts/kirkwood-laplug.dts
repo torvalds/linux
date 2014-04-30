@@ -38,8 +38,6 @@
 
 	ocp@f1000000 {
 		serial@12000 {
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
 			status = "okay";
 		};
 

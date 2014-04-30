@@ -52,8 +52,6 @@
 		};
 
 		serial@12100 {
-			pinctrl-0 = <&pmx_uart1>;
-			pinctrl-names = "default";
 			status = "okay";
 		};
 	};

@@ -98,6 +98,10 @@
 				marvell,function = "twsi0";
 			};
 
+			/*
+			 * Default UART pinctrl setting without RTS/CTS,
+			 * overwrite marvell,pins on board level if required.
+			 */
 			pmx_uart0: pmx-uart0 {
 				marvell,pins = "mpp10", "mpp11";
 				marvell,function = "uart0";
@@ -167,6 +171,8 @@
 			reg-shift = <2>;
 			interrupts = <33>;
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
@@ -176,6 +182,8 @@
 			reg-shift = <2>;
 			interrupts = <34>;
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_uart1>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 

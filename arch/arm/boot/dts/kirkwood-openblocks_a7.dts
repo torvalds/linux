@@ -31,15 +31,11 @@
 
 	ocp@f1000000 {
 		serial@12000 {
-			status = "ok";
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
+			status = "okay";
 		};
 
 		serial@12100 {
-			status = "ok";
-			pinctrl-0 = <&pmx_uart1>;
-			pinctrl-names = "default";
+			status = "okay";
 		};
 
 		sata@80000 {

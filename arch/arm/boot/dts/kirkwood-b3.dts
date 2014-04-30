@@ -114,8 +114,6 @@
 			 * UART0_TX = Testpoint 66
 			 * See the Excito Wiki for more details.
 		 	 */
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
 			status = "okay";
 		};
 
