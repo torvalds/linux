@@ -616,7 +616,7 @@ const struct clk_ops clkops_rate_3288_dclk_lcdc0 = {
 	.recalc_rate	= clk_divider_recalc_rate,
 };
 
-#define RK3288_LIMIT_PLL_VIO1 (348*MHZ)
+#define RK3288_LIMIT_PLL_VIO1 (410*MHZ)
 
 static long clk_3288_dclk_lcdc1_determine_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long *best_parent_rate,
