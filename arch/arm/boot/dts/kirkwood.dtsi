@@ -88,6 +88,10 @@
 				marvell,function = "nand";
 			};
 
+			/*
+			 * Default SPI0 pinctrl setting with CSn on mpp0,
+			 * overwrite marvell,pins on board level if required.
+			 */
 			pmx_spi: pmx-spi {
 				marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3";
 				marvell,function = "spi";
@@ -127,6 +131,8 @@
 			interrupts = <23>;
 			reg = <0x10600 0x28>;
 			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_spi>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 

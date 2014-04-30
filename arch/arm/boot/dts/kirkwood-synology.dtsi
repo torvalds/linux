@@ -213,8 +213,6 @@
 
 		spi@10600 {
 			status = "okay";
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 
 			m25p80@0 {
 				#address-cells = <1>;

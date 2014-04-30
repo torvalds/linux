@@ -24,8 +24,6 @@
 		};
 
 		spi@10600 {
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 			status = "okay";
 
 			flash@0 {

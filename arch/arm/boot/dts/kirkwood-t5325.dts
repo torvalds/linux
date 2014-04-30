@@ -65,10 +65,6 @@
 				marvell,function = "gpio";
 			};
 
-			/*
-			 * Redefined from kirkwood-6281.dtsi, because
-			 * we don't use SPI CS on MPP0, but on MPP7.
-			 */
 			pmx_spi: pmx-spi {
 				marvell,pins = "mpp1", "mpp2", "mpp3", "mpp7";
 				marvell,function = "spi";
@@ -87,8 +83,6 @@
 		};
 
 		spi@10600 {
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 			status = "okay";
 
 			flash@0 {
