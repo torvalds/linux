@@ -104,6 +104,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 unsigned long kvm_s390_fac_list_mask[] = {
 	0xff82fffbf4fc2000UL,
 	0x005c000000000000UL,
+	0x4000000000000000UL,
 };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
@@ -1186,6 +1187,10 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->eca |= 1;
 	if (sclp_has_sigpif())
 		vcpu->arch.sie_block->eca |= 0x10000000U;
+	if (vcpu->kvm->arch.use_vectors) {
+		vcpu->arch.sie_block->eca |= 0x00020000;
+		vcpu->arch.sie_block->ecd |= 0x20000000;
+	}
 	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
 
 	if (kvm_s390_cmma_enabled(vcpu->kvm)) {
