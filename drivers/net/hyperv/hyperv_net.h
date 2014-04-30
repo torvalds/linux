@@ -140,6 +140,8 @@ struct hv_netvsc_packet {
 	void *send_completion_ctx;
 	void (*send_completion)(void *context);
 
+	u32 send_buf_index;
+
 	/* This points to the memory after page_buf */
 	struct rndis_message *rndis_msg;
 
@@ -582,6 +584,9 @@ struct nvsp_message {
 
 #define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16)	/* 16MB */
 #define NETVSC_RECEIVE_BUFFER_SIZE_LEGACY	(1024*1024*15)  /* 15MB */
+#define NETVSC_SEND_BUFFER_SIZE			(1024 * 1024)   /* 1MB */
+#define NETVSC_INVALID_INDEX			-1
+
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 
@@ -606,6 +611,15 @@ struct netvsc_device {
 	u32 recv_buf_gpadl_handle;
 	u32 recv_section_cnt;
 	struct nvsp_1_receive_buffer_section *recv_section;
+
+	/* Send buffer allocated by us */
+	void *send_buf;
+	u32 send_buf_size;
+	u32 send_buf_gpadl_handle;
+	u32 send_section_cnt;
+	u32 send_section_size;
+	unsigned long *send_section_map;
+	int map_words;
 
 	/* Used for NetVSP initialization protocol */
 	struct completion channel_init_wait;

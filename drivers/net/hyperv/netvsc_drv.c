@@ -236,10 +236,11 @@ static void netvsc_xmit_completion(void *context)
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
 	struct sk_buff *skb = (struct sk_buff *)
 		(unsigned long)packet->send_completion_tid;
+	u32 index = packet->send_buf_index;
 
 	kfree(packet);
 
-	if (skb)
+	if (skb && (index == NETVSC_INVALID_INDEX))
 		dev_kfree_skb_any(skb);
 }
 
