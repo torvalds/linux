@@ -1414,23 +1414,15 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
  * before switch channel or power save, or tx buffer packet
  * maybe send after offchannel or rf sleep, this may cause
  * dis-association by AP */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
-static void rtl_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void rtl_op_flush(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 u32 queues, bool drop)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->intf_ops->flush)
 		rtlpriv->intf_ops->flush(hw, queues, drop);
 }
-#else
-static void rtl_op_flush(struct ieee80211_hw *hw, bool drop)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	if (rtlpriv->intf_ops->flush)
-		rtlpriv->intf_ops->flush(hw, drop);
-}
-#endif
 
 const struct ieee80211_ops rtl_ops = {
 	.start = rtl_op_start,

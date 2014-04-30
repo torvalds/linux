@@ -31,6 +31,18 @@ static void __check_htcap_disable(struct ieee80211_ht_cap *ht_capa,
 	}
 }
 
+static void __check_htcap_enable(struct ieee80211_ht_cap *ht_capa,
+				  struct ieee80211_ht_cap *ht_capa_mask,
+				  struct ieee80211_sta_ht_cap *ht_cap,
+				  u16 flag)
+{
+	__le16 le_flag = cpu_to_le16(flag);
+
+	if ((ht_capa_mask->cap_info & le_flag) &&
+	    (ht_capa->cap_info & le_flag))
+		ht_cap->cap |= flag;
+}
+
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_sta_ht_cap *ht_cap)
 {
@@ -59,7 +71,7 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	smask = (u8 *)(&ht_capa_mask->mcs.rx_mask);
 
 	/* NOTE:  If you add more over-rides here, update register_hw
-	 * ht_capa_mod_msk logic in main.c as well.
+	 * ht_capa_mod_mask logic in main.c as well.
 	 * And, if this method can ever change ht_cap.ht_supported, fix
 	 * the check in ieee80211_add_ht_ie.
 	 */
@@ -85,6 +97,14 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	/* Allow user to disable the max-AMSDU bit. */
 	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
 			      IEEE80211_HT_CAP_MAX_AMSDU);
+
+	/* Allow user to disable LDPC */
+	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
+			      IEEE80211_HT_CAP_LDPC_CODING);
+
+	/* Allow user to enable 40 MHz intolerant bit. */
+	__check_htcap_enable(ht_capa, ht_capa_mask, ht_cap,
+			     IEEE80211_HT_CAP_40MHZ_INTOLERANT);
 
 	/* Allow user to decrease AMPDU factor */
 	if (ht_capa_mask->ampdu_params_info &

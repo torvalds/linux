@@ -1202,14 +1202,18 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
  *	fall back to software crypto. Note that this flag deals only with
  *	RX, if your crypto engine can't deal with TX you can also set the
  *	%IEEE80211_KEY_FLAG_SW_MGMT_TX flag to encrypt such frames in SW.
+ * @IEEE80211_KEY_FLAG_GENERATE_IV_MGMT: This flag should be set by the
+ *	driver for a CCMP key to indicate that is requires IV generation
+ *	only for managment frames (MFP).
  */
 enum ieee80211_key_flags {
-	IEEE80211_KEY_FLAG_GENERATE_IV	= 1<<1,
-	IEEE80211_KEY_FLAG_GENERATE_MMIC= 1<<2,
-	IEEE80211_KEY_FLAG_PAIRWISE	= 1<<3,
-	IEEE80211_KEY_FLAG_SW_MGMT_TX	= 1<<4,
-	IEEE80211_KEY_FLAG_PUT_IV_SPACE = 1<<5,
-	IEEE80211_KEY_FLAG_RX_MGMT	= 1<<6,
+	IEEE80211_KEY_FLAG_GENERATE_IV_MGMT	= BIT(0),
+	IEEE80211_KEY_FLAG_GENERATE_IV		= BIT(1),
+	IEEE80211_KEY_FLAG_GENERATE_MMIC	= BIT(2),
+	IEEE80211_KEY_FLAG_PAIRWISE		= BIT(3),
+	IEEE80211_KEY_FLAG_SW_MGMT_TX		= BIT(4),
+	IEEE80211_KEY_FLAG_PUT_IV_SPACE		= BIT(5),
+	IEEE80211_KEY_FLAG_RX_MGMT		= BIT(6),
 };
 
 /**
@@ -1555,6 +1559,12 @@ struct ieee80211_tx_control {
  *	for a single active channel while using channel contexts. When support
  *	is not enabled the default action is to disconnect when getting the
  *	CSA frame.
+ *
+ * @IEEE80211_HW_CHANGE_RUNNING_CHANCTX: The hardware can change a
+ *	channel context on-the-fly.  This is needed for channel switch
+ *	on single-channel hardware.  It can also be used as an
+ *	optimization in certain channel switch cases with
+ *	multi-channel.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1586,6 +1596,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_TIMING_BEACON_ONLY			= 1<<26,
 	IEEE80211_HW_SUPPORTS_HT_CCK_RATES		= 1<<27,
 	IEEE80211_HW_CHANCTX_STA_CSA			= 1<<28,
+	IEEE80211_HW_CHANGE_RUNNING_CHANCTX		= 1<<29,
 };
 
 /**
@@ -2609,6 +2620,7 @@ enum ieee80211_roc_type {
  *	of queues to flush, which is useful if different virtual interfaces
  *	use different hardware queues; it may also indicate all queues.
  *	If the parameter @drop is set to %true, pending frames may be dropped.
+ *	Note that vif can be NULL.
  *	The callback can sleep.
  *
  * @channel_switch: Drivers that need (or want) to offload the channel
@@ -2871,7 +2883,8 @@ struct ieee80211_ops {
 			     struct netlink_callback *cb,
 			     void *data, int len);
 #endif
-	void (*flush)(struct ieee80211_hw *hw, u32 queues, bool drop);
+	void (*flush)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      u32 queues, bool drop);
 	void (*channel_switch)(struct ieee80211_hw *hw,
 			       struct ieee80211_channel_switch *ch_switch);
 	int (*set_antenna)(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
@@ -4576,7 +4589,9 @@ conf_is_ht40(struct ieee80211_conf *conf)
 static inline bool
 conf_is_ht(struct ieee80211_conf *conf)
 {
-	return conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT;
+	return (conf->chandef.width != NL80211_CHAN_WIDTH_5) &&
+		(conf->chandef.width != NL80211_CHAN_WIDTH_10) &&
+		(conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT);
 }
 
 static inline enum nl80211_iftype

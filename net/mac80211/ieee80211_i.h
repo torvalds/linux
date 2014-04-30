@@ -260,7 +260,7 @@ struct ieee80211_if_ap {
 
 	/* to be used after channel switch. */
 	struct cfg80211_beacon_data *next_beacon;
-	struct list_head vlans;
+	struct list_head vlans; /* write-protected with RTNL and local->mtx */
 
 	struct ps_data ps;
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
@@ -276,7 +276,7 @@ struct ieee80211_if_wds {
 };
 
 struct ieee80211_if_vlan {
-	struct list_head list;
+	struct list_head list; /* write-protected with RTNL and local->mtx */
 
 	/* used for all tx if the VLAN is configured to 4-addr mode */
 	struct sta_info __rcu *sta;
@@ -691,8 +691,10 @@ struct ieee80211_chanctx {
 	struct list_head list;
 	struct rcu_head rcu_head;
 
+	struct list_head assigned_vifs;
+	struct list_head reserved_vifs;
+
 	enum ieee80211_chanctx_mode mode;
-	int refcount;
 	bool driver_present;
 
 	struct ieee80211_chanctx_conf conf;
@@ -755,6 +757,14 @@ struct ieee80211_sub_if_data {
 	int csa_counter_offset_presp;
 	bool csa_radar_required;
 	struct cfg80211_chan_def csa_chandef;
+
+	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
+	struct list_head reserved_chanctx_list; /* protected by chanctx_mtx */
+
+	/* context reservation -- protected with chanctx_mtx */
+	struct ieee80211_chanctx *reserved_chanctx;
+	struct cfg80211_chan_def reserved_chandef;
+	bool reserved_radar_required;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -1771,6 +1781,16 @@ ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 			  const struct cfg80211_chan_def *chandef,
 			  enum ieee80211_chanctx_mode mode);
 int __must_check
+ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
+			      const struct cfg80211_chan_def *chandef,
+			      enum ieee80211_chanctx_mode mode,
+			      bool radar_required);
+int __must_check
+ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata,
+				   u32 *changed);
+int ieee80211_vif_unreserve_chanctx(struct ieee80211_sub_if_data *sdata);
+
+int __must_check
 ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 			       const struct cfg80211_chan_def *chandef,
 			       u32 *changed);
@@ -1782,6 +1802,8 @@ void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
 					 bool clear);
+int ieee80211_chanctx_refcount(struct ieee80211_local *local,
+			       struct ieee80211_chanctx *ctx);
 
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *chanctx);
@@ -1805,6 +1827,11 @@ int ieee80211_cs_headroom(struct ieee80211_local *local,
 			  enum nl80211_iftype iftype);
 void ieee80211_recalc_dtim(struct ieee80211_local *local,
 			   struct ieee80211_sub_if_data *sdata);
+int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
+				 const struct cfg80211_chan_def *chandef,
+				 enum ieee80211_chanctx_mode chanmode,
+				 u8 radar_detect);
+int ieee80211_max_num_channels(struct ieee80211_local *local);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
