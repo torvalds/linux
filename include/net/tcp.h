@@ -974,7 +974,27 @@ static inline u32 tcp_wnd_end(const struct tcp_sock *tp)
 {
 	return tp->snd_una + tp->snd_wnd;
 }
-bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight);
+
+/* We follow the spirit of RFC2861 to validate cwnd but implement a more
+ * flexible approach. The RFC suggests cwnd should not be raised unless
+ * it was fully used previously. But we allow cwnd to grow as long as the
+ * application has used half the cwnd.
+ * Example :
+ *    cwnd is 10 (IW10), but application sends 9 frames.
+ *    We allow cwnd to reach 18 when all frames are ACKed.
+ * This check is safe because it's as aggressive as slow start which already
+ * risks 100% overshoot. The advantage is that we discourage application to
+ * either send more filler packets or data to artificially blow up the cwnd
+ * usage, and allow application-limited process to probe bw more aggressively.
+ *
+ * TODO: remove in_flight once we can fix all callers, and their callers...
+ */
+static inline bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+
+	return tp->snd_cwnd < 2 * tp->lsnd_pending;
+}
 
 static inline void tcp_check_probe_timer(struct sock *sk)
 {
