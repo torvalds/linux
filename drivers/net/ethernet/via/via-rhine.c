@@ -264,6 +264,8 @@ enum rhine_quirks {
 	rq6patterns	= 0x0040,	/* 6 instead of 4 patterns for WOL */
 	rqStatusWBRace	= 0x0080,	/* Tx Status Writeback Error possible */
 	rqRhineI	= 0x0100,	/* See comment below */
+	rqIntPHY	= 0x0200,	/* Integrated PHY */
+	rqMgmt		= 0x0400,	/* Management adapter */
 };
 /*
  * rqRhineI: VT86C100A (aka Rhine-I) uses different bits to enable
@@ -284,11 +286,11 @@ static DEFINE_PCI_DEVICE_TABLE(rhine_pci_tbl) = {
 MODULE_DEVICE_TABLE(pci, rhine_pci_tbl);
 
 /* OpenFirmware identifiers for platform-bus devices
- * The .data field is currently only used to store chip revision
- * (for quirks etc.)
+ * The .data field is currently only used to store quirks
  */
+static u32 vt8500_quirks = rqWOL | rqForceReset | rq6patterns;
 static struct of_device_id rhine_of_tbl[] = {
-	{ .compatible = "via,vt8500-rhine", .data = (void *)0x84 },
+	{ .compatible = "via,vt8500-rhine", .data = &vt8500_quirks },
 	{ }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(of, rhine_of_tbl);
@@ -459,7 +461,6 @@ struct rhine_private {
 	unsigned char *tx_bufs;
 	dma_addr_t tx_bufs_dma;
 
-	int revision;
 	int irq;
 	long pioaddr;
 	struct net_device *dev;
@@ -882,7 +883,7 @@ static const struct net_device_ops rhine_netdev_ops = {
 #endif
 };
 
-static int rhine_init_one_common(struct device *hwdev, int revision,
+static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 				 long pioaddr, void __iomem *ioaddr, int irq)
 {
 	struct net_device *dev;
@@ -906,31 +907,13 @@ static int rhine_init_one_common(struct device *hwdev, int revision,
 
 	rp = netdev_priv(dev);
 	rp->dev = dev;
-	rp->revision = revision;
+	rp->quirks = quirks;
 	rp->pioaddr = pioaddr;
 	rp->base = ioaddr;
 	rp->irq = irq;
 	rp->msg_enable = netif_msg_init(debug, RHINE_MSG_DEFAULT);
 
-	phy_id = 0;
-	name = "Rhine";
-	if (revision < VTunknown0) {
-		rp->quirks = rqRhineI;
-	} else if (revision >= VT6102) {
-		rp->quirks = rqWOL | rqForceReset;
-		if (revision < VT6105) {
-			name = "Rhine II";
-			rp->quirks |= rqStatusWBRace;	/* Rhine-II exclusive */
-		} else {
-			phy_id = 1;	/* Integrated PHY, phy_id fixed to 1 */
-			if (revision >= VT6105_B0)
-				rp->quirks |= rq6patterns;
-			if (revision < VT6105M)
-				name = "Rhine III";
-			else
-				name = "Rhine III (Management Adapter)";
-		}
-	}
+	phy_id = rp->quirks & rqIntPHY ? 1 : 0;
 
 	u64_stats_init(&rp->tx_stats.syncp);
 	u64_stats_init(&rp->rx_stats.syncp);
@@ -975,7 +958,7 @@ static int rhine_init_one_common(struct device *hwdev, int revision,
 	if (rp->quirks & rqRhineI)
 		dev->features |= NETIF_F_SG|NETIF_F_HW_CSUM;
 
-	if (rp->revision >= VT6105M)
+	if (rp->quirks & rqMgmt)
 		dev->features |= NETIF_F_HW_VLAN_CTAG_TX |
 				 NETIF_F_HW_VLAN_CTAG_RX |
 				 NETIF_F_HW_VLAN_CTAG_FILTER;
@@ -984,6 +967,15 @@ static int rhine_init_one_common(struct device *hwdev, int revision,
 	rc = register_netdev(dev);
 	if (rc)
 		goto err_out_free_netdev;
+
+	if (rp->quirks & rqRhineI)
+		name = "Rhine";
+	else if (rp->quirks & rqStatusWBRace)
+		name = "Rhine II";
+	else if (rp->quirks & rqMgmt)
+		name = "Rhine III (Management Adapter)";
+	else
+		name = "Rhine III";
 
 	netdev_info(dev, "VIA %s at 0x%lx, %pM, IRQ %d\n",
 		    name, (long)ioaddr, dev->dev_addr, rp->irq);
@@ -1031,7 +1023,7 @@ static int rhine_init_one_pci(struct pci_dev *pdev,
 	long pioaddr, memaddr;
 	void __iomem *ioaddr;
 	int io_size = pdev->revision < VTunknown0 ? 128 : 256;
-	u32 quirks = pdev->revision < VTunknown0 ? rqRhineI : 0;
+	u32 quirks;
 #ifdef USE_MMIO
 	int bar = 1;
 #else
@@ -1046,6 +1038,21 @@ static int rhine_init_one_pci(struct pci_dev *pdev,
 	rc = pci_enable_device(pdev);
 	if (rc)
 		goto err_out;
+
+	if (pdev->revision < VTunknown0) {
+		quirks = rqRhineI;
+	} else if (pdev->revision >= VT6102) {
+		quirks = rqWOL | rqForceReset;
+		if (pdev->revision < VT6105) {
+			quirks |= rqStatusWBRace;
+		} else {
+			quirks |= rqIntPHY;
+			if (pdev->revision >= VT6105_B0)
+				quirks |= rq6patterns;
+			if (pdev->revision >= VT6105M)
+				quirks |= rqMgmt;
+		}
+	}
 
 	/* sanity check */
 	if ((pci_resource_len(pdev, 0) < io_size) ||
@@ -1093,7 +1100,7 @@ static int rhine_init_one_pci(struct pci_dev *pdev,
 	}
 #endif /* USE_MMIO */
 
-	rc = rhine_init_one_common(&pdev->dev, pdev->revision,
+	rc = rhine_init_one_common(&pdev->dev, quirks,
 				   pioaddr, ioaddr, pdev->irq);
 	if (!rc)
 		return 0;
@@ -1111,7 +1118,7 @@ err_out:
 static int rhine_init_one_platform(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	u32 revision;
+	const u32 *quirks;
 	int irq;
 	struct resource *res;
 	void __iomem *ioaddr;
@@ -1129,11 +1136,11 @@ static int rhine_init_one_platform(struct platform_device *pdev)
 	if (!irq)
 		return -EINVAL;
 
-	revision = (u32)match->data;
-	if (!revision)
+	quirks = match->data;
+	if (!quirks)
 		return -EINVAL;
 
-	return rhine_init_one_common(&pdev->dev, revision,
+	return rhine_init_one_common(&pdev->dev, *quirks,
 				     (long)ioaddr, ioaddr, irq);
 }
 
@@ -1523,7 +1530,7 @@ static void init_registers(struct net_device *dev)
 
 	rhine_set_rx_mode(dev);
 
-	if (rp->revision >= VT6105M)
+	if (rp->quirks & rqMgmt)
 		rhine_init_cam_filter(dev);
 
 	napi_enable(&rp->napi);
@@ -2160,7 +2167,7 @@ static void rhine_set_rx_mode(struct net_device *dev)
 		/* Too many to match, or accept all multicasts. */
 		iowrite32(0xffffffff, ioaddr + MulticastFilter0);
 		iowrite32(0xffffffff, ioaddr + MulticastFilter1);
-	} else if (rp->revision >= VT6105M) {
+	} else if (rp->quirks & rqMgmt) {
 		int i = 0;
 		u32 mCAMmask = 0;	/* 32 mCAMs (6105M and better) */
 		netdev_for_each_mc_addr(ha, dev) {
@@ -2182,7 +2189,7 @@ static void rhine_set_rx_mode(struct net_device *dev)
 		iowrite32(mc_filter[1], ioaddr + MulticastFilter1);
 	}
 	/* enable/disable VLAN receive filtering */
-	if (rp->revision >= VT6105M) {
+	if (rp->quirks & rqMgmt) {
 		if (dev->flags & IFF_PROMISC)
 			BYTE_REG_BITS_OFF(BCR1_VIDFR, ioaddr + PCIBusConfig1);
 		else
