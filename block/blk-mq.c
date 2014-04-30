@@ -1037,17 +1037,25 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		}
 	}
 
-	spin_lock(&ctx->lock);
+	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE)) {
+		init_request_from_bio(rq, bio);
 
-	if ((hctx->flags & BLK_MQ_F_SHOULD_MERGE) &&
-	    blk_mq_attempt_merge(q, ctx, bio))
-		__blk_mq_free_request(hctx, ctx, rq);
-	else {
-		blk_mq_bio_to_request(rq, bio);
+		spin_lock(&ctx->lock);
+insert_rq:
 		__blk_mq_insert_request(hctx, rq, false);
+		spin_unlock(&ctx->lock);
+		blk_account_io_start(rq, 1);
+	} else {
+		spin_lock(&ctx->lock);
+		if (!blk_mq_attempt_merge(q, ctx, bio)) {
+			init_request_from_bio(rq, bio);
+			goto insert_rq;
+		}
+
+		spin_unlock(&ctx->lock);
+		__blk_mq_free_request(hctx, ctx, rq);
 	}
 
-	spin_unlock(&ctx->lock);
 
 	/*
 	 * For a SYNC request, send it to the hardware immediately. For an
