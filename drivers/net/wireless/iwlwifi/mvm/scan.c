@@ -936,7 +936,7 @@ static int iwl_mvm_send_sched_scan_abort(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm)
+int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
 {
 	int ret;
 	struct iwl_notification_wait wait_scan_done;
@@ -973,6 +973,9 @@ int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm)
 	 * stopped from above.
 	 */
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
+
+	if (notify)
+		ieee80211_sched_scan_stopped(mvm->hw);
 
 	return 0;
 }
