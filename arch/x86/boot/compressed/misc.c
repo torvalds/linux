@@ -354,7 +354,7 @@ static void parse_elf(void *output)
 	free(phdrs);
 }
 
-asmlinkage void *decompress_kernel(void *rmode, memptr heap,
+asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 				  unsigned char *input_data,
 				  unsigned long input_len,
 				  unsigned char *output,
