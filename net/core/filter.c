@@ -78,9 +78,9 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 		ptr = skb_network_header(skb) + k - SKF_NET_OFF;
 	else if (k >= SKF_LL_OFF)
 		ptr = skb_mac_header(skb) + k - SKF_LL_OFF;
-
 	if (ptr >= skb->head && ptr + size <= skb_tail_pointer(skb))
 		return ptr;
+
 	return NULL;
 }
 
@@ -89,6 +89,7 @@ static inline void *load_pointer(const struct sk_buff *skb, int k,
 {
 	if (k >= 0)
 		return skb_header_pointer(skb, k, size, buffer);
+
 	return bpf_internal_load_pointer_neg_helper(skb, k, size);
 }
 
@@ -598,14 +599,12 @@ static unsigned int pkt_type_offset(void)
 
 static u64 __skb_get_pay_offset(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 {
-	struct sk_buff *skb = (struct sk_buff *)(long) ctx;
-
-	return __skb_get_poff(skb);
+	return __skb_get_poff((struct sk_buff *)(unsigned long) ctx);
 }
 
 static u64 __skb_get_nlattr(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 {
-	struct sk_buff *skb = (struct sk_buff *)(long) ctx;
+	struct sk_buff *skb = (struct sk_buff *)(unsigned long) ctx;
 	struct nlattr *nla;
 
 	if (skb_is_nonlinear(skb))
@@ -626,7 +625,7 @@ static u64 __skb_get_nlattr(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 
 static u64 __skb_get_nlattr_nest(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 {
-	struct sk_buff *skb = (struct sk_buff *)(long) ctx;
+	struct sk_buff *skb = (struct sk_buff *)(unsigned long) ctx;
 	struct nlattr *nla;
 
 	if (skb_is_nonlinear(skb))
@@ -657,7 +656,7 @@ static u64 __get_raw_cpu_id(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 /* note that this only generates 32-bit random numbers */
 static u64 __get_random_u32(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 {
-	return (u64)prandom_u32();
+	return prandom_u32();
 }
 
 static bool convert_bpf_extensions(struct sock_filter *fp,
@@ -1475,7 +1474,7 @@ static struct sk_filter *__sk_migrate_realloc(struct sk_filter *fp,
 
 	fp_new = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (fp_new) {
-		memcpy(fp_new, fp, sizeof(struct sk_filter));
+		*fp_new = *fp;
 		/* As we're kepping orig_prog in fp_new along,
 		 * we need to make sure we're not evicting it
 		 * from the old fp.
