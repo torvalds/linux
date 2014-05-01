@@ -186,7 +186,7 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 {
 	u16 phy_reg = 0;
 	u32 phy_id = 0;
-	s32 ret_val;
+	s32 ret_val = 0;
 	u16 retry_count;
 	u32 mac_reg = 0;
 
@@ -217,11 +217,13 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 	/* In case the PHY needs to be in mdio slow mode,
 	 * set slow mode and try to get the PHY id again.
 	 */
-	hw->phy.ops.release(hw);
-	ret_val = e1000_set_mdio_slow_mode_hv(hw);
-	if (!ret_val)
-		ret_val = e1000e_get_phy_id(hw);
-	hw->phy.ops.acquire(hw);
+	if (hw->mac.type < e1000_pch_lpt) {
+		hw->phy.ops.release(hw);
+		ret_val = e1000_set_mdio_slow_mode_hv(hw);
+		if (!ret_val)
+			ret_val = e1000e_get_phy_id(hw);
+		hw->phy.ops.acquire(hw);
+	}
 
 	if (ret_val)
 		return false;
