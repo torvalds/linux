@@ -76,7 +76,7 @@ static void cadence_qspi_work(struct work_struct *work)
 		struct spi_transfer *xfer[CQSPI_MAX_TRANS];
 		int status = 0;
 		int n_trans = 0;
-		int next_in_queue = 0;
+		int skip_xfer = 0;
 
 		spi_msg = container_of(cadence_qspi->msg_queue.next,
 			struct spi_message, queue);
@@ -91,27 +91,26 @@ static void cadence_qspi_work(struct work_struct *work)
 					CQSPI_MAX_TRANS);
 				/* Skip process the queue if number of
 				 * transaction is greater than max 2. */
-				next_in_queue = 1;
+				skip_xfer = 1;
 				break;
 			}
 			xfer[n_trans++] = spi_xfer;
 		}
 
-		/* Continue to next queue if next_in_queue is set. */
-		if (next_in_queue)
-			continue;
+		if (!skip_xfer) {
 
-		status = cadence_qspi_apb_process_queue(cadence_qspi, spi,
-					n_trans, xfer);
+			status = cadence_qspi_apb_process_queue(cadence_qspi,
+						spi, n_trans, xfer);
 
-		if (!status) {
-			spi_msg->actual_length += xfer[0]->len;
-			if (n_trans > 1)
-				spi_msg->actual_length += xfer[1]->len;
+			if (!status) {
+				spi_msg->actual_length += xfer[0]->len;
+				if (n_trans > 1)
+					spi_msg->actual_length += xfer[1]->len;
+			}
+
+			spi_msg->status = status;
+			spi_msg->complete(spi_msg->context);
 		}
-
-		spi_msg->status = status;
-		spi_msg->complete(spi_msg->context);
 		spin_lock_irqsave(&cadence_qspi->lock, flags);
 	}
 	spin_unlock_irqrestore(&cadence_qspi->lock, flags);
