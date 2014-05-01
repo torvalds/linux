@@ -1586,7 +1586,7 @@ swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
 	return -ENOMEM;
 }
 
-asmlinkage int swsusp_save(void)
+asmlinkage __visible int swsusp_save(void)
 {
 	unsigned int nr_pages, nr_highmem;
 

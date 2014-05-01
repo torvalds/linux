@@ -4188,7 +4188,7 @@ void debug_show_held_locks(struct task_struct *task)
 }
 EXPORT_SYMBOL_GPL(debug_show_held_locks);
 
-asmlinkage void lockdep_sys_exit(void)
+asmlinkage __visible void lockdep_sys_exit(void)
 {
 	struct task_struct *curr = current;
 
