@@ -431,8 +431,11 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 		ri = &pmic[num];
 		ri->dev = &pdev->dev;
 		ri->desc = &tps65090_regulator_desc[num];
-		ri->overcurrent_wait_valid = tps_pdata->overcurrent_wait_valid;
-		ri->overcurrent_wait = tps_pdata->overcurrent_wait;
+		if (tps_pdata) {
+			ri->overcurrent_wait_valid =
+				tps_pdata->overcurrent_wait_valid;
+			ri->overcurrent_wait = tps_pdata->overcurrent_wait;
+		}
 
 		/*
 		 * TPS5090 DCDC support the control from external digital input.
