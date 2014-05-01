@@ -291,7 +291,7 @@ static inline int i8254_set_mode(unsigned long base_address,
 
 	if (counter_number > 2)
 		return -1;
-	if (mode > (I8254_MODE5 | I8254_BINARY))
+	if (mode > (I8254_MODE5 | I8254_BCD))
 		return -1;
 
 	byte = counter_number << 6;
@@ -311,7 +311,7 @@ static inline int i8254_mm_set_mode(void __iomem *base_address,
 
 	if (counter_number > 2)
 		return -1;
-	if (mode > (I8254_MODE5 | I8254_BINARY))
+	if (mode > (I8254_MODE5 | I8254_BCD))
 		return -1;
 
 	byte = counter_number << 6;
