@@ -1459,6 +1459,8 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))) {
 		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 		sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
+	} else {
+		sta->sta.tdls = true;
 	}
 
 	err = sta_apply_parameters(local, sta, params);
