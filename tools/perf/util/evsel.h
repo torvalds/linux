@@ -91,6 +91,11 @@ struct perf_evsel {
 	char			*group_name;
 };
 
+union u64_swap {
+	u64 val64;
+	u32 val32[2];
+};
+
 #define hists_to_evsel(h) container_of(h, struct perf_evsel, hists)
 
 struct cpu_map;
