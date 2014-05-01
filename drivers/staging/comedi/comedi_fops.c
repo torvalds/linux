@@ -668,6 +668,7 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 			return -EBUSY;
 		if (dev->attached) {
 			struct module *driver_module = dev->driver->module;
+
 			comedi_device_detach(dev);
 			module_put(driver_module);
 		}
@@ -2653,6 +2654,7 @@ static int __init comedi_init(void)
 	/* create devices files for legacy/manual use */
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
 		struct comedi_device *dev;
+
 		dev = comedi_alloc_board_minor(NULL);
 		if (IS_ERR(dev)) {
 			comedi_cleanup_board_minors();
