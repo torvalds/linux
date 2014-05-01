@@ -799,6 +799,18 @@ __nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
 	return NULL;
 }
 
+static void
+free_lock_state_work(struct work_struct *work)
+{
+	struct nfs4_lock_state *lsp = container_of(work,
+					struct nfs4_lock_state, ls_release);
+	struct nfs4_state *state = lsp->ls_state;
+	struct nfs_server *server = state->owner->so_server;
+	struct nfs_client *clp = server->nfs_client;
+
+	clp->cl_mvops->free_lock_state(server, lsp);
+}
+
 /*
  * Return a compatible lock_state. If no initialized lock_state structure
  * exists, return an uninitialized one.
@@ -820,6 +832,7 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	if (lsp->ls_seqid.owner_id < 0)
 		goto out_free;
 	INIT_LIST_HEAD(&lsp->ls_locks);
+	INIT_WORK(&lsp->ls_release, free_lock_state_work);
 	return lsp;
 out_free:
 	kfree(lsp);
@@ -883,13 +896,12 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 	if (list_empty(&state->lock_states))
 		clear_bit(LK_STATE_IN_USE, &state->flags);
 	spin_unlock(&state->state_lock);
-	server = state->owner->so_server;
-	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags)) {
-		struct nfs_client *clp = server->nfs_client;
-
-		clp->cl_mvops->free_lock_state(server, lsp);
-	} else
+	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags))
+		queue_work(nfsiod_workqueue, &lsp->ls_release);
+	else {
+		server = state->owner->so_server;
 		nfs4_free_lock_state(server, lsp);
+	}
 }
 
 static void nfs4_fl_copy_lock(struct file_lock *dst, struct file_lock *src)
