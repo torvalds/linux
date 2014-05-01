@@ -4333,7 +4333,7 @@ int i40e_vsi_open(struct i40e_vsi *vsi)
 			 dev_driver_string(&pf->pdev->dev));
 		err = i40e_vsi_request_irq(vsi, int_name);
 	} else {
-		err = EINVAL;
+		err = -EINVAL;
 		goto err_setup_rx;
 	}
 
