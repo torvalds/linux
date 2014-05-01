@@ -5942,7 +5942,8 @@ static const struct rpc_call_ops nfs4_release_lockowner_ops = {
 	.rpc_release = nfs4_release_lockowner_release,
 };
 
-static int nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
+static void
+nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 {
 	struct nfs_release_lockowner_data *data;
 	struct rpc_message msg = {
@@ -5950,11 +5951,11 @@ static int nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_st
 	};
 
 	if (server->nfs_client->cl_mvops->minor_version != 0)
-		return -EINVAL;
+		return;
 
 	data = kmalloc(sizeof(*data), GFP_NOFS);
 	if (!data)
-		return -ENOMEM;
+		return;
 	data->lsp = lsp;
 	data->server = server;
 	data->args.lock_owner.clientid = server->nfs_client->cl_clientid;
@@ -5965,7 +5966,6 @@ static int nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_st
 	msg.rpc_resp = &data->res;
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
 	rpc_call_async(server->client, &msg, 0, &nfs4_release_lockowner_ops, data);
-	return 0;
 }
 
 #define XATTR_NAME_NFSV4_ACL "system.nfs4_acl"
@@ -8252,7 +8252,8 @@ static int nfs41_free_stateid(struct nfs_server *server,
 	return ret;
 }
 
-static int nfs41_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp)
+static void
+nfs41_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp)
 {
 	struct rpc_task *task;
 	struct rpc_cred *cred = lsp->ls_state->owner->so_cred;
@@ -8260,9 +8261,8 @@ static int nfs41_free_lock_state(struct nfs_server *server, struct nfs4_lock_sta
 	task = _nfs41_free_stateid(server, &lsp->ls_stateid, cred, false);
 	nfs4_free_lock_state(server, lsp);
 	if (IS_ERR(task))
-		return PTR_ERR(task);
+		return;
 	rpc_put_task(task);
-	return 0;
 }
 
 static bool nfs41_match_stateid(const nfs4_stateid *s1,
