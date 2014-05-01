@@ -468,7 +468,14 @@ dentry_kill(struct dentry *dentry, int unlock_on_failure)
 	__releases(dentry->d_lock)
 {
 	struct inode *inode;
-	struct dentry *parent;
+	struct dentry *parent = NULL;
+	bool can_free = true;
+
+	if (unlikely(dentry->d_flags & DCACHE_DENTRY_KILLED)) {
+		can_free = dentry->d_flags & DCACHE_MAY_FREE;
+		spin_unlock(&dentry->d_lock);
+		goto out;
+	}
 
 	inode = dentry->d_inode;
 	if (inode && !spin_trylock(&inode->i_lock)) {
@@ -479,9 +486,7 @@ relock:
 		}
 		return dentry; /* try again with same dentry */
 	}
-	if (IS_ROOT(dentry))
-		parent = NULL;
-	else
+	if (!IS_ROOT(dentry))
 		parent = dentry->d_parent;
 	if (parent && !spin_trylock(&parent->d_lock)) {
 		if (inode)
@@ -504,8 +509,6 @@ relock:
 	if (dentry->d_flags & DCACHE_LRU_LIST) {
 		if (!(dentry->d_flags & DCACHE_SHRINK_LIST))
 			d_lru_del(dentry);
-		else
-			d_shrink_del(dentry);
 	}
 	/* if it was on the hash then remove it */
 	__d_drop(dentry);
@@ -527,7 +530,15 @@ relock:
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
 
-	dentry_free(dentry);
+	spin_lock(&dentry->d_lock);
+	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
+		dentry->d_flags |= DCACHE_MAY_FREE;
+		can_free = false;
+	}
+	spin_unlock(&dentry->d_lock);
+out:
+	if (likely(can_free))
+		dentry_free(dentry);
 	return parent;
 }
 
@@ -829,7 +840,7 @@ static void shrink_dentry_list(struct list_head *list)
 		 * We found an inuse dentry which was not removed from
 		 * the LRU because of laziness during lookup. Do not free it.
 		 */
-		if (dentry->d_lockref.count) {
+		if ((int)dentry->d_lockref.count > 0) {
 			spin_unlock(&dentry->d_lock);
 			continue;
 		}
