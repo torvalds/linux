@@ -50,9 +50,6 @@ struct arch_uprobe {
 			u8	opc1;
 		}			branch;
 		struct {
-#ifdef CONFIG_X86_64
-			long	riprel_target;
-#endif
 			u8	fixups;
 			u8	ilen;
 		} 			def;

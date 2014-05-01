@@ -251,9 +251,9 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
  * If arch_uprobe->insn doesn't use rip-relative addressing, return
  * immediately.  Otherwise, rewrite the instruction so that it accesses
  * its memory operand indirectly through a scratch register.  Set
- * def->fixups and def->riprel_target accordingly. (The contents of the
- * scratch register will be saved before we single-step the modified
- * instruction, and restored afterward).
+ * def->fixups accordingly. (The contents of the scratch register
+ * will be saved before we single-step the modified instruction,
+ * and restored afterward).
  *
  * We do this because a rip-relative instruction can access only a
  * relatively small area (+/- 2 GB from the instruction), and the XOL
@@ -264,9 +264,12 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
  *
  * Some useful facts about rip-relative instructions:
  *
- *  - There's always a modrm byte.
+ *  - There's always a modrm byte with bit layout "00 reg 101".
  *  - There's never a SIB byte.
  *  - The displacement is always 4 bytes.
+ *  - REX.B=1 bit in REX prefix, which normally extends r/m field,
+ *    has no effect on rip-relative mode. It doesn't make modrm byte
+ *    with r/m=101 refer to register 1101 = R13.
  */
 static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 {
@@ -293,9 +296,8 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 	 */
 	cursor = auprobe->insn + insn_offset_modrm(insn);
 	/*
-	 * Convert from rip-relative addressing to indirect addressing
-	 * via a scratch register.  Change the r/m field from 0x5 (%rip)
-	 * to 0x0 (%rax) or 0x1 (%rcx), and squeeze out the offset field.
+	 * Convert from rip-relative addressing
+	 * to register-relative addressing via a scratch register.
 	 */
 	reg = MODRM_REG(insn);
 	if (reg == 0) {
@@ -307,22 +309,21 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 		 * #1) for the scratch register.
 		 */
 		auprobe->def.fixups |= UPROBE_FIX_RIP_CX;
-		/* Change modrm from 00 000 101 to 00 000 001. */
-		*cursor = 0x1;
+		/*
+		 * Change modrm from "00 000 101" to "10 000 001". Example:
+		 * 89 05 disp32  mov %eax,disp32(%rip) becomes
+		 * 89 81 disp32  mov %eax,disp32(%rcx)
+		 */
+		*cursor = 0x81;
 	} else {
 		/* Use %rax (register #0) for the scratch register. */
 		auprobe->def.fixups |= UPROBE_FIX_RIP_AX;
-		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
-		*cursor = (reg << 3);
-	}
-
-	/* Target address = address of next instruction + (signed) offset */
-	auprobe->def.riprel_target = (long)insn->length + insn->displacement.value;
-
-	/* Displacement field is gone; slide immediate field (if any) over. */
-	if (insn->immediate.nbytes) {
-		cursor++;
-		memmove(cursor, cursor + insn->displacement.nbytes, insn->immediate.nbytes);
+		/*
+		 * Change modrm from "00 reg 101" to "10 reg 000". Example:
+		 * 89 1d disp32  mov %edx,disp32(%rip) becomes
+		 * 89 98 disp32  mov %edx,disp32(%rax)
+		 */
+		*cursor = (reg << 3) | 0x80;
 	}
 }
 
@@ -343,26 +344,17 @@ static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		unsigned long *sr = scratch_reg(auprobe, regs);
 
 		utask->autask.saved_scratch_register = *sr;
-		*sr = utask->vaddr + auprobe->def.riprel_target;
+		*sr = utask->vaddr + auprobe->def.ilen;
 	}
 }
 
-static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
-				long *correction)
+static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	if (auprobe->def.fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) {
 		struct uprobe_task *utask = current->utask;
 		unsigned long *sr = scratch_reg(auprobe, regs);
 
 		*sr = utask->autask.saved_scratch_register;
-		/*
-		 * The original instruction includes a displacement, and so
-		 * is 4 bytes longer than what we've just single-stepped.
-		 * Caller may need to apply other fixups to handle stuff
-		 * like "jmpq *...(%rip)" and "callq *...(%rip)".
-		 */
-		if (correction)
-			*correction += 4;
 	}
 }
 #else /* 32-bit: */
@@ -379,8 +371,7 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 }
-static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
-					long *correction)
+static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 }
 #endif /* CONFIG_X86_64 */
@@ -417,10 +408,10 @@ static int push_ret_address(struct pt_regs *regs, unsigned long ip)
 static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
-	long correction = (long)(utask->vaddr - utask->xol_vaddr);
 
-	riprel_post_xol(auprobe, regs, &correction);
+	riprel_post_xol(auprobe, regs);
 	if (auprobe->def.fixups & UPROBE_FIX_IP) {
+		long correction = utask->vaddr - utask->xol_vaddr;
 		regs->ip += correction;
 	} else if (auprobe->def.fixups & UPROBE_FIX_CALL) {
 		regs->sp += sizeof_long();
@@ -436,7 +427,7 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 
 static void default_abort_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	riprel_post_xol(auprobe, regs, NULL);
+	riprel_post_xol(auprobe, regs);
 }
 
 static struct uprobe_xol_ops default_xol_ops = {
@@ -732,11 +723,9 @@ bool arch_uprobe_xol_was_trapped(struct task_struct *t)
  *
  * If the original instruction was a rip-relative instruction such as
  * "movl %edx,0xnnnn(%rip)", we have instead executed an equivalent
- * instruction using a scratch register -- e.g., "movl %edx,(%rax)".
- * We need to restore the contents of the scratch register and adjust
- * the ip, keeping in mind that the instruction we executed is 4 bytes
- * shorter than the original instruction (since we squeezed out the offset
- * field).  (FIX_RIP_AX or FIX_RIP_CX)
+ * instruction using a scratch register -- e.g., "movl %edx,0xnnnn(%rax)".
+ * We need to restore the contents of the scratch register
+ * (FIX_RIP_AX or FIX_RIP_CX).
  */
 int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
