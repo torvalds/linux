@@ -14,48 +14,92 @@
 
 static const struct font_desc *font;
 static u32 efi_x, efi_y;
+static void *efi_fb;
+static bool early_efi_keep;
 
-static __init void early_efi_clear_scanline(unsigned int y)
+/*
+ * efi earlyprintk need use early_ioremap to map the framebuffer.
+ * But early_ioremap is not usable for earlyprintk=efi,keep, ioremap should
+ * be used instead. ioremap will be available after paging_init() which is
+ * earlier than initcall callbacks. Thus adding this early initcall function
+ * early_efi_map_fb to map the whole efi framebuffer.
+ */
+static __init int early_efi_map_fb(void)
 {
-	unsigned long base, *dst;
-	u16 len;
+	unsigned long base, size;
+
+	if (!early_efi_keep)
+		return 0;
 
 	base = boot_params.screen_info.lfb_base;
-	len = boot_params.screen_info.lfb_linelength;
+	size = boot_params.screen_info.lfb_size;
+	efi_fb = ioremap(base, size);
 
-	dst = early_ioremap(base + y*len, len);
+	return efi_fb ? 0 : -ENOMEM;
+}
+early_initcall(early_efi_map_fb);
+
+/*
+ * early_efi_map maps efi framebuffer region [start, start + len -1]
+ * In case earlyprintk=efi,keep we have the whole framebuffer mapped already
+ * so just return the offset efi_fb + start.
+ */
+static __init_refok void *early_efi_map(unsigned long start, unsigned long len)
+{
+	unsigned long base;
+
+	base = boot_params.screen_info.lfb_base;
+
+	if (efi_fb)
+		return (efi_fb + start);
+	else
+		return early_ioremap(base + start, len);
+}
+
+static __init_refok void early_efi_unmap(void *addr, unsigned long len)
+{
+	if (!efi_fb)
+		early_iounmap(addr, len);
+}
+
+static void early_efi_clear_scanline(unsigned int y)
+{
+	unsigned long *dst;
+	u16 len;
+
+	len = boot_params.screen_info.lfb_linelength;
+	dst = early_efi_map(y*len, len);
 	if (!dst)
 		return;
 
 	memset(dst, 0, len);
-	early_iounmap(dst, len);
+	early_efi_unmap(dst, len);
 }
 
-static __init void early_efi_scroll_up(void)
+static void early_efi_scroll_up(void)
 {
-	unsigned long base, *dst, *src;
+	unsigned long *dst, *src;
 	u16 len;
 	u32 i, height;
 
-	base = boot_params.screen_info.lfb_base;
 	len = boot_params.screen_info.lfb_linelength;
 	height = boot_params.screen_info.lfb_height;
 
 	for (i = 0; i < height - font->height; i++) {
-		dst = early_ioremap(base + i*len, len);
+		dst = early_efi_map(i*len, len);
 		if (!dst)
 			return;
 
-		src = early_ioremap(base + (i + font->height) * len, len);
+		src = early_efi_map((i + font->height) * len, len);
 		if (!src) {
-			early_iounmap(dst, len);
+			early_efi_unmap(dst, len);
 			return;
 		}
 
 		memmove(dst, src, len);
 
-		early_iounmap(src, len);
-		early_iounmap(dst, len);
+		early_efi_unmap(src, len);
+		early_efi_unmap(dst, len);
 	}
 }
 
@@ -79,16 +123,14 @@ static void early_efi_write_char(u32 *dst, unsigned char c, unsigned int h)
 	}
 }
 
-static __init void
+static void
 early_efi_write(struct console *con, const char *str, unsigned int num)
 {
 	struct screen_info *si;
-	unsigned long base;
 	unsigned int len;
 	const char *s;
 	void *dst;
 
-	base = boot_params.screen_info.lfb_base;
 	si = &boot_params.screen_info;
 	len = si->lfb_linelength;
 
@@ -109,7 +151,7 @@ early_efi_write(struct console *con, const char *str, unsigned int num)
 		for (h = 0; h < font->height; h++) {
 			unsigned int n, x;
 
-			dst = early_ioremap(base + (efi_y + h) * len, len);
+			dst = early_efi_map((efi_y + h) * len, len);
 			if (!dst)
 				return;
 
@@ -123,7 +165,7 @@ early_efi_write(struct console *con, const char *str, unsigned int num)
 				s++;
 			}
 
-			early_iounmap(dst, len);
+			early_efi_unmap(dst, len);
 		}
 
 		num -= count;
@@ -179,6 +221,9 @@ static __init int early_efi_setup(struct console *con, char *options)
 	for (i = 0; i < (yres - efi_y) / font->height; i++)
 		early_efi_scroll_up();
 
+	/* early_console_register will unset CON_BOOT in case ,keep */
+	if (!(con->flags & CON_BOOT))
+		early_efi_keep = true;
 	return 0;
 }
 
