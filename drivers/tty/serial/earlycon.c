@@ -53,7 +53,7 @@ static int __init parse_options(struct earlycon_device *device,
 				char *options)
 {
 	struct uart_port *port = &device->port;
-	int mmio, mmio32, length, ret;
+	int mmio, mmio32, length;
 	unsigned long addr;
 
 	if (!options)
@@ -64,25 +64,19 @@ static int __init parse_options(struct earlycon_device *device,
 	if (mmio || mmio32) {
 		port->iotype = (mmio ? UPIO_MEM : UPIO_MEM32);
 		options += mmio ? 5 : 7;
-		ret = kstrtoul(options, 0, &addr);
-		if (ret)
-			return ret;
+		addr = simple_strtoul(options, NULL, 0);
 		port->mapbase = addr;
 		if (mmio32)
 			port->regshift = 2;
 	} else if (!strncmp(options, "io,", 3)) {
 		port->iotype = UPIO_PORT;
 		options += 3;
-		ret = kstrtoul(options, 0, &addr);
-		if (ret)
-			return ret;
+		addr = simple_strtoul(options, NULL, 0);
 		port->iobase = addr;
 		mmio = 0;
 	} else if (!strncmp(options, "0x", 2)) {
 		port->iotype = UPIO_MEM;
-		ret = kstrtoul(options, 0, &addr);
-		if (ret)
-			return ret;
+		addr = simple_strtoul(options, NULL, 0);
 		port->mapbase = addr;
 	} else {
 		return -EINVAL;
@@ -93,9 +87,7 @@ static int __init parse_options(struct earlycon_device *device,
 	options = strchr(options, ',');
 	if (options) {
 		options++;
-		ret = kstrtouint(options, 0, &device->baud);
-		if (ret)
-			return ret;
+		device->baud = simple_strtoul(options, NULL, 0);
 		length = min(strcspn(options, " ") + 1,
 			     (size_t)(sizeof(device->options)));
 		strlcpy(device->options, options, length);
