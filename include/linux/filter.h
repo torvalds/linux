@@ -37,6 +37,9 @@
 #define BPF_CALL	0x80	/* function call */
 #define BPF_EXIT	0x90	/* function return */
 
+/* Placeholder/dummy for 0 */
+#define BPF_0		0
+
 /* BPF has 10 general purpose 64-bit registers and stack frame. */
 #define MAX_BPF_REG	11
 
