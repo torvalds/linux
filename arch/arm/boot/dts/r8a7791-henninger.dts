@@ -35,6 +35,10 @@
 	};
 };
 
+&extal_clk {
+	clock-frequency = <20000000>;
+};
+
 &pfc {
 	scif0_pins: serial0 {
 		renesas,groups = "scif0_data_d";
