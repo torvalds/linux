@@ -1073,15 +1073,7 @@ static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
 
 int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 {
-	struct scsi_cmnd *cmd;
-	int ret = scsi_prep_state_check(sdev, req);
-
-	if (ret != BLKPREP_OK)
-		return ret;
-
-	cmd = scsi_get_cmd_from_req(sdev, req);
-	if (unlikely(!cmd))
-		return BLKPREP_DEFER;
+	struct scsi_cmnd *cmd = req->special;
 
 	/*
 	 * BLOCK_PC requests may transfer data, in which case they must
@@ -1125,15 +1117,11 @@ EXPORT_SYMBOL(scsi_setup_blk_pc_cmnd);
  */
 int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 {
-	struct scsi_cmnd *cmd;
-	int ret = scsi_prep_state_check(sdev, req);
-
-	if (ret != BLKPREP_OK)
-		return ret;
+	struct scsi_cmnd *cmd = req->special;
 
 	if (unlikely(sdev->scsi_dh_data && sdev->scsi_dh_data->scsi_dh
 			 && sdev->scsi_dh_data->scsi_dh->prep_fn)) {
-		ret = sdev->scsi_dh_data->scsi_dh->prep_fn(sdev, req);
+		int ret = sdev->scsi_dh_data->scsi_dh->prep_fn(sdev, req);
 		if (ret != BLKPREP_OK)
 			return ret;
 	}
@@ -1143,16 +1131,13 @@ int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 	 */
 	BUG_ON(!req->nr_phys_segments);
 
-	cmd = scsi_get_cmd_from_req(sdev, req);
-	if (unlikely(!cmd))
-		return BLKPREP_DEFER;
-
 	memset(cmd->cmnd, 0, BLK_MAX_CDB);
 	return scsi_init_io(cmd, GFP_ATOMIC);
 }
 EXPORT_SYMBOL(scsi_setup_fs_cmnd);
 
-int scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
+static int
+scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 {
 	int ret = BLKPREP_OK;
 
@@ -1204,9 +1189,9 @@ int scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 	}
 	return ret;
 }
-EXPORT_SYMBOL(scsi_prep_state_check);
 
-int scsi_prep_return(struct request_queue *q, struct request *req, int ret)
+static int
+scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 {
 	struct scsi_device *sdev = q->queuedata;
 
@@ -1237,18 +1222,44 @@ int scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 
 	return ret;
 }
-EXPORT_SYMBOL(scsi_prep_return);
 
-int scsi_prep_fn(struct request_queue *q, struct request *req)
+static int scsi_prep_fn(struct request_queue *q, struct request *req)
 {
 	struct scsi_device *sdev = q->queuedata;
-	int ret = BLKPREP_KILL;
+	struct scsi_cmnd *cmd;
+	int ret;
 
-	if (req->cmd_type == REQ_TYPE_BLOCK_PC)
+	ret = scsi_prep_state_check(sdev, req);
+	if (ret != BLKPREP_OK)
+		goto out;
+
+	cmd = scsi_get_cmd_from_req(sdev, req);
+	if (unlikely(!cmd)) {
+		ret = BLKPREP_DEFER;
+		goto out;
+	}
+
+	if (req->cmd_type == REQ_TYPE_FS)
+		ret = scsi_cmd_to_driver(cmd)->init_command(cmd);
+	else if (req->cmd_type == REQ_TYPE_BLOCK_PC)
 		ret = scsi_setup_blk_pc_cmnd(sdev, req);
+	else
+		ret = BLKPREP_KILL;
+
+out:
 	return scsi_prep_return(q, req, ret);
 }
-EXPORT_SYMBOL(scsi_prep_fn);
+
+static void scsi_unprep_fn(struct request_queue *q, struct request *req)
+{
+	if (req->cmd_type == REQ_TYPE_FS) {
+		struct scsi_cmnd *cmd = req->special;
+		struct scsi_driver *drv = scsi_cmd_to_driver(cmd);
+
+		if (drv->uninit_command)
+			drv->uninit_command(cmd);
+	}
+}
 
 /*
  * scsi_dev_queue_ready: if we can send requests to sdev, return 1 else
@@ -1669,6 +1680,7 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 		return NULL;
 
 	blk_queue_prep_rq(q, scsi_prep_fn);
+	blk_queue_unprep_rq(q, scsi_unprep_fn);
 	blk_queue_softirq_done(q, scsi_softirq_done);
 	blk_queue_rq_timed_out(q, scsi_times_out);
 	blk_queue_lld_busy(q, scsi_lld_busy);
