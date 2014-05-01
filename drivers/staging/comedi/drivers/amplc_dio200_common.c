@@ -820,7 +820,7 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		if (data[1] > (I8254_MODE5 | I8254_BINARY))
+		if (data[1] > (I8254_MODE5 | I8254_BCD))
 			ret = -EINVAL;
 		else
 			dio200_subdev_8254_set_mode(dev, s, chan, data[1]);
