@@ -182,6 +182,10 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 					  "auto-flow-control"))
 			port8250.capabilities |= UART_CAP_AFE;
 
+		if (of_property_read_bool(ofdev->dev.of_node,
+					  "has-hw-flow-control"))
+			port8250.port.flags |= UPF_HARD_FLOW;
+
 		ret = serial8250_register_8250_port(&port8250);
 		break;
 	}
