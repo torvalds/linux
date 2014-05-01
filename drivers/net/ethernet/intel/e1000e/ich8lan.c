@@ -842,6 +842,17 @@ s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 		}
 	}
 
+	if (hw->phy.type == e1000_phy_82579) {
+		ret_val = e1000_read_emi_reg_locked(hw, I82579_LPI_PLL_SHUT,
+						    &data);
+		if (ret_val)
+			goto release;
+
+		data &= ~I82579_LPI_100_PLL_SHUT;
+		ret_val = e1000_write_emi_reg_locked(hw, I82579_LPI_PLL_SHUT,
+						     data);
+	}
+
 	/* R/Clr IEEE MMD 3.1 bits 11:10 - Tx/Rx LPI Received */
 	ret_val = e1000_read_emi_reg_locked(hw, pcs_status, &data);
 	if (ret_val)

@@ -232,12 +232,14 @@
 #define I82577_MSE_THRESHOLD	0x0887	/* 82577 Mean Square Error Threshold */
 #define I82579_MSE_LINK_DOWN	0x2411	/* MSE count before dropping link */
 #define I82579_RX_CONFIG		0x3412	/* Receive configuration */
+#define I82579_LPI_PLL_SHUT		0x4412	/* LPI PLL Shut Enable */
 #define I82579_EEE_PCS_STATUS		0x182E	/* IEEE MMD Register 3.1 >> 8 */
 #define I82579_EEE_CAPABILITY		0x0410	/* IEEE MMD Register 3.20 */
 #define I82579_EEE_ADVERTISEMENT	0x040E	/* IEEE MMD Register 7.60 */
 #define I82579_EEE_LP_ABILITY		0x040F	/* IEEE MMD Register 7.61 */
 #define I82579_EEE_100_SUPPORTED	(1 << 1)	/* 100BaseTx EEE */
 #define I82579_EEE_1000_SUPPORTED	(1 << 2)	/* 1000BaseTx EEE */
+#define I82579_LPI_100_PLL_SHUT	(1 << 2)	/* 100M LPI PLL Shut Enabled */
 #define I217_EEE_PCS_STATUS	0x9401	/* IEEE MMD Register 3.1 */
 #define I217_EEE_CAPABILITY	0x8000	/* IEEE MMD Register 3.20 */
 #define I217_EEE_ADVERTISEMENT	0x8001	/* IEEE MMD Register 7.60 */
