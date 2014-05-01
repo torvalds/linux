@@ -1492,6 +1492,26 @@ int ftrace_text_reserved(const void *start, const void *end)
 	return (int)!!ret;
 }
 
+/* Test if ops registered to this rec needs regs */
+static bool test_rec_ops_needs_regs(struct dyn_ftrace *rec)
+{
+	struct ftrace_ops *ops;
+	bool keep_regs = false;
+
+	for (ops = ftrace_ops_list;
+	     ops != &ftrace_list_end; ops = ops->next) {
+		/* pass rec in as regs to have non-NULL val */
+		if (ftrace_ops_test(ops, rec->ip, rec)) {
+			if (ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
+				keep_regs = true;
+				break;
+			}
+		}
+	}
+
+	return  keep_regs;
+}
+
 static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 				     int filter_hash,
 				     bool inc)
@@ -1584,6 +1604,18 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			if (FTRACE_WARN_ON((rec->flags & ~FTRACE_FL_MASK) == 0))
 				return;
 			rec->flags--;
+			/*
+			 * If the rec had REGS enabled and the ops that is
+			 * being removed had REGS set, then see if there is
+			 * still any ops for this record that wants regs.
+			 * If not, we can stop recording them.
+			 */
+			if ((rec->flags & ~FTRACE_FL_MASK) > 0 &&
+			    rec->flags & FTRACE_FL_REGS &&
+			    ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
+				if (!test_rec_ops_needs_regs(rec))
+					rec->flags &= ~FTRACE_FL_REGS;
+			}
 		}
 		count++;
 		/* Shortcut, if we handled all records, we are done. */
