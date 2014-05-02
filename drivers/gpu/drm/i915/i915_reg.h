@@ -681,6 +681,12 @@ enum punit_power_well {
 #define _VLV_PCS_DW9_CH1		0x8424
 #define	VLV_PCS_DW9(ch) _PORT(ch, _VLV_PCS_DW9_CH0, _VLV_PCS_DW9_CH1)
 
+#define _CHV_PCS_DW10_CH0		0x8228
+#define _CHV_PCS_DW10_CH1		0x8428
+#define   DPIO_PCS_SWING_CALC_TX0_TX2	(1<<30)
+#define   DPIO_PCS_SWING_CALC_TX1_TX3	(1<<31)
+#define CHV_PCS_DW10(ch) _PORT(ch, _CHV_PCS_DW10_CH0, _CHV_PCS_DW10_CH1)
+
 #define _VLV_PCS_DW11_CH0		0x822c
 #define _VLV_PCS_DW11_CH1		0x842c
 #define VLV_PCS_DW11(ch) _PORT(ch, _VLV_PCS_DW11_CH0, _VLV_PCS_DW11_CH1)
@@ -699,14 +705,21 @@ enum punit_power_well {
 
 #define _VLV_TX_DW2_CH0			0x8288
 #define _VLV_TX_DW2_CH1			0x8488
+#define   DPIO_SWING_MARGIN_SHIFT	16
+#define   DPIO_SWING_MARGIN_MASK	(0xff << DPIO_SWING_MARGIN_SHIFT)
+#define   DPIO_UNIQ_TRANS_SCALE_SHIFT	8
 #define VLV_TX_DW2(ch) _PORT(ch, _VLV_TX_DW2_CH0, _VLV_TX_DW2_CH1)
 
 #define _VLV_TX_DW3_CH0			0x828c
 #define _VLV_TX_DW3_CH1			0x848c
+/* The following bit for CHV phy */
+#define   DPIO_TX_UNIQ_TRANS_SCALE_EN	(1<<27)
 #define VLV_TX_DW3(ch) _PORT(ch, _VLV_TX_DW3_CH0, _VLV_TX_DW3_CH1)
 
 #define _VLV_TX_DW4_CH0			0x8290
 #define _VLV_TX_DW4_CH1			0x8490
+#define   DPIO_SWING_DEEMPH9P5_SHIFT	24
+#define   DPIO_SWING_DEEMPH9P5_MASK	(0xff << DPIO_SWING_DEEMPH9P5_SHIFT)
 #define VLV_TX_DW4(ch) _PORT(ch, _VLV_TX_DW4_CH0, _VLV_TX_DW4_CH1)
 
 #define _VLV_TX3_DW4_CH0		0x690
@@ -726,6 +739,62 @@ enum punit_power_well {
 #define _VLV_TX_DW14_CH1		0x84b8
 #define VLV_TX_DW14(ch) _PORT(ch, _VLV_TX_DW14_CH0, _VLV_TX_DW14_CH1)
 
+/* CHV dpPhy registers */
+#define _CHV_PLL_DW0_CH0		0x8000
+#define _CHV_PLL_DW0_CH1		0x8180
+#define CHV_PLL_DW0(ch) _PIPE(ch, _CHV_PLL_DW0_CH0, _CHV_PLL_DW0_CH1)
+
+#define _CHV_PLL_DW1_CH0		0x8004
+#define _CHV_PLL_DW1_CH1		0x8184
+#define   DPIO_CHV_N_DIV_SHIFT		8
+#define   DPIO_CHV_M1_DIV_BY_2		(0 << 0)
+#define CHV_PLL_DW1(ch) _PIPE(ch, _CHV_PLL_DW1_CH0, _CHV_PLL_DW1_CH1)
+
+#define _CHV_PLL_DW2_CH0		0x8008
+#define _CHV_PLL_DW2_CH1		0x8188
+#define CHV_PLL_DW2(ch) _PIPE(ch, _CHV_PLL_DW2_CH0, _CHV_PLL_DW2_CH1)
+
+#define _CHV_PLL_DW3_CH0		0x800c
+#define _CHV_PLL_DW3_CH1		0x818c
+#define  DPIO_CHV_FRAC_DIV_EN		(1 << 16)
+#define  DPIO_CHV_FIRST_MOD		(0 << 8)
+#define  DPIO_CHV_SECOND_MOD		(1 << 8)
+#define  DPIO_CHV_FEEDFWD_GAIN_SHIFT	0
+#define CHV_PLL_DW3(ch) _PIPE(ch, _CHV_PLL_DW3_CH0, _CHV_PLL_DW3_CH1)
+
+#define _CHV_PLL_DW6_CH0		0x8018
+#define _CHV_PLL_DW6_CH1		0x8198
+#define   DPIO_CHV_GAIN_CTRL_SHIFT	16
+#define	  DPIO_CHV_INT_COEFF_SHIFT	8
+#define   DPIO_CHV_PROP_COEFF_SHIFT	0
+#define CHV_PLL_DW6(ch) _PIPE(ch, _CHV_PLL_DW6_CH0, _CHV_PLL_DW6_CH1)
+
+#define _CHV_CMN_DW13_CH0		0x8134
+#define _CHV_CMN_DW0_CH1		0x8080
+#define   DPIO_CHV_S1_DIV_SHIFT		21
+#define   DPIO_CHV_P1_DIV_SHIFT		13 /* 3 bits */
+#define   DPIO_CHV_P2_DIV_SHIFT		8  /* 5 bits */
+#define   DPIO_CHV_K_DIV_SHIFT		4
+#define   DPIO_PLL_FREQLOCK		(1 << 1)
+#define   DPIO_PLL_LOCK			(1 << 0)
+#define CHV_CMN_DW13(ch) _PIPE(ch, _CHV_CMN_DW13_CH0, _CHV_CMN_DW0_CH1)
+
+#define _CHV_CMN_DW14_CH0		0x8138
+#define _CHV_CMN_DW1_CH1		0x8084
+#define   DPIO_AFC_RECAL		(1 << 14)
+#define   DPIO_DCLKP_EN			(1 << 13)
+#define CHV_CMN_DW14(ch) _PIPE(ch, _CHV_CMN_DW14_CH0, _CHV_CMN_DW1_CH1)
+
+#define CHV_CMN_DW30			0x8178
+#define   DPIO_LRC_BYPASS		(1 << 3)
+
+#define _TXLANE(ch, lane, offset) ((ch ? 0x2400 : 0) + \
+					(lane) * 0x200 + (offset))
+
+#define CHV_TX_DW11(ch, lane) _TXLANE(ch, lane, 0xac)
+#define   DPIO_FRC_LATENCY_SHFIT	8
+#define CHV_TX_DW14(ch, lane) _TXLANE(ch, lane, 0xb8)
+#define   DPIO_UPAR_SHIFT		30
 /*
  * Fence registers
  */
@@ -1415,6 +1484,7 @@ enum punit_power_well {
 #define   DPLL_LOCK_VLV			(1<<15)
 #define   DPLL_INTEGRATED_CRI_CLK_VLV	(1<<14)
 #define   DPLL_INTEGRATED_CLOCK_VLV	(1<<13)
+#define   DPLL_SSC_REF_CLOCK_CHV	(1<<13)
 #define   DPLL_PORTC_READY_MASK		(0xf << 4)
 #define   DPLL_PORTB_READY_MASK		(0xf)
 
