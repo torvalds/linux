@@ -863,7 +863,7 @@ gm107_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {
 	mmio_data(0x003000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
 	mmio_data(0x008000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
-	mmio_data(0x060000, 0x1000, NV_MEM_ACCESS_RW);
+	mmio_data(0x200000, 0x1000, NV_MEM_ACCESS_RW);
 
 	mmio_list(0x40800c, 0x00000000,  8, 1);
 	mmio_list(0x408010, 0x80000000,  0, 0);
@@ -876,6 +876,8 @@ gm107_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	mmio_list(0x408008, 0x80000030,  0, 0);
 	mmio_list(0x418e24, 0x00000000,  8, 0);
 	mmio_list(0x418e28, 0x80000030,  0, 0);
+
+	mmio_list(0x4064c8, 0x018002c0,  0, 0);
 
 	mmio_list(0x418810, 0x80000000, 12, 2);
 	mmio_list(0x419848, 0x10000000, 12, 2);
