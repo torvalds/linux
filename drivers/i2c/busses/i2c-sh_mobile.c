@@ -228,7 +228,7 @@ static u32 sh_mobile_i2c_icch(unsigned long count_khz, u32 tHIGH, u32 tf)
 	return (((count_khz * (tHIGH + tf)) + 5000) / 10000);
 }
 
-static void sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
+static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 {
 	unsigned long i2c_clk_khz;
 	u32 tHIGH, tLOW, tf;
@@ -236,6 +236,7 @@ static void sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	/* Get clock rate after clock is enabled */
 	clk_prepare_enable(pd->clk);
 	i2c_clk_khz = clk_get_rate(pd->clk) / 1000;
+	clk_disable_unprepare(pd->clk);
 	i2c_clk_khz /= pd->clks_per_count;
 
 	if (pd->bus_speed == STANDARD_MODE) {
@@ -249,7 +250,7 @@ static void sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	} else {
 		dev_err(pd->dev, "unrecognized bus speed %lu Hz\n",
 			pd->bus_speed);
-		goto out;
+		return -EINVAL;
 	}
 
 	pd->iccl = sh_mobile_i2c_iccl(i2c_clk_khz, tLOW, tf);
@@ -266,8 +267,7 @@ static void sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	else
 		pd->icic &= ~ICIC_ICCHB8;
 
-out:
-	clk_disable_unprepare(pd->clk);
+	return 0;
 }
 
 static void activate_ch(struct sh_mobile_i2c_data *pd)
@@ -677,7 +677,9 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	if (resource_size(res) > 0x17)
 		pd->flags |= IIC_FLAG_HAS_ICIC67;
 
-	sh_mobile_i2c_init(pd);
+	ret = sh_mobile_i2c_init(pd);
+	if (ret)
+		return ret;
 
 	/* Enable Runtime PM for this device.
 	 *
