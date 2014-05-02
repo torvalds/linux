@@ -75,16 +75,12 @@ int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh, int proto)
 			return err;
 	}
 
-	if (uh->check == 0) {
-		/* RFC 2460 section 8.1 says that we SHOULD log
-		   this error. Well, it is reasonable.
-		 */
-		LIMIT_NETDEBUG(KERN_INFO "IPv6: udp checksum is 0 for [%pI6c]:%u->[%pI6c]:%u\n",
-			       &ipv6_hdr(skb)->saddr, ntohs(uh->source),
-			       &ipv6_hdr(skb)->daddr, ntohs(uh->dest));
-		return 1;
-	}
-
-	return skb_checksum_init(skb, IPPROTO_UDP, ip6_compute_pseudo);
+	/* To support RFC 6936 (allow zero checksum in UDP/IPV6 for tunnels)
+	 * we accept a checksum of zero here. When we find the socket
+	 * for the UDP packet we'll check if that socket allows zero checksum
+	 * for IPv6 (set by socket option).
+	 */
+	return skb_checksum_init_zero_check(skb, proto, uh->check,
+					   ip6_compute_pseudo);
 }
 EXPORT_SYMBOL(udp6_csum_init);
