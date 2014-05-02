@@ -1398,7 +1398,8 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	struct hwtstamp_config cfg;
 
 	if (priv->version != CPSW_VERSION_1 &&
-	    priv->version != CPSW_VERSION_2)
+	    priv->version != CPSW_VERSION_2 &&
+	    priv->version != CPSW_VERSION_3)
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
@@ -1443,6 +1444,7 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		cpsw_hwtstamp_v1(priv);
 		break;
 	case CPSW_VERSION_2:
+	case CPSW_VERSION_3:
 		cpsw_hwtstamp_v2(priv);
 		break;
 	default:
@@ -1459,7 +1461,8 @@ static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 	struct hwtstamp_config cfg;
 
 	if (priv->version != CPSW_VERSION_1 &&
-	    priv->version != CPSW_VERSION_2)
+	    priv->version != CPSW_VERSION_2 &&
+	    priv->version != CPSW_VERSION_3)
 		return -EOPNOTSUPP;
 
 	cfg.flags = 0;
