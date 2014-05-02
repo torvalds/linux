@@ -630,9 +630,15 @@ ENTRY(__kvm_tlb_flush_vmid_ipa)
 	 * whole of Stage-1. Weep...
 	 */
 	tlbi	ipas2e1is, x1
-	dsb	sy
+	/*
+	 * We have to ensure completion of the invalidation at Stage-2,
+	 * since a table walk on another CPU could refill a TLB with a
+	 * complete (S1 + S2) walk based on the old Stage-2 mapping if
+	 * the Stage-1 invalidation happened first.
+	 */
+	dsb	ish
 	tlbi	vmalle1is
-	dsb	sy
+	dsb	ish
 	isb
 
 	msr	vttbr_el2, xzr
@@ -643,7 +649,7 @@ ENTRY(__kvm_flush_vm_context)
 	dsb	ishst
 	tlbi	alle1is
 	ic	ialluis
-	dsb	sy
+	dsb	ish
 	ret
 ENDPROC(__kvm_flush_vm_context)
 
