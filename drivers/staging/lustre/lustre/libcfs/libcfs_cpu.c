@@ -74,6 +74,7 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 }
 EXPORT_SYMBOL(cfs_cpt_table_free);
 
+#ifdef CONFIG_SMP
 int
 cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
 {
@@ -87,6 +88,7 @@ cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
 	return rc;
 }
 EXPORT_SYMBOL(cfs_cpt_table_print);
+#endif /* CONFIG_SMP */
 
 int
 cfs_cpt_number(struct cfs_cpt_table *cptab)
