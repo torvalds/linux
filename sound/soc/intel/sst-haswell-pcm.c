@@ -99,6 +99,7 @@ struct hsw_pcm_data {
 	struct snd_compr_stream *cstream;
 	unsigned int wpos;
 	struct mutex mutex;
+	bool allocated;
 };
 
 /* private data for the driver */
@@ -112,6 +113,8 @@ struct hsw_priv_data {
 	/* DAI data */
 	struct hsw_pcm_data pcm[HSW_PCM_COUNT];
 };
+
+static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data);
 
 static inline u32 hsw_mixer_to_ipc(unsigned int value)
 {
@@ -322,6 +325,29 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 	u8 channels;
 	int ret;
 
+	/* check if we are being called a subsequent time */
+	if (pcm_data->allocated) {
+		ret = sst_hsw_stream_reset(hsw, pcm_data->stream);
+		if (ret < 0)
+			dev_dbg(rtd->dev, "error: reset stream failed %d\n",
+				ret);
+
+		ret = sst_hsw_stream_free(hsw, pcm_data->stream);
+		if (ret < 0) {
+			dev_dbg(rtd->dev, "error: free stream failed %d\n",
+				ret);
+			return ret;
+		}
+		pcm_data->allocated = false;
+
+		pcm_data->stream = sst_hsw_stream_new(hsw, rtd->cpu_dai->id,
+			hsw_notify_pointer, pcm_data);
+		if (pcm_data->stream == NULL) {
+			dev_err(rtd->dev, "error: failed to create stream\n");
+			return -EINVAL;
+		}
+	}
+
 	/* stream direction */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		path_id = SST_HSW_STREAM_PATH_SSP0_OUT;
@@ -475,6 +501,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		dev_err(rtd->dev, "error: failed to commit stream %d\n", ret);
 		return ret;
 	}
+	pcm_data->allocated = true;
 
 	ret = sst_hsw_stream_pause(hsw, pcm_data->stream, 1);
 	if (ret < 0)
@@ -607,6 +634,7 @@ static int hsw_pcm_close(struct snd_pcm_substream *substream)
 		dev_dbg(rtd->dev, "error: free stream failed %d\n", ret);
 		goto out;
 	}
+	pcm_data->allocated = 0;
 	pcm_data->stream = NULL;
 
 out:
