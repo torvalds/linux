@@ -91,16 +91,21 @@ TRACE_EVENT(kvm_hv_hypercall,
 /*
  * Tracepoint for PIO.
  */
+
+#define KVM_PIO_IN   0
+#define KVM_PIO_OUT  1
+
 TRACE_EVENT(kvm_pio,
 	TP_PROTO(unsigned int rw, unsigned int port, unsigned int size,
-		 unsigned int count),
-	TP_ARGS(rw, port, size, count),
+		 unsigned int count, void *data),
+	TP_ARGS(rw, port, size, count, data),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int, 	rw		)
 		__field(	unsigned int, 	port		)
 		__field(	unsigned int, 	size		)
 		__field(	unsigned int,	count		)
+		__field(	unsigned int,	val		)
 	),
 
 	TP_fast_assign(
@@ -108,11 +113,18 @@ TRACE_EVENT(kvm_pio,
 		__entry->port		= port;
 		__entry->size		= size;
 		__entry->count		= count;
+		if (size == 1)
+			__entry->val	= *(unsigned char *)data;
+		else if (size == 2)
+			__entry->val	= *(unsigned short *)data;
+		else
+			__entry->val	= *(unsigned int *)data;
 	),
 
-	TP_printk("pio_%s at 0x%x size %d count %d",
+	TP_printk("pio_%s at 0x%x size %d count %d val 0x%x %s",
 		  __entry->rw ? "write" : "read",
-		  __entry->port, __entry->size, __entry->count)
+		  __entry->port, __entry->size, __entry->count, __entry->val,
+		  __entry->count > 1 ? "(...)" : "")
 );
 
 /*
