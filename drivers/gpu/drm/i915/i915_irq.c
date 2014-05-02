@@ -1165,6 +1165,8 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	dev_priv->hpd_event_bits = 0;
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		intel_connector = to_intel_connector(connector);
+		if (!intel_connector->encoder)
+			continue;
 		intel_encoder = intel_connector->encoder;
 		if (intel_encoder->hpd_pin > HPD_NONE &&
 		    dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark == HPD_MARK_DISABLED &&
@@ -1195,6 +1197,8 @@ static void i915_hotplug_work_func(struct work_struct *work)
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		intel_connector = to_intel_connector(connector);
+		if (!intel_connector->encoder)
+			continue;
 		intel_encoder = intel_connector->encoder;
 		if (hpd_event_bits & (1 << intel_encoder->hpd_pin)) {
 			if (intel_encoder->hot_plug)

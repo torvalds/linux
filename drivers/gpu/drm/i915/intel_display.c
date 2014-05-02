@@ -5003,20 +5003,23 @@ static void intel_connector_check_state(struct intel_connector *connector)
 		     "wrong connector dpms state\n");
 		WARN(connector->base.encoder != &encoder->base,
 		     "active connector not linked to encoder\n");
-		WARN(!encoder->connectors_active,
-		     "encoder->connectors_active not set\n");
 
-		encoder_enabled = encoder->get_hw_state(encoder, &pipe);
-		WARN(!encoder_enabled, "encoder not enabled\n");
-		if (WARN_ON(!encoder->base.crtc))
-			return;
+		if (encoder) {
+			WARN(!encoder->connectors_active,
+			     "encoder->connectors_active not set\n");
 
-		crtc = encoder->base.crtc;
+			encoder_enabled = encoder->get_hw_state(encoder, &pipe);
+			WARN(!encoder_enabled, "encoder not enabled\n");
+			if (WARN_ON(!encoder->base.crtc))
+				return;
 
-		WARN(!crtc->enabled, "crtc not enabled\n");
-		WARN(!to_intel_crtc(crtc)->active, "crtc not active\n");
-		WARN(pipe != to_intel_crtc(crtc)->pipe,
-		     "encoder active on the wrong pipe\n");
+			crtc = encoder->base.crtc;
+
+			WARN(!crtc->enabled, "crtc not enabled\n");
+			WARN(!to_intel_crtc(crtc)->active, "crtc not active\n");
+			WARN(pipe != to_intel_crtc(crtc)->pipe,
+			     "encoder active on the wrong pipe\n");
+		}
 	}
 }
 

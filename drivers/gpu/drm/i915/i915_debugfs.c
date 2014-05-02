@@ -2209,13 +2209,15 @@ static void intel_connector_info(struct seq_file *m,
 		seq_printf(m, "\tCEA rev: %d\n",
 			   connector->display_info.cea_rev);
 	}
-	if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
-	    intel_encoder->type == INTEL_OUTPUT_EDP)
-		intel_dp_info(m, intel_connector);
-	else if (intel_encoder->type == INTEL_OUTPUT_HDMI)
-		intel_hdmi_info(m, intel_connector);
-	else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
-		intel_lvds_info(m, intel_connector);
+	if (intel_encoder) {
+		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+		    intel_encoder->type == INTEL_OUTPUT_EDP)
+			intel_dp_info(m, intel_connector);
+		else if (intel_encoder->type == INTEL_OUTPUT_HDMI)
+			intel_hdmi_info(m, intel_connector);
+		else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
+			intel_lvds_info(m, intel_connector);
+	}
 
 	seq_printf(m, "\tmodes:\n");
 	list_for_each_entry(mode, &connector->modes, head)
