@@ -548,11 +548,10 @@ static bool handle_mmio_cfg_reg(struct kvm_vcpu *vcpu,
 	u32 val;
 	u32 *reg;
 
-	offset >>= 1;
 	reg = vgic_bitmap_get_reg(&vcpu->kvm->arch.vgic.irq_cfg,
-				  vcpu->vcpu_id, offset);
+				  vcpu->vcpu_id, offset >> 1);
 
-	if (offset & 2)
+	if (offset & 4)
 		val = *reg >> 16;
 	else
 		val = *reg & 0xffff;
@@ -561,13 +560,13 @@ static bool handle_mmio_cfg_reg(struct kvm_vcpu *vcpu,
 	vgic_reg_access(mmio, &val, offset,
 			ACCESS_READ_VALUE | ACCESS_WRITE_VALUE);
 	if (mmio->is_write) {
-		if (offset < 4) {
+		if (offset < 8) {
 			*reg = ~0U; /* Force PPIs/SGIs to 1 */
 			return false;
 		}
 
 		val = vgic_cfg_compress(val);
-		if (offset & 2) {
+		if (offset & 4) {
 			*reg &= 0xffff;
 			*reg |= val << 16;
 		} else {
@@ -916,6 +915,7 @@ static void vgic_dispatch_sgi(struct kvm_vcpu *vcpu, u32 reg)
 	case 0:
 		if (!target_cpus)
 			return;
+		break;
 
 	case 1:
 		target_cpus = ((1 << nrcpus) - 1) & ~(1 << vcpu_id) & 0xff;
@@ -1667,10 +1667,11 @@ static int vgic_ioaddr_assign(struct kvm *kvm, phys_addr_t *ioaddr,
 	if (addr + size < addr)
 		return -EINVAL;
 
+	*ioaddr = addr;
 	ret = vgic_ioaddr_overlap(kvm);
 	if (ret)
-		return ret;
-	*ioaddr = addr;
+		*ioaddr = VGIC_ADDR_UNDEF;
+
 	return ret;
 }
 
