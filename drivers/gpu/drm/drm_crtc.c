@@ -1378,6 +1378,12 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	return 0;
 }
 
+void drm_mode_group_destroy(struct drm_mode_group *group)
+{
+	kfree(group->id_list);
+	group->id_list = NULL;
+}
+
 /*
  * NOTE: Driver's shouldn't ever call drm_mode_group_init_legacy_group - it is
  * the drm core's responsibility to set up mode control groups.
