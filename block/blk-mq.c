@@ -427,12 +427,8 @@ static void __blk_mq_requeue_request(struct request *rq)
 
 void blk_mq_requeue_request(struct request *rq)
 {
-	struct request_queue *q = rq->q;
-
 	__blk_mq_requeue_request(rq);
 	blk_clear_rq_complete(rq);
-
-	trace_block_rq_requeue(q, rq);
 
 	BUG_ON(blk_queued_rq(rq));
 	blk_mq_insert_request(rq, true, true, false);
