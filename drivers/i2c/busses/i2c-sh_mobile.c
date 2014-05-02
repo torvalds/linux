@@ -480,7 +480,7 @@ static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
 {
 	if (usr_msg->len == 0 && (usr_msg->flags & I2C_M_RD)) {
 		dev_err(pd->dev, "Unsupported zero length i2c read\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
 	if (do_init) {
@@ -515,17 +515,12 @@ static int poll_dte(struct sh_mobile_i2c_data *pd)
 			break;
 
 		if (val & ICSR_TACK)
-			return -EIO;
+			return -ENXIO;
 
 		udelay(10);
 	}
 
-	if (!i) {
-		dev_warn(pd->dev, "Timeout polling for DTE!\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	return i ? 0 : -ETIMEDOUT;
 }
 
 static int poll_busy(struct sh_mobile_i2c_data *pd)
@@ -543,20 +538,18 @@ static int poll_busy(struct sh_mobile_i2c_data *pd)
 		 */
 		if (!(val & ICSR_BUSY)) {
 			/* handle missing acknowledge and arbitration lost */
-			if ((val | pd->sr) & (ICSR_TACK | ICSR_AL))
-				return -EIO;
+			val |= pd->sr;
+			if (val & ICSR_TACK)
+				return -ENXIO;
+			if (val & ICSR_AL)
+				return -EAGAIN;
 			break;
 		}
 
 		udelay(10);
 	}
 
-	if (!i) {
-		dev_err(pd->dev, "Polling timed out\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	return i ? 0 : -ETIMEDOUT;
 }
 
 static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
