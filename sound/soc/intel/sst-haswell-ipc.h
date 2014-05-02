@@ -464,7 +464,9 @@ int sst_hsw_stream_get_write_pos(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 *position);
 int sst_hsw_stream_set_write_position(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 stage_id, u32 position);
-int sst_hsw_get_dsp_position(struct sst_hsw *hsw,
+u32 sst_hsw_get_dsp_position(struct sst_hsw *hsw,
+	struct sst_hsw_stream *stream);
+u64 sst_hsw_get_dsp_presentation_position(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream);
 
 /* HW port config */

@@ -569,12 +569,14 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_pcm_substream *substream)
 	struct hsw_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
 	struct sst_hsw *hsw = pdata->hsw;
 	snd_pcm_uframes_t offset;
+	uint64_t ppos;
+	u32 position = sst_hsw_get_dsp_position(hsw, pcm_data->stream);
 
-	offset = bytes_to_frames(runtime,
-		sst_hsw_get_dsp_position(hsw, pcm_data->stream));
+	offset = bytes_to_frames(runtime, position);
+	ppos = sst_hsw_get_dsp_presentation_position(hsw, pcm_data->stream);
 
-	dev_dbg(rtd->dev, "PCM: DMA pointer %zu bytes\n",
-		frames_to_bytes(runtime, (u32)offset));
+	dev_dbg(rtd->dev, "PCM: DMA pointer %du bytes, pos %llu\n",
+		position, ppos);
 	return offset;
 }
 

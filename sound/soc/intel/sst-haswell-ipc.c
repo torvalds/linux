@@ -1547,10 +1547,28 @@ int sst_hsw_stream_reset(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 }
 
 /* Stream pointer positions */
-int sst_hsw_get_dsp_position(struct sst_hsw *hsw,
+u32 sst_hsw_get_dsp_position(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream)
 {
-	return stream->rpos.position;
+	u32 rpos;
+
+	sst_dsp_read(hsw->dsp, &rpos,
+		stream->reply.read_position_register_address, sizeof(rpos));
+
+	return rpos;
+}
+
+/* Stream presentation (monotonic) positions */
+u64 sst_hsw_get_dsp_presentation_position(struct sst_hsw *hsw,
+	struct sst_hsw_stream *stream)
+{
+	u64 ppos;
+
+	sst_dsp_read(hsw->dsp, &ppos,
+		stream->reply.presentation_position_register_address,
+		sizeof(ppos));
+
+	return ppos;
 }
 
 int sst_hsw_stream_set_write_position(struct sst_hsw *hsw,
