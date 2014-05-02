@@ -230,11 +230,9 @@ ENTRY(set_cpu_boot_mode_flag)
 	cmp	w20, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 	add	x1, x1, #4
-1:	dc	cvac, x1			// Clean potentially dirty cache line
-	dsb	sy
-	str	w20, [x1]			// This CPU has booted in EL1
-	dc	civac, x1			// Clean&invalidate potentially stale cache line
-	dsb	sy
+1:	str	w20, [x1]			// This CPU has booted in EL1
+	dmb	sy
+	dc	ivac, x1			// Invalidate potentially stale cache line
 	ret
 ENDPROC(set_cpu_boot_mode_flag)
 
