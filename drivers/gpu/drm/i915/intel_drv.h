@@ -718,6 +718,7 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc);
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_config *pipe_config);
 
+void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder);
 
 /* intel_display.c */
 const char *intel_output_name(int output);

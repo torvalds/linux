@@ -365,6 +365,18 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	DRM_ERROR("FDI link training failed!\n");
 }
 
+void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_digital_port *intel_dig_port =
+		enc_to_dig_port(&encoder->base);
+
+	intel_dp->DP = intel_dig_port->saved_port_bits |
+		DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
+	intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
+
+}
+
 static struct intel_encoder *
 intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 {
@@ -1015,12 +1027,8 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		struct intel_digital_port *intel_dig_port =
-			enc_to_dig_port(encoder);
 
-		intel_dp->DP = intel_dig_port->saved_port_bits |
-			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
-		intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
+		intel_ddi_init_dp_buf_reg(intel_encoder);
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
