@@ -783,7 +783,7 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 void pcic_nmi(unsigned int pend, struct pt_regs *regs)
 {
 
-	pend = flip_dword(pend);
+	pend = swab32(pend);
 
 	if (!pcic_speculative || (pend & PCI_SYS_INT_PENDING_PIO) == 0) {
 		/*
@@ -874,83 +874,5 @@ void __init sun4m_pci_init_IRQ(void)
 	sparc_config.clear_clock_irq  = pcic_clear_clock_irq;
 	sparc_config.load_profile_irq = pcic_load_profile_irq;
 }
-
-/*
- * This probably belongs here rather than ioport.c because
- * we do not want this crud linked into SBus kernels.
- * Also, think for a moment about likes of floppy.c that
- * include architecture specific parts. They may want to redefine ins/outs.
- *
- * We do not use horrible macros here because we want to
- * advance pointer by sizeof(size).
- */
-void outsb(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 1;
-		outb(*(const char *)src, addr);
-		src += 1;
-		/* addr += 1; */
-	}
-}
-EXPORT_SYMBOL(outsb);
-
-void outsw(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 2;
-		outw(*(const short *)src, addr);
-		src += 2;
-		/* addr += 2; */
-	}
-}
-EXPORT_SYMBOL(outsw);
-
-void outsl(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 4;
-		outl(*(const long *)src, addr);
-		src += 4;
-		/* addr += 4; */
-	}
-}
-EXPORT_SYMBOL(outsl);
-
-void insb(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 1;
-		*(unsigned char *)dst = inb(addr);
-		dst += 1;
-		/* addr += 1; */
-	}
-}
-EXPORT_SYMBOL(insb);
-
-void insw(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 2;
-		*(unsigned short *)dst = inw(addr);
-		dst += 2;
-		/* addr += 2; */
-	}
-}
-EXPORT_SYMBOL(insw);
-
-void insl(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 4;
-		/*
-		 * XXX I am sure we are in for an unaligned trap here.
-		 */
-		*(unsigned long *)dst = inl(addr);
-		dst += 4;
-		/* addr += 4; */
-	}
-}
-EXPORT_SYMBOL(insl);
 
 subsys_initcall(pcic_init);

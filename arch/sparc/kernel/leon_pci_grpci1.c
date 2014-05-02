@@ -144,7 +144,7 @@ static int grpci1_cfg_r32(struct grpci1_priv *priv, unsigned int bus,
 		grpci1_cfg_w32(priv, TGT, 0, PCI_COMMAND, tmp);
 	} else {
 		/* Bus always little endian (unaffected by byte-swapping) */
-		*val = flip_dword(tmp);
+		*val = swab32(tmp);
 	}
 
 	return 0;
@@ -197,7 +197,7 @@ static int grpci1_cfg_w32(struct grpci1_priv *priv, unsigned int bus,
 
 	pci_conf = (unsigned int *) (priv->pci_conf |
 						(devfn << 8) | (where & 0xfc));
-	LEON3_BYPASS_STORE_PA(pci_conf, flip_dword(val));
+	LEON3_BYPASS_STORE_PA(pci_conf, swab32(val));
 
 	return 0;
 }

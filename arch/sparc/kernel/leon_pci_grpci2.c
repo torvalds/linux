@@ -270,7 +270,7 @@ static int grpci2_cfg_r32(struct grpci2_priv *priv, unsigned int bus,
 		*val = 0xffffffff;
 	} else {
 		/* Bus always little endian (unaffected by byte-swapping) */
-		*val = flip_dword(tmp);
+		*val = swab32(tmp);
 	}
 
 	return 0;
@@ -328,7 +328,7 @@ static int grpci2_cfg_w32(struct grpci2_priv *priv, unsigned int bus,
 
 	pci_conf = (unsigned int *) (priv->pci_conf |
 						(devfn << 8) | (where & 0xfc));
-	LEON3_BYPASS_STORE_PA(pci_conf, flip_dword(val));
+	LEON3_BYPASS_STORE_PA(pci_conf, swab32(val));
 
 	/* Wait until GRPCI2 signals that CFG access is done, it should be
 	 * done instantaneously unless a DMA operation is ongoing...
