@@ -5008,12 +5008,6 @@ ftrace_suspend_notifier_call(struct notifier_block *bl, unsigned long state,
 	return NOTIFY_DONE;
 }
 
-/* Just a place holder for function graph */
-static struct ftrace_ops fgraph_ops __read_mostly = {
-	.func		= ftrace_stub,
-	.flags		= FTRACE_OPS_FL_STUB | FTRACE_OPS_FL_RECURSION_SAFE,
-};
-
 static int ftrace_graph_entry_test(struct ftrace_graph_ent *trace)
 {
 	if (!ftrace_ops_test(&global_ops, trace->func, NULL))
@@ -5076,7 +5070,10 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	ftrace_graph_entry = ftrace_graph_entry_test;
 	update_function_graph_func();
 
-	ret = ftrace_startup(&fgraph_ops, FTRACE_START_FUNC_RET);
+	/* Function graph doesn't use the .func field of global_ops */
+	global_ops.flags |= FTRACE_OPS_FL_STUB;
+
+	ret = ftrace_startup(&global_ops, FTRACE_START_FUNC_RET);
 
 out:
 	mutex_unlock(&ftrace_lock);
@@ -5094,7 +5091,8 @@ void unregister_ftrace_graph(void)
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
 	__ftrace_graph_entry = ftrace_graph_entry_stub;
-	ftrace_shutdown(&fgraph_ops, FTRACE_STOP_FUNC_RET);
+	ftrace_shutdown(&global_ops, FTRACE_STOP_FUNC_RET);
+	global_ops.flags &= ~FTRACE_OPS_FL_STUB;
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 
