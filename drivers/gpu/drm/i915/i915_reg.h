@@ -3497,7 +3497,11 @@ enum punit_power_well {
 #define   SPRITEE_FLIPDONE_INT_EN		(1<<9)
 #define   PLANEC_FLIPDONE_INT_EN		(1<<8)
 
-#define DPINVGTT				(VLV_DISPLAY_BASE + 0x7002c) /* VLV only */
+#define DPINVGTT				(VLV_DISPLAY_BASE + 0x7002c) /* VLV/CHV only */
+#define   SPRITEF_INVALID_GTT_INT_EN		(1<<27)
+#define   SPRITEE_INVALID_GTT_INT_EN		(1<<26)
+#define   PLANEC_INVALID_GTT_INT_EN		(1<<25)
+#define   CURSORC_INVALID_GTT_INT_EN		(1<<24)
 #define   CURSORB_INVALID_GTT_INT_EN		(1<<23)
 #define   CURSORA_INVALID_GTT_INT_EN		(1<<22)
 #define   SPRITED_INVALID_GTT_INT_EN		(1<<21)
@@ -3507,6 +3511,11 @@ enum punit_power_well {
 #define   SPRITEA_INVALID_GTT_INT_EN		(1<<17)
 #define   PLANEA_INVALID_GTT_INT_EN		(1<<16)
 #define   DPINVGTT_EN_MASK			0xff0000
+#define   DPINVGTT_EN_MASK_CHV			0xfff0000
+#define   SPRITEF_INVALID_GTT_STATUS		(1<<11)
+#define   SPRITEE_INVALID_GTT_STATUS		(1<<10)
+#define   PLANEC_INVALID_GTT_STATUS		(1<<9)
+#define   CURSORC_INVALID_GTT_STATUS		(1<<8)
 #define   CURSORB_INVALID_GTT_STATUS		(1<<7)
 #define   CURSORA_INVALID_GTT_STATUS		(1<<6)
 #define   SPRITED_INVALID_GTT_STATUS		(1<<5)
@@ -3516,6 +3525,7 @@ enum punit_power_well {
 #define   SPRITEA_INVALID_GTT_STATUS		(1<<1)
 #define   PLANEA_INVALID_GTT_STATUS		(1<<0)
 #define   DPINVGTT_STATUS_MASK			0xff
+#define   DPINVGTT_STATUS_MASK_CHV		0xfff
 
 #define DSPARB			0x70030
 #define   DSPARB_CSTART_MASK	(0x7f << 7)
