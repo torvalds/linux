@@ -1901,6 +1901,9 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	    (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
 		is_tvcv = true;
 
+	if (!radeon_crtc->adjusted_clock)
+		return -EINVAL;
+
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 
 	if (ASIC_IS_DCE4(rdev))
