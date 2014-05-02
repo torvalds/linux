@@ -22,20 +22,28 @@
 #ifndef _CIFSFS_H
 #define _CIFSFS_H
 
+#include <linux/hash.h>
+
 #define ROOT_I 2
 
 /*
  * ino_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
- * so that it will fit.
+ * so that it will fit. We use hash_64 to convert the value to 31 bits, and
+ * then add 1, to ensure that we don't end up with a 0 as the value.
  */
+#if BITS_PER_LONG == 64
 static inline ino_t
 cifs_uniqueid_to_ino_t(u64 fileid)
 {
-	ino_t ino = (ino_t) fileid;
-	if (sizeof(ino_t) < sizeof(u64))
-		ino ^= fileid >> (sizeof(u64)-sizeof(ino_t)) * 8;
-	return ino;
+	return (ino_t)fileid;
 }
+#else
+static inline ino_t
+cifs_uniqueid_to_ino_t(u64 fileid)
+{
+	return (ino_t)hash_64(fileid, (sizeof(ino_t) * 8) - 1) + 1;
+}
+#endif
 
 extern struct file_system_type cifs_fs_type;
 extern const struct address_space_operations cifs_addr_ops;
