@@ -827,7 +827,7 @@ static int atari_scsi_bus_reset(Scsi_Cmnd *cmd)
 	} else {
 		atari_turnon_irq(IRQ_MFP_FSCSI);
 	}
-	if ((rv & SCSI_RESET_ACTION) == SCSI_RESET_SUCCESS)
+	if (rv == SUCCESS)
 		falcon_release_lock_if_possible(hostdata);
 
 	return rv;

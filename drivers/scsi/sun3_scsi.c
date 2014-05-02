@@ -79,7 +79,6 @@
 #define REAL_DMA
 
 #include "scsi.h"
-#include "initio.h"
 #include <scsi/scsi_host.h>
 #include "sun3_scsi.h"
 
@@ -122,6 +121,8 @@ static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 
 static struct scsi_cmnd *sun3_dma_setup_done = NULL;
+
+#define	RESET_RUN_DONE
 
 #define	AFTER_RESET_DELAY	(HZ/2)
 

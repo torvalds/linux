@@ -2683,11 +2683,11 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 			local_irq_restore(flags);
 			cmd->scsi_done(cmd);
 			falcon_release_lock_if_possible(hostdata);
-			return SCSI_ABORT_SUCCESS;
+			return SUCCESS;
 		} else {
 /*			local_irq_restore(flags); */
 			printk("scsi%d: abort of connected command failed!\n", HOSTNO);
-			return SCSI_ABORT_ERROR;
+			return FAILED;
 		}
 	}
 #endif
@@ -2711,7 +2711,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 			 * yet... */
 			tmp->scsi_done(tmp);
 			falcon_release_lock_if_possible(hostdata);
-			return SCSI_ABORT_SUCCESS;
+			return SUCCESS;
 		}
 	}
 
@@ -2729,7 +2729,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 	if (hostdata->connected) {
 		local_irq_restore(flags);
 		ABRT_PRINTK("scsi%d: abort failed, command connected.\n", HOSTNO);
-		return SCSI_ABORT_SNOOZE;
+		return FAILED;
 	}
 
 	/*
@@ -2764,7 +2764,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 			ABRT_PRINTK("scsi%d: aborting disconnected command.\n", HOSTNO);
 
 			if (NCR5380_select(instance, cmd, (int)cmd->tag))
-				return SCSI_ABORT_BUSY;
+				return FAILED;
 
 			ABRT_PRINTK("scsi%d: nexus reestablished.\n", HOSTNO);
 
@@ -2791,7 +2791,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 					local_irq_restore(flags);
 					tmp->scsi_done(tmp);
 					falcon_release_lock_if_possible(hostdata);
-					return SCSI_ABORT_SUCCESS;
+					return SUCCESS;
 				}
 			}
 		}
@@ -2816,7 +2816,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 	 */
 	falcon_release_lock_if_possible(hostdata);
 
-	return SCSI_ABORT_NOT_RUNNING;
+	return FAILED;
 }
 
 
@@ -2825,7 +2825,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
  *
  * Purpose : reset the SCSI bus.
  *
- * Returns : SCSI_RESET_WAKEUP
+ * Returns : SUCCESS or FAILURE
  *
  */
 
@@ -2834,7 +2834,7 @@ static int NCR5380_bus_reset(Scsi_Cmnd *cmd)
 	SETUP_HOSTDATA(cmd->device->host);
 	int i;
 	unsigned long flags;
-#if 1
+#if defined(RESET_RUN_DONE)
 	Scsi_Cmnd *connected, *disconnected_queue;
 #endif
 
@@ -2859,7 +2859,14 @@ static int NCR5380_bus_reset(Scsi_Cmnd *cmd)
 	 * through anymore ... */
 	(void)NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 
-#if 1	/* XXX Should now be done by midlevel code, but it's broken XXX */
+	/* MSch 20140115 - looking at the generic NCR5380 driver, all of this
+	 * should go.
+	 * Catch-22: if we don't clear all queues, the SCSI driver lock will
+	 * not be reset by atari_scsi_reset()!
+	 */
+
+#if defined(RESET_RUN_DONE)
+	/* XXX Should now be done by midlevel code, but it's broken XXX */
 	/* XXX see below                                            XXX */
 
 	/* MSch: old-style reset: actually abort all command processing here */
@@ -2915,7 +2922,7 @@ static int NCR5380_bus_reset(Scsi_Cmnd *cmd)
 	 * the midlevel code that the reset was SUCCESSFUL, and there is no
 	 * need to 'wake up' the commands by a request_sense
 	 */
-	return SCSI_RESET_SUCCESS | SCSI_RESET_BUS_RESET;
+	return SUCCESS;
 #else /* 1 */
 
 	/* MSch: new-style reset handling: let the mid-level do what it can */
@@ -2963,6 +2970,6 @@ static int NCR5380_bus_reset(Scsi_Cmnd *cmd)
 	local_irq_restore(flags);
 
 	/* we did no complete reset of all commands, so a wakeup is required */
-	return SCSI_RESET_WAKEUP | SCSI_RESET_BUS_RESET;
+	return SUCCESS;
 #endif /* 1 */
 }
