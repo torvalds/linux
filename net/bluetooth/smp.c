@@ -72,6 +72,7 @@ struct smp_chan {
 	unsigned long	flags;
 
 	struct crypto_blkcipher	*tfm_aes;
+	struct crypto_hash	*tfm_cmac;
 };
 
 static inline void swap_buf(const u8 *src, u8 *dst, size_t len)
@@ -396,6 +397,7 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 	kfree(smp->slave_csrk);
 
 	crypto_free_blkcipher(smp->tfm_aes);
+	crypto_free_hash(smp->tfm_cmac);
 
 	/* If pairing failed clean up any keys we might have */
 	if (!complete) {
@@ -857,6 +859,14 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 	smp->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(smp->tfm_aes)) {
 		BT_ERR("Unable to create ECB crypto context");
+		kfree(smp);
+		return NULL;
+	}
+
+	smp->tfm_cmac = crypto_alloc_hash("cmac(aes)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(smp->tfm_cmac)) {
+		BT_ERR("Unable to create CMAC crypto context");
+		crypto_free_blkcipher(smp->tfm_aes);
 		kfree(smp);
 		return NULL;
 	}
