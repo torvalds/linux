@@ -232,6 +232,7 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 {
 	unsigned long i2c_clk_khz;
 	u32 tHIGH, tLOW, tf;
+	uint16_t max_val;
 
 	/* Get clock rate after clock is enabled */
 	clk_prepare_enable(pd->clk);
@@ -254,15 +255,23 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	}
 
 	pd->iccl = sh_mobile_i2c_iccl(i2c_clk_khz, tLOW, tf);
+	pd->icch = sh_mobile_i2c_icch(i2c_clk_khz, tHIGH, tf);
+
+	max_val = pd->flags & IIC_FLAG_HAS_ICIC67 ? 0x1ff : 0xff;
+	if (pd->iccl > max_val || pd->icch > max_val) {
+		dev_err(pd->dev, "timing values out of range: L/H=0x%x/0x%x\n",
+			pd->iccl, pd->icch);
+		return -EINVAL;
+	}
+
 	/* one more bit of ICCL in ICIC */
-	if ((pd->iccl > 0xff) && (pd->flags & IIC_FLAG_HAS_ICIC67))
+	if (pd->iccl & 0x100)
 		pd->icic |= ICIC_ICCLB8;
 	else
 		pd->icic &= ~ICIC_ICCLB8;
 
-	pd->icch = sh_mobile_i2c_icch(i2c_clk_khz, tHIGH, tf);
 	/* one more bit of ICCH in ICIC */
-	if ((pd->icch > 0xff) && (pd->flags & IIC_FLAG_HAS_ICIC67))
+	if (pd->icch & 0x100)
 		pd->icic |= ICIC_ICCHB8;
 	else
 		pd->icic &= ~ICIC_ICCHB8;
@@ -717,7 +726,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	}
 
 	dev_info(&dev->dev,
-		 "I2C adapter %d with bus speed %lu Hz (L/H=%x/%x)\n",
+		 "I2C adapter %d with bus speed %lu Hz (L/H=0x%x/0x%x)\n",
 		 adap->nr, pd->bus_speed, pd->iccl, pd->icch);
 
 	return 0;
