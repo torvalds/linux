@@ -657,6 +657,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	struct resource *res;
 	int size;
 	int ret;
+	u32 bus_speed;
 
 	pd = kzalloc(sizeof(struct sh_mobile_i2c_data), GFP_KERNEL);
 	if (pd == NULL) {
@@ -697,7 +698,9 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	}
 
 	/* Use platform data bus speed or STANDARD_MODE */
-	pd->bus_speed = STANDARD_MODE;
+	ret = of_property_read_u32(dev->dev.of_node, "clock-frequency", &bus_speed);
+	pd->bus_speed = ret ? STANDARD_MODE : bus_speed;
+
 	if (pdata && pdata->bus_speed)
 		pd->bus_speed = pdata->bus_speed;
 	pd->clks_per_count = 1;
