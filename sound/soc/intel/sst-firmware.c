@@ -202,6 +202,9 @@ static int block_alloc_contiguous(struct sst_module *module,
 		size -= block->size;
 	}
 
+	list_for_each_entry(block, &tmp, list)
+		list_add(&block->module_list, &module->block_list);
+
 	list_splice(&tmp, &dsp->used_block_list);
 	return 0;
 }
