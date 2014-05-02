@@ -796,23 +796,9 @@ static void shrink_dentry_list(struct list_head *list)
 {
 	struct dentry *dentry, *parent;
 
-	rcu_read_lock();
-	for (;;) {
-		dentry = list_entry_rcu(list->prev, struct dentry, d_lru);
-		if (&dentry->d_lru == list)
-			break; /* empty */
-
-		/*
-		 * Get the dentry lock, and re-verify that the dentry is
-		 * this on the shrinking list. If it is, we know that
-		 * DCACHE_SHRINK_LIST and DCACHE_LRU_LIST are set.
-		 */
+	while (!list_empty(list)) {
+		dentry = list_entry(list->prev, struct dentry, d_lru);
 		spin_lock(&dentry->d_lock);
-		if (dentry != list_entry(list->prev, struct dentry, d_lru)) {
-			spin_unlock(&dentry->d_lock);
-			continue;
-		}
-
 		/*
 		 * The dispose list is isolated and dentries are not accounted
 		 * to the LRU here, so we can simply remove it from the list
@@ -828,23 +814,20 @@ static void shrink_dentry_list(struct list_head *list)
 			spin_unlock(&dentry->d_lock);
 			continue;
 		}
-		rcu_read_unlock();
 
 		parent = dentry_kill(dentry, 0);
 		/*
 		 * If dentry_kill returns NULL, we have nothing more to do.
 		 */
-		if (!parent) {
-			rcu_read_lock();
+		if (!parent)
 			continue;
-		}
+
 		if (unlikely(parent == dentry)) {
 			/*
 			 * trylocks have failed and d_lock has been held the
 			 * whole time, so it could not have been added to any
 			 * other lists. Just add it back to the shrink list.
 			 */
-			rcu_read_lock();
 			d_shrink_add(dentry, list);
 			spin_unlock(&dentry->d_lock);
 			continue;
@@ -858,9 +841,7 @@ static void shrink_dentry_list(struct list_head *list)
 		dentry = parent;
 		while (dentry && !lockref_put_or_lock(&dentry->d_lockref))
 			dentry = dentry_kill(dentry, 1);
-		rcu_read_lock();
 	}
-	rcu_read_unlock();
 }
 
 static enum lru_status
