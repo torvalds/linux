@@ -24,6 +24,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/clocksource.h>
+#include <linux/sched_clock.h>
 
 #define EXYNOS4_MCTREG(x)		(x)
 #define EXYNOS4_MCT_G_CNT_L		EXYNOS4_MCTREG(0x100)
@@ -192,12 +193,19 @@ struct clocksource mct_frc = {
 	.resume		= exynos4_frc_resume,
 };
 
+static u64 notrace exynos4_read_sched_clock(void)
+{
+	return exynos4_frc_read(&mct_frc);
+}
+
 static void __init exynos4_clocksource_init(void)
 {
 	exynos4_mct_frc_start(0, 0);
 
 	if (clocksource_register_hz(&mct_frc, clk_rate))
 		panic("%s: can't register clocksource\n", mct_frc.name);
+
+	sched_clock_register(exynos4_read_sched_clock, 64, clk_rate);
 }
 
 static void exynos4_mct_comp0_stop(void)
