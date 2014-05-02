@@ -611,42 +611,25 @@ static struct i2c_algorithm sh_mobile_i2c_algorithm = {
 	.master_xfer	= sh_mobile_i2c_xfer,
 };
 
-static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, int hook)
+static int sh_mobile_i2c_hook_irqs(struct platform_device *dev)
 {
 	struct resource *res;
-	int ret = -ENXIO;
-	int n, k = 0;
+	resource_size_t n;
+	int k = 0, ret;
 
 	while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
-		for (n = res->start; hook && n <= res->end; n++) {
-			if (request_irq(n, sh_mobile_i2c_isr, 0,
-					dev_name(&dev->dev), dev)) {
-				for (n--; n >= res->start; n--)
-					free_irq(n, dev);
-
-				goto rollback;
+		for (n = res->start; n <= res->end; n++) {
+			ret = devm_request_irq(&dev->dev, n, sh_mobile_i2c_isr,
+					  0, dev_name(&dev->dev), dev);
+			if (ret) {
+				dev_err(&dev->dev, "cannot request IRQ %pa\n", &n);
+				return ret;
 			}
 		}
 		k++;
 	}
 
-	if (hook)
-		return k > 0 ? 0 : -ENOENT;
-
-	ret = 0;
-
- rollback:
-	k--;
-
-	while (k >= 0) {
-		res = platform_get_resource(dev, IORESOURCE_IRQ, k);
-		for (n = res->start; n <= res->end; n++)
-			free_irq(n, dev);
-
-		k--;
-	}
-
-	return ret;
+	return k > 0 ? 0 : -ENOENT;
 }
 
 static int sh_mobile_i2c_probe(struct platform_device *dev)
@@ -668,11 +651,9 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		return PTR_ERR(pd->clk);
 	}
 
-	ret = sh_mobile_i2c_hook_irqs(dev, 1);
-	if (ret) {
-		dev_err(&dev->dev, "cannot request IRQ\n");
+	ret = sh_mobile_i2c_hook_irqs(dev);
+	if (ret)
 		return ret;
-	}
 
 	pd->dev = &dev->dev;
 	platform_set_drvdata(dev, pd);
@@ -680,10 +661,8 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 
 	pd->reg = devm_ioremap_resource(&dev->dev, res);
-	if (IS_ERR(pd->reg)) {
-		ret = PTR_ERR(pd->reg);
-		goto err_irq;
-	}
+	if (IS_ERR(pd->reg))
+		return PTR_ERR(pd->reg);
 
 	/* Use platform data bus speed or STANDARD_MODE */
 	ret = of_property_read_u32(dev->dev.of_node, "clock-frequency", &bus_speed);
@@ -735,7 +714,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret < 0) {
 		dev_err(&dev->dev, "cannot add numbered adapter\n");
-		goto err_irq;
+		return ret;
 	}
 
 	dev_info(&dev->dev,
@@ -743,10 +722,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		 adap->nr, pd->bus_speed, pd->iccl, pd->icch);
 
 	return 0;
-
- err_irq:
-	sh_mobile_i2c_hook_irqs(dev, 0);
-	return ret;
 }
 
 static int sh_mobile_i2c_remove(struct platform_device *dev)
@@ -754,7 +729,6 @@ static int sh_mobile_i2c_remove(struct platform_device *dev)
 	struct sh_mobile_i2c_data *pd = platform_get_drvdata(dev);
 
 	i2c_del_adapter(&pd->adap);
-	sh_mobile_i2c_hook_irqs(dev, 0);
 	pm_runtime_disable(&dev->dev);
 	return 0;
 }
