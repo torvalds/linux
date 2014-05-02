@@ -48,7 +48,7 @@ struct b2056_inittabs_pts {
 	unsigned int rx_length;
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev3_syn[] = {
+static const struct b2056_inittab_entry b2056_inittab_phy_rev3_syn[] = {
 	[B2056_SYN_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -232,7 +232,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev3_syn[] = {
 	[B2056_SYN_LOGEN_TX_CMOS_VALID]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev3_tx[] = {
+static const struct b2056_inittab_entry b2056_inittab_phy_rev3_tx[] = {
 	[B2056_TX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -380,7 +380,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev3_tx[] = {
 	[B2056_TX_STATUS_TXLPF_RC]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev3_rx[] = {
+static const struct b2056_inittab_entry b2056_inittab_phy_rev3_rx[] = {
 	[B2056_RX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -530,7 +530,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev3_rx[] = {
 	[B2056_RX_STATUS_HPC_RC]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev4_syn[] = {
+static const struct b2056_inittab_entry b2056_inittab_phy_rev4_syn[] = {
 	[B2056_SYN_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -714,7 +714,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev4_syn[] = {
 	[B2056_SYN_LOGEN_TX_CMOS_VALID]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev4_tx[] = {
+static const struct b2056_inittab_entry b2056_inittab_phy_rev4_tx[] = {
 	[B2056_TX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -862,7 +862,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev4_tx[] = {
 	[B2056_TX_STATUS_TXLPF_RC]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev4_rx[] = {
+static const struct b2056_inittab_entry b2056_inittab_phy_rev4_rx[] = {
 	[B2056_RX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -1012,7 +1012,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev4_rx[] = {
 	[B2056_RX_STATUS_HPC_RC]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev5_syn[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev5_syn[] = {
 	[B2056_SYN_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -1196,7 +1196,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev5_syn[] = {
 	[B2056_SYN_LOGEN_TX_CMOS_VALID]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev5_tx[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev5_tx[] = {
 	[B2056_TX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -1352,7 +1352,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev5_tx[] = {
 	[B2056_TX_GMBB_IDAC7]		= { .ghz5 = 0x0075, .ghz2 = 0x0075, UPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev5_rx[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev5_rx[] = {
 	[B2056_RX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -1502,7 +1502,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev5_rx[] = {
 	[B2056_RX_STATUS_HPC_RC]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev6_syn[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev6_syn[] = {
 	[B2056_SYN_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -1686,7 +1686,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev6_syn[] = {
 	[B2056_SYN_LOGEN_TX_CMOS_VALID]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev6_tx[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev6_tx[] = {
 	[B2056_TX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -1842,7 +1842,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev6_tx[] = {
 	[B2056_TX_GMBB_IDAC7]		= { .ghz5 = 0x0070, .ghz2 = 0x0070, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev6_rx[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev6_rx[] = {
 	[B2056_RX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -1992,7 +1992,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev6_rx[] = {
 	[B2056_RX_STATUS_HPC_RC]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev7_syn[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev7_9_syn[] = {
 	[B2056_SYN_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -2176,7 +2176,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev7_syn[] = {
 	[B2056_SYN_LOGEN_TX_CMOS_VALID]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev7_tx[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev7_9_tx[] = {
 	[B2056_TX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -2332,7 +2332,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev7_tx[] = {
 	[B2056_TX_GMBB_IDAC7]		= { .ghz5 = 0x0075, .ghz2 = 0x0075, UPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev7_rx[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev7_9_rx[] = {
 	[B2056_RX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -2482,7 +2482,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev7_rx[] = {
 	[B2056_RX_STATUS_HPC_RC]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev8_syn[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev8_syn[] = {
 	[B2056_SYN_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_SYN_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -2666,7 +2666,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev8_syn[] = {
 	[B2056_SYN_LOGEN_TX_CMOS_VALID]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev8_tx[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev8_tx[] = {
 	[B2056_TX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_TX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -2822,7 +2822,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev8_tx[] = {
 	[B2056_TX_GMBB_IDAC7]		= { .ghz5 = 0x0070, .ghz2 = 0x0070, NOUPLOAD, },
 };
 
-static const struct b2056_inittab_entry b2056_inittab_rev8_rx[] = {
+static const struct b2056_inittab_entry b2056_inittab_radio_rev8_rx[] = {
 	[B2056_RX_RESERVED_ADDR2]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR3]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 	[B2056_RX_RESERVED_ADDR4]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
@@ -2972,23 +2972,68 @@ static const struct b2056_inittab_entry b2056_inittab_rev8_rx[] = {
 	[B2056_RX_STATUS_HPC_RC]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, NOUPLOAD, },
 };
 
-#define INITTABSPTS(prefix) \
-	.syn		= prefix##_syn,			\
-	.syn_length	= ARRAY_SIZE(prefix##_syn),	\
-	.tx		= prefix##_tx,			\
-	.tx_length	= ARRAY_SIZE(prefix##_tx),	\
-	.rx		= prefix##_rx,			\
-	.rx_length	= ARRAY_SIZE(prefix##_rx)
-
-static const struct b2056_inittabs_pts b2056_inittabs[] = {
-	[3] = { INITTABSPTS(b2056_inittab_rev3) },
-	[4] = { INITTABSPTS(b2056_inittab_rev4) },
-	[5] = { INITTABSPTS(b2056_inittab_rev5) },
-	[6] = { INITTABSPTS(b2056_inittab_rev6) },
-	[7] = { INITTABSPTS(b2056_inittab_rev7) },
-	[8] = { INITTABSPTS(b2056_inittab_rev8) },
-	[9] = { INITTABSPTS(b2056_inittab_rev7) },
+static const struct b2056_inittab_entry b2056_inittab_radio_rev11_syn[] = {
+	[B2056_SYN_PLL_PFD]		= { .ghz5 = 0x0006, .ghz2 = 0x0006, UPLOAD, },
+	[B2056_SYN_PLL_CP2]		= { .ghz5 = 0x003f, .ghz2 = 0x003f, UPLOAD, },
+	[B2056_SYN_PLL_LOOPFILTER1]	= { .ghz5 = 0x0006, .ghz2 = 0x0006, UPLOAD, },
+	[B2056_SYN_PLL_LOOPFILTER2]	= { .ghz5 = 0x0006, .ghz2 = 0x0006, UPLOAD, },
+	[B2056_SYN_PLL_LOOPFILTER4]	= { .ghz5 = 0x002b, .ghz2 = 0x002b, UPLOAD, },
+	[B2056_SYN_PLL_VCO2]		= { .ghz5 = 0x00f7, .ghz2 = 0x00f7, UPLOAD, },
+	[B2056_SYN_PLL_VCOCAL12]	= { .ghz5 = 0x0007, .ghz2 = 0x0007, UPLOAD, },
+	[B2056_SYN_LOGENBUF2]		= { .ghz5 = 0x008f, .ghz2 = 0x008f, UPLOAD, },
 };
+
+static const struct b2056_inittab_entry b2056_inittab_radio_rev11_tx[] = {
+	[B2056_TX_PA_SPARE2]		= { .ghz5 = 0x00ee, .ghz2 = 0x00ee, UPLOAD, },
+	[B2056_TX_INTPAA_IAUX_STAT]	= { .ghz5 = 0x0050, .ghz2 = 0x0050, UPLOAD, },
+	[B2056_TX_INTPAA_IMAIN_STAT]	= { .ghz5 = 0x0050, .ghz2 = 0x0050, UPLOAD, },
+	[B2056_TX_INTPAA_PASLOPE]	= { .ghz5 = 0x00f0, .ghz2 = 0x00f0, UPLOAD, },
+	[B2056_TX_INTPAG_PASLOPE]	= { .ghz5 = 0x00f0, .ghz2 = 0x00f0, UPLOAD, },
+	[B2056_TX_PADA_IDAC]		= { .ghz5 = 0x00ff, .ghz2 = 0x00ff, UPLOAD, },
+	[B2056_TX_PADA_SLOPE]		= { .ghz5 = 0x0070, .ghz2 = 0x0070, UPLOAD, },
+	[B2056_TX_PADG_SLOPE]		= { .ghz5 = 0x0070, .ghz2 = 0x0070, UPLOAD, },
+	[B2056_TX_PGAA_IDAC]		= { .ghz5 = 0x00ff, .ghz2 = 0x00ff, UPLOAD, },
+	[B2056_TX_PGAA_SLOPE]		= { .ghz5 = 0x0077, .ghz2 = 0x0077, UPLOAD, },
+	[B2056_TX_PGAG_SLOPE]		= { .ghz5 = 0x0077, .ghz2 = 0x0077, UPLOAD, },
+	[B2056_TX_GMBB_IDAC]		= { .ghz5 = 0x0000, .ghz2 = 0x0000, UPLOAD, },
+	[B2056_TX_TXSPARE1]		= { .ghz5 = 0x0030, .ghz2 = 0x0030, UPLOAD, },
+};
+
+static const struct b2056_inittab_entry b2056_inittab_radio_rev11_rx[] = {
+	[B2056_RX_BIASPOLE_LNAA1_IDAC]	= { .ghz5 = 0x0017, .ghz2 = 0x0017, UPLOAD, },
+	[B2056_RX_LNAA2_IDAC]		= { .ghz5 = 0x00ff, .ghz2 = 0x00ff, UPLOAD, },
+	[B2056_RX_BIASPOLE_LNAG1_IDAC]	= { .ghz5 = 0x0017, .ghz2 = 0x0017, UPLOAD, },
+	[B2056_RX_LNAG2_IDAC]		= { .ghz5 = 0x00f0, .ghz2 = 0x00f0, UPLOAD, },
+	[B2056_RX_MIXA_VCM]		= { .ghz5 = 0x0055, .ghz2 = 0x0055, UPLOAD, },
+	[B2056_RX_MIXA_LOB_BIAS]	= { .ghz5 = 0x0088, .ghz2 = 0x0088, UPLOAD, },
+	[B2056_RX_MIXA_BIAS_AUX]	= { .ghz5 = 0x0007, .ghz2 = 0x0007, UPLOAD, },
+	[B2056_RX_MIXG_VCM]		= { .ghz5 = 0x0055, .ghz2 = 0x0055, UPLOAD, },
+	[B2056_RX_TIA_IOPAMP]		= { .ghz5 = 0x0026, .ghz2 = 0x0026, UPLOAD, },
+	[B2056_RX_TIA_QOPAMP]		= { .ghz5 = 0x0026, .ghz2 = 0x0026, UPLOAD, },
+	[B2056_RX_TIA_IMISC]		= { .ghz5 = 0x000f, .ghz2 = 0x000f, UPLOAD, },
+	[B2056_RX_TIA_QMISC]		= { .ghz5 = 0x000f, .ghz2 = 0x000f, UPLOAD, },
+	[B2056_RX_RXLPF_OUTVCM]		= { .ghz5 = 0x0004, .ghz2 = 0x0004, UPLOAD, },
+	[B2056_RX_VGA_BIAS_DCCANCEL]	= { .ghz5 = 0x0000, .ghz2 = 0x0000, UPLOAD, },
+	[B2056_RX_RXSPARE3]		= { .ghz5 = 0x0005, .ghz2 = 0x0005, UPLOAD, },
+};
+
+#define INITTABSPTS(prefix) \
+	static const struct b2056_inittabs_pts prefix = {	\
+		.syn		= prefix##_syn,			\
+		.syn_length	= ARRAY_SIZE(prefix##_syn),	\
+		.tx		= prefix##_tx,			\
+		.tx_length	= ARRAY_SIZE(prefix##_tx),	\
+		.rx		= prefix##_rx,			\
+		.rx_length	= ARRAY_SIZE(prefix##_rx),	\
+	}
+
+INITTABSPTS(b2056_inittab_phy_rev3);
+INITTABSPTS(b2056_inittab_phy_rev4);
+INITTABSPTS(b2056_inittab_radio_rev5);
+INITTABSPTS(b2056_inittab_radio_rev6);
+INITTABSPTS(b2056_inittab_radio_rev7_9);
+INITTABSPTS(b2056_inittab_radio_rev8);
+INITTABSPTS(b2056_inittab_radio_rev11);
 
 #define RADIOREGS3(r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, \
 		   r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, \
@@ -3041,7 +3086,7 @@ static const struct b2056_inittabs_pts b2056_inittabs[] = {
 	.phy_regs.phy_bw6	= r5
 
 /* http://bcm-v4.sipsolutions.net/802.11/Radio/2056/ChannelTable */
-static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev3[] = {
+static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_phy_rev3[] = {
   {	.freq			= 4920,
 	RADIOREGS3(0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04,
 		   0x0c, 0x01, 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00,
@@ -4036,7 +4081,7 @@ static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev3[] = 
   },
 };
 
-static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev4[] = {
+static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_phy_rev4[] = {
   {	.freq			= 4920,
 	RADIOREGS3(0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04,
 		   0x0c, 0x01, 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00,
@@ -5031,7 +5076,7 @@ static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev4[] = 
   },
 };
 
-static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev5[] = {
+static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_radio_rev5[] = {
   {	.freq			= 4920,
 	RADIOREGS3(0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04,
 		   0x0c, 0x01, 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00,
@@ -6026,7 +6071,7 @@ static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev5[] = 
   },
 };
 
-static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev6[] = {
+static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_radio_rev6[] = {
   {	.freq			= 4920,
 	RADIOREGS3(0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04,
 		   0x0c, 0x01, 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00,
@@ -7021,7 +7066,7 @@ static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev6[] = 
   },
 };
 
-static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev7_9[] = {
+static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_radio_rev7_9[] = {
   {	.freq			= 4920,
 	RADIOREGS3(0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04,
 		   0x0c, 0x01, 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00,
@@ -8016,7 +8061,7 @@ static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev7_9[] 
   },
 };
 
-static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev8[] = {
+static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_radio_rev8[] = {
   {	.freq			= 4920,
 	RADIOREGS3(0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04,
 		   0x0c, 0x01, 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00,
@@ -9011,6 +9056,236 @@ static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev8[] = 
   },
 };
 
+static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_radio_rev11[] = {
+	{
+		.freq			= 5180,
+		RADIOREGS3(0xb6, 0x01, 0x01, 0x02, 0x06, 0x05, 0x05, 0x02,
+			   0x0c, 0x01, 0x02, 0x02, 0x02, 0x8f, 0x0f, 0x00,
+			   0xff, 0xf9, 0x00, 0x06, 0x00, 0x77, 0x00, 0x0e,
+			   0x00, 0x6f, 0x00, 0xf9, 0x00, 0x06, 0x00, 0x77,
+			   0x00, 0x0e, 0x00, 0x6f, 0x00),
+		PHYREGS(0x081c, 0x0818, 0x0814, 0x01f9, 0x01fa, 0x01fb),
+	},
+	{
+		.freq			= 5200,
+		RADIOREGS3(0xaf, 0x01, 0x01, 0x02, 0x08, 0x05, 0x05, 0x02,
+			   0x0c, 0x01, 0x02, 0x02, 0x02, 0x8f, 0x0f, 0x00,
+			   0xff, 0xf9, 0x00, 0x05, 0x00, 0x77, 0x00, 0x0d,
+			   0x00, 0x6f, 0x00, 0xf9, 0x00, 0x05, 0x00, 0x77,
+			   0x00, 0x0d, 0x00, 0x6f, 0x00),
+		PHYREGS(0x0824, 0x0820, 0x081c, 0x01f7, 0x01f8, 0x01f9),
+	},
+	{
+		.freq			= 5220,
+		RADIOREGS3(0xa7, 0x01, 0x01, 0x02, 0x0a, 0x05, 0x05, 0x02,
+			   0x0c, 0x01, 0x02, 0x02, 0x02, 0x8e, 0x0f, 0x00,
+			   0xfe, 0xd8, 0x00, 0x05, 0x00, 0x77, 0x00, 0x0d,
+			   0x00, 0x6f, 0x00, 0xd8, 0x00, 0x05, 0x00, 0x77,
+			   0x00, 0x0d, 0x00, 0x6f, 0x00),
+		PHYREGS(0x082c, 0x0828, 0x0824, 0x01f5, 0x01f6, 0x01f7),
+	},
+	{
+		.freq			= 5745,
+		RADIOREGS3(0xfe, 0x00, 0x02, 0x04, 0x7d, 0x05, 0x05, 0x02,
+			   0x15, 0x01, 0x05, 0x05, 0x05, 0x87, 0x05, 0x00,
+			   0x20, 0x30, 0x00, 0x00, 0x00, 0x77, 0x00, 0x06,
+			   0x00, 0x6d, 0x00, 0x30, 0x00, 0x00, 0x00, 0x77,
+			   0x00, 0x06, 0x00, 0x6d, 0x00),
+		PHYREGS(0x08fe, 0x08fa, 0x08f6, 0x01c8, 0x01c8, 0x01c9),
+	},
+	{
+		.freq			= 5765,
+		RADIOREGS3(0xf8, 0x00, 0x02, 0x04, 0x81, 0x05, 0x05, 0x02,
+			   0x15, 0x01, 0x05, 0x05, 0x05, 0x86, 0x05, 0x00,
+			   0x10, 0x10, 0x00, 0x00, 0x00, 0x77, 0x00, 0x05,
+			   0x00, 0x6c, 0x00, 0x10, 0x00, 0x00, 0x00, 0x77,
+			   0x00, 0x05, 0x00, 0x6c, 0x00),
+		PHYREGS(0x0906, 0x0902, 0x08fe, 0x01c6, 0x01c7, 0x01c8),
+	},
+	{
+		.freq			= 5785,
+		RADIOREGS3(0xf2, 0x00, 0x02, 0x04, 0x85, 0x05, 0x05, 0x02,
+			   0x15, 0x01, 0x06, 0x06, 0x06, 0x86, 0x04, 0x00,
+			   0x00, 0x10, 0x00, 0x00, 0x00, 0x77, 0x00, 0x05,
+			   0x00, 0x6b, 0x00, 0x10, 0x00, 0x00, 0x00, 0x77,
+			   0x00, 0x05, 0x00, 0x6b, 0x00),
+		PHYREGS(0x090e, 0x090a, 0x0906, 0x01c4, 0x01c5, 0x01c6),
+	},
+	{
+		.freq			= 5805,
+		RADIOREGS3(0xed, 0x00, 0x02, 0x04, 0x89, 0x05, 0x05, 0x02,
+			   0x15, 0x01, 0x06, 0x06, 0x06, 0x86, 0x04, 0x00,
+			   0x00, 0x00, 0x00, 0x00, 0x00, 0x77, 0x00, 0x05,
+			   0x00, 0x6a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x77,
+			   0x00, 0x05, 0x00, 0x6a, 0x00),
+		PHYREGS(0x0916, 0x0912, 0x090e, 0x01c3, 0x01c4, 0x01c4),
+	},
+	{
+		.freq			= 5825,
+		RADIOREGS3(0xed, 0x00, 0x02, 0x04, 0x8d, 0x05, 0x05, 0x02,
+			   0x15, 0x01, 0x06, 0x06, 0x06, 0x86, 0x04, 0x00,
+			   0x00, 0x00, 0x00, 0x00, 0x00, 0x77, 0x00, 0x05,
+			   0x00, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00, 0x77,
+			   0x00, 0x05, 0x00, 0x69, 0x00),
+		PHYREGS(0x091e, 0x091a, 0x0916, 0x01c1, 0x01c2, 0x01c3),
+	},
+	{
+		.freq			= 2412,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x6c, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x04, 0x04, 0x04, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x78, 0x00, 0x03, 0x00, 0x70, 0x00,
+			   0x0b, 0x00, 0x0a, 0x00, 0x89, 0x00, 0x03, 0x00,
+			   0x70, 0x00, 0x0b, 0x00, 0x0a),
+		PHYREGS(0x03c9, 0x03c5, 0x03c1, 0x043a, 0x043f, 0x0443),
+	},
+	{
+		.freq			= 2417,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x71, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x05, 0x05, 0x05, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x78, 0x00, 0x03, 0x00, 0x70, 0x00,
+			   0x0b, 0x00, 0x0a, 0x00, 0x89, 0x00, 0x03, 0x00,
+			   0x70, 0x00, 0x0b, 0x00, 0x0a),
+		PHYREGS(0x03cb, 0x03c7, 0x03c3, 0x0438, 0x043d, 0x0441),
+	},
+	{
+		.freq			= 2422,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x76, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x05, 0x05, 0x05, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x67, 0x00, 0x03, 0x00, 0x70, 0x00,
+			   0x0b, 0x00, 0x0a, 0x00, 0x89, 0x00, 0x03, 0x00,
+			   0x70, 0x00, 0x0b, 0x00, 0x0a),
+		PHYREGS(0x03cd, 0x03c9, 0x03c5, 0x0436, 0x043a, 0x043f),
+	},
+	{
+		.freq			= 2427,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x7b, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x05, 0x05, 0x05, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x57, 0x00, 0x03, 0x00, 0x70, 0x00,
+			   0x0a, 0x00, 0x0a, 0x00, 0x78, 0x00, 0x03, 0x00,
+			   0x70, 0x00, 0x0a, 0x00, 0x0a),
+		PHYREGS(0x03cf, 0x03cb, 0x03c7, 0x0434, 0x0438, 0x043d),
+	},
+	{
+		.freq			= 2432,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x80, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x05, 0x05, 0x05, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x56, 0x00, 0x03, 0x00, 0x70, 0x00,
+			   0x0a, 0x00, 0x0a, 0x00, 0x77, 0x00, 0x03, 0x00,
+			   0x70, 0x00, 0x0a, 0x00, 0x0a),
+		PHYREGS(0x03d1, 0x03cd, 0x03c9, 0x0431, 0x0436, 0x043a),
+	},
+	{
+		.freq			= 2437,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x85, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x05, 0x05, 0x05, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x46, 0x00, 0x03, 0x00, 0x70, 0x00,
+			   0x0a, 0x00, 0x0a, 0x00, 0x76, 0x00, 0x03, 0x00,
+			   0x70, 0x00, 0x0a, 0x00, 0x0a),
+		PHYREGS(0x03d3, 0x03cf, 0x03cb, 0x042f, 0x0434, 0x0438),
+	},
+	{
+		.freq			= 2442,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x8a, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x05, 0x05, 0x05, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x45, 0x00, 0x02, 0x00, 0x70, 0x00,
+			   0x0a, 0x00, 0x0a, 0x00, 0x66, 0x00, 0x02, 0x00,
+			   0x70, 0x00, 0x0a, 0x00, 0x0a),
+		PHYREGS(0x03d5, 0x03d1, 0x03cd, 0x042d, 0x0431, 0x0436),
+	},
+	{
+		.freq			= 2447,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x8f, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x06, 0x06, 0x06, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x34, 0x00, 0x02, 0x00, 0x70, 0x00,
+			   0x0a, 0x00, 0x09, 0x00, 0x55, 0x00, 0x02, 0x00,
+			   0x70, 0x00, 0x0a, 0x00, 0x09),
+		PHYREGS(0x03d7, 0x03d3, 0x03cf, 0x042b, 0x042f, 0x0434),
+	},
+	{
+		.freq			= 2452,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x94, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x06, 0x06, 0x06, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x23, 0x00, 0x02, 0x00, 0x70, 0x00,
+			   0x0a, 0x00, 0x09, 0x00, 0x45, 0x00, 0x02, 0x00,
+			   0x70, 0x00, 0x0a, 0x00, 0x09),
+		PHYREGS(0x03d9, 0x03d5, 0x03d1, 0x0429, 0x042d, 0x0431),
+	},
+	{
+		.freq			= 2457,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x99, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x06, 0x06, 0x06, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x12, 0x00, 0x02, 0x00, 0x70, 0x00,
+			   0x0a, 0x00, 0x09, 0x00, 0x34, 0x00, 0x02, 0x00,
+			   0x70, 0x00, 0x0a, 0x00, 0x09),
+		PHYREGS(0x03db, 0x03d7, 0x03d3, 0x0427, 0x042b, 0x042f),
+	},
+	{
+		.freq			= 2462,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0x9e, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x06, 0x06, 0x06, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x02, 0x00, 0x02, 0x00, 0x70, 0x00,
+			   0x09, 0x00, 0x09, 0x00, 0x33, 0x00, 0x02, 0x00,
+			   0x70, 0x00, 0x09, 0x00, 0x09),
+		PHYREGS(0x03dd, 0x03d9, 0x03d5, 0x0424, 0x0429, 0x042d),
+	},
+	{
+		.freq			= 2467,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0xa3, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x06, 0x06, 0x06, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x70, 0x00,
+			   0x09, 0x00, 0x09, 0x00, 0x22, 0x00, 0x02, 0x00,
+			   0x70, 0x00, 0x09, 0x00, 0x09),
+		PHYREGS(0x03df, 0x03db, 0x03d7, 0x0422, 0x0427, 0x042b),
+	},
+	{
+		.freq			= 2472,
+		RADIOREGS3(0x00, 0x01, 0x03, 0x09, 0xa8, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x07, 0x07, 0x07, 0x8f, 0x30, 0x00,
+			   0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x70, 0x00,
+			   0x09, 0x00, 0x09, 0x00, 0x11, 0x00, 0x02, 0x00,
+			   0x70, 0x00, 0x09, 0x00, 0x09),
+		PHYREGS(0x03e1, 0x03dd, 0x03d9, 0x0420, 0x0424, 0x0429),
+	},
+	{
+		.freq			= 2484,
+		RADIOREGS3(0xff, 0x01, 0x03, 0x09, 0xb4, 0x06, 0x06, 0x04,
+			   0x2b, 0x01, 0x07, 0x07, 0x07, 0x8f, 0x20, 0x00,
+			   0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x70, 0x00,
+			   0x09, 0x00, 0x09, 0x00, 0x00, 0x00, 0x02, 0x00,
+			   0x70, 0x00, 0x09, 0x00, 0x09),
+		PHYREGS(0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424),
+	},
+};
+
+static const struct b2056_inittabs_pts
+*b43_nphy_get_inittabs_rev3(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+
+	switch (dev->phy.rev) {
+	case 3:
+		return &b2056_inittab_phy_rev3;
+	case 4:
+		return &b2056_inittab_phy_rev4;
+	default:
+		switch (phy->radio_rev) {
+		case 5:
+			return &b2056_inittab_radio_rev5;
+		case 6:
+			return &b2056_inittab_radio_rev6;
+		case 7:
+		case 9:
+			return &b2056_inittab_radio_rev7_9;
+		case 8:
+			return &b2056_inittab_radio_rev8;
+		case 11:
+			return &b2056_inittab_radio_rev11;
+		}
+	}
+
+	return NULL;
+}
+
 static void b2056_upload_inittab(struct b43_wldev *dev, bool ghz5,
 				 bool ignore_uploadflag, u16 routing,
 				 const struct b2056_inittab_entry *e,
@@ -9037,11 +9312,11 @@ void b2056_upload_inittabs(struct b43_wldev *dev,
 {
 	const struct b2056_inittabs_pts *pts;
 
-	if (dev->phy.rev >= ARRAY_SIZE(b2056_inittabs)) {
+	pts = b43_nphy_get_inittabs_rev3(dev);
+	if (!pts) {
 		B43_WARN_ON(1);
 		return;
 	}
-	pts = &b2056_inittabs[dev->phy.rev];
 
 	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
 				B2056_SYN, pts->syn, pts->syn_length);
@@ -9060,11 +9335,12 @@ void b2056_upload_syn_pll_cp2(struct b43_wldev *dev, bool ghz5)
 	const struct b2056_inittabs_pts *pts;
 	const struct b2056_inittab_entry *e;
 
-	if (dev->phy.rev >= ARRAY_SIZE(b2056_inittabs)) {
+	pts = b43_nphy_get_inittabs_rev3(dev);
+	if (!pts) {
 		B43_WARN_ON(1);
 		return;
 	}
-	pts = &b2056_inittabs[dev->phy.rev];
+
 	e = &pts->syn[B2056_SYN_PLL_CP2];
 
 	b43_radio_write(dev, B2056_SYN_PLL_CP2, ghz5 ? e->ghz5 : e->ghz2);
@@ -9073,38 +9349,46 @@ void b2056_upload_syn_pll_cp2(struct b43_wldev *dev, bool ghz5)
 const struct b43_nphy_channeltab_entry_rev3 *
 b43_nphy_get_chantabent_rev3(struct b43_wldev *dev, u16 freq)
 {
+	struct b43_phy *phy = &dev->phy;
 	const struct b43_nphy_channeltab_entry_rev3 *e;
 	unsigned int length, i;
 
-	switch (dev->phy.rev) {
+	switch (phy->rev) {
 	case 3:
-		e = b43_nphy_channeltab_rev3;
-		length = ARRAY_SIZE(b43_nphy_channeltab_rev3);
+		e = b43_nphy_channeltab_phy_rev3;
+		length = ARRAY_SIZE(b43_nphy_channeltab_phy_rev3);
 		break;
 	case 4:
-		e = b43_nphy_channeltab_rev4;
-		length = ARRAY_SIZE(b43_nphy_channeltab_rev4);
-		break;
-	case 5:
-		e = b43_nphy_channeltab_rev5;
-		length = ARRAY_SIZE(b43_nphy_channeltab_rev5);
-		break;
-	case 6:
-		e = b43_nphy_channeltab_rev6;
-		length = ARRAY_SIZE(b43_nphy_channeltab_rev6);
-		break;
-	case 7:
-	case 9:
-		e = b43_nphy_channeltab_rev7_9;
-		length = ARRAY_SIZE(b43_nphy_channeltab_rev7_9);
-		break;
-	case 8:
-		e = b43_nphy_channeltab_rev8;
-		length = ARRAY_SIZE(b43_nphy_channeltab_rev8);
+		e = b43_nphy_channeltab_phy_rev4;
+		length = ARRAY_SIZE(b43_nphy_channeltab_phy_rev4);
 		break;
 	default:
-		B43_WARN_ON(1);
-		return NULL;
+		switch (phy->radio_rev) {
+		case 5:
+			e = b43_nphy_channeltab_radio_rev5;
+			length = ARRAY_SIZE(b43_nphy_channeltab_radio_rev5);
+			break;
+		case 6:
+			e = b43_nphy_channeltab_radio_rev6;
+			length = ARRAY_SIZE(b43_nphy_channeltab_radio_rev6);
+			break;
+		case 7:
+		case 9:
+			e = b43_nphy_channeltab_radio_rev7_9;
+			length = ARRAY_SIZE(b43_nphy_channeltab_radio_rev7_9);
+			break;
+		case 8:
+			e = b43_nphy_channeltab_radio_rev8;
+			length = ARRAY_SIZE(b43_nphy_channeltab_radio_rev8);
+			break;
+		case 11:
+			e = b43_nphy_channeltab_radio_rev11;
+			length = ARRAY_SIZE(b43_nphy_channeltab_radio_rev11);
+			break;
+		default:
+			B43_WARN_ON(1);
+			return NULL;
+		}
 	}
 
 	for (i = 0; i < length; i++, e++) {

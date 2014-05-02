@@ -348,4 +348,12 @@ enum secure_load_status_reg {
 
 #define LMPM_SECURE_TIME_OUT	(100)
 
+/* Rx FIFO */
+#define RXF_SIZE_ADDR			(0xa00c88)
+#define RXF_SIZE_BYTE_CND_POS		(7)
+#define RXF_SIZE_BYTE_CNT_MSK		(0x3ff << RXF_SIZE_BYTE_CND_POS)
+
+#define RXF_LD_FENCE_OFFSET_ADDR	(0xa00c10)
+#define RXF_FIFO_RD_FENCE_ADDR		(0xa00c0c)
+
 #endif				/* __iwl_prph_h__ */

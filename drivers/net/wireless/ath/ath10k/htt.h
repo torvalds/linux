@@ -21,6 +21,7 @@
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/dmapool.h>
+#include <net/mac80211.h>
 
 #include "htc.h"
 #include "rx_desc.h"
@@ -1172,23 +1173,6 @@ struct htt_peer_unmap_event {
 	u16 peer_id;
 };
 
-struct htt_rx_info {
-	struct sk_buff *skb;
-	enum htt_rx_mpdu_status status;
-	enum htt_rx_mpdu_encrypt_type encrypt_type;
-	s8 signal;
-	struct {
-		u8 info0;
-		u32 info1;
-		u32 info2;
-	} rate;
-
-	u32 tsf;
-	bool fcs_err;
-	bool amsdu_more;
-	bool mic_err;
-};
-
 struct ath10k_htt_txbuf {
 	struct htt_data_tx_desc_frag frags[2];
 	struct ath10k_htc_hdr htc_hdr;
@@ -1289,6 +1273,9 @@ struct ath10k_htt {
 	struct tasklet_struct txrx_compl_task;
 	struct sk_buff_head tx_compl_q;
 	struct sk_buff_head rx_compl_q;
+
+	/* rx_status template */
+	struct ieee80211_rx_status rx_status;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64

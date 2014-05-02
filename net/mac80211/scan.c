@@ -309,7 +309,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	if (local->scan_req != local->int_scan_req)
 		cfg80211_scan_done(local->scan_req, aborted);
 	local->scan_req = NULL;
-	rcu_assign_pointer(local->scan_sdata, NULL);
+	RCU_INIT_POINTER(local->scan_sdata, NULL);
 
 	local->scanning = 0;
 	local->scan_chandef.chan = NULL;
@@ -559,7 +559,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		ieee80211_recalc_idle(local);
 
 		local->scan_req = NULL;
-		rcu_assign_pointer(local->scan_sdata, NULL);
+		RCU_INIT_POINTER(local->scan_sdata, NULL);
 	}
 
 	return rc;
@@ -773,7 +773,7 @@ void ieee80211_scan_work(struct work_struct *work)
 		int rc;
 
 		local->scan_req = NULL;
-		rcu_assign_pointer(local->scan_sdata, NULL);
+		RCU_INIT_POINTER(local->scan_sdata, NULL);
 
 		rc = __ieee80211_start_scan(sdata, req);
 		if (rc) {
@@ -1014,7 +1014,7 @@ out_free:
 
 	if (ret) {
 		/* Clean in case of failure after HW restart or upon resume. */
-		rcu_assign_pointer(local->sched_scan_sdata, NULL);
+		RCU_INIT_POINTER(local->sched_scan_sdata, NULL);
 		local->sched_scan_req = NULL;
 	}
 
@@ -1089,7 +1089,7 @@ void ieee80211_sched_scan_stopped_work(struct work_struct *work)
 		return;
 	}
 
-	rcu_assign_pointer(local->sched_scan_sdata, NULL);
+	RCU_INIT_POINTER(local->sched_scan_sdata, NULL);
 
 	/* If sched scan was aborted by the driver. */
 	local->sched_scan_req = NULL;

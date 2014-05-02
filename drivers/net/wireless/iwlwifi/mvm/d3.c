@@ -744,10 +744,8 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 	int err;
 	u32 size;
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API) {
-		cmd.data[0] = &query_cmd;
-		cmd.len[0] = sizeof(query_cmd);
-	}
+	cmd.data[0] = &query_cmd;
+	cmd.len[0] = sizeof(query_cmd);
 
 	err = iwl_mvm_send_cmd(mvm, &cmd);
 	if (err)
@@ -758,10 +756,8 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 		err = -EINVAL;
 	} else {
 		err = le16_to_cpup((__le16 *)cmd.resp_pkt->data);
-		/* new API returns next, not last-used seqno */
-		if (mvm->fw->ucode_capa.flags &
-				IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API)
-			err = (u16) (err - 0x10);
+		/* firmware returns next, not last-used seqno */
+		err = (u16) (err - 0x10);
 	}
 
 	iwl_free_resp(&cmd);
@@ -784,10 +780,6 @@ void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return;
 
 	mvmvif->seqno_valid = false;
-
-	if (!(mvm->fw->ucode_capa.flags &
-			IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API))
-		return;
 
 	if (iwl_mvm_send_cmd_pdu(mvm, NON_QOS_TX_COUNTER_CMD, CMD_SYNC,
 				 sizeof(query_cmd), &query_cmd))
@@ -1082,6 +1074,15 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (iwl_mvm_is_d0i3_supported(mvm)) {
+		mutex_lock(&mvm->d0i3_suspend_mutex);
+		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
+		mutex_unlock(&mvm->d0i3_suspend_mutex);
+		return 0;
+	}
+
 	return __iwl_mvm_suspend(hw, wowlan, false);
 }
 
@@ -1277,7 +1278,7 @@ static void iwl_mvm_set_tkip_rx_seq(struct tkip_sc *scs,
 }
 
 static void iwl_mvm_set_key_rx_seq(struct ieee80211_key_conf *key,
-				   struct iwl_wowlan_status_v6 *status)
+				   struct iwl_wowlan_status *status)
 {
 	union iwl_all_tsc_rsc *rsc = &status->gtk.rsc.all_tsc_rsc;
 
@@ -1294,7 +1295,7 @@ static void iwl_mvm_set_key_rx_seq(struct ieee80211_key_conf *key,
 }
 
 struct iwl_mvm_d3_gtk_iter_data {
-	struct iwl_wowlan_status_v6 *status;
+	struct iwl_wowlan_status *status;
 	void *last_gtk;
 	u32 cipher;
 	bool find_phase, unhandled_cipher;
@@ -1370,7 +1371,7 @@ static void iwl_mvm_d3_update_gtks(struct ieee80211_hw *hw,
 
 static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
-					  struct iwl_wowlan_status_v6 *status)
+					  struct iwl_wowlan_status *status)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_d3_gtk_iter_data gtkdata = {
@@ -1468,7 +1469,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 		.flags = CMD_SYNC | CMD_WANT_SKB,
 	};
 	struct iwl_wowlan_status_data status;
-	struct iwl_wowlan_status_v6 *status_v6;
+	struct iwl_wowlan_status *fw_status;
 	int ret, len, status_size, i;
 	bool keep;
 	struct ieee80211_sta *ap_sta;
@@ -1505,10 +1506,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	if (!cmd.resp_pkt)
 		goto out_unlock;
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API)
-		status_size = sizeof(struct iwl_wowlan_status_v6);
-	else
-		status_size = sizeof(struct iwl_wowlan_status_v4);
+	status_size = sizeof(*fw_status);
 
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
 	if (len < status_size) {
@@ -1516,35 +1514,18 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 		goto out_free_resp;
 	}
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API) {
-		status_v6 = (void *)cmd.resp_pkt->data;
+	fw_status = (void *)cmd.resp_pkt->data;
 
-		status.pattern_number = le16_to_cpu(status_v6->pattern_number);
-		for (i = 0; i < 8; i++)
-			status.qos_seq_ctr[i] =
-				le16_to_cpu(status_v6->qos_seq_ctr[i]);
-		status.wakeup_reasons = le32_to_cpu(status_v6->wakeup_reasons);
-		status.wake_packet_length =
-			le32_to_cpu(status_v6->wake_packet_length);
-		status.wake_packet_bufsize =
-			le32_to_cpu(status_v6->wake_packet_bufsize);
-		status.wake_packet = status_v6->wake_packet;
-	} else {
-		struct iwl_wowlan_status_v4 *status_v4;
-		status_v6 = NULL;
-		status_v4 = (void *)cmd.resp_pkt->data;
-
-		status.pattern_number = le16_to_cpu(status_v4->pattern_number);
-		for (i = 0; i < 8; i++)
-			status.qos_seq_ctr[i] =
-				le16_to_cpu(status_v4->qos_seq_ctr[i]);
-		status.wakeup_reasons = le32_to_cpu(status_v4->wakeup_reasons);
-		status.wake_packet_length =
-			le32_to_cpu(status_v4->wake_packet_length);
-		status.wake_packet_bufsize =
-			le32_to_cpu(status_v4->wake_packet_bufsize);
-		status.wake_packet = status_v4->wake_packet;
-	}
+	status.pattern_number = le16_to_cpu(fw_status->pattern_number);
+	for (i = 0; i < 8; i++)
+		status.qos_seq_ctr[i] =
+			le16_to_cpu(fw_status->qos_seq_ctr[i]);
+	status.wakeup_reasons = le32_to_cpu(fw_status->wakeup_reasons);
+	status.wake_packet_length =
+		le32_to_cpu(fw_status->wake_packet_length);
+	status.wake_packet_bufsize =
+		le32_to_cpu(fw_status->wake_packet_bufsize);
+	status.wake_packet = fw_status->wake_packet;
 
 	if (len != status_size + ALIGN(status.wake_packet_bufsize, 4)) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
@@ -1571,7 +1552,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 
 	iwl_mvm_report_wakeup_reasons(mvm, vif, &status);
 
-	keep = iwl_mvm_setup_connection_keep(mvm, vif, status_v6);
+	keep = iwl_mvm_setup_connection_keep(mvm, vif, fw_status);
 
 	iwl_free_resp(&cmd);
 	return keep;
@@ -1673,6 +1654,19 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (iwl_mvm_is_d0i3_supported(mvm)) {
+		bool exit_now;
+
+		mutex_lock(&mvm->d0i3_suspend_mutex);
+		__clear_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
+		exit_now = __test_and_clear_bit(D0I3_PENDING_WAKEUP,
+						&mvm->d0i3_suspend_flags);
+		mutex_unlock(&mvm->d0i3_suspend_mutex);
+		if (exit_now)
+			_iwl_mvm_exit_d0i3(mvm);
+		return 0;
+	}
 
 	return __iwl_mvm_resume(mvm, false);
 }

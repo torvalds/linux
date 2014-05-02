@@ -363,8 +363,8 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 		wil_err(wil, "Firmware not ready\n");
 		return -ETIME;
 	} else {
-		wil_dbg_misc(wil, "FW ready after %d ms\n",
-			     jiffies_to_msecs(to-left));
+		wil_info(wil, "FW ready after %d ms. HW version 0x%08x\n",
+			 jiffies_to_msecs(to-left), wil->hw_version);
 	}
 	return 0;
 }

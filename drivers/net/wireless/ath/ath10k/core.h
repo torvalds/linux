@@ -119,6 +119,7 @@ struct ath10k_peer_stat {
 	u8 peer_macaddr[ETH_ALEN];
 	u32 peer_rssi;
 	u32 peer_tx_rate;
+	u32 peer_rx_rate; /* 10x only */
 };
 
 struct ath10k_target_stats {
@@ -130,6 +131,12 @@ struct ath10k_target_stats {
 	u32 cycle_count;
 	u32 phy_err_count;
 	u32 chan_tx_power;
+	u32 ack_rx_bad;
+	u32 rts_bad;
+	u32 rts_good;
+	u32 fcs_bad;
+	u32 no_beacons;
+	u32 mib_int_count;
 
 	/* PDEV TX stats */
 	s32 comp_queued;
@@ -260,6 +267,8 @@ struct ath10k_vif {
 	u8 fixed_rate;
 	u8 fixed_nss;
 	u8 force_sgi;
+	bool use_cts_prot;
+	int num_legacy_stations;
 };
 
 struct ath10k_vif_iter {
@@ -419,12 +428,17 @@ struct ath10k {
 	struct cfg80211_chan_def chandef;
 
 	int free_vdev_map;
+	bool promisc;
+	bool monitor;
 	int monitor_vdev_id;
-	bool monitor_enabled;
-	bool monitor_present;
+	bool monitor_started;
 	unsigned int filter_flags;
 	unsigned long dev_flags;
 	u32 dfs_block_radar_events;
+
+	/* protected by conf_mutex */
+	bool radar_enabled;
+	int num_started_vdevs;
 
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;

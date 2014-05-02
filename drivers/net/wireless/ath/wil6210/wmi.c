@@ -192,7 +192,7 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	might_sleep();
 
 	if (!test_bit(wil_status_fwready, &wil->status)) {
-		wil_err(wil, "FW not ready\n");
+		wil_err(wil, "WMI: cannot send command while FW not ready\n");
 		return -EAGAIN;
 	}
 
@@ -276,8 +276,8 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 	wil->fw_version = le32_to_cpu(evt->sw_version);
 	wil->n_mids = evt->numof_additional_mids;
 
-	wil_dbg_wmi(wil, "FW ver. %d; MAC %pM; %d MID's\n", wil->fw_version,
-		    evt->mac, wil->n_mids);
+	wil_info(wil, "FW ver. %d; MAC %pM; %d MID's\n", wil->fw_version,
+		 evt->mac, wil->n_mids);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		memcpy(ndev->dev_addr, evt->mac, ETH_ALEN);
@@ -290,7 +290,7 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 static void wmi_evt_fw_ready(struct wil6210_priv *wil, int id, void *d,
 			     int len)
 {
-	wil_dbg_wmi(wil, "WMI: FW ready\n");
+	wil_dbg_wmi(wil, "WMI: got FW ready event\n");
 
 	set_bit(wil_status_fwready, &wil->status);
 	/* reuse wmi_ready for the firmware ready indication */
@@ -348,7 +348,7 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 {
 	if (wil->scan_request) {
 		struct wmi_scan_complete_event *data = d;
-		bool aborted = (data->status != 0);
+		bool aborted = (data->status != WMI_SCAN_SUCCESS);
 
 		wil_dbg_wmi(wil, "SCAN_COMPLETE(0x%08x)\n", data->status);
 		cfg80211_scan_done(wil->scan_request, aborted);
@@ -802,6 +802,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
 		.channel = chan - 1,
+		.pcp_max_assoc_sta = WIL6210_MAX_CID,
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;

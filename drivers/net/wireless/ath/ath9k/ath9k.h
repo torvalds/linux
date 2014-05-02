@@ -114,6 +114,9 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_TXFIFO_DEPTH           8
 #define ATH_TX_ERROR               0x01
 
+/* Stop tx traffic 1ms before the GO goes away */
+#define ATH_P2P_PS_STOP_TIME       1000
+
 #define IEEE80211_SEQ_SEQ_SHIFT    4
 #define IEEE80211_SEQ_MAX          4096
 #define IEEE80211_WEP_IVLEN        3
@@ -367,11 +370,15 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 /********/
 
 struct ath_vif {
+	struct ieee80211_vif *vif;
 	struct ath_node mcast_node;
 	int av_bslot;
 	bool primary_sta_vif;
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	struct ath_buf *av_bcbuf;
+
+	/* P2P Client */
+	struct ieee80211_noa_data noa;
 };
 
 struct ath9k_vif_iter_data {
@@ -464,6 +471,8 @@ int ath_update_survey_stats(struct ath_softc *sc);
 void ath_update_survey_nf(struct ath_softc *sc, int channel);
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 void ath_ps_full_sleep(unsigned long data);
+void ath9k_p2p_ps_timer(void *priv);
+void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif);
 
 /**********/
 /* BTCOEX */
@@ -713,6 +722,9 @@ struct ath_softc {
 	struct work_struct hw_reset_work;
 	struct completion paprd_complete;
 	wait_queue_head_t tx_wait;
+
+	struct ath_gen_timer *p2p_ps_timer;
+	struct ath_vif *p2p_ps_vif;
 
 	unsigned long driver_data;
 

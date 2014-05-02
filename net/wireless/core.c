@@ -69,7 +69,7 @@ struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 
 int get_wiphy_idx(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	return rdev->wiphy_idx;
 }
@@ -260,6 +260,45 @@ static void cfg80211_event_work(struct work_struct *work)
 	rtnl_unlock();
 }
 
+void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev)
+{
+	struct cfg80211_iface_destroy *item;
+
+	ASSERT_RTNL();
+
+	spin_lock_irq(&rdev->destroy_list_lock);
+	while ((item = list_first_entry_or_null(&rdev->destroy_list,
+						struct cfg80211_iface_destroy,
+						list))) {
+		struct wireless_dev *wdev, *tmp;
+		u32 nlportid = item->nlportid;
+
+		list_del(&item->list);
+		kfree(item);
+		spin_unlock_irq(&rdev->destroy_list_lock);
+
+		list_for_each_entry_safe(wdev, tmp, &rdev->wdev_list, list) {
+			if (nlportid == wdev->owner_nlportid)
+				rdev_del_virtual_intf(rdev, wdev);
+		}
+
+		spin_lock_irq(&rdev->destroy_list_lock);
+	}
+	spin_unlock_irq(&rdev->destroy_list_lock);
+}
+
+static void cfg80211_destroy_iface_wk(struct work_struct *work)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    destroy_work);
+
+	rtnl_lock();
+	cfg80211_destroy_ifaces(rdev);
+	rtnl_unlock();
+}
+
 /* exported functions */
 
 struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
@@ -317,6 +356,10 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	device_initialize(&rdev->wiphy.dev);
 	rdev->wiphy.dev.class = &ieee80211_class;
 	rdev->wiphy.dev.platform_data = rdev;
+
+	INIT_LIST_HEAD(&rdev->destroy_list);
+	spin_lock_init(&rdev->destroy_list_lock);
+	INIT_WORK(&rdev->destroy_work, cfg80211_destroy_iface_wk);
 
 #ifdef CONFIG_CFG80211_DEFAULT_PS
 	rdev->wiphy.flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -396,10 +439,7 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 		for (j = 0; j < c->n_limits; j++) {
 			u16 types = c->limits[j].types;
 
-			/*
-			 * interface types shouldn't overlap, this is
-			 * used in cfg80211_can_change_interface()
-			 */
+			/* interface types shouldn't overlap */
 			if (WARN_ON(types & all_iftypes))
 				return -EINVAL;
 			all_iftypes |= types;
@@ -435,7 +475,7 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 
 int wiphy_register(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	int res;
 	enum ieee80211_band band;
 	struct ieee80211_supported_band *sband;
@@ -616,7 +656,7 @@ EXPORT_SYMBOL(wiphy_register);
 
 void wiphy_rfkill_start_polling(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	if (!rdev->ops->rfkill_poll)
 		return;
@@ -627,7 +667,7 @@ EXPORT_SYMBOL(wiphy_rfkill_start_polling);
 
 void wiphy_rfkill_stop_polling(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	rfkill_pause_polling(rdev->rfkill);
 }
@@ -635,7 +675,7 @@ EXPORT_SYMBOL(wiphy_rfkill_stop_polling);
 
 void wiphy_unregister(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	wait_event(rdev->dev_wait, ({
 		int __count;
@@ -675,6 +715,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	cancel_work_sync(&rdev->conn_work);
 	flush_work(&rdev->event_work);
 	cancel_delayed_work_sync(&rdev->dfs_update_channels_wk);
+	flush_work(&rdev->destroy_work);
 
 #ifdef CONFIG_PM
 	if (rdev->wiphy.wowlan_config && rdev->ops->set_wakeup)
@@ -707,7 +748,7 @@ EXPORT_SYMBOL(wiphy_free);
 
 void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	if (rfkill_set_hw_state(rdev->rfkill, blocked))
 		schedule_work(&rdev->rfkill_sync);
@@ -716,7 +757,7 @@ EXPORT_SYMBOL(wiphy_rfkill_set_hw_state);
 
 void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
 	ASSERT_RTNL();
 
@@ -796,12 +837,11 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev;
-	int ret;
 
 	if (!wdev)
 		return NOTIFY_DONE;
 
-	rdev = wiphy_to_dev(wdev->wiphy);
+	rdev = wiphy_to_rdev(wdev->wiphy);
 
 	WARN_ON(wdev->iftype == NL80211_IFTYPE_UNSPECIFIED);
 
@@ -959,13 +999,14 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))
 			return notifier_from_errno(-EOPNOTSUPP);
-		ret = cfg80211_can_add_interface(rdev, wdev->iftype);
-		if (ret)
-			return notifier_from_errno(ret);
+		if (rfkill_blocked(rdev->rfkill))
+			return notifier_from_errno(-ERFKILL);
 		break;
+	default:
+		return NOTIFY_DONE;
 	}
 
-	return NOTIFY_DONE;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block cfg80211_netdev_notifier = {

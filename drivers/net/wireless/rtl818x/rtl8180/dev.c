@@ -683,9 +683,8 @@ static void rtl8180_int_enable(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
-		rtl818x_iowrite32(priv, &priv->map->IMR, IMR_TMGDOK |
-			  IMR_TBDER | IMR_THPDER |
-			  IMR_THPDER | IMR_THPDOK |
+		rtl818x_iowrite32(priv, &priv->map->IMR,
+			  IMR_TBDER | IMR_TBDOK |
 			  IMR_TVODER | IMR_TVODOK |
 			  IMR_TVIDER | IMR_TVIDOK |
 			  IMR_TBEDER | IMR_TBEDOK |
@@ -911,7 +910,10 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		reg32 &= 0x00ffff00;
 		reg32 |= 0xb8000054;
 		rtl818x_iowrite32(priv, &priv->map->RF_PARA, reg32);
-	}
+	} else
+		/* stop unused queus (no dma alloc) */
+		rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING,
+			    (1<<1) | (1<<2));
 
 	priv->rf->init(dev);
 

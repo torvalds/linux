@@ -23,12 +23,13 @@ void ieee80211_aes_ccm_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 			       u8 *data, size_t data_len, u8 *mic)
 {
 	struct scatterlist assoc, pt, ct[2];
-	struct {
-		struct aead_request	req;
-		u8			priv[crypto_aead_reqsize(tfm)];
-	} aead_req;
 
-	memset(&aead_req, 0, sizeof(aead_req));
+	char aead_req_data[sizeof(struct aead_request) +
+			   crypto_aead_reqsize(tfm)]
+		__aligned(__alignof__(struct aead_request));
+	struct aead_request *aead_req = (void *) aead_req_data;
+
+	memset(aead_req, 0, sizeof(aead_req_data));
 
 	sg_init_one(&pt, data, data_len);
 	sg_init_one(&assoc, &aad[2], be16_to_cpup((__be16 *)aad));
@@ -36,23 +37,23 @@ void ieee80211_aes_ccm_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 	sg_set_buf(&ct[0], data, data_len);
 	sg_set_buf(&ct[1], mic, IEEE80211_CCMP_MIC_LEN);
 
-	aead_request_set_tfm(&aead_req.req, tfm);
-	aead_request_set_assoc(&aead_req.req, &assoc, assoc.length);
-	aead_request_set_crypt(&aead_req.req, &pt, ct, data_len, b_0);
+	aead_request_set_tfm(aead_req, tfm);
+	aead_request_set_assoc(aead_req, &assoc, assoc.length);
+	aead_request_set_crypt(aead_req, &pt, ct, data_len, b_0);
 
-	crypto_aead_encrypt(&aead_req.req);
+	crypto_aead_encrypt(aead_req);
 }
 
 int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 			      u8 *data, size_t data_len, u8 *mic)
 {
 	struct scatterlist assoc, pt, ct[2];
-	struct {
-		struct aead_request	req;
-		u8			priv[crypto_aead_reqsize(tfm)];
-	} aead_req;
+	char aead_req_data[sizeof(struct aead_request) +
+			   crypto_aead_reqsize(tfm)]
+		__aligned(__alignof__(struct aead_request));
+	struct aead_request *aead_req = (void *) aead_req_data;
 
-	memset(&aead_req, 0, sizeof(aead_req));
+	memset(aead_req, 0, sizeof(aead_req_data));
 
 	sg_init_one(&pt, data, data_len);
 	sg_init_one(&assoc, &aad[2], be16_to_cpup((__be16 *)aad));
@@ -60,12 +61,12 @@ int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 	sg_set_buf(&ct[0], data, data_len);
 	sg_set_buf(&ct[1], mic, IEEE80211_CCMP_MIC_LEN);
 
-	aead_request_set_tfm(&aead_req.req, tfm);
-	aead_request_set_assoc(&aead_req.req, &assoc, assoc.length);
-	aead_request_set_crypt(&aead_req.req, ct, &pt,
+	aead_request_set_tfm(aead_req, tfm);
+	aead_request_set_assoc(aead_req, &assoc, assoc.length);
+	aead_request_set_crypt(aead_req, ct, &pt,
 			       data_len + IEEE80211_CCMP_MIC_LEN, b_0);
 
-	return crypto_aead_decrypt(&aead_req.req);
+	return crypto_aead_decrypt(aead_req);
 }
 
 struct crypto_aead *ieee80211_aes_key_setup_encrypt(const u8 key[])

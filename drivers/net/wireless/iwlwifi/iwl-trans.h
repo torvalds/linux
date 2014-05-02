@@ -437,8 +437,7 @@ struct iwl_trans;
  *	this one. The op_mode must not configure the HCMD queue. May sleep.
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
- * @wait_tx_queue_empty: wait until all tx queues are empty
- *	May sleep
+ * @wait_tx_queue_empty: wait until tx queues are empty. May sleep.
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
  *	automatically deleted.
  * @write8: write a u8 to a register at offset ofs from the BAR
@@ -490,7 +489,7 @@ struct iwl_trans_ops {
 	void (*txq_disable)(struct iwl_trans *trans, int queue);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
-	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
+	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
 
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
@@ -759,12 +758,13 @@ static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,
 			     IWL_MAX_TID_COUNT, IWL_FRAME_LIMIT, 0);
 }
 
-static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
+static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans,
+						u32 txq_bm)
 {
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
 		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
 
-	return trans->ops->wait_tx_queue_empty(trans);
+	return trans->ops->wait_tx_queue_empty(trans, txq_bm);
 }
 
 static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,

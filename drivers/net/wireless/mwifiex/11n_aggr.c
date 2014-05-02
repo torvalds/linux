@@ -160,6 +160,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	int pad = 0, ret;
 	struct mwifiex_tx_param tx_param;
 	struct txpd *ptx_pd = NULL;
+	struct timeval tv;
 	int headroom = adapter->iface_type == MWIFIEX_USB ? 0 : INTF_HEADER_LEN;
 
 	skb_src = skb_peek(&pra_list->skb_head);
@@ -183,6 +184,9 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	tx_info_aggr->bss_type = tx_info_src->bss_type;
 	tx_info_aggr->bss_num = tx_info_src->bss_num;
 	skb_aggr->priority = skb_src->priority;
+
+	do_gettimeofday(&tv);
+	skb_aggr->tstamp = timeval_to_ktime(tv);
 
 	do {
 		/* Check if AMSDU can accommodate this MSDU */
@@ -236,18 +240,11 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
 						   skb_aggr, NULL);
 	} else {
-		/*
-		 * Padding per MSDU will affect the length of next
-		 * packet and hence the exact length of next packet
-		 * is uncertain here.
-		 *
-		 * Also, aggregation of transmission buffer, while
-		 * downloading the data to the card, wont gain much
-		 * on the AMSDU packets as the AMSDU packets utilizes
-		 * the transmission buffer space to the maximum
-		 * (adapter->tx_buf_size).
-		 */
-		tx_param.next_pkt_len = 0;
+		if (skb_src)
+			tx_param.next_pkt_len =
+					skb_src->len + sizeof(struct txpd);
+		else
+			tx_param.next_pkt_len = 0;
 
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
 						   skb_aggr, &tx_param);

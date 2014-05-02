@@ -287,14 +287,14 @@ static void iwl_pcie_txq_inval_byte_cnt_tbl(struct iwl_trans *trans,
 /*
  * iwl_pcie_txq_inc_wr_ptr - Send new write index to hardware
  */
-void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
+static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
+				    struct iwl_txq *txq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 reg = 0;
 	int txq_id = txq->q.id;
 
-	if (txq->need_update == 0)
-		return;
+	lockdep_assert_held(&txq->lock);
 
 	/*
 	 * explicitly wake up the NIC if:
@@ -317,6 +317,7 @@ void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 				       txq_id, reg);
 			iwl_set_bit(trans, CSR_GP_CNTRL,
 				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			txq->need_update = true;
 			return;
 		}
 	}
@@ -327,8 +328,23 @@ void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 	 */
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->q.write_ptr);
 	iwl_write32(trans, HBUS_TARG_WRPTR, txq->q.write_ptr | (txq_id << 8));
+}
 
-	txq->need_update = 0;
+void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int i;
+
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
+		struct iwl_txq *txq = &trans_pcie->txq[i];
+
+		spin_lock(&txq->lock);
+		if (trans_pcie->txq[i].need_update) {
+			iwl_pcie_txq_inc_wr_ptr(trans, txq);
+			trans_pcie->txq[i].need_update = false;
+		}
+		spin_unlock(&txq->lock);
+	}
 }
 
 static inline dma_addr_t iwl_pcie_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
@@ -542,7 +558,7 @@ static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 {
 	int ret;
 
-	txq->need_update = 0;
+	txq->need_update = false;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
 	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
@@ -680,7 +696,8 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	/* The chain extension of the SCD doesn't work well. This feature is
 	 * enabled by default by the HW, so we need to disable it manually.
 	 */
-	iwl_write_prph(trans, SCD_CHAINEXT_EN, 0);
+	if (trans->cfg->base_params->scd_chain_ext_wa)
+		iwl_write_prph(trans, SCD_CHAINEXT_EN, 0);
 
 	iwl_trans_ac_txq_enable(trans, trans_pcie->cmd_queue,
 				trans_pcie->cmd_fifo);
@@ -1028,7 +1045,8 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		}
 	}
 
-	if (q->read_ptr == q->write_ptr) {
+	if (trans->cfg->base_params->apmg_wake_up_wa &&
+	    q->read_ptr == q->write_ptr) {
 		spin_lock_irqsave(&trans_pcie->reg_lock, flags);
 		WARN_ON(!trans_pcie->cmd_in_flight);
 		trans_pcie->cmd_in_flight = false;
@@ -1392,8 +1410,6 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		kfree(txq->entries[idx].free_buf);
 	txq->entries[idx].free_buf = dup_buf;
 
-	txq->need_update = 1;
-
 	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size, &out_cmd->hdr);
 
 	/* start timer if queue currently empty */
@@ -1405,9 +1421,11 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	/*
 	 * wake up the NIC to make sure that the firmware will see the host
 	 * command - we will let the NIC sleep once all the host commands
-	 * returned.
+	 * returned. This needs to be done only on NICs that have
+	 * apmg_wake_up_wa set.
 	 */
-	if (!trans_pcie->cmd_in_flight) {
+	if (trans->cfg->base_params->apmg_wake_up_wa &&
+	    !trans_pcie->cmd_in_flight) {
 		trans_pcie->cmd_in_flight = true;
 		__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 					 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
@@ -1661,7 +1679,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	dma_addr_t tb0_phys, tb1_phys, scratch_phys;
 	void *tb1_addr;
 	u16 len, tb1_len, tb2_len;
-	u8 wait_write_ptr = 0;
+	bool wait_write_ptr;
 	__le16 fc = hdr->frame_control;
 	u8 hdr_len = ieee80211_hdrlen(fc);
 	u16 wifi_seq;
@@ -1762,12 +1780,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	trace_iwlwifi_dev_tx_data(trans->dev, skb,
 				  skb->data + hdr_len, tb2_len);
 
-	if (!ieee80211_has_morefrags(fc)) {
-		txq->need_update = 1;
-	} else {
-		wait_write_ptr = 1;
-		txq->need_update = 0;
-	}
+	wait_write_ptr = ieee80211_has_morefrags(fc);
 
 	/* start timer if queue currently empty */
 	if (txq->need_update && q->read_ptr == q->write_ptr &&
@@ -1776,21 +1789,18 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
-	iwl_pcie_txq_inc_wr_ptr(trans, txq);
+	if (!wait_write_ptr)
+		iwl_pcie_txq_inc_wr_ptr(trans, txq);
 
 	/*
 	 * At this point the frame is "transmitted" successfully
-	 * and we will get a TX status notification eventually,
-	 * regardless of the value of ret. "ret" only indicates
-	 * whether or not we should update the write pointer.
+	 * and we will get a TX status notification eventually.
 	 */
 	if (iwl_queue_space(q) < q->high_mark) {
-		if (wait_write_ptr) {
-			txq->need_update = 1;
+		if (wait_write_ptr)
 			iwl_pcie_txq_inc_wr_ptr(trans, txq);
-		} else {
+		else
 			iwl_stop_queue(trans, txq);
-		}
 	}
 	spin_unlock(&txq->lock);
 	return 0;
