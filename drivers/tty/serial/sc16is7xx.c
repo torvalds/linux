@@ -1221,7 +1221,6 @@ static struct regmap_config regcfg = {
 	.precious_reg = sc16is7xx_regmap_precious,
 };
 
-#ifdef CONFIG_REGMAP_I2C
 static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 			       const struct i2c_device_id *id)
 {
@@ -1273,7 +1272,6 @@ static struct i2c_driver sc16is7xx_i2c_uart_driver = {
 };
 module_i2c_driver(sc16is7xx_i2c_uart_driver);
 MODULE_ALIAS("i2c:sc16is7xx");
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jon Ringle <jringle@gridpoint.com>");
