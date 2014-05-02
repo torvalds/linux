@@ -101,6 +101,14 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc);
 static void intel_set_pipe_csc(struct drm_crtc *crtc);
 static void vlv_prepare_pll(struct intel_crtc *crtc);
 
+static struct intel_encoder *intel_find_encoder(struct intel_connector *connector, int pipe)
+{
+	if (!connector->mst_port)
+		return connector->encoder;
+	else
+		return &connector->mst_port->mst_encoders[pipe]->base;
+}
+
 typedef struct {
 	int	min, max;
 } intel_range_t;
@@ -4130,6 +4138,9 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config.has_pch_encoder)
 		lpt_pch_enable(crtc);
 
+	if (intel_crtc->config.dp_encoder_is_mst)
+		intel_ddi_set_vc_payload_alloc(crtc, true);
+
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		encoder->enable(encoder);
 		intel_opregion_notify_encoder(encoder, true);
@@ -4177,6 +4188,9 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
 
 	intel_disable_pipe(dev_priv, pipe);
+
+	if (intel_crtc->config.dp_encoder_is_mst)
+		intel_ddi_set_vc_payload_alloc(crtc, false);
 
 	ironlake_pfit_disable(intel_crtc);
 
@@ -4335,6 +4349,9 @@ intel_display_port_power_domain(struct intel_encoder *intel_encoder)
 	case INTEL_OUTPUT_HDMI:
 	case INTEL_OUTPUT_EDP:
 		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
+		return port_to_power_domain(intel_dig_port->port);
+	case INTEL_OUTPUT_DP_MST:
+		intel_dig_port = enc_to_mst(&intel_encoder->base)->primary;
 		return port_to_power_domain(intel_dig_port->port);
 	case INTEL_OUTPUT_ANALOG:
 		return POWER_DOMAIN_PORT_CRT;
@@ -5003,6 +5020,10 @@ static void intel_connector_check_state(struct intel_connector *connector)
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 			      connector->base.base.id,
 			      connector->base.name);
+
+		/* there is no real hw state for MST connectors */
+		if (connector->mst_port)
+			return;
 
 		WARN(connector->base.dpms == DRM_MODE_DPMS_OFF,
 		     "wrong connector dpms state\n");
@@ -10524,6 +10545,14 @@ check_encoder_state(struct drm_device *dev)
 			if (connector->base.dpms != DRM_MODE_DPMS_OFF)
 				active = true;
 		}
+		/*
+		 * for MST connectors if we unplug the connector is gone
+		 * away but the encoder is still connected to a crtc
+		 * until a modeset happens in response to the hotplug.
+		 */
+		if (!enabled && encoder->base.encoder_type == DRM_MODE_ENCODER_DPMST)
+			continue;
+
 		WARN(!!encoder->base.crtc != enabled,
 		     "encoder's enabled state mismatch "
 		     "(expected %i, found %i)\n",
@@ -11069,7 +11098,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		 * for them. */
 		for (ro = 0; ro < set->num_connectors; ro++) {
 			if (set->connectors[ro] == &connector->base) {
-				connector->new_encoder = connector->encoder;
+				connector->new_encoder = intel_find_encoder(connector, to_intel_crtc(set->crtc)->pipe);
 				break;
 			}
 		}
@@ -11115,7 +11144,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 					 new_crtc)) {
 			return -EINVAL;
 		}
-		connector->encoder->new_crtc = to_intel_crtc(new_crtc);
+		connector->new_encoder->new_crtc = to_intel_crtc(new_crtc);
 
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
 			connector->base.base.id,
@@ -11149,7 +11178,12 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		}
 	}
 	/* Now we've also updated encoder->new_crtc for all encoders. */
-
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+		if (connector->new_encoder)
+			if (connector->new_encoder != connector->encoder)
+				connector->encoder = connector->new_encoder;
+	}
 	for_each_intel_crtc(dev, crtc) {
 		crtc->new_enabled = false;
 

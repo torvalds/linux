@@ -1717,6 +1717,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_mtrrfree;
 	}
 
+	dev_priv->dp_wq = alloc_ordered_workqueue("i915-dp", 0);
+	if (dev_priv->dp_wq == NULL) {
+		DRM_ERROR("Failed to create our dp workqueue.\n");
+		ret = -ENOMEM;
+		goto out_freewq;
+	}
+
 	intel_irq_init(dev);
 	intel_uncore_sanitize(dev);
 
@@ -1792,6 +1799,8 @@ out_gem_unload:
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
+	destroy_workqueue(dev_priv->dp_wq);
+out_freewq:
 	destroy_workqueue(dev_priv->wq);
 out_mtrrfree:
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
@@ -1892,6 +1901,7 @@ int i915_driver_unload(struct drm_device *dev)
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
 
+	destroy_workqueue(dev_priv->dp_wq);
 	destroy_workqueue(dev_priv->wq);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
