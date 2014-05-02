@@ -2001,7 +2001,7 @@ next_rgrp:
 		}
 		/* Flushing the log may release space */
 		if (loops == 2)
-			gfs2_log_flush(sdp, NULL);
+			gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
 	}
 
 	return -ENOSPC;

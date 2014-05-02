@@ -880,7 +880,7 @@ out:
 		gfs2_glock_dq_uninit(&ghs[qx]);
 	mutex_unlock(&ip->i_inode.i_mutex);
 	kfree(ghs);
-	gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
+	gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl, NORMAL_FLUSH);
 	return error;
 }
 
