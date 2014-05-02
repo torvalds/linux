@@ -546,9 +546,13 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	struct rmi_data *data = hid_get_drvdata(hdev);
 	u8 buf[20];
 	int ret;
+	bool has_query9;
+	bool has_query10;
+	bool has_query11;
 	bool has_query12;
 	bool has_physical_props;
 	unsigned x_size, y_size;
+	u16 query12_offset;
 
 	if (!data->f11.query_base_addr) {
 		hid_err(hdev, "No 2D sensor found, giving up.\n");
@@ -561,6 +565,8 @@ static int rmi_populate_f11(struct hid_device *hdev)
 		hid_err(hdev, "can not get query 0: %d.\n", ret);
 		return ret;
 	}
+	has_query9 = !!(buf[0] & BIT(3));
+	has_query11 = !!(buf[0] & BIT(4));
 	has_query12 = !!(buf[0] & BIT(5));
 
 	/* query 1 to get the max number of fingers */
@@ -581,12 +587,33 @@ static int rmi_populate_f11(struct hid_device *hdev)
 		return -ENODEV;
 	}
 
+	/* query 8 to find out if query 10 exists */
+	ret = rmi_read(hdev, data->f11.query_base_addr + 8, buf);
+	if (ret) {
+		hid_err(hdev, "can not read gesture information: %d.\n", ret);
+		return ret;
+	}
+	has_query10 = !!(buf[0] & BIT(2));
+
 	/*
-	 * query 12 to know if the physical properties are reported
-	 * (query 12 is at offset 10 for HID devices)
+	 * At least 8 queries are guaranteed to be present in F11
+	 * +1 for query12.
 	 */
+	query12_offset = 9;
+
+	if (has_query9)
+		++query12_offset;
+
+	if (has_query10)
+		++query12_offset;
+
+	if (has_query11)
+		++query12_offset;
+
+	/* query 12 to know if the physical properties are reported */
 	if (has_query12) {
-		ret = rmi_read(hdev, data->f11.query_base_addr + 10, buf);
+		ret = rmi_read(hdev, data->f11.query_base_addr
+				+ query12_offset, buf);
 		if (ret) {
 			hid_err(hdev, "can not get query 12: %d.\n", ret);
 			return ret;
@@ -595,7 +622,8 @@ static int rmi_populate_f11(struct hid_device *hdev)
 
 		if (has_physical_props) {
 			ret = rmi_read_block(hdev,
-					data->f11.query_base_addr + 11, buf, 4);
+					data->f11.query_base_addr
+						+ query12_offset + 1, buf, 4);
 			if (ret) {
 				hid_err(hdev, "can not read query 15-18: %d.\n",
 					ret);
