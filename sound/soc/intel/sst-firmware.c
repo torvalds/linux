@@ -376,10 +376,6 @@ static int block_alloc_fixed(struct sst_module *module,
 			if (err < 0)
 				return -ENOMEM;
 
-			/* add block */
-			block->data_type = data->data_type;
-			list_move(&block->list, &dsp->used_block_list);
-			list_add(&block->module_list, &module->block_list);
 			return 0;
 		}
 
