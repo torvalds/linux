@@ -228,6 +228,7 @@ struct sst_dsp {
 	spinlock_t spinlock;	/* IPC locking */
 	struct mutex mutex;	/* DSP FW lock */
 	struct device *dev;
+	struct device *dma_dev;
 	void *thread_context;
 	int irq;
 	u32 id;

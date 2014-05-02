@@ -57,14 +57,8 @@ struct sst_fw *sst_fw_new(struct sst_dsp *dsp,
 	sst_fw->private = private;
 	sst_fw->size = fw->size;
 
-	err = dma_coerce_mask_and_coherent(dsp->dev, DMA_BIT_MASK(32));
-	if (err < 0) {
-		kfree(sst_fw);
-		return NULL;
-	}
-
 	/* allocate DMA buffer to store FW data */
-	sst_fw->dma_buf = dma_alloc_coherent(dsp->dev, sst_fw->size,
+	sst_fw->dma_buf = dma_alloc_coherent(dsp->dma_dev, sst_fw->size,
 				&sst_fw->dmable_fw_paddr, GFP_DMA | GFP_KERNEL);
 	if (!sst_fw->dma_buf) {
 		dev_err(dsp->dev, "error: DMA alloc failed\n");
@@ -106,7 +100,7 @@ void sst_fw_free(struct sst_fw *sst_fw)
 	list_del(&sst_fw->list);
 	mutex_unlock(&dsp->mutex);
 
-	dma_free_coherent(dsp->dev, sst_fw->size, sst_fw->dma_buf,
+	dma_free_coherent(dsp->dma_dev, sst_fw->size, sst_fw->dma_buf,
 			sst_fw->dmable_fw_paddr);
 	kfree(sst_fw);
 }

@@ -633,17 +633,16 @@ static void hsw_pcm_free(struct snd_pcm *pcm)
 static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
+	struct snd_soc_platform *platform = rtd->platform;
+	struct sst_pdata *pdata = dev_get_platdata(platform->dev);
+	struct device *dev = pdata->dma_dev;
 	int ret = 0;
-
-	ret = dma_coerce_mask_and_coherent(rtd->card->dev, DMA_BIT_MASK(32));
-	if (ret)
-		return ret;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream ||
 			pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
 			SNDRV_DMA_TYPE_DEV_SG,
-			rtd->card->dev,
+			dev,
 			hsw_pcm_hardware.buffer_bytes_max,
 			hsw_pcm_hardware.buffer_bytes_max);
 		if (ret) {
