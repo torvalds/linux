@@ -603,6 +603,9 @@ struct pci_error_handlers {
 	/* PCI slot has been reset */
 	pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
 
+	/* PCI function reset prepare or completed */
+	void (*reset_notify)(struct pci_dev *dev, bool prepare);
+
 	/* Device driver may resume normal operations */
 	void (*resume)(struct pci_dev *dev);
 };
