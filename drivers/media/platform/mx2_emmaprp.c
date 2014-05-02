@@ -985,6 +985,8 @@ rel_vdev:
 unreg_dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 
+	mutex_destroy(&pcdev->dev_mutex);
+
 	return ret;
 }
 
@@ -998,6 +1000,7 @@ static int emmaprp_remove(struct platform_device *pdev)
 	v4l2_m2m_release(pcdev->m2m_dev);
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
+	mutex_destroy(&pcdev->dev_mutex);
 
 	return 0;
 }
