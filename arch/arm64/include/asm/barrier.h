@@ -28,7 +28,7 @@
 #define dmb(opt)	asm volatile("dmb sy" : : : "memory")
 #define dsb(opt)	asm volatile("dsb sy" : : : "memory")
 
-#define mb()		dsb()
+#define mb()		dsb(sy)
 #define rmb()		asm volatile("dsb ld" : : : "memory")
 #define wmb()		asm volatile("dsb st" : : : "memory")
 

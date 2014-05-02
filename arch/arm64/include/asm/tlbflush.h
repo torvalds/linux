@@ -72,9 +72,9 @@ extern struct cpu_tlb_fns cpu_tlb;
  */
 static inline void flush_tlb_all(void)
 {
-	dsb();
+	dsb(ishst);
 	asm("tlbi	vmalle1is");
-	dsb();
+	dsb(ish);
 	isb();
 }
 
@@ -82,9 +82,9 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 	unsigned long asid = (unsigned long)ASID(mm) << 48;
 
-	dsb();
+	dsb(ishst);
 	asm("tlbi	aside1is, %0" : : "r" (asid));
-	dsb();
+	dsb(ish);
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
@@ -93,9 +93,9 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 	unsigned long addr = uaddr >> 12 |
 		((unsigned long)ASID(vma->vm_mm) << 48);
 
-	dsb();
+	dsb(ishst);
 	asm("tlbi	vae1is, %0" : : "r" (addr));
-	dsb();
+	dsb(ish);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
@@ -134,7 +134,7 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 	 * set_pte() does not have a DSB, so make sure that the page table
 	 * write is visible.
 	 */
-	dsb();
+	dsb(ishst);
 }
 
 #define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
