@@ -184,7 +184,7 @@ static inline unsigned add32_with_carry(unsigned a, unsigned b)
 	asm("addl %2,%0\n\t"
 	    "adcl $0,%0"
 	    : "=r" (a)
-	    : "0" (a), "r" (b));
+	    : "0" (a), "rm" (b));
 	return a;
 }
 
