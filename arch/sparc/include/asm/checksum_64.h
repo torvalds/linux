@@ -164,4 +164,16 @@ static inline __sum16 ip_compute_csum(const void *buff, int len)
 	return csum_fold(csum_partial(buff, len, 0));
 }
 
+#define HAVE_ARCH_CSUM_ADD
+static inline __wsum csum_add(__wsum csum, __wsum addend)
+{
+	__asm__ __volatile__(
+		"addcc   %0, %1, %0\n"
+		"addx    %0, %%g0, %0"
+		: "=r" (csum)
+		: "r" (addend), "0" (csum));
+
+	return csum;
+}
+
 #endif /* !(__SPARC64_CHECKSUM_H) */
