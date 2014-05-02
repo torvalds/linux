@@ -25,12 +25,12 @@
 #define wfi()		asm volatile("wfi" : : : "memory")
 
 #define isb()		asm volatile("isb" : : : "memory")
-#define dmb(opt)	asm volatile("dmb sy" : : : "memory")
-#define dsb(opt)	asm volatile("dsb sy" : : : "memory")
+#define dmb(opt)	asm volatile("dmb " #opt : : : "memory")
+#define dsb(opt)	asm volatile("dsb " #opt : : : "memory")
 
 #define mb()		dsb(sy)
-#define rmb()		asm volatile("dsb ld" : : : "memory")
-#define wmb()		asm volatile("dsb st" : : : "memory")
+#define rmb()		dsb(ld)
+#define wmb()		dsb(st)
 
 #ifndef CONFIG_SMP
 #define smp_mb()	barrier()
@@ -54,9 +54,9 @@ do {									\
 
 #else
 
-#define smp_mb()	asm volatile("dmb ish" : : : "memory")
-#define smp_rmb()	asm volatile("dmb ishld" : : : "memory")
-#define smp_wmb()	asm volatile("dmb ishst" : : : "memory")
+#define smp_mb()	dmb(ish)
+#define smp_rmb()	dmb(ishld)
+#define smp_wmb()	dmb(ishst)
 
 #define smp_store_release(p, v)						\
 do {									\
