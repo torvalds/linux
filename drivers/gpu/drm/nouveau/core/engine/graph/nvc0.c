@@ -1259,10 +1259,14 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_graph_oclass *oclass = (void *)bclass;
 	struct nouveau_device *device = nv_device(parent);
 	struct nvc0_graph_priv *priv;
+	bool use_ext_fw, enable;
 	int ret, i;
 
-	ret = nouveau_graph_create(parent, engine, bclass,
-				   (oclass->fecs.ucode != NULL), &priv);
+	use_ext_fw = nouveau_boolopt(device->cfgopt, "NvGrUseFW",
+				     oclass->fecs.ucode == NULL);
+	enable = use_ext_fw || oclass->fecs.ucode != NULL;
+
+	ret = nouveau_graph_create(parent, engine, bclass, enable, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -1272,7 +1276,7 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->base.units = nvc0_graph_units;
 
-	if (nouveau_boolopt(device->cfgopt, "NvGrUseFW", false)) {
+	if (use_ext_fw) {
 		nv_info(priv, "using external firmware\n");
 		if (nvc0_graph_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
 		    nvc0_graph_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||
