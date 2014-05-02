@@ -25,6 +25,7 @@
 			reg = <0>;
 			clocks = <&clkc 3>;
 			clock-latency = <1000>;
+			cpu0-supply = <&regulator_vccpint>;
 			operating-points = <
 				/* kHz    uV */
 				666667  1000000
@@ -46,6 +47,15 @@
 		interrupts = <0 5 4>, <0 6 4>;
 		interrupt-parent = <&intc>;
 		reg = < 0xf8891000 0x1000 0xf8893000 0x1000 >;
+	};
+
+	regulator_vccpint: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCCPINT";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	amba {
