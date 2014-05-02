@@ -695,8 +695,9 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 			chip->autosuspended = 1;
 	}
 
-	list_for_each_entry(mixer, &chip->mixer_list, list)
-		snd_usb_mixer_suspend(mixer);
+	if (chip->num_suspended_intf == 1)
+		list_for_each_entry(mixer, &chip->mixer_list, list)
+			snd_usb_mixer_suspend(mixer);
 
 	return 0;
 }
