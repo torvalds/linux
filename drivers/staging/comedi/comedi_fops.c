@@ -238,9 +238,9 @@ comedi_write_subdevice(const struct comedi_device *dev, unsigned int minor)
 }
 
 static int resize_async_buffer(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_async *async, unsigned new_size)
+			       struct comedi_subdevice *s, unsigned new_size)
 {
+	struct comedi_async *async = s->async;
 	int retval;
 
 	if (new_size > async->max_bufsize)
@@ -380,7 +380,7 @@ static ssize_t read_buffer_kb_store(struct device *csdev,
 	mutex_lock(&dev->mutex);
 	s = comedi_read_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
-		err = resize_async_buffer(dev, s, s->async, size);
+		err = resize_async_buffer(dev, s, size);
 	else
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
@@ -493,7 +493,7 @@ static ssize_t write_buffer_kb_store(struct device *csdev,
 	mutex_lock(&dev->mutex);
 	s = comedi_write_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
-		err = resize_async_buffer(dev, s, s->async, size);
+		err = resize_async_buffer(dev, s, size);
 	else
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
@@ -741,7 +741,7 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	}
 
 	if (bc.size) {
-		retval = resize_async_buffer(dev, s, async, bc.size);
+		retval = resize_async_buffer(dev, s, bc.size);
 		if (retval < 0)
 			return retval;
 	}
