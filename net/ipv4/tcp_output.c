@@ -1408,7 +1408,7 @@ static void tcp_cwnd_validate(struct sock *sk, u32 unsent_segs)
 
 	tp->lsnd_pending = tp->packets_out + unsent_segs;
 
-	if (tcp_is_cwnd_limited(sk, 0)) {
+	if (tcp_is_cwnd_limited(sk)) {
 		/* Network is feed fully. */
 		tp->snd_cwnd_used = 0;
 		tp->snd_cwnd_stamp = tcp_time_stamp;

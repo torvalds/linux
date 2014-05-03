@@ -2938,10 +2938,11 @@ static void tcp_synack_rtt_meas(struct sock *sk, const u32 synack_stamp)
 		tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, seq_rtt_us, -1L);
 }
 
-static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 acked, u32 in_flight)
+static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	icsk->icsk_ca_ops->cong_avoid(sk, ack, acked, in_flight);
+
+	icsk->icsk_ca_ops->cong_avoid(sk, ack, acked);
 	tcp_sk(sk)->snd_cwnd_stamp = tcp_time_stamp;
 }
 
@@ -3364,7 +3365,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	u32 ack_seq = TCP_SKB_CB(skb)->seq;
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 	bool is_dupack = false;
-	u32 prior_in_flight;
 	u32 prior_fackets;
 	int prior_packets = tp->packets_out;
 	const int prior_unsacked = tp->packets_out - tp->sacked_out;
@@ -3397,7 +3397,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		flag |= FLAG_SND_UNA_ADVANCED;
 
 	prior_fackets = tp->fackets_out;
-	prior_in_flight = tcp_packets_in_flight(tp);
 
 	/* ts_recent update must be made after we are sure that the packet
 	 * is in window.
@@ -3452,7 +3451,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	/* Advance cwnd if state allows */
 	if (tcp_may_raise_cwnd(sk, flag))
-		tcp_cong_avoid(sk, ack, acked, prior_in_flight);
+		tcp_cong_avoid(sk, ack, acked);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
 		is_dupack = !(flag & (FLAG_SND_UNA_ADVANCED | FLAG_NOT_DUP));
