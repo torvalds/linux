@@ -39,6 +39,10 @@ extern void __uc32_iounmap(volatile void __iomem *addr);
 #define ioremap_nocache(cookie, size)	__uc32_ioremap(cookie, size)
 #define iounmap(cookie)			__uc32_iounmap(cookie)
 
+#define readb_relaxed readb
+#define readw_relaxed readw
+#define readl_relaxed readl
+
 #define HAVE_ARCH_PIO_SIZE
 #define PIO_OFFSET		(unsigned int)(PCI_IOBASE)
 #define PIO_MASK		(unsigned int)(IO_SPACE_LIMIT)
