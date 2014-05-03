@@ -765,14 +765,17 @@ static int at91_adc_probe_pdata(struct at91_adc_state *st,
 	if (!pdata)
 		return -EINVAL;
 
+	st->caps = (struct at91_adc_caps *)
+			platform_get_device_id(pdev)->driver_data;
+
 	st->use_external = pdata->use_external_triggers;
 	st->vref_mv = pdata->vref;
 	st->channels_mask = pdata->channels_used;
-	st->num_channels = pdata->num_channels;
+	st->num_channels = st->caps->num_channels;
 	st->startup_time = pdata->startup_time;
 	st->trigger_number = pdata->trigger_number;
 	st->trigger_list = pdata->trigger_list;
-	st->registers = pdata->registers;
+	st->registers = &st->caps->registers;
 
 	return 0;
 }
@@ -1101,7 +1104,6 @@ static int at91_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static struct at91_adc_caps at91sam9260_caps = {
 	.calc_startup_ticks = calc_startup_ticks_9260,
 	.num_channels = 4,
@@ -1154,11 +1156,27 @@ static const struct of_device_id at91_adc_dt_ids[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, at91_adc_dt_ids);
-#endif
+
+static const struct platform_device_id at91_adc_ids[] = {
+	{
+		.name = "at91sam9260-adc",
+		.driver_data = (unsigned long)&at91sam9260_caps,
+	}, {
+		.name = "at91sam9g45-adc",
+		.driver_data = (unsigned long)&at91sam9g45_caps,
+	}, {
+		.name = "at91sam9x5-adc",
+		.driver_data = (unsigned long)&at91sam9x5_caps,
+	}, {
+		/* terminator */
+	}
+};
+MODULE_DEVICE_TABLE(platform, at91_adc_ids);
 
 static struct platform_driver at91_adc_driver = {
 	.probe = at91_adc_probe,
 	.remove = at91_adc_remove,
+	.id_table = at91_adc_ids,
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = of_match_ptr(at91_adc_dt_ids),
