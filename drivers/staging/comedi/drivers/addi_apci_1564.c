@@ -17,9 +17,6 @@ static const struct addi_board apci1564_boardtypes[] = {
 		.i_Timer		= 1,
 		.interrupt		= apci1564_interrupt,
 		.reset			= apci1564_reset,
-		.do_config		= apci1564_do_config,
-		.do_bits		= apci1564_do_insn_bits,
-		.do_read		= apci1564_do_read,
 		.timer_config		= apci1564_timer_config,
 		.timer_write		= apci1564_timer_write,
 		.timer_read		= apci1564_timer_read,
@@ -98,23 +95,15 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
-	if (this_board->i_NbrDoChannel) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrDoChannel;
-		s->maxdata = this_board->i_DoMaxdata;
-		s->len_chanlist = this_board->i_NbrDoChannel;
-		s->range_table = &range_digital;
-
-		/* insn_config - for digital output memory */
-		s->insn_config = this_board->do_config;
-		s->insn_write = this_board->do_write;
-		s->insn_bits = this_board->do_bits;
-		s->insn_read = this_board->do_read;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_WRITEABLE;
+	s->n_chan = 32;
+	s->maxdata = 0xffffffff;
+	s->len_chanlist = 32;
+	s->range_table = &range_digital;
+	s->insn_config = apci1564_do_config;
+	s->insn_bits = apci1564_do_insn_bits;
+	s->insn_read = apci1564_do_read;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
