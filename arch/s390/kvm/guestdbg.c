@@ -223,9 +223,10 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 		goto error;
 	}
 
-	ret = copy_from_user(bp_data, dbg->arch.hw_bp, size);
-	if (ret)
+	if (copy_from_user(bp_data, dbg->arch.hw_bp, size)) {
+		ret = -EFAULT;
 		goto error;
+	}
 
 	for (i = 0; i < dbg->arch.nr_hw_bp; i++) {
 		switch (bp_data[i].type) {
