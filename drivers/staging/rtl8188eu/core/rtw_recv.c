@@ -289,18 +289,6 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter)
 	return cnt;
 }
 
-int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue)
-{
-	unsigned long irqL;
-	spin_lock_irqsave(&queue->lock, irqL);
-
-	rtw_list_delete(&precvbuf->list);
-
-	rtw_list_insert_tail(&precvbuf->list, get_list_head(queue));
-	spin_unlock_irqrestore(&queue->lock, irqL);
-	return _SUCCESS;
-}
-
 static int recvframe_chkmic(struct adapter *adapter,
 			    struct recv_frame *precvframe)
 {
