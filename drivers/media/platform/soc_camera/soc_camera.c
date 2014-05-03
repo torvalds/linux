@@ -1524,14 +1524,14 @@ static int scan_async_group(struct soc_camera_host *ici,
 
 	ret = soc_camera_dyn_pdev(&sdesc, sasc);
 	if (ret < 0)
-		return ret;
+		goto eallocpdev;
 
 	sasc->sensor = &sasd->asd;
 
 	icd = soc_camera_add_pdev(sasc);
 	if (!icd) {
-		platform_device_put(sasc->pdev);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto eaddpdev;
 	}
 
 	sasc->notifier.subdevs = asd;
@@ -1559,7 +1559,11 @@ static int scan_async_group(struct soc_camera_host *ici,
 	v4l2_clk_unregister(icd->clk);
 eclkreg:
 	icd->clk = NULL;
-	platform_device_unregister(sasc->pdev);
+	platform_device_del(sasc->pdev);
+eaddpdev:
+	platform_device_put(sasc->pdev);
+eallocpdev:
+	devm_kfree(ici->v4l2_dev.dev, sasc);
 	dev_err(ici->v4l2_dev.dev, "group probe failed: %d\n", ret);
 
 	return ret;
