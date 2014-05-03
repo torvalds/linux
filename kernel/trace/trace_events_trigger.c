@@ -77,7 +77,7 @@ event_triggers_call(struct ftrace_event_file *file, void *rec)
 			data->ops->func(data);
 			continue;
 		}
-		filter = rcu_dereference(data->filter);
+		filter = rcu_dereference_sched(data->filter);
 		if (filter && !filter_match_preds(filter, rec))
 			continue;
 		if (data->cmd_ops->post_trigger) {
