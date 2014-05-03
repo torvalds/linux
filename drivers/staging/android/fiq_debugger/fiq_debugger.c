@@ -54,6 +54,7 @@ struct fiq_debugger_state {
 #ifdef CONFIG_FIQ_GLUE
 	struct fiq_glue_handler handler;
 #endif
+	struct fiq_debugger_output output;
 
 	int fiq;
 	int uart_irq;
@@ -229,18 +230,19 @@ static void fiq_debugger_dump_kernel_log(struct fiq_debugger_state *state)
 	}
 }
 
-int fiq_debugger_printf(void *cookie, const char *fmt, ...)
+static void fiq_debugger_printf(struct fiq_debugger_output *output,
+			       const char *fmt, ...)
 {
-	struct fiq_debugger_state *state = cookie;
+	struct fiq_debugger_state *state;
 	char buf[256];
 	va_list ap;
 
+	state = container_of(output, struct fiq_debugger_state, output);
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
 	fiq_debugger_puts(state, buf);
-	return state->debug_abort;
 }
 
 /* Safe outside fiq context */
@@ -267,13 +269,13 @@ static void fiq_debugger_dump_irqs(struct fiq_debugger_state *state)
 	int n;
 	struct irq_desc *desc;
 
-	fiq_debugger_printf(state,
+	fiq_debugger_printf(&state->output,
 			"irqnr       total  since-last   status  name\n");
 	for_each_irq_desc(n, desc) {
 		struct irqaction *act = desc->action;
 		if (!act && !kstat_irqs(n))
 			continue;
-		fiq_debugger_printf(state, "%5d: %10u %11u %8x  %s\n", n,
+		fiq_debugger_printf(&state->output, "%5d: %10u %11u %8x  %s\n", n,
 			kstat_irqs(n),
 			kstat_irqs(n) - state->last_irqs[n],
 			desc->status_use_accessors,
@@ -289,18 +291,18 @@ static void fiq_debugger_do_ps(struct fiq_debugger_state *state)
 	unsigned task_state;
 	static const char stat_nam[] = "RSDTtZX";
 
-	fiq_debugger_printf(state, "pid   ppid  prio task            pc\n");
+	fiq_debugger_printf(&state->output, "pid   ppid  prio task            pc\n");
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		task_state = p->state ? __ffs(p->state) + 1 : 0;
-		fiq_debugger_printf(state,
+		fiq_debugger_printf(&state->output,
 			     "%5d %5d %4d ", p->pid, p->parent->pid, p->prio);
-		fiq_debugger_printf(state, "%-13.13s %c", p->comm,
+		fiq_debugger_printf(&state->output, "%-13.13s %c", p->comm,
 			     task_state >= sizeof(stat_nam) ? '?' : stat_nam[task_state]);
 		if (task_state == TASK_RUNNING)
-			fiq_debugger_printf(state, " running\n");
+			fiq_debugger_printf(&state->output, " running\n");
 		else
-			fiq_debugger_printf(state, " %08lx\n",
+			fiq_debugger_printf(&state->output, " %08lx\n",
 					thread_saved_pc(p));
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
@@ -332,7 +334,7 @@ static void fiq_debugger_end_syslog_dump(struct fiq_debugger_state *state)
 static void fiq_debugger_do_sysrq(struct fiq_debugger_state *state, char rq)
 {
 	if ((rq == 'g' || rq == 'G') && !fiq_kgdb_enable) {
-		fiq_debugger_printf(state, "sysrq-g blocked\n");
+		fiq_debugger_printf(&state->output, "sysrq-g blocked\n");
 		return;
 	}
 	fiq_debugger_begin_syslog_dump(state);
@@ -344,11 +346,11 @@ static void fiq_debugger_do_sysrq(struct fiq_debugger_state *state, char rq)
 static void fiq_debugger_do_kgdb(struct fiq_debugger_state *state)
 {
 	if (!fiq_kgdb_enable) {
-		fiq_debugger_printf(state, "kgdb through fiq debugger not enabled\n");
+		fiq_debugger_printf(&state->output, "kgdb through fiq debugger not enabled\n");
 		return;
 	}
 
-	fiq_debugger_printf(state, "enabling console and triggering kgdb\n");
+	fiq_debugger_printf(&state->output, "enabling console and triggering kgdb\n");
 	state->console_enable = true;
 	handle_sysrq('g');
 }
@@ -361,7 +363,7 @@ static void fiq_debugger_schedule_work(struct fiq_debugger_state *state,
 
 	spin_lock_irqsave(&state->work_lock, flags);
 	if (state->work_cmd[0] != '\0') {
-		fiq_debugger_printf(state, "work command processor busy\n");
+		fiq_debugger_printf(&state->output, "work command processor busy\n");
 		spin_unlock_irqrestore(&state->work_lock, flags);
 		return;
 	}
@@ -398,7 +400,7 @@ static void fiq_debugger_work(struct work_struct *work)
 		else
 			kernel_restart(NULL);
 	} else {
-		fiq_debugger_printf(state, "unknown work command '%s'\n",
+		fiq_debugger_printf(&state->output, "unknown work command '%s'\n",
 				work_cmd);
 	}
 }
@@ -422,7 +424,7 @@ static void fiq_debugger_irq_exec(struct fiq_debugger_state *state, char *cmd)
 
 static void fiq_debugger_help(struct fiq_debugger_state *state)
 {
-	fiq_debugger_printf(state,
+	fiq_debugger_printf(&state->output,
 				"FIQ Debugger commands:\n"
 				" pc            PC status\n"
 				" regs          Register dump\n"
@@ -433,18 +435,18 @@ static void fiq_debugger_help(struct fiq_debugger_state *state)
 				" irqs          Interupt status\n"
 				" kmsg          Kernel log\n"
 				" version       Kernel version\n");
-	fiq_debugger_printf(state,
+	fiq_debugger_printf(&state->output,
 				" sleep         Allow sleep while in FIQ\n"
 				" nosleep       Disable sleep while in FIQ\n"
 				" console       Switch terminal to console\n"
 				" cpu           Current CPU\n"
 				" cpu <number>  Switch to CPU<number>\n");
-	fiq_debugger_printf(state,
+	fiq_debugger_printf(&state->output,
 				" ps            Process list\n"
 				" sysrq         sysrq options\n"
 				" sysrq <param> Execute sysrq with <param>\n");
 #ifdef CONFIG_KGDB
-	fiq_debugger_printf(state,
+	fiq_debugger_printf(&state->output,
 				" kgdb          Enter kernel debugger\n");
 #endif
 }
@@ -477,13 +479,13 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 	if (!strcmp(cmd, "help") || !strcmp(cmd, "?")) {
 		fiq_debugger_help(state);
 	} else if (!strcmp(cmd, "pc")) {
-		fiq_debugger_dump_pc(state, regs);
+		fiq_debugger_dump_pc(&state->output, regs);
 	} else if (!strcmp(cmd, "regs")) {
-		fiq_debugger_dump_regs(state, regs);
+		fiq_debugger_dump_regs(&state->output, regs);
 	} else if (!strcmp(cmd, "allregs")) {
-		fiq_debugger_dump_allregs(state, regs);
+		fiq_debugger_dump_allregs(&state->output, regs);
 	} else if (!strcmp(cmd, "bt")) {
-		fiq_debugger_dump_stacktrace(state, regs, 100, svc_sp);
+		fiq_debugger_dump_stacktrace(&state->output, regs, 100, svc_sp);
 	} else if (!strncmp(cmd, "reset", 5)) {
 		cmd += 5;
 		while (*cmd == ' ')
@@ -500,29 +502,29 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 	} else if (!strcmp(cmd, "kmsg")) {
 		fiq_debugger_dump_kernel_log(state);
 	} else if (!strcmp(cmd, "version")) {
-		fiq_debugger_printf(state, "%s\n", linux_banner);
+		fiq_debugger_printf(&state->output, "%s\n", linux_banner);
 	} else if (!strcmp(cmd, "sleep")) {
 		state->no_sleep = false;
-		fiq_debugger_printf(state, "enabling sleep\n");
+		fiq_debugger_printf(&state->output, "enabling sleep\n");
 	} else if (!strcmp(cmd, "nosleep")) {
 		state->no_sleep = true;
-		fiq_debugger_printf(state, "disabling sleep\n");
+		fiq_debugger_printf(&state->output, "disabling sleep\n");
 	} else if (!strcmp(cmd, "console")) {
-		fiq_debugger_printf(state, "console mode\n");
+		fiq_debugger_printf(&state->output, "console mode\n");
 		fiq_debugger_uart_flush(state);
 		state->console_enable = true;
 	} else if (!strcmp(cmd, "cpu")) {
-		fiq_debugger_printf(state, "cpu %d\n", state->current_cpu);
+		fiq_debugger_printf(&state->output, "cpu %d\n", state->current_cpu);
 	} else if (!strncmp(cmd, "cpu ", 4)) {
 		unsigned long cpu = 0;
 		if (strict_strtoul(cmd + 4, 10, &cpu) == 0)
 			fiq_debugger_switch_cpu(state, cpu);
 		else
-			fiq_debugger_printf(state, "invalid cpu\n");
-		fiq_debugger_printf(state, "cpu %d\n", state->current_cpu);
+			fiq_debugger_printf(&state->output, "invalid cpu\n");
+		fiq_debugger_printf(&state->output, "cpu %d\n", state->current_cpu);
 	} else {
 		if (state->debug_busy) {
-			fiq_debugger_printf(state,
+			fiq_debugger_printf(&state->output,
 				"command processor busy. trying to abort.\n");
 			state->debug_abort = -1;
 		} else {
@@ -645,7 +647,7 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 					MAX_UNHANDLED_FIQ_COUNT)
 			return false;
 
-		fiq_debugger_printf(state,
+		fiq_debugger_printf(&state->output,
 			"fiq_debugger: cpu %d not responding, "
 			"reverting to cpu %d\n", state->current_cpu,
 			this_cpu);
@@ -1053,6 +1055,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state->output.printf = fiq_debugger_printf;
 	setup_timer(&state->sleep_timer, fiq_debugger_sleep_timer_expired,
 		    (unsigned long)state);
 	state->pdata = pdata;

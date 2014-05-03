@@ -34,27 +34,27 @@ static char *mode_name(unsigned cpsr)
 	}
 }
 
-void fiq_debugger_dump_pc(struct fiq_debugger_state *state,
+void fiq_debugger_dump_pc(struct fiq_debugger_output *output,
 		const struct pt_regs *regs)
 {
-	fiq_debugger_printf(state, " pc %08x cpsr %08x mode %s\n",
+	output->printf(output, " pc %08x cpsr %08x mode %s\n",
 		regs->ARM_pc, regs->ARM_cpsr, mode_name(regs->ARM_cpsr));
 }
 
-void fiq_debugger_dump_regs(struct fiq_debugger_state *state,
+void fiq_debugger_dump_regs(struct fiq_debugger_output *output,
 		const struct pt_regs *regs)
 {
-	fiq_debugger_printf(state,
+	output->printf(output,
 			" r0 %08x  r1 %08x  r2 %08x  r3 %08x\n",
 			regs->ARM_r0, regs->ARM_r1, regs->ARM_r2, regs->ARM_r3);
-	fiq_debugger_printf(state,
+	output->printf(output,
 			" r4 %08x  r5 %08x  r6 %08x  r7 %08x\n",
 			regs->ARM_r4, regs->ARM_r5, regs->ARM_r6, regs->ARM_r7);
-	fiq_debugger_printf(state,
+	output->printf(output,
 			" r8 %08x  r9 %08x r10 %08x r11 %08x  mode %s\n",
 			regs->ARM_r8, regs->ARM_r9, regs->ARM_r10, regs->ARM_fp,
 			mode_name(regs->ARM_cpsr));
-	fiq_debugger_printf(state,
+	output->printf(output,
 			" ip %08x  sp %08x  lr %08x  pc %08x cpsr %08x\n",
 			regs->ARM_ip, regs->ARM_sp, regs->ARM_lr, regs->ARM_pc,
 			regs->ARM_cpsr);
@@ -112,43 +112,43 @@ static void __naked get_mode_regs(struct mode_regs *regs)
 }
 
 
-void fiq_debugger_dump_allregs(struct fiq_debugger_state *state,
+void fiq_debugger_dump_allregs(struct fiq_debugger_output *output,
 		const struct pt_regs *regs)
 {
 	struct mode_regs mode_regs;
 	unsigned long mode = regs->ARM_cpsr & MODE_MASK;
 
-	fiq_debugger_dump_regs(state, regs);
+	fiq_debugger_dump_regs(output, regs);
 	get_mode_regs(&mode_regs);
 
-	fiq_debugger_printf(state,
+	output->printf(output,
 			"%csvc: sp %08x  lr %08x  spsr %08x\n",
 			mode == SVC_MODE ? '*' : ' ',
 			mode_regs.sp_svc, mode_regs.lr_svc, mode_regs.spsr_svc);
-	fiq_debugger_printf(state,
+	output->printf(output,
 			"%cabt: sp %08x  lr %08x  spsr %08x\n",
 			mode == ABT_MODE ? '*' : ' ',
 			mode_regs.sp_abt, mode_regs.lr_abt, mode_regs.spsr_abt);
-	fiq_debugger_printf(state,
+	output->printf(output,
 			"%cund: sp %08x  lr %08x  spsr %08x\n",
 			mode == UND_MODE ? '*' : ' ',
 			mode_regs.sp_und, mode_regs.lr_und, mode_regs.spsr_und);
-	fiq_debugger_printf(state,
+	output->printf(output,
 			"%cirq: sp %08x  lr %08x  spsr %08x\n",
 			mode == IRQ_MODE ? '*' : ' ',
 			mode_regs.sp_irq, mode_regs.lr_irq, mode_regs.spsr_irq);
-	fiq_debugger_printf(state,
+	output->printf(output,
 			"%cfiq: r8 %08x  r9 %08x  r10 %08x  r11 %08x  r12 %08x\n",
 			mode == FIQ_MODE ? '*' : ' ',
 			mode_regs.r8_fiq, mode_regs.r9_fiq, mode_regs.r10_fiq,
 			mode_regs.r11_fiq, mode_regs.r12_fiq);
-	fiq_debugger_printf(state,
+	output->printf(output,
 			" fiq: sp %08x  lr %08x  spsr %08x\n",
 			mode_regs.sp_fiq, mode_regs.lr_fiq, mode_regs.spsr_fiq);
 }
 
 struct stacktrace_state {
-	struct fiq_debugger_state *state;
+	struct fiq_debugger_output *output;
 	unsigned int depth;
 };
 
@@ -157,14 +157,14 @@ static int report_trace(struct stackframe *frame, void *d)
 	struct stacktrace_state *sts = d;
 
 	if (sts->depth) {
-		fiq_debugger_printf(sts->state,
+		sts->output->printf(sts->output,
 			"  pc: %p (%pF), lr %p (%pF), sp %p, fp %p\n",
 			frame->pc, frame->pc, frame->lr, frame->lr,
 			frame->sp, frame->fp);
 		sts->depth--;
 		return 0;
 	}
-	fiq_debugger_printf(sts->state, "  ...\n");
+	sts->output->printf(sts->output, "  ...\n");
 
 	return sts->depth == 0;
 }
@@ -175,24 +175,24 @@ struct frame_tail {
 	unsigned long lr;
 } __attribute__((packed));
 
-static struct frame_tail *user_backtrace(struct fiq_debugger_state *state,
+static struct frame_tail *user_backtrace(struct fiq_debugger_output *output,
 					struct frame_tail *tail)
 {
 	struct frame_tail buftail[2];
 
 	/* Also check accessibility of one struct frame_tail beyond */
 	if (!access_ok(VERIFY_READ, tail, sizeof(buftail))) {
-		fiq_debugger_printf(state, "  invalid frame pointer %p\n",
+		output->printf(output, "  invalid frame pointer %p\n",
 				tail);
 		return NULL;
 	}
 	if (__copy_from_user_inatomic(buftail, tail, sizeof(buftail))) {
-		fiq_debugger_printf(state,
+		output->printf(output,
 			"  failed to copy frame pointer %p\n", tail);
 		return NULL;
 	}
 
-	fiq_debugger_printf(state, "  %p\n", buftail[0].lr);
+	output->printf(output, "  %p\n", buftail[0].lr);
 
 	/* frame pointers should strictly progress back up the stack
 	 * (towards higher addresses) */
@@ -202,7 +202,7 @@ static struct frame_tail *user_backtrace(struct fiq_debugger_state *state,
 	return buftail[0].fp-1;
 }
 
-void fiq_debugger_dump_stacktrace(struct fiq_debugger_state *state,
+void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 		const struct pt_regs *regs, unsigned int depth, void *ssp)
 {
 	struct frame_tail *tail;
@@ -210,15 +210,15 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_state *state,
 	struct stacktrace_state sts;
 
 	sts.depth = depth;
-	sts.state = state;
+	sts.output = output;
 	*current_thread_info() = *real_thread_info;
 
 	if (!current)
-		fiq_debugger_printf(state, "current NULL\n");
+		output->printf(output, "current NULL\n");
 	else
-		fiq_debugger_printf(state, "pid: %d  comm: %s\n",
+		output->printf(output, "pid: %d  comm: %s\n",
 			current->pid, current->comm);
-	fiq_debugger_dump_regs(state, regs);
+	fiq_debugger_dump_regs(output, regs);
 
 	if (!user_mode(regs)) {
 		struct stackframe frame;
@@ -226,7 +226,7 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_state *state,
 		frame.sp = regs->ARM_sp;
 		frame.lr = regs->ARM_lr;
 		frame.pc = regs->ARM_pc;
-		fiq_debugger_printf(state,
+		output->printf(output,
 			"  pc: %p (%pF), lr %p (%pF), sp %p, fp %p\n",
 			regs->ARM_pc, regs->ARM_pc, regs->ARM_lr, regs->ARM_lr,
 			regs->ARM_sp, regs->ARM_fp);
@@ -236,5 +236,5 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_state *state,
 
 	tail = ((struct frame_tail *) regs->ARM_fp) - 1;
 	while (depth-- && tail && !((unsigned long) tail & 3))
-		tail = user_backtrace(state, tail);
+		tail = user_backtrace(output, tail);
 }
