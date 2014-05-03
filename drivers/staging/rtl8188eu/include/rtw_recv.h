@@ -242,7 +242,6 @@ struct recv_buf {
 	u32	len;
 	struct urb *purb;
 	u32 alloc_sz;
-	u8  irp_pending;
 	struct sk_buff *pskb;
 	u8	reuse;
 };
