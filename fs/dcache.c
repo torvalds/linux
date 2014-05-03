@@ -1229,34 +1229,23 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
 	if (data->start == dentry)
 		goto out;
 
-	/*
-	 * move only zero ref count dentries to the dispose list.
-	 *
-	 * Those which are presently on the shrink list, being processed
-	 * by shrink_dentry_list(), shouldn't be moved.  Otherwise the
-	 * loop in shrink_dcache_parent() might not make any progress
-	 * and loop forever.
-	 */
-	if (dentry->d_lockref.count) {
-		dentry_lru_del(dentry);
-	} else if (!(dentry->d_flags & DCACHE_SHRINK_LIST)) {
-		/*
-		 * We can't use d_lru_shrink_move() because we
-		 * need to get the global LRU lock and do the
-		 * LRU accounting.
-		 */
-		d_lru_del(dentry);
-		d_shrink_add(dentry, &data->dispose);
+	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
 		data->found++;
-		ret = D_WALK_NORETRY;
+	} else {
+		if (dentry->d_flags & DCACHE_LRU_LIST)
+			d_lru_del(dentry);
+		if (!dentry->d_lockref.count) {
+			d_shrink_add(dentry, &data->dispose);
+			data->found++;
+		}
 	}
 	/*
 	 * We can return to the caller if we have found some (this
 	 * ensures forward progress). We'll be coming back to find
 	 * the rest.
 	 */
-	if (data->found && need_resched())
-		ret = D_WALK_QUIT;
+	if (!list_empty(&data->dispose))
+		ret = need_resched() ? D_WALK_QUIT : D_WALK_NORETRY;
 out:
 	return ret;
 }
