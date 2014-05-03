@@ -578,35 +578,3 @@ static void apci1564_interrupt(int irq, void *d)
 	}
 	return;
 }
-
-static int apci1564_reset(struct comedi_device *dev)
-{
-	struct addi_private *devpriv = dev->private;
-
-	ui_Type = 0;
-
-	/* Disable the input interrupts and reset status register */
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DI_IRQ_REG);
-	inl(devpriv->i_IobaseAmcc + APCI1564_DI_INT_STATUS_REG);
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DI_INT_MODE1_REG);
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DI_INT_MODE2_REG);
-
-	/* Reset the output channels and disable interrupts */
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DO_REG);
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DO_INT_CTRL_REG);
-
-	/* Reset the watchdog registers */
-	addi_watchdog_reset(devpriv->i_IobaseAmcc + APCI1564_WDOG_REG);
-
-	/* Reset the timer registers */
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_TIMER_CTRL_REG);
-	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_TIMER_RELOAD_REG);
-
-	/* Reset the counter registers */
-	outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(APCI1564_COUNTER1));
-	outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(APCI1564_COUNTER2));
-	outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(APCI1564_COUNTER3));
-	outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(APCI1564_COUNTER4));
-
-	return 0;
-}
