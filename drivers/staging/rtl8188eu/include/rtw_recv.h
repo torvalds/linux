@@ -245,7 +245,6 @@ struct recv_buf {
 	u8	*ptail;
 	u8	*pend;
 	struct urb *purb;
-	dma_addr_t dma_transfer_addr;	/* (in) dma addr for transfer_buffer */
 	u32 alloc_sz;
 	u8  irp_pending;
 	int  transfer_len;
