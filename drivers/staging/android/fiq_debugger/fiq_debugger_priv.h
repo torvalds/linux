@@ -19,18 +19,19 @@
 #define THREAD_INFO(sp) ((struct thread_info *) \
 		((unsigned long)(sp) & ~(THREAD_SIZE - 1)))
 
-struct fiq_debugger_state;
+struct fiq_debugger_output {
+	void (*printf)(struct fiq_debugger_output *output, const char *fmt, ...);
+};
+
 struct pt_regs;
 
-int fiq_debugger_printf(void *cookie, const char *fmt, ...);
-
-void fiq_debugger_dump_pc(struct fiq_debugger_state *state,
+void fiq_debugger_dump_pc(struct fiq_debugger_output *output,
 		const struct pt_regs *regs);
-void fiq_debugger_dump_regs(struct fiq_debugger_state *state,
+void fiq_debugger_dump_regs(struct fiq_debugger_output *output,
 		const struct pt_regs *regs);
-void fiq_debugger_dump_allregs(struct fiq_debugger_state *state,
+void fiq_debugger_dump_allregs(struct fiq_debugger_output *output,
 		const struct pt_regs *regs);
-void fiq_debugger_dump_stacktrace(struct fiq_debugger_state *state,
+void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 		const struct pt_regs *regs, unsigned int depth, void *ssp);
 
 #endif
