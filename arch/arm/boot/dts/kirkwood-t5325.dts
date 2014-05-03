@@ -126,6 +126,9 @@
 			alc5621: alc5621@1a {
 				compatible = "realtek,alc5621";
 				reg = <0x1a>;
+				#sound-dai-cells = <0>;
+				add-ctrl = <0x3700>;
+				jack-det-ctrl = <0x4810>;
 			};
 		};
 
