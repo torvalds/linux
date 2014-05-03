@@ -240,10 +240,6 @@ struct recv_buf {
 	u8	*pbuf;
 	u8	*pallocated_buf;
 	u32	len;
-	u8	*phead;
-	u8	*pdata;
-	u8	*ptail;
-	u8	*pend;
 	struct urb *purb;
 	u32 alloc_sz;
 	u8  irp_pending;

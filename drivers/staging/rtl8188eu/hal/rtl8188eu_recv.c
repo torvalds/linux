@@ -31,15 +31,7 @@
 void rtl8188eu_init_recvbuf(struct adapter *padapter, struct recv_buf *precvbuf)
 {
 	precvbuf->len = 0;
-
 	precvbuf->ref_cnt = 0;
-
-	if (precvbuf->pbuf) {
-		precvbuf->pdata = precvbuf->pbuf;
-		precvbuf->phead = precvbuf->pbuf;
-		precvbuf->ptail = precvbuf->pbuf;
-		precvbuf->pend = precvbuf->pdata + MAX_RECVBUF_SZ;
-	}
 }
 
 int	rtl8188eu_init_recv_priv(struct adapter *padapter)
