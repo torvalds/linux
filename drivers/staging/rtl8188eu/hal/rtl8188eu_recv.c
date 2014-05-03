@@ -30,7 +30,6 @@
 
 void rtl8188eu_init_recvbuf(struct adapter *padapter, struct recv_buf *precvbuf)
 {
-	precvbuf->len = 0;
 	precvbuf->ref_cnt = 0;
 }
 
