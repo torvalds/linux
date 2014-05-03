@@ -15,7 +15,6 @@ static const struct addi_board apci1564_boardtypes[] = {
 		.i_NbrDoChannel		= 32,
 		.i_DoMaxdata		= 0xffffffff,
 		.i_Timer		= 1,
-		.interrupt		= apci1564_interrupt,
 		.timer_config		= apci1564_timer_config,
 		.timer_write		= apci1564_timer_write,
 		.timer_read		= apci1564_timer_read,
@@ -24,10 +23,7 @@ static const struct addi_board apci1564_boardtypes[] = {
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->interrupt(irq, d);
+	apci1564_interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
 
