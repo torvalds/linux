@@ -238,7 +238,6 @@ struct recv_buf {
 	u32	ref_cnt;
 	struct adapter *adapter;
 	u8	*pbuf;
-	u8	*pallocated_buf;
 	u32	len;
 	struct urb *purb;
 	u32 alloc_sz;

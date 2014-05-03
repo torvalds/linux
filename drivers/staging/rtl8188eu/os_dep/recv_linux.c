@@ -60,7 +60,6 @@ int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
 		res = _FAIL;
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
-	precvbuf->pallocated_buf = NULL;
 	precvbuf->pbuf = NULL;
 	precvbuf->len = 0;
 	return res;
