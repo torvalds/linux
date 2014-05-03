@@ -240,7 +240,6 @@ struct recv_buf {
 	u8	*pbuf;
 	u32	len;
 	struct urb *purb;
-	u32 alloc_sz;
 	struct sk_buff *pskb;
 	u8	reuse;
 };
