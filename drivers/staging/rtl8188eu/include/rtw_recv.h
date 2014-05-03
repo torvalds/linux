@@ -235,7 +235,6 @@ struct sta_recv_priv {
 };
 
 struct recv_buf {
-	u32	ref_cnt;
 	struct adapter *adapter;
 	u8	*pbuf;
 	struct urb *purb;

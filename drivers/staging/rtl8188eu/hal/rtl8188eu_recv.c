@@ -30,7 +30,6 @@
 
 void rtl8188eu_init_recvbuf(struct adapter *padapter, struct recv_buf *precvbuf)
 {
-	precvbuf->ref_cnt = 0;
 }
 
 int	rtl8188eu_init_recv_priv(struct adapter *padapter)
@@ -63,7 +62,6 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 		res = rtw_os_recvbuf_resource_alloc(padapter, precvbuf);
 		if (res == _FAIL)
 			break;
-		precvbuf->ref_cnt = 0;
 		precvbuf->adapter = padapter;
 		precvbuf++;
 	}

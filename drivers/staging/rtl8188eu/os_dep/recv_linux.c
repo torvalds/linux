@@ -221,7 +221,6 @@ void rtw_os_read_port(struct adapter *padapter, struct recv_buf *precvbuf)
 {
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
-	precvbuf->ref_cnt--;
 	/* free skb in recv_buf */
 	dev_kfree_skb_any(precvbuf->pskb);
 	precvbuf->pskb = NULL;
