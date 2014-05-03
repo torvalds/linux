@@ -204,17 +204,23 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 		return;
 
 	/* need to send the NA on the VLAN dev, if any */
-	if (tci)
+	rcu_read_lock();
+	if (tci) {
 		netdev = __vlan_find_dev_deep(dev->net, htons(ETH_P_8021Q),
 					      tci);
-	else
+		if (!netdev) {
+			rcu_read_unlock();
+			return;
+		}
+	} else {
 		netdev = dev->net;
-	if (!netdev)
-		return;
+	}
+	dev_hold(netdev);
+	rcu_read_unlock();
 
 	in6_dev = in6_dev_get(netdev);
 	if (!in6_dev)
-		return;
+		goto out;
 	is_router = !!in6_dev->cnf.forwarding;
 	in6_dev_put(in6_dev);
 
@@ -224,6 +230,8 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 				 true /* solicited */,
 				 false /* override */,
 				 true /* inc_opt */);
+out:
+	dev_put(netdev);
 }
 
 static bool is_neigh_solicit(u8 *buf, size_t len)
