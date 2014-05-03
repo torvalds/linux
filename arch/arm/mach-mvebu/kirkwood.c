@@ -180,9 +180,6 @@ static void __init kirkwood_dt_init(void)
 	kirkwood_pm_init();
 	kirkwood_dt_eth_fixup();
 
-	if (of_machine_is_compatible("hp,t5325"))
-		t5325_init();
-
 	of_platform_populate(NULL, of_default_bus_match_table, auxdata, NULL);
 }
 
