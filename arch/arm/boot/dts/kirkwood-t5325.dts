@@ -187,6 +187,31 @@
 		gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,routing =
+			"Headphone Jack", "HPL",
+			"Headphone Jack", "HPR",
+			"Speaker", "SPKOUT",
+			"Speaker", "SPKOUTN",
+			"MIC1", "Mic Jack",
+			"MIC2", "Mic Jack";
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Speaker", "Speaker",
+			"Microphone", "Mic Jack";
+
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&audio>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&alc5621>;
+		};
+	};
 };
 
 &mdio {
