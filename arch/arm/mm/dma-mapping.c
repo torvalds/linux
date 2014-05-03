@@ -904,11 +904,12 @@ static void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
 	unsigned long paddr = page_to_phys(page) + off;
 
 	/* FIXME: non-speculating: not required */
-	/* don't bother invalidating if DMA to device */
-	if (dir != DMA_TO_DEVICE)
+	/* in any case, don't bother invalidating if DMA to device */
+	if (dir != DMA_TO_DEVICE) {
 		outer_inv_range(paddr, paddr + size);
 
-	dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
+		dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
+	}
 
 	/*
 	 * Mark the D-cache clean for these pages to avoid extra flushing.
