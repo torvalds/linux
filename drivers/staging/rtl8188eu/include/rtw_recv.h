@@ -235,7 +235,6 @@ struct sta_recv_priv {
 };
 
 struct recv_buf {
-	spinlock_t recvbuf_lock;
 	u32	ref_cnt;
 	struct adapter *adapter;
 	u8	*pbuf;
