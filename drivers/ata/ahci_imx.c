@@ -29,9 +29,11 @@
 #include "ahci.h"
 
 enum {
-	PORT_PHY_CTL = 0x178,			/* Port0 PHY Control */
-	PORT_PHY_CTL_PDDQ_LOC = 0x100000,	/* PORT_PHY_CTL bits */
-	HOST_TIMER1MS = 0xe0,			/* Timer 1-ms */
+	/* Timer 1-ms Register */
+	IMX_TIMER1MS				= 0x00e0,
+	/* Port0 PHY Control Register */
+	IMX_P0PHYCR				= 0x0178,
+	IMX_P0PHYCR_TEST_PDDQ			= 1 << 20,
 };
 
 enum ahci_imx_type {
@@ -156,8 +158,8 @@ static void ahci_imx_error_handler(struct ata_port *ap)
 	 * without full reset once the pddq mode is enabled making it
 	 * impossible to use as part of libata LPM.
 	 */
-	reg_val = readl(mmio + PORT_PHY_CTL);
-	writel(reg_val | PORT_PHY_CTL_PDDQ_LOC, mmio + PORT_PHY_CTL);
+	reg_val = readl(mmio + IMX_P0PHYCR);
+	writel(reg_val | IMX_P0PHYCR_TEST_PDDQ, mmio + IMX_P0PHYCR);
 	imx_sata_disable(hpriv);
 	imxpriv->no_device = true;
 }
@@ -248,7 +250,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 
 	/*
 	 * Configure the HWINIT bits of the HOST_CAP and HOST_PORTS_IMPL,
-	 * and IP vendor specific register HOST_TIMER1MS.
+	 * and IP vendor specific register IMX_TIMER1MS.
 	 * Configure CAP_SSS (support stagered spin up).
 	 * Implement the port0.
 	 * Get the ahb clock rate, and configure the TIMER1MS register.
@@ -265,7 +267,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	}
 
 	reg_val = clk_get_rate(imxpriv->ahb_clk) / 1000;
-	writel(reg_val, hpriv->mmio + HOST_TIMER1MS);
+	writel(reg_val, hpriv->mmio + IMX_TIMER1MS);
 
 	ret = ahci_platform_init_host(pdev, hpriv, &ahci_imx_port_info, 0, 0);
 	if (ret)
