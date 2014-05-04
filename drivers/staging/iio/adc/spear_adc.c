@@ -179,10 +179,6 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 	.channel = idx,					\
-	.scan_type = {					\
-		.sign = 'u',				\
-		.storagebits = 16,			\
-	},						\
 }
 
 static const struct iio_chan_spec spear_adc_iio_channels[] = {
