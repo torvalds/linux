@@ -37,16 +37,50 @@
 #define BPF_CALL	0x80	/* function call */
 #define BPF_EXIT	0x90	/* function return */
 
+/* Placeholder/dummy for 0 */
+#define BPF_0		0
+
+/* Register numbers */
+enum {
+	BPF_REG_0 = 0,
+	BPF_REG_1,
+	BPF_REG_2,
+	BPF_REG_3,
+	BPF_REG_4,
+	BPF_REG_5,
+	BPF_REG_6,
+	BPF_REG_7,
+	BPF_REG_8,
+	BPF_REG_9,
+	BPF_REG_10,
+	__MAX_BPF_REG,
+};
+
 /* BPF has 10 general purpose 64-bit registers and stack frame. */
-#define MAX_BPF_REG	11
+#define MAX_BPF_REG	__MAX_BPF_REG
+
+/* ArgX, context and stack frame pointer register positions. Note,
+ * Arg1, Arg2, Arg3, etc are used as argument mappings of function
+ * calls in BPF_CALL instruction.
+ */
+#define BPF_REG_ARG1	BPF_REG_1
+#define BPF_REG_ARG2	BPF_REG_2
+#define BPF_REG_ARG3	BPF_REG_3
+#define BPF_REG_ARG4	BPF_REG_4
+#define BPF_REG_ARG5	BPF_REG_5
+#define BPF_REG_CTX	BPF_REG_6
+#define BPF_REG_FP	BPF_REG_10
+
+/* Additional register mappings for converted user programs. */
+#define BPF_REG_A	BPF_REG_0
+#define BPF_REG_X	BPF_REG_7
+#define BPF_REG_TMP	BPF_REG_8
 
 /* BPF program can access up to 512 bytes of stack space. */
 #define MAX_BPF_STACK	512
 
-/* Arg1, context and stack frame pointer register positions. */
-#define ARG1_REG	1
-#define CTX_REG		6
-#define FP_REG		10
+/* Macro to invoke filter function. */
+#define SK_RUN_FILTER(filter, ctx)  (*filter->bpf_func)(ctx, filter->insnsi)
 
 struct sock_filter_int {
 	__u8	code;		/* opcode */
@@ -96,9 +130,6 @@ static inline unsigned int sk_filter_size(unsigned int proglen)
 
 #define sk_filter_proglen(fprog)			\
 		(fprog->len * sizeof(fprog->filter[0]))
-
-#define SK_RUN_FILTER(filter, ctx)			\
-		(*filter->bpf_func)(ctx, filter->insnsi)
 
 int sk_filter(struct sock *sk, struct sk_buff *skb);
 
