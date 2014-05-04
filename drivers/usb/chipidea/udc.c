@@ -709,6 +709,8 @@ __acquires(ci->lock)
 	if (ci->status == NULL)
 		retval = -ENOMEM;
 
+	usb_gadget_set_state(&ci->gadget, USB_STATE_DEFAULT);
+
 done:
 	spin_lock(&ci->lock);
 
@@ -864,6 +866,8 @@ isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
 	if (ci->setaddr) {
 		hw_usb_set_address(ci, ci->address);
 		ci->setaddr = false;
+		if (ci->address)
+			usb_gadget_set_state(&ci->gadget, USB_STATE_ADDRESS);
 	}
 
 	spin_lock_irqsave(&ci->lock, flags);
@@ -1466,7 +1470,7 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 			pm_runtime_get_sync(&_gadget->dev);
 			hw_device_reset(ci, USBMODE_CM_DC);
 			hw_device_state(ci, ci->ep0out->qh.dma);
-			dev_dbg(ci->dev, "Connected to host\n");
+			usb_gadget_set_state(_gadget, USB_STATE_POWERED);
 		} else {
 			if (ci->driver)
 				ci->driver->disconnect(&ci->gadget);
@@ -1476,7 +1480,7 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 				CI_HDRC_CONTROLLER_STOPPED_EVENT);
 			_gadget_stop_activity(&ci->gadget);
 			pm_runtime_put_sync(&_gadget->dev);
-			dev_dbg(ci->dev, "Disconnected from host\n");
+			usb_gadget_set_state(_gadget, USB_STATE_NOTATTACHED);
 		}
 	}
 
@@ -1749,6 +1753,8 @@ static irqreturn_t udc_irq(struct ci_hdrc *ci)
 				ci->suspended = 1;
 				spin_unlock(&ci->lock);
 				ci->driver->suspend(&ci->gadget);
+				usb_gadget_set_state(&ci->gadget,
+						USB_STATE_SUSPENDED);
 				spin_lock(&ci->lock);
 			}
 		}
