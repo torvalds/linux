@@ -46,11 +46,14 @@
 #define MX27_OTG_PM_BIT			BIT(24)
 
 #define MX53_USB_OTG_PHY_CTRL_0_OFFSET	0x08
+#define MX53_USB_OTG_PHY_CTRL_1_OFFSET	0x0c
 #define MX53_USB_UH2_CTRL_OFFSET	0x14
 #define MX53_USB_UH3_CTRL_OFFSET	0x18
 #define MX53_BM_OVER_CUR_DIS_H1		BIT(5)
 #define MX53_BM_OVER_CUR_DIS_OTG	BIT(8)
 #define MX53_BM_OVER_CUR_DIS_UHx	BIT(30)
+#define MX53_USB_PHYCTRL1_PLLDIV_MASK	0x3
+#define MX53_USB_PLL_DIV_24_MHZ		0x01
 
 #define MX6_BM_OVER_CUR_DIS		BIT(7)
 
@@ -163,6 +166,13 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 
 	if (data->index > 3)
 		return -EINVAL;
+
+	/* Select a 24 MHz reference clock for the PHY  */
+	reg = usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET;
+	val = readl(reg);
+	val &= ~MX53_USB_PHYCTRL1_PLLDIV_MASK;
+	val |= MX53_USB_PLL_DIV_24_MHZ;
+	writel(val, usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET);
 
 	if (data->disable_oc) {
 		spin_lock_irqsave(&usbmisc->lock, flags);
