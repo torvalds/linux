@@ -233,7 +233,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, true),
 	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
 		   iwl_mvm_rx_scan_offload_complete_notif, true),
-	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_sched_scan_results,
+	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_scan_offload_results,
 		   false),
 
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
@@ -284,6 +284,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(SCAN_OFFLOAD_ABORT_CMD),
 	CMD(SCAN_OFFLOAD_COMPLETE),
 	CMD(SCAN_OFFLOAD_UPDATE_PROFILES_CMD),
+	CMD(SCAN_ITERATION_COMPLETE),
 	CMD(POWER_TABLE_CMD),
 	CMD(WEP_KEY),
 	CMD(REPLY_RX_PHY_CMD),
@@ -505,10 +506,17 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		}
 	}
 
-	scan_size = sizeof(struct iwl_scan_cmd) +
-		mvm->fw->ucode_capa.max_probe_length +
-		(mvm->fw->ucode_capa.n_scan_channels *
-					sizeof(struct iwl_scan_channel));
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+		scan_size = sizeof(struct iwl_scan_req_unified_lmac) +
+			sizeof(struct iwl_scan_channel_cfg_lmac) *
+				mvm->fw->ucode_capa.n_scan_channels +
+			sizeof(struct iwl_scan_probe_req);
+	else
+		scan_size = sizeof(struct iwl_scan_cmd) +
+			mvm->fw->ucode_capa.max_probe_length +
+			mvm->fw->ucode_capa.n_scan_channels *
+				sizeof(struct iwl_scan_channel);
+
 	mvm->scan_cmd = kmalloc(scan_size, GFP_KERNEL);
 	if (!mvm->scan_cmd)
 		goto out_free;

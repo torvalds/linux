@@ -327,6 +327,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 	}
 
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+		hw->flags |= IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS;
+
 	hw->sta_data_size = sizeof(struct iwl_mvm_sta);
 	hw->vif_data_size = sizeof(struct iwl_mvm_vif);
 	hw->chanctx_data_size = sizeof(u16);
@@ -1658,7 +1661,7 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 
 	if (changes & BSS_CHANGED_IDLE && !bss_conf->idle)
-		iwl_mvm_sched_scan_stop(mvm, true);
+		iwl_mvm_scan_offload_stop(mvm, true);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -1692,7 +1695,7 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	switch (mvm->scan_status) {
 	case IWL_MVM_SCAN_SCHED:
-		ret = iwl_mvm_sched_scan_stop(mvm, true);
+		ret = iwl_mvm_scan_offload_stop(mvm, true);
 		if (ret) {
 			ret = -EBUSY;
 			goto out;
@@ -1707,7 +1710,11 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
 
-	ret = iwl_mvm_scan_request(mvm, vif, req);
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+		ret = iwl_mvm_unified_scan_lmac(mvm, vif, hw_req);
+	else
+		ret = iwl_mvm_scan_request(mvm, vif, req);
+
 	if (ret)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 out:
@@ -2008,15 +2015,21 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mvm->scan_status = IWL_MVM_SCAN_SCHED;
 
-	ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
-	if (ret)
-		goto err;
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
+		ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
+		if (ret)
+			goto err;
+	}
 
 	ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
 	if (ret)
 		goto err;
 
-	ret = iwl_mvm_sched_scan_start(mvm, req);
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+		ret = iwl_mvm_unified_sched_scan_lmac(mvm, vif, req, ies);
+	else
+		ret = iwl_mvm_sched_scan_start(mvm, req);
+
 	if (!ret)
 		goto out;
 err:
@@ -2035,7 +2048,7 @@ static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
-	ret = iwl_mvm_sched_scan_stop(mvm, false);
+	ret = iwl_mvm_scan_offload_stop(mvm, false);
 	mutex_unlock(&mvm->mutex);
 	iwl_mvm_wait_for_async_handlers(mvm);
 
