@@ -109,7 +109,6 @@ static unsigned int get_freq_from_table(unsigned int max_freq)
 
 static int cpufreq_notifier_policy(struct notifier_block *nb, unsigned long val, void *data)
 {
-	static unsigned int min_rate=0, max_rate=-1;
 	struct cpufreq_policy *policy = data;
 
 	if (val != CPUFREQ_ADJUST)
@@ -117,10 +116,9 @@ static int cpufreq_notifier_policy(struct notifier_block *nb, unsigned long val,
 
 	if (cpufreq_is_ondemand(policy)) {
 		FREQ_DBG("queue work\n");
-		dvfs_clk_enable_limit(clk_cpu_dvfs_node, min_rate, max_rate);
+		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 0, ~0);
 	} else {
 		FREQ_DBG("cancel work\n");
-		dvfs_clk_get_limit(clk_cpu_dvfs_node, &min_rate, &max_rate);
 		dvfs_clk_disable_limit(clk_cpu_dvfs_node);
 	}
 
@@ -387,10 +385,14 @@ static struct notifier_block cpufreq_pm_notifier = {
 
 static int cpufreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 
-	dvfs_clk_enable_limit(clk_cpu_dvfs_node, 1000*suspend_freq, 1000*suspend_freq);
-	printk("cpufreq: reboot set core rate=%lu, volt=%d\n", dvfs_clk_get_rate(clk_cpu_dvfs_node), 
-		regulator_get_voltage(clk_cpu_dvfs_node->vd->regulator));
+	if (policy) {
+		is_booting = false;
+		policy->cur++;
+		cpufreq_driver_target(policy, suspend_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
+		cpufreq_cpu_put(policy);
+	}
 
 	return NOTIFY_OK;
 }
