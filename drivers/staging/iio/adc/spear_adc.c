@@ -136,11 +136,11 @@ static void spear_adc_set_scanrate(struct spear_adc_state *st, u32 rate)
 	}
 }
 
-static int spear_read_raw(struct iio_dev *indio_dev,
-			  struct iio_chan_spec const *chan,
-			  int *val,
-			  int *val2,
-			  long mask)
+static int spear_adc_read_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int *val,
+			      int *val2,
+			      long mask)
 {
 	struct spear_adc_state *st = iio_priv(indio_dev);
 	u32 status;
@@ -252,7 +252,7 @@ static int spear_adc_configure(struct spear_adc_state *st)
 }
 
 static const struct iio_info spear_adc_info = {
-	.read_raw = &spear_read_raw,
+	.read_raw = &spear_adc_read_raw,
 	.write_raw = &spear_adc_write_raw,
 	.driver_module = THIS_MODULE,
 };
