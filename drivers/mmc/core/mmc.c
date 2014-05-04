@@ -1479,7 +1479,15 @@ out:
  */
 static int mmc_suspend(struct mmc_host *host)
 {
-	return  _mmc_suspend(host, true);
+    int err;
+
+    err = _mmc_suspend(host, true);
+	if (!err) {
+		pm_runtime_disable(&host->card->dev);
+		pm_runtime_set_suspended(&host->card->dev);
+	}
+	
+	return err;
 }
 
 /*
