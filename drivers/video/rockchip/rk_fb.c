@@ -1618,21 +1618,66 @@ err:
 	mutex_unlock(&dev_drv->output_lock);
 	return ret;
 }
-static int cfgdone_last_time_ms = 0;
-static int cfgdone_interval_ms = 0;
-int rk_get_real_fps(void)
+
+#if 1
+static int cfgdone_distlist[10] = {0};
+static int cfgdone_index = 0;
+static int cfgdone_lasttime = 0;
+
+int rk_get_real_fps(int before)
 {
+    if(before > 100)      before = 100;
+    if(before < 0)        before = 0;
+
     struct timespec now;
-    int interval_ms = 0;
     getnstimeofday(&now);
-    interval_ms = (now.tv_sec *1000 + now.tv_nsec/1000000) - cfgdone_last_time_ms;
-    interval_ms = (interval_ms > cfgdone_interval_ms) ? interval_ms : cfgdone_interval_ms;
-	if(!interval_ms)
-		return 60;/*keep cpu clock*/
-	else
-		return 1000 / interval_ms;
+    int dist_curr = (now.tv_sec * 1000000 + now.tv_nsec/1000) - cfgdone_lasttime;
+    int dist_total = 0;
+    int dist_count = 0;
+    int dist_first = 0;
+
+    int index = cfgdone_index;
+    int i = 0, fps = 0;
+    int total = dist_curr;
+
+    /*
+    	printk("fps: ");
+    	*/
+    for(i=0; i<10; i++) {
+        if(--index < 0)   index = 9;
+        total += cfgdone_distlist[index];
+        if(i==0)    dist_first = cfgdone_distlist[index];
+        if(total < (before*1000)) {
+            /*
+            	printk("[%d:%d] ", dist_count, cfgdone_distlist[index]);
+            	*/
+            dist_total += cfgdone_distlist[index];
+            dist_count ++;
+        } else {
+            break;
+        }  
+    }
+
+    /*
+    	printk("total %d, count %d, curr %d, ", dist_total, dist_count, dist_curr);
+    	*/
+    dist_curr = (dist_curr > dist_first) ? dist_curr : dist_first;
+    dist_total += dist_curr;
+    dist_count ++;
+
+    if(dist_total > 0)
+        fps = (1000000 * dist_count) / dist_total;
+    else
+        fps = 60;
+
+    /*
+    	printk("curr2 %d, fps=%d\n", dist_curr, fps);
+	*/
+    return fps;
 }
 EXPORT_SYMBOL(rk_get_real_fps);
+
+#endif
 
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
@@ -1746,12 +1791,17 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 #endif
 	case RK_FBIOSET_CONFIG_DONE:
 		{
-			struct timespec now;
-			int curr_time_ms = 0;
-			getnstimeofday(&now);
-			curr_time_ms = now.tv_sec *1000 + now.tv_nsec/1000000;
-			cfgdone_interval_ms = curr_time_ms - cfgdone_last_time_ms;
-			cfgdone_last_time_ms = curr_time_ms;
+            int curr = 0;
+            struct timespec now;
+
+            getnstimeofday(&now);
+            curr = now.tv_sec * 1000000 + now.tv_nsec/1000;
+            cfgdone_distlist[cfgdone_index++] = curr - cfgdone_lasttime;
+            /*
+            	printk("%d ", curr - cfgdone_lasttime);
+            	*/
+            cfgdone_lasttime = curr;
+            if(cfgdone_index>=10)   cfgdone_index = 0;
 		}
 		if(copy_from_user(&win_data,
 			(struct rk_fb_win_cfg_data __user *)argp,

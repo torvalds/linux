@@ -66,7 +66,7 @@ int mali_dvfs_clk_set(struct dvfs_node *node,unsigned long rate)
 }
 static int kbase_platform_power_clock_init(kbase_device *kbdev)
 {
-	//struct device *dev = kbdev->dev;
+	/*struct device *dev = kbdev->dev;*/
 	struct rk_context *platform;
 
 	platform = (struct rk_context *)kbdev->platform_context;
@@ -613,11 +613,11 @@ static ssize_t set_dvfs(struct device *dev, struct device_attribute *attr, const
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	platform = (struct rk_context *)kbdev->platform_context;
 	if (sysfs_streq("off", buf)) {
-		//kbase_platform_dvfs_enable(false, MALI_DVFS_BL_CONFIG_FREQ);
+		/*kbase_platform_dvfs_enable(false, MALI_DVFS_BL_CONFIG_FREQ);*/
 		kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[MALI_DVFS_STEP-1].clock);	
 		platform->dvfs_enabled = false;
 	} else if (sysfs_streq("on", buf)) {
-		//kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ);
+		/*kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ);*/
 		kbase_platform_dvfs_enable(true, p_mali_dvfs_infotbl[0].clock);
 		platform->dvfs_enabled = true;
 	} else {
@@ -649,7 +649,7 @@ static ssize_t show_upper_lock_dvfs(struct device *dev, struct device_attribute 
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Current Upper Lock Level = %dMhz", locked_level);
 	else
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Unset the Upper Lock Level");
-	//ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 400, 350,266, 160, 100, If you want to unlock : 600 or off");
+	/*ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 400, 350,266, 160, 100, If you want to unlock : 600 or off");*/
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings :");
 	for(i=0;i<MALI_DVFS_STEP;i++)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d ",p_mali_dvfs_infotbl[i].clock/1000);
@@ -732,7 +732,7 @@ static ssize_t show_under_lock_dvfs(struct device *dev, struct device_attribute 
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Current Under Lock Level = %dMhz", locked_level);
 	else
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Unset the Under Lock Level");
-	//ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 600, 400, 350,266, 160, If you want to unlock : 100 or off");
+	/*ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 600, 400, 350,266, 160, If you want to unlock : 100 or off");*/
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings :");
 	for(i=0;i<MALI_DVFS_STEP;i++)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d ",p_mali_dvfs_infotbl[i].clock/1000);

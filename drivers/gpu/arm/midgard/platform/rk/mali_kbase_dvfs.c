@@ -109,7 +109,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	}
 	platform = (struct rk_context *)dvfs_status->kbdev->platform_context;
 	
-	fps = rk_get_real_fps();
+	fps = rk_get_real_fps(0);
 
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
 	if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) && (dvfs_status->step < MALI_DVFS_STEP-1) && (fps < LIMIT_FPS)) 
