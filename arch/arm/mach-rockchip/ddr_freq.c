@@ -25,9 +25,12 @@
 #include <asm/io.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
+
+extern int rockchip_cpufreq_reboot_limit_freq(void);
+
 static struct dvfs_node *clk_cpu_dvfs_node = NULL;
 static int ddr_boost = 0;
-
+static int reboot_config_done = 0;
 
 enum {
 	DEBUG_DDR = 1U << 0,
@@ -78,6 +81,9 @@ static noinline void ddrfreq_clear_sys_status(int status)
 
 static void ddrfreq_mode(bool auto_self_refresh, unsigned long *target_rate, char *name)
 {
+	unsigned int min_rate, max_rate;
+	int freq_limit_en;
+
 	ddr.mode = name;
 	if (auto_self_refresh != ddr.auto_self_refresh) {
 		ddr_set_auto_self_refresh(auto_self_refresh);
@@ -85,12 +91,18 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long *target_rate, cha
 		dprintk(DEBUG_DDR, "change auto self refresh to %d when %s\n", auto_self_refresh, name);
 	}
 	if (*target_rate != dvfs_clk_get_rate(ddr.clk_dvfs_node)) {
+		freq_limit_en = dvfs_clk_get_limit(clk_cpu_dvfs_node, &min_rate, &max_rate);
 		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 600000000, -1);
 		if (dvfs_clk_set_rate(ddr.clk_dvfs_node, *target_rate) == 0) {
 			*target_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
 			dprintk(DEBUG_DDR, "change freq to %lu MHz when %s\n", *target_rate / MHZ, name);
 		}
-		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 0, -1);
+
+		if (freq_limit_en) {
+			dvfs_clk_enable_limit(clk_cpu_dvfs_node, min_rate, max_rate);
+		} else {
+			dvfs_clk_disable_limit(clk_cpu_dvfs_node);
+		}
 	}
 }
 
@@ -309,6 +321,8 @@ static noinline void ddrfreq_work(unsigned long sys_status)
 	
 	if (ddr.reboot_rate && (s & SYS_STATUS_REBOOT)) {
 		ddrfreq_mode(false, &ddr.reboot_rate, "shutdown/reboot");
+		rockchip_cpufreq_reboot_limit_freq();
+		reboot_config_done = 1;
 	} else if (ddr.suspend_rate && (s & SYS_STATUS_SUSPEND)) {
 		ddrfreq_mode(true, &ddr.suspend_rate, "suspend");
 	} else if (ddr.dualview_rate && 
@@ -342,7 +356,7 @@ static int ddrfreq_task(void *data)
 		unsigned long status = ddr.sys_status;
 		ddrfreq_work(status);
 		wait_event_freezable(ddr.wait, (status != ddr.sys_status) || kthread_should_stop());
-	} while (!kthread_should_stop());
+	} while (!kthread_should_stop() && !reboot_config_done);
 
 	return 0;
 }
@@ -491,12 +505,13 @@ static int ddrfreq_reboot_notifier_event(struct notifier_block *this, unsigned l
 {
 	u32 timeout = 1000; // 10s
 	ddrfreq_set_sys_status(SYS_STATUS_REBOOT);
-	while (dvfs_clk_get_rate(ddr.clk_dvfs_node) != ddr.reboot_rate && --timeout) {
+	while (!reboot_config_done && --timeout) {
 		msleep(10);
 	}
 	if (!timeout) {
 		pr_err("failed to set ddr clk from %luMHz to %luMHz when shutdown/reboot\n", dvfs_clk_get_rate(ddr.clk_dvfs_node) / MHZ, ddr.reboot_rate / MHZ);
 	}
+
 	return NOTIFY_OK;
 }
 

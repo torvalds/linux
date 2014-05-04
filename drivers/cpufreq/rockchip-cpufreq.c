@@ -33,6 +33,8 @@
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
 
+extern void dvfs_disable_temp_limit(void);
+
 #define VERSION "1.0"
 
 #ifdef DEBUG
@@ -109,6 +111,7 @@ static unsigned int get_freq_from_table(unsigned int max_freq)
 
 static int cpufreq_notifier_policy(struct notifier_block *nb, unsigned long val, void *data)
 {
+	static unsigned int min_rate=0, max_rate=-1;
 	struct cpufreq_policy *policy = data;
 
 	if (val != CPUFREQ_ADJUST)
@@ -116,10 +119,10 @@ static int cpufreq_notifier_policy(struct notifier_block *nb, unsigned long val,
 
 	if (cpufreq_is_ondemand(policy)) {
 		FREQ_DBG("queue work\n");
-		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 0, ~0);
+		dvfs_clk_enable_limit(clk_cpu_dvfs_node, min_rate, max_rate);
 	} else {
 		FREQ_DBG("cancel work\n");
-		dvfs_clk_disable_limit(clk_cpu_dvfs_node);
+		dvfs_clk_get_limit(clk_cpu_dvfs_node, &min_rate, &max_rate);
 	}
 
 	return 0;
@@ -397,6 +400,16 @@ static int cpufreq_reboot_notifier_event(struct notifier_block *this, unsigned l
 	return NOTIFY_OK;
 }
 
+int cpufreq_reboot_limit_freq(void)
+{
+	dvfs_disable_temp_limit();
+	dvfs_clk_enable_limit(clk_cpu_dvfs_node, 1000*suspend_freq, 1000*suspend_freq);
+	printk("cpufreq: reboot set core rate=%lu, volt=%d\n", dvfs_clk_get_rate(clk_cpu_dvfs_node), 
+		regulator_get_voltage(clk_cpu_dvfs_node->vd->regulator));
+
+	return 0;
+}
+
 static struct notifier_block cpufreq_reboot_notifier = {
 	.notifier_call = cpufreq_reboot_notifier_event,
 };
@@ -415,7 +428,7 @@ static struct cpufreq_driver cpufreq_driver = {
 static int __init cpufreq_driver_init(void)
 {
 	register_pm_notifier(&cpufreq_pm_notifier);
-	register_reboot_notifier(&cpufreq_reboot_notifier);
+	//register_reboot_notifier(&cpufreq_reboot_notifier);
 	return cpufreq_register_driver(&cpufreq_driver);
 }
 

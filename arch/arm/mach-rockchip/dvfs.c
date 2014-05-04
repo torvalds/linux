@@ -616,6 +616,11 @@ int dvfs_clk_disable_limit(struct dvfs_node *clk_dvfs_node)
 }
 EXPORT_SYMBOL(dvfs_clk_disable_limit);
 
+void dvfs_disable_temp_limit(void) {
+	temp_limit_enable = 0;
+	cancel_delayed_work_sync(&dvfs_temp_limit_work);
+}
+
 int dvfs_clk_get_limit(struct dvfs_node *clk_dvfs_node, unsigned int *min_rate, unsigned int *max_rate) 
 {
 	int freq_limit_en;
@@ -830,9 +835,10 @@ static unsigned long dvfs_get_limit_rate(struct dvfs_node *clk_dvfs_node, unsign
 		} else if (rate > clk_dvfs_node->max_rate) {
 			limit_rate = clk_dvfs_node->max_rate;
 		}
-
-		if (limit_rate > clk_dvfs_node->temp_limit_rate) {
-			limit_rate = clk_dvfs_node->temp_limit_rate;
+		if (temp_limit_enable) {
+			if (limit_rate > clk_dvfs_node->temp_limit_rate) {
+				limit_rate = clk_dvfs_node->temp_limit_rate;
+			}
 		}
 	}
 
