@@ -32,6 +32,7 @@ LIST_HEAD(cpuidle_detected_devices);
 static int enabled_devices;
 static int off __read_mostly;
 static int initialized __read_mostly;
+static bool use_deepest_state __read_mostly;
 
 int cpuidle_disabled(void)
 {
@@ -62,6 +63,45 @@ int cpuidle_play_dead(void)
 			return drv->states[i].enter_dead(dev, i);
 
 	return -ENODEV;
+}
+
+/**
+ * cpuidle_use_deepest_state - Enable/disable the "deepest idle" mode.
+ * @enable: Whether enable or disable the feature.
+ *
+ * If the "deepest idle" mode is enabled, cpuidle will ignore the governor and
+ * always use the state with the greatest exit latency (out of the states that
+ * are not disabled).
+ *
+ * This function can only be called after cpuidle_pause() to avoid races.
+ */
+void cpuidle_use_deepest_state(bool enable)
+{
+	use_deepest_state = enable;
+}
+
+/**
+ * cpuidle_find_deepest_state - Find the state of the greatest exit latency.
+ * @drv: cpuidle driver for a given CPU.
+ * @dev: cpuidle device for a given CPU.
+ */
+static int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
+				      struct cpuidle_device *dev)
+{
+	unsigned int latency_req = 0;
+	int i, ret = CPUIDLE_DRIVER_STATE_START - 1;
+
+	for (i = CPUIDLE_DRIVER_STATE_START; i < drv->state_count; i++) {
+		struct cpuidle_state *s = &drv->states[i];
+		struct cpuidle_state_usage *su = &dev->states_usage[i];
+
+		if (s->disabled || su->disable || s->exit_latency <= latency_req)
+			continue;
+
+		latency_req = s->exit_latency;
+		ret = i;
+	}
+	return ret;
 }
 
 /**
@@ -124,6 +164,9 @@ int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	if (!drv || !dev || !dev->enabled)
 		return -EBUSY;
 
+	if (unlikely(use_deepest_state))
+		return cpuidle_find_deepest_state(drv, dev);
+
 	return cpuidle_curr_governor->select(drv, dev);
 }
 
@@ -155,7 +198,7 @@ int cpuidle_enter(struct cpuidle_driver *drv, struct cpuidle_device *dev,
  */
 void cpuidle_reflect(struct cpuidle_device *dev, int index)
 {
-	if (cpuidle_curr_governor->reflect)
+	if (cpuidle_curr_governor->reflect && !unlikely(use_deepest_state))
 		cpuidle_curr_governor->reflect(dev, index);
 }
 
