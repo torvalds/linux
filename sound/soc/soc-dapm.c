@@ -2792,22 +2792,19 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	change = dapm_kcontrol_set_value(kcontrol, val);
-
-	if (reg != SND_SOC_NOPM) {
-		mask = mask << shift;
-		val = val << shift;
-
-		change = snd_soc_test_bits(codec, reg, mask, val);
-	}
-
 	if (change) {
 		if (reg != SND_SOC_NOPM) {
-			update.kcontrol = kcontrol;
-			update.reg = reg;
-			update.mask = mask;
-			update.val = val;
+			mask = mask << shift;
+			val = val << shift;
 
-			card->update = &update;
+			if (snd_soc_test_bits(codec, reg, mask, val)) {
+				update.kcontrol = kcontrol;
+				update.reg = reg;
+				update.mask = mask;
+				update.val = val;
+				card->update = &update;
+			}
+
 		}
 
 		ret = soc_dapm_mixer_update_power(card, kcontrol, connect);
