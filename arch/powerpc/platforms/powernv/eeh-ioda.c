@@ -705,11 +705,12 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
-	struct eeh_pe *phb_pe;
+	struct eeh_pe *phb_pe, *parent_pe;
 	__be64 frozen_pe_no;
 	__be16 err_type, severity;
+	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	long rc;
-	int ret = EEH_NEXT_ERR_NONE;
+	int state, ret = EEH_NEXT_ERR_NONE;
 
 	/*
 	 * While running here, it's safe to purge the event queue.
@@ -836,6 +837,31 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		    !((*pe)->state & EEH_PE_ISOLATED)) {
 			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
 			ioda_eeh_phb_diag(hose);
+		}
+
+		/*
+		 * We probably have the frozen parent PE out there and
+		 * we need have to handle frozen parent PE firstly.
+		 */
+		if (ret == EEH_NEXT_ERR_FROZEN_PE) {
+			parent_pe = (*pe)->parent;
+			while (parent_pe) {
+				/* Hit the ceiling ? */
+				if (parent_pe->type & EEH_PE_PHB)
+					break;
+
+				/* Frozen parent PE ? */
+				state = ioda_eeh_get_state(parent_pe);
+				if (state > 0 &&
+				    (state & active_flags) != active_flags)
+					*pe = parent_pe;
+
+				/* Next parent level */
+				parent_pe = parent_pe->parent;
+			}
+
+			/* We possibly migrate to another PE */
+			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
 		}
 
 		/*

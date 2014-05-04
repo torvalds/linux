@@ -358,10 +358,11 @@ out:
 int eeh_dev_check_failure(struct eeh_dev *edev)
 {
 	int ret;
+	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	unsigned long flags;
 	struct device_node *dn;
 	struct pci_dev *dev;
-	struct eeh_pe *pe;
+	struct eeh_pe *pe, *parent_pe;
 	int rc = 0;
 	const char *location;
 
@@ -439,12 +440,32 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 */
 	if ((ret < 0) ||
 	    (ret == EEH_STATE_NOT_SUPPORT) ||
-	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
-	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
+	    ((ret & active_flags) == active_flags)) {
 		eeh_stats.false_positives++;
 		pe->false_positives++;
 		rc = 0;
 		goto dn_unlock;
+	}
+
+	/*
+	 * It should be corner case that the parent PE has been
+	 * put into frozen state as well. We should take care
+	 * that at first.
+	 */
+	parent_pe = pe->parent;
+	while (parent_pe) {
+		/* Hit the ceiling ? */
+		if (parent_pe->type & EEH_PE_PHB)
+			break;
+
+		/* Frozen parent PE ? */
+		ret = eeh_ops->get_state(parent_pe, NULL);
+		if (ret > 0 &&
+		    (ret & active_flags) != active_flags)
+			pe = parent_pe;
+
+		/* Next parent level */
+		parent_pe = parent_pe->parent;
 	}
 
 	eeh_stats.slot_resets++;
