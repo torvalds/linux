@@ -505,7 +505,7 @@ config PREEMPT_RCU
 	def_bool TREE_PREEMPT_RCU
 	help
 	  This option enables preemptible-RCU code that is common between
-	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
+	  TREE_PREEMPT_RCU and, in the old days, TINY_PREEMPT_RCU.
 
 config RCU_STALL_COMMON
 	def_bool ( TREE_RCU || TREE_PREEMPT_RCU || RCU_TRACE )
