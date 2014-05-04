@@ -46,10 +46,8 @@
 int
 libcfs_sock_ioctl(int cmd, unsigned long arg)
 {
-	mm_segment_t    oldmm = get_fs();
 	struct socket  *sock;
 	int	     rc;
-	struct file    *sock_filp;
 
 	rc = sock_create (PF_INET, SOCK_STREAM, 0, &sock);
 	if (rc != 0) {
