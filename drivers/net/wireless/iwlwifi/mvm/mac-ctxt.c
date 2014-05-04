@@ -67,6 +67,7 @@
 #include "iwl-prph.h"
 #include "fw-api.h"
 #include "mvm.h"
+#include "time-event.h"
 
 const u8 iwl_mvm_ac_to_tx_fifo[] = {
 	IWL_MVM_TX_FIFO_VO,
@@ -1200,6 +1201,35 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return 0;
 }
 
+static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *csa_vif, u32 gp2)
+{
+	struct iwl_mvm_vif *mvmvif =
+			iwl_mvm_vif_from_mac80211(csa_vif);
+
+	if (!ieee80211_csa_is_complete(csa_vif)) {
+		int c = ieee80211_csa_update_counter(csa_vif);
+
+		iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif);
+		if (csa_vif->p2p &&
+		    !iwl_mvm_te_scheduled(&mvmvif->time_event_data) && gp2) {
+			u32 rel_time = (c + 1) *
+				       csa_vif->bss_conf.beacon_int -
+				       IWL_MVM_CHANNEL_SWITCH_TIME;
+			u32 apply_time = gp2 + rel_time * 1024;
+
+			iwl_mvm_schedule_csa_noa(mvm, csa_vif,
+						 IWL_MVM_CHANNEL_SWITCH_TIME -
+						 IWL_MVM_CHANNEL_SWITCH_MARGIN,
+						 apply_time);
+		}
+	} else if (!iwl_mvm_te_scheduled(&mvmvif->time_event_data)) {
+		/* we don't have CSA NoA scheduled yet, switch now */
+		ieee80211_csa_finish(csa_vif);
+		RCU_INIT_POINTER(mvm->csa_vif, NULL);
+	}
+}
+
 int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 			    struct iwl_rx_cmd_buffer *rxb,
 			    struct iwl_device_cmd *cmd)
@@ -1234,15 +1264,8 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 
 	csa_vif = rcu_dereference_protected(mvm->csa_vif,
 					    lockdep_is_held(&mvm->mutex));
-	if (unlikely(csa_vif && csa_vif->csa_active)) {
-		if (!ieee80211_csa_is_complete(csa_vif)) {
-			ieee80211_csa_update_counter(csa_vif);
-			iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif);
-		} else {
-			ieee80211_csa_finish(csa_vif);
-			RCU_INIT_POINTER(mvm->csa_vif, NULL);
-		}
-	}
+	if (unlikely(csa_vif && csa_vif->csa_active))
+		iwl_mvm_csa_count_down(mvm, csa_vif, mvm->ap_last_beacon_gp2);
 
 	return 0;
 }

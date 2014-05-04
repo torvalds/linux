@@ -83,6 +83,18 @@
 #define IWL_RSSI_OFFSET 50
 #define IWL_MVM_MISSED_BEACONS_THRESHOLD 8
 
+/*
+ * The CSA NoA is scheduled IWL_MVM_CHANNEL_SWITCH_TIME TUs before "beacon 0"
+ * TBTT. This value should be big enough to ensure that we switch in time.
+ */
+#define IWL_MVM_CHANNEL_SWITCH_TIME 40
+
+/*
+ * This value (in TUs) is used to fine tune the CSA NoA end time which should
+ * be just before "beacon 0" TBTT.
+ */
+#define IWL_MVM_CHANNEL_SWITCH_MARGIN 4
+
 enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_BK = 0,
 	IWL_MVM_TX_FIFO_BE,

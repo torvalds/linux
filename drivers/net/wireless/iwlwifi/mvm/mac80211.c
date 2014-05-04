@@ -1608,8 +1608,11 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 
 	/* Handle AP stop while in CSA */
-	if (rcu_access_pointer(mvm->csa_vif) == vif)
+	if (rcu_access_pointer(mvm->csa_vif) == vif) {
+		iwl_mvm_remove_time_event(mvm, mvmvif,
+					  &mvmvif->time_event_data);
 		RCU_INIT_POINTER(mvm->csa_vif, NULL);
+	}
 
 	mvmvif->ap_ibss_active = false;
 	mvm->ap_last_beacon_gp2 = 0;

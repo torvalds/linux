@@ -538,6 +538,9 @@ enum iwl_time_event_type {
 	/* WiDi Sync Events */
 	TE_WIDI_TX_SYNC,
 
+	/* Channel Switch NoA */
+	TE_P2P_GO_CSA_NOA,
+
 	TE_MAX
 }; /* MAC_EVENT_TYPE_API_E_VER_1 */
 
