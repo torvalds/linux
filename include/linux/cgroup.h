@@ -144,8 +144,8 @@ struct cgroup {
 	/*
 	 * idr allocated in-hierarchy ID.
 	 *
-	 * The ID of the root cgroup is always 0, and a new cgroup
-	 * will be assigned with a smallest available ID.
+	 * ID 0 is not used, the ID of the root cgroup is always 1, and a
+	 * new cgroup will be assigned with a smallest available ID.
 	 *
 	 * Allocating/Removing ID must be protected by cgroup_mutex.
 	 */
