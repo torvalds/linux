@@ -400,7 +400,7 @@ static int cpufreq_reboot_notifier_event(struct notifier_block *this, unsigned l
 	return NOTIFY_OK;
 }
 
-int cpufreq_reboot_limit_freq(void)
+int rockchip_cpufreq_reboot_limit_freq(void)
 {
 	dvfs_disable_temp_limit();
 	dvfs_clk_enable_limit(clk_cpu_dvfs_node, 1000*suspend_freq, 1000*suspend_freq);
