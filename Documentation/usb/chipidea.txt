@@ -5,7 +5,7 @@ with 2 Freescale i.MX6Q sabre SD boards.
 
 1.1 How to enable OTG FSM in menuconfig
 ---------------------------------------
-Select CONFIG_USB_OTG_FSM.
+Select CONFIG_USB_OTG_FSM, rebuild kernel Image and modules.
 If you want to check some internal variables for otg fsm,
 select CONFIG_USB_CHIPIDEA_DEBUG, there are 2 files which
 can show otg fsm variables and some controller registers value:
