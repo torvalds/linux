@@ -14,12 +14,6 @@
 
 extern u8 tusb_get_revision(struct musb *musb);
 
-#ifdef CONFIG_USB_TUSB6010
-#define musb_in_tusb()			1
-#else
-#define musb_in_tusb()			0
-#endif
-
 #ifdef CONFIG_USB_TUSB_OMAP_DMA
 #define tusb_dma_omap()			1
 #else
