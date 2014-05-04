@@ -59,12 +59,12 @@ struct nat_entry {
 	do {								\
 		ne->checkpointed = false;				\
 		list_move_tail(&ne->list, &nm_i->dirty_nat_entries);	\
-	} while (0);
+	} while (0)
 #define __clear_nat_cache_dirty(nm_i, ne)				\
 	do {								\
 		ne->checkpointed = true;				\
 		list_move_tail(&ne->list, &nm_i->nat_entries);		\
-	} while (0);
+	} while (0)
 #define inc_node_version(version)	(++version)
 
 static inline void node_info_from_raw_nat(struct node_info *ni,
