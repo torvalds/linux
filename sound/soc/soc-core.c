@@ -1543,7 +1543,8 @@ static void soc_unregister_ac97_dai_link(struct snd_soc_codec *codec)
 }
 #endif
 
-struct snd_soc_codec *soc_find_matching_codec(struct snd_soc_card *card, int num)
+static struct snd_soc_codec *soc_find_matching_codec(struct snd_soc_card *card,
+	int num)
 {
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	struct snd_soc_codec *codec;
