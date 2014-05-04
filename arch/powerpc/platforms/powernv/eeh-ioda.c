@@ -794,23 +794,17 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 			break;
 		case OPAL_EEH_PE_ERROR:
 			/*
-			 * If we can't find the corresponding PE, the
-			 * PEEV / PEST would be messy. So we force an
-			 * fenced PHB so that it can be recovered.
-			 *
-			 * If the PE has been marked as isolated, that
-			 * should have been removed permanently or in
-			 * progress with recovery. We needn't report
-			 * it again.
+			 * If we can't find the corresponding PE, we
+			 * just try to unfreeze.
 			 */
 			if (ioda_eeh_get_pe(hose,
-					be64_to_cpu(frozen_pe_no), pe)) {
-				*pe = phb_pe;
-				pr_err("EEH: Escalated fenced PHB#%x "
-				       "detected for PE#%llx\n",
-					hose->global_number,
-					be64_to_cpu(frozen_pe_no));
-				ret = EEH_NEXT_ERR_FENCED_PHB;
+					    be64_to_cpu(frozen_pe_no), pe)) {
+				/* Try best to clear it */
+				pr_info("EEH: Clear non-existing PHB#%x-PE#%llx\n",
+					hose->global_number, frozen_pe_no);
+				opal_pci_eeh_freeze_clear(phb->opal_id, frozen_pe_no,
+					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+				ret = EEH_NEXT_ERR_NONE;
 			} else if ((*pe)->state & EEH_PE_ISOLATED) {
 				ret = EEH_NEXT_ERR_NONE;
 			} else {
