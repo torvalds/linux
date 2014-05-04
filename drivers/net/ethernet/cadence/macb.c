@@ -599,24 +599,15 @@ static void gem_rx_refill(struct macb *bp)
 {
 	unsigned int		entry;
 	struct sk_buff		*skb;
-	struct macb_dma_desc	*desc;
 	dma_addr_t		paddr;
 
 	while (CIRC_SPACE(bp->rx_prepared_head, bp->rx_tail, RX_RING_SIZE) > 0) {
-		u32 addr, ctrl;
-
 		entry = macb_rx_ring_wrap(bp->rx_prepared_head);
-		desc = &bp->rx_ring[entry];
 
 		/* Make hw descriptor updates visible to CPU */
 		rmb();
 
-		addr = desc->addr;
-		ctrl = desc->ctrl;
 		bp->rx_prepared_head++;
-
-		if ((addr & MACB_BIT(RX_USED)))
-			continue;
 
 		if (bp->rx_skbuff[entry] == NULL) {
 			/* allocate sk_buff for this free entry in ring */
@@ -698,7 +689,6 @@ static int gem_rx(struct macb *bp, int budget)
 		if (!(addr & MACB_BIT(RX_USED)))
 			break;
 
-		desc->addr &= ~MACB_BIT(RX_USED);
 		bp->rx_tail++;
 		count++;
 
