@@ -696,7 +696,7 @@ static void acpi_battery_quirks(struct acpi_battery *battery)
 	}
 }
 
-static int acpi_battery_update(struct acpi_battery *battery)
+static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 {
 	int result, old_present = acpi_battery_present(battery);
 	result = acpi_battery_get_status(battery);
@@ -707,6 +707,10 @@ static int acpi_battery_update(struct acpi_battery *battery)
 		battery->update_time = 0;
 		return 0;
 	}
+
+	if (resume)
+		return 0;
+
 	if (!battery->update_time ||
 	    old_present != acpi_battery_present(battery)) {
 		result = acpi_battery_get_info(battery);
@@ -915,7 +919,7 @@ static print_func acpi_print_funcs[ACPI_BATTERY_NUMFILES] = {
 static int acpi_battery_read(int fid, struct seq_file *seq)
 {
 	struct acpi_battery *battery = seq->private;
-	int result = acpi_battery_update(battery);
+	int result = acpi_battery_update(battery, false);
 	return acpi_print_funcs[fid](seq, result);
 }
 
@@ -1030,7 +1034,7 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 	old = battery->bat.dev;
 	if (event == ACPI_BATTERY_NOTIFY_INFO)
 		acpi_battery_refresh(battery);
-	acpi_battery_update(battery);
+	acpi_battery_update(battery, false);
 	acpi_bus_generate_netlink_event(device->pnp.device_class,
 					dev_name(&device->dev), event,
 					acpi_battery_present(battery));
@@ -1045,13 +1049,27 @@ static int battery_notify(struct notifier_block *nb,
 {
 	struct acpi_battery *battery = container_of(nb, struct acpi_battery,
 						    pm_nb);
+	int result;
+
 	switch (mode) {
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
-		if (battery->bat.dev) {
-			sysfs_remove_battery(battery);
-			sysfs_add_battery(battery);
-		}
+		if (!acpi_battery_present(battery))
+			return 0;
+
+		if (!battery->bat.dev) {
+			result = acpi_battery_get_info(battery);
+			if (result)
+				return result;
+
+			result = sysfs_add_battery(battery);
+			if (result)
+				return result;
+		} else
+			acpi_battery_refresh(battery);
+
+		acpi_battery_init_alarm(battery);
+		acpi_battery_get_state(battery);
 		break;
 	}
 
@@ -1087,7 +1105,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	mutex_init(&battery->sysfs_lock);
 	if (acpi_has_method(battery->device->handle, "_BIX"))
 		set_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags);
-	result = acpi_battery_update(battery);
+	result = acpi_battery_update(battery, false);
 	if (result)
 		goto fail;
 #ifdef CONFIG_ACPI_PROCFS_POWER
@@ -1149,7 +1167,7 @@ static int acpi_battery_resume(struct device *dev)
 		return -EINVAL;
 
 	battery->update_time = 0;
-	acpi_battery_update(battery);
+	acpi_battery_update(battery, true);
 	return 0;
 }
 #else
