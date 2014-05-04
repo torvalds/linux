@@ -170,7 +170,7 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	df = OVS_CB(skb)->tun_key->tun_flags & TUNNEL_DONT_FRAGMENT ?
 		htons(IP_DF) : 0;
 
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
 	inet_get_local_port_range(net, &port_min, &port_max);
 	src_port = vxlan_src_port(port_min, port_max, skb);
