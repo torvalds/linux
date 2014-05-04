@@ -1131,11 +1131,18 @@ static int r8192_wx_set_PromiscuousMode(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	u32 *info_buf = (u32 *)(wrqu->data.pointer);
+	u32 info_buf[3];
 
-	u32 oid = info_buf[0];
-	u32 bPromiscuousOn = info_buf[1];
-	u32 bFilterSourceStationFrame = info_buf[2];
+	u32 oid;
+	u32 bPromiscuousOn;
+	u32 bFilterSourceStationFrame;
+
+	if (copy_from_user(info_buf, wrqu->data.pointer, sizeof(info_buf)))
+		return -EFAULT;
+
+	oid = info_buf[0];
+	bPromiscuousOn = info_buf[1];
+	bFilterSourceStationFrame = info_buf[2];
 
 	if (OID_RT_INTEL_PROMISCUOUS_MODE == oid) {
 		ieee->IntelPromiscuousModeInfo.bPromiscuousOn =
