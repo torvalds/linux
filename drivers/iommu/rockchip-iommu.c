@@ -617,6 +617,7 @@ static int __rockchip_sysmmu_enable(struct sysmmu_drvdata *data,unsigned long pg
 			__sysmmu_set_ptbase(data->res_bases[i], pgtable);
 			__raw_writel(SYSMMU_COMMAND_ZAP_CACHE, data->res_bases[i] + SYSMMU_REGISTER_COMMAND);
 		}
+		__raw_writel(SYSMMU_INTERRUPT_PAGE_FAULT|SYSMMU_INTERRUPT_READ_BUS_ERROR, data->res_bases[i]+SYSMMU_REGISTER_INT_MASK);
 		sysmmu_enable_paging(data->res_bases[i]);
 		sysmmu_disable_stall(data->res_bases[i]);
 	}
