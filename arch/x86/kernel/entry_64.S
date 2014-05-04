@@ -904,8 +904,10 @@ irq_return:
 	 * Are we returning to a stack segment from the LDT?  Note: in
 	 * 64-bit mode SS:RSP on the exception stack is always valid.
 	 */
+#ifdef CONFIG_X86_ESPFIX64
 	testb $4,(SS-RIP)(%rsp)
 	jnz irq_return_ldt
+#endif
 
 irq_return_iret:
 	INTERRUPT_RETURN
@@ -923,6 +925,7 @@ ENTRY(native_iret)
 	.previous
 #endif
 
+#ifdef CONFIG_X86_ESPFIX64
 irq_return_ldt:
 	pushq_cfi %rax
 	pushq_cfi %rdi
@@ -946,6 +949,7 @@ irq_return_ldt:
 	movq %rax,%rsp
 	popq_cfi %rax
 	jmp irq_return_iret
+#endif
 
 	.section .fixup,"ax"
 bad_iret:
@@ -1019,6 +1023,7 @@ END(common_interrupt)
 	 * modify the stack to make it look like we just entered
 	 * the #GP handler from user space, similar to bad_iret.
 	 */
+#ifdef CONFIG_X86_ESPFIX64
 	ALIGN
 __do_double_fault:
 	XCPT_FRAME 1 RDI+8
@@ -1044,6 +1049,9 @@ __do_double_fault:
 	retq
 	CFI_ENDPROC
 END(__do_double_fault)
+#else
+# define __do_double_fault do_double_fault
+#endif
 
 /*
  * End of kprobes section
