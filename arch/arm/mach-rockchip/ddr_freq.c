@@ -78,6 +78,9 @@ static noinline void ddrfreq_clear_sys_status(int status)
 
 static void ddrfreq_mode(bool auto_self_refresh, unsigned long *target_rate, char *name)
 {
+	unsigned int min_rate, max_rate;
+	int freq_limit_en;
+
 	ddr.mode = name;
 	if (auto_self_refresh != ddr.auto_self_refresh) {
 		ddr_set_auto_self_refresh(auto_self_refresh);
@@ -85,12 +88,17 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long *target_rate, cha
 		dprintk(DEBUG_DDR, "change auto self refresh to %d when %s\n", auto_self_refresh, name);
 	}
 	if (*target_rate != dvfs_clk_get_rate(ddr.clk_dvfs_node)) {
+		freq_limit_en = dvfs_clk_get_limit(clk_cpu_dvfs_node, &min_rate, &max_rate);
 		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 600000000, -1);
 		if (dvfs_clk_set_rate(ddr.clk_dvfs_node, *target_rate) == 0) {
 			*target_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
 			dprintk(DEBUG_DDR, "change freq to %lu MHz when %s\n", *target_rate / MHZ, name);
 		}
-		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 0, -1);
+		if (freq_limit_en) {
+			dvfs_clk_enable_limit(clk_cpu_dvfs_node, min_rate, max_rate);
+		} else {
+			dvfs_clk_disable_limit(clk_cpu_dvfs_node);
+		}
 	}
 }
 
