@@ -1111,7 +1111,24 @@ static struct rk808_board *rk808_parse_dt(struct i2c_client *i2c)
 	return NULL;
 }
 #endif
-
+static int rk808_shutdown(void)
+{
+	int ret,i,val;
+	u16 reg = 0;
+	struct rk808 *rk808 = g_rk808;
+	
+	printk("%s\n",__func__);
+	/***************get dc1\dc2 voltage *********************/
+	for(i=0;i<2;i++){
+	reg = rk808_reg_read(rk808,rk808_BUCK_SET_VOL_REG(i));
+	reg &= BUCK_VOL_MASK;
+	val = 700000 + reg * 12500;
+	printk("%s,line=%d dc[%d]= %d\n", __func__,__LINE__,(i+1),val);
+	}
+	/*****************************************************/
+	return 0;	
+}
+EXPORT_SYMBOL_GPL(rk808_shutdown);
 
 static int rk808_device_shutdown(void)
 {
@@ -1121,14 +1138,7 @@ static int rk808_device_shutdown(void)
 	struct rk808 *rk808 = g_rk808;
 	
 	printk("%s\n",__func__);
-	/***************get dc0\dc1 voltage *********************/
-	for(i=0;i<2;i++){
-	reg = rk808_reg_read(rk808,rk808_BUCK_SET_VOL_REG(i));
-	reg &= BUCK_VOL_MASK;
-	val = 700000 + reg * 12500;
-	printk("%s,line=%d dc[%d]= %d\n", __func__,__LINE__,i,val);
-	}
-	/*****************************************************/
+
 	ret = rk808_set_bits(rk808, RK808_INT_STS_MSK_REG1,(0x3<<5),(0x3<<5)); //close rtc int when power off
 	ret = rk808_clear_bits(rk808, RK808_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
 	ret = rk808_reg_read(rk808,RK808_DEVCTRL_REG);
@@ -1503,6 +1513,7 @@ static struct i2c_driver rk808_i2c_driver = {
 	.probe    = rk808_i2c_probe,
 	.remove   = rk808_i2c_remove,
 	.id_table = rk808_i2c_id,
+	.shutdown = rk808_shutdown,
 	#ifdef CONFIG_PM
 	.suspend	= rk808_suspend,
 	.resume		= rk808_resume,
