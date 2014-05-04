@@ -893,7 +893,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 
 		/* Packets received while interrupts were disabled */
 		status = macb_readl(bp, RSR);
-		if (unlikely(status)) {
+		if (status) {
 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
 				macb_writel(bp, ISR, MACB_BIT(RCOMP));
 			napi_reschedule(napi);
