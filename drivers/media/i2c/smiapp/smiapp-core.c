@@ -1128,7 +1128,7 @@ static int smiapp_power_on(struct smiapp_sensor *sensor)
 	}
 	usleep_range(1000, 1000);
 
-	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
+	if (gpio_is_valid(sensor->platform_data->xshutdown))
 		gpio_set_value(sensor->platform_data->xshutdown, 1);
 
 	sleep = SMIAPP_RESET_DELAY(sensor->platform_data->ext_clk);
@@ -1238,7 +1238,7 @@ static int smiapp_power_on(struct smiapp_sensor *sensor)
 	return 0;
 
 out_cci_addr_fail:
-	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
+	if (gpio_is_valid(sensor->platform_data->xshutdown))
 		gpio_set_value(sensor->platform_data->xshutdown, 0);
 	if (sensor->platform_data->set_xclk)
 		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
@@ -1264,7 +1264,7 @@ static void smiapp_power_off(struct smiapp_sensor *sensor)
 			     SMIAPP_REG_U8_SOFTWARE_RESET,
 			     SMIAPP_SOFTWARE_RESET);
 
-	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
+	if (gpio_is_valid(sensor->platform_data->xshutdown))
 		gpio_set_value(sensor->platform_data->xshutdown, 0);
 	if (sensor->platform_data->set_xclk)
 		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
@@ -2378,7 +2378,7 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		}
 	}
 
-	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN) {
+	if (gpio_is_valid(sensor->platform_data->xshutdown)) {
 		if (devm_gpio_request_one(&client->dev,
 					  sensor->platform_data->xshutdown, 0,
 					  "SMIA++ xshutdown") != 0) {
@@ -2830,7 +2830,7 @@ static int smiapp_remove(struct i2c_client *client)
 	unsigned int i;
 
 	if (sensor->power_count) {
-		if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
+		if (gpio_is_valid(sensor->platform_data->xshutdown))
 			gpio_set_value(sensor->platform_data->xshutdown, 0);
 		if (sensor->platform_data->set_xclk)
 			sensor->platform_data->set_xclk(&sensor->src->sd, 0);
