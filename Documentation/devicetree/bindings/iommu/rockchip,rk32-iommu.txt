@@ -1,0 +1,16 @@
+ROCKCHIP rk32 IOMMU H/W
+
+Required properties:
+- compatible : "iommu,iep_mmu"
+- reg : Should contain address and length for each
+  of the IOMMU register blocks.
+- interrupts : Should contain irq type,irq no,and level type 
+
+Example:
+	iep_mmu {
+		dbgname = "iep";
+		compatible = "iommu,iep_mmu";
+		reg = <0xff900800 0x100>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+	};
