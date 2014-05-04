@@ -330,15 +330,17 @@ test_block_hash:
 				return r;
 			}
 		}
-
 		todo = 1 << v->data_dev_block_bits;
-		while (io->iter.bi_size) {
+		do {
 			u8 *page;
+			unsigned len;
 			struct bio_vec bv = bio_iter_iovec(bio, io->iter);
 
 			page = kmap_atomic(bv.bv_page);
-			r = crypto_shash_update(desc, page + bv.bv_offset,
-						bv.bv_len);
+			len = bv.bv_len;
+			if (likely(len >= todo))
+				len = todo;
+			r = crypto_shash_update(desc, page + bv.bv_offset, len);
 			kunmap_atomic(page);
 
 			if (r < 0) {
@@ -346,8 +348,9 @@ test_block_hash:
 				return r;
 			}
 
-			bio_advance_iter(bio, &io->iter, bv.bv_len);
-		}
+			bio_advance_iter(bio, &io->iter, len);
+			todo -= len;
+		} while (todo);
 
 		if (!v->version) {
 			r = crypto_shash_update(desc, v->salt, v->salt_size);

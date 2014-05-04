@@ -3627,14 +3627,6 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	/* nfsd4_check_resp_size guarantees enough room for error status */
 	if (!op->status)
 		op->status = nfsd4_check_resp_size(resp, 0);
-	if (op->status == nfserr_resource && nfsd4_has_session(&resp->cstate)) {
-		struct nfsd4_slot *slot = resp->cstate.slot;
-
-		if (slot->sl_flags & NFSD4_SLOT_CACHETHIS)
-			op->status = nfserr_rep_too_big_to_cache;
-		else
-			op->status = nfserr_rep_too_big;
-	}
 	if (so) {
 		so->so_replay.rp_status = op->status;
 		so->so_replay.rp_buflen = (char *)resp->p - (char *)(statp+1);

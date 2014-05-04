@@ -107,7 +107,7 @@ static int __init crossbar_of_init(struct device_node *node)
 	int i, size, max, reserved = 0, entry;
 	const __be32 *irqsr;
 
-	cb = kzalloc(sizeof(struct cb_device *), GFP_KERNEL);
+	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
 
 	if (!cb)
 		return -ENOMEM;

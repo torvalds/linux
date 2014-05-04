@@ -100,10 +100,10 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
 
 	start_pfn = base >> PAGE_SHIFT;
 
-	if (!pfn_valid(start_pfn)) {
-		memblock_remove(base, memblock_size);
-		return 0;
-	}
+	lock_device_hotplug();
+
+	if (!pfn_valid(start_pfn))
+		goto out;
 
 	block_sz = memory_block_size_bytes();
 	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
@@ -114,8 +114,10 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
 		base += MIN_MEMORY_BLOCK_SIZE;
 	}
 
+out:
 	/* Update memory regions for memory remove */
 	memblock_remove(base, memblock_size);
+	unlock_device_hotplug();
 	return 0;
 }
 
