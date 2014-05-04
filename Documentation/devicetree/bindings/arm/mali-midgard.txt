@@ -1,0 +1,43 @@
+#
+# (C) COPYRIGHT 2013 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+* ARM Mali Midgard devices
+
+
+Required properties:
+
+- compatible : Should be mali<chip>, replacing digits with x from the back,
+until malit<Major>xx, ending with arm,mali-midgard, the latter not optional.
+- reg : Physical base address of the device and length of the register area.
+- interrupts : Contains the three IRQ lines required by T76x devices
+- interrupt-names : Contains the names of IRQ resources in the order they were
+provided in the interrupts property. Must contain: "JOB, "MMU", "GPU".
+
+
+Example for a Mali-T76x:
+
+gpu{
+	compatible = "arm,malit764", 
+				 "arm,malit76x", 
+				 "arm,malit7xx", 
+				 "arm,mali-midgard";
+	reg = <0xffa30000 0x10000>;
+	interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, 
+				 <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>, 
+				 <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "JOB", 
+					  "MMU", 
+					  "GPU";
+};
