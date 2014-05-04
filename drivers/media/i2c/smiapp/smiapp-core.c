@@ -2358,14 +2358,14 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	sensor->vana = devm_regulator_get(&client->dev, "vana");
 	if (IS_ERR(sensor->vana)) {
 		dev_err(&client->dev, "could not get regulator for vana\n");
-		return -ENODEV;
+		return PTR_ERR(sensor->vana);
 	}
 
 	if (!sensor->platform_data->set_xclk) {
 		sensor->ext_clk = devm_clk_get(&client->dev, "ext_clk");
 		if (IS_ERR(sensor->ext_clk)) {
 			dev_err(&client->dev, "could not get clock\n");
-			return -ENODEV;
+			return PTR_ERR(sensor->ext_clk);
 		}
 
 		rval = clk_set_rate(sensor->ext_clk,
@@ -2374,18 +2374,19 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 			dev_err(&client->dev,
 				"unable to set clock freq to %u\n",
 				sensor->platform_data->ext_clk);
-			return -ENODEV;
+			return rval;
 		}
 	}
 
 	if (gpio_is_valid(sensor->platform_data->xshutdown)) {
-		if (devm_gpio_request_one(&client->dev,
-					  sensor->platform_data->xshutdown, 0,
-					  "SMIA++ xshutdown") != 0) {
+		rval = devm_gpio_request_one(
+			&client->dev, sensor->platform_data->xshutdown, 0,
+			"SMIA++ xshutdown");
+		if (rval < 0) {
 			dev_err(&client->dev,
 				"unable to acquire reset gpio %d\n",
 				sensor->platform_data->xshutdown);
-			return -ENODEV;
+			return rval;
 		}
 	}
 
