@@ -12,10 +12,14 @@
 
 static char *test_file(int size)
 {
-	static char buf_templ[] = "/tmp/test-XXXXXX";
+#define TEMPL "/tmp/perf-test-XXXXXX"
+	static char buf_templ[sizeof(TEMPL)];
 	char *templ = buf_templ;
 	int fd, i;
 	unsigned char *buf;
+
+	strcpy(buf_templ, TEMPL);
+#undef TEMPL
 
 	fd = mkstemp(templ);
 	if (fd < 0) {
