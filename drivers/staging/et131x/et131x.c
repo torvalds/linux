@@ -762,6 +762,7 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 	 */
 	if (eestatus & 0x4C) {
 		int write_failed = 0;
+
 		if (pdev->revision == 0x01) {
 			int	i;
 			static const u8 eedata[4] = { 0xFE, 0x13, 0x10, 0xFF };
@@ -2091,6 +2092,7 @@ static void et1310_disable_phy_coma(struct et131x_adapter *adapter)
 static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
 {
 	u32 tmp_free_buff_ring = *free_buff_ring;
+
 	tmp_free_buff_ring++;
 	/* This works for all cases where limit < 1024. The 1023 case
 	 * works because 1023++ is 1024 which means the if condition is not
