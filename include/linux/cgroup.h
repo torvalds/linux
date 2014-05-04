@@ -62,7 +62,7 @@ struct cgroup_subsys_state {
 	/* the parent css */
 	struct cgroup_subsys_state *parent;
 
-	unsigned long flags;
+	unsigned int flags;
 
 	/* percpu_ref killing and RCU release */
 	struct rcu_head rcu_head;
@@ -185,7 +185,7 @@ struct cgroup {
 	u64 serial_nr;
 
 	/* the bitmask of subsystems enabled on the child cgroups */
-	unsigned long child_subsys_mask;
+	unsigned int child_subsys_mask;
 
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state __rcu *subsys[CGROUP_SUBSYS_COUNT];
@@ -312,7 +312,7 @@ struct cgroup_root {
 	struct kernfs_root *kf_root;
 
 	/* The bitmask of subsystems attached to this hierarchy */
-	unsigned long subsys_mask;
+	unsigned int subsys_mask;
 
 	/* Unique id for this hierarchy. */
 	int hierarchy_id;
@@ -327,7 +327,7 @@ struct cgroup_root {
 	struct list_head root_list;
 
 	/* Hierarchy-specific flags */
-	unsigned long flags;
+	unsigned int flags;
 
 	/* IDs for cgroups in this hierarchy */
 	struct idr cgroup_idr;

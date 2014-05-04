@@ -181,7 +181,7 @@ static struct cftype cgroup_base_files[];
 
 static void cgroup_put(struct cgroup *cgrp);
 static int rebind_subsystems(struct cgroup_root *dst_root,
-			     unsigned long ss_mask);
+			     unsigned int ss_mask);
 static void cgroup_destroy_css_killed(struct cgroup *cgrp);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
 static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss);
@@ -963,7 +963,7 @@ static struct cgroup *task_cgroup_from_root(struct task_struct *task,
  * update of a tasks cgroup pointer by cgroup_attach_task()
  */
 
-static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask);
+static int cgroup_populate_dir(struct cgroup *cgrp, unsigned int subsys_mask);
 static struct kernfs_syscall_ops cgroup_kf_syscall_ops;
 static const struct file_operations proc_cgroupstats_operations;
 
@@ -1079,7 +1079,7 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
  * @cgrp: target cgroup
  * @subsys_mask: mask of the subsystem ids whose files should be removed
  */
-static void cgroup_clear_dir(struct cgroup *cgrp, unsigned long subsys_mask)
+static void cgroup_clear_dir(struct cgroup *cgrp, unsigned int subsys_mask)
 {
 	struct cgroup_subsys *ss;
 	int i;
@@ -1087,15 +1087,14 @@ static void cgroup_clear_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 	for_each_subsys(ss, i) {
 		struct cftype *cfts;
 
-		if (!test_bit(i, &subsys_mask))
+		if (!(subsys_mask & (1 << i)))
 			continue;
 		list_for_each_entry(cfts, &ss->cfts, node)
 			cgroup_addrm_files(cgrp, cfts, false);
 	}
 }
 
-static int rebind_subsystems(struct cgroup_root *dst_root,
-			     unsigned long ss_mask)
+static int rebind_subsystems(struct cgroup_root *dst_root, unsigned int ss_mask)
 {
 	struct cgroup_subsys *ss;
 	int ssid, i, ret;
@@ -1128,7 +1127,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 		 * Just warn about it and continue.
 		 */
 		if (cgrp_dfl_root_visible) {
-			pr_warn("failed to create files (%d) while rebinding 0x%lx to default root\n",
+			pr_warn("failed to create files (%d) while rebinding 0x%x to default root\n",
 				ret, ss_mask);
 			pr_warn("you may retry by moving them to a different hierarchy and unbinding\n");
 		}
@@ -1214,8 +1213,8 @@ static int cgroup_show_options(struct seq_file *seq,
 }
 
 struct cgroup_sb_opts {
-	unsigned long subsys_mask;
-	unsigned long flags;
+	unsigned int subsys_mask;
+	unsigned int flags;
 	char *release_agent;
 	bool cpuset_clone_children;
 	char *name;
@@ -1227,12 +1226,12 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 {
 	char *token, *o = data;
 	bool all_ss = false, one_ss = false;
-	unsigned long mask = (unsigned long)-1;
+	unsigned int mask = -1U;
 	struct cgroup_subsys *ss;
 	int i;
 
 #ifdef CONFIG_CPUSETS
-	mask = ~(1UL << cpuset_cgrp_id);
+	mask = ~(1U << cpuset_cgrp_id);
 #endif
 
 	memset(opts, 0, sizeof(*opts));
@@ -1313,7 +1312,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 			/* Mutually exclusive option 'all' + subsystem name */
 			if (all_ss)
 				return -EINVAL;
-			set_bit(i, &opts->subsys_mask);
+			opts->subsys_mask |= (1 << i);
 			one_ss = true;
 
 			break;
@@ -1342,7 +1341,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 		if (all_ss || (!one_ss && !opts->none && !opts->name))
 			for_each_subsys(ss, i)
 				if (!ss->disabled)
-					set_bit(i, &opts->subsys_mask);
+					opts->subsys_mask |= (1 << i);
 
 		/*
 		 * We either have to specify by name or by subsystems. (So
@@ -1373,7 +1372,7 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 	int ret = 0;
 	struct cgroup_root *root = cgroup_root_from_kf(kf_root);
 	struct cgroup_sb_opts opts;
-	unsigned long added_mask, removed_mask;
+	unsigned int added_mask, removed_mask;
 
 	if (root->flags & CGRP_ROOT_SANE_BEHAVIOR) {
 		pr_err("sane_behavior: remount is not allowed\n");
@@ -1398,7 +1397,7 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 	/* Don't allow flags or name to change at remount */
 	if (((opts.flags ^ root->flags) & CGRP_ROOT_OPTION_MASK) ||
 	    (opts.name && strcmp(opts.name, root->name))) {
-		pr_err("option or name mismatch, new: 0x%lx \"%s\", old: 0x%lx \"%s\"\n",
+		pr_err("option or name mismatch, new: 0x%x \"%s\", old: 0x%x \"%s\"\n",
 		       opts.flags & CGRP_ROOT_OPTION_MASK, opts.name ?: "",
 		       root->flags & CGRP_ROOT_OPTION_MASK, root->name);
 		ret = -EINVAL;
@@ -1522,7 +1521,7 @@ static void init_cgroup_root(struct cgroup_root *root,
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &root->cgrp.flags);
 }
 
-static int cgroup_setup_root(struct cgroup_root *root, unsigned long ss_mask)
+static int cgroup_setup_root(struct cgroup_root *root, unsigned int ss_mask)
 {
 	LIST_HEAD(tmp_links);
 	struct cgroup *root_cgrp = &root->cgrp;
@@ -2507,7 +2506,7 @@ out_finish:
 static int cgroup_subtree_control_write(struct cgroup_subsys_state *dummy_css,
 					struct cftype *cft, char *buffer)
 {
-	unsigned long enable_req = 0, disable_req = 0, enable, disable;
+	unsigned int enable_req = 0, disable_req = 0, enable, disable;
 	struct cgroup *cgrp = dummy_css->cgroup, *child;
 	struct cgroup_subsys *ss;
 	char *tok, *p;
@@ -3998,7 +3997,7 @@ static struct cftype cgroup_base_files[] = {
  *
  * On failure, no file is added.
  */
-static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
+static int cgroup_populate_dir(struct cgroup *cgrp, unsigned int subsys_mask)
 {
 	struct cgroup_subsys *ss;
 	int i, ret = 0;
@@ -4007,7 +4006,7 @@ static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 	for_each_subsys(ss, i) {
 		struct cftype *cfts;
 
-		if (!test_bit(i, &subsys_mask))
+		if (!(subsys_mask & (1 << i)))
 			continue;
 
 		list_for_each_entry(cfts, &ss->cfts, node) {
