@@ -1722,6 +1722,12 @@ void __init switch_log_buf(char *new_log_buf, unsigned size)
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
 }
 #endif /* CONFIG_RK_LAST_LOG */
+#if CONFIG_RK_DEBUG_UART >= 0
+void console_disable_suspend(void)
+{
+	console_suspended = 0;
+}
+#endif
 #else /* CONFIG_PRINTK */
 
 #define LOG_LINE_MAX		0

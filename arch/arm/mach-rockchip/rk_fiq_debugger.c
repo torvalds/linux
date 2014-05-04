@@ -131,7 +131,9 @@ static void debug_flush(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_RK_CONSOLE_THREAD
-static DEFINE_KFIFO(fifo, unsigned char, SZ_64K);
+#define FIFO_SIZE SZ_64K
+static DEFINE_KFIFO(fifo, unsigned char, FIFO_SIZE);
+static bool console_thread_stop;
 
 static int console_thread(void *data)
 {
@@ -146,9 +148,10 @@ static int console_thread(void *data)
 		if (kthread_should_stop())
 			break;
 		set_current_state(TASK_RUNNING);
-		while (kfifo_get(&fifo, &c))
+		while (!console_thread_stop && kfifo_get(&fifo, &c))
 			debug_putc(pdev, c);
-		debug_flush(pdev);
+		if (!console_thread_stop)
+			debug_flush(pdev);
 	}
 
 	return 0;
@@ -156,15 +159,23 @@ static int console_thread(void *data)
 
 static void console_write(struct platform_device *pdev, const char *s, unsigned int count)
 {
+	unsigned int fifo_count = FIFO_SIZE;
 	unsigned char c, r = '\r';
-	static bool oops = false;
 	struct rk_fiq_debugger *t;
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
-	if (oops_in_progress || oops) {
-		debug_flush(pdev);
-		while (kfifo_get(&fifo, &c))
-			debug_putc(pdev, c);
+	if (console_thread_stop ||
+	    oops_in_progress ||
+	    system_state == SYSTEM_HALT ||
+	    system_state == SYSTEM_POWER_OFF ||
+	    system_state == SYSTEM_RESTART) {
+		if (!console_thread_stop) {
+			console_thread_stop = true;
+			smp_wmb();
+			debug_flush(pdev);
+			while (fifo_count-- && kfifo_get(&fifo, &c))
+				debug_putc(pdev, c);
+		}
 		while (count--) {
 			if (*s == '\n') {
 				debug_putc(pdev, r);
@@ -172,17 +183,15 @@ static void console_write(struct platform_device *pdev, const char *s, unsigned 
 			debug_putc(pdev, *s++);
 		}
 		debug_flush(pdev);
-		oops = true;
-		return;
-	}
-
-	while (count--) {
-		if (*s == '\n') {
-			kfifo_put(&fifo, &r);
+	} else {
+		while (count--) {
+			if (*s == '\n') {
+				kfifo_put(&fifo, &r);
+			}
+			kfifo_put(&fifo, s++);
 		}
-		kfifo_put(&fifo, s++);
+		wake_up_process(t->console_task);
 	}
-	wake_up_process(t->console_task);
 }
 #endif
 
