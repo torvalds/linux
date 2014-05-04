@@ -4109,17 +4109,21 @@ static void css_release(struct percpu_ref *ref)
 	call_rcu(&css->rcu_head, css_free_rcu_fn);
 }
 
-static void init_css(struct cgroup_subsys_state *css, struct cgroup_subsys *ss,
-		     struct cgroup *cgrp)
+static void init_and_link_css(struct cgroup_subsys_state *css,
+			      struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
+	cgroup_get(cgrp);
+
 	css->cgroup = cgrp;
 	css->ss = ss;
 	css->flags = 0;
 
-	if (cgrp->parent)
+	if (cgrp->parent) {
 		css->parent = cgroup_css(cgrp->parent, ss);
-	else
+		css_get(css->parent);
+	} else {
 		css->flags |= CSS_ROOT;
+	}
 
 	BUG_ON(cgroup_css(cgrp, ss));
 }
@@ -4185,9 +4189,7 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss)
 	if (IS_ERR(css))
 		return PTR_ERR(css);
 
-	init_css(css, ss, cgrp);
-	cgroup_get(cgrp);
-	css_get(css->parent);
+	init_and_link_css(css, ss, cgrp);
 
 	err = percpu_ref_init(&css->refcnt, css_release);
 	if (err)
@@ -4656,7 +4658,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	css = ss->css_alloc(cgroup_css(&cgrp_dfl_root.cgrp, ss));
 	/* We don't handle early failures gracefully */
 	BUG_ON(IS_ERR(css));
-	init_css(css, ss, &cgrp_dfl_root.cgrp);
+	init_and_link_css(css, ss, &cgrp_dfl_root.cgrp);
 
 	/* Update the init_css_set to contain a subsys
 	 * pointer to this state - since the subsystem is
