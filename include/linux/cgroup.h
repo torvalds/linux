@@ -62,6 +62,12 @@ struct cgroup_subsys_state {
 	/* the parent css */
 	struct cgroup_subsys_state *parent;
 
+	/*
+	 * Subsys-unique ID.  0 is unused and root is always 1.  The
+	 * matching css can be looked up using css_from_id().
+	 */
+	int id;
+
 	unsigned int flags;
 
 	/* percpu_ref killing and RCU release */
@@ -654,6 +660,9 @@ struct cgroup_subsys {
 
 	/* link to parent, protected by cgroup_lock() */
 	struct cgroup_root *root;
+
+	/* idr for css->id */
+	struct idr css_idr;
 
 	/*
 	 * List of cftypes.  Each entry is the first entry of an array

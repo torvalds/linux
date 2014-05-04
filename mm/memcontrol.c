@@ -527,7 +527,7 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
 
 static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 {
-	return memcg->css.cgroup->id;
+	return memcg->css.id;
 }
 
 static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
@@ -6401,7 +6401,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup *parent = mem_cgroup_from_css(css_parent(css));
 
-	if (css->cgroup->id > MEM_CGROUP_ID_MAX)
+	if (css->id > MEM_CGROUP_ID_MAX)
 		return -ENOSPC;
 
 	if (!parent)

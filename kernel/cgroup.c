@@ -100,8 +100,8 @@ static DECLARE_RWSEM(css_set_rwsem);
 #endif
 
 /*
- * Protects cgroup_idr so that IDs can be released without grabbing
- * cgroup_mutex.
+ * Protects cgroup_idr and css_idr so that IDs can be released without
+ * grabbing cgroup_mutex.
  */
 static DEFINE_SPINLOCK(cgroup_idr_lock);
 
@@ -1089,12 +1089,6 @@ static void cgroup_put(struct cgroup *cgrp)
 	if (WARN_ON_ONCE(cgrp->parent && !cgroup_is_dead(cgrp)))
 		return;
 
-	/*
-	 * XXX: cgrp->id is only used to look up css's.  As cgroup and
-	 * css's lifetimes will be decoupled, it should be made
-	 * per-subsystem and moved to css->id so that lookups are
-	 * successful until the target css is released.
-	 */
 	cgroup_idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
 	cgrp->id = -1;
 
@@ -4104,8 +4098,11 @@ static void css_release(struct percpu_ref *ref)
 {
 	struct cgroup_subsys_state *css =
 		container_of(ref, struct cgroup_subsys_state, refcnt);
+	struct cgroup_subsys *ss = css->ss;
 
-	RCU_INIT_POINTER(css->cgroup->subsys[css->ss->id], NULL);
+	RCU_INIT_POINTER(css->cgroup->subsys[ss->id], NULL);
+	cgroup_idr_remove(&ss->css_idr, css->id);
+
 	call_rcu(&css->rcu_head, css_free_rcu_fn);
 }
 
@@ -4195,9 +4192,17 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss)
 	if (err)
 		goto err_free_css;
 
+	err = cgroup_idr_alloc(&ss->css_idr, NULL, 2, 0, GFP_NOWAIT);
+	if (err < 0)
+		goto err_free_percpu_ref;
+	css->id = err;
+
 	err = cgroup_populate_dir(cgrp, 1 << ss->id);
 	if (err)
-		goto err_free_percpu_ref;
+		goto err_free_id;
+
+	/* @css is ready to be brought online now, make it visible */
+	cgroup_idr_replace(&ss->css_idr, css, css->id);
 
 	err = online_css(css);
 	if (err)
@@ -4216,6 +4221,8 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss)
 
 err_clear_dir:
 	cgroup_clear_dir(css->cgroup, 1 << css->ss->id);
+err_free_id:
+	cgroup_idr_remove(&ss->css_idr, css->id);
 err_free_percpu_ref:
 	percpu_ref_cancel_init(&css->refcnt);
 err_free_css:
@@ -4642,7 +4649,7 @@ static struct kernfs_syscall_ops cgroup_kf_syscall_ops = {
 	.rename			= cgroup_rename,
 };
 
-static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
+static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 {
 	struct cgroup_subsys_state *css;
 
@@ -4651,6 +4658,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
 
+	idr_init(&ss->css_idr);
 	INIT_LIST_HEAD(&ss->cfts);
 
 	/* Create the root cgroup state for this subsystem */
@@ -4659,6 +4667,13 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	/* We don't handle early failures gracefully */
 	BUG_ON(IS_ERR(css));
 	init_and_link_css(css, ss, &cgrp_dfl_root.cgrp);
+	if (early) {
+		/* idr_alloc() can't be called safely during early init */
+		css->id = 1;
+	} else {
+		css->id = cgroup_idr_alloc(&ss->css_idr, css, 1, 2, GFP_KERNEL);
+		BUG_ON(css->id < 0);
+	}
 
 	/* Update the init_css_set to contain a subsys
 	 * pointer to this state - since the subsystem is
@@ -4709,7 +4724,7 @@ int __init cgroup_init_early(void)
 		ss->name = cgroup_subsys_name[i];
 
 		if (ss->early_init)
-			cgroup_init_subsys(ss);
+			cgroup_init_subsys(ss, true);
 	}
 	return 0;
 }
@@ -4741,8 +4756,16 @@ int __init cgroup_init(void)
 	mutex_unlock(&cgroup_tree_mutex);
 
 	for_each_subsys(ss, ssid) {
-		if (!ss->early_init)
-			cgroup_init_subsys(ss);
+		if (ss->early_init) {
+			struct cgroup_subsys_state *css =
+				init_css_set.subsys[ss->id];
+
+			css->id = cgroup_idr_alloc(&ss->css_idr, css, 1, 2,
+						   GFP_KERNEL);
+			BUG_ON(css->id < 0);
+		} else {
+			cgroup_init_subsys(ss, false);
+		}
 
 		list_add_tail(&init_css_set.e_cset_node[ssid],
 			      &cgrp_dfl_root.cgrp.e_csets[ssid]);
@@ -5196,14 +5219,8 @@ struct cgroup_subsys_state *css_tryget_from_dir(struct dentry *dentry,
  */
 struct cgroup_subsys_state *css_from_id(int id, struct cgroup_subsys *ss)
 {
-	struct cgroup *cgrp;
-
 	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	cgrp = idr_find(&ss->root->cgroup_idr, id);
-	if (cgrp)
-		return cgroup_css(cgrp, ss);
-	return NULL;
+	return idr_find(&ss->css_idr, id);
 }
 
 #ifdef CONFIG_CGROUP_DEBUG
