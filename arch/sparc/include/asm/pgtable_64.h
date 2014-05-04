@@ -918,7 +918,7 @@ static inline bool kern_addr_valid(unsigned long addr)
 
 	if ((paddr >> MAX_PHYS_ADDRESS_BITS) != 0UL)
 		return false;
-	return test_bit(paddr >> 22, sparc64_valid_addr_bitmap);
+	return test_bit(paddr >> ILOG2_4MB, sparc64_valid_addr_bitmap);
 }
 
 extern int page_in_phys_avail(unsigned long paddr);
