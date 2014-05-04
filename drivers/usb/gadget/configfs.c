@@ -793,7 +793,7 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 	ret = -EINVAL;
 
 	if (list_empty(&gi->cdev.configs)) {
-		pr_err("Need atleast one configuration in %s.\n",
+		pr_err("Need at least one configuration in %s.\n",
 				gi->composite.name);
 		goto err_comp_cleanup;
 	}
@@ -804,7 +804,7 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 
 		cfg = container_of(c, struct config_usb_cfg, c);
 		if (list_empty(&cfg->func_list)) {
-			pr_err("Config %s/%d of %s needs atleast one function.\n",
+			pr_err("Config %s/%d of %s needs at least one function.\n",
 			      c->label, c->bConfigurationValue,
 			      gi->composite.name);
 			goto err_comp_cleanup;
