@@ -351,7 +351,6 @@ struct pci9118_private {
 						 * divisors for start of measure
 						 * on external start
 						 */
-	unsigned int ai_data_len;
 	unsigned short ao_data[2];		/* data output buffer */
 	unsigned int ai_scans;			/* number of scans to do */
 	char dma_doublebuf;			/* we can use double buffering */
@@ -1035,10 +1034,8 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	}
 
 	if (samplesinbuf) {
-		m = devpriv->ai_data_len >> 1;	/*
-						 * how many samples is to
-						 * end of buffer
-						 */
+		/* how many samples is to end of buffer */
+		m = s->async->prealloc_bufsz >> 1;
 		sampls = m;
 		move_block_from_dma(dev, s,
 				    devpriv->dmabuf_virt[devpriv->dma_actbuf],
@@ -1335,7 +1332,8 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int Compute_and_setup_dma(struct comedi_device *dev)
+static int Compute_and_setup_dma(struct comedi_device *dev,
+				 struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int dmalen0, dmalen1, i;
@@ -1343,15 +1341,13 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 	dmalen0 = devpriv->dmabuf_size[0];
 	dmalen1 = devpriv->dmabuf_size[1];
 	/* isn't output buff smaller that our DMA buff? */
-	if (dmalen0 > (devpriv->ai_data_len)) {
-		dmalen0 = devpriv->ai_data_len & ~3L;	/*
-							 * align to 32bit down
-							 */
+	if (dmalen0 > s->async->prealloc_bufsz) {
+		/* align to 32bit down */
+		dmalen0 = s->async->prealloc_bufsz & ~3L;
 	}
-	if (dmalen1 > (devpriv->ai_data_len)) {
-		dmalen1 = devpriv->ai_data_len & ~3L;	/*
-							 * align to 32bit down
-							 */
+	if (dmalen1 > s->async->prealloc_bufsz) {
+		/* align to 32bit down */
+		dmalen1 = s->async->prealloc_bufsz & ~3L;
 	}
 
 	/* we want wake up every scan? */
@@ -1540,7 +1536,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 {
 	struct pci9118_private *devpriv = dev->private;
 
-	Compute_and_setup_dma(dev);
+	Compute_and_setup_dma(dev, s);
 
 	switch (devpriv->ai_do) {
 	case 1:
@@ -1616,7 +1612,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai12_startstop = 0;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_n_scanlen = cmd->scan_end_arg;
-	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
 	devpriv->ai_add_front = 0;
