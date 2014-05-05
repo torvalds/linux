@@ -326,7 +326,6 @@ struct pci9118_private {
 	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
 	unsigned int ai_act_scan;	/* how many scans we finished */
 	unsigned int ai_buf_ptr;	/* data buffer ptr in samples */
-	unsigned int ai_n_scanlen;	/* len of actual scanlist */
 	unsigned int ai_n_realscanlen;	/*
 					 * what we must transfer for one
 					 * outgoing scan include front/back adds
@@ -732,13 +731,14 @@ static int move_block_from_dma(struct comedi_device *dev,
 					unsigned int num_samples)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int num_bytes;
 
 	num_samples = defragment_dma_buffer(dev, s, dma_buffer, num_samples);
 	devpriv->ai_act_scan +=
-	    (s->async->cur_chan + num_samples) / devpriv->ai_n_scanlen;
+	    (s->async->cur_chan + num_samples) / cmd->scan_end_arg;
 	s->async->cur_chan += num_samples;
-	s->async->cur_chan %= devpriv->ai_n_scanlen;
+	s->async->cur_chan %= cmd->scan_end_arg;
 	num_bytes =
 	    cfc_write_array_to_buffer(s, dma_buffer,
 				      num_samples * sizeof(short));
@@ -948,6 +948,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 					   unsigned short int_daq)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short sampl;
 
 	if (int_adstat & devpriv->ai_maskerr)
@@ -972,9 +973,9 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 #endif
 	cfc_write_to_buffer(s, sampl);
 	s->async->cur_chan++;
-	if (s->async->cur_chan >= devpriv->ai_n_scanlen) {
+	if (s->async->cur_chan >= cmd->scan_end_arg) {
 							/* one scan done */
-		s->async->cur_chan %= devpriv->ai_n_scanlen;
+		s->async->cur_chan %= cmd->scan_end_arg;
 		devpriv->ai_act_scan++;
 		if (!devpriv->ai_neverending) {
 			/* all data sampled? */
@@ -1441,18 +1442,18 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 	devpriv->dmabuf_use_size[1] = dmalen1;
 
 #if 0
-	if (devpriv->ai_n_scanlen < this_board->half_fifo_size) {
+	if (cmd->scan_end_arg < this_board->half_fifo_size) {
 		devpriv->dmabuf_panic_size[0] =
-		    (this_board->half_fifo_size / devpriv->ai_n_scanlen +
-		     1) * devpriv->ai_n_scanlen * sizeof(short);
+		    (this_board->half_fifo_size / cmd->scan_end_arg +
+		     1) * cmd->scan_end_arg * sizeof(short);
 		devpriv->dmabuf_panic_size[1] =
-		    (this_board->half_fifo_size / devpriv->ai_n_scanlen +
-		     1) * devpriv->ai_n_scanlen * sizeof(short);
+		    (this_board->half_fifo_size / cmd->scan_end_arg +
+		     1) * cmd->scan_end_arg * sizeof(short);
 	} else {
 		devpriv->dmabuf_panic_size[0] =
-		    (devpriv->ai_n_scanlen << 1) % devpriv->dmabuf_size[0];
+		    (cmd->scan_end_arg << 1) % devpriv->dmabuf_size[0];
 		devpriv->dmabuf_panic_size[1] =
-		    (devpriv->ai_n_scanlen << 1) % devpriv->dmabuf_size[1];
+		    (cmd->scan_end_arg << 1) % devpriv->dmabuf_size[1];
 	}
 #endif
 
@@ -1609,7 +1610,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai12_startstop = 0;
 	devpriv->ai_flags = cmd->flags;
-	devpriv->ai_n_scanlen = cmd->scan_end_arg;
 	devpriv->ai_add_front = 0;
 	devpriv->ai_add_back = 0;
 	devpriv->ai_maskerr = 0x10e;
@@ -1658,7 +1658,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->master) {
 		devpriv->usedma = 1;
 		if ((cmd->flags & TRIG_WAKE_EOS) &&
-		    (devpriv->ai_n_scanlen == 1)) {
+		    (cmd->scan_end_arg == 1)) {
 			if (cmd->convert_src == TRIG_NOW)
 				devpriv->ai_add_back = 1;
 			if (cmd->convert_src == TRIG_TIMER) {
@@ -1670,8 +1670,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			}
 		}
 		if ((cmd->flags & TRIG_WAKE_EOS) &&
-		    (devpriv->ai_n_scanlen & 1) &&
-		    (devpriv->ai_n_scanlen > 1)) {
+		    (cmd->scan_end_arg & 1) &&
+		    (cmd->scan_end_arg > 1)) {
 			if (cmd->scan_begin_src == TRIG_FOLLOW) {
 				/*
 				 * vpriv->useeoshandle=1; // change DMA transfer
@@ -1722,10 +1722,10 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* well, we now know what must be all added */
 	devpriv->ai_n_realscanlen =	/*
 					 * what we must take from card in real
-					 * to have ai_n_scanlen on output?
+					 * to have cmd->scan_end_arg on output?
 					 */
 	    (devpriv->ai_add_front + cmd->chanlist_len +
-	     devpriv->ai_add_back) * (devpriv->ai_n_scanlen /
+	     devpriv->ai_add_back) * (cmd->scan_end_arg /
 				      cmd->chanlist_len);
 
 	/* check and setup channel list */
