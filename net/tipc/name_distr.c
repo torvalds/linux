@@ -135,18 +135,18 @@ void named_cluster_distribute(struct sk_buff *buf)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
-		spin_lock_bh(&n_ptr->lock);
+		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->active_links[n_ptr->addr & 1];
 		if (l_ptr) {
 			buf_copy = skb_copy(buf, GFP_ATOMIC);
 			if (!buf_copy) {
-				spin_unlock_bh(&n_ptr->lock);
+				tipc_node_unlock(n_ptr);
 				break;
 			}
 			msg_set_destnode(buf_msg(buf_copy), n_ptr->addr);
 			__tipc_link_xmit(l_ptr, buf_copy);
 		}
-		spin_unlock_bh(&n_ptr->lock);
+		tipc_node_unlock(n_ptr);
 	}
 	rcu_read_unlock();
 

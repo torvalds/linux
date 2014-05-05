@@ -297,14 +297,14 @@ void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
-		spin_lock_bh(&n_ptr->lock);
+		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->links[bearer_id];
 		if (l_ptr) {
 			tipc_link_reset(l_ptr);
 			if (shutting_down || !tipc_node_is_up(n_ptr)) {
 				tipc_node_detach_link(l_ptr->owner, l_ptr);
 				tipc_link_reset_fragments(l_ptr);
-				spin_unlock_bh(&n_ptr->lock);
+				tipc_node_unlock(n_ptr);
 
 				/* Nobody else can access this link now: */
 				del_timer_sync(&l_ptr->timer);
@@ -312,12 +312,12 @@ void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down)
 			} else {
 				/* Detach/delete when failover is finished: */
 				l_ptr->flags |= LINK_STOPPED;
-				spin_unlock_bh(&n_ptr->lock);
+				tipc_node_unlock(n_ptr);
 				del_timer_sync(&l_ptr->timer);
 			}
 			continue;
 		}
-		spin_unlock_bh(&n_ptr->lock);
+		tipc_node_unlock(n_ptr);
 	}
 	rcu_read_unlock();
 }
@@ -474,11 +474,11 @@ void tipc_link_reset_list(unsigned int bearer_id)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
-		spin_lock_bh(&n_ptr->lock);
+		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->links[bearer_id];
 		if (l_ptr)
 			tipc_link_reset(l_ptr);
-		spin_unlock_bh(&n_ptr->lock);
+		tipc_node_unlock(n_ptr);
 	}
 	rcu_read_unlock();
 }
