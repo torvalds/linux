@@ -145,6 +145,31 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 		}
 		break;
 	}
+
+	if (drm_detect_hdmi_monitor(radeon_connector->edid)) {
+		/* hdmi deep color only implemented on DCE4+ */
+		if ((bpc > 8) && !ASIC_IS_DCE4(rdev)) {
+			DRM_DEBUG("%s: HDMI deep color %d bpc unsupported. Using 8 bpc.\n",
+					  drm_get_connector_name(connector), bpc);
+			bpc = 8;
+		}
+
+		/*
+		 * Pre DCE-8 hw can't handle > 12 bpc, and more than 12 bpc doesn't make
+		 * much sense without support for > 12 bpc framebuffers. RGB 4:4:4 at
+		 * 12 bpc is always supported on hdmi deep color sinks, as this is
+		 * required by the HDMI-1.3 spec. Clamp to a safe 12 bpc maximum.
+		 */
+		if (bpc > 12) {
+			DRM_DEBUG("%s: HDMI deep color %d bpc unsupported. Using 12 bpc.\n",
+					  drm_get_connector_name(connector), bpc);
+			bpc = 12;
+		}
+	}
+
+	DRM_DEBUG("%s: Display bpc=%d, returned bpc=%d\n",
+			  drm_get_connector_name(connector), connector->display_info.bpc, bpc);
+
 	return bpc;
 }
 
