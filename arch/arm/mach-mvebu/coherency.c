@@ -33,6 +33,7 @@
 #include <asm/cacheflush.h>
 #include "armada-370-xp.h"
 #include "coherency.h"
+#include "mvebu-soc-id.h"
 
 unsigned long coherency_phys_base;
 void __iomem *coherency_base;
@@ -365,8 +366,13 @@ static int __init coherency_late_init(void)
 	if (type == COHERENCY_FABRIC_TYPE_NONE)
 		return 0;
 
-	if (type == COHERENCY_FABRIC_TYPE_ARMADA_375)
-		armada_375_coherency_init_wa();
+	if (type == COHERENCY_FABRIC_TYPE_ARMADA_375) {
+		u32 dev, rev;
+
+		if (mvebu_get_soc_id(&dev, &rev) == 0 &&
+		    rev == ARMADA_375_Z1_REV)
+			armada_375_coherency_init_wa();
+	}
 
 	bus_register_notifier(&platform_bus_type,
 			      &mvebu_hwcc_platform_nb);
