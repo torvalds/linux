@@ -275,6 +275,7 @@ config PINCTRL_ROCKCHIP
 	select PINMUX
 	select GENERIC_PINCONF
 	select GENERIC_IRQ_CHIP
+	select MFD_SYSCON
 
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
