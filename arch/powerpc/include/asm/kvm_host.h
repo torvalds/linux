@@ -562,6 +562,7 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_PPC_BOOK3S
 	ulong fault_dar;
 	u32 fault_dsisr;
+	unsigned long intr_msr;
 #endif
 
 #ifdef CONFIG_BOOKE
@@ -654,7 +655,6 @@ struct kvm_vcpu_arch {
 	spinlock_t tbacct_lock;
 	u64 busy_stolen;
 	u64 busy_preempt;
-	unsigned long intr_msr;
 #endif
 };
 

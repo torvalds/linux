@@ -249,7 +249,7 @@ static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
 	ulong smsr = vcpu->arch.shared->msr;
 
 	/* Guest MSR values */
-	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE;
+	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE | MSR_LE;
 	/* Process MSR values */
 	smsr |= MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_PR | MSR_EE;
 	/* External providers the guest reserved */
@@ -1110,12 +1110,29 @@ static int kvmppc_get_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_HIOR:
 		*val = get_reg_val(id, to_book3s(vcpu)->hior);
 		break;
+	case KVM_REG_PPC_LPCR:
+		/*
+		 * We are only interested in the LPCR_ILE bit
+		 */
+		if (vcpu->arch.intr_msr & MSR_LE)
+			*val = get_reg_val(id, LPCR_ILE);
+		else
+			*val = get_reg_val(id, 0);
+		break;
 	default:
 		r = -EINVAL;
 		break;
 	}
 
 	return r;
+}
+
+static void kvmppc_set_lpcr_pr(struct kvm_vcpu *vcpu, u64 new_lpcr)
+{
+	if (new_lpcr & LPCR_ILE)
+		vcpu->arch.intr_msr |= MSR_LE;
+	else
+		vcpu->arch.intr_msr &= ~MSR_LE;
 }
 
 static int kvmppc_set_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
@@ -1127,6 +1144,9 @@ static int kvmppc_set_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_HIOR:
 		to_book3s(vcpu)->hior = set_reg_val(id, *val);
 		to_book3s(vcpu)->hior_explicit = true;
+		break;
+	case KVM_REG_PPC_LPCR:
+		kvmppc_set_lpcr_pr(vcpu, set_reg_val(id, *val));
 		break;
 	default:
 		r = -EINVAL;
@@ -1180,6 +1200,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_pr(struct kvm *kvm,
 	vcpu->arch.pvr = 0x3C0301;
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		vcpu->arch.pvr = mfspr(SPRN_PVR);
+	vcpu->arch.intr_msr = MSR_SF;
 #else
 	/* default to book3s_32 (750) */
 	vcpu->arch.pvr = 0x84202;
