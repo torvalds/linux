@@ -173,6 +173,7 @@ static struct hlist_head *vport_hash_bucket(const struct datapath *dp,
 	return &dp->ports[port_no & (DP_VPORT_HASH_BUCKETS - 1)];
 }
 
+/* Called with ovs_mutex or RCU read lock. */
 struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no)
 {
 	struct vport *vport;
@@ -652,7 +653,7 @@ static size_t ovs_flow_cmd_msg_size(const struct sw_flow_actions *acts)
 		+ nla_total_size(acts->actions_len); /* OVS_FLOW_ATTR_ACTIONS */
 }
 
-/* Called with ovs_mutex. */
+/* Called with ovs_mutex or RCU read lock. */
 static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 				  struct sk_buff *skb, u32 portid,
 				  u32 seq, u32 flags, u8 cmd)
@@ -743,6 +744,7 @@ error:
 	return err;
 }
 
+/* Must be called with ovs_mutex. */
 static struct sk_buff *ovs_flow_cmd_alloc_info(struct sw_flow *flow,
 					       struct genl_info *info)
 {
@@ -753,6 +755,7 @@ static struct sk_buff *ovs_flow_cmd_alloc_info(struct sw_flow *flow,
 	return genlmsg_new_unicast(len, info, GFP_KERNEL);
 }
 
+/* Must be called with ovs_mutex. */
 static struct sk_buff *ovs_flow_cmd_build_info(struct sw_flow *flow,
 					       struct datapath *dp,
 					       struct genl_info *info,
@@ -1094,6 +1097,7 @@ static size_t ovs_dp_cmd_msg_size(void)
 	return msgsize;
 }
 
+/* Called with ovs_mutex or RCU read lock. */
 static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 				u32 portid, u32 seq, u32 flags, u8 cmd)
 {
@@ -1109,9 +1113,7 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 
 	ovs_header->dp_ifindex = get_dpifindex(dp);
 
-	rcu_read_lock();
 	err = nla_put_string(skb, OVS_DP_ATTR_NAME, ovs_dp_name(dp));
-	rcu_read_unlock();
 	if (err)
 		goto nla_put_failure;
 
@@ -1136,6 +1138,7 @@ error:
 	return -EMSGSIZE;
 }
 
+/* Must be called with ovs_mutex. */
 static struct sk_buff *ovs_dp_cmd_build_info(struct datapath *dp,
 					     struct genl_info *info, u8 cmd)
 {
@@ -1154,7 +1157,7 @@ static struct sk_buff *ovs_dp_cmd_build_info(struct datapath *dp,
 	return skb;
 }
 
-/* Called with ovs_mutex. */
+/* Called with rcu_read_lock or ovs_mutex. */
 static struct datapath *lookup_datapath(struct net *net,
 					struct ovs_header *ovs_header,
 					struct nlattr *a[OVS_DP_ATTR_MAX + 1])
@@ -1166,10 +1169,8 @@ static struct datapath *lookup_datapath(struct net *net,
 	else {
 		struct vport *vport;
 
-		rcu_read_lock();
 		vport = ovs_vport_locate(net, nla_data(a[OVS_DP_ATTR_NAME]));
 		dp = vport && vport->port_no == OVSP_LOCAL ? vport->dp : NULL;
-		rcu_read_unlock();
 	}
 	return dp ? dp : ERR_PTR(-ENODEV);
 }
