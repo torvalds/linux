@@ -110,6 +110,7 @@ struct cpufreq_policy {
 	bool			transition_ongoing; /* Tracks transition status */
 	spinlock_t		transition_lock;
 	wait_queue_head_t	transition_wait;
+	struct task_struct	*transition_task; /* Task which is doing the transition */
 };
 
 /* Only for ACPI */

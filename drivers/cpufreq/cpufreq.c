@@ -365,6 +365,18 @@ static void cpufreq_notify_post_transition(struct cpufreq_policy *policy,
 void cpufreq_freq_transition_begin(struct cpufreq_policy *policy,
 		struct cpufreq_freqs *freqs)
 {
+
+	/*
+	 * Catch double invocations of _begin() which lead to self-deadlock.
+	 * ASYNC_NOTIFICATION drivers are left out because the cpufreq core
+	 * doesn't invoke _begin() on their behalf, and hence the chances of
+	 * double invocations are very low. Moreover, there are scenarios
+	 * where these checks can emit false-positive warnings in these
+	 * drivers; so we avoid that by skipping them altogether.
+	 */
+	WARN_ON(!(cpufreq_driver->flags & CPUFREQ_ASYNC_NOTIFICATION)
+				&& current == policy->transition_task);
+
 wait:
 	wait_event(policy->transition_wait, !policy->transition_ongoing);
 
@@ -376,6 +388,7 @@ wait:
 	}
 
 	policy->transition_ongoing = true;
+	policy->transition_task = current;
 
 	spin_unlock(&policy->transition_lock);
 
@@ -392,6 +405,7 @@ void cpufreq_freq_transition_end(struct cpufreq_policy *policy,
 	cpufreq_notify_post_transition(policy, freqs, transition_failed);
 
 	policy->transition_ongoing = false;
+	policy->transition_task = NULL;
 
 	wake_up(&policy->transition_wait);
 }
