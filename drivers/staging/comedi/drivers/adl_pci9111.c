@@ -458,18 +458,18 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pci9111_private_data *dev_private = dev->private;
-	struct comedi_cmd *async_cmd = &s->async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/*  Set channel scan limit */
 	/*  PCI9111 allows only scanning from channel 0 to channel n */
 	/*  TODO: handle the case of an external multiplexer */
 
-	if (async_cmd->chanlist_len > 1) {
-		outb(async_cmd->chanlist_len - 1,
+	if (cmd->chanlist_len > 1) {
+		outb(cmd->chanlist_len - 1,
 			dev->iobase + PCI9111_AI_CHANNEL_REG);
 		pci9111_autoscan_set(dev, true);
 	} else {
-		outb(CR_CHAN(async_cmd->chanlist[0]),
+		outb(CR_CHAN(cmd->chanlist[0]),
 			dev->iobase + PCI9111_AI_CHANNEL_REG);
 		pci9111_autoscan_set(dev, false);
 	}
@@ -477,20 +477,18 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	/*  Set gain */
 	/*  This is the same gain on every channel */
 
-	outb(CR_RANGE(async_cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
+	outb(CR_RANGE(cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
 		dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 	/* Set counter */
-	if (async_cmd->stop_src == TRIG_COUNT) {
-		dev_private->stop_counter =
-		    async_cmd->stop_arg * async_cmd->chanlist_len;
-	} else {	/* TRIG_NONE */
+	if (cmd->stop_src == TRIG_COUNT)
+		dev_private->stop_counter = cmd->stop_arg * cmd->chanlist_len;
+	else	/* TRIG_NONE */
 		dev_private->stop_counter = 0;
-	}
 
 	/*  Set timer pacer */
 	dev_private->scan_delay = 0;
-	if (async_cmd->convert_src == TRIG_TIMER) {
+	if (cmd->convert_src == TRIG_TIMER) {
 		pci9111_trigger_source_set(dev, software);
 		pci9111_timer_set(dev);
 		pci9111_fifo_reset(dev);
@@ -500,11 +498,9 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 		plx9050_interrupt_control(dev_private->lcr_io_base, true, true,
 					  false, true, true);
 
-		if (async_cmd->scan_begin_src == TRIG_TIMER) {
-			dev_private->scan_delay =
-				(async_cmd->scan_begin_arg /
-				 (async_cmd->convert_arg *
-				  async_cmd->chanlist_len)) - 1;
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			dev_private->scan_delay = (cmd->scan_begin_arg /
+				(cmd->convert_arg * cmd->chanlist_len)) - 1;
 		}
 	} else {	/* TRIG_EXT */
 		pci9111_trigger_source_set(dev, external);
@@ -517,7 +513,7 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	}
 
 	dev_private->stop_counter *= (1 + dev_private->scan_delay);
-	dev_private->chanlist_len = async_cmd->chanlist_len;
+	dev_private->chanlist_len = cmd->chanlist_len;
 	dev_private->chunk_counter = 0;
 	dev_private->chunk_num_samples =
 	    dev_private->chanlist_len * (1 + dev_private->scan_delay);
