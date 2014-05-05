@@ -553,11 +553,6 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	if (err < 0)
 		return err;
 
-	sch_tree_lock(sch);
-
-	if (tb[TCA_HHF_BACKLOG_LIMIT])
-		sch->limit = nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]);
-
 	if (tb[TCA_HHF_QUANTUM])
 		new_quantum = nla_get_u32(tb[TCA_HHF_QUANTUM]);
 
@@ -567,6 +562,12 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	non_hh_quantum = (u64)new_quantum * new_hhf_non_hh_weight;
 	if (non_hh_quantum > INT_MAX)
 		return -EINVAL;
+
+	sch_tree_lock(sch);
+
+	if (tb[TCA_HHF_BACKLOG_LIMIT])
+		sch->limit = nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]);
+
 	q->quantum = new_quantum;
 	q->hhf_non_hh_weight = new_hhf_non_hh_weight;
 

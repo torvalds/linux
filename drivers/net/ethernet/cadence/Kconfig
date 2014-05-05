@@ -4,7 +4,7 @@
 
 config NET_CADENCE
 	bool "Cadence devices"
-	depends on HAS_IOMEM && (ARM || AVR32 || COMPILE_TEST)
+	depends on HAS_IOMEM && (ARM || AVR32 || MICROBLAZE || COMPILE_TEST)
 	default y
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
@@ -30,7 +30,7 @@ config ARM_AT91_ETHER
 
 config MACB
 	tristate "Cadence MACB/GEM support"
-	depends on HAS_DMA && (PLATFORM_AT32AP || ARCH_AT91 || ARCH_PICOXCELL || ARCH_ZYNQ || COMPILE_TEST)
+	depends on HAS_DMA && (PLATFORM_AT32AP || ARCH_AT91 || ARCH_PICOXCELL || ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST)
 	select PHYLIB
 	---help---
 	  The Cadence MACB ethernet interface is found on many Atmel AT32 and

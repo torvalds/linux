@@ -754,10 +754,10 @@ static void mlx4_request_modules(struct mlx4_dev *dev)
 			has_eth_port = true;
 	}
 
-	if (has_ib_port || (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
-		request_module_nowait(IB_DRV_NAME);
 	if (has_eth_port)
 		request_module_nowait(EN_DRV_NAME);
+	if (has_ib_port || (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
+		request_module_nowait(IB_DRV_NAME);
 }
 
 /*
@@ -2440,7 +2440,8 @@ slave_start:
 	 * No return code for this call, just warn the user in case of PCI
 	 * express device capabilities are under-satisfied by the bus.
 	 */
-	mlx4_check_pcie_caps(dev);
+	if (!mlx4_is_slave(dev))
+		mlx4_check_pcie_caps(dev);
 
 	/* In master functions, the communication channel must be initialized
 	 * after obtaining its address from fw */

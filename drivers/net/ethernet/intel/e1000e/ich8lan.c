@@ -186,7 +186,7 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 {
 	u16 phy_reg = 0;
 	u32 phy_id = 0;
-	s32 ret_val;
+	s32 ret_val = 0;
 	u16 retry_count;
 	u32 mac_reg = 0;
 
@@ -217,11 +217,13 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 	/* In case the PHY needs to be in mdio slow mode,
 	 * set slow mode and try to get the PHY id again.
 	 */
-	hw->phy.ops.release(hw);
-	ret_val = e1000_set_mdio_slow_mode_hv(hw);
-	if (!ret_val)
-		ret_val = e1000e_get_phy_id(hw);
-	hw->phy.ops.acquire(hw);
+	if (hw->mac.type < e1000_pch_lpt) {
+		hw->phy.ops.release(hw);
+		ret_val = e1000_set_mdio_slow_mode_hv(hw);
+		if (!ret_val)
+			ret_val = e1000e_get_phy_id(hw);
+		hw->phy.ops.acquire(hw);
+	}
 
 	if (ret_val)
 		return false;
@@ -842,6 +844,17 @@ s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 		}
 	}
 
+	if (hw->phy.type == e1000_phy_82579) {
+		ret_val = e1000_read_emi_reg_locked(hw, I82579_LPI_PLL_SHUT,
+						    &data);
+		if (ret_val)
+			goto release;
+
+		data &= ~I82579_LPI_100_PLL_SHUT;
+		ret_val = e1000_write_emi_reg_locked(hw, I82579_LPI_PLL_SHUT,
+						     data);
+	}
+
 	/* R/Clr IEEE MMD 3.1 bits 11:10 - Tx/Rx LPI Received */
 	ret_val = e1000_read_emi_reg_locked(hw, pcs_status, &data);
 	if (ret_val)
@@ -1314,14 +1327,17 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			return ret_val;
 	}
 
-	/* When connected at 10Mbps half-duplex, 82579 parts are excessively
+	/* When connected at 10Mbps half-duplex, some parts are excessively
 	 * aggressive resulting in many collisions. To avoid this, increase
 	 * the IPG and reduce Rx latency in the PHY.
 	 */
-	if ((hw->mac.type == e1000_pch2lan) && link) {
+	if (((hw->mac.type == e1000_pch2lan) ||
+	     (hw->mac.type == e1000_pch_lpt)) && link) {
 		u32 reg;
 		reg = er32(STATUS);
 		if (!(reg & (E1000_STATUS_FD | E1000_STATUS_SPEED_MASK))) {
+			u16 emi_addr;
+
 			reg = er32(TIPG);
 			reg &= ~E1000_TIPG_IPGT_MASK;
 			reg |= 0xFF;
@@ -1332,8 +1348,12 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			if (ret_val)
 				return ret_val;
 
-			ret_val =
-			    e1000_write_emi_reg_locked(hw, I82579_RX_CONFIG, 0);
+			if (hw->mac.type == e1000_pch2lan)
+				emi_addr = I82579_RX_CONFIG;
+			else
+				emi_addr = I217_RX_CONFIG;
+
+			ret_val = e1000_write_emi_reg_locked(hw, emi_addr, 0);
 
 			hw->phy.ops.release(hw);
 
@@ -2493,51 +2513,44 @@ release:
  *  e1000_k1_gig_workaround_lv - K1 Si workaround
  *  @hw:   pointer to the HW structure
  *
- *  Workaround to set the K1 beacon duration for 82579 parts
+ *  Workaround to set the K1 beacon duration for 82579 parts in 10Mbps
+ *  Disable K1 in 1000Mbps and 100Mbps
  **/
 static s32 e1000_k1_workaround_lv(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 	u16 status_reg = 0;
-	u32 mac_reg;
-	u16 phy_reg;
 
 	if (hw->mac.type != e1000_pch2lan)
 		return 0;
 
-	/* Set K1 beacon duration based on 1Gbps speed or otherwise */
+	/* Set K1 beacon duration based on 10Mbs speed */
 	ret_val = e1e_rphy(hw, HV_M_STATUS, &status_reg);
 	if (ret_val)
 		return ret_val;
 
 	if ((status_reg & (HV_M_STATUS_LINK_UP | HV_M_STATUS_AUTONEG_COMPLETE))
 	    == (HV_M_STATUS_LINK_UP | HV_M_STATUS_AUTONEG_COMPLETE)) {
-		mac_reg = er32(FEXTNVM4);
-		mac_reg &= ~E1000_FEXTNVM4_BEACON_DURATION_MASK;
-
-		ret_val = e1e_rphy(hw, I82579_LPI_CTRL, &phy_reg);
-		if (ret_val)
-			return ret_val;
-
-		if (status_reg & HV_M_STATUS_SPEED_1000) {
+		if (status_reg &
+		    (HV_M_STATUS_SPEED_1000 | HV_M_STATUS_SPEED_100)) {
 			u16 pm_phy_reg;
 
-			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_8USEC;
-			phy_reg &= ~I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT;
-			/* LV 1G Packet drop issue wa  */
+			/* LV 1G/100 Packet drop issue wa  */
 			ret_val = e1e_rphy(hw, HV_PM_CTRL, &pm_phy_reg);
 			if (ret_val)
 				return ret_val;
-			pm_phy_reg &= ~HV_PM_CTRL_PLL_STOP_IN_K1_GIGA;
+			pm_phy_reg &= ~HV_PM_CTRL_K1_ENABLE;
 			ret_val = e1e_wphy(hw, HV_PM_CTRL, pm_phy_reg);
 			if (ret_val)
 				return ret_val;
 		} else {
+			u32 mac_reg;
+
+			mac_reg = er32(FEXTNVM4);
+			mac_reg &= ~E1000_FEXTNVM4_BEACON_DURATION_MASK;
 			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_16USEC;
-			phy_reg |= I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT;
+			ew32(FEXTNVM4, mac_reg);
 		}
-		ew32(FEXTNVM4, mac_reg);
-		ret_val = e1e_wphy(hw, I82579_LPI_CTRL, phy_reg);
 	}
 
 	return ret_val;

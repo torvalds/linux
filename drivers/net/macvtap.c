@@ -322,6 +322,15 @@ static rx_handler_result_t macvtap_handle_frame(struct sk_buff **pskb)
 			segs = nskb;
 		}
 	} else {
+		/* If we receive a partial checksum and the tap side
+		 * doesn't support checksum offload, compute the checksum.
+		 * Note: it doesn't matter which checksum feature to
+		 *        check, we either support them all or none.
+		 */
+		if (skb->ip_summed == CHECKSUM_PARTIAL &&
+		    !(features & NETIF_F_ALL_CSUM) &&
+		    skb_checksum_help(skb))
+			goto drop;
 		skb_queue_tail(&q->sk.sk_receive_queue, skb);
 	}
 

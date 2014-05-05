@@ -256,7 +256,6 @@ struct ixgbe_ring {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
 	};
-	unsigned long last_rx_timestamp;
 	unsigned long state;
 	u8 __iomem *tail;
 	dma_addr_t dma;			/* phys. address of descriptor ring */
@@ -770,6 +769,7 @@ struct ixgbe_adapter {
 	unsigned long ptp_tx_start;
 	unsigned long last_overflow_check;
 	unsigned long last_rx_ptp_check;
+	unsigned long last_rx_timestamp;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
@@ -944,24 +944,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_rx_hang(struct ixgbe_adapter *adapter);
-void __ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
-			     struct sk_buff *skb);
-static inline void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
-					 union ixgbe_adv_rx_desc *rx_desc,
-					 struct sk_buff *skb)
-{
-	if (unlikely(!ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS)))
-		return;
-
-	__ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, skb);
-
-	/*
-	 * Update the last_rx_timestamp timer in order to enable watchdog check
-	 * for error case of latched timestamp on a dropped packet.
-	 */
-	rx_ring->last_rx_timestamp = jiffies;
-}
-
+void ixgbe_ptp_rx_hwtstamp(struct ixgbe_adapter *adapter, struct sk_buff *skb);
 int ixgbe_ptp_set_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr);
 int ixgbe_ptp_get_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr);
 void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);

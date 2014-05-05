@@ -533,6 +533,9 @@ static int gfar_spauseparam(struct net_device *dev,
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 oldadv, newadv;
 
+	if (!phydev)
+		return -ENODEV;
+
 	if (!(phydev->supported & SUPPORTED_Pause) ||
 	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
 	     (epause->rx_pause != epause->tx_pause)))

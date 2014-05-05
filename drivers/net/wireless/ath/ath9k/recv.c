@@ -975,6 +975,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	u64 tsf = 0;
 	unsigned long flags;
 	dma_addr_t new_buf_addr;
+	unsigned int budget = 512;
 
 	if (edma)
 		dma_type = DMA_BIDIRECTIONAL;
@@ -1113,15 +1114,17 @@ requeue_drop_frag:
 		}
 requeue:
 		list_add_tail(&bf->list, &sc->rx.rxbuf);
-		if (flush)
-			continue;
 
 		if (edma) {
 			ath_rx_edma_buf_link(sc, qtype);
 		} else {
 			ath_rx_buf_relink(sc, bf);
-			ath9k_hw_rxena(ah);
+			if (!flush)
+				ath9k_hw_rxena(ah);
 		}
+
+		if (!budget--)
+			break;
 	} while (1);
 
 	if (!(ah->imask & ATH9K_INT_RXEOL)) {

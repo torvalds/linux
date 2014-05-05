@@ -765,6 +765,17 @@ void phy_state_machine(struct work_struct *work)
 			break;
 
 		if (phydev->link) {
+			if (AUTONEG_ENABLE == phydev->autoneg) {
+				err = phy_aneg_done(phydev);
+				if (err < 0)
+					break;
+
+				if (!err) {
+					phydev->state = PHY_AN;
+					phydev->link_timeout = PHY_AN_TIMEOUT;
+					break;
+				}
+			}
 			phydev->state = PHY_RUNNING;
 			netif_carrier_on(phydev->attached_dev);
 			phydev->adjust_link(phydev->attached_dev);
