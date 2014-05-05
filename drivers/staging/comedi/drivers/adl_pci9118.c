@@ -376,7 +376,6 @@ struct pci9118_private {
 					 * ptr to actual interrupt
 					 * AI function
 					 */
-	unsigned char ai16bits;		/* =1 16 bit card */
 	unsigned char usedma;		/* =1 use DMA transfer and not INT */
 	int softsshdelay;		/*
 					 * >0 use software S&H,
@@ -586,7 +585,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 			return ret;
 		}
 
-		if (devpriv->ai16bits) {
+		if (s->maxdata == 0xffff) {
 			data[n] =
 			    (inl(dev->iobase +
 				 PCI9118_AD_DATA) & 0xffff) ^ 0x8000;
@@ -908,7 +907,7 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 	for (i = 0; i < num_samples; i++) {
 		if (devpriv->usedma)
 			array[i] = be16_to_cpu(array[i]);
-		if (devpriv->ai16bits)
+		if (s->maxdata == 0xffff)
 			array[i] ^= 0x8000;
 		else
 			array[i] = (array[i] >> 4) & 0x0fff;
@@ -933,7 +932,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 	sampl = inw(dev->iobase + PCI9118_AD_DATA);
 
 #ifdef PCI9118_PARANOIDCHECK
-	if (devpriv->ai16bits == 0) {
+	if (s->maxdata != 0xffff) {
 		if ((sampl & 0x000f) != devpriv->chanlist[s->async->cur_chan]) {
 							/* data dropout! */
 			dev_info(dev->class_dev,
@@ -2016,15 +2015,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 					/* default measure crash condition */
 	if (hw_err_mask)		/* disable some requested */
 		devpriv->ai_maskharderr &= ~hw_err_mask;
-
-	switch (this_board->ai_maxdata) {
-	case 0xffff:
-		devpriv->ai16bits = 1;
-		break;
-	default:
-		devpriv->ai16bits = 0;
-		break;
-	}
 
 	return 0;
 }
