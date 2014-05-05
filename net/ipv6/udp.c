@@ -884,6 +884,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		int ret;
 
 		if (!uh->check && !sk->sk_no_check) {
+			sock_put(sk);
 			udp6_csum_zero_error(skb);
 			goto csum_error;
 		}
