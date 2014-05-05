@@ -368,7 +368,6 @@ struct pci9118_private {
 						 * bit field of external trigger
 						 * users(0-AI, 1-AO, 2-DI, 3-DO)
 						 */
-	unsigned int cnt0_divisor;		/* actual CNT0 divisor */
 	unsigned char usedma;		/* =1 use DMA transfer and not INT */
 	int softsshdelay;		/*
 					 * >0 use software S&H,
