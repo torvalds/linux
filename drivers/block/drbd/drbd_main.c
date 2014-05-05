@@ -2982,22 +2982,27 @@ void drbd_free_ldev(struct drbd_backing_dev *ldev)
 	kfree(ldev);
 }
 
+static void drbd_free_one_sock(struct drbd_socket *ds)
+{
+	struct socket *s;
+	mutex_lock(&ds->mutex);
+	s = ds->socket;
+	ds->socket = NULL;
+	mutex_unlock(&ds->mutex);
+	if (s) {
+		/* so debugfs does not need to mutex_lock() */
+		synchronize_rcu();
+		kernel_sock_shutdown(s, SHUT_RDWR);
+		sock_release(s);
+	}
+}
+
 void drbd_free_sock(struct drbd_connection *connection)
 {
-	if (connection->data.socket) {
-		mutex_lock(&connection->data.mutex);
-		kernel_sock_shutdown(connection->data.socket, SHUT_RDWR);
-		sock_release(connection->data.socket);
-		connection->data.socket = NULL;
-		mutex_unlock(&connection->data.mutex);
-	}
-	if (connection->meta.socket) {
-		mutex_lock(&connection->meta.mutex);
-		kernel_sock_shutdown(connection->meta.socket, SHUT_RDWR);
-		sock_release(connection->meta.socket);
-		connection->meta.socket = NULL;
-		mutex_unlock(&connection->meta.mutex);
-	}
+	if (connection->data.socket)
+		drbd_free_one_sock(&connection->data);
+	if (connection->meta.socket)
+		drbd_free_one_sock(&connection->meta);
 }
 
 /* meta data management */

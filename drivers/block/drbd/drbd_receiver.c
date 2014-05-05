@@ -1187,8 +1187,16 @@ static void drbd_flush(struct drbd_connection *connection)
 			kref_get(&device->kref);
 			rcu_read_unlock();
 
+			/* Right now, we have only this one synchronous code path
+			 * for flushes between request epochs.
+			 * We may want to make those asynchronous,
+			 * or at least parallelize the flushes to the volume devices.
+			 */
+			device->flush_jif = jiffies;
+			set_bit(FLUSH_PENDING, &device->flags);
 			rv = blkdev_issue_flush(device->ldev->backing_bdev,
 					GFP_NOIO, NULL);
+			clear_bit(FLUSH_PENDING, &device->flags);
 			if (rv) {
 				drbd_info(device, "local disk flush failed with status %d\n", rv);
 				/* would rather check on EOPNOTSUPP, but that is not reliable.
