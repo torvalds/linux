@@ -62,6 +62,15 @@
 
 int ovs_net_id __read_mostly;
 
+/* Check if need to build a reply message.
+ * OVS userspace sets the NLM_F_ECHO flag if it needs the reply. */
+static bool ovs_must_notify(struct genl_info *info,
+			    const struct genl_multicast_group *grp)
+{
+	return info->nlhdr->nlmsg_flags & NLM_F_ECHO ||
+		netlink_has_listeners(genl_info_net(info)->genl_sock, 0);
+}
+
 static void ovs_notify(struct genl_family *family,
 		       struct sk_buff *skb, struct genl_info *info)
 {
@@ -746,27 +755,36 @@ error:
 
 /* Must be called with ovs_mutex. */
 static struct sk_buff *ovs_flow_cmd_alloc_info(struct sw_flow *flow,
-					       struct genl_info *info)
+					       struct genl_info *info,
+					       bool always)
 {
+	struct sk_buff *skb;
 	size_t len;
+
+	if (!always && !ovs_must_notify(info, &ovs_dp_flow_multicast_group))
+		return NULL;
 
 	len = ovs_flow_cmd_msg_size(ovsl_dereference(flow->sf_acts));
 
-	return genlmsg_new_unicast(len, info, GFP_KERNEL);
+	skb = genlmsg_new_unicast(len, info, GFP_KERNEL);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	return skb;
 }
 
 /* Must be called with ovs_mutex. */
 static struct sk_buff *ovs_flow_cmd_build_info(struct sw_flow *flow,
 					       struct datapath *dp,
 					       struct genl_info *info,
-					       u8 cmd)
+					       u8 cmd, bool always)
 {
 	struct sk_buff *skb;
 	int retval;
 
-	skb = ovs_flow_cmd_alloc_info(flow, info);
-	if (!skb)
-		return ERR_PTR(-ENOMEM);
+	skb = ovs_flow_cmd_alloc_info(flow, info, always);
+	if (!skb || IS_ERR(skb))
+		return skb;
 
 	retval = ovs_flow_cmd_fill_info(flow, dp, skb, info->snd_portid,
 					info->snd_seq, 0, cmd);
@@ -850,7 +868,8 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 			goto err_flow_free;
 		}
 
-		reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
+		reply = ovs_flow_cmd_build_info(flow, dp, info,
+						OVS_FLOW_CMD_NEW, false);
 	} else {
 		/* We found a matching flow. */
 		/* Bail out if we're not allowed to modify an existing flow.
@@ -876,7 +895,8 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 			rcu_assign_pointer(flow->sf_acts, acts);
 			ovs_nla_free_flow_actions(old_acts);
 		}
-		reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
+		reply = ovs_flow_cmd_build_info(flow, dp, info,
+						OVS_FLOW_CMD_NEW, false);
 
 		/* Clear stats. */
 		if (a[OVS_FLOW_ATTR_CLEAR])
@@ -884,11 +904,14 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 	}
 	ovs_unlock();
 
-	if (!IS_ERR(reply))
-		ovs_notify(&dp_flow_genl_family, reply, info);
-	else
-		genl_set_err(&dp_flow_genl_family, sock_net(skb->sk), 0,
-			     0, PTR_ERR(reply));
+	if (reply) {
+		if (!IS_ERR(reply))
+			ovs_notify(&dp_flow_genl_family, reply, info);
+		else
+			genl_set_err(&dp_flow_genl_family, sock_net(skb->sk), 0,
+				     0, PTR_ERR(reply));
+	}
+
 	return 0;
 
 err_flow_free:
@@ -935,7 +958,7 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
-	reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
+	reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW, true);
 	if (IS_ERR(reply)) {
 		err = PTR_ERR(reply);
 		goto unlock;
@@ -982,22 +1005,25 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
-	reply = ovs_flow_cmd_alloc_info(flow, info);
-	if (!reply) {
-		err = -ENOMEM;
+	reply = ovs_flow_cmd_alloc_info(flow, info, false);
+	if (IS_ERR(reply)) {
+		err = PTR_ERR(reply);
 		goto unlock;
 	}
 
 	ovs_flow_tbl_remove(&dp->table, flow);
 
-	err = ovs_flow_cmd_fill_info(flow, dp, reply, info->snd_portid,
-				     info->snd_seq, 0, OVS_FLOW_CMD_DEL);
-	BUG_ON(err < 0);
-
+	if (reply) {
+		err = ovs_flow_cmd_fill_info(flow, dp, reply, info->snd_portid,
+					     info->snd_seq, 0,
+					     OVS_FLOW_CMD_DEL);
+		BUG_ON(err < 0);
+	}
 	ovs_flow_free(flow, true);
 	ovs_unlock();
 
-	ovs_notify(&dp_flow_genl_family, reply, info);
+	if (reply)
+		ovs_notify(&dp_flow_genl_family, reply, info);
 	return 0;
 unlock:
 	ovs_unlock();
