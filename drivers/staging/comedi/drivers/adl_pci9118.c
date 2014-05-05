@@ -326,7 +326,6 @@ struct pci9118_private {
 	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
 	unsigned int ai_act_scan;	/* how many scans we finished */
 	unsigned int ai_buf_ptr;	/* data buffer ptr in samples */
-	unsigned int ai_n_chan;		/* how many channels is measured */
 	unsigned int ai_n_scanlen;	/* len of actual scanlist */
 	unsigned int ai_n_realscanlen;	/*
 					 * what we must transfer for one
@@ -712,10 +711,11 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 					  unsigned int num_samples)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int i = 0, j = 0;
 	unsigned int start_pos = devpriv->ai_add_front,
-	    stop_pos = devpriv->ai_add_front + devpriv->ai_n_chan;
-	unsigned int raw_scanlen = devpriv->ai_add_front + devpriv->ai_n_chan +
+	    stop_pos = devpriv->ai_add_front + cmd->chanlist_len;
+	unsigned int raw_scanlen = devpriv->ai_add_front + cmd->chanlist_len +
 	    devpriv->ai_add_back;
 
 	for (i = 0; i < num_samples; i++) {
@@ -1616,7 +1616,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai12_startstop = 0;
 	devpriv->ai_flags = cmd->flags;
-	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_n_scanlen = cmd->scan_end_arg;
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
@@ -1725,7 +1724,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			devpriv->ai_add_front = addchans + 1;
 			if (devpriv->usedma == 1)
 				if ((devpriv->ai_add_front +
-				     devpriv->ai_n_chan +
+				     cmd->chanlist_len +
 				     devpriv->ai_add_back) & 1)
 					devpriv->ai_add_front++;
 							/* round up to 32 bit */
@@ -1736,16 +1735,16 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					 * what we must take from card in real
 					 * to have ai_n_scanlen on output?
 					 */
-	    (devpriv->ai_add_front + devpriv->ai_n_chan +
+	    (devpriv->ai_add_front + cmd->chanlist_len +
 	     devpriv->ai_add_back) * (devpriv->ai_n_scanlen /
-				      devpriv->ai_n_chan);
+				      cmd->chanlist_len);
 
 	/* check and setup channel list */
-	if (!check_channel_list(dev, s, devpriv->ai_n_chan,
+	if (!check_channel_list(dev, s, cmd->chanlist_len,
 				devpriv->ai_chanlist, devpriv->ai_add_front,
 				devpriv->ai_add_back))
 		return -EINVAL;
-	if (!setup_channel_list(dev, s, devpriv->ai_n_chan,
+	if (!setup_channel_list(dev, s, cmd->chanlist_len,
 				devpriv->ai_chanlist, 0, devpriv->ai_add_front,
 				devpriv->ai_add_back, devpriv->usedma,
 				devpriv->useeoshandle))
