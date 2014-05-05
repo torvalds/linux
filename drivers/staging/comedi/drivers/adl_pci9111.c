@@ -139,7 +139,6 @@ struct pci9111_private_data {
 	int stop_counter;
 
 	unsigned int scan_delay;
-	unsigned int chanlist_len;
 	unsigned int chunk_counter;
 	unsigned int chunk_num_samples;
 
@@ -513,10 +512,9 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	}
 
 	dev_private->stop_counter *= (1 + dev_private->scan_delay);
-	dev_private->chanlist_len = cmd->chanlist_len;
 	dev_private->chunk_counter = 0;
-	dev_private->chunk_num_samples =
-	    dev_private->chanlist_len * (1 + dev_private->scan_delay);
+	dev_private->chunk_num_samples = cmd->chanlist_len *
+					 (1 + dev_private->scan_delay);
 
 	return 0;
 }
@@ -612,9 +610,8 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 
 				while (position < num_samples) {
 					if (dev_private->chunk_counter <
-					    dev_private->chanlist_len) {
-						to_read =
-						    dev_private->chanlist_len -
+					    cmd->chanlist_len) {
+						to_read = cmd->chanlist_len -
 						    dev_private->chunk_counter;
 
 						if (to_read >
