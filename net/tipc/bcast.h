@@ -81,7 +81,7 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a,
 void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port);
 void tipc_port_list_free(struct tipc_port_list *pl_ptr);
 
-void tipc_bclink_init(void);
+int tipc_bclink_init(void);
 void tipc_bclink_stop(void);
 void tipc_bclink_add_node(u32 addr);
 void tipc_bclink_remove_node(u32 addr);

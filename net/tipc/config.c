@@ -177,8 +177,10 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
-	tipc_net_start(addr);
-	return tipc_cfg_reply_none();
+	if (!tipc_net_start(addr))
+		return tipc_cfg_reply_none();
+
+	return tipc_cfg_reply_error_string("cannot change to network mode");
 }
 
 static struct sk_buff *cfg_set_max_ports(void)

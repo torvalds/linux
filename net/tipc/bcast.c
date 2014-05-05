@@ -100,12 +100,9 @@ struct tipc_bclink {
 	struct tipc_node *retransmit_to;
 };
 
-static struct tipc_bcbearer bcast_bearer;
-static struct tipc_bclink bcast_link;
-
-static struct tipc_bcbearer *bcbearer = &bcast_bearer;
-static struct tipc_bclink *bclink = &bcast_link;
-static struct tipc_link *bcl = &bcast_link.link;
+static struct tipc_bcbearer *bcbearer;
+static struct tipc_bclink *bclink;
+static struct tipc_link *bcl;
 
 const char tipc_bclink_name[] = "broadcast-link";
 
@@ -788,8 +785,19 @@ int tipc_bclink_set_queue_limits(u32 limit)
 	return 0;
 }
 
-void tipc_bclink_init(void)
+int tipc_bclink_init(void)
 {
+	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
+	if (!bcbearer)
+		return -ENOMEM;
+
+	bclink = kzalloc(sizeof(*bclink), GFP_ATOMIC);
+	if (!bclink) {
+		kfree(bcbearer);
+		return -ENOMEM;
+	}
+
+	bcl = &bclink->link;
 	bcbearer->bearer.media = &bcbearer->media;
 	bcbearer->media.send_msg = tipc_bcbearer_send;
 	sprintf(bcbearer->media.name, "tipc-broadcast");
@@ -805,6 +813,7 @@ void tipc_bclink_init(void)
 	rcu_assign_pointer(bearer_list[MAX_BEARERS], &bcbearer->bearer);
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
+	return 0;
 }
 
 void tipc_bclink_stop(void)
@@ -814,8 +823,9 @@ void tipc_bclink_stop(void)
 	tipc_bclink_unlock();
 
 	RCU_INIT_POINTER(bearer_list[BCBEARER], NULL);
-	memset(bclink, 0, sizeof(*bclink));
-	memset(bcbearer, 0, sizeof(*bcbearer));
+	synchronize_net();
+	kfree(bcbearer);
+	kfree(bclink);
 }
 
 /**
