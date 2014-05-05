@@ -442,13 +442,49 @@ static int default_fault_handler(struct device *dev,
 
 	return 0;
 }
-static void dump_pagetbl(u32 fault_address,unsigned long addr_dte)
+static void dump_pagetbl(u32 fault_address,u32 addr_dte)
 {
+#if 0
 	u32  offset1;
 	u32  offset2;
 	u32 *level2_base;
 	u32 *level1_entry;
 	u32 *level2_entry;
+#endif
+	#if 1
+	u32 lv1_offset;
+	u32 lv2_offset;
+	
+	u32 *lv1_entry_pa;
+	u32 *lv1_entry_va;
+	u32 *lv1_entry_value;
+	
+	u32 *lv2_base;
+	u32 *lv2_entry_pa;
+	u32 *lv2_entry_va;
+	u32 *lv2_entry_value;
+
+	
+	lv1_offset = lv1ent_offset(fault_address);
+	lv2_offset = lv2ent_offset(fault_address);
+	
+	lv1_entry_pa = (u32 *)addr_dte + lv1_offset;
+	lv1_entry_va = (u32 *)(__va(addr_dte)) + lv1_offset;
+	lv1_entry_value = (u32 *)(*lv1_entry_va);
+	
+	lv2_base = (u32 *)((*lv1_entry_va) & 0xfffffffe);
+	lv2_entry_pa = (u32 * )lv2_base + lv2_offset;
+	lv2_entry_va = (u32 * )(__va(lv2_base)) + lv2_offset;
+	lv2_entry_value = (u32 *)(*lv2_entry_va);
+	
+	pr_info("fault address = 0x%08x,dte addr pa = 0x%08x,va = 0x%08x\n",fault_address,addr_dte,(u32)__va(addr_dte));
+	pr_info("lv1_offset = 0x%x,lv1_entry_pa = 0x%08x,lv1_entry_va = 0x%08x\n",lv1_offset,(u32)lv1_entry_pa,(u32)lv1_entry_va);
+	pr_info("lv1_entry_value(*lv1_entry_va) = 0x%08x,lv2_base = 0x%08x\n",(u32)lv1_entry_value,(u32)lv2_base);
+	pr_info("lv2_offset = 0x%x,lv2_entry_pa = 0x%08x,lv2_entry_va = 0x%08x\n",lv2_offset,(u32)lv2_entry_pa,(u32)lv2_entry_va);
+	pr_info("lv2_entry value(*lv2_entry_va) = 0x%08x\n",(u32)lv2_entry_value);
+	
+	#endif
+#if 0
 	offset1 = lv1ent_offset(fault_address);
 	offset2 = lv2ent_offset(fault_address);
 	level1_entry = (u32 *)__va(addr_dte)+offset1;
@@ -457,6 +493,7 @@ static void dump_pagetbl(u32 fault_address,unsigned long addr_dte)
 	pr_info("level1 offset=%d,level2 offset=%d,level1_entry=0x%08x\n",offset1,offset2,(u32)level1_entry);
 	pr_info("*level1_entry = 0x%08x\n",*level1_entry);
 	pr_info("*level2_entry = 0x%08x\n",*level2_entry);
+#endif
 
 }
 static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
@@ -963,6 +1000,37 @@ again:
 	return num_resources;
 }
 
+static struct kobject *dump_mmu_object;
+
+static int dump_mmu_pagetbl(struct device *dev,struct device_attribute *attr, const char *buf,u32 count)
+{
+	u32 fault_address;
+	u32 iommu_dte ;
+	u32 mmu_base;
+	void __iomem *base;
+	u32 ret;
+	ret = kstrtouint(buf,0,&mmu_base);
+	if (ret)
+		printk("%s is not in hexdecimal form.\n", buf);
+	base = ioremap(mmu_base, 0x100);
+	iommu_dte = __raw_readl(base + SYSMMU_REGISTER_DTE_ADDR);
+	fault_address = __raw_readl(base + SYSMMU_REGISTER_PAGE_FAULT_ADDR);
+	dump_pagetbl(fault_address,iommu_dte);
+	return count;
+}
+static DEVICE_ATTR(dump_mmu_pgtable, 0644, NULL, dump_mmu_pagetbl);
+
+void dump_iommu_sysfs_init(void )
+{
+	dump_mmu_object = kobject_create_and_add("rk_iommu", NULL);
+	if (dump_mmu_object == NULL)
+		return;
+	sysfs_create_file(dump_mmu_object, &dev_attr_dump_mmu_pgtable.attr);
+	return;
+}
+	
+
+
 static int rockchip_sysmmu_probe(struct platform_device *pdev)
 {
 	int i, ret;
@@ -1139,6 +1207,8 @@ module_platform_driver(rk_sysmmu_driver);
 #endif
 static int __init rockchip_sysmmu_init_driver(void)
 {
+	dump_iommu_sysfs_init();
+
 	return platform_driver_register(&rk_sysmmu_driver);
 }
 
