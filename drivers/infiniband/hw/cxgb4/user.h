@@ -75,5 +75,6 @@ struct c4iw_create_qp_resp {
 struct c4iw_alloc_ucontext_resp {
 	__u64 status_page_key;
 	__u32 status_page_size;
+	__u32 reserved; /* explicit padding (optional for i386) */
 };
 #endif

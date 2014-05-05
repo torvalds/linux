@@ -122,7 +122,7 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 	INIT_LIST_HEAD(&context->mmaps);
 	spin_lock_init(&context->mmap_lock);
 
-	if (udata->outlen < sizeof(uresp)) {
+	if (udata->outlen < sizeof(uresp) - sizeof(uresp.reserved)) {
 		if (!warned++)
 			pr_err(MOD "Warning - downlevel libcxgb4 (non-fatal), device status page disabled.");
 		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
@@ -140,7 +140,8 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 		context->key += PAGE_SIZE;
 		spin_unlock(&context->mmap_lock);
 
-		ret = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		ret = ib_copy_to_udata(udata, &uresp,
+				       sizeof(uresp) - sizeof(uresp.reserved));
 		if (ret)
 			goto err_mm;
 
