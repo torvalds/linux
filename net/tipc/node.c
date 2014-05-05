@@ -321,10 +321,10 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	}
 
 	/* Notify subscribers */
-	tipc_nodesub_notify(n_ptr);
+	n_ptr->flags = TIPC_NODE_LOST;
 
 	/* Prevent re-contact with node until cleanup is done */
-	n_ptr->flags = TIPC_NODE_DOWN | TIPC_NAMES_GONE;
+	n_ptr->flags |= TIPC_NODE_DOWN | TIPC_NAMES_GONE;
 	tipc_k_signal((Handler)node_name_purge_complete, n_ptr->addr);
 }
 
@@ -464,4 +464,23 @@ int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
 	}
 	tipc_node_unlock(node);
 	return -EINVAL;
+}
+
+void tipc_node_unlock(struct tipc_node *node)
+{
+	LIST_HEAD(nsub_list);
+
+	if (likely(!node->flags)) {
+		spin_unlock_bh(&node->lock);
+		return;
+	}
+
+	if (node->flags & TIPC_NODE_LOST) {
+		list_replace_init(&node->nsub, &nsub_list);
+		node->flags &= ~TIPC_NODE_LOST;
+	}
+	spin_unlock_bh(&node->lock);
+
+	if (!list_empty(&nsub_list))
+		tipc_nodesub_notify(&nsub_list);
 }

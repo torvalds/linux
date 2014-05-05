@@ -51,11 +51,14 @@
  * TIPC_NODE_DOWN: indicate node is down
  * TIPC_NAMES_GONE: indicate the node's publications are purged
  * TIPC_NODE_RESET: indicate node is reset
+ * TIPC_NODE_LOST: indicate node is lost and it's used to notify subscriptions
+ *                 when node lock is released
  */
 enum {
 	TIPC_NODE_DOWN	= (1 << 1),
 	TIPC_NAMES_GONE	= (1 << 2),
-	TIPC_NODE_RESET	= (1 << 3)
+	TIPC_NODE_RESET	= (1 << 3),
+	TIPC_NODE_LOST	= (1 << 4)
 };
 
 /**
@@ -130,15 +133,11 @@ int tipc_node_is_up(struct tipc_node *n_ptr);
 struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space);
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space);
 int tipc_node_get_linkname(u32 bearer_id, u32 node, char *linkname, size_t len);
+void tipc_node_unlock(struct tipc_node *node);
 
-static inline void tipc_node_lock(struct tipc_node *n_ptr)
+static inline void tipc_node_lock(struct tipc_node *node)
 {
-	spin_lock_bh(&n_ptr->lock);
-}
-
-static inline void tipc_node_unlock(struct tipc_node *n_ptr)
-{
-	spin_unlock_bh(&n_ptr->lock);
+	spin_lock_bh(&node->lock);
 }
 
 static inline bool tipc_node_blocked(struct tipc_node *node)
