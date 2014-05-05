@@ -1495,14 +1495,14 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			goto unlock_discard;
 
 		/* Verify that communication with node is currently allowed */
-		if ((n_ptr->block_setup & WAIT_PEER_DOWN) &&
-			msg_user(msg) == LINK_PROTOCOL &&
-			(msg_type(msg) == RESET_MSG ||
-			 msg_type(msg) == ACTIVATE_MSG) &&
-			!msg_redundant_link(msg))
-			n_ptr->block_setup &= ~WAIT_PEER_DOWN;
+		if ((n_ptr->flags & TIPC_NODE_DOWN) &&
+		    msg_user(msg) == LINK_PROTOCOL &&
+		    (msg_type(msg) == RESET_MSG ||
+		    msg_type(msg) == ACTIVATE_MSG) &&
+		    !msg_redundant_link(msg))
+			n_ptr->flags &= ~TIPC_NODE_DOWN;
 
-		if (n_ptr->block_setup)
+		if (tipc_node_blocked(n_ptr))
 			goto unlock_discard;
 
 		/* Validate message sequence number info */
@@ -1744,7 +1744,7 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 		return;
 
 	/* Abort non-RESET send if communication with node is prohibited */
-	if ((l_ptr->owner->block_setup) && (msg_typ != RESET_MSG))
+	if ((tipc_node_blocked(l_ptr->owner)) && (msg_typ != RESET_MSG))
 		return;
 
 	/* Create protocol message with "out-of-sequence" sequence number */
@@ -1859,7 +1859,7 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr, struct sk_buff *buf)
 			 * peer has lost contact -- don't allow peer's links
 			 * to reactivate before we recognize loss & clean up
 			 */
-			l_ptr->owner->block_setup = WAIT_NODE_DOWN;
+			l_ptr->owner->flags = TIPC_NODE_RESET;
 		}
 
 		link_state_event(l_ptr, RESET_MSG);

@@ -47,10 +47,16 @@
  */
 #define INVALID_NODE_SIG 0x10000
 
-/* Flags used to block (re)establishment of contact with a neighboring node */
-#define WAIT_PEER_DOWN	0x0001	/* wait to see that peer's links are down */
-#define WAIT_NAMES_GONE	0x0002	/* wait for peer's publications to be purged */
-#define WAIT_NODE_DOWN	0x0004	/* wait until peer node is declared down */
+/* Flags used to block (re)establishment of contact with a neighboring node
+ * TIPC_NODE_DOWN: indicate node is down
+ * TIPC_NAMES_GONE: indicate the node's publications are purged
+ * TIPC_NODE_RESET: indicate node is reset
+ */
+enum {
+	TIPC_NODE_DOWN	= (1 << 1),
+	TIPC_NAMES_GONE	= (1 << 2),
+	TIPC_NODE_RESET	= (1 << 3)
+};
 
 /**
  * struct tipc_node_bclink - TIPC node bclink structure
@@ -85,7 +91,7 @@ struct tipc_node_bclink {
  * @hash: links to adjacent nodes in unsorted hash chain
  * @active_links: pointers to active links to node
  * @links: pointers to all links to node
- * @block_setup: bit mask of conditions preventing link establishment to node
+ * @flags: bit mask of conditions preventing link establishment to node
  * @bclink: broadcast-related info
  * @list: links to adjacent nodes in sorted list of cluster's nodes
  * @working_links: number of working links to node (both active and standby)
@@ -100,7 +106,7 @@ struct tipc_node {
 	struct hlist_node hash;
 	struct tipc_link *active_links[2];
 	struct tipc_link *links[MAX_BEARERS];
-	int block_setup;
+	unsigned int flags;
 	struct tipc_node_bclink bclink;
 	struct list_head list;
 	int link_cnt;
@@ -133,6 +139,12 @@ static inline void tipc_node_lock(struct tipc_node *n_ptr)
 static inline void tipc_node_unlock(struct tipc_node *n_ptr)
 {
 	spin_unlock_bh(&n_ptr->lock);
+}
+
+static inline bool tipc_node_blocked(struct tipc_node *node)
+{
+	return (node->flags & (TIPC_NODE_DOWN | TIPC_NAMES_GONE |
+		TIPC_NODE_RESET));
 }
 
 #endif
