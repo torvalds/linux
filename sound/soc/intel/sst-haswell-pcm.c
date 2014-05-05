@@ -772,11 +772,13 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 {
 	struct sst_pdata *pdata = dev_get_platdata(platform->dev);
 	struct hsw_priv_data *priv_data;
-	struct device *dma_dev = pdata->dma_dev;
+	struct device *dma_dev;
 	int i, ret = 0;
 
 	if (!pdata)
 		return -ENODEV;
+
+	dma_dev = pdata->dma_dev;
 
 	priv_data = devm_kzalloc(platform->dev, sizeof(*priv_data), GFP_KERNEL);
 	priv_data->hsw = pdata->dsp;
