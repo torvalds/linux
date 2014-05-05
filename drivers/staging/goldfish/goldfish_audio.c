@@ -334,6 +334,7 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	return 0;
 
 err_misc_register_failed:
+	free_irq(data->irq, data);
 err_request_irq_failed:
 	dma_free_coherent(&pdev->dev, COMBINED_BUFFER_SIZE,
 					data->buffer_virt, data->buffer_phys);

@@ -249,7 +249,7 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 
 	if (!local->use_chanctx) {
 		local->_oper_chandef = *chandef;
-		ieee80211_hw_config(local, 0);
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 	} else {
 		err = drv_add_chanctx(local, ctx);
 		if (err) {
@@ -286,7 +286,7 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 			check_single_channel = true;
 		local->hw.conf.radar_enabled = false;
 
-		ieee80211_hw_config(local, 0);
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 	} else {
 		drv_remove_chanctx(local, ctx);
 	}
@@ -492,6 +492,13 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 		rx_chains_static = max(rx_chains_static, needed_static);
 		rx_chains_dynamic = max(rx_chains_dynamic, needed_dynamic);
 	}
+
+	/* Disable SMPS for the monitor interface */
+	sdata = rcu_dereference(local->monitor_sdata);
+	if (sdata &&
+	    rcu_access_pointer(sdata->vif.chanctx_conf) == &chanctx->conf)
+		rx_chains_dynamic = rx_chains_static = local->rx_chains;
+
 	rcu_read_unlock();
 
 	if (!local->use_chanctx) {

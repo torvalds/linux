@@ -639,10 +639,15 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 static int tegra_pcie_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	struct tegra_pcie *pcie = sys_to_pcie(pdev->bus->sysdata);
+	int irq;
 
 	tegra_cpuidle_pcie_irqs_in_use();
 
-	return pcie->irq;
+	irq = of_irq_parse_and_map_pci(pdev, slot, pin);
+	if (!irq)
+		irq = pcie->irq;
+
+	return irq;
 }
 
 static void tegra_pcie_add_bus(struct pci_bus *bus)

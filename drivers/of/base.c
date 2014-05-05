@@ -1828,16 +1828,12 @@ int of_update_property(struct device_node *np, struct property *newprop)
 		next = &(*next)->next;
 	}
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-	if (rc)
-		return rc;
-
-	/* Update the sysfs attribute */
-	if (oldprop)
-		sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
-	__of_add_property_sysfs(np, newprop);
-
 	if (!found)
 		return -ENODEV;
+
+	/* Update the sysfs attribute */
+	sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
+	__of_add_property_sysfs(np, newprop);
 
 	return 0;
 }

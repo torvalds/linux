@@ -240,7 +240,7 @@ static u32 __init intel_stolen_base(int num, int slot, int func, size_t stolen_s
 	return base;
 }
 
-#define KB(x)	((x) * 1024)
+#define KB(x)	((x) * 1024UL)
 #define MB(x)	(KB (KB (x)))
 #define GB(x)	(MB (KB (x)))
 

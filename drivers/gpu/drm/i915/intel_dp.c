@@ -575,7 +575,8 @@ out:
 	return ret;
 }
 
-#define HEADER_SIZE	4
+#define BARE_ADDRESS_SIZE	3
+#define HEADER_SIZE		(BARE_ADDRESS_SIZE + 1)
 static ssize_t
 intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
@@ -592,7 +593,7 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
-		txsize = HEADER_SIZE + msg->size;
+		txsize = msg->size ? HEADER_SIZE + msg->size : BARE_ADDRESS_SIZE;
 		rxsize = 1;
 
 		if (WARN_ON(txsize > 20))
@@ -611,7 +612,7 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 
 	case DP_AUX_NATIVE_READ:
 	case DP_AUX_I2C_READ:
-		txsize = HEADER_SIZE;
+		txsize = msg->size ? HEADER_SIZE : BARE_ADDRESS_SIZE;
 		rxsize = msg->size + 1;
 
 		if (WARN_ON(rxsize > 20))
