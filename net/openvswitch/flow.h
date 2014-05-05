@@ -180,10 +180,10 @@ struct arp_eth_header {
 	unsigned char       ar_tip[4];		/* target IP address        */
 } __packed;
 
-void ovs_flow_stats_update(struct sw_flow *flow, struct sk_buff *skb);
-void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *stats,
+void ovs_flow_stats_update(struct sw_flow *, struct sk_buff *);
+void ovs_flow_stats_get(const struct sw_flow *, struct ovs_flow_stats *,
 			unsigned long *used, __be16 *tcp_flags);
-void ovs_flow_stats_clear(struct sw_flow *flow);
+void ovs_flow_stats_clear(struct sw_flow *);
 u64 ovs_flow_used_time(unsigned long flow_jiffies);
 
 int ovs_flow_extract(struct sk_buff *, u16 in_port, struct sw_flow_key *);

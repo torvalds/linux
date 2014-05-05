@@ -122,8 +122,9 @@ unlock:
 	spin_unlock(&stats->lock);
 }
 
-/* Called with ovs_mutex. */
-void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *ovs_stats,
+/* Must be called with rcu_read_lock or ovs_mutex. */
+void ovs_flow_stats_get(const struct sw_flow *flow,
+			struct ovs_flow_stats *ovs_stats,
 			unsigned long *used, __be16 *tcp_flags)
 {
 	int node;
@@ -133,7 +134,7 @@ void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *ovs_stats,
 	memset(ovs_stats, 0, sizeof(*ovs_stats));
 
 	for_each_node(node) {
-		struct flow_stats *stats = ovsl_dereference(flow->stats[node]);
+		struct flow_stats *stats = rcu_dereference_ovsl(flow->stats[node]);
 
 		if (stats) {
 			/* Local CPU may write on non-local stats, so we must
@@ -150,12 +151,13 @@ void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *ovs_stats,
 	}
 }
 
+/* Called with ovs_mutex. */
 void ovs_flow_stats_clear(struct sw_flow *flow)
 {
 	int node;
 
 	for_each_node(node) {
-		struct flow_stats *stats = rcu_dereference(flow->stats[node]);
+		struct flow_stats *stats = ovsl_dereference(flow->stats[node]);
 
 		if (stats) {
 			spin_lock_bh(&stats->lock);
