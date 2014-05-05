@@ -37,6 +37,7 @@ struct machine_desc;
 
 extern struct platform_device realview_flash_device;
 extern struct platform_device realview_cf_device;
+extern struct platform_device realview_leds_device;
 extern struct platform_device realview_i2c_device;
 extern struct mmci_platform_data realview_mmc0_plat_data;
 extern struct mmci_platform_data realview_mmc1_plat_data;

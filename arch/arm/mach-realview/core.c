@@ -148,6 +148,21 @@ struct platform_device realview_cf_device = {
 	},
 };
 
+static struct resource realview_leds_resources[] = {
+	{
+		.start	= REALVIEW_SYS_BASE + REALVIEW_SYS_LED_OFFSET,
+		.end	= REALVIEW_SYS_BASE + REALVIEW_SYS_LED_OFFSET + 4,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device realview_leds_device = {
+	.name		= "versatile-leds",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(realview_leds_resources),
+	.resource	= realview_leds_resources,
+};
+
 static struct resource realview_i2c_resource = {
 	.start		= REALVIEW_I2C_BASE,
 	.end		= REALVIEW_I2C_BASE + SZ_4K - 1,
