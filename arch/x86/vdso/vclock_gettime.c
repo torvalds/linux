@@ -154,7 +154,7 @@ notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 	asm(
 		"mov %%ebx, %%edx \n"
 		"mov %2, %%ebx \n"
-		"call VDSO32_vsyscall \n"
+		"call __kernel_vsyscall \n"
 		"mov %%edx, %%ebx \n"
 		: "=a" (ret)
 		: "0" (__NR_clock_gettime), "g" (clock), "c" (ts)
@@ -169,7 +169,7 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
 	asm(
 		"mov %%ebx, %%edx \n"
 		"mov %2, %%ebx \n"
-		"call VDSO32_vsyscall \n"
+		"call __kernel_vsyscall \n"
 		"mov %%edx, %%ebx \n"
 		: "=a" (ret)
 		: "0" (__NR_gettimeofday), "g" (tv), "c" (tz)

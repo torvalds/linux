@@ -19,99 +19,31 @@
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
 
-DECLARE_VDSO_IMAGE(vdso);
 extern unsigned short vdso_sync_cpuid;
-static unsigned vdso_size;
-
-#ifdef CONFIG_X86_X32_ABI
-DECLARE_VDSO_IMAGE(vdsox32);
-static unsigned vdsox32_size;
-#endif
 #endif
 
-#if defined(CONFIG_X86_32) || defined(CONFIG_X86_X32_ABI) || \
-	defined(CONFIG_COMPAT)
-void __init patch_vdso32(void *vdso, size_t len)
+void __init init_vdso_image(const struct vdso_image *image)
 {
-	Elf32_Ehdr *hdr = vdso;
-	Elf32_Shdr *sechdrs, *alt_sec = 0;
-	char *secstrings;
-	void *alt_data;
 	int i;
+	int npages = (image->size) / PAGE_SIZE;
 
-	BUG_ON(len < sizeof(Elf32_Ehdr));
-	BUG_ON(memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0);
+	BUG_ON(image->size % PAGE_SIZE != 0);
+	for (i = 0; i < npages; i++)
+		image->pages[i] = virt_to_page(image->data + i*PAGE_SIZE);
 
-	sechdrs = (void *)hdr + hdr->e_shoff;
-	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-
-	for (i = 1; i < hdr->e_shnum; i++) {
-		Elf32_Shdr *shdr = &sechdrs[i];
-		if (!strcmp(secstrings + shdr->sh_name, ".altinstructions")) {
-			alt_sec = shdr;
-			goto found;
-		}
-	}
-
-	/* If we get here, it's probably a bug. */
-	pr_warning("patch_vdso32: .altinstructions not found\n");
-	return;  /* nothing to patch */
-
-found:
-	alt_data = (void *)hdr + alt_sec->sh_offset;
-	apply_alternatives(alt_data, alt_data + alt_sec->sh_size);
+	apply_alternatives((struct alt_instr *)(image->data + image->alt),
+			   (struct alt_instr *)(image->data + image->alt +
+						image->alt_len));
 }
-#endif
+
 
 #if defined(CONFIG_X86_64)
-static void __init patch_vdso64(void *vdso, size_t len)
-{
-	Elf64_Ehdr *hdr = vdso;
-	Elf64_Shdr *sechdrs, *alt_sec = 0;
-	char *secstrings;
-	void *alt_data;
-	int i;
-
-	BUG_ON(len < sizeof(Elf64_Ehdr));
-	BUG_ON(memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0);
-
-	sechdrs = (void *)hdr + hdr->e_shoff;
-	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-
-	for (i = 1; i < hdr->e_shnum; i++) {
-		Elf64_Shdr *shdr = &sechdrs[i];
-		if (!strcmp(secstrings + shdr->sh_name, ".altinstructions")) {
-			alt_sec = shdr;
-			goto found;
-		}
-	}
-
-	/* If we get here, it's probably a bug. */
-	pr_warning("patch_vdso64: .altinstructions not found\n");
-	return;  /* nothing to patch */
-
-found:
-	alt_data = (void *)hdr + alt_sec->sh_offset;
-	apply_alternatives(alt_data, alt_data + alt_sec->sh_size);
-}
-
 static int __init init_vdso(void)
 {
-	int npages = (vdso_end - vdso_start + PAGE_SIZE - 1) / PAGE_SIZE;
-	int i;
-
-	patch_vdso64(vdso_start, vdso_end - vdso_start);
-
-	vdso_size = npages << PAGE_SHIFT;
-	for (i = 0; i < npages; i++)
-		vdso_pages[i] = virt_to_page(vdso_start + i*PAGE_SIZE);
+	init_vdso_image(&vdso_image_64);
 
 #ifdef CONFIG_X86_X32_ABI
-	patch_vdso32(vdsox32_start, vdsox32_end - vdsox32_start);
-	npages = (vdsox32_end - vdsox32_start + PAGE_SIZE - 1) / PAGE_SIZE;
-	vdsox32_size = npages << PAGE_SHIFT;
-	for (i = 0; i < npages; i++)
-		vdsox32_pages[i] = virt_to_page(vdsox32_start + i*PAGE_SIZE);
+	init_vdso_image(&vdso_image_x32);
 #endif
 
 	return 0;
@@ -171,7 +103,7 @@ static int setup_additional_pages(struct linux_binprm *bprm,
 		goto up_fail;
 	}
 
-	current->mm->context.vdso = (void *)addr;
+	current->mm->context.vdso = (void __user *)addr;
 
 	ret = install_special_mapping(mm, addr, size,
 				      VM_READ|VM_EXEC|
@@ -189,15 +121,15 @@ up_fail:
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	return setup_additional_pages(bprm, uses_interp, vdso_pages,
-				      vdso_size);
+	return setup_additional_pages(bprm, uses_interp, vdso_image_64.pages,
+				      vdso_image_64.size);
 }
 
 #ifdef CONFIG_X86_X32_ABI
 int x32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	return setup_additional_pages(bprm, uses_interp, vdsox32_pages,
-				      vdsox32_size);
+	return setup_additional_pages(bprm, uses_interp, vdso_image_x32.pages,
+				      vdso_image_x32.size);
 }
 #endif
 

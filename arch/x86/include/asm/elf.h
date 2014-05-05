@@ -299,7 +299,7 @@ do {									\
 do {									\
 	if (vdso64_enabled)						\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
-			    (unsigned long)current->mm->context.vdso);	\
+			    (unsigned long __force)current->mm->context.vdso); \
 } while (0)
 
 /* As a historical oddity, the x32 and x86_64 vDSOs are controlled together. */
@@ -307,7 +307,7 @@ do {									\
 do {									\
 	if (vdso64_enabled)						\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
-			    (unsigned long)current->mm->context.vdso);	\
+			    (unsigned long __force)current->mm->context.vdso); \
 } while (0)
 
 #define AT_SYSINFO		32
@@ -325,7 +325,8 @@ else									\
 #define VDSO_CURRENT_BASE	((unsigned long)current->mm->context.vdso)
 
 #define VDSO_ENTRY							\
-	((unsigned long)VDSO32_SYMBOL(VDSO_CURRENT_BASE, vsyscall))
+	((unsigned long)current->mm->context.vdso +			\
+	 selected_vdso32->sym___kernel_vsyscall)
 
 struct linux_binprm;
 

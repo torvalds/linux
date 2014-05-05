@@ -38,13 +38,3 @@ VERSION
 	local: *;
 	};
 }
-
-/*
- * Symbols we define here called VDSO* get their values into vdso32-syms.h.
- */
-VDSO32_vsyscall		= __kernel_vsyscall;
-VDSO32_sigreturn	= __kernel_sigreturn;
-VDSO32_rt_sigreturn	= __kernel_rt_sigreturn;
-VDSO32_clock_gettime	= clock_gettime;
-VDSO32_gettimeofday	= gettimeofday;
-VDSO32_time		= time;

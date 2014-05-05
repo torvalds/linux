@@ -29,6 +29,7 @@
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
 #include <asm/vvar.h>
+#include <asm/vdso32.h>
 
 #ifdef CONFIG_COMPAT_VDSO
 #define VDSO_DEFAULT	0
@@ -67,9 +68,6 @@ __setup("vdso32=", vdso32_setup);
 __setup_param("vdso=", vdso_setup, vdso32_setup, 0);
 #endif
 
-static struct page **vdso32_pages;
-static unsigned vdso32_size;
-
 #ifdef CONFIG_X86_64
 
 #define	vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SYSENTER32))
@@ -82,34 +80,23 @@ static unsigned vdso32_size;
 
 #endif	/* CONFIG_X86_64 */
 
+#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
+const struct vdso_image *selected_vdso32;
+#endif
+
 int __init sysenter_setup(void)
 {
-	char *vdso32_start, *vdso32_end;
-	int npages, i;
-
 #ifdef CONFIG_COMPAT
-	if (vdso32_syscall()) {
-		vdso32_start = vdso32_syscall_start;
-		vdso32_end = vdso32_syscall_end;
-		vdso32_pages = vdso32_syscall_pages;
-	} else
+	if (vdso32_syscall())
+		selected_vdso32 = &vdso_image_32_syscall;
+	else
 #endif
-	if (vdso32_sysenter()) {
-		vdso32_start = vdso32_sysenter_start;
-		vdso32_end = vdso32_sysenter_end;
-		vdso32_pages = vdso32_sysenter_pages;
-	} else {
-		vdso32_start = vdso32_int80_start;
-		vdso32_end = vdso32_int80_end;
-		vdso32_pages = vdso32_int80_pages;
-	}
+	if (vdso32_sysenter())
+		selected_vdso32 = &vdso_image_32_sysenter;
+	else
+		selected_vdso32 = &vdso_image_32_int80;
 
-	npages = ((vdso32_end - vdso32_start) + PAGE_SIZE - 1) / PAGE_SIZE;
-	vdso32_size = npages << PAGE_SHIFT;
-	for (i = 0; i < npages; i++)
-		vdso32_pages[i] = virt_to_page(vdso32_start + i*PAGE_SIZE);
-
-	patch_vdso32(vdso32_start, vdso32_size);
+	init_vdso_image(selected_vdso32);
 
 	return 0;
 }
@@ -121,6 +108,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	unsigned long addr;
 	int ret = 0;
 	struct vm_area_struct *vma;
+	unsigned long vdso32_size = selected_vdso32->size;
 
 #ifdef CONFIG_X86_X32_ABI
 	if (test_thread_flag(TIF_X32))
@@ -140,7 +128,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	addr += VDSO_OFFSET(VDSO_PREV_PAGES);
 
-	current->mm->context.vdso = (void *)addr;
+	current->mm->context.vdso = (void __user *)addr;
 
 	/*
 	 * MAYWRITE to allow gdb to COW and set breakpoints
@@ -150,7 +138,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 			vdso32_size,
 			VM_READ|VM_EXEC|
 			VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-			vdso32_pages);
+			selected_vdso32->pages);
 
 	if (ret)
 		goto up_fail;
@@ -188,8 +176,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	}
 #endif
 
-	current_thread_info()->sysenter_return =
-		VDSO32_SYMBOL(addr, SYSENTER_RETURN);
+	if (selected_vdso32->sym_VDSO32_SYSENTER_RETURN)
+		current_thread_info()->sysenter_return =
+			current->mm->context.vdso +
+			selected_vdso32->sym_VDSO32_SYSENTER_RETURN;
 
   up_fail:
 	if (ret)

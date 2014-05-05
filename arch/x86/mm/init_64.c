@@ -1223,7 +1223,8 @@ int in_gate_area_no_mm(unsigned long addr)
 
 const char *arch_vma_name(struct vm_area_struct *vma)
 {
-	if (vma->vm_mm && vma->vm_start == (long)vma->vm_mm->context.vdso)
+	if (vma->vm_mm && vma->vm_start ==
+	    (long __force)vma->vm_mm->context.vdso)
 		return "[vdso]";
 	if (vma == &gate_vma)
 		return "[vsyscall]";
