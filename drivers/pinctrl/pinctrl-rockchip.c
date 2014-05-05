@@ -1574,30 +1574,39 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	}
 	info->ctrl = ctrl;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	rockchip_regmap_config.max_register = resource_size(res) - 4;
-	rockchip_regmap_config.name = "rockchip,pinctrl";
-	info->regmap_base = devm_regmap_init_mmio(&pdev->dev, base,
-						  &rockchip_regmap_config);
-
-	/* to check for the old dt-bindings */
-	info->reg_size = resource_size(res);
-
-	/* Honor the old binding, with pull registers as 2nd resource */
-	if (ctrl->type == RK3188 && info->reg_size < 0x200) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	node = of_parse_phandle(np, "rockchip,grf", 0);
+	if (node) {
+		info->regmap_base = syscon_node_to_regmap(node);
+		if (IS_ERR(info->regmap_base))
+			return PTR_ERR(info->regmap_base);
+	} else {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		base = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(base))
 			return PTR_ERR(base);
 
 		rockchip_regmap_config.max_register = resource_size(res) - 4;
-		rockchip_regmap_config.name = "rockchip,pinctrl-pull";
-		info->regmap_pull = devm_regmap_init_mmio(&pdev->dev, base,
-						  &rockchip_regmap_config);
+		rockchip_regmap_config.name = "rockchip,pinctrl";
+		info->regmap_base = devm_regmap_init_mmio(&pdev->dev, base,
+						    &rockchip_regmap_config);
+
+		/* to check for the old dt-bindings */
+		info->reg_size = resource_size(res);
+
+		/* Honor the old binding, with pull registers as 2nd resource */
+		if (ctrl->type == RK3188 && info->reg_size < 0x200) {
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			base = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(base))
+				return PTR_ERR(base);
+
+			rockchip_regmap_config.max_register =
+							resource_size(res) - 4;
+			rockchip_regmap_config.name = "rockchip,pinctrl-pull";
+			info->regmap_pull = devm_regmap_init_mmio(&pdev->dev,
+						    base,
+						    &rockchip_regmap_config);
+		}
 	}
 
 	/* try to find the optional reference to the pmu syscon */
