@@ -120,7 +120,7 @@ static void __init thermal_quirk(void)
 	struct device_node *np;
 	u32 dev, rev;
 
-	if (mvebu_get_soc_id(&dev, &rev) && rev > ARMADA_375_Z1_REV)
+	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > ARMADA_375_Z1_REV)
 		return;
 
 	for_each_compatible_node(np, NULL, "marvell,armada375-thermal") {
