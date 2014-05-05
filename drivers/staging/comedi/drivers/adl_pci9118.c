@@ -340,7 +340,6 @@ struct pci9118_private {
 					 * how many channels we must add
 					 * before scan to satisfy DMA?
 					 */
-	unsigned int ai_timer2;
 	unsigned int ai_flags;
 	char ai12_startstop;		/*
 					 * measure can start/stop
@@ -1611,7 +1610,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai12_startstop = 0;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_n_scanlen = cmd->scan_end_arg;
-	devpriv->ai_timer2 = 0;
 	devpriv->ai_add_front = 0;
 	devpriv->ai_add_back = 0;
 	devpriv->ai_maskerr = 0x10e;
@@ -1762,7 +1760,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				      &devpriv->ai_divisor1,
 				      &devpriv->ai_divisor2, devpriv->usessh,
 				      devpriv->ai_add_front);
-		devpriv->ai_timer2 = cmd->convert_arg;
 	}
 
 	if ((cmd->scan_begin_src == TRIG_TIMER) &&
@@ -1784,7 +1781,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				      &devpriv->ai_divisor1,
 				      &devpriv->ai_divisor2, devpriv->usessh,
 				      devpriv->ai_add_front);
-		devpriv->ai_timer2 = cmd->convert_arg;
 	}
 
 	if ((cmd->scan_begin_src == TRIG_FOLLOW)
