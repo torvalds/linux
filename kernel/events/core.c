@@ -1678,6 +1678,8 @@ event_sched_in(struct perf_event *event,
 	u64 tstamp = perf_event_time(event);
 	int ret = 0;
 
+	lockdep_assert_held(&ctx->lock);
+
 	if (event->state <= PERF_EVENT_STATE_OFF)
 		return 0;
 
