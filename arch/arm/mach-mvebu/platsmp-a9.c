@@ -20,6 +20,7 @@
 #include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 #include "common.h"
+#include "mvebu-soc-id.h"
 #include "pmsu.h"
 
 #define CRYPT0_ENG_ID   41
@@ -63,11 +64,19 @@ static int __cpuinit mvebu_cortex_a9_boot_secondary(unsigned int cpu,
 	 */
 	hw_cpu = cpu_logical_map(cpu);
 
-	if (of_machine_is_compatible("marvell,armada375"))
+	if (of_machine_is_compatible("marvell,armada375")) {
+		u32 dev, rev;
+
+		if (mvebu_get_soc_id(&dev, &rev) == 0 &&
+		    rev == ARMADA_375_Z1_REV)
+			armada_375_smp_cpu1_enable_wa();
+
 		mvebu_system_controller_set_cpu_boot_addr(mvebu_cortex_a9_secondary_startup);
-	else
+	}
+	else {
 		mvebu_pmsu_set_cpu_boot_addr(hw_cpu,
 					     mvebu_cortex_a9_secondary_startup);
+	}
 
 	smp_wmb();
 	ret = mvebu_cpu_reset_deassert(hw_cpu);
@@ -80,14 +89,7 @@ static int __cpuinit mvebu_cortex_a9_boot_secondary(unsigned int cpu,
 	return 0;
 }
 
-static void __init mvebu_cortex_a9_smp_prepare_cpus(unsigned int max_cpus)
-{
-	if (of_machine_is_compatible("marvell,armada375"))
-		armada_375_smp_cpu1_enable_wa();
-}
-
 static struct smp_operations mvebu_cortex_a9_smp_ops __initdata = {
-	.smp_prepare_cpus	= mvebu_cortex_a9_smp_prepare_cpus,
 	.smp_boot_secondary	= mvebu_cortex_a9_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= armada_xp_cpu_die,
