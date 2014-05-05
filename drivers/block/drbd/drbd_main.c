@@ -2793,6 +2793,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	kref_get(&device->kref);
 
 	INIT_LIST_HEAD(&device->peer_devices);
+	INIT_LIST_HEAD(&device->pending_bitmap_io);
 	for_each_connection(connection, resource) {
 		peer_device = kzalloc(sizeof(struct drbd_peer_device), GFP_KERNEL);
 		if (!peer_device)
