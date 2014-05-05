@@ -39,6 +39,7 @@
 
 #define MAX_NODES 4096
 #define WSIZE 32
+#define TIPC_BCLINK_RESET 1
 
 /**
  * struct tipc_node_map - set of node identifiers
@@ -83,6 +84,7 @@ void tipc_port_list_free(struct tipc_port_list *pl_ptr);
 
 int tipc_bclink_init(void);
 void tipc_bclink_stop(void);
+void tipc_bclink_set_flags(unsigned int flags);
 void tipc_bclink_add_node(u32 addr);
 void tipc_bclink_remove_node(u32 addr);
 struct tipc_node *tipc_bclink_retransmit_to(void);

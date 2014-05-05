@@ -1259,29 +1259,24 @@ void tipc_link_push_queue(struct tipc_link *l_ptr)
 	} while (!res);
 }
 
-static void link_reset_all(unsigned long addr)
+void tipc_link_reset_all(struct tipc_node *node)
 {
-	struct tipc_node *n_ptr;
 	char addr_string[16];
 	u32 i;
 
-	n_ptr = tipc_node_find((u32)addr);
-	if (!n_ptr)
-		return;	/* node no longer exists */
-
-	tipc_node_lock(n_ptr);
+	tipc_node_lock(node);
 
 	pr_warn("Resetting all links to %s\n",
-		tipc_addr_string_fill(addr_string, n_ptr->addr));
+		tipc_addr_string_fill(addr_string, node->addr));
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (n_ptr->links[i]) {
-			link_print(n_ptr->links[i], "Resetting link\n");
-			tipc_link_reset(n_ptr->links[i]);
+		if (node->links[i]) {
+			link_print(node->links[i], "Resetting link\n");
+			tipc_link_reset(node->links[i]);
 		}
 	}
 
-	tipc_node_unlock(n_ptr);
+	tipc_node_unlock(node);
 }
 
 static void link_retransmit_failure(struct tipc_link *l_ptr,
@@ -1318,10 +1313,9 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 			n_ptr->bclink.oos_state,
 			n_ptr->bclink.last_sent);
 
-		tipc_k_signal((Handler)link_reset_all, (unsigned long)n_ptr->addr);
-
 		tipc_node_unlock(n_ptr);
 
+		tipc_bclink_set_flags(TIPC_BCLINK_RESET);
 		l_ptr->stale_count = 0;
 	}
 }

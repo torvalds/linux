@@ -87,6 +87,7 @@ struct tipc_bcbearer {
  * @lock: spinlock governing access to structure
  * @link: (non-standard) broadcast link structure
  * @node: (non-standard) node structure representing b'cast link's peer node
+ * @flags: represent bclink states
  * @bcast_nodes: map of broadcast-capable nodes
  * @retransmit_to: node that most recently requested a retransmit
  *
@@ -96,6 +97,7 @@ struct tipc_bclink {
 	spinlock_t lock;
 	struct tipc_link link;
 	struct tipc_node node;
+	unsigned int flags;
 	struct tipc_node_map bcast_nodes;
 	struct tipc_node *retransmit_to;
 };
@@ -119,7 +121,26 @@ static void tipc_bclink_lock(void)
 
 static void tipc_bclink_unlock(void)
 {
+	struct tipc_node *node = NULL;
+
+	if (likely(!bclink->flags)) {
+		spin_unlock_bh(&bclink->lock);
+		return;
+	}
+
+	if (bclink->flags & TIPC_BCLINK_RESET) {
+		bclink->flags &= ~TIPC_BCLINK_RESET;
+		node = tipc_bclink_retransmit_to();
+	}
 	spin_unlock_bh(&bclink->lock);
+
+	if (node)
+		tipc_link_reset_all(node);
+}
+
+void tipc_bclink_set_flags(unsigned int flags)
+{
+	bclink->flags |= flags;
 }
 
 static u32 bcbuf_acks(struct sk_buff *buf)
