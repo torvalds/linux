@@ -111,36 +111,6 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 	},
 },
 {
-	.name = "Speaker-cpu-dai",
-	.id = 1,
-	.playback = {
-		.channels_min = SST_MONO,
-		.channels_max = SST_STEREO,
-		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S24_LE,
-	},
-},
-{
-	.name = "Vibra1-cpu-dai",
-	.id = 2,
-	.playback = {
-		.channels_min = SST_MONO,
-		.channels_max = SST_MONO,
-		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S24_LE,
-	},
-},
-{
-	.name = "Vibra2-cpu-dai",
-	.id = 3,
-	.playback = {
-		.channels_min = SST_MONO,
-		.channels_max = SST_STEREO,
-		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S24_LE,
-	},
-},
-{
 	.name = "Compress-cpu-dai",
 	.compress_dai = 1,
 	.playback = {
