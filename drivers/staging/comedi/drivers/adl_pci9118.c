@@ -792,9 +792,12 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 	}
 }
 
-static void start_pacer(struct comedi_device *dev, int mode,
-			unsigned int divisor1, unsigned int divisor2)
+static void pci9118_start_pacer(struct comedi_device *dev, int mode)
 {
+	struct pci9118_private *devpriv = dev->private;
+	unsigned int divisor1 = devpriv->ai_divisor1;
+	unsigned int divisor2 = devpriv->ai_divisor2;
+
 	outl(0x74, dev->iobase + PCI9118_CNTCTRL);
 	outl(0xb4, dev->iobase + PCI9118_CNTCTRL);
 /* outl(0x30, dev->iobase + PCI9118_CNTCTRL); */
@@ -818,7 +821,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 			(~EN_A2P_TRANSFERS),
 			devpriv->iobase_a + AMCC_OP_REG_MCSR);	/* stop DMA */
 	pci9118_exttrg_del(dev, EXTTRG_AI);
-	start_pacer(dev, 0, 0, 0);	/* stop 8254 counters */
+	pci9118_start_pacer(dev, 0);	/* stop 8254 counters */
 	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 					/*
@@ -1065,9 +1068,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 					pci9118_exttrg_del(dev, EXTTRG_AI);
 
 				/* start pacer */
-				start_pacer(dev, devpriv->ai_do,
-					    devpriv->ai_divisor1,
-					    devpriv->ai_divisor2);
+				pci9118_start_pacer(dev, devpriv->ai_do);
 				outl(devpriv->AdControlReg,
 				     dev->iobase + PCI9118_ADCNTRL);
 			} else if (devpriv->ai12_startstop & STOP_AI_EXT) {
@@ -1105,8 +1106,7 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 	if (devpriv->ai_do != 3) {
-		start_pacer(dev, devpriv->ai_do, devpriv->ai_divisor1,
-			    devpriv->ai_divisor2);
+		pci9118_start_pacer(dev, devpriv->ai_do);
 		devpriv->AdControlReg |= AdControl_SoftG;
 	}
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
@@ -1475,8 +1475,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
 		outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 		if (devpriv->ai_do != 3) {
-			start_pacer(dev, devpriv->ai_do, devpriv->ai_divisor1,
-				    devpriv->ai_divisor2);
+			pci9118_start_pacer(dev, devpriv->ai_do);
 			devpriv->AdControlReg |= AdControl_SoftG;
 		}
 		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
@@ -1543,8 +1542,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
 		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
 		if (devpriv->ai_do != 3) {
-			start_pacer(dev, devpriv->ai_do, devpriv->ai_divisor1,
-				    devpriv->ai_divisor2);
+			pci9118_start_pacer(dev, devpriv->ai_do);
 			devpriv->AdControlReg |= AdControl_SoftG;
 		}
 		outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
@@ -1717,7 +1715,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ai_do = 3;
 	}
 
-	start_pacer(dev, -1, 0, 0);	/* stop pacer */
+	pci9118_start_pacer(dev, -1);	/* stop pacer */
 
 	devpriv->AdControlReg = 0;	/*
 					 * bipolar, S.E., use 8254, stop 8354,
@@ -1763,7 +1761,7 @@ static int pci9118_reset(struct comedi_device *dev)
 						/* disable interrupts source */
 	outl(0x30, dev->iobase + PCI9118_CNTCTRL);
 /* outl(0xb4, dev->iobase + PCI9118_CNTCTRL); */
-	start_pacer(dev, 0, 0, 0);		/* stop 8254 counters */
+	pci9118_start_pacer(dev, 0);		/* stop 8254 counters */
 	devpriv->AdControlReg = 0;
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
 						/*
