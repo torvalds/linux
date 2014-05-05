@@ -89,8 +89,6 @@ extern int tipc_random __read_mostly;
 /*
  * Routines available to privileged subsystems
  */
-int tipc_handler_start(void);
-void tipc_handler_stop(void);
 int tipc_netlink_start(void);
 void tipc_netlink_stop(void);
 int tipc_socket_init(void);
@@ -109,11 +107,9 @@ void tipc_unregister_sysctl(void);
 #endif
 
 /*
- * TIPC timer and signal code
+ * TIPC timer code
  */
 typedef void (*Handler) (unsigned long);
-
-u32 tipc_k_signal(Handler routine, unsigned long argument);
 
 /**
  * k_init_timer - initialize a timer

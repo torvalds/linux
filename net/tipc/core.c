@@ -80,7 +80,6 @@ struct sk_buff *tipc_buf_acquire(u32 size)
  */
 static void tipc_core_stop(void)
 {
-	tipc_handler_stop();
 	tipc_net_stop();
 	tipc_bearer_cleanup();
 	tipc_netlink_stop();
@@ -99,10 +98,6 @@ static int tipc_core_start(void)
 	int err;
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
-
-	err = tipc_handler_start();
-	if (err)
-		goto out_handler;
 
 	err = tipc_ref_table_init(tipc_max_ports, tipc_random);
 	if (err)
@@ -146,8 +141,6 @@ out_netlink:
 out_nametbl:
 	tipc_ref_table_stop();
 out_reftbl:
-	tipc_handler_stop();
-out_handler:
 	return err;
 }
 
