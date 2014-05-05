@@ -55,27 +55,6 @@ u32 rtw_atoi(u8 *s)
 	return num;
 }
 
-inline u8 *_rtw_vmalloc(u32 sz)
-{
-	u8	*pbuf;
-	pbuf = vmalloc(sz);
-	return pbuf;
-}
-
-inline u8 *_rtw_zvmalloc(u32 sz)
-{
-	u8	*pbuf;
-	pbuf = _rtw_vmalloc(sz);
-	if (pbuf != NULL)
-		memset(pbuf, 0, sz);
-	return pbuf;
-}
-
-inline void _rtw_vmfree(u8 *pbuf, u32 sz)
-{
-	vfree(pbuf);
-}
-
 u8 *_rtw_malloc(u32 sz)
 {
 	u8	*pbuf = NULL;
@@ -112,16 +91,6 @@ void *rtw_malloc2d(int h, int w, int size)
 void rtw_mfree2d(void *pbuf, int h, int w, int size)
 {
 	kfree(pbuf);
-}
-
-int _rtw_memcmp(void *dst, void *src, u32 sz)
-{
-/* under Linux/GNU/GLibc, the return value of memcmp for two same
- * mem. chunk is 0 */
-	if (!(memcmp(dst, src, sz)))
-		return true;
-	else
-		return false;
 }
 
 void _rtw_memset(void *pbuf, int c, u32 sz)
@@ -252,7 +221,7 @@ struct net_device *rtw_alloc_etherdev(int sizeof_priv)
 
 	pnpi = netdev_priv(pnetdev);
 
-	pnpi->priv = rtw_zvmalloc(sizeof_priv);
+	pnpi->priv = vzalloc(sizeof_priv);
 	if (!pnpi->priv) {
 		free_netdev(pnetdev);
 		pnetdev = NULL;
@@ -276,7 +245,7 @@ void rtw_free_netdev(struct net_device *netdev)
 	if (!pnpi->priv)
 		goto RETURN;
 
-	rtw_vmfree(pnpi->priv, pnpi->sizeof_priv);
+	vfree(pnpi->priv);
 	free_netdev(netdev);
 
 RETURN:

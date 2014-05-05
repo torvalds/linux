@@ -62,7 +62,6 @@
 #define	ACT8865_VOLTAGE_NUM	64
 
 struct act8865 {
-	struct regulator_dev *rdev[ACT8865_REG_NUM];
 	struct regmap *regmap;
 };
 
@@ -213,7 +212,7 @@ static int act8865_pdata_from_dt(struct device *dev,
 	struct device_node *np;
 	struct act8865_regulator_data *regulator;
 
-	np = of_find_node_by_name(dev->of_node, "regulators");
+	np = of_get_child_by_name(dev->of_node, "regulators");
 	if (!np) {
 		dev_err(dev, "missing 'regulators' subnode in DT\n");
 		return -EINVAL;
@@ -221,17 +220,15 @@ static int act8865_pdata_from_dt(struct device *dev,
 
 	matched = of_regulator_match(dev, np,
 				act8865_matches, ARRAY_SIZE(act8865_matches));
+	of_node_put(np);
 	if (matched <= 0)
 		return matched;
 
 	pdata->regulators = devm_kzalloc(dev,
 				sizeof(struct act8865_regulator_data) *
 				ARRAY_SIZE(act8865_matches), GFP_KERNEL);
-	if (!pdata->regulators) {
-		dev_err(dev, "%s: failed to allocate act8865 registor\n",
-						__func__);
+	if (!pdata->regulators)
 		return -ENOMEM;
-	}
 
 	pdata->num_regulators = matched;
 	regulator = pdata->regulators;
@@ -258,7 +255,7 @@ static inline int act8865_pdata_from_dt(struct device *dev,
 static int act8865_pmic_probe(struct i2c_client *client,
 			   const struct i2c_device_id *i2c_id)
 {
-	struct regulator_dev **rdev;
+	struct regulator_dev *rdev;
 	struct device *dev = &client->dev;
 	struct act8865_platform_data *pdata = dev_get_platdata(dev);
 	struct regulator_config config = { };
@@ -292,8 +289,6 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	if (!act8865)
 		return -ENOMEM;
 
-	rdev = act8865->rdev;
-
 	act8865->regmap = devm_regmap_init_i2c(client, &act8865_regmap_config);
 	if (IS_ERR(act8865->regmap)) {
 		error = PTR_ERR(act8865->regmap);
@@ -313,12 +308,12 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		config.driver_data = act8865;
 		config.regmap = act8865->regmap;
 
-		rdev[i] = devm_regulator_register(&client->dev,
-						&act8865_reg[i], &config);
-		if (IS_ERR(rdev[i])) {
+		rdev = devm_regulator_register(&client->dev, &act8865_reg[i],
+					       &config);
+		if (IS_ERR(rdev)) {
 			dev_err(dev, "failed to register %s\n",
 				act8865_reg[id].name);
-			return PTR_ERR(rdev[i]);
+			return PTR_ERR(rdev);
 		}
 	}
 

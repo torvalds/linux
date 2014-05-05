@@ -10,6 +10,6 @@ obj-$(CONFIG_INTEGRITY_ASYMMETRIC_KEYS) += digsig_asymmetric.o
 integrity-y := iint.o
 
 subdir-$(CONFIG_IMA)			+= ima
-obj-$(CONFIG_IMA)			+= ima/built-in.o
+obj-$(CONFIG_IMA)			+= ima/
 subdir-$(CONFIG_EVM)			+= evm
-obj-$(CONFIG_EVM)			+= evm/built-in.o
+obj-$(CONFIG_EVM)			+= evm/

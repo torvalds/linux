@@ -12,7 +12,6 @@
 */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
@@ -117,7 +116,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 		return result;
 
 	if (en) {
-		/* Wait for output stablize */
+		/* Wait for output stabilize */
 		msleep(INV_MPU6050_TEMP_UP_TIME);
 		if (INV_MPU6050_BIT_PWR_GYRO_STBY == mask) {
 			/* switch internal clock to PLL */

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -292,10 +292,11 @@ struct acpi_table_header *acpi_tb_table_override(struct acpi_table_header
 		new_table = acpi_os_map_memory(new_address, new_table_length);
 		if (!new_table) {
 			ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,
-					"%4.4s %p Attempted physical table override failed",
+					"%4.4s " ACPI_PRINTF_UINT
+					" Attempted physical table override failed",
 					table_header->signature,
-					ACPI_CAST_PTR(void,
-						      table_desc->address)));
+					ACPI_FORMAT_TO_UINT(table_desc->
+							    address)));
 			return (NULL);
 		}
 
@@ -308,11 +309,11 @@ struct acpi_table_header *acpi_tb_table_override(struct acpi_table_header
 
 finish_override:
 
-	ACPI_INFO((AE_INFO,
-		   "%4.4s %p %s table override, new table: %p",
+	ACPI_INFO((AE_INFO, "%4.4s " ACPI_PRINTF_UINT
+		   " %s table override, new table: " ACPI_PRINTF_UINT,
 		   table_header->signature,
-		   ACPI_CAST_PTR(void, table_desc->address),
-		   override_type, new_table));
+		   ACPI_FORMAT_TO_UINT(table_desc->address),
+		   override_type, ACPI_FORMAT_TO_UINT(new_table)));
 
 	/* We can now unmap/delete the original table (if fully mapped) */
 

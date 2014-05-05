@@ -361,7 +361,7 @@ uint32_t nvc0_grhub_code[] = {
 	0x1fb4f000,
 	0xf410b4b0,
 	0xa7f0f01b,
-	0xd021f402,
+	0xd021f405,
 /* 0x0223: mmctx_stop */
 	0xc82b0ef4,
 	0xb4b600ab,

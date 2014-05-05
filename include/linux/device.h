@@ -560,16 +560,12 @@ extern int device_create_file(struct device *device,
 			      const struct device_attribute *entry);
 extern void device_remove_file(struct device *dev,
 			       const struct device_attribute *attr);
+extern bool device_remove_file_self(struct device *dev,
+				    const struct device_attribute *attr);
 extern int __must_check device_create_bin_file(struct device *dev,
 					const struct bin_attribute *attr);
 extern void device_remove_bin_file(struct device *dev,
 				   const struct bin_attribute *attr);
-extern int device_schedule_callback_owner(struct device *dev,
-		void (*func)(struct device *dev), struct module *owner);
-
-/* This is a macro to avoid include problems with THIS_MODULE */
-#define device_schedule_callback(dev, func)			\
-	device_schedule_callback_owner(dev, func, THIS_MODULE)
 
 /* device resource management */
 typedef void (*dr_release_t)(struct device *dev, void *res);
@@ -626,6 +622,7 @@ static inline void *devm_kcalloc(struct device *dev,
 	return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
 }
 extern void devm_kfree(struct device *dev, void *p);
+extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp);
 
 void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res);
 void __iomem *devm_request_and_ioremap(struct device *dev,
@@ -929,10 +926,7 @@ extern int device_online(struct device *dev);
 extern struct device *__root_device_register(const char *name,
 					     struct module *owner);
 
-/*
- * This is a macro to avoid include problems with THIS_MODULE,
- * just as per what is done for device_schedule_callback() above.
- */
+/* This is a macro to avoid include problems with THIS_MODULE */
 #define root_device_register(name) \
 	__root_device_register(name, THIS_MODULE)
 

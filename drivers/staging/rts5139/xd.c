@@ -473,7 +473,8 @@ static int reset_xd(struct rts51x_chip *chip)
 		rts51x_add_cmd(chip, WRITE_REG_CMD, XD_DTCTL, 0xFF,
 			XD_TIME_SETUP_STEP * 3 + XD_TIME_RW_STEP *
 			(2 + i + chip->option.rts51x_xd_rw_step)
-			+ XD_TIME_RWN_STEP * (i + chip->option.rts51x_xd_rwn_step));
+			+ XD_TIME_RWN_STEP *
+			(i + chip->option.rts51x_xd_rwn_step));
 		rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CATCTL, 0xFF,
 			XD_TIME_SETUP_STEP * 3 + XD_TIME_RW_STEP * (4 +
 			i) + XD_TIME_RWN_STEP * (3 + i));
@@ -1526,8 +1527,8 @@ static int xd_read_multiple_pages(struct rts51x_chip *chip, u32 phy_blk,
 	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CHK_DATA_STATUS,
 		       XD_AUTO_CHK_DATA_STATUS, XD_AUTO_CHK_DATA_STATUS);
 
-	rts51x_trans_dma_enable(chip->srb->sc_data_direction, chip, page_cnt * 512,
-			 DMA_512);
+	rts51x_trans_dma_enable(chip->srb->sc_data_direction, chip,
+			page_cnt * 512, DMA_512);
 
 	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
 		       XD_TRANSFER_START | XD_READ_PAGES);
@@ -1745,8 +1746,8 @@ static int xd_write_multiple_pages(struct rts51x_chip *chip, u32 old_blk,
 	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE, 0x01,
 		       RING_BUFFER);
 
-	rts51x_trans_dma_enable(chip->srb->sc_data_direction, chip, page_cnt * 512,
-			 DMA_512);
+	rts51x_trans_dma_enable(chip->srb->sc_data_direction, chip,
+			page_cnt * 512, DMA_512);
 
 	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
 		       XD_TRANSFER_START | XD_WRITE_PAGES);
@@ -1842,8 +1843,8 @@ static int xd_delay_write(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-int rts51x_xd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
-	  u16 sector_cnt)
+int rts51x_xd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip,
+	u32 start_sector, u16 sector_cnt)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
 	unsigned int lun = SCSI_LUN(srb);
@@ -1883,7 +1884,8 @@ int rts51x_xd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sect
 		retval = xd_build_l2p_tbl(chip, zone_no);
 		if (retval != STATUS_SUCCESS) {
 			chip->card_fail |= XD_CARD;
-			rts51x_set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
+			rts51x_set_sense_type(chip, lun,
+				SENSE_TYPE_MEDIA_NOT_PRESENT);
 			TRACE_RET(chip, retval);
 		}
 	}

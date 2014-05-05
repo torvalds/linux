@@ -250,7 +250,7 @@ HCF_STATIC hcf_8 BASED mic_pad[8] = { 0x5A, 0, 0, 0, 0, 0, 0, 0 };      //MIC pa
 #endif // HCF_TYPE_WPA
 
 #if defined MSF_COMPONENT_ID
-CFG_IDENTITY_STRCT BASED cfg_drv_identity = {
+static CFG_IDENTITY_STRCT BASED cfg_drv_identity = {
 	sizeof(cfg_drv_identity)/sizeof(hcf_16) - 1,    //length of RID
 	CFG_DRV_IDENTITY,           // (0x0826)
 	MSF_COMPONENT_ID,
@@ -259,7 +259,7 @@ CFG_IDENTITY_STRCT BASED cfg_drv_identity = {
 	MSF_COMPONENT_MINOR_VER
 } ;
 
-CFG_RANGES_STRCT BASED cfg_drv_sup_range = {
+static CFG_RANGES_STRCT BASED cfg_drv_sup_range = {
 	sizeof(cfg_drv_sup_range)/sizeof(hcf_16) - 1,   //length of RID
 	CFG_DRV_SUP_RANGE,          // (0x0827)
 
@@ -271,7 +271,7 @@ CFG_RANGES_STRCT BASED cfg_drv_sup_range = {
 	}}
 } ;
 
-struct CFG_RANGE3_STRCT BASED cfg_drv_act_ranges_pri = {
+static struct CFG_RANGE3_STRCT BASED cfg_drv_act_ranges_pri = {
 	sizeof(cfg_drv_act_ranges_pri)/sizeof(hcf_16) - 1,  //length of RID
 	CFG_DRV_ACT_RANGES_PRI,     // (0x0828)
 
@@ -288,7 +288,7 @@ struct CFG_RANGE3_STRCT BASED cfg_drv_act_ranges_pri = {
 } ;
 
 
-struct CFG_RANGE4_STRCT BASED cfg_drv_act_ranges_sta = {
+static struct CFG_RANGE4_STRCT BASED cfg_drv_act_ranges_sta = {
 	sizeof(cfg_drv_act_ranges_sta)/sizeof(hcf_16) - 1,  //length of RID
 	CFG_DRV_ACT_RANGES_STA,     // (0x0829)
 
@@ -333,7 +333,7 @@ struct CFG_RANGE4_STRCT BASED cfg_drv_act_ranges_sta = {
 } ;
 
 
-struct CFG_RANGE6_STRCT BASED cfg_drv_act_ranges_hsi = {
+static struct CFG_RANGE6_STRCT BASED cfg_drv_act_ranges_hsi = {
 	sizeof(cfg_drv_act_ranges_hsi)/sizeof(hcf_16) - 1,  //length of RID
 	CFG_DRV_ACT_RANGES_HSI,     // (0x082A)
 	COMP_ROLE_ACT,
@@ -370,7 +370,7 @@ struct CFG_RANGE6_STRCT BASED cfg_drv_act_ranges_hsi = {
 } ;
 
 
-CFG_RANGE4_STRCT BASED cfg_drv_act_ranges_apf = {
+static CFG_RANGE4_STRCT BASED cfg_drv_act_ranges_apf = {
 	sizeof(cfg_drv_act_ranges_apf)/sizeof(hcf_16) - 1,  //length of RID
 	CFG_DRV_ACT_RANGES_APF,     // (0x082B)
 
@@ -3099,7 +3099,7 @@ hcf_service_nic( IFBP ifbp, wci_bufp bufp, unsigned int len )
 #define L   *p
 #define R   *(p+1)
 
-void
+static void
 calc_mic( hcf_32* p, hcf_32 m )
 {
 #if HCF_BIG_ENDIAN
@@ -3415,7 +3415,7 @@ calibrate( IFBP ifbp )
  *.ENDDOC                END DOCUMENTATION
  *
  ************************************************************************************************************/
-int
+static int
 check_mic( IFBP ifbp )
 {
 	int     rc = HCF_SUCCESS;

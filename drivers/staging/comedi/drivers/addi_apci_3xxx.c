@@ -434,13 +434,26 @@ static int apci3xxx_ai_setup(struct comedi_device *dev, unsigned int chanspec)
 	return 0;
 }
 
+static int apci3xxx_ai_eoc(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned long context)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readl(devpriv->mmio + 20);
+	if (status & 0x1)
+		return 0;
+	return -EBUSY;
+}
+
 static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
 	struct apci3xxx_private *devpriv = dev->private;
-	unsigned int val;
 	int ret;
 	int i;
 
@@ -453,10 +466,9 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 		writel(0x80000, devpriv->mmio + 8);
 
 		/* Wait the EOS */
-		do {
-			val = readl(devpriv->mmio + 20);
-			val &= 0x1;
-		} while (!val);
+		ret = comedi_timeout(dev, s, insn, apci3xxx_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* Read the analog value */
 		data[i] = readl(devpriv->mmio + 28);
@@ -622,6 +634,20 @@ static int apci3xxx_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+static int apci3xxx_ao_eoc(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned long context)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readl(devpriv->mmio + 96);
+	if (status & 0x100)
+		return 0;
+	return -EBUSY;
+}
+
 static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
@@ -630,7 +656,7 @@ static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int status;
+	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
@@ -641,9 +667,9 @@ static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 		writel((data[i] << 8) | chan, devpriv->mmio + 100);
 
 		/* Wait the end of transfer */
-		do {
-			status = readl(devpriv->mmio + 96);
-		} while ((status & 0x100) != 0x100);
+		ret = comedi_timeout(dev, s, insn, apci3xxx_ao_eoc, 0);
+		if (ret)
+			return ret;
 	}
 
 	return insn->n;
@@ -680,7 +706,7 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask;
+	unsigned int mask = 0;
 	int ret;
 
 	/*
@@ -688,12 +714,13 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 	 * Port 1 (channels 8-15) are always outputs
 	 * Port 2 (channels 16-23) are programmable i/o
 	 */
-	if (chan < 16) {
-		if (data[0] != INSN_CONFIG_DIO_QUERY)
+	if (data[0] != INSN_CONFIG_DIO_QUERY) {
+		/* ignore all other instructions for ports 0 and 1 */
+		if (chan < 16)
 			return -EINVAL;
-	} else {
-		/* changing any channel in port 2 changes the entire port */
-		mask = 0xff0000;
+		else
+			/* changing any channel in port 2 changes the entire port */
+			mask = 0xff0000;
 	}
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, mask);

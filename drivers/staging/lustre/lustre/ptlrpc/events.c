@@ -545,7 +545,7 @@ int ptlrpc_ni_init(void)
 	 * different depending on... */
 	/* kernel LNet calls our master callback when there are new event,
 	 * because we are guaranteed to get every event via callback,
-	 * so we just set EQ size to 0 to avoid overhread of serializing
+	 * so we just set EQ size to 0 to avoid overhead of serializing
 	 * enqueue/dequeue operations in LNet. */
 	rc = LNetEQAlloc(0, ptlrpc_master_callback, &ptlrpc_eq_h);
 	if (rc == 0)

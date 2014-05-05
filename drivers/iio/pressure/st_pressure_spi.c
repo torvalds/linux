@@ -49,6 +49,7 @@ static int st_press_spi_remove(struct spi_device *spi)
 
 static const struct spi_device_id st_press_id_table[] = {
 	{ LPS001WP_PRESS_DEV_NAME },
+	{ LPS25H_PRESS_DEV_NAME },
 	{ LPS331AP_PRESS_DEV_NAME },
 	{},
 };

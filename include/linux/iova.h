@@ -47,5 +47,7 @@ void copy_reserved_iova(struct iova_domain *from, struct iova_domain *to);
 void init_iova_domain(struct iova_domain *iovad, unsigned long pfn_32bit);
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
+struct iova *split_and_remove_iova(struct iova_domain *iovad,
+	struct iova *iova, unsigned long pfn_lo, unsigned long pfn_hi);
 
 #endif

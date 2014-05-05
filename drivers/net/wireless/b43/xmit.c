@@ -337,7 +337,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			/* iv16 */
 			memcpy(txhdr->iv + 10, ((u8 *) wlhdr) + wlhdr_len, 3);
 		} else {
-			iv_len = min((size_t) info->control.hw_key->iv_len,
+			iv_len = min_t(size_t, info->control.hw_key->iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
 		}
@@ -806,7 +806,8 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		B43_WARN_ON(1);
 		/* FIXME: We don't really know which value the "chanid" contains.
 		 *        So the following assignment might be wrong. */
-		status.freq = b43_channel_to_freq_5ghz(chanid);
+		status.freq =
+			ieee80211_channel_to_frequency(chanid, status.band);
 		break;
 	case B43_PHYTYPE_G:
 		status.band = IEEE80211_BAND_2GHZ;
@@ -819,13 +820,12 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	case B43_PHYTYPE_HT:
 		/* chanid is the SHM channel cookie. Which is the plain
 		 * channel number in b43. */
-		if (chanstat & B43_RX_CHAN_5GHZ) {
+		if (chanstat & B43_RX_CHAN_5GHZ)
 			status.band = IEEE80211_BAND_5GHZ;
-			status.freq = b43_channel_to_freq_5ghz(chanid);
-		} else {
+		else
 			status.band = IEEE80211_BAND_2GHZ;
-			status.freq = b43_channel_to_freq_2ghz(chanid);
-		}
+		status.freq =
+			ieee80211_channel_to_frequency(chanid, status.band);
 		break;
 	default:
 		B43_WARN_ON(1);

@@ -36,7 +36,7 @@ struct usX2Ydev {
 	unsigned int		rate,
 				format;
 	int			chip_status;
-	struct mutex		prepare_mutex;
+	struct mutex		pcm_mutex;
 	struct us428ctls_sharedmem	*us428ctls_sharedmem;
 	int			wait_iso_frame;
 	wait_queue_head_t	us428ctls_wait_queue_head;

@@ -439,7 +439,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no irq defined in platform data\n");
-		return -EINVAL;
+		return irq;
 	}
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
@@ -449,7 +449,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	}
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(struct imx_keypad),
-			     GFP_KERNEL);
+			      GFP_KERNEL);
 	if (!keypad) {
 		dev_err(&pdev->dev, "not enough memory for driver data\n");
 		return -ENOMEM;

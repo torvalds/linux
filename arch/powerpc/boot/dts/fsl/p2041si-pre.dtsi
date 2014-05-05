@@ -81,6 +81,7 @@
 		cpu0: PowerPC,e500mc@0 {
 			device_type = "cpu";
 			reg = <0>;
+			clocks = <&mux0>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
 				next-level-cache = <&cpc>;
@@ -89,6 +90,7 @@
 		cpu1: PowerPC,e500mc@1 {
 			device_type = "cpu";
 			reg = <1>;
+			clocks = <&mux1>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
 				next-level-cache = <&cpc>;
@@ -97,6 +99,7 @@
 		cpu2: PowerPC,e500mc@2 {
 			device_type = "cpu";
 			reg = <2>;
+			clocks = <&mux2>;
 			next-level-cache = <&L2_2>;
 			L2_2: l2-cache {
 				next-level-cache = <&cpc>;
@@ -105,6 +108,7 @@
 		cpu3: PowerPC,e500mc@3 {
 			device_type = "cpu";
 			reg = <3>;
+			clocks = <&mux3>;
 			next-level-cache = <&L2_3>;
 			L2_3: l2-cache {
 				next-level-cache = <&cpc>;

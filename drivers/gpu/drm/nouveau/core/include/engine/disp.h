@@ -36,14 +36,15 @@ void _nouveau_disp_dtor(struct nouveau_object *);
 #define _nouveau_disp_init _nouveau_engine_init
 #define _nouveau_disp_fini _nouveau_engine_fini
 
-extern struct nouveau_oclass nv04_disp_oclass;
-extern struct nouveau_oclass nv50_disp_oclass;
-extern struct nouveau_oclass nv84_disp_oclass;
-extern struct nouveau_oclass nva0_disp_oclass;
-extern struct nouveau_oclass nv94_disp_oclass;
-extern struct nouveau_oclass nva3_disp_oclass;
-extern struct nouveau_oclass nvd0_disp_oclass;
-extern struct nouveau_oclass nve0_disp_oclass;
-extern struct nouveau_oclass nvf0_disp_oclass;
+extern struct nouveau_oclass *nv04_disp_oclass;
+extern struct nouveau_oclass *nv50_disp_oclass;
+extern struct nouveau_oclass *nv84_disp_oclass;
+extern struct nouveau_oclass *nva0_disp_oclass;
+extern struct nouveau_oclass *nv94_disp_oclass;
+extern struct nouveau_oclass *nva3_disp_oclass;
+extern struct nouveau_oclass *nvd0_disp_oclass;
+extern struct nouveau_oclass *nve0_disp_oclass;
+extern struct nouveau_oclass *nvf0_disp_oclass;
+extern struct nouveau_oclass *gm107_disp_oclass;
 
 #endif

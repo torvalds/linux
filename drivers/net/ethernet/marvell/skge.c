@@ -2845,7 +2845,7 @@ mapping_unwind:
 mapping_error:
 	if (net_ratelimit())
 		dev_warn(&hw->pdev->dev, "%s: tx mapping error\n", dev->name);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -3172,7 +3172,7 @@ static void skge_tx_done(struct net_device *dev)
 			pkts_compl++;
 			bytes_compl += e->skb->len;
 
-			dev_kfree_skb(e->skb);
+			dev_consume_skb_any(e->skb);
 		}
 	}
 	netdev_completed_queue(dev, pkts_compl, bytes_compl);

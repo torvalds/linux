@@ -82,7 +82,7 @@ bool rtl_hal_pwrseqcmdparsing (struct rtl_priv* rtlpriv, u8 cut_version,
 					value = value | (GET_PWR_CFG_VALUE(pwr_cfg_cmd)
 							& GET_PWR_CFG_MASK(pwr_cfg_cmd));
 
-					/*Write the value back to sytem register*/
+					/*Write the value back to system register*/
 					rtl_write_byte(rtlpriv, offset, value);
 				}
 				break;

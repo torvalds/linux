@@ -16,18 +16,6 @@ struct file_info {
 	u64 size;
 };
 
-
-
-
-static void efi_char16_printk(efi_system_table_t *sys_table_arg,
-			      efi_char16_t *str)
-{
-	struct efi_simple_text_output_protocol *out;
-
-	out = (struct efi_simple_text_output_protocol *)sys_table_arg->con_out;
-	efi_call_phys2(out->output_string, out, str);
-}
-
 static void efi_printk(efi_system_table_t *sys_table_arg, char *str)
 {
 	char *s8;
@@ -65,20 +53,23 @@ again:
 	 * allocation which may be in a new descriptor region.
 	 */
 	*map_size += sizeof(*m);
-	status = efi_call_phys3(sys_table_arg->boottime->allocate_pool,
-				EFI_LOADER_DATA, *map_size, (void **)&m);
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
+				*map_size, (void **)&m);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
-	status = efi_call_phys5(sys_table_arg->boottime->get_memory_map,
-				map_size, m, &key, desc_size, &desc_version);
+	*desc_size = 0;
+	key = 0;
+	status = efi_call_early(get_memory_map, map_size, m,
+				&key, desc_size, &desc_version);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		efi_call_phys1(sys_table_arg->boottime->free_pool, m);
+		efi_call_early(free_pool, m);
 		goto again;
 	}
 
 	if (status != EFI_SUCCESS)
-		efi_call_phys1(sys_table_arg->boottime->free_pool, m);
+		efi_call_early(free_pool, m);
+
 	if (key_ptr && status == EFI_SUCCESS)
 		*key_ptr = key;
 	if (desc_ver && status == EFI_SUCCESS)
@@ -158,7 +149,7 @@ again:
 	if (!max_addr)
 		status = EFI_NOT_FOUND;
 	else {
-		status = efi_call_phys4(sys_table_arg->boottime->allocate_pages,
+		status = efi_call_early(allocate_pages,
 					EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
 					nr_pages, &max_addr);
 		if (status != EFI_SUCCESS) {
@@ -170,8 +161,7 @@ again:
 		*addr = max_addr;
 	}
 
-	efi_call_phys1(sys_table_arg->boottime->free_pool, map);
-
+	efi_call_early(free_pool, map);
 fail:
 	return status;
 }
@@ -231,7 +221,7 @@ static efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 		if ((start + size) > end)
 			continue;
 
-		status = efi_call_phys4(sys_table_arg->boottime->allocate_pages,
+		status = efi_call_early(allocate_pages,
 					EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
 					nr_pages, &start);
 		if (status == EFI_SUCCESS) {
@@ -243,7 +233,7 @@ static efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 	if (i == map_size / desc_size)
 		status = EFI_NOT_FOUND;
 
-	efi_call_phys1(sys_table_arg->boottime->free_pool, map);
+	efi_call_early(free_pool, map);
 fail:
 	return status;
 }
@@ -257,7 +247,7 @@ static void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 		return;
 
 	nr_pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
-	efi_call_phys2(sys_table_arg->boottime->free_pages, addr, nr_pages);
+	efi_call_early(free_pages, addr, nr_pages);
 }
 
 
@@ -276,9 +266,7 @@ static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 {
 	struct file_info *files;
 	unsigned long file_addr;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	u64 file_size_total;
-	efi_file_io_interface_t *io;
 	efi_file_handle_t *fh;
 	efi_status_t status;
 	int nr_files;
@@ -319,10 +307,8 @@ static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 	if (!nr_files)
 		return EFI_SUCCESS;
 
-	status = efi_call_phys3(sys_table_arg->boottime->allocate_pool,
-				EFI_LOADER_DATA,
-				nr_files * sizeof(*files),
-				(void **)&files);
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
+				nr_files * sizeof(*files), (void **)&files);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table_arg, "Failed to alloc mem for file handle list\n");
 		goto fail;
@@ -331,13 +317,8 @@ static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 	str = cmd_line;
 	for (i = 0; i < nr_files; i++) {
 		struct file_info *file;
-		efi_file_handle_t *h;
-		efi_file_info_t *info;
 		efi_char16_t filename_16[256];
-		unsigned long info_sz;
-		efi_guid_t info_guid = EFI_FILE_INFO_ID;
 		efi_char16_t *p;
-		u64 file_sz;
 
 		str = strstr(str, option_string);
 		if (!str)
@@ -368,71 +349,18 @@ static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 
 		/* Only open the volume once. */
 		if (!i) {
-			efi_boot_services_t *boottime;
-
-			boottime = sys_table_arg->boottime;
-
-			status = efi_call_phys3(boottime->handle_protocol,
-					image->device_handle, &fs_proto,
-						(void **)&io);
-			if (status != EFI_SUCCESS) {
-				efi_printk(sys_table_arg, "Failed to handle fs_proto\n");
+			status = efi_open_volume(sys_table_arg, image,
+						 (void **)&fh);
+			if (status != EFI_SUCCESS)
 				goto free_files;
-			}
-
-			status = efi_call_phys2(io->open_volume, io, &fh);
-			if (status != EFI_SUCCESS) {
-				efi_printk(sys_table_arg, "Failed to open volume\n");
-				goto free_files;
-			}
 		}
 
-		status = efi_call_phys5(fh->open, fh, &h, filename_16,
-					EFI_FILE_MODE_READ, (u64)0);
-		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table_arg, "Failed to open file: ");
-			efi_char16_printk(sys_table_arg, filename_16);
-			efi_printk(sys_table_arg, "\n");
+		status = efi_file_size(sys_table_arg, fh, filename_16,
+				       (void **)&file->handle, &file->size);
+		if (status != EFI_SUCCESS)
 			goto close_handles;
-		}
 
-		file->handle = h;
-
-		info_sz = 0;
-		status = efi_call_phys4(h->get_info, h, &info_guid,
-					&info_sz, NULL);
-		if (status != EFI_BUFFER_TOO_SMALL) {
-			efi_printk(sys_table_arg, "Failed to get file info size\n");
-			goto close_handles;
-		}
-
-grow:
-		status = efi_call_phys3(sys_table_arg->boottime->allocate_pool,
-					EFI_LOADER_DATA, info_sz,
-					(void **)&info);
-		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table_arg, "Failed to alloc mem for file info\n");
-			goto close_handles;
-		}
-
-		status = efi_call_phys4(h->get_info, h, &info_guid,
-					&info_sz, info);
-		if (status == EFI_BUFFER_TOO_SMALL) {
-			efi_call_phys1(sys_table_arg->boottime->free_pool,
-				       info);
-			goto grow;
-		}
-
-		file_sz = info->file_size;
-		efi_call_phys1(sys_table_arg->boottime->free_pool, info);
-
-		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table_arg, "Failed to get file info\n");
-			goto close_handles;
-		}
-
-		file->size = file_sz;
-		file_size_total += file_sz;
+		file_size_total += file->size;
 	}
 
 	if (file_size_total) {
@@ -468,10 +396,10 @@ grow:
 					chunksize = EFI_READ_CHUNK_SIZE;
 				else
 					chunksize = size;
-				status = efi_call_phys3(fh->read,
-							files[j].handle,
-							&chunksize,
-							(void *)addr);
+
+				status = efi_file_read(files[j].handle,
+						       &chunksize,
+						       (void *)addr);
 				if (status != EFI_SUCCESS) {
 					efi_printk(sys_table_arg, "Failed to read file\n");
 					goto free_file_total;
@@ -480,12 +408,12 @@ grow:
 				size -= chunksize;
 			}
 
-			efi_call_phys1(fh->close, files[j].handle);
+			efi_file_close(files[j].handle);
 		}
 
 	}
 
-	efi_call_phys1(sys_table_arg->boottime->free_pool, files);
+	efi_call_early(free_pool, files);
 
 	*load_addr = file_addr;
 	*load_size = file_size_total;
@@ -497,9 +425,9 @@ free_file_total:
 
 close_handles:
 	for (k = j; k < i; k++)
-		efi_call_phys1(fh->close, files[k].handle);
+		efi_file_close(files[k].handle);
 free_files:
-	efi_call_phys1(sys_table_arg->boottime->free_pool, files);
+	efi_call_early(free_pool, files);
 fail:
 	*load_addr = 0;
 	*load_size = 0;
@@ -545,7 +473,7 @@ static efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 	 * as possible while respecting the required alignment.
 	 */
 	nr_pages = round_up(alloc_size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
-	status = efi_call_phys4(sys_table_arg->boottime->allocate_pages,
+	status = efi_call_early(allocate_pages,
 				EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
 				nr_pages, &efi_addr);
 	new_addr = efi_addr;

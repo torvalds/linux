@@ -23,6 +23,7 @@
  */
 
 #include "nvc0.h"
+#include "ctxnvc0.h"
 
 /*******************************************************************************
  * Graphics object classes
@@ -39,93 +40,81 @@ nvc1_graph_sclass[] = {
 };
 
 /*******************************************************************************
- * PGRAPH engine/subdev functions
+ * PGRAPH register lists
  ******************************************************************************/
 
-static struct nvc0_graph_init
-nvc1_graph_init_gpc[] = {
-	{ 0x4184a0,   1, 0x04, 0x00000000 },
+const struct nvc0_graph_init
+nvc1_graph_init_gpc_unk_0[] = {
 	{ 0x418604,   1, 0x04, 0x00000000 },
 	{ 0x418680,   1, 0x04, 0x00000000 },
 	{ 0x418714,   1, 0x04, 0x00000000 },
 	{ 0x418384,   1, 0x04, 0x00000000 },
-	{ 0x418814,   3, 0x04, 0x00000000 },
-	{ 0x418b04,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc1_graph_init_setup_1[] = {
 	{ 0x4188c8,   2, 0x04, 0x00000000 },
 	{ 0x4188d0,   1, 0x04, 0x00010000 },
 	{ 0x4188d4,   1, 0x04, 0x00000001 },
-	{ 0x418910,   1, 0x04, 0x00010001 },
-	{ 0x418914,   1, 0x04, 0x00000301 },
-	{ 0x418918,   1, 0x04, 0x00800000 },
-	{ 0x418980,   1, 0x04, 0x77777770 },
-	{ 0x418984,   3, 0x04, 0x77777777 },
-	{ 0x418c04,   1, 0x04, 0x00000000 },
-	{ 0x418c88,   1, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvc1_graph_init_gpc_unk_1[] = {
 	{ 0x418d00,   1, 0x04, 0x00000000 },
 	{ 0x418f08,   1, 0x04, 0x00000000 },
 	{ 0x418e00,   1, 0x04, 0x00000003 },
 	{ 0x418e08,   1, 0x04, 0x00000000 },
-	{ 0x41900c,   1, 0x04, 0x00000000 },
-	{ 0x419018,   1, 0x04, 0x00000000 },
 	{}
 };
 
-static struct nvc0_graph_init
-nvc1_graph_init_tpc[] = {
-	{ 0x419d08,   2, 0x04, 0x00000000 },
-	{ 0x419d10,   1, 0x04, 0x00000014 },
-	{ 0x419ab0,   1, 0x04, 0x00000000 },
-	{ 0x419ac8,   1, 0x04, 0x00000000 },
-	{ 0x419ab8,   1, 0x04, 0x000000e7 },
-	{ 0x419abc,   2, 0x04, 0x00000000 },
-	{ 0x41980c,   2, 0x04, 0x00000000 },
+static const struct nvc0_graph_init
+nvc1_graph_init_pe_0[] = {
+	{ 0x41980c,   1, 0x04, 0x00000010 },
+	{ 0x419810,   1, 0x04, 0x00000000 },
 	{ 0x419814,   1, 0x04, 0x00000004 },
 	{ 0x419844,   1, 0x04, 0x00000000 },
 	{ 0x41984c,   1, 0x04, 0x00005bc5 },
 	{ 0x419850,   4, 0x04, 0x00000000 },
 	{ 0x419880,   1, 0x04, 0x00000002 },
-	{ 0x419c98,   1, 0x04, 0x00000000 },
-	{ 0x419ca8,   1, 0x04, 0x80000000 },
-	{ 0x419cb4,   1, 0x04, 0x00000000 },
-	{ 0x419cb8,   1, 0x04, 0x00008bf4 },
-	{ 0x419cbc,   1, 0x04, 0x28137606 },
-	{ 0x419cc0,   2, 0x04, 0x00000000 },
-	{ 0x419bd4,   1, 0x04, 0x00800000 },
-	{ 0x419bdc,   1, 0x04, 0x00000000 },
-	{ 0x419d2c,   1, 0x04, 0x00000000 },
-	{ 0x419c0c,   1, 0x04, 0x00000000 },
-	{ 0x419e00,   1, 0x04, 0x00000000 },
-	{ 0x419ea0,   1, 0x04, 0x00000000 },
-	{ 0x419ea4,   1, 0x04, 0x00000100 },
-	{ 0x419ea8,   1, 0x04, 0x00001100 },
-	{ 0x419eac,   1, 0x04, 0x11100702 },
-	{ 0x419eb0,   1, 0x04, 0x00000003 },
-	{ 0x419eb4,   4, 0x04, 0x00000000 },
-	{ 0x419ec8,   1, 0x04, 0x0e063818 },
-	{ 0x419ecc,   1, 0x04, 0x0e060e06 },
-	{ 0x419ed0,   1, 0x04, 0x00003818 },
-	{ 0x419ed4,   1, 0x04, 0x011104f1 },
-	{ 0x419edc,   1, 0x04, 0x00000000 },
-	{ 0x419f00,   1, 0x04, 0x00000000 },
-	{ 0x419f2c,   1, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init *
-nvc1_graph_init_mmio[] = {
-	nvc0_graph_init_regs,
-	nvc0_graph_init_unk40xx,
-	nvc0_graph_init_unk44xx,
-	nvc0_graph_init_unk78xx,
-	nvc0_graph_init_unk60xx,
-	nvc3_graph_init_unk58xx,
-	nvc0_graph_init_unk80xx,
-	nvc1_graph_init_gpc,
-	nvc1_graph_init_tpc,
-	nvc0_graph_init_unk88xx,
-	nvc0_graph_tpc_0,
-	NULL
+static const struct nvc0_graph_pack
+nvc1_graph_pack_mmio[] = {
+	{ nvc0_graph_init_main_0 },
+	{ nvc0_graph_init_fe_0 },
+	{ nvc0_graph_init_pri_0 },
+	{ nvc0_graph_init_rstr2d_0 },
+	{ nvc0_graph_init_pd_0 },
+	{ nvc4_graph_init_ds_0 },
+	{ nvc0_graph_init_scc_0 },
+	{ nvc0_graph_init_prop_0 },
+	{ nvc1_graph_init_gpc_unk_0 },
+	{ nvc0_graph_init_setup_0 },
+	{ nvc0_graph_init_crstr_0 },
+	{ nvc1_graph_init_setup_1 },
+	{ nvc0_graph_init_zcull_0 },
+	{ nvc0_graph_init_gpm_0 },
+	{ nvc1_graph_init_gpc_unk_1 },
+	{ nvc0_graph_init_gcc_0 },
+	{ nvc0_graph_init_tpccs_0 },
+	{ nvc4_graph_init_tex_0 },
+	{ nvc1_graph_init_pe_0 },
+	{ nvc0_graph_init_l1c_0 },
+	{ nvc0_graph_init_wwdx_0 },
+	{ nvc0_graph_init_tpccs_1 },
+	{ nvc0_graph_init_mpc_0 },
+	{ nvc4_graph_init_sm_0 },
+	{ nvc0_graph_init_be_0 },
+	{ nvc0_graph_init_fe_1 },
+	{}
 };
+
+/*******************************************************************************
+ * PGRAPH engine/subdev functions
+ ******************************************************************************/
 
 struct nouveau_oclass *
 nvc1_graph_oclass = &(struct nvc0_graph_oclass) {
@@ -138,7 +127,7 @@ nvc1_graph_oclass = &(struct nvc0_graph_oclass) {
 	},
 	.cclass = &nvc1_grctx_oclass,
 	.sclass = nvc1_graph_sclass,
-	.mmio = nvc1_graph_init_mmio,
+	.mmio = nvc1_graph_pack_mmio,
 	.fecs.ucode = &nvc0_graph_fecs_ucode,
 	.gpccs.ucode = &nvc0_graph_gpccs_ucode,
 }.base;

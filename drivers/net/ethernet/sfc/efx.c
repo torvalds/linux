@@ -76,6 +76,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_RECOVER_OR_ALL]     = "RECOVER_OR_ALL",
 	[RESET_TYPE_WORLD]              = "WORLD",
 	[RESET_TYPE_RECOVER_OR_DISABLE] = "RECOVER_OR_DISABLE",
+	[RESET_TYPE_MC_BIST]		= "MC_BIST",
 	[RESET_TYPE_DISABLE]            = "DISABLE",
 	[RESET_TYPE_TX_WATCHDOG]        = "TX_WATCHDOG",
 	[RESET_TYPE_INT_ERROR]          = "INT_ERROR",
@@ -83,7 +84,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_DMA_ERROR]          = "DMA_ERROR",
 	[RESET_TYPE_TX_SKIP]            = "TX_SKIP",
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
-	[RESET_TYPE_MC_BIST]		= "MC_BIST",
+	[RESET_TYPE_MCDI_TIMEOUT]	= "MCDI_TIMEOUT (FLR)",
 };
 
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
@@ -502,8 +503,6 @@ static int efx_probe_channel(struct efx_channel *channel)
 		if (rc)
 			goto fail;
 	}
-
-	channel->n_rx_frm_trunc = 0;
 
 	return 0;
 
@@ -1014,7 +1013,7 @@ static int efx_probe_port(struct efx_nic *efx)
 		return rc;
 
 	/* Initialise MAC address to permanent address */
-	memcpy(efx->net_dev->dev_addr, efx->net_dev->perm_addr, ETH_ALEN);
+	ether_addr_copy(efx->net_dev->dev_addr, efx->net_dev->perm_addr);
 
 	return 0;
 }
@@ -1346,20 +1345,23 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 
 		for (i = 0; i < n_channels; i++)
 			xentries[i].entry = i;
-		rc = pci_enable_msix(efx->pci_dev, xentries, n_channels);
-		if (rc > 0) {
+		rc = pci_enable_msix_range(efx->pci_dev,
+					   xentries, 1, n_channels);
+		if (rc < 0) {
+			/* Fall back to single channel MSI */
+			efx->interrupt_mode = EFX_INT_MODE_MSI;
+			netif_err(efx, drv, efx->net_dev,
+				  "could not enable MSI-X\n");
+		} else if (rc < n_channels) {
 			netif_err(efx, drv, efx->net_dev,
 				  "WARNING: Insufficient MSI-X vectors"
 				  " available (%d < %u).\n", rc, n_channels);
 			netif_err(efx, drv, efx->net_dev,
 				  "WARNING: Performance may be reduced.\n");
-			EFX_BUG_ON_PARANOID(rc >= n_channels);
 			n_channels = rc;
-			rc = pci_enable_msix(efx->pci_dev, xentries,
-					     n_channels);
 		}
 
-		if (rc == 0) {
+		if (rc > 0) {
 			efx->n_channels = n_channels;
 			if (n_channels > extra_channels)
 				n_channels -= extra_channels;
@@ -1375,11 +1377,6 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 			for (i = 0; i < efx->n_channels; i++)
 				efx_get_channel(efx, i)->irq =
 					xentries[i].vector;
-		} else {
-			/* Fall back to single channel MSI */
-			efx->interrupt_mode = EFX_INT_MODE_MSI;
-			netif_err(efx, drv, efx->net_dev,
-				  "could not enable MSI-X\n");
 		}
 	}
 
@@ -1603,6 +1600,8 @@ static int efx_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail1;
 
+	efx_set_channels(efx);
+
 	rc = efx->type->dimension_resources(efx);
 	if (rc)
 		goto fail2;
@@ -1613,7 +1612,6 @@ static int efx_probe_nic(struct efx_nic *efx)
 		efx->rx_indir_table[i] =
 			ethtool_rxfh_indir_default(i, efx->rss_spread);
 
-	efx_set_channels(efx);
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
 
@@ -1742,7 +1740,8 @@ static void efx_start_all(struct efx_nic *efx)
 
 	/* Check that it is appropriate to restart the interface. All
 	 * of these flags are safe to read under just the rtnl lock */
-	if (efx->port_enabled || !netif_running(efx->net_dev))
+	if (efx->port_enabled || !netif_running(efx->net_dev) ||
+	    efx->reset_pending)
 		return;
 
 	efx_start_port(efx);
@@ -2115,7 +2114,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct sockaddr *addr = data;
-	char *new_addr = addr->sa_data;
+	u8 *new_addr = addr->sa_data;
 
 	if (!is_valid_ether_addr(new_addr)) {
 		netif_err(efx, drv, efx->net_dev,
@@ -2124,7 +2123,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 		return -EADDRNOTAVAIL;
 	}
 
-	memcpy(net_dev->dev_addr, new_addr, net_dev->addr_len);
+	ether_addr_copy(net_dev->dev_addr, new_addr);
 	efx_sriov_mac_address_changed(efx);
 
 	/* Reconfigure the MAC */
@@ -2337,6 +2336,9 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
+	if (method == RESET_TYPE_MCDI_TIMEOUT)
+		efx->type->prepare_flr(efx);
+
 	efx_stop_all(efx);
 	efx_disable_interrupts(efx);
 
@@ -2357,6 +2359,10 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
+	if (method == RESET_TYPE_MCDI_TIMEOUT)
+		efx->type->finish_flr(efx);
+
+	/* Ensure that SRAM is initialised even if we're disabling the device */
 	rc = efx->type->init(efx);
 	if (rc) {
 		netif_err(efx, drv, efx->net_dev, "failed to initialise NIC\n");
@@ -2420,7 +2426,10 @@ int efx_reset(struct efx_nic *efx, enum reset_type method)
 	/* Clear flags for the scopes we covered.  We assume the NIC and
 	 * driver are now quiescent so that there is no race here.
 	 */
-	efx->reset_pending &= -(1 << (method + 1));
+	if (method < RESET_TYPE_MAX_METHOD)
+		efx->reset_pending &= -(1 << (method + 1));
+	else /* it doesn't fit into the well-ordered scope hierarchy */
+		__clear_bit(method, &efx->reset_pending);
 
 	/* Reinitialise bus-mastering, which may have been turned off before
 	 * the reset was scheduled. This is still appropriate, even in the
@@ -2549,6 +2558,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	case RESET_TYPE_DISABLE:
 	case RESET_TYPE_RECOVER_OR_DISABLE:
 	case RESET_TYPE_MC_BIST:
+	case RESET_TYPE_MCDI_TIMEOUT:
 		method = type;
 		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
 			  RESET_TYPE(method));
@@ -3273,6 +3283,6 @@ module_exit(efx_exit_module);
 
 MODULE_AUTHOR("Solarflare Communications and "
 	      "Michael Brown <mbrown@fensystems.co.uk>");
-MODULE_DESCRIPTION("Solarflare Communications network driver");
+MODULE_DESCRIPTION("Solarflare network driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, efx_pci_table);

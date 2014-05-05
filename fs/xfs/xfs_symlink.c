@@ -80,6 +80,10 @@ xfs_readlink_bmap(
 		if (error) {
 			xfs_buf_ioerror_alert(bp, __func__);
 			xfs_buf_relse(bp);
+
+			/* bad CRC means corrupted metadata */
+			if (error == EFSBADCRC)
+				error = EFSCORRUPTED;
 			goto out;
 		}
 		byte_cnt = XFS_SYMLINK_BUF_SPACE(mp, byte_cnt);
@@ -208,10 +212,7 @@ xfs_symlink(
 		return XFS_ERROR(ENAMETOOLONG);
 
 	udqp = gdqp = NULL;
-	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
-		prid = xfs_get_projid(dp);
-	else
-		prid = XFS_PROJID_DEFAULT;
+	prid = xfs_get_initial_prid(dp);
 
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.

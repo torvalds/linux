@@ -154,6 +154,7 @@ raw line value:
 	void gpiod_set_raw_value(struct gpio_desc *desc, int value)
 	int gpiod_get_raw_value_cansleep(const struct gpio_desc *desc)
 	void gpiod_set_raw_value_cansleep(struct gpio_desc *desc, int value)
+	int gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 
 The active-low state of a GPIO can also be queried using the following call:
 

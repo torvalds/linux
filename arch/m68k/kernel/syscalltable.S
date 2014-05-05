@@ -369,4 +369,6 @@ ENTRY(sys_call_table)
 	.long sys_process_vm_writev
 	.long sys_kcmp
 	.long sys_finit_module
+	.long sys_sched_setattr
+	.long sys_sched_getattr		/* 350 */
 

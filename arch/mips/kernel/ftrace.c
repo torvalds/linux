@@ -90,6 +90,7 @@ static inline void ftrace_dyn_arch_init_insns(void)
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 {
 	int faulted;
+	mm_segment_t old_fs;
 
 	/* *(unsigned int *)ip = new_code; */
 	safe_store_code(new_code, ip, faulted);
@@ -97,7 +98,10 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 	if (unlikely(faulted))
 		return -EFAULT;
 
+	old_fs = get_fs();
+	set_fs(get_ds());
 	flush_icache_range(ip, ip + 8);
+	set_fs(old_fs);
 
 	return 0;
 }
@@ -111,11 +115,10 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 	safe_store_code(new_code1, ip, faulted);
 	if (unlikely(faulted))
 		return -EFAULT;
-	ip += 4;
-	safe_store_code(new_code2, ip, faulted);
+	safe_store_code(new_code2, ip + 4, faulted);
 	if (unlikely(faulted))
 		return -EFAULT;
-	flush_icache_range(ip, ip + 8); /* original ip + 12 */
+	flush_icache_range(ip, ip + 8);
 	return 0;
 }
 #endif
@@ -198,16 +201,13 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ftrace_modify_code(FTRACE_CALL_IP, new);
 }
 
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
 	/* Encode the instructions when booting */
 	ftrace_dyn_arch_init_insns();
 
 	/* Remove "b ftrace_stub" to ensure ftrace_caller() is executed */
 	ftrace_modify_code(MCOUNT_ADDR, INSN_NOP);
-
-	/* The return code is retured via data */
-	*(unsigned long *)data = 0;
 
 	return 0;
 }

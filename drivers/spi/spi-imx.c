@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -741,7 +740,7 @@ static int spi_imx_transfer(struct spi_device *spi,
 	spi_imx->count = transfer->len;
 	spi_imx->txfifo = 0;
 
-	init_completion(&spi_imx->xfer_done);
+	reinit_completion(&spi_imx->xfer_done);
 
 	spi_imx_push(spi_imx);
 
@@ -880,12 +879,12 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	spi_imx->irq = platform_get_irq(pdev, 0);
 	if (spi_imx->irq < 0) {
-		ret = -EINVAL;
+		ret = spi_imx->irq;
 		goto out_master_put;
 	}
 
 	ret = devm_request_irq(&pdev->dev, spi_imx->irq, spi_imx_isr, 0,
-			       DRIVER_NAME, spi_imx);
+			       dev_name(&pdev->dev), spi_imx);
 	if (ret) {
 		dev_err(&pdev->dev, "can't get irq%d: %d\n", spi_imx->irq, ret);
 		goto out_master_put;
@@ -948,8 +947,8 @@ static int spi_imx_remove(struct platform_device *pdev)
 	spi_bitbang_stop(&spi_imx->bitbang);
 
 	writel(0, spi_imx->base + MXC_CSPICTRL);
-	clk_disable_unprepare(spi_imx->clk_ipg);
-	clk_disable_unprepare(spi_imx->clk_per);
+	clk_unprepare(spi_imx->clk_ipg);
+	clk_unprepare(spi_imx->clk_per);
 	spi_master_put(master);
 
 	return 0;

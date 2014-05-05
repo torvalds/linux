@@ -29,6 +29,8 @@
 #define DCP_MAX_CHANS	4
 #define DCP_BUF_SZ	PAGE_SIZE
 
+#define DCP_ALIGNMENT	64
+
 /* DCP DMA descriptor. */
 struct dcp_dma_desc {
 	uint32_t	next_cmd_addr;
@@ -48,7 +50,6 @@ struct dcp_coherent_block {
 	uint8_t			sha_in_buf[DCP_BUF_SZ];
 
 	uint8_t			aes_key[2 * AES_KEYSIZE_128];
-	uint8_t			sha_digest[SHA256_DIGEST_SIZE];
 
 	struct dcp_dma_desc	desc[DCP_MAX_CHANS];
 };
@@ -83,11 +84,14 @@ struct dcp_async_ctx {
 	unsigned int			hot:1;
 
 	/* Crypto-specific context */
-	unsigned int			enc:1;
-	unsigned int			ecb:1;
 	struct crypto_ablkcipher	*fallback;
 	unsigned int			key_len;
 	uint8_t				key[AES_KEYSIZE_128];
+};
+
+struct dcp_aes_req_ctx {
+	unsigned int	enc:1;
+	unsigned int	ecb:1;
 };
 
 struct dcp_sha_req_ctx {
@@ -190,10 +194,12 @@ static int mxs_dcp_start_dma(struct dcp_async_ctx *actx)
 /*
  * Encryption (AES128)
  */
-static int mxs_dcp_run_aes(struct dcp_async_ctx *actx, int init)
+static int mxs_dcp_run_aes(struct dcp_async_ctx *actx,
+			   struct ablkcipher_request *req, int init)
 {
 	struct dcp *sdcp = global_sdcp;
 	struct dcp_dma_desc *desc = &sdcp->coh->desc[actx->chan];
+	struct dcp_aes_req_ctx *rctx = ablkcipher_request_ctx(req);
 	int ret;
 
 	dma_addr_t key_phys = dma_map_single(sdcp->dev, sdcp->coh->aes_key,
@@ -212,14 +218,14 @@ static int mxs_dcp_run_aes(struct dcp_async_ctx *actx, int init)
 	/* Payload contains the key. */
 	desc->control0 |= MXS_DCP_CONTROL0_PAYLOAD_KEY;
 
-	if (actx->enc)
+	if (rctx->enc)
 		desc->control0 |= MXS_DCP_CONTROL0_CIPHER_ENCRYPT;
 	if (init)
 		desc->control0 |= MXS_DCP_CONTROL0_CIPHER_INIT;
 
 	desc->control1 = MXS_DCP_CONTROL1_CIPHER_SELECT_AES128;
 
-	if (actx->ecb)
+	if (rctx->ecb)
 		desc->control1 |= MXS_DCP_CONTROL1_CIPHER_MODE_ECB;
 	else
 		desc->control1 |= MXS_DCP_CONTROL1_CIPHER_MODE_CBC;
@@ -247,6 +253,7 @@ static int mxs_dcp_aes_block_crypt(struct crypto_async_request *arq)
 
 	struct ablkcipher_request *req = ablkcipher_request_cast(arq);
 	struct dcp_async_ctx *actx = crypto_tfm_ctx(arq->tfm);
+	struct dcp_aes_req_ctx *rctx = ablkcipher_request_ctx(req);
 
 	struct scatterlist *dst = req->dst;
 	struct scatterlist *src = req->src;
@@ -271,7 +278,7 @@ static int mxs_dcp_aes_block_crypt(struct crypto_async_request *arq)
 	/* Copy the key from the temporary location. */
 	memcpy(key, actx->key, actx->key_len);
 
-	if (!actx->ecb) {
+	if (!rctx->ecb) {
 		/* Copy the CBC IV just past the key. */
 		memcpy(key + AES_KEYSIZE_128, req->info, AES_KEYSIZE_128);
 		/* CBC needs the INIT set. */
@@ -300,7 +307,7 @@ static int mxs_dcp_aes_block_crypt(struct crypto_async_request *arq)
 			 * submit the buffer.
 			 */
 			if (actx->fill == out_off || sg_is_last(src)) {
-				ret = mxs_dcp_run_aes(actx, init);
+				ret = mxs_dcp_run_aes(actx, req, init);
 				if (ret)
 					return ret;
 				init = 0;
@@ -391,13 +398,14 @@ static int mxs_dcp_aes_enqueue(struct ablkcipher_request *req, int enc, int ecb)
 	struct dcp *sdcp = global_sdcp;
 	struct crypto_async_request *arq = &req->base;
 	struct dcp_async_ctx *actx = crypto_tfm_ctx(arq->tfm);
+	struct dcp_aes_req_ctx *rctx = ablkcipher_request_ctx(req);
 	int ret;
 
 	if (unlikely(actx->key_len != AES_KEYSIZE_128))
 		return mxs_dcp_block_fallback(req, enc);
 
-	actx->enc = enc;
-	actx->ecb = ecb;
+	rctx->enc = enc;
+	rctx->ecb = ecb;
 	actx->chan = DCP_CHAN_CRYPTO;
 
 	mutex_lock(&sdcp->mutex[actx->chan]);
@@ -484,7 +492,7 @@ static int mxs_dcp_aes_fallback_init(struct crypto_tfm *tfm)
 		return PTR_ERR(blk);
 
 	actx->fallback = blk;
-	tfm->crt_ablkcipher.reqsize = sizeof(struct dcp_async_ctx);
+	tfm->crt_ablkcipher.reqsize = sizeof(struct dcp_aes_req_ctx);
 	return 0;
 }
 
@@ -507,13 +515,11 @@ static int mxs_dcp_run_sha(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct dcp_async_ctx *actx = crypto_ahash_ctx(tfm);
 	struct dcp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct hash_alg_common *halg = crypto_hash_alg_common(tfm);
 
 	struct dcp_dma_desc *desc = &sdcp->coh->desc[actx->chan];
-	dma_addr_t digest_phys = dma_map_single(sdcp->dev,
-						sdcp->coh->sha_digest,
-						SHA256_DIGEST_SIZE,
-						DMA_FROM_DEVICE);
 
+	dma_addr_t digest_phys = 0;
 	dma_addr_t buf_phys = dma_map_single(sdcp->dev, sdcp->coh->sha_in_buf,
 					     DCP_BUF_SZ, DMA_TO_DEVICE);
 
@@ -534,14 +540,18 @@ static int mxs_dcp_run_sha(struct ahash_request *req)
 
 	/* Set HASH_TERM bit for last transfer block. */
 	if (rctx->fini) {
+		digest_phys = dma_map_single(sdcp->dev, req->result,
+					     halg->digestsize, DMA_FROM_DEVICE);
 		desc->control0 |= MXS_DCP_CONTROL0_HASH_TERM;
 		desc->payload = digest_phys;
 	}
 
 	ret = mxs_dcp_start_dma(actx);
 
-	dma_unmap_single(sdcp->dev, digest_phys, SHA256_DIGEST_SIZE,
-			 DMA_FROM_DEVICE);
+	if (rctx->fini)
+		dma_unmap_single(sdcp->dev, digest_phys, halg->digestsize,
+				 DMA_FROM_DEVICE);
+
 	dma_unmap_single(sdcp->dev, buf_phys, DCP_BUF_SZ, DMA_TO_DEVICE);
 
 	return ret;
@@ -558,7 +568,6 @@ static int dcp_sha_req_to_buf(struct crypto_async_request *arq)
 	struct hash_alg_common *halg = crypto_hash_alg_common(tfm);
 	const int nents = sg_nents(req->src);
 
-	uint8_t *digest = sdcp->coh->sha_digest;
 	uint8_t *in_buf = sdcp->coh->sha_in_buf;
 
 	uint8_t *src_buf;
@@ -605,14 +614,20 @@ static int dcp_sha_req_to_buf(struct crypto_async_request *arq)
 		rctx->fini = 1;
 
 		/* Submit whatever is left. */
+		if (!req->result)
+			return -EINVAL;
+
 		ret = mxs_dcp_run_sha(req);
-		if (ret || !req->result)
+		if (ret)
 			return ret;
+
 		actx->fill = 0;
 
 		/* For some reason, the result is flipped. */
-		for (i = 0; i < halg->digestsize; i++)
-			req->result[i] = digest[halg->digestsize - i - 1];
+		for (i = 0; i < halg->digestsize / 2; i++) {
+			swap(req->result[i],
+			     req->result[halg->digestsize - i - 1]);
+		}
 	}
 
 	return 0;
@@ -901,9 +916,14 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dcp_vmi_irq = platform_get_irq(pdev, 0);
+	if (dcp_vmi_irq < 0) {
+		ret = dcp_vmi_irq;
+		goto err_mutex;
+	}
+
 	dcp_irq = platform_get_irq(pdev, 1);
-	if (dcp_vmi_irq < 0 || dcp_irq < 0) {
-		ret = -EINVAL;
+	if (dcp_irq < 0) {
+		ret = dcp_irq;
 		goto err_mutex;
 	}
 
@@ -935,15 +955,20 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate coherent helper block. */
-	sdcp->coh = kzalloc(sizeof(struct dcp_coherent_block), GFP_KERNEL);
+	sdcp->coh = devm_kzalloc(dev, sizeof(*sdcp->coh) + DCP_ALIGNMENT,
+				   GFP_KERNEL);
 	if (!sdcp->coh) {
-		dev_err(dev, "Error allocating coherent block\n");
 		ret = -ENOMEM;
 		goto err_mutex;
 	}
 
+	/* Re-align the structure so it fits the DCP constraints. */
+	sdcp->coh = PTR_ALIGN(sdcp->coh, DCP_ALIGNMENT);
+
 	/* Restart the DCP block. */
-	stmp_reset_block(sdcp->base);
+	ret = stmp_reset_block(sdcp->base);
+	if (ret)
+		goto err_mutex;
 
 	/* Initialize control register. */
 	writel(MXS_DCP_CTRL_GATHER_RESIDUAL_WRITES |
@@ -982,7 +1007,7 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	if (IS_ERR(sdcp->thread[DCP_CHAN_HASH_SHA])) {
 		dev_err(dev, "Error starting SHA thread!\n");
 		ret = PTR_ERR(sdcp->thread[DCP_CHAN_HASH_SHA]);
-		goto err_free_coherent;
+		goto err_mutex;
 	}
 
 	sdcp->thread[DCP_CHAN_CRYPTO] = kthread_run(dcp_chan_thread_aes,
@@ -1040,8 +1065,6 @@ err_destroy_aes_thread:
 err_destroy_sha_thread:
 	kthread_stop(sdcp->thread[DCP_CHAN_HASH_SHA]);
 
-err_free_coherent:
-	kfree(sdcp->coh);
 err_mutex:
 	mutex_unlock(&global_mutex);
 	return ret;
@@ -1050,8 +1073,6 @@ err_mutex:
 static int mxs_dcp_remove(struct platform_device *pdev)
 {
 	struct dcp *sdcp = platform_get_drvdata(pdev);
-
-	kfree(sdcp->coh);
 
 	if (sdcp->caps & MXS_DCP_CAPABILITY1_SHA256)
 		crypto_unregister_ahash(&dcp_sha256_alg);

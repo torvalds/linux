@@ -65,10 +65,8 @@ static inline void ffs_dev_unlock(void)
 	mutex_unlock(&ffs_lock);
 }
 
-struct ffs_dev *ffs_alloc_dev(void);
 int ffs_name_dev(struct ffs_dev *dev, const char *name);
 int ffs_single_dev(struct ffs_dev *dev);
-void ffs_free_dev(struct ffs_dev *dev);
 
 struct ffs_epfile;
 struct ffs_function;
@@ -125,7 +123,7 @@ enum ffs_setup_state {
 	 * setup.  If this state is set read/write on ep0 return
 	 * -EIDRM.  This state is only set when adding event.
 	 */
-	FFS_SETUP_CANCELED
+	FFS_SETUP_CANCELLED
 };
 
 struct ffs_data {
@@ -156,7 +154,6 @@ struct ffs_data {
 	 */
 	struct usb_request		*ep0req;		/* P: mutex */
 	struct completion		ep0req_completion;	/* P: mutex */
-	int				ep0req_status;		/* P: mutex */
 
 	/* reference counter */
 	atomic_t			ref;
@@ -168,18 +165,17 @@ struct ffs_data {
 
 	/*
 	 * Possible transitions:
-	 * + FFS_NO_SETUP       -> FFS_SETUP_PENDING  -- P: ev.waitq.lock
+	 * + FFS_NO_SETUP        -> FFS_SETUP_PENDING  -- P: ev.waitq.lock
 	 *               happens only in ep0 read which is P: mutex
-	 * + FFS_SETUP_PENDING  -> FFS_NO_SETUP       -- P: ev.waitq.lock
+	 * + FFS_SETUP_PENDING   -> FFS_NO_SETUP       -- P: ev.waitq.lock
 	 *               happens only in ep0 i/o  which is P: mutex
-	 * + FFS_SETUP_PENDING  -> FFS_SETUP_CANCELED -- P: ev.waitq.lock
-	 * + FFS_SETUP_CANCELED -> FFS_NO_SETUP       -- cmpxchg
+	 * + FFS_SETUP_PENDING   -> FFS_SETUP_CANCELLED -- P: ev.waitq.lock
+	 * + FFS_SETUP_CANCELLED -> FFS_NO_SETUP        -- cmpxchg
+	 *
+	 * This field should never be accessed directly and instead
+	 * ffs_setup_state_clear_cancelled function should be used.
 	 */
 	enum ffs_setup_state		setup_state;
-
-#define FFS_SETUP_STATE(ffs)					\
-	((enum ffs_setup_state)cmpxchg(&(ffs)->setup_state,	\
-				       FFS_SETUP_CANCELED, FFS_NO_SETUP))
 
 	/* Events & such. */
 	struct {
@@ -210,16 +206,16 @@ struct ffs_data {
 
 	/* filled by __ffs_data_got_descs() */
 	/*
-	 * Real descriptors are 16 bytes after raw_descs (so you need
-	 * to skip 16 bytes (ie. ffs->raw_descs + 16) to get to the
-	 * first full speed descriptor).  raw_descs_length and
-	 * raw_fs_descs_length do not have those 16 bytes added.
+	 * raw_descs is what you kfree, real_descs points inside of raw_descs,
+	 * where full speed, high speed and super speed descriptors start.
+	 * real_descs_length is the length of all those descriptors.
 	 */
+	const void			*raw_descs_data;
 	const void			*raw_descs;
 	unsigned			raw_descs_length;
-	unsigned			raw_fs_descs_length;
 	unsigned			fs_descs_count;
 	unsigned			hs_descs_count;
+	unsigned			ss_descs_count;
 
 	unsigned short			strings_count;
 	unsigned short			interfaces_count;

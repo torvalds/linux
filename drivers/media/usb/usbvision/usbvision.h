@@ -203,14 +203,6 @@ enum {
 	mr = LIMIT_RGB(mm_r); \
 }
 
-/* Debugging aid */
-#define USBVISION_SAY_AND_WAIT(what) { \
-	wait_queue_head_t wq; \
-	init_waitqueue_head(&wq); \
-	printk(KERN_INFO "Say: %s\n", what); \
-	interruptible_sleep_on_timeout(&wq, HZ * 3); \
-}
-
 /*
  * This macro checks if usbvision is still operational. The 'usbvision'
  * pointer must be valid, usbvision->dev must be valid, we are not

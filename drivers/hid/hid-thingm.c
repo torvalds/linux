@@ -48,8 +48,8 @@ static int blink1_send_command(struct blink1_data *data,
 			buf[0], buf[1], buf[2], buf[3], buf[4],
 			buf[5], buf[6], buf[7], buf[8]);
 
-	ret = data->hdev->hid_output_raw_report(data->hdev, buf,
-			BLINK1_CMD_SIZE, HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(data->hdev, buf[0], buf, BLINK1_CMD_SIZE,
+				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 
 	return ret < 0 ? ret : 0;
 }

@@ -100,10 +100,9 @@
 #define DC_CTRL_INV_MODE_FLUSH  0x40
 #define DC_CTRL_FLUSH_STATUS    0x100
 
-char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
+char *arc_cache_mumbojumbo(int c, char *buf, int len)
 {
 	int n = 0;
-	unsigned int c = smp_processor_id();
 
 #define PR_CACHE(p, enb, str)						\
 {									\
@@ -282,7 +281,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 #else
 	/* if V-P const for loop, PTAG can be written once outside loop */
 	if (full_page_op)
-		write_aux_reg(ARC_REG_DC_PTAG, paddr);
+		write_aux_reg(aux_tag, paddr);
 #endif
 
 	while (num_lines-- > 0) {
@@ -296,7 +295,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 		write_aux_reg(aux_cmd, vaddr);
 		vaddr += L1_CACHE_BYTES;
 #else
-		write_aux_reg(aux, paddr);
+		write_aux_reg(aux_cmd, paddr);
 		paddr += L1_CACHE_BYTES;
 #endif
 	}

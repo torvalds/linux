@@ -37,6 +37,8 @@
 
 #include <linux/clk.h>
 #include <linux/libata.h>
+#include <linux/phy/phy.h>
+#include <linux/regulator/consumer.h>
 
 /* Enclosure Management Control */
 #define EM_CTRL_MSG_TYPE              0x000f0000
@@ -51,6 +53,7 @@
 
 enum {
 	AHCI_MAX_PORTS		= 32,
+	AHCI_MAX_CLKS		= 3,
 	AHCI_MAX_SG		= 168, /* hardware max is 64K */
 	AHCI_DMA_BOUNDARY	= 0xffffffff,
 	AHCI_MAX_CMDS		= 32,
@@ -321,8 +324,17 @@ struct ahci_host_priv {
 	u32 			em_loc; /* enclosure management location */
 	u32			em_buf_sz;	/* EM buffer size in byte */
 	u32			em_msg_type;	/* EM message type */
-	struct clk		*clk;		/* Only for platforms supporting clk */
+	bool			got_runtime_pm; /* Did we do pm_runtime_get? */
+	struct clk		*clks[AHCI_MAX_CLKS]; /* Optional */
+	struct regulator	*target_pwr;	/* Optional */
+	struct phy		*phy;		/* If platform uses phy */
 	void			*plat_data;	/* Other platform data */
+	/*
+	 * Optional ahci_start_engine override, if not set this gets set to the
+	 * default ahci_start_engine during ahci_save_initial_config, this can
+	 * be overridden anytime before the host is activated.
+	 */
+	void			(*start_engine)(struct ata_port *ap);
 };
 
 extern int ahci_ignore_sss;

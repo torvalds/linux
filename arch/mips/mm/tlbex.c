@@ -509,7 +509,10 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		switch (current_cpu_type()) {
 		case CPU_M14KC:
 		case CPU_74K:
+		case CPU_1074K:
 		case CPU_PROAPTIV:
+		case CPU_P5600:
+		case CPU_M5150:
 			break;
 
 		default:
@@ -579,6 +582,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_BMIPS4380:
 	case CPU_BMIPS5000:
 	case CPU_LOONGSON2:
+	case CPU_LOONGSON3:
 	case CPU_R5500:
 		if (m4kc_tlbp_war())
 			uasm_i_nop(p);
@@ -621,7 +625,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 
 	default:
 		panic("No TLB refill handler yet (CPU type: %d)",
-		      current_cpu_data.cputype);
+		      current_cpu_type());
 		break;
 	}
 }

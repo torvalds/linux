@@ -224,23 +224,32 @@ static const struct comedi_lrange *dac_range_types[] = {
 	&range_unipolar5
 };
 
-#define DT2811_TIMEOUT 5
+static int dt2811_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DT2811_ADCSR);
+	if ((status & DT2811_ADBUSY) == 0)
+		return 0;
+	return -EBUSY;
+}
 
 static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
-	int timeout = DT2811_TIMEOUT;
+	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		outb(chan, dev->iobase + DT2811_ADGCR);
 
-		while (timeout
-		       && inb(dev->iobase + DT2811_ADCSR) & DT2811_ADBUSY)
-			timeout--;
-		if (!timeout)
-			return -ETIME;
+		ret = comedi_timeout(dev, s, insn, dt2811_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		data[i] = inb(dev->iobase + DT2811_ADDATLO);
 		data[i] |= inb(dev->iobase + DT2811_ADDATHI) << 8;

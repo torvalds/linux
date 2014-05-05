@@ -62,7 +62,9 @@ static void w1_write_bit(struct w1_master *dev, int bit);
 static u8 w1_read_bit(struct w1_master *dev);
 
 /**
- * Generates a write-0 or write-1 cycle and samples the level.
+ * w1_touch_bit() - Generates a write-0 or write-1 cycle and samples the level.
+ * @dev:	the master device
+ * @bit:	0 - write a 0, 1 - write a 0 read the level
  */
 static u8 w1_touch_bit(struct w1_master *dev, int bit)
 {
@@ -77,7 +79,10 @@ static u8 w1_touch_bit(struct w1_master *dev, int bit)
 }
 
 /**
- * Generates a write-0 or write-1 cycle.
+ * w1_write_bit() - Generates a write-0 or write-1 cycle.
+ * @dev:	the master device
+ * @bit:	bit to write
+ *
  * Only call if dev->bus_master->touch_bit is NULL
  */
 static void w1_write_bit(struct w1_master *dev, int bit)
@@ -102,11 +107,12 @@ static void w1_write_bit(struct w1_master *dev, int bit)
 }
 
 /**
+ * w1_pre_write() - pre-write operations
+ * @dev:	the master device
+ *
  * Pre-write operation, currently only supporting strong pullups.
  * Program the hardware for a strong pullup, if one has been requested and
  * the hardware supports it.
- *
- * @param dev     the master device
  */
 static void w1_pre_write(struct w1_master *dev)
 {
@@ -118,11 +124,12 @@ static void w1_pre_write(struct w1_master *dev)
 }
 
 /**
+ * w1_post_write() - post-write options
+ * @dev:	the master device
+ *
  * Post-write operation, currently only supporting strong pullups.
  * If a strong pullup was requested, clear it if the hardware supports
  * them, or execute the delay otherwise, in either case clear the request.
- *
- * @param dev     the master device
  */
 static void w1_post_write(struct w1_master *dev)
 {
@@ -136,10 +143,9 @@ static void w1_post_write(struct w1_master *dev)
 }
 
 /**
- * Writes 8 bits.
- *
- * @param dev     the master device
- * @param byte    the byte to write
+ * w1_write_8() - Writes 8 bits.
+ * @dev:	the master device
+ * @byte:	the byte to write
  */
 void w1_write_8(struct w1_master *dev, u8 byte)
 {
@@ -161,7 +167,9 @@ EXPORT_SYMBOL_GPL(w1_write_8);
 
 
 /**
- * Generates a write-1 cycle and samples the level.
+ * w1_read_bit() - Generates a write-1 cycle and samples the level.
+ * @dev:	the master device
+ *
  * Only call if dev->bus_master->touch_bit is NULL
  */
 static u8 w1_read_bit(struct w1_master *dev)
@@ -185,16 +193,17 @@ static u8 w1_read_bit(struct w1_master *dev)
 }
 
 /**
- * Does a triplet - used for searching ROM addresses.
+ * w1_triplet() - * Does a triplet - used for searching ROM addresses.
+ * @dev:	the master device
+ * @bdir:	the bit to write if both id_bit and comp_bit are 0
+ *
  * Return bits:
  *  bit 0 = id_bit
  *  bit 1 = comp_bit
  *  bit 2 = dir_taken
  * If both bits 0 & 1 are set, the search should be restarted.
  *
- * @param dev     the master device
- * @param bdir    the bit to write if both id_bit and comp_bit are 0
- * @return        bit fields - see above
+ * Return:        bit fields - see above
  */
 u8 w1_triplet(struct w1_master *dev, int bdir)
 {
@@ -226,10 +235,10 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
 }
 
 /**
- * Reads 8 bits.
+ * w1_read_8() - Reads 8 bits.
+ * @dev:	the master device
  *
- * @param dev     the master device
- * @return        the byte read
+ * Return:        the byte read
  */
 u8 w1_read_8(struct w1_master *dev)
 {
@@ -247,11 +256,10 @@ u8 w1_read_8(struct w1_master *dev)
 EXPORT_SYMBOL_GPL(w1_read_8);
 
 /**
- * Writes a series of bytes.
- *
- * @param dev     the master device
- * @param buf     pointer to the data to write
- * @param len     the number of bytes to write
+ * w1_write_block() - Writes a series of bytes.
+ * @dev:	the master device
+ * @buf:	pointer to the data to write
+ * @len:	the number of bytes to write
  */
 void w1_write_block(struct w1_master *dev, const u8 *buf, int len)
 {
@@ -269,11 +277,10 @@ void w1_write_block(struct w1_master *dev, const u8 *buf, int len)
 EXPORT_SYMBOL_GPL(w1_write_block);
 
 /**
- * Touches a series of bytes.
- *
- * @param dev     the master device
- * @param buf     pointer to the data to write
- * @param len     the number of bytes to write
+ * w1_touch_block() - Touches a series of bytes.
+ * @dev:	the master device
+ * @buf:	pointer to the data to write
+ * @len:	the number of bytes to write
  */
 void w1_touch_block(struct w1_master *dev, u8 *buf, int len)
 {
@@ -294,12 +301,11 @@ void w1_touch_block(struct w1_master *dev, u8 *buf, int len)
 EXPORT_SYMBOL_GPL(w1_touch_block);
 
 /**
- * Reads a series of bytes.
- *
- * @param dev     the master device
- * @param buf     pointer to the buffer to fill
- * @param len     the number of bytes to read
- * @return        the number of bytes read
+ * w1_read_block() - Reads a series of bytes.
+ * @dev:	the master device
+ * @buf:	pointer to the buffer to fill
+ * @len:	the number of bytes to read
+ * Return:	the number of bytes read
  */
 u8 w1_read_block(struct w1_master *dev, u8 *buf, int len)
 {
@@ -319,10 +325,9 @@ u8 w1_read_block(struct w1_master *dev, u8 *buf, int len)
 EXPORT_SYMBOL_GPL(w1_read_block);
 
 /**
- * Issues a reset bus sequence.
- *
- * @param  dev The bus master pointer
- * @return     0=Device present, 1=No device present or error
+ * w1_reset_bus() - Issues a reset bus sequence.
+ * @dev:	the master device
+ * Return:	0=Device present, 1=No device present or error
  */
 int w1_reset_bus(struct w1_master *dev)
 {
@@ -383,12 +388,15 @@ void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_cal
 }
 
 /**
+ * w1_reset_select_slave() - reset and select a slave
+ * @sl:		the slave to select
+ *
  * Resets the bus and then selects the slave by sending either a skip rom
- * or a rom match.
+ * or a rom match.  A skip rom is issued if there is only one device
+ * registered on the bus.
  * The w1 master lock must be held.
  *
- * @param sl	the slave to select
- * @return 	0=success, anything else=error
+ * Return:	0=success, anything else=error
  */
 int w1_reset_select_slave(struct w1_slave *sl)
 {
@@ -409,6 +417,9 @@ int w1_reset_select_slave(struct w1_slave *sl)
 EXPORT_SYMBOL_GPL(w1_reset_select_slave);
 
 /**
+ * w1_reset_resume_command() - resume instead of another match ROM
+ * @dev:	the master device
+ *
  * When the workflow with a slave amongst many requires several
  * successive commands a reset between each, this function is similar
  * to doing a reset then a match ROM for the last matched ROM. The
@@ -420,8 +431,6 @@ EXPORT_SYMBOL_GPL(w1_reset_select_slave);
  * doesn't work of course, but the resume command is the next best thing.
  *
  * The w1 master lock must be held.
- *
- * @param dev     the master device
  */
 int w1_reset_resume_command(struct w1_master *dev)
 {
@@ -435,6 +444,10 @@ int w1_reset_resume_command(struct w1_master *dev)
 EXPORT_SYMBOL_GPL(w1_reset_resume_command);
 
 /**
+ * w1_next_pullup() - register for a strong pullup
+ * @dev:	the master device
+ * @delay:	time in milliseconds
+ *
  * Put out a strong pull-up of the specified duration after the next write
  * operation.  Not all hardware supports strong pullups.  Hardware that
  * doesn't support strong pullups will sleep for the given time after the
@@ -442,8 +455,7 @@ EXPORT_SYMBOL_GPL(w1_reset_resume_command);
  * the next write, specifying zero will clear a previous request.
  * The w1 master lock must be held.
  *
- * @param delay	time in milliseconds
- * @return	0=success, anything else=error
+ * Return:	0=success, anything else=error
  */
 void w1_next_pullup(struct w1_master *dev, int delay)
 {

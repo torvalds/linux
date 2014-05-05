@@ -282,16 +282,14 @@ typedef struct lnet_libmd {
 #define LNET_MD_FLAG_AUTO_UNLINK      (1 << 1)
 
 #ifdef LNET_USE_LIB_FREELIST
-typedef struct
-{
+typedef struct {
 	void		  *fl_objs;	  /* single contiguous array of objects */
 	int		    fl_nobjs;	 /* the number of them */
 	int		    fl_objsize;       /* the size (including overhead) of each of them */
 	struct list_head	     fl_list;	  /* where they are enqueued */
 } lnet_freelist_t;
 
-typedef struct
-{
+typedef struct {
 	struct list_head	     fo_list;	     /* enqueue on fl_list */
 	void		  *fo_contents;	 /* aligned contents */
 } lnet_freeobj_t;
@@ -312,8 +310,7 @@ typedef struct {
 
 struct lnet_ni;				  /* forward ref */
 
-typedef struct lnet_lnd
-{
+typedef struct lnet_lnd {
 	/* fields managed by portals */
 	struct list_head	    lnd_list;	     /* stash in the LND table */
 	int		   lnd_refcount;	 /* # active instances */
@@ -321,8 +318,8 @@ typedef struct lnet_lnd
 	/* fields initialised by the LND */
 	unsigned int	  lnd_type;
 
-	int  (*lnd_startup) (struct lnet_ni *ni);
-	void (*lnd_shutdown) (struct lnet_ni *ni);
+	int  (*lnd_startup)(struct lnet_ni *ni);
+	void (*lnd_shutdown)(struct lnet_ni *ni);
 	int  (*lnd_ctl)(struct lnet_ni *ni, unsigned int cmd, void *arg);
 
 	/* In data movement APIs below, payload buffers are described as a set
@@ -668,8 +665,7 @@ struct lnet_msg_container {
 #define LNET_RC_STATE_RUNNING		1	/* started up OK */
 #define LNET_RC_STATE_STOPPING		2	/* telling thread to stop */
 
-typedef struct
-{
+typedef struct {
 	/* CPU partition table of LNet */
 	struct cfs_cpt_table		*ln_cpt_table;
 	/* number of CPTs in ln_cpt_table */

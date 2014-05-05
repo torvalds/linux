@@ -457,6 +457,10 @@ static int target_fabric_tf_ops_check(
 		pr_err("Missing tfo->queue_tm_rsp()\n");
 		return -EINVAL;
 	}
+	if (!tfo->aborted_task) {
+		pr_err("Missing tfo->aborted_task()\n");
+		return -EINVAL;
+	}
 	/*
 	 * We at least require tfo->fabric_make_wwn(), tfo->fabric_drop_wwn()
 	 * tfo->fabric_make_tpg() and tfo->fabric_drop_tpg() in

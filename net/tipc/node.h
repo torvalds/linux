@@ -2,7 +2,7 @@
  * net/tipc/node.h: Include file for TIPC node management routines
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, 2010-2011, Wind River Systems
+ * Copyright (c) 2005, 2010-2014, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,7 @@
  * @link_cnt: number of links to node
  * @signature: node instance identifier
  * @bclink: broadcast-related info
+ * @rcu: rcu struct for tipc_node
  *    @acked: sequence # of last outbound b'cast message acknowledged by node
  *    @last_in: sequence # of last in-sequence b'cast message received from node
  *    @last_sent: sequence # of last b'cast message sent by node
@@ -89,6 +90,7 @@ struct tipc_node {
 	int working_links;
 	int block_setup;
 	u32 signature;
+	struct rcu_head rcu;
 	struct {
 		u32 acked;
 		u32 last_in;
@@ -107,7 +109,7 @@ extern struct list_head tipc_node_list;
 
 struct tipc_node *tipc_node_find(u32 addr);
 struct tipc_node *tipc_node_create(u32 addr);
-void tipc_node_delete(struct tipc_node *n_ptr);
+void tipc_node_stop(void);
 void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr);

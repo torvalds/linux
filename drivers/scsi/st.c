@@ -2198,12 +2198,19 @@ static int st_set_options(struct scsi_tape *STp, long options)
 	struct st_modedef *STm;
 	char *name = tape_name(STp);
 	struct cdev *cd0, *cd1;
+	struct device *d0, *d1;
 
 	STm = &(STp->modes[STp->current_mode]);
 	if (!STm->defined) {
-		cd0 = STm->cdevs[0]; cd1 = STm->cdevs[1];
+		cd0 = STm->cdevs[0];
+		cd1 = STm->cdevs[1];
+		d0  = STm->devs[0];
+		d1  = STm->devs[1];
 		memcpy(STm, &(STp->modes[0]), sizeof(struct st_modedef));
-		STm->cdevs[0] = cd0; STm->cdevs[1] = cd1;
+		STm->cdevs[0] = cd0;
+		STm->cdevs[1] = cd1;
+		STm->devs[0]  = d0;
+		STm->devs[1]  = d1;
 		modes_defined = 1;
                 DEBC(printk(ST_DEB_MSG
                             "%s: Initialized mode %d definition from mode 0\n",

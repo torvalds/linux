@@ -24,8 +24,9 @@
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 
-/* batadv_dat_addr_t is the type used for all DHT addresses. If it is changed,
- * BATADV_DAT_ADDR_MAX is changed as well.
+/**
+ * batadv_dat_addr_t - it is the type used for all DHT addresses. If it is
+ *  changed, BATADV_DAT_ADDR_MAX is changed as well.
  *
  * *Please be careful: batadv_dat_addr_t must be UNSIGNED*
  */
@@ -163,7 +164,7 @@ struct batadv_vlan_tt {
 };
 
 /**
- * batadv_orig_node_vlan - VLAN specific data per orig_node
+ * struct batadv_orig_node_vlan - VLAN specific data per orig_node
  * @vid: the VLAN identifier
  * @tt: VLAN specific TT attributes
  * @list: list node for orig_node::vlan_list
@@ -204,14 +205,18 @@ struct batadv_orig_bat_iv {
  * @batadv_dat_addr_t:  address of the orig node in the distributed hash
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
+ * @mcast_flags: multicast flags announced by the orig node
+ * @mcast_want_all_unsnoop_node: a list node for the
+ *  mcast.want_all_unsnoopables list
+ * @mcast_want_all_ipv4_node: a list node for the mcast.want_all_ipv4 list
+ * @mcast_want_all_ipv6_node: a list node for the mcast.want_all_ipv6 list
  * @capabilities: announced capabilities of this originator
+ * @capa_initialized: bitfield to remember whether a capability was initialized
  * @last_ttvn: last seen translation table version number
  * @tt_buff: last tt changeset this node received from the orig node
  * @tt_buff_len: length of the last tt changeset this node received from the
  *  orig node
  * @tt_buff_lock: lock that protects tt_buff and tt_buff_len
- * @tt_initialised: bool keeping track of whether or not this node have received
- *  any translation table information from the orig node yet
  * @tt_lock: prevents from updating the table while reading it. Table update is
  *  made up by two operations (data structure update and metdata -CRC/TTVN-
  *  recalculation) and they have to be executed atomically in order to avoid
@@ -247,12 +252,18 @@ struct batadv_orig_node {
 #endif
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	uint8_t mcast_flags;
+	struct hlist_node mcast_want_all_unsnoopables_node;
+	struct hlist_node mcast_want_all_ipv4_node;
+	struct hlist_node mcast_want_all_ipv6_node;
+#endif
 	uint8_t capabilities;
+	uint8_t capa_initialized;
 	atomic_t last_ttvn;
 	unsigned char *tt_buff;
 	int16_t tt_buff_len;
 	spinlock_t tt_buff_lock; /* protects tt_buff & tt_buff_len */
-	bool tt_initialised;
 	/* prevents from changing the table while reading it */
 	spinlock_t tt_lock;
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
@@ -282,10 +293,15 @@ struct batadv_orig_node {
  * enum batadv_orig_capabilities - orig node capabilities
  * @BATADV_ORIG_CAPA_HAS_DAT: orig node has distributed arp table enabled
  * @BATADV_ORIG_CAPA_HAS_NC: orig node has network coding enabled
+ * @BATADV_ORIG_CAPA_HAS_TT: orig node has tt capability
+ * @BATADV_ORIG_CAPA_HAS_MCAST: orig node has some multicast capability
+ *  (= orig node announces a tvlv of type BATADV_TVLV_MCAST)
  */
 enum batadv_orig_capabilities {
 	BATADV_ORIG_CAPA_HAS_DAT = BIT(0),
 	BATADV_ORIG_CAPA_HAS_NC = BIT(1),
+	BATADV_ORIG_CAPA_HAS_TT = BIT(2),
+	BATADV_ORIG_CAPA_HAS_MCAST = BIT(3),
 };
 
 /**
@@ -334,7 +350,7 @@ struct batadv_neigh_node {
 };
 
 /**
- * struct batadv_neigh_node_bat_iv - neighbor information per outgoing
+ * struct batadv_neigh_ifinfo_bat_iv - neighbor information per outgoing
  *  interface for BATMAN IV
  * @tq_recv: ring buffer of received TQ values from this neigh node
  * @tq_index: ring buffer index
@@ -544,7 +560,7 @@ struct batadv_priv_bla {
 #endif
 
 /**
- * struct batadv_debug_log - debug logging data
+ * struct batadv_priv_debug_log - debug logging data
  * @log_buff: buffer holding the logs (ring bufer)
  * @log_start: index of next character to read
  * @log_end: index of next character to write
@@ -604,6 +620,39 @@ struct batadv_priv_dat {
 	batadv_dat_addr_t addr;
 	struct batadv_hashtable *hash;
 	struct delayed_work work;
+};
+#endif
+
+#ifdef CONFIG_BATMAN_ADV_MCAST
+/**
+ * struct batadv_priv_mcast - per mesh interface mcast data
+ * @mla_list: list of multicast addresses we are currently announcing via TT
+ * @want_all_unsnoopables_list: a list of orig_nodes wanting all unsnoopable
+ *  multicast traffic
+ * @want_all_ipv4_list: a list of orig_nodes wanting all IPv4 multicast traffic
+ * @want_all_ipv6_list: a list of orig_nodes wanting all IPv6 multicast traffic
+ * @flags: the flags we have last sent in our mcast tvlv
+ * @enabled: whether the multicast tvlv is currently enabled
+ * @num_disabled: number of nodes that have no mcast tvlv
+ * @num_want_all_unsnoopables: number of nodes wanting unsnoopable IP traffic
+ * @num_want_all_ipv4: counter for items in want_all_ipv4_list
+ * @num_want_all_ipv6: counter for items in want_all_ipv6_list
+ * @want_lists_lock: lock for protecting modifications to mcast want lists
+ *  (traversals are rcu-locked)
+ */
+struct batadv_priv_mcast {
+	struct hlist_head mla_list;
+	struct hlist_head want_all_unsnoopables_list;
+	struct hlist_head want_all_ipv4_list;
+	struct hlist_head want_all_ipv6_list;
+	uint8_t flags;
+	bool enabled;
+	atomic_t num_disabled;
+	atomic_t num_want_all_unsnoopables;
+	atomic_t num_want_all_ipv4;
+	atomic_t num_want_all_ipv6;
+	/* protects want_all_{unsnoopables,ipv4,ipv6}_list */
+	spinlock_t want_lists_lock;
 };
 #endif
 
@@ -672,6 +721,8 @@ struct batadv_softif_vlan {
  *  enabled
  * @distributed_arp_table: bool indicating whether distributed ARP table is
  *  enabled
+ * @multicast_mode: Enable or disable multicast optimizations on this node's
+ *  sender/originating side
  * @gw_mode: gateway operation: off, client or server (see batadv_gw_modes)
  * @gw_sel_class: gateway selection class (applies if gw_mode client)
  * @orig_interval: OGM broadcast interval in milliseconds
@@ -702,6 +753,7 @@ struct batadv_softif_vlan {
  * @tt: translation table data
  * @tvlv: type-version-length-value data
  * @dat: distributed arp table data
+ * @mcast: multicast data
  * @network_coding: bool indicating whether network coding is enabled
  * @batadv_priv_nc: network coding data
  */
@@ -720,6 +772,9 @@ struct batadv_priv {
 #endif
 #ifdef CONFIG_BATMAN_ADV_DAT
 	atomic_t distributed_arp_table;
+#endif
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	atomic_t multicast_mode;
 #endif
 	atomic_t gw_mode;
 	atomic_t gw_sel_class;
@@ -758,6 +813,9 @@ struct batadv_priv {
 	struct batadv_priv_tvlv tvlv;
 #ifdef CONFIG_BATMAN_ADV_DAT
 	struct batadv_priv_dat dat;
+#endif
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	struct batadv_priv_mcast mcast;
 #endif
 #ifdef CONFIG_BATMAN_ADV_NC
 	atomic_t network_coding;
@@ -881,12 +939,14 @@ struct batadv_tt_local_entry {
  * struct batadv_tt_global_entry - translation table global entry data
  * @common: general translation table data
  * @orig_list: list of orig nodes announcing this non-mesh client
+ * @orig_list_count: number of items in the orig_list
  * @list_lock: lock protecting orig_list
  * @roam_at: time at which TT_GLOBAL_ROAM was set
  */
 struct batadv_tt_global_entry {
 	struct batadv_tt_common_entry common;
 	struct hlist_head orig_list;
+	atomic_t orig_list_count;
 	spinlock_t list_lock;	/* protects orig_list */
 	unsigned long roam_at;
 };
@@ -1004,8 +1064,8 @@ struct batadv_nc_packet {
 };
 
 /**
- * batadv_skb_cb - control buffer structure used to store private data relevant
- *  to batman-adv in the skb->cb buffer in skbs.
+ * struct batadv_skb_cb - control buffer structure used to store private data
+ *  relevant to batman-adv in the skb->cb buffer in skbs.
  * @decoded: Marks a skb as decoded, which is checked when searching for coding
  *  opportunities in network-coding.c
  */
@@ -1113,6 +1173,16 @@ struct batadv_dat_entry {
 	struct hlist_node hash_entry;
 	atomic_t refcount;
 	struct rcu_head rcu;
+};
+
+/**
+ * struct batadv_hw_addr - a list entry for a MAC address
+ * @list: list node for the linking of entries
+ * @addr: the MAC address of this list entry
+ */
+struct batadv_hw_addr {
+	struct hlist_node list;
+	unsigned char addr[ETH_ALEN];
 };
 
 /**

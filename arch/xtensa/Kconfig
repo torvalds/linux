@@ -20,6 +20,7 @@ config XTENSA
 	select HAVE_FUNCTION_TRACER
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_PERF_EVENTS
+	select COMMON_CLK
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -40,7 +41,7 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool n
 
 config HZ
@@ -80,7 +81,6 @@ choice
 config XTENSA_VARIANT_FSF
 	bool "fsf - default (not generic) configuration"
 	select MMU
-	select HAVE_XTENSA_GPIO32
 
 config XTENSA_VARIANT_DC232B
 	bool "dc232b - Diamond 232L Standard Core Rev.B (LE)"
@@ -135,7 +135,6 @@ config HAVE_SMP
 config SMP
 	bool "Enable Symmetric multi-processing support"
 	depends on HAVE_SMP
-	select USE_GENERIC_SMP_HELPERS
 	select GENERIC_SMP_IDLE_THREAD
 	help
 	  Enabled SMP Software; allows more than one CPU/CORE
@@ -240,7 +239,7 @@ config XTENSA_PLATFORM_XT2000
 config XTENSA_PLATFORM_S6105
 	bool "S6105"
 	select SERIAL_CONSOLE
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"

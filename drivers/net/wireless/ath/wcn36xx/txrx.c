@@ -57,8 +57,7 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		       RX_FLAG_MMIC_STRIPPED |
 		       RX_FLAG_DECRYPTED;
 
-	wcn36xx_dbg(WCN36XX_DBG_RX, "status.flags=%x status->vendor_radiotap_len=%x\n",
-		    status.flag,  status.vendor_radiotap_len);
+	wcn36xx_dbg(WCN36XX_DBG_RX, "status.flags=%x\n", status.flag);
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
 
@@ -132,6 +131,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 				   struct ieee80211_vif,
 				   drv_priv);
 
+		bd->dpu_sign = sta_priv->ucast_dpu_sign;
 		if (vif->type == NL80211_IFTYPE_STATION) {
 			bd->sta_index = sta_priv->bss_sta_index;
 			bd->dpu_desc_idx = sta_priv->bss_dpu_desc_index;
@@ -145,9 +145,8 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 		__vif_priv = get_vif_by_addr(wcn, hdr->addr2);
 		bd->sta_index = __vif_priv->self_sta_index;
 		bd->dpu_desc_idx = __vif_priv->self_dpu_desc_index;
+		bd->dpu_sign = __vif_priv->self_ucast_dpu_sign;
 	}
-
-	bd->dpu_sign = __vif_priv->ucast_dpu_signature;
 
 	if (ieee80211_is_nullfunc(hdr->frame_control) ||
 	   (sta_priv && !sta_priv->is_data_encrypted))

@@ -27,9 +27,9 @@
 #include <subdev/bios/ramcfg.h>
 
 static u8
-nvbios_ramcfg_strap(struct nouveau_bios *bios)
+nvbios_ramcfg_strap(struct nouveau_subdev *subdev)
 {
-	return (nv_rd32(bios, 0x101000) & 0x0000003c) >> 2;
+	return (nv_rd32(subdev, 0x101000) & 0x0000003c) >> 2;
 }
 
 u8
@@ -48,9 +48,10 @@ nvbios_ramcfg_count(struct nouveau_bios *bios)
 }
 
 u8
-nvbios_ramcfg_index(struct nouveau_bios *bios)
+nvbios_ramcfg_index(struct nouveau_subdev *subdev)
 {
-	u8 strap = nvbios_ramcfg_strap(bios);
+	struct nouveau_bios *bios = nouveau_bios(subdev);
+	u8 strap = nvbios_ramcfg_strap(subdev);
 	u32 xlat = 0x00000000;
 	struct bit_entry bit_M;
 

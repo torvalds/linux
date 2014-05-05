@@ -58,6 +58,8 @@
 #define IETF_RDMA0_WRITE        0x8000
 #define IETF_RDMA0_READ         0x4000
 #define IETF_NO_IRD_ORD         0x3FFF
+#define NES_MAX_IRD		 0x40
+#define NES_MAX_ORD		 0x7F
 
 enum ietf_mpa_flags {
 	IETF_MPA_FLAGS_MARKERS = 0x80,	/* receive Markers */
@@ -333,6 +335,7 @@ struct nes_cm_node {
 	enum mpa_frame_version    mpa_frame_rev;
 	u16			  ird_size;
 	u16                       ord_size;
+	u16			  mpav2_ird_ord;
 
 	u16                       mpa_frame_size;
 	struct iw_cm_id           *cm_id;

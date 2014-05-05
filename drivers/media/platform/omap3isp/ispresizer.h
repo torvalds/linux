@@ -30,12 +30,12 @@
 #include <linux/types.h>
 
 /*
- * Constants for filter coefficents count
+ * Constants for filter coefficients count
  */
 #define COEFF_CNT		32
 
 /*
- * struct isprsz_coef - Structure for resizer filter coeffcients.
+ * struct isprsz_coef - Structure for resizer filter coefficients.
  * @h_filter_coef_4tap: Horizontal filter coefficients for 8-phase/4-tap
  *			mode (.5x-4x)
  * @v_filter_coef_4tap: Vertical filter coefficients for 8-phase/4-tap

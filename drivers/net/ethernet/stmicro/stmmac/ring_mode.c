@@ -100,10 +100,9 @@ static void stmmac_refill_desc3(void *priv_ptr, struct dma_desc *p)
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
 
-	if (unlikely(priv->plat->has_gmac))
-		/* Fill DES3 in case of RING mode */
-		if (priv->dma_buf_sz >= BUF_SIZE_8KiB)
-			p->des3 = p->des2 + BUF_SIZE_8KiB;
+	/* Fill DES3 in case of RING mode */
+	if (priv->dma_buf_sz >= BUF_SIZE_8KiB)
+		p->des3 = p->des2 + BUF_SIZE_8KiB;
 }
 
 /* In ring mode we need to fill the desc3 because it is used as buffer */
@@ -126,7 +125,7 @@ static int stmmac_set_16kib_bfsize(int mtu)
 	return ret;
 }
 
-const struct stmmac_ring_mode_ops ring_mode_ops = {
+const struct stmmac_mode_ops ring_mode_ops = {
 	.is_jumbo_frm = stmmac_is_jumbo_frm,
 	.jumbo_frm = stmmac_jumbo_frm,
 	.refill_desc3 = stmmac_refill_desc3,

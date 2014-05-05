@@ -31,8 +31,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 #define _COMPONENT			ACPI_CONTAINER_COMPONENT
 ACPI_MODULE_NAME("container");
 
@@ -67,6 +65,9 @@ static int container_device_attach(struct acpi_device *adev,
 	struct container_dev *cdev;
 	struct device *dev;
 	int ret;
+
+	if (adev->flags.is_dock_station)
+		return 0;
 
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)

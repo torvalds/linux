@@ -107,10 +107,8 @@ struct tipc_media {
 
 /**
  * struct tipc_bearer - Generic TIPC bearer structure
- * @dev: ptr to associated network device
- * @usr_handle: pointer to additional media-specific information about bearer
+ * @media_ptr: pointer to additional media-specific information about bearer
  * @mtu: max packet size bearer can support
- * @lock: spinlock for controlling access to bearer
  * @addr: media-specific address associated with bearer
  * @name: bearer name (format = media:interface)
  * @media: ptr to media structure associated with bearer
@@ -118,10 +116,9 @@ struct tipc_media {
  * @priority: default link priority for bearer
  * @window: default window size for bearer
  * @tolerance: default link tolerance for bearer
+ * @domain: network domain to which links can be established
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
- * @links: list of non-congested links associated with bearer
- * @active: non-zero if bearer structure is represents a bearer
  * @net_plane: network plane ('A' through 'H') currently associated with bearer
  * @nodes: indicates which nodes in cluster can be reached through bearer
  *
@@ -134,16 +131,14 @@ struct tipc_bearer {
 	u32 mtu;				/* initalized by media */
 	struct tipc_media_addr addr;		/* initalized by media */
 	char name[TIPC_MAX_BEARER_NAME];
-	spinlock_t lock;
 	struct tipc_media *media;
 	struct tipc_media_addr bcast_addr;
 	u32 priority;
 	u32 window;
 	u32 tolerance;
+	u32 domain;
 	u32 identity;
 	struct tipc_link_req *link_req;
-	struct list_head links;
-	int active;
 	char net_plane;
 	struct tipc_node_map nodes;
 };
@@ -155,7 +150,7 @@ struct tipc_bearer_names {
 
 struct tipc_link;
 
-extern struct tipc_bearer tipc_bearers[];
+extern struct tipc_bearer *bearer_list[];
 
 /*
  * TIPC routines available to supported media types

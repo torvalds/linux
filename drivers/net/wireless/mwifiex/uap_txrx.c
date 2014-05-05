@@ -284,27 +284,7 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 		return 0;
 	}
 
-	if (le16_to_cpu(uap_rx_pd->rx_pkt_type) == PKT_TYPE_AMSDU) {
-		struct sk_buff_head list;
-		struct sk_buff *rx_skb;
-
-		__skb_queue_head_init(&list);
-		skb_pull(skb, le16_to_cpu(uap_rx_pd->rx_pkt_offset));
-		skb_trim(skb, le16_to_cpu(uap_rx_pd->rx_pkt_length));
-
-		ieee80211_amsdu_to_8023s(skb, &list, priv->curr_addr,
-					 priv->wdev->iftype, 0, false);
-
-		while (!skb_queue_empty(&list)) {
-			rx_skb = __skb_dequeue(&list);
-			ret = mwifiex_recv_packet(priv, rx_skb);
-			if (ret)
-				dev_err(adapter->dev,
-					"AP:Rx A-MSDU failed");
-		}
-
-		return 0;
-	} else if (rx_pkt_type == PKT_TYPE_MGMT) {
+	if (rx_pkt_type == PKT_TYPE_MGMT) {
 		ret = mwifiex_process_mgmt_packet(priv, skb);
 		if (ret)
 			dev_err(adapter->dev, "Rx of mgmt packet failed");

@@ -403,7 +403,7 @@
 #define MAC_REVISION_A0     0x00
 #define MAC_REVISION_A1     0x01
 
-void MACvWriteMultiAddr(struct vnt_private *, u32, u8);
+void MACvWriteMultiAddr(struct vnt_private *, u64);
 void MACbShutdown(struct vnt_private *);
 void MACvSetBBType(struct vnt_private *, u8);
 void MACvDisableKeyEntry(struct vnt_private *, u32);

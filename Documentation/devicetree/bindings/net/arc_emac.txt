@@ -6,18 +6,11 @@ Required properties:
 - interrupts: Should contain the EMAC interrupts
 - clock-frequency: CPU frequency. It is needed to calculate and set polling
 period of EMAC.
-- max-speed: Maximum supported data-rate in Mbit/s. In some HW configurations
-bandwidth of external memory controller might be a limiting factor. That's why
-it's required to specify which data-rate is supported on current SoC or FPGA.
-For example if only 10 Mbit/s is supported (10BASE-T) set "10". If 100 Mbit/s is
-supported (100BASE-TX) set "100".
-- phy: PHY device attached to the EMAC via MDIO bus
+- max-speed: see ethernet.txt file in the same directory.
+- phy: see ethernet.txt file in the same directory.
 
 Child nodes of the driver are the individual PHY devices connected to the
 MDIO bus. They must have a "reg" property given the PHY address on the MDIO bus.
-
-Optional properties:
-- mac-address: 6 bytes, mac address
 
 Examples:
 

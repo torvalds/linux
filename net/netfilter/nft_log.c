@@ -74,7 +74,8 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static void nft_log_destroy(const struct nft_expr *expr)
+static void nft_log_destroy(const struct nft_ctx *ctx,
+			    const struct nft_expr *expr)
 {
 	struct nft_log *priv = nft_expr_priv(expr);
 

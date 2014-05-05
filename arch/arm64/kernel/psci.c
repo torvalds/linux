@@ -176,22 +176,20 @@ static const struct of_device_id psci_of_match[] __initconst = {
 	{},
 };
 
-int __init psci_init(void)
+void __init psci_init(void)
 {
 	struct device_node *np;
 	const char *method;
 	u32 id;
-	int err = 0;
 
 	np = of_find_matching_node(NULL, psci_of_match);
 	if (!np)
-		return -ENODEV;
+		return;
 
 	pr_info("probing function IDs from device-tree\n");
 
 	if (of_property_read_string(np, "method", &method)) {
 		pr_warning("missing \"method\" property\n");
-		err = -ENXIO;
 		goto out_put_node;
 	}
 
@@ -201,7 +199,6 @@ int __init psci_init(void)
 		invoke_psci_fn = __invoke_psci_fn_smc;
 	} else {
 		pr_warning("invalid \"method\" property: %s\n", method);
-		err = -EINVAL;
 		goto out_put_node;
 	}
 
@@ -227,7 +224,7 @@ int __init psci_init(void)
 
 out_put_node:
 	of_node_put(np);
-	return err;
+	return;
 }
 
 #ifdef CONFIG_SMP
@@ -251,7 +248,7 @@ static int cpu_psci_cpu_boot(unsigned int cpu)
 {
 	int err = psci_ops.cpu_on(cpu_logical_map(cpu), __pa(secondary_entry));
 	if (err)
-		pr_err("psci: failed to boot CPU%d (%d)\n", cpu, err);
+		pr_err("failed to boot CPU%d (%d)\n", cpu, err);
 
 	return err;
 }
@@ -278,7 +275,7 @@ static void cpu_psci_cpu_die(unsigned int cpu)
 
 	ret = psci_ops.cpu_off(state);
 
-	pr_crit("psci: unable to power off CPU%u (%d)\n", cpu, ret);
+	pr_crit("unable to power off CPU%u (%d)\n", cpu, ret);
 }
 #endif
 

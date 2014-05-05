@@ -53,7 +53,8 @@ This has a number of options available:
 
      If this is off (ie. "permissive"), then modules for which the key is not
      available and modules that are unsigned are permitted, but the kernel will
-     be marked as being tainted.
+     be marked as being tainted, and the concerned modules will be marked as
+     tainted, shown with the character 'E'.
 
      If this is on (ie. "restrictive"), only modules that have a valid
      signature that can be verified by a public key in the kernel's possession
@@ -77,11 +78,11 @@ This has a number of options available:
      This presents a choice of which hash algorithm the installation phase will
      sign the modules with:
 
-	CONFIG_SIG_SHA1		"Sign modules with SHA-1"
-	CONFIG_SIG_SHA224	"Sign modules with SHA-224"
-	CONFIG_SIG_SHA256	"Sign modules with SHA-256"
-	CONFIG_SIG_SHA384	"Sign modules with SHA-384"
-	CONFIG_SIG_SHA512	"Sign modules with SHA-512"
+	CONFIG_MODULE_SIG_SHA1		"Sign modules with SHA-1"
+	CONFIG_MODULE_SIG_SHA224	"Sign modules with SHA-224"
+	CONFIG_MODULE_SIG_SHA256	"Sign modules with SHA-256"
+	CONFIG_MODULE_SIG_SHA384	"Sign modules with SHA-384"
+	CONFIG_MODULE_SIG_SHA512	"Sign modules with SHA-512"
 
      The algorithm selected here will also be built into the kernel (rather
      than being a module) so that modules signed with that algorithm can have

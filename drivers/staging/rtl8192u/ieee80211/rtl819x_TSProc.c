@@ -3,13 +3,13 @@
 #include <linux/slab.h>
 #include "rtl819x_TS.h"
 
-void TsSetupTimeOut(unsigned long data)
+static void TsSetupTimeOut(unsigned long data)
 {
 	// Not implement yet
 	// This is used for WMMSA and ACM , that would send ADDTSReq frame.
 }
 
-void TsInactTimeout(unsigned long data)
+static void TsInactTimeout(unsigned long data)
 {
 	// Not implement yet
 	// This is used for WMMSA and ACM.
@@ -22,7 +22,7 @@ void TsInactTimeout(unsigned long data)
  *  return:  NULL
  *  notice:
 ********************************************************************************************************************/
-void RxPktPendingTimeout(unsigned long data)
+static void RxPktPendingTimeout(unsigned long data)
 {
 	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
@@ -99,7 +99,7 @@ void RxPktPendingTimeout(unsigned long data)
  *  return:  NULL
  *  notice:
 ********************************************************************************************************************/
-void TsAddBaProcess(unsigned long data)
+static void TsAddBaProcess(unsigned long data)
 {
 	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
 	u8 num = pTxTs->num;
@@ -110,7 +110,7 @@ void TsAddBaProcess(unsigned long data)
 }
 
 
-void ResetTsCommonInfo(PTS_COMMON_INFO	pTsCommonInfo)
+static void ResetTsCommonInfo(PTS_COMMON_INFO pTsCommonInfo)
 {
 	memset(pTsCommonInfo->Addr, 0, 6);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(TSPEC_BODY));
@@ -119,7 +119,7 @@ void ResetTsCommonInfo(PTS_COMMON_INFO	pTsCommonInfo)
 	pTsCommonInfo->TClasNum = 0;
 }
 
-void ResetTxTsEntry(PTX_TS_RECORD pTS)
+static void ResetTxTsEntry(PTX_TS_RECORD pTS)
 {
 	ResetTsCommonInfo(&pTS->TsCommonInfo);
 	pTS->TxCurSeq = 0;
@@ -130,7 +130,7 @@ void ResetTxTsEntry(PTX_TS_RECORD pTS)
 	ResetBaEntry(&pTS->TxPendingBARecord);
 }
 
-void ResetRxTsEntry(PRX_TS_RECORD pTS)
+static void ResetRxTsEntry(PRX_TS_RECORD pTS)
 {
 	ResetTsCommonInfo(&pTS->TsCommonInfo);
 	pTS->RxIndicateSeq = 0xffff; // This indicate the RxIndicateSeq is not used now!!
@@ -224,7 +224,8 @@ void TSInitialize(struct ieee80211_device *ieee)
 
 }
 
-void AdmitTS(struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, u32 InactTime)
+static void AdmitTS(struct ieee80211_device *ieee,
+		    PTS_COMMON_INFO pTsCommonInfo, u32 InactTime)
 {
 	del_timer_sync(&pTsCommonInfo->SetupTimer);
 	del_timer_sync(&pTsCommonInfo->InactTimer);
@@ -234,7 +235,9 @@ void AdmitTS(struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, u32 I
 }
 
 
-PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8 *Addr, u8 TID, TR_SELECT	TxRxSelect)
+static PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee,
+					   u8 *Addr, u8 TID,
+					   TR_SELECT TxRxSelect)
 {
 	//DIRECTION_VALUE	dir;
 	u8	dir;
@@ -309,14 +312,9 @@ PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8 *Addr, u8 
 		return NULL;
 }
 
-void MakeTSEntry(
-		PTS_COMMON_INFO	pTsCommonInfo,
-		u8		*Addr,
-		PTSPEC_BODY	pTSPEC,
-		PQOS_TCLAS	pTCLAS,
-		u8		TCLAS_Num,
-		u8		TCLAS_Proc
-	)
+static void MakeTSEntry(PTS_COMMON_INFO pTsCommonInfo, u8 *Addr,
+			PTSPEC_BODY pTSPEC, PQOS_TCLAS pTCLAS, u8 TCLAS_Num,
+			u8 TCLAS_Proc)
 {
 	u8	count;
 
@@ -472,11 +470,8 @@ bool GetTs(
 	}
 }
 
-void RemoveTsEntry(
-	struct ieee80211_device		*ieee,
-	PTS_COMMON_INFO			pTs,
-	TR_SELECT			TxRxSelect
-	)
+static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
+			  TR_SELECT TxRxSelect)
 {
 	//u32 flags = 0;
 	unsigned long flags = 0;

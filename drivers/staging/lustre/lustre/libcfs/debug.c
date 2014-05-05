@@ -368,7 +368,7 @@ void libcfs_debug_dumplog(void)
 	/* we're being careful to ensure that the kernel thread is
 	 * able to set our state to running as it exits before we
 	 * get to schedule() */
-	init_waitqueue_entry_current(&wait);
+	init_waitqueue_entry(&wait, current);
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&debug_ctlwq, &wait);
 
@@ -379,7 +379,7 @@ void libcfs_debug_dumplog(void)
 		printk(KERN_ERR "LustreError: cannot start log dump thread:"
 		       " %ld\n", PTR_ERR(dumper));
 	else
-		waitq_wait(&wait, TASK_INTERRUPTIBLE);
+		schedule();
 
 	/* be sure to teardown if cfs_create_thread() failed */
 	remove_wait_queue(&debug_ctlwq, &wait);

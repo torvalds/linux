@@ -560,17 +560,30 @@ static int ptlrpc_first_transno(struct obd_import *imp, __u64 *transno)
 	struct ptlrpc_request *req;
 	struct list_head *tmp;
 
-	if (list_empty(&imp->imp_replay_list))
-		return 0;
-	tmp = imp->imp_replay_list.next;
-	req = list_entry(tmp, struct ptlrpc_request, rq_replay_list);
-	*transno = req->rq_transno;
-	if (req->rq_transno == 0) {
-		DEBUG_REQ(D_ERROR, req, "zero transno in replay");
-		LBUG();
+	/* The requests in committed_list always have smaller transnos than
+	 * the requests in replay_list */
+	if (!list_empty(&imp->imp_committed_list)) {
+		tmp = imp->imp_committed_list.next;
+		req = list_entry(tmp, struct ptlrpc_request, rq_replay_list);
+		*transno = req->rq_transno;
+		if (req->rq_transno == 0) {
+			DEBUG_REQ(D_ERROR, req,
+				  "zero transno in committed_list");
+			LBUG();
+		}
+		return 1;
 	}
-
-	return 1;
+	if (!list_empty(&imp->imp_replay_list)) {
+		tmp = imp->imp_replay_list.next;
+		req = list_entry(tmp, struct ptlrpc_request, rq_replay_list);
+		*transno = req->rq_transno;
+		if (req->rq_transno == 0) {
+			DEBUG_REQ(D_ERROR, req, "zero transno in replay_list");
+			LBUG();
+		}
+		return 1;
+	}
+	return 0;
 }
 
 /**
@@ -1042,7 +1055,7 @@ finish:
 			if ((ocd->ocd_cksum_types &
 			     cksum_types_supported_client()) == 0) {
 				LCONSOLE_WARN("The negotiation of the checksum "
-					      "alogrithm to use with server %s "
+					      "algorithm to use with server %s "
 					      "failed (%x/%x), disabling "
 					      "checksums\n",
 					      obd2cli_tgt(imp->imp_obd),
@@ -1260,7 +1273,7 @@ static int ptlrpc_invalidate_import_thread(void *data)
 /**
  * This is the state machine for client-side recovery on import.
  *
- * Typicaly we have two possibly paths. If we came to server and it is not
+ * Typically we have two possibly paths. If we came to server and it is not
  * in recovery, we just enter IMP_EVICTED state, invalidate our import
  * state and reconnect from scratch.
  * If we came to server that is in recovery, we enter IMP_REPLAY import state.

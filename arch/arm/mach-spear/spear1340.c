@@ -143,6 +143,7 @@ static void __init spear1340_dt_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table,
 			spear1340_auxdata_lookup, NULL);
+	platform_device_register_simple("spear-cpufreq", -1, NULL, 0);
 }
 
 static const char * const spear1340_dt_board_compat[] = {

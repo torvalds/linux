@@ -436,13 +436,6 @@ kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc, uint32_t cause,
 	sel = inst & 0x7;
 	co_bit = (inst >> 25) & 1;
 
-	/* Verify that the register is valid */
-	if (rd > MIPS_CP0_DESAVE) {
-		printk("Invalid rd: %d\n", rd);
-		er = EMULATE_FAIL;
-		goto done;
-	}
-
 	if (co_bit) {
 		op = (inst) & 0xff;
 
@@ -1542,8 +1535,15 @@ kvm_mips_handle_ri(unsigned long cause, uint32_t *opc,
 	}
 
 	if ((inst & OPCODE) == SPEC3 && (inst & FUNC) == RDHWR) {
+		int usermode = !KVM_GUEST_KERNEL_MODE(vcpu);
 		int rd = (inst & RD) >> 11;
 		int rt = (inst & RT) >> 16;
+		/* If usermode, check RDHWR rd is allowed by guest HWREna */
+		if (usermode && !(kvm_read_c0_guest_hwrena(cop0) & BIT(rd))) {
+			kvm_debug("RDHWR %#x disallowed by HWREna @ %p\n",
+				  rd, opc);
+			goto emulate_ri;
+		}
 		switch (rd) {
 		case 0:	/* CPU number */
 			arch->gprs[rt] = 0;
@@ -1567,31 +1567,27 @@ kvm_mips_handle_ri(unsigned long cause, uint32_t *opc,
 			}
 			break;
 		case 29:
-#if 1
 			arch->gprs[rt] = kvm_read_c0_guest_userlocal(cop0);
-#else
-			/* UserLocal not implemented */
-			er = kvm_mips_emulate_ri_exc(cause, opc, run, vcpu);
-#endif
 			break;
 
 		default:
-			printk("RDHWR not supported\n");
-			er = EMULATE_FAIL;
-			break;
+			kvm_debug("RDHWR %#x not supported @ %p\n", rd, opc);
+			goto emulate_ri;
 		}
 	} else {
-		printk("Emulate RI not supported @ %p: %#x\n", opc, inst);
-		er = EMULATE_FAIL;
+		kvm_debug("Emulate RI not supported @ %p: %#x\n", opc, inst);
+		goto emulate_ri;
 	}
 
+	return EMULATE_DONE;
+
+emulate_ri:
 	/*
-	 * Rollback PC only if emulation was unsuccessful
+	 * Rollback PC (if in branch delay slot then the PC already points to
+	 * branch target), and pass the RI exception to the guest OS.
 	 */
-	if (er == EMULATE_FAIL) {
-		vcpu->arch.pc = curr_pc;
-	}
-	return er;
+	vcpu->arch.pc = curr_pc;
+	return kvm_mips_emulate_ri_exc(cause, opc, run, vcpu);
 }
 
 enum emulation_result

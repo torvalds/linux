@@ -1,0 +1,30 @@
+* Neonode infrared touchscreen controller
+
+Required properties:
+- compatible: must be "neonode,zforce"
+- reg: I2C address of the chip
+- interrupts: interrupt to which the chip is connected
+- gpios: gpios the chip is connected to
+  first one is the interrupt gpio and second one the reset gpio
+- x-size: horizontal resolution of touchscreen
+- y-size: vertical resolution of touchscreen
+
+Example:
+
+	i2c@00000000 {
+		/* ... */
+
+		zforce_ts@50 {
+			compatible = "neonode,zforce";
+			reg = <0x50>;
+			interrupts = <2 0>;
+
+			gpios = <&gpio5 6 0>, /* INT */
+				<&gpio5 9 0>; /* RST */
+
+			x-size = <800>;
+			y-size = <600>;
+		};
+
+		/* ... */
+	};

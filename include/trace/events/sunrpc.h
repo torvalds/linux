@@ -83,7 +83,7 @@ DECLARE_EVENT_CLASS(rpc_task_running,
 		),
 
 	TP_fast_assign(
-		__entry->client_id = clnt->cl_clid;
+		__entry->client_id = clnt ? clnt->cl_clid : -1;
 		__entry->task_id = task->tk_pid;
 		__entry->action = action;
 		__entry->runstate = task->tk_runstate;
@@ -91,7 +91,7 @@ DECLARE_EVENT_CLASS(rpc_task_running,
 		__entry->flags = task->tk_flags;
 		),
 
-	TP_printk("task:%u@%u flags=%4.4x state=%4.4lx status=%d action=%pf",
+	TP_printk("task:%u@%d flags=%4.4x state=%4.4lx status=%d action=%pf",
 		__entry->task_id, __entry->client_id,
 		__entry->flags,
 		__entry->runstate,

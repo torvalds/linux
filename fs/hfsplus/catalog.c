@@ -103,6 +103,8 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry,
 		folder = &entry->folder;
 		memset(folder, 0, sizeof(*folder));
 		folder->type = cpu_to_be16(HFSPLUS_FOLDER);
+		if (test_bit(HFSPLUS_SB_HFSX, &sbi->flags))
+			folder->flags |= cpu_to_be16(HFSPLUS_HAS_FOLDER_COUNT);
 		folder->id = cpu_to_be32(inode->i_ino);
 		HFSPLUS_I(inode)->create_date =
 			folder->create_date =
@@ -203,6 +205,36 @@ int hfsplus_find_cat(struct super_block *sb, u32 cnid,
 	return hfs_brec_find(fd, hfs_find_rec_by_key);
 }
 
+static void hfsplus_subfolders_inc(struct inode *dir)
+{
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dir->i_sb);
+
+	if (test_bit(HFSPLUS_SB_HFSX, &sbi->flags)) {
+		/*
+		 * Increment subfolder count. Note, the value is only meaningful
+		 * for folders with HFSPLUS_HAS_FOLDER_COUNT flag set.
+		 */
+		HFSPLUS_I(dir)->subfolders++;
+	}
+}
+
+static void hfsplus_subfolders_dec(struct inode *dir)
+{
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dir->i_sb);
+
+	if (test_bit(HFSPLUS_SB_HFSX, &sbi->flags)) {
+		/*
+		 * Decrement subfolder count. Note, the value is only meaningful
+		 * for folders with HFSPLUS_HAS_FOLDER_COUNT flag set.
+		 *
+		 * Check for zero. Some subfolders may have been created
+		 * by an implementation ignorant of this counter.
+		 */
+		if (HFSPLUS_I(dir)->subfolders)
+			HFSPLUS_I(dir)->subfolders--;
+	}
+}
+
 int hfsplus_create_cat(u32 cnid, struct inode *dir,
 		struct qstr *str, struct inode *inode)
 {
@@ -247,6 +279,8 @@ int hfsplus_create_cat(u32 cnid, struct inode *dir,
 		goto err1;
 
 	dir->i_size++;
+	if (S_ISDIR(inode->i_mode))
+		hfsplus_subfolders_inc(dir);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
 	hfsplus_mark_inode_dirty(dir, HFSPLUS_I_CAT_DIRTY);
 
@@ -336,6 +370,8 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 		goto out;
 
 	dir->i_size--;
+	if (type == HFSPLUS_FOLDER)
+		hfsplus_subfolders_dec(dir);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
 	hfsplus_mark_inode_dirty(dir, HFSPLUS_I_CAT_DIRTY);
 
@@ -380,6 +416,7 @@ int hfsplus_rename_cat(u32 cnid,
 
 	hfs_bnode_read(src_fd.bnode, &entry, src_fd.entryoffset,
 				src_fd.entrylength);
+	type = be16_to_cpu(entry.type);
 
 	/* create new dir entry with the data from the old entry */
 	hfsplus_cat_build_key(sb, dst_fd.search_key, dst_dir->i_ino, dst_name);
@@ -394,6 +431,8 @@ int hfsplus_rename_cat(u32 cnid,
 	if (err)
 		goto out;
 	dst_dir->i_size++;
+	if (type == HFSPLUS_FOLDER)
+		hfsplus_subfolders_inc(dst_dir);
 	dst_dir->i_mtime = dst_dir->i_ctime = CURRENT_TIME_SEC;
 
 	/* finally remove the old entry */
@@ -405,6 +444,8 @@ int hfsplus_rename_cat(u32 cnid,
 	if (err)
 		goto out;
 	src_dir->i_size--;
+	if (type == HFSPLUS_FOLDER)
+		hfsplus_subfolders_dec(src_dir);
 	src_dir->i_mtime = src_dir->i_ctime = CURRENT_TIME_SEC;
 
 	/* remove old thread entry */

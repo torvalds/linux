@@ -729,27 +729,27 @@ device_receive_frame(
 	// Soft MIC
 	if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_TKIP)) {
 		if (bIsWEP) {
-			unsigned long *pdwMIC_L;
-			unsigned long *pdwMIC_R;
-			unsigned long dwMIC_Priority;
-			unsigned long dwMICKey0 = 0, dwMICKey1 = 0;
-			unsigned long dwLocalMIC_L = 0;
-			unsigned long dwLocalMIC_R = 0;
+			__le32 *pdwMIC_L;
+			__le32 *pdwMIC_R;
+			__le32 dwMIC_Priority;
+			__le32 dwMICKey0 = 0, dwMICKey1 = 0;
+			u32 dwLocalMIC_L = 0;
+			u32 dwLocalMIC_R = 0;
 			viawget_wpa_header *wpahdr;
 
 			if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-				dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[24]));
-				dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[28]));
+				dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[24]));
+				dwMICKey1 = cpu_to_le32(*(u32 *)(&pKey->abyKey[28]));
 			} else {
 				if (pDevice->pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-					dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[16]));
-					dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[20]));
+					dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[16]));
+					dwMICKey1 = cpu_to_le32(*(u32 *)(&pKey->abyKey[20]));
 				} else if ((pKey->dwKeyIndex & BIT28) == 0) {
-					dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[16]));
-					dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[20]));
+					dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[16]));
+					dwMICKey1 = cpu_to_le32(*(u32 *)(&pKey->abyKey[20]));
 				} else {
-					dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[24]));
-					dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[28]));
+					dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[24]));
+					dwMICKey1 = cpu_to_le32(*(u32 *)(&pKey->abyKey[28]));
 				}
 			}
 
@@ -763,14 +763,14 @@ device_receive_frame(
 			MIC_vGetMIC(&dwLocalMIC_L, &dwLocalMIC_R);
 			MIC_vUnInit();
 
-			pdwMIC_L = (unsigned long *)(skb->data + 4 + FrameSize);
-			pdwMIC_R = (unsigned long *)(skb->data + 4 + FrameSize + 4);
+			pdwMIC_L = (__le32 *)(skb->data + 4 + FrameSize);
+			pdwMIC_R = (__le32 *)(skb->data + 4 + FrameSize + 4);
 			//DBG_PRN_GRP12(("RxL: %lx, RxR: %lx\n", *pdwMIC_L, *pdwMIC_R));
 			//DBG_PRN_GRP12(("LocalL: %lx, LocalR: %lx\n", dwLocalMIC_L, dwLocalMIC_R));
 			//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dwMICKey0= %lx,dwMICKey1= %lx \n", dwMICKey0, dwMICKey1);
 
-			if ((cpu_to_le32(*pdwMIC_L) != dwLocalMIC_L) ||
-			    (cpu_to_le32(*pdwMIC_R) != dwLocalMIC_R) ||
+			if ((le32_to_cpu(*pdwMIC_L) != dwLocalMIC_L) ||
+			    (le32_to_cpu(*pdwMIC_R) != dwLocalMIC_R) ||
 			    pDevice->bRxMICFail) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MIC comparison is fail!\n");
 				pDevice->bRxMICFail = false;

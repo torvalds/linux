@@ -671,7 +671,10 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 	if (!np)
 		return 1;
 
-	ret = of_property_read_u32(np, "location", &location);
+	ret = of_property_read_u32(np, "efm32,location", &location);
+	if (ret)
+		/* fall back to old and (wrongly) generic property "location" */
+		ret = of_property_read_u32(np, "location", &location);
 	if (!ret) {
 		if (location > 5) {
 			dev_err(&pdev->dev, "invalid location\n");
@@ -795,6 +798,9 @@ static int efm32_uart_remove(struct platform_device *pdev)
 
 static const struct of_device_id efm32_uart_dt_ids[] = {
 	{
+		.compatible = "energymicro,efm32-uart",
+	}, {
+		/* doesn't follow the "vendor,device" scheme, don't use */
 		.compatible = "efm32,uart",
 	}, {
 		/* sentinel */

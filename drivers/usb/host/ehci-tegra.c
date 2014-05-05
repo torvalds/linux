@@ -38,10 +38,6 @@
 
 #include "ehci.h"
 
-#define TEGRA_USB_BASE			0xC5000000
-#define TEGRA_USB2_BASE			0xC5004000
-#define TEGRA_USB3_BASE			0xC5008000
-
 #define PORT_WAKE_BITS (PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
 
 #define TEGRA_USB_DMA_ALIGN 32
@@ -513,8 +509,31 @@ static struct platform_driver tegra_ehci_driver = {
 	}
 };
 
+static int tegra_ehci_reset(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int retval;
+	int txfifothresh;
+
+	retval = ehci_setup(hcd);
+	if (retval)
+		return retval;
+
+	/*
+	 * We should really pull this value out of tegra_ehci_soc_config, but
+	 * to avoid needing access to it, make use of the fact that Tegra20 is
+	 * the only one so far that needs a value of 10, and Tegra20 is the
+	 * only one which doesn't set has_hostpc.
+	 */
+	txfifothresh = ehci->has_hostpc ? 0x10 : 10;
+	ehci_writel(ehci, txfifothresh << 16, &ehci->regs->txfill_tuning);
+
+	return 0;
+}
+
 static const struct ehci_driver_overrides tegra_overrides __initconst = {
 	.extra_priv_size	= sizeof(struct tegra_ehci_hcd),
+	.reset			= tegra_ehci_reset,
 };
 
 static int __init ehci_tegra_init(void)

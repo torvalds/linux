@@ -256,10 +256,6 @@ static int ports_open;
 static struct port *npe_port_tab[MAX_NPES];
 static struct dma_pool *dma_pool;
 
-static struct sock_filter ptp_filter[] = {
-	PTP_FILTER
-};
-
 static int ixp_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 {
 	u8 *data = skb->data;
@@ -267,7 +263,7 @@ static int ixp_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 	u16 *hi, *id;
 	u32 lo;
 
-	if (sk_run_filter(skb, ptp_filter) != PTP_CLASS_V1_IPV4)
+	if (ptp_classify_raw(skb) != PTP_CLASS_V1_IPV4)
 		return 0;
 
 	offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
@@ -1412,11 +1408,6 @@ static int eth_init_one(struct platform_device *pdev)
 	u32 regs_phys;
 	char phy_id[MII_BUS_ID_SIZE + 3];
 	int err;
-
-	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
-		pr_err("ixp4xx_eth: bad ptp filter\n");
-		return -EINVAL;
-	}
 
 	if (!(dev = alloc_etherdev(sizeof(struct port))))
 		return -ENOMEM;

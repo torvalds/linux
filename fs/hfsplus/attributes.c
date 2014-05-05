@@ -11,7 +11,7 @@
 
 static struct kmem_cache *hfsplus_attr_tree_cachep;
 
-int hfsplus_create_attr_tree_cache(void)
+int __init hfsplus_create_attr_tree_cache(void)
 {
 	if (hfsplus_attr_tree_cachep)
 		return -EEXIST;

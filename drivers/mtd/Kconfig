@@ -150,7 +150,7 @@ config MTD_BCM63XX_PARTS
 
 config MTD_BCM47XX_PARTS
 	tristate "BCM47XX partitioning support"
-	depends on BCM47XX
+	depends on BCM47XX || ARCH_BCM_5301X
 	help
 	  This provides partitions parser for devices based on BCM47xx
 	  boards.

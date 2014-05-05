@@ -681,7 +681,7 @@ do {									      \
  *
  * Be very careful when changing this value, especially when decreasing it,
  * since vmalloc in Linux doesn't perform well on multi-cores system, calling
- * vmalloc in critical path would hurt peformance badly. See LU-66.
+ * vmalloc in critical path would hurt performance badly. See LU-66.
  */
 #define OBD_ALLOC_BIG (4 * PAGE_CACHE_SIZE)
 

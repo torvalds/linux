@@ -19,6 +19,7 @@
 #include "zlib_inflate/inflate.h"
 
 #include "zlib_inflate/infutil.h"
+#include <linux/decompress/inflate.h>
 
 #endif /* STATIC */
 

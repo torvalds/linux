@@ -12,6 +12,7 @@ struct nouveau_mc_intr {
 struct nouveau_mc {
 	struct nouveau_subdev base;
 	bool use_msi;
+	unsigned int irq;
 };
 
 static inline struct nouveau_mc *

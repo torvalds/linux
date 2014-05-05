@@ -94,8 +94,6 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
-	dev_info(dev->class_dev, "%s (base %#lx) attached\n", dev->board_name,
-		 dev->iobase);
 	return 0;
 }
 

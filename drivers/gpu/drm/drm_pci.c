@@ -351,7 +351,7 @@ err_agp:
 	drm_pci_agp_destroy(dev);
 	pci_disable_device(pdev);
 err_free:
-	drm_dev_free(dev);
+	drm_dev_unref(dev);
 	return ret;
 }
 EXPORT_SYMBOL(drm_get_pci_dev);
@@ -468,8 +468,8 @@ void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 	} else {
 		list_for_each_entry_safe(dev, tmp, &driver->legacy_dev_list,
 					 legacy_dev_list) {
-			drm_put_dev(dev);
 			list_del(&dev->legacy_dev_list);
+			drm_put_dev(dev);
 		}
 	}
 	DRM_INFO("Module unloaded\n");

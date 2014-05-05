@@ -26,6 +26,7 @@
 #include <asm/assembler.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
+#include <asm/cache.h>
 #include <asm/cputype.h>
 #include <asm/memory.h>
 #include <asm/thread_info.h>
@@ -229,7 +230,11 @@ ENTRY(set_cpu_boot_mode_flag)
 	cmp	w20, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 	add	x1, x1, #4
-1:	str	w20, [x1]			// This CPU has booted in EL1
+1:	dc	cvac, x1			// Clean potentially dirty cache line
+	dsb	sy
+	str	w20, [x1]			// This CPU has booted in EL1
+	dc	civac, x1			// Clean&invalidate potentially stale cache line
+	dsb	sy
 	ret
 ENDPROC(set_cpu_boot_mode_flag)
 
@@ -240,8 +245,9 @@ ENDPROC(set_cpu_boot_mode_flag)
  * This is not in .bss, because we set it sufficiently early that the boot-time
  * zeroing of .bss would clobber it.
  */
-	.pushsection	.data
+	.pushsection	.data..cacheline_aligned
 ENTRY(__boot_cpu_mode)
+	.align	L1_CACHE_SHIFT
 	.long	BOOT_CPU_MODE_EL2
 	.long	0
 	.popsection
@@ -384,26 +390,18 @@ ENDPROC(__calc_phys_offset)
  * Preserves:	tbl, flags
  * Corrupts:	phys, start, end, pstate
  */
-	.macro	create_block_map, tbl, flags, phys, start, end, idmap=0
+	.macro	create_block_map, tbl, flags, phys, start, end
 	lsr	\phys, \phys, #BLOCK_SHIFT
-	.if	\idmap
-	and	\start, \phys, #PTRS_PER_PTE - 1	// table index
-	.else
 	lsr	\start, \start, #BLOCK_SHIFT
 	and	\start, \start, #PTRS_PER_PTE - 1	// table index
-	.endif
 	orr	\phys, \flags, \phys, lsl #BLOCK_SHIFT	// table entry
-	.ifnc	\start,\end
 	lsr	\end, \end, #BLOCK_SHIFT
 	and	\end, \end, #PTRS_PER_PTE - 1		// table end index
-	.endif
 9999:	str	\phys, [\tbl, \start, lsl #3]		// store the entry
-	.ifnc	\start,\end
 	add	\start, \start, #1			// next entry
 	add	\phys, \phys, #BLOCK_SIZE		// next block
 	cmp	\start, \end
 	b.ls	9999b
-	.endif
 	.endm
 
 /*
@@ -412,10 +410,19 @@ ENDPROC(__calc_phys_offset)
  *   - identity mapping to enable the MMU (low address, TTBR0)
  *   - first few MB of the kernel linear mapping to jump to once the MMU has
  *     been enabled, including the FDT blob (TTBR1)
- *   - UART mapping if CONFIG_EARLY_PRINTK is enabled (TTBR1)
+ *   - pgd entry for fixed mappings (TTBR1)
  */
 __create_page_tables:
 	pgtbl	x25, x26, x24			// idmap_pg_dir and swapper_pg_dir addresses
+	mov	x27, lr
+
+	/*
+	 * Invalidate the idmap and swapper page tables to avoid potential
+	 * dirty cache lines being evicted.
+	 */
+	mov	x0, x25
+	add	x1, x26, #SWAPPER_DIR_SIZE
+	bl	__inval_cache_range
 
 	/*
 	 * Clear the idmap and swapper page tables.
@@ -435,9 +442,13 @@ __create_page_tables:
 	 * Create the identity mapping.
 	 */
 	add	x0, x25, #PAGE_SIZE		// section table address
-	adr	x3, __turn_mmu_on		// virtual/physical address
+	ldr	x3, =KERNEL_START
+	add	x3, x3, x28			// __pa(KERNEL_START)
 	create_pgd_entry x25, x0, x3, x5, x6
-	create_block_map x0, x7, x3, x5, x5, idmap=1
+	ldr	x6, =KERNEL_END
+	mov	x5, x3				// __pa(KERNEL_START)
+	add	x6, x6, x28			// __pa(KERNEL_END)
+	create_block_map x0, x7, x3, x5, x6
 
 	/*
 	 * Map the kernel image (starting with PHYS_OFFSET).
@@ -445,7 +456,7 @@ __create_page_tables:
 	add	x0, x26, #PAGE_SIZE		// section table address
 	mov	x5, #PAGE_OFFSET
 	create_pgd_entry x26, x0, x5, x3, x6
-	ldr	x6, =KERNEL_END - 1
+	ldr	x6, =KERNEL_END
 	mov	x3, x24				// phys offset
 	create_block_map x0, x7, x3, x5, x6
 
@@ -465,15 +476,23 @@ __create_page_tables:
 	sub	x6, x6, #1			// inclusive range
 	create_block_map x0, x7, x3, x5, x6
 1:
-#ifdef CONFIG_EARLY_PRINTK
 	/*
-	 * Create the pgd entry for the UART mapping. The full mapping is done
-	 * later based earlyprintk kernel parameter.
+	 * Create the pgd entry for the fixed mappings.
 	 */
-	ldr	x5, =EARLYCON_IOBASE		// UART virtual address
+	ldr	x5, =FIXADDR_TOP		// Fixed mapping virtual address
 	add	x0, x26, #2 * PAGE_SIZE		// section table address
 	create_pgd_entry x26, x0, x5, x6, x7
-#endif
+
+	/*
+	 * Since the page tables have been populated with non-cacheable
+	 * accesses (MMU disabled), invalidate the idmap and swapper page
+	 * tables again to remove any speculatively loaded cache lines.
+	 */
+	mov	x0, x25
+	add	x1, x26, #SWAPPER_DIR_SIZE
+	bl	__inval_cache_range
+
+	mov	lr, x27
 	ret
 ENDPROC(__create_page_tables)
 	.ltorg

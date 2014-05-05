@@ -124,7 +124,6 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	/* check parameters */
 	ret = -EOPNOTSUPP;
 	if (!root->d_inode ||
-	    !root->d_inode->i_op ||
 	    !root->d_inode->i_op->lookup ||
 	    !root->d_inode->i_op->mkdir ||
 	    !root->d_inode->i_op->setxattr ||

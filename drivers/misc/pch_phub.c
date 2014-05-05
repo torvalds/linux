@@ -636,6 +636,7 @@ static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 	u8 mac[ETH_ALEN];
 	ssize_t rom_size;
 	struct pch_phub_reg *chip = dev_get_drvdata(dev);
+	int ret;
 
 	if (!mac_pton(buf, mac))
 		return -EINVAL;
@@ -644,8 +645,10 @@ static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 	if (!chip->pch_phub_extrom_base_address)
 		return -ENOMEM;
 
-	pch_phub_write_gbe_mac_addr(chip, mac);
+	ret = pch_phub_write_gbe_mac_addr(chip, mac);
 	pci_unmap_rom(chip->pdev, chip->pch_phub_extrom_base_address);
+	if (ret)
+		return ret;
 
 	return count;
 }

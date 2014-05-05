@@ -37,19 +37,17 @@ int __init pci_legacy_init(void)
 void pcibios_scan_specific_bus(int busn)
 {
 	int devfn;
-	long node;
 	u32 l;
 
 	if (pci_find_bus(0, busn))
 		return;
 
-	node = get_mp_bus_to_node(busn);
 	for (devfn = 0; devfn < 256; devfn += 8) {
 		if (!raw_pci_read(0, busn, devfn, PCI_VENDOR_ID, 2, &l) &&
 		    l != 0x0000 && l != 0xffff) {
 			DBG("Found device at %02x:%02x [%04x]\n", busn, devfn, l);
 			printk(KERN_INFO "PCI: Discovered peer bus %02x\n", busn);
-			pci_scan_bus_on_node(busn, &pci_root_ops, node);
+			pcibios_scan_root(busn);
 			return;
 		}
 	}

@@ -940,11 +940,6 @@ static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
 	return -EIO;
 }
 
-static int ftgmac100_mdiobus_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 /******************************************************************************
  * struct ethtool_ops functions
  *****************************************************************************/
@@ -1262,7 +1257,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->mii_bus->priv = netdev;
 	priv->mii_bus->read = ftgmac100_mdiobus_read;
 	priv->mii_bus->write = ftgmac100_mdiobus_write;
-	priv->mii_bus->reset = ftgmac100_mdiobus_reset;
 	priv->mii_bus->irq = priv->phy_irq;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++)

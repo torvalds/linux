@@ -355,7 +355,7 @@ int cpdma_ctlr_stop(struct cpdma_ctlr *ctlr)
 	int i;
 
 	spin_lock_irqsave(&ctlr->lock, flags);
-	if (ctlr->state != CPDMA_STATE_ACTIVE) {
+	if (ctlr->state == CPDMA_STATE_TEARDOWN) {
 		spin_unlock_irqrestore(&ctlr->lock, flags);
 		return -EINVAL;
 	}
@@ -891,7 +891,7 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	unsigned		timeout;
 
 	spin_lock_irqsave(&chan->lock, flags);
-	if (chan->state != CPDMA_STATE_ACTIVE) {
+	if (chan->state == CPDMA_STATE_TEARDOWN) {
 		spin_unlock_irqrestore(&chan->lock, flags);
 		return -EINVAL;
 	}

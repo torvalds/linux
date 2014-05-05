@@ -116,7 +116,7 @@ struct lpfc_nodelist {
 	atomic_t cmd_pending;
 	uint32_t cmd_qdepth;
 	unsigned long last_change_time;
-	struct lpfc_node_rrqs active_rrqs;
+	unsigned long *active_rrqs_xri_bitmap;
 	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
 };
 struct lpfc_node_rrq {

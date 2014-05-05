@@ -7,6 +7,7 @@
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Copyright (C) 2001 Thiemo Seufer.
  * Copyright (C) 2002 Maciej W. Rozycki
+ * Copyright (C) 2014 Imagination Technologies Ltd.
  */
 #ifndef _ASM_CHECKSUM_H
 #define _ASM_CHECKSUM_H
@@ -29,9 +30,13 @@
  */
 __wsum csum_partial(const void *buff, int len, __wsum sum);
 
-__wsum __csum_partial_copy_user(const void *src, void *dst,
-				int len, __wsum sum, int *err_ptr);
+__wsum __csum_partial_copy_kernel(const void *src, void *dst,
+				  int len, __wsum sum, int *err_ptr);
 
+__wsum __csum_partial_copy_from_user(const void *src, void *dst,
+				     int len, __wsum sum, int *err_ptr);
+__wsum __csum_partial_copy_to_user(const void *src, void *dst,
+				   int len, __wsum sum, int *err_ptr);
 /*
  * this is a new version of the above that records errors it finds in *errp,
  * but continues and zeros the rest of the buffer.
@@ -41,8 +46,26 @@ __wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 				   __wsum sum, int *err_ptr)
 {
 	might_fault();
-	return __csum_partial_copy_user((__force void *)src, dst,
-					len, sum, err_ptr);
+	if (segment_eq(get_fs(), get_ds()))
+		return __csum_partial_copy_kernel((__force void *)src, dst,
+						  len, sum, err_ptr);
+	else
+		return __csum_partial_copy_from_user((__force void *)src, dst,
+						     len, sum, err_ptr);
+}
+
+#define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
+static inline
+__wsum csum_and_copy_from_user(const void __user *src, void *dst,
+			       int len, __wsum sum, int *err_ptr)
+{
+	if (access_ok(VERIFY_READ, src, len))
+		return csum_partial_copy_from_user(src, dst, len, sum,
+						   err_ptr);
+	if (len)
+		*err_ptr = -EFAULT;
+
+	return sum;
 }
 
 /*
@@ -54,9 +77,16 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
 			     __wsum sum, int *err_ptr)
 {
 	might_fault();
-	if (access_ok(VERIFY_WRITE, dst, len))
-		return __csum_partial_copy_user(src, (__force void *)dst,
-						len, sum, err_ptr);
+	if (access_ok(VERIFY_WRITE, dst, len)) {
+		if (segment_eq(get_fs(), get_ds()))
+			return __csum_partial_copy_kernel(src,
+							  (__force void *)dst,
+							  len, sum, err_ptr);
+		else
+			return __csum_partial_copy_to_user(src,
+							   (__force void *)dst,
+							   len, sum, err_ptr);
+	}
 	if (len)
 		*err_ptr = -EFAULT;
 

@@ -1704,7 +1704,7 @@ bfa_flash_sem_get(void __iomem *bar)
 	while (!bfa_raw_sem_get(bar)) {
 		if (--n <= 0)
 			return BFA_STATUS_BADFLASH;
-		udelay(10000);
+		mdelay(10);
 	}
 	return BFA_STATUS_OK;
 }

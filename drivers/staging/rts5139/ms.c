@@ -1033,8 +1033,7 @@ static int ms_read_attribute_info(struct rts51x_chip *chip)
 			    ((u32) buf[cur_addr_off + 5] << 16) |
 			    ((u32) buf[cur_addr_off + 6] << 8) |
 			    buf[cur_addr_off + 7];
-			RTS51X_DEBUGP("sys_info_addr = 0x%x,"
-					"sys_info_size = 0x%x\n",
+			RTS51X_DEBUGP("sys_info_addr = 0x%x, sys_info_size = 0x%x\n",
 						sys_info_addr, sys_info_size);
 			if (sys_info_size != 96) {
 				kfree(buf);
@@ -1069,8 +1068,7 @@ static int ms_read_attribute_info(struct rts51x_chip *chip)
 			    ((u32) buf[cur_addr_off + 5] << 16) |
 			    ((u32) buf[cur_addr_off + 6] << 8) |
 			    buf[cur_addr_off + 7];
-			RTS51X_DEBUGP("model_name_addr = 0x%x,"
-					"model_name_size = 0x%x\n",
+			RTS51X_DEBUGP("model_name_addr = 0x%x, model_name_size = 0x%x\n",
 					model_name_addr, model_name_size);
 			if (model_name_size != 48) {
 				kfree(buf);
@@ -1751,8 +1749,7 @@ static int ms_copy_page(struct rts51x_chip *chip, u16 old_blk, u16 new_blk,
 				retval = ms_read_status_reg(chip);
 				if (retval != STATUS_SUCCESS) {
 					uncorrect_flag = 1;
-					RTS51X_DEBUGP("Uncorrectable"
-								"error\n");
+					RTS51X_DEBUGP("Uncorrectable error\n");
 				} else {
 					uncorrect_flag = 0;
 				}
@@ -1770,8 +1767,7 @@ static int ms_copy_page(struct rts51x_chip *chip, u16 old_blk, u16 new_blk,
 					ms_write_extra_data(chip, old_blk, i,
 							    extra,
 							    MS_EXTRA_SIZE);
-					RTS51X_DEBUGP("page %d :"
-							"extra[0] = 0x%x\n",
+					RTS51X_DEBUGP("page %d : extra[0] = 0x%x\n",
 							i, extra[0]);
 					MS_SET_BAD_BLOCK_FLG(ms_card);
 
@@ -1932,8 +1928,7 @@ static int ms_auto_copy_page(struct rts51x_chip *chip, u16 old_blk, u16 new_blk,
 	u8 page_len, bus_width, val = 0;
 	u8 extra[MS_EXTRA_SIZE];
 
-	RTS51X_DEBUGP("Auto copy page from 0x%x to 0x%x,"
-				"logical block is 0x%x\n",
+	RTS51X_DEBUGP("Auto copy page from 0x%x to 0x%x, logical block is 0x%x\n",
 				old_blk, new_blk, log_blk);
 	RTS51X_DEBUGP("start_page = %d, end_page = %d\n", start_page,
 		       end_page);
@@ -2555,8 +2550,7 @@ static int ms_build_l2p_tbl(struct rts51x_chip *chip, int seg_no)
 		for (log_blk = 0; log_blk < 494; log_blk++) {
 			tmp_blk = segment->l2p_table[log_blk];
 			if (tmp_blk < ms_card->boot_block) {
-				RTS51X_DEBUGP("Boot block is not the first"
-							"normal block.\n");
+				RTS51X_DEBUGP("Boot block is not the first normal block.\n");
 
 				if (chip->card_wp & MS_CARD)
 					break;
@@ -3976,8 +3970,7 @@ static int rts51x_ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *
 			end_page = start_page + (u8) total_sec_cnt;
 		page_cnt = end_page - start_page;
 
-		RTS51X_DEBUGP("start_page = %d, end_page = %d,"
-					"page_cnt = %d\n",
+		RTS51X_DEBUGP("start_page = %d, end_page = %d, page_cnt = %d\n",
 					start_page, end_page, page_cnt);
 
 		if (srb->sc_data_direction == DMA_FROM_DEVICE)

@@ -3354,7 +3354,7 @@ void wl_wext_event_essid( struct net_device *dev )
 	   the call to wireless_send_event() must also point to where the ESSID
 	   lives */
 	wrqu.essid.length  = strlen( lp->NetworkName );
-	wrqu.essid.pointer = (caddr_t)lp->NetworkName;
+	wrqu.essid.pointer = (void __user *)lp->NetworkName;
 	wrqu.essid.flags   = 1;
 
 	wireless_send_event( dev, SIOCSIWESSID, &wrqu, lp->NetworkName );
@@ -3419,7 +3419,7 @@ void wl_wext_event_encode( struct net_device *dev )
 
 		/* Only provide the key if permissions allow */
 		if( capable( CAP_NET_ADMIN )) {
-			wrqu.encoding.pointer = (caddr_t)lp->DefaultKeys.key[index].key;
+			wrqu.encoding.pointer = (void __user *)lp->DefaultKeys.key[index].key;
 			wrqu.encoding.length  = lp->DefaultKeys.key[index].len;
 		} else {
 			wrqu.encoding.flags |= IW_ENCODE_NOKEY;
@@ -3778,7 +3778,7 @@ static const iw_handler wl_private_handler[] =
 #endif
 };
 
-struct iw_priv_args wl_priv_args[] = {
+static struct iw_priv_args wl_priv_args[] = {
         {SIOCSIWNETNAME,    IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN, 0, "snetwork_name" },
         {SIOCGIWNETNAME, 0, IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN,    "gnetwork_name" },
         {SIOCSIWSTANAME,    IW_PRIV_TYPE_CHAR | HCF_MAX_NAME_LEN, 0, "sstation_name" },

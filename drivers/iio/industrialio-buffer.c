@@ -264,7 +264,7 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 				     &indio_dev->dev,
 				     &buffer->scan_el_dev_attr_list);
 	if (ret)
-		goto error_ret;
+		return ret;
 	attrcount++;
 	ret = __iio_add_chan_devattr("type",
 				     chan,
@@ -275,7 +275,7 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 				     &indio_dev->dev,
 				     &buffer->scan_el_dev_attr_list);
 	if (ret)
-		goto error_ret;
+		return ret;
 	attrcount++;
 	if (chan->type != IIO_TIMESTAMP)
 		ret = __iio_add_chan_devattr("en",
@@ -296,10 +296,9 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 					     &indio_dev->dev,
 					     &buffer->scan_el_dev_attr_list);
 	if (ret)
-		goto error_ret;
+		return ret;
 	attrcount++;
 	ret = attrcount;
-error_ret:
 	return ret;
 }
 
@@ -553,13 +552,13 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 		if (indio_dev->setup_ops->predisable) {
 			ret = indio_dev->setup_ops->predisable(indio_dev);
 			if (ret)
-				goto error_ret;
+				return ret;
 		}
 		indio_dev->currentmode = INDIO_DIRECT_MODE;
 		if (indio_dev->setup_ops->postdisable) {
 			ret = indio_dev->setup_ops->postdisable(indio_dev);
 			if (ret)
-				goto error_ret;
+				return ret;
 		}
 	}
 	/* Keep a copy of current setup to allow roll back */
@@ -613,7 +612,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 			else {
 				kfree(compound_mask);
 				ret = -EINVAL;
-				goto error_ret;
+				return ret;
 			}
 		}
 	} else {
@@ -696,13 +695,10 @@ error_run_postdisable:
 	if (indio_dev->setup_ops->postdisable)
 		indio_dev->setup_ops->postdisable(indio_dev);
 error_remove_inserted:
-
 	if (insert_buffer)
 		iio_buffer_deactivate(insert_buffer);
 	indio_dev->active_scan_mask = old_mask;
 	kfree(compound_mask);
-error_ret:
-
 	return ret;
 }
 

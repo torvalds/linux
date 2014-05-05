@@ -13,6 +13,8 @@
 
 #include <linux/errno.h>
 
+#include <asm/mips-cm.h>
+
 #ifdef CONFIG_SMP
 
 #include <linux/cpumask.h>
@@ -42,6 +44,9 @@ static inline void plat_smp_setup(void)
 
 	mp_ops->smp_setup();
 }
+
+extern void gic_send_ipi_single(int cpu, unsigned int action);
+extern void gic_send_ipi_mask(const struct cpumask *mask, unsigned int action);
 
 #else /* !CONFIG_SMP */
 
@@ -76,6 +81,9 @@ static inline int register_cmp_smp_ops(void)
 #ifdef CONFIG_MIPS_CMP
 	extern struct plat_smp_ops cmp_smp_ops;
 
+	if (!mips_cm_present())
+		return -ENODEV;
+
 	register_smp_ops(&cmp_smp_ops);
 
 	return 0;
@@ -96,5 +104,14 @@ static inline int register_vsmp_smp_ops(void)
 	return -ENODEV;
 #endif
 }
+
+#ifdef CONFIG_MIPS_CPS
+extern int register_cps_smp_ops(void);
+#else
+static inline int register_cps_smp_ops(void)
+{
+	return -ENODEV;
+}
+#endif
 
 #endif /* __ASM_SMP_OPS_H */

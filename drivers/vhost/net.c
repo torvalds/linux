@@ -505,9 +505,13 @@ static int get_rx_bufs(struct vhost_virtqueue *vq,
 			r = -ENOBUFS;
 			goto err;
 		}
-		d = vhost_get_vq_desc(vq->dev, vq, vq->iov + seg,
+		r = vhost_get_vq_desc(vq->dev, vq, vq->iov + seg,
 				      ARRAY_SIZE(vq->iov) - seg, &out,
 				      &in, log, log_num);
+		if (unlikely(r < 0))
+			goto err;
+
+		d = r;
 		if (d == vq->num) {
 			r = 0;
 			goto err;
@@ -532,6 +536,12 @@ static int get_rx_bufs(struct vhost_virtqueue *vq,
 	*iovcount = seg;
 	if (unlikely(log))
 		*log_num = nlogs;
+
+	/* Detect overrun */
+	if (unlikely(datalen > 0)) {
+		r = UIO_MAXIOV + 1;
+		goto err;
+	}
 	return headcount;
 err:
 	vhost_discard_vq_desc(vq, headcount);
@@ -587,6 +597,14 @@ static void handle_rx(struct vhost_net *net)
 		/* On error, stop handling until the next kick. */
 		if (unlikely(headcount < 0))
 			break;
+		/* On overrun, truncate and discard */
+		if (unlikely(headcount > UIO_MAXIOV)) {
+			msg.msg_iovlen = 1;
+			err = sock->ops->recvmsg(NULL, sock, &msg,
+						 1, MSG_DONTWAIT | MSG_TRUNC);
+			pr_debug("Discarded rx packet: len %zd\n", sock_len);
+			continue;
+		}
 		/* OK, now we need to know about added descriptors. */
 		if (!headcount) {
 			if (unlikely(vhost_enable_notify(&net->dev, vq))) {
@@ -800,9 +818,9 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	vhost_dev_cleanup(&n->dev, false);
 	vhost_net_vq_reset(n);
 	if (tx_sock)
-		fput(tx_sock->file);
+		sockfd_put(tx_sock);
 	if (rx_sock)
-		fput(rx_sock->file);
+		sockfd_put(rx_sock);
 	/* Make sure no callbacks are outstanding */
 	synchronize_rcu_bh();
 	/* We do an extra flush before freeing memory,
@@ -842,7 +860,7 @@ static struct socket *get_raw_socket(int fd)
 	}
 	return sock;
 err:
-	fput(sock->file);
+	sockfd_put(sock);
 	return ERR_PTR(r);
 }
 
@@ -948,7 +966,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 
 	if (oldsock) {
 		vhost_net_flush_vq(n, index);
-		fput(oldsock->file);
+		sockfd_put(oldsock);
 	}
 
 	mutex_unlock(&n->dev.mutex);
@@ -960,7 +978,7 @@ err_used:
 	if (ubufs)
 		vhost_net_ubuf_put_wait_and_free(ubufs);
 err_ubufs:
-	fput(sock->file);
+	sockfd_put(sock);
 err_vq:
 	mutex_unlock(&vq->mutex);
 err:
@@ -991,9 +1009,9 @@ static long vhost_net_reset_owner(struct vhost_net *n)
 done:
 	mutex_unlock(&n->dev.mutex);
 	if (tx_sock)
-		fput(tx_sock->file);
+		sockfd_put(tx_sock);
 	if (rx_sock)
-		fput(rx_sock->file);
+		sockfd_put(rx_sock);
 	return err;
 }
 

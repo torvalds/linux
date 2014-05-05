@@ -106,7 +106,7 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 	}
 	if (regidx < 0) {
 		mutex_unlock(&register_mutex);
-		snd_printk(KERN_ERR PREFIX "too many cards registered.\n");
+		dev_err(&intf->dev, "too many cards registered.\n");
 		return -ENODEV;
 	}
 	devices[regidx] = device;
@@ -121,20 +121,19 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 
 	/* if we are here, card can be registered in alsa. */
 	if (usb_set_interface(device, 0, 0) != 0) {
-		snd_printk(KERN_ERR PREFIX "can't set first interface.\n");
+		dev_err(&intf->dev, "can't set first interface.\n");
 		return -EIO;
 	}
-	ret = snd_card_create(index[regidx], id[regidx], THIS_MODULE,
-			sizeof(struct sfire_chip), &card);
+	ret = snd_card_new(&intf->dev, index[regidx], id[regidx],
+			   THIS_MODULE, sizeof(struct sfire_chip), &card);
 	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "cannot create alsa card.\n");
+		dev_err(&intf->dev, "cannot create alsa card.\n");
 		return ret;
 	}
 	strcpy(card->driver, "6FireUSB");
 	strcpy(card->shortname, "TerraTec DMX6FireUSB");
 	sprintf(card->longname, "%s at %d:%d", card->shortname,
 			device->bus->busnum, device->devnum);
-	snd_card_set_dev(card, &intf->dev);
 
 	chip = card->private_data;
 	chips[regidx] = chip;
@@ -169,7 +168,7 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 
 	ret = snd_card_register(card);
 	if (ret < 0) {
-		snd_printk(KERN_ERR PREFIX "cannot register card.");
+		dev_err(&intf->dev, "cannot register card.");
 		usb6fire_chip_destroy(chip);
 		return ret;
 	}

@@ -559,8 +559,8 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	char __iomem *vmss_port;
 
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, sizeof(vport),
-				&card);
+	err = snd_card_new(devptr, index[dev], id[dev], THIS_MODULE,
+			   sizeof(vport), &card);
 	if (err < 0)
 		return err;
 
@@ -667,8 +667,6 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	strcpy(card->shortname, "SC-6000");
 	sprintf(card->longname, "Gallant SC-6000 at 0x%lx, irq %d, dma %d",
 		mss_port[dev], xirq, xdma);
-
-	snd_card_set_dev(card, devptr);
 
 	err = snd_card_register(card);
 	if (err < 0)

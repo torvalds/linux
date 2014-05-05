@@ -76,8 +76,18 @@ static int adp5588_gpio_get_value(struct gpio_chip *chip, unsigned off)
 	struct adp5588_kpad *kpad = container_of(chip, struct adp5588_kpad, gc);
 	unsigned int bank = ADP5588_BANK(kpad->gpiomap[off]);
 	unsigned int bit = ADP5588_BIT(kpad->gpiomap[off]);
+	int val;
 
-	return !!(adp5588_read(kpad->client, GPIO_DAT_STAT1 + bank) & bit);
+	mutex_lock(&kpad->gpio_lock);
+
+	if (kpad->dir[bank] & bit)
+		val = kpad->dat_out[bank];
+	else
+		val = adp5588_read(kpad->client, GPIO_DAT_STAT1 + bank);
+
+	mutex_unlock(&kpad->gpio_lock);
+
+	return !!(val & bit);
 }
 
 static void adp5588_gpio_set_value(struct gpio_chip *chip,

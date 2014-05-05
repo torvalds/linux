@@ -572,7 +572,11 @@ swi_state2str (int state)
 #undef STATE2STR
 }
 
-#define selftest_wait_events()	cfs_pause(cfs_time_seconds(1) / 10)
+#define selftest_wait_events()					\
+	do {							\
+		set_current_state(TASK_UNINTERRUPTIBLE);	\
+		schedule_timeout(cfs_time_seconds(1) / 10);	\
+	} while (0)
 
 
 #define lst_wait_until(cond, lock, fmt, ...)				\

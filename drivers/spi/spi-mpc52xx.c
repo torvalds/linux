@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
@@ -235,7 +234,8 @@ static int mpc52xx_spi_fsmstate_transfer(int irq, struct mpc52xx_spi *ms,
 		dev_err(&ms->master->dev, "mode fault\n");
 		mpc52xx_spi_chipsel(ms, 0);
 		ms->message->status = -EIO;
-		ms->message->complete(ms->message->context);
+		if (ms->message->complete)
+			ms->message->complete(ms->message->context);
 		ms->state = mpc52xx_spi_fsmstate_idle;
 		return FSM_CONTINUE;
 	}
@@ -289,7 +289,8 @@ mpc52xx_spi_fsmstate_wait(int irq, struct mpc52xx_spi *ms, u8 status, u8 data)
 		ms->msg_count++;
 		mpc52xx_spi_chipsel(ms, 0);
 		ms->message->status = 0;
-		ms->message->complete(ms->message->context);
+		if (ms->message->complete)
+			ms->message->complete(ms->message->context);
 		ms->state = mpc52xx_spi_fsmstate_idle;
 		return FSM_CONTINUE;
 	}
@@ -357,20 +358,6 @@ static void mpc52xx_spi_wq(struct work_struct *work)
  * spi_master ops
  */
 
-static int mpc52xx_spi_setup(struct spi_device *spi)
-{
-	if (spi->bits_per_word % 8)
-		return -EINVAL;
-
-	if (spi->mode & ~(SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST))
-		return -EINVAL;
-
-	if (spi->chip_select >= spi->master->num_chipselect)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int mpc52xx_spi_transfer(struct spi_device *spi, struct spi_message *m)
 {
 	struct mpc52xx_spi *ms = spi_master_get_devdata(spi->master);
@@ -433,9 +420,9 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 		goto err_alloc;
 	}
 
-	master->setup = mpc52xx_spi_setup;
 	master->transfer = mpc52xx_spi_transfer;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->dev.of_node = op->dev.of_node;
 
 	platform_set_drvdata(op, master);

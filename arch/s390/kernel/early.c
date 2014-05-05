@@ -380,14 +380,14 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (test_facility(27))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_LPP;
 	if (test_facility(50) && test_facility(73))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
 	if (test_facility(66))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_RRBM;
+	if (test_facility(51))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_LC;
 #endif
 }
 

@@ -133,14 +133,12 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 	pTriple = (struct chnl_txpow_triple *)(pCoutryIe + 3);
 	for (i = 0; i < NumTriples; i++) {
 		if (MaxChnlNum >= pTriple->FirstChnl) {
-			printk(KERN_INFO "Dot11d_UpdateCountryIe(): Invalid"
-			       " country IE, skip it........1\n");
+			printk(KERN_INFO "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........1\n");
 			return;
 		}
 		if (MAX_CHANNEL_NUMBER < (pTriple->FirstChnl +
 		    pTriple->NumChnls)) {
-			printk(KERN_INFO "Dot11d_UpdateCountryIe(): Invalid "
-			       "country IE, skip it........2\n");
+			printk(KERN_INFO "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........2\n");
 			return;
 		}
 
@@ -167,8 +165,7 @@ u8 DOT11D_GetMaxTxPwrInDbm(struct rtllib_device *dev, u8 Channel)
 	u8 MaxTxPwrInDbm = 255;
 
 	if (MAX_CHANNEL_NUMBER < Channel) {
-		printk(KERN_INFO "DOT11D_GetMaxTxPwrInDbm(): Invalid "
-		       "Channel\n");
+		printk(KERN_INFO "DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
 		return MaxTxPwrInDbm;
 	}
 	if (pDot11dInfo->channel_map[Channel])

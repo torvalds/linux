@@ -175,7 +175,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	udf_inode_cachep = kmem_cache_create("udf_inode_cache",
 					     sizeof(struct udf_inode_info),
@@ -505,6 +505,7 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 	while ((p = strsep(&options, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
 		int token;
+		unsigned n;
 		if (!*p)
 			continue;
 
@@ -516,7 +517,10 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 		case Opt_bs:
 			if (match_int(&args[0], &option))
 				return 0;
-			uopt->blocksize = option;
+			n = option;
+			if (n != 512 && n != 1024 && n != 2048 && n != 4096)
+				return 0;
+			uopt->blocksize = n;
 			uopt->flags |= (1 << UDF_FLAG_BLOCKSIZE_SET);
 			break;
 		case Opt_unhide:
@@ -646,6 +650,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	int error = 0;
 	struct logicalVolIntegrityDescImpUse *lvidiu = udf_sb_lvidiu(sb);
 
+	sync_filesystem(sb);
 	if (lvidiu) {
 		int write_rev = le16_to_cpu(lvidiu->minUDFWriteRev);
 		if (write_rev > UDF_MAX_WRITE_VERSION && !(*flags & MS_RDONLY))

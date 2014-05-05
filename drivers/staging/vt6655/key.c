@@ -242,7 +242,7 @@ bool KeybSetKey(
 				if (uKeyLength == WLAN_WEP104_KEYLEN)
 					pKey->abyKey[15] |= 0x80;
 			}
-			MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
+			MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (u32 *)pKey->abyKey, byLocalID);
 
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
@@ -306,7 +306,7 @@ bool KeybSetKey(
 			if (uKeyLength == WLAN_WEP104_KEYLEN)
 				pKey->abyKey[15] |= 0x80;
 		}
-		MACvSetKeyEntry(dwIoBase, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
+		MACvSetKeyEntry(dwIoBase, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (u32 *)pKey->abyKey, byLocalID);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0) {
 			// RSC set by NIC
@@ -670,7 +670,7 @@ bool KeybSetDefaultKey(
 		if (uKeyLength == WLAN_WEP104_KEYLEN)
 			pKey->abyKey[15] |= 0x80;
 	}
-	MACvSetKeyEntry(dwIoBase, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
+	MACvSetKeyEntry(dwIoBase, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (u32 *)pKey->abyKey, byLocalID);
 
 	if ((dwKeyIndex & USE_KEYRSC) == 0) {
 		// RSC set by NIC
@@ -766,7 +766,7 @@ bool KeybSetAllGroupKey(
 				if (uKeyLength == WLAN_WEP104_KEYLEN)
 					pKey->abyKey[15] |= 0x80;
 			}
-			MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
+			MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (u32 *)pKey->abyKey, byLocalID);
 
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC

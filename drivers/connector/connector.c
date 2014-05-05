@@ -50,7 +50,7 @@ static int cn_already_initialized;
  *
  * Sequence number is incremented with each message to be sent.
  *
- * If we expect reply to our message then the sequence number in
+ * If we expect a reply to our message then the sequence number in
  * received message MUST be the same as in original message, and
  * acknowledge number MUST be the same + 1.
  *
@@ -62,8 +62,11 @@ static int cn_already_initialized;
  * the acknowledgement number in the original message + 1, then it is
  * a new message.
  *
+ * The message is sent to, the portid if given, the group if given, both if
+ * both, or if both are zero then the group is looked up and sent there.
  */
-int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
+int cn_netlink_send(struct cn_msg *msg, u32 portid, u32 __group,
+	gfp_t gfp_mask)
 {
 	struct cn_callback_entry *__cbq;
 	unsigned int size;
@@ -74,7 +77,9 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 	u32 group = 0;
 	int found = 0;
 
-	if (!__group) {
+	if (portid || __group) {
+		group = __group;
+	} else {
 		spin_lock_bh(&dev->cbdev->queue_lock);
 		list_for_each_entry(__cbq, &dev->cbdev->queue_list,
 				    callback_entry) {
@@ -88,11 +93,9 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 
 		if (!found)
 			return -ENODEV;
-	} else {
-		group = __group;
 	}
 
-	if (!netlink_has_listeners(dev->nls, group))
+	if (!portid && !netlink_has_listeners(dev->nls, group))
 		return -ESRCH;
 
 	size = sizeof(*msg) + msg->len;
@@ -113,7 +116,10 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 
 	NETLINK_CB(skb).dst_group = group;
 
-	return netlink_broadcast(dev->nls, skb, 0, group, gfp_mask);
+	if (group)
+		return netlink_broadcast(dev->nls, skb, portid, group,
+					 gfp_mask);
+	return netlink_unicast(dev->nls, skb, portid, !(gfp_mask&__GFP_WAIT));
 }
 EXPORT_SYMBOL_GPL(cn_netlink_send);
 
@@ -139,7 +145,6 @@ static int cn_call_callback(struct sk_buff *skb)
 	spin_unlock_bh(&dev->cbdev->queue_lock);
 
 	if (cbq != NULL) {
-		err = 0;
 		cbq->callback(msg, nsp);
 		kfree_skb(skb);
 		cn_queue_release_callback(cbq);

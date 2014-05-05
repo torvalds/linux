@@ -6900,6 +6900,7 @@ struct bnx2 {
 
 	u16			fw_wr_seq;
 	u16			fw_drv_pulse_wr_seq;
+	u32			fw_last_msg;
 
 	int			rx_max_ring;
 	int			rx_ring_size;
@@ -7406,6 +7407,10 @@ struct bnx2_rv2p_fw_file {
 #define BNX2_CONDITION_MFW_RUN_NCSI		 0x00006000
 #define BNX2_CONDITION_MFW_RUN_NONE		 0x0000e000
 #define BNX2_CONDITION_MFW_RUN_MASK		 0x0000e000
+#define BNX2_CONDITION_PM_STATE_MASK		 0x00030000
+#define BNX2_CONDITION_PM_STATE_FULL		 0x00030000
+#define BNX2_CONDITION_PM_STATE_PREP		 0x00020000
+#define BNX2_CONDITION_PM_STATE_UNPREP		 0x00010000
 
 #define BNX2_BC_STATE_DEBUG_CMD			0x1dc
 #define BNX2_BC_STATE_BC_DBG_CMD_SIGNATURE	 0x42440000

@@ -213,8 +213,11 @@ int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu)
 	gpa_t args_phys;
 	int rc;
 
-	/* r4 contains the guest physical address of the RTAS args */
-	args_phys = kvmppc_get_gpr(vcpu, 4);
+	/*
+	 * r4 contains the guest physical address of the RTAS args
+	 * Mask off the top 4 bits since this is a guest real address
+	 */
+	args_phys = kvmppc_get_gpr(vcpu, 4) & KVM_PAM;
 
 	rc = kvm_read_guest(vcpu->kvm, args_phys, &args, sizeof(args));
 	if (rc)

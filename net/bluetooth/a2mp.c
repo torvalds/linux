@@ -162,7 +162,7 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 		return -ENOMEM;
 	}
 
-	rsp->mtu = __constant_cpu_to_le16(L2CAP_A2MP_DEFAULT_MTU);
+	rsp->mtu = cpu_to_le16(L2CAP_A2MP_DEFAULT_MTU);
 	rsp->ext_feat = 0;
 
 	__a2mp_add_cl(mgr, rsp->cl);
@@ -235,7 +235,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 			BT_DBG("chan %p state %s", chan,
 			       state_to_string(chan->state));
 
-			if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP)
+			if (chan->scid == L2CAP_CID_A2MP)
 				continue;
 
 			l2cap_chan_lock(chan);
@@ -649,7 +649,7 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 	if (err) {
 		struct a2mp_cmd_rej rej;
 
-		rej.reason = __constant_cpu_to_le16(0);
+		rej.reason = cpu_to_le16(0);
 		hdr = (void *) skb->data;
 
 		BT_DBG("Send A2MP Rej: cmd 0x%2.2x err %d", hdr->code, err);
@@ -695,7 +695,13 @@ static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state,
 static struct sk_buff *a2mp_chan_alloc_skb_cb(struct l2cap_chan *chan,
 					      unsigned long len, int nb)
 {
-	return bt_skb_alloc(len, GFP_KERNEL);
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(len, GFP_KERNEL);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	return skb;
 }
 
 static struct l2cap_ops a2mp_chan_ops = {
@@ -726,7 +732,11 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
 
 	BT_DBG("chan %p", chan);
 
-	chan->chan_type = L2CAP_CHAN_CONN_FIX_A2MP;
+	chan->chan_type = L2CAP_CHAN_FIXED;
+	chan->scid = L2CAP_CID_A2MP;
+	chan->dcid = L2CAP_CID_A2MP;
+	chan->omtu = L2CAP_A2MP_DEFAULT_MTU;
+	chan->imtu = L2CAP_A2MP_DEFAULT_MTU;
 	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 
 	chan->ops = &a2mp_chan_ops;

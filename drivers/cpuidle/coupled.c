@@ -323,7 +323,7 @@ static void cpuidle_coupled_poke(int cpu)
 	struct call_single_data *csd = &per_cpu(cpuidle_coupled_poke_cb, cpu);
 
 	if (!cpumask_test_and_set_cpu(cpu, &cpuidle_coupled_poke_pending))
-		__smp_call_function_single(cpu, csd, 0);
+		smp_call_function_single_async(cpu, csd);
 }
 
 /**

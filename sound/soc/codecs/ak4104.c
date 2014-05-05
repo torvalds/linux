@@ -174,8 +174,6 @@ static int ak4104_probe(struct snd_soc_codec *codec)
 	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = ak4104->regmap;
-
 	/* set power-up and non-reset bits */
 	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
 				 AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN,

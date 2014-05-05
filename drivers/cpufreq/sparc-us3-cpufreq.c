@@ -156,10 +156,8 @@ static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 
 static int us3_freq_cpu_exit(struct cpufreq_policy *policy)
 {
-	if (cpufreq_us3_driver) {
-		cpufreq_frequency_table_put_attr(policy->cpu);
+	if (cpufreq_us3_driver)
 		us3_freq_target(policy, 0);
-	}
 
 	return 0;
 }

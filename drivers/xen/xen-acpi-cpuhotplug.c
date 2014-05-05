@@ -313,7 +313,7 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 		goto out;
 	}
 
-	(void) acpi_evaluate_hotplug_ost(handle, event, ost_code, NULL);
+	(void) acpi_evaluate_ost(handle, event, ost_code, NULL);
 
 out:
 	acpi_scan_lock_release();

@@ -315,6 +315,24 @@ static inline bool perf_evsel__is_group_event(struct perf_evsel *evsel)
 	return perf_evsel__is_group_leader(evsel) && evsel->nr_members > 1;
 }
 
+/**
+ * perf_evsel__is_function_event - Return whether given evsel is a function
+ * trace event
+ *
+ * @evsel - evsel selector to be tested
+ *
+ * Return %true if event is function trace event
+ */
+static inline bool perf_evsel__is_function_event(struct perf_evsel *evsel)
+{
+#define FUNCTION_EVENT "ftrace:function"
+
+	return evsel->name &&
+	       !strncmp(FUNCTION_EVENT, evsel->name, sizeof(FUNCTION_EVENT));
+
+#undef FUNCTION_EVENT
+}
+
 struct perf_attr_details {
 	bool freq;
 	bool verbose;

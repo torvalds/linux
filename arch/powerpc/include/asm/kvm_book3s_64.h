@@ -289,6 +289,18 @@ static inline void note_hpte_modification(struct kvm *kvm,
 	if (atomic_read(&kvm->arch.hpte_mod_interest))
 		rev->guest_rpte |= HPTE_GR_MODIFIED;
 }
+
+/*
+ * Like kvm_memslots(), but for use in real mode when we can't do
+ * any RCU stuff (since the secondary threads are offline from the
+ * kernel's point of view), and we can't print anything.
+ * Thus we use rcu_dereference_raw() rather than rcu_dereference_check().
+ */
+static inline struct kvm_memslots *kvm_memslots_raw(struct kvm *kvm)
+{
+	return rcu_dereference_raw_notrace(kvm->memslots);
+}
+
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #endif /* __ASM_KVM_BOOK3S_64_H__ */

@@ -138,7 +138,7 @@ unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
  * @phba: Driver private structure
  * @tag: Tag for the MBX Command
  * @wrb: the WRB used for the MBX Command
- * @cmd_hdr: IOCTL Hdr for the MBX Cmd
+ * @mbx_cmd_mem: ptr to memory allocated for MBX Cmd
  *
  * Waits for MBX completion with the passed TAG.
  *
@@ -148,20 +148,25 @@ unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
  **/
 int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 		uint32_t tag, struct be_mcc_wrb **wrb,
-		void *cmd_hdr)
+		struct be_dma_mem *mbx_cmd_mem)
 {
 	int rc = 0;
 	uint32_t mcc_tag_response;
 	uint16_t status = 0, addl_status = 0, wrb_num = 0;
 	struct be_mcc_wrb *temp_wrb;
-	struct be_cmd_req_hdr *ioctl_hdr;
-	struct be_cmd_resp_hdr *ioctl_resp_hdr;
+	struct be_cmd_req_hdr *mbx_hdr;
+	struct be_cmd_resp_hdr *mbx_resp_hdr;
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
 	if (beiscsi_error(phba)) {
 		free_mcc_tag(&phba->ctrl, tag);
-		return -EIO;
+		return -EPERM;
 	}
+
+	/* Set MBX Tag state to Active */
+	spin_lock(&phba->ctrl.mbox_lock);
+	phba->ctrl.ptag_state[tag].tag_state = MCC_TAG_STATE_RUNNING;
+	spin_unlock(&phba->ctrl.mbox_lock);
 
 	/* wait for the mccq completion */
 	rc = wait_event_interruptible_timeout(
@@ -171,56 +176,71 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 				BEISCSI_HOST_MBX_TIMEOUT));
 
 	if (rc <= 0) {
+		struct be_dma_mem *tag_mem;
+		/* Set MBX Tag state to timeout */
+		spin_lock(&phba->ctrl.mbox_lock);
+		phba->ctrl.ptag_state[tag].tag_state = MCC_TAG_STATE_TIMEOUT;
+		spin_unlock(&phba->ctrl.mbox_lock);
+
+		/* Store resource addr to be freed later */
+		tag_mem = &phba->ctrl.ptag_state[tag].tag_mem_state;
+		if (mbx_cmd_mem) {
+			tag_mem->size = mbx_cmd_mem->size;
+			tag_mem->va = mbx_cmd_mem->va;
+			tag_mem->dma = mbx_cmd_mem->dma;
+		} else
+			tag_mem->size = 0;
+
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
 			    BEISCSI_LOG_CONFIG,
 			    "BC_%d : MBX Cmd Completion timed out\n");
-		rc = -EBUSY;
-
-		/* decrement the mccq used count */
-		atomic_dec(&phba->ctrl.mcc_obj.q.used);
-
-		goto release_mcc_tag;
-	} else
+		return -EBUSY;
+	} else {
 		rc = 0;
+		/* Set MBX Tag state to completed */
+		spin_lock(&phba->ctrl.mbox_lock);
+		phba->ctrl.ptag_state[tag].tag_state = MCC_TAG_STATE_COMPLETED;
+		spin_unlock(&phba->ctrl.mbox_lock);
+	}
 
 	mcc_tag_response = phba->ctrl.mcc_numtag[tag];
 	status = (mcc_tag_response & CQE_STATUS_MASK);
 	addl_status = ((mcc_tag_response & CQE_STATUS_ADDL_MASK) >>
 			CQE_STATUS_ADDL_SHIFT);
 
-	if (cmd_hdr) {
-		ioctl_hdr = (struct be_cmd_req_hdr *)cmd_hdr;
+	if (mbx_cmd_mem) {
+		mbx_hdr = (struct be_cmd_req_hdr *)mbx_cmd_mem->va;
 	} else {
 		wrb_num = (mcc_tag_response & CQE_STATUS_WRB_MASK) >>
 			   CQE_STATUS_WRB_SHIFT;
 		temp_wrb = (struct be_mcc_wrb *)queue_get_wrb(mccq, wrb_num);
-		ioctl_hdr = embedded_payload(temp_wrb);
+		mbx_hdr = embedded_payload(temp_wrb);
 
 		if (wrb)
 			*wrb = temp_wrb;
 	}
 
 	if (status || addl_status) {
-		beiscsi_log(phba, KERN_ERR,
+		beiscsi_log(phba, KERN_WARNING,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
 			    BEISCSI_LOG_CONFIG,
 			    "BC_%d : MBX Cmd Failed for "
 			    "Subsys : %d Opcode : %d with "
 			    "Status : %d and Extd_Status : %d\n",
-			    ioctl_hdr->subsystem,
-			    ioctl_hdr->opcode,
+			    mbx_hdr->subsystem,
+			    mbx_hdr->opcode,
 			    status, addl_status);
 
 		if (status == MCC_STATUS_INSUFFICIENT_BUFFER) {
-			ioctl_resp_hdr = (struct be_cmd_resp_hdr *) ioctl_hdr;
+			mbx_resp_hdr = (struct be_cmd_resp_hdr *) mbx_hdr;
 			beiscsi_log(phba, KERN_WARNING,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
 				    BEISCSI_LOG_CONFIG,
 				    "BC_%d : Insufficent Buffer Error "
 				    "Resp_Len : %d Actual_Resp_Len : %d\n",
-				    ioctl_resp_hdr->response_length,
-				    ioctl_resp_hdr->actual_resp_len);
+				    mbx_resp_hdr->response_length,
+				    mbx_resp_hdr->actual_resp_len);
 
 			rc = -EAGAIN;
 			goto release_mcc_tag;
@@ -319,6 +339,7 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
 				    struct be_mcc_compl *compl)
 {
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	u16 compl_status, extd_status;
 	unsigned short tag;
 
@@ -338,7 +359,32 @@ int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
 	ctrl->mcc_numtag[tag] |= (compl->tag0 & 0x00FF0000);
 	ctrl->mcc_numtag[tag] |= (extd_status & 0x000000FF) << 8;
 	ctrl->mcc_numtag[tag] |= (compl_status & 0x000000FF);
-	wake_up_interruptible(&ctrl->mcc_wait[tag]);
+
+	if (ctrl->ptag_state[tag].tag_state == MCC_TAG_STATE_RUNNING) {
+		wake_up_interruptible(&ctrl->mcc_wait[tag]);
+	} else if (ctrl->ptag_state[tag].tag_state == MCC_TAG_STATE_TIMEOUT) {
+		struct be_dma_mem *tag_mem;
+		tag_mem = &ctrl->ptag_state[tag].tag_mem_state;
+
+		beiscsi_log(phba, KERN_WARNING,
+			    BEISCSI_LOG_MBOX | BEISCSI_LOG_INIT |
+			    BEISCSI_LOG_CONFIG,
+			    "BC_%d : MBX Completion for timeout Command "
+			    "from FW\n");
+		/* Check if memory needs to be freed */
+		if (tag_mem->size)
+			pci_free_consistent(ctrl->pdev, tag_mem->size,
+					    tag_mem->va, tag_mem->dma);
+
+		/* Change tag state */
+		spin_lock(&phba->ctrl.mbox_lock);
+		ctrl->ptag_state[tag].tag_state = MCC_TAG_STATE_COMPLETED;
+		spin_unlock(&phba->ctrl.mbox_lock);
+
+		/* Free MCC Tag */
+		free_mcc_tag(ctrl, tag);
+	}
+
 	return 0;
 }
 
@@ -354,8 +400,23 @@ static struct be_mcc_compl *be_mcc_compl_get(struct beiscsi_hba *phba)
 	return NULL;
 }
 
-static void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
+/**
+ * be2iscsi_fail_session(): Closing session with appropriate error
+ * @cls_session: ptr to session
+ *
+ * Depending on adapter state appropriate error flag is passed.
+ **/
+void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
 {
+	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	uint32_t iscsi_err_flag;
+
+	if (phba->state & BE_ADAPTER_STATE_SHUTDOWN)
+		iscsi_err_flag = ISCSI_ERR_INVALID_HOST;
+	else
+		iscsi_err_flag = ISCSI_ERR_CONN_FAILED;
+
 	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
 }
 
@@ -385,18 +446,6 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 			    evt->physical_port);
 	}
 }
-
-static void beiscsi_cq_notify(struct beiscsi_hba *phba, u16 qid, bool arm,
-		       u16 num_popped)
-{
-	u32 val = 0;
-	val |= qid & DB_CQ_RING_ID_MASK;
-	if (arm)
-		val |= 1 << DB_CQ_REARM_SHIFT;
-	val |= num_popped << DB_CQ_NUM_POPPED_SHIFT;
-	iowrite32(val, phba->db_va + DB_CQ_OFFSET);
-}
-
 
 int beiscsi_process_mcc(struct beiscsi_hba *phba)
 {
@@ -428,7 +477,7 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 	}
 
 	if (num)
-		beiscsi_cq_notify(phba, phba->ctrl.mcc_obj.cq.id, true, num);
+		hwi_ring_cq_db(phba, phba->ctrl.mcc_obj.cq.id, num, 1, 0);
 
 	spin_unlock_bh(&phba->ctrl.mcc_cq_lock);
 	return status;

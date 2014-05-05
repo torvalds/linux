@@ -38,7 +38,7 @@
  * and on newer kernels this header is shared as _ASM_GENERIC_IOCTL_H.
  *
  * We can avoid any problems with the kernel header being included again by
- * defining _ASM_I386_IOCTL_H here so that a later occurence of <asm/ioctl.h>
+ * defining _ASM_I386_IOCTL_H here so that a later occurrence of <asm/ioctl.h>
  * does not include the kernel's ioctl.h after this one. b=14746 */
 #define _ASM_I386_IOCTL_H
 #define _ASM_GENERIC_IOCTL_H

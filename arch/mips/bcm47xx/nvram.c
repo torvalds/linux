@@ -196,7 +196,7 @@ int bcm47xx_nvram_gpio_pin(const char *name)
 	char nvram_var[10];
 	char buf[30];
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 32; i++) {
 		err = snprintf(nvram_var, sizeof(nvram_var), "gpio%i", i);
 		if (err <= 0)
 			continue;

@@ -162,16 +162,15 @@ static inline void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
 }
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 int tmio_mmc_host_suspend(struct device *dev);
 int tmio_mmc_host_resume(struct device *dev);
-#else
-#define tmio_mmc_host_suspend NULL
-#define tmio_mmc_host_resume NULL
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
 int tmio_mmc_host_runtime_suspend(struct device *dev);
 int tmio_mmc_host_runtime_resume(struct device *dev);
+#endif
 
 static inline u16 sd_ctrl_read16(struct tmio_mmc_host *host, int addr)
 {

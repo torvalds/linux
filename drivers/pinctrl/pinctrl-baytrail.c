@@ -60,6 +60,10 @@
 #define BYT_NGPIO_NCORE		28
 #define BYT_NGPIO_SUS		44
 
+#define BYT_SCORE_ACPI_UID	"1"
+#define BYT_NCORE_ACPI_UID	"2"
+#define BYT_SUS_ACPI_UID	"3"
+
 /*
  * Baytrail gpio controller consist of three separate sub-controllers called
  * SCORE, NCORE and SUS. The sub-controllers are identified by their acpi UID.
@@ -102,17 +106,17 @@ static unsigned const sus_pins[BYT_NGPIO_SUS] = {
 
 static struct pinctrl_gpio_range byt_ranges[] = {
 	{
-		.name = "1", /* match with acpi _UID in probe */
+		.name = BYT_SCORE_ACPI_UID, /* match with acpi _UID in probe */
 		.npins = BYT_NGPIO_SCORE,
 		.pins = score_pins,
 	},
 	{
-		.name = "2",
+		.name = BYT_NCORE_ACPI_UID,
 		.npins = BYT_NGPIO_NCORE,
 		.pins = ncore_pins,
 	},
 	{
-		.name = "3",
+		.name = BYT_SUS_ACPI_UID,
 		.npins = BYT_NGPIO_SUS,
 		.pins = sus_pins,
 	},
@@ -145,9 +149,41 @@ static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 	return vg->reg_base + reg_offset + reg;
 }
 
+static bool is_special_pin(struct byt_gpio *vg, unsigned offset)
+{
+	/* SCORE pin 92-93 */
+	if (!strcmp(vg->range->name, BYT_SCORE_ACPI_UID) &&
+		offset >= 92 && offset <= 93)
+		return true;
+
+	/* SUS pin 11-21 */
+	if (!strcmp(vg->range->name, BYT_SUS_ACPI_UID) &&
+		offset >= 11 && offset <= 21)
+		return true;
+
+	return false;
+}
+
 static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct byt_gpio *vg = to_byt_gpio(chip);
+	void __iomem *reg = byt_gpio_reg(chip, offset, BYT_CONF0_REG);
+	u32 value;
+	bool special;
+
+	/*
+	 * In most cases, func pin mux 000 means GPIO function.
+	 * But, some pins may have func pin mux 001 represents
+	 * GPIO function. Only allow user to export pin with
+	 * func pin mux preset as GPIO function by BIOS/FW.
+	 */
+	value = readl(reg) & BYT_PIN_MUX;
+	special = is_special_pin(vg, offset);
+	if ((special && value != 1) || (!special && value)) {
+		dev_err(&vg->pdev->dev,
+			"pin %u cannot be used as GPIO.\n", offset);
+		return -EINVAL;
+	}
 
 	pm_runtime_get(&vg->pdev->dev);
 
@@ -371,23 +407,23 @@ static void byt_irq_mask(struct irq_data *d)
 {
 }
 
-static unsigned int byt_irq_startup(struct irq_data *d)
+static int byt_irq_reqres(struct irq_data *d)
 {
 	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&vg->chip, irqd_to_hwirq(d)))
+	if (gpio_lock_as_irq(&vg->chip, irqd_to_hwirq(d))) {
 		dev_err(vg->chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-	byt_irq_unmask(d);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void byt_irq_shutdown(struct irq_data *d)
+static void byt_irq_relres(struct irq_data *d)
 {
 	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
 
-	byt_irq_mask(d);
 	gpio_unlock_as_irq(&vg->chip, irqd_to_hwirq(d));
 }
 
@@ -396,8 +432,8 @@ static struct irq_chip byt_irqchip = {
 	.irq_mask = byt_irq_mask,
 	.irq_unmask = byt_irq_unmask,
 	.irq_set_type = byt_irq_type,
-	.irq_startup = byt_irq_startup,
-	.irq_shutdown = byt_irq_shutdown,
+	.irq_request_resources = byt_irq_reqres,
+	.irq_release_resources = byt_irq_relres,
 };
 
 static void byt_gpio_irq_init_hw(struct byt_gpio *vg)

@@ -17,6 +17,14 @@ Required properties for devices compatible with "atmel,at91sam9g45-ssc":
   See Documentation/devicetree/bindings/dma/atmel-dma.txt for details.
 - dma-names: Must be "tx", "rx".
 
+Optional properties:
+  - atmel,clk-from-rk-pin: bool property.
+     - When SSC works in slave mode, according to the hardware design, the
+       clock can get from TK pin, and also can get from RK pin. So, add
+       this parameter to choose where the clock from.
+     - By default the clock is from TK pin, if the clock from RK pin, this
+       property is needed.
+
 Examples:
 - PDC transfer:
 ssc0: ssc@fffbc000 {

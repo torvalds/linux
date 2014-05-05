@@ -66,7 +66,6 @@
 #include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/kfifo.h>
-#include <linux/video_output.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)

@@ -596,13 +596,13 @@
 #define	IMR_BCNDMAINT3			BIT(23)		/* Beacon DMA Interrupt 3		*/
 #define	IMR_BCNDMAINT2			BIT(22)		/* Beacon DMA Interrupt 2		*/
 #define	IMR_BCNDMAINT1			BIT(21)		/* Beacon DMA Interrupt 1		*/
-#define	IMR_BCNDOK7				BIT(20)		/* Beacon Queue DMA OK Interrup 7 */
-#define	IMR_BCNDOK6				BIT(19)		/* Beacon Queue DMA OK Interrup 6 */
-#define	IMR_BCNDOK5				BIT(18)		/* Beacon Queue DMA OK Interrup 5 */
-#define	IMR_BCNDOK4				BIT(17)		/* Beacon Queue DMA OK Interrup 4 */
-#define	IMR_BCNDOK3				BIT(16)		/* Beacon Queue DMA OK Interrup 3 */
-#define	IMR_BCNDOK2				BIT(15)		/* Beacon Queue DMA OK Interrup 2 */
-#define	IMR_BCNDOK1				BIT(14)		/* Beacon Queue DMA OK Interrup 1 */
+#define	IMR_BCNDOK7				BIT(20)		/* Beacon Queue DMA OK Interrupt 7 */
+#define	IMR_BCNDOK6				BIT(19)		/* Beacon Queue DMA OK Interrupt 6 */
+#define	IMR_BCNDOK5				BIT(18)		/* Beacon Queue DMA OK Interrupt 5 */
+#define	IMR_BCNDOK4				BIT(17)		/* Beacon Queue DMA OK Interrupt 4 */
+#define	IMR_BCNDOK3				BIT(16)		/* Beacon Queue DMA OK Interrupt 3 */
+#define	IMR_BCNDOK2				BIT(15)		/* Beacon Queue DMA OK Interrupt 2 */
+#define	IMR_BCNDOK1				BIT(14)		/* Beacon Queue DMA OK Interrupt 1 */
 #define	IMR_ATIMEND_E		BIT(13)		/* ATIM Window End Extension for Win7 */
 #define	IMR_TXERR				BIT(11)		/* Tx Error Flag Interrupt Status, write 1 clear. */
 #define	IMR_RXERR				BIT(10)		/* Rx Error Flag INT Status, Write 1 clear */
@@ -613,7 +613,7 @@
 #define	HWSET_MAX_SIZE				512
 #define   EFUSE_MAX_SECTION			64
 #define   EFUSE_REAL_CONTENT_LEN			256
-#define 	EFUSE_OOB_PROTECT_BYTES    	18 	/* PG data exclude header, dummy 7 bytes frome CP test and reserved 1byte.*/
+#define 	EFUSE_OOB_PROTECT_BYTES    	18 	/* PG data exclude header, dummy 7 bytes from CP test and reserved 1byte.*/
 
 
 #define	EEPROM_DEFAULT_TSSI					0x0
@@ -1511,7 +1511,7 @@
 #define	ROFDM0_TXCOEFF5				0xcb4
 #define	ROFDM0_TXCOEFF6				0xcb8
 
-/*Path_A RFE cotrol */
+/*Path_A RFE control */
 #define	RA_RFE_CTRL_8812				0xcb8
 /*Path_B RFE control*/
 #define	RB_RFE_CTRL_8812				0xeb8
@@ -2336,19 +2336,19 @@
 #define		WOL_REASON_DEAUTH			BIT(3)
 #define		WOL_REASON_FW_DISCONNECT	BIT(4)
 
-#define		RA_RFE_PINMUX	0xcb0  /* Path_A RFE cotrol pinmux*/
+#define		RA_RFE_PINMUX	0xcb0  /* Path_A RFE control pinmux*/
 #define		RB_RFE_PINMUX	0xeb0 /* Path_B RFE control pinmux*/
 
 #define		RA_RFE_INV 0xcb4
 #define		RB_RFE_INV 0xeb4
 
 /* RXIQC */
-#define		RA_RXIQC_AB    	0xc10  /*RxIQ imblance matrix coeff. A & B*/
-#define		RA_RXIQC_CD    	0xc14  /*RxIQ imblance matrix coeff. C & D*/
+#define		RA_RXIQC_AB    	0xc10  /*RxIQ imbalance matrix coeff. A & B*/
+#define		RA_RXIQC_CD    	0xc14  /*RxIQ imbalance matrix coeff. C & D*/
 #define	 	RA_TXSCALE 		0xc1c  /* Pah_A TX scaling factor*/
 #define		RB_TXSCALE 		0xe1c  /* Path_B TX scaling factor*/
-#define		RB_RXIQC_AB    	0xe10  /*RxIQ imblance matrix coeff. A & B*/
-#define		RB_RXIQC_CD    	0xe14  /*RxIQ imblance matrix coeff. C & D*/
+#define		RB_RXIQC_AB    	0xe10  /*RxIQ imbalance matrix coeff. A & B*/
+#define		RB_RXIQC_CD    	0xe14  /*RxIQ imbalance matrix coeff. C & D*/
 #define		RXIQC_AC		0x02ff  /*bit mask for IQC matrix element A & C*/
 #define		RXIQC_BD		0x02ff0000 /*bit mask for IQC matrix element A & C*/
 

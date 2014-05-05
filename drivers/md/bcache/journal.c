@@ -237,8 +237,14 @@ bsearch:
 		for (i = 0; i < ca->sb.njournal_buckets; i++)
 			if (ja->seq[i] > seq) {
 				seq = ja->seq[i];
-				ja->cur_idx = ja->discard_idx =
-					ja->last_idx = i;
+				/*
+				 * When journal_reclaim() goes to allocate for
+				 * the first time, it'll use the bucket after
+				 * ja->cur_idx
+				 */
+				ja->cur_idx = i;
+				ja->last_idx = ja->discard_idx = (i + 1) %
+					ca->sb.njournal_buckets;
 
 			}
 	}
@@ -288,16 +294,11 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 		     k = bkey_next(k)) {
 			unsigned j;
 
-			for (j = 0; j < KEY_PTRS(k); j++) {
-				struct bucket *g = PTR_BUCKET(c, k, j);
-				atomic_inc(&g->pin);
+			for (j = 0; j < KEY_PTRS(k); j++)
+				if (ptr_available(c, k, j))
+					atomic_inc(&PTR_BUCKET(c, k, j)->pin);
 
-				if (g->prio == BTREE_PRIO &&
-				    !ptr_stale(c, k, j))
-					g->prio = INITIAL_PRIO;
-			}
-
-			__bch_btree_mark_key(c, 0, k);
+			bch_initial_mark_key(c, 0, k);
 		}
 	}
 }
@@ -312,8 +313,6 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 	uint64_t start = i->j.last_seq, end = i->j.seq, n = start;
 	struct keylist keylist;
 
-	bch_keylist_init(&keylist);
-
 	list_for_each_entry(i, list, list) {
 		BUG_ON(i->pin && atomic_read(i->pin) != 1);
 
@@ -326,8 +325,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 		     k = bkey_next(k)) {
 			trace_bcache_journal_replay_key(k);
 
-			bkey_copy(keylist.top, k);
-			bch_keylist_push(&keylist);
+			bch_keylist_init_single(&keylist, k);
 
 			ret = bch_btree_insert(s, &keylist, i->pin, NULL);
 			if (ret)
@@ -383,16 +381,15 @@ retry:
 
 	b = best;
 	if (b) {
-		rw_lock(true, b, b->level);
-
+		mutex_lock(&b->write_lock);
 		if (!btree_current_write(b)->journal) {
-			rw_unlock(true, b);
+			mutex_unlock(&b->write_lock);
 			/* We raced */
 			goto retry;
 		}
 
-		bch_btree_node_write(b, NULL);
-		rw_unlock(true, b);
+		__bch_btree_node_write(b, NULL);
+		mutex_unlock(&b->write_lock);
 	}
 }
 
@@ -536,6 +533,7 @@ void bch_journal_next(struct journal *j)
 	atomic_set(&fifo_back(&j->pin), 1);
 
 	j->cur->data->seq	= ++j->seq;
+	j->cur->dirty		= false;
 	j->cur->need_write	= false;
 	j->cur->data->keys	= 0;
 
@@ -731,7 +729,10 @@ static void journal_write_work(struct work_struct *work)
 					   struct cache_set,
 					   journal.work);
 	spin_lock(&c->journal.lock);
-	journal_try_write(c);
+	if (c->journal.cur->dirty)
+		journal_try_write(c);
+	else
+		spin_unlock(&c->journal.lock);
 }
 
 /*
@@ -761,7 +762,8 @@ atomic_t *bch_journal(struct cache_set *c,
 	if (parent) {
 		closure_wait(&w->wait, parent);
 		journal_try_write(c);
-	} else if (!w->need_write) {
+	} else if (!w->dirty) {
+		w->dirty = true;
 		schedule_delayed_work(&c->journal.work,
 				      msecs_to_jiffies(c->journal_delay_ms));
 		spin_unlock(&c->journal.lock);

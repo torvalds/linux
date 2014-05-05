@@ -436,4 +436,11 @@ static inline struct vring_rx_desc *wil_skb_rxdesc(struct sk_buff *skb)
 	return (void *)skb->cb;
 }
 
+void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);
+void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb);
+struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
+						int size, u16 ssn);
+void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
+			   struct wil_tid_ampdu_rx *r);
+
 #endif /* WIL6210_TXRX_H */

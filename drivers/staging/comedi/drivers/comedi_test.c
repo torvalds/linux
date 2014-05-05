@@ -185,7 +185,6 @@ static void waveform_ai_interrupt(unsigned long arg)
 	    (devpriv->usec_remainder + elapsed_time) / devpriv->scan_period;
 	devpriv->usec_remainder =
 	    (devpriv->usec_remainder + elapsed_time) % devpriv->scan_period;
-	async->events = 0;
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		unsigned int remaining = cmd->stop_arg - devpriv->ai_count;
@@ -318,12 +317,8 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_NOW)
 		devpriv->convert_period = 0;
-	else if (cmd->convert_src == TRIG_TIMER)
+	else	/* TRIG_TIMER */
 		devpriv->convert_period = cmd->convert_arg / nano_per_micro;
-	else {
-		comedi_error(dev, "bug setting conversion period");
-		return -1;
-	}
 
 	do_gettimeofday(&devpriv->last);
 	devpriv->usec_current = devpriv->last.tv_usec % devpriv->usec_period;

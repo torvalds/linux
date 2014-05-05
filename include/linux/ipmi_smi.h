@@ -109,12 +109,19 @@ struct ipmi_smi_handlers {
 	   events from the BMC we are attached to. */
 	void (*request_events)(void *send_info);
 
+	/* Called by the upper layer when some user requires that the
+	   interface watch for events, received messages, watchdog
+	   pretimeouts, or not.  Used by the SMI to know if it should
+	   watch for these.  This may be NULL if the SMI does not
+	   implement it. */
+	void (*set_need_watch)(void *send_info, bool enable);
+
 	/* Called when the interface should go into "run to
 	   completion" mode.  If this call sets the value to true, the
 	   interface should make sure that all messages are flushed
 	   out and that none are pending, and any new requests are run
 	   to completion immediately. */
-	void (*set_run_to_completion)(void *send_info, int run_to_completion);
+	void (*set_run_to_completion)(void *send_info, bool run_to_completion);
 
 	/* Called to poll for work to do.  This is so upper layers can
 	   poll for operations during things like crash dumps. */
@@ -125,7 +132,7 @@ struct ipmi_smi_handlers {
 	   setting.  The message handler does the mode handling.  Note
 	   that this is called from interrupt context, so it cannot
 	   block. */
-	void (*set_maintenance_mode)(void *send_info, int enable);
+	void (*set_maintenance_mode)(void *send_info, bool enable);
 
 	/* Tell the handler that we are using it/not using it.  The
 	   message handler get the modules that this handler belongs

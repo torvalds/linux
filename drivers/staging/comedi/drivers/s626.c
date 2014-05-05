@@ -106,16 +106,16 @@ struct s626_private {
 struct s626_enc_info {
 	/* Pointers to functions that differ for A and B counters: */
 	/* Return clock enable. */
-	uint16_t(*get_enable)(struct comedi_device *dev,
+	uint16_t (*get_enable)(struct comedi_device *dev,
 			      const struct s626_enc_info *k);
 	/* Return interrupt source. */
-	uint16_t(*get_int_src)(struct comedi_device *dev,
+	uint16_t (*get_int_src)(struct comedi_device *dev,
 			       const struct s626_enc_info *k);
 	/* Return preload trigger source. */
-	uint16_t(*get_load_trig)(struct comedi_device *dev,
+	uint16_t (*get_load_trig)(struct comedi_device *dev,
 				 const struct s626_enc_info *k);
 	/* Return standardized operating mode. */
-	uint16_t(*get_mode)(struct comedi_device *dev,
+	uint16_t (*get_mode)(struct comedi_device *dev,
 			    const struct s626_enc_info *k);
 	/* Generate soft index strobe. */
 	void (*pulse_index)(struct comedi_device *dev,
@@ -209,6 +209,8 @@ static const struct comedi_lrange s626_range_table = {
 static void s626_debi_transfer(struct comedi_device *dev)
 {
 	struct s626_private *devpriv = dev->private;
+	static const int timeout = 10000;
+	int i;
 
 	/* Initiate upload of shadow RAM to DEBI control register */
 	s626_mc_enable(dev, S626_MC2_UPLD_DEBI, S626_P_MC2);
@@ -217,12 +219,23 @@ static void s626_debi_transfer(struct comedi_device *dev)
 	 * Wait for completion of upload from shadow RAM to
 	 * DEBI control register.
 	 */
-	while (!s626_mc_test(dev, S626_MC2_UPLD_DEBI, S626_P_MC2))
-		;
+	for (i = 0; i < timeout; i++) {
+		if (s626_mc_test(dev, S626_MC2_UPLD_DEBI, S626_P_MC2))
+			break;
+		udelay(1);
+	}
+	if (i == timeout)
+		comedi_error(dev,
+			"Timeout while uploading to DEBI control register.");
 
 	/* Wait until DEBI transfer is done */
-	while (readl(devpriv->mmio + S626_P_PSR) & S626_PSR_DEBI_S)
-		;
+	for (i = 0; i < timeout; i++) {
+		if (!(readl(devpriv->mmio + S626_P_PSR) & S626_PSR_DEBI_S))
+			break;
+		udelay(1);
+	}
+	if (i == timeout)
+		comedi_error(dev, "DEBI transfer timeout.");
 }
 
 /*
@@ -351,14 +364,57 @@ static const uint8_t s626_trimadrs[] = {
 	0x40, 0x41, 0x42, 0x50, 0x51, 0x52, 0x53, 0x60, 0x61, 0x62, 0x63
 };
 
+enum {
+	s626_send_dac_wait_not_mc1_a2out,
+	s626_send_dac_wait_ssr_af2_out,
+	s626_send_dac_wait_fb_buffer2_msb_00,
+	s626_send_dac_wait_fb_buffer2_msb_ff
+};
+
+static int s626_send_dac_eoc(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	struct s626_private *devpriv = dev->private;
+	unsigned int status;
+
+	switch (context) {
+	case s626_send_dac_wait_not_mc1_a2out:
+		status = readl(devpriv->mmio + S626_P_MC1);
+		if (!(status & S626_MC1_A2OUT))
+			return 0;
+		break;
+	case s626_send_dac_wait_ssr_af2_out:
+		status = readl(devpriv->mmio + S626_P_SSR);
+		if (status & S626_SSR_AF2_OUT)
+			return 0;
+		break;
+	case s626_send_dac_wait_fb_buffer2_msb_00:
+		status = readl(devpriv->mmio + S626_P_FB_BUFFER2);
+		if (!(status & 0xff000000))
+			return 0;
+		break;
+	case s626_send_dac_wait_fb_buffer2_msb_ff:
+		status = readl(devpriv->mmio + S626_P_FB_BUFFER2);
+		if (status & 0xff000000)
+			return 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return -EBUSY;
+}
+
 /*
  * Private helper function: Transmit serial data to DAC via Audio
  * channel 2.  Assumes: (1) TSL2 slot records initialized, and (2)
  * dacpol contains valid target image.
  */
-static void s626_send_dac(struct comedi_device *dev, uint32_t val)
+static int s626_send_dac(struct comedi_device *dev, uint32_t val)
 {
 	struct s626_private *devpriv = dev->private;
+	int ret;
 
 	/* START THE SERIAL CLOCK RUNNING ------------- */
 
@@ -404,8 +460,12 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * Done by polling the DMAC enable flag; this flag is automatically
 	 * cleared when the transfer has finished.
 	 */
-	while (readl(devpriv->mmio + S626_P_MC1) & S626_MC1_A2OUT)
-		;
+	ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
+			     s626_send_dac_wait_not_mc1_a2out);
+	if (ret) {
+		comedi_error(dev, "DMA transfer timeout.");
+		return ret;
+	}
 
 	/* START THE OUTPUT STREAM TO THE TARGET DAC -------------------- */
 
@@ -425,8 +485,12 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * finished transferring the DAC's data DWORD from the output FIFO
 	 * to the output buffer register.
 	 */
-	while (!(readl(devpriv->mmio + S626_P_SSR) & S626_SSR_AF2_OUT))
-		;
+	ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
+			     s626_send_dac_wait_ssr_af2_out);
+	if (ret) {
+		comedi_error(dev, "TSL timeout waiting for slot 1 to execute.");
+		return ret;
+	}
 
 	/*
 	 * Set up to trap execution at slot 0 when the TSL sequencer cycles
@@ -466,8 +530,13 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 		 * from 0xFF to 0x00, which slot 0 causes to happen by shifting
 		 * out/in on SD2 the 0x00 that is always referenced by slot 5.
 		 */
-		while (readl(devpriv->mmio + S626_P_FB_BUFFER2) & 0xff000000)
-			;
+		ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
+				     s626_send_dac_wait_fb_buffer2_msb_00);
+		if (ret) {
+			comedi_error(dev,
+				"TSL timeout waiting for slot 0 to execute.");
+			return ret;
+		}
 	}
 	/*
 	 * Either (1) we were too late setting the slot 0 trap; the TSL
@@ -486,14 +555,19 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * the next DAC write.  This is detected when FB_BUFFER2 MSB changes
 	 * from 0x00 to 0xFF.
 	 */
-	while (!(readl(devpriv->mmio + S626_P_FB_BUFFER2) & 0xff000000))
-		;
+	ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
+			     s626_send_dac_wait_fb_buffer2_msb_ff);
+	if (ret) {
+		comedi_error(dev, "TSL timeout waiting for slot 0 to execute.");
+		return ret;
+	}
+	return 0;
 }
 
 /*
  * Private helper function: Write setpoint to an application DAC channel.
  */
-static void s626_set_dac(struct comedi_device *dev, uint16_t chan,
+static int s626_set_dac(struct comedi_device *dev, uint16_t chan,
 			 int16_t dacdata)
 {
 	struct s626_private *devpriv = dev->private;
@@ -556,10 +630,10 @@ static void s626_set_dac(struct comedi_device *dev, uint16_t chan,
 	val |= ((uint32_t)(chan & 1) << 15);	/* Address the DAC channel
 						 * within the device. */
 	val |= (uint32_t)dacdata;	/* Include DAC setpoint data. */
-	s626_send_dac(dev, val);
+	return s626_send_dac(dev, val);
 }
 
-static void s626_write_trim_dac(struct comedi_device *dev, uint8_t logical_chan,
+static int s626_write_trim_dac(struct comedi_device *dev, uint8_t logical_chan,
 				uint8_t dac_data)
 {
 	struct s626_private *devpriv = dev->private;
@@ -606,17 +680,22 @@ static void s626_write_trim_dac(struct comedi_device *dev, uint8_t logical_chan,
 	 * Address the DAC channel within the trimdac device.
 	 * Include DAC setpoint data.
 	 */
-	s626_send_dac(dev, (chan << 8) | dac_data);
+	return s626_send_dac(dev, (chan << 8) | dac_data);
 }
 
-static void s626_load_trim_dacs(struct comedi_device *dev)
+static int s626_load_trim_dacs(struct comedi_device *dev)
 {
 	uint8_t i;
+	int ret;
 
 	/* Copy TrimDac setpoint values from EEPROM to TrimDacs. */
-	for (i = 0; i < ARRAY_SIZE(s626_trimchan); i++)
-		s626_write_trim_dac(dev, i,
+	for (i = 0; i < ARRAY_SIZE(s626_trimchan); i++) {
+		ret = s626_write_trim_dac(dev, i,
 				    s626_i2c_read(dev, s626_trimadrs[i]));
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 /* ******  COUNTER FUNCTIONS  ******* */
@@ -1846,6 +1925,20 @@ static int s626_ai_rinsn(struct comedi_device *dev,
 }
 #endif
 
+static int s626_ai_eoc(struct comedi_device *dev,
+		       struct comedi_subdevice *s,
+		       struct comedi_insn *insn,
+		       unsigned long context)
+{
+	struct s626_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readl(devpriv->mmio + S626_P_PSR);
+	if (status & S626_PSR_GPIO2)
+		return 0;
+	return -EBUSY;
+}
+
 static int s626_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
@@ -1856,6 +1949,7 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	uint16_t adc_spec = 0;
 	uint32_t gpio_image;
 	uint32_t tmp;
+	int ret;
 	int n;
 
 	/*
@@ -1897,8 +1991,9 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 		 */
 
 		/* Wait for ADC done */
-		while (!(readl(devpriv->mmio + S626_P_PSR) & S626_PSR_GPIO2))
-			;
+		ret = comedi_timeout(dev, s, insn, s626_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* Fetch ADC data */
 		if (n != 0) {
@@ -2299,6 +2394,7 @@ static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct s626_private *devpriv = dev->private;
 	int i;
+	int ret;
 	uint16_t chan = CR_CHAN(insn->chanspec);
 	int16_t dacdata;
 
@@ -2307,7 +2403,9 @@ static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		devpriv->ao_readback[CR_CHAN(insn->chanspec)] = data[i];
 		dacdata -= (0x1fff);
 
-		s626_set_dac(dev, chan, dacdata);
+		ret = s626_set_dac(dev, chan, dacdata);
+		if (ret)
+			return ret;
 	}
 
 	return i;
@@ -2543,12 +2641,13 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 	return 0;
 }
 
-static void s626_initialize(struct comedi_device *dev)
+static int s626_initialize(struct comedi_device *dev)
 {
 	struct s626_private *devpriv = dev->private;
 	dma_addr_t phys_buf;
 	uint16_t chan;
 	int i;
+	int ret;
 
 	/* Enable DEBI and audio pins, enable I2C interface */
 	s626_mc_enable(dev, S626_MC1_DEBI | S626_MC1_AUDIO | S626_MC1_I2C,
@@ -2749,7 +2848,9 @@ static void s626_initialize(struct comedi_device *dev)
 	 * sometimes causes the first few TrimDAC writes to malfunction.
 	 */
 	s626_load_trim_dacs(dev);
-	s626_load_trim_dacs(dev);
+	ret = s626_load_trim_dacs(dev);
+	if (ret)
+		return ret;
 
 	/*
 	 * Manually init all gate array hardware in case this is a soft
@@ -2763,8 +2864,11 @@ static void s626_initialize(struct comedi_device *dev)
 	 * Init all DAC outputs to 0V and init all DAC setpoint and
 	 * polarity images.
 	 */
-	for (chan = 0; chan < S626_DAC_CHANNELS; chan++)
-		s626_set_dac(dev, chan, 0);
+	for (chan = 0; chan < S626_DAC_CHANNELS; chan++) {
+		ret = s626_set_dac(dev, chan, 0);
+		if (ret)
+			return ret;
+	}
 
 	/* Init counters */
 	s626_counters_init(dev);
@@ -2780,6 +2884,8 @@ static void s626_initialize(struct comedi_device *dev)
 
 	/* Initialize the digital I/O subsystem */
 	s626_dio_init(dev);
+
+	return 0;
 }
 
 static int s626_auto_attach(struct comedi_device *dev,
@@ -2900,9 +3006,9 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->insn_read	= s626_enc_insn_read;
 	s->insn_write	= s626_enc_insn_write;
 
-	s626_initialize(dev);
-
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+	ret = s626_initialize(dev);
+	if (ret)
+		return ret;
 
 	return 0;
 }

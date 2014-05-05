@@ -587,95 +587,52 @@ struct hpp_arg {
 	bool current_entry;
 };
 
-static int __hpp__color_callchain(struct hpp_arg *arg)
+static int __hpp__overhead_callback(struct perf_hpp *hpp, bool front)
 {
-	if (!symbol_conf.use_callchain)
-		return 0;
-
-	slsmg_printf("%c ", arg->folded_sign);
-	return 2;
-}
-
-static int __hpp__color_fmt(struct perf_hpp *hpp, struct hist_entry *he,
-			    u64 (*get_field)(struct hist_entry *),
-			    int (*callchain_cb)(struct hpp_arg *))
-{
-	int ret = 0;
-	double percent = 0.0;
-	struct hists *hists = he->hists;
 	struct hpp_arg *arg = hpp->ptr;
 
-	if (hists->stats.total_period)
-		percent = 100.0 * get_field(he) / hists->stats.total_period;
+	if (arg->current_entry && arg->b->navkeypressed)
+		ui_browser__set_color(arg->b, HE_COLORSET_SELECTED);
+	else
+		ui_browser__set_color(arg->b, HE_COLORSET_NORMAL);
+
+	if (front) {
+		if (!symbol_conf.use_callchain)
+			return 0;
+
+		slsmg_printf("%c ", arg->folded_sign);
+		return 2;
+	}
+
+	return 0;
+}
+
+static int __hpp__color_callback(struct perf_hpp *hpp, bool front __maybe_unused)
+{
+	struct hpp_arg *arg = hpp->ptr;
+
+	if (!arg->current_entry || !arg->b->navkeypressed)
+		ui_browser__set_color(arg->b, HE_COLORSET_NORMAL);
+	return 0;
+}
+
+static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
+{
+	struct hpp_arg *arg = hpp->ptr;
+	int ret;
+	va_list args;
+	double percent;
+
+	va_start(args, fmt);
+	percent = va_arg(args, double);
+	va_end(args);
 
 	ui_browser__set_percent_color(arg->b, percent, arg->current_entry);
 
-	if (callchain_cb)
-		ret += callchain_cb(arg);
-
-	ret += scnprintf(hpp->buf, hpp->size, "%6.2f%%", percent);
+	ret = scnprintf(hpp->buf, hpp->size, fmt, percent);
 	slsmg_printf("%s", hpp->buf);
 
-	if (symbol_conf.event_group) {
-		int prev_idx, idx_delta;
-		struct perf_evsel *evsel = hists_to_evsel(hists);
-		struct hist_entry *pair;
-		int nr_members = evsel->nr_members;
-
-		if (nr_members <= 1)
-			goto out;
-
-		prev_idx = perf_evsel__group_idx(evsel);
-
-		list_for_each_entry(pair, &he->pairs.head, pairs.node) {
-			u64 period = get_field(pair);
-			u64 total = pair->hists->stats.total_period;
-
-			if (!total)
-				continue;
-
-			evsel = hists_to_evsel(pair->hists);
-			idx_delta = perf_evsel__group_idx(evsel) - prev_idx - 1;
-
-			while (idx_delta--) {
-				/*
-				 * zero-fill group members in the middle which
-				 * have no sample
-				 */
-				ui_browser__set_percent_color(arg->b, 0.0,
-							arg->current_entry);
-				ret += scnprintf(hpp->buf, hpp->size,
-						 " %6.2f%%", 0.0);
-				slsmg_printf("%s", hpp->buf);
-			}
-
-			percent = 100.0 * period / total;
-			ui_browser__set_percent_color(arg->b, percent,
-						      arg->current_entry);
-			ret += scnprintf(hpp->buf, hpp->size,
-					 " %6.2f%%", percent);
-			slsmg_printf("%s", hpp->buf);
-
-			prev_idx = perf_evsel__group_idx(evsel);
-		}
-
-		idx_delta = nr_members - prev_idx - 1;
-
-		while (idx_delta--) {
-			/*
-			 * zero-fill group members at last which have no sample
-			 */
-			ui_browser__set_percent_color(arg->b, 0.0,
-						      arg->current_entry);
-			ret += scnprintf(hpp->buf, hpp->size,
-					 " %6.2f%%", 0.0);
-			slsmg_printf("%s", hpp->buf);
-		}
-	}
-out:
-	if (!arg->current_entry || !arg->b->navkeypressed)
-		ui_browser__set_color(arg->b, HE_COLORSET_NORMAL);
-
+	advance_hpp(hpp, ret);
 	return ret;
 }
 
@@ -690,14 +647,15 @@ hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
 				struct perf_hpp *hpp,			\
 				struct hist_entry *he)			\
 {									\
-	return __hpp__color_fmt(hpp, he, __hpp_get_##_field, _cb);	\
+	return __hpp__fmt(hpp, he, __hpp_get_##_field, _cb, " %6.2f%%",	\
+			  __hpp__slsmg_color_printf, true);		\
 }
 
-__HPP_COLOR_PERCENT_FN(overhead, period, __hpp__color_callchain)
-__HPP_COLOR_PERCENT_FN(overhead_sys, period_sys, NULL)
-__HPP_COLOR_PERCENT_FN(overhead_us, period_us, NULL)
-__HPP_COLOR_PERCENT_FN(overhead_guest_sys, period_guest_sys, NULL)
-__HPP_COLOR_PERCENT_FN(overhead_guest_us, period_guest_us, NULL)
+__HPP_COLOR_PERCENT_FN(overhead, period, __hpp__overhead_callback)
+__HPP_COLOR_PERCENT_FN(overhead_sys, period_sys, __hpp__color_callback)
+__HPP_COLOR_PERCENT_FN(overhead_us, period_us, __hpp__color_callback)
+__HPP_COLOR_PERCENT_FN(overhead_guest_sys, period_guest_sys, __hpp__color_callback)
+__HPP_COLOR_PERCENT_FN(overhead_guest_us, period_guest_us, __hpp__color_callback)
 
 #undef __HPP_COLOR_PERCENT_FN
 

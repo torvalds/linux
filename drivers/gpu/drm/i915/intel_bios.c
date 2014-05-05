@@ -259,7 +259,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 			downclock = dvo_timing->clock;
 	}
 
-	if (downclock < panel_dvo_timing->clock && i915_lvds_downclock) {
+	if (downclock < panel_dvo_timing->clock && i915.lvds_downclock) {
 		dev_priv->lvds_downclock_avail = 1;
 		dev_priv->lvds_downclock = downclock * 10;
 		DRM_DEBUG_KMS("LVDS downclock is found in VBT. "
@@ -287,6 +287,9 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
 
+	/* Err to enabling backlight if no backlight block. */
+	dev_priv->vbt.backlight.present = true;
+
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
 		return;
@@ -298,6 +301,13 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	}
 
 	entry = &backlight_data->data[panel_type];
+
+	dev_priv->vbt.backlight.present = entry->type == BDB_BACKLIGHT_TYPE_PWM;
+	if (!dev_priv->vbt.backlight.present) {
+		DRM_DEBUG_KMS("PWM backlight not present in VBT (type %u)\n",
+			      entry->type);
+		return;
+	}
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
@@ -318,7 +328,7 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	struct drm_display_mode *panel_fixed_mode;
 	int index;
 
-	index = i915_vbt_sdvo_panel_type;
+	index = i915.vbt_sdvo_panel_type;
 	if (index == -2) {
 		DRM_DEBUG_KMS("Ignore SDVO panel mode from BIOS VBT tables.\n");
 		return;
@@ -599,14 +609,14 @@ parse_mipi(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 {
 	struct bdb_mipi *mipi;
 
-	mipi = find_section(bdb, BDB_MIPI);
+	mipi = find_section(bdb, BDB_MIPI_CONFIG);
 	if (!mipi) {
 		DRM_DEBUG_KMS("No MIPI BDB found");
 		return;
 	}
 
 	/* XXX: add more info */
-	dev_priv->vbt.dsi.panel_id = mipi->panel_id;
+	dev_priv->vbt.dsi.panel_id = MIPI_DSI_GENERIC_PANEL_ID;
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,

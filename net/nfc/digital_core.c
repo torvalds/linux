@@ -25,6 +25,8 @@
 #define DIGITAL_PROTO_NFCF_RF_TECH \
 	(NFC_PROTO_FELICA_MASK | NFC_PROTO_NFC_DEP_MASK)
 
+#define DIGITAL_PROTO_ISO15693_RF_TECH	NFC_PROTO_ISO15693_MASK
+
 struct digital_cmd {
 	struct list_head queue;
 
@@ -331,6 +333,18 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		}
 		break;
 
+	case NFC_PROTO_ISO15693:
+		framing = NFC_DIGITAL_FRAMING_ISO15693_T5T;
+		check_crc = digital_skb_check_crc_b;
+		add_crc = digital_skb_add_crc_b;
+		break;
+
+	case NFC_PROTO_ISO14443:
+		framing = NFC_DIGITAL_FRAMING_NFCA_T4T;
+		check_crc = digital_skb_check_crc_a;
+		add_crc = digital_skb_add_crc_a;
+		break;
+
 	default:
 		pr_err("Invalid protocol %d\n", protocol);
 		return -EINVAL;
@@ -461,7 +475,7 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_106A,
 				      digital_in_send_sens_req);
 
-	if (im_protocols & DIGITAL_PROTO_NFCF_RF_TECH) {
+	if (matching_im_protocols & DIGITAL_PROTO_NFCF_RF_TECH) {
 		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_212F,
 				      digital_in_send_sensf_req);
 
@@ -469,7 +483,11 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 				      digital_in_send_sensf_req);
 	}
 
-	if (tm_protocols & NFC_PROTO_NFC_DEP_MASK) {
+	if (matching_im_protocols & DIGITAL_PROTO_ISO15693_RF_TECH)
+		digital_add_poll_tech(ddev, NFC_DIGITAL_RF_TECH_ISO15693,
+				      digital_in_send_iso15693_inv_req);
+
+	if (matching_tm_protocols & NFC_PROTO_NFC_DEP_MASK) {
 		if (ddev->ops->tg_listen_mdaa) {
 			digital_add_poll_tech(ddev, 0,
 					      digital_tg_listen_mdaa);
@@ -607,20 +625,30 @@ static void digital_in_send_complete(struct nfc_digital_dev *ddev, void *arg,
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
+		resp = NULL;
 		goto done;
 	}
 
-	if (ddev->curr_protocol == NFC_PROTO_MIFARE)
+	if (ddev->curr_protocol == NFC_PROTO_MIFARE) {
 		rc = digital_in_recv_mifare_res(resp);
-	else
-		rc = ddev->skb_check_crc(resp);
+		/* crc check is done in digital_in_recv_mifare_res() */
+		goto done;
+	}
 
+	if (ddev->curr_protocol == NFC_PROTO_ISO14443) {
+		rc = digital_in_iso_dep_pull_sod(ddev, resp);
+		if (rc)
+			goto done;
+	}
+
+	rc = ddev->skb_check_crc(resp);
+
+done:
 	if (rc) {
 		kfree_skb(resp);
 		resp = NULL;
 	}
 
-done:
 	data_exch->cb(data_exch->cb_context, resp, rc);
 
 	kfree(data_exch);
@@ -632,6 +660,7 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 {
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
 	struct digital_data_exch *data_exch;
+	int rc;
 
 	data_exch = kzalloc(sizeof(struct digital_data_exch), GFP_KERNEL);
 	if (!data_exch) {
@@ -642,13 +671,27 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	data_exch->cb = cb;
 	data_exch->cb_context = cb_context;
 
-	if (ddev->curr_protocol == NFC_PROTO_NFC_DEP)
-		return digital_in_send_dep_req(ddev, target, skb, data_exch);
+	if (ddev->curr_protocol == NFC_PROTO_NFC_DEP) {
+		rc = digital_in_send_dep_req(ddev, target, skb, data_exch);
+		goto exit;
+	}
+
+	if (ddev->curr_protocol == NFC_PROTO_ISO14443) {
+		rc = digital_in_iso_dep_push_sod(ddev, skb);
+		if (rc)
+			goto exit;
+	}
 
 	ddev->skb_add_crc(skb);
 
-	return digital_in_send_cmd(ddev, skb, 500, digital_in_send_complete,
-				   data_exch);
+	rc = digital_in_send_cmd(ddev, skb, 500, digital_in_send_complete,
+				 data_exch);
+
+exit:
+	if (rc)
+		kfree(data_exch);
+
+	return rc;
 }
 
 static struct nfc_ops digital_nfc_ops = {
@@ -700,6 +743,10 @@ struct nfc_digital_dev *nfc_digital_allocate_device(struct nfc_digital_ops *ops,
 		ddev->protocols |= NFC_PROTO_FELICA_MASK;
 	if (supported_protocols & NFC_PROTO_NFC_DEP_MASK)
 		ddev->protocols |= NFC_PROTO_NFC_DEP_MASK;
+	if (supported_protocols & NFC_PROTO_ISO15693_MASK)
+		ddev->protocols |= NFC_PROTO_ISO15693_MASK;
+	if (supported_protocols & NFC_PROTO_ISO14443_MASK)
+		ddev->protocols |= NFC_PROTO_ISO14443_MASK;
 
 	ddev->tx_headroom = tx_headroom + DIGITAL_MAX_HEADER_LEN;
 	ddev->tx_tailroom = tx_tailroom + DIGITAL_CRC_LEN;

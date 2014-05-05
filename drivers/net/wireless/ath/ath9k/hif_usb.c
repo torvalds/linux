@@ -54,6 +54,8 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	  .driver_info = AR9280_USB },  /* SMC Networks */
 	{ USB_DEVICE(0x0411, 0x017f),
 	  .driver_info = AR9280_USB },  /* Sony UWA-BR100 */
+	{ USB_DEVICE(0x0411, 0x0197),
+	  .driver_info = AR9280_USB },  /* Buffalo WLI-UV-AG300P */
 	{ USB_DEVICE(0x04da, 0x3904),
 	  .driver_info = AR9280_USB },
 

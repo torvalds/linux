@@ -191,6 +191,9 @@ static struct platform_device osk5912_tps_leds = {
 
 static int osk_tps_setup(struct i2c_client *client, void *context)
 {
+	if (!IS_BUILTIN(CONFIG_TPS65010))
+		return -ENOSYS;
+
 	/* Set GPIO 1 HIGH to disable VBUS power supply;
 	 * OHCI driver powers it up/down as needed.
 	 */

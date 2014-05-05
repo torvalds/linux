@@ -229,12 +229,14 @@ void free_extent_state(struct extent_state *state)
 	}
 }
 
-static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
+static struct rb_node *tree_insert(struct rb_root *root,
+				   struct rb_node *search_start,
+				   u64 offset,
 				   struct rb_node *node,
 				   struct rb_node ***p_in,
 				   struct rb_node **parent_in)
 {
-	struct rb_node **p = &root->rb_node;
+	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct tree_entry *entry;
 
@@ -244,6 +246,7 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
 		goto do_insert;
 	}
 
+	p = search_start ? &search_start : &root->rb_node;
 	while (*p) {
 		parent = *p;
 		entry = rb_entry(parent, struct tree_entry, rb_node);
@@ -430,7 +433,7 @@ static int insert_state(struct extent_io_tree *tree,
 
 	set_state_bits(tree, state, bits);
 
-	node = tree_insert(&tree->state, end, &state->rb_node, p, parent);
+	node = tree_insert(&tree->state, NULL, end, &state->rb_node, p, parent);
 	if (node) {
 		struct extent_state *found;
 		found = rb_entry(node, struct extent_state, rb_node);
@@ -477,8 +480,8 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 	prealloc->state = orig->state;
 	orig->start = split;
 
-	node = tree_insert(&tree->state, prealloc->end, &prealloc->rb_node,
-			   NULL, NULL);
+	node = tree_insert(&tree->state, &orig->rb_node, prealloc->end,
+			   &prealloc->rb_node, NULL, NULL);
 	if (node) {
 		free_extent_state(prealloc);
 		return -EEXIST;
@@ -746,6 +749,7 @@ again:
 		 * our range starts
 		 */
 		node = tree_search(tree, start);
+process_node:
 		if (!node)
 			break;
 
@@ -766,7 +770,10 @@ again:
 		if (start > end)
 			break;
 
-		cond_resched_lock(&tree->lock);
+		if (!cond_resched_lock(&tree->lock)) {
+			node = rb_next(node);
+			goto process_node;
+		}
 	}
 out:
 	spin_unlock(&tree->lock);
@@ -2757,7 +2764,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 
 	if (em_cached && *em_cached) {
 		em = *em_cached;
-		if (em->in_tree && start >= em->start &&
+		if (extent_map_in_tree(em) && start >= em->start &&
 		    start < extent_map_end(em)) {
 			atomic_inc(&em->refs);
 			return em;
@@ -4303,7 +4310,7 @@ static void __free_extent_buffer(struct extent_buffer *eb)
 	kmem_cache_free(extent_buffer_cache, eb);
 }
 
-static int extent_buffer_under_io(struct extent_buffer *eb)
+int extent_buffer_under_io(struct extent_buffer *eb)
 {
 	return (atomic_read(&eb->io_pages) ||
 		test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags) ||

@@ -122,7 +122,7 @@ NESTED(bmips_reset_nmi_vec, PT_SIZE, sp)
 	jr	k0
 
 	RESTORE_ALL
-	.set	mips3
+	.set	arch=r4000
 	eret
 
 /***********************************************************************

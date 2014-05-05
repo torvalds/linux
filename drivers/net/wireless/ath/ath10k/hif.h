@@ -21,6 +21,14 @@
 #include <linux/kernel.h>
 #include "core.h"
 
+struct ath10k_hif_sg_item {
+	u16 transfer_id;
+	void *transfer_context; /* NULL = tx completion callback not called */
+	void *vaddr; /* for debugging mostly */
+	u32 paddr;
+	u16 len;
+};
+
 struct ath10k_hif_cb {
 	int (*tx_completion)(struct ath10k *ar,
 			     struct sk_buff *wbuf,
@@ -31,11 +39,9 @@ struct ath10k_hif_cb {
 };
 
 struct ath10k_hif_ops {
-	/* Send the head of a buffer to HIF for transmission to the target. */
-	int (*send_head)(struct ath10k *ar, u8 pipe_id,
-			 unsigned int transfer_id,
-			 unsigned int nbytes,
-			 struct sk_buff *buf);
+	/* send a scatter-gather list to the target */
+	int (*tx_sg)(struct ath10k *ar, u8 pipe_id,
+		     struct ath10k_hif_sg_item *items, int n_items);
 
 	/*
 	 * API to handle HIF-specific BMI message exchanges, this API is
@@ -86,12 +92,11 @@ struct ath10k_hif_ops {
 };
 
 
-static inline int ath10k_hif_send_head(struct ath10k *ar, u8 pipe_id,
-				       unsigned int transfer_id,
-				       unsigned int nbytes,
-				       struct sk_buff *buf)
+static inline int ath10k_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
+				   struct ath10k_hif_sg_item *items,
+				   int n_items)
 {
-	return ar->hif.ops->send_head(ar, pipe_id, transfer_id, nbytes, buf);
+	return ar->hif.ops->tx_sg(ar, pipe_id, items, n_items);
 }
 
 static inline int ath10k_hif_exchange_bmi_msg(struct ath10k *ar,

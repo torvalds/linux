@@ -422,7 +422,6 @@ static inline void falcon_irq_ack_a1(struct efx_nic *efx)
 	efx_readd(efx, &reg, FR_AA_WORK_AROUND_BROKEN_PCI_READS);
 }
 
-
 static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
@@ -467,6 +466,7 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 		efx_schedule_channel_irq(efx_get_channel(efx, 1));
 	return IRQ_HANDLED;
 }
+
 /**************************************************************************
  *
  * RSS
@@ -1358,6 +1358,7 @@ static void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	case 100:   link_speed = 1; break;
 	default:    link_speed = 0; break;
 	}
+
 	/* MAC_LINK_STATUS controls MAC backpressure but doesn't work
 	 * as advertised.  Disable to ensure packets are not
 	 * indefinitely held and TX queue can be flushed at any point
@@ -2182,7 +2183,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 	}
 
 	/* Read the MAC addresses */
-	memcpy(efx->net_dev->perm_addr, nvconfig->mac_address[0], ETH_ALEN);
+	ether_addr_copy(efx->net_dev->perm_addr, nvconfig->mac_address[0]);
 
 	netif_dbg(efx, probe, efx->net_dev, "PHY is %d phy_id %d\n",
 		  efx->phy_type, efx->mdio.prtad);
@@ -2695,6 +2696,8 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
+	.prepare_flr = efx_port_dummy_op_void,
+	.finish_flr = efx_farch_finish_flr,
 	.describe_stats = falcon_describe_nic_stats,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
@@ -2789,6 +2792,8 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
+	.prepare_flr = efx_port_dummy_op_void,
+	.finish_flr = efx_farch_finish_flr,
 	.describe_stats = falcon_describe_nic_stats,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
@@ -2868,4 +2873,3 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.mcdi_max_ver = -1,
 	.max_rx_ip_filters = FR_BZ_RX_FILTER_TBL0_ROWS,
 };
-

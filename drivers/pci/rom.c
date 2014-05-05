@@ -197,8 +197,10 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 void pci_cleanup_rom(struct pci_dev *pdev)
 {
 	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
+
 	if (res->flags & IORESOURCE_ROM_COPY) {
 		kfree((void*)(unsigned long)res->start);
+		res->flags |= IORESOURCE_UNSET;
 		res->flags &= ~IORESOURCE_ROM_COPY;
 		res->start = 0;
 		res->end = 0;

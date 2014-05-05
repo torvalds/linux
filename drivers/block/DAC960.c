@@ -6411,12 +6411,12 @@ static bool DAC960_V2_ExecuteUserCommand(DAC960_Controller_T *Controller,
 					.ScatterGatherSegments[0]
 					.SegmentByteCount =
 	    CommandMailbox->ControllerInfo.DataTransferSize;
-	  DAC960_ExecuteCommand(Command);
-	  while (Controller->V2.NewControllerInformation->PhysicalScanActive)
-	    {
-	      DAC960_ExecuteCommand(Command);
-	      sleep_on_timeout(&Controller->CommandWaitQueue, HZ);
-	    }
+	  while (1) {
+	    DAC960_ExecuteCommand(Command);
+	    if (!Controller->V2.NewControllerInformation->PhysicalScanActive)
+		break;
+	    msleep(1000);
+	  }
 	  DAC960_UserCritical("Discovery Completed\n", Controller);
  	}
     }
@@ -7035,18 +7035,16 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 		ErrorCode = -EFAULT;
 		break;
 	}
-	while (Controller->V2.HealthStatusBuffer->StatusChangeCounter
-	       == HealthStatusBuffer.StatusChangeCounter &&
-	       Controller->V2.HealthStatusBuffer->NextEventSequenceNumber
-	       == HealthStatusBuffer.NextEventSequenceNumber)
-	  {
-	    interruptible_sleep_on_timeout(&Controller->HealthStatusWaitQueue,
-					   DAC960_MonitoringTimerInterval);
-	    if (signal_pending(current)) {
-	    	ErrorCode = -EINTR;
-	    	break;
-	    }
-	  }
+	ErrorCode = wait_event_interruptible_timeout(Controller->HealthStatusWaitQueue,
+			!(Controller->V2.HealthStatusBuffer->StatusChangeCounter
+			    == HealthStatusBuffer.StatusChangeCounter &&
+			  Controller->V2.HealthStatusBuffer->NextEventSequenceNumber
+			    == HealthStatusBuffer.NextEventSequenceNumber),
+			DAC960_MonitoringTimerInterval);
+	if (ErrorCode == -ERESTARTSYS) {
+		ErrorCode = -EINTR;
+		break;
+	}
 	if (copy_to_user(GetHealthStatus.HealthStatusBuffer,
 			 Controller->V2.HealthStatusBuffer,
 			 sizeof(DAC960_V2_HealthStatusBuffer_T)))

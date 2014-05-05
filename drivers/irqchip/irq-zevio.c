@@ -50,7 +50,7 @@ static void zevio_irq_ack(struct irq_data *irqd)
 	readl(gc->reg_base + regs->ack);
 }
 
-static asmlinkage void __exception_irq_entry zevio_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry zevio_handle_irq(struct pt_regs *regs)
 {
 	int irqnr;
 

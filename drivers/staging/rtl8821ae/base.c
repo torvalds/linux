@@ -39,10 +39,10 @@
 #include "pci.h"
 
 /*
- *NOTICE!!!: This file will be very big, we hsould
- *keep it clear under follwing roles:
+ *NOTICE!!!: This file will be very big, we should
+ *keep it clear under following roles:
  *
- *This file include follwing part, so, if you add new
+ *This file include following part, so, if you add new
  *functions into this file, please check which part it
  *should includes. or check if you should add new part
  *for this file:
@@ -64,73 +64,73 @@
  *
  *********************************************************/
 static struct ieee80211_channel rtl_channeltable_2g[] = {
-	{.center_freq = 2412,.hw_value = 1,},
-	{.center_freq = 2417,.hw_value = 2,},
-	{.center_freq = 2422,.hw_value = 3,},
-	{.center_freq = 2427,.hw_value = 4,},
-	{.center_freq = 2432,.hw_value = 5,},
-	{.center_freq = 2437,.hw_value = 6,},
-	{.center_freq = 2442,.hw_value = 7,},
-	{.center_freq = 2447,.hw_value = 8,},
-	{.center_freq = 2452,.hw_value = 9,},
-	{.center_freq = 2457,.hw_value = 10,},
-	{.center_freq = 2462,.hw_value = 11,},
-	{.center_freq = 2467,.hw_value = 12,},
-	{.center_freq = 2472,.hw_value = 13,},
-	{.center_freq = 2484,.hw_value = 14,},
+	{.center_freq = 2412, .hw_value = 1,},
+	{.center_freq = 2417, .hw_value = 2,},
+	{.center_freq = 2422, .hw_value = 3,},
+	{.center_freq = 2427, .hw_value = 4,},
+	{.center_freq = 2432, .hw_value = 5,},
+	{.center_freq = 2437, .hw_value = 6,},
+	{.center_freq = 2442, .hw_value = 7,},
+	{.center_freq = 2447, .hw_value = 8,},
+	{.center_freq = 2452, .hw_value = 9,},
+	{.center_freq = 2457, .hw_value = 10,},
+	{.center_freq = 2462, .hw_value = 11,},
+	{.center_freq = 2467, .hw_value = 12,},
+	{.center_freq = 2472, .hw_value = 13,},
+	{.center_freq = 2484, .hw_value = 14,},
 };
 
 static struct ieee80211_channel rtl_channeltable_5g[] = {
-	{.center_freq = 5180,.hw_value = 36,},
-	{.center_freq = 5200,.hw_value = 40,},
-	{.center_freq = 5220,.hw_value = 44,},
-	{.center_freq = 5240,.hw_value = 48,},
-	{.center_freq = 5260,.hw_value = 52,},
-	{.center_freq = 5280,.hw_value = 56,},
-	{.center_freq = 5300,.hw_value = 60,},
-	{.center_freq = 5320,.hw_value = 64,},
-	{.center_freq = 5500,.hw_value = 100,},
-	{.center_freq = 5520,.hw_value = 104,},
-	{.center_freq = 5540,.hw_value = 108,},
-	{.center_freq = 5560,.hw_value = 112,},
-	{.center_freq = 5580,.hw_value = 116,},
-	{.center_freq = 5600,.hw_value = 120,},
-	{.center_freq = 5620,.hw_value = 124,},
-	{.center_freq = 5640,.hw_value = 128,},
-	{.center_freq = 5660,.hw_value = 132,},
-	{.center_freq = 5680,.hw_value = 136,},
-	{.center_freq = 5700,.hw_value = 140,},
-	{.center_freq = 5745,.hw_value = 149,},
-	{.center_freq = 5765,.hw_value = 153,},
-	{.center_freq = 5785,.hw_value = 157,},
-	{.center_freq = 5805,.hw_value = 161,},
-	{.center_freq = 5825,.hw_value = 165,},
+	{.center_freq = 5180, .hw_value = 36,},
+	{.center_freq = 5200, .hw_value = 40,},
+	{.center_freq = 5220, .hw_value = 44,},
+	{.center_freq = 5240, .hw_value = 48,},
+	{.center_freq = 5260, .hw_value = 52,},
+	{.center_freq = 5280, .hw_value = 56,},
+	{.center_freq = 5300, .hw_value = 60,},
+	{.center_freq = 5320, .hw_value = 64,},
+	{.center_freq = 5500, .hw_value = 100,},
+	{.center_freq = 5520, .hw_value = 104,},
+	{.center_freq = 5540, .hw_value = 108,},
+	{.center_freq = 5560, .hw_value = 112,},
+	{.center_freq = 5580, .hw_value = 116,},
+	{.center_freq = 5600, .hw_value = 120,},
+	{.center_freq = 5620, .hw_value = 124,},
+	{.center_freq = 5640, .hw_value = 128,},
+	{.center_freq = 5660, .hw_value = 132,},
+	{.center_freq = 5680, .hw_value = 136,},
+	{.center_freq = 5700, .hw_value = 140,},
+	{.center_freq = 5745, .hw_value = 149,},
+	{.center_freq = 5765, .hw_value = 153,},
+	{.center_freq = 5785, .hw_value = 157,},
+	{.center_freq = 5805, .hw_value = 161,},
+	{.center_freq = 5825, .hw_value = 165,},
 };
 
 static struct ieee80211_rate rtl_ratetable_2g[] = {
-	{.bitrate = 10,.hw_value = 0x00,},
-	{.bitrate = 20,.hw_value = 0x01,},
-	{.bitrate = 55,.hw_value = 0x02,},
-	{.bitrate = 110,.hw_value = 0x03,},
-	{.bitrate = 60,.hw_value = 0x04,},
-	{.bitrate = 90,.hw_value = 0x05,},
-	{.bitrate = 120,.hw_value = 0x06,},
-	{.bitrate = 180,.hw_value = 0x07,},
-	{.bitrate = 240,.hw_value = 0x08,},
-	{.bitrate = 360,.hw_value = 0x09,},
-	{.bitrate = 480,.hw_value = 0x0a,},
-	{.bitrate = 540,.hw_value = 0x0b,},
+	{.bitrate = 10, .hw_value = 0x00,},
+	{.bitrate = 20, .hw_value = 0x01,},
+	{.bitrate = 55, .hw_value = 0x02,},
+	{.bitrate = 110, .hw_value = 0x03,},
+	{.bitrate = 60, .hw_value = 0x04,},
+	{.bitrate = 90, .hw_value = 0x05,},
+	{.bitrate = 120, .hw_value = 0x06,},
+	{.bitrate = 180, .hw_value = 0x07,},
+	{.bitrate = 240, .hw_value = 0x08,},
+	{.bitrate = 360, .hw_value = 0x09,},
+	{.bitrate = 480, .hw_value = 0x0a,},
+	{.bitrate = 540, .hw_value = 0x0b,},
 };
 
 static struct ieee80211_rate rtl_ratetable_5g[] = {
-	{.bitrate = 60,.hw_value = 0x04,},
-	{.bitrate = 90,.hw_value = 0x05,},
-	{.bitrate = 120,.hw_value = 0x06,},
-	{.bitrate = 180,.hw_value = 0x07,},
-	{.bitrate = 240,.hw_value = 0x08,},
-	{.bitrate = 360,.hw_value = 0x09,},
-	{.bitrate = 480,.hw_value = 0x0a,},
-	{.bitrate = 540,.hw_value = 0x0b,},
+	{.bitrate = 60, .hw_value = 0x04,},
+	{.bitrate = 90, .hw_value = 0x05,},
+	{.bitrate = 120, .hw_value = 0x06,},
+	{.bitrate = 180, .hw_value = 0x07,},
+	{.bitrate = 240, .hw_value = 0x08,},
+	{.bitrate = 360, .hw_value = 0x09,},
+	{.bitrate = 480, .hw_value = 0x0a,},
+	{.bitrate = 540, .hw_value = 0x0b,},
 };
 
 static const struct ieee80211_supported_band rtl_band_2ghz = {
@@ -320,7 +320,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	/* <5> set hw caps */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_RX_INCLUDES_FCS |
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0))
 	    IEEE80211_HW_BEACON_FILTER |
 #endif
 	    IEEE80211_HW_AMPDU_AGGREGATION |
@@ -332,11 +332,11 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	/* swlps or hwlps has been set in diff chip in init_sw_vars */
 	if (rtlpriv->psc.b_swctrl_lps)
 		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
-	    		IEEE80211_HW_PS_NULLFUNC_STACK |
-	    		/* IEEE80211_HW_SUPPORTS_DYNAMIC_PS | */
+			IEEE80211_HW_PS_NULLFUNC_STACK |
+			/* IEEE80211_HW_SUPPORTS_DYNAMIC_PS | */
 			0;
 /*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	hw->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_AP) |
 	    BIT(NL80211_IFTYPE_STATION) |
@@ -354,11 +354,11 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 /*<delete in kernel start>*/
 #endif
 /*<delete in kernel end>*/
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,39))
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39))
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0))
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 #endif
 
@@ -388,7 +388,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 
 }
 
-static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
+static int _rtl_init_deferred_work(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -402,7 +402,7 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 	/* <2> work queue */
 	rtlpriv->works.hw = hw;
 /*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 /*<delete in kernel end>*/
 	rtlpriv->works.rtl_wq = alloc_workqueue(rtlpriv->cfg->name, 0, 0);
 /*<delete in kernel start>*/
@@ -410,6 +410,9 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 	rtlpriv->works.rtl_wq = create_workqueue(rtlpriv->cfg->name);
 #endif
 /*<delete in kernel end>*/
+	if (!rtlpriv->works.rtl_wq)
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK(&rtlpriv->works.watchdog_wq,
 			  (void *)rtl_watchdog_wq_callback);
 	INIT_DELAYED_WORK(&rtlpriv->works.ips_nic_off_wq,
@@ -420,6 +423,8 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 			  (void *)rtl_swlps_rfon_wq_callback);
 	INIT_DELAYED_WORK(&rtlpriv->works.fwevt_wq,
 			  (void *)rtl_fwevt_wq_callback);
+
+	return 0;
 
 }
 
@@ -519,7 +524,8 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	INIT_LIST_HEAD(&rtlpriv->entry_list);
 
 	/* <6> init deferred work */
-	_rtl_init_deferred_work(hw);
+	if (_rtl_init_deferred_work(hw))
+		return 1;
 
 	/* <7> */
 #ifdef VIF_TODO
@@ -662,30 +668,27 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 
 	if (rtlpriv->dm.b_useramask) {
 		tcb_desc->ratr_index = ratr_index;
-		/* TODO we will differentiate adhoc and station futrue  */
+		/* TODO we will differentiate adhoc and station future  */
 		if (mac->opmode == NL80211_IFTYPE_STATION ||
 			mac->opmode == NL80211_IFTYPE_MESH_POINT) {
 			tcb_desc->mac_id = 0;
-
-			if (mac->mode == WIRELESS_MODE_N_24G) {
+			if (mac->mode == WIRELESS_MODE_N_24G)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_NGB;
-			} else if (mac->mode == WIRELESS_MODE_N_5G) {
+			else if (mac->mode == WIRELESS_MODE_N_5G)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_NG;
-			} else if (mac->mode & WIRELESS_MODE_G) {
+			else if (mac->mode & WIRELESS_MODE_G)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_GB;
-			} else if (mac->mode & WIRELESS_MODE_B) {
+			else if (mac->mode & WIRELESS_MODE_B)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_B;
-			} else if (mac->mode & WIRELESS_MODE_A) {
+			else if (mac->mode & WIRELESS_MODE_A)
 				tcb_desc->ratr_index = RATR_INX_WIRELESS_G;
-			}
 		} else if (mac->opmode == NL80211_IFTYPE_AP ||
 			mac->opmode == NL80211_IFTYPE_ADHOC) {
 			if (NULL != sta) {
-				if (sta->aid > 0) {
+				if (sta->aid > 0)
 					tcb_desc->mac_id = sta->aid + 1;
-				} else {
+				else
 					tcb_desc->mac_id = 1;
-				}
 			} else {
 				tcb_desc->mac_id = 0;
 			}
@@ -711,7 +714,7 @@ static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
 			return;
 	} else if (mac->opmode == NL80211_IFTYPE_STATION) {
 		if (!mac->bw_40 || !(sta->ht_cap.ht_supported))
-		return;
+			return;
 	}
 	if (tcb_desc->b_multicast || tcb_desc->b_broadcast)
 		return;
@@ -730,7 +733,7 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	u8 hw_rate;
 
-	if ((get_rf_type(rtlphy) == RF_2T2R) && (sta->ht_cap.mcs.rx_mask[1]!=0))
+	if ((get_rf_type(rtlphy) == RF_2T2R) && (sta->ht_cap.mcs.rx_mask[1] != 0))
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS15];
 	else
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS7];
@@ -772,16 +775,16 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 			tcb_desc->disable_ratefallback = 1;
 		} else {
 			/*
-			 *because hw will nerver use hw_rate
+			 *because hw will never use hw_rate
 			 *when tcb_desc->use_driver_rate = false
 			 *so we never set highest N rate here,
-			 *and N rate will all be controled by FW
+			 *and N rate will all be controlled by FW
 			 *when tcb_desc->use_driver_rate = false
 			 */
 			if (sta && (sta->ht_cap.ht_supported)) {
 				tcb_desc->hw_rate = _rtl_get_highest_n_rate(hw, sta);
 			} else {
-				if(rtlmac->mode == WIRELESS_MODE_B) {
+				if (rtlmac->mode == WIRELESS_MODE_B) {
 					tcb_desc->hw_rate =
 					    rtlpriv->cfg->maps[RTL_RC_CCK_RATE11M];
 				} else {
@@ -809,7 +812,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		tcb_desc->b_packet_bw = false;
 	}
 }
-//EXPORT_SYMBOL(rtl_get_tcb_desc);
+/* EXPORT_SYMBOL(rtl_get_tcb_desc); */
 
 bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -862,8 +865,8 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 			RT_TRACE((COMP_SEND | COMP_RECV), DBG_DMESG,
 				 ("%s ACT_ADDBAREQ From :%pM\n",
 				  is_tx ? "Tx" : "Rx", hdr->addr2));
-			RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, ("req \n"),
-		      	skb->data, skb->len);
+			RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, ("req\n"),
+			skb->data, skb->len);
 			if (!is_tx) {
 				struct ieee80211_sta *sta = NULL;
 				struct rtl_sta_info *sta_entry = NULL;
@@ -897,7 +900,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 								    hdr->addr3,
 								    tid);
 					if (skb_delba) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 						rx_status.freq = hw->conf.chandef.chan->center_freq;
 						rx_status.band = hw->conf.chandef.chan->band;
 #else
@@ -1184,7 +1187,7 @@ void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
-	rtlpriv->link_info.bcn_rx_inperiod ++;
+	rtlpriv->link_info.bcn_rx_inperiod++;
 }
 
 void rtl_watchdog_wq_callback(void *data)
@@ -1363,7 +1366,7 @@ void rtl_easy_concurrent_retrytimer_callback(unsigned long data)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_priv *buddy_priv = rtlpriv->buddy_priv;
 
-	if(buddy_priv == NULL)
+	if (buddy_priv == NULL)
 		return;
 
 	rtlpriv->cfg->ops->dualmac_easy_concurrent(hw);
@@ -1478,13 +1481,13 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		/* rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0); */
 
 		info->control.rates[0].idx = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 		info->band = hw->conf.chandef.chan->band;
 #else
 		info->band = hw->conf.channel->band;
 #endif
 /*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0))
 		info->control.sta = sta;
 		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
 #else
@@ -1499,7 +1502,7 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 err_free:
 	return 0;
 }
-//EXPORT_SYMBOL(rtl_send_smps_action);
+/* EXPORT_SYMBOL(rtl_send_smps_action); */
 
 /* because mac80211 have issues when can receive del ba
  * so here we just make a fake del_ba if we receive a ba_req
@@ -1528,8 +1531,8 @@ struct sk_buff *rtl_make_del_ba(struct ieee80211_hw *hw,
 						  IEEE80211_STYPE_ACTION);
 	action_frame->u.action.category = WLAN_CATEGORY_BACK;
 	action_frame->u.action.u.delba.action_code = WLAN_ACTION_DELBA;
-	params = (u16)(1 << 11); 	/* bit 11 initiator */
-	params |= (u16)(tid << 12); 		/* bit 15:12 TID number */
+	params = (u16)(1 << 11);	/* bit 11 initiator */
+	params |= (u16)(tid << 12);	/* bit 15:12 TID number */
 
 	action_frame->u.action.u.delba.params = cpu_to_le16(params);
 	action_frame->u.action.u.delba.reason_code =
@@ -1652,9 +1655,8 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 	if (ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
-	if (rtl_find_221_ie(hw, data, len)) {
+	if (rtl_find_221_ie(hw, data, len))
 		vendor = mac->vendor;
-	}
 
 	if ((memcmp(mac->bssid, ap5_1, 3) == 0) ||
 		(memcmp(mac->bssid, ap5_2, 3) == 0) ||
@@ -1671,7 +1673,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 		(memcmp(mac->bssid, ap4_2, 3) == 0) ||
 		(memcmp(mac->bssid, ap4_3, 3) == 0) ||
 		vendor == PEER_RAL) {
-		RT_TRACE(COMP_MAC80211, DBG_LOUD, ("=>ral findn\n"));
+		RT_TRACE(COMP_MAC80211, DBG_LOUD, ("=>ral find\n"));
 		vendor = PEER_RAL;
 	} else if (memcmp(mac->bssid, ap6_1, 3) == 0 ||
 		vendor == PEER_CISCO) {
@@ -1715,7 +1717,7 @@ static ssize_t rtl_store_debug_level(struct device *d,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 0, &val);
+	ret = kstrtoul(buf, 0, &val);
 	if (ret) {
 		printk(KERN_DEBUG "%s is not in hex or decimal form.\n", buf);
 	} else {
@@ -1845,8 +1847,7 @@ struct rtl_global_var global_var = {};
 int rtl_core_module_init(void)
 {
 	if (rtl_rate_control_register())
-		printk(KERN_DEBUG "rtl: Unable to register rtl_rc,"
-			  "use default RC !!\n");
+		printk(KERN_DEBUG "rtl: Unable to register rtl_rc, use default RC !!\n");
 
 	/* add proc for debug */
 	rtl_proc_add_topdir();
@@ -1861,7 +1862,7 @@ int rtl_core_module_init(void)
 void rtl_core_module_exit(void)
 {
 	/*RC*/
-   	rtl_rate_control_unregister();
+	rtl_rate_control_unregister();
 
 	/* add proc for debug */
 	rtl_proc_remove_topdir();

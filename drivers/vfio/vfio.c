@@ -1413,6 +1413,12 @@ int vfio_external_user_iommu_id(struct vfio_group *group)
 }
 EXPORT_SYMBOL_GPL(vfio_external_user_iommu_id);
 
+long vfio_external_check_extension(struct vfio_group *group, unsigned long arg)
+{
+	return vfio_ioctl_check_extension(group->container, arg);
+}
+EXPORT_SYMBOL_GPL(vfio_external_check_extension);
+
 /**
  * Module/class support
  */

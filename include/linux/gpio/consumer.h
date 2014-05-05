@@ -5,7 +5,6 @@
 #include <linux/kernel.h>
 
 struct device;
-struct gpio_chip;
 
 /**
  * Opaque descriptor for a GPIO. These are obtained using gpiod_get() and are
@@ -36,6 +35,7 @@ void devm_gpiod_put(struct device *dev, struct gpio_desc *desc);
 int gpiod_get_direction(const struct gpio_desc *desc);
 int gpiod_direction_input(struct gpio_desc *desc);
 int gpiod_direction_output(struct gpio_desc *desc, int value);
+int gpiod_direction_output_raw(struct gpio_desc *desc, int value);
 
 /* Value get/set from non-sleeping context */
 int gpiod_get_value(const struct gpio_desc *desc);
@@ -59,7 +59,6 @@ int gpiod_to_irq(const struct gpio_desc *desc);
 /* Convert between the old gpio_ and new gpiod_ interfaces */
 struct gpio_desc *gpio_to_desc(unsigned gpio);
 int desc_to_gpio(const struct gpio_desc *desc);
-struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
 #else /* CONFIG_GPIOLIB */
 
@@ -116,6 +115,12 @@ static inline int gpiod_direction_input(struct gpio_desc *desc)
 	return -ENOSYS;
 }
 static inline int gpiod_direction_output(struct gpio_desc *desc, int value)
+{
+	/* GPIO can never have been requested */
+	WARN_ON(1);
+	return -ENOSYS;
+}
+static inline int gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 {
 	/* GPIO can never have been requested */
 	WARN_ON(1);
@@ -206,12 +211,6 @@ static inline int desc_to_gpio(const struct gpio_desc *desc)
 	/* GPIO can never have been requested */
 	WARN_ON(1);
 	return -EINVAL;
-}
-static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
-{
-	/* GPIO can never have been requested */
-	WARN_ON(1);
-	return ERR_PTR(-ENODEV);
 }
 
 

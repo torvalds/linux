@@ -318,6 +318,31 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 	}
 }
 
+void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
+{
+	int i;
+	int num_of_eqs;
+	int num_rx_rings;
+	struct mlx4_dev *dev = mdev->dev;
+
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
+		if (!dev->caps.comp_pool)
+			num_of_eqs = max_t(int, MIN_RX_RINGS,
+					   min_t(int,
+						 dev->caps.num_comp_vectors,
+						 DEF_RX_RINGS));
+		else
+			num_of_eqs = min_t(int, MAX_MSIX_P_PORT,
+					   dev->caps.comp_pool/
+					   dev->caps.num_ports) - 1;
+
+		num_rx_rings = min_t(int, num_of_eqs,
+				     netif_get_num_default_rss_queues());
+		mdev->profile.prof[i].rx_ring_num =
+			rounddown_pow_of_two(num_rx_rings);
+	}
+}
+
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring **pring,
 			   u32 size, u16 stride, int node)
@@ -635,6 +660,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 	if (!priv->port_up)
 		return 0;
+
+	if (budget <= 0)
+		return polled;
 
 	/* We assume a 1:1 mapping between CQEs and Rx descriptors, so Rx
 	 * descriptor offset can be deduced from the CQE index instead of

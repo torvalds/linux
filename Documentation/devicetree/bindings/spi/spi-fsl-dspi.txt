@@ -10,6 +10,7 @@ Required properties:
 - pinctrl-names: must contain a "default" entry.
 - spi-num-chipselects : the number of the chipselect signals.
 - bus-num : the slave chip chipselect signal number.
+- big-endian : if DSPI modudle is big endian, the bool will be set in node.
 Example:
 
 dspi0@4002c000 {
@@ -24,6 +25,7 @@ dspi0@4002c000 {
 	bus-num = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_dspi0_1>;
+	big-endian;
 	status = "okay";
 
 	sflash: at26df081a@0 {

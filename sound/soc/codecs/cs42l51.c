@@ -30,6 +30,7 @@
 #include <sound/pcm_params.h>
 #include <sound/pcm.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 
 #include "cs42l51.h"
 
@@ -40,7 +41,6 @@ enum master_slave_mode {
 };
 
 struct cs42l51_private {
-	enum snd_soc_control_type control_type;
 	unsigned int mclk;
 	unsigned int audio_mode;	/* The mode (I2S or left-justified) */
 	enum master_slave_mode func;
@@ -51,24 +51,6 @@ struct cs42l51_private {
 		SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S18_3BE | \
 		SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE | \
 		SNDRV_PCM_FMTBIT_S24_LE  | SNDRV_PCM_FMTBIT_S24_BE)
-
-static int cs42l51_fill_cache(struct snd_soc_codec *codec)
-{
-	u8 *cache = codec->reg_cache + 1;
-	struct i2c_client *i2c_client = to_i2c_client(codec->dev);
-	s32 length;
-
-	length = i2c_smbus_read_i2c_block_data(i2c_client,
-			CS42L51_FIRSTREG | 0x80, CS42L51_NUMREGS, cache);
-	if (length != CS42L51_NUMREGS) {
-		dev_err(&i2c_client->dev,
-				"I2C read failure, addr=0x%x (ret=%d vs %d)\n",
-				i2c_client->addr, length, CS42L51_NUMREGS);
-		return -EIO;
-	}
-
-	return 0;
-}
 
 static int cs42l51_get_chan_mix(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -124,9 +106,8 @@ static int cs42l51_set_chan_mix(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(adc_pcm_tlv, -5150, 50, 0);
 static const DECLARE_TLV_DB_SCALE(tone_tlv, -1050, 150, 0);
-/* This is a lie. after -102 db, it stays at -102 */
-/* maybe a range would be better */
-static const DECLARE_TLV_DB_SCALE(aout_tlv, -11550, 50, 0);
+
+static const DECLARE_TLV_DB_SCALE(aout_tlv, -10200, 50, 0);
 
 static const DECLARE_TLV_DB_SCALE(boost_tlv, 1600, 1600, 0);
 static const char *chan_mix[] = {
@@ -135,13 +116,12 @@ static const char *chan_mix[] = {
 	"R L",
 };
 
-static const struct soc_enum cs42l51_chan_mix =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(chan_mix), chan_mix);
+static SOC_ENUM_SINGLE_EXT_DECL(cs42l51_chan_mix, chan_mix);
 
 static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 	SOC_DOUBLE_R_SX_TLV("PCM Playback Volume",
 			CS42L51_PCMA_VOL, CS42L51_PCMB_VOL,
-			6, 0x19, 0x7F, adc_pcm_tlv),
+			0, 0x19, 0x7F, adc_pcm_tlv),
 	SOC_DOUBLE_R("PCM Playback Switch",
 			CS42L51_PCMA_VOL, CS42L51_PCMB_VOL, 7, 1, 1),
 	SOC_DOUBLE_R_SX_TLV("Analog Playback Volume",
@@ -149,7 +129,7 @@ static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 			0, 0x34, 0xE4, aout_tlv),
 	SOC_DOUBLE_R_SX_TLV("ADC Mixer Volume",
 			CS42L51_ADCA_VOL, CS42L51_ADCB_VOL,
-			6, 0x19, 0x7F, adc_pcm_tlv),
+			0, 0x19, 0x7F, adc_pcm_tlv),
 	SOC_DOUBLE_R("ADC Mixer Switch",
 			CS42L51_ADCA_VOL, CS42L51_ADCB_VOL, 7, 1, 1),
 	SOC_SINGLE("Playback Deemphasis Switch", CS42L51_DAC_CTL, 3, 1, 0),
@@ -192,22 +172,22 @@ static int cs42l51_pdn_event(struct snd_soc_dapm_widget *w,
 
 static const char *cs42l51_dac_names[] = {"Direct PCM",
 	"DSP PCM", "ADC"};
-static const struct soc_enum cs42l51_dac_mux_enum =
-	SOC_ENUM_SINGLE(CS42L51_DAC_CTL, 6, 3, cs42l51_dac_names);
+static SOC_ENUM_SINGLE_DECL(cs42l51_dac_mux_enum,
+			    CS42L51_DAC_CTL, 6, cs42l51_dac_names);
 static const struct snd_kcontrol_new cs42l51_dac_mux_controls =
 	SOC_DAPM_ENUM("Route", cs42l51_dac_mux_enum);
 
 static const char *cs42l51_adcl_names[] = {"AIN1 Left", "AIN2 Left",
 	"MIC Left", "MIC+preamp Left"};
-static const struct soc_enum cs42l51_adcl_mux_enum =
-	SOC_ENUM_SINGLE(CS42L51_ADC_INPUT, 4, 4, cs42l51_adcl_names);
+static SOC_ENUM_SINGLE_DECL(cs42l51_adcl_mux_enum,
+			    CS42L51_ADC_INPUT, 4, cs42l51_adcl_names);
 static const struct snd_kcontrol_new cs42l51_adcl_mux_controls =
 	SOC_DAPM_ENUM("Route", cs42l51_adcl_mux_enum);
 
 static const char *cs42l51_adcr_names[] = {"AIN1 Right", "AIN2 Right",
 	"MIC Right", "MIC+preamp Right"};
-static const struct soc_enum cs42l51_adcr_mux_enum =
-	SOC_ENUM_SINGLE(CS42L51_ADC_INPUT, 6, 4, cs42l51_adcr_names);
+static SOC_ENUM_SINGLE_DECL(cs42l51_adcr_mux_enum,
+			    CS42L51_ADC_INPUT, 6, cs42l51_adcr_names);
 static const struct snd_kcontrol_new cs42l51_adcr_mux_controls =
 	SOC_DAPM_ENUM("Route", cs42l51_adcr_mux_enum);
 
@@ -505,20 +485,7 @@ static struct snd_soc_dai_driver cs42l51_dai = {
 
 static int cs42l51_probe(struct snd_soc_codec *codec)
 {
-	struct cs42l51_private *cs42l51 = snd_soc_codec_get_drvdata(codec);
 	int ret, reg;
-
-	ret = cs42l51_fill_cache(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to fill register cache\n");
-		return ret;
-	}
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, cs42l51->control_type);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/*
 	 * DAC configuration
@@ -538,8 +505,6 @@ static int cs42l51_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
 	.probe = cs42l51_probe,
-	.reg_cache_size = CS42L51_NUMREGS + 1,
-	.reg_word_size = sizeof(u8),
 
 	.controls = cs42l51_snd_controls,
 	.num_controls = ARRAY_SIZE(cs42l51_snd_controls),
@@ -549,38 +514,53 @@ static struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
 	.num_dapm_routes = ARRAY_SIZE(cs42l51_routes),
 };
 
+static const struct regmap_config cs42l51_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = CS42L51_CHARGE_FREQ,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
 	const struct i2c_device_id *id)
 {
 	struct cs42l51_private *cs42l51;
+	struct regmap *regmap;
+	unsigned int val;
 	int ret;
 
+	regmap = devm_regmap_init_i2c(i2c_client, &cs42l51_regmap);
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		dev_err(&i2c_client->dev, "Failed to create regmap: %d\n",
+			ret);
+		return ret;
+	}
+
 	/* Verify that we have a CS42L51 */
-	ret = i2c_smbus_read_byte_data(i2c_client, CS42L51_CHIP_REV_ID);
+	ret = regmap_read(regmap, CS42L51_CHIP_REV_ID, &val);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "failed to read I2C\n");
 		goto error;
 	}
 
-	if ((ret != CS42L51_MK_CHIP_REV(CS42L51_CHIP_ID, CS42L51_CHIP_REV_A)) &&
-	    (ret != CS42L51_MK_CHIP_REV(CS42L51_CHIP_ID, CS42L51_CHIP_REV_B))) {
-		dev_err(&i2c_client->dev, "Invalid chip id\n");
+	if ((val != CS42L51_MK_CHIP_REV(CS42L51_CHIP_ID, CS42L51_CHIP_REV_A)) &&
+	    (val != CS42L51_MK_CHIP_REV(CS42L51_CHIP_ID, CS42L51_CHIP_REV_B))) {
+		dev_err(&i2c_client->dev, "Invalid chip id: %x\n", val);
 		ret = -ENODEV;
 		goto error;
 	}
 
 	dev_info(&i2c_client->dev, "found device cs42l51 rev %d\n",
-				ret & 7);
+		 val & 7);
 
 	cs42l51 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l51_private),
 			       GFP_KERNEL);
-	if (!cs42l51) {
-		dev_err(&i2c_client->dev, "could not allocate codec\n");
+	if (!cs42l51)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c_client, cs42l51);
-	cs42l51->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_device_cs42l51, &cs42l51_dai, 1);
@@ -600,10 +580,17 @@ static const struct i2c_device_id cs42l51_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cs42l51_id);
 
+static const struct of_device_id cs42l51_of_match[] = {
+	{ .compatible = "cirrus,cs42l51", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, cs42l51_of_match);
+
 static struct i2c_driver cs42l51_i2c_driver = {
 	.driver = {
 		.name = "cs42l51-codec",
 		.owner = THIS_MODULE,
+		.of_match_table = cs42l51_of_match,
 	},
 	.id_table = cs42l51_id,
 	.probe = cs42l51_i2c_probe,

@@ -1345,7 +1345,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 
 			if (!err) {
 				if (!data->stop || mrq->sbc) {
-					if (mrq->sbc)
+					if (mrq->sbc && data->stop)
 						data->stop->error = 0;
 					dw_mci_request_end(host, mrq);
 					goto unlock;
@@ -2607,7 +2607,7 @@ int dw_mci_probe(struct dw_mci *host)
 
 	tasklet_init(&host->tasklet, dw_mci_tasklet_func, (unsigned long)host);
 	host->card_workqueue = alloc_workqueue("dw-mci-card",
-			WQ_MEM_RECLAIM | WQ_NON_REENTRANT, 1);
+			WQ_MEM_RECLAIM, 1);
 	if (!host->card_workqueue) {
 		ret = -ENOMEM;
 		goto err_dmaunmap;

@@ -333,7 +333,7 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 
 /*
  * ispmmu_vmap - Wrapper for Virtual memory mapping of a scatter gather list
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @sglist: Pointer to source Scatter gather list to allocate.
  * @sglen: Number of elements of the scatter-gatter list.
  *
@@ -363,7 +363,7 @@ ispmmu_vmap(struct isp_device *isp, const struct scatterlist *sglist, int sglen)
 
 /*
  * ispmmu_vunmap - Unmap a device address from the ISP MMU
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  * @da: Device address generated from a ispmmu_vmap call.
  */
 static void ispmmu_vunmap(struct isp_device *isp, dma_addr_t da)
@@ -886,7 +886,11 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 	struct v4l2_ext_controls ctrls;
 	struct v4l2_ext_control ctrl;
 	unsigned int i;
-	int ret = 0;
+	int ret;
+
+	/* Memory-to-memory pipelines have no external subdev. */
+	if (pipe->input != NULL)
+		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(ents); i++) {
 		/* Is the entity part of the pipeline? */
@@ -905,7 +909,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 
 	if (!source) {
 		dev_warn(isp->dev, "can't find source, failing now\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	if (media_entity_type(source) != MEDIA_ENT_T_V4L2_SUBDEV)

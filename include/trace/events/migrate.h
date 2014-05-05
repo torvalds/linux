@@ -4,6 +4,8 @@
 #if !defined(_TRACE_MIGRATE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_MIGRATE_H
 
+#include <linux/tracepoint.h>
+
 #define MIGRATE_MODE						\
 	{MIGRATE_ASYNC,		"MIGRATE_ASYNC"},		\
 	{MIGRATE_SYNC_LIGHT,	"MIGRATE_SYNC_LIGHT"},		\

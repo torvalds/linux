@@ -1304,12 +1304,24 @@ static void qla4_83xx_process_init_seq(struct scsi_qla_host *ha)
 static int qla4_83xx_restart(struct scsi_qla_host *ha)
 {
 	int ret_val = QLA_SUCCESS;
+	uint32_t idc_ctrl;
 
 	qla4_83xx_process_stop_seq(ha);
 
-	/* Collect minidump*/
-	if (!test_and_clear_bit(AF_83XX_NO_FW_DUMP, &ha->flags))
+	/*
+	 * Collect minidump.
+	 * If IDC_CTRL BIT1 is set, clear it on going to INIT state and
+	 * don't collect minidump
+	 */
+	idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
+	if (idc_ctrl & GRACEFUL_RESET_BIT1) {
+		qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
+				 (idc_ctrl & ~GRACEFUL_RESET_BIT1));
+		ql4_printk(KERN_INFO, ha, "%s: Graceful RESET: Not collecting minidump\n",
+			   __func__);
+	} else {
 		qla4_8xxx_get_minidump(ha);
+	}
 
 	qla4_83xx_process_init_seq(ha);
 
@@ -1663,4 +1675,24 @@ void qla4_83xx_disable_pause(struct scsi_qla_host *ha)
 	qla4_83xx_dump_pause_control_regs(ha);
 	__qla4_83xx_disable_pause(ha);
 	ha->isp_ops->idc_unlock(ha);
+}
+
+/**
+ * qla4_83xx_is_detached - Check if we are marked invisible.
+ * @ha: Pointer to host adapter structure.
+ **/
+int qla4_83xx_is_detached(struct scsi_qla_host *ha)
+{
+	uint32_t drv_active;
+
+	drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
+
+	if (test_bit(AF_INIT_DONE, &ha->flags) &&
+	    !(drv_active & (1 << ha->func_num))) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: drv_active = 0x%X\n",
+				  __func__, drv_active));
+		return QLA_SUCCESS;
+	}
+
+	return QLA_ERROR;
 }

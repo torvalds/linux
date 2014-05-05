@@ -370,6 +370,7 @@ static void uart_clps711x_console_putchar(struct uart_port *port, int ch)
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
 	u32 sysflg = 0;
 
+	/* Wait for FIFO is not full */
 	do {
 		regmap_read(s->syscon, SYSFLG_OFFSET, &sysflg);
 	} while (sysflg & SYSFLG_UTXFF);

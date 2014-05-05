@@ -270,9 +270,14 @@ enum {
 
 struct mlx4_wqe_ctrl_seg {
 	__be32			owner_opcode;
-	__be16			vlan_tag;
-	u8			ins_vlan;
-	u8			fence_size;
+	union {
+		struct {
+			__be16			vlan_tag;
+			u8			ins_vlan;
+			u8			fence_size;
+		};
+		__be32			bf_qpn;
+	};
 	/*
 	 * High 24 bits are SRC remote buffer; low 8 bits are flags:
 	 * [7]   SO (strong ordering)

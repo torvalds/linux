@@ -91,8 +91,8 @@
 #ifndef _LUSTRE_IDL_H_
 #define _LUSTRE_IDL_H_
 
-#if !defined(LASSERT) && !defined(LPU64)
-#include <linux/libcfs/libcfs.h> /* for LASSERT, LPUX64, etc */
+#if !defined(LPU64)
+#include <linux/libcfs/libcfs.h> /* for LPUX64, etc */
 #endif
 
 /* Defn's shared with user-space. */
@@ -232,7 +232,6 @@ static inline unsigned fld_range_is_any(const struct lu_seq_range *range)
 static inline void fld_range_set_type(struct lu_seq_range *range,
 				      unsigned flags)
 {
-	LASSERT(!(flags & ~LU_SEQ_RANGE_MASK));
 	range->lsr_flags |= flags;
 }
 
@@ -351,7 +350,7 @@ struct som_attrs {
 	/** Bitfield for supported data in this structure. For future use. */
 	__u32	som_compat;
 
-	/** Incompat feature list. The supported feature mask is availabe in
+	/** Incompat feature list. The supported feature mask is available in
 	 * SOM_INCOMPAT_SUPP */
 	__u32	som_incompat;
 
@@ -615,7 +614,6 @@ static inline obd_id fid_idif_id(obd_seq seq, __u32 oid, __u32 ver)
 /* extract ost index from IDIF FID */
 static inline __u32 fid_idif_ost_idx(const struct lu_fid *fid)
 {
-	LASSERT(fid_is_idif(fid));
 	return (fid_seq(fid) >> 16) & 0xffff;
 }
 
@@ -833,11 +831,6 @@ static inline void lu_igif_build(struct lu_fid *fid, __u32 ino, __u32 gen)
  */
 static inline void fid_cpu_to_le(struct lu_fid *dst, const struct lu_fid *src)
 {
-	/* check that all fields are converted */
-	CLASSERT(sizeof(*src) ==
-		 sizeof(fid_seq(src)) +
-		 sizeof(fid_oid(src)) +
-		 sizeof(fid_ver(src)));
 	dst->f_seq = cpu_to_le64(fid_seq(src));
 	dst->f_oid = cpu_to_le32(fid_oid(src));
 	dst->f_ver = cpu_to_le32(fid_ver(src));
@@ -845,11 +838,6 @@ static inline void fid_cpu_to_le(struct lu_fid *dst, const struct lu_fid *src)
 
 static inline void fid_le_to_cpu(struct lu_fid *dst, const struct lu_fid *src)
 {
-	/* check that all fields are converted */
-	CLASSERT(sizeof(*src) ==
-		 sizeof(fid_seq(src)) +
-		 sizeof(fid_oid(src)) +
-		 sizeof(fid_ver(src)));
 	dst->f_seq = le64_to_cpu(fid_seq(src));
 	dst->f_oid = le32_to_cpu(fid_oid(src));
 	dst->f_ver = le32_to_cpu(fid_ver(src));
@@ -857,11 +845,6 @@ static inline void fid_le_to_cpu(struct lu_fid *dst, const struct lu_fid *src)
 
 static inline void fid_cpu_to_be(struct lu_fid *dst, const struct lu_fid *src)
 {
-	/* check that all fields are converted */
-	CLASSERT(sizeof(*src) ==
-		 sizeof(fid_seq(src)) +
-		 sizeof(fid_oid(src)) +
-		 sizeof(fid_ver(src)));
 	dst->f_seq = cpu_to_be64(fid_seq(src));
 	dst->f_oid = cpu_to_be32(fid_oid(src));
 	dst->f_ver = cpu_to_be32(fid_ver(src));
@@ -869,11 +852,6 @@ static inline void fid_cpu_to_be(struct lu_fid *dst, const struct lu_fid *src)
 
 static inline void fid_be_to_cpu(struct lu_fid *dst, const struct lu_fid *src)
 {
-	/* check that all fields are converted */
-	CLASSERT(sizeof(*src) ==
-		 sizeof(fid_seq(src)) +
-		 sizeof(fid_oid(src)) +
-		 sizeof(fid_ver(src)));
 	dst->f_seq = be64_to_cpu(fid_seq(src));
 	dst->f_oid = be32_to_cpu(fid_oid(src));
 	dst->f_ver = be32_to_cpu(fid_ver(src));
@@ -897,11 +875,6 @@ extern void lustre_swab_lu_seq_range(struct lu_seq_range *range);
 
 static inline int lu_fid_eq(const struct lu_fid *f0, const struct lu_fid *f1)
 {
-	/* Check that there is no alignment padding. */
-	CLASSERT(sizeof(*f0) ==
-		 sizeof(f0->f_seq) +
-		 sizeof(f0->f_oid) +
-		 sizeof(f0->f_ver));
 	return memcmp(f0, f1, sizeof(*f0)) == 0;
 }
 
@@ -960,7 +933,7 @@ enum lu_dirent_attrs {
 	LUDA_TYPE		= 0x0002,
 	LUDA_64BITHASH		= 0x0004,
 
-	/* The following attrs are used for MDT interanl only,
+	/* The following attrs are used for MDT internal only,
 	 * not visible to client */
 
 	/* Verify the dirent consistency */
@@ -1331,6 +1304,9 @@ extern void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 #define OBD_CONNECT_LIGHTWEIGHT 0x1000000000000ULL/* lightweight connection */
 #define OBD_CONNECT_SHORTIO     0x2000000000000ULL/* short io */
 #define OBD_CONNECT_PINGLESS	0x4000000000000ULL/* pings not required */
+#define OBD_CONNECT_FLOCK_DEAD	0x8000000000000ULL/* flock deadlock detection */
+#define OBD_CONNECT_DISP_STRIPE 0x10000000000000ULL/*create stripe disposition*/
+
 /* XXX README XXX:
  * Please DO NOT add flag values here before first ensuring that this same
  * flag value is not in use on some other branch.  Please clear any such
@@ -1368,7 +1344,10 @@ extern void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 				OBD_CONNECT_EINPROGRESS | \
 				OBD_CONNECT_LIGHTWEIGHT | OBD_CONNECT_UMASK | \
 				OBD_CONNECT_LVB_TYPE | OBD_CONNECT_LAYOUTLOCK |\
-				OBD_CONNECT_PINGLESS | OBD_CONNECT_MAX_EASIZE)
+				OBD_CONNECT_PINGLESS | OBD_CONNECT_MAX_EASIZE |\
+				OBD_CONNECT_FLOCK_DEAD | \
+				OBD_CONNECT_DISP_STRIPE)
+
 #define OST_CONNECT_SUPPORTED  (OBD_CONNECT_SRVLOCK | OBD_CONNECT_GRANT | \
 				OBD_CONNECT_REQPORTAL | OBD_CONNECT_VERSION | \
 				OBD_CONNECT_TRUNCLOCK | OBD_CONNECT_INDEX | \
@@ -1771,7 +1750,6 @@ static inline __u32 lov_mds_md_size(__u16 stripes, __u32 lmm_magic)
 			  OBD_MD_FLGID   | OBD_MD_FLFLAGS | OBD_MD_FLNLINK | \
 			  OBD_MD_FLGENER | OBD_MD_FLRDEV  | OBD_MD_FLGROUP)
 
-#define OBD_MD_FLXATTRLOCKED OBD_MD_FLGETATTRLOCK
 #define OBD_MD_FLXATTRALL (OBD_MD_FLXATTR | OBD_MD_FLXATTRLS)
 
 /* don't forget obdo_fid which is way down at the bottom so it can
@@ -2134,19 +2112,32 @@ extern void lustre_swab_generic_32s (__u32 *val);
 #define DISP_LOOKUP_POS      0x00000008
 #define DISP_OPEN_CREATE     0x00000010
 #define DISP_OPEN_OPEN       0x00000020
-#define DISP_ENQ_COMPLETE    0x00400000
+#define DISP_ENQ_COMPLETE    0x00400000		/* obsolete and unused */
 #define DISP_ENQ_OPEN_REF    0x00800000
 #define DISP_ENQ_CREATE_REF  0x01000000
 #define DISP_OPEN_LOCK       0x02000000
 #define DISP_OPEN_LEASE      0x04000000
+#define DISP_OPEN_STRIPE     0x08000000
 
 /* INODE LOCK PARTS */
-#define MDS_INODELOCK_LOOKUP 0x000001       /* dentry, mode, owner, group */
-#define MDS_INODELOCK_UPDATE 0x000002       /* size, links, timestamps */
-#define MDS_INODELOCK_OPEN   0x000004       /* For opened files */
-#define MDS_INODELOCK_LAYOUT 0x000008       /* for layout */
-#define MDS_INODELOCK_PERM   0x000010       /* for permission */
-#define MDS_INODELOCK_XATTR  0x000020       /* extended attributes */
+#define MDS_INODELOCK_LOOKUP 0x000001	/* For namespace, dentry etc, and also
+					 * was used to protect permission (mode,
+					 * owner, group etc) before 2.4. */
+#define MDS_INODELOCK_UPDATE 0x000002	/* size, links, timestamps */
+#define MDS_INODELOCK_OPEN   0x000004	/* For opened files */
+#define MDS_INODELOCK_LAYOUT 0x000008	/* for layout */
+
+/* The PERM bit is added int 2.4, and it is used to protect permission(mode,
+ * owner, group, acl etc), so to separate the permission from LOOKUP lock.
+ * Because for remote directories(in DNE), these locks will be granted by
+ * different MDTs(different ldlm namespace).
+ *
+ * For local directory, MDT will always grant UPDATE_LOCK|PERM_LOCK together.
+ * For Remote directory, the master MDT, where the remote directory is, will
+ * grant UPDATE_LOCK|PERM_LOCK, and the remote MDT, where the name entry is,
+ * will grant LOOKUP_LOCK. */
+#define MDS_INODELOCK_PERM   0x000010
+#define MDS_INODELOCK_XATTR  0x000020	/* extended attributes */
 
 #define MDS_INODELOCK_MAXSHIFT 5
 /* This FULL lock is useful to take on unlink sort of operations */
@@ -2595,7 +2586,7 @@ struct mdt_rec_setxattr {
  * Do NOT change the size of various members, otherwise the value
  * will be broken in lustre_swab_mdt_rec_reint().
  *
- * If you add new members in other mdt_reint_xxx structres and need to use the
+ * If you add new members in other mdt_reint_xxx structures and need to use the
  * rr_padding_x fields, then update lustre_swab_mdt_rec_reint() also.
  */
 struct mdt_rec_reint {
@@ -3328,9 +3319,10 @@ struct obdo {
 #define o_grant_used o_data_version
 
 static inline void lustre_set_wire_obdo(struct obd_connect_data *ocd,
-					struct obdo *wobdo, struct obdo *lobdo)
+					struct obdo *wobdo,
+					const struct obdo *lobdo)
 {
-	memcpy(wobdo, lobdo, sizeof(*lobdo));
+	*wobdo = *lobdo;
 	wobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
 	if (ocd == NULL)
 		return;
@@ -3345,16 +3337,15 @@ static inline void lustre_set_wire_obdo(struct obd_connect_data *ocd,
 }
 
 static inline void lustre_get_wire_obdo(struct obd_connect_data *ocd,
-					struct obdo *lobdo, struct obdo *wobdo)
+					struct obdo *lobdo,
+					const struct obdo *wobdo)
 {
 	obd_flag local_flags = 0;
 
 	if (lobdo->o_valid & OBD_MD_FLFLAGS)
 		 local_flags = lobdo->o_flags & OBD_FL_LOCAL_MASK;
 
-	LASSERT(!(wobdo->o_flags & OBD_FL_LOCAL_MASK));
-
-	memcpy(lobdo, wobdo, sizeof(*lobdo));
+	*lobdo = *wobdo;
 	if (local_flags != 0) {
 		lobdo->o_valid |= OBD_MD_FLFLAGS;
 		lobdo->o_flags &= ~OBD_FL_LOCAL_MASK;

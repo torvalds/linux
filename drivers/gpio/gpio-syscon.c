@@ -1,0 +1,191 @@
+/*
+ *  SYSCON GPIO driver
+ *
+ *  Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+#include <linux/err.h>
+#include <linux/gpio.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
+
+#define GPIO_SYSCON_FEAT_IN	BIT(0)
+#define GPIO_SYSCON_FEAT_OUT	BIT(1)
+#define GPIO_SYSCON_FEAT_DIR	BIT(2)
+
+/* SYSCON driver is designed to use 32-bit wide registers */
+#define SYSCON_REG_SIZE		(4)
+#define SYSCON_REG_BITS		(SYSCON_REG_SIZE * 8)
+
+/**
+ * struct syscon_gpio_data - Configuration for the device.
+ * compatible:		SYSCON driver compatible string.
+ * flags:		Set of GPIO_SYSCON_FEAT_ flags:
+ *			GPIO_SYSCON_FEAT_IN:	GPIOs supports input,
+ *			GPIO_SYSCON_FEAT_OUT:	GPIOs supports output,
+ *			GPIO_SYSCON_FEAT_DIR:	GPIOs supports switch direction.
+ * bit_count:		Number of bits used as GPIOs.
+ * dat_bit_offset:	Offset (in bits) to the first GPIO bit.
+ * dir_bit_offset:	Optional offset (in bits) to the first bit to switch
+ *			GPIO direction (Used with GPIO_SYSCON_FEAT_DIR flag).
+ */
+
+struct syscon_gpio_data {
+	const char	*compatible;
+	unsigned int	flags;
+	unsigned int	bit_count;
+	unsigned int	dat_bit_offset;
+	unsigned int	dir_bit_offset;
+};
+
+struct syscon_gpio_priv {
+	struct gpio_chip		chip;
+	struct regmap			*syscon;
+	const struct syscon_gpio_data	*data;
+};
+
+static inline struct syscon_gpio_priv *to_syscon_gpio(struct gpio_chip *chip)
+{
+	return container_of(chip, struct syscon_gpio_priv, chip);
+}
+
+static int syscon_gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+	unsigned int val, offs = priv->data->dat_bit_offset + offset;
+	int ret;
+
+	ret = regmap_read(priv->syscon,
+			  (offs / SYSCON_REG_BITS) * SYSCON_REG_SIZE, &val);
+	if (ret)
+		return ret;
+
+	return !!(val & BIT(offs % SYSCON_REG_BITS));
+}
+
+static void syscon_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
+{
+	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+	unsigned int offs = priv->data->dat_bit_offset + offset;
+
+	regmap_update_bits(priv->syscon,
+			   (offs / SYSCON_REG_BITS) * SYSCON_REG_SIZE,
+			   BIT(offs % SYSCON_REG_BITS),
+			   val ? BIT(offs % SYSCON_REG_BITS) : 0);
+}
+
+static int syscon_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
+{
+	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+
+	if (priv->data->flags & GPIO_SYSCON_FEAT_DIR) {
+		unsigned int offs = priv->data->dir_bit_offset + offset;
+
+		regmap_update_bits(priv->syscon,
+				   (offs / SYSCON_REG_BITS) * SYSCON_REG_SIZE,
+				   BIT(offs % SYSCON_REG_BITS), 0);
+	}
+
+	return 0;
+}
+
+static int syscon_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int val)
+{
+	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+
+	if (priv->data->flags & GPIO_SYSCON_FEAT_DIR) {
+		unsigned int offs = priv->data->dir_bit_offset + offset;
+
+		regmap_update_bits(priv->syscon,
+				   (offs / SYSCON_REG_BITS) * SYSCON_REG_SIZE,
+				   BIT(offs % SYSCON_REG_BITS),
+				   BIT(offs % SYSCON_REG_BITS));
+	}
+
+	syscon_gpio_set(chip, offset, val);
+
+	return 0;
+}
+
+static const struct syscon_gpio_data clps711x_mctrl_gpio = {
+	/* ARM CLPS711X SYSFLG1 Bits 8-10 */
+	.compatible	= "cirrus,clps711x-syscon1",
+	.flags		= GPIO_SYSCON_FEAT_IN,
+	.bit_count	= 3,
+	.dat_bit_offset	= 0x40 * 8 + 8,
+};
+
+static const struct of_device_id syscon_gpio_ids[] = {
+	{
+		.compatible	= "cirrus,clps711x-mctrl-gpio",
+		.data		= &clps711x_mctrl_gpio,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, syscon_gpio_ids);
+
+static int syscon_gpio_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	const struct of_device_id *of_id = of_match_device(syscon_gpio_ids, dev);
+	struct syscon_gpio_priv *priv;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->data = of_id->data;
+
+	priv->syscon =
+		syscon_regmap_lookup_by_compatible(priv->data->compatible);
+	if (IS_ERR(priv->syscon))
+		return PTR_ERR(priv->syscon);
+
+	priv->chip.dev = dev;
+	priv->chip.owner = THIS_MODULE;
+	priv->chip.label = dev_name(dev);
+	priv->chip.base = -1;
+	priv->chip.ngpio = priv->data->bit_count;
+	priv->chip.get = syscon_gpio_get;
+	if (priv->data->flags & GPIO_SYSCON_FEAT_IN)
+		priv->chip.direction_input = syscon_gpio_dir_in;
+	if (priv->data->flags & GPIO_SYSCON_FEAT_OUT) {
+		priv->chip.set = syscon_gpio_set;
+		priv->chip.direction_output = syscon_gpio_dir_out;
+	}
+
+	platform_set_drvdata(pdev, priv);
+
+	return gpiochip_add(&priv->chip);
+}
+
+static int syscon_gpio_remove(struct platform_device *pdev)
+{
+	struct syscon_gpio_priv *priv = platform_get_drvdata(pdev);
+
+	return gpiochip_remove(&priv->chip);
+}
+
+static struct platform_driver syscon_gpio_driver = {
+	.driver	= {
+		.name		= "gpio-syscon",
+		.owner		= THIS_MODULE,
+		.of_match_table	= syscon_gpio_ids,
+	},
+	.probe	= syscon_gpio_probe,
+	.remove	= syscon_gpio_remove,
+};
+module_platform_driver(syscon_gpio_driver);
+
+MODULE_AUTHOR("Alexander Shiyan <shc_work@mail.ru>");
+MODULE_DESCRIPTION("SYSCON GPIO driver");
+MODULE_LICENSE("GPL");

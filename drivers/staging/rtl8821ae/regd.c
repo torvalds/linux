@@ -243,7 +243,7 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	}
 
 	/*
-	 *If a country IE has been recieved check its rule for this
+	 *If a country IE has been received check its rule for this
 	 *channel first before enabling active scan. The passive scan
 	 *would have been enforced by the initial processing of our
 	 *custom regulatory domain.
@@ -455,7 +455,7 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 
 	if (rtlpriv->regd.country_code >= COUNTRY_CODE_MAX) {
 		RT_TRACE(COMP_REGD, DBG_DMESG,
-			 (KERN_DEBUG "rtl: EEPROM indicates invalid contry code"
+			 (KERN_DEBUG "rtl: EEPROM indicates invalid country code"
 			  "world wide 13 should be used\n"));
 
 		rtlpriv->regd.country_code = COUNTRY_CODE_WORLD_WIDE_13;

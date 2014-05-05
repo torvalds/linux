@@ -1145,7 +1145,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 
 	char *cmdbuffer = kmalloc(1600, GFP_KERNEL);
 	if (!cmdbuffer)
-		return -1;
+		return -ENOMEM;
 
 	status = ft1000_read_dpram32(dev, 0x200, cmdbuffer, size);
 

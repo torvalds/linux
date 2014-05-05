@@ -50,7 +50,7 @@
 
 union gic_base {
 	void __iomem *common_base;
-	void __percpu __iomem **percpu_base;
+	void __percpu * __iomem *percpu_base;
 };
 
 struct gic_chip_data {
@@ -279,7 +279,7 @@ static int gic_set_wake(struct irq_data *d, unsigned int on)
 #define gic_set_wake	NULL
 #endif
 
-static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 {
 	u32 irqstat, irqnr;
 	struct gic_chip_data *gic = &gic_data[0];
@@ -648,7 +648,7 @@ static void __init gic_pm_init(struct gic_chip_data *gic)
 #endif
 
 #ifdef CONFIG_SMP
-void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
+static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 {
 	int cpu;
 	unsigned long flags, map = 0;
@@ -661,9 +661,9 @@ void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 
 	/*
 	 * Ensure that stores to Normal memory are visible to the
-	 * other CPUs before issuing the IPI.
+	 * other CPUs before they observe us issuing the IPI.
 	 */
-	dsb();
+	dmb(ishst);
 
 	/* this always happens on GIC0 */
 	writel_relaxed(map << 16 | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
@@ -824,9 +824,16 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 		irq_set_chip_and_handler(irq, &gic_chip,
 					 handle_fasteoi_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+
+		gic_routable_irq_domain_ops->map(d, irq, hw);
 	}
 	irq_set_chip_data(irq, d->host_data);
 	return 0;
+}
+
+static void gic_irq_domain_unmap(struct irq_domain *d, unsigned int irq)
+{
+	gic_routable_irq_domain_ops->unmap(d, irq);
 }
 
 static int gic_irq_domain_xlate(struct irq_domain *d,
@@ -834,6 +841,8 @@ static int gic_irq_domain_xlate(struct irq_domain *d,
 				const u32 *intspec, unsigned int intsize,
 				unsigned long *out_hwirq, unsigned int *out_type)
 {
+	unsigned long ret = 0;
+
 	if (d->of_node != controller)
 		return -EINVAL;
 	if (intsize < 3)
@@ -843,11 +852,20 @@ static int gic_irq_domain_xlate(struct irq_domain *d,
 	*out_hwirq = intspec[1] + 16;
 
 	/* For SPIs, we need to add 16 more to get the GIC irq ID number */
-	if (!intspec[0])
-		*out_hwirq += 16;
+	if (!intspec[0]) {
+		ret = gic_routable_irq_domain_ops->xlate(d, controller,
+							 intspec,
+							 intsize,
+							 out_hwirq,
+							 out_type);
+
+		if (IS_ERR_VALUE(ret))
+			return ret;
+	}
 
 	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
-	return 0;
+
+	return ret;
 }
 
 #ifdef CONFIG_SMP
@@ -869,10 +887,42 @@ static struct notifier_block gic_cpu_notifier = {
 };
 #endif
 
-const struct irq_domain_ops gic_irq_domain_ops = {
+static const struct irq_domain_ops gic_irq_domain_ops = {
 	.map = gic_irq_domain_map,
+	.unmap = gic_irq_domain_unmap,
 	.xlate = gic_irq_domain_xlate,
 };
+
+/* Default functions for routable irq domain */
+static int gic_routable_irq_domain_map(struct irq_domain *d, unsigned int irq,
+			      irq_hw_number_t hw)
+{
+	return 0;
+}
+
+static void gic_routable_irq_domain_unmap(struct irq_domain *d,
+					  unsigned int irq)
+{
+}
+
+static int gic_routable_irq_domain_xlate(struct irq_domain *d,
+				struct device_node *controller,
+				const u32 *intspec, unsigned int intsize,
+				unsigned long *out_hwirq,
+				unsigned int *out_type)
+{
+	*out_hwirq += 16;
+	return 0;
+}
+
+const struct irq_domain_ops gic_default_routable_irq_domain_ops = {
+	.map = gic_routable_irq_domain_map,
+	.unmap = gic_routable_irq_domain_unmap,
+	.xlate = gic_routable_irq_domain_xlate,
+};
+
+const struct irq_domain_ops *gic_routable_irq_domain_ops =
+					&gic_default_routable_irq_domain_ops;
 
 void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 			   void __iomem *dist_base, void __iomem *cpu_base,
@@ -881,6 +931,7 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 	irq_hw_number_t hwirq_base;
 	struct gic_chip_data *gic;
 	int gic_irqs, irq_base, i;
+	int nr_routable_irqs;
 
 	BUG_ON(gic_nr >= MAX_GIC_NR);
 
@@ -946,14 +997,25 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 	gic->gic_irqs = gic_irqs;
 
 	gic_irqs -= hwirq_base; /* calculate # of irqs to allocate */
-	irq_base = irq_alloc_descs(irq_start, 16, gic_irqs, numa_node_id());
-	if (IS_ERR_VALUE(irq_base)) {
-		WARN(1, "Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
-		     irq_start);
-		irq_base = irq_start;
+
+	if (of_property_read_u32(node, "arm,routable-irqs",
+				 &nr_routable_irqs)) {
+		irq_base = irq_alloc_descs(irq_start, 16, gic_irqs,
+					   numa_node_id());
+		if (IS_ERR_VALUE(irq_base)) {
+			WARN(1, "Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
+			     irq_start);
+			irq_base = irq_start;
+		}
+
+		gic->domain = irq_domain_add_legacy(node, gic_irqs, irq_base,
+					hwirq_base, &gic_irq_domain_ops, gic);
+	} else {
+		gic->domain = irq_domain_add_linear(node, nr_routable_irqs,
+						    &gic_irq_domain_ops,
+						    gic);
 	}
-	gic->domain = irq_domain_add_legacy(node, gic_irqs, irq_base,
-				    hwirq_base, &gic_irq_domain_ops, gic);
+
 	if (WARN_ON(!gic->domain))
 		return;
 
@@ -974,7 +1036,8 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 #ifdef CONFIG_OF
 static int gic_cnt __initdata;
 
-int __init gic_of_init(struct device_node *node, struct device_node *parent)
+static int __init
+gic_of_init(struct device_node *node, struct device_node *parent)
 {
 	void __iomem *cpu_base;
 	void __iomem *dist_base;

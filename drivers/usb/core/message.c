@@ -178,7 +178,7 @@ EXPORT_SYMBOL_GPL(usb_control_msg);
  *
  * Return:
  * If successful, 0. Otherwise a negative error number. The number of actual
- * bytes transferred will be stored in the @actual_length paramater.
+ * bytes transferred will be stored in the @actual_length parameter.
  */
 int usb_interrupt_msg(struct usb_device *usb_dev, unsigned int pipe,
 		      void *data, int len, int *actual_length, int timeout)
@@ -1293,8 +1293,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	struct usb_interface *iface;
 	struct usb_host_interface *alt;
 	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
-	int ret;
-	int manual = 0;
+	int i, ret, manual = 0;
 	unsigned int epaddr;
 	unsigned int pipe;
 
@@ -1329,6 +1328,10 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 		mutex_unlock(hcd->bandwidth_mutex);
 		return -ENOMEM;
 	}
+	/* Changing alt-setting also frees any allocated streams */
+	for (i = 0; i < iface->cur_altsetting->desc.bNumEndpoints; i++)
+		iface->cur_altsetting->endpoint[i].streams = 0;
+
 	ret = usb_hcd_alloc_bandwidth(dev, NULL, iface->cur_altsetting, alt);
 	if (ret < 0) {
 		dev_info(&dev->dev, "Not enough bandwidth for altsetting %d\n",
@@ -1920,6 +1923,7 @@ free_interfaces:
 	usb_autosuspend_device(dev);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_set_configuration);
 
 static LIST_HEAD(set_config_list);
 static DEFINE_SPINLOCK(set_config_lock);

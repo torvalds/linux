@@ -135,7 +135,6 @@ static void update_dl_migration(struct dl_rq *dl_rq)
 static void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
 	struct task_struct *p = dl_task_of(dl_se);
-	dl_rq = &rq_of_dl_rq(dl_rq)->dl;
 
 	if (p->nr_cpus_allowed > 1)
 		dl_rq->dl_nr_migratory++;
@@ -146,7 +145,6 @@ static void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 static void dec_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
 	struct task_struct *p = dl_task_of(dl_se);
-	dl_rq = &rq_of_dl_rq(dl_rq)->dl;
 
 	if (p->nr_cpus_allowed > 1)
 		dl_rq->dl_nr_migratory--;
@@ -212,6 +210,16 @@ static inline int has_pushable_dl_tasks(struct rq *rq)
 
 static int push_dl_task(struct rq *rq);
 
+static inline bool need_pull_dl_task(struct rq *rq, struct task_struct *prev)
+{
+	return dl_task(prev);
+}
+
+static inline void set_post_schedule(struct rq *rq)
+{
+	rq->post_schedule = has_pushable_dl_tasks(rq);
+}
+
 #else
 
 static inline
@@ -234,6 +242,19 @@ void dec_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
 }
 
+static inline bool need_pull_dl_task(struct rq *rq, struct task_struct *prev)
+{
+	return false;
+}
+
+static inline int pull_dl_task(struct rq *rq)
+{
+	return 0;
+}
+
+static inline void set_post_schedule(struct rq *rq)
+{
+}
 #endif /* CONFIG_SMP */
 
 static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags);
@@ -564,6 +585,8 @@ int dl_runtime_exceeded(struct rq *rq, struct sched_dl_entity *dl_se)
 	return 1;
 }
 
+extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
+
 /*
  * Update the current task's runtime statistics (provided it is still
  * a -deadline task and has not been removed from the dl_rq).
@@ -586,8 +609,8 @@ static void update_curr_dl(struct rq *rq)
 	 * approach need further study.
 	 */
 	delta_exec = rq_clock_task(rq) - curr->se.exec_start;
-	if (unlikely((s64)delta_exec < 0))
-		delta_exec = 0;
+	if (unlikely((s64)delta_exec <= 0))
+		return;
 
 	schedstat_set(curr->se.statistics.exec_max,
 		      max(curr->se.statistics.exec_max, delta_exec));
@@ -627,11 +650,13 @@ static void update_curr_dl(struct rq *rq)
 		struct rt_rq *rt_rq = &rq->rt;
 
 		raw_spin_lock(&rt_rq->rt_runtime_lock);
-		rt_rq->rt_time += delta_exec;
 		/*
 		 * We'll let actual RT tasks worry about the overflow here, we
-		 * have our own CBS to keep us inline -- see above.
+		 * have our own CBS to keep us inline; only account when RT
+		 * bandwidth is relevant.
 		 */
+		if (sched_rt_bandwidth_account(rt_rq))
+			rt_rq->rt_time += delta_exec;
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 	}
 }
@@ -940,6 +965,8 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
 	resched_task(rq->curr);
 }
 
+static int pull_dl_task(struct rq *this_rq);
+
 #endif /* CONFIG_SMP */
 
 /*
@@ -986,7 +1013,7 @@ static struct sched_dl_entity *pick_next_dl_entity(struct rq *rq,
 	return rb_entry(left, struct sched_dl_entity, rb_node);
 }
 
-struct task_struct *pick_next_task_dl(struct rq *rq)
+struct task_struct *pick_next_task_dl(struct rq *rq, struct task_struct *prev)
 {
 	struct sched_dl_entity *dl_se;
 	struct task_struct *p;
@@ -994,8 +1021,28 @@ struct task_struct *pick_next_task_dl(struct rq *rq)
 
 	dl_rq = &rq->dl;
 
+	if (need_pull_dl_task(rq, prev)) {
+		pull_dl_task(rq);
+		/*
+		 * pull_rt_task() can drop (and re-acquire) rq->lock; this
+		 * means a stop task can slip in, in which case we need to
+		 * re-start task selection.
+		 */
+		if (rq->stop && rq->stop->on_rq)
+			return RETRY_TASK;
+	}
+
+	/*
+	 * When prev is DL, we may throttle it in put_prev_task().
+	 * So, we update time before we check for dl_nr_running.
+	 */
+	if (prev->sched_class == &dl_sched_class)
+		update_curr_dl(rq);
+
 	if (unlikely(!dl_rq->dl_nr_running))
 		return NULL;
+
+	put_prev_task(rq, prev);
 
 	dl_se = pick_next_dl_entity(rq, dl_rq);
 	BUG_ON(!dl_se);
@@ -1011,9 +1058,7 @@ struct task_struct *pick_next_task_dl(struct rq *rq)
 		start_hrtick_dl(rq, p);
 #endif
 
-#ifdef CONFIG_SMP
-	rq->post_schedule = has_pushable_dl_tasks(rq);
-#endif /* CONFIG_SMP */
+	set_post_schedule(rq);
 
 	return p;
 }
@@ -1422,13 +1467,6 @@ skip:
 	return ret;
 }
 
-static void pre_schedule_dl(struct rq *rq, struct task_struct *prev)
-{
-	/* Try to pull other tasks here */
-	if (dl_task(prev))
-		pull_dl_task(rq);
-}
-
 static void post_schedule_dl(struct rq *rq)
 {
 	push_dl_tasks(rq);
@@ -1556,7 +1594,7 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 	if (unlikely(p->dl.dl_throttled))
 		return;
 
-	if (p->on_rq || rq->curr != p) {
+	if (p->on_rq && rq->curr != p) {
 #ifdef CONFIG_SMP
 		if (rq->dl.overloaded && push_dl_task(rq) && rq != task_rq(p))
 			/* Only reschedule if pushing failed */
@@ -1621,7 +1659,6 @@ const struct sched_class dl_sched_class = {
 	.set_cpus_allowed       = set_cpus_allowed_dl,
 	.rq_online              = rq_online_dl,
 	.rq_offline             = rq_offline_dl,
-	.pre_schedule		= pre_schedule_dl,
 	.post_schedule		= post_schedule_dl,
 	.task_woken		= task_woken_dl,
 #endif

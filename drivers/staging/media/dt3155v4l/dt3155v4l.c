@@ -31,7 +31,6 @@
 
 #include "dt3155v4l.h"
 
-#define DT3155_VENDOR_ID 0x8086
 #define DT3155_DEVICE_ID 0x1223
 
 /* DT3155_CHUNK_SIZE is 4M (2^22) 8 full size buffers */
@@ -299,7 +298,7 @@ dt3155_buf_queue(struct vb2_buffer *vb)
  *	end driver-specific callbacks
  */
 
-const struct vb2_ops q_ops = {
+static const struct vb2_ops q_ops = {
 	.queue_setup = dt3155_queue_setup,
 	.wait_prepare = dt3155_wait_prepare,
 	.wait_finish = dt3155_wait_finish,
@@ -391,7 +390,7 @@ dt3155_open(struct file *filp)
 			goto err_alloc_queue;
 		}
 		pd->q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		pd->q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		pd->q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		pd->q->io_modes = VB2_READ | VB2_MMAP;
 		pd->q->ops = &q_ops;
 		pd->q->mem_ops = &vb2_dma_contig_memops;
@@ -975,7 +974,7 @@ dt3155_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id pci_ids[] = {
-	{ PCI_DEVICE(DT3155_VENDOR_ID, DT3155_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, DT3155_DEVICE_ID) },
 	{ 0, /* zero marks the end */ },
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);
