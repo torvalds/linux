@@ -14,6 +14,10 @@ struct vdso_image {
 
 	unsigned long alt, alt_len;
 
+	unsigned long sym_end_mapping;  /* Total size of the mapping */
+
+	unsigned long sym_vvar_page;
+	unsigned long sym_hpet_page;
 	unsigned long sym_VDSO32_NOTE_MASK;
 	unsigned long sym___kernel_sigreturn;
 	unsigned long sym___kernel_rt_sigreturn;

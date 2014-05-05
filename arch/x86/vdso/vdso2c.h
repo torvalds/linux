@@ -87,6 +87,23 @@ static int GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 		}
 	}
 
+	/* Validate mapping addresses. */
+	for (i = 0; i < sizeof(special_pages) / sizeof(special_pages[0]); i++) {
+		if (!syms[i])
+			continue;  /* The mapping isn't used; ignore it. */
+
+		if (syms[i] % 4096)
+			fail("%s must be a multiple of 4096\n",
+			     required_syms[i]);
+		if (syms[i] < data_size)
+			fail("%s must be after the text mapping\n",
+			     required_syms[i]);
+		if (syms[sym_end_mapping] < syms[i] + 4096)
+			fail("%s overruns end_mapping\n", required_syms[i]);
+	}
+	if (syms[sym_end_mapping] % 4096)
+		fail("end_mapping must be a multiple of 4096\n");
+
 	/* Remove sections. */
 	hdr->e_shoff = 0;
 	hdr->e_shentsize = 0;

@@ -15,7 +15,21 @@
 #include <linux/types.h>
 
 /* Symbols that we need in vdso2c. */
+enum {
+	sym_vvar_page,
+	sym_hpet_page,
+	sym_end_mapping,
+};
+
+const int special_pages[] = {
+	sym_vvar_page,
+	sym_hpet_page,
+};
+
 char const * const required_syms[] = {
+	[sym_vvar_page] = "vvar_page",
+	[sym_hpet_page] = "hpet_page",
+	[sym_end_mapping] = "end_mapping",
 	"VDSO32_NOTE_MASK",
 	"VDSO32_SYSENTER_RETURN",
 	"__kernel_vsyscall",
