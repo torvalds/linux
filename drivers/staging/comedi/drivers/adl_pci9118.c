@@ -364,10 +364,6 @@ struct pci9118_private {
 	unsigned int dmabuf_panic_size[2];
 	unsigned int dmabuf_samples[2];		/* size in samples */
 	int dmabuf_pages[2];			/* number of pages in buffer */
-	unsigned char cnt0_users;		/*
-						 * bit field of 8254 CNT0 users
-						 * (0-unused, 1-AO, 2-DI, 3-DO)
-						 */
 	unsigned char exttrg_users;		/*
 						 * bit field of external trigger
 						 * users(0-AI, 1-AO, 2-DI, 3-DO)
@@ -1857,7 +1853,6 @@ static int pci9118_reset(struct comedi_device *dev)
 						 * disable INT and DMA
 						 */
 
-	devpriv->cnt0_users = 0;
 	devpriv->exttrg_users = 0;
 
 	return 0;
