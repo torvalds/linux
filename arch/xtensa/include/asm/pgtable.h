@@ -310,6 +310,10 @@ set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pteval)
 	update_pte(ptep, pteval);
 }
 
+static inline void set_pte(pte_t *ptep, pte_t pteval)
+{
+	update_pte(ptep, pteval);
+}
 
 static inline void
 set_pmd(pmd_t *pmdp, pmd_t pmdval)

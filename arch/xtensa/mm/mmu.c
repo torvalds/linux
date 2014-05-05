@@ -3,6 +3,7 @@
  *
  * Extracted from init.c
  */
+#include <linux/bootmem.h>
 #include <linux/percpu.h>
 #include <linux/init.h>
 #include <linux/string.h>
@@ -16,9 +17,44 @@
 #include <asm/initialize_mmu.h>
 #include <asm/io.h>
 
+#if defined(CONFIG_HIGHMEM)
+static void * __init init_pmd(unsigned long vaddr)
+{
+	pgd_t *pgd = pgd_offset_k(vaddr);
+	pmd_t *pmd = pmd_offset(pgd, vaddr);
+
+	if (pmd_none(*pmd)) {
+		unsigned i;
+		pte_t *pte = alloc_bootmem_low_pages(PAGE_SIZE);
+
+		for (i = 0; i < 1024; i++)
+			pte_clear(NULL, 0, pte + i);
+
+		set_pmd(pmd, __pmd(((unsigned long)pte) & PAGE_MASK));
+		BUG_ON(pte != pte_offset_kernel(pmd, 0));
+		pr_debug("%s: vaddr: 0x%08lx, pmd: 0x%p, pte: 0x%p\n",
+			 __func__, vaddr, pmd, pte);
+		return pte;
+	} else {
+		return pte_offset_kernel(pmd, 0);
+	}
+}
+
+static void __init fixedrange_init(void)
+{
+	BUILD_BUG_ON(FIXADDR_SIZE > PMD_SIZE);
+	init_pmd(__fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK);
+}
+#endif
+
 void __init paging_init(void)
 {
 	memset(swapper_pg_dir, 0, PAGE_SIZE);
+#ifdef CONFIG_HIGHMEM
+	fixedrange_init();
+	pkmap_page_table = init_pmd(PKMAP_BASE);
+	kmap_init();
+#endif
 }
 
 /*
