@@ -378,10 +378,6 @@ struct pci9118_private {
 					 */
 	unsigned char ai16bits;		/* =1 16 bit card */
 	unsigned char usedma;		/* =1 use DMA transfer and not INT */
-	unsigned char useeoshandle;	/*
-					 * =1 change WAKE_EOS DMA transfer
-					 * to fit on every second
-					 */
 	int softsshdelay;		/*
 					 * >0 use software S&H,
 					 * numer is requested delay in ns
@@ -452,7 +448,7 @@ static int check_channel_list(struct comedi_device *dev,
 static int setup_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
 			      unsigned int *chanlist, int rot, int frontadd,
-			      int backadd, int usedma, char useeos)
+			      int backadd, int usedma)
 {
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int i, differencial = 0, bipolar = 0;
@@ -536,18 +532,6 @@ static int setup_channel_list(struct comedi_device *dev,
 #ifdef PCI9118_PARANOIDCHECK
 	devpriv->chanlist[n_chan ^ usedma] = devpriv->chanlist[0 ^ usedma];
 						/* for 32bit operations */
-	if (useeos) {
-		for (i = 1; i < n_chan; i++) {	/* store range list to card */
-			devpriv->chanlist[(n_chan + i) ^ usedma] =
-			    (CR_CHAN(chanlist[i]) & 0xf) << rot;
-		}
-		devpriv->chanlist[(2 * n_chan) ^ usedma] =
-						devpriv->chanlist[0 ^ usedma];
-						/* for 32bit operations */
-		useeos = 2;
-	} else {
-		useeos = 1;
-	}
 #endif
 	outl(0, dev->iobase + PCI9118_SCANMOD);	/* close scan queue */
 	/* udelay(100); important delay, or first sample will be crippled */
@@ -587,7 +571,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 						 * trigger stop
 						 */
 
-	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0, 0, 0, 0))
+	if (!setup_channel_list(dev, s, 1, &insn->chanspec, 0, 0, 0, 0))
 		return -EINVAL;
 
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/* flush FIFO */
@@ -1353,8 +1337,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 		} else {
 			/* short first DMA buffer to one scan */
 			dmalen0 = devpriv->ai_n_realscanlen << 1;
-			if (devpriv->useeoshandle)
-				dmalen0 += 2;
 			if (dmalen0 < 4) {
 				dev_info(dev->class_dev,
 					 "ERR: DMA0 buf len bug? (%d<4)\n",
@@ -1373,8 +1355,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 		} else {
 			/* short second DMA buffer to one scan */
 			dmalen1 = devpriv->ai_n_realscanlen << 1;
-			if (devpriv->useeoshandle)
-				dmalen1 -= 2;
 			if (dmalen1 < 4) {
 				dev_info(dev->class_dev,
 					 "ERR: DMA1 buf len bug? (%d<4)\n",
@@ -1630,7 +1610,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 	devpriv->ai_add_front = 0;
 	devpriv->ai_add_back = 0;
-	devpriv->useeoshandle = 0;
 	if (devpriv->master) {
 		devpriv->usedma = 1;
 		if ((cmd->flags & TRIG_WAKE_EOS) &&
@@ -1649,10 +1628,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		    (cmd->scan_end_arg & 1) &&
 		    (cmd->scan_end_arg > 1)) {
 			if (cmd->scan_begin_src == TRIG_FOLLOW) {
-				/*
-				 * vpriv->useeoshandle=1; // change DMA transfer
-				 * block to fit EOS on every second call
-				 */
 				devpriv->usedma = 0;
 				/*
 				 * XXX maybe can be corrected to use 16 bit DMA
@@ -1711,8 +1686,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EINVAL;
 	if (!setup_channel_list(dev, s, cmd->chanlist_len,
 				cmd->chanlist, 0, devpriv->ai_add_front,
-				devpriv->ai_add_back, devpriv->usedma,
-				devpriv->useeoshandle))
+				devpriv->ai_add_back, devpriv->usedma))
 		return -EINVAL;
 
 	/* compute timers settings */
