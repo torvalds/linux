@@ -1626,12 +1626,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ai12_startstop |= START_AI_INT;
 		s->async->inttrig = pci9118_ai_inttrig;
 	}
-#if 0
-	if (cmd->stop_src == TRIG_INT) {
-		devpriv->ai_neverending = 1;
-		devpriv->ai12_startstop |= STOP_AI_INT;
-	}
-#endif
 	if (cmd->stop_src == TRIG_NONE)
 		devpriv->ai_neverending = 1;
 	if (cmd->stop_src == TRIG_COUNT)
