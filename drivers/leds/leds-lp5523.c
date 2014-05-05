@@ -1,5 +1,5 @@
 /*
- * lp5523.c - LP5523 LED Driver
+ * lp5523.c - LP5523, LP55231 LED Driver
  *
  * Copyright (C) 2010 Nokia Corporation
  * Copyright (C) 2012 Texas Instruments
@@ -814,6 +814,7 @@ MODULE_DEVICE_TABLE(i2c, lp5523_id);
 #ifdef CONFIG_OF
 static const struct of_device_id of_lp5523_leds_match[] = {
 	{ .compatible = "national,lp5523", },
+	{ .compatible = "ti,lp55231", },
 	{},
 };
 
