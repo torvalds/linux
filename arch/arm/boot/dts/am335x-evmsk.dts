@@ -57,6 +57,17 @@
 		enable-active-high;
 	};
 
+	vtt_fixed: fixedregulator@3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vtt";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		gpio = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
+		enable-active-high;
+	};
+
 	leds {
 		pinctrl-names = "default";
 		pinctrl-0 = <&user_leds_s0>;
