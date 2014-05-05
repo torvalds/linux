@@ -41,6 +41,18 @@ Required properties:
   BG2/BG2CD: chip control register set
   BG2Q: chip control register set and cpu pll registers
 
+* Marvell Berlin2 system control binding
+
+Marvell Berlin SoCs have a system control register set providing several
+individual registers dealing with pinmux, padmux, and reset.
+
+Required properties:
+- compatible: should be one of
+	"marvell,berlin2-system-ctrl" for BG2
+	"marvell,berlin2cd-system-ctrl" for BG2CD
+	"marvell,berlin2q-system-ctrl" for BG2Q
+- reg: address and length of the system control register set
+
 * Clock provider binding
 
 As clock related registers are spread among the chip control registers, the
@@ -61,6 +73,23 @@ Clocks provided by core clocks shall be referenced by a clock specifier
 indexing one of the provided clocks. Refer to dt-bindings/clock/berlin<soc>.h
 for the corresponding index mapping.
 
+* Pin controller binding
+
+Pin control registers are part of both register sets, chip control and system
+control. The pins controlled are organized in groups, so no actual pin
+information is needed.
+
+A pin-controller node should contain subnodes representing the pin group
+configurations, one per function. Each subnode has the group name and the muxing
+function used.
+
+Be aware the Marvell Berlin datasheets use the keyword 'mode' for what is called
+a 'function' in the pin-controller subsystem.
+
+Required subnode-properties:
+- groups: a list of strings describing the group names.
+- function: a string describing the function used to mux the groups.
+
 Example:
 
 chip: chip-control@ea0000 {
@@ -69,4 +98,29 @@ chip: chip-control@ea0000 {
 	reg = <0xea0000 0x400>;
 	clocks = <&refclk>, <&externaldev 0>;
 	clock-names = "refclk", "video_ext0";
+
+	spi1_pmux: spi1-pmux {
+		groups = "G0";
+		function = "spi1";
+	};
+};
+
+sysctrl: system-controller@d000 {
+	compatible = "marvell,berlin2-system-ctrl";
+	reg = <0xd000 0x100>;
+
+	uart0_pmux: uart0-pmux {
+		groups = "GSM4";
+		function = "uart0";
+	};
+
+	uart1_pmux: uart1-pmux {
+		groups = "GSM5";
+		function = "uart1";
+	};
+
+	uart2_pmux: uart2-pmux {
+		groups = "GSM3";
+		function = "uart2";
+	};
 };
