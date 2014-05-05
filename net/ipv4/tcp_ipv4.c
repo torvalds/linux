@@ -1744,28 +1744,6 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	return sk;
 }
 
-static __sum16 tcp_v4_checksum_init(struct sk_buff *skb)
-{
-	const struct iphdr *iph = ip_hdr(skb);
-
-	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		if (!tcp_v4_check(skb->len, iph->saddr,
-				  iph->daddr, skb->csum)) {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			return 0;
-		}
-	}
-
-	skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
-				       skb->len, IPPROTO_TCP, 0);
-
-	if (skb->len <= 76) {
-		return __skb_checksum_complete(skb);
-	}
-	return 0;
-}
-
-
 /* The socket must have it's spinlock held when we get
  * here.
  *
@@ -1960,7 +1938,8 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	 * Packet length and doff are validated by header prediction,
 	 * provided case of th->doff==0 is eliminated.
 	 * So, we defer the checks. */
-	if (!skb_csum_unnecessary(skb) && tcp_v4_checksum_init(skb))
+
+	if (skb_checksum_init(skb, IPPROTO_TCP, inet_compute_pseudo))
 		goto csum_error;
 
 	th = tcp_hdr(skb);

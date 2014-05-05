@@ -342,6 +342,12 @@ static inline void ip_select_ident_more(struct sk_buff *skb, struct dst_entry *d
 		__ip_select_ident(iph, dst, more);
 }
 
+static inline __wsum inet_compute_pseudo(struct sk_buff *skb, int proto)
+{
+	return csum_tcpudp_nofold(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
+				  skb->len, proto, 0);
+}
+
 /*
  *	Map a multicast IP onto multicast MAC for type ethernet.
  */
