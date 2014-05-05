@@ -45,6 +45,7 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 		return PTR_ERR(req);
 	req->r_inode = inode;
 	ihold(inode);
+	req->r_num_caps = 1;
 
 	/* mds requires start and length rather than start and end */
 	if (LLONG_MAX == fl->fl_end)
