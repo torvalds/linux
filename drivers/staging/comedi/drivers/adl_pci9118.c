@@ -320,7 +320,6 @@ struct pci9118_private {
 	unsigned char AdControlReg;	/* A/D control register */
 	unsigned char IntControlReg;	/* Interrupt control register */
 	unsigned char AdFunctionReg;	/* A/D function register */
-	char valid;			/* driver is ok */
 	char ai_neverending;		/* we do unlimited AI */
 	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
 	unsigned int ai_act_scan;	/* how many scans we finished */
@@ -2044,7 +2043,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->range_table = &range_digital;
 	s->insn_bits = pci9118_insn_bits_do;
 
-	devpriv->valid = 1;
 	devpriv->ai_maskharderr = 0x10a;
 					/* default measure crash condition */
 	if (hw_err_mask)		/* disable some requested */
@@ -2121,7 +2119,7 @@ static void pci9118_detach(struct comedi_device *dev)
 	struct pci9118_private *devpriv = dev->private;
 
 	if (devpriv) {
-		if (devpriv->valid)
+		if (dev->iobase)
 			pci9118_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
