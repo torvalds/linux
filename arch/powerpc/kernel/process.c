@@ -54,6 +54,7 @@
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #endif
+#include <asm/code-patching.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
@@ -1108,7 +1109,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		struct thread_info *ti = (void *)task_stack_page(p);
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
-		childregs->gpr[14] = usp;	/* function */
+		/* function */
+		if (usp)
+			childregs->gpr[14] = ppc_function_entry((void *)usp);
 #ifdef CONFIG_PPC64
 		clear_tsk_thread_flag(p, TIF_32BIT);
 		childregs->softe = 1;
@@ -1187,17 +1190,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	if (cpu_has_feature(CPU_FTR_HAS_PPR))
 		p->thread.ppr = INIT_PPR;
 #endif
-	/*
-	 * The PPC64 ABI makes use of a TOC to contain function 
-	 * pointers.  The function (ret_from_except) is actually a pointer
-	 * to the TOC entry.  The first entry is a pointer to the actual
-	 * function.
-	 */
-#ifdef CONFIG_PPC64
-	kregs->nip = *((unsigned long *)f);
-#else
-	kregs->nip = (unsigned long)f;
-#endif
+	kregs->nip = ppc_function_entry(f);
 	return 0;
 }
 

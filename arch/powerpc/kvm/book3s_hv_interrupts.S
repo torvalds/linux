@@ -171,7 +171,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 #endif /* CONFIG_SMP */
 
 	/* Jump to partition switch code */
-	bl	.kvmppc_hv_entry_trampoline
+	bl	kvmppc_hv_entry_trampoline
 	nop
 
 /*

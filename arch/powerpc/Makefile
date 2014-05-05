@@ -113,8 +113,13 @@ else
 endif
 endif
 
-CFLAGS-$(CONFIG_PPC64)	:= -mtraceback=no -mcall-aixdesc
-CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv1)
+CFLAGS-$(CONFIG_PPC64)	:= -mtraceback=no
+ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
+CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv2,-mcall-aixdesc)
+AFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv2)
+else
+CFLAGS-$(CONFIG_PPC64)	+= -mcall-aixdesc
+endif
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mcmodel=medium,-mminimal-toc)
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mno-pointers-to-nested-functions)
 CFLAGS-$(CONFIG_PPC32)	:= -ffixed-r2 $(MULTIPLEWORD)
@@ -151,7 +156,7 @@ endif
 CFLAGS-$(CONFIG_TUNE_CELL) += $(call cc-option,-mtune=cell)
 
 KBUILD_CPPFLAGS	+= -Iarch/$(ARCH)
-KBUILD_AFLAGS	+= -Iarch/$(ARCH)
+KBUILD_AFLAGS	+= -Iarch/$(ARCH) $(AFLAGS-y)
 KBUILD_CFLAGS	+= -msoft-float -pipe -Iarch/$(ARCH) $(CFLAGS-y)
 CPP		= $(CC) -E $(KBUILD_CFLAGS)
 

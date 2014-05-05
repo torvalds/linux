@@ -31,6 +31,7 @@
 #include <asm/xics.h>
 #include <asm/opal.h>
 #include <asm/runlatch.h>
+#include <asm/code-patching.h>
 
 #include "powernv.h"
 
@@ -50,8 +51,8 @@ static void pnv_smp_setup_cpu(int cpu)
 int pnv_smp_kick_cpu(int nr)
 {
 	unsigned int pcpu = get_hard_smp_processor_id(nr);
-	unsigned long start_here = __pa(*((unsigned long *)
-					  generic_secondary_smp_init));
+	unsigned long start_here =
+			__pa(ppc_function_entry(generic_secondary_smp_init));
 	long rc;
 
 	BUG_ON(nr < 0 || nr >= NR_CPUS);

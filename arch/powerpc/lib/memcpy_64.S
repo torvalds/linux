@@ -10,12 +10,12 @@
 #include <asm/ppc_asm.h>
 
 	.align	7
-_GLOBAL(memcpy)
+_GLOBAL_TOC(memcpy)
 BEGIN_FTR_SECTION
 #ifdef __LITTLE_ENDIAN__
 	cmpdi	cr7,r5,0
 #else
-	std	r3,48(r1)	/* save destination pointer for return value */
+	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)	/* save destination pointer for return value */
 #endif
 FTR_SECTION_ELSE
 #ifndef SELFTEST
@@ -88,7 +88,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 2:	bf	cr7*4+3,3f
 	lbz	r9,8(r4)
 	stb	r9,0(r3)
-3:	ld	r3,48(r1)	/* return dest pointer */
+3:	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)	/* return dest pointer */
 	blr
 
 .Lsrc_unaligned:
@@ -171,7 +171,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 2:	bf	cr7*4+3,3f
 	rotldi	r9,r9,8
 	stb	r9,0(r3)
-3:	ld	r3,48(r1)	/* return dest pointer */
+3:	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)	/* return dest pointer */
 	blr
 
 .Ldst_unaligned:
@@ -216,6 +216,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 3:	bf	cr7*4+3,4f
 	lbz	r0,0(r4)
 	stb	r0,0(r3)
-4:	ld	r3,48(r1)	/* return dest pointer */
+4:	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)	/* return dest pointer */
 	blr
 #endif
