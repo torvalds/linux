@@ -422,6 +422,7 @@ struct drbd_peer_request {
 	struct drbd_interval i;
 	/* see comments on ee flag bits below */
 	unsigned long flags;
+	unsigned long submit_jif;
 	union {
 		u64 block_id;
 		struct digest_info *digest;
@@ -464,6 +465,17 @@ enum {
 
 	/* Is set when net_conf had two_primaries set while creating this peer_req */
 	__EE_IN_INTERVAL_TREE,
+
+	/* for debugfs: */
+	/* has this been submitted, or does it still wait for something else? */
+	__EE_SUBMITTED,
+
+	/* this is/was a write request */
+	__EE_WRITE,
+
+	/* this originates from application on peer
+	 * (not some resync or verify or other DRBD internal request) */
+	__EE_APPLICATION,
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
@@ -475,6 +487,9 @@ enum {
 #define EE_RESTART_REQUESTS	(1<<__EE_RESTART_REQUESTS)
 #define EE_SEND_WRITE_ACK	(1<<__EE_SEND_WRITE_ACK)
 #define EE_IN_INTERVAL_TREE	(1<<__EE_IN_INTERVAL_TREE)
+#define EE_SUBMITTED		(1<<__EE_SUBMITTED)
+#define EE_WRITE		(1<<__EE_WRITE)
+#define EE_APPLICATION		(1<<__EE_APPLICATION)
 
 /* flag bits per device */
 enum {
