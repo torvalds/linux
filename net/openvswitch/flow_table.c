@@ -139,7 +139,7 @@ static void flow_free(struct sw_flow *flow)
 {
 	int node;
 
-	kfree((struct sf_flow_acts __force *)flow->sf_acts);
+	kfree((struct sw_flow_actions __force *)flow->sf_acts);
 	for_each_node(node)
 		if (flow->stats[node])
 			kmem_cache_free(flow_stats_cache,
