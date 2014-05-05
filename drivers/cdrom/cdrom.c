@@ -339,9 +339,6 @@ do {							\
    a lot of places. This macro makes the code more clear. */
 #define CDROM_CAN(type) (cdi->ops->capability & ~cdi->mask & (type))
 
-/* used in the audio ioctls */
-#define CHECKAUDIO if ((ret=check_for_audio_disc(cdi, cdo))) return ret
-
 /*
  * Another popular OS uses 7 seconds as the hard timeout for default
  * commands, so it is a good choice for us as well.
