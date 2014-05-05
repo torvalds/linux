@@ -378,7 +378,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 {
 	struct ubiblock *dev;
 	struct gendisk *gd;
-	int disk_capacity;
+	int disk_capacity = (vi->size * vi->usable_leb_size) >> 9;
 	int ret;
 
 	/* Check that the volume isn't already handled */
@@ -412,7 +412,6 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	gd->first_minor = dev->ubi_num * UBI_MAX_VOLUMES + dev->vol_id;
 	gd->private_data = dev;
 	sprintf(gd->disk_name, "ubiblock%d_%d", dev->ubi_num, dev->vol_id);
-	disk_capacity = (vi->size * vi->usable_leb_size) >> 9;
 	set_capacity(gd, disk_capacity);
 	dev->gd = gd;
 
@@ -501,7 +500,7 @@ int ubiblock_remove(struct ubi_volume_info *vi)
 static int ubiblock_resize(struct ubi_volume_info *vi)
 {
 	struct ubiblock *dev;
-	int disk_capacity;
+	int disk_capacity = (vi->size * vi->usable_leb_size) >> 9;
 
 	/*
 	 * Need to lock the device list until we stop using the device,
@@ -516,7 +515,6 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 	}
 
 	mutex_lock(&dev->dev_mutex);
-	disk_capacity = (vi->size * vi->usable_leb_size) >> 9;
 	set_capacity(dev->gd, disk_capacity);
 	ubi_msg("%s resized to %d LEBs", dev->gd->disk_name, vi->size);
 	mutex_unlock(&dev->dev_mutex);
