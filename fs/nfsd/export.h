@@ -56,6 +56,8 @@ struct svc_export {
 	struct nfsd4_fs_locations ex_fslocs;
 	uint32_t		ex_nflavors;
 	struct exp_flavor_info	ex_flavors[MAX_SECINFO_LIST];
+	enum pnfs_layouttype	ex_layout_type;
+	struct nfsd4_deviceid_map *ex_devid_map;
 	struct cache_detail	*cd;
 };
 

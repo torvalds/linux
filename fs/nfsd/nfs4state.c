@@ -48,6 +48,7 @@
 #include "current_stateid.h"
 
 #include "netns.h"
+#include "pnfs.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -1539,6 +1540,9 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 	INIT_LIST_HEAD(&clp->cl_lru);
 	INIT_LIST_HEAD(&clp->cl_callbacks);
 	INIT_LIST_HEAD(&clp->cl_revoked);
+#ifdef CONFIG_NFSD_PNFS
+	INIT_LIST_HEAD(&clp->cl_lo_states);
+#endif
 	spin_lock_init(&clp->cl_lock);
 	rpc_init_wait_queue(&clp->cl_cb_waitq, "Backchannel slot table");
 	return clp;
@@ -1643,6 +1647,7 @@ __destroy_client(struct nfs4_client *clp)
 		nfs4_get_stateowner(&oo->oo_owner);
 		release_openowner(oo);
 	}
+	nfsd4_return_all_client_layouts(clp);
 	nfsd4_shutdown_callback(clp);
 	if (clp->cl_cb_conn.cb_xprt)
 		svc_xprt_put(clp->cl_cb_conn.cb_xprt);
@@ -2126,8 +2131,11 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 static void
 nfsd4_set_ex_flags(struct nfs4_client *new, struct nfsd4_exchange_id *clid)
 {
-	/* pNFS is not supported */
+#ifdef CONFIG_NFSD_PNFS
+	new->cl_exchange_flags |= EXCHGID4_FLAG_USE_PNFS_MDS;
+#else
 	new->cl_exchange_flags |= EXCHGID4_FLAG_USE_NON_PNFS;
+#endif
 
 	/* Referrals are supported, Migration is not. */
 	new->cl_exchange_flags |= EXCHGID4_FLAG_SUPP_MOVED_REFER;
@@ -3055,6 +3063,9 @@ static void nfsd4_init_file(struct knfsd_fh *fh, unsigned int hashval,
 	fp->fi_share_deny = 0;
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
 	memset(fp->fi_access, 0, sizeof(fp->fi_access));
+#ifdef CONFIG_NFSD_PNFS
+	INIT_LIST_HEAD(&fp->fi_lo_states);
+#endif
 	hlist_add_head_rcu(&fp->fi_hash, &file_hashtbl[hashval]);
 }
 
@@ -4840,6 +4851,9 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out; 
 	update_stateid(&stp->st_stid.sc_stateid);
 	memcpy(&close->cl_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
+
+	nfsd4_return_all_file_layouts(stp->st_stateowner->so_client,
+				      stp->st_stid.sc_file);
 
 	nfsd4_close_open_stateid(stp);
 
