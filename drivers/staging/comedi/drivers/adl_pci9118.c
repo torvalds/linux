@@ -322,7 +322,6 @@ struct pci9118_private {
 	unsigned char AdFunctionReg;	/* A/D function register */
 	char valid;			/* driver is ok */
 	char ai_neverending;		/* we do unlimited AI */
-	unsigned int i8254_osc_base;	/* frequence of onboard oscilator */
 	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
 	unsigned int ai_act_scan;	/* how many scans we finished */
 	unsigned int ai_buf_ptr;	/* data buffer ptr in samples */
@@ -789,37 +788,35 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 				  char usessh, unsigned int chnsshfront)
 {
 	const struct boardtype *this_board = comedi_board(dev);
-	struct pci9118_private *devpriv = dev->private;
 
 	switch (mode) {
 	case 1:
 	case 4:
 		if (*tim2 < this_board->ai_ns_min)
 			*tim2 = this_board->ai_ns_min;
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
 					  div1, div2,
 					  tim2, flags & TRIG_ROUND_NEAREST);
 		break;
 	case 2:
 		if (*tim2 < this_board->ai_ns_min)
 			*tim2 = this_board->ai_ns_min;
-		*div1 = *tim2 / devpriv->i8254_osc_base;
+		*div1 = *tim2 / I8254_OSC_BASE_4MHZ;
 						/* convert timer (burst) */
 		if (*div1 < this_board->ai_pacer_min)
 			*div1 = this_board->ai_pacer_min;
-		*div2 = *tim1 / devpriv->i8254_osc_base;	/* scan timer */
+		*div2 = *tim1 / I8254_OSC_BASE_4MHZ;	/* scan timer */
 		*div2 = *div2 / *div1;		/* major timer is c1*c2 */
 		if (*div2 < chans)
 			*div2 = chans;
 
-		*tim2 = *div1 * devpriv->i8254_osc_base;
-							/* real convert timer */
+		*tim2 = *div1 * I8254_OSC_BASE_4MHZ;	/* real convert timer */
 
 		if (usessh && (chnsshfront == 0))	/* use BSSH signal */
 			if (*div2 < (chans + 2))
 				*div2 = chans + 2;
 
-		*tim1 = *div1 * *div2 * devpriv->i8254_osc_base;
+		*tim1 = *div1 * *div2 * I8254_OSC_BASE_4MHZ;
 		break;
 	}
 }
@@ -1279,7 +1276,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
 					  &divisor1, &divisor2,
 					  &cmd->scan_begin_arg, cmd->flags);
 		if (cmd->scan_begin_arg < this_board->ai_ns_min)
@@ -1290,7 +1287,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW)) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_4MHZ,
 					  &divisor1, &divisor2,
 					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < this_board->ai_ns_min)
@@ -2065,7 +2062,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->insn_bits = pci9118_insn_bits_do;
 
 	devpriv->valid = 1;
-	devpriv->i8254_osc_base = I8254_OSC_BASE_4MHZ;
 	devpriv->ai_maskharderr = 0x10a;
 					/* default measure crash condition */
 	if (hw_err_mask)		/* disable some requested */
