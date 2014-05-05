@@ -142,6 +142,7 @@ struct sst_device {
 	struct compress_sst_ops *compr_ops;
 };
 
+void sst_set_stream_status(struct sst_runtime_stream *stream, int state);
 int sst_register_dsp(struct sst_device *sst);
 int sst_unregister_dsp(struct sst_device *sst);
 #endif

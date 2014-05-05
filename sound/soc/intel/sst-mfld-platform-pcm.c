@@ -152,7 +152,7 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 };
 
 /* helper functions */
-static inline void sst_set_stream_status(struct sst_runtime_stream *stream,
+void sst_set_stream_status(struct sst_runtime_stream *stream,
 					int state)
 {
 	unsigned long flags;
