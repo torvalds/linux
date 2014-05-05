@@ -249,30 +249,40 @@ exit:
 
 static int ath10k_download_and_run_otp(struct ath10k *ar)
 {
-	u32 address = ar->hw_params.patch_load_addr;
-	u32 exec_param;
+	u32 result, address = ar->hw_params.patch_load_addr;
 	int ret;
 
 	/* OTP is optional */
 
-	if (!ar->otp_data || !ar->otp_len)
+	if (!ar->otp_data || !ar->otp_len) {
+		ath10k_warn("Not running otp, calibration will be incorrect (otp-data %p otp_len %zd)!\n",
+			    ar->otp_data, ar->otp_len);
 		return 0;
+	}
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot upload otp to 0x%x len %zd\n",
+		   address, ar->otp_len);
 
 	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
 	if (ret) {
 		ath10k_err("could not write otp (%d)\n", ret);
-		goto exit;
+		return ret;
 	}
 
-	exec_param = 0;
-	ret = ath10k_bmi_execute(ar, address, &exec_param);
+	ret = ath10k_bmi_execute(ar, address, 0, &result);
 	if (ret) {
 		ath10k_err("could not execute otp (%d)\n", ret);
-		goto exit;
+		return ret;
 	}
 
-exit:
-	return ret;
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot otp execute result %d\n", result);
+
+	if (result != 0) {
+		ath10k_err("otp calibration failed: %d", result);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int ath10k_download_fw(struct ath10k *ar)
@@ -389,8 +399,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	/* first fetch the firmware file (firmware-*.bin) */
 	ar->firmware = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir, name);
 	if (IS_ERR(ar->firmware)) {
-		ath10k_err("Could not fetch firmware file '%s': %ld\n",
-			   name, PTR_ERR(ar->firmware));
+		ath10k_err("could not fetch firmware file '%s/%s': %ld\n",
+			   ar->hw_params.fw.dir, name, PTR_ERR(ar->firmware));
 		return PTR_ERR(ar->firmware);
 	}
 
@@ -401,14 +411,14 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	magic_len = strlen(ATH10K_FIRMWARE_MAGIC) + 1;
 
 	if (len < magic_len) {
-		ath10k_err("firmware image too small to contain magic: %zu\n",
-			   len);
+		ath10k_err("firmware file '%s/%s' too small to contain magic: %zu\n",
+			   ar->hw_params.fw.dir, name, len);
 		ret = -EINVAL;
 		goto err;
 	}
 
 	if (memcmp(data, ATH10K_FIRMWARE_MAGIC, magic_len) != 0) {
-		ath10k_err("Invalid firmware magic\n");
+		ath10k_err("invalid firmware magic\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -430,7 +440,7 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		data += sizeof(*hdr);
 
 		if (len < ie_len) {
-			ath10k_err("Invalid length for FW IE %d (%zu < %zu)\n",
+			ath10k_err("invalid length for FW IE %d (%zu < %zu)\n",
 				   ie_id, len, ie_len);
 			ret = -EINVAL;
 			goto err;
@@ -513,8 +523,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	}
 
 	if (!ar->firmware_data || !ar->firmware_len) {
-		ath10k_warn("No ATH10K_FW_IE_FW_IMAGE found from %s, skipping\n",
-			    name);
+		ath10k_warn("No ATH10K_FW_IE_FW_IMAGE found from '%s/%s', skipping\n",
+			    ar->hw_params.fw.dir, name);
 		ret = -ENOMEDIUM;
 		goto err;
 	}
@@ -531,7 +541,9 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 					 ar->hw_params.fw.board);
 	if (IS_ERR(ar->board)) {
 		ret = PTR_ERR(ar->board);
-		ath10k_err("could not fetch board data (%d)\n", ret);
+		ath10k_err("could not fetch board data '%s/%s' (%d)\n",
+			   ar->hw_params.fw.dir, ar->hw_params.fw.board,
+			   ret);
 		goto err;
 	}
 
@@ -549,19 +561,21 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 {
 	int ret;
 
+	ar->fw_api = 2;
+	ath10k_dbg(ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
+
 	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API2_FILE);
-	if (ret == 0) {
-		ar->fw_api = 2;
-		goto out;
-	}
+	if (ret == 0)
+		goto success;
+
+	ar->fw_api = 1;
+	ath10k_dbg(ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
 	ret = ath10k_core_fetch_firmware_api_1(ar);
 	if (ret)
 		return ret;
 
-	ar->fw_api = 1;
-
-out:
+success:
 	ath10k_dbg(ATH10K_DBG_BOOT, "using fw api %d\n", ar->fw_api);
 
 	return 0;
@@ -572,16 +586,22 @@ static int ath10k_init_download_firmware(struct ath10k *ar)
 	int ret;
 
 	ret = ath10k_download_board_data(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to download board data: %d\n", ret);
 		return ret;
+	}
 
 	ret = ath10k_download_and_run_otp(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to run otp: %d\n", ret);
 		return ret;
+	}
 
 	ret = ath10k_download_fw(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to download firmware: %d\n", ret);
 		return ret;
+	}
 
 	return ret;
 }
@@ -835,9 +855,12 @@ int ath10k_core_start(struct ath10k *ar)
 	INIT_LIST_HEAD(&ar->arvifs);
 
 	if (!test_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags))
-		ath10k_info("%s (0x%x) fw %s api %d htt %d.%d\n",
-			    ar->hw_params.name, ar->target_version,
-			    ar->hw->wiphy->fw_version, ar->fw_api,
+		ath10k_info("%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d\n",
+			    ar->hw_params.name,
+			    ar->target_version,
+			    ar->chip_id,
+			    ar->hw->wiphy->fw_version,
+			    ar->fw_api,
 			    ar->htt.target_version_major,
 			    ar->htt.target_version_minor);
 

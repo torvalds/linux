@@ -672,6 +672,7 @@ struct mwifiex_if_ops {
 	int (*init_fw_port) (struct mwifiex_adapter *);
 	int (*dnld_fw) (struct mwifiex_adapter *, struct mwifiex_fw_image *);
 	void (*card_reset) (struct mwifiex_adapter *);
+	void (*fw_dump)(struct mwifiex_adapter *);
 	int (*clean_pcie_ring) (struct mwifiex_adapter *adapter);
 };
 
@@ -787,7 +788,6 @@ struct mwifiex_adapter {
 	struct mwifiex_wait_queue cmd_wait_q;
 	u8 scan_wait_q_woken;
 	spinlock_t queue_lock;		/* lock for tx queues */
-	struct completion fw_load;
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	u16 max_mgmt_ie_index;
 	u8 scan_delay_cnt;

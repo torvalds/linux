@@ -348,7 +348,10 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	struct iwl_mvm_scan_params params = {};
 
 	lockdep_assert_held(&mvm->mutex);
-	BUG_ON(mvm->scan_cmd == NULL);
+
+	/* we should have failed registration if scan_cmd was NULL */
+	if (WARN_ON(mvm->scan_cmd == NULL))
+		return -ENOMEM;
 
 	IWL_DEBUG_SCAN(mvm, "Handling mac80211 scan request\n");
 	mvm->scan_status = IWL_MVM_SCAN_OS;
@@ -567,15 +570,21 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 	/* scan status must be locked for proper checking */
 	lockdep_assert_held(&mvm->mutex);
 
-	IWL_DEBUG_SCAN(mvm, "Scheduled scan completed, status %s\n",
+	IWL_DEBUG_SCAN(mvm,
+		       "Scheduled scan completed, status %s EBS status %s:%d\n",
 		       scan_notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
-		       "completed" : "aborted");
+		       "completed" : "aborted", scan_notif->ebs_status ==
+		       IWL_SCAN_EBS_SUCCESS ? "success" : "failed",
+		       scan_notif->ebs_status);
+
 
 	/* only call mac80211 completion if the stop was initiated by FW */
 	if (mvm->scan_status == IWL_MVM_SCAN_SCHED) {
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
 		ieee80211_sched_scan_stopped(mvm->hw);
 	}
+
+	mvm->last_ebs_successful = !scan_notif->ebs_status;
 
 	return 0;
 }
@@ -912,6 +921,11 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 			       "Sending Scheduled scan without filtering\n");
 		scan_req.flags |= cpu_to_le16(IWL_SCAN_OFFLOAD_FLAG_PASS_ALL);
 	}
+
+	if (mvm->last_ebs_successful &&
+	    mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT)
+		scan_req.flags |=
+			cpu_to_le16(IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE);
 
 	return iwl_mvm_send_cmd_pdu(mvm, SCAN_OFFLOAD_REQUEST_CMD, CMD_SYNC,
 				    sizeof(scan_req), &scan_req);

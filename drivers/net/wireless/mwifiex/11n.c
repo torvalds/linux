@@ -345,8 +345,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 
 			memcpy((u8 *) ht_info +
 			       sizeof(struct mwifiex_ie_types_header),
-			       (u8 *) bss_desc->bcn_ht_oper +
-			       sizeof(struct ieee_types_header),
+			       (u8 *)bss_desc->bcn_ht_oper,
 			       le16_to_cpu(ht_info->header.len));
 
 			if (!(sband->ht_cap.cap &

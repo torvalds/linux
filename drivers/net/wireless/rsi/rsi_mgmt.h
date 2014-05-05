@@ -73,6 +73,7 @@
 #define RX_BA_INDICATION                1
 #define RSI_TBL_SZ                      40
 #define MAX_RETRIES                     8
+#define RSI_IFTYPE_STATION		 0
 
 #define STD_RATE_MCS7                   0x07
 #define STD_RATE_MCS6                   0x06

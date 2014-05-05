@@ -85,6 +85,8 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		card->supports_sdio_new_mode = data->supports_sdio_new_mode;
 		card->has_control_mask = data->has_control_mask;
 		card->tx_buf_size = data->tx_buf_size;
+		card->mp_tx_agg_buf_size = data->mp_tx_agg_buf_size;
+		card->mp_rx_agg_buf_size = data->mp_rx_agg_buf_size;
 	}
 
 	sdio_claim_host(func);
@@ -176,9 +178,6 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	adapter = card->adapter;
 	if (!adapter || !adapter->priv_num)
 		return;
-
-	/* In case driver is removed when asynchronous FW load is in progress */
-	wait_for_completion(&adapter->fw_load);
 
 	if (user_rmmod) {
 		if (adapter->is_suspended)
@@ -1842,8 +1841,8 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	card->mpa_rx.len_arr = kzalloc(sizeof(*card->mpa_rx.len_arr) *
 				       card->mp_agg_pkt_limit, GFP_KERNEL);
 	ret = mwifiex_alloc_sdio_mpa_buffers(adapter,
-					     SDIO_MP_TX_AGGR_DEF_BUF_SIZE,
-					     SDIO_MP_RX_AGGR_DEF_BUF_SIZE);
+					     card->mp_tx_agg_buf_size,
+					     card->mp_rx_agg_buf_size);
 	if (ret) {
 		dev_err(adapter->dev, "failed to alloc sdio mp-a buffers\n");
 		kfree(card->mp_regs);

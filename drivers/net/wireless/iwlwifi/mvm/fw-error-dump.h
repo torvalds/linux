@@ -71,10 +71,12 @@
  * enum iwl_fw_error_dump_type - types of data in the dump file
  * @IWL_FW_ERROR_DUMP_SRAM:
  * @IWL_FW_ERROR_DUMP_REG:
+ * @IWL_FW_ERROR_DUMP_RXF:
  */
 enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_SRAM = 0,
 	IWL_FW_ERROR_DUMP_REG = 1,
+	IWL_FW_ERROR_DUMP_RXF = 2,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -89,7 +91,7 @@ struct iwl_fw_error_dump_data {
 	__le32 type;
 	__le32 len;
 	__u8 data[];
-} __packed __aligned(4);
+} __packed;
 
 /**
  * struct iwl_fw_error_dump_file - the layout of the header of the file
@@ -101,6 +103,6 @@ struct iwl_fw_error_dump_file {
 	__le32 barker;
 	__le32 file_len;
 	u8 data[0];
-} __packed __aligned(4);
+} __packed;
 
 #endif /* __fw_error_dump_h__ */

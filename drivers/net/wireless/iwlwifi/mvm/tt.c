@@ -468,13 +468,14 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 	}
 
 	if (params->support_tx_backoff) {
-		tx_backoff = 0;
+		tx_backoff = tt->min_backoff;
 		for (i = 0; i < TT_TX_BACKOFF_SIZE; i++) {
 			if (temperature < params->tx_backoff[i].temperature)
 				break;
-			tx_backoff = params->tx_backoff[i].backoff;
+			tx_backoff = max(tt->min_backoff,
+					 params->tx_backoff[i].backoff);
 		}
-		if (tx_backoff != 0)
+		if (tx_backoff != tt->min_backoff)
 			throttle_enable = true;
 		if (tt->tx_backoff != tx_backoff)
 			iwl_mvm_tt_tx_backoff(mvm, tx_backoff);
@@ -484,7 +485,8 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 		IWL_WARN(mvm,
 			 "Due to high temperature thermal throttling initiated\n");
 		tt->throttle = true;
-	} else if (tt->throttle && !tt->dynamic_smps && tt->tx_backoff == 0 &&
+	} else if (tt->throttle && !tt->dynamic_smps &&
+		   tt->tx_backoff == tt->min_backoff &&
 		   temperature <= params->tx_protection_exit) {
 		IWL_WARN(mvm,
 			 "Temperature is back to normal thermal throttling stopped\n");
