@@ -204,8 +204,8 @@
 };
 
 &emmc {
-		clock-frequency = <200000000>;
-	 	clock-freq-min-max = <400000 200000000>;
+		clock-frequency = <150000000>;
+	 	clock-freq-min-max = <400000 1500000000>;
         supports-highspeed;
 		supports-emmc;
 		bootpart-no-access;
