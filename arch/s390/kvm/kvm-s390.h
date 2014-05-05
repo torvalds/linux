@@ -45,9 +45,9 @@ do { \
 	  d_args); \
 } while (0)
 
-static inline int __cpu_is_stopped(struct kvm_vcpu *vcpu)
+static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 {
-	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOP_INT;
+	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;
 }
 
 static inline int kvm_is_ucontrol(struct kvm *kvm)

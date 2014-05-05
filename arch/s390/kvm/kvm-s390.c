@@ -926,7 +926,7 @@ static int kvm_arch_vcpu_ioctl_set_initial_psw(struct kvm_vcpu *vcpu, psw_t psw)
 {
 	int rc = 0;
 
-	if (!(atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOPPED))
+	if (!is_vcpu_stopped(vcpu))
 		rc = -EBUSY;
 	else {
 		vcpu->run->psw_mask = psw.mask;
@@ -1411,11 +1411,6 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	save_access_regs(vcpu->run->s.regs.acrs);
 
 	return kvm_s390_store_status_unloaded(vcpu, addr);
-}
-
-static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
-{
-	return atomic_read(&(vcpu)->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;
 }
 
 static void __disable_ibs_on_vcpu(struct kvm_vcpu *vcpu)
