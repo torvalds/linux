@@ -17,7 +17,7 @@
 #include <asm/page.h>
 
 #if defined(CONFIG_X86_64)
-unsigned int __read_mostly vdso_enabled = 1;
+unsigned int __read_mostly vdso64_enabled = 1;
 
 DECLARE_VDSO_IMAGE(vdso);
 extern unsigned short vdso_sync_cpuid;
@@ -160,7 +160,7 @@ static int setup_additional_pages(struct linux_binprm *bprm,
 	unsigned long addr;
 	int ret;
 
-	if (!vdso_enabled)
+	if (!vdso64_enabled)
 		return 0;
 
 	down_write(&mm->mmap_sem);
@@ -203,7 +203,7 @@ int x32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 static __init int vdso_setup(char *s)
 {
-	vdso_enabled = simple_strtoul(s, NULL, 0);
+	vdso64_enabled = simple_strtoul(s, NULL, 0);
 	return 0;
 }
 __setup("vdso=", vdso_setup);

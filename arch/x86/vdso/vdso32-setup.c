@@ -37,7 +37,6 @@
 #endif
 
 #ifdef CONFIG_X86_64
-#define vdso_enabled			sysctl_vsyscall32
 #define arch_setup_additional_pages	syscall32_setup_pages
 #endif
 
@@ -45,13 +44,13 @@
  * Should the kernel map a VDSO page into processes and pass its
  * address down to glibc upon exec()?
  */
-unsigned int __read_mostly vdso_enabled = VDSO_DEFAULT;
+unsigned int __read_mostly vdso32_enabled = VDSO_DEFAULT;
 
-static int __init vdso_setup(char *s)
+static int __init vdso32_setup(char *s)
 {
-	vdso_enabled = simple_strtoul(s, NULL, 0);
+	vdso32_enabled = simple_strtoul(s, NULL, 0);
 
-	if (vdso_enabled > 1)
+	if (vdso32_enabled > 1)
 		pr_warn("vdso32 values other than 0 and 1 are no longer allowed; vdso disabled\n");
 
 	return 1;
@@ -62,12 +61,10 @@ static int __init vdso_setup(char *s)
  * behavior on both 64-bit and 32-bit kernels.
  * On 32-bit kernels, vdso=[012] means the same thing.
  */
-__setup("vdso32=", vdso_setup);
+__setup("vdso32=", vdso32_setup);
 
 #ifdef CONFIG_X86_32
-__setup_param("vdso=", vdso32_setup, vdso_setup, 0);
-
-EXPORT_SYMBOL_GPL(vdso_enabled);
+__setup_param("vdso=", vdso_setup, vdso32_setup, 0);
 #endif
 
 static struct page **vdso32_pages;
@@ -160,7 +157,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return x32_setup_additional_pages(bprm, uses_interp);
 #endif
 
-	if (vdso_enabled != 1)  /* Other values all mean "disabled" */
+	if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
 		return 0;
 
 	down_write(&mm->mmap_sem);
@@ -244,7 +241,7 @@ subsys_initcall(sysenter_setup);
 static struct ctl_table abi_table2[] = {
 	{
 		.procname	= "vsyscall32",
-		.data		= &sysctl_vsyscall32,
+		.data		= &vdso32_enabled,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec

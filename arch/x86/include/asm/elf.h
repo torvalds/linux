@@ -75,7 +75,12 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 
 #include <asm/vdso.h>
 
-extern unsigned int vdso_enabled;
+#ifdef CONFIG_X86_64
+extern unsigned int vdso64_enabled;
+#endif
+#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
+extern unsigned int vdso32_enabled;
+#endif
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -269,9 +274,9 @@ extern int force_personality32;
 
 struct task_struct;
 
-#define	ARCH_DLINFO_IA32(vdso_enabled)					\
+#define	ARCH_DLINFO_IA32						\
 do {									\
-	if (vdso_enabled) {						\
+	if (vdso32_enabled) {						\
 		NEW_AUX_ENT(AT_SYSINFO,	VDSO_ENTRY);			\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_CURRENT_BASE);	\
 	}								\
@@ -281,7 +286,7 @@ do {									\
 
 #define STACK_RND_MASK (0x7ff)
 
-#define ARCH_DLINFO		ARCH_DLINFO_IA32(vdso_enabled)
+#define ARCH_DLINFO		ARCH_DLINFO_IA32
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 
@@ -292,14 +297,15 @@ do {									\
 
 #define ARCH_DLINFO							\
 do {									\
-	if (vdso_enabled)						\
+	if (vdso64_enabled)						\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
 			    (unsigned long)current->mm->context.vdso);	\
 } while (0)
 
+/* As a historical oddity, the x32 and x86_64 vDSOs are controlled together. */
 #define ARCH_DLINFO_X32							\
 do {									\
-	if (vdso_enabled)						\
+	if (vdso64_enabled)						\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
 			    (unsigned long)current->mm->context.vdso);	\
 } while (0)
@@ -310,7 +316,7 @@ do {									\
 if (test_thread_flag(TIF_X32))						\
 	ARCH_DLINFO_X32;						\
 else									\
-	ARCH_DLINFO_IA32(sysctl_vsyscall32)
+	ARCH_DLINFO_IA32
 
 #define COMPAT_ELF_ET_DYN_BASE	(TASK_UNMAPPED_BASE + 0x1000000)
 
