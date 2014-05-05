@@ -189,7 +189,7 @@ struct hid_sensor_common {
 	struct hid_sensor_hub_device *hsdev;
 	struct platform_device *pdev;
 	unsigned usage_id;
-	bool data_ready;
+	atomic_t data_ready;
 	struct iio_trigger *trigger;
 	struct hid_sensor_hub_attribute_info poll;
 	struct hid_sensor_hub_attribute_info report_state;
@@ -222,5 +222,11 @@ int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
 
 int hid_sensor_get_usage_index(struct hid_sensor_hub_device *hsdev,
 				u32 report_id, int field_index, u32 usage_id);
+
+int hid_sensor_format_scale(u32 usage_id,
+			    struct hid_sensor_hub_attribute_info *attr_info,
+			    int *val0, int *val1);
+
+s32 hid_sensor_read_poll_value(struct hid_sensor_common *st);
 
 #endif
