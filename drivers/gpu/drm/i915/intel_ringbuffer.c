@@ -1546,7 +1546,6 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 	/* force the tail write in case we have been skipping them */
 	__intel_ring_advance(ring);
 
-	trace_i915_ring_wait_begin(ring);
 	/* With GEM the hangcheck timer should kick us out of the loop,
 	 * leaving it early runs the risk of corrupting GEM state (due
 	 * to running on almost untested codepaths). But on resume
@@ -1554,12 +1553,13 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 	 * case by choosing an insanely large timeout. */
 	end = jiffies + 60 * HZ;
 
+	trace_i915_ring_wait_begin(ring);
 	do {
 		ring->head = I915_READ_HEAD(ring);
 		ring->space = ring_space(ring);
 		if (ring->space >= n) {
-			trace_i915_ring_wait_end(ring);
-			return 0;
+			ret = 0;
+			break;
 		}
 
 		if (!drm_core_check_feature(dev, DRIVER_MODESET) &&
@@ -1571,13 +1571,23 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 
 		msleep(1);
 
+		if (dev_priv->mm.interruptible && signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
 		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
 					   dev_priv->mm.interruptible);
 		if (ret)
-			return ret;
-	} while (!time_after(jiffies, end));
+			break;
+
+		if (time_after(jiffies, end)) {
+			ret = -EBUSY;
+			break;
+		}
+	} while (1);
 	trace_i915_ring_wait_end(ring);
-	return -EBUSY;
+	return ret;
 }
 
 static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
