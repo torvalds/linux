@@ -12,7 +12,7 @@ struct device_node;
  * Before going off node we want the VM to try and reclaim from the local
  * node. It does this if the remote distance is larger than RECLAIM_DISTANCE.
  * With the default REMOTE_DISTANCE of 20 and the default RECLAIM_DISTANCE of
- * 20, we never reclaim and go off node straight away.
+ * 30, we never reclaim and go off node straight away.
  *
  * To fix this we choose a smaller value of RECLAIM_DISTANCE.
  */
