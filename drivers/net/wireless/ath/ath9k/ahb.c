@@ -86,7 +86,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	int irq;
 	int ret = 0;
 	struct ath_hw *ah;
-	struct ath_common *common;
 	char hw_name[64];
 
 	if (!dev_get_platdata(&pdev->dev)) {
@@ -146,9 +145,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	wiphy_info(hw->wiphy, "%s mem=0x%lx, irq=%d\n",
 		   hw_name, (unsigned long)mem, irq);
 
-	common = ath9k_hw_common(sc->sc_ah);
-	/* Will be cleared in ath9k_start() */
-	set_bit(ATH_OP_INVALID, &common->op_flags);
 	return 0;
 
  err_irq:
