@@ -362,7 +362,6 @@ struct pci9118_private {
 						 */
 	unsigned int dmabuf_used_size[2];	/* which size was truly used */
 	unsigned int dmabuf_panic_size[2];
-	unsigned int dmabuf_samples[2];		/* size in samples */
 	int dmabuf_pages[2];			/* number of pages in buffer */
 	unsigned char exttrg_users;		/*
 						 * bit field of external trigger
@@ -1885,8 +1884,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 			if (devpriv->dmabuf_virt[i]) {
 				devpriv->dmabuf_pages[i] = pages;
 				devpriv->dmabuf_size[i] = PAGE_SIZE * pages;
-				devpriv->dmabuf_samples[i] =
-				    devpriv->dmabuf_size[i] >> 1;
 				devpriv->dmabuf_hw[i] =
 				    virt_to_bus((void *)
 						devpriv->dmabuf_virt[i]);
