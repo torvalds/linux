@@ -98,6 +98,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	/* Default all params to autodetect */
 	dwc2_set_all_params(&params, -1);
+	params.dma_desc_enable = 0;
 
 	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
 	if (!hsotg)
