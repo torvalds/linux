@@ -314,6 +314,7 @@ struct hdmi {
 	int xscale;					// x direction scale value
 	int yscale;					// y directoon scale value
 	int tmdsclk;				// TDMS Clock frequency
+	int pixclock;				//Pixel Clcok frequency
 
 	struct list_head pwrlist_head;
 	

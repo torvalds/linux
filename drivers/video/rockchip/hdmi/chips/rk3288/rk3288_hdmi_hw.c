@@ -248,13 +248,25 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 		return -ENOENT;
 	}
 
-	hdmi_drv->tmdsclk = mode->pixclock;
-	rk3288_hdmi_config_phy(hdmi_drv, vpara->pixel_repet, vpara->color_depth);
-
-	if(hdmi_drv->tmdsclk > 340000000) {	//used for HDMI 2.0 TX	//TODO Daisen wait to modify HDCP KEEPOUT
-		hdmi_msk_reg(hdmi_dev, FC_INVIDCONF, m_FC_HDCP_KEEPOUT, v_FC_HDCP_KEEPOUT(1));
-		hdmi_msk_reg(hdmi_dev, FC_SCRAMBLER_CTRL, m_FC_SCRAMBLE_EN, v_FC_SCRAMBLE_EN(1));
+	hdmi_drv->pixclock = mode->pixclock;
+	switch(vpara->color_depth) {
+	case HDMI_COLOR_DEPTH_8BIT:
+		hdmi_drv->tmdsclk = mode->pixclock;
+		break;
+	case HDMI_COLOR_DEPTH_10BIT:
+		hdmi_drv->tmdsclk = mode->pixclock * 10 / 8;
+		break;
+	case HDMI_COLOR_DEPTH_12BIT:
+		hdmi_drv->tmdsclk = mode->pixclock * 12 / 8;
+		break;
+	case HDMI_COLOR_DEPTH_16BIT:
+		hdmi_drv->tmdsclk = mode->pixclock * 2;
+		break;
+	default:
+		hdmi_drv->tmdsclk = mode->pixclock;
+		break;
 	}
+	rk3288_hdmi_config_phy(hdmi_drv, vpara->pixel_repet, vpara->color_depth);
 
 	hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_ENCRYPT_BYPASS | m_HDMI_DVI,
 		v_ENCRYPT_BYPASS(1) | v_HDMI_DVI(vpara->output_mode));	//cfg to bypass hdcp data encrypt
@@ -295,6 +307,10 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 	hdmi_writel(hdmi_dev, FC_CTRLDUR, 12);
 	hdmi_writel(hdmi_dev, FC_EXCTRLDUR, 32);
 #if 0
+	if(hdmi_drv->tmdsclk > 340000000) {	//used for HDMI 2.0 TX	//TODO Daisen wait to modify HDCP KEEPOUT
+		hdmi_msk_reg(hdmi_dev, FC_INVIDCONF, m_FC_HDCP_KEEPOUT, v_FC_HDCP_KEEPOUT(1));
+		hdmi_msk_reg(hdmi_dev, FC_SCRAMBLER_CTRL, m_FC_SCRAMBLE_EN, v_FC_SCRAMBLE_EN(1));
+	}
 
 	/* spacing < 256^2 * config / tmdsClock, spacing <= 50ms
 	 * worst case: tmdsClock == 25MHz => config <= 19
@@ -583,29 +599,29 @@ int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv, unsigned char pixel_repet, uns
 	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_GEN2_ADDR);
 
 	//config the required PHY I2C register
-	phy_mpll = get_phy_mpll_tab(hdmi_drv->tmdsclk, pixel_repet, color_depth);
+	phy_mpll = get_phy_mpll_tab(hdmi_drv->pixclock, pixel_repet, color_depth);
 	if(phy_mpll) {
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_OPMODE_PLLCFG, v_PREP_DIV(phy_mpll->prep_div) | v_TMDS_CNTRL(phy_mpll->tmdsmhl_cntrl) | v_OPMODE(phy_mpll->opmode) |
 			v_FBDIV2_CNTRL(phy_mpll->fbdiv2_cntrl) | v_FBDIV1_CNTRL(phy_mpll->fbdiv1_cntrl) | v_REF_CNTRL(phy_mpll->ref_cntrl) | v_MPLL_N_CNTRL(phy_mpll->n_cntrl));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLCURRCTRL, v_MPLL_PROP_CNTRL(phy_mpll->prop_cntrl) | v_MPLL_INT_CNTRL(phy_mpll->int_cntrl));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLGMPCTRL, v_MPLL_GMP_CNTRL(phy_mpll->gmp_cntrl));
 	}
-	if(hdmi_drv->tmdsclk <= 74250000) {
+	if(hdmi_drv->pixclock <= 74250000) {
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(0)
 			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(0) | v_CLK_SYMON(1));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
 	}
-	else if(hdmi_drv->tmdsclk == 148500000) {
+	else if(hdmi_drv->pixclock == 148500000) {
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(3)
 			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(0) | v_CLK_SYMON(1));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
 	}
-	else if(hdmi_drv->tmdsclk == 297000000) {
+	else if(hdmi_drv->pixclock == 297000000) {
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(3)
 			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(1) | v_CLK_SYMON(1));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
 	}
-	else if(hdmi_drv->tmdsclk > 297000000) {
+	else if(hdmi_drv->pixclock > 297000000) {
 		//TODO Daisen wait to add and modify
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R13333_Ohms));
 	}
@@ -944,7 +960,7 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 		hdmi_dbg(hdmi_drv->dev, "[%s] sucess output DVI.\n", __FUNCTION__);
 	}
 
-	rk3288_hdmi_control_output(hdmi_drv, 0);
+	//rk3288_hdmi_control_output(hdmi_drv, 0);
 	return 0;
 }
 
@@ -970,6 +986,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 {
 	int word_length = 0, channel = 0, mclk_fs;
 	unsigned int N = 0, CTS = 0;
+	unsigned char layout_value = 0;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	if(audio->channel < 3)
@@ -985,9 +1002,9 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 	{
 		case HDMI_AUDIO_FS_32000:
 			mclk_fs = FS_256;
-			if(hdmi_drv->tmdsclk >= 594000000)
+			if(hdmi_drv->pixclock >= 594000000)
 				N = N_32K_HIGHCLK;
-			else if(hdmi_drv->tmdsclk == 297000000)
+			else if(hdmi_drv->pixclock == 297000000)
 				N = N_32K_MIDCLK;
 			else
 				N = N_32K_LOWCLK;
@@ -996,9 +1013,9 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 			break;
 		case HDMI_AUDIO_FS_44100:
 			mclk_fs = FS_256;
-			if(hdmi_drv->tmdsclk >= 594000000)
+			if(hdmi_drv->pixclock >= 594000000)
 				N = N_441K_HIGHCLK;
-			else if(hdmi_drv->tmdsclk == 297000000)
+			else if(hdmi_drv->pixclock == 297000000)
 				N = N_441K_MIDCLK;
 			else
 				N = N_441K_LOWCLK;
@@ -1007,9 +1024,9 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 			break;
 		case HDMI_AUDIO_FS_48000:
 			mclk_fs = FS_256;
-			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
+			if(hdmi_drv->pixclock >= 594000000)	//FS_153.6
 				N = N_48K_HIGHCLK;
-			else if(hdmi_drv->tmdsclk == 297000000)
+			else if(hdmi_drv->pixclock == 297000000)
 				N = N_48K_MIDCLK;
 			else
 				N = N_48K_LOWCLK;
@@ -1018,9 +1035,9 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 			break;
 		case HDMI_AUDIO_FS_88200:
 			mclk_fs = FS_256;
-			if(hdmi_drv->tmdsclk >= 594000000)
+			if(hdmi_drv->pixclock >= 594000000)
 				N = N_882K_HIGHCLK;
-			else if(hdmi_drv->tmdsclk == 297000000)
+			else if(hdmi_drv->pixclock == 297000000)
 				N = N_882K_MIDCLK;
 			else
 				N = N_882K_LOWCLK;
@@ -1029,9 +1046,9 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 			break;
 		case HDMI_AUDIO_FS_96000:
 			mclk_fs = FS_256;
-			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
+			if(hdmi_drv->pixclock >= 594000000)	//FS_153.6
 				N = N_96K_HIGHCLK;
-			else if(hdmi_drv->tmdsclk == 297000000)
+			else if(hdmi_drv->pixclock == 297000000)
 				N = N_96K_MIDCLK;
 			else
 				N = N_96K_LOWCLK;
@@ -1040,9 +1057,9 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 			break;
 		case HDMI_AUDIO_FS_176400:
 			mclk_fs = FS_256;
-			if(hdmi_drv->tmdsclk >= 594000000)
+			if(hdmi_drv->pixclock >= 594000000)
 				N = N_1764K_HIGHCLK;
-			else if(hdmi_drv->tmdsclk == 297000000)
+			else if(hdmi_drv->pixclock == 297000000)
 				N = N_1764K_MIDCLK;
 			else
 				N = N_1764K_LOWCLK;
@@ -1051,9 +1068,9 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 			break;
 		case HDMI_AUDIO_FS_192000:
 			mclk_fs = FS_256;
-			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
+			if(hdmi_drv->pixclock >= 594000000)	//FS_153.6
 				N = N_192K_HIGHCLK;
-			else if(hdmi_drv->tmdsclk == 297000000)
+			else if(hdmi_drv->pixclock == 297000000)
 				N = N_192K_MIDCLK;
 			else
 				N = N_192K_LOWCLK;
@@ -1082,8 +1099,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 
 	hdmi_dbg(hdmi_drv->dev, "rate = %d, tmdsclk = %d, N = %d, CTS = %d\n",  audio->rate, hdmi_drv->tmdsclk, N, CTS);
 	/* more than 2 channels => layout 1 else layout 0 */
-	//value = (audio->channel > 2) ? 1 : 0;	//TODO Daisen wait to modify
-	//hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_LAYOUT, v_AUD_PACK_LAYOUT(value));
+	layout_value = (audio->channel > 2) ? 1 : 0;	//TODO Daisen wait to modify
+	hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_LAYOUT, v_AUD_PACK_LAYOUT(layout_value));
 
 	if(hdmi_drv->audio.type == INPUT_SPDIF) {
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0, m_I2S_SEL, v_I2S_SEL(AUDIO_SPDIF_GPA));
