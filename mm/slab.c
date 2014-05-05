@@ -166,7 +166,7 @@ typedef unsigned char freelist_idx_t;
 typedef unsigned short freelist_idx_t;
 #endif
 
-#define SLAB_OBJ_MAX_NUM (1 << sizeof(freelist_idx_t) * BITS_PER_BYTE)
+#define SLAB_OBJ_MAX_NUM ((1 << sizeof(freelist_idx_t) * BITS_PER_BYTE) - 1)
 
 /*
  * true if a page was allocated from pfmemalloc reserves for network-based
