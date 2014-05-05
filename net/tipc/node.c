@@ -108,7 +108,7 @@ struct tipc_node *tipc_node_create(u32 addr)
 			break;
 	}
 	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
-	n_ptr->block_setup = WAIT_PEER_DOWN;
+	n_ptr->flags = TIPC_NODE_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
 
 	tipc_num_nodes++;
@@ -267,22 +267,10 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 
 static void node_established_contact(struct tipc_node *n_ptr)
 {
-	tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
+	n_ptr->flags |= TIPC_NODE_UP;
 	n_ptr->bclink.oos_state = 0;
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 	tipc_bclink_add_node(n_ptr->addr);
-}
-
-static void node_name_purge_complete(unsigned long node_addr)
-{
-	struct tipc_node *n_ptr;
-
-	n_ptr = tipc_node_find(node_addr);
-	if (n_ptr) {
-		tipc_node_lock(n_ptr);
-		n_ptr->block_setup &= ~WAIT_NAMES_GONE;
-		tipc_node_unlock(n_ptr);
-	}
 }
 
 static void node_lost_contact(struct tipc_node *n_ptr)
@@ -320,12 +308,10 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		tipc_link_reset_fragments(l_ptr);
 	}
 
-	/* Notify subscribers */
-	tipc_nodesub_notify(n_ptr);
-
-	/* Prevent re-contact with node until cleanup is done */
-	n_ptr->block_setup = WAIT_PEER_DOWN | WAIT_NAMES_GONE;
-	tipc_k_signal((Handler)node_name_purge_complete, n_ptr->addr);
+	/* Notify subscribers and prevent re-contact with node until
+	 * cleanup is done.
+	 */
+	n_ptr->flags = TIPC_NODE_DOWN | TIPC_NODE_LOST;
 }
 
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
@@ -464,4 +450,37 @@ int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
 	}
 	tipc_node_unlock(node);
 	return -EINVAL;
+}
+
+void tipc_node_unlock(struct tipc_node *node)
+{
+	LIST_HEAD(nsub_list);
+	struct tipc_link *link;
+	int pkt_sz = 0;
+	u32 addr = 0;
+
+	if (likely(!node->flags)) {
+		spin_unlock_bh(&node->lock);
+		return;
+	}
+
+	if (node->flags & TIPC_NODE_LOST) {
+		list_replace_init(&node->nsub, &nsub_list);
+		node->flags &= ~TIPC_NODE_LOST;
+	}
+	if (node->flags & TIPC_NODE_UP) {
+		link = node->active_links[0];
+		node->flags &= ~TIPC_NODE_UP;
+		if (link) {
+			pkt_sz = ((link->max_pkt - INT_H_SIZE) / ITEM_SIZE) *
+				  ITEM_SIZE;
+			addr = node->addr;
+		}
+	}
+	spin_unlock_bh(&node->lock);
+
+	if (!list_empty(&nsub_list))
+		tipc_nodesub_notify(&nsub_list);
+	if (pkt_sz)
+		tipc_named_node_up(pkt_sz, addr);
 }

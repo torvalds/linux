@@ -39,7 +39,7 @@
 
 void tipc_net_route_msg(struct sk_buff *buf);
 
-void tipc_net_start(u32 addr);
+int tipc_net_start(u32 addr);
 void tipc_net_stop(void);
 
 #endif

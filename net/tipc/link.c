@@ -297,14 +297,14 @@ void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
-		spin_lock_bh(&n_ptr->lock);
+		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->links[bearer_id];
 		if (l_ptr) {
 			tipc_link_reset(l_ptr);
 			if (shutting_down || !tipc_node_is_up(n_ptr)) {
 				tipc_node_detach_link(l_ptr->owner, l_ptr);
 				tipc_link_reset_fragments(l_ptr);
-				spin_unlock_bh(&n_ptr->lock);
+				tipc_node_unlock(n_ptr);
 
 				/* Nobody else can access this link now: */
 				del_timer_sync(&l_ptr->timer);
@@ -312,12 +312,12 @@ void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down)
 			} else {
 				/* Detach/delete when failover is finished: */
 				l_ptr->flags |= LINK_STOPPED;
-				spin_unlock_bh(&n_ptr->lock);
+				tipc_node_unlock(n_ptr);
 				del_timer_sync(&l_ptr->timer);
 			}
 			continue;
 		}
-		spin_unlock_bh(&n_ptr->lock);
+		tipc_node_unlock(n_ptr);
 	}
 	rcu_read_unlock();
 }
@@ -474,11 +474,11 @@ void tipc_link_reset_list(unsigned int bearer_id)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
-		spin_lock_bh(&n_ptr->lock);
+		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->links[bearer_id];
 		if (l_ptr)
 			tipc_link_reset(l_ptr);
-		spin_unlock_bh(&n_ptr->lock);
+		tipc_node_unlock(n_ptr);
 	}
 	rcu_read_unlock();
 }
@@ -1259,29 +1259,24 @@ void tipc_link_push_queue(struct tipc_link *l_ptr)
 	} while (!res);
 }
 
-static void link_reset_all(unsigned long addr)
+void tipc_link_reset_all(struct tipc_node *node)
 {
-	struct tipc_node *n_ptr;
 	char addr_string[16];
 	u32 i;
 
-	n_ptr = tipc_node_find((u32)addr);
-	if (!n_ptr)
-		return;	/* node no longer exists */
-
-	tipc_node_lock(n_ptr);
+	tipc_node_lock(node);
 
 	pr_warn("Resetting all links to %s\n",
-		tipc_addr_string_fill(addr_string, n_ptr->addr));
+		tipc_addr_string_fill(addr_string, node->addr));
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (n_ptr->links[i]) {
-			link_print(n_ptr->links[i], "Resetting link\n");
-			tipc_link_reset(n_ptr->links[i]);
+		if (node->links[i]) {
+			link_print(node->links[i], "Resetting link\n");
+			tipc_link_reset(node->links[i]);
 		}
 	}
 
-	tipc_node_unlock(n_ptr);
+	tipc_node_unlock(node);
 }
 
 static void link_retransmit_failure(struct tipc_link *l_ptr,
@@ -1318,10 +1313,9 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 			n_ptr->bclink.oos_state,
 			n_ptr->bclink.last_sent);
 
-		tipc_k_signal((Handler)link_reset_all, (unsigned long)n_ptr->addr);
-
 		tipc_node_unlock(n_ptr);
 
+		tipc_bclink_set_flags(TIPC_BCLINK_RESET);
 		l_ptr->stale_count = 0;
 	}
 }
@@ -1495,14 +1489,14 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			goto unlock_discard;
 
 		/* Verify that communication with node is currently allowed */
-		if ((n_ptr->block_setup & WAIT_PEER_DOWN) &&
-			msg_user(msg) == LINK_PROTOCOL &&
-			(msg_type(msg) == RESET_MSG ||
-			 msg_type(msg) == ACTIVATE_MSG) &&
-			!msg_redundant_link(msg))
-			n_ptr->block_setup &= ~WAIT_PEER_DOWN;
+		if ((n_ptr->flags & TIPC_NODE_DOWN) &&
+		    msg_user(msg) == LINK_PROTOCOL &&
+		    (msg_type(msg) == RESET_MSG ||
+		    msg_type(msg) == ACTIVATE_MSG) &&
+		    !msg_redundant_link(msg))
+			n_ptr->flags &= ~TIPC_NODE_DOWN;
 
-		if (n_ptr->block_setup)
+		if (tipc_node_blocked(n_ptr))
 			goto unlock_discard;
 
 		/* Validate message sequence number info */
@@ -1744,7 +1738,7 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 		return;
 
 	/* Abort non-RESET send if communication with node is prohibited */
-	if ((l_ptr->owner->block_setup) && (msg_typ != RESET_MSG))
+	if ((tipc_node_blocked(l_ptr->owner)) && (msg_typ != RESET_MSG))
 		return;
 
 	/* Create protocol message with "out-of-sequence" sequence number */
@@ -1859,7 +1853,7 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr, struct sk_buff *buf)
 			 * peer has lost contact -- don't allow peer's links
 			 * to reactivate before we recognize loss & clean up
 			 */
-			l_ptr->owner->block_setup = WAIT_NODE_DOWN;
+			l_ptr->owner->flags = TIPC_NODE_RESET;
 		}
 
 		link_state_event(l_ptr, RESET_MSG);

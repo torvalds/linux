@@ -47,62 +47,78 @@
  */
 #define INVALID_NODE_SIG 0x10000
 
-/* Flags used to block (re)establishment of contact with a neighboring node */
-#define WAIT_PEER_DOWN	0x0001	/* wait to see that peer's links are down */
-#define WAIT_NAMES_GONE	0x0002	/* wait for peer's publications to be purged */
-#define WAIT_NODE_DOWN	0x0004	/* wait until peer node is declared down */
+/* Flags used to block (re)establishment of contact with a neighboring node
+ * TIPC_NODE_DOWN: indicate node is down and it's used to block the node's
+ *                 links until RESET or ACTIVE message arrives
+ * TIPC_NODE_RESET: indicate node is reset
+ * TIPC_NODE_LOST: indicate node is lost and it's used to notify subscriptions
+ *                 when node lock is released
+ * TIPC_NODE_UP: indicate node is up and it's used to deliver local name table
+ *               when node lock is released
+ */
+enum {
+	TIPC_NODE_DOWN	= (1 << 1),
+	TIPC_NODE_RESET	= (1 << 2),
+	TIPC_NODE_LOST	= (1 << 3),
+	TIPC_NODE_UP	= (1 << 4)
+};
+
+/**
+ * struct tipc_node_bclink - TIPC node bclink structure
+ * @acked: sequence # of last outbound b'cast message acknowledged by node
+ * @last_in: sequence # of last in-sequence b'cast message received from node
+ * @last_sent: sequence # of last b'cast message sent by node
+ * @oos_state: state tracker for handling OOS b'cast messages
+ * @deferred_size: number of OOS b'cast messages in deferred queue
+ * @deferred_head: oldest OOS b'cast message received from node
+ * @deferred_tail: newest OOS b'cast message received from node
+ * @reasm_head: broadcast reassembly queue head from node
+ * @reasm_tail: last broadcast fragment received from node
+ * @recv_permitted: true if node is allowed to receive b'cast messages
+ */
+struct tipc_node_bclink {
+	u32 acked;
+	u32 last_in;
+	u32 last_sent;
+	u32 oos_state;
+	u32 deferred_size;
+	struct sk_buff *deferred_head;
+	struct sk_buff *deferred_tail;
+	struct sk_buff *reasm_head;
+	struct sk_buff *reasm_tail;
+	bool recv_permitted;
+};
 
 /**
  * struct tipc_node - TIPC node structure
  * @addr: network address of node
  * @lock: spinlock governing access to structure
  * @hash: links to adjacent nodes in unsorted hash chain
- * @list: links to adjacent nodes in sorted list of cluster's nodes
- * @nsub: list of "node down" subscriptions monitoring node
  * @active_links: pointers to active links to node
  * @links: pointers to all links to node
+ * @flags: bit mask of conditions preventing link establishment to node
+ * @bclink: broadcast-related info
+ * @list: links to adjacent nodes in sorted list of cluster's nodes
  * @working_links: number of working links to node (both active and standby)
- * @block_setup: bit mask of conditions preventing link establishment to node
  * @link_cnt: number of links to node
  * @signature: node instance identifier
- * @bclink: broadcast-related info
+ * @nsub: list of "node down" subscriptions monitoring node
  * @rcu: rcu struct for tipc_node
- *    @acked: sequence # of last outbound b'cast message acknowledged by node
- *    @last_in: sequence # of last in-sequence b'cast message received from node
- *    @last_sent: sequence # of last b'cast message sent by node
- *    @oos_state: state tracker for handling OOS b'cast messages
- *    @deferred_size: number of OOS b'cast messages in deferred queue
- *    @deferred_head: oldest OOS b'cast message received from node
- *    @deferred_tail: newest OOS b'cast message received from node
- *    @reasm_head: broadcast reassembly queue head from node
- *    @reasm_tail: last broadcast fragment received from node
- *    @recv_permitted: true if node is allowed to receive b'cast messages
  */
 struct tipc_node {
 	u32 addr;
 	spinlock_t lock;
 	struct hlist_node hash;
-	struct list_head list;
-	struct list_head nsub;
 	struct tipc_link *active_links[2];
 	struct tipc_link *links[MAX_BEARERS];
+	unsigned int flags;
+	struct tipc_node_bclink bclink;
+	struct list_head list;
 	int link_cnt;
 	int working_links;
-	int block_setup;
 	u32 signature;
+	struct list_head nsub;
 	struct rcu_head rcu;
-	struct {
-		u32 acked;
-		u32 last_in;
-		u32 last_sent;
-		u32 oos_state;
-		u32 deferred_size;
-		struct sk_buff *deferred_head;
-		struct sk_buff *deferred_tail;
-		struct sk_buff *reasm_head;
-		struct sk_buff *reasm_tail;
-		bool recv_permitted;
-	} bclink;
 };
 
 extern struct list_head tipc_node_list;
@@ -119,15 +135,17 @@ int tipc_node_is_up(struct tipc_node *n_ptr);
 struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space);
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space);
 int tipc_node_get_linkname(u32 bearer_id, u32 node, char *linkname, size_t len);
+void tipc_node_unlock(struct tipc_node *node);
 
-static inline void tipc_node_lock(struct tipc_node *n_ptr)
+static inline void tipc_node_lock(struct tipc_node *node)
 {
-	spin_lock_bh(&n_ptr->lock);
+	spin_lock_bh(&node->lock);
 }
 
-static inline void tipc_node_unlock(struct tipc_node *n_ptr)
+static inline bool tipc_node_blocked(struct tipc_node *node)
 {
-	spin_unlock_bh(&n_ptr->lock);
+	return (node->flags & (TIPC_NODE_DOWN | TIPC_NODE_LOST |
+		TIPC_NODE_RESET));
 }
 
 #endif

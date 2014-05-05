@@ -164,20 +164,25 @@ void tipc_net_route_msg(struct sk_buff *buf)
 	tipc_link_xmit(buf, dnode, msg_link_selector(msg));
 }
 
-void tipc_net_start(u32 addr)
+int tipc_net_start(u32 addr)
 {
 	char addr_string[16];
+	int res;
 
 	tipc_own_addr = addr;
 	tipc_named_reinit();
 	tipc_port_reinit();
-	tipc_bclink_init();
+	res = tipc_bclink_init();
+	if (res)
+		return res;
+
 	tipc_nametbl_publish(TIPC_CFG_SRV, tipc_own_addr, tipc_own_addr,
 			     TIPC_ZONE_SCOPE, 0, tipc_own_addr);
 
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",
 		tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
+	return 0;
 }
 
 void tipc_net_stop(void)
