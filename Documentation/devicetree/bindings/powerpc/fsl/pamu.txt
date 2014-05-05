@@ -34,6 +34,15 @@ Optional properties:
 		  for legacy drivers.
 - interrupt-parent : <phandle>
 		  Phandle to interrupt controller
+- fsl,portid-mapping : <u32>
+		  The Coherency Subdomain ID Port Mapping Registers and
+		  Snoop ID Port Mapping registers, which are part of the
+		  CoreNet Coherency fabric (CCF), provide a CoreNet
+		  Coherency Subdomain ID/CoreNet Snoop ID to pamu mapping
+		  functions.  Certain bits from these registers should be
+		  set if PAMUs should be snooped.  This property defines
+		  a bitmask which selects the bits that should be set if
+		  PAMUs should be snooped.
 
 Child nodes:
 
@@ -88,6 +97,7 @@ Example:
 		compatible = "fsl,pamu-v1.0", "fsl,pamu";
 		reg = <0x20000 0x5000>;
 		ranges = <0 0x20000 0x5000>;
+		fsl,portid-mapping = <0xf80000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		interrupts = <
