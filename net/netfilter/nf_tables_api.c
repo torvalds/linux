@@ -235,19 +235,16 @@ nla_put_failure:
 	return -1;
 }
 
-static int nf_tables_table_notify(const struct sk_buff *oskb,
-				  const struct nlmsghdr *nlh,
-				  const struct nft_table *table,
-				  int event, int family)
+static int nf_tables_table_notify(const struct nft_ctx *ctx, int event)
 {
 	struct sk_buff *skb;
-	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
-	u32 seq = nlh ? nlh->nlmsg_seq : 0;
-	struct net *net = oskb ? sock_net(oskb->sk) : &init_net;
+	u32 portid = NETLINK_CB(ctx->skb).portid;
+	u32 seq = ctx->nlh->nlmsg_seq;
+	struct net *net = sock_net(ctx->skb->sk);
 	bool report;
 	int err;
 
-	report = nlh ? nlmsg_report(nlh) : false;
+	report = nlmsg_report(ctx->nlh);
 	if (!report && !nfnetlink_has_listeners(net, NFNLGRP_NFTABLES))
 		return 0;
 
@@ -257,7 +254,7 @@ static int nf_tables_table_notify(const struct sk_buff *oskb,
 		goto err;
 
 	err = nf_tables_fill_table_info(skb, portid, seq, event, 0,
-					family, table);
+					ctx->afi->family, ctx->table);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto err;
@@ -721,20 +718,16 @@ nla_put_failure:
 	return -1;
 }
 
-static int nf_tables_chain_notify(const struct sk_buff *oskb,
-				  const struct nlmsghdr *nlh,
-				  const struct nft_table *table,
-				  const struct nft_chain *chain,
-				  int event, int family)
+static int nf_tables_chain_notify(const struct nft_ctx *ctx, int event)
 {
 	struct sk_buff *skb;
-	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
-	struct net *net = oskb ? sock_net(oskb->sk) : &init_net;
-	u32 seq = nlh ? nlh->nlmsg_seq : 0;
+	u32 portid = NETLINK_CB(ctx->skb).portid;
+	struct net *net = sock_net(ctx->skb->sk);
+	u32 seq = ctx->nlh->nlmsg_seq;
 	bool report;
 	int err;
 
-	report = nlh ? nlmsg_report(nlh) : false;
+	report = nlmsg_report(ctx->nlh);
 	if (!report && !nfnetlink_has_listeners(net, NFNLGRP_NFTABLES))
 		return 0;
 
@@ -743,8 +736,9 @@ static int nf_tables_chain_notify(const struct sk_buff *oskb,
 	if (skb == NULL)
 		goto err;
 
-	err = nf_tables_fill_chain_info(skb, portid, seq, event, 0, family,
-					table, chain);
+	err = nf_tables_fill_chain_info(skb, portid, seq, event, 0,
+					ctx->afi->family, ctx->table,
+					ctx->chain);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto err;
@@ -1475,21 +1469,19 @@ nla_put_failure:
 	return -1;
 }
 
-static int nf_tables_rule_notify(const struct sk_buff *oskb,
-				 const struct nlmsghdr *nlh,
-				 const struct nft_table *table,
-				 const struct nft_chain *chain,
+static int nf_tables_rule_notify(const struct nft_ctx *ctx,
 				 const struct nft_rule *rule,
-				 int event, u32 flags, int family)
+				 int event)
 {
+	const struct sk_buff *oskb = ctx->skb;
 	struct sk_buff *skb;
 	u32 portid = NETLINK_CB(oskb).portid;
-	struct net *net = oskb ? sock_net(oskb->sk) : &init_net;
-	u32 seq = nlh->nlmsg_seq;
+	struct net *net = sock_net(oskb->sk);
+	u32 seq = ctx->nlh->nlmsg_seq;
 	bool report;
 	int err;
 
-	report = nlmsg_report(nlh);
+	report = nlmsg_report(ctx->nlh);
 	if (!report && !nfnetlink_has_listeners(net, NFNLGRP_NFTABLES))
 		return 0;
 
@@ -1498,8 +1490,9 @@ static int nf_tables_rule_notify(const struct sk_buff *oskb,
 	if (skb == NULL)
 		goto err;
 
-	err = nf_tables_fill_rule_info(skb, portid, seq, event, flags,
-				       family, table, chain, rule);
+	err = nf_tables_fill_rule_info(skb, portid, seq, event, 0,
+				       ctx->afi->family, ctx->table,
+				       ctx->chain, rule);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto err;
@@ -3343,17 +3336,11 @@ static int nf_tables_commit(struct sk_buff *skb)
 			} else {
 				trans->ctx.table->flags &= ~NFT_TABLE_INACTIVE;
 			}
-			nf_tables_table_notify(trans->ctx.skb, trans->ctx.nlh,
-					       trans->ctx.table,
-					       NFT_MSG_NEWTABLE,
-					       trans->ctx.afi->family);
+			nf_tables_table_notify(&trans->ctx, NFT_MSG_NEWTABLE);
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_DELTABLE:
-			nf_tables_table_notify(trans->ctx.skb, trans->ctx.nlh,
-					       trans->ctx.table,
-					       NFT_MSG_DELTABLE,
-					       trans->ctx.afi->family);
+			nf_tables_table_notify(&trans->ctx, NFT_MSG_DELTABLE);
 			break;
 		case NFT_MSG_NEWCHAIN:
 			if (nft_trans_chain_update(trans))
@@ -3362,20 +3349,12 @@ static int nf_tables_commit(struct sk_buff *skb)
 				trans->ctx.chain->flags &= ~NFT_CHAIN_INACTIVE;
 				trans->ctx.table->use++;
 			}
-			nf_tables_chain_notify(trans->ctx.skb, trans->ctx.nlh,
-					       trans->ctx.table,
-					       trans->ctx.chain,
-					       NFT_MSG_NEWCHAIN,
-					       trans->ctx.afi->family);
+			nf_tables_chain_notify(&trans->ctx, NFT_MSG_NEWCHAIN);
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_DELCHAIN:
 			trans->ctx.table->use--;
-			nf_tables_chain_notify(trans->ctx.skb, trans->ctx.nlh,
-					       trans->ctx.table,
-					       trans->ctx.chain,
-					       NFT_MSG_DELCHAIN,
-					       trans->ctx.afi->family);
+			nf_tables_chain_notify(&trans->ctx, NFT_MSG_DELCHAIN);
 			if (!(trans->ctx.table->flags & NFT_TABLE_F_DORMANT) &&
 			    trans->ctx.chain->flags & NFT_BASE_CHAIN) {
 				nf_unregister_hooks(nft_base_chain(trans->ctx.chain)->ops,
@@ -3384,21 +3363,16 @@ static int nf_tables_commit(struct sk_buff *skb)
 			break;
 		case NFT_MSG_NEWRULE:
 			nft_rule_clear(trans->ctx.net, nft_trans_rule(trans));
-			nf_tables_rule_notify(trans->ctx.skb, trans->ctx.nlh,
-					      trans->ctx.table,
-					      trans->ctx.chain,
+			nf_tables_rule_notify(&trans->ctx,
 					      nft_trans_rule(trans),
-					      NFT_MSG_NEWRULE, 0,
-					      trans->ctx.afi->family);
+					      NFT_MSG_NEWRULE);
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_DELRULE:
 			list_del_rcu(&nft_trans_rule(trans)->list);
-			nf_tables_rule_notify(trans->ctx.skb, trans->ctx.nlh,
-					      trans->ctx.table,
-					      trans->ctx.chain,
-					      nft_trans_rule(trans), NFT_MSG_DELRULE, 0,
-					      trans->ctx.afi->family);
+			nf_tables_rule_notify(&trans->ctx,
+					      nft_trans_rule(trans),
+					      NFT_MSG_DELRULE);
 			break;
 		case NFT_MSG_NEWSET:
 			nft_trans_set(trans)->flags &= ~NFT_SET_INACTIVE;
