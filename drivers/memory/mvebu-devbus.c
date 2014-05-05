@@ -108,8 +108,19 @@ static int devbus_set_timing_params(struct devbus *devbus,
 			node->full_name);
 		return err;
 	}
-	/* Convert bit width to byte width */
-	r.bus_width /= 8;
+
+	/*
+	 * The bus width is encoded into the register as 0 for 8 bits,
+	 * and 1 for 16 bits, so we do the necessary conversion here.
+	 */
+	if (r.bus_width == 8)
+		r.bus_width = 0;
+	else if (r.bus_width == 16)
+		r.bus_width = 1;
+	else {
+		dev_err(devbus->dev, "invalid bus width %d\n", r.bus_width);
+		return -EINVAL;
+	}
 
 	err = get_timing_param_ps(devbus, node, "devbus,badr-skew-ps",
 				 &r.badr_skew);
