@@ -23,6 +23,8 @@
 
 #include "sst-mfld-dsp.h"
 
+extern struct sst_device *sst;
+
 #define SST_MONO		1
 #define SST_STEREO		2
 #define SST_MAX_CAP		5
