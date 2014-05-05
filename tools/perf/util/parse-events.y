@@ -9,7 +9,7 @@
 
 #include <linux/compiler.h>
 #include <linux/list.h>
-#include "types.h"
+#include <linux/types.h>
 #include "util.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"

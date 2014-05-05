@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <stdbool.h>
-#include "types.h"
+#include <linux/types.h>
 #include "map.h"
 #include "build-id.h"
 
