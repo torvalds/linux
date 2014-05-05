@@ -22,6 +22,7 @@
 
 /* Armada 375 */
 #define ARMADA_375_Z1_REV   0x0
+#define ARMADA_375_A0_REV   0x3
 
 #ifdef CONFIG_ARCH_MVEBU
 int mvebu_get_soc_id(u32 *dev, u32 *rev);
