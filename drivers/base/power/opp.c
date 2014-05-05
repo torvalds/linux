@@ -617,53 +617,54 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_disable);
  * the table if any of the mentioned functions have been invoked in the interim.
  *
  * Locking: The internal device_opp and opp structures are RCU protected.
- * To simplify the logic, we pretend we are updater and hold relevant mutex here
- * Callers should ensure that this function is *NOT* called under RCU protection
- * or in contexts where mutex locking cannot be used.
+ * Since we just use the regular accessor functions to access the internal data
+ * structures, we use RCU read lock inside this function. As a result, users of
+ * this function DONOT need to use explicit locks for invoking.
  */
 int dev_pm_opp_init_cpufreq_table(struct device *dev,
 			    struct cpufreq_frequency_table **table)
 {
-	struct device_opp *dev_opp;
 	struct dev_pm_opp *opp;
-	struct cpufreq_frequency_table *freq_table;
-	int i = 0;
+	struct cpufreq_frequency_table *freq_table = NULL;
+	int i, max_opps, ret = 0;
+	unsigned long rate;
 
-	/* Pretend as if I am an updater */
-	mutex_lock(&dev_opp_list_lock);
+	rcu_read_lock();
 
-	dev_opp = find_device_opp(dev);
-	if (IS_ERR(dev_opp)) {
-		int r = PTR_ERR(dev_opp);
-		mutex_unlock(&dev_opp_list_lock);
-		dev_err(dev, "%s: Device OPP not found (%d)\n", __func__, r);
-		return r;
+	max_opps = dev_pm_opp_get_opp_count(dev);
+	if (max_opps <= 0) {
+		ret = max_opps ? max_opps : -ENODATA;
+		goto out;
 	}
 
-	freq_table = kzalloc(sizeof(struct cpufreq_frequency_table) *
-			     (dev_pm_opp_get_opp_count(dev) + 1), GFP_KERNEL);
+	freq_table = kzalloc(sizeof(*freq_table) * (max_opps + 1), GFP_KERNEL);
 	if (!freq_table) {
-		mutex_unlock(&dev_opp_list_lock);
-		dev_warn(dev, "%s: Unable to allocate frequency table\n",
-			__func__);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
-	list_for_each_entry(opp, &dev_opp->opp_list, node) {
-		if (opp->available) {
-			freq_table[i].driver_data = i;
-			freq_table[i].frequency = opp->rate / 1000;
-			i++;
+	for (i = 0, rate = 0; i < max_opps; i++, rate++) {
+		/* find next rate */
+		opp = dev_pm_opp_find_freq_ceil(dev, &rate);
+		if (IS_ERR(opp)) {
+			ret = PTR_ERR(opp);
+			goto out;
 		}
+		freq_table[i].driver_data = i;
+		freq_table[i].frequency = rate / 1000;
 	}
-	mutex_unlock(&dev_opp_list_lock);
 
 	freq_table[i].driver_data = i;
 	freq_table[i].frequency = CPUFREQ_TABLE_END;
 
 	*table = &freq_table[0];
 
-	return 0;
+out:
+	rcu_read_unlock();
+	if (ret)
+		kfree(freq_table);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_init_cpufreq_table);
 
