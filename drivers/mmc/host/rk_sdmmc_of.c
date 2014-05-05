@@ -10,7 +10,7 @@
  */
 #include "rk_sdmmc_of.h"
 
-u32 mmc_debug_level= MMC_DBG_ERROR;//MMC_DBG_CMD//set the value refer to file rk_sdmmc_of.h
+u32 mmc_debug_level= MMC_DBG_BOOT|MMC_DBG_ERROR;//MMC_DBG_SW_VOL|MMC_DBG_CMD;//set the value refer to file rk_sdmmc_of.h
 char dbg_flag[]="mmc0mmc1mmc2"; 
 
 #if DW_MMC_OF_PROBE

@@ -15,6 +15,7 @@
 
 #ifndef _DW_MMC_H_
 #define _DW_MMC_H_
+#include "rk_sdmmc_of.h"
 
 #define DW_MMC_240A			0x240a
 
@@ -87,7 +88,7 @@ static struct sdmmc_reg dw_mci_regs[] =
   { 0x0018, "     CTYPE" },
   { 0x001C, "    BLKSIZ" },
   { 0x0020, "    BYTCNT" },
-  { 0x0024, "    INTMSK" },
+  { 0x0024, "   INTMASK" },
   { 0x0028, "    CMDARG" },
   { 0x002C, "       CMD" },
   { 0x0030, "     RESP0" },
@@ -154,6 +155,7 @@ static struct sdmmc_reg dw_mci_regs[] =
 #define SDMMC_INT_HLE			BIT(12)
 #define SDMMC_INT_FRUN			BIT(11)
 #define SDMMC_INT_HTO			BIT(10)
+#define SDMMC_INT_VSI           SDMMC_INT_HTO   // VSI => Voltage Switch Interrupt,Volt_Switch_int
 #define SDMMC_INT_DRTO			BIT(9)
 #define SDMMC_INT_RTO			BIT(8)
 #define SDMMC_INT_DCRC			BIT(7)
@@ -168,6 +170,12 @@ static struct sdmmc_reg dw_mci_regs[] =
 /* Command register defines */
 #define SDMMC_CMD_START			BIT(31)
 #define SDMMC_CMD_USE_HOLD_REG	BIT(29)
+#define SDMMC_CMD_VOLT_SWITCH       BIT(28)      //Voltage switch bit
+#define SDMMC_CMD_VOLT_SWITCH       BIT(28)      //Voltage switch bit
+#define SDMMC_CMD_BOOT_MODE         BIT(27)      //set boot mode.
+#define SDMMC_CMD_DISABLE_BOOT      BIT(26)      //disable boot.
+#define SDMMC_CMD_EXPECT_BOOT_ACK   BIT(25)      //Expect Boot Acknowledge.
+#define SDMMC_CMD_ENABLE_BOOT       BIT(24)      //be set only for mandatory boot mode.
 #define SDMMC_CMD_CCS_EXP		BIT(23)
 #define SDMMC_CMD_CEATA_RD		BIT(22)
 #define SDMMC_CMD_UPD_CLK		BIT(21)
@@ -190,6 +198,10 @@ static struct sdmmc_reg dw_mci_regs[] =
 #define SDMMC_CMD_FSM_IDLE          (0x00)			//CMD FSM is IDLE
 #define SDMMC_STAUTS_FIFO_FULL	    BIT(3)          //FIFO is full status
 #define SDMMC_STAUTS_FIFO_EMPTY	    BIT(2)          //FIFO is empty status
+
+/* Control SDMMC_UHS_REG defines (base+ 0x74)*/
+#define SDMMC_UHS_DDR_MODE      BIT(16)     // 0--Non DDR Mode; 1--DDR mode 
+#define SDMMC_UHS_VOLT_REG_18   BIT(0)      // 0--3.3v; 1--1.8V
 
 /* FIFOTH register defines */
 #define SDMMC_SET_FIFOTH(m, r, t)	(((m) & 0x7) << 28 | \

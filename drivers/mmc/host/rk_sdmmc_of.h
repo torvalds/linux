@@ -31,6 +31,7 @@ enum MMC_DBG_MASK{
      MMC_DBG_INFO = BIT(3),
      MMC_DBG_CMD  = BIT(4),
      MMC_DBG_DBG  = BIT(5),
+     MMC_DBG_SW_VOL  = BIT(6),
      MMC_DBG_ALL  = 0xFF,
      
 };
@@ -42,7 +43,7 @@ extern char dbg_flag[];
 #if MMC_DBG_FUNC_CONFIG
 #define MMC_DBG_BOOT_FUNC(mmc_host,fmt, arg...) \
     do { \
-        if(mmc_debug_level >= MMC_DBG_BOOT) { \
+        if(mmc_debug_level & MMC_DBG_BOOT) { \
             if(NULL != strpbrk(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "BOOT " fmt "\n", ##arg);\
             } \
@@ -50,7 +51,7 @@ extern char dbg_flag[];
     }while(0)
 #define MMC_DBG_ERR_FUNC(mmc_host,fmt, arg...) \
     do{ \
-        if(mmc_debug_level >= MMC_DBG_ERROR) { \
+        if(mmc_debug_level & MMC_DBG_ERROR) { \
             if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "ERROR " fmt "\n", ##arg);\
             } \
@@ -58,7 +59,7 @@ extern char dbg_flag[];
     }while(0)
 #define MMC_DBG_WARN_FUNC(mmc_host,fmt, arg...) \
     do { \
-        if(mmc_debug_level >= MMC_DBG_WARN) { \
+        if(mmc_debug_level & MMC_DBG_WARN) { \
             if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "WARN " fmt "\n", ##arg);\
             } \
@@ -66,7 +67,7 @@ extern char dbg_flag[];
     }while(0)
 #define MMC_DBG_INFO_FUNC(mmc_host,fmt, arg...) \
     do { \
-        if(mmc_debug_level >= MMC_DBG_INFO) { \
+        if(mmc_debug_level & MMC_DBG_INFO) { \
             if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "INFO " fmt "\n", ##arg);\
             } \
@@ -74,9 +75,17 @@ extern char dbg_flag[];
     }while(0)
 #define MMC_DBG_CMD_FUNC(mmc_host,fmt, arg...) \
    do { \
-        if(mmc_debug_level >= MMC_DBG_CMD) { \
+        if(mmc_debug_level & MMC_DBG_CMD) { \
             if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
                 printk(DRIVER_PREFIX "CMD " fmt "\n", ##arg);\
+            } \
+        } \
+    }while(0)
+#define MMC_DBG_SW_VOL_FUNC(mmc_host,fmt, arg...) \
+   do { \
+        if(mmc_debug_level & MMC_DBG_SW_VOL) { \
+            if(strstr(dbg_flag,mmc_hostname(mmc_host))) { \
+                printk(DRIVER_PREFIX "SW-VOL " fmt "\n", ##arg);\
             } \
         } \
     }while(0)
@@ -86,6 +95,7 @@ extern char dbg_flag[];
 #define MMC_DBG_WARN_FUNC(mmc_host,fmt, arg...)
 #define MMC_DBG_INFO_FUNC(mmc_host,fmt, arg...)
 #define MMC_DBG_CMD_FUNC(mmc_host,fmt, arg...)
+#define MMC_DBG_SW_VOL_FUNC(mmc_host,fmt, arg...)
 #endif
 
 #if defined(CONFIG_DYNAMIC_DEBUG)

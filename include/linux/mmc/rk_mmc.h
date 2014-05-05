@@ -160,7 +160,8 @@ struct dw_mci {
 
 	u32			bus_hz;
 	u32			current_speed;
-	u32         current_div;
+	u32         set_speed;
+	u32         set_div;
 	u32			num_slots;
 	u32			fifoth_val;
 	u16			verid;

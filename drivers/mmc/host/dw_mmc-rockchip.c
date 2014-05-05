@@ -37,7 +37,11 @@
 #define SDMMC_TUNING_DEGREE(tuning_type)        ( tuning_type? 0:1 )
 #define SDMMC_TUNING_INIT_STATE                 (0)
 
-#define SDMMC_CMD_USE_HOLD_REG		BIT(29)
+#define SDMMC_SHIFT_DEGREE_0                 (0)
+#define SDMMC_SHIFT_DEGREE_90                (1)
+#define SDMMC_SHIFT_DEGREE_180               (2)
+#define SDMMC_SHIFT_DEGREE_270               (3)
+
 
 /* Variations in Rockchip specific dw-mshc controller */
 enum dw_mci_rockchip_type {
@@ -59,10 +63,10 @@ static struct dw_mci_rockchip_compatible {
 	enum dw_mci_rockchip_type		ctrl_type;
 } rockchip_compat[] = {
 	{
-		.compatible	= "rockchip,rk3188-sdmmc",
+		.compatible	= "rockchip,rk31xx-sdmmc",
 		.ctrl_type	= DW_MCI_TYPE_RK3188,
 	},{
-		.compatible	= "rockchip,rk3288-sdmmc",
+		.compatible	= "rockchip,rk32xx-sdmmc",
 		.ctrl_type	= DW_MCI_TYPE_RK3288,
 	},
 };
@@ -199,6 +203,9 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	blk_test = kmalloc(blksz, GFP_KERNEL);
 	if (!blk_test)
 		return -ENOMEM;
+		
+    //be fixed to 90 degrees
+	dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_90);
 
     //start_smpl = dw_mci_rockchip_get_delaynum(host, tuning_data->con_id, tuning_data->tuning_type);
     start_smpl = 0;
