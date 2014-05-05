@@ -160,6 +160,7 @@ struct rockchip_pmx_func {
 
 struct rockchip_pinctrl {
 	void __iomem			*reg_base;
+	int				reg_size;
 	void __iomem			*reg_pull;
 	struct device			*dev;
 	struct rockchip_pin_ctrl	*ctrl;
@@ -416,6 +417,7 @@ static void rk2928_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 	*bit = pin_num % RK2928_PULL_PINS_PER_REG;
 };
 
+#define RK3188_PULL_OFFSET		0x164
 #define RK3188_PULL_BITS_PER_PIN	2
 #define RK3188_PULL_PINS_PER_REG	8
 #define RK3188_PULL_BANK_STRIDE		16
@@ -432,7 +434,10 @@ static void rk3188_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = pin_num % RK3188_PULL_PINS_PER_REG;
 		*bit *= RK3188_PULL_BITS_PER_PIN;
 	} else {
-		*reg = info->reg_pull - 4;
+		*reg = info->reg_pull ? info->reg_pull
+				      : info->reg_base + RK3188_PULL_OFFSET;
+		/* correct the offset, as it is the 2nd pull register */
+		*reg -= 4;
 		*reg += bank->bank_num * RK3188_PULL_BANK_STRIDE;
 		*reg += ((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
 
@@ -1427,6 +1432,7 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 	 */
 	if (of_device_is_compatible(bank->of_node,
 				    "rockchip,rk3188-gpio-bank0")) {
+
 		bank->bank_type = RK3188_BANK0;
 
 		if (of_address_to_resource(bank->of_node, 1, &res)) {
@@ -1525,8 +1531,11 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(info->reg_base))
 		return PTR_ERR(info->reg_base);
 
-	/* The RK3188 has its pull registers in a separate place */
-	if (ctrl->type == RK3188) {
+	/* to check for the old dt-bindings */
+	info->reg_size = resource_size(res);
+
+	/* Honor the old binding, with pull registers as 2nd resource */
+	if (ctrl->type == RK3188 &&  info->reg_size < 0x200) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		info->reg_pull = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(info->reg_pull))

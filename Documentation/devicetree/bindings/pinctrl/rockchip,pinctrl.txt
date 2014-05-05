@@ -22,6 +22,8 @@ Required properties for iomux controller:
   - compatible: one of "rockchip,rk2928-pinctrl", "rockchip,rk3066a-pinctrl"
 		       "rockchip,rk3066b-pinctrl", "rockchip,rk3188-pinctrl"
   - reg: first element is the general register space of the iomux controller
+	 It should be large enough to contain also separate pull registers.
+	 Deprecated:
 	 second element is the separate pull register space of the rk3188
 
 Required properties for gpio sub nodes:
