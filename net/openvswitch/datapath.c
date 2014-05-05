@@ -810,6 +810,7 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 			goto err_kfree;
 		}
 	} else if (info->genlhdr->cmd == OVS_FLOW_CMD_NEW) {
+		/* OVS_FLOW_CMD_NEW must have actions. */
 		error = -EINVAL;
 		goto error;
 	}
@@ -849,8 +850,6 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 		reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
 	} else {
 		/* We found a matching flow. */
-		struct sw_flow_actions *old_acts;
-
 		/* Bail out if we're not allowed to modify an existing flow.
 		 * We accept NLM_F_CREATE in place of the intended NLM_F_EXCL
 		 * because Generic Netlink treats the latter as a dump
@@ -866,11 +865,14 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 		if (!ovs_flow_cmp_unmasked_key(flow, &match))
 			goto err_unlock_ovs;
 
-		/* Update actions. */
-		old_acts = ovsl_dereference(flow->sf_acts);
-		rcu_assign_pointer(flow->sf_acts, acts);
-		ovs_nla_free_flow_actions(old_acts);
+		/* Update actions, if present. */
+		if (acts) {
+			struct sw_flow_actions *old_acts;
 
+			old_acts = ovsl_dereference(flow->sf_acts);
+			rcu_assign_pointer(flow->sf_acts, acts);
+			ovs_nla_free_flow_actions(old_acts);
+		}
 		reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
 
 		/* Clear stats. */
