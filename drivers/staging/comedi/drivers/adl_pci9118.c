@@ -369,13 +369,6 @@ struct pci9118_private {
 						 * users(0-AI, 1-AO, 2-DI, 3-DO)
 						 */
 	unsigned int cnt0_divisor;		/* actual CNT0 divisor */
-	void (*int_ai_func)(struct comedi_device *, struct comedi_subdevice *,
-		unsigned short,
-		unsigned int,
-		unsigned short);	/*
-					 * ptr to actual interrupt
-					 * AI function
-					 */
 	unsigned char usedma;		/* =1 use DMA transfer and not INT */
 	int softsshdelay;		/*
 					 * >0 use software S&H,
@@ -1040,6 +1033,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 static irqreturn_t interrupt_pci9118(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int int_daq = 0, int_amcc, int_adstat;
 
@@ -1061,7 +1055,7 @@ static irqreturn_t interrupt_pci9118(int irq, void *d)
 					/* get STATUS register */
 
 	if (devpriv->ai_do) {
-		if (devpriv->ai12_startstop)
+		if (devpriv->ai12_startstop) {
 			if ((int_adstat & AdStatus_DTH) &&
 							(int_daq & Int_DTrg)) {
 						/* start stop of measure */
@@ -1095,9 +1089,14 @@ static irqreturn_t interrupt_pci9118(int irq, void *d)
 					}
 				}
 			}
+		}
 
-		(devpriv->int_ai_func) (dev, dev->read_subdev, int_adstat,
-					int_amcc, int_daq);
+		if (devpriv->usedma)
+			interrupt_pci9118_ai_dma(dev, s, int_adstat,
+						 int_amcc, int_daq);
+		else
+			interrupt_pci9118_ai_onesample(dev, s, int_adstat,
+						       int_amcc, int_daq);
 
 	}
 	return IRQ_HANDLED;
@@ -1472,9 +1471,6 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	devpriv->int_ai_func = interrupt_pci9118_ai_onesample;
-						/* transfer function */
-
 	if (devpriv->ai12_startstop)
 		pci9118_exttrg_add(dev, EXTTRG_AI);
 						/* activate EXT trigger */
@@ -1552,9 +1548,6 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		pci9118_exttrg_add(dev, EXTTRG_AI);
 						/* activate EXT trigger */
 	}
-
-	devpriv->int_ai_func = interrupt_pci9118_ai_dma;
-						/* transfer function */
 
 	outl(0x02000000 | AINT_WRITE_COMPL,
 	     devpriv->iobase_a + AMCC_OP_REG_INTCSR);
