@@ -498,7 +498,7 @@ int ubiblock_remove(struct ubi_volume_info *vi)
 	return 0;
 }
 
-static void ubiblock_resize(struct ubi_volume_info *vi)
+static int ubiblock_resize(struct ubi_volume_info *vi)
 {
 	struct ubiblock *dev;
 	int disk_capacity;
@@ -512,7 +512,7 @@ static void ubiblock_resize(struct ubi_volume_info *vi)
 	dev = find_dev_nolock(vi->ubi_num, vi->vol_id);
 	if (!dev) {
 		mutex_unlock(&devices_mutex);
-		return;
+		return -ENODEV;
 	}
 
 	mutex_lock(&dev->dev_mutex);
@@ -521,6 +521,7 @@ static void ubiblock_resize(struct ubi_volume_info *vi)
 	ubi_msg("%s resized to %d LEBs", dev->gd->disk_name, vi->size);
 	mutex_unlock(&dev->dev_mutex);
 	mutex_unlock(&devices_mutex);
+	return 0;
 }
 
 static int ubiblock_notify(struct notifier_block *nb,
