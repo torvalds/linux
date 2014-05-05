@@ -1009,9 +1009,32 @@ uprobe_filter_event(struct trace_uprobe *tu, struct perf_event *event)
 	return __uprobe_perf_filter(&tu->filter, event->hw.tp_target->mm);
 }
 
+static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
+{
+	bool done;
+
+	write_lock(&tu->filter.rwlock);
+	if (event->hw.tp_target) {
+		list_del(&event->hw.tp_list);
+		done = tu->filter.nr_systemwide ||
+			(event->hw.tp_target->flags & PF_EXITING) ||
+			uprobe_filter_event(tu, event);
+	} else {
+		tu->filter.nr_systemwide--;
+		done = tu->filter.nr_systemwide;
+	}
+	write_unlock(&tu->filter.rwlock);
+
+	if (!done)
+		return uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
+
+	return 0;
+}
+
 static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 {
 	bool done;
+	int err;
 
 	write_lock(&tu->filter.rwlock);
 	if (event->hw.tp_target) {
@@ -1033,32 +1056,13 @@ static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 	}
 	write_unlock(&tu->filter.rwlock);
 
-	if (!done)
-		uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
-
-	return 0;
-}
-
-static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
-{
-	bool done;
-
-	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
-		list_del(&event->hw.tp_list);
-		done = tu->filter.nr_systemwide ||
-			(event->hw.tp_target->flags & PF_EXITING) ||
-			uprobe_filter_event(tu, event);
-	} else {
-		tu->filter.nr_systemwide--;
-		done = tu->filter.nr_systemwide;
+	err = 0;
+	if (!done) {
+		err = uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
+		if (err)
+			uprobe_perf_close(tu, event);
 	}
-	write_unlock(&tu->filter.rwlock);
-
-	if (!done)
-		uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
-
-	return 0;
+	return err;
 }
 
 static bool uprobe_perf_filter(struct uprobe_consumer *uc,
