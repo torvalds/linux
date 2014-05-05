@@ -157,10 +157,6 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 },
 };
 
-static const struct snd_soc_component_driver sst_component = {
-	.name		= "sst",
-};
-
 /* helper functions */
 static inline void sst_set_stream_status(struct sst_runtime_stream *stream,
 					int state)
@@ -676,6 +672,11 @@ static struct snd_soc_platform_driver sst_soc_platform_drv = {
 	.pcm_new	= sst_pcm_new,
 	.pcm_free	= sst_pcm_free,
 };
+
+static const struct snd_soc_component_driver sst_component = {
+	.name		= "sst",
+};
+
 
 static int sst_platform_probe(struct platform_device *pdev)
 {
