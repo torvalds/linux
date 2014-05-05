@@ -1888,7 +1888,7 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset)
 
 /**
  * cgroup_task_migrate - move a task from one cgroup to another.
- * @old_cgrp; the cgroup @tsk is being migrated from
+ * @old_cgrp: the cgroup @tsk is being migrated from
  * @tsk: the task being migrated
  * @new_cset: the new css_set @tsk is being attached to
  *
@@ -4586,7 +4586,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 
 /**
  * cgroup_destroy_css_killed - the second step of cgroup destruction
- * @work: cgroup->destroy_free_work
+ * @cgrp: the cgroup whose csses have just finished offlining
  *
  * This function is invoked from a work item for a cgroup which is being
  * destroyed after all css's are offlined and performs the rest of
