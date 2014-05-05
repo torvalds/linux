@@ -40,12 +40,17 @@
  */
 #define CACHELINE_BYTES 64
 
+static inline int __ring_space(int head, int tail, int size)
+{
+	int space = head - (tail + I915_RING_FREE_SPACE);
+	if (space < 0)
+		space += size;
+	return space;
+}
+
 static inline int ring_space(struct intel_ring_buffer *ring)
 {
-	int space = (ring->head & HEAD_ADDR) - (ring->tail + I915_RING_FREE_SPACE);
-	if (space < 0)
-		space += ring->size;
-	return space;
+	return __ring_space(ring->head & HEAD_ADDR, ring->tail, ring->size);
 }
 
 static bool intel_ring_stopped(struct intel_ring_buffer *ring)
@@ -1482,7 +1487,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 {
 	struct drm_i915_gem_request *request;
-	u32 seqno = 0, tail;
+	u32 seqno = 0;
 	int ret;
 
 	if (ring->last_retired_head != -1) {
@@ -1495,26 +1500,10 @@ static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 	}
 
 	list_for_each_entry(request, &ring->request_list, list) {
-		int space;
-
-		if (request->tail == -1)
-			continue;
-
-		space = request->tail - (ring->tail + I915_RING_FREE_SPACE);
-		if (space < 0)
-			space += ring->size;
-		if (space >= n) {
+		if (__ring_space(request->tail, ring->tail, ring->size) >= n) {
 			seqno = request->seqno;
-			tail = request->tail;
 			break;
 		}
-
-		/* Consume this request in case we need more space than
-		 * is available and so need to prevent a race between
-		 * updating last_retired_head and direct reads of
-		 * I915_RING_HEAD. It also provides a nice sanity check.
-		 */
-		request->tail = -1;
 	}
 
 	if (seqno == 0)
@@ -1524,11 +1513,11 @@ static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 	if (ret)
 		return ret;
 
-	ring->head = tail;
-	ring->space = ring_space(ring);
-	if (WARN_ON(ring->space < n))
-		return -ENOSPC;
+	i915_gem_retire_requests_ring(ring);
+	ring->head = ring->last_retired_head;
+	ring->last_retired_head = -1;
 
+	ring->space = ring_space(ring);
 	return 0;
 }
 
