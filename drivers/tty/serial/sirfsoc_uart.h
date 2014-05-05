@@ -441,9 +441,7 @@ struct sirfsoc_uart_port {
 
 /* Register Access Control */
 #define portaddr(port, reg)		((port)->membase + (reg))
-#define rd_regb(port, reg)		(__raw_readb(portaddr(port, reg)))
 #define rd_regl(port, reg)		(__raw_readl(portaddr(port, reg)))
-#define wr_regb(port, reg, val)		__raw_writeb(val, portaddr(port, reg))
 #define wr_regl(port, reg, val)		__raw_writel(val, portaddr(port, reg))
 
 /* UART Port Mask */

@@ -1228,7 +1228,7 @@ static void sirfsoc_uart_console_putchar(struct uart_port *port, int ch)
 	while (rd_regl(port,
 		ureg->sirfsoc_tx_fifo_status) & ufifo_st->ff_full(port->line))
 		cpu_relax();
-	wr_regb(port, ureg->sirfsoc_tx_fifo_data, ch);
+	wr_regl(port, ureg->sirfsoc_tx_fifo_data, ch);
 }
 
 static void sirfsoc_uart_console_write(struct console *co, const char *s,
