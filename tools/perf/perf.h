@@ -231,7 +231,6 @@ sys_perf_event_open(struct perf_event_attr *attr,
 	return fd;
 }
 
-#define MAX_COUNTERS			256
 #define MAX_NR_CPUS			256
 
 struct ip_callchain {
