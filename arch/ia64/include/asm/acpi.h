@@ -85,6 +85,7 @@ ia64_acpi_release_global_lock (unsigned int *lock)
 	((Acq) = ia64_acpi_release_global_lock(&facs->global_lock))
 
 #ifdef	CONFIG_ACPI
+extern int acpi_lapic;
 #define acpi_disabled 0	/* ACPI always enabled on IA64 */
 #define acpi_noirq 0	/* ACPI always enabled on IA64 */
 #define acpi_pci_disabled 0 /* ACPI PCI always enabled on IA64 */

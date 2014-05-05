@@ -56,6 +56,7 @@
 
 #define PREFIX			"ACPI: "
 
+int acpi_lapic;
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
@@ -676,6 +677,8 @@ int __init early_acpi_boot_init(void)
 	if (ret < 1)
 		printk(KERN_ERR PREFIX
 		       "Error parsing MADT - no LAPIC entries\n");
+	else
+		acpi_lapic = 1;
 
 #ifdef CONFIG_SMP
 	if (available_cpus == 0) {
