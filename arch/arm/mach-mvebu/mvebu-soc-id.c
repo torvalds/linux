@@ -118,7 +118,7 @@ clk_err:
 
 	return ret;
 }
-core_initcall(mvebu_soc_id_init);
+early_initcall(mvebu_soc_id_init);
 
 static int __init mvebu_soc_device(void)
 {
