@@ -10,7 +10,7 @@
  */
 
 #include "omap3-igep.dtsi"
-#include "omap-gpmc-smsc911x.dtsi"
+#include "omap-gpmc-smsc9221.dtsi"
 
 / {
 	model = "IGEPv2 (TI OMAP AM/DM37x)";
@@ -248,7 +248,7 @@
 
 	ethernet@gpmc {
 		pinctrl-names = "default";
-		pinctrl-0 = <&smsc911x_pins>;
+		pinctrl-0 = <&smsc9221_pins>;
 		reg = <5 0 0xff>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
