@@ -49,16 +49,14 @@
 
 /* Flags used to block (re)establishment of contact with a neighboring node
  * TIPC_NODE_DOWN: indicate node is down
- * TIPC_NAMES_GONE: indicate the node's publications are purged
  * TIPC_NODE_RESET: indicate node is reset
  * TIPC_NODE_LOST: indicate node is lost and it's used to notify subscriptions
  *                 when node lock is released
  */
 enum {
 	TIPC_NODE_DOWN	= (1 << 1),
-	TIPC_NAMES_GONE	= (1 << 2),
-	TIPC_NODE_RESET	= (1 << 3),
-	TIPC_NODE_LOST	= (1 << 4)
+	TIPC_NODE_RESET	= (1 << 2),
+	TIPC_NODE_LOST	= (1 << 3)
 };
 
 /**
@@ -142,7 +140,7 @@ static inline void tipc_node_lock(struct tipc_node *node)
 
 static inline bool tipc_node_blocked(struct tipc_node *node)
 {
-	return (node->flags & (TIPC_NODE_DOWN | TIPC_NAMES_GONE |
+	return (node->flags & (TIPC_NODE_DOWN | TIPC_NODE_LOST |
 		TIPC_NODE_RESET));
 }
 

@@ -273,18 +273,6 @@ static void node_established_contact(struct tipc_node *n_ptr)
 	tipc_bclink_add_node(n_ptr->addr);
 }
 
-static void node_name_purge_complete(unsigned long node_addr)
-{
-	struct tipc_node *n_ptr;
-
-	n_ptr = tipc_node_find(node_addr);
-	if (n_ptr) {
-		tipc_node_lock(n_ptr);
-		n_ptr->flags &= ~TIPC_NAMES_GONE;
-		tipc_node_unlock(n_ptr);
-	}
-}
-
 static void node_lost_contact(struct tipc_node *n_ptr)
 {
 	char addr_string[16];
@@ -320,12 +308,10 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		tipc_link_reset_fragments(l_ptr);
 	}
 
-	/* Notify subscribers */
-	n_ptr->flags = TIPC_NODE_LOST;
-
-	/* Prevent re-contact with node until cleanup is done */
-	n_ptr->flags |= TIPC_NODE_DOWN | TIPC_NAMES_GONE;
-	tipc_k_signal((Handler)node_name_purge_complete, n_ptr->addr);
+	/* Notify subscribers and prevent re-contact with node until
+	 * cleanup is done.
+	 */
+	n_ptr->flags = TIPC_NODE_DOWN | TIPC_NODE_LOST;
 }
 
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
