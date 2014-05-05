@@ -387,7 +387,7 @@ int nfc_llcp_send_symm(struct nfc_dev *dev)
 
 	__net_timestamp(skb);
 
-	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_TX);
+	nfc_llcp_send_to_raw_sock(local, skb, NFC_DIRECTION_TX);
 
 	return nfc_data_exchange(dev, local->target_idx, skb,
 				 nfc_llcp_recv, local);
