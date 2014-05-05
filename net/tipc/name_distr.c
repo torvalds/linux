@@ -38,34 +38,6 @@
 #include "link.h"
 #include "name_distr.h"
 
-#define ITEM_SIZE sizeof(struct distr_item)
-
-/**
- * struct distr_item - publication info distributed to other nodes
- * @type: name sequence type
- * @lower: name sequence lower bound
- * @upper: name sequence upper bound
- * @ref: publishing port reference
- * @key: publication key
- *
- * ===> All fields are stored in network byte order. <===
- *
- * First 3 fields identify (name or) name sequence being published.
- * Reference field uniquely identifies port that published name sequence.
- * Key field uniquely identifies publication, in the event a port has
- * multiple publications of the same name sequence.
- *
- * Note: There is no field that identifies the publishing node because it is
- * the same for all items contained within a publication message.
- */
-struct distr_item {
-	__be32 type;
-	__be32 lower;
-	__be32 upper;
-	__be32 ref;
-	__be32 key;
-};
-
 /**
  * struct publ_list - list of publications made by this node
  * @list: circular list of publications
@@ -239,29 +211,9 @@ static void named_distribute(struct list_head *message_list, u32 node,
 /**
  * tipc_named_node_up - tell specified node about all publications by this node
  */
-void tipc_named_node_up(unsigned long nodearg)
+void tipc_named_node_up(u32 max_item_buf, u32 node)
 {
-	struct tipc_node *n_ptr;
-	struct tipc_link *l_ptr;
-	struct list_head message_list;
-	u32 node = (u32)nodearg;
-	u32 max_item_buf = 0;
-
-	/* compute maximum amount of publication data to send per message */
-	n_ptr = tipc_node_find(node);
-	if (n_ptr) {
-		tipc_node_lock(n_ptr);
-		l_ptr = n_ptr->active_links[0];
-		if (l_ptr)
-			max_item_buf = ((l_ptr->max_pkt - INT_H_SIZE) /
-				ITEM_SIZE) * ITEM_SIZE;
-		tipc_node_unlock(n_ptr);
-	}
-	if (!max_item_buf)
-		return;
-
-	/* create list of publication messages, then send them as a unit */
-	INIT_LIST_HEAD(&message_list);
+	LIST_HEAD(message_list);
 
 	read_lock_bh(&tipc_nametbl_lock);
 	named_distribute(&message_list, node, &publ_cluster, max_item_buf);

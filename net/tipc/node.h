@@ -48,15 +48,19 @@
 #define INVALID_NODE_SIG 0x10000
 
 /* Flags used to block (re)establishment of contact with a neighboring node
- * TIPC_NODE_DOWN: indicate node is down
+ * TIPC_NODE_DOWN: indicate node is down and it's used to block the node's
+ *                 links until RESET or ACTIVE message arrives
  * TIPC_NODE_RESET: indicate node is reset
  * TIPC_NODE_LOST: indicate node is lost and it's used to notify subscriptions
  *                 when node lock is released
+ * TIPC_NODE_UP: indicate node is up and it's used to deliver local name table
+ *               when node lock is released
  */
 enum {
 	TIPC_NODE_DOWN	= (1 << 1),
 	TIPC_NODE_RESET	= (1 << 2),
-	TIPC_NODE_LOST	= (1 << 3)
+	TIPC_NODE_LOST	= (1 << 3),
+	TIPC_NODE_UP	= (1 << 4)
 };
 
 /**
