@@ -340,7 +340,6 @@ struct pci9118_private {
 					 * how many channels we must add
 					 * before scan to satisfy DMA?
 					 */
-	unsigned int *ai_chanlist;	/* actual chanlist */
 	unsigned int ai_timer1;
 	unsigned int ai_timer2;
 	unsigned int ai_flags;
@@ -1617,7 +1616,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai12_startstop = 0;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_n_scanlen = cmd->scan_end_arg;
-	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
@@ -1741,11 +1739,11 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* check and setup channel list */
 	if (!check_channel_list(dev, s, cmd->chanlist_len,
-				devpriv->ai_chanlist, devpriv->ai_add_front,
+				cmd->chanlist, devpriv->ai_add_front,
 				devpriv->ai_add_back))
 		return -EINVAL;
 	if (!setup_channel_list(dev, s, cmd->chanlist_len,
-				devpriv->ai_chanlist, 0, devpriv->ai_add_front,
+				cmd->chanlist, 0, devpriv->ai_add_front,
 				devpriv->ai_add_back, devpriv->usedma,
 				devpriv->useeoshandle))
 		return -EINVAL;
