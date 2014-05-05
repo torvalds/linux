@@ -116,51 +116,49 @@ struct linux_xfrm_mib {
 	unsigned long	mibs[LINUX_MIB_XFRMMAX];
 };
 
-#define SNMP_ARRAY_SZ 1
-
 #define DEFINE_SNMP_STAT(type, name)	\
-	__typeof__(type) __percpu *name[SNMP_ARRAY_SZ]
+	__typeof__(type) __percpu *name
 #define DEFINE_SNMP_STAT_ATOMIC(type, name)	\
 	__typeof__(type) *name
 #define DECLARE_SNMP_STAT(type, name)	\
-	extern __typeof__(type) __percpu *name[SNMP_ARRAY_SZ]
+	extern __typeof__(type) __percpu *name
 
 #define SNMP_INC_STATS_BH(mib, field)	\
-			__this_cpu_inc(mib[0]->mibs[field])
+			__this_cpu_inc(mib->mibs[field])
 
 #define SNMP_INC_STATS_USER(mib, field)	\
-			this_cpu_inc(mib[0]->mibs[field])
+			this_cpu_inc(mib->mibs[field])
 
 #define SNMP_INC_STATS_ATOMIC_LONG(mib, field)	\
 			atomic_long_inc(&mib->mibs[field])
 
 #define SNMP_INC_STATS(mib, field)	\
-			this_cpu_inc(mib[0]->mibs[field])
+			this_cpu_inc(mib->mibs[field])
 
 #define SNMP_DEC_STATS(mib, field)	\
-			this_cpu_dec(mib[0]->mibs[field])
+			this_cpu_dec(mib->mibs[field])
 
 #define SNMP_ADD_STATS_BH(mib, field, addend)	\
-			__this_cpu_add(mib[0]->mibs[field], addend)
+			__this_cpu_add(mib->mibs[field], addend)
 
 #define SNMP_ADD_STATS_USER(mib, field, addend)	\
-			this_cpu_add(mib[0]->mibs[field], addend)
+			this_cpu_add(mib->mibs[field], addend)
 
 #define SNMP_ADD_STATS(mib, field, addend)	\
-			this_cpu_add(mib[0]->mibs[field], addend)
+			this_cpu_add(mib->mibs[field], addend)
 /*
- * Use "__typeof__(*mib[0]) *ptr" instead of "__typeof__(mib[0]) ptr"
+ * Use "__typeof__(*mib) *ptr" instead of "__typeof__(mib) ptr"
  * to make @ptr a non-percpu pointer.
  */
 #define SNMP_UPD_PO_STATS(mib, basefield, addend)	\
 	do { \
-		__typeof__(*mib[0]->mibs) *ptr = mib[0]->mibs;	\
+		__typeof__(*mib->mibs) *ptr = mib->mibs;	\
 		this_cpu_inc(ptr[basefield##PKTS]);		\
 		this_cpu_add(ptr[basefield##OCTETS], addend);	\
 	} while (0)
 #define SNMP_UPD_PO_STATS_BH(mib, basefield, addend)	\
 	do { \
-		__typeof__(*mib[0]->mibs) *ptr = mib[0]->mibs;	\
+		__typeof__(*mib->mibs) *ptr = mib->mibs;	\
 		__this_cpu_inc(ptr[basefield##PKTS]);		\
 		__this_cpu_add(ptr[basefield##OCTETS], addend);	\
 	} while (0)
@@ -170,7 +168,7 @@ struct linux_xfrm_mib {
 
 #define SNMP_ADD_STATS64_BH(mib, field, addend) 			\
 	do {								\
-		__typeof__(*mib[0]) *ptr = __this_cpu_ptr((mib)[0]);	\
+		__typeof__(*mib) *ptr = __this_cpu_ptr(mib);		\
 		u64_stats_update_begin(&ptr->syncp);			\
 		ptr->mibs[field] += addend;				\
 		u64_stats_update_end(&ptr->syncp);			\
@@ -191,8 +189,8 @@ struct linux_xfrm_mib {
 #define SNMP_INC_STATS64(mib, field) SNMP_ADD_STATS64(mib, field, 1)
 #define SNMP_UPD_PO_STATS64_BH(mib, basefield, addend)			\
 	do {								\
-		__typeof__(*mib[0]) *ptr;				\
-		ptr = __this_cpu_ptr((mib)[0]);				\
+		__typeof__(*mib) *ptr;					\
+		ptr = __this_cpu_ptr(mib);				\
 		u64_stats_update_begin(&ptr->syncp);			\
 		ptr->mibs[basefield##PKTS]++;				\
 		ptr->mibs[basefield##OCTETS] += addend;			\
