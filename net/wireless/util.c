@@ -1274,9 +1274,19 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 					    void *data),
 			       void *data)
 {
+	const struct ieee80211_regdomain *regdom;
+	enum nl80211_dfs_regions region = 0;
 	int i, j, iftype;
 	int num_interfaces = 0;
 	u32 used_iftypes = 0;
+
+	if (radar_detect) {
+		rcu_read_lock();
+		regdom = rcu_dereference(cfg80211_regdomain);
+		if (regdom)
+			region = regdom->dfs_region;
+		rcu_read_unlock();
+	}
 
 	for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
 		num_interfaces += iftype_num[iftype];
@@ -1316,6 +1326,10 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 		}
 
 		if (radar_detect != (c->radar_detect_widths & radar_detect))
+			goto cont;
+
+		if (radar_detect && c->radar_detect_regions &&
+		    !(c->radar_detect_regions & BIT(region)))
 			goto cont;
 
 		/* Finally check that all iftypes that we're currently
