@@ -388,7 +388,6 @@ struct pci9118_private {
 					 * =1 change WAKE_EOS DMA transfer
 					 * to fit on every second
 					 */
-	unsigned char usessh;		/* =1 turn on S&H support */
 	int softsshdelay;		/*
 					 * >0 use software S&H,
 					 * numer is requested delay in ns
@@ -784,9 +783,10 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 				  unsigned int *tim1, unsigned int *tim2,
 				  unsigned int flags, int chans,
 				  unsigned int *div1, unsigned int *div2,
-				  char usessh, unsigned int chnsshfront)
+				  unsigned int chnsshfront)
 {
 	const struct boardtype *this_board = comedi_board(dev);
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	switch (mode) {
 	case 1:
@@ -811,9 +811,11 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 
 		*tim2 = *div1 * I8254_OSC_BASE_4MHZ;	/* real convert timer */
 
-		if (usessh && (chnsshfront == 0))	/* use BSSH signal */
+		if (cmd->convert_src == TRIG_NOW && !chnsshfront) {
+			/* use BSSH signal */
 			if (*div2 < (chans + 2))
 				*div2 = chans + 2;
+		}
 
 		*tim1 = *div1 * *div2 * I8254_OSC_BASE_4MHZ;
 		break;
@@ -1532,6 +1534,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	Compute_and_setup_dma(dev, s);
 
@@ -1546,7 +1549,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		devpriv->AdFunctionReg =
 		    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_BM |
 		    AdFunction_BS;
-		if (devpriv->usessh && (!devpriv->softsshdelay))
+		if (cmd->convert_src == TRIG_NOW && !devpriv->softsshdelay)
 			devpriv->AdFunctionReg |= AdFunction_BSSH;
 		outl(devpriv->ai_n_realscanlen, dev->iobase + PCI9118_BURST);
 		break;
@@ -1634,14 +1637,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_neverending = 0;
 
-	/* use sample&hold signal? */
-	if (cmd->convert_src == TRIG_NOW)
-		devpriv->usessh = 1;
-	/* yes */
-	else
-		devpriv->usessh = 0;
-				/*  no */
-
 	/*
 	 * use additional sample at end of every scan
 	 * to satisty DMA 32 bit transfer?
@@ -1690,7 +1685,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * we need software S&H signal?
 	 * It adds two samples before every scan as minimum
 	 */
-	if (devpriv->usessh && devpriv->softsshdelay) {
+	if (cmd->convert_src == TRIG_NOW && devpriv->softsshdelay) {
 		devpriv->ai_add_front = 2;
 		if ((devpriv->usedma == 1) && (devpriv->ai_add_back == 1)) {
 							/* move it to front */
@@ -1752,7 +1747,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				      devpriv->ai_flags,
 				      devpriv->ai_n_realscanlen,
 				      &devpriv->ai_divisor1,
-				      &devpriv->ai_divisor2, devpriv->usessh,
+				      &devpriv->ai_divisor2,
 				      devpriv->ai_add_front);
 	}
 
@@ -1773,7 +1768,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				      devpriv->ai_flags,
 				      devpriv->ai_n_realscanlen,
 				      &devpriv->ai_divisor1,
-				      &devpriv->ai_divisor2, devpriv->usessh,
+				      &devpriv->ai_divisor2,
 				      devpriv->ai_add_front);
 	}
 
