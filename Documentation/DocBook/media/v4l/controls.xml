@@ -660,16 +660,29 @@ supported.</para>
 &v4l2-control;, except for the fact that it also allows for 64-bit
 values and pointers to be passed.</para>
 
+      <para>Since the &v4l2-ext-control; supports pointers it is now
+also possible to have controls with compound types such as N-dimensional arrays
+and/or structures. You need to specify the <constant>V4L2_CTRL_FLAG_NEXT_COMPOUND</constant>
+when enumerating controls to actually be able to see such compound controls.
+In other words, these controls with compound types should only be used
+programmatically.</para>
+
+      <para>Since such compound controls need to expose more information
+about themselves than is possible with &VIDIOC-QUERYCTRL; the
+&VIDIOC-QUERY-EXT-CTRL; ioctl was added. In particular, this ioctl gives
+the dimensions of the N-dimensional array if this control consists of more than
+one element.</para>
+
       <para>It is important to realize that due to the flexibility of
 controls it is necessary to check whether the control you want to set
 actually is supported in the driver and what the valid range of values
-is. So use the &VIDIOC-QUERYCTRL; and &VIDIOC-QUERYMENU; ioctls to
-check this. Also note that it is possible that some of the menu
-indices in a control of type <constant>V4L2_CTRL_TYPE_MENU</constant>
-may not be supported (<constant>VIDIOC_QUERYMENU</constant> will
-return an error). A good example is the list of supported MPEG audio
-bitrates. Some drivers only support one or two bitrates, others
-support a wider range.</para>
+is. So use the &VIDIOC-QUERYCTRL; (or &VIDIOC-QUERY-EXT-CTRL;) and
+&VIDIOC-QUERYMENU; ioctls to check this. Also note that it is possible
+that some of the menu indices in a control of type
+<constant>V4L2_CTRL_TYPE_MENU</constant> may not be supported
+(<constant>VIDIOC_QUERYMENU</constant> will return an error). A good
+example is the list of supported MPEG audio bitrates. Some drivers only
+support one or two bitrates, others support a wider range.</para>
 
       <para>
 	All controls use machine endianness.
