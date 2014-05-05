@@ -86,7 +86,29 @@ Optional properties:
   -  st,invalid-input-detect-mute:
 	If present, automatic invalid input detect mute is enabled.
 
+  -  st,activate-mute-output:
+	If present, a mute output will be activated in ase the volume will
+	reach a value lower than -76 dBFS.
 
+  -  st,bridge-immediate-off:
+	If present, the bridge will be switched off immediately after the
+	power-down-gpio goes low. Otherwise, the bridge will wait for 13
+	million clock cycles to pass before shutting down.
+
+  -  st,noise-shape-dc-cut:
+	If present, the noise-shaping technique on the DC cutoff filter are
+	enabled.
+
+  -  st,powerdown-master-volume:
+	If present, the power-down pin and I2C power-down functions will
+	act on the master volume. Otherwise, the functions will act on the
+	mute commands.
+
+  -  st,powerdown-delay-divider:
+	If present, the bridge power-down time will be divided by the provided
+	value. If not specified, a divider of 1 will be used. Allowed values
+	are 1, 2, 4, 8, 16, 32, 64 and 128.
+	This property has to be specified as '/bits/ 8' value.
 
 Example:
 
