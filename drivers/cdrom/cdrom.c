@@ -337,7 +337,6 @@ do {							\
 #define CDROM_DEF_TIMEOUT	(7 * HZ)
 
 /* Not-exported routines. */
-static int open_for_data(struct cdrom_device_info * cdi);
 static int check_for_audio_disc(struct cdrom_device_info * cdi,
 			 struct cdrom_device_ops * cdo);
 static void sanitize_format(union cdrom_addr *addr, 
@@ -957,63 +956,8 @@ static int cdrom_close_write(struct cdrom_device_info *cdi)
 #endif
 }
 
-/* We use the open-option O_NONBLOCK to indicate that the
- * purpose of opening is only for subsequent ioctl() calls; no device
- * integrity checks are performed.
- *
- * We hope that all cd-player programs will adopt this convention. It
- * is in their own interest: device control becomes a lot easier
- * this way.
- */
-int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev, fmode_t mode)
-{
-	int ret;
-
-	cd_dbg(CD_OPEN, "entering cdrom_open\n");
-
-	/* open is event synchronization point, check events first */
-	check_disk_change(bdev);
-
-	/* if this was a O_NONBLOCK open and we should honor the flags,
-	 * do a quick open without drive/disc integrity checks. */
-	cdi->use_count++;
-	if ((mode & FMODE_NDELAY) && (cdi->options & CDO_USE_FFLAGS)) {
-		ret = cdi->ops->open(cdi, 1);
-	} else {
-		ret = open_for_data(cdi);
-		if (ret)
-			goto err;
-		cdrom_mmc3_profile(cdi);
-		if (mode & FMODE_WRITE) {
-			ret = -EROFS;
-			if (cdrom_open_write(cdi))
-				goto err_release;
-			if (!CDROM_CAN(CDC_RAM))
-				goto err_release;
-			ret = 0;
-			cdi->media_written = 0;
-		}
-	}
-
-	if (ret)
-		goto err;
-
-	cd_dbg(CD_OPEN, "Use count for \"/dev/%s\" now %d\n",
-	       cdi->name, cdi->use_count);
-	return 0;
-err_release:
-	if (CDROM_CAN(CDC_LOCK) && cdi->options & CDO_LOCK) {
-		cdi->ops->lock_door(cdi, 0);
-		cd_dbg(CD_OPEN, "door unlocked\n");
-	}
-	cdi->ops->release(cdi);
-err:
-	cdi->use_count--;
-	return ret;
-}
-
 static
-int open_for_data(struct cdrom_device_info * cdi)
+int open_for_data(struct cdrom_device_info *cdi)
 {
 	int ret;
 	struct cdrom_device_ops *cdo = cdi->ops;
@@ -1116,6 +1060,62 @@ clean_up_and_return:
 			cdo->lock_door(cdi, 0);
 			cd_dbg(CD_OPEN, "door unlocked\n");
 	}
+	return ret;
+}
+
+/* We use the open-option O_NONBLOCK to indicate that the
+ * purpose of opening is only for subsequent ioctl() calls; no device
+ * integrity checks are performed.
+ *
+ * We hope that all cd-player programs will adopt this convention. It
+ * is in their own interest: device control becomes a lot easier
+ * this way.
+ */
+int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev,
+	       fmode_t mode)
+{
+	int ret;
+
+	cd_dbg(CD_OPEN, "entering cdrom_open\n");
+
+	/* open is event synchronization point, check events first */
+	check_disk_change(bdev);
+
+	/* if this was a O_NONBLOCK open and we should honor the flags,
+	 * do a quick open without drive/disc integrity checks. */
+	cdi->use_count++;
+	if ((mode & FMODE_NDELAY) && (cdi->options & CDO_USE_FFLAGS)) {
+		ret = cdi->ops->open(cdi, 1);
+	} else {
+		ret = open_for_data(cdi);
+		if (ret)
+			goto err;
+		cdrom_mmc3_profile(cdi);
+		if (mode & FMODE_WRITE) {
+			ret = -EROFS;
+			if (cdrom_open_write(cdi))
+				goto err_release;
+			if (!CDROM_CAN(CDC_RAM))
+				goto err_release;
+			ret = 0;
+			cdi->media_written = 0;
+		}
+	}
+
+	if (ret)
+		goto err;
+
+	cd_dbg(CD_OPEN, "Use count for \"/dev/%s\" now %d\n",
+	       cdi->name, cdi->use_count);
+	return 0;
+err_release:
+	if (CDROM_CAN(CDC_LOCK) && cdi->options & CDO_LOCK) {
+		cdi->ops->lock_door(cdi, 0);
+		cd_dbg(CD_OPEN, "door unlocked\n");
+	}
+	cdi->ops->release(cdi);
+err:
+	cdi->use_count--;
 	return ret;
 }
 
