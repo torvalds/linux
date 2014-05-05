@@ -36,6 +36,7 @@
 #include <linux/of.h>
 
 #include <linux/atomic.h>
+#include <asm/debug.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/io.h>
