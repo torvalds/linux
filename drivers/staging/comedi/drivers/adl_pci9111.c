@@ -137,7 +137,6 @@ struct pci9111_private_data {
 	unsigned long lcr_io_base;
 
 	int stop_counter;
-	int stop_is_none;
 
 	unsigned int scan_delay;
 	unsigned int chanlist_len;
@@ -485,10 +484,8 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	if (async_cmd->stop_src == TRIG_COUNT) {
 		dev_private->stop_counter =
 		    async_cmd->stop_arg * async_cmd->chanlist_len;
-		dev_private->stop_is_none = 0;
 	} else {	/* TRIG_NONE */
 		dev_private->stop_counter = 0;
-		dev_private->stop_is_none = 1;
 	}
 
 	/*  Set timer pacer */
@@ -550,6 +547,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	struct pci9111_private_data *dev_private = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
+	struct comedi_cmd *cmd;
 	unsigned int status;
 	unsigned long irq_flags;
 	unsigned char intcsr;
@@ -561,6 +559,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	}
 
 	async = s->async;
+	cmd = &async->cmd;
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 
@@ -596,12 +595,11 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			unsigned int num_samples;
 			unsigned int bytes_written = 0;
 
-			num_samples =
-			    PCI9111_FIFO_HALF_SIZE >
-			    dev_private->stop_counter
-			    && !dev_private->
-			    stop_is_none ? dev_private->stop_counter :
-			    PCI9111_FIFO_HALF_SIZE;
+			if (cmd->stop_src == TRIG_COUNT &&
+			    PCI9111_FIFO_HALF_SIZE > dev_private->stop_counter)
+				num_samples = dev_private->stop_counter;
+			else
+				num_samples = PCI9111_FIFO_HALF_SIZE;
 			insw(dev->iobase + PCI9111_AI_FIFO_REG,
 			     dev_private->ai_bounce_buffer, num_samples);
 
@@ -664,7 +662,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		}
 	}
 
-	if (dev_private->stop_counter == 0 && !dev_private->stop_is_none)
+	if (cmd->stop_src == TRIG_COUNT && dev_private->stop_counter == 0)
 		async->events |= COMEDI_CB_EOA;
 
 	outb(0, dev->iobase + PCI9111_INT_CLR_REG);
