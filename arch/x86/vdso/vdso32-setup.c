@@ -75,40 +75,10 @@ static unsigned vdso32_size;
 #define	vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SYSENTER32))
 #define	vdso32_syscall()	(boot_cpu_has(X86_FEATURE_SYSCALL32))
 
-/* May not be __init: called during resume */
-void syscall32_cpu_init(void)
-{
-	/* Load these always in case some future AMD CPU supports
-	   SYSENTER from compat mode too. */
-	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
-	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
-	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
-
-	wrmsrl(MSR_CSTAR, ia32_cstar_target);
-}
-
 #else  /* CONFIG_X86_32 */
 
 #define vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SEP))
 #define vdso32_syscall()	(0)
-
-void enable_sep_cpu(void)
-{
-	int cpu = get_cpu();
-	struct tss_struct *tss = &per_cpu(init_tss, cpu);
-
-	if (!boot_cpu_has(X86_FEATURE_SEP)) {
-		put_cpu();
-		return;
-	}
-
-	tss->x86_tss.ss1 = __KERNEL_CS;
-	tss->x86_tss.sp1 = sizeof(struct tss_struct) + (unsigned long) tss;
-	wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
-	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.sp1, 0);
-	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) ia32_sysenter_target, 0);
-	put_cpu();	
-}
 
 #endif	/* CONFIG_X86_64 */
 
