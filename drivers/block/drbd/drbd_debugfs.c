@@ -177,8 +177,8 @@ static int in_flight_summary_show(struct seq_file *m, void *pos)
 	connection = first_connection(resource);
 	/* This does not happen, actually.
 	 * But be robust and prepare for future code changes. */
-	if (!connection)
-		return 0;
+	if (!connection || !kref_get_unless_zero(&connection->kref))
+		return -ESTALE;
 
 	seq_puts(m, "oldest application requests\n");
 	seq_print_resource_transfer_log_summary(m, resource, connection, jif);
@@ -187,12 +187,62 @@ static int in_flight_summary_show(struct seq_file *m, void *pos)
 	jif = jiffies - jif;
 	if (jif)
 		seq_printf(m, "generated in %d ms\n", jiffies_to_msecs(jif));
+	kref_put(&connection->kref, drbd_destroy_connection);
 	return 0;
+}
+
+/* simple_positive(file->f_dentry) respectively debugfs_positive(),
+ * but neither is "reachable" from here.
+ * So we have our own inline version of it above.  :-( */
+static inline int debugfs_positive(struct dentry *dentry)
+{
+        return dentry->d_inode && !d_unhashed(dentry);
+}
+
+/* make sure at *open* time that the respective object won't go away. */
+static int drbd_single_open(struct file *file, int (*show)(struct seq_file *, void *),
+		                void *data, struct kref *kref,
+				void (*release)(struct kref *))
+{
+	struct dentry *parent;
+	int ret = -ESTALE;
+
+	/* Are we still linked,
+	 * or has debugfs_remove() already been called? */
+	parent = file->f_dentry->d_parent;
+	/* not sure if this can happen: */
+	if (!parent || !parent->d_inode)
+		goto out;
+	/* serialize with d_delete() */
+	mutex_lock(&parent->d_inode->i_mutex);
+	if (!debugfs_positive(file->f_dentry))
+		goto out_unlock;
+	/* Make sure the object is still alive */
+	if (kref_get_unless_zero(kref))
+		ret = 0;
+out_unlock:
+	mutex_unlock(&parent->d_inode->i_mutex);
+	if (!ret) {
+		ret = single_open(file, show, data);
+		if (ret)
+			kref_put(kref, release);
+	}
+out:
+	return ret;
 }
 
 static int in_flight_summary_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, in_flight_summary_show, inode->i_private);
+	struct drbd_resource *resource = inode->i_private;
+	return drbd_single_open(file, in_flight_summary_show, resource,
+				&resource->kref, drbd_destroy_resource);
+}
+
+static int in_flight_summary_release(struct inode *inode, struct file *file)
+{
+	struct drbd_resource *resource = inode->i_private;
+	kref_put(&resource->kref, drbd_destroy_resource);
+	return single_release(inode, file);
 }
 
 static const struct file_operations in_flight_summary_fops = {
@@ -200,7 +250,7 @@ static const struct file_operations in_flight_summary_fops = {
 	.open		= in_flight_summary_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= single_release,
+	.release	= in_flight_summary_release,
 };
 
 void drbd_debugfs_resource_add(struct drbd_resource *resource)
