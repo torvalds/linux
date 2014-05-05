@@ -796,8 +796,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr **a = info->attrs;
 	struct ovs_header *ovs_header = info->userhdr;
-	struct sw_flow_key key, masked_key;
-	struct sw_flow *flow;
+	struct sw_flow *flow, *new_flow;
 	struct sw_flow_mask mask;
 	struct sk_buff *reply;
 	struct datapath *dp;
@@ -805,61 +804,77 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	struct sw_flow_match match;
 	int error;
 
-	/* Extract key. */
+	/* Must have key and actions. */
 	error = -EINVAL;
 	if (!a[OVS_FLOW_ATTR_KEY])
 		goto error;
-
-	ovs_match_init(&match, &key, &mask);
-	error = ovs_nla_get_match(&match,
-				  a[OVS_FLOW_ATTR_KEY], a[OVS_FLOW_ATTR_MASK]);
-	if (error)
-		goto error;
-
-	/* Validate actions. */
-	error = -EINVAL;
 	if (!a[OVS_FLOW_ATTR_ACTIONS])
 		goto error;
 
+	/* Most of the time we need to allocate a new flow, do it before
+	 * locking.
+	 */
+	new_flow = ovs_flow_alloc();
+	if (IS_ERR(new_flow)) {
+		error = PTR_ERR(new_flow);
+		goto error;
+	}
+
+	/* Extract key. */
+	ovs_match_init(&match, &new_flow->unmasked_key, &mask);
+	error = ovs_nla_get_match(&match,
+				  a[OVS_FLOW_ATTR_KEY], a[OVS_FLOW_ATTR_MASK]);
+	if (error)
+		goto err_kfree_flow;
+
+	ovs_flow_mask_key(&new_flow->key, &new_flow->unmasked_key, &mask);
+
+	/* Validate actions. */
 	acts = ovs_nla_alloc_flow_actions(nla_len(a[OVS_FLOW_ATTR_ACTIONS]));
 	error = PTR_ERR(acts);
 	if (IS_ERR(acts))
-		goto error;
+		goto err_kfree_flow;
 
-	ovs_flow_mask_key(&masked_key, &key, &mask);
-	error = ovs_nla_copy_actions(a[OVS_FLOW_ATTR_ACTIONS],
-				     &masked_key, 0, &acts);
+	error = ovs_nla_copy_actions(a[OVS_FLOW_ATTR_ACTIONS], &new_flow->key,
+				     0, &acts);
 	if (error) {
 		OVS_NLERR("Flow actions may not be safe on all matching packets.\n");
-		goto err_kfree;
+		goto err_kfree_acts;
+	}
+
+	reply = ovs_flow_cmd_alloc_info(acts, info, false);
+	if (IS_ERR(reply)) {
+		error = PTR_ERR(reply);
+		goto err_kfree_acts;
 	}
 
 	ovs_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
-	error = -ENODEV;
-	if (!dp)
+	if (unlikely(!dp)) {
+		error = -ENODEV;
 		goto err_unlock_ovs;
-
+	}
 	/* Check if this is a duplicate flow */
-	flow = ovs_flow_tbl_lookup(&dp->table, &key);
-	if (!flow) {
-		/* Allocate flow. */
-		flow = ovs_flow_alloc();
-		if (IS_ERR(flow)) {
-			error = PTR_ERR(flow);
+	flow = ovs_flow_tbl_lookup(&dp->table, &new_flow->unmasked_key);
+	if (likely(!flow)) {
+		rcu_assign_pointer(new_flow->sf_acts, acts);
+
+		/* Put flow in bucket. */
+		error = ovs_flow_tbl_insert(&dp->table, new_flow, &mask);
+		if (unlikely(error)) {
+			acts = NULL;
 			goto err_unlock_ovs;
 		}
 
-		flow->key = masked_key;
-		flow->unmasked_key = key;
-		rcu_assign_pointer(flow->sf_acts, acts);
-
-		/* Put flow in bucket. */
-		error = ovs_flow_tbl_insert(&dp->table, flow, &mask);
-		if (error) {
-			acts = NULL;
-			goto err_flow_free;
+		if (unlikely(reply)) {
+			error = ovs_flow_cmd_fill_info(new_flow,
+						       ovs_header->dp_ifindex,
+						       reply, info->snd_portid,
+						       info->snd_seq, 0,
+						       OVS_FLOW_CMD_NEW);
+			BUG_ON(error < 0);
 		}
+		ovs_unlock();
 	} else {
 		struct sw_flow_actions *old_acts;
 
@@ -869,39 +884,45 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		 * request.  We also accept NLM_F_EXCL in case that bug ever
 		 * gets fixed.
 		 */
-		error = -EEXIST;
-		if (info->nlhdr->nlmsg_flags & (NLM_F_CREATE | NLM_F_EXCL))
+		if (unlikely(info->nlhdr->nlmsg_flags & (NLM_F_CREATE
+							 | NLM_F_EXCL))) {
+			error = -EEXIST;
 			goto err_unlock_ovs;
-
+		}
 		/* The unmasked key has to be the same for flow updates. */
-		if (!ovs_flow_cmp_unmasked_key(flow, &match))
+		if (unlikely(!ovs_flow_cmp_unmasked_key(flow, &match))) {
+			error = -EEXIST;
 			goto err_unlock_ovs;
-
+		}
 		/* Update actions. */
 		old_acts = ovsl_dereference(flow->sf_acts);
 		rcu_assign_pointer(flow->sf_acts, acts);
+
+		if (unlikely(reply)) {
+			error = ovs_flow_cmd_fill_info(flow,
+						       ovs_header->dp_ifindex,
+						       reply, info->snd_portid,
+						       info->snd_seq, 0,
+						       OVS_FLOW_CMD_NEW);
+			BUG_ON(error < 0);
+		}
+		ovs_unlock();
+
 		ovs_nla_free_flow_actions(old_acts);
+		ovs_flow_free(new_flow, false);
 	}
 
-	reply = ovs_flow_cmd_build_info(flow, ovs_header->dp_ifindex,
-					info, OVS_FLOW_CMD_NEW, false);
-	ovs_unlock();
-
-	if (reply) {
-		if (!IS_ERR(reply))
-			ovs_notify(&dp_flow_genl_family, reply, info);
-		else
-			netlink_set_err(sock_net(skb->sk)->genl_sock, 0, 0,
-					PTR_ERR(reply));
-	}
+	if (reply)
+		ovs_notify(&dp_flow_genl_family, reply, info);
 	return 0;
 
-err_flow_free:
-	ovs_flow_free(flow, false);
 err_unlock_ovs:
 	ovs_unlock();
-err_kfree:
+	kfree_skb(reply);
+err_kfree_acts:
 	kfree(acts);
+err_kfree_flow:
+	ovs_flow_free(new_flow, false);
 error:
 	return error;
 }
@@ -915,7 +936,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	struct sw_flow_mask mask;
 	struct sk_buff *reply = NULL;
 	struct datapath *dp;
-	struct sw_flow_actions *acts = NULL;
+	struct sw_flow_actions *old_acts = NULL, *acts = NULL;
 	struct sw_flow_match match;
 	int error;
 
@@ -942,56 +963,75 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 					     &masked_key, 0, &acts);
 		if (error) {
 			OVS_NLERR("Flow actions may not be safe on all matching packets.\n");
-			goto err_kfree;
+			goto err_kfree_acts;
+		}
+	}
+
+	/* Can allocate before locking if have acts. */
+	if (acts) {
+		reply = ovs_flow_cmd_alloc_info(acts, info, false);
+		if (IS_ERR(reply)) {
+			error = PTR_ERR(reply);
+			goto err_kfree_acts;
 		}
 	}
 
 	ovs_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
-	error = -ENODEV;
-	if (!dp)
+	if (unlikely(!dp)) {
+		error = -ENODEV;
 		goto err_unlock_ovs;
-
+	}
 	/* Check that the flow exists. */
 	flow = ovs_flow_tbl_lookup(&dp->table, &key);
-	error = -ENOENT;
-	if (!flow)
+	if (unlikely(!flow)) {
+		error = -ENOENT;
 		goto err_unlock_ovs;
-
+	}
 	/* The unmasked key has to be the same for flow updates. */
-	error = -EEXIST;
-	if (!ovs_flow_cmp_unmasked_key(flow, &match))
+	if (unlikely(!ovs_flow_cmp_unmasked_key(flow, &match))) {
+		error = -EEXIST;
 		goto err_unlock_ovs;
-
+	}
 	/* Update actions, if present. */
-	if (acts) {
-		struct sw_flow_actions *old_acts;
-
+	if (likely(acts)) {
 		old_acts = ovsl_dereference(flow->sf_acts);
 		rcu_assign_pointer(flow->sf_acts, acts);
-		ovs_nla_free_flow_actions(old_acts);
+
+		if (unlikely(reply)) {
+			error = ovs_flow_cmd_fill_info(flow,
+						       ovs_header->dp_ifindex,
+						       reply, info->snd_portid,
+						       info->snd_seq, 0,
+						       OVS_FLOW_CMD_NEW);
+			BUG_ON(error < 0);
+		}
+	} else {
+		/* Could not alloc without acts before locking. */
+		reply = ovs_flow_cmd_build_info(flow, ovs_header->dp_ifindex,
+						info, OVS_FLOW_CMD_NEW, false);
+		if (unlikely(IS_ERR(reply))) {
+			error = PTR_ERR(reply);
+			goto err_unlock_ovs;
+		}
 	}
 
-	reply = ovs_flow_cmd_build_info(flow, ovs_header->dp_ifindex,
-					info, OVS_FLOW_CMD_NEW, false);
 	/* Clear stats. */
 	if (a[OVS_FLOW_ATTR_CLEAR])
 		ovs_flow_stats_clear(flow);
 	ovs_unlock();
 
-	if (reply) {
-		if (!IS_ERR(reply))
-			ovs_notify(&dp_flow_genl_family, reply, info);
-		else
-			genl_set_err(&dp_flow_genl_family, sock_net(skb->sk), 0,
-				     0, PTR_ERR(reply));
-	}
+	if (reply)
+		ovs_notify(&dp_flow_genl_family, reply, info);
+	if (old_acts)
+		ovs_nla_free_flow_actions(old_acts);
 
 	return 0;
 
 err_unlock_ovs:
 	ovs_unlock();
-err_kfree:
+	kfree_skb(reply);
+err_kfree_acts:
 	kfree(acts);
 error:
 	return error;
