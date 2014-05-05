@@ -92,6 +92,9 @@
 #define   GEN6_MBC_SNPCR_LOW	(2<<21)
 #define   GEN6_MBC_SNPCR_MIN	(3<<21) /* only 1/16th of the cache is shared */
 
+#define VLV_G3DCTL		0x9024
+#define VLV_GSCKGCTL		0x9028
+
 #define GEN6_MBCTL		0x0907c
 #define   GEN6_MBCTL_ENABLE_BOOT_FETCH	(1 << 4)
 #define   GEN6_MBCTL_CTX_FETCH_NEEDED	(1 << 3)
@@ -786,9 +789,20 @@ enum punit_power_well {
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
-#define ARB_MODE		0x04030
+
+#define GEN7_WR_WATERMARK	0x4028
+#define GEN7_GFX_PRIO_CTRL	0x402C
+#define ARB_MODE		0x4030
 #define   ARB_MODE_SWIZZLE_SNB	(1<<4)
 #define   ARB_MODE_SWIZZLE_IVB	(1<<5)
+#define GEN7_GFX_PEND_TLB0	0x4034
+#define GEN7_GFX_PEND_TLB1	0x4038
+/* L3, CVS, ZTLB, RCC, CASC LRA min, max values */
+#define GEN7_LRA_LIMITS_BASE	0x403C
+#define GEN7_LRA_LIMITS_REG_NUM	13
+#define GEN7_MEDIA_MAX_REQ_COUNT	0x4070
+#define GEN7_GFX_MAX_REQ_COUNT		0x4074
+
 #define GAMTARBMODE		0x04a08
 #define   ARB_MODE_BWGTLB_DISABLE (1<<9)
 #define   ARB_MODE_SWIZZLE_BDW	(1<<1)
@@ -823,6 +837,9 @@ enum punit_power_well {
 #define   RING_WAIT_I8XX	(1<<0) /* gen2, PRBx_HEAD */
 #define   RING_WAIT		(1<<11) /* gen3+, PRBx_CTL */
 #define   RING_WAIT_SEMAPHORE	(1<<10) /* gen6+ */
+
+#define GEN7_TLB_RD_ADDR	0x4700
+
 #if 0
 #define PRB0_TAIL	0x02030
 #define PRB0_HEAD	0x02034
@@ -949,6 +966,8 @@ enum punit_power_well {
 
 #define VLV_DISPLAY_BASE 0x180000
 
+#define VLV_GU_CTL0	(VLV_DISPLAY_BASE + 0x2030)
+#define VLV_GU_CTL1	(VLV_DISPLAY_BASE + 0x2034)
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
 #define IIR		0x020a4
@@ -956,6 +975,7 @@ enum punit_power_well {
 #define ISR		0x020ac
 #define VLV_GUNIT_CLOCK_GATE	(VLV_DISPLAY_BASE + 0x2060)
 #define   GCFG_DIS		(1<<8)
+#define VLV_GUNIT_CLOCK_GATE2	(VLV_DISPLAY_BASE + 0x2064)
 #define VLV_IIR_RW	(VLV_DISPLAY_BASE + 0x2084)
 #define VLV_IER		(VLV_DISPLAY_BASE + 0x20a0)
 #define VLV_IIR		(VLV_DISPLAY_BASE + 0x20a4)
@@ -5033,6 +5053,8 @@ enum punit_power_well {
 
 #define  EDP_LINK_TRAIN_VOL_EMP_MASK_IVB	(0x3f<<22)
 
+#define  VLV_PMWGICZ				0x1300a4
+
 #define  FORCEWAKE				0xA18C
 #define  FORCEWAKE_VLV				0x1300b0
 #define  FORCEWAKE_ACK_VLV			0x1300b4
@@ -5056,6 +5078,7 @@ enum punit_power_well {
 #define  FORCEWAKE_MT_ACK			0x130040
 #define  ECOBUS					0xa180
 #define    FORCEWAKE_MT_ENABLE			(1<<5)
+#define  VLV_SPAREG2H				0xA194
 
 #define  GTFIFODBG				0x120000
 #define    GT_FIFO_SBDROPERR			(1<<6)
@@ -5085,12 +5108,19 @@ enum punit_power_well {
 # define GEN6_RCPBUNIT_CLOCK_GATE_DISABLE		(1 << 12)
 # define GEN6_RCCUNIT_CLOCK_GATE_DISABLE		(1 << 11)
 
+#define GEN6_UCGCTL3				0x9408
+
 #define GEN7_UCGCTL4				0x940c
 #define  GEN7_L3BANK2X_CLOCK_GATE_DISABLE	(1<<25)
+
+#define GEN6_RCGCTL1				0x9410
+#define GEN6_RCGCTL2				0x9414
+#define GEN6_RSTCTL				0x9420
 
 #define GEN8_UCGCTL6				0x9430
 #define   GEN8_SDEUNIT_CLOCK_GATE_DISABLE	(1<<14)
 
+#define GEN6_GFXPAUSE				0xA000
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
 #define   GEN6_FREQUENCY(x)			((x)<<25)
@@ -5143,6 +5173,9 @@ enum punit_power_well {
 #define GEN6_RP_UP_EI				0xA068
 #define GEN6_RP_DOWN_EI				0xA06C
 #define GEN6_RP_IDLE_HYSTERSIS			0xA070
+#define GEN6_RPDEUHWTC				0xA080
+#define GEN6_RPDEUC				0xA084
+#define GEN6_RPDEUCSW				0xA088
 #define GEN6_RC_STATE				0xA094
 #define GEN6_RC1_WAKE_RATE_LIMIT		0xA098
 #define GEN6_RC6_WAKE_RATE_LIMIT		0xA09C
@@ -5150,11 +5183,14 @@ enum punit_power_well {
 #define GEN6_RC_EVALUATION_INTERVAL		0xA0A8
 #define GEN6_RC_IDLE_HYSTERSIS			0xA0AC
 #define GEN6_RC_SLEEP				0xA0B0
+#define GEN6_RCUBMABDTMR			0xA0B0
 #define GEN6_RC1e_THRESHOLD			0xA0B4
 #define GEN6_RC6_THRESHOLD			0xA0B8
 #define GEN6_RC6p_THRESHOLD			0xA0BC
+#define VLV_RCEDATA				0xA0BC
 #define GEN6_RC6pp_THRESHOLD			0xA0C0
 #define GEN6_PMINTRMSK				0xA168
+#define VLV_PWRDWNUPCTL				0xA294
 
 #define GEN6_PMISR				0x44020
 #define GEN6_PMIMR				0x44024 /* rps_lock */
@@ -5170,6 +5206,9 @@ enum punit_power_well {
 #define  GEN6_PM_RPS_EVENTS			(GEN6_PM_RP_UP_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
+
+#define GEN7_GT_SCRATCH_BASE			0x4F100
+#define GEN7_GT_SCRATCH_REG_NUM			8
 
 #define VLV_GTLC_SURVIVABILITY_REG              0x130098
 #define VLV_GFX_CLK_STATUS_BIT			(1<<3)
