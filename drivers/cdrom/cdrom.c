@@ -338,8 +338,6 @@ do {							\
 
 /* Not-exported routines. */
 
-static int cdrom_get_disc_info(struct cdrom_device_info *cdi, disc_information *di);
-
 static void cdrom_sysctl_register(void);
 
 static LIST_HEAD(cdrom_list);
@@ -367,6 +365,42 @@ static int cdrom_flush_cache(struct cdrom_device_info *cdi)
 	cgc.timeout = 5 * 60 * HZ;
 
 	return cdi->ops->generic_packet(cdi, &cgc);
+}
+
+/* requires CD R/RW */
+static int cdrom_get_disc_info(struct cdrom_device_info *cdi,
+			       disc_information *di)
+{
+	struct cdrom_device_ops *cdo = cdi->ops;
+	struct packet_command cgc;
+	int ret, buflen;
+
+	/* set up command and get the disc info */
+	init_cdrom_command(&cgc, di, sizeof(*di), CGC_DATA_READ);
+	cgc.cmd[0] = GPCMD_READ_DISC_INFO;
+	cgc.cmd[8] = cgc.buflen = 2;
+	cgc.quiet = 1;
+
+	ret = cdo->generic_packet(cdi, &cgc);
+	if (ret)
+		return ret;
+
+	/* not all drives have the same disc_info length, so requeue
+	 * packet with the length the drive tells us it can supply
+	 */
+	buflen = be16_to_cpu(di->disc_information_length) +
+		sizeof(di->disc_information_length);
+
+	if (buflen > sizeof(disc_information))
+		buflen = sizeof(disc_information);
+
+	cgc.cmd[8] = cgc.buflen = buflen;
+	ret = cdo->generic_packet(cdi, &cgc);
+	if (ret)
+		return ret;
+
+	/* return actual fill size */
+	return buflen;
 }
 
 /* This macro makes sure we don't have to check on cdrom_device_ops
@@ -3358,39 +3392,6 @@ int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
 	}
 
 	return -ENOSYS;
-}
-
-/* requires CD R/RW */
-static int cdrom_get_disc_info(struct cdrom_device_info *cdi, disc_information *di)
-{
-	struct cdrom_device_ops *cdo = cdi->ops;
-	struct packet_command cgc;
-	int ret, buflen;
-
-	/* set up command and get the disc info */
-	init_cdrom_command(&cgc, di, sizeof(*di), CGC_DATA_READ);
-	cgc.cmd[0] = GPCMD_READ_DISC_INFO;
-	cgc.cmd[8] = cgc.buflen = 2;
-	cgc.quiet = 1;
-
-	if ((ret = cdo->generic_packet(cdi, &cgc)))
-		return ret;
-
-	/* not all drives have the same disc_info length, so requeue
-	 * packet with the length the drive tells us it can supply
-	 */
-	buflen = be16_to_cpu(di->disc_information_length) +
-		     sizeof(di->disc_information_length);
-
-	if (buflen > sizeof(disc_information))
-		buflen = sizeof(disc_information);
-
-	cgc.cmd[8] = cgc.buflen = buflen;
-	if ((ret = cdo->generic_packet(cdi, &cgc)))
-		return ret;
-
-	/* return actual fill size */
-	return buflen;
 }
 
 EXPORT_SYMBOL(cdrom_get_last_written);
