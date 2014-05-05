@@ -348,7 +348,6 @@ struct pci9118_private {
 						 * on external start
 						 */
 	unsigned short ao_data[2];		/* data output buffer */
-	unsigned int ai_scans;			/* number of scans to do */
 	char dma_doublebuf;			/* we can use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	unsigned short *dmabuf_virt[2];		/*
@@ -976,7 +975,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 		devpriv->ai_act_scan++;
 		if (!devpriv->ai_neverending) {
 			/* all data sampled? */
-			if (devpriv->ai_act_scan >= devpriv->ai_scans)
+			if (devpriv->ai_act_scan >= cmd->stop_arg)
 				s->async->events |= COMEDI_CB_EOA;
 		}
 	}
@@ -991,6 +990,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 				     unsigned short int_daq)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int next_dma_buf, samplesinbuf, sampls, m;
 
 	if (int_amcc & MASTER_ABORT_INT) {
@@ -1041,7 +1041,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 
 	if (!devpriv->ai_neverending) {
 		/* all data sampled? */
-		if (devpriv->ai_act_scan >= devpriv->ai_scans)
+		if (devpriv->ai_act_scan >= cmd->stop_arg)
 			s->async->events |= COMEDI_CB_EOA;
 	}
 
@@ -1332,6 +1332,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 				 struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int dmalen0, dmalen1, i;
 
 	dmalen0 = devpriv->dmabuf_size[0];
@@ -1413,10 +1414,10 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 			/* fits whole measure into one DMA buffer? */
 			if (dmalen0 >
 			    ((devpriv->ai_n_realscanlen << 1) *
-			     devpriv->ai_scans)) {
+			     cmd->stop_arg)) {
 				dmalen0 =
 				    (devpriv->ai_n_realscanlen << 1) *
-				    devpriv->ai_scans;
+				    cmd->stop_arg;
 				dmalen0 &= ~3L;
 			} else {	/*
 					 * fits whole measure into
@@ -1424,10 +1425,10 @@ static int Compute_and_setup_dma(struct comedi_device *dev,
 					 */
 				if (dmalen1 >
 				    ((devpriv->ai_n_realscanlen << 1) *
-				     devpriv->ai_scans - dmalen0))
+				     cmd->stop_arg - dmalen0))
 					dmalen1 =
 					    (devpriv->ai_n_realscanlen << 1) *
-					    devpriv->ai_scans - dmalen0;
+					    cmd->stop_arg - dmalen0;
 				dmalen1 &= ~3L;
 			}
 		}
@@ -1630,12 +1631,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #endif
 	if (cmd->stop_src == TRIG_NONE)
 		devpriv->ai_neverending = 1;
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ai_scans = cmd->stop_arg;
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_neverending = 0;
-	} else {
-		devpriv->ai_scans = 0;
-	}
 
 	/* use sample&hold signal? */
 	if (cmd->convert_src == TRIG_NOW)
