@@ -30,9 +30,12 @@ extern int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz);
 extern time_t __vdso_time(time_t *t);
 
 #ifdef CONFIG_HPET_TIMER
-static inline u32 read_hpet_counter(const volatile void *addr)
+extern u8 hpet_page
+	__attribute__((visibility("hidden")));
+
+static notrace cycle_t vread_hpet(void)
 {
-	return *(const volatile u32 *) (addr + HPET_COUNTER);
+	return *(const volatile u32 *)(&hpet_page + HPET_COUNTER);
 }
 #endif
 
@@ -42,11 +45,6 @@ static inline u32 read_hpet_counter(const volatile void *addr)
 #include <asm/vsyscall.h>
 #include <asm/fixmap.h>
 #include <asm/pvclock.h>
-
-static notrace cycle_t vread_hpet(void)
-{
-	return read_hpet_counter((const void *)fix_to_virt(VSYSCALL_HPET));
-}
 
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {
@@ -136,16 +134,6 @@ static notrace cycle_t vread_pvclock(int *mode)
 #endif
 
 #else
-
-extern u8 hpet_page
-	__attribute__((visibility("hidden")));
-
-#ifdef CONFIG_HPET_TIMER
-static notrace cycle_t vread_hpet(void)
-{
-	return read_hpet_counter((const void *)(&hpet_page));
-}
-#endif
 
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {

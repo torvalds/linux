@@ -47,7 +47,6 @@ SECTIONS
 
 	.text		: { *(.text*) }			:text	=0x90909090,
 
-#ifdef BUILD_VDSO32
 	/*
 	 * The remainder of the vDSO consists of special pages that are
 	 * shared between the kernel and userspace.  It needs to be at the
@@ -69,7 +68,6 @@ SECTIONS
 
 	hpet_page = .;
 	. = . + PAGE_SIZE;
-#endif
 
 	. = ALIGN(PAGE_SIZE);
 	end_mapping = .;

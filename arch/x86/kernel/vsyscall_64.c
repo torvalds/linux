@@ -91,7 +91,7 @@ static int addr_to_vsyscall_nr(unsigned long addr)
 {
 	int nr;
 
-	if ((addr & ~0xC00UL) != VSYSCALL_START)
+	if ((addr & ~0xC00UL) != VSYSCALL_ADDR)
 		return -EINVAL;
 
 	nr = (addr & 0xC00UL) >> 10;
@@ -330,24 +330,17 @@ void __init map_vsyscall(void)
 {
 	extern char __vsyscall_page;
 	unsigned long physaddr_vsyscall = __pa_symbol(&__vsyscall_page);
-	unsigned long physaddr_vvar_page = __pa_symbol(&__vvar_page);
 
-	__set_fixmap(VSYSCALL_FIRST_PAGE, physaddr_vsyscall,
+	__set_fixmap(VSYSCALL_PAGE, physaddr_vsyscall,
 		     vsyscall_mode == NATIVE
 		     ? PAGE_KERNEL_VSYSCALL
 		     : PAGE_KERNEL_VVAR);
-	BUILD_BUG_ON((unsigned long)__fix_to_virt(VSYSCALL_FIRST_PAGE) !=
-		     (unsigned long)VSYSCALL_START);
-
-	__set_fixmap(VVAR_PAGE, physaddr_vvar_page, PAGE_KERNEL_VVAR);
-	BUILD_BUG_ON((unsigned long)__fix_to_virt(VVAR_PAGE) !=
-		     (unsigned long)VVAR_ADDRESS);
+	BUILD_BUG_ON((unsigned long)__fix_to_virt(VSYSCALL_PAGE) !=
+		     (unsigned long)VSYSCALL_ADDR);
 }
 
 static int __init vsyscall_init(void)
 {
-	BUG_ON(VSYSCALL_ADDR(0) != __fix_to_virt(VSYSCALL_FIRST_PAGE));
-
 	cpu_notifier_register_begin();
 
 	on_each_cpu(cpu_vsyscall_init, NULL, 1);
