@@ -1030,75 +1030,62 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	cfc_handle_events(dev, s);
 }
 
-static irqreturn_t interrupt_pci9118(int irq, void *d)
+static irqreturn_t pci9118_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct pci9118_private *devpriv = dev->private;
-	unsigned int int_daq = 0, int_amcc, int_adstat;
+	unsigned int intsrc;	/* IRQ reasons from card */
+	unsigned int intcsr;	/* INT register from AMCC chip */
+	unsigned int adstat;	/* STATUS register */
 
 	if (!dev->attached)
-		return IRQ_NONE;	/* not fully initialized */
+		return IRQ_NONE;
 
-	int_daq = inl(dev->iobase + PCI9118_INTSRC) & 0xf;
-					/* get IRQ reasons from card */
-	int_amcc = inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR);
-					/* get INT register from AMCC chip */
+	intsrc = inl(dev->iobase + PCI9118_INTSRC) & 0xf;
+	intcsr = inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 
-	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT)))
-		return IRQ_NONE;	/* interrupt from other source */
+	if (!intsrc && !(intcsr & ANY_S593X_INT))
+		return IRQ_NONE;
 
-	outl(int_amcc | 0x00ff0000, devpriv->iobase_a + AMCC_OP_REG_INTCSR);
-					/* shutdown IRQ reasons in AMCC */
+	outl(intcsr | 0x00ff0000, devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 
-	int_adstat = inw(dev->iobase + PCI9118_ADSTAT) & 0x1ff;
-					/* get STATUS register */
+	adstat = inw(dev->iobase + PCI9118_ADSTAT) & 0x1ff;
 
-	if (devpriv->ai_do) {
-		if (devpriv->ai12_startstop) {
-			if ((int_adstat & AdStatus_DTH) &&
-							(int_daq & Int_DTrg)) {
-						/* start stop of measure */
-				if (devpriv->ai12_startstop & START_AI_EXT) {
-					devpriv->ai12_startstop &=
-					    ~START_AI_EXT;
-					if (!(devpriv->ai12_startstop &
-							STOP_AI_EXT))
-							pci9118_exttrg_del
-							(dev, EXTTRG_AI);
-						/* deactivate EXT trigger */
-					start_pacer(dev, devpriv->ai_do,
-						devpriv->ai_divisor1,
-						devpriv->ai_divisor2);
-						/* start pacer */
-					outl(devpriv->AdControlReg,
-						dev->iobase + PCI9118_ADCNTRL);
-				} else {
-					if (devpriv->ai12_startstop &
-						STOP_AI_EXT) {
-						devpriv->ai12_startstop &=
-							~STOP_AI_EXT;
-						pci9118_exttrg_del
-							(dev, EXTTRG_AI);
-						/* deactivate EXT trigger */
-						devpriv->ai_neverending = 0;
-						/*
-						 * well, on next interrupt from
-						 * DMA/EOC measure will stop
-						 */
-					}
-				}
+	if (!devpriv->ai_do)
+		return IRQ_HANDLED;
+
+	if (devpriv->ai12_startstop) {
+		if ((adstat & AdStatus_DTH) && (intsrc & Int_DTrg)) {
+			/* start/stop of measure */
+			if (devpriv->ai12_startstop & START_AI_EXT) {
+				/* deactivate EXT trigger */
+				devpriv->ai12_startstop &= ~START_AI_EXT;
+				if (!(devpriv->ai12_startstop & STOP_AI_EXT))
+					pci9118_exttrg_del(dev, EXTTRG_AI);
+
+				/* start pacer */
+				start_pacer(dev, devpriv->ai_do,
+					    devpriv->ai_divisor1,
+					    devpriv->ai_divisor2);
+				outl(devpriv->AdControlReg,
+				     dev->iobase + PCI9118_ADCNTRL);
+			} else if (devpriv->ai12_startstop & STOP_AI_EXT) {
+				/* deactivate EXT trigger */
+				devpriv->ai12_startstop &= ~STOP_AI_EXT;
+				pci9118_exttrg_del(dev, EXTTRG_AI);
+
+				/* on next interrupt measure will stop */
+				devpriv->ai_neverending = 0;
 			}
 		}
-
-		if (devpriv->usedma)
-			interrupt_pci9118_ai_dma(dev, s, int_adstat,
-						 int_amcc, int_daq);
-		else
-			interrupt_pci9118_ai_onesample(dev, s, int_adstat,
-						       int_amcc, int_daq);
-
 	}
+
+	if (devpriv->usedma)
+		interrupt_pci9118_ai_dma(dev, s, adstat, intcsr, intsrc);
+	else
+		interrupt_pci9118_ai_onesample(dev, s, adstat, intcsr, intsrc);
+
 	return IRQ_HANDLED;
 }
 
@@ -1945,7 +1932,7 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 				/* Enable parity check for parity error */
 
 	if (!disable_irq && pcidev->irq) {
-		ret = request_irq(pcidev->irq, interrupt_pci9118, IRQF_SHARED,
+		ret = request_irq(pcidev->irq, pci9118_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;
