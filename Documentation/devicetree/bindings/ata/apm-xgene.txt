@@ -24,6 +24,7 @@ Required properties:
   * "sata-phy" for the SATA 6.0Gbps PHY
 
 Optional properties:
+- dma-coherent		: Present if dma operations are coherent
 - status		: Shall be "ok" if enabled or "disabled" if disabled.
 			  Default is "ok".
 
@@ -55,6 +56,7 @@ Example:
 			      <0x0 0x1f22e000 0x0 0x1000>,
 			      <0x0 0x1f227000 0x0 0x1000>;
 			interrupts = <0x0 0x87 0x4>;
+			dma-coherent;
 			status = "ok";
 			clocks = <&sataclk 0>;
 			phys = <&phy2 0>;
@@ -69,6 +71,7 @@ Example:
 			      <0x0 0x1f23e000 0x0 0x1000>,
 			      <0x0 0x1f237000 0x0 0x1000>;
 			interrupts = <0x0 0x88 0x4>;
+			dma-coherent;
 			status = "ok";
 			clocks = <&sataclk 0>;
 			phys = <&phy3 0>;

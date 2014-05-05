@@ -1496,45 +1496,23 @@ void rtw_wlan_bssid_ex_remove_p2p_attr23a(struct wlan_bssid_ex *bss_ex, u8 attr_
 int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen)
 {
 	int match;
-	uint cnt = 0;
-	u8 eid, wfd_oui[4] = {0x50, 0x6F, 0x9A, 0x0A};
+	const u8 *ie;
 
-	match = false;
+	match = 0;
 
-	if (in_len < 0) {
+	if (in_len < 0)
 		return match;
-	}
 
-	while (cnt < in_len)
-	{
-		eid = in_ie[cnt];
+	ie = cfg80211_find_vendor_ie(0x506F9A, 0x0A, in_ie, in_len);
+	if (ie && (ie[1] <= (MAX_WFD_IE_LEN - 2))) {
+		if (wfd_ie) {
+			*wfd_ielen = ie[1] + 2;
+			memcpy(wfd_ie, ie, ie[1] + 2);
+		} else
+			if (wfd_ielen)
+				*wfd_ielen = 0;
 
-		if ((eid == _VENDOR_SPECIFIC_IE_) &&
-		    !memcmp(&in_ie[cnt+2], wfd_oui, 4)) {
-			if (wfd_ie != NULL) {
-				memcpy(wfd_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
-
-			} else {
-				if (wfd_ielen != NULL) {
-					*wfd_ielen = 0;
-				}
-			}
-
-			if (wfd_ielen != NULL) {
-				*wfd_ielen = in_ie[cnt + 1] + 2;
-			}
-
-			cnt += in_ie[cnt + 1] + 2;
-
-			match = true;
-			break;
-		} else {
-			cnt += in_ie[cnt + 1] +2; /* goto next */
-		}
-	}
-
-	if (match == true) {
-		match = cnt;
+		match = 1;
 	}
 
 	return match;

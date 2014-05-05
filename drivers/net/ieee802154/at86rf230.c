@@ -365,7 +365,7 @@ __at86rf230_read_subreg(struct at86rf230_local *lp,
 	dev_vdbg(&lp->spi->dev, "buf[1] = %02x\n", buf[1]);
 
 	if (status == 0)
-		*data = buf[1];
+		*data = (buf[1] & mask) >> shift;
 
 	return status;
 }
@@ -1022,14 +1022,6 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 		return rc;
 	if (!status) {
 		dev_err(&lp->spi->dev, "DVDD error\n");
-		return -EINVAL;
-	}
-
-	rc = at86rf230_read_subreg(lp, SR_AVDD_OK, &status);
-	if (rc)
-		return rc;
-	if (!status) {
-		dev_err(&lp->spi->dev, "AVDD error\n");
 		return -EINVAL;
 	}
 

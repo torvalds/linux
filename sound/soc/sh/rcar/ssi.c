@@ -171,7 +171,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	u32 cr;
 
 	if (0 == ssi->usrcnt) {
-		clk_enable(ssi->clk);
+		clk_prepare_enable(ssi->clk);
 
 		if (rsnd_dai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi))
@@ -230,7 +230,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 				rsnd_ssi_master_clk_stop(ssi);
 		}
 
-		clk_disable(ssi->clk);
+		clk_disable_unprepare(ssi->clk);
 	}
 
 	dev_dbg(dev, "ssi%d hw stopped\n", rsnd_mod_id(&ssi->mod));

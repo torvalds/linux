@@ -5288,7 +5288,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* SEL_SCIF3 [2] */
 		FN_SEL_SCIF3_0, FN_SEL_SCIF3_1, FN_SEL_SCIF3_2, FN_SEL_SCIF3_3,
 		/* SEL_IEB [2] */
-		FN_SEL_IEB_0, FN_SEL_IEB_1, FN_SEL_IEB_2,
+		FN_SEL_IEB_0, FN_SEL_IEB_1, FN_SEL_IEB_2, 0,
 		/* SEL_MMC [1] */
 		FN_SEL_MMC_0, FN_SEL_MMC_1,
 		/* SEL_SCIF5 [1] */

@@ -71,11 +71,11 @@ static void mdp5_irq_mdp(struct mdp_kms *mdp_kms)
 
 	VERB("status=%08x", status);
 
+	mdp_dispatch_irqs(mdp_kms, status);
+
 	for (id = 0; id < priv->num_crtcs; id++)
 		if (status & mdp5_crtc_vblank(priv->crtcs[id]))
 			drm_handle_vblank(dev, id);
-
-	mdp_dispatch_irqs(mdp_kms, status);
 }
 
 irqreturn_t mdp5_irq(struct msm_kms *kms)

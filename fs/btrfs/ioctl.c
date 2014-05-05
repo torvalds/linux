@@ -3066,7 +3066,7 @@ process_slot:
 							 new_key.offset + datal,
 							 1);
 				if (ret) {
-					if (ret != -EINVAL)
+					if (ret != -EOPNOTSUPP)
 						btrfs_abort_transaction(trans,
 								root, ret);
 					btrfs_end_transaction(trans, root);
@@ -3141,7 +3141,7 @@ process_slot:
 							 new_key.offset + datal,
 							 1);
 				if (ret) {
-					if (ret != -EINVAL)
+					if (ret != -EOPNOTSUPP)
 						btrfs_abort_transaction(trans,
 							root, ret);
 					btrfs_end_transaction(trans, root);

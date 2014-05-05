@@ -23,5 +23,5 @@ gmac0: ethernet@ff700000 {
 	interrupt-names = "macirq";
 	mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
 	clocks = <&emac_0_clk>;
-	clocks-names = "stmmaceth";
+	clock-names = "stmmaceth";
 };

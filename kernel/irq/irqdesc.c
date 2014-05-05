@@ -363,6 +363,13 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		if (from > irq)
 			return -EINVAL;
 		from = irq;
+	} else {
+		/*
+		 * For interrupts which are freely allocated the
+		 * architecture can force a lower bound to the @from
+		 * argument. x86 uses this to exclude the GSI space.
+		 */
+		from = arch_dynirq_lower_bound(from);
 	}
 
 	mutex_lock(&sparse_irq_lock);

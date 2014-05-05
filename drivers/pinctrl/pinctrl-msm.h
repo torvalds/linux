@@ -84,6 +84,7 @@ struct msm_pingroup {
 
 	unsigned intr_enable_bit:5;
 	unsigned intr_status_bit:5;
+	unsigned intr_ack_high:1;
 
 	unsigned intr_target_bit:5;
 	unsigned intr_raw_status_bit:5;

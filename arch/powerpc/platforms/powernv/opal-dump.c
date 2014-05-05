@@ -209,89 +209,20 @@ static struct kobj_type dump_ktype = {
 	.default_attrs = dump_default_attrs,
 };
 
-static void free_dump_sg_list(struct opal_sg_list *list)
+static int64_t dump_read_info(uint32_t *dump_id, uint32_t *dump_size, uint32_t *dump_type)
 {
-	struct opal_sg_list *sg1;
-	while (list) {
-		sg1 = list->next;
-		kfree(list);
-		list = sg1;
-	}
-	list = NULL;
-}
-
-static struct opal_sg_list *dump_data_to_sglist(struct dump_obj *dump)
-{
-	struct opal_sg_list *sg1, *list = NULL;
-	void *addr;
-	int64_t size;
-
-	addr = dump->buffer;
-	size = dump->size;
-
-	sg1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!sg1)
-		goto nomem;
-
-	list = sg1;
-	sg1->num_entries = 0;
-	while (size > 0) {
-		/* Translate virtual address to physical address */
-		sg1->entry[sg1->num_entries].data =
-			(void *)(vmalloc_to_pfn(addr) << PAGE_SHIFT);
-
-		if (size > PAGE_SIZE)
-			sg1->entry[sg1->num_entries].length = PAGE_SIZE;
-		else
-			sg1->entry[sg1->num_entries].length = size;
-
-		sg1->num_entries++;
-		if (sg1->num_entries >= SG_ENTRIES_PER_NODE) {
-			sg1->next = kzalloc(PAGE_SIZE, GFP_KERNEL);
-			if (!sg1->next)
-				goto nomem;
-
-			sg1 = sg1->next;
-			sg1->num_entries = 0;
-		}
-		addr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-	return list;
-
-nomem:
-	pr_err("%s : Failed to allocate memory\n", __func__);
-	free_dump_sg_list(list);
-	return NULL;
-}
-
-static void sglist_to_phy_addr(struct opal_sg_list *list)
-{
-	struct opal_sg_list *sg, *next;
-
-	for (sg = list; sg; sg = next) {
-		next = sg->next;
-		/* Don't translate NULL pointer for last entry */
-		if (sg->next)
-			sg->next = (struct opal_sg_list *)__pa(sg->next);
-		else
-			sg->next = NULL;
-
-		/* Convert num_entries to length */
-		sg->num_entries =
-			sg->num_entries * sizeof(struct opal_sg_entry) + 16;
-	}
-}
-
-static int64_t dump_read_info(uint32_t *id, uint32_t *size, uint32_t *type)
-{
+	__be32 id, size, type;
 	int rc;
-	*type = 0xffffffff;
 
-	rc = opal_dump_info2(id, size, type);
+	type = cpu_to_be32(0xffffffff);
 
+	rc = opal_dump_info2(&id, &size, &type);
 	if (rc == OPAL_PARAMETER)
-		rc = opal_dump_info(id, size);
+		rc = opal_dump_info(&id, &size);
+
+	*dump_id = be32_to_cpu(id);
+	*dump_size = be32_to_cpu(size);
+	*dump_type = be32_to_cpu(type);
 
 	if (rc)
 		pr_warn("%s: Failed to get dump info (%d)\n",
@@ -314,14 +245,11 @@ static int64_t dump_read_data(struct dump_obj *dump)
 	}
 
 	/* Generate SG list */
-	list = dump_data_to_sglist(dump);
+	list = opal_vmalloc_to_sg_list(dump->buffer, dump->size);
 	if (!list) {
 		rc = -ENOMEM;
 		goto out;
 	}
-
-	/* Translate sg list addr to real address */
-	sglist_to_phy_addr(list);
 
 	/* First entry address */
 	addr = __pa(list);
@@ -341,7 +269,7 @@ static int64_t dump_read_data(struct dump_obj *dump)
 			__func__, dump->id);
 
 	/* Free SG list */
-	free_dump_sg_list(list);
+	opal_free_sg_list(list);
 
 out:
 	return rc;

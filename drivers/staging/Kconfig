@@ -40,8 +40,6 @@ source "drivers/staging/olpc_dcon/Kconfig"
 
 source "drivers/staging/panel/Kconfig"
 
-source "drivers/staging/rtl8187se/Kconfig"
-
 source "drivers/staging/rtl8192u/Kconfig"
 
 source "drivers/staging/rtl8192e/Kconfig"
