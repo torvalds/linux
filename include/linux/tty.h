@@ -61,7 +61,6 @@ struct tty_bufhead {
 	struct tty_buffer *head;	/* Queue head */
 	struct work_struct work;
 	struct mutex	   lock;
-	spinlock_t	   flush_lock;
 	atomic_t	   priority;
 	struct tty_buffer sentinel;
 	struct llist_head free;		/* Free queue head */
