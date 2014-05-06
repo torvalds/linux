@@ -1005,7 +1005,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	if (bi.bytes_written && (s->subdev_flags & SDF_CMD_WRITE)) {
 		bi.bytes_written =
 		    comedi_buf_write_alloc(s, bi.bytes_written);
-		comedi_buf_write_free(async, bi.bytes_written);
+		comedi_buf_write_free(s, bi.bytes_written);
 	}
 
 copyback_position:
@@ -2167,7 +2167,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			n -= m;
 			retval = -EFAULT;
 		}
-		comedi_buf_write_free(async, n);
+		comedi_buf_write_free(s, n);
 
 		count += n;
 		nbytes -= n;

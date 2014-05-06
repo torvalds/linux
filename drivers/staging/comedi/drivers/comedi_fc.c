@@ -75,7 +75,7 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
 	}
 
 	comedi_buf_memcpy_to(s, 0, data, num_bytes);
-	comedi_buf_write_free(async, num_bytes);
+	comedi_buf_write_free(s, num_bytes);
 	cfc_inc_scan_progress(s, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 

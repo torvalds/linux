@@ -550,7 +550,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 	if (count <= 0)
 		return 0;
 
-	comedi_buf_write_free(async, count);
+	comedi_buf_write_free(s, count);
 	cfc_inc_scan_progress(s, count);
 	async->events |= COMEDI_CB_BLOCK;
 	return 0;

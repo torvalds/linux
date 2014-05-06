@@ -329,9 +329,10 @@ unsigned int comedi_buf_write_n_allocated(struct comedi_async *async)
 }
 
 /* transfers a chunk from writer to filled buffer space */
-unsigned int comedi_buf_write_free(struct comedi_async *async,
+unsigned int comedi_buf_write_free(struct comedi_subdevice *s,
 				   unsigned int nbytes)
 {
+	struct comedi_async *async = s->async;
 	unsigned int allocated = comedi_buf_write_n_allocated(async);
 
 	if (nbytes > allocated)
@@ -426,7 +427,7 @@ int comedi_buf_put(struct comedi_subdevice *s, unsigned short x)
 		return 0;
 	}
 	*(unsigned short *)(async->prealloc_buf + async->buf_write_ptr) = x;
-	comedi_buf_write_free(async, sizeof(short));
+	comedi_buf_write_free(s, sizeof(short));
 	return 1;
 }
 EXPORT_SYMBOL_GPL(comedi_buf_put);

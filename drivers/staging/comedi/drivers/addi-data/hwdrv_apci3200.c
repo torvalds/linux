@@ -2716,7 +2716,7 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 				ui_ScanValueArray, (7 + 12) * sizeof(unsigned int));
 
 			/*  Update comedi buffer pinters indexes */
-			comedi_buf_write_free(s->async,
+			comedi_buf_write_free(s,
 				(7 + 12) * sizeof(unsigned int));
 
 			/*  Send events */
