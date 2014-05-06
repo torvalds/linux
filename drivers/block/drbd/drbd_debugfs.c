@@ -521,6 +521,77 @@ void drbd_debugfs_resource_cleanup(struct drbd_resource *resource)
 	drbd_debugfs_remove(&resource->debugfs_res);
 }
 
+static void seq_print_one_timing_detail(struct seq_file *m,
+	const struct drbd_thread_timing_details *tdp,
+	unsigned long now)
+{
+	struct drbd_thread_timing_details td;
+	/* No locking...
+	 * use temporary assignment to get at consistent data. */
+	do {
+		td = *tdp;
+	} while (td.cb_nr != tdp->cb_nr);
+	if (!td.cb_addr)
+		return;
+	seq_printf(m, "%u\t%d\t%s:%u\t%ps\n",
+			td.cb_nr,
+			jiffies_to_msecs(now - td.start_jif),
+			td.caller_fn, td.line,
+			td.cb_addr);
+}
+
+static void seq_print_timing_details(struct seq_file *m,
+		const char *title,
+		unsigned int cb_nr, struct drbd_thread_timing_details *tdp, unsigned long now)
+{
+	unsigned int start_idx;
+	unsigned int i;
+
+	seq_printf(m, "%s\n", title);
+	/* If not much is going on, this will result in natural ordering.
+	 * If it is very busy, we will possibly skip events, or even see wrap
+	 * arounds, which could only be avoided with locking.
+	 */
+	start_idx = cb_nr % DRBD_THREAD_DETAILS_HIST;
+	for (i = start_idx; i < DRBD_THREAD_DETAILS_HIST; i++)
+		seq_print_one_timing_detail(m, tdp+i, now);
+	for (i = 0; i < start_idx; i++)
+		seq_print_one_timing_detail(m, tdp+i, now);
+}
+
+static int callback_history_show(struct seq_file *m, void *ignored)
+{
+	struct drbd_connection *connection = m->private;
+	unsigned long jif = jiffies;
+
+	seq_puts(m, "n\tage\tcallsite\tfn\n");
+	seq_print_timing_details(m, "worker", connection->w_cb_nr, connection->w_timing_details, jif);
+	seq_print_timing_details(m, "receiver", connection->r_cb_nr, connection->r_timing_details, jif);
+	return 0;
+}
+
+static int callback_history_open(struct inode *inode, struct file *file)
+{
+	struct drbd_connection *connection = inode->i_private;
+	return drbd_single_open(file, callback_history_show, connection,
+				&connection->kref, drbd_destroy_connection);
+}
+
+static int callback_history_release(struct inode *inode, struct file *file)
+{
+	struct drbd_connection *connection = inode->i_private;
+	kref_put(&connection->kref, drbd_destroy_connection);
+	return single_release(inode, file);
+}
+
+static const struct file_operations connection_callback_history_fops = {
+	.owner		= THIS_MODULE,
+	.open		= callback_history_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= callback_history_release,
+};
+
 void drbd_debugfs_connection_add(struct drbd_connection *connection)
 {
 	struct dentry *conns_dir = connection->resource->debugfs_res_connections;
@@ -535,6 +606,13 @@ void drbd_debugfs_connection_add(struct drbd_connection *connection)
 	if (IS_ERR_OR_NULL(dentry))
 		goto fail;
 	connection->debugfs_conn = dentry;
+
+	dentry = debugfs_create_file("callback_history", S_IRUSR|S_IRGRP,
+			connection->debugfs_conn, connection,
+			&connection_callback_history_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		goto fail;
+	connection->debugfs_conn_callback_history = dentry;
 	return;
 
 fail:

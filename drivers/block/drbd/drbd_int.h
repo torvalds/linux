@@ -697,6 +697,15 @@ struct drbd_resource {
 	cpumask_var_t cpu_mask;
 };
 
+struct drbd_thread_timing_details
+{
+	unsigned long start_jif;
+	void *cb_addr;
+	const char *caller_fn;
+	unsigned int line;
+	unsigned int cb_nr;
+};
+
 struct drbd_connection {
 	struct list_head connections;
 	struct drbd_resource *resource;
@@ -759,6 +768,12 @@ struct drbd_connection {
 	/* sender side */
 	struct drbd_work_queue sender_work;
 
+#define DRBD_THREAD_DETAILS_HIST	16
+	unsigned int w_cb_nr; /* keeps counting up */
+	unsigned int r_cb_nr; /* keeps counting up */
+	struct drbd_thread_timing_details w_timing_details[DRBD_THREAD_DETAILS_HIST];
+	struct drbd_thread_timing_details r_timing_details[DRBD_THREAD_DETAILS_HIST];
+
 	struct {
 		/* whether this sender thread
 		 * has processed a single write yet. */
@@ -773,6 +788,17 @@ struct drbd_connection {
 		unsigned current_epoch_writes;
 	} send;
 };
+
+void __update_timing_details(
+		struct drbd_thread_timing_details *tdp,
+		unsigned int *cb_nr,
+		void *cb,
+		const char *fn, const unsigned int line);
+
+#define update_worker_timing_details(c, cb) \
+	__update_timing_details(c->w_timing_details, &c->w_cb_nr, cb, __func__ , __LINE__ )
+#define update_receiver_timing_details(c, cb) \
+	__update_timing_details(c->r_timing_details, &c->r_cb_nr, cb, __func__ , __LINE__ )
 
 struct submit_worker {
 	struct workqueue_struct *wq;
