@@ -44,11 +44,11 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/inetdevice.h>
 #include <linux/list.h>
-#include <linux/lockdep.h>
 #include <linux/openvswitch.h>
 #include <linux/rculist.h>
 #include <linux/dmi.h>
-#include <linux/workqueue.h>
+#include <linux/genetlink.h>
+#include <net/genetlink.h>
 #include <net/genetlink.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -61,6 +61,22 @@
 #include "vport-netdev.h"
 
 int ovs_net_id __read_mostly;
+
+static struct genl_family dp_packet_genl_family;
+static struct genl_family dp_flow_genl_family;
+static struct genl_family dp_datapath_genl_family;
+
+static struct genl_multicast_group ovs_dp_flow_multicast_group = {
+	.name = OVS_FLOW_MCGROUP
+};
+
+static struct genl_multicast_group ovs_dp_datapath_multicast_group = {
+	.name = OVS_DATAPATH_MCGROUP
+};
+
+struct genl_multicast_group ovs_dp_vport_multicast_group = {
+	.name = OVS_VPORT_MCGROUP
+};
 
 /* Check if need to build a reply message.
  * OVS userspace sets the NLM_F_ECHO flag if it needs the reply. */
@@ -271,16 +287,6 @@ out:
 	stats->n_mask_hit += n_mask_hit;
 	u64_stats_update_end(&stats->syncp);
 }
-
-static struct genl_family dp_packet_genl_family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = sizeof(struct ovs_header),
-	.name = OVS_PACKET_FAMILY,
-	.version = OVS_PACKET_VERSION,
-	.maxattr = OVS_PACKET_ATTR_MAX,
-	.netnsok = true,
-	.parallel_ops = true,
-};
 
 int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 		  const struct dp_upcall_info *upcall_info)
@@ -600,6 +606,18 @@ static const struct genl_ops dp_packet_genl_ops[] = {
 	}
 };
 
+static struct genl_family dp_packet_genl_family = {
+	.id = GENL_ID_GENERATE,
+	.hdrsize = sizeof(struct ovs_header),
+	.name = OVS_PACKET_FAMILY,
+	.version = OVS_PACKET_VERSION,
+	.maxattr = OVS_PACKET_ATTR_MAX,
+	.netnsok = true,
+	.parallel_ops = true,
+	.ops = dp_packet_genl_ops,
+	.n_ops = ARRAY_SIZE(dp_packet_genl_ops),
+};
+
 static void get_dp_stats(struct datapath *dp, struct ovs_dp_stats *stats,
 			 struct ovs_dp_megaflow_stats *mega_stats)
 {
@@ -630,26 +648,6 @@ static void get_dp_stats(struct datapath *dp, struct ovs_dp_stats *stats,
 		mega_stats->n_mask_hit += local_stats.n_mask_hit;
 	}
 }
-
-static const struct nla_policy flow_policy[OVS_FLOW_ATTR_MAX + 1] = {
-	[OVS_FLOW_ATTR_KEY] = { .type = NLA_NESTED },
-	[OVS_FLOW_ATTR_ACTIONS] = { .type = NLA_NESTED },
-	[OVS_FLOW_ATTR_CLEAR] = { .type = NLA_FLAG },
-};
-
-static struct genl_family dp_flow_genl_family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = sizeof(struct ovs_header),
-	.name = OVS_FLOW_FAMILY,
-	.version = OVS_FLOW_VERSION,
-	.maxattr = OVS_FLOW_ATTR_MAX,
-	.netnsok = true,
-	.parallel_ops = true,
-};
-
-static struct genl_multicast_group ovs_dp_flow_multicast_group = {
-	.name = OVS_FLOW_MCGROUP
-};
 
 static size_t ovs_flow_cmd_msg_size(const struct sw_flow_actions *acts)
 {
@@ -1186,7 +1184,13 @@ static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static const struct genl_ops dp_flow_genl_ops[] = {
+static const struct nla_policy flow_policy[OVS_FLOW_ATTR_MAX + 1] = {
+	[OVS_FLOW_ATTR_KEY] = { .type = NLA_NESTED },
+	[OVS_FLOW_ATTR_ACTIONS] = { .type = NLA_NESTED },
+	[OVS_FLOW_ATTR_CLEAR] = { .type = NLA_FLAG },
+};
+
+static struct genl_ops dp_flow_genl_ops[] = {
 	{ .cmd = OVS_FLOW_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = flow_policy,
@@ -1210,24 +1214,18 @@ static const struct genl_ops dp_flow_genl_ops[] = {
 	},
 };
 
-static const struct nla_policy datapath_policy[OVS_DP_ATTR_MAX + 1] = {
-	[OVS_DP_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
-	[OVS_DP_ATTR_UPCALL_PID] = { .type = NLA_U32 },
-	[OVS_DP_ATTR_USER_FEATURES] = { .type = NLA_U32 },
-};
-
-static struct genl_family dp_datapath_genl_family = {
+static struct genl_family dp_flow_genl_family = {
 	.id = GENL_ID_GENERATE,
 	.hdrsize = sizeof(struct ovs_header),
-	.name = OVS_DATAPATH_FAMILY,
-	.version = OVS_DATAPATH_VERSION,
-	.maxattr = OVS_DP_ATTR_MAX,
+	.name = OVS_FLOW_FAMILY,
+	.version = OVS_FLOW_VERSION,
+	.maxattr = OVS_FLOW_ATTR_MAX,
 	.netnsok = true,
 	.parallel_ops = true,
-};
-
-static struct genl_multicast_group ovs_dp_datapath_multicast_group = {
-	.name = OVS_DATAPATH_MCGROUP
+	.ops = dp_flow_genl_ops,
+	.n_ops = ARRAY_SIZE(dp_flow_genl_ops),
+	.mcgrps = &ovs_dp_flow_multicast_group,
+	.n_mcgrps = 1,
 };
 
 static size_t ovs_dp_cmd_msg_size(void)
@@ -1574,7 +1572,13 @@ static int ovs_dp_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static const struct genl_ops dp_datapath_genl_ops[] = {
+static const struct nla_policy datapath_policy[OVS_DP_ATTR_MAX + 1] = {
+	[OVS_DP_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
+	[OVS_DP_ATTR_UPCALL_PID] = { .type = NLA_U32 },
+	[OVS_DP_ATTR_USER_FEATURES] = { .type = NLA_U32 },
+};
+
+static struct genl_ops dp_datapath_genl_ops[] = {
 	{ .cmd = OVS_DP_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = datapath_policy,
@@ -1598,27 +1602,18 @@ static const struct genl_ops dp_datapath_genl_ops[] = {
 	},
 };
 
-static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {
-	[OVS_VPORT_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
-	[OVS_VPORT_ATTR_STATS] = { .len = sizeof(struct ovs_vport_stats) },
-	[OVS_VPORT_ATTR_PORT_NO] = { .type = NLA_U32 },
-	[OVS_VPORT_ATTR_TYPE] = { .type = NLA_U32 },
-	[OVS_VPORT_ATTR_UPCALL_PID] = { .type = NLA_U32 },
-	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED },
-};
-
-struct genl_family dp_vport_genl_family = {
+static struct genl_family dp_datapath_genl_family = {
 	.id = GENL_ID_GENERATE,
 	.hdrsize = sizeof(struct ovs_header),
-	.name = OVS_VPORT_FAMILY,
-	.version = OVS_VPORT_VERSION,
-	.maxattr = OVS_VPORT_ATTR_MAX,
+	.name = OVS_DATAPATH_FAMILY,
+	.version = OVS_DATAPATH_VERSION,
+	.maxattr = OVS_DP_ATTR_MAX,
 	.netnsok = true,
 	.parallel_ops = true,
-};
-
-static struct genl_multicast_group ovs_dp_vport_multicast_group = {
-	.name = OVS_VPORT_MCGROUP
+	.ops = dp_datapath_genl_ops,
+	.n_ops = ARRAY_SIZE(dp_datapath_genl_ops),
+	.mcgrps = &ovs_dp_datapath_multicast_group,
+	.n_mcgrps = 1,
 };
 
 /* Called with ovs_mutex or RCU read lock. */
@@ -1941,7 +1936,16 @@ out:
 	return skb->len;
 }
 
-static const struct genl_ops dp_vport_genl_ops[] = {
+static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {
+	[OVS_VPORT_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
+	[OVS_VPORT_ATTR_STATS] = { .len = sizeof(struct ovs_vport_stats) },
+	[OVS_VPORT_ATTR_PORT_NO] = { .type = NLA_U32 },
+	[OVS_VPORT_ATTR_TYPE] = { .type = NLA_U32 },
+	[OVS_VPORT_ATTR_UPCALL_PID] = { .type = NLA_U32 },
+	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED },
+};
+
+static struct genl_ops dp_vport_genl_ops[] = {
 	{ .cmd = OVS_VPORT_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = vport_policy,
@@ -1965,26 +1969,25 @@ static const struct genl_ops dp_vport_genl_ops[] = {
 	},
 };
 
-struct genl_family_and_ops {
-	struct genl_family *family;
-	const struct genl_ops *ops;
-	int n_ops;
-	const struct genl_multicast_group *group;
+struct genl_family dp_vport_genl_family = {
+	.id = GENL_ID_GENERATE,
+	.hdrsize = sizeof(struct ovs_header),
+	.name = OVS_VPORT_FAMILY,
+	.version = OVS_VPORT_VERSION,
+	.maxattr = OVS_VPORT_ATTR_MAX,
+	.netnsok = true,
+	.parallel_ops = true,
+	.ops = dp_vport_genl_ops,
+	.n_ops = ARRAY_SIZE(dp_vport_genl_ops),
+	.mcgrps = &ovs_dp_vport_multicast_group,
+	.n_mcgrps = 1,
 };
 
-static const struct genl_family_and_ops dp_genl_families[] = {
-	{ &dp_datapath_genl_family,
-	  dp_datapath_genl_ops, ARRAY_SIZE(dp_datapath_genl_ops),
-	  &ovs_dp_datapath_multicast_group },
-	{ &dp_vport_genl_family,
-	  dp_vport_genl_ops, ARRAY_SIZE(dp_vport_genl_ops),
-	  &ovs_dp_vport_multicast_group },
-	{ &dp_flow_genl_family,
-	  dp_flow_genl_ops, ARRAY_SIZE(dp_flow_genl_ops),
-	  &ovs_dp_flow_multicast_group },
-	{ &dp_packet_genl_family,
-	  dp_packet_genl_ops, ARRAY_SIZE(dp_packet_genl_ops),
-	  NULL },
+static struct genl_family * const dp_genl_families[] = {
+	&dp_datapath_genl_family,
+	&dp_vport_genl_family,
+	&dp_flow_genl_family,
+	&dp_packet_genl_family,
 };
 
 static void dp_unregister_genl(int n_families)
@@ -1992,33 +1995,25 @@ static void dp_unregister_genl(int n_families)
 	int i;
 
 	for (i = 0; i < n_families; i++)
-		genl_unregister_family(dp_genl_families[i].family);
+		genl_unregister_family(dp_genl_families[i]);
 }
 
 static int dp_register_genl(void)
 {
-	int n_registered;
 	int err;
 	int i;
 
-	n_registered = 0;
 	for (i = 0; i < ARRAY_SIZE(dp_genl_families); i++) {
-		const struct genl_family_and_ops *f = &dp_genl_families[i];
 
-		f->family->ops = f->ops;
-		f->family->n_ops = f->n_ops;
-		f->family->mcgrps = f->group;
-		f->family->n_mcgrps = f->group ? 1 : 0;
-		err = genl_register_family(f->family);
+		err = genl_register_family(dp_genl_families[i]);
 		if (err)
 			goto error;
-		n_registered++;
 	}
 
 	return 0;
 
 error:
-	dp_unregister_genl(n_registered);
+	dp_unregister_genl(i);
 	return err;
 }
 
