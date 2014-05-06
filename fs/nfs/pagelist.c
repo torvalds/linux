@@ -393,7 +393,7 @@ EXPORT_SYMBOL_GPL(nfs_pgio_data_release);
  * @task: The current task
  * @calldata: pageio data to prepare
  */
-void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
+static void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_pgio_data *data = calldata;
 	int err;
@@ -406,7 +406,7 @@ void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
  * nfs_pgio_release - Release pageio data
  * @calldata: The pageio data to release
  */
-void nfs_pgio_release(void *calldata)
+static void nfs_pgio_release(void *calldata)
 {
 	struct nfs_pgio_data *data = calldata;
 	if (data->header->rw_ops->rw_release)
@@ -454,7 +454,7 @@ EXPORT_SYMBOL_GPL(nfs_pageio_init);
  * @task: The task that ran
  * @calldata: Pageio data to check
  */
-void nfs_pgio_result(struct rpc_task *task, void *calldata)
+static void nfs_pgio_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_pgio_data *data = calldata;
 	struct inode *inode = data->header->inode;
@@ -677,3 +677,8 @@ void nfs_destroy_nfspagecache(void)
 	kmem_cache_destroy(nfs_page_cachep);
 }
 
+const struct rpc_call_ops nfs_pgio_common_ops = {
+	.rpc_call_prepare = nfs_pgio_prepare,
+	.rpc_call_done = nfs_pgio_result,
+	.rpc_release = nfs_pgio_release,
+};

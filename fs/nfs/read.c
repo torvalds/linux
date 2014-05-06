@@ -29,7 +29,6 @@
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
 static const struct nfs_pageio_ops nfs_pageio_read_ops;
-static const struct rpc_call_ops nfs_read_common_ops;
 static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops;
 static const struct nfs_rw_ops nfs_rw_read_ops;
 
@@ -314,7 +313,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc,
 
 	nfs_list_remove_request(req);
 	nfs_list_add_request(req, &hdr->pages);
-	desc->pg_rpc_callops = &nfs_read_common_ops;
+	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
 
@@ -343,7 +342,7 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
 
 	nfs_read_rpcsetup(data, desc->pg_count, 0);
 	list_add(&data->list, &hdr->rpc_list);
-	desc->pg_rpc_callops = &nfs_read_common_ops;
+	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
 
@@ -442,12 +441,6 @@ static void nfs_readpage_result(struct rpc_task *task, struct nfs_pgio_data *dat
 	} else if (data->res.count != data->args.count)
 		nfs_readpage_retry(task, data);
 }
-
-static const struct rpc_call_ops nfs_read_common_ops = {
-	.rpc_call_prepare = nfs_pgio_prepare,
-	.rpc_call_done = nfs_pgio_result,
-	.rpc_release = nfs_pgio_release,
-};
 
 /*
  * Read a page over NFS.

@@ -237,13 +237,11 @@ extern void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos);
 int nfs_iocounter_wait(struct nfs_io_counter *c);
 
+extern const struct rpc_call_ops nfs_pgio_common_ops;
 struct nfs_rw_header *nfs_rw_header_alloc(const struct nfs_rw_ops *);
 void nfs_rw_header_free(struct nfs_pgio_header *);
 struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *, unsigned int);
 void nfs_pgio_data_release(struct nfs_pgio_data *);
-void nfs_pgio_prepare(struct rpc_task *, void *);
-void nfs_pgio_release(void *);
-void nfs_pgio_result(struct rpc_task *, void *);
 
 static inline void nfs_iocounter_init(struct nfs_io_counter *c)
 {

@@ -42,7 +42,6 @@
  * Local function declarations
  */
 static void nfs_redirty_request(struct nfs_page *req);
-static const struct rpc_call_ops nfs_write_common_ops;
 static const struct rpc_call_ops nfs_commit_ops;
 static const struct nfs_pgio_completion_ops nfs_async_write_completion_ops;
 static const struct nfs_commit_completion_ops nfs_commit_completion_ops;
@@ -1138,7 +1137,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc,
 	} while (nbytes != 0);
 	nfs_list_remove_request(req);
 	nfs_list_add_request(req, &hdr->pages);
-	desc->pg_rpc_callops = &nfs_write_common_ops;
+	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
 
@@ -1182,7 +1181,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc,
 	/* Set up the argument struct */
 	nfs_write_rpcsetup(data, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
 	list_add(&data->list, &hdr->rpc_list);
-	desc->pg_rpc_callops = &nfs_write_common_ops;
+	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
 
@@ -1271,12 +1270,6 @@ static void nfs_writeback_release_common(struct nfs_pgio_data *data)
 		spin_unlock(&hdr->lock);
 	}
 }
-
-static const struct rpc_call_ops nfs_write_common_ops = {
-	.rpc_call_prepare = nfs_pgio_prepare,
-	.rpc_call_done = nfs_pgio_result,
-	.rpc_release = nfs_pgio_release,
-};
 
 /*
  * Special version of should_remove_suid() that ignores capabilities.
