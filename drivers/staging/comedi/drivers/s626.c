@@ -1628,7 +1628,6 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 		readaddr++;
 
 		/* put data into read buffer */
-		/* comedi_buf_put(async, tempdata); */
 		cfc_write_to_buffer(s, tempdata);
 	}
 

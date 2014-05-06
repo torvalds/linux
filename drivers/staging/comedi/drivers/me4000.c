@@ -1124,7 +1124,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s->async, lval)) {
+			if (!comedi_buf_put(s, lval)) {
 				/*
 				 * Buffer overflow, so stop conversion
 				 * and disable all interrupts
@@ -1169,7 +1169,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s->async, lval)) {
+			if (!comedi_buf_put(s, lval)) {
 				dev_err(dev->class_dev, "Buffer overflow\n");
 				s->async->events |= COMEDI_CB_OVERFLOW;
 				break;

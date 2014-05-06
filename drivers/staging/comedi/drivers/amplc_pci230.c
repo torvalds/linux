@@ -2209,7 +2209,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 			}
 		}
 		/* Read sample and store in Comedi's circular buffer. */
-		if (comedi_buf_put(async, pci230_ai_read(dev)) == 0) {
+		if (comedi_buf_put(s, pci230_ai_read(dev)) == 0) {
 			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
 			comedi_error(dev, "AI buffer overflow");
 			break;

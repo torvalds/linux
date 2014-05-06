@@ -447,8 +447,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 					  Group_1_FIFO);
 				data1 = auxdata & 0xffff;
 				data2 = (auxdata & 0xffff0000) >> 16;
-				comedi_buf_put(async, data1);
-				comedi_buf_put(async, data2);
+				comedi_buf_put(s, data1);
+				comedi_buf_put(s, data2);
 				flags = readb(devpriv->mite->daq_io_addr +
 					      Group_1_Flags);
 			}

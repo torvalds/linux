@@ -338,8 +338,8 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	}
 
 	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s->async, val) &&
-	    comedi_buf_put(s->async, val >> 16)) {
+	if (comedi_buf_put(s, val) &&
+	    comedi_buf_put(s, val >> 16)) {
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 	} else {
 		/* Overflow! Stop acquisition!! */

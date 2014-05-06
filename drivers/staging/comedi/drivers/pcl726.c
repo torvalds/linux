@@ -240,7 +240,7 @@ static irqreturn_t pcl726_interrupt(int irq, void *d)
 	if (devpriv->cmd_running) {
 		pcl726_intr_cancel(dev, s);
 
-		comedi_buf_put(s->async, 0);
+		comedi_buf_put(s, 0);
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 		comedi_event(dev, s);
 	}

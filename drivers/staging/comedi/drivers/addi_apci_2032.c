@@ -234,7 +234,7 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 				bits |= (1 << i);
 		}
 
-		if (comedi_buf_put(s->async, bits)) {
+		if (comedi_buf_put(s, bits)) {
 			s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 			if (cmd->stop_src == TRIG_COUNT &&
 			    subpriv->stop_count > 0) {

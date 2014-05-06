@@ -322,7 +322,7 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 			val |= (1U << n);
 	}
 	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s->async, val)) {
+	if (comedi_buf_put(s, val)) {
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 	} else {
 		/* Error!  Stop acquisition.  */

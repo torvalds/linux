@@ -473,12 +473,6 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		outb(0xff, dev->iobase + DMM32AT_CONV);
 	}
 
-/*	for(i=0;i<cmd->chanlist_len;i++) */
-/*		comedi_buf_put(s->async,i*100); */
-
-/*	s->async->events |= COMEDI_CB_EOA; */
-/*	comedi_event(dev, s); */
-
 	return 0;
 
 }
@@ -519,7 +513,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 
 			/* invert sign bit to make range unsigned */
 			samp = ((msb ^ 0x0080) << 8) + lsb;
-			comedi_buf_put(s->async, samp);
+			comedi_buf_put(s, samp);
 		}
 
 		if (devpriv->ai_scans_left != 0xffffffff) {	/* TRIG_COUNT */

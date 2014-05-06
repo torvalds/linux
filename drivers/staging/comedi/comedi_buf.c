@@ -416,8 +416,9 @@ unsigned int comedi_buf_read_free(struct comedi_async *async,
 }
 EXPORT_SYMBOL_GPL(comedi_buf_read_free);
 
-int comedi_buf_put(struct comedi_async *async, unsigned short x)
+int comedi_buf_put(struct comedi_subdevice *s, unsigned short x)
 {
+	struct comedi_async *async = s->async;
 	unsigned int n = __comedi_buf_write_alloc(async, sizeof(short), 1);
 
 	if (n < sizeof(short)) {

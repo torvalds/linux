@@ -322,7 +322,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < len; i++) {
-		comedi_buf_put(s->async, ptr[bufptr++]);
+		comedi_buf_put(s, ptr[bufptr++]);
 
 		if (!pcl816_ai_next_chan(dev, s))
 			return;

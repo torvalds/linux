@@ -1520,7 +1520,7 @@ static int apci3120_interrupt_handle_eos(struct comedi_device *dev)
 	n_chan = devpriv->ui_AiNbrofChannels;
 
 	for (i = 0; i < n_chan; i++)
-		err &= comedi_buf_put(s->async, inw(dev->iobase + 0));
+		err &= comedi_buf_put(s, inw(dev->iobase + 0));
 
 	s->async->events |= COMEDI_CB_EOS;
 

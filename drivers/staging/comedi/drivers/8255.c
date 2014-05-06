@@ -117,7 +117,7 @@ void subdev_8255_interrupt(struct comedi_device *dev,
 	d = spriv->io(0, _8255_DATA, 0, iobase);
 	d |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
 
-	comedi_buf_put(s->async, d);
+	comedi_buf_put(s, d);
 	s->async->events |= COMEDI_CB_EOS;
 
 	comedi_event(dev, s);

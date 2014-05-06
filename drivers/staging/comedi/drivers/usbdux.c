@@ -373,7 +373,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 			val ^= ((s->maxdata + 1) >> 1);
 
 		/* transfer data */
-		err = comedi_buf_put(s->async, val);
+		err = comedi_buf_put(s, val);
 		if (unlikely(err == 0)) {
 			/* buffer overflow */
 			usbdux_ai_stop(dev, 0);

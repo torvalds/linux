@@ -629,7 +629,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 			d = comedi_offset_munge(s, d);
 		d &= s->maxdata;
 
-		if (!comedi_buf_put(s->async, d))
+		if (!comedi_buf_put(s, d))
 			return -1;
 
 		if (devpriv->ai_count > 0)	/* < 0, means read forever */
@@ -658,7 +658,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 			d = comedi_offset_munge(s, d);
 		d &= s->maxdata;
 
-		if (!comedi_buf_put(s->async, d))
+		if (!comedi_buf_put(s, d))
 			return -1;
 
 		if (devpriv->ai_count > 0)	/* < 0, means read forever */

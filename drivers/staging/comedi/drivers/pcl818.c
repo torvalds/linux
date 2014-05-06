@@ -561,7 +561,7 @@ static void pcl818_handle_eoc(struct comedi_device *dev,
 	if (pcl818_ai_dropout(dev, s, chan))
 		return;
 
-	comedi_buf_put(s->async, val);
+	comedi_buf_put(s, val);
 
 	pcl818_ai_next_chan(dev, s);
 }
@@ -590,7 +590,7 @@ static void pcl818_handle_dma(struct comedi_device *dev,
 		if (pcl818_ai_dropout(dev, s, chan))
 			break;
 
-		comedi_buf_put(s->async, val);
+		comedi_buf_put(s, val);
 
 		if (!pcl818_ai_next_chan(dev, s))
 			break;
@@ -630,7 +630,7 @@ static void pcl818_handle_fifo(struct comedi_device *dev,
 		if (pcl818_ai_dropout(dev, s, chan))
 			break;
 
-		comedi_buf_put(s->async, val);
+		comedi_buf_put(s, val);
 
 		if (!pcl818_ai_next_chan(dev, s))
 			break;

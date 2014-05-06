@@ -221,7 +221,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			data |= inb(dev->iobase + DAQP_FIFO) << 8;
 			data ^= 0x8000;
 
-			comedi_buf_put(s->async, data);
+			comedi_buf_put(s, data);
 
 			/* If there's a limit, decrement it
 			 * and stop conversion if zero
