@@ -1115,7 +1115,7 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;			
 			};
-			isp_dvp_sync_d2d9:isp_dvp_force	{
+			isp_dvp_d2d9:isp_dvp_d2d9	{
 				rockchip,pins = <CIF_DATA2>,<CIF_DATA3>,
 								<CIF_DATA4>,<CIF_DATA5>,
 								<CIF_DATA6>,<CIF_DATA7>,
@@ -1135,8 +1135,18 @@
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
 
-			isp_dvpd10d11:ispd10d11	{
+			isp_dvp_d10d11:isp_d10d11	{
 				rockchip,pins = <CIF_DATA10>,<CIF_DATA11>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+			
+			isp_dvp_d0d7:isp_d0d7	{
+				rockchip,pins = <CIF_DATA0>,<CIF_DATA1>,
+								<CIF_DATA2>,<CIF_DATA3>,
+								<CIF_DATA4>,<CIF_DATA5>,
+								<CIF_DATA6>,<CIF_DATA7>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
@@ -1149,7 +1159,7 @@
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
 
-			isp_flash_trigger:isp_trigger {
+			isp_flash_trigger:isp_flash_trigger {
 				rockchip,pins = <ISP_FLASHTRIGOUTSPI1_CS0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;

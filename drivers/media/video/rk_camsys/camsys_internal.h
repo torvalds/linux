@@ -45,7 +45,11 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/rockchip/cpu.h>
 #include <media/camsys_head.h>
+
+
+
 /*
 *               C A M S Y S   D R I V E R   V E R S I O N 
 *
@@ -63,10 +67,10 @@
 *        1) iomux d0 d1 for cif phy raw10 in rk319x after i2c operated;
 *        2) check mis value in camsys_irq_connect;
 *        3) add soft rest callback;
-*v0.0.7:
+*v0.7.0:
 *        1) check extdev is activate or not before delete from camsys_dev active list;
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0,6)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,7,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
@@ -80,6 +84,7 @@
 
 #define CAMSYS_REGISTER_MEM_NAME                CAMSYS_REGISTER_RES_NAME
 #define CAMSYS_I2C_MEM_NAME                     "CamSys_I2cMem"
+#define CAMSYS_MIPIPHY_MEM_NAME                 CAMSYS_REGISTER_MIPIPHY_RES_NAME
 
 #define CAMSYS_NAMELEN_MIN(a)                   ((strlen(a)>(CAMSYS_NAME_LEN-1))?(CAMSYS_NAME_LEN-1):strlen(a))
 #define CAMSYS_IRQPOOL_NUM                      128
@@ -186,11 +191,12 @@ typedef struct camsys_extdev_s {
 } camsys_extdev_t;
 
 typedef struct camsys_phyinfo_s {
-    void               *clk;
-    camsys_meminfo_t   *reg;    
+    unsigned int             phycnt;
+    void                     *clk;
+    camsys_meminfo_t         *reg;    
 
     int (*clkin_cb)(void *ptr, unsigned int on);
-    int (*ops) (void *phy, void *phyinfo, unsigned int on);
+    int (*ops) (void *ptr, camsys_mipiphy_t *phy);
     int (*remove)(struct platform_device *pdev);
 } camsys_phyinfo_t;
 
@@ -208,17 +214,19 @@ typedef struct camsys_dev_s {
     struct miscdevice     miscdev;  
     void                  *clk;
 
-    camsys_phyinfo_t      mipiphy;
+    camsys_phyinfo_t      *mipiphy;
     camsys_phyinfo_t      cifphy;
 
     camsys_exdevs_t       extdevs;    
     struct list_head      list;
     struct platform_device *pdev;
 
+    void                  *soc;
+
     int (*clkin_cb)(void *ptr, unsigned int on);
     int (*clkout_cb)(void *ptr,unsigned int on,unsigned int clk);
-    int (*reset_cb)(void *ptr);
-    int (*phy_cb) (camsys_extdev_phy_t *phy,void* ptr, unsigned int on);
+    int (*reset_cb)(void *ptr, unsigned int on);
+    int (*phy_cb) (camsys_extdev_t *extdev, camsys_sysctrl_t *devctl, void* ptr);
     int (*iomux)(camsys_extdev_t *extdev,void *ptr);
     int (*platform_remove)(struct platform_device *pdev);
 } camsys_dev_t;
@@ -260,15 +268,14 @@ static inline int camsys_sysctl_extdev(camsys_extdev_t *extdev, camsys_sysctrl_t
     camsys_regulator_t *regulator;
     camsys_gpio_t *gpio;
     
-    if (devctl->ops < CamSys_Vdd_Tag) {
+    if ((devctl->ops>CamSys_Vdd_Start_Tag) && (devctl->ops < CamSys_Vdd_End_Tag)) {
         regulator = &extdev->avdd;
-        regulator += devctl->ops;
-
-        //printk("regulator: %p  regulator->ldo: %p\n",regulator,regulator->ldo);
+        regulator += devctl->ops-1;
+        
         if (!IS_ERR_OR_NULL(regulator->ldo)) {
             if (devctl->on) {
-                regulator_set_voltage(regulator->ldo,regulator->min_uv,regulator->max_uv);
-                regulator_enable(regulator->ldo);
+                err = regulator_set_voltage(regulator->ldo,regulator->min_uv,regulator->max_uv);
+                err |= regulator_enable(regulator->ldo);
                 camsys_trace(1,"Sysctl %d success, regulator set (%d,%d) uv!",devctl->ops, regulator->min_uv,regulator->max_uv);
             } else {
                 while(regulator_is_enabled(regulator->ldo)>0)	
@@ -276,13 +283,13 @@ static inline int camsys_sysctl_extdev(camsys_extdev_t *extdev, camsys_sysctrl_t
 			    camsys_trace(1,"Sysctl %d success, regulator off!",devctl->ops);
             }
         } else {
-            camsys_err("Sysctl %d failed, because regulator ldo is NULL!",devctl->ops);
+            //camsys_err("Sysctl %d failed, because regulator ldo is NULL!",devctl->ops);
             err = -EINVAL;
             goto end;
         }
-    } else if (devctl->ops < CamSys_Gpio_Tag) {
+    } else if ((devctl->ops>CamSys_Gpio_Start_Tag) && (devctl->ops < CamSys_Gpio_End_Tag)) {
         gpio = &extdev->pwrdn;
-        gpio += devctl->ops - CamSys_Vdd_Tag -1;
+        gpio += devctl->ops - CamSys_Gpio_Start_Tag -1;
 
         if (gpio->io != 0xffffffff) {
             if (devctl->on) {
@@ -301,9 +308,10 @@ static inline int camsys_sysctl_extdev(camsys_extdev_t *extdev, camsys_sysctrl_t
         }
     } else if (devctl->ops == CamSys_ClkIn) {
         if (camsys_dev->clkout_cb)
-            camsys_dev->clkout_cb(camsys_dev,devctl->on,extdev->clk.in_rate);
+            camsys_dev->clkout_cb(camsys_dev,devctl->on,extdev->clk.in_rate);        
+    } else if (devctl->ops == CamSys_Phy) {
         if (camsys_dev->phy_cb)
-            camsys_dev->phy_cb(&extdev->phy, camsys_dev, devctl->on);
+            (camsys_dev->phy_cb)(extdev,devctl,(void*)camsys_dev);
     }
 
 end:

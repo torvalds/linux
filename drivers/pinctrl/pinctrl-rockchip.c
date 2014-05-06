@@ -3030,8 +3030,8 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	*atomic_set(&info->bank_debug_flag, 1);
 	*atomic_set(&info->pin_debug_flag, 11);
 	*/
-	atomic_set(&info->bank_debug_flag, 0);
-	atomic_set(&info->pin_debug_flag, 0);
+	atomic_set(&info->bank_debug_flag, 8);
+	atomic_set(&info->pin_debug_flag, 14);
 	
 	printk("%s:name=%s,type=%d\n",__func__, ctrl->label, (int)ctrl->type);
 

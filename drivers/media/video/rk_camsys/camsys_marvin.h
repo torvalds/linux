@@ -33,9 +33,10 @@ typedef struct camsys_mrv_clk_s {
     bool             in_on;
 
     struct clk      *cif_clk_out;
+    struct clk      *cif_clk_pll;
     unsigned int     out_on;
 
-    spinlock_t       lock;
+    struct mutex     lock;
 } camsys_mrv_clk_t;
 
 int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev);

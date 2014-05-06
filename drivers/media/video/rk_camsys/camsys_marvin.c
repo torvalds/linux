@@ -1,119 +1,125 @@
 #include "camsys_marvin.h"
+#include "camsys_soc_priv.h"
 
 static const char miscdev_name[] = CAMSYS_MARVIN_DEVNAME;
 
 static int camsys_mrv_iomux_cb(camsys_extdev_t *extdev,void *ptr)
-{  
-    unsigned int cif_vol_sel;
-#if 0    
-    if (extdev->dev_cfg & CAMSYS_DEVCFG_FLASHLIGHT) {
-        iomux_set(ISP_FLASH_TRIG);  
-        if (extdev->fl.fl.io != 0xffffffff) {
-            iomux_set(ISP_FL_TRIG);
-        }
-    } 
-
-    if (extdev->dev_cfg & CAMSYS_DEVCFG_PREFLASHLIGHT) {
-        iomux_set(ISP_PRELIGHT_TRIG);
-    }
-    
-    if (extdev->dev_cfg & CAMSYS_DEVCFG_SHUTTER) {
-        iomux_set(ISP_SHUTTER_OPEN);
-        iomux_set(ISP_SHUTTER_TRIG);
-    }
-
-    iomux_set(CIF0_CLKOUT);
-#endif
-
+{
     struct pinctrl      *pinctrl;
     struct pinctrl_state    *state;
     int retval = 0;
     char state_str[20] = {0};
-
+    camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
     struct device *dev = &(extdev->pdev->dev);
+    camsys_soc_priv_t *soc;
+
+    // DVP IO Config
     
     if (extdev->phy.type == CamSys_Phy_Cif) {
-        if ((extdev->phy.info.cif.fmt >= CamSys_Fmt_Raw_8b)&& (extdev->phy.info.cif.fmt <= CamSys_Fmt_Raw_12b)) {
 
-           strcpy(state_str,"isp_dvp8bit");
+        switch (extdev->phy.info.cif.fmt)
+        {
+            case CamSys_Fmt_Raw_8b:
+            case CamSys_Fmt_Yuv420_8b:
+            case CamSys_Fmt_Yuv422_8b:
+            {
+                if (extdev->phy.info.cif.cifio == CamSys_SensorBit0_CifBit0) {
+                    strcpy(state_str,"isp_dvp8bit0");
+                } else if (extdev->phy.info.cif.cifio == CamSys_SensorBit0_CifBit2) {
+                    strcpy(state_str,"isp_dvp8bit2");
+                } else {
+                    camsys_err("extdev->phy.info.cif.cifio: 0x%x is invalidate!", extdev->phy.info.cif.cifio);
+                    goto fail;
+                }
 
+                break;
+            }
+
+            case CamSys_Fmt_Raw_10b:
+            {
+                strcpy(state_str,"isp_dvp10bit");
+                break;
+            }
+
+            case CamSys_Fmt_Raw_12b:
+            {
+                strcpy(state_str,"isp_dvp12bit");
+                break;
+            }
+
+            default:
+            {
+                camsys_err("extdev->phy.info.cif.fmt: 0x%x is invalidate!",extdev->phy.info.cif.fmt);
+                goto fail;
+            }
+        }        
+    } else {
+        if (extdev->dev_cfg & CAMSYS_DEVCFG_FLASHLIGHT) {
+            if (extdev->dev_cfg & CAMSYS_DEVCFG_PREFLASHLIGHT) {
+                strcpy(state_str,"isp_mipi_fl_prefl");
+            } else {
+                strcpy(state_str,"isp_mipi_fl");
+            }
+        } else {
+            strcpy(state_str,"default");
         }
-
-        if ((extdev->phy.info.cif.fmt >= CamSys_Fmt_Raw_10b)&& (extdev->phy.info.cif.fmt <= CamSys_Fmt_Raw_12b)) {
-           strcpy(state_str,"isp_dvp10bit");
-        }
-
-        if (extdev->phy.info.cif.fmt == CamSys_Fmt_Raw_12b) {
-           strcpy(state_str,"isp_dvp12bit");
-
-        }
-    }else{
-           strcpy(state_str,"default");
     }
 
-    //mux CIF0_CLKOUT
-
+    camsys_trace(1,"marvin pinctrl select: %s", state_str);
+    
     pinctrl = devm_pinctrl_get(dev);
     if (IS_ERR(pinctrl)) {
-        camsys_err("%s:Get pinctrl failed!\n",__func__);
-        return -1;
+        camsys_err("devm_pinctrl_get failed!");
+        goto fail;
     }
     state = pinctrl_lookup_state(pinctrl,
                          state_str);
     if (IS_ERR(state)){
-        dev_err(dev, "%s:could not get %s pinstate\n",__func__,state_str);
-        return -1;
-        }
+        camsys_err("pinctrl_lookup_state failed!");
+        goto fail;
+    }
 
     if (!IS_ERR(state)) {
         retval = pinctrl_select_state(pinctrl, state);
         if (retval){
-            dev_err(dev,
-                "%s:could not set %s pins\n",__func__,state_str);
-                return -1;
-
-                }
+            camsys_err("pinctrl_select_state failed!");
+            goto fail;
+        }
     }
 
-    //set 1.8v vol domain for rk32
-    __raw_writel(((1<<1)|(1<<(1+16))),RK_GRF_VIRT+0x0380);
-   __raw_writel(0xffffffff, RK_GRF_VIRT+0x01d4);   
-
-    //set cif vol domain
-    if (extdev->phy.type == CamSys_Phy_Cif) {
-
-        #if 0
-        if (!IS_ERR_OR_NULL(extdev->dovdd.ldo)) {
-            if (extdev->dovdd.max_uv >= 25000000) {
-                __raw_writel(((1<<1)|(1<<(1+16))),RK30_GRF_BASE+0x018c);
-            } else {
-                __raw_writel((1<<(1+16)),RK30_GRF_BASE+0x018c);
-            }
+    if (camsys_dev->soc) {
+        soc = (camsys_soc_priv_t*)camsys_dev->soc;
+        if (soc->soc_cfg) {
+            (soc->soc_cfg)(Cif_IoDomain_Cfg,(void*)&extdev->dovdd.min_uv);
+            (soc->soc_cfg)(Clk_DriverStrength_Cfg,(void*)&extdev->clk.driver_strength);
         } else {
-            __raw_writel(((1<<1)|(1<<(1+16))),RK30_GRF_BASE+0x018c);
+            camsys_err("camsys_dev->soc->soc_cfg is NULL!");
         }
-        #else
-
-        //set 1.8v vol domain
-        __raw_writel(((1<<1)|(1<<(1+16))),RK_GRF_VIRT+0x0380);
-        #endif
-        
-        //set driver strength
-      //  __raw_writel(0xffffffff, RK_GRF_VIRT+0x01dc);   
+    } else {
+        camsys_err("camsys_dev->soc is NULL!");
     }
     
     return 0;
+fail:
+    return -1;
 }
 
-static int camsys_mrv_reset_cb(void *ptr)
+static int camsys_mrv_reset_cb(void *ptr,unsigned int on)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
-    #if 0 //do nothing ,zyc
-    cru_set_soft_reset(SOFT_RST_ISP,true);
-    udelay(100);
-    cru_set_soft_reset(SOFT_RST_ISP,false);
-    #endif
-    camsys_trace(1, "%s soft reset\n",dev_name(camsys_dev->miscdev.this_device));
+    camsys_soc_priv_t *soc;
+
+    if (camsys_dev->soc) {
+        soc = (camsys_soc_priv_t*)camsys_dev->soc;
+        if (soc->soc_cfg) {
+            (soc->soc_cfg)(Isp_SoftRst,(void*)on);
+        } else {
+            camsys_err("camsys_dev->soc->soc_cfg is NULL!");
+        }
+    } else {
+        camsys_err("camsys_dev->soc is NULL!");
+    }
+    
     return 0;
 }
 
@@ -121,15 +127,8 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
     camsys_mrv_clk_t *clk = (camsys_mrv_clk_t*)camsys_dev->clk;
-    struct clk *cif_clk_out_div;
-	//  spin_lock(&clk->lock);
+	
     if (on && !clk->in_on) {
-        
-		clk_set_rate(clk->isp,180000000);
-        clk_set_rate(clk->isp_jpe, 180000000);
-   //     clk_set_rate(clk->aclk_isp,24000000);
-   //     clk_set_rate(clk->hclk_isp,24000000);
-
 
         clk_prepare_enable(clk->aclk_isp);
         clk_prepare_enable(clk->hclk_isp);
@@ -138,19 +137,13 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
         clk_prepare_enable(clk->clk_mipi_24m); 
         clk_prepare_enable(clk->pclkin_isp); 
 		clk_prepare_enable(clk->pd_isp);
-
-
- //       clk_enable(clk->pd_isp);
-  //      clk_enable(clk->aclk_isp);
-  //  	clk_enable(clk->hclk_isp);    	
-  //  	clk_enable(clk->isp);
- //   	clk_enable(clk->isp_jpe);
- //   	clk_enable(clk->pclkin_isp);
     	
         clk->in_on = true;
 
         camsys_trace(1, "%s clock in turn on",dev_name(camsys_dev->miscdev.this_device));
-        camsys_mrv_reset_cb(ptr);       
+        camsys_mrv_reset_cb(ptr,1);
+        udelay(100);
+        camsys_mrv_reset_cb(ptr,0);
         
     } else if (!on && clk->in_on) {
 
@@ -162,18 +155,11 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
         clk_disable_unprepare(clk->clk_mipi_24m); 
         clk_disable_unprepare(clk->pclkin_isp); 
 		clk_disable_unprepare(clk->pd_isp);
-  //      clk_disable(clk->pd_isp);
-  //      clk_disable(clk->aclk_isp);
-   // 	clk_disable(clk->hclk_isp);
-  //  	clk_disable(clk->isp);
-  //  	clk_disable(clk->isp_jpe);
- //   	clk_disable(clk->pclkin_isp);
-
 
         clk->in_on = false;
         camsys_trace(1, "%s clock in turn off",dev_name(camsys_dev->miscdev.this_device));
     }
-  //  spin_unlock(&clk->lock);
+    
     return 0;
 }
 
@@ -181,9 +167,8 @@ static int camsys_mrv_clkout_cb(void *ptr, unsigned int on,unsigned int inclk)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
     camsys_mrv_clk_t *clk = (camsys_mrv_clk_t*)camsys_dev->clk;
-    struct clk *cif_clk_out_div;
     
-    spin_lock(&clk->lock);
+    mutex_lock(&clk->lock);
     if (on && (clk->out_on != on)) {  
 
         clk_set_rate(clk->cif_clk_out,inclk);
@@ -191,29 +176,21 @@ static int camsys_mrv_clkout_cb(void *ptr, unsigned int on,unsigned int inclk)
         
 		clk->out_on = on;
         camsys_trace(1, "%s clock out(rate: %dHz) turn on",dev_name(camsys_dev->miscdev.this_device),
-                    clk->out_on);
+                    inclk);
     } else if (!on && clk->out_on) {
-        cif_clk_out_div =  clk_get(NULL, "cif0_out_div");
-        if(IS_ERR_OR_NULL(cif_clk_out_div)) {
-            cif_clk_out_div =  clk_get(NULL, "cif_out_div");
-			printk("can't get clk_cif_pll");
-        }
-
-        if(!IS_ERR_OR_NULL(cif_clk_out_div)) {
-            clk_set_parent(clk->cif_clk_out, cif_clk_out_div);
-            clk_put(cif_clk_out_div);
+        if(!IS_ERR_OR_NULL(clk->cif_clk_pll)) {
+            clk_set_parent(clk->cif_clk_out, clk->cif_clk_pll);
         } else {
             camsys_warn("%s clock out may be not off!", dev_name(camsys_dev->miscdev.this_device));
         }
 
         clk_disable_unprepare( clk->cif_clk_out);
-//        clk_disable(clk->cif_clk_out);
 
         clk->out_on = 0;
 
         camsys_trace(1, "%s clock out turn off",dev_name(camsys_dev->miscdev.this_device));
     }
-    spin_unlock(&clk->lock);    
+    mutex_unlock(&clk->lock);    
 
     return 0;
 }
@@ -295,25 +272,25 @@ static int camsys_mrv_remove_cb(struct platform_device *pdev)
             camsys_mrv_clkin_cb(mrv_clk,0);
     
         if (!IS_ERR_OR_NULL(mrv_clk->pd_isp)) {
-		 	clk_put(mrv_clk->pd_isp);
+		 	devm_clk_put(&pdev->dev,mrv_clk->pd_isp);
         }
         if (!IS_ERR_OR_NULL(mrv_clk->aclk_isp)) {
-            clk_put(mrv_clk->aclk_isp);
+            devm_clk_put(&pdev->dev,mrv_clk->aclk_isp);
         }
         if (!IS_ERR_OR_NULL(mrv_clk->hclk_isp)) {
-            clk_put(mrv_clk->hclk_isp);
+            devm_clk_put(&pdev->dev,mrv_clk->hclk_isp);
         }
         if (!IS_ERR_OR_NULL(mrv_clk->isp)) {
-            clk_put(mrv_clk->isp);
+            devm_clk_put(&pdev->dev,mrv_clk->isp);
         }
         if (!IS_ERR_OR_NULL(mrv_clk->isp_jpe)) {
-            clk_put(mrv_clk->isp_jpe);
+            devm_clk_put(&pdev->dev,mrv_clk->isp_jpe);
         }
         if (!IS_ERR_OR_NULL(mrv_clk->pclkin_isp)) {
-            clk_put(mrv_clk->pclkin_isp);
+            devm_clk_put(&pdev->dev,mrv_clk->pclkin_isp);
         }
         if (!IS_ERR_OR_NULL(mrv_clk->cif_clk_out)) {
-            clk_put(mrv_clk->cif_clk_out);
+            devm_clk_put(&pdev->dev,mrv_clk->cif_clk_out);
         }
 
         kfree(mrv_clk);
@@ -326,8 +303,6 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 {
     int err = 0;   
     camsys_mrv_clk_t *mrv_clk=NULL;
-    //struct clk *clk_parent; 
-    struct clk *cif_clk_out_div;
     
 	err = request_irq(camsys_dev->irq.irq_id, camsys_mrv_irq, 0, CAMSYS_MARVIN_IRQNAME,camsys_dev);
     if (err) {
@@ -349,7 +324,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
     mrv_clk->isp = devm_clk_get(&pdev->dev, "clk_isp");
     mrv_clk->isp_jpe = devm_clk_get(&pdev->dev, "clk_isp_jpe");
     mrv_clk->pclkin_isp = devm_clk_get(&pdev->dev, "pclkin_isp");
-    mrv_clk->cif_clk_out = devm_clk_get(&pdev->dev, "clk_vipout");
+    mrv_clk->cif_clk_out = devm_clk_get(&pdev->dev, "clk_cif_out");
+    mrv_clk->cif_clk_pll = devm_clk_get(&pdev->dev, "clk_cif_pll");
     mrv_clk->clk_mipi_24m = devm_clk_get(&pdev->dev,"clk_mipi_24m"); 
     
 	if (IS_ERR_OR_NULL(mrv_clk->pd_isp) || IS_ERR_OR_NULL(mrv_clk->aclk_isp) || IS_ERR_OR_NULL(mrv_clk->hclk_isp) ||
@@ -359,12 +335,11 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
         err = -EINVAL;
         goto clk_failed;
     }
-
-   
-//    clk_set_rate(mrv_clk->isp,1800000000);
-//    clk_set_rate(mrv_clk->isp_jpe,180000000);
     
-    spin_lock_init(&mrv_clk->lock);
+    clk_set_rate(mrv_clk->isp,384000000);
+    clk_set_rate(mrv_clk->isp_jpe, 384000000);
+    
+    mutex_init(&mrv_clk->lock);
     
     mrv_clk->in_on = false;
     mrv_clk->out_on = 0;

@@ -15,9 +15,12 @@
 *v0.0.4:
 *        1) add clock information in struct camsys_devio_name_s;
 *v0.0.5:
-		 1) add pwren control
+*        1) add pwren control
+*v0.6.0:
+*        1) add support mipi phy configuration;
+*        2) add support io domain and mclk driver strength configuration;
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,0,5)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,6,0)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"           
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -36,9 +39,9 @@
 #define CAMSYS_DEVID_EXTERNAL         0xFF000000
 #define CAMSYS_DEVID_EXTERNAL_NUM     8
 
-#define CAMSYS_DEVCFG_FLASHLIGHT      0x00000001
-#define CAMSYS_DEVCFG_PREFLASHLIGHT   0x00000002
-#define CAMSYS_DEVCFG_SHUTTER         0x00000004
+#define CAMSYS_DEVCFG_FLASHLIGHT          0x00000001
+#define CAMSYS_DEVCFG_PREFLASHLIGHT       0x00000002
+#define CAMSYS_DEVCFG_SHUTTER             0x00000004
 
 typedef struct camsys_irqsta_s {
     unsigned int ris;                 //Raw interrupt status
@@ -86,22 +89,30 @@ typedef struct camsys_reginfo_s {
 } camsys_reginfo_t;
 
 typedef enum camsys_sysctrl_ops_e {
-    CamSys_Avdd =0,
+
+    CamSys_Vdd_Start_Tag,
+    CamSys_Avdd,
     CamSys_Dovdd,
     CamSys_Dvdd,
     CamSys_Afvdd,
+    CamSys_Vdd_End_Tag,
 
-    CamSys_Vdd_Tag = 10,
-    
+    CamSys_Gpio_Start_Tag,    
     CamSys_PwrDn,
     CamSys_Rst,
     CamSys_AfPwr,
     CamSys_AfPwrDn,
-    CamSys_PwrEn,
-    
-    CamSys_Gpio_Tag = 50,
+    CamSys_PwrEn,    
+    CamSys_Gpio_End_Tag,
 
-    CamSys_ClkIn   
+    CamSys_Clk_Start_Tag,    
+    CamSys_ClkIn,
+    CamSys_Clk_End_Tag,
+
+    CamSys_Phy_Start_Tag,    
+    CamSys_Phy,
+    CamSys_Phy_End_Tag
+    
 } camsys_sysctrl_ops_t;
 
 typedef struct camsys_regulator_info_s {
@@ -119,6 +130,8 @@ typedef struct camsys_sysctrl_s {
     unsigned int              dev_mask;
     camsys_sysctrl_ops_t      ops;
     unsigned int              on;
+
+    unsigned int              rev[20];
 } camsys_sysctrl_t;
 
 typedef struct camsys_flash_info_s {
@@ -126,11 +139,9 @@ typedef struct camsys_flash_info_s {
 } camsys_flash_info_t;
 
 typedef struct camsys_mipiphy_s {
-    unsigned int                data_en_bit;        //data lane enable bit;
-    #if 0
-    unsigned int                freq;
-    unsigned int                phy_index;          //phy0,phy1
-    #endif
+    unsigned int                data_en_bit;        // data lane enable bit;
+    unsigned int                bit_rate;           // Mbps/lane
+    unsigned int                phy_index;          // phy0,phy1
 } camsys_mipiphy_t;
 
 typedef enum camsys_fmt_e {
@@ -149,9 +160,16 @@ typedef enum camsys_fmt_e {
     CamSys_Fmt_Raw_14b = 0x2d,
 } camsys_fmt_t;
 
+typedef enum camsys_cifio_e {
+    CamSys_SensorBit0_CifBit0 = 0x00,
+    CamSys_SensorBit0_CifBit2 = 0x01,
+} camsys_cifio_t;
+
 typedef struct camsys_cifphy_s {
     unsigned int                cif_num; 
     camsys_fmt_t                fmt;
+    camsys_cifio_t              cifio;
+    
 } camsys_cifphy_t;
 
 typedef enum camsys_phy_type_e {
@@ -172,6 +190,7 @@ typedef struct camsys_extdev_phy_s {
 
 typedef struct camsys_extdev_clk_s {
     unsigned int in_rate;
+    unsigned int driver_strength;             //0 - 3
 } camsys_extdev_clk_t;
 
 typedef struct camsys_devio_name_s {
@@ -186,7 +205,7 @@ typedef struct camsys_devio_name_s {
     camsys_gpio_info_t          rst;          // hard reset gpio name 
     camsys_gpio_info_t          afpwr;        // auto focus vcm driver ic power gpio name
     camsys_gpio_info_t          afpwrdn;      // auto focus vcm driver ic standby gpio 
-    camsys_gpio_info_t          pwren;          // power enable gpio name  
+    camsys_gpio_info_t          pwren;        // power enable gpio name  
 
 
     camsys_flash_info_t         fl;
@@ -207,7 +226,7 @@ typedef struct camsys_version_s {
  *
  */
 #define CAMSYS_IOC_MAGIC  'M'
-#define CAMSYS_IOC_MAXNR  12
+#define CAMSYS_IOC_MAXNR  14
 
 #define CAMSYS_VERCHK            _IOR(CAMSYS_IOC_MAGIC,  0, camsys_version_t)
 

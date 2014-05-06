@@ -356,7 +356,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&spi1_txd &spi1_rxd &spi1_clk &spi1_cs0>;
+		pinctrl-0 = <&spi1_txd &spi1_rxd &spi1_clk &spi1_cs0>; 
 		rockchip,spi-src-clk = <1>;
         	num-cs = <1>;
 		clocks = <&clk_spi1>, <&clk_gates6 5>;
@@ -1228,14 +1228,21 @@
 	        compatible = "rockchip,isp";
 	        reg = <0xff910000 0x10000>;
 	        interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-	        clocks = <&clk_gates16 2>, <&clk_gates16 1>, <&clk_isp>, <&clk_isp_jpe>, <&clkin_isp>, <&clk_cif_out>,<&clk_gates5 15>,<&clk_cif_pll>,<&pd_isp>;
-			clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_vipout","clk_mipi_24m","cif0_out_div","pd_isp";
-			pinctrl-names = "default", "isp_dvp8bit","isp_dvp10bit","isp_dvp12bit";
+	        clocks = <&clk_gates16 2>, <&clk_gates16 1>, <&clk_isp>, <&clk_isp_jpe>, <&clkin_isp>, <&clk_cif_out>,<&clk_gates5 15>,<&clk_cif_pll>,<&pd_isp>,<&clk_gates16 6>;
+			clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_cif_out","clk_mipi_24m","clk_cif_pll","pd_isp","hclk_mipiphy1";
+			pinctrl-names = "default", "isp_dvp8bit2","isp_dvp10bit","isp_dvp12bit","isp_dvp8bit0","isp_mipi_fl","isp_mipi_fl_prefl";
 			pinctrl-0 = <&isp_mipi>;
-			pinctrl-1 = <&isp_mipi &isp_dvp_sync_d2d9>;
-			pinctrl-2 = <&isp_mipi &isp_dvp_sync_d2d9 &isp_dvp_d0d1>;
-			pinctrl-3 = <&isp_mipi &isp_dvp_sync_d2d9 &isp_dvp_d0d1 &isp_dvpd10d11>;
+			pinctrl-1 = <&isp_mipi &isp_dvp_d2d9>;
+			pinctrl-2 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1>;
+			pinctrl-3 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1 &isp_dvp_d10d11>;
+			pinctrl-4 = <&isp_mipi &isp_dvp_d0d7>;
+			pinctrl-5 = <&isp_mipi &isp_flash_trigger>;
+			pinctrl-6 = <&isp_mipi &isp_flash_trigger &isp_prelight>;
 			
+			rockchip,isp,mipiphy = <2>;
+			rockchip,isp,cifphy = <1>;
+			
+			rockchip,isp,mipiphy1,reg = <0xff968000 0x4000>;
 			status = "okay";
 	};
 	

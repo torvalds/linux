@@ -4,6 +4,7 @@
 #include "camsys_marvin.h"
 #include "camsys_mipicsi_phy.h"
 #include "camsys_gpio.h"
+#include "camsys_soc_priv.h"
 
 unsigned int camsys_debug=1;
 module_param(camsys_debug, int, S_IRUGO|S_IWUSR);
@@ -28,7 +29,6 @@ static int camsys_i2c_write(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev
     unsigned short msg_times,totallen,onelen;
     struct i2c_msg msg[1];
     struct i2c_adapter *adapter;
-    camsys_extdev_t *extdev;
     
     adapter = i2c_get_adapter(i2cinfo->bus_num);
     if (adapter == NULL) {
@@ -80,20 +80,6 @@ static int camsys_i2c_write(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev
     }
 
 end:
-#if 0
-    #if ((defined CONFIG_ARCH_RK319X) || (CONFIG_ARCH_ROCKCHIP))
-    if (!list_empty(&camsys_dev->extdevs.active)) {
-        list_for_each_entry(extdev, &camsys_dev->extdevs.active, active) {
-            if (extdev->phy.type == CamSys_Phy_Cif) {
-                if (extdev->phy.info.cif.fmt >= CamSys_Fmt_Raw_10b) {
-                    //iomux_set(CIF0_D0); // ZYC FOR 32
-                    //iomux_set(CIF0_D1); // ZYC FOR 32
-                }
-            }
-        }
-    }
-    #endif
-#endif
     return err;
 }
 
@@ -103,7 +89,6 @@ static int camsys_i2c_read(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev)
     unsigned char buf[8];
     struct i2c_msg msg[2];
     struct i2c_adapter *adapter;
-    camsys_extdev_t *extdev;
     
     adapter = i2c_get_adapter(i2cinfo->bus_num);
     if (adapter == NULL) {
@@ -151,20 +136,6 @@ static int camsys_i2c_read(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev)
     }
     
 end:
-#if 0
-    #if ((defined CONFIG_ARCH_RK319X) || (CONFIG_ARCH_ROCKCHIP))
-    if (!list_empty(&camsys_dev->extdevs.active)) {
-        list_for_each_entry(extdev, &camsys_dev->extdevs.active, active) {
-            if (extdev->phy.type == CamSys_Phy_Cif) {
-                if (extdev->phy.info.cif.fmt >= CamSys_Fmt_Raw_10b) {
-                    //iomux_set(CIF0_D0);//ZYC FOR 32
-                    //iomux_set(CIF0_D1);//ZYC FOR 32
-                }
-            }
-        }
-    }
-    #endif
-#endif 
     return err;
 }
 
@@ -182,19 +153,7 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
         err = -EINVAL;
         camsys_err("dev_id: 0x%x is not support for camsys!",devio->dev_id);
         goto end;
-    }
-
-#if 0
-    if (devio->phy.type == CamSys_Phy_Mipi) {
-        if (camsys_find_devmem(CAMSYS_REGISTER_MIPIPHY_RES_NAME, camsys_dev) == NULL) {
-            camsys_err("dev_id: 0x%x is connect to MIPI CSI, but %s isn't support",devio->dev_id,
-                dev_name(camsys_dev->miscdev.this_device));
-
-            err = -EINVAL;
-            goto end;
-        }
-    }
-#endif    
+    }  
 
     extdev = camsys_find_extdev(devio->dev_id, camsys_dev);
     if (extdev != NULL) {
@@ -210,13 +169,15 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
         err = -ENOMEM;
         goto end;
     }
-
+    
+    extdev->dev_cfg = devio->dev_cfg;
+    
     regulator_info = &devio->avdd;
     regulator = &extdev->avdd;
-    for (i=0; i<4; i++) {
+    for (i=(CamSys_Vdd_Start_Tag+1); i<CamSys_Vdd_End_Tag; i++) {
         if (strcmp(regulator_info->name,"NC")) {
             regulator->ldo = regulator_get(NULL,regulator_info->name);
-            if (IS_ERR(regulator->ldo)) {
+            if (IS_ERR_OR_NULL(regulator->ldo)) {
                 camsys_err("Get %s regulator for dev_id 0x%x failed!",regulator_info->name,devio->dev_id);
                 err = -EINVAL;
                 goto fail;
@@ -239,7 +200,7 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
 
     gpio_info = &devio->pwrdn;
     gpio = &extdev->pwrdn;
-    for (i=0; i<5; i++) {
+    for (i=(CamSys_Gpio_Start_Tag+1); i<CamSys_Gpio_End_Tag; i++) {
         if (strcmp(gpio_info->name,"NC")) {
             gpio->io = camsys_gpio_get(gpio_info->name);
             if (gpio->io < 0) {
@@ -310,7 +271,7 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
         }
 
         regulator = &extdev->avdd;
-        for (i=0; i<4; i++) {
+        for (i=(CamSys_Vdd_Start_Tag+1); i<CamSys_Vdd_End_Tag; i++) {
             if (!IS_ERR_OR_NULL(regulator->ldo)) {
                 while(regulator_is_enabled(regulator->ldo)>0)	
 		            regulator_disable(regulator->ldo);
@@ -320,7 +281,7 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
         }
 
         gpio = &extdev->pwrdn;
-        for (i=0; i<5; i++) {
+        for (i=(CamSys_Gpio_Start_Tag+1); i<CamSys_Gpio_End_Tag; i++) {
             if (gpio->io!=0xffffffff) {                    
                 gpio_free(gpio->io);
             }
@@ -344,7 +305,7 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
             extdev = list_first_entry(&camsys_dev->extdevs.list, camsys_extdev_t, list);
             if (extdev) {
                 regulator = &extdev->avdd;
-                for (i=0; i<4; i++) {
+                for (i=(CamSys_Vdd_Start_Tag+1); i<CamSys_Vdd_End_Tag; i++) {
                     if (!IS_ERR(regulator->ldo)) {
                         while(regulator_is_enabled(regulator->ldo)>0)	
     			            regulator_disable(regulator->ldo);
@@ -354,7 +315,7 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
                 }
 
                 gpio = &extdev->pwrdn;
-                for (i=0; i<5; i++) {
+                for (i=(CamSys_Gpio_Start_Tag+1); i<CamSys_Gpio_End_Tag; i++) {
                     if (gpio->io!=0xffffffff) {                    
                         gpio_free(gpio->io);
                     }
@@ -402,18 +363,9 @@ static int camsys_sysctl(camsys_sysctrl_t *devctl, camsys_dev_t *camsys_dev)
 
             case CamSys_Rst:
             {
-                camsys_dev->reset_cb(camsys_dev);
+                camsys_dev->reset_cb(camsys_dev, devctl->on);
                 break;
-            }
-            #if 0
-            //for mipi
-            case CamSys_Gpio_Tag:
-            {
-                if((camsys_dev->mipiphy.ops )){
-                    camsys_dev->mipiphy.ops(NULL,NULL,devctl->on);
-                }
-            }
-            #endif
+            }            
             default:
                 break;
 
@@ -452,26 +404,32 @@ static int camsys_sysctl(camsys_sysctrl_t *devctl, camsys_dev_t *camsys_dev)
     mutex_unlock(&camsys_dev->extdevs.mut);
     return err;
 }
-static int camsys_phy_ops (camsys_extdev_phy_t *phy, void* ptr, unsigned int on)
+static int camsys_phy_ops (camsys_extdev_t *extdev, camsys_sysctrl_t *devctl, void *ptr)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
+    camsys_mipiphy_t *mipiphy;
     int err = 0;
     
-    if (phy->type == CamSys_Phy_Mipi) {        
-        if (camsys_dev->mipiphy.ops && camsys_dev->mipiphy.clkin_cb) {
-            err =  camsys_dev->mipiphy.clkin_cb(camsys_dev,on);
-            err =  camsys_dev->mipiphy.ops(&phy->info.mipi,&camsys_dev->mipiphy, on);
+    if (extdev->phy.type == CamSys_Phy_Mipi) {
+        mipiphy = (camsys_mipiphy_t*)devctl->rev;
+        if (devctl->on == 0) {
+            mipiphy->phy_index = extdev->phy.info.mipi.phy_index;
+            mipiphy->bit_rate = 0;
+            mipiphy->data_en_bit = 0x00;
         } else {
-            camsys_err("%s isn't support mipi phy",dev_name(camsys_dev->miscdev.this_device));
-            err = -EINVAL;
+            if ((mipiphy->bit_rate == 0) || (mipiphy->data_en_bit == 0)) {
+                *mipiphy = extdev->phy.info.mipi;
+            }
+            if (mipiphy->phy_index != extdev->phy.info.mipi.phy_index) {
+                camsys_warn("mipiphy->phy_index(%d) != extdev->phy.info.mipi.phy_index(%d)!",
+                    mipiphy->phy_index,extdev->phy.info.mipi.phy_index);
+                mipiphy->phy_index = extdev->phy.info.mipi.phy_index;
+                
+            }
         }
-    } else if (phy->type == CamSys_Phy_Cif) {
-        if (camsys_dev->cifphy.ops && camsys_dev->cifphy.clkin_cb) {
-            err =  camsys_dev->cifphy.clkin_cb(camsys_dev,on);
-            err =  camsys_dev->cifphy.ops(&phy->info.cif,&camsys_dev->cifphy, on);
-        } else {
-            //camsys_err("%s isn't support cif phy",dev_name(camsys_dev->miscdev.this_device));
-            //err = -EINVAL;
+        err = camsys_dev->mipiphy[mipiphy->phy_index].ops(ptr,mipiphy);
+        if (err < 0) {
+            camsys_err("extdev(0x%x) mipi phy ops config failed!",extdev->dev_id);
         }
     }
 
@@ -492,13 +450,7 @@ static int camsys_irq_connect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t *camsys_de
 
         err = -EINVAL;
         goto end;
-    }
-#if 0
-    //zyc for test mipi
-    if((camsys_dev->mipiphy.ops ) && (irqcnnt->mis == MRV_ISP_MIS)){
-        camsys_dev->mipiphy.ops(NULL,NULL,0);
-    }
-#endif    
+    }   
 
     spin_lock_irqsave(&camsys_dev->irq.lock,flags);
     if (!list_empty(&camsys_dev->irq.irq_pool)) {
@@ -598,7 +550,6 @@ static int camsys_irq_wait(camsys_irqsta_t *irqsta, camsys_dev_t *camsys_dev)
                 list_add_tail(&irqstas->list,&irqpool->deactive);
                 spin_unlock_irqrestore(&irqpool->lock,flags);
             } else {
-           //     camsys_warn("Thread(pid: %d) wait irq timeout!!",current->pid);
                 err = -EAGAIN;
             }
         } else {
@@ -700,6 +651,7 @@ static int camsys_open(struct inode *inode, struct file *file)
     int err = 0;
     int minor = iminor(inode);
     camsys_dev_t *camsys_dev;
+    unsigned int i,phycnt;
 
     spin_lock(&camsys_devs.lock);
     list_for_each_entry(camsys_dev, &camsys_devs.devs, list) {
@@ -712,6 +664,16 @@ static int camsys_open(struct inode *inode, struct file *file)
 
     //zyc add
     INIT_LIST_HEAD(&camsys_dev->extdevs.active);
+    
+    if (camsys_dev->mipiphy != NULL) {
+        phycnt = camsys_dev->mipiphy[0].phycnt;
+         
+        for (i=0; i<phycnt; i++) {
+            if (camsys_dev->mipiphy[i].clkin_cb != NULL) {
+                camsys_dev->mipiphy[i].clkin_cb(camsys_dev,1);
+            }
+        }
+    }
 
     
     if (file->private_data == NULL) {
@@ -729,8 +691,19 @@ end:
 static int camsys_release(struct inode *inode, struct file *file)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)file->private_data;
-
+    unsigned int i,phycnt;
+    
     camsys_irq_disconnect(NULL,camsys_dev, true);
+
+    if (camsys_dev->mipiphy != NULL) {
+        phycnt = camsys_dev->mipiphy[0].phycnt;
+         
+        for (i=0; i<phycnt; i++) {
+            if (camsys_dev->mipiphy[i].clkin_cb != NULL) {
+                camsys_dev->mipiphy[i].clkin_cb(camsys_dev,0);
+            }
+        }
+    }
 
     camsys_trace(1,"%s(%p) is closed",dev_name(camsys_dev->miscdev.this_device),camsys_dev);
 
@@ -1008,12 +981,13 @@ static int camsys_platform_probe(struct platform_device *pdev){
     unsigned long i2cmem;
 	camsys_meminfo_t *meminfo;
     unsigned int irq_id;
+    
     err = of_address_to_resource(dev->of_node, 0, &register_res);
     if (err < 0){
         camsys_err("Get register resource from %s platform device failed!",pdev->name);
         err = -ENODEV;
         goto fail_end;
-        }
+    }
 
  
     //map irqs
@@ -1046,8 +1020,14 @@ static int camsys_platform_probe(struct platform_device *pdev){
     
     INIT_LIST_HEAD(&camsys_dev->devmems.memslist);
 
+    // get soc operation
+    camsys_dev->soc = (void*)camsys_soc_get();
+    if (camsys_dev->soc == NULL) {
+        err = -ENODEV;
+        goto fail_end;
+    }
 
-        //Register mem init
+    //Register mem init
     meminfo = kzalloc(sizeof(camsys_meminfo_t),GFP_KERNEL);
     if (meminfo == NULL) {
         err = -ENOMEM;
@@ -1059,7 +1039,7 @@ static int camsys_platform_probe(struct platform_device *pdev){
         camsys_err("%s ioremap %s failed",dev_name(&pdev->dev), CAMSYS_REGISTER_MEM_NAME);
         err = -ENXIO;
         goto request_mem_fail;
-        }
+    }
 
     strlcpy(meminfo->name, CAMSYS_REGISTER_MEM_NAME,sizeof(meminfo->name));
     meminfo->phy_base = register_res.start;
@@ -1067,7 +1047,7 @@ static int camsys_platform_probe(struct platform_device *pdev){
     list_add_tail(&meminfo->list, &camsys_dev->devmems.memslist);
 
 
-        //I2c mem init
+    //I2c mem init
     i2cmem = __get_free_page(GFP_KERNEL);
     if (i2cmem == 0) {
         camsys_err("Allocate i2cmem failed!");
@@ -1211,9 +1191,9 @@ static int  camsys_platform_remove(struct platform_device *pdev)
         if (!list_empty(&camsys_dev->extdevs.list)) {
             camsys_extdev_deregister(0,camsys_dev,true);
         }
-
-        if (camsys_dev->mipiphy.remove) 
-            camsys_dev->mipiphy.remove(pdev);
+        if (camsys_dev->mipiphy != NULL) {
+            camsys_dev->mipiphy->remove(pdev);
+        }
         if (camsys_dev->cifphy.remove)
             camsys_dev->cifphy.remove(pdev);
         camsys_dev->platform_remove(pdev);
@@ -1257,8 +1237,10 @@ static int __init camsys_platform_init(void)
         CAMSYS_DRIVER_VERSION&0xff,
         (CAMSYS_HEAD_VERSION&0xff0000)>>16, (CAMSYS_HEAD_VERSION&0xff00)>>8,
         CAMSYS_HEAD_VERSION&0xff);
+
     spin_lock_init(&camsys_devs.lock);
     INIT_LIST_HEAD(&camsys_devs.devs);
+    camsys_soc_init();
     platform_driver_register(&camsys_platform_driver);
    // platform_driver_probe(&camsys_platform_driver, camsys_platform_probe_new);
     
@@ -1268,6 +1250,7 @@ static int __init camsys_platform_init(void)
 static void __exit camsys_platform_exit(void)  
 {
     platform_driver_unregister(&camsys_platform_driver);
+    camsys_soc_deinit();
 } 
 
 module_init(camsys_platform_init);		
