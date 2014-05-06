@@ -282,10 +282,10 @@ EXPORT_SYMBOL_GPL(comedi_buf_write_alloc);
  * munging is applied to data by core as it passes between user
  * and kernel space
  */
-static unsigned int comedi_buf_munge(struct comedi_async *async,
+static unsigned int comedi_buf_munge(struct comedi_subdevice *s,
 				     unsigned int num_bytes)
 {
-	struct comedi_subdevice *s = async->subdevice;
+	struct comedi_async *async = s->async;
 	unsigned int count = 0;
 	const unsigned num_sample_bytes = bytes_per_sample(s);
 
@@ -344,7 +344,7 @@ unsigned int comedi_buf_write_free(struct comedi_subdevice *s,
 
 	async->buf_write_count += nbytes;
 	async->buf_write_ptr += nbytes;
-	comedi_buf_munge(async, async->buf_write_count - async->munge_count);
+	comedi_buf_munge(s, async->buf_write_count - async->munge_count);
 	if (async->buf_write_ptr >= async->prealloc_bufsz)
 		async->buf_write_ptr %= async->prealloc_bufsz;
 
