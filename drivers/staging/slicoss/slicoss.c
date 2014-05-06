@@ -2954,8 +2954,6 @@ static void slic_card_cleanup(struct sliccard *card)
 static void slic_entry_remove(struct pci_dev *pcidev)
 {
 	struct net_device *dev = pci_get_drvdata(pcidev);
-	u32 mmio_start = 0;
-	uint mmio_len = 0;
 	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card;
 	struct mcast_address *mcaddr, *mlist;
@@ -2964,12 +2962,6 @@ static void slic_entry_remove(struct pci_dev *pcidev)
 	slic_unmap_mmio_space(adapter);
 	unregister_netdev(dev);
 
-	mmio_start = pci_resource_start(pcidev, 0);
-	mmio_len = pci_resource_len(pcidev, 0);
-
-	release_mem_region(mmio_start, mmio_len);
-
-	iounmap((void __iomem *)dev->base_addr);
 	/* free multicast addresses */
 	mlist = adapter->mcastaddrs;
 	while (mlist) {
