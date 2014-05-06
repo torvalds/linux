@@ -1,9 +1,4 @@
 /*
- * include/linux/nfsd/export.h
- * 
- * Public declarations for NFS exports. The definitions for the
- * syscall interface are in nfsctl.h
- *
  * Copyright (C) 1995-1997 Olaf Kirch <okir@monad.swb.de>
  */
 #ifndef NFSD_EXPORT_H
