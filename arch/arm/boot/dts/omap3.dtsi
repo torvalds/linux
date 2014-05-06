@@ -267,7 +267,7 @@
 		uart1: serial@4806a000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x4806a000 0x2000>;
-			interrupts = <72>;
+			interrupts-extended = <&intc 72>;
 			dmas = <&sdma 49 &sdma 50>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart1";
@@ -277,7 +277,7 @@
 		uart2: serial@4806c000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x4806c000 0x400>;
-			interrupts = <73>;
+			interrupts-extended = <&intc 73>;
 			dmas = <&sdma 51 &sdma 52>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart2";
@@ -287,7 +287,7 @@
 		uart3: serial@49020000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x49020000 0x400>;
-			interrupts = <74>;
+			interrupts-extended = <&intc 74>;
 			dmas = <&sdma 53 &sdma 54>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart3";
