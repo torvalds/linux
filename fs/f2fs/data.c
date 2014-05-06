@@ -860,6 +860,8 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	int ret;
 	long diff;
 
+	trace_f2fs_writepages(mapping->host, wbc, DATA);
+
 	/* deal with chardevs and other special file */
 	if (!mapping->a_ops->writepage)
 		return 0;

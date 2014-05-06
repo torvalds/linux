@@ -1242,6 +1242,8 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	struct f2fs_sb_info *sbi = F2FS_SB(mapping->host->i_sb);
 	long diff;
 
+	trace_f2fs_writepages(mapping->host, wbc, NODE);
+
 	/* balancing f2fs's metadata in background */
 	f2fs_balance_fs_bg(sbi);
 
