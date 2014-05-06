@@ -252,7 +252,6 @@ struct snd_soc_dai {
 	unsigned int symmetric_rates:1;
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_samplebits:1;
-	struct snd_pcm_runtime *runtime;
 	unsigned int active;
 	unsigned char probed:1;
 
