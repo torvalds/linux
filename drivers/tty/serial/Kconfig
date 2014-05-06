@@ -1510,6 +1510,7 @@ config SERIAL_RP2_NR_UARTS
 
 config SERIAL_FSL_LPUART
 	tristate "Freescale lpuart serial port support"
+	depends on HAS_DMA
 	select SERIAL_CORE
 	help
 	  Support for the on-chip lpuart on some Freescale SOCs.
