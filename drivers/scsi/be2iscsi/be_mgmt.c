@@ -447,8 +447,8 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct be_dma_mem *nonemb_cmd)
 {
 	struct be_cmd_resp_hdr *resp;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	struct be_sge *mcc_sge = nonembedded_sgl(wrb);
+	struct be_mcc_wrb *wrb;
+	struct be_sge *mcc_sge;
 	unsigned int tag = 0;
 	struct iscsi_bsg_request *bsg_req = job->request;
 	struct be_bsg_vendor_cmd *req = nonemb_cmd->va;
@@ -465,7 +465,6 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 	req->sector = sector;
 	req->offset = offset;
 	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
 
 	switch (bsg_req->rqst_data.h_vendor.vendor_cmd[0]) {
 	case BEISCSI_WRITE_FLASH:
@@ -495,6 +494,8 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 		return tag;
 	}
 
+	wrb = wrb_from_mccq(phba);
+	mcc_sge = nonembedded_sgl(wrb);
 	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false,
 			   job->request_payload.sg_cnt);
 	mcc_sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
@@ -525,7 +526,6 @@ int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short ulp_num)
 	int status = 0;
 
 	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
@@ -702,7 +702,6 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		return tag;
 	}
 	wrb = wrb_from_mccq(phba);
-	memset(wrb, 0, sizeof(*wrb));
 	sge = nonembedded_sgl(wrb);
 
 	req = nonemb_cmd->va;
@@ -804,7 +803,7 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 				int resp_buf_len)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
+	struct be_mcc_wrb *wrb;
 	struct be_sge *sge;
 	unsigned int tag;
 	int rc = 0;
@@ -816,7 +815,8 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 		rc = -ENOMEM;
 		goto free_cmd;
 	}
-	memset(wrb, 0, sizeof(*wrb));
+
+	wrb = wrb_from_mccq(phba);
 	wrb->tag0 |= tag;
 	sge = nonembedded_sgl(wrb);
 
