@@ -874,8 +874,9 @@ atmel_spi_pump_pio_data(struct atmel_spi *as, struct spi_transfer *xfer)
 		spi_readl(as, RDR);
 	}
 	if (xfer->bits_per_word > 8) {
-		as->current_remaining_bytes -= 2;
-		if (as->current_remaining_bytes < 0)
+		if (as->current_remaining_bytes > 2)
+			as->current_remaining_bytes -= 2;
+		else
 			as->current_remaining_bytes = 0;
 	} else {
 		as->current_remaining_bytes--;
