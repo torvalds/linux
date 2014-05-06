@@ -493,6 +493,27 @@ out:
 }
 EXPORT_SYMBOL_GPL(nfs_initiate_pgio);
 
+int nfs_do_multiple_pgios(struct list_head *head,
+				 const struct rpc_call_ops *call_ops,
+				 int how)
+{
+	struct nfs_pgio_data *data;
+	int ret = 0;
+
+	while (!list_empty(head)) {
+		int ret2;
+
+		data = list_first_entry(head, struct nfs_pgio_data, list);
+		list_del_init(&data->list);
+
+		ret2 = nfs_initiate_pgio(NFS_CLIENT(data->header->inode),
+					 data, call_ops, how, 0);
+		if (ret == 0)
+			 ret = ret2;
+	}
+	return ret;
+}
+
 /**
  * nfs_pgio_error - Clean up from a pageio error
  * @desc: IO descriptor

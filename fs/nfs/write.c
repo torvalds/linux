@@ -945,35 +945,6 @@ static void nfs_initiate_write(struct nfs_pgio_data *data, struct rpc_message *m
 				 &task_setup_data->rpc_client, msg, data);
 }
 
-static int nfs_do_write(struct nfs_pgio_data *data,
-		const struct rpc_call_ops *call_ops,
-		int how)
-{
-	struct inode *inode = data->header->inode;
-
-	return nfs_initiate_pgio(NFS_CLIENT(inode), data, call_ops, how, 0);
-}
-
-static int nfs_do_multiple_writes(struct list_head *head,
-		const struct rpc_call_ops *call_ops,
-		int how)
-{
-	struct nfs_pgio_data *data;
-	int ret = 0;
-
-	while (!list_empty(head)) {
-		int ret2;
-
-		data = list_first_entry(head, struct nfs_pgio_data, list);
-		list_del_init(&data->list);
-		
-		ret2 = nfs_do_write(data, call_ops, how);
-		 if (ret == 0)
-			 ret = ret2;
-	}
-	return ret;
-}
-
 /* If a nfs_flush_* function fails, it should remove reqs from @head and
  * call this on each, which will prepare them to be retried on next
  * writeback using standard nfs.
@@ -1018,7 +989,7 @@ static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	atomic_inc(&hdr->refcnt);
 	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
-		ret = nfs_do_multiple_writes(&hdr->rpc_list,
+		ret = nfs_do_multiple_pgios(&hdr->rpc_list,
 					     desc->pg_rpc_callops,
 					     desc->pg_ioflags);
 	if (atomic_dec_and_test(&hdr->refcnt))

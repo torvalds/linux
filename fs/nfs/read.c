@@ -161,34 +161,6 @@ static void nfs_initiate_read(struct nfs_pgio_data *data, struct rpc_message *ms
 	NFS_PROTO(inode)->read_setup(data, msg);
 }
 
-static int nfs_do_read(struct nfs_pgio_data *data,
-		const struct rpc_call_ops *call_ops)
-{
-	struct inode *inode = data->header->inode;
-
-	return nfs_initiate_pgio(NFS_CLIENT(inode), data, call_ops, 0, 0);
-}
-
-static int
-nfs_do_multiple_reads(struct list_head *head,
-		const struct rpc_call_ops *call_ops)
-{
-	struct nfs_pgio_data *data;
-	int ret = 0;
-
-	while (!list_empty(head)) {
-		int ret2;
-
-		data = list_first_entry(head, struct nfs_pgio_data, list);
-		list_del_init(&data->list);
-
-		ret2 = nfs_do_read(data, call_ops);
-		if (ret == 0)
-			ret = ret2;
-	}
-	return ret;
-}
-
 static void
 nfs_async_read_error(struct list_head *head)
 {
@@ -222,8 +194,8 @@ static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	atomic_inc(&hdr->refcnt);
 	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
-		ret = nfs_do_multiple_reads(&hdr->rpc_list,
-					    desc->pg_rpc_callops);
+		ret = nfs_do_multiple_pgios(&hdr->rpc_list,
+					    desc->pg_rpc_callops, 0);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 	return ret;
