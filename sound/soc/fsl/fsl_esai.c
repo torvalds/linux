@@ -258,10 +258,16 @@ static int fsl_esai_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return -EINVAL;
 	}
 
-	if (ratio == 1) {
+	/* Only EXTAL source can be output directly without using PSR and PM */
+	if (ratio == 1 && clksrc == esai_priv->extalclk) {
 		/* Bypass all the dividers if not being needed */
 		ecr |= tx ? ESAI_ECR_ETO : ESAI_ECR_ERO;
 		goto out;
+	} else if (ratio < 2) {
+		/* The ratio should be no less than 2 if using other sources */
+		dev_err(dai->dev, "failed to derive required HCK%c rate\n",
+				tx ? 'T' : 'R');
+		return -EINVAL;
 	}
 
 	ret = fsl_esai_divisor_cal(dai, tx, ratio, false, 0);
