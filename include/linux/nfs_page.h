@@ -52,6 +52,11 @@ struct nfs_pageio_ops {
 	int	(*pg_doio)(struct nfs_pageio_descriptor *);
 };
 
+struct nfs_rw_ops {
+	struct nfs_rw_header *(*rw_alloc_header)(void);
+	void (*rw_free_header)(struct nfs_rw_header *);
+};
+
 struct nfs_pageio_descriptor {
 	struct list_head	pg_list;
 	unsigned long		pg_bytes_written;
@@ -63,6 +68,7 @@ struct nfs_pageio_descriptor {
 
 	struct inode		*pg_inode;
 	const struct nfs_pageio_ops *pg_ops;
+	const struct nfs_rw_ops *pg_rw_ops;
 	int 			pg_ioflags;
 	int			pg_error;
 	const struct rpc_call_ops *pg_rpc_callops;
@@ -86,6 +92,7 @@ extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
 			     const struct nfs_pageio_ops *pg_ops,
 			     const struct nfs_pgio_completion_ops *compl_ops,
+			     const struct nfs_rw_ops *rw_ops,
 			     size_t bsize,
 			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,

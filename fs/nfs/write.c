@@ -46,6 +46,7 @@ static const struct rpc_call_ops nfs_write_common_ops;
 static const struct rpc_call_ops nfs_commit_ops;
 static const struct nfs_pgio_completion_ops nfs_async_write_completion_ops;
 static const struct nfs_commit_completion_ops nfs_commit_completion_ops;
+static const struct nfs_rw_ops nfs_rw_write_ops;
 
 static struct kmem_cache *nfs_wdata_cachep;
 static mempool_t *nfs_wdata_mempool;
@@ -70,29 +71,19 @@ void nfs_commit_free(struct nfs_commit_data *p)
 }
 EXPORT_SYMBOL_GPL(nfs_commit_free);
 
-struct nfs_rw_header *nfs_writehdr_alloc(void)
+static struct nfs_rw_header *nfs_writehdr_alloc(void)
 {
 	struct nfs_rw_header *p = mempool_alloc(nfs_wdata_mempool, GFP_NOIO);
 
-	if (p) {
-		struct nfs_pgio_header *hdr = &p->header;
-
+	if (p)
 		memset(p, 0, sizeof(*p));
-		INIT_LIST_HEAD(&hdr->pages);
-		INIT_LIST_HEAD(&hdr->rpc_list);
-		spin_lock_init(&hdr->lock);
-		atomic_set(&hdr->refcnt, 0);
-	}
 	return p;
 }
-EXPORT_SYMBOL_GPL(nfs_writehdr_alloc);
 
-void nfs_writehdr_free(struct nfs_pgio_header *hdr)
+static void nfs_writehdr_free(struct nfs_rw_header *whdr)
 {
-	struct nfs_rw_header *whdr = container_of(hdr, struct nfs_rw_header, header);
 	mempool_free(whdr, nfs_wdata_mempool);
 }
-EXPORT_SYMBOL_GPL(nfs_writehdr_free);
 
 static void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
 {
@@ -1210,13 +1201,13 @@ static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	struct nfs_pgio_header *hdr;
 	int ret;
 
-	whdr = nfs_writehdr_alloc();
+	whdr = nfs_rw_header_alloc(desc->pg_rw_ops);
 	if (!whdr) {
 		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		return -ENOMEM;
 	}
 	hdr = &whdr->header;
-	nfs_pgheader_init(desc, hdr, nfs_writehdr_free);
+	nfs_pgheader_init(desc, hdr, nfs_rw_header_free);
 	atomic_inc(&hdr->refcnt);
 	ret = nfs_generic_flush(desc, hdr);
 	if (ret == 0)
@@ -1244,7 +1235,8 @@ void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 	if (server->pnfs_curr_ld && !force_mds)
 		pg_ops = server->pnfs_curr_ld->pg_write_ops;
 #endif
-	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, server->wsize, ioflags);
+	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, &nfs_rw_write_ops,
+			server->wsize, ioflags);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_write);
 
@@ -1925,3 +1917,7 @@ void nfs_destroy_writepagecache(void)
 	kmem_cache_destroy(nfs_wdata_cachep);
 }
 
+static const struct nfs_rw_ops nfs_rw_write_ops = {
+	.rw_alloc_header	= nfs_writehdr_alloc,
+	.rw_free_header		= nfs_writehdr_free,
+};

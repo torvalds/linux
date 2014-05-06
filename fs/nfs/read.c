@@ -31,33 +31,19 @@
 static const struct nfs_pageio_ops nfs_pageio_read_ops;
 static const struct rpc_call_ops nfs_read_common_ops;
 static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops;
+static const struct nfs_rw_ops nfs_rw_read_ops;
 
 static struct kmem_cache *nfs_rdata_cachep;
 
-struct nfs_rw_header *nfs_readhdr_alloc(void)
+static struct nfs_rw_header *nfs_readhdr_alloc(void)
 {
-	struct nfs_rw_header *rhdr;
-
-	rhdr = kmem_cache_zalloc(nfs_rdata_cachep, GFP_KERNEL);
-	if (rhdr) {
-		struct nfs_pgio_header *hdr = &rhdr->header;
-
-		INIT_LIST_HEAD(&hdr->pages);
-		INIT_LIST_HEAD(&hdr->rpc_list);
-		spin_lock_init(&hdr->lock);
-		atomic_set(&hdr->refcnt, 0);
-	}
-	return rhdr;
+	return kmem_cache_zalloc(nfs_rdata_cachep, GFP_KERNEL);
 }
-EXPORT_SYMBOL_GPL(nfs_readhdr_alloc);
 
-void nfs_readhdr_free(struct nfs_pgio_header *hdr)
+static void nfs_readhdr_free(struct nfs_rw_header *rhdr)
 {
-	struct nfs_rw_header *rhdr = container_of(hdr, struct nfs_rw_header, header);
-
 	kmem_cache_free(nfs_rdata_cachep, rhdr);
 }
-EXPORT_SYMBOL_GPL(nfs_readhdr_free);
 
 static
 int nfs_return_empty_page(struct page *page)
@@ -79,7 +65,8 @@ void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 	if (server->pnfs_curr_ld && !force_mds)
 		pg_ops = server->pnfs_curr_ld->pg_read_ops;
 #endif
-	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, server->rsize, 0);
+	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, &nfs_rw_read_ops,
+			server->rsize, 0);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
 
@@ -375,13 +362,13 @@ static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	struct nfs_pgio_header *hdr;
 	int ret;
 
-	rhdr = nfs_readhdr_alloc();
+	rhdr = nfs_rw_header_alloc(desc->pg_rw_ops);
 	if (!rhdr) {
 		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		return -ENOMEM;
 	}
 	hdr = &rhdr->header;
-	nfs_pgheader_init(desc, hdr, nfs_readhdr_free);
+	nfs_pgheader_init(desc, hdr, nfs_rw_header_free);
 	atomic_inc(&hdr->refcnt);
 	ret = nfs_generic_pagein(desc, hdr);
 	if (ret == 0)
@@ -647,3 +634,8 @@ void nfs_destroy_readpagecache(void)
 {
 	kmem_cache_destroy(nfs_rdata_cachep);
 }
+
+static const struct nfs_rw_ops nfs_rw_read_ops = {
+	.rw_alloc_header	= nfs_readhdr_alloc,
+	.rw_free_header		= nfs_readhdr_free,
+};

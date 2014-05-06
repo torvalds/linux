@@ -301,6 +301,37 @@ static inline struct nfs_rw_header *NFS_RW_HEADER(struct nfs_pgio_header *hdr)
 }
 
 /**
+ * nfs_rw_header_alloc - Allocate a header for a read or write
+ * @ops: Read or write function vector
+ */
+struct nfs_rw_header *nfs_rw_header_alloc(const struct nfs_rw_ops *ops)
+{
+	struct nfs_rw_header *header = ops->rw_alloc_header();
+
+	if (header) {
+		struct nfs_pgio_header *hdr = &header->header;
+
+		INIT_LIST_HEAD(&hdr->pages);
+		INIT_LIST_HEAD(&hdr->rpc_list);
+		spin_lock_init(&hdr->lock);
+		atomic_set(&hdr->refcnt, 0);
+		hdr->rw_ops = ops;
+	}
+	return header;
+}
+EXPORT_SYMBOL_GPL(nfs_rw_header_alloc);
+
+/*
+ * nfs_rw_header_free - Free a read or write header
+ * @hdr: The header to free
+ */
+void nfs_rw_header_free(struct nfs_pgio_header *hdr)
+{
+	hdr->rw_ops->rw_free_header(NFS_RW_HEADER(hdr));
+}
+EXPORT_SYMBOL_GPL(nfs_rw_header_free);
+
+/**
  * nfs_pgio_data_alloc - Allocate pageio data
  * @hdr: The header making a request
  * @pagecount: Number of pages to create
@@ -367,6 +398,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     struct inode *inode,
 		     const struct nfs_pageio_ops *pg_ops,
 		     const struct nfs_pgio_completion_ops *compl_ops,
+		     const struct nfs_rw_ops *rw_ops,
 		     size_t bsize,
 		     int io_flags)
 {
@@ -380,6 +412,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_inode = inode;
 	desc->pg_ops = pg_ops;
 	desc->pg_completion_ops = compl_ops;
+	desc->pg_rw_ops = rw_ops;
 	desc->pg_ioflags = io_flags;
 	desc->pg_error = 0;
 	desc->pg_lseg = NULL;

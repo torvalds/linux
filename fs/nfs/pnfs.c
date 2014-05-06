@@ -1585,7 +1585,7 @@ pnfs_do_multiple_writes(struct nfs_pageio_descriptor *desc, struct list_head *he
 static void pnfs_writehdr_free(struct nfs_pgio_header *hdr)
 {
 	pnfs_put_lseg(hdr->lseg);
-	nfs_writehdr_free(hdr);
+	nfs_rw_header_free(hdr);
 }
 EXPORT_SYMBOL_GPL(pnfs_writehdr_free);
 
@@ -1596,7 +1596,7 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	struct nfs_pgio_header *hdr;
 	int ret;
 
-	whdr = nfs_writehdr_alloc();
+	whdr = nfs_rw_header_alloc(desc->pg_rw_ops);
 	if (!whdr) {
 		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		pnfs_put_lseg(desc->pg_lseg);
@@ -1743,7 +1743,7 @@ pnfs_do_multiple_reads(struct nfs_pageio_descriptor *desc, struct list_head *hea
 static void pnfs_readhdr_free(struct nfs_pgio_header *hdr)
 {
 	pnfs_put_lseg(hdr->lseg);
-	nfs_readhdr_free(hdr);
+	nfs_rw_header_free(hdr);
 }
 EXPORT_SYMBOL_GPL(pnfs_readhdr_free);
 
@@ -1754,7 +1754,7 @@ pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	struct nfs_pgio_header *hdr;
 	int ret;
 
-	rhdr = nfs_readhdr_alloc();
+	rhdr = nfs_rw_header_alloc(desc->pg_rw_ops);
 	if (!rhdr) {
 		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		ret = -ENOMEM;

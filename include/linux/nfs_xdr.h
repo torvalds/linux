@@ -1269,6 +1269,7 @@ struct nfs_pgio_header {
 	const struct rpc_call_ops *mds_ops;
 	void (*release) (struct nfs_pgio_header *hdr);
 	const struct nfs_pgio_completion_ops *completion_ops;
+	const struct nfs_rw_ops	*rw_ops;
 	struct nfs_direct_req	*dreq;
 	void			*layout_private;
 	spinlock_t		lock;
