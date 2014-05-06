@@ -83,6 +83,23 @@ static void c_can_pci_write_reg_32bit(const struct c_can_priv *priv,
 	iowrite32((u32)val, priv->base + 2 * priv->regs[index]);
 }
 
+static u32 c_can_pci_read_reg32(const struct c_can_priv *priv, enum reg index)
+{
+	u32 val;
+
+	val = priv->read_reg(priv, index);
+	val |= ((u32) priv->read_reg(priv, index + 1)) << 16;
+
+	return val;
+}
+
+static void c_can_pci_write_reg32(const struct c_can_priv *priv, enum reg index,
+		u32 val)
+{
+	priv->write_reg(priv, index + 1, val >> 16);
+	priv->write_reg(priv, index, val);
+}
+
 static void c_can_pci_reset_pch(const struct c_can_priv *priv, bool enable)
 {
 	if (enable) {
@@ -187,6 +204,8 @@ static int c_can_pci_probe(struct pci_dev *pdev,
 		ret = -EINVAL;
 		goto out_free_c_can;
 	}
+	priv->read_reg32 = c_can_pci_read_reg32;
+	priv->write_reg32 = c_can_pci_write_reg32;
 
 	priv->raminit = c_can_pci_data->init;
 

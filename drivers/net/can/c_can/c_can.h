@@ -178,6 +178,8 @@ struct c_can_priv {
 	int last_status;
 	u16 (*read_reg) (const struct c_can_priv *priv, enum reg index);
 	void (*write_reg) (const struct c_can_priv *priv, enum reg index, u16 val);
+	u32 (*read_reg32) (const struct c_can_priv *priv, enum reg index);
+	void (*write_reg32) (const struct c_can_priv *priv, enum reg index, u32 val);
 	void __iomem *base;
 	const u16 *regs;
 	void *priv;		/* for board-specific data */
