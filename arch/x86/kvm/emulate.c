@@ -708,7 +708,7 @@ static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
  * Prefetch the remaining bytes of the instruction without crossing page
  * boundary if they are not in fetch_cache yet.
  */
-static int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt)
+static int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 {
 	struct fetch_cache *fc = &ctxt->fetch;
 	int rc;
@@ -720,7 +720,14 @@ static int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt)
 	cur_size = fc->end - fc->start;
 	size = min(15UL - cur_size,
 		   PAGE_SIZE - offset_in_page(fc->end));
-	if (unlikely(size == 0))
+
+	/*
+	 * One instruction can only straddle two pages,
+	 * and one has been loaded at the beginning of
+	 * x86_decode_insn.  So, if not enough bytes
+	 * still, we must have hit the 15-byte boundary.
+	 */
+	if (unlikely(size < op_size))
 		return X86EMUL_UNHANDLEABLE;
 	rc = __linearize(ctxt, addr, size, false, true, &linear);
 	if (unlikely(rc != X86EMUL_CONTINUE))
@@ -736,17 +743,18 @@ static int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt)
 static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 			 void *__dest, unsigned size)
 {
-	int rc;
 	struct fetch_cache *fc = &ctxt->fetch;
 	u8 *dest = __dest;
 	u8 *src = &fc->data[ctxt->_eip - fc->start];
 
+	/* We have to be careful about overflow! */
+	if (unlikely(ctxt->_eip > fc->end - size)) {
+		int rc = do_insn_fetch_bytes(ctxt, size);
+		if (rc != X86EMUL_CONTINUE)
+			return rc;
+	}
+
 	while (size--) {
-		if (unlikely(ctxt->_eip == fc->end)) {
-			rc = do_insn_fetch_bytes(ctxt);
-			if (rc != X86EMUL_CONTINUE)
-				return rc;
-		}
 		*dest++ = *src++;
 		ctxt->_eip++;
 		continue;
@@ -4228,7 +4236,7 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	if (insn_len > 0)
 		memcpy(ctxt->fetch.data, insn, insn_len);
 	else {
-		rc = do_insn_fetch_bytes(ctxt);
+		rc = do_insn_fetch_bytes(ctxt, 1);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 	}
