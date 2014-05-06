@@ -5625,7 +5625,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		phba->ctrl.mcc_numtag[i + 1] = 0;
 		phba->ctrl.mcc_tag_available++;
 		memset(&phba->ctrl.ptag_state[i].tag_mem_state, 0,
-		       sizeof(struct beiscsi_mcc_tag_state));
+		       sizeof(struct be_dma_mem));
 	}
 
 	phba->ctrl.mcc_alloc_index = phba->ctrl.mcc_free_index = 0;
