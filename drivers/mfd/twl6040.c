@@ -441,12 +441,9 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 					    TWL6040_HPLLENA;
 				break;
 			case 19200000:
-				/*
-				* PLL disabled
-				* (enable PLL if MCLK jitter quality
-				*  doesn't meet specification)
-				*/
-				hppllctl |= TWL6040_MCLK_19200KHZ;
+				/* PLL enabled, bypass mode */
+				hppllctl |= TWL6040_MCLK_19200KHZ |
+					    TWL6040_HPLLBP | TWL6040_HPLLENA;
 				break;
 			case 26000000:
 				/* PLL enabled, active mode */
@@ -454,9 +451,9 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 					    TWL6040_HPLLENA;
 				break;
 			case 38400000:
-				/* PLL enabled, active mode */
+				/* PLL enabled, bypass mode */
 				hppllctl |= TWL6040_MCLK_38400KHZ |
-					    TWL6040_HPLLENA;
+					    TWL6040_HPLLBP | TWL6040_HPLLENA;
 				break;
 			default:
 				dev_err(twl6040->dev,
