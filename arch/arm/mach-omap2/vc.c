@@ -301,12 +301,6 @@ static void __init omap3_vc_init_pmic_signaling(struct voltagedomain *voltdm)
 	omap3_vc_set_pmic_signaling(PWRDM_POWER_ON);
 }
 
-/* Set oscillator setup time for omap3 */
-static void omap3_set_clksetup(u32 usec, struct voltagedomain *voltdm)
-{
-	voltdm->write(omap_usec_to_32k(usec), OMAP3_PRM_CLKSETUP_OFFSET);
-}
-
 /**
  * omap3_set_i2c_timings - sets i2c sleep timings for a channel
  * @voltdm: channel to configure
@@ -322,12 +316,6 @@ static void omap3_set_i2c_timings(struct voltagedomain *voltdm, bool off_mode)
 {
 	unsigned long voltsetup1;
 	u32 tgt_volt;
-
-	/*
-	 * Oscillator is shut down only if we are using sys_off_mode pad,
-	 * thus we set a minimal setup time here
-	 */
-	omap3_set_clksetup(1, voltdm);
 
 	if (off_mode)
 		tgt_volt = voltdm->vc_param->off;
@@ -365,61 +353,13 @@ static void omap3_set_i2c_timings(struct voltagedomain *voltdm, bool off_mode)
  */
 static void omap3_set_off_timings(struct voltagedomain *voltdm)
 {
-	unsigned long clksetup;
-	unsigned long voltsetup2;
-	unsigned long voltsetup2_old;
-	u32 val;
-	u32 tstart, tshut;
-
-	/* check if sys_off_mode is used to control off-mode voltages */
-	val = voltdm->read(OMAP3_PRM_VOLTCTRL_OFFSET);
-	if (!(val & OMAP3430_PRM_VOLTCTRL_SEL_OFF)) {
-		/* No, omap is controlling them over I2C */
-		omap3_set_i2c_timings(voltdm, true);
-		return;
-	}
-
-	omap_pm_get_oscillator(&tstart, &tshut);
-	omap3_set_clksetup(tstart, voltdm);
-
-	clksetup = voltdm->read(OMAP3_PRM_CLKSETUP_OFFSET);
-
-	/* voltsetup 2 in us */
-	voltsetup2 = voltdm->vc_param->on / voltdm->pmic->slew_rate;
-
-	/* convert to 32k clk cycles */
-	voltsetup2 = DIV_ROUND_UP(voltsetup2 * 32768, 1000000);
-
-	voltsetup2_old = voltdm->read(OMAP3_PRM_VOLTSETUP2_OFFSET);
-
-	/*
-	 * Update voltsetup2 if higher than current value (needed because
-	 * we have multiple channels with different ramp times), also
-	 * update voltoffset always to value recommended by TRM
-	 */
-	if (voltsetup2 > voltsetup2_old) {
-		voltdm->write(voltsetup2, OMAP3_PRM_VOLTSETUP2_OFFSET);
-		voltdm->write(clksetup - voltsetup2,
-			OMAP3_PRM_VOLTOFFSET_OFFSET);
-	} else
-		voltdm->write(clksetup - voltsetup2_old,
-			OMAP3_PRM_VOLTOFFSET_OFFSET);
-
-	/*
-	 * omap is not controlling voltage scaling during off-mode,
-	 * thus set voltsetup1 to 0
-	 */
-	voltdm->rmw(voltdm->vfsm->voltsetup_mask, 0,
-		voltdm->vfsm->voltsetup_reg);
-
-	/* voltoffset must be clksetup minus voltsetup2 according to TRM */
-	voltdm->write(clksetup - voltsetup2, OMAP3_PRM_VOLTOFFSET_OFFSET);
 }
 
 static void __init omap3_vc_init_channel(struct voltagedomain *voltdm)
 {
 	omap3_vc_init_pmic_signaling(voltdm);
 	omap3_set_off_timings(voltdm);
+	omap3_set_i2c_timings(voltdm, true);
 }
 
 /**
