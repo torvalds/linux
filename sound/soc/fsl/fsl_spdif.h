@@ -93,6 +93,8 @@
 #define SCR_USRC_SEL_RECV		(0x1 << SCR_USRC_SEL_OFFSET)
 #define SCR_USRC_SEL_CHIP		(0x3 << SCR_USRC_SEL_OFFSET)
 
+#define SCR_DMA_xX_EN(tx)		(tx ? SCR_DMA_TX_EN : SCR_DMA_RX_EN)
+
 /* SPDIF CDText control */
 #define SRCD_CD_USER_OFFSET		1
 #define SRCD_CD_USER			(1 << SRCD_CD_USER_OFFSET)
