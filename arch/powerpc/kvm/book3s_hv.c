@@ -1930,6 +1930,13 @@ static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
 	 * support pte_enc here
 	 */
 	(*sps)->enc[0].pte_enc = def->penc[linux_psize];
+	/*
+	 * Add 16MB MPSS support if host supports it
+	 */
+	if (linux_psize != MMU_PAGE_16M && def->penc[MMU_PAGE_16M] != -1) {
+		(*sps)->enc[1].page_shift = 24;
+		(*sps)->enc[1].pte_enc = def->penc[MMU_PAGE_16M];
+	}
 	(*sps)++;
 }
 
