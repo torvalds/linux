@@ -2018,6 +2018,10 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 			rt5639_specific_dapm_routes,
 			ARRAY_SIZE(rt5639_specific_dapm_routes));
 		break;
+	default:
+		dev_err(codec->dev,
+			"The driver is for RT5639 RT5640 or RT5642 only\n");
+		return -ENODEV;
 	}
 
 	return 0;
