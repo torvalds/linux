@@ -19,8 +19,8 @@
 #include <linux/sunrpc/msg_prot.h>
 
 #include <linux/nfsd/debug.h>
-#include <linux/nfsd/stats.h>
 
+#include "stats.h"
 #include "export.h"
 
 /*

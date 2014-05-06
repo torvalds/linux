@@ -1,12 +1,10 @@
 /*
- * linux/include/linux/nfsd/stats.h
- *
  * Statistics for NFS server.
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
-#ifndef LINUX_NFSD_STATS_H
-#define LINUX_NFSD_STATS_H
+#ifndef _NFSD_STATS_H
+#define _NFSD_STATS_H
 
 #include <uapi/linux/nfsd/stats.h>
 
@@ -42,4 +40,4 @@ extern struct svc_stat		nfsd_svcstats;
 void	nfsd_stat_init(void);
 void	nfsd_stat_shutdown(void);
 
-#endif /* LINUX_NFSD_STATS_H */
+#endif /* _NFSD_STATS_H */
