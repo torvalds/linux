@@ -24,10 +24,7 @@
 #include <linux/of_device.h>
 #include <linux/thermal.h>
 
-#define THERMAL_VALID_OFFSET		9
 #define THERMAL_VALID_MASK		0x1
-#define THERMAL_TEMP_OFFSET		10
-#define THERMAL_TEMP_MASK		0x1ff
 
 /* Thermal Manager Control and Status Register */
 #define PMU_TDC0_SW_RST_MASK		(0x1 << 1)
@@ -58,6 +55,11 @@ struct armada_thermal_data {
 	unsigned long coef_b;
 	unsigned long coef_m;
 	unsigned long coef_div;
+
+	/* Register shift and mask to access the sensor temperature */
+	unsigned int temp_shift;
+	unsigned int temp_mask;
+	unsigned int is_valid_shift;
 };
 
 static void armadaxp_init_sensor(struct armada_thermal_priv *priv)
@@ -108,7 +110,7 @@ static bool armada_is_valid(struct armada_thermal_priv *priv)
 {
 	unsigned long reg = readl_relaxed(priv->sensor);
 
-	return (reg >> THERMAL_VALID_OFFSET) & THERMAL_VALID_MASK;
+	return (reg >> priv->data->is_valid_shift) & THERMAL_VALID_MASK;
 }
 
 static int armada_get_temp(struct thermal_zone_device *thermal,
@@ -126,7 +128,7 @@ static int armada_get_temp(struct thermal_zone_device *thermal,
 	}
 
 	reg = readl_relaxed(priv->sensor);
-	reg = (reg >> THERMAL_TEMP_OFFSET) & THERMAL_TEMP_MASK;
+	reg = (reg >> priv->data->temp_shift) & priv->data->temp_mask;
 
 	/* Get formula coeficients */
 	b = priv->data->coef_b;
@@ -143,6 +145,8 @@ static struct thermal_zone_device_ops ops = {
 
 static const struct armada_thermal_data armadaxp_data = {
 	.init_sensor = armadaxp_init_sensor,
+	.temp_shift = 10,
+	.temp_mask = 0x1ff,
 	.coef_b = 3153000000UL,
 	.coef_m = 10000000UL,
 	.coef_div = 13825,
@@ -151,6 +155,9 @@ static const struct armada_thermal_data armadaxp_data = {
 static const struct armada_thermal_data armada370_data = {
 	.is_valid = armada_is_valid,
 	.init_sensor = armada370_init_sensor,
+	.is_valid_shift = 9,
+	.temp_shift = 10,
+	.temp_mask = 0x1ff,
 	.coef_b = 3153000000UL,
 	.coef_m = 10000000UL,
 	.coef_div = 13825,
