@@ -423,7 +423,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 			unsigned int chan = devpriv->ao_chanlist[i];
 			unsigned short val;
 
-			ret = comedi_buf_get(s->async, &val);
+			ret = comedi_buf_get(s, &val);
 			if (ret < 0) {
 				dev_err(dev->class_dev, "buffer underflow\n");
 				s->async->events |= (COMEDI_CB_EOA |

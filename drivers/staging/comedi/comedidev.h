@@ -344,7 +344,7 @@ unsigned int comedi_buf_read_alloc(struct comedi_async *, unsigned int);
 unsigned int comedi_buf_read_free(struct comedi_async *, unsigned int);
 
 int comedi_buf_put(struct comedi_subdevice *s, unsigned short x);
-int comedi_buf_get(struct comedi_async *, unsigned short *);
+int comedi_buf_get(struct comedi_subdevice *s, unsigned short *x);
 
 void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
 			  const void *source, unsigned int num_bytes);

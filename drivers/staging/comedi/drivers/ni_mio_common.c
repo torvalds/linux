@@ -1149,7 +1149,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 
 	chan = async->cur_chan;
 	for (i = 0; i < n; i++) {
-		err &= comedi_buf_get(async, &d);
+		err &= comedi_buf_get(s, &d);
 		if (err == 0)
 			break;
 
@@ -1159,7 +1159,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 			packed_data = d & 0xffff;
 			/* 6711 only has 16 bit wide ao fifo */
 			if (board->reg_type != ni_reg_6711) {
-				err &= comedi_buf_get(async, &d);
+				err &= comedi_buf_get(s, &d);
 				if (err == 0)
 					break;
 				chan++;

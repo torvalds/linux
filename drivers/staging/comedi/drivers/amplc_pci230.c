@@ -1164,7 +1164,7 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 		return;
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		/* Read sample from Comedi's circular buffer. */
-		ret = comedi_buf_get(s->async, &data);
+		ret = comedi_buf_get(s, &data);
 		if (ret == 0) {
 			s->async->events |= COMEDI_CB_OVERFLOW;
 			pci230_ao_stop(dev, s);
@@ -1250,7 +1250,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 			for (i = 0; i < cmd->chanlist_len; i++) {
 				unsigned short datum;
 
-				comedi_buf_get(async, &datum);
+				comedi_buf_get(s, &datum);
 				pci230_ao_write_fifo(dev, datum,
 						     CR_CHAN(cmd->chanlist[i]));
 			}
