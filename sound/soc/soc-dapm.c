@@ -1612,8 +1612,11 @@ static void dapm_pre_sequence_async(void *data, async_cookie_t cookie)
 				"ASoC: Failed to turn on bias: %d\n", ret);
 	}
 
-	/* Prepare for a STADDBY->ON or ON->STANDBY transition */
-	if (d->bias_level != d->target_bias_level) {
+	/* Prepare for a transition to ON or away from ON */
+	if ((d->target_bias_level == SND_SOC_BIAS_ON &&
+	     d->bias_level != SND_SOC_BIAS_ON) ||
+	    (d->target_bias_level != SND_SOC_BIAS_ON &&
+	     d->bias_level == SND_SOC_BIAS_ON)) {
 		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_PREPARE);
 		if (ret != 0)
 			dev_err(d->dev,
