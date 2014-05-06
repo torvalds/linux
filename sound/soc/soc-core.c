@@ -4277,7 +4277,6 @@ int snd_soc_register_codec(struct device *dev,
 	codec->dapm.stream_event = codec_drv->stream_event;
 	codec->dev = dev;
 	codec->driver = codec_drv;
-	codec->num_dai = num_dai;
 	codec->component.val_bytes = codec_drv->reg_word_size;
 	mutex_init(&codec->mutex);
 

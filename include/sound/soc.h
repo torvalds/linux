@@ -701,7 +701,6 @@ struct snd_soc_codec {
 	struct snd_soc_card *card;
 	struct list_head list;
 	struct list_head card_list;
-	int num_dai;
 
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
