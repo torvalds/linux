@@ -1736,8 +1736,9 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 		}
 		/* otherwise, pick one of the plls */
 		if ((rdev->family == CHIP_KAVERI) ||
-		    (rdev->family == CHIP_KABINI)) {
-			/* KB/KV has PPLL1 and PPLL2 */
+		    (rdev->family == CHIP_KABINI) ||
+		    (rdev->family == CHIP_MULLINS)) {
+			/* KB/KV/ML has PPLL1 and PPLL2 */
 			pll_in_use = radeon_get_pll_use_mask(crtc);
 			if (!(pll_in_use & (1 << ATOM_PPLL2)))
 				return ATOM_PPLL2;
