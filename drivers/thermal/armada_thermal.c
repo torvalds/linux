@@ -56,6 +56,7 @@ struct armada_thermal_data {
 	unsigned long coef_b;
 	unsigned long coef_m;
 	unsigned long coef_div;
+	bool inverted;
 
 	/* Register shift and mask to access the sensor temperature */
 	unsigned int temp_shift;
@@ -138,7 +139,10 @@ static int armada_get_temp(struct thermal_zone_device *thermal,
 	m = priv->data->coef_m;
 	div = priv->data->coef_div;
 
-	*temp = (b - (m * reg)) / div;
+	if (priv->data->inverted)
+		*temp = ((m * reg) - b) / div;
+	else
+		*temp = (b - (m * reg)) / div;
 	return 0;
 }
 
