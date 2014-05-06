@@ -37,7 +37,6 @@
 
 #include <linux/idr.h>
 #include <linux/sunrpc/svc_xprt.h>
-#include <linux/nfsd/nfsfh.h>
 #include "nfsfh.h"
 
 typedef struct {

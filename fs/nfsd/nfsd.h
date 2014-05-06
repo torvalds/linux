@@ -15,6 +15,7 @@
 #include <linux/nfs2.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
+#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/msg_prot.h>
 
 #include <linux/nfsd/debug.h>

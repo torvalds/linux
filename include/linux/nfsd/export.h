@@ -9,8 +9,12 @@
 #ifndef NFSD_EXPORT_H
 #define NFSD_EXPORT_H
 
-# include <linux/nfsd/nfsfh.h>
+#include <linux/sunrpc/cache.h>
 #include <uapi/linux/nfsd/export.h>
+
+struct knfsd_fh;
+struct svc_fh;
+struct svc_rqst;
 
 /*
  * FS Locations

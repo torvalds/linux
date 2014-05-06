@@ -17,13 +17,13 @@
 #include <linux/fs.h>
 #include <linux/kref.h>
 #include <linux/utsname.h>
-#include <linux/nfsd/nfsfh.h>
 #include <linux/lockd/bind.h>
 #include <linux/lockd/xdr.h>
 #ifdef CONFIG_LOCKD_V4
 #include <linux/lockd/xdr4.h>
 #endif
 #include <linux/lockd/debug.h>
+#include <linux/sunrpc/svc.h>
 
 /*
  * Version string
