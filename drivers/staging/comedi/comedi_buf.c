@@ -250,10 +250,11 @@ static unsigned int comedi_buf_write_n_available(struct comedi_async *async)
 	return free_end - async->buf_write_alloc_count;
 }
 
-static unsigned int __comedi_buf_write_alloc(struct comedi_async *async,
+static unsigned int __comedi_buf_write_alloc(struct comedi_subdevice *s,
 					     unsigned int nbytes,
 					     int strict)
 {
+	struct comedi_async *async = s->async;
 	unsigned int available = comedi_buf_write_n_available(async);
 
 	if (nbytes > available)
@@ -274,7 +275,7 @@ static unsigned int __comedi_buf_write_alloc(struct comedi_async *async,
 unsigned int comedi_buf_write_alloc(struct comedi_subdevice *s,
 				    unsigned int nbytes)
 {
-	return __comedi_buf_write_alloc(s->async, nbytes, 0);
+	return __comedi_buf_write_alloc(s, nbytes, 0);
 }
 EXPORT_SYMBOL_GPL(comedi_buf_write_alloc);
 
@@ -427,7 +428,7 @@ EXPORT_SYMBOL_GPL(comedi_buf_read_free);
 int comedi_buf_put(struct comedi_subdevice *s, unsigned short x)
 {
 	struct comedi_async *async = s->async;
-	unsigned int n = __comedi_buf_write_alloc(async, sizeof(short), 1);
+	unsigned int n = __comedi_buf_write_alloc(s, sizeof(short), 1);
 
 	if (n < sizeof(short)) {
 		async->events |= COMEDI_CB_ERROR;
