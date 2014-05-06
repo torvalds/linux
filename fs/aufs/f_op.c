@@ -438,6 +438,7 @@ out:
  * The similar scenario is applied to aufs_readlink() too.
  */
 
+#if 0 /* stop calling security_file_mmap() */
 /* cf. linux/include/linux/mman.h: calc_vm_prot_bits() */
 #define AuConv_VM_PROT(f, b)	_calc_vm_trans(f, VM_##b, PROT_##b)
 
@@ -471,6 +472,7 @@ static unsigned long au_flag_conv(unsigned long flags)
 		| AuConv_VM_MAP(flags, DENYWRITE)
 		| AuConv_VM_MAP(flags, LOCKED);
 }
+#endif
 
 static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -514,8 +516,13 @@ static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 	lockdep_on();
 
 	au_vm_file_reset(vma, h_file);
-	err = security_mmap_file(h_file, au_prot_conv(vma->vm_flags),
-				 au_flag_conv(vma->vm_flags));
+	/*
+	 * we cannot call security_mmap_file() here since it may acquire
+	 * mmap_sem or i_mutex.
+	 *
+	 * err = security_mmap_file(h_file, au_prot_conv(vma->vm_flags),
+	 *			 au_flag_conv(vma->vm_flags));
+	 */
 	if (!err)
 		err = h_file->f_op->mmap(h_file, vma);
 	if (unlikely(err))
