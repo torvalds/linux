@@ -201,6 +201,7 @@ static int rk3288_lcdc_reg_dump(struct rk_lcdc_driver *dev_drv)
 static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 {
 	int v,i;
+	u32 mask,val;
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 							   struct
 							   lcdc_device,
@@ -254,9 +255,13 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	lcdc_writel(lcdc_dev,FRC_LOWER11_0,0xdeb77deb);
 	lcdc_writel(lcdc_dev,FRC_LOWER11_1,0xed7bb7de);
 
-	lcdc_set_bit(lcdc_dev, SYS_CTRL, m_AUTO_GATING_EN);
+	mask =  m_AUTO_GATING_EN;
+	val  =  v_AUTO_GATING_EN(0);
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask,val);
+	
 	lcdc_cfg_done(lcdc_dev);
 	lcdc_dev->pre_init = true;
+
 
 	return 0;
 }
