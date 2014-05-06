@@ -1658,6 +1658,14 @@ static __net_init int inet_init_net(struct net *net)
 	seqlock_init(&net->ipv4.ip_local_ports.lock);
 	net->ipv4.ip_local_ports.range[0] =  32768;
 	net->ipv4.ip_local_ports.range[1] =  61000;
+
+	seqlock_init(&net->ipv4.ping_group_range.lock);
+	/*
+	 * Sane defaults - nobody may create ping sockets.
+	 * Boot scripts should set this to distro-specific group.
+	 */
+	net->ipv4.ping_group_range.range[0] = make_kgid(&init_user_ns, 1);
+	net->ipv4.ping_group_range.range[1] = make_kgid(&init_user_ns, 0);
 	return 0;
 }
 
