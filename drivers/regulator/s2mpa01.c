@@ -192,11 +192,15 @@ static int s2mpa01_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	if (!ramp_enable)
 		goto ramp_disable;
 
-	ret = regmap_update_bits(rdev->regmap, S2MPA01_REG_RAMP1,
-				 1 << enable_shift, 1 << enable_shift);
-	if (ret) {
-		dev_err(&rdev->dev, "failed to enable ramp rate\n");
-		return ret;
+	/* Ramp delay can be enabled/disabled only for buck[1234] */
+	if (rdev_get_id(rdev) >= S2MPA01_BUCK1 &&
+			rdev_get_id(rdev) <= S2MPA01_BUCK4) {
+		ret = regmap_update_bits(rdev->regmap, S2MPA01_REG_RAMP1,
+					 1 << enable_shift, 1 << enable_shift);
+		if (ret) {
+			dev_err(&rdev->dev, "failed to enable ramp rate\n");
+			return ret;
+		}
 	}
 
 	ramp_val = get_ramp_delay(ramp_delay);
