@@ -1199,6 +1199,8 @@ static int f2fs_write_node_page(struct page *page,
 		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE,
 	};
 
+	trace_f2fs_writepage(page, NODE);
+
 	if (unlikely(sbi->por_doing))
 		goto redirty_out;
 

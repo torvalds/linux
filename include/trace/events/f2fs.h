@@ -751,6 +751,13 @@ DECLARE_EVENT_CLASS(f2fs__page,
 		__entry->dirty)
 );
 
+DEFINE_EVENT(f2fs__page, f2fs_writepage,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
+);
+
 DEFINE_EVENT(f2fs__page, f2fs_set_page_dirty,
 
 	TP_PROTO(struct page *page, int type),
