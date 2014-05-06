@@ -26,19 +26,20 @@ __setup("spin_retry=", spin_retry_setup);
 
 void arch_spin_lock_wait(arch_spinlock_t *lp)
 {
-	int count = spin_retry;
 	unsigned int cpu = SPINLOCK_LOCKVAL;
 	unsigned int owner;
+	int count;
 
 	while (1) {
 		owner = lp->lock;
 		if (!owner || smp_vcpu_scheduled(~owner)) {
-			for (count = spin_retry; count > 0; count--) {
+			count = spin_retry;
+			do {
 				if (arch_spin_is_locked(lp))
 					continue;
 				if (_raw_compare_and_swap(&lp->lock, 0, cpu))
 					return;
-			}
+			} while (count-- > 0);
 			if (MACHINE_IS_LPAR)
 				continue;
 		}
@@ -53,22 +54,23 @@ EXPORT_SYMBOL(arch_spin_lock_wait);
 
 void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 {
-	int count = spin_retry;
 	unsigned int cpu = SPINLOCK_LOCKVAL;
 	unsigned int owner;
+	int count;
 
 	local_irq_restore(flags);
 	while (1) {
 		owner = lp->lock;
 		if (!owner || smp_vcpu_scheduled(~owner)) {
-			for (count = spin_retry; count > 0; count--) {
+			count = spin_retry;
+			do {
 				if (arch_spin_is_locked(lp))
 					continue;
 				local_irq_disable();
 				if (_raw_compare_and_swap(&lp->lock, 0, cpu))
 					return;
 				local_irq_restore(flags);
-			}
+			} while (count-- > 0);
 			if (MACHINE_IS_LPAR)
 				continue;
 		}
