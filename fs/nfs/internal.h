@@ -242,6 +242,8 @@ struct nfs_rw_header *nfs_rw_header_alloc(const struct nfs_rw_ops *);
 void nfs_rw_header_free(struct nfs_pgio_header *);
 struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *, unsigned int);
 void nfs_pgio_data_release(struct nfs_pgio_data *);
+void nfs_pgio_rpcsetup(struct nfs_pgio_data *, unsigned int, unsigned int, int,
+		       struct nfs_commit_info *);
 
 static inline void nfs_iocounter_init(struct nfs_io_counter *c)
 {
@@ -446,6 +448,7 @@ extern void nfs_init_commit(struct nfs_commit_data *data,
 			    struct nfs_commit_info *cinfo);
 int nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
 			 struct nfs_commit_info *cinfo, int max);
+unsigned long nfs_reqs_to_commit(struct nfs_commit_info *);
 int nfs_scan_commit(struct inode *inode, struct list_head *dst,
 		    struct nfs_commit_info *cinfo);
 void nfs_mark_request_commit(struct nfs_page *req,

@@ -603,7 +603,7 @@ out:
 }
 
 #if  IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
-static unsigned long
+unsigned long
 nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
 {
 	return cinfo->mds->ncommit;
@@ -660,7 +660,7 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst,
 }
 
 #else
-static unsigned long nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
+unsigned long nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
 {
 	return 0;
 }
@@ -987,44 +987,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(nfs_initiate_write);
 
-/*
- * Set up the argument/result storage required for the RPC call.
- */
-static void nfs_write_rpcsetup(struct nfs_pgio_data *data,
-		unsigned int count, unsigned int offset,
-		int how, struct nfs_commit_info *cinfo)
-{
-	struct nfs_page *req = data->header->req;
-
-	/* Set up the RPC argument and reply structs
-	 * NB: take care not to mess about with data->commit et al. */
-
-	data->args.fh     = NFS_FH(data->header->inode);
-	data->args.offset = req_offset(req) + offset;
-	/* pnfs_set_layoutcommit needs this */
-	data->mds_offset = data->args.offset;
-	data->args.pgbase = req->wb_pgbase + offset;
-	data->args.pages  = data->pages.pagevec;
-	data->args.count  = count;
-	data->args.context = get_nfs_open_context(req->wb_context);
-	data->args.lock_context = req->wb_lock_context;
-	data->args.stable  = NFS_UNSTABLE;
-	switch (how & (FLUSH_STABLE | FLUSH_COND_STABLE)) {
-	case 0:
-		break;
-	case FLUSH_COND_STABLE:
-		if (nfs_reqs_to_commit(cinfo))
-			break;
-	default:
-		data->args.stable = NFS_FILE_SYNC;
-	}
-
-	data->res.fattr   = &data->fattr;
-	data->res.count   = count;
-	data->res.verf    = &data->verf;
-	nfs_fattr_init(&data->fattr);
-}
-
 static int nfs_do_write(struct nfs_pgio_data *data,
 		const struct rpc_call_ops *call_ops,
 		int how)
@@ -1129,7 +1091,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc,
 			return -ENOMEM;
 		}
 		data->pages.pagevec[0] = page;
-		nfs_write_rpcsetup(data, len, offset, desc->pg_ioflags, &cinfo);
+		nfs_pgio_rpcsetup(data, len, offset, desc->pg_ioflags, &cinfo);
 		list_add(&data->list, &hdr->rpc_list);
 		requests++;
 		nbytes -= len;
@@ -1179,7 +1141,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc,
 		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
 
 	/* Set up the argument struct */
-	nfs_write_rpcsetup(data, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
+	nfs_pgio_rpcsetup(data, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
 	list_add(&data->list, &hdr->rpc_list);
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;

@@ -192,28 +192,6 @@ int nfs_initiate_read(struct rpc_clnt *clnt,
 }
 EXPORT_SYMBOL_GPL(nfs_initiate_read);
 
-/*
- * Set up the NFS read request struct
- */
-static void nfs_read_rpcsetup(struct nfs_pgio_data *data,
-		unsigned int count, unsigned int offset)
-{
-	struct nfs_page *req = data->header->req;
-
-	data->args.fh     = NFS_FH(data->header->inode);
-	data->args.offset = req_offset(req) + offset;
-	data->args.pgbase = req->wb_pgbase + offset;
-	data->args.pages  = data->pages.pagevec;
-	data->args.count  = count;
-	data->args.context = get_nfs_open_context(req->wb_context);
-	data->args.lock_context = req->wb_lock_context;
-
-	data->res.fattr   = &data->fattr;
-	data->res.count   = count;
-	data->res.eof     = 0;
-	nfs_fattr_init(&data->fattr);
-}
-
 static int nfs_do_read(struct nfs_pgio_data *data,
 		const struct rpc_call_ops *call_ops)
 {
@@ -305,7 +283,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc,
 			return -ENOMEM;
 		}
 		data->pages.pagevec[0] = page;
-		nfs_read_rpcsetup(data, len, offset);
+		nfs_pgio_rpcsetup(data, len, offset, 0, NULL);
 		list_add(&data->list, &hdr->rpc_list);
 		nbytes -= len;
 		offset += len;
@@ -340,7 +318,7 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
 		*pages++ = req->wb_page;
 	}
 
-	nfs_read_rpcsetup(data, desc->pg_count, 0);
+	nfs_pgio_rpcsetup(data, desc->pg_count, 0, 0, NULL);
 	list_add(&data->list, &hdr->rpc_list);
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
