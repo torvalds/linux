@@ -2943,9 +2943,13 @@ static void qlcnic_dump_tx_rings(struct qlcnic_adapter *adapter)
 			    tx_ring->tx_stats.xmit_called,
 			    tx_ring->tx_stats.xmit_on,
 			    tx_ring->tx_stats.xmit_off);
+
+		if (tx_ring->crb_intr_mask)
+			netdev_info(netdev, "crb_intr_mask=%d\n",
+				    readl(tx_ring->crb_intr_mask));
+
 		netdev_info(netdev,
-			    "crb_intr_mask=%d, hw_producer=%d, sw_producer=%d sw_consumer=%d, hw_consumer=%d\n",
-			    readl(tx_ring->crb_intr_mask),
+			    "hw_producer=%d, sw_producer=%d sw_consumer=%d, hw_consumer=%d\n",
 			    readl(tx_ring->crb_cmd_producer),
 			    tx_ring->producer, tx_ring->sw_consumer,
 			    le32_to_cpu(*(tx_ring->hw_consumer)));
