@@ -3564,14 +3564,16 @@ static void __init rcu_init_levelspread(struct rcu_state *rsp)
 static void __init rcu_init_one(struct rcu_state *rsp,
 		struct rcu_data __percpu *rda)
 {
-	static char *buf[] = { "rcu_node_0",
-			       "rcu_node_1",
-			       "rcu_node_2",
-			       "rcu_node_3" };  /* Match MAX_RCU_LVLS */
-	static char *fqs[] = { "rcu_node_fqs_0",
-			       "rcu_node_fqs_1",
-			       "rcu_node_fqs_2",
-			       "rcu_node_fqs_3" };  /* Match MAX_RCU_LVLS */
+	static const char * const buf[] = {
+		"rcu_node_0",
+		"rcu_node_1",
+		"rcu_node_2",
+		"rcu_node_3" };  /* Match MAX_RCU_LVLS */
+	static const char * const fqs[] = {
+		"rcu_node_fqs_0",
+		"rcu_node_fqs_1",
+		"rcu_node_fqs_2",
+		"rcu_node_fqs_3" };  /* Match MAX_RCU_LVLS */
 	static u8 fl_mask = 0x1;
 	int cpustride = 1;
 	int i;
