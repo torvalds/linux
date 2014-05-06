@@ -35,6 +35,15 @@
 #define PMU_TDC0_OTF_CAL_MASK		(0x1 << 30)
 #define PMU_TDC0_START_CAL_MASK		(0x1 << 25)
 
+#define A375_Z1_CAL_RESET_LSB		0x8011e214
+#define A375_Z1_CAL_RESET_MSB		0x30a88019
+#define A375_Z1_WORKAROUND_BIT		BIT(9)
+
+#define A375_UNIT_CONTROL_SHIFT		27
+#define A375_UNIT_CONTROL_MASK		0x7
+#define A375_READOUT_INVERT		BIT(15)
+#define A375_HW_RESETn			BIT(8)
+
 struct armada_thermal_data;
 
 /* Marvell EBU Thermal Sensor Dev Structure */
@@ -110,6 +119,36 @@ static void armada370_init_sensor(struct platform_device *pdev,
 	mdelay(10);
 }
 
+static void armada375_init_sensor(struct platform_device *pdev,
+				  struct armada_thermal_priv *priv)
+{
+	unsigned long reg;
+	bool quirk_needed =
+		!!of_device_is_compatible(pdev->dev.of_node,
+					  "marvell,armada375-z1-thermal");
+
+	if (quirk_needed) {
+		/* Ensure these registers have the default (reset) values */
+		writel(A375_Z1_CAL_RESET_LSB, priv->control);
+		writel(A375_Z1_CAL_RESET_MSB, priv->control + 0x4);
+	}
+
+	reg = readl(priv->control + 4);
+	reg &= ~(A375_UNIT_CONTROL_MASK << A375_UNIT_CONTROL_SHIFT);
+	reg &= ~A375_READOUT_INVERT;
+	reg &= ~A375_HW_RESETn;
+
+	if (quirk_needed)
+		reg |= A375_Z1_WORKAROUND_BIT;
+
+	writel(reg, priv->control + 4);
+	mdelay(20);
+
+	reg |= A375_HW_RESETn;
+	writel(reg, priv->control + 4);
+	mdelay(50);
+}
+
 static bool armada_is_valid(struct armada_thermal_priv *priv)
 {
 	unsigned long reg = readl_relaxed(priv->sensor);
@@ -170,6 +209,17 @@ static const struct armada_thermal_data armada370_data = {
 	.coef_div = 13825,
 };
 
+static const struct armada_thermal_data armada375_data = {
+	.is_valid = armada_is_valid,
+	.init_sensor = armada375_init_sensor,
+	.is_valid_shift = 10,
+	.temp_shift = 0,
+	.temp_mask = 0x1ff,
+	.coef_b = 3171900000UL,
+	.coef_m = 10000000UL,
+	.coef_div = 13616,
+};
+
 static const struct of_device_id armada_thermal_id_table[] = {
 	{
 		.compatible = "marvell,armadaxp-thermal",
@@ -178,6 +228,14 @@ static const struct of_device_id armada_thermal_id_table[] = {
 	{
 		.compatible = "marvell,armada370-thermal",
 		.data       = &armada370_data,
+	},
+	{
+		.compatible = "marvell,armada375-thermal",
+		.data       = &armada375_data,
+	},
+	{
+		.compatible = "marvell,armada375-z1-thermal",
+		.data       = &armada375_data,
 	},
 	{
 		/* sentinel */
