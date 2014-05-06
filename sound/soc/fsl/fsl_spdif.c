@@ -762,7 +762,7 @@ static int fsl_spdif_vbit_get(struct snd_kcontrol *kcontrol,
 	struct regmap *regmap = spdif_priv->regmap;
 	u32 val;
 
-	val = regmap_read(regmap, REG_SPDIF_SIS, &val);
+	regmap_read(regmap, REG_SPDIF_SIS, &val);
 	ucontrol->value.integer.value[0] = (val & INT_VAL_NOGOOD) != 0;
 	regmap_write(regmap, REG_SPDIF_SIC, INT_VAL_NOGOOD);
 
