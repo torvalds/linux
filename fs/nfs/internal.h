@@ -231,12 +231,14 @@ extern void nfs_destroy_writepagecache(void);
 
 extern int __init nfs_init_directcache(void);
 extern void nfs_destroy_directcache(void);
-extern bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount);
 extern void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 			      struct nfs_pgio_header *hdr,
 			      void (*release)(struct nfs_pgio_header *hdr));
 void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos);
 int nfs_iocounter_wait(struct nfs_io_counter *c);
+
+struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *, unsigned int);
+void nfs_pgio_data_release(struct nfs_pgio_data *);
 
 static inline void nfs_iocounter_init(struct nfs_io_counter *c)
 {
@@ -407,7 +409,6 @@ extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 extern int nfs_generic_pagein(struct nfs_pageio_descriptor *desc,
 			      struct nfs_pgio_header *hdr);
 extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
-extern void nfs_readdata_release(struct nfs_pgio_data *rdata);
 
 /* super.c */
 void nfs_clone_super(struct super_block *, struct nfs_mount_info *);
@@ -429,7 +430,6 @@ extern void nfs_writehdr_free(struct nfs_pgio_header *hdr);
 extern int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
 			     struct nfs_pgio_header *hdr);
 extern void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio);
-extern void nfs_writedata_release(struct nfs_pgio_data *wdata);
 extern void nfs_commit_free(struct nfs_commit_data *p);
 extern int nfs_initiate_write(struct rpc_clnt *clnt,
 			      struct nfs_pgio_data *data,

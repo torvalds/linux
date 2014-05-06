@@ -26,7 +26,7 @@
 
 static struct kmem_cache *nfs_page_cachep;
 
-bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
+static bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
 {
 	p->npages = pagecount;
 	if (pagecount <= ARRAY_SIZE(p->page_array))
@@ -294,6 +294,66 @@ bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc, struct nfs_page *pr
 	return desc->pg_count + req->wb_bytes <= desc->pg_bsize;
 }
 EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
+
+static inline struct nfs_rw_header *NFS_RW_HEADER(struct nfs_pgio_header *hdr)
+{
+	return container_of(hdr, struct nfs_rw_header, header);
+}
+
+/**
+ * nfs_pgio_data_alloc - Allocate pageio data
+ * @hdr: The header making a request
+ * @pagecount: Number of pages to create
+ */
+struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *hdr,
+					  unsigned int pagecount)
+{
+	struct nfs_pgio_data *data, *prealloc;
+
+	prealloc = &NFS_RW_HEADER(hdr)->rpc_data;
+	if (prealloc->header == NULL)
+		data = prealloc;
+	else
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		goto out;
+
+	if (nfs_pgarray_set(&data->pages, pagecount)) {
+		data->header = hdr;
+		atomic_inc(&hdr->refcnt);
+	} else {
+		if (data != prealloc)
+			kfree(data);
+		data = NULL;
+	}
+out:
+	return data;
+}
+
+/**
+ * nfs_pgio_data_release - Properly free pageio data
+ * @data: The data to release
+ */
+void nfs_pgio_data_release(struct nfs_pgio_data *data)
+{
+	struct nfs_pgio_header *hdr = data->header;
+	struct nfs_rw_header *pageio_header = NFS_RW_HEADER(hdr);
+
+	put_nfs_open_context(data->args.context);
+	if (data->pages.pagevec != data->pages.page_array)
+		kfree(data->pages.pagevec);
+	if (data == &pageio_header->rpc_data) {
+		data->header = NULL;
+		data = NULL;
+	}
+	if (atomic_dec_and_test(&hdr->refcnt))
+		hdr->completion_ops->completion(hdr);
+	/* Note: we only free the rpc_task after callbacks are done.
+	 * See the comment in rpc_free_task() for why
+	 */
+	kfree(data);
+}
+EXPORT_SYMBOL_GPL(nfs_pgio_data_release);
 
 /**
  * nfs_pageio_init - initialise a page io descriptor

@@ -51,31 +51,6 @@ struct nfs_rw_header *nfs_readhdr_alloc(void)
 }
 EXPORT_SYMBOL_GPL(nfs_readhdr_alloc);
 
-static struct nfs_pgio_data *nfs_readdata_alloc(struct nfs_pgio_header *hdr,
-						unsigned int pagecount)
-{
-	struct nfs_pgio_data *data, *prealloc;
-
-	prealloc = &container_of(hdr, struct nfs_rw_header, header)->rpc_data;
-	if (prealloc->header == NULL)
-		data = prealloc;
-	else
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		goto out;
-
-	if (nfs_pgarray_set(&data->pages, pagecount)) {
-		data->header = hdr;
-		atomic_inc(&hdr->refcnt);
-	} else {
-		if (data != prealloc)
-			kfree(data);
-		data = NULL;
-	}
-out:
-	return data;
-}
-
 void nfs_readhdr_free(struct nfs_pgio_header *hdr)
 {
 	struct nfs_rw_header *rhdr = container_of(hdr, struct nfs_rw_header, header);
@@ -83,27 +58,6 @@ void nfs_readhdr_free(struct nfs_pgio_header *hdr)
 	kmem_cache_free(nfs_rdata_cachep, rhdr);
 }
 EXPORT_SYMBOL_GPL(nfs_readhdr_free);
-
-void nfs_readdata_release(struct nfs_pgio_data *rdata)
-{
-	struct nfs_pgio_header *hdr = rdata->header;
-	struct nfs_rw_header *read_header = container_of(hdr, struct nfs_rw_header, header);
-
-	put_nfs_open_context(rdata->args.context);
-	if (rdata->pages.pagevec != rdata->pages.page_array)
-		kfree(rdata->pages.pagevec);
-	if (rdata == &read_header->rpc_data) {
-		rdata->header = NULL;
-		rdata = NULL;
-	}
-	if (atomic_dec_and_test(&hdr->refcnt))
-		hdr->completion_ops->completion(hdr);
-	/* Note: we only free the rpc_task after callbacks are done.
-	 * See the comment in rpc_free_task() for why
-	 */
-	kfree(rdata);
-}
-EXPORT_SYMBOL_GPL(nfs_readdata_release);
 
 static
 int nfs_return_empty_page(struct page *page)
@@ -327,7 +281,7 @@ static void nfs_pagein_error(struct nfs_pageio_descriptor *desc,
 		struct nfs_pgio_data *data = list_first_entry(&hdr->rpc_list,
 				struct nfs_pgio_data, list);
 		list_del(&data->list);
-		nfs_readdata_release(data);
+		nfs_pgio_data_release(data);
 	}
 	desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 }
@@ -359,7 +313,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc,
 	do {
 		size_t len = min(nbytes,rsize);
 
-		data = nfs_readdata_alloc(hdr, 1);
+		data = nfs_pgio_data_alloc(hdr, 1);
 		if (!data) {
 			nfs_pagein_error(desc, hdr);
 			return -ENOMEM;
@@ -385,7 +339,7 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
 	struct nfs_pgio_data	*data;
 	struct list_head *head = &desc->pg_list;
 
-	data = nfs_readdata_alloc(hdr, nfs_page_array_len(desc->pg_base,
+	data = nfs_pgio_data_alloc(hdr, nfs_page_array_len(desc->pg_base,
 							  desc->pg_count));
 	if (!data) {
 		nfs_pagein_error(desc, hdr);
@@ -515,7 +469,7 @@ static void nfs_readpage_result_common(struct rpc_task *task, void *calldata)
 
 static void nfs_readpage_release_common(void *calldata)
 {
-	nfs_readdata_release(calldata);
+	nfs_pgio_data_release(calldata);
 }
 
 void nfs_read_prepare(struct rpc_task *task, void *calldata)
