@@ -7,6 +7,7 @@
 #include <linux/security.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
+#include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 
 #include "internal.h"
@@ -383,6 +384,15 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
 	return vm_mmap_pgoff(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
 }
 EXPORT_SYMBOL(vm_mmap);
+
+void kvfree(const void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		vfree(addr);
+	else
+		kfree(addr);
+}
+EXPORT_SYMBOL(kvfree);
 
 struct address_space *page_mapping(struct page *page)
 {

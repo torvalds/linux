@@ -103,17 +103,3 @@ void *kvmalloc(size_t size)
 	}
 	return buffer;
 }
-
-/**
- * kvfree - free an allocation do by kvmalloc
- * @buffer: buffer to free (MAYBE_NULL)
- *
- * Free a buffer allocated by kvmalloc
- */
-void kvfree(void *buffer)
-{
-	if (is_vmalloc_addr(buffer))
-		vfree(buffer);
-	else
-		kfree(buffer);
-}
