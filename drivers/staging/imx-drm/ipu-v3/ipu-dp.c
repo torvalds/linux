@@ -215,10 +215,9 @@ int ipu_dp_setup_channel(struct ipu_dp *dp,
 }
 EXPORT_SYMBOL_GPL(ipu_dp_setup_channel);
 
-int ipu_dp_enable_channel(struct ipu_dp *dp)
+int ipu_dp_enable(struct ipu_soc *ipu)
 {
-	struct ipu_flow *flow = to_flow(dp);
-	struct ipu_dp_priv *priv = flow->priv;
+	struct ipu_dp_priv *priv = ipu->dp_priv;
 
 	mutex_lock(&priv->mutex);
 
@@ -227,15 +226,28 @@ int ipu_dp_enable_channel(struct ipu_dp *dp)
 
 	priv->use_count++;
 
-	if (dp->foreground) {
-		u32 reg;
+	mutex_unlock(&priv->mutex);
 
-		reg = readl(flow->base + DP_COM_CONF);
-		reg |= DP_COM_CONF_FG_EN;
-		writel(reg, flow->base + DP_COM_CONF);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_dp_enable);
 
-		ipu_srm_dp_sync_update(priv->ipu);
-	}
+int ipu_dp_enable_channel(struct ipu_dp *dp)
+{
+	struct ipu_flow *flow = to_flow(dp);
+	struct ipu_dp_priv *priv = flow->priv;
+	u32 reg;
+
+	if (!dp->foreground)
+		return 0;
+
+	mutex_lock(&priv->mutex);
+
+	reg = readl(flow->base + DP_COM_CONF);
+	reg |= DP_COM_CONF_FG_EN;
+	writel(reg, flow->base + DP_COM_CONF);
+
+	ipu_srm_dp_sync_update(priv->ipu);
 
 	mutex_unlock(&priv->mutex);
 
@@ -247,25 +259,38 @@ void ipu_dp_disable_channel(struct ipu_dp *dp)
 {
 	struct ipu_flow *flow = to_flow(dp);
 	struct ipu_dp_priv *priv = flow->priv;
+	u32 reg, csc;
+
+	if (!dp->foreground)
+		return;
+
+	mutex_lock(&priv->mutex);
+
+	reg = readl(flow->base + DP_COM_CONF);
+	csc = reg & DP_COM_CONF_CSC_DEF_MASK;
+	if (csc == DP_COM_CONF_CSC_DEF_FG)
+		reg &= ~DP_COM_CONF_CSC_DEF_MASK;
+
+	reg &= ~DP_COM_CONF_FG_EN;
+	writel(reg, flow->base + DP_COM_CONF);
+
+	writel(0, flow->base + DP_FG_POS);
+	ipu_srm_dp_sync_update(priv->ipu);
+
+	if (ipu_idmac_channel_busy(priv->ipu, IPUV3_CHANNEL_MEM_BG_SYNC))
+		ipu_wait_interrupt(priv->ipu, IPU_IRQ_DP_SF_END, 50);
+
+	mutex_unlock(&priv->mutex);
+}
+EXPORT_SYMBOL_GPL(ipu_dp_disable_channel);
+
+void ipu_dp_disable(struct ipu_soc *ipu)
+{
+	struct ipu_dp_priv *priv = ipu->dp_priv;
 
 	mutex_lock(&priv->mutex);
 
 	priv->use_count--;
-
-	if (dp->foreground) {
-		u32 reg, csc;
-
-		reg = readl(flow->base + DP_COM_CONF);
-		csc = reg & DP_COM_CONF_CSC_DEF_MASK;
-		if (csc == DP_COM_CONF_CSC_DEF_FG)
-			reg &= ~DP_COM_CONF_CSC_DEF_MASK;
-
-		reg &= ~DP_COM_CONF_FG_EN;
-		writel(reg, flow->base + DP_COM_CONF);
-
-		writel(0, flow->base + DP_FG_POS);
-		ipu_srm_dp_sync_update(priv->ipu);
-	}
 
 	if (!priv->use_count)
 		ipu_module_disable(priv->ipu, IPU_CONF_DP_EN);
@@ -275,7 +300,7 @@ void ipu_dp_disable_channel(struct ipu_dp *dp)
 
 	mutex_unlock(&priv->mutex);
 }
-EXPORT_SYMBOL_GPL(ipu_dp_disable_channel);
+EXPORT_SYMBOL_GPL(ipu_dp_disable);
 
 struct ipu_dp *ipu_dp_get(struct ipu_soc *ipu, unsigned int flow)
 {
