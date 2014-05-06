@@ -310,8 +310,6 @@ struct sliccard {
 	u32           loadtimerset;
 	uint              config_set;
 	struct slic_config  config;
-	struct dentry      *debugfs_dir;
-	struct dentry      *debugfs_cardinfo;
 	struct adapter  *master;
 	struct adapter  *adapter[SLIC_MAX_PORTS];
 	struct sliccard *next;
@@ -450,7 +448,6 @@ struct adapter {
 	u32             pingtimerset;
 	struct timer_list   loadtimer;
 	u32             loadtimerset;
-	struct dentry      *debugfs_entry;
 	struct slic_spinlock     upr_lock;
 	struct slic_spinlock     bit64reglock;
 	struct slic_rspqueue     rspqueue;
