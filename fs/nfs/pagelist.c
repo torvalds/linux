@@ -24,6 +24,8 @@
 #include "internal.h"
 #include "pnfs.h"
 
+#define NFSDBG_FACILITY		NFSDBG_PAGECACHE
+
 static struct kmem_cache *nfs_page_cachep;
 
 static bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
@@ -446,6 +448,27 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_layout_private = NULL;
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init);
+
+/**
+ * nfs_pgio_result - Basic pageio error handling
+ * @task: The task that ran
+ * @calldata: Pageio data to check
+ */
+void nfs_pgio_result(struct rpc_task *task, void *calldata)
+{
+	struct nfs_pgio_data *data = calldata;
+	struct inode *inode = data->header->inode;
+
+	dprintk("NFS: %s: %5u, (status %d)\n", __func__,
+		task->tk_pid, task->tk_status);
+
+	if (data->header->rw_ops->rw_done(task, data, inode) != 0)
+		return;
+	if (task->tk_status < 0)
+		nfs_set_pgio_error(data->header, task->tk_status, data->args.offset);
+	else
+		data->header->rw_ops->rw_result(task, data);
+}
 
 static bool nfs_match_open_context(const struct nfs_open_context *ctx1,
 		const struct nfs_open_context *ctx2)

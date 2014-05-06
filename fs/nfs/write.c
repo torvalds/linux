@@ -1255,20 +1255,6 @@ void nfs_commit_prepare(struct rpc_task *task, void *calldata)
 	NFS_PROTO(data->inode)->commit_rpc_prepare(task, data);
 }
 
-/*
- * Handle a write reply that flushes a whole page.
- *
- * FIXME: There is an inherent race with invalidate_inode_pages and
- *	  writebacks since the page->count is kept > 1 for as long
- *	  as the page has a write request pending.
- */
-static void nfs_writeback_done_common(struct rpc_task *task, void *calldata)
-{
-	struct nfs_pgio_data	*data = calldata;
-
-	nfs_writeback_done(task, data);
-}
-
 static void nfs_writeback_release_common(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
@@ -1288,7 +1274,7 @@ static void nfs_writeback_release_common(struct nfs_pgio_data *data)
 
 static const struct rpc_call_ops nfs_write_common_ops = {
 	.rpc_call_prepare = nfs_pgio_prepare,
-	.rpc_call_done = nfs_writeback_done_common,
+	.rpc_call_done = nfs_pgio_result,
 	.rpc_release = nfs_pgio_release,
 };
 
@@ -1320,15 +1306,10 @@ static int nfs_should_remove_suid(const struct inode *inode)
 /*
  * This function is called when the WRITE call is complete.
  */
-void nfs_writeback_done(struct rpc_task *task, struct nfs_pgio_data *data)
+static int nfs_writeback_done(struct rpc_task *task, struct nfs_pgio_data *data,
+			      struct inode *inode)
 {
-	struct nfs_pgio_args	*argp = &data->args;
-	struct nfs_pgio_res	*resp = &data->res;
-	struct inode		*inode = data->header->inode;
 	int status;
-
-	dprintk("NFS: %5u nfs_writeback_done (status %d)\n",
-		task->tk_pid, task->tk_status);
 
 	/*
 	 * ->write_done will attempt to use post-op attributes to detect
@@ -1339,11 +1320,11 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_pgio_data *data)
 	 */
 	status = NFS_PROTO(inode)->write_done(task, data);
 	if (status != 0)
-		return;
-	nfs_add_stats(inode, NFSIOS_SERVERWRITTENBYTES, resp->count);
+		return status;
+	nfs_add_stats(inode, NFSIOS_SERVERWRITTENBYTES, data->res.count);
 
 #if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
-	if (resp->verf->committed < argp->stable && task->tk_status >= 0) {
+	if (data->res.verf->committed < data->args.stable && task->tk_status >= 0) {
 		/* We tried a write call, but the server did not
 		 * commit data to stable storage even though we
 		 * requested it.
@@ -1359,25 +1340,31 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_pgio_data *data)
 			dprintk("NFS:       faulty NFS server %s:"
 				" (committed = %d) != (stable = %d)\n",
 				NFS_SERVER(inode)->nfs_client->cl_hostname,
-				resp->verf->committed, argp->stable);
+				data->res.verf->committed, data->args.stable);
 			complain = jiffies + 300 * HZ;
 		}
 	}
 #endif
-	if (task->tk_status < 0) {
-		nfs_set_pgio_error(data->header, task->tk_status, argp->offset);
-		return;
-	}
 
 	/* Deal with the suid/sgid bit corner case */
 	if (nfs_should_remove_suid(inode))
 		nfs_mark_for_revalidate(inode);
+	return 0;
+}
+
+/*
+ * This function is called when the WRITE call is complete.
+ */
+static void nfs_writeback_result(struct rpc_task *task, struct nfs_pgio_data *data)
+{
+	struct nfs_pgio_args	*argp = &data->args;
+	struct nfs_pgio_res	*resp = &data->res;
 
 	if (resp->count < argp->count) {
 		static unsigned long    complain;
 
 		/* This a short write! */
-		nfs_inc_stats(inode, NFSIOS_SHORTWRITE);
+		nfs_inc_stats(data->header->inode, NFSIOS_SHORTWRITE);
 
 		/* Has the server at least made some progress? */
 		if (resp->count == 0) {
@@ -1911,4 +1898,6 @@ static const struct nfs_rw_ops nfs_rw_write_ops = {
 	.rw_alloc_header	= nfs_writehdr_alloc,
 	.rw_free_header		= nfs_writehdr_free,
 	.rw_release		= nfs_writeback_release_common,
+	.rw_done		= nfs_writeback_done,
+	.rw_result		= nfs_writeback_result,
 };

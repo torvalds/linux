@@ -388,15 +388,10 @@ static const struct nfs_pageio_ops nfs_pageio_read_ops = {
  * This is the callback from RPC telling us whether a reply was
  * received or some error occurred (timeout or socket shutdown).
  */
-int nfs_readpage_result(struct rpc_task *task, struct nfs_pgio_data *data)
+static int nfs_readpage_done(struct rpc_task *task, struct nfs_pgio_data *data,
+			     struct inode *inode)
 {
-	struct inode *inode = data->header->inode;
-	int status;
-
-	dprintk("NFS: %s: %5u, (status %d)\n", __func__, task->tk_pid,
-			task->tk_status);
-
-	status = NFS_PROTO(inode)->read_done(task, data);
+	int status = NFS_PROTO(inode)->read_done(task, data);
 	if (status != 0)
 		return status;
 
@@ -429,17 +424,11 @@ static void nfs_readpage_retry(struct rpc_task *task, struct nfs_pgio_data *data
 	rpc_restart_call_prepare(task);
 }
 
-static void nfs_readpage_result_common(struct rpc_task *task, void *calldata)
+static void nfs_readpage_result(struct rpc_task *task, struct nfs_pgio_data *data)
 {
-	struct nfs_pgio_data *data = calldata;
 	struct nfs_pgio_header *hdr = data->header;
 
-	/* Note the only returns of nfs_readpage_result are 0 and -EAGAIN */
-	if (nfs_readpage_result(task, data) != 0)
-		return;
-	if (task->tk_status < 0)
-		nfs_set_pgio_error(hdr, task->tk_status, data->args.offset);
-	else if (data->res.eof) {
+	if (data->res.eof) {
 		loff_t bound;
 
 		bound = data->args.offset + data->res.count;
@@ -456,7 +445,7 @@ static void nfs_readpage_result_common(struct rpc_task *task, void *calldata)
 
 static const struct rpc_call_ops nfs_read_common_ops = {
 	.rpc_call_prepare = nfs_pgio_prepare,
-	.rpc_call_done = nfs_readpage_result_common,
+	.rpc_call_done = nfs_pgio_result,
 	.rpc_release = nfs_pgio_release,
 };
 
@@ -625,4 +614,6 @@ static const struct nfs_rw_ops nfs_rw_read_ops = {
 	.rw_mode		= FMODE_READ,
 	.rw_alloc_header	= nfs_readhdr_alloc,
 	.rw_free_header		= nfs_readhdr_free,
+	.rw_done		= nfs_readpage_done,
+	.rw_result		= nfs_readpage_result,
 };
