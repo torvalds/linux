@@ -115,10 +115,12 @@ static int ni_tio_input_inttrig(struct comedi_device *dev,
 	return retval;
 }
 
-static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
+static int ni_tio_input_cmd(struct comedi_subdevice *s)
 {
+	struct ni_gpct *counter = s->private;
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned cidx = counter->counter_index;
+	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	int retval = 0;
 
@@ -164,9 +166,10 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
 	return retval;
 }
 
-static int ni_tio_output_cmd(struct ni_gpct *counter,
-			     struct comedi_async *async)
+static int ni_tio_output_cmd(struct comedi_subdevice *s)
 {
+	struct ni_gpct *counter = s->private;
+
 	dev_err(counter->counter_dev->dev->class_dev,
 		"output commands not yet implemented.\n");
 	return -ENOTSUPP;
@@ -178,9 +181,10 @@ static int ni_tio_output_cmd(struct ni_gpct *counter,
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
 
-static int ni_tio_cmd_setup(struct ni_gpct *counter, struct comedi_async *async)
+static int ni_tio_cmd_setup(struct comedi_subdevice *s)
 {
-	struct comedi_cmd *cmd = &async->cmd;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	struct ni_gpct *counter = s->private;
 	unsigned cidx = counter->counter_index;
 	int set_gate_source = 0;
 	unsigned gate_source;
@@ -219,12 +223,12 @@ int ni_tio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			"Interrupt-driven commands not yet implemented.\n");
 		retval = -EIO;
 	} else {
-		retval = ni_tio_cmd_setup(counter, async);
+		retval = ni_tio_cmd_setup(s);
 		if (retval == 0) {
 			if (cmd->flags & CMDF_WRITE)
-				retval = ni_tio_output_cmd(counter, async);
+				retval = ni_tio_output_cmd(s);
 			else
-				retval = ni_tio_input_cmd(counter, async);
+				retval = ni_tio_input_cmd(s);
 		}
 	}
 	spin_unlock_irqrestore(&counter->lock, flags);
