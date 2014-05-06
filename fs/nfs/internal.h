@@ -242,6 +242,7 @@ struct nfs_rw_header *nfs_rw_header_alloc(const struct nfs_rw_ops *);
 void nfs_rw_header_free(struct nfs_pgio_header *);
 struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *, unsigned int);
 void nfs_pgio_data_release(struct nfs_pgio_data *);
+int nfs_pgio_error(struct nfs_pageio_descriptor *, struct nfs_pgio_header *);
 void nfs_pgio_rpcsetup(struct nfs_pgio_data *, unsigned int, unsigned int, int,
 		       struct nfs_commit_info *);
 

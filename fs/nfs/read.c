@@ -237,19 +237,6 @@ static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops = {
 	.completion = nfs_read_completion,
 };
 
-static void nfs_pagein_error(struct nfs_pageio_descriptor *desc,
-		struct nfs_pgio_header *hdr)
-{
-	set_bit(NFS_IOHDR_REDO, &hdr->flags);
-	while (!list_empty(&hdr->rpc_list)) {
-		struct nfs_pgio_data *data = list_first_entry(&hdr->rpc_list,
-				struct nfs_pgio_data, list);
-		list_del(&data->list);
-		nfs_pgio_data_release(data);
-	}
-	desc->pg_completion_ops->error_cleanup(&desc->pg_list);
-}
-
 /*
  * Generate multiple requests to fill a single page.
  *
@@ -278,10 +265,8 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc,
 		size_t len = min(nbytes,rsize);
 
 		data = nfs_pgio_data_alloc(hdr, 1);
-		if (!data) {
-			nfs_pagein_error(desc, hdr);
-			return -ENOMEM;
-		}
+		if (!data)
+			return nfs_pgio_error(desc, hdr);
 		data->pages.pagevec[0] = page;
 		nfs_pgio_rpcsetup(data, len, offset, 0, NULL);
 		list_add(&data->list, &hdr->rpc_list);
@@ -305,10 +290,8 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
 
 	data = nfs_pgio_data_alloc(hdr, nfs_page_array_len(desc->pg_base,
 							  desc->pg_count));
-	if (!data) {
-		nfs_pagein_error(desc, hdr);
-		return -ENOMEM;
-	}
+	if (!data)
+		return nfs_pgio_error(desc, hdr);
 
 	pages = data->pages.pagevec;
 	while (!list_empty(head)) {
