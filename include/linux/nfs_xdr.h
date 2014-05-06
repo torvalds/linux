@@ -491,18 +491,6 @@ struct nfs4_delegreturnres {
 /*
  * Arguments to the read call.
  */
-struct nfs_readargs {
-	struct nfs4_sequence_args	seq_args;
-	struct nfs_fh *		fh;
-	struct nfs_open_context *context;
-	struct nfs_lock_context *lock_context;
-	nfs4_stateid		stateid;
-	__u64			offset;
-	__u32			count;
-	unsigned int		pgbase;
-	struct page **		pages;
-};
-
 struct nfs_readres {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs_fattr *	fattr;
@@ -513,20 +501,6 @@ struct nfs_readres {
 /*
  * Arguments to the write call.
  */
-struct nfs_writeargs {
-	struct nfs4_sequence_args	seq_args;
-	struct nfs_fh *		fh;
-	struct nfs_open_context *context;
-	struct nfs_lock_context *lock_context;
-	nfs4_stateid		stateid;
-	__u64			offset;
-	__u32			count;
-	enum nfs3_stable_how	stable;
-	unsigned int		pgbase;
-	struct page **		pages;
-	const u32 *		bitmask;
-};
-
 struct nfs_write_verifier {
 	char			data[8];
 };
@@ -542,6 +516,23 @@ struct nfs_writeres {
 	struct nfs_writeverf *	verf;
 	__u32			count;
 	const struct nfs_server *server;
+};
+
+/*
+ * Arguments shared by the read and write call.
+ */
+struct nfs_pgio_args {
+	struct nfs4_sequence_args	seq_args;
+	struct nfs_fh *		fh;
+	struct nfs_open_context *context;
+	struct nfs_lock_context *lock_context;
+	nfs4_stateid		stateid;
+	__u64			offset;
+	__u32			count;
+	unsigned int		pgbase;
+	struct page **		pages;
+	const u32 *		bitmask;	/* used by write */
+	enum nfs3_stable_how	stable;		/* used by write */
 };
 
 /*
@@ -1269,7 +1260,7 @@ struct nfs_read_data {
 	struct list_head	list;
 	struct rpc_task		task;
 	struct nfs_fattr	fattr;	/* fattr storage */
-	struct nfs_readargs args;
+	struct nfs_pgio_args	args;
 	struct nfs_readres  res;
 	unsigned long		timestamp;	/* For lease renewal */
 	int (*read_done_cb) (struct rpc_task *task, struct nfs_read_data *data);
@@ -1321,7 +1312,7 @@ struct nfs_write_data {
 	struct rpc_task		task;
 	struct nfs_fattr	fattr;
 	struct nfs_writeverf	verf;
-	struct nfs_writeargs	args;		/* argument struct */
+	struct nfs_pgio_args	args;		/* argument struct */
 	struct nfs_writeres	res;		/* result struct */
 	unsigned long		timestamp;	/* For lease renewal */
 	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);

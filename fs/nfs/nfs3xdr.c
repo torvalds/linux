@@ -953,7 +953,7 @@ static void nfs3_xdr_enc_readlink3args(struct rpc_rqst *req,
  *	};
  */
 static void encode_read3args(struct xdr_stream *xdr,
-			     const struct nfs_readargs *args)
+			     const struct nfs_pgio_args *args)
 {
 	__be32 *p;
 
@@ -966,7 +966,7 @@ static void encode_read3args(struct xdr_stream *xdr,
 
 static void nfs3_xdr_enc_read3args(struct rpc_rqst *req,
 				   struct xdr_stream *xdr,
-				   const struct nfs_readargs *args)
+				   const struct nfs_pgio_args *args)
 {
 	encode_read3args(xdr, args);
 	prepare_reply_buffer(req, args->pages, args->pgbase,
@@ -992,7 +992,7 @@ static void nfs3_xdr_enc_read3args(struct rpc_rqst *req,
  *	};
  */
 static void encode_write3args(struct xdr_stream *xdr,
-			      const struct nfs_writeargs *args)
+			      const struct nfs_pgio_args *args)
 {
 	__be32 *p;
 
@@ -1008,7 +1008,7 @@ static void encode_write3args(struct xdr_stream *xdr,
 
 static void nfs3_xdr_enc_write3args(struct rpc_rqst *req,
 				    struct xdr_stream *xdr,
-				    const struct nfs_writeargs *args)
+				    const struct nfs_pgio_args *args)
 {
 	encode_write3args(xdr, args);
 	xdr->buf->flags |= XDRBUF_WRITE;

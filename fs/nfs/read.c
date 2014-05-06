@@ -470,7 +470,7 @@ int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
 
 static void nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data)
 {
-	struct nfs_readargs *argp = &data->args;
+	struct nfs_pgio_args *argp = &data->args;
 	struct nfs_readres *resp = &data->res;
 
 	/* This is a short read! */

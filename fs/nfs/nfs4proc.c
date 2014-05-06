@@ -4055,7 +4055,7 @@ static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_read_data *data)
 }
 
 static bool nfs4_read_stateid_changed(struct rpc_task *task,
-		struct nfs_readargs *args)
+		struct nfs_pgio_args *args)
 {
 
 	if (!nfs4_error_stateid_expired(task->tk_status) ||
@@ -4121,7 +4121,7 @@ static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_write_data *data
 }
 
 static bool nfs4_write_stateid_changed(struct rpc_task *task,
-		struct nfs_writeargs *args)
+		struct nfs_pgio_args *args)
 {
 
 	if (!nfs4_error_stateid_expired(task->tk_status) ||
