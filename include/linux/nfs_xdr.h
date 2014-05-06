@@ -1429,11 +1429,10 @@ struct nfs_rpc_ops {
 			     struct nfs_pathconf *);
 	int	(*set_capabilities)(struct nfs_server *, struct nfs_fh *);
 	int	(*decode_dirent)(struct xdr_stream *, struct nfs_entry *, int);
+	int	(*pgio_rpc_prepare)(struct rpc_task *, struct nfs_pgio_data *);
 	void	(*read_setup)   (struct nfs_pgio_data *, struct rpc_message *);
-	int	(*read_rpc_prepare)(struct rpc_task *, struct nfs_pgio_data *);
 	int	(*read_done)  (struct rpc_task *, struct nfs_pgio_data *);
 	void	(*write_setup)  (struct nfs_pgio_data *, struct rpc_message *);
-	int	(*write_rpc_prepare)(struct rpc_task *, struct nfs_pgio_data *);
 	int	(*write_done)  (struct rpc_task *, struct nfs_pgio_data *);
 	void	(*commit_setup) (struct nfs_commit_data *, struct rpc_message *);
 	void	(*commit_rpc_prepare)(struct rpc_task *, struct nfs_commit_data *);

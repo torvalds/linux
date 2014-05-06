@@ -454,24 +454,10 @@ static void nfs_readpage_result_common(struct rpc_task *task, void *calldata)
 		nfs_readpage_retry(task, data);
 }
 
-static void nfs_readpage_release_common(void *calldata)
-{
-	nfs_pgio_data_release(calldata);
-}
-
-void nfs_read_prepare(struct rpc_task *task, void *calldata)
-{
-	struct nfs_pgio_data *data = calldata;
-	int err;
-	err = NFS_PROTO(data->header->inode)->read_rpc_prepare(task, data);
-	if (err)
-		rpc_exit(task, err);
-}
-
 static const struct rpc_call_ops nfs_read_common_ops = {
-	.rpc_call_prepare = nfs_read_prepare,
+	.rpc_call_prepare = nfs_pgio_prepare,
 	.rpc_call_done = nfs_readpage_result_common,
-	.rpc_release = nfs_readpage_release_common,
+	.rpc_release = nfs_pgio_release,
 };
 
 /*
@@ -636,6 +622,7 @@ void nfs_destroy_readpagecache(void)
 }
 
 static const struct nfs_rw_ops nfs_rw_read_ops = {
+	.rw_mode		= FMODE_READ,
 	.rw_alloc_header	= nfs_readhdr_alloc,
 	.rw_free_header		= nfs_readhdr_free,
 };

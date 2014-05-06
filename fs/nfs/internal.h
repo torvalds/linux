@@ -241,6 +241,8 @@ struct nfs_rw_header *nfs_rw_header_alloc(const struct nfs_rw_ops *);
 void nfs_rw_header_free(struct nfs_pgio_header *);
 struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *, unsigned int);
 void nfs_pgio_data_release(struct nfs_pgio_data *);
+void nfs_pgio_prepare(struct rpc_task *, void *);
+void nfs_pgio_release(void *);
 
 static inline void nfs_iocounter_init(struct nfs_io_counter *c)
 {

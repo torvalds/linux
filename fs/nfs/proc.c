@@ -599,7 +599,7 @@ static void nfs_proc_read_setup(struct nfs_pgio_data *data, struct rpc_message *
 	msg->rpc_proc = &nfs_procedures[NFSPROC_READ];
 }
 
-static int nfs_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
+static int nfs_proc_pgio_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	rpc_call_start(task);
 	return 0;
@@ -619,12 +619,6 @@ static void nfs_proc_write_setup(struct nfs_pgio_data *data, struct rpc_message 
 	/* Note: NFSv2 ignores @stable and always uses NFS_FILE_SYNC */
 	data->args.stable = NFS_FILE_SYNC;
 	msg->rpc_proc = &nfs_procedures[NFSPROC_WRITE];
-}
-
-static int nfs_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
-{
-	rpc_call_start(task);
-	return 0;
 }
 
 static void nfs_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
@@ -734,11 +728,10 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.fsinfo		= nfs_proc_fsinfo,
 	.pathconf	= nfs_proc_pathconf,
 	.decode_dirent	= nfs2_decode_dirent,
+	.pgio_rpc_prepare = nfs_proc_pgio_rpc_prepare,
 	.read_setup	= nfs_proc_read_setup,
-	.read_rpc_prepare = nfs_proc_read_rpc_prepare,
 	.read_done	= nfs_read_done,
 	.write_setup	= nfs_proc_write_setup,
-	.write_rpc_prepare = nfs_proc_write_rpc_prepare,
 	.write_done	= nfs_write_done,
 	.commit_setup	= nfs_proc_commit_setup,
 	.commit_rpc_prepare = nfs_proc_commit_rpc_prepare,

@@ -4089,7 +4089,7 @@ static void nfs4_proc_read_setup(struct nfs_pgio_data *data, struct rpc_message 
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
 }
 
-static int nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
+static int nfs4_proc_pgio_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
 			&data->args.seq_args,
@@ -4097,7 +4097,7 @@ static int nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_pgio_dat
 			task))
 		return 0;
 	if (nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
-				data->args.lock_context, FMODE_READ) == -EIO)
+				data->args.lock_context, data->header->rw_ops->rw_mode) == -EIO)
 		return -EIO;
 	if (unlikely(test_bit(NFS_CONTEXT_BAD, &data->args.context->flags)))
 		return -EIO;
@@ -4175,21 +4175,6 @@ static void nfs4_proc_write_setup(struct nfs_pgio_data *data, struct rpc_message
 
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_WRITE];
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 1);
-}
-
-static int nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
-{
-	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
-			&data->args.seq_args,
-			&data->res.seq_res,
-			task))
-		return 0;
-	if (nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
-				data->args.lock_context, FMODE_WRITE) == -EIO)
-		return -EIO;
-	if (unlikely(test_bit(NFS_CONTEXT_BAD, &data->args.context->flags)))
-		return -EIO;
-	return 0;
 }
 
 static void nfs4_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
@@ -8432,11 +8417,10 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.pathconf	= nfs4_proc_pathconf,
 	.set_capabilities = nfs4_server_capabilities,
 	.decode_dirent	= nfs4_decode_dirent,
+	.pgio_rpc_prepare = nfs4_proc_pgio_rpc_prepare,
 	.read_setup	= nfs4_proc_read_setup,
-	.read_rpc_prepare = nfs4_proc_read_rpc_prepare,
 	.read_done	= nfs4_read_done,
 	.write_setup	= nfs4_proc_write_setup,
-	.write_rpc_prepare = nfs4_proc_write_rpc_prepare,
 	.write_done	= nfs4_write_done,
 	.commit_setup	= nfs4_proc_commit_setup,
 	.commit_rpc_prepare = nfs4_proc_commit_rpc_prepare,

@@ -812,7 +812,7 @@ static void nfs3_proc_read_setup(struct nfs_pgio_data *data, struct rpc_message 
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_READ];
 }
 
-static int nfs3_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
+static int nfs3_proc_pgio_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	rpc_call_start(task);
 	return 0;
@@ -832,12 +832,6 @@ static int nfs3_write_done(struct rpc_task *task, struct nfs_pgio_data *data)
 static void nfs3_proc_write_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_WRITE];
-}
-
-static int nfs3_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
-{
-	rpc_call_start(task);
-	return 0;
 }
 
 static void nfs3_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
@@ -946,11 +940,10 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.fsinfo		= nfs3_proc_fsinfo,
 	.pathconf	= nfs3_proc_pathconf,
 	.decode_dirent	= nfs3_decode_dirent,
+	.pgio_rpc_prepare = nfs3_proc_pgio_rpc_prepare,
 	.read_setup	= nfs3_proc_read_setup,
-	.read_rpc_prepare = nfs3_proc_read_rpc_prepare,
 	.read_done	= nfs3_read_done,
 	.write_setup	= nfs3_proc_write_setup,
-	.write_rpc_prepare = nfs3_proc_write_rpc_prepare,
 	.write_done	= nfs3_write_done,
 	.commit_setup	= nfs3_proc_commit_setup,
 	.commit_rpc_prepare = nfs3_proc_commit_rpc_prepare,

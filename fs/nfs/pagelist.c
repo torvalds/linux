@@ -387,6 +387,32 @@ void nfs_pgio_data_release(struct nfs_pgio_data *data)
 EXPORT_SYMBOL_GPL(nfs_pgio_data_release);
 
 /**
+ * nfs_pgio_prepare - Prepare pageio data to go over the wire
+ * @task: The current task
+ * @calldata: pageio data to prepare
+ */
+void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs_pgio_data *data = calldata;
+	int err;
+	err = NFS_PROTO(data->header->inode)->pgio_rpc_prepare(task, data);
+	if (err)
+		rpc_exit(task, err);
+}
+
+/**
+ * nfs_pgio_release - Release pageio data
+ * @calldata: The pageio data to release
+ */
+void nfs_pgio_release(void *calldata)
+{
+	struct nfs_pgio_data *data = calldata;
+	if (data->header->rw_ops->rw_release)
+		data->header->rw_ops->rw_release(data);
+	nfs_pgio_data_release(data);
+}
+
+/**
  * nfs_pageio_init - initialise a page io descriptor
  * @desc: pointer to descriptor
  * @inode: pointer to inode

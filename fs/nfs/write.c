@@ -1248,15 +1248,6 @@ void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);
 
 
-void nfs_write_prepare(struct rpc_task *task, void *calldata)
-{
-	struct nfs_pgio_data *data = calldata;
-	int err;
-	err = NFS_PROTO(data->header->inode)->write_rpc_prepare(task, data);
-	if (err)
-		rpc_exit(task, err);
-}
-
 void nfs_commit_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_commit_data *data = calldata;
@@ -1278,9 +1269,8 @@ static void nfs_writeback_done_common(struct rpc_task *task, void *calldata)
 	nfs_writeback_done(task, data);
 }
 
-static void nfs_writeback_release_common(void *calldata)
+static void nfs_writeback_release_common(struct nfs_pgio_data *data)
 {
-	struct nfs_pgio_data	*data = calldata;
 	struct nfs_pgio_header *hdr = data->header;
 	int status = data->task.tk_status;
 
@@ -1294,13 +1284,12 @@ static void nfs_writeback_release_common(void *calldata)
 			set_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags);
 		spin_unlock(&hdr->lock);
 	}
-	nfs_pgio_data_release(data);
 }
 
 static const struct rpc_call_ops nfs_write_common_ops = {
-	.rpc_call_prepare = nfs_write_prepare,
+	.rpc_call_prepare = nfs_pgio_prepare,
 	.rpc_call_done = nfs_writeback_done_common,
-	.rpc_release = nfs_writeback_release_common,
+	.rpc_release = nfs_pgio_release,
 };
 
 /*
@@ -1918,6 +1907,8 @@ void nfs_destroy_writepagecache(void)
 }
 
 static const struct nfs_rw_ops nfs_rw_write_ops = {
+	.rw_mode		= FMODE_WRITE,
 	.rw_alloc_header	= nfs_writehdr_alloc,
 	.rw_free_header		= nfs_writehdr_free,
+	.rw_release		= nfs_writeback_release_common,
 };
