@@ -59,3 +59,4 @@ obj-$(CONFIG_CW2015_BATTERY)  += cw2015_battery.o
 obj-$(CONFIG_BATTERY_RICOH619)	+= ricoh619-battery.o
 obj-$(CONFIG_CHARGER_DISPLAY)		+= rk29_charger_display.o
 obj-$(CONFIG_POWER_RESET)	+= reset/
+obj-$(CONFIG_BATTERY_RK818)     += rk818_battery.o

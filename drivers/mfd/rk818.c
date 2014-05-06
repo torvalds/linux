@@ -49,11 +49,11 @@ static struct mfd_cell rk818s[] = {
 	{
 		.name = "rk818-rtc",
 	},
-	/*
+
 	{
 		.name = "rk818-battery",
 	},
-	{
+	/*	{
 		.name = "rk818-power",
 	},	
 	*/

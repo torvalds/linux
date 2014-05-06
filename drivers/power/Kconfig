@@ -385,6 +385,14 @@ config BATTERY_GOLDFISH
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.
 
+config BATTERY_RK818
+       bool "RK818 Battery driver"
+       depends on MFD_RK818
+       default n
+       help
+         Support for RK818 Battery driver.
+         This driver can give support for Rk818 Battery Charge Interface.
+
 config CHARGER_DISPLAY
 	bool "Support charger display"
 

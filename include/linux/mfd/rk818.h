@@ -16,7 +16,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/wakelock.h>
 #include <linux/power_supply.h>
-//#include <linux/power/rk818_battery.h>
+#include <linux/power/rk818_battery.h>
 
 //#define RK818_START 30
 
@@ -129,41 +129,6 @@ struct rk818;
 #define EN_VBAT_LOW_IRQ (0x1 <<4 )
 #define VBAT_LOW_ACT_MASK (0x1 << 4)
 
-
-struct rk818_battery_info {
-	struct i2c_client *client;
-	struct rk818 *chip;
-	struct power_supply	battery;
-	struct power_supply	ac;
-	struct power_supply	usb;
-	
-	struct delayed_work monitor_work;
-	struct wake_lock monitor_wake_lock;
-	struct wake_lock low_battery_wake_lock;
-	struct wake_lock status_wake_lock;
-	struct wake_lock test_wake_lock;
-	struct workqueue_struct *workqueue;
-	struct work_struct	usb_irq_work;
-
-	int usb_cnt;
-
-	struct mutex	var_lock;
-
-	u16 vcell;
-  	/* battery current */
- 	s16 curr;
-	u16 soc;
-	s16 ext_temp;
-	u8 online;
-  	u8 status;
- 	u8 internal_status;
- 	u8 health;
-  	u8 present;
-	unsigned		ac_online:1;
-	unsigned		usb_online:1;
-	
-};
-
 struct rk818_board {
 	int irq;
 	int irq_base;
@@ -200,7 +165,7 @@ struct rk818 {
 	struct irq_domain *irq_domain;
 	int (*read)(struct rk818 *rk818, u8 reg, int size, void *dest);
 	int (*write)(struct rk818 *rk818, u8 reg, int size, void *src);
-	struct rk818_battery_info *battery_info;
+	struct battery_platform_data *battery_data;
 	int pmic_sleep_gpio; /* */
 	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
 	bool pmic_sleep;
@@ -217,7 +182,7 @@ struct rk818_platform_data {
 };
 
 int rk818_irq_init(struct rk818 *rk818, int irq,struct rk818_board *pdata);
- int rk818_i2c_read(struct rk818 *rk818, char reg, int count,u8 *dest);
+int rk818_i2c_read(struct rk818 *rk818, char reg, int count,u8 *dest);
 //int rk818_i2c_read(struct i2c_client *i2c, char reg, int count,u16 *dest);
 // int rk818_i2c_read(struct rk818 *rk818 , u8 reg, int bytes,void *dest); 
 int rk818_i2c_write(struct rk818 *rk818, char reg, int count, const u8 src);
