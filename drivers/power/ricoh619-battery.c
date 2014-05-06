@@ -19,7 +19,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#define RICOH619_BATTERY_VERSION "RICOH619_BATTERY_VERSION: 2014.03.28"
+#define RICOH619_BATTERY_VERSION "RICOH619_BATTERY_VERSION: 2014.05.06"
 
 
 #include <linux/kernel.h>
@@ -49,7 +49,7 @@
 #define DISABLE_CHARGER_TIMER
 /* #define ENABLE_FG_KEEP_ON_MODE */
 /* #define ENABLE_OCV_TABLE_CALIB */
-
+//#define SUPPORT_USB_CONNECT_TO_ADP
 
 
 /* FG setting */
@@ -2600,7 +2600,7 @@ static int ricoh619_init_battery(struct ricoh619_battery_info *info)
 
 #endif
 
-	ret = ricoh619_write(info->dev->parent, VINDAC_REG, 0x01);
+	ret = ricoh619_write(info->dev->parent, VINDAC_REG, 0x03);
 	if (ret < 0) {
 		dev_err(info->dev, "Error in writing the control register\n");
 		return ret;
@@ -3076,7 +3076,7 @@ static void charger_irq_work(struct work_struct *work)
 {
 	struct ricoh619_battery_info *info
 		 = container_of(work, struct ricoh619_battery_info, irq_work);
-	int ret = 0;
+	int ret = 0,i;
 	uint8_t reg_val;
 	RICOH_FG_DBG("PMU:%s In\n", __func__);
 
@@ -3084,11 +3084,31 @@ static void charger_irq_work(struct work_struct *work)
 	power_supply_changed(&powerac);
 	power_supply_changed(&powerusb);
 
-//	mutex_lock(&info->lock);
+	mutex_lock(&info->lock);
 	
 	if (info->chg_stat1 & 0x01) {
 		ricoh619_read(info->dev->parent, CHGSTATE_REG, &reg_val);
 		if (reg_val & 0x40) { /* USE ADP */	
+			#ifdef SUPPORT_USB_CONNECT_TO_ADP
+				for(i =0;i<60;i++){
+				RICOH_FG_DBG("PMU:%s usb det dwc_otg_check_dpdm =%d\n", __func__,dwc_otg_check_dpdm(0));
+				if(2 == dwc_otg_check_dpdm(0)){
+				/* set adp limit current 2A */
+				ricoh619_write(info->dev->parent, REGISET1_REG, 0x16);
+				/* set charge current 2A */
+				ricoh619_write(info->dev->parent, CHGISET_REG, 0xD3); 
+				}
+				else {
+				/* set adp limit current 500ma */
+				ricoh619_write(info->dev->parent, REGISET1_REG, 0x04);
+				/* set charge current 500ma */
+				ricoh619_write(info->dev->parent, CHGISET_REG, 0xc4); 
+				}
+				mdelay(10);
+				power_supply_changed(&powerac);
+				power_supply_changed(&powerusb);
+				}
+			#else //support adp and usb chag
 			if (gpio_is_valid(g_ricoh619->dc_det)){
 				ret = gpio_request(g_ricoh619->dc_det, "ricoh619_dc_det");
 				if (ret < 0) {
@@ -3096,9 +3116,10 @@ static void charger_irq_work(struct work_struct *work)
 				}
 				gpio_direction_input(g_ricoh619->dc_det);
 				ret = gpio_get_value(g_ricoh619->dc_det);
+
 				if (ret ==0){
 					/* set adp limit current 2A */
-					ricoh619_write(info->dev->parent, REGISET1_REG, 0x13);
+					ricoh619_write(info->dev->parent, REGISET1_REG, 0x16);
 					/* set charge current 2A */
 					ricoh619_write(info->dev->parent, CHGISET_REG, 0xD3);
  				}
@@ -3112,11 +3133,12 @@ static void charger_irq_work(struct work_struct *work)
 			}
 			else{
 				/* set adp limit current 2A */
-				ricoh619_write(info->dev->parent, REGISET1_REG, 0x13);
+				ricoh619_write(info->dev->parent, REGISET1_REG, 0x16);
 				/* set charge current 2A */
 				ricoh619_write(info->dev->parent, CHGISET_REG, 0xD3); 
 			}
-		}
+			#endif
+		}	
 		else if (reg_val & 0x80) { /* USE USB */
 			queue_work(info->usb_workqueue, &info->usb_irq_work);
 		}
@@ -3138,7 +3160,7 @@ static void charger_irq_work(struct work_struct *work)
 			 "%s(): Error in enable charger mask INT %d\n",
 			 __func__, ret);
 
-//	mutex_unlock(&info->lock);
+	mutex_unlock(&info->lock);
 	RICOH_FG_DBG("PMU:%s Out\n", __func__);
 }
 
@@ -3168,8 +3190,9 @@ static void ricoh619_usb_charge_det(void)
 {
 	struct ricoh619 *ricoh619 = g_ricoh619;
 	ricoh619_set_bits(ricoh619->dev,REGISET2_REG,(1 << 7));  //set usb limit current  when SDP or other mode
+	RICOH_FG_DBG("PMU:%s usb det dwc_otg_check_dpdm =%d\n", __func__,dwc_otg_check_dpdm(0));
 	if(2 == dwc_otg_check_dpdm(0)){
-	ricoh619_write(ricoh619->dev,REGISET2_REG,0x13);  //set usb limit current  2A
+	ricoh619_write(ricoh619->dev,REGISET2_REG,0x16);  //set usb limit current  2A
 	ricoh619_write(ricoh619->dev,CHGISET_REG,0xD3);  //set charge current  2A
 	}
 	else {
@@ -3184,7 +3207,7 @@ static void usb_det_irq_work(struct work_struct *work)
 {
 	struct ricoh619_battery_info *info = container_of(work,
 		 struct ricoh619_battery_info, usb_irq_work);
-	int ret = 0;
+	int ret = 0,i;
 	uint8_t sts;
 
 	RICOH_FG_DBG("PMU:%s In\n", __func__);
@@ -3210,7 +3233,10 @@ static void usb_det_irq_work(struct work_struct *work)
 
 	sts &= 0x02;
 	if (sts) {
+		for(i =0;i<60;i++){
 		ricoh619_usb_charge_det();
+		mdelay(10);
+		}
 	} else {
 		/*********************/
 		/* No process ??     */
@@ -3855,10 +3881,23 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 			mutex_unlock(&info->lock);
 			return ret;
 		}
-		if (psy->type == POWER_SUPPLY_TYPE_MAINS)
-			val->intval = (status & 0x40 ? 1 : 0);
-		else if (psy->type == POWER_SUPPLY_TYPE_USB)
-			val->intval = (status & 0x80 ? 1 : 0);
+		#ifdef SUPPORT_USB_CONNECT_TO_ADP
+			if (psy->type == POWER_SUPPLY_TYPE_MAINS)
+				if((2 == dwc_otg_check_dpdm(0)) && (status & 0x40))
+					val->intval =1;
+				else 
+					val->intval =0;
+			else if (psy->type == POWER_SUPPLY_TYPE_USB)
+				if((1 == dwc_otg_check_dpdm(0)) && (status & 0x40))
+					val->intval =1;
+				else 
+					val->intval =0;
+		#else
+			if (psy->type == POWER_SUPPLY_TYPE_MAINS)
+				val->intval = (status & 0x40 ? 1 : 0);
+			else if (psy->type == POWER_SUPPLY_TYPE_USB)
+				val->intval = (status & 0x80 ? 1 : 0);
+		#endif
 		break;
 	/* this setting is same as battery driver of 584 */
 	case POWER_SUPPLY_PROP_STATUS:

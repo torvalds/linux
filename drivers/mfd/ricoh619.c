@@ -429,7 +429,7 @@ static int ricoh619_power_off(void)
        ret = ricoh619_write(ricoh619->dev, RICOH619_INTC_INTEN, 0); 
 	ret = ricoh619_clr_bits(ricoh619->dev,RICOH619_PWR_REP_CNT,(0x1<<0));//Not repeat power ON after power off(Power Off/N_OE)
 
-	if(( charge_state == CHG_STATE_CHG_TRICKLE)||( charge_state == CHG_STATE_CHG_RAPID))
+	if(( charge_state == CHG_STATE_CHG_TRICKLE)||( charge_state == CHG_STATE_CHG_RAPID) ||(charge_state == CHG_STATE_CHG_COMPLETE))
 		 ricoh619_set_bits(ricoh619->dev, RICOH619_PWR_REP_CNT,(0x1<<0));//Power OFF
 	ret = ricoh619_set_bits(ricoh619->dev, RICOH619_PWR_SLP_CNT,(0x1<<0));//Power OFF
 	if (ret < 0) {
@@ -771,6 +771,8 @@ static int ricoh619_pre_init(struct ricoh619 *ricoh619)
 	printk("%s,line=%d ricoh619 power off his %08x\n", __func__,__LINE__,val);
 	*/
 	ricoh619_set_bits(ricoh619->dev, 0xae, (0x1 <<6));//enable alam_d
+	ricoh619_write(ricoh619->dev, 0x2f, 0x43);//slove ripple
+	ricoh619_write(ricoh619->dev, 0x05, 0x07);//enable clkout2
 	
 	ricoh619_noe_init(ricoh619);
 	/***************set PKEY long press time 0sec*******/
@@ -818,7 +820,7 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 	if (ricoh619->dev->of_node)
 		pdata = ricoh619_parse_dt(ricoh619);
 	
-	if (gpio_is_valid(pdata->dc_det)) 
+	if (pdata->dc_det) 
 		ricoh619->dc_det = pdata->dc_det;
 	
 	/******************************set sleep vol & dcdc mode******************/
