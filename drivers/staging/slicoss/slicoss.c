@@ -3594,7 +3594,6 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 	struct net_device *netdev;
 	struct adapter *adapter;
 	void __iomem *memmapped_ioaddr = NULL;
-	u32 status = 0;
 	ulong mmio_start = 0;
 	ulong mmio_len = 0;
 	struct sliccard *card = NULL;
@@ -3685,16 +3684,11 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 		adapter->allocated = 1;
 	}
 
-	status = slic_card_init(card, adapter);
+	err = slic_card_init(card, adapter);
+	if (err)
+		goto err_out_unmap;
 
-	if (status != 0) {
-		card->state = CARD_FAIL;
-		adapter->state = ADAPT_FAIL;
-		adapter->linkstate = LINK_DOWN;
-		dev_err(&pcidev->dev, "FAILED status[%x]\n", status);
-	} else {
-		slic_adapter_set_hwaddr(adapter);
-	}
+	slic_adapter_set_hwaddr(adapter);
 
 	netdev->base_addr = (unsigned long)adapter->memorybase;
 	netdev->irq = adapter->irq;
@@ -3711,7 +3705,7 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 
 	cards_found++;
 
-	return status;
+	return 0;
 
 err_out_unmap:
 	iounmap(memmapped_ioaddr);
