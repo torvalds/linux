@@ -2761,6 +2761,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->caps |= MMC_CAP_POWER_OFF_CARD;
 	if (of_find_property(host->dev->of_node, "cap-sdio-irq", NULL))
 		mmc->caps |= MMC_CAP_SDIO_IRQ;
+	if (of_find_property(host->dev->of_node, "poll-hw-reset", NULL))
+		mmc->caps |= MMC_CAP_HW_RESET;
 	if (of_find_property(host->dev->of_node, "full-pwr-cycle", NULL))
 		mmc->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
 	if (of_find_property(host->dev->of_node, "keep-power-in-suspend", NULL))

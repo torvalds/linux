@@ -82,6 +82,8 @@ Required Properties:
 * vmmc-supply: The phandle to the regulator to use for vmmc.  If this is
           specified we'll defer probe until we can find this regulator.
 
+* poll-hw-reset: need hardware reset for some eMMCs with VCCQ always supplied when powered up
+  	to enter idle state.
 
 Example: adding device info in dtsi file
 

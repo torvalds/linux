@@ -211,7 +211,8 @@
 		bootpart-no-access;
         ignore-pm-notify;
 		keep-power-in-suspend;
-    	status = "okay";
+		//poll-hw-reset 
+		status = "okay";
 };
     
 &sdmmc {
