@@ -168,7 +168,8 @@ nouveau_bios_shadow_prom(struct nouveau_bios *bios)
 	 */
 	i = 16;
 	do {
-		if ((nv_rd32(bios, 0x300000) & 0xffff) == 0xaa55)
+		u32 data = le32_to_cpu(nv_rd32(bios, 0x300000)) & 0xffff;
+		if (data == 0xaa55)
 			break;
 	} while (i--);
 
@@ -176,14 +177,15 @@ nouveau_bios_shadow_prom(struct nouveau_bios *bios)
 		goto out;
 
 	/* read entire bios image to system memory */
-	bios->size = ((nv_rd32(bios, 0x300000) >> 16) & 0xff) * 512;
+	bios->size = (le32_to_cpu(nv_rd32(bios, 0x300000)) >> 16) & 0xff;
+	bios->size = bios->size * 512;
 	if (!bios->size)
 		goto out;
 
 	bios->data = kmalloc(bios->size, GFP_KERNEL);
 	if (bios->data) {
-		for (i = 0; i < bios->size; i+=4)
-			nv_wo32(bios, i, nv_rd32(bios, 0x300000 + i));
+		for (i = 0; i < bios->size; i += 4)
+			((u32 *)bios->data)[i/4] = nv_rd32(bios, 0x300000 + i);
 	}
 
 	/* check the PCI record header */
