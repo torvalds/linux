@@ -688,7 +688,7 @@ static int nfs_pgio_one(struct nfs_pageio_descriptor *desc,
 	return 0;
 }
 
-int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
+static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 {
 	struct nfs_rw_header *rw_hdr;
 	struct nfs_pgio_header *hdr;
@@ -932,4 +932,9 @@ static const struct rpc_call_ops nfs_pgio_common_ops = {
 	.rpc_call_prepare = nfs_pgio_prepare,
 	.rpc_call_done = nfs_pgio_result,
 	.rpc_release = nfs_pgio_release,
+};
+
+const struct nfs_pageio_ops nfs_pgio_rw_ops = {
+	.pg_test = nfs_generic_pg_test,
+	.pg_doio = nfs_generic_pg_pgios,
 };

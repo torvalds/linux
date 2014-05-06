@@ -973,17 +973,12 @@ static const struct nfs_pgio_completion_ops nfs_async_write_completion_ops = {
 	.completion = nfs_write_completion,
 };
 
-static const struct nfs_pageio_ops nfs_pageio_write_ops = {
-	.pg_test = nfs_generic_pg_test,
-	.pg_doio = nfs_generic_pg_pgios,
-};
-
 void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 			       struct inode *inode, int ioflags, bool force_mds,
 			       const struct nfs_pgio_completion_ops *compl_ops)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	const struct nfs_pageio_ops *pg_ops = &nfs_pageio_write_ops;
+	const struct nfs_pageio_ops *pg_ops = &nfs_pgio_rw_ops;
 
 #ifdef CONFIG_NFS_V4_1
 	if (server->pnfs_curr_ld && !force_mds)
@@ -996,7 +991,7 @@ EXPORT_SYMBOL_GPL(nfs_pageio_init_write);
 
 void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 {
-	pgio->pg_ops = &nfs_pageio_write_ops;
+	pgio->pg_ops = &nfs_pgio_rw_ops;
 	pgio->pg_bsize = NFS_SERVER(pgio->pg_inode)->wsize;
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);

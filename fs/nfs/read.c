@@ -28,7 +28,6 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
-static const struct nfs_pageio_ops nfs_pageio_read_ops;
 static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops;
 static const struct nfs_rw_ops nfs_rw_read_ops;
 
@@ -58,7 +57,7 @@ void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 			      const struct nfs_pgio_completion_ops *compl_ops)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	const struct nfs_pageio_ops *pg_ops = &nfs_pageio_read_ops;
+	const struct nfs_pageio_ops *pg_ops = &nfs_pgio_rw_ops;
 
 #ifdef CONFIG_NFS_V4_1
 	if (server->pnfs_curr_ld && !force_mds)
@@ -71,7 +70,7 @@ EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
 
 void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 {
-	pgio->pg_ops = &nfs_pageio_read_ops;
+	pgio->pg_ops = &nfs_pgio_rw_ops;
 	pgio->pg_bsize = NFS_SERVER(pgio->pg_inode)->rsize;
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_read_mds);
@@ -176,11 +175,6 @@ nfs_async_read_error(struct list_head *head)
 static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops = {
 	.error_cleanup = nfs_async_read_error,
 	.completion = nfs_read_completion,
-};
-
-static const struct nfs_pageio_ops nfs_pageio_read_ops = {
-	.pg_test = nfs_generic_pg_test,
-	.pg_doio = nfs_generic_pg_pgios,
 };
 
 /*
