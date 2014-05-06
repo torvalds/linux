@@ -1294,12 +1294,7 @@ struct nfs_pgio_data {
 	struct nfs_client	*ds_clp;	/* pNFS data server */
 };
 
-struct nfs_read_header {
-	struct nfs_pgio_header	header;
-	struct nfs_pgio_data	rpc_data;
-};
-
-struct nfs_write_header {
+struct nfs_rw_header {
 	struct nfs_pgio_header	header;
 	struct nfs_pgio_data	rpc_data;
 	struct nfs_writeverf	verf;

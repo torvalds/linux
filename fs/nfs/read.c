@@ -34,9 +34,9 @@ static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops;
 
 static struct kmem_cache *nfs_rdata_cachep;
 
-struct nfs_read_header *nfs_readhdr_alloc(void)
+struct nfs_rw_header *nfs_readhdr_alloc(void)
 {
-	struct nfs_read_header *rhdr;
+	struct nfs_rw_header *rhdr;
 
 	rhdr = kmem_cache_zalloc(nfs_rdata_cachep, GFP_KERNEL);
 	if (rhdr) {
@@ -56,7 +56,7 @@ static struct nfs_pgio_data *nfs_readdata_alloc(struct nfs_pgio_header *hdr,
 {
 	struct nfs_pgio_data *data, *prealloc;
 
-	prealloc = &container_of(hdr, struct nfs_read_header, header)->rpc_data;
+	prealloc = &container_of(hdr, struct nfs_rw_header, header)->rpc_data;
 	if (prealloc->header == NULL)
 		data = prealloc;
 	else
@@ -78,7 +78,7 @@ out:
 
 void nfs_readhdr_free(struct nfs_pgio_header *hdr)
 {
-	struct nfs_read_header *rhdr = container_of(hdr, struct nfs_read_header, header);
+	struct nfs_rw_header *rhdr = container_of(hdr, struct nfs_rw_header, header);
 
 	kmem_cache_free(nfs_rdata_cachep, rhdr);
 }
@@ -87,7 +87,7 @@ EXPORT_SYMBOL_GPL(nfs_readhdr_free);
 void nfs_readdata_release(struct nfs_pgio_data *rdata)
 {
 	struct nfs_pgio_header *hdr = rdata->header;
-	struct nfs_read_header *read_header = container_of(hdr, struct nfs_read_header, header);
+	struct nfs_rw_header *read_header = container_of(hdr, struct nfs_rw_header, header);
 
 	put_nfs_open_context(rdata->args.context);
 	if (rdata->pages.pagevec != rdata->pages.page_array)
@@ -417,7 +417,7 @@ EXPORT_SYMBOL_GPL(nfs_generic_pagein);
 
 static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_read_header *rhdr;
+	struct nfs_rw_header *rhdr;
 	struct nfs_pgio_header *hdr;
 	int ret;
 
@@ -680,7 +680,7 @@ out:
 int __init nfs_init_readpagecache(void)
 {
 	nfs_rdata_cachep = kmem_cache_create("nfs_read_data",
-					     sizeof(struct nfs_read_header),
+					     sizeof(struct nfs_rw_header),
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (nfs_rdata_cachep == NULL)

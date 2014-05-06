@@ -70,9 +70,9 @@ void nfs_commit_free(struct nfs_commit_data *p)
 }
 EXPORT_SYMBOL_GPL(nfs_commit_free);
 
-struct nfs_write_header *nfs_writehdr_alloc(void)
+struct nfs_rw_header *nfs_writehdr_alloc(void)
 {
-	struct nfs_write_header *p = mempool_alloc(nfs_wdata_mempool, GFP_NOIO);
+	struct nfs_rw_header *p = mempool_alloc(nfs_wdata_mempool, GFP_NOIO);
 
 	if (p) {
 		struct nfs_pgio_header *hdr = &p->header;
@@ -93,7 +93,7 @@ static struct nfs_pgio_data *nfs_writedata_alloc(struct nfs_pgio_header *hdr,
 {
 	struct nfs_pgio_data *data, *prealloc;
 
-	prealloc = &container_of(hdr, struct nfs_write_header, header)->rpc_data;
+	prealloc = &container_of(hdr, struct nfs_rw_header, header)->rpc_data;
 	if (prealloc->header == NULL)
 		data = prealloc;
 	else
@@ -115,7 +115,7 @@ out:
 
 void nfs_writehdr_free(struct nfs_pgio_header *hdr)
 {
-	struct nfs_write_header *whdr = container_of(hdr, struct nfs_write_header, header);
+	struct nfs_rw_header *whdr = container_of(hdr, struct nfs_rw_header, header);
 	mempool_free(whdr, nfs_wdata_mempool);
 }
 EXPORT_SYMBOL_GPL(nfs_writehdr_free);
@@ -123,7 +123,7 @@ EXPORT_SYMBOL_GPL(nfs_writehdr_free);
 void nfs_writedata_release(struct nfs_pgio_data *wdata)
 {
 	struct nfs_pgio_header *hdr = wdata->header;
-	struct nfs_write_header *write_header = container_of(hdr, struct nfs_write_header, header);
+	struct nfs_rw_header *write_header = container_of(hdr, struct nfs_rw_header, header);
 
 	put_nfs_open_context(wdata->args.context);
 	if (wdata->pages.pagevec != wdata->pages.page_array)
@@ -1253,7 +1253,7 @@ EXPORT_SYMBOL_GPL(nfs_generic_flush);
 
 static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_write_header *whdr;
+	struct nfs_rw_header *whdr;
 	struct nfs_pgio_header *hdr;
 	int ret;
 
@@ -1910,7 +1910,7 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 int __init nfs_init_writepagecache(void)
 {
 	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
-					     sizeof(struct nfs_write_header),
+					     sizeof(struct nfs_rw_header),
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (nfs_wdata_cachep == NULL)
