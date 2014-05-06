@@ -2851,6 +2851,9 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 						&slic_regs->slic_isp, 0,
 						&slic_regs->slic_addr_upper,
 						0, FLUSH);
+					pci_free_consistent(adapter->pcidev,
+						sizeof(struct slic_eeprom),
+						peeprom, phys_config);
 					return -EINVAL;
 				}
 			}
