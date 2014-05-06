@@ -195,11 +195,6 @@ static int  rk_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/* NOTE: the clock to PWM has to be enabled first before writing to the registers. */
 
-#if PWM_CLK
-	ret = clk_enable(pc->clk);
-	if (ret)
-		return ret;
-#endif
         spin_lock_irqsave(lock, flags);
 
 	conf |= (prescale << DW_PWM_PRESCALE);
@@ -310,10 +305,6 @@ static int  rk_pwm_config_v2(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * NOTE: the clock to PWM has to be enabled first before writing to the
 	 * registers.
 	 */
-
-	ret = clk_enable(pc->clk);
-	if (ret)
-		return ret;
         spin_lock_irqsave(lock, flags);
 
 	conf |= (prescale << RK_PWM_PRESCALE);	
@@ -364,8 +355,7 @@ static void rk_pwm_resume_v2(struct pwm_chip *chip, struct pwm_device *pwm)
 	dsb();
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,pc->pwm_ctrl);
 }
-//#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
-//#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
+
 /* config for rockchip,pwm*/
 static int  rk_pwm_config_v3(struct pwm_chip *chip, struct pwm_device *pwm,
 			    int duty_ns, int period_ns)
@@ -426,10 +416,11 @@ static int  rk_pwm_config_v3(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * NOTE: the clock to PWM has to be enabled first before writing to the
 	 * registers.
 	 */
-
+#if 0
 	ret = clk_enable(pc->clk);
 	if (ret)
 		return ret;
+#endif
         spin_lock_irqsave(lock, flags);
 
 	conf |= (prescale << RK_PWM_PRESCALE);
@@ -443,15 +434,8 @@ static int  rk_pwm_config_v3(struct pwm_chip *chip, struct pwm_device *pwm,
 	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CNTR,0);
 	dsb();
 	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CTRL,on|conf);
-#if 0
-	//grf_writel(0x00030002,0x6c);
-	DBG("VOP  iomux 0x%x\n", grf_readl(0x6c));
-	DBG("VOP_REG_CTRL0x%x\n", rk_pwm_readl(pc, pwm->hwpwm, VOP_REG_CTRL));
-	DBG("PWM_REG_DUTY0x%x\n", rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_DUTY));
-	DBG("PWM_REG_PERIOD 0x%x\n", rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_PERIOD));
-	DBG("VOP_REG_CNTR 0x%x\n", rk_pwm_readl(pc, pwm->hwpwm, VOP_REG_CNTR));
-#endif
-        spin_unlock_irqrestore(lock, flags);	
+
+       spin_unlock_irqrestore(lock, flags);	
 
 	return 0;
 }
@@ -494,18 +478,24 @@ static int  rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
 	int ret;
 	
+	ret = clk_prepare_enable(pc->clk);
+	if (ret)
+		return ret;
+
 	ret = pc->config(chip, pwm, duty_ns, period_ns);
+	
+	clk_disable_unprepare(pc->clk);
 
 	return 0;
 }
 static int rk_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
-	int rc = 0;
+	int ret = 0;
 
-	rc = clk_enable(pc->clk);
-	if (rc)
-		return rc;
+	ret = clk_prepare_enable(pc->clk);
+	if (ret)
+		return ret;
 
 	pc->set_enable(chip, pwm,true);
 	return 0;
@@ -516,7 +506,9 @@ static void rk_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
 
 	pc->set_enable(chip, pwm,false);
-	clk_disable(pc->clk);
+
+	clk_disable_unprepare(pc->clk);
+
 }
 
 static const struct pwm_ops rk_pwm_ops = {
@@ -585,16 +577,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
-#if 0
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "no memory resources defined\n");
-		return -ENODEV;
-	}
-	pc->base = devm_ioremap_resource(&pdev->dev, r);
-	if (IS_ERR(pc->base))
-		return PTR_ERR(pc->base);
-#endif
+
 	pc->base = of_iomap(np, 0);
 	if (IS_ERR(pc->base)){
 		printk("PWM base ERR \n");
@@ -616,25 +599,15 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	pc->chip.npwm = NUM_PWM;
 	pc->lock = __SPIN_LOCK_UNLOCKED(PWM##spinlock_num);
 	spinlock_num ++;
-#if PWM_CLK
-	ret = clk_prepare(pc->clk);
-	if (ret)
-		return ret;
-#endif
 
-	ret = clk_enable(pc->clk);
-	if (ret) {
-		clk_unprepare(pc->clk);
-		return ret;
-	}
 	/* Following enables PWM chip, channels would still be enabled individually through their control register */
 	DBG("npwm = %d, of_pwm_ncells =%d \n", pc->chip.npwm,pc->chip.of_pwm_n_cells);
 	ret = pwmchip_add(&pc->chip);
-	if (ret < 0) {
-		clk_unprepare(pc->clk);
-		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
+	if (ret < 0){
+		printk("failed to add pwm\n");
+		return ret;
 	}
-	
+
 	DBG("%s end \n",__FUNCTION__);
 	return ret;
 }
