@@ -52,7 +52,7 @@ static void kvmppc_rmap_reset(struct kvm *kvm);
 
 long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 {
-	unsigned long hpt;
+	unsigned long hpt = 0;
 	struct revmap_entry *rev;
 	struct page *page = NULL;
 	long order = KVM_DEFAULT_HPT_ORDER;
@@ -64,22 +64,11 @@ long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 	}
 
 	kvm->arch.hpt_cma_alloc = 0;
-	/*
-	 * try first to allocate it from the kernel page allocator.
-	 * We keep the CMA reserved for failed allocation.
-	 */
-	hpt = __get_free_pages(GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT |
-			       __GFP_NOWARN, order - PAGE_SHIFT);
-
-	/* Next try to allocate from the preallocated pool */
-	if (!hpt) {
-		VM_BUG_ON(order < KVM_CMA_CHUNK_ORDER);
-		page = kvm_alloc_hpt(1 << (order - PAGE_SHIFT));
-		if (page) {
-			hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
-			kvm->arch.hpt_cma_alloc = 1;
-		} else
-			--order;
+	VM_BUG_ON(order < KVM_CMA_CHUNK_ORDER);
+	page = kvm_alloc_hpt(1 << (order - PAGE_SHIFT));
+	if (page) {
+		hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
+		kvm->arch.hpt_cma_alloc = 1;
 	}
 
 	/* Lastly try successively smaller sizes from the page allocator */
