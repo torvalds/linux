@@ -1545,7 +1545,7 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 		return retval;
 
 	/* read alloc the entire buffer */
-	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_read_alloc(s, s->async->prealloc_bufsz);
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan) {
@@ -3565,7 +3565,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 	s->async->inttrig = NULL;
 
 	/* read alloc the entire buffer */
-	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_read_alloc(s, s->async->prealloc_bufsz);
 
 #ifdef PCIDMA
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);

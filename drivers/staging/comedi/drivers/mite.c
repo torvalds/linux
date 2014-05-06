@@ -560,15 +560,15 @@ EXPORT_SYMBOL_GPL(mite_sync_input_dma);
 int mite_sync_output_dma(struct mite_channel *mite_chan,
 			 struct comedi_async *async)
 {
+	struct comedi_subdevice *s = async->subdevice;
 	int count;
 	u32 nbytes_ub, nbytes_lb;
 	unsigned int old_alloc_count;
-	u32 stop_count =
-	    async->cmd.stop_arg * cfc_bytes_per_scan(async->subdevice);
+	u32 stop_count = async->cmd.stop_arg * cfc_bytes_per_scan(s);
 
 	old_alloc_count = async->buf_read_alloc_count;
 	/*  read alloc as much as we can */
-	comedi_buf_read_alloc(async, async->prealloc_bufsz);
+	comedi_buf_read_alloc(s, async->prealloc_bufsz);
 	nbytes_lb = mite_bytes_read_from_memory_lb(mite_chan);
 	if (async->cmd.stop_src == TRIG_COUNT &&
 	    (int)(nbytes_lb - stop_count) > 0)

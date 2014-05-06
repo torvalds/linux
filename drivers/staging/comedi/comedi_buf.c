@@ -370,9 +370,10 @@ unsigned int comedi_buf_read_n_available(struct comedi_async *async)
 EXPORT_SYMBOL_GPL(comedi_buf_read_n_available);
 
 /* allocates a chunk for the reader from filled (and munged) buffer space */
-unsigned int comedi_buf_read_alloc(struct comedi_async *async,
+unsigned int comedi_buf_read_alloc(struct comedi_subdevice *s,
 				   unsigned int nbytes)
 {
+	struct comedi_async *async = s->async;
 	unsigned int available;
 
 	available = async->munge_count - async->buf_read_alloc_count;
@@ -441,7 +442,7 @@ int comedi_buf_get(struct comedi_subdevice *s, unsigned short *x)
 
 	if (n < sizeof(short))
 		return 0;
-	comedi_buf_read_alloc(async, sizeof(short));
+	comedi_buf_read_alloc(s, sizeof(short));
 	*x = *(unsigned short *)(async->prealloc_buf + async->buf_read_ptr);
 	comedi_buf_read_free(async, sizeof(short));
 	return 1;
