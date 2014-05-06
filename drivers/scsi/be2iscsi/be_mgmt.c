@@ -712,7 +712,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	struct sockaddr_in6 *daddr_in6 = (struct sockaddr_in6 *)dst_addr;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
-	struct tcp_connect_and_offload_in *req;
+	struct tcp_connect_and_offload_in_v1 *req;
 	unsigned short def_hdr_id;
 	unsigned short def_data_id;
 	struct phys_addr template_address = { 0, 0 };
@@ -745,10 +745,10 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	memset(req, 0, sizeof(*req));
 	wrb->tag0 |= tag;
 
-	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
+	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_TCP_CONNECT_AND_OFFLOAD,
-			   sizeof(*req));
+			   nonemb_cmd->size);
 	if (dst_addr->sa_family == PF_INET) {
 		__be32 s_addr = daddr_in->sin_addr.s_addr;
 		req->ip_address.ip_type = BE2_IPV4;
@@ -794,6 +794,13 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
 	sge->len = cpu_to_le32(nonemb_cmd->size);
+
+	if (!is_chip_be2_be3r(phba)) {
+		req->hdr.version = MBX_CMD_VER1;
+		req->tcp_window_size = 0;
+		req->tcp_window_scale_count = 2;
+	}
+
 	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
 	return tag;

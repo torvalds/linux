@@ -71,6 +71,7 @@ struct be_mcc_wrb {
 #define BEISCSI_FW_MBX_TIMEOUT	100
 
 /* MBOX Command VER */
+#define MBX_CMD_VER1	0x01
 #define MBX_CMD_VER2	0x02
 
 struct be_mcc_compl {
@@ -1011,6 +1012,26 @@ struct tcp_connect_and_offload_in {
 	u16 data_ring_id;
 	u8 do_offload;
 	u8 rsvd0[3];
+} __packed;
+
+struct tcp_connect_and_offload_in_v1 {
+	struct be_cmd_req_hdr hdr;
+	struct ip_addr_format ip_address;
+	u16 tcp_port;
+	u16 cid;
+	u16 cq_id;
+	u16 defq_id;
+	struct phys_addr dataout_template_pa;
+	u16 hdr_ring_id;
+	u16 data_ring_id;
+	u8 do_offload;
+	u8 ifd_state;
+	u8 rsvd0[2];
+	u16 tcp_window_size;
+	u8 tcp_window_scale_count;
+	u8 rsvd1;
+	u32 tcp_mss:24;
+	u8 rsvd2;
 } __packed;
 
 struct tcp_connect_and_offload_out {
