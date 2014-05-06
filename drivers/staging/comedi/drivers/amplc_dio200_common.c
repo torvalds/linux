@@ -130,7 +130,6 @@ struct dio200_subdev_intr {
 	unsigned int enabled_isns;
 	unsigned int stopcount;
 	bool active:1;
-	bool continuous:1;
 };
 
 static inline const struct dio200_layout *
@@ -259,7 +258,7 @@ static int dio200_start_intr(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval = 0;
 
-	if (!subpriv->continuous && subpriv->stopcount == 0) {
+	if (cmd->stop_src == TRIG_COUNT && subpriv->stopcount == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
 		subpriv->active = false;
@@ -311,6 +310,7 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 				  unsigned int triggered)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short val;
 	unsigned int n, ch, len;
 
@@ -332,8 +332,7 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 	}
 
 	/* Check for end of acquisition. */
-	if (!subpriv->continuous) {
-		/* stop_src == TRIG_COUNT */
+	if (cmd->stop_src == TRIG_COUNT) {
 		if (subpriv->stopcount > 0) {
 			subpriv->stopcount--;
 			if (subpriv->stopcount == 0) {
@@ -512,17 +511,10 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	subpriv->active = true;
 
 	/* Set up end of acquisition. */
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		subpriv->continuous = false;
+	if (cmd->stop_src == TRIG_COUNT)
 		subpriv->stopcount = cmd->stop_arg;
-		break;
-	default:
-		/* TRIG_NONE */
-		subpriv->continuous = true;
+	else	/* TRIG_NONE */
 		subpriv->stopcount = 0;
-		break;
-	}
 
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = dio200_inttrig_start_intr;
