@@ -2525,9 +2525,10 @@ static void slic_entry_remove(struct pci_dev *pcidev)
 	struct sliccard *card;
 	struct mcast_address *mcaddr, *mlist;
 
+	unregister_netdev(dev);
+
 	slic_adapter_freeresources(adapter);
 	slic_unmap_mmio_space(adapter);
-	unregister_netdev(dev);
 
 	/* free multicast addresses */
 	mlist = adapter->mcastaddrs;
