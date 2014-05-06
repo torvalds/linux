@@ -1093,7 +1093,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		if (ctxt->d & Mmx) {
 			op->type = OP_MM;
 			op->bytes = 8;
-			op->addr.xmm = ctxt->modrm_rm & 7;
+			op->addr.mm = ctxt->modrm_rm & 7;
 			return rc;
 		}
 		fetch_register_operand(op);
