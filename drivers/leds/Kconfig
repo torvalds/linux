@@ -488,7 +488,7 @@ config LEDS_BLINKM
 	  through I2C. Say Y to enable support for the BlinkM LED.
 
 config LEDS_VERSATILE
-	bool "LED support for the ARM Versatile and RealView"
+	tristate "LED support for the ARM Versatile and RealView"
 	depends on ARCH_REALVIEW || ARCH_VERSATILE
 	depends on LEDS_CLASS
 	help
