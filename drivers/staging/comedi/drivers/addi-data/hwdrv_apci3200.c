@@ -2712,7 +2712,7 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 				s->async->events |= COMEDI_CB_ERROR;
 			}
 			/*  Write all 7 scan values in the comedi buffer */
-			comedi_buf_memcpy_to(s->async, 0,
+			comedi_buf_memcpy_to(s, 0,
 				(unsigned int *) s_BoardInfos[dev->minor].
 				ui_ScanValueArray, (7 + 12) * sizeof(unsigned int));
 
