@@ -599,15 +599,7 @@ static struct beiscsi_hba *beiscsi_hba_alloc(struct pci_dev *pcidev)
 	pci_set_drvdata(pcidev, phba);
 	phba->interface_handle = 0xFFFFFFFF;
 
-	if (iscsi_host_add(shost, &phba->pcidev->dev))
-		goto free_devices;
-
 	return phba;
-
-free_devices:
-	pci_dev_put(phba->pcidev);
-	iscsi_host_free(phba->shost);
-	return NULL;
 }
 
 static void beiscsi_unmap_pci_function(struct beiscsi_hba *phba)
@@ -5620,6 +5612,9 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto free_blkenbld;
 	}
 	hwi_enable_intr(phba);
+
+	if (iscsi_host_add(phba->shost, &phba->pcidev->dev))
+		goto free_blkenbld;
 
 	if (beiscsi_setup_boot_info(phba))
 		/*
