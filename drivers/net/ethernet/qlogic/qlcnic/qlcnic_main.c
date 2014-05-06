@@ -2206,6 +2206,31 @@ static void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *adapter)
 	ahw->max_uc_count = count;
 }
 
+static int qlcnic_set_real_num_queues(struct qlcnic_adapter *adapter,
+				      u8 tx_queues, u8 rx_queues)
+{
+	struct net_device *netdev = adapter->netdev;
+	int err = 0;
+
+	if (tx_queues) {
+		err = netif_set_real_num_tx_queues(netdev, tx_queues);
+		if (err) {
+			netdev_err(netdev, "failed to set %d Tx queues\n",
+				   tx_queues);
+			return err;
+		}
+	}
+
+	if (rx_queues) {
+		err = netif_set_real_num_rx_queues(netdev, rx_queues);
+		if (err)
+			netdev_err(netdev, "failed to set %d Rx queues\n",
+				   rx_queues);
+	}
+
+	return err;
+}
+
 int
 qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 		    int pci_using_dac)
@@ -2269,7 +2294,8 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	err = qlcnic_set_real_num_queues(adapter, netdev);
+	err = qlcnic_set_real_num_queues(adapter, adapter->drv_tx_rings,
+					 adapter->drv_sds_rings);
 	if (err)
 		return err;
 
@@ -3982,12 +4008,21 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 int qlcnic_setup_rings(struct qlcnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	u8 tx_rings, rx_rings;
 	int err;
 
 	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EBUSY;
 
+	tx_rings = adapter->drv_tss_rings;
+	rx_rings = adapter->drv_rss_rings;
+
 	netif_device_detach(netdev);
+
+	err = qlcnic_set_real_num_queues(adapter, tx_rings, rx_rings);
+	if (err)
+		goto done;
+
 	if (netif_running(netdev))
 		__qlcnic_down(adapter, netdev);
 
@@ -4007,7 +4042,17 @@ int qlcnic_setup_rings(struct qlcnic_adapter *adapter)
 		return err;
 	}
 
-	netif_set_real_num_tx_queues(netdev, adapter->drv_tx_rings);
+	/* Check if we need to update real_num_{tx|rx}_queues because
+	 * qlcnic_setup_intr() may change Tx/Rx rings size
+	 */
+	if ((tx_rings != adapter->drv_tx_rings) ||
+	    (rx_rings != adapter->drv_sds_rings)) {
+		err = qlcnic_set_real_num_queues(adapter,
+						 adapter->drv_tx_rings,
+						 adapter->drv_sds_rings);
+		if (err)
+			goto done;
+	}
 
 	if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_initialize_nic(adapter, 1);
