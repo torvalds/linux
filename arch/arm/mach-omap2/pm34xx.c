@@ -50,6 +50,7 @@
 #include "sdrc.h"
 #include "sram.h"
 #include "control.h"
+#include "vc.h"
 
 /* pm34xx errata defined in pm.h */
 u16 pm34xx_errata;
@@ -287,6 +288,9 @@ void omap_sram_idle(void)
 			omap3_cm_save_context();
 		}
 	}
+
+	/* Configure PMIC signaling for I2C4 or sys_off_mode */
+	omap3_vc_set_pmic_signaling(core_next_state);
 
 	omap3_intc_prepare_idle();
 
