@@ -558,7 +558,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		bytes_per_scan = sizeof(short);
 	}
 	/* Determine number of scans available in buffer. */
-	num_scans = comedi_buf_read_n_available(s->async) / bytes_per_scan;
+	num_scans = comedi_buf_read_n_available(s) / bytes_per_scan;
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_stop_count)

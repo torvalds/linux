@@ -1200,7 +1200,7 @@ static int ni_ao_fifo_half_empty(struct comedi_device *dev,
 	const struct ni_board_struct *board = comedi_board(dev);
 	int n;
 
-	n = comedi_buf_read_n_available(s->async);
+	n = comedi_buf_read_n_available(s);
 	if (n == 0) {
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
@@ -1230,7 +1230,7 @@ static int ni_ao_prep_fifo(struct comedi_device *dev,
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 
 	/* load some data */
-	n = comedi_buf_read_n_available(s->async);
+	n = comedi_buf_read_n_available(s);
 	if (n == 0)
 		return 0;
 

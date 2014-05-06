@@ -2029,7 +2029,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	if (s && s->async) {
 		poll_wait(file, &s->async->wait_head, wait);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
-		    comedi_buf_read_n_available(s->async) > 0)
+		    comedi_buf_read_n_available(s) > 0)
 			mask |= POLLIN | POLLRDNORM;
 	}
 
@@ -2229,7 +2229,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 		n = nbytes;
 
-		m = comedi_buf_read_n_available(async);
+		m = comedi_buf_read_n_available(s);
 		/* printk("%d available\n",m); */
 		if (async->buf_read_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_read_ptr;

@@ -1205,7 +1205,7 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 	dacstat = inw(dev->iobase + PCI230_DACCON);
 	/* Determine number of scans available in buffer. */
 	bytes_per_scan = cmd->chanlist_len * sizeof(short);
-	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
+	num_scans = comedi_buf_read_n_available(s) / bytes_per_scan;
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_scan_count)

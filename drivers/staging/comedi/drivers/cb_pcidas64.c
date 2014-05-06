@@ -2893,7 +2893,7 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	buffer_index = devpriv->ao_dma_index;
 	prev_buffer_index = prev_ao_dma_index(dev);
 
-	num_bytes = comedi_buf_read_n_available(dev->write_subdev->async);
+	num_bytes = comedi_buf_read_n_available(dev->write_subdev);
 	if (num_bytes > DMA_BUFFER_SIZE)
 		num_bytes = DMA_BUFFER_SIZE;
 	if (cmd->stop_src == TRIG_COUNT && num_bytes > devpriv->ao_count)

@@ -350,8 +350,9 @@ unsigned int comedi_buf_write_free(struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(comedi_buf_write_free);
 
-unsigned int comedi_buf_read_n_available(struct comedi_async *async)
+unsigned int comedi_buf_read_n_available(struct comedi_subdevice *s)
 {
+	struct comedi_async *async = s->async;
 	unsigned num_bytes;
 
 	if (!async)
@@ -439,7 +440,7 @@ EXPORT_SYMBOL_GPL(comedi_buf_put);
 int comedi_buf_get(struct comedi_subdevice *s, unsigned short *x)
 {
 	struct comedi_async *async = s->async;
-	unsigned int n = comedi_buf_read_n_available(async);
+	unsigned int n = comedi_buf_read_n_available(s);
 
 	if (n < sizeof(short))
 		return 0;
