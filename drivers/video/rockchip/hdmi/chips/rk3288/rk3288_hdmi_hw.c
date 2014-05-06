@@ -124,15 +124,10 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 {
 	int i = 0, n = 0, index = 0, ret = -1, trytime = 2;
 	int offset = (block % 2) * 0x80;
-	//int interrupt = 0;
-	//unsigned long flags;
+	int interrupt = 0;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
-	return -1;
 	hdmi_dbg(hdmi_drv->dev, "[%s] block %d\n", __FUNCTION__, block);
-	//spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
-	hdmi_dev->i2cm_int = 0;
-	//spin_unlock_irqrestore(&hdmi_drv->irq_lock, flags);
 
 	//Set DDC I2C CLK which devided from DDC_CLK to 100KHz.
 	hdmi_writel(hdmi_dev, I2CM_SS_SCL_HCNT_0_ADDR, 0x7a);
@@ -155,28 +150,28 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 				hdmi_msk_reg(hdmi_dev, I2CM_OPERATION, m_I2CM_RD8, v_I2CM_RD8(1));
 			else
 				hdmi_msk_reg(hdmi_dev, I2CM_OPERATION, m_I2CM_RD8_EXT, v_I2CM_RD8_EXT(1));
-#if 0
+
 			i = 200;
 			while(i--)
 			{
-				//spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
-				interrupt = hdmi_dev->i2cm_int;
-				hdmi_dev->i2cm_int = 0;
-				//spin_unlock_irqrestore(&hdmi_drv->irq_lock, flags);
+				msleep(1);
+				interrupt = hdmi_readl(hdmi_dev, IH_I2CM_STAT0);
+				if(interrupt)
+					hdmi_writel(hdmi_dev, IH_I2CM_STAT0, interrupt);
+
 				if(interrupt & (m_SCDC_READREQ | m_I2CM_DONE | m_I2CM_ERROR))
 					break;
-				msleep(5);
+				msleep(4);
 			}
 
-			if((i == 0) || (interrupt & m_I2CM_ERROR)) {
+			if(((interrupt & m_I2CM_DONE == 0) && (interrupt & m_I2CM_ERROR))
+										|| (i == 0)) {
 				hdmi_err(hdmi_drv->dev, "[%s] edid read error\n", __FUNCTION__);
 				rk3288_hdmi_i2cm_reset(hdmi_dev);
 				break;
 			}
-#endif
-			//if(interrupt & m_I2CM_DONE)
-			{
-				msleep(1);
+
+			if(interrupt & m_I2CM_DONE) {
 				for(index = 0; index < 8; index++) {
 					buff[8 * n + index] = hdmi_readl(hdmi_dev, I2CM_READ_BUFF0 + index);
 				}
