@@ -86,16 +86,14 @@ EXPORT_SYMBOL_GPL(cfc_write_array_to_buffer);
 unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *s,
 					void *data, unsigned int num_bytes)
 {
-	struct comedi_async *async = s->async;
-
 	if (num_bytes == 0)
 		return 0;
 
 	num_bytes = comedi_buf_read_alloc(s, num_bytes);
 	comedi_buf_memcpy_from(s, 0, data, num_bytes);
-	comedi_buf_read_free(async, num_bytes);
+	comedi_buf_read_free(s, num_bytes);
 	cfc_inc_scan_progress(s, num_bytes);
-	async->events |= COMEDI_CB_BLOCK;
+	s->async->events |= COMEDI_CB_BLOCK;
 
 	return num_bytes;
 }

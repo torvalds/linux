@@ -994,7 +994,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 	if (bi.bytes_read && (s->subdev_flags & SDF_CMD_READ)) {
 		bi.bytes_read = comedi_buf_read_alloc(s, bi.bytes_read);
-		comedi_buf_read_free(async, bi.bytes_read);
+		comedi_buf_read_free(s, bi.bytes_read);
 
 		if (comedi_is_subdevice_idle(s) &&
 		    async->buf_write_count == async->buf_read_count) {
@@ -2273,7 +2273,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		}
 
 		comedi_buf_read_alloc(s, n);
-		comedi_buf_read_free(async, n);
+		comedi_buf_read_free(s, n);
 
 		count += n;
 		nbytes -= n;

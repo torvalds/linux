@@ -398,9 +398,10 @@ static unsigned int comedi_buf_read_n_allocated(struct comedi_async *async)
 }
 
 /* transfers control of a chunk from reader to free buffer space */
-unsigned int comedi_buf_read_free(struct comedi_async *async,
+unsigned int comedi_buf_read_free(struct comedi_subdevice *s,
 				  unsigned int nbytes)
 {
+	struct comedi_async *async = s->async;
 	unsigned int allocated;
 
 	/*
@@ -444,7 +445,7 @@ int comedi_buf_get(struct comedi_subdevice *s, unsigned short *x)
 		return 0;
 	comedi_buf_read_alloc(s, sizeof(short));
 	*x = *(unsigned short *)(async->prealloc_buf + async->buf_read_ptr);
-	comedi_buf_read_free(async, sizeof(short));
+	comedi_buf_read_free(s, sizeof(short));
 	return 1;
 }
 EXPORT_SYMBOL_GPL(comedi_buf_get);

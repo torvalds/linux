@@ -588,7 +588,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 		return 0;
 
 	if (count) {
-		comedi_buf_read_free(async, count);
+		comedi_buf_read_free(s, count);
 		async->events |= COMEDI_CB_BLOCK;
 	}
 	return 0;

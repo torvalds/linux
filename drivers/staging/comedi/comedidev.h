@@ -341,7 +341,7 @@ unsigned int comedi_buf_write_free(struct comedi_subdevice *s, unsigned int n);
 
 unsigned int comedi_buf_read_n_available(struct comedi_async *);
 unsigned int comedi_buf_read_alloc(struct comedi_subdevice *s, unsigned int n);
-unsigned int comedi_buf_read_free(struct comedi_async *, unsigned int);
+unsigned int comedi_buf_read_free(struct comedi_subdevice *s, unsigned int n);
 
 int comedi_buf_put(struct comedi_subdevice *s, unsigned short x);
 int comedi_buf_get(struct comedi_subdevice *s, unsigned short *x);
