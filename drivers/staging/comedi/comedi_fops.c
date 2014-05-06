@@ -1004,7 +1004,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 	if (bi.bytes_written && (s->subdev_flags & SDF_CMD_WRITE)) {
 		bi.bytes_written =
-		    comedi_buf_write_alloc(async, bi.bytes_written);
+		    comedi_buf_write_alloc(s, bi.bytes_written);
 		comedi_buf_write_free(async, bi.bytes_written);
 	}
 
@@ -2038,7 +2038,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 		unsigned int bps = bytes_per_sample(s);
 
 		poll_wait(file, &s->async->wait_head, wait);
-		comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+		comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
 		    comedi_buf_write_n_allocated(s->async) >= bps)
 			mask |= POLLOUT | POLLWRNORM;
@@ -2136,7 +2136,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		m = n;
 		if (async->buf_write_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_write_ptr;
-		comedi_buf_write_alloc(async, async->prealloc_bufsz);
+		comedi_buf_write_alloc(s, async->prealloc_bufsz);
 		if (m > comedi_buf_write_n_allocated(async))
 			m = comedi_buf_write_n_allocated(async);
 		if (m < n)

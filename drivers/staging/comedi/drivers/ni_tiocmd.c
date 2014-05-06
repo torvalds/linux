@@ -125,7 +125,7 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 	int retval = 0;
 
 	/* write alloc the entire buffer */
-	comedi_buf_write_alloc(async, async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, async->prealloc_bufsz);
 	counter->mite_chan->dir = COMEDI_INPUT;
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_m_series:

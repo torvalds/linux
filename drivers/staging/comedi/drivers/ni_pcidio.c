@@ -759,7 +759,7 @@ static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 		return retval;
 
 	/* write alloc the entire buffer */
-	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->di_mite_chan) {

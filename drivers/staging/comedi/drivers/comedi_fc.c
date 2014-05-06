@@ -67,7 +67,7 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
 	if (num_bytes == 0)
 		return 0;
 
-	retval = comedi_buf_write_alloc(async, num_bytes);
+	retval = comedi_buf_write_alloc(s, num_bytes);
 	if (retval != num_bytes) {
 		dev_warn(s->device->class_dev, "buffer overrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;

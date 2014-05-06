@@ -269,10 +269,10 @@ static unsigned int __comedi_buf_write_alloc(struct comedi_async *async,
 }
 
 /* allocates chunk for the writer from free buffer space */
-unsigned int comedi_buf_write_alloc(struct comedi_async *async,
+unsigned int comedi_buf_write_alloc(struct comedi_subdevice *s,
 				    unsigned int nbytes)
 {
-	return __comedi_buf_write_alloc(async, nbytes, 0);
+	return __comedi_buf_write_alloc(s->async, nbytes, 0);
 }
 EXPORT_SYMBOL_GPL(comedi_buf_write_alloc);
 

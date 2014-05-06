@@ -2702,8 +2702,7 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 			s->async->events |= COMEDI_CB_EOS;
 
 			/*  Test if enougth memory is available and allocate it for 7 values */
-			/* n = comedi_buf_write_alloc(s->async, 7*sizeof(unsigned int)); */
-			n = comedi_buf_write_alloc(s->async,
+			n = comedi_buf_write_alloc(s,
 				(7 + 12) * sizeof(unsigned int));
 
 			/*  If not enough memory available, event is set to Comedi Buffer Error */

@@ -1505,7 +1505,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 /* printk("comedi_debug: using mite channel %i for ai.\n", devpriv->ai_mite_chan->channel); */
 
 	/* write alloc the entire buffer */
-	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan == NULL) {

@@ -533,7 +533,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 
 	old_alloc_count = async->buf_write_alloc_count;
 	/* write alloc as much as we can */
-	comedi_buf_write_alloc(async, async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, async->prealloc_bufsz);
 
 	nbytes = mite_bytes_written_to_memory_lb(mite_chan);
 	if ((int)(mite_bytes_written_to_memory_ub(mite_chan) -
