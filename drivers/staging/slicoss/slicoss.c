@@ -3421,7 +3421,6 @@ static void slic_init_adapter(struct net_device *netdev,
 	adapter->busnumber = pcidev->bus->number;
 	adapter->slotnumber = ((pcidev->devfn >> 3) & 0x1F);
 	adapter->functionnumber = (pcidev->devfn & 0x7);
-	adapter->memorylength = pci_resource_len(pcidev, 0);
 	adapter->slic_regs = (__iomem struct slic_regs *)memaddr;
 	adapter->irq = pcidev->irq;
 /*	adapter->netdev = netdev;*/
@@ -3430,7 +3429,6 @@ static void slic_init_adapter(struct net_device *netdev,
 	adapter->chipid = chip_idx;
 	adapter->port = 0;	/*adapter->functionnumber;*/
 	adapter->cardindex = adapter->port;
-	adapter->memorybase = memaddr;
 	spin_lock_init(&adapter->upr_lock.lock);
 	spin_lock_init(&adapter->bit64reglock.lock);
 	spin_lock_init(&adapter->adapter_lock.lock);
@@ -3682,7 +3680,7 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 
 	slic_adapter_set_hwaddr(adapter);
 
-	netdev->base_addr = (unsigned long)adapter->memorybase;
+	netdev->base_addr = (unsigned long) memmapped_ioaddr;
 	netdev->irq = adapter->irq;
 	netdev->netdev_ops = &slic_netdev_ops;
 

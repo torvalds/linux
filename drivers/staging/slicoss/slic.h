@@ -420,8 +420,6 @@ struct adapter {
 	ushort              devid;
 	ushort              subsysid;
 	u32             irq;
-	void __iomem *memorybase;
-	u32             memorylength;
 	u32             drambase;
 	u32             dramlength;
 	uint                queues_initialized;
