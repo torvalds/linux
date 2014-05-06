@@ -18,10 +18,17 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/msg_prot.h>
 
-#include <linux/nfsd/debug.h>
+#include <uapi/linux/nfsd/debug.h>
 
 #include "stats.h"
 #include "export.h"
+
+#undef ifdebug
+#ifdef NFSD_DEBUG
+# define ifdebug(flag)		if (nfsd_debug & NFSDDBG_##flag)
+#else
+# define ifdebug(flag)		if (0)
+#endif
 
 /*
  * nfsd version
