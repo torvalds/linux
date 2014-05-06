@@ -158,7 +158,6 @@ struct ext4_allocation_request {
 #define EXT4_MAP_MAPPED		(1 << BH_Mapped)
 #define EXT4_MAP_UNWRITTEN	(1 << BH_Unwritten)
 #define EXT4_MAP_BOUNDARY	(1 << BH_Boundary)
-#define EXT4_MAP_UNINIT		(1 << BH_Uninit)
 /* Sometimes (in the bigalloc case, from ext4_da_get_block_prep) the caller of
  * ext4_map_blocks wants to know whether or not the underlying cluster has
  * already been accounted for. EXT4_MAP_FROM_CLUSTER conveys to the caller that
@@ -169,7 +168,7 @@ struct ext4_allocation_request {
 #define EXT4_MAP_FROM_CLUSTER	(1 << BH_AllocFromCluster)
 #define EXT4_MAP_FLAGS		(EXT4_MAP_NEW | EXT4_MAP_MAPPED |\
 				 EXT4_MAP_UNWRITTEN | EXT4_MAP_BOUNDARY |\
-				 EXT4_MAP_UNINIT | EXT4_MAP_FROM_CLUSTER)
+				 EXT4_MAP_FROM_CLUSTER)
 
 struct ext4_map_blocks {
 	ext4_fsblk_t m_pblk;
@@ -184,7 +183,7 @@ struct ext4_map_blocks {
 #define	EXT4_IO_END_UNWRITTEN	0x0001
 
 /*
- * For converting uninitialized extents on a work queue. 'handle' is used for
+ * For converting unwritten extents on a work queue. 'handle' is used for
  * buffered writeback.
  */
 typedef struct ext4_io_end {
@@ -537,26 +536,26 @@ enum {
 /*
  * Flags used by ext4_map_blocks()
  */
-	/* Allocate any needed blocks and/or convert an unitialized
+	/* Allocate any needed blocks and/or convert an unwritten
 	   extent to be an initialized ext4 */
 #define EXT4_GET_BLOCKS_CREATE			0x0001
-	/* Request the creation of an unitialized extent */
-#define EXT4_GET_BLOCKS_UNINIT_EXT		0x0002
-#define EXT4_GET_BLOCKS_CREATE_UNINIT_EXT	(EXT4_GET_BLOCKS_UNINIT_EXT|\
+	/* Request the creation of an unwritten extent */
+#define EXT4_GET_BLOCKS_UNWRIT_EXT		0x0002
+#define EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT	(EXT4_GET_BLOCKS_UNWRIT_EXT|\
 						 EXT4_GET_BLOCKS_CREATE)
 	/* Caller is from the delayed allocation writeout path
 	 * finally doing the actual allocation of delayed blocks */
 #define EXT4_GET_BLOCKS_DELALLOC_RESERVE	0x0004
 	/* caller is from the direct IO path, request to creation of an
-	unitialized extents if not allocated, split the uninitialized
+	unwritten extents if not allocated, split the unwritten
 	extent if blocks has been preallocated already*/
 #define EXT4_GET_BLOCKS_PRE_IO			0x0008
 #define EXT4_GET_BLOCKS_CONVERT			0x0010
 #define EXT4_GET_BLOCKS_IO_CREATE_EXT		(EXT4_GET_BLOCKS_PRE_IO|\
-					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
+					 EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT)
 	/* Convert extent to initialized after IO complete */
 #define EXT4_GET_BLOCKS_IO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
-					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
+					 EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT)
 	/* Eventual metadata allocation (due to growing extent tree)
 	 * should not fail, so try to use reserved blocks for that.*/
 #define EXT4_GET_BLOCKS_METADATA_NOFAIL		0x0020
@@ -2783,10 +2782,9 @@ extern int ext4_mmp_csum_verify(struct super_block *sb,
  * See EXT4_MAP_... to see where this is used.
  */
 enum ext4_state_bits {
-	BH_Uninit	/* blocks are allocated but uninitialized on disk */
-	 = BH_JBDPrivateStart,
-	BH_AllocFromCluster,	/* allocated blocks were part of already
+	BH_AllocFromCluster	/* allocated blocks were part of already
 				 * allocated cluster. */
+	= BH_JBDPrivateStart
 };
 
 /*
