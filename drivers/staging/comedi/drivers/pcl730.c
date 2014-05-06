@@ -17,6 +17,8 @@
  *	    (ICP) P16R16-DIO [p16r16dio]
  *	    (Advantech) PCL-733 [pcl733]
  *	    (Advantech) PCL-734 [pcl734]
+ *	    (Diamond Systems) OPMM-1616-XT [opmm-1616-xt]
+ *	    (Diamond Systems) PEARL-MM-P [prearl-mm-p]
  * Author: José Luis Sánchez (jsanchezv@teleline.es)
  * Status: untested
  *
@@ -70,6 +72,27 @@
  *     BASE+1  Isolated outputs 8-15 (write) or inputs 8-15 (read)
  *     BASE+2  Isolated outputs 16-23 (write) or inputs 16-23 (read)
  *     BASE+3  Isolated outputs 24-31 (write) or inputs 24-31 (read)
+ *
+ * The opmm-1616-xt board has this register mapping:
+ *
+ *     BASE+0  Isolated outputs 0-7 (write) (read back)
+ *     BASE+1  Isolated outputs 8-15 (write) (read back)
+ *     BASE+2  Isolated inputs 0-7 (read)
+ *     BASE+3  Isolated inputs 8-15 (read)
+ *
+ *     These registers are not currently supported:
+ *
+ *     BASE+2  Relay select register (write)
+ *     BASE+3  Board reset control register (write)
+ *     BASE+4  Interrupt control register (write)
+ *     BASE+4  Change detect 7-0 status register (read)
+ *     BASE+5  LED control register (write)
+ *     BASE+5  Change detect 15-8 status register (read)
+ *
+ * The pearl-mm-p board has this register mapping:
+ *
+ *     BASE+0  Isolated outputs 0-7 (write)
+ *     BASE+1  Isolated outputs 8-15 (write)
  */
 
 struct pcl730_board {
@@ -158,6 +181,19 @@ static const struct pcl730_board pcl730_boards[] = {
 		.io_range	= 0x04,
 		.n_subdevs	= 1,
 		.n_iso_out_chan	= 32,
+	}, {
+		.name		= "opmm-1616-xt",
+		.io_range	= 0x10,
+		.is_acl7225b	= 1,
+		.has_readback	= 1,
+		.n_subdevs	= 2,
+		.n_iso_out_chan	= 16,
+		.n_iso_in_chan	= 16,
+	}, {
+		.name		= "pearl-mm-p",
+		.io_range	= 0x02,
+		.n_subdevs	= 1,
+		.n_iso_out_chan	= 16,
 	},
 };
 
