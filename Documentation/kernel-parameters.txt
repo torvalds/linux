@@ -1322,6 +1322,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			different crypto accelerators. This option can be used
 			to achieve the best performance for a particular HW.
 
+	ima.ahash_bufsize= [IMA] Asynchronous hash buffer size
+			Format: <bufsize>
+			Set hashing buffer size. Default: 4k.
+
+			ahash performance varies for different chunk sizes on
+			different crypto accelerators. This option can be used
+			to achieve best performance for particular HW.
+
 	init=		[KNL]
 			Format: <full_path>
 			Run specified binary instead of /sbin/init as init

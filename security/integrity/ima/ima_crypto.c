@@ -37,6 +37,33 @@ static unsigned long ima_ahash_minsize;
 module_param_named(ahash_minsize, ima_ahash_minsize, ulong, 0644);
 MODULE_PARM_DESC(ahash_minsize, "Minimum file size for ahash use");
 
+/* default is 0 - 1 page. */
+static int ima_maxorder;
+static unsigned int ima_bufsize = PAGE_SIZE;
+
+static int param_set_bufsize(const char *val, const struct kernel_param *kp)
+{
+	unsigned long long size;
+	int order;
+
+	size = memparse(val, NULL);
+	order = get_order(size);
+	if (order >= MAX_ORDER)
+		return -EINVAL;
+	ima_maxorder = order;
+	ima_bufsize = PAGE_SIZE << order;
+	return 0;
+}
+
+static struct kernel_param_ops param_ops_bufsize = {
+	.set = param_set_bufsize,
+	.get = param_get_uint,
+};
+#define param_check_bufsize(name, p) __param_check(name, p, unsigned int)
+
+module_param_named(ahash_bufsize, ima_bufsize, bufsize, 0644);
+MODULE_PARM_DESC(ahash_bufsize, "Maximum ahash buffer size");
+
 static struct crypto_shash *ima_shash_tfm;
 static struct crypto_ahash *ima_ahash_tfm;
 
@@ -106,6 +133,68 @@ static void ima_free_tfm(struct crypto_shash *tfm)
 		crypto_free_shash(tfm);
 }
 
+/**
+ * ima_alloc_pages() - Allocate contiguous pages.
+ * @max_size:       Maximum amount of memory to allocate.
+ * @allocated_size: Returned size of actual allocation.
+ * @last_warn:      Should the min_size allocation warn or not.
+ *
+ * Tries to do opportunistic allocation for memory first trying to allocate
+ * max_size amount of memory and then splitting that until zero order is
+ * reached. Allocation is tried without generating allocation warnings unless
+ * last_warn is set. Last_warn set affects only last allocation of zero order.
+ *
+ * By default, ima_maxorder is 0 and it is equivalent to kmalloc(GFP_KERNEL)
+ *
+ * Return pointer to allocated memory, or NULL on failure.
+ */
+static void *ima_alloc_pages(loff_t max_size, size_t *allocated_size,
+			     int last_warn)
+{
+	void *ptr;
+	int order = ima_maxorder;
+	gfp_t gfp_mask = __GFP_WAIT | __GFP_NOWARN | __GFP_NORETRY;
+
+	if (order)
+		order = min(get_order(max_size), order);
+
+	for (; order; order--) {
+		ptr = (void *)__get_free_pages(gfp_mask, order);
+		if (ptr) {
+			*allocated_size = PAGE_SIZE << order;
+			return ptr;
+		}
+	}
+
+	/* order is zero - one page */
+
+	gfp_mask = GFP_KERNEL;
+
+	if (!last_warn)
+		gfp_mask |= __GFP_NOWARN;
+
+	ptr = (void *)__get_free_pages(gfp_mask, 0);
+	if (ptr) {
+		*allocated_size = PAGE_SIZE;
+		return ptr;
+	}
+
+	*allocated_size = 0;
+	return NULL;
+}
+
+/**
+ * ima_free_pages() - Free pages allocated by ima_alloc_pages().
+ * @ptr:  Pointer to allocated pages.
+ * @size: Size of allocated buffer.
+ */
+static void ima_free_pages(void *ptr, size_t size)
+{
+	if (!ptr)
+		return;
+	free_pages((unsigned long)ptr, get_order(size));
+}
+
 static struct crypto_ahash *ima_alloc_atfm(enum hash_algo algo)
 {
 	struct crypto_ahash *tfm = ima_ahash_tfm;
@@ -169,6 +258,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 	struct ahash_request *req;
 	struct scatterlist sg[1];
 	struct ahash_completion res;
+	size_t rbuf_size;
 
 	hash->length = crypto_ahash_digestsize(tfm);
 
@@ -190,7 +280,11 @@ static int ima_calc_file_hash_atfm(struct file *file,
 	if (i_size == 0)
 		goto out2;
 
-	rbuf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	/*
+	 * Try to allocate maximum size of memory.
+	 * Fail if even a single page cannot be allocated.
+	 */
+	rbuf = ima_alloc_pages(i_size, &rbuf_size, 1);
 	if (!rbuf) {
 		rc = -ENOMEM;
 		goto out1;
@@ -219,7 +313,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 	}
 	if (read)
 		file->f_mode &= ~FMODE_READ;
-	kfree(rbuf);
+	ima_free_pages(rbuf, rbuf_size);
 out2:
 	if (!rc) {
 		ahash_request_set_crypt(req, NULL, hash->digest, 0);
