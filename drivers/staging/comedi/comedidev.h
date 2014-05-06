@@ -348,7 +348,7 @@ int comedi_buf_get(struct comedi_subdevice *s, unsigned short *x);
 
 void comedi_buf_memcpy_to(struct comedi_subdevice *s, unsigned int offset,
 			  const void *source, unsigned int num_bytes);
-void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
+void comedi_buf_memcpy_from(struct comedi_subdevice *s, unsigned int offset,
 			    void *destination, unsigned int num_bytes);
 
 /* drivers.c - general comedi driver functions */

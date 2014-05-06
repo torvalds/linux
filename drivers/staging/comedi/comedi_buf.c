@@ -472,10 +472,11 @@ void comedi_buf_memcpy_to(struct comedi_subdevice *s, unsigned int offset,
 }
 EXPORT_SYMBOL_GPL(comedi_buf_memcpy_to);
 
-void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
+void comedi_buf_memcpy_from(struct comedi_subdevice *s, unsigned int offset,
 			    void *dest, unsigned int nbytes)
 {
 	void *src;
+	struct comedi_async *async = s->async;
 	unsigned int read_ptr = async->buf_read_ptr + offset;
 
 	if (read_ptr >= async->prealloc_bufsz)

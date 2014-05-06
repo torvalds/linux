@@ -92,7 +92,7 @@ unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *s,
 		return 0;
 
 	num_bytes = comedi_buf_read_alloc(async, num_bytes);
-	comedi_buf_memcpy_from(async, 0, data, num_bytes);
+	comedi_buf_memcpy_from(s, 0, data, num_bytes);
 	comedi_buf_read_free(async, num_bytes);
 	cfc_inc_scan_progress(s, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
