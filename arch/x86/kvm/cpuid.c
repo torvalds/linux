@@ -732,6 +732,7 @@ int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
 not_found:
 	return 36;
 }
+EXPORT_SYMBOL_GPL(cpuid_maxphyaddr);
 
 /*
  * If no match is found, check whether we exceed the vCPU's limit

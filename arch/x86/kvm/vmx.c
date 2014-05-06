@@ -354,6 +354,7 @@ struct vmcs02_list {
 struct nested_vmx {
 	/* Has the level1 guest done vmxon? */
 	bool vmxon;
+	gpa_t vmxon_ptr;
 
 	/* The guest-physical address of the current VMCS L1 keeps for L2 */
 	gpa_t current_vmptr;
@@ -5845,6 +5846,68 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 }
 
 /*
+ * This function performs the various checks including
+ * - if it's 4KB aligned
+ * - No bits beyond the physical address width are set
+ * - Returns 0 on success or else 1
+ */
+static int nested_vmx_check_vmptr(struct kvm_vcpu *vcpu, int exit_reason)
+{
+	gva_t gva;
+	gpa_t vmptr;
+	struct x86_exception e;
+	struct page *page;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	int maxphyaddr = cpuid_maxphyaddr(vcpu);
+
+	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
+			vmcs_read32(VMX_INSTRUCTION_INFO), &gva))
+		return 1;
+
+	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &vmptr,
+				sizeof(vmptr), &e)) {
+		kvm_inject_page_fault(vcpu, &e);
+		return 1;
+	}
+
+	switch (exit_reason) {
+	case EXIT_REASON_VMON:
+		/*
+		 * SDM 3: 24.11.5
+		 * The first 4 bytes of VMXON region contain the supported
+		 * VMCS revision identifier
+		 *
+		 * Note - IA32_VMX_BASIC[48] will never be 1
+		 * for the nested case;
+		 * which replaces physical address width with 32
+		 *
+		 */
+		if (!IS_ALIGNED(vmptr, PAGE_SIZE) || (vmptr >> maxphyaddr)) {
+			nested_vmx_failInvalid(vcpu);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
+
+		page = nested_get_page(vcpu, vmptr);
+		if (page == NULL ||
+		    *(u32 *)kmap(page) != VMCS12_REVISION) {
+			nested_vmx_failInvalid(vcpu);
+			kunmap(page);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
+		kunmap(page);
+		vmx->nested.vmxon_ptr = vmptr;
+		break;
+
+	default:
+		return 1; /* shouldn't happen */
+	}
+
+	return 0;
+}
+
+/*
  * Emulate the VMXON instruction.
  * Currently, we just remember that VMX is active, and do not save or even
  * inspect the argument to VMXON (the so-called "VMXON pointer") because we
@@ -5882,6 +5945,10 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
+
+	if (nested_vmx_check_vmptr(vcpu, EXIT_REASON_VMON))
+		return 1;
+
 	if (vmx->nested.vmxon) {
 		nested_vmx_failValid(vcpu, VMXERR_VMXON_IN_VMX_ROOT_OPERATION);
 		skip_emulated_instruction(vcpu);
