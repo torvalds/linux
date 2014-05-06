@@ -1492,7 +1492,7 @@ int pnfs_write_done_resend_to_mds(struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(pnfs_write_done_resend_to_mds);
 
-static void pnfs_ld_handle_write_error(struct nfs_write_data *data)
+static void pnfs_ld_handle_write_error(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 
@@ -1511,7 +1511,7 @@ static void pnfs_ld_handle_write_error(struct nfs_write_data *data)
 /*
  * Called by non rpc-based layout drivers
  */
-void pnfs_ld_write_done(struct nfs_write_data *data)
+void pnfs_ld_write_done(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 
@@ -1527,7 +1527,7 @@ EXPORT_SYMBOL_GPL(pnfs_ld_write_done);
 
 static void
 pnfs_write_through_mds(struct nfs_pageio_descriptor *desc,
-		struct nfs_write_data *data)
+		struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 
@@ -1540,7 +1540,7 @@ pnfs_write_through_mds(struct nfs_pageio_descriptor *desc,
 }
 
 static enum pnfs_try_status
-pnfs_try_to_write_data(struct nfs_write_data *wdata,
+pnfs_try_to_write_data(struct nfs_pgio_data *wdata,
 			const struct rpc_call_ops *call_ops,
 			struct pnfs_layout_segment *lseg,
 			int how)
@@ -1564,7 +1564,7 @@ pnfs_try_to_write_data(struct nfs_write_data *wdata,
 static void
 pnfs_do_multiple_writes(struct nfs_pageio_descriptor *desc, struct list_head *head, int how)
 {
-	struct nfs_write_data *data;
+	struct nfs_pgio_data *data;
 	const struct rpc_call_ops *call_ops = desc->pg_rpc_callops;
 	struct pnfs_layout_segment *lseg = desc->pg_lseg;
 
@@ -1572,7 +1572,7 @@ pnfs_do_multiple_writes(struct nfs_pageio_descriptor *desc, struct list_head *he
 	while (!list_empty(head)) {
 		enum pnfs_try_status trypnfs;
 
-		data = list_first_entry(head, struct nfs_write_data, list);
+		data = list_first_entry(head, struct nfs_pgio_data, list);
 		list_del_init(&data->list);
 
 		trypnfs = pnfs_try_to_write_data(data, call_ops, lseg, how);
@@ -1647,7 +1647,7 @@ int pnfs_read_done_resend_to_mds(struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(pnfs_read_done_resend_to_mds);
 
-static void pnfs_ld_handle_read_error(struct nfs_read_data *data)
+static void pnfs_ld_handle_read_error(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 
@@ -1666,7 +1666,7 @@ static void pnfs_ld_handle_read_error(struct nfs_read_data *data)
 /*
  * Called by non rpc-based layout drivers
  */
-void pnfs_ld_read_done(struct nfs_read_data *data)
+void pnfs_ld_read_done(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 
@@ -1682,7 +1682,7 @@ EXPORT_SYMBOL_GPL(pnfs_ld_read_done);
 
 static void
 pnfs_read_through_mds(struct nfs_pageio_descriptor *desc,
-		struct nfs_read_data *data)
+		struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 
@@ -1698,7 +1698,7 @@ pnfs_read_through_mds(struct nfs_pageio_descriptor *desc,
  * Call the appropriate parallel I/O subsystem read function.
  */
 static enum pnfs_try_status
-pnfs_try_to_read_data(struct nfs_read_data *rdata,
+pnfs_try_to_read_data(struct nfs_pgio_data *rdata,
 		       const struct rpc_call_ops *call_ops,
 		       struct pnfs_layout_segment *lseg)
 {
@@ -1722,7 +1722,7 @@ pnfs_try_to_read_data(struct nfs_read_data *rdata,
 static void
 pnfs_do_multiple_reads(struct nfs_pageio_descriptor *desc, struct list_head *head)
 {
-	struct nfs_read_data *data;
+	struct nfs_pgio_data *data;
 	const struct rpc_call_ops *call_ops = desc->pg_rpc_callops;
 	struct pnfs_layout_segment *lseg = desc->pg_lseg;
 
@@ -1730,7 +1730,7 @@ pnfs_do_multiple_reads(struct nfs_pageio_descriptor *desc, struct list_head *hea
 	while (!list_empty(head)) {
 		enum pnfs_try_status trypnfs;
 
-		data = list_first_entry(head, struct nfs_read_data, list);
+		data = list_first_entry(head, struct nfs_pgio_data, list);
 		list_del_init(&data->list);
 
 		trypnfs = pnfs_try_to_read_data(data, call_ops, lseg);
@@ -1821,7 +1821,7 @@ void pnfs_set_lo_fail(struct pnfs_layout_segment *lseg)
 EXPORT_SYMBOL_GPL(pnfs_set_lo_fail);
 
 void
-pnfs_set_layoutcommit(struct nfs_write_data *wdata)
+pnfs_set_layoutcommit(struct nfs_pgio_data *wdata)
 {
 	struct nfs_pgio_header *hdr = wdata->header;
 	struct inode *inode = hdr->inode;

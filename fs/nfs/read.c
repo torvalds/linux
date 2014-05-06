@@ -51,10 +51,10 @@ struct nfs_read_header *nfs_readhdr_alloc(void)
 }
 EXPORT_SYMBOL_GPL(nfs_readhdr_alloc);
 
-static struct nfs_read_data *nfs_readdata_alloc(struct nfs_pgio_header *hdr,
+static struct nfs_pgio_data *nfs_readdata_alloc(struct nfs_pgio_header *hdr,
 						unsigned int pagecount)
 {
-	struct nfs_read_data *data, *prealloc;
+	struct nfs_pgio_data *data, *prealloc;
 
 	prealloc = &container_of(hdr, struct nfs_read_header, header)->rpc_data;
 	if (prealloc->header == NULL)
@@ -84,7 +84,7 @@ void nfs_readhdr_free(struct nfs_pgio_header *hdr)
 }
 EXPORT_SYMBOL_GPL(nfs_readhdr_free);
 
-void nfs_readdata_release(struct nfs_read_data *rdata)
+void nfs_readdata_release(struct nfs_pgio_data *rdata)
 {
 	struct nfs_pgio_header *hdr = rdata->header;
 	struct nfs_read_header *read_header = container_of(hdr, struct nfs_read_header, header);
@@ -212,7 +212,7 @@ out:
 }
 
 int nfs_initiate_read(struct rpc_clnt *clnt,
-		      struct nfs_read_data *data,
+		      struct nfs_pgio_data *data,
 		      const struct rpc_call_ops *call_ops, int flags)
 {
 	struct inode *inode = data->header->inode;
@@ -255,7 +255,7 @@ EXPORT_SYMBOL_GPL(nfs_initiate_read);
 /*
  * Set up the NFS read request struct
  */
-static void nfs_read_rpcsetup(struct nfs_read_data *data,
+static void nfs_read_rpcsetup(struct nfs_pgio_data *data,
 		unsigned int count, unsigned int offset)
 {
 	struct nfs_page *req = data->header->req;
@@ -274,7 +274,7 @@ static void nfs_read_rpcsetup(struct nfs_read_data *data,
 	nfs_fattr_init(&data->fattr);
 }
 
-static int nfs_do_read(struct nfs_read_data *data,
+static int nfs_do_read(struct nfs_pgio_data *data,
 		const struct rpc_call_ops *call_ops)
 {
 	struct inode *inode = data->header->inode;
@@ -286,13 +286,13 @@ static int
 nfs_do_multiple_reads(struct list_head *head,
 		const struct rpc_call_ops *call_ops)
 {
-	struct nfs_read_data *data;
+	struct nfs_pgio_data *data;
 	int ret = 0;
 
 	while (!list_empty(head)) {
 		int ret2;
 
-		data = list_first_entry(head, struct nfs_read_data, list);
+		data = list_first_entry(head, struct nfs_pgio_data, list);
 		list_del_init(&data->list);
 
 		ret2 = nfs_do_read(data, call_ops);
@@ -324,8 +324,8 @@ static void nfs_pagein_error(struct nfs_pageio_descriptor *desc,
 {
 	set_bit(NFS_IOHDR_REDO, &hdr->flags);
 	while (!list_empty(&hdr->rpc_list)) {
-		struct nfs_read_data *data = list_first_entry(&hdr->rpc_list,
-				struct nfs_read_data, list);
+		struct nfs_pgio_data *data = list_first_entry(&hdr->rpc_list,
+				struct nfs_pgio_data, list);
 		list_del(&data->list);
 		nfs_readdata_release(data);
 	}
@@ -350,7 +350,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc,
 {
 	struct nfs_page *req = hdr->req;
 	struct page *page = req->wb_page;
-	struct nfs_read_data *data;
+	struct nfs_pgio_data *data;
 	size_t rsize = desc->pg_bsize, nbytes;
 	unsigned int offset;
 
@@ -382,7 +382,7 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
 {
 	struct nfs_page		*req;
 	struct page		**pages;
-	struct nfs_read_data    *data;
+	struct nfs_pgio_data	*data;
 	struct list_head *head = &desc->pg_list;
 
 	data = nfs_readdata_alloc(hdr, nfs_page_array_len(desc->pg_base,
@@ -447,7 +447,7 @@ static const struct nfs_pageio_ops nfs_pageio_read_ops = {
  * This is the callback from RPC telling us whether a reply was
  * received or some error occurred (timeout or socket shutdown).
  */
-int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
+int nfs_readpage_result(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct inode *inode = data->header->inode;
 	int status;
@@ -468,7 +468,7 @@ int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
 	return 0;
 }
 
-static void nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data)
+static void nfs_readpage_retry(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_args *argp = &data->args;
 	struct nfs_pgio_res  *resp = &data->res;
@@ -490,7 +490,7 @@ static void nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data
 
 static void nfs_readpage_result_common(struct rpc_task *task, void *calldata)
 {
-	struct nfs_read_data *data = calldata;
+	struct nfs_pgio_data *data = calldata;
 	struct nfs_pgio_header *hdr = data->header;
 
 	/* Note the only returns of nfs_readpage_result are 0 and -EAGAIN */
@@ -520,7 +520,7 @@ static void nfs_readpage_release_common(void *calldata)
 
 void nfs_read_prepare(struct rpc_task *task, void *calldata)
 {
-	struct nfs_read_data *data = calldata;
+	struct nfs_pgio_data *data = calldata;
 	int err;
 	err = NFS_PROTO(data->header->inode)->read_rpc_prepare(task, data);
 	if (err)

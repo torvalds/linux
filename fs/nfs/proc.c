@@ -578,7 +578,7 @@ nfs_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	return 0;
 }
 
-static int nfs_read_done(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs_read_done(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct inode *inode = data->header->inode;
 
@@ -594,18 +594,18 @@ static int nfs_read_done(struct rpc_task *task, struct nfs_read_data *data)
 	return 0;
 }
 
-static void nfs_proc_read_setup(struct nfs_read_data *data, struct rpc_message *msg)
+static void nfs_proc_read_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
 {
 	msg->rpc_proc = &nfs_procedures[NFSPROC_READ];
 }
 
-static int nfs_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	rpc_call_start(task);
 	return 0;
 }
 
-static int nfs_write_done(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs_write_done(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct inode *inode = data->header->inode;
 
@@ -614,14 +614,14 @@ static int nfs_write_done(struct rpc_task *task, struct nfs_write_data *data)
 	return 0;
 }
 
-static void nfs_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
+static void nfs_proc_write_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
 {
 	/* Note: NFSv2 ignores @stable and always uses NFS_FILE_SYNC */
 	data->args.stable = NFS_FILE_SYNC;
 	msg->rpc_proc = &nfs_procedures[NFSPROC_WRITE];
 }
 
-static int nfs_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	rpc_call_start(task);
 	return 0;

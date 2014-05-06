@@ -4033,12 +4033,12 @@ static bool nfs4_error_stateid_expired(int err)
 	return false;
 }
 
-void __nfs4_read_done_cb(struct nfs_read_data *data)
+void __nfs4_read_done_cb(struct nfs_pgio_data *data)
 {
 	nfs_invalidate_atime(data->header->inode);
 }
 
-static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
@@ -4068,7 +4068,7 @@ static bool nfs4_read_stateid_changed(struct rpc_task *task,
 	return true;
 }
 
-static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs4_read_done(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 
 	dprintk("--> %s\n", __func__);
@@ -4077,19 +4077,19 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 		return -EAGAIN;
 	if (nfs4_read_stateid_changed(task, &data->args))
 		return -EAGAIN;
-	return data->read_done_cb ? data->read_done_cb(task, data) :
+	return data->pgio_done_cb ? data->pgio_done_cb(task, data) :
 				    nfs4_read_done_cb(task, data);
 }
 
-static void nfs4_proc_read_setup(struct nfs_read_data *data, struct rpc_message *msg)
+static void nfs4_proc_read_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
 {
 	data->timestamp   = jiffies;
-	data->read_done_cb = nfs4_read_done_cb;
+	data->pgio_done_cb = nfs4_read_done_cb;
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
 }
 
-static int nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
 			&data->args.seq_args,
@@ -4104,7 +4104,7 @@ static int nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_dat
 	return 0;
 }
 
-static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct inode *inode = data->header->inode;
 	
@@ -4134,18 +4134,18 @@ static bool nfs4_write_stateid_changed(struct rpc_task *task,
 	return true;
 }
 
-static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs4_write_done(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return -EAGAIN;
 	if (nfs4_write_stateid_changed(task, &data->args))
 		return -EAGAIN;
-	return data->write_done_cb ? data->write_done_cb(task, data) :
+	return data->pgio_done_cb ? data->pgio_done_cb(task, data) :
 		nfs4_write_done_cb(task, data);
 }
 
 static
-bool nfs4_write_need_cache_consistency_data(const struct nfs_write_data *data)
+bool nfs4_write_need_cache_consistency_data(const struct nfs_pgio_data *data)
 {
 	const struct nfs_pgio_header *hdr = data->header;
 
@@ -4158,7 +4158,7 @@ bool nfs4_write_need_cache_consistency_data(const struct nfs_write_data *data)
 	return nfs4_have_delegation(hdr->inode, FMODE_READ) == 0;
 }
 
-static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
+static void nfs4_proc_write_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
 {
 	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
@@ -4168,8 +4168,8 @@ static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_messag
 	} else
 		data->args.bitmask = server->cache_consistency_bitmask;
 
-	if (!data->write_done_cb)
-		data->write_done_cb = nfs4_write_done_cb;
+	if (!data->pgio_done_cb)
+		data->pgio_done_cb = nfs4_write_done_cb;
 	data->res.server = server;
 	data->timestamp   = jiffies;
 
@@ -4177,7 +4177,7 @@ static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_messag
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 1);
 }
 
-static int nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
 			&data->args.seq_args,

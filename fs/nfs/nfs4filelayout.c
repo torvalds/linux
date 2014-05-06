@@ -84,7 +84,7 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 	BUG();
 }
 
-static void filelayout_reset_write(struct nfs_write_data *data)
+static void filelayout_reset_write(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 	struct rpc_task *task = &data->task;
@@ -105,7 +105,7 @@ static void filelayout_reset_write(struct nfs_write_data *data)
 	}
 }
 
-static void filelayout_reset_read(struct nfs_read_data *data)
+static void filelayout_reset_read(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 	struct rpc_task *task = &data->task;
@@ -243,7 +243,7 @@ wait_on_recovery:
 /* NFS_PROTO call done callback routines */
 
 static int filelayout_read_done_cb(struct rpc_task *task,
-				struct nfs_read_data *data)
+				struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 	int err;
@@ -270,7 +270,7 @@ static int filelayout_read_done_cb(struct rpc_task *task,
  * rfc5661 is not clear about which credential should be used.
  */
 static void
-filelayout_set_layoutcommit(struct nfs_write_data *wdata)
+filelayout_set_layoutcommit(struct nfs_pgio_data *wdata)
 {
 	struct nfs_pgio_header *hdr = wdata->header;
 
@@ -305,7 +305,7 @@ filelayout_reset_to_mds(struct pnfs_layout_segment *lseg)
  */
 static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs_read_data *rdata = data;
+	struct nfs_pgio_data *rdata = data;
 
 	if (unlikely(test_bit(NFS_CONTEXT_BAD, &rdata->args.context->flags))) {
 		rpc_exit(task, -EIO);
@@ -317,7 +317,7 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 		rpc_exit(task, 0);
 		return;
 	}
-	rdata->read_done_cb = filelayout_read_done_cb;
+	rdata->pgio_done_cb = filelayout_read_done_cb;
 
 	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
 			&rdata->args.seq_args,
@@ -331,7 +331,7 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 
 static void filelayout_read_call_done(struct rpc_task *task, void *data)
 {
-	struct nfs_read_data *rdata = data;
+	struct nfs_pgio_data *rdata = data;
 
 	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
 
@@ -347,14 +347,14 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 
 static void filelayout_read_count_stats(struct rpc_task *task, void *data)
 {
-	struct nfs_read_data *rdata = data;
+	struct nfs_pgio_data *rdata = data;
 
 	rpc_count_iostats(task, NFS_SERVER(rdata->header->inode)->client->cl_metrics);
 }
 
 static void filelayout_read_release(void *data)
 {
-	struct nfs_read_data *rdata = data;
+	struct nfs_pgio_data *rdata = data;
 	struct pnfs_layout_hdr *lo = rdata->header->lseg->pls_layout;
 
 	filelayout_fenceme(lo->plh_inode, lo);
@@ -363,7 +363,7 @@ static void filelayout_read_release(void *data)
 }
 
 static int filelayout_write_done_cb(struct rpc_task *task,
-				struct nfs_write_data *data)
+				struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 	int err;
@@ -419,7 +419,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 
 static void filelayout_write_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs_write_data *wdata = data;
+	struct nfs_pgio_data *wdata = data;
 
 	if (unlikely(test_bit(NFS_CONTEXT_BAD, &wdata->args.context->flags))) {
 		rpc_exit(task, -EIO);
@@ -443,7 +443,7 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 
 static void filelayout_write_call_done(struct rpc_task *task, void *data)
 {
-	struct nfs_write_data *wdata = data;
+	struct nfs_pgio_data *wdata = data;
 
 	if (test_bit(NFS_IOHDR_REDO, &wdata->header->flags) &&
 	    task->tk_status == 0) {
@@ -457,14 +457,14 @@ static void filelayout_write_call_done(struct rpc_task *task, void *data)
 
 static void filelayout_write_count_stats(struct rpc_task *task, void *data)
 {
-	struct nfs_write_data *wdata = data;
+	struct nfs_pgio_data *wdata = data;
 
 	rpc_count_iostats(task, NFS_SERVER(wdata->header->inode)->client->cl_metrics);
 }
 
 static void filelayout_write_release(void *data)
 {
-	struct nfs_write_data *wdata = data;
+	struct nfs_pgio_data *wdata = data;
 	struct pnfs_layout_hdr *lo = wdata->header->lseg->pls_layout;
 
 	filelayout_fenceme(lo->plh_inode, lo);
@@ -529,7 +529,7 @@ static const struct rpc_call_ops filelayout_commit_call_ops = {
 };
 
 static enum pnfs_try_status
-filelayout_read_pagelist(struct nfs_read_data *data)
+filelayout_read_pagelist(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
 	struct pnfs_layout_segment *lseg = hdr->lseg;
@@ -575,7 +575,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 
 /* Perform async writes. */
 static enum pnfs_try_status
-filelayout_write_pagelist(struct nfs_write_data *data, int sync)
+filelayout_write_pagelist(struct nfs_pgio_data *data, int sync)
 {
 	struct nfs_pgio_header *hdr = data->header;
 	struct pnfs_layout_segment *lseg = hdr->lseg;
@@ -600,7 +600,7 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 		__func__, hdr->inode->i_ino, sync, (size_t) data->args.count,
 		offset, ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
 
-	data->write_done_cb = filelayout_write_done_cb;
+	data->pgio_done_cb = filelayout_write_done_cb;
 	atomic_inc(&ds->ds_clp->cl_count);
 	data->ds_clp = ds->ds_clp;
 	fh = nfs4_fl_select_ds_fh(lseg, j);

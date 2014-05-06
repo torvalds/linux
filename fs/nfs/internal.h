@@ -401,13 +401,13 @@ extern void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 			struct inode *inode, bool force_mds,
 			const struct nfs_pgio_completion_ops *compl_ops);
 extern int nfs_initiate_read(struct rpc_clnt *clnt,
-			     struct nfs_read_data *data,
+			     struct nfs_pgio_data *data,
 			     const struct rpc_call_ops *call_ops, int flags);
 extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 extern int nfs_generic_pagein(struct nfs_pageio_descriptor *desc,
 			      struct nfs_pgio_header *hdr);
 extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
-extern void nfs_readdata_release(struct nfs_read_data *rdata);
+extern void nfs_readdata_release(struct nfs_pgio_data *rdata);
 
 /* super.c */
 void nfs_clone_super(struct super_block *, struct nfs_mount_info *);
@@ -429,10 +429,10 @@ extern void nfs_writehdr_free(struct nfs_pgio_header *hdr);
 extern int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
 			     struct nfs_pgio_header *hdr);
 extern void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio);
-extern void nfs_writedata_release(struct nfs_write_data *wdata);
+extern void nfs_writedata_release(struct nfs_pgio_data *wdata);
 extern void nfs_commit_free(struct nfs_commit_data *p);
 extern int nfs_initiate_write(struct rpc_clnt *clnt,
-			      struct nfs_write_data *data,
+			      struct nfs_pgio_data *data,
 			      const struct rpc_call_ops *call_ops,
 			      int how, int flags);
 extern void nfs_write_prepare(struct rpc_task *task, void *calldata);
@@ -492,7 +492,7 @@ static inline void nfs_inode_dio_wait(struct inode *inode)
 extern ssize_t nfs_dreq_bytes_left(struct nfs_direct_req *dreq);
 
 /* nfs4proc.c */
-extern void __nfs4_read_done_cb(struct nfs_read_data *);
+extern void __nfs4_read_done_cb(struct nfs_pgio_data *);
 extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 			    const struct rpc_timeout *timeparms,
 			    const char *ip_addr);

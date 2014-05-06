@@ -439,7 +439,7 @@ static void _read_done(struct ore_io_state *ios, void *private)
 	objlayout_read_done(&objios->oir, status, objios->sync);
 }
 
-int objio_read_pagelist(struct nfs_read_data *rdata)
+int objio_read_pagelist(struct nfs_pgio_data *rdata)
 {
 	struct nfs_pgio_header *hdr = rdata->header;
 	struct objio_state *objios;
@@ -487,7 +487,7 @@ static void _write_done(struct ore_io_state *ios, void *private)
 static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 {
 	struct objio_state *objios = priv;
-	struct nfs_write_data *wdata = objios->oir.rpcdata;
+	struct nfs_pgio_data *wdata = objios->oir.rpcdata;
 	struct address_space *mapping = wdata->header->inode->i_mapping;
 	pgoff_t index = offset / PAGE_SIZE;
 	struct page *page;
@@ -531,7 +531,7 @@ static const struct _ore_r4w_op _r4w_op = {
 	.put_page = &__r4w_put_page,
 };
 
-int objio_write_pagelist(struct nfs_write_data *wdata, int how)
+int objio_write_pagelist(struct nfs_pgio_data *wdata, int how)
 {
 	struct nfs_pgio_header *hdr = wdata->header;
 	struct objio_state *objios;

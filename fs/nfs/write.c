@@ -88,10 +88,10 @@ struct nfs_write_header *nfs_writehdr_alloc(void)
 }
 EXPORT_SYMBOL_GPL(nfs_writehdr_alloc);
 
-static struct nfs_write_data *nfs_writedata_alloc(struct nfs_pgio_header *hdr,
+static struct nfs_pgio_data *nfs_writedata_alloc(struct nfs_pgio_header *hdr,
 						  unsigned int pagecount)
 {
-	struct nfs_write_data *data, *prealloc;
+	struct nfs_pgio_data *data, *prealloc;
 
 	prealloc = &container_of(hdr, struct nfs_write_header, header)->rpc_data;
 	if (prealloc->header == NULL)
@@ -120,7 +120,7 @@ void nfs_writehdr_free(struct nfs_pgio_header *hdr)
 }
 EXPORT_SYMBOL_GPL(nfs_writehdr_free);
 
-void nfs_writedata_release(struct nfs_write_data *wdata)
+void nfs_writedata_release(struct nfs_pgio_data *wdata)
 {
 	struct nfs_pgio_header *hdr = wdata->header;
 	struct nfs_write_header *write_header = container_of(hdr, struct nfs_write_header, header);
@@ -582,7 +582,7 @@ nfs_clear_request_commit(struct nfs_page *req)
 }
 
 static inline
-int nfs_write_need_commit(struct nfs_write_data *data)
+int nfs_write_need_commit(struct nfs_pgio_data *data)
 {
 	if (data->verf.committed == NFS_DATA_SYNC)
 		return data->header->lseg == NULL;
@@ -613,7 +613,7 @@ nfs_clear_request_commit(struct nfs_page *req)
 }
 
 static inline
-int nfs_write_need_commit(struct nfs_write_data *data)
+int nfs_write_need_commit(struct nfs_pgio_data *data)
 {
 	return 0;
 }
@@ -990,7 +990,7 @@ static int flush_task_priority(int how)
 }
 
 int nfs_initiate_write(struct rpc_clnt *clnt,
-		       struct nfs_write_data *data,
+		       struct nfs_pgio_data *data,
 		       const struct rpc_call_ops *call_ops,
 		       int how, int flags)
 {
@@ -1047,7 +1047,7 @@ EXPORT_SYMBOL_GPL(nfs_initiate_write);
 /*
  * Set up the argument/result storage required for the RPC call.
  */
-static void nfs_write_rpcsetup(struct nfs_write_data *data,
+static void nfs_write_rpcsetup(struct nfs_pgio_data *data,
 		unsigned int count, unsigned int offset,
 		int how, struct nfs_commit_info *cinfo)
 {
@@ -1082,7 +1082,7 @@ static void nfs_write_rpcsetup(struct nfs_write_data *data,
 	nfs_fattr_init(&data->fattr);
 }
 
-static int nfs_do_write(struct nfs_write_data *data,
+static int nfs_do_write(struct nfs_pgio_data *data,
 		const struct rpc_call_ops *call_ops,
 		int how)
 {
@@ -1095,13 +1095,13 @@ static int nfs_do_multiple_writes(struct list_head *head,
 		const struct rpc_call_ops *call_ops,
 		int how)
 {
-	struct nfs_write_data *data;
+	struct nfs_pgio_data *data;
 	int ret = 0;
 
 	while (!list_empty(head)) {
 		int ret2;
 
-		data = list_first_entry(head, struct nfs_write_data, list);
+		data = list_first_entry(head, struct nfs_pgio_data, list);
 		list_del_init(&data->list);
 		
 		ret2 = nfs_do_write(data, call_ops, how);
@@ -1144,8 +1144,8 @@ static void nfs_flush_error(struct nfs_pageio_descriptor *desc,
 {
 	set_bit(NFS_IOHDR_REDO, &hdr->flags);
 	while (!list_empty(&hdr->rpc_list)) {
-		struct nfs_write_data *data = list_first_entry(&hdr->rpc_list,
-				struct nfs_write_data, list);
+		struct nfs_pgio_data *data = list_first_entry(&hdr->rpc_list,
+				struct nfs_pgio_data, list);
 		list_del(&data->list);
 		nfs_writedata_release(data);
 	}
@@ -1161,7 +1161,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc,
 {
 	struct nfs_page *req = hdr->req;
 	struct page *page = req->wb_page;
-	struct nfs_write_data *data;
+	struct nfs_pgio_data *data;
 	size_t wsize = desc->pg_bsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
@@ -1211,7 +1211,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc,
 {
 	struct nfs_page		*req;
 	struct page		**pages;
-	struct nfs_write_data	*data;
+	struct nfs_pgio_data	*data;
 	struct list_head *head = &desc->pg_list;
 	struct nfs_commit_info cinfo;
 
@@ -1305,7 +1305,7 @@ EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);
 
 void nfs_write_prepare(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data *data = calldata;
+	struct nfs_pgio_data *data = calldata;
 	int err;
 	err = NFS_PROTO(data->header->inode)->write_rpc_prepare(task, data);
 	if (err)
@@ -1328,14 +1328,14 @@ void nfs_commit_prepare(struct rpc_task *task, void *calldata)
  */
 static void nfs_writeback_done_common(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data	*data = calldata;
+	struct nfs_pgio_data	*data = calldata;
 
 	nfs_writeback_done(task, data);
 }
 
 static void nfs_writeback_release_common(void *calldata)
 {
-	struct nfs_write_data	*data = calldata;
+	struct nfs_pgio_data	*data = calldata;
 	struct nfs_pgio_header *hdr = data->header;
 	int status = data->task.tk_status;
 
@@ -1386,7 +1386,7 @@ static int nfs_should_remove_suid(const struct inode *inode)
 /*
  * This function is called when the WRITE call is complete.
  */
-void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
+void nfs_writeback_done(struct rpc_task *task, struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_args	*argp = &data->args;
 	struct nfs_pgio_res	*resp = &data->res;
