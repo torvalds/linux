@@ -2110,6 +2110,16 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 
 		cri_index = BE_GET_CRI_FROM_CID(cid);
 		ep = phba->ep_array[cri_index];
+		if (unlikely(ep == NULL)) {
+			/* connection has already been freed
+			 * just move on to next one
+			 */
+			beiscsi_log(phba, KERN_WARNING,
+				    BEISCSI_LOG_INIT,
+				    "BM_%d : proc cqe of disconn ep: cid %d\n",
+				    cid);
+			goto proc_next_cqe;
+		}
 		beiscsi_ep = ep->dd_data;
 		beiscsi_conn = beiscsi_ep->conn;
 
@@ -2219,6 +2229,7 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 			break;
 		}
 
+proc_next_cqe:
 		AMAP_SET_BITS(struct amap_sol_cqe, valid, sol, 0);
 		queue_tail_inc(cq);
 		sol = queue_tail_node(cq);
