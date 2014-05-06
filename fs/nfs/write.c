@@ -1389,7 +1389,7 @@ static int nfs_should_remove_suid(const struct inode *inode)
 void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 {
 	struct nfs_pgio_args	*argp = &data->args;
-	struct nfs_writeres	*resp = &data->res;
+	struct nfs_pgio_res	*resp = &data->res;
 	struct inode		*inode = data->header->inode;
 	int status;
 

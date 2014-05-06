@@ -1589,7 +1589,7 @@ out_default:
  *	};
  */
 static int decode_read3resok(struct xdr_stream *xdr,
-			     struct nfs_readres *result)
+			     struct nfs_pgio_res *result)
 {
 	u32 eof, count, ocount, recvd;
 	__be32 *p;
@@ -1625,7 +1625,7 @@ out_overflow:
 }
 
 static int nfs3_xdr_dec_read3res(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 struct nfs_readres *result)
+				 struct nfs_pgio_res *result)
 {
 	enum nfs_stat status;
 	int error;
@@ -1673,7 +1673,7 @@ out_status:
  *	};
  */
 static int decode_write3resok(struct xdr_stream *xdr,
-			      struct nfs_writeres *result)
+			      struct nfs_pgio_res *result)
 {
 	__be32 *p;
 
@@ -1697,7 +1697,7 @@ out_eio:
 }
 
 static int nfs3_xdr_dec_write3res(struct rpc_rqst *req, struct xdr_stream *xdr,
-				  struct nfs_writeres *result)
+				  struct nfs_pgio_res *result)
 {
 	enum nfs_stat status;
 	int error;

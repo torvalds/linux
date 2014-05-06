@@ -103,7 +103,7 @@ static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
 /*
  *	typedef opaque	nfsdata<>;
  */
-static int decode_nfsdata(struct xdr_stream *xdr, struct nfs_readres *result)
+static int decode_nfsdata(struct xdr_stream *xdr, struct nfs_pgio_res *result)
 {
 	u32 recvd, count;
 	__be32 *p;
@@ -857,7 +857,7 @@ out_default:
  *	};
  */
 static int nfs2_xdr_dec_readres(struct rpc_rqst *req, struct xdr_stream *xdr,
-				struct nfs_readres *result)
+				struct nfs_pgio_res *result)
 {
 	enum nfs_stat status;
 	int error;
@@ -878,7 +878,7 @@ out_default:
 }
 
 static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 struct nfs_writeres *result)
+				 struct nfs_pgio_res *result)
 {
 	/* All NFSv2 writes are "file sync" writes */
 	result->verf->committed = NFS_FILE_SYNC;

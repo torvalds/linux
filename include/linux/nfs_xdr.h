@@ -489,16 +489,6 @@ struct nfs4_delegreturnres {
 };
 
 /*
- * Arguments to the read call.
- */
-struct nfs_readres {
-	struct nfs4_sequence_res	seq_res;
-	struct nfs_fattr *	fattr;
-	__u32			count;
-	int                     eof;
-};
-
-/*
  * Arguments to the write call.
  */
 struct nfs_write_verifier {
@@ -508,14 +498,6 @@ struct nfs_write_verifier {
 struct nfs_writeverf {
 	struct nfs_write_verifier verifier;
 	enum nfs3_stable_how	committed;
-};
-
-struct nfs_writeres {
-	struct nfs4_sequence_res	seq_res;
-	struct nfs_fattr *	fattr;
-	struct nfs_writeverf *	verf;
-	__u32			count;
-	const struct nfs_server *server;
 };
 
 /*
@@ -533,6 +515,16 @@ struct nfs_pgio_args {
 	struct page **		pages;
 	const u32 *		bitmask;	/* used by write */
 	enum nfs3_stable_how	stable;		/* used by write */
+};
+
+struct nfs_pgio_res {
+	struct nfs4_sequence_res	seq_res;
+	struct nfs_fattr *	fattr;
+	__u32			count;
+	int			eof;		/* used by read */
+	struct nfs_writeverf *	verf;		/* used by write */
+	const struct nfs_server *server;	/* used by write */
+
 };
 
 /*
@@ -1261,7 +1253,7 @@ struct nfs_read_data {
 	struct rpc_task		task;
 	struct nfs_fattr	fattr;	/* fattr storage */
 	struct nfs_pgio_args	args;
-	struct nfs_readres  res;
+	struct nfs_pgio_res	res;
 	unsigned long		timestamp;	/* For lease renewal */
 	int (*read_done_cb) (struct rpc_task *task, struct nfs_read_data *data);
 	__u64			mds_offset;
@@ -1313,7 +1305,7 @@ struct nfs_write_data {
 	struct nfs_fattr	fattr;
 	struct nfs_writeverf	verf;
 	struct nfs_pgio_args	args;		/* argument struct */
-	struct nfs_writeres	res;		/* result struct */
+	struct nfs_pgio_res	res;		/* result struct */
 	unsigned long		timestamp;	/* For lease renewal */
 	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);
 	__u64			mds_offset;	/* Filelayout dense stripe */
