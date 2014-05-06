@@ -1478,7 +1478,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 1);
 	/* Only one cpu at a time may enter/leave the STOPPED state. */
-	spin_lock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_lock(&vcpu->kvm->arch.start_stop_lock);
 	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
 
 	for (i = 0; i < online_vcpus; i++) {
@@ -1504,7 +1504,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 	 * Let's play safe and flush the VCPU at startup.
 	 */
 	vcpu->arch.sie_block->ihcpu  = 0xffff;
-	spin_unlock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_unlock(&vcpu->kvm->arch.start_stop_lock);
 	return;
 }
 
@@ -1518,7 +1518,7 @@ void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_vcpu_start_stop(vcpu->vcpu_id, 0);
 	/* Only one cpu at a time may enter/leave the STOPPED state. */
-	spin_lock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_lock(&vcpu->kvm->arch.start_stop_lock);
 	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
 
 	/* Need to lock access to action_bits to avoid a SIGP race condition */
@@ -1547,7 +1547,7 @@ void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 		__enable_ibs_on_vcpu(started_vcpu);
 	}
 
-	spin_unlock_bh(&vcpu->kvm->arch.start_stop_lock);
+	spin_unlock(&vcpu->kvm->arch.start_stop_lock);
 	return;
 }
 
