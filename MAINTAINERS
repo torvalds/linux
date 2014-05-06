@@ -5404,9 +5404,11 @@ S:	Maintained
 F:	arch/powerpc/platforms/8xx/
 
 LINUX FOR POWERPC EMBEDDED PPC83XX AND PPC85XX
+M:	Scott Wood <scottwood@freescale.com>
 M:	Kumar Gala <galak@kernel.crashing.org>
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@lists.ozlabs.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/scottwood/linux.git
 S:	Maintained
 F:	arch/powerpc/platforms/83xx/
 F:	arch/powerpc/platforms/85xx/
