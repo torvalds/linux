@@ -61,7 +61,7 @@ static int s2mpa01_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 	unsigned int ramp_delay = 0;
 	int old_volt, new_volt;
 
-	switch (rdev->desc->id) {
+	switch (rdev_get_id(rdev)) {
 	case S2MPA01_BUCK2:
 	case S2MPA01_BUCK4:
 		ramp_delay = s2mpa01->ramp_delay24;
@@ -102,7 +102,7 @@ static int s2mpa01_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	unsigned int ramp_enable = 1, enable_shift = 0;
 	int ret;
 
-	switch (rdev->desc->id) {
+	switch (rdev_get_id(rdev)) {
 	case S2MPA01_BUCK1:
 		enable_shift = S2MPA01_BUCK1_RAMP_EN_SHIFT;
 		if (!ramp_delay) {
