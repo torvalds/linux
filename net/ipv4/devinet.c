@@ -106,7 +106,6 @@ static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 #define IN4_ADDR_HSIZE		(1U << IN4_ADDR_HSIZE_SHIFT)
 
 static struct hlist_head inet_addr_lst[IN4_ADDR_HSIZE];
-static DEFINE_SPINLOCK(inet_addr_hash_lock);
 
 static u32 inet_addr_hash(struct net *net, __be32 addr)
 {
@@ -119,16 +118,14 @@ static void inet_hash_insert(struct net *net, struct in_ifaddr *ifa)
 {
 	u32 hash = inet_addr_hash(net, ifa->ifa_local);
 
-	spin_lock(&inet_addr_hash_lock);
+	ASSERT_RTNL();
 	hlist_add_head_rcu(&ifa->hash, &inet_addr_lst[hash]);
-	spin_unlock(&inet_addr_hash_lock);
 }
 
 static void inet_hash_remove(struct in_ifaddr *ifa)
 {
-	spin_lock(&inet_addr_hash_lock);
+	ASSERT_RTNL();
 	hlist_del_init_rcu(&ifa->hash);
-	spin_unlock(&inet_addr_hash_lock);
 }
 
 /**
