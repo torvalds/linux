@@ -2126,11 +2126,17 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			.flags = flags,
 			.len = 1,
 			.buf = msgbuf0,
+			#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
+			.scl_rate = 100 * 1000,
+			#endif
 		}, {
 			.addr = addr,
 			.flags = flags | I2C_M_RD,
 			.len = 0,
 			.buf = msgbuf1,
+			#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
+			.scl_rate = 100 * 1000,
+			#endif
 		},
 	};
 
