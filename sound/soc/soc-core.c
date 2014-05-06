@@ -1017,7 +1017,6 @@ static void soc_remove_codec_dai(struct snd_soc_dai *codec_dai, int order)
 					codec_dai->name, err);
 		}
 		codec_dai->probed = 0;
-		list_del(&codec_dai->card_list);
 	}
 }
 
@@ -1049,7 +1048,6 @@ static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 					cpu_dai->name, err);
 		}
 		cpu_dai->probed = 0;
-		list_del(&cpu_dai->card_list);
 
 		if (!cpu_dai->codec) {
 			snd_soc_dapm_free(&cpu_dai->dapm);
@@ -1405,7 +1403,6 @@ static int soc_probe_codec_dai(struct snd_soc_card *card,
 
 		/* mark codec_dai as probed and add to card dai list */
 		codec_dai->probed = 1;
-		list_add(&codec_dai->card_list, &card->dai_dev_list);
 	}
 
 	return 0;
@@ -1490,8 +1487,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 			}
 		}
 		cpu_dai->probed = 1;
-		/* mark cpu_dai as probed and add to card dai list */
-		list_add(&cpu_dai->card_list, &card->dai_dev_list);
 	}
 
 	/* probe the CODEC DAI */
