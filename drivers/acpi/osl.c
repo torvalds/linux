@@ -1770,16 +1770,15 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 }
 #endif
 
-static int __init acpi_no_auto_ssdt_setup(char *s)
+static int __init acpi_no_static_ssdt_setup(char *s)
 {
-        printk(KERN_NOTICE PREFIX "SSDT auto-load disabled\n");
+	acpi_gbl_disable_ssdt_table_install = TRUE;
+	pr_info("ACPI: static SSDT installation disabled\n");
 
-        acpi_gbl_disable_ssdt_table_load = TRUE;
-
-        return 1;
+	return 0;
 }
 
-__setup("acpi_no_auto_ssdt", acpi_no_auto_ssdt_setup);
+early_param("acpi_no_static_ssdt", acpi_no_static_ssdt_setup);
 
 static int __init acpi_disable_return_repair(char *s)
 {

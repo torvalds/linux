@@ -91,7 +91,7 @@
 #include <ctype.h>
 #include <unistd.h>
 
-/* Disable kernel specific declarators */
+/* Define/disable kernel-specific declarators */
 
 #ifndef __init
 #define __init
@@ -106,7 +106,8 @@
 #define ACPI_FLUSH_CPU_CACHE()
 #define ACPI_CAST_PTHREAD_T(pthread) ((acpi_thread_id) (pthread))
 
-#if defined(__ia64__) || defined(__x86_64__) || defined(__aarch64__)
+#if defined(__ia64__)    || defined(__x86_64__) ||\
+	defined(__aarch64__) || defined(__PPC64__)
 #define ACPI_MACHINE_WIDTH          64
 #define COMPILER_DEPENDENT_INT64    long
 #define COMPILER_DEPENDENT_UINT64   unsigned long
