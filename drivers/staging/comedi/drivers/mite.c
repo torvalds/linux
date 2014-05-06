@@ -526,9 +526,9 @@ void mite_dma_disarm(struct mite_channel *mite_chan)
 EXPORT_SYMBOL_GPL(mite_dma_disarm);
 
 int mite_sync_input_dma(struct mite_channel *mite_chan,
-			struct comedi_async *async)
+			struct comedi_subdevice *s)
 {
-	struct comedi_subdevice *s = async->subdevice;
+	struct comedi_async *async = s->async;
 	int count;
 	unsigned int nbytes, old_alloc_count;
 

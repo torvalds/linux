@@ -464,7 +464,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 		       counter->mite_chan->mite->mite_io_addr +
 		       MITE_CHOR(counter->mite_chan->channel));
 	}
-	mite_sync_input_dma(counter->mite_chan, s->async);
+	mite_sync_input_dma(counter->mite_chan, s);
 	spin_unlock_irqrestore(&counter->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ni_tio_handle_interrupt);

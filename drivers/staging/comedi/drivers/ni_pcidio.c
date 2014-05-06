@@ -359,7 +359,7 @@ static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
-		mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+		mite_sync_input_dma(devpriv->di_mite_chan, s);
 	spin_unlock(&devpriv->mite_channel_lock);
 	count = s->async->buf_write_count - s->async->buf_read_count;
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
@@ -405,7 +405,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			writel(CHOR_CLRLC,
 			       mite->mite_io_addr +
 			       MITE_CHOR(devpriv->di_mite_chan->channel));
-			mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+			mite_sync_input_dma(devpriv->di_mite_chan, s);
 			/* XXX need to byteswap */
 		}
 		if (m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY |

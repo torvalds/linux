@@ -106,7 +106,7 @@ unsigned mite_dma_tcr(struct mite_channel *mite_chan);
 void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
 int mite_sync_input_dma(struct mite_channel *mite_chan,
-			struct comedi_async *async);
+			struct comedi_subdevice *s);
 int mite_sync_output_dma(struct mite_channel *mite_chan,
 			 struct comedi_async *async);
 u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan);

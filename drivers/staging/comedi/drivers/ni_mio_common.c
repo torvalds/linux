@@ -864,7 +864,7 @@ static void ni_sync_ai_dma(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan)
-		mite_sync_input_dma(devpriv->ai_mite_chan, s->async);
+		mite_sync_input_dma(devpriv->ai_mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
