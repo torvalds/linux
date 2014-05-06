@@ -813,12 +813,12 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 			if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES)
 				bit = NFS_IOHDR_NEED_RESCHED;
 			else if (dreq->flags == 0) {
-				memcpy(&dreq->verf, hdr->verf,
+				memcpy(&dreq->verf, &hdr->verf,
 				       sizeof(dreq->verf));
 				bit = NFS_IOHDR_NEED_COMMIT;
 				dreq->flags = NFS_ODIRECT_DO_COMMIT;
 			} else if (dreq->flags == NFS_ODIRECT_DO_COMMIT) {
-				if (memcmp(&dreq->verf, hdr->verf, sizeof(dreq->verf))) {
+				if (memcmp(&dreq->verf, &hdr->verf, sizeof(dreq->verf))) {
 					dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 					bit = NFS_IOHDR_NEED_RESCHED;
 				} else
