@@ -45,15 +45,21 @@ static struct rt5616_init_reg init_list[] = {
 	{RT5616_PRIV_INDEX	, 0x0025}, //PR-25 = 6110
 	{RT5616_PRIV_DATA	, 0x6110},
 	/*Playback*/
-	{RT5616_STO_DAC_MIXER	, 0x1212},
+	//{RT5616_STO_DAC_MIXER	, 0x1212},
 	/*HP*/
 	//{RT5616_HPO_MIXER	, 0x2000}, //DAC -> HPO
-	{RT5616_HPO_MIXER	, 0x4000}, //HPVOL -> HPO
+	//{RT5616_HPO_MIXER	, 0x4000}, //HPVOL -> HPO
 	{RT5616_HP_VOL		, 0x8888}, //unmute HPVOL
-	{RT5616_OUT_L3_MIXER	, 0x0278}, //DACL1 -> OUTMIXL
-	{RT5616_OUT_R3_MIXER	, 0x0278}, //DACR1 -> OUTMIXR
+	//{RT5616_OUT_L3_MIXER	, 0x0278}, //DACL1 -> OUTMIXL
+	//{RT5616_OUT_R3_MIXER	, 0x0278}, //DACR1 -> OUTMIXR
 	/*LOUT*/
-	{RT5616_LOUT_MIXER	, 0x3000},
+	//{RT5616_LOUT_MIXER	, 0x3000},
+        //{RT5616_DEPOP_M1    , 0x8019},
+	//{RT5616_DEPOP_M2    , 0x3100},
+        {RT5616_DEPOP_M3   , 0x0636},//0424
+	{RT5616_CHARGE_PUMP   , 0x0f00},
+        {RT5616_PWR_DIG1   , 0x8000},//0424
+        {RT5616_PWR_ANLG1   , 0xe818},//0424
 	/*Capture*/
 	//{RT5616_REC_L2_MIXER	, 0x006d}, //MIC1 -> RECMIXL
 	//{RT5616_REC_R2_MIXER	, 0x006d}, //MIC1 -> RECMIXR
@@ -707,16 +713,18 @@ static int rt5616_adc_event(struct snd_soc_dapm_widget *w,
 
 void rt5616_hp_amp_power(struct snd_soc_codec *codec, int on)
 {
+	
 	static int hp_amp_power_count;
-
 	if(on) {
 		if(hp_amp_power_count <= 0) {
 			/* depop parameters */
-			snd_soc_update_bits(codec, RT5616_DEPOP_M2,
+			/*snd_soc_update_bits(codec, RT5616_DEPOP_M2,
 				RT5616_DEPOP_MASK, RT5616_DEPOP_MAN);
 			snd_soc_update_bits(codec, RT5616_DEPOP_M1,
 				RT5616_HP_CP_MASK | RT5616_HP_SG_MASK | RT5616_HP_CB_MASK | RT5616_HP_CD_PD_MASK,
-				RT5616_HP_CP_PU | RT5616_HP_SG_DIS | RT5616_HP_CB_PU | RT5616_HP_CD_PD_DIS);
+				RT5616_HP_CP_PU | RT5616_HP_SG_DIS | RT5616_HP_CB_PU | RT5616_HP_CD_PD_DIS);*/
+			snd_soc_write(codec, RT5616_DEPOP_M2, 0x3100);  //bard 4-22
+			snd_soc_write(codec, RT5616_DEPOP_M1, 0x0009);  //bard 4-22
 			rt5616_index_write(codec, RT5616_HP_DCC_INT1, 0x9f00);
 			/* headphone amp power on */
 			snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
@@ -732,33 +740,38 @@ void rt5616_hp_amp_power(struct snd_soc_codec *codec, int on)
 				RT5616_PWR_FV1 | RT5616_PWR_FV2,
 				RT5616_PWR_FV1 | RT5616_PWR_FV2);
 
-			snd_soc_update_bits(codec, RT5616_CHARGE_PUMP,
-				RT5616_PM_HP_MASK, RT5616_PM_HP_HV);
+			//snd_soc_update_bits(codec, RT5616_CHARGE_PUMP,
+			//	RT5616_PM_HP_MASK, RT5616_PM_HP_HV);
+			snd_soc_write(codec, RT5616_CHARGE_PUMP, 0x0f00);
+			/*
 			rt5616_index_update_bits(codec, RT5616_CHOP_DAC_ADC, 0x0200, 0x0200);
 			snd_soc_update_bits(codec, RT5616_DEPOP_M1,
 				RT5616_HP_CO_MASK | RT5616_HP_SG_MASK,
 				RT5616_HP_CO_EN | RT5616_HP_SG_EN);
+			*/
 		}
 		hp_amp_power_count++;
 	} else {
 		hp_amp_power_count--;
 		if(hp_amp_power_count <= 0) {
-			rt5616_index_update_bits(codec, RT5616_CHOP_DAC_ADC, 0x0200, 0x0);
-			snd_soc_update_bits(codec, RT5616_DEPOP_M1,
+			snd_soc_write(codec, RT5616_DEPOP_M1, 0x8019);
+			snd_soc_write(codec, RT5616_HP_VOL, 0xc8c8);
+			//rt5616_index_update_bits(codec, RT5616_CHOP_DAC_ADC, 0x0200, 0x0);
+			/*snd_soc_update_bits(codec, RT5616_DEPOP_M1,
 				RT5616_HP_SG_MASK | RT5616_HP_L_SMT_MASK |
 				RT5616_HP_R_SMT_MASK, RT5616_HP_SG_DIS |
-				RT5616_HP_L_SMT_DIS | RT5616_HP_R_SMT_DIS);
+				RT5616_HP_L_SMT_DIS | RT5616_HP_R_SMT_DIS);*/
 			/* headphone amp power down */
-			snd_soc_update_bits(codec, RT5616_DEPOP_M1,
+			/*snd_soc_update_bits(codec, RT5616_DEPOP_M1,
 				RT5616_SMT_TRIG_MASK | RT5616_HP_CD_PD_MASK |
 				RT5616_HP_CO_MASK | RT5616_HP_CP_MASK |
 				RT5616_HP_SG_MASK | RT5616_HP_CB_MASK,
 				RT5616_SMT_TRIG_DIS | RT5616_HP_CD_PD_EN |
 				RT5616_HP_CO_DIS | RT5616_HP_CP_PD |
-				RT5616_HP_SG_EN | RT5616_HP_CB_PD);
-			snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
-				RT5616_PWR_HP_L | RT5616_PWR_HP_R | RT5616_PWR_HA | RT5616_PWR_LM,
-				0);
+				RT5616_HP_SG_EN | RT5616_HP_CB_PD);*/
+			//snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
+				//RT5616_PWR_HP_L | RT5616_PWR_HP_R | RT5616_PWR_HA | RT5616_PWR_LM,
+				//0);
 		}
 	}
 }
@@ -768,7 +781,7 @@ static void rt5616_pmu_depop(struct snd_soc_codec *codec)
 	rt5616_hp_amp_power(codec, 1);
 
 	/* headphone unmute sequence */
-	snd_soc_update_bits(codec, RT5616_DEPOP_M3,
+	/*snd_soc_update_bits(codec, RT5616_DEPOP_M3,
 		RT5616_CP_FQ1_MASK | RT5616_CP_FQ2_MASK | RT5616_CP_FQ3_MASK,
 		(RT5616_CP_FQ_192_KHZ << RT5616_CP_FQ1_SFT) |
 		(RT5616_CP_FQ_12_KHZ << RT5616_CP_FQ2_SFT) |
@@ -780,7 +793,13 @@ static void rt5616_pmu_depop(struct snd_soc_codec *codec)
 		RT5616_RSTN_MASK, RT5616_RSTN_EN);
 	snd_soc_update_bits(codec, RT5616_DEPOP_M1,
 		RT5616_RSTN_MASK | RT5616_HP_L_SMT_MASK | RT5616_HP_R_SMT_MASK,
-		RT5616_RSTN_DIS | RT5616_HP_L_SMT_EN | RT5616_HP_R_SMT_EN);
+		RT5616_RSTN_DIS | RT5616_HP_L_SMT_EN | RT5616_HP_R_SMT_EN);*/
+	snd_soc_write(codec, 0x8e, 0x001d);
+	rt5616_index_write(codec, RT5616_MAMP_INT_REG2, 0xfc00);
+	snd_soc_write(codec, 0x8e, 0x801d);
+	snd_soc_write(codec, 0x8e, 0x805d);
+	snd_soc_write(codec, 0x8e, 0x801d);
+	snd_soc_write(codec, 0x8e, 0x831d);
 	snd_soc_update_bits(codec, RT5616_HP_VOL,
 		RT5616_L_MUTE | RT5616_R_MUTE, 0);
 	msleep(100);
@@ -788,7 +807,7 @@ static void rt5616_pmu_depop(struct snd_soc_codec *codec)
 		RT5616_HP_SG_MASK | RT5616_HP_L_SMT_MASK |
 		RT5616_HP_R_SMT_MASK, RT5616_HP_SG_DIS |
 		RT5616_HP_L_SMT_DIS | RT5616_HP_R_SMT_DIS);
-	msleep(20);
+    //  msleep(20);
 //	snd_soc_update_bits(codec, RT5616_HP_CALIB_AMP_DET,
 //		RT5616_HPD_PS_MASK, RT5616_HPD_PS_EN);
 }
@@ -796,6 +815,8 @@ static void rt5616_pmu_depop(struct snd_soc_codec *codec)
 static void rt5616_pmd_depop(struct snd_soc_codec *codec)
 {
 	/* headphone mute sequence */
+	rt5616_index_write(codec, 0x24, 0x0120);
+	snd_soc_write(codec, RT5616_HP_CALIB_AMP_DET, 0x0400);
 	snd_soc_update_bits(codec, RT5616_DEPOP_M3,
 		RT5616_CP_FQ1_MASK | RT5616_CP_FQ2_MASK | RT5616_CP_FQ3_MASK,
 		(RT5616_CP_FQ_96_KHZ << RT5616_CP_FQ1_SFT) |
@@ -812,9 +833,11 @@ static void rt5616_pmd_depop(struct snd_soc_codec *codec)
 		RT5616_HP_L_SMT_EN | RT5616_HP_R_SMT_EN);
 //	snd_soc_update_bits(codec, RT5616_HP_CALIB_AMP_DET,
 //		RT5616_HPD_PS_MASK, RT5616_HPD_PS_DIS);
-	msleep(90);
+	msleep(100);
 	snd_soc_update_bits(codec, RT5616_HP_VOL,
-		RT5616_L_MUTE | RT5616_R_MUTE, RT5616_L_MUTE | RT5616_R_MUTE);
+		RT5616_L_MUTE | RT5616_R_MUTE, 
+		RT5616_L_MUTE | RT5616_R_MUTE);
+	
 	msleep(30);
 
 	rt5616_hp_amp_power(codec, 0);
@@ -832,7 +855,7 @@ static int rt5616_hp_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		//rt5616_pmd_depop(codec);
+		rt5616_pmd_depop(codec);
 		break;
 
 	default:
@@ -1252,14 +1275,10 @@ static int rt5616_prepare(struct snd_pcm_substream *substream,
 
 static int rt5616_set_gpio(struct rt5616_priv *rt5616, int gpio, bool level)
 {	
-#if 0
-	printk("%s : set %s ctl gpio %s\n", __func__,
-		gpio & rt5616_CODEC_SET_SPK ? "spk" : "",
-		level ? "HIGH" : "LOW");
-#endif
 	if ((gpio & rt5616_CODEC_SET_SPK) && gpio_is_valid(rt5616->spk_ctl_gpio)) {
-		mdelay(100);
+		//printk("%s..level=%d\n",__func__,level);
 		gpio_set_value(rt5616->spk_ctl_gpio, level);		
+		mdelay(100);
 	}
 
 	return 0;
@@ -1536,11 +1555,36 @@ static int rt5616_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
+
+	if (SND_SOC_BIAS_STANDBY == codec->dapm.bias_level) {
+		rt5616_index_write(codec, 0x24, 0x0120);
+		snd_soc_write(codec, RT5616_HP_CALIB_AMP_DET, 0x0400);
+		snd_soc_update_bits(codec, RT5616_DEPOP_M3,
+			RT5616_CP_FQ1_MASK | RT5616_CP_FQ2_MASK | RT5616_CP_FQ3_MASK,
+			(RT5616_CP_FQ_96_KHZ << RT5616_CP_FQ1_SFT) |
+			(RT5616_CP_FQ_12_KHZ << RT5616_CP_FQ2_SFT) |
+			(RT5616_CP_FQ_96_KHZ << RT5616_CP_FQ3_SFT));
+		rt5616_index_write(codec, RT5616_MAMP_INT_REG2, 0xfc00);
+		snd_soc_write(codec, RT5616_DEPOP_M1, 0x801d);
+		snd_soc_write(codec, RT5616_DEPOP_M1, 0x803d);
+		snd_soc_write(codec, RT5616_DEPOP_M1, 0x831d);
+		snd_soc_write(codec, RT5616_HP_VOL, 0x8888);
+
+	//	snd_soc_update_bits(codec, RT5616_HP_CALIB_AMP_DET,
+	//		RT5616_HPD_PS_MASK, RT5616_HPD_PS_DIS);
+		msleep(90);
+		snd_soc_write(codec, RT5616_DEPOP_M1, 0x8019);
+	}
+
+	   msleep(30);
+		/*snd_soc_update_bits(codec, RT5616_LOUT_CTRL1,
+			RT5616_L_MUTE | RT5616_R_MUTE,
+			RT5616_L_MUTE | RT5616_R_MUTE);*/
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
 		if (SND_SOC_BIAS_OFF == codec->dapm.bias_level) {
-			snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
+			/*snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
 				RT5616_PWR_VREF1 | RT5616_PWR_MB |
 				RT5616_PWR_BG | RT5616_PWR_VREF2,
 				RT5616_PWR_VREF1 | RT5616_PWR_MB |
@@ -1548,12 +1592,14 @@ static int rt5616_set_bias_level(struct snd_soc_codec *codec,
 			msleep(10);
 			snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
 				RT5616_PWR_FV1 | RT5616_PWR_FV2,
-				RT5616_PWR_FV1 | RT5616_PWR_FV2);
+				RT5616_PWR_FV1 | RT5616_PWR_FV2);*/
+			snd_soc_write(codec, RT5616_D_MISC, 0x0011);
+			snd_soc_write(codec, RT5616_PWR_ANLG1, 0xe818);
+			//snd_soc_update_bits(codec, RT5616_PWR_ANLG2, RT5616_PWR_MB1, RT5616_PWR_MB1);
 			codec->cache_only = false;
 			codec->cache_sync = 1;
 			snd_soc_cache_sync(codec);
 			rt5616_index_sync(codec);
-			snd_soc_write(codec, RT5616_D_MISC, 0x0011);
 		}
 		break;
 
@@ -1601,10 +1647,11 @@ static int rt5616_probe(struct snd_soc_codec *codec)
 		RT5616_PWR_FV1 | RT5616_PWR_FV2);
 
 	rt5616_reg_init(codec);
+	rt5616_index_write(codec, RT5616_CHOP_DAC_ADC, 0x3e00);
 	snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
 		RT5616_PWR_LDO_DVO_MASK, RT5616_PWR_LDO_DVO_1_2V);
 
-	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
+	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	rt5616->codec = codec;
 
         rt5616_codec = codec;
@@ -1794,6 +1841,8 @@ static void rt5616_i2c_shutdown(struct i2c_client *client)
 
 	if (codec != NULL)
 	{
+		rt5616_set_gpio(rt5616,rt5616_CODEC_SET_SPK, 0);
+		mdelay(100);
 		snd_soc_write(codec, RT5616_HP_VOL, 0xc8c8);
 		snd_soc_write(codec, RT5616_LOUT_CTRL1, 0xc8c8);
 		rt5616_set_bias_level(codec, SND_SOC_BIAS_OFF);
