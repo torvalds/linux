@@ -243,8 +243,9 @@ void comedi_buf_reset(struct comedi_subdevice *s)
 	async->events = 0;
 }
 
-static unsigned int comedi_buf_write_n_available(struct comedi_async *async)
+static unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s)
 {
+	struct comedi_async *async = s->async;
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
 	return free_end - async->buf_write_alloc_count;
@@ -255,7 +256,7 @@ static unsigned int __comedi_buf_write_alloc(struct comedi_subdevice *s,
 					     int strict)
 {
 	struct comedi_async *async = s->async;
-	unsigned int available = comedi_buf_write_n_available(async);
+	unsigned int available = comedi_buf_write_n_available(s);
 
 	if (nbytes > available)
 		nbytes = strict ? 0 : available;
