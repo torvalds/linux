@@ -39,6 +39,8 @@
  * @fifo_depth: depth of tx/rx FIFO
  * @slot_width: width of each DAI slot
  * @hck_rate: clock rate of desired HCKx clock
+ * @sck_rate: clock rate of desired SCKx clock
+ * @hck_dir: the direction of HCKx pads
  * @sck_div: if using PSR/PM dividers for SCKx clock
  * @slave_mode: if fully using DAI slave mode
  * @synchronous: if using tx/rx synchronous mode
@@ -55,6 +57,8 @@ struct fsl_esai {
 	u32 fifo_depth;
 	u32 slot_width;
 	u32 hck_rate[2];
+	u32 sck_rate[2];
+	bool hck_dir[2];
 	bool sck_div[2];
 	bool slave_mode;
 	bool synchronous;
@@ -213,6 +217,10 @@ static int fsl_esai_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	unsigned long clk_rate;
 	int ret;
 
+	/* Bypass divider settings if the requirement doesn't change */
+	if (freq == esai_priv->hck_rate[tx] && dir == esai_priv->hck_dir[tx])
+		return 0;
+
 	/* sck_div can be only bypassed if ETO/ERO=0 and SNC_SOC_CLOCK_OUT */
 	esai_priv->sck_div[tx] = true;
 
@@ -272,6 +280,7 @@ static int fsl_esai_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	esai_priv->sck_div[tx] = false;
 
 out:
+	esai_priv->hck_dir[tx] = dir;
 	esai_priv->hck_rate[tx] = freq;
 
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_ECR,
@@ -289,9 +298,10 @@ static int fsl_esai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 	struct fsl_esai *esai_priv = snd_soc_dai_get_drvdata(dai);
 	u32 hck_rate = esai_priv->hck_rate[tx];
 	u32 sub, ratio = hck_rate / freq;
+	int ret;
 
-	/* Don't apply for fully slave mode*/
-	if (esai_priv->slave_mode)
+	/* Don't apply for fully slave mode or unchanged bclk */
+	if (esai_priv->slave_mode || esai_priv->sck_rate[tx] == freq)
 		return 0;
 
 	if (ratio * freq > hck_rate)
@@ -313,8 +323,15 @@ static int fsl_esai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		return -EINVAL;
 	}
 
-	return fsl_esai_divisor_cal(dai, tx, ratio, true,
+	ret = fsl_esai_divisor_cal(dai, tx, ratio, true,
 			esai_priv->sck_div[tx] ? 0 : ratio);
+	if (ret)
+		return ret;
+
+	/* Save current bclk rate */
+	esai_priv->sck_rate[tx] = freq;
+
+	return 0;
 }
 
 static int fsl_esai_set_dai_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask,
