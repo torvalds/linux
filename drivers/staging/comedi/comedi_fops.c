@@ -251,7 +251,7 @@ static int resize_async_buffer(struct comedi_device *dev,
 			"subdevice is busy, cannot resize buffer\n");
 		return -EBUSY;
 	}
-	if (comedi_buf_is_mmapped(async)) {
+	if (comedi_buf_is_mmapped(s)) {
 		dev_dbg(dev->class_dev,
 			"subdevice is mmapped, cannot resize buffer\n");
 		return -EBUSY;
@@ -635,7 +635,7 @@ static int is_device_busy(struct comedi_device *dev)
 		s = &dev->subdevices[i];
 		if (s->busy)
 			return 1;
-		if (s->async && comedi_buf_is_mmapped(s->async))
+		if (s->async && comedi_buf_is_mmapped(s))
 			return 1;
 	}
 

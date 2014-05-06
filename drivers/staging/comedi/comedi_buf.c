@@ -183,9 +183,9 @@ comedi_buf_map_from_subdev_get(struct comedi_subdevice *s)
 	return bm;
 }
 
-bool comedi_buf_is_mmapped(struct comedi_async *async)
+bool comedi_buf_is_mmapped(struct comedi_subdevice *s)
 {
-	struct comedi_buf_map *bm = async->buf_map;
+	struct comedi_buf_map *bm = s->async->buf_map;
 
 	return bm && (atomic_read(&bm->refcount.refcount) > 1);
 }
