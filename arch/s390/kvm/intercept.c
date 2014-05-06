@@ -17,6 +17,7 @@
 
 #include <asm/kvm_host.h>
 #include <asm/asm-offsets.h>
+#include <asm/irq.h>
 
 #include "kvm-s390.h"
 #include "gaccess.h"
@@ -45,9 +46,6 @@ static int handle_noop(struct kvm_vcpu *vcpu)
 		break;
 	case 0x10:
 		vcpu->stat.exit_external_request++;
-		break;
-	case 0x14:
-		vcpu->stat.exit_external_interrupt++;
 		break;
 	default:
 		break; /* nothing */
@@ -234,6 +232,49 @@ static int handle_instruction_and_prog(struct kvm_vcpu *vcpu)
 }
 
 /**
+ * handle_external_interrupt - used for external interruption interceptions
+ *
+ * This interception only occurs if the CPUSTAT_EXT_INT bit was set, or if
+ * the new PSW does not have external interrupts disabled. In the first case,
+ * we've got to deliver the interrupt manually, and in the second case, we
+ * drop to userspace to handle the situation there.
+ */
+static int handle_external_interrupt(struct kvm_vcpu *vcpu)
+{
+	u16 eic = vcpu->arch.sie_block->eic;
+	struct kvm_s390_interrupt irq;
+	psw_t newpsw;
+	int rc;
+
+	vcpu->stat.exit_external_interrupt++;
+
+	rc = read_guest_lc(vcpu, __LC_EXT_NEW_PSW, &newpsw, sizeof(psw_t));
+	if (rc)
+		return rc;
+	/* We can not handle clock comparator or timer interrupt with bad PSW */
+	if ((eic == EXT_IRQ_CLK_COMP || eic == EXT_IRQ_CPU_TIMER) &&
+	    (newpsw.mask & PSW_MASK_EXT))
+		return -EOPNOTSUPP;
+
+	switch (eic) {
+	case EXT_IRQ_CLK_COMP:
+		irq.type = KVM_S390_INT_CLOCK_COMP;
+		break;
+	case EXT_IRQ_CPU_TIMER:
+		irq.type = KVM_S390_INT_CPU_TIMER;
+		break;
+	case EXT_IRQ_EXTERNAL_CALL:
+		irq.type = KVM_S390_INT_EXTERNAL_CALL;
+		irq.parm = vcpu->arch.sie_block->extcpuaddr;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return kvm_s390_inject_vcpu(vcpu, &irq);
+}
+
+/**
  * Handle MOVE PAGE partial execution interception.
  *
  * This interception can only happen for guests with DAT disabled and
@@ -291,7 +332,7 @@ static const intercept_handler_t intercept_funcs[] = {
 	[0x08 >> 2] = handle_prog,
 	[0x0C >> 2] = handle_instruction_and_prog,
 	[0x10 >> 2] = handle_noop,
-	[0x14 >> 2] = handle_noop,
+	[0x14 >> 2] = handle_external_interrupt,
 	[0x18 >> 2] = handle_noop,
 	[0x1C >> 2] = kvm_s390_handle_wait,
 	[0x20 >> 2] = handle_validity,

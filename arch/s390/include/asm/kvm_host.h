@@ -132,7 +132,10 @@ struct kvm_s390_sie_block {
 	psw_t	gpsw;			/* 0x0090 */
 	__u64	gg14;			/* 0x00a0 */
 	__u64	gg15;			/* 0x00a8 */
-	__u8	reservedb0[28];		/* 0x00b0 */
+	__u8	reservedb0[20];		/* 0x00b0 */
+	__u16	extcpuaddr;		/* 0x00c4 */
+	__u16	eic;			/* 0x00c6 */
+	__u32	reservedc8;		/* 0x00c8 */
 	__u16	pgmilc;			/* 0x00cc */
 	__u16	iprcc;			/* 0x00ce */
 	__u32	dxc;			/* 0x00d0 */
