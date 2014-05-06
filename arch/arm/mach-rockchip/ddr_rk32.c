@@ -2543,14 +2543,7 @@ static noinline uint32 ddr_get_parameter(uint32 nMHz)
         uint32 twr_tmp;
 
         al = 0;
-        if(nMHz>=200)
-        {
-            bl = 4;  //you can change burst here
-        }
-        else
-        {
-            bl = 8;  // freq < 200MHz, BL fixed 8
-        }
+        bl = 8;
         /*     1066 933 800 667 533 400 333
          * RL,   8   7   6   5   4   3   3
          * WL,   4   4   3   2   2   1   1
