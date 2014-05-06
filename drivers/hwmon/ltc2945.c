@@ -1,4 +1,4 @@
-    /*
+/*
  * Driver for Linear Technology LTC2945 I2C Power Monitor
  *
  * Copyright (c) 2014 Guenter Roeck
