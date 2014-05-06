@@ -2040,7 +2040,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 		poll_wait(file, &s->async->wait_head, wait);
 		comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
-		    comedi_buf_write_n_allocated(s->async) >= bps)
+		    comedi_buf_write_n_allocated(s) >= bps)
 			mask |= POLLOUT | POLLWRNORM;
 	}
 
@@ -2137,8 +2137,8 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		if (async->buf_write_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_write_ptr;
 		comedi_buf_write_alloc(s, async->prealloc_bufsz);
-		if (m > comedi_buf_write_n_allocated(async))
-			m = comedi_buf_write_n_allocated(async);
+		if (m > comedi_buf_write_n_allocated(s))
+			m = comedi_buf_write_n_allocated(s);
 		if (m < n)
 			n = m;
 

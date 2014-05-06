@@ -323,8 +323,10 @@ static unsigned int comedi_buf_munge(struct comedi_async *async,
 	return count;
 }
 
-unsigned int comedi_buf_write_n_allocated(struct comedi_async *async)
+unsigned int comedi_buf_write_n_allocated(struct comedi_subdevice *s)
 {
+	struct comedi_async *async = s->async;
+
 	return async->buf_write_alloc_count - async->buf_write_count;
 }
 
@@ -333,7 +335,7 @@ unsigned int comedi_buf_write_free(struct comedi_subdevice *s,
 				   unsigned int nbytes)
 {
 	struct comedi_async *async = s->async;
-	unsigned int allocated = comedi_buf_write_n_allocated(async);
+	unsigned int allocated = comedi_buf_write_n_allocated(s);
 
 	if (nbytes > allocated)
 		nbytes = allocated;
