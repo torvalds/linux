@@ -307,7 +307,6 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 		return -ENOMEM;
 
 	init_waitqueue_head(&async->wait_head);
-	async->subdevice = s;
 	s->async = async;
 
 	async->max_bufsize = comedi_default_buf_maxsize_kb * 1024;

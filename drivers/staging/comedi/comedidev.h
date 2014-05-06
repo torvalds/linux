@@ -108,8 +108,6 @@ struct comedi_buf_map {
 };
 
 struct comedi_async {
-	struct comedi_subdevice *subdevice;
-
 	void *prealloc_buf;	/* pre-allocated buffer */
 	unsigned int prealloc_bufsz;	/* buffer size, in bytes */
 	struct comedi_buf_map *buf_map;	/* map of buffer pages */
