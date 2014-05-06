@@ -307,7 +307,8 @@ static int fsl_esai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		return -EINVAL;
 	}
 
-	if (esai_priv->sck_div[tx] && (ratio > 16 || ratio == 0)) {
+	/* The ratio should be contented by FP alone if bypassing PM and PSR */
+	if (!esai_priv->sck_div[tx] && (ratio > 16 || ratio == 0)) {
 		dev_err(dai->dev, "the ratio is out of range (1 ~ 16)\n");
 		return -EINVAL;
 	}
