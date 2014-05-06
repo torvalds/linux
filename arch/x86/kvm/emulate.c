@@ -708,7 +708,7 @@ static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
  * Prefetch the remaining bytes of the instruction without crossing page
  * boundary if they are not in fetch_cache yet.
  */
-static int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
+static int __do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 {
 	struct fetch_cache *fc = &ctxt->fetch;
 	int rc;
@@ -740,41 +740,39 @@ static int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 	return X86EMUL_CONTINUE;
 }
 
-static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
-			 void *__dest, unsigned size)
+static __always_inline int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt,
+					       unsigned size)
 {
-	struct fetch_cache *fc = &ctxt->fetch;
-	u8 *dest = __dest;
-	u8 *src = &fc->data[ctxt->_eip - fc->start];
-
 	/* We have to be careful about overflow! */
-	if (unlikely(ctxt->_eip > fc->end - size)) {
-		int rc = do_insn_fetch_bytes(ctxt, size);
-		if (rc != X86EMUL_CONTINUE)
-			return rc;
-	}
-
-	while (size--) {
-		*dest++ = *src++;
-		ctxt->_eip++;
-		continue;
-	}
-	return X86EMUL_CONTINUE;
+	if (unlikely(ctxt->_eip > ctxt->fetch.end - size))
+		return __do_insn_fetch_bytes(ctxt, size);
+	else
+		return X86EMUL_CONTINUE;
 }
 
 /* Fetch next part of the instruction being emulated. */
 #define insn_fetch(_type, _ctxt)					\
-({	unsigned long _x;						\
-	rc = do_insn_fetch(_ctxt, &_x, sizeof(_type));			\
+({	_type _x;							\
+	struct fetch_cache *_fc;					\
+									\
+	rc = do_insn_fetch_bytes(_ctxt, sizeof(_type));			\
 	if (rc != X86EMUL_CONTINUE)					\
 		goto done;						\
-	(_type)_x;							\
+	_fc = &ctxt->fetch;						\
+	_x = *(_type __aligned(1) *) &_fc->data[ctxt->_eip - _fc->start]; \
+	ctxt->_eip += sizeof(_type);					\
+	_x;								\
 })
 
 #define insn_fetch_arr(_arr, _size, _ctxt)				\
-({	rc = do_insn_fetch(_ctxt, _arr, (_size));			\
+({									\
+	struct fetch_cache *_fc;					\
+	rc = do_insn_fetch_bytes(_ctxt, _size);				\
 	if (rc != X86EMUL_CONTINUE)					\
 		goto done;						\
+	_fc = &ctxt->fetch;						\
+	memcpy(_arr, &_fc->data[ctxt->_eip - _fc->start], _size);	\
+	ctxt->_eip += (_size);						\
 })
 
 /*
@@ -4236,7 +4234,7 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	if (insn_len > 0)
 		memcpy(ctxt->fetch.data, insn, insn_len);
 	else {
-		rc = do_insn_fetch_bytes(ctxt, 1);
+		rc = __do_insn_fetch_bytes(ctxt, 1);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 	}
