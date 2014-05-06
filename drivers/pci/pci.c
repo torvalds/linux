@@ -1468,6 +1468,17 @@ void __weak pcibios_release_device(struct pci_dev *dev) {}
  */
 void __weak pcibios_disable_device (struct pci_dev *dev) {}
 
+/**
+ * pcibios_penalize_isa_irq - penalize an ISA IRQ
+ * @irq: ISA IRQ to penalize
+ * @active: IRQ active or not
+ *
+ * Permits the platform to provide architecture-specific functionality when
+ * penalizing ISA IRQs. This is the default implementation. Architecture
+ * implementations can override this.
+ */
+void __weak pcibios_penalize_isa_irq(int irq, int active) {}
+
 static void do_pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
