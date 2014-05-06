@@ -958,7 +958,6 @@ struct snd_soc_card {
 	struct snd_card *snd_card;
 	struct module *owner;
 
-	struct list_head list;
 	struct mutex mutex;
 	struct mutex dapm_mutex;
 
