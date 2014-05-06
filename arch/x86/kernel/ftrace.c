@@ -380,9 +380,9 @@ static int add_breakpoints(struct dyn_ftrace *rec, int enable)
 	unsigned long ftrace_addr;
 	int ret;
 
-	ret = ftrace_test_record(rec, enable);
+	ftrace_addr = get_ftrace_old_addr(rec);
 
-	ftrace_addr = get_ftrace_addr(rec);
+	ret = ftrace_test_record(rec, enable);
 
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
@@ -394,8 +394,6 @@ static int add_breakpoints(struct dyn_ftrace *rec, int enable)
 
 	case FTRACE_UPDATE_MODIFY_CALL_REGS:
 	case FTRACE_UPDATE_MODIFY_CALL:
-		ftrace_addr = get_ftrace_old_addr(rec);
-		/* fall through */
 	case FTRACE_UPDATE_MAKE_NOP:
 		/* converting a call to a nop */
 		return add_brk_on_call(rec, ftrace_addr);
