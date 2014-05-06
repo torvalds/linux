@@ -5850,8 +5850,10 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
  * - if it's 4KB aligned
  * - No bits beyond the physical address width are set
  * - Returns 0 on success or else 1
+ * (Intel SDM Section 30.3)
  */
-static int nested_vmx_check_vmptr(struct kvm_vcpu *vcpu, int exit_reason)
+static int nested_vmx_check_vmptr(struct kvm_vcpu *vcpu, int exit_reason,
+				  gpa_t *vmpointer)
 {
 	gva_t gva;
 	gpa_t vmptr;
@@ -5899,11 +5901,42 @@ static int nested_vmx_check_vmptr(struct kvm_vcpu *vcpu, int exit_reason)
 		kunmap(page);
 		vmx->nested.vmxon_ptr = vmptr;
 		break;
+	case EXIT_REASON_VMCLEAR:
+		if (!IS_ALIGNED(vmptr, PAGE_SIZE) || (vmptr >> maxphyaddr)) {
+			nested_vmx_failValid(vcpu,
+					     VMXERR_VMCLEAR_INVALID_ADDRESS);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
 
+		if (vmptr == vmx->nested.vmxon_ptr) {
+			nested_vmx_failValid(vcpu,
+					     VMXERR_VMCLEAR_VMXON_POINTER);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
+		break;
+	case EXIT_REASON_VMPTRLD:
+		if (!IS_ALIGNED(vmptr, PAGE_SIZE) || (vmptr >> maxphyaddr)) {
+			nested_vmx_failValid(vcpu,
+					     VMXERR_VMPTRLD_INVALID_ADDRESS);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
+
+		if (vmptr == vmx->nested.vmxon_ptr) {
+			nested_vmx_failValid(vcpu,
+					     VMXERR_VMCLEAR_VMXON_POINTER);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
+		break;
 	default:
 		return 1; /* shouldn't happen */
 	}
 
+	if (vmpointer)
+		*vmpointer = vmptr;
 	return 0;
 }
 
@@ -5946,7 +5979,7 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
-	if (nested_vmx_check_vmptr(vcpu, EXIT_REASON_VMON))
+	if (nested_vmx_check_vmptr(vcpu, EXIT_REASON_VMON, NULL))
 		return 1;
 
 	if (vmx->nested.vmxon) {
@@ -6075,36 +6108,15 @@ static int handle_vmoff(struct kvm_vcpu *vcpu)
 static int handle_vmclear(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	gva_t gva;
 	gpa_t vmptr;
 	struct vmcs12 *vmcs12;
 	struct page *page;
-	struct x86_exception e;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
 
-	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
-			vmcs_read32(VMX_INSTRUCTION_INFO), &gva))
+	if (nested_vmx_check_vmptr(vcpu, EXIT_REASON_VMCLEAR, &vmptr))
 		return 1;
-
-	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &vmptr,
-				sizeof(vmptr), &e)) {
-		kvm_inject_page_fault(vcpu, &e);
-		return 1;
-	}
-
-	if (!IS_ALIGNED(vmptr, PAGE_SIZE)) {
-		nested_vmx_failValid(vcpu, VMXERR_VMCLEAR_INVALID_ADDRESS);
-		skip_emulated_instruction(vcpu);
-		return 1;
-	}
-
-	if (vmptr == vmx->nested.vmxon_ptr) {
-		nested_vmx_failValid(vcpu, VMXERR_VMCLEAR_VMXON_POINTER);
-		skip_emulated_instruction(vcpu);
-		return 1;
-	}
 
 	if (vmptr == vmx->nested.current_vmptr) {
 		nested_release_vmcs12(vmx);
@@ -6425,35 +6437,14 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 static int handle_vmptrld(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	gva_t gva;
 	gpa_t vmptr;
-	struct x86_exception e;
 	u32 exec_control;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
 
-	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
-			vmcs_read32(VMX_INSTRUCTION_INFO), &gva))
+	if (nested_vmx_check_vmptr(vcpu, EXIT_REASON_VMPTRLD, &vmptr))
 		return 1;
-
-	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &vmptr,
-				sizeof(vmptr), &e)) {
-		kvm_inject_page_fault(vcpu, &e);
-		return 1;
-	}
-
-	if (!IS_ALIGNED(vmptr, PAGE_SIZE)) {
-		nested_vmx_failValid(vcpu, VMXERR_VMPTRLD_INVALID_ADDRESS);
-		skip_emulated_instruction(vcpu);
-		return 1;
-	}
-
-	if (vmptr == vmx->nested.vmxon_ptr) {
-		nested_vmx_failValid(vcpu, VMXERR_VMCLEAR_VMXON_POINTER);
-		skip_emulated_instruction(vcpu);
-		return 1;
-	}
 
 	if (vmx->nested.current_vmptr != vmptr) {
 		struct vmcs12 *new_vmcs12;
