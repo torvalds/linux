@@ -115,7 +115,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,imx53-ipu";
-			reg = <0x18000000 0x080000000>;
+			reg = <0x18000000 0x08000000>;
 			interrupts = <11 10>;
 			clocks = <&clks IMX5_CLK_IPU_GATE>,
 			         <&clks IMX5_CLK_IPU_DI0_GATE>,
