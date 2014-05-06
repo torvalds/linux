@@ -11,7 +11,13 @@
 #include "drbd_req.h"
 #include "drbd_debugfs.h"
 
+
+/**********************************************************************
+ * Whenever you change the file format, remember to bump the version. *
+ **********************************************************************/
+
 static struct dentry *drbd_debugfs_root;
+static struct dentry *drbd_debugfs_version;
 static struct dentry *drbd_debugfs_resources;
 static struct dentry *drbd_debugfs_minors;
 
@@ -368,6 +374,9 @@ static int in_flight_summary_show(struct seq_file *m, void *pos)
 	if (!connection || !kref_get_unless_zero(&connection->kref))
 		return -ESTALE;
 
+	/* BUMP me if you change the file format/content/presentation */
+	seq_printf(m, "v: %u\n\n", 0);
+
 	seq_puts(m, "oldest bitmap IO\n");
 	seq_print_resource_pending_bitmap_io(m, resource, jif);
 	seq_putc(m, '\n');
@@ -562,6 +571,9 @@ static int callback_history_show(struct seq_file *m, void *ignored)
 	struct drbd_connection *connection = m->private;
 	unsigned long jif = jiffies;
 
+	/* BUMP me if you change the file format/content/presentation */
+	seq_printf(m, "v: %u\n\n", 0);
+
 	seq_puts(m, "n\tage\tcallsite\tfn\n");
 	seq_print_timing_details(m, "worker", connection->w_cb_nr, connection->w_timing_details, jif);
 	seq_print_timing_details(m, "receiver", connection->r_cb_nr, connection->r_timing_details, jif);
@@ -686,6 +698,10 @@ static void resync_dump_detail(struct seq_file *m, struct lc_element *e)
 static int device_resync_extents_show(struct seq_file *m, void *ignored)
 {
 	struct drbd_device *device = m->private;
+
+	/* BUMP me if you change the file format/content/presentation */
+	seq_printf(m, "v: %u\n\n", 0);
+
 	if (get_ldev_if_state(device, D_FAILED)) {
 		lc_seq_printf_stats(m, device->resync);
 		lc_seq_dump_details(m, device->resync, "rs_left flags", resync_dump_detail);
@@ -697,6 +713,10 @@ static int device_resync_extents_show(struct seq_file *m, void *ignored)
 static int device_act_log_extents_show(struct seq_file *m, void *ignored)
 {
 	struct drbd_device *device = m->private;
+
+	/* BUMP me if you change the file format/content/presentation */
+	seq_printf(m, "v: %u\n\n", 0);
+
 	if (get_ldev_if_state(device, D_FAILED)) {
 		lc_seq_printf_stats(m, device->act_log);
 		lc_seq_dump_details(m, device->act_log, "", NULL);
@@ -712,6 +732,9 @@ static int device_oldest_requests_show(struct seq_file *m, void *ignored)
 	unsigned long now = jiffies;
 	struct drbd_request *r1, *r2;
 	int i;
+
+	/* BUMP me if you change the file format/content/presentation */
+	seq_printf(m, "v: %u\n\n", 0);
 
 	seq_puts(m, RQ_HDR);
 	spin_lock_irq(&resource->req_lock);
@@ -839,12 +862,36 @@ void drbd_debugfs_peer_device_cleanup(struct drbd_peer_device *peer_device)
 	drbd_debugfs_remove(&peer_device->debugfs_peer_dev);
 }
 
+static int drbd_version_show(struct seq_file *m, void *ignored)
+{
+	seq_printf(m, "# %s\n", drbd_buildtag());
+	seq_printf(m, "VERSION=%s\n", REL_VERSION);
+	seq_printf(m, "API_VERSION=%u\n", API_VERSION);
+	seq_printf(m, "PRO_VERSION_MIN=%u\n", PRO_VERSION_MIN);
+	seq_printf(m, "PRO_VERSION_MAX=%u\n", PRO_VERSION_MAX);
+	return 0;
+}
+
+static int drbd_version_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, drbd_version_show, NULL);
+}
+
+static struct file_operations drbd_version_fops = {
+	.owner = THIS_MODULE,
+	.open = drbd_version_open,
+	.llseek = seq_lseek,
+	.read = seq_read,
+	.release = single_release,
+};
+
 /* not __exit, may be indirectly called
  * from the module-load-failure path as well. */
 void drbd_debugfs_cleanup(void)
 {
 	drbd_debugfs_remove(&drbd_debugfs_resources);
 	drbd_debugfs_remove(&drbd_debugfs_minors);
+	drbd_debugfs_remove(&drbd_debugfs_version);
 	drbd_debugfs_remove(&drbd_debugfs_root);
 }
 
@@ -856,6 +903,11 @@ int __init drbd_debugfs_init(void)
 	if (IS_ERR_OR_NULL(dentry))
 		goto fail;
 	drbd_debugfs_root = dentry;
+
+	dentry = debugfs_create_file("version", 0444, drbd_debugfs_root, NULL, &drbd_version_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		goto fail;
+	drbd_debugfs_version = dentry;
 
 	dentry = debugfs_create_dir("resources", drbd_debugfs_root);
 	if (IS_ERR_OR_NULL(dentry))
