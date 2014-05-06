@@ -1045,15 +1045,30 @@ retry:
 	return 0;
 }
 
-static long kvm_arch_fault_in_sync(struct kvm_vcpu *vcpu)
+/**
+ * kvm_arch_fault_in_page - fault-in guest page if necessary
+ * @vcpu: The corresponding virtual cpu
+ * @gpa: Guest physical address
+ * @writable: Whether the page should be writable or not
+ *
+ * Make sure that a guest page has been faulted-in on the host.
+ *
+ * Return: Zero on success, negative error code otherwise.
+ */
+long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable)
 {
-	long rc;
-	hva_t fault = gmap_fault(current->thread.gmap_addr, vcpu->arch.gmap);
 	struct mm_struct *mm = current->mm;
+	hva_t hva;
+	long rc;
+
+	hva = gmap_fault(gpa, vcpu->arch.gmap);
+	if (IS_ERR_VALUE(hva))
+		return (long)hva;
 	down_read(&mm->mmap_sem);
-	rc = get_user_pages(current, mm, fault, 1, 1, 0, NULL, NULL);
+	rc = get_user_pages(current, mm, hva, 1, writable, 0, NULL, NULL);
 	up_read(&mm->mmap_sem);
-	return rc;
+
+	return rc < 0 ? rc : 0;
 }
 
 static void __kvm_inject_pfault_token(struct kvm_vcpu *vcpu, bool start_token,
@@ -1191,9 +1206,12 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 	} else if (current->thread.gmap_pfault) {
 		trace_kvm_s390_major_guest_pfault(vcpu);
 		current->thread.gmap_pfault = 0;
-		if (kvm_arch_setup_async_pf(vcpu) ||
-		    (kvm_arch_fault_in_sync(vcpu) >= 0))
+		if (kvm_arch_setup_async_pf(vcpu)) {
 			rc = 0;
+		} else {
+			gpa_t gpa = current->thread.gmap_addr;
+			rc = kvm_arch_fault_in_page(vcpu, gpa, 1);
+		}
 	}
 
 	if (rc == -1) {
