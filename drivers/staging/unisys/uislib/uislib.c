@@ -587,10 +587,8 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 			 */
 			if (!msg->hdr.Flags.server) {
 				struct guest_msgs cmd;
-				if (!memcmp
-				    (&dev->channelTypeGuid,
-				     &UltraVhbaChannelProtocolGuid,
-				     sizeof(GUID))) {
+				if (!uuid_le_cmp(dev->channelTypeGuid,
+				     UltraVhbaChannelProtocolGuid)) {
 					WAIT_FOR_VALID_GUID(((CHANNEL_HEADER
 							      __iomem *) (dev->
 								  chanptr))->
@@ -614,10 +612,8 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					    dev->devInstGuid;
 					cmd.add_vhba.intr = dev->intr;
 				} else
-				    if (!memcmp
-					(&dev->channelTypeGuid,
-					 &UltraVnicChannelProtocolGuid,
-					 sizeof(GUID))) {
+				    if (!uuid_le_cmp(dev->channelTypeGuid,
+					 UltraVnicChannelProtocolGuid)) {
 					WAIT_FOR_VALID_GUID(((CHANNEL_HEADER
 							      __iomem *) (dev->
 								  chanptr))->
@@ -723,16 +719,13 @@ pause_device(CONTROLVM_MESSAGE *msg)
 			/* the msg is bound for virtpci; send
 			 * guest_msgs struct to callback
 			 */
-			if (!memcmp
-			    (&dev->channelTypeGuid,
-			     &UltraVhbaChannelProtocolGuid, sizeof(GUID))) {
+			if (!uuid_le_cmp(dev->channelTypeGuid,
+					UltraVhbaChannelProtocolGuid)) {
 				cmd.msgtype = GUEST_PAUSE_VHBA;
 				cmd.pause_vhba.chanptr = dev->chanptr;
 			} else
-			    if (!memcmp
-				(&dev->channelTypeGuid,
-				 &UltraVnicChannelProtocolGuid,
-				 sizeof(GUID))) {
+			    if (!uuid_le_cmp(dev->channelTypeGuid,
+					    UltraVnicChannelProtocolGuid)) {
 				cmd.msgtype = GUEST_PAUSE_VNIC;
 				cmd.pause_vnic.chanptr = dev->chanptr;
 			} else {
@@ -798,15 +791,13 @@ resume_device(CONTROLVM_MESSAGE *msg)
 			/* the msg is bound for virtpci; send
 			 * guest_msgs struct to callback
 			 */
-			if (!memcmp(&dev->channelTypeGuid,
-				    &UltraVhbaChannelProtocolGuid,
-				    sizeof(GUID))) {
+			if (!uuid_le_cmp(dev->channelTypeGuid,
+					UltraVhbaChannelProtocolGuid)) {
 				cmd.msgtype = GUEST_RESUME_VHBA;
 				cmd.resume_vhba.chanptr = dev->chanptr;
 			} else
-			    if (!memcmp(&dev->channelTypeGuid,
-					&UltraVnicChannelProtocolGuid,
-					sizeof(GUID))) {
+			    if (!uuid_le_cmp(dev->channelTypeGuid,
+					    UltraVnicChannelProtocolGuid)) {
 				cmd.msgtype = GUEST_RESUME_VNIC;
 				cmd.resume_vnic.chanptr = dev->chanptr;
 			} else {
@@ -873,16 +864,13 @@ destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 			/* the msg is bound for virtpci; send
 			 * guest_msgs struct to callback
 			 */
-			if (!memcmp
-			    (&dev->channelTypeGuid,
-			     &UltraVhbaChannelProtocolGuid, sizeof(GUID))) {
+			if (!uuid_le_cmp(dev->channelTypeGuid,
+					UltraVhbaChannelProtocolGuid)) {
 				cmd.msgtype = GUEST_DEL_VHBA;
 				cmd.del_vhba.chanptr = dev->chanptr;
 			} else
-			    if (!memcmp
-				(&dev->channelTypeGuid,
-				 &UltraVnicChannelProtocolGuid,
-				 sizeof(GUID))) {
+			    if (!uuid_le_cmp(dev->channelTypeGuid,
+					    UltraVnicChannelProtocolGuid)) {
 				cmd.msgtype = GUEST_DEL_VNIC;
 				cmd.del_vnic.chanptr = dev->chanptr;
 			} else {
@@ -1008,7 +996,7 @@ delete_device_glue(U32 busNo, U32 devNo)
 }
 
 int
-uislib_client_inject_add_bus(U32 busNo, GUID instGuid,
+uislib_client_inject_add_bus(U32 busNo, uuid_le instGuid,
 			     U64 channelAddr, ulong nChannelBytes)
 {
 	CONTROLVM_MESSAGE msg;
@@ -1109,7 +1097,7 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vhba);
 int
 uislib_client_inject_add_vhba(U32 busNo, U32 devNo,
 			      U64 phys_chan_addr, U32 chan_bytes,
-			      int is_test_addr, GUID instGuid,
+			      int is_test_addr, uuid_le instGuid,
 			      struct InterruptInfo *intr)
 {
 	CONTROLVM_MESSAGE msg;
@@ -1168,7 +1156,7 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_del_vhba);
 int
 uislib_client_inject_add_vnic(U32 busNo, U32 devNo,
 			      U64 phys_chan_addr, U32 chan_bytes,
-			      int is_test_addr, GUID instGuid,
+			      int is_test_addr, uuid_le instGuid,
 			      struct InterruptInfo *intr)
 {
 	CONTROLVM_MESSAGE msg;
@@ -1272,7 +1260,6 @@ uislib_client_add_vnic(U32 busNo)
 	BOOL busCreated = FALSE;
 	int devNo = 0;		/* Default to 0, since only one device
 				 * will be created for this bus... */
-	GUID dummyGuid = GUID0;
 	CONTROLVM_MESSAGE msg;
 
 	init_msg_header(&msg, CONTROLVM_BUS_CREATE, 0, 0);
@@ -1291,7 +1278,7 @@ uislib_client_add_vnic(U32 busNo)
 	msg.hdr.Flags.testMessage = 1;
 	msg.cmd.createDevice.busNo = busNo;
 	msg.cmd.createDevice.devNo = devNo;
-	msg.cmd.createDevice.devInstGuid = dummyGuid;
+	msg.cmd.createDevice.devInstGuid = NULL_UUID_LE;
 	memset(&msg.cmd.createDevice.intr, 0, sizeof(struct InterruptInfo));
 	msg.cmd.createDevice.channelAddr = PhysicalDataChan;
 	msg.cmd.createDevice.channelBytes = MIN_IO_CHANNEL_SIZE;

@@ -18,6 +18,8 @@
 #ifndef __VISORCHANNEL_H__
 #define __VISORCHANNEL_H__
 
+#include <linux/uuid.h>
+
 #include "commontypes.h"
 #include "memregion.h"
 #include "channel.h"
@@ -38,15 +40,15 @@ typedef struct VISORCHANNEL_Tag VISORCHANNEL;
  * In this case, the values can simply be read from the channel header.
  */
 VISORCHANNEL *visorchannel_create(HOSTADDRESS physaddr,
-				  ulong channelBytes, GUID guid);
+				  ulong channelBytes, uuid_le guid);
 VISORCHANNEL *visorchannel_create_overlapped(ulong channelBytes,
 					     VISORCHANNEL *parent, ulong off,
-					     GUID guid);
+					     uuid_le guid);
 VISORCHANNEL *visorchannel_create_with_lock(HOSTADDRESS physaddr,
-					    ulong channelBytes, GUID guid);
+					    ulong channelBytes, uuid_le guid);
 VISORCHANNEL *visorchannel_create_overlapped_with_lock(ulong channelBytes,
 						       VISORCHANNEL *parent,
-						       ulong off, GUID guid);
+						       ulong off, uuid_le guid);
 void visorchannel_destroy(VISORCHANNEL *channel);
 int visorchannel_read(VISORCHANNEL *channel, ulong offset,
 		      void *local, ulong nbytes);
@@ -64,9 +66,9 @@ ulong visorchannel_get_nbytes(VISORCHANNEL *channel);
 char *visorchannel_id(VISORCHANNEL *channel, char *s);
 char *visorchannel_zoneid(VISORCHANNEL *channel, char *s);
 U64 visorchannel_get_clientpartition(VISORCHANNEL *channel);
-GUID visorchannel_get_GUID(VISORCHANNEL *channel);
+uuid_le visorchannel_get_uuid(VISORCHANNEL *channel);
 MEMREGION *visorchannel_get_memregion(VISORCHANNEL *channel);
-char *visorchannel_GUID_id(GUID *guid, char *s);
+char *visorchannel_uuid_id(uuid_le *guid, char *s);
 void visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 			struct seq_file *seq, U32 off);
 void visorchannel_dump_section(VISORCHANNEL *chan, char *s,

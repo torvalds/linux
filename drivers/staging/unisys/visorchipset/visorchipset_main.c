@@ -26,7 +26,6 @@
 #include "parser.h"
 #include "uniklog.h"
 #include "uisutils.h"
-#include "guidutils.h"
 #include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"
 #include "filexfer.h"
@@ -34,6 +33,7 @@
 #include <linux/nls.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
+#include <linux/uuid.h>
 
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_visorchipset_main_c
 #define TEST_VNIC_PHYSITF "eth0"	/* physical network itf for
@@ -82,7 +82,7 @@ typedef struct {
 static CONTROLVM_MESSAGE_HEADER g_DiagMsgHdr;
 static CONTROLVM_MESSAGE_HEADER g_ChipSetMsgHdr;
 static CONTROLVM_MESSAGE_HEADER g_DelDumpMsgHdr;
-static const GUID UltraDiagPoolChannelProtocolGuid =
+static const uuid_le UltraDiagPoolChannelProtocolGuid =
 	ULTRA_DIAG_POOL_CHANNEL_PROTOCOL_GUID;
 /* 0xffffff is an invalid Bus/Device number */
 static ulong g_diagpoolBusNo = 0xffffff;
@@ -93,15 +93,12 @@ static CONTROLVM_MESSAGE_PACKET g_DeviceChangeStatePacket;
  * "visorhackbus")
  */
 #define FOR_VISORHACKBUS(channel_type_guid) \
-	((memcmp(&channel_type_guid, &UltraVnicChannelProtocolGuid, \
-		 sizeof(GUID)) == 0) ||				    \
-	 (memcmp(&channel_type_guid, &UltraVhbaChannelProtocolGuid, \
-		 sizeof(GUID)) == 0))
+	(((uuid_le_cmp(channel_type_guid, UltraVnicChannelProtocolGuid) == 0)\
+	|| (uuid_le_cmp(channel_type_guid, UltraVhbaChannelProtocolGuid) == 0)))
 #define FOR_VISORBUS(channel_type_guid) (!(FOR_VISORHACKBUS(channel_type_guid)))
 
 #define is_diagpool_channel(channel_type_guid) \
-	 (memcmp(&channel_type_guid, \
-		 &UltraDiagPoolChannelProtocolGuid, sizeof(GUID)) == 0)
+	 (uuid_le_cmp(channel_type_guid, UltraDiagPoolChannelProtocolGuid) == 0)
 
 typedef enum {
 	PARTPROP_invalid,
@@ -1189,7 +1186,7 @@ bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
 	parser_param_start(parser_ctx, PARSERSTRING_NAME);
 	pBusInfo->name = parser_string_get(parser_ctx);
 
-	visorchannel_GUID_id(&pBusInfo->partitionGuid, s);
+	visorchannel_uuid_id(&pBusInfo->partitionGuid, s);
 	pBusInfo->procObject =
 	    visor_proc_CreateObject(PartitionType, s, (void *) (pBusInfo));
 	if (pBusInfo->procObject == NULL) {
