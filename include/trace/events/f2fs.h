@@ -659,6 +659,36 @@ DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_read_bio,
 	TP_CONDITION(bio)
 );
 
+TRACE_EVENT(f2fs_write_begin,
+
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
+				unsigned int flags),
+
+	TP_ARGS(inode, pos, len, flags),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned int, len)
+		__field(unsigned int, flags)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= pos;
+		__entry->len	= len;
+		__entry->flags	= flags;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, pos = %llu, len = %u, flags = %u",
+		show_dev_ino(__entry),
+		(unsigned long long)__entry->pos,
+		__entry->len,
+		__entry->flags)
+);
+
 DECLARE_EVENT_CLASS(f2fs__page,
 
 	TP_PROTO(struct page *page, int type),
