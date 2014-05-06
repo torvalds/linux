@@ -1607,7 +1607,7 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	nfs_pgheader_init(desc, hdr, pnfs_writehdr_free);
 	hdr->lseg = pnfs_get_lseg(desc->pg_lseg);
 	atomic_inc(&hdr->refcnt);
-	ret = nfs_generic_flush(desc, hdr);
+	ret = nfs_generic_pgio(desc, hdr);
 	if (ret != 0) {
 		pnfs_put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
@@ -1766,7 +1766,7 @@ pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	nfs_pgheader_init(desc, hdr, pnfs_readhdr_free);
 	hdr->lseg = pnfs_get_lseg(desc->pg_lseg);
 	atomic_inc(&hdr->refcnt);
-	ret = nfs_generic_pagein(desc, hdr);
+	ret = nfs_generic_pgio(desc, hdr);
 	if (ret != 0) {
 		pnfs_put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;

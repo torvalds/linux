@@ -237,85 +237,6 @@ static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops = {
 	.completion = nfs_read_completion,
 };
 
-/*
- * Generate multiple requests to fill a single page.
- *
- * We optimize to reduce the number of read operations on the wire.  If we
- * detect that we're reading a page, or an area of a page, that is past the
- * end of file, we do not generate NFS read operations but just clear the
- * parts of the page that would have come back zero from the server anyway.
- *
- * We rely on the cached value of i_size to make this determination; another
- * client can fill pages on the server past our cached end-of-file, but we
- * won't see the new data until our attribute cache is updated.  This is more
- * or less conventional NFS client behavior.
- */
-static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc,
-			    struct nfs_pgio_header *hdr)
-{
-	struct nfs_page *req = hdr->req;
-	struct page *page = req->wb_page;
-	struct nfs_pgio_data *data;
-	size_t rsize = desc->pg_bsize, nbytes;
-	unsigned int offset;
-
-	offset = 0;
-	nbytes = desc->pg_count;
-	do {
-		size_t len = min(nbytes,rsize);
-
-		data = nfs_pgio_data_alloc(hdr, 1);
-		if (!data)
-			return nfs_pgio_error(desc, hdr);
-		data->pages.pagevec[0] = page;
-		nfs_pgio_rpcsetup(data, len, offset, 0, NULL);
-		list_add(&data->list, &hdr->rpc_list);
-		nbytes -= len;
-		offset += len;
-	} while (nbytes != 0);
-
-	nfs_list_remove_request(req);
-	nfs_list_add_request(req, &hdr->pages);
-	desc->pg_rpc_callops = &nfs_pgio_common_ops;
-	return 0;
-}
-
-static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
-			  struct nfs_pgio_header *hdr)
-{
-	struct nfs_page		*req;
-	struct page		**pages;
-	struct nfs_pgio_data	*data;
-	struct list_head *head = &desc->pg_list;
-
-	data = nfs_pgio_data_alloc(hdr, nfs_page_array_len(desc->pg_base,
-							  desc->pg_count));
-	if (!data)
-		return nfs_pgio_error(desc, hdr);
-
-	pages = data->pages.pagevec;
-	while (!list_empty(head)) {
-		req = nfs_list_entry(head->next);
-		nfs_list_remove_request(req);
-		nfs_list_add_request(req, &hdr->pages);
-		*pages++ = req->wb_page;
-	}
-
-	nfs_pgio_rpcsetup(data, desc->pg_count, 0, 0, NULL);
-	list_add(&data->list, &hdr->rpc_list);
-	desc->pg_rpc_callops = &nfs_pgio_common_ops;
-	return 0;
-}
-
-int nfs_generic_pagein(struct nfs_pageio_descriptor *desc,
-		       struct nfs_pgio_header *hdr)
-{
-	if (desc->pg_bsize < PAGE_CACHE_SIZE)
-		return nfs_pagein_multi(desc, hdr);
-	return nfs_pagein_one(desc, hdr);
-}
-EXPORT_SYMBOL_GPL(nfs_generic_pagein);
-
 static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 {
 	struct nfs_rw_header *rhdr;
@@ -330,7 +251,7 @@ static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	hdr = &rhdr->header;
 	nfs_pgheader_init(desc, hdr, nfs_rw_header_free);
 	atomic_inc(&hdr->refcnt);
-	ret = nfs_generic_pagein(desc, hdr);
+	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
 		ret = nfs_do_multiple_reads(&hdr->rpc_list,
 					    desc->pg_rpc_callops);

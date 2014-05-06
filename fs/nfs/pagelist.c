@@ -27,6 +27,7 @@
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
 static struct kmem_cache *nfs_page_cachep;
+static const struct rpc_call_ops nfs_pgio_common_ops;
 
 static bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
 {
@@ -338,8 +339,8 @@ EXPORT_SYMBOL_GPL(nfs_rw_header_free);
  * @hdr: The header making a request
  * @pagecount: Number of pages to create
  */
-struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *hdr,
-					  unsigned int pagecount)
+static struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *hdr,
+						 unsigned int pagecount)
 {
 	struct nfs_pgio_data *data, *prealloc;
 
@@ -396,7 +397,7 @@ EXPORT_SYMBOL_GPL(nfs_pgio_data_release);
  * @how: How to commit data (writes only)
  * @cinfo: Commit information for the call (writes only)
  */
-void nfs_pgio_rpcsetup(struct nfs_pgio_data *data,
+static void nfs_pgio_rpcsetup(struct nfs_pgio_data *data,
 			      unsigned int count, unsigned int offset,
 			      int how, struct nfs_commit_info *cinfo)
 {
@@ -451,7 +452,7 @@ static void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
  * @desc: IO descriptor
  * @hdr: pageio header
  */
-int nfs_pgio_error(struct nfs_pageio_descriptor *desc,
+static int nfs_pgio_error(struct nfs_pageio_descriptor *desc,
 			  struct nfs_pgio_header *hdr)
 {
 	struct nfs_pgio_data *data;
@@ -533,6 +534,101 @@ static void nfs_pgio_result(struct rpc_task *task, void *calldata)
 	else
 		data->header->rw_ops->rw_result(task, data);
 }
+
+/*
+ * Generate multiple small requests to read or write a single
+ * contiguous dirty on one page.
+ */
+static int nfs_pgio_multi(struct nfs_pageio_descriptor *desc,
+			  struct nfs_pgio_header *hdr)
+{
+	struct nfs_page *req = hdr->req;
+	struct page *page = req->wb_page;
+	struct nfs_pgio_data *data;
+	size_t wsize = desc->pg_bsize, nbytes;
+	unsigned int offset;
+	int requests = 0;
+	struct nfs_commit_info cinfo;
+
+	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
+
+	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
+	    (desc->pg_moreio || nfs_reqs_to_commit(&cinfo) ||
+	     desc->pg_count > wsize))
+		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
+
+	offset = 0;
+	nbytes = desc->pg_count;
+	do {
+		size_t len = min(nbytes, wsize);
+
+		data = nfs_pgio_data_alloc(hdr, 1);
+		if (!data)
+			return nfs_pgio_error(desc, hdr);
+		data->pages.pagevec[0] = page;
+		nfs_pgio_rpcsetup(data, len, offset, desc->pg_ioflags, &cinfo);
+		list_add(&data->list, &hdr->rpc_list);
+		requests++;
+		nbytes -= len;
+		offset += len;
+	} while (nbytes != 0);
+
+	nfs_list_remove_request(req);
+	nfs_list_add_request(req, &hdr->pages);
+	desc->pg_rpc_callops = &nfs_pgio_common_ops;
+	return 0;
+}
+
+/*
+ * Create an RPC task for the given read or write request and kick it.
+ * The page must have been locked by the caller.
+ *
+ * It may happen that the page we're passed is not marked dirty.
+ * This is the case if nfs_updatepage detects a conflicting request
+ * that has been written but not committed.
+ */
+static int nfs_pgio_one(struct nfs_pageio_descriptor *desc,
+			struct nfs_pgio_header *hdr)
+{
+	struct nfs_page		*req;
+	struct page		**pages;
+	struct nfs_pgio_data	*data;
+	struct list_head *head = &desc->pg_list;
+	struct nfs_commit_info cinfo;
+
+	data = nfs_pgio_data_alloc(hdr, nfs_page_array_len(desc->pg_base,
+							   desc->pg_count));
+	if (!data)
+		return nfs_pgio_error(desc, hdr);
+
+	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
+	pages = data->pages.pagevec;
+	while (!list_empty(head)) {
+		req = nfs_list_entry(head->next);
+		nfs_list_remove_request(req);
+		nfs_list_add_request(req, &hdr->pages);
+		*pages++ = req->wb_page;
+	}
+
+	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
+	    (desc->pg_moreio || nfs_reqs_to_commit(&cinfo)))
+		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
+
+	/* Set up the argument struct */
+	nfs_pgio_rpcsetup(data, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
+	list_add(&data->list, &hdr->rpc_list);
+	desc->pg_rpc_callops = &nfs_pgio_common_ops;
+	return 0;
+}
+
+int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
+		     struct nfs_pgio_header *hdr)
+{
+	if (desc->pg_bsize < PAGE_CACHE_SIZE)
+		return nfs_pgio_multi(desc, hdr);
+	return nfs_pgio_one(desc, hdr);
+}
+EXPORT_SYMBOL_GPL(nfs_generic_pgio);
 
 static bool nfs_match_open_context(const struct nfs_open_context *ctx1,
 		const struct nfs_open_context *ctx2)
@@ -741,7 +837,7 @@ void nfs_destroy_nfspagecache(void)
 	kmem_cache_destroy(nfs_page_cachep);
 }
 
-const struct rpc_call_ops nfs_pgio_common_ops = {
+static const struct rpc_call_ops nfs_pgio_common_ops = {
 	.rpc_call_prepare = nfs_pgio_prepare,
 	.rpc_call_done = nfs_pgio_result,
 	.rpc_release = nfs_pgio_release,
