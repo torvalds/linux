@@ -46,7 +46,8 @@ struct armada_thermal_priv {
 
 struct armada_thermal_data {
 	/* Initialize the sensor */
-	void (*init_sensor)(struct armada_thermal_priv *);
+	void (*init_sensor)(struct platform_device *pdev,
+			    struct armada_thermal_priv *);
 
 	/* Test for a valid sensor value (optional) */
 	bool (*is_valid)(struct armada_thermal_priv *);
@@ -62,7 +63,8 @@ struct armada_thermal_data {
 	unsigned int is_valid_shift;
 };
 
-static void armadaxp_init_sensor(struct armada_thermal_priv *priv)
+static void armadaxp_init_sensor(struct platform_device *pdev,
+				 struct armada_thermal_priv *priv)
 {
 	unsigned long reg;
 
@@ -87,7 +89,8 @@ static void armadaxp_init_sensor(struct armada_thermal_priv *priv)
 	writel(reg, priv->sensor);
 }
 
-static void armada370_init_sensor(struct armada_thermal_priv *priv)
+static void armada370_init_sensor(struct platform_device *pdev,
+				  struct armada_thermal_priv *priv)
 {
 	unsigned long reg;
 
@@ -204,7 +207,7 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->control);
 
 	priv->data = (struct armada_thermal_data *)match->data;
-	priv->data->init_sensor(priv);
+	priv->data->init_sensor(pdev, priv);
 
 	thermal = thermal_zone_device_register("armada_thermal", 0, 0,
 					       priv, &ops, NULL, 0, 0);
