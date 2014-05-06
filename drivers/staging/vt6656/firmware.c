@@ -55,7 +55,6 @@ int FIRMWAREbDownload(struct vnt_private *pDevice) __must_hold(&pDevice->lock)
 	int ii, rc;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Download firmware\n");
-	spin_unlock_irq(&pDevice->lock);
 
 	rc = request_firmware(&fw, FIRMWARE_NAME, dev);
 	if (rc) {
@@ -92,7 +91,6 @@ free_fw:
 out:
 	kfree(pBuffer);
 
-	spin_lock_irq(&pDevice->lock);
 	return result;
 }
 MODULE_FIRMWARE(FIRMWARE_NAME);

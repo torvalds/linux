@@ -319,7 +319,11 @@ static int device_init_registers(struct vnt_private *pDevice)
 	memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
 
 	if (!FIRMWAREbCheckVersion(pDevice)) {
+
+		spin_unlock_irq(&pDevice->lock);
 		if (FIRMWAREbDownload(pDevice) == true) {
+
+			spin_lock_irq(&pDevice->lock);
 			if (FIRMWAREbBrach2Sram(pDevice) == false) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 					" FIRMWAREbBrach2Sram fail\n");
@@ -329,7 +333,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				" FIRMWAREbDownload fail\n");
-			spin_unlock_irq(&pDevice->lock);
 			return false;
 		}
 	}
