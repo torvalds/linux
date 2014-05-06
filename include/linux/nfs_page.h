@@ -59,6 +59,8 @@ struct nfs_rw_ops {
 	void (*rw_release)(struct nfs_pgio_data *);
 	int  (*rw_done)(struct rpc_task *, struct nfs_pgio_data *, struct inode *);
 	void (*rw_result)(struct rpc_task *, struct nfs_pgio_data *);
+	void (*rw_initiate)(struct nfs_pgio_data *, struct rpc_message *,
+			    struct rpc_task_setup *, int);
 };
 
 struct nfs_pageio_descriptor {

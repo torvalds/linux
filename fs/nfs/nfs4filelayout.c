@@ -568,8 +568,8 @@ filelayout_read_pagelist(struct nfs_pgio_data *data)
 	data->mds_offset = offset;
 
 	/* Perform an asynchronous read to ds */
-	nfs_initiate_read(ds_clnt, data,
-				  &filelayout_read_call_ops, RPC_TASK_SOFTCONN);
+	nfs_initiate_pgio(ds_clnt, data,
+			    &filelayout_read_call_ops, 0, RPC_TASK_SOFTCONN);
 	return PNFS_ATTEMPTED;
 }
 
@@ -613,7 +613,7 @@ filelayout_write_pagelist(struct nfs_pgio_data *data, int sync)
 	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
 
 	/* Perform an asynchronous write */
-	nfs_initiate_write(ds_clnt, data,
+	nfs_initiate_pgio(ds_clnt, data,
 				    &filelayout_write_call_ops, sync,
 				    RPC_TASK_SOFTCONN);
 	return PNFS_ATTEMPTED;

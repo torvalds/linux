@@ -151,53 +151,22 @@ out:
 	hdr->release(hdr);
 }
 
-int nfs_initiate_read(struct rpc_clnt *clnt,
-		      struct nfs_pgio_data *data,
-		      const struct rpc_call_ops *call_ops, int flags)
+static void nfs_initiate_read(struct nfs_pgio_data *data, struct rpc_message *msg,
+			      struct rpc_task_setup *task_setup_data, int how)
 {
 	struct inode *inode = data->header->inode;
 	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
-	struct rpc_task *task;
-	struct rpc_message msg = {
-		.rpc_argp = &data->args,
-		.rpc_resp = &data->res,
-		.rpc_cred = data->header->cred,
-	};
-	struct rpc_task_setup task_setup_data = {
-		.task = &data->task,
-		.rpc_client = clnt,
-		.rpc_message = &msg,
-		.callback_ops = call_ops,
-		.callback_data = data,
-		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC | swap_flags | flags,
-	};
 
-	/* Set up the initial task struct. */
-	NFS_PROTO(inode)->read_setup(data, &msg);
-
-	dprintk("NFS: %5u initiated read call (req %s/%llu, %u bytes @ "
-			"offset %llu)\n",
-			data->task.tk_pid,
-			inode->i_sb->s_id,
-			(unsigned long long)NFS_FILEID(inode),
-			data->args.count,
-			(unsigned long long)data->args.offset);
-
-	task = rpc_run_task(&task_setup_data);
-	if (IS_ERR(task))
-		return PTR_ERR(task);
-	rpc_put_task(task);
-	return 0;
+	task_setup_data->flags |= swap_flags;
+	NFS_PROTO(inode)->read_setup(data, msg);
 }
-EXPORT_SYMBOL_GPL(nfs_initiate_read);
 
 static int nfs_do_read(struct nfs_pgio_data *data,
 		const struct rpc_call_ops *call_ops)
 {
 	struct inode *inode = data->header->inode;
 
-	return nfs_initiate_read(NFS_CLIENT(inode), data, call_ops, 0);
+	return nfs_initiate_pgio(NFS_CLIENT(inode), data, call_ops, 0, 0);
 }
 
 static int
@@ -491,4 +460,5 @@ static const struct nfs_rw_ops nfs_rw_read_ops = {
 	.rw_free_header		= nfs_readhdr_free,
 	.rw_done		= nfs_readpage_done,
 	.rw_result		= nfs_readpage_result,
+	.rw_initiate		= nfs_initiate_read,
 };

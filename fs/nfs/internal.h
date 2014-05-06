@@ -241,6 +241,8 @@ struct nfs_rw_header *nfs_rw_header_alloc(const struct nfs_rw_ops *);
 void nfs_rw_header_free(struct nfs_pgio_header *);
 void nfs_pgio_data_release(struct nfs_pgio_data *);
 int nfs_generic_pgio(struct nfs_pageio_descriptor *, struct nfs_pgio_header *);
+int nfs_initiate_pgio(struct rpc_clnt *, struct nfs_pgio_data *,
+		      const struct rpc_call_ops *, int, int);
 
 static inline void nfs_iocounter_init(struct nfs_io_counter *c)
 {
@@ -402,9 +404,6 @@ struct nfs_pgio_completion_ops;
 extern void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 			struct inode *inode, bool force_mds,
 			const struct nfs_pgio_completion_ops *compl_ops);
-extern int nfs_initiate_read(struct rpc_clnt *clnt,
-			     struct nfs_pgio_data *data,
-			     const struct rpc_call_ops *call_ops, int flags);
 extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
 
@@ -425,10 +424,6 @@ extern void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 			const struct nfs_pgio_completion_ops *compl_ops);
 extern void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_commit_free(struct nfs_commit_data *p);
-extern int nfs_initiate_write(struct rpc_clnt *clnt,
-			      struct nfs_pgio_data *data,
-			      const struct rpc_call_ops *call_ops,
-			      int how, int flags);
 extern void nfs_write_prepare(struct rpc_task *task, void *calldata);
 extern void nfs_commit_prepare(struct rpc_task *task, void *calldata);
 extern int nfs_initiate_commit(struct rpc_clnt *clnt,
