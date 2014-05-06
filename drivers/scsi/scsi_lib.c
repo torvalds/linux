@@ -29,6 +29,8 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 
+#include <trace/events/scsi.h>
+
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
@@ -1454,6 +1456,23 @@ static void scsi_softirq_done(struct request *rq)
 	}
 }
 
+/**
+ * scsi_done - Invoke completion on finished SCSI command.
+ * @cmd: The SCSI Command for which a low-level device driver (LLDD) gives
+ * ownership back to SCSI Core -- i.e. the LLDD has finished with it.
+ *
+ * Description: This function is the mid-level's (SCSI Core) interrupt routine,
+ * which regains ownership of the SCSI command (de facto) from a LLDD, and
+ * calls blk_complete_request() for further processing.
+ *
+ * This function is interrupt context safe.
+ */
+static void scsi_done(struct scsi_cmnd *cmd)
+{
+	trace_scsi_dispatch_cmd_done(cmd);
+	blk_complete_request(cmd->request);
+}
+
 /*
  * Function:    scsi_request_fn()
  *
@@ -1556,6 +1575,7 @@ static void scsi_request_fn(struct request_queue *q)
 		/*
 		 * Dispatch the command to the low-level driver.
 		 */
+		cmd->scsi_done = scsi_done;
 		rtn = scsi_dispatch_cmd(cmd);
 		if (rtn) {
 			scsi_queue_insert(cmd, rtn);
