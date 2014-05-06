@@ -456,7 +456,7 @@ xfs_dir2_leaf_readbuf(
 		/*
 		 * Advance offset through the mapping table.
 		 */
-		for (j = 0; j < mp->m_dirblkfsbs; j++) {
+		for (j = 0; j < mp->m_dirblkfsbs; j += length ) {
 			/*
 			 * The rest of this extent but not more than a dir
 			 * block.
@@ -464,7 +464,6 @@ xfs_dir2_leaf_readbuf(
 			length = min_t(int, mp->m_dirblkfsbs,
 					map[mip->ra_index].br_blockcount -
 							mip->ra_offset);
-			j += length;
 			mip->ra_offset += length;
 
 			/*
