@@ -71,8 +71,8 @@
 
 #define BEISCSI_SGLIST_ELEMENTS	30
 
-#define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
-#define BEISCSI_MAX_SECTORS	2048	/* scsi_host->max_sectors */
+#define BEISCSI_CMD_PER_LUN	128 /* scsi_host->cmd_per_lun */
+#define BEISCSI_MAX_SECTORS	1024 /* scsi_host->max_sectors */
 #define BEISCSI_TEMPLATE_HDR_PER_CXN_SIZE 128 /* Template size per cxn */
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
@@ -427,6 +427,7 @@ struct beiscsi_hba {
 	struct mgmt_session_info boot_sess;
 	struct invalidate_command_table inv_tbl[128];
 
+	struct be_aic_obj aic_obj[MAX_CPUS];
 	unsigned int attr_log_enable;
 	int (*iotask_fn)(struct iscsi_task *,
 			struct scatterlist *sg,

@@ -155,6 +155,43 @@ void beiscsi_ue_detect(struct beiscsi_hba *phba)
 	}
 }
 
+int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
+		 struct be_set_eqd *set_eqd, int num)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_modify_eq_delay *req;
+	unsigned int tag = 0;
+	int i;
+
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+
+	wrb->tag0 |= tag;
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_MODIFY_EQ_DELAY, sizeof(*req));
+
+	req->num_eq = cpu_to_le32(num);
+	for (i = 0; i < num; i++) {
+		req->delay[i].eq_id = cpu_to_le32(set_eqd[i].eq_id);
+		req->delay[i].phase = 0;
+		req->delay[i].delay_multiplier =
+				cpu_to_le32(set_eqd[i].delay_multiplier);
+	}
+
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+	return tag;
+}
+
 /**
  * mgmt_reopen_session()- Reopen a session based on reopen_type
  * @phba: Device priv structure instance

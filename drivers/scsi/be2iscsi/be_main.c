@@ -2271,6 +2271,7 @@ static int be_iopoll(struct blk_iopoll *iop, int budget)
 
 	pbe_eq = container_of(iop, struct be_eq_obj, iopoll);
 	ret = beiscsi_process_cq(pbe_eq);
+	pbe_eq->cq_count += ret;
 	if (ret < budget) {
 		phba = pbe_eq->phba;
 		blk_iopoll_complete(iop);
@@ -3825,9 +3826,9 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
-	phwi_context->max_eqd = 0;
+	phwi_context->max_eqd = 128;
 	phwi_context->min_eqd = 0;
-	phwi_context->cur_eqd = 64;
+	phwi_context->cur_eqd = 0;
 	be_cmd_fw_initialize(&phba->ctrl);
 
 	status = beiscsi_create_eqs(phba, phwi_context);
@@ -5282,6 +5283,57 @@ static void beiscsi_msix_enable(struct beiscsi_hba *phba)
 	return;
 }
 
+static void be_eqd_update(struct beiscsi_hba *phba)
+{
+	struct be_set_eqd set_eqd[MAX_CPUS];
+	struct be_aic_obj *aic;
+	struct be_eq_obj *pbe_eq;
+	struct hwi_controller *phwi_ctrlr;
+	struct hwi_context_memory *phwi_context;
+	int eqd, i, num = 0;
+	ulong now;
+	u32 pps, delta;
+	unsigned int tag;
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	phwi_context = phwi_ctrlr->phwi_ctxt;
+
+	for (i = 0; i <= phba->num_cpus; i++) {
+		aic = &phba->aic_obj[i];
+		pbe_eq = &phwi_context->be_eq[i];
+		now = jiffies;
+		if (!aic->jiffs || time_before(now, aic->jiffs) ||
+		    pbe_eq->cq_count < aic->eq_prev) {
+			aic->jiffs = now;
+			aic->eq_prev = pbe_eq->cq_count;
+			continue;
+		}
+		delta = jiffies_to_msecs(now - aic->jiffs);
+		pps = (((u32)(pbe_eq->cq_count - aic->eq_prev) * 1000) / delta);
+		eqd = (pps / 1500) << 2;
+
+		if (eqd < 8)
+			eqd = 0;
+		eqd = min_t(u32, eqd, phwi_context->max_eqd);
+		eqd = max_t(u32, eqd, phwi_context->min_eqd);
+
+		aic->jiffs = now;
+		aic->eq_prev = pbe_eq->cq_count;
+
+		if (eqd != aic->prev_eqd) {
+			set_eqd[num].delay_multiplier = (eqd * 65)/100;
+			set_eqd[num].eq_id = pbe_eq->q.id;
+			aic->prev_eqd = eqd;
+			num++;
+		}
+	}
+	if (num) {
+		tag = be_cmd_modify_eq_delay(phba, set_eqd, num);
+		if (tag)
+			beiscsi_mccq_compl(phba, tag, NULL, NULL);
+	}
+}
+
 /*
  * beiscsi_hw_health_check()- Check adapter health
  * @work: work item to check HW health
@@ -5294,6 +5346,8 @@ beiscsi_hw_health_check(struct work_struct *work)
 	struct beiscsi_hba *phba =
 		container_of(work, struct beiscsi_hba,
 			     beiscsi_hw_check_task.work);
+
+	be_eqd_update(phba);
 
 	beiscsi_ue_detect(phba);
 
