@@ -583,7 +583,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 
 	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
 	if (async) {
-		comedi_buf_reset(async);
+		comedi_buf_reset(s);
 		async->inttrig = NULL;
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
@@ -1557,7 +1557,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		goto cleanup;
 	}
 
-	comedi_buf_reset(async);
+	comedi_buf_reset(s);
 
 	async->cb_mask =
 	    COMEDI_CB_EOA | COMEDI_CB_BLOCK | COMEDI_CB_ERROR |
