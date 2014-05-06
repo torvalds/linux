@@ -559,9 +559,9 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 EXPORT_SYMBOL_GPL(mite_sync_input_dma);
 
 int mite_sync_output_dma(struct mite_channel *mite_chan,
-			 struct comedi_async *async)
+			 struct comedi_subdevice *s)
 {
-	struct comedi_subdevice *s = async->subdevice;
+	struct comedi_async *async = s->async;
 	int count;
 	u32 nbytes_ub, nbytes_lb;
 	unsigned int old_alloc_count;
@@ -579,8 +579,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 	    (int)(nbytes_ub - stop_count) > 0)
 		nbytes_ub = stop_count;
 	if ((int)(nbytes_ub - old_alloc_count) > 0) {
-		dev_warn(async->subdevice->device->class_dev,
-			 "mite: DMA underrun\n");
+		dev_warn(s->device->class_dev, "mite: DMA underrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return -1;
 	}

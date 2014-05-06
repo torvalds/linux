@@ -877,7 +877,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite,
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan)
-		mite_sync_output_dma(devpriv->ao_mite_chan, s->async);
+		mite_sync_output_dma(devpriv->ao_mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
@@ -3640,7 +3640,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 			       devpriv->mite->mite_io_addr +
 			       MITE_CHOR(devpriv->cdo_mite_chan->channel));
 		}
-		mite_sync_output_dma(devpriv->cdo_mite_chan, s->async);
+		mite_sync_output_dma(devpriv->cdo_mite_chan, s);
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif

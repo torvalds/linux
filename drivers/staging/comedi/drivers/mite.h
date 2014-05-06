@@ -108,7 +108,7 @@ void mite_dma_disarm(struct mite_channel *mite_chan);
 int mite_sync_input_dma(struct mite_channel *mite_chan,
 			struct comedi_subdevice *s);
 int mite_sync_output_dma(struct mite_channel *mite_chan,
-			 struct comedi_async *async);
+			 struct comedi_subdevice *s);
 u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan);
 u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan);
