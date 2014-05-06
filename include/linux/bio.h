@@ -216,9 +216,9 @@ static inline void bvec_iter_advance(struct bio_vec *bv, struct bvec_iter *iter,
 }
 
 #define for_each_bvec(bvl, bio_vec, iter, start)			\
-	for ((iter) = start;						\
-	     (bvl) = bvec_iter_bvec((bio_vec), (iter)),			\
-		(iter).bi_size;						\
+	for (iter = (start);						\
+	     (iter).bi_size &&						\
+		((bvl = bvec_iter_bvec((bio_vec), (iter))), 1);	\
 	     bvec_iter_advance((bio_vec), &(iter), (bvl).bv_len))
 
 
@@ -249,6 +249,17 @@ static inline unsigned bio_segments(struct bio *bio)
 	unsigned segs = 0;
 	struct bio_vec bv;
 	struct bvec_iter iter;
+
+	/*
+	 * We special case discard/write same, because they interpret bi_size
+	 * differently:
+	 */
+
+	if (bio->bi_rw & REQ_DISCARD)
+		return 1;
+
+	if (bio->bi_rw & REQ_WRITE_SAME)
+		return 1;
 
 	bio_for_each_segment(bv, bio, iter)
 		segs++;
@@ -332,6 +343,7 @@ extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
 extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
 
 extern struct bio_set *fs_bio_set;
+unsigned int bio_integrity_tag_size(struct bio *bio);
 
 static inline struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
 {
@@ -376,7 +388,7 @@ struct sg_iovec;
 struct rq_map_data;
 extern struct bio *bio_map_user_iov(struct request_queue *,
 				    struct block_device *,
-				    struct sg_iovec *, int, int, gfp_t);
+				    const struct sg_iovec *, int, int, gfp_t);
 extern void bio_unmap_user(struct bio *);
 extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
 				gfp_t);
@@ -402,7 +414,8 @@ extern int bio_alloc_pages(struct bio *bio, gfp_t gfp);
 extern struct bio *bio_copy_user(struct request_queue *, struct rq_map_data *,
 				 unsigned long, unsigned int, int, gfp_t);
 extern struct bio *bio_copy_user_iov(struct request_queue *,
-				     struct rq_map_data *, struct sg_iovec *,
+				     struct rq_map_data *,
+				     const struct sg_iovec *,
 				     int, int, gfp_t);
 extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio(struct bio *bio);

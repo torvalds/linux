@@ -559,7 +559,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	u32 adjusted_clock = mode->clock;
 	int encoder_mode = atombios_get_encoder_mode(encoder);
 	u32 dp_clock = mode->clock;
-	int bpc = radeon_get_monitor_bpc(connector);
+	int bpc = radeon_crtc->bpc;
 	bool is_duallink = radeon_dig_monitor_is_duallink(encoder, mode->clock);
 
 	/* reset the pll flags */
@@ -1106,7 +1106,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	int r;
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
@@ -1116,8 +1116,8 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = fb;
 	}
 	else {
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
-		target_fb = crtc->fb;
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
+		target_fb = crtc->primary->fb;
 	}
 
 	/* If atomic, assume fb object is pinned & idle & fenced and
@@ -1176,7 +1176,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		evergreen_tiling_fields(tiling_flags, &bankw, &bankh, &mtaspect, &tile_split);
 
 		/* Set NUM_BANKS. */
-		if (rdev->family >= CHIP_BONAIRE) {
+		if (rdev->family >= CHIP_TAHITI) {
 			unsigned tileb, index, num_banks, tile_split_bytes;
 
 			/* Calculate the macrotile mode index. */
@@ -1194,13 +1194,14 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 				return -EINVAL;
 			}
 
-			num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
+			if (rdev->family >= CHIP_BONAIRE)
+				num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
+			else
+				num_banks = (rdev->config.si.tile_mode_array[index] >> 20) & 0x3;
 			fb_format |= EVERGREEN_GRPH_NUM_BANKS(num_banks);
 		} else {
-			/* SI and older. */
-			if (rdev->family >= CHIP_TAHITI)
-				tmp = rdev->config.si.tile_config;
-			else if (rdev->family >= CHIP_CAYMAN)
+			/* NI and older. */
+			if (rdev->family >= CHIP_CAYMAN)
 				tmp = rdev->config.cayman.tile_config;
 			else
 				tmp = rdev->config.evergreen.tile_config;
@@ -1315,7 +1316,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	/* set pageflip to happen anywhere in vblank interval */
 	WREG32(EVERGREEN_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
 
-	if (!atomic && fb && fb != crtc->fb) {
+	if (!atomic && fb && fb != crtc->primary->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
@@ -1349,7 +1350,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	int r;
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
@@ -1359,8 +1360,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = fb;
 	}
 	else {
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
-		target_fb = crtc->fb;
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
+		target_fb = crtc->primary->fb;
 	}
 
 	obj = radeon_fb->obj;
@@ -1484,7 +1485,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	/* set pageflip to happen anywhere in vblank interval */
 	WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
 
-	if (!atomic && fb && fb != crtc->fb) {
+	if (!atomic && fb && fb != crtc->primary->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
@@ -1773,6 +1774,20 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			return ATOM_PPLL1;
 		DRM_ERROR("unable to allocate a PPLL\n");
 		return ATOM_PPLL_INVALID;
+	} else if (ASIC_IS_DCE41(rdev)) {
+		/* Don't share PLLs on DCE4.1 chips */
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder))) {
+			if (rdev->clock.dp_extclk)
+				/* skip PPLL programming if using ext clock */
+				return ATOM_PPLL_INVALID;
+		}
+		pll_in_use = radeon_get_pll_use_mask(crtc);
+		if (!(pll_in_use & (1 << ATOM_PPLL1)))
+			return ATOM_PPLL1;
+		if (!(pll_in_use & (1 << ATOM_PPLL2)))
+			return ATOM_PPLL2;
+		DRM_ERROR("unable to allocate a PPLL\n");
+		return ATOM_PPLL_INVALID;
 	} else if (ASIC_IS_DCE4(rdev)) {
 		/* in DP mode, the DP ref clock can come from PPLL, DCPLL, or ext clock,
 		 * depending on the asic:
@@ -1800,7 +1815,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 				if (pll != ATOM_PPLL_INVALID)
 					return pll;
 			}
-		} else if (!ASIC_IS_DCE41(rdev)) { /* Don't share PLLs on DCE4.1 chips */
+		} else {
 			/* use the same PPLL for all monitors with the same clock */
 			pll = radeon_get_shared_nondp_ppll(crtc);
 			if (pll != ATOM_PPLL_INVALID)
@@ -1957,12 +1972,12 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	int i;
 
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	if (crtc->fb) {
+	if (crtc->primary->fb) {
 		int r;
 		struct radeon_framebuffer *radeon_fb;
 		struct radeon_bo *rbo;
 
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r))

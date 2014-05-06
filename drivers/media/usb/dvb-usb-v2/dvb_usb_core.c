@@ -164,7 +164,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	dev->driver_name = (char *) d->props->driver_name;
 	dev->map_name = d->rc.map_name;
 	dev->driver_type = d->rc.driver_type;
-	dev->allowed_protos = d->rc.allowed_protos;
+	rc_set_allowed_protocols(dev, d->rc.allowed_protos);
 	dev->change_protocol = d->rc.change_protocol;
 	dev->priv = d;
 

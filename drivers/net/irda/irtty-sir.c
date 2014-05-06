@@ -522,7 +522,6 @@ static void irtty_close(struct tty_struct *tty)
 	sirdev_put_instance(priv->dev);
 
 	/* Stop tty */
-	irtty_stop_receiver(tty, TRUE);
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	if (tty->ops->stop)
 		tty->ops->stop(tty);

@@ -110,9 +110,9 @@ static int __virtblk_add_req(struct virtqueue *vq,
 	return virtqueue_add_sgs(vq, sgs, num_out, num_in, vbr, GFP_ATOMIC);
 }
 
-static inline void virtblk_request_done(struct virtblk_req *vbr)
+static inline void virtblk_request_done(struct request *req)
 {
-	struct request *req = vbr->req;
+	struct virtblk_req *vbr = req->special;
 	int error = virtblk_result(vbr);
 
 	if (req->cmd_type == REQ_TYPE_BLOCK_PC) {
@@ -138,7 +138,7 @@ static void virtblk_done(struct virtqueue *vq)
 	do {
 		virtqueue_disable_cb(vq);
 		while ((vbr = virtqueue_get_buf(vblk->vq, &len)) != NULL) {
-			virtblk_request_done(vbr);
+			blk_mq_complete_request(vbr->req);
 			req_done = true;
 		}
 		if (unlikely(virtqueue_is_broken(vq)))
@@ -158,6 +158,7 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
 	unsigned long flags;
 	unsigned int num;
 	const bool last = (req->cmd_flags & REQ_END) != 0;
+	int err;
 
 	BUG_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
 
@@ -198,11 +199,16 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
 	}
 
 	spin_lock_irqsave(&vblk->vq_lock, flags);
-	if (__virtblk_add_req(vblk->vq, vbr, vbr->sg, num) < 0) {
+	err = __virtblk_add_req(vblk->vq, vbr, vbr->sg, num);
+	if (err) {
 		virtqueue_kick(vblk->vq);
 		spin_unlock_irqrestore(&vblk->vq_lock, flags);
 		blk_mq_stop_hw_queue(hctx);
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		/* Out of mem doesn't actually happen, since we fall back
+		 * to direct descriptors */
+		if (err == -ENOMEM || err == -ENOSPC)
+			return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_MQ_RQ_QUEUE_ERROR;
 	}
 
 	if (last)
@@ -479,23 +485,26 @@ static struct blk_mq_ops virtio_mq_ops = {
 	.map_queue	= blk_mq_map_queue,
 	.alloc_hctx	= blk_mq_alloc_single_hw_queue,
 	.free_hctx	= blk_mq_free_single_hw_queue,
+	.complete	= virtblk_request_done,
 };
 
 static struct blk_mq_reg virtio_mq_reg = {
 	.ops		= &virtio_mq_ops,
 	.nr_hw_queues	= 1,
-	.queue_depth	= 64,
+	.queue_depth	= 0, /* Set in virtblk_probe */
 	.numa_node	= NUMA_NO_NODE,
 	.flags		= BLK_MQ_F_SHOULD_MERGE,
 };
+module_param_named(queue_depth, virtio_mq_reg.queue_depth, uint, 0444);
 
-static void virtblk_init_vbr(void *data, struct blk_mq_hw_ctx *hctx,
+static int virtblk_init_vbr(void *data, struct blk_mq_hw_ctx *hctx,
 			     struct request *rq, unsigned int nr)
 {
 	struct virtio_blk *vblk = data;
 	struct virtblk_req *vbr = rq->special;
 
 	sg_init_table(vbr->sg, vblk->sg_elems);
+	return 0;
 }
 
 static int virtblk_probe(struct virtio_device *vdev)
@@ -551,6 +560,13 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_free_vq;
 	}
 
+	/* Default queue sizing is to fill the ring. */
+	if (!virtio_mq_reg.queue_depth) {
+		virtio_mq_reg.queue_depth = vblk->vq->num_free;
+		/* ... but without indirect descs, we use 2 descs per req */
+		if (!virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC))
+			virtio_mq_reg.queue_depth /= 2;
+	}
 	virtio_mq_reg.cmd_size =
 		sizeof(struct virtblk_req) +
 		sizeof(struct scatterlist) * sg_elems;

@@ -241,7 +241,7 @@ static int restore_sigregs_gprs_high(struct pt_regs *regs, __u32 __user *uregs)
 	return 0;
 }
 
-asmlinkage long sys32_sigreturn(void)
+COMPAT_SYSCALL_DEFINE0(sigreturn)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	sigframe32 __user *frame = (sigframe32 __user *)regs->gprs[15];
@@ -260,7 +260,7 @@ badframe:
 	return 0;
 }
 
-asmlinkage long sys32_rt_sigreturn(void)
+COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	rt_sigframe32 __user *frame = (rt_sigframe32 __user *)regs->gprs[15];

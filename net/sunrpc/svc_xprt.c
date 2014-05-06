@@ -571,7 +571,7 @@ static void svc_check_conn_limits(struct svc_serv *serv)
 	}
 }
 
-int svc_alloc_arg(struct svc_rqst *rqstp)
+static int svc_alloc_arg(struct svc_rqst *rqstp)
 {
 	struct svc_serv *serv = rqstp->rq_server;
 	struct xdr_buf *arg;
@@ -612,7 +612,7 @@ int svc_alloc_arg(struct svc_rqst *rqstp)
 	return 0;
 }
 
-struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
+static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 {
 	struct svc_xprt *xprt;
 	struct svc_pool		*pool = rqstp->rq_pool;
@@ -691,7 +691,7 @@ struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 	return xprt;
 }
 
-void svc_add_new_temp_xprt(struct svc_serv *serv, struct svc_xprt *newxpt)
+static void svc_add_new_temp_xprt(struct svc_serv *serv, struct svc_xprt *newxpt)
 {
 	spin_lock_bh(&serv->sv_lock);
 	set_bit(XPT_TEMP, &newxpt->xpt_flags);

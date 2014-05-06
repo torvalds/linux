@@ -187,8 +187,7 @@ static inline u16 Mk16_le(u16 *v)
 }
 
 
-static const u16 Sbox[256] =
-{
+static const u16 Sbox[256] = {
 	0xC6A5, 0xF884, 0xEE99, 0xF68D, 0xFF0D, 0xD6BD, 0xDEB1, 0x9154,
 	0x6050, 0x0203, 0xCEA9, 0x567D, 0xE719, 0xB562, 0x4DE6, 0xEC9A,
 	0x8F45, 0x1F9D, 0x8940, 0xFA87, 0xEF15, 0xB2EB, 0x8EC9, 0xFB0B,
@@ -307,7 +306,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int len;
 	u8  *pos;
 	struct ieee80211_hdr_4addr *hdr;
-	u8 rc4key[16],*icv;
+	u8 rc4key[16], *icv;
 	u32 crc;
 	struct scatterlist sg;
 	int ret;
@@ -348,7 +347,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	icv[3] = crc >> 24;
 	crypto_blkcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
 	sg_init_one(&sg, pos, len + 4);
-	ret= crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
+	ret = crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
 
 	tkey->tx_iv16++;
 	if (tkey->tx_iv16 == 0) {
@@ -537,9 +536,9 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 
 	michael_mic_hdr(skb, tkey->tx_hdr);
 
-	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
+	if (IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl)))
 		tkey->tx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
-	}
+
 	pos = skb_put(skb, 8);
 
 	if (michael_mic(tkey->tx_tfm_michael, &tkey->key[16], tkey->tx_hdr,
@@ -583,9 +582,8 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 
 	michael_mic_hdr(skb, tkey->rx_hdr);
-	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
+	if (IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl)))
 		tkey->rx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
-	}
 
 	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))

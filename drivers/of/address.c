@@ -91,7 +91,7 @@ static unsigned int of_bus_default_get_flags(const __be32 *addr)
 	return IORESOURCE_MEM;
 }
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_OF_ADDRESS_PCI
 /*
  * PCI bus specific translator
  */
@@ -99,11 +99,12 @@ static unsigned int of_bus_default_get_flags(const __be32 *addr)
 static int of_bus_pci_match(struct device_node *np)
 {
 	/*
+ 	 * "pciex" is PCI Express
 	 * "vci" is for the /chaos bridge on 1st-gen PCI powermacs
 	 * "ht" is hypertransport
 	 */
-	return !strcmp(np->type, "pci") || !strcmp(np->type, "vci") ||
-		!strcmp(np->type, "ht");
+	return !strcmp(np->type, "pci") || !strcmp(np->type, "pciex") ||
+		!strcmp(np->type, "vci") || !strcmp(np->type, "ht");
 }
 
 static void of_bus_pci_count_cells(struct device_node *np,
@@ -165,7 +166,9 @@ static int of_bus_pci_translate(__be32 *addr, u64 offset, int na)
 {
 	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
+#endif /* CONFIG_OF_ADDRESS_PCI */
 
+#ifdef CONFIG_PCI
 const __be32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 			unsigned int *flags)
 {
@@ -355,7 +358,7 @@ static unsigned int of_bus_isa_get_flags(const __be32 *addr)
  */
 
 static struct of_bus of_busses[] = {
-#ifdef CONFIG_PCI
+#ifdef CONFIG_OF_ADDRESS_PCI
 	/* PCI */
 	{
 		.name = "pci",
@@ -366,7 +369,7 @@ static struct of_bus of_busses[] = {
 		.translate = of_bus_pci_translate,
 		.get_flags = of_bus_pci_get_flags,
 	},
-#endif /* CONFIG_PCI */
+#endif /* CONFIG_OF_ADDRESS_PCI */
 	/* ISA */
 	{
 		.name = "isa",

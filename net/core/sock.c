@@ -428,7 +428,7 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb_len);
+		sk->sk_data_ready(sk);
 	return 0;
 }
 EXPORT_SYMBOL(sock_queue_rcv_skb);
@@ -1775,7 +1775,9 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 			while (order) {
 				if (npages >= 1 << order) {
 					page = alloc_pages(sk->sk_allocation |
-							   __GFP_COMP | __GFP_NOWARN,
+							   __GFP_COMP |
+							   __GFP_NOWARN |
+							   __GFP_NORETRY,
 							   order);
 					if (page)
 						goto fill_page;
@@ -1845,7 +1847,7 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio)
 		gfp_t gfp = prio;
 
 		if (order)
-			gfp |= __GFP_COMP | __GFP_NOWARN;
+			gfp |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY;
 		pfrag->page = alloc_pages(gfp, order);
 		if (likely(pfrag->page)) {
 			pfrag->offset = 0;
@@ -2194,7 +2196,7 @@ static void sock_def_error_report(struct sock *sk)
 	rcu_read_unlock();
 }
 
-static void sock_def_readable(struct sock *sk, int len)
+static void sock_def_readable(struct sock *sk)
 {
 	struct socket_wq *wq;
 
@@ -2355,10 +2357,13 @@ void release_sock(struct sock *sk)
 	if (sk->sk_backlog.tail)
 		__release_sock(sk);
 
+	/* Warning : release_cb() might need to release sk ownership,
+	 * ie call sock_release_ownership(sk) before us.
+	 */
 	if (sk->sk_prot->release_cb)
 		sk->sk_prot->release_cb(sk);
 
-	sk->sk_lock.owned = 0;
+	sock_release_ownership(sk);
 	if (waitqueue_active(&sk->sk_lock.wq))
 		wake_up(&sk->sk_lock.wq);
 	spin_unlock_bh(&sk->sk_lock.slock);

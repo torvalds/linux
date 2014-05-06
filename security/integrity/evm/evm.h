@@ -32,19 +32,19 @@ extern struct crypto_shash *hash_tfm;
 /* List of EVM protected security xattrs */
 extern char *evm_config_xattrnames[];
 
-extern int evm_init_key(void);
-extern int evm_update_evmxattr(struct dentry *dentry,
-			       const char *req_xattr_name,
-			       const char *req_xattr_value,
-			       size_t req_xattr_value_len);
-extern int evm_calc_hmac(struct dentry *dentry, const char *req_xattr_name,
-			 const char *req_xattr_value,
-			 size_t req_xattr_value_len, char *digest);
-extern int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
-			 const char *req_xattr_value,
-			 size_t req_xattr_value_len, char *digest);
-extern int evm_init_hmac(struct inode *inode, const struct xattr *xattr,
-			 char *hmac_val);
-extern int evm_init_secfs(void);
+int evm_init_key(void);
+int evm_update_evmxattr(struct dentry *dentry,
+			const char *req_xattr_name,
+			const char *req_xattr_value,
+			size_t req_xattr_value_len);
+int evm_calc_hmac(struct dentry *dentry, const char *req_xattr_name,
+		  const char *req_xattr_value,
+		  size_t req_xattr_value_len, char *digest);
+int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
+		  const char *req_xattr_value,
+		  size_t req_xattr_value_len, char *digest);
+int evm_init_hmac(struct inode *inode, const struct xattr *xattr,
+		  char *hmac_val);
+int evm_init_secfs(void);
 
 #endif

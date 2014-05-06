@@ -182,6 +182,14 @@ static int gre_cisco_rcv(struct sk_buff *skb)
 	int i;
 	bool csum_err = false;
 
+#ifdef CONFIG_NET_IPGRE_BROADCAST
+	if (ipv4_is_multicast(ip_hdr(skb)->daddr)) {
+		/* Looped back packet, drop it! */
+		if (rt_is_output_route(skb_rtable(skb)))
+			goto drop;
+	}
+#endif
+
 	if (parse_gre_header(skb, &tpi, &csum_err) < 0)
 		goto drop;
 

@@ -158,6 +158,15 @@ static inline unsigned long nx842_get_scatterlist_size(
 	return sl->entry_nr * sizeof(struct nx842_slentry);
 }
 
+static inline unsigned long nx842_get_pa(void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		return page_to_phys(vmalloc_to_page(addr))
+		       + offset_in_page(addr);
+	else
+		return __pa(addr);
+}
+
 static int nx842_build_scatterlist(unsigned long buf, int len,
 			struct nx842_scatterlist *sl)
 {
@@ -168,7 +177,7 @@ static int nx842_build_scatterlist(unsigned long buf, int len,
 
 	entry = sl->entries;
 	while (len) {
-		entry->ptr = __pa(buf);
+		entry->ptr = nx842_get_pa((void *)buf);
 		nextpage = ALIGN(buf + 1, NX842_HW_PAGE_SIZE);
 		if (nextpage < buf + len) {
 			/* we aren't at the end yet */
@@ -370,8 +379,8 @@ int nx842_compress(const unsigned char *in, unsigned int inlen,
 	op.flags = NX842_OP_COMPRESS;
 	csbcpb = &workmem->csbcpb;
 	memset(csbcpb, 0, sizeof(*csbcpb));
-	op.csbcpb = __pa(csbcpb);
-	op.out = __pa(slout.entries);
+	op.csbcpb = nx842_get_pa(csbcpb);
+	op.out = nx842_get_pa(slout.entries);
 
 	for (i = 0; i < hdr->blocks_nr; i++) {
 		/*
@@ -401,13 +410,13 @@ int nx842_compress(const unsigned char *in, unsigned int inlen,
 		 */
 		if (likely(max_sync_size == NX842_HW_PAGE_SIZE)) {
 			/* Create direct DDE */
-			op.in = __pa(inbuf);
+			op.in = nx842_get_pa((void *)inbuf);
 			op.inlen = max_sync_size;
 
 		} else {
 			/* Create indirect DDE (scatterlist) */
 			nx842_build_scatterlist(inbuf, max_sync_size, &slin);
-			op.in = __pa(slin.entries);
+			op.in = nx842_get_pa(slin.entries);
 			op.inlen = -nx842_get_scatterlist_size(&slin);
 		}
 
@@ -565,7 +574,7 @@ int nx842_decompress(const unsigned char *in, unsigned int inlen,
 	op.flags = NX842_OP_DECOMPRESS;
 	csbcpb = &workmem->csbcpb;
 	memset(csbcpb, 0, sizeof(*csbcpb));
-	op.csbcpb = __pa(csbcpb);
+	op.csbcpb = nx842_get_pa(csbcpb);
 
 	/*
 	 * max_sync_size may have changed since compression,
@@ -597,12 +606,12 @@ int nx842_decompress(const unsigned char *in, unsigned int inlen,
 		if (likely((inbuf & NX842_HW_PAGE_MASK) ==
 			((inbuf + hdr->sizes[i] - 1) & NX842_HW_PAGE_MASK))) {
 			/* Create direct DDE */
-			op.in = __pa(inbuf);
+			op.in = nx842_get_pa((void *)inbuf);
 			op.inlen = hdr->sizes[i];
 		} else {
 			/* Create indirect DDE (scatterlist) */
 			nx842_build_scatterlist(inbuf, hdr->sizes[i] , &slin);
-			op.in = __pa(slin.entries);
+			op.in = nx842_get_pa(slin.entries);
 			op.inlen = -nx842_get_scatterlist_size(&slin);
 		}
 
@@ -613,12 +622,12 @@ int nx842_decompress(const unsigned char *in, unsigned int inlen,
 		 */
 		if (likely(max_sync_size == NX842_HW_PAGE_SIZE)) {
 			/* Create direct DDE */
-			op.out = __pa(outbuf);
+			op.out = nx842_get_pa((void *)outbuf);
 			op.outlen = max_sync_size;
 		} else {
 			/* Create indirect DDE (scatterlist) */
 			nx842_build_scatterlist(outbuf, max_sync_size, &slout);
-			op.out = __pa(slout.entries);
+			op.out = nx842_get_pa(slout.entries);
 			op.outlen = -nx842_get_scatterlist_size(&slout);
 		}
 

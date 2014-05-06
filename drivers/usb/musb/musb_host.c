@@ -1183,6 +1183,9 @@ irqreturn_t musb_h_ep0_irq(struct musb *musb)
 				csr = MUSB_CSR0_H_STATUSPKT
 					| MUSB_CSR0_TXPKTRDY;
 
+			/* disable ping token in status phase */
+			csr |= MUSB_CSR0_H_DIS_PING;
+
 			/* flag status stage */
 			musb->ep0_stage = MUSB_EP0_STATUS;
 
@@ -1691,7 +1694,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			| MUSB_RXCSR_RXPKTRDY);
 		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA) || \
+	defined(CONFIG_USB_TI_CPPI41_DMA)
 		if (usb_pipeisoc(pipe)) {
 			struct usb_iso_packet_descriptor *d;
 
@@ -1704,10 +1708,30 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			if (d->status != -EILSEQ && d->status != -EOVERFLOW)
 				d->status = 0;
 
-			if (++qh->iso_idx >= urb->number_of_packets)
+			if (++qh->iso_idx >= urb->number_of_packets) {
 				done = true;
-			else
+			} else {
+#if defined(CONFIG_USB_TI_CPPI41_DMA)
+				struct dma_controller   *c;
+				dma_addr_t *buf;
+				u32 length, ret;
+
+				c = musb->dma_controller;
+				buf = (void *)
+					urb->iso_frame_desc[qh->iso_idx].offset
+					+ (u32)urb->transfer_dma;
+
+				length =
+					urb->iso_frame_desc[qh->iso_idx].length;
+
+				val |= MUSB_RXCSR_DMAENAB;
+				musb_writew(hw_ep->regs, MUSB_RXCSR, val);
+
+				ret = c->channel_program(dma, qh->maxpacket,
+						0, (u32) buf, length);
+#endif
 				done = false;
+			}
 
 		} else  {
 		/* done if urb buffer is full or short packet is recd */
@@ -1747,7 +1771,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		}
 
 		/* we are expecting IN packets */
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA) || \
+	defined(CONFIG_USB_TI_CPPI41_DMA)
 		if (dma) {
 			struct dma_controller	*c;
 			u16			rx_count;

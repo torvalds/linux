@@ -571,7 +571,6 @@ void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)
 
 static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
 {
-
 	struct ath6kl *ar = vif->ar;
 
 	vif->profile.ch = cpu_to_le16(channel);
@@ -600,7 +599,6 @@ static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
 
 static void ath6kl_check_ch_switch(struct ath6kl *ar, u16 channel)
 {
-
 	struct ath6kl_vif *vif;
 	int res = 0;
 
@@ -692,9 +690,9 @@ void ath6kl_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid, bool ismcast)
 		cfg80211_michael_mic_failure(vif->ndev, sta->mac,
 					     NL80211_KEYTYPE_PAIRWISE, keyid,
 					     tsc, GFP_KERNEL);
-	} else
+	} else {
 		ath6kl_cfg80211_tkip_micerr_event(vif, keyid, ismcast);
-
+	}
 }
 
 static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
@@ -1093,8 +1091,9 @@ static int ath6kl_open(struct net_device *dev)
 	if (test_bit(CONNECTED, &vif->flags)) {
 		netif_carrier_on(dev);
 		netif_wake_queue(dev);
-	} else
+	} else {
 		netif_carrier_off(dev);
+	}
 
 	return 0;
 }
@@ -1146,7 +1145,6 @@ static int ath6kl_set_features(struct net_device *dev,
 			dev->features = features | NETIF_F_RXCSUM;
 			return err;
 		}
-
 	}
 
 	return err;

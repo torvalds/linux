@@ -2174,7 +2174,6 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct rv7xx_ps *ps = rv770_get_ps(rps);
 	u32 sclk, mclk;
-	u16 vddc;
 	struct rv7xx_pl *pl;
 
 	switch (index) {
@@ -2214,8 +2213,8 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 
 	/* patch up vddc if necessary */
 	if (pl->vddc == 0xff01) {
-		if (radeon_atom_get_max_vddc(rdev, 0, 0, &vddc) == 0)
-			pl->vddc = vddc;
+		if (pi->max_vddc)
+			pl->vddc = pi->max_vddc;
 	}
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_ACPI) {
@@ -2282,9 +2281,6 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 				  power_info->pplib.ucNumStates, GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		power_state = (union pplib_power_state *)
@@ -2361,6 +2357,10 @@ int rv770_dpm_init(struct radeon_device *rdev)
 	pi->acpi_vddc = 0;
 	pi->min_vddc_in_table = 0;
 	pi->max_vddc_in_table = 0;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = rv7xx_parse_power_table(rdev);
 	if (ret)
@@ -2527,14 +2527,7 @@ u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low)
 bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
-	u32 switch_limit = 300;
-
-	/* quirks */
-	/* ASUS K70AF */
-	if ((rdev->pdev->device == 0x9553) &&
-	    (rdev->pdev->subsystem_vendor == 0x1043) &&
-	    (rdev->pdev->subsystem_device == 0x1c42))
-		switch_limit = 200;
+	u32 switch_limit = 200; /* 300 */
 
 	/* RV770 */
 	/* mclk switching doesn't seem to work reliably on desktop RV770s */

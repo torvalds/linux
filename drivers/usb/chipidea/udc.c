@@ -105,7 +105,7 @@ static int hw_ep_flush(struct ci_hdrc *ci, int num, int dir)
 
 	do {
 		/* flush any pending transfer */
-		hw_write(ci, OP_ENDPTFLUSH, BIT(n), BIT(n));
+		hw_write(ci, OP_ENDPTFLUSH, ~0, BIT(n));
 		while (hw_read(ci, OP_ENDPTFLUSH, BIT(n)))
 			cpu_relax();
 	} while (hw_read(ci, OP_ENDPTSTAT, BIT(n)));
@@ -178,19 +178,6 @@ static int hw_ep_get_halt(struct ci_hdrc *ci, int num, int dir)
 }
 
 /**
- * hw_test_and_clear_setup_status: test & clear setup status (execute without
- *                                 interruption)
- * @n: endpoint number
- *
- * This function returns setup status
- */
-static int hw_test_and_clear_setup_status(struct ci_hdrc *ci, int n)
-{
-	n = ep_to_bit(ci, n);
-	return hw_test_and_clear(ci, OP_ENDPTSETUPSTAT, BIT(n));
-}
-
-/**
  * hw_ep_prime: primes endpoint (execute without interruption)
  * @num:     endpoint number
  * @dir:     endpoint direction
@@ -205,7 +192,7 @@ static int hw_ep_prime(struct ci_hdrc *ci, int num, int dir, int is_ctrl)
 	if (is_ctrl && dir == RX && hw_read(ci, OP_ENDPTSETUPSTAT, BIT(num)))
 		return -EAGAIN;
 
-	hw_write(ci, OP_ENDPTPRIME, BIT(n), BIT(n));
+	hw_write(ci, OP_ENDPTPRIME, ~0, BIT(n));
 
 	while (hw_read(ci, OP_ENDPTPRIME, BIT(n)))
 		cpu_relax();
@@ -962,6 +949,156 @@ __acquires(hwep->lock)
 }
 
 /**
+ * isr_setup_packet_handler: setup packet handler
+ * @ci: UDC descriptor
+ *
+ * This function handles setup packet 
+ */
+static void isr_setup_packet_handler(struct ci_hdrc *ci)
+__releases(ci->lock)
+__acquires(ci->lock)
+{
+	struct ci_hw_ep *hwep = &ci->ci_hw_ep[0];
+	struct usb_ctrlrequest req;
+	int type, num, dir, err = -EINVAL;
+	u8 tmode = 0;
+
+	/*
+	 * Flush data and handshake transactions of previous
+	 * setup packet.
+	 */
+	_ep_nuke(ci->ep0out);
+	_ep_nuke(ci->ep0in);
+
+	/* read_setup_packet */
+	do {
+		hw_test_and_set_setup_guard(ci);
+		memcpy(&req, &hwep->qh.ptr->setup, sizeof(req));
+	} while (!hw_test_and_clear_setup_guard(ci));
+
+	type = req.bRequestType;
+
+	ci->ep0_dir = (type & USB_DIR_IN) ? TX : RX;
+
+	switch (req.bRequest) {
+	case USB_REQ_CLEAR_FEATURE:
+		if (type == (USB_DIR_OUT|USB_RECIP_ENDPOINT) &&
+				le16_to_cpu(req.wValue) ==
+				USB_ENDPOINT_HALT) {
+			if (req.wLength != 0)
+				break;
+			num  = le16_to_cpu(req.wIndex);
+			dir = num & USB_ENDPOINT_DIR_MASK;
+			num &= USB_ENDPOINT_NUMBER_MASK;
+			if (dir) /* TX */
+				num += ci->hw_ep_max / 2;
+			if (!ci->ci_hw_ep[num].wedge) {
+				spin_unlock(&ci->lock);
+				err = usb_ep_clear_halt(
+					&ci->ci_hw_ep[num].ep);
+				spin_lock(&ci->lock);
+				if (err)
+					break;
+			}
+			err = isr_setup_status_phase(ci);
+		} else if (type == (USB_DIR_OUT|USB_RECIP_DEVICE) &&
+				le16_to_cpu(req.wValue) ==
+				USB_DEVICE_REMOTE_WAKEUP) {
+			if (req.wLength != 0)
+				break;
+			ci->remote_wakeup = 0;
+			err = isr_setup_status_phase(ci);
+		} else {
+			goto delegate;
+		}
+		break;
+	case USB_REQ_GET_STATUS:
+		if (type != (USB_DIR_IN|USB_RECIP_DEVICE)   &&
+		    type != (USB_DIR_IN|USB_RECIP_ENDPOINT) &&
+		    type != (USB_DIR_IN|USB_RECIP_INTERFACE))
+			goto delegate;
+		if (le16_to_cpu(req.wLength) != 2 ||
+		    le16_to_cpu(req.wValue)  != 0)
+			break;
+		err = isr_get_status_response(ci, &req);
+		break;
+	case USB_REQ_SET_ADDRESS:
+		if (type != (USB_DIR_OUT|USB_RECIP_DEVICE))
+			goto delegate;
+		if (le16_to_cpu(req.wLength) != 0 ||
+		    le16_to_cpu(req.wIndex)  != 0)
+			break;
+		ci->address = (u8)le16_to_cpu(req.wValue);
+		ci->setaddr = true;
+		err = isr_setup_status_phase(ci);
+		break;
+	case USB_REQ_SET_FEATURE:
+		if (type == (USB_DIR_OUT|USB_RECIP_ENDPOINT) &&
+				le16_to_cpu(req.wValue) ==
+				USB_ENDPOINT_HALT) {
+			if (req.wLength != 0)
+				break;
+			num  = le16_to_cpu(req.wIndex);
+			dir = num & USB_ENDPOINT_DIR_MASK;
+			num &= USB_ENDPOINT_NUMBER_MASK;
+			if (dir) /* TX */
+				num += ci->hw_ep_max / 2;
+
+			spin_unlock(&ci->lock);
+			err = usb_ep_set_halt(&ci->ci_hw_ep[num].ep);
+			spin_lock(&ci->lock);
+			if (!err)
+				isr_setup_status_phase(ci);
+		} else if (type == (USB_DIR_OUT|USB_RECIP_DEVICE)) {
+			if (req.wLength != 0)
+				break;
+			switch (le16_to_cpu(req.wValue)) {
+			case USB_DEVICE_REMOTE_WAKEUP:
+				ci->remote_wakeup = 1;
+				err = isr_setup_status_phase(ci);
+				break;
+			case USB_DEVICE_TEST_MODE:
+				tmode = le16_to_cpu(req.wIndex) >> 8;
+				switch (tmode) {
+				case TEST_J:
+				case TEST_K:
+				case TEST_SE0_NAK:
+				case TEST_PACKET:
+				case TEST_FORCE_EN:
+					ci->test_mode = tmode;
+					err = isr_setup_status_phase(
+							ci);
+					break;
+				default:
+					break;
+				}
+			default:
+				goto delegate;
+			}
+		} else {
+			goto delegate;
+		}
+		break;
+	default:
+delegate:
+		if (req.wLength == 0)   /* no data phase */
+			ci->ep0_dir = TX;
+
+		spin_unlock(&ci->lock);
+		err = ci->driver->setup(&ci->gadget, &req);
+		spin_lock(&ci->lock);
+		break;
+	}
+
+	if (err < 0) {
+		spin_unlock(&ci->lock);
+		if (usb_ep_set_halt(&hwep->ep))
+			dev_err(ci->dev, "error: ep_set_halt\n");
+		spin_lock(&ci->lock);
+	}
+}
+
+/**
  * isr_tr_complete_handler: transaction complete interrupt handler
  * @ci: UDC descriptor
  *
@@ -972,12 +1109,10 @@ __releases(ci->lock)
 __acquires(ci->lock)
 {
 	unsigned i;
-	u8 tmode = 0;
+	int err;
 
 	for (i = 0; i < ci->hw_ep_max; i++) {
 		struct ci_hw_ep *hwep  = &ci->ci_hw_ep[i];
-		int type, num, dir, err = -EINVAL;
-		struct usb_ctrlrequest req;
 
 		if (hwep->ep.desc == NULL)
 			continue;   /* not configured */
@@ -997,148 +1132,10 @@ __acquires(ci->lock)
 			}
 		}
 
-		if (hwep->type != USB_ENDPOINT_XFER_CONTROL ||
-		    !hw_test_and_clear_setup_status(ci, i))
-			continue;
-
-		if (i != 0) {
-			dev_warn(ci->dev, "ctrl traffic at endpoint %d\n", i);
-			continue;
-		}
-
-		/*
-		 * Flush data and handshake transactions of previous
-		 * setup packet.
-		 */
-		_ep_nuke(ci->ep0out);
-		_ep_nuke(ci->ep0in);
-
-		/* read_setup_packet */
-		do {
-			hw_test_and_set_setup_guard(ci);
-			memcpy(&req, &hwep->qh.ptr->setup, sizeof(req));
-		} while (!hw_test_and_clear_setup_guard(ci));
-
-		type = req.bRequestType;
-
-		ci->ep0_dir = (type & USB_DIR_IN) ? TX : RX;
-
-		switch (req.bRequest) {
-		case USB_REQ_CLEAR_FEATURE:
-			if (type == (USB_DIR_OUT|USB_RECIP_ENDPOINT) &&
-					le16_to_cpu(req.wValue) ==
-					USB_ENDPOINT_HALT) {
-				if (req.wLength != 0)
-					break;
-				num  = le16_to_cpu(req.wIndex);
-				dir = num & USB_ENDPOINT_DIR_MASK;
-				num &= USB_ENDPOINT_NUMBER_MASK;
-				if (dir) /* TX */
-					num += ci->hw_ep_max/2;
-				if (!ci->ci_hw_ep[num].wedge) {
-					spin_unlock(&ci->lock);
-					err = usb_ep_clear_halt(
-						&ci->ci_hw_ep[num].ep);
-					spin_lock(&ci->lock);
-					if (err)
-						break;
-				}
-				err = isr_setup_status_phase(ci);
-			} else if (type == (USB_DIR_OUT|USB_RECIP_DEVICE) &&
-					le16_to_cpu(req.wValue) ==
-					USB_DEVICE_REMOTE_WAKEUP) {
-				if (req.wLength != 0)
-					break;
-				ci->remote_wakeup = 0;
-				err = isr_setup_status_phase(ci);
-			} else {
-				goto delegate;
-			}
-			break;
-		case USB_REQ_GET_STATUS:
-			if (type != (USB_DIR_IN|USB_RECIP_DEVICE)   &&
-			    type != (USB_DIR_IN|USB_RECIP_ENDPOINT) &&
-			    type != (USB_DIR_IN|USB_RECIP_INTERFACE))
-				goto delegate;
-			if (le16_to_cpu(req.wLength) != 2 ||
-			    le16_to_cpu(req.wValue)  != 0)
-				break;
-			err = isr_get_status_response(ci, &req);
-			break;
-		case USB_REQ_SET_ADDRESS:
-			if (type != (USB_DIR_OUT|USB_RECIP_DEVICE))
-				goto delegate;
-			if (le16_to_cpu(req.wLength) != 0 ||
-			    le16_to_cpu(req.wIndex)  != 0)
-				break;
-			ci->address = (u8)le16_to_cpu(req.wValue);
-			ci->setaddr = true;
-			err = isr_setup_status_phase(ci);
-			break;
-		case USB_REQ_SET_FEATURE:
-			if (type == (USB_DIR_OUT|USB_RECIP_ENDPOINT) &&
-					le16_to_cpu(req.wValue) ==
-					USB_ENDPOINT_HALT) {
-				if (req.wLength != 0)
-					break;
-				num  = le16_to_cpu(req.wIndex);
-				dir = num & USB_ENDPOINT_DIR_MASK;
-				num &= USB_ENDPOINT_NUMBER_MASK;
-				if (dir) /* TX */
-					num += ci->hw_ep_max/2;
-
-				spin_unlock(&ci->lock);
-				err = usb_ep_set_halt(&ci->ci_hw_ep[num].ep);
-				spin_lock(&ci->lock);
-				if (!err)
-					isr_setup_status_phase(ci);
-			} else if (type == (USB_DIR_OUT|USB_RECIP_DEVICE)) {
-				if (req.wLength != 0)
-					break;
-				switch (le16_to_cpu(req.wValue)) {
-				case USB_DEVICE_REMOTE_WAKEUP:
-					ci->remote_wakeup = 1;
-					err = isr_setup_status_phase(ci);
-					break;
-				case USB_DEVICE_TEST_MODE:
-					tmode = le16_to_cpu(req.wIndex) >> 8;
-					switch (tmode) {
-					case TEST_J:
-					case TEST_K:
-					case TEST_SE0_NAK:
-					case TEST_PACKET:
-					case TEST_FORCE_EN:
-						ci->test_mode = tmode;
-						err = isr_setup_status_phase(
-								ci);
-						break;
-					default:
-						break;
-					}
-				default:
-					goto delegate;
-				}
-			} else {
-				goto delegate;
-			}
-			break;
-		default:
-delegate:
-			if (req.wLength == 0)   /* no data phase */
-				ci->ep0_dir = TX;
-
-			spin_unlock(&ci->lock);
-			err = ci->driver->setup(&ci->gadget, &req);
-			spin_lock(&ci->lock);
-			break;
-		}
-
-		if (err < 0) {
-			spin_unlock(&ci->lock);
-			if (usb_ep_set_halt(&hwep->ep))
-				dev_err(ci->dev, "error: ep_set_halt\n");
-			spin_lock(&ci->lock);
-		}
+		/* Only handle setup packet below */
+		if (i == 0 &&
+			hw_test_and_clear(ci, OP_ENDPTSETUPSTAT, BIT(0)))
+			isr_setup_packet_handler(ci);
 	}
 }
 
@@ -1192,6 +1189,11 @@ static int ep_enable(struct usb_ep *ep,
 	hwep->qh.ptr->cap = cpu_to_le32(cap);
 
 	hwep->qh.ptr->td.next |= cpu_to_le32(TD_TERMINATE);   /* needed? */
+
+	if (hwep->num != 0 && hwep->type == USB_ENDPOINT_XFER_CONTROL) {
+		dev_err(hwep->ci->dev, "Set control xfer at non-ep0\n");
+		retval = -EINVAL;
+	}
 
 	/*
 	 * Enable endpoints in the HW other than ep0 as ep0
@@ -1837,12 +1839,6 @@ void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
 
 	dma_pool_destroy(ci->td_pool);
 	dma_pool_destroy(ci->qh_pool);
-
-	if (ci->transceiver) {
-		otg_set_peripheral(ci->transceiver->otg, NULL);
-		if (ci->global_phy)
-			usb_put_phy(ci->transceiver);
-	}
 }
 
 static int udc_id_switch_for_device(struct ci_hdrc *ci)

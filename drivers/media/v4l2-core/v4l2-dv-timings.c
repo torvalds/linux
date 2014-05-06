@@ -26,6 +26,10 @@
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dv-timings.h>
 
+MODULE_AUTHOR("Hans Verkuil");
+MODULE_DESCRIPTION("V4L2 DV Timings Helper Functions");
+MODULE_LICENSE("GPL");
+
 const struct v4l2_dv_timings v4l2_dv_timings_presets[] = {
 	V4L2_DV_BT_CEA_640X480P59_94,
 	V4L2_DV_BT_CEA_720X480I59_94,
@@ -324,6 +328,10 @@ EXPORT_SYMBOL_GPL(v4l2_print_dv_timings);
  * This function will attempt to detect if the given values correspond to a
  * valid CVT format. If so, then it will return true, and fmt will be filled
  * in with the found CVT timings.
+ *
+ * TODO: VESA defined a new version 2 of their reduced blanking
+ * formula. Support for that is currently missing in this CVT
+ * detection function.
  */
 bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 		u32 polarities, struct v4l2_dv_timings *fmt)

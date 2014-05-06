@@ -75,7 +75,6 @@ obj-$(CONFIG_FB_CG14)             += cg14.o sbuslib.o
 obj-$(CONFIG_FB_P9100)            += p9100.o sbuslib.o
 obj-$(CONFIG_FB_TCX)              += tcx.o sbuslib.o
 obj-$(CONFIG_FB_LEO)              += leo.o sbuslib.o
-obj-$(CONFIG_FB_SGIVW)            += sgivwfb.o
 obj-$(CONFIG_FB_ACORN)            += acornfb.o
 obj-$(CONFIG_FB_ATARI)            += atafb.o c2p_iplan2.o atafb_mfb.o \
                                      atafb_iplan2p2.o atafb_iplan2p4.o atafb_iplan2p8.o
@@ -172,8 +171,6 @@ obj-$(CONFIG_FB_SIMPLE)           += simplefb.o
 # the test framebuffer is last
 obj-$(CONFIG_FB_VIRTUAL)          += vfb.o
 
-#video output switch sysfs driver
-obj-$(CONFIG_VIDEO_OUTPUT_CONTROL) += output.o
 obj-$(CONFIG_VIDEOMODE_HELPERS) += display_timing.o videomode.o
 ifeq ($(CONFIG_OF),y)
 obj-$(CONFIG_VIDEOMODE_HELPERS) += of_display_timing.o of_videomode.o

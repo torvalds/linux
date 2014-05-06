@@ -92,6 +92,7 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  * STUB   - The ftrace_ops is just a place holder.
  * INITIALIZED - The ftrace_ops has already been initialized (first use time
  *            register_ftrace_function() is called, it will initialized the ops)
+ * DELETED - The ops are being deleted, do not let them be registered again.
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -103,13 +104,26 @@ enum {
 	FTRACE_OPS_FL_RECURSION_SAFE		= 1 << 6,
 	FTRACE_OPS_FL_STUB			= 1 << 7,
 	FTRACE_OPS_FL_INITIALIZED		= 1 << 8,
+	FTRACE_OPS_FL_DELETED			= 1 << 9,
 };
 
+/*
+ * Note, ftrace_ops can be referenced outside of RCU protection.
+ * (Although, for perf, the control ops prevent that). If ftrace_ops is
+ * allocated and not part of kernel core data, the unregistering of it will
+ * perform a scheduling on all CPUs to make sure that there are no more users.
+ * Depending on the load of the system that may take a bit of time.
+ *
+ * Any private data added must also take care not to be freed and if private
+ * data is added to a ftrace_ops that is in core code, the user of the
+ * ftrace_ops must perform a schedule_on_each_cpu() before freeing it.
+ */
 struct ftrace_ops {
 	ftrace_func_t			func;
 	struct ftrace_ops		*next;
 	unsigned long			flags;
 	int __percpu			*disabled;
+	void				*private;
 #ifdef CONFIG_DYNAMIC_FTRACE
 	struct ftrace_hash		*notrace_hash;
 	struct ftrace_hash		*filter_hash;
@@ -285,7 +299,7 @@ extern void
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
 extern void unregister_ftrace_function_probe_all(char *glob);
 
-extern int ftrace_text_reserved(void *start, void *end);
+extern int ftrace_text_reserved(const void *start, const void *end);
 
 extern int ftrace_nr_registered_ops(void);
 
@@ -316,12 +330,9 @@ enum {
 #define FTRACE_REF_MAX		((1UL << 29) - 1)
 
 struct dyn_ftrace {
-	union {
-		unsigned long		ip; /* address of mcount call-site */
-		struct dyn_ftrace	*freelist;
-	};
+	unsigned long		ip; /* address of mcount call-site */
 	unsigned long		flags;
-	struct dyn_arch_ftrace		arch;
+	struct dyn_arch_ftrace	arch;
 };
 
 int ftrace_force_update(void);
@@ -409,7 +420,7 @@ ftrace_set_early_filter(struct ftrace_ops *ops, char *buf, int enable);
 
 /* defined in arch */
 extern int ftrace_ip_converted(unsigned long ip);
-extern int ftrace_dyn_arch_init(void *data);
+extern int ftrace_dyn_arch_init(void);
 extern void ftrace_replace_code(int enable);
 extern int ftrace_update_ftrace_func(ftrace_func_t func);
 extern void ftrace_caller(void);
@@ -541,7 +552,7 @@ static inline __init int unregister_ftrace_command(char *cmd_name)
 {
 	return -EINVAL;
 }
-static inline int ftrace_text_reserved(void *start, void *end)
+static inline int ftrace_text_reserved(const void *start, const void *end)
 {
 	return 0;
 }

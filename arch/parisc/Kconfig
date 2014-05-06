@@ -28,6 +28,7 @@ config PARISC
 	select CLONE_BACKWARDS
 	select TTY # Needed for pdc_cons.c
 	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_ARCH_AUDITSYSCALL
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used

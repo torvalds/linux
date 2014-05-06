@@ -85,7 +85,7 @@ MODULE_FIRMWARE(FW_RV2P_FILE_09_Ax);
 
 static int disable_msi = 0;
 
-module_param(disable_msi, int, 0);
+module_param(disable_msi, int, S_IRUGO);
 MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
 
 typedef enum {
@@ -2507,6 +2507,7 @@ bnx2_fw_sync(struct bnx2 *bp, u32 msg_data, int ack, int silent)
 
 	bp->fw_wr_seq++;
 	msg_data |= bp->fw_wr_seq;
+	bp->fw_last_msg = msg_data;
 
 	bnx2_shmem_wr(bp, BNX2_DRV_MB, msg_data);
 
@@ -2885,7 +2886,7 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		sw_cons = BNX2_NEXT_TX_BD(sw_cons);
 
 		tx_bytes += skb->len;
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		tx_pkt++;
 		if (tx_pkt == budget)
 			break;
@@ -3131,6 +3132,9 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 	u16 hw_cons, sw_cons, sw_ring_cons, sw_prod, sw_ring_prod;
 	struct l2_fhdr *rx_hdr;
 	int rx_pkt = 0, pg_ring_used = 0;
+
+	if (budget <= 0)
+		return rx_pkt;
 
 	hw_cons = bnx2_get_hw_rx_cons(bnapi);
 	sw_cons = rxr->rx_cons;
@@ -4000,8 +4004,23 @@ bnx2_setup_wol(struct bnx2 *bp)
 			wol_msg = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
 	}
 
-	if (!(bp->flags & BNX2_FLAG_NO_WOL))
-		bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT3 | wol_msg, 1, 0);
+	if (!(bp->flags & BNX2_FLAG_NO_WOL)) {
+		u32 val;
+
+		wol_msg |= BNX2_DRV_MSG_DATA_WAIT3;
+		if (bp->fw_last_msg || BNX2_CHIP(bp) != BNX2_CHIP_5709) {
+			bnx2_fw_sync(bp, wol_msg, 1, 0);
+			return;
+		}
+		/* Tell firmware not to power down the PHY yet, otherwise
+		 * the chip will take a long time to respond to MMIO reads.
+		 */
+		val = bnx2_shmem_rd(bp, BNX2_PORT_FEATURE);
+		bnx2_shmem_wr(bp, BNX2_PORT_FEATURE,
+			      val | BNX2_PORT_FEATURE_ASF_ENABLED);
+		bnx2_fw_sync(bp, wol_msg, 1, 0);
+		bnx2_shmem_wr(bp, BNX2_PORT_FEATURE, val);
+	}
 
 }
 
@@ -4033,9 +4052,22 @@ bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 
 			if (bp->wol)
 				pci_set_power_state(bp->pdev, PCI_D3hot);
-		} else {
-			pci_set_power_state(bp->pdev, PCI_D3hot);
+			break;
+
 		}
+		if (!bp->fw_last_msg && BNX2_CHIP(bp) == BNX2_CHIP_5709) {
+			u32 val;
+
+			/* Tell firmware not to power down the PHY yet,
+			 * otherwise the other port may not respond to
+			 * MMIO reads.
+			 */
+			val = bnx2_shmem_rd(bp, BNX2_BC_STATE_CONDITION);
+			val &= ~BNX2_CONDITION_PM_STATE_MASK;
+			val |= BNX2_CONDITION_PM_STATE_UNPREP;
+			bnx2_shmem_wr(bp, BNX2_BC_STATE_CONDITION, val);
+		}
+		pci_set_power_state(bp->pdev, PCI_D3hot);
 
 		/* No more memory access after this point until
 		 * device is brought back to D0.
@@ -6206,7 +6238,7 @@ bnx2_free_irq(struct bnx2 *bp)
 static void
 bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 {
-	int i, total_vecs, rc;
+	int i, total_vecs;
 	struct msix_entry msix_ent[BNX2_MAX_MSIX_VEC];
 	struct net_device *dev = bp->dev;
 	const int len = sizeof(bp->irq_tbl[0].name);
@@ -6229,16 +6261,9 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 #ifdef BCM_CNIC
 	total_vecs++;
 #endif
-	rc = -ENOSPC;
-	while (total_vecs >= BNX2_MIN_MSIX_VEC) {
-		rc = pci_enable_msix(bp->pdev, msix_ent, total_vecs);
-		if (rc <= 0)
-			break;
-		if (rc > 0)
-			total_vecs = rc;
-	}
-
-	if (rc != 0)
+	total_vecs = pci_enable_msix_range(bp->pdev, msix_ent,
+					   BNX2_MIN_MSIX_VEC, total_vecs);
+	if (total_vecs < 0)
 		return;
 
 	msix_vecs = total_vecs;
@@ -6611,7 +6636,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	mapping = dma_map_single(&bp->pdev->dev, skb->data, len, PCI_DMA_TODEVICE);
 	if (dma_mapping_error(&bp->pdev->dev, mapping)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -6704,7 +6729,7 @@ dma_error:
 			       PCI_DMA_TODEVICE);
 	}
 
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -8602,6 +8627,7 @@ bnx2_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int
 bnx2_suspend(struct device *device)
 {
@@ -8640,7 +8666,6 @@ bnx2_resume(struct device *device)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static SIMPLE_DEV_PM_OPS(bnx2_pm_ops, bnx2_suspend, bnx2_resume);
 #define BNX2_PM_OPS (&bnx2_pm_ops)
 

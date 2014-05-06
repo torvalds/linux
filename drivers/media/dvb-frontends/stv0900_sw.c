@@ -1081,7 +1081,7 @@ static int stv0900_wait_for_lock(struct stv0900_internal *intp,
 	lock = stv0900_get_demod_lock(intp, demod, dmd_timeout);
 
 	if (lock)
-		lock = lock && stv0900_get_fec_lock(intp, demod, fec_timeout);
+		lock = stv0900_get_fec_lock(intp, demod, fec_timeout);
 
 	if (lock) {
 		lock = 0;

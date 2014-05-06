@@ -89,7 +89,7 @@ static void radeon_property_change_mode(struct drm_encoder *encoder)
 
 	if (crtc && crtc->enabled) {
 		drm_crtc_helper_set_mode(crtc, &crtc->mode,
-					 crtc->x, crtc->y, crtc->fb);
+					 crtc->x, crtc->y, crtc->primary->fb);
 	}
 }
 
@@ -1595,6 +1595,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 	uint32_t subpixel_order = SubPixelNone;
 	bool shared_ddc = false;
 	bool is_dp_bridge = false;
+	bool has_aux = false;
 
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
 		return;
@@ -1672,7 +1673,9 @@ radeon_add_atom_connector(struct drm_device *dev,
 				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "eDP-auxch");
 			else
 				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
-			if (!radeon_dig_connector->dp_i2c_bus)
+			if (radeon_dig_connector->dp_i2c_bus)
+				has_aux = true;
+			else
 				DRM_ERROR("DP: Failed to assign dp ddc bus! Check dmesg for i2c errors.\n");
 			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 			if (!radeon_connector->ddc_bus)
@@ -1895,7 +1898,9 @@ radeon_add_atom_connector(struct drm_device *dev,
 				if (!radeon_dig_connector->dp_i2c_bus)
 					DRM_ERROR("DP: Failed to assign dp ddc bus! Check dmesg for i2c errors.\n");
 				radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
-				if (!radeon_connector->ddc_bus)
+				if (radeon_connector->ddc_bus)
+					has_aux = true;
+				else
 					DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
 			}
 			subpixel_order = SubPixelHorizontalRGB;
@@ -1939,7 +1944,9 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (i2c_bus->valid) {
 				/* add DP i2c bus */
 				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "eDP-auxch");
-				if (!radeon_dig_connector->dp_i2c_bus)
+				if (radeon_dig_connector->dp_i2c_bus)
+					has_aux = true;
+				else
 					DRM_ERROR("DP: Failed to assign dp ddc bus! Check dmesg for i2c errors.\n");
 				radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
 				if (!radeon_connector->ddc_bus)
@@ -2000,6 +2007,10 @@ radeon_add_atom_connector(struct drm_device *dev,
 
 	connector->display_info.subpixel_order = subpixel_order;
 	drm_sysfs_connector_add(connector);
+
+	if (has_aux)
+		radeon_dp_aux_init(radeon_connector);
+
 	return;
 
 failed:

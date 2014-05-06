@@ -273,7 +273,7 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 		.outp = outp,
 		.head = head,
 	}, *dp = &_dp;
-	const u32 bw_list[] = { 270000, 162000, 0 };
+	const u32 bw_list[] = { 540000, 270000, 162000, 0 };
 	const u32 *link_bw = bw_list;
 	u8  hdr, cnt, len;
 	u32 data;
@@ -311,6 +311,14 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 		dp->dpcd[3] = 0x00;
 		ERR("failed to read DPCD\n");
 	}
+
+	/* bring capabilities within encoder limits */
+	if ((dp->dpcd[2] & 0x1f) > dp->outp->dpconf.link_nr) {
+		dp->dpcd[2] &= ~0x1f;
+		dp->dpcd[2] |= dp->outp->dpconf.link_nr;
+	}
+	if (dp->dpcd[1] > dp->outp->dpconf.link_bw)
+		dp->dpcd[1] = dp->outp->dpconf.link_bw;
 
 	/* adjust required bandwidth for 8B/10B coding overhead */
 	datarate = (datarate / 8) * 10;

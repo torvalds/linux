@@ -29,6 +29,10 @@
 
 #include "nv50.h"
 
+/*******************************************************************************
+ * Base display object
+ ******************************************************************************/
+
 static struct nouveau_oclass
 nvf0_disp_sclass[] = {
 	{ NVF0_DISP_MAST_CLASS, &nvd0_disp_mast_ofuncs },
@@ -44,6 +48,10 @@ nvf0_disp_base_oclass[] = {
 	{ NVF0_DISP_CLASS, &nvd0_disp_base_ofuncs, nvd0_disp_base_omthds },
 	{}
 };
+
+/*******************************************************************************
+ * Display engine implementation
+ ******************************************************************************/
 
 static int
 nvf0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -77,13 +85,17 @@ nvf0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nvf0_disp_oclass = {
-	.handle = NV_ENGINE(DISP, 0x92),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nvf0_disp_oclass = &(struct nv50_disp_impl) {
+	.base.base.handle = NV_ENGINE(DISP, 0x92),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvf0_disp_ctor,
 		.dtor = _nouveau_disp_dtor,
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
-};
+	.mthd.core = &nve0_disp_mast_mthd_chan,
+	.mthd.base = &nvd0_disp_sync_mthd_chan,
+	.mthd.ovly = &nve0_disp_ovly_mthd_chan,
+	.mthd.prev = -0x020000,
+}.base.base;

@@ -296,6 +296,18 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	case DRM_CAP_ASYNC_PAGE_FLIP:
 		req->value = dev->mode_config.async_page_flip;
 		break;
+	case DRM_CAP_CURSOR_WIDTH:
+		if (dev->mode_config.cursor_width)
+			req->value = dev->mode_config.cursor_width;
+		else
+			req->value = 64;
+		break;
+	case DRM_CAP_CURSOR_HEIGHT:
+		if (dev->mode_config.cursor_height)
+			req->value = dev->mode_config.cursor_height;
+		else
+			req->value = 64;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -315,6 +327,13 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		if (req->value > 1)
 			return -EINVAL;
 		file_priv->stereo_allowed = req->value;
+		break;
+	case DRM_CLIENT_CAP_UNIVERSAL_PLANES:
+		if (!drm_universal_planes)
+			return -EINVAL;
+		if (req->value > 1)
+			return -EINVAL;
+		file_priv->universal_planes = req->value;
 		break;
 	default:
 		return -EINVAL;

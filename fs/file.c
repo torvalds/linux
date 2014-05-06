@@ -25,7 +25,10 @@
 
 int sysctl_nr_open __read_mostly = 1024*1024;
 int sysctl_nr_open_min = BITS_PER_LONG;
-int sysctl_nr_open_max = 1024 * 1024; /* raised later */
+/* our max() is unusable in constant expressions ;-/ */
+#define __const_max(x, y) ((x) < (y) ? (x) : (y))
+int sysctl_nr_open_max = __const_max(INT_MAX, ~(size_t)0/sizeof(void *)) &
+			 -BITS_PER_LONG;
 
 static void *alloc_fdmem(size_t size)
 {
@@ -34,7 +37,7 @@ static void *alloc_fdmem(size_t size)
 	 * vmalloc() if the allocation size will be considered "large" by the VM.
 	 */
 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY);
 		if (data != NULL)
 			return data;
 	}
@@ -429,12 +432,6 @@ void exit_files(struct task_struct *tsk)
 	}
 }
 
-void __init files_defer_init(void)
-{
-	sysctl_nr_open_max = min((size_t)INT_MAX, ~(size_t)0/sizeof(void *)) &
-			     -BITS_PER_LONG;
-}
-
 struct files_struct init_files = {
 	.count		= ATOMIC_INIT(1),
 	.fdt		= &init_files.fdtab,
@@ -497,7 +494,7 @@ repeat:
 	error = fd;
 #if 1
 	/* Sanity check */
-	if (rcu_dereference_raw(fdt->fd[fd]) != NULL) {
+	if (rcu_access_pointer(fdt->fd[fd]) != NULL) {
 		printk(KERN_WARNING "alloc_fd: slot %d not NULL!\n", fd);
 		rcu_assign_pointer(fdt->fd[fd], NULL);
 	}
@@ -683,34 +680,53 @@ EXPORT_SYMBOL(fget_raw);
  * The fput_needed flag returned by fget_light should be passed to the
  * corresponding fput_light.
  */
-struct file *__fget_light(unsigned int fd, fmode_t mask, int *fput_needed)
+static unsigned long __fget_light(unsigned int fd, fmode_t mask)
 {
 	struct files_struct *files = current->files;
 	struct file *file;
 
-	*fput_needed = 0;
 	if (atomic_read(&files->count) == 1) {
 		file = __fcheck_files(files, fd);
-		if (file && (file->f_mode & mask))
-			file = NULL;
+		if (!file || unlikely(file->f_mode & mask))
+			return 0;
+		return (unsigned long)file;
 	} else {
 		file = __fget(fd, mask);
-		if (file)
-			*fput_needed = 1;
+		if (!file)
+			return 0;
+		return FDPUT_FPUT | (unsigned long)file;
 	}
-
-	return file;
 }
-struct file *fget_light(unsigned int fd, int *fput_needed)
+unsigned long __fdget(unsigned int fd)
 {
-	return __fget_light(fd, FMODE_PATH, fput_needed);
+	return __fget_light(fd, FMODE_PATH);
 }
-EXPORT_SYMBOL(fget_light);
+EXPORT_SYMBOL(__fdget);
 
-struct file *fget_raw_light(unsigned int fd, int *fput_needed)
+unsigned long __fdget_raw(unsigned int fd)
 {
-	return __fget_light(fd, 0, fput_needed);
+	return __fget_light(fd, 0);
 }
+
+unsigned long __fdget_pos(unsigned int fd)
+{
+	unsigned long v = __fdget(fd);
+	struct file *file = (struct file *)(v & ~3);
+
+	if (file && (file->f_mode & FMODE_ATOMIC_POS)) {
+		if (file_count(file) > 1) {
+			v |= FDPUT_POS_UNLOCK;
+			mutex_lock(&file->f_pos_lock);
+		}
+	}
+	return v;
+}
+
+/*
+ * We only lock f_pos if we have threads or if the file might be
+ * shared with another process. In both cases we'll have an elevated
+ * file count (done either by fdget() or by fork()).
+ */
 
 void set_close_on_exec(unsigned int fd, int flag)
 {

@@ -279,8 +279,8 @@ void rtl8225z2_rf_close(struct net_device *dev)
  * Map dBm into Tx power index according to current HW model, for example,
  * RF and PA, and current wireless mode.
  */
-static s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
-			s32 PowerInDbm)
+static s8 DbmToTxPwrIdx(struct r8180_priv *priv,
+			enum wireless_mode mode, s32 PowerInDbm)
 {
 	bool bUseDefault = true;
 	s8 TxPwrIdx = 0;
@@ -291,7 +291,7 @@ static s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
 	 */
 	s32 tmp = 0;
 
-	if (WirelessMode == WIRELESS_MODE_G) {
+	if (mode == WIRELESS_MODE_G) {
 		bUseDefault = false;
 		tmp = (2 * PowerInDbm);
 
@@ -301,7 +301,7 @@ static s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
 			TxPwrIdx = 40;
 		else
 			TxPwrIdx = (s8)tmp;
-	} else if (WirelessMode == WIRELESS_MODE_B) {
+	} else if (mode == WIRELESS_MODE_B) {
 		bUseDefault = false;
 		tmp = (4 * PowerInDbm) - 52;
 
@@ -606,51 +606,12 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	rtl8225z2_rf_set_chan(dev, priv->chan);
 }
 
-void rtl8225z2_rf_set_mode(struct net_device *dev)
-{
-	struct r8180_priv *priv = ieee80211_priv(dev);
-
-	if (priv->ieee80211->mode == IEEE_A) {
-		write_rtl8225(dev, 0x5, 0x1865);
-		write_nic_dword(dev, RF_PARA, 0x10084);
-		write_nic_dword(dev, RF_TIMING, 0xa8008);
-		write_phy_ofdm(dev, 0x0, 0x0);
-		write_phy_ofdm(dev, 0xa, 0x6);
-		write_phy_ofdm(dev, 0xb, 0x99);
-		write_phy_ofdm(dev, 0xf, 0x20);
-		write_phy_ofdm(dev, 0x11, 0x7);
-
-		rtl8225z2_set_gain(dev, 4);
-
-		write_phy_ofdm(dev, 0x15, 0x40);
-		write_phy_ofdm(dev, 0x17, 0x40);
-
-		write_nic_dword(dev, 0x94, 0x10000000);
-	} else {
-		write_rtl8225(dev, 0x5, 0x1864);
-		write_nic_dword(dev, RF_PARA, 0x10044);
-		write_nic_dword(dev, RF_TIMING, 0xa8008);
-		write_phy_ofdm(dev, 0x0, 0x1);
-		write_phy_ofdm(dev, 0xa, 0x6);
-		write_phy_ofdm(dev, 0xb, 0x99);
-		write_phy_ofdm(dev, 0xf, 0x20);
-		write_phy_ofdm(dev, 0x11, 0x7);
-
-		rtl8225z2_set_gain(dev, 4);
-
-		write_phy_ofdm(dev, 0x15, 0x40);
-		write_phy_ofdm(dev, 0x17, 0x40);
-
-		write_nic_dword(dev, 0x94, 0x04000002);
-	}
-}
-
 #define MAX_DOZE_WAITING_TIMES_85B		20
 #define MAX_POLLING_24F_TIMES_87SE		10
 #define LPS_MAX_SLEEP_WAITING_TIMES_87SE	5
 
 bool SetZebraRFPowerState8185(struct net_device *dev,
-			      RT_RF_POWER_STATE eRFPowerState)
+			      enum rt_rf_power_state eRFPowerState)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u8			btCR9346, btConfig3;
@@ -672,7 +633,7 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 	write_nic_byte(dev, CONFIG3, (btConfig3 | CONFIG3_PARM_En));
 
 	switch (eRFPowerState) {
-	case eRfOn:
+	case RF_ON:
 		write_nic_word(dev, 0x37C, 0x00EC);
 
 		/* turn on AFE */
@@ -697,7 +658,7 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 		u1bTmp = read_nic_byte(dev, 0x24E);
 		write_nic_byte(dev, 0x24E, (u1bTmp & (~(BIT5 | BIT6))));
 		break;
-	case eRfSleep:
+	case RF_SLEEP:
 		for (QueueID = 0, i = 0; QueueID < 6;) {
 			if (get_curr_tx_free_desc(dev, QueueID) ==
 							priv->txringcount) {
@@ -764,7 +725,7 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 			}
 		}
 		break;
-	case eRfOff:
+	case RF_OFF:
 		for (QueueID = 0, i = 0; QueueID < 6;) {
 			if (get_curr_tx_free_desc(dev, QueueID) ==
 					priv->txringcount) {
@@ -841,10 +802,10 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 
 void rtl8225z4_rf_sleep(struct net_device *dev)
 {
-	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
+	MgntActSet_RF_State(dev, RF_SLEEP, RF_CHANGE_BY_PS);
 }
 
 void rtl8225z4_rf_wakeup(struct net_device *dev)
 {
-	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
+	MgntActSet_RF_State(dev, RF_ON, RF_CHANGE_BY_PS);
 }

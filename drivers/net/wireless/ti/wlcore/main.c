@@ -5184,7 +5184,8 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
-static void wlcore_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void wlcore_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    u32 queues, bool drop)
 {
 	struct wl1271 *wl = hw->priv;
 

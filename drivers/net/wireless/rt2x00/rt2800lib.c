@@ -1005,10 +1005,9 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 				   entry->skb->len + padding_len);
 
 	/*
-	 * Enable beaconing again.
+	 * Restore beaconing state.
 	 */
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, orig_reg);
 
 	/*
 	 * Clean up beacon skb.
@@ -1039,13 +1038,14 @@ static inline void rt2800_clear_beacon_register(struct rt2x00_dev *rt2x00dev,
 void rt2800_clear_beacon(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	u32 reg;
+	u32 orig_reg, reg;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
 	 * otherwise we might be sending out invalid data.
 	 */
-	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &orig_reg);
+	reg = orig_reg;
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
@@ -1055,10 +1055,9 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 	rt2800_clear_beacon_register(rt2x00dev, entry->entry_idx);
 
 	/*
-	 * Enabled beaconing again.
+	 * Restore beaconing state.
 	 */
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, orig_reg);
 }
 EXPORT_SYMBOL_GPL(rt2800_clear_beacon);
 
@@ -5460,13 +5459,14 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_bbp_write(rt2x00dev, 68, 0x0b);
 
-	rt2800_bbp_write(rt2x00dev, 69, 0x0d);
-	rt2800_bbp_write(rt2x00dev, 70, 0x06);
+	rt2800_bbp_write(rt2x00dev, 69, 0x12);
 	rt2800_bbp_write(rt2x00dev, 73, 0x13);
 	rt2800_bbp_write(rt2x00dev, 75, 0x46);
 	rt2800_bbp_write(rt2x00dev, 76, 0x28);
 
 	rt2800_bbp_write(rt2x00dev, 77, 0x59);
+
+	rt2800_bbp_write(rt2x00dev, 70, 0x0a);
 
 	rt2800_bbp_write(rt2x00dev, 79, 0x13);
 	rt2800_bbp_write(rt2x00dev, 80, 0x05);
@@ -5510,7 +5510,6 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rt(rt2x00dev, RT5392)) {
 		rt2800_bbp_write(rt2x00dev, 134, 0xd0);
 		rt2800_bbp_write(rt2x00dev, 135, 0xf6);
-		rt2800_bbp_write(rt2x00dev, 148, 0x84);
 	}
 
 	rt2800_disable_unused_dac_adc(rt2x00dev);

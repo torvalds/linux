@@ -945,8 +945,9 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 	}
 	clk_enable(pclk);
 
-	retval = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			THIS_MODULE, sizeof(struct atmel_ac97c), &card);
+	retval = snd_card_new(&pdev->dev, SNDRV_DEFAULT_IDX1,
+			      SNDRV_DEFAULT_STR1, THIS_MODULE,
+			      sizeof(struct atmel_ac97c), &card);
 	if (retval) {
 		dev_dbg(&pdev->dev, "could not create sound card device\n");
 		goto err_snd_card_new;
@@ -989,8 +990,6 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 	} else {
 		chip->reset_pin = -EINVAL;
 	}
-
-	snd_card_set_dev(card, &pdev->dev);
 
 	atmel_ac97c_reset(chip);
 
@@ -1113,8 +1112,6 @@ err_dma:
 		chip->dma.tx_chan = NULL;
 	}
 err_ac97_bus:
-	snd_card_set_dev(card, NULL);
-
 	if (gpio_is_valid(chip->reset_pin))
 		gpio_free(chip->reset_pin);
 
@@ -1195,7 +1192,6 @@ static int atmel_ac97c_remove(struct platform_device *pdev)
 		chip->dma.tx_chan = NULL;
 	}
 
-	snd_card_set_dev(card, NULL);
 	snd_card_free(card);
 
 	return 0;

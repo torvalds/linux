@@ -18,7 +18,9 @@ enum sec_device_type {
 	S5M8751X,
 	S5M8763X,
 	S5M8767X,
+	S2MPA01,
 	S2MPS11X,
+	S2MPS14X,
 };
 
 /**
@@ -50,7 +52,7 @@ struct sec_pmic_dev {
 	struct regmap_irq_chip_data *irq_data;
 
 	int ono;
-	int type;
+	unsigned long type;
 	bool wakeup;
 	bool wtsr_smpl;
 };
@@ -92,7 +94,7 @@ struct sec_platform_data {
 	int				buck3_default_idx;
 	int				buck4_default_idx;
 
-	int                             buck_ramp_delay;
+	int				buck_ramp_delay;
 
 	int				buck2_ramp_delay;
 	int				buck34_ramp_delay;
@@ -100,10 +102,15 @@ struct sec_platform_data {
 	int				buck16_ramp_delay;
 	int				buck7810_ramp_delay;
 	int				buck9_ramp_delay;
+	int				buck24_ramp_delay;
+	int				buck3_ramp_delay;
+	int				buck7_ramp_delay;
+	int				buck8910_ramp_delay;
 
-	bool                            buck2_ramp_enable;
-	bool                            buck3_ramp_enable;
-	bool                            buck4_ramp_enable;
+	bool				buck1_ramp_enable;
+	bool				buck2_ramp_enable;
+	bool				buck3_ramp_enable;
+	bool				buck4_ramp_enable;
 	bool				buck6_ramp_enable;
 
 	int				buck2_init;
@@ -119,7 +126,8 @@ struct sec_platform_data {
 struct sec_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
-	struct device_node *reg_node;
+	struct device_node		*reg_node;
+	int				ext_control_gpio;
 };
 
 /*

@@ -236,7 +236,15 @@ cycles_t ns2cycles(unsigned long nsecs)
 	 * clock frequency.
 	 */
 	struct clock_event_device *dev = &__raw_get_cpu_var(tile_timer);
-	return ((u64)nsecs * dev->mult) >> dev->shift;
+
+	/*
+	 * as in clocksource.h and x86's timer.h, we split the calculation
+	 * into 2 parts to avoid unecessary overflow of the intermediate
+	 * value. This will not lead to any loss of precision.
+	 */
+	u64 quot = (u64)nsecs >> dev->shift;
+	u64 rem  = (u64)nsecs & ((1ULL << dev->shift) - 1);
+	return quot * dev->mult + ((rem * dev->mult) >> dev->shift);
 }
 
 void update_vsyscall_tz(void)

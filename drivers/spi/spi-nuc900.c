@@ -9,7 +9,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
@@ -38,7 +37,9 @@
 /* usi register bit */
 #define ENINT		(0x01 << 17)
 #define ENFLG		(0x01 << 16)
+#define SLEEP		(0x0f << 12)
 #define TXNUM		(0x03 << 8)
+#define TXBITLEN	(0x1f << 3)
 #define TXNEG		(0x01 << 2)
 #define RXNEG		(0x01 << 1)
 #define LSB		(0x01 << 10)
@@ -58,11 +59,8 @@ struct nuc900_spi {
 	unsigned char		*rx;
 	struct clk		*clk;
 	struct spi_master	*master;
-	struct spi_device	*curdev;
-	struct device		*dev;
 	struct nuc900_spi_info *pdata;
 	spinlock_t		lock;
-	struct resource		*res;
 };
 
 static inline struct nuc900_spi *to_hw(struct spi_device *sdev)
@@ -119,19 +117,16 @@ static void nuc900_spi_chipsel(struct spi_device *spi, int value)
 	}
 }
 
-static void nuc900_spi_setup_txnum(struct nuc900_spi *hw,
-							unsigned int txnum)
+static void nuc900_spi_setup_txnum(struct nuc900_spi *hw, unsigned int txnum)
 {
 	unsigned int val;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~TXNUM;
 
-	if (!txnum)
-		val &= ~TXNUM;
-	else
+	if (txnum)
 		val |= txnum << 0x08;
 
 	__raw_writel(val, hw->regs + USI_CNT);
@@ -148,7 +143,7 @@ static void nuc900_spi_setup_txbitlen(struct nuc900_spi *hw,
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~TXBITLEN;
 
 	val |= (txbitlen << 0x03);
 
@@ -287,12 +282,11 @@ static void nuc900_set_sleep(struct nuc900_spi *hw, unsigned int sleep)
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~SLEEP;
 
 	if (sleep)
 		val |= (sleep << 12);
-	else
-		val &= ~(0x0f << 12);
+
 	__raw_writel(val, hw->regs + USI_CNT);
 
 	spin_unlock_irqrestore(&hw->lock, flags);
@@ -338,6 +332,7 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 {
 	struct nuc900_spi *hw;
 	struct spi_master *master;
+	struct resource *res;
 	int err = 0;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct nuc900_spi));
@@ -349,7 +344,6 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	hw = spi_master_get_devdata(master);
 	hw->master = master;
 	hw->pdata  = dev_get_platdata(&pdev->dev);
-	hw->dev = &pdev->dev;
 
 	if (hw->pdata == NULL) {
 		dev_err(&pdev->dev, "No platform data supplied\n");
@@ -361,14 +355,16 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	init_completion(&hw->done);
 
 	master->mode_bits          = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	if (hw->pdata->lsb)
+		master->mode_bits |= SPI_LSB_FIRST;
 	master->num_chipselect     = hw->pdata->num_cs;
 	master->bus_num            = hw->pdata->bus_num;
 	hw->bitbang.master         = hw->master;
 	hw->bitbang.chipselect     = nuc900_spi_chipsel;
 	hw->bitbang.txrx_bufs      = nuc900_spi_txrx;
 
-	hw->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hw->regs = devm_ioremap_resource(&pdev->dev, hw->res);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hw->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hw->regs)) {
 		err = PTR_ERR(hw->regs);
 		goto err_pdata;

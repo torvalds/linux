@@ -171,7 +171,11 @@ extern void xmon_leave(void);
 #define REG		"%.8lx"
 #endif
 
+#ifdef __LITTLE_ENDIAN__
+#define GETWORD(v)	(((v)[3] << 24) + ((v)[2] << 16) + ((v)[1] << 8) + (v)[0])
+#else
 #define GETWORD(v)	(((v)[0] << 24) + ((v)[1] << 16) + ((v)[2] << 8) + (v)[3])
+#endif
 
 #define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
 			 || ('a' <= (c) && (c) <= 'f') \
@@ -309,16 +313,23 @@ static void get_output_lock(void)
 
 	if (xmon_speaker == me)
 		return;
+
 	for (;;) {
-		if (xmon_speaker == 0) {
-			last_speaker = cmpxchg(&xmon_speaker, 0, me);
-			if (last_speaker == 0)
-				return;
-		}
-		timeout = 10000000;
+		last_speaker = cmpxchg(&xmon_speaker, 0, me);
+		if (last_speaker == 0)
+			return;
+
+		/*
+		 * Wait a full second for the lock, we might be on a slow
+		 * console, but check every 100us.
+		 */
+		timeout = 10000;
 		while (xmon_speaker == last_speaker) {
-			if (--timeout > 0)
+			if (--timeout > 0) {
+				udelay(100);
 				continue;
+			}
+
 			/* hostile takeover */
 			prev = cmpxchg(&xmon_speaker, last_speaker, me);
 			if (prev == last_speaker)
@@ -397,7 +408,6 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	}
 
 	xmon_fault_jmp[cpu] = recurse_jmp;
-	cpumask_set_cpu(cpu, &cpus_in_xmon);
 
 	bp = NULL;
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_64BIT)) == (MSR_IR|MSR_64BIT))
@@ -418,6 +428,8 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			       "can't continue\n");
 		release_output_lock();
 	}
+
+	cpumask_set_cpu(cpu, &cpus_in_xmon);
 
  waiting:
 	secondary = 1;

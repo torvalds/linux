@@ -100,9 +100,12 @@ struct blkcipher_walk {
 	void *page;
 	u8 *buffer;
 	u8 *iv;
+	unsigned int ivsize;
 
 	int flags;
-	unsigned int blocksize;
+	unsigned int walk_blocksize;
+	unsigned int cipher_blocksize;
+	unsigned int alignmask;
 };
 
 struct ablkcipher_walk {
@@ -192,6 +195,10 @@ int blkcipher_walk_phys(struct blkcipher_desc *desc,
 int blkcipher_walk_virt_block(struct blkcipher_desc *desc,
 			      struct blkcipher_walk *walk,
 			      unsigned int blocksize);
+int blkcipher_aead_walk_virt_block(struct blkcipher_desc *desc,
+				   struct blkcipher_walk *walk,
+				   struct crypto_aead *tfm,
+				   unsigned int blocksize);
 
 int ablkcipher_walk_done(struct ablkcipher_request *req,
 			 struct ablkcipher_walk *walk, int err);

@@ -332,6 +332,7 @@ enum {
 	CEPH_MDS_OP_LOOKUPHASH = 0x00102,
 	CEPH_MDS_OP_LOOKUPPARENT = 0x00103,
 	CEPH_MDS_OP_LOOKUPINO  = 0x00104,
+	CEPH_MDS_OP_LOOKUPNAME = 0x00105,
 
 	CEPH_MDS_OP_SETXATTR   = 0x01105,
 	CEPH_MDS_OP_RMXATTR    = 0x01106,
@@ -373,8 +374,9 @@ extern const char *ceph_mds_op_name(int op);
 /*
  * Ceph setxattr request flags.
  */
-#define CEPH_XATTR_CREATE  1
-#define CEPH_XATTR_REPLACE 2
+#define CEPH_XATTR_CREATE  (1 << 0)
+#define CEPH_XATTR_REPLACE (1 << 1)
+#define CEPH_XATTR_REMOVE  (1 << 31)
 
 union ceph_mds_request_args {
 	struct {
@@ -419,8 +421,8 @@ union ceph_mds_request_args {
 	struct {
 		__u8 rule; /* currently fcntl or flock */
 		__u8 type; /* shared, exclusive, remove*/
+		__le64 owner; /* owner of the lock */
 		__le64 pid; /* process id requesting the lock */
-		__le64 pid_namespace;
 		__le64 start; /* initial location to lock */
 		__le64 length; /* num bytes to lock from start */
 		__u8 wait; /* will caller wait for lock to become available? */
@@ -531,8 +533,8 @@ struct ceph_filelock {
 	__le64 start;/* file offset to start lock at */
 	__le64 length; /* num bytes to lock; 0 for all following start */
 	__le64 client; /* which client holds the lock */
+	__le64 owner; /* owner the lock */
 	__le64 pid; /* process id holding the lock on the client */
-	__le64 pid_namespace;
 	__u8 type; /* shared lock, exclusive lock, or unlock */
 } __attribute__ ((packed));
 

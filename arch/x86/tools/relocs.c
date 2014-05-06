@@ -69,8 +69,8 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
 	"__per_cpu_load|"
 	"init_per_cpu__.*|"
 	"__end_rodata_hpage_align|"
-	"__vvar_page|"
 #endif
+	"__vvar_page|"
 	"_end)$"
 };
 

@@ -73,10 +73,17 @@ struct nf_conn_help {
 
 struct nf_conn {
 	/* Usage count in here is 1 for hash table/destruct timer, 1 per skb,
-           plus 1 for any connection(s) we are `master' for */
+	 * plus 1 for any connection(s) we are `master' for
+	 *
+	 * Hint, SKB address this struct and refcnt via skb->nfct and
+	 * helpers nf_conntrack_get() and nf_conntrack_put().
+	 * Helper nf_ct_put() equals nf_conntrack_put() by dec refcnt,
+	 * beware nf_ct_get() is different and don't inc refcnt.
+	 */
 	struct nf_conntrack ct_general;
 
-	spinlock_t lock;
+	spinlock_t	lock;
+	u16		cpu;
 
 	/* XXX should I move this to the tail ? - Y.K */
 	/* These are my tuples; original and reply */
@@ -283,6 +290,8 @@ extern unsigned int nf_conntrack_htable_size;
 extern unsigned int nf_conntrack_max;
 extern unsigned int nf_conntrack_hash_rnd;
 void init_nf_conntrack_hash_rnd(void);
+
+void nf_conntrack_tmpl_insert(struct net *net, struct nf_conn *tmpl);
 
 #define NF_CT_STAT_INC(net, count)	  __this_cpu_inc((net)->ct.stat->count)
 #define NF_CT_STAT_INC_ATOMIC(net, count) this_cpu_inc((net)->ct.stat->count)

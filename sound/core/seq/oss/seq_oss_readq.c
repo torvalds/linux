@@ -48,12 +48,12 @@ snd_seq_oss_readq_new(struct seq_oss_devinfo *dp, int maxlen)
 	struct seq_oss_readq *q;
 
 	if ((q = kzalloc(sizeof(*q), GFP_KERNEL)) == NULL) {
-		snd_printk(KERN_ERR "can't malloc read queue\n");
+		pr_err("ALSA: seq_oss: can't malloc read queue\n");
 		return NULL;
 	}
 
 	if ((q->q = kcalloc(maxlen, sizeof(union evrec), GFP_KERNEL)) == NULL) {
-		snd_printk(KERN_ERR "can't malloc read queue buffer\n");
+		pr_err("ALSA: seq_oss: can't malloc read queue buffer\n");
 		kfree(q);
 		return NULL;
 	}

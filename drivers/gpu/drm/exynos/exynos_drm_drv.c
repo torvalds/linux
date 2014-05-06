@@ -11,6 +11,7 @@
  * option) any later version.
  */
 
+#include <linux/pm_runtime.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -53,6 +54,7 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&private->pageflip_event_list);
+	dev_set_drvdata(dev->dev, dev);
 	dev->dev_private = (void *)private;
 
 	/*
@@ -64,38 +66,36 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	ret = drm_create_iommu_mapping(dev);
 	if (ret < 0) {
 		DRM_ERROR("failed to create iommu mapping.\n");
-		goto err_crtc;
+		goto err_free_private;
 	}
 
 	drm_mode_config_init(dev);
 
-	/* init kms poll for handling hpd */
-	drm_kms_helper_poll_init(dev);
-
 	exynos_drm_mode_config_init(dev);
 
-	/*
-	 * EXYNOS4 is enough to have two CRTCs and each crtc would be used
-	 * without dependency of hardware.
-	 */
-	for (nr = 0; nr < MAX_CRTC; nr++) {
-		ret = exynos_drm_crtc_create(dev, nr);
-		if (ret)
-			goto err_release_iommu_mapping;
-	}
+	ret = exynos_drm_initialize_managers(dev);
+	if (ret)
+		goto err_mode_config_cleanup;
 
 	for (nr = 0; nr < MAX_PLANE; nr++) {
 		struct drm_plane *plane;
-		unsigned int possible_crtcs = (1 << MAX_CRTC) - 1;
+		unsigned long possible_crtcs = (1 << MAX_CRTC) - 1;
 
 		plane = exynos_plane_init(dev, possible_crtcs, false);
 		if (!plane)
-			goto err_release_iommu_mapping;
+			goto err_manager_cleanup;
 	}
+
+	ret = exynos_drm_initialize_displays(dev);
+	if (ret)
+		goto err_manager_cleanup;
+
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(dev);
 
 	ret = drm_vblank_init(dev, MAX_CRTC);
 	if (ret)
-		goto err_release_iommu_mapping;
+		goto err_display_cleanup;
 
 	/*
 	 * probe sub drivers such as display controller and hdmi driver,
@@ -109,30 +109,25 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	/* setup possible_clones. */
 	exynos_drm_encoder_setup(dev);
 
-	/*
-	 * create and configure fb helper and also exynos specific
-	 * fbdev object.
-	 */
-	ret = exynos_drm_fbdev_init(dev);
-	if (ret) {
-		DRM_ERROR("failed to initialize drm fbdev\n");
-		goto err_drm_device;
-	}
-
 	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
 	platform_set_drvdata(dev->platformdev, dev);
 
+	/* force connectors detection */
+	drm_helper_hpd_irq_event(dev);
+
 	return 0;
 
-err_drm_device:
-	exynos_drm_device_unregister(dev);
 err_vblank:
 	drm_vblank_cleanup(dev);
-err_release_iommu_mapping:
-	drm_release_iommu_mapping(dev);
-err_crtc:
+err_display_cleanup:
+	exynos_drm_remove_displays(dev);
+err_manager_cleanup:
+	exynos_drm_remove_managers(dev);
+err_mode_config_cleanup:
 	drm_mode_config_cleanup(dev);
+	drm_release_iommu_mapping(dev);
+err_free_private:
 	kfree(private);
 
 	return ret;
@@ -144,6 +139,8 @@ static int exynos_drm_unload(struct drm_device *dev)
 	exynos_drm_device_unregister(dev);
 	drm_vblank_cleanup(dev);
 	drm_kms_helper_poll_fini(dev);
+	exynos_drm_remove_displays(dev);
+	exynos_drm_remove_managers(dev);
 	drm_mode_config_cleanup(dev);
 
 	drm_release_iommu_mapping(dev);
@@ -158,6 +155,41 @@ static const struct file_operations exynos_drm_gem_fops = {
 	.mmap = exynos_drm_gem_mmap_buffer,
 };
 
+static int exynos_drm_suspend(struct drm_device *dev, pm_message_t state)
+{
+	struct drm_connector *connector;
+
+	drm_modeset_lock_all(dev);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		int old_dpms = connector->dpms;
+
+		if (connector->funcs->dpms)
+			connector->funcs->dpms(connector, DRM_MODE_DPMS_OFF);
+
+		/* Set the old mode back to the connector for resume */
+		connector->dpms = old_dpms;
+	}
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
+static int exynos_drm_resume(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+
+	drm_modeset_lock_all(dev);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->funcs->dpms)
+			connector->funcs->dpms(connector, connector->dpms);
+	}
+
+	drm_helper_resume_force_mode(dev);
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;
@@ -171,21 +203,27 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = file_priv;
 
 	ret = exynos_drm_subdrv_open(dev, file);
-	if (ret) {
-		kfree(file_priv);
-		file->driver_priv = NULL;
-	}
+	if (ret)
+		goto err_file_priv_free;
 
 	anon_filp = anon_inode_getfile("exynos_gem", &exynos_drm_gem_fops,
 					NULL, 0);
 	if (IS_ERR(anon_filp)) {
-		kfree(file_priv);
-		return PTR_ERR(anon_filp);
+		ret = PTR_ERR(anon_filp);
+		goto err_subdrv_close;
 	}
 
 	anon_filp->f_mode = FMODE_READ | FMODE_WRITE;
 	file_priv->anon_filp = anon_filp;
 
+	return ret;
+
+err_subdrv_close:
+	exynos_drm_subdrv_close(dev, file);
+
+err_file_priv_free:
+	kfree(file_priv);
+	file->driver_priv = NULL;
 	return ret;
 }
 
@@ -289,6 +327,8 @@ static struct drm_driver exynos_drm_driver = {
 					DRIVER_GEM | DRIVER_PRIME,
 	.load			= exynos_drm_load,
 	.unload			= exynos_drm_unload,
+	.suspend		= exynos_drm_suspend,
+	.resume			= exynos_drm_resume,
 	.open			= exynos_drm_open,
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
@@ -323,6 +363,9 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	return drm_platform_init(&exynos_drm_driver, pdev);
 }
 
@@ -333,18 +376,85 @@ static int exynos_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int exynos_drm_sys_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	pm_message_t message;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	message.event = PM_EVENT_SUSPEND;
+	return exynos_drm_suspend(drm_dev, message);
+}
+
+static int exynos_drm_sys_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return exynos_drm_resume(drm_dev);
+}
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+static int exynos_drm_runtime_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	pm_message_t message;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	message.event = PM_EVENT_SUSPEND;
+	return exynos_drm_suspend(drm_dev, message);
+}
+
+static int exynos_drm_runtime_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	if (!pm_runtime_suspended(dev))
+		return 0;
+
+	return exynos_drm_resume(drm_dev);
+}
+#endif
+
+static const struct dev_pm_ops exynos_drm_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(exynos_drm_sys_suspend, exynos_drm_sys_resume)
+	SET_RUNTIME_PM_OPS(exynos_drm_runtime_suspend,
+			exynos_drm_runtime_resume, NULL)
+};
+
 static struct platform_driver exynos_drm_platform_driver = {
 	.probe		= exynos_drm_platform_probe,
 	.remove		= exynos_drm_platform_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "exynos-drm",
+		.pm	= &exynos_drm_pm_ops,
 	},
 };
 
 static int __init exynos_drm_init(void)
 {
 	int ret;
+
+#ifdef CONFIG_DRM_EXYNOS_DP
+	ret = platform_driver_register(&dp_driver);
+	if (ret < 0)
+		goto out_dp;
+#endif
+
+#ifdef CONFIG_DRM_EXYNOS_DSI
+	ret = platform_driver_register(&dsi_driver);
+	if (ret < 0)
+		goto out_dsi;
+#endif
 
 #ifdef CONFIG_DRM_EXYNOS_FIMD
 	ret = platform_driver_register(&fimd_driver);
@@ -359,13 +469,6 @@ static int __init exynos_drm_init(void)
 	ret = platform_driver_register(&mixer_driver);
 	if (ret < 0)
 		goto out_mixer;
-	ret = platform_driver_register(&exynos_drm_common_hdmi_driver);
-	if (ret < 0)
-		goto out_common_hdmi;
-
-	ret = exynos_platform_device_hdmi_register();
-	if (ret < 0)
-		goto out_common_hdmi_dev;
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_VIDI
@@ -458,10 +561,6 @@ out_vidi:
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_HDMI
-	exynos_platform_device_hdmi_unregister();
-out_common_hdmi_dev:
-	platform_driver_unregister(&exynos_drm_common_hdmi_driver);
-out_common_hdmi:
 	platform_driver_unregister(&mixer_driver);
 out_mixer:
 	platform_driver_unregister(&hdmi_driver);
@@ -471,6 +570,16 @@ out_hdmi:
 #ifdef CONFIG_DRM_EXYNOS_FIMD
 	platform_driver_unregister(&fimd_driver);
 out_fimd:
+#endif
+
+#ifdef CONFIG_DRM_EXYNOS_DSI
+	platform_driver_unregister(&dsi_driver);
+out_dsi:
+#endif
+
+#ifdef CONFIG_DRM_EXYNOS_DP
+	platform_driver_unregister(&dp_driver);
+out_dp:
 #endif
 	return ret;
 }
@@ -503,8 +612,6 @@ static void __exit exynos_drm_exit(void)
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_HDMI
-	exynos_platform_device_hdmi_unregister();
-	platform_driver_unregister(&exynos_drm_common_hdmi_driver);
 	platform_driver_unregister(&mixer_driver);
 	platform_driver_unregister(&hdmi_driver);
 #endif
@@ -515,6 +622,14 @@ static void __exit exynos_drm_exit(void)
 
 #ifdef CONFIG_DRM_EXYNOS_FIMD
 	platform_driver_unregister(&fimd_driver);
+#endif
+
+#ifdef CONFIG_DRM_EXYNOS_DSI
+	platform_driver_unregister(&dsi_driver);
+#endif
+
+#ifdef CONFIG_DRM_EXYNOS_DP
+	platform_driver_unregister(&dp_driver);
 #endif
 }
 

@@ -13,6 +13,7 @@
 #include <linux/wait.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
+#include <linux/posix_acl.h>
 
 #include <linux/ceph/libceph.h>
 
@@ -576,7 +577,7 @@ struct ceph_file_info {
 
 	/* readdir: position within a frag */
 	unsigned offset;       /* offset of last chunk, adjusted for . and .. */
-	u64 next_offset;       /* offset of next chunk (last_name's + 1) */
+	unsigned next_offset;  /* offset of next chunk (last_name's + 1) */
 	char *last_name;       /* last entry in previous chunk */
 	struct dentry *dentry; /* next dentry (for dcache readdir) */
 	int dir_release_count;
@@ -743,7 +744,11 @@ extern const struct xattr_handler *ceph_xattr_handlers[];
 struct posix_acl *ceph_get_acl(struct inode *, int);
 int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 int ceph_init_acl(struct dentry *, struct inode *, struct inode *);
-void ceph_forget_all_cached_acls(struct inode *inode);
+
+static inline void ceph_forget_all_cached_acls(struct inode *inode)
+{
+       forget_all_cached_acls(inode);
+}
 
 #else
 
@@ -866,6 +871,7 @@ extern long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern const struct export_operations ceph_export_ops;
 
 /* locks.c */
+extern __init void ceph_flock_init(void);
 extern int ceph_lock(struct file *file, int cmd, struct file_lock *fl);
 extern int ceph_flock(struct file *file, int cmd, struct file_lock *fl);
 extern void ceph_count_locks(struct inode *inode, int *p_num, int *f_num);

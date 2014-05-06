@@ -10,7 +10,6 @@
  * 2 of the License, or (at your option) any later version.
 */
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -440,8 +439,8 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 #ifdef CONFIG_MTD_DATAFLASH_OTP
 
-static int dataflash_get_otp_info(struct mtd_info *mtd,
-		struct otp_info *info, size_t len)
+static int dataflash_get_otp_info(struct mtd_info *mtd, size_t len,
+				  size_t *retlen, struct otp_info *info)
 {
 	/* Report both blocks as identical:  bytes 0..64, locked.
 	 * Unless the user block changed from all-ones, we can't
@@ -450,7 +449,8 @@ static int dataflash_get_otp_info(struct mtd_info *mtd,
 	info->start = 0;
 	info->length = 64;
 	info->locked = 1;
-	return sizeof(*info);
+	*retlen = sizeof(*info);
+	return 0;
 }
 
 static ssize_t otp_read(struct spi_device *spi, unsigned base,
@@ -542,14 +542,18 @@ static int dataflash_write_user_otp(struct mtd_info *mtd,
 	struct dataflash	*priv = mtd->priv;
 	int			status;
 
-	if (len > 64)
-		return -EINVAL;
+	if (from >= 64) {
+		/*
+		 * Attempting to write beyond the end of OTP memory,
+		 * no data can be written.
+		 */
+		*retlen = 0;
+		return 0;
+	}
 
-	/* Strictly speaking, we *could* truncate the write ... but
-	 * let's not do that for the only write that's ever possible.
-	 */
+	/* Truncate the write to fit into OTP memory. */
 	if ((from + len) > 64)
-		return -EINVAL;
+		len = 64 - from;
 
 	/* OUT: OP_WRITE_SECURITY, 3 zeroes, 64 data-or-zero bytes
 	 * IN:  ignore all

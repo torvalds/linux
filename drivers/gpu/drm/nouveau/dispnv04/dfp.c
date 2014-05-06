@@ -415,7 +415,7 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	/* Output property. */
 	if ((nv_connector->dithering_mode == DITHERING_MODE_ON) ||
 	    (nv_connector->dithering_mode == DITHERING_MODE_AUTO &&
-	     encoder->crtc->fb->depth > connector->display_info.bpc * 3)) {
+	     encoder->crtc->primary->fb->depth > connector->display_info.bpc * 3)) {
 		if (nv_device(drm->device)->chipset == 0x11)
 			regp->dither = savep->dither | 0x00010000;
 		else {

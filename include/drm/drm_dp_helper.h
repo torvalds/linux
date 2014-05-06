@@ -279,10 +279,20 @@
 
 #define DP_TEST_PATTERN			    0x221
 
+#define DP_TEST_CRC_R_CR		    0x240
+#define DP_TEST_CRC_G_Y			    0x242
+#define DP_TEST_CRC_B_CB		    0x244
+
+#define DP_TEST_SINK_MISC		    0x246
+#define DP_TEST_CRC_SUPPORTED		    (1 << 5)
+
 #define DP_TEST_RESPONSE		    0x260
 # define DP_TEST_ACK			    (1 << 0)
 # define DP_TEST_NAK			    (1 << 1)
 # define DP_TEST_EDID_CHECKSUM_WRITE	    (1 << 2)
+
+#define DP_TEST_SINK			    0x270
+#define DP_TEST_SINK_START	    (1 << 0)
 
 #define DP_SOURCE_OUI			    0x300
 #define DP_SINK_OUI			    0x400
@@ -291,6 +301,7 @@
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
+# define DP_SET_POWER_MASK                  0x3
 
 #define DP_PSR_ERROR_STATUS                 0x2006  /* XXX 1.2? */
 # define DP_PSR_LINK_CRC_ERROR              (1 << 0)
@@ -397,5 +408,119 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 	return dpcd[DP_DPCD_REV] >= 0x11 &&
 		(dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP);
 }
+
+/*
+ * DisplayPort AUX channel
+ */
+
+/**
+ * struct drm_dp_aux_msg - DisplayPort AUX channel transaction
+ * @address: address of the (first) register to access
+ * @request: contains the type of transaction (see DP_AUX_* macros)
+ * @reply: upon completion, contains the reply type of the transaction
+ * @buffer: pointer to a transmission or reception buffer
+ * @size: size of @buffer
+ */
+struct drm_dp_aux_msg {
+	unsigned int address;
+	u8 request;
+	u8 reply;
+	void *buffer;
+	size_t size;
+};
+
+/**
+ * struct drm_dp_aux - DisplayPort AUX channel
+ * @ddc: I2C adapter that can be used for I2C-over-AUX communication
+ * @dev: pointer to struct device that is the parent for this AUX channel
+ * @transfer: transfers a message representing a single AUX transaction
+ *
+ * The .dev field should be set to a pointer to the device that implements
+ * the AUX channel.
+ *
+ * The .name field may be used to specify the name of the I2C adapter. If set to
+ * NULL, dev_name() of .dev will be used.
+ *
+ * Drivers provide a hardware-specific implementation of how transactions
+ * are executed via the .transfer() function. A pointer to a drm_dp_aux_msg
+ * structure describing the transaction is passed into this function. Upon
+ * success, the implementation should return the number of payload bytes
+ * that were transferred, or a negative error-code on failure. Helpers
+ * propagate errors from the .transfer() function, with the exception of
+ * the -EBUSY error, which causes a transaction to be retried. On a short,
+ * helpers will return -EPROTO to make it simpler to check for failure.
+ *
+ * An AUX channel can also be used to transport I2C messages to a sink. A
+ * typical application of that is to access an EDID that's present in the
+ * sink device. The .transfer() function can also be used to execute such
+ * transactions. The drm_dp_aux_register_i2c_bus() function registers an
+ * I2C adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
+ * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
+ */
+struct drm_dp_aux {
+	const char *name;
+	struct i2c_adapter ddc;
+	struct device *dev;
+
+	ssize_t (*transfer)(struct drm_dp_aux *aux,
+			    struct drm_dp_aux_msg *msg);
+};
+
+ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
+			 void *buffer, size_t size);
+ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
+			  void *buffer, size_t size);
+
+/**
+ * drm_dp_dpcd_readb() - read a single byte from the DPCD
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the register to read
+ * @valuep: location where the value of the register will be stored
+ *
+ * Returns the number of bytes transferred (1) on success, or a negative
+ * error code on failure.
+ */
+static inline ssize_t drm_dp_dpcd_readb(struct drm_dp_aux *aux,
+					unsigned int offset, u8 *valuep)
+{
+	return drm_dp_dpcd_read(aux, offset, valuep, 1);
+}
+
+/**
+ * drm_dp_dpcd_writeb() - write a single byte to the DPCD
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the register to write
+ * @value: value to write to the register
+ *
+ * Returns the number of bytes transferred (1) on success, or a negative
+ * error code on failure.
+ */
+static inline ssize_t drm_dp_dpcd_writeb(struct drm_dp_aux *aux,
+					 unsigned int offset, u8 value)
+{
+	return drm_dp_dpcd_write(aux, offset, &value, 1);
+}
+
+int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
+				 u8 status[DP_LINK_STATUS_SIZE]);
+
+/*
+ * DisplayPort link
+ */
+#define DP_LINK_CAP_ENHANCED_FRAMING (1 << 0)
+
+struct drm_dp_link {
+	unsigned char revision;
+	unsigned int rate;
+	unsigned int num_lanes;
+	unsigned long capabilities;
+};
+
+int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link);
+int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link);
+int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link);
+
+int drm_dp_aux_register_i2c_bus(struct drm_dp_aux *aux);
+void drm_dp_aux_unregister_i2c_bus(struct drm_dp_aux *aux);
 
 #endif /* _DRM_DP_HELPER_H_ */

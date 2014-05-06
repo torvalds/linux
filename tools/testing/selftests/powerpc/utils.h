@@ -31,4 +31,7 @@ do {								\
 	}							\
 } while (0)
 
+#define _str(s) #s
+#define str(s) _str(s)
+
 #endif /* _SELFTESTS_POWERPC_UTILS_H */

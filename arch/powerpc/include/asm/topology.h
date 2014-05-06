@@ -99,7 +99,6 @@ static inline int prrn_is_enabled(void)
 
 #ifdef CONFIG_SMP
 #include <asm/cputable.h>
-#define smt_capable()		(cpu_has_feature(CPU_FTR_SMT))
 
 #ifdef CONFIG_PPC64
 #include <asm/smp.h>

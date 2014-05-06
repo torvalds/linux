@@ -1034,6 +1034,27 @@
 #define ARIZONA_DSP1_STATUS_1                    0x1104
 #define ARIZONA_DSP1_STATUS_2                    0x1105
 #define ARIZONA_DSP1_STATUS_3                    0x1106
+#define ARIZONA_DSP1_STATUS_4                    0x1107
+#define ARIZONA_DSP1_WDMA_BUFFER_1               0x1110
+#define ARIZONA_DSP1_WDMA_BUFFER_2               0x1111
+#define ARIZONA_DSP1_WDMA_BUFFER_3               0x1112
+#define ARIZONA_DSP1_WDMA_BUFFER_4               0x1113
+#define ARIZONA_DSP1_WDMA_BUFFER_5               0x1114
+#define ARIZONA_DSP1_WDMA_BUFFER_6               0x1115
+#define ARIZONA_DSP1_WDMA_BUFFER_7               0x1116
+#define ARIZONA_DSP1_WDMA_BUFFER_8               0x1117
+#define ARIZONA_DSP1_RDMA_BUFFER_1               0x1120
+#define ARIZONA_DSP1_RDMA_BUFFER_2               0x1121
+#define ARIZONA_DSP1_RDMA_BUFFER_3               0x1122
+#define ARIZONA_DSP1_RDMA_BUFFER_4               0x1123
+#define ARIZONA_DSP1_RDMA_BUFFER_5               0x1124
+#define ARIZONA_DSP1_RDMA_BUFFER_6               0x1125
+#define ARIZONA_DSP1_WDMA_CONFIG_1               0x1130
+#define ARIZONA_DSP1_WDMA_CONFIG_2               0x1131
+#define ARIZONA_DSP1_WDMA_OFFSET_1               0x1132
+#define ARIZONA_DSP1_RDMA_CONFIG_1               0x1134
+#define ARIZONA_DSP1_RDMA_OFFSET_1               0x1135
+#define ARIZONA_DSP1_EXTERNAL_START_SELECT_1     0x1138
 #define ARIZONA_DSP1_SCRATCH_0                   0x1140
 #define ARIZONA_DSP1_SCRATCH_1                   0x1141
 #define ARIZONA_DSP1_SCRATCH_2                   0x1142
@@ -1043,6 +1064,27 @@
 #define ARIZONA_DSP2_STATUS_1                    0x1204
 #define ARIZONA_DSP2_STATUS_2                    0x1205
 #define ARIZONA_DSP2_STATUS_3                    0x1206
+#define ARIZONA_DSP2_STATUS_4                    0x1207
+#define ARIZONA_DSP2_WDMA_BUFFER_1               0x1210
+#define ARIZONA_DSP2_WDMA_BUFFER_2               0x1211
+#define ARIZONA_DSP2_WDMA_BUFFER_3               0x1212
+#define ARIZONA_DSP2_WDMA_BUFFER_4               0x1213
+#define ARIZONA_DSP2_WDMA_BUFFER_5               0x1214
+#define ARIZONA_DSP2_WDMA_BUFFER_6               0x1215
+#define ARIZONA_DSP2_WDMA_BUFFER_7               0x1216
+#define ARIZONA_DSP2_WDMA_BUFFER_8               0x1217
+#define ARIZONA_DSP2_RDMA_BUFFER_1               0x1220
+#define ARIZONA_DSP2_RDMA_BUFFER_2               0x1221
+#define ARIZONA_DSP2_RDMA_BUFFER_3               0x1222
+#define ARIZONA_DSP2_RDMA_BUFFER_4               0x1223
+#define ARIZONA_DSP2_RDMA_BUFFER_5               0x1224
+#define ARIZONA_DSP2_RDMA_BUFFER_6               0x1225
+#define ARIZONA_DSP2_WDMA_CONFIG_1               0x1230
+#define ARIZONA_DSP2_WDMA_CONFIG_2               0x1231
+#define ARIZONA_DSP2_WDMA_OFFSET_1               0x1232
+#define ARIZONA_DSP2_RDMA_CONFIG_1               0x1234
+#define ARIZONA_DSP2_RDMA_OFFSET_1               0x1235
+#define ARIZONA_DSP2_EXTERNAL_START_SELECT_1     0x1238
 #define ARIZONA_DSP2_SCRATCH_0                   0x1240
 #define ARIZONA_DSP2_SCRATCH_1                   0x1241
 #define ARIZONA_DSP2_SCRATCH_2                   0x1242
@@ -1052,6 +1094,27 @@
 #define ARIZONA_DSP3_STATUS_1                    0x1304
 #define ARIZONA_DSP3_STATUS_2                    0x1305
 #define ARIZONA_DSP3_STATUS_3                    0x1306
+#define ARIZONA_DSP3_STATUS_4                    0x1307
+#define ARIZONA_DSP3_WDMA_BUFFER_1               0x1310
+#define ARIZONA_DSP3_WDMA_BUFFER_2               0x1311
+#define ARIZONA_DSP3_WDMA_BUFFER_3               0x1312
+#define ARIZONA_DSP3_WDMA_BUFFER_4               0x1313
+#define ARIZONA_DSP3_WDMA_BUFFER_5               0x1314
+#define ARIZONA_DSP3_WDMA_BUFFER_6               0x1315
+#define ARIZONA_DSP3_WDMA_BUFFER_7               0x1316
+#define ARIZONA_DSP3_WDMA_BUFFER_8               0x1317
+#define ARIZONA_DSP3_RDMA_BUFFER_1               0x1320
+#define ARIZONA_DSP3_RDMA_BUFFER_2               0x1321
+#define ARIZONA_DSP3_RDMA_BUFFER_3               0x1322
+#define ARIZONA_DSP3_RDMA_BUFFER_4               0x1323
+#define ARIZONA_DSP3_RDMA_BUFFER_5               0x1324
+#define ARIZONA_DSP3_RDMA_BUFFER_6               0x1325
+#define ARIZONA_DSP3_WDMA_CONFIG_1               0x1330
+#define ARIZONA_DSP3_WDMA_CONFIG_2               0x1331
+#define ARIZONA_DSP3_WDMA_OFFSET_1               0x1332
+#define ARIZONA_DSP3_RDMA_CONFIG_1               0x1334
+#define ARIZONA_DSP3_RDMA_OFFSET_1               0x1335
+#define ARIZONA_DSP3_EXTERNAL_START_SELECT_1     0x1338
 #define ARIZONA_DSP3_SCRATCH_0                   0x1340
 #define ARIZONA_DSP3_SCRATCH_1                   0x1341
 #define ARIZONA_DSP3_SCRATCH_2                   0x1342
@@ -1061,6 +1124,27 @@
 #define ARIZONA_DSP4_STATUS_1                    0x1404
 #define ARIZONA_DSP4_STATUS_2                    0x1405
 #define ARIZONA_DSP4_STATUS_3                    0x1406
+#define ARIZONA_DSP4_STATUS_4                    0x1407
+#define ARIZONA_DSP4_WDMA_BUFFER_1               0x1410
+#define ARIZONA_DSP4_WDMA_BUFFER_2               0x1411
+#define ARIZONA_DSP4_WDMA_BUFFER_3               0x1412
+#define ARIZONA_DSP4_WDMA_BUFFER_4               0x1413
+#define ARIZONA_DSP4_WDMA_BUFFER_5               0x1414
+#define ARIZONA_DSP4_WDMA_BUFFER_6               0x1415
+#define ARIZONA_DSP4_WDMA_BUFFER_7               0x1416
+#define ARIZONA_DSP4_WDMA_BUFFER_8               0x1417
+#define ARIZONA_DSP4_RDMA_BUFFER_1               0x1420
+#define ARIZONA_DSP4_RDMA_BUFFER_2               0x1421
+#define ARIZONA_DSP4_RDMA_BUFFER_3               0x1422
+#define ARIZONA_DSP4_RDMA_BUFFER_4               0x1423
+#define ARIZONA_DSP4_RDMA_BUFFER_5               0x1424
+#define ARIZONA_DSP4_RDMA_BUFFER_6               0x1425
+#define ARIZONA_DSP4_WDMA_CONFIG_1               0x1430
+#define ARIZONA_DSP4_WDMA_CONFIG_2               0x1431
+#define ARIZONA_DSP4_WDMA_OFFSET_1               0x1432
+#define ARIZONA_DSP4_RDMA_CONFIG_1               0x1434
+#define ARIZONA_DSP4_RDMA_OFFSET_1               0x1435
+#define ARIZONA_DSP4_EXTERNAL_START_SELECT_1     0x1438
 #define ARIZONA_DSP4_SCRATCH_0                   0x1440
 #define ARIZONA_DSP4_SCRATCH_1                   0x1441
 #define ARIZONA_DSP4_SCRATCH_2                   0x1442
@@ -1702,9 +1786,9 @@
 /*
  * R373 (0x175) - FLL1 Control 5
  */
-#define ARIZONA_FLL1_FRATIO_MASK                 0x0700  /* FLL1_FRATIO - [10:8] */
-#define ARIZONA_FLL1_FRATIO_SHIFT                     8  /* FLL1_FRATIO - [10:8] */
-#define ARIZONA_FLL1_FRATIO_WIDTH                     3  /* FLL1_FRATIO - [10:8] */
+#define ARIZONA_FLL1_FRATIO_MASK                 0x0F00  /* FLL1_FRATIO - [11:8] */
+#define ARIZONA_FLL1_FRATIO_SHIFT                     8  /* FLL1_FRATIO - [11:8] */
+#define ARIZONA_FLL1_FRATIO_WIDTH                     4  /* FLL1_FRATIO - [11:8] */
 #define ARIZONA_FLL1_OUTDIV_MASK                 0x000E  /* FLL1_OUTDIV - [3:1] */
 #define ARIZONA_FLL1_OUTDIV_SHIFT                     1  /* FLL1_OUTDIV - [3:1] */
 #define ARIZONA_FLL1_OUTDIV_WIDTH                     3  /* FLL1_OUTDIV - [3:1] */

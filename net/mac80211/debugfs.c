@@ -128,7 +128,7 @@ static ssize_t sta_tx_latency_stat_write(struct file *file,
 	if (!strcmp(buf, TX_LATENCY_DISABLED)) {
 		if (!tx_latency)
 			goto unlock;
-		rcu_assign_pointer(local->tx_latency, NULL);
+		RCU_INIT_POINTER(local->tx_latency, NULL);
 		synchronize_rcu();
 		kfree(tx_latency);
 		goto unlock;

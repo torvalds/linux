@@ -161,7 +161,7 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	u8 *tmp = ev->data;
 	struct ath10k_target_stats *stats;
 	int num_pdev_stats, num_vdev_stats, num_peer_stats;
-	struct wmi_pdev_stats *ps;
+	struct wmi_pdev_stats_10x *ps;
 	int i;
 
 	spin_lock_bh(&ar->data_lock);
@@ -173,7 +173,7 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats); /* 0 or max peers */
 
 	if (num_pdev_stats) {
-		ps = (struct wmi_pdev_stats *)tmp;
+		ps = (struct wmi_pdev_stats_10x *)tmp;
 
 		stats->ch_noise_floor = __le32_to_cpu(ps->chan_nf);
 		stats->tx_frame_count = __le32_to_cpu(ps->tx_frame_count);
@@ -228,7 +228,18 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 		stats->phy_err_drop = __le32_to_cpu(ps->wal.rx.phy_err_drop);
 		stats->mpdu_errs = __le32_to_cpu(ps->wal.rx.mpdu_errs);
 
-		tmp += sizeof(struct wmi_pdev_stats);
+		if (test_bit(ATH10K_FW_FEATURE_WMI_10X,
+			     ar->fw_features)) {
+			stats->ack_rx_bad = __le32_to_cpu(ps->ack_rx_bad);
+			stats->rts_bad = __le32_to_cpu(ps->rts_bad);
+			stats->rts_good = __le32_to_cpu(ps->rts_good);
+			stats->fcs_bad = __le32_to_cpu(ps->fcs_bad);
+			stats->no_beacons = __le32_to_cpu(ps->no_beacons);
+			stats->mib_int_count = __le32_to_cpu(ps->mib_int_count);
+			tmp += sizeof(struct wmi_pdev_stats_10x);
+		} else {
+			tmp += sizeof(struct wmi_pdev_stats_old);
+		}
 	}
 
 	/* 0 or max vdevs */
@@ -243,22 +254,29 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	}
 
 	if (num_peer_stats) {
-		struct wmi_peer_stats *peer_stats;
+		struct wmi_peer_stats_10x *peer_stats;
 		struct ath10k_peer_stat *s;
 
 		stats->peers = num_peer_stats;
 
 		for (i = 0; i < num_peer_stats; i++) {
-			peer_stats = (struct wmi_peer_stats *)tmp;
+			peer_stats = (struct wmi_peer_stats_10x *)tmp;
 			s = &stats->peer_stat[i];
 
-			WMI_MAC_ADDR_TO_CHAR_ARRAY(&peer_stats->peer_macaddr,
-						   s->peer_macaddr);
+			memcpy(s->peer_macaddr, &peer_stats->peer_macaddr.addr,
+			       ETH_ALEN);
 			s->peer_rssi = __le32_to_cpu(peer_stats->peer_rssi);
 			s->peer_tx_rate =
 				__le32_to_cpu(peer_stats->peer_tx_rate);
+			if (test_bit(ATH10K_FW_FEATURE_WMI_10X,
+				     ar->fw_features)) {
+				s->peer_rx_rate =
+					__le32_to_cpu(peer_stats->peer_rx_rate);
+				tmp += sizeof(struct wmi_peer_stats_10x);
 
-			tmp += sizeof(struct wmi_peer_stats);
+			} else {
+				tmp += sizeof(struct wmi_peer_stats_old);
+			}
 		}
 	}
 
@@ -272,7 +290,7 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 	struct ath10k *ar = file->private_data;
 	struct ath10k_target_stats *fw_stats;
 	char *buf = NULL;
-	unsigned int len = 0, buf_len = 2500;
+	unsigned int len = 0, buf_len = 8000;
 	ssize_t ret_cnt = 0;
 	long left;
 	int i;
@@ -320,6 +338,16 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 			 "Cycle count", fw_stats->cycle_count);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
 			 "PHY error count", fw_stats->phy_err_count);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "RTS bad count", fw_stats->rts_bad);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "RTS good count", fw_stats->rts_good);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "FCS bad count", fw_stats->fcs_bad);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "No beacon count", fw_stats->no_beacons);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "MIB int count", fw_stats->mib_int_count);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%30s\n",
@@ -411,8 +439,8 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 			 "MPDU errors (FCS, MIC, ENC)", fw_stats->mpdu_errs);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
-	len += scnprintf(buf + len, buf_len - len, "%30s\n",
-			 "ath10k PEER stats");
+	len += scnprintf(buf + len, buf_len - len, "%30s (%d)\n",
+			 "ath10k PEER stats", fw_stats->peers);
 	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
 				 "=================");
 
@@ -425,6 +453,9 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
 				 "Peer TX rate",
 				 fw_stats->peer_stat[i].peer_tx_rate);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "Peer RX rate",
+				 fw_stats->peer_stat[i].peer_rx_rate);
 		len += scnprintf(buf + len, buf_len - len, "\n");
 	}
 	spin_unlock_bh(&ar->data_lock);
@@ -451,27 +482,37 @@ static ssize_t ath10k_read_simulate_fw_crash(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)
 {
-	const char buf[] = "To simulate firmware crash write the keyword"
-			   " `crash` to this file.\nThis will force firmware"
-			   " to report a crash to the host system.\n";
+	const char buf[] = "To simulate firmware crash write one of the"
+			   " keywords to this file:\n `soft` - this will send"
+			   " WMI_FORCE_FW_HANG_ASSERT to firmware if FW"
+			   " supports that command.\n `hard` - this will send"
+			   " to firmware command with illegal parameters"
+			   " causing firmware crash.\n";
+
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
 
+/* Simulate firmware crash:
+ * 'soft': Call wmi command causing firmware hang. This firmware hang is
+ * recoverable by warm firmware reset.
+ * 'hard': Force firmware crash by setting any vdev parameter for not allowed
+ * vdev id. This is hard firmware crash because it is recoverable only by cold
+ * firmware reset.
+ */
 static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 					      const char __user *user_buf,
 					      size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
-	char buf[32] = {};
+	char buf[32];
 	int ret;
 
 	mutex_lock(&ar->conf_mutex);
 
 	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-	if (strcmp(buf, "crash") && strcmp(buf, "crash\n")) {
-		ret = -EINVAL;
-		goto exit;
-	}
+
+	/* make sure that buf is null terminated */
+	buf[sizeof(buf) - 1] = 0;
 
 	if (ar->state != ATH10K_STATE_ON &&
 	    ar->state != ATH10K_STATE_RESTARTED) {
@@ -479,14 +520,30 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 		goto exit;
 	}
 
-	ath10k_info("simulating firmware crash\n");
+	/* drop the possible '\n' from the end */
+	if (buf[count - 1] == '\n') {
+		buf[count - 1] = 0;
+		count--;
+	}
 
-	ret = ath10k_wmi_force_fw_hang(ar, WMI_FORCE_FW_HANG_ASSERT, 0);
-	if (ret)
-		ath10k_warn("failed to force fw hang (%d)\n", ret);
+	if (!strcmp(buf, "soft")) {
+		ath10k_info("simulating soft firmware crash\n");
+		ret = ath10k_wmi_force_fw_hang(ar, WMI_FORCE_FW_HANG_ASSERT, 0);
+	} else if (!strcmp(buf, "hard")) {
+		ath10k_info("simulating hard firmware crash\n");
+		ret = ath10k_wmi_vdev_set_param(ar, TARGET_NUM_VDEVS + 1,
+					ar->wmi.vdev_param->rts_threshold, 0);
+	} else {
+		ret = -EINVAL;
+		goto exit;
+	}
 
-	if (ret == 0)
-		ret = count;
+	if (ret) {
+		ath10k_warn("failed to simulate firmware crash: %d\n", ret);
+		goto exit;
+	}
+
+	ret = count;
 
 exit:
 	mutex_unlock(&ar->conf_mutex);

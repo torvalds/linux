@@ -1282,6 +1282,14 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto probe_err;
 
+	if (!s3c24xx_uart_drv.state) {
+		ret = uart_register_driver(&s3c24xx_uart_drv);
+		if (ret < 0) {
+			pr_err("Failed to register Samsung UART driver\n");
+			return ret;
+		}
+	}
+
 	dbg("%s: adding port\n", __func__);
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
 	platform_set_drvdata(pdev, &ourport->port);
@@ -1320,6 +1328,8 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 #endif
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
 	}
+
+	uart_unregister_driver(&s3c24xx_uart_drv);
 
 	return 0;
 }
@@ -1820,35 +1830,7 @@ static struct platform_driver samsung_serial_driver = {
 	},
 };
 
-/* module initialisation code */
-
-static int __init s3c24xx_serial_modinit(void)
-{
-	int ret;
-
-	ret = uart_register_driver(&s3c24xx_uart_drv);
-	if (ret < 0) {
-		pr_err("Failed to register Samsung UART driver\n");
-		return ret;
-	}
-
-	ret = platform_driver_register(&samsung_serial_driver);
-	if (ret < 0) {
-		pr_err("Failed to register platform driver\n");
-		uart_unregister_driver(&s3c24xx_uart_drv);
-	}
-
-	return ret;
-}
-
-static void __exit s3c24xx_serial_modexit(void)
-{
-	platform_driver_unregister(&samsung_serial_driver);
-	uart_unregister_driver(&s3c24xx_uart_drv);
-}
-
-module_init(s3c24xx_serial_modinit);
-module_exit(s3c24xx_serial_modexit);
+module_platform_driver(samsung_serial_driver);
 
 MODULE_ALIAS("platform:samsung-uart");
 MODULE_DESCRIPTION("Samsung SoC Serial port driver");

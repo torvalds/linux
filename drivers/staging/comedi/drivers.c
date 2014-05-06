@@ -155,6 +155,36 @@ int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /**
+ * comedi_timeout() - busy-wait for a driver condition to occur.
+ * @dev: comedi_device struct
+ * @s: comedi_subdevice struct
+ * @insn: comedi_insn struct
+ * @cb: callback to check for the condition
+ * @context: private context from the driver
+ */
+int comedi_timeout(struct comedi_device *dev,
+		   struct comedi_subdevice *s,
+		   struct comedi_insn *insn,
+		   int (*cb)(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context),
+		   unsigned long context)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(COMEDI_TIMEOUT_MS);
+	int ret;
+
+	while (time_before(jiffies, timeout)) {
+		ret = cb(dev, s, insn, context);
+		if (ret != -EBUSY)
+			return ret;	/* success (0) or non EBUSY errno */
+		cpu_relax();
+	}
+	return -ETIMEDOUT;
+}
+EXPORT_SYMBOL_GPL(comedi_timeout);
+
+/**
  * comedi_dio_insn_config() - boilerplate (*insn_config) for DIO subdevices.
  * @dev: comedi_device struct
  * @s: comedi_subdevice struct
@@ -616,8 +646,6 @@ int comedi_auto_config(struct device *hardware_device,
 	ret = driver->auto_attach(dev, context);
 	if (ret >= 0)
 		ret = comedi_device_postconfig(dev);
-	if (ret < 0)
-		comedi_device_detach(dev);
 	mutex_unlock(&dev->mutex);
 
 	if (ret < 0) {

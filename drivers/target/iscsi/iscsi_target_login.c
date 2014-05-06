@@ -259,6 +259,7 @@ static int iscsi_login_zero_tsih_s1(
 {
 	struct iscsi_session *sess = NULL;
 	struct iscsi_login_req *pdu = (struct iscsi_login_req *)buf;
+	enum target_prot_op sup_pro_ops;
 	int ret;
 
 	sess = kzalloc(sizeof(struct iscsi_session), GFP_KERNEL);
@@ -320,8 +321,9 @@ static int iscsi_login_zero_tsih_s1(
 		kfree(sess);
 		return -ENOMEM;
 	}
+	sup_pro_ops = conn->conn_transport->iscsit_get_sup_prot_ops(conn);
 
-	sess->se_sess = transport_init_session();
+	sess->se_sess = transport_init_session(sup_pro_ops);
 	if (IS_ERR(sess->se_sess)) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);

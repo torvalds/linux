@@ -2395,7 +2395,7 @@ static int si_populate_sq_ramping_values(struct radeon_device *rdev,
 	if (SISLANDS_DPM2_SQ_RAMP_STI_SIZE > (STI_SIZE_MASK >> STI_SIZE_SHIFT))
 		enable_sq_ramping = false;
 
-	if (SISLANDS_DPM2_SQ_RAMP_LTI_RATIO <= (LTI_RATIO_MASK >> LTI_RATIO_SHIFT))
+	if (SISLANDS_DPM2_SQ_RAMP_LTI_RATIO > (LTI_RATIO_MASK >> LTI_RATIO_SHIFT))
 		enable_sq_ramping = false;
 
 	for (i = 0; i < state->performance_level_count; i++) {
@@ -6271,9 +6271,6 @@ static int si_parse_power_table(struct radeon_device *rdev)
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
@@ -6349,6 +6346,10 @@ int si_dpm_init(struct radeon_device *rdev)
 	eg_pi->acpi_vddci = 0;
 	pi->min_vddc_in_table = 0;
 	pi->max_vddc_in_table = 0;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = si_parse_power_table(rdev);
 	if (ret)
@@ -6472,7 +6473,8 @@ void si_dpm_fini(struct radeon_device *rdev)
 void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct rv7xx_pl *pl;
 	u32 current_index =

@@ -16,6 +16,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_core.h>
 
 struct nft_lookup {
 	struct nft_set			*set;
@@ -88,11 +89,12 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static void nft_lookup_destroy(const struct nft_expr *expr)
+static void nft_lookup_destroy(const struct nft_ctx *ctx,
+			       const struct nft_expr *expr)
 {
 	struct nft_lookup *priv = nft_expr_priv(expr);
 
-	nf_tables_unbind_set(NULL, priv->set, &priv->binding);
+	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
 }
 
 static int nft_lookup_dump(struct sk_buff *skb, const struct nft_expr *expr)

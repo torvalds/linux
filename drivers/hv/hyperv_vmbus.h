@@ -559,8 +559,8 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
 int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
-		    struct scatterlist *sglist,
-		    u32 sgcount, bool *signal);
+		    struct kvec *kv_list,
+		    u32 kv_count, bool *signal);
 
 int hv_ringbuffer_peek(struct hv_ring_buffer_info *ring_info, void *buffer,
 		   u32 buflen);
@@ -668,6 +668,10 @@ int vmbus_post_msg(void *buffer, size_t buflen);
 int vmbus_set_event(struct vmbus_channel *channel);
 
 void vmbus_on_event(unsigned long data);
+
+int hv_fcopy_init(struct hv_util_service *);
+void hv_fcopy_deinit(void);
+void hv_fcopy_onchannelcallback(void *);
 
 
 #endif /* _HYPERV_VMBUS_H */

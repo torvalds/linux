@@ -38,9 +38,13 @@ struct oz_binding {
 };
 
 /*
+ * External variable
+ */
+
+DEFINE_SPINLOCK(g_polling_lock);
+/*
  * Static external variables.
  */
-static DEFINE_SPINLOCK(g_polling_lock);
 static LIST_HEAD(g_pd_list);
 static LIST_HEAD(g_binding);
 static DEFINE_SPINLOCK(g_binding_lock);
@@ -664,31 +668,26 @@ void oz_binding_add(const char *net_dev)
 {
 	struct oz_binding *binding;
 
-	binding = kmalloc(sizeof(struct oz_binding), GFP_KERNEL);
-	if (binding) {
-		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
-		binding->ptype.func = oz_pkt_recv;
+	binding = kzalloc(sizeof(struct oz_binding), GFP_KERNEL);
+	if (!binding)
+		return;
+
+	binding->ptype.type = htons(OZ_ETHERTYPE);
+	binding->ptype.func = oz_pkt_recv;
+	if (net_dev && *net_dev) {
 		memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
-		if (net_dev && *net_dev) {
-			oz_dbg(ON, "Adding binding: %s\n", net_dev);
-			binding->ptype.dev =
-				dev_get_by_name(&init_net, net_dev);
-			if (binding->ptype.dev == NULL) {
-				oz_dbg(ON, "Netdev %s not found\n", net_dev);
-				kfree(binding);
-				binding = NULL;
-			}
-		} else {
-			oz_dbg(ON, "Binding to all netcards\n");
-			binding->ptype.dev = NULL;
-		}
-		if (binding) {
-			dev_add_pack(&binding->ptype);
-			spin_lock_bh(&g_binding_lock);
-			list_add_tail(&binding->link, &g_binding);
-			spin_unlock_bh(&g_binding_lock);
+		oz_dbg(ON, "Adding binding: %s\n", net_dev);
+		binding->ptype.dev = dev_get_by_name(&init_net, net_dev);
+		if (binding->ptype.dev == NULL) {
+			oz_dbg(ON, "Netdev %s not found\n", net_dev);
+			kfree(binding);
+			return;
 		}
 	}
+	dev_add_pack(&binding->ptype);
+	spin_lock_bh(&g_binding_lock);
+	list_add_tail(&binding->link, &g_binding);
+	spin_unlock_bh(&g_binding_lock);
 }
 
 /*
@@ -799,12 +798,3 @@ int oz_get_pd_list(struct oz_mac_addr *addr, int max_count)
 	return count;
 }
 
-void oz_polling_lock_bh(void)
-{
-	spin_lock_bh(&g_polling_lock);
-}
-
-void oz_polling_unlock_bh(void)
-{
-	spin_unlock_bh(&g_polling_lock);
-}

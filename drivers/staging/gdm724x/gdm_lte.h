@@ -56,7 +56,7 @@ struct phy_dev {
 			int (*cb)(void *cb_data, void *data, int len,
 				  int context),
 			void *cb_data, int context);
-	struct gdm_endian *(*get_endian)(void *priv_dev);
+	struct gdm_endian * (*get_endian)(void *priv_dev);
 };
 
 struct nic {

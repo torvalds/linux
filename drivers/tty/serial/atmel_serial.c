@@ -35,20 +35,17 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/dma-mapping.h>
 #include <linux/atmel_pdc.h>
 #include <linux/atmel_serial.h>
 #include <linux/uaccess.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/timer.h>
+#include <linux/gpio.h>
 
 #include <asm/io.h>
 #include <asm/ioctls.h>
-
-#ifdef CONFIG_ARM
-#include <mach/cpu.h>
-#include <asm/gpio.h>
-#endif
 
 #define PDC_BUFFER_SIZE		512
 /* Revisit: We should calculate this based on the actual port settings */
@@ -115,9 +112,6 @@ static void atmel_stop_rx(struct uart_port *port);
 #define UART_PUT_TCR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_TCR)
 #define UART_GET_TCR(port)	__raw_readl((port)->membase + ATMEL_PDC_TCR)
 
-static int (*atmel_open_hook)(struct uart_port *);
-static void (*atmel_close_hook)(struct uart_port *);
-
 struct atmel_dma_buffer {
 	unsigned char	*buf;
 	dma_addr_t	dma_addr;
@@ -168,6 +162,7 @@ struct atmel_uart_port {
 	struct circ_buf		rx_ring;
 
 	struct serial_rs485	rs485;		/* rs485 settings */
+	int			rts_gpio;	/* optional RTS GPIO */
 	unsigned int		tx_done_mask;
 	bool			is_usart;	/* usart or uart */
 	struct timer_list	uart_timer;	/* uart timer */
@@ -301,20 +296,16 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 	unsigned int mode;
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
-#ifdef CONFIG_ARCH_AT91RM9200
-	if (cpu_is_at91rm9200()) {
-		/*
-		 * AT91RM9200 Errata #39: RTS0 is not internally connected
-		 * to PA21. We need to drive the pin manually.
-		 */
-		if (port->mapbase == AT91RM9200_BASE_US0) {
-			if (mctrl & TIOCM_RTS)
-				at91_set_gpio_value(AT91_PIN_PA21, 0);
-			else
-				at91_set_gpio_value(AT91_PIN_PA21, 1);
-		}
+	/*
+	 * AT91RM9200 Errata #39: RTS0 is not internally connected
+	 * to PA21. We need to drive the pin as a GPIO.
+	 */
+	if (gpio_is_valid(atmel_port->rts_gpio)) {
+		if (mctrl & TIOCM_RTS)
+			gpio_set_value(atmel_port->rts_gpio, 0);
+		else
+			gpio_set_value(atmel_port->rts_gpio, 1);
 	}
-#endif
 
 	if (mctrl & TIOCM_RTS)
 		control |= ATMEL_US_RTSEN;
@@ -1555,7 +1546,7 @@ static int atmel_startup(struct uart_port *port)
 	retval = request_irq(port->irq, atmel_interrupt, IRQF_SHARED,
 			tty ? tty->name : "atmel_serial", port);
 	if (retval) {
-		printk("atmel_serial: atmel_startup - Can't get irq\n");
+		dev_err(port->dev, "atmel_startup - Can't get irq\n");
 		return retval;
 	}
 
@@ -1574,17 +1565,6 @@ static int atmel_startup(struct uart_port *port)
 		retval = atmel_port->prepare_tx(port);
 		if (retval < 0)
 			atmel_set_ops(port);
-	}
-	/*
-	 * If there is a specific "open" function (to register
-	 * control line interrupts)
-	 */
-	if (atmel_open_hook) {
-		retval = atmel_open_hook(port);
-		if (retval) {
-			free_irq(port->irq, port);
-			return retval;
-		}
 	}
 
 	/* Save current CSR for comparison in atmel_tasklet_func() */
@@ -1684,13 +1664,6 @@ static void atmel_shutdown(struct uart_port *port)
 	 * Free the interrupt
 	 */
 	free_irq(port->irq, port);
-
-	/*
-	 * If there is a specific "close" function (to unregister
-	 * control line interrupts)
-	 */
-	if (atmel_close_hook)
-		atmel_close_hook(port);
 }
 
 /*
@@ -1738,7 +1711,7 @@ static void atmel_serial_pm(struct uart_port *port, unsigned int state,
 		clk_disable_unprepare(atmel_port->clk);
 		break;
 	default:
-		printk(KERN_ERR "atmel_serial: unknown pm %d\n", state);
+		dev_err(port->dev, "atmel_serial: unknown pm %d\n", state);
 	}
 }
 
@@ -1853,13 +1826,10 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 	mode &= ~ATMEL_US_USMODE;
 
 	if (atmel_port->rs485.flags & SER_RS485_ENABLED) {
-		dev_dbg(port->dev, "Setting UART to RS485\n");
 		if ((atmel_port->rs485.delay_rts_after_send) > 0)
 			UART_PUT_TTGR(port,
 					atmel_port->rs485.delay_rts_after_send);
 		mode |= ATMEL_US_USMODE_RS485;
-	} else {
-		dev_dbg(port->dev, "Setting UART to RS232\n");
 	}
 
 	/* set the parity, stop bits and data size */
@@ -2389,6 +2359,25 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	port = &atmel_ports[ret];
 	port->backup_imr = 0;
 	port->uart.line = ret;
+	port->rts_gpio = -EINVAL; /* Invalid, zero could be valid */
+	if (pdata)
+		port->rts_gpio = pdata->rts_gpio;
+	else if (np)
+		port->rts_gpio = of_get_named_gpio(np, "rts-gpios", 0);
+
+	if (gpio_is_valid(port->rts_gpio)) {
+		ret = devm_gpio_request(&pdev->dev, port->rts_gpio, "RTS");
+		if (ret) {
+			dev_err(&pdev->dev, "error requesting RTS GPIO\n");
+			goto err;
+		}
+		/* Default to 1 as RTS is active low */
+		ret = gpio_direction_output(port->rts_gpio, 1);
+		if (ret) {
+			dev_err(&pdev->dev, "error setting up RTS GPIO\n");
+			goto err;
+		}
+	}
 
 	ret = atmel_init_port(port, pdev);
 	if (ret)

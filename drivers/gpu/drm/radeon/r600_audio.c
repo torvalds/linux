@@ -142,11 +142,14 @@ void r600_audio_update_hdmi(struct work_struct *work)
 }
 
 /* enable the audio stream */
-static void r600_audio_enable(struct radeon_device *rdev,
-			      struct r600_audio_pin *pin,
-			      bool enable)
+void r600_audio_enable(struct radeon_device *rdev,
+		       struct r600_audio_pin *pin,
+		       bool enable)
 {
 	u32 value = 0;
+
+	if (!pin)
+		return;
 
 	if (ASIC_IS_DCE4(rdev)) {
 		if (enable) {
@@ -158,7 +161,6 @@ static void r600_audio_enable(struct radeon_device *rdev,
 		WREG32_P(R600_AUDIO_ENABLE,
 			 enable ? 0x81000000 : 0x0, ~0x81000000);
 	}
-	DRM_INFO("%s audio %d support\n", enable ? "Enabling" : "Disabling", pin->id);
 }
 
 /*
@@ -178,8 +180,8 @@ int r600_audio_init(struct radeon_device *rdev)
 	rdev->audio.pin[0].status_bits = 0;
 	rdev->audio.pin[0].category_code = 0;
 	rdev->audio.pin[0].id = 0;
-
-	r600_audio_enable(rdev, &rdev->audio.pin[0], true);
+	/* disable audio.  it will be set up later */
+	r600_audio_enable(rdev, &rdev->audio.pin[0], false);
 
 	return 0;
 }

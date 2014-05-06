@@ -1090,7 +1090,8 @@ static int ar5523_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return ret;
 }
 
-static void ar5523_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void ar5523_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 u32 queues, bool drop)
 {
 	struct ar5523 *ar = hw->priv;
 

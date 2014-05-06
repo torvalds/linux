@@ -45,7 +45,7 @@ static unsigned long platform_mmio_alloc;
 static unsigned long platform_mmiolen;
 static uint64_t callback_via;
 
-unsigned long alloc_xen_mmio(unsigned long len)
+static unsigned long alloc_xen_mmio(unsigned long len)
 {
 	unsigned long addr;
 

@@ -259,6 +259,18 @@ bcm47xx_buttons_linksys_wrt310nv1[] __initconst = {
 };
 
 static const struct gpio_keys_button
+bcm47xx_buttons_linksys_wrt54g3gv2[] __initconst = {
+	BCM47XX_GPIO_KEY(5, KEY_WIMAX),
+	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_linksys_wrt54gsv1[] __initconst = {
+	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_linksys_wrt610nv1[] __initconst = {
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 	BCM47XX_GPIO_KEY(8, KEY_WPS_BUTTON),
@@ -266,6 +278,12 @@ bcm47xx_buttons_linksys_wrt610nv1[] __initconst = {
 
 static const struct gpio_keys_button
 bcm47xx_buttons_linksys_wrt610nv2[] __initconst = {
+	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_linksys_wrtsl54gs[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 };
@@ -402,7 +420,11 @@ int __init bcm47xx_buttons_register(void)
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_wlhdd);
 		break;
 
+	case BCM47XX_BOARD_BELKIN_F7D3301:
+	case BCM47XX_BOARD_BELKIN_F7D3302:
 	case BCM47XX_BOARD_BELKIN_F7D4301:
+	case BCM47XX_BOARD_BELKIN_F7D4302:
+	case BCM47XX_BOARD_BELKIN_F7D4401:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_belkin_f7d4301);
 		break;
 
@@ -479,11 +501,20 @@ int __init bcm47xx_buttons_register(void)
 	case BCM47XX_BOARD_LINKSYS_WRT310NV1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt310nv1);
 		break;
+	case BCM47XX_BOARD_LINKSYS_WRT54G:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54gsv1);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT54G3GV2:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54g3gv2);
+		break;
 	case BCM47XX_BOARD_LINKSYS_WRT610NV1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt610nv1);
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT610NV2:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt610nv2);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRTSL54GS:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrtsl54gs);
 		break;
 
 	case BCM47XX_BOARD_MOTOROLA_WE800G:

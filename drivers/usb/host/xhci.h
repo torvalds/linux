@@ -28,17 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
 
-/*
- * Registers should always be accessed with double word or quad word accesses.
- *
- * Some xHCI implementations may support 64-bit address pointers.  Registers
- * with 64-bit address pointers should be written to with dword accesses by
- * writing the low dword first (ptr[0]), then the high dword (ptr[1]) second.
- * xHCI implementations that do not support 64-bit address pointers will ignore
- * the high dword, and write order is irrelevant.
- */
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
-
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
 #include "pci-quirks.h"
@@ -714,6 +703,7 @@ struct xhci_ep_ctx {
 
 /* deq bitmasks */
 #define EP_CTX_CYCLE_MASK		(1 << 0)
+#define SCTX_DEQ_MASK			(~0xfL)
 
 
 /**
@@ -1129,9 +1119,10 @@ enum xhci_setup_dev {
 #define TRB_TO_SUSPEND_PORT(p)		(((p) & (1 << 23)) >> 23)
 #define LAST_EP_INDEX			30
 
-/* Set TR Dequeue Pointer command TRB fields */
+/* Set TR Dequeue Pointer command TRB fields, 6.4.3.9 */
 #define TRB_TO_STREAM_ID(p)		((((p) & (0xffff << 16)) >> 16))
 #define STREAM_ID_FOR_TRB(p)		((((p)) & 0xffff) << 16)
+#define SCT_FOR_TRB(p)			(((p) << 1) & 0x7)
 
 
 /* Port Status Change Event TRB fields */
@@ -1279,7 +1270,7 @@ union xhci_trb {
  * since the command ring is 64-byte aligned.
  * It must also be greater than 16.
  */
-#define TRBS_PER_SEGMENT	256
+#define TRBS_PER_SEGMENT	64
 /* Allow two commands + a link TRB, along with any reserved command TRBs */
 #define MAX_RSVD_CMD_TRBS	(TRBS_PER_SEGMENT - 3)
 #define TRB_SEGMENT_SIZE	(TRBS_PER_SEGMENT*16)
@@ -1352,6 +1343,7 @@ struct xhci_ring {
 	unsigned int		num_trbs_free_temp;
 	enum xhci_ring_type	type;
 	bool			last_td_was_short;
+	struct radix_tree_root	*trb_address_map;
 };
 
 struct xhci_erst_entry {
@@ -1613,6 +1605,34 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 	dev_warn(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_warn_ratelimited(xhci, fmt, args...) \
 	dev_warn_ratelimited(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
+
+/*
+ * Registers should always be accessed with double word or quad word accesses.
+ *
+ * Some xHCI implementations may support 64-bit address pointers.  Registers
+ * with 64-bit address pointers should be written to with dword accesses by
+ * writing the low dword first (ptr[0]), then the high dword (ptr[1]) second.
+ * xHCI implementations that do not support 64-bit address pointers will ignore
+ * the high dword, and write order is irrelevant.
+ */
+static inline u64 xhci_read_64(const struct xhci_hcd *xhci,
+		__le64 __iomem *regs)
+{
+	__u32 __iomem *ptr = (__u32 __iomem *) regs;
+	u64 val_lo = readl(ptr);
+	u64 val_hi = readl(ptr + 1);
+	return val_lo + (val_hi << 32);
+}
+static inline void xhci_write_64(struct xhci_hcd *xhci,
+				 const u64 val, __le64 __iomem *regs)
+{
+	__u32 __iomem *ptr = (__u32 __iomem *) regs;
+	u32 val_lo = lower_32_bits(val);
+	u32 val_hi = upper_32_bits(val);
+
+	writel(val_lo, ptr);
+	writel(val_hi, ptr + 1);
+}
 
 static inline int xhci_link_trb_quirk(struct xhci_hcd *xhci)
 {

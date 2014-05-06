@@ -23,6 +23,9 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/slab.h>
 
 #include <video/omapdss.h>
 #include "omap_hwmod.h"
@@ -301,7 +304,6 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 	board_data->version = ver;
 	board_data->dsi_enable_pads = omap_dsi_enable_pads;
 	board_data->dsi_disable_pads = omap_dsi_disable_pads;
-	board_data->get_context_loss_count = omap_pm_get_dev_context_loss_count;
 	board_data->set_min_bus_tput = omap_dss_set_min_bus_tput;
 
 	omap_display_device.dev.platform_data = board_data;
@@ -551,4 +553,167 @@ int omap_dss_reset(struct omap_hwmod *oh)
 	r = (c == MAX_MODULE_SOFTRESET_WAIT) ? -ETIMEDOUT : 0;
 
 	return r;
+}
+
+/* list of 'compatible' nodes to convert to omapdss specific */
+static const char * const dss_compat_conv_list[] __initconst = {
+	"composite-connector",
+	"dvi-connector",
+	"hdmi-connector",
+	"panel-dpi",
+	"panel-dsi-cm",
+	"sony,acx565akm",
+	"svideo-connector",
+	"ti,tfp410",
+	"ti,tpd12s015",
+};
+
+/* prepend compatible string with "omapdss," */
+static __init void omapdss_omapify_node(struct device_node *node,
+	const char *compat)
+{
+	char *new_compat;
+	struct property *prop;
+
+	new_compat = kasprintf(GFP_KERNEL, "omapdss,%s", compat);
+
+	prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+
+	if (!prop) {
+		pr_err("omapdss_omapify_node: kzalloc failed\n");
+		return;
+	}
+
+	prop->name = "compatible";
+	prop->value = new_compat;
+	prop->length = strlen(new_compat) + 1;
+
+	of_update_property(node, prop);
+}
+
+/*
+ * As omapdss panel drivers are omapdss specific, but we want to define the
+ * DT-data in generic manner, we convert the compatible strings of the panel
+ * nodes from "panel-foo" to "omapdss,panel-foo". This way we can have both
+ * correct DT data and omapdss specific drivers.
+ *
+ * When we get generic panel drivers to the kernel, this will be removed.
+ */
+void __init omapdss_early_init_of(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dss_compat_conv_list); ++i) {
+		const char *compat = dss_compat_conv_list[i];
+		struct device_node *node = NULL;
+
+		while ((node = of_find_compatible_node(node, NULL, compat))) {
+			if (!of_device_is_available(node))
+				continue;
+
+			omapdss_omapify_node(node, compat);
+		}
+	}
+}
+
+struct device_node * __init omapdss_find_dss_of_node(void)
+{
+	struct device_node *node;
+
+	node = of_find_compatible_node(NULL, NULL, "ti,omap2-dss");
+	if (node)
+		return node;
+
+	node = of_find_compatible_node(NULL, NULL, "ti,omap3-dss");
+	if (node)
+		return node;
+
+	node = of_find_compatible_node(NULL, NULL, "ti,omap4-dss");
+	if (node)
+		return node;
+
+	return NULL;
+}
+
+int __init omapdss_init_of(void)
+{
+	int r;
+	enum omapdss_version ver;
+	struct device_node *node;
+	struct platform_device *pdev;
+
+	static struct omap_dss_board_info board_data = {
+		.dsi_enable_pads = omap_dsi_enable_pads,
+		.dsi_disable_pads = omap_dsi_disable_pads,
+		.set_min_bus_tput = omap_dss_set_min_bus_tput,
+	};
+
+	/* only create dss helper devices if dss is enabled in the .dts */
+
+	node = omapdss_find_dss_of_node();
+	if (!node)
+		return 0;
+
+	if (!of_device_is_available(node))
+		return 0;
+
+	ver = omap_display_get_version();
+
+	if (ver == OMAPDSS_VER_UNKNOWN) {
+		pr_err("DSS not supported on this SoC\n");
+		return -ENODEV;
+	}
+
+	pdev = of_find_device_by_node(node);
+
+	if (!pdev) {
+		pr_err("Unable to find DSS platform device\n");
+		return -ENODEV;
+	}
+
+	r = of_platform_populate(node, NULL, NULL, &pdev->dev);
+	if (r) {
+		pr_err("Unable to populate DSS submodule devices\n");
+		return r;
+	}
+
+	board_data.version = ver;
+
+	omap_display_device.dev.platform_data = &board_data;
+
+	r = platform_device_register(&omap_display_device);
+	if (r < 0) {
+		pr_err("Unable to register omapdss device\n");
+		return r;
+	}
+
+	/* create DRM device */
+	r = omap_init_drm();
+	if (r < 0) {
+		pr_err("Unable to register omapdrm device\n");
+		return r;
+	}
+
+	/* create vrfb device */
+	r = omap_init_vrfb();
+	if (r < 0) {
+		pr_err("Unable to register omapvrfb device\n");
+		return r;
+	}
+
+	/* create FB device */
+	r = omap_init_fb();
+	if (r < 0) {
+		pr_err("Unable to register omapfb device\n");
+		return r;
+	}
+
+	/* create V4L2 display device */
+	r = omap_init_vout();
+	if (r < 0) {
+		pr_err("Unable to register omap_vout device\n");
+		return r;
+	}
+
+	return 0;
 }

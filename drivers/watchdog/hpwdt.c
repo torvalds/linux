@@ -17,7 +17,6 @@
 
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>

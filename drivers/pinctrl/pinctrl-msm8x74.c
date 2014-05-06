@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinmux.h>
 
 #include "pinctrl-msm.h"
 
@@ -406,6 +405,7 @@ enum msm8x74_functions {
 	MSM_MUX_blsp_i2c6,
 	MSM_MUX_blsp_i2c11,
 	MSM_MUX_blsp_spi1,
+	MSM_MUX_blsp_spi8,
 	MSM_MUX_blsp_uart2,
 	MSM_MUX_blsp_uart8,
 	MSM_MUX_slimbus,
@@ -416,6 +416,9 @@ static const char * const blsp_i2c2_groups[] = { "gpio6", "gpio7" };
 static const char * const blsp_i2c6_groups[] = { "gpio29", "gpio30" };
 static const char * const blsp_i2c11_groups[] = { "gpio83", "gpio84" };
 static const char * const blsp_spi1_groups[] = { "gpio0", "gpio1", "gpio2", "gpio3" };
+static const char * const blsp_spi8_groups[] = {
+	"gpio45", "gpio46", "gpio47", "gpio48"
+};
 static const char * const blsp_uart2_groups[] = { "gpio4", "gpio5" };
 static const char * const blsp_uart8_groups[] = { "gpio45", "gpio46" };
 static const char * const slimbus_groups[] = { "gpio70", "gpio71" };
@@ -425,6 +428,7 @@ static const struct msm_function msm8x74_functions[] = {
 	FUNCTION(blsp_i2c6),
 	FUNCTION(blsp_i2c11),
 	FUNCTION(blsp_spi1),
+	FUNCTION(blsp_spi8),
 	FUNCTION(blsp_uart2),
 	FUNCTION(blsp_uart8),
 	FUNCTION(slimbus),
@@ -476,10 +480,10 @@ static const struct msm_pingroup msm8x74_groups[] = {
 	PINGROUP(42,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(43,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(44,  NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(45,  NA, blsp_uart8, NA, NA, NA, NA, NA),
-	PINGROUP(46,  NA, blsp_uart8, NA, NA, NA, NA, NA),
-	PINGROUP(47,  NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(48,  NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(45,  blsp_spi8, blsp_uart8, NA, NA, NA, NA, NA),
+	PINGROUP(46,  blsp_spi8, blsp_uart8, NA, NA, NA, NA, NA),
+	PINGROUP(47,  blsp_spi8, NA, NA, NA, NA, NA, NA),
+	PINGROUP(48,  blsp_spi8, NA, NA, NA, NA, NA, NA),
 	PINGROUP(49,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(50,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(51,  NA, NA, NA, NA, NA, NA, NA),

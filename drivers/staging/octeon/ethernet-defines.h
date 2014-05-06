@@ -33,10 +33,6 @@
  *      driver will use this memory instead of kernel memory for pools. This
  *      allows 32bit userspace application to access the buffers, but also
  *      requires all received packets to be copied.
- *  CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS
- *      This kernel config option allows the user to control the number of
- *      packet and work queue buffers allocated by the driver. If this is zero,
- *      the driver uses the default from below.
  *  USE_SKBUFFS_IN_HW
  *      Tells the driver to populate the packet buffers with kernel skbuffs.
  *      This allows the driver to receive packets without copying them. It also

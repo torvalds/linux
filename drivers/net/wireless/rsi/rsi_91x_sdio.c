@@ -756,11 +756,12 @@ fail:
 static void rsi_disconnect(struct sdio_func *pfunction)
 {
 	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev;
 
 	if (!adapter)
 		return;
+
+	dev = (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 
 	dev->write_fail = 2;
 	rsi_mac80211_detach(adapter);

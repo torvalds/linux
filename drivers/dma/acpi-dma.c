@@ -13,6 +13,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -265,7 +266,7 @@ EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_register);
  */
 void devm_acpi_dma_controller_free(struct device *dev)
 {
-	WARN_ON(devres_destroy(dev, devm_acpi_dma_release, NULL, NULL));
+	WARN_ON(devres_release(dev, devm_acpi_dma_release, NULL, NULL));
 }
 EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_free);
 
@@ -343,7 +344,7 @@ static int acpi_dma_parse_fixed_dma(struct acpi_resource *res, void *data)
  * @index:	index of FixedDMA descriptor for @dev
  *
  * Return:
- * Pointer to appropriate dma channel on success or NULL on error.
+ * Pointer to appropriate dma channel on success or an error pointer.
  */
 struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 		size_t index)
@@ -358,10 +359,10 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 
 	/* Check if the device was enumerated by ACPI */
 	if (!dev || !ACPI_HANDLE(dev))
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	if (acpi_bus_get_device(ACPI_HANDLE(dev), &adev))
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	memset(&pdata, 0, sizeof(pdata));
 	pdata.index = index;
@@ -376,7 +377,7 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (dma_spec->slave_id < 0 || dma_spec->chan_id < 0)
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&acpi_dma_lock);
 
@@ -399,7 +400,7 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 	}
 
 	mutex_unlock(&acpi_dma_lock);
-	return chan;
+	return chan ? chan : ERR_PTR(-EPROBE_DEFER);
 }
 EXPORT_SYMBOL_GPL(acpi_dma_request_slave_chan_by_index);
 
@@ -413,7 +414,7 @@ EXPORT_SYMBOL_GPL(acpi_dma_request_slave_chan_by_index);
  * the first FixedDMA descriptor is TX and second is RX.
  *
  * Return:
- * Pointer to appropriate dma channel on success or NULL on error.
+ * Pointer to appropriate dma channel on success or an error pointer.
  */
 struct dma_chan *acpi_dma_request_slave_chan_by_name(struct device *dev,
 		const char *name)
@@ -425,7 +426,7 @@ struct dma_chan *acpi_dma_request_slave_chan_by_name(struct device *dev,
 	else if (!strcmp(name, "rx"))
 		index = 1;
 	else
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	return acpi_dma_request_slave_chan_by_index(dev, index);
 }

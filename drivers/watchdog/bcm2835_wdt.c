@@ -114,10 +114,8 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 	int err;
 
 	wdt = devm_kzalloc(dev, sizeof(struct bcm2835_wdt), GFP_KERNEL);
-	if (!wdt) {
-		dev_err(dev, "Failed to allocate memory for watchdog device");
+	if (!wdt)
 		return -ENOMEM;
-	}
 	platform_set_drvdata(pdev, wdt);
 
 	spin_lock_init(&wdt->lock);

@@ -44,6 +44,8 @@ static int tobermory_set_bias_level(struct snd_soc_card *card,
 						     SND_SOC_CLOCK_IN);
 			if (ret < 0) {
 				pr_err("Failed to set SYSCLK: %d\n", ret);
+				snd_soc_dai_set_pll(codec_dai, WM8962_FLL,
+						    0, 0, 0);
 				return ret;
 			}
 		}

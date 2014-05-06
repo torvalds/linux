@@ -39,6 +39,23 @@ Required properties:
 
 Optional Properties:
 - samsung,power-domain: a phandle to FIMD power domain node.
+- samsung,invert-vden: video enable signal is inverted
+- samsung,invert-vclk: video clock signal is inverted
+- display-timings: timing settings for FIMD, as described in document [1].
+		Can be used in case timings cannot be provided otherwise
+		or to override timings provided by the panel.
+
+The device node can contain 'port' child nodes according to the bindings defined
+in [2]. The following are properties specific to those nodes:
+- reg: (required) port index, can be:
+		0 - for CAMIF0 input,
+		1 - for CAMIF1 input,
+		2 - for CAMIF2 input,
+		3 - for parallel output,
+		4 - for write-back interface
+
+[1]: Documentation/devicetree/bindings/video/display-timing.txt
+[2]: Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:
 

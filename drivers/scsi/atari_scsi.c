@@ -90,6 +90,7 @@
 #include <linux/init.h>
 #include <linux/nvram.h>
 #include <linux/bitops.h>
+#include <linux/wait.h>
 
 #include <asm/setup.h>
 #include <asm/atarihw.h>
@@ -549,8 +550,10 @@ static void falcon_get_lock(void)
 
 	local_irq_save(flags);
 
-	while (!in_irq() && falcon_got_lock && stdma_others_waiting())
-		sleep_on(&falcon_fairness_wait);
+	wait_event_cmd(falcon_fairness_wait,
+		in_interrupt() || !falcon_got_lock || !stdma_others_waiting(),
+		local_irq_restore(flags),
+		local_irq_save(flags));
 
 	while (!falcon_got_lock) {
 		if (in_irq())
@@ -562,7 +565,10 @@ static void falcon_get_lock(void)
 			falcon_trying_lock = 0;
 			wake_up(&falcon_try_wait);
 		} else {
-			sleep_on(&falcon_try_wait);
+			wait_event_cmd(falcon_try_wait,
+				falcon_got_lock && !falcon_trying_lock,
+				local_irq_restore(flags),
+				local_irq_save(flags));
 		}
 	}
 

@@ -67,7 +67,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 			 struct fsnotify_mark *inode_mark,
 			 struct fsnotify_mark *vfsmount_mark,
 			 u32 mask, void *data, int data_type,
-			 const unsigned char *file_name)
+			 const unsigned char *file_name, u32 cookie)
 {
 	struct inotify_inode_mark *i_mark;
 	struct inotify_event_info *event;
@@ -103,6 +103,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 	fsn_event = &event->fse;
 	fsnotify_init_event(fsn_event, inode, mask);
 	event->wd = i_mark->wd;
+	event->sync_cookie = cookie;
 	event->name_len = len;
 	if (len)
 		strcpy(event->name, file_name);

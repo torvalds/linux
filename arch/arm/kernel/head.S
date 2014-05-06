@@ -102,7 +102,7 @@ ENTRY(stext)
 	and	r3, r3, #0xf			@ extract VMSA support
 	cmp	r3, #5				@ long-descriptor translation table format?
  THUMB( it	lo )				@ force fixup-able long branch encoding
-	blo	__error_p			@ only classic page table format
+	blo	__error_lpae			@ only classic page table format
 #endif
 
 #ifndef CONFIG_XIP_KERNEL
@@ -584,9 +584,10 @@ __fixup_pv_table:
 	subs	r3, r0, r3	@ PHYS_OFFSET - PAGE_OFFSET
 	add	r4, r4, r3	@ adjust table start address
 	add	r5, r5, r3	@ adjust table end address
-	add	r6, r6, r3	@ adjust __pv_phys_offset address
+	add	r6, r6, r3	@ adjust __pv_phys_pfn_offset address
 	add	r7, r7, r3	@ adjust __pv_offset address
-	str	r8, [r6, #LOW_OFFSET]	@ save computed PHYS_OFFSET to __pv_phys_offset
+	mov	r0, r8, lsr #12	@ convert to PFN
+	str	r0, [r6, #LOW_OFFSET]	@ save computed PHYS_OFFSET to __pv_phys_pfn_offset
 	strcc	ip, [r7, #HIGH_OFFSET]	@ save to __pv_offset high bits
 	mov	r6, r3, lsr #24	@ constant for add/sub instructions
 	teq	r3, r6, lsl #24 @ must be 16MiB aligned
@@ -600,7 +601,7 @@ ENDPROC(__fixup_pv_table)
 1:	.long	.
 	.long	__pv_table_begin
 	.long	__pv_table_end
-2:	.long	__pv_phys_offset
+2:	.long	__pv_phys_pfn_offset
 	.long	__pv_offset
 
 	.text
@@ -688,11 +689,11 @@ ENTRY(fixup_pv_table)
 ENDPROC(fixup_pv_table)
 
 	.data
-	.globl	__pv_phys_offset
-	.type	__pv_phys_offset, %object
-__pv_phys_offset:
-	.quad	0
-	.size	__pv_phys_offset, . -__pv_phys_offset
+	.globl	__pv_phys_pfn_offset
+	.type	__pv_phys_pfn_offset, %object
+__pv_phys_pfn_offset:
+	.word	0
+	.size	__pv_phys_pfn_offset, . -__pv_phys_pfn_offset
 
 	.globl	__pv_offset
 	.type	__pv_offset, %object

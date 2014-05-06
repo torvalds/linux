@@ -647,9 +647,10 @@ static int mscan_close(struct net_device *dev)
 }
 
 static const struct net_device_ops mscan_netdev_ops = {
-       .ndo_open               = mscan_open,
-       .ndo_stop               = mscan_close,
-       .ndo_start_xmit         = mscan_start_xmit,
+	.ndo_open	= mscan_open,
+	.ndo_stop	= mscan_close,
+	.ndo_start_xmit	= mscan_start_xmit,
+	.ndo_change_mtu	= can_change_mtu,
 };
 
 int register_mscandev(struct net_device *dev, int mscan_clksrc)

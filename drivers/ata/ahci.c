@@ -35,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -61,6 +60,7 @@ enum board_ids {
 	/* board IDs by feature in alphabetical order */
 	board_ahci,
 	board_ahci_ign_iferr,
+	board_ahci_noncq,
 	board_ahci_nosntf,
 	board_ahci_yes_fbs,
 
@@ -116,6 +116,13 @@ static const struct ata_port_info ahci_port_info[] = {
 	},
 	[board_ahci_ign_iferr] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_IGN_IRQ_IF_ERR),
+		.flags		= AHCI_FLAG_COMMON,
+		.pio_mask	= ATA_PIO4,
+		.udma_mask	= ATA_UDMA6,
+		.port_ops	= &ahci_ops,
+	},
+	[board_ahci_noncq] = {
+		AHCI_HFLAGS	(AHCI_HFLAG_NO_NCQ),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -452,6 +459,12 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(ASMEDIA, 0x0611), board_ahci },	/* ASM1061 */
 	{ PCI_VDEVICE(ASMEDIA, 0x0612), board_ahci },	/* ASM1062 */
 
+	/*
+	 * Samsung SSDs found on some macbooks.  NCQ times out.
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=60731
+	 */
+	{ PCI_VDEVICE(SAMSUNG, 0x1600), board_ahci_noncq },
+
 	/* Enmotus */
 	{ PCI_DEVICE(0x1c44, 0x8000), board_ahci },
 
@@ -564,6 +577,7 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 				 unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	bool online;
 	int rc;
 
@@ -574,7 +588,7 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 	rc = sata_link_hardreset(link, sata_ehc_deb_timing(&link->eh_context),
 				 deadline, &online, NULL);
 
-	ahci_start_engine(ap);
+	hpriv->start_engine(ap);
 
 	DPRINTK("EXIT, rc=%d, class=%u\n", rc, *class);
 
@@ -589,6 +603,7 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 {
 	struct ata_port *ap = link->ap;
 	struct ahci_port_priv *pp = ap->private_data;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	struct ata_taskfile tf;
 	bool online;
@@ -604,7 +619,7 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	rc = sata_link_hardreset(link, sata_ehc_deb_timing(&link->eh_context),
 				 deadline, &online, NULL);
 
-	ahci_start_engine(ap);
+	hpriv->start_engine(ap);
 
 	/* The pseudo configuration device on SIMG4726 attached to
 	 * ASUS P5W-DH Deluxe doesn't send signature FIS after
@@ -1151,13 +1166,13 @@ static inline void ahci_gtf_filter_workaround(struct ata_host *host)
 static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
 			 struct ahci_host_priv *hpriv)
 {
-	int rc, nvec;
+	int nvec;
 
 	if (hpriv->flags & AHCI_HFLAG_NO_MSI)
 		goto intx;
 
-	rc = pci_msi_vec_count(pdev);
-	if (rc < 0)
+	nvec = pci_msi_vec_count(pdev);
+	if (nvec < 0)
 		goto intx;
 
 	/*
@@ -1165,19 +1180,19 @@ static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
 	 * Message mode could be enforced. In this case assume that advantage
 	 * of multipe MSIs is negated and use single MSI mode instead.
 	 */
-	if (rc < n_ports)
+	if (nvec < n_ports)
 		goto single_msi;
 
-	nvec = rc;
-	rc = pci_enable_msi_block(pdev, nvec);
-	if (rc)
+	nvec = pci_enable_msi_range(pdev, nvec, nvec);
+	if (nvec == -ENOSPC)
+		goto single_msi;
+	else if (nvec < 0)
 		goto intx;
 
 	return nvec;
 
 single_msi:
-	rc = pci_enable_msi(pdev);
-	if (rc)
+	if (pci_enable_msi(pdev))
 		goto intx;
 	return 1;
 

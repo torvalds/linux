@@ -15,6 +15,7 @@
 struct tegra_rgb {
 	struct tegra_output output;
 	struct tegra_dc *dc;
+	bool enabled;
 
 	struct clk *clk_parent;
 	struct clk *clk;
@@ -89,6 +90,9 @@ static int tegra_output_rgb_enable(struct tegra_output *output)
 	struct tegra_rgb *rgb = to_rgb(output);
 	unsigned long value;
 
+	if (rgb->enabled)
+		return 0;
+
 	tegra_dc_write_regs(rgb->dc, rgb_enable, ARRAY_SIZE(rgb_enable));
 
 	value = DE_SELECT_ACTIVE | DE_CONTROL_NORMAL;
@@ -122,6 +126,8 @@ static int tegra_output_rgb_enable(struct tegra_output *output)
 	tegra_dc_writel(rgb->dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(rgb->dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 
+	rgb->enabled = true;
+
 	return 0;
 }
 
@@ -129,6 +135,9 @@ static int tegra_output_rgb_disable(struct tegra_output *output)
 {
 	struct tegra_rgb *rgb = to_rgb(output);
 	unsigned long value;
+
+	if (!rgb->enabled)
+		return 0;
 
 	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_POWER_CONTROL);
 	value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
@@ -143,6 +152,8 @@ static int tegra_output_rgb_disable(struct tegra_output *output)
 	tegra_dc_writel(rgb->dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 
 	tegra_dc_write_regs(rgb->dc, rgb_disable, ARRAY_SIZE(rgb_disable));
+
+	rgb->enabled = false;
 
 	return 0;
 }

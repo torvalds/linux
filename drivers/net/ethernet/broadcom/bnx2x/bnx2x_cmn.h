@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/irq.h>
 
 #include "bnx2x.h"
 #include "bnx2x_sriov.h"
@@ -47,31 +48,26 @@ extern int bnx2x_num_queues;
 		} \
 	} while (0)
 
-#define BNX2X_PCI_ALLOC(x, y, size) \
-	do { \
-		x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-		DP(NETIF_MSG_HW, "BNX2X_PCI_ALLOC: Physical %Lx Virtual %p\n", \
-		   (unsigned long long)(*y), x); \
-	} while (0)
-
-#define BNX2X_PCI_FALLOC(x, y, size) \
-	do { \
-		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-		memset((void *)x, 0xFFFFFFFF, size); \
-		DP(NETIF_MSG_HW, "BNX2X_PCI_FALLOC: Physical %Lx Virtual %p\n",\
-		   (unsigned long long)(*y), x); \
-	} while (0)
-
-#define BNX2X_ALLOC(x, size) \
-	do { \
-		x = kzalloc(size, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-	} while (0)
+#define BNX2X_PCI_ALLOC(y, size)					\
+({									\
+	void *x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
+	if (x)								\
+		DP(NETIF_MSG_HW,					\
+		   "BNX2X_PCI_ALLOC: Physical %Lx Virtual %p\n",	\
+		   (unsigned long long)(*y), x);			\
+	x;								\
+})
+#define BNX2X_PCI_FALLOC(y, size)					\
+({									\
+	void *x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
+	if (x) {							\
+		memset(x, 0xff, size);					\
+		DP(NETIF_MSG_HW,					\
+		   "BNX2X_PCI_FALLOC: Physical %Lx Virtual %p\n",	\
+		   (unsigned long long)(*y), x);			\
+	}								\
+	x;								\
+})
 
 /*********************** Interfaces ****************************
  *  Functions that need to be implemented by each driver version
@@ -496,7 +492,7 @@ int bnx2x_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos);
 
 /* select_queue callback */
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       void *accel_priv);
+		       void *accel_priv, select_queue_fallback_t fallback);
 
 static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
 					struct bnx2x_fastpath *fp,
@@ -936,7 +932,7 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
 
-	start_params->gre_tunnel_mode = IPGRE_TUNNEL;
+	start_params->gre_tunnel_mode = L2GRE_TUNNEL;
 	start_params->gre_tunnel_rss = GRE_INNER_HEADERS_RSS;
 
 	return bnx2x_func_state_change(bp, &func_params);
@@ -1323,5 +1319,8 @@ void bnx2x_fill_fw_str(struct bnx2x *bp, char *buf, size_t buf_len);
 
 int bnx2x_drain_tx_queues(struct bnx2x *bp);
 void bnx2x_squeeze_objects(struct bnx2x *bp);
+
+void bnx2x_schedule_sp_rtnl(struct bnx2x*, enum sp_rtnl_flag,
+			    u32 verbose);
 
 #endif /* BNX2X_CMN_H */

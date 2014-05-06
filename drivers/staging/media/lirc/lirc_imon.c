@@ -943,13 +943,17 @@ alloc_status_switch:
 		usb_free_urb(tx_urb);
 	case 6:
 		usb_free_urb(rx_urb);
+		/* fall-through */
 	case 5:
 		if (rbuf)
 			lirc_buffer_free(rbuf);
+		/* fall-through */
 	case 4:
 		kfree(rbuf);
+		/* fall-through */
 	case 3:
 		kfree(driver);
+		/* fall-through */
 	case 2:
 		kfree(context);
 		context = NULL;

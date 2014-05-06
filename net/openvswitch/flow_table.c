@@ -153,29 +153,29 @@ static void rcu_free_flow_callback(struct rcu_head *rcu)
 	flow_free(flow);
 }
 
-static void flow_mask_del_ref(struct sw_flow_mask *mask, bool deferred)
-{
-	if (!mask)
-		return;
-
-	BUG_ON(!mask->ref_count);
-	mask->ref_count--;
-
-	if (!mask->ref_count) {
-		list_del_rcu(&mask->list);
-		if (deferred)
-			kfree_rcu(mask, rcu);
-		else
-			kfree(mask);
-	}
-}
-
 void ovs_flow_free(struct sw_flow *flow, bool deferred)
 {
 	if (!flow)
 		return;
 
-	flow_mask_del_ref(flow->mask, deferred);
+	if (flow->mask) {
+		struct sw_flow_mask *mask = flow->mask;
+
+		/* ovs-lock is required to protect mask-refcount and
+		 * mask list.
+		 */
+		ASSERT_OVSL();
+		BUG_ON(!mask->ref_count);
+		mask->ref_count--;
+
+		if (!mask->ref_count) {
+			list_del_rcu(&mask->list);
+			if (deferred)
+				kfree_rcu(mask, rcu);
+			else
+				kfree(mask);
+		}
+	}
 
 	if (deferred)
 		call_rcu(&flow->rcu, rcu_free_flow_callback);
@@ -188,26 +188,9 @@ static void free_buckets(struct flex_array *buckets)
 	flex_array_free(buckets);
 }
 
+
 static void __table_instance_destroy(struct table_instance *ti)
 {
-	int i;
-
-	if (ti->keep_flows)
-		goto skip_flows;
-
-	for (i = 0; i < ti->n_buckets; i++) {
-		struct sw_flow *flow;
-		struct hlist_head *head = flex_array_get(ti->buckets, i);
-		struct hlist_node *n;
-		int ver = ti->node_ver;
-
-		hlist_for_each_entry_safe(flow, n, head, hash_node[ver]) {
-			hlist_del(&flow->hash_node[ver]);
-			ovs_flow_free(flow, false);
-		}
-	}
-
-skip_flows:
 	free_buckets(ti->buckets);
 	kfree(ti);
 }
@@ -258,20 +241,38 @@ static void flow_tbl_destroy_rcu_cb(struct rcu_head *rcu)
 
 static void table_instance_destroy(struct table_instance *ti, bool deferred)
 {
+	int i;
+
 	if (!ti)
 		return;
 
+	if (ti->keep_flows)
+		goto skip_flows;
+
+	for (i = 0; i < ti->n_buckets; i++) {
+		struct sw_flow *flow;
+		struct hlist_head *head = flex_array_get(ti->buckets, i);
+		struct hlist_node *n;
+		int ver = ti->node_ver;
+
+		hlist_for_each_entry_safe(flow, n, head, hash_node[ver]) {
+			hlist_del_rcu(&flow->hash_node[ver]);
+			ovs_flow_free(flow, deferred);
+		}
+	}
+
+skip_flows:
 	if (deferred)
 		call_rcu(&ti->rcu, flow_tbl_destroy_rcu_cb);
 	else
 		__table_instance_destroy(ti);
 }
 
-void ovs_flow_tbl_destroy(struct flow_table *table)
+void ovs_flow_tbl_destroy(struct flow_table *table, bool deferred)
 {
 	struct table_instance *ti = ovsl_dereference(table->ti);
 
-	table_instance_destroy(ti, false);
+	table_instance_destroy(ti, deferred);
 }
 
 struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *ti,
@@ -504,14 +505,9 @@ static struct sw_flow_mask *mask_alloc(void)
 
 	mask = kmalloc(sizeof(*mask), GFP_KERNEL);
 	if (mask)
-		mask->ref_count = 0;
+		mask->ref_count = 1;
 
 	return mask;
-}
-
-static void mask_add_ref(struct sw_flow_mask *mask)
-{
-	mask->ref_count++;
 }
 
 static bool mask_equal(const struct sw_flow_mask *a,
@@ -554,9 +550,11 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 		mask->key = new->key;
 		mask->range = new->range;
 		list_add_rcu(&mask->list, &tbl->mask_list);
+	} else {
+		BUG_ON(!mask->ref_count);
+		mask->ref_count++;
 	}
 
-	mask_add_ref(mask);
 	flow->mask = mask;
 	return 0;
 }

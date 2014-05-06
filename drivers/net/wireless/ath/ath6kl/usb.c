@@ -236,7 +236,6 @@ static void ath6kl_usb_free_pipe_resources(struct ath6kl_usb_pipe *pipe)
 			break;
 		kfree(urb_context);
 	}
-
 }
 
 static void ath6kl_usb_cleanup_pipe_resources(struct ath6kl_usb *ar_usb)
@@ -245,7 +244,6 @@ static void ath6kl_usb_cleanup_pipe_resources(struct ath6kl_usb *ar_usb)
 
 	for (i = 0; i < ATH6KL_USB_PIPE_MAX; i++)
 		ath6kl_usb_free_pipe_resources(&ar_usb->pipes[i]);
-
 }
 
 static u8 ath6kl_usb_get_logical_pipe_num(struct ath6kl_usb *ar_usb,

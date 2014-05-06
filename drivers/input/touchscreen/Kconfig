@@ -514,15 +514,6 @@ config TOUCHSCREEN_MIGOR
 	  To compile this driver as a module, choose M here: the
 	  module will be called migor_ts.
 
-config TOUCHSCREEN_TNETV107X
-	tristate "TI TNETV107X touchscreen support"
-	depends on ARCH_DAVINCI_TNETV107X
-	help
-	  Say Y here if you want to use the TNETV107X touchscreen.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tnetv107x-ts.
-
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"
 	select SERIO

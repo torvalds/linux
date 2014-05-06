@@ -289,7 +289,7 @@ struct host_interest {
 	u32 hi_hp_rx_traffic_ratio;                    /* 0xd8 */
 
 	/* test applications flags */
-	u32 hi_test_apps_related    ;                  /* 0xdc */
+	u32 hi_test_apps_related;                      /* 0xdc */
 	/* location of test script */
 	u32 hi_ota_testscript;                         /* 0xe0 */
 	/* location of CAL data */

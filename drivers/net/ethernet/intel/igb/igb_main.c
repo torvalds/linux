@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -70,7 +69,7 @@ char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
 				"Intel(R) Gigabit Ethernet Network Driver";
 static const char igb_copyright[] =
-				"Copyright (c) 2007-2013 Intel Corporation.";
+				"Copyright (c) 2007-2014 Intel Corporation.";
 
 static const struct e1000_info *igb_info_tbl[] = {
 	[board_82575] = &e1000_82575_info,
@@ -752,6 +751,28 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 	}
 }
 
+u32 igb_rd32(struct e1000_hw *hw, u32 reg)
+{
+	struct igb_adapter *igb = container_of(hw, struct igb_adapter, hw);
+	u8 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+	u32 value = 0;
+
+	if (E1000_REMOVED(hw_addr))
+		return ~value;
+
+	value = readl(&hw_addr[reg]);
+
+	/* reads should not return all F's */
+	if (!(~value) && (!reg || !(~readl(hw_addr)))) {
+		struct net_device *netdev = igb->netdev;
+		hw->hw_addr = NULL;
+		netif_device_detach(netdev);
+		netdev_err(netdev, "PCIe link lost, device now detached\n");
+	}
+
+	return value;
+}
+
 /**
  *  igb_write_ivar - configure ivar for given MSI-X vector
  *  @hw: pointer to the HW structure
@@ -1014,6 +1035,12 @@ static void igb_reset_q_vector(struct igb_adapter *adapter, int v_idx)
 {
 	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
 
+	/* Coming from igb_set_interrupt_capability, the vectors are not yet
+	 * allocated. So, q_vector is NULL so we should stop here.
+	 */
+	if (!q_vector)
+		return;
+
 	if (q_vector->tx.ring)
 		adapter->tx_ring[q_vector->tx.ring->queue_index] = NULL;
 
@@ -1111,16 +1138,18 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter, bool msix)
 	for (i = 0; i < numvecs; i++)
 		adapter->msix_entries[i].entry = i;
 
-	err = pci_enable_msix(adapter->pdev,
-			      adapter->msix_entries,
-			      numvecs);
-	if (err == 0)
+	err = pci_enable_msix_range(adapter->pdev,
+				    adapter->msix_entries,
+				    numvecs,
+				    numvecs);
+	if (err > 0)
 		return;
 
 	igb_reset_interrupt_capability(adapter);
 
 	/* If we can't do MSI-X, try MSI */
 msi_only:
+	adapter->flags &= ~IGB_FLAG_HAS_MSIX;
 #ifdef CONFIG_PCI_IOV
 	/* disable SR-IOV for non MSI-X configurations */
 	if (adapter->vf_data) {
@@ -1726,6 +1755,10 @@ int igb_up(struct igb_adapter *adapter)
 	hw->mac.get_link_status = 1;
 	schedule_work(&adapter->watchdog_task);
 
+	if ((adapter->flags & IGB_FLAG_EEE) &&
+	    (!hw->dev_spec._82575.eee_disable))
+		adapter->eee_advert = MDIO_EEE_100TX | MDIO_EEE_1000T;
+
 	return 0;
 }
 
@@ -1974,6 +2007,21 @@ void igb_reset(struct igb_adapter *adapter)
 		}
 	}
 #endif
+	/* Re-establish EEE setting */
+	if (hw->phy.media_type == e1000_media_type_copper) {
+		switch (mac->type) {
+		case e1000_i350:
+		case e1000_i210:
+		case e1000_i211:
+			igb_set_eee_i350(hw);
+			break;
+		case e1000_i354:
+			igb_set_eee_i354(hw);
+			break;
+		default:
+			break;
+		}
+	}
 	if (!netif_running(adapter->netdev))
 		igb_power_down_link(adapter);
 
@@ -2560,23 +2608,36 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(adapter->flags & IGB_FLAG_HAS_MSIX) ? "MSI-X" :
 		(adapter->flags & IGB_FLAG_HAS_MSI) ? "MSI" : "legacy",
 		adapter->num_rx_queues, adapter->num_tx_queues);
-	switch (hw->mac.type) {
-	case e1000_i350:
-	case e1000_i210:
-	case e1000_i211:
-		igb_set_eee_i350(hw);
-		break;
-	case e1000_i354:
-		if (hw->phy.media_type == e1000_media_type_copper) {
+	if (hw->phy.media_type == e1000_media_type_copper) {
+		switch (hw->mac.type) {
+		case e1000_i350:
+		case e1000_i210:
+		case e1000_i211:
+			/* Enable EEE for internal copper PHY devices */
+			err = igb_set_eee_i350(hw);
+			if ((!err) &&
+			    (!hw->dev_spec._82575.eee_disable)) {
+				adapter->eee_advert =
+					MDIO_EEE_100TX | MDIO_EEE_1000T;
+				adapter->flags |= IGB_FLAG_EEE;
+			}
+			break;
+		case e1000_i354:
 			if ((rd32(E1000_CTRL_EXT) &
-			    E1000_CTRL_EXT_LINK_MODE_SGMII))
-				igb_set_eee_i354(hw);
+			    E1000_CTRL_EXT_LINK_MODE_SGMII)) {
+				err = igb_set_eee_i354(hw);
+				if ((!err) &&
+					(!hw->dev_spec._82575.eee_disable)) {
+					adapter->eee_advert =
+					   MDIO_EEE_100TX | MDIO_EEE_1000T;
+					adapter->flags |= IGB_FLAG_EEE;
+				}
+			}
+			break;
+		default:
+			break;
 		}
-		break;
-	default:
-		break;
 	}
-
 	pm_runtime_put_noidle(&pdev->dev);
 	return 0;
 
@@ -2591,7 +2652,7 @@ err_eeprom:
 		iounmap(hw->flash_address);
 err_sw_init:
 	igb_clear_interrupt_scheme(adapter);
-	iounmap(hw->hw_addr);
+	pci_iounmap(pdev, hw->hw_addr);
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
@@ -2758,7 +2819,7 @@ static void igb_remove(struct pci_dev *pdev)
 	igb_disable_sriov(pdev);
 #endif
 
-	iounmap(hw->hw_addr);
+	pci_iounmap(pdev, hw->hw_addr);
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
 	pci_release_selected_regions(pdev,
@@ -3510,6 +3571,13 @@ static inline void igb_set_vmolr(struct igb_adapter *adapter,
 
 	vmolr = rd32(E1000_VMOLR(vfn));
 	vmolr |= E1000_VMOLR_STRVLAN; /* Strip vlan tags */
+	if (hw->mac.type == e1000_i350) {
+		u32 dvmolr;
+
+		dvmolr = rd32(E1000_DVMOLR(vfn));
+		dvmolr |= E1000_DVMOLR_STRVLAN;
+		wr32(E1000_DVMOLR(vfn), dvmolr);
+	}
 	if (aupe)
 		vmolr |= E1000_VMOLR_AUPE; /* Accept untagged packets */
 	else
@@ -4158,6 +4226,15 @@ static void igb_watchdog_task(struct work_struct *work)
 			       (ctrl & E1000_CTRL_RFCE) ?  "RX" :
 			       (ctrl & E1000_CTRL_TFCE) ?  "TX" : "None");
 
+			/* disable EEE if enabled */
+			if ((adapter->flags & IGB_FLAG_EEE) &&
+				(adapter->link_duplex == HALF_DUPLEX)) {
+				dev_info(&adapter->pdev->dev,
+				"EEE Disabled: unsupported at half duplex. Re-enable using ethtool when at full duplex.\n");
+				adapter->hw.dev_spec._82575.eee_disable = true;
+				adapter->flags &= ~IGB_FLAG_EEE;
+			}
+
 			/* check if SmartSpeed worked */
 			igb_check_downshift(hw);
 			if (phy->speed_downgraded)
@@ -4306,8 +4383,7 @@ enum latency_range {
  *  were determined based on theoretical maximum wire speed and testing
  *  data, in order to minimize response time while increasing bulk
  *  throughput.
- *  This functionality is controlled by the InterruptThrottleRate module
- *  parameter (see igb_param.c)
+ *  This functionality is controlled by ethtool's coalescing settings.
  *  NOTE:  This function is called only when operating in a multiqueue
  *         receive environment.
  **/
@@ -4381,8 +4457,7 @@ clear_counts:
  *  based on theoretical maximum wire speed and thresholds were set based
  *  on testing data as well as attempting to minimize response time
  *  while increasing bulk throughput.
- *  this functionality is controlled by the InterruptThrottleRate module
- *  parameter (see igb_param.c)
+ *  This functionality is controlled by ethtool's coalescing settings.
  *  NOTE:  These calculations are only valid when operating in a single-
  *         queue environment.
  **/
@@ -4530,6 +4605,7 @@ static int igb_tso(struct igb_ring *tx_ring,
 	struct sk_buff *skb = first->skb;
 	u32 vlan_macip_lens, type_tucmd;
 	u32 mss_l4len_idx, l4len;
+	int err;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
@@ -4537,16 +4613,14 @@ static int igb_tso(struct igb_ring *tx_ring,
 	if (!skb_is_gso(skb))
 		return 0;
 
-	if (skb_header_cloned(skb)) {
-		int err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-		if (err)
-			return err;
-	}
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
 
 	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
 	type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
 
-	if (first->protocol == __constant_htons(ETH_P_IP)) {
+	if (first->protocol == htons(ETH_P_IP)) {
 		struct iphdr *iph = ip_hdr(skb);
 		iph->tot_len = 0;
 		iph->check = 0;
@@ -4602,12 +4676,12 @@ static void igb_tx_csum(struct igb_ring *tx_ring, struct igb_tx_buffer *first)
 	} else {
 		u8 l4_hdr = 0;
 		switch (first->protocol) {
-		case __constant_htons(ETH_P_IP):
+		case htons(ETH_P_IP):
 			vlan_macip_lens |= skb_network_header_len(skb);
 			type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
 			l4_hdr = ip_hdr(skb)->protocol;
 			break;
-		case __constant_htons(ETH_P_IPV6):
+		case htons(ETH_P_IPV6):
 			vlan_macip_lens |= skb_network_header_len(skb);
 			l4_hdr = ipv6_hdr(skb)->nexthdr;
 			break;
@@ -4905,12 +4979,11 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
-	skb_tx_timestamp(skb);
-
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
 		struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
 
-		if (!(adapter->ptp_tx_skb)) {
+		if (!test_and_set_bit_lock(__IGB_PTP_TX_IN_PROGRESS,
+					   &adapter->state)) {
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 			tx_flags |= IGB_TX_FLAGS_TSTAMP;
 
@@ -4920,6 +4993,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 				schedule_work(&adapter->ptp_tx_work);
 		}
 	}
+
+	skb_tx_timestamp(skb);
 
 	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= IGB_TX_FLAGS_VLAN;
@@ -5127,10 +5202,10 @@ void igb_update_stats(struct igb_adapter *adapter,
 		}
 
 		do {
-			start = u64_stats_fetch_begin_bh(&ring->rx_syncp);
+			start = u64_stats_fetch_begin_irq(&ring->rx_syncp);
 			_bytes = ring->rx_stats.bytes;
 			_packets = ring->rx_stats.packets;
-		} while (u64_stats_fetch_retry_bh(&ring->rx_syncp, start));
+		} while (u64_stats_fetch_retry_irq(&ring->rx_syncp, start));
 		bytes += _bytes;
 		packets += _packets;
 	}
@@ -5143,10 +5218,10 @@ void igb_update_stats(struct igb_adapter *adapter,
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *ring = adapter->tx_ring[i];
 		do {
-			start = u64_stats_fetch_begin_bh(&ring->tx_syncp);
+			start = u64_stats_fetch_begin_irq(&ring->tx_syncp);
 			_bytes = ring->tx_stats.bytes;
 			_packets = ring->tx_stats.packets;
-		} while (u64_stats_fetch_retry_bh(&ring->tx_syncp, start));
+		} while (u64_stats_fetch_retry_irq(&ring->tx_syncp, start));
 		bytes += _bytes;
 		packets += _packets;
 	}
@@ -6620,7 +6695,9 @@ static inline void igb_rx_hash(struct igb_ring *ring,
 			       struct sk_buff *skb)
 {
 	if (ring->netdev->features & NETIF_F_RXHASH)
-		skb->rxhash = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
+		skb_set_hash(skb,
+			     le32_to_cpu(rx_desc->wb.lower.hi_dword.rss),
+			     PKT_HASH_TYPE_L3);
 }
 
 /**
@@ -6690,7 +6767,7 @@ static unsigned int igb_get_headlen(unsigned char *data,
 	hdr.network += ETH_HLEN;
 
 	/* handle any vlan tag if present */
-	if (protocol == __constant_htons(ETH_P_8021Q)) {
+	if (protocol == htons(ETH_P_8021Q)) {
 		if ((hdr.network - data) > (max_len - VLAN_HLEN))
 			return max_len;
 
@@ -6699,7 +6776,7 @@ static unsigned int igb_get_headlen(unsigned char *data,
 	}
 
 	/* handle L3 protocols */
-	if (protocol == __constant_htons(ETH_P_IP)) {
+	if (protocol == htons(ETH_P_IP)) {
 		if ((hdr.network - data) > (max_len - sizeof(struct iphdr)))
 			return max_len;
 
@@ -6713,7 +6790,7 @@ static unsigned int igb_get_headlen(unsigned char *data,
 		/* record next protocol if header is present */
 		if (!(hdr.ipv4->frag_off & htons(IP_OFFSET)))
 			nexthdr = hdr.ipv4->protocol;
-	} else if (protocol == __constant_htons(ETH_P_IPV6)) {
+	} else if (protocol == htons(ETH_P_IPV6)) {
 		if ((hdr.network - data) > (max_len - sizeof(struct ipv6hdr)))
 			return max_len;
 
@@ -6877,7 +6954,9 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 
 	igb_rx_checksum(rx_ring, rx_desc, skb);
 
-	igb_ptp_rx_hwtstamp(rx_ring, rx_desc, skb);
+	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS) &&
+	    !igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP))
+		igb_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
 
 	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {
@@ -6903,7 +6982,7 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 	unsigned int total_bytes = 0, total_packets = 0;
 	u16 cleaned_count = igb_desc_unused(rx_ring);
 
-	do {
+	while (likely(total_packets < budget)) {
 		union e1000_adv_rx_desc *rx_desc;
 
 		/* return some buffers to hardware, one at a time is too slow */
@@ -6955,7 +7034,7 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 
 		/* update budget accounting */
 		total_packets++;
-	} while (likely(total_packets < budget));
+	}
 
 	/* place incomplete frames back on ring for completion */
 	rx_ring->skb = skb;
@@ -7114,8 +7193,10 @@ static int igb_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
 		return igb_mii_ioctl(netdev, ifr, cmd);
+	case SIOCGHWTSTAMP:
+		return igb_ptp_get_ts_config(netdev, ifr);
 	case SIOCSHWTSTAMP:
-		return igb_ptp_hwtstamp_ioctl(netdev, ifr, cmd);
+		return igb_ptp_set_ts_config(netdev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -165,21 +166,18 @@ static int parse_reply_info_dir(void **p, void *end,
 	if (num == 0)
 		goto done;
 
-	/* alloc large array */
-	info->dir_nr = num;
-	info->dir_in = kcalloc(num, sizeof(*info->dir_in) +
-			       sizeof(*info->dir_dname) +
-			       sizeof(*info->dir_dname_len) +
-			       sizeof(*info->dir_dlease),
-			       GFP_NOFS);
-	if (info->dir_in == NULL) {
-		err = -ENOMEM;
-		goto out_bad;
-	}
+	BUG_ON(!info->dir_in);
 	info->dir_dname = (void *)(info->dir_in + num);
 	info->dir_dname_len = (void *)(info->dir_dname + num);
 	info->dir_dlease = (void *)(info->dir_dname_len + num);
+	if ((unsigned long)(info->dir_dlease + num) >
+	    (unsigned long)info->dir_in + info->dir_buf_size) {
+		pr_err("dir contents are larger than expected\n");
+		WARN_ON(1);
+		goto bad;
+	}
 
+	info->dir_nr = num;
 	while (num) {
 		/* dentry */
 		ceph_decode_need(p, end, sizeof(u32)*2, bad);
@@ -327,7 +325,9 @@ out_bad:
 
 static void destroy_reply_info(struct ceph_mds_reply_info_parsed *info)
 {
-	kfree(info->dir_in);
+	if (!info->dir_in)
+		return;
+	free_pages((unsigned long)info->dir_in, get_order(info->dir_buf_size));
 }
 
 
@@ -512,12 +512,11 @@ void ceph_mdsc_release_request(struct kref *kref)
 	struct ceph_mds_request *req = container_of(kref,
 						    struct ceph_mds_request,
 						    r_kref);
+	destroy_reply_info(&req->r_reply_info);
 	if (req->r_request)
 		ceph_msg_put(req->r_request);
-	if (req->r_reply) {
+	if (req->r_reply)
 		ceph_msg_put(req->r_reply);
-		destroy_reply_info(&req->r_reply_info);
-	}
 	if (req->r_inode) {
 		ceph_put_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
 		iput(req->r_inode);
@@ -528,7 +527,9 @@ void ceph_mdsc_release_request(struct kref *kref)
 		iput(req->r_target_inode);
 	if (req->r_dentry)
 		dput(req->r_dentry);
-	if (req->r_old_dentry) {
+	if (req->r_old_dentry)
+		dput(req->r_old_dentry);
+	if (req->r_old_dentry_dir) {
 		/*
 		 * track (and drop pins for) r_old_dentry_dir
 		 * separately, since r_old_dentry's d_parent may have
@@ -537,7 +538,6 @@ void ceph_mdsc_release_request(struct kref *kref)
 		 */
 		ceph_put_cap_refs(ceph_inode(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
-		dput(req->r_old_dentry);
 		iput(req->r_old_dentry_dir);
 	}
 	kfree(req->r_path1);
@@ -1311,6 +1311,9 @@ static int trim_caps(struct ceph_mds_client *mdsc,
 			trim_caps - session->s_trim_caps);
 		session->s_trim_caps = 0;
 	}
+
+	ceph_add_cap_releases(mdsc, session);
+	ceph_send_cap_releases(mdsc, session);
 	return 0;
 }
 
@@ -1461,15 +1464,18 @@ static void discard_cap_releases(struct ceph_mds_client *mdsc,
 
 	dout("discard_cap_releases mds%d\n", session->s_mds);
 
-	/* zero out the in-progress message */
-	msg = list_first_entry(&session->s_cap_releases,
-			       struct ceph_msg, list_head);
-	head = msg->front.iov_base;
-	num = le32_to_cpu(head->num);
-	dout("discard_cap_releases mds%d %p %u\n", session->s_mds, msg, num);
-	head->num = cpu_to_le32(0);
-	msg->front.iov_len = sizeof(*head);
-	session->s_num_cap_releases += num;
+	if (!list_empty(&session->s_cap_releases)) {
+		/* zero out the in-progress message */
+		msg = list_first_entry(&session->s_cap_releases,
+					struct ceph_msg, list_head);
+		head = msg->front.iov_base;
+		num = le32_to_cpu(head->num);
+		dout("discard_cap_releases mds%d %p %u\n",
+		     session->s_mds, msg, num);
+		head->num = cpu_to_le32(0);
+		msg->front.iov_len = sizeof(*head);
+		session->s_num_cap_releases += num;
+	}
 
 	/* requeue completed messages */
 	while (!list_empty(&session->s_cap_releases_done)) {
@@ -1491,6 +1497,43 @@ static void discard_cap_releases(struct ceph_mds_client *mdsc,
 /*
  * requests
  */
+
+int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
+				    struct inode *dir)
+{
+	struct ceph_inode_info *ci = ceph_inode(dir);
+	struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
+	struct ceph_mount_options *opt = req->r_mdsc->fsc->mount_options;
+	size_t size = sizeof(*rinfo->dir_in) + sizeof(*rinfo->dir_dname_len) +
+		      sizeof(*rinfo->dir_dname) + sizeof(*rinfo->dir_dlease);
+	int order, num_entries;
+
+	spin_lock(&ci->i_ceph_lock);
+	num_entries = ci->i_files + ci->i_subdirs;
+	spin_unlock(&ci->i_ceph_lock);
+	num_entries = max(num_entries, 1);
+	num_entries = min(num_entries, opt->max_readdir);
+
+	order = get_order(size * num_entries);
+	while (order >= 0) {
+		rinfo->dir_in = (void*)__get_free_pages(GFP_NOFS | __GFP_NOWARN,
+							order);
+		if (rinfo->dir_in)
+			break;
+		order--;
+	}
+	if (!rinfo->dir_in)
+		return -ENOMEM;
+
+	num_entries = (PAGE_SIZE << order) / size;
+	num_entries = min(num_entries, opt->max_readdir);
+
+	rinfo->dir_buf_size = PAGE_SIZE << order;
+	req->r_num_caps = num_entries + 1;
+	req->r_args.readdir.max_entries = cpu_to_le32(num_entries);
+	req->r_args.readdir.max_bytes = cpu_to_le32(opt->max_readdir_bytes);
+	return 0;
+}
 
 /*
  * Create an mds request.
@@ -2053,7 +2096,7 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 		ceph_get_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
 	if (req->r_locked_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_locked_dir), CEPH_CAP_PIN);
-	if (req->r_old_dentry)
+	if (req->r_old_dentry_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
 

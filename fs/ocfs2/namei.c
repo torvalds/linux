@@ -450,7 +450,6 @@ leave:
 
 	brelse(new_fe_bh);
 	brelse(parent_fe_bh);
-	kfree(si.name);
 	kfree(si.value);
 
 	ocfs2_free_dir_lookup_result(&lookup);
@@ -495,6 +494,7 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 	struct ocfs2_dinode *fe = NULL;
 	struct ocfs2_extent_list *fel;
 	u16 feat;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	*new_fe_bh = NULL;
 
@@ -576,8 +576,8 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 			mlog_errno(status);
 	}
 
-	status = 0; /* error in ocfs2_create_new_inode_locks is not
-		     * critical */
+	oi->i_sync_tid = handle->h_transaction->t_tid;
+	oi->i_datasync_tid = handle->h_transaction->t_tid;
 
 leave:
 	if (status < 0) {
@@ -664,6 +664,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
 	sigset_t oldset;
+	u64 old_de_ino;
 
 	trace_ocfs2_link((unsigned long long)OCFS2_I(inode)->ip_blkno,
 			 old_dentry->d_name.len, old_dentry->d_name.name,
@@ -682,6 +683,22 @@ static int ocfs2_link(struct dentry *old_dentry,
 	}
 
 	if (!dir->i_nlink) {
+		err = -ENOENT;
+		goto out;
+	}
+
+	err = ocfs2_lookup_ino_from_name(dir, old_dentry->d_name.name,
+			old_dentry->d_name.len, &old_de_ino);
+	if (err) {
+		err = -ENOENT;
+		goto out;
+	}
+
+	/*
+	 * Check whether another node removed the source inode while we
+	 * were in the vfs.
+	 */
+	if (old_de_ino != OCFS2_I(inode)->ip_blkno) {
 		err = -ENOENT;
 		goto out;
 	}
@@ -1838,7 +1855,6 @@ bail:
 
 	brelse(new_fe_bh);
 	brelse(parent_fe_bh);
-	kfree(si.name);
 	kfree(si.value);
 	ocfs2_free_dir_lookup_result(&lookup);
 	if (inode_ac)
@@ -2464,6 +2480,7 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 	di->i_orphaned_slot = 0;
 	set_nlink(inode, 1);
 	ocfs2_set_links_count(di, inode->i_nlink);
+	ocfs2_update_inode_fsync_trans(handle, inode, 1);
 	ocfs2_journal_dirty(handle, di_bh);
 
 	status = ocfs2_add_entry(handle, dentry, inode,

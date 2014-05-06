@@ -18,6 +18,7 @@
 #include <linux/lockd/bind.h>
 #include <linux/nfs_mount.h>
 #include <linux/freezer.h>
+#include <linux/xattr.h>
 
 #include "iostat.h"
 #include "internal.h"
@@ -478,41 +479,6 @@ nfs3_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 }
 
 static int
-nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
-		 struct inode *new_dir, struct qstr *new_name)
-{
-	struct nfs_renameargs	arg = {
-		.old_dir	= NFS_FH(old_dir),
-		.old_name	= old_name,
-		.new_dir	= NFS_FH(new_dir),
-		.new_name	= new_name,
-	};
-	struct nfs_renameres res;
-	struct rpc_message msg = {
-		.rpc_proc	= &nfs3_procedures[NFS3PROC_RENAME],
-		.rpc_argp	= &arg,
-		.rpc_resp	= &res,
-	};
-	int status = -ENOMEM;
-
-	dprintk("NFS call  rename %s -> %s\n", old_name->name, new_name->name);
-
-	res.old_fattr = nfs_alloc_fattr();
-	res.new_fattr = nfs_alloc_fattr();
-	if (res.old_fattr == NULL || res.new_fattr == NULL)
-		goto out;
-
-	status = rpc_call_sync(NFS_CLIENT(old_dir), &msg, 0);
-	nfs_post_op_update_inode(old_dir, res.old_fattr);
-	nfs_post_op_update_inode(new_dir, res.new_fattr);
-out:
-	nfs_free_fattr(res.old_fattr);
-	nfs_free_fattr(res.new_fattr);
-	dprintk("NFS reply rename: %d\n", status);
-	return status;
-}
-
-static int
 nfs3_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 {
 	struct nfs3_linkargs	arg = {
@@ -967,7 +933,6 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.unlink_setup	= nfs3_proc_unlink_setup,
 	.unlink_rpc_prepare = nfs3_proc_unlink_rpc_prepare,
 	.unlink_done	= nfs3_proc_unlink_done,
-	.rename		= nfs3_proc_rename,
 	.rename_setup	= nfs3_proc_rename_setup,
 	.rename_rpc_prepare = nfs3_proc_rename_rpc_prepare,
 	.rename_done	= nfs3_proc_rename_done,

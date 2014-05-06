@@ -437,12 +437,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 
 	clk_register_clkdev(clk[gpt_ipg], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[cko1_sel], "cko1_sel", NULL);
-	clk_register_clkdev(clk[ahb], "ahb", NULL);
-	clk_register_clkdev(clk[cko1], "cko1", NULL);
-	clk_register_clkdev(clk[arm], NULL, "cpu0");
-	clk_register_clkdev(clk[pll4_post_div], "pll4_post_div", NULL);
-	clk_register_clkdev(clk[pll4_audio], "pll4_audio", NULL);
+	clk_register_clkdev(clk[enet_ref], "enet_ref", NULL);
 
 	if ((imx_get_soc_revision() != IMX_CHIP_REVISION_1_0) ||
 	    cpu_is_imx6dl()) {
@@ -481,6 +476,9 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	/* All existing boards with PCIe use LVDS1 */
 	if (IS_ENABLED(CONFIG_PCI_IMX6))
 		clk_set_parent(clk[lvds1_sel], clk[sata_ref]);
+
+	/* Set initial power mode */
+	imx6q_set_lpm(WAIT_CLOCKED);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt");
 	base = of_iomap(np, 0);

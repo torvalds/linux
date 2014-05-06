@@ -225,14 +225,8 @@ static void gr_dfs_create(struct gr_udc *dev)
 	const char *name = "gr_udc_state";
 
 	dev->dfs_root = debugfs_create_dir(dev_name(dev->dev), NULL);
-	if (IS_ERR(dev->dfs_root)) {
-		dev_err(dev->dev, "Failed to create debugfs directory\n");
-		return;
-	}
-	dev->dfs_state = debugfs_create_file(name, 0444, dev->dfs_root,
-					     dev, &gr_dfs_fops);
-	if (IS_ERR(dev->dfs_state))
-		dev_err(dev->dev, "Failed to create debugfs file %s\n", name);
+	dev->dfs_state = debugfs_create_file(name, 0444, dev->dfs_root, dev,
+					     &gr_dfs_fops);
 }
 
 static void gr_dfs_delete(struct gr_udc *dev)

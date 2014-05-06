@@ -49,6 +49,7 @@
 #include <linux/pid.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/vmacache.h>
 #include <linux/rcupdate.h>
 
 #include <asm/cacheflush.h>
@@ -224,10 +225,17 @@ static void kgdb_flush_swbreak_addr(unsigned long addr)
 	if (!CACHE_FLUSH_IS_SAFE)
 		return;
 
-	if (current->mm && current->mm->mmap_cache) {
-		flush_cache_range(current->mm->mmap_cache,
-				  addr, addr + BREAK_INSTR_SIZE);
+	if (current->mm) {
+		int i;
+
+		for (i = 0; i < VMACACHE_SIZE; i++) {
+			if (!current->vmacache[i])
+				continue;
+			flush_cache_range(current->vmacache[i],
+					  addr, addr + BREAK_INSTR_SIZE);
+		}
 	}
+
 	/* Force flush instruction cache if it was outside the mm */
 	flush_icache_range(addr, addr + BREAK_INSTR_SIZE);
 }
@@ -1035,7 +1043,7 @@ int dbg_io_get_char(void)
  * otherwise as a quick means to stop program execution and "break" into
  * the debugger.
  */
-void kgdb_breakpoint(void)
+noinline void kgdb_breakpoint(void)
 {
 	atomic_inc(&kgdb_setting_breakpoint);
 	wmb(); /* Sync point before breakpoint */

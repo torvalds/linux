@@ -19,13 +19,26 @@ void mct_init(void __iomem *base, int irq_g0, int irq_l0, int irq_l1);
 
 struct map_desc;
 void exynos_init_io(void);
-void exynos4_restart(enum reboot_mode mode, const char *cmd);
-void exynos5_restart(enum reboot_mode mode, const char *cmd);
+void exynos_restart(enum reboot_mode mode, const char *cmd);
 void exynos_cpuidle_init(void);
 void exynos_cpufreq_init(void);
 void exynos_init_late(void);
 
 void exynos_firmware_init(void);
+
+#ifdef CONFIG_PINCTRL_EXYNOS
+extern u32 exynos_get_eint_wake_mask(void);
+#else
+static inline u32 exynos_get_eint_wake_mask(void) { return 0xffffffff; }
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+extern void __init exynos_pm_init(void);
+#else
+static inline void exynos_pm_init(void) {}
+#endif
+
+extern void exynos_cpu_resume(void);
 
 extern struct smp_operations exynos_smp_ops;
 

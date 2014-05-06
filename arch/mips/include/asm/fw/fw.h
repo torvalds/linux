@@ -38,7 +38,7 @@ extern int *_fw_envp;
 
 extern void fw_init_cmdline(void);
 extern char *fw_getcmdline(void);
-extern fw_memblock_t *fw_getmdesc(void);
+extern fw_memblock_t *fw_getmdesc(int);
 extern void fw_meminit(void);
 extern char *fw_getenv(char *name);
 extern unsigned long fw_getenvl(char *name);

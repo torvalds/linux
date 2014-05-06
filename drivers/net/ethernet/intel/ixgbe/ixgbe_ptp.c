@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -492,6 +493,7 @@ static void ixgbe_ptp_tx_hwtstamp(struct ixgbe_adapter *adapter)
 
 	dev_kfree_skb_any(adapter->ptp_tx_skb);
 	adapter->ptp_tx_skb = NULL;
+	clear_bit_unlock(__IXGBE_PTP_TX_IN_PROGRESS, &adapter->state);
 }
 
 /**
@@ -511,13 +513,10 @@ static void ixgbe_ptp_tx_hwtstamp_work(struct work_struct *work)
 					      IXGBE_PTP_TX_TIMEOUT);
 	u32 tsynctxctl;
 
-	/* we have to have a valid skb */
-	if (!adapter->ptp_tx_skb)
-		return;
-
 	if (timeout) {
 		dev_kfree_skb_any(adapter->ptp_tx_skb);
 		adapter->ptp_tx_skb = NULL;
+		clear_bit_unlock(__IXGBE_PTP_TX_IN_PROGRESS, &adapter->state);
 		e_warn(drv, "clearing Tx Timestamp hang");
 		return;
 	}
@@ -576,14 +575,21 @@ void __ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
 	shhwtstamps->hwtstamp = ns_to_ktime(ns);
 }
 
+int ixgbe_ptp_get_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr)
+{
+	struct hwtstamp_config *config = &adapter->tstamp_config;
+
+	return copy_to_user(ifr->ifr_data, config,
+			    sizeof(*config)) ? -EFAULT : 0;
+}
+
 /**
- * ixgbe_ptp_hwtstamp_ioctl - control hardware time stamping
+ * ixgbe_ptp_set_ts_config - control hardware time stamping
  * @adapter: pointer to adapter struct
  * @ifreq: ioctl data
- * @cmd: particular ioctl requested
  *
  * Outgoing time stamping can be enabled and disabled. Play nice and
- * disable it when requested, although it shouldn't case any overhead
+ * disable it when requested, although it shouldn't cause any overhead
  * when no packet needs it. At most one packet in the queue may be
  * marked for time stamping, otherwise it would be impossible to tell
  * for sure to which packet the hardware time stamp belongs.
@@ -599,8 +605,7 @@ void __ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
  * Event mode. This more accurately tells the user what the hardware is going
  * to do anyways.
  */
-int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
-			     struct ifreq *ifr, int cmd)
+int ixgbe_ptp_set_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct hwtstamp_config config;
@@ -701,6 +706,10 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	/* clear TX/RX time stamp registers, just to be sure */
 	regval = IXGBE_READ_REG(hw, IXGBE_TXSTMPH);
 	regval = IXGBE_READ_REG(hw, IXGBE_RXSTMPH);
+
+	/* save these settings for future reference */
+	memcpy(&adapter->tstamp_config, &config,
+	       sizeof(adapter->tstamp_config));
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 		-EFAULT : 0;
@@ -809,6 +818,9 @@ void ixgbe_ptp_reset(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0x00000000);
 	IXGBE_WRITE_FLUSH(hw);
 
+	/* Reset the saved tstamp_config */
+	memset(&adapter->tstamp_config, 0, sizeof(adapter->tstamp_config));
+
 	ixgbe_ptp_start_cyclecounter(adapter);
 
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
@@ -840,7 +852,9 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_X540:
-		snprintf(adapter->ptp_caps.name, 16, "%s", netdev->name);
+		snprintf(adapter->ptp_caps.name,
+			 sizeof(adapter->ptp_caps.name),
+			 "%s", netdev->name);
 		adapter->ptp_caps.owner = THIS_MODULE;
 		adapter->ptp_caps.max_adj = 250000000;
 		adapter->ptp_caps.n_alarm = 0;
@@ -854,7 +868,9 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 		adapter->ptp_caps.enable = ixgbe_ptp_enable;
 		break;
 	case ixgbe_mac_82599EB:
-		snprintf(adapter->ptp_caps.name, 16, "%s", netdev->name);
+		snprintf(adapter->ptp_caps.name,
+			 sizeof(adapter->ptp_caps.name),
+			 "%s", netdev->name);
 		adapter->ptp_caps.owner = THIS_MODULE;
 		adapter->ptp_caps.max_adj = 250000000;
 		adapter->ptp_caps.n_alarm = 0;
@@ -911,6 +927,7 @@ void ixgbe_ptp_stop(struct ixgbe_adapter *adapter)
 	if (adapter->ptp_tx_skb) {
 		dev_kfree_skb_any(adapter->ptp_tx_skb);
 		adapter->ptp_tx_skb = NULL;
+		clear_bit_unlock(__IXGBE_PTP_TX_IN_PROGRESS, &adapter->state);
 	}
 
 	if (adapter->ptp_clock) {

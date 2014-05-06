@@ -114,6 +114,14 @@ void bio_integrity_free(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_integrity_free);
 
+static inline unsigned int bip_integrity_vecs(struct bio_integrity_payload *bip)
+{
+	if (bip->bip_slab == BIO_POOL_NONE)
+		return BIP_INLINE_VECS;
+
+	return bvec_nr_vecs(bip->bip_slab);
+}
+
 /**
  * bio_integrity_add_page - Attach integrity metadata
  * @bio:	bio to update
@@ -129,7 +137,7 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 	struct bio_integrity_payload *bip = bio->bi_integrity;
 	struct bio_vec *iv;
 
-	if (bip->bip_vcnt >= bvec_nr_vecs(bip->bip_slab)) {
+	if (bip->bip_vcnt >= bip_integrity_vecs(bip)) {
 		printk(KERN_ERR "%s: bip_vec full\n", __func__);
 		return 0;
 	}
@@ -174,6 +182,9 @@ static int bdev_integrity_enabled(struct block_device *bdev, int rw)
  */
 int bio_integrity_enabled(struct bio *bio)
 {
+	if (!bio_is_rw(bio))
+		return 0;
+
 	/* Already protected? */
 	if (bio_integrity(bio))
 		return 0;
@@ -226,7 +237,8 @@ unsigned int bio_integrity_tag_size(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_integrity_tag_size);
 
-int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len, int set)
+static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
+			     int set)
 {
 	struct bio_integrity_payload *bip = bio->bi_integrity;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
@@ -292,6 +304,54 @@ int bio_integrity_get_tag(struct bio *bio, void *tag_buf, unsigned int len)
 EXPORT_SYMBOL(bio_integrity_get_tag);
 
 /**
+ * bio_integrity_generate_verify - Generate/verify integrity metadata for a bio
+ * @bio:	bio to generate/verify integrity metadata for
+ * @operate:	operate number, 1 for generate, 0 for verify
+ */
+static int bio_integrity_generate_verify(struct bio *bio, int operate)
+{
+	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
+	struct blk_integrity_exchg bix;
+	struct bio_vec *bv;
+	sector_t sector;
+	unsigned int sectors, ret = 0, i;
+	void *prot_buf = bio->bi_integrity->bip_buf;
+
+	if (operate)
+		sector = bio->bi_iter.bi_sector;
+	else
+		sector = bio->bi_integrity->bip_iter.bi_sector;
+
+	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
+	bix.sector_size = bi->sector_size;
+
+	bio_for_each_segment_all(bv, bio, i) {
+		void *kaddr = kmap_atomic(bv->bv_page);
+		bix.data_buf = kaddr + bv->bv_offset;
+		bix.data_size = bv->bv_len;
+		bix.prot_buf = prot_buf;
+		bix.sector = sector;
+
+		if (operate)
+			bi->generate_fn(&bix);
+		else {
+			ret = bi->verify_fn(&bix);
+			if (ret) {
+				kunmap_atomic(kaddr);
+				return ret;
+			}
+		}
+
+		sectors = bv->bv_len / bi->sector_size;
+		sector += sectors;
+		prot_buf += sectors * bi->tuple_size;
+
+		kunmap_atomic(kaddr);
+	}
+	return ret;
+}
+
+/**
  * bio_integrity_generate - Generate integrity metadata for a bio
  * @bio:	bio to generate integrity metadata for
  *
@@ -302,35 +362,7 @@ EXPORT_SYMBOL(bio_integrity_get_tag);
  */
 static void bio_integrity_generate(struct bio *bio)
 {
-	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-	struct blk_integrity_exchg bix;
-	struct bio_vec bv;
-	struct bvec_iter iter;
-	sector_t sector = bio->bi_iter.bi_sector;
-	unsigned int sectors, total;
-	void *prot_buf = bio->bi_integrity->bip_buf;
-
-	total = 0;
-	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
-	bix.sector_size = bi->sector_size;
-
-	bio_for_each_segment(bv, bio, iter) {
-		void *kaddr = kmap_atomic(bv.bv_page);
-		bix.data_buf = kaddr + bv.bv_offset;
-		bix.data_size = bv.bv_len;
-		bix.prot_buf = prot_buf;
-		bix.sector = sector;
-
-		bi->generate_fn(&bix);
-
-		sectors = bv.bv_len / bi->sector_size;
-		sector += sectors;
-		prot_buf += sectors * bi->tuple_size;
-		total += sectors * bi->tuple_size;
-		BUG_ON(total > bio->bi_integrity->bip_iter.bi_size);
-
-		kunmap_atomic(kaddr);
-	}
+	bio_integrity_generate_verify(bio, 1);
 }
 
 static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
@@ -445,43 +477,7 @@ EXPORT_SYMBOL(bio_integrity_prep);
  */
 static int bio_integrity_verify(struct bio *bio)
 {
-	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-	struct blk_integrity_exchg bix;
-	struct bio_vec *bv;
-	sector_t sector = bio->bi_integrity->bip_iter.bi_sector;
-	unsigned int sectors, total, ret;
-	void *prot_buf = bio->bi_integrity->bip_buf;
-	int i;
-
-	ret = total = 0;
-	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
-	bix.sector_size = bi->sector_size;
-
-	bio_for_each_segment_all(bv, bio, i) {
-		void *kaddr = kmap_atomic(bv->bv_page);
-
-		bix.data_buf = kaddr + bv->bv_offset;
-		bix.data_size = bv->bv_len;
-		bix.prot_buf = prot_buf;
-		bix.sector = sector;
-
-		ret = bi->verify_fn(&bix);
-
-		if (ret) {
-			kunmap_atomic(kaddr);
-			return ret;
-		}
-
-		sectors = bv->bv_len / bi->sector_size;
-		sector += sectors;
-		prot_buf += sectors * bi->tuple_size;
-		total += sectors * bi->tuple_size;
-		BUG_ON(total > bio->bi_integrity->bip_iter.bi_size);
-
-		kunmap_atomic(kaddr);
-	}
-
-	return ret;
+	return bio_integrity_generate_verify(bio, 0);
 }
 
 /**

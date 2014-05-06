@@ -671,7 +671,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
 
   <sect1 id="routines-local-irqs">
    <title><function>local_irq_save()</function>/<function>local_irq_restore()</function>
-    <filename class="headerfile">include/asm/system.h</filename>
+    <filename class="headerfile">include/linux/irqflags.h</filename>
    </title>
 
    <para>
@@ -849,16 +849,6 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
     <returnvalue>0</returnvalue> when this expression is true, or
     <returnvalue>-ERESTARTSYS</returnvalue> if a signal is received.
     The <function>wait_event()</function> version ignores signals.
-   </para>
-   <para>
-   Do not use the <function>sleep_on()</function> function family -
-   it is very easy to accidentally introduce races; almost certainly
-   one of the <function>wait_event()</function> family will do, or a
-   loop around <function>schedule_timeout()</function>. If you choose
-   to loop around <function>schedule_timeout()</function> remember
-   you must set the task state (with 
-   <function>set_current_state()</function>) on each iteration to avoid
-   busy-looping.
    </para>
  
   </sect1>

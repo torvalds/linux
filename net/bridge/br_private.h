@@ -46,12 +46,12 @@ typedef __u16 port_id;
 struct bridge_id
 {
 	unsigned char	prio[2];
-	unsigned char	addr[6];
+	unsigned char	addr[ETH_ALEN];
 };
 
 struct mac_addr
 {
-	unsigned char	addr[6];
+	unsigned char	addr[ETH_ALEN];
 };
 
 struct br_ip
@@ -104,6 +104,7 @@ struct net_bridge_fdb_entry
 	mac_addr			addr;
 	unsigned char			is_local;
 	unsigned char			is_static;
+	unsigned char			added_by_user;
 	__u16				vlan_id;
 };
 
@@ -348,7 +349,7 @@ static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 		netpoll_send_skb(np, skb);
 }
 
-int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp);
+int br_netpoll_enable(struct net_bridge_port *p);
 void br_netpoll_disable(struct net_bridge_port *p);
 #else
 static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
@@ -356,7 +357,7 @@ static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 {
 }
 
-static inline int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
+static inline int br_netpoll_enable(struct net_bridge_port *p)
 {
 	return 0;
 }
@@ -370,6 +371,9 @@ static inline void br_netpoll_disable(struct net_bridge_port *p)
 int br_fdb_init(void);
 void br_fdb_fini(void);
 void br_fdb_flush(struct net_bridge *br);
+void br_fdb_find_delete_local(struct net_bridge *br,
+			      const struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid);
 void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr);
 void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr);
 void br_fdb_cleanup(unsigned long arg);
@@ -383,8 +387,7 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf, unsigned long count,
 int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		  const unsigned char *addr, u16 vid);
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
-		   const unsigned char *addr, u16 vid);
-int fdb_delete_by_addr(struct net_bridge *br, const u8 *addr, u16 vid);
+		   const unsigned char *addr, u16 vid, bool added_by_user);
 
 int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		  struct net_device *dev, const unsigned char *addr);
@@ -584,6 +587,7 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags);
 int br_vlan_delete(struct net_bridge *br, u16 vid);
 void br_vlan_flush(struct net_bridge *br);
+bool br_vlan_find(struct net_bridge *br, u16 vid);
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
 int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
@@ -663,6 +667,11 @@ static inline int br_vlan_delete(struct net_bridge *br, u16 vid)
 
 static inline void br_vlan_flush(struct net_bridge *br)
 {
+}
+
+static inline bool br_vlan_find(struct net_bridge *br, u16 vid)
+{
+	return false;
 }
 
 static inline int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)

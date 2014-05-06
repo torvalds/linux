@@ -89,6 +89,9 @@ static DECLARE_WAIT_QUEUE_HEAD(mce_chrdev_wait);
 static DEFINE_PER_CPU(struct mce, mces_seen);
 static int			cpu_missing;
 
+/* CMCI storm detection filter */
+static DEFINE_PER_CPU(unsigned long, mce_polled_error);
+
 /*
  * MCA banks polled by the period polling timer for corrected events.
  * With Intel CMCI, this only has MCA banks which do not support CMCI (if any).
@@ -595,6 +598,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
 	struct mce m;
 	int i;
+	unsigned long *v;
 
 	this_cpu_inc(mce_poll_count);
 
@@ -614,6 +618,8 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		if (!(m.status & MCI_STATUS_VAL))
 			continue;
 
+		v = &get_cpu_var(mce_polled_error);
+		set_bit(0, v);
 		/*
 		 * Uncorrected or signalled events are handled by the exception
 		 * handler when it is enabled, so don't process those here.
@@ -1278,10 +1284,18 @@ static unsigned long mce_adjust_timer_default(unsigned long interval)
 static unsigned long (*mce_adjust_timer)(unsigned long interval) =
 	mce_adjust_timer_default;
 
+static int cmc_error_seen(void)
+{
+	unsigned long *v = &__get_cpu_var(mce_polled_error);
+
+	return test_and_clear_bit(0, v);
+}
+
 static void mce_timer_fn(unsigned long data)
 {
 	struct timer_list *t = &__get_cpu_var(mce_timer);
 	unsigned long iv;
+	int notify;
 
 	WARN_ON(smp_processor_id() != data);
 
@@ -1296,7 +1310,9 @@ static void mce_timer_fn(unsigned long data)
 	 * polling interval, otherwise increase the polling interval.
 	 */
 	iv = __this_cpu_read(mce_next_interval);
-	if (mce_notify_irq()) {
+	notify = mce_notify_irq();
+	notify |= cmc_error_seen();
+	if (notify) {
 		iv = max(iv / 2, (unsigned long) HZ/100);
 	} else {
 		iv = min(iv * 2, round_jiffies_relative(check_interval * HZ));
@@ -2434,14 +2450,18 @@ static __init int mcheck_init_device(void)
 	if (err)
 		return err;
 
+	cpu_notifier_register_begin();
 	for_each_online_cpu(i) {
 		err = mce_device_create(i);
-		if (err)
+		if (err) {
+			cpu_notifier_register_done();
 			return err;
+		}
 	}
 
 	register_syscore_ops(&mce_syscore_ops);
-	register_hotcpu_notifier(&mce_cpu_notifier);
+	__register_hotcpu_notifier(&mce_cpu_notifier);
+	cpu_notifier_register_done();
 
 	/* register character device /dev/mcelog */
 	misc_register(&mce_chrdev_device);

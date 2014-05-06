@@ -107,7 +107,6 @@ struct pxa3xx_gcu_priv {
 	struct timeval 		  base_time;
 
 	struct pxa3xx_gcu_batch *free;
-
 	struct pxa3xx_gcu_batch *ready;
 	struct pxa3xx_gcu_batch *ready_last;
 	struct pxa3xx_gcu_batch *running;
@@ -368,27 +367,35 @@ pxa3xx_gcu_wait_free(struct pxa3xx_gcu_priv *priv)
 
 /* Misc device layer */
 
-static inline struct pxa3xx_gcu_priv *file_dev(struct file *file)
+static inline struct pxa3xx_gcu_priv *to_pxa3xx_gcu_priv(struct file *file)
 {
 	struct miscdevice *dev = file->private_data;
 	return container_of(dev, struct pxa3xx_gcu_priv, misc_dev);
 }
 
+/*
+ * provide an empty .open callback, so the core sets file->private_data
+ * for us.
+ */
+static int pxa3xx_gcu_open(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
 static ssize_t
-pxa3xx_gcu_misc_write(struct file *file, const char *buff,
-		      size_t count, loff_t *offp)
+pxa3xx_gcu_write(struct file *file, const char *buff,
+		 size_t count, loff_t *offp)
 {
 	int ret;
 	unsigned long flags;
 	struct pxa3xx_gcu_batch	*buffer;
-	struct pxa3xx_gcu_priv *priv = file_dev(file);
+	struct pxa3xx_gcu_priv *priv = to_pxa3xx_gcu_priv(file);
 
 	int words = count / 4;
 
 	/* Does not need to be atomic. There's a lock in user space,
 	 * but anyhow, this is just for statistics. */
 	priv->shared->num_writes++;
-
 	priv->shared->num_words += words;
 
 	/* Last word reserved for batch buffer end command */
@@ -406,10 +413,8 @@ pxa3xx_gcu_misc_write(struct file *file, const char *buff,
 	 * Get buffer from free list
 	 */
 	spin_lock_irqsave(&priv->spinlock, flags);
-
 	buffer = priv->free;
 	priv->free = buffer->next;
-
 	spin_unlock_irqrestore(&priv->spinlock, flags);
 
 
@@ -454,10 +459,10 @@ pxa3xx_gcu_misc_write(struct file *file, const char *buff,
 
 
 static long
-pxa3xx_gcu_misc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+pxa3xx_gcu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
-	struct pxa3xx_gcu_priv *priv = file_dev(file);
+	struct pxa3xx_gcu_priv *priv = to_pxa3xx_gcu_priv(file);
 
 	switch (cmd) {
 	case PXA3XX_GCU_IOCTL_RESET:
@@ -474,10 +479,10 @@ pxa3xx_gcu_misc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static int
-pxa3xx_gcu_misc_mmap(struct file *file, struct vm_area_struct *vma)
+pxa3xx_gcu_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned int size = vma->vm_end - vma->vm_start;
-	struct pxa3xx_gcu_priv *priv = file_dev(file);
+	struct pxa3xx_gcu_priv *priv = to_pxa3xx_gcu_priv(file);
 
 	switch (vma->vm_pgoff) {
 	case 0:
@@ -532,8 +537,8 @@ static inline void pxa3xx_gcu_init_debug_timer(void) {}
 #endif
 
 static int
-add_buffer(struct platform_device *dev,
-	   struct pxa3xx_gcu_priv *priv)
+pxa3xx_gcu_add_buffer(struct device *dev,
+		      struct pxa3xx_gcu_priv *priv)
 {
 	struct pxa3xx_gcu_batch *buffer;
 
@@ -541,7 +546,7 @@ add_buffer(struct platform_device *dev,
 	if (!buffer)
 		return -ENOMEM;
 
-	buffer->ptr = dma_alloc_coherent(&dev->dev, PXA3XX_GCU_BATCH_WORDS * 4,
+	buffer->ptr = dma_alloc_coherent(dev, PXA3XX_GCU_BATCH_WORDS * 4,
 					 &buffer->phys, GFP_KERNEL);
 	if (!buffer->ptr) {
 		kfree(buffer);
@@ -549,56 +554,48 @@ add_buffer(struct platform_device *dev,
 	}
 
 	buffer->next = priv->free;
-
 	priv->free = buffer;
 
 	return 0;
 }
 
 static void
-free_buffers(struct platform_device *dev,
-	     struct pxa3xx_gcu_priv *priv)
+pxa3xx_gcu_free_buffers(struct device *dev,
+			struct pxa3xx_gcu_priv *priv)
 {
 	struct pxa3xx_gcu_batch *next, *buffer = priv->free;
 
 	while (buffer) {
 		next = buffer->next;
 
-		dma_free_coherent(&dev->dev, PXA3XX_GCU_BATCH_WORDS * 4,
+		dma_free_coherent(dev, PXA3XX_GCU_BATCH_WORDS * 4,
 				  buffer->ptr, buffer->phys);
 
 		kfree(buffer);
-
 		buffer = next;
 	}
 
 	priv->free = NULL;
 }
 
-static const struct file_operations misc_fops = {
-	.owner	= THIS_MODULE,
-	.write	= pxa3xx_gcu_misc_write,
-	.unlocked_ioctl = pxa3xx_gcu_misc_ioctl,
-	.mmap	= pxa3xx_gcu_misc_mmap
+static const struct file_operations pxa3xx_gcu_miscdev_fops = {
+	.owner =		THIS_MODULE,
+	.open =			pxa3xx_gcu_open,
+	.write =		pxa3xx_gcu_write,
+	.unlocked_ioctl =	pxa3xx_gcu_ioctl,
+	.mmap =			pxa3xx_gcu_mmap,
 };
 
-static int pxa3xx_gcu_probe(struct platform_device *dev)
+static int pxa3xx_gcu_probe(struct platform_device *pdev)
 {
 	int i, ret, irq;
 	struct resource *r;
 	struct pxa3xx_gcu_priv *priv;
+	struct device *dev = &pdev->dev;
 
-	priv = kzalloc(sizeof(struct pxa3xx_gcu_priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(struct pxa3xx_gcu_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	for (i = 0; i < 8; i++) {
-		ret = add_buffer(dev, priv);
-		if (ret) {
-			dev_err(&dev->dev, "failed to allocate DMA memory\n");
-			goto err_free_priv;
-		}
-	}
 
 	init_waitqueue_head(&priv->wait_idle);
 	init_waitqueue_head(&priv->wait_free);
@@ -611,125 +608,99 @@ static int pxa3xx_gcu_probe(struct platform_device *dev)
 
 	priv->misc_dev.minor	= MISCDEV_MINOR,
 	priv->misc_dev.name	= DRV_NAME,
-	priv->misc_dev.fops	= &misc_fops,
+	priv->misc_dev.fops	= &pxa3xx_gcu_miscdev_fops;
+
+	/* handle IO resources */
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->mmio_base = devm_request_and_ioremap(dev, r);
+	if (IS_ERR(priv->mmio_base)) {
+		dev_err(dev, "failed to map I/O memory\n");
+		return PTR_ERR(priv->mmio_base);
+	}
+
+	/* enable the clock */
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "failed to get clock\n");
+		return PTR_ERR(priv->clk);
+	}
+
+	/* request the IRQ */
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(dev, "no IRQ defined\n");
+		return -ENODEV;
+	}
+
+	ret = devm_request_irq(dev, irq, pxa3xx_gcu_handle_irq,
+			       0, DRV_NAME, priv);
+	if (ret < 0) {
+		dev_err(dev, "request_irq failed\n");
+		return ret;
+	}
+
+	/* allocate dma memory */
+	priv->shared = dma_alloc_coherent(dev, SHARED_SIZE,
+					  &priv->shared_phys, GFP_KERNEL);
+	if (!priv->shared) {
+		dev_err(dev, "failed to allocate DMA memory\n");
+		return -ENOMEM;
+	}
 
 	/* register misc device */
 	ret = misc_register(&priv->misc_dev);
 	if (ret < 0) {
-		dev_err(&dev->dev, "misc_register() for minor %d failed\n",
+		dev_err(dev, "misc_register() for minor %d failed\n",
 			MISCDEV_MINOR);
-		goto err_free_priv;
-	}
-
-	/* handle IO resources */
-	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		dev_err(&dev->dev, "no I/O memory resource defined\n");
-		ret = -ENODEV;
-		goto err_misc_deregister;
-	}
-
-	if (!request_mem_region(r->start, resource_size(r), dev->name)) {
-		dev_err(&dev->dev, "failed to request I/O memory\n");
-		ret = -EBUSY;
-		goto err_misc_deregister;
-	}
-
-	priv->mmio_base = ioremap_nocache(r->start, resource_size(r));
-	if (!priv->mmio_base) {
-		dev_err(&dev->dev, "failed to map I/O memory\n");
-		ret = -EBUSY;
-		goto err_free_mem_region;
-	}
-
-	/* allocate dma memory */
-	priv->shared = dma_alloc_coherent(&dev->dev, SHARED_SIZE,
-					  &priv->shared_phys, GFP_KERNEL);
-
-	if (!priv->shared) {
-		dev_err(&dev->dev, "failed to allocate DMA memory\n");
-		ret = -ENOMEM;
-		goto err_free_io;
-	}
-
-	/* enable the clock */
-	priv->clk = clk_get(&dev->dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(&dev->dev, "failed to get clock\n");
-		ret = -ENODEV;
 		goto err_free_dma;
 	}
 
 	ret = clk_enable(priv->clk);
 	if (ret < 0) {
-		dev_err(&dev->dev, "failed to enable clock\n");
-		goto err_put_clk;
+		dev_err(dev, "failed to enable clock\n");
+		goto err_misc_deregister;
 	}
 
-	/* request the IRQ */
-	irq = platform_get_irq(dev, 0);
-	if (irq < 0) {
-		dev_err(&dev->dev, "no IRQ defined\n");
-		ret = -ENODEV;
-		goto err_put_clk;
+	for (i = 0; i < 8; i++) {
+		ret = pxa3xx_gcu_add_buffer(dev, priv);
+		if (ret) {
+			dev_err(dev, "failed to allocate DMA memory\n");
+			goto err_disable_clk;
+		}
 	}
 
-	ret = request_irq(irq, pxa3xx_gcu_handle_irq,
-			  0, DRV_NAME, priv);
-	if (ret) {
-		dev_err(&dev->dev, "request_irq failed\n");
-		ret = -EBUSY;
-		goto err_put_clk;
-	}
-
-	platform_set_drvdata(dev, priv);
+	platform_set_drvdata(pdev, priv);
 	priv->resource_mem = r;
 	pxa3xx_gcu_reset(priv);
 	pxa3xx_gcu_init_debug_timer();
 
-	dev_info(&dev->dev, "registered @0x%p, DMA 0x%p (%d bytes), IRQ %d\n",
+	dev_info(dev, "registered @0x%p, DMA 0x%p (%d bytes), IRQ %d\n",
 			(void *) r->start, (void *) priv->shared_phys,
 			SHARED_SIZE, irq);
 	return 0;
 
-err_put_clk:
-	clk_disable(priv->clk);
-	clk_put(priv->clk);
-
 err_free_dma:
-	dma_free_coherent(&dev->dev, SHARED_SIZE,
+	dma_free_coherent(dev, SHARED_SIZE,
 			priv->shared, priv->shared_phys);
-
-err_free_io:
-	iounmap(priv->mmio_base);
-
-err_free_mem_region:
-	release_mem_region(r->start, resource_size(r));
 
 err_misc_deregister:
 	misc_deregister(&priv->misc_dev);
 
-err_free_priv:
-	free_buffers(dev, priv);
-	kfree(priv);
+err_disable_clk:
+	clk_disable(priv->clk);
+
 	return ret;
 }
 
-static int pxa3xx_gcu_remove(struct platform_device *dev)
+static int pxa3xx_gcu_remove(struct platform_device *pdev)
 {
-	struct pxa3xx_gcu_priv *priv = platform_get_drvdata(dev);
-	struct resource *r = priv->resource_mem;
+	struct pxa3xx_gcu_priv *priv = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
 
 	pxa3xx_gcu_wait_idle(priv);
-
 	misc_deregister(&priv->misc_dev);
-	dma_free_coherent(&dev->dev, SHARED_SIZE,
-			priv->shared, priv->shared_phys);
-	iounmap(priv->mmio_base);
-	release_mem_region(r->start, resource_size(r));
-	clk_disable(priv->clk);
-	free_buffers(dev, priv);
-	kfree(priv);
+	dma_free_coherent(dev, SHARED_SIZE, priv->shared, priv->shared_phys);
+	pxa3xx_gcu_free_buffers(dev, priv);
 
 	return 0;
 }

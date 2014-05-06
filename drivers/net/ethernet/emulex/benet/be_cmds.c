@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -202,8 +202,12 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 	/* When link status changes, link speed must be re-queried from FW */
 	adapter->phy.link_speed = -1;
 
-	/* Ignore physical link event */
-	if (lancer_chip(adapter) &&
+	/* On BEx the FW does not send a separate link status
+	 * notification for physical and logical link.
+	 * On other chips just process the logical link
+	 * status notification
+	 */
+	if (!BEx_chip(adapter) &&
 	    !(evt->port_link_status & LOGICAL_LINK_STATUS_MASK))
 		return;
 
@@ -211,7 +215,8 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 	 * it may not be received in some cases.
 	 */
 	if (adapter->flags & BE_FLAGS_LINK_STATUS_INIT)
-		be_link_status_update(adapter, evt->port_link_status);
+		be_link_status_update(adapter,
+				      evt->port_link_status & LINK_STATUS_MASK);
 }
 
 /* Grp5 CoS Priority evt */
@@ -239,10 +244,12 @@ static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
 static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
 		struct be_async_event_grp5_pvid_state *evt)
 {
-	if (evt->enabled)
+	if (evt->enabled) {
 		adapter->pvid = le16_to_cpu(evt->tag) & VLAN_VID_MASK;
-	else
+		dev_info(&adapter->pdev->dev, "LPVID: %d\n", adapter->pvid);
+	} else {
 		adapter->pvid = 0;
+	}
 }
 
 static void be_async_grp5_evt_process(struct be_adapter *adapter,
@@ -3296,6 +3303,21 @@ static struct be_pcie_res_desc *be_get_pcie_desc(u8 devfn, u8 *buf,
 	return NULL;
 }
 
+static struct be_port_res_desc *be_get_port_desc(u8 *buf, u32 desc_count)
+{
+	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
+	int i;
+
+	for (i = 0; i < desc_count; i++) {
+		if (hdr->desc_type == PORT_RESOURCE_DESC_TYPE_V1)
+			return (struct be_port_res_desc *)hdr;
+
+		hdr->desc_len = hdr->desc_len ? : RESOURCE_DESC_SIZE_V0;
+		hdr = (void *)hdr + hdr->desc_len;
+	}
+	return NULL;
+}
+
 static void be_copy_nic_desc(struct be_resources *res,
 			     struct be_nic_res_desc *desc)
 {
@@ -3439,6 +3461,7 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 {
 	struct be_cmd_resp_get_profile_config *resp;
 	struct be_pcie_res_desc *pcie;
+	struct be_port_res_desc *port;
 	struct be_nic_res_desc *nic;
 	struct be_queue_info *mccq = &adapter->mcc_obj.q;
 	struct be_dma_mem cmd;
@@ -3466,6 +3489,10 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	if (pcie)
 		res->max_vfs = le16_to_cpu(pcie->num_vfs);
 
+	port = be_get_port_desc(resp->func_param, desc_count);
+	if (port)
+		adapter->mc_type = port->mc_type;
+
 	nic = be_get_nic_desc(resp->func_param, desc_count);
 	if (nic)
 		be_copy_nic_desc(res, nic);
@@ -3476,14 +3503,11 @@ err:
 	return status;
 }
 
-/* Currently only Lancer uses this command and it supports version 0 only
- * Uses sync mcc
- */
-int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
-			      u8 domain)
+int be_cmd_set_profile_config(struct be_adapter *adapter, void *desc,
+			      int size, u8 version, u8 domain)
 {
-	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_set_profile_config *req;
+	struct be_mcc_wrb *wrb;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
@@ -3495,42 +3519,114 @@ int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 	}
 
 	req = embedded_payload(wrb);
-
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			       OPCODE_COMMON_SET_PROFILE_CONFIG, sizeof(*req),
 			       wrb, NULL);
+	req->hdr.version = version;
 	req->hdr.domain = domain;
 	req->desc_count = cpu_to_le32(1);
-	req->nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
-	req->nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V0;
-	req->nic_desc.flags = (1 << QUN) | (1 << IMM) | (1 << NOSV);
-	req->nic_desc.pf_num = adapter->pf_number;
-	req->nic_desc.vf_num = domain;
+	memcpy(req->desc, desc, size);
 
-	/* Mark fields invalid */
-	req->nic_desc.unicast_mac_count = 0xFFFF;
-	req->nic_desc.mcc_count = 0xFFFF;
-	req->nic_desc.vlan_count = 0xFFFF;
-	req->nic_desc.mcast_mac_count = 0xFFFF;
-	req->nic_desc.txq_count = 0xFFFF;
-	req->nic_desc.rq_count = 0xFFFF;
-	req->nic_desc.rssq_count = 0xFFFF;
-	req->nic_desc.lro_count = 0xFFFF;
-	req->nic_desc.cq_count = 0xFFFF;
-	req->nic_desc.toe_conn_count = 0xFFFF;
-	req->nic_desc.eq_count = 0xFFFF;
-	req->nic_desc.link_param = 0xFF;
-	req->nic_desc.bw_min = 0xFFFFFFFF;
-	req->nic_desc.acpi_params = 0xFF;
-	req->nic_desc.wol_param = 0x0F;
-
-	/* Change BW */
-	req->nic_desc.bw_min = cpu_to_le32(bps);
-	req->nic_desc.bw_max = cpu_to_le32(bps);
 	status = be_mcc_notify_wait(adapter);
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
+}
+
+/* Mark all fields invalid */
+void be_reset_nic_desc(struct be_nic_res_desc *nic)
+{
+	memset(nic, 0, sizeof(*nic));
+	nic->unicast_mac_count = 0xFFFF;
+	nic->mcc_count = 0xFFFF;
+	nic->vlan_count = 0xFFFF;
+	nic->mcast_mac_count = 0xFFFF;
+	nic->txq_count = 0xFFFF;
+	nic->rq_count = 0xFFFF;
+	nic->rssq_count = 0xFFFF;
+	nic->lro_count = 0xFFFF;
+	nic->cq_count = 0xFFFF;
+	nic->toe_conn_count = 0xFFFF;
+	nic->eq_count = 0xFFFF;
+	nic->link_param = 0xFF;
+	nic->acpi_params = 0xFF;
+	nic->wol_param = 0x0F;
+	nic->bw_min = 0xFFFFFFFF;
+	nic->bw_max = 0xFFFFFFFF;
+}
+
+int be_cmd_config_qos(struct be_adapter *adapter, u32 bps, u8 domain)
+{
+	if (lancer_chip(adapter)) {
+		struct be_nic_res_desc nic_desc;
+
+		be_reset_nic_desc(&nic_desc);
+		nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
+		nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V0;
+		nic_desc.flags = (1 << QUN_SHIFT) | (1 << IMM_SHIFT) |
+					(1 << NOSV_SHIFT);
+		nic_desc.pf_num = adapter->pf_number;
+		nic_desc.vf_num = domain;
+		nic_desc.bw_max = cpu_to_le32(bps);
+
+		return be_cmd_set_profile_config(adapter, &nic_desc,
+						 RESOURCE_DESC_SIZE_V0,
+						 0, domain);
+	} else {
+		return be_cmd_set_qos(adapter, bps, domain);
+	}
+}
+
+int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_manage_iface_filters *req;
+	int status;
+
+	if (iface == 0xFFFFFFFF)
+		return -1;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_MANAGE_IFACE_FILTERS, sizeof(*req),
+			       wrb, NULL);
+	req->op = op;
+	req->target_iface_id = cpu_to_le32(iface);
+
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+int be_cmd_set_vxlan_port(struct be_adapter *adapter, __be16 port)
+{
+	struct be_port_res_desc port_desc;
+
+	memset(&port_desc, 0, sizeof(port_desc));
+	port_desc.hdr.desc_type = PORT_RESOURCE_DESC_TYPE_V1;
+	port_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
+	port_desc.flags = (1 << IMM_SHIFT) | (1 << NOSV_SHIFT);
+	port_desc.link_num = adapter->hba_port_num;
+	if (port) {
+		port_desc.nv_flags = NV_TYPE_VXLAN | (1 << SOCVID_SHIFT) |
+					(1 << RCVID_SHIFT);
+		port_desc.nv_port = swab16(port);
+	} else {
+		port_desc.nv_flags = NV_TYPE_DISABLED;
+		port_desc.nv_port = 0;
+	}
+
+	return be_cmd_set_profile_config(adapter, &port_desc,
+					 RESOURCE_DESC_SIZE_V1, 1, 0);
 }
 
 int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
@@ -3720,6 +3816,45 @@ int be_cmd_get_active_profile(struct be_adapter *adapter, u16 *profile_id)
 
 err:
 	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+int be_cmd_set_logical_link_config(struct be_adapter *adapter,
+				   int link_state, u8 domain)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_ll_link *req;
+	int status;
+
+	if (BEx_chip(adapter) || lancer_chip(adapter))
+		return 0;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_SET_LOGICAL_LINK_CONFIG,
+			       sizeof(*req), wrb, NULL);
+
+	req->hdr.version = 1;
+	req->hdr.domain = domain;
+
+	if (link_state == IFLA_VF_LINK_STATE_ENABLE)
+		req->link_config |= 1;
+
+	if (link_state == IFLA_VF_LINK_STATE_AUTO)
+		req->link_config |= 1 << PLINK_TRACK_SHIFT;
+
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 

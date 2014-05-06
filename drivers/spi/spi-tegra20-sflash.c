@@ -22,7 +22,6 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -121,7 +120,6 @@ struct tegra_sflash_data {
 	struct reset_control			*rst;
 	void __iomem				*base;
 	unsigned				irq;
-	u32					spi_max_frequency;
 	u32					cur_speed;
 
 	struct spi_device			*cur_spi;
@@ -315,15 +313,6 @@ static int tegra_sflash_start_transfer_one(struct spi_device *spi,
 	return tegra_sflash_start_cpu_based_transfer(tsd, t);
 }
 
-static int tegra_sflash_setup(struct spi_device *spi)
-{
-	struct tegra_sflash_data *tsd = spi_master_get_devdata(spi->master);
-
-	/* Set speed to the spi max fequency if spi device has not set */
-	spi->max_speed_hz = spi->max_speed_hz ? : tsd->spi_max_frequency;
-	return 0;
-}
-
 static int tegra_sflash_transfer_one_message(struct spi_master *master,
 			struct spi_message *msg)
 {
@@ -430,15 +419,6 @@ static irqreturn_t tegra_sflash_isr(int irq, void *context_data)
 	return handle_cpu_based_xfer(tsd);
 }
 
-static void tegra_sflash_parse_dt(struct tegra_sflash_data *tsd)
-{
-	struct device_node *np = tsd->dev->of_node;
-
-	if (of_property_read_u32(np, "spi-max-frequency",
-					&tsd->spi_max_frequency))
-		tsd->spi_max_frequency = 25000000; /* 25MHz */
-}
-
 static struct of_device_id tegra_sflash_of_match[] = {
 	{ .compatible = "nvidia,tegra20-sflash", },
 	{}
@@ -467,11 +447,9 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
-	master->setup = tegra_sflash_setup;
 	master->transfer_one_message = tegra_sflash_transfer_one_message;
 	master->auto_runtime_pm = true;
 	master->num_chipselect = MAX_CHIP_SELECT;
-	master->bus_num = -1;
 
 	platform_set_drvdata(pdev, master);
 	tsd = spi_master_get_devdata(master);
@@ -479,7 +457,9 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	tsd->dev = &pdev->dev;
 	spin_lock_init(&tsd->lock);
 
-	tegra_sflash_parse_dt(tsd);
+	if (of_property_read_u32(tsd->dev->of_node, "spi-max-frequency",
+				 &master->max_speed_hz))
+		master->max_speed_hz = 25000000; /* 25MHz */
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tsd->base = devm_ioremap_resource(&pdev->dev, r);

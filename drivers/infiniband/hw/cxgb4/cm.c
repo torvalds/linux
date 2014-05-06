@@ -98,9 +98,9 @@ int c4iw_debug;
 module_param(c4iw_debug, int, 0644);
 MODULE_PARM_DESC(c4iw_debug, "Enable debug logging (default=0)");
 
-static int peer2peer;
+static int peer2peer = 1;
 module_param(peer2peer, int, 0644);
-MODULE_PARM_DESC(peer2peer, "Support peer2peer ULPs (default=0)");
+MODULE_PARM_DESC(peer2peer, "Support peer2peer ULPs (default=1)");
 
 static int p2p_type = FW_RI_INIT_P2PTYPE_READ_REQ;
 module_param(p2p_type, int, 0644);
@@ -400,7 +400,8 @@ static struct dst_entry *find_route(struct c4iw_dev *dev, __be32 local_ip,
 	n = dst_neigh_lookup(&rt->dst, &peer_ip);
 	if (!n)
 		return NULL;
-	if (!our_interface(dev, n->dev)) {
+	if (!our_interface(dev, n->dev) &&
+	    !(n->dev->flags & IFF_LOOPBACK)) {
 		dst_release(&rt->dst);
 		return NULL;
 	}
@@ -759,8 +760,9 @@ static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	ep->mpa_skb = skb;
 	c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 	start_ep_timer(ep);
-	state_set(&ep->com, MPA_REQ_SENT);
+	__state_set(&ep->com, MPA_REQ_SENT);
 	ep->mpa_attr.initiator = 1;
+	ep->snd_seq += mpalen;
 	return;
 }
 
@@ -840,6 +842,7 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	t4_set_arp_err_handler(skb, NULL, arp_failure_discard);
 	BUG_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
+	ep->snd_seq += mpalen;
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 
@@ -923,7 +926,8 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	skb_get(skb);
 	t4_set_arp_err_handler(skb, NULL, arp_failure_discard);
 	ep->mpa_skb = skb;
-	state_set(&ep->com, MPA_REP_SENT);
+	__state_set(&ep->com, MPA_REP_SENT);
+	ep->snd_seq += mpalen;
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 
@@ -940,6 +944,7 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 	PDBG("%s ep %p tid %u snd_isn %u rcv_isn %u\n", __func__, ep, tid,
 	     be32_to_cpu(req->snd_isn), be32_to_cpu(req->rcv_isn));
 
+	mutex_lock(&ep->com.mutex);
 	dst_confirm(ep->dst);
 
 	/* setup the hwtid for this connection */
@@ -963,17 +968,18 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 		send_mpa_req(ep, skb, 1);
 	else
 		send_mpa_req(ep, skb, mpa_rev);
-
+	mutex_unlock(&ep->com.mutex);
 	return 0;
 }
 
-static void close_complete_upcall(struct c4iw_ep *ep)
+static void close_complete_upcall(struct c4iw_ep *ep, int status)
 {
 	struct iw_cm_event event;
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CLOSE;
+	event.status = status;
 	if (ep->com.cm_id) {
 		PDBG("close complete delivered ep %p cm_id %p tid %u\n",
 		     ep, ep->com.cm_id, ep->hwtid);
@@ -987,7 +993,6 @@ static void close_complete_upcall(struct c4iw_ep *ep)
 static int abort_connection(struct c4iw_ep *ep, struct sk_buff *skb, gfp_t gfp)
 {
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	close_complete_upcall(ep);
 	state_set(&ep->com, ABORTING);
 	set_bit(ABORT_CONN, &ep->com.history);
 	return send_abort(ep, skb, gfp);
@@ -1066,9 +1071,10 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status)
 	}
 }
 
-static void connect_request_upcall(struct c4iw_ep *ep)
+static int connect_request_upcall(struct c4iw_ep *ep)
 {
 	struct iw_cm_event event;
+	int ret;
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	memset(&event, 0, sizeof(event));
@@ -1093,15 +1099,14 @@ static void connect_request_upcall(struct c4iw_ep *ep)
 		event.private_data_len = ep->plen;
 		event.private_data = ep->mpa_pkt + sizeof(struct mpa_message);
 	}
-	if (state_read(&ep->parent_ep->com) != DEAD) {
-		c4iw_get_ep(&ep->com);
-		ep->parent_ep->com.cm_id->event_handler(
-						ep->parent_ep->com.cm_id,
-						&event);
-	}
+	c4iw_get_ep(&ep->com);
+	ret = ep->parent_ep->com.cm_id->event_handler(ep->parent_ep->com.cm_id,
+						      &event);
+	if (ret)
+		c4iw_put_ep(&ep->com);
 	set_bit(CONNREQ_UPCALL, &ep->com.history);
 	c4iw_put_ep(&ep->parent_ep->com);
-	ep->parent_ep = NULL;
+	return ret;
 }
 
 static void established_upcall(struct c4iw_ep *ep)
@@ -1165,7 +1170,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * the connection.
 	 */
 	stop_ep_timer(ep);
-	if (state_read(&ep->com) != MPA_REQ_SENT)
+	if (ep->com.state != MPA_REQ_SENT)
 		return;
 
 	/*
@@ -1240,7 +1245,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * start reply message including private data. And
 	 * the MPA header is valid.
 	 */
-	state_set(&ep->com, FPDU_MODE);
+	__state_set(&ep->com, FPDU_MODE);
 	ep->mpa_attr.crc_enabled = (mpa->flags & MPA_CRC) | crc_enabled ? 1 : 0;
 	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
@@ -1355,7 +1360,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	}
 	goto out;
 err:
-	state_set(&ep->com, ABORTING);
+	__state_set(&ep->com, ABORTING);
 	send_abort(ep, skb, GFP_KERNEL);
 out:
 	connect_reply_upcall(ep, err);
@@ -1370,7 +1375,7 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
-	if (state_read(&ep->com) != MPA_REQ_WAIT)
+	if (ep->com.state != MPA_REQ_WAIT)
 		return;
 
 	/*
@@ -1400,7 +1405,6 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 		return;
 
 	PDBG("%s enter (%s line %u)\n", __func__, __FILE__, __LINE__);
-	stop_ep_timer(ep);
 	mpa = (struct mpa_message *) ep->mpa_pkt;
 
 	/*
@@ -1492,10 +1496,18 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	     ep->mpa_attr.xmit_marker_enabled, ep->mpa_attr.version,
 	     ep->mpa_attr.p2p_type);
 
-	state_set(&ep->com, MPA_REQ_RCVD);
+	__state_set(&ep->com, MPA_REQ_RCVD);
+	stop_ep_timer(ep);
 
 	/* drive upcall */
-	connect_request_upcall(ep);
+	mutex_lock(&ep->parent_ep->com.mutex);
+	if (ep->parent_ep->com.state != DEAD) {
+		if (connect_request_upcall(ep))
+			abort_connection(ep, skb, GFP_KERNEL);
+	} else {
+		abort_connection(ep, skb, GFP_KERNEL);
+	}
+	mutex_unlock(&ep->parent_ep->com.mutex);
 	return;
 }
 
@@ -1509,14 +1521,17 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	__u8 status = hdr->status;
 
 	ep = lookup_tid(t, tid);
+	if (!ep)
+		return 0;
 	PDBG("%s ep %p tid %u dlen %u\n", __func__, ep, ep->hwtid, dlen);
 	skb_pull(skb, sizeof(*hdr));
 	skb_trim(skb, dlen);
+	mutex_lock(&ep->com.mutex);
 
 	/* update RX credits */
 	update_rx_credits(ep, dlen);
 
-	switch (state_read(&ep->com)) {
+	switch (ep->com.state) {
 	case MPA_REQ_SENT:
 		ep->rcv_seq += dlen;
 		process_mpa_reply(ep, skb);
@@ -1532,7 +1547,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 			pr_err("%s Unexpected streaming data." \
 			       " qpid %u ep %p state %d tid %u status %d\n",
 			       __func__, ep->com.qp->wq.sq.qid, ep,
-			       state_read(&ep->com), ep->hwtid, status);
+			       ep->com.state, ep->hwtid, status);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
@@ -1541,6 +1556,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	default:
 		break;
 	}
+	mutex_unlock(&ep->com.mutex);
 	return 0;
 }
 
@@ -1645,6 +1661,15 @@ static inline int act_open_has_tid(int status)
 {
 	return status != CPL_ERR_TCAM_FULL && status != CPL_ERR_CONN_EXIST &&
 	       status != CPL_ERR_ARP_MISS;
+}
+
+/* Returns whether a CPL status conveys negative advice.
+ */
+static int is_neg_adv(unsigned int status)
+{
+	return status == CPL_ERR_RTX_NEG_ADVICE ||
+	       status == CPL_ERR_PERSIST_NEG_ADVICE ||
+	       status == CPL_ERR_KEEPALV_NEG_ADVICE;
 }
 
 #define ACT_OPEN_RETRY_COUNT 2
@@ -1835,7 +1860,7 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	PDBG("%s ep %p atid %u status %u errno %d\n", __func__, ep, atid,
 	     status, status2errno(status));
 
-	if (status == CPL_ERR_RTX_NEG_ADVICE) {
+	if (is_neg_adv(status)) {
 		printk(KERN_WARNING MOD "Connection problems for atid %u\n",
 			atid);
 		return 0;
@@ -2246,7 +2271,7 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 			c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 				       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 		}
-		close_complete_upcall(ep);
+		close_complete_upcall(ep, 0);
 		__state_set(&ep->com, DEAD);
 		release = 1;
 		disconnect = 0;
@@ -2265,15 +2290,6 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-/*
- * Returns whether an ABORT_REQ_RSS message is a negative advice.
- */
-static int is_neg_adv_abort(unsigned int status)
-{
-	return status == CPL_ERR_RTX_NEG_ADVICE ||
-	       status == CPL_ERR_PERSIST_NEG_ADVICE;
-}
-
 static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 {
 	struct cpl_abort_req_rss *req = cplhdr(skb);
@@ -2287,7 +2303,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	unsigned int tid = GET_TID(req);
 
 	ep = lookup_tid(t, tid);
-	if (is_neg_adv_abort(req->status)) {
+	if (is_neg_adv(req->status)) {
 		PDBG("%s neg_adv_abort ep %p tid %u\n", __func__, ep,
 		     ep->hwtid);
 		return 0;
@@ -2425,7 +2441,7 @@ static int close_con_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 					     C4IW_QP_ATTR_NEXT_STATE,
 					     &attrs, 1);
 		}
-		close_complete_upcall(ep);
+		close_complete_upcall(ep, 0);
 		__state_set(&ep->com, DEAD);
 		release = 1;
 		break;
@@ -2500,22 +2516,28 @@ static int fw4_ack(struct c4iw_dev *dev, struct sk_buff *skb)
 
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
-	int err;
+	int err = 0;
+	int disconnect = 0;
 	struct c4iw_ep *ep = to_ep(cm_id);
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
-	if (state_read(&ep->com) == DEAD) {
+	mutex_lock(&ep->com.mutex);
+	if (ep->com.state == DEAD) {
+		mutex_unlock(&ep->com.mutex);
 		c4iw_put_ep(&ep->com);
 		return -ECONNRESET;
 	}
 	set_bit(ULP_REJECT, &ep->com.history);
-	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
+	BUG_ON(ep->com.state != MPA_REQ_RCVD);
 	if (mpa_rev == 0)
 		abort_connection(ep, NULL, GFP_KERNEL);
 	else {
 		err = send_mpa_reject(ep, pdata, pdata_len);
-		err = c4iw_ep_disconnect(ep, 0, GFP_KERNEL);
+		disconnect = 1;
 	}
+	mutex_unlock(&ep->com.mutex);
+	if (disconnect)
+		err = c4iw_ep_disconnect(ep, 0, GFP_KERNEL);
 	c4iw_put_ep(&ep->com);
 	return 0;
 }
@@ -2530,12 +2552,14 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_qp *qp = get_qhp(h, conn_param->qpn);
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	if (state_read(&ep->com) == DEAD) {
+
+	mutex_lock(&ep->com.mutex);
+	if (ep->com.state == DEAD) {
 		err = -ECONNRESET;
 		goto err;
 	}
 
-	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
+	BUG_ON(ep->com.state != MPA_REQ_RCVD);
 	BUG_ON(!qp);
 
 	set_bit(ULP_ACCEPT, &ep->com.history);
@@ -2604,14 +2628,16 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (err)
 		goto err1;
 
-	state_set(&ep->com, FPDU_MODE);
+	__state_set(&ep->com, FPDU_MODE);
 	established_upcall(ep);
+	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 	return 0;
 err1:
 	ep->com.cm_id = NULL;
 	cm_id->rem_ref(cm_id);
 err:
+	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 	return err;
 }
@@ -2980,7 +3006,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 	rdev = &ep->com.dev->rdev;
 	if (c4iw_fatal_error(rdev)) {
 		fatal = 1;
-		close_complete_upcall(ep);
+		close_complete_upcall(ep, -EIO);
 		ep->com.state = DEAD;
 	}
 	switch (ep->com.state) {
@@ -3022,7 +3048,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 	if (close) {
 		if (abrupt) {
 			set_bit(EP_DISC_ABORT, &ep->com.history);
-			close_complete_upcall(ep);
+			close_complete_upcall(ep, -ECONNRESET);
 			ret = send_abort(ep, NULL, gfp);
 		} else {
 			set_bit(EP_DISC_CLOSE, &ep->com.history);
@@ -3203,6 +3229,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	struct sk_buff *req_skb;
 	struct fw_ofld_connection_wr *req;
 	struct cpl_pass_accept_req *cpl = cplhdr(skb);
+	int ret;
 
 	req_skb = alloc_skb(sizeof(struct fw_ofld_connection_wr), GFP_KERNEL);
 	req = (struct fw_ofld_connection_wr *)__skb_put(req_skb, sizeof(*req));
@@ -3239,7 +3266,13 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	req->cookie = (unsigned long)skb;
 
 	set_wr_txq(req_skb, CPL_PRIORITY_CONTROL, port_id);
-	cxgb4_ofld_send(dev->rdev.lldi.ports[0], req_skb);
+	ret = cxgb4_ofld_send(dev->rdev.lldi.ports[0], req_skb);
+	if (ret < 0) {
+		pr_err("%s - cxgb4_ofld_send error %d - dropping\n", __func__,
+		       ret);
+		kfree_skb(skb);
+		kfree_skb(req_skb);
+	}
 }
 
 /*
@@ -3346,6 +3379,7 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 		pi = (struct port_info *)netdev_priv(pdev);
 		tx_chan = cxgb4_port_chan(pdev);
 	}
+	neigh_release(neigh);
 	if (!e) {
 		pr_err("%s - failed to allocate l2t entry!\n",
 		       __func__);
@@ -3426,6 +3460,7 @@ static void process_timeout(struct c4iw_ep *ep)
 				     &attrs, 1);
 		}
 		__state_set(&ep->com, ABORTING);
+		close_complete_upcall(ep, -ETIMEDOUT);
 		break;
 	default:
 		WARN(1, "%s unexpected state ep %p tid %u state %u\n",
@@ -3569,7 +3604,7 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 		kfree_skb(skb);
 		return 0;
 	}
-	if (is_neg_adv_abort(req->status)) {
+	if (is_neg_adv(req->status)) {
 		PDBG("%s neg_adv_abort ep %p tid %u\n", __func__, ep,
 		     ep->hwtid);
 		kfree_skb(skb);

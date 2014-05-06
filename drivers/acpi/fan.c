@@ -55,8 +55,16 @@ MODULE_DEVICE_TABLE(acpi, fan_device_ids);
 #ifdef CONFIG_PM_SLEEP
 static int acpi_fan_suspend(struct device *dev);
 static int acpi_fan_resume(struct device *dev);
+static struct dev_pm_ops acpi_fan_pm = {
+	.resume = acpi_fan_resume,
+	.freeze = acpi_fan_suspend,
+	.thaw = acpi_fan_resume,
+	.restore = acpi_fan_resume,
+};
+#define FAN_PM_OPS_PTR (&acpi_fan_pm)
+#else
+#define FAN_PM_OPS_PTR NULL
 #endif
-static SIMPLE_DEV_PM_OPS(acpi_fan_pm, acpi_fan_suspend, acpi_fan_resume);
 
 static struct acpi_driver acpi_fan_driver = {
 	.name = "fan",
@@ -66,7 +74,7 @@ static struct acpi_driver acpi_fan_driver = {
 		.add = acpi_fan_add,
 		.remove = acpi_fan_remove,
 		},
-	.drv.pm = &acpi_fan_pm,
+	.drv.pm = FAN_PM_OPS_PTR,
 };
 
 /* thermal cooling device callbacks */

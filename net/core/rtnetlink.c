@@ -374,7 +374,7 @@ static size_t rtnl_link_get_slave_info_data_size(const struct net_device *dev)
 	if (!master_dev)
 		return 0;
 	ops = master_dev->rtnl_link_ops;
-	if (!ops->get_slave_size)
+	if (!ops || !ops->get_slave_size)
 		return 0;
 	/* IFLA_INFO_SLAVE_DATA + nested data */
 	return nla_total_size(sizeof(struct nlattr)) +
@@ -822,6 +822,7 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4) /* IFLA_NUM_RX_QUEUES */
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(1) /* IFLA_LINKMODE */
+	       + nla_total_size(4) /* IFLA_CARRIER_CHANGES */
 	       + nla_total_size(ext_filter_mask
 			        & RTEXT_FILTER_VF ? 4 : 0) /* IFLA_NUM_VF */
 	       + rtnl_vfinfo_size(dev, ext_filter_mask) /* IFLA_VFINFO_LIST */
@@ -970,7 +971,9 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	    (dev->qdisc &&
 	     nla_put_string(skb, IFLA_QDISC, dev->qdisc->ops->id)) ||
 	    (dev->ifalias &&
-	     nla_put_string(skb, IFLA_IFALIAS, dev->ifalias)))
+	     nla_put_string(skb, IFLA_IFALIAS, dev->ifalias)) ||
+	    nla_put_u32(skb, IFLA_CARRIER_CHANGES,
+			atomic_read(&dev->carrier_changes)))
 		goto nla_put_failure;
 
 	if (1) {
@@ -1121,6 +1124,71 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
+	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
+	[IFLA_ADDRESS]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+	[IFLA_BROADCAST]	= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+	[IFLA_MAP]		= { .len = sizeof(struct rtnl_link_ifmap) },
+	[IFLA_MTU]		= { .type = NLA_U32 },
+	[IFLA_LINK]		= { .type = NLA_U32 },
+	[IFLA_MASTER]		= { .type = NLA_U32 },
+	[IFLA_CARRIER]		= { .type = NLA_U8 },
+	[IFLA_TXQLEN]		= { .type = NLA_U32 },
+	[IFLA_WEIGHT]		= { .type = NLA_U32 },
+	[IFLA_OPERSTATE]	= { .type = NLA_U8 },
+	[IFLA_LINKMODE]		= { .type = NLA_U8 },
+	[IFLA_LINKINFO]		= { .type = NLA_NESTED },
+	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
+	[IFLA_NET_NS_FD]	= { .type = NLA_U32 },
+	[IFLA_IFALIAS]	        = { .type = NLA_STRING, .len = IFALIASZ-1 },
+	[IFLA_VFINFO_LIST]	= {. type = NLA_NESTED },
+	[IFLA_VF_PORTS]		= { .type = NLA_NESTED },
+	[IFLA_PORT_SELF]	= { .type = NLA_NESTED },
+	[IFLA_AF_SPEC]		= { .type = NLA_NESTED },
+	[IFLA_EXT_MASK]		= { .type = NLA_U32 },
+	[IFLA_PROMISCUITY]	= { .type = NLA_U32 },
+	[IFLA_NUM_TX_QUEUES]	= { .type = NLA_U32 },
+	[IFLA_NUM_RX_QUEUES]	= { .type = NLA_U32 },
+	[IFLA_PHYS_PORT_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_PORT_ID_LEN },
+	[IFLA_CARRIER_CHANGES]	= { .type = NLA_U32 },  /* ignored */
+};
+
+static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
+	[IFLA_INFO_KIND]	= { .type = NLA_STRING },
+	[IFLA_INFO_DATA]	= { .type = NLA_NESTED },
+	[IFLA_INFO_SLAVE_KIND]	= { .type = NLA_STRING },
+	[IFLA_INFO_SLAVE_DATA]	= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy ifla_vfinfo_policy[IFLA_VF_INFO_MAX+1] = {
+	[IFLA_VF_INFO]		= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
+	[IFLA_VF_MAC]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_mac) },
+	[IFLA_VF_VLAN]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_vlan) },
+	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_tx_rate) },
+	[IFLA_VF_SPOOFCHK]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_spoofchk) },
+};
+
+static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
+	[IFLA_PORT_VF]		= { .type = NLA_U32 },
+	[IFLA_PORT_PROFILE]	= { .type = NLA_STRING,
+				    .len = PORT_PROFILE_MAX },
+	[IFLA_PORT_VSI_TYPE]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_port_vsi)},
+	[IFLA_PORT_INSTANCE_UUID] = { .type = NLA_BINARY,
+				      .len = PORT_UUID_MAX },
+	[IFLA_PORT_HOST_UUID]	= { .type = NLA_STRING,
+				    .len = PORT_UUID_MAX },
+	[IFLA_PORT_REQUEST]	= { .type = NLA_U8, },
+	[IFLA_PORT_RESPONSE]	= { .type = NLA_U16, },
+};
+
 static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1170,70 +1238,11 @@ out:
 	return skb->len;
 }
 
-const struct nla_policy ifla_policy[IFLA_MAX+1] = {
-	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
-	[IFLA_ADDRESS]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
-	[IFLA_BROADCAST]	= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
-	[IFLA_MAP]		= { .len = sizeof(struct rtnl_link_ifmap) },
-	[IFLA_MTU]		= { .type = NLA_U32 },
-	[IFLA_LINK]		= { .type = NLA_U32 },
-	[IFLA_MASTER]		= { .type = NLA_U32 },
-	[IFLA_CARRIER]		= { .type = NLA_U8 },
-	[IFLA_TXQLEN]		= { .type = NLA_U32 },
-	[IFLA_WEIGHT]		= { .type = NLA_U32 },
-	[IFLA_OPERSTATE]	= { .type = NLA_U8 },
-	[IFLA_LINKMODE]		= { .type = NLA_U8 },
-	[IFLA_LINKINFO]		= { .type = NLA_NESTED },
-	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
-	[IFLA_NET_NS_FD]	= { .type = NLA_U32 },
-	[IFLA_IFALIAS]	        = { .type = NLA_STRING, .len = IFALIASZ-1 },
-	[IFLA_VFINFO_LIST]	= {. type = NLA_NESTED },
-	[IFLA_VF_PORTS]		= { .type = NLA_NESTED },
-	[IFLA_PORT_SELF]	= { .type = NLA_NESTED },
-	[IFLA_AF_SPEC]		= { .type = NLA_NESTED },
-	[IFLA_EXT_MASK]		= { .type = NLA_U32 },
-	[IFLA_PROMISCUITY]	= { .type = NLA_U32 },
-	[IFLA_NUM_TX_QUEUES]	= { .type = NLA_U32 },
-	[IFLA_NUM_RX_QUEUES]	= { .type = NLA_U32 },
-	[IFLA_PHYS_PORT_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_PORT_ID_LEN },
-};
-EXPORT_SYMBOL(ifla_policy);
-
-static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
-	[IFLA_INFO_KIND]	= { .type = NLA_STRING },
-	[IFLA_INFO_DATA]	= { .type = NLA_NESTED },
-	[IFLA_INFO_SLAVE_KIND]	= { .type = NLA_STRING },
-	[IFLA_INFO_SLAVE_DATA]	= { .type = NLA_NESTED },
-};
-
-static const struct nla_policy ifla_vfinfo_policy[IFLA_VF_INFO_MAX+1] = {
-	[IFLA_VF_INFO]		= { .type = NLA_NESTED },
-};
-
-static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
-	[IFLA_VF_MAC]		= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_mac) },
-	[IFLA_VF_VLAN]		= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_vlan) },
-	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_tx_rate) },
-	[IFLA_VF_SPOOFCHK]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_spoofchk) },
-};
-
-static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
-	[IFLA_PORT_VF]		= { .type = NLA_U32 },
-	[IFLA_PORT_PROFILE]	= { .type = NLA_STRING,
-				    .len = PORT_PROFILE_MAX },
-	[IFLA_PORT_VSI_TYPE]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_port_vsi)},
-	[IFLA_PORT_INSTANCE_UUID] = { .type = NLA_BINARY,
-				      .len = PORT_UUID_MAX },
-	[IFLA_PORT_HOST_UUID]	= { .type = NLA_STRING,
-				    .len = PORT_UUID_MAX },
-	[IFLA_PORT_REQUEST]	= { .type = NLA_U8, },
-	[IFLA_PORT_RESPONSE]	= { .type = NLA_U16, },
-};
+int rtnl_nla_parse_ifla(struct nlattr **tb, const struct nlattr *head, int len)
+{
+	return nla_parse(tb, IFLA_MAX, head, len, ifla_policy);
+}
+EXPORT_SYMBOL(rtnl_nla_parse_ifla);
 
 struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[])
 {
@@ -1963,16 +1972,21 @@ replay:
 
 		dev->ifindex = ifm->ifi_index;
 
-		if (ops->newlink)
+		if (ops->newlink) {
 			err = ops->newlink(net, dev, tb, data);
-		else
+			/* Drivers should call free_netdev() in ->destructor
+			 * and unregister it on failure so that device could be
+			 * finally freed in rtnl_unlock.
+			 */
+			if (err < 0)
+				goto out;
+		} else {
 			err = register_netdevice(dev);
-
-		if (err < 0) {
-			free_netdev(dev);
-			goto out;
+			if (err < 0) {
+				free_netdev(dev);
+				goto out;
+			}
 		}
-
 		err = rtnl_configure_link(dev, ifm);
 		if (err < 0)
 			unregister_netdevice(dev);
@@ -2116,12 +2130,13 @@ EXPORT_SYMBOL(rtmsg_ifinfo);
 static int nlmsg_populate_fdb_fill(struct sk_buff *skb,
 				   struct net_device *dev,
 				   u8 *addr, u32 pid, u32 seq,
-				   int type, unsigned int flags)
+				   int type, unsigned int flags,
+				   int nlflags)
 {
 	struct nlmsghdr *nlh;
 	struct ndmsg *ndm;
 
-	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndm), NLM_F_MULTI);
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndm), nlflags);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -2159,7 +2174,7 @@ static void rtnl_fdb_notify(struct net_device *dev, u8 *addr, int type)
 	if (!skb)
 		goto errout;
 
-	err = nlmsg_populate_fdb_fill(skb, dev, addr, 0, 0, type, NTF_SELF);
+	err = nlmsg_populate_fdb_fill(skb, dev, addr, 0, 0, type, NTF_SELF, 0);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto errout;
@@ -2384,7 +2399,8 @@ static int nlmsg_populate_fdb(struct sk_buff *skb,
 
 		err = nlmsg_populate_fdb_fill(skb, dev, ha->addr,
 					      portid, seq,
-					      RTM_NEWNEIGH, NTF_SELF);
+					      RTM_NEWNEIGH, NTF_SELF,
+					      NLM_F_MULTI);
 		if (err < 0)
 			return err;
 skip:

@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/hyperv.h>
+#include <linux/uio.h>
 
 #include "hyperv_vmbus.h"
 
@@ -387,23 +388,20 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
  *
  */
 int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
-		    struct scatterlist *sglist, u32 sgcount, bool *signal)
+		    struct kvec *kv_list, u32 kv_count, bool *signal)
 {
 	int i = 0;
 	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
 	u32 totalbytes_towrite = 0;
 
-	struct scatterlist *sg;
 	u32 next_write_location;
 	u32 old_write;
 	u64 prev_indices = 0;
 	unsigned long flags;
 
-	for_each_sg(sglist, sg, sgcount, i)
-	{
-		totalbytes_towrite += sg->length;
-	}
+	for (i = 0; i < kv_count; i++)
+		totalbytes_towrite += kv_list[i].iov_len;
 
 	totalbytes_towrite += sizeof(u64);
 
@@ -427,12 +425,11 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 
 	old_write = next_write_location;
 
-	for_each_sg(sglist, sg, sgcount, i)
-	{
+	for (i = 0; i < kv_count; i++) {
 		next_write_location = hv_copyto_ringbuffer(outring_info,
 						     next_write_location,
-						     sg_virt(sg),
-						     sg->length);
+						     kv_list[i].iov_base,
+						     kv_list[i].iov_len);
 	}
 
 	/* Set previous packet start */

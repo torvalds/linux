@@ -15,9 +15,9 @@ config IEEE802154_FAKEHARD
 	depends on  IEEE802154_DRIVERS
 	---help---
 	  Say Y here to enable the fake driver that serves as an example
-          of HardMAC device driver.
+	  of HardMAC device driver.
 
-          This driver can also be built as a module. To do so say M here.
+	  This driver can also be built as a module. To do so say M here.
 	  The module will be called 'fakehard'.
 
 config IEEE802154_FAKELB
@@ -31,17 +31,23 @@ config IEEE802154_FAKELB
 	  The module will be called 'fakelb'.
 
 config IEEE802154_AT86RF230
-        depends on IEEE802154_DRIVERS && MAC802154
-        tristate "AT86RF230/231 transceiver driver"
-        depends on SPI
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "AT86RF230/231/233/212 transceiver driver"
+	depends on SPI
+	---help---
+	  Say Y here to enable the at86rf230/231/233/212 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'at86rf230'.
 
 config IEEE802154_MRF24J40
-       tristate "Microchip MRF24J40 transceiver driver"
-       depends on IEEE802154_DRIVERS && MAC802154
-       depends on SPI
-       ---help---
-         Say Y here to enable the MRF24J20 SPI 802.15.4 wireless
-         controller.
+	tristate "Microchip MRF24J40 transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on SPI
+	---help---
+	  Say Y here to enable the MRF24J20 SPI 802.15.4 wireless
+	  controller.
 
-         This driver can also be built as a module. To do so, say M here.
-         the module will be called 'mrf24j40'.
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'mrf24j40'.

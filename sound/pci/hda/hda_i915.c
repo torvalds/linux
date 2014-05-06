@@ -30,7 +30,7 @@ void hda_display_power(bool enable)
 	if (!get_power || !put_power)
 		return;
 
-	snd_printdd("HDA display power %s \n",
+	pr_debug("HDA display power %s \n",
 			enable ? "Enable" : "Disable");
 	if (enable)
 		get_power();
@@ -44,7 +44,7 @@ int hda_i915_init(void)
 
 	get_power = symbol_request(i915_request_power_well);
 	if (!get_power) {
-		snd_printk(KERN_WARNING "hda-i915: get_power symbol get fail\n");
+		pr_warn("hda-i915: get_power symbol get fail\n");
 		return -ENODEV;
 	}
 
@@ -55,7 +55,7 @@ int hda_i915_init(void)
 		return -ENODEV;
 	}
 
-	snd_printd("HDA driver get symbol successfully from i915 module\n");
+	pr_debug("HDA driver get symbol successfully from i915 module\n");
 
 	return err;
 }

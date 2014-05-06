@@ -738,7 +738,7 @@ int rsi_hal_load_key(struct rsi_common *common,
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-static u8 rsi_load_bootup_params(struct rsi_common *common)
+static int rsi_load_bootup_params(struct rsi_common *common)
 {
 	struct sk_buff *skb;
 	struct rsi_boot_params *boot_params;
@@ -841,16 +841,6 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 	rsi_dbg(MGMT_TX_ZONE,
 		"%s: Sending scan req frame\n", __func__);
 
-	skb = dev_alloc_skb(FRAME_DESC_SZ);
-	if (!skb) {
-		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
-			__func__);
-		return -ENOMEM;
-	}
-
-	memset(skb->data, 0, FRAME_DESC_SZ);
-	mgmt_frame = (struct rsi_mac_frame *)skb->data;
-
 	if (common->band == IEEE80211_BAND_5GHZ) {
 		if ((channel >= 36) && (channel <= 64))
 			channel = ((channel - 32) / 4);
@@ -867,6 +857,16 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 			return -EINVAL;
 		}
 	}
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	mgmt_frame = (struct rsi_mac_frame *)skb->data;
 
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(SCAN_REQUEST);
@@ -966,6 +966,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	if (!selected_rates) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
 			__func__);
+		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
 
@@ -1082,7 +1083,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 {
 	if (status) {
 		rsi_hal_send_sta_notify_frame(common,
-					      NL80211_IFTYPE_STATION,
+					      RSI_IFTYPE_STATION,
 					      STA_CONNECTED,
 					      bssid,
 					      qos_enable,
@@ -1091,7 +1092,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 			rsi_send_auto_rate_request(common);
 	} else {
 		rsi_hal_send_sta_notify_frame(common,
-					      NL80211_IFTYPE_STATION,
+					      RSI_IFTYPE_STATION,
 					      STA_DISCONNECTED,
 					      bssid,
 					      qos_enable,
@@ -1272,6 +1273,7 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 {
 	s32 msg_len = (le16_to_cpu(*(__le16 *)&msg[0]) & 0x0fff);
 	u16 msg_type = (msg[2]);
+	int ret;
 
 	rsi_dbg(FSM_ZONE, "%s: Msg Len: %d, Msg Type: %4x\n",
 		__func__, msg_len, msg_type);
@@ -1284,8 +1286,9 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 		if (common->fsm_state == FSM_CARD_NOT_READY) {
 			rsi_set_default_parameters(common);
 
-			if (rsi_load_bootup_params(common))
-				return -ENOMEM;
+			ret = rsi_load_bootup_params(common);
+			if (ret)
+				return ret;
 			else
 				common->fsm_state = FSM_BOOT_PARAMS_SENT;
 		} else {

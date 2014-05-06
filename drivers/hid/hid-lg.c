@@ -692,7 +692,8 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_WII_WHEEL) {
 		unsigned char buf[] = { 0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-		ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+		ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 
 		if (ret >= 0) {
 			/* insert a little delay of 10 jiffies ~ 40ms */
@@ -704,7 +705,8 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			buf[1] = 0xB2;
 			get_random_bytes(&buf[2], 2);
 
-			ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+			ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 		}
 	}
 

@@ -192,6 +192,7 @@ struct radeon_i2c_chan {
 		struct i2c_algo_dp_aux_data dp;
 	} algo;
 	struct radeon_i2c_bus_rec rec;
+	struct drm_dp_aux aux;
 };
 
 /* mostly for macs, but really any system without connector tables */
@@ -690,6 +691,9 @@ extern u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
 extern bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
 extern int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 				    struct drm_connector *connector);
+extern void radeon_dp_set_rx_power_state(struct drm_connector *connector,
+					 u8 power_state);
+extern void radeon_dp_aux_init(struct radeon_connector *radeon_connector);
 extern void atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mode);
 extern void radeon_atom_encoder_init(struct radeon_device *rdev);
 extern void radeon_atom_disp_eng_pll_init(struct radeon_device *rdev);

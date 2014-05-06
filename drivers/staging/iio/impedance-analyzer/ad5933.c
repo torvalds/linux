@@ -629,7 +629,7 @@ static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	struct iio_buffer *buffer;
 
 	buffer = iio_kfifo_allocate(indio_dev);
-	if (buffer)
+	if (!buffer)
 		return -ENOMEM;
 
 	iio_device_attach_buffer(indio_dev, buffer);

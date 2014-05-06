@@ -658,7 +658,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
  drop:
 	dev->stats.tx_dropped++;
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -907,6 +907,7 @@ static int handle_incoming_queue(struct net_device *dev,
 
 		/* Ethernet work: Delayed to here as it peeks the header. */
 		skb->protocol = eth_type_trans(skb, dev);
+		skb_reset_network_header(skb);
 
 		if (checksum_setup(dev, skb)) {
 			kfree_skb(skb);
@@ -1059,13 +1060,13 @@ static struct rtnl_link_stats64 *xennet_get_stats64(struct net_device *dev,
 		unsigned int start;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->syncp);
+			start = u64_stats_fetch_begin_irq(&stats->syncp);
 
 			rx_packets = stats->rx_packets;
 			tx_packets = stats->tx_packets;
 			rx_bytes = stats->rx_bytes;
 			tx_bytes = stats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
 
 		tot->rx_packets += rx_packets;
 		tot->tx_packets += tx_packets;
@@ -1281,28 +1282,22 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	np->rx_refill_timer.function = rx_refill_timeout;
 
 	err = -ENOMEM;
-	np->stats = alloc_percpu(struct netfront_stats);
+	np->stats = netdev_alloc_pcpu_stats(struct netfront_stats);
 	if (np->stats == NULL)
 		goto exit;
-
-	for_each_possible_cpu(i) {
-		struct netfront_stats *xen_nf_stats;
-		xen_nf_stats = per_cpu_ptr(np->stats, i);
-		u64_stats_init(&xen_nf_stats->syncp);
-	}
 
 	/* Initialise tx_skbs as a free chain containing every entry. */
 	np->tx_skb_freelist = 0;
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
 		skb_entry_set_link(&np->tx_skbs[i], i+1);
 		np->grant_tx_ref[i] = GRANT_INVALID_REF;
+		np->grant_tx_page[i] = NULL;
 	}
 
 	/* Clear out rx_skbs */
 	for (i = 0; i < NET_RX_RING_SIZE; i++) {
 		np->rx_skbs[i] = NULL;
 		np->grant_rx_ref[i] = GRANT_INVALID_REF;
-		np->grant_tx_page[i] = NULL;
 	}
 
 	/* A grant for every tx ring slot */
@@ -1832,7 +1827,6 @@ static void netback_changed(struct xenbus_device *dev,
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
 	case XenbusStateUnknown:
-	case XenbusStateClosed:
 		break;
 
 	case XenbusStateInitWait:
@@ -1847,6 +1841,10 @@ static void netback_changed(struct xenbus_device *dev,
 		netdev_notify_peers(netdev);
 		break;
 
+	case XenbusStateClosed:
+		if (dev->state == XenbusStateClosed)
+			break;
+		/* Missed the backend's CLOSING state -- fallthrough */
 	case XenbusStateClosing:
 		xenbus_frontend_closed(dev);
 		break;

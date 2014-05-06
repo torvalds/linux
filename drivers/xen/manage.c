@@ -46,6 +46,20 @@ struct suspend_info {
 	void (*post)(int cancelled);
 };
 
+static RAW_NOTIFIER_HEAD(xen_resume_notifier);
+
+void xen_resume_notifier_register(struct notifier_block *nb)
+{
+	raw_notifier_chain_register(&xen_resume_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(xen_resume_notifier_register);
+
+void xen_resume_notifier_unregister(struct notifier_block *nb)
+{
+	raw_notifier_chain_unregister(&xen_resume_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(xen_resume_notifier_unregister);
+
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 static void xen_hvm_post_suspend(int cancelled)
 {
@@ -151,6 +165,8 @@ static void do_suspend(void)
 	}
 
 	err = stop_machine(xen_suspend, &si, cpumask_of(0));
+
+	raw_notifier_call_chain(&xen_resume_notifier, 0, NULL);
 
 	dpm_resume_start(si.cancelled ? PMSG_THAW : PMSG_RESTORE);
 

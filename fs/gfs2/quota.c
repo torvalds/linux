@@ -36,6 +36,8 @@
  * the quota file, so it is not being constantly read.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -330,6 +332,7 @@ static int slot_get(struct gfs2_quota_data *qd)
 	if (bit < sdp->sd_quota_slots) {
 		set_bit(bit, sdp->sd_quota_bitmap);
 		qd->qd_slot = bit;
+		error = 0;
 out:
 		qd->qd_slot_count++;
 	}
@@ -1081,10 +1084,10 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
 
-	printk(KERN_INFO "GFS2: fsid=%s: quota %s for %s %u\n",
-	       sdp->sd_fsname, type,
-	       (qd->qd_id.type == USRQUOTA) ? "user" : "group",
-	       from_kqid(&init_user_ns, qd->qd_id));
+	fs_info(sdp, "quota %s for %s %u\n",
+		type,
+		(qd->qd_id.type == USRQUOTA) ? "user" : "group",
+		from_kqid(&init_user_ns, qd->qd_id));
 
 	return 0;
 }
@@ -1242,13 +1245,12 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 	bm_size = DIV_ROUND_UP(sdp->sd_quota_slots, 8 * sizeof(unsigned long));
 	bm_size *= sizeof(unsigned long);
 	error = -ENOMEM;
-	sdp->sd_quota_bitmap = kmalloc(bm_size, GFP_NOFS|__GFP_NOWARN);
+	sdp->sd_quota_bitmap = kzalloc(bm_size, GFP_NOFS | __GFP_NOWARN);
 	if (sdp->sd_quota_bitmap == NULL)
-		sdp->sd_quota_bitmap = __vmalloc(bm_size, GFP_NOFS, PAGE_KERNEL);
+		sdp->sd_quota_bitmap = __vmalloc(bm_size, GFP_NOFS |
+						 __GFP_ZERO, PAGE_KERNEL);
 	if (!sdp->sd_quota_bitmap)
 		return error;
-
-	memset(sdp->sd_quota_bitmap, 0, bm_size);
 
 	for (x = 0; x < blocks; x++) {
 		struct buffer_head *bh;

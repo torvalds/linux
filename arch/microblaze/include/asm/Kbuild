@@ -1,8 +1,10 @@
 
 generic-y += barrier.h
 generic-y += clkdev.h
+generic-y += cputime.h
 generic-y += exec.h
 generic-y += hash.h
-generic-y += trace_clock.h
-generic-y += syscalls.h
+generic-y += mcs_spinlock.h
 generic-y += preempt.h
+generic-y += syscalls.h
+generic-y += trace_clock.h

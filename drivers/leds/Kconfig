@@ -416,12 +416,12 @@ config LEDS_MC13783
 	depends on MFD_MC13XXX
 	help
 	  This option enable support for on-chip LED drivers found
-	  on Freescale Semiconductor MC13783/MC13892 PMIC.
+	  on Freescale Semiconductor MC13783/MC13892/MC34708 PMIC.
 
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_KIRKWOOD
+	depends on ARCH_KIRKWOOD || MACH_KIRKWOOD
 	default y
 	help
 	  This option enable support for the dual-GPIO LED found on the
@@ -431,7 +431,7 @@ config LEDS_NS2
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_KIRKWOOD
+	depends on ARCH_KIRKWOOD || MACH_KIRKWOOD
 	default y
 	help
 	  This option enable support for LEDs found on the LaCie 2Big
@@ -474,7 +474,7 @@ config LEDS_LM355x
 
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"
-	depends on LEDS_CLASS && HAS_IOMEM
+	depends on LEDS_CLASS && HAS_IOMEM && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.

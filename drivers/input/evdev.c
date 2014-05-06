@@ -954,11 +954,13 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		error = input_ff_upload(dev, &effect, file);
+		if (error)
+			return error;
 
 		if (put_user(effect.id, &(((struct ff_effect __user *)p)->id)))
 			return -EFAULT;
 
-		return error;
+		return 0;
 	}
 
 	/* Multi-number variable-length handlers */

@@ -7,6 +7,8 @@ include config/utilities.mak
 
 # Define V to have a more verbose compile.
 #
+# Define VF to have a more verbose feature check output.
+#
 # Define O to save output files in a separate directory.
 #
 # Define ARCH as name of target architecture if you want cross-builds.
@@ -55,6 +57,9 @@ include config/utilities.mak
 # Define NO_LIBAUDIT if you do not want libaudit support
 #
 # Define NO_LIBBIONIC if you do not want bionic support
+#
+# Define NO_LIBDW_DWARF_UNWIND if you do not want libdw support
+# for dwarf backtrace post unwind.
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(shell pwd)))
@@ -208,7 +213,7 @@ LIB_H += ../../include/uapi/linux/perf_event.h
 LIB_H += ../../include/linux/rbtree.h
 LIB_H += ../../include/linux/list.h
 LIB_H += ../../include/uapi/linux/const.h
-LIB_H += ../../include/linux/hash.h
+LIB_H += ../include/linux/hash.h
 LIB_H += ../../include/linux/stringify.h
 LIB_H += util/include/linux/bitmap.h
 LIB_H += util/include/linux/bitops.h
@@ -218,9 +223,7 @@ LIB_H += util/include/linux/ctype.h
 LIB_H += util/include/linux/kernel.h
 LIB_H += util/include/linux/list.h
 LIB_H += util/include/linux/export.h
-LIB_H += util/include/linux/magic.h
 LIB_H += util/include/linux/poison.h
-LIB_H += util/include/linux/prefetch.h
 LIB_H += util/include/linux/rbtree.h
 LIB_H += util/include/linux/rbtree_augmented.h
 LIB_H += util/include/linux/string.h
@@ -244,7 +247,6 @@ LIB_H += util/cache.h
 LIB_H += util/callchain.h
 LIB_H += util/build-id.h
 LIB_H += util/debug.h
-LIB_H += util/fs.h
 LIB_H += util/pmu.h
 LIB_H += util/event.h
 LIB_H += util/evsel.h
@@ -306,7 +308,6 @@ LIB_OBJS += $(OUTPUT)util/annotate.o
 LIB_OBJS += $(OUTPUT)util/build-id.o
 LIB_OBJS += $(OUTPUT)util/config.o
 LIB_OBJS += $(OUTPUT)util/ctype.o
-LIB_OBJS += $(OUTPUT)util/fs.o
 LIB_OBJS += $(OUTPUT)util/pmu.o
 LIB_OBJS += $(OUTPUT)util/environment.o
 LIB_OBJS += $(OUTPUT)util/event.o
@@ -408,6 +409,11 @@ endif
 LIB_OBJS += $(OUTPUT)tests/code-reading.o
 LIB_OBJS += $(OUTPUT)tests/sample-parsing.o
 LIB_OBJS += $(OUTPUT)tests/parse-no-sample-id-all.o
+ifndef NO_DWARF_UNWIND
+ifeq ($(ARCH),x86)
+LIB_OBJS += $(OUTPUT)tests/dwarf-unwind.o
+endif
+endif
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 BUILTIN_OBJS += $(OUTPUT)builtin-bench.o
@@ -420,6 +426,9 @@ BUILTIN_OBJS += $(OUTPUT)bench/mem-memset-x86-64-asm.o
 endif
 BUILTIN_OBJS += $(OUTPUT)bench/mem-memcpy.o
 BUILTIN_OBJS += $(OUTPUT)bench/mem-memset.o
+BUILTIN_OBJS += $(OUTPUT)bench/futex-hash.o
+BUILTIN_OBJS += $(OUTPUT)bench/futex-wake.o
+BUILTIN_OBJS += $(OUTPUT)bench/futex-requeue.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-diff.o
 BUILTIN_OBJS += $(OUTPUT)builtin-evlist.o
@@ -475,8 +484,13 @@ ifndef NO_DWARF
 endif # NO_DWARF
 endif # NO_LIBELF
 
+ifndef NO_LIBDW_DWARF_UNWIND
+  LIB_OBJS += $(OUTPUT)util/unwind-libdw.o
+  LIB_H += util/unwind-libdw.h
+endif
+
 ifndef NO_LIBUNWIND
-  LIB_OBJS += $(OUTPUT)util/unwind.o
+  LIB_OBJS += $(OUTPUT)util/unwind-libunwind.o
 endif
 LIB_OBJS += $(OUTPUT)tests/keep-tracking.o
 
@@ -533,6 +547,7 @@ ifeq ($(NO_PERF_REGS),0)
   ifeq ($(ARCH),x86)
     LIB_H += arch/x86/include/perf_regs.h
   endif
+  LIB_OBJS += $(OUTPUT)util/perf_regs.o
 endif
 
 ifndef NO_LIBNUMA
@@ -655,6 +670,9 @@ $(OUTPUT)tests/python-use.o: tests/python-use.c $(OUTPUT)PERF-CFLAGS
 		-DPYTHON='"$(PYTHON_WORD)"' \
 		$<
 
+$(OUTPUT)tests/dwarf-unwind.o: tests/dwarf-unwind.c
+	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -fno-optimize-sibling-calls $<
+
 $(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
@@ -707,9 +725,15 @@ $(patsubst perf-%,%.o,$(PROGRAMS)): $(LIB_H) $(wildcard */*.h)
 # we depend the various files onto their directories.
 DIRECTORY_DEPS = $(LIB_OBJS) $(BUILTIN_OBJS) $(GTK_OBJS)
 DIRECTORY_DEPS += $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
-$(DIRECTORY_DEPS): | $(sort $(dir $(DIRECTORY_DEPS)))
+# no need to add flex objects, because they depend on bison ones
+DIRECTORY_DEPS += $(OUTPUT)util/parse-events-bison.c
+DIRECTORY_DEPS += $(OUTPUT)util/pmu-bison.c
+
+OUTPUT_DIRECTORIES := $(sort $(dir $(DIRECTORY_DEPS)))
+
+$(DIRECTORY_DEPS): | $(OUTPUT_DIRECTORIES)
 # In the second step, we make a rule to actually create these directories
-$(sort $(dir $(DIRECTORY_DEPS))):
+$(OUTPUT_DIRECTORIES):
 	$(QUIET_MKDIR)$(MKDIR) -p $@ 2>/dev/null
 
 $(LIB_FILE): $(LIB_OBJS)
@@ -886,7 +910,7 @@ config-clean:
 clean: $(LIBTRACEEVENT)-clean $(LIBAPIKFS)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf.o $(LANG_BINDINGS) $(GTK_OBJS)
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf
-	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex*
+	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS $(OUTPUT)PERF-FEATURES $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex*
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
 	$(python-clean)
 

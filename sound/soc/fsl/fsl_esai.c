@@ -18,6 +18,7 @@
 
 #include "fsl_esai.h"
 #include "imx-pcm.h"
+#include "fsl_utils.h"
 
 #define FSL_ESAI_RATES		SNDRV_PCM_RATE_8000_192000
 #define FSL_ESAI_FORMATS	(SNDRV_PCM_FMTBIT_S8 | \
@@ -326,7 +327,7 @@ static int fsl_esai_set_dai_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask,
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_TSMA,
 			   ESAI_xSMA_xS_MASK, ESAI_xSMA_xS(tx_mask));
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_TSMB,
-			   ESAI_xSMA_xS_MASK, ESAI_xSMB_xS(tx_mask));
+			   ESAI_xSMB_xS_MASK, ESAI_xSMB_xS(tx_mask));
 
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_RCCR,
 			   ESAI_xCCR_xDC_MASK, ESAI_xCCR_xDC(slots));
@@ -334,7 +335,7 @@ static int fsl_esai_set_dai_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask,
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_RSMA,
 			   ESAI_xSMA_xS_MASK, ESAI_xSMA_xS(rx_mask));
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_RSMB,
-			   ESAI_xSMA_xS_MASK, ESAI_xSMB_xS(rx_mask));
+			   ESAI_xSMB_xS_MASK, ESAI_xSMB_xS(rx_mask));
 
 	esai_priv->slot_width = slot_width;
 
@@ -431,17 +432,26 @@ static int fsl_esai_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int fsl_esai_startup(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
+	int ret;
 	struct fsl_esai *esai_priv = snd_soc_dai_get_drvdata(dai);
 
 	/*
 	 * Some platforms might use the same bit to gate all three or two of
 	 * clocks, so keep all clocks open/close at the same time for safety
 	 */
-	clk_prepare_enable(esai_priv->coreclk);
-	if (!IS_ERR(esai_priv->extalclk))
-		clk_prepare_enable(esai_priv->extalclk);
-	if (!IS_ERR(esai_priv->fsysclk))
-		clk_prepare_enable(esai_priv->fsysclk);
+	ret = clk_prepare_enable(esai_priv->coreclk);
+	if (ret)
+		return ret;
+	if (!IS_ERR(esai_priv->extalclk)) {
+		ret = clk_prepare_enable(esai_priv->extalclk);
+		if (ret)
+			goto err_extalck;
+	}
+	if (!IS_ERR(esai_priv->fsysclk)) {
+		ret = clk_prepare_enable(esai_priv->fsysclk);
+		if (ret)
+			goto err_fsysclk;
+	}
 
 	if (!dai->active) {
 		/* Reset Port C */
@@ -463,6 +473,14 @@ static int fsl_esai_startup(struct snd_pcm_substream *substream,
 	}
 
 	return 0;
+
+err_fsysclk:
+	if (!IS_ERR(esai_priv->extalclk))
+		clk_disable_unprepare(esai_priv->extalclk);
+err_extalck:
+	clk_disable_unprepare(esai_priv->coreclk);
+
+	return ret;
 }
 
 static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
@@ -564,6 +582,7 @@ static struct snd_soc_dai_ops fsl_esai_dai_ops = {
 	.hw_params = fsl_esai_hw_params,
 	.set_sysclk = fsl_esai_set_dai_sysclk,
 	.set_fmt = fsl_esai_set_dai_fmt,
+	.xlate_tdm_slot_mask = fsl_asoc_xlate_tdm_slot_mask,
 	.set_tdm_slot = fsl_esai_set_dai_tdm_slot,
 };
 
@@ -661,7 +680,7 @@ static bool fsl_esai_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_config fsl_esai_regmap_config = {
+static struct regmap_config fsl_esai_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -686,6 +705,9 @@ static int fsl_esai_probe(struct platform_device *pdev)
 
 	esai_priv->pdev = pdev;
 	strcpy(esai_priv->name, np->name);
+
+	if (of_property_read_bool(np, "big-endian"))
+		fsl_esai_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

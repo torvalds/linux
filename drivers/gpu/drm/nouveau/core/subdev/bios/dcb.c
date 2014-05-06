@@ -142,9 +142,36 @@ dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 		if (*ver >= 0x40) {
 			u32 conf = nv_ro32(bios, dcb + 0x04);
 			switch (outp->type) {
+			case DCB_OUTPUT_DP:
+				switch (conf & 0x00e00000) {
+				case 0x00000000:
+					outp->dpconf.link_bw = 0x06;
+					break;
+				case 0x00200000:
+					outp->dpconf.link_bw = 0x0a;
+					break;
+				case 0x00400000:
+				default:
+					outp->dpconf.link_bw = 0x14;
+					break;
+				}
+
+				switch (conf & 0x0f000000) {
+				case 0x0f000000:
+					outp->dpconf.link_nr = 4;
+					break;
+				case 0x03000000:
+					outp->dpconf.link_nr = 2;
+					break;
+				case 0x01000000:
+				default:
+					outp->dpconf.link_nr = 1;
+					break;
+				}
+
+				/* fall-through... */
 			case DCB_OUTPUT_TMDS:
 			case DCB_OUTPUT_LVDS:
-			case DCB_OUTPUT_DP:
 				outp->link = (conf & 0x00000030) >> 4;
 				outp->sorconf.link = outp->link; /*XXX*/
 				outp->extdev = 0x00;

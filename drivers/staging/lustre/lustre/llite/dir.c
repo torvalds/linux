@@ -362,7 +362,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		struct ptlrpc_request *request;
 		struct md_op_data *op_data;
 
-		op_data = ll_prep_md_op_data(NULL, dir, NULL, NULL, 0, 0,
+		op_data = ll_prep_md_op_data(NULL, dir, dir, NULL, 0, 0,
 		LUSTRE_OPC_ANY, NULL);
 		if (IS_ERR(op_data))
 			return (void *)op_data;
@@ -1048,20 +1048,25 @@ progress:
 }
 
 
-static int copy_and_ioctl(int cmd, struct obd_export *exp, void *data, int len)
+static int copy_and_ioctl(int cmd, struct obd_export *exp,
+			  const void __user *data, size_t size)
 {
-	void *ptr;
+	void *copy;
 	int rc;
 
-	OBD_ALLOC(ptr, len);
-	if (ptr == NULL)
+	OBD_ALLOC(copy, size);
+	if (copy == NULL)
 		return -ENOMEM;
-	if (copy_from_user(ptr, data, len)) {
-		OBD_FREE(ptr, len);
-		return -EFAULT;
+
+	if (copy_from_user(copy, data, size)) {
+		rc = -EFAULT;
+		goto out;
 	}
-	rc = obd_iocontrol(cmd, exp, len, data, NULL);
-	OBD_FREE(ptr, len);
+
+	rc = obd_iocontrol(cmd, exp, size, copy, NULL);
+out:
+	OBD_FREE(copy, size);
+
 	return rc;
 }
 
@@ -1080,16 +1085,16 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	case Q_QUOTAOFF:
 	case Q_SETQUOTA:
 	case Q_SETINFO:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 		break;
 	case Q_GETQUOTA:
 		if (((type == USRQUOTA &&
-		      uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
+		      !uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
 		     (type == GRPQUOTA &&
 		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
-		    (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		    (!capable(CFS_CAP_SYS_ADMIN) ||
 		     sbi->ll_flags & LL_SBI_RMT_CLIENT))
 			return -EPERM;
 		break;
@@ -1395,7 +1400,7 @@ lmv_out_free:
 		if (tmp == NULL)
 			GOTO(free_lmv, rc = -ENOMEM);
 
-		memcpy(tmp, &lum, sizeof(lum));
+		*tmp = lum;
 		tmp->lum_type = LMV_STRIPE_TYPE;
 		tmp->lum_stripe_count = 1;
 		mdtindex = ll_get_mdt_idx(inode);
@@ -1597,7 +1602,7 @@ out_rmdir:
 		struct obd_quotactl *oqctl;
 		int error = 0;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 
@@ -1621,7 +1626,7 @@ out_rmdir:
 	case OBD_IOC_POLL_QUOTACHECK: {
 		struct if_quotacheck *check;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 

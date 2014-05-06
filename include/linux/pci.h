@@ -29,7 +29,6 @@
 #include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/irqreturn.h>
 #include <uapi/linux/pci.h>
 
 #include <linux/pci_ids.h>
@@ -170,6 +169,8 @@ enum pci_dev_flags {
 	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) 2,
 	/* Provide indication device is assigned by a Virtual Machine Manager */
 	PCI_DEV_FLAGS_ASSIGNED = (__force pci_dev_flags_t) 4,
+	/* Flag for quirk use to store if quirk-specific ACS is enabled */
+	PCI_DEV_FLAGS_ACS_ENABLED_QUIRK = (__force pci_dev_flags_t) 8,
 };
 
 enum pci_irq_reroute_variant {
@@ -461,7 +462,6 @@ struct pci_bus {
 	unsigned int		is_added:1;
 };
 
-#define pci_bus_b(n)	list_entry(n, struct pci_bus, node)
 #define to_pci_bus(n)	container_of(n, struct pci_bus, dev)
 
 /*
@@ -1066,7 +1066,7 @@ void pci_bus_remove_resources(struct pci_bus *bus);
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 			struct resource *res, resource_size_t size,
 			resource_size_t align, resource_size_t min,
-			unsigned int type_mask,
+			unsigned long type_mask,
 			resource_size_t (*alignf)(void *,
 						  const struct resource *,
 						  resource_size_t,
@@ -1169,8 +1169,23 @@ void msi_remove_pci_irq_vectors(struct pci_dev *dev);
 void pci_restore_msi_state(struct pci_dev *dev);
 int pci_msi_enabled(void);
 int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec);
+static inline int pci_enable_msi_exact(struct pci_dev *dev, int nvec)
+{
+	int rc = pci_enable_msi_range(dev, nvec, nvec);
+	if (rc < 0)
+		return rc;
+	return 0;
+}
 int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 			  int minvec, int maxvec);
+static inline int pci_enable_msix_exact(struct pci_dev *dev,
+					struct msix_entry *entries, int nvec)
+{
+	int rc = pci_enable_msix_range(dev, entries, nvec, nvec);
+	if (rc < 0)
+		return rc;
+	return 0;
+}
 #else
 static inline int pci_msi_vec_count(struct pci_dev *dev) { return -ENOSYS; }
 static inline int pci_enable_msi_block(struct pci_dev *dev, int nvec)
@@ -1189,8 +1204,13 @@ static inline int pci_msi_enabled(void) { return 0; }
 static inline int pci_enable_msi_range(struct pci_dev *dev, int minvec,
 				       int maxvec)
 { return -ENOSYS; }
+static inline int pci_enable_msi_exact(struct pci_dev *dev, int nvec)
+{ return -ENOSYS; }
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 		      struct msix_entry *entries, int minvec, int maxvec)
+{ return -ENOSYS; }
+static inline int pci_enable_msix_exact(struct pci_dev *dev,
+		      struct msix_entry *entries, int nvec)
 { return -ENOSYS; }
 #endif
 
@@ -1510,6 +1530,7 @@ enum pci_fixup_pass {
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev);
 struct pci_dev *pci_get_dma_source(struct pci_dev *dev);
 int pci_dev_specific_acs_enabled(struct pci_dev *dev, u16 acs_flags);
+void pci_dev_specific_enable_acs(struct pci_dev *dev);
 #else
 static inline void pci_fixup_device(enum pci_fixup_pass pass,
 				    struct pci_dev *dev) { }
@@ -1522,6 +1543,7 @@ static inline int pci_dev_specific_acs_enabled(struct pci_dev *dev,
 {
 	return -ENOTTY;
 }
+static inline void pci_dev_specific_enable_acs(struct pci_dev *dev) { }
 #endif
 
 void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen);
@@ -1577,7 +1599,6 @@ void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar);
 #ifdef CONFIG_PCI_IOV
 int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn);
 void pci_disable_sriov(struct pci_dev *dev);
-irqreturn_t pci_sriov_migration(struct pci_dev *dev);
 int pci_num_vf(struct pci_dev *dev);
 int pci_vfs_assigned(struct pci_dev *dev);
 int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs);
@@ -1586,8 +1607,6 @@ int pci_sriov_get_totalvfs(struct pci_dev *dev);
 static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 { return -ENODEV; }
 static inline void pci_disable_sriov(struct pci_dev *dev) { }
-static inline irqreturn_t pci_sriov_migration(struct pci_dev *dev)
-{ return IRQ_NONE; }
 static inline int pci_num_vf(struct pci_dev *dev) { return 0; }
 static inline int pci_vfs_assigned(struct pci_dev *dev)
 { return 0; }

@@ -33,6 +33,8 @@ struct  intel_hw_status_page {
 #define I915_READ_IMR(ring) I915_READ(RING_IMR((ring)->mmio_base))
 #define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
 
+#define I915_READ_MODE(ring) I915_READ(RING_MI_MODE((ring)->mmio_base))
+
 enum intel_ring_hangcheck_action {
 	HANGCHECK_IDLE = 0,
 	HANGCHECK_WAIT,
@@ -41,12 +43,14 @@ enum intel_ring_hangcheck_action {
 	HANGCHECK_HUNG,
 };
 
+#define HANGCHECK_SCORE_RING_HUNG 31
+
 struct intel_ring_hangcheck {
-	bool deadlock;
+	u64 acthd;
 	u32 seqno;
-	u32 acthd;
 	int score;
 	enum intel_ring_hangcheck_action action;
+	bool deadlock;
 };
 
 struct  intel_ring_buffer {
@@ -162,6 +166,38 @@ struct  intel_ring_buffer {
 		u32 gtt_offset;
 		volatile u32 *cpu_page;
 	} scratch;
+
+	/*
+	 * Tables of commands the command parser needs to know about
+	 * for this ring.
+	 */
+	const struct drm_i915_cmd_table *cmd_tables;
+	int cmd_table_count;
+
+	/*
+	 * Table of registers allowed in commands that read/write registers.
+	 */
+	const u32 *reg_table;
+	int reg_count;
+
+	/*
+	 * Table of registers allowed in commands that read/write registers, but
+	 * only from the DRM master.
+	 */
+	const u32 *master_reg_table;
+	int master_reg_count;
+
+	/*
+	 * Returns the bitmask for the length field of the specified command.
+	 * Return 0 for an unrecognized/invalid command.
+	 *
+	 * If the command parser finds an entry for a command in the ring's
+	 * cmd_tables, it gets the command's length based on the table entry.
+	 * If not, it calls this function to determine the per-ring length field
+	 * encoding for the command (i.e. certain opcode ranges use certain bits
+	 * to encode the command length in the header).
+	 */
+	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
 static inline bool
@@ -233,6 +269,7 @@ intel_write_status_page(struct intel_ring_buffer *ring,
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 
 int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
+int __must_check intel_ring_cacheline_align(struct intel_ring_buffer *ring);
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 				   u32 data)
 {
@@ -255,7 +292,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev);
 int intel_init_blt_ring_buffer(struct drm_device *dev);
 int intel_init_vebox_ring_buffer(struct drm_device *dev);
 
-u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
+u64 intel_ring_get_active_head(struct intel_ring_buffer *ring);
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
 
 static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)

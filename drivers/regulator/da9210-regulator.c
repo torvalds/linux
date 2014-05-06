@@ -134,11 +134,8 @@ static int da9210_i2c_probe(struct i2c_client *i2c,
 	int error;
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9210), GFP_KERNEL);
-	if (NULL == chip) {
-		dev_err(&i2c->dev,
-			"Cannot kzalloc memory for regulator structure\n");
+	if (!chip)
 		return -ENOMEM;
-	}
 
 	chip->regmap = devm_regmap_init_i2c(i2c, &da9210_regmap_config);
 	if (IS_ERR(chip->regmap)) {

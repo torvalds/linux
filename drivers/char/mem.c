@@ -99,6 +99,9 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 	ssize_t read, sz;
 	char *ptr;
 
+	if (p != *ppos)
+		return 0;
+
 	if (!valid_phys_addr_range(p, count))
 		return -EFAULT;
 	read = 0;
@@ -156,6 +159,9 @@ static ssize_t write_mem(struct file *file, const char __user *buf,
 	ssize_t written, sz;
 	unsigned long copied;
 	void *ptr;
+
+	if (p != *ppos)
+		return -EFBIG;
 
 	if (!valid_phys_addr_range(p, count))
 		return -EFAULT;

@@ -23,8 +23,8 @@ void bch_dump_bset(struct btree_keys *b, struct bset *i, unsigned set)
 	for (k = i->start; k < bset_bkey_last(i); k = next) {
 		next = bkey_next(k);
 
-		printk(KERN_ERR "block %u key %zi/%u: ", set,
-		       (uint64_t *) k - i->d, i->keys);
+		printk(KERN_ERR "block %u key %u/%u: ", set,
+		       (unsigned) ((u64 *) k - i->d), i->keys);
 
 		if (b->ops->key_dump)
 			b->ops->key_dump(b, k);
@@ -1185,9 +1185,12 @@ static void __btree_sort(struct btree_keys *b, struct btree_iter *iter,
 	struct bset *out = (void *) __get_free_pages(__GFP_NOWARN|GFP_NOIO,
 						     order);
 	if (!out) {
+		struct page *outp;
+
 		BUG_ON(order > state->page_order);
 
-		out = page_address(mempool_alloc(state->pool, GFP_NOIO));
+		outp = mempool_alloc(state->pool, GFP_NOIO);
+		out = page_address(outp);
 		used_mempool = true;
 		order = state->page_order;
 	}

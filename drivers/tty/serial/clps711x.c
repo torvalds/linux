@@ -368,11 +368,16 @@ static const struct uart_ops uart_clps711x_ops = {
 static void uart_clps711x_console_putchar(struct uart_port *port, int ch)
 {
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
-	u32 sysflg = 0;
 
-	do {
+	/* Wait for FIFO is not full */
+	while (1) {
+		u32 sysflg = 0;
+
 		regmap_read(s->syscon, SYSFLG_OFFSET, &sysflg);
-	} while (sysflg & SYSFLG_UTXFF);
+		if (!(sysflg & SYSFLG_UTXFF))
+			break;
+		cond_resched();
+	}
 
 	writew(ch, port->membase + UARTDR_OFFSET);
 }
@@ -382,14 +387,18 @@ static void uart_clps711x_console_write(struct console *co, const char *c,
 {
 	struct uart_port *port = clps711x_uart.state[co->index].uart_port;
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
-	u32 sysflg = 0;
 
 	uart_console_write(port, c, n, uart_clps711x_console_putchar);
 
 	/* Wait for transmitter to become empty */
-	do {
+	while (1) {
+		u32 sysflg = 0;
+
 		regmap_read(s->syscon, SYSFLG_OFFSET, &sysflg);
-	} while (sysflg & SYSFLG_UBUSY);
+		if (!(sysflg & SYSFLG_UBUSY))
+			break;
+		cond_resched();
+	}
 }
 
 static int uart_clps711x_console_setup(struct console *co, char *options)

@@ -465,7 +465,6 @@ static inline void check_stack_overflow(void)
 
 void __do_irq(struct pt_regs *regs)
 {
-	struct irq_desc *desc;
 	unsigned int irq;
 
 	irq_enter();
@@ -487,11 +486,8 @@ void __do_irq(struct pt_regs *regs)
 	/* And finally process it */
 	if (unlikely(irq == NO_IRQ))
 		__get_cpu_var(irq_stat).spurious_irqs++;
-	else {
-		desc = irq_to_desc(irq);
-		if (likely(desc))
-			desc->handle_irq(irq, desc);
-	}
+	else
+		generic_handle_irq(irq);
 
 	trace_irq_exit(regs);
 
@@ -559,8 +555,13 @@ void exc_lvl_ctx_init(void)
 #ifdef CONFIG_PPC64
 		cpu_nr = i;
 #else
+#ifdef CONFIG_SMP
 		cpu_nr = get_hard_smp_processor_id(i);
+#else
+		cpu_nr = 0;
 #endif
+#endif
+
 		memset((void *)critirq_ctx[cpu_nr], 0, THREAD_SIZE);
 		tp = critirq_ctx[cpu_nr];
 		tp->cpu = cpu_nr;

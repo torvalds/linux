@@ -57,7 +57,7 @@
 #define MAX_INDIRECT_SEGMENTS 256
 
 #define SEGS_PER_INDIRECT_FRAME \
-	(PAGE_SIZE/sizeof(struct blkif_request_segment_aligned))
+	(PAGE_SIZE/sizeof(struct blkif_request_segment))
 #define MAX_INDIRECT_PAGES \
 	((MAX_INDIRECT_SEGMENTS + SEGS_PER_INDIRECT_FRAME - 1)/SEGS_PER_INDIRECT_FRAME)
 #define INDIRECT_PAGES(_segs) \
@@ -278,6 +278,7 @@ struct xen_blkif {
 	/* for barrier (drain) requests */
 	struct completion	drain_complete;
 	atomic_t		drain;
+	atomic_t		inflight;
 	/* One thread per one blkif. */
 	struct task_struct	*xenblkd;
 	unsigned int		waiting_reqs;
@@ -376,6 +377,7 @@ int xen_blkif_xenbus_init(void);
 irqreturn_t xen_blkif_be_int(int irq, void *dev_id);
 int xen_blkif_schedule(void *arg);
 int xen_blkif_purge_persistent(void *arg);
+void xen_blkbk_free_caches(struct xen_blkif *blkif);
 
 int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 			      struct backend_info *be, int state);
@@ -383,6 +385,7 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 int xen_blkbk_barrier(struct xenbus_transaction xbt,
 		      struct backend_info *be, int state);
 struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be);
+void xen_blkbk_unmap_purged_grants(struct work_struct *work);
 
 static inline void blkif_get_x86_32_req(struct blkif_request *dst,
 					struct blkif_x86_32_request *src)

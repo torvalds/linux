@@ -438,7 +438,6 @@ void musb_hnp_stop(struct musb *musb)
 static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				u8 devctl)
 {
-	struct usb_otg *otg = musb->xceiv->otg;
 	irqreturn_t handled = IRQ_NONE;
 
 	dev_dbg(musb->controller, "<== DevCtl=%02x, int_usb=0x%x\n", devctl,
@@ -477,8 +476,11 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				musb->port1_status |=
 						(USB_PORT_STAT_C_SUSPEND << 16)
 						| MUSB_PORT_STAT_RESUME;
+				musb->rh_timer = jiffies
+						 + msecs_to_jiffies(20);
 				schedule_delayed_work(
-					&musb->finish_resume_work, 20);
+					&musb->finish_resume_work,
+					msecs_to_jiffies(20));
 
 				musb->xceiv->state = OTG_STATE_A_HOST;
 				musb->is_active = 1;
@@ -653,7 +655,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				break;
 		case OTG_STATE_B_PERIPHERAL:
 			musb_g_suspend(musb);
-			musb->is_active = otg->gadget->b_hnp_enable;
+			musb->is_active = musb->g.b_hnp_enable;
 			if (musb->is_active) {
 				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
 				dev_dbg(musb->controller, "HNP: Setting timer for b_ase0_brst\n");
@@ -669,7 +671,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			break;
 		case OTG_STATE_A_HOST:
 			musb->xceiv->state = OTG_STATE_A_SUSPEND;
-			musb->is_active = otg->host->b_hnp_enable;
+			musb->is_active = musb->hcd->self.b_hnp_enable;
 			break;
 		case OTG_STATE_B_HOST:
 			/* Transition to B_PERIPHERAL, see 6.8.2.6 p 44 */
@@ -2157,11 +2159,19 @@ static void musb_restore_context(struct musb *musb)
 	void __iomem *musb_base = musb->mregs;
 	void __iomem *ep_target_regs;
 	void __iomem *epio;
+	u8 power;
 
 	musb_writew(musb_base, MUSB_FRAME, musb->context.frame);
 	musb_writeb(musb_base, MUSB_TESTMODE, musb->context.testmode);
 	musb_write_ulpi_buscontrol(musb->mregs, musb->context.busctl);
-	musb_writeb(musb_base, MUSB_POWER, musb->context.power);
+
+	/* Don't affect SUSPENDM/RESUME bits in POWER reg */
+	power = musb_readb(musb_base, MUSB_POWER);
+	power &= MUSB_POWER_SUSPENDM | MUSB_POWER_RESUME;
+	musb->context.power &= ~(MUSB_POWER_SUSPENDM | MUSB_POWER_RESUME);
+	power |= musb->context.power;
+	musb_writeb(musb_base, MUSB_POWER, power);
+
 	musb_writew(musb_base, MUSB_INTRTXE, musb->intrtxe);
 	musb_writew(musb_base, MUSB_INTRRXE, musb->intrrxe);
 	musb_writeb(musb_base, MUSB_INTRUSBE, musb->context.intrusbe);

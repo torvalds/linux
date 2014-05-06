@@ -18,6 +18,7 @@
  * This driver is based on max8997.c
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
@@ -25,7 +26,10 @@
 #include <linux/mfd/max14577-private.h>
 
 static struct mfd_cell max14577_devs[] = {
-	{ .name = "max14577-muic", },
+	{
+		.name = "max14577-muic",
+		.of_compatible = "maxim,max14577-muic",
+	},
 	{
 		.name = "max14577-regulator",
 		.of_compatible = "maxim,max14577-regulator",
@@ -173,6 +177,7 @@ static const struct i2c_device_id max14577_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max14577_i2c_id);
 
+#ifdef CONFIG_PM_SLEEP
 static int max14577_suspend(struct device *dev)
 {
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
@@ -208,6 +213,7 @@ static int max14577_resume(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static struct of_device_id max14577_dt_match[] = {
 	{ .compatible = "maxim,max14577", },

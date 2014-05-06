@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -133,6 +133,9 @@ struct acpi_init_walk_info {
 	u32 table_index;
 	u32 object_count;
 	u32 method_count;
+	u32 serial_method_count;
+	u32 non_serial_method_count;
+	u32 serialized_method_count;
 	u32 device_count;
 	u32 op_region_count;
 	u32 field_count;

@@ -19,12 +19,14 @@
 #include <linux/cpumask.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/clk/zynq.h>
 #include <linux/clocksource.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of.h>
+#include <linux/memblock.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
 
@@ -41,6 +43,18 @@
 
 void __iomem *zynq_scu_base;
 
+/**
+ * zynq_memory_init - Initialize special memory
+ *
+ * We need to stop things allocating the low memory as DMA can't work in
+ * the 1st 512K of memory.
+ */
+static void __init zynq_memory_init(void)
+{
+	if (!__pa(PAGE_OFFSET))
+		memblock_reserve(__pa(PAGE_OFFSET), __pa(swapper_pg_dir));
+}
+
 static struct platform_device zynq_cpuidle_device = {
 	.name = "cpuidle-zynq",
 };
@@ -51,6 +65,8 @@ static struct platform_device zynq_cpuidle_device = {
  */
 static void __init zynq_init_machine(void)
 {
+	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", };
+
 	/*
 	 * 64KB way size, 8-way associativity, parity disabled
 	 */
@@ -59,11 +75,17 @@ static void __init zynq_init_machine(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	platform_device_register(&zynq_cpuidle_device);
+	platform_device_register_full(&devinfo);
+
+	zynq_slcr_init();
 }
 
 static void __init zynq_timer_init(void)
 {
-	zynq_slcr_init();
+	zynq_early_slcr_init();
+
+	zynq_clock_init();
+	of_clk_init(NULL);
 	clocksource_of_init();
 }
 
@@ -117,5 +139,6 @@ DT_MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
 	.init_machine	= zynq_init_machine,
 	.init_time	= zynq_timer_init,
 	.dt_compat	= zynq_dt_match,
+	.reserve	= zynq_memory_init,
 	.restart	= zynq_system_reset,
 MACHINE_END

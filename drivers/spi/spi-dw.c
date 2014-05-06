@@ -276,8 +276,7 @@ static void giveback(struct dw_spi *dws)
 	queue_work(dws->workqueue, &dws->pump_messages);
 	spin_unlock_irqrestore(&dws->lock, flags);
 
-	last_transfer = list_entry(msg->transfers.prev,
-					struct spi_transfer,
+	last_transfer = list_last_entry(&msg->transfers, struct spi_transfer,
 					transfer_list);
 
 	if (!last_transfer->cs_change && dws->cs_control)
@@ -439,12 +438,6 @@ static void pump_transfers(unsigned long data)
 
 		if (transfer->speed_hz != speed) {
 			speed = transfer->speed_hz;
-			if (speed > dws->max_freq) {
-				printk(KERN_ERR "MRST SPI0: unsupported"
-					"freq: %dHz\n", speed);
-				message->status = -EIO;
-				goto early_exit;
-			}
 
 			/* clk_div doesn't support odd number */
 			clk_div = dws->max_freq / speed;
@@ -671,12 +664,6 @@ static int dw_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static void dw_spi_cleanup(struct spi_device *spi)
-{
-	struct chip_data *chip = spi_get_ctldata(spi);
-	kfree(chip);
-}
-
 static int init_queue(struct dw_spi *dws)
 {
 	INIT_LIST_HEAD(&dws->queue);
@@ -806,9 +793,9 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->bus_num = dws->bus_num;
 	master->num_chipselect = dws->num_cs;
-	master->cleanup = dw_spi_cleanup;
 	master->setup = dw_spi_setup;
 	master->transfer = dw_spi_transfer;
+	master->max_speed_hz = dws->max_freq;
 
 	/* Basic HW init */
 	spi_hw_init(dws);

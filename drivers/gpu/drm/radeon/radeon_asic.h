@@ -551,6 +551,8 @@ void btc_dpm_fini(struct radeon_device *rdev);
 u32 btc_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 btc_dpm_get_mclk(struct radeon_device *rdev, bool low);
 bool btc_dpm_vblank_too_short(struct radeon_device *rdev);
+void btc_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						     struct seq_file *m);
 int sumo_dpm_init(struct radeon_device *rdev);
 int sumo_dpm_enable(struct radeon_device *rdev);
 int sumo_dpm_late_enable(struct radeon_device *rdev);
@@ -715,6 +717,7 @@ u32 cik_get_xclk(struct radeon_device *rdev);
 uint32_t cik_pciep_rreg(struct radeon_device *rdev, uint32_t reg);
 void cik_pciep_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
+int cik_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk);
 void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
 			      struct radeon_fence *fence);
 bool cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
@@ -860,5 +863,18 @@ bool uvd_v3_1_semaphore_emit(struct radeon_device *rdev,
 
 /* uvd v4.2 */
 int uvd_v4_2_resume(struct radeon_device *rdev);
+
+/* vce v1.0 */
+uint32_t vce_v1_0_get_rptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring);
+uint32_t vce_v1_0_get_wptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring);
+void vce_v1_0_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring);
+int vce_v1_0_init(struct radeon_device *rdev);
+int vce_v1_0_start(struct radeon_device *rdev);
+
+/* vce v2.0 */
+int vce_v2_0_resume(struct radeon_device *rdev);
 
 #endif

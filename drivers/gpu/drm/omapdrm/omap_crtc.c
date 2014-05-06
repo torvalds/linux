@@ -245,7 +245,7 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
 	omap_crtc->full_update = true;
 
-	return omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
+	return omap_plane_mode_set(omap_crtc->plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
@@ -273,7 +273,7 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_plane *plane = omap_crtc->plane;
 	struct drm_display_mode *mode = &crtc->mode;
 
-	return omap_plane_mode_set(plane, crtc, crtc->fb,
+	return omap_plane_mode_set(plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
@@ -308,14 +308,14 @@ static void page_flip_worker(struct work_struct *work)
 	struct drm_gem_object *bo;
 
 	mutex_lock(&crtc->mutex);
-	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
+	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			crtc->x << 16, crtc->y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
 			vblank_cb, crtc);
 	mutex_unlock(&crtc->mutex);
 
-	bo = omap_framebuffer_bo(crtc->fb, 0);
+	bo = omap_framebuffer_bo(crtc->primary->fb, 0);
 	drm_gem_object_unreference_unlocked(bo);
 }
 
@@ -336,9 +336,10 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_plane *primary = crtc->primary;
 	struct drm_gem_object *bo;
 
-	DBG("%d -> %d (event=%p)", crtc->fb ? crtc->fb->base.id : -1,
+	DBG("%d -> %d (event=%p)", primary->fb ? primary->fb->base.id : -1,
 			fb->base.id, event);
 
 	if (omap_crtc->old_fb) {
@@ -347,7 +348,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 	}
 
 	omap_crtc->event = event;
-	crtc->fb = fb;
+	primary->fb = fb;
 
 	/*
 	 * Hold a reference temporarily until the crtc is updated

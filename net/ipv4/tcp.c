@@ -387,7 +387,7 @@ void tcp_init_sock(struct sock *sk)
 	INIT_LIST_HEAD(&tp->tsq_node);
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
-	tp->mdev = TCP_TIMEOUT_INIT;
+	tp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
 
 	/* So many TCP implementations out there (incorrectly) count the
 	 * initial SYN frame in their delayed-ACK and congestion control
@@ -1044,7 +1044,8 @@ void tcp_free_fastopen_req(struct tcp_sock *tp)
 	}
 }
 
-static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *size)
+static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
+				int *copied, size_t size)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int err, flags;
@@ -1059,11 +1060,12 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *size)
 	if (unlikely(tp->fastopen_req == NULL))
 		return -ENOBUFS;
 	tp->fastopen_req->data = msg;
+	tp->fastopen_req->size = size;
 
 	flags = (msg->msg_flags & MSG_DONTWAIT) ? O_NONBLOCK : 0;
 	err = __inet_stream_connect(sk->sk_socket, msg->msg_name,
 				    msg->msg_namelen, flags);
-	*size = tp->fastopen_req->copied;
+	*copied = tp->fastopen_req->copied;
 	tcp_free_fastopen_req(tp);
 	return err;
 }
@@ -1083,7 +1085,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	flags = msg->msg_flags;
 	if (flags & MSG_FASTOPEN) {
-		err = tcp_sendmsg_fastopen(sk, msg, &copied_syn);
+		err = tcp_sendmsg_fastopen(sk, msg, &copied_syn, size);
 		if (err == -EINPROGRESS && copied_syn > 0)
 			goto out;
 		else if (err)
@@ -2229,7 +2231,7 @@ adjudge_to_death:
 	/*	This is a (useful) BSD violating of the RFC. There is a
 	 *	problem with TCP as specified in that the other end could
 	 *	keep a socket open forever with no application left this end.
-	 *	We use a 3 minute timeout (about the same as BSD) then kill
+	 *	We use a 1 minute timeout (about the same as BSD) then kill
 	 *	our end. If they send after that then tough - BUT: long enough
 	 *	that we won't make the old 4*rto = almost no time - whoops
 	 *	reset mistake.
@@ -2339,7 +2341,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 
 	sk->sk_shutdown = 0;
 	sock_reset_flag(sk, SOCK_DONE);
-	tp->srtt = 0;
+	tp->srtt_us = 0;
 	if ((tp->write_seq += tp->max_window + 2) == 0)
 		tp->write_seq = 1;
 	icsk->icsk_backoff = 0;
@@ -2783,8 +2785,8 @@ void tcp_get_info(const struct sock *sk, struct tcp_info *info)
 
 	info->tcpi_pmtu = icsk->icsk_pmtu_cookie;
 	info->tcpi_rcv_ssthresh = tp->rcv_ssthresh;
-	info->tcpi_rtt = jiffies_to_usecs(tp->srtt)>>3;
-	info->tcpi_rttvar = jiffies_to_usecs(tp->mdev)>>2;
+	info->tcpi_rtt = tp->srtt_us >> 3;
+	info->tcpi_rttvar = tp->mdev_us >> 2;
 	info->tcpi_snd_ssthresh = tp->snd_ssthresh;
 	info->tcpi_snd_cwnd = tp->snd_cwnd;
 	info->tcpi_advmss = tp->advmss;
@@ -2794,6 +2796,11 @@ void tcp_get_info(const struct sock *sk, struct tcp_info *info)
 	info->tcpi_rcv_space = tp->rcvq_space.space;
 
 	info->tcpi_total_retrans = tp->total_retrans;
+
+	info->tcpi_pacing_rate = sk->sk_pacing_rate != ~0U ?
+					sk->sk_pacing_rate : ~0ULL;
+	info->tcpi_max_pacing_rate = sk->sk_max_pacing_rate != ~0U ?
+					sk->sk_max_pacing_rate : ~0ULL;
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
 

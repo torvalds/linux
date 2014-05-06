@@ -179,15 +179,6 @@ static struct map_desc omap34xx_io_desc[] __initdata = {
 		.length		= L4_EMU_34XX_SIZE,
 		.type		= MT_DEVICE
 	},
-#if defined(CONFIG_DEBUG_LL) &&							\
-	(defined(CONFIG_MACH_OMAP_ZOOM2) || defined(CONFIG_MACH_OMAP_ZOOM3))
-	{
-		.virtual	= ZOOM_UART_VIRT,
-		.pfn		= __phys_to_pfn(ZOOM_UART_BASE),
-		.length		= SZ_1M,
-		.type		= MT_DEVICE
-	},
-#endif
 };
 #endif
 
@@ -613,6 +604,7 @@ void __init am43xx_init_early(void)
 	omap_prm_base_init();
 	omap_cm_base_init();
 	omap3xxx_check_revision();
+	am33xx_check_features();
 	am43xx_powerdomains_init();
 	am43xx_clockdomains_init();
 	am43xx_hwmod_init();

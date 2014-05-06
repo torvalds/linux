@@ -58,9 +58,13 @@
 #define LOCAL_11B_BASIC_RATE_BITMAP		0x826
 #define LOCAL_11B_OPERATION_RATE_BITMAP		0x826
 #define LOCAL_11G_BASIC_RATE_BITMAP		0x826	   /* 1, 2, 5.5, 11 */
-#define LOCAL_11G_OPERATION_RATE_BITMAP		0x130c1240 /* 6, 9, 12, 18, 24, 36, 48, 54 */
+#define LOCAL_11G_OPERATION_RATE_BITMAP		0x130c1240 /* 6, 9, 12, 18,
+								    * 24, 36, 48, 54
+								    */
 #define LOCAL_11A_BASIC_RATE_BITMAP		0x01001040 /* 6, 12, 24 */
-#define LOCAL_11A_OPERATION_RATE_BITMAP		0x120c0200 /* 9, 18, 36, 48, 54 */
+#define LOCAL_11A_OPERATION_RATE_BITMAP		0x120c0200 /* 9, 18, 36,
+								    * 48, 54
+								    */
 
 
 #define PWR_ACTIVE				0
@@ -140,7 +144,9 @@ struct wb_local_para {
 	/* Unit time count for the decision to enter PS mode */
 	u16	CheckCountForPS;
 	u8	boHasTxActivity;/* tx activity has occurred */
-	u8	boMacPsValid;	/* Power save mode obtained from H/W is valid or not */
+	u8	boMacPsValid;	/* Power save mode obtained
+				 * from H/W is valid or not
+				 */
 
 	/* Rate */
 	u8	TxRateMode; /*
@@ -162,35 +168,57 @@ struct wb_local_para {
 
 	u8	NumOfBRate;
 	u8	NumOfSRate;
-	u8	NumOfDsssRateInSRate;	/* number of DSSS rates in supported rate set */
+	u8	NumOfDsssRateInSRate;	/* number of DSSS rates in
+					 * supported rate set
+					 */
 	u8	reserved1;
 
 	u32	dwBasicRateBitmap;	/* bit map of basic rates */
 
-	u32	dwSupportRateBitmap;	/* bit map of all support rates including basic and operational rates */
+	u32	dwSupportRateBitmap;	/* bit map of all support rates
+					 * including basic and operational
+					 * rates
+					 */
 
 
 	/* For SME/MLME handler */
 
-	u16	wOldSTAindex;		/* valid when boHandover=TRUE, store old connected STA index */
-	u16	wConnectedSTAindex;	/* Index of peerly connected AP or IBSS in the descriptionset. */
-	u16	Association_ID;		/* The Association ID in the (Re)Association Response frame. */
-	u16	ListenInterval;		/* The listen interval when SME invoking MLME_ (Re)Associate_Request(). */
+	u16	wOldSTAindex;		/* valid when boHandover=TRUE,
+					 * store old connected STA index
+					 */
+	u16	wConnectedSTAindex;	/* Index of peerly connected AP or
+					 * IBSS in the descriptionset.
+					 */
+	u16	Association_ID;		/* The Association ID in the
+					 * (Re)Association Response frame.
+					 */
+	u16	ListenInterval;		/* The listen interval when SME invoking
+					 * MLME_ (Re)Associate_Request().
+					 */
 
 	struct	radio_off RadioOffStatus;
 	u8	Reserved0[2];
-	u8	boMsRadioOff;		/* Ndis demands to be true when set Disassoc. OID and be false when set SSID OID. */
+	u8	boMsRadioOff;		/* Ndis demands to be true when set
+					 * Disassoc. OID and be false when
+					 * set SSID OID.
+					 */
 	u8	bAntennaNo;		/* which antenna */
-	u8	bConnectFlag;		/* the connect status flag for roaming task */
+	u8	bConnectFlag;		/* the connect status flag for
+					 * roaming task
+					 */
 
 	u8	RoamStatus;
 	u8	reserved7[3];
 
-	struct	chan_info CurrentChan;	/* Current channel no. and channel band. It may be changed by scanning. */
+	struct	chan_info CurrentChan;	/* Current channel no. and channel band.
+					 * It may be changed by scanning.
+					 */
 	u8	boHandover;		/* Roaming, Handover to other AP. */
 	u8	boCCAbusy;
 
-	u16	CWMax;			/* It may not be the real value that H/W used */
+	u16	CWMax;			/* It may not be the real value
+					 * that H/W used
+					 */
 	u8	CWMin;			/* 255: set according to 802.11 spec. */
 	u8	reserved2;
 
@@ -200,7 +228,9 @@ struct wb_local_para {
 	u8	bPreambleMode;		/* AUTO, s32 */
 	u8	boNonERPpresent;
 
-	u8	boProtectMechanism;	/* H/W will take the necessary action based on this variable */
+	u8	boProtectMechanism;	/* H/W will take the necessary action
+					 * based on this variable
+					 */
 	u8	boShortPreamble;	/* Same here */
 	u8	boShortSlotTime;	/* Same here */
 	u8	reserved_3;
@@ -213,8 +243,12 @@ struct wb_local_para {
 	u32	HwBssidValid;
 
 	/* For scan list */
-	u8	BssListCount;		/* Total count of valid descriptor indexes */
-	u8	boReceiveUncorrectInfo;	/* important settings in beacon/probe resp. have been changed */
+	u8	BssListCount;		/* Total count of valid
+					 * descriptor indexes
+					 */
+	u8	boReceiveUncorrectInfo;	/* important settings in beacon/probe
+					 * resp. have been changed
+					 */
 	u8	NoOfJoinerInIbss;
 	u8	reserved_4;
 
@@ -228,7 +262,9 @@ struct wb_local_para {
 	 */
 	u8	JoinerInIbss[(MAX_BSS_DESCRIPT_ELEMENT + 3) & ~0x03];
 
-	/* General Statistics, count at Rx_handler or Tx_callback interrupt handler */
+	/* General Statistics, count at Rx_handler or
+	 * Tx_callback interrupt handler
+	 */
 	u64	GS_XMIT_OK;		/* Good Frames Transmitted */
 	u64	GS_RCV_OK;		/* Good Frames Received */
 	u32	GS_RCV_ERROR;		/* Frames received with crc error */
@@ -248,10 +284,18 @@ struct wb_local_para {
 	u32	_dot11WEPUndecryptableCount;
 	u32	_dot11FrameDuplicateCount;
 
-	struct	chan_info IbssChanSetting;	/* 2B. Start IBSS Channel setting by registry or WWU. */
-	u8	reserved_5[2];		/* It may not be used after considering RF type, region and modulation type. */
+	struct	chan_info IbssChanSetting;	/* 2B. Start IBSS Channel
+						 * setting by registry or
+						 * WWU.
+						 */
+	u8	reserved_5[2];		/* It may not be used after
+					 * considering RF type, region
+					 * and modulation type.
+					 */
 
-	u8	reserved_6[2];		/* two variables are for wep key error detection */
+	u8	reserved_6[2];		/* two variables are for wep
+					 * key error detection
+					 */
 	u32	bWepKeyError;
 	u32	bToSelfPacketReceived;
 	u32	WepKeyDetectTimerCount;

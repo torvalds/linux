@@ -453,7 +453,7 @@ TP_STATUS_COPY        : This flag indicates that the frame (and associated
                         enabled previously with setsockopt() and 
                         the PACKET_COPY_THRESH option. 
 
-                        The number of frames than can be buffered to 
+                        The number of frames that can be buffered to
                         be read with recvfrom is limited like a normal socket.
                         See the SO_RCVBUF option in the socket (7) man page.
 

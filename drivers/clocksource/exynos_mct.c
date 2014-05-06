@@ -25,8 +25,6 @@
 #include <linux/of_address.h>
 #include <linux/clocksource.h>
 
-#include <asm/mach/time.h>
-
 #define EXYNOS4_MCTREG(x)		(x)
 #define EXYNOS4_MCT_G_CNT_L		EXYNOS4_MCTREG(0x100)
 #define EXYNOS4_MCT_G_CNT_U		EXYNOS4_MCTREG(0x104)
@@ -410,7 +408,7 @@ static int exynos4_local_timer_setup(struct clock_event_device *evt)
 	mevt = container_of(evt, struct mct_clock_event_device, evt);
 
 	mevt->base = EXYNOS4_MCT_L_BASE(cpu);
-	sprintf(mevt->name, "mct_tick%d", cpu);
+	snprintf(mevt->name, sizeof(mevt->name), "mct_tick%d", cpu);
 
 	evt->name = mevt->name;
 	evt->cpumask = cpumask_of(cpu);

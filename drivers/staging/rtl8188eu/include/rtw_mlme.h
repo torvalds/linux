@@ -106,13 +106,6 @@ SHALL not lock up more than one lock at a time!
 #define traffic_threshold	10
 #define	traffic_scan_period	500
 
-struct sitesurvey_ctrl {
-	u64	last_tx_pkts;
-	uint	last_rx_pkts;
-	int	traffic_busy;
-	struct timer_list sitesurvey_ctrl_timer;
-};
-
 struct rt_link_detect {
 	u32	NumTxOkInPeriod;
 	u32	NumRxOkInPeriod;
@@ -302,31 +295,6 @@ struct wifidirect_info {
 	u32 noa_interval[P2P_MAX_NOA_NUM];
 	/* schedule expressed in terms of the lower 4 bytes of the TSF timer. */
 	u32 noa_start_time[P2P_MAX_NOA_NUM];
-};
-
-struct tdls_ss_record {	/* signal strength record */
-	u8 macaddr[ETH_ALEN];
-	u8 RxPWDBAll;
-	u8 is_tdls_sta;	/*  true: direct link sta, false: else */
-};
-
-struct tdls_info {
-	u8 ap_prohibited;
-	uint setup_state;
-	u8 sta_cnt;
-	u8 sta_maximum;	/*  1:tdls sta is equal (NUM_STA-1), reach max direct link number; 0: else; */
-	struct tdls_ss_record	ss_record;
-	u8 macid_index;	/* macid entry that is ready to write */
-	u8 clear_cam;	/* cam entry that is trying to clear, using it in direct link teardown */
-	u8 ch_sensing;
-	u8 cur_channel;
-	u8 candidate_ch;
-	u8 collect_pkt_num[MAX_CHANNEL_NUM];
-	spinlock_t cmd_lock;
-	spinlock_t hdl_lock;
-	u8 watchdog_count;
-	u8 dev_discovered;		/* WFD_TDLS: for sigma test */
-	u8 enable;
 };
 
 struct mlme_priv {

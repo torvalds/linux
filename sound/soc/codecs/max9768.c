@@ -135,11 +135,6 @@ static int max9768_probe(struct snd_soc_codec *codec)
 	struct max9768 *max9768 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = max9768->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 2, 6, SND_SOC_REGMAP);
-	if (ret)
-		return ret;
-
 	if (max9768->flags & MAX9768_FLAG_CLASSIC_PWM) {
 		ret = snd_soc_write(codec, MAX9768_CTRL, MAX9768_CTRL_PWM);
 		if (ret)

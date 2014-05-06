@@ -516,11 +516,11 @@ static struct div_nmp pllp_nmp = {
 };
 
 static struct tegra_clk_pll_freq_table pll_p_freq_table[] = {
-	{12000000, 216000000, 432, 12, 1, 8},
-	{13000000, 216000000, 432, 13, 1, 8},
-	{16800000, 216000000, 360, 14, 1, 8},
-	{19200000, 216000000, 360, 16, 1, 8},
-	{26000000, 216000000, 432, 26, 1, 8},
+	{12000000, 408000000, 408, 12, 0, 8},
+	{13000000, 408000000, 408, 13, 0, 8},
+	{16800000, 408000000, 340, 14, 0, 8},
+	{19200000, 408000000, 340, 16, 0, 8},
+	{26000000, 408000000, 408, 26, 0, 8},
 	{0, 0, 0, 0, 0, 0},
 };
 
@@ -570,6 +570,15 @@ static struct tegra_clk_pll_params pll_a_params = {
 	.flags = TEGRA_PLL_HAS_CPCON | TEGRA_PLL_USE_LOCK,
 };
 
+static struct div_nmp plld_nmp = {
+	.divm_shift = 0,
+	.divm_width = 5,
+	.divn_shift = 8,
+	.divn_width = 11,
+	.divp_shift = 20,
+	.divp_width = 3,
+};
+
 static struct tegra_clk_pll_freq_table pll_d_freq_table[] = {
 	{12000000, 216000000, 864, 12, 4, 12},
 	{13000000, 216000000, 864, 13, 4, 12},
@@ -603,19 +612,18 @@ static struct tegra_clk_pll_params pll_d_params = {
 	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
-	.div_nmp = &pllp_nmp,
+	.div_nmp = &plld_nmp,
 	.freq_table = pll_d_freq_table,
 	.flags = TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
 		 TEGRA_PLL_USE_LOCK,
 };
 
 static struct tegra_clk_pll_freq_table tegra124_pll_d2_freq_table[] = {
-	{ 12000000, 148500000,  99, 1, 8},
-	{ 12000000, 594000000,  99, 1, 1},
-	{ 13000000, 594000000,  91, 1, 1},      /* actual: 591.5 MHz */
-	{ 16800000, 594000000,  71, 1, 1},      /* actual: 596.4 MHz */
-	{ 19200000, 594000000,  62, 1, 1},      /* actual: 595.2 MHz */
-	{ 26000000, 594000000,  91, 2, 1},      /* actual: 591.5 MHz */
+	{ 12000000, 594000000,  99, 1, 2},
+	{ 13000000, 594000000,  91, 1, 2},      /* actual: 591.5 MHz */
+	{ 16800000, 594000000,  71, 1, 2},      /* actual: 596.4 MHz */
+	{ 19200000, 594000000,  62, 1, 2},      /* actual: 595.2 MHz */
+	{ 26000000, 594000000,  91, 2, 2},      /* actual: 591.5 MHz */
 	{ 0, 0, 0, 0, 0, 0 },
 };
 
@@ -753,21 +761,19 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_rtc] = { .dt_id = TEGRA124_CLK_RTC, .present = true },
 	[tegra_clk_timer] = { .dt_id = TEGRA124_CLK_TIMER, .present = true },
 	[tegra_clk_uarta] = { .dt_id = TEGRA124_CLK_UARTA, .present = true },
-	[tegra_clk_sdmmc2] = { .dt_id = TEGRA124_CLK_SDMMC2, .present = true },
+	[tegra_clk_sdmmc2_8] = { .dt_id = TEGRA124_CLK_SDMMC2, .present = true },
 	[tegra_clk_i2s1] = { .dt_id = TEGRA124_CLK_I2S1, .present = true },
 	[tegra_clk_i2c1] = { .dt_id = TEGRA124_CLK_I2C1, .present = true },
 	[tegra_clk_ndflash] = { .dt_id = TEGRA124_CLK_NDFLASH, .present = true },
-	[tegra_clk_sdmmc1] = { .dt_id = TEGRA124_CLK_SDMMC1, .present = true },
-	[tegra_clk_sdmmc4] = { .dt_id = TEGRA124_CLK_SDMMC4, .present = true },
+	[tegra_clk_sdmmc1_8] = { .dt_id = TEGRA124_CLK_SDMMC1, .present = true },
+	[tegra_clk_sdmmc4_8] = { .dt_id = TEGRA124_CLK_SDMMC4, .present = true },
 	[tegra_clk_pwm] = { .dt_id = TEGRA124_CLK_PWM, .present = true },
 	[tegra_clk_i2s2] = { .dt_id = TEGRA124_CLK_I2S2, .present = true },
-	[tegra_clk_gr2d] = { .dt_id = TEGRA124_CLK_GR_2D, .present = true },
 	[tegra_clk_usbd] = { .dt_id = TEGRA124_CLK_USBD, .present = true },
 	[tegra_clk_isp_8] = { .dt_id = TEGRA124_CLK_ISP, .present = true },
-	[tegra_clk_gr3d] = { .dt_id = TEGRA124_CLK_GR_3D, .present = true },
 	[tegra_clk_disp2] = { .dt_id = TEGRA124_CLK_DISP2, .present = true },
 	[tegra_clk_disp1] = { .dt_id = TEGRA124_CLK_DISP1, .present = true },
-	[tegra_clk_host1x] = { .dt_id = TEGRA124_CLK_HOST1X, .present = true },
+	[tegra_clk_host1x_8] = { .dt_id = TEGRA124_CLK_HOST1X, .present = true },
 	[tegra_clk_vcp] = { .dt_id = TEGRA124_CLK_VCP, .present = true },
 	[tegra_clk_i2s0] = { .dt_id = TEGRA124_CLK_I2S0, .present = true },
 	[tegra_clk_apbdma] = { .dt_id = TEGRA124_CLK_APBDMA, .present = true },
@@ -794,7 +800,7 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_uartd] = { .dt_id = TEGRA124_CLK_UARTD, .present = true },
 	[tegra_clk_i2c3] = { .dt_id = TEGRA124_CLK_I2C3, .present = true },
 	[tegra_clk_sbc4] = { .dt_id = TEGRA124_CLK_SBC4, .present = true },
-	[tegra_clk_sdmmc3] = { .dt_id = TEGRA124_CLK_SDMMC3, .present = true },
+	[tegra_clk_sdmmc3_8] = { .dt_id = TEGRA124_CLK_SDMMC3, .present = true },
 	[tegra_clk_pcie] = { .dt_id = TEGRA124_CLK_PCIE, .present = true },
 	[tegra_clk_owr] = { .dt_id = TEGRA124_CLK_OWR, .present = true },
 	[tegra_clk_afi] = { .dt_id = TEGRA124_CLK_AFI, .present = true },
@@ -1286,9 +1292,9 @@ static void __init tegra124_pll_init(void __iomem *clk_base,
 	clk_register_clkdev(clk, "pll_d2", NULL);
 	clks[TEGRA124_CLK_PLL_D2] = clk;
 
-	/* PLLD2_OUT0 ?? */
+	/* PLLD2_OUT0 */
 	clk = clk_register_fixed_factor(NULL, "pll_d2_out0", "pll_d2",
-					CLK_SET_RATE_PARENT, 1, 2);
+					CLK_SET_RATE_PARENT, 1, 1);
 	clk_register_clkdev(clk, "pll_d2_out0", NULL);
 	clks[TEGRA124_CLK_PLL_D2_OUT0] = clk;
 

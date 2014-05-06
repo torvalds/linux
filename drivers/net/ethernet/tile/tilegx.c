@@ -659,6 +659,9 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 	struct info_mpipe *info_mpipe =
 		container_of(napi, struct info_mpipe, napi);
 
+	if (budget <= 0)
+		goto done;
+
 	instance = info_mpipe->instance;
 	while ((n = gxio_mpipe_iqueue_try_peek(
 			&info_mpipe->iqueue,
@@ -870,6 +873,7 @@ static struct ptp_clock_info ptp_mpipe_caps = {
 	.name		= "mPIPE clock",
 	.max_adj	= 999999999,
 	.n_ext_ts	= 0,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= ptp_mpipe_adjfreq,
 	.adjtime	= ptp_mpipe_adjtime,
@@ -2071,7 +2075,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 
 /* Return subqueue id on this core (one per core). */
 static u16 tile_net_select_queue(struct net_device *dev, struct sk_buff *skb,
-				 void *accel_priv)
+				 void *accel_priv, select_queue_fallback_t fallback)
 {
 	return smp_processor_id();
 }

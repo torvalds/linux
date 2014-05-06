@@ -23,9 +23,6 @@ extern void msm_map_qsd8x50_io(void);
 extern void __iomem *__msm_ioremap_caller(phys_addr_t phys_addr, size_t size,
 					  unsigned int mtype, void *caller);
 
-extern struct smp_operations msm_smp_ops;
-extern void msm_cpu_die(unsigned int cpu);
-
 struct msm_mmc_platform_data;
 
 extern void msm_add_devices(void);

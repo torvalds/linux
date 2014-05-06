@@ -187,9 +187,7 @@ static int cb_pcimdda_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver cb_pcimdda_driver = {

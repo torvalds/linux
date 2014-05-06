@@ -87,6 +87,16 @@
 #define DRM_VMW_PARAM_MAX_SURF_MEMORY  7
 #define DRM_VMW_PARAM_3D_CAPS_SIZE     8
 #define DRM_VMW_PARAM_MAX_MOB_MEMORY   9
+#define DRM_VMW_PARAM_MAX_MOB_SIZE     10
+
+/**
+ * enum drm_vmw_handle_type - handle type for ref ioctls
+ *
+ */
+enum drm_vmw_handle_type {
+	DRM_VMW_HANDLE_LEGACY = 0,
+	DRM_VMW_HANDLE_PRIME = 1
+};
 
 /**
  * struct drm_vmw_getparam_arg
@@ -176,6 +186,7 @@ struct drm_vmw_surface_create_req {
  * struct drm_wmv_surface_arg
  *
  * @sid: Surface id of created surface or surface to destroy or reference.
+ * @handle_type: Handle type for DRM_VMW_REF_SURFACE Ioctl.
  *
  * Output data from the DRM_VMW_CREATE_SURFACE Ioctl.
  * Input argument to the DRM_VMW_UNREF_SURFACE Ioctl.
@@ -184,7 +195,7 @@ struct drm_vmw_surface_create_req {
 
 struct drm_vmw_surface_arg {
 	int32_t sid;
-	uint32_t pad64;
+	enum drm_vmw_handle_type handle_type;
 };
 
 /**

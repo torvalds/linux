@@ -19,7 +19,7 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 
-#include <plat/pm.h>
+#include <plat/pm-common.h>
 
 #if CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE < 1
 #error CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE must be a positive non-zero value

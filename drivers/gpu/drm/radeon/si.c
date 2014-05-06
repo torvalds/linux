@@ -3434,8 +3434,6 @@ static int si_cp_resume(struct radeon_device *rdev)
 
 	WREG32(CP_RB0_BASE, ring->gpu_addr >> 8);
 
-	ring->rptr = RREG32(CP_RB0_RPTR);
-
 	/* ring1  - compute only */
 	/* Set ring buffer size */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
@@ -3460,8 +3458,6 @@ static int si_cp_resume(struct radeon_device *rdev)
 
 	WREG32(CP_RB1_BASE, ring->gpu_addr >> 8);
 
-	ring->rptr = RREG32(CP_RB1_RPTR);
-
 	/* ring2 - compute only */
 	/* Set ring buffer size */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
@@ -3485,8 +3481,6 @@ static int si_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB2_CNTL, tmp);
 
 	WREG32(CP_RB2_BASE, ring->gpu_addr >> 8);
-
-	ring->rptr = RREG32(CP_RB2_RPTR);
 
 	/* start the rings */
 	si_cp_start(rdev);
@@ -3872,11 +3866,9 @@ bool si_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	if (!(reset_mask & (RADEON_RESET_GFX |
 			    RADEON_RESET_COMPUTE |
 			    RADEON_RESET_CP))) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
@@ -6338,6 +6330,10 @@ restart_ih:
 				break;
 			}
 			break;
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
+			break;
 		case 146:
 		case 147:
 			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
@@ -6614,7 +6610,8 @@ int si_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	si_init_golden_registers(rdev);
 
-	radeon_pm_resume(rdev);
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_resume(rdev);
 
 	rdev->accel_working = true;
 	r = si_startup(rdev);

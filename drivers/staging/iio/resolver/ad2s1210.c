@@ -312,7 +312,7 @@ static ssize_t ad2s1210_store_control(struct device *dev,
 	if (st->pdata->gpioin) {
 		data = ad2s1210_read_resolution_pin(st);
 		if (data != st->resolution)
-			pr_warning("ad2s1210: resolution settings not match\n");
+			pr_warn("ad2s1210: resolution settings not match\n");
 	} else
 		ad2s1210_set_resolution_pin(st);
 
@@ -372,7 +372,7 @@ static ssize_t ad2s1210_store_resolution(struct device *dev,
 	if (st->pdata->gpioin) {
 		data = ad2s1210_read_resolution_pin(st);
 		if (data != st->resolution)
-			pr_warning("ad2s1210: resolution settings not match\n");
+			pr_warn("ad2s1210: resolution settings not match\n");
 	} else
 		ad2s1210_set_resolution_pin(st);
 	ret = len;

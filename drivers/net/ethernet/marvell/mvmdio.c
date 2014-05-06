@@ -167,11 +167,6 @@ out:
 	return ret;
 }
 
-static int orion_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static irqreturn_t orion_mdio_err_irq(int irq, void *dev_id)
 {
 	struct orion_mdio_dev *dev = dev_id;
@@ -209,7 +204,6 @@ static int orion_mdio_probe(struct platform_device *pdev)
 	bus->name = "orion_mdio_bus";
 	bus->read = orion_mdio_read;
 	bus->write = orion_mdio_write;
-	bus->reset = orion_mdio_reset;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii",
 		 dev_name(&pdev->dev));
 	bus->parent = &pdev->dev;

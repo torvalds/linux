@@ -231,7 +231,6 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.4");
 	clk_register_clkdev(clk[gpt6_ipg_gate], "ipg", "imx-gpt.5");
 	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.5");
-	clk_register_clkdev(clk[pwm_ipg_gate], NULL, "mxc_pwm.0");
 	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.0");
 	clk_register_clkdev(clk[sdhc1_ipg_gate], "ipg", "imx21-mmc.0");
 	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.1");

@@ -225,8 +225,6 @@ void dss_dump_clocks(struct seq_file *s);
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
 
-int dss_get_ctx_loss_count(void);
-
 void dss_sdi_init(int datapairs);
 int dss_sdi_enable(void);
 void dss_sdi_disable(void);
@@ -251,6 +249,9 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 /* SDI */
 int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void) __exit;
+
+int sdi_init_port(struct platform_device *pdev, struct device_node *port) __init;
+void sdi_uninit_port(void) __exit;
 
 /* DSI */
 
@@ -362,6 +363,9 @@ static inline bool dsi_pll_calc(struct platform_device *dsidev,
 /* DPI */
 int dpi_init_platform_driver(void) __init;
 void dpi_uninit_platform_driver(void) __exit;
+
+int dpi_init_port(struct platform_device *pdev, struct device_node *port) __init;
+void dpi_uninit_port(void) __exit;
 
 /* DISPC */
 int dispc_init_platform_driver(void) __init;

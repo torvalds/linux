@@ -7,6 +7,8 @@
  * of the GNU General Public License version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -468,7 +470,7 @@ retry:
 			do_xmote(gl, gh, LM_ST_UNLOCKED);
 			break;
 		default: /* Everything else */
-			printk(KERN_ERR "GFS2: wanted %u got %u\n", gl->gl_target, state);
+			pr_err("wanted %u got %u\n", gl->gl_target, state);
 			GLOCK_BUG_ON(gl, 1);
 		}
 		spin_unlock(&gl->gl_spin);
@@ -542,7 +544,7 @@ __acquires(&gl->gl_spin)
 		/* lock_dlm */
 		ret = sdp->sd_lockstruct.ls_ops->lm_lock(gl, target, lck_flags);
 		if (ret) {
-			printk(KERN_ERR "GFS2: lm_lock ret %d\n", ret);
+			pr_err("lm_lock ret %d\n", ret);
 			GLOCK_BUG_ON(gl, 1);
 		}
 	} else { /* lock_nolock */
@@ -935,7 +937,7 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		printk(KERN_ERR " %pV", &vaf);
+		pr_err("%pV", &vaf);
 	}
 
 	va_end(args);
@@ -1010,13 +1012,13 @@ do_cancel:
 	return;
 
 trap_recursive:
-	printk(KERN_ERR "original: %pSR\n", (void *)gh2->gh_ip);
-	printk(KERN_ERR "pid: %d\n", pid_nr(gh2->gh_owner_pid));
-	printk(KERN_ERR "lock type: %d req lock state : %d\n",
+	pr_err("original: %pSR\n", (void *)gh2->gh_ip);
+	pr_err("pid: %d\n", pid_nr(gh2->gh_owner_pid));
+	pr_err("lock type: %d req lock state : %d\n",
 	       gh2->gh_gl->gl_name.ln_type, gh2->gh_state);
-	printk(KERN_ERR "new: %pSR\n", (void *)gh->gh_ip);
-	printk(KERN_ERR "pid: %d\n", pid_nr(gh->gh_owner_pid));
-	printk(KERN_ERR "lock type: %d req lock state : %d\n",
+	pr_err("new: %pSR\n", (void *)gh->gh_ip);
+	pr_err("pid: %d\n", pid_nr(gh->gh_owner_pid));
+	pr_err("lock type: %d req lock state : %d\n",
 	       gh->gh_gl->gl_name.ln_type, gh->gh_state);
 	gfs2_dump_glock(NULL, gl);
 	BUG();
@@ -1045,9 +1047,13 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 
 	spin_lock(&gl->gl_spin);
 	add_to_queue(gh);
-	if ((LM_FLAG_NOEXP & gh->gh_flags) &&
-	    test_and_clear_bit(GLF_FROZEN, &gl->gl_flags))
+	if (unlikely((LM_FLAG_NOEXP & gh->gh_flags) &&
+		     test_and_clear_bit(GLF_FROZEN, &gl->gl_flags))) {
 		set_bit(GLF_REPLY_PENDING, &gl->gl_flags);
+		gl->gl_lockref.count++;
+		if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
+			gl->gl_lockref.count--;
+	}
 	run_queue(gl, 1);
 	spin_unlock(&gl->gl_spin);
 

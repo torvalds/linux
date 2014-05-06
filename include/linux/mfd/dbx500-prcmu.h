@@ -183,8 +183,6 @@ struct prcmu_pdata
 	bool enable_set_ddr_opp;
 	bool enable_ape_opp_100_voltage;
 	struct ab8500_platform_data *ab_platdata;
-	int ab_irq;
-	int irq_base;
 	u32 version_offset;
 	u32 legacy_offset;
 	u32 adt_offset;

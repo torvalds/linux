@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -248,7 +247,8 @@ static void mpc52xx_psc_spi_work(struct work_struct *work)
 		}
 
 		m->status = status;
-		m->complete(m->context);
+		if (m->complete)
+			m->complete(m->context);
 
 		if (status || !cs_change)
 			mpc52xx_psc_spi_deactivate_cs(spi);

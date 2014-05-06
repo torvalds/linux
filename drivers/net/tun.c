@@ -366,7 +366,7 @@ static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
  * hope the rxq no. may help here.
  */
 static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv)
+			    void *accel_priv, select_queue_fallback_t fallback)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 	struct tun_flow_entry *e;
@@ -452,7 +452,7 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 
 		--tun->numqueues;
 		if (clean) {
-			rcu_assign_pointer(tfile->tun, NULL);
+			RCU_INIT_POINTER(tfile->tun, NULL);
 			sock_put(&tfile->sk);
 		} else
 			tun_disable_queue(tun, tfile);
@@ -499,12 +499,12 @@ static void tun_detach_all(struct net_device *dev)
 		tfile = rtnl_dereference(tun->tfiles[i]);
 		BUG_ON(!tfile);
 		wake_up_all(&tfile->wq.wait);
-		rcu_assign_pointer(tfile->tun, NULL);
+		RCU_INIT_POINTER(tfile->tun, NULL);
 		--tun->numqueues;
 	}
 	list_for_each_entry(tfile, &tun->disabled, next) {
 		wake_up_all(&tfile->wq.wait);
-		rcu_assign_pointer(tfile->tun, NULL);
+		RCU_INIT_POINTER(tfile->tun, NULL);
 	}
 	BUG_ON(tun->numqueues != 0);
 
@@ -1686,7 +1686,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 				   TUN_USER_FEATURES | NETIF_F_HW_VLAN_CTAG_TX |
 				   NETIF_F_HW_VLAN_STAG_TX;
 		dev->features = dev->hw_features;
-		dev->vlan_features = dev->features;
+		dev->vlan_features = dev->features &
+				     ~(NETIF_F_HW_VLAN_CTAG_TX |
+				       NETIF_F_HW_VLAN_STAG_TX);
 
 		INIT_LIST_HEAD(&tun->disabled);
 		err = tun_attach(tun, file, false);
@@ -2192,7 +2194,7 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 					    &tun_proto);
 	if (!tfile)
 		return -ENOMEM;
-	rcu_assign_pointer(tfile->tun, NULL);
+	RCU_INIT_POINTER(tfile->tun, NULL);
 	tfile->net = get_net(current->nsproxy->net_ns);
 	tfile->flags = 0;
 	tfile->ifindex = 0;

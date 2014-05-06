@@ -66,6 +66,7 @@ static struct pm_qos_constraints cpu_dma_constraints = {
 	.list = PLIST_HEAD_INIT(cpu_dma_constraints.list),
 	.target_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
 	.default_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
+	.no_constraint_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
 	.type = PM_QOS_MIN,
 	.notifiers = &cpu_dma_lat_notifier,
 };
@@ -79,6 +80,7 @@ static struct pm_qos_constraints network_lat_constraints = {
 	.list = PLIST_HEAD_INIT(network_lat_constraints.list),
 	.target_value = PM_QOS_NETWORK_LAT_DEFAULT_VALUE,
 	.default_value = PM_QOS_NETWORK_LAT_DEFAULT_VALUE,
+	.no_constraint_value = PM_QOS_NETWORK_LAT_DEFAULT_VALUE,
 	.type = PM_QOS_MIN,
 	.notifiers = &network_lat_notifier,
 };
@@ -93,6 +95,7 @@ static struct pm_qos_constraints network_tput_constraints = {
 	.list = PLIST_HEAD_INIT(network_tput_constraints.list),
 	.target_value = PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE,
 	.default_value = PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE,
+	.no_constraint_value = PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE,
 	.type = PM_QOS_MAX,
 	.notifiers = &network_throughput_notifier,
 };
@@ -128,7 +131,7 @@ static const struct file_operations pm_qos_power_fops = {
 static inline int pm_qos_get_value(struct pm_qos_constraints *c)
 {
 	if (plist_head_empty(&c->list))
-		return c->default_value;
+		return c->no_constraint_value;
 
 	switch (c->type) {
 	case PM_QOS_MIN:
@@ -170,6 +173,7 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 {
 	unsigned long flags;
 	int prev_value, curr_value, new_value;
+	int ret;
 
 	spin_lock_irqsave(&pm_qos_lock, flags);
 	prev_value = pm_qos_get_value(c);
@@ -205,13 +209,15 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 
 	trace_pm_qos_update_target(action, prev_value, curr_value);
 	if (prev_value != curr_value) {
-		blocking_notifier_call_chain(c->notifiers,
-					     (unsigned long)curr_value,
-					     NULL);
-		return 1;
+		ret = 1;
+		if (c->notifiers)
+			blocking_notifier_call_chain(c->notifiers,
+						     (unsigned long)curr_value,
+						     NULL);
 	} else {
-		return 0;
+		ret = 0;
 	}
+	return ret;
 }
 
 /**

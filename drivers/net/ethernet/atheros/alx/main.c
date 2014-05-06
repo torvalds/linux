@@ -535,7 +535,7 @@ static int alx_alloc_descriptors(struct alx_priv *alx)
 	if (!alx->descmem.virt)
 		goto out_free;
 
-	alx->txq.tpd = (void *)alx->descmem.virt;
+	alx->txq.tpd = alx->descmem.virt;
 	alx->txq.tpd_dma = alx->descmem.dma;
 
 	/* alignment requirement for next block */
@@ -1097,7 +1097,7 @@ static netdev_tx_t alx_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 drop:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -1248,19 +1248,13 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * shared register for the high 32 bits, so only a single, aligned,
 	 * 4 GB physical address range can be used for descriptors.
 	 */
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) &&
-	    !dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		dev_dbg(&pdev->dev, "DMA to 64-BIT addresses\n");
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				dev_err(&pdev->dev,
-					"No usable DMA config, aborting\n");
-				goto out_pci_disable;
-			}
+			dev_err(&pdev->dev, "No usable DMA config, aborting\n");
+			goto out_pci_disable;
 		}
 	}
 
@@ -1292,6 +1286,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	alx = netdev_priv(netdev);
 	spin_lock_init(&alx->hw.mdio_lock);
 	spin_lock_init(&alx->irq_lock);
+	spin_lock_init(&alx->stats_lock);
 	alx->dev = netdev;
 	alx->hw.pdev = pdev;
 	alx->msg_enable = NETIF_MSG_LINK | NETIF_MSG_HW | NETIF_MSG_IFUP |

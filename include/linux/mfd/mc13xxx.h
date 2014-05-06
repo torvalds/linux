@@ -104,6 +104,9 @@ enum {
 	MC13892_LED_R,
 	MC13892_LED_G,
 	MC13892_LED_B,
+	/* MC34708 LED IDs */
+	MC34708_LED_R,
+	MC34708_LED_G,
 };
 
 struct mc13xxx_led_platform_data {
@@ -163,6 +166,9 @@ struct mc13xxx_leds_platform_data {
 #define MC13892_LED_C2_CURRENT_G(x)	(((x) & 0x7) << 21)
 /* MC13892 LED Control 3 */
 #define MC13892_LED_C3_CURRENT_B(x)	(((x) & 0x7) << 9)
+/* MC34708 LED Control 0 */
+#define MC34708_LED_C0_CURRENT_R(x)	(((x) & 0x3) << 9)
+#define MC34708_LED_C0_CURRENT_G(x)	(((x) & 0x3) << 21)
 	u32 led_control[MAX_LED_CONTROL_REGS];
 };
 

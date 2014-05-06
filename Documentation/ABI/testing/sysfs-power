@@ -12,8 +12,9 @@ Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/state file controls the system power state.
 		Reading from this file returns what states are supported,
-		which is hard-coded to 'standby' (Power-On Suspend), 'mem'
-		(Suspend-to-RAM), and 'disk' (Suspend-to-Disk).
+		which is hard-coded to 'freeze' (Low-Power Idle), 'standby'
+		(Power-On Suspend), 'mem' (Suspend-to-RAM), and 'disk'
+		(Suspend-to-Disk).
 
 		Writing to this file one of these strings causes the system to
 		transition into that state. Please see the file

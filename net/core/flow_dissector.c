@@ -61,7 +61,7 @@ bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
 
 again:
 	switch (proto) {
-	case __constant_htons(ETH_P_IP): {
+	case htons(ETH_P_IP): {
 		const struct iphdr *iph;
 		struct iphdr _iph;
 ip:
@@ -77,7 +77,7 @@ ip:
 		iph_to_flow_copy_addrs(flow, iph);
 		break;
 	}
-	case __constant_htons(ETH_P_IPV6): {
+	case htons(ETH_P_IPV6): {
 		const struct ipv6hdr *iph;
 		struct ipv6hdr _iph;
 ipv6:
@@ -91,8 +91,8 @@ ipv6:
 		nhoff += sizeof(struct ipv6hdr);
 		break;
 	}
-	case __constant_htons(ETH_P_8021AD):
-	case __constant_htons(ETH_P_8021Q): {
+	case htons(ETH_P_8021AD):
+	case htons(ETH_P_8021Q): {
 		const struct vlan_hdr *vlan;
 		struct vlan_hdr _vlan;
 
@@ -104,7 +104,7 @@ ipv6:
 		nhoff += sizeof(*vlan);
 		goto again;
 	}
-	case __constant_htons(ETH_P_PPP_SES): {
+	case htons(ETH_P_PPP_SES): {
 		struct {
 			struct pppoe_hdr hdr;
 			__be16 proto;
@@ -115,9 +115,9 @@ ipv6:
 		proto = hdr->proto;
 		nhoff += PPPOE_SES_HLEN;
 		switch (proto) {
-		case __constant_htons(PPP_IP):
+		case htons(PPP_IP):
 			goto ip;
-		case __constant_htons(PPP_IPV6):
+		case htons(PPP_IPV6):
 			goto ipv6;
 		default:
 			return false;
@@ -203,8 +203,8 @@ static __always_inline u32 __flow_hash_1word(u32 a)
 
 /*
  * __skb_get_hash: calculate a flow hash based on src/dst addresses
- * and src/dst port numbers.  Sets rxhash in skb to non-zero hash value
- * on success, zero indicates no valid hash.  Also, sets l4_rxhash in skb
+ * and src/dst port numbers.  Sets hash in skb to non-zero hash value
+ * on success, zero indicates no valid hash.  Also, sets l4_hash in skb
  * if hash is a canonical 4-tuple hash over transport ports.
  */
 void __skb_get_hash(struct sk_buff *skb)
@@ -216,7 +216,7 @@ void __skb_get_hash(struct sk_buff *skb)
 		return;
 
 	if (keys.ports)
-		skb->l4_rxhash = 1;
+		skb->l4_hash = 1;
 
 	/* get a consistent hash (same value on both flow directions) */
 	if (((__force u32)keys.dst < (__force u32)keys.src) ||
@@ -232,7 +232,7 @@ void __skb_get_hash(struct sk_buff *skb)
 	if (!hash)
 		hash = 1;
 
-	skb->rxhash = hash;
+	skb->hash = hash;
 }
 EXPORT_SYMBOL(__skb_get_hash);
 
@@ -323,17 +323,6 @@ u32 __skb_get_poff(const struct sk_buff *skb)
 	return poff;
 }
 
-static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
-{
-	if (unlikely(queue_index >= dev->real_num_tx_queues)) {
-		net_warn_ratelimited("%s selects TX queue %d, but real number of TX queues is %d\n",
-				     dev->name, queue_index,
-				     dev->real_num_tx_queues);
-		return 0;
-	}
-	return queue_index;
-}
-
 static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 {
 #ifdef CONFIG_XPS
@@ -355,7 +344,7 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 					hash = skb->sk->sk_hash;
 				else
 					hash = (__force u16) skb->protocol ^
-					    skb->rxhash;
+					    skb->hash;
 				hash = __flow_hash_1word(hash);
 				queue_index = map->queues[
 				    ((u64)hash * map->len) >> 32];
@@ -372,7 +361,7 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 #endif
 }
 
-u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
+static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 	int queue_index = sk_tx_queue_get(sk);
@@ -392,7 +381,6 @@ u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 
 	return queue_index;
 }
-EXPORT_SYMBOL(__netdev_pick_tx);
 
 struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 				    struct sk_buff *skb,
@@ -403,13 +391,13 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 	if (dev->real_num_tx_queues != 1) {
 		const struct net_device_ops *ops = dev->netdev_ops;
 		if (ops->ndo_select_queue)
-			queue_index = ops->ndo_select_queue(dev, skb,
-							    accel_priv);
+			queue_index = ops->ndo_select_queue(dev, skb, accel_priv,
+							    __netdev_pick_tx);
 		else
 			queue_index = __netdev_pick_tx(dev, skb);
 
 		if (!accel_priv)
-			queue_index = dev_cap_txqueue(dev, queue_index);
+			queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
 
 	skb_set_queue_mapping(skb, queue_index);

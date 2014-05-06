@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/kobject.h>
 #include <linux/delay.h>
+#include <linux/memblock.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 #include <asm/mce.h>
@@ -33,9 +34,19 @@ struct kobject *opal_kobj;
 struct opal {
 	u64 base;
 	u64 entry;
+	u64 size;
 } opal;
 
-static struct device_node *opal_node;
+struct mcheck_recoverable_range {
+	u64 start_addr;
+	u64 end_addr;
+	u64 recover_addr;
+};
+
+static struct mcheck_recoverable_range *mc_recoverable_range;
+static int mc_recoverable_range_len;
+
+struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
 extern u64 opal_mc_secondary_handler[];
 static unsigned int *opal_irqs;
@@ -49,25 +60,29 @@ static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
-	const void *basep, *entryp;
-	unsigned long basesz, entrysz;
+	const void *basep, *entryp, *sizep;
+	unsigned long basesz, entrysz, runtimesz;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
 
 	basep  = of_get_flat_dt_prop(node, "opal-base-address", &basesz);
 	entryp = of_get_flat_dt_prop(node, "opal-entry-address", &entrysz);
+	sizep = of_get_flat_dt_prop(node, "opal-runtime-size", &runtimesz);
 
-	if (!basep || !entryp)
+	if (!basep || !entryp || !sizep)
 		return 1;
 
 	opal.base = of_read_number(basep, basesz/4);
 	opal.entry = of_read_number(entryp, entrysz/4);
+	opal.size = of_read_number(sizep, runtimesz/4);
 
 	pr_debug("OPAL Base  = 0x%llx (basep=%p basesz=%ld)\n",
 		 opal.base, basep, basesz);
 	pr_debug("OPAL Entry = 0x%llx (entryp=%p basesz=%ld)\n",
 		 opal.entry, entryp, entrysz);
+	pr_debug("OPAL Entry = 0x%llx (sizep=%p runtimesz=%ld)\n",
+		 opal.size, sizep, runtimesz);
 
 	powerpc_firmware_features |= FW_FEATURE_OPAL;
 	if (of_flat_dt_is_compatible(node, "ibm,opal-v3")) {
@@ -81,6 +96,65 @@ int __init early_init_dt_scan_opal(unsigned long node,
 		printk("OPAL V1 detected !\n");
 	}
 
+	return 1;
+}
+
+int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
+				   const char *uname, int depth, void *data)
+{
+	unsigned long i, psize, size;
+	const __be32 *prop;
+
+	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
+		return 0;
+
+	prop = of_get_flat_dt_prop(node, "mcheck-recoverable-ranges", &psize);
+
+	if (!prop)
+		return 1;
+
+	pr_debug("Found machine check recoverable ranges.\n");
+
+	/*
+	 * Calculate number of available entries.
+	 *
+	 * Each recoverable address range entry is (start address, len,
+	 * recovery address), 2 cells each for start and recovery address,
+	 * 1 cell for len, totalling 5 cells per entry.
+	 */
+	mc_recoverable_range_len = psize / (sizeof(*prop) * 5);
+
+	/* Sanity check */
+	if (!mc_recoverable_range_len)
+		return 1;
+
+	/* Size required to hold all the entries. */
+	size = mc_recoverable_range_len *
+			sizeof(struct mcheck_recoverable_range);
+
+	/*
+	 * Allocate a buffer to hold the MC recoverable ranges. We would be
+	 * accessing them in real mode, hence it needs to be within
+	 * RMO region.
+	 */
+	mc_recoverable_range =__va(memblock_alloc_base(size, __alignof__(u64),
+							ppc64_rma_size));
+	memset(mc_recoverable_range, 0, size);
+
+	for (i = 0; i < mc_recoverable_range_len; i++) {
+		mc_recoverable_range[i].start_addr =
+					of_read_number(prop + (i * 5) + 0, 2);
+		mc_recoverable_range[i].end_addr =
+					mc_recoverable_range[i].start_addr +
+					of_read_number(prop + (i * 5) + 2, 1);
+		mc_recoverable_range[i].recover_addr =
+					of_read_number(prop + (i * 5) + 3, 2);
+
+		pr_debug("Machine check recoverable range: %llx..%llx: %llx\n",
+				mc_recoverable_range[i].start_addr,
+				mc_recoverable_range[i].end_addr,
+				mc_recoverable_range[i].recover_addr);
+	}
 	return 1;
 }
 
@@ -118,6 +192,20 @@ int opal_notifier_register(struct notifier_block *nb)
 	atomic_notifier_chain_register(&opal_notifier_head, nb);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(opal_notifier_register);
+
+int opal_notifier_unregister(struct notifier_block *nb)
+{
+	if (!nb) {
+		pr_warning("%s: Invalid argument (%p)\n",
+			   __func__, nb);
+		return -EINVAL;
+	}
+
+	atomic_notifier_chain_unregister(&opal_notifier_head, nb);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(opal_notifier_unregister);
 
 static void opal_do_notifier(uint64_t events)
 {
@@ -205,6 +293,7 @@ static void opal_handle_message(void)
 	 * value in /proc/device-tree.
 	 */
 	static struct opal_msg msg;
+	u32 type;
 
 	ret = opal_get_msg(__pa(&msg), sizeof(msg));
 	/* No opal message pending. */
@@ -218,13 +307,14 @@ static void opal_handle_message(void)
 		return;
 	}
 
+	type = be32_to_cpu(msg.msg_type);
+
 	/* Sanity check */
-	if (msg.msg_type > OPAL_MSG_TYPE_MAX) {
-		pr_warning("%s: Unknown message type: %u\n",
-				__func__, msg.msg_type);
+	if (type > OPAL_MSG_TYPE_MAX) {
+		pr_warning("%s: Unknown message type: %u\n", __func__, type);
 		return;
 	}
-	opal_message_do_notify(msg.msg_type, (void *)&msg);
+	opal_message_do_notify(type, (void *)&msg);
 }
 
 static int opal_message_notify(struct notifier_block *nb,
@@ -401,6 +491,38 @@ int opal_machine_check(struct pt_regs *regs)
 	return 0;
 }
 
+static uint64_t find_recovery_address(uint64_t nip)
+{
+	int i;
+
+	for (i = 0; i < mc_recoverable_range_len; i++)
+		if ((nip >= mc_recoverable_range[i].start_addr) &&
+		    (nip < mc_recoverable_range[i].end_addr))
+		    return mc_recoverable_range[i].recover_addr;
+	return 0;
+}
+
+bool opal_mce_check_early_recovery(struct pt_regs *regs)
+{
+	uint64_t recover_addr = 0;
+
+	if (!opal.base || !opal.size)
+		goto out;
+
+	if ((regs->nip >= opal.base) &&
+			(regs->nip <= (opal.base + opal.size)))
+		recover_addr = find_recovery_address(regs->nip);
+
+	/*
+	 * Setup regs->nip to rfi into fixup address.
+	 */
+	if (recover_addr)
+		regs->nip = recover_addr;
+
+out:
+	return !!recover_addr;
+}
+
 static irqreturn_t opal_interrupt(int irq, void *data)
 {
 	__be64 events;
@@ -472,8 +594,16 @@ static int __init opal_init(void)
 	/* Create "opal" kobject under /sys/firmware */
 	rc = opal_sysfs_init();
 	if (rc == 0) {
+		/* Setup error log interface */
+		rc = opal_elog_init();
 		/* Setup code update interface */
 		opal_flash_init();
+		/* Setup platform dump extract interface */
+		opal_platform_dump_init();
+		/* Setup system parameters interface */
+		opal_sys_param_init();
+		/* Setup message log interface. */
+		opal_msglog_init();
 	}
 
 	return 0;
@@ -505,3 +635,6 @@ void opal_shutdown(void)
 			mdelay(10);
 	}
 }
+
+/* Export this so that test modules can use it */
+EXPORT_SYMBOL_GPL(opal_invalid_call);

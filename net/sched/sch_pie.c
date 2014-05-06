@@ -15,6 +15,11 @@
  *
  * ECN support is added by Naeem Khademi <naeemk@ifi.uio.no>
  * University of Oslo, Norway.
+ *
+ * References:
+ * IETF draft submission: http://tools.ietf.org/html/draft-pan-aqm-pie-00
+ * IEEE  Conference on High Performance Switching and Routing 2013 :
+ * "PIE: A * Lightweight Control Scheme to Address the Bufferbloat Problem"
  */
 
 #include <linux/module.h>
@@ -36,7 +41,7 @@ struct pie_params {
 	psched_time_t target;	/* user specified target delay in pschedtime */
 	u32 tupdate;		/* timer frequency (in jiffies) */
 	u32 limit;		/* number of packets that can be enqueued */
-	u32 alpha;		/* alpha and beta are between -4 and 4 */
+	u32 alpha;		/* alpha and beta are between 0 and 32 */
 	u32 beta;		/* and are used for shift relative to 1 */
 	bool ecn;		/* true if ecn is enabled */
 	bool bytemode;		/* to scale drop early prob based on pkt size */
@@ -326,10 +331,16 @@ static void calculate_probability(struct Qdisc *sch)
 	if (qdelay == 0 && qlen != 0)
 		update_prob = false;
 
-	/* Add ranges for alpha and beta, more aggressive for high dropping
-	 * mode and gentle steps for light dropping mode
-	 * In light dropping mode, take gentle steps; in medium dropping mode,
-	 * take medium steps; in high dropping mode, take big steps.
+	/* In the algorithm, alpha and beta are between 0 and 2 with typical
+	 * value for alpha as 0.125. In this implementation, we use values 0-32
+	 * passed from user space to represent this. Also, alpha and beta have
+	 * unit of HZ and need to be scaled before they can used to update
+	 * probability. alpha/beta are updated locally below by 1) scaling them
+	 * appropriately 2) scaling down by 16 to come to 0-2 range.
+	 * Please see paper for details.
+	 *
+	 * We scale alpha and beta differently depending on whether we are in
+	 * light, medium or high dropping mode.
 	 */
 	if (q->vars.prob < MAX_PROB / 100) {
 		alpha =

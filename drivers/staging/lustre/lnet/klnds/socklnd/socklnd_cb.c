@@ -189,7 +189,8 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 	int      bufnob;
 
 	if (ksocknal_data.ksnd_stall_tx != 0) {
-		cfs_pause(cfs_time_seconds(ksocknal_data.ksnd_stall_tx));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(ksocknal_data.ksnd_stall_tx));
 	}
 
 	LASSERT (tx->tx_resid != 0);
@@ -345,7 +346,8 @@ ksocknal_receive (ksock_conn_t *conn)
 	int     rc;
 
 	if (ksocknal_data.ksnd_stall_rx != 0) {
-		cfs_pause(cfs_time_seconds (ksocknal_data.ksnd_stall_rx));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(ksocknal_data.ksnd_stall_rx));
 	}
 
 	rc = ksocknal_connsock_addref(conn);
@@ -924,7 +926,7 @@ ksocknal_launch_packet (lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
 int
 ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 {
-	int	       mpflag = 0;
+	int	       mpflag = 1;
 	int	       type = lntmsg->msg_type;
 	lnet_process_id_t target = lntmsg->msg_target;
 	unsigned int      payload_niov = lntmsg->msg_niov;
@@ -993,8 +995,9 @@ ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 
 	/* The first fragment will be set later in pro_pack */
 	rc = ksocknal_launch_packet(ni, tx, target);
-	if (lntmsg->msg_vmflush)
+	if (!mpflag)
 		cfs_memory_pressure_restore(mpflag);
+
 	if (rc == 0)
 		return (0);
 
@@ -2139,7 +2142,7 @@ ksocknal_connd (void *arg)
 
 	cfs_block_allsigs ();
 
-	init_waitqueue_entry_current (&wait);
+	init_waitqueue_entry(&wait, current);
 
 	spin_lock_bh(connd_lock);
 
@@ -2228,7 +2231,7 @@ ksocknal_connd (void *arg)
 		spin_unlock_bh(connd_lock);
 
 		nloops = 0;
-		waitq_timedwait(&wait, TASK_INTERRUPTIBLE, timeout);
+		schedule_timeout(timeout);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&ksocknal_data.ksnd_connd_waitq, &wait);
@@ -2531,7 +2534,7 @@ ksocknal_reaper (void *arg)
 	cfs_block_allsigs ();
 
 	INIT_LIST_HEAD(&enomem_conns);
-	init_waitqueue_entry_current (&wait);
+	init_waitqueue_entry(&wait, current);
 
 	spin_lock_bh(&ksocknal_data.ksnd_reaper_lock);
 
@@ -2638,8 +2641,7 @@ ksocknal_reaper (void *arg)
 		if (!ksocknal_data.ksnd_shuttingdown &&
 		    list_empty (&ksocknal_data.ksnd_deathrow_conns) &&
 		    list_empty (&ksocknal_data.ksnd_zombie_conns))
-			waitq_timedwait (&wait, TASK_INTERRUPTIBLE,
-					     timeout);
+			schedule_timeout(timeout);
 
 		set_current_state (TASK_RUNNING);
 		remove_wait_queue (&ksocknal_data.ksnd_reaper_waitq, &wait);

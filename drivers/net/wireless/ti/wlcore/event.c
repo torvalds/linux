@@ -158,6 +158,11 @@ EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);
 
 void wlcore_event_dummy_packet(struct wl1271 *wl)
 {
+	if (wl->plt) {
+		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, ignoring.");
+		return;
+	}
+
 	wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
 	wl1271_tx_dummy_packet(wl);
 }

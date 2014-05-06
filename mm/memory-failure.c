@@ -145,14 +145,10 @@ static int hwpoison_filter_task(struct page *p)
 		return -EINVAL;
 
 	css = mem_cgroup_css(mem);
-	/* root_mem_cgroup has NULL dentries */
-	if (!css->cgroup->dentry)
-		return -EINVAL;
-
-	ino = css->cgroup->dentry->d_inode->i_ino;
+	ino = cgroup_ino(css->cgroup);
 	css_put(css);
 
-	if (ino != hwpoison_filter_memcg)
+	if (!ino || ino != hwpoison_filter_memcg)
 		return -EINVAL;
 
 	return 0;
@@ -945,8 +941,10 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 			 * to it. Similarly, page lock is shifted.
 			 */
 			if (hpage != p) {
-				put_page(hpage);
-				get_page(p);
+				if (!(flags & MF_COUNT_INCREASED)) {
+					put_page(hpage);
+					get_page(p);
+				}
 				lock_page(p);
 				unlock_page(hpage);
 				*hpagep = p;
@@ -1649,7 +1647,7 @@ int soft_offline_page(struct page *page, int flags)
 {
 	int ret;
 	unsigned long pfn = page_to_pfn(page);
-	struct page *hpage = compound_trans_head(page);
+	struct page *hpage = compound_head(page);
 
 	if (PageHWPoison(page)) {
 		pr_info("soft offline: %#lx page already poisoned\n", pfn);

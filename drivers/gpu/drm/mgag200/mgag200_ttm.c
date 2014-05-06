@@ -259,7 +259,9 @@ int mgag200_mm_init(struct mga_device *mdev)
 
 	ret = ttm_bo_device_init(&mdev->ttm.bdev,
 				 mdev->ttm.bo_global_ref.ref.object,
-				 &mgag200_bo_driver, DRM_FILE_PAGE_OFFSET,
+				 &mgag200_bo_driver,
+				 dev->anon_inode->i_mapping,
+				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
@@ -324,7 +326,6 @@ int mgag200_bo_create(struct drm_device *dev, int size, int align,
 	}
 
 	mgabo->bo.bdev = &mdev->ttm.bdev;
-	mgabo->bo.bdev->dev_mapping = dev->dev_mapping;
 
 	mgag200_ttm_placement(mgabo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
 

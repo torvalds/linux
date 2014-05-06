@@ -23,7 +23,7 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
 	u8 *ie = mgmt->u.assoc_resp.variable;
 	int ieoffs = offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
@@ -54,7 +54,7 @@ EXPORT_SYMBOL(cfg80211_rx_assoc_resp);
 static void cfg80211_process_auth(struct wireless_dev *wdev,
 				  const u8 *buf, size_t len)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
 	nl80211_send_rx_auth(rdev, wdev->netdev, buf, len, GFP_KERNEL);
 	cfg80211_sme_rx_auth(wdev, buf, len);
@@ -63,7 +63,7 @@ static void cfg80211_process_auth(struct wireless_dev *wdev,
 static void cfg80211_process_deauth(struct wireless_dev *wdev,
 				    const u8 *buf, size_t len)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
 	const u8 *bssid = mgmt->bssid;
 	u16 reason_code = le16_to_cpu(mgmt->u.deauth.reason_code);
@@ -82,7 +82,7 @@ static void cfg80211_process_deauth(struct wireless_dev *wdev,
 static void cfg80211_process_disassoc(struct wireless_dev *wdev,
 				      const u8 *buf, size_t len)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
 	const u8 *bssid = mgmt->bssid;
 	u16 reason_code = le16_to_cpu(mgmt->u.disassoc.reason_code);
@@ -123,7 +123,7 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	trace_cfg80211_send_auth_timeout(dev, addr);
 
@@ -136,7 +136,7 @@ void cfg80211_assoc_timeout(struct net_device *dev, struct cfg80211_bss *bss)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	trace_cfg80211_send_assoc_timeout(dev, bss->bssid);
 
@@ -172,7 +172,7 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 				  const u8 *tsc, gfp_t gfp)
 {
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 #ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 	char *buf = kmalloc(128, gfp);
@@ -233,14 +233,8 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	if (!req.bss)
 		return -ENOENT;
 
-	err = cfg80211_can_use_chan(rdev, wdev, req.bss->channel,
-				    CHAN_MODE_SHARED);
-	if (err)
-		goto out;
-
 	err = rdev_auth(rdev, dev, &req);
 
-out:
 	cfg80211_put_bss(&rdev->wiphy, req.bss);
 	return err;
 }
@@ -306,16 +300,10 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	if (!req->bss)
 		return -ENOENT;
 
-	err = cfg80211_can_use_chan(rdev, wdev, chan, CHAN_MODE_SHARED);
-	if (err)
-		goto out;
-
 	err = rdev_assoc(rdev, dev, req);
 	if (!err)
 		cfg80211_hold_bss(bss_from_pub(req->bss));
-
-out:
-	if (err)
+	else
 		cfg80211_put_bss(&rdev->wiphy, req->bss);
 
 	return err;
@@ -414,7 +402,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				int match_len)
 {
 	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_mgmt_registration *reg, *nreg;
 	int err = 0;
 	u16 mgmt_type;
@@ -473,7 +461,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 {
 	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_mgmt_registration *reg, *tmp;
 
 	spin_lock_bh(&wdev->mgmt_registrations_lock);
@@ -620,7 +608,7 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
 		      const u8 *buf, size_t len, u32 flags, gfp_t gfp)
 {
 	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_mgmt_registration *reg;
 	const struct ieee80211_txrx_stypes *stypes =
 		&wiphy->mgmt_stypes[wdev->iftype];
@@ -739,7 +727,7 @@ void cfg80211_radar_event(struct wiphy *wiphy,
 			  struct cfg80211_chan_def *chandef,
 			  gfp_t gfp)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	unsigned long timeout;
 
 	trace_cfg80211_radar_event(wiphy, chandef);
@@ -764,7 +752,7 @@ void cfg80211_cac_event(struct net_device *netdev,
 {
 	struct wireless_dev *wdev = netdev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	unsigned long timeout;
 
 	trace_cfg80211_cac_event(netdev, event);

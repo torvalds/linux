@@ -236,8 +236,8 @@ static int fld_cache_shrink(struct fld_cache *cache)
 		num++;
 	}
 
-	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by "
-	       "%d entries\n", cache->fci_name, num);
+	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by %d entries\n",
+			cache->fci_name, num);
 
 	return 0;
 }
@@ -355,7 +355,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 		fld_cache_entry_add(cache, f_new, &f_curr->fce_list);
 	} else
 		CERROR("NEW range ="DRANGE" curr = "DRANGE"\n",
-		       PRANGE(range),PRANGE(&f_curr->fce_range));
+		       PRANGE(range), PRANGE(&f_curr->fce_range));
 }
 
 struct fld_cache_entry

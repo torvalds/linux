@@ -827,7 +827,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(THP_FAULT_FALLBACK);
 		return VM_FAULT_FALLBACK;
 	}
-	if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
+	if (unlikely(mem_cgroup_charge_anon(page, mm, GFP_KERNEL))) {
 		put_page(page);
 		count_vm_event(THP_FAULT_FALLBACK);
 		return VM_FAULT_FALLBACK;
@@ -941,81 +941,6 @@ unlock:
 	spin_unlock(ptl);
 }
 
-static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
-		struct vm_area_struct *vma, unsigned long address,
-		pmd_t *pmd, pmd_t orig_pmd, unsigned long haddr)
-{
-	spinlock_t *ptl;
-	pgtable_t pgtable;
-	pmd_t _pmd;
-	struct page *page;
-	int i, ret = 0;
-	unsigned long mmun_start;	/* For mmu_notifiers */
-	unsigned long mmun_end;		/* For mmu_notifiers */
-
-	page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-	if (!page) {
-		ret |= VM_FAULT_OOM;
-		goto out;
-	}
-
-	if (mem_cgroup_newpage_charge(page, mm, GFP_KERNEL)) {
-		put_page(page);
-		ret |= VM_FAULT_OOM;
-		goto out;
-	}
-
-	clear_user_highpage(page, address);
-	__SetPageUptodate(page);
-
-	mmun_start = haddr;
-	mmun_end   = haddr + HPAGE_PMD_SIZE;
-	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
-
-	ptl = pmd_lock(mm, pmd);
-	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-		goto out_free_page;
-
-	pmdp_clear_flush(vma, haddr, pmd);
-	/* leave pmd empty until pte is filled */
-
-	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
-	pmd_populate(mm, &_pmd, pgtable);
-
-	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-		pte_t *pte, entry;
-		if (haddr == (address & PAGE_MASK)) {
-			entry = mk_pte(page, vma->vm_page_prot);
-			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-			page_add_new_anon_rmap(page, vma, haddr);
-		} else {
-			entry = pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
-			entry = pte_mkspecial(entry);
-		}
-		pte = pte_offset_map(&_pmd, haddr);
-		VM_BUG_ON(!pte_none(*pte));
-		set_pte_at(mm, haddr, pte, entry);
-		pte_unmap(pte);
-	}
-	smp_wmb(); /* make pte visible before pmd */
-	pmd_populate(mm, pmd, pgtable);
-	spin_unlock(ptl);
-	put_huge_zero_page();
-	inc_mm_counter(mm, MM_ANONPAGES);
-
-	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
-
-	ret |= VM_FAULT_WRITE;
-out:
-	return ret;
-out_free_page:
-	spin_unlock(ptl);
-	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
-	mem_cgroup_uncharge_page(page);
-	put_page(page);
-	goto out;
-}
-
 static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
 					struct vm_area_struct *vma,
 					unsigned long address,
@@ -1043,7 +968,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
 					       __GFP_OTHER_NODE,
 					       vma, address, page_to_nid(page));
 		if (unlikely(!pages[i] ||
-			     mem_cgroup_newpage_charge(pages[i], mm,
+			     mem_cgroup_charge_anon(pages[i], mm,
 						       GFP_KERNEL))) {
 			if (pages[i])
 				put_page(pages[i]);
@@ -1161,27 +1086,30 @@ alloc:
 
 	if (unlikely(!new_page)) {
 		if (!page) {
-			ret = do_huge_pmd_wp_zero_page_fallback(mm, vma,
-					address, pmd, orig_pmd, haddr);
+			split_huge_page_pmd(vma, address, pmd);
+			ret |= VM_FAULT_FALLBACK;
 		} else {
 			ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
 					pmd, orig_pmd, page, haddr);
-			if (ret & VM_FAULT_OOM)
+			if (ret & VM_FAULT_OOM) {
 				split_huge_page(page);
+				ret |= VM_FAULT_FALLBACK;
+			}
 			put_page(page);
 		}
 		count_vm_event(THP_FAULT_FALLBACK);
 		goto out;
 	}
 
-	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+	if (unlikely(mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL))) {
 		put_page(new_page);
 		if (page) {
 			split_huge_page(page);
 			put_page(page);
-		}
+		} else
+			split_huge_page_pmd(vma, address, pmd);
+		ret |= VM_FAULT_FALLBACK;
 		count_vm_event(THP_FAULT_FALLBACK);
-		ret |= VM_FAULT_OOM;
 		goto out;
 	}
 
@@ -1545,6 +1473,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 				entry = pmd_mknonnuma(entry);
 			entry = pmd_modify(entry, newprot);
 			ret = HPAGE_PMD_NR;
+			set_pmd_at(mm, addr, pmd, entry);
 			BUG_ON(pmd_write(entry));
 		} else {
 			struct page *page = pmd_page(*pmd);
@@ -1557,16 +1486,10 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			 */
 			if (!is_huge_zero_page(page) &&
 			    !pmd_numa(*pmd)) {
-				entry = *pmd;
-				entry = pmd_mknuma(entry);
+				pmdp_set_numa(mm, addr, pmd);
 				ret = HPAGE_PMD_NR;
 			}
 		}
-
-		/* Set PMD if cleared earlier */
-		if (ret == HPAGE_PMD_NR)
-			set_pmd_at(mm, addr, pmd, entry);
-
 		spin_unlock(ptl);
 	}
 
@@ -1963,21 +1886,26 @@ out:
 	return ret;
 }
 
-#define VM_NO_THP (VM_SPECIAL|VM_MIXEDMAP|VM_HUGETLB|VM_SHARED|VM_MAYSHARE)
+#define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
 
 int hugepage_madvise(struct vm_area_struct *vma,
 		     unsigned long *vm_flags, int advice)
 {
-	struct mm_struct *mm = vma->vm_mm;
-
 	switch (advice) {
 	case MADV_HUGEPAGE:
+#ifdef CONFIG_S390
+		/*
+		 * qemu blindly sets MADV_HUGEPAGE on all allocations, but s390
+		 * can't handle this properly after s390_enable_sie, so we simply
+		 * ignore the madvise to prevent qemu from causing a SIGSEGV.
+		 */
+		if (mm_has_pgste(vma->vm_mm))
+			return 0;
+#endif
 		/*
 		 * Be somewhat over-protective like KSM for now!
 		 */
 		if (*vm_flags & (VM_HUGEPAGE | VM_NO_THP))
-			return -EINVAL;
-		if (mm->def_flags & VM_NOHUGEPAGE)
 			return -EINVAL;
 		*vm_flags &= ~VM_NOHUGEPAGE;
 		*vm_flags |= VM_HUGEPAGE;
@@ -2431,7 +2359,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	if (!new_page)
 		return;
 
-	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)))
+	if (unlikely(mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL)))
 		return;
 
 	/*

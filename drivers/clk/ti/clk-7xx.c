@@ -262,7 +262,6 @@ static struct ti_dt_clk dra7xx_clks[] = {
 	DT_CLK(NULL, "vip1_gclk_mux", "vip1_gclk_mux"),
 	DT_CLK(NULL, "vip2_gclk_mux", "vip2_gclk_mux"),
 	DT_CLK(NULL, "vip3_gclk_mux", "vip3_gclk_mux"),
-	DT_CLK(NULL, "gpmc_ck", "dummy_ck"),
 	DT_CLK("omap_i2c.1", "ick", "dummy_ck"),
 	DT_CLK("omap_i2c.2", "ick", "dummy_ck"),
 	DT_CLK("omap_i2c.3", "ick", "dummy_ck"),

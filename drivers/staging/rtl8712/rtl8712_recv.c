@@ -90,7 +90,6 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 		pskb = netdev_alloc_skb(padapter->pnetdev, MAX_RECVBUF_SZ +
 		       RECVBUFF_ALIGN_SZ);
 		if (pskb) {
-			pskb->dev = padapter->pnetdev;
 			tmpaddr = (addr_t)pskb->data;
 			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
 			skb_reserve(pskb, (RECVBUFF_ALIGN_SZ - alignment));
@@ -1083,7 +1082,6 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		alloc_sz += 6;
 		pkt_copy = netdev_alloc_skb(padapter->pnetdev, alloc_sz);
 		if (pkt_copy) {
-			pkt_copy->dev = padapter->pnetdev;
 			precvframe->u.hdr.pkt = pkt_copy;
 			skb_reserve(pkt_copy, 4 - ((addr_t)(pkt_copy->data)
 				    % 4));

@@ -139,9 +139,8 @@ static const struct watchdog_info ident = {
 static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			   unsigned long arg)
 {
-	unsigned int new_margin;
 	int __user *int_arg = (int __user *)arg;
-	int ret = -ENOTTY;
+	int new_margin, ret = -ENOTTY;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:

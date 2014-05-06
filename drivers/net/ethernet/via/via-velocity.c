@@ -2565,7 +2565,7 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 	/* The hardware can handle at most 7 memory segments, so merge
 	 * the skb if there are more */
 	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 

@@ -17,9 +17,8 @@ Required properties:
 			  Miscellaneous Interrupt>
 
 Optional properties:
-- phy-handle: Contains a phandle to an Ethernet PHY.
+- phy-handle: See ethernet.txt file in the same directory.
               If absent, davinci_emac driver defaults to 100/FULL.
-- local-mac-address : 6 bytes, mac address
 - ti,davinci-rmii-en: 1 byte, 1 means use RMII
 - ti,davinci-no-bd-ram: boolean, does EMAC have BD RAM?
 

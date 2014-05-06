@@ -70,4 +70,9 @@ struct c4iw_create_qp_resp {
 	__u32 qid_mask;
 	__u32 flags;
 };
+
+struct c4iw_alloc_ucontext_resp {
+	__u64 status_page_key;
+	__u32 status_page_size;
+};
 #endif

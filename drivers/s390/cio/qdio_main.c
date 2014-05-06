@@ -996,7 +996,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 		}
 	}
 
-	if (!pci_out_supported(q))
+	if (!(irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED))
 		return;
 
 	for_each_output_queue(irq_ptr, q, i) {

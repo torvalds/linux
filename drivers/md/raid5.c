@@ -679,14 +679,9 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 				init_stripe(sh, sector, previous);
 				atomic_inc(&sh->count);
 			}
-		} else {
+		} else if (!atomic_inc_not_zero(&sh->count)) {
 			spin_lock(&conf->device_lock);
-			if (atomic_read(&sh->count)) {
-				BUG_ON(!list_empty(&sh->lru)
-				    && !test_bit(STRIPE_EXPANDING, &sh->state)
-				    && !test_bit(STRIPE_ON_UNPLUG_LIST, &sh->state)
-					);
-			} else {
+			if (!atomic_read(&sh->count)) {
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
 				BUG_ON(list_empty(&sh->lru) &&
@@ -4552,6 +4547,8 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 	struct stripe_head *sh;
 	const int rw = bio_data_dir(bi);
 	int remaining;
+	DEFINE_WAIT(w);
+	bool do_prepare;
 
 	if (unlikely(bi->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bi);
@@ -4575,15 +4572,18 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 	bi->bi_next = NULL;
 	bi->bi_phys_segments = 1;	/* over-loaded to count active stripes */
 
+	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
-		DEFINE_WAIT(w);
 		int previous;
 		int seq;
 
+		do_prepare = false;
 	retry:
 		seq = read_seqcount_begin(&conf->gen_lock);
 		previous = 0;
-		prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
+		if (do_prepare)
+			prepare_to_wait(&conf->wait_for_overlap, &w,
+				TASK_UNINTERRUPTIBLE);
 		if (unlikely(conf->reshape_progress != MaxSector)) {
 			/* spinlock is needed as reshape_progress may be
 			 * 64bit on a 32bit platform, and so it might be
@@ -4604,6 +4604,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 				    : logical_sector >= conf->reshape_safe) {
 					spin_unlock_irq(&conf->device_lock);
 					schedule();
+					do_prepare = true;
 					goto retry;
 				}
 			}
@@ -4640,6 +4641,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 				if (must_retry) {
 					release_stripe(sh);
 					schedule();
+					do_prepare = true;
 					goto retry;
 				}
 			}
@@ -4663,8 +4665,10 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 				prepare_to_wait(&conf->wait_for_overlap,
 						&w, TASK_INTERRUPTIBLE);
 				if (logical_sector >= mddev->suspend_lo &&
-				    logical_sector < mddev->suspend_hi)
+				    logical_sector < mddev->suspend_hi) {
 					schedule();
+					do_prepare = true;
+				}
 				goto retry;
 			}
 
@@ -4677,9 +4681,9 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 				md_wakeup_thread(mddev->thread);
 				release_stripe(sh);
 				schedule();
+				do_prepare = true;
 				goto retry;
 			}
-			finish_wait(&conf->wait_for_overlap, &w);
 			set_bit(STRIPE_HANDLE, &sh->state);
 			clear_bit(STRIPE_DELAYED, &sh->state);
 			if ((bi->bi_rw & REQ_SYNC) &&
@@ -4689,10 +4693,10 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 		} else {
 			/* cannot get stripe for read-ahead, just give-up */
 			clear_bit(BIO_UPTODATE, &bi->bi_flags);
-			finish_wait(&conf->wait_for_overlap, &w);
 			break;
 		}
 	}
+	finish_wait(&conf->wait_for_overlap, &w);
 
 	remaining = raid5_dec_bi_active_stripes(bi);
 	if (remaining == 0) {
@@ -5514,23 +5518,43 @@ raid5_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 	return sectors * (raid_disks - conf->max_degraded);
 }
 
+static void free_scratch_buffer(struct r5conf *conf, struct raid5_percpu *percpu)
+{
+	safe_put_page(percpu->spare_page);
+	kfree(percpu->scribble);
+	percpu->spare_page = NULL;
+	percpu->scribble = NULL;
+}
+
+static int alloc_scratch_buffer(struct r5conf *conf, struct raid5_percpu *percpu)
+{
+	if (conf->level == 6 && !percpu->spare_page)
+		percpu->spare_page = alloc_page(GFP_KERNEL);
+	if (!percpu->scribble)
+		percpu->scribble = kmalloc(conf->scribble_len, GFP_KERNEL);
+
+	if (!percpu->scribble || (conf->level == 6 && !percpu->spare_page)) {
+		free_scratch_buffer(conf, percpu);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static void raid5_free_percpu(struct r5conf *conf)
 {
-	struct raid5_percpu *percpu;
 	unsigned long cpu;
 
 	if (!conf->percpu)
 		return;
 
-	get_online_cpus();
-	for_each_possible_cpu(cpu) {
-		percpu = per_cpu_ptr(conf->percpu, cpu);
-		safe_put_page(percpu->spare_page);
-		kfree(percpu->scribble);
-	}
 #ifdef CONFIG_HOTPLUG_CPU
 	unregister_cpu_notifier(&conf->cpu_notify);
 #endif
+
+	get_online_cpus();
+	for_each_possible_cpu(cpu)
+		free_scratch_buffer(conf, per_cpu_ptr(conf->percpu, cpu));
 	put_online_cpus();
 
 	free_percpu(conf->percpu);
@@ -5557,15 +5581,7 @@ static int raid456_cpu_notify(struct notifier_block *nfb, unsigned long action,
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		if (conf->level == 6 && !percpu->spare_page)
-			percpu->spare_page = alloc_page(GFP_KERNEL);
-		if (!percpu->scribble)
-			percpu->scribble = kmalloc(conf->scribble_len, GFP_KERNEL);
-
-		if (!percpu->scribble ||
-		    (conf->level == 6 && !percpu->spare_page)) {
-			safe_put_page(percpu->spare_page);
-			kfree(percpu->scribble);
+		if (alloc_scratch_buffer(conf, percpu)) {
 			pr_err("%s: failed memory allocation for cpu%ld\n",
 			       __func__, cpu);
 			return notifier_from_errno(-ENOMEM);
@@ -5573,10 +5589,7 @@ static int raid456_cpu_notify(struct notifier_block *nfb, unsigned long action,
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		safe_put_page(percpu->spare_page);
-		kfree(percpu->scribble);
-		percpu->spare_page = NULL;
-		percpu->scribble = NULL;
+		free_scratch_buffer(conf, per_cpu_ptr(conf->percpu, cpu));
 		break;
 	default:
 		break;
@@ -5588,40 +5601,29 @@ static int raid456_cpu_notify(struct notifier_block *nfb, unsigned long action,
 static int raid5_alloc_percpu(struct r5conf *conf)
 {
 	unsigned long cpu;
-	struct page *spare_page;
-	struct raid5_percpu __percpu *allcpus;
-	void *scribble;
-	int err;
+	int err = 0;
 
-	allcpus = alloc_percpu(struct raid5_percpu);
-	if (!allcpus)
+	conf->percpu = alloc_percpu(struct raid5_percpu);
+	if (!conf->percpu)
 		return -ENOMEM;
-	conf->percpu = allcpus;
 
-	get_online_cpus();
-	err = 0;
-	for_each_present_cpu(cpu) {
-		if (conf->level == 6) {
-			spare_page = alloc_page(GFP_KERNEL);
-			if (!spare_page) {
-				err = -ENOMEM;
-				break;
-			}
-			per_cpu_ptr(conf->percpu, cpu)->spare_page = spare_page;
-		}
-		scribble = kmalloc(conf->scribble_len, GFP_KERNEL);
-		if (!scribble) {
-			err = -ENOMEM;
-			break;
-		}
-		per_cpu_ptr(conf->percpu, cpu)->scribble = scribble;
-	}
 #ifdef CONFIG_HOTPLUG_CPU
 	conf->cpu_notify.notifier_call = raid456_cpu_notify;
 	conf->cpu_notify.priority = 0;
-	if (err == 0)
-		err = register_cpu_notifier(&conf->cpu_notify);
+	err = register_cpu_notifier(&conf->cpu_notify);
+	if (err)
+		return err;
 #endif
+
+	get_online_cpus();
+	for_each_present_cpu(cpu) {
+		err = alloc_scratch_buffer(conf, per_cpu_ptr(conf->percpu, cpu));
+		if (err) {
+			pr_err("%s: failed memory allocation for cpu%ld\n",
+			       __func__, cpu);
+			break;
+		}
+	}
 	put_online_cpus();
 
 	return err;

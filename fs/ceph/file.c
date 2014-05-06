@@ -210,7 +210,7 @@ int ceph_open(struct inode *inode, struct file *file)
 	ihold(inode);
 
 	req->r_num_caps = 1;
-	if (flags & (O_CREAT|O_TRUNC))
+	if (flags & O_CREAT)
 		parent_inode = ceph_get_dentry_parent_inode(file->f_dentry);
 	err = ceph_mdsc_do_request(mdsc, parent_inode, req);
 	iput(parent_inode);
@@ -286,12 +286,14 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	} else {
 		dout("atomic_open finish_open on dn %p\n", dn);
 		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_ino) {
+			ceph_init_acl(dentry, dentry->d_inode, dir);
 			*opened |= FILE_CREATED;
 		}
 		err = finish_open(file, dentry, ceph_open, opened);
 	}
-
 out_err:
+	if (!req->r_err && req->r_target_inode)
+		ceph_put_fmode(ceph_inode(req->r_target_inode), req->r_fmode);
 	ceph_mdsc_put_request(req);
 	dout("atomic_open result=%d\n", err);
 	return err;
@@ -599,7 +601,7 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 					    false);
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
-			goto out;
+			break;
 		}
 
 		num_pages = calc_pages_for(page_align, len);
@@ -717,7 +719,7 @@ static ssize_t ceph_sync_write(struct kiocb *iocb, const struct iovec *iov,
 					    false);
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
-			goto out;
+			break;
 		}
 
 		/*
@@ -969,6 +971,8 @@ retry_snap:
 			goto retry_snap;
 		}
 	} else {
+		loff_t old_size = inode->i_size;
+		struct iov_iter from;
 		/*
 		 * No need to acquire the i_truncate_mutex. Because
 		 * the MDS revokes Fwb caps before sending truncate
@@ -976,9 +980,12 @@ retry_snap:
 		 * are pending vmtruncate. So write and vmtruncate
 		 * can not run at the same time
 		 */
-		written = generic_file_buffered_write(iocb, iov, nr_segs,
-						      pos, &iocb->ki_pos,
-						      count, 0);
+		iov_iter_init(&from, iov, nr_segs, count, 0);
+		written = generic_perform_write(file, &from, pos);
+		if (likely(written >= 0))
+			iocb->ki_pos = pos + written;
+		if (inode->i_size > old_size)
+			ceph_fscache_update_objectsize(inode);
 		mutex_unlock(&inode->i_mutex);
 	}
 

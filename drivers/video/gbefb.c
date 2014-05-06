@@ -45,10 +45,6 @@ struct gbefb_par {
 #define GBE_BASE	0x16000000 /* SGI O2 */
 #endif
 
-#ifdef CONFIG_X86_VISWS
-#define GBE_BASE	0xd0000000 /* SGI Visual Workstation */
-#endif
-
 /* macro for fastest write-though access to the framebuffer */
 #ifdef CONFIG_MIPS
 #ifdef CONFIG_CPU_R10000

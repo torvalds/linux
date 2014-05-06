@@ -24,6 +24,7 @@
 #include <linux/kobject.h>
 #include <linux/bug.h>
 #include <linux/genhd.h>
+#include <linux/debugfs.h>
 
 #include "ctree.h"
 #include "disk-io.h"
@@ -578,8 +579,14 @@ static int add_device_membership(struct btrfs_fs_info *fs_info)
 		return -ENOMEM;
 
 	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
-		struct hd_struct *disk = dev->bdev->bd_part;
-		struct kobject *disk_kobj = &part_to_dev(disk)->kobj;
+		struct hd_struct *disk;
+		struct kobject *disk_kobj;
+
+		if (!dev->bdev)
+			continue;
+
+		disk = dev->bdev->bd_part;
+		disk_kobj = &part_to_dev(disk)->kobj;
 
 		error = sysfs_create_link(fs_info->device_dir_kobj,
 					  disk_kobj, disk_kobj->name);
@@ -592,6 +599,12 @@ static int add_device_membership(struct btrfs_fs_info *fs_info)
 
 /* /sys/fs/btrfs/ entry */
 static struct kset *btrfs_kset;
+
+/* /sys/kernel/debug/btrfs */
+static struct dentry *btrfs_debugfs_root_dentry;
+
+/* Debugging tunables and exported data */
+u64 btrfs_debugfs_test;
 
 int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 {
@@ -636,27 +649,41 @@ failure:
 	return error;
 }
 
+static int btrfs_init_debugfs(void)
+{
+#ifdef CONFIG_DEBUG_FS
+	btrfs_debugfs_root_dentry = debugfs_create_dir("btrfs", NULL);
+	if (!btrfs_debugfs_root_dentry)
+		return -ENOMEM;
+
+	debugfs_create_u64("test", S_IRUGO | S_IWUGO, btrfs_debugfs_root_dentry,
+			&btrfs_debugfs_test);
+#endif
+	return 0;
+}
+
 int btrfs_init_sysfs(void)
 {
 	int ret;
+
 	btrfs_kset = kset_create_and_add("btrfs", NULL, fs_kobj);
 	if (!btrfs_kset)
 		return -ENOMEM;
 
-	init_feature_attrs();
-
-	ret = sysfs_create_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
-	if (ret) {
-		kset_unregister(btrfs_kset);
+	ret = btrfs_init_debugfs();
+	if (ret)
 		return ret;
-	}
 
-	return 0;
+	init_feature_attrs();
+	ret = sysfs_create_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
+
+	return ret;
 }
 
 void btrfs_exit_sysfs(void)
 {
 	sysfs_remove_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
 	kset_unregister(btrfs_kset);
+	debugfs_remove_recursive(btrfs_debugfs_root_dentry);
 }
 

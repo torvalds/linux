@@ -284,8 +284,13 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 	raw_local_save_flags(eflags);
 	BUG_ON(eflags & X86_EFLAGS_AC);
 
-	if (cpu_has(c, X86_FEATURE_SMAP))
+	if (cpu_has(c, X86_FEATURE_SMAP)) {
+#ifdef CONFIG_X86_SMAP
 		set_in_cr4(X86_CR4_SMAP);
+#else
+		clear_in_cr4(X86_CR4_SMAP);
+#endif
+	}
 }
 
 /*
@@ -1020,7 +1025,8 @@ __setup("show_msr=", setup_show_msr);
 
 static __init int setup_noclflush(char *arg)
 {
-	setup_clear_cpu_cap(X86_FEATURE_CLFLSH);
+	setup_clear_cpu_cap(X86_FEATURE_CLFLUSH);
+	setup_clear_cpu_cap(X86_FEATURE_CLFLUSHOPT);
 	return 1;
 }
 __setup("noclflush", setup_noclflush);
@@ -1073,6 +1079,10 @@ static __init int setup_disablecpuid(char *arg)
 }
 __setup("clearcpuid=", setup_disablecpuid);
 
+DEFINE_PER_CPU(unsigned long, kernel_stack) =
+	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
+EXPORT_PER_CPU_SYMBOL(kernel_stack);
+
 #ifdef CONFIG_X86_64
 struct desc_ptr idt_descr = { NR_VECTORS * 16 - 1, (unsigned long) idt_table };
 struct desc_ptr debug_idt_descr = { NR_VECTORS * 16 - 1,
@@ -1088,10 +1098,6 @@ DEFINE_PER_CPU_FIRST(union irq_stack_union,
 DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
 	&init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
-
-DEFINE_PER_CPU(unsigned long, kernel_stack) =
-	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
-EXPORT_PER_CPU_SYMBOL(kernel_stack);
 
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
 	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;

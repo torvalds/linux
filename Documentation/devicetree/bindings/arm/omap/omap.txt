@@ -91,13 +91,16 @@ Boards:
   compatible = "ti,omap3-beagle", "ti,omap3"
 
 - OMAP3 Tobi with Overo : Commercial expansion board with daughter board
-  compatible = "ti,omap3-tobi", "ti,omap3-overo", "ti,omap3"
+  compatible = "gumstix,omap3-overo-tobi", "gumstix,omap3-overo", "ti,omap3"
 
 - OMAP4 SDP : Software Development Board
   compatible = "ti,omap4-sdp", "ti,omap4430"
 
 - OMAP4 PandaBoard : Low cost community board
   compatible = "ti,omap4-panda", "ti,omap4430"
+
+- OMAP4 DuoVero with Parlor : Commercial expansion board with daughter board
+  compatible = "gumstix,omap4-duovero-parlor", "gumstix,omap4-duovero", "ti,omap4430", "ti,omap4";
 
 - OMAP3 EVM : Software Development Board for OMAP35x, AM/DM37x
   compatible = "ti,omap3-evm", "ti,omap3"
@@ -113,6 +116,9 @@ Boards:
 
 - AM43x EPOS EVM
   compatible = "ti,am43x-epos-evm", "ti,am4372", "ti,am43"
+
+- AM437x GP EVM
+  compatible = "ti,am437x-gp-evm", "ti,am4372", "ti,am43"
 
 - DRA7 EVM:  Software Developement Board for DRA7XX
   compatible = "ti,dra7-evm", "ti,dra7"

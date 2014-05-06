@@ -361,25 +361,24 @@ static unsigned int bst_tlv[] = {
 static const char * const rt5640_data_select[] = {
 	"Normal", "left copy to right", "right copy to left", "Swap"};
 
-static const SOC_ENUM_SINGLE_DECL(rt5640_if1_dac_enum, RT5640_DIG_INF_DATA,
-				RT5640_IF1_DAC_SEL_SFT, rt5640_data_select);
+static SOC_ENUM_SINGLE_DECL(rt5640_if1_dac_enum, RT5640_DIG_INF_DATA,
+			    RT5640_IF1_DAC_SEL_SFT, rt5640_data_select);
 
-static const SOC_ENUM_SINGLE_DECL(rt5640_if1_adc_enum, RT5640_DIG_INF_DATA,
-				RT5640_IF1_ADC_SEL_SFT, rt5640_data_select);
+static SOC_ENUM_SINGLE_DECL(rt5640_if1_adc_enum, RT5640_DIG_INF_DATA,
+			    RT5640_IF1_ADC_SEL_SFT, rt5640_data_select);
 
-static const SOC_ENUM_SINGLE_DECL(rt5640_if2_dac_enum, RT5640_DIG_INF_DATA,
-				RT5640_IF2_DAC_SEL_SFT, rt5640_data_select);
+static SOC_ENUM_SINGLE_DECL(rt5640_if2_dac_enum, RT5640_DIG_INF_DATA,
+			    RT5640_IF2_DAC_SEL_SFT, rt5640_data_select);
 
-static const SOC_ENUM_SINGLE_DECL(rt5640_if2_adc_enum, RT5640_DIG_INF_DATA,
-				RT5640_IF2_ADC_SEL_SFT, rt5640_data_select);
+static SOC_ENUM_SINGLE_DECL(rt5640_if2_adc_enum, RT5640_DIG_INF_DATA,
+			    RT5640_IF2_ADC_SEL_SFT, rt5640_data_select);
 
 /* Class D speaker gain ratio */
 static const char * const rt5640_clsd_spk_ratio[] = {"1.66x", "1.83x", "1.94x",
 	"2x", "2.11x", "2.22x", "2.33x", "2.44x", "2.55x", "2.66x", "2.77x"};
 
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_clsd_spk_ratio_enum, RT5640_CLS_D_OUT,
-	RT5640_CLSD_RATIO_SFT, rt5640_clsd_spk_ratio);
+static SOC_ENUM_SINGLE_DECL(rt5640_clsd_spk_ratio_enum, RT5640_CLS_D_OUT,
+			    RT5640_CLSD_RATIO_SFT, rt5640_clsd_spk_ratio);
 
 static const struct snd_kcontrol_new rt5640_snd_controls[] = {
 	/* Speaker Output Volume */
@@ -753,9 +752,8 @@ static const char * const rt5640_stereo_adc1_src[] = {
 	"DIG MIX", "ADC"
 };
 
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_stereo_adc1_enum, RT5640_STO_ADC_MIXER,
-	RT5640_ADC_1_SRC_SFT, rt5640_stereo_adc1_src);
+static SOC_ENUM_SINGLE_DECL(rt5640_stereo_adc1_enum, RT5640_STO_ADC_MIXER,
+			    RT5640_ADC_1_SRC_SFT, rt5640_stereo_adc1_src);
 
 static const struct snd_kcontrol_new rt5640_sto_adc_1_mux =
 	SOC_DAPM_ENUM("Stereo ADC1 Mux", rt5640_stereo_adc1_enum);
@@ -764,9 +762,8 @@ static const char * const rt5640_stereo_adc2_src[] = {
 	"DMIC1", "DMIC2", "DIG MIX"
 };
 
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_stereo_adc2_enum, RT5640_STO_ADC_MIXER,
-	RT5640_ADC_2_SRC_SFT, rt5640_stereo_adc2_src);
+static SOC_ENUM_SINGLE_DECL(rt5640_stereo_adc2_enum, RT5640_STO_ADC_MIXER,
+			    RT5640_ADC_2_SRC_SFT, rt5640_stereo_adc2_src);
 
 static const struct snd_kcontrol_new rt5640_sto_adc_2_mux =
 	SOC_DAPM_ENUM("Stereo ADC2 Mux", rt5640_stereo_adc2_enum);
@@ -776,9 +773,8 @@ static const char * const rt5640_mono_adc_l1_src[] = {
 	"Mono DAC MIXL", "ADCL"
 };
 
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_mono_adc_l1_enum, RT5640_MONO_ADC_MIXER,
-	RT5640_MONO_ADC_L1_SRC_SFT, rt5640_mono_adc_l1_src);
+static SOC_ENUM_SINGLE_DECL(rt5640_mono_adc_l1_enum, RT5640_MONO_ADC_MIXER,
+			    RT5640_MONO_ADC_L1_SRC_SFT, rt5640_mono_adc_l1_src);
 
 static const struct snd_kcontrol_new rt5640_mono_adc_l1_mux =
 	SOC_DAPM_ENUM("Mono ADC1 left source", rt5640_mono_adc_l1_enum);
@@ -787,9 +783,8 @@ static const char * const rt5640_mono_adc_l2_src[] = {
 	"DMIC L1", "DMIC L2", "Mono DAC MIXL"
 };
 
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_mono_adc_l2_enum, RT5640_MONO_ADC_MIXER,
-	RT5640_MONO_ADC_L2_SRC_SFT, rt5640_mono_adc_l2_src);
+static SOC_ENUM_SINGLE_DECL(rt5640_mono_adc_l2_enum, RT5640_MONO_ADC_MIXER,
+			    RT5640_MONO_ADC_L2_SRC_SFT, rt5640_mono_adc_l2_src);
 
 static const struct snd_kcontrol_new rt5640_mono_adc_l2_mux =
 	SOC_DAPM_ENUM("Mono ADC2 left source", rt5640_mono_adc_l2_enum);
@@ -798,9 +793,8 @@ static const char * const rt5640_mono_adc_r1_src[] = {
 	"Mono DAC MIXR", "ADCR"
 };
 
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_mono_adc_r1_enum, RT5640_MONO_ADC_MIXER,
-	RT5640_MONO_ADC_R1_SRC_SFT, rt5640_mono_adc_r1_src);
+static SOC_ENUM_SINGLE_DECL(rt5640_mono_adc_r1_enum, RT5640_MONO_ADC_MIXER,
+			    RT5640_MONO_ADC_R1_SRC_SFT, rt5640_mono_adc_r1_src);
 
 static const struct snd_kcontrol_new rt5640_mono_adc_r1_mux =
 	SOC_DAPM_ENUM("Mono ADC1 right source", rt5640_mono_adc_r1_enum);
@@ -809,9 +803,8 @@ static const char * const rt5640_mono_adc_r2_src[] = {
 	"DMIC R1", "DMIC R2", "Mono DAC MIXR"
 };
 
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_mono_adc_r2_enum, RT5640_MONO_ADC_MIXER,
-	RT5640_MONO_ADC_R2_SRC_SFT, rt5640_mono_adc_r2_src);
+static SOC_ENUM_SINGLE_DECL(rt5640_mono_adc_r2_enum, RT5640_MONO_ADC_MIXER,
+			    RT5640_MONO_ADC_R2_SRC_SFT, rt5640_mono_adc_r2_src);
 
 static const struct snd_kcontrol_new rt5640_mono_adc_r2_mux =
 	SOC_DAPM_ENUM("Mono ADC2 right source", rt5640_mono_adc_r2_enum);
@@ -826,9 +819,9 @@ static int rt5640_dac_l2_values[] = {
 	3,
 };
 
-static const SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5640_dac_l2_enum, RT5640_DSP_PATH2, RT5640_DAC_L2_SEL_SFT,
-	0x3, rt5640_dac_l2_src, rt5640_dac_l2_values);
+static SOC_VALUE_ENUM_SINGLE_DECL(rt5640_dac_l2_enum,
+				  RT5640_DSP_PATH2, RT5640_DAC_L2_SEL_SFT,
+				  0x3, rt5640_dac_l2_src, rt5640_dac_l2_values);
 
 static const struct snd_kcontrol_new rt5640_dac_l2_mux =
 	SOC_DAPM_VALUE_ENUM("DAC2 left channel source", rt5640_dac_l2_enum);
@@ -841,9 +834,9 @@ static int rt5640_dac_r2_values[] = {
 	0,
 };
 
-static const SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5640_dac_r2_enum, RT5640_DSP_PATH2, RT5640_DAC_R2_SEL_SFT,
-	0x3, rt5640_dac_r2_src, rt5640_dac_r2_values);
+static SOC_VALUE_ENUM_SINGLE_DECL(rt5640_dac_r2_enum,
+				  RT5640_DSP_PATH2, RT5640_DAC_R2_SEL_SFT,
+				  0x3, rt5640_dac_r2_src, rt5640_dac_r2_values);
 
 static const struct snd_kcontrol_new rt5640_dac_r2_mux =
 	SOC_DAPM_ENUM("DAC2 right channel source", rt5640_dac_r2_enum);
@@ -860,9 +853,10 @@ static int rt5640_dai_iis_map_values[] = {
 	7,
 };
 
-static const SOC_VALUE_ENUM_SINGLE_DECL(
-	rt5640_dai_iis_map_enum, RT5640_I2S1_SDP, RT5640_I2S_IF_SFT,
-	0x7, rt5640_dai_iis_map, rt5640_dai_iis_map_values);
+static SOC_VALUE_ENUM_SINGLE_DECL(rt5640_dai_iis_map_enum,
+				  RT5640_I2S1_SDP, RT5640_I2S_IF_SFT,
+				  0x7, rt5640_dai_iis_map,
+				  rt5640_dai_iis_map_values);
 
 static const struct snd_kcontrol_new rt5640_dai_mux =
 	SOC_DAPM_VALUE_ENUM("DAI select", rt5640_dai_iis_map_enum);
@@ -872,9 +866,8 @@ static const char * const rt5640_sdi_sel[] = {
 	"IF1", "IF2"
 };
 
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_sdi_sel_enum, RT5640_I2S2_SDP,
-	RT5640_I2S2_SDI_SFT, rt5640_sdi_sel);
+static SOC_ENUM_SINGLE_DECL(rt5640_sdi_sel_enum, RT5640_I2S2_SDP,
+			    RT5640_I2S2_SDI_SFT, rt5640_sdi_sel);
 
 static const struct snd_kcontrol_new rt5640_sdi_mux =
 	SOC_DAPM_ENUM("SDI select", rt5640_sdi_sel_enum);
@@ -1601,8 +1594,7 @@ static int get_clk_info(int sclk, int rate)
 static int rt5640_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val_len = 0, val_clk, mask_clk;
 	int dai_sel, pre_div, bclk_ms, frame_size;
@@ -1943,16 +1935,8 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 static int rt5640_probe(struct snd_soc_codec *codec)
 {
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
 	rt5640->codec = codec;
-	codec->control_data = rt5640->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	codec->dapm.idle_bias_off = 1;
 	rt5640_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -2090,9 +2074,18 @@ static const struct i2c_device_id rt5640_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
 
+#if defined(CONFIG_OF)
+static const struct of_device_id rt5640_of_match[] = {
+	{ .compatible = "realtek,rt5640", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rt5640_of_match);
+#endif
+
 #ifdef CONFIG_ACPI
 static struct acpi_device_id rt5640_acpi_match[] = {
 	{ "INT33CA", 0 },
+	{ "10EC5640", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt5640_acpi_match);
@@ -2218,6 +2211,7 @@ static struct i2c_driver rt5640_i2c_driver = {
 		.name = "rt5640",
 		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(rt5640_acpi_match),
+		.of_match_table = of_match_ptr(rt5640_of_match),
 	},
 	.probe = rt5640_i2c_probe,
 	.remove   = rt5640_i2c_remove,

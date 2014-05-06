@@ -178,6 +178,7 @@ static inline void cpu_enter_lowpower(void)
 	  : "cc");
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 void hi3xxx_cpu_die(unsigned int cpu)
 {
 	cpu_enter_lowpower();
@@ -198,3 +199,4 @@ int hi3xxx_cpu_kill(unsigned int cpu)
 	hi3xxx_set_cpu(cpu, false);
 	return 1;
 }
+#endif

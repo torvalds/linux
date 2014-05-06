@@ -1196,14 +1196,14 @@ static void cl_object_put_last(struct lu_env *env, struct cl_object *obj)
 
 		bkt = lu_site_bkt_from_fid(site, &header->loh_fid);
 
-		init_waitqueue_entry_current(&waiter);
+		init_waitqueue_entry(&waiter, current);
 		add_wait_queue(&bkt->lsb_marche_funebre, &waiter);
 
 		while (1) {
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			if (atomic_read(&header->loh_ref) == 1)
 				break;
-			waitq_wait(&waiter, TASK_UNINTERRUPTIBLE);
+			schedule();
 		}
 
 		set_current_state(TASK_RUNNING);

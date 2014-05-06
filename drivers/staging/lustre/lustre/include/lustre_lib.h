@@ -536,7 +536,7 @@ do {									   \
 	if (condition)							 \
 		break;							 \
 									       \
-	init_waitqueue_entry_current(&__wait);					    \
+	init_waitqueue_entry(&__wait, current);					    \
 	l_add_wait(&wq, &__wait);					      \
 									       \
 	/* Block all signals (just the non-fatal ones if no timeout). */       \
@@ -558,15 +558,13 @@ do {									   \
 			break;						 \
 									       \
 		if (__timeout == 0) {					  \
-			waitq_wait(&__wait, __wstate);		     \
+			schedule();						\
 		} else {						       \
 			cfs_duration_t interval = info->lwi_interval?	  \
 					     min_t(cfs_duration_t,	     \
 						 info->lwi_interval,__timeout):\
 					     __timeout;			\
-			cfs_duration_t remaining = waitq_timedwait(&__wait,\
-						   __wstate,		   \
-						   interval);		  \
+			cfs_duration_t remaining = schedule_timeout(interval);\
 			__timeout = cfs_time_sub(__timeout,		    \
 					    cfs_time_sub(interval, remaining));\
 			if (__timeout == 0) {				  \

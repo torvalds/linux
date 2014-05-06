@@ -1,0 +1,37 @@
+/*
+ * Copyright 2014 Texas Instruments, Inc.
+ *
+ * Keystone 2 Lamarr EVM device tree
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "keystone.dtsi"
+#include "k2l.dtsi"
+
+/ {
+	compatible =  "ti,k2l-evm","ti,keystone";
+	model = "Texas Instruments Keystone 2 Lamarr EVM";
+
+	soc {
+		clocks {
+			refclksys: refclksys {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <122880000>;
+				clock-output-names = "refclk-sys";
+			};
+		};
+	};
+};
+
+&usb_phy {
+	status = "okay";
+};
+
+&usb {
+	status = "okay";
+};

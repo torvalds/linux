@@ -454,12 +454,16 @@ static int __init cache_sysfs_init(void)
 {
 	int i;
 
+	cpu_notifier_register_begin();
+
 	for_each_online_cpu(i) {
 		struct device *sys_dev = get_cpu_device((unsigned int)i);
 		cache_add_dev(sys_dev);
 	}
 
-	register_hotcpu_notifier(&cache_cpu_notifier);
+	__register_hotcpu_notifier(&cache_cpu_notifier);
+
+	cpu_notifier_register_done();
 
 	return 0;
 }

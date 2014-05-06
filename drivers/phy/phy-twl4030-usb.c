@@ -338,7 +338,7 @@ static void twl4030_usb_set_mode(struct twl4030_usb *twl, int mode)
 		dev_err(twl->dev, "unsupported T2 transceiver mode %d\n",
 				mode);
 		break;
-	};
+	}
 }
 
 static void twl4030_i2c_access(struct twl4030_usb *twl, int on)
@@ -661,7 +661,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	struct phy_provider	*phy_provider;
 	struct phy_init_data	*init_data = NULL;
 
-	twl = devm_kzalloc(&pdev->dev, sizeof *twl, GFP_KERNEL);
+	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
 		return -ENOMEM;
 
@@ -676,7 +676,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	otg = devm_kzalloc(&pdev->dev, sizeof *otg, GFP_KERNEL);
+	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
 		return -ENOMEM;
 
@@ -695,11 +695,6 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	otg->set_host		= twl4030_set_host;
 	otg->set_peripheral	= twl4030_set_peripheral;
 
-	phy_provider = devm_of_phy_provider_register(twl->dev,
-		of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
 	phy = devm_phy_create(twl->dev, &ops, init_data);
 	if (IS_ERR(phy)) {
 		dev_dbg(&pdev->dev, "Failed to create PHY\n");
@@ -707,6 +702,11 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	}
 
 	phy_set_drvdata(phy, twl);
+
+	phy_provider = devm_of_phy_provider_register(twl->dev,
+		of_phy_simple_xlate);
+	if (IS_ERR(phy_provider))
+		return PTR_ERR(phy_provider);
 
 	/* init spinlock for workqueue */
 	spin_lock_init(&twl->lock);

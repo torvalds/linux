@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Pavel Machek <pavel@ucw.cz>
- * Copyright 2013 Aaro Koskinen <aaro.koskinen@iki.fi>
+ * Copyright (C) 2013-2014 Aaro Koskinen <aaro.koskinen@iki.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 (or later) as
@@ -13,7 +13,7 @@
 
 / {
 	model = "Nokia N900";
-	compatible = "nokia,omap3-n900", "ti,omap3";
+	compatible = "nokia,omap3-n900", "ti,omap3430", "ti,omap3";
 
 	cpus {
 		cpu@0 {
@@ -74,6 +74,22 @@
 		};
 	};
 
+	isp1704: isp1704 {
+		compatible = "nxp,isp1704";
+		nxp,enable-gpio = <&gpio3 3 GPIO_ACTIVE_HIGH>;
+		usb-phy = <&usb2_phy>;
+	};
+
+	tv: connector {
+		compatible = "composite-connector";
+		label = "tv";
+
+		port {
+			tv_connector_in: endpoint {
+				remote-endpoint = <&venc_out>;
+			};
+		};
+	};
 };
 
 &omap3_pmx_core {
@@ -140,9 +156,21 @@
 		>;
 	};
 
-	display_pins: pinmux_display_pins {
+	acx565akm_pins: pinmux_acx565akm_pins {
 		pinctrl-single,pins = <
 			0x0d4 (PIN_OUTPUT | MUX_MODE4)		/* RX51_LCD_RESET_GPIO */
+		>;
+	};
+
+	dss_sdi_pins: pinmux_dss_sdi_pins {
+		pinctrl-single,pins = <
+			0x0c0 (PIN_OUTPUT | MUX_MODE1)   /* dss_data10.sdi_dat1n */
+			0x0c2 (PIN_OUTPUT | MUX_MODE1)   /* dss_data11.sdi_dat1p */
+			0x0c4 (PIN_OUTPUT | MUX_MODE1)   /* dss_data12.sdi_dat2n */
+			0x0c6 (PIN_OUTPUT | MUX_MODE1)   /* dss_data13.sdi_dat2p */
+
+			0x0d8 (PIN_OUTPUT | MUX_MODE1)   /* dss_data22.sdi_clkp */
+			0x0da (PIN_OUTPUT | MUX_MODE1)   /* dss_data23.sdi_clkn */
 		>;
 	};
 };
@@ -254,6 +282,61 @@
 	};
 };
 
+&twl_keypad {
+	linux,keymap = < 0x00000010 /* KEY_Q */
+			 0x00010018 /* KEY_O */
+			 0x00020019 /* KEY_P */
+			 0x00030033 /* KEY_COMMA */
+			 0x0004000e /* KEY_BACKSPACE */
+			 0x0006001e /* KEY_A */
+			 0x0007001f /* KEY_S */
+
+			 0x01000011 /* KEY_W */
+			 0x01010020 /* KEY_D */
+			 0x01020021 /* KEY_F */
+			 0x01030022 /* KEY_G */
+			 0x01040023 /* KEY_H */
+			 0x01050024 /* KEY_J */
+			 0x01060025 /* KEY_K */
+			 0x01070026 /* KEY_L */
+
+			 0x02000012 /* KEY_E */
+			 0x02010034 /* KEY_DOT */
+			 0x02020067 /* KEY_UP */
+			 0x0203001c /* KEY_ENTER */
+			 0x0205002c /* KEY_Z */
+			 0x0206002d /* KEY_X */
+			 0x0207002e /* KEY_C */
+			 0x02080043 /* KEY_F9 */
+
+			 0x03000013 /* KEY_R */
+			 0x0301002f /* KEY_V */
+			 0x03020030 /* KEY_B */
+			 0x03030031 /* KEY_N */
+			 0x03040032 /* KEY_M */
+			 0x03050039 /* KEY_SPACE */
+			 0x03060039 /* KEY_SPACE */
+			 0x03070069 /* KEY_LEFT */
+
+			 0x04000014 /* KEY_T */
+			 0x0401006c /* KEY_DOWN */
+			 0x0402006a /* KEY_RIGHT */
+			 0x0404001d /* KEY_LEFTCTRL */
+			 0x04050064 /* KEY_RIGHTALT */
+			 0x0406002a /* KEY_LEFTSHIFT */
+			 0x04080044 /* KEY_F10 */
+
+			 0x05000015 /* KEY_Y */
+			 0x05080057 /* KEY_F11 */
+
+			 0x06000016 /* KEY_U */
+
+			 0x07000017 /* KEY_I */
+			 0x07010041 /* KEY_F7 */
+			 0x07020042 /* KEY_F8 */
+			 >;
+};
+
 &twl_gpio {
 	ti,pullups	= <0x0>;
 	ti,pulldowns	= <0x03ff3f>; /* BIT(0..5) | BIT(8..17) */
@@ -289,6 +372,13 @@
 		DRVDD-supply = <&vmmc2>;
 		IOVDD-supply = <&vio>;
 		DVDD-supply = <&vio>;
+	};
+
+	tsl2563: tsl2563@29 {
+		compatible = "amstaos,tsl2563";
+		reg = <0x29>;
+
+		amstaos,cover-comp-gain = <16>;
 	};
 
 	lp5523: lp5523@32 {
@@ -355,6 +445,29 @@
 	bq27200: bq27200@55 {
 		compatible = "ti,bq27200";
 		reg = <0x55>;
+	};
+
+	tpa6130a2: tpa6130a2@60 {
+		compatible = "ti,tpa6130a2";
+		reg = <0x60>;
+
+		Vdd-supply = <&vmmc2>;
+
+		power-gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>; /* 98 */
+	};
+
+	bq24150a: bq24150a@6b {
+		compatible = "ti,bq24150a";
+		reg = <0x6b>;
+
+		ti,current-limit = <100>;
+		ti,weak-battery-voltage = <3400>;
+		ti,battery-regulation-voltage = <4200>;
+		ti,charge-current = <650>;
+		ti,termination-current = <100>;
+		ti,resistor-sense = <68>;
+
+		ti,usb-charger-detection = <&isp1704>;
 	};
 };
 
@@ -471,13 +584,23 @@
 		spi-max-frequency = <6000000>;
 		reg = <0>;
 	};
-	mipid@2 {
-		compatible = "acx565akm";
+
+	acx565akm@2 {
+		compatible = "sony,acx565akm";
 		spi-max-frequency = <6000000>;
 		reg = <2>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&display_pins>;
+		pinctrl-0 = <&acx565akm_pins>;
+
+		label = "lcd";
+		reset-gpios = <&gpio3 26 GPIO_ACTIVE_HIGH>; /* 90 */
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&sdi_out>;
+			};
+		};
 	};
 };
 
@@ -502,4 +625,40 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
+};
+
+&dss {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_sdi_pins>;
+
+	vdds_sdi-supply = <&vaux1>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			sdi_out: endpoint {
+				remote-endpoint = <&lcd_in>;
+				datapairs = <2>;
+			};
+		};
+	};
+};
+
+&venc {
+	status = "ok";
+
+	vdda-supply = <&vdac>;
+
+	port {
+		venc_out: endpoint {
+			remote-endpoint = <&tv_connector_in>;
+			ti,channels = <1>;
+		};
+	};
 };

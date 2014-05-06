@@ -757,6 +757,7 @@ static void mxs_lradc_finish_touch_event(struct mxs_lradc *lradc, bool valid)
 	}
 
 	/* if it is released, wait for the next touch via IRQ */
+	lradc->cur_plate = LRADC_TOUCH;
 	mxs_lradc_reg_clear(lradc, LRADC_CTRL1_TOUCH_DETECT_IRQ, LRADC_CTRL1);
 	mxs_lradc_reg_set(lradc, LRADC_CTRL1_TOUCH_DETECT_IRQ_EN, LRADC_CTRL1);
 }
@@ -846,7 +847,8 @@ static int mxs_lradc_read_single(struct iio_dev *iio_dev, int chan, int *val)
 	mxs_lradc_reg_clear(lradc, 0xff, LRADC_CTRL0);
 
 	/* Clean the slot's previous content, then set new one. */
-	mxs_lradc_reg_clear(lradc, LRADC_CTRL4_LRADCSELECT_MASK(0), LRADC_CTRL4);
+	mxs_lradc_reg_clear(lradc, LRADC_CTRL4_LRADCSELECT_MASK(0),
+			LRADC_CTRL4);
 	mxs_lradc_reg_set(lradc, chan, LRADC_CTRL4);
 
 	mxs_lradc_reg_wrt(lradc, 0, LRADC_CH(0));
@@ -896,10 +898,6 @@ static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
 			int *val, int *val2, long m)
 {
 	struct mxs_lradc *lradc = iio_priv(iio_dev);
-
-	/* Check for invalid channel */
-	if (chan->channel > LRADC_MAX_TOTAL_CHANS)
-		return -EINVAL;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
@@ -1035,8 +1033,6 @@ SHOW_SCALE_AVAILABLE_ATTR(4);
 SHOW_SCALE_AVAILABLE_ATTR(5);
 SHOW_SCALE_AVAILABLE_ATTR(6);
 SHOW_SCALE_AVAILABLE_ATTR(7);
-SHOW_SCALE_AVAILABLE_ATTR(8);
-SHOW_SCALE_AVAILABLE_ATTR(9);
 SHOW_SCALE_AVAILABLE_ATTR(10);
 SHOW_SCALE_AVAILABLE_ATTR(11);
 SHOW_SCALE_AVAILABLE_ATTR(12);
@@ -1053,8 +1049,6 @@ static struct attribute *mxs_lradc_attributes[] = {
 	&iio_dev_attr_in_voltage5_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage6_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage7_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage8_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage9_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage10_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage11_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_voltage12_scale_available.dev_attr.attr,
@@ -1176,7 +1170,8 @@ static irqreturn_t mxs_lradc_handle_irq(int irq, void *data)
 	else if (reg & LRADC_CTRL1_LRADC_IRQ(0))
 		complete(&lradc->completion);
 
-	mxs_lradc_reg_clear(lradc, reg & mxs_lradc_irq_mask(lradc), LRADC_CTRL1);
+	mxs_lradc_reg_clear(lradc, reg & mxs_lradc_irq_mask(lradc),
+			LRADC_CTRL1);
 
 	return IRQ_HANDLED;
 }
@@ -1267,7 +1262,8 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 	uint32_t ctrl1_irq = 0;
 	const uint32_t chan_value = LRADC_CH_ACCUMULATE |
 		((LRADC_DELAY_TIMER_LOOP - 1) << LRADC_CH_NUM_SAMPLES_OFFSET);
-	const int len = bitmap_weight(iio->active_scan_mask, LRADC_MAX_TOTAL_CHANS);
+	const int len = bitmap_weight(iio->active_scan_mask,
+			LRADC_MAX_TOTAL_CHANS);
 
 	if (!len)
 		return -EINVAL;
@@ -1566,7 +1562,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	for (i = 0; i < of_cfg->irq_count; i++) {
 		lradc->irq[i] = platform_get_irq(pdev, i);
 		if (lradc->irq[i] < 0)
-			return -EINVAL;
+			return lradc->irq[i];
 
 		ret = devm_request_irq(dev, lradc->irq[i],
 					mxs_lradc_handle_irq, 0,
@@ -1613,7 +1609,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 			 * of the array.
 			 */
 			scale_uv = ((u64)lradc->vref_mv[i] * 100000000) >>
-				   (iio->channels[i].scan_type.realbits - s);
+				   (LRADC_RESOLUTION - s);
 			lradc->scale_avail[i][s].nano =
 					do_div(scale_uv, 100000000) * 10;
 			lradc->scale_avail[i][s].integer = scale_uv;

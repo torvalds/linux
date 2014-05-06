@@ -117,10 +117,10 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 		(void) vmw_context_binding_state_kill
 			(&container_of(res, struct vmw_user_context, res)->cbs);
 		(void) vmw_gb_context_destroy(res);
+		mutex_unlock(&dev_priv->binding_mutex);
 		if (dev_priv->pinned_bo != NULL &&
 		    !dev_priv->query_cid_valid)
 			__vmw_execbuf_release_pinned_bo(dev_priv, NULL);
-		mutex_unlock(&dev_priv->binding_mutex);
 		mutex_unlock(&dev_priv->cmdbuf_mutex);
 		return;
 	}
@@ -462,7 +462,6 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 	struct vmw_resource *tmp;
 	struct drm_vmw_context_arg *arg = (struct drm_vmw_context_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
 
 
@@ -474,7 +473,7 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(vmw_user_context_size == 0))
 		vmw_user_context_size = ttm_round_pot(sizeof(*ctx)) + 128;
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -521,7 +520,7 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 out_err:
 	vmw_resource_unreference(&res);
 out_unlock:
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 
 }
@@ -551,8 +550,7 @@ static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi, bool rebind)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = bi->ctx->id;
 	cmd->body.type = bi->i1.shader_type;
-	cmd->body.shid =
-		cpu_to_le32((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
+	cmd->body.shid = ((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
@@ -585,8 +583,7 @@ static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = bi->ctx->id;
 	cmd->body.type = bi->i1.rt_type;
-	cmd->body.target.sid =
-		cpu_to_le32((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
+	cmd->body.target.sid = ((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
 	cmd->body.target.face = 0;
 	cmd->body.target.mipmap = 0;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
@@ -628,8 +625,7 @@ static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi,
 	cmd->body.c.cid = bi->ctx->id;
 	cmd->body.s1.stage = bi->i1.texture_stage;
 	cmd->body.s1.name = SVGA3D_TS_BIND_TEXTURE;
-	cmd->body.s1.value =
-		cpu_to_le32((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
+	cmd->body.s1.value = ((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
 	return 0;

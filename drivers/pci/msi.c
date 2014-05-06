@@ -545,9 +545,15 @@ static int populate_msi_sysfs(struct pci_dev *pdev)
 		return -ENOMEM;
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		char *name = kmalloc(20, GFP_KERNEL);
-		msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
-		if (!msi_dev_attr)
+		if (!name)
 			goto error_attrs;
+
+		msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
+		if (!msi_dev_attr) {
+			kfree(name);
+			goto error_attrs;
+		}
+
 		sprintf(name, "%d", entry->irq);
 		sysfs_attr_init(&msi_dev_attr->attr);
 		msi_dev_attr->attr.name = name;
@@ -589,6 +595,7 @@ error_attrs:
 		++count;
 		msi_attr = msi_attrs[count];
 	}
+	kfree(msi_attrs);
 	return ret;
 }
 
@@ -959,7 +966,6 @@ EXPORT_SYMBOL(pci_disable_msi);
 /**
  * pci_msix_vec_count - return the number of device's MSI-X table entries
  * @dev: pointer to the pci_dev data structure of MSI-X device function
-
  * This function returns the number of device's MSI-X table entries and
  * therefore the number of MSI-X vectors device is capable of sending.
  * It returns a negative errno if the device is not capable of sending MSI-X

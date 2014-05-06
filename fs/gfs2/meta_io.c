@@ -97,6 +97,11 @@ const struct address_space_operations gfs2_meta_aops = {
 	.releasepage = gfs2_releasepage,
 };
 
+const struct address_space_operations gfs2_rgrp_aops = {
+	.writepage = gfs2_aspace_writepage,
+	.releasepage = gfs2_releasepage,
+};
+
 /**
  * gfs2_getbuf - Get a buffer with a given address space
  * @gl: the glock
@@ -267,15 +272,10 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 		trace_gfs2_pin(bd, 0);
 		atomic_dec(&sdp->sd_log_pinned);
 		list_del_init(&bd->bd_list);
-		if (meta) {
-			gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
-			sdp->sd_log_num_buf--;
+		if (meta)
 			tr->tr_num_buf_rm++;
-		} else {
-			gfs2_assert_warn(sdp, sdp->sd_log_num_databuf);
-			sdp->sd_log_num_databuf--;
+		else
 			tr->tr_num_databuf_rm++;
-		}
 		tr->tr_touched = 1;
 		was_pinned = 1;
 		brelse(bh);

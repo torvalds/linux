@@ -194,7 +194,7 @@ static int mic_setup_msix(struct mic_device *mdev, struct pci_dev *pdev)
 	for (i = 0; i < MIC_MIN_MSIX; i++)
 		mdev->irq_info.msix_entries[i].entry = i;
 
-	rc = pci_enable_msix(pdev, mdev->irq_info.msix_entries,
+	rc = pci_enable_msix_exact(pdev, mdev->irq_info.msix_entries,
 		MIC_MIN_MSIX);
 	if (rc) {
 		dev_dbg(&pdev->dev, "Error enabling MSIx. rc = %d\n", rc);

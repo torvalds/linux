@@ -1680,7 +1680,7 @@ bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 	case RADEON_HPD_6:
 		if (RREG32(DC_HPD6_INT_STATUS) & DC_HPDx_SENSE)
 			connected = true;
-			break;
+		break;
 	default:
 		break;
 	}
@@ -2990,8 +2990,6 @@ static int evergreen_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB_BASE, ring->gpu_addr >> 8);
 	WREG32(CP_DEBUG, (1 << 27) | (1 << 28));
 
-	ring->rptr = RREG32(CP_RB_RPTR);
-
 	evergreen_cp_start(rdev);
 	ring->ready = true;
 	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, ring);
@@ -3952,11 +3950,9 @@ bool evergreen_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	if (!(reset_mask & (RADEON_RESET_GFX |
 			    RADEON_RESET_COMPUTE |
 			    RADEON_RESET_CP))) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
@@ -5299,7 +5295,8 @@ int evergreen_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	evergreen_init_golden_registers(rdev);
 
-	radeon_pm_resume(rdev);
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_resume(rdev);
 
 	rdev->accel_working = true;
 	r = evergreen_startup(rdev);
@@ -5475,9 +5472,9 @@ void evergreen_fini(struct radeon_device *rdev)
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	evergreen_pcie_gart_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_fini(rdev);
+	evergreen_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);

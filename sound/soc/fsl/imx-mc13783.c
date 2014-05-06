@@ -160,7 +160,6 @@ static struct platform_driver imx_mc13783_audio_driver = {
 	.driver = {
 		.name = "imx_mc13783",
 		.owner = THIS_MODULE,
-		.pm = &snd_soc_pm_ops,
 	},
 	.probe = imx_mc13783_probe,
 	.remove = imx_mc13783_remove

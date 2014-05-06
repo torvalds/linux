@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -432,8 +432,8 @@ acpi_ns_repair_CID(struct acpi_evaluate_info *info,
  * DESCRIPTION: Repair for the _CST object:
  *              1. Sort the list ascending by C state type
  *              2. Ensure type cannot be zero
- *              3. A sub-package count of zero means _CST is meaningless
- *              4. Count must match the number of C state sub-packages
+ *              3. A subpackage count of zero means _CST is meaningless
+ *              4. Count must match the number of C state subpackages
  *
  *****************************************************************************/
 
@@ -611,6 +611,7 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 	union acpi_operand_object **top_object_list;
 	union acpi_operand_object **sub_object_list;
 	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *sub_package;
 	u32 element_count;
 	u32 index;
 
@@ -619,8 +620,17 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 	top_object_list = package_object->package.elements;
 	element_count = package_object->package.count;
 
-	for (index = 0; index < element_count; index++) {
-		sub_object_list = (*top_object_list)->package.elements;
+	/* Examine each subpackage */
+
+	for (index = 0; index < element_count; index++, top_object_list++) {
+		sub_package = *top_object_list;
+		sub_object_list = sub_package->package.elements;
+
+		/* Check for minimum required element count */
+
+		if (sub_package->package.count < 4) {
+			continue;
+		}
 
 		/*
 		 * If the BIOS has erroneously reversed the _PRT source_name (index 2)
@@ -634,15 +644,12 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 			sub_object_list[2] = obj_desc;
 			info->return_flags |= ACPI_OBJECT_REPAIRED;
 
-			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+			ACPI_WARN_PREDEFINED((AE_INFO,
+					      info->full_pathname,
 					      info->node_flags,
 					      "PRT[%X]: Fixed reversed SourceName and SourceIndex",
 					      index));
 		}
-
-		/* Point to the next union acpi_operand_object in the top level package */
-
-		top_object_list++;
 	}
 
 	return (AE_OK);
@@ -679,7 +686,7 @@ acpi_ns_repair_PSS(struct acpi_evaluate_info *info,
 	u32 i;
 
 	/*
-	 * Entries (sub-packages) in the _PSS Package must be sorted by power
+	 * Entries (subpackages) in the _PSS Package must be sorted by power
 	 * dissipation, in descending order. If it appears that the list is
 	 * incorrectly sorted, sort it. We sort by cpu_frequency, since this
 	 * should be proportional to the power.
@@ -767,9 +774,9 @@ acpi_ns_repair_TSS(struct acpi_evaluate_info *info,
  *
  * PARAMETERS:  info                - Method execution information block
  *              return_object       - Pointer to the top-level returned object
- *              start_index         - Index of the first sub-package
- *              expected_count      - Minimum length of each sub-package
- *              sort_index          - Sub-package entry to sort on
+ *              start_index         - Index of the first subpackage
+ *              expected_count      - Minimum length of each subpackage
+ *              sort_index          - Subpackage entry to sort on
  *              sort_direction      - Ascending or descending
  *              sort_key_name       - Name of the sort_index field
  *
@@ -805,7 +812,7 @@ acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * NOTE: assumes list of sub-packages contains no NULL elements.
+	 * NOTE: assumes list of subpackages contains no NULL elements.
 	 * Any NULL elements should have been removed by earlier call
 	 * to acpi_ns_remove_null_elements.
 	 */
@@ -832,7 +839,7 @@ acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 			return (AE_AML_OPERAND_TYPE);
 		}
 
-		/* Each sub-package must have the minimum length */
+		/* Each subpackage must have the minimum length */
 
 		if ((*outer_elements)->package.count < expected_count) {
 			return (AE_AML_PACKAGE_LIMIT);

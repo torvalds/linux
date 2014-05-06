@@ -54,7 +54,9 @@ struct pnv_ioda_pe {
 	struct iommu_table	tce32_table;
 	phys_addr_t		tce_inval_reg_phys;
 
-	/* XXX TODO: Add support for additional 64-bit iommus */
+	/* 64-bit TCE bypass region */
+	bool			tce_bypass_enabled;
+	uint64_t		tce_bypass_base;
 
 	/* MSIs. MVE index is identical for for 32 and 64 bit MSI
 	 * and -1 if not supported. (It's actually identical to the
@@ -113,6 +115,8 @@ struct pnv_phb {
 			 unsigned int hwirq, unsigned int virq,
 			 unsigned int is_64, struct msi_msg *msg);
 	void (*dma_dev_setup)(struct pnv_phb *phb, struct pci_dev *pdev);
+	int (*dma_set_mask)(struct pnv_phb *phb, struct pci_dev *pdev,
+			    u64 dma_mask);
 	void (*fixup_phb)(struct pci_controller *hose);
 	u32 (*bdfn_to_pe)(struct pnv_phb *phb, struct pci_bus *bus, u32 devfn);
 	void (*shutdown)(struct pnv_phb *phb);

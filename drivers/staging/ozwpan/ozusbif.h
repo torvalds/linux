@@ -23,7 +23,7 @@ int oz_usb_stream_delete(void *hpd, u8 ep_num);
 int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
 		const u8 *data, int data_len);
 int oz_usb_get_desc_req(void *hpd, u8 req_id, u8 req_type, u8 desc_type,
-	u8 index, u16 windex, int offset, int len);
+	u8 index, __le16 windex, int offset, int len);
 int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb);
 void oz_usb_request_heartbeat(void *hpd);
 

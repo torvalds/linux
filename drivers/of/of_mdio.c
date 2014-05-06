@@ -24,7 +24,11 @@ MODULE_LICENSE("GPL");
 
 static void of_set_phy_supported(struct phy_device *phydev, u32 max_speed)
 {
-	phydev->supported |= PHY_DEFAULT_FEATURES;
+	/* The default values for phydev->supported are provided by the PHY
+	 * driver "features" member, we want to reset to sane defaults fist
+	 * before supporting higher speeds.
+	 */
+	phydev->supported &= PHY_DEFAULT_FEATURES;
 
 	switch (max_speed) {
 	default:
@@ -39,27 +43,50 @@ static void of_set_phy_supported(struct phy_device *phydev, u32 max_speed)
 	}
 }
 
+/* Extract the clause 22 phy ID from the compatible string of the form
+ * ethernet-phy-idAAAA.BBBB */
+static int of_get_phy_id(struct device_node *device, u32 *phy_id)
+{
+	struct property *prop;
+	const char *cp;
+	unsigned int upper, lower;
+
+	of_property_for_each_string(device, "compatible", prop, cp) {
+		if (sscanf(cp, "ethernet-phy-id%4x.%4x", &upper, &lower) == 2) {
+			*phy_id = ((upper & 0xFFFF) << 16) | (lower & 0xFFFF);
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
 static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *child,
 				   u32 addr)
 {
 	struct phy_device *phy;
 	bool is_c45;
-	int rc, prev_irq;
+	int rc;
 	u32 max_speed = 0;
+	u32 phy_id;
 
 	is_c45 = of_device_is_compatible(child,
 					 "ethernet-phy-ieee802.3-c45");
 
-	phy = get_phy_device(mdio, addr, is_c45);
+	if (!is_c45 && !of_get_phy_id(child, &phy_id))
+		phy = phy_device_create(mdio, addr, phy_id, 0, NULL);
+	else
+		phy = get_phy_device(mdio, addr, is_c45);
 	if (!phy || IS_ERR(phy))
 		return 1;
 
-	if (mdio->irq) {
-		prev_irq = mdio->irq[addr];
-		mdio->irq[addr] =
-			irq_of_parse_and_map(child, 0);
-		if (!mdio->irq[addr])
-			mdio->irq[addr] = prev_irq;
+	rc = irq_of_parse_and_map(child, 0);
+	if (rc > 0) {
+		phy->irq = rc;
+		if (mdio->irq)
+			mdio->irq[addr] = rc;
+	} else {
+		if (mdio->irq)
+			phy->irq = mdio->irq[addr];
 	}
 
 	/* Associate the OF node with the device structure so it

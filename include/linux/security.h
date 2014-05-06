@@ -1040,6 +1040,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Allocate a security structure to the xp->security field; the security
  *	field is initialized to NULL when the xfrm_policy is allocated.
  *	Return 0 if operation was successful (memory to allocate, legal context)
+ *	@gfp is to specify the context for the allocation
  * @xfrm_policy_clone_security:
  *	@old_ctx contains an existing xfrm_sec_ctx.
  *	@new_ctxp contains a new xfrm_sec_ctx being cloned from old.
@@ -1683,7 +1684,7 @@ struct security_operations {
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	int (*xfrm_policy_alloc_security) (struct xfrm_sec_ctx **ctxp,
-			struct xfrm_user_sec_ctx *sec_ctx);
+			struct xfrm_user_sec_ctx *sec_ctx, gfp_t gfp);
 	int (*xfrm_policy_clone_security) (struct xfrm_sec_ctx *old_ctx, struct xfrm_sec_ctx **new_ctx);
 	void (*xfrm_policy_free_security) (struct xfrm_sec_ctx *ctx);
 	int (*xfrm_policy_delete_security) (struct xfrm_sec_ctx *ctx);
@@ -1792,7 +1793,8 @@ int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 int security_inode_rmdir(struct inode *dir, struct dentry *dentry);
 int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
 int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
-			  struct inode *new_dir, struct dentry *new_dentry);
+			  struct inode *new_dir, struct dentry *new_dentry,
+			  unsigned int flags);
 int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
@@ -2160,7 +2162,8 @@ static inline int security_inode_mknod(struct inode *dir,
 static inline int security_inode_rename(struct inode *old_dir,
 					 struct dentry *old_dentry,
 					 struct inode *new_dir,
-					 struct dentry *new_dentry)
+					 struct dentry *new_dentry,
+					 unsigned int flags)
 {
 	return 0;
 }
@@ -2859,7 +2862,8 @@ static inline void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 
-int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx);
+int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
+			       struct xfrm_user_sec_ctx *sec_ctx, gfp_t gfp);
 int security_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx, struct xfrm_sec_ctx **new_ctxp);
 void security_xfrm_policy_free(struct xfrm_sec_ctx *ctx);
 int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx);
@@ -2877,7 +2881,9 @@ void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl);
 
 #else	/* CONFIG_SECURITY_NETWORK_XFRM */
 
-static inline int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx)
+static inline int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
+					     struct xfrm_user_sec_ctx *sec_ctx,
+					     gfp_t gfp)
 {
 	return 0;
 }
@@ -2951,7 +2957,8 @@ int security_path_symlink(struct path *dir, struct dentry *dentry,
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 		       struct dentry *new_dentry);
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
-			 struct path *new_dir, struct dentry *new_dentry);
+			 struct path *new_dir, struct dentry *new_dentry,
+			 unsigned int flags);
 int security_path_chmod(struct path *path, umode_t mode);
 int security_path_chown(struct path *path, kuid_t uid, kgid_t gid);
 int security_path_chroot(struct path *path);
@@ -2999,7 +3006,8 @@ static inline int security_path_link(struct dentry *old_dentry,
 static inline int security_path_rename(struct path *old_dir,
 				       struct dentry *old_dentry,
 				       struct path *new_dir,
-				       struct dentry *new_dentry)
+				       struct dentry *new_dentry,
+				       unsigned int flags)
 {
 	return 0;
 }

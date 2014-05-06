@@ -686,27 +686,13 @@ int pcibios_add_device(struct pci_dev *pdev)
 int pcibios_enable_device(struct pci_dev *pdev, int mask)
 {
 	struct zpci_dev *zdev = get_zdev(pdev);
-	struct resource *res;
-	u16 cmd;
-	int i;
 
 	zdev->pdev = pdev;
 	zpci_debug_init_device(zdev);
 	zpci_fmb_enable_device(zdev);
 	zpci_map_resources(zdev);
 
-	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
-		res = &pdev->resource[i];
-
-		if (res->flags & IORESOURCE_IO)
-			return -EINVAL;
-
-		if (res->flags & IORESOURCE_MEM)
-			cmd |= PCI_COMMAND_MEMORY;
-	}
-	pci_write_config_word(pdev, PCI_COMMAND, cmd);
-	return 0;
+	return pci_enable_resources(pdev, mask);
 }
 
 void pcibios_disable_device(struct pci_dev *pdev)

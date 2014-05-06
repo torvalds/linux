@@ -262,7 +262,6 @@ static void p80211netdev_rx_bh(unsigned long arg)
 	struct sk_buff *skb = NULL;
 	netdevice_t *dev = wlandev->netdev;
 	struct p80211_hdr_a3 *hdr;
-	u16 fc;
 
 	/* Let's empty our our queue */
 	while ((skb = skb_dequeue(&wlandev->nsd_rxq))) {
@@ -286,8 +285,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 				continue;
 			} else {
 				hdr = (struct p80211_hdr_a3 *) skb->data;
-				fc = le16_to_cpu(hdr->fc);
-				if (p80211_rx_typedrop(wlandev, fc)) {
+				if (p80211_rx_typedrop(wlandev, hdr->fc)) {
 					dev_kfree_skb(skb);
 					continue;
 				}

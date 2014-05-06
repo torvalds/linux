@@ -109,6 +109,7 @@ struct c4iw_dev_ucontext {
 
 enum c4iw_rdev_flags {
 	T4_FATAL_ERROR = (1<<0),
+	T4_STATUS_PAGE_DISABLED = (1<<1),
 };
 
 struct c4iw_stat {
@@ -130,6 +131,7 @@ struct c4iw_stats {
 	u64  db_empty;
 	u64  db_drop;
 	u64  db_state_transitions;
+	u64  db_fc_interruptions;
 	u64  tcam_full;
 	u64  act_ofld_conn_fails;
 	u64  pas_ofld_conn_fails;
@@ -150,6 +152,7 @@ struct c4iw_rdev {
 	unsigned long oc_mw_pa;
 	void __iomem *oc_mw_kva;
 	struct c4iw_stats stats;
+	struct t4_dev_status_page *status_page;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
@@ -211,7 +214,8 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 enum db_state {
 	NORMAL = 0,
 	FLOW_CONTROL = 1,
-	RECOVERY = 2
+	RECOVERY = 2,
+	STOPPED = 3
 };
 
 struct c4iw_dev {
@@ -225,10 +229,10 @@ struct c4iw_dev {
 	struct mutex db_mutex;
 	struct dentry *debugfs_root;
 	enum db_state db_state;
-	int qpcnt;
 	struct idr hwtid_idr;
 	struct idr atid_idr;
 	struct idr stid_idr;
+	struct list_head db_fc_list;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -369,6 +373,7 @@ struct c4iw_fr_page_list {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	dma_addr_t dma_addr;
 	struct c4iw_dev *dev;
+	int pll_len;
 };
 
 static inline struct c4iw_fr_page_list *to_c4iw_fr_page_list(
@@ -432,6 +437,7 @@ struct c4iw_qp_attributes {
 
 struct c4iw_qp {
 	struct ib_qp ibqp;
+	struct list_head db_fc_entry;
 	struct c4iw_dev *rhp;
 	struct c4iw_ep *ep;
 	struct c4iw_qp_attributes attr;
@@ -441,6 +447,7 @@ struct c4iw_qp {
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	struct timer_list timer;
+	int sq_sig_all;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)

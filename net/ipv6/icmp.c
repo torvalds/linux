@@ -414,7 +414,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	addr_type = ipv6_addr_type(&hdr->daddr);
 
 	if (ipv6_chk_addr(net, &hdr->daddr, skb->dev, 0) ||
-	    ipv6_anycast_destination(skb))
+	    ipv6_chk_acast_addr_src(net, skb->dev, &hdr->daddr))
 		saddr = &hdr->daddr;
 
 	/*
@@ -520,7 +520,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 			      np->tclass, NULL, &fl6, (struct rt6_info *)dst,
 			      MSG_DONTWAIT, np->dontfrag);
 	if (err) {
-		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_OUTERRORS);
+		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTERRORS);
 		ip6_flush_pending_frames(sk);
 	} else {
 		err = icmpv6_push_pending_frames(sk, &fl6, &tmp_hdr,

@@ -817,8 +817,7 @@ static void process_echoes(struct tty_struct *tty)
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t echoed;
 
-	if ((!L_ECHO(tty) && !L_ECHONL(tty)) ||
-	    ldata->echo_mark == ldata->echo_tail)
+	if (ldata->echo_mark == ldata->echo_tail)
 		return;
 
 	mutex_lock(&ldata->output_lock);
@@ -1244,7 +1243,8 @@ n_tty_receive_signal_char(struct tty_struct *tty, int signal, unsigned char c)
 	if (L_ECHO(tty)) {
 		echo_char(c, tty);
 		commit_echoes(tty);
-	}
+	} else
+		process_echoes(tty);
 	isig(signal, tty);
 	return;
 }
@@ -1274,7 +1274,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 	if (I_IXON(tty)) {
 		if (c == START_CHAR(tty)) {
 			start_tty(tty);
-			commit_echoes(tty);
+			process_echoes(tty);
 			return 0;
 		}
 		if (c == STOP_CHAR(tty)) {
@@ -1820,8 +1820,10 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	 * Fix tty hang when I_IXON(tty) is cleared, but the tty
 	 * been stopped by STOP_CHAR(tty) before it.
 	 */
-	if (!I_IXON(tty) && old && (old->c_iflag & IXON) && !tty->flow_stopped)
+	if (!I_IXON(tty) && old && (old->c_iflag & IXON) && !tty->flow_stopped) {
 		start_tty(tty);
+		process_echoes(tty);
+	}
 
 	/* The termios change make the tty ready for I/O */
 	if (waitqueue_active(&tty->write_wait))
@@ -1896,15 +1898,12 @@ err:
 static inline int input_available_p(struct tty_struct *tty, int poll)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	int amt = poll && !TIME_CHAR(tty) ? MIN_CHAR(tty) : 1;
+	int amt = poll && !TIME_CHAR(tty) && MIN_CHAR(tty) ? MIN_CHAR(tty) : 1;
 
-	if (ldata->icanon && !L_EXTPROC(tty)) {
-		if (ldata->canon_head != ldata->read_tail)
-			return 1;
-	} else if (read_cnt(ldata) >= amt)
-		return 1;
-
-	return 0;
+	if (ldata->icanon && !L_EXTPROC(tty))
+		return ldata->canon_head != ldata->read_tail;
+	else
+		return read_cnt(ldata) >= amt;
 }
 
 /**

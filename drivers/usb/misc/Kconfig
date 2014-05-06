@@ -128,7 +128,6 @@ config USB_IDMOUSE
 
 config USB_FTDI_ELAN
 	tristate "Elan PCMCIA CardBus Adapter USB Client"
-	default M
 	help
 	  ELAN's Uxxx series of adapters are USB to PCMCIA CardBus adapters.
 	  Currently only the U132 adapter is available.

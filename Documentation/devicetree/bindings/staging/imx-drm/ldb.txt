@@ -50,12 +50,14 @@ have a look at Documentation/devicetree/bindings/video/display-timing.txt.
 
 Required properties:
  - reg : should be <0> or <1>
- - crtcs : a list of phandles with index pointing to the IPU display interfaces
-           that can be used as video source for this channel.
  - fsl,data-mapping : should be "spwg" or "jeida"
                       This describes how the color bits are laid out in the
                       serialized LVDS signal.
  - fsl,data-width : should be <18> or <24>
+ - port: A port node with endpoint definitions as defined in
+   Documentation/devicetree/bindings/media/video-interfaces.txt.
+   On i.MX6, there should be four ports (port@[0-3]) that correspond
+   to the four LVDS multiplexer inputs.
 
 example:
 
@@ -77,23 +79,33 @@ ldb: ldb@53fa8008 {
 
 	lvds-channel@0 {
 		reg = <0>;
-		crtcs = <&ipu 0>;
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <24>;
 
 		display-timings {
 			/* ... */
 		};
+
+		port {
+			lvds0_in: endpoint {
+				remote-endpoint = <&ipu_di0_lvds0>;
+			};
+		};
 	};
 
 	lvds-channel@1 {
 		reg = <1>;
-		crtcs = <&ipu 1>;
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <24>;
 
 		display-timings {
 			/* ... */
+		};
+
+		port {
+			lvds1_in: endpoint {
+				remote-endpoint = <&ipu_di1_lvds1>;
+			};
 		};
 	};
 };

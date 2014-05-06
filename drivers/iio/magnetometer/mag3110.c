@@ -106,7 +106,7 @@ static ssize_t mag3110_show_int_plus_micros(char *buf,
 
 	while (n-- > 0)
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-			"%d.%d ", vals[n][0], vals[n][1]);
+			"%d.%06d ", vals[n][0], vals[n][1]);
 
 	/* replace trailing space by newline */
 	buf[len - 1] = '\n';
@@ -154,6 +154,9 @@ static int mag3110_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		if (iio_buffer_enabled(indio_dev))
+			return -EBUSY;
+
 		switch (chan->type) {
 		case IIO_MAGN: /* in 0.1 uT / LSB */
 			ret = mag3110_read(data, buffer);
@@ -180,9 +183,17 @@ static int mag3110_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		*val2 = 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		switch (chan->type) {
+		case IIO_MAGN:
+			*val = 0;
+			*val2 = 1000;
+			return IIO_VAL_INT_PLUS_MICRO;
+		case IIO_TEMP:
+			*val = 1000;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		i = data->ctrl_reg1 >> MAG3110_CTRL_DR_SHIFT;
 		*val = mag3110_samp_freq[i][0];
@@ -198,6 +209,9 @@ static int mag3110_write_raw(struct iio_dev *indio_dev,
 {
 	struct mag3110_data *data = iio_priv(indio_dev);
 	int rate;
+
+	if (iio_buffer_enabled(indio_dev))
+		return -EBUSY;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -264,7 +278,8 @@ static const struct iio_chan_spec mag3110_channels[] = {
 	MAG3110_CHANNEL(Z, 2),
 	{
 		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = 3,
 		.scan_type = {
 			.sign = 's',

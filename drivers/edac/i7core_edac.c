@@ -9,7 +9,7 @@
  * GNU General Public License version 2 only.
  *
  * Copyright (c) 2009-2010 by:
- *	 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *	 Mauro Carvalho Chehab
  *
  * Red Hat Inc. http://www.redhat.com
  *
@@ -1334,14 +1334,19 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 	 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
 	 * to probe for the alternate address in case of failure
 	 */
-	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_I7_NONCORE && !pdev)
+	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_I7_NONCORE && !pdev) {
+		pci_dev_get(*prev);	/* pci_get_device will put it */
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_I7_NONCORE_ALT, *prev);
+	}
 
-	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE && !pdev)
+	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE &&
+	    !pdev) {
+		pci_dev_get(*prev);	/* pci_get_device will put it */
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_ALT,
 				      *prev);
+	}
 
 	if (!pdev) {
 		if (*prev) {
@@ -1703,7 +1708,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    const struct mce *m)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
-	char *type, *optype, *err;
+	char *optype, *err;
 	enum hw_event_mc_err_type tp_event;
 	unsigned long error = m->status & 0x1ff0000l;
 	bool uncorrected_error = m->mcgstatus & 1ll << 61;
@@ -1716,15 +1721,11 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	u32 errnum = find_first_bit(&error, 32);
 
 	if (uncorrected_error) {
-		if (ripv) {
-			type = "FATAL";
+		if (ripv)
 			tp_event = HW_EVENT_ERR_FATAL;
-		} else {
-			type = "NON_FATAL";
+		else
 			tp_event = HW_EVENT_ERR_UNCORRECTED;
-		}
 	} else {
-		type = "CORRECTED";
 		tp_event = HW_EVENT_ERR_CORRECTED;
 	}
 
@@ -2456,7 +2457,7 @@ module_init(i7core_init);
 module_exit(i7core_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
 MODULE_DESCRIPTION("MC Driver for Intel i7 Core memory controllers - "
 		   I7CORE_REVISION);

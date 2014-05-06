@@ -2123,8 +2123,8 @@ sisusb_get_ramconfig(struct sisusb_usb_data *sisusb)
 	u8 tmp8, tmp82, ramtype;
 	int bw = 0;
 	char *ramtypetext1 = NULL;
-	const char *ramtypetext2[] = {	"SDR SDRAM", "SDR SGRAM",
-					"DDR SDRAM", "DDR SGRAM" };
+	static const char ram_datarate[4] = {'S', 'S', 'D', 'D'};
+	static const char ram_dynamictype[4] = {'D', 'G', 'D', 'G'};
 	static const int busSDR[4]  = {64, 64, 128, 128};
 	static const int busDDR[4]  = {32, 32,  64,  64};
 	static const int busDDRA[4] = {64+32, 64+32 , (64+32)*2, (64+32)*2};
@@ -2156,8 +2156,10 @@ sisusb_get_ramconfig(struct sisusb_usb_data *sisusb)
 		break;
 	}
 
-	dev_info(&sisusb->sisusb_dev->dev, "%dMB %s %s, bus width %d\n", (sisusb->vramsize >> 20), ramtypetext1,
-			ramtypetext2[ramtype], bw);
+
+	dev_info(&sisusb->sisusb_dev->dev, "%dMB %s %cDR S%cRAM, bus width %d\n",
+		 sisusb->vramsize >> 20, ramtypetext1,
+		 ram_datarate[ramtype], ram_dynamictype[ramtype], bw);
 }
 
 static int

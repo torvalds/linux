@@ -1484,9 +1484,6 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
@@ -1772,6 +1769,10 @@ int sumo_dpm_init(struct radeon_device *rdev)
 
 	sumo_construct_boot_and_acpi_state(rdev);
 
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
+
 	ret = sumo_parse_power_table(rdev);
 	if (ret)
 		return ret;
@@ -1807,7 +1808,7 @@ void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev
 						      struct seq_file *m)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct radeon_ps *rps = &pi->current_rps;
 	struct sumo_ps *ps = sumo_get_ps(rps);
 	struct sumo_pl *pl;
 	u32 current_index =

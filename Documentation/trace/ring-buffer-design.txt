@@ -683,7 +683,7 @@ against nested writers.
   cmpxchg(tail_page, temp_page, next_page)
 
 The above will update the tail page if it is still pointing to the expected
-page. If this fails, a nested write pushed it forward, the the current write
+page. If this fails, a nested write pushed it forward, the current write
 does not need to push it.
 
 

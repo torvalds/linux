@@ -88,7 +88,11 @@ static int netvsc_open(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct hv_device *device_obj = net_device_ctx->device_ctx;
+	struct netvsc_device *nvdev;
+	struct rndis_device *rdev;
 	int ret = 0;
+
+	netif_carrier_off(net);
 
 	/* Open up the device */
 	ret = rndis_filter_open(device_obj);
@@ -98,6 +102,11 @@ static int netvsc_open(struct net_device *net)
 	}
 
 	netif_start_queue(net);
+
+	nvdev = hv_get_drvdata(device_obj);
+	rdev = nvdev->extension;
+	if (!rdev->link_state)
+		netif_carrier_on(net);
 
 	return ret;
 }
@@ -119,6 +128,27 @@ static int netvsc_close(struct net_device *net)
 	return ret;
 }
 
+static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
+				int pkt_type)
+{
+	struct rndis_packet *rndis_pkt;
+	struct rndis_per_packet_info *ppi;
+
+	rndis_pkt = &msg->msg.pkt;
+	rndis_pkt->data_offset += ppi_size;
+
+	ppi = (struct rndis_per_packet_info *)((void *)rndis_pkt +
+		rndis_pkt->per_pkt_info_offset + rndis_pkt->per_pkt_info_len);
+
+	ppi->size = ppi_size;
+	ppi->type = pkt_type;
+	ppi->ppi_offset = sizeof(struct rndis_per_packet_info);
+
+	rndis_pkt->per_pkt_info_len += ppi_size;
+
+	return ppi;
+}
+
 static void netvsc_xmit_completion(void *context)
 {
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
@@ -131,23 +161,167 @@ static void netvsc_xmit_completion(void *context)
 		dev_kfree_skb_any(skb);
 }
 
+static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
+			struct hv_page_buffer *pb)
+{
+	int j = 0;
+
+	/* Deal with compund pages by ignoring unused part
+	 * of the page.
+	 */
+	page += (offset >> PAGE_SHIFT);
+	offset &= ~PAGE_MASK;
+
+	while (len > 0) {
+		unsigned long bytes;
+
+		bytes = PAGE_SIZE - offset;
+		if (bytes > len)
+			bytes = len;
+		pb[j].pfn = page_to_pfn(page);
+		pb[j].offset = offset;
+		pb[j].len = bytes;
+
+		offset += bytes;
+		len -= bytes;
+
+		if (offset == PAGE_SIZE && len) {
+			page++;
+			offset = 0;
+			j++;
+		}
+	}
+
+	return j + 1;
+}
+
+static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
+			   struct hv_page_buffer *pb)
+{
+	u32 slots_used = 0;
+	char *data = skb->data;
+	int frags = skb_shinfo(skb)->nr_frags;
+	int i;
+
+	/* The packet is laid out thus:
+	 * 1. hdr
+	 * 2. skb linear data
+	 * 3. skb fragment data
+	 */
+	if (hdr != NULL)
+		slots_used += fill_pg_buf(virt_to_page(hdr),
+					offset_in_page(hdr),
+					len, &pb[slots_used]);
+
+	slots_used += fill_pg_buf(virt_to_page(data),
+				offset_in_page(data),
+				skb_headlen(skb), &pb[slots_used]);
+
+	for (i = 0; i < frags; i++) {
+		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
+
+		slots_used += fill_pg_buf(skb_frag_page(frag),
+					frag->page_offset,
+					skb_frag_size(frag), &pb[slots_used]);
+	}
+	return slots_used;
+}
+
+static int count_skb_frag_slots(struct sk_buff *skb)
+{
+	int i, frags = skb_shinfo(skb)->nr_frags;
+	int pages = 0;
+
+	for (i = 0; i < frags; i++) {
+		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
+		unsigned long size = skb_frag_size(frag);
+		unsigned long offset = frag->page_offset;
+
+		/* Skip unused frames from start of page */
+		offset &= ~PAGE_MASK;
+		pages += PFN_UP(offset + size);
+	}
+	return pages;
+}
+
+static int netvsc_get_slots(struct sk_buff *skb)
+{
+	char *data = skb->data;
+	unsigned int offset = offset_in_page(data);
+	unsigned int len = skb_headlen(skb);
+	int slots;
+	int frag_slots;
+
+	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE);
+	frag_slots = count_skb_frag_slots(skb);
+	return slots + frag_slots;
+}
+
+static u32 get_net_transport_info(struct sk_buff *skb, u32 *trans_off)
+{
+	u32 ret_val = TRANSPORT_INFO_NOT_IP;
+
+	if ((eth_hdr(skb)->h_proto != htons(ETH_P_IP)) &&
+		(eth_hdr(skb)->h_proto != htons(ETH_P_IPV6))) {
+		goto not_ip;
+	}
+
+	*trans_off = skb_transport_offset(skb);
+
+	if ((eth_hdr(skb)->h_proto == htons(ETH_P_IP))) {
+		struct iphdr *iphdr = ip_hdr(skb);
+
+		if (iphdr->protocol == IPPROTO_TCP)
+			ret_val = TRANSPORT_INFO_IPV4_TCP;
+		else if (iphdr->protocol == IPPROTO_UDP)
+			ret_val = TRANSPORT_INFO_IPV4_UDP;
+	} else {
+		if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
+			ret_val = TRANSPORT_INFO_IPV6_TCP;
+		else if (ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)
+			ret_val = TRANSPORT_INFO_IPV6_UDP;
+	}
+
+not_ip:
+	return ret_val;
+}
+
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct hv_netvsc_packet *packet;
 	int ret;
-	unsigned int i, num_pages, npg_data;
+	unsigned int num_data_pgs;
+	struct rndis_message *rndis_msg;
+	struct rndis_packet *rndis_pkt;
+	u32 rndis_msg_size;
+	bool isvlan;
+	struct rndis_per_packet_info *ppi;
+	struct ndis_tcp_ip_checksum_info *csum_info;
+	struct ndis_tcp_lso_info *lso_info;
+	int  hdr_offset;
+	u32 net_trans_info;
 
-	/* Add multipages for skb->data and additional 2 for RNDIS */
-	npg_data = (((unsigned long)skb->data + skb_headlen(skb) - 1)
-		>> PAGE_SHIFT) - ((unsigned long)skb->data >> PAGE_SHIFT) + 1;
-	num_pages = skb_shinfo(skb)->nr_frags + npg_data + 2;
+
+	/* We will atmost need two pages to describe the rndis
+	 * header. We can only transmit MAX_PAGE_BUFFER_COUNT number
+	 * of pages in a single packet.
+	 */
+	num_data_pgs = netvsc_get_slots(skb) + 2;
+	if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
+		netdev_err(net, "Packet too big: %u\n", skb->len);
+		dev_kfree_skb(skb);
+		net->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
 
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
-			 (num_pages * sizeof(struct hv_page_buffer)) +
-			 sizeof(struct rndis_filter_packet) +
-			 NDIS_VLAN_PPI_SIZE, GFP_ATOMIC);
+			 (num_data_pgs * sizeof(struct hv_page_buffer)) +
+			 sizeof(struct rndis_message) +
+			 NDIS_VLAN_PPI_SIZE +
+			 NDIS_CSUM_PPI_SIZE +
+			 NDIS_LSO_PPI_SIZE, GFP_ATOMIC);
 	if (!packet) {
 		/* out of memory, drop packet */
 		netdev_err(net, "unable to allocate hv_netvsc_packet\n");
@@ -159,53 +333,135 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	packet->vlan_tci = skb->vlan_tci;
 
-	packet->extension = (void *)(unsigned long)packet +
-				sizeof(struct hv_netvsc_packet) +
-				    (num_pages * sizeof(struct hv_page_buffer));
-
-	/* If the rndis msg goes beyond 1 page, we will add 1 later */
-	packet->page_buf_cnt = num_pages - 1;
-
-	/* Initialize it from the skb */
+	packet->is_data_pkt = true;
 	packet->total_data_buflen = skb->len;
 
-	/* Start filling in the page buffers starting after RNDIS buffer. */
-	packet->page_buf[1].pfn = virt_to_phys(skb->data) >> PAGE_SHIFT;
-	packet->page_buf[1].offset
-		= (unsigned long)skb->data & (PAGE_SIZE - 1);
-	if (npg_data == 1)
-		packet->page_buf[1].len = skb_headlen(skb);
-	else
-		packet->page_buf[1].len = PAGE_SIZE
-			- packet->page_buf[1].offset;
-
-	for (i = 2; i <= npg_data; i++) {
-		packet->page_buf[i].pfn = virt_to_phys(skb->data
-			+ PAGE_SIZE * (i-1)) >> PAGE_SHIFT;
-		packet->page_buf[i].offset = 0;
-		packet->page_buf[i].len = PAGE_SIZE;
-	}
-	if (npg_data > 1)
-		packet->page_buf[npg_data].len = (((unsigned long)skb->data
-			+ skb_headlen(skb) - 1) & (PAGE_SIZE - 1)) + 1;
-
-	/* Additional fragments are after SKB data */
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const skb_frag_t *f = &skb_shinfo(skb)->frags[i];
-
-		packet->page_buf[i+npg_data+1].pfn =
-			page_to_pfn(skb_frag_page(f));
-		packet->page_buf[i+npg_data+1].offset = f->page_offset;
-		packet->page_buf[i+npg_data+1].len = skb_frag_size(f);
-	}
+	packet->rndis_msg = (struct rndis_message *)((unsigned long)packet +
+				sizeof(struct hv_netvsc_packet) +
+				(num_data_pgs * sizeof(struct hv_page_buffer)));
 
 	/* Set the completion routine */
 	packet->completion.send.send_completion = netvsc_xmit_completion;
 	packet->completion.send.send_completion_ctx = packet;
 	packet->completion.send.send_completion_tid = (unsigned long)skb;
 
-	ret = rndis_filter_send(net_device_ctx->device_ctx,
-				  packet);
+	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;
+
+	/* Add the rndis header */
+	rndis_msg = packet->rndis_msg;
+	rndis_msg->ndis_msg_type = RNDIS_MSG_PACKET;
+	rndis_msg->msg_len = packet->total_data_buflen;
+	rndis_pkt = &rndis_msg->msg.pkt;
+	rndis_pkt->data_offset = sizeof(struct rndis_packet);
+	rndis_pkt->data_len = packet->total_data_buflen;
+	rndis_pkt->per_pkt_info_offset = sizeof(struct rndis_packet);
+
+	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
+
+	if (isvlan) {
+		struct ndis_pkt_8021q_info *vlan;
+
+		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
+		ppi = init_ppi_data(rndis_msg, NDIS_VLAN_PPI_SIZE,
+					IEEE_8021Q_INFO);
+		vlan = (struct ndis_pkt_8021q_info *)((void *)ppi +
+						ppi->ppi_offset);
+		vlan->vlanid = packet->vlan_tci & VLAN_VID_MASK;
+		vlan->pri = (packet->vlan_tci & VLAN_PRIO_MASK) >>
+				VLAN_PRIO_SHIFT;
+	}
+
+	net_trans_info = get_net_transport_info(skb, &hdr_offset);
+	if (net_trans_info == TRANSPORT_INFO_NOT_IP)
+		goto do_send;
+
+	/*
+	 * Setup the sendside checksum offload only if this is not a
+	 * GSO packet.
+	 */
+	if (skb_is_gso(skb))
+		goto do_lso;
+
+	rndis_msg_size += NDIS_CSUM_PPI_SIZE;
+	ppi = init_ppi_data(rndis_msg, NDIS_CSUM_PPI_SIZE,
+			    TCPIP_CHKSUM_PKTINFO);
+
+	csum_info = (struct ndis_tcp_ip_checksum_info *)((void *)ppi +
+			ppi->ppi_offset);
+
+	if (net_trans_info & (INFO_IPV4 << 16))
+		csum_info->transmit.is_ipv4 = 1;
+	else
+		csum_info->transmit.is_ipv6 = 1;
+
+	if (net_trans_info & INFO_TCP) {
+		csum_info->transmit.tcp_checksum = 1;
+		csum_info->transmit.tcp_header_offset = hdr_offset;
+	} else if (net_trans_info & INFO_UDP) {
+		/* UDP checksum offload is not supported on ws2008r2.
+		 * Furthermore, on ws2012 and ws2012r2, there are some
+		 * issues with udp checksum offload from Linux guests.
+		 * (these are host issues).
+		 * For now compute the checksum here.
+		 */
+		struct udphdr *uh;
+		u16 udp_len;
+
+		ret = skb_cow_head(skb, 0);
+		if (ret)
+			goto drop;
+
+		uh = udp_hdr(skb);
+		udp_len = ntohs(uh->len);
+		uh->check = 0;
+		uh->check = csum_tcpudp_magic(ip_hdr(skb)->saddr,
+					      ip_hdr(skb)->daddr,
+					      udp_len, IPPROTO_UDP,
+					      csum_partial(uh, udp_len, 0));
+		if (uh->check == 0)
+			uh->check = CSUM_MANGLED_0;
+
+		csum_info->transmit.udp_checksum = 0;
+	}
+	goto do_send;
+
+do_lso:
+	rndis_msg_size += NDIS_LSO_PPI_SIZE;
+	ppi = init_ppi_data(rndis_msg, NDIS_LSO_PPI_SIZE,
+			    TCP_LARGESEND_PKTINFO);
+
+	lso_info = (struct ndis_tcp_lso_info *)((void *)ppi +
+			ppi->ppi_offset);
+
+	lso_info->lso_v2_transmit.type = NDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
+	if (net_trans_info & (INFO_IPV4 << 16)) {
+		lso_info->lso_v2_transmit.ip_version =
+			NDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
+		ip_hdr(skb)->tot_len = 0;
+		ip_hdr(skb)->check = 0;
+		tcp_hdr(skb)->check =
+		~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+				   ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+	} else {
+		lso_info->lso_v2_transmit.ip_version =
+			NDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
+		ipv6_hdr(skb)->payload_len = 0;
+		tcp_hdr(skb)->check =
+		~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+				&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+	}
+	lso_info->lso_v2_transmit.tcp_header_offset = hdr_offset;
+	lso_info->lso_v2_transmit.mss = skb_shinfo(skb)->gso_size;
+
+do_send:
+	/* Start filling in the page buffers with the rndis hdr */
+	rndis_msg->msg_len += rndis_msg_size;
+	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
+					skb, &packet->page_buf[0]);
+
+	ret = netvsc_send(net_device_ctx->device_ctx, packet);
+
+drop:
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
 		net->stats.tx_packets++;
@@ -229,23 +485,24 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	struct net_device *net;
 	struct net_device_context *ndev_ctx;
 	struct netvsc_device *net_device;
+	struct rndis_device *rdev;
 
 	net_device = hv_get_drvdata(device_obj);
+	rdev = net_device->extension;
+
+	rdev->link_state = status != 1;
+
 	net = net_device->ndev;
 
-	if (!net) {
-		netdev_err(net, "got link status but net device "
-				"not initialized yet\n");
+	if (!net || net->reg_state != NETREG_REGISTERED)
 		return;
-	}
 
+	ndev_ctx = netdev_priv(net);
 	if (status == 1) {
-		netif_carrier_on(net);
-		ndev_ctx = netdev_priv(net);
 		schedule_delayed_work(&ndev_ctx->dwork, 0);
 		schedule_delayed_work(&ndev_ctx->dwork, msecs_to_jiffies(20));
 	} else {
-		netif_carrier_off(net);
+		schedule_delayed_work(&ndev_ctx->dwork, 0);
 	}
 }
 
@@ -254,7 +511,8 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
  * "wire" on the specified device.
  */
 int netvsc_recv_callback(struct hv_device *device_obj,
-				struct hv_netvsc_packet *packet)
+				struct hv_netvsc_packet *packet,
+				struct ndis_tcp_ip_checksum_info *csum_info)
 {
 	struct net_device *net;
 	struct sk_buff *skb;
@@ -281,7 +539,17 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 		packet->total_data_buflen);
 
 	skb->protocol = eth_type_trans(skb, net);
-	skb->ip_summed = CHECKSUM_NONE;
+	if (csum_info) {
+		/* We only look at the IP checksum here.
+		 * Should we be dropping the packet if checksum
+		 * failed? How do we deal with other checksums - TCP/UDP?
+		 */
+		if (csum_info->receive.ip_checksum_succeeded)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		else
+			skb->ip_summed = CHECKSUM_NONE;
+	}
+
 	if (packet->vlan_tci & VLAN_TAG_PRESENT)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       packet->vlan_tci);
@@ -317,7 +585,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	if (nvdev == NULL || nvdev->destroy)
 		return -ENODEV;
 
-	if (nvdev->nvsp_version == NVSP_PROTOCOL_VERSION_2)
+	if (nvdev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
 		limit = NETVSC_MTU;
 
 	if (mtu < 68 || mtu > limit)
@@ -388,17 +656,35 @@ static const struct net_device_ops device_ops = {
  * current context when receiving RNDIS_STATUS_MEDIA_CONNECT event. So, add
  * another netif_notify_peers() into a delayed work, otherwise GARP packet
  * will not be sent after quick migration, and cause network disconnection.
+ * Also, we update the carrier status here.
  */
-static void netvsc_send_garp(struct work_struct *w)
+static void netvsc_link_change(struct work_struct *w)
 {
 	struct net_device_context *ndev_ctx;
 	struct net_device *net;
 	struct netvsc_device *net_device;
+	struct rndis_device *rdev;
+	bool notify;
+
+	rtnl_lock();
 
 	ndev_ctx = container_of(w, struct net_device_context, dwork.work);
 	net_device = hv_get_drvdata(ndev_ctx->device_ctx);
+	rdev = net_device->extension;
 	net = net_device->ndev;
-	netdev_notify_peers(net);
+
+	if (rdev->link_state) {
+		netif_carrier_off(net);
+		notify = false;
+	} else {
+		netif_carrier_on(net);
+		notify = true;
+	}
+
+	rtnl_unlock();
+
+	if (notify)
+		netdev_notify_peers(net);
 }
 
 
@@ -414,20 +700,20 @@ static int netvsc_probe(struct hv_device *dev,
 	if (!net)
 		return -ENOMEM;
 
-	/* Set initial state */
 	netif_carrier_off(net);
 
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = dev;
 	hv_set_drvdata(dev, net);
-	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_send_garp);
+	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_link_change);
 	INIT_WORK(&net_device_ctx->work, do_set_multicast);
 
 	net->netdev_ops = &device_ops;
 
-	/* TODO: Add GSO and Checksum offload */
-	net->hw_features = 0;
-	net->features = NETIF_F_HW_VLAN_CTAG_TX;
+	net->hw_features = NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_IP_CSUM |
+				NETIF_F_TSO;
+	net->features = NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_SG | NETIF_F_RXCSUM |
+			NETIF_F_IP_CSUM | NETIF_F_TSO;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);
@@ -443,13 +729,13 @@ static int netvsc_probe(struct hv_device *dev,
 	}
 	memcpy(net->dev_addr, device_info.mac_adr, ETH_ALEN);
 
-	netif_carrier_on(net);
-
 	ret = register_netdev(net);
 	if (ret != 0) {
 		pr_err("Unable to register netdev.\n");
 		rndis_filter_device_remove(dev);
 		free_netdev(net);
+	} else {
+		schedule_delayed_work(&net_device_ctx->dwork, 0);
 	}
 
 	return ret;

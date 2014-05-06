@@ -134,6 +134,8 @@ struct regmap {
 
 	/* if set, converts bulk rw to single rw */
 	bool use_single_rw;
+	/* if set, the device supports multi write mode */
+	bool can_multi_write;
 
 	struct rb_root range_tree;
 	void *selector_work_buf;	/* Scratch buffer used for selector */

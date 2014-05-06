@@ -936,7 +936,8 @@ static int __cw1200_flush(struct cw1200_common *priv, bool drop)
 	return ret;
 }
 
-void cw1200_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+void cw1200_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  u32 queues, bool drop)
 {
 	struct cw1200_common *priv = hw->priv;
 

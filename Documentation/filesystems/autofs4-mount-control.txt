@@ -255,7 +255,7 @@ AUTOFS_DEV_IOCTL_OPENMOUNT and AUTOFS_DEV_IOCTL_CLOSEMOUNT
 
 Obtain and release a file descriptor for an autofs managed mount point
 path. The open call requires an initialized struct autofs_dev_ioctl with
-the the path field set and the size field adjusted appropriately as well
+the path field set and the size field adjusted appropriately as well
 as the arg1 field set to the device number of the autofs mount. The
 device number can be obtained from the mount options shown in
 /proc/mounts. The close call requires an initialized struct

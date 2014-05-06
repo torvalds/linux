@@ -14,6 +14,20 @@
 
 #include "boot.h"
 
+/*
+ * This file gets included in compressed/string.c which might pull in
+ * string_32.h and which in turn maps memcmp to __builtin_memcmp(). Undo
+ * that first.
+ */
+#undef memcmp
+int memcmp(const void *s1, const void *s2, size_t len)
+{
+	u8 diff;
+	asm("repe; cmpsb; setnz %0"
+	    : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
+	return diff;
+}
+
 int strcmp(const char *str1, const char *str2)
 {
 	const unsigned char *s1 = (const unsigned char *)str1;

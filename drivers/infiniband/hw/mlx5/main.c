@@ -46,8 +46,8 @@
 #include "mlx5_ib.h"
 
 #define DRIVER_NAME "mlx5_ib"
-#define DRIVER_VERSION "1.0"
-#define DRIVER_RELDATE	"June 2013"
+#define DRIVER_VERSION "2.2-1"
+#define DRIVER_RELDATE	"Feb 2014"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB HCA IB driver");
@@ -261,8 +261,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->device_cap_flags    = IB_DEVICE_CHANGE_PHY_PORT |
 		IB_DEVICE_PORT_ACTIVE_EVENT		|
 		IB_DEVICE_SYS_IMAGE_GUID		|
-		IB_DEVICE_RC_RNR_NAK_GEN		|
-		IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
+		IB_DEVICE_RC_RNR_NAK_GEN;
 	flags = dev->mdev.caps.flags;
 	if (flags & MLX5_DEV_CAP_FLAG_BAD_PKEY_CNTR)
 		props->device_cap_flags |= IB_DEVICE_BAD_PKEY_CNTR;
@@ -274,6 +273,15 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (flags & MLX5_DEV_CAP_FLAG_XRC)
 		props->device_cap_flags |= IB_DEVICE_XRC;
 	props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
+	if (flags & MLX5_DEV_CAP_FLAG_SIG_HAND_OVER) {
+		props->device_cap_flags |= IB_DEVICE_SIGNATURE_HANDOVER;
+		/* At this stage no support for signature handover */
+		props->sig_prot_cap = IB_PROT_T10DIF_TYPE_1 |
+				      IB_PROT_T10DIF_TYPE_2 |
+				      IB_PROT_T10DIF_TYPE_3;
+		props->sig_guard_cap = IB_GUARD_T10DIF_CRC |
+				       IB_GUARD_T10DIF_CSUM;
+	}
 
 	props->vendor_id	   = be32_to_cpup((__be32 *)(out_mad->data + 36)) &
 		0xffffff;
@@ -536,23 +544,37 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 						  struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_ib_alloc_ucontext_req req;
+	struct mlx5_ib_alloc_ucontext_req_v2 req;
 	struct mlx5_ib_alloc_ucontext_resp resp;
 	struct mlx5_ib_ucontext *context;
 	struct mlx5_uuar_info *uuari;
 	struct mlx5_uar *uars;
 	int gross_uuars;
 	int num_uars;
+	int ver;
 	int uuarn;
 	int err;
 	int i;
+	int reqlen;
 
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
 
-	err = ib_copy_from_udata(&req, udata, sizeof(req));
+	memset(&req, 0, sizeof(req));
+	reqlen = udata->inlen - sizeof(struct ib_uverbs_cmd_hdr);
+	if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req))
+		ver = 0;
+	else if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req_v2))
+		ver = 2;
+	else
+		return ERR_PTR(-EINVAL);
+
+	err = ib_copy_from_udata(&req, udata, reqlen);
 	if (err)
 		return ERR_PTR(err);
+
+	if (req.flags || req.reserved)
+		return ERR_PTR(-EINVAL);
 
 	if (req.total_num_uuars > MLX5_MAX_UUARS)
 		return ERR_PTR(-ENOMEM);
@@ -626,6 +648,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (err)
 		goto out_uars;
 
+	uuari->ver = ver;
 	uuari->num_low_latency_uuars = req.num_low_latency_uuars;
 	uuari->uars = uars;
 	uuari->num_uars = num_uars;
@@ -1409,12 +1432,15 @@ static int init_one(struct pci_dev *pdev,
 	dev->ib_dev.get_dma_mr		= mlx5_ib_get_dma_mr;
 	dev->ib_dev.reg_user_mr		= mlx5_ib_reg_user_mr;
 	dev->ib_dev.dereg_mr		= mlx5_ib_dereg_mr;
+	dev->ib_dev.destroy_mr		= mlx5_ib_destroy_mr;
 	dev->ib_dev.attach_mcast	= mlx5_ib_mcg_attach;
 	dev->ib_dev.detach_mcast	= mlx5_ib_mcg_detach;
 	dev->ib_dev.process_mad		= mlx5_ib_process_mad;
+	dev->ib_dev.create_mr		= mlx5_ib_create_mr;
 	dev->ib_dev.alloc_fast_reg_mr	= mlx5_ib_alloc_fast_reg_mr;
 	dev->ib_dev.alloc_fast_reg_page_list = mlx5_ib_alloc_fast_reg_page_list;
 	dev->ib_dev.free_fast_reg_page_list  = mlx5_ib_free_fast_reg_page_list;
+	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 
 	if (mdev->caps.flags & MLX5_DEV_CAP_FLAG_XRC) {
 		dev->ib_dev.alloc_xrcd = mlx5_ib_alloc_xrcd;

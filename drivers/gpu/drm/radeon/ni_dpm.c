@@ -2588,7 +2588,7 @@ static int ni_populate_sq_ramping_values(struct radeon_device *rdev,
 	if (NISLANDS_DPM2_SQ_RAMP_STI_SIZE > (STI_SIZE_MASK >> STI_SIZE_SHIFT))
 		enable_sq_ramping = false;
 
-	if (NISLANDS_DPM2_SQ_RAMP_LTI_RATIO <= (LTI_RATIO_MASK >> LTI_RATIO_SHIFT))
+	if (NISLANDS_DPM2_SQ_RAMP_LTI_RATIO > (LTI_RATIO_MASK >> LTI_RATIO_SHIFT))
 		enable_sq_ramping = false;
 
 	for (i = 0; i < state->performance_level_count; i++) {
@@ -3945,7 +3945,6 @@ static void ni_parse_pplib_clock_info(struct radeon_device *rdev,
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct ni_ps *ps = ni_get_ps(rps);
-	u16 vddc;
 	struct rv7xx_pl *pl = &ps->performance_levels[index];
 
 	ps->performance_level_count = index + 1;
@@ -3961,8 +3960,8 @@ static void ni_parse_pplib_clock_info(struct radeon_device *rdev,
 
 	/* patch up vddc if necessary */
 	if (pl->vddc == 0xff01) {
-		if (radeon_atom_get_max_vddc(rdev, 0, 0, &vddc) == 0)
-			pl->vddc = vddc;
+		if (pi->max_vddc)
+			pl->vddc = pi->max_vddc;
 	}
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_ACPI) {
@@ -4026,9 +4025,6 @@ static int ni_parse_power_table(struct radeon_device *rdev)
 				  power_info->pplib.ucNumStates, GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		power_state = (union pplib_power_state *)
@@ -4089,6 +4085,10 @@ int ni_dpm_init(struct radeon_device *rdev)
 	eg_pi->acpi_vddci = 0;
 	pi->min_vddc_in_table = 0;
 	pi->max_vddc_in_table = 0;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = ni_parse_power_table(rdev);
 	if (ret)
@@ -4322,7 +4322,8 @@ void ni_dpm_print_power_state(struct radeon_device *rdev,
 void ni_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct rv7xx_pl *pl;
 	u32 current_index =

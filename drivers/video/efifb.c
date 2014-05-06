@@ -73,7 +73,6 @@ static void efifb_destroy(struct fb_info *info)
 		release_mem_region(info->apertures->ranges[0].base,
 				   info->apertures->ranges[0].size);
 	fb_dealloc_cmap(&info->cmap);
-	framebuffer_release(info);
 }
 
 static struct fb_ops efifb_ops = {
@@ -244,6 +243,7 @@ static int efifb_probe(struct platform_device *dev)
 		err = -ENOMEM;
 		goto err_release_mem;
 	}
+	platform_set_drvdata(dev, info);
 	info->pseudo_palette = info->par;
 	info->par = NULL;
 
@@ -337,12 +337,23 @@ err_release_mem:
 	return err;
 }
 
+static int efifb_remove(struct platform_device *pdev)
+{
+	struct fb_info *info = platform_get_drvdata(pdev);
+
+	unregister_framebuffer(info);
+	framebuffer_release(info);
+
+	return 0;
+}
+
 static struct platform_driver efifb_driver = {
 	.driver = {
 		.name = "efi-framebuffer",
 		.owner = THIS_MODULE,
 	},
 	.probe = efifb_probe,
+	.remove = efifb_remove,
 };
 
 module_platform_driver(efifb_driver);

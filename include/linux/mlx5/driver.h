@@ -38,8 +38,10 @@
 #include <linux/pci.h>
 #include <linux/spinlock_types.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/radix-tree.h>
+
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
 
@@ -227,6 +229,7 @@ struct mlx5_uuar_info {
 	 * protect uuar allocation data structs
 	 */
 	struct mutex		lock;
+	u32			ver;
 };
 
 struct mlx5_bf {
@@ -398,6 +401,26 @@ struct mlx5_eq {
 	struct mlx5_rsc_debug	*dbg;
 };
 
+struct mlx5_core_psv {
+	u32	psv_idx;
+	struct psv_layout {
+		u32	pd;
+		u16	syndrome;
+		u16	reserved;
+		u16	bg;
+		u16	app_tag;
+		u32	ref_tag;
+	} psv;
+};
+
+struct mlx5_core_sig_ctx {
+	struct mlx5_core_psv	psv_memory;
+	struct mlx5_core_psv	psv_wire;
+	struct ib_sig_err       err_item;
+	bool			sig_status_checked;
+	bool			sig_err_exists;
+	u32			sigerr_count;
+};
 
 struct mlx5_core_mr {
 	u64			iova;
@@ -472,6 +495,13 @@ struct mlx5_srq_table {
 	struct radix_tree_root	tree;
 };
 
+struct mlx5_mr_table {
+	/* protect radix tree
+	 */
+	rwlock_t		lock;
+	struct radix_tree_root	tree;
+};
+
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
@@ -500,6 +530,10 @@ struct mlx5_priv {
 	/* start: cq staff */
 	struct mlx5_cq_table	cq_table;
 	/* end: cq staff */
+
+	/* start: mr staff */
+	struct mlx5_mr_table	mr_table;
+	/* end: mr staff */
 
 	/* start: alloc staff */
 	struct mutex            pgdir_mutex;
@@ -648,6 +682,11 @@ static inline void mlx5_vfree(const void *addr)
 		kfree(addr);
 }
 
+static inline u32 mlx5_base_mkey(const u32 key)
+{
+	return key & 0xffffff00u;
+}
+
 int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev);
 void mlx5_dev_cleanup(struct mlx5_core_dev *dev);
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
@@ -682,6 +721,8 @@ int mlx5_core_query_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 			struct mlx5_query_srq_mbox_out *out);
 int mlx5_core_arm_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 		      u16 lwm, int is_srq);
+void mlx5_init_mr_table(struct mlx5_core_dev *dev);
+void mlx5_cleanup_mr_table(struct mlx5_core_dev *dev);
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 			  struct mlx5_create_mkey_mbox_in *in, int inlen,
 			  mlx5_cmd_cbk_t callback, void *context,
@@ -743,6 +784,9 @@ void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 const char *mlx5_command_str(int command);
 int mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);
+int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
+			 int npsvs, u32 *sig_index);
+int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {

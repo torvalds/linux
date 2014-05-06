@@ -2086,7 +2086,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* ... and the packet rounded to a doubleword. */
 		skb_tx_timestamp(skb);
 		iowrite32_rep(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
-		dev_kfree_skb (skb);
+		dev_consume_skb_any (skb);
 		if (ioread16(ioaddr + TxFree) > 1536) {
 			netif_start_queue (dev);	/* AKPM: redundant? */
 		} else {
@@ -3294,7 +3294,6 @@ static int __init vortex_init(void)
 
 static void __exit vortex_eisa_cleanup(void)
 {
-	struct vortex_private *vp;
 	void __iomem *ioaddr;
 
 #ifdef CONFIG_EISA
@@ -3303,7 +3302,6 @@ static void __exit vortex_eisa_cleanup(void)
 #endif
 
 	if (compaq_net_device) {
-		vp = netdev_priv(compaq_net_device);
 		ioaddr = ioport_map(compaq_net_device->base_addr,
 		                    VORTEX_TOTAL_SIZE);
 

@@ -1,6 +1,6 @@
 /*
  * iio/adc/ad799x.c
- * Copyright (C) 2010-1011 Michael Hennerich, Analog Devices Inc.
+ * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
  *
  * based on iio/adc/max1363
  * Copyright (C) 2008-2010 Jonathan Cameron
@@ -179,7 +179,10 @@ static int ad799x_read_raw(struct iio_dev *indio_dev,
 			RES_MASK(chan->scan_type.realbits);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		*val = st->int_vref_mv;
+		ret = regulator_get_voltage(st->vref);
+		if (ret < 0)
+			return ret;
+		*val = ret / 1000;
 		*val2 = chan->scan_type.realbits;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	}
@@ -393,7 +396,7 @@ static const struct iio_event_spec ad799x_events[] = {
 	}, {
 		.type = IIO_EV_TYPE_THRESH,
 		.dir = IIO_EV_DIR_FALLING,
-		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
 			BIT(IIO_EV_INFO_ENABLE),
 	}, {
 		.type = IIO_EV_TYPE_THRESH,
@@ -409,7 +412,13 @@ static const struct iio_event_spec ad799x_events[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.scan_index = (_index), \
-	.scan_type = IIO_ST('u', _realbits, 16, 12 - (_realbits)), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = (_realbits), \
+		.storagebits = 16, \
+		.shift = 12 - (_realbits), \
+		.endianness = IIO_BE, \
+	}, \
 	.event_spec = _ev_spec, \
 	.num_event_specs = _num_ev_spec, \
 }
@@ -527,7 +536,6 @@ static int ad799x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	int ret;
-	struct ad799x_platform_data *pdata = client->dev.platform_data;
 	struct ad799x_state *st;
 	struct iio_dev *indio_dev;
 
@@ -545,17 +553,21 @@ static int ad799x_probe(struct i2c_client *client,
 
 	/* TODO: Add pdata options for filtering and bit delay */
 
-	if (!pdata)
-		return -EINVAL;
-
-	st->int_vref_mv = pdata->vref_mv;
-
 	st->reg = devm_regulator_get(&client->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
+	if (IS_ERR(st->reg))
+		return PTR_ERR(st->reg);
+	ret = regulator_enable(st->reg);
+	if (ret)
+		return ret;
+	st->vref = devm_regulator_get(&client->dev, "vref");
+	if (IS_ERR(st->vref)) {
+		ret = PTR_ERR(st->vref);
+		goto error_disable_reg;
 	}
+	ret = regulator_enable(st->vref);
+	if (ret)
+		goto error_disable_reg;
+
 	st->client = client;
 
 	indio_dev->dev.parent = &client->dev;
@@ -571,27 +583,28 @@ static int ad799x_probe(struct i2c_client *client,
 		goto error_disable_reg;
 
 	if (client->irq > 0) {
-		ret = request_threaded_irq(client->irq,
-					   NULL,
-					   ad799x_event_handler,
-					   IRQF_TRIGGER_FALLING |
-					   IRQF_ONESHOT,
-					   client->name,
-					   indio_dev);
+		ret = devm_request_threaded_irq(&client->dev,
+						client->irq,
+						NULL,
+						ad799x_event_handler,
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						client->name,
+						indio_dev);
 		if (ret)
 			goto error_cleanup_ring;
 	}
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_irq;
+		goto error_cleanup_ring;
 
 	return 0;
 
-error_free_irq:
-	free_irq(client->irq, indio_dev);
 error_cleanup_ring:
 	ad799x_ring_cleanup(indio_dev);
 error_disable_reg:
+	if (!IS_ERR(st->vref))
+		regulator_disable(st->vref);
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 
@@ -604,10 +617,10 @@ static int ad799x_remove(struct i2c_client *client)
 	struct ad799x_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (client->irq > 0)
-		free_irq(client->irq, indio_dev);
 
 	ad799x_ring_cleanup(indio_dev);
+	if (!IS_ERR(st->vref))
+		regulator_disable(st->vref);
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 	kfree(st->rx_buf);

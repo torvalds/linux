@@ -27,12 +27,6 @@ config VGASTATE
        tristate
        default n
 
-config VIDEO_OUTPUT_CONTROL
-	tristate "Lowlevel video output switch controls"
-	help
-	  This framework adds support for low-level control of the video 
-	  output switch.
-
 config VIDEOMODE_HELPERS
 	bool
 
@@ -364,7 +358,7 @@ config FB_SA1100
 
 config FB_IMX
 	tristate "Freescale i.MX1/21/25/27 LCD support"
-	depends on FB && IMX_HAVE_PLATFORM_IMX_FB
+	depends on FB && ARCH_MXC
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -802,18 +796,9 @@ config FB_HGA
 	  As this card technology is at least 25 years old,
 	  most people will answer N here.
 
-config FB_SGIVW
-	tristate "SGI Visual Workstation framebuffer support"
-	depends on FB && X86_VISWS
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  SGI Visual Workstation support for framebuffer graphics.
-
 config FB_GBE
 	bool "SGI Graphics Backend frame buffer support"
-	depends on (FB = y) && (SGI_IP32 || X86_VISWS)
+	depends on (FB = y) && SGI_IP32
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -982,7 +967,7 @@ config FB_PVR2
 
 config FB_OPENCORES
 	tristate "OpenCores VGA/LCD core 2.0 framebuffer support"
-	depends on FB
+	depends on FB && HAS_DMA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

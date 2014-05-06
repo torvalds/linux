@@ -78,9 +78,9 @@ uint r8712_is_cckrates_included(u8 *rate)
 		if ((((rate[i]) & 0x7f) == 2) || (((rate[i]) & 0x7f) == 4) ||
 		    (((rate[i]) & 0x7f) == 11) || (((rate[i]) & 0x7f) == 22))
 			return true;
-			i++;
-		}
-		return false;
+		i++;
+	}
+	return false;
 }
 
 uint r8712_is_cckratesonly_included(u8 *rate)

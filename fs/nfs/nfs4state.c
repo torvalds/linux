@@ -974,9 +974,6 @@ static int nfs4_copy_lock_stateid(nfs4_stateid *dst,
 	else if (lsp != NULL && test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) != 0) {
 		nfs4_stateid_copy(dst, &lsp->ls_stateid);
 		ret = 0;
-		smp_rmb();
-		if (!list_empty(&lsp->ls_seqid.list))
-			ret = -EWOULDBLOCK;
 	}
 	spin_unlock(&state->state_lock);
 	nfs4_put_lock_state(lsp);
@@ -984,10 +981,9 @@ out:
 	return ret;
 }
 
-static int nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
+static void nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
 {
 	const nfs4_stateid *src;
-	int ret;
 	int seq;
 
 	do {
@@ -996,12 +992,7 @@ static int nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
 		if (test_bit(NFS_OPEN_STATE, &state->flags))
 			src = &state->open_stateid;
 		nfs4_stateid_copy(dst, src);
-		ret = 0;
-		smp_rmb();
-		if (!list_empty(&state->owner->so_seqid.list))
-			ret = -EWOULDBLOCK;
 	} while (read_seqretry(&state->seqlock, seq));
-	return ret;
 }
 
 /*
@@ -1015,15 +1006,19 @@ int nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
 	if (ret == -EIO)
 		/* A lost lock - don't even consider delegations */
 		goto out;
-	if (nfs4_copy_delegation_stateid(dst, state->inode, fmode))
+	/* returns true if delegation stateid found and copied */
+	if (nfs4_copy_delegation_stateid(dst, state->inode, fmode)) {
+		ret = 0;
 		goto out;
+	}
 	if (ret != -ENOENT)
 		/* nfs4_copy_delegation_stateid() didn't over-write
 		 * dst, so it still has the lock stateid which we now
 		 * choose to use.
 		 */
 		goto out;
-	ret = nfs4_copy_open_stateid(dst, state);
+	nfs4_copy_open_stateid(dst, state);
+	ret = 0;
 out:
 	if (nfs_server_capable(state->inode, NFS_CAP_STATEID_NFSV41))
 		dst->seqid = 0;
@@ -1321,7 +1316,7 @@ static int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_st
 	return 1;
 }
 
-static int nfs4_state_mark_reclaim_nograce(struct nfs_client *clp, struct nfs4_state *state)
+int nfs4_state_mark_reclaim_nograce(struct nfs_client *clp, struct nfs4_state *state)
 {
 	set_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags);
 	clear_bit(NFS_STATE_RECLAIM_REBOOT, &state->flags);
@@ -2080,8 +2075,10 @@ again:
 	switch (status) {
 	case 0:
 		break;
-	case -NFS4ERR_DELAY:
 	case -ETIMEDOUT:
+		if (clnt->cl_softrtry)
+			break;
+	case -NFS4ERR_DELAY:
 	case -EAGAIN:
 		ssleep(1);
 	case -NFS4ERR_STALE_CLIENTID:

@@ -589,6 +589,9 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	if (ret)
 		goto err_btcoex;
 
+	sc->p2p_ps_timer = ath_gen_timer_alloc(sc->sc_ah, ath9k_p2p_ps_timer,
+		NULL, sc, AR_FIRST_NDP_TIMER);
+
 	ath9k_cmn_init_crypto(sc->sc_ah);
 	ath9k_init_misc(sc);
 	ath_fill_led_pin(sc);
@@ -644,13 +647,13 @@ static void ath9k_init_txpower_limits(struct ath_softc *sc)
 
 static const struct ieee80211_iface_limit if_limits[] = {
 	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_STATION) |
-				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				 BIT(NL80211_IFTYPE_WDS) },
 	{ .max = 8,	.types =
 #ifdef CONFIG_MAC80211_MESH
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
-				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_AP) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
 
@@ -670,6 +673,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 	},
+#ifdef CONFIG_ATH9K_DFS_CERTIFIED
 	{
 		.limits = if_dfs_limits,
 		.n_limits = ARRAY_SIZE(if_dfs_limits),
@@ -679,6 +683,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20),
 	}
+#endif
 };
 
 static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
@@ -849,6 +854,9 @@ deinit:
 static void ath9k_deinit_softc(struct ath_softc *sc)
 {
 	int i = 0;
+
+	if (sc->p2p_ps_timer)
+		ath_gen_timer_free(sc->sc_ah, sc->p2p_ps_timer);
 
 	ath9k_deinit_btcoex(sc);
 

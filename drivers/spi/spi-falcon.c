@@ -312,9 +312,6 @@ static int falcon_sflash_setup(struct spi_device *spi)
 	unsigned int i;
 	unsigned long flags;
 
-	if (spi->chip_select > 0)
-		return -ENODEV;
-
 	spin_lock_irqsave(&ebu_lock, flags);
 
 	if (spi->max_speed_hz >= CLOCK_100M) {
@@ -422,9 +419,7 @@ static int falcon_sflash_probe(struct platform_device *pdev)
 	priv->master = master;
 
 	master->mode_bits = SPI_MODE_3;
-	master->num_chipselect = 1;
 	master->flags = SPI_MASTER_HALF_DUPLEX;
-	master->bus_num = -1;
 	master->setup = falcon_sflash_setup;
 	master->prepare_transfer_hardware = falcon_sflash_prepare_xfer;
 	master->transfer_one_message = falcon_sflash_xfer_one;

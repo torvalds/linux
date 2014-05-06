@@ -517,11 +517,8 @@ drop:
 
 	return 1;
 }
-bool
-AddReorderEntry(
-	PRX_TS_RECORD			pTS,
-	PRX_REORDER_ENTRY		pReorderEntry
-	)
+
+static bool AddReorderEntry(PRX_TS_RECORD pTS, PRX_REORDER_ENTRY pReorderEntry)
 {
 	struct list_head *pList = &pTS->RxPendingPktList;
 	while(pList->next != &pTS->RxPendingPktList)
@@ -601,10 +598,9 @@ void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_
 }
 
 
-void RxReorderIndicatePacket( struct ieee80211_device *ieee,
-		struct ieee80211_rxb *prxb,
-		PRX_TS_RECORD		pTS,
-		u16			SeqNum)
+static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
+				    struct ieee80211_rxb *prxb,
+				    PRX_TS_RECORD pTS, u16 SeqNum)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
@@ -771,9 +767,9 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 	}
 }
 
-u8 parse_subframe(struct sk_buff *skb,
-		  struct ieee80211_rx_stats *rx_stats,
-		  struct ieee80211_rxb *rxb,u8 *src,u8 *dst)
+static u8 parse_subframe(struct sk_buff *skb,
+			 struct ieee80211_rx_stats *rx_stats,
+			 struct ieee80211_rxb *rxb,u8 *src,u8 *dst)
 {
 	struct ieee80211_hdr_3addr  *hdr = (struct ieee80211_hdr_3addr *)skb->data;
 	u16		fc = le16_to_cpu(hdr->frame_ctl);
@@ -2200,7 +2196,7 @@ static inline int ieee80211_network_init(
 	network->last_scanned = jiffies;
 	network->time_stamp[0] = le32_to_cpu(beacon->time_stamp[0]);
 	network->time_stamp[1] = le32_to_cpu(beacon->time_stamp[1]);
-	network->beacon_interval = le32_to_cpu(beacon->beacon_interval);
+	network->beacon_interval = le16_to_cpu(beacon->beacon_interval);
 	/* Where to pull this? beacon->listen_interval;*/
 	network->listen_interval = 0x0A;
 	network->rates_len = network->rates_ex_len = 0;

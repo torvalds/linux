@@ -464,9 +464,12 @@ struct adapter {
 	/*
 	*  SLIC Handles
 	*/
-	struct slic_handle slic_handles[SLIC_CMDQ_MAXCMDS+1]; /* Object handles*/
-	struct slic_handle *pfree_slic_handles;          /* Free object handles*/
-	struct slic_spinlock     handle_lock;           /* Object handle list lock*/
+	/* Object handles*/
+	struct slic_handle slic_handles[SLIC_CMDQ_MAXCMDS+1];
+	/* Free object handles*/
+	struct slic_handle *pfree_slic_handles;
+	/* Object handle list lock*/
+	struct slic_spinlock     handle_lock;
 	ushort              slic_handle_ix;
 
 	u32             xmitq_full;

@@ -356,7 +356,7 @@ static void cf_exit(struct arasan_cf_dev *acdev)
 
 static void dma_callback(void *dev)
 {
-	struct arasan_cf_dev *acdev = (struct arasan_cf_dev *) dev;
+	struct arasan_cf_dev *acdev = dev;
 
 	complete(&acdev->dma_completion);
 }

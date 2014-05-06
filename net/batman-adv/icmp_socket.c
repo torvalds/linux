@@ -158,6 +158,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_neigh_node *neigh_node = NULL;
 	size_t packet_len = sizeof(struct batadv_icmp_packet);
+	uint8_t *addr;
 
 	if (len < sizeof(struct batadv_icmp_header)) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -227,10 +228,10 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 			goto dst_unreach;
 
 		icmp_packet_rr = (struct batadv_icmp_packet_rr *)icmp_header;
-		if (packet_len == sizeof(*icmp_packet_rr))
-			memcpy(icmp_packet_rr->rr,
-			       neigh_node->if_incoming->net_dev->dev_addr,
-			       ETH_ALEN);
+		if (packet_len == sizeof(*icmp_packet_rr)) {
+			addr = neigh_node->if_incoming->net_dev->dev_addr;
+			ether_addr_copy(icmp_packet_rr->rr[0], addr);
+		}
 
 		break;
 	default:
@@ -250,7 +251,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		goto free_skb;
 	}
 
-	memcpy(icmp_header->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(icmp_header->orig, primary_if->net_dev->dev_addr);
 
 	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	goto out;

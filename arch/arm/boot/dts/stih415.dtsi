@@ -10,6 +10,7 @@
 #include "stih415-clock.dtsi"
 #include "stih415-pinctrl.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset-controller/stih415-resets.h>
 / {
 
 	L2: cache-controller {
@@ -27,6 +28,16 @@
 		interrupt-parent = <&intc>;
 		ranges;
 		compatible	= "simple-bus";
+
+		powerdown: powerdown-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih415-powerdown";
+		};
+
+		softreset: softreset-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih415-softreset";
+		};
 
 		syscfg_sbc: sbc-syscfg@fe600000{
 			compatible      = "st,stih415-sbc-syscfg", "syscon";
@@ -135,6 +146,65 @@
 			pinctrl-0	= <&pinctrl_sbc_i2c1_default>;
 
 			status		= "disabled";
+		};
+
+		ethernet0: dwmac@fe810000 {
+			device_type 	= "network";
+			compatible	= "st,stih415-dwmac", "snps,dwmac", "snps,dwmac-3.610";
+			status 		= "disabled";
+
+			reg 		= <0xfe810000 0x8000>, <0x148 0x4>;
+			reg-names	= "stmmaceth", "sti-ethconf";
+
+			interrupts 	= <0 147 0>, <0 148 0>, <0 149 0>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+			resets			= <&softreset STIH415_ETH0_SOFTRESET>;
+			reset-names		= "stmmaceth";
+
+			snps,pbl 	= <32>;
+			snps,mixed-burst;
+			snps,force_sf_dma_mode;
+
+			st,syscon	= <&syscfg_rear>;
+
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_mii0>;
+			clock-names	= "stmmaceth";
+			clocks		= <&CLKS_GMAC0_PHY>;
+		};
+
+		ethernet1: dwmac@fef08000 {
+			device_type = "network";
+			compatible	= "st,stih415-dwmac", "snps,dwmac", "snps,dwmac-3.610";
+			status 		= "disabled";
+			reg		= <0xfef08000 0x8000>, <0x74 0x4>;
+			reg-names	= "stmmaceth", "sti-ethconf";
+			interrupts 	= <0 150 0>, <0 151 0>, <0 152 0>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+
+			snps,pbl	= <32>;
+			snps,mixed-burst;
+			snps,force_sf_dma_mode;
+
+			st,syscon		= <&syscfg_sbc>;
+
+			resets			= <&softreset STIH415_ETH1_SOFTRESET>;
+			reset-names		= "stmmaceth";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_mii1>;
+			clock-names	= "stmmaceth";
+			clocks		= <&CLKS_ETH1_PHY>;
+		};
+
+		rc: rc@fe518000 {
+			compatible	= "st,comms-irb";
+			reg		= <0xfe518000 0x234>;
+			interrupts	=  <0 203 0>;
+			clocks		= <&CLK_SYSIN>;
+			rx-mode		= "infrared";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_ir>;
+			resets		= <&softreset STIH415_IRB_SOFTRESET>;
 		};
 	};
 };

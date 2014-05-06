@@ -787,6 +787,7 @@ static int genwqe_pin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 	if (rc != 0) {
 		dev_err(&pci_dev->dev,
 			"[%s] genwqe_user_vmap rc=%d\n", __func__, rc);
+		kfree(dma_map);
 		return rc;
 	}
 

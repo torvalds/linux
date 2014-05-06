@@ -507,7 +507,9 @@ int iscsit_handle_status_snack(
 	u32 last_statsn;
 	int found_cmd;
 
-	if (conn->exp_statsn > begrun) {
+	if (!begrun) {
+		begrun = conn->exp_statsn;
+	} else if (conn->exp_statsn > begrun) {
 		pr_err("Got Status SNACK Begrun: 0x%08x, RunLength:"
 			" 0x%08x but already got ExpStatSN: 0x%08x on CID:"
 			" %hu.\n", begrun, runlength, conn->exp_statsn,

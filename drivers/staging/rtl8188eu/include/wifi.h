@@ -694,7 +694,7 @@ struct WMM_para_element {
 
 struct ADDBA_request {
 	unsigned char	dialog_token;
-	unsigned short	BA_para_set;
+	__le16		BA_para_set;
 	unsigned short	BA_timeout_value;
 	unsigned short	BA_starting_seqctrl;
 } __packed;

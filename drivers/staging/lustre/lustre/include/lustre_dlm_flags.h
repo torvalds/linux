@@ -35,10 +35,10 @@
 #ifndef LDLM_ALL_FLAGS_MASK
 
 /** l_flags bits marked as "all_flags" bits */
-#define LDLM_FL_ALL_FLAGS_MASK          0x00FFFFFFC08F132FULL
+#define LDLM_FL_ALL_FLAGS_MASK          0x00FFFFFFC08F932FULL
 
 /** l_flags bits marked as "ast" bits */
-#define LDLM_FL_AST_MASK                0x0000000080000000ULL
+#define LDLM_FL_AST_MASK                0x0000000080008000ULL
 
 /** l_flags bits marked as "blocked" bits */
 #define LDLM_FL_BLOCKED_MASK            0x000000000000000EULL
@@ -56,7 +56,7 @@
 #define LDLM_FL_LOCAL_ONLY_MASK         0x00FFFFFF00000000ULL
 
 /** l_flags bits marked as "on_wire" bits */
-#define LDLM_FL_ON_WIRE_MASK            0x00000000C08F132FULL
+#define LDLM_FL_ON_WIRE_MASK            0x00000000C08F932FULL
 
 /** extent, mode, or resource changed */
 #define LDLM_FL_LOCK_CHANGED            0x0000000000000001ULL // bit   0
@@ -114,6 +114,12 @@
 #define ldlm_set_has_intent(_l)         LDLM_SET_FLAG((  _l), 1ULL << 12)
 #define ldlm_clear_has_intent(_l)       LDLM_CLEAR_FLAG((_l), 1ULL << 12)
 
+/** flock deadlock detected */
+#define LDLM_FL_FLOCK_DEADLOCK          0x0000000000008000ULL /* bit  15 */
+#define ldlm_is_flock_deadlock(_l)      LDLM_TEST_FLAG((_l), 1ULL << 15)
+#define ldlm_set_flock_deadlock(_l)     LDLM_SET_FLAG((_l), 1ULL << 15)
+#define ldlm_clear_flock_deadlock(_l)   LDLM_CLEAR_FLAG((_l), 1ULL << 15)
+
 /** discard (no writeback) on cancel */
 #define LDLM_FL_DISCARD_DATA            0x0000000000010000ULL // bit  16
 #define ldlm_is_discard_data(_l)        LDLM_TEST_FLAG(( _l), 1ULL << 16)
@@ -141,7 +147,7 @@
 #define ldlm_clear_test_lock(_l)        LDLM_CLEAR_FLAG((_l), 1ULL << 19)
 
 /**
- * Immediatelly cancel such locks when they block some other locks. Send
+ * Immediately cancel such locks when they block some other locks. Send
  * cancel notification to original lock holder, but expect no reply. This
  * is for clients (like liblustre) that cannot be expected to reliably
  * response to blocking AST. */
@@ -242,7 +248,7 @@
 
 /**
  * A lock contributes to the known minimum size (KMS) calculation until it
- * has finished the part of its cancelation that performs write back on its
+ * has finished the part of its cancellation that performs write back on its
  * dirty pages.  It can remain on the granted list during this whole time.
  * Threads racing to update the KMS after performing their writeback need
  * to know to exclude each other's locks from the calculation as they walk
@@ -390,6 +396,7 @@ static int hf_lustre_ldlm_fl_ast_sent            = -1;
 static int hf_lustre_ldlm_fl_replay              = -1;
 static int hf_lustre_ldlm_fl_intent_only         = -1;
 static int hf_lustre_ldlm_fl_has_intent          = -1;
+static int hf_lustre_ldlm_fl_flock_deadlock      = -1;
 static int hf_lustre_ldlm_fl_discard_data        = -1;
 static int hf_lustre_ldlm_fl_no_timeout          = -1;
 static int hf_lustre_ldlm_fl_block_nowait        = -1;
@@ -431,6 +438,7 @@ const value_string lustre_ldlm_flags_vals[] = {
 	{LDLM_FL_REPLAY,              "LDLM_FL_REPLAY"},
 	{LDLM_FL_INTENT_ONLY,         "LDLM_FL_INTENT_ONLY"},
 	{LDLM_FL_HAS_INTENT,          "LDLM_FL_HAS_INTENT"},
+	{LDLM_FL_FLOCK_DEADLOCK,      "LDLM_FL_FLOCK_DEADLOCK"},
 	{LDLM_FL_DISCARD_DATA,        "LDLM_FL_DISCARD_DATA"},
 	{LDLM_FL_NO_TIMEOUT,          "LDLM_FL_NO_TIMEOUT"},
 	{LDLM_FL_BLOCK_NOWAIT,        "LDLM_FL_BLOCK_NOWAIT"},

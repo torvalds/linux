@@ -531,6 +531,13 @@ int nfs40_walk_client_list(struct nfs_client *new,
 			*result = pos;
 			dprintk("NFS: <-- %s using nfs_client = %p ({%d})\n",
 				__func__, pos, atomic_read(&pos->cl_count));
+			goto out;
+		case -ERESTARTSYS:
+		case -ETIMEDOUT:
+			/* The callback path may have been inadvertently
+			 * changed. Schedule recovery!
+			 */
+			nfs4_schedule_path_down_recovery(pos);
 		default:
 			goto out;
 		}
@@ -1135,6 +1142,7 @@ static int nfs_probe_destination(struct nfs_server *server)
  * @hostname: new end-point's hostname
  * @sap: new end-point's socket address
  * @salen: size of "sap"
+ * @net: net namespace
  *
  * The nfs_server must be quiescent before this function is invoked.
  * Either its session is drained (NFSv4.1+), or its transport is
@@ -1143,13 +1151,13 @@ static int nfs_probe_destination(struct nfs_server *server)
  * Returns zero on success, or a negative errno value.
  */
 int nfs4_update_server(struct nfs_server *server, const char *hostname,
-		       struct sockaddr *sap, size_t salen)
+		       struct sockaddr *sap, size_t salen, struct net *net)
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct rpc_clnt *clnt = server->client;
 	struct xprt_create xargs = {
 		.ident		= clp->cl_proto,
-		.net		= &init_net,
+		.net		= net,
 		.dstaddr	= sap,
 		.addrlen	= salen,
 		.servername	= hostname,
@@ -1189,7 +1197,7 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
 	error = nfs4_set_client(server, hostname, sap, salen, buf,
 				clp->cl_rpcclient->cl_auth->au_flavor,
 				clp->cl_proto, clnt->cl_timeout,
-				clp->cl_minorversion, clp->cl_net);
+				clp->cl_minorversion, net);
 	nfs_put_client(clp);
 	if (error != 0) {
 		nfs_server_insert_lists(server);

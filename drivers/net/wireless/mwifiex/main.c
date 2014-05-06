@@ -292,6 +292,12 @@ process_start:
 			while ((skb = skb_dequeue(&adapter->usb_rx_data_q)))
 				mwifiex_handle_rx_packet(adapter, skb);
 
+		/* Check for event */
+		if (adapter->event_received) {
+			adapter->event_received = false;
+			mwifiex_process_event(adapter);
+		}
+
 		/* Check for Cmd Resp */
 		if (adapter->cmd_resp_received) {
 			adapter->cmd_resp_received = false;
@@ -302,12 +308,6 @@ process_start:
 				adapter->hw_status = MWIFIEX_HW_STATUS_READY;
 				mwifiex_init_fw_complete(adapter);
 			}
-		}
-
-		/* Check for event */
-		if (adapter->event_received) {
-			adapter->event_received = false;
-			mwifiex_process_event(adapter);
 		}
 
 		/* Check if we need to confirm Sleep Request
@@ -521,7 +521,6 @@ done:
 		release_firmware(adapter->firmware);
 		adapter->firmware = NULL;
 	}
-	complete(&adapter->fw_load);
 	if (init_failed)
 		mwifiex_free_adapter(adapter);
 	up(sem);
@@ -535,7 +534,6 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 {
 	int ret;
 
-	init_completion(&adapter->fw_load);
 	ret = request_firmware_nowait(THIS_MODULE, 1, adapter->fw_name,
 				      adapter->dev, GFP_KERNEL, adapter,
 				      mwifiex_fw_dpc);
@@ -749,7 +747,7 @@ static struct net_device_stats *mwifiex_get_stats(struct net_device *dev)
 
 static u16
 mwifiex_netdev_select_wmm_queue(struct net_device *dev, struct sk_buff *skb,
-				void *accel_priv)
+				void *accel_priv, select_queue_fallback_t fallback)
 {
 	skb->priority = cfg80211_classify8021d(skb, NULL);
 	return mwifiex_1d_to_wmm_queue[skb->priority];

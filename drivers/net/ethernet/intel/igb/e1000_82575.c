@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -77,8 +76,6 @@ static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
 static const u16 e1000_82580_rxpbs_table[] =
 	{ 36, 72, 144, 1, 2, 4, 8, 16,
 	  35, 70, 140 };
-#define E1000_82580_RXPBS_TABLE_SIZE \
-	(sizeof(e1000_82580_rxpbs_table)/sizeof(u16))
 
 /**
  *  igb_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
@@ -2308,7 +2305,7 @@ u16 igb_rxpbs_adjust_82580(u32 data)
 {
 	u16 ret_val = 0;
 
-	if (data < E1000_82580_RXPBS_TABLE_SIZE)
+	if (data < ARRAY_SIZE(e1000_82580_rxpbs_table))
 		ret_val = e1000_82580_rxpbs_table[data];
 
 	return ret_val;
@@ -2714,13 +2711,14 @@ static const u8 e1000_emc_therm_limit[4] = {
 	E1000_EMC_DIODE3_THERM_LIMIT
 };
 
+#ifdef CONFIG_IGB_HWMON
 /**
  *  igb_get_thermal_sensor_data_generic - Gathers thermal sensor data
  *  @hw: pointer to hardware structure
  *
  *  Updates the temperatures in mac.thermal_sensor_data
  **/
-s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
+static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 {
 	s32 status = E1000_SUCCESS;
 	u16 ets_offset;
@@ -2774,7 +2772,7 @@ s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
  *  Sets the thermal sensor thresholds according to the NVM map
  *  and save off the threshold and location values into mac.thermal_sensor_data
  **/
-s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
+static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 {
 	s32 status = E1000_SUCCESS;
 	u16 ets_offset;
@@ -2836,6 +2834,7 @@ s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 	return status;
 }
 
+#endif
 static struct e1000_mac_operations e1000_mac_ops_82575 = {
 	.init_hw              = igb_init_hw_82575,
 	.check_for_link       = igb_check_for_link_82575,

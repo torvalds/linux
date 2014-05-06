@@ -43,12 +43,12 @@ config MVMDIO
 	  This driver is used by the MV643XX_ETH and MVNETA drivers.
 
 config MVNETA
-	tristate "Marvell Armada 370/XP network interface support"
-	depends on MACH_ARMADA_370_XP
+	tristate "Marvell Armada 370/38x/XP network interface support"
+	depends on PLAT_ORION
 	select MVMDIO
 	---help---
 	  This driver supports the network interface units in the
-	  Marvell ARMADA XP and ARMADA 370 SoC family.
+	  Marvell ARMADA XP, ARMADA 370 and ARMADA 38x SoC family.
 
 	  Note that this driver is distinct from the mv643xx_eth
 	  driver, which should be used for the older Marvell SoCs

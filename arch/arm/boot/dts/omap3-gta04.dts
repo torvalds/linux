@@ -13,7 +13,7 @@
 
 / {
 	model = "OMAP3 GTA04";
-	compatible = "ti,omap3-gta04", "ti,omap3";
+	compatible = "ti,omap3-gta04", "ti,omap36xx", "ti,omap3";
 
 	cpus {
 		cpu@0 {
@@ -32,9 +32,17 @@
 		aux-button {
 			label = "aux";
 			linux,code = <169>;
-			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 			gpio-key,wakeup;
 		};
+	};
+
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "gta04";
+
+		ti,mcbsp = <&mcbsp2>;
+		ti,codec = <&twl_audio>;
 	};
 };
 
@@ -80,6 +88,12 @@
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
 	};
+
+	twl_audio: audio {
+		compatible = "ti,twl4030-audio";
+		codec {
+		};
+	};
 };
 
 #include "twl4030.dtsi"
@@ -92,6 +106,16 @@
 	bmp085@77 {
 		compatible = "bosch,bmp085";
 		reg = <0x77>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <17 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	/* accelerometer */
+	bma180@41 {
+		compatible = "bosch,bma180";
+		reg = <0x41>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	/* leds */
@@ -122,6 +146,22 @@
 			reg = <0x4>;
 		};
 	};
+
+	/* compass aka magnetometer */
+	hmc5843@1e {
+		compatible = "honeywell,hmc5843";
+		reg = <0x1e>;
+	};
+
+	/* touchscreen */
+	tsc2007@48 {
+		compatible = "ti,tsc2007";
+		reg = <0x48>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		gpios = <&gpio6 0 GPIO_ACTIVE_LOW>;
+		ti,x-plate-ohms = <600>;
+	};
 };
 
 &i2c3 {
@@ -141,12 +181,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
 	bus-width = <4>;
+	ti,non-removable;
 };
 
 &mmc2 {
-	status = "disabled";
+	vmmc-supply = <&vaux4>;
+	bus-width = <4>;
+	ti,non-removable;
 };
 
 &mmc3 {
@@ -168,3 +210,12 @@
 	pinctrl-0 = <&uart3_pins>;
 };
 
+&charger {
+	bb_uvolt = <3200000>;
+	bb_uamp = <150>;
+};
+
+&vaux4 {
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <3150000>;
+};

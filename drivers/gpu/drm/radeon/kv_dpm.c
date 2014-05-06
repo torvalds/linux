@@ -1223,7 +1223,7 @@ int kv_dpm_enable(struct radeon_device *rdev)
 
 int kv_dpm_late_enable(struct radeon_device *rdev)
 {
-	int ret;
+	int ret = 0;
 
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
@@ -1338,13 +1338,11 @@ static int kv_enable_uvd_dpm(struct radeon_device *rdev, bool enable)
 					PPSMC_MSG_UVDDPM_Enable : PPSMC_MSG_UVDDPM_Disable);
 }
 
-#if 0
 static int kv_enable_vce_dpm(struct radeon_device *rdev, bool enable)
 {
 	return kv_notify_message_to_smu(rdev, enable ?
 					PPSMC_MSG_VCEDPM_Enable : PPSMC_MSG_VCEDPM_Disable);
 }
-#endif
 
 static int kv_enable_samu_dpm(struct radeon_device *rdev, bool enable)
 {
@@ -1389,7 +1387,6 @@ static int kv_update_uvd_dpm(struct radeon_device *rdev, bool gate)
 	return kv_enable_uvd_dpm(rdev, !gate);
 }
 
-#if 0
 static u8 kv_get_vce_boot_level(struct radeon_device *rdev)
 {
 	u8 i;
@@ -1414,6 +1411,9 @@ static int kv_update_vce_dpm(struct radeon_device *rdev,
 	int ret;
 
 	if (radeon_new_state->evclk > 0 && radeon_current_state->evclk == 0) {
+		kv_dpm_powergate_vce(rdev, false);
+		/* turn the clocks on when encoding */
+		cik_update_cg(rdev, RADEON_CG_BLOCK_VCE, false);
 		if (pi->caps_stable_p_state)
 			pi->vce_boot_level = table->count - 1;
 		else
@@ -1436,11 +1436,13 @@ static int kv_update_vce_dpm(struct radeon_device *rdev,
 		kv_enable_vce_dpm(rdev, true);
 	} else if (radeon_new_state->evclk == 0 && radeon_current_state->evclk > 0) {
 		kv_enable_vce_dpm(rdev, false);
+		/* turn the clocks off when not encoding */
+		cik_update_cg(rdev, RADEON_CG_BLOCK_VCE, true);
+		kv_dpm_powergate_vce(rdev, true);
 	}
 
 	return 0;
 }
-#endif
 
 static int kv_update_samu_dpm(struct radeon_device *rdev, bool gate)
 {
@@ -1575,11 +1577,16 @@ static void kv_dpm_powergate_vce(struct radeon_device *rdev, bool gate)
 	pi->vce_power_gated = gate;
 
 	if (gate) {
-		if (pi->caps_vce_pg)
+		if (pi->caps_vce_pg) {
+			/* XXX do we need a vce_v1_0_stop() ?  */
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_VCEPowerOFF);
+		}
 	} else {
-		if (pi->caps_vce_pg)
+		if (pi->caps_vce_pg) {
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_VCEPowerON);
+			vce_v2_0_resume(rdev);
+			vce_v1_0_start(rdev);
+		}
 	}
 }
 
@@ -1768,7 +1775,7 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
 	struct radeon_ps *new_ps = &pi->requested_rps;
-	/*struct radeon_ps *old_ps = &pi->current_rps;*/
+	struct radeon_ps *old_ps = &pi->current_rps;
 	int ret;
 
 	if (pi->bapm_enable) {
@@ -1798,13 +1805,12 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 			kv_set_enabled_levels(rdev);
 			kv_force_lowest_valid(rdev);
 			kv_unforce_levels(rdev);
-#if 0
+
 			ret = kv_update_vce_dpm(rdev, new_ps, old_ps);
 			if (ret) {
 				DRM_ERROR("kv_update_vce_dpm failed\n");
 				return ret;
 			}
-#endif
 			kv_update_sclk_t(rdev);
 		}
 	} else {
@@ -1823,13 +1829,11 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 			kv_program_nbps_index_settings(rdev, new_ps);
 			kv_freeze_sclk_dpm(rdev, false);
 			kv_set_enabled_levels(rdev);
-#if 0
 			ret = kv_update_vce_dpm(rdev, new_ps, old_ps);
 			if (ret) {
 				DRM_ERROR("kv_update_vce_dpm failed\n");
 				return ret;
 			}
-#endif
 			kv_update_acp_boot_level(rdev);
 			kv_update_sclk_t(rdev);
 			kv_enable_nb_dpm(rdev);
@@ -2037,6 +2041,14 @@ static void kv_apply_state_adjust_rules(struct radeon_device *rdev,
 	struct radeon_clock_and_voltage_limits *max_limits =
 		&rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 
+	if (new_rps->vce_active) {
+		new_rps->evclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].evclk;
+		new_rps->ecclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].ecclk;
+	} else {
+		new_rps->evclk = 0;
+		new_rps->ecclk = 0;
+	}
+
 	mclk = max_limits->mclk;
 	sclk = min_sclk;
 
@@ -2054,6 +2066,11 @@ static void kv_apply_state_adjust_rules(struct radeon_device *rdev,
 			stable_p_state_sclk = table->entries[0].clk;
 
 		sclk = stable_p_state_sclk;
+	}
+
+	if (new_rps->vce_active) {
+		if (sclk < rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].sclk)
+			sclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].sclk;
 	}
 
 	ps->need_dfs_bypass = true;
@@ -2092,7 +2109,8 @@ static void kv_apply_state_adjust_rules(struct radeon_device *rdev,
 		}
 	}
 
-	pi->video_start = new_rps->dclk || new_rps->vclk;
+	pi->video_start = new_rps->dclk || new_rps->vclk ||
+		new_rps->evclk || new_rps->ecclk;
 
 	if ((new_rps->class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) ==
 	    ATOM_PPLIB_CLASSIFICATION_UI_BATTERY)
@@ -2538,9 +2556,6 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
@@ -2577,6 +2592,19 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 		power_state_offset += 2 + power_state->v2.ucNumDPMLevels;
 	}
 	rdev->pm.dpm.num_ps = state_array->ucNumEntries;
+
+	/* fill in the vce power states */
+	for (i = 0; i < RADEON_MAX_VCE_LEVELS; i++) {
+		u32 sclk;
+		clock_array_index = rdev->pm.dpm.vce_states[i].clk_idx;
+		clock_info = (union pplib_clock_info *)
+			&clock_info_array->clockInfo[clock_array_index * clock_info_array->ucEntrySize];
+		sclk = le16_to_cpu(clock_info->sumo.usEngineClockLow);
+		sclk |= clock_info->sumo.ucEngineClockHigh << 16;
+		rdev->pm.dpm.vce_states[i].sclk = sclk;
+		rdev->pm.dpm.vce_states[i].mclk = 0;
+	}
+
 	return 0;
 }
 
@@ -2589,6 +2617,10 @@ int kv_dpm_init(struct radeon_device *rdev)
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = r600_parse_extended_power_table(rdev);
 	if (ret)
@@ -2623,7 +2655,7 @@ int kv_dpm_init(struct radeon_device *rdev)
 	pi->caps_fps = false; /* true? */
 	pi->caps_uvd_pg = true;
 	pi->caps_uvd_dpm = true;
-	pi->caps_vce_pg = false;
+	pi->caps_vce_pg = false; /* XXX true */
 	pi->caps_samu_pg = false;
 	pi->caps_acp_pg = false;
 	pi->caps_stable_p_state = false;

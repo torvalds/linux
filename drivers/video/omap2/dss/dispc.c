@@ -100,8 +100,6 @@ static struct {
 	struct platform_device *pdev;
 	void __iomem    *base;
 
-	int		ctx_loss_cnt;
-
 	int irq;
 
 	unsigned long core_clk_rate;
@@ -357,28 +355,19 @@ static void dispc_save_context(void)
 	if (dss_has_feature(FEAT_CORE_CLK_DIV))
 		SR(DIVISOR);
 
-	dispc.ctx_loss_cnt = dss_get_ctx_loss_count();
 	dispc.ctx_valid = true;
 
-	DSSDBG("context saved, ctx_loss_count %d\n", dispc.ctx_loss_cnt);
+	DSSDBG("context saved\n");
 }
 
 static void dispc_restore_context(void)
 {
-	int i, j, ctx;
+	int i, j;
 
 	DSSDBG("dispc_restore_context\n");
 
 	if (!dispc.ctx_valid)
 		return;
-
-	ctx = dss_get_ctx_loss_count();
-
-	if (ctx >= 0 && ctx == dispc.ctx_loss_cnt)
-		return;
-
-	DSSDBG("ctx_loss_count: saved %d, current %d\n",
-			dispc.ctx_loss_cnt, ctx);
 
 	/*RR(IRQENABLE);*/
 	/*RR(CONTROL);*/
@@ -2160,8 +2149,8 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 	*five_taps = false;
 
 	do {
-		in_height = DIV_ROUND_UP(height, *decim_y);
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_height = height / *decim_y;
+		in_width = width / *decim_x;
 		*core_clk = dispc.feat->calc_core_clk(pclk, in_width,
 				in_height, out_width, out_height, mem_to_mem);
 		error = (in_width > maxsinglelinewidth || !*core_clk ||
@@ -2199,8 +2188,8 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 			dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 
 	do {
-		in_height = DIV_ROUND_UP(height, *decim_y);
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_height = height / *decim_y;
+		in_width = width / *decim_x;
 		*five_taps = in_height > out_height;
 
 		if (in_width > maxsinglelinewidth)
@@ -2268,7 +2257,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 {
 	u16 in_width, in_width_max;
 	int decim_x_min = *decim_x;
-	u16 in_height = DIV_ROUND_UP(height, *decim_y);
+	u16 in_height = height / *decim_y;
 	const int maxsinglelinewidth =
 				dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
@@ -2287,7 +2276,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 		return -EINVAL;
 
 	do {
-		in_width = DIV_ROUND_UP(width, *decim_x);
+		in_width = width / *decim_x;
 	} while (*decim_x <= *x_predecim &&
 			in_width > maxsinglelinewidth && ++*decim_x);
 
@@ -2466,8 +2455,8 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	if (r)
 		return r;
 
-	in_width = DIV_ROUND_UP(in_width, x_predecim);
-	in_height = DIV_ROUND_UP(in_height, y_predecim);
+	in_width = in_width / x_predecim;
+	in_height = in_height / y_predecim;
 
 	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
 			color_mode == OMAP_DSS_COLOR_UYVY ||
@@ -2884,7 +2873,7 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 
 	timings_ok = _dispc_mgr_size_ok(timings->x_res, timings->y_res);
 
-	timings_ok &= _dispc_mgr_pclk_ok(channel, timings->pixel_clock * 1000);
+	timings_ok &= _dispc_mgr_pclk_ok(channel, timings->pixelclock);
 
 	if (dss_mgr_is_lcd(channel)) {
 		timings_ok &= _dispc_lcd_timings_ok(timings->hsw, timings->hfp,
@@ -2979,10 +2968,10 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 		xtot = t.x_res + t.hfp + t.hsw + t.hbp;
 		ytot = t.y_res + t.vfp + t.vsw + t.vbp;
 
-		ht = (timings->pixel_clock * 1000) / xtot;
-		vt = (timings->pixel_clock * 1000) / xtot / ytot;
+		ht = timings->pixelclock / xtot;
+		vt = timings->pixelclock / xtot / ytot;
 
-		DSSDBG("pck %u\n", timings->pixel_clock);
+		DSSDBG("pck %u\n", timings->pixelclock);
 		DSSDBG("hsw %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
 			t.hsw, t.hfp, t.hbp, t.vsw, t.vfp, t.vbp);
 		DSSDBG("vsync_level %d hsync_level %d data_pclk_edge %d de_level %d sync_pclk_edge %d\n",
@@ -3768,6 +3757,15 @@ static int dispc_runtime_suspend(struct device *dev)
 
 static int dispc_runtime_resume(struct device *dev)
 {
+	/*
+	 * The reset value for load mode is 0 (OMAP_DSS_LOAD_CLUT_AND_FRAME)
+	 * but we always initialize it to 2 (OMAP_DSS_LOAD_FRAME_ONLY) in
+	 * _omap_dispc_initial_config(). We can thus use it to detect if
+	 * we have lost register context.
+	 */
+	if (REG_GET(DISPC_CONFIG, 2, 1) == OMAP_DSS_LOAD_FRAME_ONLY)
+		return 0;
+
 	_omap_dispc_initial_config();
 
 	dispc_restore_context();
@@ -3780,12 +3778,20 @@ static const struct dev_pm_ops dispc_pm_ops = {
 	.runtime_resume = dispc_runtime_resume,
 };
 
+static const struct of_device_id dispc_of_match[] = {
+	{ .compatible = "ti,omap2-dispc", },
+	{ .compatible = "ti,omap3-dispc", },
+	{ .compatible = "ti,omap4-dispc", },
+	{},
+};
+
 static struct platform_driver omap_dispchw_driver = {
 	.remove         = __exit_p(omap_dispchw_remove),
 	.driver         = {
 		.name   = "omapdss_dispc",
 		.owner  = THIS_MODULE,
 		.pm	= &dispc_pm_ops,
+		.of_match_table = dispc_of_match,
 	},
 };
 

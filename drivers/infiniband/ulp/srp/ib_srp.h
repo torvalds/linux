@@ -105,6 +105,7 @@ struct srp_host {
 	spinlock_t		target_lock;
 	struct completion	released;
 	struct list_head	list;
+	struct mutex		add_target_mutex;
 };
 
 struct srp_request {

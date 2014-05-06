@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/string.h>
+#include <linux/of.h>
 
 #include <video/omapdss.h>
 
@@ -49,6 +50,8 @@ static struct {
 	int data_lines;
 
 	struct omap_dss_device output;
+
+	bool port_initialized;
 } dpi;
 
 static struct platform_device *dpi_get_dsidev(enum omap_channel channel)
@@ -117,7 +120,7 @@ struct dpi_clk_calc_ctx {
 	/* outputs */
 
 	struct dsi_clock_info dsi_cinfo;
-	unsigned long long fck;
+	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 };
 
@@ -307,22 +310,21 @@ static int dpi_set_mode(struct omap_overlay_manager *mgr)
 	int r = 0;
 
 	if (dpi.dsidev)
-		r = dpi_set_dsi_clk(mgr->id, t->pixel_clock * 1000, &fck,
+		r = dpi_set_dsi_clk(mgr->id, t->pixelclock, &fck,
 				&lck_div, &pck_div);
 	else
-		r = dpi_set_dispc_clk(t->pixel_clock * 1000, &fck,
+		r = dpi_set_dispc_clk(t->pixelclock, &fck,
 				&lck_div, &pck_div);
 	if (r)
 		return r;
 
-	pck = fck / lck_div / pck_div / 1000;
+	pck = fck / lck_div / pck_div;
 
-	if (pck != t->pixel_clock) {
-		DSSWARN("Could not find exact pixel clock. "
-				"Requested %d kHz, got %lu kHz\n",
-				t->pixel_clock, pck);
+	if (pck != t->pixelclock) {
+		DSSWARN("Could not find exact pixel clock. Requested %d Hz, got %lu Hz\n",
+			t->pixelclock, pck);
 
-		t->pixel_clock = pck;
+		t->pixelclock = pck;
 	}
 
 	dss_mgr_set_timings(mgr, t);
@@ -480,17 +482,17 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	if (mgr && !dispc_mgr_timings_ok(mgr->id, timings))
 		return -EINVAL;
 
-	if (timings->pixel_clock == 0)
+	if (timings->pixelclock == 0)
 		return -EINVAL;
 
 	if (dpi.dsidev) {
-		ok = dpi_dsi_clk_calc(timings->pixel_clock * 1000, &ctx);
+		ok = dpi_dsi_clk_calc(timings->pixelclock, &ctx);
 		if (!ok)
 			return -EINVAL;
 
 		fck = ctx.dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
 	} else {
-		ok = dpi_dss_clk_calc(timings->pixel_clock * 1000, &ctx);
+		ok = dpi_dss_clk_calc(timings->pixelclock, &ctx);
 		if (!ok)
 			return -EINVAL;
 
@@ -500,9 +502,9 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	lck_div = ctx.dispc_cinfo.lck_div;
 	pck_div = ctx.dispc_cinfo.pck_div;
 
-	pck = fck / lck_div / pck_div / 1000;
+	pck = fck / lck_div / pck_div;
 
-	timings->pixel_clock = pck;
+	timings->pixelclock = pck;
 
 	return 0;
 }
@@ -725,4 +727,48 @@ int __init dpi_init_platform_driver(void)
 void __exit dpi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_dpi_driver);
+}
+
+int __init dpi_init_port(struct platform_device *pdev, struct device_node *port)
+{
+	struct device_node *ep;
+	u32 datalines;
+	int r;
+
+	ep = omapdss_of_get_next_endpoint(port, NULL);
+	if (!ep)
+		return 0;
+
+	r = of_property_read_u32(ep, "data-lines", &datalines);
+	if (r) {
+		DSSERR("failed to parse datalines\n");
+		goto err_datalines;
+	}
+
+	dpi.data_lines = datalines;
+
+	of_node_put(ep);
+
+	dpi.pdev = pdev;
+
+	mutex_init(&dpi.lock);
+
+	dpi_init_output(pdev);
+
+	dpi.port_initialized = true;
+
+	return 0;
+
+err_datalines:
+	of_node_put(ep);
+
+	return r;
+}
+
+void __exit dpi_uninit_port(void)
+{
+	if (!dpi.port_initialized)
+		return;
+
+	dpi_uninit_output(dpi.pdev);
 }

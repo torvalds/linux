@@ -62,26 +62,6 @@ struct nic {
 
 };
 
-
-#if 0
-#define dprintk(fmt, args ...)	printk(KERN_DEBUG " [GDM] " fmt, ## args)
-#else
-#define dprintk(...)
-#endif
-
-/*#define DEBUG_SDU */
-#if defined(DEBUG_SDU)
-#define DUMP_SDU_ALL		(1<<0)
-#define DUMP_SDU_ARP		(1<<1)
-#define DUMP_SDU_IP			(1<<2)
-#define DUMP_SDU_IP_TCP		(1<<8)
-#define DUMP_SDU_IP_UDP		(1<<9)
-#define DUMP_SDU_IP_ICMP	(1<<10)
-#define DUMP_PACKET			(DUMP_SDU_ALL)
-#endif
-
-/*#define DEBUG_HCI */
-
 /*#define LOOPBACK_TEST */
 
 extern int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);

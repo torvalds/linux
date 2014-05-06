@@ -23,6 +23,7 @@
 #define DSS_SUBSYS_NAME "DSS"
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/export.h>
 #include <linux/err.h>
@@ -33,6 +34,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/gfp.h>
 #include <linux/sizes.h>
+#include <linux/of.h>
 
 #include <video/omapdss.h>
 
@@ -153,22 +155,6 @@ static void dss_restore_context(void)
 
 #undef SR
 #undef RR
-
-int dss_get_ctx_loss_count(void)
-{
-	struct platform_device *core_pdev = dss_get_core_pdev();
-	struct omap_dss_board_info *board_data = core_pdev->dev.platform_data;
-	int cnt;
-
-	if (!board_data->get_context_loss_count)
-		return -ENOENT;
-
-	cnt = board_data->get_context_loss_count(&dss.pdev->dev);
-
-	WARN_ONCE(cnt < 0, "get_context_loss_count failed: %d\n", cnt);
-
-	return cnt;
-}
 
 void dss_sdi_init(int datapairs)
 {
@@ -788,6 +774,56 @@ static int __init dss_init_features(struct platform_device *pdev)
 	return 0;
 }
 
+static int __init dss_init_ports(struct platform_device *pdev)
+{
+	struct device_node *parent = pdev->dev.of_node;
+	struct device_node *port;
+	int r;
+
+	if (parent == NULL)
+		return 0;
+
+	port = omapdss_of_get_next_port(parent, NULL);
+	if (!port) {
+#ifdef CONFIG_OMAP2_DSS_DPI
+		dpi_init_port(pdev, parent);
+#endif
+		return 0;
+	}
+
+	do {
+		u32 reg;
+
+		r = of_property_read_u32(port, "reg", &reg);
+		if (r)
+			reg = 0;
+
+#ifdef CONFIG_OMAP2_DSS_DPI
+		if (reg == 0)
+			dpi_init_port(pdev, port);
+#endif
+
+#ifdef CONFIG_OMAP2_DSS_SDI
+		if (reg == 1)
+			sdi_init_port(pdev, port);
+#endif
+
+	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
+
+	return 0;
+}
+
+static void dss_uninit_ports(void)
+{
+#ifdef CONFIG_OMAP2_DSS_DPI
+	dpi_uninit_port();
+#endif
+
+#ifdef CONFIG_OMAP2_DSS_SDI
+	sdi_uninit_port();
+#endif
+}
+
 /* DSS HW IP initialisation */
 static int __init omap_dsshw_probe(struct platform_device *pdev)
 {
@@ -846,6 +882,8 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
 	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
 
+	dss_init_ports(pdev);
+
 	rev = dss_read_reg(DSS_REVISION);
 	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
 			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
@@ -865,6 +903,8 @@ err_setup_clocks:
 
 static int __exit omap_dsshw_remove(struct platform_device *pdev)
 {
+	dss_uninit_ports();
+
 	pm_runtime_disable(&pdev->dev);
 
 	dss_put_clocks();
@@ -902,12 +942,22 @@ static const struct dev_pm_ops dss_pm_ops = {
 	.runtime_resume = dss_runtime_resume,
 };
 
+static const struct of_device_id dss_of_match[] = {
+	{ .compatible = "ti,omap2-dss", },
+	{ .compatible = "ti,omap3-dss", },
+	{ .compatible = "ti,omap4-dss", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, dss_of_match);
+
 static struct platform_driver omap_dsshw_driver = {
 	.remove         = __exit_p(omap_dsshw_remove),
 	.driver         = {
 		.name   = "omapdss_dss",
 		.owner  = THIS_MODULE,
 		.pm	= &dss_pm_ops,
+		.of_match_table = dss_of_match,
 	},
 };
 

@@ -84,7 +84,6 @@ TODO:
 
 #define PCI9111_RANGE_SETTING_DELAY		10
 #define PCI9111_AI_INSTANT_READ_UDELAY_US	2
-#define PCI9111_AI_INSTANT_READ_TIMEOUT		100
 
 /*
  * IO address map and bit defines
@@ -490,29 +489,18 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 		dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 	/* Set counter */
-
-	switch (async_cmd->stop_src) {
-	case TRIG_COUNT:
+	if (async_cmd->stop_src == TRIG_COUNT) {
 		dev_private->stop_counter =
 		    async_cmd->stop_arg * async_cmd->chanlist_len;
 		dev_private->stop_is_none = 0;
-		break;
-
-	case TRIG_NONE:
+	} else {	/* TRIG_NONE */
 		dev_private->stop_counter = 0;
 		dev_private->stop_is_none = 1;
-		break;
-
-	default:
-		comedi_error(dev, "Invalid stop trigger");
-		return -1;
 	}
 
 	/*  Set timer pacer */
-
 	dev_private->scan_delay = 0;
-	switch (async_cmd->convert_src) {
-	case TRIG_TIMER:
+	if (async_cmd->convert_src == TRIG_TIMER) {
 		pci9111_trigger_source_set(dev, software);
 		pci9111_timer_set(dev);
 		pci9111_fifo_reset(dev);
@@ -528,11 +516,7 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 				 (async_cmd->convert_arg *
 				  async_cmd->chanlist_len)) - 1;
 		}
-
-		break;
-
-	case TRIG_EXT:
-
+	} else {	/* TRIG_EXT */
 		pci9111_trigger_source_set(dev, external);
 		pci9111_fifo_reset(dev);
 		pci9111_interrupt_source_set(dev, irq_on_fifo_half_full,
@@ -540,11 +524,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 		plx9050_interrupt_control(dev_private->lcr_io_base, true, true,
 					  false, true, true);
 
-		break;
-
-	default:
-		comedi_error(dev, "Invalid convert trigger");
-		return -1;
 	}
 
 	dev_private->stop_counter *= (1 + dev_private->scan_delay);
@@ -613,9 +592,8 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 			comedi_error(dev, PCI9111_DRIVER_NAME " fifo overflow");
 			outb(0, dev->iobase + PCI9111_INT_CLR_REG);
-			pci9111_ai_cancel(dev, s);
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			comedi_event(dev, s);
+			cfc_handle_events(dev, s);
 
 			return IRQ_HANDLED;
 		}
@@ -693,18 +671,29 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		}
 	}
 
-	if ((dev_private->stop_counter == 0) && (!dev_private->stop_is_none)) {
+	if (dev_private->stop_counter == 0 && !dev_private->stop_is_none)
 		async->events |= COMEDI_CB_EOA;
-		pci9111_ai_cancel(dev, s);
-	}
 
 	outb(0, dev->iobase + PCI9111_INT_CLR_REG);
 
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 
 	return IRQ_HANDLED;
+}
+
+static int pci9111_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
+	if (status & PCI9111_AI_STAT_FF_EF)
+		return 0;
+	return -EBUSY;
 }
 
 static int pci9111_ai_insn_read(struct comedi_device *dev,
@@ -717,7 +706,7 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
 	unsigned int status;
-	int timeout;
+	int ret;
 	int i;
 
 	outb(chan, dev->iobase + PCI9111_AI_CHANNEL_REG);
@@ -734,21 +723,11 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 		/* Generate a software trigger */
 		outb(0, dev->iobase + PCI9111_SOFT_TRIG_REG);
 
-		timeout = PCI9111_AI_INSTANT_READ_TIMEOUT;
-
-		while (timeout--) {
-			status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
-			/* '1' means FIFO is not empty */
-			if (status & PCI9111_AI_STAT_FF_EF)
-				goto conversion_done;
+		ret = comedi_timeout(dev, s, insn, pci9111_ai_eoc, 0);
+		if (ret) {
+			pci9111_fifo_reset(dev);
+			return ret;
 		}
-
-		comedi_error(dev, "A/D read timeout");
-		data[i] = 0;
-		pci9111_fifo_reset(dev);
-		return -ETIME;
-
-conversion_done:
 
 		data[i] = inw(dev->iobase + PCI9111_AI_FIFO_REG);
 		data[i] = ((data[i] >> shift) & maxdata) ^ invert;
@@ -905,8 +884,6 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_bits	= pci9111_do_insn_bits;
-
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 0;
 }

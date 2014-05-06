@@ -42,7 +42,7 @@
 #include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
 #include <linux/serial_reg.h>
 #include <linux/termios.h>
-#include <asm/uaccess.h>	/* For copy_from_user/copy_to_user */
+#include <linux/uaccess.h>	/* For copy_from_user/copy_to_user */
 
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
@@ -77,8 +77,7 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 			return -EBUSY;
 		}
 		dgnc_mgmt_in_use[minor]++;
-	}
-	else {
+	} else {
 		DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 		return -ENXIO;
 	}
@@ -107,9 +106,8 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 
 	/* mgmt device */
 	if (minor < MAXMGMTDEVICES) {
-		if (dgnc_mgmt_in_use[minor]) {
+		if (dgnc_mgmt_in_use[minor])
 			dgnc_mgmt_in_use[minor] = 0;
-		}
 	}
 	DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 
@@ -153,7 +151,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		DPR_MGMT(("DIGI_GETDD returning numboards: %d version: %s\n",
 			ddi.dinfo_nboards, ddi.dinfo_version));
 
-		if (copy_to_user(uarg, &ddi, sizeof (ddi)))
+		if (copy_to_user(uarg, &ddi, sizeof(ddi)))
 			return -EFAULT;
 
 		break;
@@ -165,13 +163,13 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		struct digi_info di;
 
-		if (copy_from_user(&brd, uarg, sizeof(int))) {
+		if (copy_from_user(&brd, uarg, sizeof(int)))
 			return -EFAULT;
-		}
 
 		DPR_MGMT(("DIGI_GETBD asking about board: %d\n", brd));
 
-		if ((brd < 0) || (brd > dgnc_NumBoards) || (dgnc_NumBoards == 0))
+		if ((brd < 0) || (brd > dgnc_NumBoards) ||
+		    (dgnc_NumBoards == 0))
 			return -ENODEV;
 
 		memset(&di, 0, sizeof(di));
@@ -195,7 +193,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		DPR_MGMT(("DIGI_GETBD returning type: %x state: %x ports: %x size: %x\n",
 			di.info_bdtype, di.info_bdstate, di.info_nports, di.info_physsize));
 
-		if (copy_to_user(uarg, &di, sizeof (di)))
+		if (copy_to_user(uarg, &di, sizeof(di)))
 			return -EFAULT;
 
 		break;
@@ -209,9 +207,8 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		uint board = 0;
 		uint channel = 0;
 
-		if (copy_from_user(&ni, uarg, sizeof(ni))) {
+		if (copy_from_user(&ni, uarg, sizeof(ni)))
 			return -EFAULT;
-		}
 
 		DPR_MGMT(("DIGI_GETBD asking about board: %d channel: %d\n",
 			ni.board, ni.channel));
@@ -268,12 +265,14 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ni.cflag = ch->ch_c_cflag;
 		ni.lflag = ch->ch_c_lflag;
 
-		if (ch->ch_digi.digi_flags & CTSPACE || ch->ch_c_cflag & CRTSCTS)
+		if (ch->ch_digi.digi_flags & CTSPACE ||
+		    ch->ch_c_cflag & CRTSCTS)
 			ni.hflow = 1;
 		else
 			ni.hflow = 0;
 
-		if ((ch->ch_flags & CH_STOPI) || (ch->ch_flags & CH_FORCED_STOPI))
+		if ((ch->ch_flags & CH_STOPI) ||
+		    (ch->ch_flags & CH_FORCED_STOPI))
 			ni.recv_stopped = 1;
 		else
 			ni.recv_stopped = 0;

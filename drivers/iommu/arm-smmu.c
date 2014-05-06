@@ -48,7 +48,7 @@
 #include <asm/pgalloc.h>
 
 /* Maximum number of stream IDs assigned to a single device */
-#define MAX_MASTER_STREAMIDS		8
+#define MAX_MASTER_STREAMIDS		MAX_PHANDLE_ARGS
 
 /* Maximum number of context banks per SMMU */
 #define ARM_SMMU_MAX_CBS		128
@@ -59,6 +59,16 @@
 /* SMMU global address space */
 #define ARM_SMMU_GR0(smmu)		((smmu)->base)
 #define ARM_SMMU_GR1(smmu)		((smmu)->base + (smmu)->pagesize)
+
+/*
+ * SMMU global address space with conditional offset to access secure
+ * aliases of non-secure registers (e.g. nsCR0: 0x400, nsGFSR: 0x448,
+ * nsGFSYNR0: 0x450)
+ */
+#define ARM_SMMU_GR0_NS(smmu)						\
+	((smmu)->base +							\
+		((smmu->options & ARM_SMMU_OPT_SECURE_CFG_ACCESS)	\
+			? 0x400 : 0))
 
 /* Page table bits */
 #define ARM_SMMU_PTE_XN			(((pteval_t)3) << 53)
@@ -79,7 +89,6 @@
 
 #define ARM_SMMU_PTE_CONT_SIZE		(PAGE_SIZE * ARM_SMMU_PTE_CONT_ENTRIES)
 #define ARM_SMMU_PTE_CONT_MASK		(~(ARM_SMMU_PTE_CONT_SIZE - 1))
-#define ARM_SMMU_PTE_HWTABLE_SIZE	(PTRS_PER_PTE * sizeof(pte_t))
 
 /* Stage-1 PTE */
 #define ARM_SMMU_PTE_AP_UNPRIV		(((pteval_t)1) << 6)
@@ -191,6 +200,9 @@
 #define ARM_SMMU_GR1_CBAR(n)		(0x0 + ((n) << 2))
 #define CBAR_VMID_SHIFT			0
 #define CBAR_VMID_MASK			0xff
+#define CBAR_S1_BPSHCFG_SHIFT		8
+#define CBAR_S1_BPSHCFG_MASK		3
+#define CBAR_S1_BPSHCFG_NSH		3
 #define CBAR_S1_MEMATTR_SHIFT		12
 #define CBAR_S1_MEMATTR_MASK		0xf
 #define CBAR_S1_MEMATTR_WB		0xf
@@ -349,6 +361,9 @@ struct arm_smmu_device {
 #define ARM_SMMU_FEAT_TRANS_S2		(1 << 3)
 #define ARM_SMMU_FEAT_TRANS_NESTED	(1 << 4)
 	u32				features;
+
+#define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
+	u32				options;
 	int				version;
 
 	u32				num_context_banks;
@@ -393,11 +408,34 @@ struct arm_smmu_domain {
 	struct arm_smmu_cfg		root_cfg;
 	phys_addr_t			output_mask;
 
-	struct mutex			lock;
+	spinlock_t			lock;
 };
 
 static DEFINE_SPINLOCK(arm_smmu_devices_lock);
 static LIST_HEAD(arm_smmu_devices);
+
+struct arm_smmu_option_prop {
+	u32 opt;
+	const char *prop;
+};
+
+static struct arm_smmu_option_prop arm_smmu_options [] = {
+	{ ARM_SMMU_OPT_SECURE_CFG_ACCESS, "calxeda,smmu-secure-config-access" },
+	{ 0, NULL},
+};
+
+static void parse_driver_options(struct arm_smmu_device *smmu)
+{
+	int i = 0;
+	do {
+		if (of_property_read_bool(smmu->dev->of_node,
+						arm_smmu_options[i].prop)) {
+			smmu->options |= arm_smmu_options[i].opt;
+			dev_notice(smmu->dev, "option %s\n",
+				arm_smmu_options[i].prop);
+		}
+	} while (arm_smmu_options[++i].opt);
+}
 
 static struct arm_smmu_master *find_smmu_master(struct arm_smmu_device *smmu,
 						struct device_node *dev_node)
@@ -612,15 +650,15 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 {
 	u32 gfsr, gfsynr0, gfsynr1, gfsynr2;
 	struct arm_smmu_device *smmu = dev;
-	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
+	void __iomem *gr0_base = ARM_SMMU_GR0_NS(smmu);
 
 	gfsr = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSR);
-	if (!gfsr)
-		return IRQ_NONE;
-
 	gfsynr0 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR0);
 	gfsynr1 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR1);
 	gfsynr2 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR2);
+
+	if (!gfsr)
+		return IRQ_NONE;
 
 	dev_err_ratelimited(smmu->dev,
 		"Unexpected global fault, this could be serious\n");
@@ -630,6 +668,28 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 
 	writel(gfsr, gr0_base + ARM_SMMU_GR0_sGFSR);
 	return IRQ_HANDLED;
+}
+
+static void arm_smmu_flush_pgtable(struct arm_smmu_device *smmu, void *addr,
+				   size_t size)
+{
+	unsigned long offset = (unsigned long)addr & ~PAGE_MASK;
+
+
+	/* Ensure new page tables are visible to the hardware walker */
+	if (smmu->features & ARM_SMMU_FEAT_COHERENT_WALK) {
+		dsb(ishst);
+	} else {
+		/*
+		 * If the SMMU can't walk tables in the CPU caches, treat them
+		 * like non-coherent DMA since we need to flush the new entries
+		 * all the way out to memory. There's no possibility of
+		 * recursion here as the SMMU table walker will not be wired
+		 * through another SMMU.
+		 */
+		dma_map_page(smmu->dev, virt_to_page(addr), offset, size,
+				DMA_TO_DEVICE);
+	}
 }
 
 static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
@@ -650,11 +710,16 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
 	if (smmu->version == 1)
 	      reg |= root_cfg->irptndx << CBAR_IRPTNDX_SHIFT;
 
-	/* Use the weakest memory type, so it is overridden by the pte */
-	if (stage1)
-		reg |= (CBAR_S1_MEMATTR_WB << CBAR_S1_MEMATTR_SHIFT);
-	else
+	/*
+	 * Use the weakest shareability/memory types, so they are
+	 * overridden by the ttbcr/pte.
+	 */
+	if (stage1) {
+		reg |= (CBAR_S1_BPSHCFG_NSH << CBAR_S1_BPSHCFG_SHIFT) |
+			(CBAR_S1_MEMATTR_WB << CBAR_S1_MEMATTR_SHIFT);
+	} else {
 		reg |= ARM_SMMU_CB_VMID(root_cfg) << CBAR_VMID_SHIFT;
+	}
 	writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBAR(root_cfg->cbndx));
 
 	if (smmu->version > 1) {
@@ -715,6 +780,8 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
 	}
 
 	/* TTBR0 */
+	arm_smmu_flush_pgtable(smmu, root_cfg->pgd,
+			       PTRS_PER_PGD * sizeof(pgd_t));
 	reg = __pa(root_cfg->pgd);
 	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0_LO);
 	reg = (phys_addr_t)__pa(root_cfg->pgd) >> 32;
@@ -901,7 +968,7 @@ static int arm_smmu_domain_init(struct iommu_domain *domain)
 		goto out_free_domain;
 	smmu_domain->root_cfg.pgd = pgd;
 
-	mutex_init(&smmu_domain->lock);
+	spin_lock_init(&smmu_domain->lock);
 	domain->priv = smmu_domain;
 	return 0;
 
@@ -959,9 +1026,8 @@ static void arm_smmu_free_pgtables(struct arm_smmu_domain *smmu_domain)
 
 	/*
 	 * Recursively free the page tables for this domain. We don't
-	 * care about speculative TLB filling, because the TLB will be
-	 * nuked next time this context bank is re-allocated and no devices
-	 * currently map to these tables.
+	 * care about speculative TLB filling because the tables should
+	 * not be active in any context bank at this point (SCTLR.M is 0).
 	 */
 	pgd = pgd_base;
 	for (i = 0; i < PTRS_PER_PGD; ++i) {
@@ -1128,6 +1194,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct arm_smmu_domain *smmu_domain = domain->priv;
 	struct arm_smmu_device *device_smmu = dev->archdata.iommu;
 	struct arm_smmu_master *master;
+	unsigned long flags;
 
 	if (!device_smmu) {
 		dev_err(dev, "cannot attach to SMMU, is it on the same bus?\n");
@@ -1138,7 +1205,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	 * Sanity check the domain. We don't currently support domains
 	 * that cross between different SMMU chains.
 	 */
-	mutex_lock(&smmu_domain->lock);
+	spin_lock_irqsave(&smmu_domain->lock, flags);
 	if (!smmu_domain->leaf_smmu) {
 		/* Now that we have a master, we can finalise the domain */
 		ret = arm_smmu_init_domain_context(domain, dev);
@@ -1153,7 +1220,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 			dev_name(device_smmu->dev));
 		goto err_unlock;
 	}
-	mutex_unlock(&smmu_domain->lock);
+	spin_unlock_irqrestore(&smmu_domain->lock, flags);
 
 	/* Looks ok, so add the device to the domain */
 	master = find_smmu_master(smmu_domain->leaf_smmu, dev->of_node);
@@ -1163,7 +1230,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	return arm_smmu_domain_add_master(smmu_domain, master);
 
 err_unlock:
-	mutex_unlock(&smmu_domain->lock);
+	spin_unlock_irqrestore(&smmu_domain->lock, flags);
 	return ret;
 }
 
@@ -1177,23 +1244,6 @@ static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
 		arm_smmu_domain_remove_master(smmu_domain, master);
 }
 
-static void arm_smmu_flush_pgtable(struct arm_smmu_device *smmu, void *addr,
-				   size_t size)
-{
-	unsigned long offset = (unsigned long)addr & ~PAGE_MASK;
-
-	/*
-	 * If the SMMU can't walk tables in the CPU caches, treat them
-	 * like non-coherent DMA since we need to flush the new entries
-	 * all the way out to memory. There's no possibility of recursion
-	 * here as the SMMU table walker will not be wired through another
-	 * SMMU.
-	 */
-	if (!(smmu->features & ARM_SMMU_FEAT_COHERENT_WALK))
-		dma_map_page(smmu->dev, virt_to_page(addr), offset, size,
-			     DMA_TO_DEVICE);
-}
-
 static bool arm_smmu_pte_is_contiguous_range(unsigned long addr,
 					     unsigned long end)
 {
@@ -1203,19 +1253,18 @@ static bool arm_smmu_pte_is_contiguous_range(unsigned long addr,
 
 static int arm_smmu_alloc_init_pte(struct arm_smmu_device *smmu, pmd_t *pmd,
 				   unsigned long addr, unsigned long end,
-				   unsigned long pfn, int flags, int stage)
+				   unsigned long pfn, int prot, int stage)
 {
 	pte_t *pte, *start;
 	pteval_t pteval = ARM_SMMU_PTE_PAGE | ARM_SMMU_PTE_AF | ARM_SMMU_PTE_XN;
 
 	if (pmd_none(*pmd)) {
 		/* Allocate a new set of tables */
-		pgtable_t table = alloc_page(PGALLOC_GFP);
+		pgtable_t table = alloc_page(GFP_ATOMIC|__GFP_ZERO);
 		if (!table)
 			return -ENOMEM;
 
-		arm_smmu_flush_pgtable(smmu, page_address(table),
-				       ARM_SMMU_PTE_HWTABLE_SIZE);
+		arm_smmu_flush_pgtable(smmu, page_address(table), PAGE_SIZE);
 		if (!pgtable_page_ctor(table)) {
 			__free_page(table);
 			return -ENOMEM;
@@ -1226,28 +1275,28 @@ static int arm_smmu_alloc_init_pte(struct arm_smmu_device *smmu, pmd_t *pmd,
 
 	if (stage == 1) {
 		pteval |= ARM_SMMU_PTE_AP_UNPRIV | ARM_SMMU_PTE_nG;
-		if (!(flags & IOMMU_WRITE) && (flags & IOMMU_READ))
+		if (!(prot & IOMMU_WRITE) && (prot & IOMMU_READ))
 			pteval |= ARM_SMMU_PTE_AP_RDONLY;
 
-		if (flags & IOMMU_CACHE)
+		if (prot & IOMMU_CACHE)
 			pteval |= (MAIR_ATTR_IDX_CACHE <<
 				   ARM_SMMU_PTE_ATTRINDX_SHIFT);
 	} else {
 		pteval |= ARM_SMMU_PTE_HAP_FAULT;
-		if (flags & IOMMU_READ)
+		if (prot & IOMMU_READ)
 			pteval |= ARM_SMMU_PTE_HAP_READ;
-		if (flags & IOMMU_WRITE)
+		if (prot & IOMMU_WRITE)
 			pteval |= ARM_SMMU_PTE_HAP_WRITE;
-		if (flags & IOMMU_CACHE)
+		if (prot & IOMMU_CACHE)
 			pteval |= ARM_SMMU_PTE_MEMATTR_OIWB;
 		else
 			pteval |= ARM_SMMU_PTE_MEMATTR_NC;
 	}
 
 	/* If no access, create a faulting entry to avoid TLB fills */
-	if (flags & IOMMU_EXEC)
+	if (prot & IOMMU_EXEC)
 		pteval &= ~ARM_SMMU_PTE_XN;
-	else if (!(flags & (IOMMU_READ | IOMMU_WRITE)))
+	else if (!(prot & (IOMMU_READ | IOMMU_WRITE)))
 		pteval &= ~ARM_SMMU_PTE_PAGE;
 
 	pteval |= ARM_SMMU_PTE_SH_IS;
@@ -1309,7 +1358,7 @@ static int arm_smmu_alloc_init_pte(struct arm_smmu_device *smmu, pmd_t *pmd,
 
 static int arm_smmu_alloc_init_pmd(struct arm_smmu_device *smmu, pud_t *pud,
 				   unsigned long addr, unsigned long end,
-				   phys_addr_t phys, int flags, int stage)
+				   phys_addr_t phys, int prot, int stage)
 {
 	int ret;
 	pmd_t *pmd;
@@ -1317,9 +1366,15 @@ static int arm_smmu_alloc_init_pmd(struct arm_smmu_device *smmu, pud_t *pud,
 
 #ifndef __PAGETABLE_PMD_FOLDED
 	if (pud_none(*pud)) {
-		pmd = pmd_alloc_one(NULL, addr);
+		pmd = (pmd_t *)get_zeroed_page(GFP_ATOMIC);
 		if (!pmd)
 			return -ENOMEM;
+
+		arm_smmu_flush_pgtable(smmu, pmd, PAGE_SIZE);
+		pud_populate(NULL, pud, pmd);
+		arm_smmu_flush_pgtable(smmu, pud, sizeof(*pud));
+
+		pmd += pmd_index(addr);
 	} else
 #endif
 		pmd = pmd_offset(pud, addr);
@@ -1327,9 +1382,7 @@ static int arm_smmu_alloc_init_pmd(struct arm_smmu_device *smmu, pud_t *pud,
 	do {
 		next = pmd_addr_end(addr, end);
 		ret = arm_smmu_alloc_init_pte(smmu, pmd, addr, end, pfn,
-					      flags, stage);
-		pud_populate(NULL, pud, pmd);
-		arm_smmu_flush_pgtable(smmu, pud, sizeof(*pud));
+					      prot, stage);
 		phys += next - addr;
 	} while (pmd++, addr = next, addr < end);
 
@@ -1338,7 +1391,7 @@ static int arm_smmu_alloc_init_pmd(struct arm_smmu_device *smmu, pud_t *pud,
 
 static int arm_smmu_alloc_init_pud(struct arm_smmu_device *smmu, pgd_t *pgd,
 				   unsigned long addr, unsigned long end,
-				   phys_addr_t phys, int flags, int stage)
+				   phys_addr_t phys, int prot, int stage)
 {
 	int ret = 0;
 	pud_t *pud;
@@ -1346,9 +1399,15 @@ static int arm_smmu_alloc_init_pud(struct arm_smmu_device *smmu, pgd_t *pgd,
 
 #ifndef __PAGETABLE_PUD_FOLDED
 	if (pgd_none(*pgd)) {
-		pud = pud_alloc_one(NULL, addr);
+		pud = (pud_t *)get_zeroed_page(GFP_ATOMIC);
 		if (!pud)
 			return -ENOMEM;
+
+		arm_smmu_flush_pgtable(smmu, pud, PAGE_SIZE);
+		pgd_populate(NULL, pgd, pud);
+		arm_smmu_flush_pgtable(smmu, pgd, sizeof(*pgd));
+
+		pud += pud_index(addr);
 	} else
 #endif
 		pud = pud_offset(pgd, addr);
@@ -1356,9 +1415,7 @@ static int arm_smmu_alloc_init_pud(struct arm_smmu_device *smmu, pgd_t *pgd,
 	do {
 		next = pud_addr_end(addr, end);
 		ret = arm_smmu_alloc_init_pmd(smmu, pud, addr, next, phys,
-					      flags, stage);
-		pgd_populate(NULL, pud, pgd);
-		arm_smmu_flush_pgtable(smmu, pgd, sizeof(*pgd));
+					      prot, stage);
 		phys += next - addr;
 	} while (pud++, addr = next, addr < end);
 
@@ -1367,7 +1424,7 @@ static int arm_smmu_alloc_init_pud(struct arm_smmu_device *smmu, pgd_t *pgd,
 
 static int arm_smmu_handle_mapping(struct arm_smmu_domain *smmu_domain,
 				   unsigned long iova, phys_addr_t paddr,
-				   size_t size, int flags)
+				   size_t size, int prot)
 {
 	int ret, stage;
 	unsigned long end;
@@ -1375,6 +1432,7 @@ static int arm_smmu_handle_mapping(struct arm_smmu_domain *smmu_domain,
 	struct arm_smmu_cfg *root_cfg = &smmu_domain->root_cfg;
 	pgd_t *pgd = root_cfg->pgd;
 	struct arm_smmu_device *smmu = root_cfg->smmu;
+	unsigned long flags;
 
 	if (root_cfg->cbar == CBAR_TYPE_S2_TRANS) {
 		stage = 2;
@@ -1397,14 +1455,14 @@ static int arm_smmu_handle_mapping(struct arm_smmu_domain *smmu_domain,
 	if (paddr & ~output_mask)
 		return -ERANGE;
 
-	mutex_lock(&smmu_domain->lock);
+	spin_lock_irqsave(&smmu_domain->lock, flags);
 	pgd += pgd_index(iova);
 	end = iova + size;
 	do {
 		unsigned long next = pgd_addr_end(iova, end);
 
 		ret = arm_smmu_alloc_init_pud(smmu, pgd, iova, next, paddr,
-					      flags, stage);
+					      prot, stage);
 		if (ret)
 			goto out_unlock;
 
@@ -1413,17 +1471,13 @@ static int arm_smmu_handle_mapping(struct arm_smmu_domain *smmu_domain,
 	} while (pgd++, iova != end);
 
 out_unlock:
-	mutex_unlock(&smmu_domain->lock);
-
-	/* Ensure new page tables are visible to the hardware walker */
-	if (smmu->features & ARM_SMMU_FEAT_COHERENT_WALK)
-		dsb();
+	spin_unlock_irqrestore(&smmu_domain->lock, flags);
 
 	return ret;
 }
 
 static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
-			phys_addr_t paddr, size_t size, int flags)
+			phys_addr_t paddr, size_t size, int prot)
 {
 	struct arm_smmu_domain *smmu_domain = domain->priv;
 
@@ -1434,7 +1488,7 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	if ((phys_addr_t)iova & ~smmu_domain->output_mask)
 		return -ERANGE;
 
-	return arm_smmu_handle_mapping(smmu_domain, iova, paddr, size, flags);
+	return arm_smmu_handle_mapping(smmu_domain, iova, paddr, size, prot);
 }
 
 static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
@@ -1578,9 +1632,9 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	int i = 0;
 	u32 reg;
 
-	/* Clear Global FSR */
-	reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSR);
-	writel(reg, gr0_base + ARM_SMMU_GR0_sGFSR);
+	/* clear global FSR */
+	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
+	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
 
 	/* Mark all SMRn as invalid and all S2CRn as bypass */
 	for (i = 0; i < smmu->num_mapping_groups; ++i) {
@@ -1600,7 +1654,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_TLBIALLH);
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_TLBIALLNSNH);
 
-	reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_sCR0);
+	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
 
 	/* Enable fault reporting */
 	reg |= (sCR0_GFRE | sCR0_GFIE | sCR0_GCFGFRE | sCR0_GCFGFIE);
@@ -1619,7 +1673,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 
 	/* Push the button */
 	arm_smmu_tlb_sync(smmu);
-	writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sCR0);
+	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
 }
 
 static int arm_smmu_id_size_to_bits(int size)
@@ -1866,6 +1920,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	if (err)
 		goto out_put_parent;
 
+	parse_driver_options(smmu);
+
 	if (smmu->version > 1 &&
 	    smmu->num_context_banks != smmu->num_context_irqs) {
 		dev_err(dev,
@@ -1950,7 +2006,7 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 		free_irq(smmu->irqs[i], smmu);
 
 	/* Turn the thing off */
-	writel_relaxed(sCR0_CLIENTPD, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_sCR0);
+	writel(sCR0_CLIENTPD,ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
 	return 0;
 }
 
@@ -1987,8 +2043,10 @@ static int __init arm_smmu_init(void)
 	if (!iommu_present(&platform_bus_type))
 		bus_set_iommu(&platform_bus_type, &arm_smmu_ops);
 
+#ifdef CONFIG_ARM_AMBA
 	if (!iommu_present(&amba_bustype))
 		bus_set_iommu(&amba_bustype, &arm_smmu_ops);
+#endif
 
 	return 0;
 }

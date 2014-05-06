@@ -433,7 +433,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return set_capture_size(go, fmt, 0);
 }
 
-static int go7007_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+static int go7007_queue_setup(struct vb2_queue *q,
+		const struct v4l2_format *fmt,
 		unsigned int *num_buffers, unsigned int *num_planes,
 		unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -470,7 +471,7 @@ static int go7007_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int go7007_buf_finish(struct vb2_buffer *vb)
+static void go7007_buf_finish(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct go7007 *go = vb2_get_drv_priv(vq);
@@ -483,7 +484,6 @@ static int go7007_buf_finish(struct vb2_buffer *vb)
 			V4L2_BUF_FLAG_PFRAME);
 	buf->flags |= frame_type_flag;
 	buf->field = V4L2_FIELD_NONE;
-	return 0;
 }
 
 static int go7007_start_streaming(struct vb2_queue *q, unsigned int count)
@@ -737,7 +737,8 @@ static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
 
 	if (a->index >= go->board_info->num_aud_inputs)
 		return -EINVAL;
-	strlcpy(a->name, go->board_info->aud_inputs[a->index].name, sizeof(a->name));
+	strlcpy(a->name, go->board_info->aud_inputs[a->index].name,
+		sizeof(a->name));
 	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
@@ -747,12 +748,14 @@ static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 	struct go7007 *go = video_drvdata(file);
 
 	a->index = go->aud_input;
-	strlcpy(a->name, go->board_info->aud_inputs[go->aud_input].name, sizeof(a->name));
+	strlcpy(a->name, go->board_info->aud_inputs[go->aud_input].name,
+		sizeof(a->name));
 	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
 
-static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *a)
+static int vidioc_s_audio(struct file *file, void *fh,
+	const struct v4l2_audio *a)
 {
 	struct go7007 *go = video_drvdata(file);
 
@@ -760,7 +763,7 @@ static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *
 		return -EINVAL;
 	go->aud_input = a->index;
 	v4l2_subdev_call(go->sd_audio, audio, s_routing,
-			go->board_info->aud_inputs[go->aud_input].audio_input, 0, 0);
+		go->board_info->aud_inputs[go->aud_input].audio_input, 0, 0);
 	return 0;
 }
 
@@ -960,8 +963,10 @@ int go7007_v4l2_ctrl_init(struct go7007 *go)
 			V4L2_MPEG_VIDEO_ASPECT_1x1);
 	ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_JPEG_ACTIVE_MARKER, 0,
-			V4L2_JPEG_ACTIVE_MARKER_DQT | V4L2_JPEG_ACTIVE_MARKER_DHT, 0,
-			V4L2_JPEG_ACTIVE_MARKER_DQT | V4L2_JPEG_ACTIVE_MARKER_DHT);
+			V4L2_JPEG_ACTIVE_MARKER_DQT |
+			V4L2_JPEG_ACTIVE_MARKER_DHT, 0,
+			V4L2_JPEG_ACTIVE_MARKER_DQT |
+			V4L2_JPEG_ACTIVE_MARKER_DHT);
 	if (ctrl)
 		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	if (hdl->error) {
@@ -989,7 +994,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	go->vidq.mem_ops = &vb2_vmalloc_memops;
 	go->vidq.drv_priv = go;
 	go->vidq.buf_struct_size = sizeof(struct go7007_buffer);
-	go->vidq.timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	go->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	go->vidq.lock = &go->queue_lock;
 	rv = vb2_queue_init(&go->vidq);
 	if (rv)

@@ -155,11 +155,6 @@ void ll_free_sbi(struct super_block *sb)
 	}
 }
 
-static struct dentry_operations ll_d_root_ops = {
-	.d_compare = ll_dcompare,
-	.d_revalidate = ll_revalidate_nd,
-};
-
 static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				    struct vfsmount *mnt)
 {
@@ -211,7 +206,10 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				  OBD_CONNECT_EINPROGRESS |
 				  OBD_CONNECT_JOBSTATS | OBD_CONNECT_LVB_TYPE |
 				  OBD_CONNECT_LAYOUTLOCK |
-				  OBD_CONNECT_PINGLESS | OBD_CONNECT_MAX_EASIZE;
+				  OBD_CONNECT_PINGLESS |
+				  OBD_CONNECT_MAX_EASIZE |
+				  OBD_CONNECT_FLOCK_DEAD |
+				  OBD_CONNECT_DISP_STRIPE;
 
 	if (sbi->ll_flags & LL_SBI_SOM_PREVIEW)
 		data->ocd_connect_flags |= OBD_CONNECT_SOM;
@@ -281,7 +279,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	/* For mount, we only need fs info from MDT0, and also in DNE, it
 	 * can make sure the client can be mounted as long as MDT0 is
-	 * avaible */
+	 * available */
 	err = obd_statfs(NULL, sbi->ll_md_exp, osfs,
 			cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			OBD_STATFS_FOR_MDT0);
@@ -579,10 +577,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		GOTO(out_root, err = -ENOMEM);
 	}
 
-	/* kernel >= 2.6.38 store dentry operations in sb->s_d_op. */
-	d_set_d_op(sb->s_root, &ll_d_root_ops);
-	sb->s_d_op = &ll_d_ops;
-
 	sbi->ll_sdev_orig = sb->s_dev;
 
 	/* We set sb->s_dev equal on all lustre clients in order to support
@@ -723,7 +717,7 @@ void ll_kill_super(struct super_block *sb)
 		return;
 
 	sbi = ll_s2sbi(sb);
-	/* we need restore s_dev from changed for clustred NFS before put_super
+	/* we need to restore s_dev from changed for clustered NFS before put_super
 	 * because new kernels have cached s_dev and change sb->s_dev in
 	 * put_super not affected real removing devices */
 	if (sbi) {
@@ -740,7 +734,8 @@ char *ll_read_opt(const char *opt, char *data)
 	CDEBUG(D_SUPER, "option: %s, data %s\n", opt, data);
 	if (strncmp(opt, data, strlen(opt)))
 		return NULL;
-	if ((value = strchr(data, '=')) == NULL)
+	value = strchr(data, '=');
+	if (value == NULL)
 		return NULL;
 
 	value++;
@@ -1013,6 +1008,8 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 		GOTO(out_free, err);
 
 	sb->s_bdi = &lsi->lsi_bdi;
+	/* kernel >= 2.6.38 store dentry operations in sb->s_d_op. */
+	sb->s_d_op = &ll_d_ops;
 
 	/* Generate a string unique to this super, in case some joker tries
 	   to mount the same fs at two mount points.
@@ -1067,7 +1064,7 @@ out_free:
 
 void ll_put_super(struct super_block *sb)
 {
-	struct config_llog_instance cfg;
+	struct config_llog_instance cfg, params_cfg;
 	struct obd_device *obd;
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -1080,6 +1077,9 @@ void ll_put_super(struct super_block *sb)
 
 	cfg.cfg_instance = sb;
 	lustre_end_log(sb, profilenm, &cfg);
+
+	params_cfg.cfg_instance = sb;
+	lustre_end_log(sb, PARAMS_FILENAME, &params_cfg);
 
 	if (sbi->ll_md_exp) {
 		obd = class_exp2obd(sbi->ll_md_exp);
@@ -1405,7 +1405,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	/* POSIX: check before ATTR_*TIME_SET set (from inode_change_ok) */
 	if (attr->ia_valid & TIMES_SET_FLAGS) {
 		if ((!uid_eq(current_fsuid(), inode->i_uid)) &&
-		    !cfs_capable(CFS_CAP_FOWNER))
+		    !capable(CFS_CAP_FOWNER))
 			return -EPERM;
 	}
 
@@ -1877,7 +1877,7 @@ void ll_delete_inode(struct inode *inode)
 		cl_sync_file_range(inode, 0, OBD_OBJECT_EOF,
 				   CL_FSYNC_DISCARD, 1);
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 
 	/* Workaround for LU-118 */
 	if (inode->i_data.nrpages) {

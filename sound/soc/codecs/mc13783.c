@@ -106,8 +106,7 @@ static int mc13783_pcm_hw_params_dac(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	unsigned int rate = params_rate(params);
 	int i;
 
@@ -126,8 +125,7 @@ static int mc13783_pcm_hw_params_codec(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	unsigned int rate = params_rate(params);
 	unsigned int val;
 
@@ -408,8 +406,7 @@ static const char * const adcl_enum_text[] = {
 	"MC1L", "RXINL",
 };
 
-static const struct soc_enum adcl_enum =
-	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(adcl_enum_text), adcl_enum_text);
+static SOC_ENUM_SINGLE_VIRT_DECL(adcl_enum, adcl_enum_text);
 
 static const struct snd_kcontrol_new left_input_mux =
 	SOC_DAPM_ENUM_VIRT("Route", adcl_enum);
@@ -418,8 +415,7 @@ static const char * const adcr_enum_text[] = {
 	"MC1R", "MC2", "RXINR", "TXIN",
 };
 
-static const struct soc_enum adcr_enum =
-	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(adcr_enum_text), adcr_enum_text);
+static SOC_ENUM_SINGLE_VIRT_DECL(adcr_enum, adcr_enum_text);
 
 static const struct snd_kcontrol_new right_input_mux =
 	SOC_DAPM_ENUM_VIRT("Route", adcr_enum);
@@ -430,8 +426,8 @@ static const struct snd_kcontrol_new samp_ctl =
 static const char * const speaker_amp_source_text[] = {
 	"CODEC", "Right"
 };
-static const SOC_ENUM_SINGLE_DECL(speaker_amp_source, MC13783_AUDIO_RX0, 4,
-				  speaker_amp_source_text);
+static SOC_ENUM_SINGLE_DECL(speaker_amp_source, MC13783_AUDIO_RX0, 4,
+			    speaker_amp_source_text);
 static const struct snd_kcontrol_new speaker_amp_source_mux =
 	SOC_DAPM_ENUM("Speaker Amp Source MUX", speaker_amp_source);
 
@@ -439,8 +435,8 @@ static const char * const headset_amp_source_text[] = {
 	"CODEC", "Mixer"
 };
 
-static const SOC_ENUM_SINGLE_DECL(headset_amp_source, MC13783_AUDIO_RX0, 11,
-				  headset_amp_source_text);
+static SOC_ENUM_SINGLE_DECL(headset_amp_source, MC13783_AUDIO_RX0, 11,
+			    headset_amp_source_text);
 static const struct snd_kcontrol_new headset_amp_source_mux =
 	SOC_DAPM_ENUM("Headset Amp Source MUX", headset_amp_source);
 
@@ -580,9 +576,9 @@ static struct snd_soc_dapm_route mc13783_routes[] = {
 static const char * const mc13783_3d_mixer[] = {"Stereo", "Phase Mix",
 						"Mono", "Mono Mix"};
 
-static const struct soc_enum mc13783_enum_3d_mixer =
-	SOC_ENUM_SINGLE(MC13783_AUDIO_RX1, 16, ARRAY_SIZE(mc13783_3d_mixer),
-			mc13783_3d_mixer);
+static SOC_ENUM_SINGLE_DECL(mc13783_enum_3d_mixer,
+			    MC13783_AUDIO_RX1, 16,
+			    mc13783_3d_mixer);
 
 static struct snd_kcontrol_new mc13783_control_list[] = {
 	SOC_SINGLE("Loudspeaker enable", MC13783_AUDIO_RX0, 5, 1, 0),
@@ -614,8 +610,8 @@ static int mc13783_probe(struct snd_soc_codec *codec)
 	struct mc13783_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = dev_get_regmap(codec->dev->parent, NULL);
-	ret = snd_soc_codec_set_cache_io(codec, 8, 24, SND_SOC_REGMAP);
+	ret = snd_soc_codec_set_cache_io(codec,
+			dev_get_regmap(codec->dev->parent, NULL));
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;

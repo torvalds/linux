@@ -26,6 +26,7 @@
 #include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
+#include <linux/of.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
@@ -41,12 +42,14 @@ static struct {
 	int datapairs;
 
 	struct omap_dss_device output;
+
+	bool port_initialized;
 } sdi;
 
 struct sdi_clk_calc_ctx {
 	unsigned long pck_min, pck_max;
 
-	unsigned long long fck;
+	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 };
 
@@ -149,20 +152,19 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	t->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 	t->sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 
-	r = sdi_calc_clock_div(t->pixel_clock * 1000, &fck, &dispc_cinfo);
+	r = sdi_calc_clock_div(t->pixelclock, &fck, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
 
 	sdi.mgr_config.clock_info = dispc_cinfo;
 
-	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div / 1000;
+	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div;
 
-	if (pck != t->pixel_clock) {
-		DSSWARN("Could not find exact pixel clock. Requested %d kHz, "
-				"got %lu kHz\n",
-				t->pixel_clock, pck);
+	if (pck != t->pixelclock) {
+		DSSWARN("Could not find exact pixel clock. Requested %d Hz, got %lu Hz\n",
+			t->pixelclock, pck);
 
-		t->pixel_clock = pck;
+		t->pixelclock = pck;
 	}
 
 
@@ -244,7 +246,7 @@ static int sdi_check_timings(struct omap_dss_device *dssdev,
 	if (mgr && !dispc_mgr_timings_ok(mgr->id, timings))
 		return -EINVAL;
 
-	if (timings->pixel_clock == 0)
+	if (timings->pixelclock == 0)
 		return -EINVAL;
 
 	return 0;
@@ -386,4 +388,46 @@ int __init sdi_init_platform_driver(void)
 void __exit sdi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_sdi_driver);
+}
+
+int __init sdi_init_port(struct platform_device *pdev, struct device_node *port)
+{
+	struct device_node *ep;
+	u32 datapairs;
+	int r;
+
+	ep = omapdss_of_get_next_endpoint(port, NULL);
+	if (!ep)
+		return 0;
+
+	r = of_property_read_u32(ep, "datapairs", &datapairs);
+	if (r) {
+		DSSERR("failed to parse datapairs\n");
+		goto err_datapairs;
+	}
+
+	sdi.datapairs = datapairs;
+
+	of_node_put(ep);
+
+	sdi.pdev = pdev;
+
+	sdi_init_output(pdev);
+
+	sdi.port_initialized = true;
+
+	return 0;
+
+err_datapairs:
+	of_node_put(ep);
+
+	return r;
+}
+
+void __exit sdi_uninit_port(void)
+{
+	if (!sdi.port_initialized)
+		return;
+
+	sdi_uninit_output(sdi.pdev);
 }

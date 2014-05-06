@@ -27,12 +27,6 @@
 
 DEFINE_MUTEX(event_mutex);
 
-DEFINE_MUTEX(event_storage_mutex);
-EXPORT_SYMBOL_GPL(event_storage_mutex);
-
-char event_storage[EVENT_STORAGE_SIZE];
-EXPORT_SYMBOL_GPL(event_storage);
-
 LIST_HEAD(ftrace_events);
 static LIST_HEAD(ftrace_common_fields);
 
@@ -194,29 +188,60 @@ int trace_event_raw_init(struct ftrace_event_call *call)
 }
 EXPORT_SYMBOL_GPL(trace_event_raw_init);
 
+void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
+				  struct ftrace_event_file *ftrace_file,
+				  unsigned long len)
+{
+	struct ftrace_event_call *event_call = ftrace_file->event_call;
+
+	local_save_flags(fbuffer->flags);
+	fbuffer->pc = preempt_count();
+	fbuffer->ftrace_file = ftrace_file;
+
+	fbuffer->event =
+		trace_event_buffer_lock_reserve(&fbuffer->buffer, ftrace_file,
+						event_call->event.type, len,
+						fbuffer->flags, fbuffer->pc);
+	if (!fbuffer->event)
+		return NULL;
+
+	fbuffer->entry = ring_buffer_event_data(fbuffer->event);
+	return fbuffer->entry;
+}
+EXPORT_SYMBOL_GPL(ftrace_event_buffer_reserve);
+
+void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer)
+{
+	event_trigger_unlock_commit(fbuffer->ftrace_file, fbuffer->buffer,
+				    fbuffer->event, fbuffer->entry,
+				    fbuffer->flags, fbuffer->pc);
+}
+EXPORT_SYMBOL_GPL(ftrace_event_buffer_commit);
+
 int ftrace_event_reg(struct ftrace_event_call *call,
 		     enum trace_reg type, void *data)
 {
 	struct ftrace_event_file *file = data;
 
+	WARN_ON(!(call->flags & TRACE_EVENT_FL_TRACEPOINT));
 	switch (type) {
 	case TRACE_REG_REGISTER:
-		return tracepoint_probe_register(call->name,
+		return tracepoint_probe_register(call->tp,
 						 call->class->probe,
 						 file);
 	case TRACE_REG_UNREGISTER:
-		tracepoint_probe_unregister(call->name,
+		tracepoint_probe_unregister(call->tp,
 					    call->class->probe,
 					    file);
 		return 0;
 
 #ifdef CONFIG_PERF_EVENTS
 	case TRACE_REG_PERF_REGISTER:
-		return tracepoint_probe_register(call->name,
+		return tracepoint_probe_register(call->tp,
 						 call->class->perf_probe,
 						 call);
 	case TRACE_REG_PERF_UNREGISTER:
-		tracepoint_probe_unregister(call->name,
+		tracepoint_probe_unregister(call->tp,
 					    call->class->perf_probe,
 					    call);
 		return 0;
@@ -328,7 +353,7 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 			if (ret) {
 				tracing_stop_cmdline_record();
 				pr_info("event trace: Could not enable event "
-					"%s\n", call->name);
+					"%s\n", ftrace_event_name(call));
 				break;
 			}
 			set_bit(FTRACE_EVENT_FL_ENABLED_BIT, &file->flags);
@@ -457,27 +482,29 @@ __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 {
 	struct ftrace_event_file *file;
 	struct ftrace_event_call *call;
+	const char *name;
 	int ret = -EINVAL;
 
 	list_for_each_entry(file, &tr->events, list) {
 
 		call = file->event_call;
+		name = ftrace_event_name(call);
 
-		if (!call->name || !call->class || !call->class->reg)
+		if (!name || !call->class || !call->class->reg)
 			continue;
 
 		if (call->flags & TRACE_EVENT_FL_IGNORE_ENABLE)
 			continue;
 
 		if (match &&
-		    strcmp(match, call->name) != 0 &&
+		    strcmp(match, name) != 0 &&
 		    strcmp(match, call->class->system) != 0)
 			continue;
 
 		if (sub && strcmp(sub, call->class->system) != 0)
 			continue;
 
-		if (event && strcmp(event, call->name) != 0)
+		if (event && strcmp(event, name) != 0)
 			continue;
 
 		ftrace_event_enable_disable(file, set);
@@ -675,7 +702,7 @@ static int t_show(struct seq_file *m, void *v)
 
 	if (strcmp(call->class->system, TRACE_SYSTEM) != 0)
 		seq_printf(m, "%s:", call->class->system);
-	seq_printf(m, "%s\n", call->name);
+	seq_printf(m, "%s\n", ftrace_event_name(call));
 
 	return 0;
 }
@@ -768,7 +795,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	mutex_lock(&event_mutex);
 	list_for_each_entry(file, &tr->events, list) {
 		call = file->event_call;
-		if (!call->name || !call->class || !call->class->reg)
+		if (!ftrace_event_name(call) || !call->class || !call->class->reg)
 			continue;
 
 		if (system && strcmp(call->class->system, system->name) != 0)
@@ -883,7 +910,7 @@ static int f_show(struct seq_file *m, void *v)
 
 	switch ((unsigned long)v) {
 	case FORMAT_HEADER:
-		seq_printf(m, "name: %s\n", call->name);
+		seq_printf(m, "name: %s\n", ftrace_event_name(call));
 		seq_printf(m, "ID: %d\n", call->event.type);
 		seq_printf(m, "format:\n");
 		return 0;
@@ -1503,6 +1530,7 @@ event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
 	struct trace_array *tr = file->tr;
 	struct list_head *head;
 	struct dentry *d_events;
+	const char *name;
 	int ret;
 
 	/*
@@ -1516,10 +1544,11 @@ event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
 	} else
 		d_events = parent;
 
-	file->dir = debugfs_create_dir(call->name, d_events);
+	name = ftrace_event_name(call);
+	file->dir = debugfs_create_dir(name, d_events);
 	if (!file->dir) {
 		pr_warning("Could not create debugfs '%s' directory\n",
-			   call->name);
+			   name);
 		return -1;
 	}
 
@@ -1543,7 +1572,7 @@ event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
 		ret = call->class->define_fields(call);
 		if (ret < 0) {
 			pr_warning("Could not initialize trace point"
-				   " events/%s\n", call->name);
+				   " events/%s\n", name);
 			return -1;
 		}
 	}
@@ -1607,15 +1636,17 @@ static void event_remove(struct ftrace_event_call *call)
 static int event_init(struct ftrace_event_call *call)
 {
 	int ret = 0;
+	const char *name;
 
-	if (WARN_ON(!call->name))
+	name = ftrace_event_name(call);
+	if (WARN_ON(!name))
 		return -EINVAL;
 
 	if (call->class->raw_init) {
 		ret = call->class->raw_init(call);
 		if (ret < 0 && ret != -ENOSYS)
 			pr_warn("Could not initialize trace events/%s\n",
-				call->name);
+				name);
 	}
 
 	return ret;
@@ -1777,6 +1808,16 @@ static void trace_module_add_events(struct module *mod)
 {
 	struct ftrace_event_call **call, **start, **end;
 
+	if (!mod->num_trace_events)
+		return;
+
+	/* Don't add infrastructure for mods without tracepoints */
+	if (trace_module_has_bad_taint(mod)) {
+		pr_err("%s: module has bad taint, not creating trace events\n",
+		       mod->name);
+		return;
+	}
+
 	start = mod->trace_events;
 	end = mod->trace_events + mod->num_trace_events;
 
@@ -1851,7 +1892,7 @@ __trace_add_event_dirs(struct trace_array *tr)
 		ret = __trace_add_new_event(call, tr);
 		if (ret < 0)
 			pr_warning("Could not create directory for event %s\n",
-				   call->name);
+				   ftrace_event_name(call));
 	}
 }
 
@@ -1860,18 +1901,20 @@ find_event_file(struct trace_array *tr, const char *system,  const char *event)
 {
 	struct ftrace_event_file *file;
 	struct ftrace_event_call *call;
+	const char *name;
 
 	list_for_each_entry(file, &tr->events, list) {
 
 		call = file->event_call;
+		name = ftrace_event_name(call);
 
-		if (!call->name || !call->class || !call->class->reg)
+		if (!name || !call->class || !call->class->reg)
 			continue;
 
 		if (call->flags & TRACE_EVENT_FL_IGNORE_ENABLE)
 			continue;
 
-		if (strcmp(event, call->name) == 0 &&
+		if (strcmp(event, name) == 0 &&
 		    strcmp(system, call->class->system) == 0)
 			return file;
 	}
@@ -1939,7 +1982,7 @@ event_enable_print(struct seq_file *m, unsigned long ip,
 	seq_printf(m, "%s:%s:%s",
 		   data->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
 		   data->file->event_call->class->system,
-		   data->file->event_call->name);
+		   ftrace_event_name(data->file->event_call));
 
 	if (data->count == -1)
 		seq_printf(m, ":unlimited\n");
@@ -2159,7 +2202,7 @@ __trace_early_add_event_dirs(struct trace_array *tr)
 		ret = event_create_dir(tr->event_dir, file);
 		if (ret < 0)
 			pr_warning("Could not create directory for event %s\n",
-				   file->event_call->name);
+				   ftrace_event_name(file->event_call));
 	}
 }
 
@@ -2183,7 +2226,7 @@ __trace_early_add_events(struct trace_array *tr)
 		ret = __trace_early_add_new_event(call, tr);
 		if (ret < 0)
 			pr_warning("Could not create early event %s\n",
-				   call->name);
+				   ftrace_event_name(call));
 	}
 }
 
@@ -2515,7 +2558,7 @@ static __init void event_trace_self_tests(void)
 			continue;
 #endif
 
-		pr_info("Testing event %s: ", call->name);
+		pr_info("Testing event %s: ", ftrace_event_name(call));
 
 		/*
 		 * If an event is already enabled, someone is using

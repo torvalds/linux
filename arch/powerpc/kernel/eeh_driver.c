@@ -143,13 +143,30 @@ static void eeh_disable_irq(struct pci_dev *dev)
 static void eeh_enable_irq(struct pci_dev *dev)
 {
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
-	struct irq_desc *desc;
 
 	if ((edev->mode) & EEH_DEV_IRQ_DISABLED) {
 		edev->mode &= ~EEH_DEV_IRQ_DISABLED;
-
-		desc = irq_to_desc(dev->irq);
-		if (desc && desc->depth > 0)
+		/*
+		 * FIXME !!!!!
+		 *
+		 * This is just ass backwards. This maze has
+		 * unbalanced irq_enable/disable calls. So instead of
+		 * finding the root cause it works around the warning
+		 * in the irq_enable code by conditionally calling
+		 * into it.
+		 *
+		 * That's just wrong.The warning in the core code is
+		 * there to tell people to fix their assymetries in
+		 * their own code, not by abusing the core information
+		 * to avoid it.
+		 *
+		 * I so wish that the assymetry would be the other way
+		 * round and a few more irq_disable calls render that
+		 * shit unusable forever.
+		 *
+		 *	tglx
+		 */
+		if (irqd_irq_disabled(irq_get_irq_data(dev->irq)))
 			enable_irq(dev->irq);
 	}
 }
@@ -362,9 +379,13 @@ static void *eeh_rmv_device(void *data, void *userdata)
 	 */
 	if (!dev || (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE))
 		return NULL;
+
 	driver = eeh_pcid_get(dev);
-	if (driver && driver->err_handler)
-		return NULL;
+	if (driver) {
+		eeh_pcid_put(dev);
+		if (driver->err_handler)
+			return NULL;
+	}
 
 	/* Remove it from PCI subsystem */
 	pr_debug("EEH: Removing %s without EEH sensitive driver\n",

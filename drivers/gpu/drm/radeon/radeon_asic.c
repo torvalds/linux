@@ -1555,7 +1555,7 @@ static struct radeon_asic btc_asic = {
 		.get_sclk = &btc_dpm_get_sclk,
 		.get_mclk = &btc_dpm_get_mclk,
 		.print_power_state = &rv770_dpm_print_power_state,
-		.debugfs_print_current_performance_level = &rv770_dpm_debugfs_print_current_performance_level,
+		.debugfs_print_current_performance_level = &btc_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &rv770_dpm_force_performance_level,
 		.vblank_too_short = &btc_dpm_vblank_too_short,
 	},
@@ -1987,6 +1987,19 @@ static struct radeon_asic_ring ci_dma_ring = {
 	.set_wptr = &cik_sdma_set_wptr,
 };
 
+static struct radeon_asic_ring ci_vce_ring = {
+	.ib_execute = &radeon_vce_ib_execute,
+	.emit_fence = &radeon_vce_fence_emit,
+	.emit_semaphore = &radeon_vce_semaphore_emit,
+	.cs_parse = &radeon_vce_cs_parse,
+	.ring_test = &radeon_vce_ring_test,
+	.ib_test = &radeon_vce_ib_test,
+	.is_lockup = &radeon_ring_test_lockup,
+	.get_rptr = &vce_v1_0_get_rptr,
+	.get_wptr = &vce_v1_0_get_wptr,
+	.set_wptr = &vce_v1_0_set_wptr,
+};
+
 static struct radeon_asic ci_asic = {
 	.init = &cik_init,
 	.fini = &cik_fini,
@@ -2015,6 +2028,8 @@ static struct radeon_asic ci_asic = {
 		[R600_RING_TYPE_DMA_INDEX] = &ci_dma_ring,
 		[CAYMAN_RING_TYPE_DMA1_INDEX] = &ci_dma_ring,
 		[R600_RING_TYPE_UVD_INDEX] = &cayman_uvd_ring,
+		[TN_RING_TYPE_VCE1_INDEX] = &ci_vce_ring,
+		[TN_RING_TYPE_VCE2_INDEX] = &ci_vce_ring,
 	},
 	.irq = {
 		.set = &cik_irq_set,
@@ -2061,6 +2076,7 @@ static struct radeon_asic ci_asic = {
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
 		.set_uvd_clocks = &cik_set_uvd_clocks,
+		.set_vce_clocks = &cik_set_vce_clocks,
 		.get_temperature = &ci_get_temp,
 	},
 	.dpm = {
@@ -2117,6 +2133,8 @@ static struct radeon_asic kv_asic = {
 		[R600_RING_TYPE_DMA_INDEX] = &ci_dma_ring,
 		[CAYMAN_RING_TYPE_DMA1_INDEX] = &ci_dma_ring,
 		[R600_RING_TYPE_UVD_INDEX] = &cayman_uvd_ring,
+		[TN_RING_TYPE_VCE1_INDEX] = &ci_vce_ring,
+		[TN_RING_TYPE_VCE2_INDEX] = &ci_vce_ring,
 	},
 	.irq = {
 		.set = &cik_irq_set,
@@ -2163,6 +2181,7 @@ static struct radeon_asic kv_asic = {
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
 		.set_uvd_clocks = &cik_set_uvd_clocks,
+		.set_vce_clocks = &cik_set_vce_clocks,
 		.get_temperature = &kv_get_temp,
 	},
 	.dpm = {

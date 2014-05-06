@@ -63,25 +63,25 @@ static void __iomem *anatop_base;
 static void __iomem *ccm_base;
 
 /* sources for multiplexer clocks, this is used multiple times */
-static const char const *fast_sels[]	= { "firc", "fxosc", };
-static const char const *slow_sels[]	= { "sirc_32k", "sxosc", };
-static const char const *pll1_sels[]	= { "pll1_main", "pll1_pfd1", "pll1_pfd2", "pll1_pfd3", "pll1_pfd4", };
-static const char const *pll2_sels[]	= { "pll2_main", "pll2_pfd1", "pll2_pfd2", "pll2_pfd3", "pll2_pfd4", };
-static const char const *sys_sels[]	= { "fast_clk_sel", "slow_clk_sel", "pll2_pfd_sel", "pll2_main", "pll1_pfd_sel", "pll3_main", };
-static const char const *ddr_sels[]	= { "pll2_pfd2", "sys_sel", };
-static const char const *rmii_sels[]	= { "enet_ext", "audio_ext", "enet_50m", "enet_25m", };
-static const char const *enet_ts_sels[]	= { "enet_ext", "fxosc", "audio_ext", "usb", "enet_ts", "enet_25m", "enet_50m", };
-static const char const *esai_sels[]	= { "audio_ext", "mlb", "spdif_rx", "pll4_main_div", };
-static const char const *sai_sels[]	= { "audio_ext", "mlb", "spdif_rx", "pll4_main_div", };
-static const char const *nfc_sels[]	= { "platform_bus", "pll1_pfd1", "pll3_pfd1", "pll3_pfd3", };
-static const char const *qspi_sels[]	= { "pll3_main", "pll3_pfd4", "pll2_pfd4", "pll1_pfd4", };
-static const char const *esdhc_sels[]	= { "pll3_main", "pll3_pfd3", "pll1_pfd3", "platform_bus", };
-static const char const *dcu_sels[]	= { "pll1_pfd2", "pll3_main", };
-static const char const *gpu_sels[]	= { "pll2_pfd2", "pll3_pfd2", };
-static const char const *vadc_sels[]	= { "pll6_main_div", "pll3_main_div", "pll3_main", };
+static const char *fast_sels[]	= { "firc", "fxosc", };
+static const char *slow_sels[]	= { "sirc_32k", "sxosc", };
+static const char *pll1_sels[]	= { "pll1_main", "pll1_pfd1", "pll1_pfd2", "pll1_pfd3", "pll1_pfd4", };
+static const char *pll2_sels[]	= { "pll2_main", "pll2_pfd1", "pll2_pfd2", "pll2_pfd3", "pll2_pfd4", };
+static const char *sys_sels[]	= { "fast_clk_sel", "slow_clk_sel", "pll2_pfd_sel", "pll2_main", "pll1_pfd_sel", "pll3_main", };
+static const char *ddr_sels[]	= { "pll2_pfd2", "sys_sel", };
+static const char *rmii_sels[]	= { "enet_ext", "audio_ext", "enet_50m", "enet_25m", };
+static const char *enet_ts_sels[]	= { "enet_ext", "fxosc", "audio_ext", "usb", "enet_ts", "enet_25m", "enet_50m", };
+static const char *esai_sels[]	= { "audio_ext", "mlb", "spdif_rx", "pll4_main_div", };
+static const char *sai_sels[]	= { "audio_ext", "mlb", "spdif_rx", "pll4_main_div", };
+static const char *nfc_sels[]	= { "platform_bus", "pll1_pfd1", "pll3_pfd1", "pll3_pfd3", };
+static const char *qspi_sels[]	= { "pll3_main", "pll3_pfd4", "pll2_pfd4", "pll1_pfd4", };
+static const char *esdhc_sels[]	= { "pll3_main", "pll3_pfd3", "pll1_pfd3", "platform_bus", };
+static const char *dcu_sels[]	= { "pll1_pfd2", "pll3_main", };
+static const char *gpu_sels[]	= { "pll2_pfd2", "pll3_pfd2", };
+static const char *vadc_sels[]	= { "pll6_main_div", "pll3_main_div", "pll3_main", };
 /* FTM counter clock source, not module clock */
-static const char const *ftm_ext_sels[]	= {"sirc_128k", "sxosc", "fxosc_half", "audio_ext", };
-static const char const *ftm_fix_sels[]	= { "sxosc", "ipg_bus", };
+static const char *ftm_ext_sels[]	= {"sirc_128k", "sxosc", "fxosc_half", "audio_ext", };
+static const char *ftm_fix_sels[]	= { "sxosc", "ipg_bus", };
 
 static struct clk_div_table pll4_main_div_table[] = {
 	{ .val = 0, .div = 1 },

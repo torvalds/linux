@@ -361,7 +361,7 @@ static int wm8350_dcdc_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 
 	sel = regulator_map_voltage_linear(rdev, uV, uV);
 	if (sel < 0)
-		return -EINVAL;
+		return sel;
 
 	/* all DCDCs have same mV bits */
 	val = wm8350_reg_read(wm8350, volt_reg) & ~WM8350_DC1_VSEL_MASK;
@@ -574,7 +574,7 @@ static int wm8350_ldo_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 
 	sel = regulator_map_voltage_linear_range(rdev, uV, uV);
 	if (sel < 0)
-		return -EINVAL;
+		return sel;
 
 	/* all LDOs have same mV bits */
 	val = wm8350_reg_read(wm8350, volt_reg) & ~WM8350_LDO1_VSEL_MASK;

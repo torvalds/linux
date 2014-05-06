@@ -49,13 +49,13 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	brstats->tx_bytes += skb->len;
 	u64_stats_update_end(&brstats->syncp);
 
-	if (!br_allowed_ingress(br, br_get_vlan_info(br), skb, &vid))
-		goto out;
-
 	BR_INPUT_SKB_CB(skb)->brdev = dev;
 
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
+
+	if (!br_allowed_ingress(br, br_get_vlan_info(br), skb, &vid))
+		goto out;
 
 	if (is_broadcast_ether_addr(dest))
 		br_flood_deliver(br, skb, false);
@@ -88,17 +88,10 @@ out:
 static int br_dev_init(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
-	int i;
 
-	br->stats = alloc_percpu(struct pcpu_sw_netstats);
+	br->stats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!br->stats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct pcpu_sw_netstats *br_dev_stats;
-		br_dev_stats = per_cpu_ptr(br->stats, i);
-		u64_stats_init(&br_dev_stats->syncp);
-	}
 
 	return 0;
 }
@@ -143,9 +136,9 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 		const struct pcpu_sw_netstats *bstats
 			= per_cpu_ptr(br->stats, cpu);
 		do {
-			start = u64_stats_fetch_begin_bh(&bstats->syncp);
+			start = u64_stats_fetch_begin_irq(&bstats->syncp);
 			memcpy(&tmp, bstats, sizeof(tmp));
-		} while (u64_stats_fetch_retry_bh(&bstats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&bstats->syncp, start));
 		sum.tx_bytes   += tmp.tx_bytes;
 		sum.tx_packets += tmp.tx_packets;
 		sum.rx_bytes   += tmp.rx_bytes;
@@ -187,8 +180,7 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 
 	spin_lock_bh(&br->lock);
 	if (!ether_addr_equal(dev->dev_addr, addr->sa_data)) {
-		memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-		br_fdb_change_mac_address(br, addr->sa_data);
+		/* Mac address will be changed in br_stp_change_bridge_id(). */
 		br_stp_change_bridge_id(br, addr->sa_data);
 	}
 	spin_unlock_bh(&br->lock);
@@ -226,8 +218,34 @@ static void br_netpoll_cleanup(struct net_device *dev)
 		br_netpoll_disable(p);
 }
 
-static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni,
-			    gfp_t gfp)
+static int __br_netpoll_enable(struct net_bridge_port *p)
+{
+	struct netpoll *np;
+	int err;
+
+	np = kzalloc(sizeof(*p->np), GFP_KERNEL);
+	if (!np)
+		return -ENOMEM;
+
+	err = __netpoll_setup(np, p->dev);
+	if (err) {
+		kfree(np);
+		return err;
+	}
+
+	p->np = np;
+	return err;
+}
+
+int br_netpoll_enable(struct net_bridge_port *p)
+{
+	if (!p->br->dev->npinfo)
+		return 0;
+
+	return __br_netpoll_enable(p);
+}
+
+static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *p;
@@ -236,7 +254,7 @@ static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni,
 	list_for_each_entry(p, &br->port_list, list) {
 		if (!p->dev)
 			continue;
-		err = br_netpoll_enable(p, gfp);
+		err = __br_netpoll_enable(p);
 		if (err)
 			goto fail;
 	}
@@ -247,28 +265,6 @@ out:
 fail:
 	br_netpoll_cleanup(dev);
 	goto out;
-}
-
-int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
-{
-	struct netpoll *np;
-	int err;
-
-	if (!p->br->dev->npinfo)
-		return 0;
-
-	np = kzalloc(sizeof(*p->np), gfp);
-	if (!np)
-		return -ENOMEM;
-
-	err = __netpoll_setup(np, p->dev, gfp);
-	if (err) {
-		kfree(np);
-		return err;
-	}
-
-	p->np = np;
-	return err;
 }
 
 void br_netpoll_disable(struct net_bridge_port *p)
@@ -370,7 +366,7 @@ void br_dev_setup(struct net_device *dev)
 	br->bridge_id.prio[0] = 0x80;
 	br->bridge_id.prio[1] = 0x00;
 
-	memcpy(br->group_addr, eth_reserved_addr_base, ETH_ALEN);
+	ether_addr_copy(br->group_addr, eth_reserved_addr_base);
 
 	br->stp_enabled = BR_NO_STP;
 	br->group_fwd_mask = BR_GROUPFWD_DEFAULT;

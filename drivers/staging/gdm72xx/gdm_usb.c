@@ -55,22 +55,6 @@ static int k_mode_stop;
 static int init_usb(struct usbwm_dev *udev);
 static void release_usb(struct usbwm_dev *udev);
 
-/*#define DEBUG */
-#ifdef DEBUG
-static void hexdump(char *title, u8 *data, int len)
-{
-	int i;
-
-	printk(KERN_DEBUG "%s: length = %d\n", title, len);
-	for (i = 0; i < len; i++) {
-		printk(KERN_DEBUG "%02x ", data[i]);
-		if ((i & 0xf) == 0xf)
-			printk(KERN_DEBUG "\n");
-	}
-	printk(KERN_DEBUG "\n");
-}
-#endif
-
 static struct usb_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
 	struct usb_tx *t = kzalloc(sizeof(*t), GFP_ATOMIC);
@@ -368,9 +352,8 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 			gdm_usb_send_complete,
 			t);
 
-#ifdef DEBUG
-	hexdump("usb_send", t->buf, len + padding);
-#endif
+	print_hex_dump_debug("usb_send: ", DUMP_PREFIX_NONE, 16, 1,
+			     t->buf, len + padding, false);
 #ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	if (usbdev->state & USB_STATE_SUSPENDED) {
 		list_add_tail(&t->p_list, &tx->pending_list);
@@ -438,10 +421,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 	struct usb_tx *t;
 	u16 cmd_evt;
 	unsigned long flags, flags2;
-
-#ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	struct usb_device *dev = urb->dev;
-#endif
 
 	/* Completion by usb_unlink_urb */
 	if (urb->status == -ECONNRESET)
@@ -451,20 +431,15 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 
 	if (!urb->status) {
 		cmd_evt = (r->buf[0] << 8) | (r->buf[1]);
-#ifdef DEBUG
-		hexdump("usb_receive", r->buf, urb->actual_length);
-#endif
+		print_hex_dump_debug("usb_receive: ", DUMP_PREFIX_NONE, 16, 1,
+				     r->buf, urb->actual_length, false);
 		if (cmd_evt == WIMAX_SDU_TX_FLOW) {
 			if (r->buf[4] == 0) {
-#ifdef DEBUG
-				printk(KERN_DEBUG "WIMAX ==> STOP SDU TX\n");
-#endif
+				dev_dbg(&dev->dev, "WIMAX ==> STOP SDU TX\n");
 				list_for_each_entry(t, &tx->sdu_list, list)
 					usb_unlink_urb(t->urb);
 			} else if (r->buf[4] == 1) {
-#ifdef DEBUG
-				printk(KERN_DEBUG "WIMAX ==> START SDU TX\n");
-#endif
+				dev_dbg(&dev->dev, "WIMAX ==> START SDU TX\n");
 				list_for_each_entry(t, &tx->sdu_list, list) {
 					usb_submit_urb(t->urb, GFP_ATOMIC);
 				}
@@ -635,11 +610,14 @@ static int gdm_usb_probe(struct usb_interface *intf,
 #endif /* CONFIG_WIMAX_GDM72XX_USB_PM */
 
 	ret = register_wimax_device(phy_dev, &intf->dev);
+	if (ret)
+		release_usb(udev);
 
 out:
 	if (ret) {
 		kfree(phy_dev);
 		kfree(udev);
+		usb_put_dev(usbdev);
 	} else {
 		usb_set_intfdata(intf, phy_dev);
 	}

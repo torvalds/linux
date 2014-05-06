@@ -1,7 +1,8 @@
 * Allwinner A10 MDIO Ethernet Controller interface
 
 Required properties:
-- compatible: should be "allwinner,sun4i-mdio".
+- compatible: should be "allwinner,sun4i-a10-mdio"
+              (Deprecated: "allwinner,sun4i-mdio").
 - reg: address and length of the register set for the device.
 
 Optional properties:
@@ -9,7 +10,7 @@ Optional properties:
 
 Example at the SoC level:
 mdio@01c0b080 {
-	compatible = "allwinner,sun4i-mdio";
+	compatible = "allwinner,sun4i-a10-mdio";
 	reg = <0x01c0b080 0x14>;
 	#address-cells = <1>;
 	#size-cells = <0>;

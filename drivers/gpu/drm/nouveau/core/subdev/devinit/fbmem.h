@@ -24,6 +24,8 @@
  *
  */
 
+#include <core/device.h>
+
 #define NV04_PFB_BOOT_0						0x00100000
 #	define NV04_PFB_BOOT_0_RAM_AMOUNT			0x00000003
 #	define NV04_PFB_BOOT_0_RAM_AMOUNT_32MB			0x00000000
@@ -60,10 +62,10 @@
 #	define NV10_PFB_REFCTRL_VALID_1				(1 << 31)
 
 static inline struct io_mapping *
-fbmem_init(struct pci_dev *pdev)
+fbmem_init(struct nouveau_device *dev)
 {
-	return io_mapping_create_wc(pci_resource_start(pdev, 1),
-				    pci_resource_len(pdev, 1));
+	return io_mapping_create_wc(nv_device_resource_start(dev, 1),
+				    nv_device_resource_len(dev, 1));
 }
 
 static inline void

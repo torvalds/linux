@@ -52,7 +52,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/timer.h>
 
-u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
+__visible u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
@@ -81,6 +81,7 @@ struct tvec_base {
 	unsigned long timer_jiffies;
 	unsigned long next_timer;
 	unsigned long active_timers;
+	unsigned long all_timers;
 	struct tvec_root tv1;
 	struct tvec tv2;
 	struct tvec tv3;
@@ -337,6 +338,20 @@ void set_timer_slack(struct timer_list *timer, int slack_hz)
 }
 EXPORT_SYMBOL_GPL(set_timer_slack);
 
+/*
+ * If the list is empty, catch up ->timer_jiffies to the current time.
+ * The caller must hold the tvec_base lock.  Returns true if the list
+ * was empty and therefore ->timer_jiffies was updated.
+ */
+static bool catchup_timer_jiffies(struct tvec_base *base)
+{
+	if (!base->all_timers) {
+		base->timer_jiffies = jiffies;
+		return true;
+	}
+	return false;
+}
+
 static void
 __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 {
@@ -383,15 +398,17 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 
 static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 {
+	(void)catchup_timer_jiffies(base);
 	__internal_add_timer(base, timer);
 	/*
 	 * Update base->active_timers and base->next_timer
 	 */
 	if (!tbase_get_deferrable(timer->base)) {
-		if (time_before(timer->expires, base->next_timer))
+		if (!base->active_timers++ ||
+		    time_before(timer->expires, base->next_timer))
 			base->next_timer = timer->expires;
-		base->active_timers++;
 	}
+	base->all_timers++;
 }
 
 #ifdef CONFIG_TIMER_STATS
@@ -671,6 +688,8 @@ detach_expired_timer(struct timer_list *timer, struct tvec_base *base)
 	detach_timer(timer, true);
 	if (!tbase_get_deferrable(timer->base))
 		base->active_timers--;
+	base->all_timers--;
+	(void)catchup_timer_jiffies(base);
 }
 
 static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
@@ -685,6 +704,8 @@ static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
 		if (timer->expires == base->next_timer)
 			base->next_timer = base->timer_jiffies;
 	}
+	base->all_timers--;
+	(void)catchup_timer_jiffies(base);
 	return 1;
 }
 
@@ -739,12 +760,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 
 	debug_activate(timer, expires);
 
-	cpu = smp_processor_id();
-
-#if defined(CONFIG_NO_HZ_COMMON) && defined(CONFIG_SMP)
-	if (!pinned && get_sysctl_timer_migration() && idle_cpu(cpu))
-		cpu = get_nohz_timer_target();
-#endif
+	cpu = get_nohz_timer_target(pinned);
 	new_base = per_cpu(tvec_bases, cpu);
 
 	if (base != new_base) {
@@ -939,8 +955,15 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	 * with the timer by holding the timer base lock. This also
 	 * makes sure that a CPU on the way to stop its tick can not
 	 * evaluate the timer wheel.
+	 *
+	 * Spare the IPI for deferrable timers on idle targets though.
+	 * The next busy ticks will take care of it. Except full dynticks
+	 * require special care against races with idle_cpu(), lets deal
+	 * with that later.
 	 */
-	wake_up_nohz_cpu(cpu);
+	if (!tbase_get_deferrable(timer->base) || tick_nohz_full_cpu(cpu))
+		wake_up_nohz_cpu(cpu);
+
 	spin_unlock_irqrestore(&base->lock, flags);
 }
 EXPORT_SYMBOL_GPL(add_timer_on);
@@ -1146,6 +1169,10 @@ static inline void __run_timers(struct tvec_base *base)
 	struct timer_list *timer;
 
 	spin_lock_irq(&base->lock);
+	if (catchup_timer_jiffies(base)) {
+		spin_unlock_irq(&base->lock);
+		return;
+	}
 	while (time_after_eq(jiffies, base->timer_jiffies)) {
 		struct list_head work_list;
 		struct list_head *head = &work_list;
@@ -1160,7 +1187,7 @@ static inline void __run_timers(struct tvec_base *base)
 					!cascade(base, &base->tv4, INDEX(2)))
 			cascade(base, &base->tv5, INDEX(3));
 		++base->timer_jiffies;
-		list_replace_init(base->tv1.vec + index, &work_list);
+		list_replace_init(base->tv1.vec + index, head);
 		while (!list_empty(head)) {
 			void (*fn)(unsigned long);
 			unsigned long data;
@@ -1523,9 +1550,8 @@ static int init_timers_cpu(int cpu)
 			if (!base)
 				return -ENOMEM;
 
-			/* Make sure that tvec_base is 2 byte aligned */
-			if (tbase_get_deferrable(base)) {
-				WARN_ON(1);
+			/* Make sure tvec_base has TIMER_FLAG_MASK bits free */
+			if (WARN_ON(base != tbase_get_base(base))) {
 				kfree(base);
 				return -ENOMEM;
 			}
@@ -1559,6 +1585,7 @@ static int init_timers_cpu(int cpu)
 	base->timer_jiffies = jiffies;
 	base->next_timer = base->timer_jiffies;
 	base->active_timers = 0;
+	base->all_timers = 0;
 	return 0;
 }
 
@@ -1648,9 +1675,9 @@ void __init init_timers(void)
 
 	err = timer_cpu_notify(&timers_nb, (unsigned long)CPU_UP_PREPARE,
 			       (void *)(long)smp_processor_id());
-	init_timer_stats();
-
 	BUG_ON(err != NOTIFY_OK);
+
+	init_timer_stats();
 	register_cpu_notifier(&timers_nb);
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq);
 }

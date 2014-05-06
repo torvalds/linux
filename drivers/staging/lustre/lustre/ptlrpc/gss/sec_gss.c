@@ -382,7 +382,7 @@ void gss_cli_ctx_uptodate(struct gss_cli_ctx *gctx)
 	/* At this point this ctx might have been marked as dead by
 	 * someone else, in which case nobody will make further use
 	 * of it. we don't care, and mark it UPTODATE will help
-	 * destroying server side context when it be destroied. */
+	 * destroying server side context when it be destroyed. */
 	set_bit(PTLRPC_CTX_UPTODATE_BIT, &ctx->cc_flags);
 
 	if (sec_is_reverse(ctx->cc_sec)) {
@@ -676,7 +676,7 @@ redo:
 	 * lead to the sequence number fall behind the window on server and
 	 * be dropped. also applies to gss_cli_ctx_seal().
 	 *
-	 * Note: null mode dosen't check sequence number. */
+	 * Note: null mode doesn't check sequence number. */
 	if (svc != SPTLRPC_SVC_NULL &&
 	    atomic_read(&gctx->gc_seq) - seq > GSS_SEQ_REPACK_THRESHOLD) {
 		int behind = atomic_read(&gctx->gc_seq) - seq;
@@ -1215,7 +1215,7 @@ int gss_cli_ctx_fini_common(struct ptlrpc_sec *sec,
 	/*
 	 * remove UPTODATE flag of reverse ctx thus we won't send fini rpc,
 	 * this is to avoid potential problems of client side reverse svc ctx
-	 * be mis-destroyed in various recovery senarios. anyway client can
+	 * be mis-destroyed in various recovery scenarios. anyway client can
 	 * manage its reverse ctx well by associating it with its buddy ctx.
 	 */
 	if (sec_is_reverse(sec))
@@ -1882,7 +1882,7 @@ int gss_svc_sign(struct ptlrpc_request *req,
 
 	LASSERT(rs->rs_msg == lustre_msg_buf(rs->rs_repbuf, 1, 0));
 
-	/* embedded lustre_msg might have been shrinked */
+	/* embedded lustre_msg might have been shrunk */
 	if (req->rq_replen != rs->rs_repbuf->lm_buflens[1])
 		lustre_shrink_msg(rs->rs_repbuf, 1, req->rq_replen, 1);
 
@@ -2596,7 +2596,7 @@ static int gss_svc_seal(struct ptlrpc_request *req,
 	int		      msglen, rc;
 
 	/* get clear data length. note embedded lustre_msg might
-	 * have been shrinked */
+	 * have been shrunk */
 	if (req->rq_replen != lustre_msg_buflen(rs->rs_repbuf, 0))
 		msglen = lustre_shrink_msg(rs->rs_repbuf, 0, req->rq_replen, 1);
 	else
@@ -2765,7 +2765,7 @@ int gss_copy_rvc_cli_ctx(struct ptlrpc_cli_ctx *cli_ctx,
 	 * replay.
 	 *
 	 * each reverse root ctx will record its latest sequence number on its
-	 * buddy svcctx before be destroied, so here we continue use it.
+	 * buddy svcctx before be destroyed, so here we continue use it.
 	 */
 	atomic_set(&cli_gctx->gc_seq, svc_gctx->gsc_rvs_seq);
 
@@ -2836,7 +2836,7 @@ int __init sptlrpc_gss_init(void)
 	if (rc)
 		goto out_svc_upcall;
 
-	/* register policy after all other stuff be intialized, because it
+	/* register policy after all other stuff be initialized, because it
 	 * might be in used immediately after the registration. */
 
 	rc = gss_init_keyring();

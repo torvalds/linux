@@ -23,6 +23,7 @@
 
 #include "odm_precomp.h"
 #include "rtl8188e_hal.h"
+#include <linux/vmalloc.h>
 
 u32 read_macreg(struct adapter *padapter, u32 addr, u32 sz)
 {
@@ -406,7 +407,7 @@ s32 mp_start_test(struct adapter *padapter)
 		goto end_of_mp_start_test;
 	}
 
-	/* 3 3. join psudo AdHoc */
+	/* 3 3. join pseudo AdHoc */
 	tgt_network->join_res = 1;
 	tgt_network->aid = 1;
 	psta->aid = 1;
@@ -442,7 +443,7 @@ void mp_stop_test(struct adapter *padapter)
 		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)
 			goto end_of_mp_stop_test;
 
-		/* 3 1. disconnect psudo AdHoc */
+		/* 3 1. disconnect pseudo AdHoc */
 		rtw_indicate_disconnect(padapter);
 
 		/* 3 2. clear psta used in mp test mode. */
@@ -882,7 +883,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 {
 	u32 i, psd_pts = 0, psd_start = 0, psd_stop = 0;
 	u32 psd_data = 0;
-
+	int ret;
 
 	if (!netif_running(pAdapter->pnetdev)) {
 		RT_TRACE(_module_mp_, _drv_warning_, ("mp_query_psd: Fail! interface not opened!\n"));
@@ -899,7 +900,10 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 		psd_start = 64;
 		psd_stop = 128;
 	} else {
-		sscanf(data, "pts =%d, start =%d, stop =%d", &psd_pts, &psd_start, &psd_stop);
+		ret = sscanf(data, "pts =%d, start =%d, stop =%d",
+				&psd_pts, &psd_start, &psd_stop);
+		if (ret != 3)
+			return 0;
 	}
 
 	_rtw_memset(data, '\0', sizeof(*data));
@@ -943,7 +947,7 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 	}
 
 	if (pxmitpriv->pallocated_xmit_extbuf)
-		rtw_vmfree(pxmitpriv->pallocated_xmit_extbuf, num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
+		vfree(pxmitpriv->pallocated_xmit_extbuf);
 
 	if (padapter->registrypriv.mp_mode == 0) {
 		max_xmit_extbuf_size = 20000;
@@ -956,7 +960,7 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 	/*  Init xmit extension buff */
 	_rtw_init_queue(&pxmitpriv->free_xmit_extbuf_queue);
 
-	pxmitpriv->pallocated_xmit_extbuf = rtw_zvmalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
+	pxmitpriv->pallocated_xmit_extbuf = vzalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
 
 	if (pxmitpriv->pallocated_xmit_extbuf  == NULL) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("alloc xmit_extbuf fail!\n"));

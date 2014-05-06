@@ -11,6 +11,7 @@
 #include <net/ip.h>
 #include <net/dsfield.h>
 #include <linux/if_vlan.h>
+#include <linux/mpls.h>
 #include "core.h"
 #include "rdev-ops.h"
 
@@ -717,6 +718,21 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 	case htons(ETH_P_IPV6):
 		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) & 0xfc;
 		break;
+	case htons(ETH_P_MPLS_UC):
+	case htons(ETH_P_MPLS_MC): {
+		struct mpls_label mpls_tmp, *mpls;
+
+		mpls = skb_header_pointer(skb, sizeof(struct ethhdr),
+					  sizeof(*mpls), &mpls_tmp);
+		if (!mpls)
+			return 0;
+
+		return (ntohl(mpls->entry) & MPLS_LS_TC_MASK)
+			>> MPLS_LS_TC_SHIFT;
+	}
+	case htons(ETH_P_80221):
+		/* 802.21 is always network control traffic */
+		return 7;
 	default:
 		return 0;
 	}
@@ -754,7 +770,7 @@ EXPORT_SYMBOL(ieee80211_bss_get_ie);
 
 void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct net_device *dev = wdev->netdev;
 	int i;
 
@@ -872,11 +888,6 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		return -EBUSY;
 
 	if (ntype != otype && netif_running(dev)) {
-		err = cfg80211_can_change_interface(rdev, dev->ieee80211_ptr,
-						    ntype);
-		if (err)
-			return err;
-
 		dev->ieee80211_ptr->use_4addr = false;
 		dev->ieee80211_ptr->mesh_id_up_len = 0;
 		wdev_lock(dev->ieee80211_ptr);
@@ -1252,6 +1263,106 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 	return res;
 }
 
+int cfg80211_iter_combinations(struct wiphy *wiphy,
+			       const int num_different_channels,
+			       const u8 radar_detect,
+			       const int iftype_num[NUM_NL80211_IFTYPES],
+			       void (*iter)(const struct ieee80211_iface_combination *c,
+					    void *data),
+			       void *data)
+{
+	int i, j, iftype;
+	int num_interfaces = 0;
+	u32 used_iftypes = 0;
+
+	for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
+		num_interfaces += iftype_num[iftype];
+		if (iftype_num[iftype] > 0 &&
+		    !(wiphy->software_iftypes & BIT(iftype)))
+			used_iftypes |= BIT(iftype);
+	}
+
+	for (i = 0; i < wiphy->n_iface_combinations; i++) {
+		const struct ieee80211_iface_combination *c;
+		struct ieee80211_iface_limit *limits;
+		u32 all_iftypes = 0;
+
+		c = &wiphy->iface_combinations[i];
+
+		if (num_interfaces > c->max_interfaces)
+			continue;
+		if (num_different_channels > c->num_different_channels)
+			continue;
+
+		limits = kmemdup(c->limits, sizeof(limits[0]) * c->n_limits,
+				 GFP_KERNEL);
+		if (!limits)
+			return -ENOMEM;
+
+		for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
+			if (wiphy->software_iftypes & BIT(iftype))
+				continue;
+			for (j = 0; j < c->n_limits; j++) {
+				all_iftypes |= limits[j].types;
+				if (!(limits[j].types & BIT(iftype)))
+					continue;
+				if (limits[j].max < iftype_num[iftype])
+					goto cont;
+				limits[j].max -= iftype_num[iftype];
+			}
+		}
+
+		if (radar_detect != (c->radar_detect_widths & radar_detect))
+			goto cont;
+
+		/* Finally check that all iftypes that we're currently
+		 * using are actually part of this combination. If they
+		 * aren't then we can't use this combination and have
+		 * to continue to the next.
+		 */
+		if ((all_iftypes & used_iftypes) != used_iftypes)
+			goto cont;
+
+		/* This combination covered all interface types and
+		 * supported the requested numbers, so we're good.
+		 */
+
+		(*iter)(c, data);
+ cont:
+		kfree(limits);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(cfg80211_iter_combinations);
+
+static void
+cfg80211_iter_sum_ifcombs(const struct ieee80211_iface_combination *c,
+			  void *data)
+{
+	int *num = data;
+	(*num)++;
+}
+
+int cfg80211_check_combinations(struct wiphy *wiphy,
+				const int num_different_channels,
+				const u8 radar_detect,
+				const int iftype_num[NUM_NL80211_IFTYPES])
+{
+	int err, num = 0;
+
+	err = cfg80211_iter_combinations(wiphy, num_different_channels,
+					 radar_detect, iftype_num,
+					 cfg80211_iter_sum_ifcombs, &num);
+	if (err)
+		return err;
+	if (num == 0)
+		return -EBUSY;
+
+	return 0;
+}
+EXPORT_SYMBOL(cfg80211_check_combinations);
+
 int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev,
 				 enum nl80211_iftype iftype,
@@ -1260,7 +1371,6 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				 u8 radar_detect)
 {
 	struct wireless_dev *wdev_iter;
-	u32 used_iftypes = BIT(iftype);
 	int num[NUM_NL80211_IFTYPES];
 	struct ieee80211_channel
 			*used_channels[CFG80211_MAX_NUM_DIFFERENT_CHANNELS];
@@ -1268,7 +1378,7 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 	enum cfg80211_chan_mode chmode;
 	int num_different_channels = 0;
 	int total = 1;
-	int i, j;
+	int i;
 
 	ASSERT_RTNL();
 
@@ -1290,6 +1400,11 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 
 	num[iftype] = 1;
 
+	/* TODO: We'll probably not need this anymore, since this
+	 * should only be called with CHAN_MODE_UNDEFINED. There are
+	 * still a couple of pending calls where other chanmodes are
+	 * used, but we should get rid of them.
+	 */
 	switch (chanmode) {
 	case CHAN_MODE_UNDEFINED:
 		break;
@@ -1353,65 +1468,13 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 
 		num[wdev_iter->iftype]++;
 		total++;
-		used_iftypes |= BIT(wdev_iter->iftype);
 	}
 
 	if (total == 1 && !radar_detect)
 		return 0;
 
-	for (i = 0; i < rdev->wiphy.n_iface_combinations; i++) {
-		const struct ieee80211_iface_combination *c;
-		struct ieee80211_iface_limit *limits;
-		u32 all_iftypes = 0;
-
-		c = &rdev->wiphy.iface_combinations[i];
-
-		if (total > c->max_interfaces)
-			continue;
-		if (num_different_channels > c->num_different_channels)
-			continue;
-
-		limits = kmemdup(c->limits, sizeof(limits[0]) * c->n_limits,
-				 GFP_KERNEL);
-		if (!limits)
-			return -ENOMEM;
-
-		for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
-			if (rdev->wiphy.software_iftypes & BIT(iftype))
-				continue;
-			for (j = 0; j < c->n_limits; j++) {
-				all_iftypes |= limits[j].types;
-				if (!(limits[j].types & BIT(iftype)))
-					continue;
-				if (limits[j].max < num[iftype])
-					goto cont;
-				limits[j].max -= num[iftype];
-			}
-		}
-
-		if (radar_detect && !(c->radar_detect_widths & radar_detect))
-			goto cont;
-
-		/*
-		 * Finally check that all iftypes that we're currently
-		 * using are actually part of this combination. If they
-		 * aren't then we can't use this combination and have
-		 * to continue to the next.
-		 */
-		if ((all_iftypes & used_iftypes) != used_iftypes)
-			goto cont;
-
-		/*
-		 * This combination covered all interface types and
-		 * supported the requested numbers, so we're good.
-		 */
-		kfree(limits);
-		return 0;
- cont:
-		kfree(limits);
-	}
-
-	return -EBUSY;
+	return cfg80211_check_combinations(&rdev->wiphy, num_different_channels,
+					   radar_detect, num);
 }
 
 int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,

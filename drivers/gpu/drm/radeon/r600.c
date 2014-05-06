@@ -1748,11 +1748,9 @@ bool r600_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	if (!(reset_mask & (RADEON_RESET_GFX |
 			    RADEON_RESET_COMPUTE |
 			    RADEON_RESET_CP))) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
@@ -2604,8 +2602,6 @@ int r600_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB_BASE, ring->gpu_addr >> 8);
 	WREG32(CP_DEBUG, (1 << 27) | (1 << 28));
 
-	ring->rptr = RREG32(CP_RB_RPTR);
-
 	r600_cp_start(rdev);
 	ring->ready = true;
 	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, ring);
@@ -2968,7 +2964,8 @@ int r600_resume(struct radeon_device *rdev)
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
 
-	radeon_pm_resume(rdev);
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_resume(rdev);
 
 	rdev->accel_working = true;
 	r = r600_startup(rdev);
@@ -3990,6 +3987,10 @@ restart_ih:
 				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
+			break;
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
 			break;
 		case 176: /* CP_INT in ring buffer */
 		case 177: /* CP_INT in IB1 */

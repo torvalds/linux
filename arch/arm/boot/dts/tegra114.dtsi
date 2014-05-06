@@ -57,6 +57,8 @@
 			resets = <&tegra_car 27>;
 			reset-names = "dc";
 
+			nvidia,head = <0>;
+
 			rgb {
 				status = "disabled";
 			};
@@ -71,6 +73,8 @@
 			clock-names = "dc", "parent";
 			resets = <&tegra_car 26>;
 			reset-names = "dc";
+
+			nvidia,head = <1>;
 
 			rgb {
 				status = "disabled";
@@ -600,7 +604,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC1>;
 		resets = <&tegra_car 14>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000200 {
@@ -610,7 +614,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC2>;
 		resets = <&tegra_car 9>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000400 {
@@ -620,7 +624,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC3>;
 		resets = <&tegra_car 69>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000600 {
@@ -630,7 +634,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC4>;
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	usb@7d000000 {

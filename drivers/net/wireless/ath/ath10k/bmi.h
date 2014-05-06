@@ -217,7 +217,7 @@ int ath10k_bmi_write_memory(struct ath10k *ar, u32 address,
 		ret;							\
 	})
 
-int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 *param);
+int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 param, u32 *result);
 int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address);
 int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length);
 int ath10k_bmi_fast_download(struct ath10k *ar, u32 address,

@@ -472,7 +472,7 @@ am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 	if (am_readword(dev, priv->txhdr + (priv->txhead << 3) + 2) & TMD_OWN)
 		netif_stop_queue(dev);
 
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }

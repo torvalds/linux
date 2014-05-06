@@ -20,6 +20,7 @@ config PPC_PSERIES
 	select PPC_DOORBELL
 	select HAVE_CONTEXT_TRACKING
 	select HOTPLUG_CPU if SMP
+	select ARCH_RANDOM
 	default y
 
 config PPC_SPLPAR
@@ -109,6 +110,18 @@ config CMM
 	  makes sense for a system running in an LPAR where the unused pages
 	  will be reused for other LPARs. The interface allows firmware to
 	  balance memory across many LPARs.
+
+config HV_PERF_CTRS
+       bool "Hypervisor supplied PMU events (24x7 & GPCI)"
+       default y
+       depends on PERF_EVENTS && PPC_PSERIES
+       help
+	  Enable access to hypervisor supplied counters in perf. Currently,
+	  this enables code that uses the hcall GetPerfCounterInfo and 24x7
+	  interfaces to retrieve counters. GPCI exists on Power 6 and later
+	  systems. 24x7 is available on Power 8 systems.
+
+          If unsure, select Y.
 
 config DTL
 	bool "Dispatch Trace Log"

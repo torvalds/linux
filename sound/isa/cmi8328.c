@@ -293,15 +293,14 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	}
 	outb(val, port);
 
-	err = snd_card_create(index[ndev], id[ndev], THIS_MODULE,
-				sizeof(struct snd_cmi8328), &card);
+	err = snd_card_new(pdev, index[ndev], id[ndev], THIS_MODULE,
+			   sizeof(struct snd_cmi8328), &card);
 	if (err < 0)
 		return err;
 	cmi = card->private_data;
 	cmi->card = card;
 	cmi->port = port;
 	cmi->wss_cfg = val;
-	snd_card_set_dev(card, pdev);
 
 	err = snd_wss_create(card, port + 4, -1, irq[ndev], dma1[ndev],
 			dma2[ndev], WSS_HW_DETECT, 0, &cmi->wss);

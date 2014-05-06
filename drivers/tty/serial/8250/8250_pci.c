@@ -783,7 +783,8 @@ static int pci_netmos_9900_setup(struct serial_private *priv,
 {
 	unsigned int bar;
 
-	if ((priv->dev->subsystem_device & 0xff00) == 0x3000) {
+	if ((priv->dev->device != PCI_DEVICE_ID_NETMOS_9865) &&
+	    (priv->dev->subsystem_device & 0xff00) == 0x3000) {
 		/* netmos apparently orders BARs by datasheet layout, so serial
 		 * ports get BARs 0 and 3 (or 1 and 4 for memmapped)
 		 */
@@ -1365,23 +1366,44 @@ byt_set_termios(struct uart_port *p, struct ktermios *termios,
 		struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
-	unsigned int m = 6912;
-	unsigned int n = 15625;
+	unsigned int m, n;
 	u32 reg;
 
-	/* For baud rates 1M, 2M, 3M and 4M the dividers must be adjusted. */
-	if (baud == 1000000 || baud == 2000000 || baud == 4000000) {
+	/*
+	 * For baud rates 0.5M, 1M, 1.5M, 2M, 2.5M, 3M, 3.5M and 4M the
+	 * dividers must be adjusted.
+	 *
+	 * uartclk = (m / n) * 100 MHz, where m <= n
+	 */
+	switch (baud) {
+	case 500000:
+	case 1000000:
+	case 2000000:
+	case 4000000:
 		m = 64;
 		n = 100;
-
 		p->uartclk = 64000000;
-	} else if (baud == 3000000) {
+		break;
+	case 3500000:
+		m = 56;
+		n = 100;
+		p->uartclk = 56000000;
+		break;
+	case 1500000:
+	case 3000000:
 		m = 48;
 		n = 100;
-
 		p->uartclk = 48000000;
-	} else {
-		p->uartclk = 44236800;
+		break;
+	case 2500000:
+		m = 40;
+		n = 100;
+		p->uartclk = 40000000;
+		break;
+	default:
+		m = 2304;
+		n = 3125;
+		p->uartclk = 73728000;
 	}
 
 	/* Reset the clock */
@@ -3448,6 +3470,10 @@ static struct pciserial_board pci_boards[] = {
 		.base_baud	= 921600,
 		.reg_shift      = 2,
 	},
+	/*
+	 * Intel BayTrail HSUART reference clock is 44.2368 MHz at power-on,
+	 * but is overridden by byt_set_termios.
+	 */
 	[pbn_byt] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,

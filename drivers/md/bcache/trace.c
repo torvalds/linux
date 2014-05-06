@@ -45,7 +45,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_split);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_compact);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_set_root);
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_alloc_invalidate);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_invalidate);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_alloc_fail);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_writeback);

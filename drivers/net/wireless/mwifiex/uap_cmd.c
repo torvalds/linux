@@ -175,17 +175,19 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 		switch (GET_RXSTBC(cap_info)) {
 		case MWIFIEX_RX_STBC1:
 			/* HT_CAP 1X1 mode */
-			memset(&bss_cfg->ht_cap.mcs, 0xff, 1);
+			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
 			break;
 		case MWIFIEX_RX_STBC12:	/* fall through */
 		case MWIFIEX_RX_STBC123:
 			/* HT_CAP 2X2 mode */
-			memset(&bss_cfg->ht_cap.mcs, 0xff, 2);
+			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
+			bss_cfg->ht_cap.mcs.rx_mask[1] = 0xff;
 			break;
 		default:
 			dev_warn(priv->adapter->dev,
 				 "Unsupported RX-STBC, default to 2x2\n");
-			memset(&bss_cfg->ht_cap.mcs, 0xff, 2);
+			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
+			bss_cfg->ht_cap.mcs.rx_mask[1] = 0xff;
 			break;
 		}
 		priv->ap_11n_enabled = 1;

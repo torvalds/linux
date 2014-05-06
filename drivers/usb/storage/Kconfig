@@ -18,7 +18,9 @@ config USB_STORAGE
 
 	  This option depends on 'SCSI' support being enabled, but you
 	  probably also need 'SCSI device support: SCSI disk support'
-	  (BLK_DEV_SD) for most USB storage devices.
+	  (BLK_DEV_SD) for most USB storage devices.  Some devices also
+	  will require 'Probe all LUNs on each SCSI device'
+	  (SCSI_MULTI_LUN).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usb-storage.
@@ -202,7 +204,7 @@ config USB_STORAGE_ENE_UB6250
 
 config USB_UAS
 	tristate "USB Attached SCSI"
-	depends on SCSI && BROKEN
+	depends on SCSI && USB_STORAGE
 	help
 	  The USB Attached SCSI protocol is supported by some USB
 	  storage devices.  It permits higher performance by supporting

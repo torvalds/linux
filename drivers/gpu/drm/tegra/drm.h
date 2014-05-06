@@ -179,12 +179,14 @@ struct tegra_output_ops {
 	int (*check_mode)(struct tegra_output *output,
 			  struct drm_display_mode *mode,
 			  enum drm_mode_status *status);
+	enum drm_connector_status (*detect)(struct tegra_output *output);
 };
 
 enum tegra_output_type {
 	TEGRA_OUTPUT_RGB,
 	TEGRA_OUTPUT_HDMI,
 	TEGRA_OUTPUT_DSI,
+	TEGRA_OUTPUT_EDP,
 };
 
 struct tegra_output {
@@ -265,6 +267,22 @@ extern int tegra_output_remove(struct tegra_output *output);
 extern int tegra_output_init(struct drm_device *drm, struct tegra_output *output);
 extern int tegra_output_exit(struct tegra_output *output);
 
+/* from dpaux.c */
+
+struct tegra_dpaux;
+struct drm_dp_link;
+struct drm_dp_aux;
+
+struct tegra_dpaux *tegra_dpaux_find_by_of_node(struct device_node *np);
+enum drm_connector_status tegra_dpaux_detect(struct tegra_dpaux *dpaux);
+int tegra_dpaux_attach(struct tegra_dpaux *dpaux, struct tegra_output *output);
+int tegra_dpaux_detach(struct tegra_dpaux *dpaux);
+int tegra_dpaux_enable(struct tegra_dpaux *dpaux);
+int tegra_dpaux_disable(struct tegra_dpaux *dpaux);
+int tegra_dpaux_prepare(struct tegra_dpaux *dpaux, u8 encoding);
+int tegra_dpaux_train(struct tegra_dpaux *dpaux, struct drm_dp_link *link,
+		      u8 pattern);
+
 /* from fb.c */
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index);
@@ -278,7 +296,9 @@ extern void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
 
 extern struct platform_driver tegra_dc_driver;
 extern struct platform_driver tegra_dsi_driver;
+extern struct platform_driver tegra_sor_driver;
 extern struct platform_driver tegra_hdmi_driver;
+extern struct platform_driver tegra_dpaux_driver;
 extern struct platform_driver tegra_gr2d_driver;
 extern struct platform_driver tegra_gr3d_driver;
 

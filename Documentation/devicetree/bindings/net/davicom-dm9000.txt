@@ -9,8 +9,6 @@ Required properties:
 - interrupts : interrupt specifier specific to interrupt controller
 
 Optional properties:
-- local-mac-address : A bytestring of 6 bytes specifying Ethernet MAC address
-    to use (from firmware or bootloader)
 - davicom,no-eeprom : Configuration EEPROM is not available
 - davicom,ext-phy : Use external PHY
 

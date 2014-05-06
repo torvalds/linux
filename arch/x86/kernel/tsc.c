@@ -209,7 +209,7 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 	 * dance when its actually needed.
 	 */
 
-	preempt_disable();
+	preempt_disable_notrace();
 	data = this_cpu_read(cyc2ns.head);
 	tail = this_cpu_read(cyc2ns.tail);
 
@@ -229,7 +229,7 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 		if (!--data->__count)
 			this_cpu_write(cyc2ns.tail, data);
 	}
-	preempt_enable();
+	preempt_enable_notrace();
 
 	return ns;
 }
@@ -653,13 +653,10 @@ unsigned long native_calibrate_tsc(void)
 
 	/* Calibrate TSC using MSR for Intel Atom SoCs */
 	local_irq_save(flags);
-	i = try_msr_calibrate_tsc(&fast_calibrate);
+	fast_calibrate = try_msr_calibrate_tsc();
 	local_irq_restore(flags);
-	if (i >= 0) {
-		if (i == 0)
-			pr_warn("Fast TSC calibration using MSR failed\n");
+	if (fast_calibrate)
 		return fast_calibrate;
-	}
 
 	local_irq_save(flags);
 	fast_calibrate = quick_pit_calibrate();
@@ -917,8 +914,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 		tsc_khz_ref = tsc_khz;
 	}
 	if ((val == CPUFREQ_PRECHANGE  && freq->old < freq->new) ||
-			(val == CPUFREQ_POSTCHANGE && freq->old > freq->new) ||
-			(val == CPUFREQ_RESUMECHANGE)) {
+			(val == CPUFREQ_POSTCHANGE && freq->old > freq->new)) {
 		*lpj = cpufreq_scale(loops_per_jiffy_ref, ref_freq, freq->new);
 
 		tsc_khz = cpufreq_scale(tsc_khz_ref, ref_freq, freq->new);
@@ -988,9 +984,7 @@ static struct clocksource clocksource_tsc = {
 	.mask                   = CLOCKSOURCE_MASK(64),
 	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_MUST_VERIFY,
-#ifdef CONFIG_X86_64
 	.archdata               = { .vclock_mode = VCLOCK_TSC },
-#endif
 };
 
 void mark_tsc_unstable(char *reason)
