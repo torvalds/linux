@@ -493,7 +493,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(nfs_initiate_pgio);
 
-int nfs_do_multiple_pgios(struct list_head *head,
+static int nfs_do_multiple_pgios(struct list_head *head,
 				 const struct rpc_call_ops *call_ops,
 				 int how)
 {
@@ -686,6 +686,30 @@ static int nfs_pgio_one(struct nfs_pageio_descriptor *desc,
 	list_add(&data->list, &hdr->rpc_list);
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
+}
+
+int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
+{
+	struct nfs_rw_header *rw_hdr;
+	struct nfs_pgio_header *hdr;
+	int ret;
+
+	rw_hdr = nfs_rw_header_alloc(desc->pg_rw_ops);
+	if (!rw_hdr) {
+		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
+		return -ENOMEM;
+	}
+	hdr = &rw_hdr->header;
+	nfs_pgheader_init(desc, hdr, nfs_rw_header_free);
+	atomic_inc(&hdr->refcnt);
+	ret = nfs_generic_pgio(desc, hdr);
+	if (ret == 0)
+		ret = nfs_do_multiple_pgios(&hdr->rpc_list,
+					    desc->pg_rpc_callops,
+					    desc->pg_ioflags);
+	if (atomic_dec_and_test(&hdr->refcnt))
+		hdr->completion_ops->completion(hdr);
+	return ret;
 }
 
 int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,

@@ -973,33 +973,9 @@ static const struct nfs_pgio_completion_ops nfs_async_write_completion_ops = {
 	.completion = nfs_write_completion,
 };
 
-static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
-{
-	struct nfs_rw_header *whdr;
-	struct nfs_pgio_header *hdr;
-	int ret;
-
-	whdr = nfs_rw_header_alloc(desc->pg_rw_ops);
-	if (!whdr) {
-		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
-		return -ENOMEM;
-	}
-	hdr = &whdr->header;
-	nfs_pgheader_init(desc, hdr, nfs_rw_header_free);
-	atomic_inc(&hdr->refcnt);
-	ret = nfs_generic_pgio(desc, hdr);
-	if (ret == 0)
-		ret = nfs_do_multiple_pgios(&hdr->rpc_list,
-					     desc->pg_rpc_callops,
-					     desc->pg_ioflags);
-	if (atomic_dec_and_test(&hdr->refcnt))
-		hdr->completion_ops->completion(hdr);
-	return ret;
-}
-
 static const struct nfs_pageio_ops nfs_pageio_write_ops = {
 	.pg_test = nfs_generic_pg_test,
-	.pg_doio = nfs_generic_pg_writepages,
+	.pg_doio = nfs_generic_pg_pgios,
 };
 
 void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
