@@ -836,7 +836,7 @@ static int ni_660x_buf_change(struct comedi_device *dev,
 	struct ni_gpct *counter = s->private;
 	int ret;
 
-	ret = mite_buf_change(mite_ring(devpriv, counter), s->async);
+	ret = mite_buf_change(mite_ring(devpriv, counter), s);
 	if (ret < 0)
 		return ret;
 

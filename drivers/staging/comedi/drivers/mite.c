@@ -307,8 +307,9 @@ EXPORT_SYMBOL_GPL(mite_dma_arm);
 /**************************************/
 
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-		    struct comedi_async *async)
+		    struct comedi_subdevice *s)
 {
+	struct comedi_async *async = s->async;
 	unsigned int n_links;
 	int i;
 
@@ -333,7 +334,7 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 			       n_links * sizeof(struct mite_dma_descriptor),
 			       &ring->descriptors_dma_addr, GFP_KERNEL);
 	if (!ring->descriptors) {
-		dev_err(async->subdevice->device->class_dev,
+		dev_err(s->device->class_dev,
 			"mite: ring buffer allocation failed\n");
 		return -ENOMEM;
 	}

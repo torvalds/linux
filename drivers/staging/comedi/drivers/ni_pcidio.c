@@ -806,7 +806,7 @@ static int ni_pcidio_change(struct comedi_device *dev,
 	struct nidio96_private *devpriv = dev->private;
 	int ret;
 
-	ret = mite_buf_change(devpriv->di_mite_ring, s->async);
+	ret = mite_buf_change(devpriv->di_mite_ring, s);
 	if (ret < 0)
 		return ret;
 
