@@ -10,14 +10,14 @@ static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {	//opmode: 0:HDMI1.4
 	{27000000,	0,	HDMI_COLOR_DEPTH_12BIT,		2,	0,	0,	3,	3,	0,	3,	3,	0,	0},
 	{27000000,	0,	HDMI_COLOR_DEPTH_16BIT,		3,	0,	0,	2,	3,	0,	2,	5,	0,	1},
 	{74250000, 	0,	HDMI_COLOR_DEPTH_8BIT, 		0,	0,	0, 	4, 	3,	3,	2,	7,	0, 	3},
-	{74250000,	0,	HDMI_COLOR_DEPTH_10BIT,		1,	0,	0,	5,	0,	1,	1,	7,	0,	2},
+	{74250000,	0,	HDMI_COLOR_DEPTH_10BIT,		1,	0,	0,	5,	3,	3,	2,	7,	0,	2},
 	{74250000,	0,	HDMI_COLOR_DEPTH_12BIT,		2,	0,	0,	1,	2,	0,	1,	7,	0,	2},
 	{74250000,	0,	HDMI_COLOR_DEPTH_16BIT,		3,	0,	0,	1,	3,	0,	1,	7,	0,	2},
-	{148500000, 	0, 	HDMI_COLOR_DEPTH_8BIT,  	0, 	0,	0,	4,	3,	3,	2,	7,	0,	3},
-	{148500000,	0,	HDMI_COLOR_DEPTH_10BIT,		1,	0,	0,	5,	0,	3,	0,	7,	0,	3},
+	{148500000, 	0, 	HDMI_COLOR_DEPTH_8BIT,  	0, 	0,	0,	1,	1,	0,	1,	0,	0,	3},
+	{148500000,	0,	HDMI_COLOR_DEPTH_10BIT,		1,	0,	0,	5,	1,	3,	1,	7,	0,	3},
 	{148500000,	0,	HDMI_COLOR_DEPTH_12BIT,		2,	0,	0,	1,	2,	1,	0,	7,	0,	3},
 	{148500000,	0,	HDMI_COLOR_DEPTH_16BIT,		3,	0,	0,	1,	1,	0,	0,	7,	0,	3},
-	{297000000,	0, 	HDMI_COLOR_DEPTH_8BIT,		0, 	0, 	0, 	1, 	1, 	0, 	1, 	7, 	0, 	3},
+	{297000000,	0, 	HDMI_COLOR_DEPTH_8BIT,		0, 	0, 	0, 	1, 	0, 	0, 	0, 	0, 	0, 	3},
 	{297000000,	0, 	HDMI_COLOR_DEPTH_10BIT,		1, 	3, 	1, 	5, 	0, 	3, 	0, 	7, 	0, 	3},
 	{297000000,	0, 	HDMI_COLOR_DEPTH_12BIT,		2, 	3, 	1, 	1, 	2, 	2, 	0, 	7, 	0, 	3},
 	{297000000, 	0, 	HDMI_COLOR_DEPTH_16BIT,  	3, 	3, 	1, 	1, 	1, 	0, 	0, 	5, 	0, 	3},
@@ -128,6 +128,7 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 	//unsigned long flags;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
+	return -1;
 	hdmi_dbg(hdmi_drv->dev, "[%s] block %d\n", __FUNCTION__, block);
 	//spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
 	hdmi_dev->i2cm_int = 0;
@@ -617,15 +618,19 @@ int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv, unsigned char pixel_repet, uns
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
 	}
 	else if(hdmi_drv->pixclock == 297000000) {
-		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(3)
-			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(1) | v_CLK_SYMON(1));
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(2)
+			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(0) | v_CLK_SYMON(1));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
 	}
 	else if(hdmi_drv->pixclock > 297000000) {
 		//TODO Daisen wait to add and modify
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R13333_Ohms));
 	}
-	rk3288_hdmi_write_phy(hdmi_dev, PHYTX_VLEVCTRL, v_SUP_TXLVL(16) | v_SUP_CLKLVL(17));
+
+	if(hdmi_drv->pixclock < 297000000)
+                rk3288_hdmi_write_phy(hdmi_dev, PHYTX_VLEVCTRL, v_SUP_TXLVL(20) | v_SUP_CLKLVL(19));
+        else
+                rk3288_hdmi_write_phy(hdmi_dev, PHYTX_VLEVCTRL, v_SUP_TXLVL(17) | v_SUP_CLKLVL(16));
 
 	//power on PHY
 	hdmi_writel(hdmi_dev, PHY_CONF0, 0x6e);
