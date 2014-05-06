@@ -762,6 +762,20 @@
 			dma-names = "tx0", "rx0";
 			status = "disabled";
 		};
+
+		qspi: qspi@4b300000 {
+			compatible = "ti,dra7xxx-qspi";
+			reg = <0x4b300000 0x100>;
+			reg-names = "qspi_base";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "qspi";
+			clocks = <&qspi_gfclk_div>;
+			clock-names = "fck";
+			num-cs = <4>;
+			interrupts = <0 343 0x4>;
+			status = "disabled";
+		};
 	};
 };
 
