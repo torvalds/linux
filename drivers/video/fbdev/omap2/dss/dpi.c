@@ -616,7 +616,7 @@ static void dpi_init_pll(struct dpi_data *dpi)
  * the channel in some more dynamic manner, or get the channel as a user
  * parameter.
  */
-static enum omap_channel dpi_get_channel(void)
+static enum omap_channel dpi_get_channel(int port_num)
 {
 	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP24xx:
@@ -710,7 +710,7 @@ static void dpi_init_output(struct platform_device *pdev)
 	out->id = OMAP_DSS_OUTPUT_DPI;
 	out->output_type = OMAP_DISPLAY_TYPE_DPI;
 	out->name = "dpi.0";
-	out->dispc_channel = dpi_get_channel();
+	out->dispc_channel = dpi_get_channel(0);
 	out->ops.dpi = &dpi_ops;
 	out->owner = THIS_MODULE;
 
@@ -730,11 +730,31 @@ static void dpi_init_output_port(struct platform_device *pdev,
 {
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
+	int r;
+	u32 port_num;
+
+	r = of_property_read_u32(port, "reg", &port_num);
+	if (r)
+		port_num = 0;
+
+	switch (port_num) {
+	case 2:
+		out->name = "dpi.2";
+		break;
+	case 1:
+		out->name = "dpi.1";
+		break;
+	case 0:
+	default:
+		out->name = "dpi.0";
+		break;
+	}
 
 	out->dev = &pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_DPI;
 	out->output_type = OMAP_DISPLAY_TYPE_DPI;
-	out->dispc_channel = dpi_get_channel();
+	out->dispc_channel = dpi_get_channel(port_num);
+	out->port_num = port_num;
 	out->ops.dpi = &dpi_ops;
 	out->owner = THIS_MODULE;
 
