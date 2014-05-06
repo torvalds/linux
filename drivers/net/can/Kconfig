@@ -104,7 +104,7 @@ config CAN_FLEXCAN
 
 config PCH_CAN
 	tristate "Intel EG20T PCH CAN controller"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	---help---
 	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
 	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
