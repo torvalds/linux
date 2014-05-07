@@ -175,7 +175,6 @@ recv_thread(passive) ; returnpkt(dispatch)
 using enter_critical section to protect
 */
 struct recv_priv {
-	spinlock_t lock;
 	struct __queue free_recv_queue;
 	struct __queue recv_pending_queue;
 	struct __queue uc_swdec_pending_queue;

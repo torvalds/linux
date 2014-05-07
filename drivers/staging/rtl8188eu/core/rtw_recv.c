@@ -63,8 +63,6 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 
 	int	res = _SUCCESS;
 
-	spin_lock_init(&precvpriv->lock);
-
 	_rtw_init_queue(&precvpriv->free_recv_queue);
 	_rtw_init_queue(&precvpriv->recv_pending_queue);
 	_rtw_init_queue(&precvpriv->uc_swdec_pending_queue);
