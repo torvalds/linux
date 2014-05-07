@@ -340,7 +340,7 @@ done:
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id spi_gpio_dt_ids[] = {
+static const struct of_device_id spi_gpio_dt_ids[] = {
 	{ .compatible = "spi-gpio" },
 	{}
 };
