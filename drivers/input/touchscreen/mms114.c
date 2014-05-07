@@ -570,7 +570,7 @@ static const struct i2c_device_id mms114_id[] = {
 MODULE_DEVICE_TABLE(i2c, mms114_id);
 
 #ifdef CONFIG_OF
-static struct of_device_id mms114_dt_match[] = {
+static const struct of_device_id mms114_dt_match[] = {
 	{ .compatible = "melfas,mms114" },
 	{ }
 };
