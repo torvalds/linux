@@ -213,6 +213,10 @@ i2c_dp_aux_prepare_bus(struct i2c_adapter *adapter)
  *
  * RETURNS:
  * 0 on success, -ERRNO on failure.
+ *
+ * IMPORTANT:
+ * This interface is deprecated, please switch to the new dp aux helpers and
+ * drm_dp_aux_register_i2c_bus().
  */
 int
 i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
