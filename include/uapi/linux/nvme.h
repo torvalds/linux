@@ -45,7 +45,8 @@ struct nvme_id_ctrl {
 	__u8			ieee[3];
 	__u8			mic;
 	__u8			mdts;
-	__u8			rsvd78[178];
+	__u16			cntlid;
+	__u8			rsvd80[176];
 	__le16			oacs;
 	__u8			acl;
 	__u8			aerl;
@@ -53,7 +54,9 @@ struct nvme_id_ctrl {
 	__u8			lpa;
 	__u8			elpe;
 	__u8			npss;
-	__u8			rsvd264[248];
+	__u8			avscc;
+	__u8			apsta;
+	__u8			rsvd266[246];
 	__u8			sqes;
 	__u8			cqes;
 	__u8			rsvd514[2];
@@ -64,7 +67,12 @@ struct nvme_id_ctrl {
 	__u8			vwc;
 	__le16			awun;
 	__le16			awupf;
-	__u8			rsvd530[1518];
+	__u8			nvscc;
+	__u8			rsvd531;
+	__le16			acwu;
+	__u8			rsvd534[2];
+	__le32			sgls;
+	__u8			rsvd540[1508];
 	struct nvme_id_power_state	psd[32];
 	__u8			vs[1024];
 };
@@ -92,7 +100,10 @@ struct nvme_id_ns {
 	__u8			mc;
 	__u8			dpc;
 	__u8			dps;
-	__u8			rsvd30[98];
+	__u8			nmic;
+	__u8			rescap;
+	__u8			rsvd32[88];
+	__u8			eui64[8];
 	struct nvme_lbaf	lbaf[16];
 	__u8			rsvd192[192];
 	__u8			vs[3712];
