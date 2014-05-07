@@ -102,7 +102,7 @@ static int gpio_beeper_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id gpio_beeper_of_match[] = {
+static const struct of_device_id gpio_beeper_of_match[] = {
 	{ .compatible = BEEPER_MODNAME, },
 	{ }
 };
