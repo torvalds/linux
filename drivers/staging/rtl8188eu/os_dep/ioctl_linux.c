@@ -2154,6 +2154,7 @@ static int rtw_wx_read32(struct net_device *dev,
 	u32 bytes;
 	u8 *ptmp;
 	int rv;
+	int ret = 0;
 
 	padapter = (struct adapter *)rtw_netdev_priv(dev);
 	p = &wrqu->data;
@@ -2163,16 +2164,16 @@ static int rtw_wx_read32(struct net_device *dev,
 		return -ENOMEM;
 
 	if (copy_from_user(ptmp, p->pointer, len)) {
-		kfree(ptmp);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto exit;
 	}
 
 	bytes = 0;
 	addr = 0;
 	rv = sscanf(ptmp, "%d,%x", &bytes, &addr);
 	if (rv != 2) {
-		kfree(ptmp);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	switch (bytes) {
@@ -2190,12 +2191,14 @@ static int rtw_wx_read32(struct net_device *dev,
 		break;
 	default:
 		DBG_88E(KERN_INFO "%s: usage> read [bytes],[address(hex)]\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 	DBG_88E(KERN_INFO "%s: addr = 0x%08X data =%s\n", __func__, addr, extra);
 
+exit:
 	kfree(ptmp);
-	return 0;
+	return ret;
 }
 
 static int rtw_wx_write32(struct net_device *dev,
