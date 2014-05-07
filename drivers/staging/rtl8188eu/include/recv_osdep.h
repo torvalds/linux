@@ -33,7 +33,6 @@ int rtw_recv_indicatepkt(struct adapter *adapter,
 			 struct recv_frame *recv_frame);
 void rtw_recv_returnpacket(struct  net_device *cnxt, struct sk_buff *retpkt);
 
-void rtw_hostapd_mlme_rx(struct adapter *padapter, struct recv_frame *recv_fr);
 void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup);
 
 int rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter);

@@ -95,11 +95,6 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 			    &wrqu, (char *)&ev);
 }
 
-void rtw_hostapd_mlme_rx(struct adapter *padapter,
-			 struct recv_frame *precv_frame)
-{
-}
-
 int rtw_recv_indicatepkt(struct adapter *padapter,
 			 struct recv_frame *precv_frame)
 {
