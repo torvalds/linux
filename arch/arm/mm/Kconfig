@@ -436,7 +436,6 @@ config CPU_32v5
 
 config CPU_32v6
 	bool
-	select CPU_USE_DOMAINS if CPU_V6 && MMU
 	select TLS_REG_EMUL if !CPU_32v6K && !MMU
 
 config CPU_32v6K
@@ -651,7 +650,7 @@ config ARM_VIRT_EXT
 
 config SWP_EMULATE
 	bool "Emulate SWP/SWPB instructions"
-	depends on !CPU_USE_DOMAINS && CPU_V7
+	depends on CPU_V7
 	default y if SMP
 	select HAVE_PROC_CPU if PROC_FS
 	help
