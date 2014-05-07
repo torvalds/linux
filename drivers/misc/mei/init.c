@@ -122,8 +122,8 @@ int mei_reset(struct mei_device *dev)
 		mei_amthif_reset_params(dev);
 	}
 
+	mei_hbm_reset(dev);
 
-	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
 	dev->wd_pending = false;
 
