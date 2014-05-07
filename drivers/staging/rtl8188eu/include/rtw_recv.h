@@ -291,11 +291,6 @@ static inline u8 *get_rxmem(struct recv_frame *precvframe)
 	return precvframe->rx_head;
 }
 
-static inline u8 *get_rx_status(struct recv_frame *precvframe)
-{
-	return get_rxmem(precvframe);
-}
-
 static inline u8 *recvframe_pull(struct recv_frame *precvframe, int sz)
 {
 	/*  rx_data += sz; move rx_data sz bytes  hereafter */
