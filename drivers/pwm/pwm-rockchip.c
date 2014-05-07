@@ -86,15 +86,7 @@ module_param_named(dbg_level, pwm_dbg_level, int, 0644);
 
 #define PWMPCR_MIN_PERIOD		0x0001
 #define PWMPCR_MAX_PERIOD		0xFFFF
-#if 0
-static spinlock_t pwm_lock[4] = {
-        __SPIN_LOCK_UNLOCKED(pwm_lock0),
-        __SPIN_LOCK_UNLOCKED(pwm_lock1),
-        __SPIN_LOCK_UNLOCKED(pwm_lock2),
-        __SPIN_LOCK_UNLOCKED(pwm_lock3),
-};
-#endif
-int spinlock_num = 0;
+
 /********************************************
  * struct rk_pwm_chip - struct representing pwm chip
 
@@ -145,7 +137,6 @@ static int  rk_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
 	u64 val, div, clk_rate;
 	unsigned long prescale = PWMCR_MIN_PRESCALE, pv, dc;
-	int ret;
 	u32 off, on;
 	int conf=0;
        unsigned long flags;
@@ -252,7 +243,6 @@ static int  rk_pwm_config_v2(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
 	u64 val, div, clk_rate;
 	unsigned long prescale = PWMCR_MIN_PRESCALE, pv, dc;
-	int ret;
 	u32  on;
 	int conf=0;
        unsigned long flags;
@@ -363,7 +353,6 @@ static int  rk_pwm_config_v3(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
 	u64 val, div, clk_rate;
 	unsigned long prescale = PWMCR_MIN_PRESCALE, pv, dc;
-	int  ret;
 	u32 on;
 	int conf=0;
        unsigned long flags;
@@ -597,8 +586,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	pc->chip.ops = &rk_pwm_ops;  
 	pc->chip.base = -1;
 	pc->chip.npwm = NUM_PWM;
-	pc->lock = __SPIN_LOCK_UNLOCKED(PWM##spinlock_num);
-	spinlock_num ++;
+	spin_lock_init(&pc->lock);
 
 	/* Following enables PWM chip, channels would still be enabled individually through their control register */
 	DBG("npwm = %d, of_pwm_ncells =%d \n", pc->chip.npwm,pc->chip.of_pwm_n_cells);
