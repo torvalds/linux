@@ -611,10 +611,8 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct exynos_tmu_data),
 					GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "Failed to allocate driver structure\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, data);
 	mutex_init(&data->lock);
@@ -660,7 +658,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	sensor_conf = devm_kzalloc(&pdev->dev,
 				sizeof(struct thermal_sensor_conf), GFP_KERNEL);
 	if (!sensor_conf) {
-		dev_err(&pdev->dev, "Failed to allocate registration struct\n");
 		ret = -ENOMEM;
 		goto err_clk;
 	}
