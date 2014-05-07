@@ -415,7 +415,7 @@ open_err:
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id imx_keypad_of_match[] = {
+static const struct of_device_id imx_keypad_of_match[] = {
 	{ .compatible = "fsl,imx21-kpp", },
 	{ /* sentinel */ }
 };
