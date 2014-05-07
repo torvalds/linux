@@ -136,6 +136,33 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 	return -1;
 }
 
+static void fill_trap_info(struct pt_regs *regs, int signr, int trapnr,
+			   siginfo_t *info)
+{
+	unsigned long siaddr;
+	int sicode;
+
+	switch (trapnr) {
+	case X86_TRAP_DE:
+		sicode = FPE_INTDIV;
+		siaddr = regs->ip;
+		break;
+	case X86_TRAP_UD:
+		sicode = ILL_ILLOPN;
+		siaddr = regs->ip;
+		break;
+	case X86_TRAP_AC:
+		sicode = BUS_ADRALN;
+		siaddr = 0;
+		break;
+	}
+
+	info->si_signo = signr;
+	info->si_errno = 0;
+	info->si_code = sicode;
+	info->si_addr = (void __user *)siaddr;
+}
+
 static void __kprobes
 do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	long error_code, siginfo_t *info)
@@ -191,30 +218,26 @@ dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 	do_error_trap(regs, error_code, str, trapnr, signr, NULL);	\
 }
 
-#define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr)		\
+#define DO_ERROR_INFO(trapnr, signr, str, name)				\
 dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
 	siginfo_t info;							\
 									\
-	info.si_signo = signr;						\
-	info.si_errno = 0;						\
-	info.si_code = sicode;						\
-	info.si_addr = (void __user *)siaddr;				\
-									\
+	fill_trap_info(regs, signr, trapnr, &info);			\
 	do_error_trap(regs, error_code, str, trapnr, signr, &info);	\
 }
 
-DO_ERROR_INFO(X86_TRAP_DE,     SIGFPE,  "divide error",			divide_error,		     FPE_INTDIV, regs->ip )
-DO_ERROR     (X86_TRAP_OF,     SIGSEGV, "overflow",			overflow					  )
-DO_ERROR     (X86_TRAP_BR,     SIGSEGV, "bounds",			bounds						  )
-DO_ERROR_INFO(X86_TRAP_UD,     SIGILL,  "invalid opcode",		invalid_op,		     ILL_ILLOPN, regs->ip )
-DO_ERROR     (X86_TRAP_OLD_MF, SIGFPE,  "coprocessor segment overrun",	coprocessor_segment_overrun			  )
-DO_ERROR     (X86_TRAP_TS,     SIGSEGV, "invalid TSS",			invalid_TSS					  )
-DO_ERROR     (X86_TRAP_NP,     SIGBUS,  "segment not present",		segment_not_present				  )
+DO_ERROR_INFO(X86_TRAP_DE,     SIGFPE,  "divide error",			divide_error)
+DO_ERROR     (X86_TRAP_OF,     SIGSEGV, "overflow",			overflow)
+DO_ERROR     (X86_TRAP_BR,     SIGSEGV, "bounds",			bounds)
+DO_ERROR_INFO(X86_TRAP_UD,     SIGILL,  "invalid opcode",		invalid_op)
+DO_ERROR     (X86_TRAP_OLD_MF, SIGFPE,  "coprocessor segment overrun",	coprocessor_segment_overrun)
+DO_ERROR     (X86_TRAP_TS,     SIGSEGV, "invalid TSS",			invalid_TSS)
+DO_ERROR     (X86_TRAP_NP,     SIGBUS,  "segment not present",		segment_not_present)
 #ifdef CONFIG_X86_32
-DO_ERROR     (X86_TRAP_SS,     SIGBUS,  "stack segment",		stack_segment					  )
+DO_ERROR     (X86_TRAP_SS,     SIGBUS,  "stack segment",		stack_segment)
 #endif
-DO_ERROR_INFO(X86_TRAP_AC,     SIGBUS,  "alignment check",		alignment_check,	     BUS_ADRALN, 0	  )
+DO_ERROR_INFO(X86_TRAP_AC,     SIGBUS,  "alignment check",		alignment_check)
 
 #ifdef CONFIG_X86_64
 /* Runs on IST stack */
