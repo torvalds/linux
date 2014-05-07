@@ -189,10 +189,6 @@ struct recv_priv {
 	u64	rx_drop;
 	u64	last_rx_bytes;
 
-	uint  rx_icv_err;
-	uint  rx_largepacket_crcerr;
-	uint  rx_smallpacket_crcerr;
-	uint  rx_middlepacket_crcerr;
 	uint	ff_hwaddr;
 	u8	rx_pending_cnt;
 
@@ -212,9 +208,7 @@ struct recv_priv {
 	u8 signal_strength;
 	u8 signal_qual;
 	u8 noise;
-	int RxSNRdB[2];
 	s8 RxRssi[2];
-	int FalseAlmCnt_all;
 
 	struct timer_list signal_stat_timer;
 	u32 signal_stat_sampling_interval;
