@@ -169,6 +169,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_GWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 146)
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
 #define TLV_TYPE_KEY_PARAM_V2       (PROPRIETARY_TLV_BASE_ID + 156)
+#define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
 #define TLV_TYPE_FW_API_REV         (PROPRIETARY_TLV_BASE_ID + 199)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
@@ -707,6 +708,13 @@ struct mwifiex_ie_types_vendor_param_set {
 	struct mwifiex_ie_types_header header;
 	u8 ie[MWIFIEX_MAX_VSIE_LEN];
 };
+
+#define MWIFIEX_TDLS_IDLE_TIMEOUT	60
+
+struct mwifiex_ie_types_tdls_idle_timeout {
+	struct mwifiex_ie_types_header header;
+	__le16 value;
+} __packed;
 
 struct mwifiex_ie_types_rsn_param_set {
 	struct mwifiex_ie_types_header header;
