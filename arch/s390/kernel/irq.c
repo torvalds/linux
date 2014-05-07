@@ -92,7 +92,6 @@ static const struct irq_class irqclass_sub_desc[NR_ARCH_IRQS] = {
 
 void __init init_IRQ(void)
 {
-	irq_reserve_irqs(0, THIN_INTERRUPT);
 	init_cio_interrupts();
 	init_airq_interrupts();
 	init_ext_interrupts();
@@ -149,6 +148,11 @@ int show_interrupts(struct seq_file *p, void *v)
 out:
 	put_online_cpus();
 	return 0;
+}
+
+unsigned int arch_dynirq_lower_bound(unsigned int from)
+{
+	return from < THIN_INTERRUPT ? THIN_INTERRUPT : from;
 }
 
 /*
