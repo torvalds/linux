@@ -463,17 +463,22 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 			    RTL818X_TX_DESC_FLAG_NO_ENC;
 
 	rc_flags = info->control.rates[0].flags;
+
+	/* HW will perform RTS-CTS when only RTS flags is set.
+	 * HW will perform CTS-to-self when both RTS and CTS flags are set.
+	 * RTS rate and RTS duration will be used also for CTS-to-self.
+	 */
 	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		tx_flags |= RTL818X_TX_DESC_FLAG_RTS;
 		tx_flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
+		rts_duration = ieee80211_rts_duration(dev, priv->vif,
+						skb->len, info);
 	} else if (rc_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
-		tx_flags |= RTL818X_TX_DESC_FLAG_CTS;
+		tx_flags |= RTL818X_TX_DESC_FLAG_RTS | RTL818X_TX_DESC_FLAG_CTS;
 		tx_flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
+		rts_duration = ieee80211_ctstoself_duration(dev, priv->vif,
+						skb->len, info);
 	}
-
-	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS)
-		rts_duration = ieee80211_rts_duration(dev, priv->vif, skb->len,
-						      info);
 
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180) {
 		unsigned int remainder;
