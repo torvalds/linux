@@ -150,6 +150,32 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
+void arc_request_percpu_irq(int irq, int cpu,
+                            irqreturn_t (*isr)(int irq, void *dev),
+                            const char *irq_nm,
+                            void *percpu_dev)
+{
+	/* Boot cpu calls request, all call enable */
+	if (!cpu) {
+		int rc;
+
+		/*
+		 * These 2 calls are essential to making percpu IRQ APIs work
+		 * Ideally these details could be hidden in irq chip map function
+		 * but the issue is IPIs IRQs being static (non-DT) and platform
+		 * specific, so we can't identify them there.
+		 */
+		irq_set_percpu_devid(irq);
+		irq_modify_status(irq, IRQ_NOAUTOEN, 0);  /* @irq, @clr, @set */
+
+		rc = request_percpu_irq(irq, isr, irq_nm, percpu_dev);
+		if (rc)
+			panic("Percpu IRQ request failed for %d\n", irq);
+	}
+
+	enable_percpu_irq(irq, 0);
+}
+
 /*
  * arch_local_irq_enable - Enable interrupts.
  *
