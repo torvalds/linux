@@ -238,7 +238,7 @@ lnet_eq_enqueue_event(lnet_eq_t *eq, lnet_event_t *ev)
 	lnet_eq_wait_unlock();
 }
 
-int
+static int
 lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
 {
 	int		new_index = eq->eq_deq_seq & (eq->eq_size - 1);
