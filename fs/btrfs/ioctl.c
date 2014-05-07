@@ -2574,6 +2574,10 @@ static long btrfs_ioctl_fs_info(struct btrfs_root *root, void __user *arg)
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
 
+	fi_args->nodesize = root->fs_info->super_copy->nodesize;
+	fi_args->sectorsize = root->fs_info->super_copy->sectorsize;
+	fi_args->clone_alignment = root->fs_info->super_copy->sectorsize;
+
 	if (copy_to_user(arg, fi_args, sizeof(*fi_args)))
 		ret = -EFAULT;
 
