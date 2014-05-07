@@ -123,6 +123,7 @@ void machine_shutdown(void)
  */
 void machine_halt(void)
 {
+	local_irq_disable();
 	smp_send_stop();
 	while (1);
 }
@@ -135,6 +136,7 @@ void machine_halt(void)
  */
 void machine_power_off(void)
 {
+	local_irq_disable();
 	smp_send_stop();
 	if (pm_power_off)
 		pm_power_off();
@@ -153,11 +155,10 @@ void machine_power_off(void)
  */
 void machine_restart(char *cmd)
 {
-	smp_send_stop();
-
 	/* Disable interrupts first */
 	local_irq_disable();
 	local_fiq_disable();
+	smp_send_stop();
 
 	/* Now call the architecture specific reboot code. */
 	if (arm_pm_restart)
