@@ -68,7 +68,7 @@ config QLCNIC_VXLAN
 
 config QLCNIC_HWMON
 	bool "QLOGIC QLCNIC 82XX and 83XX family HWMON support"
-	depends on QLCNIC && HWMON
+	depends on QLCNIC && HWMON && !(QLCNIC=y && HWMON=m)
 	default y
 	---help---
 	  This configuration parameter can be used to read the
