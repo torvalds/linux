@@ -39,6 +39,7 @@
  */
 
 #define FIMD_DEFAULT_FRAMERATE 60
+#define MIN_FB_WIDTH_FOR_16WORD_BURST 128
 
 /* position control register for hardware window 0, 2 ~ 4.*/
 #define VIDOSD_A(win)		(VIDOSD_BASE + 0x00 + (win) * 16)
@@ -478,6 +479,19 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 	}
 
 	DRM_DEBUG_KMS("bpp = %d\n", win_data->bpp);
+
+	/*
+	 * In case of exynos, setting dma-burst to 16Word causes permanent
+	 * tearing for very small buffers, e.g. cursor buffer. Burst Mode
+	 * switching which is based on overlay size is not recommended as
+	 * overlay size varies alot towards the end of the screen and rapid
+	 * movement causes unstable DMA which results into iommu crash/tear.
+	 */
+
+	if (win_data->fb_width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
+		val &= ~WINCONx_BURSTLEN_MASK;
+		val |= WINCONx_BURSTLEN_4WORD;
+	}
 
 	writel(val, ctx->regs + WINCON(win));
 }
