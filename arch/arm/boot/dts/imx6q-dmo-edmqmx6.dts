@@ -109,7 +109,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2
 		     &pinctrl_stmpe1
-		     &pinctrl_stmpe2>;
+		     &pinctrl_stmpe2
+		     &pinctrl_pfuze>;
 	status = "okay";
 
 	pmic: pfuze100@08 {
@@ -292,6 +293,12 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_EB2__I2C2_SCL		0x4001b8b1
 				MX6QDL_PAD_KEY_ROW3__I2C2_SDA		0x4001b8b1
+			>;
+		};
+
+		pinctrl_pfuze: pfuze100grp1 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D20__GPIO3_IO20		0x80000000
 			>;
 		};
 
