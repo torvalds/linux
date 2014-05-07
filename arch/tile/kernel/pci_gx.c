@@ -350,10 +350,9 @@ static int tile_init_irqs(struct pci_controller *controller)
 		int cpu;
 
 		/* Ask the kernel to allocate an IRQ. */
-		irq = create_irq();
-		if (irq < 0) {
+		irq = irq_alloc_hwirq(-1);
+		if (!irq) {
 			pr_err("PCI: no free irq vectors, failed for %d\n", i);
-
 			goto free_irqs;
 		}
 		controller->irq_intx_table[i] = irq;
@@ -382,7 +381,7 @@ static int tile_init_irqs(struct pci_controller *controller)
 
 free_irqs:
 	for (j = 0; j < i; j++)
-		destroy_irq(controller->irq_intx_table[j]);
+		irq_free_hwirq(controller->irq_intx_table[j]);
 
 	return -1;
 }
@@ -1500,9 +1499,9 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	int irq;
 	int ret;
 
-	irq = create_irq();
-	if (irq < 0)
-		return irq;
+	irq = irq_alloc_hwirq(-1);
+	if (!irq)
+		return -ENOSPC;
 
 	/*
 	 * Since we use a 64-bit Mem-Map to accept the MSI write, we fail
@@ -1601,11 +1600,11 @@ hv_msi_config_failure:
 	/* Free mem-map */
 msi_mem_map_alloc_failure:
 is_64_failure:
-	destroy_irq(irq);
+	irq_free_hwirq(irq);
 	return ret;
 }
 
 void arch_teardown_msi_irq(unsigned int irq)
 {
-	destroy_irq(irq);
+	irq_free_hwirq(irq);
 }
