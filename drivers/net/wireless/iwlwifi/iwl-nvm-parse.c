@@ -128,7 +128,7 @@ static const u8 iwl_nvm_channels[] = {
 
 static const u8 iwl_nvm_channels_family_8000[] = {
 	/* 2.4 GHz */
-	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 	/* 5 GHz */
 	36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92,
 	96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
@@ -138,7 +138,7 @@ static const u8 iwl_nvm_channels_family_8000[] = {
 #define IWL_NUM_CHANNELS		ARRAY_SIZE(iwl_nvm_channels)
 #define IWL_NUM_CHANNELS_FAMILY_8000	ARRAY_SIZE(iwl_nvm_channels_family_8000)
 #define NUM_2GHZ_CHANNELS		14
-#define NUM_2GHZ_CHANNELS_FAMILY_8000	13
+#define NUM_2GHZ_CHANNELS_FAMILY_8000	14
 #define FIRST_2GHZ_HT_MINUS		5
 #define LAST_2GHZ_HT_PLUS		9
 #define LAST_5GHZ_HT			161
