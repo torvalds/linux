@@ -350,12 +350,11 @@ static int alienware_zone_init(struct platform_device *dev)
 	char *name;
 
 	if (interface == WMAX) {
-		global_led.max_brightness = 100;
 		lighting_control_state = WMAX_RUNNING;
 	} else if (interface == LEGACY) {
-		global_led.max_brightness = 0x0F;
 		lighting_control_state = LEGACY_RUNNING;
 	}
+	global_led.max_brightness = 0x0F;
 	global_brightness = global_led.max_brightness;
 
 	/*
