@@ -510,9 +510,8 @@ static void update_cursor(struct drm_crtc *crtc)
 					MDP4_DMA_CURSOR_BLEND_CONFIG_CURSOR_EN);
 		} else {
 			/* disable cursor: */
-			mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_BASE(dma), 0);
-			mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_BLEND_CONFIG(dma),
-					MDP4_DMA_CURSOR_BLEND_CONFIG_FORMAT(CURSOR_ARGB));
+			mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_BASE(dma),
+					mdp4_kms->blank_cursor_iova);
 		}
 
 		/* and drop the iova ref + obj rev when done scanning out: */
@@ -574,11 +573,9 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 
 	if (old_bo) {
 		/* drop our previous reference: */
-		msm_gem_put_iova(old_bo, mdp4_kms->id);
-		drm_gem_object_unreference_unlocked(old_bo);
+		drm_flip_work_queue(&mdp4_crtc->unref_cursor_work, old_bo);
 	}
 
-	crtc_flush(crtc);
 	request_pending(crtc, PENDING_CURSOR);
 
 	return 0;

@@ -1273,6 +1273,7 @@ void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark)
 	struct flowi6 fl6;
 
 	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_iif = LOOPBACK_IFINDEX;
 	fl6.flowi6_oif = oif;
 	fl6.flowi6_mark = mark;
 	fl6.daddr = iph->daddr;
@@ -1294,6 +1295,7 @@ void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
 	struct flowi6 fl6;
 
 	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_iif = LOOPBACK_IFINDEX;
 	fl6.flowi6_oif = oif;
 	fl6.flowi6_mark = mark;
 	fl6.daddr = msg->dest;

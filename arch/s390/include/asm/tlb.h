@@ -59,10 +59,21 @@ static inline void tlb_gather_mmu(struct mmu_gather *tlb,
 	tlb->batch = NULL;
 }
 
-static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
 {
 	__tlb_flush_mm_lazy(tlb->mm);
+}
+
+static inline void tlb_flush_mmu_free(struct mmu_gather *tlb)
+{
 	tlb_table_flush(tlb);
+}
+
+
+static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+{
+	tlb_flush_mmu_tlbonly(tlb);
+	tlb_flush_mmu_free(tlb);
 }
 
 static inline void tlb_finish_mmu(struct mmu_gather *tlb,

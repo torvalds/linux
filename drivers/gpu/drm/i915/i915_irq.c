@@ -1362,10 +1362,20 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 	spin_lock(&dev_priv->irq_lock);
 	for (i = 1; i < HPD_NUM_PINS; i++) {
 
-		WARN_ONCE(hpd[i] & hotplug_trigger &&
-			  dev_priv->hpd_stats[i].hpd_mark == HPD_DISABLED,
-			  "Received HPD interrupt (0x%08x) on pin %d (0x%08x) although disabled\n",
-			  hotplug_trigger, i, hpd[i]);
+		if (hpd[i] & hotplug_trigger &&
+		    dev_priv->hpd_stats[i].hpd_mark == HPD_DISABLED) {
+			/*
+			 * On GMCH platforms the interrupt mask bits only
+			 * prevent irq generation, not the setting of the
+			 * hotplug bits itself. So only WARN about unexpected
+			 * interrupts on saner platforms.
+			 */
+			WARN_ONCE(INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev),
+				  "Received HPD interrupt (0x%08x) on pin %d (0x%08x) although disabled\n",
+				  hotplug_trigger, i, hpd[i]);
+
+			continue;
+		}
 
 		if (!(hpd[i] & hotplug_trigger) ||
 		    dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED)

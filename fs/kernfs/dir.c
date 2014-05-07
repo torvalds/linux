@@ -232,9 +232,6 @@ static int kernfs_link_sibling(struct kernfs_node *kn)
 	struct rb_node **node = &kn->parent->dir.children.rb_node;
 	struct rb_node *parent = NULL;
 
-	if (kernfs_type(kn) == KERNFS_DIR)
-		kn->parent->dir.subdirs++;
-
 	while (*node) {
 		struct kernfs_node *pos;
 		int result;
@@ -249,9 +246,15 @@ static int kernfs_link_sibling(struct kernfs_node *kn)
 		else
 			return -EEXIST;
 	}
+
 	/* add new node and rebalance the tree */
 	rb_link_node(&kn->rb, parent, node);
 	rb_insert_color(&kn->rb, &kn->parent->dir.children);
+
+	/* successfully added, account subdir number */
+	if (kernfs_type(kn) == KERNFS_DIR)
+		kn->parent->dir.subdirs++;
+
 	return 0;
 }
 
