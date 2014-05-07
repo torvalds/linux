@@ -278,7 +278,12 @@ EXPORT_SYMBOL(irq_to_desc);
 
 static void free_desc(unsigned int irq)
 {
-	dynamic_irq_cleanup(irq);
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	desc_set_defaults(irq, desc, desc_node(desc), NULL);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
@@ -309,7 +314,7 @@ void irq_mark_irq(unsigned int irq)
 #ifdef CONFIG_GENERIC_IRQ_LEGACY
 void irq_init_desc(unsigned int irq)
 {
-	dynamic_irq_cleanup(irq);
+	free_desc(irq);
 }
 #endif
 
@@ -520,20 +525,6 @@ int irq_set_percpu_devid(unsigned int irq)
 
 	irq_set_percpu_devid_flags(irq);
 	return 0;
-}
-
-/**
- * dynamic_irq_cleanup - cleanup a dynamically allocated irq
- * @irq:	irq number to initialize
- */
-void dynamic_irq_cleanup(unsigned int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc_set_defaults(irq, desc, desc_node(desc), NULL);
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 void kstat_incr_irq_this_cpu(unsigned int irq)
