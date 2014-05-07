@@ -205,7 +205,7 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 		return -ENOMEM;
 		
     //be fixed to 90 degrees
-	dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_90);
+	//dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_90);
 
     //start_smpl = dw_mci_rockchip_get_delaynum(host, tuning_data->con_id, tuning_data->tuning_type);
     start_smpl = 0;

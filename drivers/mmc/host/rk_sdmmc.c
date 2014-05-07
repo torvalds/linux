@@ -62,8 +62,8 @@
 #define DW_MCI_FREQ_MAX	50000000//200000000	/* unit: HZ */
 #define DW_MCI_FREQ_MIN	300000//400000		/* unit: HZ */
 
+#define SDMMC_DATA_TIMEOUT_SD	500; /*max is 250ms showed in Spec; Maybe adapt the value for the sick card.*/
 #define SDMMC_DATA_TIMEOUT_SDIO	250
-#define SDMMC_DATA_TIMEOUT_SD	5000; /*max is 250ms refer to Spec; Maybe adapt the value to the sick card.*/
 #define SDMMC_DATA_TIMEOUT_EMMC	2500
 
 #define SDMMC_CMD_RTO_MAX_HOLD 200 
@@ -370,12 +370,14 @@ static void dw_mci_start_command(struct dw_mci *host,
     }
 
 	mci_writel(host, CMDARG, cmd->arg);
+	wmb();
     if(host->mmc->hold_reg_flag)
         cmd_flags |= SDMMC_CMD_USE_HOLD_REG;//fix the value to 1 in some Soc,for example RK3188.
         
 	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
     wmb();
 
+#if 0//test
     while ((time_before(jiffies, time_loop))&&(test_bit(DW_MMC_CARD_PRESENT, &host->cur_slot->flags))){
     	status = mci_readl(host, STATUS);
     	if (!(status & (SDMMC_STAUTS_DATA_BUSY|SDMMC_STAUTS_MC_BUSY))){
@@ -387,7 +389,7 @@ static void dw_mci_start_command(struct dw_mci *host,
         MMC_DBG_ERR_FUNC(host->mmc,"Line%d..%s start cmd=%d(arg=0x%x), cmd_reg=0x%x, unbusy=%d,card-present=%d. [%s]",
             __LINE__, __FUNCTION__,cmd->opcode, cmd->arg,cmd_flags,
             ret,test_bit(DW_MMC_CARD_PRESENT, &host->cur_slot->flags), mmc_hostname(host->mmc)); 
-        
+#endif        
 }
 
 static void send_stop_cmd(struct dw_mci *host, struct mmc_data *data)
@@ -829,7 +831,7 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 static void mci_send_cmd(struct dw_mci_slot *slot, u32 cmd, u32 arg)
 {
 	struct dw_mci *host = slot->host;	
-	unsigned long timeout = jiffies + msecs_to_jiffies(5000);
+	unsigned long timeout = jiffies + msecs_to_jiffies(500);//msecs_to_jiffies(5000);
 	unsigned int cmd_status = 0;
 #ifdef SDMMC_WAIT_FOR_UNBUSY
 	timeout = jiffies + msecs_to_jiffies(SDMMC_WAIT_FOR_UNBUSY);
@@ -945,12 +947,35 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 }
 
+static void dw_mci_wait_unbusy(struct dw_mci *host)
+{
+   
+    unsigned int    timeout= SDMMC_DATA_TIMEOUT_SDIO;
+    unsigned long   time_loop;
+    unsigned int    status;
+
+    MMC_DBG_INFO_FUNC(host->mmc, "dw_mci_wait_unbusy, status=0x%x ", mci_readl(host, STATUS));
+    
+    if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+        timeout = SDMMC_DATA_TIMEOUT_EMMC;
+    else if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)
+        timeout = SDMMC_DATA_TIMEOUT_SD;
+        
+    time_loop = jiffies + msecs_to_jiffies(timeout);
+    do {
+    	status = mci_readl(host, STATUS);
+    	if (!(status & (SDMMC_STAUTS_DATA_BUSY|SDMMC_STAUTS_MC_BUSY)))
+    		break;
+    	//MMC_DBG_INFO_FUNC("dw_mci_wait_unbusy, waiting for......");	
+    } while (time_before(jiffies, time_loop));
+}
+
 /*
 *   result: 
 *   0--status is busy. 
 *   1--status is unbusy.
 */
-int dw_mci_wait_unbusy(struct mmc_host *mmc)
+int dw_mci_card_busy(struct mmc_host *mmc)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
@@ -1004,7 +1029,7 @@ static void __dw_mci_start_request(struct dw_mci *host,
 				SDMMC_CTRL_DMA_RESET));
     }
  #endif   
-    dw_mci_wait_unbusy(host->mmc);
+    dw_mci_wait_unbusy(host);
     
 	host->pending_events = 0;
 	host->completed_events = 0;
@@ -1516,7 +1541,7 @@ static const struct mmc_host_ops dw_mci_ops = {
 	.enable_sdio_irq	= dw_mci_enable_sdio_irq,
 	.execute_tuning		= dw_mci_execute_tuning,
 	//.start_signal_voltage_switch	= dw_mci_start_signal_voltage_switch,
-	.card_busy  = dw_mci_wait_unbusy,
+	//.card_busy  = dw_mci_card_busy,
 };
 
 static void dw_mci_enable_irq(struct dw_mci *host, bool irqflag)
@@ -1554,10 +1579,10 @@ static void dw_mci_deal_data_end(struct dw_mci *host, struct mmc_request *mrq)
 	        else if(host->data_status & SDMMC_INT_EBE)
 	            host->data->error = -ETIMEDOUT;
 	    } else {
-	        dw_mci_wait_unbusy(host->mmc); 
+	        dw_mci_wait_unbusy(host); 
 	    }
 	    #else
-	    dw_mci_wait_unbusy(host->mmc);
+	    dw_mci_wait_unbusy(host);
 	    #endif
 	    
 	}
@@ -2761,8 +2786,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->caps |= MMC_CAP_POWER_OFF_CARD;
 	if (of_find_property(host->dev->of_node, "cap-sdio-irq", NULL))
 		mmc->caps |= MMC_CAP_SDIO_IRQ;
-	if (of_find_property(host->dev->of_node, "poll-hw-reset", NULL))
-		mmc->caps |= MMC_CAP_HW_RESET;
 	if (of_find_property(host->dev->of_node, "full-pwr-cycle", NULL))
 		mmc->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
 	if (of_find_property(host->dev->of_node, "keep-power-in-suspend", NULL))
