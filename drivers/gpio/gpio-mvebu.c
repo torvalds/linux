@@ -535,7 +535,7 @@ static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #define mvebu_gpio_dbg_show NULL
 #endif
 
-static struct of_device_id mvebu_gpio_of_match[] = {
+static const struct of_device_id mvebu_gpio_of_match[] = {
 	{
 		.compatible = "marvell,orion-gpio",
 		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_ORION,
