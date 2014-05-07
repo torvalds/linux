@@ -5,6 +5,10 @@ menu "IRQ subsystem"
 config MAY_HAVE_SPARSE_IRQ
        bool
 
+# Legacy support, required for itanic
+config GENERIC_IRQ_LEGACY
+       bool
+
 # Enable the generic irq autoprobe mechanism
 config GENERIC_IRQ_PROBE
 	bool

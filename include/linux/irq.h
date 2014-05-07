@@ -637,6 +637,10 @@ int arch_setup_hwirq(unsigned int irq, int node);
 void arch_teardown_hwirq(unsigned int irq);
 #endif
 
+#ifdef CONFIG_GENERIC_IRQ_LEGACY
+void irq_init_desc(unsigned int irq);
+#endif
+
 #ifndef irq_reg_writel
 # define irq_reg_writel(val, addr)	writel(val, addr)
 #endif
