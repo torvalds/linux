@@ -1684,7 +1684,7 @@ static int gr_queue_ext(struct usb_ep *_ep, struct usb_request *_req,
 	if (ep->is_in)
 		gr_dbgprint_request("EXTERN", ep, req);
 
-	ret = gr_queue(ep, req, gfp_flags);
+	ret = gr_queue(ep, req, GFP_ATOMIC);
 
 	spin_unlock(&ep->dev->lock);
 
