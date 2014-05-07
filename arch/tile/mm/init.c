@@ -273,9 +273,9 @@ static pgprot_t __init init_pgprot(ulong address)
 	/*
 	 * Otherwise we just hand out consecutive cpus.  To avoid
 	 * requiring this function to hold state, we just walk forward from
-	 * _sdata by PAGE_SIZE, skipping the readonly and init data, to reach
-	 * the requested address, while walking cpu home around kdata_mask.
-	 * This is typically no more than a dozen or so iterations.
+	 * __end_rodata by PAGE_SIZE, skipping the readonly and init data, to
+	 * reach the requested address, while walking cpu home around
+	 * kdata_mask. This is typically no more than a dozen or so iterations.
 	 */
 	page = (((ulong)__end_rodata) + PAGE_SIZE - 1) & PAGE_MASK;
 	BUG_ON(address < page || address >= (ulong)_end);
