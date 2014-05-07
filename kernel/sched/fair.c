@@ -3703,15 +3703,29 @@ unsigned int hmp_next_up_threshold = 4096;
 unsigned int hmp_next_down_threshold = 4096;
 
 #ifdef CONFIG_SCHED_HMP_LITTLE_PACKING
-#ifndef CONFIG_ARCH_VEXPRESS_TC2
+/*
+ * Set the default packing threshold to try to keep little
+ * CPUs at no more than 80% of their maximum frequency if only
+ * packing a small number of small tasks. Bigger tasks will
+ * raise frequency as normal.
+ * In order to pack a task onto a CPU, the sum of the
+ * unweighted runnable_avg load of existing tasks plus the
+ * load of the new task must be less than hmp_full_threshold.
+ *
+ * This works in conjunction with frequency-invariant load
+ * and DVFS governors. Since most DVFS governors aim for 80%
+ * utilisation, we arrive at (0.8*0.8*(max_load=1024))=655
+ * and use a value slightly lower to give a little headroom
+ * in the decision.
+ * Note that the most efficient frequency is different for
+ * each system so /sys/kernel/hmp/packing_limit should be
+ * configured at runtime for any given platform to achieve
+ * optimal energy usage. Some systems may not benefit from
+ * packing, so this feature can also be disabled at runtime
+ * with /sys/kernel/hmp/packing_enable
+ */
 unsigned int hmp_packing_enabled = 1;
-unsigned int hmp_full_threshold = (NICE_0_LOAD * 9) / 8;
-#else
-/* TC2 has a sharp consumption curve @ around 800Mhz, so
-   we aim to spread the load around that frequency. */
-unsigned int hmp_packing_enabled;
-unsigned int hmp_full_threshold = 650;  /*  80% of the 800Mhz freq * NICE_0_LOAD */
-#endif
+unsigned int hmp_full_threshold = 650;
 #endif
 
 static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_entity *se);
@@ -3807,8 +3821,8 @@ static inline unsigned int hmp_select_slower_cpu(struct task_struct *tsk,
  * Select the 'best' candidate little CPU to wake up on.
  * Implements a packing strategy which examines CPU in
  * logical CPU order, and selects the first which will
- * have at least 10% capacity available, according to
- * both tracked load of the runqueue and the task.
+ * be loaded less than hmp_full_threshold according to
+ * the sum of the tracked load of the runqueue and the task.
  */
 static inline unsigned int hmp_best_little_cpu(struct task_struct *tsk,
 		int cpu) {
