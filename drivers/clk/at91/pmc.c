@@ -229,6 +229,11 @@ out_free_pmc:
 }
 
 static const struct of_device_id pmc_clk_ids[] __initconst = {
+	/* Slow oscillator */
+	{
+		.compatible = "atmel,at91sam9260-clk-slow",
+		.data = of_at91sam9260_clk_slow_setup,
+	},
 	/* Main clock */
 	{
 		.compatible = "atmel,at91rm9200-clk-main-osc",
