@@ -16,6 +16,7 @@
 #include <linux/tick.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
+#include <linux/smp.h>
 #include <asm/processor.h>
 
 
@@ -55,12 +56,34 @@ void __weak arch_irq_work_raise(void)
 	 */
 }
 
+#ifdef CONFIG_SMP
 /*
- * Enqueue the irq_work @entry unless it's already pending
+ * Enqueue the irq_work @work on @cpu unless it's already pending
  * somewhere.
  *
  * Can be re-enqueued while the callback is still in progress.
  */
+bool irq_work_queue_on(struct irq_work *work, int cpu)
+{
+	/* All work should have been flushed before going offline */
+	WARN_ON_ONCE(cpu_is_offline(cpu));
+
+	/* Arch remote IPI send/receive backend aren't NMI safe */
+	WARN_ON_ONCE(in_nmi());
+
+	/* Only queue if not already pending */
+	if (!irq_work_claim(work))
+		return false;
+
+	if (llist_add(&work->llnode, &per_cpu(raised_list, cpu)))
+		arch_send_call_function_single_ipi(cpu);
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(irq_work_queue_on);
+#endif
+
+/* Enqueue the irq work @work on the current CPU */
 bool irq_work_queue(struct irq_work *work)
 {
 	/* Only queue if not already pending */
