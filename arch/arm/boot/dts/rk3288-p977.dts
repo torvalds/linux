@@ -579,14 +579,21 @@
 		533000 1050000
 		>;
 
-	freq_table = <
+	freq-table = <
 		/*status		freq(KHz)*/
 		SYS_STATUS_NORMAL	400000
 		SYS_STATUS_SUSPEND	200000
 		SYS_STATUS_VIDEO	300000
 		SYS_STATUS_DUALVIEW	500000
+		SYS_STATUS_BOOST	324000
 		>;
-	auto_freq=<1>;
+	auto-freq-table = <
+		240000
+		324000
+		396000
+		528000
+		>;
+	auto-freq=<1>;
 	status="okay";
 };
 
