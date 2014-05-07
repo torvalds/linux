@@ -3169,8 +3169,8 @@ int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 
 int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	unsigned int irq, irq_want;
 	struct msi_desc *msidesc;
+	unsigned int irq;
 	int node, ret;
 
 	/* Multiple MSI vectors only supported with interrupt remapping */
@@ -3178,28 +3178,25 @@ int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 
 	node = dev_to_node(&dev->dev);
-	irq_want = nr_irqs_gsi;
+
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		irq = create_irq_nr(irq_want, node);
-		if (irq == 0)
+		irq = irq_alloc_hwirq(node);
+		if (!irq)
 			return -ENOSPC;
 
-		irq_want = irq + 1;
-
 		ret = setup_msi_irq(dev, msidesc, irq, 0);
-		if (ret < 0)
-			goto error;
+		if (ret < 0) {
+			irq_free_hwirq(irq);
+			return ret;
+		}
+
 	}
 	return 0;
-
-error:
-	destroy_irq(irq);
-	return ret;
 }
 
 void native_teardown_msi_irq(unsigned int irq)
 {
-	destroy_irq(irq);
+	irq_free_hwirq(irq);
 }
 
 #ifdef CONFIG_DMAR_TABLE
