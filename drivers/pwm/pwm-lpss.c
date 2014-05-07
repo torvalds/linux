@@ -129,7 +129,7 @@ static const struct pwm_ops pwm_lpss_ops = {
 
 static struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev,
 					    struct resource *r,
-					    struct pwm_lpss_boardinfo *info)
+					    const struct pwm_lpss_boardinfo *info)
 {
 	struct pwm_lpss_chip *lpwm;
 	int ret;
@@ -140,7 +140,7 @@ static struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev,
 
 	lpwm->regs = devm_ioremap_resource(dev, r);
 	if (IS_ERR(lpwm->regs))
-		return lpwm->regs;
+		return ERR_CAST(lpwm->regs);
 
 	if (info) {
 		lpwm->clk_rate = info->clk_rate;
