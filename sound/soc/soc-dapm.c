@@ -2381,8 +2381,7 @@ err:
 }
 
 static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
-				  const struct snd_soc_dapm_route *route,
-				  unsigned int is_prefixed)
+				  const struct snd_soc_dapm_route *route)
 {
 	struct snd_soc_dapm_widget *wsource = NULL, *wsink = NULL, *w;
 	struct snd_soc_dapm_widget *wtsource = NULL, *wtsink = NULL;
@@ -2392,7 +2391,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	char prefixed_source[80];
 	int ret;
 
-	if (dapm->codec && dapm->codec->name_prefix && !is_prefixed) {
+	if (dapm->codec && dapm->codec->name_prefix) {
 		snprintf(prefixed_sink, sizeof(prefixed_sink), "%s %s",
 			 dapm->codec->name_prefix, route->sink);
 		sink = prefixed_sink;
@@ -2520,7 +2519,7 @@ int snd_soc_dapm_add_routes(struct snd_soc_dapm_context *dapm,
 
 	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_INIT);
 	for (i = 0; i < num; i++) {
-		r = snd_soc_dapm_add_route(dapm, route, false);
+		r = snd_soc_dapm_add_route(dapm, route);
 		if (r < 0) {
 			dev_err(dapm->dev, "ASoC: Failed to add route %s -> %s -> %s\n",
 				route->source,
@@ -3427,7 +3426,7 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 				cpu_dai->codec->name, r.source,
 				codec_dai->platform->name, r.sink);
 
-			snd_soc_dapm_add_route(&card->dapm, &r, true);
+			snd_soc_dapm_add_route(&card->dapm, &r);
 		}
 
 		/* connect BE DAI capture if widgets are valid */
@@ -3438,7 +3437,7 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 				codec_dai->codec->name, r.source,
 				cpu_dai->platform->name, r.sink);
 
-			snd_soc_dapm_add_route(&card->dapm, &r, true);
+			snd_soc_dapm_add_route(&card->dapm, &r);
 		}
 
 	}
