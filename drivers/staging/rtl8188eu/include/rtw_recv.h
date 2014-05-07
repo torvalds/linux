@@ -261,7 +261,6 @@ struct recv_frame {
 	u8 *rx_data;
 	u8 *rx_tail;
 	u8 *rx_end;
-	void *precvbuf;
 	struct sta_info *psta;
 	/* for A-MPDU Rx reordering buffer control */
 	struct recv_reorder_ctrl *preorder_ctrl;
