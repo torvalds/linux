@@ -21,7 +21,13 @@ required properties:
    vfront-porch, vback-porch, vsync-len: vertical display timing parameters in
    lines
  - clock-frequency: display clock in Hz
-
+ - screen-type: screen interface type,such as SCREEN_LVDS/SCREEN_RGB/SCREEN_DEP/SCREEN_MIPI,
+		defined in include/dt-bindings/rkfb/rk_fb.h,this is used on RockChip platform
+ - out-face :   screen data width, such as OUT_P888/OUT_D888_P666/OUT_P666/OUT_P565,
+		defined in include/dt-bindings/rkfb/rk_fb.h,this is used on RockChip platform
+ - lvds-format: lvds data format for lvds screen,such as LVDS_8BIT_1/2/3/LVDS_6BIT,
+		defined in include/dt-bindings/rkfb/rk_fb.h,this is used on RockChip platform
+ - swap-rb/rg/gb: set to 1 if some screen rgb need to swap,this is used on RockChip platform
 optional properties:
  - hsync-active: hsync pulse is active low/high/ignored
  - vsync-active: vsync pulse is active low/high/ignored
