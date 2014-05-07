@@ -1,7 +1,7 @@
 /*
  * Freescale GPMI NAND Flash Driver
  *
- * Copyright (C) 2010-2011 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2015 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 Embedded Alley Solutions, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -2036,9 +2036,54 @@ static int gpmi_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int gpmi_pm_suspend(struct device *dev)
+{
+	struct gpmi_nand_data *this = dev_get_drvdata(dev);
+
+	release_dma_channels(this);
+	return 0;
+}
+
+static int gpmi_pm_resume(struct device *dev)
+{
+	struct gpmi_nand_data *this = dev_get_drvdata(dev);
+	int ret;
+
+	if (GPMI_IS_MX6SX(this)) {
+		ret = acquire_dma_channels(this);
+		if (ret < 0)
+			return ret;
+
+		/* re-init the GPMI registers */
+		this->flags &= ~GPMI_TIMING_INIT_OK;
+		ret = gpmi_init(this);
+		if (ret) {
+			dev_err(this->dev, "Error setting GPMI : %d\n", ret);
+			return ret;
+		}
+
+		/* re-init the BCH registers */
+		ret = bch_set_geometry(this);
+		if (ret) {
+			dev_err(this->dev, "Error setting BCH : %d\n", ret);
+			return ret;
+		}
+
+		/* re-init others */
+		gpmi_extra_init(this);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops gpmi_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(gpmi_pm_suspend, gpmi_pm_resume)
+};
+
 static struct platform_driver gpmi_nand_driver = {
 	.driver = {
 		.name = "gpmi-nand",
+		.pm = &gpmi_pm_ops,
 		.of_match_table = gpmi_nand_id_table,
 	},
 	.probe   = gpmi_nand_probe,
