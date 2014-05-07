@@ -3010,6 +3010,39 @@ void destroy_irqs(unsigned int irq, unsigned int count)
 		destroy_irq(irq + i);
 }
 
+int arch_setup_hwirq(unsigned int irq, int node)
+{
+	struct irq_cfg *cfg;
+	unsigned long flags;
+	int ret;
+
+	cfg = alloc_irq_cfg(irq, node);
+	if (!cfg)
+		return -ENOMEM;
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	ret = __assign_irq_vector(irq, cfg, apic->target_cpus());
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+
+	if (!ret)
+		irq_set_chip_data(irq, cfg);
+	else
+		free_irq_cfg(irq, cfg);
+	return ret;
+}
+
+void arch_teardown_hwirq(unsigned int irq)
+{
+	struct irq_cfg *cfg = irq_get_chip_data(irq);
+	unsigned long flags;
+
+	free_remapped_irq(irq);
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	__clear_irq_vector(irq, cfg);
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+	free_irq_cfg(irq, cfg);
+}
+
 /*
  * MSI message composition
  */
