@@ -655,6 +655,9 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 	u16 data;
 	int ret;
 
+	if (ctrl->flags & V4L2_CTRL_FLAG_INACTIVE)
+		return 0;
+
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		ret = mt9p031_write(client, MT9P031_SHUTTER_WIDTH_UPPER,
@@ -709,8 +712,16 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 					MT9P031_READ_MODE_2_ROW_MIR, 0);
 
 	case V4L2_CID_TEST_PATTERN:
+		/* The digital side of the Black Level Calibration function must
+		 * be disabled when generating a test pattern to avoid artifacts
+		 * in the image. Activate (deactivate) the BLC-related controls
+		 * when the test pattern is enabled (disabled).
+		 */
+		v4l2_ctrl_activate(mt9p031->blc_auto, ctrl->val == 0);
+		v4l2_ctrl_activate(mt9p031->blc_offset, ctrl->val == 0);
+
 		if (!ctrl->val) {
-			/* Restore the black level compensation settings. */
+			/* Restore the BLC settings. */
 			if (mt9p031->blc_auto->cur.val != 0) {
 				ret = mt9p031_s_ctrl(mt9p031->blc_auto);
 				if (ret < 0)
@@ -735,9 +746,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ret < 0)
 			return ret;
 
-		/* Disable digital black level compensation when using a test
-		 * pattern.
-		 */
+		/* Disable digital BLC when generating a test pattern. */
 		ret = mt9p031_set_mode2(mt9p031, MT9P031_READ_MODE_2_ROW_BLC,
 					0);
 		if (ret < 0)
