@@ -182,6 +182,10 @@ END(function_hook)
 ENTRY(ftrace_graph_caller)
 	MCOUNT_SAVE_FRAME
 
+	/* Check if tracing was disabled (quick check) */
+	cmpl $0, function_trace_stop
+	jne  fgraph_skip
+
 #ifdef CC_USING_FENTRY
 	leaq SS+16(%rsp), %rdi
 	movq $0, %rdx	/* No framepointers needed */
@@ -194,6 +198,7 @@ ENTRY(ftrace_graph_caller)
 
 	call	prepare_ftrace_return
 
+fgraph_skip:
 	MCOUNT_RESTORE_FRAME
 
 	retq

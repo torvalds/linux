@@ -118,12 +118,15 @@ struct ftrace_ops {
 	ftrace_func_t			func;
 	struct ftrace_ops		*next;
 	unsigned long			flags;
-	int __percpu			*disabled;
 	void				*private;
+	int __percpu			*disabled;
 #ifdef CONFIG_DYNAMIC_FTRACE
+	int				trampolines;
 	struct ftrace_hash		*notrace_hash;
 	struct ftrace_hash		*filter_hash;
+	struct ftrace_hash		*tramp_hash;
 	struct mutex			regex_lock;
+	unsigned long			trampoline;
 #endif
 };
 
@@ -317,13 +320,15 @@ extern int ftrace_nr_registered_ops(void);
  * from tracing that function.
  */
 enum {
-	FTRACE_FL_ENABLED	= (1UL << 29),
+	FTRACE_FL_ENABLED	= (1UL << 31),
 	FTRACE_FL_REGS		= (1UL << 30),
-	FTRACE_FL_REGS_EN	= (1UL << 31)
+	FTRACE_FL_REGS_EN	= (1UL << 29),
+	FTRACE_FL_TRAMP		= (1UL << 28),
+	FTRACE_FL_TRAMP_EN	= (1UL << 27),
 };
 
-#define FTRACE_REF_MAX_SHIFT	29
-#define FTRACE_FL_BITS		3
+#define FTRACE_REF_MAX_SHIFT	27
+#define FTRACE_FL_BITS		5
 #define FTRACE_FL_MASKED_BITS	((1UL << FTRACE_FL_BITS) - 1)
 #define FTRACE_FL_MASK		(FTRACE_FL_MASKED_BITS << FTRACE_REF_MAX_SHIFT)
 #define FTRACE_REF_MAX		((1UL << FTRACE_REF_MAX_SHIFT) - 1)
@@ -434,6 +439,10 @@ void ftrace_modify_all_code(int command);
 
 #ifndef FTRACE_ADDR
 #define FTRACE_ADDR ((unsigned long)ftrace_caller)
+#endif
+
+#ifndef FTRACE_GRAPH_ADDR
+#define FTRACE_GRAPH_ADDR ((unsigned long)ftrace_graph_caller)
 #endif
 
 #ifndef FTRACE_REGS_ADDR
