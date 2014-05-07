@@ -3242,11 +3242,11 @@ int snd_soc_dapm_new_pcm(struct snd_soc_card *card,
 			 struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_dapm_route routes[2];
 	struct snd_soc_dapm_widget template;
 	struct snd_soc_dapm_widget *w;
 	size_t len;
 	char *link_name;
+	int ret;
 
 	len = strlen(source->name) + strlen(sink->name) + 2;
 	link_name = devm_kzalloc(card->dev, len, GFP_KERNEL);
@@ -3273,15 +3273,10 @@ int snd_soc_dapm_new_pcm(struct snd_soc_card *card,
 
 	w->params = params;
 
-	memset(&routes, 0, sizeof(routes));
-
-	routes[0].source = source->name;
-	routes[0].sink = link_name;
-	routes[1].source = link_name;
-	routes[1].sink = sink->name;
-
-	return snd_soc_dapm_add_routes(&card->dapm, routes,
-				       ARRAY_SIZE(routes));
+	ret = snd_soc_dapm_add_path(&card->dapm, source, w, NULL, NULL);
+	if (ret)
+		return ret;
+	return snd_soc_dapm_add_path(&card->dapm, w, sink, NULL, NULL);
 }
 
 int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
