@@ -1917,6 +1917,8 @@ static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 		if (!(data & HV_X64_MSR_APIC_ASSIST_PAGE_ENABLE)) {
 			vcpu->arch.hv_vapic = data;
+			if (kvm_lapic_enable_pv_eoi(vcpu, 0))
+				return 1;
 			break;
 		}
 		gfn = data >> HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_SHIFT;
@@ -1927,6 +1929,8 @@ static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			return 1;
 		vcpu->arch.hv_vapic = data;
 		mark_page_dirty(vcpu->kvm, gfn);
+		if (kvm_lapic_enable_pv_eoi(vcpu, gfn_to_gpa(gfn) | KVM_MSR_ENABLED))
+			return 1;
 		break;
 	}
 	case HV_X64_MSR_EOI:
