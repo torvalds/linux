@@ -455,31 +455,6 @@ EXPORT_SYMBOL_GPL(irq_free_hwirqs);
 #endif
 
 /**
- * irq_reserve_irqs - mark irqs allocated
- * @from:	mark from irq number
- * @cnt:	number of irqs to mark
- *
- * Returns 0 on success or an appropriate error code
- */
-int irq_reserve_irqs(unsigned int from, unsigned int cnt)
-{
-	unsigned int start;
-	int ret = 0;
-
-	if (!cnt || (from + cnt) > nr_irqs)
-		return -EINVAL;
-
-	mutex_lock(&sparse_irq_lock);
-	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
-	if (start == from)
-		bitmap_set(allocated_irqs, start, cnt);
-	else
-		ret = -EEXIST;
-	mutex_unlock(&sparse_irq_lock);
-	return ret;
-}
-
-/**
  * irq_get_next_irq - get next allocated irq number
  * @offset:	where to start the search
  *
