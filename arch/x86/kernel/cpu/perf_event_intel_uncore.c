@@ -4244,7 +4244,7 @@ static void __init uncore_cpumask_init(void)
 	if (!cpumask_empty(&uncore_cpu_mask))
 		return;
 
-	get_online_cpus();
+	cpu_notifier_register_begin();
 
 	for_each_online_cpu(cpu) {
 		int i, phys_id = topology_physical_package_id(cpu);
@@ -4263,9 +4263,9 @@ static void __init uncore_cpumask_init(void)
 	}
 	on_each_cpu(uncore_cpu_setup, NULL, 1);
 
-	register_cpu_notifier(&uncore_cpu_nb);
+	__register_cpu_notifier(&uncore_cpu_nb);
 
-	put_online_cpus();
+	cpu_notifier_register_done();
 }
 
 

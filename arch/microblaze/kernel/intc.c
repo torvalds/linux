@@ -32,6 +32,29 @@ static void __iomem *intc_baseaddr;
 #define MER_ME (1<<0)
 #define MER_HIE (1<<1)
 
+static unsigned int (*read_fn)(void __iomem *);
+static void (*write_fn)(u32, void __iomem *);
+
+static void intc_write32(u32 val, void __iomem *addr)
+{
+	iowrite32(val, addr);
+}
+
+static unsigned int intc_read32(void __iomem *addr)
+{
+	return ioread32(addr);
+}
+
+static void intc_write32_be(u32 val, void __iomem *addr)
+{
+	iowrite32be(val, addr);
+}
+
+static unsigned int intc_read32_be(void __iomem *addr)
+{
+	return ioread32be(addr);
+}
+
 static void intc_enable_or_unmask(struct irq_data *d)
 {
 	unsigned long mask = 1 << d->hwirq;
@@ -43,21 +66,21 @@ static void intc_enable_or_unmask(struct irq_data *d)
 	 * acks the irq before calling the interrupt handler
 	 */
 	if (irqd_is_level_type(d))
-		out_be32(intc_baseaddr + IAR, mask);
+		write_fn(mask, intc_baseaddr + IAR);
 
-	out_be32(intc_baseaddr + SIE, mask);
+	write_fn(mask, intc_baseaddr + SIE);
 }
 
 static void intc_disable_or_mask(struct irq_data *d)
 {
 	pr_debug("disable: %ld\n", d->hwirq);
-	out_be32(intc_baseaddr + CIE, 1 << d->hwirq);
+	write_fn(1 << d->hwirq, intc_baseaddr + CIE);
 }
 
 static void intc_ack(struct irq_data *d)
 {
 	pr_debug("ack: %ld\n", d->hwirq);
-	out_be32(intc_baseaddr + IAR, 1 << d->hwirq);
+	write_fn(1 << d->hwirq, intc_baseaddr + IAR);
 }
 
 static void intc_mask_ack(struct irq_data *d)
@@ -65,8 +88,8 @@ static void intc_mask_ack(struct irq_data *d)
 	unsigned long mask = 1 << d->hwirq;
 
 	pr_debug("disable_and_ack: %ld\n", d->hwirq);
-	out_be32(intc_baseaddr + CIE, mask);
-	out_be32(intc_baseaddr + IAR, mask);
+	write_fn(mask, intc_baseaddr + CIE);
+	write_fn(mask, intc_baseaddr + IAR);
 }
 
 static struct irq_chip intc_dev = {
@@ -83,7 +106,7 @@ unsigned int get_irq(void)
 {
 	unsigned int hwirq, irq = -1;
 
-	hwirq = in_be32(intc_baseaddr + IVR);
+	hwirq = read_fn(intc_baseaddr + IVR);
 	if (hwirq != -1U)
 		irq = irq_find_mapping(root_domain, hwirq);
 
@@ -140,17 +163,25 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 	pr_info("%s: num_irq=%d, edge=0x%x\n",
 		intc->full_name, nr_irq, intr_mask);
 
+	write_fn = intc_write32;
+	read_fn = intc_read32;
+
 	/*
 	 * Disable all external interrupts until they are
 	 * explicity requested.
 	 */
-	out_be32(intc_baseaddr + IER, 0);
+	write_fn(0, intc_baseaddr + IER);
 
 	/* Acknowledge any pending interrupts just in case. */
-	out_be32(intc_baseaddr + IAR, 0xffffffff);
+	write_fn(0xffffffff, intc_baseaddr + IAR);
 
 	/* Turn on the Master Enable. */
-	out_be32(intc_baseaddr + MER, MER_HIE | MER_ME);
+	write_fn(MER_HIE | MER_ME, intc_baseaddr + MER);
+	if (!(read_fn(intc_baseaddr + MER) & (MER_HIE | MER_ME))) {
+		write_fn = intc_write32_be;
+		read_fn = intc_read32_be;
+		write_fn(MER_HIE | MER_ME, intc_baseaddr + MER);
+	}
 
 	/* Yeah, okay, casting the intr_mask to a void* is butt-ugly, but I'm
 	 * lazy and Michal can clean it up to something nicer when he tests

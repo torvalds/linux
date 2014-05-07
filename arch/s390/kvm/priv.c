@@ -396,15 +396,10 @@ static int handle_stidp(struct kvm_vcpu *vcpu)
 
 static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 {
-	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	int cpus = 0;
 	int n;
 
-	spin_lock(&fi->lock);
-	for (n = 0; n < KVM_MAX_VCPUS; n++)
-		if (fi->local_int[n])
-			cpus++;
-	spin_unlock(&fi->lock);
+	cpus = atomic_read(&vcpu->kvm->online_vcpus);
 
 	/* deal with other level 3 hypervisors */
 	if (stsi(mem, 3, 2, 2))

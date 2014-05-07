@@ -4631,8 +4631,16 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 		data++;
 		len--;
+		if (len < 2) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
 		if (*data == 0xff && data[1] == 0xd8) {
 /*fixme: there may be information in the 4 high bits*/
+			if (len < 7) {
+				gspca_dev->last_packet_type = DISCARD_PACKET;
+				return;
+			}
 			if ((data[6] & 0x0f) != sd->quality)
 				set_dqt(gspca_dev, data[6] & 0x0f);
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
@@ -4672,7 +4680,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		gspca_dev->last_packet_type = DISCARD_PACKET;
 		break;
 	case 0xcc:
-		if (data[1] != 0xff || data[2] != 0xd8)
+		if (len >= 3 && (data[1] != 0xff || data[2] != 0xd8))
 			gspca_frame_add(gspca_dev, INTER_PACKET,
 					data + 1, len - 1);
 		else

@@ -301,8 +301,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 }
 
 
-static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad,
-				int encrypted)
+static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad)
 {
 	__le16 mask_fc;
 	int a4_included, mgmt;
@@ -456,7 +455,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 		return 0;
 
 	pos += IEEE80211_CCMP_HDR_LEN;
-	ccmp_special_blocks(skb, pn, b_0, aad, 0);
+	ccmp_special_blocks(skb, pn, b_0, aad);
 	ieee80211_aes_ccm_encrypt(key->u.ccmp.tfm, b_0, aad, pos, len,
 				  skb_put(skb, IEEE80211_CCMP_MIC_LEN));
 
@@ -495,7 +494,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
 	if (!ieee80211_is_data(hdr->frame_control) &&
-	    !ieee80211_is_robust_mgmt_frame(hdr))
+	    !ieee80211_is_robust_mgmt_frame(skb))
 		return RX_CONTINUE;
 
 	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN -
@@ -524,7 +523,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 		u8 aad[2 * AES_BLOCK_SIZE];
 		u8 b_0[AES_BLOCK_SIZE];
 		/* hardware didn't decrypt/verify MIC */
-		ccmp_special_blocks(skb, pn, b_0, aad, 1);
+		ccmp_special_blocks(skb, pn, b_0, aad);
 
 		if (ieee80211_aes_ccm_decrypt(
 			    key->u.ccmp.tfm, b_0, aad,

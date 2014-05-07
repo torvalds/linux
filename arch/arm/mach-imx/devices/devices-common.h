@@ -290,15 +290,6 @@ struct imx_pata_imx_data {
 struct platform_device *__init imx_add_pata_imx(
 		const struct imx_pata_imx_data *data);
 
-struct imx_mxc_pwm_data {
-	int id;
-	resource_size_t iobase;
-	resource_size_t iosize;
-	resource_size_t irq;
-};
-struct platform_device *__init imx_add_mxc_pwm(
-		const struct imx_mxc_pwm_data *data);
-
 /* mxc_rtc */
 struct imx_mxc_rtc_data {
 	const char *devid;

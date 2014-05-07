@@ -14,7 +14,7 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
-#include <plat/regs-serial.h>
+#include <linux/serial_s3c.h>
 
 #define S3C2410_UART1_OFF (0x4000)
 #define SHIFT_2440TXF (14-9)

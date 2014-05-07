@@ -71,6 +71,7 @@
 #define ARM_CPU_PART_CORTEX_A5		0xC050
 #define ARM_CPU_PART_CORTEX_A15		0xC0F0
 #define ARM_CPU_PART_CORTEX_A7		0xC070
+#define ARM_CPU_PART_CORTEX_A12		0xC0D0
 
 #define ARM_CPU_XSCALE_ARCH_MASK	0xe000
 #define ARM_CPU_XSCALE_ARCH_V1		0x2000
@@ -220,4 +221,23 @@ static inline int cpu_is_xsc3(void)
 #define	cpu_is_xscale()	1
 #endif
 
+/*
+ * Marvell's PJ4 core is based on V7 version. It has some modification
+ * for coprocessor setting. For this reason, we need a way to distinguish
+ * it.
+ */
+#ifndef CONFIG_CPU_PJ4
+#define cpu_is_pj4()	0
+#else
+static inline int cpu_is_pj4(void)
+{
+	unsigned int id;
+
+	id = read_cpuid_id();
+	if ((id & 0xfffffff0) == 0x562f5840)
+		return 1;
+
+	return 0;
+}
+#endif
 #endif

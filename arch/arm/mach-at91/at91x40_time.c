@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
+#include <mach/at91x40.h>
 #include <asm/mach/time.h>
 
 #include "at91_tc.h"

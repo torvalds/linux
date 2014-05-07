@@ -477,7 +477,7 @@ static int __init kvm_devices_init(void)
 	INIT_WORK(&hotplug_work, hotplug_devices);
 
 	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
-	register_external_interrupt(0x2603, kvm_extint_handler);
+	register_external_irq(EXT_IRQ_CP_SERVICE, kvm_extint_handler);
 
 	scan_devices();
 	return 0;

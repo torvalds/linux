@@ -838,6 +838,12 @@ static int __init af_rxrpc_init(void)
 		goto error_key_type_s;
 	}
 
+	ret = rxrpc_sysctl_init();
+	if (ret < 0) {
+		printk(KERN_CRIT "RxRPC: Cannot register sysctls\n");
+		goto error_sysctls;
+	}
+
 #ifdef CONFIG_PROC_FS
 	proc_create("rxrpc_calls", 0, init_net.proc_net, &rxrpc_call_seq_fops);
 	proc_create("rxrpc_conns", 0, init_net.proc_net,
@@ -845,6 +851,8 @@ static int __init af_rxrpc_init(void)
 #endif
 	return 0;
 
+error_sysctls:
+	unregister_key_type(&key_type_rxrpc_s);
 error_key_type_s:
 	unregister_key_type(&key_type_rxrpc);
 error_key_type:
@@ -865,6 +873,7 @@ error_call_jar:
 static void __exit af_rxrpc_exit(void)
 {
 	_enter("");
+	rxrpc_sysctl_exit();
 	unregister_key_type(&key_type_rxrpc_s);
 	unregister_key_type(&key_type_rxrpc);
 	sock_unregister(PF_RXRPC);

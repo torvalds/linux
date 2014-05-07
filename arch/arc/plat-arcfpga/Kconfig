@@ -33,7 +33,6 @@ config ISS_SMP_EXTN
 	bool "ARC SMP Extensions (ISS Models only)"
 	default n
 	depends on SMP
-	select ARC_HAS_COH_RTSC
 	help
 	  SMP Extensions to ARC700, in a "simulation only" Model, supported in
 	  ARC ISS (Instruction Set Simulator).

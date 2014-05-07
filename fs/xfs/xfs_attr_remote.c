@@ -125,7 +125,6 @@ xfs_attr3_rmt_read_verify(
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	char		*ptr;
 	int		len;
-	bool		corrupt = false;
 	xfs_daddr_t	bno;
 
 	/* no verification of non-crc buffers */
@@ -140,11 +139,11 @@ xfs_attr3_rmt_read_verify(
 	while (len > 0) {
 		if (!xfs_verify_cksum(ptr, XFS_LBSIZE(mp),
 				      XFS_ATTR3_RMT_CRC_OFF)) {
-			corrupt = true;
+			xfs_buf_ioerror(bp, EFSBADCRC);
 			break;
 		}
 		if (!xfs_attr3_rmt_verify(mp, ptr, XFS_LBSIZE(mp), bno)) {
-			corrupt = true;
+			xfs_buf_ioerror(bp, EFSCORRUPTED);
 			break;
 		}
 		len -= XFS_LBSIZE(mp);
@@ -152,10 +151,9 @@ xfs_attr3_rmt_read_verify(
 		bno += mp->m_bsize;
 	}
 
-	if (corrupt) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	} else
+	if (bp->b_error)
+		xfs_verifier_error(bp);
+	else
 		ASSERT(len == 0);
 }
 
@@ -180,9 +178,8 @@ xfs_attr3_rmt_write_verify(
 
 	while (len > 0) {
 		if (!xfs_attr3_rmt_verify(mp, ptr, XFS_LBSIZE(mp), bno)) {
-			XFS_CORRUPTION_ERROR(__func__,
-					    XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 			xfs_buf_ioerror(bp, EFSCORRUPTED);
+			xfs_verifier_error(bp);
 			return;
 		}
 		if (bip) {

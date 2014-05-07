@@ -761,10 +761,11 @@ skip_format_initialization:
 	if (ret != 0)
 		goto err_range;
 
-	if (dev)
+	if (dev) {
 		ret = regmap_attach_dev(dev, map, config);
 		if (ret != 0)
 			goto err_regcache;
+	}
 
 	return map;
 

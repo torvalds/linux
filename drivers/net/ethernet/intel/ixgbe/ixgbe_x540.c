@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -61,6 +62,7 @@ static s32 ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
 	mac->mcft_size = IXGBE_X540_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_X540_VFT_TBL_SIZE;
 	mac->num_rar_entries = IXGBE_X540_RAR_ENTRIES;
+	mac->rx_pb_size = IXGBE_X540_RX_PB_SIZE;
 	mac->max_rx_queues = IXGBE_X540_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_X540_MAX_TX_QUEUES;
 	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
@@ -187,7 +189,6 @@ static s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
 		goto out;
 
 	ret_val = ixgbe_start_hw_gen2(hw);
-	hw->mac.rx_pb_size = IXGBE_X540_RX_PB_SIZE;
 out:
 	return ret_val;
 }
@@ -854,7 +855,8 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
 	.get_thermal_sensor_data = NULL,
 	.init_thermal_sensor_thresh = NULL,
-	.mng_fw_enabled		= NULL,
+	.prot_autoc_read	= &prot_autoc_read_generic,
+	.prot_autoc_write	= &prot_autoc_write_generic,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_X540 = {

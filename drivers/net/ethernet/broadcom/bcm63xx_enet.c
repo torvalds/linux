@@ -1722,9 +1722,6 @@ static const struct net_device_ops bcm_enet_ops = {
 	.ndo_set_rx_mode	= bcm_enet_set_multicast_list,
 	.ndo_do_ioctl		= bcm_enet_ioctl,
 	.ndo_change_mtu		= bcm_enet_change_mtu,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = bcm_enet_netpoll,
-#endif
 };
 
 /*

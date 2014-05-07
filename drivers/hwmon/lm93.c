@@ -2754,7 +2754,6 @@ static int lm93_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 
 	/* housekeeping */
-	data->valid = 0;
 	data->update = update;
 	mutex_init(&data->update_lock);
 

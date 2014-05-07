@@ -82,6 +82,8 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 	}
 
 	ret = flock_lock_file_wait(file, fl);
+	if (ret)
+		ocfs2_file_unlock(file);
 
 out:
 	mutex_unlock(&fp->fp_mutex);

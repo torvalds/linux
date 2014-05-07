@@ -16,6 +16,8 @@
 #define XSTATE_Hi16_ZMM		0x80
 
 #define XSTATE_FPSSE	(XSTATE_FP | XSTATE_SSE)
+/* Bit 63 of XCR0 is reserved for future expansion */
+#define XSTATE_EXTEND_MASK	(~(XSTATE_FPSSE | (1ULL << 63)))
 
 #define FXSAVE_SIZE	512
 

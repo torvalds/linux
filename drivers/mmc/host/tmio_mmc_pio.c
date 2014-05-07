@@ -1142,7 +1142,7 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 int tmio_mmc_host_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
@@ -1165,9 +1165,9 @@ int tmio_mmc_host_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(tmio_mmc_host_resume);
+#endif
 
-#endif	/* CONFIG_PM */
-
+#ifdef CONFIG_PM_RUNTIME
 int tmio_mmc_host_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -1184,5 +1184,6 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(tmio_mmc_host_runtime_resume);
+#endif
 
 MODULE_LICENSE("GPL v2");

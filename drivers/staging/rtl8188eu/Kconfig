@@ -3,7 +3,6 @@ config R8188EU
 	depends on WLAN && USB
 	select WIRELESS_EXT
 	select WEXT_PRIV
-	default N
 	---help---
 	This option adds the Realtek RTL8188EU USB device such as TP-Link TL-WN725N.
 	If built as a module, it will be called r8188eu.

@@ -14,7 +14,9 @@ _GLOBAL(memcpy)
 BEGIN_FTR_SECTION
 	std	r3,48(r1)	/* save destination pointer for return value */
 FTR_SECTION_ELSE
+#ifndef SELFTEST
 	b	memcpy_power7
+#endif
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 	PPC_MTOCRF(0x01,r5)
 	cmpldi	cr1,r5,16

@@ -260,7 +260,7 @@ ARCFP_CODE	;Fast Path Code, candidate for ICCM
 ; I-TLB Miss Exception Handler
 ;-----------------------------------------------------------------------------
 
-ARC_ENTRY EV_TLBMissI
+ENTRY(EV_TLBMissI)
 
 	TLBMISS_FREEUP_REGS
 
@@ -293,13 +293,13 @@ ARC_ENTRY EV_TLBMissI
 	TLBMISS_RESTORE_REGS
 	rtie
 
-ARC_EXIT EV_TLBMissI
+END(EV_TLBMissI)
 
 ;-----------------------------------------------------------------------------
 ; D-TLB Miss Exception Handler
 ;-----------------------------------------------------------------------------
 
-ARC_ENTRY EV_TLBMissD
+ENTRY(EV_TLBMissD)
 
 	TLBMISS_FREEUP_REGS
 
@@ -381,6 +381,4 @@ do_slow_path_pf:
 	bl  do_page_fault
 	b   ret_from_exception
 
-ARC_EXIT EV_TLBMissD
-
-ARC_ENTRY EV_TLBMissB   ; Bogus entry to measure sz of DTLBMiss hdlr
+END(EV_TLBMissD)

@@ -137,7 +137,7 @@ static void uas_do_work(struct work_struct *work)
 		if (!(cmdinfo->state & IS_IN_WORK_LIST))
 			continue;
 
-		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_NOIO);
+		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_ATOMIC);
 		if (!err)
 			cmdinfo->state &= ~IS_IN_WORK_LIST;
 		else
@@ -803,7 +803,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 
 	devinfo->running_task = 1;
 	memset(&devinfo->response, 0, sizeof(devinfo->response));
-	sense_urb = uas_submit_sense_urb(cmnd, GFP_NOIO,
+	sense_urb = uas_submit_sense_urb(cmnd, GFP_ATOMIC,
 					 devinfo->use_streams ? tag : 0);
 	if (!sense_urb) {
 		shost_printk(KERN_INFO, shost,
@@ -813,7 +813,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return FAILED;
 	}
-	if (uas_submit_task_urb(cmnd, GFP_NOIO, function, tag)) {
+	if (uas_submit_task_urb(cmnd, GFP_ATOMIC, function, tag)) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit task mgmt urb failed\n",
 			     __func__, fname);
@@ -1030,7 +1030,7 @@ static int uas_configure_endpoints(struct uas_dev_info *devinfo)
 		devinfo->use_streams = 0;
 	} else {
 		devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1,
-						    3, 256, GFP_KERNEL);
+						    3, 256, GFP_NOIO);
 		if (devinfo->qdepth < 0)
 			return devinfo->qdepth;
 		devinfo->use_streams = 1;
@@ -1047,7 +1047,7 @@ static void uas_free_streams(struct uas_dev_info *devinfo)
 	eps[0] = usb_pipe_endpoint(udev, devinfo->status_pipe);
 	eps[1] = usb_pipe_endpoint(udev, devinfo->data_in_pipe);
 	eps[2] = usb_pipe_endpoint(udev, devinfo->data_out_pipe);
-	usb_free_streams(devinfo->intf, eps, 3, GFP_KERNEL);
+	usb_free_streams(devinfo->intf, eps, 3, GFP_NOIO);
 }
 
 static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -1096,16 +1096,17 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (result)
 		goto free_streams;
 
+	usb_set_intfdata(intf, shost);
 	result = scsi_add_host(shost, &intf->dev);
 	if (result)
 		goto free_streams;
 
 	scsi_scan_host(shost);
-	usb_set_intfdata(intf, shost);
 	return result;
 
 free_streams:
 	uas_free_streams(devinfo);
+	usb_set_intfdata(intf, NULL);
 set_alt0:
 	usb_set_interface(udev, intf->altsetting[0].desc.bInterfaceNumber, 0);
 	if (shost)

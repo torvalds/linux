@@ -1,0 +1,66 @@
+Samsung LD9040 AMOLED LCD parallel RGB panel with SPI control bus
+
+Required properties:
+  - compatible: "samsung,ld9040"
+  - reg: address of the panel on SPI bus
+  - vdd3-supply: core voltage supply
+  - vci-supply: voltage supply for analog circuits
+  - reset-gpios: a GPIO spec for the reset pin
+  - display-timings: timings for the connected panel according to [1]
+
+The panel must obey rules for SPI slave device specified in document [2].
+
+Optional properties:
+  - power-on-delay: delay after turning regulators on [ms]
+  - reset-delay: delay after reset sequence [ms]
+  - panel-width-mm: physical panel width [mm]
+  - panel-height-mm: physical panel height [mm]
+
+The device node can contain one 'port' child node with one child
+'endpoint' node, according to the bindings defined in [3]. This
+node should describe panel's video bus.
+
+[1]: Documentation/devicetree/bindings/video/display-timing.txt
+[2]: Documentation/devicetree/bindings/spi/spi-bus.txt
+[3]: Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Example:
+
+	lcd@0 {
+		compatible = "samsung,ld9040";
+		reg = <0>;
+		vdd3-supply = <&ldo7_reg>;
+		vci-supply = <&ldo17_reg>;
+		reset-gpios = <&gpy4 5 0>;
+		spi-max-frequency = <1200000>;
+		spi-cpol;
+		spi-cpha;
+		power-on-delay = <10>;
+		reset-delay = <10>;
+		panel-width-mm = <90>;
+		panel-height-mm = <154>;
+
+		display-timings {
+			timing {
+				clock-frequency = <23492370>;
+				hactive = <480>;
+				vactive = <800>;
+				hback-porch = <16>;
+				hfront-porch = <16>;
+				vback-porch = <2>;
+				vfront-porch = <28>;
+				hsync-len = <2>;
+				vsync-len = <1>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			lcd_ep: endpoint {
+				remote-endpoint = <&fimd_dpi_ep>;
+			};
+		};
+	};

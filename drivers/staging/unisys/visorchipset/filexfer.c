@@ -83,7 +83,7 @@ struct any_request {
 	 * coarsest possible alignment boundary that could be required
 	 * for any user data structure.
 	 */
-	u8 caller_context_data[1] __aligned(sizeof(ulong2);
+	u8 caller_context_data[1] __aligned(sizeof(ulong2));
 };
 
 /*

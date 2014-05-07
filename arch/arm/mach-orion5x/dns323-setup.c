@@ -642,6 +642,8 @@ static void __init dns323_init(void)
 		platform_device_register_simple("dns323c-fan", 0, NULL, 0);
 
 		/* Register fixup for the PHY LEDs */
+		if (!IS_BUILTIN(CONFIG_PHYLIB))
+			break;
 		phy_register_fixup_for_uid(MARVELL_PHY_ID_88E1118,
 					   MARVELL_PHY_ID_MASK,
 					   dns323c_phy_fixup);

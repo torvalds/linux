@@ -480,6 +480,10 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					status = AE_OK;
 				}
 
+				if (status == AE_CTRL_TERMINATE) {
+					return_ACPI_STATUS(status);
+				}
+
 				status =
 				    acpi_ps_complete_op(walk_state, &op,
 							status);

@@ -566,12 +566,6 @@ extern int __must_check device_create_bin_file(struct device *dev,
 					const struct bin_attribute *attr);
 extern void device_remove_bin_file(struct device *dev,
 				   const struct bin_attribute *attr);
-extern int device_schedule_callback_owner(struct device *dev,
-		void (*func)(struct device *dev), struct module *owner);
-
-/* This is a macro to avoid include problems with THIS_MODULE */
-#define device_schedule_callback(dev, func)			\
-	device_schedule_callback_owner(dev, func, THIS_MODULE)
 
 /* device resource management */
 typedef void (*dr_release_t)(struct device *dev, void *res);
@@ -932,10 +926,7 @@ extern int device_online(struct device *dev);
 extern struct device *__root_device_register(const char *name,
 					     struct module *owner);
 
-/*
- * This is a macro to avoid include problems with THIS_MODULE,
- * just as per what is done for device_schedule_callback() above.
- */
+/* This is a macro to avoid include problems with THIS_MODULE */
 #define root_device_register(name) \
 	__root_device_register(name, THIS_MODULE)
 

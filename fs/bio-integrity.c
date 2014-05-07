@@ -182,6 +182,9 @@ static int bdev_integrity_enabled(struct block_device *bdev, int rw)
  */
 int bio_integrity_enabled(struct bio *bio)
 {
+	if (!bio_is_rw(bio))
+		return 0;
+
 	/* Already protected? */
 	if (bio_integrity(bio))
 		return 0;
@@ -309,10 +312,9 @@ static int bio_integrity_generate_verify(struct bio *bio, int operate)
 {
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 	struct blk_integrity_exchg bix;
-	struct bio_vec bv;
-	struct bvec_iter iter;
+	struct bio_vec *bv;
 	sector_t sector;
-	unsigned int sectors, ret = 0;
+	unsigned int sectors, ret = 0, i;
 	void *prot_buf = bio->bi_integrity->bip_buf;
 
 	if (operate)
@@ -323,16 +325,16 @@ static int bio_integrity_generate_verify(struct bio *bio, int operate)
 	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
 	bix.sector_size = bi->sector_size;
 
-	bio_for_each_segment(bv, bio, iter) {
-		void *kaddr = kmap_atomic(bv.bv_page);
-		bix.data_buf = kaddr + bv.bv_offset;
-		bix.data_size = bv.bv_len;
+	bio_for_each_segment_all(bv, bio, i) {
+		void *kaddr = kmap_atomic(bv->bv_page);
+		bix.data_buf = kaddr + bv->bv_offset;
+		bix.data_size = bv->bv_len;
 		bix.prot_buf = prot_buf;
 		bix.sector = sector;
 
-		if (operate) {
+		if (operate)
 			bi->generate_fn(&bix);
-		} else {
+		else {
 			ret = bi->verify_fn(&bix);
 			if (ret) {
 				kunmap_atomic(kaddr);
@@ -340,7 +342,7 @@ static int bio_integrity_generate_verify(struct bio *bio, int operate)
 			}
 		}
 
-		sectors = bv.bv_len / bi->sector_size;
+		sectors = bv->bv_len / bi->sector_size;
 		sector += sectors;
 		prot_buf += sectors * bi->tuple_size;
 

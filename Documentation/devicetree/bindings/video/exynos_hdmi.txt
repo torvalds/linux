@@ -25,6 +25,9 @@ Required properties:
 		sclk_pixel.
 - clock-names: aliases as per driver requirements for above clock IDs:
 	"hdmi", "sclk_hdmi", "sclk_pixel", "sclk_hdmiphy" and "mout_hdmi".
+- ddc: phandle to the hdmi ddc node
+- phy: phandle to the hdmi phy node
+
 Example:
 
 	hdmi {
@@ -32,4 +35,6 @@ Example:
 		reg = <0x14530000 0x100000>;
 		interrupts = <0 95 0>;
 		hpd-gpio = <&gpx3 7 1>;
+		ddc = <&hdmi_ddc_node>;
+		phy = <&hdmi_phy_node>;
 	};

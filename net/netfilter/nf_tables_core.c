@@ -25,9 +25,8 @@ static void nft_cmp_fast_eval(const struct nft_expr *expr,
 			      struct nft_data data[NFT_REG_MAX + 1])
 {
 	const struct nft_cmp_fast_expr *priv = nft_expr_priv(expr);
-	u32 mask;
+	u32 mask = nft_cmp_fast_mask(priv->len);
 
-	mask = ~0U >> (sizeof(priv->data) * BITS_PER_BYTE - priv->len);
 	if ((data[priv->sreg].data[0] & mask) == priv->data)
 		return;
 	data[NFT_REG_VERDICT].verdict = NFT_BREAK;

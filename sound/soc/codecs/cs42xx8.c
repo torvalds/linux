@@ -495,17 +495,16 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap)
 	regcache_cache_bypass(cs42xx8->regmap, true);
 
 	/* Validate the chip ID */
-	regmap_read(cs42xx8->regmap, CS42XX8_CHIPID, &val);
-	if (val < 0) {
-		dev_err(dev, "failed to get device ID: %x", val);
-		ret = -EINVAL;
+	ret = regmap_read(cs42xx8->regmap, CS42XX8_CHIPID, &val);
+	if (ret < 0) {
+		dev_err(dev, "failed to get device ID, ret = %d", ret);
 		goto err_enable;
 	}
 
 	/* The top four bits of the chip ID should be 0000 */
-	if ((val & CS42XX8_CHIPID_CHIP_ID_MASK) != 0x00) {
+	if (((val & CS42XX8_CHIPID_CHIP_ID_MASK) >> 4) != 0x00) {
 		dev_err(dev, "unmatched chip ID: %d\n",
-				val & CS42XX8_CHIPID_CHIP_ID_MASK);
+			(val & CS42XX8_CHIPID_CHIP_ID_MASK) >> 4);
 		ret = -EINVAL;
 		goto err_enable;
 	}

@@ -66,7 +66,7 @@ config PCMCIA_3C589
 
 config VORTEX
 	tristate "3c590/3c900 series (592/595/597) \"Vortex/Boomerang\" support"
-	depends on (PCI || EISA) && HAS_IOPORT
+	depends on (PCI || EISA) && HAS_IOPORT_MAP
 	select MII
 	---help---
 	  This option enables driver support for a large number of 10Mbps and

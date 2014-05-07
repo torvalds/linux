@@ -44,6 +44,7 @@
 #include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/irqchip/chained_irq.h>
 
 /*
  * GPIO unit register offsets.
@@ -438,11 +439,14 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct mvebu_gpio_chip *mvchip = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	u32 cause, type;
 	int i;
 
 	if (mvchip == NULL)
 		return;
+
+	chained_irq_enter(chip, desc);
 
 	cause = readl_relaxed(mvebu_gpioreg_data_in(mvchip)) &
 		readl_relaxed(mvebu_gpioreg_level_mask(mvchip));
@@ -466,8 +470,11 @@ static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			polarity ^= 1 << i;
 			writel_relaxed(polarity, mvebu_gpioreg_in_pol(mvchip));
 		}
+
 		generic_handle_irq(irq);
 	}
+
+	chained_irq_exit(chip, desc);
 }
 
 #ifdef CONFIG_DEBUG_FS

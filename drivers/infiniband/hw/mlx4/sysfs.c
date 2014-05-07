@@ -627,6 +627,7 @@ static int register_one_pkey_tree(struct mlx4_ib_dev *dev, int slave)
 	int port;
 	struct kobject *p, *t;
 	struct mlx4_port *mport;
+	struct mlx4_active_ports actv_ports;
 
 	get_name(dev, name, slave, sizeof name);
 
@@ -649,7 +650,11 @@ static int register_one_pkey_tree(struct mlx4_ib_dev *dev, int slave)
 		goto err_ports;
 	}
 
+	actv_ports = mlx4_get_active_ports(dev->dev, slave);
+
 	for (port = 1; port <= dev->dev->caps.num_ports; ++port) {
+		if (!test_bit(port - 1, actv_ports.ports))
+			continue;
 		err = add_port(dev, port, slave);
 		if (err)
 			goto err_add;

@@ -92,16 +92,16 @@ static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 
 
 static struct cpufreq_frequency_table p4clockmod_table[] = {
-	{DC_RESV, CPUFREQ_ENTRY_INVALID},
-	{DC_DFLT, 0},
-	{DC_25PT, 0},
-	{DC_38PT, 0},
-	{DC_50PT, 0},
-	{DC_64PT, 0},
-	{DC_75PT, 0},
-	{DC_88PT, 0},
-	{DC_DISABLE, 0},
-	{DC_RESV, CPUFREQ_TABLE_END},
+	{0, DC_RESV, CPUFREQ_ENTRY_INVALID},
+	{0, DC_DFLT, 0},
+	{0, DC_25PT, 0},
+	{0, DC_38PT, 0},
+	{0, DC_50PT, 0},
+	{0, DC_64PT, 0},
+	{0, DC_75PT, 0},
+	{0, DC_88PT, 0},
+	{0, DC_DISABLE, 0},
+	{0, DC_RESV, CPUFREQ_TABLE_END},
 };
 
 

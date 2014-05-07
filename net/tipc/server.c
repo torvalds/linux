@@ -119,7 +119,7 @@ static struct tipc_conn *tipc_conn_lookup(struct tipc_server *s, int conid)
 	return con;
 }
 
-static void sock_data_ready(struct sock *sk, int unused)
+static void sock_data_ready(struct sock *sk)
 {
 	struct tipc_conn *con;
 
@@ -297,7 +297,7 @@ static int tipc_accept_from_sock(struct tipc_conn *con)
 	newcon->usr_data = s->tipc_conn_new(newcon->conid);
 
 	/* Wake up receive process in case of 'SYN+' message */
-	newsock->sk->sk_data_ready(newsock->sk, 0);
+	newsock->sk->sk_data_ready(newsock->sk);
 	return ret;
 }
 

@@ -176,6 +176,17 @@
 
 #ifndef __ASSEMBLY__
 
+static inline unsigned core_nvpes(void)
+{
+	unsigned conf0;
+
+	if (!cpu_has_mipsmt)
+		return 1;
+
+	conf0 = read_c0_mvpconf0();
+	return ((conf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
+}
+
 static inline unsigned int dvpe(void)
 {
 	int res = 0;

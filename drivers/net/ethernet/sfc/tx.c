@@ -787,15 +787,6 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
  * Requires TX checksum offload support.
  */
 
-/* Number of bytes inserted at the start of a TSO header buffer,
- * similar to NET_IP_ALIGN.
- */
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-#define TSOH_OFFSET	0
-#else
-#define TSOH_OFFSET	NET_IP_ALIGN
-#endif
-
 #define PTR_DIFF(p1, p2)  ((u8 *)(p1) - (u8 *)(p2))
 
 /**
@@ -882,13 +873,13 @@ static u8 *efx_tsoh_get_buffer(struct efx_tx_queue *tx_queue,
 	EFX_BUG_ON_PARANOID(buffer->flags);
 	EFX_BUG_ON_PARANOID(buffer->unmap_len);
 
-	if (likely(len <= TSOH_STD_SIZE - TSOH_OFFSET)) {
+	if (likely(len <= TSOH_STD_SIZE - NET_IP_ALIGN)) {
 		unsigned index =
 			(tx_queue->insert_count & tx_queue->ptr_mask) / 2;
 		struct efx_buffer *page_buf =
 			&tx_queue->tsoh_page[index / TSOH_PER_PAGE];
 		unsigned offset =
-			TSOH_STD_SIZE * (index % TSOH_PER_PAGE) + TSOH_OFFSET;
+			TSOH_STD_SIZE * (index % TSOH_PER_PAGE) + NET_IP_ALIGN;
 
 		if (unlikely(!page_buf->addr) &&
 		    efx_nic_alloc_buffer(tx_queue->efx, page_buf, PAGE_SIZE,
@@ -901,10 +892,10 @@ static u8 *efx_tsoh_get_buffer(struct efx_tx_queue *tx_queue,
 	} else {
 		tx_queue->tso_long_headers++;
 
-		buffer->heap_buf = kmalloc(TSOH_OFFSET + len, GFP_ATOMIC);
+		buffer->heap_buf = kmalloc(NET_IP_ALIGN + len, GFP_ATOMIC);
 		if (unlikely(!buffer->heap_buf))
 			return NULL;
-		result = (u8 *)buffer->heap_buf + TSOH_OFFSET;
+		result = (u8 *)buffer->heap_buf + NET_IP_ALIGN;
 		buffer->flags = EFX_TX_BUF_CONT | EFX_TX_BUF_HEAP;
 	}
 
@@ -1011,7 +1002,7 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 static int tso_start(struct tso_state *st, struct efx_nic *efx,
 		     const struct sk_buff *skb)
 {
-	bool use_options = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
+	bool use_opt_desc = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
 	struct device *dma_dev = &efx->pci_dev->dev;
 	unsigned int header_len, in_len;
 	dma_addr_t dma_addr;
@@ -1037,7 +1028,7 @@ static int tso_start(struct tso_state *st, struct efx_nic *efx,
 
 	st->out_len = skb->len - header_len;
 
-	if (!use_options) {
+	if (!use_opt_desc) {
 		st->header_unmap_len = 0;
 
 		if (likely(in_len == 0)) {

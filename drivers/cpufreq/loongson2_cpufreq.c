@@ -69,7 +69,7 @@ static int loongson2_cpufreq_target(struct cpufreq_policy *policy,
 
 static int loongson2_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	static struct clk *cpuclk;
+	struct clk *cpuclk;
 	int i;
 	unsigned long rate;
 	int ret;

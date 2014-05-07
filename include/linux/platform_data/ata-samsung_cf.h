@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-samsung/include/plat/ata.h
- *
+/*
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
@@ -10,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_PLAT_ATA_H
-#define __ASM_PLAT_ATA_H __FILE__
+#ifndef __ATA_SAMSUNG_CF_H
+#define __ATA_SAMSUNG_CF_H __FILE__
 
 /**
  * struct s3c_ide_platdata - S3C IDE driver platform data.
@@ -33,4 +32,4 @@ extern void s3c64xx_ide_setup_gpio(void);
 extern void s5pc100_ide_setup_gpio(void);
 extern void s5pv210_ide_setup_gpio(void);
 
-#endif /*__ASM_PLAT_ATA_H */
+#endif /*__ATA_SAMSUNG_CF_H */

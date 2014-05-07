@@ -67,7 +67,7 @@ nouveau_fanpwm_set(struct nouveau_therm *therm, int percent)
 	if (priv->base.bios.pwm_freq) {
 		divs = 1;
 		if (therm->pwm_clock)
-			divs = therm->pwm_clock(therm);
+			divs = therm->pwm_clock(therm, priv->func.line);
 		divs /= priv->base.bios.pwm_freq;
 	}
 

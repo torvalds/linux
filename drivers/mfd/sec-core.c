@@ -60,6 +60,7 @@ static const struct mfd_cell s5m8767_devs[] = {
 		.name = "s5m-rtc",
 	}, {
 		.name = "s5m8767-clk",
+		.of_compatible = "samsung,s5m8767-clk",
 	}
 };
 
@@ -68,6 +69,7 @@ static const struct mfd_cell s2mps11_devs[] = {
 		.name = "s2mps11-pmic",
 	}, {
 		.name = "s2mps11-clk",
+		.of_compatible = "samsung,s2mps11-clk",
 	}
 };
 
@@ -78,6 +80,7 @@ static const struct mfd_cell s2mps14_devs[] = {
 		.name = "s2mps14-rtc",
 	}, {
 		.name = "s2mps14-clk",
+		.of_compatible = "samsung,s2mps14-clk",
 	}
 };
 
@@ -295,6 +298,13 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	switch (sec_pmic->device_type) {
 	case S2MPA01:
 		regmap = &s2mpa01_regmap_config;
+		/*
+		 * The rtc-s5m driver does not support S2MPA01 and there
+		 * is no mfd_cell for S2MPA01 RTC device.
+		 * However we must pass something to devm_regmap_init_i2c()
+		 * so use S5M-like regmap config even though it wouldn't work.
+		 */
+		regmap_rtc = &s5m_rtc_regmap_config;
 		break;
 	case S2MPS11X:
 		regmap = &s2mps11_regmap_config;
@@ -344,7 +354,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		ret = PTR_ERR(sec_pmic->regmap_rtc);
 		dev_err(&i2c->dev, "Failed to allocate RTC register map: %d\n",
 			ret);
-		return ret;
+		goto err_regmap_rtc;
 	}
 
 	if (pdata && pdata->cfg_pmic_irq)
@@ -385,14 +395,15 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	}
 
 	if (ret)
-		goto err;
+		goto err_mfd;
 
 	device_init_wakeup(sec_pmic->dev, sec_pmic->wakeup);
 
 	return ret;
 
-err:
+err_mfd:
 	sec_irq_exit(sec_pmic);
+err_regmap_rtc:
 	i2c_unregister_device(sec_pmic->rtc);
 	return ret;
 }

@@ -33,9 +33,9 @@ static __u8 __iomem *cpuctl;
 #define PFX "sc520_freq: "
 
 static struct cpufreq_frequency_table sc520_freq_table[] = {
-	{0x01,	100000},
-	{0x02,	133000},
-	{0,	CPUFREQ_TABLE_END},
+	{0, 0x01,	100000},
+	{0, 0x02,	133000},
+	{0, 0,	CPUFREQ_TABLE_END},
 };
 
 static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)

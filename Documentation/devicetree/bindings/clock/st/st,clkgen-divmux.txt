@@ -1,0 +1,49 @@
+Binding for a ST divider and multiplexer clock driver.
+
+This binding uses the common clock binding[1].
+Base address is located to the parent node. See clock binding[2]
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] Documentation/devicetree/bindings/clock/st/st,clkgen.txt
+
+Required properties:
+
+- compatible : shall be:
+	"st,clkgena-divmux-c65-hs",	"st,clkgena-divmux"
+	"st,clkgena-divmux-c65-ls",	"st,clkgena-divmux"
+	"st,clkgena-divmux-c32-odf0",	"st,clkgena-divmux"
+	"st,clkgena-divmux-c32-odf1",	"st,clkgena-divmux"
+	"st,clkgena-divmux-c32-odf2",	"st,clkgena-divmux"
+	"st,clkgena-divmux-c32-odf3",	"st,clkgena-divmux"
+
+- #clock-cells : From common clock binding; shall be set to 1.
+
+- clocks : From common clock binding
+
+- clock-output-names : From common clock binding.
+
+Example:
+
+	clockgenA@fd345000 {
+		reg = <0xfd345000 0xb50>;
+
+		CLK_M_A1_DIV1: CLK_M_A1_DIV1 {
+			#clock-cells = <1>;
+			compatible = "st,clkgena-divmux-c32-odf1",
+				     "st,clkgena-divmux";
+
+			clocks = <&CLK_M_A1_OSC_PREDIV>,
+				 <&CLK_M_A1_PLL0 1>, /* PLL0 PHI1 */
+				 <&CLK_M_A1_PLL1 1>; /* PLL1 PHI1 */
+
+			clock-output-names = "CLK_M_RX_ICN_TS",
+					     "CLK_M_RX_ICN_VDP_0",
+					     "", /* Unused */
+					     "CLK_M_PRV_T1_BUS",
+					     "CLK_M_ICN_REG_12",
+					     "CLK_M_ICN_REG_10",
+					     "", /* Unused */
+					     "CLK_M_ICN_ST231";
+		};
+	};
+

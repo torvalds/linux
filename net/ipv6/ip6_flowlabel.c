@@ -15,9 +15,7 @@
 #include <linux/socket.h>
 #include <linux/net.h>
 #include <linux/netdevice.h>
-#include <linux/if_arp.h>
 #include <linux/in6.h>
-#include <linux/route.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -28,12 +26,8 @@
 #include <net/sock.h>
 
 #include <net/ipv6.h>
-#include <net/ndisc.h>
-#include <net/protocol.h>
-#include <net/ip6_route.h>
 #include <net/addrconf.h>
 #include <net/rawv6.h>
-#include <net/icmp.h>
 #include <net/transp_v6.h>
 
 #include <asm/uaccess.h>

@@ -177,8 +177,9 @@ static int ds1672_probe(struct i2c_client *client,
 
 	/* read control register */
 	err = ds1672_get_control(client, &control);
-	if (err)
-		goto exit_devreg;
+	if (err) {
+		dev_warn(&client->dev, "Unable to read the control register\n");
+	}
 
 	if (control & DS1672_REG_CONTROL_EOSC)
 		dev_warn(&client->dev, "Oscillator not enabled. "
@@ -187,12 +188,10 @@ static int ds1672_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = device_create_file(&client->dev, &dev_attr_control);
 	if (err)
-		goto exit_devreg;
+		dev_err(&client->dev, "Unable to create sysfs entry: %s\n",
+			dev_attr_control.attr.name);
 
 	return 0;
-
- exit_devreg:
-	return err;
 }
 
 static struct i2c_device_id ds1672_id[] = {

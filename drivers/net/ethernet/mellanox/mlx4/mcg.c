@@ -1387,8 +1387,11 @@ int mlx4_PROMISC_wrapper(struct mlx4_dev *dev, int slave,
 			 struct mlx4_cmd_info *cmd)
 {
 	u32 qpn = (u32) vhcr->in_param & 0xffffffff;
-	u8 port = vhcr->in_param >> 62;
+	int port = mlx4_slave_convert_port(dev, slave, vhcr->in_param >> 62);
 	enum mlx4_steer_type steer = vhcr->in_modifier;
+
+	if (port < 0)
+		return -EINVAL;
 
 	/* Promiscuous unicast is not allowed in mfunc */
 	if (mlx4_is_mfunc(dev) && steer == MLX4_UC_STEER)

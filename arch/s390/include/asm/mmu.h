@@ -1,9 +1,11 @@
 #ifndef __MMU_H
 #define __MMU_H
 
+#include <linux/cpumask.h>
 #include <linux/errno.h>
 
 typedef struct {
+	cpumask_t cpu_attach_mask;
 	atomic_t attach_count;
 	unsigned int flush_mm;
 	spinlock_t list_lock;

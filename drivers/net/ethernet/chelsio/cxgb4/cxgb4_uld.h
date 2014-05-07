@@ -253,6 +253,7 @@ struct cxgb4_lld_info {
 					     /*	packet data */
 	bool enable_fw_ofld_conn;            /* Enable connection through fw */
 					     /* WR */
+	bool ulptx_memwrite_dsgl;            /* use of T5 DSGL allowed */
 };
 
 struct cxgb4_uld_info {

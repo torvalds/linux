@@ -112,6 +112,7 @@ char *kernfs_path(struct kernfs_node *kn, char *buf, size_t buflen)
 	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
 	return p;
 }
+EXPORT_SYMBOL_GPL(kernfs_path);
 
 /**
  * pr_cont_kernfs_name - pr_cont name of a kernfs_node

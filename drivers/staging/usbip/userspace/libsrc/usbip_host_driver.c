@@ -118,6 +118,7 @@ static int refresh_exported_devices(void)
 	struct udev_list_entry *devices, *dev_list_entry;
 	struct udev_device *dev;
 	const char *path;
+	const char *driver;
 
 	enumerate = udev_enumerate_new(udev_context);
 	udev_enumerate_add_match_subsystem(enumerate, "usb");
@@ -128,10 +129,12 @@ static int refresh_exported_devices(void)
 	udev_list_entry_foreach(dev_list_entry, devices) {
 		path = udev_list_entry_get_name(dev_list_entry);
 		dev = udev_device_new_from_syspath(udev_context, path);
+		if (dev == NULL)
+			continue;
 
 		/* Check whether device uses usbip-host driver. */
-		if (!strcmp(udev_device_get_driver(dev),
-			    USBIP_HOST_DRV_NAME)) {
+		driver = udev_device_get_driver(dev);
+		if (driver != NULL && !strcmp(driver, USBIP_HOST_DRV_NAME)) {
 			edev = usbip_exported_device_new(path);
 			if (!edev) {
 				dbg("usbip_exported_device_new failed");

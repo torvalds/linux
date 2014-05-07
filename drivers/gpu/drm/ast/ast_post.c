@@ -572,7 +572,7 @@ static u32 cbr_scan2(struct ast_private *ast)
 		for (loop = 0; loop < CBR_PASSNUM2; loop++) {
 			if ((data = cbr_test2(ast)) != 0) {
 				data2 &= data;
-				if (!data)
+				if (!data2)
 					return 0;
 				break;
 			}

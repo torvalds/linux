@@ -2,6 +2,7 @@
 #define INCLUDE_XEN_OPS_H
 
 #include <linux/percpu.h>
+#include <linux/notifier.h>
 #include <asm/xen/interface.h>
 
 DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
@@ -15,6 +16,9 @@ void xen_mm_unpin_all(void);
 
 void xen_timer_resume(void);
 void xen_arch_resume(void);
+
+void xen_resume_notifier_register(struct notifier_block *nb);
+void xen_resume_notifier_unregister(struct notifier_block *nb);
 
 int xen_setup_shutdown_event(void);
 

@@ -196,6 +196,53 @@ static struct cpuidle_state snb_cstates[] = {
 		.enter = NULL }
 };
 
+static struct cpuidle_state byt_cstates[] = {
+	{
+		.name = "C1-BYT",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle },
+	{
+		.name = "C1E-BYT",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 15,
+		.target_residency = 30,
+		.enter = &intel_idle },
+	{
+		.name = "C6N-BYT",
+		.desc = "MWAIT 0x58",
+		.flags = MWAIT2flg(0x58) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 40,
+		.target_residency = 275,
+		.enter = &intel_idle },
+	{
+		.name = "C6S-BYT",
+		.desc = "MWAIT 0x52",
+		.flags = MWAIT2flg(0x52) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 140,
+		.target_residency = 560,
+		.enter = &intel_idle },
+	{
+		.name = "C7-BYT",
+		.desc = "MWAIT 0x60",
+		.flags = MWAIT2flg(0x60) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 1200,
+		.target_residency = 1500,
+		.enter = &intel_idle },
+	{
+		.name = "C7S-BYT",
+		.desc = "MWAIT 0x64",
+		.flags = MWAIT2flg(0x64) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 10000,
+		.target_residency = 20000,
+		.enter = &intel_idle },
+	{
+		.enter = NULL }
+};
+
 static struct cpuidle_state ivb_cstates[] = {
 	{
 		.name = "C1-IVB",
@@ -231,6 +278,105 @@ static struct cpuidle_state ivb_cstates[] = {
 		.flags = MWAIT2flg(0x30) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 87,
 		.target_residency = 300,
+		.enter = &intel_idle },
+	{
+		.enter = NULL }
+};
+
+static struct cpuidle_state ivt_cstates[] = {
+	{
+		.name = "C1-IVT",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle },
+	{
+		.name = "C1E-IVT",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 10,
+		.target_residency = 80,
+		.enter = &intel_idle },
+	{
+		.name = "C3-IVT",
+		.desc = "MWAIT 0x10",
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 59,
+		.target_residency = 156,
+		.enter = &intel_idle },
+	{
+		.name = "C6-IVT",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 82,
+		.target_residency = 300,
+		.enter = &intel_idle },
+	{
+		.enter = NULL }
+};
+
+static struct cpuidle_state ivt_cstates_4s[] = {
+	{
+		.name = "C1-IVT-4S",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle },
+	{
+		.name = "C1E-IVT-4S",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 10,
+		.target_residency = 250,
+		.enter = &intel_idle },
+	{
+		.name = "C3-IVT-4S",
+		.desc = "MWAIT 0x10",
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 59,
+		.target_residency = 300,
+		.enter = &intel_idle },
+	{
+		.name = "C6-IVT-4S",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 84,
+		.target_residency = 400,
+		.enter = &intel_idle },
+	{
+		.enter = NULL }
+};
+
+static struct cpuidle_state ivt_cstates_8s[] = {
+	{
+		.name = "C1-IVT-8S",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle },
+	{
+		.name = "C1E-IVT-8S",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 10,
+		.target_residency = 500,
+		.enter = &intel_idle },
+	{
+		.name = "C3-IVT-8S",
+		.desc = "MWAIT 0x10",
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 59,
+		.target_residency = 600,
+		.enter = &intel_idle },
+	{
+		.name = "C6-IVT-8S",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 88,
+		.target_residency = 700,
 		.enter = &intel_idle },
 	{
 		.enter = NULL }
@@ -464,8 +610,18 @@ static const struct idle_cpu idle_cpu_snb = {
 	.disable_promotion_to_c1e = true,
 };
 
+static const struct idle_cpu idle_cpu_byt = {
+	.state_table = byt_cstates,
+	.disable_promotion_to_c1e = true,
+};
+
 static const struct idle_cpu idle_cpu_ivb = {
 	.state_table = ivb_cstates,
+	.disable_promotion_to_c1e = true,
+};
+
+static const struct idle_cpu idle_cpu_ivt = {
+	.state_table = ivt_cstates,
 	.disable_promotion_to_c1e = true,
 };
 
@@ -494,8 +650,10 @@ static const struct x86_cpu_id intel_idle_ids[] = {
 	ICPU(0x2f, idle_cpu_nehalem),
 	ICPU(0x2a, idle_cpu_snb),
 	ICPU(0x2d, idle_cpu_snb),
+	ICPU(0x36, idle_cpu_atom),
+	ICPU(0x37, idle_cpu_byt),
 	ICPU(0x3a, idle_cpu_ivb),
-	ICPU(0x3e, idle_cpu_ivb),
+	ICPU(0x3e, idle_cpu_ivt),
 	ICPU(0x3c, idle_cpu_hsw),
 	ICPU(0x3f, idle_cpu_hsw),
 	ICPU(0x45, idle_cpu_hsw),
@@ -572,6 +730,39 @@ static void intel_idle_cpuidle_devices_uninit(void)
 	free_percpu(intel_idle_cpuidle_devices);
 	return;
 }
+
+/*
+ * intel_idle_state_table_update()
+ *
+ * Update the default state_table for this CPU-id
+ *
+ * Currently used to access tuned IVT multi-socket targets
+ * Assumption: num_sockets == (max_package_num + 1)
+ */
+void intel_idle_state_table_update(void)
+{
+	/* IVT uses a different table for 1-2, 3-4, and > 4 sockets */
+	if (boot_cpu_data.x86_model == 0x3e) { /* IVT */
+		int cpu, package_num, num_sockets = 1;
+
+		for_each_online_cpu(cpu) {
+			package_num = topology_physical_package_id(cpu);
+			if (package_num + 1 > num_sockets) {
+				num_sockets = package_num + 1;
+
+				if (num_sockets > 4)
+					cpuidle_state_table = ivt_cstates_8s;
+					return;
+			}
+		}
+
+		if (num_sockets > 2)
+			cpuidle_state_table = ivt_cstates_4s;
+		/* else, 1 and 2 socket systems use default ivt_cstates */
+	}
+	return;
+}
+
 /*
  * intel_idle_cpuidle_driver_init()
  * allocate, initialize cpuidle_states
@@ -581,10 +772,12 @@ static int __init intel_idle_cpuidle_driver_init(void)
 	int cstate;
 	struct cpuidle_driver *drv = &intel_idle_driver;
 
+	intel_idle_state_table_update();
+
 	drv->state_count = 1;
 
 	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
-		int num_substates, mwait_hint, mwait_cstate, mwait_substate;
+		int num_substates, mwait_hint, mwait_cstate;
 
 		if (cpuidle_state_table[cstate].enter == NULL)
 			break;
@@ -597,14 +790,13 @@ static int __init intel_idle_cpuidle_driver_init(void)
 
 		mwait_hint = flg2MWAIT(cpuidle_state_table[cstate].flags);
 		mwait_cstate = MWAIT_HINT2CSTATE(mwait_hint);
-		mwait_substate = MWAIT_HINT2SUBSTATE(mwait_hint);
 
-		/* does the state exist in CPUID.MWAIT? */
+		/* number of sub-states for this state in CPUID.MWAIT */
 		num_substates = (mwait_substates >> ((mwait_cstate + 1) * 4))
 					& MWAIT_SUBSTATE_MASK;
 
-		/* if sub-state in table is not enumerated by CPUID */
-		if ((mwait_substate + 1) > num_substates)
+		/* if NO sub-states for this state in CPUID, skip it */
+		if (num_substates == 0)
 			continue;
 
 		if (((mwait_cstate + 1) > 2) &&
@@ -681,14 +873,19 @@ static int __init intel_idle_init(void)
 	if (intel_idle_cpuidle_devices == NULL)
 		return -ENOMEM;
 
+	cpu_notifier_register_begin();
+
 	for_each_online_cpu(i) {
 		retval = intel_idle_cpu_init(i);
 		if (retval) {
+			cpu_notifier_register_done();
 			cpuidle_unregister_driver(&intel_idle_driver);
 			return retval;
 		}
 	}
-	register_cpu_notifier(&cpu_hotplug_notifier);
+	__register_cpu_notifier(&cpu_hotplug_notifier);
+
+	cpu_notifier_register_done();
 
 	return 0;
 }
@@ -698,10 +895,13 @@ static void __exit intel_idle_exit(void)
 	intel_idle_cpuidle_devices_uninit();
 	cpuidle_unregister_driver(&intel_idle_driver);
 
+	cpu_notifier_register_begin();
 
 	if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE)
 		on_each_cpu(__setup_broadcast_timer, (void *)false, 1);
-	unregister_cpu_notifier(&cpu_hotplug_notifier);
+	__unregister_cpu_notifier(&cpu_hotplug_notifier);
+
+	cpu_notifier_register_done();
 
 	return;
 }

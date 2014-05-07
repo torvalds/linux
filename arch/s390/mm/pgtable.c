@@ -54,7 +54,7 @@ static void __crst_table_upgrade(void *arg)
 	struct mm_struct *mm = arg;
 
 	if (current->active_mm == mm)
-		update_mm(mm, current);
+		update_user_asce(mm, 1);
 	__tlb_flush_local();
 }
 
@@ -107,8 +107,10 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 {
 	pgd_t *pgd;
 
-	if (current->active_mm == mm)
+	if (current->active_mm == mm) {
+		clear_user_asce(mm, 1);
 		__tlb_flush_mm(mm);
+	}
 	while (mm->context.asce_limit > limit) {
 		pgd = mm->pgd;
 		switch (pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) {
@@ -132,7 +134,7 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 		crst_table_free(mm, (unsigned long *) pgd);
 	}
 	if (current->active_mm == mm)
-		update_mm(mm, current);
+		update_user_asce(mm, 1);
 }
 #endif
 
@@ -198,7 +200,7 @@ static int gmap_unlink_segment(struct gmap *gmap, unsigned long *table)
 static void gmap_flush_tlb(struct gmap *gmap)
 {
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_idte((unsigned long) gmap->table |
+		__tlb_flush_asce(gmap->mm, (unsigned long) gmap->table |
 				 _ASCE_TYPE_REGION1);
 	else
 		__tlb_flush_global();
@@ -217,7 +219,7 @@ void gmap_free(struct gmap *gmap)
 
 	/* Flush tlb. */
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_idte((unsigned long) gmap->table |
+		__tlb_flush_asce(gmap->mm, (unsigned long) gmap->table |
 				 _ASCE_TYPE_REGION1);
 	else
 		__tlb_flush_global();
@@ -505,6 +507,9 @@ static int gmap_connect_pgtable(unsigned long address, unsigned long segment,
 	if (!pmd_present(*pmd) &&
 	    __pte_alloc(mm, vma, pmd, vmaddr))
 		return -ENOMEM;
+	/* large pmds cannot yet be handled */
+	if (pmd_large(*pmd))
+		return -EFAULT;
 	/* pmd now points to a valid segment table entry. */
 	rmap = kmalloc(sizeof(*rmap), GFP_KERNEL|__GFP_REPEAT);
 	if (!rmap)

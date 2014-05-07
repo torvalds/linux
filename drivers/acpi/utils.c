@@ -164,11 +164,10 @@ acpi_extract_package(union acpi_object *package,
 	 * Validate output buffer.
 	 */
 	if (buffer->length == ACPI_ALLOCATE_BUFFER) {
-		buffer->pointer = ACPI_ALLOCATE(size_required);
+		buffer->pointer = ACPI_ALLOCATE_ZEROED(size_required);
 		if (!buffer->pointer)
 			return AE_NO_MEMORY;
 		buffer->length = size_required;
-		memset(buffer->pointer, 0, size_required);
 	} else {
 		if (buffer->length < size_required) {
 			buffer->length = size_required;

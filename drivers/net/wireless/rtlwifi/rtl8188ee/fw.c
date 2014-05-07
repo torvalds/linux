@@ -119,7 +119,7 @@ static void _rtl88e_write_fw(struct ieee80211_hw *hw,
 			     enum version_8188e version, u8 *buffer, u32 size)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 *buf_ptr = (u8 *)buffer;
+	u8 *buf_ptr = buffer;
 	u32 page_no, remain;
 	u32 page, offset;
 
@@ -213,7 +213,7 @@ int rtl88e_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 		return 1;
 
 	pfwheader = (struct rtl92c_firmware_header *)rtlhal->pfirmware;
-	pfwdata = (u8 *)rtlhal->pfirmware;
+	pfwdata = rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
 	RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
 		 "normal Firmware SIZE %d\n", fwsize);

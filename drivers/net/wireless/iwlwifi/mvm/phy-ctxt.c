@@ -156,13 +156,13 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 	idle_cnt = chains_static;
 	active_cnt = chains_dynamic;
 
-	cmd->rxchain_info = cpu_to_le32(iwl_fw_valid_rx_ant(mvm->fw) <<
+	cmd->rxchain_info = cpu_to_le32(mvm->fw->valid_rx_ant <<
 					PHY_RX_CHAIN_VALID_POS);
 	cmd->rxchain_info |= cpu_to_le32(idle_cnt << PHY_RX_CHAIN_CNT_POS);
 	cmd->rxchain_info |= cpu_to_le32(active_cnt <<
 					 PHY_RX_CHAIN_MIMO_CNT_POS);
 
-	cmd->txchain_info = cpu_to_le32(iwl_fw_valid_tx_ant(mvm->fw));
+	cmd->txchain_info = cpu_to_le32(mvm->fw->valid_tx_ant);
 }
 
 /*

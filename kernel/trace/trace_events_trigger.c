@@ -1095,7 +1095,7 @@ event_enable_trigger_print(struct seq_file *m, struct event_trigger_ops *ops,
 	seq_printf(m, "%s:%s:%s",
 		   enable_data->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
 		   enable_data->file->event_call->class->system,
-		   enable_data->file->event_call->name);
+		   ftrace_event_name(enable_data->file->event_call));
 
 	if (data->count == -1)
 		seq_puts(m, ":unlimited");

@@ -288,6 +288,11 @@ struct trace_probe {
 	struct probe_arg		args[];
 };
 
+struct event_file_link {
+	struct ftrace_event_file	*file;
+	struct list_head		list;
+};
+
 static inline bool trace_probe_is_enabled(struct trace_probe *tp)
 {
 	return !!(tp->flags & (TP_FLAG_TRACE | TP_FLAG_PROFILE));
@@ -314,6 +319,18 @@ static inline int is_good_name(const char *name)
 			return 0;
 	}
 	return 1;
+}
+
+static inline struct event_file_link *
+find_event_file_link(struct trace_probe *tp, struct ftrace_event_file *file)
+{
+	struct event_file_link *link;
+
+	list_for_each_entry(link, &tp->files, list)
+		if (link->file == file)
+			return link;
+
+	return NULL;
 }
 
 extern int traceprobe_parse_probe_arg(char *arg, ssize_t *size,

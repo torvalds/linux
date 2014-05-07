@@ -74,3 +74,43 @@ phy-consumer@12340000 {
 
 Refer to DT bindings documentation of particular PHY consumer devices for more
 information about required PHYs and the way of specification.
+
+Samsung SATA PHY Controller
+---------------------------
+
+SATA PHY nodes are defined to describe on-chip SATA Physical layer controllers.
+Each SATA PHY controller should have its own node.
+
+Required properties:
+- compatible        : compatible list, contains "samsung,exynos5250-sata-phy"
+- reg : offset and length of the SATA PHY register set;
+- #phy-cells : must be zero
+- clocks : must be exactly one entry
+- clock-names : must be "sata_phyctrl"
+- samsung,exynos-sataphy-i2c-phandle : a phandle to the I2C device, no arguments
+- samsung,syscon-phandle : a phandle to the PMU system controller, no arguments
+
+Example:
+	sata_phy: sata-phy@12170000 {
+		compatible = "samsung,exynos5250-sata-phy";
+		reg = <0x12170000 0x1ff>;
+		clocks = <&clock 287>;
+		clock-names = "sata_phyctrl";
+		#phy-cells = <0>;
+		samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+		samsung,syscon-phandle = <&pmu_syscon>;
+	};
+
+Device-Tree bindings for sataphy i2c client driver
+--------------------------------------------------
+
+Required properties:
+compatible: Should be "samsung,exynos-sataphy-i2c"
+- reg: I2C address of the sataphy i2c device.
+
+Example:
+
+	sata_phy_i2c:sata-phy@38 {
+		compatible = "samsung,exynos-sataphy-i2c";
+		reg = <0x38>;
+	};
