@@ -2363,27 +2363,27 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	u8 w0_state,w1_state,w2_state,w3_state;
 	u8 w2_0_state,w2_1_state,w2_2_state,w2_3_state;
 	u8 w3_0_state,w3_1_state,w3_2_state,w3_3_state;
+	h_pw_bp = hsync_len + left_margin;
+	v_pw_bp = vsync_len + upper_margin;
 
-	u32 w0_vir_y,w0_vir_uv,w0_act_x,w0_act_y,w0_dsp_x,w0_dsp_y,w0_st_x,w0_st_y;
-	u32 w1_vir_y,w1_vir_uv,w1_act_x,w1_act_y,w1_dsp_x,w1_dsp_y,w1_st_x,w1_st_y;
+	u32 w0_vir_y,w0_vir_uv,w0_act_x,w0_act_y,w0_dsp_x,w0_dsp_y,w0_st_x=h_pw_bp,w0_st_y=v_pw_bp;
+	u32 w1_vir_y,w1_vir_uv,w1_act_x,w1_act_y,w1_dsp_x,w1_dsp_y,w1_st_x=h_pw_bp,w1_st_y=v_pw_bp;
 	u32 w0_y_h_fac,w0_y_v_fac,w0_uv_h_fac,w0_uv_v_fac;
 	u32 w1_y_h_fac,w1_y_v_fac,w1_uv_h_fac,w1_uv_v_fac;
 
 	u32 w2_0_vir_y,w2_1_vir_y,w2_2_vir_y,w2_3_vir_y;
 	u32 w2_0_dsp_x,w2_1_dsp_x,w2_2_dsp_x,w2_3_dsp_x;
 	u32 w2_0_dsp_y,w2_1_dsp_y,w2_2_dsp_y,w2_3_dsp_y;
-	u32 w2_0_st_x,w2_1_st_x,w2_2_st_x,w2_3_st_x;
-	u32 w2_0_st_y,w2_1_st_y,w2_2_st_y,w2_3_st_y;
+	u32 w2_0_st_x=h_pw_bp,w2_1_st_x=h_pw_bp,w2_2_st_x=h_pw_bp,w2_3_st_x=h_pw_bp;
+	u32 w2_0_st_y=v_pw_bp,w2_1_st_y=v_pw_bp,w2_2_st_y=v_pw_bp,w2_3_st_y=v_pw_bp;
 
 	u32 w3_0_vir_y,w3_1_vir_y,w3_2_vir_y,w3_3_vir_y;
 	u32 w3_0_dsp_x,w3_1_dsp_x,w3_2_dsp_x,w3_3_dsp_x;
 	u32 w3_0_dsp_y,w3_1_dsp_y,w3_2_dsp_y,w3_3_dsp_y;
-	u32 w3_0_st_x,w3_1_st_x,w3_2_st_x,w3_3_st_x;
-	u32 w3_0_st_y,w3_1_st_y,w3_2_st_y,w3_3_st_y;
+	u32 w3_0_st_x=h_pw_bp,w3_1_st_x=h_pw_bp,w3_2_st_x=h_pw_bp,w3_3_st_x=h_pw_bp;
+	u32 w3_0_st_y=v_pw_bp,w3_1_st_y=v_pw_bp,w3_2_st_y=v_pw_bp,w3_3_st_y=v_pw_bp;
 	u32 dclk_freq;
 
-	h_pw_bp = hsync_len + left_margin;
-	v_pw_bp = vsync_len + upper_margin;
 	dclk_freq = screen->mode.pixclock;
 	/*rk3288_lcdc_reg_dump(dev_drv);*/
 
@@ -2433,8 +2433,10 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		w0_act_y = ((act_info & m_WIN0_ACT_HEIGHT)>>16)+1;
 		w0_dsp_x = (dsp_info & m_WIN0_DSP_WIDTH)+1;
 		w0_dsp_y = ((dsp_info & m_WIN0_DSP_HEIGHT)>>16)+1;
-		w0_st_x = dsp_st & m_WIN0_DSP_XST;
-		w0_st_y = (dsp_st & m_WIN0_DSP_YST)>>16;
+		if (w0_state) {
+			w0_st_x = dsp_st & m_WIN0_DSP_XST;
+			w0_st_y = (dsp_st & m_WIN0_DSP_YST)>>16;
+		}
 		w0_y_h_fac = y_factor & m_WIN0_HS_FACTOR_YRGB;
 		w0_y_v_fac = (y_factor & m_WIN0_VS_FACTOR_YRGB)>>16;
 		w0_uv_h_fac = uv_factor & m_WIN0_HS_FACTOR_CBR;
@@ -2479,8 +2481,10 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		w1_act_y = ((act_info & m_WIN1_ACT_HEIGHT)>>16)+1;
 		w1_dsp_x = (dsp_info & m_WIN1_DSP_WIDTH)+1;
 		w1_dsp_y =((dsp_info & m_WIN1_DSP_HEIGHT)>>16)+1;
-		w1_st_x = dsp_st & m_WIN1_DSP_XST;
-		w1_st_y = (dsp_st & m_WIN1_DSP_YST)>>16;
+		if (w1_state) {
+			w1_st_x = dsp_st & m_WIN1_DSP_XST;
+			w1_st_y = (dsp_st & m_WIN1_DSP_YST)>>16;
+		}
 		w1_y_h_fac = y_factor & m_WIN1_HS_FACTOR_YRGB;
 		w1_y_v_fac = (y_factor & m_WIN1_VS_FACTOR_YRGB)>>16;
 		w1_uv_h_fac = uv_factor & m_WIN1_HS_FACTOR_CBR;
@@ -2529,29 +2533,34 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		dsp_st = lcdc_readl(lcdc_dev,WIN2_DSP_ST0);
 		w2_0_dsp_x = (dsp_info & m_WIN2_DSP_WIDTH0)+1;
 		w2_0_dsp_y = ((dsp_info & m_WIN2_DSP_HEIGHT0)>>16)+1;
-		w2_0_st_x = dsp_st & m_WIN2_DSP_XST0;
-		w2_0_st_y = (dsp_st & m_WIN2_DSP_YST0)>>16;
-
+		if (w2_0_state) {
+			w2_0_st_x = dsp_st & m_WIN2_DSP_XST0;
+			w2_0_st_y = (dsp_st & m_WIN2_DSP_YST0)>>16;
+		}
 		dsp_info = lcdc_readl(lcdc_dev,WIN2_DSP_INFO1);
 		dsp_st = lcdc_readl(lcdc_dev,WIN2_DSP_ST1);
 		w2_1_dsp_x = (dsp_info & m_WIN2_DSP_WIDTH1)+1;
 		w2_1_dsp_y = ((dsp_info & m_WIN2_DSP_HEIGHT1)>>16)+1;
-		w2_1_st_x = dsp_st & m_WIN2_DSP_XST1;
-		w2_1_st_y = (dsp_st & m_WIN2_DSP_YST1)>>16;
-
+		if (w2_1_state) {
+			w2_1_st_x = dsp_st & m_WIN2_DSP_XST1;
+			w2_1_st_y = (dsp_st & m_WIN2_DSP_YST1)>>16;
+		}
 		dsp_info = lcdc_readl(lcdc_dev,WIN2_DSP_INFO2);
 		dsp_st = lcdc_readl(lcdc_dev,WIN2_DSP_ST2);
 		w2_2_dsp_x = (dsp_info & m_WIN2_DSP_WIDTH2)+1;
 		w2_2_dsp_y = ((dsp_info & m_WIN2_DSP_HEIGHT2)>>16)+1;
-		w2_2_st_x = dsp_st & m_WIN2_DSP_XST2;
-		w2_2_st_y = (dsp_st & m_WIN2_DSP_YST2)>>16;
-
+		if (w2_2_state) {
+			w2_2_st_x = dsp_st & m_WIN2_DSP_XST2;
+			w2_2_st_y = (dsp_st & m_WIN2_DSP_YST2)>>16;
+		}
 		dsp_info = lcdc_readl(lcdc_dev,WIN2_DSP_INFO3);
 		dsp_st = lcdc_readl(lcdc_dev,WIN2_DSP_ST3);
 		w2_3_dsp_x = (dsp_info & m_WIN2_DSP_WIDTH3)+1;
 		w2_3_dsp_y = ((dsp_info & m_WIN2_DSP_HEIGHT3)>>16)+1;
-		w2_3_st_x = dsp_st & m_WIN2_DSP_XST3;
-		w2_3_st_y = (dsp_st & m_WIN2_DSP_YST3)>>16;
+		if (w2_3_state) {
+			w2_3_st_x = dsp_st & m_WIN2_DSP_XST3;
+			w2_3_st_y = (dsp_st & m_WIN2_DSP_YST3)>>16;
+		}
 
 		/*WIN3*/
 		win_ctrl = lcdc_readl(lcdc_dev, WIN3_CTRL0);
@@ -2566,7 +2575,7 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		vir_info = lcdc_readl(lcdc_dev,WIN3_VIR2_3);
 		w3_2_vir_y = vir_info & m_WIN3_VIR_STRIDE2;
 		w3_3_vir_y = (vir_info & m_WIN3_VIR_STRIDE3)>>16;			
-		fmt_id = (win_ctrl | m_WIN3_DATA_FMT)>>1;
+		fmt_id = (win_ctrl & m_WIN3_DATA_FMT)>>1;
 		switch (fmt_id) {
 		case 0:
 			strcpy(format_w3, "ARGB888");
@@ -2597,29 +2606,37 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		dsp_st = lcdc_readl(lcdc_dev,WIN3_DSP_ST0);
 		w3_0_dsp_x = (dsp_info & m_WIN3_DSP_WIDTH0)+1;
 		w3_0_dsp_y = ((dsp_info & m_WIN3_DSP_HEIGHT0)>>16)+1;
-		w3_0_st_x = dsp_st & m_WIN3_DSP_XST0;
-		w3_0_st_y = (dsp_st & m_WIN3_DSP_YST0)>>16;
+		if (w3_0_state) {
+			w3_0_st_x = dsp_st & m_WIN3_DSP_XST0;
+			w3_0_st_y = (dsp_st & m_WIN3_DSP_YST0)>>16;
+		}
 		
 		dsp_info = lcdc_readl(lcdc_dev,WIN3_DSP_INFO1);
 		dsp_st = lcdc_readl(lcdc_dev,WIN3_DSP_ST1);
 		w3_1_dsp_x = (dsp_info & m_WIN3_DSP_WIDTH1)+1;
 		w3_1_dsp_y = ((dsp_info & m_WIN3_DSP_HEIGHT1)>>16)+1;
-		w3_1_st_x = dsp_st & m_WIN3_DSP_XST1;
-		w3_1_st_y = (dsp_st & m_WIN3_DSP_YST1)>>16;
+		if (w3_1_state) {
+			w3_1_st_x = dsp_st & m_WIN3_DSP_XST1;
+			w3_1_st_y = (dsp_st & m_WIN3_DSP_YST1)>>16;
+		}
 		
 		dsp_info = lcdc_readl(lcdc_dev,WIN3_DSP_INFO2);
 		dsp_st = lcdc_readl(lcdc_dev,WIN3_DSP_ST2);
 		w3_2_dsp_x = (dsp_info & m_WIN3_DSP_WIDTH2)+1;
 		w3_2_dsp_y = ((dsp_info & m_WIN3_DSP_HEIGHT2)>>16)+1;
-		w3_2_st_x = dsp_st & m_WIN3_DSP_XST2;
-		w3_2_st_y = (dsp_st & m_WIN3_DSP_YST2)>>16;
+		if (w3_2_state) {
+			w3_2_st_x = dsp_st & m_WIN3_DSP_XST2;
+			w3_2_st_y = (dsp_st & m_WIN3_DSP_YST2)>>16;
+		}
 		
 		dsp_info = lcdc_readl(lcdc_dev,WIN3_DSP_INFO3);
 		dsp_st = lcdc_readl(lcdc_dev,WIN3_DSP_ST3);
 		w3_3_dsp_x = (dsp_info & m_WIN3_DSP_WIDTH3)+1;
 		w3_3_dsp_y = ((dsp_info & m_WIN3_DSP_HEIGHT3)>>16)+1;
-		w3_3_st_x = dsp_st & m_WIN3_DSP_XST3;
-		w3_3_st_y = (dsp_st & m_WIN3_DSP_YST3)>>16;
+		if (w3_3_state) {
+			w3_3_st_x = dsp_st & m_WIN3_DSP_XST3;
+			w3_3_st_y = (dsp_st & m_WIN3_DSP_YST3)>>16;
+		}
 
 	} else {
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -2627,8 +2644,6 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	return snprintf(buf, PAGE_SIZE,
-			"h:pw+bp=%d\n"
-			"v:pw+bp=%d\n"
 			"z-order:\n"
 			"  layer3_sel_win[%d]\n"
 			"  layer2_sel_win[%d]\n"
@@ -2671,110 +2686,109 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 			"win2:\n"
 			"  state:%d\n"
 			"  fmt:%s\n"
-			"  area0:\n"
-			"    state:%d,"
-			"    y_vir:%4d,"
-			"    dsp_x:%4d,"
-			"    dsp_y:%4d,"
-			"    x_st:%4d,"
-			"    y_st:%4d,"
-			"    addr:0x%08x\n"
-			"  area1:\n"
-			"    state:%d,"
-			"    y_vir:%4d,"
-			"    dsp_x:%4d,"
-			"    dsp_y:%4d,"
-			"    x_st:%4d,"
-			"    y_st:%4d,"
-			"    addr:0x%08x\n"
-			"  area2:\n"
-			"    state:%d,"
-			"    y_vir:%4d,"
-			"    dsp_x:%4d,"
-			"    dsp_y:%4d,"
-			"    x_st:%4d,"
-			"    y_st:%4d,"
-			"    addr:0x%08x\n"
-			"  area3:\n"
-			"    state:%d,"
-			"    y_vir:%4d,"
-			"    dsp_x:%4d,"
-			"    dsp_y:%4d,"
-			"    x_st:%4d,"
-			"    y_st:%4d,"
-			"    addr:0x%08x\n"
+			"  area0:"
+			"  state:%d,"
+			"  y_vir:%4d,"
+			"  dsp_x:%4d,"
+			"  dsp_y:%4d,"
+			"  x_st:%4d,"
+			"  y_st:%4d,"
+			"  addr:0x%08x\n"
+			"  area1:"
+			"  state:%d,"
+			"  y_vir:%4d,"
+			"  dsp_x:%4d,"
+			"  dsp_y:%4d,"
+			"  x_st:%4d,"
+			"  y_st:%4d,"
+			"  addr:0x%08x\n"
+			"  area2:"
+			"  state:%d,"
+			"  y_vir:%4d,"
+			"  dsp_x:%4d,"
+			"  dsp_y:%4d,"
+			"  x_st:%4d,"
+			"  y_st:%4d,"
+			"  addr:0x%08x\n"
+			"  area3:"
+			"  state:%d,"
+			"  y_vir:%4d,"
+			"  dsp_x:%4d,"
+			"  dsp_y:%4d,"
+			"  x_st:%4d,"
+			"  y_st:%4d,"
+			"  addr:0x%08x\n"
 			"win3:\n"
 			"  state:%d\n"
 			"  fmt:%s\n"
-			"  area0:\n"
-			"    state:%d,"
-			"    y_vir:%4d,"
-			"    dsp_x:%4d,"
-			"    dsp_y:%4d,"
-			"    x_st:%4d,"
-			"    y_st:%4d,"
-			"    addr:0x%08x\n"
-			"  area1:\n"
-			"    state:%d,"
-			"    y_vir:%4d,"
-			"    dsp_x:%4d,"
-			"    dsp_y:%4d,"
-			"    x_st:%4d,"
-			"    y_st:%4d "
-			"    addr:0x%08x\n"
-			"  area2:\n"
-			"    state:%d,"
-			"    y_vir:%4d,"
-			"    dsp_x:%4d,"
-			"    dsp_y:%4d,"
-			"    x_st:%4d,"
-			"    y_st:%4d,"
-			"    addr:0x%08x\n"
-			"  area3:\n"
-			"    state:%d,"
-			"    y_vir:%4d,"
-			"    dsp_x:%4d,"
-			"    dsp_y:%4d,"
-			"    x_st:%4d,"
-			"    y_st:%4d,"
-			"    addr:0x%08x\n",
-			h_pw_bp,v_pw_bp,
+			"  area0:"
+			"  state:%d,"
+			"  y_vir:%4d,"
+			"  dsp_x:%4d,"
+			"  dsp_y:%4d,"
+			"  x_st:%4d,"
+			"  y_st:%4d,"
+			"  addr:0x%08x\n"
+			"  area1:"
+			"  state:%d,"
+			"  y_vir:%4d,"
+			"  dsp_x:%4d,"
+			"  dsp_y:%4d,"
+			"  x_st:%4d,"
+			"  y_st:%4d "
+			"  addr:0x%08x\n"
+			"  area2:"
+			"  state:%d,"
+			"  y_vir:%4d,"
+			"  dsp_x:%4d,"
+			"  dsp_y:%4d,"
+			"  x_st:%4d,"
+			"  y_st:%4d,"
+			"  addr:0x%08x\n"
+			"  area3:"
+			"  state:%d,"
+			"  y_vir:%4d,"
+			"  dsp_x:%4d,"
+			"  dsp_y:%4d,"
+			"  x_st:%4d,"
+			"  y_st:%4d,"
+			"  addr:0x%08x\n",
 			layer3_sel,layer2_sel,layer1_sel,layer0_sel,
 			w0_state,format_w0,w0_vir_y,w0_vir_uv,w0_act_x,w0_act_y,
-			w0_dsp_x,w0_dsp_y,w0_st_x,w0_st_y,w0_y_h_fac,w0_y_v_fac,w0_uv_h_fac,
+			w0_dsp_x,w0_dsp_y,w0_st_x-h_pw_bp,w0_st_y-v_pw_bp,w0_y_h_fac,w0_y_v_fac,w0_uv_h_fac,
 			w0_uv_v_fac,lcdc_readl(lcdc_dev, WIN0_YRGB_MST),
 			lcdc_readl(lcdc_dev, WIN0_CBR_MST),
 
 			w1_state,format_w1,w1_vir_y,w1_vir_uv,w1_act_x,w1_act_y,
-			w1_dsp_x,w1_dsp_y,w1_st_x,w1_st_y,w1_y_h_fac,w1_y_v_fac,w1_uv_h_fac,
+			w1_dsp_x,w1_dsp_y,w1_st_x-h_pw_bp,w1_st_y-v_pw_bp,w1_y_h_fac,w1_y_v_fac,w1_uv_h_fac,
 			w1_uv_v_fac,lcdc_readl(lcdc_dev, WIN1_YRGB_MST),
 			lcdc_readl(lcdc_dev, WIN1_CBR_MST),			
 
 			w2_state,format_w2,
 			w2_0_state,w2_0_vir_y,w2_0_dsp_x,w2_0_dsp_y,
-			w2_0_st_x,w2_0_st_y,lcdc_readl(lcdc_dev, WIN2_MST0),
+			w2_0_st_x-h_pw_bp,w2_0_st_y-v_pw_bp,lcdc_readl(lcdc_dev, WIN2_MST0),
 
 			w2_1_state,w2_1_vir_y,w2_1_dsp_x,w2_1_dsp_y,
-			w2_1_st_x,w2_1_st_y,lcdc_readl(lcdc_dev, WIN2_MST1),
+			w2_1_st_x-h_pw_bp,w2_1_st_y-v_pw_bp,lcdc_readl(lcdc_dev, WIN2_MST1),
 
 			w2_2_state,w2_2_vir_y,w2_2_dsp_x,w2_2_dsp_y,
-			w2_2_st_x,w2_2_st_y,lcdc_readl(lcdc_dev, WIN2_MST2),
+			w2_2_st_x-h_pw_bp,w2_2_st_y-v_pw_bp,lcdc_readl(lcdc_dev, WIN2_MST2),
 
 			w2_3_state,w2_3_vir_y,w2_3_dsp_x,w2_3_dsp_y,
-			w2_3_st_x,w2_3_st_y,lcdc_readl(lcdc_dev, WIN2_MST3),
+			w2_3_st_x-h_pw_bp,w2_3_st_y-v_pw_bp,lcdc_readl(lcdc_dev, WIN2_MST3),
 			
 			w3_state,format_w3,
 			w3_0_state,w3_0_vir_y,w3_0_dsp_x,w3_0_dsp_y,
-			w3_0_st_x,w3_0_st_y,lcdc_readl(lcdc_dev, WIN3_MST0),
+			w3_0_st_x-h_pw_bp,w3_0_st_y-v_pw_bp,lcdc_readl(lcdc_dev, WIN3_MST0),
 
 			w3_1_state,w3_1_vir_y,w3_1_dsp_x,w3_1_dsp_y,
-			w3_1_st_x,w3_1_st_y,lcdc_readl(lcdc_dev, WIN3_MST1),
+			w3_1_st_x-h_pw_bp,w3_1_st_y-v_pw_bp,lcdc_readl(lcdc_dev, WIN3_MST1),
 
 			w3_2_state,w3_2_vir_y,w3_2_dsp_x,w3_2_dsp_y,
-			w3_2_st_x,w3_2_st_y,lcdc_readl(lcdc_dev, WIN3_MST2),
+			w3_2_st_x-h_pw_bp,w3_2_st_y-v_pw_bp,lcdc_readl(lcdc_dev, WIN3_MST2),
 
 			w3_3_state,w3_3_vir_y,w3_3_dsp_x,w3_3_dsp_y,
-			w3_3_st_x,w3_3_st_y,lcdc_readl(lcdc_dev, WIN3_MST3)
+			w3_3_st_x-h_pw_bp,w3_3_st_y-v_pw_bp,lcdc_readl(lcdc_dev, WIN3_MST3)
 	);
 			
 }
