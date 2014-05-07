@@ -39,6 +39,7 @@ struct device_node;
  * 		from the cpu to be killed.
  * @cpu_die:	Makes a cpu leave the kernel. Must not fail. Called from the
  *		cpu being killed.
+ * @cpu_kill:  Ensures a cpu has left the kernel. Called from another cpu.
  */
 struct cpu_operations {
 	const char	*name;
@@ -49,6 +50,7 @@ struct cpu_operations {
 #ifdef CONFIG_HOTPLUG_CPU
 	int		(*cpu_disable)(unsigned int cpu);
 	void		(*cpu_die)(unsigned int cpu);
+	int		(*cpu_kill)(unsigned int cpu);
 #endif
 };
 
