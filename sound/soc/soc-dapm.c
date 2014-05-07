@@ -3397,11 +3397,9 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd = card->rtd;
+	struct snd_soc_dapm_widget *sink, *source;
 	struct snd_soc_dai *cpu_dai, *codec_dai;
-	struct snd_soc_dapm_route r;
 	int i;
-
-	memset(&r, 0, sizeof(r));
 
 	/* for each BE DAI link... */
 	for (i = 0; i < card->num_rtd; i++) {
@@ -3420,26 +3418,27 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 
 		/* connect BE DAI playback if widgets are valid */
 		if (codec_dai->playback_widget && cpu_dai->playback_widget) {
-			r.source = cpu_dai->playback_widget->name;
-			r.sink = codec_dai->playback_widget->name;
+			source = cpu_dai->playback_widget;
+			sink = codec_dai->playback_widget;
 			dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
-				cpu_dai->codec->name, r.source,
-				codec_dai->platform->name, r.sink);
+				cpu_dai->codec->name, source->name,
+				codec_dai->platform->name, sink->name);
 
-			snd_soc_dapm_add_route(&card->dapm, &r);
+			snd_soc_dapm_add_path(&card->dapm, source, sink,
+				NULL, NULL);
 		}
 
 		/* connect BE DAI capture if widgets are valid */
 		if (codec_dai->capture_widget && cpu_dai->capture_widget) {
-			r.source = codec_dai->capture_widget->name;
-			r.sink = cpu_dai->capture_widget->name;
+			source = codec_dai->capture_widget;
+			sink = cpu_dai->capture_widget;
 			dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
-				codec_dai->codec->name, r.source,
-				cpu_dai->platform->name, r.sink);
+				codec_dai->codec->name, source->name,
+				cpu_dai->platform->name, sink->name);
 
-			snd_soc_dapm_add_route(&card->dapm, &r);
+			snd_soc_dapm_add_path(&card->dapm, source, sink,
+				NULL, NULL);
 		}
-
 	}
 }
 
