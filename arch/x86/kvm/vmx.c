@@ -5650,10 +5650,22 @@ static int handle_pause(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static int handle_invalid_op(struct kvm_vcpu *vcpu)
+static int handle_nop(struct kvm_vcpu *vcpu)
 {
-	kvm_queue_exception(vcpu, UD_VECTOR);
+	skip_emulated_instruction(vcpu);
 	return 1;
+}
+
+static int handle_mwait(struct kvm_vcpu *vcpu)
+{
+	printk_once(KERN_WARNING "kvm: MWAIT instruction emulated as NOP!\n");
+	return handle_nop(vcpu);
+}
+
+static int handle_monitor(struct kvm_vcpu *vcpu)
+{
+	printk_once(KERN_WARNING "kvm: MONITOR instruction emulated as NOP!\n");
+	return handle_nop(vcpu);
 }
 
 /*
@@ -6617,8 +6629,8 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_EPT_VIOLATION]	      = handle_ept_violation,
 	[EXIT_REASON_EPT_MISCONFIG]           = handle_ept_misconfig,
 	[EXIT_REASON_PAUSE_INSTRUCTION]       = handle_pause,
-	[EXIT_REASON_MWAIT_INSTRUCTION]	      = handle_invalid_op,
-	[EXIT_REASON_MONITOR_INSTRUCTION]     = handle_invalid_op,
+	[EXIT_REASON_MWAIT_INSTRUCTION]	      = handle_mwait,
+	[EXIT_REASON_MONITOR_INSTRUCTION]     = handle_monitor,
 	[EXIT_REASON_INVEPT]                  = handle_invept,
 };
 
