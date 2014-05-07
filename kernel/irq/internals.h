@@ -76,6 +76,12 @@ extern void mask_irq(struct irq_desc *desc);
 extern void unmask_irq(struct irq_desc *desc);
 extern void unmask_threaded_irq(struct irq_desc *desc);
 
+#ifdef CONFIG_SPARSE_IRQ
+static inline void irq_mark_irq(unsigned int irq) { }
+#else
+extern void irq_mark_irq(unsigned int irq);
+#endif
+
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 
 irqreturn_t handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action);
