@@ -199,7 +199,7 @@ static int sirfsoc_local_timer_setup(struct clock_event_device *ce)
 
 	action->dev_id = ce;
 	BUG_ON(setup_irq(ce->irq, action));
-	irq_set_affinity(action->irq, cpumask_of(cpu));
+	irq_force_affinity(action->irq, cpumask_of(cpu));
 
 	clockevents_register_device(ce);
 	return 0;
