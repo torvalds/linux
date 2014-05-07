@@ -118,7 +118,7 @@ static const struct st_pwm_regulator_pdata b2105_info = {
 	.duty_cycle_table = b2105_duty_cycle_table,
 };
 
-static struct of_device_id st_pwm_of_match[] = {
+static const struct of_device_id st_pwm_of_match[] = {
 	{ .compatible = "st,b2105-pwm-regulator", .data = &b2105_info, },
 	{ },
 };
