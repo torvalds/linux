@@ -1801,13 +1801,6 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 	u32 param_len;
 	int ret = 0;
 
-	param_len = sizeof(struct ieee_param) + pext->key_len;
-	param = (struct ieee_param *)_malloc(param_len);
-	if (param == NULL)
-		return -ENOMEM;
-	memset(param, 0, param_len);
-	param->cmd = IEEE_CMD_SET_ENCRYPTION;
-	memset(param->sta_addr, 0xff, ETH_ALEN);
 	switch (pext->alg) {
 	case IW_ENCODE_ALG_NONE:
 		alg_name = "none";
@@ -1824,6 +1817,15 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 	default:
 		return -EINVAL;
 	}
+
+	param_len = sizeof(struct ieee_param) + pext->key_len;
+	param = (struct ieee_param *)_malloc(param_len);
+	if (param == NULL)
+		return -ENOMEM;
+	memset(param, 0, param_len);
+	param->cmd = IEEE_CMD_SET_ENCRYPTION;
+	memset(param->sta_addr, 0xff, ETH_ALEN);
+
 	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
 	if (pext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
 		param->u.crypt.set_tx = 0;
