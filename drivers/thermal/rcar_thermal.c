@@ -374,10 +374,8 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	int idle = IDLE_INTERVAL;
 
 	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
-	if (!common) {
-		dev_err(dev, "Could not allocate common\n");
+	if (!common)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&common->head);
 	spin_lock_init(&common->lock);
@@ -423,7 +421,6 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 		if (!priv) {
-			dev_err(dev, "Could not allocate priv\n");
 			ret = -ENOMEM;
 			goto error_unregister;
 		}
