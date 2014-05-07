@@ -36,6 +36,7 @@
 
 #include <linux/console.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
 
 static struct drm_driver driver;
@@ -1356,6 +1357,30 @@ static int intel_runtime_suspend(struct device *device)
 	DRM_DEBUG_KMS("Suspending device\n");
 
 	/*
+	 * We could deadlock here in case another thread holding struct_mutex
+	 * calls RPM suspend concurrently, since the RPM suspend will wait
+	 * first for this RPM suspend to finish. In this case the concurrent
+	 * RPM resume will be followed by its RPM suspend counterpart. Still
+	 * for consistency return -EAGAIN, which will reschedule this suspend.
+	 */
+	if (!mutex_trylock(&dev->struct_mutex)) {
+		DRM_DEBUG_KMS("device lock contention, deffering suspend\n");
+		/*
+		 * Bump the expiration timestamp, otherwise the suspend won't
+		 * be rescheduled.
+		 */
+		pm_runtime_mark_last_busy(device);
+
+		return -EAGAIN;
+	}
+	/*
+	 * We are safe here against re-faults, since the fault handler takes
+	 * an RPM reference.
+	 */
+	i915_gem_release_all_mmaps(dev_priv);
+	mutex_unlock(&dev->struct_mutex);
+
+	/*
 	 * rps.work can't be rearmed here, since we get here only after making
 	 * sure the GPU is idle and the RPS freq is set to the minimum. See
 	 * intel_mark_idle().
@@ -1380,8 +1405,6 @@ static int intel_runtime_suspend(struct device *device)
 
 		return ret;
 	}
-
-	i915_gem_release_all_mmaps(dev_priv);
 
 	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 	dev_priv->pm.suspended = true;
