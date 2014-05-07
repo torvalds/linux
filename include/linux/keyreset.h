@@ -1,7 +1,7 @@
 /*
  * include/linux/keyreset.h - platform data structure for resetkeys driver
  *
- * Copyright (C) 2008 Google, Inc.
+ * Copyright (C) 2014 Google, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -21,6 +21,7 @@
 
 struct keyreset_platform_data {
 	int (*reset_fn)(void);
+	int key_down_delay;
 	int *keys_up;
 	int keys_down[]; /* 0 terminated */
 };
