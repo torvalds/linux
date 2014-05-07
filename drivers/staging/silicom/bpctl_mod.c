@@ -6368,33 +6368,26 @@ static int __init bypass_init_module(void)
 
 	sema_init(&bpctl_sema, 1);
 	spin_lock_init(&bpvm_lock);
-	{
 
-		struct bpctl_dev *pbpctl_dev_c = NULL;
-		for (idx_dev = 0, dev = bpctl_dev_arr;
-		     idx_dev < device_num && dev->pdev;
-		     idx_dev++, dev++) {
-			if (dev->bp_10g9) {
-				pbpctl_dev_c = get_status_port_fn(dev);
-				if (is_bypass_fn(dev)) {
-					printk(KERN_INFO "%s found, ",
-					       dev->name);
-					dev->bp_fw_ver = bypass_fw_ver(dev);
-					printk("firmware version: 0x%x\n",
-					       dev->bp_fw_ver);
-				}
-				dev->wdt_status = WDT_STATUS_UNKNOWN;
-				dev->reset_time = 0;
-				atomic_set(&dev->wdt_busy, 0);
-				dev->bp_status_un = 1;
-
-				bypass_caps_init(dev);
-
-				init_bypass_wd_auto(dev);
-				init_bypass_tpl_auto(dev);
-
+	for (idx_dev = 0, dev = bpctl_dev_arr;
+	     idx_dev < device_num && dev->pdev;
+	     idx_dev++, dev++) {
+		if (dev->bp_10g9) {
+			if (is_bypass_fn(dev)) {
+				printk(KERN_INFO "%s found, ", dev->name);
+				dev->bp_fw_ver = bypass_fw_ver(dev);
+				printk("firmware version: 0x%x\n",
+				       dev->bp_fw_ver);
 			}
+			dev->wdt_status = WDT_STATUS_UNKNOWN;
+			dev->reset_time = 0;
+			atomic_set(&dev->wdt_busy, 0);
+			dev->bp_status_un = 1;
 
+			bypass_caps_init(dev);
+
+			init_bypass_wd_auto(dev);
+			init_bypass_tpl_auto(dev);
 		}
 	}
 
