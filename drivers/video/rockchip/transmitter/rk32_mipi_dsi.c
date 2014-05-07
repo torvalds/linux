@@ -16,14 +16,13 @@
 
 //config
 #define MIPI_DSI_REGISTER_IO	0
-#define CONFIG_MIPI_DSI_LINUX   0
-#define DWC_DSI_VERSION		0x3133302A
+#define CONFIG_MIPI_DSI_LINUX	0
+#define DWC_DSI_VERSION			0x3133302A
 
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/mfd/rk616.h>
 #include <linux/rk_fb.h>
 #include <linux/rk_screen.h>
 #include <linux/delay.h>
@@ -41,7 +40,7 @@
 #include "rk32_mipi_dsi.h"
 #include <linux/rockchip/iomap.h>
 
-#if 1
+#if 0
 #define	MIPI_DBG(x...)	printk(KERN_INFO x)
 #else
 #define	MIPI_DBG(x...)  
@@ -51,21 +50,23 @@
 #define	MIPI_TRACE(x...)	printk(KERN_INFO x)
 #else
 #define	MIPI_TRACE(...)    \
-    do\
-    {\
-        printf(__VA_ARGS__);\
-        printf("\n");\
-    }while(0);
-    
+	do\
+	{\
+		printf(__VA_ARGS__);\
+		printf("\n");\
+	}while(0);
+	
 #endif
 
 /*
 *			 Driver Version Note
 *
 *v1.0 : this driver is rk32 mipi dsi driver of rockchip;
-
+*v1.1 : add test eye pattern;
+*
 */
-#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.0 2014-04-17"
+
+#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.0 2014-05-07"
 
 static struct dsi *dsi0;
 static struct dsi *dsi1;
@@ -100,7 +101,7 @@ static int rk32_dsi_get_bits(struct dsi *dsi, u32 reg)
 		bits = (1 << bits) - 1;
 	else
 		bits = 0xffffffff;
-		
+	
 	rk32_dsi_read_reg(dsi, reg_addr, &val);
 	val >>= offset;
 	val &= bits;
@@ -110,7 +111,7 @@ static int rk32_dsi_get_bits(struct dsi *dsi, u32 reg)
 
 static int rk32_dsi_set_bits(struct dsi *dsi, u32 data, u32 reg) 
 {
-	u32 val = 0;
+	static u32 val = 0;
 	u32 bits = (reg >> 8) & 0xff;
 	u16 reg_addr = (reg >> 16) & 0xffff;
 	u8 offset = reg & 0xff;
@@ -120,11 +121,8 @@ static int rk32_dsi_set_bits(struct dsi *dsi, u32 data, u32 reg)
 	else
 		bits = 0xffffffff;
 
-	if(bits != 0xffffffff) {
-
+	if(bits != 0xffffffff)
 		rk32_dsi_read_reg(dsi, reg_addr, &val);
-
-	}
 
 	val &= ~(bits << offset);
 	val |= (data & bits) << offset;
@@ -140,46 +138,46 @@ static int rk32_dsi_set_bits(struct dsi *dsi, u32 data, u32 reg)
 
 static int rk32_dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
 {
-    int val = 0;
-    rk32_dsi_set_bits(dsi, 1, phy_testclk);
-    rk32_dsi_set_bits(dsi, test_code, phy_testdin);
-    rk32_dsi_set_bits(dsi, 1, phy_testen);
+	int val = 0;
+	rk32_dsi_set_bits(dsi, 1, phy_testclk);
+	rk32_dsi_set_bits(dsi, test_code, phy_testdin);
+	rk32_dsi_set_bits(dsi, 1, phy_testen);
 	rk32_dsi_set_bits(dsi, 0, phy_testclk);
 	rk32_dsi_set_bits(dsi, 0, phy_testen);;
 
-    rk32_dsi_set_bits(dsi, 0, phy_testen);
-    val = rk32_dsi_get_bits(dsi,phy_testdout);
-    rk32_dsi_set_bits(dsi, 1, phy_testclk);
-    rk32_dsi_set_bits(dsi, 0, phy_testclk);
+	rk32_dsi_set_bits(dsi, 0, phy_testen);
+	val = rk32_dsi_get_bits(dsi,phy_testdout);
+	rk32_dsi_set_bits(dsi, 1, phy_testclk);
+	rk32_dsi_set_bits(dsi, 0, phy_testclk);
 
-    return val;
+	return val;
 }
-
 
 static int rk32_dwc_phy_test_wr(struct dsi *dsi, unsigned char test_code, unsigned char *test_data, unsigned char size)
 {
 	int i = 0;
- 
-    rk32_dsi_set_bits(dsi, 0x10000 | test_code, PHY_TEST_CTRL1);
-    rk32_dsi_set_bits(dsi, 0x2, PHY_TEST_CTRL0);
-    rk32_dsi_set_bits(dsi, 0x0, PHY_TEST_CTRL0);
+	
+	MIPI_DBG("test_code=0x%x,test_data=0x%x\n", test_code,test_data[0]);
+	rk32_dsi_set_bits(dsi, 0x10000 | test_code, PHY_TEST_CTRL1);
+	rk32_dsi_set_bits(dsi, 0x2, PHY_TEST_CTRL0);
+	rk32_dsi_set_bits(dsi, 0x0, PHY_TEST_CTRL0);
 
 	for(i = 0; i < size; i++) {
-    	rk32_dsi_set_bits(dsi, test_data[i], PHY_TEST_CTRL1);
-        rk32_dsi_set_bits(dsi, 0x2, PHY_TEST_CTRL0);
-        rk32_dsi_set_bits(dsi, 0x0, PHY_TEST_CTRL0);
-        MIPI_DBG("rk32_dwc_phy_test_wr:%08x\n", rk32_dsi_get_bits(dsi, PHY_TEST_CTRL1));
+		rk32_dsi_set_bits(dsi, test_data[i], PHY_TEST_CTRL1);
+		rk32_dsi_set_bits(dsi, 0x2, PHY_TEST_CTRL0);
+		rk32_dsi_set_bits(dsi, 0x0, PHY_TEST_CTRL0);
+		MIPI_DBG("rk32_dwc_phy_test_wr:%08x\n", rk32_dsi_get_bits(dsi, PHY_TEST_CTRL1));
 	}
 	return 0;
 }
 
 static int rk32_phy_power_up(struct dsi *dsi)
 {
-    //enable ref clock
-    clk_prepare_enable(dsi->phy.refclk); 
-    clk_prepare_enable(dsi->dsi_pclk);
-    clk_prepare_enable(dsi->dsi_pd);
-    udelay(10);
+	//enable ref clock
+	clk_prepare_enable(dsi->phy.refclk); 
+	clk_prepare_enable(dsi->dsi_pclk);
+	clk_prepare_enable(dsi->dsi_pd);
+	udelay(10);
 
 	switch(dsi->host.lane) {
 		case 4:
@@ -194,180 +192,189 @@ static int rk32_phy_power_up(struct dsi *dsi)
 		default:
 			break;	
 	}
-    rk32_dsi_set_bits(dsi, 1, phy_shutdownz);
-    rk32_dsi_set_bits(dsi, 1, phy_rstz);  
-    rk32_dsi_set_bits(dsi, 1, phy_enableclk);
-    rk32_dsi_set_bits(dsi, 1, phy_forcepll);
-    
-    return 0;
+	rk32_dsi_set_bits(dsi, 1, phy_shutdownz);
+	rk32_dsi_set_bits(dsi, 1, phy_rstz);  
+	rk32_dsi_set_bits(dsi, 1, phy_enableclk);
+	rk32_dsi_set_bits(dsi, 1, phy_forcepll);
+	
+	return 0;
 }
 
 static int rk32_phy_power_down(struct dsi *dsi)
 {
-    rk32_dsi_set_bits(dsi, 0, phy_shutdownz);
-    clk_disable_unprepare(dsi->phy.refclk); 
-    clk_disable_unprepare(dsi->dsi_pclk);
-    clk_disable_unprepare(dsi->dsi_pd);
-    
-    return 0;
+	rk32_dsi_set_bits(dsi, 0, phy_shutdownz);
+	clk_disable_unprepare(dsi->phy.refclk); 
+	clk_disable_unprepare(dsi->dsi_pclk);
+	clk_disable_unprepare(dsi->dsi_pd);
+	
+	return 0;
 }
 
 static int rk32_phy_init(struct dsi *dsi)
 {
-    u32 val = 0;
-    u32 ddr_clk = dsi->phy.ddr_clk;
-    u16 prediv = dsi->phy.prediv;
-    u16 fbdiv = dsi->phy.fbdiv;
-    
-    unsigned char test_data[2] = {0};
+	u32 val = 0 , ddr_clk = 0, fbdiv = 0, prediv = 0;
+	unsigned char test_data[2] = {0};
+	
+	ddr_clk	= dsi->phy.ddr_clk;
+	prediv	= dsi->phy.prediv;
+	fbdiv	= dsi->phy.fbdiv;
 
-    if(ddr_clk < 90 * MHz)
-        val = 0x01;
-	else if(ddr_clk < 100 * MHz)
-        val = 0x10;
-	else if(ddr_clk < 110 * MHz)
-        val = 0x20;
-	else if(ddr_clk < 130 * MHz)
-        val = 0x01;
-	else if(ddr_clk < 140 * MHz)
-        val = 0x11;
-	else if(ddr_clk < 150 * MHz)
-        val = 0x21; 
-	else if(ddr_clk < 170 * MHz)
-        val = 0x02;
-	else if(ddr_clk < 180 * MHz)
-        val = 0x12;
-	else if(ddr_clk < 200 * MHz)
-        val = 0x22;
-	else if(ddr_clk < 220 * MHz)
-        val = 0x03;
-	else if(ddr_clk < 240 * MHz)
-        val = 0x13;
-	else if(ddr_clk < 250 * MHz)
-        val = 0x23;
-	else if(ddr_clk < 270 * MHz)
-        val = 0x04; 
+	if(ddr_clk < 200 * MHz)
+		val = 0x0;
 	else if(ddr_clk < 300 * MHz)
-        val = 0x14;
-	else if(ddr_clk < 330 * MHz)
-        val = 0x05;
-	else if(ddr_clk < 360 * MHz)
-        val = 0x15; 
-	else if(ddr_clk < 400 * MHz)
-        val = 0x25;
-	else if(ddr_clk < 450 * MHz)
-        val = 0x06; 
+		val = 0x1;
 	else if(ddr_clk < 500 * MHz)
-        val = 0x16;
-	else if(ddr_clk < 550 * MHz)
-        val = 0x07;
-	else if(ddr_clk < 600 * MHz)
-        val = 0x17;
-	else if(ddr_clk < 650 * MHz)
-        val = 0x08;
+		val = 0x2;
 	else if(ddr_clk < 700 * MHz)
-        val = 0x18;
+		val = 0x3;
+	else if(ddr_clk < 900 * MHz)
+		val = 0x4;
+	else if(ddr_clk < 1100 * MHz)
+		val = 0x5; 
+	else if(ddr_clk < 1300 * MHz)
+		val = 0x6;
+	else if(ddr_clk <= 1500 * MHz)
+		val = 0x7;
+	
+	test_data[0] = 0x80 | val << 3 | 0x3;
+	rk32_dwc_phy_test_wr(dsi, 0x10, test_data, 1);
+	
+	test_data[0] = 0xf;
+	rk32_dwc_phy_test_wr(dsi, 0x11, test_data, 1); 
+	
+	test_data[0] = 0x80 | 0x40;
+	rk32_dwc_phy_test_wr(dsi, 0x12, test_data, 1); 
+	
+	if(ddr_clk < 90 * MHz)
+		val = 0x01;
+	else if(ddr_clk < 100 * MHz)
+		val = 0x10;
+	else if(ddr_clk < 110 * MHz)
+		val = 0x20;
+	else if(ddr_clk < 130 * MHz)
+		val = 0x01;
+	else if(ddr_clk < 140 * MHz)
+		val = 0x11;
+	else if(ddr_clk < 150 * MHz)
+		val = 0x21; 
+	else if(ddr_clk < 170 * MHz)
+		val = 0x02;
+	else if(ddr_clk < 180 * MHz)
+		val = 0x12;
+	else if(ddr_clk < 200 * MHz)
+		val = 0x22;
+	else if(ddr_clk < 220 * MHz)
+		val = 0x03;
+	else if(ddr_clk < 240 * MHz)
+		val = 0x13;
+	else if(ddr_clk < 250 * MHz)
+		val = 0x23;
+	else if(ddr_clk < 270 * MHz)
+		val = 0x04; 
+	else if(ddr_clk < 300 * MHz)
+		val = 0x14;
+	else if(ddr_clk < 330 * MHz)
+		val = 0x05;
+	else if(ddr_clk < 360 * MHz)
+		val = 0x15; 
+	else if(ddr_clk < 400 * MHz)
+		val = 0x25;
+	else if(ddr_clk < 450 * MHz)
+		val = 0x06; 
+	else if(ddr_clk < 500 * MHz)
+		val = 0x16;
+	else if(ddr_clk < 550 * MHz)
+		val = 0x07;
+	else if(ddr_clk < 600 * MHz)
+		val = 0x17;
+	else if(ddr_clk < 650 * MHz)
+		val = 0x08;
+	else if(ddr_clk < 700 * MHz)
+		val = 0x18;
 	else if(ddr_clk < 750 * MHz)
-        val = 0x09;
+		val = 0x09;
 	else if(ddr_clk < 800 * MHz)
-        val = 0x19;
-    else if(ddr_clk < 850 * MHz)
-        val = 0x29;
-    else if(ddr_clk < 900 * MHz)
-        val = 0x39;
-    else if(ddr_clk < 950 * MHz)
-        val = 0x0a;
-    else if(ddr_clk < 1000 * MHz)
-        val = 0x1a;
-    else if(ddr_clk < 1050 * MHz)
-        val = 0x2a;
-    else if(ddr_clk < 1100* MHz)
-        val = 0x3a;
-    else if(ddr_clk < 1150* MHz)
-        val = 0x0b;
-    else if(ddr_clk < 1200 * MHz)
-        val = 0x1b;
-    else if(ddr_clk < 1250 * MHz)
-        val = 0x2b;
-    else if(ddr_clk < 1300 * MHz)
-        val = 0x3b;
-    else if(ddr_clk < 1350 * MHz)
-        val = 0x0c;
-    else if(ddr_clk < 1400* MHz)
-        val = 0x1c;
-    else if(ddr_clk < 1450* MHz)
-        val = 0x2c;
-    else if(ddr_clk <= 1500* MHz)
-        val = 0x3c;
+		val = 0x19;
+	else if(ddr_clk < 850 * MHz)
+		val = 0x29;
+	else if(ddr_clk < 900 * MHz)
+		val = 0x39;
+	else if(ddr_clk < 950 * MHz)
+		val = 0x0a;
+	else if(ddr_clk < 1000 * MHz)
+		val = 0x1a;
+	else if(ddr_clk < 1050 * MHz)
+		val = 0x2a;
+	else if(ddr_clk < 1100* MHz)
+		val = 0x3a;
+	else if(ddr_clk < 1150* MHz)
+		val = 0x0b;
+	else if(ddr_clk < 1200 * MHz)
+		val = 0x1b;
+	else if(ddr_clk < 1250 * MHz)
+		val = 0x2b;
+	else if(ddr_clk < 1300 * MHz)
+		val = 0x3b;
+	else if(ddr_clk < 1350 * MHz)
+		val = 0x0c;
+	else if(ddr_clk < 1400* MHz)
+		val = 0x1c;
+	else if(ddr_clk < 1450* MHz)
+		val = 0x2c;
+	else if(ddr_clk <= 1500* MHz)
+		val = 0x3c;
 
-    //N=2,M=84
-    test_data[0] = val << 1;
-    rk32_dwc_phy_test_wr(dsi, code_hs_rx_lane0, test_data, 1);
+	test_data[0] = val << 1;
+	rk32_dwc_phy_test_wr(dsi, code_hs_rx_lane0, test_data, 1);
 
-    test_data[0] = prediv- 1;
-    rk32_dwc_phy_test_wr(dsi, code_pll_input_div_rat, test_data, 1);
-    
-    test_data[0] = (fbdiv - 1) & 0x1f; //0x14; 
-    rk32_dwc_phy_test_wr(dsi, code_pll_loop_div_rat, test_data, 1);
-    
-    test_data[0] = (fbdiv - 1) >> 5 | 0x80;  //0x82
-    rk32_dwc_phy_test_wr(dsi, code_pll_loop_div_rat, test_data, 1);
-    
-    test_data[0] = 0x30;
-    rk32_dwc_phy_test_wr(dsi, code_pll_input_loop_div_rat, test_data, 1);
-    mdelay(100);
+	test_data[0] = prediv- 1;
+	rk32_dwc_phy_test_wr(dsi, code_pll_input_div_rat, test_data, 1);
+	mdelay(2);
+	test_data[0] = (fbdiv - 1) & 0x1f; 
+	rk32_dwc_phy_test_wr(dsi, code_pll_loop_div_rat, test_data, 1);
+	mdelay(2);
+	test_data[0] = (fbdiv - 1) >> 5 | 0x80; 
+	rk32_dwc_phy_test_wr(dsi, code_pll_loop_div_rat, test_data, 1);
+	mdelay(2);
+	test_data[0] = 0x30;
+	rk32_dwc_phy_test_wr(dsi, code_pll_input_loop_div_rat, test_data, 1);
+	mdelay(2);
 
-    test_data[0] = 0x00;
-    // rk32_dwc_phy_test_wr(dsi, 0x60, test_data, 1);
+	test_data[0] = 0x4d;
+	rk32_dwc_phy_test_wr(dsi, 0x20, test_data, 1);
+	
+	test_data[0] = 0x3d;
+	rk32_dwc_phy_test_wr(dsi, 0x21, test_data, 1);
+	
+	test_data[0] = 0xdf;
+	rk32_dwc_phy_test_wr(dsi, 0x21, test_data, 1); 	
+	
+	test_data[0] =  0x7;
+	rk32_dwc_phy_test_wr(dsi, 0x22, test_data, 1);
 
-    test_data[0] = 0x81;
-    // rk32_dwc_phy_test_wr(dsi, 0x61, test_data, 1);
+	test_data[0] = 0x80 | 0x7;
+	rk32_dwc_phy_test_wr(dsi, 0x22, test_data, 1);
 
-    test_data[0] = 0x0;
-    // rk32_dwc_phy_test_wr(dsi, 0x62, test_data, 1);
+	test_data[0] = 0x80 | 15;
+	rk32_dwc_phy_test_wr(dsi, code_hstxdatalanerequsetstatetime, test_data, 1);
 
-    test_data[0] = 0x80 | 15;
-    rk32_dwc_phy_test_wr(dsi, code_hstxdatalanerequsetstatetime, test_data, 1);
+	test_data[0] = 0x80 | 85;
+	rk32_dwc_phy_test_wr(dsi, code_hstxdatalanepreparestatetime, test_data, 1);
 
-    test_data[0] = 0x80 | 85;
-    rk32_dwc_phy_test_wr(dsi, code_hstxdatalanepreparestatetime, test_data, 1);
-
-    test_data[0] = 0x40 | 10;
-    rk32_dwc_phy_test_wr(dsi, code_hstxdatalanehszerostatetime, test_data, 1);
-
-
-    // test_data[0] = 0x80 | 127;
-    // rk32_dwc_phy_test_wr(dsi, 0x71, test_data, 1);
-
-    // test_data[0] = 0x3;
-    // rk32_dwc_phy_test_wr(dsi, 0x57, test_data, 1);
+	test_data[0] = 0x40 | 10;
+	rk32_dwc_phy_test_wr(dsi, code_hstxdatalanehszerostatetime, test_data, 1);
 
     return 0;
-}
-
-static int rk32_mipi_dsi_phy_power_up(struct dsi *dsi)
-{
-	return rk32_phy_power_up(dsi);
-}
-
-static int rk32_mipi_dsi_phy_power_down(struct dsi *dsi) 
-{
-	return rk32_phy_power_down(dsi);
-}
-
-static int rk32_mipi_dsi_phy_init(struct dsi *dsi) 
-{
-	return rk32_phy_init(dsi);
 }
 
 static int rk32_mipi_dsi_host_power_up(struct dsi *dsi) 
 {
 	int ret = 0;
-	u32 val = 0;
-	
+	u32 val;
+
 	//disable all interrupt            
 	rk32_dsi_set_bits(dsi, 0x1fffff, INT_MKS0);
-	rk32_dsi_set_bits(dsi, 0x1ffff, INT_MKS1);
+	rk32_dsi_set_bits(dsi, 0x3ffff, INT_MKS1);
 
 	rk32_mipi_dsi_is_enable(dsi, 1);
 	
@@ -378,7 +385,7 @@ static int rk32_mipi_dsi_host_power_up(struct dsi *dsi)
 	
 	if(val == 0) {
 		ret = -1;
-		MIPI_TRACE("%s:phylock fail\n", __func__);	
+		MIPI_TRACE("%s:phylock fail.\n", __func__);	
 	}
 	
 	val = 10;
@@ -413,15 +420,19 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 			rk32_dsi_set_bits(dsi, 5, dpi_color_coding);
 			bytes_px = 3;
 			break;
+		
 		case OUT_D888_P666:
+		
 		case OUT_P666:
 			rk32_dsi_set_bits(dsi, 3, dpi_color_coding);
 			rk32_dsi_set_bits(dsi, 1, en18_loosely);
 			bytes_px = 3;
 			break;
+		
 		case OUT_P565:
 			rk32_dsi_set_bits(dsi, 0, dpi_color_coding);
 			bytes_px = 2;
+		
 		default:
 			break;
 	}
@@ -461,10 +472,10 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 			rk32_dsi_set_bits(dsi, m, vid_pkt_size);
 			temp = m * lane * Tpclk / Ttxbyte_clk - m * bytes_px;
 			MIPI_DBG("%s:%d, %d\n", __func__, m, temp);
-			if(temp >= 12) {
-
+		
+			if(temp >= 12) 
 				rk32_dsi_set_bits(dsi, temp - 12, null_pkt_size);
-			}
+				
 			break;
 			
 		default:
@@ -508,10 +519,9 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 		
 	rk32_dsi_set_bits(dsi, 20, phy_hs2lp_time);
 	rk32_dsi_set_bits(dsi, 16, phy_lp2hs_time);	
-    
-   // rk32_dsi_set_bits(dsi, 87, phy_hs2lp_time_clk_lane); //no sure
-  //  rk32_dsi_set_bits(dsi, 25, phy_hs2hs_time_clk_lane); //no sure
 
+	// rk32_dsi_set_bits(dsi, 87, phy_hs2lp_time_clk_lane); //no sure
+	//  rk32_dsi_set_bits(dsi, 25, phy_hs2hs_time_clk_lane); //no sure
 
 	rk32_dsi_set_bits(dsi, 10000, max_rd_time);
 
@@ -531,8 +541,8 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 }
 
 /*
-	mipi protocol layer definition
-*/
+ *	mipi protocol layer definition
+ */
 static int rk_mipi_dsi_init(void *arg, u32 n)
 {
 	u32 decimals = 1000, i = 0, pre = 0;
@@ -548,28 +558,26 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 	}
 
 	if(((screen->type == SCREEN_DUAL_MIPI) && (rk_mipi_get_dsi_num() == 1)) ||  ((screen->type == SCREEN_MIPI) && (rk_mipi_get_dsi_num() == 2))){
-        MIPI_TRACE("dsi number and mipi type not match!\n");
+		MIPI_TRACE("dsi number and mipi type not match!\n");
 	    return -1;
-    }
+	}
 	    
 	dsi->phy.Tpclk = rk_fb_get_prmry_screen_pixclock();
 
-    if(dsi->phy.refclk)
+	if(dsi->phy.refclk)
 		dsi->phy.ref_clk = clk_get_rate(dsi->phy.refclk) ;
 
 	dsi->phy.sys_clk = dsi->phy.ref_clk;
 
 	printk("dsi->phy.sys_clk =%d\n",dsi->phy.sys_clk );
 
-    if((screen->hs_tx_clk <= 90 * MHz) || (screen->hs_tx_clk >= 1500 * MHz))
-        dsi->phy.ddr_clk = 1500 * MHz;    //default is 1.5HGz
-    else
-        dsi->phy.ddr_clk = screen->hs_tx_clk;   
+	if((screen->hs_tx_clk <= 90 * MHz) || (screen->hs_tx_clk >= 1500 * MHz))
+		dsi->phy.ddr_clk = 1500 * MHz;    //default is 1.5HGz
+	else
+		dsi->phy.ddr_clk = screen->hs_tx_clk;   
 
-/*	if(n != 0) {
+	if(n != 0) 
 		dsi->phy.ddr_clk = n;
-	}
-    */
 
 	decimals = dsi->phy.ref_clk;
 	for(i = 1; i < 6; i++) {
@@ -617,11 +625,11 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 				dsi->phy.Ttxbyte_clk);
 	MIPI_DBG("txclkesc:%d, Ttxclkesc:%d\n", dsi->phy.txclkesc, dsi->phy.Ttxclkesc);
 	
-	rk32_mipi_dsi_phy_power_up(dsi);
+	rk32_phy_power_up(dsi);
 	rk32_mipi_dsi_host_power_up(dsi);
-	rk32_mipi_dsi_phy_init(dsi);
+	rk32_phy_init(dsi);
 	rk32_mipi_dsi_host_init(dsi);
-		
+	
 	return 0;
 }
 
@@ -655,6 +663,7 @@ static int rk32_mipi_dsi_enable_command_mode(void *arg, u32 enable)
 static int rk32_mipi_dsi_enable_hs_clk(void *arg, u32 enable)
 {
 	struct dsi *dsi = arg;
+	
 	rk32_dsi_set_bits(dsi, enable, phy_txrequestclkhs);
 	return 0;
 }
@@ -662,136 +671,143 @@ static int rk32_mipi_dsi_enable_hs_clk(void *arg, u32 enable)
 static int rk32_mipi_dsi_is_active(void *arg)
 {
 	struct dsi *dsi = arg;
+	
 	return rk32_dsi_get_bits(dsi, shutdownz);
 }
 
-static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 n)
+static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 length)
 {
 	struct dsi *dsi = arg;
-	u32 type = cmds[1];
-	unsigned char *regs = cmds;
-	u32 data = 0, i = 0, j = 0;
-	n -= 2;
+	unsigned char regs[25] = {0}; 
+	u32 type, liTmp = 0, i = 0, j = 0, data = 0;
 
 	if(rk32_dsi_get_bits(dsi, gen_cmd_full) == 1) {
 		MIPI_TRACE("gen_cmd_full\n");
 		return -1;
 	}
-  
-    switch(type)
-    {
-        case DTYPE_DCS_SWRITE_0P:
-            rk32_dsi_set_bits(dsi, regs[0], dcs_sw_0p_tx);
-            data = regs[2] << 8 | type;
-            break;
-            
-        case DTYPE_DCS_SWRITE_1P:
-            rk32_dsi_set_bits(dsi, regs[0], dcs_sw_1p_tx);
-            data = regs[2] << 8 | type;
-            data |= regs[3] << 16;
-            break;
-            
-        case DTYPE_DCS_LWRITE: 
-            rk32_dsi_set_bits(dsi, regs[0], dcs_lw_tx);
-            for(i = 0; i < n; i++)
-            {
-                regs[i] = regs[i+2];
-            }
-        	for(i = 0; i < n; i++) {
-        		j = i % 4;
-        		data |= regs[i] << (j * 8);
-        		if(j == 3 || ((i + 1) == n)) {
-        			#ifndef CONFIG_MFD_RK616
-        			if(rk32_dsi_get_bits(dsi, gen_pld_w_full) == 1) {
-        				MIPI_TRACE("gen_pld_w_full :%d\n", i);
-        				break;
-        			}
-        			#endif
-        			rk32_dsi_set_bits(dsi, data, GEN_PLD_DATA);
-        			MIPI_DBG("write GEN_PLD_DATA:%d, %08x\n", i, data);
-        			data = 0;
-        		}
-        	}
-        	
-        	data = type;	
-        	data |= (n & 0xffff) << 8;
-        	
-            break;
-            
-        case DTYPE_GEN_LWRITE:
-            rk32_dsi_set_bits(dsi, regs[0], gen_lw_tx);
-            
-            for(i = 0; i < n; i++)
-            {
-                regs[i] = regs[i+2];
-            }
-            
-    		for(i = 0; i < n; i++) {
-    			j = i % 4;
-    			data |= regs[i] << (j * 8);
-    			if(j == 3 || ((i + 1) == n)) {
-    				#ifndef CONFIG_MFD_RK616
-    				if(rk32_dsi_get_bits(dsi, gen_pld_w_full) == 1) {
-    					MIPI_TRACE("gen_pld_w_full :%d\n", i);
-    					break;
-    				}
-    				#endif
-    				rk32_dsi_set_bits(dsi, data, GEN_PLD_DATA);
-    				MIPI_DBG("write GEN_PLD_DATA:%d, %08x\n", i, data);
-    				data = 0;
-    			}
-    		}
-    		data = (dsi->vid << 6) | type;		
-    		data |= (n & 0xffff) << 8;
-            break;
-            
-        case DTYPE_GEN_SWRITE_2P:
-        
-            rk32_dsi_set_bits(dsi, regs[0], gen_sw_2p_tx);
-            for(i = 0; i < n; i++)
-            {
-                regs[i] = regs[i+2];
-            }
-            
-            for(i = 0; i < n; i++) {
-            	j = i % 4;
-            	data |= regs[i] << (j * 8);
-            	if(j == 3 || ((i + 1) == n)) {
-                    #ifndef CONFIG_MFD_RK616
-            		if(rk32_dsi_get_bits(dsi, gen_pld_w_full) == 1) {
-            			MIPI_TRACE("gen_pld_w_full :%d\n", i);
-            			break;
-            		}
-                    #endif
-            		rk32_dsi_set_bits(dsi, data, GEN_PLD_DATA);
-            		MIPI_DBG("write GEN_PLD_DATA:%d, %08x\n", i, data);
-            		data = 0;
-            	}
-            }
-            data = type;		
-            data |= (n & 0xffff) << 8;
+	
+	for(i = 0; i < length; i++){
+		regs[i] = cmds[i];
+	}
+	
+	liTmp	= length - 2;
+	type	= regs[1];
+	
+	switch(type)
+	{
+		case DTYPE_DCS_SWRITE_0P:
+			rk32_dsi_set_bits(dsi, regs[0], dcs_sw_0p_tx);
+			data = regs[2] << 8 | type;
+			break;
+		
+		case DTYPE_DCS_SWRITE_1P:
+			rk32_dsi_set_bits(dsi, regs[0], dcs_sw_1p_tx);
+			data = regs[2] << 8 | type;
+			data |= regs[3] << 16;
+			break;
+		    
+		case DTYPE_DCS_LWRITE: 
+			rk32_dsi_set_bits(dsi, regs[0], dcs_lw_tx);
+		
+			for(i = 0; i < liTmp; i++){
+			    regs[i] = regs[i+2];
+		    }
+		
+			for(i = 0; i < liTmp; i++) {
+				j = i % 4;
+				
+				data |= regs[i] << (j * 8);
+				if(j == 3 || ((i + 1) == liTmp)) {
+					if(rk32_dsi_get_bits(dsi, gen_pld_w_full) == 1) {
+						MIPI_TRACE("gen_pld_w_full :%d\n", i);
+						break;
+					}
+					
+					rk32_dsi_set_bits(dsi, data, GEN_PLD_DATA);
+					MIPI_DBG("write GEN_PLD_DATA:%d, %08x\n", i, data);
+					data = 0;
+				}
+			}
+			
+			data = type;	
+			data |= (liTmp & 0xffff) << 8;
+			
+			break;
+			
+		case DTYPE_GEN_LWRITE:
+			rk32_dsi_set_bits(dsi, regs[0], gen_lw_tx);
+			
+			for(i = 0; i < liTmp; i++){
+				regs[i] = regs[i+2];
+			}
+			
+			for(i = 0; i < liTmp; i++) {
+				j = i % 4;
+				
+				data |= regs[i] << (j * 8);
+				if(j == 3 || ((i + 1) == liTmp)) {
+					if(rk32_dsi_get_bits(dsi, gen_pld_w_full) == 1) {
+						MIPI_TRACE("gen_pld_w_full :%d\n", i);
+						break;
+					}
+					
+					rk32_dsi_set_bits(dsi, data, GEN_PLD_DATA);
+					MIPI_DBG("write GEN_PLD_DATA:%d, %08x\n", i, data);
+					data = 0;
+				}
+			}
+		
+			data = (dsi->vid << 6) | type;		
+			data |= (liTmp & 0xffff) << 8;
+			break;
+	
+		case DTYPE_GEN_SWRITE_2P:
+			
+			rk32_dsi_set_bits(dsi, regs[0], gen_sw_2p_tx);
+			for(i = 0; i < liTmp; i++){
+			    regs[i] = regs[i+2];
+			}
+			
+			for(i = 0; i < liTmp; i++) {
+				j = i % 4;
+				data |= regs[i] << (j * 8);
+				if(j == 3 || ((i + 1) == liTmp)) {
+					if(rk32_dsi_get_bits(dsi, gen_pld_w_full) == 1) {
+						MIPI_TRACE("gen_pld_w_full :%d\n", i);
+						break;
+					}
+					
+					rk32_dsi_set_bits(dsi, data, GEN_PLD_DATA);
+					MIPI_DBG("write GEN_PLD_DATA:%d, %08x\n", i, data);
+					data = 0;
+				}
+			}
+			data = type;		
+			data |= (liTmp & 0xffff) << 8;
 
-            break;
-            
-        case DTYPE_GEN_SWRITE_1P:
-            rk32_dsi_set_bits(dsi, regs[0], gen_sw_1p_tx);
-            data = type;
-            data |= regs[2] << 8;
-            data |= regs[3] << 16;
-            break;
-            
-        case DTYPE_GEN_SWRITE_0P:
-            rk32_dsi_set_bits(dsi, regs[0], gen_sw_0p_tx);
-            data =  type;
-            data |= regs[2] << 8;
-            
-            break;
-            
-    }
+			break;
+			
+		case DTYPE_GEN_SWRITE_1P:
+			rk32_dsi_set_bits(dsi, regs[0], gen_sw_1p_tx);
+			data = type;
+			data |= regs[2] << 8;
+			data |= regs[3] << 16;
+			break;
+			
+		case DTYPE_GEN_SWRITE_0P:
+			rk32_dsi_set_bits(dsi, regs[0], gen_sw_0p_tx);
+			data =  type;
+			data |= regs[2] << 8;
+			break;
 
-    MIPI_DBG(":%d command sent in %s size:%d\n", __LINE__, regs[0] ? "LP mode" : "HS mode", n);
-    
-    MIPI_DBG("write GEN_HDR:%08x\n", data);
+		default:
+		   printk("0x%x:this type not suppport!\n",type);
+			
+	}
+
+	MIPI_DBG("%d command sent in %s size:%d\n", __LINE__, regs[0] ? "LP mode" : "HS mode", liTmp);
+	
+	MIPI_DBG("write GEN_HDR:%08x\n", data);
 	rk32_dsi_set_bits(dsi, data, GEN_HDR);
 	
 	i = 10;
@@ -801,12 +817,12 @@ static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 n)
 	}
 	udelay(10);
 
-    return 0;
+	return 0;
 }
 
 static int rk32_mipi_dsi_read_dcs_packet(void *arg, unsigned char *data1, u32 n)
 {
-    struct dsi *dsi = arg;
+	struct dsi *dsi = arg;
 	//DCS READ 
 	//unsigned char *regs = data;
 	unsigned char regs[2];
@@ -814,43 +830,43 @@ static int rk32_mipi_dsi_read_dcs_packet(void *arg, unsigned char *data1, u32 n)
 	int type = 0x06;
 	regs[0] = LPDT;
 	regs[1] = 0x0a;
-	 n = n - 1;
-	
-	
+	n = n - 1;
+
+				
 	rk32_dsi_set_bits(dsi, regs[0], dcs_sr_0p_tx);
 	
+	/* if(type == DTYPE_GEN_SWRITE_0P)
+		data = (dsi->vid << 6) | (n << 4) | type;
+	else 
+		data = (dsi->vid << 6) | ((n-1) << 4) | type;*/
 
-   /* if(type == DTYPE_GEN_SWRITE_0P)
-        data = (dsi->vid << 6) | (n << 4) | type;
-    else 
-        data = (dsi->vid << 6) | ((n-1) << 4) | type;*/
-        
-    data |= regs[1] << 8 | type;
-   // if(n == 2)
-    //    data |= regs[1] << 16;
+	data |= regs[1] << 8 | type;
+	// if(n == 2)
+	//    data |= regs[1] << 16;
 
-    MIPI_DBG("write GEN_HDR:%08x\n", data);
+	MIPI_DBG("write GEN_HDR:%08x\n", data);
 	rk32_dsi_set_bits(dsi, data, GEN_HDR);
-    msleep(100);
+	msleep(100);
     
-   // rk32_dsi_set_bits(dsi, regs[0], gen_sr_0p_tx);
+	// rk32_dsi_set_bits(dsi, regs[0], gen_sr_0p_tx);
 
-    printk("rk32_mipi_dsi_read_dcs_packet==0x%x\n",rk32_dsi_get_bits(dsi, GEN_PLD_DATA));
-    msleep(100);
+	printk("rk32_mipi_dsi_read_dcs_packet==0x%x\n",rk32_dsi_get_bits(dsi, GEN_PLD_DATA));
+	msleep(100);
 
-  //  rk32_dsi_set_bits(dsi, regs[0], max_rd_pkt_size);
-    
-    msleep(100);
-    // printk("_____rk32_mipi_dsi_read_dcs_packet==0x%x\n",rk32_dsi_get_bits(dsi, GEN_PLD_DATA));
+	//  rk32_dsi_set_bits(dsi, regs[0], max_rd_pkt_size);
 	
-    msleep(100);
+	msleep(100);
+	// printk("_____rk32_mipi_dsi_read_dcs_packet==0x%x\n",rk32_dsi_get_bits(dsi, GEN_PLD_DATA));
+	
+	msleep(100);
 	return 0;
 }
 
 static int rk32_mipi_dsi_power_up(void *arg)
 {
 	struct dsi *dsi = arg;
-	rk32_mipi_dsi_phy_power_up(dsi);
+	
+	rk32_phy_power_up(dsi);
 	rk32_mipi_dsi_host_power_up(dsi);
 	return 0;
 }
@@ -859,16 +875,13 @@ static int rk32_mipi_dsi_power_down(void *arg)
 {
 	struct dsi *dsi = arg;
 	struct mipi_dsi_screen *screen = &dsi->screen;
-	
+
 	if(!screen)
 		return -1;
-		
+
 	rk32_mipi_dsi_host_power_down(dsi);
-	rk32_mipi_dsi_phy_power_down(dsi);
-#if defined(CONFIG_ARCH_RK319X)
-	clk_disable(dsi->dsi_pd);
-	clk_disable(dsi->dsi_pclk);
-#endif
+	rk32_phy_power_down(dsi);
+
 	MIPI_TRACE("%s:%d\n", __func__, __LINE__);
 	return 0;
 }
@@ -877,7 +890,9 @@ static int rk32_mipi_dsi_get_id(void *arg)
 {
 	u32 id = 0;
 	struct dsi *dsi = arg;
-	id = rk32_dsi_get_bits(dsi, VERSION);
+	
+	id	= rk32_dsi_get_bits(dsi, VERSION);
+	
 	return id;
 }
 
@@ -994,7 +1009,7 @@ int reg_proc_write(struct file *file, const char __user *buff, size_t count, lof
 					msleep(1000);
 				}
 			break;
-	
+
 		default:
 			break;
 	}
@@ -1010,7 +1025,6 @@ int reg_proc_read(struct file *file, char __user *buff, size_t count,
 {
 	int i = 0;
 	u32 val = 0;
-
 
     for(i = VERSION; i < (VERSION + (0xdc<<16)); i += 4<<16) {
 		val = rk32_dsi_get_bits(dsi0, i);
@@ -1030,11 +1044,11 @@ int reg_proc_open(struct inode *inode, struct file *file)
 
 int reg_proc_close(struct inode *inode, struct file *file)
 {
-	return 0;   
+	return 0; 
 }
 
 struct file_operations reg_proc_fops = {
-    .owner  = THIS_MODULE,
+	.owner  = THIS_MODULE,
 	.open   = reg_proc_open,
 	.release= reg_proc_close,
 	.write  = reg_proc_write,
@@ -1169,11 +1183,11 @@ int reg_proc_open1(struct inode *inode, struct file *file)
 
 int reg_proc_close1(struct inode *inode, struct file *file)
 {
-	return 0;   
+	return 0;
 }
 
 struct file_operations reg_proc_fops1 = {
-    .owner  = THIS_MODULE,
+	.owner  = THIS_MODULE,
 	.open   = reg_proc_open1,
 	.release= reg_proc_close1,
 	.write  = reg_proc_write1,
@@ -1183,98 +1197,94 @@ struct file_operations reg_proc_fops1 = {
 
 static irqreturn_t rk32_mipi_dsi_irq_handler(int irq, void *data)
 {
+	printk("-------rk32_mipi_dsi_irq_handler-------\n");
 	return IRQ_HANDLED;
-	//return IRQ_NONE;
 }
 
-
 static int rk32_dsi_enable(void)
-{   
-    MIPI_DBG("rk32_dsi_enable-------\n");
-    dsi_init(0, 0);
-    if (rk_mipi_get_dsi_num() ==2)
-        dsi_init(1, 0);
-		
-    rk_mipi_screen_standby(0);    
+{
+	MIPI_DBG("rk32_dsi_enable-------\n");
+	dsi_init(0, 0);
+	if (rk_mipi_get_dsi_num() ==2)
+		dsi_init(1, 0);
+
+	rk_mipi_screen_standby(0);
 
 	/*
 		After the core reset, DPI waits for the first VSYNC active transition to start signal sampling, including
 		pixel data, and preventing image transmission in the middle of a frame.
 	*/
-    dsi_is_enable(0, 0);
-    if (rk_mipi_get_dsi_num() ==2)
-        dsi_is_enable(1, 0);     
+	dsi_is_enable(0, 0);
+	if (rk_mipi_get_dsi_num() ==2)
+		dsi_is_enable(1, 0);  
 
-    dsi_enable_video_mode(0, 1);
-    dsi_enable_video_mode(1, 1);
+	dsi_enable_video_mode(0, 1);
+	dsi_enable_video_mode(1, 1);
 
+	dsi_is_enable(0, 1);
+	if (rk_mipi_get_dsi_num() ==2)
+		dsi_is_enable(1, 1);
 
-    dsi_is_enable(0, 1);
-    if (rk_mipi_get_dsi_num() ==2)
-        dsi_is_enable(1, 1);
-
-    return 0;
+	return 0;
 }
 
 static int rk32_dsi_disable(void)
 {
-    MIPI_DBG("rk32_dsi_disable-------\n");
-    
+	MIPI_DBG("rk32_dsi_disable-------\n");
+	
 	rk_mipi_screen_standby(1); 
-    dsi_power_off(0);
-    if (rk_mipi_get_dsi_num() ==2)
-        dsi_power_off(1);
-    
-    return 0;
+	dsi_power_off(0);
+	if (rk_mipi_get_dsi_num() ==2)
+		dsi_power_off(1);
+
+	return 0;
 }
 
 static struct rk_fb_trsm_ops trsm_dsi_ops = 
 {
-    .enable = rk32_dsi_enable,
-    .disable = rk32_dsi_disable,
+	.enable = rk32_dsi_enable,
+	.disable = rk32_dsi_disable,
 };
 
 static void rk32_init_phy_mode(int lcdc_id)
 { 
-    int val0 = 0, val1 = 0;
+	int val0 = 0, val1 = 0;
 
-    MIPI_DBG("rk32_init_phy_mode----------lcdc_id=%d\n",lcdc_id);
-    //D-PHY mode select
-    if( rk_mipi_get_dsi_num() ==1 ){
-    
-        if(lcdc_id == 1)
-        //val0 =0x1 << 25 | 0x1 << 9;
-           val0 = 0x1 << 22 | 0x1 << 6;  //1'b1: VOP LIT output to DSI host0;1'b0: VOP BIG output to DSI host0
-        else
-           val0 = 0x1 << 22 | 0x0 << 6; 
+	MIPI_DBG("rk32_init_phy_mode----------lcdc_id=%d\n",lcdc_id);
+	//D-PHY mode select
+	if( rk_mipi_get_dsi_num() ==1 ){
+	
+		if(lcdc_id == 1)
+			//val0 =0x1 << 25 | 0x1 << 9;
+			val0 = 0x1 << 22 | 0x1 << 6;  //1'b1: VOP LIT output to DSI host0;1'b0: VOP BIG output to DSI host0
+		else
+			val0 = 0x1 << 22 | 0x0 << 6; 
 
-        writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
-    }
-    else{
-        if(lcdc_id == 1){
-            val0 = 0x1 << 25 | 0x1 <<  9 | 0x1 << 22 | 0x1 <<  6; 
-            val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14; 
-         }
-         else{
-            val0 = 0x1 << 25 | 0x0 <<  9 | 0x1 << 22 | 0x0 << 14; 
-            val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14;        
-         }
-         
-         writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
-         writel_relaxed(val1, RK_GRF_VIRT + RK3288_GRF_SOC_CON14);    
-    }
+		writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+	}
+	else{
+		if(lcdc_id == 1){
+			val0 = 0x1 << 25 | 0x1 <<  9 | 0x1 << 22 | 0x1 <<  6; 
+			val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14; 
+		}
+		else{
+			val0 = 0x1 << 25 | 0x0 <<  9 | 0x1 << 22 | 0x0 << 14; 
+			val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14; 
+		}
 
+		writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+		writel_relaxed(val1, RK_GRF_VIRT + RK3288_GRF_SOC_CON14);
+	}
 }
 
 static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret = 0; 
+	static id = 0;
 	struct dsi *dsi;
 	struct mipi_dsi_ops *ops;
 	struct rk_screen *screen;
 	struct mipi_dsi_screen *dsi_screen;
-	static int id = 0;
-	
 	struct resource *res_host;
 
 	dsi = devm_kzalloc(&pdev->dev, sizeof(struct dsi), GFP_KERNEL);
@@ -1285,30 +1295,28 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 
 	res_host = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->host.membase = devm_request_and_ioremap(&pdev->dev, res_host);
-	if (!dsi->host.membase)
+	if (!dsi->host.membase){
+		dev_err(&pdev->dev, "get resource mipi host membase fail!\n");
 		return -ENOMEM;
-
-    dsi->phy.refclk  = devm_clk_get(&pdev->dev, "clk_mipi_24m"); 
+	}
+	
+	dsi->phy.refclk  = devm_clk_get(&pdev->dev, "clk_mipi_24m"); 
 	if (unlikely(IS_ERR(dsi->phy.refclk))) {
 		dev_err(&pdev->dev, "get clk_mipi_24m clock fail\n");
-		ret = PTR_ERR(dsi->phy.refclk);
-		//goto probe_err6;
+		return PTR_ERR(dsi->phy.refclk);
 	}
 
-   dsi->dsi_pclk = devm_clk_get(&pdev->dev, "pclk_mipi_dsi");
-   if (unlikely(IS_ERR(dsi->dsi_pclk))) {
-       dev_err(&pdev->dev, "get pclk_mipi_dsi clock fail\n");
-       ret = PTR_ERR(dsi->dsi_pclk);
-       //goto probe_err7;
-   }
+	dsi->dsi_pclk = devm_clk_get(&pdev->dev, "pclk_mipi_dsi");
+	if (unlikely(IS_ERR(dsi->dsi_pclk))) {
+		dev_err(&pdev->dev, "get pclk_mipi_dsi clock fail\n");
+		return PTR_ERR(dsi->dsi_pclk);
+	}
 
-    dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
-    if (unlikely(IS_ERR(dsi->dsi_pd))) {
-        dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
-        ret = PTR_ERR(dsi->dsi_pd);
-        //goto probe_err7;
-    }
-
+	dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
+	if (unlikely(IS_ERR(dsi->dsi_pd))) {
+		dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
+		return PTR_ERR(dsi->dsi_pd);
+	}
 
 	dsi->host.irq = platform_get_irq(pdev, 0);
 	if (dsi->host.irq < 0) {
@@ -1319,17 +1327,16 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	ret = request_irq(dsi->host.irq, rk32_mipi_dsi_irq_handler, 0,dev_name(&pdev->dev), dsi);
 	if(ret) {
 		dev_err(&pdev->dev, "request mipi_dsi irq fail\n");
-		ret = -EINVAL;
-		goto probe_err1;
+		return -EINVAL;
 	}
-    printk("dsi->host.irq =%d\n",dsi->host.irq); 
+	printk("dsi->host.irq =%d\n",dsi->host.irq); 
 
-    disable_irq(dsi->host.irq);
+	disable_irq(dsi->host.irq);
 
 	screen = devm_kzalloc(&pdev->dev, sizeof(struct rk_screen), GFP_KERNEL);
 	if(!screen) {
 		dev_err(&pdev->dev,"request struct rk_screen fail!\n");
-		goto probe_err9;
+		return -1;
 	}
 	rk_fb_get_prmry_screen(screen);
 
@@ -1364,16 +1371,16 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	dsi_screen->x_res = screen->mode.xres;
 	dsi_screen->y_res = screen->mode.yres;
 	dsi_screen->pin_hsync = screen->pin_hsync;
-    dsi_screen->pin_vsync = screen->pin_vsync;
+	dsi_screen->pin_vsync = screen->pin_vsync;
 	dsi_screen->pin_den = screen->pin_den;
 	dsi_screen->pin_dclk = screen->pin_dclk;
-    dsi_screen->dsi_lane = rk_mipi_get_dsi_lane();
+	dsi_screen->dsi_lane = rk_mipi_get_dsi_lane();
 //  dsi_screen->dsi_video_mode = screen->dsi_video_mode; //no sure
 	dsi_screen->dsi_lane = rk_mipi_get_dsi_lane();
 	dsi_screen->hs_tx_clk = rk_mipi_get_dsi_clk();  
 	dsi_screen->lcdc_id = 1;
-    
-	dsi->dsi_id = id++;//of_alias_get_id(pdev->dev.of_node, "dsi");
+
+	dsi->dsi_id = id++;
 
 	sprintf(ops->name, "rk_mipi_dsi.%d", dsi->dsi_id);
 	platform_set_drvdata(pdev, dsi);
@@ -1382,61 +1389,33 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	if(ret) {
 		dev_err(&pdev->dev,"rk mipi_dsi probe fail!\n");
 		dev_err(&pdev->dev,"%s\n", RK_MIPI_DSI_VERSION_AND_TIME);
-		goto probe_err11;
+		return -1;
 	}	
-    
-    if(id == 1){
-        rk32_init_phy_mode(dsi_screen->lcdc_id);
-        rk_fb_trsm_ops_register(&trsm_dsi_ops, SCREEN_MIPI);
-        
+
+	if(id == 1){
+		rk32_init_phy_mode(dsi_screen->lcdc_id);
+		rk_fb_trsm_ops_register(&trsm_dsi_ops, SCREEN_MIPI);
+	
 #ifdef MIPI_DSI_REGISTER_IO        
 		debugfs_create_file("mipidsi0", S_IFREG | S_IRUGO, dsi->debugfs_dir, dsi, 
 							&reg_proc_fops);
 #endif
-        dsi0 = dsi;
-        
-    }else{   
-        dsi1 = dsi;
-        
+		dsi0 = dsi;
+	}else{   
+		dsi1 = dsi;
+
 #ifdef MIPI_DSI_REGISTER_IO  
         debugfs_create_file("mipidsi1", S_IFREG | S_IRUGO, dsi->debugfs_dir, dsi, 
 							&reg_proc_fops1);
 #endif
 
-    }
-    
+	}
+
 	dev_info(&pdev->dev,"rk mipi_dsi probe success!\n");
 	dev_info(&pdev->dev,"%s\n", RK_MIPI_DSI_VERSION_AND_TIME);
-	return 0;
-
-probe_err11:
-
-
-probe_err9:
-#if defined(CONFIG_ARCH_RK319X)
-	clk_put(dsi->dsi_pd);
-probe_err8:
-	clk_put(dsi->dsi_pclk);
-probe_err7:
-	clk_put(dsi->phy.refclk);
-probe_err6:
-	free_irq(dsi->host.irq, dsi);
-probe_err5:
-	iounmap(dsi->phy.membase);
-probe_err4:
-	release_mem_region(res_phy->start, resource_size(res_phy));
-probe_err3:
-	iounmap(dsi->host.membase);
-probe_err2:
-	release_mem_region(res_host->start, resource_size(res_host));
-#endif
-
-probe_err1:
-
-	return ret;
 	
+	return ret;
 }
-
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_rk_mipi_dsi_match[] = {
@@ -1446,7 +1425,7 @@ static const struct of_device_id of_rk_mipi_dsi_match[] = {
 #endif
 
 static struct platform_driver rk32_mipi_dsi_driver = {
-    .probe		= rk32_mipi_dsi_probe,
+	.probe		= rk32_mipi_dsi_probe,
 	.driver		= {
 		.name	= "rk32-mipi",
 		.owner	= THIS_MODULE,

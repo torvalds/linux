@@ -2,8 +2,8 @@
 drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 */
 #include <linux/rockchip/grf.h>
-#ifndef RK616_MIPI_DSI_H
-#define RK616_MIPI_DSI_H
+#ifndef RK32_MIPI_DSI_H
+#define RK32_MIPI_DSI_H
 
 #define MIPI_DSI_HOST_OFFSET	0x1000
 
@@ -35,11 +35,11 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #define bta_en 						DSI_HOST_BITS(0x02c, 1, 2)
 #define eotp_rx_en 					DSI_HOST_BITS(0x02c, 1, 1)
 #define eotp_tx_en 					DSI_HOST_BITS(0x02c, 1, 0)
-#define gen_vid_rx 					DSI_HOST_BITS(0x030, 2, 0) //libing (0x030, 2, 5)-> (0x030, 2, 0)
+#define gen_vid_rx 					DSI_HOST_BITS(0x030, 2, 0) 
 #define cmd_video_mode 				DSI_HOST_BITS(0x034, 1, 0)
-#define vpg_orientation             DSI_HOST_BITS(0x038, 1, 24) //libing 
-#define vpg_mode                    DSI_HOST_BITS(0x038, 1, 20) //libing 
-#define vpg_en                      DSI_HOST_BITS(0x038, 1, 16) //libing 
+#define vpg_orientation             DSI_HOST_BITS(0x038, 1, 24) 
+#define vpg_mode                    DSI_HOST_BITS(0x038, 1, 20) 
+#define vpg_en                      DSI_HOST_BITS(0x038, 1, 16) 
 #define lp_cmd_en  					DSI_HOST_BITS(0x038, 1, 15)
 #define frame_bta_ack_en 			DSI_HOST_BITS(0x038, 1, 14)
 #define lp_hfp_en 					DSI_HOST_BITS(0x038, 1, 13)
@@ -97,15 +97,15 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 //#define mode_3d		 				DSI_HOST_BITS(0x090, 2, 0)		//new
 #define auto_clklane_ctrl 			DSI_HOST_BITS(0x094, 1, 1)		//new
 #define phy_txrequestclkhs 			DSI_HOST_BITS(0x094, 1, 0)
-#define phy_hs2lp_time_clk_lane     DSI_HOST_BITS(0x098, 10, 16) //libing
-#define phy_hs2hs_time_clk_lane     DSI_HOST_BITS(0x098, 10, 0) //libing
+#define phy_hs2lp_time_clk_lane     DSI_HOST_BITS(0x098, 10, 16) 
+#define phy_hs2hs_time_clk_lane     DSI_HOST_BITS(0x098, 10, 0) 
 #define phy_hs2lp_time 				DSI_HOST_BITS(0x09c, 8, 24)
 #define phy_lp2hs_time 				DSI_HOST_BITS(0x09c, 8, 16)
 #define max_rd_time 				DSI_HOST_BITS(0x09c, 15, 0)
 #define phy_forcepll 				DSI_HOST_BITS(0x0a0, 1, 3)		//new Dependency: DSI_HOST_FPGA = 0. Otherwise, this bit is reserved.
 #define phy_enableclk 				DSI_HOST_BITS(0x0a0, 1, 2)
-#define phy_rstz 					DSI_HOST_BITS(0x0a0, 1, 1)  //libing
-#define phy_shutdownz 				DSI_HOST_BITS(0x0a0, 1, 0) //libing 
+#define phy_rstz 					DSI_HOST_BITS(0x0a0, 1, 1) 
+#define phy_shutdownz 				DSI_HOST_BITS(0x0a0, 1, 0) 
 #define phy_stop_wait_time 			DSI_HOST_BITS(0x0a4, 8, 8)
 #define n_lanes 					DSI_HOST_BITS(0x0a4, 2, 0)
 #define phy_txexitulpslan 			DSI_HOST_BITS(0x0a8, 1, 3)
@@ -128,9 +128,9 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #define INT_ST0 					DSI_HOST_BITS(0x0bc, 21, 0)
 #define INT_ST1 					DSI_HOST_BITS(0x0c0, 18, 0)
 #define INT_MKS0 					DSI_HOST_BITS(0x0c4, 21, 0)
-#define INT_MKS1 					DSI_HOST_BITS(0x0c8, 18, 0) //libing
-#define INT_FORCE0 					DSI_HOST_BITS(0x0d8, 21, 0) //libing
-#define INT_FORCE1 					DSI_HOST_BITS(0x0dc, 18, 0) //libing
+#define INT_MKS1 					DSI_HOST_BITS(0x0c8, 18, 0) 
+#define INT_FORCE0 					DSI_HOST_BITS(0x0d8, 21, 0) 
+#define INT_FORCE1 					DSI_HOST_BITS(0x0dc, 18, 0) 
 
 #define code_hs_rx_clock            0x34
 #define code_hs_rx_lane0            0x44
@@ -242,4 +242,4 @@ int rk_mipi_get_dsi_clk(void);
 int rk_mipi_get_dsi_num(void);
 int rk_mipi_get_dsi_lane(void);
 
-#endif /* end of RK616_MIPI_DSI_H */
+#endif /* end of RK32_MIPI_DSI_H */
