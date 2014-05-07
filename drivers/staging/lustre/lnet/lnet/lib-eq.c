@@ -325,6 +325,7 @@ EXPORT_SYMBOL(LNetEQWait);
 
 static int
 lnet_eq_wait_locked(int *timeout_ms)
+__must_hold(&the_lnet.ln_eq_wait_lock)
 {
 	int		tms = *timeout_ms;
 	int		wait;
