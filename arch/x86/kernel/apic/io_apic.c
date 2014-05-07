@@ -3450,11 +3450,6 @@ static void __init probe_nr_irqs_gsi(void)
 	printk(KERN_DEBUG "nr_irqs_gsi: %d\n", nr_irqs_gsi);
 }
 
-int get_nr_irqs_gsi(void)
-{
-	return nr_irqs_gsi;
-}
-
 unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
 	return from < nr_irqs_gsi ? nr_irqs_gsi : from;
