@@ -1719,22 +1719,6 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 				tx_ring->producer;
 }
 
-static inline int qlcnic_set_real_num_queues(struct qlcnic_adapter *adapter,
-					     struct net_device *netdev)
-{
-	int err;
-
-	netdev->num_tx_queues = adapter->drv_tx_rings;
-	netdev->real_num_tx_queues = adapter->drv_tx_rings;
-
-	err = netif_set_real_num_tx_queues(netdev, adapter->drv_tx_rings);
-	if (err)
-		netdev_err(netdev, "failed to set %d Tx queues\n",
-			   adapter->drv_tx_rings);
-
-	return err;
-}
-
 struct qlcnic_nic_template {
 	int (*config_bridged_mode) (struct qlcnic_adapter *, u32);
 	int (*config_led) (struct qlcnic_adapter *, u32, u32);
