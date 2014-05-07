@@ -7448,8 +7448,8 @@ static int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block)
 
 static int bypass_proc_remove_dev_sd(struct bpctl_dev *pbp_device_block)
 {
-
 	struct bypass_pfs_sd *current_pfs = &pbp_device_block->bypass_pfs_set;
+
 	remove_proc_subtree(current_pfs->dir_name, bp_procfs_dir);
 	current_pfs->bypass_entry = NULL;
 	return 0;
