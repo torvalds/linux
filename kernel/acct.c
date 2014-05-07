@@ -180,8 +180,8 @@ static void acct_file_reopen(struct bsd_acct_struct *acct, struct file *file,
 	if (file) {
 		acct->file = file;
 		acct->ns = ns;
-		acct->needcheck = jiffies + ACCT_TIMEOUT*HZ;
-		acct->active = 1;
+		acct->needcheck = jiffies;
+		acct->active = 0;
 		list_add(&acct->list, &acct_list);
 	}
 	if (old_acct) {
