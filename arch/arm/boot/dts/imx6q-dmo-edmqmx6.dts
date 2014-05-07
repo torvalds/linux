@@ -95,6 +95,20 @@
 	};
 };
 
+&ecspi5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi5>;
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio1 12 0>;
+	status = "okay";
+
+	flash: m25p80@0 {
+		compatible = "m25p80";
+		spi-max-frequency = <40000000>;
+		reg = <0>;
+	};
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
@@ -265,6 +279,15 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_A16__GPIO2_IO22 0x80000000
 				MX6QDL_PAD_EIM_A17__GPIO2_IO21 0x80000000
+			>;
+		};
+
+		pinctrl_ecspi5: ecspi5rp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_DAT0__ECSPI5_MISO	0x80000000
+				MX6QDL_PAD_SD1_CMD__ECSPI5_MOSI		0x80000000
+				MX6QDL_PAD_SD1_CLK__ECSPI5_SCLK		0x80000000
+				MX6QDL_PAD_SD2_DAT3__GPIO1_IO12		0x80000000
 			>;
 		};
 
