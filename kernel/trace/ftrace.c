@@ -1592,7 +1592,7 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 
 		if (inc) {
 			rec->flags++;
-			if (FTRACE_WARN_ON((rec->flags & ~FTRACE_FL_MASK) == FTRACE_REF_MAX))
+			if (FTRACE_WARN_ON(ftrace_rec_count(rec) == FTRACE_REF_MAX))
 				return;
 			/*
 			 * If any ops wants regs saved for this function
@@ -1601,7 +1601,7 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			if (ops->flags & FTRACE_OPS_FL_SAVE_REGS)
 				rec->flags |= FTRACE_FL_REGS;
 		} else {
-			if (FTRACE_WARN_ON((rec->flags & ~FTRACE_FL_MASK) == 0))
+			if (FTRACE_WARN_ON(ftrace_rec_count(rec) == 0))
 				return;
 			rec->flags--;
 			/*
@@ -1610,7 +1610,7 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			 * still any ops for this record that wants regs.
 			 * If not, we can stop recording them.
 			 */
-			if ((rec->flags & ~FTRACE_FL_MASK) > 0 &&
+			if (ftrace_rec_count(rec) > 0 &&
 			    rec->flags & FTRACE_FL_REGS &&
 			    ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
 				if (!test_rec_ops_needs_regs(rec))
@@ -1700,7 +1700,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 	 * If we are disabling calls, then disable all records that
 	 * are enabled.
 	 */
-	if (enable && (rec->flags & ~FTRACE_FL_MASK))
+	if (enable && ftrace_rec_count(rec))
 		flag = FTRACE_FL_ENABLED;
 
 	/*
@@ -1746,7 +1746,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 
 	if (update) {
 		/* If there's no more users, clear all flags */
-		if (!(rec->flags & ~FTRACE_FL_MASK))
+		if (!ftrace_rec_count(rec))
 			rec->flags = 0;
 		else
 			/* Just disable the record (keep REGS state) */
@@ -2685,7 +2685,7 @@ static int t_show(struct seq_file *m, void *v)
 	seq_printf(m, "%ps", (void *)rec->ip);
 	if (iter->flags & FTRACE_ITER_ENABLED)
 		seq_printf(m, " (%ld)%s",
-			   rec->flags & ~FTRACE_FL_MASK,
+			   ftrace_rec_count(rec),
 			   rec->flags & FTRACE_FL_REGS ? " R" : "");
 	seq_printf(m, "\n");
 
