@@ -310,6 +310,8 @@
 # define DP_TEST_NAK			    (1 << 1)
 # define DP_TEST_EDID_CHECKSUM_WRITE	    (1 << 2)
 
+#define DP_TEST_EDID_CHECKSUM		    0x261
+
 #define DP_TEST_SINK			    0x270
 #define DP_TEST_SINK_START	    (1 << 0)
 

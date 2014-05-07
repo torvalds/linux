@@ -144,15 +144,15 @@ static int exynos_dp_read_edid(struct exynos_dp_device *dp)
 			return -EIO;
 		}
 
-		exynos_dp_read_byte_from_dpcd(dp, DPCD_ADDR_TEST_REQUEST,
+		exynos_dp_read_byte_from_dpcd(dp, DP_TEST_REQUEST,
 					&test_vector);
-		if (test_vector & DPCD_TEST_EDID_READ) {
+		if (test_vector & DP_TEST_LINK_EDID_READ) {
 			exynos_dp_write_byte_to_dpcd(dp,
-				DPCD_ADDR_TEST_EDID_CHECKSUM,
+				DP_TEST_EDID_CHECKSUM,
 				edid[EDID_BLOCK_LENGTH + EDID_CHECKSUM]);
 			exynos_dp_write_byte_to_dpcd(dp,
-				DPCD_ADDR_TEST_RESPONSE,
-				DPCD_TEST_EDID_CHECKSUM_WRITE);
+				DP_TEST_RESPONSE,
+				DP_TEST_EDID_CHECKSUM_WRITE);
 		}
 	} else {
 		dev_info(dp->dev, "EDID data does not include any extensions.\n");
@@ -174,15 +174,15 @@ static int exynos_dp_read_edid(struct exynos_dp_device *dp)
 		}
 
 		exynos_dp_read_byte_from_dpcd(dp,
-			DPCD_ADDR_TEST_REQUEST,
+			DP_TEST_REQUEST,
 			&test_vector);
-		if (test_vector & DPCD_TEST_EDID_READ) {
+		if (test_vector & DP_TEST_LINK_EDID_READ) {
 			exynos_dp_write_byte_to_dpcd(dp,
-				DPCD_ADDR_TEST_EDID_CHECKSUM,
+				DP_TEST_EDID_CHECKSUM,
 				edid[EDID_CHECKSUM]);
 			exynos_dp_write_byte_to_dpcd(dp,
-				DPCD_ADDR_TEST_RESPONSE,
-				DPCD_TEST_EDID_CHECKSUM_WRITE);
+				DP_TEST_RESPONSE,
+				DP_TEST_EDID_CHECKSUM_WRITE);
 		}
 	}
 
@@ -196,8 +196,8 @@ static int exynos_dp_handle_edid(struct exynos_dp_device *dp)
 	int i;
 	int retval;
 
-	/* Read DPCD DPCD_ADDR_DPCD_REV~RECEIVE_PORT1_CAP_1 */
-	retval = exynos_dp_read_bytes_from_dpcd(dp, DPCD_ADDR_DPCD_REV,
+	/* Read DPCD DP_DPCD_REV~RECEIVE_PORT1_CAP_1 */
+	retval = exynos_dp_read_bytes_from_dpcd(dp, DP_DPCD_REV,
 				12, buf);
 	if (retval)
 		return retval;
@@ -217,14 +217,14 @@ static void exynos_dp_enable_rx_to_enhanced_mode(struct exynos_dp_device *dp,
 {
 	u8 data;
 
-	exynos_dp_read_byte_from_dpcd(dp, DPCD_ADDR_LANE_COUNT_SET, &data);
+	exynos_dp_read_byte_from_dpcd(dp, DP_LANE_COUNT_SET, &data);
 
 	if (enable)
-		exynos_dp_write_byte_to_dpcd(dp, DPCD_ADDR_LANE_COUNT_SET,
-			DPCD_ENHANCED_FRAME_EN |
+		exynos_dp_write_byte_to_dpcd(dp, DP_LANE_COUNT_SET,
+			DP_LANE_COUNT_ENHANCED_FRAME_EN |
 			DPCD_LANE_COUNT_SET(data));
 	else
-		exynos_dp_write_byte_to_dpcd(dp, DPCD_ADDR_LANE_COUNT_SET,
+		exynos_dp_write_byte_to_dpcd(dp, DP_LANE_COUNT_SET,
 			DPCD_LANE_COUNT_SET(data));
 }
 
@@ -233,7 +233,7 @@ static int exynos_dp_is_enhanced_mode_available(struct exynos_dp_device *dp)
 	u8 data;
 	int retval;
 
-	exynos_dp_read_byte_from_dpcd(dp, DPCD_ADDR_MAX_LANE_COUNT, &data);
+	exynos_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT, &data);
 	retval = DPCD_ENHANCED_FRAME_CAP(data);
 
 	return retval;
@@ -253,8 +253,8 @@ static void exynos_dp_training_pattern_dis(struct exynos_dp_device *dp)
 	exynos_dp_set_training_pattern(dp, DP_NONE);
 
 	exynos_dp_write_byte_to_dpcd(dp,
-		DPCD_ADDR_TRAINING_PATTERN_SET,
-		DPCD_TRAINING_PATTERN_DISABLED);
+		DP_TRAINING_PATTERN_SET,
+		DP_TRAINING_PATTERN_DISABLE);
 }
 
 static void exynos_dp_set_lane_lane_pre_emphasis(struct exynos_dp_device *dp,
@@ -298,7 +298,7 @@ static int exynos_dp_link_start(struct exynos_dp_device *dp)
 	/* Setup RX configuration */
 	buf[0] = dp->link_train.link_rate;
 	buf[1] = dp->link_train.lane_count;
-	retval = exynos_dp_write_bytes_to_dpcd(dp, DPCD_ADDR_LINK_BW_SET,
+	retval = exynos_dp_write_bytes_to_dpcd(dp, DP_LINK_BW_SET,
 				2, buf);
 	if (retval)
 		return retval;
@@ -325,16 +325,16 @@ static int exynos_dp_link_start(struct exynos_dp_device *dp)
 
 	/* Set RX training pattern */
 	retval = exynos_dp_write_byte_to_dpcd(dp,
-			DPCD_ADDR_TRAINING_PATTERN_SET,
-			DPCD_SCRAMBLING_DISABLED | DPCD_TRAINING_PATTERN_1);
+			DP_TRAINING_PATTERN_SET,
+			DP_LINK_SCRAMBLING_DISABLE | DP_TRAINING_PATTERN_1);
 	if (retval)
 		return retval;
 
 	for (lane = 0; lane < lane_count; lane++)
-		buf[lane] = DPCD_PRE_EMPHASIS_PATTERN2_LEVEL0 |
-			    DPCD_VOLTAGE_SWING_PATTERN1_LEVEL0;
+		buf[lane] = DP_TRAIN_PRE_EMPHASIS_0 |
+			    DP_TRAIN_VOLTAGE_SWING_400;
 
-	retval = exynos_dp_write_bytes_to_dpcd(dp, DPCD_ADDR_TRAINING_LANE0_SET,
+	retval = exynos_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
 			lane_count, buf);
 
 	return retval;
@@ -355,7 +355,7 @@ static int exynos_dp_clock_recovery_ok(u8 link_status[2], int lane_count)
 
 	for (lane = 0; lane < lane_count; lane++) {
 		lane_status = exynos_dp_get_lane_status(link_status, lane);
-		if ((lane_status & DPCD_LANE_CR_DONE) == 0)
+		if ((lane_status & DP_LANE_CR_DONE) == 0)
 			return -EINVAL;
 	}
 	return 0;
@@ -367,13 +367,13 @@ static int exynos_dp_channel_eq_ok(u8 link_status[2], u8 link_align,
 	int lane;
 	u8 lane_status;
 
-	if ((link_align & DPCD_INTERLANE_ALIGN_DONE) == 0)
+	if ((link_align & DP_INTERLANE_ALIGN_DONE) == 0)
 		return -EINVAL;
 
 	for (lane = 0; lane < lane_count; lane++) {
 		lane_status = exynos_dp_get_lane_status(link_status, lane);
-		lane_status &= DPCD_CHANNEL_EQ_BITS;
-		if (lane_status != DPCD_CHANNEL_EQ_BITS)
+		lane_status &= DP_CHANNEL_EQ_BITS;
+		if (lane_status != DP_CHANNEL_EQ_BITS)
 			return -EINVAL;
 	}
 
@@ -471,9 +471,9 @@ static void exynos_dp_get_adjust_training_lane(struct exynos_dp_device *dp,
 				DPCD_PRE_EMPHASIS_SET(pre_emphasis);
 
 		if (voltage_swing == VOLTAGE_LEVEL_3)
-			training_lane |= DPCD_MAX_SWING_REACHED;
+			training_lane |= DP_TRAIN_MAX_SWING_REACHED;
 		if (pre_emphasis == PRE_EMPHASIS_LEVEL_3)
-			training_lane |= DPCD_MAX_PRE_EMPHASIS_REACHED;
+			training_lane |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
 		dp->link_train.training_lane[lane] = training_lane;
 	}
@@ -490,12 +490,12 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 	lane_count = dp->link_train.lane_count;
 
 	retval =  exynos_dp_read_bytes_from_dpcd(dp,
-			DPCD_ADDR_LANE0_1_STATUS, 2, link_status);
+			DP_LANE0_1_STATUS, 2, link_status);
 	if (retval)
 		return retval;
 
 	retval =  exynos_dp_read_bytes_from_dpcd(dp,
-			DPCD_ADDR_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
+			DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
 	if (retval)
 		return retval;
 
@@ -504,9 +504,9 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 		exynos_dp_set_training_pattern(dp, TRAINING_PTN2);
 
 		retval = exynos_dp_write_byte_to_dpcd(dp,
-				DPCD_ADDR_TRAINING_PATTERN_SET,
-				DPCD_SCRAMBLING_DISABLED |
-				DPCD_TRAINING_PATTERN_2);
+				DP_TRAINING_PATTERN_SET,
+				DP_LINK_SCRAMBLING_DISABLE |
+				DP_TRAINING_PATTERN_2);
 		if (retval)
 			return retval;
 
@@ -546,7 +546,7 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 			dp->link_train.training_lane[lane], lane);
 
 	retval = exynos_dp_write_bytes_to_dpcd(dp,
-			DPCD_ADDR_TRAINING_LANE0_SET, lane_count,
+			DP_TRAINING_LANE0_SET, lane_count,
 			dp->link_train.training_lane);
 	if (retval)
 		return retval;
@@ -565,7 +565,7 @@ static int exynos_dp_process_equalizer_training(struct exynos_dp_device *dp)
 	lane_count = dp->link_train.lane_count;
 
 	retval = exynos_dp_read_bytes_from_dpcd(dp,
-			DPCD_ADDR_LANE0_1_STATUS, 2, link_status);
+			DP_LANE0_1_STATUS, 2, link_status);
 	if (retval)
 		return retval;
 
@@ -575,12 +575,12 @@ static int exynos_dp_process_equalizer_training(struct exynos_dp_device *dp)
 	}
 
 	retval = exynos_dp_read_bytes_from_dpcd(dp,
-			DPCD_ADDR_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
+			DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
 	if (retval)
 		return retval;
 
 	retval = exynos_dp_read_byte_from_dpcd(dp,
-			DPCD_ADDR_LANE_ALIGN_STATUS_UPDATED, &link_align);
+			DP_LANE_ALIGN_STATUS_UPDATED, &link_align);
 	if (retval)
 		return retval;
 
@@ -622,7 +622,7 @@ static int exynos_dp_process_equalizer_training(struct exynos_dp_device *dp)
 		exynos_dp_set_lane_link_training(dp,
 			dp->link_train.training_lane[lane], lane);
 
-	retval = exynos_dp_write_bytes_to_dpcd(dp, DPCD_ADDR_TRAINING_LANE0_SET,
+	retval = exynos_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
 			lane_count, dp->link_train.training_lane);
 
 	return retval;
@@ -637,7 +637,7 @@ static void exynos_dp_get_max_rx_bandwidth(struct exynos_dp_device *dp,
 	 * For DP rev.1.1, Maximum link rate of Main Link lanes
 	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
 	 */
-	exynos_dp_read_byte_from_dpcd(dp, DPCD_ADDR_MAX_LINK_RATE, &data);
+	exynos_dp_read_byte_from_dpcd(dp, DP_MAX_LINK_RATE, &data);
 	*bandwidth = data;
 }
 
@@ -650,7 +650,7 @@ static void exynos_dp_get_max_rx_lane_count(struct exynos_dp_device *dp,
 	 * For DP rev.1.1, Maximum number of Main Link lanes
 	 * 0x01 = 1 lane, 0x02 = 2 lanes, 0x04 = 4 lanes
 	 */
-	exynos_dp_read_byte_from_dpcd(dp, DPCD_ADDR_MAX_LANE_COUNT, &data);
+	exynos_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT, &data);
 	*lane_count = DPCD_MAX_LANE_COUNT(data);
 }
 
@@ -822,20 +822,20 @@ static void exynos_dp_enable_scramble(struct exynos_dp_device *dp, bool enable)
 		exynos_dp_enable_scrambling(dp);
 
 		exynos_dp_read_byte_from_dpcd(dp,
-			DPCD_ADDR_TRAINING_PATTERN_SET,
+			DP_TRAINING_PATTERN_SET,
 			&data);
 		exynos_dp_write_byte_to_dpcd(dp,
-			DPCD_ADDR_TRAINING_PATTERN_SET,
-			(u8)(data & ~DPCD_SCRAMBLING_DISABLED));
+			DP_TRAINING_PATTERN_SET,
+			(u8)(data & ~DP_LINK_SCRAMBLING_DISABLE));
 	} else {
 		exynos_dp_disable_scrambling(dp);
 
 		exynos_dp_read_byte_from_dpcd(dp,
-			DPCD_ADDR_TRAINING_PATTERN_SET,
+			DP_TRAINING_PATTERN_SET,
 			&data);
 		exynos_dp_write_byte_to_dpcd(dp,
-			DPCD_ADDR_TRAINING_PATTERN_SET,
-			(u8)(data | DPCD_SCRAMBLING_DISABLED));
+			DP_TRAINING_PATTERN_SET,
+			(u8)(data | DP_LINK_SCRAMBLING_DISABLE));
 	}
 }
 
