@@ -22,6 +22,7 @@
 #include "mmu.h"
 #include "x86.h"
 #include "kvm_cache_regs.h"
+#include "cpuid.h"
 
 #include <linux/kvm_host.h>
 #include <linux/types.h>
@@ -3516,11 +3517,14 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 {
 	int maxphyaddr = cpuid_maxphyaddr(vcpu);
 	u64 exb_bit_rsvd = 0;
+	u64 gbpages_bit_rsvd = 0;
 
 	context->bad_mt_xwr = 0;
 
 	if (!context->nx)
 		exb_bit_rsvd = rsvd_bits(63, 63);
+	if (!guest_cpuid_has_gbpages(vcpu))
+		gbpages_bit_rsvd = rsvd_bits(7, 7);
 	switch (context->root_level) {
 	case PT32_ROOT_LEVEL:
 		/* no rsvd bits for 2 level 4K page table entries */
@@ -3557,14 +3561,14 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 		context->rsvd_bits_mask[0][3] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 51) | rsvd_bits(7, 7);
 		context->rsvd_bits_mask[0][2] = exb_bit_rsvd |
-			rsvd_bits(maxphyaddr, 51) | rsvd_bits(7, 7);
+			gbpages_bit_rsvd | rsvd_bits(maxphyaddr, 51);
 		context->rsvd_bits_mask[0][1] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 51);
 		context->rsvd_bits_mask[0][0] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 51);
 		context->rsvd_bits_mask[1][3] = context->rsvd_bits_mask[0][3];
 		context->rsvd_bits_mask[1][2] = exb_bit_rsvd |
-			rsvd_bits(maxphyaddr, 51) |
+			gbpages_bit_rsvd | rsvd_bits(maxphyaddr, 51) |
 			rsvd_bits(13, 29);
 		context->rsvd_bits_mask[1][1] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 51) |
