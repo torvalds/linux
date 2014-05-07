@@ -224,11 +224,7 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	rk3288_lcdc_clk_enable(lcdc_dev);
 
 	/*backup reg config at uboot*/
-#ifdef CONFIG_ROCKCHIP_IOMMU
-		for (i = 0; i < 0x330;) {
-#else
-		for (i = 0; i < 0x1a0;) {
-#endif
+	for (i = 0; i < 0x1a0;) {
 		lcdc_readl(lcdc_dev,i);
 		i += 4;
 	}
@@ -864,11 +860,10 @@ static int rk3288_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 
 static int rk3288_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
-#ifdef CONFIG_ROCKCHIP_IOMMU
-	memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x330);
-#else
-	memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x1fc);
-#endif
+	if (lcdc_dev->driver.iommu_enabled)
+		memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x330);
+	else
+		memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x1fc);
 	return 0;
 }
 static int rk3288_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
@@ -886,6 +881,7 @@ static int rk3288_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL1, mask, val);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
+	return 0;
 }
 
 static int rk3288_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
@@ -915,8 +911,6 @@ static int rk3288_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
 
 static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 {
-	int ret = -EINVAL;
-	int fps;
 	u16 face = 0;
 	u32 v=0;
 	struct lcdc_device *lcdc_dev =
@@ -1196,6 +1190,7 @@ static int rk3288_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 			 v_PWM_GEN_INTR_EN(1);
 		 lcdc_msk_reg(lcdc_dev, INTR_CTRL1, mask, val);
 #endif 	
+	return 0;
 }
 
 static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
@@ -1209,9 +1204,8 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		rk3288_lcdc_pre_init(dev_drv);
 		rk3288_lcdc_clk_enable(lcdc_dev);
 		rk3288_lcdc_reg_restore(lcdc_dev);
-		#ifdef CONFIG_ROCKCHIP_IOMMU
+		if (dev_drv->iommu_enabled)
 			rk3288_lcdc_mmu_en(dev_drv);
-		#endif
 		if ((support_uboot_display()&&(lcdc_dev->prop == PRMRY))) {
 			rk3288_lcdc_set_dclk(dev_drv);
 			rk3288_lcdc_enable_irq(dev_drv);
@@ -1341,7 +1335,7 @@ static int rk3288_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 				struct lcdc_device, driver);
 	struct rk_lcdc_win *win = NULL;
 	struct rk_screen *screen = dev_drv->cur_screen;
-	u32 mask, val;
+	
 #if defined(WAIT_FOR_SYNC)
 	int timeout;
 	unsigned long flags;
@@ -2165,6 +2159,7 @@ static int rk3288_lcdc_ioctl(struct rk_lcdc_driver *dev_drv, unsigned int cmd,
 
 static int rk3288_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 {
+	u32 reg;
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	if (dev_drv->suspend_flag)
@@ -2172,6 +2167,9 @@ static int rk3288_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 	
 	dev_drv->suspend_flag = 1;
 	flush_kthread_worker(&dev_drv->update_regs_worker);
+	
+	for (reg = MMU_DTE_ADDR; reg <= MMU_AUTO_GATING; reg +=4)
+			lcdc_readl(lcdc_dev, reg);
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
 		dev_drv->trsm_ops->disable();
 	
@@ -3208,7 +3206,6 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.set_dsp_hue 		= rk3288_lcdc_set_hue,
 	.set_dsp_bcsh_bcs 	= rk3288_lcdc_set_bcsh_bcs,
 	.dump_reg 		= rk3288_lcdc_reg_dump,
-	.mmu_en	  		= rk3288_lcdc_mmu_en,
 	.cfg_done		= rk3288_lcdc_config_done,
 	.set_irq_to_cpu  	= rk3288_lcdc_set_irq_to_cpu,
 };
@@ -3317,6 +3314,14 @@ static int rk3288_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 		lcdc_dev->pwr18 = false;	/*default set it as 3.xv power supply */
 	else
 		lcdc_dev->pwr18 = (val ? true : false);
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	if (of_property_read_u32(np, "rockchip,iommu-enabled", &val))
+		lcdc_dev->driver.iommu_enabled = 0;
+	else
+		lcdc_dev->driver.iommu_enabled = val;
+#else
+	lcdc_dev->driver.iommu_enabled = 0;
+#endif
 	return 0;
 }
 
@@ -3385,13 +3390,14 @@ static int rk3288_lcdc_probe(struct platform_device *pdev)
 			lcdc_dev->irq, ret);
 		return ret;
 	}
-#ifdef CONFIG_ROCKCHIP_IOMMU
+
+	if (dev_drv->iommu_enabled) {
 		if(lcdc_dev->id == 0){
 			strcpy(dev_drv->mmu_dts_name, "iommu,vopb_mmu");
 		}else{
 			strcpy(dev_drv->mmu_dts_name, "iommu,vopl_mmu");
 		}
-#endif
+	}
 
 	ret = rk_fb_register(dev_drv, lcdc_win, lcdc_dev->id);
 	if (ret < 0) {
@@ -3400,7 +3406,8 @@ static int rk3288_lcdc_probe(struct platform_device *pdev)
 	}
 	lcdc_dev->screen = dev_drv->screen0;
 	
-	dev_info(dev, "lcdc%d probe ok\n", lcdc_dev->id);
+	dev_info(dev, "lcdc%d probe ok, iommu %s\n",
+		lcdc_dev->id, dev_drv->iommu_enabled ? "enabled" : "disabled");
 
 	return 0;
 }

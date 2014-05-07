@@ -49,6 +49,8 @@
 #include <linux/rockchip/sysmmu.h>
 #include <linux/dma-buf.h>
 #endif
+
+
 #define H_USE_FENCE 1
 static int hdmi_switch_complete;
 static struct platform_device *fb_pdev;
@@ -60,8 +62,8 @@ EXPORT_SYMBOL(video_data_to_mirroring);
 #endif
 
 struct rk_fb_reg_win_data g_reg_win_data[4];
+static int g_last_win_num;
 static int g_first_buf = 1;
-
 static struct rk_fb_trsm_ops *trsm_lvds_ops;
 static struct rk_fb_trsm_ops *trsm_edp_ops;
 static struct rk_fb_trsm_ops *trsm_mipi_ops;
@@ -998,24 +1000,52 @@ void rk_fd_fence_wait(struct rk_lcdc_driver *dev_drv,
 }
 
 #ifdef CONFIG_ROCKCHIP_IOMMU
+static int g_last_addr[4];
+u32 freed_addr[10];
+u32 freed_index;
+
+#define DUMP_CHUNK 256
+char buf[PAGE_SIZE];
+
 int rk_fb_sysmmu_fault_handler(struct device *dev,
 		enum rk_sysmmu_inttype itype, unsigned long pgtable_base,
 		unsigned long fault_addr,unsigned int status)
 {
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
-
+	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
+	int i = 0;
 	pr_err("PAGE FAULT occurred at 0x%lx (Page table base: 0x%lx),status=%d\n",
 			fault_addr, pgtable_base,status);
-	dev_drv->ops->dump_reg(dev_drv);
-	pr_err("Generating Kernel OOPS... because it is unrecoverable.\n");
-	BUG();
+	printk("last config addr:\n"
+		"win0:0x%08x\n"
+		"win1:0x%08x\n"
+		"win2:0x%08x\n"
+		"win3:0x%08x\n",
+		g_last_addr[0],
+		g_last_addr[1],
+		g_last_addr[2],
+		g_last_addr[3]);
+	printk("last freed buffer:\n");
+	for (i = 0; freed_addr[i] != 0xfefefefe; i++)
+		printk("%d:0x%08x\n",i, freed_addr[i]);
+	dev_drv->ops->get_disp_info(dev_drv, buf,0) ;
+	for (i = 0; i < PAGE_SIZE; i += DUMP_CHUNK) {
+		if ((PAGE_SIZE - i) > DUMP_CHUNK) {
+			char c = buf[i + DUMP_CHUNK];
+			buf[i + DUMP_CHUNK] = 0;
+			pr_cont("%s", buf + i);
+			buf[i + DUMP_CHUNK] = c;
+		} else {
+			buf[PAGE_SIZE -1] = 0;
+			pr_cont("%s", buf + i);
+		}
+	}
 
 	return 0;
 }
 #endif
 
-void rk_fb_free_dma_buf(struct device *dev,struct rk_fb_reg_win_data *reg_win_data)
+
+void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,struct rk_fb_reg_win_data *reg_win_data)
 {
 	int i,index_buf;
 	struct rk_fb_reg_area_data *area_data;
@@ -1024,12 +1054,16 @@ void rk_fb_free_dma_buf(struct device *dev,struct rk_fb_reg_win_data *reg_win_da
 	for(i=0;i<reg_win_data->area_num;i++){
 		area_data = &reg_win_data->reg_area_data[i];
 		index_buf = area_data->index_buf;
-		#ifdef CONFIG_ROCKCHIP_IOMMU
-		ion_unmap_iommu(dev, rk_fb->ion_client, area_data->ion_handle);
-		#endif
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+		if (dev_drv->iommu_enabled) {
+			ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client,
+						area_data->ion_handle);
+			freed_addr[freed_index++] = area_data->smem_start;
+		}
+#endif
 		if(area_data->ion_handle != NULL)
 			ion_free(rk_fb->ion_client, area_data->ion_handle);
-		}
+	}
 	memset(reg_win_data, 0, sizeof(struct rk_fb_reg_win_data));
 }
 
@@ -1105,7 +1139,7 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,struct rk_fb_reg_win_dat
 
 static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_data *regs)
 {
-	int i,j,ret=0;
+	int i,j;
 	struct rk_lcdc_win *win;
 	ktime_t timestamp = dev_drv->vsync_info.timestamp;
 	//struct rk_fb_reg_win_data old_reg_win_data[RK30_MAX_LAYER_SUPPORT];
@@ -1115,7 +1149,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 	bool wait_for_vsync;
 	int count = 100;
 	unsigned int dsp_addr[4];
-
+	long timeout;
 	for(i=0;i<dev_drv->lcdc_win_num;i++){ 
 		//old_reg_win_data[i]= regs->reg_win_data[i];
 		win = dev_drv->win[i];
@@ -1127,7 +1161,11 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 			rk_fb_update_driver(win,&regs->reg_win_data[j]);
 			win->state = 1;
 			dev_drv->ops->set_par(dev_drv,i);
-			dev_drv->ops->pan_display(dev_drv,i);		
+			dev_drv->ops->pan_display(dev_drv,i);
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+			if (dev_drv->iommu_enabled)
+				g_last_addr[i] = win->area[0].smem_start + win->area[0].y_offset;
+#endif
 		}else{
 			win->z_order = -1;
 			win->state = 0;
@@ -1214,11 +1252,12 @@ ext_win_exit:
 	//ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
 	//		!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));
 	do {
-		ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
-				!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));		
+		timestamp = dev_drv->vsync_info.timestamp;
+		timeout = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
+				ktime_compare(dev_drv->vsync_info.timestamp, timestamp) > 0,msecs_to_jiffies(25));
 		dev_drv->ops->get_dsp_addr(dev_drv,dsp_addr);
 		wait_for_vsync = false;
-		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+		/*for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			if(dev_drv->win[i]->state == 1){
 				u32 new_start = regs->reg_win_data[i].reg_area_data[0].smem_start +
 						regs->reg_win_data[i].reg_area_data[0].y_offset;
@@ -1228,19 +1267,31 @@ ext_win_exit:
 					break;
 				}
 			}
-		}
+		}*/
 	} while (wait_for_vsync && count--);
 #ifdef H_USE_FENCE
 	sw_sync_timeline_inc(dev_drv->timeline, 1);
 #endif
 	if(!g_first_buf){
-		for(i=0;i<regs->win_num;i++){
-			rk_fb_free_dma_buf(dev_drv->dev,&g_reg_win_data[i]);
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+		if (dev_drv->iommu_enabled) {
+			freed_index = 0;
+			if (timeout >= 3)
+				msleep(15);
 		}
+#endif
+		for(i=0;i< g_last_win_num;i++){
+			rk_fb_free_dma_buf(dev_drv,&g_reg_win_data[i]);
+		}
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+		if (dev_drv->iommu_enabled)
+			freed_addr[freed_index] = 0xfefefefe;
+#endif
 	}
 	for(i=0;i<regs->win_num;i++){
 		memcpy(&g_reg_win_data[i], &(regs->reg_win_data[i]), sizeof(struct rk_fb_reg_win_data));
 	}
+	g_last_win_num = regs->win_num;
 	g_first_buf = 0;
 
 	if (dev_drv->wait_fs == 1)
@@ -1340,8 +1391,11 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				#ifndef CONFIG_ROCKCHIP_IOMMU
 					ion_phys(rk_fb->ion_client, hdl, &phy_addr, &len);
 				#else
-					ion_map_iommu(dev_drv->dev, rk_fb->ion_client, hdl,
-						(unsigned long *)&phy_addr, (unsigned long *)&len);
+					if (dev_drv->iommu_enabled)
+						ion_map_iommu(dev_drv->dev, rk_fb->ion_client, hdl,
+							(unsigned long *)&phy_addr, (unsigned long *)&len);
+					else
+						ion_phys(rk_fb->ion_client, hdl, &phy_addr, &len);
 				#endif
 				reg_win_data->reg_area_data[i].smem_start = phy_addr;
 				reg_win_data->area_buf_num++;
@@ -1504,11 +1558,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		}
 	}	
 	return 0;
-#ifdef CONFIG_ROCKCHIP_IOMMU	
-err_share_dma_buf:
-	ion_free(rk_fb->ion_client, hdl);
-	return -ENOMEM;	
-#endif	
 }
 
 static int rk_fb_set_win_config(struct fb_info *info,
@@ -2702,14 +2751,14 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		}
 		win->area[0].ion_hdl = handle;
 		fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
-#ifndef CONFIG_ROCKCHIP_IOMMU
-		ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
-#else
-		ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
-		printk("ion_phys: %x,%x\n", phy_addr, len);
-		ion_map_iommu(dev_drv->dev, rk_fb->ion_client, handle,
+#ifdef CONFIG_ROCKCHIP_IOMMU
+		if (dev_drv->iommu_enabled)
+			ion_map_iommu(dev_drv->dev, rk_fb->ion_client, handle,
 					(unsigned long *)&phy_addr, (unsigned long *)&len);
-		printk("%s: ion_map_iommu: %x,%x\n", __func__, phy_addr, len);
+		else
+			ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
+#else
+		ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);	
 #endif
 		fbi->fix.smem_start = phy_addr;
 		fbi->fix.smem_len = len;
@@ -2892,9 +2941,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	struct fb_info *fbi;
 	int i = 0, ret = 0, index = 0;
-	#ifdef CONFIG_ROCKCHIP_IOMMU
-		struct device *mmu_dev = NULL;
-	#endif
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	struct device *mmu_dev = NULL;
+#endif
 	if (rk_fb->num_lcdc == RK30_MAX_LCDC_SUPPORT)
 		return -ENXIO;
 
@@ -2931,23 +2980,11 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fbi->var.width = dev_drv->cur_screen->width;
 		fbi->var.height = dev_drv->cur_screen->height;
 		fbi->var.pixclock = dev_drv->pixclock;
-#ifdef CONFIG_ROCKCHIP_IOMMU
-		fb_ops.fb_mmap = rk_fb_mmap;
-#endif
+		if (dev_drv->iommu_enabled)
+			fb_ops.fb_mmap = rk_fb_mmap;
 		fbi->fbops = &fb_ops;
 		fbi->flags = FBINFO_FLAG_DEFAULT;
 		fbi->pseudo_palette = dev_drv->win[i]->pseudo_pal;
-		if (i == 0){ /* only alloc memory for main fb*/
-		#ifdef CONFIG_ROCKCHIP_IOMMU
-			mmu_dev = rockchip_get_sysmmu_device_by_compatible("iommu,vopl_mmu");
-			if (mmu_dev) {
-				platform_set_sysmmu(mmu_dev, dev_drv->dev);
-				rockchip_sysmmu_set_fault_handler(dev_drv->dev, rk_fb_sysmmu_fault_handler);
-				iovmm_activate(dev_drv->dev);
-			}
-		#endif		
-			rk_fb_alloc_buffer(fbi, rk_fb->num_fb);
-		}	
 		ret = register_framebuffer(fbi);
 		if (ret < 0) {
 			dev_err(&fb_pdev->dev, "%s fb%d register_framebuffer fail!\n",
@@ -3002,6 +3039,21 @@ if (dev_drv->prop == PRMRY) {
 	main_fbi->fbops->fb_open(main_fbi, 1);
 	if(support_uboot_display())
 		return 0;
+
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	if (dev_drv->iommu_enabled) {/* only alloc memory for main fb*/	
+		mmu_dev = rockchip_get_sysmmu_device_by_compatible(dev_drv->mmu_dts_name);
+		if (mmu_dev) {
+			platform_set_sysmmu(mmu_dev, dev_drv->dev);
+			rockchip_sysmmu_set_fault_handler(dev_drv->dev,
+					rk_fb_sysmmu_fault_handler);
+			iovmm_activate(dev_drv->dev);
+		}
+		else
+			dev_err(dev_drv->dev, "failed to get rockchip iommu device\n");
+	}
+#endif
+	rk_fb_alloc_buffer(main_fbi, 0);
 	main_fbi->fbops->fb_set_par(main_fbi);
 #if  defined(CONFIG_LOGO_LINUX_BMP)
 	if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {

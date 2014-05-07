@@ -496,6 +496,7 @@ struct rk_lcdc_driver {
 	char fb2_win_id;
 	char fb3_win_id;
 	char mmu_dts_name[40];
+	int iommu_enabled;
 	struct rk_fb_reg_area_data reg_area_data;
 	struct mutex fb_win_id_mutex;
 
