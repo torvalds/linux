@@ -3334,6 +3334,7 @@ int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
 int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_widget *dai_w, *w;
+	struct snd_soc_dapm_widget *src, *sink;
 	struct snd_soc_dai *dai;
 
 	/* For each DAI widget... */
@@ -3364,25 +3365,15 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 			if (!w->sname || !strstr(w->sname, dai_w->name))
 				continue;
 
-			if (dai->driver->playback.stream_name &&
-			    strstr(w->sname,
-				   dai->driver->playback.stream_name)) {
-				dev_dbg(dai->dev, "%s -> %s\n",
-					 dai->playback_widget->name, w->name);
-
-				snd_soc_dapm_add_path(w->dapm,
-					dai->playback_widget, w, NULL, NULL);
+			if (dai_w->id == snd_soc_dapm_dai_in) {
+				src = dai_w;
+				sink = w;
+			} else {
+				src = w;
+				sink = dai_w;
 			}
-
-			if (dai->driver->capture.stream_name &&
-			    strstr(w->sname,
-				   dai->driver->capture.stream_name)) {
-				dev_dbg(dai->dev, "%s -> %s\n",
-					w->name, dai->capture_widget->name);
-
-				snd_soc_dapm_add_path(w->dapm, w,
-					dai->capture_widget, NULL, NULL);
-			}
+			dev_dbg(dai->dev, "%s -> %s\n", src->name, sink->name);
+			snd_soc_dapm_add_path(w->dapm, src, sink, NULL, NULL);
 		}
 	}
 
