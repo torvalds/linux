@@ -1994,7 +1994,10 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 		tuning_loop_counter--;
 		timeout--;
-		mdelay(1);
+
+		/* eMMC spec does not require a delay between tuning cycles */
+		if (opcode == MMC_SEND_TUNING_BLOCK)
+			mdelay(1);
 	} while (ctrl & SDHCI_CTRL_EXEC_TUNING);
 
 	/*
