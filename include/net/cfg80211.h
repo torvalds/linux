@@ -458,7 +458,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
  */
 int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
 				  const struct cfg80211_chan_def *chandef,
-				  enum nl80211_iftype);
+				  enum nl80211_iftype iftype);
 
 /**
  * ieee80211_chandef_rate_flags - returns rate flags for a channel
