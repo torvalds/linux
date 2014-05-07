@@ -587,7 +587,12 @@ static void *__alloc_from_contiguous(struct device *dev, size_t size,
 static void __free_from_contiguous(struct device *dev, struct page *page,
 				   void *cpu_addr, size_t size)
 {
+#ifdef CONFIG_ARCH_ROCKCHIP
+	#define ION_CMA_UNMAPED 0x1
+	if (PageHighMem(page) && (cpu_addr!=(void*)ION_CMA_UNMAPED))
+#else
 	if (PageHighMem(page))
+#endif
 		__dma_free_remap(cpu_addr, size);
 	else
 		__dma_remap(page, size, pgprot_kernel);
@@ -697,6 +702,21 @@ void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	return __dma_alloc(dev, size, handle, gfp, prot, false,
 			   __builtin_return_address(0));
 }
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+void *arm_dma_alloc_remap(struct page *page, size_t size)
+{
+	pgprot_t prot = __get_dma_pgprot(NULL, pgprot_kernel);
+
+	return __dma_alloc_remap(page, size, GFP_KERNEL, prot,
+				__builtin_return_address(0));
+}
+
+void arm_dma_free_remap(void *cpu_addr, size_t size)
+{
+	__dma_free_remap(cpu_addr, size);
+}
+#endif
 
 static void *arm_coherent_dma_alloc(struct device *dev, size_t size,
 	dma_addr_t *handle, gfp_t gfp, struct dma_attrs *attrs)
