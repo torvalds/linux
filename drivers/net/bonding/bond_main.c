@@ -2291,8 +2291,8 @@ int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 	int alen, is_arp = skb->protocol == __cpu_to_be16(ETH_P_ARP);
 
 	if (!slave_do_arp_validate(bond, slave)) {
-		if ((slave_do_arp_validate_only(bond, slave) && is_arp) ||
-		    !slave_do_arp_validate_only(bond, slave))
+		if ((slave_do_arp_validate_only(bond) && is_arp) ||
+		    !slave_do_arp_validate_only(bond))
 			slave->last_rx = jiffies;
 		return RX_HANDLER_ANOTHER;
 	} else if (!is_arp) {

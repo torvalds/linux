@@ -396,8 +396,7 @@ static inline int slave_do_arp_validate(struct bonding *bond,
 	return bond->params.arp_validate & (1 << bond_slave_state(slave));
 }
 
-static inline int slave_do_arp_validate_only(struct bonding *bond,
-					     struct slave *slave)
+static inline int slave_do_arp_validate_only(struct bonding *bond)
 {
 	return bond->params.arp_validate & BOND_ARP_FILTER;
 }
