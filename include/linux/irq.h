@@ -525,10 +525,6 @@ static inline void irq_set_percpu_devid_flags(unsigned int irq)
 			     IRQ_NOPROBE | IRQ_PER_CPU_DEVID);
 }
 
-/* Handle dynamic irq creation and destruction */
-extern int create_irq(void);
-extern void destroy_irq(unsigned int irq);
-
 /*
  * Dynamic irq helper functions. Obsolete. Use irq_alloc_desc* and
  * irq_free_desc instead.
