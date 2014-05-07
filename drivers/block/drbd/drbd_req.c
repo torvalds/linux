@@ -1182,6 +1182,8 @@ static void drbd_queue_write(struct drbd_device *device, struct drbd_request *re
 			&device->pending_master_completion[1 /* WRITE */]);
 	spin_unlock_irq(&device->resource->req_lock);
 	queue_work(device->submit.wq, &device->submit.worker);
+	/* do_submit() may sleep internally on al_wait, too */
+	wake_up(&device->al_wait);
 }
 
 /* returns the new drbd_request pointer, if the caller is expected to
@@ -1365,7 +1367,8 @@ static void submit_fast_path(struct drbd_device *device, struct list_head *incom
 
 static bool prepare_al_transaction_nonblock(struct drbd_device *device,
 					    struct list_head *incoming,
-					    struct list_head *pending)
+					    struct list_head *pending,
+					    struct list_head *later)
 {
 	struct drbd_request *req, *tmp;
 	int wake = 0;
@@ -1374,44 +1377,105 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
 	spin_lock_irq(&device->al_lock);
 	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
 		err = drbd_al_begin_io_nonblock(device, &req->i);
+		if (err == -ENOBUFS)
+			break;
 		if (err == -EBUSY)
 			wake = 1;
 		if (err)
-			continue;
-		list_move_tail(&req->tl_requests, pending);
+			list_move_tail(&req->tl_requests, later);
+		else
+			list_move_tail(&req->tl_requests, pending);
 	}
 	spin_unlock_irq(&device->al_lock);
 	if (wake)
 		wake_up(&device->al_wait);
-
 	return !list_empty(pending);
+}
+
+void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
+{
+	struct drbd_request *req, *tmp;
+
+	list_for_each_entry_safe(req, tmp, pending, tl_requests) {
+		req->rq_state |= RQ_IN_ACT_LOG;
+		req->in_actlog_jif = jiffies;
+		atomic_dec(&device->ap_actlog_cnt);
+		list_del_init(&req->tl_requests);
+		drbd_send_and_submit(device, req);
+	}
 }
 
 void do_submit(struct work_struct *ws)
 {
 	struct drbd_device *device = container_of(ws, struct drbd_device, submit.worker);
-	LIST_HEAD(incoming);
-	LIST_HEAD(pending);
-	struct drbd_request *req, *tmp;
+	LIST_HEAD(incoming);	/* from drbd_make_request() */
+	LIST_HEAD(pending);	/* to be submitted after next AL-transaction commit */
+	LIST_HEAD(busy);	/* blocked by resync requests */
+
+	/* grab new incoming requests */
+	spin_lock_irq(&device->resource->req_lock);
+	list_splice_tail_init(&device->submit.writes, &incoming);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	for (;;) {
-		spin_lock_irq(&device->resource->req_lock);
-		list_splice_tail_init(&device->submit.writes, &incoming);
-		spin_unlock_irq(&device->resource->req_lock);
+		DEFINE_WAIT(wait);
 
+		/* move used-to-be-busy back to front of incoming */
+		list_splice_init(&busy, &incoming);
 		submit_fast_path(device, &incoming);
 		if (list_empty(&incoming))
 			break;
 
-skip_fast_path:
-		wait_event(device->al_wait, prepare_al_transaction_nonblock(device, &incoming, &pending));
-		/* Maybe more was queued, while we prepared the transaction?
-		 * Try to stuff them into this transaction as well.
-		 * Be strictly non-blocking here, no wait_event, we already
-		 * have something to commit.
-		 * Stop if we don't make any more progres.
-		 */
 		for (;;) {
+			prepare_to_wait(&device->al_wait, &wait, TASK_UNINTERRUPTIBLE);
+
+			list_splice_init(&busy, &incoming);
+			prepare_al_transaction_nonblock(device, &incoming, &pending, &busy);
+			if (!list_empty(&pending))
+				break;
+
+			schedule();
+
+			/* If all currently "hot" activity log extents are kept busy by
+			 * incoming requests, we still must not totally starve new
+			 * requests to "cold" extents.
+			 * Something left on &incoming means there had not been
+			 * enough update slots available, and the activity log
+			 * has been marked as "starving".
+			 *
+			 * Try again now, without looking for new requests,
+			 * effectively blocking all new requests until we made
+			 * at least _some_ progress with what we currently have.
+			 */
+			if (!list_empty(&incoming))
+				continue;
+
+			/* Nothing moved to pending, but nothing left
+			 * on incoming: all moved to busy!
+			 * Grab new and iterate. */
+			spin_lock_irq(&device->resource->req_lock);
+			list_splice_tail_init(&device->submit.writes, &incoming);
+			spin_unlock_irq(&device->resource->req_lock);
+		}
+		finish_wait(&device->al_wait, &wait);
+
+		/* If the transaction was full, before all incoming requests
+		 * had been processed, skip ahead to commit, and iterate
+		 * without splicing in more incoming requests from upper layers.
+		 *
+		 * Else, if all incoming have been processed,
+		 * they have become either "pending" (to be submitted after
+		 * next transaction commit) or "busy" (blocked by resync).
+		 *
+		 * Maybe more was queued, while we prepared the transaction?
+		 * Try to stuff those into this transaction as well.
+		 * Be strictly non-blocking here,
+		 * we already have something to commit.
+		 *
+		 * Commit if we don't make any more progres.
+		 */
+
+		while (list_empty(&incoming)) {
 			LIST_HEAD(more_pending);
 			LIST_HEAD(more_incoming);
 			bool made_progress;
@@ -1428,46 +1492,16 @@ skip_fast_path:
 			if (list_empty(&more_incoming))
 				break;
 
-			made_progress = prepare_al_transaction_nonblock(device, &more_incoming, &more_pending);
+			made_progress = prepare_al_transaction_nonblock(device, &more_incoming, &more_pending, &busy);
 
 			list_splice_tail_init(&more_pending, &pending);
 			list_splice_tail_init(&more_incoming, &incoming);
-
 			if (!made_progress)
 				break;
 		}
+
 		drbd_al_begin_io_commit(device);
-
-		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
-			req->rq_state |= RQ_IN_ACT_LOG;
-			req->in_actlog_jif = jiffies;
-			atomic_dec(&device->ap_actlog_cnt);
-			list_del_init(&req->tl_requests);
-			drbd_send_and_submit(device, req);
-		}
-
-		/* If all currently hot activity log extents are kept busy by
-		 * incoming requests, we still must not totally starve new
-		 * requests to cold extents. In that case, prepare one request
-		 * in blocking mode. */
-		list_for_each_entry_safe(req, tmp, &incoming, tl_requests) {
-			bool was_cold;
-			list_del_init(&req->tl_requests);
-			was_cold = drbd_al_begin_io_prepare(device, &req->i);
-			if (!was_cold) {
-				req->rq_state |= RQ_IN_ACT_LOG;
-				req->in_actlog_jif = jiffies;
-				atomic_dec(&device->ap_actlog_cnt);
-				/* Corresponding extent was hot after all? */
-				drbd_send_and_submit(device, req);
-			} else {
-				/* Found a request to a cold extent.
-				 * Put on "pending" list,
-				 * and try to cumulate with more. */
-				list_add(&req->tl_requests, &pending);
-				goto skip_fast_path;
-			}
-		}
+		send_and_submit_pending(device, &pending);
 	}
 }
 

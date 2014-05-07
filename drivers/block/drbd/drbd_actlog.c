@@ -357,8 +357,19 @@ int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *
 	/* We want all necessary updates for a given request within the same transaction
 	 * We could first check how many updates are *actually* needed,
 	 * and use that instead of the worst-case nr_al_extents */
-	if (available_update_slots < nr_al_extents)
-		return -EWOULDBLOCK;
+	if (available_update_slots < nr_al_extents) {
+		/* Too many activity log extents are currently "hot".
+		 *
+		 * If we have accumulated pending changes already,
+		 * we made progress.
+		 *
+		 * If we cannot get even a single pending change through,
+		 * stop the fast path until we made some progress,
+		 * or requests to "cold" extents could be starved. */
+		if (!al->pending_changes)
+			__set_bit(__LC_STARVING, &device->act_log->flags);
+		return -ENOBUFS;
+	}
 
 	/* Is resync active in this area? */
 	for (enr = first; enr <= last; enr++) {
