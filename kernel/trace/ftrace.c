@@ -1552,7 +1552,14 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			in_other_hash = !!ftrace_lookup_ip(other_hash, rec->ip);
 
 			/*
+			 * If filter_hash is set, we want to match all functions
+			 * that are in the hash but not in the other hash.
 			 *
+			 * If filter_hash is not set, then we are decrementing.
+			 * That means we match anything that is in the hash
+			 * and also in the other_hash. That is, we need to turn
+			 * off functions in the other hash because they are disabled
+			 * by this hash.
 			 */
 			if (filter_hash && in_hash && !in_other_hash)
 				match = 1;
