@@ -8,16 +8,6 @@
 
 #include "addi-data/hwdrv_apci1564.c"
 
-static const struct addi_board apci1564_boardtypes[] = {
-	{
-		.pc_DriverName		= "apci1564",
-		.i_NbrDiChannel		= 32,
-		.i_NbrDoChannel		= 32,
-		.i_DoMaxdata		= 0xffffffff,
-		.i_Timer		= 1,
-	},
-};
-
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	apci1564_interrupt(irq, d);
@@ -60,12 +50,11 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 				      unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = dev->driver->driver_name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
