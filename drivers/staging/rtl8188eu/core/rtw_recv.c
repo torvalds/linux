@@ -117,8 +117,6 @@ void _rtw_free_recv_priv (struct recv_priv *precvpriv)
 
 	rtw_free_uc_swdec_pending_queue(padapter);
 
-	rtw_os_recv_resource_free(precvpriv);
-
 	if (precvpriv->pallocated_frame_buf) {
 		vfree(precvpriv->pallocated_frame_buf);
 	}
