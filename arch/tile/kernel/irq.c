@@ -312,4 +312,16 @@ void destroy_irq(unsigned int irq)
 	spin_unlock_irqrestore(&available_irqs_lock, flags);
 }
 EXPORT_SYMBOL(destroy_irq);
+
+unsigned int irq_alloc_hwirq(int node)
+{
+	int ret = create_irq();
+	return ret < 0 ? 0 : ret;
+}
+
+void irq_free_hwirq(unsigned int irq)
+{
+	destroy_irq(irq);
+}
+
 #endif

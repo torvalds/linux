@@ -76,4 +76,7 @@ void tile_irq_activate(unsigned int irq, int tile_irq_type);
 
 void setup_irq_regs(void);
 
+unsigned int irq_alloc_hwirq(int node);
+void irq_free_hwirq(unsigned int irq);
+
 #endif /* _ASM_TILE_IRQ_H */
