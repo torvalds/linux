@@ -2042,7 +2042,6 @@ static void ftrace_startup_enable(int command)
 
 static int ftrace_startup(struct ftrace_ops *ops, int command)
 {
-	bool hash_enable = true;
 	int ret;
 
 	if (unlikely(ftrace_disabled))
@@ -2056,8 +2055,8 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 	command |= FTRACE_UPDATE_CALLS;
 
 	ops->flags |= FTRACE_OPS_FL_ENABLED;
-	if (hash_enable)
-		ftrace_hash_rec_enable(ops, 1);
+
+	ftrace_hash_rec_enable(ops, 1);
 
 	ftrace_startup_enable(command);
 
@@ -2066,7 +2065,6 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 
 static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 {
-	bool hash_disable = true;
 	int ret;
 
 	if (unlikely(ftrace_disabled))
@@ -2084,8 +2082,7 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	 */
 	WARN_ON_ONCE(ftrace_start_up < 0);
 
-	if (hash_disable)
-		ftrace_hash_rec_disable(ops, 1);
+	ftrace_hash_rec_disable(ops, 1);
 
 	if (!global_start_up)
 		ops->flags &= ~FTRACE_OPS_FL_ENABLED;
