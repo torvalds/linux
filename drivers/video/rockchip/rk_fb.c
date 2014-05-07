@@ -386,30 +386,6 @@ int rk_fb_prase_timing_dt(struct device_node *np, struct rk_screen *screen)
 	}
 	dt = display_timings_get(disp_timing, 0);
 	rk_fb_video_mode_from_timing(dt, screen);
-	printk(KERN_DEBUG "dclk:%d\n"
-			 "hactive:%d\n"
-			 "hback_porch:%d\n"
-			 "hfront_porch:%d\n"
-			 "hsync_len:%d\n"
-			 "vactive:%d\n"
-			 "vback_porch:%d\n"
-			 "vfront_porch:%d\n"
-			 "vsync_len:%d\n"
-			 "screen_type:%d\n"
-			 "lvds_format:%d\n"
-			 "face:%d\n",
-			dt->pixelclock.typ,
-			dt->hactive.typ,
-			dt->hback_porch.typ,
-			dt->hfront_porch.typ,
-			dt->hsync_len.typ,
-			dt->vactive.typ,
-			dt->vback_porch.typ,
-			dt->vfront_porch.typ,
-			dt->vsync_len.typ,
-			dt->screen_type,
-			dt->lvds_format,
-			dt->face);
 	return 0;
 
 }
