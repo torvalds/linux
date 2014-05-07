@@ -3560,14 +3560,10 @@ exit:
 
 void rtw_wdev_free(struct wireless_dev *wdev)
 {
-	struct rtw_wdev_priv *pwdev_priv;
-
 	DBG_8723A("%s(wdev =%p)\n", __func__, wdev);
 
 	if (!wdev)
 		return;
-
-	pwdev_priv = wdev_to_priv(wdev);
 
 	kfree(wdev->wiphy->bands[IEEE80211_BAND_2GHZ]);
 	kfree(wdev->wiphy->bands[IEEE80211_BAND_5GHZ]);
