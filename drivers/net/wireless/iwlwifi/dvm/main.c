@@ -987,7 +987,7 @@ static void iwl_bg_restart(struct work_struct *data)
 			ieee80211_restart_hw(priv->hw);
 		else
 			IWL_ERR(priv,
-				"Cannot request restart before registrating with mac80211");
+				"Cannot request restart before registrating with mac80211\n");
 	} else {
 		WARN_ON(1);
 	}
@@ -1127,7 +1127,6 @@ static void iwl_option_config(struct iwl_priv *priv)
 static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
 	struct iwl_nvm_data *data = priv->nvm_data;
-	char *debug_msg;
 
 	if (data->sku_cap_11n_enable &&
 	    !priv->cfg->ht_params) {
@@ -1141,8 +1140,8 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
-	debug_msg = "Device SKU: 24GHz %s %s, 52GHz %s %s, 11.n %s %s\n";
-	IWL_DEBUG_INFO(priv, debug_msg,
+	IWL_DEBUG_INFO(priv,
+		       "Device SKU: 24GHz %s %s, 52GHz %s %s, 11.n %s %s\n",
 		       data->sku_cap_band_24GHz_enable ? "" : "NOT", "enabled",
 		       data->sku_cap_band_52GHz_enable ? "" : "NOT", "enabled",
 		       data->sku_cap_11n_enable ? "" : "NOT", "enabled");
@@ -1350,7 +1349,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	iwl_set_hw_params(priv);
 
 	if (!(priv->nvm_data->sku_cap_ipan_enable)) {
-		IWL_DEBUG_INFO(priv, "Your EEPROM disabled PAN");
+		IWL_DEBUG_INFO(priv, "Your EEPROM disabled PAN\n");
 		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 		/*
 		 * if not PAN, then don't support P2P -- might be a uCode
@@ -2019,10 +2018,10 @@ void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
 
 	for (mq = 0; mq < IWLAGN_FIRST_AMPDU_QUEUE; mq++) {
 		if (!test_bit(mq, &priv->transport_queue_stop)) {
-			IWL_DEBUG_TX_QUEUES(priv, "Wake queue %d", mq);
+			IWL_DEBUG_TX_QUEUES(priv, "Wake queue %d\n", mq);
 			ieee80211_wake_queue(priv->hw, mq);
 		} else {
-			IWL_DEBUG_TX_QUEUES(priv, "Don't wake queue %d", mq);
+			IWL_DEBUG_TX_QUEUES(priv, "Don't wake queue %d\n", mq);
 		}
 	}
 

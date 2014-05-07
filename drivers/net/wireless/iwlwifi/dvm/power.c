@@ -361,7 +361,7 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 
 		memcpy(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd));
 	} else
-		IWL_ERR(priv, "set power fail, ret = %d", ret);
+		IWL_ERR(priv, "set power fail, ret = %d\n", ret);
 
 	return ret;
 }

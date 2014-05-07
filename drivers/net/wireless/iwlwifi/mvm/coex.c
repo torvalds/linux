@@ -1024,7 +1024,7 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 	if (memcmp(&cmd, &mvm->last_bt_ci_cmd, sizeof(cmd))) {
 		if (iwl_mvm_send_cmd_pdu(mvm, BT_COEX_CI, CMD_SYNC,
 					 sizeof(cmd), &cmd))
-			IWL_ERR(mvm, "Failed to send BT_CI cmd");
+			IWL_ERR(mvm, "Failed to send BT_CI cmd\n");
 		memcpy(&mvm->last_bt_ci_cmd, &cmd, sizeof(cmd));
 	}
 

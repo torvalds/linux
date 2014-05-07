@@ -1364,7 +1364,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	}
 
 	if (changes & BSS_CHANGED_CQM) {
-		IWL_DEBUG_MAC80211(mvm, "cqm info_changed");
+		IWL_DEBUG_MAC80211(mvm, "cqm info_changed\n");
 		/* reset cqm events tracking */
 		mvmvif->bf_data.last_cqm_event = 0;
 		ret = iwl_mvm_update_beacon_filter(mvm, vif, false, CMD_SYNC);
@@ -1373,7 +1373,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	}
 
 	if (changes & BSS_CHANGED_ARP_FILTER) {
-		IWL_DEBUG_MAC80211(mvm, "arp filter changed");
+		IWL_DEBUG_MAC80211(mvm, "arp filter changed\n");
 		iwl_mvm_configure_bcast_filter(mvm, vif);
 	}
 }

@@ -1866,7 +1866,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	if (lq_sta->dbg_fixed_txp_reduction <= TPC_MAX_REDUCTION) {
-		IWL_DEBUG_RATE(mvm, "fixed tpc: %d",
+		IWL_DEBUG_RATE(mvm, "fixed tpc: %d\n",
 			       lq_sta->dbg_fixed_txp_reduction);
 		lq_sta->lq.reduced_tpc = lq_sta->dbg_fixed_txp_reduction;
 		return cur != lq_sta->dbg_fixed_txp_reduction;
@@ -1883,7 +1883,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 
 	if (!rs_tpc_allowed(mvm, vif, rate, band)) {
 		IWL_DEBUG_RATE(mvm,
-			       "tpc is not allowed. remove txp restrictions");
+			       "tpc is not allowed. remove txp restrictions\n");
 		lq_sta->lq.reduced_tpc = TPC_NO_REDUCTION;
 		return cur != TPC_NO_REDUCTION;
 	}
@@ -1909,12 +1909,12 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 
 	/* override actions if we are on the edge */
 	if (weak == TPC_INVALID && action == TPC_ACTION_DECREASE) {
-		IWL_DEBUG_RATE(mvm, "already in lowest txp, stay");
+		IWL_DEBUG_RATE(mvm, "already in lowest txp, stay\n");
 		action = TPC_ACTION_STAY;
 	} else if (strong == TPC_INVALID &&
 		   (action == TPC_ACTION_INCREASE ||
 		    action == TPC_ACTION_NO_RESTIRCTION)) {
-		IWL_DEBUG_RATE(mvm, "already in highest txp, stay");
+		IWL_DEBUG_RATE(mvm, "already in highest txp, stay\n");
 		action = TPC_ACTION_STAY;
 	}
 

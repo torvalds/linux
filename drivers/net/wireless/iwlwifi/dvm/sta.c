@@ -39,7 +39,7 @@ static int iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 	lockdep_assert_held(&priv->sta_lock);
 
 	if (sta_id >= IWLAGN_STATION_COUNT) {
-		IWL_ERR(priv, "invalid sta_id %u", sta_id);
+		IWL_ERR(priv, "invalid sta_id %u\n", sta_id);
 		return -EINVAL;
 	}
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE))
@@ -165,7 +165,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	iwl_free_resp(&cmd);
 
 	if (cmd.handler_status)
-		IWL_ERR(priv, "%s - error in the CMD response %d", __func__,
+		IWL_ERR(priv, "%s - error in the CMD response %d\n", __func__,
 			cmd.handler_status);
 
 	return cmd.handler_status;

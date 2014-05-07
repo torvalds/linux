@@ -823,7 +823,7 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK)) {
-		IWL_WARN(priv, "CCK and auto detect");
+		IWL_WARN(priv, "CCK and auto detect\n");
 		errors |= BIT(8);
 	}
 

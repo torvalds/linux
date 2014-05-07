@@ -696,7 +696,7 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 		return -EIO;
 
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 		return -EIO;
 	}
 
@@ -738,7 +738,7 @@ static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		return -EIO;
 
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
 	return trans->ops->tx(trans, skb, dev_cmd, queue);
 }
@@ -747,7 +747,7 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
 				     int ssn, struct sk_buff_head *skbs)
 {
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
 	trans->ops->reclaim(trans, queue, ssn, skbs);
 }
@@ -764,7 +764,7 @@ static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
 	might_sleep();
 
 	if (unlikely((trans->state != IWL_TRANS_FW_ALIVE)))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
 	trans->ops->txq_enable(trans, queue, fifo, sta_id, tid,
 				 frame_limit, ssn);
@@ -781,7 +781,7 @@ static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans,
 						u32 txq_bm)
 {
 	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
 	return trans->ops->wait_tx_queue_empty(trans, txq_bm);
 }
