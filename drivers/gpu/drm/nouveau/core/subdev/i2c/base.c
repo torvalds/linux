@@ -114,7 +114,6 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 	port->adapter.dev.parent = nv_device_base(device);
 	port->index = index;
 	port->func = func;
-	i2c_set_adapdata(&port->adapter, i2c);
 
 	if ( algo == &nouveau_i2c_bit_algo &&
 	    !nouveau_boolopt(device->cfgopt, "NvI2C", CSTMSEL)) {
@@ -141,7 +140,6 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 		ret = i2c_add_adapter(&port->adapter);
 	}
 
-	/* drop port's i2c subdev refcount, i2c handles this itself */
 	if (ret == 0)
 		list_add_tail(&port->head, &i2c->ports);
 	return ret;
