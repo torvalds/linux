@@ -149,6 +149,44 @@ char dso__symtab_origin(const struct dso *dso);
 int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type type,
 				   char *root_dir, char *filename, size_t size);
 
+/*
+ * The dso__data_* external interface provides following functions:
+ *   dso__data_fd
+ *   dso__data_close
+ *   dso__data_read_offset
+ *   dso__data_read_addr
+ *
+ * Please refer to the dso.c object code for each function and
+ * arguments documentation. Following text tries to explain the
+ * dso file descriptor caching.
+ *
+ * The dso__data* interface allows caching of opened file descriptors
+ * to speed up the dso data accesses. The idea is to leave the file
+ * descriptor opened ideally for the whole life of the dso object.
+ *
+ * The current usage of the dso__data_* interface is as follows:
+ *
+ * Get DSO's fd:
+ *   int fd = dso__data_fd(dso, machine);
+ *   USE 'fd' SOMEHOW
+ *
+ * Read DSO's data:
+ *   n = dso__data_read_offset(dso_0, &machine, 0, buf, BUFSIZE);
+ *   n = dso__data_read_addr(dso_0, &machine, 0, buf, BUFSIZE);
+ *
+ * Eventually close DSO's fd:
+ *   dso__data_close(dso);
+ *
+ * It is not necessary to close the DSO object data file. Each time new
+ * DSO data file is opened, the limit (RLIMIT_NOFILE/2) is checked. Once
+ * it is crossed, the oldest opened DSO object is closed.
+ *
+ * The dso__delete function calls close_dso function to ensure the
+ * data file descriptor gets closed/unmapped before the dso object
+ * is freed.
+ *
+ * TODO
+*/
 int dso__data_fd(struct dso *dso, struct machine *machine);
 void dso__data_close(struct dso *dso);
 

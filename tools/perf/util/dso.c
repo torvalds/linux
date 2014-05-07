@@ -205,6 +205,13 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 
 static void check_data_close(void);
 
+/**
+ * dso_close - Open DSO data file
+ * @dso: dso object
+ *
+ * Open @dso's data file descriptor and updates
+ * list/count of open DSO objects.
+ */
 static int open_dso(struct dso *dso, struct machine *machine)
 {
 	int fd = __open_dso(dso, machine);
@@ -231,6 +238,13 @@ static void close_data_fd(struct dso *dso)
 	}
 }
 
+/**
+ * dso_close - Close DSO data file
+ * @dso: dso object
+ *
+ * Close @dso's data file descriptor and updates
+ * list/count of open DSO objects.
+ */
 static void close_dso(struct dso *dso)
 {
 	close_data_fd(dso);
@@ -276,6 +290,11 @@ static bool may_cache_fd(void)
 	return limit > (rlim_t) dso__data_open_cnt;
 }
 
+/*
+ * Check and close LRU dso if we crossed allowed limit
+ * for opened dso file descriptors. The limit is half
+ * of the RLIMIT_NOFILE files opened.
+*/
 static void check_data_close(void)
 {
 	bool cache_fd = may_cache_fd();
@@ -284,11 +303,25 @@ static void check_data_close(void)
 		close_first_dso();
 }
 
+/**
+ * dso__data_close - Close DSO data file
+ * @dso: dso object
+ *
+ * External interface to close @dso's data file descriptor.
+ */
 void dso__data_close(struct dso *dso)
 {
 	close_dso(dso);
 }
 
+/**
+ * dso__data_fd - Get dso's data file descriptor
+ * @dso: dso object
+ * @machine: machine object
+ *
+ * External interface to find dso's file, open it and
+ * returns file descriptor.
+ */
 int dso__data_fd(struct dso *dso, struct machine *machine)
 {
 	enum dso_binary_type binary_type_data[] = {
@@ -445,6 +478,11 @@ static ssize_t dso_cache_read(struct dso *dso, u64 offset,
 		return dso_cache__read(dso, offset, data, size);
 }
 
+/*
+ * Reads and caches dso data DSO__DATA_CACHE_SIZE size chunks
+ * in the rb_tree. Any read to already cached data is served
+ * by cached data.
+ */
 static ssize_t cached_read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 {
 	ssize_t r = 0;
@@ -504,6 +542,17 @@ static ssize_t data_read_offset(struct dso *dso, u64 offset,
 	return cached_read(dso, offset, data, size);
 }
 
+/**
+ * dso__data_read_offset - Read data from dso file offset
+ * @dso: dso object
+ * @machine: machine object
+ * @offset: file offset
+ * @data: buffer to store data
+ * @size: size of the @data buffer
+ *
+ * External interface to read data from dso file offset. Open
+ * dso data file and use cached_read to get the data.
+ */
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 			      u64 offset, u8 *data, ssize_t size)
 {
@@ -513,6 +562,16 @@ ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 	return data_read_offset(dso, offset, data, size);
 }
 
+/**
+ * dso__data_read_addr - Read data from dso address
+ * @dso: dso object
+ * @machine: machine object
+ * @add: virtual memory address
+ * @data: buffer to store data
+ * @size: size of the @data buffer
+ *
+ * External interface to read data from dso address.
+ */
 ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 			    struct machine *machine, u64 addr,
 			    u8 *data, ssize_t size)
