@@ -366,7 +366,6 @@ static int add_breakpoints(struct dyn_ftrace *rec, int enable)
 		/* converting nop to call */
 		return add_brk_on_nop(rec);
 
-	case FTRACE_UPDATE_MODIFY_CALL_REGS:
 	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_NOP:
 		/* converting a call to a nop */
@@ -469,7 +468,6 @@ static int add_update(struct dyn_ftrace *rec, int enable)
 	case FTRACE_UPDATE_IGNORE:
 		return 0;
 
-	case FTRACE_UPDATE_MODIFY_CALL_REGS:
 	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_CALL:
 		/* converting nop to call */
@@ -516,7 +514,6 @@ static int finish_update(struct dyn_ftrace *rec, int enable)
 	case FTRACE_UPDATE_IGNORE:
 		return 0;
 
-	case FTRACE_UPDATE_MODIFY_CALL_REGS:
 	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_CALL:
 		/* converting nop to call */
