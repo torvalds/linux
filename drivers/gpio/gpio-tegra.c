@@ -408,7 +408,7 @@ static struct tegra_gpio_soc_config tegra30_gpio_config = {
 	.upper_offset = 0x80,
 };
 
-static struct of_device_id tegra_gpio_of_match[] = {
+static const struct of_device_id tegra_gpio_of_match[] = {
 	{ .compatible = "nvidia,tegra30-gpio", .data = &tegra30_gpio_config },
 	{ .compatible = "nvidia,tegra20-gpio", .data = &tegra20_gpio_config },
 	{ },
