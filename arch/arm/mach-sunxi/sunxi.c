@@ -12,14 +12,8 @@
 
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
-#include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
-
-static void __init sunxi_dt_init(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
 
 static const char * const sunxi_board_dt_compat[] = {
 	"allwinner,sun4i-a10",
@@ -29,7 +23,6 @@ static const char * const sunxi_board_dt_compat[] = {
 };
 
 DT_MACHINE_START(SUNXI_DT, "Allwinner A1X (Device Tree)")
-	.init_machine	= sunxi_dt_init,
 	.dt_compat	= sunxi_board_dt_compat,
 MACHINE_END
 
@@ -47,7 +40,6 @@ static void __init sun6i_timer_init(void)
 }
 
 DT_MACHINE_START(SUN6I_DT, "Allwinner sun6i (A31) Family")
-	.init_machine	= sunxi_dt_init,
 	.init_time	= sun6i_timer_init,
 	.dt_compat	= sun6i_board_dt_compat,
 MACHINE_END
@@ -58,6 +50,5 @@ static const char * const sun7i_board_dt_compat[] = {
 };
 
 DT_MACHINE_START(SUN7I_DT, "Allwinner sun7i (A20) Family")
-	.init_machine	= sunxi_dt_init,
 	.dt_compat	= sun7i_board_dt_compat,
 MACHINE_END
