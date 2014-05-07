@@ -230,6 +230,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISENABLED_40MHZ_INTOLERANT(Dot11nDevCap) (Dot11nDevCap & BIT(8))
 #define ISSUPP_RXLDPC(Dot11nDevCap) (Dot11nDevCap & BIT(22))
 #define ISSUPP_BEAMFORMING(Dot11nDevCap) (Dot11nDevCap & BIT(30))
+#define ISALLOWED_CHANWIDTH40(ht_param) (ht_param & BIT(2))
 
 /* httxcfg bitmap
  * 0		reserved
