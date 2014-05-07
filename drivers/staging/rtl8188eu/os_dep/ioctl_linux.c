@@ -7119,15 +7119,15 @@ static int rtw_mp_pwrtrk(struct net_device *dev,
 {
 	u8 enable;
 	u32 thermal;
-	s32 ret;
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	char	*input = kmalloc(wrqu->length, GFP_KERNEL);
+	int ret = 0;
 
 	if (!input)
 		return -ENOMEM;
 	if (copy_from_user(input, wrqu->pointer, wrqu->length)) {
-		kfree(input);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto exit;
 	}
 	_rtw_memset(extra, 0, wrqu->length);
 
@@ -7138,22 +7138,28 @@ static int rtw_mp_pwrtrk(struct net_device *dev,
 			sprintf(extra, "mp tx power tracking stop");
 		} else if (sscanf(input, "ther =%d", &thermal)) {
 				ret = Hal_SetThermalMeter(padapter, (u8)thermal);
-				if (ret == _FAIL)
-					return -EPERM;
+				if (ret == _FAIL) {
+					ret = -EPERM;
+					goto exit;
+				}
 				sprintf(extra, "mp tx power tracking start, target value =%d ok ", thermal);
 		} else {
-			kfree(input);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto exit;
 		}
 	}
 
-	kfree(input);
 	ret = Hal_SetPowerTracking(padapter, enable);
-	if (ret == _FAIL)
-		return -EPERM;
+	if (ret == _FAIL) {
+		ret = -EPERM;
+		goto exit;
+	}
 
 	wrqu->length = strlen(extra);
-	return 0;
+
+exit:
+	kfree(input);
+	return ret;
 }
 
 static int rtw_mp_psd(struct net_device *dev,
