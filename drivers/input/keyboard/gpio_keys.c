@@ -646,7 +646,7 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 	return pdata;
 }
 
-static struct of_device_id gpio_keys_of_match[] = {
+static const struct of_device_id gpio_keys_of_match[] = {
 	{ .compatible = "gpio-keys", },
 	{ },
 };
