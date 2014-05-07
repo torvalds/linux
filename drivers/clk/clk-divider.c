@@ -232,7 +232,7 @@ static int _div_round(struct clk_divider *divider, unsigned long parent_rate,
 }
 
 static bool _is_best_div(struct clk_divider *divider,
-		int rate, int now, int best)
+		unsigned long rate, unsigned long now, unsigned long best)
 {
 	if (divider->flags & CLK_DIVIDER_ROUND_CLOSEST)
 		return abs(rate - now) < abs(rate - best);
