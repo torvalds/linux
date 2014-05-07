@@ -2922,6 +2922,16 @@ static int should_balance_chunk(struct btrfs_root *root,
 		return 0;
 	}
 
+	/*
+	 * limited by count, must be the last filter
+	 */
+	if ((bargs->flags & BTRFS_BALANCE_ARGS_LIMIT)) {
+		if (bargs->limit == 0)
+			return 0;
+		else
+			bargs->limit--;
+	}
+
 	return 1;
 }
 
@@ -2944,6 +2954,9 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	int ret;
 	int enospc_errors = 0;
 	bool counting = true;
+	u64 limit_data = bctl->data.limit;
+	u64 limit_meta = bctl->meta.limit;
+	u64 limit_sys = bctl->sys.limit;
 
 	/* step one make some room on all the devices */
 	devices = &fs_info->fs_devices->devices;
@@ -2982,6 +2995,11 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	memset(&bctl->stat, 0, sizeof(bctl->stat));
 	spin_unlock(&fs_info->balance_lock);
 again:
+	if (!counting) {
+		bctl->data.limit = limit_data;
+		bctl->meta.limit = limit_meta;
+		bctl->sys.limit = limit_sys;
+	}
 	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
 	key.offset = (u64)-1;
 	key.type = BTRFS_CHUNK_ITEM_KEY;

@@ -211,7 +211,8 @@ struct btrfs_balance_args {
 
 	__u64 flags;
 
-	__u64 unused[8];
+	__u64 limit;		/* limit number of processed chunks */
+	__u64 unused[7];
 } __attribute__ ((__packed__));
 
 /* report balance progress to userspace */

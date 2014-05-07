@@ -840,7 +840,10 @@ struct btrfs_disk_balance_args {
 	/* BTRFS_BALANCE_ARGS_* */
 	__le64 flags;
 
-	__le64 unused[8];
+	/* BTRFS_BALANCE_ARGS_LIMIT value */
+	__le64 limit;
+
+	__le64 unused[7];
 } __attribute__ ((__packed__));
 
 /*
@@ -2897,6 +2900,7 @@ btrfs_disk_balance_args_to_cpu(struct btrfs_balance_args *cpu,
 	cpu->vend = le64_to_cpu(disk->vend);
 	cpu->target = le64_to_cpu(disk->target);
 	cpu->flags = le64_to_cpu(disk->flags);
+	cpu->limit = le64_to_cpu(disk->limit);
 }
 
 static inline void
@@ -2914,6 +2918,7 @@ btrfs_cpu_balance_args_to_disk(struct btrfs_disk_balance_args *disk,
 	disk->vend = cpu_to_le64(cpu->vend);
 	disk->target = cpu_to_le64(cpu->target);
 	disk->flags = cpu_to_le64(cpu->flags);
+	disk->limit = cpu_to_le64(cpu->limit);
 }
 
 /* struct btrfs_super_block */
