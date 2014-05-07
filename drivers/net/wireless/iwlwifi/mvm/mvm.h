@@ -501,6 +501,7 @@ struct iwl_mvm {
 	u8 queue_to_mac80211[IWL_MAX_HW_QUEUES];
 	atomic_t queue_stop_count[IWL_MAX_HW_QUEUES];
 
+	const char *nvm_file_name;
 	struct iwl_nvm_data *nvm_data;
 	/* NVM sections */
 	struct iwl_nvm_section nvm_sections[NVM_MAX_NUM_SECTIONS];

@@ -318,16 +318,16 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 	 * get here after that we assume the NVM request can be satisfied
 	 * synchronously.
 	 */
-	ret = request_firmware(&fw_entry, iwlwifi_mod_params.nvm_file,
+	ret = request_firmware(&fw_entry, mvm->nvm_file_name,
 			       mvm->trans->dev);
 	if (ret) {
 		IWL_ERR(mvm, "ERROR: %s isn't available %d\n",
-			iwlwifi_mod_params.nvm_file, ret);
+			mvm->nvm_file_name, ret);
 		return ret;
 	}
 
 	IWL_INFO(mvm, "Loaded NVM file %s (%zu bytes)\n",
-		 iwlwifi_mod_params.nvm_file, fw_entry->size);
+		 mvm->nvm_file_name, fw_entry->size);
 
 	if (fw_entry->size < sizeof(*file_sec)) {
 		IWL_ERR(mvm, "NVM file too small\n");
@@ -513,7 +513,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 	}
 
 	/* load external NVM if configured */
-	if (iwlwifi_mod_params.nvm_file) {
+	if (mvm->nvm_file_name) {
 		/* move to External NVM flow */
 		ret = iwl_mvm_read_external_nvm(mvm);
 		if (ret)
