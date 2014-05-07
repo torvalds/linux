@@ -270,13 +270,11 @@ static int mlx4_en_fill_rx_buffers(struct mlx4_en_priv *priv)
 						    ring->actual_size,
 						    GFP_KERNEL)) {
 				if (ring->actual_size < MLX4_EN_MIN_RX_SIZE) {
-					en_err(priv, "Failed to allocate "
-						     "enough rx buffers\n");
+					en_err(priv, "Failed to allocate enough rx buffers\n");
 					return -ENOMEM;
 				} else {
 					new_size = rounddown_pow_of_two(ring->actual_size);
-					en_warn(priv, "Only %d buffers allocated "
-						      "reducing ring size to %d",
+					en_warn(priv, "Only %d buffers allocated reducing ring size to %d\n",
 						ring->actual_size, new_size);
 					goto reduce_rings;
 				}
@@ -685,10 +683,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		/* Drop packet on bad receive or bad checksum */
 		if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
 						MLX4_CQE_OPCODE_ERROR)) {
-			en_err(priv, "CQE completed in error - vendor "
-				  "syndrom:%d syndrom:%d\n",
-				  ((struct mlx4_err_cqe *) cqe)->vendor_err_syndrome,
-				  ((struct mlx4_err_cqe *) cqe)->syndrome);
+			en_err(priv, "CQE completed in error - vendor syndrom:%d syndrom:%d\n",
+			       ((struct mlx4_err_cqe *)cqe)->vendor_err_syndrome,
+			       ((struct mlx4_err_cqe *)cqe)->syndrome);
 			goto next;
 		}
 		if (unlikely(cqe->badfcs_enc & MLX4_CQE_BAD_FCS)) {
@@ -944,8 +941,8 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	priv->rx_skb_size = eff_mtu;
 	priv->log_rx_info = ROUNDUP_LOG2(i * sizeof(struct mlx4_en_rx_alloc));
 
-	en_dbg(DRV, priv, "Rx buffer scatter-list (effective-mtu:%d "
-		  "num_frags:%d):\n", eff_mtu, priv->num_frags);
+	en_dbg(DRV, priv, "Rx buffer scatter-list (effective-mtu:%d num_frags:%d):\n",
+	       eff_mtu, priv->num_frags);
 	for (i = 0; i < priv->num_frags; i++) {
 		en_err(priv,
 		       "  frag:%d - size:%d prefix:%d align:%d stride:%d\n",

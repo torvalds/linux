@@ -925,13 +925,13 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 		qpn = cmd->fs.ring_cookie & (EN_ETHTOOL_QP_ATTACH - 1);
 	} else {
 		if (cmd->fs.ring_cookie >= priv->rx_ring_num) {
-			en_warn(priv, "rxnfc: RX ring (%llu) doesn't exist.\n",
+			en_warn(priv, "rxnfc: RX ring (%llu) doesn't exist\n",
 				cmd->fs.ring_cookie);
 			return -EINVAL;
 		}
 		qpn = priv->rss_map.qps[cmd->fs.ring_cookie].qpn;
 		if (!qpn) {
-			en_warn(priv, "rxnfc: RX ring (%llu) is inactive.\n",
+			en_warn(priv, "rxnfc: RX ring (%llu) is inactive\n",
 				cmd->fs.ring_cookie);
 			return -EINVAL;
 		}
@@ -956,7 +956,7 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 	}
 	err = mlx4_flow_attach(priv->mdev->dev, &rule, &reg_id);
 	if (err) {
-		en_err(priv, "Fail to attach network rule at location %d.\n",
+		en_err(priv, "Fail to attach network rule at location %d\n",
 		       cmd->fs.location);
 		goto out_free_list;
 	}

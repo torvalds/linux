@@ -428,8 +428,7 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 	} else if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_IB) {
 		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS0_OFFSET);
 		if (field & QUERY_FUNC_CAP_FLAGS0_FORCE_PHY_WQE_GID) {
-			mlx4_err(dev, "phy_wqe_gid is "
-				 "enforced on this ib port\n");
+			mlx4_err(dev, "phy_wqe_gid is enforced on this ib port\n");
 			err = -EPROTONOSUPPORT;
 			goto out;
 		}
@@ -1054,10 +1053,10 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 		 */
 		lg = ffs(mlx4_icm_addr(&iter) | mlx4_icm_size(&iter)) - 1;
 		if (lg < MLX4_ICM_PAGE_SHIFT) {
-			mlx4_warn(dev, "Got FW area not aligned to %d (%llx/%lx).\n",
-				   MLX4_ICM_PAGE_SIZE,
-				   (unsigned long long) mlx4_icm_addr(&iter),
-				   mlx4_icm_size(&iter));
+			mlx4_warn(dev, "Got FW area not aligned to %d (%llx/%lx)\n",
+				  MLX4_ICM_PAGE_SIZE,
+				  (unsigned long long) mlx4_icm_addr(&iter),
+				  mlx4_icm_size(&iter));
 			err = -EINVAL;
 			goto out;
 		}
@@ -1093,14 +1092,14 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 
 	switch (op) {
 	case MLX4_CMD_MAP_FA:
-		mlx4_dbg(dev, "Mapped %d chunks/%d KB for FW.\n", tc, ts);
+		mlx4_dbg(dev, "Mapped %d chunks/%d KB for FW\n", tc, ts);
 		break;
 	case MLX4_CMD_MAP_ICM_AUX:
-		mlx4_dbg(dev, "Mapped %d chunks/%d KB for ICM aux.\n", tc, ts);
+		mlx4_dbg(dev, "Mapped %d chunks/%d KB for ICM aux\n", tc, ts);
 		break;
 	case MLX4_CMD_MAP_ICM:
-		mlx4_dbg(dev, "Mapped %d chunks/%d KB at %llx for ICM.\n",
-			  tc, ts, (unsigned long long) virt - (ts << 10));
+		mlx4_dbg(dev, "Mapped %d chunks/%d KB at %llx for ICM\n",
+			 tc, ts, (unsigned long long) virt - (ts << 10));
 		break;
 	}
 
@@ -1186,14 +1185,13 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 	MLX4_GET(cmd_if_rev, outbox, QUERY_FW_CMD_IF_REV_OFFSET);
 	if (cmd_if_rev < MLX4_COMMAND_INTERFACE_MIN_REV ||
 	    cmd_if_rev > MLX4_COMMAND_INTERFACE_MAX_REV) {
-		mlx4_err(dev, "Installed FW has unsupported "
-			 "command interface revision %d.\n",
+		mlx4_err(dev, "Installed FW has unsupported command interface revision %d\n",
 			 cmd_if_rev);
 		mlx4_err(dev, "(Installed FW version is %d.%d.%03d)\n",
 			 (int) (dev->caps.fw_ver >> 32),
 			 (int) (dev->caps.fw_ver >> 16) & 0xffff,
 			 (int) dev->caps.fw_ver & 0xffff);
-		mlx4_err(dev, "This driver version supports only revisions %d to %d.\n",
+		mlx4_err(dev, "This driver version supports only revisions %d to %d\n",
 			 MLX4_COMMAND_INTERFACE_MIN_REV, MLX4_COMMAND_INTERFACE_MAX_REV);
 		err = -ENODEV;
 		goto out;

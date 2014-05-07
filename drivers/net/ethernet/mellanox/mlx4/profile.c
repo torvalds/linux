@@ -164,18 +164,17 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 		}
 
 		if (total_size > dev_cap->max_icm_sz) {
-			mlx4_err(dev, "Profile requires 0x%llx bytes; "
-				  "won't fit in 0x%llx bytes of context memory.\n",
-				  (unsigned long long) total_size,
-				  (unsigned long long) dev_cap->max_icm_sz);
+			mlx4_err(dev, "Profile requires 0x%llx bytes; won't fit in 0x%llx bytes of context memory\n",
+				 (unsigned long long) total_size,
+				 (unsigned long long) dev_cap->max_icm_sz);
 			kfree(profile);
 			return -ENOMEM;
 		}
 
 		if (profile[i].size)
-			mlx4_dbg(dev, "  profile[%2d] (%6s): 2^%02d entries @ 0x%10llx, "
-				  "size 0x%10llx\n",
-				 i, res_name[profile[i].type], profile[i].log_num,
+			mlx4_dbg(dev, "  profile[%2d] (%6s): 2^%02d entries @ 0x%10llx, size 0x%10llx\n",
+				 i, res_name[profile[i].type],
+				 profile[i].log_num,
 				 (unsigned long long) profile[i].start,
 				 (unsigned long long) profile[i].size);
 	}

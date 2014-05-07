@@ -125,8 +125,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 						   &cq->vector)) {
 					cq->vector = (cq->ring + 1 + priv->port)
 					    % mdev->dev->caps.num_comp_vectors;
-					mlx4_warn(mdev, "Failed Assigning an EQ to "
-						  "%s ,Falling back to legacy EQ's\n",
+					mlx4_warn(mdev, "Failed assigning an EQ to %s, falling back to legacy EQ's\n",
 						  name);
 				}
 			}
