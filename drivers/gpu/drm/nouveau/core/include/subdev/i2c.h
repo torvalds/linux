@@ -33,7 +33,7 @@ struct nouveau_i2c_func {
 	int  (*sense_scl)(struct nouveau_i2c_port *);
 	int  (*sense_sda)(struct nouveau_i2c_port *);
 
-	int  (*aux)(struct nouveau_i2c_port *, u8, u32, u8 *, u8);
+	int  (*aux)(struct nouveau_i2c_port *, bool, u8, u32, u8 *, u8);
 	int  (*pattern)(struct nouveau_i2c_port *, int pattern);
 	int  (*lnk_ctl)(struct nouveau_i2c_port *, int nr, int bw, bool enh);
 	int  (*drv_ctl)(struct nouveau_i2c_port *, int lane, int sw, int pe);

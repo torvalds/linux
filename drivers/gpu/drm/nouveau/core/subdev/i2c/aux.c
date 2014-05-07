@@ -30,7 +30,7 @@ nv_rdaux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 	if (port->func->aux) {
 		if (port->func->acquire)
 			port->func->acquire(port);
-		return port->func->aux(port, 9, addr, data, size);
+		return port->func->aux(port, true, 9, addr, data, size);
 	}
 	return -ENODEV;
 }
@@ -41,7 +41,7 @@ nv_wraux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 	if (port->func->aux) {
 		if (port->func->acquire)
 			port->func->acquire(port);
-		return port->func->aux(port, 8, addr, data, size);
+		return port->func->aux(port, true, 8, addr, data, size);
 	}
 	return -ENODEV;
 }
@@ -74,7 +74,7 @@ aux_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (mcnt || remaining > 16)
 				cmd |= 4; /* MOT */
 
-			ret = port->func->aux(port, cmd, msg->addr, ptr, cnt);
+			ret = port->func->aux(port, true, cmd, msg->addr, ptr, cnt);
 			if (ret < 0)
 				return ret;
 

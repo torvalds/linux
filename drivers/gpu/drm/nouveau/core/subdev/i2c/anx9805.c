@@ -60,7 +60,8 @@ anx9805_train(struct nouveau_i2c_port *port, int link_nr, int link_bw, bool enh)
 }
 
 static int
-anx9805_aux(struct nouveau_i2c_port *port, u8 type, u32 addr, u8 *data, u8 size)
+anx9805_aux(struct nouveau_i2c_port *port, bool retry,
+	    u8 type, u32 addr, u8 *data, u8 size)
 {
 	struct anx9805_i2c_port *chan = (void *)port;
 	struct nouveau_i2c_port *mast = (void *)nv_object(chan)->parent;

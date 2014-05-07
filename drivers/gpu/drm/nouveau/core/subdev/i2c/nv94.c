@@ -69,7 +69,8 @@ auxch_init(struct nouveau_i2c *aux, int ch)
 }
 
 int
-nv94_aux(struct nouveau_i2c_port *base, u8 type, u32 addr, u8 *data, u8 size)
+nv94_aux(struct nouveau_i2c_port *base, bool retry,
+	 u8 type, u32 addr, u8 *data, u8 size)
 {
 	struct nouveau_i2c *aux = nouveau_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
@@ -105,9 +106,8 @@ nv94_aux(struct nouveau_i2c_port *base, u8 type, u32 addr, u8 *data, u8 size)
 	ctrl |= size - 1;
 	nv_wr32(aux, 0x00e4e0 + (ch * 0x50), addr);
 
-	/* retry transaction a number of times on failure... */
-	ret = -EREMOTEIO;
-	for (retries = 0; retries < 32; retries++) {
+	/* (maybe) retry transaction a number of times on failure... */
+	for (retries = 0; !ret && retries < 32; retries++) {
 		/* reset, and delay a while if this is a retry */
 		nv_wr32(aux, 0x00e4e4 + (ch * 0x50), 0x80000000 | ctrl);
 		nv_wr32(aux, 0x00e4e4 + (ch * 0x50), 0x00000000 | ctrl);
@@ -123,16 +123,21 @@ nv94_aux(struct nouveau_i2c_port *base, u8 type, u32 addr, u8 *data, u8 size)
 			udelay(1);
 			if (!timeout--) {
 				AUX_ERR("tx req timeout 0x%08x\n", ctrl);
+				ret = -EIO;
 				goto out;
 			}
 		} while (ctrl & 0x00010000);
+		ret = 1;
 
 		/* read status, and check if transaction completed ok */
 		stat = nv_mask(aux, 0x00e4e8 + (ch * 0x50), 0, 0);
-		if (!(stat & 0x000f0f00)) {
-			ret = 0;
-			break;
-		}
+		if ((stat & 0x000f0000) == 0x00080000 ||
+		    (stat & 0x000f0000) == 0x00020000)
+			ret = retry ? 0 : 1;
+		if ((stat & 0x00000100))
+			ret = -ETIMEDOUT;
+		if ((stat & 0x00000e00))
+			ret = -EIO;
 
 		AUX_DBG("%02d 0x%08x 0x%08x\n", retries, ctrl, stat);
 	}
@@ -147,7 +152,7 @@ nv94_aux(struct nouveau_i2c_port *base, u8 type, u32 addr, u8 *data, u8 size)
 
 out:
 	auxch_fini(aux, ch);
-	return ret;
+	return ret < 0 ? ret : (stat & 0x000f0000) >> 16;
 }
 
 void
