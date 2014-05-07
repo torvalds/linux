@@ -7350,12 +7350,15 @@ static int rtw_mp_QueryDrv(struct net_device *dev,
 	char	*input = kmalloc(wrqu->data.length, GFP_KERNEL);
 	u8 qAutoLoad = 1;
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	int ret = 0;
 
 	if (!input)
 		return -ENOMEM;
 
-	if (copy_from_user(input, wrqu->data.pointer, wrqu->data.length))
-			return -EFAULT;
+	if (copy_from_user(input, wrqu->data.pointer, wrqu->data.length)) {
+		ret = -EFAULT;
+		goto exit;
+	}
 	DBG_88E("%s:iwpriv in =%s\n", __func__, input);
 
 	qAutoLoad = strncmp(input, "autoload", 8); /*  strncmp true is 0 */
@@ -7369,8 +7372,10 @@ static int rtw_mp_QueryDrv(struct net_device *dev,
 		sprintf(extra, "ok");
 	}
 	wrqu->data.length = strlen(extra) + 1;
+
+exit:
 	kfree(input);
-	return 0;
+	return ret;
 }
 
 static int rtw_mp_set(struct net_device *dev,
