@@ -151,11 +151,6 @@ out:
 	return 0;
 }
 
-int arch_show_interrupts(struct seq_file *p, int prec)
-{
-	return 0;
-}
-
 /*
  * Switch to the asynchronous interrupt stack for softirq execution.
  */
