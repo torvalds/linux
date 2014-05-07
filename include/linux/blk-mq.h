@@ -21,6 +21,8 @@ struct blk_mq_hw_ctx {
 	struct delayed_work	run_work;
 	struct delayed_work	delay_work;
 	cpumask_var_t		cpumask;
+	int			next_cpu;
+	int			next_cpu_batch;
 
 	unsigned long		flags;		/* BLK_MQ_F_* flags */
 
@@ -126,6 +128,8 @@ enum {
 	BLK_MQ_S_STOPPED	= 0,
 
 	BLK_MQ_MAX_DEPTH	= 2048,
+
+	BLK_MQ_CPU_WORK_BATCH	= 8,
 };
 
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *);

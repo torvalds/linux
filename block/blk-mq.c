@@ -670,6 +670,30 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 	}
 }
 
+/*
+ * It'd be great if the workqueue API had a way to pass
+ * in a mask and had some smarts for more clever placement.
+ * For now we just round-robin here, switching for every
+ * BLK_MQ_CPU_WORK_BATCH queued items.
+ */
+static int blk_mq_hctx_next_cpu(struct blk_mq_hw_ctx *hctx)
+{
+	int cpu = hctx->next_cpu;
+
+	if (--hctx->next_cpu_batch <= 0) {
+		int next_cpu;
+
+		next_cpu = cpumask_next(hctx->next_cpu, hctx->cpumask);
+		if (next_cpu >= nr_cpu_ids)
+			next_cpu = cpumask_first(hctx->cpumask);
+
+		hctx->next_cpu = next_cpu;
+		hctx->next_cpu_batch = BLK_MQ_CPU_WORK_BATCH;
+	}
+
+	return cpu;
+}
+
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
 	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->state)))
@@ -682,13 +706,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 	else {
 		unsigned int cpu;
 
-		/*
-		 * It'd be great if the workqueue API had a way to pass
-		 * in a mask and had some smarts for more clever placement
-		 * than the first CPU. Or we could round-robin here. For now,
-		 * just queue on the first CPU.
-		 */
-		cpu = cpumask_first(hctx->cpumask);
+		cpu = blk_mq_hctx_next_cpu(hctx);
 		kblockd_schedule_delayed_work_on(cpu, &hctx->run_work, 0);
 	}
 }
@@ -795,13 +813,7 @@ void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
 	else {
 		unsigned int cpu;
 
-		/*
-		 * It'd be great if the workqueue API had a way to pass
-		 * in a mask and had some smarts for more clever placement
-		 * than the first CPU. Or we could round-robin here. For now,
-		 * just queue on the first CPU.
-		 */
-		cpu = cpumask_first(hctx->cpumask);
+		cpu = blk_mq_hctx_next_cpu(hctx);
 		kblockd_schedule_delayed_work_on(cpu, &hctx->delay_work, tmo);
 	}
 }
@@ -1377,6 +1389,11 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 		cpumask_set_cpu(i, hctx->cpumask);
 		ctx->index_hw = hctx->nr_ctx;
 		hctx->ctxs[hctx->nr_ctx++] = ctx;
+	}
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		hctx->next_cpu = cpumask_first(hctx->cpumask);
+		hctx->next_cpu_batch = BLK_MQ_CPU_WORK_BATCH;
 	}
 }
 
