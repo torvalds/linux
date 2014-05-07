@@ -191,6 +191,16 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		},
 	},
 
+	/* Certec */
+	{       /* Handle problems with rebooting on Certec BPC600 */
+		.callback = set_pci_reboot,
+		.ident = "Certec BPC600",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Certec"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "BPC600"),
+		},
+	},
+
 	/* Dell */
 	{	/* Handle problems with rebooting on Dell DXP061 */
 		.callback = set_bios_reboot,
