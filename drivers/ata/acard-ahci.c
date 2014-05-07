@@ -77,7 +77,7 @@ static bool acard_ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int acard_ahci_port_start(struct ata_port *ap);
 static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int acard_ahci_pci_device_resume(struct pci_dev *pdev);
 #endif
@@ -118,13 +118,13 @@ static struct pci_driver acard_ahci_pci_driver = {
 	.id_table		= acard_ahci_pci_tbl,
 	.probe			= acard_ahci_init_one,
 	.remove			= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= acard_ahci_pci_device_suspend,
 	.resume			= acard_ahci_pci_device_resume,
 #endif
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);

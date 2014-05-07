@@ -249,7 +249,7 @@ static int hpt3x3_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				 IRQF_SHARED, &hpt3x3_sht);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int hpt3x3_reinit_one(struct pci_dev *dev)
 {
 	struct ata_host *host = pci_get_drvdata(dev);
@@ -277,7 +277,7 @@ static struct pci_driver hpt3x3_pci_driver = {
 	.id_table	= hpt3x3,
 	.probe 		= hpt3x3_init_one,
 	.remove		= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= ata_pci_device_suspend,
 	.resume		= hpt3x3_reinit_one,
 #endif
