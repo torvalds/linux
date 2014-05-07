@@ -337,7 +337,7 @@ static struct nand_ecclayout ecc_layout_4KB_bch8bit = {
 /* convert nano-seconds to nand flash controller clock cycles */
 #define ns2cycle(ns, clk)	(int)((ns) * (clk / 1000000) / 1000)
 
-static struct of_device_id pxa3xx_nand_dt_ids[] = {
+static const struct of_device_id pxa3xx_nand_dt_ids[] = {
 	{
 		.compatible = "marvell,pxa3xx-nand",
 		.data       = (void *)PXA3XX_NAND_VARIANT_PXA,
