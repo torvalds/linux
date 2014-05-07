@@ -231,8 +231,20 @@ out_free_pmc:
 static const struct of_device_id pmc_clk_ids[] __initconst = {
 	/* Main clock */
 	{
+		.compatible = "atmel,at91rm9200-clk-main-osc",
+		.data = of_at91rm9200_clk_main_osc_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-clk-main-rc-osc",
+		.data = of_at91sam9x5_clk_main_rc_osc_setup,
+	},
+	{
 		.compatible = "atmel,at91rm9200-clk-main",
 		.data = of_at91rm9200_clk_main_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-clk-main",
+		.data = of_at91sam9x5_clk_main_setup,
 	},
 	/* PLL clocks */
 	{
