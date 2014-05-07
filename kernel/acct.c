@@ -599,34 +599,35 @@ void acct_collect(long exitcode, int group_dead)
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
-static void acct_process_in_ns(struct pid_namespace *ns)
+static void slow_acct_process(struct pid_namespace *ns)
 {
-	struct file *file = NULL;
-	struct bsd_acct_struct *acct;
+	for ( ; ns; ns = ns->parent) {
+		struct file *file = NULL;
+		struct bsd_acct_struct *acct;
 
-	acct = ns->bacct;
-	/*
-	 * accelerate the common fastpath:
-	 */
-	if (!acct || !acct->file)
-		return;
+		acct = ns->bacct;
+		/*
+		 * accelerate the common fastpath:
+		 */
+		if (!acct || !acct->file)
+			continue;
 
-	spin_lock(&acct_lock);
-	file = acct->file;
-	if (unlikely(!file)) {
+		spin_lock(&acct_lock);
+		file = acct->file;
+		if (unlikely(!file)) {
+			spin_unlock(&acct_lock);
+			continue;
+		}
+		get_file(file);
 		spin_unlock(&acct_lock);
-		return;
-	}
-	get_file(file);
-	spin_unlock(&acct_lock);
 
-	do_acct_process(acct, ns, file);
-	fput(file);
+		do_acct_process(acct, ns, file);
+		fput(file);
+	}
 }
 
 /**
- * acct_process - now just a wrapper around acct_process_in_ns,
- * which in turn is a wrapper around do_acct_process.
+ * acct_process
  *
  * handles process accounting for an exiting task
  */
@@ -639,6 +640,11 @@ void acct_process(void)
 	 * alive and holds its namespace, which in turn holds
 	 * its parent.
 	 */
-	for (ns = task_active_pid_ns(current); ns != NULL; ns = ns->parent)
-		acct_process_in_ns(ns);
+	for (ns = task_active_pid_ns(current); ns != NULL; ns = ns->parent) {
+		struct bsd_acct_struct *acct = ns->bacct;
+		if (acct && acct->file)
+			break;
+	}
+	if (unlikely(ns))
+		slow_acct_process(ns);
 }
