@@ -551,6 +551,8 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 		case OVS_ACTION_ATTR_SAMPLE:
 			err = sample(dp, skb, a);
+			if (unlikely(err)) /* skb already freed. */
+				return err;
 			break;
 		}
 
