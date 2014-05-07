@@ -752,20 +752,17 @@ static int es8323_set_bias_level(struct snd_soc_codec *codec,
 		dev_dbg(codec->dev, "%s prepare\n", __func__);
 		snd_soc_write(codec, ES8323_ANAVOLMANAG, 0x7C);
 		snd_soc_write(codec, ES8323_CHIPLOPOW1, 0x00);
-		snd_soc_write(codec, ES8323_CHIPLOPOW2, 0x00);							
-		snd_soc_write(codec, ES8323_ADCPOWER, 0x00);
+		snd_soc_write(codec, ES8323_CHIPLOPOW2, 0x00);
+		snd_soc_write(codec, ES8323_CHIPPOWER, 0x00);							
+		snd_soc_write(codec, ES8323_ADCPOWER, 0x59);
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		dev_dbg(codec->dev, "%s standby\n", __func__);
-		snd_soc_write(codec, ES8323_ADCPOWER, 0xFF);
-		snd_soc_write(codec, ES8323_CHIPLOPOW1, 0xFF);
-		snd_soc_write(codec, ES8323_CHIPLOPOW2, 0xFF);
-		snd_soc_write(codec, ES8323_ANAVOLMANAG, 0x7B);
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
-		{
-			snd_soc_write(codec, ES8323_CHIPPOWER, 0x00);
-			snd_soc_write(codec, ES8323_DACPOWER, 0x2C);
-		}
+	  	snd_soc_write(codec, ES8323_ANAVOLMANAG, 0x7C);
+  		snd_soc_write(codec, ES8323_CHIPLOPOW1, 0x00);
+	  	snd_soc_write(codec, ES8323_CHIPLOPOW2, 0x00);							
+		snd_soc_write(codec, ES8323_CHIPPOWER, 0x00);	
+		snd_soc_write(codec, ES8323_ADCPOWER, 0x59);
 		break;
 	case SND_SOC_BIAS_OFF:
 		dev_dbg(codec->dev, "%s off\n", __func__);
