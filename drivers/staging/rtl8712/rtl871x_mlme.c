@@ -1243,14 +1243,15 @@ sint r8712_set_key(struct _adapter *adapter,
 	struct cmd_obj *pcmd;
 	struct setkey_parm *psetkeyparm;
 	u8 keylen;
+	sint ret = _SUCCESS;
 
 	pcmd = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
 	if (pcmd == NULL)
 		return _FAIL;
 	psetkeyparm = (struct setkey_parm *)_malloc(sizeof(struct setkey_parm));
 	if (psetkeyparm == NULL) {
-		kfree((unsigned char *)pcmd);
-		return _FAIL;
+		ret = _FAIL;
+		goto err_free_cmd;
 	}
 	memset(psetkeyparm, 0, sizeof(struct setkey_parm));
 	if (psecuritypriv->AuthAlgrthm == 2) { /* 802.1X */
@@ -1274,23 +1275,28 @@ sint r8712_set_key(struct _adapter *adapter,
 			psecuritypriv->DefKey[keyid].skey, keylen);
 		break;
 	case _TKIP_:
-		if (keyid < 1 || keyid > 2)
-			return _FAIL;
+		if (keyid < 1 || keyid > 2) {
+			ret = _FAIL;
+			goto err_free_parm;
+		}
 		keylen = 16;
 		memcpy(psetkeyparm->key,
 			&psecuritypriv->XGrpKey[keyid - 1], keylen);
 		psetkeyparm->grpkey = 1;
 		break;
 	case _AES_:
-		if (keyid < 1 || keyid > 2)
-			return _FAIL;
+		if (keyid < 1 || keyid > 2) {
+			ret = _FAIL;
+			goto err_free_parm;
+		}
 		keylen = 16;
 		memcpy(psetkeyparm->key,
 			&psecuritypriv->XGrpKey[keyid - 1], keylen);
 		psetkeyparm->grpkey = 1;
 		break;
 	default:
-		return _FAIL;
+		ret = _FAIL;
+		goto err_free_parm;
 	}
 	pcmd->cmdcode = _SetKey_CMD_;
 	pcmd->parmbuf = (u8 *)psetkeyparm;
@@ -1299,7 +1305,13 @@ sint r8712_set_key(struct _adapter *adapter,
 	pcmd->rspsz = 0;
 	_init_listhead(&pcmd->list);
 	r8712_enqueue_cmd(pcmdpriv, pcmd);
-	return _SUCCESS;
+	return ret;
+
+err_free_parm:
+	kfree(psetkeyparm);
+err_free_cmd:
+	kfree(pcmd);
+	return ret;
 }
 
 /* adjust IEs for r8712_joinbss_cmd in WMM */
