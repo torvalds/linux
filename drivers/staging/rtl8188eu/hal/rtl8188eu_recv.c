@@ -97,7 +97,7 @@ void rtl8188eu_free_recv_priv(struct adapter *padapter)
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		rtw_os_recvbuf_resource_free(padapter, precvbuf);
+		usb_free_urb(precvbuf->purb);
 		precvbuf++;
 	}
 

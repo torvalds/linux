@@ -42,7 +42,6 @@ int rtw_os_recv_resource_alloc(struct adapter *adapt,
 			       struct recv_frame *recvfr);
 
 int rtw_os_recvbuf_resource_alloc(struct adapter *adapt, struct recv_buf *buf);
-int rtw_os_recvbuf_resource_free(struct adapter *adapt, struct recv_buf *buf);
 
 void rtw_os_read_port(struct adapter *padapter, struct recv_buf *precvbuf);
 
