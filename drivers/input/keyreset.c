@@ -1,6 +1,6 @@
 /* drivers/input/keyreset.c
  *
- * Copyright (C) 2008 Google, Inc.
+ * Copyright (C) 2014 Google, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -21,200 +21,104 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
-
+#include <linux/keycombo.h>
 
 struct keyreset_state {
-	struct input_handler input_handler;
-	unsigned long keybit[BITS_TO_LONGS(KEY_CNT)];
-	unsigned long upbit[BITS_TO_LONGS(KEY_CNT)];
-	unsigned long key[BITS_TO_LONGS(KEY_CNT)];
-	spinlock_t lock;
-	int key_down_target;
-	int key_down;
-	int key_up;
-	int restart_disabled;
+	int restart_requested;
 	int (*reset_fn)(void);
+	struct platform_device *pdev_child;
 };
 
-int restart_requested;
-static void deferred_restart(struct work_struct *dummy)
+static void do_restart(void)
 {
-	restart_requested = 2;
 	sys_sync();
-	restart_requested = 3;
 	kernel_restart(NULL);
 }
-static DECLARE_WORK(restart_work, deferred_restart);
 
-static void keyreset_event(struct input_handle *handle, unsigned int type,
-			   unsigned int code, int value)
+static void do_reset_fn(void *priv)
 {
-	unsigned long flags;
-	struct keyreset_state *state = handle->private;
-
-	if (type != EV_KEY)
-		return;
-
-	if (code >= KEY_MAX)
-		return;
-
-	if (!test_bit(code, state->keybit))
-		return;
-
-	spin_lock_irqsave(&state->lock, flags);
-	if (!test_bit(code, state->key) == !value)
-		goto done;
-	__change_bit(code, state->key);
-	if (test_bit(code, state->upbit)) {
-		if (value) {
-			state->restart_disabled = 1;
-			state->key_up++;
-		} else
-			state->key_up--;
+	struct keyreset_state *state = priv;
+	if (state->restart_requested)
+		panic("keyboard reset failed, %d", state->restart_requested);
+	if (state->reset_fn) {
+		state->restart_requested = state->reset_fn();
 	} else {
-		if (value)
-			state->key_down++;
-		else
-			state->key_down--;
+		pr_info("keyboard reset\n");
+		do_restart();
+		state->restart_requested = 1;
 	}
-	if (state->key_down == 0 && state->key_up == 0)
-		state->restart_disabled = 0;
-
-	pr_debug("reset key changed %d %d new state %d-%d-%d\n", code, value,
-		 state->key_down, state->key_up, state->restart_disabled);
-
-	if (value && !state->restart_disabled &&
-	    state->key_down == state->key_down_target) {
-		state->restart_disabled = 1;
-		if (restart_requested)
-			panic("keyboard reset failed, %d", restart_requested);
-		if (state->reset_fn) {
-			restart_requested = state->reset_fn();
-		} else {
-			pr_info("keyboard reset\n");
-			schedule_work(&restart_work);
-			restart_requested = 1;
-		}
-	}
-done:
-	spin_unlock_irqrestore(&state->lock, flags);
 }
-
-static int keyreset_connect(struct input_handler *handler,
-					  struct input_dev *dev,
-					  const struct input_device_id *id)
-{
-	int i;
-	int ret;
-	struct input_handle *handle;
-	struct keyreset_state *state =
-		container_of(handler, struct keyreset_state, input_handler);
-
-	for (i = 0; i < KEY_MAX; i++) {
-		if (test_bit(i, state->keybit) && test_bit(i, dev->keybit))
-			break;
-	}
-	if (i == KEY_MAX)
-		return -ENODEV;
-
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
-	if (!handle)
-		return -ENOMEM;
-
-	handle->dev = dev;
-	handle->handler = handler;
-	handle->name = "keyreset";
-	handle->private = state;
-
-	ret = input_register_handle(handle);
-	if (ret)
-		goto err_input_register_handle;
-
-	ret = input_open_device(handle);
-	if (ret)
-		goto err_input_open_device;
-
-	pr_info("using input dev %s for key reset\n", dev->name);
-
-	return 0;
-
-err_input_open_device:
-	input_unregister_handle(handle);
-err_input_register_handle:
-	kfree(handle);
-	return ret;
-}
-
-static void keyreset_disconnect(struct input_handle *handle)
-{
-	input_close_device(handle);
-	input_unregister_handle(handle);
-	kfree(handle);
-}
-
-static const struct input_device_id keyreset_ids[] = {
-	{
-		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
-		.evbit = { BIT_MASK(EV_KEY) },
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(input, keyreset_ids);
 
 static int keyreset_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret = -ENOMEM;
+	struct keycombo_platform_data *pdata_child;
+	struct keyreset_platform_data *pdata = pdev->dev.platform_data;
+	int up_size = 0, down_size = 0, size;
 	int key, *keyp;
 	struct keyreset_state *state;
-	struct keyreset_platform_data *pdata = pdev->dev.platform_data;
 
 	if (!pdata)
 		return -EINVAL;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc(&pdev->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
-	spin_lock_init(&state->lock);
+	state->pdev_child = platform_device_alloc(KEYCOMBO_NAME,
+							PLATFORM_DEVID_AUTO);
+	if (!state->pdev_child)
+		return -ENOMEM;
+	state->pdev_child->dev.parent = &pdev->dev;
+
 	keyp = pdata->keys_down;
 	while ((key = *keyp++)) {
 		if (key >= KEY_MAX)
 			continue;
-		state->key_down_target++;
-		__set_bit(key, state->keybit);
+		down_size++;
 	}
 	if (pdata->keys_up) {
 		keyp = pdata->keys_up;
 		while ((key = *keyp++)) {
 			if (key >= KEY_MAX)
 				continue;
-			__set_bit(key, state->keybit);
-			__set_bit(key, state->upbit);
+			up_size++;
 		}
 	}
-
-	if (pdata->reset_fn)
-		state->reset_fn = pdata->reset_fn;
-
-	state->input_handler.event = keyreset_event;
-	state->input_handler.connect = keyreset_connect;
-	state->input_handler.disconnect = keyreset_disconnect;
-	state->input_handler.name = KEYRESET_NAME;
-	state->input_handler.id_table = keyreset_ids;
-	ret = input_register_handler(&state->input_handler);
-	if (ret) {
-		kfree(state);
-		return ret;
+	size = sizeof(struct keycombo_platform_data)
+			+ sizeof(int) * (down_size + 1);
+	pdata_child = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!pdata_child)
+		goto error;
+	memcpy(pdata_child->keys_down, pdata->keys_down,
+						sizeof(int) * down_size);
+	if (up_size > 0) {
+		pdata_child->keys_up = devm_kzalloc(&pdev->dev, up_size + 1,
+								GFP_KERNEL);
+		if (!pdata_child->keys_up)
+			goto error;
+		memcpy(pdata_child->keys_up, pdata->keys_up,
+							sizeof(int) * up_size);
+		if (!pdata_child->keys_up)
+			goto error;
 	}
+	state->reset_fn = pdata->reset_fn;
+	pdata_child->key_down_fn = do_reset_fn;
+	pdata_child->priv = state;
+	pdata_child->key_down_delay = pdata->key_down_delay;
+	ret = platform_device_add_data(state->pdev_child, pdata_child, size);
+	if (ret)
+		goto error;
 	platform_set_drvdata(pdev, state);
-	return 0;
+	return platform_device_add(state->pdev_child);
+error:
+	platform_device_put(state->pdev_child);
+	return ret;
 }
 
 int keyreset_remove(struct platform_device *pdev)
 {
 	struct keyreset_state *state = platform_get_drvdata(pdev);
-	input_unregister_handler(&state->input_handler);
-	kfree(state);
+	platform_device_put(state->pdev_child);
 	return 0;
 }
 
