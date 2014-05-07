@@ -69,8 +69,10 @@
 *        3) add soft rest callback;
 *v0.7.0:
 *        1) check extdev is activate or not before delete from camsys_dev active list;
+*v0.8.0:
+*        1) fix deregister a unregister extdev oops in camsys_extdev_deregister;
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,7,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,8,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"

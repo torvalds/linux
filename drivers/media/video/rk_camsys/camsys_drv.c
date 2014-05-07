@@ -263,7 +263,7 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
         }
 
         extdev = camsys_find_extdev(dev_id, camsys_dev);
-        if (extdev != NULL) {
+        if (extdev == NULL) {
             err = -EINVAL;
             camsys_warn("Extdev(dev_id: 0x%x) isn't registered in %s!",
                 dev_id, dev_name(camsys_dev->miscdev.this_device));
@@ -294,9 +294,11 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
         list_del_init(&extdev->active);
         //spin_unlock(&camsys_dev->lock);
         mutex_unlock(&camsys_dev->extdevs.mut);
+        
+        camsys_trace(1,"Extdev(dev_id: 0x%x) is deregister success", extdev->dev_id);
         kfree(extdev);
         extdev = NULL;
-        camsys_trace(1,"Extdev(dev_id: 0x%x) is deregister success", extdev->dev_id);
+        
     } else {
         //spin_lock(&camsys_dev->lock);
         mutex_lock(&camsys_dev->extdevs.mut);
