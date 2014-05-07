@@ -30,7 +30,7 @@
 extern int codec_type;
 #endif
 
-#if 1
+#if 0
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
@@ -130,6 +130,7 @@ static int rk29_es8323_init(struct snd_soc_pcm_runtime *rtd)
 	}
 	
     /* Add specific widgets */
+#if 0
 	snd_soc_dapm_new_controls(dapm, rk29_dapm_widgets,
 				  ARRAY_SIZE(rk29_dapm_widgets));
   	//snd_soc_dapm_nc_pin(codec, "LOUT2");
@@ -139,7 +140,7 @@ static int rk29_es8323_init(struct snd_soc_pcm_runtime *rtd)
         snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
        
         snd_soc_dapm_sync(dapm);
- 
+#endif
     return 0;
 }
 
