@@ -4735,10 +4735,9 @@ static void bp_tpl_timer_fn(unsigned long param)
 
 static void remove_bypass_tpl_auto(struct bpctl_dev *pbpctl_dev)
 {
-	struct bpctl_dev *pbpctl_dev_b = NULL;
+	struct bpctl_dev *pbpctl_dev_b;
 	if (!pbpctl_dev)
 		return;
-	pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
 
 	if (pbpctl_dev->bp_caps & TPL_CAP) {
 		del_timer_sync(&pbpctl_dev->bp_tpl_timer);
@@ -4785,11 +4784,9 @@ static int set_bypass_tpl_auto(struct bpctl_dev *pbpctl_dev, unsigned int param)
 static int set_tpl_fn(struct bpctl_dev *pbpctl_dev, int tpl_mode)
 {
 
-	struct bpctl_dev *pbpctl_dev_b = NULL;
+	struct bpctl_dev *pbpctl_dev_b;
 	if (!pbpctl_dev)
 		return -1;
-
-	pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
 
 	if (pbpctl_dev->bp_caps & TPL_CAP) {
 		if (tpl_mode) {
