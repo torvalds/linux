@@ -183,6 +183,15 @@ config INPUT_KEYRESET
 	  To compile this driver as a module, choose M here: the
 	  module will be called keyreset.
 
+config INPUT_KEYCOMBO
+	tristate "Key combo"
+	depends on INPUT
+	---help---
+	  Say Y here if you want to take action when some keys are pressed;
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keycombo.
+
 comment "Input Device Drivers"
 
 source "drivers/input/keyboard/Kconfig"
