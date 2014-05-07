@@ -158,6 +158,18 @@
 	};
 };
 
+&ether {
+	pinctrl-0 = <&ether_pins>;
+	pinctrl-names = "default";
+
+	phy-handle = <&phy0>;
+	status = "ok";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
 &i2c0 {
 	status = "okay";
 	touchscreen@55 {
@@ -188,6 +200,11 @@
 &pfc {
 	pinctrl-0 = <&scifa1_pins>;
 	pinctrl-names = "default";
+
+	ether_pins: ether {
+		renesas,groups = "gether_mii", "gether_int";
+		renesas,function = "gether";
+	};
 
 	scifa1_pins: serial1 {
 		renesas,groups = "scifa1_data";
