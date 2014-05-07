@@ -692,22 +692,11 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	saddr = &ipv6_hdr(skb)->saddr;
 	daddr = &ipv6_hdr(skb)->daddr;
 
-	/* Perform checksum. */
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (!csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
-				     skb->csum))
-			break;
-		/* fall through */
-	case CHECKSUM_NONE:
-		skb->csum = ~csum_unfold(csum_ipv6_magic(saddr, daddr, skb->len,
-					     IPPROTO_ICMPV6, 0));
-		if (__skb_checksum_complete(skb)) {
-			LIMIT_NETDEBUG(KERN_DEBUG
-				       "ICMPv6 checksum failed [%pI6c > %pI6c]\n",
-				       saddr, daddr);
-			goto csum_error;
-		}
+	if (skb_checksum_validate(skb, IPPROTO_ICMPV6, ip6_compute_pseudo)) {
+		LIMIT_NETDEBUG(KERN_DEBUG
+			       "ICMPv6 checksum failed [%pI6c > %pI6c]\n",
+			       saddr, daddr);
+		goto csum_error;
 	}
 
 	if (!pskb_pull(skb, sizeof(*hdr)))
