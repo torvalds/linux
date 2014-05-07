@@ -800,7 +800,7 @@ static int timblogiw_probe(struct platform_device *pdev)
 	if (!pdata->encoder.module_name)
 		dev_info(&pdev->dev, "Running without decoder\n");
 
-	lw = kzalloc(sizeof(*lw), GFP_KERNEL);
+	lw = devm_kzalloc(&pdev->dev, sizeof(*lw), GFP_KERNEL);
 	if (!lw) {
 		err = -ENOMEM;
 		goto err;
@@ -820,7 +820,7 @@ static int timblogiw_probe(struct platform_device *pdev)
 	strlcpy(lw->v4l2_dev.name, DRIVER_NAME, sizeof(lw->v4l2_dev.name));
 	err = v4l2_device_register(NULL, &lw->v4l2_dev);
 	if (err)
-		goto err_register;
+		goto err;
 
 	lw->video_dev.v4l2_dev = &lw->v4l2_dev;
 
@@ -837,8 +837,6 @@ static int timblogiw_probe(struct platform_device *pdev)
 
 err_request:
 	v4l2_device_unregister(&lw->v4l2_dev);
-err_register:
-	kfree(lw);
 err:
 	dev_err(&pdev->dev, "Failed to register: %d\n", err);
 
@@ -852,8 +850,6 @@ static int timblogiw_remove(struct platform_device *pdev)
 	video_unregister_device(&lw->video_dev);
 
 	v4l2_device_unregister(&lw->v4l2_dev);
-
-	kfree(lw);
 
 	return 0;
 }
