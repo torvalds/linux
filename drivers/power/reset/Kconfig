@@ -43,6 +43,13 @@ config POWER_RESET_RESTART
 	  Instead they restart, and u-boot holds the SoC until the
 	  user presses a key. u-boot then boots into Linux.
 
+config POWER_RESET_SUN6I
+	bool "Allwinner A31 SoC reset driver"
+	depends on ARCH_SUNXI
+	depends on POWER_RESET
+	help
+	  Reboot support for the Allwinner A31 SoCs.
+
 config POWER_RESET_VEXPRESS
 	bool "ARM Versatile Express power-off and reset driver"
 	depends on ARM || ARM64
