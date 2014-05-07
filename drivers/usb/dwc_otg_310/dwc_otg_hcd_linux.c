@@ -1025,10 +1025,12 @@ static int urb_enqueue(struct usb_hcd *hcd,
 				     usb_maxpacket(urb->dev, urb->pipe,
 						   !(usb_pipein(urb->pipe))));
 
+#ifdef DEBUG
 	if((uint32_t)urb->transfer_buffer & 3){
 		DWC_PRINTF("%s urb->transfer_buffer address not align to 4-byte 0x%x\n", 
-			  __func__, (uint32_t)urb->transfer_buffer);
+			    __func__, (uint32_t)urb->transfer_buffer);
 	}
+#endif
 
 	buf = urb->transfer_buffer;
 
