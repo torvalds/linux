@@ -1798,6 +1798,10 @@ struct btrfs_root {
 
 	u64 highest_objectid;
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	u64 alloc_bytenr;
+#endif
+
 	u64 defrag_trans_start;
 	struct btrfs_key defrag_progress;
 	struct btrfs_key defrag_max;
@@ -4111,6 +4115,8 @@ static inline int btrfs_defrag_cancelled(struct btrfs_fs_info *fs_info)
 /* Sanity test specific functions */
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 void btrfs_test_destroy_inode(struct inode *inode);
+int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
+			       u64 rfer, u64 excl);
 #endif
 
 #endif

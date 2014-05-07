@@ -246,6 +246,21 @@ static int del_relation_rb(struct btrfs_fs_info *fs_info,
 	return -ENOENT;
 }
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
+			       u64 rfer, u64 excl)
+{
+	struct btrfs_qgroup *qgroup;
+
+	qgroup = find_qgroup_rb(fs_info, qgroupid);
+	if (!qgroup)
+		return -EINVAL;
+	if (qgroup->rfer != rfer || qgroup->excl != excl)
+		return -EINVAL;
+	return 0;
+}
+#endif
+
 /*
  * The full config is read in one go, only called from open_ctree()
  * It doesn't use any locking, as at this point we're still single-threaded
@@ -524,6 +539,10 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &quota_root->state)))
+		return 0;
+#endif
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -673,6 +692,10 @@ static int update_qgroup_info_item(struct btrfs_trans_handle *trans,
 	int ret;
 	int slot;
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state)))
+		return 0;
+#endif
 	key.objectid = 0;
 	key.type = BTRFS_QGROUP_INFO_KEY;
 	key.offset = qgroup->qgroupid;

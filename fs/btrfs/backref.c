@@ -900,7 +900,11 @@ again:
 		goto out;
 	BUG_ON(ret == 0);
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	if (trans && likely(trans->type != __TRANS_DUMMY)) {
+#else
 	if (trans) {
+#endif
 		/*
 		 * look if there are updates for this ref queued and lock the
 		 * head

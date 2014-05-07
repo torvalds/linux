@@ -4549,6 +4549,53 @@ struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 	return NULL;
 }
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
+					       u64 start, unsigned long len)
+{
+	struct extent_buffer *eb, *exists = NULL;
+	int ret;
+
+	eb = find_extent_buffer(fs_info, start);
+	if (eb)
+		return eb;
+	eb = alloc_dummy_extent_buffer(start, len);
+	if (!eb)
+		return NULL;
+	eb->fs_info = fs_info;
+again:
+	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	if (ret)
+		goto free_eb;
+	spin_lock(&fs_info->buffer_lock);
+	ret = radix_tree_insert(&fs_info->buffer_radix,
+				start >> PAGE_CACHE_SHIFT, eb);
+	spin_unlock(&fs_info->buffer_lock);
+	radix_tree_preload_end();
+	if (ret == -EEXIST) {
+		exists = find_extent_buffer(fs_info, start);
+		if (exists)
+			goto free_eb;
+		else
+			goto again;
+	}
+	check_buffer_tree_ref(eb);
+	set_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags);
+
+	/*
+	 * We will free dummy extent buffer's if they come into
+	 * free_extent_buffer with a ref count of 2, but if we are using this we
+	 * want the buffers to stay in memory until we're done with them, so
+	 * bump the ref count again.
+	 */
+	atomic_inc(&eb->refs);
+	return eb;
+free_eb:
+	btrfs_release_extent_buffer(eb);
+	return exists;
+}
+#endif
+
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start, unsigned long len)
 {
