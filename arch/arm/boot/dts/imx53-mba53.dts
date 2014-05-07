@@ -17,6 +17,10 @@
 	model = "TQ MBa53 starter kit";
 	compatible = "tq,mba53", "tq,tqma53", "fsl,imx53";
 
+	chosen {
+		stdout-path = &uart2;
+	};
+
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm2 0 50000>;

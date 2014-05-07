@@ -14,7 +14,7 @@
 	compatible = "zealz,imx6q-gk802", "fsl,imx6q";
 
 	chosen {
-		linux,stdout-path = &uart4;
+		stdout-path = &uart4;
 	};
 
 	memory {

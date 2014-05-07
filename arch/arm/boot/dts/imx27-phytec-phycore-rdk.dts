@@ -13,6 +13,10 @@
 	model = "Phytec pcm970";
 	compatible = "phytec,imx27-pcm970", "phytec,imx27-pcm038", "fsl,imx27";
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	display0: LQ035Q7 {
 		model = "Sharp-LQ035Q7";
 		native-mode = <&timing0>;

@@ -11,6 +11,10 @@
 	model = "SolidRun HummingBoard DL/Solo";
 	compatible = "solidrun,hummingboard", "fsl,imx6dl";
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	ir_recv: ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio1 2 1>;

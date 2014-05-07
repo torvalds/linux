@@ -16,6 +16,10 @@
 / {
 	model = "Phytec phyFLEX-i.MX6 Quad Carrier-Board";
 	compatible = "phytec,imx6q-pbab01", "phytec,imx6q-pfla02", "fsl,imx6q";
+
+	chosen {
+		stdout-path = &uart4;
+	};
 };
 
 &sata {

@@ -18,6 +18,10 @@
 	model = "Data Modul eDM-QMX6 Board";
 	compatible = "dmo,imx6q-edmqmx6", "fsl,imx6q";
 
+	chosen {
+		stdout-path = &uart2;
+	};
+
 	aliases {
 		gpio7 = &stmpe_gpio1;
 		gpio8 = &stmpe_gpio2;
