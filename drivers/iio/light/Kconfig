@@ -62,6 +62,18 @@ config GP2AP020A00F
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap020a00f.
 
+config ISL29125
+	tristate "Intersil ISL29125 digital color light sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build a driver for the Intersil ISL29125
+	  RGB light sensor for I2C.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called isl29125.
+
 config HID_SENSOR_ALS
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
