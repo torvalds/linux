@@ -194,6 +194,7 @@ extern struct list_head hist_entry__sort_list;
 
 int setup_sorting(void);
 int setup_output_field(void);
+void reset_output_field(void);
 extern int sort_dimension__add(const char *);
 void sort__setup_elide(FILE *fp);
 

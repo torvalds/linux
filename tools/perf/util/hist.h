@@ -174,8 +174,14 @@ extern struct list_head perf_hpp__sort_list;
 #define perf_hpp__for_each_format(format) \
 	list_for_each_entry(format, &perf_hpp__list, list)
 
+#define perf_hpp__for_each_format_safe(format, tmp)	\
+	list_for_each_entry_safe(format, tmp, &perf_hpp__list, list)
+
 #define perf_hpp__for_each_sort_list(format) \
 	list_for_each_entry(format, &perf_hpp__sort_list, sort_list)
+
+#define perf_hpp__for_each_sort_list_safe(format, tmp)	\
+	list_for_each_entry_safe(format, tmp, &perf_hpp__sort_list, sort_list)
 
 extern struct perf_hpp_fmt perf_hpp__format[];
 
@@ -197,6 +203,7 @@ void perf_hpp__column_register(struct perf_hpp_fmt *format);
 void perf_hpp__column_enable(unsigned col);
 void perf_hpp__register_sort_field(struct perf_hpp_fmt *format);
 void perf_hpp__setup_output_field(void);
+void perf_hpp__reset_output_field(void);
 void perf_hpp__append_sort_keys(void);
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
