@@ -476,7 +476,8 @@ static void iwl_set_hw_address(const struct iwl_cfg *cfg,
 	data->hw_addr[5] = hw_addr[4];
 }
 
-static void iwl_set_hw_address_family_8000(const struct iwl_cfg *cfg,
+static void iwl_set_hw_address_family_8000(struct device *dev,
+					   const struct iwl_cfg *cfg,
 					   struct iwl_nvm_data *data,
 					   const __le16 *mac_override,
 					   const __le16 *nvm_hw)
@@ -495,20 +496,28 @@ static void iwl_set_hw_address_family_8000(const struct iwl_cfg *cfg,
 		data->hw_addr[4] = hw_addr[5];
 		data->hw_addr[5] = hw_addr[4];
 
-		if (is_valid_ether_addr(hw_addr))
+		if (is_valid_ether_addr(data->hw_addr))
 			return;
+
+		IWL_ERR_DEV(dev,
+			    "mac address from nvm override section is not valid\n");
 	}
 
-	/* take the MAC address from the OTP */
-	hw_addr = (const u8 *)(nvm_hw + HW_ADDR0_FAMILY_8000);
-	data->hw_addr[0] = hw_addr[3];
-	data->hw_addr[1] = hw_addr[2];
-	data->hw_addr[2] = hw_addr[1];
-	data->hw_addr[3] = hw_addr[0];
+	if (nvm_hw) {
+		/* take the MAC address from the OTP */
+		hw_addr = (const u8 *)(nvm_hw + HW_ADDR0_FAMILY_8000);
+		data->hw_addr[0] = hw_addr[3];
+		data->hw_addr[1] = hw_addr[2];
+		data->hw_addr[2] = hw_addr[1];
+		data->hw_addr[3] = hw_addr[0];
 
-	hw_addr = (const u8 *)(nvm_hw + HW_ADDR1_FAMILY_8000);
-	data->hw_addr[4] = hw_addr[1];
-	data->hw_addr[5] = hw_addr[0];
+		hw_addr = (const u8 *)(nvm_hw + HW_ADDR1_FAMILY_8000);
+		data->hw_addr[4] = hw_addr[1];
+		data->hw_addr[5] = hw_addr[0];
+		return;
+	}
+
+	IWL_ERR_DEV(dev, "mac address is not found\n");
 }
 
 struct iwl_nvm_data *
@@ -570,7 +579,8 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 				rx_chains);
 	} else {
 		/* MAC address in family 8000 */
-		iwl_set_hw_address_family_8000(cfg, data, mac_override, nvm_hw);
+		iwl_set_hw_address_family_8000(dev, cfg, data, mac_override,
+					       nvm_hw);
 
 		iwl_init_sbands(dev, cfg, data, regulatory,
 				sku & NVM_SKU_CAP_11AC_ENABLE, tx_chains,
