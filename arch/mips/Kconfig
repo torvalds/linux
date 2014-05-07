@@ -1671,6 +1671,12 @@ config SYS_HAS_CPU_XLR
 config SYS_HAS_CPU_XLP
 	bool
 
+config MIPS_MALTA_PM
+	depends on MIPS_MALTA
+	depends on PCI
+	bool
+	default y
+
 #
 # CPU may reorder R->R, R->W, W->R, W->W
 # Reordering beyond LL and SC is handled in WEAK_REORDERING_BEYOND_LLSC
