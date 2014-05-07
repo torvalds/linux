@@ -258,7 +258,7 @@ static struct sdmmc_reg dw_mci_regs[] =
 #define mci_writeq(dev, reg, value)			\
 	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
 #endif
-
+extern void rk_send_wakeup_key(void);
 extern int dw_mci_probe(struct dw_mci *host);
 extern void dw_mci_remove(struct dw_mci *host);
 #ifdef CONFIG_PM
