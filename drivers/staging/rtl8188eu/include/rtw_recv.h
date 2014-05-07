@@ -253,7 +253,6 @@ struct recv_frame {
 	struct sk_buff	 *pkt;
 	struct sk_buff	 *pkt_newalloc;
 	struct adapter  *adapter;
-	u8 fragcnt;
 	struct rx_pkt_attrib attrib;
 	uint  len;
 	u8 *rx_head;
