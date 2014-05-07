@@ -191,7 +191,7 @@ err_out:
 	return ERR_PTR(error);
 }
 
-static struct of_device_id gpio_keys_polled_of_match[] = {
+static const struct of_device_id gpio_keys_polled_of_match[] = {
 	{ .compatible = "gpio-keys-polled", },
 	{ },
 };
