@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/cpuidle.c
+/* linux/arch/arm/mach-exynos/cpuidle.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -42,7 +42,7 @@
 #define S5P_CHECK_AFTR		0xFCBA0D10
 
 /* Ext-GIC nIRQ/nFIQ is the only wakeup source in AFTR */
-static void exynos4_set_wakeupmask(void)
+static void exynos_set_wakeupmask(void)
 {
 	__raw_writel(0x0000ff3e, S5P_WAKEUP_MASK);
 }
@@ -73,13 +73,13 @@ static int idle_finisher(unsigned long flags)
 	return 1;
 }
 
-static int exynos4_enter_core0_aftr(struct cpuidle_device *dev,
+static int exynos_enter_core0_aftr(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
 {
 	unsigned long tmp;
 
-	exynos4_set_wakeupmask();
+	exynos_set_wakeupmask();
 
 	/* Set value of power down register for aftr mode */
 	exynos_sys_powerdown_conf(SYS_AFTR);
@@ -123,7 +123,7 @@ static int exynos4_enter_core0_aftr(struct cpuidle_device *dev,
 	return index;
 }
 
-static int exynos4_enter_lowpower(struct cpuidle_device *dev,
+static int exynos_enter_lowpower(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
 {
@@ -136,16 +136,16 @@ static int exynos4_enter_lowpower(struct cpuidle_device *dev,
 	if (new_index == 0)
 		return arm_cpuidle_simple_enter(dev, drv, new_index);
 	else
-		return exynos4_enter_core0_aftr(dev, drv, new_index);
+		return exynos_enter_core0_aftr(dev, drv, new_index);
 }
 
-static struct cpuidle_driver exynos4_idle_driver = {
-	.name			= "exynos4_idle",
+static struct cpuidle_driver exynos_idle_driver = {
+	.name			= "exynos_idle",
 	.owner			= THIS_MODULE,
 	.states = {
 		[0] = ARM_CPUIDLE_WFI_STATE,
 		[1] = {
-			.enter			= exynos4_enter_lowpower,
+			.enter			= exynos_enter_lowpower,
 			.exit_latency		= 300,
 			.target_residency	= 100000,
 			.flags			= CPUIDLE_FLAG_TIME_VALID,
@@ -162,9 +162,9 @@ static int exynos_cpuidle_probe(struct platform_device *pdev)
 	int ret;
 
 	if (soc_is_exynos5440())
-		exynos4_idle_driver.state_count = 1;
+		exynos_idle_driver.state_count = 1;
 
-	ret = cpuidle_register(&exynos4_idle_driver, NULL);
+	ret = cpuidle_register(&exynos_idle_driver, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register cpuidle driver\n");
 		return ret;
