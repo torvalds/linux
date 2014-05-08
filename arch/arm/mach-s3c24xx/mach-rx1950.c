@@ -54,7 +54,6 @@
 #include <mach/regs-lcd.h>
 #include <mach/gpio-samsung.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
@@ -746,7 +745,6 @@ static void __init rx1950_map_io(void)
 #endif
 
 	s3c24xx_init_io(rx1950_iodesc, ARRAY_SIZE(rx1950_iodesc));
-	s3c24xx_init_clocks(16934000);
 	s3c24xx_init_uarts(rx1950_uartcfgs, ARRAY_SIZE(rx1950_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
@@ -757,6 +755,12 @@ static void __init rx1950_map_io(void)
 #endif
 
 	s3c_pm_init();
+}
+
+static void __init rx1950_init_time(void)
+{
+	s3c2442_init_clocks(16934000);
+	samsung_timer_init();
 }
 
 static void __init rx1950_init_machine(void)
@@ -821,6 +825,6 @@ MACHINE_START(RX1950, "HP iPAQ RX1950")
 	.reserve	= rx1950_reserve,
 	.init_irq	= s3c2442_init_irq,
 	.init_machine = rx1950_init_machine,
-	.init_time	= samsung_timer_init,
+	.init_time	= rx1950_init_time,
 	.restart	= s3c244x_restart,
 MACHINE_END

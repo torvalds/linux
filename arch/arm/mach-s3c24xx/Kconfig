@@ -73,10 +73,10 @@ config CPU_S3C2416
 
 config CPU_S3C2440
 	bool "SAMSUNG S3C2440"
-	depends on SAMSUNG_CLOCK
+	select COMMON_CLK
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
-	select S3C2410_CLOCK
+	select S3C2410_COMMON_CLK
 	select S3C2410_PM if PM
 	select S3C2440_DMA if S3C24XX_DMA
 	help
@@ -84,10 +84,10 @@ config CPU_S3C2440
 
 config CPU_S3C2442
 	bool "SAMSUNG S3C2442"
-	depends on SAMSUNG_CLOCK
+	select COMMON_CLK
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
-	select S3C2410_CLOCK
+	select S3C2410_COMMON_CLK
 	select S3C2410_DMA if S3C24XX_DMA
 	select S3C2410_PM if PM
 	help

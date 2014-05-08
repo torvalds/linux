@@ -40,7 +40,6 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
 #include <plat/devs.h>
@@ -389,7 +388,6 @@ static void __init osiris_map_io(void)
 #endif
 
 	s3c24xx_init_io(osiris_iodesc, ARRAY_SIZE(osiris_iodesc));
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(osiris_uartcfgs, ARRAY_SIZE(osiris_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
@@ -413,6 +411,12 @@ static void __init osiris_map_io(void)
 	local_irq_restore(flags);
 }
 
+static void __init osiris_init_time(void)
+{
+	s3c2440_init_clocks(12000000);
+	samsung_timer_init();
+}
+
 static void __init osiris_init(void)
 {
 	register_syscore_ops(&osiris_pm_syscore_ops);
@@ -434,6 +438,6 @@ MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	.map_io		= osiris_map_io,
 	.init_irq	= s3c2440_init_irq,
 	.init_machine	= osiris_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= osiris_init_time,
 	.restart	= s3c244x_restart,
 MACHINE_END
