@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 
 #include <asm/proc-fns.h>
-#include <asm/smp_scu.h>
 #include <asm/suspend.h>
 #include <asm/unified.h>
 #include <asm/cpuidle.h>
@@ -75,11 +74,6 @@ static int exynos_enter_core0_aftr(struct cpuidle_device *dev,
 
 	cpu_pm_enter();
 	cpu_suspend(0, idle_finisher);
-
-#ifdef CONFIG_SMP
-	if (!soc_is_exynos5250())
-		scu_enable(S5P_VA_SCU);
-#endif
 	cpu_pm_exit();
 
 	/*
