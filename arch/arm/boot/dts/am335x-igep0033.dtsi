@@ -95,6 +95,14 @@
 	};
 };
 
+&mac {
+	status = "okay";
+};
+
+&davinci_mdio {
+	status = "okay";
+};
+
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <0>;
 };
