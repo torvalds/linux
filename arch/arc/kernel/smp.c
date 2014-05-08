@@ -138,7 +138,7 @@ void start_kernel_secondary(void)
 	if (machine_desc->init_smp)
 		machine_desc->init_smp(smp_processor_id());
 
-	arc_local_timer_setup(cpu);
+	arc_local_timer_setup();
 
 	local_irq_enable();
 	preempt_disable();
