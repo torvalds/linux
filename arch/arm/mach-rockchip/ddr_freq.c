@@ -73,10 +73,23 @@ enum ddr_bandwidth_id{
 #define MHZ	(1000*1000)
 #define KHZ	1000
 
+struct video_info {
+	int width;
+	int height;
+	int ishevc;
+	int videoFramerate;
+	int streamBitrate;
+
+	struct list_head node;
+};
+
 struct ddr {
 	struct dvfs_node *clk_dvfs_node;
+	struct list_head video_info_list;
 	unsigned long normal_rate;
-	unsigned long video_rate;
+	unsigned long video_1080p_rate;
+	unsigned long video_4k_rate;
+	unsigned long performace_rate;
 	unsigned long dualview_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
@@ -269,9 +282,12 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	} else if (ddr.dualview_rate && 
 		(s & SYS_STATUS_LCDC0) && (s & SYS_STATUS_LCDC1)) {
 		ddrfreq_mode(false, &ddr.dualview_rate, "dual-view");
-	} else if (ddr.video_rate && 
-		((s & SYS_STATUS_VIDEO_720P)||(s & SYS_STATUS_VIDEO_1080P))) {
-		ddrfreq_mode(false, &ddr.video_rate, "video");
+	} else if (ddr.video_1080p_rate && (s & SYS_STATUS_VIDEO_1080P)) {
+		ddrfreq_mode(false, &ddr.video_1080p_rate, "video_1080p");
+	} else if (ddr.video_4k_rate && (s & SYS_STATUS_VIDEO_4K)) {
+		ddrfreq_mode(false, &ddr.video_4k_rate, "video_4k");
+	} else if (ddr.video_4k_rate && (s & SYS_STATUS_PERFORMANCE)) {
+		ddrfreq_mode(false, &ddr.video_4k_rate, "video_4k");
 	} else if (ddr.idle_rate
 		&& !(s & SYS_STATUS_GPU)
 		&& !(s & SYS_STATUS_RGA)
@@ -309,21 +325,70 @@ static int ddrfreq_task(void *data)
 	return 0;
 }
 
-static int video_state_release(struct inode *inode, struct file *file)
+void add_video_info(struct video_info *video_info)
 {
-	dprintk(DEBUG_VIDEO_STATE, "video_state release\n");
-	return 0;
+	if (video_info)
+		list_add(&video_info->node, &ddr.video_info_list);
 }
 
-#define VIDEO_LOW_RESOLUTION       (1080*720)
+void del_video_info(struct video_info *video_info)
+{
+	if (video_info)
+		list_del(&video_info->node);
+}
+
+struct video_info *find_video_info(struct video_info *match_video_info)
+{
+	struct video_info *video_info;
+
+	list_for_each_entry(video_info, &ddr.video_info_list, node) {
+		if ((video_info->width == match_video_info->width)
+			&& (video_info->height == match_video_info->height)
+			&& (video_info->ishevc== match_video_info->ishevc)
+			&& (video_info->videoFramerate == match_video_info->videoFramerate)
+			&& (video_info->streamBitrate== match_video_info->streamBitrate)) {
+
+			return video_info;
+		}
+
+	}
+
+	return NULL;
+}
+
+void update_video_info(void)
+{
+	struct video_info *video_info, *max_res_video;
+	int max_res=0, res=0;
+
+	if (list_empty(&ddr.video_info_list)) {
+		ddrfreq_clear_sys_status(SYS_STATUS_VIDEO_1080P | SYS_STATUS_VIDEO_4K);
+		return;
+	}
+
+
+	list_for_each_entry(video_info, &ddr.video_info_list, node) {
+		res = video_info->width * video_info->height;
+		if (res > max_res) {
+			max_res = res;
+			max_res_video = video_info;
+		}
+	}
+
+	if (max_res <= 1920*1080)
+		ddrfreq_set_sys_status(SYS_STATUS_VIDEO_1080P);
+	else
+		ddrfreq_set_sys_status(SYS_STATUS_VIDEO_4K);
+
+
+	return;
+}
+
 static ssize_t video_state_write(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
-	char state;
-	char *cookie_pot;
-	char *p;
-	char *buf = vzalloc(count);
-	uint32_t v_width=0,v_height=0,v_sync=0;
+	struct video_info *video_info = NULL;
+	char state, *cookie_pot, *p, *buf = vzalloc(count);
 	cookie_pot = buf;
 
 	if(!buf)
@@ -339,58 +404,76 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 		return -EFAULT;
 	}
 
-	dprintk(DEBUG_VIDEO_STATE, "video_state write %s,len %d\n", cookie_pot,count);
+	dprintk(DEBUG_VIDEO_STATE, "%s: %s,len %d\n", __func__, cookie_pot,count);
 
 	state=cookie_pot[0];
 	if( (count>=3) && (cookie_pot[2]=='w') )
 	{
+		video_info = kzalloc(sizeof(struct video_info), GFP_KERNEL);
+		if (!video_info){
+			vfree(buf);
+			return -ENOMEM;
+		}
+
 		strsep(&cookie_pot,",");
 		strsep(&cookie_pot,"=");
 		p=strsep(&cookie_pot,",");
-		v_width = simple_strtol(p,NULL,10);
+		video_info->width = simple_strtol(p,NULL,10);
+
 		strsep(&cookie_pot,"=");
 		p=strsep(&cookie_pot,",");
-		v_height= simple_strtol(p,NULL,10);
+		video_info->height = simple_strtol(p,NULL,10);
+
 		strsep(&cookie_pot,"=");
 		p=strsep(&cookie_pot,",");
-		v_sync= simple_strtol(p,NULL,10);
-		dprintk(DEBUG_VIDEO_STATE, "video_state %c,width=%d,height=%d,sync=%d\n", state,v_width,v_height,v_sync);
+		video_info->ishevc = simple_strtol(p,NULL,10);
+
+		strsep(&cookie_pot,"=");
+		p=strsep(&cookie_pot,",");
+		video_info->videoFramerate = simple_strtol(p,NULL,10);
+
+		strsep(&cookie_pot,"=");
+		p=strsep(&cookie_pot,",");
+		video_info->streamBitrate = simple_strtol(p,NULL,10);
+
+		dprintk(DEBUG_VIDEO_STATE, "%s: video_state=%c,width=%d,height=%d,ishevc=%d,videoFramerate=%d,streamBitrate=%d\n",
+			__func__, state,video_info->width,video_info->height,
+			video_info->ishevc, video_info->videoFramerate,
+			video_info->streamBitrate);
+
 	}
 
 	switch (state) {
 	case '0':
-		high_load = 70;
-		low_load = 60;
-		if (!ddr.auto_freq)
-			ddrfreq_clear_sys_status(SYS_STATUS_VIDEO);
+		del_video_info(find_video_info(video_info));
+		update_video_info();
 		break;
 	case '1':
-		high_load = 35;
-		low_load = 25;
-		if( (v_width == 0) && (v_height == 0)){
-			if (!ddr.auto_freq)
-				ddrfreq_set_sys_status(SYS_STATUS_VIDEO_1080P);
-		}
-		else if(v_sync==1){
-			//if(ddr.video_low_rate && ((v_width*v_height) <= VIDEO_LOW_RESOLUTION) )
-			//	ddrfreq_set_sys_status(SYS_STATUS_VIDEO_720P);
-			//else
-			if (!ddr.auto_freq)
-				ddrfreq_set_sys_status(SYS_STATUS_VIDEO_1080P);
-		}
-		else{
-			if (!ddr.auto_freq)
-				ddrfreq_clear_sys_status(SYS_STATUS_VIDEO);
-		}
+		add_video_info(video_info);
+		update_video_info();
+		break;
+	case 'p'://performance
+		ddrfreq_set_sys_status(SYS_STATUS_PERFORMANCE);
+		break;
+	case 'n'://normal
+		ddrfreq_clear_sys_status(SYS_STATUS_PERFORMANCE);
 		break;
 	default:
 		vfree(buf);
 		return -EINVAL;
 
 	}
+
 	vfree(buf);
 	return count;
 }
+
+static int video_state_release(struct inode *inode, struct file *file)
+{
+	dprintk(DEBUG_VIDEO_STATE, "video_state release\n");
+	return 0;
+}
+
 
 static const struct file_operations video_state_fops = {
 	.owner	= THIS_MODULE,
@@ -623,8 +706,12 @@ int of_init_ddr_freq_table(void)
 			ddr.normal_rate = rate;
 		if (status & SYS_STATUS_SUSPEND)
 			ddr.suspend_rate = rate;
-		if ((status & SYS_STATUS_VIDEO_720P)||(status & SYS_STATUS_VIDEO_720P))
-			ddr.video_rate = rate;
+		if (status & SYS_STATUS_VIDEO_1080P)
+			ddr.video_1080p_rate = rate;
+		if (status & SYS_STATUS_VIDEO_4K)
+			ddr.video_4k_rate = rate;
+		if (status & SYS_STATUS_PERFORMANCE)
+			ddr.performace_rate= rate;
 		if ((status & SYS_STATUS_LCDC0)&&(status & SYS_STATUS_LCDC1))
 			ddr.dualview_rate = rate;
 		if (status & SYS_STATUS_IDLE)
@@ -655,7 +742,7 @@ static int ddrfreq_init(void)
 	if (!clk_cpu_dvfs_node){
 		return -EINVAL;
 	}
-	
+
 	memset(&ddr, 0x00, sizeof(ddr));
 	ddr.clk_dvfs_node = clk_get_dvfs_node("clk_ddr");
 	if (!ddr.clk_dvfs_node){
@@ -665,8 +752,8 @@ static int ddrfreq_init(void)
 	clk_enable_dvfs(ddr.clk_dvfs_node);
 	
 	init_waitqueue_head(&ddr.wait);
+	INIT_LIST_HEAD(&ddr.video_info_list);
 	ddr.mode = "normal";
-
 	ddr.normal_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
 	ddr.suspend_rate = ddr.normal_rate;
 	ddr.reboot_rate = ddr.normal_rate;
@@ -711,8 +798,8 @@ static int ddrfreq_init(void)
 	register_reboot_notifier(&ddrfreq_reboot_notifier);
 
 	pr_info("verion 1.0 20140228\n");
-	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
-		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.dualview_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
+	dprintk(DEBUG_DDR, "normal %luMHz video_1080p %luMHz video_4k %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
+		ddr.normal_rate / MHZ, ddr.video_1080p_rate / MHZ, ddr.video_1080p_rate / MHZ, ddr.dualview_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
 
 	return 0;
 
