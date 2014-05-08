@@ -335,11 +335,17 @@ static inline struct usb_composite_driver *to_cdriver(
 	return container_of(gdrv, struct usb_composite_driver, gadget_driver);
 }
 
+#define OS_STRING_QW_SIGN_LEN		14
+#define OS_STRING_IDX			0xEE
+
 /**
  * struct usb_composite_device - represents one composite usb gadget
  * @gadget: read-only, abstracts the gadget's usb peripheral controller
  * @req: used for control responses; buffer is pre-allocated
  * @config: the currently active configuration
+ * @qw_sign: qwSignature part of the OS string
+ * @b_vendor_code: bMS_VendorCode part of the OS string
+ * @use_os_string: false by default, interested gadgets set it
  *
  * One of these devices is allocated and initialized before the
  * associated device driver's bind() is called.
@@ -371,6 +377,11 @@ struct usb_composite_dev {
 	struct usb_request		*req;
 
 	struct usb_configuration	*config;
+
+	/* OS String is a custom (yet popular) extension to the USB standard. */
+	u8				qw_sign[OS_STRING_QW_SIGN_LEN];
+	u8				b_vendor_code;
+	unsigned int			use_os_string:1;
 
 	/* private: */
 	/* internals */
