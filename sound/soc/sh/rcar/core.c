@@ -468,10 +468,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct rsnd_priv *priv = snd_soc_dai_get_drvdata(dai);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	struct rsnd_mod *mod = rsnd_ssi_mod_get_frm_dai(priv,
-						rsnd_dai_id(priv, rdai),
-						rsnd_dai_is_play(rdai, io));
-	int ssi_id = rsnd_mod_id(mod);
+	int ssi_id = rsnd_mod_id(rsnd_io_to_mod_ssi(io));
 	int ret;
 	unsigned long flags;
 
@@ -584,7 +581,6 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 			  struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod;
-	struct rsnd_dai_platform_info *dai_info = rdai->info;
 	int ret;
 	int ssi_id = -1;
 	int src_id = -1;
@@ -599,20 +595,10 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	 * Gen2 SCU path is very flexible, but, Gen1 SRU (SCU parts) is
 	 * using fixed path.
 	 */
-	if (dai_info) {
-		if (rsnd_is_enable_path(io, ssi))
-			ssi_id = rsnd_info_id(priv, io, ssi);
-		if (rsnd_is_enable_path(io, src))
-			src_id = rsnd_info_id(priv, io, src);
-	} else {
-		/* get SSI's ID */
-		mod = rsnd_ssi_mod_get_frm_dai(priv,
-					       rsnd_dai_id(priv, rdai),
-					       rsnd_dai_is_play(rdai, io));
-		if (!mod)
-			return 0;
-		ssi_id = src_id = rsnd_mod_id(mod);
-	}
+	if (rsnd_is_enable_path(io, ssi))
+		ssi_id = rsnd_info_id(priv, io, ssi);
+	if (rsnd_is_enable_path(io, src))
+		src_id = rsnd_info_id(priv, io, src);
 
 	ret = 0;
 
@@ -726,29 +712,14 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	struct snd_soc_dai_driver *drv;
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct rsnd_dai *rdai;
-	struct rsnd_mod *pmod, *cmod;
+	struct rsnd_ssi_platform_info *pmod, *cmod;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int dai_nr;
 	int i;
 
 	rsnd_of_parse_dai(pdev, of_data, priv);
 
-	/*
-	 * dai_nr should be set via dai_info_nr,
-	 * but allow it to keeping compatible
-	 */
 	dai_nr = info->dai_info_nr;
-	if (!dai_nr) {
-		/* get max dai nr */
-		for (dai_nr = 0; dai_nr < 32; dai_nr++) {
-			pmod = rsnd_ssi_mod_get_frm_dai(priv, dai_nr, 1);
-			cmod = rsnd_ssi_mod_get_frm_dai(priv, dai_nr, 0);
-
-			if (!pmod && !cmod)
-				break;
-		}
-	}
-
 	if (!dai_nr) {
 		dev_err(dev, "no dai\n");
 		return -EIO;
@@ -766,11 +737,10 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	priv->rdai	= rdai;
 
 	for (i = 0; i < dai_nr; i++) {
-		if (info->dai_info)
-			rdai[i].info = &info->dai_info[i];
+		rdai[i].info = &info->dai_info[i];
 
-		pmod = rsnd_ssi_mod_get_frm_dai(priv, i, 1);
-		cmod = rsnd_ssi_mod_get_frm_dai(priv, i, 0);
+		pmod = rdai[i].info->playback.ssi;
+		cmod = rdai[i].info->capture.ssi;
 
 		/*
 		 *	init rsnd_dai
@@ -788,8 +758,7 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			drv[i].playback.channels_min	= 2;
 			drv[i].playback.channels_max	= 2;
 
-			if (info->dai_info)
-				rdai[i].playback.info = &info->dai_info[i].playback;
+			rdai[i].playback.info = &info->dai_info[i].playback;
 			rsnd_path_init(priv, &rdai[i], &rdai[i].playback);
 		}
 		if (cmod) {
@@ -798,8 +767,7 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			drv[i].capture.channels_min	= 2;
 			drv[i].capture.channels_max	= 2;
 
-			if (info->dai_info)
-				rdai[i].capture.info = &info->dai_info[i].capture;
+			rdai[i].capture.info = &info->dai_info[i].capture;
 			rsnd_path_init(priv, &rdai[i], &rdai[i].capture);
 		}
 

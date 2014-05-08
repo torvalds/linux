@@ -27,12 +27,9 @@ struct rsnd_src {
 #define OTBL_18		(6 << 16)
 #define OTBL_16		(8 << 16)
 
-#define rsnd_src_mode_flags(p) ((p)->info->flags)
 #define rsnd_src_convert_rate(p) ((p)->info->convert_rate)
 #define rsnd_mod_to_src(_mod)				\
 	container_of((_mod), struct rsnd_src, mod)
-#define rsnd_src_hpbif_is_enable(src)	\
-	(rsnd_src_mode_flags(src) & RSND_SCU_USE_HPBIF)
 #define rsnd_src_dma_available(src) \
 	rsnd_dma_available(rsnd_mod_to_dma(&(src)->mod))
 
@@ -80,34 +77,35 @@ struct rsnd_src {
  *
  * This driver request
  * struct rsnd_src_platform_info {
- *	u32 flags;
  *	u32 convert_rate;
+ *	int dma_id;
  * }
- *
- * rsnd_src_hpbif_is_enable() will be true
- * if flags had RSND_SRC_USE_HPBIF,
- * and it controls whether SSIU is used or not.
  *
  * rsnd_src_convert_rate() indicates
  * above convert_rate, and it controls
  * whether SRC is used or not.
  *
  * ex) doesn't use SRC
- * struct rsnd_src_platform_info info = {
- *	.flags = 0,
- *	.convert_rate = 0,
+ * static struct rsnd_dai_platform_info rsnd_dai = {
+ *	.playback = { .ssi = &rsnd_ssi[0], },
  * };
  *
  * ex) uses SRC
- * struct rsnd_src_platform_info info = {
- *	.flags = RSND_SRC_USE_HPBIF,
- *	.convert_rate = 48000,
+ * static struct rsnd_src_platform_info rsnd_src[] = {
+ *	RSND_SCU(48000, 0),
+ *	...
+ * };
+ * static struct rsnd_dai_platform_info rsnd_dai = {
+ *	.playback = { .ssi = &rsnd_ssi[0], .src = &rsnd_src[0] },
  * };
  *
  * ex) uses SRC bypass mode
- * struct rsnd_src_platform_info info = {
- *	.flags = RSND_SRC_USE_HPBIF,
- *	.convert_rate = 0,
+ * static struct rsnd_src_platform_info rsnd_src[] = {
+ *	RSND_SCU(0, 0),
+ *	...
+ * };
+ * static struct rsnd_dai_platform_info rsnd_dai = {
+ *	.playback = { .ssi = &rsnd_ssi[0], .src = &rsnd_src[0] },
  * };
  *
  */
@@ -119,24 +117,14 @@ int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
 			   struct rsnd_dai *rdai,
 			   struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
 	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	int ssi_id = rsnd_mod_id(ssi_mod);
-	int has_src = 0;
 
 	/*
 	 * SSI_MODE0
 	 */
-	if (info->dai_info) {
-		has_src = !!src_mod;
-	} else {
-		struct rsnd_src *src = rsnd_mod_to_src(src_mod);
-		has_src = rsnd_src_hpbif_is_enable(src);
-	}
-
 	rsnd_mod_bset(ssi_mod, SSI_MODE0, (1 << ssi_id),
-		      has_src ? 0 : (1 << ssi_id));
+		      src_mod ? 0 : (1 << ssi_id));
 
 	/*
 	 * SSI_MODE1
@@ -534,21 +522,13 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	struct rsnd_mod *ssi = rsnd_ssi_mod_get(priv, rsnd_mod_id(mod));
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int ret;
-	int is_play;
-
-	if (info->dai_info)
-		is_play = rsnd_info_is_playback(priv, src);
-	else
-		is_play = rsnd_ssi_is_play(ssi);
 
 	ret = rsnd_dma_init(priv,
 			    rsnd_mod_to_dma(mod),
-			    is_play,
+			    rsnd_info_is_playback(priv, src),
 			    src->info->dma_id);
 	if (ret < 0)
 		dev_err(dev, "SRC DMA failed\n");
@@ -699,11 +679,6 @@ int rsnd_src_probe(struct platform_device *pdev,
 		snprintf(name, RSND_SRC_NAME_SIZE, "src.%d", i);
 
 		clk = devm_clk_get(dev, name);
-		if (IS_ERR(clk)) {
-			snprintf(name, RSND_SRC_NAME_SIZE, "scu.%d", i);
-			clk = devm_clk_get(dev, name);
-		}
-
 		if (IS_ERR(clk))
 			return PTR_ERR(clk);
 
@@ -711,12 +686,10 @@ int rsnd_src_probe(struct platform_device *pdev,
 		src->clk = clk;
 
 		ops = &rsnd_src_non_ops;
-		if (rsnd_src_hpbif_is_enable(src)) {
-			if (rsnd_is_gen1(priv))
-				ops = &rsnd_src_gen1_ops;
-			if (rsnd_is_gen2(priv))
-				ops = &rsnd_src_gen2_ops;
-		}
+		if (rsnd_is_gen1(priv))
+			ops = &rsnd_src_gen1_ops;
+		if (rsnd_is_gen2(priv))
+			ops = &rsnd_src_gen2_ops;
 
 		rsnd_mod_init(priv, &src->mod, ops, RSND_MOD_SRC, i);
 

@@ -379,9 +379,6 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
-struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,
-					  int dai_id, int is_play);
 int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
-int rsnd_ssi_is_play(struct rsnd_mod *mod);
 
 #endif

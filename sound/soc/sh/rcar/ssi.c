@@ -422,20 +422,13 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int dma_id = ssi->info->dma_id;
-	int is_play;
 	int ret;
-
-	if (info->dai_info)
-		is_play = rsnd_info_is_playback(priv, ssi);
-	else
-		is_play = rsnd_ssi_is_play(&ssi->mod);
 
 	ret = rsnd_dma_init(
 		priv, rsnd_mod_to_dma(mod),
-		is_play,
+		rsnd_info_is_playback(priv, ssi),
 		dma_id);
 
 	if (ret < 0)
@@ -512,41 +505,6 @@ static struct rsnd_mod_ops rsnd_ssi_non_ops = {
 /*
  *		ssi mod function
  */
-struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,
-					  int dai_id, int is_play)
-{
-	struct rsnd_dai_platform_info *dai_info = NULL;
-	struct rsnd_dai_path_info *path_info = NULL;
-	struct rsnd_ssi_platform_info *target_info = NULL;
-	struct rsnd_ssi *ssi;
-	int i, has_play;
-
-	if (priv->rdai)
-		dai_info = priv->rdai[dai_id].info;
-	if (dai_info)
-		path_info = (is_play) ? &dai_info->playback : &dai_info->capture;
-	if (path_info)
-		target_info = path_info->ssi;
-
-	is_play = !!is_play;
-
-	for_each_rsnd_ssi(ssi, priv, i) {
-		if (target_info == ssi->info)
-			return &ssi->mod;
-
-		/* for compatible */
-		if (rsnd_ssi_dai_id(ssi) != dai_id)
-			continue;
-
-		has_play = rsnd_ssi_is_play(&ssi->mod);
-
-		if (is_play == has_play)
-			return &ssi->mod;
-	}
-
-	return NULL;
-}
-
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
 {
 	if (WARN_ON(id < 0 || id >= rsnd_ssi_nr(priv)))
@@ -560,13 +518,6 @@ int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
 	return !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_CLK_PIN_SHARE);
-}
-
-int rsnd_ssi_is_play(struct rsnd_mod *mod)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-
-	return !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_PLAY);
 }
 
 static void rsnd_ssi_parent_clk_setup(struct rsnd_priv *priv, struct rsnd_ssi *ssi)
