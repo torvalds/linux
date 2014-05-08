@@ -1874,7 +1874,7 @@ extern int current_umask(void);
 extern void ihold(struct inode * inode);
 extern void iput(struct inode *);
 
-static inline struct inode *file_inode(struct file *f)
+static inline struct inode *file_inode(const struct file *f)
 {
 	return f->f_inode;
 }
