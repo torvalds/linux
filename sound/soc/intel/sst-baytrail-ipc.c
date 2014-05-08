@@ -299,6 +299,24 @@ static inline void sst_byt_tx_msg_reply_complete(struct sst_byt *byt,
 		wake_up(&msg->waitq);
 }
 
+static void sst_byt_drop_all(struct sst_byt *byt)
+{
+	struct ipc_message *msg, *tmp;
+	unsigned long flags;
+
+	/* drop all TX and Rx messages before we stall + reset DSP */
+	spin_lock_irqsave(&byt->dsp->spinlock, flags);
+	list_for_each_entry_safe(msg, tmp, &byt->tx_list, list) {
+		list_move(&msg->list, &byt->empty_list);
+	}
+
+	list_for_each_entry_safe(msg, tmp, &byt->rx_list, list) {
+		list_move(&msg->list, &byt->empty_list);
+	}
+
+	spin_unlock_irqrestore(&byt->dsp->spinlock, flags);
+}
+
 static int sst_byt_tx_wait_done(struct sst_byt *byt, struct ipc_message *msg,
 				void *rx_data)
 {
