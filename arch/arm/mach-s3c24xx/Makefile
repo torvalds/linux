@@ -44,10 +44,8 @@ obj-$(CONFIG_PM)		+= pm.o irq-pm.o sleep.o
 
 # common code
 
-obj-$(CONFIG_S3C24XX_DCLK)	+= clock-dclk.o
 obj-$(CONFIG_S3C24XX_DMA)	+= dma.o
 
-obj-$(CONFIG_S3C2410_CLOCK)	+= clock-s3c2410.o
 obj-$(CONFIG_S3C2410_CPUFREQ_UTILS) += cpufreq-utils.o
 
 obj-$(CONFIG_S3C2410_IOTIMING)	+= iotiming-s3c2410.o

@@ -110,17 +110,6 @@ config CPU_S3C2443
 
 # common code
 
-config S3C2410_CLOCK
-	bool
-	help
-	  Clock code for the S3C2410, and similar processors which
-	  is currently includes the S3C2410, S3C2440, S3C2442.
-
-config S3C24XX_DCLK
-	bool
-	help
-	  Clock code for supporting DCLK/CLKOUT on S3C24XX architectures
-
 config S3C24XX_SMDK
 	bool
 	help

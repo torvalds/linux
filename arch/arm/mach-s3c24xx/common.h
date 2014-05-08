@@ -67,10 +67,8 @@ extern struct syscore_ops s3c2416_irq_syscore_ops;
 #if defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2442)
 extern void s3c244x_map_io(void);
 extern void s3c244x_init_uarts(struct s3c2410_uartcfg *cfg, int no);
-extern void s3c244x_init_clocks(int xtal);
 extern void s3c244x_restart(enum reboot_mode mode, const char *cmd);
 #else
-#define s3c244x_init_clocks NULL
 #define s3c244x_init_uarts NULL
 #endif
 
