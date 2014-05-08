@@ -397,9 +397,8 @@ int rsnd_adg_probe(struct platform_device *pdev,
 {
 	struct rsnd_adg *adg;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct clk *clk, *clk_orig;
+	struct clk *clk;
 	int i;
-	bool use_old_style = false;
 
 	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
 	if (!adg) {
@@ -407,45 +406,13 @@ int rsnd_adg_probe(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	clk_orig	= devm_clk_get(dev, NULL);
 	adg->clk[CLKA]	= devm_clk_get(dev, "clk_a");
 	adg->clk[CLKB]	= devm_clk_get(dev, "clk_b");
 	adg->clk[CLKC]	= devm_clk_get(dev, "clk_c");
 	adg->clk[CLKI]	= devm_clk_get(dev, "clk_i");
 
-	/*
-	 * It request device dependent audio clock.
-	 * But above all clks will indicate rsnd module clock
-	 * if platform doesn't it
-	 */
-	for_each_rsnd_clk(clk, adg, i) {
-		if (clk_orig == clk) {
-			dev_warn(dev,
-				 "doesn't have device dependent clock, use independent clock\n");
-			use_old_style = true;
-			break;
-		}
-	}
-
-	/*
-	 * note:
-	 * these exist in order to keep compatible with
-	 * platform which has device independent audio clock,
-	 * but will be removed soon
-	 */
-	if (use_old_style) {
-		adg->clk[CLKA] = devm_clk_get(NULL, "audio_clk_a");
-		adg->clk[CLKB] = devm_clk_get(NULL, "audio_clk_b");
-		adg->clk[CLKC] = devm_clk_get(NULL, "audio_clk_c");
-		adg->clk[CLKI] = devm_clk_get(NULL, "audio_clk_internal");
-	}
-
-	for_each_rsnd_clk(clk, adg, i) {
-		if (IS_ERR(clk)) {
-			dev_err(dev, "Audio clock failed\n");
-			return -EIO;
-		}
-	}
+	for_each_rsnd_clk(clk, adg, i)
+		dev_dbg(dev, "clk %d : %p\n", i, clk);
 
 	rsnd_adg_ssi_clk_init(priv, adg);
 
