@@ -1738,8 +1738,7 @@ static inline int xhci_register_pci(void) { return 0; }
 static inline void xhci_unregister_pci(void) {}
 #endif
 
-#if defined(CONFIG_USB_XHCI_PLATFORM) \
-	|| defined(CONFIG_USB_XHCI_PLATFORM_MODULE)
+#if IS_ENABLED(CONFIG_USB_XHCI_PLATFORM)
 int xhci_register_plat(void);
 void xhci_unregister_plat(void);
 #else
