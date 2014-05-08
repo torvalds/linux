@@ -308,11 +308,13 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		tipc_link_reset_fragments(l_ptr);
 	}
 
+	n_ptr->action_flags &= ~TIPC_WAIT_OWN_LINKS_DOWN;
+
 	/* Notify subscribers and prevent re-contact with node until
 	 * cleanup is done.
 	 */
-	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN |
-			      TIPC_NOTIFY_NODE_DOWN;
+	n_ptr->action_flags |= TIPC_WAIT_PEER_LINKS_DOWN |
+			       TIPC_NOTIFY_NODE_DOWN;
 }
 
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)

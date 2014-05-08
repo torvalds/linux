@@ -1853,7 +1853,7 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr, struct sk_buff *buf)
 			 * peer has lost contact -- don't allow peer's links
 			 * to reactivate before we recognize loss & clean up
 			 */
-			l_ptr->owner->action_flags = TIPC_WAIT_OWN_LINKS_DOWN;
+			l_ptr->owner->action_flags |= TIPC_WAIT_OWN_LINKS_DOWN;
 		}
 
 		link_state_event(l_ptr, RESET_MSG);
