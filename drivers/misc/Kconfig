@@ -53,7 +53,8 @@ config AD525X_DPOT_SPI
 
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
-	depends on HAVE_CLK && (AVR32 || ARCH_AT91 || COMPILE_TEST)
+	depends on HAVE_CLK
+	depends on AVR32 || AT91SAM9263 || AT91SAM9RL || AT91SAM9G45
 	help
 	  This option enables device driver support for the PWM channels
 	  on certain Atmel processors.  Pulse Width Modulation is used for
