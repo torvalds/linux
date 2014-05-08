@@ -32,6 +32,10 @@ static const struct acpi_device_id acpi_platform_device_ids[] = {
 	{ "ACPI0003" },
 	{ "VPC2004" },
 	{ "BCM4752" },
+	{ "LNV4752" },
+	{ "BCM2E1A" },
+	{ "BCM2E39" },
+	{ "BCM2E3D" },
 
 	/* Intel Smart Sound Technology */
 	{ "INT33C8" },
