@@ -21,8 +21,8 @@ struct reserved_mem_ops {
 				  struct device *dev);
 };
 
-typedef int (*reservedmem_of_init_fn)(struct reserved_mem *rmem,
-				      unsigned long node, const char *uname);
+typedef int (*reservedmem_of_init_fn)(struct reserved_mem *rmem);
+
 
 #ifdef CONFIG_OF_RESERVED_MEM
 void fdt_init_reserved_mem(void);
