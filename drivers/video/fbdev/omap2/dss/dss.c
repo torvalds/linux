@@ -784,12 +784,8 @@ static int __init dss_init_ports(struct platform_device *pdev)
 		return 0;
 
 	port = omapdss_of_get_next_port(parent, NULL);
-	if (!port) {
-#ifdef CONFIG_OMAP2_DSS_DPI
-		dpi_init_port(pdev, parent);
-#endif
+	if (!port)
 		return 0;
-	}
 
 	do {
 		u32 reg;
