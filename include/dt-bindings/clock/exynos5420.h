@@ -153,6 +153,7 @@
 #define CLK_JPEG		451
 #define CLK_JPEG2		452
 #define CLK_SMMU_JPEG		453
+#define CLK_SMMU_JPEG2		454
 #define CLK_ACLK300_GSCL	460
 #define CLK_SMMU_GSCL0		461
 #define CLK_SMMU_GSCL1		462
@@ -180,6 +181,8 @@
 #define CLK_SMMU_MIXER		502
 #define CLK_SMMU_G2D		503
 #define CLK_SMMU_MDMA0		504
+#define CLK_MC			505
+#define CLK_TOP_RTC		506
 #define CLK_SCLK_UART_ISP	510
 #define CLK_SCLK_SPI0_ISP	511
 #define CLK_SCLK_SPI1_ISP	512
