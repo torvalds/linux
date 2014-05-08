@@ -133,6 +133,7 @@ void integrator_impd1_clk_init(void __iomem *base, unsigned int id)
 	for (i = 0; i < ARRAY_SIZE(imc->clks); i++)
 		clkdev_add(imc->clks[i]);
 }
+EXPORT_SYMBOL_GPL(integrator_impd1_clk_init);
 
 void integrator_impd1_clk_exit(unsigned int id)
 {
@@ -155,3 +156,4 @@ void integrator_impd1_clk_exit(unsigned int id)
 	kfree(imc->vco2name);
 	kfree(imc->vco1name);
 }
+EXPORT_SYMBOL_GPL(integrator_impd1_clk_exit);
