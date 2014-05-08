@@ -28,7 +28,7 @@
 
 #include <mach/map.h>
 
-#include "common.h"
+static void (*exynos_enter_aftr)(void);
 
 static int idle_finisher(unsigned long flags)
 {
@@ -86,6 +86,8 @@ static struct cpuidle_driver exynos_idle_driver = {
 static int exynos_cpuidle_probe(struct platform_device *pdev)
 {
 	int ret;
+
+	exynos_enter_aftr = (void *)(pdev->dev.platform_data);
 
 	ret = cpuidle_register(&exynos_idle_driver, NULL);
 	if (ret) {
