@@ -177,6 +177,8 @@
 #define CLK_ACLK_G3D		500
 #define CLK_G3D			501
 #define CLK_SMMU_MIXER		502
+#define CLK_SMMU_G2D		503
+#define CLK_SMMU_MDMA0		504
 #define CLK_SCLK_UART_ISP	510
 #define CLK_SCLK_SPI0_ISP	511
 #define CLK_SCLK_SPI1_ISP	512
