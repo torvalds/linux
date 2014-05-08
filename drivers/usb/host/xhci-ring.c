@@ -123,16 +123,6 @@ static int enqueue_is_link_trb(struct xhci_ring *ring)
 	return TRB_TYPE_LINK_LE32(link->control);
 }
 
-union xhci_trb *xhci_find_next_enqueue(struct xhci_ring *ring)
-{
-	/* Enqueue pointer can be left pointing to the link TRB,
-	 * we must handle that
-	 */
-	if (TRB_TYPE_LINK_LE32(ring->enqueue->link.control))
-		return ring->enq_seg->next->trbs;
-	return ring->enqueue;
-}
-
 /* Updates trb to point to the next TRB in the ring, and updates seg if the next
  * TRB is in a new segment.  This does not skip over link TRBs, and it does not
  * effect the ring dequeue or enqueue pointers.
@@ -684,12 +674,14 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	}
 }
 
-static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
+static int queue_set_tr_deq(struct xhci_hcd *xhci,
+		struct xhci_command *cmd, int slot_id,
 		unsigned int ep_index, unsigned int stream_id,
 		struct xhci_segment *deq_seg,
 		union xhci_trb *deq_ptr, u32 cycle_state);
 
 void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
+		struct xhci_command *cmd,
 		unsigned int slot_id, unsigned int ep_index,
 		unsigned int stream_id,
 		struct xhci_dequeue_state *deq_state)
@@ -704,7 +696,7 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 			deq_state->new_deq_ptr,
 			(unsigned long long)xhci_trb_virt_to_dma(deq_state->new_deq_seg, deq_state->new_deq_ptr),
 			deq_state->new_cycle_state);
-	queue_set_tr_deq(xhci, slot_id, ep_index, stream_id,
+	queue_set_tr_deq(xhci, cmd, slot_id, ep_index, stream_id,
 			deq_state->new_deq_seg,
 			deq_state->new_deq_ptr,
 			(u32) deq_state->new_cycle_state);
@@ -858,7 +850,9 @@ remove_finished_td:
 
 	/* If necessary, queue a Set Transfer Ring Dequeue Pointer command */
 	if (deq_state.new_deq_ptr && deq_state.new_deq_seg) {
-		xhci_queue_new_dequeue_state(xhci,
+		struct xhci_command *command;
+		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
+		xhci_queue_new_dequeue_state(xhci, command,
 				slot_id, ep_index,
 				ep->stopped_td->urb->stream_id,
 				&deq_state);
@@ -1206,9 +1200,11 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 	 * because the HW can't handle two commands being queued in a row.
 	 */
 	if (xhci->quirks & XHCI_RESET_EP_QUIRK) {
+		struct xhci_command *command;
+		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"Queueing configure endpoint command");
-		xhci_queue_configure_endpoint(xhci,
+		xhci_queue_configure_endpoint(xhci, command,
 				xhci->devs[slot_id]->in_ctx->dma, slot_id,
 				false);
 		xhci_ring_cmd_db(xhci);
@@ -1465,7 +1461,7 @@ static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
 			add_flags - SLOT_FLAG == drop_flags) {
 		ep_state = virt_dev->eps[ep_index].ep_state;
 		if (!(ep_state & EP_HALTED))
-			goto bandwidth_change;
+			return;
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"Completed config ep cmd - "
 				"last ep index = %d, state = %d",
@@ -1475,11 +1471,6 @@ static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
 		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 		return;
 	}
-bandwidth_change:
-	xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
-			"Completed config ep cmd");
-	virt_dev->cmd_status = cmd_comp_code;
-	complete(&virt_dev->cmd_completion);
 	return;
 }
 
@@ -1938,11 +1929,16 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 		struct xhci_td *td, union xhci_trb *event_trb)
 {
 	struct xhci_virt_ep *ep = &xhci->devs[slot_id]->eps[ep_index];
+	struct xhci_command *command;
+	command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
+	if (!command)
+		return;
+
 	ep->ep_state |= EP_HALTED;
 	ep->stopped_td = td;
 	ep->stopped_stream = stream_id;
 
-	xhci_queue_reset_ep(xhci, slot_id, ep_index);
+	xhci_queue_reset_ep(xhci, command, slot_id, ep_index);
 	xhci_cleanup_stalled_ring(xhci, td->urb->dev, ep_index);
 
 	ep->stopped_td = NULL;
@@ -2654,7 +2650,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				 * successful event after a short transfer.
 				 * Ignore it.
 				 */
-				if ((xhci->quirks & XHCI_SPURIOUS_SUCCESS) && 
+				if ((xhci->quirks & XHCI_SPURIOUS_SUCCESS) &&
 						ep_ring->last_td_was_short) {
 					ep_ring->last_td_was_short = false;
 					ret = 0;
@@ -3996,8 +3992,9 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
  * Don't decrement xhci->cmd_ring_reserved_trbs after we've queued the TRB
  * because the command event handler may want to resubmit a failed command.
  */
-static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2,
-		u32 field3, u32 field4, bool command_must_succeed)
+static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
+			 u32 field1, u32 field2,
+			 u32 field3, u32 field4, bool command_must_succeed)
 {
 	int reserved_trbs = xhci->cmd_ring_reserved_trbs;
 	int ret;
@@ -4014,57 +4011,65 @@ static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2,
 					"unfailable commands failed.\n");
 		return ret;
 	}
+	if (cmd->completion)
+		cmd->command_trb = xhci->cmd_ring->enqueue;
+	else
+		kfree(cmd);
+
 	queue_trb(xhci, xhci->cmd_ring, false, field1, field2, field3,
 			field4 | xhci->cmd_ring->cycle_state);
 	return 0;
 }
 
 /* Queue a slot enable or disable request on the command ring */
-int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
+int xhci_queue_slot_control(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		u32 trb_type, u32 slot_id)
 {
-	return queue_command(xhci, 0, 0, 0,
+	return queue_command(xhci, cmd, 0, 0, 0,
 			TRB_TYPE(trb_type) | SLOT_ID_FOR_TRB(slot_id), false);
 }
 
 /* Queue an address device command TRB */
-int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-			      u32 slot_id, enum xhci_setup_dev setup)
+int xhci_queue_address_device(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		dma_addr_t in_ctx_ptr, u32 slot_id, enum xhci_setup_dev setup)
 {
-	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
+	return queue_command(xhci, cmd, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id)
 			| (setup == SETUP_CONTEXT_ONLY ? TRB_BSR : 0), false);
 }
 
-int xhci_queue_vendor_command(struct xhci_hcd *xhci,
+int xhci_queue_vendor_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 		u32 field1, u32 field2, u32 field3, u32 field4)
 {
-	return queue_command(xhci, field1, field2, field3, field4, false);
+	return queue_command(xhci, cmd, field1, field2, field3, field4, false);
 }
 
 /* Queue a reset device command TRB */
-int xhci_queue_reset_device(struct xhci_hcd *xhci, u32 slot_id)
+int xhci_queue_reset_device(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		u32 slot_id)
 {
-	return queue_command(xhci, 0, 0, 0,
+	return queue_command(xhci, cmd, 0, 0, 0,
 			TRB_TYPE(TRB_RESET_DEV) | SLOT_ID_FOR_TRB(slot_id),
 			false);
 }
 
 /* Queue a configure endpoint command TRB */
-int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
+int xhci_queue_configure_endpoint(struct xhci_hcd *xhci,
+		struct xhci_command *cmd, dma_addr_t in_ctx_ptr,
 		u32 slot_id, bool command_must_succeed)
 {
-	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
+	return queue_command(xhci, cmd, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_CONFIG_EP) | SLOT_ID_FOR_TRB(slot_id),
 			command_must_succeed);
 }
 
 /* Queue an evaluate context command TRB */
-int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id, bool command_must_succeed)
+int xhci_queue_evaluate_context(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		dma_addr_t in_ctx_ptr, u32 slot_id, bool command_must_succeed)
 {
-	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
+	return queue_command(xhci, cmd, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_EVAL_CONTEXT) | SLOT_ID_FOR_TRB(slot_id),
 			command_must_succeed);
@@ -4074,25 +4079,26 @@ int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
  * Suspend is set to indicate "Stop Endpoint Command" is being issued to stop
  * activity on an endpoint that is about to be suspended.
  */
-int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
-		unsigned int ep_index, int suspend)
+int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, struct xhci_command *cmd,
+			     int slot_id, unsigned int ep_index, int suspend)
 {
 	u32 trb_slot_id = SLOT_ID_FOR_TRB(slot_id);
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 type = TRB_TYPE(TRB_STOP_RING);
 	u32 trb_suspend = SUSPEND_PORT_FOR_TRB(suspend);
 
-	return queue_command(xhci, 0, 0, 0,
+	return queue_command(xhci, cmd, 0, 0, 0,
 			trb_slot_id | trb_ep_index | type | trb_suspend, false);
 }
 
 /* Set Transfer Ring Dequeue Pointer command.
  * This should not be used for endpoints that have streams enabled.
  */
-static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
-		unsigned int ep_index, unsigned int stream_id,
-		struct xhci_segment *deq_seg,
-		union xhci_trb *deq_ptr, u32 cycle_state)
+static int queue_set_tr_deq(struct xhci_hcd *xhci, struct xhci_command *cmd,
+			int slot_id,
+			unsigned int ep_index, unsigned int stream_id,
+			struct xhci_segment *deq_seg,
+			union xhci_trb *deq_ptr, u32 cycle_state)
 {
 	dma_addr_t addr;
 	u32 trb_slot_id = SLOT_ID_FOR_TRB(slot_id);
@@ -4119,18 +4125,19 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 	ep->queued_deq_ptr = deq_ptr;
 	if (stream_id)
 		trb_sct = SCT_FOR_TRB(SCT_PRI_TR);
-	return queue_command(xhci, lower_32_bits(addr) | trb_sct | cycle_state,
+	return queue_command(xhci, cmd,
+			lower_32_bits(addr) | trb_sct | cycle_state,
 			upper_32_bits(addr), trb_stream_id,
 			trb_slot_id | trb_ep_index | type, false);
 }
 
-int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
-		unsigned int ep_index)
+int xhci_queue_reset_ep(struct xhci_hcd *xhci, struct xhci_command *cmd,
+			int slot_id, unsigned int ep_index)
 {
 	u32 trb_slot_id = SLOT_ID_FOR_TRB(slot_id);
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 type = TRB_TYPE(TRB_RESET_EP);
 
-	return queue_command(xhci, 0, 0, 0, trb_slot_id | trb_ep_index | type,
-			false);
+	return queue_command(xhci, cmd, 0, 0, 0,
+			trb_slot_id | trb_ep_index | type, false);
 }

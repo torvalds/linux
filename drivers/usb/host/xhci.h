@@ -1807,13 +1807,14 @@ struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 		dma_addr_t suspect_dma);
 int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code);
 void xhci_ring_cmd_db(struct xhci_hcd *xhci);
-int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
-int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id, enum xhci_setup_dev);
-int xhci_queue_vendor_command(struct xhci_hcd *xhci,
+int xhci_queue_slot_control(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		u32 trb_type, u32 slot_id);
+int xhci_queue_address_device(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		dma_addr_t in_ctx_ptr, u32 slot_id, enum xhci_setup_dev);
+int xhci_queue_vendor_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 		u32 field1, u32 field2, u32 field3, u32 field4);
-int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
-		unsigned int ep_index, int suspend);
+int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		int slot_id, unsigned int ep_index, int suspend);
 int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
@@ -1822,18 +1823,21 @@ int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index);
-int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id, bool command_must_succeed);
-int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id, bool command_must_succeed);
-int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
-		unsigned int ep_index);
-int xhci_queue_reset_device(struct xhci_hcd *xhci, u32 slot_id);
+int xhci_queue_configure_endpoint(struct xhci_hcd *xhci,
+		struct xhci_command *cmd, dma_addr_t in_ctx_ptr, u32 slot_id,
+		bool command_must_succeed);
+int xhci_queue_evaluate_context(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		dma_addr_t in_ctx_ptr, u32 slot_id, bool command_must_succeed);
+int xhci_queue_reset_ep(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		int slot_id, unsigned int ep_index);
+int xhci_queue_reset_device(struct xhci_hcd *xhci, struct xhci_command *cmd,
+		u32 slot_id);
 void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		unsigned int stream_id, struct xhci_td *cur_td,
 		struct xhci_dequeue_state *state);
 void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
+		struct xhci_command *cmd,
 		unsigned int slot_id, unsigned int ep_index,
 		unsigned int stream_id,
 		struct xhci_dequeue_state *deq_state);
@@ -1847,7 +1851,6 @@ int xhci_cancel_cmd(struct xhci_hcd *xhci, struct xhci_command *command,
 		union xhci_trb *cmd_trb);
 void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 		unsigned int ep_index, unsigned int stream_id);
-union xhci_trb *xhci_find_next_enqueue(struct xhci_ring *ring);
 
 /* xHCI roothub code */
 void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,
