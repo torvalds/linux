@@ -46,13 +46,16 @@ static void exynos_set_wakeupmask(long mask)
 	__raw_writel(mask, S5P_WAKEUP_MASK);
 }
 
+static void exynos_cpu_set_boot_vector(long flags)
+{
+	__raw_writel(virt_to_phys(exynos_cpu_resume), REG_DIRECTGO_ADDR);
+	__raw_writel(flags, REG_DIRECTGO_FLAG);
+}
+
 static int idle_finisher(unsigned long flags)
 {
 	exynos_set_wakeupmask(0x0000ff3e);
-
-	__raw_writel(virt_to_phys(s3c_cpu_resume), REG_DIRECTGO_ADDR);
-	__raw_writel(S5P_CHECK_AFTR, REG_DIRECTGO_FLAG);
-
+	exynos_cpu_set_boot_vector(S5P_CHECK_AFTR);
 	/* Set value of power down register for aftr mode */
 	exynos_sys_powerdown_conf(SYS_AFTR);
 
