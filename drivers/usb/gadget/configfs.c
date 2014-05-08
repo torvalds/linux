@@ -6,6 +6,7 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget_configfs.h>
 #include "configfs.h"
+#include "u_f.h"
 
 int check_user_usb_string(const char *name,
 		struct usb_gadget_strings *stringtab_dev)
@@ -872,10 +873,63 @@ static void os_desc_attr_release(struct config_item *item)
 	kfree(os_desc);
 }
 
+static int os_desc_link(struct config_item *os_desc_ci,
+			struct config_item *usb_cfg_ci)
+{
+	struct gadget_info *gi = container_of(to_config_group(os_desc_ci),
+					struct gadget_info, os_desc_group);
+	struct usb_composite_dev *cdev = &gi->cdev;
+	struct config_usb_cfg *c_target =
+		container_of(to_config_group(usb_cfg_ci),
+			     struct config_usb_cfg, group);
+	struct usb_configuration *c;
+	int ret;
+
+	mutex_lock(&gi->lock);
+	list_for_each_entry(c, &cdev->configs, list) {
+		if (c == &c_target->c)
+			break;
+	}
+	if (c != &c_target->c) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (cdev->os_desc_config) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	cdev->os_desc_config = &c_target->c;
+	ret = 0;
+
+out:
+	mutex_unlock(&gi->lock);
+	return ret;
+}
+
+static int os_desc_unlink(struct config_item *os_desc_ci,
+			  struct config_item *usb_cfg_ci)
+{
+	struct gadget_info *gi = container_of(to_config_group(os_desc_ci),
+					struct gadget_info, os_desc_group);
+	struct usb_composite_dev *cdev = &gi->cdev;
+
+	mutex_lock(&gi->lock);
+	if (gi->udc_name)
+		unregister_gadget(gi);
+	cdev->os_desc_config = NULL;
+	WARN_ON(gi->udc_name);
+	mutex_unlock(&gi->lock);
+	return 0;
+}
+
 static struct configfs_item_operations os_desc_ops = {
 	.release                = os_desc_attr_release,
 	.show_attribute         = os_desc_attr_show,
 	.store_attribute        = os_desc_attr_store,
+	.allow_link		= os_desc_link,
+	.drop_link		= os_desc_unlink,
 };
 
 static struct config_item_type os_desc_type = {
@@ -883,6 +937,133 @@ static struct config_item_type os_desc_type = {
 	.ct_attrs	= os_desc_attrs,
 	.ct_owner	= THIS_MODULE,
 };
+
+CONFIGFS_ATTR_STRUCT(usb_os_desc);
+CONFIGFS_ATTR_OPS(usb_os_desc);
+
+static struct configfs_item_operations interf_item_ops = {
+	.show_attribute		= usb_os_desc_attr_show,
+	.store_attribute	= usb_os_desc_attr_store,
+};
+
+static ssize_t rndis_grp_compatible_id_show(struct usb_os_desc *desc,
+					    char *page)
+{
+	memcpy(page, desc->ext_compat_id, 8);
+	return 8;
+}
+
+static ssize_t rndis_grp_compatible_id_store(struct usb_os_desc *desc,
+					     const char *page, size_t len)
+{
+	int l;
+
+	l = min_t(int, 8, len);
+	if (page[l - 1] == '\n')
+		--l;
+	if (desc->opts_mutex)
+		mutex_lock(desc->opts_mutex);
+	memcpy(desc->ext_compat_id, page, l);
+	desc->ext_compat_id[l] = '\0';
+
+	if (desc->opts_mutex)
+		mutex_unlock(desc->opts_mutex);
+
+	return len;
+}
+
+static struct usb_os_desc_attribute rndis_grp_attr_compatible_id =
+	__CONFIGFS_ATTR(compatible_id, S_IRUGO | S_IWUSR,
+			rndis_grp_compatible_id_show,
+			rndis_grp_compatible_id_store);
+
+static ssize_t rndis_grp_sub_compatible_id_show(struct usb_os_desc *desc,
+						char *page)
+{
+	memcpy(page, desc->ext_compat_id + 8, 8);
+	return 8;
+}
+
+static ssize_t rndis_grp_sub_compatible_id_store(struct usb_os_desc *desc,
+						 const char *page, size_t len)
+{
+	int l;
+
+	l = min_t(int, 8, len);
+	if (page[l - 1] == '\n')
+		--l;
+	if (desc->opts_mutex)
+		mutex_lock(desc->opts_mutex);
+	memcpy(desc->ext_compat_id + 8, page, l);
+	desc->ext_compat_id[l + 8] = '\0';
+
+	if (desc->opts_mutex)
+		mutex_unlock(desc->opts_mutex);
+
+	return len;
+}
+
+static struct usb_os_desc_attribute rndis_grp_attr_sub_compatible_id =
+	__CONFIGFS_ATTR(sub_compatible_id, S_IRUGO | S_IWUSR,
+			rndis_grp_sub_compatible_id_show,
+			rndis_grp_sub_compatible_id_store);
+
+static struct configfs_attribute *interf_grp_attrs[] = {
+	&rndis_grp_attr_compatible_id.attr,
+	&rndis_grp_attr_sub_compatible_id.attr,
+	NULL
+};
+
+int usb_os_desc_prepare_interf_dir(struct config_group *parent,
+				   int n_interf,
+				   struct usb_os_desc **desc,
+				   struct module *owner)
+{
+	struct config_group **f_default_groups, *os_desc_group,
+				**interface_groups;
+	struct config_item_type *os_desc_type, *interface_type;
+
+	vla_group(data_chunk);
+	vla_item(data_chunk, struct config_group *, f_default_groups, 2);
+	vla_item(data_chunk, struct config_group, os_desc_group, 1);
+	vla_item(data_chunk, struct config_group *, interface_groups,
+		 n_interf + 1);
+	vla_item(data_chunk, struct config_item_type, os_desc_type, 1);
+	vla_item(data_chunk, struct config_item_type, interface_type, 1);
+
+	char *vlabuf = kzalloc(vla_group_size(data_chunk), GFP_KERNEL);
+	if (!vlabuf)
+		return -ENOMEM;
+
+	f_default_groups = vla_ptr(vlabuf, data_chunk, f_default_groups);
+	os_desc_group = vla_ptr(vlabuf, data_chunk, os_desc_group);
+	os_desc_type = vla_ptr(vlabuf, data_chunk, os_desc_type);
+	interface_groups = vla_ptr(vlabuf, data_chunk, interface_groups);
+	interface_type = vla_ptr(vlabuf, data_chunk, interface_type);
+
+	parent->default_groups = f_default_groups;
+	os_desc_type->ct_owner = owner;
+	config_group_init_type_name(os_desc_group, "os_desc", os_desc_type);
+	f_default_groups[0] = os_desc_group;
+
+	os_desc_group->default_groups = interface_groups;
+	interface_type->ct_item_ops = &interf_item_ops;
+	interface_type->ct_attrs = interf_grp_attrs;
+	interface_type->ct_owner = owner;
+
+	while (n_interf--) {
+		struct usb_os_desc *d;
+
+		d = desc[n_interf];
+		config_group_init_type_name(&d->group, "", interface_type);
+		config_item_set_name(&d->group.cg_item, "interface.%d",
+				     n_interf);
+		interface_groups[n_interf] = &d->group;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(usb_os_desc_prepare_interf_dir);
 
 static int configfs_do_nothing(struct usb_composite_dev *cdev)
 {
@@ -892,6 +1073,9 @@ static int configfs_do_nothing(struct usb_composite_dev *cdev)
 
 int composite_dev_prepare(struct usb_composite_driver *composite,
 		struct usb_composite_dev *dev);
+
+int composite_os_desc_req_prepare(struct usb_composite_dev *cdev,
+				  struct usb_ep *ep0);
 
 static void purge_configs_funcs(struct gadget_info *gi)
 {
@@ -1028,6 +1212,12 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 		}
 		usb_ep_autoconfig_reset(cdev->gadget);
 	}
+	if (cdev->use_os_string) {
+		ret = composite_os_desc_req_prepare(cdev, gadget->ep0);
+		if (ret)
+			goto err_purge_funcs;
+	}
+
 	usb_ep_autoconfig_reset(cdev->gadget);
 	return 0;
 
