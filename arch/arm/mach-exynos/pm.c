@@ -279,15 +279,21 @@ static void exynos_pm_prepare(void)
 	__raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
 }
 
-static int exynos_pm_suspend(void)
+static void exynos_pm_central_suspend(void)
 {
 	unsigned long tmp;
 
 	/* Setting Central Sequence Register for power down mode */
-
 	tmp = __raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
 	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
 	__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+}
+
+static int exynos_pm_suspend(void)
+{
+	unsigned long tmp;
+
+	exynos_pm_central_suspend();
 
 	/* Setting SEQ_OPTION register */
 
@@ -300,7 +306,7 @@ static int exynos_pm_suspend(void)
 	return 0;
 }
 
-static void exynos_pm_resume(void)
+static int exynos_pm_central_resume(void)
 {
 	unsigned long tmp;
 
@@ -317,8 +323,16 @@ static void exynos_pm_resume(void)
 		/* clear the wakeup state register */
 		__raw_writel(0x0, S5P_WAKEUP_STAT);
 		/* No need to perform below restore code */
-		goto early_wakeup;
+		return -1;
 	}
+
+	return 0;
+}
+
+static void exynos_pm_resume(void)
+{
+	if (exynos_pm_central_resume())
+		goto early_wakeup;
 
 	if (!soc_is_exynos5250())
 		exynos_cpu_restore_register();
@@ -424,8 +438,10 @@ static int exynos_cpu_pm_notifier(struct notifier_block *self,
 
 	switch (cmd) {
 	case CPU_PM_ENTER:
-		if (cpu == 0)
+		if (cpu == 0) {
+			exynos_pm_central_suspend();
 			exynos_cpu_save_register();
+		}
 		break;
 
 	case CPU_PM_EXIT:
@@ -433,6 +449,7 @@ static int exynos_cpu_pm_notifier(struct notifier_block *self,
 			if (!soc_is_exynos5250())
 				scu_enable(S5P_VA_SCU);
 			exynos_cpu_restore_register();
+			exynos_pm_central_resume();
 		}
 		break;
 	}
