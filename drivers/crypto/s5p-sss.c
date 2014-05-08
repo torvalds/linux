@@ -587,20 +587,7 @@ static int s5p_aes_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pdata->lock);
 
-	pdata->irq_hash = platform_get_irq_byname(pdev, "hash");
-	if (pdata->irq_hash < 0) {
-		err = pdata->irq_hash;
-		dev_warn(dev, "hash interrupt is not available.\n");
-		goto err_irq;
-	}
-	err = devm_request_irq(dev, pdata->irq_hash, s5p_aes_interrupt,
-			       IRQF_SHARED, pdev->name, pdev);
-	if (err < 0) {
-		dev_warn(dev, "hash interrupt is not available.\n");
-		goto err_irq;
-	}
-
-	pdata->irq_fc = platform_get_irq_byname(pdev, "feed control");
+	pdata->irq_fc = platform_get_irq(pdev, 0);
 	if (pdata->irq_fc < 0) {
 		err = pdata->irq_fc;
 		dev_warn(dev, "feed control interrupt is not available.\n");
@@ -610,6 +597,19 @@ static int s5p_aes_probe(struct platform_device *pdev)
 			       IRQF_SHARED, pdev->name, pdev);
 	if (err < 0) {
 		dev_warn(dev, "feed control interrupt is not available.\n");
+		goto err_irq;
+	}
+
+	pdata->irq_hash = platform_get_irq(pdev, 1);
+	if (pdata->irq_hash < 0) {
+		err = pdata->irq_hash;
+		dev_warn(dev, "hash interrupt is not available.\n");
+		goto err_irq;
+	}
+	err = devm_request_irq(dev, pdata->irq_hash, s5p_aes_interrupt,
+			       IRQF_SHARED, pdev->name, pdev);
+	if (err < 0) {
+		dev_warn(dev, "hash interrupt is not available.\n");
 		goto err_irq;
 	}
 
