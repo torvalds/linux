@@ -640,8 +640,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 				       packet->vlan_tci);
 
 	skb_record_rx_queue(skb, packet->channel->
-			    offermsg.offer.sub_channel_index %
-			    net->real_num_rx_queues);
+			    offermsg.offer.sub_channel_index);
 
 	net->stats.rx_packets++;
 	net->stats.rx_bytes += packet->total_data_buflen;
@@ -824,8 +823,6 @@ static int netvsc_probe(struct hv_device *dev,
 	nvdev = hv_get_drvdata(dev);
 	netif_set_real_num_tx_queues(net, nvdev->num_chn);
 	netif_set_real_num_rx_queues(net, nvdev->num_chn);
-	dev_info(&dev->device, "real num tx,rx queues:%u, %u\n",
-		 net->real_num_tx_queues, net->real_num_rx_queues);
 
 	ret = register_netdev(net);
 	if (ret != 0) {
