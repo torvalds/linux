@@ -1659,13 +1659,17 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 
+	err = dma_async_device_register(&dw->dma);
+	if (err)
+		goto err_dma_register;
+
 	dev_info(chip->dev, "DesignWare DMA Controller, %d channels\n",
 		 nr_channels);
 
-	dma_async_device_register(&dw->dma);
-
 	return 0;
 
+err_dma_register:
+	free_irq(chip->irq, dw);
 err_pdata:
 	clk_disable_unprepare(dw->clk);
 	return err;
