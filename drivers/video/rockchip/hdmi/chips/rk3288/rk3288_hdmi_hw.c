@@ -67,8 +67,7 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 			hdmi_writel(hdmi_dev, MC_CLKDIS, 0x00);
 			break;
 		case LOWER_PWR:
-			//hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
-				//v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
+			hdmi_writel(hdmi_dev, MC_CLKDIS, 0xff);
 			hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TMDS_EN | m_TXPWRON_SIG | m_ENHPD_RXSENSE_SIG,
 				v_TMDS_EN(0) | v_TXPWRON_SIG(0) | v_ENHPD_RXSENSE_SIG(1));
 			break;
@@ -260,7 +259,6 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 		hdmi_drv->tmdsclk = mode->pixclock;
 		break;
 	}
-	rk3288_hdmi_config_phy(hdmi_drv, vpara->pixel_repet, vpara->color_depth);
 
 	hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_ENCRYPT_BYPASS | m_HDMI_DVI,
 		v_ENCRYPT_BYPASS(1) | v_HDMI_DVI(vpara->output_mode));	//cfg to bypass hdcp data encrypt
@@ -939,7 +937,8 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 		hdmi_dbg(hdmi_drv->dev, "[%s] sucess output DVI.\n", __FUNCTION__);
 	}
 
-	//rk3288_hdmi_control_output(hdmi_drv, 0);
+	rk3288_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
+	rk3288_hdmi_config_phy(hdmi_drv, vpara->pixel_repet, vpara->color_depth);
 	return 0;
 }
 

@@ -937,6 +937,9 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 			extend_win->area[0].y_offset = win->area[0].y_offset;
 		#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 			rk_fb_rotate(extend_info, info, win->area[0].y_offset);
+		#else
+			extend_win->area[0].smem_start = win->area[0].smem_start;
+			extend_win->area[0].cbr_start = win->area[0].cbr_start;
 		#endif
 			extend_dev_drv->ops->pan_display(extend_dev_drv, extend_win_id);
 		}
@@ -2262,10 +2265,7 @@ if (rk_fb->disp_mode != DUAL) {
 					extend_win->area[0].xsize = extend_dev_drv->cur_screen->xsize;
 					extend_win->area[0].ysize = extend_dev_drv->cur_screen->ysize;
 				}
-			#if !defined(CONFIG_FB_ROTATE) && defined(CONFIG_THREE_FB_BUFFER)
-				extend_win->area[0].smem_start = win->area[0].smem_start;
-				extend_win->area[0].cbr_start = win->area[0].cbr_start;
-			#endif
+
 				extend_win->area[0].state = 1;
 				extend_win->area_num = 1;
 				extend_win->alpha_en = 0;
