@@ -33,35 +33,10 @@
 #include <linux/poll.h>
 
 #include "u_fs.h"
+#include "u_f.h"
 #include "configfs.h"
 
 #define FUNCTIONFS_MAGIC	0xa647361 /* Chosen by a honest dice roll ;) */
-
-/* Variable Length Array Macros **********************************************/
-#define vla_group(groupname) size_t groupname##__next = 0
-#define vla_group_size(groupname) groupname##__next
-
-#define vla_item(groupname, type, name, n) \
-	size_t groupname##_##name##__offset = ({			       \
-		size_t align_mask = __alignof__(type) - 1;		       \
-		size_t offset = (groupname##__next + align_mask) & ~align_mask;\
-		size_t size = (n) * sizeof(type);			       \
-		groupname##__next = offset + size;			       \
-		offset;							       \
-	})
-
-#define vla_item_with_sz(groupname, type, name, n) \
-	size_t groupname##_##name##__sz = (n) * sizeof(type);		       \
-	size_t groupname##_##name##__offset = ({			       \
-		size_t align_mask = __alignof__(type) - 1;		       \
-		size_t offset = (groupname##__next + align_mask) & ~align_mask;\
-		size_t size = groupname##_##name##__sz;			       \
-		groupname##__next = offset + size;			       \
-		offset;							       \
-	})
-
-#define vla_ptr(ptr, groupname, name) \
-	((void *) ((char *)ptr + groupname##_##name##__offset))
 
 /* Reference counter handling */
 static void ffs_data_get(struct ffs_data *ffs);
