@@ -37,6 +37,7 @@
 #define BYT_RATIOS		0x66a
 #define BYT_VIDS		0x66b
 #define BYT_TURBO_RATIOS	0x66c
+#define BYT_TURBO_VIDS		0x66d
 
 
 #define FRAC_BITS 6
@@ -70,8 +71,9 @@ struct pstate_data {
 };
 
 struct vid_data {
-	int32_t min;
-	int32_t max;
+	int min;
+	int max;
+	int turbo;
 	int32_t ratio;
 };
 
@@ -359,14 +361,14 @@ static int byt_get_min_pstate(void)
 {
 	u64 value;
 	rdmsrl(BYT_RATIOS, value);
-	return (value >> 8) & 0xFF;
+	return (value >> 8) & 0x3F;
 }
 
 static int byt_get_max_pstate(void)
 {
 	u64 value;
 	rdmsrl(BYT_RATIOS, value);
-	return (value >> 16) & 0xFF;
+	return (value >> 16) & 0x3F;
 }
 
 static int byt_get_turbo_pstate(void)
@@ -393,6 +395,9 @@ static void byt_set_pstate(struct cpudata *cpudata, int pstate)
 	vid_fp = clamp_t(int32_t, vid_fp, cpudata->vid.min, cpudata->vid.max);
 	vid = fp_toint(vid_fp);
 
+	if (pstate > cpudata->pstate.max_pstate)
+		vid = cpudata->vid.turbo;
+
 	val |= vid;
 
 	wrmsrl(MSR_IA32_PERF_CTL, val);
@@ -402,13 +407,17 @@ static void byt_get_vid(struct cpudata *cpudata)
 {
 	u64 value;
 
+
 	rdmsrl(BYT_VIDS, value);
-	cpudata->vid.min = int_tofp((value >> 8) & 0x7f);
-	cpudata->vid.max = int_tofp((value >> 16) & 0x7f);
+	cpudata->vid.min = int_tofp((value >> 8) & 0x3f);
+	cpudata->vid.max = int_tofp((value >> 16) & 0x3f);
 	cpudata->vid.ratio = div_fp(
 		cpudata->vid.max - cpudata->vid.min,
 		int_tofp(cpudata->pstate.max_pstate -
 			cpudata->pstate.min_pstate));
+
+	rdmsrl(BYT_TURBO_VIDS, value);
+	cpudata->vid.turbo = value & 0x7f;
 }
 
 
