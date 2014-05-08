@@ -25,7 +25,6 @@
 #define __reverse_ffz(x) __reverse_ffs(~(x))
 
 static struct kmem_cache *discard_entry_slab;
-static struct kmem_cache *flush_cmd_slab;
 
 /*
  * __reverse_ffs is copied from include/asm-generic/bitops/__ffs.h since
@@ -238,30 +237,28 @@ repeat:
 int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 {
 	struct flush_cmd_control *fcc = SM_I(sbi)->cmd_control_info;
-	struct flush_cmd *cmd;
-	int ret;
+	struct flush_cmd cmd;
 
 	if (!test_opt(sbi, FLUSH_MERGE))
 		return blkdev_issue_flush(sbi->sb->s_bdev, GFP_KERNEL, NULL);
 
-	cmd = f2fs_kmem_cache_alloc(flush_cmd_slab, GFP_ATOMIC | __GFP_ZERO);
-	init_completion(&cmd->wait);
+	init_completion(&cmd.wait);
+	cmd.next = NULL;
 
 	spin_lock(&fcc->issue_lock);
 	if (fcc->issue_list)
-		fcc->issue_tail->next = cmd;
+		fcc->issue_tail->next = &cmd;
 	else
-		fcc->issue_list = cmd;
-	fcc->issue_tail = cmd;
+		fcc->issue_list = &cmd;
+	fcc->issue_tail = &cmd;
 	spin_unlock(&fcc->issue_lock);
 
 	if (!fcc->dispatch_list)
 		wake_up(&fcc->flush_wait_queue);
 
-	wait_for_completion(&cmd->wait);
-	ret = cmd->ret;
-	kmem_cache_free(flush_cmd_slab, cmd);
-	return ret;
+	wait_for_completion(&cmd.wait);
+
+	return cmd.ret;
 }
 
 int create_flush_cmd_control(struct f2fs_sb_info *sbi)
@@ -2036,17 +2033,10 @@ int __init create_segment_manager_caches(void)
 			sizeof(struct discard_entry));
 	if (!discard_entry_slab)
 		return -ENOMEM;
-	flush_cmd_slab = f2fs_kmem_cache_create("flush_command",
-			sizeof(struct flush_cmd));
-	if (!flush_cmd_slab) {
-		kmem_cache_destroy(discard_entry_slab);
-		return -ENOMEM;
-	}
 	return 0;
 }
 
 void destroy_segment_manager_caches(void)
 {
 	kmem_cache_destroy(discard_entry_slab);
-	kmem_cache_destroy(flush_cmd_slab);
 }
