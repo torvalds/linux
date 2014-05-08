@@ -1502,6 +1502,9 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 					ret = -EAGAIN;
 				else
 					urb->transfer_flags |= URB_DMA_MAP_PAGE;
+			} else if (is_vmalloc_addr(urb->transfer_buffer)) {
+				WARN_ONCE(1, "transfer buffer not dma capable\n");
+				ret = -EAGAIN;
 			} else {
 				urb->transfer_dma = dma_map_single(
 						hcd->self.controller,
