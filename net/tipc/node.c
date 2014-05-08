@@ -108,7 +108,7 @@ struct tipc_node *tipc_node_create(u32 addr)
 			break;
 	}
 	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
-	n_ptr->flags = TIPC_NODE_DOWN;
+	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
 
 	tipc_num_nodes++;
@@ -267,7 +267,7 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 
 static void node_established_contact(struct tipc_node *n_ptr)
 {
-	n_ptr->flags |= TIPC_NODE_UP;
+	n_ptr->action_flags |= TIPC_NOTIFY_NODE_UP;
 	n_ptr->bclink.oos_state = 0;
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 	tipc_bclink_add_node(n_ptr->addr);
@@ -311,7 +311,8 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	/* Notify subscribers and prevent re-contact with node until
 	 * cleanup is done.
 	 */
-	n_ptr->flags = TIPC_NODE_DOWN | TIPC_NODE_LOST;
+	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN |
+			      TIPC_NOTIFY_NODE_DOWN;
 }
 
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
@@ -459,18 +460,18 @@ void tipc_node_unlock(struct tipc_node *node)
 	int pkt_sz = 0;
 	u32 addr = 0;
 
-	if (likely(!node->flags)) {
+	if (likely(!node->action_flags)) {
 		spin_unlock_bh(&node->lock);
 		return;
 	}
 
-	if (node->flags & TIPC_NODE_LOST) {
+	if (node->action_flags & TIPC_NOTIFY_NODE_DOWN) {
 		list_replace_init(&node->nsub, &nsub_list);
-		node->flags &= ~TIPC_NODE_LOST;
+		node->action_flags &= ~TIPC_NOTIFY_NODE_DOWN;
 	}
-	if (node->flags & TIPC_NODE_UP) {
+	if (node->action_flags & TIPC_NOTIFY_NODE_UP) {
 		link = node->active_links[0];
-		node->flags &= ~TIPC_NODE_UP;
+		node->action_flags &= ~TIPC_NOTIFY_NODE_UP;
 		if (link) {
 			pkt_sz = ((link->max_pkt - INT_H_SIZE) / ITEM_SIZE) *
 				  ITEM_SIZE;

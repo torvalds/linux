@@ -1489,12 +1489,12 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			goto unlock_discard;
 
 		/* Verify that communication with node is currently allowed */
-		if ((n_ptr->flags & TIPC_NODE_DOWN) &&
+		if ((n_ptr->action_flags & TIPC_WAIT_PEER_LINKS_DOWN) &&
 		    msg_user(msg) == LINK_PROTOCOL &&
 		    (msg_type(msg) == RESET_MSG ||
 		    msg_type(msg) == ACTIVATE_MSG) &&
 		    !msg_redundant_link(msg))
-			n_ptr->flags &= ~TIPC_NODE_DOWN;
+			n_ptr->action_flags &= ~TIPC_WAIT_PEER_LINKS_DOWN;
 
 		if (tipc_node_blocked(n_ptr))
 			goto unlock_discard;
@@ -1853,7 +1853,7 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr, struct sk_buff *buf)
 			 * peer has lost contact -- don't allow peer's links
 			 * to reactivate before we recognize loss & clean up
 			 */
-			l_ptr->owner->flags = TIPC_NODE_RESET;
+			l_ptr->owner->action_flags = TIPC_WAIT_OWN_LINKS_DOWN;
 		}
 
 		link_state_event(l_ptr, RESET_MSG);
