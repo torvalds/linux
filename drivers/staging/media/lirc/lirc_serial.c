@@ -1011,7 +1011,8 @@ static ssize_t lirc_write(struct file *file, const char __user *buf,
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	int result;
-	__u32 value;
+	u32 __user *uptr = (u32 __user *)arg;
+	u32 value;
 
 	switch (cmd) {
 	case LIRC_GET_SEND_MODE:
@@ -1020,7 +1021,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 		result = put_user(LIRC_SEND2MODE
 				  (hardware[type].features&LIRC_CAN_SEND_MASK),
-				  (__u32 *) arg);
+				  uptr);
 		if (result)
 			return result;
 		break;
@@ -1029,7 +1030,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (!(hardware[type].features&LIRC_CAN_SEND_MASK))
 			return -ENOIOCTLCMD;
 
-		result = get_user(value, (__u32 *) arg);
+		result = get_user(value, uptr);
 		if (result)
 			return result;
 		/* only LIRC_MODE_PULSE supported */
@@ -1046,7 +1047,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (!(hardware[type].features&LIRC_CAN_SET_SEND_DUTY_CYCLE))
 			return -ENOIOCTLCMD;
 
-		result = get_user(value, (__u32 *) arg);
+		result = get_user(value, uptr);
 		if (result)
 			return result;
 		if (value <= 0 || value > 100)
@@ -1059,7 +1060,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (!(hardware[type].features&LIRC_CAN_SET_SEND_CARRIER))
 			return -ENOIOCTLCMD;
 
-		result = get_user(value, (__u32 *) arg);
+		result = get_user(value, uptr);
 		if (result)
 			return result;
 		if (value > 500000 || value < 20000)
