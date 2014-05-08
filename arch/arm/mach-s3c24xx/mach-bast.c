@@ -51,7 +51,6 @@
 #include <mach/regs-lcd.h>
 #include <mach/gpio-samsung.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
 #include <plat/devs.h>
@@ -581,9 +580,14 @@ static void __init bast_map_io(void)
 	s3c_hwmon_set_platdata(&bast_hwmon_info);
 
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(bast_uartcfgs, ARRAY_SIZE(bast_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init bast_init_time(void)
+{
+	s3c2410_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init bast_init(void)
@@ -613,6 +617,6 @@ MACHINE_START(BAST, "Simtec-BAST")
 	.map_io		= bast_map_io,
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= bast_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= bast_init_time,
 	.restart	= s3c2410_restart,
 MACHINE_END

@@ -142,12 +142,7 @@ static void __init nexcoder_map_io(void)
 
 static void __init nexcoder_init_time(void)
 {
-	/*
-	 * for whatever reason the nexcoder called s3c24xx_init_clocks(0)
-	 * meaning a xti value of 0Hz, so this machine will most likely
-	 * not work out of the box and needs a fixup.
-	 */
-	s3c2440_init_clocks(0);
+	s3c2440_init_clocks(12000000);
 	samsung_timer_init();
 }
 
