@@ -7,6 +7,7 @@
 #include <linux/usb/gadget_configfs.h>
 #include "configfs.h"
 #include "u_f.h"
+#include "u_os_desc.h"
 
 int check_user_usb_string(const char *name,
 		struct usb_gadget_strings *stringtab_dev)
@@ -941,6 +942,204 @@ static struct config_item_type os_desc_type = {
 CONFIGFS_ATTR_STRUCT(usb_os_desc);
 CONFIGFS_ATTR_OPS(usb_os_desc);
 
+
+static inline struct usb_os_desc_ext_prop
+*to_usb_os_desc_ext_prop(struct config_item *item)
+{
+	return container_of(item, struct usb_os_desc_ext_prop, item);
+}
+
+CONFIGFS_ATTR_STRUCT(usb_os_desc_ext_prop);
+CONFIGFS_ATTR_OPS(usb_os_desc_ext_prop);
+
+static ssize_t ext_prop_type_show(struct usb_os_desc_ext_prop *ext_prop,
+				  char *page)
+{
+	return sprintf(page, "%d", ext_prop->type);
+}
+
+static ssize_t ext_prop_type_store(struct usb_os_desc_ext_prop *ext_prop,
+				   const char *page, size_t len)
+{
+	struct usb_os_desc *desc = to_usb_os_desc(ext_prop->item.ci_parent);
+	u8 type;
+	int ret;
+
+	if (desc->opts_mutex)
+		mutex_lock(desc->opts_mutex);
+	ret = kstrtou8(page, 0, &type);
+	if (ret)
+		goto end;
+	if (type < USB_EXT_PROP_UNICODE || type > USB_EXT_PROP_UNICODE_MULTI) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	if ((ext_prop->type == USB_EXT_PROP_BINARY ||
+	    ext_prop->type == USB_EXT_PROP_LE32 ||
+	    ext_prop->type == USB_EXT_PROP_BE32) &&
+	    (type == USB_EXT_PROP_UNICODE ||
+	    type == USB_EXT_PROP_UNICODE_ENV ||
+	    type == USB_EXT_PROP_UNICODE_LINK))
+		ext_prop->data_len <<= 1;
+	else if ((ext_prop->type == USB_EXT_PROP_UNICODE ||
+		   ext_prop->type == USB_EXT_PROP_UNICODE_ENV ||
+		   ext_prop->type == USB_EXT_PROP_UNICODE_LINK) &&
+		   (type == USB_EXT_PROP_BINARY ||
+		   type == USB_EXT_PROP_LE32 ||
+		   type == USB_EXT_PROP_BE32))
+		ext_prop->data_len >>= 1;
+	ext_prop->type = type;
+	ret = len;
+
+end:
+	if (desc->opts_mutex)
+		mutex_unlock(desc->opts_mutex);
+	return ret;
+}
+
+static ssize_t ext_prop_data_show(struct usb_os_desc_ext_prop *ext_prop,
+				  char *page)
+{
+	int len = ext_prop->data_len;
+
+	if (ext_prop->type == USB_EXT_PROP_UNICODE ||
+	    ext_prop->type == USB_EXT_PROP_UNICODE_ENV ||
+	    ext_prop->type == USB_EXT_PROP_UNICODE_LINK)
+		len >>= 1;
+	memcpy(page, ext_prop->data, len);
+
+	return len;
+}
+
+static ssize_t ext_prop_data_store(struct usb_os_desc_ext_prop *ext_prop,
+				   const char *page, size_t len)
+{
+	struct usb_os_desc *desc = to_usb_os_desc(ext_prop->item.ci_parent);
+	char *new_data;
+	size_t ret_len = len;
+
+	if (page[len - 1] == '\n' || page[len - 1] == '\0')
+		--len;
+	new_data = kzalloc(len, GFP_KERNEL);
+	if (!new_data)
+		return -ENOMEM;
+
+	memcpy(new_data, page, len);
+
+	if (desc->opts_mutex)
+		mutex_lock(desc->opts_mutex);
+	kfree(ext_prop->data);
+	ext_prop->data = new_data;
+	desc->ext_prop_len -= ext_prop->data_len;
+	ext_prop->data_len = len;
+	desc->ext_prop_len += ext_prop->data_len;
+	if (ext_prop->type == USB_EXT_PROP_UNICODE ||
+	    ext_prop->type == USB_EXT_PROP_UNICODE_ENV ||
+	    ext_prop->type == USB_EXT_PROP_UNICODE_LINK) {
+		desc->ext_prop_len -= ext_prop->data_len;
+		ext_prop->data_len <<= 1;
+		ext_prop->data_len += 2;
+		desc->ext_prop_len += ext_prop->data_len;
+	}
+	if (desc->opts_mutex)
+		mutex_unlock(desc->opts_mutex);
+	return ret_len;
+}
+
+static struct usb_os_desc_ext_prop_attribute ext_prop_type =
+	__CONFIGFS_ATTR(type, S_IRUGO | S_IWUSR,
+			ext_prop_type_show, ext_prop_type_store);
+
+static struct usb_os_desc_ext_prop_attribute ext_prop_data =
+	__CONFIGFS_ATTR(data, S_IRUGO | S_IWUSR,
+			ext_prop_data_show, ext_prop_data_store);
+
+static struct configfs_attribute *ext_prop_attrs[] = {
+	&ext_prop_type.attr,
+	&ext_prop_data.attr,
+	NULL,
+};
+
+static void usb_os_desc_ext_prop_release(struct config_item *item)
+{
+	struct usb_os_desc_ext_prop *ext_prop = to_usb_os_desc_ext_prop(item);
+
+	kfree(ext_prop); /* frees a whole chunk */
+}
+
+static struct configfs_item_operations ext_prop_ops = {
+	.release		= usb_os_desc_ext_prop_release,
+	.show_attribute		= usb_os_desc_ext_prop_attr_show,
+	.store_attribute	= usb_os_desc_ext_prop_attr_store,
+};
+
+static struct config_item *ext_prop_make(
+		struct config_group *group,
+		const char *name)
+{
+	struct usb_os_desc_ext_prop *ext_prop;
+	struct config_item_type *ext_prop_type;
+	struct usb_os_desc *desc;
+	char *vlabuf;
+
+	vla_group(data_chunk);
+	vla_item(data_chunk, struct usb_os_desc_ext_prop, ext_prop, 1);
+	vla_item(data_chunk, struct config_item_type, ext_prop_type, 1);
+
+	vlabuf = kzalloc(vla_group_size(data_chunk), GFP_KERNEL);
+	if (!vlabuf)
+		return ERR_PTR(-ENOMEM);
+
+	ext_prop = vla_ptr(vlabuf, data_chunk, ext_prop);
+	ext_prop_type = vla_ptr(vlabuf, data_chunk, ext_prop_type);
+
+	desc = container_of(group, struct usb_os_desc, group);
+	ext_prop_type->ct_item_ops = &ext_prop_ops;
+	ext_prop_type->ct_attrs = ext_prop_attrs;
+	ext_prop_type->ct_owner = desc->owner;
+
+	config_item_init_type_name(&ext_prop->item, name, ext_prop_type);
+
+	ext_prop->name = kstrdup(name, GFP_KERNEL);
+	if (!ext_prop->name) {
+		kfree(vlabuf);
+		return ERR_PTR(-ENOMEM);
+	}
+	desc->ext_prop_len += 14;
+	ext_prop->name_len = 2 * strlen(ext_prop->name) + 2;
+	if (desc->opts_mutex)
+		mutex_lock(desc->opts_mutex);
+	desc->ext_prop_len += ext_prop->name_len;
+	list_add_tail(&ext_prop->entry, &desc->ext_prop);
+	++desc->ext_prop_count;
+	if (desc->opts_mutex)
+		mutex_unlock(desc->opts_mutex);
+
+	return &ext_prop->item;
+}
+
+static void ext_prop_drop(struct config_group *group, struct config_item *item)
+{
+	struct usb_os_desc_ext_prop *ext_prop = to_usb_os_desc_ext_prop(item);
+	struct usb_os_desc *desc = to_usb_os_desc(&group->cg_item);
+
+	if (desc->opts_mutex)
+		mutex_lock(desc->opts_mutex);
+	list_del(&ext_prop->entry);
+	--desc->ext_prop_count;
+	kfree(ext_prop->name);
+	desc->ext_prop_len -= (ext_prop->name_len + ext_prop->data_len + 14);
+	if (desc->opts_mutex)
+		mutex_unlock(desc->opts_mutex);
+	config_item_put(item);
+}
+
+static struct configfs_group_operations interf_grp_ops = {
+	.make_item	= &ext_prop_make,
+	.drop_item	= &ext_prop_drop,
+};
+
 static struct configfs_item_operations interf_item_ops = {
 	.show_attribute		= usb_os_desc_attr_show,
 	.store_attribute	= usb_os_desc_attr_store,
@@ -1048,6 +1247,7 @@ int usb_os_desc_prepare_interf_dir(struct config_group *parent,
 
 	os_desc_group->default_groups = interface_groups;
 	interface_type->ct_item_ops = &interf_item_ops;
+	interface_type->ct_group_ops = &interf_grp_ops;
 	interface_type->ct_attrs = interf_grp_attrs;
 	interface_type->ct_owner = owner;
 
@@ -1055,6 +1255,7 @@ int usb_os_desc_prepare_interf_dir(struct config_group *parent,
 		struct usb_os_desc *d;
 
 		d = desc[n_interf];
+		d->owner = owner;
 		config_group_init_type_name(&d->group, "", interface_type);
 		config_item_set_name(&d->group.cg_item, "interface.%d",
 				     n_interf);
