@@ -202,13 +202,17 @@
 };
 
 &emmc {
-		clock-frequency = <1500000000>;
-	 	clock-freq-min-max = <400000 150000000>;
+	clock-frequency = <150000000>;
+	clock-freq-min-max = <400000 150000000>;
         supports-highspeed;
-		supports-emmc;
-		bootpart-no-access;
+	supports-emmc;
+        bootpart-no-access;
+
+	supports-DDR_MODE;
+	caps2-mmc-hs200;
+
         ignore-pm-notify;
-		keep-power-in-suspend;
+	keep-power-in-suspend;
     	status = "okay";
 };
     
@@ -219,7 +223,11 @@
 		supports-sd;
 		broken-cd;
 		card-detect-delay = <200>;
-		vmmc-supply = <&rk808_ldo5_reg>;
+
+		ignore-pm-notify;
+        	keep-power-in-suspend;
+	
+        	vmmc-supply = <&rk808_ldo5_reg>;
 		status = "okay";
 };
 		
