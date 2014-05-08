@@ -52,13 +52,17 @@ static void exynos_cpu_set_boot_vector(long flags)
 	__raw_writel(flags, REG_DIRECTGO_FLAG);
 }
 
-static int idle_finisher(unsigned long flags)
+static void exynos_enter_aftr(void)
 {
 	exynos_set_wakeupmask(0x0000ff3e);
 	exynos_cpu_set_boot_vector(S5P_CHECK_AFTR);
 	/* Set value of power down register for aftr mode */
 	exynos_sys_powerdown_conf(SYS_AFTR);
+}
 
+static int idle_finisher(unsigned long flags)
+{
+	exynos_enter_aftr();
 	cpu_do_idle();
 
 	return 1;
