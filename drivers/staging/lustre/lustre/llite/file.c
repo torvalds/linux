@@ -266,6 +266,10 @@ static int ll_md_close(struct obd_export *md_exp, struct inode *inode,
 {
 	struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 	struct ll_inode_info *lli = ll_i2info(inode);
+	int lockmode;
+	__u64 flags = LDLM_FL_BLOCK_GRANTED | LDLM_FL_TEST_LOCK;
+	struct lustre_handle lockh;
+	ldlm_policy_data_t policy = {.l_inodebits={MDS_INODELOCK_OPEN}};
 	int rc = 0;
 
 	/* clear group lock, if present */
@@ -292,39 +296,26 @@ static int ll_md_close(struct obd_export *md_exp, struct inode *inode,
 
 	/* Let's see if we have good enough OPEN lock on the file and if
 	   we can skip talking to MDS */
-	if (file->f_dentry->d_inode) { /* Can this ever be false? */
-		int lockmode;
-		__u64 flags = LDLM_FL_BLOCK_GRANTED | LDLM_FL_TEST_LOCK;
-		struct lustre_handle lockh;
-		struct inode *inode = file->f_dentry->d_inode;
-		ldlm_policy_data_t policy = {.l_inodebits={MDS_INODELOCK_OPEN}};
 
-		mutex_lock(&lli->lli_och_mutex);
-		if (fd->fd_omode & FMODE_WRITE) {
-			lockmode = LCK_CW;
-			LASSERT(lli->lli_open_fd_write_count);
-			lli->lli_open_fd_write_count--;
-		} else if (fd->fd_omode & FMODE_EXEC) {
-			lockmode = LCK_PR;
-			LASSERT(lli->lli_open_fd_exec_count);
-			lli->lli_open_fd_exec_count--;
-		} else {
-			lockmode = LCK_CR;
-			LASSERT(lli->lli_open_fd_read_count);
-			lli->lli_open_fd_read_count--;
-		}
-		mutex_unlock(&lli->lli_och_mutex);
-
-		if (!md_lock_match(md_exp, flags, ll_inode2fid(inode),
-				   LDLM_IBITS, &policy, lockmode,
-				   &lockh)) {
-			rc = ll_md_real_close(file->f_dentry->d_inode,
-					      fd->fd_omode);
-		}
+	mutex_lock(&lli->lli_och_mutex);
+	if (fd->fd_omode & FMODE_WRITE) {
+		lockmode = LCK_CW;
+		LASSERT(lli->lli_open_fd_write_count);
+		lli->lli_open_fd_write_count--;
+	} else if (fd->fd_omode & FMODE_EXEC) {
+		lockmode = LCK_PR;
+		LASSERT(lli->lli_open_fd_exec_count);
+		lli->lli_open_fd_exec_count--;
 	} else {
-		CERROR("Releasing a file %p with negative dentry %p. Name %s",
-		       file, file->f_dentry, file->f_dentry->d_name.name);
+		lockmode = LCK_CR;
+		LASSERT(lli->lli_open_fd_read_count);
+		lli->lli_open_fd_read_count--;
 	}
+	mutex_unlock(&lli->lli_och_mutex);
+
+	if (!md_lock_match(md_exp, flags, ll_inode2fid(inode),
+			   LDLM_IBITS, &policy, lockmode, &lockh))
+		rc = ll_md_real_close(inode, fd->fd_omode);
 
 out:
 	LUSTRE_FPRIVATE(file) = NULL;
