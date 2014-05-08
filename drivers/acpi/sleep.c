@@ -89,6 +89,7 @@ u32 acpi_target_system_state(void)
 {
 	return acpi_target_sleep_state;
 }
+EXPORT_SYMBOL_GPL(acpi_target_system_state);
 
 static bool pwr_btn_event_pending;
 
