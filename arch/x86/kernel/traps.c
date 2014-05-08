@@ -136,13 +136,16 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 	return -1;
 }
 
-static void fill_trap_info(struct pt_regs *regs, int signr, int trapnr,
-			   siginfo_t *info)
+static siginfo_t *fill_trap_info(struct pt_regs *regs, int signr, int trapnr,
+				siginfo_t *info)
 {
 	unsigned long siaddr;
 	int sicode;
 
 	switch (trapnr) {
+	default:
+		return SEND_SIG_PRIV;
+
 	case X86_TRAP_DE:
 		sicode = FPE_INTDIV;
 		siaddr = regs->ip;
@@ -161,6 +164,7 @@ static void fill_trap_info(struct pt_regs *regs, int signr, int trapnr,
 	info->si_errno = 0;
 	info->si_code = sicode;
 	info->si_addr = (void __user *)siaddr;
+	return info;
 }
 
 static void __kprobes
@@ -199,14 +203,16 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 }
 
 static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
-			  unsigned long trapnr, int signr, siginfo_t *info)
+			  unsigned long trapnr, int signr)
 {
 	enum ctx_state prev_state = exception_enter();
+	siginfo_t info;
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
 		conditional_sti(regs);
-		do_trap(trapnr, signr, str, regs, error_code, info);
+		do_trap(trapnr, signr, str, regs, error_code,
+			fill_trap_info(regs, signr, trapnr, &info));
 	}
 
 	exception_exit(prev_state);
@@ -215,16 +221,13 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 #define DO_ERROR(trapnr, signr, str, name)				\
 dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
-	do_error_trap(regs, error_code, str, trapnr, signr, NULL);	\
+	do_error_trap(regs, error_code, str, trapnr, signr);		\
 }
 
 #define DO_ERROR_INFO(trapnr, signr, str, name)				\
 dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
-	siginfo_t info;							\
-									\
-	fill_trap_info(regs, signr, trapnr, &info);			\
-	do_error_trap(regs, error_code, str, trapnr, signr, &info);	\
+	do_error_trap(regs, error_code, str, trapnr, signr);		\
 }
 
 DO_ERROR_INFO(X86_TRAP_DE,     SIGFPE,  "divide error",			divide_error)
