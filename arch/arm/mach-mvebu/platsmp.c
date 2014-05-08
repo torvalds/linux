@@ -70,11 +70,6 @@ static void __init set_secondary_cpus_clock(void)
 	}
 }
 
-static void armada_xp_secondary_init(unsigned int cpu)
-{
-	armada_xp_mpic_smp_cpu_init();
-}
-
 static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret, hw_cpu;
@@ -98,8 +93,6 @@ static void __init armada_xp_smp_init_cpus(void)
 
 	if (ncores == 0 || ncores > ARMADA_XP_MAX_CPUS)
 		panic("Invalid number of CPUs in DT\n");
-
-	set_smp_cross_call(armada_mpic_send_doorbell);
 }
 
 static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
@@ -132,7 +125,6 @@ static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 struct smp_operations armada_xp_smp_ops __initdata = {
 	.smp_init_cpus		= armada_xp_smp_init_cpus,
 	.smp_prepare_cpus	= armada_xp_smp_prepare_cpus,
-	.smp_secondary_init	= armada_xp_secondary_init,
 	.smp_boot_secondary	= armada_xp_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= armada_xp_cpu_die,
