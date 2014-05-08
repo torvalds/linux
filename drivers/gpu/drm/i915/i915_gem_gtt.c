@@ -1766,6 +1766,17 @@ static inline unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
 	return bdw_gmch_ctl << 20;
 }
 
+static inline unsigned int chv_get_total_gtt_size(u16 gmch_ctrl)
+{
+	gmch_ctrl >>= SNB_GMCH_GGMS_SHIFT;
+	gmch_ctrl &= SNB_GMCH_GGMS_MASK;
+
+	if (gmch_ctrl)
+		return 1 << (20 + gmch_ctrl);
+
+	return 0;
+}
+
 static inline size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
 {
 	snb_gmch_ctl >>= SNB_GMCH_GMS_SHIFT;
@@ -1778,6 +1789,24 @@ static inline size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
 	bdw_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
 	bdw_gmch_ctl &= BDW_GMCH_GMS_MASK;
 	return bdw_gmch_ctl << 25; /* 32 MB units */
+}
+
+static size_t chv_get_stolen_size(u16 gmch_ctrl)
+{
+	gmch_ctrl >>= SNB_GMCH_GMS_SHIFT;
+	gmch_ctrl &= SNB_GMCH_GMS_MASK;
+
+	/*
+	 * 0x0  to 0x10: 32MB increments starting at 0MB
+	 * 0x11 to 0x16: 4MB increments starting at 8MB
+	 * 0x17 to 0x1d: 4MB increments start at 36MB
+	 */
+	if (gmch_ctrl < 0x11)
+		return gmch_ctrl << 25;
+	else if (gmch_ctrl < 0x17)
+		return (gmch_ctrl - 0x11 + 2) << 22;
+	else
+		return (gmch_ctrl - 0x17 + 9) << 22;
 }
 
 static int ggtt_probe_common(struct drm_device *dev,
@@ -1876,9 +1905,14 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	*stolen = gen8_get_stolen_size(snb_gmch_ctl);
+	if (IS_CHERRYVIEW(dev)) {
+		*stolen = chv_get_stolen_size(snb_gmch_ctl);
+		gtt_size = chv_get_total_gtt_size(snb_gmch_ctl);
+	} else {
+		*stolen = gen8_get_stolen_size(snb_gmch_ctl);
+		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+	}
 
-	gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	*gtt_total = (gtt_size / sizeof(gen8_gtt_pte_t)) << PAGE_SHIFT;
 
 	if (IS_CHERRYVIEW(dev))
