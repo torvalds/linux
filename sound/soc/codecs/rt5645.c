@@ -2235,7 +2235,7 @@ static int rt5645_resume(struct snd_soc_codec *codec)
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
 
 	regcache_cache_only(rt5645->regmap, false);
-	snd_soc_cache_sync(codec);
+	regcache_sync(rt5645->regmap);
 
 	return 0;
 }
