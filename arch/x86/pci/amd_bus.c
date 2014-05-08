@@ -24,10 +24,11 @@ struct pci_hostbridge_probe {
 };
 
 static struct pci_hostbridge_probe pci_probes[] __initdata = {
-	{ 0, 0x18, PCI_VENDOR_ID_AMD, 0x1100 },
-	{ 0, 0x18, PCI_VENDOR_ID_AMD, 0x1200 },
-	{ 0xff, 0, PCI_VENDOR_ID_AMD, 0x1200 },
-	{ 0, 0x18, PCI_VENDOR_ID_AMD, 0x1300 },
+	{ 0, 0x18, PCI_VENDOR_ID_AMD, 0x1100 }, /* K8 */
+	{ 0, 0x18, PCI_VENDOR_ID_AMD, 0x1200 }, /* Fam10h */
+	{ 0xff, 0, PCI_VENDOR_ID_AMD, 0x1200 }, /* Fam10h */
+	{ 0, 0x18, PCI_VENDOR_ID_AMD, 0x1300 }, /* Fam11h */
+	{ 0, 0x18, PCI_VENDOR_ID_AMD, 0x1600 }, /* Fam15h */
 };
 
 #define RANGE_NUM 16
@@ -96,6 +97,11 @@ static int __init early_fill_mp_bus_info(void)
 	if (!found)
 		return 0;
 
+	/*
+	 * We should learn topology and routing information from _PXM and
+	 * _CRS methods in the ACPI namespace.  We extract node numbers
+	 * here to work around BIOSes that don't supply _PXM.
+	 */
 	for (i = 0; i < 4; i++) {
 		int min_bus;
 		int max_bus;
@@ -112,6 +118,17 @@ static int __init early_fill_mp_bus_info(void)
 
 		info = alloc_pci_root_info(min_bus, max_bus, node, link);
 	}
+
+	/*
+	 * The following code extracts routing information for use on old
+	 * systems where Linux doesn't automatically use host bridge _CRS
+	 * methods (or when the user specifies "pci=nocrs").
+	 *
+	 * We only do this through Fam11h, because _CRS should be enough on
+	 * newer systems.
+	 */
+	if (boot_cpu_data.x86 > 0x11)
+		return 0;
 
 	/* get the default node and link for left over res */
 	reg = read_pci_config(bus, slot, 0, 0x60);
