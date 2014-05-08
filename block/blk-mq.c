@@ -1548,10 +1548,10 @@ static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
 	struct request_queue *q;
 
 	/*
-	 * Before new mapping is established, hotadded cpu might already start
-	 * handling requests. This doesn't break anything as we map offline
-	 * CPUs to first hardware queue. We will re-init queue below to get
-	 * optimal settings.
+	 * Before new mappings are established, hotadded cpu might already
+	 * start handling requests. This doesn't break anything as we map
+	 * offline CPUs to first hardware queue. We will re-init the queue
+	 * below to get optimal settings.
 	 */
 	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN &&
 	    action != CPU_ONLINE && action != CPU_ONLINE_FROZEN)
