@@ -93,7 +93,7 @@ struct syr82x_platform_data {
 };
 struct syr82x *g_syr82x;
 
-static u8 syr82x_reg_read(struct syr82x *syr82x, u8 reg);
+static int syr82x_reg_read(struct syr82x *syr82x, u8 reg);
 static int syr82x_set_bits(struct syr82x *syr82x, u8 reg, u16 mask, u16 val);
 
 
@@ -184,6 +184,8 @@ static int syr82x_dcdc_set_voltage(struct regulator_dev *dev,
 		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
 
 	ret = syr82x_set_bits(syr82x, SYR82X_BUCK1_SET_VOL_BASE ,BUCK_VOL_MASK, val);
+	if(ret < 0)
+		printk("###################WARNING:set voltage is error!voltage set is %d mv %d\n",vol_map[val],ret);
 	
 	return ret;
 }
@@ -346,7 +348,7 @@ static int syr82x_i2c_read(struct i2c_client *i2c, char reg, int count,	u16 *des
 
 	DBG("***run in %s %d msgs[1].buf = %d\n",__FUNCTION__,__LINE__,*(msgs[1].buf));
 
-	return 0;   
+	return ret;   
 }
 
 static int syr82x_i2c_write(struct i2c_client *i2c, char reg, int count, const u16 src)
@@ -376,15 +378,18 @@ static int syr82x_i2c_write(struct i2c_client *i2c, char reg, int count, const u
 	return ret;	
 }
 
-static u8 syr82x_reg_read(struct syr82x *syr82x, u8 reg)
+static int syr82x_reg_read(struct syr82x *syr82x, u8 reg)
 {
 	u16 val = 0;
+	int ret;
 
 	mutex_lock(&syr82x->io_lock);
 
-	syr82x_i2c_read(syr82x->i2c, reg, 1, &val);
+	ret = syr82x_i2c_read(syr82x->i2c, reg, 1, &val);
 
 	DBG("reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
+	if (ret < 0)
+		return ret;
 
 	mutex_unlock(&syr82x->io_lock);
 
@@ -400,13 +405,17 @@ static int syr82x_set_bits(struct syr82x *syr82x, u8 reg, u16 mask, u16 val)
 
 	ret = syr82x_i2c_read(syr82x->i2c, reg, 1, &tmp);
 	DBG("1 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
+	if (ret < 0)
+		return ret;
 	tmp = (tmp & ~mask) | val;
-	if (ret == 0) {
-		ret = syr82x_i2c_write(syr82x->i2c, reg, 1, tmp);
-		DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
-	}
-	syr82x_i2c_read(syr82x->i2c, reg, 1, &tmp);
+	ret = syr82x_i2c_write(syr82x->i2c, reg, 1, tmp);
+	DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
+	if (ret < 0)
+		return ret;
+	ret = syr82x_i2c_read(syr82x->i2c, reg, 1, &tmp);
 	DBG("2 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
+	if (ret < 0)
+		return ret;
 	mutex_unlock(&syr82x->io_lock);
 
 	return 0;//ret;	
