@@ -606,12 +606,6 @@ static int dw_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
-static void dw_spi_cleanup(struct spi_device *spi)
-{
-	struct chip_data *chip = spi_get_ctldata(spi);
-	kfree(chip);
-}
-
 /* Restart the controller, disable all interrupts, clean rx fifo */
 static void spi_hw_init(struct dw_spi *dws)
 {
