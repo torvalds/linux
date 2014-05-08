@@ -192,8 +192,8 @@ void hdmi_work(struct work_struct *work)
 			hdmi->state = READ_PARSE_EDID;
 		}
 		else if(hdmi->hotplug == HDMI_HPD_ACTIVED) {
-			hdmi_sys_remove(hdmi);
 			hdmi->hotplug = hotplug;
+			hdmi_sys_remove(hdmi);
 			if(hotplug == HDMI_HPD_REMOVED)
 				hdmi_sys_sleep(hdmi);
 			else {

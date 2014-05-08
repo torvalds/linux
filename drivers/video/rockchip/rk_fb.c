@@ -928,7 +928,6 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 
 	win->area[0].smem_start = fix->smem_start;
 	win->area[0].cbr_start = fix->mmio_start;//fix->smem_start + xvir * yvir;
-	win->state=1;
 	win->area[0].state=1;
 	win->area_num = 1;
 	
@@ -1151,7 +1150,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
 
-	if (rk_fb->disp_mode == DUAL && hdmi_switch_complete) {
+	if ((rk_fb->disp_mode == DUAL) && (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
+							&& hdmi_switch_complete) {
 		for (i = 0; i < rk_fb->num_lcdc; i++) {
 			if(rk_fb->lcdc_dev_drv[i]->prop == EXTEND) {
 				ext_dev_drv = rk_fb->lcdc_dev_drv[i];
@@ -2221,7 +2221,6 @@ if (rk_fb->disp_mode != DUAL) {
 	win->area[0].yact = var->yres;
 	win->area[0].xvir =  var->xres_virtual;	   /*virtual resolution	 stride --->LCDC_WINx_VIR*/
 	win->area[0].yvir =  var->yres_virtual;
-	win->state=1;
 	win->area[0].state=1;
 	win->area_num = 1;
 	win->alpha_mode = 4;//AB_SRC_OVER;
@@ -2267,7 +2266,6 @@ if (rk_fb->disp_mode != DUAL) {
 				extend_win->area[0].smem_start = win->area[0].smem_start;
 				extend_win->area[0].cbr_start = win->area[0].cbr_start;
 			#endif
-				extend_win->state = 1;
 				extend_win->area[0].state = 1;
 				extend_win->area_num = 1;
 				extend_win->alpha_en = 0;
