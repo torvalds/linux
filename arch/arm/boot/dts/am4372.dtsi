@@ -840,6 +840,16 @@
 			num-cs = <4>;
 			status = "disabled";
 		};
+
+		hdq: hdq@48347000 {
+			compatible = "ti,am43xx-hdq";
+			reg = <0x48347000 0x1000>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&func_12m_clk>;
+			clock-names = "fck";
+			ti,hwmods = "hdq1w";
+			status = "disabled";
+		};
 	};
 };
 

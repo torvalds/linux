@@ -155,6 +155,12 @@
 				0x44 (PIN_INPUT_PULLUP | MUX_MODE7)	/* gpmc_a1.gpio1_17 */
 			>;
 		};
+
+		hdq_pins: pinmux_hdq_pins {
+			pinctrl-single,pins = <
+				0x234 (PIN_INPUT_PULLUP | MUX_MODE1)    /* cam1_wen.hdq_gpio */
+			>;
+		};
 	};
 
 	matrix_keypad: matrix_keypad@0 {
@@ -455,4 +461,10 @@
 			reg = <0x00930000 0x36D0000>;
 		};
 	};
+};
+
+&hdq {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdq_pins>;
 };
