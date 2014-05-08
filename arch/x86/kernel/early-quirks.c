@@ -428,6 +428,26 @@ static size_t gen8_stolen_size(int num, int slot, int func)
 	return gmch_ctrl << 25; /* 32 MB units */
 }
 
+static size_t __init chv_stolen_size(int num, int slot, int func)
+{
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(num, slot, func, SNB_GMCH_CTRL);
+	gmch_ctrl >>= SNB_GMCH_GMS_SHIFT;
+	gmch_ctrl &= SNB_GMCH_GMS_MASK;
+
+	/*
+	 * 0x0  to 0x10: 32MB increments starting at 0MB
+	 * 0x11 to 0x16: 4MB increments starting at 8MB
+	 * 0x17 to 0x1d: 4MB increments start at 36MB
+	 */
+	if (gmch_ctrl < 0x11)
+		return gmch_ctrl << 25;
+	else if (gmch_ctrl < 0x17)
+		return (gmch_ctrl - 0x11 + 2) << 22;
+	else
+		return (gmch_ctrl - 0x17 + 9) << 22;
+}
 
 struct intel_stolen_funcs {
 	size_t (*size)(int num, int slot, int func);
@@ -469,6 +489,11 @@ static const struct intel_stolen_funcs gen8_stolen_funcs = {
 	.size = gen8_stolen_size,
 };
 
+static const struct intel_stolen_funcs chv_stolen_funcs = {
+	.base = intel_stolen_base,
+	.size = chv_stolen_size,
+};
+
 static struct pci_device_id intel_stolen_ids[] __initdata = {
 	INTEL_I830_IDS(&i830_stolen_funcs),
 	INTEL_I845G_IDS(&i845_stolen_funcs),
@@ -495,7 +520,8 @@ static struct pci_device_id intel_stolen_ids[] __initdata = {
 	INTEL_HSW_D_IDS(&gen6_stolen_funcs),
 	INTEL_HSW_M_IDS(&gen6_stolen_funcs),
 	INTEL_BDW_M_IDS(&gen8_stolen_funcs),
-	INTEL_BDW_D_IDS(&gen8_stolen_funcs)
+	INTEL_BDW_D_IDS(&gen8_stolen_funcs),
+	INTEL_CHV_IDS(&chv_stolen_funcs),
 };
 
 static void __init intel_graphics_stolen(int num, int slot, int func)
