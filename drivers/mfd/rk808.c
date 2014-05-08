@@ -1121,7 +1121,7 @@ static struct rk808_board *rk808_parse_dt(struct i2c_client *i2c)
 	return NULL;
 }
 #endif
-static int rk808_shutdown(void)
+static int rk808_shutdown(struct i2c_client *i2c)
 {
 	int ret,i,val;
 	u16 reg = 0;
