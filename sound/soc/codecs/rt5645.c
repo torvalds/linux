@@ -50,6 +50,10 @@ static const struct regmap_range_cfg rt5645_ranges[] = {
 
 static const struct reg_default init_list[] = {
 	{RT5645_PR_BASE + 0x3d,	0x3600},
+	{RT5645_PR_BASE + 0x1c,	0xfd20},
+	{RT5645_PR_BASE + 0x20,	0x611f},
+	{RT5645_PR_BASE + 0x21,	0x4040},
+	{RT5645_PR_BASE + 0x23,	0x0004},
 };
 #define RT5645_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -2205,10 +2209,6 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 	rt5645_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	snd_soc_update_bits(codec, RT5645_CHARGE_PUMP, 0x0300, 0x0200);
-	snd_soc_write(codec, RT5645_PR_BASE + 0x1c, 0xfd20);
-	snd_soc_write(codec, RT5645_PR_BASE + 0x20, 0x611f);
-	snd_soc_write(codec, RT5645_PR_BASE + 0x21, 0x4040);
-	snd_soc_write(codec, RT5645_PR_BASE + 0x23, 0x0004);
 
 	return 0;
 }
