@@ -1493,6 +1493,11 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	dw->regs = chip->regs;
 	chip->dw = dw;
 
+	dw->clk = devm_clk_get(chip->dev, "hclk");
+	if (IS_ERR(dw->clk))
+		return PTR_ERR(dw->clk);
+	clk_prepare_enable(dw->clk);
+
 	dw_params = dma_read_byaddr(chip->regs, DW_PARAMS);
 	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
 
@@ -1519,11 +1524,6 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 				GFP_KERNEL);
 	if (!dw->chan)
 		return -ENOMEM;
-
-	dw->clk = devm_clk_get(chip->dev, "hclk");
-	if (IS_ERR(dw->clk))
-		return PTR_ERR(dw->clk);
-	clk_prepare_enable(dw->clk);
 
 	/* Get hardware configuration parameters */
 	if (autocfg) {
