@@ -2242,7 +2242,7 @@ static int s2255_probe(struct usb_interface *interface,
 	dev->cmdbuf = kzalloc(S2255_CMDBUF_SIZE, GFP_KERNEL);
 	if (dev->cmdbuf == NULL) {
 		s2255_dev_err(&interface->dev, "out of memory\n");
-		return -ENOMEM;
+		goto errorFWDATA1;
 	}
 
 	atomic_set(&dev->num_channels, 0);
