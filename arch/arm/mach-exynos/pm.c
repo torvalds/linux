@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
+#include <linux/cpu_pm.h>
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/err.h>
@@ -387,9 +388,35 @@ static const struct platform_suspend_ops exynos_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
+static int exynos_cpu_pm_notifier(struct notifier_block *self,
+				  unsigned long cmd, void *v)
+{
+	int cpu = smp_processor_id();
+
+	switch (cmd) {
+	case CPU_PM_ENTER:
+		if (cpu == 0)
+			exynos_cpu_save_register();
+		break;
+
+	case CPU_PM_EXIT:
+		if (cpu == 0)
+			exynos_cpu_restore_register();
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block exynos_cpu_pm_notifier_block = {
+	.notifier_call = exynos_cpu_pm_notifier,
+};
+
 void __init exynos_pm_init(void)
 {
 	u32 tmp;
+
+	cpu_pm_register_notifier(&exynos_cpu_pm_notifier_block);
 
 	/* Platform-specific GIC callback */
 	gic_arch_extn.irq_set_wake = exynos_irq_set_wake;
