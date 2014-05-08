@@ -1168,15 +1168,15 @@ static void exynos_iommu_remove_device(struct device *dev)
 }
 
 static struct iommu_ops exynos_iommu_ops = {
-	.domain_init = &exynos_iommu_domain_init,
-	.domain_destroy = &exynos_iommu_domain_destroy,
-	.attach_dev = &exynos_iommu_attach_device,
-	.detach_dev = &exynos_iommu_detach_device,
-	.map = &exynos_iommu_map,
-	.unmap = &exynos_iommu_unmap,
-	.iova_to_phys = &exynos_iommu_iova_to_phys,
-	.add_device = &exynos_iommu_add_device,
-	.remove_device = &exynos_iommu_remove_device,
+	.domain_init = exynos_iommu_domain_init,
+	.domain_destroy = exynos_iommu_domain_destroy,
+	.attach_dev = exynos_iommu_attach_device,
+	.detach_dev = exynos_iommu_detach_device,
+	.map = exynos_iommu_map,
+	.unmap = exynos_iommu_unmap,
+	.iova_to_phys = exynos_iommu_iova_to_phys,
+	.add_device = exynos_iommu_add_device,
+	.remove_device = exynos_iommu_remove_device,
 	.pgsize_bitmap = SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
 };
 
