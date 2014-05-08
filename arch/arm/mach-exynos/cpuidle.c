@@ -41,14 +41,14 @@
 #define S5P_CHECK_AFTR		0xFCBA0D10
 
 /* Ext-GIC nIRQ/nFIQ is the only wakeup source in AFTR */
-static void exynos_set_wakeupmask(void)
+static void exynos_set_wakeupmask(long mask)
 {
-	__raw_writel(0x0000ff3e, S5P_WAKEUP_MASK);
+	__raw_writel(mask, S5P_WAKEUP_MASK);
 }
 
 static int idle_finisher(unsigned long flags)
 {
-	exynos_set_wakeupmask();
+	exynos_set_wakeupmask(0x0000ff3e);
 
 	__raw_writel(virt_to_phys(s3c_cpu_resume), REG_DIRECTGO_ADDR);
 	__raw_writel(S5P_CHECK_AFTR, REG_DIRECTGO_FLAG);
