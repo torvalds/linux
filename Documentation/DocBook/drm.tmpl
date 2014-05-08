@@ -2519,6 +2519,10 @@ void (*disable_vblank) (struct drm_device *dev, int crtc);</synopsis>
       with a call to <function>drm_vblank_cleanup</function> in the driver
       <methodname>unload</methodname> operation handler.
     </para>
+    <sect2>
+      <title>Vertical Blanking and Interrupt Handling Functions Reference</title>
+!Edrivers/gpu/drm/drm_irq.c
+    </sect2>
   </sect1>
 
   <!-- Internals: open/close, file operations and ioctls -->
@@ -2871,7 +2875,6 @@ int num_ioctls;</synopsis>
             </listitem>
           </varlistentry>
         </variablelist>
-<!--!Edrivers/char/drm/drm_irq.c-->
       </para>
     </sect1>
 
