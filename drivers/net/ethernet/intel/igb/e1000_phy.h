@@ -151,7 +151,6 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 #define GS40G_MAC_LB			0x4140
 #define GS40G_MAC_SPEED_1G		0X0006
 #define GS40G_COPPER_SPEC		0x0010
-#define GS40G_CS_POWER_DOWN		0x0002
 #define GS40G_LINE_LB			0x4000
 
 /* SFP modules ID memory locations */
