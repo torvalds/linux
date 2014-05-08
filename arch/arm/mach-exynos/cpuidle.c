@@ -8,25 +8,15 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
-#include <linux/io.h>
 #include <linux/export.h>
 #include <linux/module.h>
-#include <linux/time.h>
 #include <linux/platform_device.h>
 
 #include <asm/proc-fns.h>
 #include <asm/suspend.h>
-#include <asm/unified.h>
 #include <asm/cpuidle.h>
-
-#include <plat/cpu.h>
-#include <plat/pm.h>
-
-#include <mach/map.h>
 
 static void (*exynos_enter_aftr)(void);
 
