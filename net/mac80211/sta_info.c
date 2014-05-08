@@ -1148,7 +1148,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	atomic_dec(&ps->num_sta_ps);
 
 	/* This station just woke up and isn't aware of our SMPS state */
-	if (!ieee80211_smps_is_restrictive(sta->known_smps_mode,
+	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
+	    !ieee80211_smps_is_restrictive(sta->known_smps_mode,
 					   sdata->smps_mode) &&
 	    sta->known_smps_mode != sdata->bss->req_smps &&
 	    sta_info_tx_streams(sta) != 1) {
