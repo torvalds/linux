@@ -83,6 +83,7 @@ void __init s3c2410_map_io(void)
 	iotable_init(s3c2410_iodesc, ARRAY_SIZE(s3c2410_iodesc));
 }
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 void __init_or_cpufreq s3c2410_setup_clocks(void)
 {
 	struct clk *xtal_clk;
@@ -142,6 +143,11 @@ void __init s3c2410_init_clocks(int xtal)
 	clkdev_add_table(s3c2410_clk_lookup, ARRAY_SIZE(s3c2410_clk_lookup));
 	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
 }
+#else
+void __init_or_cpufreq s3c2410_setup_clocks(void)
+{
+}
+#endif
 
 struct bus_type s3c2410_subsys = {
 	.name = "s3c2410-core",

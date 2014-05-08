@@ -53,6 +53,7 @@
 #include <plat/cpu-freq.h>
 #include <plat/pll.h>
 #include <plat/pwm-core.h>
+#include <plat/watchdog-reset.h>
 
 #include "common.h"
 
@@ -533,6 +534,14 @@ struct platform_device s3c2443_device_dma = {
 };
 #endif
 
+#if defined(CONFIG_COMMON_CLK) && defined(CONFIG_CPU_S3C2410)
+void __init s3c2410_init_clocks(int xtal)
+{
+	s3c2410_common_clk_init(NULL, xtal, 0, S3C24XX_VA_CLKPWR);
+	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
+}
+#endif
+
 #ifdef CONFIG_CPU_S3C2412
 void __init s3c2412_init_clocks(int xtal)
 {
@@ -544,6 +553,22 @@ void __init s3c2412_init_clocks(int xtal)
 void __init s3c2416_init_clocks(int xtal)
 {
 	s3c2443_common_clk_init(NULL, xtal, 0, S3C24XX_VA_CLKPWR);
+}
+#endif
+
+#if defined(CONFIG_COMMON_CLK) && defined(CONFIG_CPU_S3C2440)
+void __init s3c2440_init_clocks(int xtal)
+{
+	s3c2410_common_clk_init(NULL, xtal, 1, S3C24XX_VA_CLKPWR);
+	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
+}
+#endif
+
+#if defined(CONFIG_COMMON_CLK) && defined(CONFIG_CPU_S3C2442)
+void __init s3c2442_init_clocks(int xtal)
+{
+	s3c2410_common_clk_init(NULL, xtal, 2, S3C24XX_VA_CLKPWR);
+	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
 }
 #endif
 

@@ -18,6 +18,11 @@ config PLAT_S3C24XX
 	help
 	  Base platform code for any Samsung S3C24XX device
 
+config S3C2410_COMMON_CLK
+	bool
+	help
+	  Build the s3c2410 clock driver based on the common clock framework.
+
 config S3C2410_COMMON_DCLK
 	bool
 	select REGMAP_MMIO

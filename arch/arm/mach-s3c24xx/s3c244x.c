@@ -78,6 +78,7 @@ void __init s3c244x_map_io(void)
 	s3c2410_device_dclk.name = "s3c2440-dclk";
 }
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 void __init_or_cpufreq s3c244x_setup_clocks(void)
 {
 	struct clk *xtal_clk;
@@ -138,6 +139,11 @@ void __init s3c244x_init_clocks(int xtal)
 	s3c2410_baseclk_add();
 	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
 }
+#else
+void __init_or_cpufreq s3c244x_setup_clocks(void)
+{
+}
+#endif
 
 /* Since the S3C2442 and S3C2440 share items, put both subsystems here */
 
