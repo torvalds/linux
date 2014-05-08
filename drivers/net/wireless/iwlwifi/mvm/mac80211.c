@@ -1807,6 +1807,11 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	if (iwl_mvm_is_associated(mvm)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	switch (mvm->scan_status) {
 	case IWL_MVM_SCAN_OS:
 		IWL_DEBUG_SCAN(mvm, "Stopping previous scan for sched_scan\n");
