@@ -663,7 +663,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("conn %p", conn);
 
 	if (skb->len < sizeof(*req))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	if (conn->hcon->link_mode & HCI_LM_MASTER)
 		return SMP_CMD_NOTSUPP;
@@ -720,7 +720,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("conn %p", conn);
 
 	if (skb->len < sizeof(*rsp))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	if (!(conn->hcon->link_mode & HCI_LM_MASTER))
 		return SMP_CMD_NOTSUPP;
@@ -770,7 +770,7 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
 
 	if (skb->len < sizeof(smp->pcnf))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	memcpy(smp->pcnf, skb->data, sizeof(smp->pcnf));
 	skb_pull(skb, sizeof(smp->pcnf));
@@ -794,7 +794,7 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("conn %p", conn);
 
 	if (skb->len < sizeof(smp->rrnd))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	memcpy(smp->rrnd, skb->data, sizeof(smp->rrnd));
 	skb_pull(skb, sizeof(smp->rrnd));
@@ -836,7 +836,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("conn %p", conn);
 
 	if (skb->len < sizeof(*rp))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	if (!(conn->hcon->link_mode & HCI_LM_MASTER))
 		return SMP_CMD_NOTSUPP;
@@ -944,7 +944,7 @@ static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("conn %p", conn);
 
 	if (skb->len < sizeof(*rp))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	/* Ignore this PDU if it wasn't requested */
 	if (!(smp->remote_key_dist & SMP_DIST_ENC_KEY))
@@ -969,7 +969,7 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("conn %p", conn);
 
 	if (skb->len < sizeof(*rp))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	/* Ignore this PDU if it wasn't requested */
 	if (!(smp->remote_key_dist & SMP_DIST_ENC_KEY))
@@ -1001,7 +1001,7 @@ static int smp_cmd_ident_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("");
 
 	if (skb->len < sizeof(*info))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	/* Ignore this PDU if it wasn't requested */
 	if (!(smp->remote_key_dist & SMP_DIST_ID_KEY))
@@ -1025,7 +1025,7 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	BT_DBG("");
 
 	if (skb->len < sizeof(*info))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	/* Ignore this PDU if it wasn't requested */
 	if (!(smp->remote_key_dist & SMP_DIST_ID_KEY))
@@ -1075,7 +1075,7 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("conn %p", conn);
 
 	if (skb->len < sizeof(*rp))
-		return SMP_UNSPECIFIED;
+		return SMP_INVALID_PARAMS;
 
 	/* Ignore this PDU if it wasn't requested */
 	if (!(smp->remote_key_dist & SMP_DIST_SIGN))

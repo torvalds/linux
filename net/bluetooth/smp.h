@@ -111,6 +111,7 @@ struct smp_cmd_security_req {
 #define SMP_CMD_NOTSUPP			0x07
 #define SMP_UNSPECIFIED			0x08
 #define SMP_REPEATED_ATTEMPTS		0x09
+#define SMP_INVALID_PARAMS		0x0a
 
 #define SMP_MIN_ENC_KEY_SIZE		7
 #define SMP_MAX_ENC_KEY_SIZE		16
