@@ -191,6 +191,7 @@ struct radeon_i2c_chan {
 	struct radeon_i2c_bus_rec rec;
 	struct drm_dp_aux aux;
 	bool has_aux;
+	struct mutex mutex;
 };
 
 /* mostly for macs, but really any system without connector tables */

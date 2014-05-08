@@ -95,8 +95,11 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 	int index = GetIndexIntoMasterTable(COMMAND, ProcessAuxChannelTransaction);
 	unsigned char *base;
 	int recv_bytes;
+	int r = 0;
 
 	memset(&args, 0, sizeof(args));
+
+	mutex_lock(&chan->mutex);
 
 	base = (unsigned char *)(rdev->mode_info.atom_context->scratch + 1);
 
@@ -117,19 +120,22 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 	/* timeout */
 	if (args.v1.ucReplyStatus == 1) {
 		DRM_DEBUG_KMS("dp_aux_ch timeout\n");
-		return -ETIMEDOUT;
+		r = -ETIMEDOUT;
+		goto done;
 	}
 
 	/* flags not zero */
 	if (args.v1.ucReplyStatus == 2) {
 		DRM_DEBUG_KMS("dp_aux_ch flags not zero\n");
-		return -EBUSY;
+		r = -EBUSY;
+		goto done;
 	}
 
 	/* error */
 	if (args.v1.ucReplyStatus == 3) {
 		DRM_DEBUG_KMS("dp_aux_ch error\n");
-		return -EIO;
+		r = -EIO;
+		goto done;
 	}
 
 	recv_bytes = args.v1.ucDataOutLen;
@@ -139,7 +145,11 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 	if (recv && recv_size)
 		radeon_atom_copy_swap(recv, base + 16, recv_bytes, false);
 
-	return recv_bytes;
+	r = recv_bytes;
+done:
+	mutex_unlock(&chan->mutex);
+
+	return r;
 }
 
 #define BARE_ADDRESS_SIZE 3
