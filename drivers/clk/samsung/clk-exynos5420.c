@@ -62,7 +62,9 @@
 #define SRC_TOP11		0x10284
 #define SRC_TOP12		0x10288
 #define SRC_MASK_TOP2		0x10308
+#define SRC_MASK_TOP7		0x1031c
 #define SRC_MASK_DISP10		0x1032c
+#define SRC_MASK_MAU		0x10334
 #define SRC_MASK_FSYS		0x10340
 #define SRC_MASK_PERIC0		0x10350
 #define SRC_MASK_PERIC1		0x10354
@@ -155,6 +157,7 @@ static unsigned long exynos5420_clk_regs[] __initdata = {
 	SRC_TOP11,
 	SRC_TOP12,
 	SRC_MASK_TOP2,
+	SRC_MASK_TOP7,
 	SRC_MASK_DISP10,
 	SRC_MASK_FSYS,
 	SRC_MASK_PERIC0,
@@ -351,6 +354,8 @@ PNAME(mout_hdmi_p) = {"dout_hdmi_pixel", "sclk_hdmiphy"};
 PNAME(mout_maudio0_p) = {"fin_pll", "maudio_clk", "mout_sclk_dpll",
 			 "mout_sclk_mpll", "mout_sclk_spll", "mout_sclk_ipll",
 			 "mout_sclk_epll", "mout_sclk_rpll"};
+PNAME(mout_mau_epll_clk_p) = {"mout_sclk_epll", "mout_sclk_dpll",
+				"mout_sclk_mpll", "mout_sclk_spll"};
 
 /* fixed rate clocks generated outside the soc */
 static struct samsung_fixed_rate_clock exynos5420_fixed_rate_ext_clks[] __initdata = {
@@ -373,6 +378,8 @@ static struct samsung_fixed_factor_clock exynos5420_fixed_factor_clks[] __initda
 static struct samsung_mux_clock exynos5420_mux_clks[] __initdata = {
 	MUX(0, "mout_mspll_kfc", mout_mspll_cpu_p, SRC_TOP7, 8, 2),
 	MUX(0, "mout_mspll_cpu", mout_mspll_cpu_p, SRC_TOP7, 12, 2),
+	MUX(0, "mout_mau_epll_clk", mout_mau_epll_clk_p, SRC_TOP7, 20, 2),
+
 	MUX(0, "mout_apll", mout_apll_p, SRC_CPU, 0, 1),
 	MUX(0, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1),
 	MUX(0, "mout_kpll", mout_kpll_p, SRC_KFC, 0, 1),
@@ -518,7 +525,7 @@ static struct samsung_mux_clock exynos5420_mux_clks[] __initdata = {
 	MUX(0, "mout_fimd1_final", mout_fimd1_final_p, TOP_SPARE2, 8, 1),
 
 	/* MAU Block */
-	MUX(0, "mout_maudio0", mout_maudio0_p, SRC_MAU, 28, 3),
+	MUX(CLK_MOUT_MAUDIO0, "mout_maudio0", mout_maudio0_p, SRC_MAU, 28, 3),
 
 	/* FSYS Block */
 	MUX(0, "mout_usbd301", mout_group2_p, SRC_FSYS, 4, 3),
@@ -717,6 +724,9 @@ static struct samsung_gate_clock exynos5420_gate_clks[] __initdata = {
 
 	GATE(0, "aclk300_disp1", "mout_user_aclk300_disp1",
 			SRC_MASK_TOP2, 24, 0, 0),
+
+	GATE(CLK_MAU_EPLL, "mau_epll", "mout_mau_epll_clk",
+			SRC_MASK_TOP7, 20, 0, 0),
 
 	/* sclk */
 	GATE(CLK_SCLK_UART0, "sclk_uart0", "dout_uart0",
