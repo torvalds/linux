@@ -1820,6 +1820,11 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 	int ret;
 
 	switch (*cmd_status) {
+	case COMP_CMD_ABORT:
+	case COMP_CMD_STOP:
+		xhci_warn(xhci, "Timeout while waiting for configure endpoint command\n");
+		ret = -ETIME;
+		break;
 	case COMP_ENOMEM:
 		dev_warn(&udev->dev, "Not enough host controller resources "
 				"for new device state.\n");
@@ -1866,6 +1871,11 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 	struct xhci_virt_device *virt_dev = xhci->devs[udev->slot_id];
 
 	switch (*cmd_status) {
+	case COMP_CMD_ABORT:
+	case COMP_CMD_STOP:
+		xhci_warn(xhci, "Timeout while waiting for evaluate context command\n");
+		ret = -ETIME;
+		break;
 	case COMP_EINVAL:
 		dev_warn(&udev->dev, "WARN: xHCI driver setup invalid evaluate "
 				"context command.\n");
@@ -2590,7 +2600,6 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		bool ctx_change, bool must_succeed)
 {
 	int ret;
-	int timeleft;
 	unsigned long flags;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	struct xhci_virt_device *virt_dev;
@@ -2646,21 +2655,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* Wait for the configure endpoint command to complete */
-	timeleft = wait_for_completion_interruptible_timeout(
-			command->completion,
-			XHCI_CMD_DEFAULT_TIMEOUT);
-	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for %s command\n",
-				timeleft == 0 ? "Timeout" : "Signal",
-				ctx_change == 0 ?
-					"configure endpoint" :
-					"evaluate context");
-		/* cancel the configure endpoint command */
-		ret = xhci_cancel_cmd(xhci, command, command->command_trb);
-		if (ret < 0)
-			return ret;
-		return -ETIME;
-	}
+	wait_for_completion(command->completion);
 
 	if (!ctx_change)
 		ret = xhci_configure_endpoint_result(xhci, udev,
@@ -3438,7 +3433,6 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	unsigned int slot_id;
 	struct xhci_virt_device *virt_dev;
 	struct xhci_command *reset_device_cmd;
-	int timeleft;
 	int last_freed_endpoint;
 	struct xhci_slot_ctx *slot_ctx;
 	int old_active_eps = 0;
@@ -3506,15 +3500,7 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* Wait for the Reset Device command to finish */
-	timeleft = wait_for_completion_interruptible_timeout(
-			reset_device_cmd->completion,
-			XHCI_CMD_DEFAULT_TIMEOUT);
-	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for reset device command\n",
-				timeleft == 0 ? "Timeout" : "Signal");
-		ret = -ETIME;
-		goto command_cleanup;
-	}
+	wait_for_completion(reset_device_cmd->completion);
 
 	/* The Reset Device command can't fail, according to the 0.95/0.96 spec,
 	 * unless we tried to reset a slot ID that wasn't enabled,
@@ -3522,6 +3508,11 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	 */
 	ret = reset_device_cmd->status;
 	switch (ret) {
+	case COMP_CMD_ABORT:
+	case COMP_CMD_STOP:
+		xhci_warn(xhci, "Timeout waiting for reset device command\n");
+		ret = -ETIME;
+		goto command_cleanup;
 	case COMP_EBADSLT: /* 0.95 completion code for bad slot ID */
 	case COMP_CTX_STATE: /* 0.96 completion code for same thing */
 		xhci_dbg(xhci, "Can't reset device (slot ID %u) in %s state\n",
@@ -3691,7 +3682,6 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	unsigned long flags;
-	int timeleft;
 	int ret;
 	struct xhci_command *command;
 
@@ -3711,19 +3701,9 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
-	/* XXX: how much time for xHC slot assignment? */
-	timeleft = wait_for_completion_interruptible_timeout(
-			command->completion,
-			XHCI_CMD_DEFAULT_TIMEOUT);
-	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for a slot\n",
-				timeleft == 0 ? "Timeout" : "Signal");
-		/* cancel the enable slot request */
-		ret = xhci_cancel_cmd(xhci, NULL, command->command_trb);
-		return ret;
-	}
+	wait_for_completion(command->completion);
 
-	if (!xhci->slot_id) {
+	if (!xhci->slot_id || command->status != COMP_SUCCESS) {
 		xhci_err(xhci, "Error while assigning device slot ID\n");
 		xhci_err(xhci, "Max number of devices this xHCI host supports is %u.\n",
 				HCS_MAX_SLOTS(
@@ -3792,7 +3772,6 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 {
 	const char *act = setup == SETUP_CONTEXT_ONLY ? "context" : "address";
 	unsigned long flags;
-	int timeleft;
 	struct xhci_virt_device *virt_dev;
 	int ret = 0;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
@@ -3867,23 +3846,18 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* ctrl tx can take up to 5 sec; XXX: need more time for xHC? */
-	timeleft = wait_for_completion_interruptible_timeout(
-			command->completion, XHCI_CMD_DEFAULT_TIMEOUT);
+	wait_for_completion(command->completion);
+
 	/* FIXME: From section 4.3.4: "Software shall be responsible for timing
 	 * the SetAddress() "recovery interval" required by USB and aborting the
 	 * command on a timeout.
 	 */
-	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for setup %s command\n",
-			  timeleft == 0 ? "Timeout" : "Signal", act);
-		/* cancel the address device command */
-		ret = xhci_cancel_cmd(xhci, NULL, command->command_trb);
-		if (ret < 0)
-			return ret;
-		return -ETIME;
-	}
-
 	switch (command->status) {
+	case COMP_CMD_ABORT:
+	case COMP_CMD_STOP:
+		xhci_warn(xhci, "Timeout while waiting for setup device command\n");
+		ret = -ETIME;
+		break;
 	case COMP_CTX_STATE:
 	case COMP_EBADSLT:
 		xhci_err(xhci, "Setup ERROR: setup %s command for slot %d.\n",

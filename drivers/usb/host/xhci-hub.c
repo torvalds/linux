@@ -271,7 +271,6 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	struct xhci_virt_device *virt_dev;
 	struct xhci_command *cmd;
 	unsigned long flags;
-	int timeleft;
 	int ret;
 	int i;
 
@@ -304,12 +303,10 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* Wait for last stop endpoint command to finish */
-	timeleft = wait_for_completion_interruptible_timeout(
-			cmd->completion,
-			XHCI_CMD_DEFAULT_TIMEOUT);
-	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for stop endpoint command\n",
-				timeleft == 0 ? "Timeout" : "Signal");
+	wait_for_completion(cmd->completion);
+
+	if (cmd->status == COMP_CMD_ABORT || cmd->status == COMP_CMD_STOP) {
+		xhci_warn(xhci, "Timeout while waiting for stop endpoint command\n");
 		ret = -ETIME;
 	}
 	xhci_free_command(xhci, cmd);
