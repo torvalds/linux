@@ -1029,6 +1029,7 @@ retry:
 		rtn = NEEDS_RETRY;
 	} else {
 		timeleft = wait_for_completion_timeout(&done, timeout);
+		rtn = SUCCESS;
 	}
 
 	shost->eh_action = NULL;
