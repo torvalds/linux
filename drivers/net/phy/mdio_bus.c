@@ -117,7 +117,7 @@ struct mii_bus *devm_mdiobus_alloc_size(struct device *dev, int sizeof_priv)
 
 	return bus;
 }
-EXPORT_SYMBOL_GPL(devm_mdiobus_alloc);
+EXPORT_SYMBOL_GPL(devm_mdiobus_alloc_size);
 
 /**
  * devm_mdiobus_free - Resource-managed mdiobus_free()
