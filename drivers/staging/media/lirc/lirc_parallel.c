@@ -324,7 +324,8 @@ static loff_t lirc_lseek(struct file *filep, loff_t offset, int orig)
 	return -ESPIPE;
 }
 
-static ssize_t lirc_read(struct file *filep, char *buf, size_t n, loff_t *ppos)
+static ssize_t lirc_read(struct file *filep, char __user *buf, size_t n,
+			 loff_t *ppos)
 {
 	int result = 0;
 	int count = 0;
@@ -362,7 +363,7 @@ static ssize_t lirc_read(struct file *filep, char *buf, size_t n, loff_t *ppos)
 	return count ? count : result;
 }
 
-static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
+static ssize_t lirc_write(struct file *filep, const char __user *buf, size_t n,
 			  loff_t *ppos)
 {
 	int count;
@@ -463,43 +464,44 @@ static unsigned int lirc_poll(struct file *file, poll_table *wait)
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	int result;
-	__u32 features = LIRC_CAN_SET_TRANSMITTER_MASK |
-			 LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
-	__u32 mode;
-	__u32 value;
+	u32 __user *uptr = (u32 __user *)arg;
+	u32 features = LIRC_CAN_SET_TRANSMITTER_MASK |
+		       LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
+	u32 mode;
+	u32 value;
 
 	switch (cmd) {
 	case LIRC_GET_FEATURES:
-		result = put_user(features, (__u32 *) arg);
+		result = put_user(features, uptr);
 		if (result)
 			return result;
 		break;
 	case LIRC_GET_SEND_MODE:
-		result = put_user(LIRC_MODE_PULSE, (__u32 *) arg);
+		result = put_user(LIRC_MODE_PULSE, uptr);
 		if (result)
 			return result;
 		break;
 	case LIRC_GET_REC_MODE:
-		result = put_user(LIRC_MODE_MODE2, (__u32 *) arg);
+		result = put_user(LIRC_MODE_MODE2, uptr);
 		if (result)
 			return result;
 		break;
 	case LIRC_SET_SEND_MODE:
-		result = get_user(mode, (__u32 *) arg);
+		result = get_user(mode, uptr);
 		if (result)
 			return result;
 		if (mode != LIRC_MODE_PULSE)
 			return -EINVAL;
 		break;
 	case LIRC_SET_REC_MODE:
-		result = get_user(mode, (__u32 *) arg);
+		result = get_user(mode, uptr);
 		if (result)
 			return result;
 		if (mode != LIRC_MODE_MODE2)
 			return -ENOSYS;
 		break;
 	case LIRC_SET_TRANSMITTER_MASK:
-		result = get_user(value, (__u32 *) arg);
+		result = get_user(value, uptr);
 		if (result)
 			return result;
 		if ((value & LIRC_PARALLEL_TRANSMITTER_MASK) != value)
