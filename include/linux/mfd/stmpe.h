@@ -11,6 +11,7 @@
 #include <linux/mutex.h>
 
 struct device;
+struct regulator;
 
 enum stmpe_block {
 	STMPE_BLOCK_GPIO	= 1 << 0,
@@ -62,6 +63,8 @@ struct stmpe_client_info;
 
 /**
  * struct stmpe - STMPE MFD structure
+ * @vcc: optional VCC regulator
+ * @vio: optional VIO regulator
  * @lock: lock protecting I/O operations
  * @irq_lock: IRQ bus lock
  * @dev: device, mostly for dev_dbg()
@@ -80,6 +83,8 @@ struct stmpe_client_info;
  * @pdata: platform data
  */
 struct stmpe {
+	struct regulator *vcc;
+	struct regulator *vio;
 	struct mutex lock;
 	struct mutex irq_lock;
 	struct device *dev;
