@@ -519,6 +519,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 		iwl_mvm_dump_umac_error_log(mvm);
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_mvm_fw_error_sram_dump(struct iwl_mvm *mvm)
 {
 	const struct fw_img *img;
@@ -581,6 +582,7 @@ void iwl_mvm_fw_error_rxf_dump(struct iwl_mvm *mvm)
 	}
 	iwl_trans_release_nic_access(mvm->trans, &flags);
 }
+#endif
 
 /**
  * iwl_mvm_send_lq_cmd() - Send link quality command

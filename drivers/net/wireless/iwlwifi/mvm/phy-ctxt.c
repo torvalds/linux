@@ -202,18 +202,15 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 			 struct cfg80211_chan_def *chandef,
 			 u8 chains_static, u8 chains_dynamic)
 {
-	int ret;
-
 	WARN_ON(!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 		ctxt->ref);
 	lockdep_assert_held(&mvm->mutex);
 
 	ctxt->channel = chandef->chan;
-	ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
-				     chains_static, chains_dynamic,
-				     FW_CTXT_ACTION_ADD, 0);
 
-	return ret;
+	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
+				      chains_static, chains_dynamic,
+				      FW_CTXT_ACTION_ADD, 0);
 }
 
 /*

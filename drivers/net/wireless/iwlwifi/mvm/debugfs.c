@@ -67,7 +67,7 @@
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "debugfs.h"
-#include "fw-error-dump.h"
+#include "iwl-fw-error-dump.h"
 
 static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 					size_t count, loff_t *ppos)

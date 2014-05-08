@@ -238,11 +238,18 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 			return NULL;
 		}
 	} else {
+		/* SW and REGULATORY sections are mandatory */
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
-		    !mvm->nvm_sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data ||
 		    !mvm->nvm_sections[NVM_SECTION_TYPE_REGULATORY].data) {
 			IWL_ERR(mvm,
 				"Can't parse empty family 8000 NVM sections\n");
+			return NULL;
+		}
+		/* MAC_OVERRIDE or at least HW section must exist */
+		if (!mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data &&
+		    !mvm->nvm_sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data) {
+			IWL_ERR(mvm,
+				"Can't parse mac_address, empty sections\n");
 			return NULL;
 		}
 	}
@@ -427,7 +434,7 @@ int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_nvm_init(struct iwl_mvm *mvm)
+int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 {
 	int ret, i, section;
 	u8 *nvm_buffer, *temp;
@@ -437,13 +444,8 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	if (WARN_ON_ONCE(mvm->cfg->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
 		return -EINVAL;
 
-	/* load external NVM if configured */
-	if (iwlwifi_mod_params.nvm_file) {
-		/* move to External NVM flow */
-		ret = iwl_mvm_read_external_nvm(mvm);
-		if (ret)
-			return ret;
-	} else {
+	/* load NVM values from nic */
+	if (read_nvm_from_nic) {
 		/* list of NVM sections we are allowed/need to read */
 		if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
 			nvm_to_read[0] = mvm->cfg->nvm_hw_section_num;
@@ -463,7 +465,6 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		/* Read From FW NVM */
 		IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
 
-		/* TODO: find correct NVM max size for a section */
 		nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
 				     GFP_KERNEL);
 		if (!nvm_buffer)
@@ -511,6 +512,15 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 			return ret;
 	}
 
+	/* load external NVM if configured */
+	if (iwlwifi_mod_params.nvm_file) {
+		/* move to External NVM flow */
+		ret = iwl_mvm_read_external_nvm(mvm);
+		if (ret)
+			return ret;
+	}
+
+	/* parse the relevant nvm sections */
 	mvm->nvm_data = iwl_parse_nvm_sections(mvm);
 	if (!mvm->nvm_data)
 		return -ENODATA;
