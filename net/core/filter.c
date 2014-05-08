@@ -668,10 +668,9 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 	case SKF_AD_OFF + SKF_AD_PROTOCOL:
 		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, protocol) != 2);
 
-		insn->code = BPF_LDX | BPF_MEM | BPF_H;
-		insn->a_reg = BPF_REG_A;
-		insn->x_reg = BPF_REG_CTX;
-		insn->off = offsetof(struct sk_buff, protocol);
+		/* A = *(u16 *) (ctx + offsetof(protocol)) */
+		*insn = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
+				    offsetof(struct sk_buff, protocol));
 		insn++;
 
 		/* A = ntohs(A) [emitting a nop or swap16] */
@@ -681,37 +680,27 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_PKTTYPE:
-		insn->code = BPF_LDX | BPF_MEM | BPF_B;
-		insn->a_reg = BPF_REG_A;
-		insn->x_reg = BPF_REG_CTX;
-		insn->off = pkt_type_offset();
+		*insn = BPF_LDX_MEM(BPF_B, BPF_REG_A, BPF_REG_CTX,
+				    pkt_type_offset());
 		if (insn->off < 0)
 			return false;
 		insn++;
 
-		insn->code = BPF_ALU | BPF_AND | BPF_K;
-		insn->a_reg = BPF_REG_A;
-		insn->imm = PKT_TYPE_MAX;
+		*insn = BPF_ALU32_IMM(BPF_AND, BPF_REG_A, PKT_TYPE_MAX);
 		break;
 
 	case SKF_AD_OFF + SKF_AD_IFINDEX:
 	case SKF_AD_OFF + SKF_AD_HATYPE:
-		if (FIELD_SIZEOF(struct sk_buff, dev) == 8)
-			insn->code = BPF_LDX | BPF_MEM | BPF_DW;
-		else
-			insn->code = BPF_LDX | BPF_MEM | BPF_W;
-		insn->a_reg = BPF_REG_TMP;
-		insn->x_reg = BPF_REG_CTX;
-		insn->off = offsetof(struct sk_buff, dev);
+		*insn = BPF_LDX_MEM(size_to_bpf(FIELD_SIZEOF(struct sk_buff, dev)),
+				    BPF_REG_TMP, BPF_REG_CTX,
+				    offsetof(struct sk_buff, dev));
 		insn++;
 
-		insn->code = BPF_JMP | BPF_JNE | BPF_K;
-		insn->a_reg = BPF_REG_TMP;
-		insn->imm = 0;
-		insn->off = 1;
+		/* if (tmp != 0) goto pc+1 */
+		*insn = BPF_JMP_IMM(BPF_JNE, BPF_REG_TMP, 0, 1);
 		insn++;
 
-		insn->code = BPF_JMP | BPF_EXIT;
+		*insn = BPF_EXIT_INSN();
 		insn++;
 
 		BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
@@ -732,55 +721,45 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 	case SKF_AD_OFF + SKF_AD_MARK:
 		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
 
-		insn->code = BPF_LDX | BPF_MEM | BPF_W;
-		insn->a_reg = BPF_REG_A;
-		insn->x_reg = BPF_REG_CTX;
-		insn->off = offsetof(struct sk_buff, mark);
+		*insn = BPF_LDX_MEM(BPF_W, BPF_REG_A, BPF_REG_CTX,
+				    offsetof(struct sk_buff, mark));
 		break;
 
 	case SKF_AD_OFF + SKF_AD_RXHASH:
 		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
 
-		insn->code = BPF_LDX | BPF_MEM | BPF_W;
-		insn->a_reg = BPF_REG_A;
-		insn->x_reg = BPF_REG_CTX;
-		insn->off = offsetof(struct sk_buff, hash);
+		*insn = BPF_LDX_MEM(BPF_W, BPF_REG_A, BPF_REG_CTX,
+				    offsetof(struct sk_buff, hash));
 		break;
 
 	case SKF_AD_OFF + SKF_AD_QUEUE:
 		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, queue_mapping) != 2);
 
-		insn->code = BPF_LDX | BPF_MEM | BPF_H;
-		insn->a_reg = BPF_REG_A;
-		insn->x_reg = BPF_REG_CTX;
-		insn->off = offsetof(struct sk_buff, queue_mapping);
+		*insn = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
+				    offsetof(struct sk_buff, queue_mapping));
 		break;
 
 	case SKF_AD_OFF + SKF_AD_VLAN_TAG:
 	case SKF_AD_OFF + SKF_AD_VLAN_TAG_PRESENT:
 		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
 
-		insn->code = BPF_LDX | BPF_MEM | BPF_H;
-		insn->a_reg = BPF_REG_A;
-		insn->x_reg = BPF_REG_CTX;
-		insn->off = offsetof(struct sk_buff, vlan_tci);
+		/* A = *(u16 *) (ctx + offsetof(vlan_tci)) */
+		*insn = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
+				    offsetof(struct sk_buff, vlan_tci));
 		insn++;
 
 		BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
 
 		if (fp->k == SKF_AD_OFF + SKF_AD_VLAN_TAG) {
-			insn->code = BPF_ALU | BPF_AND | BPF_K;
-			insn->a_reg = BPF_REG_A;
-			insn->imm = ~VLAN_TAG_PRESENT;
+			*insn = BPF_ALU32_IMM(BPF_AND, BPF_REG_A,
+					      ~VLAN_TAG_PRESENT);
 		} else {
-			insn->code = BPF_ALU | BPF_RSH | BPF_K;
-			insn->a_reg = BPF_REG_A;
-			insn->imm = 12;
+			/* A >>= 12 */
+			*insn = BPF_ALU32_IMM(BPF_RSH, BPF_REG_A, 12);
 			insn++;
 
-			insn->code = BPF_ALU | BPF_AND | BPF_K;
-			insn->a_reg = BPF_REG_A;
-			insn->imm = 1;
+			/* A &= 1 */
+			*insn = BPF_ALU32_IMM(BPF_AND, BPF_REG_A, 1);
 		}
 		break;
 
@@ -790,21 +769,15 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 	case SKF_AD_OFF + SKF_AD_CPU:
 	case SKF_AD_OFF + SKF_AD_RANDOM:
 		/* arg1 = ctx */
-		insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-		insn->a_reg = BPF_REG_ARG1;
-		insn->x_reg = BPF_REG_CTX;
+		*insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_ARG1, BPF_REG_CTX);
 		insn++;
 
 		/* arg2 = A */
-		insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-		insn->a_reg = BPF_REG_ARG2;
-		insn->x_reg = BPF_REG_A;
+		*insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_ARG2, BPF_REG_A);
 		insn++;
 
 		/* arg3 = X */
-		insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-		insn->a_reg = BPF_REG_ARG3;
-		insn->x_reg = BPF_REG_X;
+		*insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_ARG3, BPF_REG_X);
 		insn++;
 
 		/* Emit call(ctx, arg2=A, arg3=X) */
@@ -829,9 +802,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_ALU_XOR_X:
-		insn->code = BPF_ALU | BPF_XOR | BPF_X;
-		insn->a_reg = BPF_REG_A;
-		insn->x_reg = BPF_REG_X;
+		/* A ^= X */
+		*insn = BPF_ALU32_REG(BPF_XOR, BPF_REG_A, BPF_REG_X);
 		break;
 
 	default:
@@ -897,9 +869,7 @@ do_pass:
 	fp = prog;
 
 	if (new_insn) {
-		new_insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-		new_insn->a_reg = BPF_REG_CTX;
-		new_insn->x_reg = BPF_REG_ARG1;
+		*new_insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_CTX, BPF_REG_ARG1);
 	}
 	new_insn++;
 
@@ -1027,34 +997,28 @@ do_pass:
 
 		/* ldxb 4 * ([14] & 0xf) is remaped into 6 insns. */
 		case BPF_LDX | BPF_MSH | BPF_B:
-			insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-			insn->a_reg = BPF_REG_TMP;
-			insn->x_reg = BPF_REG_A;
+			/* tmp = A */
+			*insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_TMP, BPF_REG_A);
 			insn++;
 
-			insn->code = BPF_LD | BPF_ABS | BPF_B;
-			insn->a_reg = BPF_REG_A;
-			insn->imm = fp->k;
+			/* A = R0 = *(u8 *) (skb->data + K) */
+			*insn = BPF_LD_ABS(BPF_B, fp->k);
 			insn++;
 
-			insn->code = BPF_ALU | BPF_AND | BPF_K;
-			insn->a_reg = BPF_REG_A;
-			insn->imm = 0xf;
+			/* A &= 0xf */
+			*insn = BPF_ALU32_IMM(BPF_AND, BPF_REG_A, 0xf);
 			insn++;
 
-			insn->code = BPF_ALU | BPF_LSH | BPF_K;
-			insn->a_reg = BPF_REG_A;
-			insn->imm = 2;
+			/* A <<= 2 */
+			*insn = BPF_ALU32_IMM(BPF_LSH, BPF_REG_A, 2);
 			insn++;
 
-			insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-			insn->a_reg = BPF_REG_X;
-			insn->x_reg = BPF_REG_A;
+			/* X = A */
+			*insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_X, BPF_REG_A);
 			insn++;
 
-			insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-			insn->a_reg = BPF_REG_A;
-			insn->x_reg = BPF_REG_TMP;
+			/* A = tmp */
+			*insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_A, BPF_REG_TMP);
 			break;
 
 		/* RET_K, RET_A are remaped into 2 insns. */
@@ -1068,7 +1032,7 @@ do_pass:
 			insn->imm = fp->k;
 			insn++;
 
-			insn->code = BPF_JMP | BPF_EXIT;
+			*insn = BPF_EXIT_INSN();
 			break;
 
 		/* Store to stack. */
@@ -1102,16 +1066,12 @@ do_pass:
 
 		/* X = A */
 		case BPF_MISC | BPF_TAX:
-			insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-			insn->a_reg = BPF_REG_X;
-			insn->x_reg = BPF_REG_A;
+			*insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_X, BPF_REG_A);
 			break;
 
 		/* A = X */
 		case BPF_MISC | BPF_TXA:
-			insn->code = BPF_ALU64 | BPF_MOV | BPF_X;
-			insn->a_reg = BPF_REG_A;
-			insn->x_reg = BPF_REG_X;
+			*insn = BPF_ALU64_REG(BPF_MOV, BPF_REG_A, BPF_REG_X);
 			break;
 
 		/* A = skb->len or X = skb->len */
@@ -1126,10 +1086,8 @@ do_pass:
 
 		/* access seccomp_data fields */
 		case BPF_LDX | BPF_ABS | BPF_W:
-			insn->code = BPF_LDX | BPF_MEM | BPF_W;
-			insn->a_reg = BPF_REG_A;
-			insn->x_reg = BPF_REG_CTX;
-			insn->off = fp->k;
+			/* A = *(u32 *) (ctx + K) */
+			*insn = BPF_LDX_MEM(BPF_W, BPF_REG_A, BPF_REG_CTX, fp->k);
 			break;
 
 		default:
