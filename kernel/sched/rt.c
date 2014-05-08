@@ -973,7 +973,7 @@ dequeue_top_rt_rq(struct rt_rq *rt_rq)
 
 	BUG_ON(!rq->nr_running);
 
-	rq->nr_running -= rt_rq->rt_nr_running;
+	sub_nr_running(rq, rt_rq->rt_nr_running);
 	rt_rq->rt_queued = 0;
 }
 
@@ -989,7 +989,7 @@ enqueue_top_rt_rq(struct rt_rq *rt_rq)
 	if (rt_rq_throttled(rt_rq) || !rt_rq->rt_nr_running)
 		return;
 
-	rq->nr_running += rt_rq->rt_nr_running;
+	add_nr_running(rq, rt_rq->rt_nr_running);
 	rt_rq->rt_queued = 1;
 }
 
