@@ -1166,9 +1166,9 @@ out:
 	/* If any bit been read/written (result != 0), we just return
 	 * short read/write instead of restart io. */
 	if ((result == 0 || result == -ENODATA) && io->ci_need_restart) {
-		CDEBUG(D_VFSTRACE, "Restart %s on %s from %lld, count:%zd\n",
+		CDEBUG(D_VFSTRACE, "Restart %s on %pD from %lld, count:%zd\n",
 		       iot == CIT_READ ? "read" : "write",
-		       file->f_dentry->d_name.name, *ppos, count);
+		       file, *ppos, count);
 		LASSERTF(io->ci_nob == 0, "%zd", io->ci_nob);
 		goto restart;
 	}
@@ -2899,8 +2899,8 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 
 	LASSERT(inode != NULL);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p),name=%s\n",
-	       inode->i_ino, inode->i_generation, inode, dentry->d_name.name);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p),name=%pd\n",
+	       inode->i_ino, inode->i_generation, inode, dentry);
 
 	exp = ll_i2mdexp(inode);
 

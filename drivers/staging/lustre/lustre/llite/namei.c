@@ -509,8 +509,8 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	if (dentry->d_name.len > ll_i2sbi(parent)->ll_namelen)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),intent=%s\n",
-	       dentry->d_name.len, dentry->d_name.name, parent->i_ino,
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),intent=%s\n",
+	       dentry, parent->i_ino,
 	       parent->i_generation, parent, LL_IT2STR(it));
 
 	if (d_mountpoint(dentry))
@@ -586,8 +586,8 @@ static struct dentry *ll_lookup_nd(struct inode *parent, struct dentry *dentry,
 	struct lookup_intent *itp, it = { .it_op = IT_GETATTR };
 	struct dentry *de;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),flags=%u\n",
-	       dentry->d_name.len, dentry->d_name.name, parent->i_ino,
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),flags=%u\n",
+	       dentry, parent->i_ino,
 	       parent->i_generation, parent, flags);
 
 	/* Optimize away (CREATE && !OPEN). Let .create handle the race. */
@@ -619,9 +619,9 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	long long lookup_flags = LOOKUP_OPEN;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),file %p,"
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),file %p,"
 			   "open_flags %x,mode %x opened %d\n",
-	       dentry->d_name.len, dentry->d_name.name, dir->i_ino,
+	       dentry, dir->i_ino,
 	       dir->i_generation, dir, file, open_flags, mode, *opened);
 
 	it = kzalloc(sizeof(*it), GFP_NOFS);
@@ -741,8 +741,8 @@ static int ll_create_it(struct inode *dir, struct dentry *dentry, int mode,
 	struct inode *inode;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),intent=%s\n",
-	       dentry->d_name.len, dentry->d_name.name, dir->i_ino,
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),intent=%s\n",
+	       dentry, dir->i_ino,
 	       dir->i_generation, dir, LL_IT2STR(it));
 
 	rc = it_open_error(DISP_OPEN_CREATE, it);
@@ -863,17 +863,17 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 {
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),"
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),"
 			   "flags=%u, excl=%d\n",
-	       dentry->d_name.len, dentry->d_name.name, dir->i_ino,
+	       dentry, dir->i_ino,
 	       dir->i_generation, dir, mode, want_excl);
 
 	rc = ll_mknod_generic(dir, &dentry->d_name, mode, 0, dentry);
 
 	ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_CREATE, 1);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s, unhashed %d\n",
-	       dentry->d_name.len, dentry->d_name.name, d_unhashed(dentry));
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, unhashed %d\n",
+	       dentry, d_unhashed(dentry));
 
 	return rc;
 }

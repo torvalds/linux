@@ -1489,8 +1489,8 @@ static inline void __d_lustre_invalidate(struct dentry *dentry)
  */
 static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 {
-	CDEBUG(D_DENTRY, "invalidate dentry %.*s (%p) parent %p inode %p "
-	       "refc %d\n", dentry->d_name.len, dentry->d_name.name, dentry,
+	CDEBUG(D_DENTRY, "invalidate dentry %pd (%p) parent %p inode %p "
+	       "refc %d\n", dentry, dentry,
 	       dentry->d_parent, dentry->d_inode, d_count(dentry));
 
 	spin_lock_nested(&dentry->d_lock,
