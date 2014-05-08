@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/cpufreq.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
@@ -60,5 +61,12 @@ void s3c2410_cpufreq_setrefresh(struct s3c_cpufreq_config *cfg)
  */
 void s3c2410_set_fvco(struct s3c_cpufreq_config *cfg)
 {
+#ifdef CONFIG_SAMSUNG_CLOCK
 	__raw_writel(cfg->pll.driver_data, S3C2410_MPLLCON);
+#endif
+
+#ifdef CONFIG_COMMON_CLK
+	if (!IS_ERR(cfg->mpll))
+		clk_set_rate(cfg->mpll, cfg->pll.frequency);
+#endif
 }
