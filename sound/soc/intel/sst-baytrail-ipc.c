@@ -663,7 +663,8 @@ static int sst_byt_stream_operations(struct sst_byt *byt, int type,
 }
 
 /* stream ALSA trigger operations */
-int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream)
+int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream,
+			 u32 start_offset)
 {
 	struct sst_byt_start_stream_params start_stream;
 	void *tx_msg;
@@ -671,7 +672,7 @@ int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream)
 	u64 header;
 	int ret;
 
-	start_stream.byte_offset = 0;
+	start_stream.byte_offset = start_offset;
 	header = sst_byt_header(IPC_IA_START_STREAM,
 				sizeof(start_stream) + sizeof(u32),
 				true, stream->str_id);

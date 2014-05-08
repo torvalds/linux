@@ -53,7 +53,8 @@ int sst_byt_stream_commit(struct sst_byt *byt, struct sst_byt_stream *stream);
 int sst_byt_stream_free(struct sst_byt *byt, struct sst_byt_stream *stream);
 
 /* stream ALSA trigger operations */
-int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream);
+int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream,
+			 u32 start_offset);
 int sst_byt_stream_stop(struct sst_byt *byt, struct sst_byt_stream *stream);
 int sst_byt_stream_pause(struct sst_byt *byt, struct sst_byt_stream *stream);
 int sst_byt_stream_resume(struct sst_byt *byt, struct sst_byt_stream *stream);
