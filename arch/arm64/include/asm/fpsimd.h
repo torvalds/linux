@@ -37,6 +37,8 @@ struct fpsimd_state {
 			u32 fpcr;
 		};
 	};
+	/* the id of the last cpu to have restored this state */
+	unsigned int cpu;
 };
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
@@ -59,7 +61,10 @@ extern void fpsimd_thread_switch(struct task_struct *next);
 extern void fpsimd_flush_thread(void);
 
 extern void fpsimd_preserve_current_state(void);
+extern void fpsimd_restore_current_state(void);
 extern void fpsimd_update_current_state(struct fpsimd_state *state);
+
+extern void fpsimd_flush_task_state(struct task_struct *target);
 
 #endif
 
