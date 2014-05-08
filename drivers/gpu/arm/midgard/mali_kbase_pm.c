@@ -427,10 +427,11 @@ void kbase_pm_resume(struct kbase_device *kbdev)
 	/* MUST happen before any pm_context_active calls occur */
 	mutex_lock(&kbdev->pm.lock);
 	kbdev->pm.suspending = MALI_FALSE;
-	mutex_unlock(&kbdev->pm.lock);
 
 	kbase_pm_do_poweron(kbdev, MALI_TRUE);
 
+	mutex_unlock(&kbdev->pm.lock);
+	
 	/* Restart PM Metric timer on resume */
 	kbasep_pm_metrics_init(kbdev);
 	kbasep_pm_record_gpu_idle(kbdev);
