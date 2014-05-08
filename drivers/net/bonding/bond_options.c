@@ -374,7 +374,7 @@ static const struct bond_option bond_opts[] = {
 	},
 	[BOND_OPT_TLB_DYNAMIC_LB] = {
 		.id = BOND_OPT_TLB_DYNAMIC_LB,
-		.name = "dynamic_lb",
+		.name = "tlb_dynamic_lb",
 		.desc = "Enable dynamic flow shuffling",
 		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_TLB)),
 		.values = bond_tlb_dynamic_lb_tbl,
@@ -383,6 +383,21 @@ static const struct bond_option bond_opts[] = {
 	},
 	{ }
 };
+
+/* Searches for an option by name */
+const struct bond_option *bond_opt_get_by_name(const char *name)
+{
+	const struct bond_option *opt;
+	int option;
+
+	for (option = 0; option < BOND_OPT_LAST; option++) {
+		opt = bond_opt_get(option);
+		if (opt && !strcmp(opt->name, name))
+			return opt;
+	}
+
+	return NULL;
+}
 
 /* Searches for a value in opt's values[] table */
 const struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val)
@@ -762,6 +777,10 @@ static int bond_option_active_slave_set(struct bonding *bond,
 	return ret;
 }
 
+/* There are two tricky bits here.  First, if MII monitoring is activated, then
+ * we must disable ARP monitoring.  Second, if the timer isn't running, we must
+ * start it.
+ */
 static int bond_option_miimon_set(struct bonding *bond,
 				  const struct bond_opt_value *newval)
 {
@@ -800,6 +819,10 @@ static int bond_option_miimon_set(struct bonding *bond,
 	return 0;
 }
 
+/* Set up and down delays. These must be multiples of the
+ * MII monitoring value, and are stored internally as the multiplier.
+ * Thus, we must translate to MS for the real world.
+ */
 static int bond_option_updelay_set(struct bonding *bond,
 				   const struct bond_opt_value *newval)
 {
@@ -858,6 +881,10 @@ static int bond_option_use_carrier_set(struct bonding *bond,
 	return 0;
 }
 
+/* There are two tricky bits here.  First, if ARP monitoring is activated, then
+ * we must disable MII monitoring.  Second, if the ARP timer isn't running,
+ * we must start it.
+ */
 static int bond_option_arp_interval_set(struct bonding *bond,
 					const struct bond_opt_value *newval)
 {
