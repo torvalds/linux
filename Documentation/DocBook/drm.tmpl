@@ -2861,12 +2861,12 @@ int num_ioctls;</synopsis>
             <term>DRM_IOCTL_MODESET_CTL</term>
             <listitem>
               <para>
-                This should be called by application level drivers before and
-                after mode setting, since on many devices the vertical blank
-                counter is reset at that time.  Internally, the DRM snapshots
-                the last vblank count when the ioctl is called with the
-                _DRM_PRE_MODESET command, so that the counter won't go backwards
-                (which is dealt with when _DRM_POST_MODESET is used).
+		This was only used for user-mode-settind drivers around
+		modesetting changes to allow the kernel to update the vblank
+		interrupt after mode setting, since on many devices the vertical
+		blank counter is reset to 0 at some point during modeset. Modern
+		drivers should not call this any more since with kernel mode
+		setting it is a no-op.
               </para>
             </listitem>
           </varlistentry>
