@@ -2636,9 +2636,9 @@
 
 						"g_p_alive_niu",		"reserved",
 						"reserved",		"reserved";
-                                                rockchip,suspend-clkgating-setting=<0xffff 0xffff>;
+                                                //rockchip,suspend-clkgating-setting=<0xffff 0xffff>;
                                                 
-                                               // rockchip,suspend-clkgating-setting=<0x1801 0x1801>;
+                                                rockchip,suspend-clkgating-setting=<0x19fe 0x19fe>;
 
 					#clock-cells = <1>;
 				};

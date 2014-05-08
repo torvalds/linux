@@ -199,8 +199,7 @@
 	supports-sd;
 	broken-cd;
 	card-detect-delay = <200>;
-        ignore-pm-notify;
-	keep-power-in-suspend;
+
 	
         vmmc-supply = <&rk808_ldo5_reg>;
 	status = "okay";
