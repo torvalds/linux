@@ -350,16 +350,6 @@ static struct platform_device *osiris_devices[] __initdata = {
 	&osiris_pcmcia,
 };
 
-#ifdef CONFIG_SAMSUNG_CLOCK
-static struct clk *osiris_clocks[] __initdata = {
-	&s3c24xx_dclk0,
-	&s3c24xx_dclk1,
-	&s3c24xx_clkout0,
-	&s3c24xx_clkout1,
-	&s3c24xx_uclk,
-};
-#endif
-
 static struct s3c_cpufreq_board __initdata osiris_cpufreq = {
 	.refresh	= 7800, /* refresh period is 7.8usec */
 	.auto_io	= 1,
@@ -369,23 +359,6 @@ static struct s3c_cpufreq_board __initdata osiris_cpufreq = {
 static void __init osiris_map_io(void)
 {
 	unsigned long flags;
-
-#ifdef CONFIG_SAMSUNG_CLOCK
-	/* initialise the clocks */
-
-	s3c24xx_dclk0.parent = &clk_upll;
-	s3c24xx_dclk0.rate   = 12*1000*1000;
-
-	s3c24xx_dclk1.parent = &clk_upll;
-	s3c24xx_dclk1.rate   = 24*1000*1000;
-
-	s3c24xx_clkout0.parent  = &s3c24xx_dclk0;
-	s3c24xx_clkout1.parent  = &s3c24xx_dclk1;
-
-	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
-
-	s3c24xx_register_clocks(osiris_clocks, ARRAY_SIZE(osiris_clocks));
-#endif
 
 	s3c24xx_init_io(osiris_iodesc, ARRAY_SIZE(osiris_iodesc));
 	s3c24xx_init_uarts(osiris_uartcfgs, ARRAY_SIZE(osiris_uartcfgs));

@@ -299,16 +299,6 @@ static struct platform_device *vr1000_devices[] __initdata = {
 	&vr1000_led3,
 };
 
-#ifdef CONFIG_SAMSUNG_CLOCK
-static struct clk *vr1000_clocks[] __initdata = {
-	&s3c24xx_dclk0,
-	&s3c24xx_dclk1,
-	&s3c24xx_clkout0,
-	&s3c24xx_clkout1,
-	&s3c24xx_uclk,
-};
-#endif
-
 static void vr1000_power_off(void)
 {
 	gpio_direction_output(S3C2410_GPB(9), 1);
@@ -316,23 +306,6 @@ static void vr1000_power_off(void)
 
 static void __init vr1000_map_io(void)
 {
-#if CONFIG_SAMSUNG_CLOCK
-	/* initialise clock sources */
-
-	s3c24xx_dclk0.parent = &clk_upll;
-	s3c24xx_dclk0.rate   = 12*1000*1000;
-
-	s3c24xx_dclk1.parent = NULL;
-	s3c24xx_dclk1.rate   = 3692307;
-
-	s3c24xx_clkout0.parent  = &s3c24xx_dclk0;
-	s3c24xx_clkout1.parent  = &s3c24xx_dclk1;
-
-	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
-
-	s3c24xx_register_clocks(vr1000_clocks, ARRAY_SIZE(vr1000_clocks));
-#endif
-
 	pm_power_off = vr1000_power_off;
 
 	s3c24xx_init_io(vr1000_iodesc, ARRAY_SIZE(vr1000_iodesc));
