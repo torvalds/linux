@@ -76,6 +76,7 @@ int omap_hdq1w_reset(struct omap_hwmod *oh)
 	return 0;
 }
 
+#ifndef CONFIG_OF
 static int __init omap_init_hdq(void)
 {
 	int id = -1;
@@ -95,3 +96,4 @@ static int __init omap_init_hdq(void)
 	return 0;
 }
 omap_arch_initcall(omap_init_hdq);
+#endif
