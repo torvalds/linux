@@ -418,7 +418,7 @@ static size_t __init gen6_stolen_size(int num, int slot, int func)
 	return gmch_ctrl << 25; /* 32 MB units */
 }
 
-static size_t gen8_stolen_size(int num, int slot, int func)
+static size_t __init gen8_stolen_size(int num, int slot, int func)
 {
 	u16 gmch_ctrl;
 
@@ -454,47 +454,47 @@ struct intel_stolen_funcs {
 	u32 (*base)(int num, int slot, int func, size_t size);
 };
 
-static const struct intel_stolen_funcs i830_stolen_funcs = {
+static const struct intel_stolen_funcs i830_stolen_funcs __initconst = {
 	.base = i830_stolen_base,
 	.size = i830_stolen_size,
 };
 
-static const struct intel_stolen_funcs i845_stolen_funcs = {
+static const struct intel_stolen_funcs i845_stolen_funcs __initconst = {
 	.base = i845_stolen_base,
 	.size = i830_stolen_size,
 };
 
-static const struct intel_stolen_funcs i85x_stolen_funcs = {
+static const struct intel_stolen_funcs i85x_stolen_funcs __initconst = {
 	.base = i85x_stolen_base,
 	.size = gen3_stolen_size,
 };
 
-static const struct intel_stolen_funcs i865_stolen_funcs = {
+static const struct intel_stolen_funcs i865_stolen_funcs __initconst = {
 	.base = i865_stolen_base,
 	.size = gen3_stolen_size,
 };
 
-static const struct intel_stolen_funcs gen3_stolen_funcs = {
+static const struct intel_stolen_funcs gen3_stolen_funcs __initconst = {
 	.base = intel_stolen_base,
 	.size = gen3_stolen_size,
 };
 
-static const struct intel_stolen_funcs gen6_stolen_funcs = {
+static const struct intel_stolen_funcs gen6_stolen_funcs __initconst = {
 	.base = intel_stolen_base,
 	.size = gen6_stolen_size,
 };
 
-static const struct intel_stolen_funcs gen8_stolen_funcs = {
+static const struct intel_stolen_funcs gen8_stolen_funcs __initconst = {
 	.base = intel_stolen_base,
 	.size = gen8_stolen_size,
 };
 
-static const struct intel_stolen_funcs chv_stolen_funcs = {
+static const struct intel_stolen_funcs chv_stolen_funcs __initconst = {
 	.base = intel_stolen_base,
 	.size = chv_stolen_size,
 };
 
-static struct pci_device_id intel_stolen_ids[] __initdata = {
+static const struct pci_device_id intel_stolen_ids[] __initconst = {
 	INTEL_I830_IDS(&i830_stolen_funcs),
 	INTEL_I845G_IDS(&i845_stolen_funcs),
 	INTEL_I85X_IDS(&i85x_stolen_funcs),
