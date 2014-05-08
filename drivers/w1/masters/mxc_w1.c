@@ -32,6 +32,7 @@
 # define MXC_W1_CONTROL_RPP	BIT(7)
 #define MXC_W1_TIME_DIVIDER	0x02
 #define MXC_W1_RESET		0x04
+# define MXC_W1_RESET_RST	BIT(0)
 
 struct mxc_w1_device {
 	void __iomem *regs;
@@ -128,6 +129,10 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(mdev->clk);
 	if (err)
 		return err;
+
+	/* Software reset 1-Wire module */
+	writeb(MXC_W1_RESET_RST, mdev->regs + MXC_W1_RESET);
+	writeb(0, mdev->regs + MXC_W1_RESET);
 
 	writeb(clkdiv - 1, mdev->regs + MXC_W1_TIME_DIVIDER);
 
