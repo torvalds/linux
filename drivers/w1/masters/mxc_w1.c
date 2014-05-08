@@ -15,15 +15,12 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
-
-/* According to the mx27 Datasheet the reset procedure should take up to about
- * 1350us. We set the timeout to 500*100us = 50ms for sure */
-#define MXC_W1_RESET_TIMEOUT 500
 
 /*
  * MXC W1 Register offsets
@@ -49,24 +46,25 @@ struct mxc_w1_device {
  */
 static u8 mxc_w1_ds2_reset_bus(void *data)
 {
-	u8 reg_val;
-	unsigned int timeout_cnt = 0;
 	struct mxc_w1_device *dev = data;
+	unsigned long timeout;
 
-	writeb(MXC_W1_CONTROL_RPP, (dev->regs + MXC_W1_CONTROL));
+	writeb(MXC_W1_CONTROL_RPP, dev->regs + MXC_W1_CONTROL);
 
-	while (1) {
-		reg_val = readb(dev->regs + MXC_W1_CONTROL);
+	/* Wait for reset sequence 511+512us, use 1500us for sure */
+	timeout = jiffies + usecs_to_jiffies(1500);
 
-		if (!(reg_val & MXC_W1_CONTROL_RPP) ||
-		    timeout_cnt > MXC_W1_RESET_TIMEOUT)
-			break;
-		else
-			timeout_cnt++;
+	udelay(511 + 512);
 
-		udelay(100);
-	}
-	return !(reg_val & MXC_W1_CONTROL_PST);
+	do {
+		u8 ctrl = readb(dev->regs + MXC_W1_CONTROL);
+
+		/* PST bit is valid after the RPP bit is self-cleared */
+		if (!(ctrl & MXC_W1_CONTROL_RPP))
+			return !(ctrl & MXC_W1_CONTROL_PST);
+	} while (time_is_after_jiffies(timeout));
+
+	return 1;
 }
 
 /*
