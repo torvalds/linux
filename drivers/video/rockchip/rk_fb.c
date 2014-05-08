@@ -977,6 +977,7 @@ void rk_fd_fence_wait(struct rk_lcdc_driver *dev_drv,
 
 #ifdef CONFIG_ROCKCHIP_IOMMU
 static int g_last_addr[4];
+int g_last_timeout;
 u32 freed_addr[10];
 u32 freed_index;
 
@@ -1003,6 +1004,7 @@ int rk_fb_sysmmu_fault_handler(struct device *dev,
 	printk("last freed buffer:\n");
 	for (i = 0; freed_addr[i] != 0xfefefefe; i++)
 		printk("%d:0x%08x\n",i, freed_addr[i]);
+	printk("last timeout:%d\n", g_last_timeout);
 	dev_drv->ops->get_disp_info(dev_drv, buf,0) ;
 	for (i = 0; i < PAGE_SIZE; i += DUMP_CHUNK) {
 		if ((PAGE_SIZE - i) > DUMP_CHUNK) {
@@ -1252,6 +1254,7 @@ ext_win_exit:
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			freed_index = 0;
+			g_last_timeout = timeout;
 			if (timeout >= 3)
 				msleep(15);
 		}
