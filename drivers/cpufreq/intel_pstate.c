@@ -554,12 +554,7 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 
 	if (pstate_funcs.get_vid)
 		pstate_funcs.get_vid(cpu);
-
-	/*
-	 * goto max pstate so we don't slow up boot if we are built-in if we are
-	 * a module we will take care of it during normal operation
-	 */
-	intel_pstate_set_pstate(cpu, cpu->pstate.max_pstate);
+	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate);
 }
 
 static inline void intel_pstate_calc_busy(struct cpudata *cpu,
@@ -704,11 +699,6 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu = all_cpu_data[cpunum];
 
 	intel_pstate_get_cpu_pstates(cpu);
-	if (!cpu->pstate.current_pstate) {
-		all_cpu_data[cpunum] = NULL;
-		kfree(cpu);
-		return -ENODATA;
-	}
 
 	cpu->cpu = cpunum;
 
@@ -719,7 +709,6 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu->timer.expires = jiffies + HZ/100;
 	intel_pstate_busy_pid_reset(cpu);
 	intel_pstate_sample(cpu);
-	intel_pstate_set_pstate(cpu, cpu->pstate.max_pstate);
 
 	add_timer_on(&cpu->timer, cpunum);
 
