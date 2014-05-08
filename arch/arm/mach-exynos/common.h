@@ -69,5 +69,6 @@ extern int  exynos_cpu_power_state(int cpu);
 extern void exynos_cluster_power_down(int cluster);
 extern void exynos_cluster_power_up(int cluster);
 extern int  exynos_cluster_power_state(int cluster);
+extern void exynos_enter_aftr(void);
 
 #endif /* __ARCH_ARM_MACH_EXYNOS_COMMON_H */
