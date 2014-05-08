@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/nls.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget_configfs.h>
 #include "configfs.h"
@@ -43,7 +44,8 @@ struct gadget_info {
 	struct config_group functions_group;
 	struct config_group configs_group;
 	struct config_group strings_group;
-	struct config_group *default_groups[4];
+	struct config_group os_desc_group;
+	struct config_group *default_groups[5];
 
 	struct mutex lock;
 	struct usb_gadget_strings *gstrings[MAX_USB_STRING_LANGS + 1];
@@ -56,6 +58,9 @@ struct gadget_info {
 #endif
 	struct usb_composite_driver composite;
 	struct usb_composite_dev cdev;
+	bool use_os_desc;
+	char b_vendor_code;
+	char qw_sign[OS_STRING_QW_SIGN_LEN];
 };
 
 struct config_usb_cfg {
@@ -77,6 +82,10 @@ struct gadget_strings {
 
 	struct config_group group;
 	struct list_head list;
+};
+
+struct os_desc {
+	struct config_group group;
 };
 
 struct gadget_config_name {
@@ -736,6 +745,145 @@ static void gadget_strings_attr_release(struct config_item *item)
 USB_CONFIG_STRING_RW_OPS(gadget_strings);
 USB_CONFIG_STRINGS_LANG(gadget_strings, gadget_info);
 
+static inline struct os_desc *to_os_desc(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct os_desc, group);
+}
+
+CONFIGFS_ATTR_STRUCT(os_desc);
+CONFIGFS_ATTR_OPS(os_desc);
+
+static ssize_t os_desc_use_show(struct os_desc *os_desc, char *page)
+{
+	struct gadget_info *gi;
+
+	gi = to_gadget_info(os_desc->group.cg_item.ci_parent);
+
+	return sprintf(page, "%d", gi->use_os_desc);
+}
+
+static ssize_t os_desc_use_store(struct os_desc *os_desc, const char *page,
+				 size_t len)
+{
+	struct gadget_info *gi;
+	int ret;
+	bool use;
+
+	gi = to_gadget_info(os_desc->group.cg_item.ci_parent);
+
+	mutex_lock(&gi->lock);
+	ret = strtobool(page, &use);
+	if (!ret) {
+		gi->use_os_desc = use;
+		ret = len;
+	}
+	mutex_unlock(&gi->lock);
+
+	return ret;
+}
+
+static struct os_desc_attribute os_desc_use =
+	__CONFIGFS_ATTR(use, S_IRUGO | S_IWUSR,
+			os_desc_use_show,
+			os_desc_use_store);
+
+static ssize_t os_desc_b_vendor_code_show(struct os_desc *os_desc, char *page)
+{
+	struct gadget_info *gi;
+
+	gi = to_gadget_info(os_desc->group.cg_item.ci_parent);
+
+	return sprintf(page, "%d", gi->b_vendor_code);
+}
+
+static ssize_t os_desc_b_vendor_code_store(struct os_desc *os_desc,
+					   const char *page, size_t len)
+{
+	struct gadget_info *gi;
+	int ret;
+	u8 b_vendor_code;
+
+	gi = to_gadget_info(os_desc->group.cg_item.ci_parent);
+
+	mutex_lock(&gi->lock);
+	ret = kstrtou8(page, 0, &b_vendor_code);
+	if (!ret) {
+		gi->b_vendor_code = b_vendor_code;
+		ret = len;
+	}
+	mutex_unlock(&gi->lock);
+
+	return ret;
+}
+
+static struct os_desc_attribute os_desc_b_vendor_code =
+	__CONFIGFS_ATTR(b_vendor_code, S_IRUGO | S_IWUSR,
+			os_desc_b_vendor_code_show,
+			os_desc_b_vendor_code_store);
+
+static ssize_t os_desc_qw_sign_show(struct os_desc *os_desc, char *page)
+{
+	struct gadget_info *gi;
+
+	gi = to_gadget_info(os_desc->group.cg_item.ci_parent);
+
+	memcpy(page, gi->qw_sign, OS_STRING_QW_SIGN_LEN);
+
+	return OS_STRING_QW_SIGN_LEN;
+}
+
+static ssize_t os_desc_qw_sign_store(struct os_desc *os_desc, const char *page,
+				     size_t len)
+{
+	struct gadget_info *gi;
+	int res, l;
+
+	gi = to_gadget_info(os_desc->group.cg_item.ci_parent);
+	l = min((int)len, OS_STRING_QW_SIGN_LEN >> 1);
+	if (page[l - 1] == '\n')
+		--l;
+
+	mutex_lock(&gi->lock);
+	res = utf8s_to_utf16s(page, l,
+			      UTF16_LITTLE_ENDIAN, (wchar_t *) gi->qw_sign,
+			      OS_STRING_QW_SIGN_LEN);
+	if (res > 0)
+		res = len;
+	mutex_unlock(&gi->lock);
+
+	return res;
+}
+
+static struct os_desc_attribute os_desc_qw_sign =
+	__CONFIGFS_ATTR(qw_sign, S_IRUGO | S_IWUSR,
+			os_desc_qw_sign_show,
+			os_desc_qw_sign_store);
+
+static struct configfs_attribute *os_desc_attrs[] = {
+	&os_desc_use.attr,
+	&os_desc_b_vendor_code.attr,
+	&os_desc_qw_sign.attr,
+	NULL,
+};
+
+static void os_desc_attr_release(struct config_item *item)
+{
+	struct os_desc *os_desc = to_os_desc(item);
+	kfree(os_desc);
+}
+
+static struct configfs_item_operations os_desc_ops = {
+	.release                = os_desc_attr_release,
+	.show_attribute         = os_desc_attr_show,
+	.store_attribute        = os_desc_attr_store,
+};
+
+static struct config_item_type os_desc_type = {
+	.ct_item_ops	= &os_desc_ops,
+	.ct_attrs	= os_desc_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static int configfs_do_nothing(struct usb_composite_dev *cdev)
 {
 	WARN_ON(1);
@@ -839,6 +987,12 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 		gi->cdev.desc.iSerialNumber = s[USB_GADGET_SERIAL_IDX].id;
 	}
 
+	if (gi->use_os_desc) {
+		cdev->use_os_string = true;
+		cdev->b_vendor_code = gi->b_vendor_code;
+		memcpy(cdev->qw_sign, gi->qw_sign, OS_STRING_QW_SIGN_LEN);
+	}
+
 	/* Go through all configs, attach all functions */
 	list_for_each_entry(c, &gi->cdev.configs, list) {
 		struct config_usb_cfg *cfg;
@@ -929,6 +1083,7 @@ static struct config_group *gadgets_make(
 	gi->group.default_groups[0] = &gi->functions_group;
 	gi->group.default_groups[1] = &gi->configs_group;
 	gi->group.default_groups[2] = &gi->strings_group;
+	gi->group.default_groups[3] = &gi->os_desc_group;
 
 	config_group_init_type_name(&gi->functions_group, "functions",
 			&functions_type);
@@ -936,6 +1091,8 @@ static struct config_group *gadgets_make(
 			&config_desc_type);
 	config_group_init_type_name(&gi->strings_group, "strings",
 			&gadget_strings_strings_type);
+	config_group_init_type_name(&gi->os_desc_group, "os_desc",
+			&os_desc_type);
 
 	gi->composite.bind = configfs_do_nothing;
 	gi->composite.unbind = configfs_do_nothing;

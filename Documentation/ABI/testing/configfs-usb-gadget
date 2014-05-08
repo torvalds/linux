@@ -79,3 +79,14 @@ Description:
 		product		- gadget's product description
 		manufacturer	- gadget's manufacturer description
 
+What:		/config/usb-gadget/gadget/os_desc
+Date:		May 2014
+KernelVersion:	3.16
+Description:
+		This group contains "OS String" extension handling attributes.
+
+		use		- flag turning "OS Desctiptors" support on/off
+		b_vendor_code	- one-byte value used for custom per-device and
+				per-interface requests
+		qw_sign		- an identifier to be reported as "OS String"
+				proper
