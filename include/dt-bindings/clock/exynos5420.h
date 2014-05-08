@@ -69,10 +69,10 @@
 #define CLK_I2C1		262
 #define CLK_I2C2		263
 #define CLK_I2C3		264
-#define CLK_I2C4		265
-#define CLK_I2C5		266
-#define CLK_I2C6		267
-#define CLK_I2C7		268
+#define CLK_USI0		265
+#define CLK_USI1		266
+#define CLK_USI2		267
+#define CLK_USI3		268
 #define CLK_I2C_HDMI		269
 #define CLK_TSADC		270
 #define CLK_SPI0		271
@@ -85,9 +85,9 @@
 #define CLK_PCM2		278
 #define CLK_PWM			279
 #define CLK_SPDIF		280
-#define CLK_I2C8		281
-#define CLK_I2C9		282
-#define CLK_I2C10		283
+#define CLK_USI4		281
+#define CLK_USI5		282
+#define CLK_USI6		283
 #define CLK_ACLK66_PSGEN	300
 #define CLK_CHIPID		301
 #define CLK_SYSREG		302
