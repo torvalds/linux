@@ -151,7 +151,7 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 			else
 				hdmi_msk_reg(hdmi_dev, I2CM_OPERATION, m_I2CM_RD8_EXT, v_I2CM_RD8_EXT(1));
 
-			i = 200;
+			i = 20;
 			while(i--)
 			{
 				msleep(1);
@@ -162,13 +162,6 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 				if(interrupt & (m_SCDC_READREQ | m_I2CM_DONE | m_I2CM_ERROR))
 					break;
 				msleep(4);
-			}
-
-			if(((interrupt & m_I2CM_DONE == 0) && (interrupt & m_I2CM_ERROR))
-										|| (i == 0)) {
-				hdmi_err(hdmi_drv->dev, "[%s] edid read error\n", __FUNCTION__);
-				rk3288_hdmi_i2cm_reset(hdmi_dev);
-				break;
 			}
 
 			if(interrupt & m_I2CM_DONE) {
@@ -189,6 +182,11 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 				#endif
 					goto exit;
 				}
+				continue;
+			} else if((interrupt & m_I2CM_ERROR) || (i == -1)) {
+				hdmi_err(hdmi_drv->dev, "[%s] edid read error\n", __FUNCTION__);
+				rk3288_hdmi_i2cm_reset(hdmi_dev);
+				break;
 			}
 		}
 
@@ -486,45 +484,35 @@ static int rk3288_hdmi_read_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_add
 	int trytime = 2, i = 0, op_status = 0;
 	int val = 0;
 
-	mutex_lock(&hdmi_dev->int_mutex);
-	hdmi_dev->phy_i2cm_int = 0;
-	mutex_unlock(&hdmi_dev->int_mutex);
-
 	while(trytime--) {
 		hdmi_writel(hdmi_dev, PHY_I2CM_ADDRESS, reg_addr);
 		hdmi_writel(hdmi_dev, PHY_I2CM_DATAI_1, 0x00);
 		hdmi_writel(hdmi_dev, PHY_I2CM_DATAI_0, 0x00);
 		hdmi_writel(hdmi_dev, PHY_I2CM_OPERATION, m_PHY_I2CM_READ);
-#if 0
-		i = 100;
+
+		i = 20;
 		while(i--) {
-			mutex_lock(&hdmi_dev->int_mutex);
-			//op_status = hdmi_readl(hdmi_dev, PHY_I2CM_INT);
-			op_status = hdmi_dev->phy_i2cm_int;
-			hdmi_dev->phy_i2cm_int = 0;
-			mutex_unlock(&hdmi_dev->int_mutex);
+			msleep(1);
+			op_status = hdmi_readl(hdmi_dev, IH_I2CMPHY_STAT0);
+			if(op_status)
+				hdmi_writel(hdmi_dev, IH_I2CMPHY_STAT0, op_status);
+
 			if(op_status & (m_I2CMPHY_DONE | m_I2CMPHY_ERR)) {
 				break;
 			}
-			msleep(10);
+			msleep(4);
 		}
 
 		if(op_status & m_I2CMPHY_DONE) {
-			*val = (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_1) >> 8) & 0xff;
-			*val += (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_0) & 0xff);
-			return 0;
+			val = (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_1) & 0xff) << 8;
+			val += (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_0) & 0xff);
+			hdmi_dbg(hdmi_dev->dev, "phy_reg0x%02x: 0x%04x", reg_addr, val);
+			return val;
 		}
 		else {
 			hdmi_err(hdmi_dev->dev, "[%s] operation error,trytime=%d\n", __FUNCTION__,trytime);
 		}
 		msleep(100);
-#else
-		msleep(300);
-		val = (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_1) & 0xff) << 8;
-		val += (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_0) & 0xff);
-		printk("phy_reg0x%02x: 0x%04x", reg_addr, val);
-		return val;
-#endif
 	}
 
 	return -1;
@@ -534,41 +522,32 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 {
 	int trytime = 2, i = 0, op_status = 0;
 
-	mutex_lock(&hdmi_dev->int_mutex);
-	hdmi_dev->phy_i2cm_int = 0;
-	mutex_unlock(&hdmi_dev->int_mutex);
-
 	while(trytime--) {
 		hdmi_writel(hdmi_dev, PHY_I2CM_ADDRESS, reg_addr);
 		hdmi_writel(hdmi_dev, PHY_I2CM_DATAO_1, (val >> 8) & 0xff);
 		hdmi_writel(hdmi_dev, PHY_I2CM_DATAO_0, val & 0xff);
 		hdmi_writel(hdmi_dev, PHY_I2CM_OPERATION, m_PHY_I2CM_WRITE);
-#if 0
-		i = 200;
+
+		i = 20;
 		while(i--) {
-			mutex_lock(&hdmi_dev->int_mutex);
-			//op_status = hdmi_readl(hdmi_dev, PHY_I2CM_INT);
-			op_status = hdmi_dev->phy_i2cm_int;
-			hdmi_dev->phy_i2cm_int = 0;
-			mutex_unlock(&hdmi_dev->int_mutex);
+			msleep(1);
+			op_status = hdmi_readl(hdmi_dev, IH_I2CMPHY_STAT0);
+			if(op_status)
+				hdmi_writel(hdmi_dev, IH_I2CMPHY_STAT0, op_status);
+
 			if(op_status & (m_I2CMPHY_DONE | m_I2CMPHY_ERR)) {
 				break;
 			}
-			msleep(10);
+			msleep(4);
 		}
 
-		//op_status = hdmi_readl(hdmi_dev, PHY_I2CM_INT);
 		if(op_status & m_I2CMPHY_DONE) {
 			return 0;
 		}
 		else {
-			hdmi_err(hdmi_dev->dev, "[%s] operation error,trytime=%d\n", __FUNCTION__,trytime);
+			hdmi_err(hdmi_dev->dev, "[%s] operation error,trytime=%d\n", __FUNCTION__, trytime);
 		}
 		msleep(100);
-#else
-		msleep(50);
-		return 0;
-#endif
 	}
 
 	return -1;
