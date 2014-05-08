@@ -286,6 +286,7 @@ static struct i2c_board_info vr1000_i2c_devs[] __initdata = {
 /* devices for this board */
 
 static struct platform_device *vr1000_devices[] __initdata = {
+	&s3c2410_device_dclk,
 	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -299,6 +300,7 @@ static struct platform_device *vr1000_devices[] __initdata = {
 	&vr1000_led3,
 };
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 static struct clk *vr1000_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
@@ -306,6 +308,7 @@ static struct clk *vr1000_clocks[] __initdata = {
 	&s3c24xx_clkout1,
 	&s3c24xx_uclk,
 };
+#endif
 
 static void vr1000_power_off(void)
 {
@@ -314,6 +317,7 @@ static void vr1000_power_off(void)
 
 static void __init vr1000_map_io(void)
 {
+#if CONFIG_SAMSUNG_CLOCK
 	/* initialise clock sources */
 
 	s3c24xx_dclk0.parent = &clk_upll;
@@ -328,6 +332,7 @@ static void __init vr1000_map_io(void)
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
 
 	s3c24xx_register_clocks(vr1000_clocks, ARRAY_SIZE(vr1000_clocks));
+#endif
 
 	pm_power_off = vr1000_power_off;
 

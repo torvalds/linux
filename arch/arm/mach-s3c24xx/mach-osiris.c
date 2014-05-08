@@ -344,12 +344,14 @@ static struct i2c_board_info osiris_i2c_devs[] __initdata = {
 /* Standard Osiris devices */
 
 static struct platform_device *osiris_devices[] __initdata = {
+	&s3c2410_device_dclk,
 	&s3c_device_i2c0,
 	&s3c_device_wdt,
 	&s3c_device_nand,
 	&osiris_pcmcia,
 };
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 static struct clk *osiris_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
@@ -357,6 +359,7 @@ static struct clk *osiris_clocks[] __initdata = {
 	&s3c24xx_clkout1,
 	&s3c24xx_uclk,
 };
+#endif
 
 static struct s3c_cpufreq_board __initdata osiris_cpufreq = {
 	.refresh	= 7800, /* refresh period is 7.8usec */
@@ -368,6 +371,7 @@ static void __init osiris_map_io(void)
 {
 	unsigned long flags;
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 	/* initialise the clocks */
 
 	s3c24xx_dclk0.parent = &clk_upll;
@@ -382,6 +386,7 @@ static void __init osiris_map_io(void)
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
 
 	s3c24xx_register_clocks(osiris_clocks, ARRAY_SIZE(osiris_clocks));
+#endif
 
 	s3c24xx_init_io(osiris_iodesc, ARRAY_SIZE(osiris_iodesc));
 	s3c24xx_init_clocks(0);

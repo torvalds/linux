@@ -553,3 +553,17 @@ void __init s3c2443_init_clocks(int xtal)
 	s3c2443_common_clk_init(NULL, xtal, 1, S3C24XX_VA_CLKPWR);
 }
 #endif
+
+#if defined(CONFIG_CPU_S3C2410) || defined(CONFIG_CPU_S3C2440) || \
+	defined(CONFIG_CPU_S3C2442)
+static struct resource s3c2410_dclk_resource[] = {
+	[0] = DEFINE_RES_MEM(0x56000084, 0x4),
+};
+
+struct platform_device s3c2410_device_dclk = {
+	.name		= "s3c2410-dclk",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c2410_dclk_resource),
+	.resource	= s3c2410_dclk_resource,
+};
+#endif

@@ -710,6 +710,7 @@ static struct i2c_board_info rx1950_i2c_devices[] = {
 };
 
 static struct platform_device *rx1950_devices[] __initdata = {
+	&s3c2410_device_dclk,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
@@ -728,17 +729,21 @@ static struct platform_device *rx1950_devices[] __initdata = {
 	&rx1950_leds,
 };
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 static struct clk *rx1950_clocks[] __initdata = {
 	&s3c24xx_clkout0,
 	&s3c24xx_clkout1,
 };
+#endif
 
 static void __init rx1950_map_io(void)
 {
+#ifdef CONFIG_SAMSUNG_CLOCK
 	s3c24xx_clkout0.parent  = &clk_h;
 	s3c24xx_clkout1.parent  = &clk_f;
 
 	s3c24xx_register_clocks(rx1950_clocks, ARRAY_SIZE(rx1950_clocks));
+#endif
 
 	s3c24xx_init_io(rx1950_iodesc, ARRAY_SIZE(rx1950_iodesc));
 	s3c24xx_init_clocks(16934000);

@@ -114,6 +114,8 @@ extern struct platform_device s3c2412_device_dma;
 extern struct platform_device s3c2440_device_dma;
 extern struct platform_device s3c2443_device_dma;
 
+extern struct platform_device s3c2410_device_dclk;
+
 #ifdef CONFIG_S3C2412_COMMON_CLK
 void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
 				unsigned long ext_f, void __iomem *reg_base);

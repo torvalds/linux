@@ -352,6 +352,7 @@ static struct platform_device anubis_device_sm501 = {
 /* Standard Anubis devices */
 
 static struct platform_device *anubis_devices[] __initdata = {
+	&s3c2410_device_dclk,
 	&s3c_device_ohci,
 	&s3c_device_wdt,
 	&s3c_device_adc,
@@ -364,6 +365,7 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&anubis_device_sm501,
 };
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 static struct clk *anubis_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
@@ -371,6 +373,7 @@ static struct clk *anubis_clocks[] __initdata = {
 	&s3c24xx_clkout1,
 	&s3c24xx_uclk,
 };
+#endif
 
 /* I2C devices. */
 
@@ -394,6 +397,7 @@ static struct s3c24xx_audio_simtec_pdata __initdata anubis_audio = {
 
 static void __init anubis_map_io(void)
 {
+#ifdef CONFIG_SAMSUNG_CLOCK
 	/* initialise the clocks */
 
 	s3c24xx_dclk0.parent = &clk_upll;
@@ -408,6 +412,7 @@ static void __init anubis_map_io(void)
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
 
 	s3c24xx_register_clocks(anubis_clocks, ARRAY_SIZE(anubis_clocks));
+#endif
 
 	s3c24xx_init_io(anubis_iodesc, ARRAY_SIZE(anubis_iodesc));
 	s3c24xx_init_clocks(0);

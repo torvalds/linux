@@ -523,6 +523,7 @@ static struct s3c_hwmon_pdata bast_hwmon_info = {
 // cat /sys/devices/platform/s3c24xx-adc/s3c-hwmon/in_0
 
 static struct platform_device *bast_devices[] __initdata = {
+	&s3c2410_device_dclk,
 	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -537,6 +538,7 @@ static struct platform_device *bast_devices[] __initdata = {
 	&bast_sio,
 };
 
+#ifdef CONFIG_SAMSUNG_CLK
 static struct clk *bast_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
@@ -544,6 +546,7 @@ static struct clk *bast_clocks[] __initdata = {
 	&s3c24xx_clkout1,
 	&s3c24xx_uclk,
 };
+#endif
 
 static struct s3c_cpufreq_board __initdata bast_cpufreq = {
 	.refresh	= 7800, /* 7.8usec */
@@ -558,6 +561,7 @@ static struct s3c24xx_audio_simtec_pdata __initdata bast_audio = {
 
 static void __init bast_map_io(void)
 {
+#ifdef CONFIG_SAMSUNG_CLOCK
 	/* initialise the clocks */
 
 	s3c24xx_dclk0.parent = &clk_upll;
@@ -572,6 +576,7 @@ static void __init bast_map_io(void)
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
 
 	s3c24xx_register_clocks(bast_clocks, ARRAY_SIZE(bast_clocks));
+#endif
 
 	s3c_hwmon_set_platdata(&bast_hwmon_info);
 

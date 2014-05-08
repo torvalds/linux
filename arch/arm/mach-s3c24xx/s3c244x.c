@@ -46,6 +46,7 @@
 #include <plat/nand-core.h>
 #include <plat/watchdog-reset.h>
 
+#include "common.h"
 #include "regs-dsc.h"
 
 static struct map_desc s3c244x_iodesc[] __initdata = {
@@ -74,6 +75,7 @@ void __init s3c244x_map_io(void)
 	s3c_nand_setname("s3c2440-nand");
 	s3c_device_ts.name = "s3c2440-ts";
 	s3c_device_usbgadget.name = "s3c2440-usbgadget";
+	s3c2410_device_dclk.name = "s3c2440-dclk";
 }
 
 void __init_or_cpufreq s3c244x_setup_clocks(void)
