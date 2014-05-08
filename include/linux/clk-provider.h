@@ -498,10 +498,7 @@ struct clk_onecell_data {
 
 extern struct of_device_id __clk_of_table;
 
-#define CLK_OF_DECLARE(name, compat, fn)			\
-	static const struct of_device_id __clk_of_table_##name	\
-		__used __section(__clk_of_table)		\
-		= { .compatible = compat, .data = fn };
+#define CLK_OF_DECLARE(name, compat, fn) OF_DECLARE_1(clk, name, compat, fn)
 
 #ifdef CONFIG_OF
 int of_clk_add_provider(struct device_node *np,
