@@ -1821,6 +1821,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 		list_del(&cur_cd->cancel_cmd_list);
 		kfree(cur_cd);
 	}
+	xhci_cleanup_command_queue(xhci);
 
 	for (i = 1; i < MAX_HC_SLOTS; ++i)
 		xhci_free_virt_device(xhci, i);
@@ -2324,6 +2325,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	int i;
 
 	INIT_LIST_HEAD(&xhci->cancel_cmd_list);
+	INIT_LIST_HEAD(&xhci->cmd_list);
 
 	page_size = readl(&xhci->op_regs->page_size);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
