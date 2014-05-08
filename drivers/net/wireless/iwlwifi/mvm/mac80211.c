@@ -2748,6 +2748,19 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false);
 	}
 
+	if (vif->csa_active && vif->type == NL80211_IFTYPE_STATION) {
+		struct iwl_mvm_sta *mvmsta;
+
+		mvmsta = iwl_mvm_sta_from_staid_protected(mvm,
+							  mvmvif->ap_sta_id);
+
+		if (WARN_ON(!mvmsta))
+			goto out;
+
+		/* TODO: only re-enable after the first beacon */
+		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
+	}
+
 	goto out;
 
 out_remove_binding:
@@ -2779,6 +2792,7 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_vif *disabled_vif = NULL;
+	struct iwl_mvm_sta *mvmsta;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -2809,6 +2823,12 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 			break;
 
 		disabled_vif = vif;
+
+		mvmsta = iwl_mvm_sta_from_staid_protected(mvm,
+							  mvmvif->ap_sta_id);
+
+		if (!WARN_ON(!mvmsta))
+			iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, true);
 
 		iwl_mvm_mac_ctxt_changed(mvm, vif, true);
 		break;
