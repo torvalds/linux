@@ -4092,7 +4092,7 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	field = le32_to_cpu(udev->bos->ext_cap->bmAttributes);
 
 	xhci_dbg(xhci, "%s port %d USB2 hardware LPM\n",
-			enable ? "enable" : "disable", port_num);
+			enable ? "enable" : "disable", port_num + 1);
 
 	if (enable) {
 		/* Host supports BESL timeout instead of HIRD */
