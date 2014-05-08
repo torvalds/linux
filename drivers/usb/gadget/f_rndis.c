@@ -682,6 +682,15 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 
 	rndis_opts = container_of(f->fi, struct f_rndis_opts, func_inst);
 
+	if (cdev->use_os_string) {
+		f->os_desc_table = kzalloc(sizeof(*f->os_desc_table),
+					   GFP_KERNEL);
+		if (!f->os_desc_table)
+			return PTR_ERR(f->os_desc_table);
+		f->os_desc_n = 1;
+		f->os_desc_table[0].os_desc = &rndis_opts->rndis_os_desc;
+	}
+
 	/*
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
@@ -693,14 +702,16 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 		gether_set_gadget(rndis_opts->net, cdev->gadget);
 		status = gether_register_netdev(rndis_opts->net);
 		if (status)
-			return status;
+			goto fail;
 		rndis_opts->bound = true;
 	}
 
 	us = usb_gstrings_attach(cdev, rndis_strings,
 				 ARRAY_SIZE(rndis_string_defs));
-	if (IS_ERR(us))
-		return PTR_ERR(us);
+	if (IS_ERR(us)) {
+		status = PTR_ERR(us);
+		goto fail;
+	}
 	rndis_control_intf.iInterface = us[0].id;
 	rndis_data_intf.iInterface = us[1].id;
 	rndis_iad_descriptor.iFunction = us[2].id;
@@ -802,6 +813,8 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
+	kfree(f->os_desc_table);
+	f->os_desc_n = 0;
 	usb_free_all_descriptors(f);
 
 	if (rndis->notify_req) {
@@ -892,6 +905,8 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
+	opts->rndis_os_desc.ext_compat_id = opts->rndis_ext_compat_id;
+
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = rndis_free_inst;
 	opts->net = gether_setup_default();
@@ -900,6 +915,7 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 		kfree(opts);
 		return ERR_CAST(net);
 	}
+	INIT_LIST_HEAD(&opts->rndis_os_desc.ext_prop);
 
 	config_group_init_type_name(&opts->func_inst.group, "",
 				    &rndis_func_type);
@@ -925,6 +941,8 @@ static void rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_rndis		*rndis = func_to_rndis(f);
 
+	kfree(f->os_desc_table);
+	f->os_desc_n = 0;
 	usb_free_all_descriptors(f);
 
 	kfree(rndis->notify_req->buf);
