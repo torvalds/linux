@@ -394,20 +394,18 @@ int ll_file_release(struct inode *inode, struct file *file)
 	return rc;
 }
 
-static int ll_intent_file_open(struct file *file, void *lmm,
+static int ll_intent_file_open(struct dentry *dentry, void *lmm,
 			       int lmmsize, struct lookup_intent *itp)
 {
-	struct ll_sb_info *sbi = ll_i2sbi(file->f_dentry->d_inode);
-	struct dentry *parent = file->f_dentry->d_parent;
-	const char *name = file->f_dentry->d_name.name;
-	const int len = file->f_dentry->d_name.len;
+	struct inode *inode = dentry->d_inode;
+	struct ll_sb_info *sbi = ll_i2sbi(inode);
+	struct dentry *parent = dentry->d_parent;
+	const char *name = dentry->d_name.name;
+	const int len = dentry->d_name.len;
 	struct md_op_data *op_data;
 	struct ptlrpc_request *req;
 	__u32 opc = LUSTRE_OPC_ANY;
 	int rc;
-
-	if (!parent)
-		return -ENOENT;
 
 	/* Usually we come here only for NFSD, and we want open lock.
 	   But we can also get here with pre 2.6.15 patchless kernels, and in
@@ -425,7 +423,7 @@ static int ll_intent_file_open(struct file *file, void *lmm,
 	}
 
 	op_data  = ll_prep_md_op_data(NULL, parent->d_inode,
-				      file->f_dentry->d_inode, name, len,
+				      inode, name, len,
 				      O_RDWR, opc, NULL);
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
@@ -441,7 +439,7 @@ static int ll_intent_file_open(struct file *file, void *lmm,
 		if (!it_disposition(itp, DISP_OPEN_OPEN) ||
 		     it_open_error(DISP_OPEN_OPEN, itp))
 			goto out;
-		ll_release_openhandle(file->f_dentry, itp);
+		ll_release_openhandle(dentry, itp);
 		goto out;
 	}
 
@@ -456,10 +454,9 @@ static int ll_intent_file_open(struct file *file, void *lmm,
 		goto out;
 	}
 
-	rc = ll_prep_inode(&file->f_dentry->d_inode, req, NULL, itp);
+	rc = ll_prep_inode(&inode, req, NULL, itp);
 	if (!rc && itp->d.lustre.it_lock_mode)
-		ll_set_lock_data(sbi->ll_md_exp, file->f_dentry->d_inode,
-				 itp, NULL);
+		ll_set_lock_data(sbi->ll_md_exp, inode, itp, NULL);
 
 out:
 	ptlrpc_req_finished(req);
@@ -652,7 +649,7 @@ restart:
 			   result in a deadlock */
 			mutex_unlock(&lli->lli_och_mutex);
 			it->it_create_mode |= M_CHECK_STALE;
-			rc = ll_intent_file_open(file, NULL, 0, it);
+			rc = ll_intent_file_open(file->f_path.dentry, NULL, 0, it);
 			it->it_create_mode &= ~M_CHECK_STALE;
 			if (rc)
 				goto out_openerr;
@@ -1371,7 +1368,7 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct file *file,
 	}
 
 	ll_inode_size_lock(inode);
-	rc = ll_intent_file_open(file, lum, lum_size, &oit);
+	rc = ll_intent_file_open(file->f_path.dentry, lum, lum_size, &oit);
 	if (rc)
 		goto out_unlock;
 	rc = oit.d.lustre.it_status;
