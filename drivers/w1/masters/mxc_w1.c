@@ -75,22 +75,25 @@ static u8 mxc_w1_ds2_reset_bus(void *data)
  */
 static u8 mxc_w1_ds2_touch_bit(void *data, u8 bit)
 {
-	struct mxc_w1_device *mdev = data;
-	void __iomem *ctrl_addr = mdev->regs + MXC_W1_CONTROL;
-	unsigned int timeout_cnt = 400; /* Takes max. 120us according to
-					 * datasheet.
-					 */
+	struct mxc_w1_device *dev = data;
+	unsigned long timeout;
 
-	writeb(MXC_W1_CONTROL_WR(bit), ctrl_addr);
+	writeb(MXC_W1_CONTROL_WR(bit), dev->regs + MXC_W1_CONTROL);
 
-	while (timeout_cnt--) {
-		if (!(readb(ctrl_addr) & MXC_W1_CONTROL_WR(bit)))
-			break;
+	/* Wait for read/write bit (60us, Max 120us), use 200us for sure */
+	timeout = jiffies + usecs_to_jiffies(200);
 
-		udelay(1);
-	}
+	udelay(60);
 
-	return !!(readb(ctrl_addr) & MXC_W1_CONTROL_RDST);
+	do {
+		u8 ctrl = readb(dev->regs + MXC_W1_CONTROL);
+
+		/* RDST bit is valid after the WR1/RD bit is self-cleared */
+		if (!(ctrl & MXC_W1_CONTROL_WR(bit)))
+			return !!(ctrl & MXC_W1_CONTROL_RDST);
+	} while (time_is_after_jiffies(timeout));
+
+	return 0;
 }
 
 static int mxc_w1_probe(struct platform_device *pdev)
