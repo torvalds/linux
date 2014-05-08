@@ -59,6 +59,8 @@
 #define CLK_SCLK_GSCL_WB	157
 #define CLK_SCLK_HDMIPHY	158
 #define CLK_MAU_EPLL		159
+#define CLK_SCLK_HSIC_12M	160
+#define CLK_SCLK_MPHY_IXTAL24	161
 
 /* gate clocks */
 #define CLK_ACLK66_PERIC	256
