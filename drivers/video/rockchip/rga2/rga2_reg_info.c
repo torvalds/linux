@@ -1023,6 +1023,9 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
         req->rotate_mode = 0;
     }
 
+    if((req->dst.act_w > 2048) && (req->src.act_h < req->dst.act_h))
+        req->scale_bicu_mode |= (1<<4);
+
     req->LUT_addr = req_rga->LUT_addr;
     req->rop_mask_addr = req_rga->rop_mask_addr;
 
