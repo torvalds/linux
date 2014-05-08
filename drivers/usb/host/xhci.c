@@ -3696,6 +3696,9 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 
 	if (!xhci->slot_id) {
 		xhci_err(xhci, "Error while assigning device slot ID\n");
+		xhci_err(xhci, "Max number of devices this xHCI host supports is %u.\n",
+				HCS_MAX_SLOTS(
+					readl(&xhci->cap_regs->hcs_params1)));
 		return 0;
 	}
 
