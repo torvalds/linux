@@ -159,7 +159,7 @@
 #define CLK_GSCL_WB		464
 #define CLK_GSCL0		465
 #define CLK_GSCL1		466
-#define CLK_CLK_3AA		467
+#define CLK_FIMC_3AA		467
 #define CLK_ACLK266_G2D		470
 #define CLK_SSS			471
 #define CLK_SLIM_SSS		472
@@ -172,6 +172,8 @@
 #define CLK_SMMU_FIMCL1		493
 #define CLK_SMMU_FIMCL3		494
 #define CLK_FIMC_LITE3		495
+#define CLK_FIMC_LITE0		496
+#define CLK_FIMC_LITE1		497
 #define CLK_ACLK_G3D		500
 #define CLK_G3D			501
 #define CLK_SMMU_MIXER		502
