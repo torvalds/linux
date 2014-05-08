@@ -69,10 +69,6 @@
 #include "xhci.h"
 #include "xhci-trace.h"
 
-static int handle_cmd_in_cmd_wait_list(struct xhci_hcd *xhci,
-		struct xhci_virt_device *virt_dev,
-		struct xhci_event_cmd *event);
-
 /*
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
  * address of the TRB.
@@ -765,7 +761,6 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 		union xhci_trb *trb, struct xhci_event_cmd *event)
 {
 	unsigned int ep_index;
-	struct xhci_virt_device *virt_dev;
 	struct xhci_ring *ep_ring;
 	struct xhci_virt_ep *ep;
 	struct list_head *entry;
@@ -775,11 +770,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	struct xhci_dequeue_state deq_state;
 
 	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
-		virt_dev = xhci->devs[slot_id];
-		if (virt_dev)
-			handle_cmd_in_cmd_wait_list(xhci, virt_dev,
-				event);
-		else
+		if (!xhci->devs[slot_id])
 			xhci_warn(xhci, "Stop endpoint command "
 				"completion for disabled slot %u\n",
 				slot_id);
@@ -1229,29 +1220,6 @@ static void xhci_complete_cmd_in_cmd_wait_list(struct xhci_hcd *xhci,
 }
 
 
-/* Check to see if a command in the device's command queue matches this one.
- * Signal the completion or free the command, and return 1.  Return 0 if the
- * completed command isn't at the head of the command list.
- */
-static int handle_cmd_in_cmd_wait_list(struct xhci_hcd *xhci,
-		struct xhci_virt_device *virt_dev,
-		struct xhci_event_cmd *event)
-{
-	struct xhci_command *command;
-
-	if (list_empty(&virt_dev->cmd_list))
-		return 0;
-
-	command = list_entry(virt_dev->cmd_list.next,
-			struct xhci_command, cmd_list);
-	if (xhci->cmd_ring->dequeue != command->command_trb)
-		return 0;
-
-	xhci_complete_cmd_in_cmd_wait_list(xhci, command,
-			GET_COMP_CODE(le32_to_cpu(event->status)));
-	return 1;
-}
-
 /*
  * Finding the command trb need to be cancelled and modifying it to
  * NO OP command. And if the command is in device's command wait
@@ -1403,7 +1371,6 @@ static void xhci_handle_cmd_enable_slot(struct xhci_hcd *xhci, int slot_id,
 		xhci->slot_id = slot_id;
 	else
 		xhci->slot_id = 0;
-	complete(&xhci->addr_dev);
 }
 
 static void xhci_handle_cmd_disable_slot(struct xhci_hcd *xhci, int slot_id)
@@ -1428,9 +1395,6 @@ static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
 	unsigned int ep_state;
 	u32 add_flags, drop_flags;
 
-	virt_dev = xhci->devs[slot_id];
-	if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
-		return;
 	/*
 	 * Configure endpoint commands can come from the USB core
 	 * configuration or alt setting changes, or because the HW
@@ -1439,6 +1403,7 @@ static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
 	 * If the command was for a halted endpoint, the xHCI driver
 	 * is not waiting on the configure endpoint command.
 	 */
+	virt_dev = xhci->devs[slot_id];
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
 	if (!ctrl_ctx) {
 		xhci_warn(xhci, "Could not get input context, bad type.\n");
@@ -1474,35 +1439,11 @@ static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
 	return;
 }
 
-static void xhci_handle_cmd_eval_ctx(struct xhci_hcd *xhci, int slot_id,
-		struct xhci_event_cmd *event, u32 cmd_comp_code)
-{
-	struct xhci_virt_device *virt_dev;
-
-	virt_dev = xhci->devs[slot_id];
-	if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
-		return;
-	virt_dev->cmd_status = cmd_comp_code;
-	complete(&virt_dev->cmd_completion);
-}
-
-static void xhci_handle_cmd_addr_dev(struct xhci_hcd *xhci, int slot_id,
-		u32 cmd_comp_code)
-{
-	xhci->devs[slot_id]->cmd_status = cmd_comp_code;
-	complete(&xhci->addr_dev);
-}
-
 static void xhci_handle_cmd_reset_dev(struct xhci_hcd *xhci, int slot_id,
 		struct xhci_event_cmd *event)
 {
-	struct xhci_virt_device *virt_dev;
-
 	xhci_dbg(xhci, "Completed reset device command.\n");
-	virt_dev = xhci->devs[slot_id];
-	if (virt_dev)
-		handle_cmd_in_cmd_wait_list(xhci, virt_dev, event);
-	else
+	if (!xhci->devs[slot_id])
 		xhci_warn(xhci, "Reset device command completion "
 				"for disabled slot %u\n", slot_id);
 }
@@ -1520,18 +1461,23 @@ static void xhci_handle_cmd_nec_get_fw(struct xhci_hcd *xhci,
 			NEC_FW_MINOR(le32_to_cpu(event->status)));
 }
 
-static void xhci_del_and_free_cmd(struct xhci_command *cmd)
+static void xhci_complete_del_and_free_cmd(struct xhci_command *cmd, u32 status)
 {
 	list_del(&cmd->cmd_list);
-	if (!cmd->completion)
+
+	if (cmd->completion) {
+		cmd->status = status;
+		complete(cmd->completion);
+	} else {
 		kfree(cmd);
+	}
 }
 
 void xhci_cleanup_command_queue(struct xhci_hcd *xhci)
 {
 	struct xhci_command *cur_cmd, *tmp_cmd;
 	list_for_each_entry_safe(cur_cmd, tmp_cmd, &xhci->cmd_list, cmd_list)
-		xhci_del_and_free_cmd(cur_cmd);
+		xhci_complete_del_and_free_cmd(cur_cmd, COMP_CMD_ABORT);
 }
 
 static void handle_cmd_completion(struct xhci_hcd *xhci,
@@ -1598,13 +1544,13 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		xhci_handle_cmd_disable_slot(xhci, slot_id);
 		break;
 	case TRB_CONFIG_EP:
-		xhci_handle_cmd_config_ep(xhci, slot_id, event, cmd_comp_code);
+		if (!cmd->completion)
+			xhci_handle_cmd_config_ep(xhci, slot_id, event,
+						  cmd_comp_code);
 		break;
 	case TRB_EVAL_CONTEXT:
-		xhci_handle_cmd_eval_ctx(xhci, slot_id, event, cmd_comp_code);
 		break;
 	case TRB_ADDR_DEV:
-		xhci_handle_cmd_addr_dev(xhci, slot_id, cmd_comp_code);
 		break;
 	case TRB_STOP_RING:
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
@@ -1637,7 +1583,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		break;
 	}
 
-	xhci_del_and_free_cmd(cmd);
+	xhci_complete_del_and_free_cmd(cmd, cmd_comp_code);
 
 	inc_deq(xhci, xhci->cmd_ring);
 }

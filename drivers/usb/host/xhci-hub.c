@@ -299,7 +299,6 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 						 suspend);
 		}
 	}
-	list_add_tail(&cmd->cmd_list, &virt_dev->cmd_list);
 	xhci_queue_stop_endpoint(xhci, cmd, slot_id, 0, suspend);
 	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
@@ -311,18 +310,8 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	if (timeleft <= 0) {
 		xhci_warn(xhci, "%s while waiting for stop endpoint command\n",
 				timeleft == 0 ? "Timeout" : "Signal");
-		spin_lock_irqsave(&xhci->lock, flags);
-		/* The timeout might have raced with the event ring handler, so
-		 * only delete from the list if the item isn't poisoned.
-		 */
-		if (cmd->cmd_list.next != LIST_POISON1)
-			list_del(&cmd->cmd_list);
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		ret = -ETIME;
-		goto command_cleanup;
 	}
-
-command_cleanup:
 	xhci_free_command(xhci, cmd);
 	return ret;
 }
