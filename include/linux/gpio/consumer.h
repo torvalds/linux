@@ -1,6 +1,7 @@
 #ifndef __LINUX_GPIO_CONSUMER_H
 #define __LINUX_GPIO_CONSUMER_H
 
+#include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 
