@@ -2401,6 +2401,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 		if (pending & SDMMC_INT_CD) {
 			mci_writel(host, RINTSTS, SDMMC_INT_CD);
+			rk_send_wakeup_key();//wake up system
 			queue_work(host->card_workqueue, &host->card_work);
 		}
 
@@ -2640,7 +2641,7 @@ static int dw_mci_of_get_wp_gpio(struct device *dev, u8 slot)
 static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
 					struct mmc_host *mmc)
 {
-	struct device_node *np = dw_mci_of_find_slot_node(dev, slot);
+	struct device_node *np = dev->of_node;//dw_mci_of_find_slot_node(dev, slot);
 	int gpio;
 
 	if (!np)
@@ -2786,6 +2787,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->caps |= MMC_CAP_POWER_OFF_CARD;
 	if (of_find_property(host->dev->of_node, "cap-sdio-irq", NULL))
 		mmc->caps |= MMC_CAP_SDIO_IRQ;
+	if (of_find_property(host->dev->of_node, "poll-hw-reset", NULL))
+		mmc->caps |= MMC_CAP_HW_RESET;
 	if (of_find_property(host->dev->of_node, "full-pwr-cycle", NULL))
 		mmc->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
 	if (of_find_property(host->dev->of_node, "keep-power-in-suspend", NULL))
@@ -2851,7 +2854,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
     }
     
 	slot->wp_gpio = dw_mci_of_get_wp_gpio(host->dev, slot->id);
-	dw_mci_of_get_cd_gpio(host->dev, slot->id, mmc);
 	
     if (mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
         clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
@@ -2870,6 +2872,15 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
             printk("%s: Warning : No pinctrl used!\n",mmc_hostname(host->mmc));
         else
         {
+            host->pins_idle= pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_IDLE);
+            if(IS_ERR(host->pins_default))
+                printk("%s: Warning : No IDLE pinctrl matched!\n", mmc_hostname(host->mmc));
+            else
+            { 
+                if(pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+                    printk("%s: Warning :  Idle pinctrl setting failed!\n", mmc_hostname(host->mmc));  
+            }
+        
             host->pins_default = pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_DEFAULT);
             if(IS_ERR(host->pins_default))
                 printk("%s: Warning : No default pinctrl matched!\n", mmc_hostname(host->mmc));
@@ -3369,6 +3380,16 @@ int dw_mci_suspend(struct dw_mci *host)
 	if (host->vmmc)
 		regulator_disable(host->vmmc);
 
+	/*only for sdmmc controller*/
+	if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
+	    disable_irq(host->irq);
+	    
+	    if(pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+		    printk("%s: Warning :  Idle pinctrl setting failed!\n", mmc_hostname(host->mmc));  
+	    dw_mci_of_get_cd_gpio(host->dev,0,host->mmc);
+	    
+	    enable_irq_wake(host->mmc->slot.cd_irq);
+    }
 	return 0;
 }
 EXPORT_SYMBOL(dw_mci_suspend);
@@ -3421,6 +3442,19 @@ int dw_mci_resume(struct dw_mci *host)
 			dw_mci_setup_bus(slot, true);
 		}
 	}
+	
+	/*only for sdmmc controller*/
+	if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
+	    disable_irq_wake(host->mmc->slot.cd_irq);
+
+	    mmc_gpio_free_cd(host->mmc);
+	    if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+		    printk("%s: Warning :  Default pinctrl setting failed!\n", mmc_hostname(host->mmc));  
+
+        enable_irq(host->irq);
+	    
+    }	
+	
 	return 0;
 }
 EXPORT_SYMBOL(dw_mci_resume);
