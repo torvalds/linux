@@ -513,6 +513,9 @@ static int rk808_dcdc_set_voltage(struct regulator_dev *dev,
 		ret = rk808_set_bits(rk808, rk808_BUCK_SET_VOL_REG(buck), BUCK_VOL_MASK, val);
 #endif
 	}
+	if(ret<0)
+		printk("################WARNING:set voltage is error!voltage set is %d mv %d\n",min_uV,ret);
+
 	return ret;
 }
 static int rk808_dcdc_set_sleep_voltage(struct regulator_dev *dev,
@@ -767,7 +770,7 @@ static struct regulator_desc regulators[] = {
     ret = i2c_transfer(adap, msgs, 2);
 
 	DBG("***run in %s %x  % x\n",__FUNCTION__,i2c->addr,*(msgs[1].buf));
-    return 0;
+    return ret;
 }
 
 int rk808_i2c_write(struct rk808 *rk808, char reg, int count,  const u8 src)
@@ -797,15 +800,17 @@ int rk808_i2c_write(struct rk808 *rk808, char reg, int count,  const u8 src)
 	return ret;	
 }
 
-u8 rk808_reg_read(struct rk808 *rk808, u8 reg)
+int rk808_reg_read(struct rk808 *rk808, u8 reg)
 {
 	u8 val = 0;
+	int ret;
 
 	mutex_lock(&rk808->io_lock);
 
-	rk808_i2c_read(rk808, reg, 1, &val);
-
+	ret = rk808_i2c_read(rk808, reg, 1, &val);
 	DBG("reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
+	if (ret < 0)
+		return ret;
 
 	mutex_unlock(&rk808->io_lock);
 
@@ -837,12 +842,17 @@ EXPORT_SYMBOL_GPL(rk808_reg_write);
 
 	ret = rk808_i2c_read(rk808, reg, 1, &tmp);
 	DBG("1 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
+	if (ret < 0)
+		return ret;
 	tmp = (tmp & ~mask) | val;
-	if (ret == 0) {
-		ret = rk808_i2c_write(rk808, reg, 1, tmp);
-		DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
-	}
-	rk808_i2c_read(rk808, reg, 1, &tmp);
+	ret = rk808_i2c_write(rk808, reg, 1, tmp);
+	DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
+	if (ret < 0)
+		return ret;
+	
+	ret = rk808_i2c_read(rk808, reg, 1, &tmp);
+	if (ret < 0)
+		return ret;
 	DBG("2 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
 	mutex_unlock(&rk808->io_lock);
 
@@ -1126,6 +1136,9 @@ static int rk808_shutdown(void)
 	printk("%s,line=%d dc[%d]= %d\n", __func__,__LINE__,(i+1),val);
 	}
 	/*****************************************************/
+	ret = rk808_set_bits(rk808, RK808_INT_STS_MSK_REG1,(0x3<<5),(0x3<<5)); //close rtc int when power off
+	ret = rk808_clear_bits(rk808, RK808_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
+
 	return 0;	
 }
 EXPORT_SYMBOL_GPL(rk808_shutdown);
@@ -1134,16 +1147,13 @@ static int rk808_device_shutdown(void)
 {
 	int ret,i,val;
 	int err = -1;
-	u16 reg = 0;
+	u8 reg = 0;
 	struct rk808 *rk808 = g_rk808;
 	
 	printk("%s\n",__func__);
 
-	ret = rk808_set_bits(rk808, RK808_INT_STS_MSK_REG1,(0x3<<5),(0x3<<5)); //close rtc int when power off
-	ret = rk808_clear_bits(rk808, RK808_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
-	ret = rk808_reg_read(rk808,RK808_DEVCTRL_REG);
-	ret = rk808_set_bits(rk808, RK808_DEVCTRL_REG,(0x1<<3),(0x1<<3));
-//	ret = rk808_set_bits(rk808, RK808_DEVCTRL_REG,(0x1<<4),(0x1<<4));
+	ret = rk808_i2c_read(rk808,RK808_DEVCTRL_REG,1,&reg);
+	ret = rk808_i2c_write(rk808, RK808_DEVCTRL_REG, 1,(reg |(0x1 <<3)));
 	if (ret < 0) {
 		printk("rk808 power off error!\n");
 		return err;
