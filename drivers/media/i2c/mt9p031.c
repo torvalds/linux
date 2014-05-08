@@ -647,6 +647,28 @@ static int mt9p031_set_crop(struct v4l2_subdev *subdev,
 #define V4L2_CID_BLC_ANALOG_OFFSET	(V4L2_CID_USER_BASE | 0x1004)
 #define V4L2_CID_BLC_DIGITAL_OFFSET	(V4L2_CID_USER_BASE | 0x1005)
 
+static int mt9p031_restore_blc(struct mt9p031 *mt9p031)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
+	int ret;
+
+	if (mt9p031->blc_auto->cur.val != 0) {
+		ret = mt9p031_set_mode2(mt9p031, 0,
+					MT9P031_READ_MODE_2_ROW_BLC);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (mt9p031->blc_offset->cur.val != 0) {
+		ret = mt9p031_write(client, MT9P031_ROW_BLACK_TARGET,
+				    mt9p031->blc_offset->cur.val);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct mt9p031 *mt9p031 =
@@ -722,16 +744,10 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 
 		if (!ctrl->val) {
 			/* Restore the BLC settings. */
-			if (mt9p031->blc_auto->cur.val != 0) {
-				ret = mt9p031_s_ctrl(mt9p031->blc_auto);
-				if (ret < 0)
-					return ret;
-			}
-			if (mt9p031->blc_offset->cur.val != 0) {
-				ret = mt9p031_s_ctrl(mt9p031->blc_offset);
-				if (ret < 0)
-					return ret;
-			}
+			ret = mt9p031_restore_blc(mt9p031);
+			if (ret < 0)
+				return ret;
+
 			return mt9p031_write(client, MT9P031_TEST_PATTERN,
 					     MT9P031_TEST_PATTERN_DISABLE);
 		}
