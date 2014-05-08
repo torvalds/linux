@@ -266,7 +266,7 @@ out:
 static void __init s3c2416_cpufreq_cfg_regulator(struct s3c2416_data *s3c_freq)
 {
 	int count, v, i, found;
-	struct cpufreq_frequency_table *freq;
+	struct cpufreq_frequency_table *pos;
 	struct s3c2416_dvfs *dvfs;
 
 	count = regulator_count_voltages(s3c_freq->vddarm);
@@ -275,12 +275,11 @@ static void __init s3c2416_cpufreq_cfg_regulator(struct s3c2416_data *s3c_freq)
 		return;
 	}
 
-	freq = s3c_freq->freq_table;
-	while (count > 0 && freq->frequency != CPUFREQ_TABLE_END) {
-		if (freq->frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
+	if (!count)
+		goto out;
 
-		dvfs = &s3c2416_dvfs_table[freq->driver_data];
+	cpufreq_for_each_valid_entry(pos, s3c_freq->freq_table) {
+		dvfs = &s3c2416_dvfs_table[pos->driver_data];
 		found = 0;
 
 		/* Check only the min-voltage, more is always ok on S3C2416 */
@@ -292,13 +291,12 @@ static void __init s3c2416_cpufreq_cfg_regulator(struct s3c2416_data *s3c_freq)
 
 		if (!found) {
 			pr_debug("cpufreq: %dkHz unsupported by regulator\n",
-				 freq->frequency);
-			freq->frequency = CPUFREQ_ENTRY_INVALID;
+				 pos->frequency);
+			pos->frequency = CPUFREQ_ENTRY_INVALID;
 		}
-
-		freq++;
 	}
 
+out:
 	/* Guessed */
 	s3c_freq->regulator_latency = 1 * 1000 * 1000;
 }
@@ -338,7 +336,7 @@ static struct notifier_block s3c2416_cpufreq_reboot_notifier = {
 static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 {
 	struct s3c2416_data *s3c_freq = &s3c2416_cpufreq;
-	struct cpufreq_frequency_table *freq;
+	struct cpufreq_frequency_table *pos;
 	struct clk *msysclk;
 	unsigned long rate;
 	int ret;
@@ -427,31 +425,27 @@ static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 	s3c_freq->regulator_latency = 0;
 #endif
 
-	freq = s3c_freq->freq_table;
-	while (freq->frequency != CPUFREQ_TABLE_END) {
+	cpufreq_for_each_entry(pos, s3c_freq->freq_table) {
 		/* special handling for dvs mode */
-		if (freq->driver_data == 0) {
+		if (pos->driver_data == 0) {
 			if (!s3c_freq->hclk) {
 				pr_debug("cpufreq: %dkHz unsupported as it would need unavailable dvs mode\n",
-					 freq->frequency);
-				freq->frequency = CPUFREQ_ENTRY_INVALID;
+					 pos->frequency);
+				pos->frequency = CPUFREQ_ENTRY_INVALID;
 			} else {
-				freq++;
 				continue;
 			}
 		}
 
 		/* Check for frequencies we can generate */
 		rate = clk_round_rate(s3c_freq->armdiv,
-				      freq->frequency * 1000);
+				      pos->frequency * 1000);
 		rate /= 1000;
-		if (rate != freq->frequency) {
+		if (rate != pos->frequency) {
 			pr_debug("cpufreq: %dkHz unsupported by clock (clk_round_rate return %lu)\n",
-				 freq->frequency, rate);
-			freq->frequency = CPUFREQ_ENTRY_INVALID;
+				pos->frequency, rate);
+			pos->frequency = CPUFREQ_ENTRY_INVALID;
 		}
-
-		freq++;
 	}
 
 	/* Datasheet says PLL stabalisation time must be at least 300us,
