@@ -566,6 +566,7 @@ static const char * const dss_compat_conv_list[] __initconst = {
 	"svideo-connector",
 	"ti,tfp410",
 	"ti,tpd12s015",
+	"toppoly,td028ttec1",
 };
 
 /* prepend compatible string with "omapdss," */
