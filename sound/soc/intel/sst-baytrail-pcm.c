@@ -48,6 +48,8 @@ struct sst_byt_pcm_data {
 
 	/* latest DSP DMA hw pointer */
 	u32 hw_ptr;
+
+	struct work_struct work;
 };
 
 /* private data for the driver */
@@ -133,6 +135,38 @@ static int sst_byt_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int sst_byt_pcm_restore_stream_context(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct sst_byt_priv_data *pdata =
+		snd_soc_platform_get_drvdata(rtd->platform);
+	struct sst_byt_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct sst_byt *byt = pdata->byt;
+	int ret;
+
+	/* commit stream using existing stream params */
+	ret = sst_byt_stream_commit(byt, pcm_data->stream);
+	if (ret < 0) {
+		dev_err(rtd->dev, "PCM: failed stream commit %d\n", ret);
+		return ret;
+	}
+
+	sst_byt_stream_start(byt, pcm_data->stream, pcm_data->hw_ptr);
+
+	dev_dbg(rtd->dev, "stream context restored at offset %d\n",
+		pcm_data->hw_ptr);
+
+	return 0;
+}
+
+static void sst_byt_pcm_work(struct work_struct *work)
+{
+	struct sst_byt_pcm_data *pcm_data =
+		container_of(work, struct sst_byt_pcm_data, work);
+
+	sst_byt_pcm_restore_stream_context(pcm_data->substream);
+}
+
 static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -148,6 +182,8 @@ static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		sst_byt_stream_start(byt, pcm_data->stream, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
+		schedule_work(&pcm_data->work);
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		sst_byt_stream_resume(byt, pcm_data->stream);
 		break;
@@ -344,8 +380,10 @@ static int sst_byt_pcm_probe(struct snd_soc_platform *platform)
 	priv_data->byt = plat_data->dsp;
 	snd_soc_platform_set_drvdata(platform, priv_data);
 
-	for (i = 0; i < ARRAY_SIZE(byt_dais); i++)
+	for (i = 0; i < ARRAY_SIZE(byt_dais); i++) {
 		mutex_init(&priv_data->pcm[i].mutex);
+		INIT_WORK(&priv_data->pcm[i].work, sst_byt_pcm_work);
+	}
 
 	return 0;
 }
@@ -366,6 +404,72 @@ static struct snd_soc_platform_driver byt_soc_platform = {
 static const struct snd_soc_component_driver byt_dai_component = {
 	.name		= "byt-dai",
 };
+
+#ifdef CONFIG_PM
+static int sst_byt_pcm_dev_suspend_noirq(struct device *dev)
+{
+	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
+	int ret;
+
+	dev_dbg(dev, "suspending noirq\n");
+
+	/* at this point all streams will be stopped and context saved */
+	ret = sst_byt_dsp_suspend_noirq(dev, sst_pdata);
+	if (ret < 0) {
+		dev_err(dev, "failed to suspend %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int sst_byt_pcm_dev_suspend_late(struct device *dev)
+{
+	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
+	int ret;
+
+	dev_dbg(dev, "suspending late\n");
+
+	ret = sst_byt_dsp_suspend_late(dev, sst_pdata);
+	if (ret < 0) {
+		dev_err(dev, "failed to suspend %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int sst_byt_pcm_dev_resume_early(struct device *dev)
+{
+	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
+
+	dev_dbg(dev, "resume early\n");
+
+	/* load fw and boot DSP */
+	return sst_byt_dsp_boot(dev, sst_pdata);
+}
+
+static int sst_byt_pcm_dev_resume(struct device *dev)
+{
+	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
+
+	dev_dbg(dev, "resume\n");
+
+	/* wait for FW to finish booting */
+	return sst_byt_dsp_wait_for_ready(dev, sst_pdata);
+}
+
+static const struct dev_pm_ops sst_byt_pm_ops = {
+	.suspend_noirq = sst_byt_pcm_dev_suspend_noirq,
+	.suspend_late = sst_byt_pcm_dev_suspend_late,
+	.resume_early = sst_byt_pcm_dev_resume_early,
+	.resume = sst_byt_pcm_dev_resume,
+};
+
+#define SST_BYT_PM_OPS	(&sst_byt_pm_ops)
+#else
+#define SST_BYT_PM_OPS	NULL
+#endif
 
 static int sst_byt_pcm_dev_probe(struct platform_device *pdev)
 {
@@ -409,6 +513,7 @@ static struct platform_driver sst_byt_pcm_driver = {
 	.driver = {
 		.name = "baytrail-pcm-audio",
 		.owner = THIS_MODULE,
+		.pm = SST_BYT_PM_OPS,
 	},
 
 	.probe = sst_byt_pcm_dev_probe,

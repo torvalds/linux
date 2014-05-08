@@ -173,6 +173,7 @@ struct sst_byt {
 	/* boot */
 	wait_queue_head_t boot_wait;
 	bool boot_complete;
+	struct sst_fw *fw;
 
 	/* IPC messaging */
 	struct list_head tx_list;
@@ -789,6 +790,73 @@ static struct sst_dsp_device byt_dev = {
 	.ops = &sst_byt_ops,
 };
 
+int sst_byt_dsp_suspend_noirq(struct device *dev, struct sst_pdata *pdata)
+{
+	struct sst_byt *byt = pdata->dsp;
+
+	dev_dbg(byt->dev, "dsp reset\n");
+	sst_dsp_reset(byt->dsp);
+	sst_byt_drop_all(byt);
+	dev_dbg(byt->dev, "dsp in reset\n");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sst_byt_dsp_suspend_noirq);
+
+int sst_byt_dsp_suspend_late(struct device *dev, struct sst_pdata *pdata)
+{
+	struct sst_byt *byt = pdata->dsp;
+
+	dev_dbg(byt->dev, "free all blocks and unload fw\n");
+	sst_fw_unload(byt->fw);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sst_byt_dsp_suspend_late);
+
+int sst_byt_dsp_boot(struct device *dev, struct sst_pdata *pdata)
+{
+	struct sst_byt *byt = pdata->dsp;
+	int ret;
+
+	dev_dbg(byt->dev, "reload dsp fw\n");
+
+	sst_dsp_reset(byt->dsp);
+
+	ret = sst_fw_reload(byt->fw);
+	if (ret <  0) {
+		dev_err(dev, "error: failed to reload firmware\n");
+		return ret;
+	}
+
+	/* wait for DSP boot completion */
+	byt->boot_complete = false;
+	sst_dsp_boot(byt->dsp);
+	dev_dbg(byt->dev, "dsp booting...\n");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sst_byt_dsp_boot);
+
+int sst_byt_dsp_wait_for_ready(struct device *dev, struct sst_pdata *pdata)
+{
+	struct sst_byt *byt = pdata->dsp;
+	int err;
+
+	dev_dbg(byt->dev, "wait for dsp reboot\n");
+
+	err = wait_event_timeout(byt->boot_wait, byt->boot_complete,
+				 msecs_to_jiffies(IPC_BOOT_MSECS));
+	if (err == 0) {
+		dev_err(byt->dev, "ipc: error DSP boot timeout\n");
+		return -EIO;
+	}
+
+	dev_dbg(byt->dev, "dsp rebooted\n");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sst_byt_dsp_wait_for_ready);
+
 int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 {
 	struct sst_byt *byt;
@@ -855,6 +923,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	}
 
 	pdata->dsp = byt;
+	byt->fw = byt_sst_fw;
 
 	return 0;
 
