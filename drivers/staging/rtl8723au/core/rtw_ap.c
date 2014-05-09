@@ -186,7 +186,7 @@ void	expire_timeout_chk23a(struct rtw_adapter *padapter)
 	struct sta_info *psta;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 chk_alive_num = 0;
-	char chk_alive_list[NUM_STA];
+	struct sta_info *chk_alive_list[NUM_STA];
 	int i;
 
 	spin_lock_bh(&pstapriv->auth_list_lock);
@@ -260,13 +260,7 @@ void	expire_timeout_chk23a(struct rtw_adapter *padapter)
 			}
 
 			if (pmlmeext->active_keep_alive_check) {
-				int stainfo_offset;
-
-				stainfo_offset = rtw_stainfo_offset23a(pstapriv, psta);
-				if (stainfo_offset_valid(stainfo_offset)) {
-					chk_alive_list[chk_alive_num++] = stainfo_offset;
-				}
-
+				chk_alive_list[chk_alive_num++] = psta;
 				continue;
 			}
 
@@ -300,14 +294,14 @@ void	expire_timeout_chk23a(struct rtw_adapter *padapter)
 		if (rtw_get_oper_ch23a(padapter) != pmlmeext->cur_channel) {
 			backup_oper_channel = rtw_get_oper_ch23a(padapter);
 			SelectChannel23a(padapter, pmlmeext->cur_channel);
-	}
+		}
 
 	/* issue null data to check sta alive*/
 	for (i = 0; i < chk_alive_num; i++) {
 
 		int ret = _FAIL;
 
-		psta = rtw_get_stainfo23a_by_offset23a(pstapriv, chk_alive_list[i]);
+		psta = chk_alive_list[i];
 		if (!(psta->state &_FW_LINKED))
 			continue;
 
@@ -1811,7 +1805,7 @@ int rtw_sta_flush23a(struct rtw_adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 chk_alive_num = 0;
-	char chk_alive_list[NUM_STA];
+	struct sta_info *chk_alive_list[NUM_STA];
 	int i;
 
 	DBG_8723A(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(padapter->pnetdev));
@@ -1823,8 +1817,6 @@ int rtw_sta_flush23a(struct rtw_adapter *padapter)
 	phead = &pstapriv->asoc_list;
 
 	list_for_each_safe(plist, ptmp, phead) {
-		int stainfo_offset;
-
 		psta = container_of(plist, struct sta_info, asoc_list);
 
 		/* Remove sta from asoc_list */
@@ -1832,18 +1824,14 @@ int rtw_sta_flush23a(struct rtw_adapter *padapter)
 		pstapriv->asoc_list_cnt--;
 
 		/* Keep sta for ap_free_sta23a() beyond this asoc_list loop */
-		stainfo_offset = rtw_stainfo_offset23a(pstapriv, psta);
-		if (stainfo_offset_valid(stainfo_offset)) {
-			chk_alive_list[chk_alive_num++] = stainfo_offset;
-		}
+		chk_alive_list[chk_alive_num++] = psta;
 	}
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 	/* For each sta in chk_alive_list, call ap_free_sta23a */
-	for (i = 0; i < chk_alive_num; i++) {
-		psta = rtw_get_stainfo23a_by_offset23a(pstapriv, chk_alive_list[i]);
-		ap_free_sta23a(padapter, psta, true, WLAN_REASON_DEAUTH_LEAVING);
-	}
+	for (i = 0; i < chk_alive_num; i++)
+		ap_free_sta23a(padapter, chk_alive_list[i], true,
+			       WLAN_REASON_DEAUTH_LEAVING);
 
 	issue_deauth23a(padapter, bc_addr, WLAN_REASON_DEAUTH_LEAVING);
 
@@ -1904,7 +1892,7 @@ void rtw_ap_restore_network(struct rtw_adapter *padapter)
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct list_head *phead, *plist, *ptmp;
 	u8 chk_alive_num = 0;
-	char chk_alive_list[NUM_STA];
+	struct sta_info *chk_alive_list[NUM_STA];
 	int i;
 
 	rtw_setopmode_cmd23a(padapter, Ndis802_11APMode);
@@ -1931,26 +1919,17 @@ void rtw_ap_restore_network(struct rtw_adapter *padapter)
 	phead = &pstapriv->asoc_list;
 
 	list_for_each_safe(plist, ptmp, phead) {
-		int stainfo_offset;
-
 		psta = container_of(plist, struct sta_info, asoc_list);
 
-		stainfo_offset = rtw_stainfo_offset23a(pstapriv, psta);
-		if (stainfo_offset_valid(stainfo_offset)) {
-			chk_alive_list[chk_alive_num++] = stainfo_offset;
-		}
+		chk_alive_list[chk_alive_num++] = psta;
 	}
 
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 	for (i = 0; i < chk_alive_num; i++) {
-		psta = rtw_get_stainfo23a_by_offset23a(pstapriv, chk_alive_list[i]);
+		psta = chk_alive_list[i];
 
-		if (psta == NULL) {
-			DBG_8723A(FUNC_ADPT_FMT" sta_info is null\n", FUNC_ADPT_ARG(padapter));
-		}
-		else if (psta->state &_FW_LINKED)
-		{
+		if (psta->state &_FW_LINKED) {
 			Update_RA_Entry23a(padapter, psta);
 			/* pairwise key */
 			rtw_setstakey_cmd23a(padapter, (unsigned char *)psta, true);
