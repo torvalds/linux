@@ -2017,7 +2017,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	}
 
 	/* Request IRQ for MMC operations */
-	ret = request_irq(host->irq, omap_hsmmc_irq, 0,
+	ret = devm_request_irq(&pdev->dev, host->irq, omap_hsmmc_irq, 0,
 			mmc_hostname(mmc), host);
 	if (ret) {
 		dev_err(mmc_dev(host->mmc), "Unable to grab HSMMC IRQ\n");
@@ -2028,7 +2028,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		if (pdata->init(&pdev->dev) != 0) {
 			dev_err(mmc_dev(host->mmc),
 				"Unable to configure MMC IRQs\n");
-			goto err_irq_cd_init;
+			goto err_irq;
 		}
 	}
 
@@ -2095,8 +2095,6 @@ err_irq_cd:
 err_reg:
 	if (host->pdata->cleanup)
 		host->pdata->cleanup(&pdev->dev);
-err_irq_cd_init:
-	free_irq(host->irq, host);
 err_irq:
 	if (host->tx_chan)
 		dma_release_channel(host->tx_chan);
@@ -2129,7 +2127,6 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 		omap_hsmmc_reg_put(host);
 	if (host->pdata->cleanup)
 		host->pdata->cleanup(&pdev->dev);
-	free_irq(host->irq, host);
 	if (mmc_slot(host).card_detect_irq)
 		free_irq(mmc_slot(host).card_detect_irq, host);
 
