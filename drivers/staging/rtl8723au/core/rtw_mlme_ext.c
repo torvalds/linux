@@ -3918,9 +3918,8 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	u8 category, action;
 
-	DBG_8723A(FUNC_NDEV_FMT" ra ="MAC_FMT", ch:%u, offset:%u\n",
-		FUNC_NDEV_ARG(padapter->pnetdev), MAC_ARG(ra),
-		  new_ch, ch_offset);
+	DBG_8723A("%s(%s): ra ="MAC_FMT", ch:%u, offset:%u\n", __func__,
+		  padapter->pnetdev->name, MAC_ARG(ra), new_ch, ch_offset);
 
 	if ((pmgntframe = alloc_mgtxmitframe23a(pxmitpriv)) == NULL)
 		return;
@@ -6527,9 +6526,9 @@ u8 set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	set_ch_parm = (struct set_ch_parm *)pbuf;
 
-	DBG_8723A(FUNC_NDEV_FMT" ch:%u, bw:%u, ch_offset:%u\n",
-		FUNC_NDEV_ARG(padapter->pnetdev),
-		set_ch_parm->ch, set_ch_parm->bw, set_ch_parm->ch_offset);
+	DBG_8723A("%s(%s): ch:%u, bw:%u, ch_offset:%u\n", __func__,
+		  padapter->pnetdev->name, set_ch_parm->ch,
+		  set_ch_parm->bw, set_ch_parm->ch_offset);
 
 	pmlmeext->cur_channel = set_ch_parm->ch;
 	pmlmeext->cur_ch_offset = set_ch_parm->ch_offset;

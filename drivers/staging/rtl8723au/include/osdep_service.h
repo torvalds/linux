@@ -139,8 +139,6 @@ void	_rtw_init_queue23a(struct rtw_queue *pqueue);
 
 #define ADPT_FMT "%s"
 #define ADPT_ARG(adapter) adapter->pnetdev->name
-#define FUNC_NDEV_FMT "%s(%s)"
-#define FUNC_NDEV_ARG(ndev) __func__, ndev->name
 
 /* Macros for handling unaligned memory accesses */
 

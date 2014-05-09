@@ -987,15 +987,15 @@ void rtw_scan_abort23a(struct rtw_adapter *adapter)
 		if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 			break;
 
-		DBG_8723A(FUNC_NDEV_FMT "fw_state = _FW_UNDER_SURVEY!\n",
-			  FUNC_NDEV_ARG(adapter->pnetdev));
+		DBG_8723A("%s(%s): fw_state = _FW_UNDER_SURVEY!\n",
+			  __func__, adapter->pnetdev->name);
 		msleep(20);
 	}
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
 		if (!adapter->bDriverStopped && !adapter->bSurpriseRemoved)
-			DBG_8723A(FUNC_NDEV_FMT "waiting for scan_abort time "
-				  "out!\n", FUNC_NDEV_ARG(adapter->pnetdev));
+			DBG_8723A("%s(%s): waiting for scan_abort time out!\n",
+				  __func__, adapter->pnetdev->name);
 		rtw_cfg80211_indicate_scan_done(wdev_to_priv(adapter->rtw_wdev),
 						true);
 	}

@@ -893,8 +893,8 @@ u8 rtw_set_ch_cmd23a(struct rtw_adapter*padapter, u8 ch, u8 bw, u8 ch_offset,
 
 	u8 res = _SUCCESS;
 
-	DBG_8723A(FUNC_NDEV_FMT" ch:%u, bw:%u, ch_offset:%u\n",
-		  FUNC_NDEV_ARG(padapter->pnetdev), ch, bw, ch_offset);
+	DBG_8723A("%s(%s): ch:%u, bw:%u, ch_offset:%u\n", __func__,
+		  padapter->pnetdev->name, ch, bw, ch_offset);
 
 	/* check input parameter */
 
@@ -932,8 +932,7 @@ u8 rtw_set_ch_cmd23a(struct rtw_adapter*padapter, u8 ch, u8 bw, u8 ch_offset,
 	/* do something based on res... */
 exit:
 
-	DBG_8723A(FUNC_NDEV_FMT" res:%u\n", FUNC_NDEV_ARG(padapter->pnetdev),
-		  res);
+	DBG_8723A("%s(%s): res:%u\n", __func__, padapter->pnetdev->name, res);
 
 	return res;
 }

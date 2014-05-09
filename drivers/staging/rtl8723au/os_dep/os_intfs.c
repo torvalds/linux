@@ -605,7 +605,7 @@ static int _rtw_drv_register_netdev(struct rtw_adapter *padapter, char *name)
 
 	/* Tell the network stack we exist */
 	if (register_netdev(pnetdev)) {
-		DBG_8723A(FUNC_NDEV_FMT "Failed!\n", FUNC_NDEV_ARG(pnetdev));
+		DBG_8723A("%s(%s): Failed!\n", __func__, pnetdev->name);
 		ret = _FAIL;
 		goto error_register_netdev;
 	}
@@ -876,7 +876,7 @@ static int netdev_close(struct net_device *pnetdev)
 
 void rtw_ndev_destructor(struct net_device *ndev)
 {
-	DBG_8723A(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
+	DBG_8723A("%s(%s)\n", __func__, ndev->name);
 	kfree(ndev->ieee80211_ptr);
 	free_netdev(ndev);
 }
