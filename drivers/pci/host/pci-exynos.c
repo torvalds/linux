@@ -568,10 +568,8 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 
 	exynos_pcie = devm_kzalloc(&pdev->dev, sizeof(*exynos_pcie),
 				GFP_KERNEL);
-	if (!exynos_pcie) {
-		dev_err(&pdev->dev, "no memory for exynos pcie\n");
+	if (!exynos_pcie)
 		return -ENOMEM;
-	}
 
 	pp = &exynos_pcie->pp;
 
