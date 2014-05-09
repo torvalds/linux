@@ -2558,9 +2558,8 @@ static int rtw_cfg80211_add_monitor_if(struct rtw_adapter *padapter, char *name,
 	}
 
 	if (pwdev_priv->pmon_ndev) {
-		DBG_8723A(FUNC_ADPT_FMT " monitor interface exist: " NDEV_FMT
-			  "\n", FUNC_ADPT_ARG(padapter),
-			  NDEV_ARG(pwdev_priv->pmon_ndev));
+		DBG_8723A(FUNC_ADPT_FMT " monitor interface exist: %s\n",
+			  FUNC_ADPT_ARG(padapter), pwdev_priv->pmon_ndev->name);
 		ret = -EBUSY;
 		goto out;
 	}

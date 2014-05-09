@@ -137,8 +137,6 @@ extern unsigned char	MCS_rate_1R23A[16];
 void	_rtw_init_queue23a(struct rtw_queue *pqueue);
 
 
-#define NDEV_FMT "%s"
-#define NDEV_ARG(ndev) ndev->name
 #define ADPT_FMT "%s"
 #define ADPT_ARG(adapter) adapter->pnetdev->name
 #define FUNC_NDEV_FMT "%s(%s)"
