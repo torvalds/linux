@@ -179,7 +179,7 @@ int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv)
 	pcmdpriv->cmd_done_cnt = 0;
 	pcmdpriv->rsp_cnt = 0;
 
-	pcmdpriv->wq = alloc_workqueue("rtl8723au", 0, 1);
+	pcmdpriv->wq = alloc_workqueue("rtl8723au_cmd", 0, 1);
 	if (!pcmdpriv->wq)
 		res = _FAIL;
 
