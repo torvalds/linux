@@ -37,17 +37,6 @@
 #define RTL819X_DEFAULT_RF_TYPE			RF_1T2R
 #define RTL819X_TOTAL_RF_PATH				2
 
-/* TODO:  The following need to check!! */
-#define RTL8723_FW_UMC_IMG				"rtl8192CU\\rtl8723fw.bin"
-#define RTL8723_FW_UMC_B_IMG			"rtl8192CU\\rtl8723fw_B.bin"
-#define RTL8723_PHY_REG					"rtl8723S\\PHY_REG_1T.txt"
-#define RTL8723_PHY_RADIO_A				"rtl8723S\\radio_a_1T.txt"
-#define RTL8723_PHY_RADIO_B				"rtl8723S\\radio_b_1T.txt"
-#define RTL8723_AGC_TAB					"rtl8723S\\AGC_TAB_1T.txt"
-#define RTL8723_PHY_MACREG				"rtl8723S\\MAC_REG.txt"
-#define RTL8723_PHY_REG_PG				"rtl8723S\\PHY_REG_PG.txt"
-#define RTL8723_PHY_REG_MP				"rtl8723S\\PHY_REG_MP.txt"
-
 /*  */
 /*		RTL8723S From header */
 /*  */

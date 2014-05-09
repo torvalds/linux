@@ -417,12 +417,6 @@ static int phy_RF6052_Config_ParaFile(struct rtw_adapter *Adapter)
 	struct bb_reg_define	*pPhyReg;
 	int rtStatus = _SUCCESS;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	static char sz8723RadioAFile[] = RTL8723_PHY_RADIO_A;
-	static char sz8723RadioBFile[] = RTL8723_PHY_RADIO_B;
-	char *pszRadioAFile, *pszRadioBFile;
-
-	pszRadioAFile = sz8723RadioAFile;
-	pszRadioBFile = sz8723RadioBFile;
 
 	/* 3----------------------------------------------------------------- */
 	/* 3 <2> Initialize RF */
