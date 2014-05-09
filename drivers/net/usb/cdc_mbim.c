@@ -223,8 +223,8 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 	/* need to send the NA on the VLAN dev, if any */
 	rcu_read_lock();
 	if (tci) {
-		netdev = __vlan_find_dev_deep(dev->net, htons(ETH_P_8021Q),
-					      tci);
+		netdev = __vlan_find_dev_deep_rcu(dev->net, htons(ETH_P_8021Q),
+						  tci);
 		if (!netdev) {
 			rcu_read_unlock();
 			return;

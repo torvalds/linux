@@ -1659,7 +1659,7 @@ static void qeth_l3_add_vlan_mc(struct qeth_card *card)
 	for_each_set_bit(vid, card->active_vlans, VLAN_N_VID) {
 		struct net_device *netdev;
 
-		netdev = __vlan_find_dev_deep(card->dev, htons(ETH_P_8021Q),
+		netdev = __vlan_find_dev_deep_rcu(card->dev, htons(ETH_P_8021Q),
 					      vid);
 		if (netdev == NULL ||
 		    !(netdev->flags & IFF_UP))
@@ -1721,7 +1721,7 @@ static void qeth_l3_add_vlan_mc6(struct qeth_card *card)
 	for_each_set_bit(vid, card->active_vlans, VLAN_N_VID) {
 		struct net_device *netdev;
 
-		netdev = __vlan_find_dev_deep(card->dev, htons(ETH_P_8021Q),
+		netdev = __vlan_find_dev_deep_rcu(card->dev, htons(ETH_P_8021Q),
 					      vid);
 		if (netdev == NULL ||
 		    !(netdev->flags & IFF_UP))
@@ -1766,7 +1766,7 @@ static void qeth_l3_free_vlan_addresses4(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "frvaddr4");
 
-	netdev = __vlan_find_dev_deep(card->dev, htons(ETH_P_8021Q), vid);
+	netdev = __vlan_find_dev_deep_rcu(card->dev, htons(ETH_P_8021Q), vid);
 	if (!netdev)
 		return;
 	in_dev = in_dev_get(netdev);
@@ -1796,7 +1796,7 @@ static void qeth_l3_free_vlan_addresses6(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "frvaddr6");
 
-	netdev = __vlan_find_dev_deep(card->dev, htons(ETH_P_8021Q), vid);
+	netdev = __vlan_find_dev_deep_rcu(card->dev, htons(ETH_P_8021Q), vid);
 	if (!netdev)
 		return;
 	in6_dev = in6_dev_get(netdev);
@@ -2089,7 +2089,7 @@ static int qeth_l3_verify_vlan_dev(struct net_device *dev,
 		struct net_device *netdev;
 
 		rcu_read_lock();
-		netdev = __vlan_find_dev_deep(card->dev, htons(ETH_P_8021Q),
+		netdev = __vlan_find_dev_deep_rcu(card->dev, htons(ETH_P_8021Q),
 					      vid);
 		rcu_read_unlock();
 		if (netdev == dev) {
