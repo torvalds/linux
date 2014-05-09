@@ -1639,7 +1639,8 @@ void odm_SwAntDivInit(struct dm_odm_t *pDM_Odm)
 {
 }
 
-void ODM_SwAntDivChkPerPktRssi(struct dm_odm_t *pDM_Odm, u8 StationID, struct odm_phy_info *pPhyInfo)
+void ODM_SwAntDivChkPerPktRssi(struct dm_odm_t *pDM_Odm, u8 StationID,
+			       struct phy_info *pPhyInfo)
 {
 }
 

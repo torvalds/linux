@@ -147,7 +147,7 @@ void odm_Init_RSSIForDM23a(struct dm_odm_t *pDM_Odm);
 void
 ODM_PhyStatusQuery23a(
 	struct dm_odm_t *pDM_Odm,
-	struct odm_phy_info *pPhyInfo,
+	struct phy_info *pPhyInfo,
 	u8 *						pPhyStatus,
 	struct odm_packet_info *pPktinfo
 	);

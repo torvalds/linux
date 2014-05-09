@@ -91,7 +91,7 @@ odm_EVMdbToPercentage(
 }
 
 static void odm_RxPhyStatus92CSeries_Parsing(struct dm_odm_t *pDM_Odm,
-					     struct odm_phy_info *pPhyInfo,
+					     struct phy_info *pPhyInfo,
 					     u8 *pPhyStatus,
 					     struct odm_packet_info *pPktinfo)
 {
@@ -281,7 +281,7 @@ void odm_Init_RSSIForDM23a(struct dm_odm_t *pDM_Odm)
 }
 
 static void odm_Process_RSSIForDM(struct dm_odm_t *pDM_Odm,
-				  struct odm_phy_info *pPhyInfo,
+				  struct phy_info *pPhyInfo,
 				  struct odm_packet_info *pPktinfo)
 {
 	s32 UndecoratedSmoothedPWDB, UndecoratedSmoothedCCK;
@@ -396,7 +396,7 @@ static void odm_Process_RSSIForDM(struct dm_odm_t *pDM_Odm,
 
 /*  Endianness before calling this API */
 static void ODM_PhyStatusQuery23a_92CSeries(struct dm_odm_t *pDM_Odm,
-					 struct odm_phy_info *pPhyInfo,
+					 struct phy_info *pPhyInfo,
 					 u8 *pPhyStatus,
 					 struct odm_packet_info *pPktinfo)
 {
@@ -411,7 +411,7 @@ static void ODM_PhyStatusQuery23a_92CSeries(struct dm_odm_t *pDM_Odm,
 	}
 }
 
-void ODM_PhyStatusQuery23a(struct dm_odm_t *pDM_Odm, struct odm_phy_info *pPhyInfo,
+void ODM_PhyStatusQuery23a(struct dm_odm_t *pDM_Odm, struct phy_info *pPhyInfo,
 			   u8 *pPhyStatus, struct odm_packet_info *pPktinfo)
 {
 	ODM_PhyStatusQuery23a_92CSeries(pDM_Odm, pPhyInfo, pPhyStatus, pPktinfo);

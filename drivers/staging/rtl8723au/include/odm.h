@@ -255,20 +255,6 @@ struct odm_rate_adapt {
 
 /*  Declare for common info */
 
-struct odm_phy_info {
-	u8		RxPWDBAll;
-	u8		SignalQuality;	 /*  in 0-100 index. */
-	u8		RxMIMOSignalQuality[RF_PATH_MAX]; /* EVM */
-	u8		RxMIMOSignalStrength[RF_PATH_MAX];/*  in 0~100 index */
-	s8		RxPower; /*  in dBm Translate from PWdB */
-	s8		RecvSignalPower;/*  Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures. */
-	u8		BTRxRSSIPercentage;
-	u8		SignalStrength; /*  in 0-100 index. */
-	u8		RxPwr[RF_PATH_MAX];/* per-path's pwdb */
-	u8		RxSNR[RF_PATH_MAX];/* per-path's SNR */
-};
-
-
 struct odm_phy_dbg_info {
 	/* ODM Write,debug info */
 	s8		RxSNRdB[RF_PATH_MAX];
@@ -1136,7 +1122,7 @@ bool ODM_RAStateCheck23a(struct dm_odm_t *pDM_Odm, s32 RSSI, bool bForceUpdate,
 
 #define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
 void ODM_SwAntDivChkPerPktRssi(struct dm_odm_t *pDM_Odm, u8 StationID,
-			       struct odm_phy_info *pPhyInfo);
+			       struct phy_info *pPhyInfo);
 
 u32 ConvertTo_dB23a(u32 Value);
 

@@ -184,7 +184,7 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	struct rtw_adapter *padapter = precvframe->adapter;
 	struct rx_pkt_attrib *pattrib = &precvframe->attrib;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	struct odm_phy_info *pPHYInfo = (struct odm_phy_info *)(&pattrib->phy_info);
+	struct phy_info *pPHYInfo = &pattrib->phy_info;
 	struct odm_packet_info pkt_info;
 	u8 *sa = NULL, *da;
 	struct sta_priv *pstapriv;
@@ -247,7 +247,7 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	pkt_info.Rate = pattrib->mcs_rate;
 
 	ODM_PhyStatusQuery23a(&pHalData->odmpriv, pPHYInfo,
-			   (u8 *)pphy_status, &pkt_info);
+			      (u8 *)pphy_status, &pkt_info);
 	precvframe->psta = NULL;
 	if (pkt_info.bPacketMatchBSSID &&
 	    (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true)) {
