@@ -1330,12 +1330,9 @@ void rtw_evt_work(struct work_struct *work)
 {
 	struct evt_work *ework;
 	struct rtw_adapter *adapter;
-	c2h_id_filter ccx_id_filter;
 
 	ework = container_of(work, struct evt_work, work);
 	adapter = ework->adapter;
-
-	ccx_id_filter = rtw_hal_c2h_id_filter_ccx23a(adapter);
 
 	c2h_evt_clear23a(adapter);
 
@@ -1344,7 +1341,7 @@ void rtw_evt_work(struct work_struct *work)
 		return;
 	}
 
-	if (ccx_id_filter(ework->u.c2h_evt.id) == true) {
+	if (c2h_id_filter_ccx_8723a(ework->u.c2h_evt.id) == true) {
 		/* Handle CCX report here */
 		rtw_hal_c2h_handler23a(adapter, &ework->u.c2h_evt);
 		kfree(ework);

@@ -1766,7 +1766,6 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8723a;
 
 	pHalFunc->c2h_handler = c2h_handler_8723a;
-	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723a;
 }
 
 void rtl8723a_InitAntenna_Selection(struct rtw_adapter *padapter)

@@ -159,7 +159,6 @@ struct hal_ops {
 	void (*hal_notch_filter)(struct rtw_adapter *adapter, bool enable);
 	void (*hal_reset_security_engine)(struct rtw_adapter *adapter);
 	s32 (*c2h_handler)(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt);
-	c2h_id_filter c2h_id_filter_ccx;
 };
 
 enum rt_eeprom_type {
@@ -282,7 +281,6 @@ void rtw_hal_notch_filter23a(struct rtw_adapter *adapter, bool enable);
 void rtw_hal_reset_security_engine23a(struct rtw_adapter *adapter);
 
 s32 rtw_hal_c2h_handler23a(struct rtw_adapter *adapter, struct c2h_evt_hdr *c2h_evt);
-c2h_id_filter rtw_hal_c2h_id_filter_ccx23a(struct rtw_adapter *adapter);
 void hw_var_set_correct_tsf(struct rtw_adapter *padapter);
 void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter);
 void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode);

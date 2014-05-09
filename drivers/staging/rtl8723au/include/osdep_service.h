@@ -54,11 +54,6 @@
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 
-struct rtw_adapter;
-struct c2h_evt_hdr;
-
-typedef s32 (*c2h_id_filter)(u8 id);
-
 struct rtw_queue {
 	struct	list_head	queue;
 	spinlock_t		lock;
