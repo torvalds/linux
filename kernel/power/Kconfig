@@ -257,8 +257,7 @@ config ARCH_HAS_OPP
 	bool
 
 config PM_OPP
-	bool "Operating Performance Point (OPP) Layer library"
-	depends on ARCH_HAS_OPP
+	bool
 	---help---
 	  SOCs have a standard set of tuples consisting of frequency and
 	  voltage pairs that the device will support per voltage domain. This
