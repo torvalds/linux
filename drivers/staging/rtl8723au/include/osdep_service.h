@@ -128,13 +128,6 @@ static inline u32 CHKBIT(u32 x)
 
 int RTW_STATUS_CODE23a(int error_code);
 
-u8*	_rtw_vmalloc(u32 sz);
-u8*	_rtw_zvmalloc(u32 sz);
-void	_rtw_vmfree(u8 *pbuf, u32 sz);
-#define rtw_vmalloc(sz)			_rtw_vmalloc((sz))
-#define rtw_zvmalloc(sz)			_rtw_zvmalloc((sz))
-#define rtw_vmfree(pbuf, sz)		_rtw_vmfree((pbuf), (sz))
-
 extern unsigned char REALTEK_96B_IE23A[];
 extern unsigned char MCS_rate_2R23A[16];
 extern unsigned char WPA_TKIP_CIPHER23A[4];
