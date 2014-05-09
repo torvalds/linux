@@ -169,7 +169,6 @@ struct	sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr)
 	struct sta_info	*psta;
 	struct rtw_queue *pfree_sta_queue;
 	struct recv_reorder_ctrl *preorder_ctrl;
-	uint tmp_aid;
 	s32	index;
 	int i = 0;
 	u16  wRxSeqInitialValue = 0xffff;
@@ -185,8 +184,6 @@ struct	sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr)
 	psta = container_of((&pfree_sta_queue->queue)->next, struct sta_info, list);
 
 	list_del_init(&psta->list);
-
-	tmp_aid = psta->aid;
 
 	_rtw_init_stainfo(psta);
 
