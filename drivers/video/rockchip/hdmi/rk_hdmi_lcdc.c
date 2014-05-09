@@ -148,10 +148,20 @@ int hdmi_set_info(struct rk_screen *screen, unsigned int vic)
     screen->standby = NULL;
 
 	/*Init Default Overscan Value: TODO modify the value according to your need adjust value*/
-	screen->overscan.left = 96;
-	screen->overscan.top = 96;
-	screen->overscan.right = 96;
-	screen->overscan.bottom = 96;
+	switch(vic) {
+	case 16: /*1080p-60Hz*/
+		screen->overscan.left = 97;
+		screen->overscan.top = 97;
+		screen->overscan.right = 97;
+		screen->overscan.bottom = 97;
+		break;
+	default:
+		screen->overscan.left = 96;
+		screen->overscan.top = 96;
+		screen->overscan.right = 96;
+		screen->overscan.bottom = 96;
+		break;
+	}
     
     return 0;
 }
