@@ -3694,30 +3694,36 @@ static inline struct hmp_domain *hmp_faster_domain(int cpu);
 
 /* must hold runqueue lock for queue se is currently on */
 static struct sched_entity *hmp_get_heaviest_task(
-				struct sched_entity *se, int migrate_up)
+				struct sched_entity *se, int target_cpu)
 {
 	int num_tasks = hmp_max_tasks;
 	struct sched_entity *max_se = se;
 	unsigned long int max_ratio = se->avg.load_avg_ratio;
 	const struct cpumask *hmp_target_mask = NULL;
+	struct hmp_domain *hmp;
 
-	if (migrate_up) {
-		struct hmp_domain *hmp;
-		if (hmp_cpu_is_fastest(cpu_of(se->cfs_rq->rq)))
-			return max_se;
+	if (hmp_cpu_is_fastest(cpu_of(se->cfs_rq->rq)))
+		return max_se;
 
-		hmp = hmp_faster_domain(cpu_of(se->cfs_rq->rq));
-		hmp_target_mask = &hmp->cpus;
+	hmp = hmp_faster_domain(cpu_of(se->cfs_rq->rq));
+	hmp_target_mask = &hmp->cpus;
+	if (target_cpu >= 0) {
+		/* idle_balance gets run on a CPU while
+		 * it is in the middle of being hotplugged
+		 * out. Bail early in that case.
+		 */
+		if(!cpumask_test_cpu(target_cpu, hmp_target_mask))
+			return NULL;
+		hmp_target_mask = cpumask_of(target_cpu);
 	}
 	/* The currently running task is not on the runqueue */
 	se = __pick_first_entity(cfs_rq_of(se));
 
 	while (num_tasks && se) {
 		if (entity_is_task(se) &&
-			(se->avg.load_avg_ratio > max_ratio &&
-			 hmp_target_mask &&
-			 cpumask_intersects(hmp_target_mask,
-				tsk_cpus_allowed(task_of(se))))) {
+			se->avg.load_avg_ratio > max_ratio &&
+			cpumask_intersects(hmp_target_mask,
+				tsk_cpus_allowed(task_of(se)))) {
 			max_se = se;
 			max_ratio = se->avg.load_avg_ratio;
 		}
@@ -7140,7 +7146,11 @@ static void hmp_force_up_migration(int this_cpu)
 			}
 		}
 		orig = curr;
-		curr = hmp_get_heaviest_task(curr, 1);
+		curr = hmp_get_heaviest_task(curr, -1);
+		if (!curr) {
+			raw_spin_unlock_irqrestore(&target->lock, flags);
+			continue;
+		}
 		p = task_of(curr);
 		if (hmp_up_migration(cpu, &target_cpu, curr)) {
 			cpu_rq(target_cpu)->wake_for_idle_pull = 1;
@@ -7237,12 +7247,14 @@ static unsigned int hmp_idle_pull(int this_cpu)
 			}
 		}
 		orig = curr;
-		curr = hmp_get_heaviest_task(curr, 1);
+		curr = hmp_get_heaviest_task(curr, this_cpu);
 		/* check if heaviest eligible task on this
 		 * CPU is heavier than previous task
 		 */
-		if (hmp_task_eligible_for_up_migration(curr) &&
-			curr->avg.load_avg_ratio > ratio) {
+		if (curr && hmp_task_eligible_for_up_migration(curr) &&
+			curr->avg.load_avg_ratio > ratio &&
+			cpumask_test_cpu(this_cpu,
+					tsk_cpus_allowed(task_of(curr)))) {
 			p = task_of(curr);
 			target = rq;
 			ratio = curr->avg.load_avg_ratio;
