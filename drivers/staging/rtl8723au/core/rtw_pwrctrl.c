@@ -81,8 +81,8 @@ int ips_leave23a(struct rtw_adapter * padapter)
 		{
 			DBG_8723A("==>%s, channel(%d), processing(%x)\n", __func__, padapter->mlmeextpriv.cur_channel, pwrpriv->bips_processing);
 			set_channel_bwmode23a(padapter, padapter->mlmeextpriv.cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
-			for (keyid = 0;keyid<4;keyid++) {
-				if (pmlmepriv->key_mask & CHKBIT(keyid)) {
+			for (keyid = 0; keyid < 4; keyid++) {
+				if (pmlmepriv->key_mask & BIT(keyid)) {
 					if (keyid == psecuritypriv->dot11PrivacyKeyIndex)
 						result = rtw_set_key23a(padapter, psecuritypriv, keyid, 1);
 					else

@@ -470,7 +470,7 @@ exit:
 }
 
 static int set_group_key(struct rtw_adapter *padapter, u8 *key, u8 alg,
-			 int keyid)
+			 u8 keyid)
 {
 	u8 keylen;
 	struct cmd_obj *pcmd;
@@ -479,6 +479,11 @@ static int set_group_key(struct rtw_adapter *padapter, u8 *key, u8 alg,
 	int res = _SUCCESS;
 
 	DBG_8723A("%s\n", __func__);
+
+	if (keyid >= 4) {
+		res = _FAIL;
+		goto exit;
+	}
 
 	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
 	if (!pcmd) {
@@ -492,9 +497,9 @@ static int set_group_key(struct rtw_adapter *padapter, u8 *key, u8 alg,
 		goto exit;
 	}
 
-	psetkeyparm->keyid = (u8) keyid;
+	psetkeyparm->keyid = keyid;
 	if (is_wep_enc(alg))
-		padapter->mlmepriv.key_mask |= CHKBIT(psetkeyparm->keyid);
+		padapter->mlmepriv.key_mask |= BIT(psetkeyparm->keyid);
 
 	psetkeyparm->algorithm = alg;
 
@@ -529,7 +534,7 @@ exit:
 }
 
 static int set_wep_key(struct rtw_adapter *padapter, u8 *key, u8 keylen,
-		       int keyid)
+		       u8 keyid)
 {
 	u8 alg;
 
@@ -552,7 +557,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					  u32 param_len)
 {
 	int ret = 0;
-	u32 wep_key_idx, wep_key_len;
+	u32 wep_key_len;
+	u8 wep_key_idx;
 	struct sta_info *psta = NULL, *pbcmc_sta = NULL;
 	struct rtw_adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;

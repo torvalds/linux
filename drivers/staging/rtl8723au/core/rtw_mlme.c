@@ -1867,6 +1867,11 @@ int rtw_set_key23a(struct rtw_adapter *adapter,
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	int res = _SUCCESS;
 
+	if (keyid >= 4) {
+		res = _FAIL;
+		goto exit;
+	}
+
 	pcmd = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
 	if (!pcmd) {
 		res = _FAIL;  /* try again */
@@ -1893,10 +1898,10 @@ int rtw_set_key23a(struct rtw_adapter *adapter,
 			  "psecuritypriv->dot11PrivacyAlgrthm =%d\n",
 			  psetkeyparm->algorithm));
 	}
-	psetkeyparm->keyid = (u8)keyid;/* 0~3 */
+	psetkeyparm->keyid = keyid;/* 0~3 */
 	psetkeyparm->set_tx = set_tx;
 	if (is_wep_enc(psetkeyparm->algorithm))
-		pmlmepriv->key_mask |= CHKBIT(psetkeyparm->keyid);
+		pmlmepriv->key_mask |= BIT(psetkeyparm->keyid);
 
 	DBG_8723A("==> rtw_set_key23a algorithm(%x), keyid(%x), key_mask(%x)\n",
 		  psetkeyparm->algorithm, psetkeyparm->keyid,
