@@ -44,7 +44,7 @@ static int __bt_get_word(struct blk_mq_bitmap *bm, unsigned int last_tag)
 {
 	int tag, org_last_tag, end;
 
-	org_last_tag = last_tag = TAG_TO_BIT(last_tag);
+	org_last_tag = last_tag;
 	end = bm->depth;
 	do {
 restart:
@@ -84,12 +84,12 @@ static int __bt_get(struct blk_mq_bitmap_tags *bt, unsigned int *tag_cache)
 	int index, i, tag;
 
 	last_tag = org_last_tag = *tag_cache;
-	index = TAG_TO_INDEX(last_tag);
+	index = TAG_TO_INDEX(bt, last_tag);
 
 	for (i = 0; i < bt->map_nr; i++) {
-		tag = __bt_get_word(&bt->map[index], last_tag);
+		tag = __bt_get_word(&bt->map[index], TAG_TO_BIT(bt, last_tag));
 		if (tag != -1) {
-			tag += index * BITS_PER_LONG;
+			tag += (index << bt->bits_per_word);
 			goto done;
 		}
 
@@ -233,10 +233,10 @@ static struct bt_wait_state *bt_wake_ptr(struct blk_mq_bitmap_tags *bt)
 
 static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
 {
-	const int index = TAG_TO_INDEX(tag);
+	const int index = TAG_TO_INDEX(bt, tag);
 	struct bt_wait_state *bs;
 
-	clear_bit(TAG_TO_BIT(tag), &bt->map[index].word);
+	clear_bit(TAG_TO_BIT(bt, tag), &bt->map[index].word);
 
 	bs = bt_wake_ptr(bt);
 	if (bs && atomic_dec_and_test(&bs->wait_cnt)) {
@@ -292,7 +292,7 @@ static void bt_for_each_free(struct blk_mq_bitmap_tags *bt,
 			bit++;
 		} while (1);
 
-		off += BITS_PER_LONG;
+		off += (1 << bt->bits_per_word);
 	}
 }
 
@@ -333,14 +333,31 @@ static int bt_alloc(struct blk_mq_bitmap_tags *bt, unsigned int depth,
 {
 	int i;
 
+	bt->bits_per_word = ilog2(BITS_PER_LONG);
+
 	/*
 	 * Depth can be zero for reserved tags, that's not a failure
 	 * condition.
 	 */
 	if (depth) {
-		int nr, i, map_depth;
+		unsigned int nr, i, map_depth, tags_per_word;
 
-		nr = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
+		tags_per_word = (1 << bt->bits_per_word);
+
+		/*
+		 * If the tag space is small, shrink the number of tags
+		 * per word so we spread over a few cachelines, at least.
+		 * If less than 4 tags, just forget about it, it's not
+		 * going to work optimally anyway.
+		 */
+		if (depth >= 4) {
+			while (tags_per_word * 4 > depth) {
+				bt->bits_per_word--;
+				tags_per_word = (1 << bt->bits_per_word);
+			}
+		}
+
+		nr = ALIGN(depth, tags_per_word) / tags_per_word;
 		bt->map = kzalloc_node(nr * sizeof(struct blk_mq_bitmap),
 						GFP_KERNEL, node);
 		if (!bt->map)
@@ -349,8 +366,8 @@ static int bt_alloc(struct blk_mq_bitmap_tags *bt, unsigned int depth,
 		bt->map_nr = nr;
 		map_depth = depth;
 		for (i = 0; i < nr; i++) {
-			bt->map[i].depth = min(map_depth, BITS_PER_LONG);
-			map_depth -= BITS_PER_LONG;
+			bt->map[i].depth = min(map_depth, tags_per_word);
+			map_depth -= tags_per_word;
 		}
 	}
 
@@ -443,8 +460,10 @@ ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page)
 	if (!tags)
 		return 0;
 
-	page += sprintf(page, "nr_tags=%u, reserved_tags=%u\n",
-			tags->nr_tags, tags->nr_reserved_tags);
+	page += sprintf(page, "nr_tags=%u, reserved_tags=%u, "
+			"bits_per_word=%u\n",
+			tags->nr_tags, tags->nr_reserved_tags,
+			tags->bitmap_tags.bits_per_word);
 
 	free = bt_unused_tags(&tags->bitmap_tags);
 	res = bt_unused_tags(&tags->breserved_tags);

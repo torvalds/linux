@@ -11,8 +11,8 @@ struct bt_wait_state {
 	wait_queue_head_t wait;
 } ____cacheline_aligned_in_smp;
 
-#define TAG_TO_INDEX(tag)	((tag) / BITS_PER_LONG)
-#define TAG_TO_BIT(tag)		((tag) & (BITS_PER_LONG - 1))
+#define TAG_TO_INDEX(bt, tag)	((tag) >> (bt)->bits_per_word)
+#define TAG_TO_BIT(bt, tag)	((tag) & ((1 << (bt)->bits_per_word) - 1))
 
 struct blk_mq_bitmap {
 	unsigned long word;
@@ -22,9 +22,10 @@ struct blk_mq_bitmap {
 struct blk_mq_bitmap_tags {
 	unsigned int depth;
 	unsigned int wake_cnt;
+	unsigned int bits_per_word;
 
-	struct blk_mq_bitmap *map;
 	unsigned int map_nr;
+	struct blk_mq_bitmap *map;
 
 	unsigned int wake_index;
 	struct bt_wait_state *bs;
