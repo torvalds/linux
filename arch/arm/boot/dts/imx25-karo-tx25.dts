@@ -107,5 +107,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_nfc>;
 	nand-on-flash-bbt;
+	nand-ecc-mode = "hw";
+	nand-bus-width = <8>;
 	status = "okay";
 };
