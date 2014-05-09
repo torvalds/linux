@@ -39,8 +39,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 58
-#define QLCNIC_LINUX_VERSIONID  "5.3.58"
+#define _QLCNIC_LINUX_SUBVERSION 59
+#define QLCNIC_LINUX_VERSIONID  "5.3.59"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -1019,6 +1019,8 @@ struct qlcnic_ipaddr {
 #define QLCNIC_DEL_VXLAN_PORT		0x200000
 #endif
 
+#define QLCNIC_VLAN_FILTERING		0x800000
+
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 #define QLCNIC_IS_TSO_CAPABLE(adapter)  \
@@ -1693,7 +1695,7 @@ int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
 void qlcnic_set_netdev_features(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
-void qlcnic_sriov_vf_schedule_multi(struct net_device *);
+void qlcnic_sriov_vf_set_multi(struct net_device *);
 int qlcnic_is_valid_nic_func(struct qlcnic_adapter *, u8);
 int qlcnic_get_pci_func_type(struct qlcnic_adapter *, u16, u16 *, u16 *,
 			     u16 *);
@@ -2353,6 +2355,16 @@ static inline bool qlcnic_83xx_vf_check(struct qlcnic_adapter *adapter)
 	unsigned short device = adapter->pdev->device;
 
 	return (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X) ? true : false;
+}
+
+static inline bool qlcnic_sriov_check(struct qlcnic_adapter *adapter)
+{
+	bool status;
+
+	status = (qlcnic_sriov_pf_check(adapter) ||
+		  qlcnic_sriov_vf_check(adapter)) ? true : false;
+
+	return status;
 }
 
 static inline u32 qlcnic_get_vnic_func_count(struct qlcnic_adapter *adapter)

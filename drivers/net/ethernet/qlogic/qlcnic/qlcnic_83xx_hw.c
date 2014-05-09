@@ -3037,19 +3037,18 @@ void qlcnic_83xx_unlock_driver(struct qlcnic_adapter *adapter)
 	QLCRDX(adapter->ahw, QLC_83XX_DRV_UNLOCK);
 }
 
-int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
+int qlcnic_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
 				u32 *data, u32 count)
 {
 	int i, j, ret = 0;
 	u32 temp;
-	int err = 0;
 
 	/* Check alignment */
 	if (addr & 0xF)
 		return -EIO;
 
 	mutex_lock(&adapter->ahw->mem_lock);
-	qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_ADDR_HI, 0);
+	qlcnic_ind_wr(adapter, QLCNIC_MS_ADDR_HI, 0);
 
 	for (i = 0; i < count; i++, addr += 16) {
 		if (!((ADDR_IN_RANGE(addr, QLCNIC_ADDR_QDR_NET,
@@ -3060,26 +3059,16 @@ int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
 			return -EIO;
 		}
 
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_ADDR_LO, addr);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_LO,
-					     *data++);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_HI,
-					     *data++);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_ULO,
-					     *data++);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_UHI,
-					     *data++);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_CTRL,
-					     QLCNIC_TA_WRITE_ENABLE);
-		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_CTRL,
-					     QLCNIC_TA_WRITE_START);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_ADDR_LO, addr);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_WRTDATA_LO, *data++);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_WRTDATA_HI, *data++);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_WRTDATA_ULO, *data++);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_WRTDATA_UHI, *data++);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_CTRL, QLCNIC_TA_WRITE_ENABLE);
+		qlcnic_ind_wr(adapter, QLCNIC_MS_CTRL, QLCNIC_TA_WRITE_START);
 
 		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = QLCRD32(adapter, QLCNIC_MS_CTRL, &err);
-			if (err == -EIO) {
-				mutex_unlock(&adapter->ahw->mem_lock);
-				return err;
-			}
+			temp = qlcnic_ind_rd(adapter, QLCNIC_MS_CTRL);
 
 			if ((temp & TA_CTL_BUSY) == 0)
 				break;
