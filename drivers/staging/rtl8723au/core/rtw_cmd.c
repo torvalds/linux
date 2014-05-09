@@ -175,26 +175,13 @@ int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv)
 {
 	int res = _SUCCESS;
 
-	pcmdpriv->rsp_allocated_buf = kzalloc(MAX_RSPSZ + 4, GFP_KERNEL);
-
-	if (!pcmdpriv->rsp_allocated_buf) {
-		res = _FAIL;
-		goto exit;
-	}
-
-	pcmdpriv->rsp_buf = pcmdpriv->rsp_allocated_buf + 4 -
-			    ((unsigned long)(pcmdpriv->rsp_allocated_buf) & 3);
-
 	pcmdpriv->cmd_issued_cnt = 0;
 	pcmdpriv->cmd_done_cnt = 0;
 	pcmdpriv->rsp_cnt = 0;
 
-
 	pcmdpriv->wq = alloc_workqueue("rtl8723au", 0, 1);
 	if (!pcmdpriv->wq)
 		res = _FAIL;
-
-exit:
 
 	return res;
 }
@@ -205,7 +192,6 @@ static void c2h_wk_callback(struct work_struct *work);
 
 u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 {
-	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 	atomic_set(&pevtpriv->event_seq, 0);
 	pevtpriv->evt_done_cnt = 0;
 
@@ -235,9 +221,6 @@ void rtw_free_cmd_priv23a(struct cmd_priv *pcmdpriv)
 {
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
 		 ("rtw_free_cmd_priv23a\n"));
-
-	if (pcmdpriv)
-		kfree(pcmdpriv->rsp_allocated_buf);
 }
 
 static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
@@ -361,8 +344,6 @@ post_process:
 				  pcmd_callback, pcmd->cmdcode));
 			rtw_free_cmd_obj23a(pcmd);
 		} else {
-			/* todo: !!! fill rsp_buf to pcmd->rsp
-			   if (pcmd->rsp!= NULL) */
 			/* need conider that free cmd_obj in
 			   rtw_cmd_callback */
 			pcmd_callback(pcmd->padapter, pcmd);

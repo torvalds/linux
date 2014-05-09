@@ -44,8 +44,6 @@ struct cmd_obj {
 
 struct cmd_priv {
 	struct workqueue_struct *wq;
-	u8	*rsp_buf;	/* shall be non-paged, and 4 bytes aligned */
-	u8	*rsp_allocated_buf;
 	u32	cmd_issued_cnt;
 	u32	cmd_done_cnt;
 	u32	rsp_cnt;

@@ -64,8 +64,6 @@ int rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
 
 	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct cfg80211_ssid));
 
-	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
-
 	rtw_clear_scan_deny(padapter);
 
 	rtw_init_mlme_timer(padapter);
