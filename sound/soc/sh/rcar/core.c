@@ -576,14 +576,27 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.set_fmt	= rsnd_soc_dai_set_fmt,
 };
 
+#define rsnd_path_parse(priv, io, type)				\
+({								\
+	struct rsnd_mod *mod;					\
+	int ret = 0;						\
+	int id = -1;						\
+								\
+	if (rsnd_is_enable_path(io, type)) {			\
+		id = rsnd_info_id(priv, io, type);		\
+		if (id >= 0) {					\
+			mod = rsnd_##type##_mod_get(priv, id);	\
+			ret = rsnd_dai_connect(mod, io);	\
+		}						\
+	}							\
+	ret;							\
+})
+
 static int rsnd_path_init(struct rsnd_priv *priv,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)
 {
-	struct rsnd_mod *mod;
 	int ret;
-	int ssi_id = -1;
-	int src_id = -1;
 
 	/*
 	 * Gen1 is created by SRU/SSI, and this SRU is base module of
@@ -595,28 +608,16 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	 * Gen2 SCU path is very flexible, but, Gen1 SRU (SCU parts) is
 	 * using fixed path.
 	 */
-	if (rsnd_is_enable_path(io, ssi))
-		ssi_id = rsnd_info_id(priv, io, ssi);
-	if (rsnd_is_enable_path(io, src))
-		src_id = rsnd_info_id(priv, io, src);
-
-	ret = 0;
 
 	/* SRC */
-	if (src_id >= 0) {
-		mod = rsnd_src_mod_get(priv, src_id);
-		ret = rsnd_dai_connect(mod, io);
-		if (ret < 0)
-			return ret;
-	}
+	ret = rsnd_path_parse(priv, io, src);
+	if (ret < 0)
+		return ret;
 
 	/* SSI */
-	if (ssi_id >= 0) {
-		mod = rsnd_ssi_mod_get(priv, ssi_id);
-		ret = rsnd_dai_connect(mod, io);
-		if (ret < 0)
-			return ret;
-	}
+	ret = rsnd_path_parse(priv, io, ssi);
+	if (ret < 0)
+		return ret;
 
 	return ret;
 }
