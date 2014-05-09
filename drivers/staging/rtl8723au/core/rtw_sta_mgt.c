@@ -54,8 +54,6 @@ u32 _rtw_init_sta_priv23a(struct sta_priv *pstapriv)
 
 	spin_lock_init(&pstapriv->sta_hash_lock);
 	pstapriv->asoc_sta_count = 0;
-	_rtw_init_queue23a(&pstapriv->sleep_q);
-	_rtw_init_queue23a(&pstapriv->wakeup_q);
 	for (i = 0; i < NUM_STA; i++)
 		INIT_LIST_HEAD(&pstapriv->sta_hash[i]);
 

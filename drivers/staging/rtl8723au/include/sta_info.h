@@ -314,8 +314,6 @@ struct sta_priv {
 	spinlock_t sta_hash_lock;
 	struct list_head sta_hash[NUM_STA];
 	int asoc_sta_count;
-	struct rtw_queue sleep_q;
-	struct rtw_queue wakeup_q;
 
 	struct rtw_adapter *padapter;
 	struct list_head asoc_list;
