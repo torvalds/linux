@@ -43,7 +43,7 @@ void update_vsyscall(struct timekeeper *tk)
 	vdata->monotonic_time_sec	= tk->xtime_sec
 					+ tk->wall_to_monotonic.tv_sec;
 	vdata->monotonic_time_snsec	= tk->xtime_nsec
-					+ (tk->wall_to_monotonic.tv_nsec
+					+ ((u64)tk->wall_to_monotonic.tv_nsec
 						<< tk->shift);
 	while (vdata->monotonic_time_snsec >=
 					(((u64)NSEC_PER_SEC) << tk->shift)) {
