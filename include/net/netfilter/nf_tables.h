@@ -72,21 +72,23 @@ static inline void nft_data_debug(const struct nft_data *data)
  *	struct nft_ctx - nf_tables rule/set context
  *
  *	@net: net namespace
- * 	@skb: netlink skb
- * 	@nlh: netlink message header
  * 	@afi: address family info
  * 	@table: the table the chain is contained in
  * 	@chain: the chain the rule is contained in
  *	@nla: netlink attributes
+ *	@portid: netlink portID of the original message
+ *	@seq: netlink sequence number
+ *	@report: notify via unicast netlink message
  */
 struct nft_ctx {
 	struct net			*net;
-	const struct sk_buff		*skb;
-	const struct nlmsghdr		*nlh;
 	struct nft_af_info		*afi;
 	struct nft_table		*table;
 	struct nft_chain		*chain;
 	const struct nlattr * const 	*nla;
+	u32				portid;
+	u32				seq;
+	bool				report;
 };
 
 struct nft_data_desc {
