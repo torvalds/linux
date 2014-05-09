@@ -3278,6 +3278,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 				     end - cur + 1, 1);
 		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
+			ret = PTR_ERR_OR_ZERO(em);
 			break;
 		}
 
@@ -3364,13 +3365,17 @@ done:
 		set_page_writeback(page);
 		end_page_writeback(page);
 	}
+	if (PageError(page)) {
+		ret = ret < 0 ? ret : -EIO;
+		end_extent_writepage(page, ret, start, page_end);
+	}
 	unlock_page(page);
 
 done_unlocked:
 
 	/* drop our reference on any cached states */
 	free_extent_state(cached_state);
-	return 0;
+	return ret;
 }
 
 static int eb_wait(void *word)
@@ -3690,6 +3695,7 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	struct inode *inode = mapping->host;
 	int ret = 0;
 	int done = 0;
+	int err = 0;
 	int nr_to_write_done = 0;
 	struct pagevec pvec;
 	int nr_pages;
@@ -3776,8 +3782,8 @@ retry:
 				unlock_page(page);
 				ret = 0;
 			}
-			if (ret)
-				done = 1;
+			if (!err && ret < 0)
+				err = ret;
 
 			/*
 			 * the filesystem may choose to bump up nr_to_write.
@@ -3789,7 +3795,7 @@ retry:
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-	if (!scanned && !done) {
+	if (!scanned && !done && !err) {
 		/*
 		 * We hit the last page and there is more work to be done: wrap
 		 * back to the start of the file
@@ -3799,7 +3805,7 @@ retry:
 		goto retry;
 	}
 	btrfs_add_delayed_iput(inode);
-	return ret;
+	return err;
 }
 
 static void flush_epd_write_bio(struct extent_page_data *epd)
