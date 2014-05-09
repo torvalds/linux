@@ -809,9 +809,10 @@ int rk808_reg_read(struct rk808 *rk808, u8 reg)
 
 	ret = rk808_i2c_read(rk808, reg, 1, &val);
 	DBG("reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
-	if (ret < 0)
-		return ret;
-
+	if (ret < 0){
+                mutex_unlock(&rk808->io_lock);
+                return ret;
+	}
 	mutex_unlock(&rk808->io_lock);
 
 	return val & 0xff;	
@@ -842,17 +843,22 @@ EXPORT_SYMBOL_GPL(rk808_reg_write);
 
 	ret = rk808_i2c_read(rk808, reg, 1, &tmp);
 	DBG("1 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
-	if (ret < 0)
-		return ret;
+	if (ret < 0){
+                mutex_unlock(&rk808->io_lock);
+                return ret;
+	}
 	tmp = (tmp & ~mask) | val;
 	ret = rk808_i2c_write(rk808, reg, 1, tmp);
 	DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
-	if (ret < 0)
-		return ret;
-	
+	if (ret < 0){
+                mutex_unlock(&rk808->io_lock);
+                return ret;
+	}
 	ret = rk808_i2c_read(rk808, reg, 1, &tmp);
-	if (ret < 0)
-		return ret;
+	if (ret < 0){
+                mutex_unlock(&rk808->io_lock);
+                return ret;
+	}
 	DBG("2 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
 	mutex_unlock(&rk808->io_lock);
 
