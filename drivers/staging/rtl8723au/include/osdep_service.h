@@ -138,6 +138,4 @@ void	_rtw_init_queue23a(struct rtw_queue *pqueue);
 #define RTW_GET_BE24(a) ((((u32) (a)[0]) << 16) | (((u32) (a)[1]) << 8) | \
 			 ((u32) (a)[2]))
 
-s32 c2h_evt_hdl(struct rtw_adapter *adapter, struct c2h_evt_hdr *c2h_evt, c2h_id_filter filter);
-
 #endif
