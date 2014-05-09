@@ -1115,7 +1115,10 @@ static int __init resumewait_setup(char *str)
 
 static int __init resumedelay_setup(char *str)
 {
-	resume_delay = simple_strtoul(str, NULL, 0);
+	int rc = kstrtoul(str, 0, (unsigned long *)&resume_delay);
+
+	if (rc)
+		return rc;
 	return 1;
 }
 
