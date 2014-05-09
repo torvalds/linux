@@ -199,6 +199,10 @@
 #define PIC_IRT_PCIE_LINK_3_INDEX	81
 #define PIC_IRT_PCIE_LINK_INDEX(num)	((num) + PIC_IRT_PCIE_LINK_0_INDEX)
 
+#define PIC_9XX_IRT_PCIE_LINK_0_INDEX	191
+#define PIC_9XX_IRT_PCIE_LINK_INDEX(num) \
+				((num) + PIC_9XX_IRT_PCIE_LINK_0_INDEX)
+
 #define PIC_CLOCK_TIMER			7
 
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)

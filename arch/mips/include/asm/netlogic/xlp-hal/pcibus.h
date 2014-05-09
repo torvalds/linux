@@ -69,6 +69,20 @@
 #define PCIE_9XX_BYTE_SWAP_IO_BASE	0x25e
 #define PCIE_9XX_BYTE_SWAP_IO_LIM	0x25f
 
+#define PCIE_9XX_BRIDGE_MSIX_ADDR_BASE	0x264
+#define PCIE_9XX_BRIDGE_MSIX_ADDR_LIMIT	0x265
+#define PCIE_9XX_MSI_STATUS		0x283
+#define PCIE_9XX_MSI_EN			0x284
+/* 128 MSIX vectors available in 9xx */
+#define PCIE_9XX_MSIX_STATUS0		0x286
+#define PCIE_9XX_MSIX_STATUSX(n)	(n + 0x286)
+#define PCIE_9XX_MSIX_VEC		0x296
+#define PCIE_9XX_MSIX_VECX(n)		(n + 0x296)
+#define PCIE_9XX_INT_STATUS0		0x397
+#define PCIE_9XX_INT_STATUS1		0x398
+#define PCIE_9XX_INT_EN0		0x399
+#define PCIE_9XX_INT_EN1		0x39a
+
 /* other */
 #define PCIE_NLINKS			4
 

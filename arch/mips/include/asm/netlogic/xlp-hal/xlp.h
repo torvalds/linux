@@ -70,8 +70,9 @@
 #define PIC_PCIE_MSIX_IRQ_BASE		48	/* 48 - 51 MSI-X IRQ */
 #define PIC_PCIE_MSIX_IRQ(i)		(48 + (i))
 
-#define NLM_MSIX_VEC_BASE		96	/* 96 - 127 - MSIX mapped */
-#define NLM_MSI_VEC_BASE		128	/* 128 -255 - MSI mapped */
+/* XLP9xx and XLP8xx has 128 and 32 MSIX vectors respectively */
+#define NLM_MSIX_VEC_BASE		96	/* 96 - 223 - MSIX mapped */
+#define NLM_MSI_VEC_BASE		224	/* 224 -351 - MSI mapped */
 
 #define NLM_PIC_INDIRECT_VEC_BASE	512
 #define NLM_GPIO_VEC_BASE		768
