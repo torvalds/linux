@@ -158,35 +158,6 @@ enum WIFI_REG_DOMAIN {
 	 (((ieee80211_has_tods(pbuf)<<1) |				\
 	 ieee80211_has_fromds(pbuf)) == 3 ? 30 : 24))) & 0x000f)
 
-static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
-{
-	unsigned char	*sa;
-	unsigned int	to_fr_ds;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) pframe;
-
-	to_fr_ds = (ieee80211_has_tods(hdr->frame_control) << 1) |
-		    ieee80211_has_fromds(hdr->frame_control);
-
-	switch (to_fr_ds) {
-	case 0x00:	/*  ToDs=0, FromDs=0 */
-		sa = hdr->addr3;
-		break;
-	case 0x01:	/*  ToDs=0, FromDs=1 */
-		sa = hdr->addr2;
-		break;
-	case 0x02:	/*  ToDs=1, FromDs=0 */
-		sa = hdr->addr1;
-		break;
-	case 0x03:	/*  ToDs=1, FromDs=1 */
-		sa = hdr->addr1;
-		break;
-	default:
-		sa = NULL; /*  */
-		break;
-	}
-	return sa;
-}
-
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
 ------------------------------------------------------------------------------*/

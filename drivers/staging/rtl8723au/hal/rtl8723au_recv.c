@@ -201,14 +201,36 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	struct sta_info *psta;
 	struct sk_buff *skb = precvframe->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *wlanhdr = skb->data;
+	bool matchbssid = false;
+	u8 *bssid;
 
-	pkt_info.bPacketMatchBSSID =
-		(!ieee80211_is_ctl(hdr->frame_control) &&
-		 !pattrib->icv_err &&
-		 !pattrib->crc_err &&
-		 !memcmp(get_hdr_bssid(wlanhdr),
-			 get_bssid(&padapter->mlmepriv), ETH_ALEN));
+	matchbssid = (!ieee80211_is_ctl(hdr->frame_control) &&
+		      !pattrib->icv_err && !pattrib->crc_err);
+
+	if (matchbssid) {
+		switch (hdr->frame_control &
+			cpu_to_le16(IEEE80211_FCTL_TODS |
+				    IEEE80211_FCTL_FROMDS)) {
+		case cpu_to_le16(IEEE80211_FCTL_TODS):
+			bssid = hdr->addr1;
+			break;
+		case cpu_to_le16(IEEE80211_FCTL_FROMDS):
+			bssid = hdr->addr2;
+			break;
+		case cpu_to_le16(0):
+			bssid = hdr->addr3;
+			break;
+		default:
+			bssid = NULL;
+			matchbssid = false;
+		}
+
+		if (bssid)
+			matchbssid = ether_addr_equal(
+				get_bssid(&padapter->mlmepriv), bssid);
+	}
+
+	pkt_info.bPacketMatchBSSID = matchbssid;
 
 	da = ieee80211_get_DA(hdr);
 	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID &&
