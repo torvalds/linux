@@ -100,7 +100,6 @@ enum {
 
 /*  power saving */
 
-#ifdef __BT_C__ /*  COMMOM/BT.c */
 /*  ===== Below this line is sync from SD7 driver COMMOM/BT.c ===== */
 
 static u8 BT_Operation(struct rtw_adapter *padapter)
@@ -177,15 +176,6 @@ void BT_LpsLeave(struct rtw_adapter *padapter)
 }
 
 /*  ===== End of sync from SD7 driver COMMOM/BT.c ===== */
-#endif
-
-#ifdef __BT_HANDLEPACKET_C__ /*  COMMOM/bt_handlepacket.c */
-/*  ===== Below this line is sync from SD7 driver COMMOM/bt_handlepacket.c ===== */
-
-/*  ===== End of sync from SD7 driver COMMOM/bt_handlepacket.c ===== */
-#endif
-
-#ifdef __BT_HCI_C__ /*  COMMOM/bt_hci.c */
 
 #define i64fmt		"ll"
 #define UINT64_C(v)  (v)
@@ -5213,9 +5203,6 @@ BTHCI_HandleHCICMD(
 }
 
 /*  ===== End of sync from SD7 driver COMMOM/bt_hci.c ===== */
-#endif
-
-#ifdef __HALBTC87231ANT_C__ /*  HAL/BTCoexist/HalBtc87231Ant.c */
 
 static const char *const BtStateString[] = {
 	"BT_DISABLED",
@@ -6511,9 +6498,7 @@ void BTDM_1AntBtCoexist8723A(struct rtw_adapter *padapter)
 }
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc87231Ant.c ===== */
-#endif
 
-#ifdef __HALBTC87232ANT_C__ /*  HAL/BTCoexist/HalBtc87232Ant.c */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtc87232Ant.c ===== */
 
 /*  local function start with btdm_ */
@@ -8993,9 +8978,7 @@ void BTDM_2AntBtCoexist8723A(struct rtw_adapter *padapter)
 }
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc87232Ant.c ===== */
-#endif
 
-#ifdef __HALBTC8723_C__ /*  HAL/BTCoexist/HalBtc8723.c */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtc8723.c ===== */
 
 static u8 btCoexDbgBuf[BT_TMP_BUF_SIZE];
@@ -9876,9 +9859,7 @@ static void BTDM_BTCoexist8723A(struct rtw_adapter *padapter)
 }
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc8723.c ===== */
-#endif
 
-#ifdef __HALBTCCSR1ANT_C__ /*  HAL/BTCoexist/HalBtcCsr1Ant.c */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtcCsr1Ant.c ===== */
 
 /*  local function start with btdm_ */
@@ -10065,9 +10046,7 @@ void BTDM_CheckBTIdleChange1Ant(struct rtw_adapter *padapter)
 }
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtcCsr1Ant.c ===== */
-#endif
 
-#ifdef __HALBTCCSR2ANT_C__ /*  HAL/BTCoexist/HalBtcCsr2Ant.c */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtcCsr2Ant.c ===== */
 
 /*  local function start with btdm_ */
@@ -10122,9 +10101,7 @@ BTDM_DiminishWiFi(
 }
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtcCsr2Ant.c ===== */
-#endif
 
-#ifdef __HALBTCOEXIST_C__ /*  HAL/BTCoexist/HalBtCoexist.c */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtCoexist.c ===== */
 
 /*  local function */
@@ -11260,9 +11237,7 @@ u8 BTDM_IsBtDisabled(struct rtw_adapter *padapter)
 }
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtCoexist.c ===== */
-#endif
 
-#ifdef __HALBT_C__ /*  HAL/HalBT.c */
 /*  ===== Below this line is sync from SD7 driver HAL/HalBT.c ===== */
 
 /*  */
@@ -11379,4 +11354,3 @@ void HALBT_SetRtsCtsNoLenLimit(struct rtw_adapter *padapter)
 }
 
 /*  ===== End of sync from SD7 driver HAL/HalBT.c ===== */
-#endif

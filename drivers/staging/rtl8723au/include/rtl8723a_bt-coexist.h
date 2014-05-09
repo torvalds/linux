@@ -19,19 +19,6 @@
 #include "odm_precomp.h"
 
 
-#define __BT_C__ 1
-#define __BT_HANDLEPACKET_C__ 1
-#define __BT_HCI_C__ 1
-#define __HALBTC87231ANT_C__ 1
-#define __HALBTC87232ANT_C__ 1
-#define __HALBTC8723_C__ 1
-#define __HALBTCCSR1ANT_C__ 1
-#define __HALBTCCSR2ANT_C__ 1
-#define __HALBTCOEXIST_C__ 1
-#define __HALBT_C__ 1
-
-#ifdef __BT_C__ /*  COMMON/BT.h */
-
 /*  HEADER/PlatformDef.h */
 enum rt_media_status {
 	RT_MEDIA_DISCONNECT	= 0,
@@ -55,9 +42,6 @@ void BT_LpsLeave(struct rtw_adapter * padapter);
 
 #define	BT_HsConnectionEstablished(Adapter)		false
 /*  ===== End of sync from SD7 driver COMMON/BT.h ===== */
-#endif /*  __BT_C__ */
-
-#ifdef __BT_HCI_C__ /*  COMMON/bt_hci.h */
 
 /*  HEADER/SecurityType.h */
 #define TKIP_ENC_KEY_POS		32		/* KEK_LEN+KEK_LEN) */
@@ -1132,9 +1116,7 @@ void BTHCI_DisconnectAll(struct rtw_adapter * padapter);
 enum hci_status BTHCI_HandleHCICMD(struct rtw_adapter * padapter, struct packet_irp_hcicmd_data *pHciCmd);
 
 /*  ===== End of sync from SD7 driver COMMON/bt_hci.h ===== */
-#endif /*  __BT_HCI_C__ */
 
-#ifdef __HALBTC87231ANT_C__ /*  HAL/BTCoexist/HalBtc87231Ant.h */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtc87231Ant.h ===== */
 #define GET_BT_INFO(padapter)	(&GET_HAL_DATA(padapter)->BtInfo)
 
@@ -1191,9 +1173,7 @@ void BTDM_1AntForDhcp(struct rtw_adapter * padapter);
 void BTDM_1AntBtCoexist8723A(struct rtw_adapter * padapter);
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc87231Ant.h ===== */
-#endif /*  __HALBTC87231ANT_C__ */
 
-#ifdef __HALBTC87232ANT_C__ /*  HAL/BTCoexist/HalBtc87232Ant.h */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtc87232Ant.h ===== */
 enum bt_2ant_bt_status {
 	BT_2ANT_BT_STATUS_IDLE			= 0x0,
@@ -1274,9 +1254,7 @@ struct btdm_8723a_2ant {
 
 void BTDM_2AntBtCoexist8723A(struct rtw_adapter * padapter);
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc87232Ant.h ===== */
-#endif /*  __HALBTC87232ANT_C__ */
 
-#ifdef __HALBTC8723_C__ /*  HAL/BTCoexist/HalBtc8723.h */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtc8723.h ===== */
 
 #define	BT_Q_PKT_OFF		0
@@ -1356,9 +1334,7 @@ u8 BTDM_1Ant8723A(struct rtw_adapter * padapter);
 #define BT_1Ant BTDM_1Ant8723A
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc8723.h ===== */
-#endif /*  __HALBTC8723_C__ */
 
-#ifdef __HALBTCCSR1ANT_C__ /*  HAL/BTCoexist/HalBtcCsr1Ant.h */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtcCsr1Ant.h ===== */
 
 enum BT_A2DP_INDEX{
@@ -1381,9 +1357,7 @@ void BTDM_SingleAnt(struct rtw_adapter * padapter, u8 bSingleAntOn, u8 bInterrup
 void BTDM_CheckBTIdleChange1Ant(struct rtw_adapter * padapter);
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtcCsr1Ant.h ===== */
-#endif /*  __HALBTCCSR1ANT_C__ */
 
-#ifdef __HALBTCCSR2ANT_C__ /*  HAL/BTCoexist/HalBtcCsr2Ant.h */
 /*  ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtcCsr2Ant.h ===== */
 
 /*  */
@@ -1403,9 +1377,6 @@ void BTDM_CheckBTIdleChange1Ant(struct rtw_adapter * padapter);
 void BTDM_DiminishWiFi(struct rtw_adapter * Adapter, u8 bDACOn, u8 bInterruptOn, u8 DACSwingLevel, u8 bNAVOn);
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtcCsr2Ant.h ===== */
-#endif /*  __HALBTCCSR2ANT_C__ */
-
-#ifdef __HALBTCOEXIST_C__ /*  HAL/BTCoexist/HalBtCoexist.h */
 
 /*  HEADER/TypeDef.h */
 #define MAX_FW_SUPPORT_MACID_NUM			64
@@ -1638,9 +1609,7 @@ u32 BTDM_BtTxRxCounterH(struct rtw_adapter * padapter);
 u32 BTDM_BtTxRxCounterL(struct rtw_adapter * padapter);
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtCoexist.h ===== */
-#endif /*  __HALBTCOEXIST_C__ */
 
-#ifdef __HALBT_C__ /*  HAL/HalBT.h */
 /*  ===== Below this line is sync from SD7 driver HAL/HalBT.h ===== */
 
 #define RTS_CTS_NO_LEN_LIMIT	0
@@ -1660,7 +1629,6 @@ void HALBT_InitHwConfig(struct rtw_adapter * padapter);
 void HALBT_SetRtsCtsNoLenLimit(struct rtw_adapter * padapter);
 
 /*  ===== End of sync from SD7 driver HAL/HalBT.c ===== */
-#endif /*  __HALBT_C__ */
 
 #define _bt_dbg_off_		0
 #define _bt_dbg_on_		1
