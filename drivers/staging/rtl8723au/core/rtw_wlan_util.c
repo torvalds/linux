@@ -1414,7 +1414,7 @@ void update_tx_basic_rate23a(struct rtw_adapter *padapter, u8 wirelessmode)
 
 	memset(supported_rates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
-	if ((wirelessmode & WIRELESS_11B) && (wirelessmode == WIRELESS_11B)) {
+	if (wirelessmode == WIRELESS_11B) {
 		memcpy(supported_rates, rtw_basic_rate_cck, 4);
 	} else if (wirelessmode & WIRELESS_11B) {
 		memcpy(supported_rates, rtw_basic_rate_mix, 7);
