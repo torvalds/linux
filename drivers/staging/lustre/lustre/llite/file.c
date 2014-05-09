@@ -1351,7 +1351,7 @@ static int ll_lov_recreate_fid(struct inode *inode, unsigned long arg)
 	return ll_lov_recreate(inode, &oi, ost_idx);
 }
 
-int ll_lov_setstripe_ea_info(struct inode *inode, struct file *file,
+int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 			     int flags, struct lov_user_md *lum, int lum_size)
 {
 	struct lov_stripe_md *lsm = NULL;
@@ -1368,21 +1368,20 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct file *file,
 	}
 
 	ll_inode_size_lock(inode);
-	rc = ll_intent_file_open(file->f_path.dentry, lum, lum_size, &oit);
+	rc = ll_intent_file_open(dentry, lum, lum_size, &oit);
 	if (rc)
 		goto out_unlock;
 	rc = oit.d.lustre.it_status;
 	if (rc < 0)
 		goto out_req_free;
 
-	ll_release_openhandle(file->f_dentry, &oit);
+	ll_release_openhandle(dentry, &oit);
 
 out_unlock:
 	ll_inode_size_unlock(inode);
 	ll_intent_release(&oit);
 	ccc_inode_lsm_put(inode, lsm);
 out:
-	cl_lov_delay_create_clear(&file->f_flags);
 	return rc;
 out_req_free:
 	ptlrpc_req_finished((struct ptlrpc_request *) oit.d.lustre.it_data);
@@ -1496,7 +1495,9 @@ static int ll_lov_setea(struct inode *inode, struct file *file,
 		return -EFAULT;
 	}
 
-	rc = ll_lov_setstripe_ea_info(inode, file, flags, lump, lum_size);
+	rc = ll_lov_setstripe_ea_info(inode, file->f_path.dentry, flags, lump,
+				     lum_size);
+	cl_lov_delay_create_clear(&file->f_flags);
 
 	OBD_FREE_LARGE(lump, lum_size);
 	return rc;
@@ -1523,7 +1524,9 @@ static int ll_lov_setstripe(struct inode *inode, struct file *file,
 			return -EFAULT;
 	}
 
-	rc = ll_lov_setstripe_ea_info(inode, file, flags, lumv1, lum_size);
+	rc = ll_lov_setstripe_ea_info(inode, file->f_path.dentry, flags, lumv1,
+				      lum_size);
+	cl_lov_delay_create_clear(&file->f_flags);
 	if (rc == 0) {
 		struct lov_stripe_md *lsm;
 		__u32 gen;

@@ -763,7 +763,7 @@ struct posix_acl *ll_get_acl(struct inode *inode, int type);
 
 int ll_inode_permission(struct inode *inode, int mask);
 
-int ll_lov_setstripe_ea_info(struct inode *inode, struct file *file,
+int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 			     int flags, struct lov_user_md *lum,
 			     int lum_size);
 int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
