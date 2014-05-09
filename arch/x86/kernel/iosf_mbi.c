@@ -201,6 +201,7 @@ static int iosf_mbi_probe(struct pci_dev *pdev,
 
 static DEFINE_PCI_DEVICE_TABLE(iosf_mbi_pci_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0F00) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0958) },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, iosf_mbi_pci_ids);
