@@ -155,24 +155,6 @@ u32 ODM_GetRFReg(
 }
 
 /*  */
-/*  ODM MISC relative API. */
-/*  */
-void
-ODM_AcquireSpinLock(
-	struct dm_odm_t *pDM_Odm,
-	enum rt_spinlock_type	type
-	)
-{
-}
-
-void ODM_ReleaseSpinLock(
-	struct dm_odm_t *pDM_Odm,
-	enum rt_spinlock_type	type
-	)
-{
-}
-
-/*  */
 /*  Work item relative API. FOr MP driver only~! */
 /*  */
 void ODM_InitializeWorkItem(
