@@ -1297,8 +1297,7 @@ exit:
 	return res;
 }
 
-static int c2h_evt_hdl(struct rtw_adapter *adapter,
-		       struct c2h_evt_hdr *c2h_evt, c2h_id_filter filter)
+static int c2h_evt_hdl(struct rtw_adapter *adapter, struct c2h_evt_hdr *c2h_evt)
 {
 	int ret = _FAIL;
 	u8 buf[16];
@@ -1308,19 +1307,11 @@ static int c2h_evt_hdl(struct rtw_adapter *adapter,
 		if (c2h_evt_read23a(adapter, buf) == _SUCCESS) {
 			c2h_evt = (struct c2h_evt_hdr *)buf;
 
-			if (filter && filter(c2h_evt->id) == false)
-				goto exit;
-
 			ret = rtw_hal_c2h_handler23a(adapter, c2h_evt);
 		}
-	} else {
-
-		if (filter && filter(c2h_evt->id) == false)
-			goto exit;
-
+	} else
 		ret = rtw_hal_c2h_handler23a(adapter, c2h_evt);
-	}
-exit:
+
 	return ret;
 }
 
@@ -1396,7 +1387,7 @@ u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 #endif /* CONFIG_8723AU_AP_MODE */
 	case C2H_WK_CID:
 		c2h_evt_hdl(padapter,
-			    (struct c2h_evt_hdr *)pdrvextra_cmd->pbuf, NULL);
+			    (struct c2h_evt_hdr *)pdrvextra_cmd->pbuf);
 		break;
 
 	default:
