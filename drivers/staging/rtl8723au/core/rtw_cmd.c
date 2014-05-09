@@ -175,18 +175,6 @@ int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv)
 {
 	int res = _SUCCESS;
 
-	pcmdpriv->cmd_allocated_buf = kzalloc(MAX_CMDSZ + CMDBUFF_ALIGN_SZ,
-					      GFP_KERNEL);
-
-	if (pcmdpriv->cmd_allocated_buf == NULL) {
-		res = _FAIL;
-		goto exit;
-	}
-
-	pcmdpriv->cmd_buf = pcmdpriv->cmd_allocated_buf + CMDBUFF_ALIGN_SZ -
-			    ((unsigned long)(pcmdpriv->cmd_allocated_buf) &
-			    (CMDBUFF_ALIGN_SZ - 1));
-
 	pcmdpriv->rsp_allocated_buf = kzalloc(MAX_RSPSZ + 4, GFP_KERNEL);
 
 	if (!pcmdpriv->rsp_allocated_buf) {
@@ -248,10 +236,8 @@ void rtw_free_cmd_priv23a(struct cmd_priv *pcmdpriv)
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
 		 ("rtw_free_cmd_priv23a\n"));
 
-	if (pcmdpriv) {
-		kfree(pcmdpriv->cmd_allocated_buf);
+	if (pcmdpriv)
 		kfree(pcmdpriv->rsp_allocated_buf);
-	}
 }
 
 static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
@@ -341,10 +327,8 @@ static void rtw_cmd_work(struct work_struct *work)
 	void (*pcmd_callback)(struct rtw_adapter *dev, struct cmd_obj *pcmd);
 	struct cmd_priv *pcmdpriv;
 	struct cmd_obj *pcmd = container_of(work, struct cmd_obj, work);
-	u8 *pcmdbuf;
 
 	pcmdpriv = &pcmd->padapter->cmdpriv;
-	pcmdbuf = pcmdpriv->cmd_buf;
 
 	if (rtw_cmd_filter(pcmdpriv, pcmd) == _FAIL) {
 		pcmd->res = H2C_DROPPED;
@@ -355,13 +339,11 @@ static void rtw_cmd_work(struct work_struct *work)
 
 	pcmd->cmdsz = ALIGN(pcmd->cmdsz, 4);
 
-	memcpy(pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
-
 	if (pcmd->cmdcode < (sizeof(wlancmds)/sizeof(struct cmd_hdl))) {
 		cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
 
 		if (cmd_hdl)
-			pcmd->res = cmd_hdl(pcmd->padapter, pcmdbuf);
+			pcmd->res = cmd_hdl(pcmd->padapter, pcmd->parmbuf);
 		else
 			pcmd->res = H2C_DROPPED;
 	} else
