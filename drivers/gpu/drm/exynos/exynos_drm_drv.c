@@ -182,9 +182,9 @@ static int exynos_drm_resume(struct drm_device *dev)
 		if (connector->funcs->dpms)
 			connector->funcs->dpms(connector, connector->dpms);
 	}
+	drm_modeset_unlock_all(dev);
 
 	drm_helper_resume_force_mode(dev);
-	drm_modeset_unlock_all(dev);
 
 	return 0;
 }
