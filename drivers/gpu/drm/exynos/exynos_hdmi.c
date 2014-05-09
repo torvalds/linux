@@ -2174,7 +2174,8 @@ static int hdmi_probe(struct platform_device *pdev)
 	return exynos_drm_component_add(&pdev->dev, &hdmi_component_ops);
 
 err_hdmiphy:
-	put_device(&hdata->hdmiphy_port->dev);
+	if (hdata->hdmiphy_port)
+		put_device(&hdata->hdmiphy_port->dev);
 err_ddc:
 	put_device(&hdata->ddc_adpt->dev);
 	return ret;
