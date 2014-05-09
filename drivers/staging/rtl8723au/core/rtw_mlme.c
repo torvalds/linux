@@ -2449,8 +2449,7 @@ void rtw_issue_addbareq_cmd23a(struct rtw_adapter *padapter,
 		if (issued == 0) {
 			DBG_8723A("rtw_issue_addbareq_cmd23a, p =%d\n",
 				  priority);
-			psta->htpriv.candidate_tid_bitmap |=
-				CHKBIT((u8)priority);
+			psta->htpriv.candidate_tid_bitmap |= BIT(priority);
 			rtw_addbareq_cmd23a(padapter, (u8) priority,
 					    pattrib->ra);
 		}
