@@ -28,12 +28,10 @@ struct usb_tx {
 	struct list_head	p_list;
 #endif
 	struct tx_cxt		*tx_cxt;
-
 	struct urb		*urb;
 	u8			*buf;
-
 	void (*callback)(void *cb_data);
-	void *cb_data;
+	void			*cb_data;
 };
 
 struct tx_cxt {
@@ -43,17 +41,14 @@ struct tx_cxt {
 #if defined(CONFIG_WIMAX_GDM72XX_USB_PM) || defined(CONFIG_WIMAX_GDM72XX_K_MODE)
 	struct list_head	pending_list;
 #endif
-
 	spinlock_t		lock;
 };
 
 struct usb_rx {
 	struct list_head	list;
 	struct rx_cxt		*rx_cxt;
-
 	struct urb		*urb;
 	u8			*buf;
-
 	void (*callback)(void *cb_data, void *data, int len);
 	void *cb_data;
 };
@@ -75,11 +70,9 @@ struct usbwm_dev {
 	int bw_switch;
 	struct list_head	list;
 #endif
-
 	struct tx_cxt		tx;
 	struct rx_cxt		rx;
-
-	int padding;
+	int			padding;
 };
 
 #endif /* __GDM_USB_H__ */

@@ -31,11 +31,11 @@
 #define MAX_NR_RX_BUF	4
 
 #define SDU_TX_BUF_SIZE	2048
-#define TX_BUF_SIZE		2048
+#define TX_BUF_SIZE	2048
 #define TX_CHUNK_SIZE	(2048 - TYPE_A_HEADER_SIZE)
-#define RX_BUF_SIZE		(25*1024)
+#define RX_BUF_SIZE	(25*1024)
 
-#define TX_HZ	2000
+#define TX_HZ		2000
 #define TX_INTERVAL	(1000000/TX_HZ)
 
 static int init_sdio(struct sdiowm_dev *sdev);
@@ -127,10 +127,10 @@ static void put_rx_struct(struct rx_cxt *rx, struct sdio_rx *r)
 static int init_sdio(struct sdiowm_dev *sdev)
 {
 	int ret = 0, i;
-	struct tx_cxt	*tx = &sdev->tx;
-	struct rx_cxt	*rx = &sdev->rx;
-	struct sdio_tx	*t;
-	struct sdio_rx	*r;
+	struct tx_cxt *tx = &sdev->tx;
+	struct rx_cxt *rx = &sdev->rx;
+	struct sdio_tx *t;
+	struct sdio_rx *r;
 
 	INIT_LIST_HEAD(&tx->free_list);
 	INIT_LIST_HEAD(&tx->sdu_list);

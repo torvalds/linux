@@ -35,10 +35,10 @@
 #define EVT_MAX_SIZE	2048
 
 struct evt_entry {
-	struct list_head list;
-	struct net_device *dev;
-	char evt_data[EVT_MAX_SIZE];
-	int	 size;
+	struct	list_head list;
+	struct	net_device *dev;
+	char	evt_data[EVT_MAX_SIZE];
+	int	size;
 };
 
 static void __gdm_wimax_event_send(struct work_struct *work);
@@ -52,7 +52,6 @@ static struct {
 	struct sock *sock;
 	struct list_head evtq;
 	spinlock_t evt_lock;
-
 	struct list_head freeq;
 	struct work_struct ws;
 } wm_event;
@@ -868,13 +867,13 @@ static void start_rx_proc(struct nic *nic)
 }
 
 static struct net_device_ops gdm_netdev_ops = {
-	.ndo_open				= gdm_wimax_open,
-	.ndo_stop				= gdm_wimax_close,
-	.ndo_set_config			= gdm_wimax_set_config,
-	.ndo_start_xmit			= gdm_wimax_tx,
-	.ndo_get_stats			= gdm_wimax_stats,
+	.ndo_open		= gdm_wimax_open,
+	.ndo_stop		= gdm_wimax_close,
+	.ndo_set_config		= gdm_wimax_set_config,
+	.ndo_start_xmit		= gdm_wimax_tx,
+	.ndo_get_stats		= gdm_wimax_stats,
 	.ndo_set_mac_address	= gdm_wimax_set_mac_addr,
-	.ndo_do_ioctl			= gdm_wimax_ioctl,
+	.ndo_do_ioctl		= gdm_wimax_ioctl,
 };
 
 int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)

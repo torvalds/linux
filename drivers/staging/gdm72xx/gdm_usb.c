@@ -27,6 +27,7 @@
 MODULE_DEVICE_TABLE(usb, id_table);
 
 #define TX_BUF_SIZE		2048
+
 #if defined(CONFIG_WIMAX_GDM72XX_WIMAX2)
 #define RX_BUF_SIZE		(128*1024)	/* For packet aggregation */
 #else
@@ -166,10 +167,10 @@ static void put_rx_struct(struct rx_cxt *rx, struct usb_rx *r)
 static int init_usb(struct usbwm_dev *udev)
 {
 	int ret = 0, i;
-	struct tx_cxt	*tx = &udev->tx;
-	struct rx_cxt	*rx = &udev->rx;
-	struct usb_tx	*t;
-	struct usb_rx	*r;
+	struct tx_cxt *tx = &udev->tx;
+	struct rx_cxt *rx = &udev->rx;
+	struct usb_tx *t;
+	struct usb_rx *r;
 	unsigned long flags;
 
 	INIT_LIST_HEAD(&tx->free_list);
@@ -215,10 +216,10 @@ fail:
 
 static void release_usb(struct usbwm_dev *udev)
 {
-	struct tx_cxt	*tx = &udev->tx;
-	struct rx_cxt	*rx = &udev->rx;
-	struct usb_tx	*t, *t_next;
-	struct usb_rx	*r, *r_next;
+	struct tx_cxt *tx = &udev->tx;
+	struct rx_cxt *rx = &udev->rx;
+	struct usb_tx *t, *t_next;
+	struct usb_rx *r, *r_next;
 	unsigned long flags;
 
 	spin_lock_irqsave(&tx->lock, flags);

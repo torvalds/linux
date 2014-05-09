@@ -34,28 +34,23 @@
 #define DB2H(x)		__be32_to_cpu(x)
 
 struct phy_dev {
-	void	*priv_dev;
+	void			*priv_dev;
 	struct net_device	*netdev;
-
-	int	(*send_func)(void *priv_dev, void *data, int len,
-			     void (*cb)(void *cb_data), void *cb_data);
-	int	(*rcv_func)(void *priv_dev,
-			    void (*cb)(void *cb_data, void *data, int len),
-			    void *cb_data);
+	int (*send_func)(void *priv_dev, void *data, int len,
+			 void (*cb)(void *cb_data), void *cb_data);
+	int (*rcv_func)(void *priv_dev,
+			void (*cb)(void *cb_data, void *data, int len),
+			void *cb_data);
 };
 
 struct nic {
 	struct net_device	*netdev;
 	struct phy_dev		*phy_dev;
-
 	struct net_device_stats	stats;
-
-	struct data_s	sdk_data[SIOC_DATA_MAX];
-
+	struct data_s		sdk_data[SIOC_DATA_MAX];
 #if defined(CONFIG_WIMAX_GDM72XX_QOS)
-	struct qos_cb_s	qos;
+	struct qos_cb_s		qos;
 #endif
-
 };
 
 int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);

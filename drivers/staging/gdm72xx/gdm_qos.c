@@ -24,7 +24,7 @@
 #include "hci.h"
 #include "gdm_qos.h"
 
-#define B2H(x)		__be16_to_cpu(x)
+#define B2H(x)	__be16_to_cpu(x)
 
 #define MAX_FREE_LIST_CNT		32
 static struct {

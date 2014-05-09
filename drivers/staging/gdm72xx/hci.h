@@ -18,18 +18,18 @@
 #define HCI_VALUE_OFFS		(HCI_HEADER_SIZE)
 #define HCI_MAX_PACKET		2048
 #define HCI_MAX_PARAM		(HCI_MAX_PACKET-HCI_HEADER_SIZE)
-#define HCI_MAX_TLV			32
+#define HCI_MAX_TLV		32
 
 /* CMD-EVT */
 
 /* Category 0 */
-#define WIMAX_RESET				0x0000
-#define WIMAX_SET_INFO			0x0001
-#define WIMAX_GET_INFO			0x0002
+#define WIMAX_RESET		0x0000
+#define WIMAX_SET_INFO		0x0001
+#define WIMAX_GET_INFO		0x0002
 #define WIMAX_GET_INFO_RESULT	0x8003
-#define WIMAX_RADIO_OFF			0x0004
-#define WIMAX_RADIO_ON			0x0006
-#define WIMAX_WIMAX_RESET		0x0007	/* Is this still here */
+#define WIMAX_RADIO_OFF		0x0004
+#define WIMAX_RADIO_ON		0x0006
+#define WIMAX_WIMAX_RESET	0x0007	/* Is this still here */
 
 /* Category 1 */
 #define WIMAX_NET_ENTRY			0x0100
@@ -40,26 +40,22 @@
 #define WIMAX_EXIT_IDLE			0x0106
 #define WIMAX_MODE_CHANGE		0x8108
 #define WIMAX_HANDOVER			0x8109	/* obsolete */
-
-#define WIMAX_SCAN				0x010d
+#define WIMAX_SCAN			0x010d
 #define WIMAX_SCAN_COMPLETE		0x810e
 #define WIMAX_SCAN_RESULT		0x810f
-
 #define WIMAX_CONNECT			0x0110
 #define WIMAX_CONNECT_START		0x8111
-#define WIMAX_CONNECT_COMPLETE	0x8112
+#define WIMAX_CONNECT_COMPLETE		0x8112
 #define WIMAX_ASSOC_START		0x8113
-#define WIMAX_ASSOC_COMPLETE	0x8114
+#define WIMAX_ASSOC_COMPLETE		0x8114
 #define WIMAX_DISCONN_IND		0x8115
 #define WIMAX_ENTRY_IND			0x8116
 #define WIMAX_HO_START			0x8117
 #define WIMAX_HO_COMPLETE		0x8118
-#define WIMAX_RADIO_STATE_IND	0x8119
+#define WIMAX_RADIO_STATE_IND		0x8119
 #define WIMAX_IP_RENEW_IND		0x811a
-
-#define WIMAX_DISCOVER_NSP			0x011d
+#define WIMAX_DISCOVER_NSP		0x011d
 #define WIMAX_DISCOVER_NSP_RESULT	0x811e
-
 #define WIMAX_SDU_TX_FLOW		0x8125
 
 /* Category 2 */
@@ -71,34 +67,33 @@
 #define WIMAX_TX_SDU_AGGR	0x0205
 
 /* Category 3 */
-#define WIMAX_DM_CMD				0x030a
-#define WIMAX_DM_RSP				0x830b
+#define WIMAX_DM_CMD		0x030a
+#define WIMAX_DM_RSP		0x830b
 
-#define WIMAX_CLI_CMD				0x030c
-#define WIMAX_CLI_RSP				0x830d
+#define WIMAX_CLI_CMD		0x030c
+#define WIMAX_CLI_RSP		0x830d
 
-#define WIMAX_DL_IMAGE				0x0310
-#define WIMAX_DL_IMAGE_STATUS		0x8311
-#define WIMAX_UL_IMAGE				0x0312
-#define WIMAX_UL_IMAGE_RESULT		0x8313
-#define WIMAX_UL_IMAGE_STATUS		0x0314
-
-#define WIMAX_EVT_MODEM_REPORT		0x8325
+#define WIMAX_DL_IMAGE		0x0310
+#define WIMAX_DL_IMAGE_STATUS	0x8311
+#define WIMAX_UL_IMAGE		0x0312
+#define WIMAX_UL_IMAGE_RESULT	0x8313
+#define WIMAX_UL_IMAGE_STATUS	0x0314
+#define WIMAX_EVT_MODEM_REPORT	0x8325
 
 /* Category 0xF */
-#define WIMAX_FSM_UPDATE			0x8F01
-#define WIMAX_IF_UPDOWN				0x8F02
-	#define WIMAX_IF_UP				1
-	#define WIMAX_IF_DOWN			2
+#define WIMAX_FSM_UPDATE	0x8F01
+#define WIMAX_IF_UPDOWN		0x8F02
+#define WIMAX_IF_UP		1
+#define WIMAX_IF_DOWN		2
 
 /* WIMAX mode */
-#define W_NULL				0
-#define W_STANDBY			1
-#define W_OOZ				2
-#define W_AWAKE				3
-#define W_IDLE				4
-#define W_SLEEP				5
-#define W_WAIT				6
+#define W_NULL		0
+#define W_STANDBY	1
+#define W_OOZ		2
+#define W_AWAKE		3
+#define W_IDLE		4
+#define W_SLEEP		5
+#define W_WAIT		6
 
 #define W_NET_ENTRY_RNG		0x80
 #define W_NET_ENTRY_SBC		0x81
@@ -113,8 +108,8 @@
 #define W_NET_ENTRY_DSX_FAIL	0x1104000
 
 /* Scan Type */
-#define W_SCAN_ALL_CHANNEL				0
-#define W_SCAN_ALL_SUBSCRIPTION			1
+#define W_SCAN_ALL_CHANNEL		0
+#define W_SCAN_ALL_SUBSCRIPTION		1
 #define W_SCAN_SPECIFIED_SUBSCRIPTION	2
 
 /*
@@ -126,7 +121,7 @@
  *
  */
 #define TLV_L(x)		(((x) >> 16) & 0xff)
-#define TLV_T(x)			((x) & 0xff)
+#define TLV_T(x)		((x) & 0xff)
 #define TLV_COMPOSITE(x)	((x) >> 31)
 
 /* GENERAL */
@@ -141,7 +136,6 @@
 #define T_OOZ_SCAN_INTERVAL		(0x08	| (4 << 16))
 #define T_IMEI				(0x09	| (8 << 16))
 #define T_PID				(0x0a	| (12 << 16))
-
 #define T_CAPABILITY			(0x1a	| (4 << 16))
 #define T_RELEASE_NUMBER		(0x1b	| (4 << 16))
 #define T_DRIVER_REVISION		(0x1c	| (4 << 16))
@@ -150,19 +144,16 @@
 #define T_PHY_HW_REVISION		(0x1f	| (4 << 16))
 
 /* HANDOVER */
-#define T_SCAN_INTERVAL		(0x20	| (1 << 16))
-
+#define T_SCAN_INTERVAL			(0x20	| (1 << 16))
 #define T_RSC_RETAIN_TIME		(0x2f	| (2 << 16))
 
 /* SLEEP */
 #define T_TYPE1_ISW			(0x40	| (1 << 16))
-
 #define T_SLP_START_TO			(0x4a	| (2 << 16))
 
 /* IDLE */
 #define T_IDLE_MODE_TO			(0x50	| (2 << 16))
-
-#define T_IDLE_START_TO		(0x54	| (2 << 16))
+#define T_IDLE_START_TO			(0x54	| (2 << 16))
 
 /* MONITOR */
 #define T_RSSI				(0x60	| (1 << 16))
@@ -180,7 +171,7 @@
 #define T_CS_TYPE			(0xa6	| (2 << 16))
 #define T_VENDOR_NAME			(0xa7	| (0 << 16))
 #define T_MOD_NAME			(0xa8	| (0 << 16))
-#define T_PACKET_FILTER		(0xa9	| (1 << 16))
+#define T_PACKET_FILTER			(0xa9	| (1 << 16))
 #define T_NSP_CHANGE_COUNT		(0xaa	| (4 << 16))
 #define T_RADIO_STATE			(0xab	| (1 << 16))
 #define T_URI_CONTACT_TYPE		(0xac	| (1 << 16))
