@@ -2691,20 +2691,15 @@ int ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_FLOCK, 1);
 
-	if (file_lock->fl_flags & FL_FLOCK) {
+	if (file_lock->fl_flags & FL_FLOCK)
 		LASSERT((cmd == F_SETLKW) || (cmd == F_SETLK));
-		/* flocks are whole-file locks */
-		flock.l_flock.end = OFFSET_MAX;
-		/* For flocks owner is determined by the local file descriptor*/
-		flock.l_flock.owner = (unsigned long)file_lock->fl_file;
-	} else if (file_lock->fl_flags & FL_POSIX) {
-		flock.l_flock.owner = (unsigned long)file_lock->fl_owner;
-		flock.l_flock.start = file_lock->fl_start;
-		flock.l_flock.end = file_lock->fl_end;
-	} else {
+	else if (!(file_lock->fl_flags & FL_POSIX))
 		return -EINVAL;
-	}
+
+	flock.l_flock.owner = (unsigned long)file_lock->fl_owner;
 	flock.l_flock.pid = file_lock->fl_pid;
+	flock.l_flock.start = file_lock->fl_start;
+	flock.l_flock.end = file_lock->fl_end;
 
 	/* Somewhat ugly workaround for svc lockd.
 	 * lockd installs custom fl_lmops->lm_compare_owner that checks
