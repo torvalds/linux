@@ -335,6 +335,10 @@ static int init_lcdc_device_driver(struct rk_drm_screen_private *screen_priv,
 	
 	screen->screen_id = 0;
 	screen->lcdc_id = dev_drv->id;
+	screen->overscan.left = 100;
+	screen->overscan.top = 100;
+	screen->overscan.right = 100;
+	screen->overscan.bottom = 100;
 	dev_drv->screen0 = screen;
 	dev_drv->cur_screen = screen;
 	/* devie use one lcdc + rk61x scaler for dual display*/
