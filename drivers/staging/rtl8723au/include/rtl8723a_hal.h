@@ -545,5 +545,6 @@ void rtl8723a_start_thread(struct rtw_adapter *padapter);
 void rtl8723a_stop_thread(struct rtw_adapter *padapter);
 
 s32 c2h_id_filter_ccx_8723a(u8 id);
+s32 c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt);
 
 #endif

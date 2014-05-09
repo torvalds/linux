@@ -360,11 +360,3 @@ void rtw_hal_reset_security_engine23a(struct rtw_adapter *adapter)
 	if (adapter->HalFunc.hal_reset_security_engine)
 		adapter->HalFunc.hal_reset_security_engine(adapter);
 }
-
-s32 rtw_hal_c2h_handler23a(struct rtw_adapter *adapter, struct c2h_evt_hdr *c2h_evt)
-{
-	s32 ret = _FAIL;
-	if (adapter->HalFunc.c2h_handler)
-		ret = adapter->HalFunc.c2h_handler(adapter, c2h_evt);
-	return ret;
-}

@@ -1307,10 +1307,10 @@ static int c2h_evt_hdl(struct rtw_adapter *adapter, struct c2h_evt_hdr *c2h_evt)
 		if (c2h_evt_read23a(adapter, buf) == _SUCCESS) {
 			c2h_evt = (struct c2h_evt_hdr *)buf;
 
-			ret = rtw_hal_c2h_handler23a(adapter, c2h_evt);
+			ret = c2h_handler_8723a(adapter, c2h_evt);
 		}
 	} else
-		ret = rtw_hal_c2h_handler23a(adapter, c2h_evt);
+		ret = c2h_handler_8723a(adapter, c2h_evt);
 
 	return ret;
 }
@@ -1343,7 +1343,7 @@ void rtw_evt_work(struct work_struct *work)
 
 	if (c2h_id_filter_ccx_8723a(ework->u.c2h_evt.id) == true) {
 		/* Handle CCX report here */
-		rtw_hal_c2h_handler23a(adapter, &ework->u.c2h_evt);
+		c2h_handler_8723a(adapter, &ework->u.c2h_evt);
 		kfree(ework);
 	} else {
 		/*

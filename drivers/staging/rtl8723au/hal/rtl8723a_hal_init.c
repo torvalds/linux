@@ -1661,8 +1661,7 @@ s32 c2h_id_filter_ccx_8723a(u8 id)
 	return ret;
 }
 
-static s32 c2h_handler_8723a(struct rtw_adapter *padapter,
-			     struct c2h_evt_hdr *c2h_evt)
+s32 c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
 {
 	s32 ret = _SUCCESS;
 	u8 i = 0;
@@ -1764,8 +1763,6 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->SetHalODMVarHandler = &rtl8723a_SetHalODMVar;
 
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8723a;
-
-	pHalFunc->c2h_handler = c2h_handler_8723a;
 }
 
 void rtl8723a_InitAntenna_Selection(struct rtw_adapter *padapter)
