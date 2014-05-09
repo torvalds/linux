@@ -523,6 +523,11 @@
 			};
 		};
 
+		iram: sram@78000000 {
+			compatible = "mmio-sram";
+			reg = <0x78000000 0x20000>;
+		};
+
 		emi@80000000 {
 			compatible = "fsl,emi-bus", "simple-bus";
 			#address-cells = <1>;
