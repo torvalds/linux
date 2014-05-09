@@ -2839,6 +2839,10 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	
 	screen->screen_id = 0;
 	screen->lcdc_id = dev_drv->id;
+	screen->overscan.left = 100;
+	screen->overscan.top = 100;
+	screen->overscan.right = 100;
+	screen->overscan.bottom = 100;
 	dev_drv->screen0 = screen;
 	dev_drv->cur_screen = screen;
 	/* devie use one lcdc + rk61x scaler for dual display*/
@@ -2861,10 +2865,6 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	mutex_init(&dev_drv->fb_win_id_mutex);
 	dev_drv->ops->fb_win_remap(dev_drv, FB_DEFAULT_ORDER);
 	dev_drv->first_frame = 1;
-	dev_drv->overscan.left = 100;
-	dev_drv->overscan.top = 100;
-	dev_drv->overscan.right = 100;
-	dev_drv->overscan.bottom = 100;
 	rk_disp_pwr_ctr_parse_dt(dev_drv);
 	if (dev_drv->prop == PRMRY) {
 		rk_fb_set_prmry_screen(screen);

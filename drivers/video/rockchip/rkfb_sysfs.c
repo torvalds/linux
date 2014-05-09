@@ -377,11 +377,12 @@ static ssize_t show_scale(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
+	struct rk_screen *screen = dev_drv->cur_screen;
 	return snprintf(buf, PAGE_SIZE, "xscale=%d yscale=%d\nleft=%d top=%d right=%d bottom=%d\n",
-		(dev_drv->overscan.left + dev_drv->overscan.right)/2,
-		(dev_drv->overscan.top + dev_drv->overscan.bottom)/2,
-		dev_drv->overscan.left, dev_drv->overscan.top,
-		dev_drv->overscan.right, dev_drv->overscan.bottom);
+		(screen->overscan.left + screen->overscan.right)/2,
+		(screen->overscan.top + screen->overscan.bottom)/2,
+		screen->overscan.left, screen->overscan.top,
+		screen->overscan.right, screen->overscan.bottom);
 }
 
 static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
@@ -390,53 +391,54 @@ static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
+	struct rk_screen *screen = dev_drv->cur_screen;
 	u32 left, top, right, bottom;
 
 	if (!strncmp(buf, "overscan", 8)) {
 		sscanf(buf, "overscan %d,%d,%d,%d", &left, &top, &right, &bottom);
 		if (left > 0 && left <= 100)
-			dev_drv->overscan.left = left;
+			screen->overscan.left = left;
 		if (top > 0 && top <= 100)
-			dev_drv->overscan.top = top;
+			screen->overscan.top = top;
 		if (right > 0 && right <= 100)
-			dev_drv->overscan.right = right;
+			screen->overscan.right = right;
 		if (bottom > 0 && bottom <= 100)
-			dev_drv->overscan.bottom = bottom;
+			screen->overscan.bottom = bottom;
 	} else if (!strncmp(buf, "left", 4)) {
 		sscanf(buf, "left=%d", &left);
 		if (left > 0 && left <= 100)
-			dev_drv->overscan.left = left;
+			screen->overscan.left = left;
 	} else if (!strncmp(buf, "top", 3)) {
 		sscanf(buf, "top=%d", &top);
 		if (top > 0 && top <= 100)
-			dev_drv->overscan.top = top;
+			screen->overscan.top = top;
 	} else if (!strncmp(buf, "right", 5)) {
 		sscanf(buf, "right=%d", &right);
 		if (right > 0 && right <= 100)
-			dev_drv->overscan.right = right;
+			screen->overscan.right = right;
 	} else if (!strncmp(buf, "bottom", 6)) {
 		sscanf(buf, "bottom=%d", &bottom);
 		if (bottom > 0 && bottom <= 100)
-			dev_drv->overscan.bottom = bottom;
+			screen->overscan.bottom = bottom;
 	} else if (!strncmp(buf, "xscale", 6)) {
 		sscanf(buf, "xscale=%d", &left);
 		if (left > 0 && left <= 100) {
-			dev_drv->overscan.left = left;
-			dev_drv->overscan.right = left;
+			screen->overscan.left = left;
+			screen->overscan.right = left;
 		}
 	} else if (!strncmp(buf, "yscale", 6)) {
 		sscanf(buf, "yscale=%d", &left);
 		if (left > 0 && left <= 100) {
-			dev_drv->overscan.top = left;
-			dev_drv->overscan.bottom = left;
+			screen->overscan.top = left;
+			screen->overscan.bottom = left;
 		}
 	} else {
 		sscanf(buf, "%d", &left);
 		if (left > 0 && left <= 100) {
-			dev_drv->overscan.left = left;
-			dev_drv->overscan.right = left;
-			dev_drv->overscan.top = left;
-			dev_drv->overscan.bottom = left;
+			screen->overscan.left = left;
+			screen->overscan.right = left;
+			screen->overscan.top = left;
+			screen->overscan.bottom = left;
 		}
 	}
 //	printk("%d %d %d %d\n", dev_drv->overscan.left, dev_drv->overscan.top, dev_drv->overscan.right, dev_drv->overscan.bottom);

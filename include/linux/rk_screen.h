@@ -47,6 +47,12 @@ struct rk29lcd_info {
 	int (*io_disable)(void);
 };
 
+struct overscan {
+	unsigned char left;
+	unsigned char top;
+	unsigned char right;
+	unsigned char bottom;
+};
 
 /* Screen description 
 *type:LVDS,RGB,MIPI,MCU
@@ -109,6 +115,7 @@ struct rk_screen {
 	int ypos;
 	int xsize; //horizontal and vertical display size on he screen,they can be changed by application
 	int ysize;
+	struct overscan overscan;
 	struct rk_screen *ext_screen;
 	/* Operation function*/
 	int (*init)(void);

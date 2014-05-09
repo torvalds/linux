@@ -17,6 +17,10 @@ int rk_fb_set_prmry_screen(struct rk_screen *screen)
 	rk_screen->screen_id = screen->screen_id;
 	rk_screen->x_mirror = screen->x_mirror;
 	rk_screen->y_mirror = screen->y_mirror;
+	rk_screen->overscan.left = screen->overscan.left;
+	rk_screen->overscan.top = screen->overscan.left;
+	rk_screen->overscan.right = screen->overscan.left;
+	rk_screen->overscan.bottom = screen->overscan.left;
 	return 0;
 }
 
