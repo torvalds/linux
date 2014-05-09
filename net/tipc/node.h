@@ -47,20 +47,17 @@
  */
 #define INVALID_NODE_SIG 0x10000
 
-/* Flags used to block (re)establishment of contact with a neighboring node
- * TIPC_NODE_DOWN: indicate node is down and it's used to block the node's
- *                 links until RESET or ACTIVE message arrives
- * TIPC_NODE_RESET: indicate node is reset
- * TIPC_NODE_LOST: indicate node is lost and it's used to notify subscriptions
- *                 when node lock is released
- * TIPC_NODE_UP: indicate node is up and it's used to deliver local name table
- *               when node lock is released
+/* Flags used to take different actions according to flag type
+ * TIPC_WAIT_PEER_LINKS_DOWN: wait to see that peer's links are down
+ * TIPC_WAIT_OWN_LINKS_DOWN: wait until peer node is declared down
+ * TIPC_NOTIFY_NODE_DOWN: notify node is down
+ * TIPC_NOTIFY_NODE_UP: notify node is up
  */
 enum {
-	TIPC_NODE_DOWN	= (1 << 1),
-	TIPC_NODE_RESET	= (1 << 2),
-	TIPC_NODE_LOST	= (1 << 3),
-	TIPC_NODE_UP	= (1 << 4)
+	TIPC_WAIT_PEER_LINKS_DOWN	= (1 << 1),
+	TIPC_WAIT_OWN_LINKS_DOWN	= (1 << 2),
+	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
+	TIPC_NOTIFY_NODE_UP		= (1 << 4)
 };
 
 /**
@@ -96,7 +93,7 @@ struct tipc_node_bclink {
  * @hash: links to adjacent nodes in unsorted hash chain
  * @active_links: pointers to active links to node
  * @links: pointers to all links to node
- * @flags: bit mask of conditions preventing link establishment to node
+ * @action_flags: bit mask of different types of node actions
  * @bclink: broadcast-related info
  * @list: links to adjacent nodes in sorted list of cluster's nodes
  * @working_links: number of working links to node (both active and standby)
@@ -111,7 +108,7 @@ struct tipc_node {
 	struct hlist_node hash;
 	struct tipc_link *active_links[2];
 	struct tipc_link *links[MAX_BEARERS];
-	unsigned int flags;
+	unsigned int action_flags;
 	struct tipc_node_bclink bclink;
 	struct list_head list;
 	int link_cnt;
@@ -144,8 +141,8 @@ static inline void tipc_node_lock(struct tipc_node *node)
 
 static inline bool tipc_node_blocked(struct tipc_node *node)
 {
-	return (node->flags & (TIPC_NODE_DOWN | TIPC_NODE_LOST |
-		TIPC_NODE_RESET));
+	return (node->action_flags & (TIPC_WAIT_PEER_LINKS_DOWN |
+		TIPC_NOTIFY_NODE_DOWN | TIPC_WAIT_OWN_LINKS_DOWN));
 }
 
 #endif
