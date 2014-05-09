@@ -380,9 +380,9 @@ void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_l
 		else
 			limit = 8;/*   1R */
 
-		for (i = 0; i<limit; i++) {
-			if (psta_ht->ht_cap.mcs.rx_mask[i/8] & BIT(i%8))
-				tx_ra_bitmap |= CHKBIT(i+12);
+		for (i = 0; i < limit; i++) {
+			if (psta_ht->ht_cap.mcs.rx_mask[i / 8] & BIT(i % 8))
+				tx_ra_bitmap |= BIT(i + 12);
 		}
 
 		/* max short GI rate */
