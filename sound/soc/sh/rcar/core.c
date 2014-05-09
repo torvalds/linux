@@ -338,7 +338,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 /*
  *	rsnd_dai functions
  */
-#define __rsnd_mod_call(mod, func, rdai)			\
+#define __rsnd_mod_call(mod, func, rdai...)			\
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
@@ -347,12 +347,12 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 	(mod)->ops->func(mod, rdai);				\
 })
 
-#define rsnd_mod_call(mod, func, rdai)	\
+#define rsnd_mod_call(mod, func, rdai...)	\
 	(!(mod) ? -ENODEV :			\
 	 !((mod)->ops->func) ? 0 :		\
-	 __rsnd_mod_call(mod, func, (rdai)))
+	 __rsnd_mod_call(mod, func, rdai))
 
-#define rsnd_dai_call(rdai, io, fn)				\
+#define rsnd_dai_call(fn, io, rdai...)				\
 ({								\
 	struct rsnd_mod *mod;					\
 	int ret = 0, i;						\
@@ -360,7 +360,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 		mod = (io)->mod[i];				\
 		if (!mod)					\
 			continue;				\
-		ret = rsnd_mod_call(mod, fn, (rdai));		\
+		ret = rsnd_mod_call(mod, fn, rdai);		\
 		if (ret < 0)					\
 			break;					\
 	}							\
@@ -510,20 +510,20 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(rdai, io, init);
+		ret = rsnd_dai_call(init, io, rdai);
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(rdai, io, start);
+		ret = rsnd_dai_call(start, io, rdai);
 		if (ret < 0)
 			goto dai_trigger_end;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		ret = rsnd_dai_call(rdai, io, stop);
+		ret = rsnd_dai_call(stop, io, rdai);
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(rdai, io, quit);
+		ret = rsnd_dai_call(quit, io, rdai);
 		if (ret < 0)
 			goto dai_trigger_end;
 
@@ -951,11 +951,11 @@ static int rsnd_probe(struct platform_device *pdev)
 	}
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		ret = rsnd_dai_call(rdai, &rdai->playback, probe);
+		ret = rsnd_dai_call(probe, &rdai->playback, rdai);
 		if (ret)
 			return ret;
 
-		ret = rsnd_dai_call(rdai, &rdai->capture, probe);
+		ret = rsnd_dai_call(probe, &rdai->capture, rdai);
 		if (ret)
 			return ret;
 	}
@@ -998,11 +998,11 @@ static int rsnd_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		ret = rsnd_dai_call(rdai, &rdai->playback, remove);
+		ret = rsnd_dai_call(remove, &rdai->playback, rdai);
 		if (ret)
 			return ret;
 
-		ret = rsnd_dai_call(rdai, &rdai->capture, remove);
+		ret = rsnd_dai_call(remove, &rdai->capture, rdai);
 		if (ret)
 			return ret;
 	}
