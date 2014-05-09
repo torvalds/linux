@@ -47,12 +47,6 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 	int i;
 	int res = _SUCCESS;
 
-
-
-	/*  We don't need to memset padapter->XXX to zero, because
-	    adapter is allocated by rtw_zvmalloc(). */
-	/* memset((unsigned char *)precvpriv, 0, sizeof (struct  recv_priv)); */
-
 	spin_lock_init(&precvpriv->lock);
 
 	_rtw_init_queue23a(&precvpriv->free_recv_queue);
@@ -61,19 +55,11 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 
 	precvpriv->adapter = padapter;
 
-	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
-
-	precvpriv->pallocated_frame_buf =
-		rtw_zvmalloc(NR_RECVFRAME * sizeof(struct recv_frame));
-
-	if (precvpriv->pallocated_frame_buf == NULL) {
-		res = _FAIL;
-		goto exit;
-	}
-
-	precvframe = precvpriv->pallocated_frame_buf;
-
 	for (i = 0; i < NR_RECVFRAME ; i++) {
+		precvframe = (struct recv_frame *)
+			kzalloc(sizeof(struct recv_frame), GFP_KERNEL);
+		if (!precvframe)
+			break;
 		INIT_LIST_HEAD(&precvframe->list);
 
 		list_add_tail(&precvframe->list,
@@ -83,6 +69,7 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 		precvframe++;
 	}
 
+	precvpriv->free_recvframe_cnt = i;
 	precvpriv->rx_pending_cnt = 1;
 
 	sema_init(&precvpriv->allrxreturnevt, 0);
@@ -96,29 +83,24 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 
 	rtw_set_signal_stat_timer(precvpriv);
 
-exit:
-
-
-
 	return res;
 }
 
 void _rtw_free_recv_priv23a (struct recv_priv *precvpriv)
 {
 	struct rtw_adapter *padapter = precvpriv->adapter;
-
-
+	struct recv_frame *precvframe;
+	struct list_head *plist, *ptmp;
 
 	rtw_free_uc_swdec_pending_queue23a(padapter);
 
-	if (precvpriv->pallocated_frame_buf) {
-		rtw_vmfree(precvpriv->pallocated_frame_buf,
-			   NR_RECVFRAME * sizeof(struct recv_frame));
+	list_for_each_safe(plist, ptmp, &precvpriv->free_recv_queue.queue) {
+		precvframe = container_of(plist, struct recv_frame, list);
+		list_del_init(&precvframe->list);
+		kfree(precvframe);
 	}
 
 	rtw_hal_free_recv_priv23a(padapter);
-
-
 }
 
 struct recv_frame *rtw_alloc_recvframe23a(struct rtw_queue *pfree_recv_queue)

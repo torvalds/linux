@@ -171,9 +171,7 @@ struct recv_priv {
 	struct rtw_queue	recv_pending_queue;
 	struct rtw_queue	uc_swdec_pending_queue;
 
-	void *pallocated_frame_buf;
-
-	uint free_recvframe_cnt;
+	int free_recvframe_cnt;
 
 	struct rtw_adapter	*adapter;
 
