@@ -556,38 +556,6 @@ enum odm_cca_path {
 	ODM_CCA_1R_B			= 2,
 };
 
-struct odm_ra_info {
-	u8 RateID;
-	u32 RateMask;
-	u32 RAUseRate;
-	u8 RateSGI;
-	u8 RssiStaRA;
-	u8 PreRssiStaRA;
-	u8 SGIEnable;
-	u8 DecisionRate;
-	u8 PreRate;
-	u8 HighestRate;
-	u8 LowestRate;
-	u32 NscUp;
-	u32 NscDown;
-	u16 RTY[5];
-	u32 TOTAL;
-	u16 DROP;
-	u8 Active;
-	u16 RptTime;
-	u8 RAWaitingCounter;
-	u8 RAPendingCounter;
-	u8 PTActive;  /*  on or off */
-	u8 PTTryState;  /*  0 trying state, 1 for decision state */
-	u8 PTStage;  /*  0~6 */
-	u8 PTStopCount; /* Stop PT counter */
-	u8 PTPreRate;  /*  if rate change do PT */
-	u8 PTPreRssi; /*  if RSSI change 5% do PT */
-	u8 PTModeSS;  /*  decide whitch rate should do PT */
-	u8 RAstage;  /*  StageRA, decide how many times RA will be done between PT */
-	u8 PTSmoothFactor;
-};
-
 struct iqk_matrix_regs_set {
 	bool	bIQKDone;
 	s32	Value[1][IQK_Matrix_REG_NUM];
