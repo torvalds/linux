@@ -256,8 +256,6 @@ static void au0828_stop_transport(struct au0828_dev *dev, int full_stop)
 	au0828_write(dev, 0x60b, 0x00);
 }
 
-
-
 static int au0828_dvb_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
@@ -300,6 +298,8 @@ static int au0828_dvb_stop_feed(struct dvb_demux_feed *feed)
 	dprintk(1, "%s()\n", __func__);
 
 	if (dvb) {
+		cancel_work_sync(&dev->restart_streaming);
+
 		mutex_lock(&dvb->lock);
 		dvb->stop_count++;
 		dprintk(1, "%s(), start_count: %d, stop_count: %d\n", __func__,
@@ -340,6 +340,41 @@ static void au0828_restart_dvb_streaming(struct work_struct *work)
 	start_urb_transfer(dev);
 
 	mutex_unlock(&dvb->lock);
+}
+
+static int au0828_set_frontend(struct dvb_frontend *fe)
+{
+	struct au0828_dev *dev = fe->dvb->priv;
+	struct au0828_dvb *dvb = &dev->dvb;
+	int ret, was_streaming;
+
+	mutex_lock(&dvb->lock);
+	was_streaming = dev->urb_streaming;
+	if (was_streaming) {
+		au0828_stop_transport(dev, 1);
+
+		/*
+		 * We can't hold a mutex here, as the restart_streaming
+		 * kthread may also hold it.
+		 */
+		mutex_unlock(&dvb->lock);
+		cancel_work_sync(&dev->restart_streaming);
+		mutex_lock(&dvb->lock);
+
+		stop_urb_transfer(dev);
+	}
+	mutex_unlock(&dvb->lock);
+
+	ret = dvb->set_frontend(fe);
+
+	if (was_streaming) {
+		mutex_lock(&dvb->lock);
+		au0828_start_transport(dev);
+		start_urb_transfer(dev);
+		mutex_unlock(&dvb->lock);
+	}
+
+	return ret;
 }
 
 static int dvb_register(struct au0828_dev *dev)
@@ -385,6 +420,10 @@ static int dvb_register(struct au0828_dev *dev)
 		       "(errno = %d)\n", DRIVER_NAME, result);
 		goto fail_frontend;
 	}
+
+	/* Hook dvb frontend */
+	dvb->set_frontend = dvb->frontend->ops.set_frontend;
+	dvb->frontend->ops.set_frontend = au0828_set_frontend;
 
 	/* register demux stuff */
 	dvb->demux.dmx.capabilities =
