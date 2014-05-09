@@ -455,7 +455,7 @@ struct be_adapter {
 	struct be_drv_stats drv_stats;
 	struct be_aic_obj aic_obj[MAX_EVT_QS];
 	u16 vlans_added;
-	u8 vlan_tag[VLAN_N_VID];
+	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
 	u16 recommended_prio;	/* Recommended Priority */
 	struct be_dma_mem rx_filter; /* Cmd DMA mem for rx-filter */
