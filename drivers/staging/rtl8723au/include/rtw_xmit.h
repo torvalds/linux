@@ -377,7 +377,7 @@ s32 rtw_txframes_pending23a(struct rtw_adapter *padapter);
 s32 rtw_txframes_sta_ac_pending23a(struct rtw_adapter *padapter,
 				struct pkt_attrib *pattrib);
 void rtw_init_hwxmits23a(struct hw_xmit *phwxmit, int entry);
-s32 _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
+int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 			struct rtw_adapter *padapter);
 void _rtw_free_xmit_priv23a(struct xmit_priv *pxmitpriv);
 void rtw_alloc_hwxmits23a(struct rtw_adapter *padapter);

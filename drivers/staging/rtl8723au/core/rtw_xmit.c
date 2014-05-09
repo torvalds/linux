@@ -50,26 +50,20 @@ void	_rtw_init_sta_xmit_priv23a(struct sta_xmit_priv *psta_xmitpriv)
 
 }
 
-s32	_rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv, struct rtw_adapter *padapter)
+int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
+			   struct rtw_adapter *padapter)
 {
 	int i;
 	struct xmit_buf *pxmitbuf;
 	struct xmit_frame *pxframe;
-	int	res = _SUCCESS;
+	int res = _SUCCESS;
 	u32 max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
 	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
-
-	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by rtw_zvmalloc(). */
-	/* memset((unsigned char *)pxmitpriv, 0, sizeof(struct xmit_priv)); */
 
 	spin_lock_init(&pxmitpriv->lock);
 	spin_lock_init(&pxmitpriv->lock_sctx);
 	sema_init(&pxmitpriv->xmit_sema, 0);
 	sema_init(&pxmitpriv->terminate_xmitthread_sema, 0);
-
-	/*
-	Please insert all the queue initializaiton using _rtw_init_queue23a below
-	*/
 
 	pxmitpriv->adapter = padapter;
 
