@@ -988,16 +988,8 @@ int igmp_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct igmphdr)))
 		goto drop;
 
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (!csum_fold(skb->csum))
-			break;
-		/* fall through */
-	case CHECKSUM_NONE:
-		skb->csum = 0;
-		if (__skb_checksum_complete(skb))
-			goto drop;
-	}
+	if (skb_checksum_simple_validate(skb))
+		goto drop;
 
 	ih = igmp_hdr(skb);
 	switch (ih->type) {

@@ -495,52 +495,6 @@ out:
 	spin_unlock_bh(&session->reorder_q.lock);
 }
 
-static inline int l2tp_verify_udp_checksum(struct sock *sk,
-					   struct sk_buff *skb)
-{
-	struct udphdr *uh = udp_hdr(skb);
-	u16 ulen = ntohs(uh->len);
-	__wsum psum;
-
-	if (sk->sk_no_check || skb_csum_unnecessary(skb))
-		return 0;
-
-#if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == PF_INET6 && !l2tp_tunnel(sk)->v4mapped) {
-		if (!uh->check) {
-			LIMIT_NETDEBUG(KERN_INFO "L2TP: IPv6: checksum is 0\n");
-			return 1;
-		}
-		if ((skb->ip_summed == CHECKSUM_COMPLETE) &&
-		    !csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-				     &ipv6_hdr(skb)->daddr, ulen,
-				     IPPROTO_UDP, skb->csum)) {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			return 0;
-		}
-		skb->csum = ~csum_unfold(csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-							 &ipv6_hdr(skb)->daddr,
-							 skb->len, IPPROTO_UDP,
-							 0));
-	} else
-#endif
-	{
-		struct inet_sock *inet;
-		if (!uh->check)
-			return 0;
-		inet = inet_sk(sk);
-		psum = csum_tcpudp_nofold(inet->inet_saddr, inet->inet_daddr,
-					  ulen, IPPROTO_UDP, 0);
-
-		if ((skb->ip_summed == CHECKSUM_COMPLETE) &&
-		    !csum_fold(csum_add(psum, skb->csum)))
-			return 0;
-		skb->csum = psum;
-	}
-
-	return __skb_checksum_complete(skb);
-}
-
 static int l2tp_seq_check_rx_window(struct l2tp_session *session, u32 nr)
 {
 	u32 nws;
@@ -895,8 +849,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 	u16 version;
 	int length;
 
-	if (tunnel->sock && l2tp_verify_udp_checksum(tunnel->sock, skb))
-		goto discard_bad_csum;
+	/* UDP has verifed checksum */
 
 	/* UDP always verifies the packet length. */
 	__skb_pull(skb, sizeof(struct udphdr));
@@ -976,14 +929,6 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 	}
 
 	l2tp_recv_common(session, skb, ptr, optr, hdrflags, length, payload_hook);
-
-	return 0;
-
-discard_bad_csum:
-	LIMIT_NETDEBUG("%s: UDP: bad checksum\n", tunnel->name);
-	UDP_INC_STATS_USER(tunnel->l2tp_net, UDP_MIB_INERRORS, 0);
-	atomic_long_inc(&tunnel->stats.rx_errors);
-	kfree_skb(skb);
 
 	return 0;
 

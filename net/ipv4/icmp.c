@@ -908,16 +908,8 @@ int icmp_rcv(struct sk_buff *skb)
 
 	ICMP_INC_STATS_BH(net, ICMP_MIB_INMSGS);
 
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (!csum_fold(skb->csum))
-			break;
-		/* fall through */
-	case CHECKSUM_NONE:
-		skb->csum = 0;
-		if (__skb_checksum_complete(skb))
-			goto csum_error;
-	}
+	if (skb_checksum_simple_validate(skb))
+		goto csum_error;
 
 	if (!pskb_pull(skb, sizeof(*icmph)))
 		goto error;

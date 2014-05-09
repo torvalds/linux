@@ -468,17 +468,7 @@ static int ip6gre_rcv(struct sk_buff *skb)
 			goto drop;
 
 		if (flags&GRE_CSUM) {
-			switch (skb->ip_summed) {
-			case CHECKSUM_COMPLETE:
-				csum = csum_fold(skb->csum);
-				if (!csum)
-					break;
-				/* fall through */
-			case CHECKSUM_NONE:
-				skb->csum = 0;
-				csum = __skb_checksum_complete(skb);
-				skb->ip_summed = CHECKSUM_COMPLETE;
-			}
+			csum = skb_checksum_simple_validate(skb);
 			offset += 4;
 		}
 		if (flags&GRE_KEY) {
