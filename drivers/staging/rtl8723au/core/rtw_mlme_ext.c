@@ -98,6 +98,7 @@ unsigned char	WMM_PARA_OUI23A[] = {0x00, 0x50, 0xf2, 0x02, 0x01, 0x01};
 unsigned char WPA_TKIP_CIPHER23A[4] = {0x00, 0x50, 0xf2, 0x02};
 unsigned char RSN_TKIP_CIPHER23A[4] = {0x00, 0x0f, 0xac, 0x02};
 
+static unsigned char REALTEK_96B_IE[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
 
 /********************************************************
 MCS rate definitions
@@ -3254,7 +3255,7 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK) {
 		pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, 6,
-				       REALTEK_96B_IE23A, &pattrib->pktlen);
+				       REALTEK_96B_IE, &pattrib->pktlen);
 	}
 
 	/* add WPS IE ie for wps 2.0 */
@@ -3518,7 +3519,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK)
 		pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, 6,
-				       REALTEK_96B_IE23A, &pattrib->pktlen);
+				       REALTEK_96B_IE, &pattrib->pktlen);
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 	dump_mgntframe23a(padapter, pmgntframe);

@@ -32,8 +32,6 @@ static unsigned char REALTEK_OUI[] = {0x00, 0xe0, 0x4c};
 static unsigned char AIRGOCAP_OUI[] = {0x00, 0x0a, 0xf5};
 static unsigned char EPIGRAM_OUI[] = {0x00, 0x90, 0x4c};
 
-unsigned char REALTEK_96B_IE23A[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
-
 #define R2T_PHY_DELAY		0
 
 /* define WAIT_FOR_BCN_TO_MIN	3000 */
