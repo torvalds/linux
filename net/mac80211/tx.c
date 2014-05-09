@@ -2449,7 +2449,8 @@ static void ieee80211_update_csa(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(beacon_data[counter_offset_beacon] == 1))
 		return;
 
-	beacon_data[counter_offset_beacon]--;
+	sdata->csa_current_counter--;
+	beacon_data[counter_offset_beacon] = sdata->csa_current_counter;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP && counter_offset_presp) {
 		rcu_read_lock();
@@ -2460,7 +2461,7 @@ static void ieee80211_update_csa(struct ieee80211_sub_if_data *sdata,
 			rcu_read_unlock();
 			return;
 		}
-		resp->data[counter_offset_presp]--;
+		resp->data[counter_offset_presp] = sdata->csa_current_counter;
 		rcu_read_unlock();
 	}
 }
