@@ -117,8 +117,6 @@ enum WIFI_REG_DOMAIN {
 		*(__le16 *)(pbuf) |= cpu_to_le16(type); \
 	} while (0)
 
-#define GetTupleCache(pbuf)	(cpu_to_le16(*(unsigned short *)((unsigned long)(pbuf) + 22)))
-
 #define SetFragNum(pbuf, num) \
 	do {    \
 		*(unsigned short *)((unsigned long)(pbuf) + 22) = \
@@ -149,27 +147,6 @@ enum WIFI_REG_DOMAIN {
 #define SetAMsdu(pbuf, amsdu)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16((amsdu & 1) << 7))
 
-#define GetTid(pbuf)							\
-	(cpu_to_le16(*(unsigned short *)((unsigned long)(pbuf) +	\
-	 (((ieee80211_has_tods(pbuf)<<1) |				\
-	 ieee80211_has_fromds(pbuf)) == 3 ? 30 : 24))) & 0x000f)
-
-/*-----------------------------------------------------------------------------
-			Below is for the security related definition
-------------------------------------------------------------------------------*/
-#define _RESERVED_FRAME_TYPE_		0
-#define _SKB_FRAME_TYPE_		2
-#define _PRE_ALLOCMEM_			1
-#define _PRE_ALLOCHDR_			3
-#define _PRE_ALLOCLLCHDR_		4
-#define _PRE_ALLOCICVHDR_		5
-#define _PRE_ALLOCMICHDR_		6
-
-#define _SIFSTIME_					\
-	((priv->pmib->dot11BssType.net_work_type & WIRELESS_11A) ? 16 : 10)
-#define _ACKCTSLNG_			14	/* 14 bytes long, including crclng */
-#define _CRCLNG_			4
-
 #define _ASOCREQ_IE_OFFSET_		4	/*  excluding wlan_hdr */
 #define	_ASOCRSP_IE_OFFSET_		6
 #define _REASOCREQ_IE_OFFSET_		10
@@ -199,13 +176,6 @@ enum WIFI_REG_DOMAIN {
 #define _STATUS_CODE_		2
 #define _TIMESTAMP_		8
 
-#define AUTH_ODD_TO		0
-#define AUTH_EVEN_TO		1
-
-#define WLAN_ETHCONV_ENCAP	1
-#define WLAN_ETHCONV_RFC1042	2
-#define WLAN_ETHCONV_8021h	3
-
 #define cap_ESS		BIT(0)
 #define cap_IBSS	BIT(1)
 #define cap_CFPollable	BIT(2)
@@ -219,22 +189,6 @@ enum WIFI_REG_DOMAIN {
 #define cap_ShortSlot	BIT(10)
 
 /*-----------------------------------------------------------------------------
-				Below is the definition for 802.11i / 802.1x
-------------------------------------------------------------------------------*/
-#define _IEEE8021X_MGT_			1	/*  WPA */
-#define _IEEE8021X_PSK_			2	/*  WPA with pre-shared key */
-
-/*
-#define _NO_PRIVACY_			0
-#define _WEP_40_PRIVACY_		1
-#define _TKIP_PRIVACY_			2
-#define _WRAP_PRIVACY_			3
-#define _CCMP_PRIVACY_			4
-#define _WEP_104_PRIVACY_		5
-#define _WEP_WPA_MIXED_PRIVACY_ 6	WEP + WPA
-*/
-
-/*-----------------------------------------------------------------------------
 				Below is the definition for WMM
 ------------------------------------------------------------------------------*/
 #define _WMM_IE_Length_				7  /*  for WMM STA */
@@ -244,13 +198,6 @@ enum WIFI_REG_DOMAIN {
 /*-----------------------------------------------------------------------------
 				Below is the definition for 802.11n
 ------------------------------------------------------------------------------*/
-
-#define SetOrderBit(pbuf)						\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(_ORDER_))
-
-#define GetOrderBit(pbuf)		\
-	(((*(unsigned short *)(pbuf)) & le16_to_cpu(_ORDER_)) != 0)
-
 
 /* struct rtw_ieee80211_ht_cap - HT additional information
  *
