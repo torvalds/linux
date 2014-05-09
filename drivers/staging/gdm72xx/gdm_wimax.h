@@ -23,10 +23,6 @@
 
 #define DRIVER_VERSION		"3.2.3"
 
-/*#define ETH_P_IP	0x0800 */
-/*#define ETH_P_ARP	0x0806 */
-/*#define ETH_P_IPV6	0x86DD */
-
 #define H2L(x)		__cpu_to_le16(x)
 #define L2H(x)		__le16_to_cpu(x)
 #define DH2L(x)		__cpu_to_le32(x)
@@ -61,8 +57,6 @@ struct nic {
 #endif
 
 };
-
-/*#define LOOPBACK_TEST */
 
 int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);
 int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev);

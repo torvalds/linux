@@ -862,10 +862,6 @@ static void prepare_rx_complete(void *arg, void *data, int len)
 			netdev_err(nic->netdev,
 				   "get_prepared_info failed(%d)\n", ret);
 		gdm_wimax_rcv_with_cb(nic, prepare_rx_complete, nic);
-		#if 0
-		/* Re-prepare WiMax device */
-		gdm_wimax_prepare_device(nic->netdev);
-		#endif
 	}
 }
 

@@ -169,14 +169,7 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 	memcpy(&hdr, firm->data, sizeof(hdr));
 
 	array_le32_to_cpu((u32 *)&hdr, 19);
-#if 0
-	if (hdr.magic_code != 0x10767fff) {
-		dev_err(&usbdev->dev, "Invalid magic code 0x%08x\n",
-			hdr.magic_code);
-		ret = -EINVAL;
-		goto out;
-	}
-#endif
+
 	if (hdr.count > MAX_IMG_CNT) {
 		dev_err(&usbdev->dev, "Too many images. %d\n", hdr.count);
 		ret = -EINVAL;
@@ -201,14 +194,6 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 		memcpy(&fw_info, firm->data + pos, sizeof(fw_info));
 
 		array_le32_to_cpu((u32 *)&fw_info, 8);
-#if 0
-		if ((fw_info.id & 0xfffff000) != 0x10767000) {
-			dev_err(&usbdev->dev, "Invalid FW id. 0x%08x\n",
-				fw_info.id);
-			ret = -EIO;
-			goto out;
-		}
-#endif
 
 		if ((fw_info.id & 0xffff) != pid)
 			continue;
