@@ -1423,12 +1423,12 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 	int err, total = 0, retries = 5;
 	u8 *dest = out;
 
+	if (!out || !num_bytes || max > TPM_MAX_RNG_DATA)
+		return -EINVAL;
+
 	chip = tpm_chip_find_get(chip_num);
 	if (chip == NULL)
 		return -ENODEV;
-
-	if (!out || !num_bytes || max > TPM_MAX_RNG_DATA)
-		return -EINVAL;
 
 	do {
 		tpm_cmd.header.in = tpm_getrandom_header;
@@ -1448,6 +1448,7 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 		num_bytes -= recd;
 	} while (retries-- && total < max);
 
+	tpm_chip_put(chip);
 	return total ? total : -EIO;
 }
 EXPORT_SYMBOL_GPL(tpm_get_random);
