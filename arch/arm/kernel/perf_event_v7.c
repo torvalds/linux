@@ -1599,6 +1599,13 @@ static int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
+static int armv7_a17_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	armv7_a12_pmu_init(cpu_pmu);
+	cpu_pmu->name = "ARMv7 Cortex-A17";
+	return 0;
+}
+
 /*
  * Krait Performance Monitor Region Event Selection Register (PMRESRn)
  *
@@ -2017,6 +2024,11 @@ static inline int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 }
 
 static inline int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	return -ENODEV;
+}
+
+static inline int armv7_a17_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	return -ENODEV;
 }
