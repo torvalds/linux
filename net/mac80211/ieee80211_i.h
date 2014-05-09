@@ -70,8 +70,6 @@ struct ieee80211_local;
 
 #define IEEE80211_DEAUTH_FRAME_LEN	(24 /* hdr */ + 2 /* reason */)
 
-#define IEEE80211_MAX_CSA_COUNTERS_NUM 2
-
 struct ieee80211_fragment_entry {
 	unsigned long first_frag_time;
 	unsigned int seq;

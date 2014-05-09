@@ -2416,13 +2416,14 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-static void ieee80211_update_csa(struct ieee80211_sub_if_data *sdata,
-				 struct beacon_data *beacon)
+static void ieee80211_set_csa(struct ieee80211_sub_if_data *sdata,
+			      struct beacon_data *beacon)
 {
 	struct probe_resp *resp;
 	u8 *beacon_data;
 	size_t beacon_data_len;
 	int i;
+	u8 count = sdata->csa_current_counter;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
@@ -2450,16 +2451,7 @@ static void ieee80211_update_csa(struct ieee80211_sub_if_data *sdata,
 			if (WARN_ON(counter_offset_beacon >= beacon_data_len))
 				return;
 
-			/* Warn if the driver did not check for/react to csa
-			 * completeness.  A beacon with CSA counter set to 0
-			 * should never occur, because a counter of 1 means
-			 * switch just before the next beacon.
-			 */
-			if (WARN_ON(beacon_data[counter_offset_beacon] == 1))
-				return;
-
-			beacon_data[counter_offset_beacon] =
-				sdata->csa_current_counter - 1;
+			beacon_data[counter_offset_beacon] = count;
 		}
 
 		if (sdata->vif.type == NL80211_IFTYPE_AP &&
@@ -2474,14 +2466,24 @@ static void ieee80211_update_csa(struct ieee80211_sub_if_data *sdata,
 				rcu_read_unlock();
 				return;
 			}
-			resp->data[counter_offset_presp] =
-				sdata->csa_current_counter - 1;
+			resp->data[counter_offset_presp] = count;
 			rcu_read_unlock();
 		}
 	}
+}
+
+u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
 	sdata->csa_current_counter--;
+
+	/* the counter should never reach 0 */
+	WARN_ON(!sdata->csa_current_counter);
+
+	return sdata->csa_current_counter;
 }
+EXPORT_SYMBOL(ieee80211_csa_update_counter);
 
 bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 {
@@ -2552,6 +2554,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	enum ieee80211_band band;
 	struct ieee80211_tx_rate_control txrc;
 	struct ieee80211_chanctx_conf *chanctx_conf;
+	int csa_off_base = 0;
 
 	rcu_read_lock();
 
@@ -2569,8 +2572,12 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		struct beacon_data *beacon = rcu_dereference(ap->beacon);
 
 		if (beacon) {
-			if (sdata->vif.csa_active)
-				ieee80211_update_csa(sdata, beacon);
+			if (sdata->vif.csa_active) {
+				if (!is_template)
+					ieee80211_csa_update_counter(vif);
+
+				ieee80211_set_csa(sdata, beacon);
+			}
 
 			/*
 			 * headroom, head length,
@@ -2593,6 +2600,9 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 			if (offs) {
 				offs->tim_offset = beacon->head_len;
 				offs->tim_length = skb->len - beacon->head_len;
+
+				/* for AP the csa offsets are from tail */
+				csa_off_base = skb->len;
 			}
 
 			if (beacon->tail)
@@ -2608,9 +2618,12 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!presp)
 			goto out;
 
-		if (sdata->vif.csa_active)
-			ieee80211_update_csa(sdata, presp);
+		if (sdata->vif.csa_active) {
+			if (!is_template)
+				ieee80211_csa_update_counter(vif);
 
+			ieee80211_set_csa(sdata, presp);
+		}
 
 		skb = dev_alloc_skb(local->tx_headroom + presp->head_len +
 				    local->hw.extra_beacon_tailroom);
@@ -2630,8 +2643,17 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!bcn)
 			goto out;
 
-		if (sdata->vif.csa_active)
-			ieee80211_update_csa(sdata, bcn);
+		if (sdata->vif.csa_active) {
+			if (!is_template)
+				/* TODO: For mesh csa_counter is in TU, so
+				 * decrementing it by one isn't correct, but
+				 * for now we leave it consistent with overall
+				 * mac80211's behavior.
+				 */
+				ieee80211_csa_update_counter(vif);
+
+			ieee80211_set_csa(sdata, bcn);
+		}
 
 		if (ifmsh->sync_ops)
 			ifmsh->sync_ops->adjust_tbtt(sdata, bcn);
@@ -2656,6 +2678,20 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	} else {
 		WARN_ON(1);
 		goto out;
+	}
+
+	/* CSA offsets */
+	if (offs) {
+		int i;
+
+		for (i = 0; i < IEEE80211_MAX_CSA_COUNTERS_NUM; i++) {
+			u16 csa_off = sdata->csa_counter_offset_beacon[i];
+
+			if (!csa_off)
+				continue;
+
+			offs->csa_counter_offs[i] = csa_off_base + csa_off;
+		}
 	}
 
 	band = chanctx_conf->def.chan->band;

@@ -3502,10 +3502,10 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
 	    params->n_csa_offsets) {
 		int i;
+		u8 c = sdata->csa_current_counter;
 
 		for (i = 0; i < params->n_csa_offsets; i++)
-			data[params->csa_offsets[i]] =
-					sdata->csa_current_counter;
+			data[params->csa_offsets[i]] = c;
 	}
 
 	IEEE80211_SKB_CB(skb)->flags = flags;
