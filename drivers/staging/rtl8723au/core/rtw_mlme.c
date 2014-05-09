@@ -26,8 +26,6 @@
 #include <wlan_bssdef.h>
 #include <rtw_ioctl_set.h>
 
-extern u8 rtw_do_join23a(struct rtw_adapter * padapter);
-
 static void rtw_init_mlme_timer(struct rtw_adapter *padapter)
 {
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
