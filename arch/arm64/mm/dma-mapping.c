@@ -34,9 +34,9 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flags,
 				  struct dma_attrs *attrs)
 {
-	if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
+	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
-		flags |= GFP_DMA32;
+		flags |= GFP_DMA;
 	if (IS_ENABLED(CONFIG_DMA_CMA)) {
 		struct page *page;
 
