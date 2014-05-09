@@ -167,6 +167,10 @@ static const struct of_device_id cpsw_phy_sel_id_table[] = {
 		.compatible	= "ti,dra7xx-cpsw-phy-sel",
 		.data		= &cpsw_gmii_sel_dra7xx,
 	},
+	{
+		.compatible	= "ti,am43xx-cpsw-phy-sel",
+		.data		= &cpsw_gmii_sel_am3352,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, cpsw_phy_sel_id_table);
