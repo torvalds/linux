@@ -1465,7 +1465,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	 * just complicate the code.
 	 */
 	flush_cache_louis();
-	dsb();
+	dsb(ishst);
 	isb();
 
 	/* remap level 1 table */
