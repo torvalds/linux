@@ -72,9 +72,6 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3)) );
 }
 
-#ifndef BIT
-#define BIT(x)	( 1 << (x))
-#endif
 static inline u32 CHKBIT(u32 x)
 {
 	WARN_ON(x >= 32);
