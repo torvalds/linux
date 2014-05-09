@@ -310,13 +310,9 @@ struct sta_info {
 
 #define STA_PKTS_FMT "(m:%llu, c:%llu, d:%llu)"
 
-struct	sta_priv {
-	u8 *pallocated_stainfo_buf;
-	u8 *pstainfo_buf;
-	struct rtw_queue	free_sta_queue;
-
+struct sta_priv {
 	spinlock_t sta_hash_lock;
-	struct list_head   sta_hash[NUM_STA];
+	struct list_head sta_hash[NUM_STA];
 	int asoc_sta_count;
 	struct rtw_queue sleep_q;
 	struct rtw_queue wakeup_q;

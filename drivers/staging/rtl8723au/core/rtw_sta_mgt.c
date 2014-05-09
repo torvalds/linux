@@ -50,29 +50,15 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 
 u32 _rtw_init_sta_priv23a(struct sta_priv *pstapriv)
 {
-	struct sta_info *psta;
-	s32 i;
+	int i;
 
-	pstapriv->pallocated_stainfo_buf = rtw_zvmalloc(sizeof(struct sta_info) * NUM_STA+ 4);
-
-	if (!pstapriv->pallocated_stainfo_buf)
-		return _FAIL;
-
-	pstapriv->pstainfo_buf = pstapriv->pallocated_stainfo_buf + 4 -
-		((unsigned long)(pstapriv->pallocated_stainfo_buf) & 3);
-	_rtw_init_queue23a(&pstapriv->free_sta_queue);
 	spin_lock_init(&pstapriv->sta_hash_lock);
 	pstapriv->asoc_sta_count = 0;
 	_rtw_init_queue23a(&pstapriv->sleep_q);
 	_rtw_init_queue23a(&pstapriv->wakeup_q);
-	psta = (struct sta_info *)(pstapriv->pstainfo_buf);
-
-	for (i = 0; i < NUM_STA; i++) {
-		_rtw_init_stainfo(psta);
+	for (i = 0; i < NUM_STA; i++)
 		INIT_LIST_HEAD(&pstapriv->sta_hash[i]);
-		list_add_tail(&psta->list, get_list_head(&pstapriv->free_sta_queue));
-		psta++;
-	}
+
 #ifdef CONFIG_8723AU_AP_MODE
 	pstapriv->sta_dz_bitmap = 0;
 	pstapriv->tim_bitmap = 0;
@@ -90,27 +76,6 @@ u32 _rtw_init_sta_priv23a(struct sta_priv *pstapriv)
 	pstapriv->max_num_sta = NUM_STA;
 #endif
 	return _SUCCESS;
-}
-
-/*  this function is used to free the memory of lock || sema for all stainfos */
-static void rtw_mfree_all_stainfo(struct sta_priv *pstapriv)
-{
-	struct list_head *plist, *phead;
-	struct sta_info *psta;
-
-	spin_lock_bh(&pstapriv->sta_hash_lock);
-
-	phead = get_list_head(&pstapriv->free_sta_queue);
-
-	/* we really achieve a lot in this loop .... */
-	list_for_each(plist, phead)
-		psta = container_of(plist, struct sta_info, list);
-	spin_unlock_bh(&pstapriv->sta_hash_lock);
-}
-
-static void rtw_mfree_sta_priv_lock(struct sta_priv *pstapriv)
-{
-	rtw_mfree_all_stainfo(pstapriv); /* be done before free sta_hash_lock */
 }
 
 u32	_rtw_free_sta_priv23a(struct	sta_priv *pstapriv)
@@ -138,11 +103,6 @@ u32	_rtw_free_sta_priv23a(struct	sta_priv *pstapriv)
 		}
 		spin_unlock_bh(&pstapriv->sta_hash_lock);
 		/*===============================*/
-
-		rtw_mfree_sta_priv_lock(pstapriv);
-
-		if (pstapriv->pallocated_stainfo_buf)
-			rtw_vmfree(pstapriv->pallocated_stainfo_buf, sizeof(struct sta_info)*NUM_STA+4);
 	}
 	return _SUCCESS;
 }
@@ -151,23 +111,16 @@ struct	sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr)
 {
 	struct list_head	*phash_list;
 	struct sta_info	*psta;
-	struct rtw_queue *pfree_sta_queue;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	s32	index;
 	int i = 0;
 	u16  wRxSeqInitialValue = 0xffff;
 
-	pfree_sta_queue = &pstapriv->free_sta_queue;
+	psta = (struct sta_info *)kmalloc(sizeof(struct sta_info), GFP_ATOMIC);
+	if (!psta)
+		return NULL;
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
-
-	if (_rtw_queue_empty23a(pfree_sta_queue)) {
-		spin_unlock_bh(&pstapriv->sta_hash_lock);
-		return NULL;
-	}
-	psta = container_of((&pfree_sta_queue->queue)->next, struct sta_info, list);
-
-	list_del_init(&psta->list);
 
 	_rtw_init_stainfo(psta);
 
@@ -233,9 +186,8 @@ exit:
 }
 
 /*  using pstapriv->sta_hash_lock to protect */
-u32	rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
+u32 rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 {
-	struct rtw_queue *pfree_sta_queue;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	struct	sta_xmit_priv	*pstaxmitpriv;
 	struct	xmit_priv	*pxmitpriv = &padapter->xmitpriv;
@@ -249,8 +201,6 @@ u32	rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	spin_lock_bh(&psta->lock);
 	psta->state &= ~_FW_LINKED;
 	spin_unlock_bh(&psta->lock);
-
-	pfree_sta_queue = &pstapriv->free_sta_queue;
 
 	pstaxmitpriv = &psta->sta_xmitpriv;
 
@@ -355,7 +305,8 @@ u32	rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 		psta->aid = 0;
 	}
 #endif	/*  CONFIG_8723AU_AP_MODE */
-	list_add_tail(&psta->list, get_list_head(pfree_sta_queue));
+
+	kfree(psta);
 exit:
 	return _SUCCESS;
 }
