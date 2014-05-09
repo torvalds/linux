@@ -1,5 +1,5 @@
-static unsigned int max_intcnt = 0;
-static unsigned int max_bh = 0;
+static unsigned int max_intcnt;
+static unsigned int max_bh;
 
 /*-----------------------------------------------------------------------------
  * musycc.c -
@@ -453,7 +453,7 @@ musycc_chan_restart(mch_t *ch)
 void
 rld_put_led(mpi_t *pi, u_int32_t ledval)
 {
-	static u_int32_t led = 0;
+	static u_int32_t led;
 
 	if (ledval == 0)
 		led = 0;
