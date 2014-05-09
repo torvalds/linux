@@ -1119,7 +1119,6 @@ static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *pframe = skb->data;
 
 	if (!ieee80211_is_ctl(hdr->frame_control))
 		return _FAIL;
@@ -1130,14 +1129,15 @@ static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 
 	/* only handle ps-poll */
 	if (ieee80211_is_pspoll(hdr->frame_control)) {
+		struct ieee80211_pspoll *psp = (struct ieee80211_pspoll *)hdr;
 		u16 aid;
 		u8 wmmps_ac = 0;
 		struct sta_info *psta = NULL;
 
-		aid = GetAid(pframe);
+		aid = le16_to_cpu(psp->aid) & 0x3fff;
 		psta = rtw_get_stainfo23a(pstapriv, hdr->addr2);
 
-		if ((!psta) || (psta->aid != aid))
+		if (!psta || psta->aid != aid)
 			return _FAIL;
 
 		/* for rx pkt statistics */

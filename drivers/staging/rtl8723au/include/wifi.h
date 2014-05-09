@@ -149,10 +149,6 @@ enum WIFI_REG_DOMAIN {
 #define SetAMsdu(pbuf, amsdu)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16((amsdu & 1) << 7))
 
-#define GetAid(pbuf)							\
-	(cpu_to_le16(*(unsigned short *)((unsigned long)(pbuf) + 2)) &	\
-	 0x3fff)
-
 #define GetTid(pbuf)							\
 	(cpu_to_le16(*(unsigned short *)((unsigned long)(pbuf) +	\
 	 (((ieee80211_has_tods(pbuf)<<1) |				\
