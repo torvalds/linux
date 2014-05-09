@@ -19,6 +19,7 @@
 #include <linux/irq.h>
 #include <linux/phy/phy.h>
 #include <linux/regulator/consumer.h>
+#include <linux/component.h>
 
 #include <video/mipi_display.h>
 #include <video/videomode.h>
@@ -1378,6 +1379,74 @@ end:
 	return ret;
 }
 
+static int exynos_dsi_bind(struct device *dev, struct device *master,
+				void *data)
+{
+	struct drm_device *drm_dev = data;
+	struct exynos_dsi *dsi;
+	int ret;
+
+	ret = exynos_drm_create_enc_conn(drm_dev, &exynos_dsi_display);
+	if (ret) {
+		DRM_ERROR("Encoder create [%d] failed with %d\n",
+				exynos_dsi_display.type, ret);
+		return ret;
+	}
+
+	dsi = exynos_dsi_display.ctx;
+
+	return mipi_dsi_host_register(&dsi->dsi_host);
+}
+
+static void exynos_dsi_unbind(struct device *dev, struct device *master,
+				void *data)
+{
+	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
+	struct drm_encoder *encoder = dsi->encoder;
+
+	exynos_dsi_dpms(&exynos_dsi_display, DRM_MODE_DPMS_OFF);
+
+	mipi_dsi_host_unregister(&dsi->dsi_host);
+
+	encoder->funcs->destroy(encoder);
+	drm_connector_cleanup(&dsi->connector);
+}
+
+#if CONFIG_PM_SLEEP
+static int exynos_dsi_resume(struct device *dev)
+{
+	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
+
+	if (dsi->state & DSIM_STATE_ENABLED) {
+		dsi->state &= ~DSIM_STATE_ENABLED;
+		exynos_dsi_enable(dsi);
+	}
+
+	return 0;
+}
+
+static int exynos_dsi_suspend(struct device *dev)
+{
+	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
+
+	if (dsi->state & DSIM_STATE_ENABLED) {
+		exynos_dsi_disable(dsi);
+		dsi->state |= DSIM_STATE_ENABLED;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops exynos_dsi_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(exynos_dsi_suspend, exynos_dsi_resume)
+};
+
+static const struct component_ops exynos_dsi_component_ops = {
+	.bind	= exynos_dsi_bind,
+	.unbind	= exynos_dsi_unbind,
+};
+
 static int exynos_dsi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -1455,52 +1524,15 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	exynos_dsi_display.ctx = dsi;
 
 	platform_set_drvdata(pdev, &exynos_dsi_display);
-	exynos_drm_display_register(&exynos_dsi_display);
 
-	return mipi_dsi_host_register(&dsi->dsi_host);
+	return exynos_drm_component_add(&pdev->dev, &exynos_dsi_component_ops);
 }
 
 static int exynos_dsi_remove(struct platform_device *pdev)
 {
-	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
-
-	exynos_dsi_dpms(&exynos_dsi_display, DRM_MODE_DPMS_OFF);
-
-	exynos_drm_display_unregister(&exynos_dsi_display);
-	mipi_dsi_host_unregister(&dsi->dsi_host);
-
+	exynos_drm_component_del(&pdev->dev, &exynos_dsi_component_ops);
 	return 0;
 }
-
-#if CONFIG_PM_SLEEP
-static int exynos_dsi_resume(struct device *dev)
-{
-	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
-
-	if (dsi->state & DSIM_STATE_ENABLED) {
-		dsi->state &= ~DSIM_STATE_ENABLED;
-		exynos_dsi_enable(dsi);
-	}
-
-	return 0;
-}
-
-static int exynos_dsi_suspend(struct device *dev)
-{
-	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
-
-	if (dsi->state & DSIM_STATE_ENABLED) {
-		exynos_dsi_disable(dsi);
-		dsi->state |= DSIM_STATE_ENABLED;
-	}
-
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops exynos_dsi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(exynos_dsi_suspend, exynos_dsi_resume)
-};
 
 static struct of_device_id exynos_dsi_of_match[] = {
 	{ .compatible = "samsung,exynos4210-mipi-dsi" },

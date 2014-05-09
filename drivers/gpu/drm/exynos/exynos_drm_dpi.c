@@ -248,7 +248,7 @@ enum {
 	FIMD_PORT_WRB,
 };
 
-static struct device_node *exynos_dpi_of_find_panel_node(struct device *dev)
+struct device_node *exynos_dpi_of_find_panel_node(struct device *dev)
 {
 	struct device_node *np, *ep;
 
@@ -301,7 +301,7 @@ static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
 	return 0;
 }
 
-int exynos_dpi_probe(struct device *dev)
+int exynos_dpi_probe(struct drm_device *drm_dev, struct device *dev)
 {
 	struct exynos_dpi *ctx;
 	int ret;
@@ -318,15 +318,17 @@ int exynos_dpi_probe(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	exynos_drm_display_register(&exynos_dpi_display);
-
-	return 0;
+	return exynos_drm_create_enc_conn(drm_dev, &exynos_dpi_display);
 }
 
-int exynos_dpi_remove(struct device *dev)
+int exynos_dpi_remove(struct drm_device *drm_dev, struct device *dev)
 {
+	struct drm_encoder *encoder = exynos_dpi_display.encoder;
+	struct exynos_dpi *ctx = exynos_dpi_display.ctx;
+
 	exynos_dpi_dpms(&exynos_dpi_display, DRM_MODE_DPMS_OFF);
-	exynos_drm_display_unregister(&exynos_dpi_display);
+	encoder->funcs->destroy(encoder);
+	drm_connector_cleanup(&ctx->connector);
 
 	return 0;
 }

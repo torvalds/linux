@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/component.h>
 #include <linux/phy/phy.h>
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
@@ -962,16 +963,6 @@ static struct drm_connector_helper_funcs exynos_dp_connector_helper_funcs = {
 	.best_encoder = exynos_dp_best_encoder,
 };
 
-static int exynos_dp_initialize(struct exynos_drm_display *display,
-				struct drm_device *drm_dev)
-{
-	struct exynos_dp_device *dp = display->ctx;
-
-	dp->drm_dev = drm_dev;
-
-	return 0;
-}
-
 static bool find_bridge(const char *compat, struct bridge_init *bridge)
 {
 	bridge->client = NULL;
@@ -1099,7 +1090,6 @@ static void exynos_dp_dpms(struct exynos_drm_display *display, int mode)
 }
 
 static struct exynos_drm_display_ops exynos_dp_display_ops = {
-	.initialize = exynos_dp_initialize,
 	.create_connector = exynos_dp_create_connector,
 	.dpms = exynos_dp_dpms,
 };
@@ -1221,8 +1211,10 @@ static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
 	return 0;
 }
 
-static int exynos_dp_probe(struct platform_device *pdev)
+static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *drm_dev = data;
 	struct resource *res;
 	struct exynos_dp_device *dp;
 
@@ -1282,21 +1274,40 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	}
 	disable_irq(dp->irq);
 
+	dp->drm_dev = drm_dev;
 	exynos_dp_display.ctx = dp;
 
 	platform_set_drvdata(pdev, &exynos_dp_display);
-	exynos_drm_display_register(&exynos_dp_display);
 
-	return 0;
+	return exynos_drm_create_enc_conn(drm_dev, &exynos_dp_display);
+}
+
+static void exynos_dp_unbind(struct device *dev, struct device *master,
+				void *data)
+{
+	struct exynos_drm_display *display = dev_get_drvdata(dev);
+	struct exynos_dp_device *dp = display->ctx;
+	struct drm_encoder *encoder = dp->encoder;
+
+	exynos_dp_dpms(display, DRM_MODE_DPMS_OFF);
+
+	encoder->funcs->destroy(encoder);
+	drm_connector_cleanup(&dp->connector);
+}
+
+static const struct component_ops exynos_dp_ops = {
+	.bind	= exynos_dp_bind,
+	.unbind	= exynos_dp_unbind,
+};
+
+static int exynos_dp_probe(struct platform_device *pdev)
+{
+	return exynos_drm_component_add(&pdev->dev, &exynos_dp_ops);
 }
 
 static int exynos_dp_remove(struct platform_device *pdev)
 {
-	struct exynos_drm_display *display = platform_get_drvdata(pdev);
-
-	exynos_dp_dpms(display, DRM_MODE_DPMS_OFF);
-	exynos_drm_display_unregister(&exynos_dp_display);
-
+	exynos_drm_component_del(&pdev->dev, &exynos_dp_ops);
 	return 0;
 }
 

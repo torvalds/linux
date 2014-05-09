@@ -36,10 +36,12 @@
 #include <linux/i2c.h>
 #include <linux/of_gpio.h>
 #include <linux/hdmi.h>
+#include <linux/component.h>
 
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
+#include "exynos_drm_crtc.h"
 #include "exynos_mixer.h"
 
 #include <linux/gpio.h>
@@ -924,16 +926,6 @@ static int hdmi_create_connector(struct exynos_drm_display *display,
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
 	drm_sysfs_connector_add(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
-
-	return 0;
-}
-
-static int hdmi_initialize(struct exynos_drm_display *display,
-			struct drm_device *drm_dev)
-{
-	struct hdmi_context *hdata = display->ctx;
-
-	hdata->drm_dev = drm_dev;
 
 	return 0;
 }
@@ -1913,7 +1905,6 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 }
 
 static struct exynos_drm_display_ops hdmi_display_ops = {
-	.initialize	= hdmi_initialize,
 	.create_connector = hdmi_create_connector,
 	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
@@ -2047,18 +2038,44 @@ static struct of_device_id hdmi_match_types[] = {
 	}
 };
 
+static int hdmi_bind(struct device *dev, struct device *master, void *data)
+{
+	struct drm_device *drm_dev = data;
+	struct hdmi_context *hdata;
+
+	hdata = hdmi_display.ctx;
+	hdata->drm_dev = drm_dev;
+
+	return exynos_drm_create_enc_conn(drm_dev, &hdmi_display);
+}
+
+static void hdmi_unbind(struct device *dev, struct device *master, void *data)
+{
+	struct exynos_drm_display *display = get_hdmi_display(dev);
+	struct drm_encoder *encoder = display->encoder;
+	struct hdmi_context *hdata = display->ctx;
+
+	encoder->funcs->destroy(encoder);
+	drm_connector_cleanup(&hdata->connector);
+}
+
+static const struct component_ops hdmi_component_ops = {
+	.bind	= hdmi_bind,
+	.unbind = hdmi_unbind,
+};
+
 static int hdmi_probe(struct platform_device *pdev)
 {
+	struct device_node *ddc_node, *phy_node;
+	struct s5p_hdmi_platform_data *pdata;
+	struct hdmi_driver_data *drv_data;
+	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct hdmi_context *hdata;
-	struct s5p_hdmi_platform_data *pdata;
 	struct resource *res;
-	const struct of_device_id *match;
-	struct device_node *ddc_node, *phy_node;
-	struct hdmi_driver_data *drv_data;
 	int ret;
 
-	 if (!dev->of_node)
+	if (!dev->of_node)
 		return -ENODEV;
 
 	pdata = drm_hdmi_dt_parse_pdata(dev);
@@ -2149,11 +2166,9 @@ static int hdmi_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(dev);
-
 	hdmi_display.ctx = hdata;
-	exynos_drm_display_register(&hdmi_display);
 
-	return 0;
+	return exynos_drm_component_add(&pdev->dev, &hdmi_component_ops);
 
 err_hdmiphy:
 	put_device(&hdata->hdmiphy_port->dev);
@@ -2164,14 +2179,14 @@ err_ddc:
 
 static int hdmi_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct exynos_drm_display *display = get_hdmi_display(dev);
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = hdmi_display.ctx;
 
 	put_device(&hdata->hdmiphy_port->dev);
 	put_device(&hdata->ddc_adpt->dev);
+
 	pm_runtime_disable(&pdev->dev);
 
+	exynos_drm_component_del(&pdev->dev, &hdmi_component_ops);
 	return 0;
 }
 
