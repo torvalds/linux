@@ -154,7 +154,7 @@ static u16 usb_read16(struct rtw_adapter *padapter, u32 addr)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u16 data = 0;
+	__le16 data;
 
 	request = 0x05;
 	requesttype = 0x01;/* read_in */
@@ -166,7 +166,7 @@ static u16 usb_read16(struct rtw_adapter *padapter, u32 addr)
 	usbctrl_vendorreq(padapter, request, wvalue, index, &data,
 			  len, requesttype);
 
-	return data;
+	return le16_to_cpu(data);
 }
 
 static u32 usb_read32(struct rtw_adapter *padapter, u32 addr)
@@ -176,7 +176,7 @@ static u32 usb_read32(struct rtw_adapter *padapter, u32 addr)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u32 data = 0;
+	__le32 data;
 
 	request = 0x05;
 	requesttype = 0x01;/* read_in */
@@ -188,7 +188,7 @@ static u32 usb_read32(struct rtw_adapter *padapter, u32 addr)
 	usbctrl_vendorreq(padapter, request, wvalue, index, &data,
 			  len, requesttype);
 
-	return data;
+	return le32_to_cpu(data);
 }
 
 static int usb_write8(struct rtw_adapter *padapter, u32 addr, u8 val)
@@ -223,7 +223,7 @@ static int usb_write16(struct rtw_adapter *padapter, u32 addr, u16 val)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u16 data;
+	__le16 data;
 	int ret;
 
 	request = 0x05;
@@ -233,7 +233,7 @@ static int usb_write16(struct rtw_adapter *padapter, u32 addr, u16 val)
 	wvalue = (u16)(addr&0x0000ffff);
 	len = 2;
 
-	data = val;
+	data = cpu_to_le16(val);
 
 	ret = usbctrl_vendorreq(padapter, request, wvalue, index, &data,
 				len, requesttype);
@@ -247,7 +247,7 @@ static int usb_write32(struct rtw_adapter *padapter, u32 addr, u32 val)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u32 data;
+	__le32 data;
 	int ret;
 
 	request = 0x05;
@@ -256,7 +256,7 @@ static int usb_write32(struct rtw_adapter *padapter, u32 addr, u32 val)
 
 	wvalue = (u16)(addr&0x0000ffff);
 	len = 4;
-	data = val;
+	data = cpu_to_le32(val);
 
 	ret = usbctrl_vendorreq(padapter, request, wvalue, index, &data,
 				len, requesttype);

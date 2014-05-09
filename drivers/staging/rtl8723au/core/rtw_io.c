@@ -53,22 +53,16 @@ u8 _rtw_read823a(struct rtw_adapter *adapter, u32 addr)
 
 u16 _rtw_read1623a(struct rtw_adapter *adapter, u32 addr)
 {
-	u16 r_val;
 	struct _io_ops *io_ops = &adapter->io_ops;
 
-	r_val = io_ops->_read16(adapter, addr);
-
-	return le16_to_cpu(r_val);
+	return io_ops->_read16(adapter, addr);
 }
 
 u32 _rtw_read3223a(struct rtw_adapter *adapter, u32 addr)
 {
-	u32 r_val;
 	struct _io_ops *io_ops = &adapter->io_ops;
 
-	r_val = io_ops->_read32(adapter, addr);
-
-	return le32_to_cpu(r_val);
+	return io_ops->_read32(adapter, addr);
 }
 
 int _rtw_write823a(struct rtw_adapter *adapter, u32 addr, u8 val)
@@ -86,7 +80,6 @@ int _rtw_write1623a(struct rtw_adapter *adapter, u32 addr, u16 val)
 	struct _io_ops *io_ops = &adapter->io_ops;
 	int ret;
 
-	val = cpu_to_le16(val);
 	ret = io_ops->_write16(adapter, addr, val);
 
 	return RTW_STATUS_CODE23a(ret);
@@ -97,7 +90,6 @@ int _rtw_write3223a(struct rtw_adapter *adapter, u32 addr, u32 val)
 	struct _io_ops *io_ops = &adapter->io_ops;
 	int ret;
 
-	val = cpu_to_le32(val);
 	ret = io_ops->_write32(adapter, addr, val);
 
 	return RTW_STATUS_CODE23a(ret);
