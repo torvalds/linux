@@ -1143,8 +1143,10 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 			dev_drv->ops->set_par(dev_drv,i);
 			dev_drv->ops->pan_display(dev_drv,i);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
-			if (dev_drv->iommu_enabled)
-				g_last_addr[i] = win->area[0].smem_start + win->area[0].y_offset;
+			if (dev_drv->iommu_enabled) {
+				g_last_addr[i] = regs->reg_win_data[j].reg_area_data[0].smem_start +
+						regs->reg_win_data[j].reg_area_data[0].y_offset;
+			}
 #endif
 		}else{
 			win->z_order = -1;
@@ -1238,17 +1240,19 @@ ext_win_exit:
 				ktime_compare(dev_drv->vsync_info.timestamp, timestamp) > 0,msecs_to_jiffies(25));
 		dev_drv->ops->get_dsp_addr(dev_drv,dsp_addr);
 		wait_for_vsync = false;
-		/*for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			if(dev_drv->win[i]->state == 1){
-				u32 new_start = regs->reg_win_data[i].reg_area_data[0].smem_start +
-						regs->reg_win_data[i].reg_area_data[0].y_offset;
+				u32 new_start = dev_drv->win[i]->area[0].smem_start +
+						dev_drv->win[i]->area[0].y_offset;
 				u32 reg_start = dsp_addr[i];
 				if (unlikely(new_start != reg_start)) {
 					wait_for_vsync = true;
+					printk(KERN_DEBUG "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
+						i, new_start, reg_start, 101 - count);
 					break;
 				}
 			}
-		}*/
+		}
 	} while (wait_for_vsync && count--);
 #ifdef H_USE_FENCE
 	sw_sync_timeline_inc(dev_drv->timeline, 1);
@@ -1258,8 +1262,8 @@ ext_win_exit:
 		if (dev_drv->iommu_enabled) {
 			freed_index = 0;
 			g_last_timeout = timeout;
-			if (timeout >= 3)
-				msleep(15);
+			//if (timeout >= 3)
+			//	msleep(15);
 		}
 #endif
 		for(i=0;i< g_last_win_num;i++){
@@ -3018,9 +3022,6 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 if (dev_drv->prop == PRMRY) {
 	struct fb_info *main_fbi = rk_fb->fb[0];
 	main_fbi->fbops->fb_open(main_fbi, 1);
-	if(support_uboot_display())
-		return 0;
-
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 	if (dev_drv->iommu_enabled) {/* only alloc memory for main fb*/	
 		mmu_dev = rockchip_get_sysmmu_device_by_compatible(dev_drv->mmu_dts_name);
@@ -3035,6 +3036,8 @@ if (dev_drv->prop == PRMRY) {
 	}
 #endif
 	rk_fb_alloc_buffer(main_fbi, 0);
+	if(support_uboot_display())
+		return 0;
 	main_fbi->fbops->fb_set_par(main_fbi);
 #if  defined(CONFIG_LOGO_LINUX_BMP)
 	if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {
