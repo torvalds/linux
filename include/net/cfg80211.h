@@ -1986,6 +1986,8 @@ struct cfg80211_update_ft_ies_params {
  * @len: buffer length
  * @no_cck: don't use cck rates for this frame
  * @dont_wait_for_ack: tells the low level not to wait for an ack
+ * @n_csa_offsets: length of csa_offsets array
+ * @csa_offsets: array of all the csa offsets in the frame
  */
 struct cfg80211_mgmt_tx_params {
 	struct ieee80211_channel *chan;
@@ -1995,6 +1997,8 @@ struct cfg80211_mgmt_tx_params {
 	size_t len;
 	bool no_cck;
 	bool dont_wait_for_ack;
+	int n_csa_offsets;
+	const u16 *csa_offsets;
 };
 
 /**

@@ -503,6 +503,9 @@
  *	TX status event pertaining to the TX request.
  *	%NL80211_ATTR_TX_NO_CCK_RATE is used to decide whether to send the
  *	management frames at CCK rate or not in 2GHz band.
+ *	%NL80211_ATTR_CSA_C_OFFSETS_TX is an array of offsets to CSA
+ *	counters which will be updated to the current value. This attribute
+ *	is used during CSA period.
  * @NL80211_CMD_FRAME_WAIT_CANCEL: When an off-channel TX was requested, this
  *	command may be used with the corresponding cookie to cancel the wait
  *	time if it is known that it is no longer necessary.
@@ -1576,6 +1579,9 @@ enum nl80211_commands {
  *	advertise values that cannot always be met. In such cases, an attempt
  *	to add a new station entry with @NL80211_CMD_NEW_STATION may fail.
  *
+ * @NL80211_ATTR_CSA_C_OFFSETS_TX: An array of csa counter offsets (u16) which
+ *	should be updated when the frame is transmitted.
+ *
  * @NL80211_ATTR_TDLS_PEER_CAPABILITY: flags for TDLS peer capabilities, u32.
  *	As specified in the &enum nl80211_tdls_peer_capability.
  *
@@ -1919,6 +1925,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_TDLS_PEER_CAPABILITY,
 
 	NL80211_ATTR_IFACE_SOCKET_OWNER,
+
+	NL80211_ATTR_CSA_C_OFFSETS_TX,
 
 	/* add attributes here, update the policy in nl80211.c */
 
