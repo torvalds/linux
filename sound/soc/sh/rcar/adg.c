@@ -57,6 +57,24 @@ static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 	return (0x6 + ws) << 8;
 }
 
+int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
+				 struct rsnd_mod *mod,
+				 struct rsnd_dai_stream *io)
+{
+	int id = rsnd_mod_id(mod);
+	int shift = (id % 2) ? 16 : 0;
+	u32 mask, val;
+
+	val = rsnd_adg_ssi_ws_timing_gen2(io);
+
+	val  = val	<< shift;
+	mask = 0xffff	<< shift;
+
+	rsnd_mod_bset(mod, CMDOUT_TIMSEL, mask, val);
+
+	return 0;
+}
+
 static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
 					struct rsnd_mod *mod,
 					struct rsnd_dai_stream *io,

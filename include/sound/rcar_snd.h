@@ -56,9 +56,17 @@ struct rsnd_src_platform_info {
 	int dma_id; /* for Gen2 SCU */
 };
 
+/*
+ * flags
+ */
+struct rsnd_dvc_platform_info {
+	u32 flags;
+};
+
 struct rsnd_dai_path_info {
 	struct rsnd_ssi_platform_info *ssi;
 	struct rsnd_src_platform_info *src;
+	struct rsnd_dvc_platform_info *dvc;
 };
 
 struct rsnd_dai_platform_info {
@@ -83,6 +91,8 @@ struct rcar_snd_info {
 	int ssi_info_nr;
 	struct rsnd_src_platform_info *src_info;
 	int src_info_nr;
+	struct rsnd_dvc_platform_info *dvc_info;
+	int dvc_info_nr;
 	struct rsnd_dai_platform_info *dai_info;
 	int dai_info_nr;
 	int (*start)(int id);

@@ -645,6 +645,11 @@ static int rsnd_path_init(struct rsnd_priv *priv,
 	if (ret < 0)
 		return ret;
 
+	/* DVC */
+	ret = rsnd_path_parse(priv, io, dvc);
+	if (ret < 0)
+		return ret;
+
 	return ret;
 }
 
@@ -869,6 +874,20 @@ static struct snd_pcm_ops rsnd_pcm_ops = {
 
 static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct rsnd_priv *priv = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+	struct rsnd_dai *rdai;
+	int i, ret;
+
+	for_each_rsnd_dai(rdai, priv, i) {
+		ret = rsnd_dai_call(pcm_new, &rdai->playback, rdai, rtd);
+		if (ret)
+			return ret;
+
+		ret = rsnd_dai_call(pcm_new, &rdai->capture, rdai, rtd);
+		if (ret)
+			return ret;
+	}
+
 	return snd_pcm_lib_preallocate_pages_for_all(
 		rtd->pcm,
 		SNDRV_DMA_TYPE_DEV,
@@ -908,6 +927,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		rsnd_gen_probe,
 		rsnd_ssi_probe,
 		rsnd_src_probe,
+		rsnd_dvc_probe,
 		rsnd_adg_probe,
 		rsnd_dai_probe,
 	};

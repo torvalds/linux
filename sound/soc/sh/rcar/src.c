@@ -536,12 +536,14 @@ static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	u32 val = rsnd_io_to_mod_dvc(io) ? 0x01 : 0x11;
 
 	rsnd_dma_start(rsnd_mod_to_dma(&src->mod));
 
 	rsnd_mod_write(mod, SSI_CTRL, 0x1);
-	rsnd_mod_write(mod, SRC_CTRL, 0x11);
+	rsnd_mod_write(mod, SRC_CTRL, val);
 
 	return rsnd_src_start(mod, rdai);
 }
