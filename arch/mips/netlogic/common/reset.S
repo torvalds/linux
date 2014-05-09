@@ -197,6 +197,9 @@ FEXPORT(nlm_reset_entry)
 EXPORT(nlm_boot_siblings)
 	/* core L1D flush before enable threads */
 	xlp_flush_l1_dcache
+	/* save ra and sp, will be used later (only for boot cpu) */
+	dmtc0	ra, $22, 6
+	dmtc0	sp, $22, 7
 	/* Enable hw threads by writing to MAP_THREADMODE of the core */
 	li	t0, CKSEG1ADDR(RESET_DATA_PHYS)
 	lw	t1, BOOT_THREAD_MODE(t0)	/* t1 <- thread mode */
@@ -238,14 +241,12 @@ EXPORT(nlm_boot_siblings)
 	nop
 
 	/*
-	 * For the boot CPU, we have to restore registers and
-	 * return
+	 * For the boot CPU, we have to restore ra and sp and return, rest
+	 * of the registers will be restored by the caller
 	 */
-4:	dmfc0	t0, $4, 2	/* restore SP from UserLocal */
-	li	t1, 0xfadebeef
-	dmtc0	t1, $4, 2	/* restore SP from UserLocal */
-	PTR_SUBU sp, t0, PT_SIZE
-	RESTORE_ALL
+4:
+	dmfc0	ra, $22, 6
+	dmfc0	sp, $22, 7
 	jr	ra
 	nop
 EXPORT(nlm_reset_entry_end)
