@@ -72,8 +72,6 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 	precvpriv->free_recvframe_cnt = i;
 	precvpriv->rx_pending_cnt = 1;
 
-	sema_init(&precvpriv->allrxreturnevt, 0);
-
 	res = rtw_hal_init23a_recv_priv(padapter);
 
 	setup_timer(&precvpriv->signal_stat_timer, rtw_signal_stat_timer_hdl23a,
