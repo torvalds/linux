@@ -1054,6 +1054,17 @@ struct hci_cp_write_page_scan_activity {
 	__le16   window;
 } __packed;
 
+#define HCI_OP_READ_TX_POWER		0x0c2d
+struct hci_cp_read_tx_power {
+	__le16   handle;
+	__u8     type;
+} __packed;
+struct hci_rp_read_tx_power {
+	__u8     status;
+	__le16   handle;
+	__s8     tx_power;
+} __packed;
+
 #define HCI_OP_READ_PAGE_SCAN_TYPE	0x0c46
 struct hci_rp_read_page_scan_type {
 	__u8     status;

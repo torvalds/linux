@@ -375,6 +375,7 @@ struct hci_conn {
 	__u16		le_conn_min_interval;
 	__u16		le_conn_max_interval;
 	__s8		rssi;
+	__s8		tx_power;
 	unsigned long	flags;
 
 	__u8		remote_cap;
