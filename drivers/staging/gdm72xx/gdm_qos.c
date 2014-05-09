@@ -56,7 +56,7 @@ static void *alloc_qos_entry(void)
 	}
 	spin_unlock_irqrestore(&qos_free_list.lock, flags);
 
-	entry = kmalloc(sizeof(struct qos_entry_s), GFP_ATOMIC);
+	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	return entry;
 }
 
