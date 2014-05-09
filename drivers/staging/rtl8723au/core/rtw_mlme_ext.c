@@ -6418,7 +6418,6 @@ u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	u16 evt_sz;
 	const uint *peventbuf;
 	void (*event_callback)(struct rtw_adapter *dev, u8 *pbuf);
-	struct evt_priv *pevt_priv = &padapter->evtpriv;
 
 	peventbuf = (uint*)pbuf;
 	evt_sz = (u16)(*peventbuf&0xffff);
@@ -6439,15 +6438,11 @@ u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		goto _abort_event_;
 	}
 
-	atomic_inc(&pevt_priv->event_seq);
-
 	peventbuf += 2;
 
 	if (peventbuf) {
 		event_callback = wlanevents[evt_code].event_callback;
 		event_callback(padapter, (u8*)peventbuf);
-
-		pevt_priv->evt_done_cnt++;
 	}
 
 _abort_event_:

@@ -192,9 +192,6 @@ static void rtw_irq_work(struct work_struct *work);
 
 u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 {
-	atomic_set(&pevtpriv->event_seq, 0);
-	pevtpriv->evt_done_cnt = 0;
-
 	pevtpriv->wq = alloc_workqueue("rtl8723au_evt", 0, 1);
 
 	INIT_WORK(&pevtpriv->irq_wk, rtw_irq_work);

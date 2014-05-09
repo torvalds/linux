@@ -55,11 +55,6 @@ struct cmd_priv {
 struct	evt_priv {
 	struct workqueue_struct *wq;
 	struct work_struct irq_wk;
-
-	atomic_t event_seq;
-	u8	*evt_buf;	/* shall be non-paged, and 4 bytes aligned */
-	u8	*evt_allocated_buf;
-	u32	evt_done_cnt;
 };
 
 #define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
