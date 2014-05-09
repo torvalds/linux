@@ -217,12 +217,6 @@ void rtw_free_evt_priv23a(struct evt_priv *pevtpriv)
 	}
 }
 
-void rtw_free_cmd_priv23a(struct cmd_priv *pcmdpriv)
-{
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-		 ("rtw_free_cmd_priv23a\n"));
-}
-
 static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 {
 	struct drvextra_cmd_parm *pdrvextra_cmd_parm;

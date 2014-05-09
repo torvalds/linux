@@ -87,7 +87,6 @@ void rtw_free_cmd_obj23a(struct cmd_obj *pcmd);
 int rtw_cmd_thread23a(void *context);
 
 int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv);
-void rtw_free_cmd_priv23a (struct cmd_priv *pcmdpriv);
 
 u32 rtw_init_evt_priv23a (struct evt_priv *pevtpriv);
 void rtw_free_evt_priv23a (struct evt_priv *pevtpriv);

@@ -570,8 +570,6 @@ u8 rtw_free_drv_sw23a(struct rtw_adapter *padapter)
 
 	free_mlme_ext_priv23a(&padapter->mlmeextpriv);
 
-	rtw_free_cmd_priv23a(&padapter->cmdpriv);
-
 	rtw_free_evt_priv23a(&padapter->evtpriv);
 
 	rtw_free_mlme_priv23a(&padapter->mlmepriv);
