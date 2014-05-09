@@ -46,21 +46,23 @@ u8 RSN_CIPHER_SUITE_WEP10423A[] = { 0x00, 0x0f, 0xac, 5 };
 /*  for adhoc-master to generate ie and provide supported-rate to fw */
 /*  */
 
-static u8	WIFI_CCKRATES[] =
-{(IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK),
- (IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK),
- (IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK),
- (IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK)};
+static u8 WIFI_CCKRATES[] = {
+	IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK
+};
 
-static u8	WIFI_OFDMRATES[] =
-{(IEEE80211_OFDM_RATE_6MB),
- (IEEE80211_OFDM_RATE_9MB),
- (IEEE80211_OFDM_RATE_12MB),
- (IEEE80211_OFDM_RATE_18MB),
- (IEEE80211_OFDM_RATE_24MB),
- IEEE80211_OFDM_RATE_36MB,
- IEEE80211_OFDM_RATE_48MB,
- IEEE80211_OFDM_RATE_54MB};
+static u8 WIFI_OFDMRATES[] = {
+	IEEE80211_OFDM_RATE_6MB,
+	IEEE80211_OFDM_RATE_9MB,
+	IEEE80211_OFDM_RATE_12MB,
+	IEEE80211_OFDM_RATE_18MB,
+	IEEE80211_OFDM_RATE_24MB,
+	IEEE80211_OFDM_RATE_36MB,
+	IEEE80211_OFDM_RATE_48MB,
+	IEEE80211_OFDM_RATE_54MB
+};
 
 int rtw_get_bit_value_from_ieee_value23a(u8 val)
 {
@@ -80,9 +82,9 @@ static bool rtw_is_cckrates_included(u8 *rate)
 {
 	u32 i = 0;
 
-	while (rate[i] != 0) {
-		if ((((rate[i]) & 0x7f) == 2) || (((rate[i]) & 0x7f) == 4) ||
-		    (((rate[i]) & 0x7f) == 11) || (((rate[i]) & 0x7f) == 22))
+	while (rate[i]) {
+		if ((rate[i] & 0x7f) == 2 || (rate[i] & 0x7f) == 4 ||
+		    (rate[i] & 0x7f) == 11 || (rate[i] & 0x7f) == 22)
 			return true;
 		i++;
 	}
@@ -94,9 +96,9 @@ static bool rtw_is_cckratesonly_included(u8 *rate)
 {
 	u32 i = 0;
 
-	while (rate[i] != 0) {
-		if ((((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
-		    (((rate[i]) & 0x7f) != 11) && (((rate[i]) & 0x7f) != 22))
+	while (rate[i]) {
+		if ((rate[i] & 0x7f) != 2 && (rate[i] & 0x7f) != 4 &&
+		    (rate[i] & 0x7f) != 11 && (rate[i] & 0x7f) != 22)
 			return false;
 
 		i++;
@@ -142,7 +144,6 @@ u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen)
 		memcpy((void *)(pbuf + 2), (void *)source, len);
 
 	*frlen = *frlen + (len + 2);
-
 
 	return pbuf + len + 2;
 }
@@ -367,7 +368,7 @@ uint rtw_get_rateset_len23a(u8 *rateset)
 	uint i = 0;
 
 	while(1) {
-		if ((rateset[i]) == 0)
+		if (rateset[i] == 0)
 			break;
 
 		if (i > 12)
@@ -581,7 +582,7 @@ int rtw_parse_wpa2_ie23a(const u8* rsn_ie, int rsn_ie_len, int *group_cipher,
 		return _FAIL;
 	}
 
-	if ((*rsn_ie!= _WPA2_IE_ID_) || (*(rsn_ie+1) != (u8)(rsn_ie_len - 2))) {
+	if (*rsn_ie != _WPA2_IE_ID_ || *(rsn_ie+1) != (u8)(rsn_ie_len - 2)) {
 		return _FAIL;
 	}
 
@@ -730,7 +731,7 @@ u8 rtw_is_wps_ie23a(u8 *ie_ptr, uint *wps_ielen)
 
 	eid = ie_ptr[0];
 
-	if ((eid == WLAN_EID_VENDOR_SPECIFIC) &&
+	if (eid == WLAN_EID_VENDOR_SPECIFIC &&
 	    !memcmp(&ie_ptr[2], wps_oui, 4)) {
 		/* DBG_8723A("==> found WPS_IE.....\n"); */
 		*wps_ielen = ie_ptr[1] + 2;
@@ -767,7 +768,7 @@ u8 *rtw_get_wps_ie23a(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
 	while (cnt < in_len) {
 		eid = in_ie[cnt];
 
-		if ((eid == WLAN_EID_VENDOR_SPECIFIC) &&
+		if (eid == WLAN_EID_VENDOR_SPECIFIC &&
 		    !memcmp(&in_ie[cnt+2], wps_oui, 4)) {
 			wpsie_ptr = &in_ie[cnt];
 
@@ -810,7 +811,7 @@ u8 *rtw_get_wps_attr23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
 	if (len_attr)
 		*len_attr = 0;
 
-	if ((wps_ie[0] != WLAN_EID_VENDOR_SPECIFIC) ||
+	if (wps_ie[0] != WLAN_EID_VENDOR_SPECIFIC ||
 	    memcmp(wps_ie + 2, wps_oui, 4)) {
 		return attr_ptr;
 	}
@@ -883,11 +884,11 @@ u8 *rtw_get_wps_attr_content23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
 
 static u8 key_char2num(u8 ch)
 {
-	if ((ch >= '0') && (ch <= '9'))
+	if (ch >= '0' && ch <= '9')
 		return ch - '0';
-	else if ((ch >= 'a') && (ch <= 'f'))
+	else if (ch >= 'a' && ch <= 'f')
 		return ch - 'a' + 10;
-	else if ((ch >= 'A') && (ch <= 'F'))
+	else if (ch >= 'A' && ch <= 'F')
 		return ch - 'A' + 10;
 	else
 		return 0xff;
@@ -895,12 +896,12 @@ static u8 key_char2num(u8 ch)
 
 u8 str_2char2num23a(u8 hch, u8 lch)
 {
-	return (key_char2num(hch) * 10) + key_char2num(lch);
+	return key_char2num(hch) * 10 + key_char2num(lch);
 }
 
 u8 key_2char2num23a(u8 hch, u8 lch)
 {
-	return (key_char2num(hch) << 4) | key_char2num(lch);
+	return key_char2num(hch) << 4 | key_char2num(lch);
 }
 
 void rtw_macaddr_cfg23a(u8 *mac_addr)
