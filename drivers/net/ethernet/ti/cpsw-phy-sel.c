@@ -132,6 +132,7 @@ static int cpsw_phy_sel_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	priv->dev = &pdev->dev;
 	priv->cpsw_phy_sel = of_id->data;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gmii-sel");
