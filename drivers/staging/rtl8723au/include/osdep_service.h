@@ -136,11 +136,6 @@ extern unsigned char	MCS_rate_1R23A[16];
 
 void	_rtw_init_queue23a(struct rtw_queue *pqueue);
 
-void rtw_suspend_lock_init(void);
-void rtw_suspend_lock_uninit(void);
-void rtw_lock_suspend(void);
-void rtw_unlock_suspend(void);
-
 
 #define NDEV_FMT "%s"
 #define NDEV_ARG(ndev) ndev->name
