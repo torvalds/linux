@@ -30,9 +30,6 @@
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
 
-#include <plat/cpu.h>
-#include <mach/dma.h>
-
 #define _SBF(s, v)                      ((v) << (s))
 #define _BIT(b)                         _SBF(b, 1)
 
