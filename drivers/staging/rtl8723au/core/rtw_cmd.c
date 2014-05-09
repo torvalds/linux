@@ -1510,7 +1510,8 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 					  pnetwork->MacAddress);
 		if (!psta) {
 			psta = rtw_alloc_stainfo23a(&padapter->stapriv,
-						 pnetwork->MacAddress);
+						    pnetwork->MacAddress,
+						    GFP_KERNEL);
 			if (!psta) {
 				RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 					 ("\nCan't alloc sta_info when "

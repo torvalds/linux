@@ -1014,7 +1014,8 @@ rtw_joinbss_update_stainfo(struct rtw_adapter *padapter,
 	psta = rtw_get_stainfo23a(pstapriv, pnetwork->network.MacAddress);
 	if (!psta)
 		psta = rtw_alloc_stainfo23a(pstapriv,
-					    pnetwork->network.MacAddress);
+					    pnetwork->network.MacAddress,
+					    GFP_ATOMIC);
 
 	if (psta) { /* update ptarget_sta */
 		DBG_8723A("%s\n", __func__);
@@ -1379,7 +1380,8 @@ void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 		return;
 	}
 
-	psta = rtw_alloc_stainfo23a(&adapter->stapriv, pstassoc->macaddr);
+	psta = rtw_alloc_stainfo23a(&adapter->stapriv, pstassoc->macaddr,
+		GFP_KERNEL);
 	if (!psta) {
 		RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,
 			 ("Can't alloc sta_info when "

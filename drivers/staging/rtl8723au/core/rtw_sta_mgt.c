@@ -107,7 +107,8 @@ u32	_rtw_free_sta_priv23a(struct	sta_priv *pstapriv)
 	return _SUCCESS;
 }
 
-struct	sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr)
+struct sta_info *
+rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, int gfp)
 {
 	struct list_head	*phash_list;
 	struct sta_info	*psta;
@@ -116,7 +117,7 @@ struct	sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr)
 	int i = 0;
 	u16  wRxSeqInitialValue = 0xffff;
 
-	psta = (struct sta_info *)kmalloc(sizeof(struct sta_info), GFP_ATOMIC);
+	psta = (struct sta_info *)kmalloc(sizeof(struct sta_info), gfp);
 	if (!psta)
 		return NULL;
 
@@ -382,7 +383,7 @@ u32 rtw_init_bcmc_stainfo23a(struct rtw_adapter* padapter)
 	u32 res = _SUCCESS;
 	unsigned char bcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	psta = rtw_alloc_stainfo23a(pstapriv, bcast_addr);
+	psta = rtw_alloc_stainfo23a(pstapriv, bcast_addr, GFP_KERNEL);
 	if (psta == NULL) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,

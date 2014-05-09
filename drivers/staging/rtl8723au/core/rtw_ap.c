@@ -1049,7 +1049,9 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	/* alloc sta_info for ap itself */
 	psta = rtw_get_stainfo23a(&padapter->stapriv, pbss_network->MacAddress);
 	if (!psta) {
-		psta = rtw_alloc_stainfo23a(&padapter->stapriv, pbss_network->MacAddress);
+		psta = rtw_alloc_stainfo23a(&padapter->stapriv,
+					    pbss_network->MacAddress,
+					    GFP_KERNEL);
 		if (!psta)
 			return _FAIL;
 	}

@@ -916,7 +916,7 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		/*  allocate a new one */
 		DBG_8723A("going to alloc stainfo for sa ="MAC_FMT"\n",
 			  MAC_ARG(sa));
-		pstat = rtw_alloc_stainfo23a(pstapriv, sa);
+		pstat = rtw_alloc_stainfo23a(pstapriv, sa, GFP_ATOMIC);
 		if (!pstat) {
 			DBG_8723A(" Exceed the upper limit of supported "
 				  "clients...\n");
