@@ -414,7 +414,7 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 		bucket->deficit = weight * q->quantum;
 	}
-	if (++sch->q.qlen < sch->limit)
+	if (++sch->q.qlen <= sch->limit)
 		return NET_XMIT_SUCCESS;
 
 	q->drop_overlimit++;
