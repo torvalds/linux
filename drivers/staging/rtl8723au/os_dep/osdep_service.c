@@ -36,11 +36,3 @@ void _rtw_init_queue23a(struct rtw_queue *pqueue)
 	INIT_LIST_HEAD(&pqueue->queue);
 	spin_lock_init(&pqueue->lock);
 }
-
-u32 _rtw_queue_empty23a(struct rtw_queue *pqueue)
-{
-	if (list_empty(&pqueue->queue))
-		return true;
-	else
-		return false;
-}

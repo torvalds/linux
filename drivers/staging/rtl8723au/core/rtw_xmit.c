@@ -984,10 +984,10 @@ s32 rtw_txframes_pending23a(struct rtw_adapter *padapter)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	return (!_rtw_queue_empty23a(&pxmitpriv->be_pending)) ||
-	       (!_rtw_queue_empty23a(&pxmitpriv->bk_pending)) ||
-	       (!_rtw_queue_empty23a(&pxmitpriv->vi_pending)) ||
-	       (!_rtw_queue_empty23a(&pxmitpriv->vo_pending));
+	return (!list_empty(&pxmitpriv->be_pending.queue)) ||
+		(!list_empty(&pxmitpriv->bk_pending.queue)) ||
+		(!list_empty(&pxmitpriv->vi_pending.queue)) ||
+		(!list_empty(&pxmitpriv->vo_pending.queue));
 }
 
 s32 rtw_txframes_sta_ac_pending23a(struct rtw_adapter *padapter,
@@ -1480,7 +1480,7 @@ static struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 
 	spin_lock_bh(&pfree_xmit_queue->lock);
 
-	if (_rtw_queue_empty23a(pfree_xmit_queue) == true) {
+	if (list_empty(&pfree_xmit_queue->queue)) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
 			 ("rtw_alloc_xmitframe:%d\n",
 			  pxmitpriv->free_xmitframe_cnt));
@@ -1514,7 +1514,7 @@ struct xmit_frame *rtw_alloc_xmitframe23a_ext(struct xmit_priv *pxmitpriv)
 
 	spin_lock_bh(&queue->lock);
 
-	if (_rtw_queue_empty23a(queue) == true) {
+	if (list_empty(&queue->queue)) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("rtw_alloc_xmitframe23a_ext:%d\n", pxmitpriv->free_xframe_ext_cnt));
 		pxframe =  NULL;
 	} else {
@@ -1673,7 +1673,9 @@ rtw_dequeue_xframe23a(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i,
 				phwxmit->accnt--;
 
 				/* Remove sta node when there is no pending packets. */
-				if (_rtw_queue_empty23a(pframe_queue)) /* must be done after get_next and before break */
+				/* must be done after get_next and
+				   before break */
+				if (list_empty(&pframe_queue->queue))
 					list_del_init(&ptxservq->tx_pending);
 				goto exit;
 			}

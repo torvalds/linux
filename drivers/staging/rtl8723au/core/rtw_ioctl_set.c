@@ -45,7 +45,7 @@ u8 rtw_do_join23a(struct rtw_adapter *padapter)
 
 	pmlmepriv->to_join = true;
 
-	if (_rtw_queue_empty23a(queue) == true) {
+	if (list_empty(&queue->queue)) {
 		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 

@@ -110,7 +110,7 @@ struct recv_frame *rtw_alloc_recvframe23a(struct rtw_queue *pfree_recv_queue)
 
 	spin_lock_bh(&pfree_recv_queue->lock);
 
-	if (_rtw_queue_empty23a(pfree_recv_queue) == true)
+	if (list_empty(&pfree_recv_queue->queue))
 		pframe = NULL;
 	else {
 		phead = get_list_head(pfree_recv_queue);
@@ -255,7 +255,7 @@ struct recv_buf *rtw_dequeue_recvbuf23a (struct rtw_queue *queue)
 
 	spin_lock_irqsave(&queue->lock, irqL);
 
-	if (_rtw_queue_empty23a(queue) == true) {
+	if (list_empty(&queue->queue)) {
 		precvbuf = NULL;
 	} else {
 		phead = get_list_head(queue);
@@ -1756,7 +1756,7 @@ struct recv_frame* recvframe_chk_defrag23a(struct rtw_adapter *padapter,
 		if (pdefrag_q != NULL) {
 			if (fragnum == 0) {
 				/* the first fragment */
-				if (_rtw_queue_empty23a(pdefrag_q) == false) {
+				if (!list_empty(&pdefrag_q->queue)) {
 					/* free current defrag_q */
 					rtw_free_recvframe23a_queue(pdefrag_q);
 				}

@@ -137,7 +137,6 @@ extern unsigned char	MCS_rate_2R23A[16];
 extern unsigned char	MCS_rate_1R23A[16];
 
 void	_rtw_init_queue23a(struct rtw_queue *pqueue);
-u32	_rtw_queue_empty23a(struct rtw_queue *pqueue);
 
 void rtw_suspend_lock_init(void);
 void rtw_suspend_lock_uninit(void);
