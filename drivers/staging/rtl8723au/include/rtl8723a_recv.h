@@ -60,7 +60,6 @@ struct interrupt_msg_format {
 	unsigned int  MSG_EX;
 };
 
-void rtl8723au_init_recvbuf(struct rtw_adapter *padapter, struct recv_buf *precvbuf);
 int rtl8723au_init_recv_priv(struct rtw_adapter * padapter);
 void rtl8723au_free_recv_priv(struct rtw_adapter * padapter);
 void rtl8723a_process_phy_info(struct rtw_adapter *padapter, void *prframe);

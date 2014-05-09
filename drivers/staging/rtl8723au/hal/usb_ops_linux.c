@@ -764,8 +764,6 @@ static u32 usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 	if (!precvbuf->pskb)
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
 
-	rtl8723au_init_recvbuf(adapter, precvbuf);
-
 	/* re-assign for linux based on skb */
 	if (!precvbuf->pskb) {
 		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);

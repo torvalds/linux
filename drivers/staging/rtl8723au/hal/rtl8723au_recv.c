@@ -23,11 +23,6 @@
 #include <wifi.h>
 #include <rtl8723a_hal.h>
 
-void rtl8723au_init_recvbuf(struct rtw_adapter *padapter,
-			    struct recv_buf *precvbuf)
-{
-}
-
 int rtl8723au_init_recv_priv(struct rtw_adapter *padapter)
 {
 	struct recv_priv *precvpriv = &padapter->recvpriv;
