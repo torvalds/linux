@@ -920,15 +920,16 @@ omap_hsmmc_xfer_done(struct omap_hsmmc_host *host, struct mmc_data *data)
 static void
 omap_hsmmc_cmd_done(struct omap_hsmmc_host *host, struct mmc_command *cmd)
 {
-	host->cmd = NULL;
-
 	if (host->mrq->sbc && (host->cmd == host->mrq->sbc) &&
 	    !host->mrq->sbc->error && !(host->flags & AUTO_CMD23)) {
+		host->cmd = NULL;
 		omap_hsmmc_start_dma_transfer(host);
 		omap_hsmmc_start_command(host, host->mrq->cmd,
 						host->mrq->data);
 		return;
 	}
+
+	host->cmd = NULL;
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
