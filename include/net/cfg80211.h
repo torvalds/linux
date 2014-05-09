@@ -694,8 +694,10 @@ struct cfg80211_ap_settings {
  *
  * @chandef: defines the channel to use after the switch
  * @beacon_csa: beacon data while performing the switch
- * @counter_offset_beacon: offset for the counter within the beacon (tail)
- * @counter_offset_presp: offset for the counter within the probe response
+ * @counter_offsets_beacon: offsets of the counters within the beacon (tail)
+ * @counter_offsets_presp: offsets of the counters within the probe response
+ * @n_counter_offsets_beacon: number of csa counters the beacon (tail)
+ * @n_counter_offsets_presp: number of csa counters in the probe response
  * @beacon_after: beacon data to be used on the new channel
  * @radar_required: whether radar detection is required on the new channel
  * @block_tx: whether transmissions should be blocked while changing
@@ -704,7 +706,10 @@ struct cfg80211_ap_settings {
 struct cfg80211_csa_settings {
 	struct cfg80211_chan_def chandef;
 	struct cfg80211_beacon_data beacon_csa;
-	u16 counter_offset_beacon, counter_offset_presp;
+	const u16 *counter_offsets_beacon;
+	const u16 *counter_offsets_presp;
+	unsigned int n_counter_offsets_beacon;
+	unsigned int n_counter_offsets_presp;
 	struct cfg80211_beacon_data beacon_after;
 	bool radar_required;
 	bool block_tx;
@@ -3047,6 +3052,13 @@ struct wiphy {
 	int n_vendor_commands, n_vendor_events;
 
 	u16 max_ap_assoc_sta;
+
+	/*
+	 * Number of supported csa_counters in beacons and probe responses.
+	 * This value should be set if the driver wishes to limit the number of
+	 * csa counters. Default (0) means infinite.
+	 */
+	u8 max_num_csa_counters;
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };

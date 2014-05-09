@@ -3192,8 +3192,14 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 			break;
 
 		sdata->csa_counter_offset_beacon =
-			params->counter_offset_beacon;
-		sdata->csa_counter_offset_presp = params->counter_offset_presp;
+			params->counter_offsets_beacon[0];
+
+		if (params->n_counter_offsets_presp)
+			sdata->csa_counter_offset_presp =
+				params->counter_offsets_presp[0];
+		else
+			sdata->csa_counter_offset_presp = 0;
+
 		err = ieee80211_assign_beacon(sdata, &params->beacon_csa);
 		if (err < 0) {
 			kfree(sdata->u.ap.next_beacon);

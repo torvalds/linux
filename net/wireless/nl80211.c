@@ -371,8 +371,8 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_CH_SWITCH_COUNT] = { .type = NLA_U32 },
 	[NL80211_ATTR_CH_SWITCH_BLOCK_TX] = { .type = NLA_FLAG },
 	[NL80211_ATTR_CSA_IES] = { .type = NLA_NESTED },
-	[NL80211_ATTR_CSA_C_OFF_BEACON] = { .type = NLA_U16 },
-	[NL80211_ATTR_CSA_C_OFF_PRESP] = { .type = NLA_U16 },
+	[NL80211_ATTR_CSA_C_OFF_BEACON] = { .type = NLA_BINARY },
+	[NL80211_ATTR_CSA_C_OFF_PRESP] = { .type = NLA_BINARY },
 	[NL80211_ATTR_STA_SUPPORTED_CHANNELS] = { .type = NLA_BINARY },
 	[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES] = { .type = NLA_BINARY },
 	[NL80211_ATTR_HANDLE_DFS] = { .type = NLA_FLAG },
@@ -1670,6 +1670,13 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			}
 			nla_nest_end(msg, nested);
 		}
+		state->split_start++;
+		break;
+	case 12:
+		if (rdev->wiphy.flags & WIPHY_FLAG_HAS_CHANNEL_SWITCH &&
+		    nla_put_u8(msg, NL80211_ATTR_MAX_CSA_COUNTERS,
+			       rdev->wiphy.max_num_csa_counters))
+			goto nla_put_failure;
 
 		/* done */
 		state->split_start = 0;
@@ -5864,6 +5871,7 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 	u8 radar_detect_width = 0;
 	int err;
 	bool need_new_beacon = false;
+	int len, i;
 
 	if (!rdev->ops->channel_switch ||
 	    !(rdev->wiphy.flags & WIPHY_FLAG_HAS_CHANNEL_SWITCH))
@@ -5922,26 +5930,55 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 	if (!csa_attrs[NL80211_ATTR_CSA_C_OFF_BEACON])
 		return -EINVAL;
 
-	params.counter_offset_beacon =
-		nla_get_u16(csa_attrs[NL80211_ATTR_CSA_C_OFF_BEACON]);
-	if (params.counter_offset_beacon >= params.beacon_csa.tail_len)
+	len = nla_len(csa_attrs[NL80211_ATTR_CSA_C_OFF_BEACON]);
+	if (!len || (len % sizeof(u16)))
 		return -EINVAL;
 
-	/* sanity check - counters should be the same */
-	if (params.beacon_csa.tail[params.counter_offset_beacon] !=
-	    params.count)
+	params.n_counter_offsets_beacon = len / sizeof(u16);
+	if (rdev->wiphy.max_num_csa_counters &&
+	    (params.n_counter_offsets_beacon >
+	     rdev->wiphy.max_num_csa_counters))
 		return -EINVAL;
+
+	params.counter_offsets_beacon =
+		nla_data(csa_attrs[NL80211_ATTR_CSA_C_OFF_BEACON]);
+
+	/* sanity checks - counters should fit and be the same */
+	for (i = 0; i < params.n_counter_offsets_beacon; i++) {
+		u16 offset = params.counter_offsets_beacon[i];
+
+		if (offset >= params.beacon_csa.tail_len)
+			return -EINVAL;
+
+		if (params.beacon_csa.tail[offset] != params.count)
+			return -EINVAL;
+	}
 
 	if (csa_attrs[NL80211_ATTR_CSA_C_OFF_PRESP]) {
-		params.counter_offset_presp =
-			nla_get_u16(csa_attrs[NL80211_ATTR_CSA_C_OFF_PRESP]);
-		if (params.counter_offset_presp >=
-		    params.beacon_csa.probe_resp_len)
+		len = nla_len(csa_attrs[NL80211_ATTR_CSA_C_OFF_PRESP]);
+		if (!len || (len % sizeof(u16)))
 			return -EINVAL;
 
-		if (params.beacon_csa.probe_resp[params.counter_offset_presp] !=
-		    params.count)
+		params.n_counter_offsets_presp = len / sizeof(u16);
+		if (rdev->wiphy.max_num_csa_counters &&
+		    (params.n_counter_offsets_beacon >
+		     rdev->wiphy.max_num_csa_counters))
 			return -EINVAL;
+
+		params.counter_offsets_presp =
+			nla_data(csa_attrs[NL80211_ATTR_CSA_C_OFF_PRESP]);
+
+		/* sanity checks - counters should fit and be the same */
+		for (i = 0; i < params.n_counter_offsets_presp; i++) {
+			u16 offset = params.counter_offsets_presp[i];
+
+			if (offset >= params.beacon_csa.probe_resp_len)
+				return -EINVAL;
+
+			if (params.beacon_csa.probe_resp[offset] !=
+			    params.count)
+				return -EINVAL;
+		}
 	}
 
 skip_beacons:

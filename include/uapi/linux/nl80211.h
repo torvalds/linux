@@ -1528,10 +1528,10 @@ enum nl80211_commands {
  *	operation).
  * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
  *	for the time while performing a channel switch.
- * @NL80211_ATTR_CSA_C_OFF_BEACON: Offset of the channel switch counter
- *	field in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
- * @NL80211_ATTR_CSA_C_OFF_PRESP: Offset of the channel switch counter
- *	field in the probe response (%NL80211_ATTR_PROBE_RESP).
+ * @NL80211_ATTR_CSA_C_OFF_BEACON: An array of offsets (u16) to the channel
+ *	switch counters in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
+ * @NL80211_ATTR_CSA_C_OFF_PRESP: An array of offsets (u16) to the channel
+ *	switch counters in the probe response (%NL80211_ATTR_PROBE_RESP).
  *
  * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
  *	As specified in the &enum nl80211_rxmgmt_flags.
@@ -1581,6 +1581,8 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_CSA_C_OFFSETS_TX: An array of csa counter offsets (u16) which
  *	should be updated when the frame is transmitted.
+ * @NL80211_ATTR_MAX_CSA_COUNTERS: U8 attribute used to advertise the maximum
+ *	supported number of csa counters.
  *
  * @NL80211_ATTR_TDLS_PEER_CAPABILITY: flags for TDLS peer capabilities, u32.
  *	As specified in the &enum nl80211_tdls_peer_capability.
@@ -1927,6 +1929,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_IFACE_SOCKET_OWNER,
 
 	NL80211_ATTR_CSA_C_OFFSETS_TX,
+	NL80211_ATTR_MAX_CSA_COUNTERS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
