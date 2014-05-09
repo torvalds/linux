@@ -118,7 +118,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 }
 
 /**
- * percpu_ref_tryget - try to increment a percpu refcount
+ * percpu_ref_tryget_live - try to increment a live percpu refcount
  * @ref: percpu_ref to try-get
  *
  * Increment a percpu refcount unless it has already been killed.  Returns
@@ -129,7 +129,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
  * used.  After the confirm_kill callback is invoked, it's guaranteed that
  * no new reference will be given out by percpu_ref_tryget().
  */
-static inline bool percpu_ref_tryget(struct percpu_ref *ref)
+static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 {
 	unsigned __percpu *pcpu_count;
 	int ret = false;
