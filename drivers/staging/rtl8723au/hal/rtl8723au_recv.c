@@ -203,10 +203,6 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u8 *wlanhdr = skb->data;
 
-	pkt_info.bPacketMatchBSSID = false;
-	pkt_info.bPacketToSelf = false;
-	pkt_info.bPacketBeacon = false;
-
 	pkt_info.bPacketMatchBSSID =
 		(!ieee80211_is_ctl(hdr->frame_control) &&
 		 !pattrib->icv_err &&
