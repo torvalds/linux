@@ -104,9 +104,6 @@ u32 ODM_GetRFReg(struct dm_odm_t *pDM_Odm, enum RF_RADIO_PATH eRFPath,
 		 u32 RegAddr, u32 BitMask);
 
 /*  Memory Relative Function. */
-void ODM_AllocateMemory(struct dm_odm_t *pDM_Odm, void **pPtr, u32 length);
-void ODM_FreeMemory(struct dm_odm_t *pDM_Odm, void *pPtr, u32 length);
-
 s32 ODM_CompareMemory(struct dm_odm_t *pDM_Odm, void *pBuf1, void *pBuf2, u32 length);
 
 /*  ODM MISC-spin lock relative API. */

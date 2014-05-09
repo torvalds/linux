@@ -155,28 +155,6 @@ u32 ODM_GetRFReg(
 }
 
 /*  */
-/*  ODM Memory relative API. */
-/*  */
-void ODM_AllocateMemory(
-	struct dm_odm_t *pDM_Odm,
-	void **pPtr,
-	u32		length
-	)
-{
-	*pPtr = rtw_zvmalloc(length);
-}
-
-/*  length could be ignored, used to detect memory leakage. */
-void ODM_FreeMemory(
-	struct dm_odm_t *pDM_Odm,
-	void *pPtr,
-	u32		length
-	)
-{
-	rtw_vmfree(pPtr, length);
-}
-
-/*  */
 /*  ODM MISC relative API. */
 /*  */
 void
