@@ -18,15 +18,6 @@ struct rsnd_src {
 
 #define RSND_SRC_NAME_SIZE 16
 
-/*
- * ADINR
- */
-#define OTBL_24		(0 << 16)
-#define OTBL_22		(2 << 16)
-#define OTBL_20		(4 << 16)
-#define OTBL_18		(6 << 16)
-#define OTBL_16		(8 << 16)
-
 #define rsnd_src_convert_rate(p) ((p)->info->convert_rate)
 #define rsnd_mod_to_src(_mod)				\
 	container_of((_mod), struct rsnd_src, mod)
@@ -197,7 +188,6 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 convert_rate = rsnd_src_convert_rate(src);
-	u32 adinr = runtime->channels;
 	u32 fsrate = 0;
 
 	if (convert_rate)
@@ -214,17 +204,7 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	rsnd_mod_write(mod, SRC_SRCIR, 1);
 
 	/* Set channel number and output bit length */
-	switch (runtime->sample_bits) {
-	case 16:
-		adinr |= OTBL_16;
-		break;
-	case 32:
-		adinr |= OTBL_24;
-		break;
-	default:
-		return -EIO;
-	}
-	rsnd_mod_write(mod, SRC_ADINR, adinr);
+	rsnd_mod_write(mod, SRC_ADINR, rsnd_get_adinr(mod));
 
 	/* Enable the initial value of IFS */
 	if (fsrate) {
@@ -487,8 +467,8 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	rsnd_mod_write(mod, SSI_BUSIF_ADINR, rsnd_mod_read(mod, SRC_ADINR));
-	rsnd_mod_write(mod, SSI_BUSIF_MODE,  rsnd_mod_read(mod, SRC_BUSIF_MODE));
+	rsnd_mod_write(mod, SSI_BUSIF_ADINR, rsnd_get_adinr(mod));
+	rsnd_mod_write(mod, SSI_BUSIF_MODE,  1);
 
 	rsnd_mod_write(mod, SRC_SRCCR, 0x00011110);
 

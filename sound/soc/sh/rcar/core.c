@@ -310,6 +310,32 @@ void  rsnd_dma_quit(struct rsnd_priv *priv,
 }
 
 /*
+ *	settting function
+ */
+u32 rsnd_get_adinr(struct rsnd_mod *mod)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 adinr = runtime->channels;
+
+	switch (runtime->sample_bits) {
+	case 16:
+		adinr |= (8 << 16);
+		break;
+	case 32:
+		adinr |= (0 << 16);
+		break;
+	default:
+		dev_warn(dev, "not supported sample bits\n");
+		return 0;
+	}
+
+	return adinr;
+}
+
+/*
  *	rsnd_dai functions
  */
 #define __rsnd_mod_call(mod, func, rdai, io)			\
