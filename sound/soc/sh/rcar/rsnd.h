@@ -172,23 +172,17 @@ enum rsnd_mod_type {
 struct rsnd_mod_ops {
 	char *name;
 	int (*probe)(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai,
-		     struct rsnd_dai_stream *io);
+		     struct rsnd_dai *rdai);
 	int (*remove)(struct rsnd_mod *mod,
-		      struct rsnd_dai *rdai,
-		      struct rsnd_dai_stream *io);
+		      struct rsnd_dai *rdai);
 	int (*init)(struct rsnd_mod *mod,
-		    struct rsnd_dai *rdai,
-		    struct rsnd_dai_stream *io);
+		    struct rsnd_dai *rdai);
 	int (*quit)(struct rsnd_mod *mod,
-		    struct rsnd_dai *rdai,
-		    struct rsnd_dai_stream *io);
+		    struct rsnd_dai *rdai);
 	int (*start)(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai,
-		     struct rsnd_dai_stream *io);
+		     struct rsnd_dai *rdai);
 	int (*stop)(struct rsnd_mod *mod,
-		    struct rsnd_dai *rdai,
-		    struct rsnd_dai_stream *io);
+		    struct rsnd_dai *rdai);
 };
 
 struct rsnd_dai_stream;
@@ -365,11 +359,9 @@ unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
 int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
-			   struct rsnd_dai *rdai,
-			   struct rsnd_dai_stream *io);
+			   struct rsnd_dai *rdai);
 int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
-			    struct rsnd_dai *rdai,
-			    struct rsnd_dai_stream *io);
+			    struct rsnd_dai *rdai);
 
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 

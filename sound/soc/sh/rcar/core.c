@@ -338,19 +338,19 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 /*
  *	rsnd_dai functions
  */
-#define __rsnd_mod_call(mod, func, rdai, io)			\
+#define __rsnd_mod_call(mod, func, rdai)			\
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
 	dev_dbg(dev, "%s [%d] %s\n",				\
 		rsnd_mod_name(mod), rsnd_mod_id(mod), #func);	\
-	(mod)->ops->func(mod, rdai, io);			\
+	(mod)->ops->func(mod, rdai);				\
 })
 
-#define rsnd_mod_call(mod, func, rdai, io)	\
+#define rsnd_mod_call(mod, func, rdai)	\
 	(!(mod) ? -ENODEV :			\
 	 !((mod)->ops->func) ? 0 :		\
-	 __rsnd_mod_call(mod, func, (rdai), (io)))
+	 __rsnd_mod_call(mod, func, (rdai)))
 
 #define rsnd_dai_call(rdai, io, fn)				\
 ({								\
@@ -360,7 +360,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 		mod = (io)->mod[i];				\
 		if (!mod)					\
 			continue;				\
-		ret = rsnd_mod_call(mod, fn, (rdai), (io));	\
+		ret = rsnd_mod_call(mod, fn, (rdai));		\
 		if (ret < 0)					\
 			break;					\
 	}							\

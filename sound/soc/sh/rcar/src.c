@@ -105,9 +105,9 @@ struct rsnd_src {
  *		Gen1/Gen2 common functions
  */
 int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
-			   struct rsnd_dai *rdai,
-			   struct rsnd_dai_stream *io)
+			   struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(ssi_mod);
 	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
 	int ssi_id = rsnd_mod_id(ssi_mod);
 
@@ -145,8 +145,7 @@ int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
 }
 
 int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
-			    struct rsnd_dai *rdai,
-			    struct rsnd_dai_stream *io)
+			    struct rsnd_dai *rdai)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
 
@@ -182,9 +181,9 @@ unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 }
 
 static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
-				     struct rsnd_dai *rdai,
-				     struct rsnd_dai_stream *io)
+				     struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 convert_rate = rsnd_src_convert_rate(src);
@@ -221,8 +220,7 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_init(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai,
-			 struct rsnd_dai_stream *io)
+			 struct rsnd_dai *rdai)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
@@ -232,8 +230,7 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_quit(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai,
-			 struct rsnd_dai_stream *io)
+			 struct rsnd_dai *rdai)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
@@ -243,8 +240,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_start(struct rsnd_mod *mod,
-			  struct rsnd_dai *rdai,
-			  struct rsnd_dai_stream *io)
+			  struct rsnd_dai *rdai)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
@@ -262,8 +258,7 @@ static int rsnd_src_start(struct rsnd_mod *mod,
 
 
 static int rsnd_src_stop(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai,
-			 struct rsnd_dai_stream *io)
+			 struct rsnd_dai *rdai)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
@@ -281,9 +276,9 @@ static struct rsnd_mod_ops rsnd_src_non_ops = {
  *		Gen1 functions
  */
 static int rsnd_src_set_route_gen1(struct rsnd_mod *mod,
-				   struct rsnd_dai *rdai,
-				   struct rsnd_dai_stream *io)
+				   struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct src_route_config {
 		u32 mask;
 		int shift;
@@ -319,9 +314,9 @@ static int rsnd_src_set_route_gen1(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_set_convert_timing_gen1(struct rsnd_mod *mod,
-					    struct rsnd_dai *rdai,
-					    struct rsnd_dai_stream *io)
+					    struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
@@ -378,12 +373,11 @@ static int rsnd_src_set_convert_timing_gen1(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_set_convert_rate_gen1(struct rsnd_mod *mod,
-					  struct rsnd_dai *rdai,
-					  struct rsnd_dai_stream *io)
+					  struct rsnd_dai *rdai)
 {
 	int ret;
 
-	ret = rsnd_src_set_convert_rate(mod, rdai, io);
+	ret = rsnd_src_set_convert_rate(mod, rdai);
 	if (ret < 0)
 		return ret;
 
@@ -400,24 +394,23 @@ static int rsnd_src_set_convert_rate_gen1(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_init_gen1(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai,
-			      struct rsnd_dai_stream *io)
+			      struct rsnd_dai *rdai)
 {
 	int ret;
 
-	ret = rsnd_src_init(mod, rdai, io);
+	ret = rsnd_src_init(mod, rdai);
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_src_set_route_gen1(mod, rdai, io);
+	ret = rsnd_src_set_route_gen1(mod, rdai);
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_src_set_convert_rate_gen1(mod, rdai, io);
+	ret = rsnd_src_set_convert_rate_gen1(mod, rdai);
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_src_set_convert_timing_gen1(mod, rdai, io);
+	ret = rsnd_src_set_convert_timing_gen1(mod, rdai);
 	if (ret < 0)
 		return ret;
 
@@ -425,25 +418,23 @@ static int rsnd_src_init_gen1(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_start_gen1(struct rsnd_mod *mod,
-			       struct rsnd_dai *rdai,
-			       struct rsnd_dai_stream *io)
+			       struct rsnd_dai *rdai)
 {
 	int id = rsnd_mod_id(mod);
 
 	rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), (1 << id));
 
-	return rsnd_src_start(mod, rdai, io);
+	return rsnd_src_start(mod, rdai);
 }
 
 static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai,
-			      struct rsnd_dai_stream *io)
+			      struct rsnd_dai *rdai)
 {
 	int id = rsnd_mod_id(mod);
 
 	rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), 0);
 
-	return rsnd_src_stop(mod, rdai, io);
+	return rsnd_src_stop(mod, rdai);
 }
 
 static struct rsnd_mod_ops rsnd_src_gen1_ops = {
@@ -458,12 +449,11 @@ static struct rsnd_mod_ops rsnd_src_gen1_ops = {
  *		Gen2 functions
  */
 static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
-					  struct rsnd_dai *rdai,
-					  struct rsnd_dai_stream *io)
+					  struct rsnd_dai *rdai)
 {
 	int ret;
 
-	ret = rsnd_src_set_convert_rate(mod, rdai, io);
+	ret = rsnd_src_set_convert_rate(mod, rdai);
 	if (ret < 0)
 		return ret;
 
@@ -479,9 +469,9 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_set_convert_timing_gen2(struct rsnd_mod *mod,
-					    struct rsnd_dai *rdai,
-					    struct rsnd_dai_stream *io)
+					    struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 convert_rate = rsnd_src_convert_rate(src);
@@ -498,8 +488,7 @@ static int rsnd_src_set_convert_timing_gen2(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
-			       struct rsnd_dai *rdai,
-			       struct rsnd_dai_stream *io)
+			       struct rsnd_dai *rdai)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
@@ -517,8 +506,7 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_remove_gen2(struct rsnd_mod *mod,
-				struct rsnd_dai *rdai,
-				struct rsnd_dai_stream *io)
+				struct rsnd_dai *rdai)
 {
 	rsnd_dma_quit(rsnd_mod_to_priv(mod), rsnd_mod_to_dma(mod));
 
@@ -526,20 +514,19 @@ static int rsnd_src_remove_gen2(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_init_gen2(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai,
-			      struct rsnd_dai_stream *io)
+			      struct rsnd_dai *rdai)
 {
 	int ret;
 
-	ret = rsnd_src_init(mod, rdai, io);
+	ret = rsnd_src_init(mod, rdai);
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_src_set_convert_rate_gen2(mod, rdai, io);
+	ret = rsnd_src_set_convert_rate_gen2(mod, rdai);
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_src_set_convert_timing_gen2(mod, rdai, io);
+	ret = rsnd_src_set_convert_timing_gen2(mod, rdai);
 	if (ret < 0)
 		return ret;
 
@@ -547,8 +534,7 @@ static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_start_gen2(struct rsnd_mod *mod,
-			       struct rsnd_dai *rdai,
-			       struct rsnd_dai_stream *io)
+			       struct rsnd_dai *rdai)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
@@ -557,12 +543,11 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 	rsnd_mod_write(mod, SSI_CTRL, 0x1);
 	rsnd_mod_write(mod, SRC_CTRL, 0x11);
 
-	return rsnd_src_start(mod, rdai, io);
+	return rsnd_src_start(mod, rdai);
 }
 
 static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai,
-			      struct rsnd_dai_stream *io)
+			      struct rsnd_dai *rdai)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
@@ -571,7 +556,7 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 
 	rsnd_dma_stop(rsnd_mod_to_dma(&src->mod));
 
-	return rsnd_src_stop(mod, rdai, io);
+	return rsnd_src_stop(mod, rdai);
 }
 
 static struct rsnd_mod_ops rsnd_src_gen2_ops = {
