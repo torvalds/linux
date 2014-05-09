@@ -298,7 +298,6 @@ enum {
 struct odm_sta_info {
 	/*  Driver Write */
 	bool		bUsed;				/*  record the sta status link or not? */
-	u8		IOTPeer;			/*  Enum value.	HT_IOT_PEER_E */
 
 	/*  ODM Write */
 	/* 1 PHY_STATUS_INFO */
