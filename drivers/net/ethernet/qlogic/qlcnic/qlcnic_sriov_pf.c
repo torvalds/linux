@@ -472,11 +472,11 @@ static int qlcnic_pci_sriov_disable(struct qlcnic_adapter *adapter)
 		return -EPERM;
 	}
 
+	qlcnic_sriov_pf_disable(adapter);
+
 	rtnl_lock();
 	if (netif_running(netdev))
 		__qlcnic_down(adapter, netdev);
-
-	qlcnic_sriov_pf_disable(adapter);
 
 	qlcnic_sriov_free_vlans(adapter);
 
@@ -596,7 +596,6 @@ static int __qlcnic_pci_sriov_enable(struct qlcnic_adapter *adapter,
 
 	qlcnic_sriov_alloc_vlans(adapter);
 
-	err = qlcnic_sriov_pf_enable(adapter, num_vfs);
 	return err;
 
 del_flr_queue:
@@ -627,25 +626,36 @@ static int qlcnic_pci_sriov_enable(struct qlcnic_adapter *adapter, int num_vfs)
 		__qlcnic_down(adapter, netdev);
 
 	err = __qlcnic_pci_sriov_enable(adapter, num_vfs);
-	if (err) {
-		netdev_info(netdev, "Failed to enable SR-IOV on port %d\n",
-			    adapter->portnum);
+	if (err)
+		goto error;
 
-		err = -EIO;
-		if (qlcnic_83xx_configure_opmode(adapter))
-			goto error;
-	} else {
+	if (netif_running(netdev))
+		__qlcnic_up(adapter, netdev);
+
+	rtnl_unlock();
+	err = qlcnic_sriov_pf_enable(adapter, num_vfs);
+	if (!err) {
 		netdev_info(netdev,
 			    "SR-IOV is enabled successfully on port %d\n",
 			    adapter->portnum);
 		/* Return number of vfs enabled */
-		err = num_vfs;
+		return num_vfs;
 	}
+
+	rtnl_lock();
 	if (netif_running(netdev))
-		__qlcnic_up(adapter, netdev);
+		__qlcnic_down(adapter, netdev);
 
 error:
+	if (!qlcnic_83xx_configure_opmode(adapter)) {
+		if (netif_running(netdev))
+			__qlcnic_up(adapter, netdev);
+	}
+
 	rtnl_unlock();
+	netdev_info(netdev, "Failed to enable SR-IOV on port %d\n",
+		    adapter->portnum);
+
 	return err;
 }
 
