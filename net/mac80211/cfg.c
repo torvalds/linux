@@ -3191,14 +3191,24 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		if (params->count <= 1)
 			break;
 
-		sdata->csa_counter_offset_beacon =
-			params->counter_offsets_beacon[0];
+		if ((params->n_counter_offsets_beacon >
+		     IEEE80211_MAX_CSA_COUNTERS_NUM) ||
+		    (params->n_counter_offsets_presp >
+		     IEEE80211_MAX_CSA_COUNTERS_NUM))
+			return -EINVAL;
 
-		if (params->n_counter_offsets_presp)
-			sdata->csa_counter_offset_presp =
-				params->counter_offsets_presp[0];
-		else
-			sdata->csa_counter_offset_presp = 0;
+		/* make sure we don't have garbage in other counters */
+		memset(sdata->csa_counter_offset_beacon, 0,
+		       sizeof(sdata->csa_counter_offset_beacon));
+		memset(sdata->csa_counter_offset_presp, 0,
+		       sizeof(sdata->csa_counter_offset_presp));
+
+		memcpy(sdata->csa_counter_offset_beacon,
+		       params->counter_offsets_beacon,
+		       params->n_counter_offsets_beacon * sizeof(u16));
+		memcpy(sdata->csa_counter_offset_presp,
+		       params->counter_offsets_presp,
+		       params->n_counter_offsets_presp * sizeof(u16));
 
 		err = ieee80211_assign_beacon(sdata, &params->beacon_csa);
 		if (err < 0) {

@@ -2417,10 +2417,9 @@ static void ieee80211_update_csa(struct ieee80211_sub_if_data *sdata,
 				 struct beacon_data *beacon)
 {
 	struct probe_resp *resp;
-	int counter_offset_beacon = sdata->csa_counter_offset_beacon;
-	int counter_offset_presp = sdata->csa_counter_offset_presp;
 	u8 *beacon_data;
 	size_t beacon_data_len;
+	int i;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
@@ -2438,32 +2437,47 @@ static void ieee80211_update_csa(struct ieee80211_sub_if_data *sdata,
 	default:
 		return;
 	}
-	if (WARN_ON(counter_offset_beacon >= beacon_data_len))
-		return;
 
-	/* Warn if the driver did not check for/react to csa
-	 * completeness.  A beacon with CSA counter set to 0 should
-	 * never occur, because a counter of 1 means switch just
-	 * before the next beacon.
-	 */
-	if (WARN_ON(beacon_data[counter_offset_beacon] == 1))
-		return;
+	for (i = 0; i < IEEE80211_MAX_CSA_COUNTERS_NUM; ++i) {
+		u16 counter_offset_beacon =
+			sdata->csa_counter_offset_beacon[i];
+		u16 counter_offset_presp = sdata->csa_counter_offset_presp[i];
+
+		if (counter_offset_beacon) {
+			if (WARN_ON(counter_offset_beacon >= beacon_data_len))
+				return;
+
+			/* Warn if the driver did not check for/react to csa
+			 * completeness.  A beacon with CSA counter set to 0
+			 * should never occur, because a counter of 1 means
+			 * switch just before the next beacon.
+			 */
+			if (WARN_ON(beacon_data[counter_offset_beacon] == 1))
+				return;
+
+			beacon_data[counter_offset_beacon] =
+				sdata->csa_current_counter - 1;
+		}
+
+		if (sdata->vif.type == NL80211_IFTYPE_AP &&
+		    counter_offset_presp) {
+			rcu_read_lock();
+			resp = rcu_dereference(sdata->u.ap.probe_resp);
+
+			/* If nl80211 accepted the offset, this should
+			 * not happen.
+			 */
+			if (WARN_ON(!resp)) {
+				rcu_read_unlock();
+				return;
+			}
+			resp->data[counter_offset_presp] =
+				sdata->csa_current_counter - 1;
+			rcu_read_unlock();
+		}
+	}
 
 	sdata->csa_current_counter--;
-	beacon_data[counter_offset_beacon] = sdata->csa_current_counter;
-
-	if (sdata->vif.type == NL80211_IFTYPE_AP && counter_offset_presp) {
-		rcu_read_lock();
-		resp = rcu_dereference(sdata->u.ap.probe_resp);
-
-		/* if nl80211 accepted the offset, this should not happen. */
-		if (WARN_ON(!resp)) {
-			rcu_read_unlock();
-			return;
-		}
-		resp->data[counter_offset_presp] = sdata->csa_current_counter;
-		rcu_read_unlock();
-	}
 }
 
 bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
@@ -2472,7 +2486,7 @@ bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 	struct beacon_data *beacon = NULL;
 	u8 *beacon_data;
 	size_t beacon_data_len;
-	int counter_beacon = sdata->csa_counter_offset_beacon;
+	int counter_beacon = sdata->csa_counter_offset_beacon[0];
 	int ret = false;
 
 	if (!ieee80211_sdata_running(sdata))

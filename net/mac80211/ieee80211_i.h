@@ -70,6 +70,8 @@ struct ieee80211_local;
 
 #define IEEE80211_DEAUTH_FRAME_LEN	(24 /* hdr */ + 2 /* reason */)
 
+#define IEEE80211_MAX_CSA_COUNTERS_NUM 2
+
 struct ieee80211_fragment_entry {
 	unsigned long first_frag_time;
 	unsigned int seq;
@@ -753,8 +755,8 @@ struct ieee80211_sub_if_data {
 	struct mac80211_qos_map __rcu *qos_map;
 
 	struct work_struct csa_finalize_work;
-	int csa_counter_offset_beacon;
-	int csa_counter_offset_presp;
+	u16 csa_counter_offset_beacon[IEEE80211_MAX_CSA_COUNTERS_NUM];
+	u16 csa_counter_offset_presp[IEEE80211_MAX_CSA_COUNTERS_NUM];
 	bool csa_radar_required;
 	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
 	struct cfg80211_chan_def csa_chandef;
