@@ -1693,7 +1693,7 @@ int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
 void qlcnic_set_netdev_features(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
-void qlcnic_sriov_vf_schedule_multi(struct net_device *);
+void qlcnic_sriov_vf_set_multi(struct net_device *);
 int qlcnic_is_valid_nic_func(struct qlcnic_adapter *, u8);
 int qlcnic_get_pci_func_type(struct qlcnic_adapter *, u16, u16 *, u16 *,
 			     u16 *);

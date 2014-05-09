@@ -784,7 +784,7 @@ static int qlcnic_sriov_cfg_vf_def_mac(struct qlcnic_adapter *adapter,
 				       struct qlcnic_vf_info *vf,
 				       u16 vlan, u8 op)
 {
-	struct qlcnic_cmd_args cmd;
+	struct qlcnic_cmd_args *cmd;
 	struct qlcnic_macvlan_mbx mv;
 	struct qlcnic_vport *vp;
 	u8 *addr;
@@ -794,21 +794,27 @@ static int qlcnic_sriov_cfg_vf_def_mac(struct qlcnic_adapter *adapter,
 
 	vp = vf->vp;
 
-	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_MAC_VLAN))
+	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
+	if (!cmd)
 		return -ENOMEM;
 
+	err = qlcnic_alloc_mbx_args(cmd, adapter, QLCNIC_CMD_CONFIG_MAC_VLAN);
+	if (err)
+		goto free_cmd;
+
+	cmd->type = QLC_83XX_MBX_CMD_NO_WAIT;
 	vpid = qlcnic_sriov_pf_get_vport_handle(adapter, vf->pci_func);
 	if (vpid < 0) {
 		err = -EINVAL;
-		goto out;
+		goto free_args;
 	}
 
 	if (vlan)
 		op = ((op == QLCNIC_MAC_ADD || op == QLCNIC_MAC_VLAN_ADD) ?
 		      QLCNIC_MAC_VLAN_ADD : QLCNIC_MAC_VLAN_DEL);
 
-	cmd.req.arg[1] = op | (1 << 8) | (3 << 6);
-	cmd.req.arg[1] |= ((vpid & 0xffff) << 16) | BIT_31;
+	cmd->req.arg[1] = op | (1 << 8) | (3 << 6);
+	cmd->req.arg[1] |= ((vpid & 0xffff) << 16) | BIT_31;
 
 	addr = vp->mac;
 	mv.vlan = vlan;
@@ -818,18 +824,18 @@ static int qlcnic_sriov_cfg_vf_def_mac(struct qlcnic_adapter *adapter,
 	mv.mac_addr3 = addr[3];
 	mv.mac_addr4 = addr[4];
 	mv.mac_addr5 = addr[5];
-	buf = &cmd.req.arg[2];
+	buf = &cmd->req.arg[2];
 	memcpy(buf, &mv, sizeof(struct qlcnic_macvlan_mbx));
 
-	err = qlcnic_issue_cmd(adapter, &cmd);
+	err = qlcnic_issue_cmd(adapter, cmd);
 
-	if (err)
-		dev_err(&adapter->pdev->dev,
-			"MAC-VLAN %s to CAM failed, err=%d.\n",
-			((op == 1) ? "add " : "delete "), err);
+	if (!err)
+		return err;
 
-out:
-	qlcnic_free_mbx_args(&cmd);
+free_args:
+	qlcnic_free_mbx_args(cmd);
+free_cmd:
+	kfree(cmd);
 	return err;
 }
 
@@ -851,7 +857,7 @@ static void qlcnic_83xx_cfg_default_mac_vlan(struct qlcnic_adapter *adapter,
 
 	sriov = adapter->ahw->sriov;
 
-	mutex_lock(&vf->vlan_list_lock);
+	spin_lock_bh(&vf->vlan_list_lock);
 	if (vf->num_vlan) {
 		for (i = 0; i < sriov->num_allowed_vlans; i++) {
 			vlan = vf->sriov_vlans[i];
@@ -860,7 +866,7 @@ static void qlcnic_83xx_cfg_default_mac_vlan(struct qlcnic_adapter *adapter,
 							    opcode);
 		}
 	}
-	mutex_unlock(&vf->vlan_list_lock);
+	spin_unlock_bh(&vf->vlan_list_lock);
 
 	if (vf->vp->vlan_mode != QLC_PVID_MODE) {
 		if (qlcnic_83xx_pf_check(adapter) &&
