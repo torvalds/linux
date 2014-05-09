@@ -53,9 +53,8 @@ struct cmd_priv {
 #define C2H_QUEUE_MAX_LEN 10
 
 struct	evt_priv {
-	struct work_struct c2h_wk;
-	bool c2h_wk_alive;
-	struct rtw_cbuf *c2h_queue;
+	struct workqueue_struct *wq;
+	struct work_struct irq_wk;
 
 	atomic_t event_seq;
 	u8	*evt_buf;	/* shall be non-paged, and 4 bytes aligned */
@@ -79,7 +78,23 @@ struct c2h_evt_hdr {
 	u8 payload[0];
 };
 
+/*
+ * Do not reorder - this allows for struct evt_work to be passed on to
+ * rtw_c2h_wk_cmd23a() as a 'struct c2h_evt_hdr *' without making an
+ * additional copy.
+ */
+struct evt_work {
+	union {
+		struct c2h_evt_hdr c2h_evt;
+		u8 buf[16];
+	} u;
+	struct work_struct work;
+	struct rtw_adapter *adapter;
+};
+
 #define c2h_evt_exist(c2h_evt) ((c2h_evt)->id || (c2h_evt)->plen)
+
+void rtw_evt_work(struct work_struct *work);
 
 int rtw_enqueue_cmd23a(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
 void rtw_free_cmd_obj23a(struct cmd_obj *pcmd);

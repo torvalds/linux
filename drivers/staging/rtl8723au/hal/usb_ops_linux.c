@@ -369,29 +369,36 @@ static void usb_read_interrupt_complete(struct urb *purb, struct pt_regs *regs)
 			if (c2h_id_filter_ccx_8723a(c2h_evt->id)) {
 				/* Handle CCX report here */
 				handle_txrpt_ccx_8723a(padapter, (void *)(c2h_evt->payload));
-				/* Replace with special pointer to
-				   trigger c2h_evt_clear23a */
-				if (rtw_cbuf_push23a(padapter->evtpriv.c2h_queue,
-						  (void *)&padapter->evtpriv) !=
-				    _SUCCESS)
-					DBG_8723A("%s rtw_cbuf_push23a fail\n",
-						  __func__);
-				schedule_work(&padapter->evtpriv.c2h_wk);
-			} else if ((c2h_evt = (struct c2h_evt_hdr *)
-				    kmalloc(16, GFP_ATOMIC))) {
-				memcpy(c2h_evt, purb->transfer_buffer, 16);
-				if (rtw_cbuf_push23a(padapter->evtpriv.c2h_queue,
-						  (void *)c2h_evt) != _SUCCESS)
-					DBG_8723A("%s rtw_cbuf_push23a fail\n",
-						  __func__);
-				schedule_work(&padapter->evtpriv.c2h_wk);
+				schedule_work(&padapter->evtpriv.irq_wk);
 			} else {
-				/* Error handling for malloc fail */
-				if (rtw_cbuf_push23a(padapter->evtpriv.c2h_queue,
-						  (void *)NULL) != _SUCCESS)
-					DBG_8723A("%s rtw_cbuf_push23a fail\n",
-						  __func__);
-				schedule_work(&padapter->evtpriv.c2h_wk);
+				struct evt_work *c2w;
+				int res;
+
+				c2w = (struct evt_work *)
+					kmalloc(sizeof(struct evt_work),
+						GFP_ATOMIC);
+
+				if (!c2w) {
+					printk(KERN_WARNING "%s: unable to "
+					       "allocate work buffer\n",
+					       __func__);
+					goto urb_submit;
+				}
+
+				c2w->adapter = padapter;
+				INIT_WORK(&c2w->work, rtw_evt_work);
+				memcpy(c2w->u.buf, purb->transfer_buffer, 16);
+
+				res = queue_work(padapter->evtpriv.wq,
+						 &c2w->work);
+
+				if (!res) {
+					printk(KERN_ERR "%s: Call to "
+					       "queue_work() failed\n",
+					       __func__);
+					kfree(c2w);
+					goto urb_submit;
+				}
 			}
 		}
 

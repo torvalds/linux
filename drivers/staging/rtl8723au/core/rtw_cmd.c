@@ -188,33 +188,23 @@ int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv)
 
 /* forward definition */
 
-static void c2h_wk_callback(struct work_struct *work);
+static void rtw_irq_work(struct work_struct *work);
 
 u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 {
 	atomic_set(&pevtpriv->event_seq, 0);
 	pevtpriv->evt_done_cnt = 0;
 
-	INIT_WORK(&pevtpriv->c2h_wk, c2h_wk_callback);
-	pevtpriv->c2h_wk_alive = false;
-	pevtpriv->c2h_queue = rtw_cbuf_alloc23a(C2H_QUEUE_MAX_LEN + 1);
+	pevtpriv->wq = alloc_workqueue("rtl8723au_evt", 0, 1);
+
+	INIT_WORK(&pevtpriv->irq_wk, rtw_irq_work);
 
 	return _SUCCESS;
 }
 
 void rtw_free_evt_priv23a(struct evt_priv *pevtpriv)
 {
-	cancel_work_sync(&pevtpriv->c2h_wk);
-	while (pevtpriv->c2h_wk_alive)
-		msleep(10);
-
-	while (!rtw_cbuf_empty23a(pevtpriv->c2h_queue)) {
-		void *c2h;
-		if ((c2h = rtw_cbuf_pop23a(pevtpriv->c2h_queue)) != NULL &&
-		    c2h != (void *)pevtpriv) {
-			kfree(c2h);
-		}
-	}
+	cancel_work_sync(&pevtpriv->irq_wk);
 }
 
 static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
@@ -1348,54 +1338,47 @@ exit:
 	return ret;
 }
 
-static void c2h_wk_callback(struct work_struct *work)
+static void rtw_irq_work(struct work_struct *work)
 {
 	struct evt_priv *evtpriv;
 	struct rtw_adapter *adapter;
-	struct c2h_evt_hdr *c2h_evt;
+
+	evtpriv = container_of(work, struct evt_priv, irq_wk);
+	adapter = container_of(evtpriv, struct rtw_adapter, evtpriv);
+
+	c2h_evt_clear23a(adapter);
+}
+
+void rtw_evt_work(struct work_struct *work)
+{
+	struct evt_work *ework;
+	struct rtw_adapter *adapter;
 	c2h_id_filter ccx_id_filter;
 
-	evtpriv = container_of(work, struct evt_priv, c2h_wk);
-	adapter = container_of(evtpriv, struct rtw_adapter, evtpriv);
+	ework = container_of(work, struct evt_work, work);
+	adapter = ework->adapter;
+
 	ccx_id_filter = rtw_hal_c2h_id_filter_ccx23a(adapter);
 
-	evtpriv->c2h_wk_alive = true;
+	c2h_evt_clear23a(adapter);
 
-	while (!rtw_cbuf_empty23a(evtpriv->c2h_queue)) {
-		c2h_evt = (struct c2h_evt_hdr *)
-			rtw_cbuf_pop23a(evtpriv->c2h_queue);
-		if (c2h_evt) {
-			/* This C2H event is read, clear it */
-			c2h_evt_clear23a(adapter);
-		} else if ((c2h_evt = (struct c2h_evt_hdr *)
-			    kmalloc(16, GFP_KERNEL))) {
-			if (!c2h_evt)
-				continue;
-			/* This C2H event is not read, read & clear now */
-			if (c2h_evt_read23a(adapter, (u8*)c2h_evt) != _SUCCESS)
-				continue;
-		}
-
-		/* Special pointer to trigger c2h_evt_clear23a only */
-		if ((void *)c2h_evt == (void *)evtpriv)
-			continue;
-
-		if (!c2h_evt_exist(c2h_evt)) {
-			kfree(c2h_evt);
-			continue;
-		}
-
-		if (ccx_id_filter(c2h_evt->id) == true) {
-			/* Handle CCX report here */
-			rtw_hal_c2h_handler23a(adapter, c2h_evt);
-			kfree(c2h_evt);
-		} else {
-			/* Enqueue into cmd_thread for others */
-			rtw_c2h_wk_cmd23a(adapter, (u8 *)c2h_evt);
-		}
+	if (!c2h_evt_exist(&ework->u.c2h_evt)) {
+		kfree(ework);
+		return;
 	}
 
-	evtpriv->c2h_wk_alive = false;
+	if (ccx_id_filter(ework->u.c2h_evt.id) == true) {
+		/* Handle CCX report here */
+		rtw_hal_c2h_handler23a(adapter, &ework->u.c2h_evt);
+		kfree(ework);
+	} else {
+		/*
+		 * Enqueue into cmd_thread for others.
+		 * ework will be turned into a c2h_evt and freed once it
+		 * has been consumed.
+		 */
+		rtw_c2h_wk_cmd23a(adapter, (u8 *)&ework->u.c2h_evt);
+	}
 }
 
 u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
