@@ -160,7 +160,7 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 	entry = of_parse_phandle(timings_np, "native-mode", 0);
 	/* assume first child as native mode if none provided */
 	if (!entry)
-		entry = of_get_next_child(np, NULL);
+		entry = of_get_next_child(timings_np, NULL);
 	/* if there is no child, it is useless to go on */
 	if (!entry) {
 		pr_err("%s: no timing specifications given\n",
