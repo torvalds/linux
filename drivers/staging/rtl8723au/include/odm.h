@@ -274,11 +274,6 @@ struct odm_packet_info {
 	bool		bPacketBeacon;
 };
 
-struct odm_mac_info {
-	u8	test;
-
-};
-
 
 enum {
 	/*  BB Team */
@@ -859,7 +854,6 @@ struct dm_odm_t {
 	/* PHY_INFO_88E		PhyInfo; */
 
 	/*  Latest packet phy info (ODM write) */
-	struct odm_mac_info		*pMacInfo;
 	/* MAC_INFO_88E		MacInfo; */
 
 	/*  Different Team independt structure?? */
