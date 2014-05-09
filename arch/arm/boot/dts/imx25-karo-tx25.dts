@@ -20,6 +20,22 @@
 		stdout-path = &uart1;
 	};
 
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_fec_phy: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "fec-phy";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio4 9 0>;
+			enable-active-high;
+		};
+	};
+
 	memory {
 		reg = <0x80000000 0x02000000 0x90000000 0x02000000>;
 	};
@@ -81,7 +97,9 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
+	phy-reset-gpios = <&gpio3 7 0>;
 	phy-mode = "rmii";
+	phy-supply = <&reg_fec_phy>;
 	status = "okay";
 };
 
