@@ -2042,10 +2042,13 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 	if (!(be_if_cap_flags(adapter) & BE_IF_FLAGS_RSS))
 		return 0;
 
-	if (mutex_lock_interruptible(&adapter->mbox_lock))
-		return -1;
+	spin_lock_bh(&adapter->mcc_lock);
 
-	wrb = wrb_from_mbox(adapter);
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
 	req = embedded_payload(wrb);
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
@@ -2055,16 +2058,16 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 	req->enable_rss = cpu_to_le16(rss_hash_opts);
 	req->cpu_table_size_log2 = cpu_to_le16(fls(table_size) - 1);
 
-	if (lancer_chip(adapter) || skyhawk_chip(adapter))
+	if (!BEx_chip(adapter))
 		req->hdr.version = 1;
 
 	memcpy(req->cpu_table, rsstable, table_size);
 	memcpy(req->hash, rss_hkey, RSS_HASH_KEY_LEN);
 	be_dws_cpu_to_le(req->hash, sizeof(req->hash));
 
-	status = be_mbox_notify_wait(adapter);
-
-	mutex_unlock(&adapter->mbox_lock);
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
