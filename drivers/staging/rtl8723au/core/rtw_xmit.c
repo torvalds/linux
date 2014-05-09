@@ -473,7 +473,6 @@ static s32 update_attrib(struct rtw_adapter *padapter,
 	struct sta_priv	*pstapriv = &padapter->stapriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct qos_priv	*pqospriv = &pmlmepriv->qospriv;
 	int res = _SUCCESS;
 	struct ethhdr *ehdr = (struct ethhdr *) skb->data;
 
@@ -586,7 +585,7 @@ static s32 update_attrib(struct rtw_adapter *padapter,
 		if (psta->qos_option)
 			set_qos(skb, pattrib);
 	} else {
-		if (pqospriv->qos_option) {
+		if (pmlmepriv->qos_option) {
 			set_qos(skb, pattrib);
 
 			if (pmlmepriv->acm_mask != 0) {
@@ -767,7 +766,7 @@ static s32 xmitframe_addmic(struct rtw_adapter *padapter,
 							 &pframe[10], 6);
 			}
 
-			/* if (pqospriv->qos_option == 1) */
+			/* if (pmlmepriv->qos_option == 1) */
 			if (pattrib->qos_en)
 				priority[0] = (u8)pxmitframe->attrib.priority;
 
@@ -905,7 +904,6 @@ s32 rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
 
 	struct ieee80211_hdr *pwlanhdr = (struct ieee80211_hdr *)hdr;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct qos_priv *pqospriv = &pmlmepriv->qospriv;
 	u8 qos_option = false;
 	int res = _SUCCESS;
 	__le16 *fctrl = &pwlanhdr->frame_control;
@@ -948,7 +946,7 @@ s32 rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
 			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 			memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
 
-			if (pqospriv->qos_option)
+			if (pmlmepriv->qos_option)
 				qos_option = true;
 
 		}

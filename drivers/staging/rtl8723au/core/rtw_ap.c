@@ -672,7 +672,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	/* todo: update wmm, ht cap */
 	/* pmlmeinfo->WMM_enable; */
 	/* pmlmeinfo->HT_enable; */
-	if (pmlmepriv->qospriv.qos_option)
+	if (pmlmepriv->qos_option)
 		pmlmeinfo->WMM_enable = true;
 	if (pmlmepriv->htpriv.ht_option) {
 		pmlmeinfo->WMM_enable = true;
@@ -950,14 +950,14 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 
 	/* wmm */
 	ie_len = 0;
-	pmlmepriv->qospriv.qos_option = 0;
+	pmlmepriv->qos_option = 0;
 	if (pregistrypriv->wmm_enable) {
 		for (p = ie + _BEACON_IE_OFFSET_; ;p += (ie_len + 2)) {
 			p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
 					  (pbss_network->IELength -
 					  _BEACON_IE_OFFSET_ - (ie_len + 2)));
 			if ((p) && !memcmp(p+2, WMM_PARA_IE, 6)) {
-				pmlmepriv->qospriv.qos_option = 1;
+				pmlmepriv->qos_option = 1;
 
 				*(p+8) |= BIT(7);/* QoS Info, support U-APSD */
 
@@ -1037,7 +1037,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	/* ht_cap */
 	if (pregistrypriv->ht_enable && ht_cap) {
 		pmlmepriv->htpriv.ht_option = true;
-		pmlmepriv->qospriv.qos_option = 1;
+		pmlmepriv->qos_option = 1;
 
 		if (pregistrypriv->ampdu_enable == 1)
 			pmlmepriv->htpriv.ampdu_enable = true;
@@ -1864,7 +1864,7 @@ void sta_info_update23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	else
 		psta->qos_option = 0;
 
-	if (pmlmepriv->qospriv.qos_option == 0)
+	if (pmlmepriv->qos_option == 0)
 		psta->qos_option = 0;
 
 	/* update 802.11n ht cap. */

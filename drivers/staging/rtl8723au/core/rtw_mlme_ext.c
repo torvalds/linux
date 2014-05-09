@@ -1540,7 +1540,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat->uapsd_vi = 0;
 	pstat->uapsd_be = 0;
 	pstat->uapsd_bk = 0;
-	if (pmlmepriv->qospriv.qos_option) {
+	if (pmlmepriv->qos_option) {
 		const u8 *end = pos + left;
 		p = pos;
 
@@ -3225,7 +3225,7 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 	}
 
 	/* FILL WMM IE */
-	if (pstat->flags & WLAN_STA_WME && pmlmepriv->qospriv.qos_option) {
+	if (pstat->flags & WLAN_STA_WME && pmlmepriv->qos_option) {
 		unsigned char WMM_PARA_IE[] = {0x00, 0x50, 0xf2, 0x02,
 					       0x01, 0x01};
 		int ie_len = 0;
@@ -5369,7 +5369,7 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	psta->htpriv.candidate_tid_bitmap = 0x0;/* reset */
 
 	/* QoS */
-	if (pmlmepriv->qospriv.qos_option)
+	if (pmlmepriv->qos_option)
 		psta->qos_option = true;
 
 	psta->state = _FW_LINKED;

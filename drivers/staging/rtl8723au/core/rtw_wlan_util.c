@@ -506,7 +506,7 @@ int WMM_param_handler23a(struct rtw_adapter *padapter, struct ndis_802_11_var_ie
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	if (pmlmepriv->qospriv.qos_option == 0) {
+	if (pmlmepriv->qos_option == 0) {
 		pmlmeinfo->WMM_enable = 0;
 		return _FAIL;
 	}

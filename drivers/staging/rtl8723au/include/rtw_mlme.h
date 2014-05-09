@@ -237,7 +237,7 @@ struct mlme_priv {
 	struct timer_list set_scan_deny_timer;
 	atomic_t set_scan_deny; /* 0: allowed, 1: deny */
 
-	struct qos_priv qospriv;
+	unsigned int qos_option;
 
 	/* Number of non-HT AP/stations */
 	int num_sta_no_ht;

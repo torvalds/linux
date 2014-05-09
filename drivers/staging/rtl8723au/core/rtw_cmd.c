@@ -481,7 +481,6 @@ u8 rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 	struct cmd_obj *pcmd;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct qos_priv *pqospriv = &pmlmepriv->qospriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
@@ -573,7 +572,7 @@ u8 rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 				       &psecnetwork->IEs[0],
 				       pnetwork->network.IELength);
 
-	pqospriv->qos_option = 0;
+	pmlmepriv->qos_option = 0;
 
 	if (pregistrypriv->wmm_enable) {
 		u32 tmp_len;
@@ -587,10 +586,10 @@ u8 rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 		if (psecnetwork->IELength != tmp_len) {
 			psecnetwork->IELength = tmp_len;
 			/* There is WMM IE in this corresp. beacon */
-			pqospriv->qos_option = 1;
+			pmlmepriv->qos_option = 1;
 		} else {
 			/* There is no WMM IE in this corresp. beacon */
-			pqospriv->qos_option = 0;
+			pmlmepriv->qos_option = 0;
 		}
 	}
 
