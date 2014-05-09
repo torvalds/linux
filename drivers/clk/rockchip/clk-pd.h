@@ -19,4 +19,19 @@ struct clk *rk_clk_register_pd(struct device *dev, const char *name,
 		u32 pd_id, spinlock_t *lock);
 
 
+#define RK_CLK_PD_PRE_ENABLE			BIT(0)
+#define RK_CLK_PD_POST_ENABLE			BIT(1)
+#define RK_CLK_PD_PRE_DISABLE			BIT(2)
+#define RK_CLK_PD_POST_DISABLE			BIT(3)
+
+struct clk_pd_notifier {
+	struct clk			*clk;
+	struct srcu_notifier_head	notifier_head;
+	struct list_head		node;
+};
+
+int rk_clk_pd_notifier_register(struct clk *clk, struct notifier_block *nb);
+
+int rk_clk_pd_notifier_unregister(struct clk *clk, struct notifier_block *nb);
+
 #endif /* __RK_CLK_PD_H */

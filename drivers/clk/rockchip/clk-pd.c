@@ -4,6 +4,98 @@
 #include "clk-pd.h"
 
 
+static LIST_HEAD(clk_pd_notifier_list);
+
+static int __clk_pd_notify(struct clk *clk, unsigned long msg)
+{
+	struct clk_pd_notifier *cn;
+	int ret = NOTIFY_DONE;
+
+	list_for_each_entry(cn, &clk_pd_notifier_list, node) {
+		if (cn->clk == clk) {
+			ret = srcu_notifier_call_chain(&cn->notifier_head, msg,
+					NULL);
+			break;
+		}
+	}
+
+	return ret;
+}
+
+int rk_clk_pd_notifier_register(struct clk *clk, struct notifier_block *nb)
+{
+	struct clk_pd_notifier *cn;
+	int ret = -ENOMEM;
+
+	if (!clk || !nb)
+		return -EINVAL;
+
+	//clk_prepare_lock();
+
+	/* search the list of notifiers for this clk */
+	list_for_each_entry(cn, &clk_pd_notifier_list, node)
+		if (cn->clk == clk)
+			break;
+
+	/* if clk wasn't in the notifier list, allocate new clk_notifier */
+	if (cn->clk != clk) {
+		cn = kzalloc(sizeof(struct clk_pd_notifier), GFP_KERNEL);
+		if (!cn)
+			goto out;
+
+		cn->clk = clk;
+		srcu_init_notifier_head(&cn->notifier_head);
+
+		list_add(&cn->node, &clk_pd_notifier_list);
+	}
+
+	ret = srcu_notifier_chain_register(&cn->notifier_head, nb);
+
+	//clk->notifier_count++;
+
+out:
+	//clk_prepare_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rk_clk_pd_notifier_register);
+
+int rk_clk_pd_notifier_unregister(struct clk *clk, struct notifier_block *nb)
+{
+	struct clk_pd_notifier *cn = NULL;
+	int ret = -EINVAL;
+
+	if (!clk || !nb)
+		return -EINVAL;
+
+	//clk_prepare_lock();
+
+	list_for_each_entry(cn, &clk_pd_notifier_list, node)
+		if (cn->clk == clk)
+			break;
+
+	if (cn->clk == clk) {
+		ret = srcu_notifier_chain_unregister(&cn->notifier_head, nb);
+
+		//clk->notifier_count--;
+
+		/* XXX the notifier code should handle this better */
+		if (!cn->notifier_head.head) {
+			srcu_cleanup_notifier_head(&cn->notifier_head);
+			list_del(&cn->node);
+			kfree(cn);
+		}
+
+	} else {
+		ret = -ENOENT;
+	}
+
+	//clk_prepare_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rk_clk_pd_notifier_unregister);
+
 static int clk_pd_endisable(struct clk_hw *hw, bool enable)
 {
 	struct clk_pd *pd = to_clk_pd(hw);
@@ -23,12 +115,24 @@ static int clk_pd_endisable(struct clk_hw *hw, bool enable)
 
 static int clk_pd_enable(struct clk_hw *hw)
 {
-	return clk_pd_endisable(hw, true);
+	int ret = 0;
+
+	__clk_pd_notify(hw->clk, RK_CLK_PD_PRE_ENABLE);
+
+	ret = clk_pd_endisable(hw, true);
+
+	__clk_pd_notify(hw->clk, RK_CLK_PD_POST_ENABLE);
+
+	return ret;
 }
 
 static void clk_pd_disable(struct clk_hw *hw)
 {
+	__clk_pd_notify(hw->clk, RK_CLK_PD_PRE_DISABLE);
+
 	clk_pd_endisable(hw, false);
+
+	__clk_pd_notify(hw->clk, RK_CLK_PD_POST_DISABLE);
 }
 
 static int clk_pd_is_enabled(struct clk_hw *hw)
@@ -44,8 +148,25 @@ const struct clk_ops clk_pd_ops = {
 	.is_enabled = clk_pd_is_enabled,
 };
 
-const struct clk_ops clk_pd_virt_ops = {
+static int clk_pd_virt_enable(struct clk_hw *hw)
+{
+	__clk_pd_notify(hw->clk, RK_CLK_PD_PRE_ENABLE);
 
+	__clk_pd_notify(hw->clk, RK_CLK_PD_POST_ENABLE);
+
+	return 0;
+}
+
+static void clk_pd_virt_disable(struct clk_hw *hw)
+{
+	__clk_pd_notify(hw->clk, RK_CLK_PD_PRE_DISABLE);
+
+	__clk_pd_notify(hw->clk, RK_CLK_PD_POST_DISABLE);
+}
+
+const struct clk_ops clk_pd_virt_ops = {
+	.enable = clk_pd_virt_enable,
+	.disable = clk_pd_virt_disable,
 };
 
 
