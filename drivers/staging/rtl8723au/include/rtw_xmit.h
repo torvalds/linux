@@ -289,9 +289,7 @@ struct	xmit_priv {
 	int free_xmitframe_cnt;
 	struct rtw_queue	free_xmit_queue;
 
-	u8 *xframe_ext_alloc_addr;
-	u8 *xframe_ext;
-	uint free_xframe_ext_cnt;
+	int free_xframe_ext_cnt;
 	struct rtw_queue free_xframe_ext_queue;
 
 	uint	frag_len;

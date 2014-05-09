@@ -131,18 +131,11 @@ s32	_rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv, struct rtw_adapter *pada
 	/* init xframe_ext queue,  the same count as extbuf  */
 	_rtw_init_queue23a(&pxmitpriv->free_xframe_ext_queue);
 
-	pxmitpriv->xframe_ext_alloc_addr = rtw_zvmalloc(num_xmit_extbuf * sizeof(struct xmit_frame) + 4);
-
-	if (pxmitpriv->xframe_ext_alloc_addr  == NULL) {
-		pxmitpriv->xframe_ext = NULL;
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("alloc xframe_ext fail!\n"));
-		res = _FAIL;
-		goto exit;
-	}
-	pxmitpriv->xframe_ext = PTR_ALIGN(pxmitpriv->xframe_ext_alloc_addr, 4);
-	pxframe = (struct xmit_frame*)pxmitpriv->xframe_ext;
-
 	for (i = 0; i < num_xmit_extbuf; i++) {
+		pxframe = (struct xmit_frame *)
+			kzalloc(sizeof(struct xmit_frame), GFP_KERNEL);
+		if (!pxframe)
+			break;
 		INIT_LIST_HEAD(&pxframe->list);
 
 		pxframe->padapter = padapter;
@@ -157,10 +150,8 @@ s32	_rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv, struct rtw_adapter *pada
 
 		list_add_tail(&pxframe->list,
 			      &pxmitpriv->free_xframe_ext_queue.queue);
-
-		pxframe++;
 	}
-	pxmitpriv->free_xframe_ext_cnt = num_xmit_extbuf;
+	pxmitpriv->free_xframe_ext_cnt = i;
 
 	/*  Init xmit extension buff */
 	_rtw_init_queue23a(&pxmitpriv->free_xmit_extbuf_queue);
@@ -224,8 +215,6 @@ void _rtw_free_xmit_priv23a (struct xmit_priv *pxmitpriv)
 	struct xmit_frame *pxframe;
 	struct xmit_buf *pxmitbuf;
 	struct list_head *plist, *ptmp;
-	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
-	int i;
 
 	rtw_hal_free_xmit_priv23a(padapter);
 
@@ -244,14 +233,13 @@ void _rtw_free_xmit_priv23a (struct xmit_priv *pxmitpriv)
 	}
 
 	/* free xframe_ext queue,  the same count as extbuf  */
-	if ((pxframe = (struct xmit_frame*)pxmitpriv->xframe_ext)) {
-		for (i = 0; i<num_xmit_extbuf; i++) {
-			rtw_os_xmit_complete23a(padapter, pxframe);
-			pxframe++;
-		}
+	list_for_each_safe(plist, ptmp,
+			   &pxmitpriv->free_xframe_ext_queue.queue) {
+		pxframe = container_of(plist, struct xmit_frame, list);
+		list_del_init(&pxframe->list);
+		rtw_os_xmit_complete23a(padapter, pxframe);
+		kfree(pxframe);
 	}
-	if (pxmitpriv->xframe_ext_alloc_addr)
-		rtw_vmfree(pxmitpriv->xframe_ext_alloc_addr, num_xmit_extbuf * sizeof(struct xmit_frame) + 4);
 
 	/*  free xmit extension buff */
 	list_for_each_safe(plist, ptmp, &pxmitpriv->xmitextbuf_list) {
