@@ -26,6 +26,7 @@
 #include <asm/io.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
+#include "../../../drivers/clk/rockchip/clk-pd.h"
 
 extern int rockchip_cpufreq_reboot_limit_freq(void);
 
@@ -95,6 +96,7 @@ struct ddr {
 	unsigned long suspend_rate;
 	unsigned long reboot_rate;
 	unsigned long boost_rate;
+	unsigned long isp_rate;
 	bool auto_freq;
 	bool auto_self_refresh;
 	char *mode;
@@ -287,7 +289,9 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	} else if (ddr.video_4k_rate && (s & SYS_STATUS_VIDEO_4K)) {
 		ddrfreq_mode(false, &ddr.video_4k_rate, "video_4k");
 	} else if (ddr.performance_rate && (s & SYS_STATUS_PERFORMANCE)) {
-		ddrfreq_mode(false, &ddr.performance_rate, "performance_rate");
+		ddrfreq_mode(false, &ddr.performance_rate, "performance");
+	}  else if (ddr.isp_rate && (s & SYS_STATUS_ISP)) {
+		ddrfreq_mode(false, &ddr.isp_rate, "isp");
 	} else if (ddr.idle_rate
 		&& !(s & SYS_STATUS_GPU)
 		&& !(s & SYS_STATUS_RGA)
@@ -333,8 +337,10 @@ void add_video_info(struct video_info *video_info)
 
 void del_video_info(struct video_info *video_info)
 {
-	if (video_info)
+	if (video_info) {
 		list_del(&video_info->node);
+		kfree(video_info);
+	}
 }
 
 struct video_info *find_video_info(struct video_info *match_video_info)
@@ -404,7 +410,7 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
 	struct video_info *video_info = NULL;
-	char state, *cookie_pot, *p, *buf = vzalloc(count);
+	char state, *cookie_pot, *buf = vzalloc(count);
 	cookie_pot = buf;
 
 	if(!buf)
@@ -430,6 +436,7 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 			vfree(buf);
 			return -ENOMEM;
 		}
+		INIT_LIST_HEAD(&video_info->node);
 
 		strsep(&cookie_pot,",");
 
@@ -437,7 +444,6 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 		video_info->height = get_video_param(&cookie_pot);
 		video_info->ishevc = get_video_param(&cookie_pot);
 		video_info->videoFramerate = get_video_param(&cookie_pot);
-		video_info->streamBitrate = get_video_param(&cookie_pot);
 		video_info->streamBitrate = get_video_param(&cookie_pot);
 
 		dprintk(DEBUG_VIDEO_STATE, "%s: video_state=%c,width=%d,height=%d,ishevc=%d,videoFramerate=%d,streamBitrate=%d\n",
@@ -450,6 +456,7 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 	switch (state) {
 	case '0':
 		del_video_info(find_video_info(video_info));
+		kfree(video_info);
 		update_video_info();
 		break;
 	case '1':
@@ -566,22 +573,19 @@ static struct input_handler ddr_freq_input_handler = {
 	.id_table	= ddr_freq_ids,
 };
 
-
-/*
 static int ddrfreq_clk_event(int status, unsigned long event)
 {
 	switch (event) {
-	case PRE_RATE_CHANGE:
+	case RK_CLK_PD_PRE_ENABLE:
 		ddrfreq_set_sys_status(status);
 		break;
-	case POST_RATE_CHANGE:
-	case ABORT_RATE_CHANGE:
+	case RK_CLK_PD_POST_DISABLE:
 		ddrfreq_clear_sys_status(status);
 		break;
 	}
 	return NOTIFY_OK;
 }
-*/
+
 #define CLK_NOTIFIER(name, status) \
 static int ddrfreq_clk_##name##_event(struct notifier_block *this, unsigned long event, void *ptr) \
 { \
@@ -592,24 +596,21 @@ static struct notifier_block ddrfreq_clk_##name##_notifier = { .notifier_call = 
 #define REGISTER_CLK_NOTIFIER(name) \
 do { \
 	struct clk *clk = clk_get(NULL, #name); \
-	clk_notifier_register(clk, &ddrfreq_clk_##name##_notifier); \
+	rk_clk_pd_notifier_register(clk, &ddrfreq_clk_##name##_notifier); \
 	clk_put(clk); \
 } while (0)
 
 #define UNREGISTER_CLK_NOTIFIER(name) \
 do { \
 	struct clk *clk = clk_get(NULL, #name); \
-	clk_notifier_unregister(clk, &ddrfreq_clk_##name##_notifier); \
+	rk_clk_pd_notifier_unregister(clk, &ddrfreq_clk_##name##_notifier); \
 	clk_put(clk); \
 } while (0)
-/*
-CLK_NOTIFIER(pd_gpu, GPU);
-CLK_NOTIFIER(pd_rga, RGA);
-CLK_NOTIFIER(pd_cif0, CIF0);
-CLK_NOTIFIER(pd_cif1, CIF1);
-CLK_NOTIFIER(pd_lcdc0, LCDC0);
-CLK_NOTIFIER(pd_lcdc1, LCDC1);
-*/
+
+CLK_NOTIFIER(pd_isp, ISP)
+CLK_NOTIFIER(pd_vop0, LCDC0)
+CLK_NOTIFIER(pd_vop1, LCDC1)
+
 static int ddrfreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	u32 timeout = 1000; // 10s
@@ -724,6 +725,8 @@ int of_init_ddr_freq_table(void)
 			ddr.reboot_rate= rate;
 		if (status & SYS_STATUS_BOOST)
 			ddr.boost_rate= rate;
+		if (status & SYS_STATUS_ISP)
+			ddr.isp_rate= rate;
 
 		nr -= 2;
 	}
@@ -737,11 +740,13 @@ static void ddrfreq_tst_init(void);
 
 static int ddrfreq_init(void)
 {
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	int ret;
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
+
 #if defined(CONFIG_RK_PM_TESTS)
         ddrfreq_tst_init();
 #endif
+
 	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");
 	if (!clk_cpu_dvfs_node){
 		return -EINVAL;
@@ -752,7 +757,6 @@ static int ddrfreq_init(void)
 	if (!ddr.clk_dvfs_node){
 		return -EINVAL;
 	}
-	
 	clk_enable_dvfs(ddr.clk_dvfs_node);
 	
 	init_waitqueue_head(&ddr.wait);
@@ -768,17 +772,9 @@ static int ddrfreq_init(void)
 	if (ret)
 		ddr.auto_freq = false;
 
-	if (ddr.idle_rate) {
-		//REGISTER_CLK_NOTIFIER(pd_gpu);
-		//REGISTER_CLK_NOTIFIER(pd_rga);
-		//REGISTER_CLK_NOTIFIER(pd_cif0);
-		//REGISTER_CLK_NOTIFIER(pd_cif1);
-	}
-
-	if (ddr.dualview_rate) {
-             //REGISTER_CLK_NOTIFIER(pd_lcdc0);
-             //REGISTER_CLK_NOTIFIER(pd_lcdc1);
-	}	
+	REGISTER_CLK_NOTIFIER(pd_isp);
+	REGISTER_CLK_NOTIFIER(pd_vop0);
+	REGISTER_CLK_NOTIFIER(pd_vop1);
 
 	ret = misc_register(&video_state_dev);
 	if (unlikely(ret)) {
@@ -801,7 +797,7 @@ static int ddrfreq_init(void)
 	fb_register_client(&ddr_freq_suspend_notifier);
 	register_reboot_notifier(&ddrfreq_reboot_notifier);
 
-	pr_info("verion 1.0 20140228\n");
+	pr_info("verion 1.1 20140509\n");
 	dprintk(DEBUG_DDR, "normal %luMHz video_1080p %luMHz video_4k %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
 		ddr.normal_rate / MHZ, ddr.video_1080p_rate / MHZ, ddr.video_1080p_rate / MHZ, ddr.dualview_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
 
@@ -810,17 +806,6 @@ static int ddrfreq_init(void)
 err1:
 	misc_deregister(&video_state_dev);
 err:
-	if (ddr.idle_rate) {
-		//UNREGISTER_CLK_NOTIFIER(pd_gpu);
-		//UNREGISTER_CLK_NOTIFIER(pd_rga);
-		//UNREGISTER_CLK_NOTIFIER(pd_cif0);
-		//UNREGISTER_CLK_NOTIFIER(pd_cif1);
-	}
-       if (ddr.dualview_rate) {
-        //UNREGISTER_CLK_NOTIFIER(pd_lcdc0);
-        //UNREGISTER_CLK_NOTIFIER(pd_lcdc1);
-       }
-
 	return ret;
 }
 late_initcall(ddrfreq_init);
