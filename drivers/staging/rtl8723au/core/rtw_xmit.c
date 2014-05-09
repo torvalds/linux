@@ -952,8 +952,13 @@ s32 rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
 			SetSeqNum(hdr, pattrib->seqnum);
 			/* check if enable ampdu */
 			if (pattrib->ht_en && psta->htpriv.ampdu_enable) {
-				if (psta->htpriv.agg_enable_bitmap & CHKBIT(pattrib->priority))
-				pattrib->ampdu_en = true;
+				if (pattrib->priority >= 16)
+					printk(KERN_WARNING "%s: Invalid "
+					       "pattrib->priority %i\n",
+					       __func__, pattrib->priority);
+				if (psta->htpriv.agg_enable_bitmap &
+				    BIT(pattrib->priority))
+					pattrib->ampdu_en = true;
 			}
 			/* re-check if enable ampdu by BA_starting_seqctrl */
 			if (pattrib->ampdu_en) {

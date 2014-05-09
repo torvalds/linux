@@ -357,9 +357,7 @@ struct mlme_ext_info
 	u8	turboMode_cts2self;
 	u8	turboMode_rtsen;
 	u8	SM_PS;
-	u8	agg_enable_bitmap;
 	u8	ADDBA_retry_count;
-	u8	candidate_tid_bitmap;
 	u8	dialogToken;
 	/*  Accept ADDBA Request */
 	bool bAcceptAddbaReq;

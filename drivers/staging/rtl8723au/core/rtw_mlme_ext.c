@@ -2034,11 +2034,10 @@ static int OnAction23a_back23a(struct rtw_adapter *padapter,
 			tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 			if (status == 0) {	/* successful */
 				DBG_8723A("agg_enable for TID =%d\n", tid);
-				psta->htpriv.agg_enable_bitmap |= 1 << tid;
-				psta->htpriv.candidate_tid_bitmap &=
-					~CHKBIT(tid);
+				psta->htpriv.agg_enable_bitmap |= BIT(tid);
+				psta->htpriv.candidate_tid_bitmap &= ~BIT(tid);
 			} else
-				psta->htpriv.agg_enable_bitmap &= ~CHKBIT(tid);
+				psta->htpriv.agg_enable_bitmap &= ~BIT(tid);
 			break;
 
 		case WLAN_ACTION_DELBA: /* DELBA */
@@ -2051,14 +2050,11 @@ static int OnAction23a_back23a(struct rtw_adapter *padapter,
 				preorder_ctrl->enable = false;
 				preorder_ctrl->indicate_seq = 0xffff;
 			} else {
-				psta->htpriv.agg_enable_bitmap &= ~(1 << tid);
-				psta->htpriv.candidate_tid_bitmap &=
-					~(1 << tid);
+				psta->htpriv.agg_enable_bitmap &= ~BIT(tid);
+				psta->htpriv.candidate_tid_bitmap &= ~BIT(tid);
 			}
 			reason_code = get_unaligned_le16(
 				&mgmt->u.action.u.delba.reason_code);
-			DBG_8723A("%s(): DELBA: %x(%x)\n", __func__,
-				  pmlmeinfo->agg_enable_bitmap, reason_code);
 			/* todo: how to notify the host while receiving
 			   DELETE BA */
 			break;
@@ -5875,8 +5871,6 @@ u8 createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		pmlmeinfo->HT_enable = 0;
 		pmlmeinfo->HT_caps_enable = 0;
 		pmlmeinfo->HT_info_enable = 0;
-		pmlmeinfo->agg_enable_bitmap = 0;
-		pmlmeinfo->candidate_tid_bitmap = 0;
 
 		/* disable dynamic functions, such as high power, DIG */
 		rtl8723a_odm_support_ability_backup(padapter);
@@ -5944,8 +5938,6 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	pmlmeinfo->HT_enable = 0;
 	pmlmeinfo->HT_caps_enable = 0;
 	pmlmeinfo->HT_info_enable = 0;
-	pmlmeinfo->agg_enable_bitmap = 0;
-	pmlmeinfo->candidate_tid_bitmap = 0;
 	pmlmeinfo->bwmode_updated = false;
 	/* pmlmeinfo->assoc_AP_vendor = HT_IOT_PEER_MAX; */
 
