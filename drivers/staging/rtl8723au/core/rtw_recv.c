@@ -1111,10 +1111,8 @@ exit:
 	return ret;
 }
 
-int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
-			     struct recv_frame *precv_frame);
-int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
-			     struct recv_frame *precv_frame)
+static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
+				    struct recv_frame *precv_frame)
 {
 #ifdef CONFIG_8723AU_AP_MODE
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
@@ -1259,10 +1257,8 @@ int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 
 struct recv_frame* recvframe_chk_defrag23a(struct rtw_adapter *padapter,
 					struct recv_frame *precv_frame);
-int validate_recv_mgnt_frame(struct rtw_adapter *padapter,
-			     struct recv_frame *precv_frame);
-int validate_recv_mgnt_frame(struct rtw_adapter *padapter,
-			     struct recv_frame *precv_frame)
+static int validate_recv_mgnt_frame(struct rtw_adapter *padapter,
+				    struct recv_frame *precv_frame)
 {
 	struct sta_info *psta;
 	struct sk_buff *skb;
@@ -1308,10 +1304,8 @@ int validate_recv_mgnt_frame(struct rtw_adapter *padapter,
 	return _SUCCESS;
 }
 
-int validate_recv_data_frame(struct rtw_adapter *adapter,
-			     struct recv_frame *precv_frame);
-int validate_recv_data_frame(struct rtw_adapter *adapter,
-			     struct recv_frame *precv_frame)
+static int validate_recv_data_frame(struct rtw_adapter *adapter,
+				    struct recv_frame *precv_frame)
 {
 	u8 bretry;
 	u8 *psa, *pda, *pbssid;
