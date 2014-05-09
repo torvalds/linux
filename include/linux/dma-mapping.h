@@ -97,6 +97,20 @@ static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
 }
 #endif
 
+/*
+ * Set both the DMA mask and the coherent DMA mask to the same thing.
+ * Note that we don't check the return value from dma_set_coherent_mask()
+ * as the DMA API guarantees that the coherent DMA mask can be set to
+ * the same or smaller than the streaming DMA mask.
+ */
+static inline int dma_set_mask_and_coherent(struct device *dev, u64 mask)
+{
+	int rc = dma_set_mask(dev, mask);
+	if (rc == 0)
+		dma_set_coherent_mask(dev, mask);
+	return rc;
+}
+
 extern u64 dma_get_required_mask(struct device *dev);
 
 static inline unsigned int dma_get_max_seg_size(struct device *dev)
