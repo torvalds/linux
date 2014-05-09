@@ -1233,8 +1233,8 @@ static int rtw_validate_frame_ies(const u8 *start, uint len)
 		case WLAN_EID_ERP_INFO:
 		case WLAN_EID_EXT_SUPP_RATES:
 		case WLAN_EID_VENDOR_SPECIFIC:
-		if (rtw_validate_vendor_specific_ies(pos, elen))
-			unknown++;
+			if (rtw_validate_vendor_specific_ies(pos, elen))
+				unknown++;
 			break;
 		case WLAN_EID_RSN:
 		case WLAN_EID_PWR_CAPABILITY:
