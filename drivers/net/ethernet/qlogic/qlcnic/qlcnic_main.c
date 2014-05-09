@@ -378,7 +378,8 @@ static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 	if (!adapter->fdb_mac_learn)
 		return ndo_dflt_fdb_del(ndm, tb, netdev, addr);
 
-	if (adapter->flags & QLCNIC_ESWITCH_ENABLED) {
+	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED) ||
+	    qlcnic_sriov_check(adapter)) {
 		if (is_unicast_ether_addr(addr)) {
 			err = dev_uc_del(netdev, addr);
 			if (!err)
@@ -402,7 +403,8 @@ static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	if (!adapter->fdb_mac_learn)
 		return ndo_dflt_fdb_add(ndm, tb, netdev, addr, flags);
 
-	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED) &&
+	    !qlcnic_sriov_check(adapter)) {
 		pr_info("%s: FDB e-switch is not enabled\n", __func__);
 		return -EOPNOTSUPP;
 	}
@@ -432,7 +434,8 @@ static int qlcnic_fdb_dump(struct sk_buff *skb, struct netlink_callback *ncb,
 	if (!adapter->fdb_mac_learn)
 		return ndo_dflt_fdb_dump(skb, ncb, netdev, idx);
 
-	if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
+	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED) ||
+	    qlcnic_sriov_check(adapter))
 		idx = ndo_dflt_fdb_dump(skb, ncb, netdev, idx);
 
 	return idx;
@@ -2809,6 +2812,8 @@ static int qlcnic_close(struct net_device *netdev)
 	return 0;
 }
 
+#define QLCNIC_VF_LB_BUCKET_SIZE 1
+
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 {
 	void *head;
@@ -2824,7 +2829,10 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 	spin_lock_init(&adapter->mac_learn_lock);
 	spin_lock_init(&adapter->rx_mac_learn_lock);
 
-	if (qlcnic_82xx_check(adapter)) {
+	if (qlcnic_sriov_vf_check(adapter)) {
+		filter_size = QLCNIC_83XX_SRIOV_VF_MAX_MAC - 1;
+		adapter->fhash.fbucket_size = QLCNIC_VF_LB_BUCKET_SIZE;
+	} else if (qlcnic_82xx_check(adapter)) {
 		filter_size = QLCNIC_LB_MAX_FILTERS;
 		adapter->fhash.fbucket_size = QLCNIC_LB_BUCKET_SIZE;
 	} else {

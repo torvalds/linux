@@ -199,6 +199,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 				goto qlcnic_destroy_async_wq;
 			}
 			sriov->vf_info[i].vp = vp;
+			vp->vlan_mode = QLC_GUEST_VLAN_MODE;
 			vp->max_tx_bw = MAX_BW;
 			vp->spoofchk = false;
 			random_ether_addr(vp->mac);
@@ -517,6 +518,8 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 {
 	int err;
 
+	adapter->flags |= QLCNIC_VLAN_FILTERING;
+	adapter->ahw->total_nic_func = 1;
 	INIT_LIST_HEAD(&adapter->vf_mc_list);
 	if (!qlcnic_use_msi_x && !!qlcnic_use_msi)
 		dev_warn(&adapter->pdev->dev,
@@ -772,6 +775,7 @@ static int qlcnic_sriov_prepare_bc_hdr(struct qlcnic_bc_trans *trans,
 		cmd->req.arg = (u32 *)trans->req_pay;
 		cmd->rsp.arg = (u32 *)trans->rsp_pay;
 		cmd_op = cmd->req.arg[0] & 0xff;
+		cmd->cmd_op = cmd_op;
 		remainder = (trans->rsp_pay_size) % (bc_pay_sz);
 		num_frags = (trans->rsp_pay_size) / (bc_pay_sz);
 		if (remainder)
@@ -1410,12 +1414,17 @@ retry:
 	    (mbx_err_code == QLCNIC_MBX_PORT_RSP_OK)) {
 		rsp = QLCNIC_RCODE_SUCCESS;
 	} else {
-		rsp = mbx_err_code;
-		if (!rsp)
-			rsp = 1;
-		dev_err(dev,
-			"MBX command 0x%x failed with err:0x%x for VF %d\n",
-			opcode, mbx_err_code, func);
+		if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT) {
+			rsp = QLCNIC_RCODE_SUCCESS;
+		} else {
+			rsp = mbx_err_code;
+			if (!rsp)
+				rsp = 1;
+
+			dev_err(dev,
+				"MBX command 0x%x failed with err:0x%x for VF %d\n",
+				opcode, mbx_err_code, func);
+		}
 	}
 
 err_out:
@@ -1534,6 +1543,28 @@ void qlcnic_sriov_vf_set_multi(struct net_device *netdev)
 		if (!netdev_mc_empty(netdev)) {
 			netdev_for_each_mc_addr(ha, netdev)
 				qlcnic_vf_add_mc_list(netdev, ha->addr);
+		}
+	}
+
+	/* configure unicast MAC address, if there is not sufficient space
+	 * to store all the unicast addresses then enable promiscuous mode
+	 */
+	if (netdev_uc_count(netdev) > ahw->max_uc_count) {
+		mode = VPORT_MISS_MODE_ACCEPT_ALL;
+	} else if (!netdev_uc_empty(netdev)) {
+		netdev_for_each_uc_addr(ha, netdev)
+			qlcnic_vf_add_mc_list(netdev, ha->addr);
+	}
+
+	if (adapter->pdev->is_virtfn) {
+		if (mode == VPORT_MISS_MODE_ACCEPT_ALL &&
+		    !adapter->fdb_mac_learn) {
+			qlcnic_alloc_lb_filters_mem(adapter);
+			adapter->drv_mac_learn = 1;
+			adapter->rx_mac_learn = true;
+		} else {
+			adapter->drv_mac_learn = 0;
+			adapter->rx_mac_learn = false;
 		}
 	}
 
@@ -1830,6 +1861,12 @@ static int qlcnic_sriov_vf_idc_unknown_state(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
+static void qlcnic_sriov_vf_periodic_tasks(struct qlcnic_adapter *adapter)
+{
+	if (adapter->fhash.fnum)
+		qlcnic_prune_lb_filters(adapter);
+}
+
 static void qlcnic_sriov_vf_poll_dev_state(struct work_struct *work)
 {
 	struct qlcnic_adapter *adapter;
@@ -1861,6 +1898,8 @@ static void qlcnic_sriov_vf_poll_dev_state(struct work_struct *work)
 	}
 
 	idc->prev_state = idc->curr_state;
+	qlcnic_sriov_vf_periodic_tasks(adapter);
+
 	if (!ret && test_bit(QLC_83XX_MODULE_LOADED, &idc->status))
 		qlcnic_schedule_work(adapter, qlcnic_sriov_vf_poll_dev_state,
 				     idc->delay);

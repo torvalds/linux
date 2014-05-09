@@ -84,7 +84,7 @@ static int qlcnic_sriov_pf_cal_res_limit(struct qlcnic_adapter *adapter,
 	info->max_tx_ques = res->num_tx_queues / max;
 
 	if (qlcnic_83xx_pf_check(adapter))
-		num_macs = 1;
+		num_macs = QLCNIC_83XX_SRIOV_VF_MAX_MAC;
 
 	info->max_rx_mcast_mac_filters = res->num_rx_mcast_mac_filters;
 
@@ -338,9 +338,12 @@ static int qlcnic_sriov_pf_cfg_vlan_filtering(struct qlcnic_adapter *adapter,
 
 	cmd.req.arg[1] = 0x4;
 	if (enable) {
+		adapter->flags |= QLCNIC_VLAN_FILTERING;
 		cmd.req.arg[1] |= BIT_16;
 		if (qlcnic_84xx_check(adapter))
 			cmd.req.arg[1] |= QLC_SRIOV_ALLOW_VLAN0;
+	} else {
+		adapter->flags &= ~QLCNIC_VLAN_FILTERING;
 	}
 
 	err = qlcnic_issue_cmd(adapter, &cmd);
@@ -1253,7 +1256,6 @@ static int qlcnic_sriov_validate_cfg_macvlan(struct qlcnic_adapter *adapter,
 					     struct qlcnic_vf_info *vf,
 					     struct qlcnic_cmd_args *cmd)
 {
-	struct qlcnic_macvlan_mbx *macvlan;
 	struct qlcnic_vport *vp = vf->vp;
 	u8 op, new_op;
 
@@ -1262,14 +1264,6 @@ static int qlcnic_sriov_validate_cfg_macvlan(struct qlcnic_adapter *adapter,
 
 	cmd->req.arg[1] |= (vf->vp->handle << 16);
 	cmd->req.arg[1] |= BIT_31;
-
-	macvlan = (struct qlcnic_macvlan_mbx *)&cmd->req.arg[2];
-	if (!(macvlan->mac_addr0 & BIT_0)) {
-		dev_err(&adapter->pdev->dev,
-			"MAC address change is not allowed from VF %d",
-			vf->pci_func);
-		return -EINVAL;
-	}
 
 	if (vp->vlan_mode == QLC_PVID_MODE) {
 		op = cmd->req.arg[1] & 0x7;
