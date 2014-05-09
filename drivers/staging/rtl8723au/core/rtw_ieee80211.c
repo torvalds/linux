@@ -904,30 +904,6 @@ u8 key_2char2num23a(u8 hch, u8 lch)
 	return key_char2num(hch) << 4 | key_char2num(lch);
 }
 
-void rtw_macaddr_cfg23a(u8 *mac_addr)
-{
-	u8 mac[ETH_ALEN];
-	if (!mac_addr)
-		return;
-
-	memcpy(mac, mac_addr, ETH_ALEN);
-
-	if (is_broadcast_ether_addr(mac) || is_zero_ether_addr(mac)) {
-		mac[0] = 0x00;
-		mac[1] = 0xe0;
-		mac[2] = 0x4c;
-		mac[3] = 0x87;
-		mac[4] = 0x00;
-		mac[5] = 0x00;
-		/*  use default mac addresss */
-		memcpy(mac_addr, mac, ETH_ALEN);
-		DBG_8723A("MAC Address from efuse error, assign default "
-			  "one !!!\n");
-	}
-	DBG_8723A("rtw_macaddr_cfg23a MAC Address  = "MAC_FMT"\n",
-		  MAC_ARG(mac_addr));
-}
-
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
 	const u8 *pbuf;

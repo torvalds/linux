@@ -451,8 +451,6 @@ int rtw_check_network_type23a(unsigned char *rate, int ratelen, int channel);
 
 void rtw_get_bcn_info23a(struct wlan_network *pnetwork);
 
-void rtw_macaddr_cfg23a(u8 *mac_addr);
-
 u16 rtw_mcs_rate23a(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40, unsigned char * MCS_rate);
 
 int rtw_action_frame_parse23a(const u8 *frame, u32 frame_len, u8* category, u8 *action);

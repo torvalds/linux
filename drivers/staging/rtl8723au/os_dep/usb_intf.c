@@ -659,8 +659,10 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	padapter->pwrctrlpriv.autopm_cnt = 1;
 #endif
 
-	/*  set mac addr */
-	rtw_macaddr_cfg23a(padapter->eeprompriv.mac_addr);
+	/* If the eeprom mac address is corrupted, assign a random address */
+	if (is_broadcast_ether_addr(padapter->eeprompriv.mac_addr) ||
+	    is_zero_ether_addr(padapter->eeprompriv.mac_addr))
+		eth_random_addr(padapter->eeprompriv.mac_addr);
 
 	DBG_8723A("bDriverStopped:%d, bSurpriseRemoved:%d, bup:%d, hw_init_completed:%d\n",
 		  padapter->bDriverStopped, padapter->bSurpriseRemoved,
