@@ -1523,7 +1523,7 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 		rtw_indicate_connect23a(padapter);
 		spin_unlock_bh(&pmlmepriv->lock);
 	} else {
-		pwlan = rtw_alloc_network(pmlmepriv);
+		pwlan = rtw_alloc_network(pmlmepriv, GFP_KERNEL);
 		spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 		if (!pwlan) {
 			pwlan = rtw_get_oldest_wlan_network23a(&pmlmepriv->scanned_queue);

@@ -127,11 +127,11 @@ void rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv)
 	rtw23a_free_mlme_priv_ie_data(pmlmepriv);
 }
 
-struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
+struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv, int gfp)
 {
 	struct wlan_network *pnetwork;
 
-	pnetwork = kzalloc(sizeof(struct wlan_network), GFP_ATOMIC);
+	pnetwork = kzalloc(sizeof(struct wlan_network), gfp);
 	if (pnetwork) {
 		INIT_LIST_HEAD(&pnetwork->list);
 		pnetwork->network_type = 0;
@@ -514,7 +514,7 @@ void rtw_update_scanned_network23a(struct rtw_adapter *adapter,
 	/* If we didn't find a match, then get a new network slot to initialize
 	 * with this beacon's information */
 	if (!found) {
-		pnetwork = rtw_alloc_network(pmlmepriv);
+		pnetwork = rtw_alloc_network(pmlmepriv, GFP_ATOMIC);
 		if (!pnetwork) {
 			if (!oldest) {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
