@@ -1088,17 +1088,15 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE)) {
-		init_request_from_bio(rq, bio);
-
+		blk_mq_bio_to_request(rq, bio);
 		spin_lock(&ctx->lock);
 insert_rq:
 		__blk_mq_insert_request(hctx, rq, false);
 		spin_unlock(&ctx->lock);
-		blk_account_io_start(rq, 1);
 	} else {
 		spin_lock(&ctx->lock);
 		if (!blk_mq_attempt_merge(q, ctx, bio)) {
-			init_request_from_bio(rq, bio);
+			blk_mq_bio_to_request(rq, bio);
 			goto insert_rq;
 		}
 
