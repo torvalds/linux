@@ -2186,6 +2186,7 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 	ring->dispatch_execbuffer =
 			gen8_ring_dispatch_execbuffer;
 	ring->semaphore.sync_to = gen6_ring_sync;
+	ring->semaphore.signal = gen6_signal;
 	/*
 	 * The current semaphore is only applied on the pre-gen8. And there
 	 * is no bsd2 ring on the pre-gen8. So now the semaphore_register
