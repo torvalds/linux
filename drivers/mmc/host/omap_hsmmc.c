@@ -2043,9 +2043,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	/* Request IRQ for card detect */
 	if ((mmc_slot(host).card_detect_irq)) {
-		ret = request_threaded_irq(mmc_slot(host).card_detect_irq,
-					   NULL,
-					   omap_hsmmc_detect,
+		ret = devm_request_threaded_irq(&pdev->dev,
+						mmc_slot(host).card_detect_irq,
+						NULL, omap_hsmmc_detect,
 					   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					   mmc_hostname(mmc), host);
 		if (ret) {
@@ -2088,7 +2088,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 err_slot_name:
 	mmc_remove_host(mmc);
-	free_irq(mmc_slot(host).card_detect_irq, host);
 err_irq_cd:
 	if (host->use_reg)
 		omap_hsmmc_reg_put(host);
@@ -2127,8 +2126,6 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 		omap_hsmmc_reg_put(host);
 	if (host->pdata->cleanup)
 		host->pdata->cleanup(&pdev->dev);
-	if (mmc_slot(host).card_detect_irq)
-		free_irq(mmc_slot(host).card_detect_irq, host);
 
 	if (host->tx_chan)
 		dma_release_channel(host->tx_chan);
