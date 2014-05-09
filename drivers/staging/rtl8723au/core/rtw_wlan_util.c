@@ -32,6 +32,9 @@ static unsigned char REALTEK_OUI[] = {0x00, 0xe0, 0x4c};
 static unsigned char AIRGOCAP_OUI[] = {0x00, 0x0a, 0xf5};
 static unsigned char EPIGRAM_OUI[] = {0x00, 0x90, 0x4c};
 
+static unsigned char WPA_TKIP_CIPHER[4] = {0x00, 0x50, 0xf2, 0x02};
+static unsigned char RSN_TKIP_CIPHER[4] = {0x00, 0x0f, 0xac, 0x02};
+
 #define R2T_PHY_DELAY		0
 
 /* define WAIT_FOR_BCN_TO_MIN	3000 */
@@ -1181,12 +1184,11 @@ unsigned int is_ap_in_tkip23a(struct rtw_adapter *padapter)
 			case WLAN_EID_VENDOR_SPECIFIC:
 				if (!memcmp(pIE->data, RTW_WPA_OUI23A_TYPE, 4)&&
 				    !memcmp((pIE->data + 12),
-					    WPA_TKIP_CIPHER23A, 4))
+					    WPA_TKIP_CIPHER, 4))
 					return true;
 				break;
 			case WLAN_EID_RSN:
-				if (!memcmp(pIE->data + 8, RSN_TKIP_CIPHER23A,
-					    4))
+				if (!memcmp(pIE->data + 8, RSN_TKIP_CIPHER, 4))
 					return true;
 				break;
 			default:

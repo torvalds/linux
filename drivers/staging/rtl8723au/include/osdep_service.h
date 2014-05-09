@@ -127,8 +127,6 @@ static inline u32 CHKBIT(u32 x)
 #define BIT36	0x1000000000
 
 extern unsigned char MCS_rate_2R23A[16];
-extern unsigned char WPA_TKIP_CIPHER23A[4];
-extern unsigned char RSN_TKIP_CIPHER23A[4];
 
 extern unsigned char	MCS_rate_2R23A[16];
 extern unsigned char	MCS_rate_1R23A[16];
