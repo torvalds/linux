@@ -406,25 +406,30 @@ void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod)
 static void nvme_start_io_acct(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
-	const int rw = bio_data_dir(bio);
-	int cpu = part_stat_lock();
-	part_round_stats(cpu, &disk->part0);
-	part_stat_inc(cpu, &disk->part0, ios[rw]);
-	part_stat_add(cpu, &disk->part0, sectors[rw], bio_sectors(bio));
-	part_inc_in_flight(&disk->part0, rw);
-	part_stat_unlock();
+	if (blk_queue_io_stat(disk->queue)) {
+		const int rw = bio_data_dir(bio);
+		int cpu = part_stat_lock();
+		part_round_stats(cpu, &disk->part0);
+		part_stat_inc(cpu, &disk->part0, ios[rw]);
+		part_stat_add(cpu, &disk->part0, sectors[rw],
+							bio_sectors(bio));
+		part_inc_in_flight(&disk->part0, rw);
+		part_stat_unlock();
+	}
 }
 
 static void nvme_end_io_acct(struct bio *bio, unsigned long start_time)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
-	const int rw = bio_data_dir(bio);
-	unsigned long duration = jiffies - start_time;
-	int cpu = part_stat_lock();
-	part_stat_add(cpu, &disk->part0, ticks[rw], duration);
-	part_round_stats(cpu, &disk->part0);
-	part_dec_in_flight(&disk->part0, rw);
-	part_stat_unlock();
+	if (blk_queue_io_stat(disk->queue)) {
+		const int rw = bio_data_dir(bio);
+		unsigned long duration = jiffies - start_time;
+		int cpu = part_stat_lock();
+		part_stat_add(cpu, &disk->part0, ticks[rw], duration);
+		part_round_stats(cpu, &disk->part0);
+		part_dec_in_flight(&disk->part0, rw);
+		part_stat_unlock();
+	}
 }
 
 static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
