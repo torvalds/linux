@@ -50,6 +50,8 @@
 #define get_hdmi_display(dev)	platform_get_drvdata(to_platform_device(dev))
 #define ctx_from_connector(c)	container_of(c, struct hdmi_context, connector)
 
+#define HOTPLUG_DEBOUNCE_MS		1100
+
 /* AVI header and aspect ratio */
 #define HDMI_AVI_VERSION		0x02
 #define HDMI_AVI_LENGTH		0x0D
@@ -187,6 +189,7 @@ struct hdmi_context {
 
 	void __iomem			*regs;
 	int				irq;
+	struct delayed_work		hotplug_work;
 
 	struct i2c_adapter		*ddc_adpt;
 	struct i2c_client		*hdmiphy_port;
@@ -1857,6 +1860,8 @@ static void hdmi_poweroff(struct exynos_drm_display *display)
 
 	hdmiphy_poweroff(hdata);
 
+	cancel_delayed_work(&hdata->hotplug_work);
+
 	clk_disable_unprepare(res->sclk_hdmi);
 	clk_disable_unprepare(res->hdmi);
 	clk_disable_unprepare(res->hdmiphy);
@@ -1903,9 +1908,11 @@ static struct exynos_drm_display hdmi_display = {
 	.ops = &hdmi_display_ops,
 };
 
-static irqreturn_t hdmi_irq_thread(int irq, void *arg)
+static void hdmi_hotplug_work_func(struct work_struct *work)
 {
-	struct hdmi_context *hdata = arg;
+	struct hdmi_context *hdata;
+
+	hdata = container_of(work, struct hdmi_context, hotplug_work.work);
 
 	mutex_lock(&hdata->hdmi_mutex);
 	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
@@ -1913,6 +1920,14 @@ static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 
 	if (hdata->drm_dev)
 		drm_helper_hpd_irq_event(hdata->drm_dev);
+}
+
+static irqreturn_t hdmi_irq_thread(int irq, void *arg)
+{
+	struct hdmi_context *hdata = arg;
+
+	mod_delayed_work(system_wq, &hdata->hotplug_work,
+			msecs_to_jiffies(HOTPLUG_DEBOUNCE_MS));
 
 	return IRQ_HANDLED;
 }
@@ -2142,6 +2157,8 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
 
+	INIT_DELAYED_WORK(&hdata->hotplug_work, hdmi_hotplug_work_func);
+
 	ret = devm_request_threaded_irq(dev, hdata->irq, NULL,
 			hdmi_irq_thread, IRQF_TRIGGER_RISING |
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
@@ -2166,6 +2183,8 @@ err_ddc:
 static int hdmi_remove(struct platform_device *pdev)
 {
 	struct hdmi_context *hdata = hdmi_display.ctx;
+
+	cancel_delayed_work_sync(&hdata->hotplug_work);
 
 	put_device(&hdata->hdmiphy_port->dev);
 	put_device(&hdata->ddc_adpt->dev);
