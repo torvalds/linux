@@ -89,7 +89,7 @@ struct ddr {
 	unsigned long normal_rate;
 	unsigned long video_1080p_rate;
 	unsigned long video_4k_rate;
-	unsigned long performace_rate;
+	unsigned long performance_rate;
 	unsigned long dualview_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
@@ -286,8 +286,8 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 		ddrfreq_mode(false, &ddr.video_1080p_rate, "video_1080p");
 	} else if (ddr.video_4k_rate && (s & SYS_STATUS_VIDEO_4K)) {
 		ddrfreq_mode(false, &ddr.video_4k_rate, "video_4k");
-	} else if (ddr.video_4k_rate && (s & SYS_STATUS_PERFORMANCE)) {
-		ddrfreq_mode(false, &ddr.video_4k_rate, "video_4k");
+	} else if (ddr.performance_rate && (s & SYS_STATUS_PERFORMANCE)) {
+		ddrfreq_mode(false, &ddr.performance_rate, "performance_rate");
 	} else if (ddr.idle_rate
 		&& !(s & SYS_STATUS_GPU)
 		&& !(s & SYS_STATUS_RGA)
@@ -341,6 +341,9 @@ struct video_info *find_video_info(struct video_info *match_video_info)
 {
 	struct video_info *video_info;
 
+	if (!match_video_info)
+		return NULL;
+
 	list_for_each_entry(video_info, &ddr.video_info_list, node) {
 		if ((video_info->width == match_video_info->width)
 			&& (video_info->height == match_video_info->height)
@@ -384,6 +387,19 @@ void update_video_info(void)
 	return;
 }
 
+/***format: width=val,height=val,ishevc=val,videoFramerate=val,streamBitrate=val***/
+static long get_video_param(char **str)
+{
+	char *p;
+
+	strsep(str,"=");
+	p=strsep(str,",");
+	if (p)
+		return simple_strtol(p,NULL,10);
+
+	return 0;
+}
+
 static ssize_t video_state_write(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
@@ -416,25 +432,13 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 		}
 
 		strsep(&cookie_pot,",");
-		strsep(&cookie_pot,"=");
-		p=strsep(&cookie_pot,",");
-		video_info->width = simple_strtol(p,NULL,10);
 
-		strsep(&cookie_pot,"=");
-		p=strsep(&cookie_pot,",");
-		video_info->height = simple_strtol(p,NULL,10);
-
-		strsep(&cookie_pot,"=");
-		p=strsep(&cookie_pot,",");
-		video_info->ishevc = simple_strtol(p,NULL,10);
-
-		strsep(&cookie_pot,"=");
-		p=strsep(&cookie_pot,",");
-		video_info->videoFramerate = simple_strtol(p,NULL,10);
-
-		strsep(&cookie_pot,"=");
-		p=strsep(&cookie_pot,",");
-		video_info->streamBitrate = simple_strtol(p,NULL,10);
+		video_info->width = get_video_param(&cookie_pot);
+		video_info->height = get_video_param(&cookie_pot);
+		video_info->ishevc = get_video_param(&cookie_pot);
+		video_info->videoFramerate = get_video_param(&cookie_pot);
+		video_info->streamBitrate = get_video_param(&cookie_pot);
+		video_info->streamBitrate = get_video_param(&cookie_pot);
 
 		dprintk(DEBUG_VIDEO_STATE, "%s: video_state=%c,width=%d,height=%d,ishevc=%d,videoFramerate=%d,streamBitrate=%d\n",
 			__func__, state,video_info->width,video_info->height,
@@ -711,7 +715,7 @@ int of_init_ddr_freq_table(void)
 		if (status & SYS_STATUS_VIDEO_4K)
 			ddr.video_4k_rate = rate;
 		if (status & SYS_STATUS_PERFORMANCE)
-			ddr.performace_rate= rate;
+			ddr.performance_rate= rate;
 		if ((status & SYS_STATUS_LCDC0)&&(status & SYS_STATUS_LCDC1))
 			ddr.dualview_rate = rate;
 		if (status & SYS_STATUS_IDLE)
