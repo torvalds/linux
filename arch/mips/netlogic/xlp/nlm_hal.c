@@ -66,30 +66,38 @@ void nlm_node_init(int node)
 	spin_lock_init(&nodep->piclock);
 }
 
-int nlm_irq_to_irt(int irq)
+static int xlp9xx_irq_to_irt(int irq)
+{
+	switch (irq) {
+	case PIC_GPIO_IRQ:
+		return 12;
+	case PIC_9XX_XHCI_0_IRQ:
+		return 114;
+	case PIC_9XX_XHCI_1_IRQ:
+		return 115;
+	case PIC_UART_0_IRQ:
+		return 133;
+	case PIC_UART_1_IRQ:
+		return 134;
+	case PIC_SATA_IRQ:
+		return 143;
+	case PIC_SPI_IRQ:
+		return 152;
+	case PIC_MMC_IRQ:
+		return 153;
+	case PIC_PCIE_LINK_LEGACY_IRQ(0):
+	case PIC_PCIE_LINK_LEGACY_IRQ(1):
+	case PIC_PCIE_LINK_LEGACY_IRQ(2):
+	case PIC_PCIE_LINK_LEGACY_IRQ(3):
+		return 191 + irq - PIC_PCIE_LINK_LEGACY_IRQ_BASE;
+	}
+	return -1;
+}
+
+static int xlp_irq_to_irt(int irq)
 {
 	uint64_t pcibase;
 	int devoff, irt;
-
-	/* bypass for 9xx */
-	if (cpu_is_xlp9xx()) {
-		switch (irq) {
-		case PIC_9XX_XHCI_0_IRQ:
-			return 114;
-		case PIC_9XX_XHCI_1_IRQ:
-			return 115;
-		case PIC_UART_0_IRQ:
-			return 133;
-		case PIC_UART_1_IRQ:
-			return 134;
-		case PIC_PCIE_LINK_LEGACY_IRQ(0):
-		case PIC_PCIE_LINK_LEGACY_IRQ(1):
-		case PIC_PCIE_LINK_LEGACY_IRQ(2):
-		case PIC_PCIE_LINK_LEGACY_IRQ(3):
-			return 191 + irq - PIC_PCIE_LINK_LEGACY_IRQ_BASE;
-		}
-		return -1;
-	}
 
 	devoff = 0;
 	switch (irq) {
@@ -100,7 +108,7 @@ int nlm_irq_to_irt(int irq)
 		devoff = XLP_IO_UART1_OFFSET(0);
 		break;
 	case PIC_MMC_IRQ:
-		devoff = XLP_IO_SD_OFFSET(0);
+		devoff = XLP_IO_MMC_OFFSET(0);
 		break;
 	case PIC_I2C_0_IRQ:	/* I2C will be fixed up */
 	case PIC_I2C_1_IRQ:
@@ -110,6 +118,18 @@ int nlm_irq_to_irt(int irq)
 			devoff = XLP2XX_IO_I2C_OFFSET(0);
 		else
 			devoff = XLP_IO_I2C0_OFFSET(0);
+		break;
+	case PIC_SATA_IRQ:
+		devoff = XLP_IO_SATA_OFFSET(0);
+		break;
+	case PIC_GPIO_IRQ:
+		devoff = XLP_IO_GPIO_OFFSET(0);
+		break;
+	case PIC_NAND_IRQ:
+		devoff = XLP_IO_NAND_OFFSET(0);
+		break;
+	case PIC_SPI_IRQ:
+		devoff = XLP_IO_SPI_OFFSET(0);
 		break;
 	default:
 		if (cpu_is_xlpii()) {
@@ -166,16 +186,24 @@ int nlm_irq_to_irt(int irq)
 		/* HW bug, PCI IRT entries are bad on early silicon, fix */
 		irt = PIC_IRT_PCIE_LINK_INDEX(irq -
 					PIC_PCIE_LINK_LEGACY_IRQ_BASE);
-	} else if (irq >= PIC_PCIE_LINK_MSI_IRQ(0) &&
-			irq <= PIC_PCIE_LINK_MSI_IRQ(3)) {
-		irt = -2;
-	} else if (irq >= PIC_PCIE_MSIX_IRQ(0) &&
-			irq <= PIC_PCIE_MSIX_IRQ(3)) {
-		irt = -2;
 	} else {
 		irt = -1;
 	}
 	return irt;
+}
+
+int nlm_irq_to_irt(int irq)
+{
+	/* return -2 for irqs without 1-1 mapping */
+	if (irq >= PIC_PCIE_LINK_MSI_IRQ(0) && irq <= PIC_PCIE_LINK_MSI_IRQ(3))
+		return -2;
+	if (irq >= PIC_PCIE_MSIX_IRQ(0) && irq <= PIC_PCIE_MSIX_IRQ(3))
+		return -2;
+
+	if (cpu_is_xlp9xx())
+		return xlp9xx_irq_to_irt(irq);
+	else
+		return xlp_irq_to_irt(irq);
 }
 
 unsigned int nlm_get_core_frequency(int node, int core)

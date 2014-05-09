@@ -58,6 +58,10 @@
 #define PIC_I2C_1_IRQ			31
 #define PIC_I2C_2_IRQ			32
 #define PIC_I2C_3_IRQ			33
+#define PIC_SPI_IRQ			34
+#define PIC_NAND_IRQ			37
+#define PIC_SATA_IRQ			38
+#define PIC_GPIO_IRQ			39
 
 #define PIC_PCIE_LINK_MSI_IRQ_BASE	44	/* 44 - 47 MSI IRQ */
 #define PIC_PCIE_LINK_MSI_IRQ(i)	(44 + (i))
