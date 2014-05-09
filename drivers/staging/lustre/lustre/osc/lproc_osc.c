@@ -525,44 +525,44 @@ LPROC_SEQ_FOPS_RW_TYPE(osc, import);
 LPROC_SEQ_FOPS_RW_TYPE(osc, pinger_recov);
 
 static struct lprocfs_vars lprocfs_osc_obd_vars[] = {
-	{ "uuid",	     &osc_uuid_fops,	0, 0 },
-	{ "ping",	     &osc_ping_fops,    0, 0222 },
-	{ "connect_flags",   &osc_connect_flags_fops, 0, 0 },
-	{ "blocksize",       &osc_blksize_fops,     0, 0 },
-	{ "kbytestotal",     &osc_kbytestotal_fops, 0, 0 },
-	{ "kbytesfree",      &osc_kbytesfree_fops,  0, 0 },
-	{ "kbytesavail",     &osc_kbytesavail_fops, 0, 0 },
-	{ "filestotal",      &osc_filestotal_fops,  0, 0 },
-	{ "filesfree",       &osc_filesfree_fops,   0, 0 },
-	//{ "filegroups",      lprocfs_rd_filegroups,  0, 0 },
-	{ "ost_server_uuid", &osc_server_uuid_fops, 0, 0 },
-	{ "ost_conn_uuid",   &osc_conn_uuid_fops, 0, 0 },
-	{ "active",	     &osc_active_fops, 0 },
-	{ "max_pages_per_rpc", &osc_obd_max_pages_per_rpc_fops, 0 },
-	{ "max_rpcs_in_flight", &osc_max_rpcs_in_flight_fops, 0 },
-	{ "destroys_in_flight", &osc_destroys_in_flight_fops, 0, 0 },
-	{ "max_dirty_mb",    &osc_max_dirty_mb_fops, 0 },
-	{ "osc_cached_mb",   &osc_cached_mb_fops, 0 },
-	{ "cur_dirty_bytes", &osc_cur_dirty_bytes_fops, 0, 0 },
-	{ "cur_grant_bytes", &osc_cur_grant_bytes_fops, 0 },
-	{ "cur_lost_grant_bytes", &osc_cur_lost_grant_bytes_fops, 0, 0},
-	{ "grant_shrink_interval", &osc_grant_shrink_interval_fops, 0 },
-	{ "checksums",       &osc_checksum_fops, 0 },
-	{ "checksum_type",   &osc_checksum_type_fops, 0 },
-	{ "resend_count",    &osc_resend_count_fops, 0},
-	{ "timeouts",	     &osc_timeouts_fops, 0, 0 },
-	{ "contention_seconds", &osc_contention_seconds_fops, 0 },
-	{ "lockless_truncate",  &osc_lockless_truncate_fops, 0 },
-	{ "import",		&osc_import_fops, 0 },
-	{ "state",		&osc_state_fops, 0, 0 },
-	{ "pinger_recov",	&osc_pinger_recov_fops, 0 },
-	{ 0 }
+	{ "uuid",	     &osc_uuid_fops,	NULL, 0 },
+	{ "ping",	     &osc_ping_fops,    NULL, 0222 },
+	{ "connect_flags",   &osc_connect_flags_fops, NULL, 0 },
+	{ "blocksize",       &osc_blksize_fops,     NULL, 0 },
+	{ "kbytestotal",     &osc_kbytestotal_fops, NULL, 0 },
+	{ "kbytesfree",      &osc_kbytesfree_fops,  NULL, 0 },
+	{ "kbytesavail",     &osc_kbytesavail_fops, NULL, 0 },
+	{ "filestotal",      &osc_filestotal_fops,  NULL, 0 },
+	{ "filesfree",       &osc_filesfree_fops,   NULL, 0 },
+	/*{ "filegroups",      lprocfs_rd_filegroups,  NULL, 0 },*/
+	{ "ost_server_uuid", &osc_server_uuid_fops, NULL, 0 },
+	{ "ost_conn_uuid",   &osc_conn_uuid_fops, NULL, 0 },
+	{ "active",	     &osc_active_fops, NULL },
+	{ "max_pages_per_rpc", &osc_obd_max_pages_per_rpc_fops, NULL },
+	{ "max_rpcs_in_flight", &osc_max_rpcs_in_flight_fops, NULL },
+	{ "destroys_in_flight", &osc_destroys_in_flight_fops, NULL, 0 },
+	{ "max_dirty_mb",    &osc_max_dirty_mb_fops, NULL },
+	{ "osc_cached_mb",   &osc_cached_mb_fops, NULL },
+	{ "cur_dirty_bytes", &osc_cur_dirty_bytes_fops, NULL, 0 },
+	{ "cur_grant_bytes", &osc_cur_grant_bytes_fops, NULL },
+	{ "cur_lost_grant_bytes", &osc_cur_lost_grant_bytes_fops, NULL, 0},
+	{ "grant_shrink_interval", &osc_grant_shrink_interval_fops, NULL },
+	{ "checksums",       &osc_checksum_fops, NULL },
+	{ "checksum_type",   &osc_checksum_type_fops, NULL },
+	{ "resend_count",    &osc_resend_count_fops, NULL},
+	{ "timeouts",	     &osc_timeouts_fops, NULL, 0 },
+	{ "contention_seconds", &osc_contention_seconds_fops, NULL },
+	{ "lockless_truncate",  &osc_lockless_truncate_fops, NULL },
+	{ "import",		&osc_import_fops, NULL },
+	{ "state",		&osc_state_fops, NULL, 0 },
+	{ "pinger_recov",	&osc_pinger_recov_fops, NULL },
+	{ NULL }
 };
 
 LPROC_SEQ_FOPS_RO_TYPE(osc, numrefs);
 static struct lprocfs_vars lprocfs_osc_module_vars[] = {
-	{ "num_refs",	&osc_numrefs_fops,     0, 0 },
-	{ 0 }
+	{ "num_refs",	&osc_numrefs_fops,     NULL, 0 },
+	{ NULL }
 };
 
 #define pct(a,b) (b ? a * 100 / b : 0)
