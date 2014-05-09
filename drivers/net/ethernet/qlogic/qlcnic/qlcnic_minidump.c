@@ -238,6 +238,8 @@ void qlcnic_82xx_cache_tmpl_hdr_values(struct qlcnic_fw_dump *fw_dump)
 
 	hdr->drv_cap_mask = hdr->cap_mask;
 	fw_dump->cap_mask = hdr->cap_mask;
+
+	fw_dump->use_pex_dma = (hdr->capabilities & BIT_0) ? true : false;
 }
 
 inline u32 qlcnic_82xx_get_cap_size(void *t_hdr, int index)
@@ -276,6 +278,8 @@ inline void qlcnic_83xx_set_saved_state(void *t_hdr, u32 index,
 	hdr->saved_state[index] = value;
 }
 
+#define QLCNIC_TEMPLATE_VERSION (0x20001)
+
 void qlcnic_83xx_cache_tmpl_hdr_values(struct qlcnic_fw_dump *fw_dump)
 {
 	struct qlcnic_83xx_dump_template_hdr *hdr;
@@ -288,6 +292,9 @@ void qlcnic_83xx_cache_tmpl_hdr_values(struct qlcnic_fw_dump *fw_dump)
 
 	hdr->drv_cap_mask = hdr->cap_mask;
 	fw_dump->cap_mask = hdr->cap_mask;
+
+	fw_dump->use_pex_dma = (fw_dump->version & 0xfffff) >=
+			       QLCNIC_TEMPLATE_VERSION;
 }
 
 inline u32 qlcnic_83xx_get_cap_size(void *t_hdr, int index)
@@ -658,29 +665,28 @@ out:
 static int qlcnic_start_pex_dma(struct qlcnic_adapter *adapter,
 				struct __mem *mem)
 {
-	struct qlcnic_83xx_dump_template_hdr *tmpl_hdr;
 	struct device *dev = &adapter->pdev->dev;
 	u32 dma_no, dma_base_addr, temp_addr;
 	int i, ret, dma_sts;
+	void *tmpl_hdr;
 
 	tmpl_hdr = adapter->ahw->fw_dump.tmpl_hdr;
-	dma_no = tmpl_hdr->saved_state[QLC_83XX_DMA_ENGINE_INDEX];
+	dma_no = qlcnic_get_saved_state(adapter, tmpl_hdr,
+					QLC_83XX_DMA_ENGINE_INDEX);
 	dma_base_addr = QLC_DMA_REG_BASE_ADDR(dma_no);
 
 	temp_addr = dma_base_addr + QLC_DMA_CMD_BUFF_ADDR_LOW;
-	ret = qlcnic_83xx_wrt_reg_indirect(adapter, temp_addr,
-					   mem->desc_card_addr);
+	ret = qlcnic_ind_wr(adapter, temp_addr, mem->desc_card_addr);
 	if (ret)
 		return ret;
 
 	temp_addr = dma_base_addr + QLC_DMA_CMD_BUFF_ADDR_HI;
-	ret = qlcnic_83xx_wrt_reg_indirect(adapter, temp_addr, 0);
+	ret = qlcnic_ind_wr(adapter, temp_addr, 0);
 	if (ret)
 		return ret;
 
 	temp_addr = dma_base_addr + QLC_DMA_CMD_STATUS_CTRL;
-	ret = qlcnic_83xx_wrt_reg_indirect(adapter, temp_addr,
-					   mem->start_dma_cmd);
+	ret = qlcnic_ind_wr(adapter, temp_addr, mem->start_dma_cmd);
 	if (ret)
 		return ret;
 
@@ -710,15 +716,16 @@ static u32 qlcnic_read_memory_pexdma(struct qlcnic_adapter *adapter,
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 	u32 temp, dma_base_addr, size = 0, read_size = 0;
 	struct qlcnic_pex_dma_descriptor *dma_descr;
-	struct qlcnic_83xx_dump_template_hdr *tmpl_hdr;
 	struct device *dev = &adapter->pdev->dev;
 	dma_addr_t dma_phys_addr;
 	void *dma_buffer;
+	void *tmpl_hdr;
 
 	tmpl_hdr = fw_dump->tmpl_hdr;
 
 	/* Check if DMA engine is available */
-	temp = tmpl_hdr->saved_state[QLC_83XX_DMA_ENGINE_INDEX];
+	temp = qlcnic_get_saved_state(adapter, tmpl_hdr,
+				      QLC_83XX_DMA_ENGINE_INDEX);
 	dma_base_addr = QLC_DMA_REG_BASE_ADDR(temp);
 	temp = qlcnic_ind_rd(adapter,
 			     dma_base_addr + QLC_DMA_CMD_STATUS_CTRL);
@@ -764,8 +771,8 @@ static u32 qlcnic_read_memory_pexdma(struct qlcnic_adapter *adapter,
 
 		/* Write DMA descriptor to MS memory*/
 		temp = sizeof(struct qlcnic_pex_dma_descriptor) / 16;
-		*ret = qlcnic_83xx_ms_mem_write128(adapter, mem->desc_card_addr,
-						   (u32 *)dma_descr, temp);
+		*ret = qlcnic_ms_mem_write128(adapter, mem->desc_card_addr,
+					      (u32 *)dma_descr, temp);
 		if (*ret) {
 			dev_info(dev, "Failed to write DMA descriptor to MS memory at address 0x%x\n",
 				 mem->desc_card_addr);
@@ -1141,8 +1148,6 @@ free_mem:
 	return err;
 }
 
-#define QLCNIC_TEMPLATE_VERSION (0x20001)
-
 int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw;
@@ -1202,12 +1207,6 @@ flash_temp:
 	dev_info(&adapter->pdev->dev,
 		 "Default minidump capture mask 0x%x\n",
 		 fw_dump->cap_mask);
-
-	if (qlcnic_83xx_check(adapter) &&
-	    (fw_dump->version & 0xfffff) >= QLCNIC_TEMPLATE_VERSION)
-		fw_dump->use_pex_dma = true;
-	else
-		fw_dump->use_pex_dma = false;
 
 	qlcnic_enable_fw_dump_state(adapter);
 

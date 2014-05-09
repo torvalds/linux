@@ -373,12 +373,16 @@ int qlcnic_ind_rd(struct qlcnic_adapter *adapter, u32 addr)
 	return data;
 }
 
-void qlcnic_ind_wr(struct qlcnic_adapter *adapter, u32 addr, u32 data)
+int qlcnic_ind_wr(struct qlcnic_adapter *adapter, u32 addr, u32 data)
 {
+	int ret = 0;
+
 	if (qlcnic_82xx_check(adapter))
 		qlcnic_write_window_reg(addr, adapter->ahw->pci_base0, data);
 	else
-		qlcnic_83xx_wrt_reg_indirect(adapter, addr, data);
+		ret = qlcnic_83xx_wrt_reg_indirect(adapter, addr, data);
+
+	return ret;
 }
 
 static int
