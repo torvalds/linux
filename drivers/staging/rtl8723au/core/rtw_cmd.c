@@ -1505,8 +1505,6 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 
 	del_timer_sync(&pmlmepriv->assoc_timer);
 
-	spin_lock_bh(&pmlmepriv->lock);
-
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		psta = rtw_get_stainfo23a(&padapter->stapriv,
 					  pnetwork->MacAddress);
@@ -1521,7 +1519,9 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 			}
 		}
 
+		spin_lock_bh(&pmlmepriv->lock);
 		rtw_indicate_connect23a(padapter);
+		spin_unlock_bh(&pmlmepriv->lock);
 	} else {
 		pwlan = rtw_alloc_network(pmlmepriv);
 		spin_lock_bh(&pmlmepriv->scanned_queue.lock);
@@ -1554,7 +1554,7 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 
 		/*  reset DSConfig */
 
-		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+		clr_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
 		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 		/*  we will set _FW_LINKED when there is one more sat to
@@ -1562,8 +1562,6 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 	}
 
 createbss_cmd_fail:
-
-	spin_unlock_bh(&pmlmepriv->lock);
 
 	rtw_free_cmd_obj23a(pcmd);
 }
