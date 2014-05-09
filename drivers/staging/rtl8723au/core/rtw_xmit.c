@@ -81,42 +81,21 @@ s32	_rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv, struct rtw_adapter *pada
 
 	_rtw_init_queue23a(&pxmitpriv->free_xmit_queue);
 
-	/*
-	Please allocate memory with the sz = (struct xmit_frame) * NR_XMITFRAME,
-	and initialize free_xmit_frame below.
-	Please also apply  free_txobj to link_up all the xmit_frames...
-	*/
-
-	pxmitpriv->pallocated_frame_buf = rtw_zvmalloc(NR_XMITFRAME * sizeof(struct xmit_frame) + 4);
-
-	if (pxmitpriv->pallocated_frame_buf  == NULL) {
-		pxmitpriv->pxmit_frame_buf = NULL;
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("alloc xmit_frame fail!\n"));
-		res = _FAIL;
-		goto exit;
-	}
-	pxmitpriv->pxmit_frame_buf = PTR_ALIGN(pxmitpriv->pallocated_frame_buf, 4);
-
-	pxframe = (struct xmit_frame*) pxmitpriv->pxmit_frame_buf;
-
 	for (i = 0; i < NR_XMITFRAME; i++) {
+		pxframe = (struct xmit_frame *)
+			kzalloc(sizeof(struct xmit_frame), GFP_KERNEL);
+		if (!pxframe)
+			break;
 		INIT_LIST_HEAD(&pxframe->list);
 
 		pxframe->padapter = padapter;
 		pxframe->frame_tag = NULL_FRAMETAG;
 
-		pxframe->pkt = NULL;
-
-		pxframe->buf_addr = NULL;
-		pxframe->pxmitbuf = NULL;
-
 		list_add_tail(&pxframe->list,
 			      &pxmitpriv->free_xmit_queue.queue);
-
-		pxframe++;
 	}
 
-	pxmitpriv->free_xmitframe_cnt = NR_XMITFRAME;
+	pxmitpriv->free_xmitframe_cnt = i;
 
 	pxmitpriv->frag_len = MAX_FRAG_THRESHOLD;
 
@@ -242,7 +221,7 @@ fail:
 void _rtw_free_xmit_priv23a (struct xmit_priv *pxmitpriv)
 {
 	struct rtw_adapter *padapter = pxmitpriv->adapter;
-	struct xmit_frame *pxmitframe = (struct xmit_frame*) pxmitpriv->pxmit_frame_buf;
+	struct xmit_frame *pxframe;
 	struct xmit_buf *pxmitbuf;
 	struct list_head *plist, *ptmp;
 	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
@@ -250,11 +229,11 @@ void _rtw_free_xmit_priv23a (struct xmit_priv *pxmitpriv)
 
 	rtw_hal_free_xmit_priv23a(padapter);
 
-	if (pxmitpriv->pxmit_frame_buf == NULL)
-		return;
-	for (i = 0; i < NR_XMITFRAME; i++) {
-		rtw_os_xmit_complete23a(padapter, pxmitframe);
-		pxmitframe++;
+	list_for_each_safe(plist, ptmp, &pxmitpriv->free_xmit_queue.queue) {
+		pxframe = container_of(plist, struct xmit_frame, list);
+		list_del_init(&pxframe->list);
+		rtw_os_xmit_complete23a(padapter, pxframe);
+		kfree(pxframe);
 	}
 
 	list_for_each_safe(plist, ptmp, &pxmitpriv->xmitbuf_list) {
@@ -264,15 +243,11 @@ void _rtw_free_xmit_priv23a (struct xmit_priv *pxmitpriv)
 		kfree(pxmitbuf);
 	}
 
-	if (pxmitpriv->pallocated_frame_buf) {
-		rtw_vmfree(pxmitpriv->pallocated_frame_buf, NR_XMITFRAME * sizeof(struct xmit_frame) + 4);
-	}
-
 	/* free xframe_ext queue,  the same count as extbuf  */
-	if ((pxmitframe = (struct xmit_frame*)pxmitpriv->xframe_ext)) {
+	if ((pxframe = (struct xmit_frame*)pxmitpriv->xframe_ext)) {
 		for (i = 0; i<num_xmit_extbuf; i++) {
-			rtw_os_xmit_complete23a(padapter, pxmitframe);
-			pxmitframe++;
+			rtw_os_xmit_complete23a(padapter, pxframe);
+			pxframe++;
 		}
 	}
 	if (pxmitpriv->xframe_ext_alloc_addr)

@@ -286,9 +286,7 @@ struct	xmit_priv {
 	struct rtw_queue	vo_pending;
 	struct rtw_queue	bm_pending;
 
-	u8 *pallocated_frame_buf;
-	u8 *pxmit_frame_buf;
-	uint free_xmitframe_cnt;
+	int free_xmitframe_cnt;
 	struct rtw_queue	free_xmit_queue;
 
 	u8 *xframe_ext_alloc_addr;
