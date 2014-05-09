@@ -31,10 +31,6 @@ s32	rtl8723au_init_xmit_priv(struct rtw_adapter *padapter)
 	return _SUCCESS;
 }
 
-void	rtl8723au_free_xmit_priv(struct rtw_adapter *padapter)
-{
-}
-
 static void do_queue_select(struct rtw_adapter	*padapter, struct pkt_attrib *pattrib)
 {
 	u8 qsel;

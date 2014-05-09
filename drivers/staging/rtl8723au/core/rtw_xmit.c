@@ -210,8 +210,6 @@ void _rtw_free_xmit_priv23a (struct xmit_priv *pxmitpriv)
 	struct xmit_buf *pxmitbuf;
 	struct list_head *plist, *ptmp;
 
-	rtw_hal_free_xmit_priv23a(padapter);
-
 	list_for_each_safe(plist, ptmp, &pxmitpriv->free_xmit_queue.queue) {
 		pxframe = container_of(plist, struct xmit_frame, list);
 		list_del_init(&pxframe->list);

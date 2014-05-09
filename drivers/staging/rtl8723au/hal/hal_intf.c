@@ -208,11 +208,6 @@ s32	rtw_hal_init23a_xmit_priv(struct rtw_adapter *padapter)
 		return padapter->HalFunc.init_xmit_priv(padapter);
 	return _FAIL;
 }
-void	rtw_hal_free_xmit_priv23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.free_xmit_priv != NULL)
-		padapter->HalFunc.free_xmit_priv(padapter);
-}
 
 s32	rtw_hal_init23a_recv_priv(struct rtw_adapter *padapter)
 {

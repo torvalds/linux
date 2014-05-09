@@ -1756,7 +1756,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->inirp_deinit = &rtl8723au_inirp_deinit;
 
 	pHalFunc->init_xmit_priv = &rtl8723au_init_xmit_priv;
-	pHalFunc->free_xmit_priv = &rtl8723au_free_xmit_priv;
 
 	pHalFunc->init_recv_priv = &rtl8723au_init_recv_priv;
 	pHalFunc->free_recv_priv = &rtl8723au_free_recv_priv;
