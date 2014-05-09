@@ -86,15 +86,6 @@
 /*  structure and define */
 /*  */
 
-/*  */
-/*  2011/09/20 MH Add for AP/ADSLpseudo DM structuer requirement. */
-/*  We need to remove to other position??? */
-/*  */
-struct rtl8723a_priv {
-	u8		temp;
-};
-
-
 struct  dig_t {
 	u8		Dig_Enable_Flag;
 	u8		Dig_Ext_Port_Stage;
@@ -763,11 +754,6 @@ struct dm_odm_t {
 	/*	Add for different team use temporarily */
 	/*  */
 	struct rtw_adapter	*Adapter;		/*  For CE/NIC team */
-	struct rtl8723a_priv	*priv;			/*  For AP/ADSL team */
-	/*  WHen you use Adapter or priv pointer, you must make sure the pointer is ready. */
-	bool			odm_ready;
-
-	struct rtl8723a_priv fake_priv;
 
 	u64			DebugComponents;
 	u32			DebugLevel;
