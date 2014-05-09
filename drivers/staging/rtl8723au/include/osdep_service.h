@@ -166,20 +166,6 @@ void rtw_unlock_suspend(void);
 #define RTW_GET_BE24(a) ((((u32) (a)[0]) << 16) | (((u32) (a)[1]) << 8) | \
 			 ((u32) (a)[2]))
 
-
-struct rtw_cbuf {
-	u32 write;
-	u32 read;
-	u32 size;
-	void *bufs[0];
-};
-
-bool rtw_cbuf_full23a(struct rtw_cbuf *cbuf);
-bool rtw_cbuf_empty23a(struct rtw_cbuf *cbuf);
-bool rtw_cbuf_push23a(struct rtw_cbuf *cbuf, void *buf);
-void *rtw_cbuf_pop23a(struct rtw_cbuf *cbuf);
-struct rtw_cbuf *rtw_cbuf_alloc23a(u32 size);
-void rtw_cbuf_free(struct rtw_cbuf *cbuf);
 s32 c2h_evt_hdl(struct rtw_adapter *adapter, struct c2h_evt_hdr *c2h_evt, c2h_id_filter filter);
 u8 rtw_do_join23a(struct rtw_adapter *padapter);
 
