@@ -38,7 +38,8 @@ static int gpio_backlight_update_status(struct backlight_device *bl)
 	    bl->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
 		brightness = 0;
 
-	gpio_set_value(gbl->gpio, brightness ? gbl->active : !gbl->active);
+	gpio_set_value_cansleep(gbl->gpio,
+				brightness ? gbl->active : !gbl->active);
 
 	return 0;
 }
