@@ -964,9 +964,6 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool replication, const struct omap_video_timings *mgr_timings,
 		bool mem_to_mem);
 
-#define to_dss_driver(x) container_of((x), struct omap_dss_driver, driver)
-#define to_dss_device(x) container_of((x), struct omap_dss_device, old_dev)
-
 int omapdss_compat_init(void);
 void omapdss_compat_uninit(void);
 
