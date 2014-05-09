@@ -2903,10 +2903,22 @@ static int t_show(struct seq_file *m, void *v)
 		return 0;
 
 	seq_printf(m, "%ps", (void *)rec->ip);
-	if (iter->flags & FTRACE_ITER_ENABLED)
+	if (iter->flags & FTRACE_ITER_ENABLED) {
 		seq_printf(m, " (%ld)%s",
 			   ftrace_rec_count(rec),
-			   rec->flags & FTRACE_FL_REGS ? " R" : "");
+			   rec->flags & FTRACE_FL_REGS ? " R" : "  ");
+		if (rec->flags & FTRACE_FL_TRAMP_EN) {
+			struct ftrace_ops *ops;
+
+			ops = ftrace_find_tramp_ops_curr(rec);
+			if (ops && ops->trampoline)
+				seq_printf(m, "\ttramp: %pS",
+					   (void *)ops->trampoline);
+			else
+				seq_printf(m, "\ttramp: ERROR!");
+		}
+	}	
+
 	seq_printf(m, "\n");
 
 	return 0;
