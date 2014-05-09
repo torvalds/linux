@@ -48,9 +48,6 @@ int rtl8723au_init_recv_priv(struct rtw_adapter *padapter)
 	if (!precvpriv->int_in_buf)
 		DBG_8723A("alloc_mem for interrupt in endpoint fail !!!!\n");
 
-	/* init recv_buf */
-	_rtw_init_queue23a(&precvpriv->free_recv_buf_queue);
-
 	size = NR_RECVBUFF * sizeof(struct recv_buf);
 	precvpriv->precv_buf = kzalloc(size, GFP_KERNEL);
 	if (!precvpriv->precv_buf) {
@@ -73,8 +70,6 @@ int rtl8723au_init_recv_priv(struct rtw_adapter *padapter)
 
 		precvbuf++;
 	}
-
-	precvpriv->free_recv_buf_queue_cnt = NR_RECVBUFF;
 
 	skb_queue_head_init(&precvpriv->rx_skb_queue);
 	skb_queue_head_init(&precvpriv->free_recv_skb_queue);

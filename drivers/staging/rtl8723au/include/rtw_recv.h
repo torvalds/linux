@@ -199,8 +199,6 @@ struct recv_priv {
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
 	u8 *precv_buf;
-	struct rtw_queue	free_recv_buf_queue;
-	u32	free_recv_buf_queue_cnt;
 
 	/* For display the phy informatiom */
 	u8 is_signal_dbg;	/*  for debug */

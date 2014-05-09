@@ -1253,7 +1253,6 @@ static unsigned int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 			goto exit;
 		}
 		precvbuf++;
-		precvpriv->free_recv_buf_queue_cnt--;
 	}
 	_read_interrupt = io_ops->_read_interrupt;
 	if (_read_interrupt(Adapter, RECV_INT_IN_ADDR) == false) {
