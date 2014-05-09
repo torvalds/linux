@@ -422,8 +422,7 @@ s32 PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 	/*  */
 	/*  Config MAC */
 	/*  */
-	if (HAL_STATUS_FAILURE ==
-	    ODM_ConfigMACWithHeaderFile23a(&pHalData->odmpriv))
+	if (ODM_ConfigMACWithHeaderFile23a(&pHalData->odmpriv) == _FAIL)
 		rtStatus = _FAIL;
 
 	/*  2010.07.13 AMPDU aggregation number 9 */
@@ -751,8 +750,8 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will seperate as 88C / 92C according to chip version */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
-							     CONFIG_BB_PHY_REG))
+	if (ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
+					  CONFIG_BB_PHY_REG) == _FAIL)
 		rtStatus = _FAIL;
 	if (rtStatus != _SUCCESS)
 		goto phy_BB8190_Config_ParaFile_Fail;
@@ -782,8 +781,8 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	/*  */
 	/*  3. BB AGC table Initialization */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
-							     CONFIG_BB_AGC_TAB))
+	if (ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
+					  CONFIG_BB_AGC_TAB) == _FAIL)
 		rtStatus = _FAIL;
 
 phy_BB8190_Config_ParaFile_Fail:
