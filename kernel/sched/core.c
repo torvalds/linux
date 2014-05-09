@@ -3821,7 +3821,7 @@ static int sched_read_attr(struct sched_attr __user *uattr,
 
 		for (; addr < end; addr++) {
 			if (*addr)
-				goto err_size;
+				return -EFBIG;
 		}
 
 		attr->size = usize;
@@ -3831,12 +3831,7 @@ static int sched_read_attr(struct sched_attr __user *uattr,
 	if (ret)
 		return -EFAULT;
 
-out:
-	return ret;
-
-err_size:
-	ret = -E2BIG;
-	goto out;
+	return 0;
 }
 
 /**
