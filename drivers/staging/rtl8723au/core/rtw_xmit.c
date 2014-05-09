@@ -394,6 +394,7 @@ u8 qos_acm23a(u8 acm_mask, u8 priority)
 	default:
 		DBG_8723A("qos_acm23a(): invalid pattrib->priority: %d!!!\n",
 			  priority);
+		change_priority = 0;
 		break;
 	}
 
