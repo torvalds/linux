@@ -366,7 +366,7 @@ static const char * const sdc1_groups[] = {
 };
 
 static const char * const spdif_groups[] = {
-	"gpio_10", "gpio_48",
+	"gpio10", "gpio48",
 };
 
 static const char * const nand_groups[] = {
