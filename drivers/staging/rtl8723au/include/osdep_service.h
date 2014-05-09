@@ -136,10 +136,6 @@ extern unsigned char	MCS_rate_1R23A[16];
 
 void	_rtw_init_queue23a(struct rtw_queue *pqueue);
 
-
-#define ADPT_FMT "%s"
-#define ADPT_ARG(adapter) adapter->pnetdev->name
-
 /* Macros for handling unaligned memory accesses */
 
 #define RTW_GET_BE24(a) ((((u32) (a)[0]) << 16) | (((u32) (a)[1]) << 8) | \
