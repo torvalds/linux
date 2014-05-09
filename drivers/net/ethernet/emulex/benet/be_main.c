@@ -1108,8 +1108,7 @@ static int be_vid_config(struct be_adapter *adapter)
 	for_each_set_bit(i, adapter->vids, VLAN_N_VID)
 		vids[num++] = cpu_to_le16(i);
 
-	status = be_cmd_vlan_config(adapter, adapter->if_handle, vids, num, 0);
-
+	status = be_cmd_vlan_config(adapter, adapter->if_handle, vids, num);
 	if (status) {
 		/* Set to VLAN promisc mode as setting VLAN filter failed */
 		if (status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
