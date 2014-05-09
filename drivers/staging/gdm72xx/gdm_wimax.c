@@ -263,9 +263,9 @@ static struct evt_entry *get_event_entry(void)
 {
 	struct evt_entry *e;
 
-	if (list_empty(&wm_event.freeq))
+	if (list_empty(&wm_event.freeq)) {
 		e = alloc_event_entry();
-	else {
+	} else {
 		e = list_entry(wm_event.freeq.next, struct evt_entry, list);
 		list_del(&e->list);
 	}
@@ -379,9 +379,9 @@ static int gdm_wimax_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	#if !defined(LOOPBACK_TEST)
-	if (!fsm)
+	if (!fsm) {
 		netdev_err(dev, "ASSERTION ERROR: fsm is NULL!!\n");
-	else if (fsm->m_status != M_CONNECTED) {
+	} else if (fsm->m_status != M_CONNECTED) {
 		netdev_emerg(dev, "ASSERTION ERROR: Device is NOT ready. status=%d\n",
 			     fsm->m_status);
 		kfree_skb(skb);
@@ -544,9 +544,9 @@ static void gdm_update_fsm(struct net_device *dev, struct fsm_s *new_fsm)
 
 	if (cur_fsm->m_status != new_fsm->m_status ||
 		cur_fsm->c_status != new_fsm->c_status) {
-		if (new_fsm->m_status == M_CONNECTED)
+		if (new_fsm->m_status == M_CONNECTED) {
 			netif_carrier_on(dev);
-		else if (cur_fsm->m_status == M_CONNECTED) {
+		} else if (cur_fsm->m_status == M_CONNECTED) {
 			netif_carrier_off(dev);
 			#if defined(CONFIG_WIMAX_GDM72XX_QOS)
 			gdm_qos_release_list(nic);
@@ -855,9 +855,9 @@ static void prepare_rx_complete(void *arg, void *data, int len)
 	int ret;
 
 	ret = gdm_wimax_get_prepared_info(nic->netdev, data, len);
-	if (ret == 1)
+	if (ret == 1) {
 		gdm_wimax_rcv_with_cb(nic, rx_complete, nic);
-	else {
+	} else {
 		if (ret < 0)
 			netdev_err(nic->netdev,
 				   "get_prepared_info failed(%d)\n", ret);

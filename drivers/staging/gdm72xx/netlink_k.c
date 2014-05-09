@@ -75,8 +75,9 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 				netdev_err(skb->dev,
 					   "dev_get_by_index(%d) is not found.\n",
 					   ifindex);
-		} else
+		} else {
 			netdev_err(skb->dev, "Unregistered Callback\n");
+		}
 	}
 }
 
@@ -144,9 +145,9 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 
 	ret = netlink_broadcast(sock, skb, 0, group+1, GFP_ATOMIC);
 
-	if (!ret)
+	if (!ret) {
 		return len;
-	else {
+	} else {
 		if (ret != -ESRCH) {
 			pr_err("netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
 			       group, type, len, ret);
