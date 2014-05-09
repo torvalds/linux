@@ -20,17 +20,6 @@
 #include <drv_types.h>
 #include <recv_osdep.h>
 
-/*
-* Translate the OS dependent @param error_code to OS independent RTW_STATUS_CODE23a
-* @return: one of RTW_STATUS_CODE23a
-*/
-inline int RTW_STATUS_CODE23a(int error_code)
-{
-	if (error_code >= 0)
-		return _SUCCESS;
-	return _FAIL;
-}
-
 void _rtw_init_queue23a(struct rtw_queue *pqueue)
 {
 	INIT_LIST_HEAD(&pqueue->queue);

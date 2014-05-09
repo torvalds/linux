@@ -72,7 +72,10 @@ int _rtw_write823a(struct rtw_adapter *adapter, u32 addr, u8 val)
 
 	ret = io_ops->_write8(adapter, addr, val);
 
-	return RTW_STATUS_CODE23a(ret);
+	if (ret < 0)
+		return _FAIL;
+	else
+		return _SUCCESS;
 }
 
 int _rtw_write1623a(struct rtw_adapter *adapter, u32 addr, u16 val)
@@ -82,7 +85,10 @@ int _rtw_write1623a(struct rtw_adapter *adapter, u32 addr, u16 val)
 
 	ret = io_ops->_write16(adapter, addr, val);
 
-	return RTW_STATUS_CODE23a(ret);
+	if (ret < 0)
+		return _FAIL;
+	else
+		return _SUCCESS;
 }
 
 int _rtw_write3223a(struct rtw_adapter *adapter, u32 addr, u32 val)
@@ -92,7 +98,10 @@ int _rtw_write3223a(struct rtw_adapter *adapter, u32 addr, u32 val)
 
 	ret = io_ops->_write32(adapter, addr, val);
 
-	return RTW_STATUS_CODE23a(ret);
+	if (ret < 0)
+		return _FAIL;
+	else
+		return _SUCCESS;
 }
 
 int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr , u32 length , u8 *pdata)
@@ -102,7 +111,10 @@ int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr , u32 length , u8 *pdat
 
 	ret = io_ops->_writeN(adapter, addr, length, pdata);
 
-	return RTW_STATUS_CODE23a(ret);
+	if (ret < 0)
+		return _FAIL;
+	else
+		return _SUCCESS;
 }
 void _rtw_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
