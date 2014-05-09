@@ -1233,12 +1233,15 @@ static void add_acct_request(struct request_queue *q, struct request *rq,
 static void part_round_stats_single(int cpu, struct hd_struct *part,
 				    unsigned long now)
 {
+	int inflight;
+
 	if (now == part->stamp)
 		return;
 
-	if (part_in_flight(part)) {
+	inflight = part_in_flight(part);
+	if (inflight) {
 		__part_stat_add(cpu, part, time_in_queue,
-				part_in_flight(part) * (now - part->stamp));
+				inflight * (now - part->stamp));
 		__part_stat_add(cpu, part, io_ticks, (now - part->stamp));
 	}
 	part->stamp = now;
