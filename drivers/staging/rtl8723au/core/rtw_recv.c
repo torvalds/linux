@@ -1334,35 +1334,31 @@ static int validate_recv_data_frame(struct rtw_adapter *adapter,
 
 	ether_addr_copy(pattrib->bssid, pbssid);
 
-	switch (pattrib->to_fr_ds)
-	{
-	case 0:
+	switch (hdr->frame_control &
+		cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
+	case cpu_to_le16(0):
 		ether_addr_copy(pattrib->ra, pda);
 		ether_addr_copy(pattrib->ta, psa);
 		ret = sta2sta_data_frame(adapter, precv_frame, &psta);
 		break;
 
-	case 1:
+	case cpu_to_le16(IEEE80211_FCTL_FROMDS):
 		ether_addr_copy(pattrib->ra, pda);
 		ether_addr_copy(pattrib->ta, pbssid);
 		ret = ap2sta_data_frame(adapter, precv_frame, &psta);
 		break;
 
-	case 2:
+	case cpu_to_le16(IEEE80211_FCTL_TODS):
 		ether_addr_copy(pattrib->ra, pbssid);
 		ether_addr_copy(pattrib->ta, psa);
 		ret = sta2ap_data_frame(adapter, precv_frame, &psta);
 		break;
 
-	case 3:
+	case cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
 		ether_addr_copy(pattrib->ra, hdr->addr1);
 		ether_addr_copy(pattrib->ta, hdr->addr2);
 		ret = _FAIL;
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" case 3\n"));
-		break;
-
-	default:
-		ret = _FAIL;
 		break;
 	}
 
@@ -1523,8 +1519,6 @@ static int validate_recv_frame(struct rtw_adapter *adapter,
 		retval = _FAIL;
 		goto exit;
 	}
-
-	pattrib->to_fr_ds = get_tofr_ds(hdr->frame_control);
 
 	seq_ctrl = le16_to_cpu(hdr->seq_ctrl);
 	pattrib->frag_num = seq_ctrl & IEEE80211_SCTL_FRAG;
