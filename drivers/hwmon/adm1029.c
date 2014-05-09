@@ -1,7 +1,7 @@
 /*
  * adm1029.c - Part of lm_sensors, Linux kernel modules for hardware monitoring
  *
- * Copyright (C) 2006 Corentin LABBE <corentin.labbe@geomatys.fr>
+ * Copyright (C) 2006 Corentin LABBE <clabbe.montjoie@gmail.com>
  *
  * Based on LM83 Driver by Jean Delvare <jdelvare@suse.de>
  *
@@ -449,6 +449,6 @@ static struct adm1029_data *adm1029_update_device(struct device *dev)
 
 module_i2c_driver(adm1029_driver);
 
-MODULE_AUTHOR("Corentin LABBE <corentin.labbe@geomatys.fr>");
+MODULE_AUTHOR("Corentin LABBE <clabbe.montjoie@gmail.com>");
 MODULE_DESCRIPTION("adm1029 driver");
 MODULE_LICENSE("GPL v2");
