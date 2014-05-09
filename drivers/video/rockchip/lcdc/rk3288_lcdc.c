@@ -929,10 +929,11 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	
 	h_total = hsync_len + left_margin  + x_res + right_margin;
 	v_total = vsync_len + upper_margin + y_res + lower_margin;
-	screen->post_dsp_stx=0;
-	screen->post_dsp_sty=0;
-	screen->post_xsize =x_res;
-	screen->post_ysize = y_res;
+
+	screen->post_dsp_stx = x_res * (100 - dev_drv->overscan.left) / 200;
+	screen->post_dsp_sty = y_res * (100 - dev_drv->overscan.top) / 200;
+	screen->post_xsize = x_res * (dev_drv->overscan.left + dev_drv->overscan.right) / 200;
+	screen->post_ysize = y_res * (dev_drv->overscan.top + dev_drv->overscan.bottom) / 200;
 	
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {

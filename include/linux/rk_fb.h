@@ -475,6 +475,13 @@ struct rk_fb_reg_data {
 	//int     fence_wait_begin;
 };
 
+struct overscan {
+	unsigned char left;
+	unsigned char top;
+	unsigned char right;
+	unsigned char bottom;
+};
+
 struct rk_lcdc_driver {
 	char name[6];
 	int id;
@@ -489,6 +496,7 @@ struct rk_lcdc_driver {
 	struct rk_screen *screen0;	//some platform have only one lcdc,but extend
 	struct rk_screen *screen1;	//two display devices for dual display,such as rk2918,rk2928
 	struct rk_screen *cur_screen;	//screen0 is primary screen ,like lcd panel,screen1 is  extend screen,like hdmi
+	struct overscan overscan;
 	u32 pixclock;
 
 	char fb0_win_id;

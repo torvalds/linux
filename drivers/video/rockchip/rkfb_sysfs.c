@@ -371,6 +371,80 @@ static ssize_t set_dsp_bcs(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t show_scale(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_driver *dev_drv =
+	    (struct rk_lcdc_driver *)fbi->par;
+	return snprintf(buf, PAGE_SIZE, "xscale=%d yscale=%d\nleft=%d top=%d right=%d bottom=%d\n",
+		(dev_drv->overscan.left + dev_drv->overscan.right)/2,
+		(dev_drv->overscan.top + dev_drv->overscan.bottom)/2,
+		dev_drv->overscan.left, dev_drv->overscan.top,
+		dev_drv->overscan.right, dev_drv->overscan.bottom);
+}
+
+static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_driver *dev_drv =
+	    (struct rk_lcdc_driver *)fbi->par;
+	u32 left, top, right, bottom;
+
+	if (!strncmp(buf, "overscan", 8)) {
+		sscanf(buf, "overscan %d,%d,%d,%d", &left, &top, &right, &bottom);
+		if (left > 0 && left <= 100)
+			dev_drv->overscan.left = left;
+		if (top > 0 && top <= 100)
+			dev_drv->overscan.top = top;
+		if (right > 0 && right <= 100)
+			dev_drv->overscan.right = right;
+		if (bottom > 0 && bottom <= 100)
+			dev_drv->overscan.bottom = bottom;
+	} else if (!strncmp(buf, "left", 4)) {
+		sscanf(buf, "left=%d", &left);
+		if (left > 0 && left <= 100)
+			dev_drv->overscan.left = left;
+	} else if (!strncmp(buf, "top", 3)) {
+		sscanf(buf, "top=%d", &top);
+		if (top > 0 && top <= 100)
+			dev_drv->overscan.top = top;
+	} else if (!strncmp(buf, "right", 5)) {
+		sscanf(buf, "right=%d", &right);
+		if (right > 0 && right <= 100)
+			dev_drv->overscan.right = right;
+	} else if (!strncmp(buf, "bottom", 6)) {
+		sscanf(buf, "bottom=%d", &bottom);
+		if (bottom > 0 && bottom <= 100)
+			dev_drv->overscan.bottom = bottom;
+	} else if (!strncmp(buf, "xscale", 6)) {
+		sscanf(buf, "xscale=%d", &left);
+		if (left > 0 && left <= 100) {
+			dev_drv->overscan.left = left;
+			dev_drv->overscan.right = left;
+		}
+	} else if (!strncmp(buf, "yscale", 6)) {
+		sscanf(buf, "yscale=%d", &left);
+		if (left > 0 && left <= 100) {
+			dev_drv->overscan.top = left;
+			dev_drv->overscan.bottom = left;
+		}
+	} else {
+		sscanf(buf, "%d", &left);
+		if (left > 0 && left <= 100) {
+			dev_drv->overscan.left = left;
+			dev_drv->overscan.right = left;
+			dev_drv->overscan.top = left;
+			dev_drv->overscan.bottom = left;
+		}
+	}
+//	printk("%d %d %d %d\n", dev_drv->overscan.left, dev_drv->overscan.top, dev_drv->overscan.right, dev_drv->overscan.bottom);
+	dev_drv->ops->load_screen(dev_drv, 1);
+	dev_drv->ops->cfg_done(dev_drv);
+	return count;
+}
+
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
@@ -385,6 +459,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(cabc, S_IRUGO | S_IWUSR, show_dsp_cabc, set_dsp_cabc),
 	__ATTR(hue, S_IRUGO | S_IWUSR, show_hue, set_hue),
 	__ATTR(bcs, S_IRUGO | S_IWUSR, show_dsp_bcs, set_dsp_bcs),
+	__ATTR(scale, S_IRUGO | S_IWUSR, show_scale, set_scale),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)
