@@ -6416,13 +6416,13 @@ u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	u8 evt_code, evt_seq;
 	u16 evt_sz;
-	const uint *peventbuf;
+	const struct C2HEvent_Header *c2h;
 	void (*event_callback)(struct rtw_adapter *dev, u8 *pbuf);
 
-	peventbuf = (uint*)pbuf;
-	evt_sz = (u16)(*peventbuf&0xffff);
-	evt_seq = (u8)((*peventbuf>>24)&0x7f);
-	evt_code = (u8)((*peventbuf>>16)&0xff);
+	c2h = (struct C2HEvent_Header *)pbuf;
+	evt_sz = c2h->len;
+	evt_seq = c2h->seq;
+	evt_code = c2h->ID;
 
 	/*  checking if event code is valid */
 	if (evt_code >= MAX_C2HEVT) {
@@ -6438,12 +6438,8 @@ u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		goto _abort_event_;
 	}
 
-	peventbuf += 2;
-
-	if (peventbuf) {
-		event_callback = wlanevents[evt_code].event_callback;
-		event_callback(padapter, (u8*)peventbuf);
-	}
+	event_callback = wlanevents[evt_code].event_callback;
+	event_callback(padapter, (u8 *)pbuf + sizeof(struct C2HEvent_Header));
 
 _abort_event_:
 
