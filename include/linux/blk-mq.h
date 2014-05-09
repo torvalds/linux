@@ -31,10 +31,12 @@ struct blk_mq_hw_ctx {
 
 	void			*driver_data;
 
-	unsigned int		nr_ctx;
-	struct blk_mq_ctx	**ctxs;
 	unsigned int 		nr_ctx_map;
 	unsigned long		*ctx_map;
+	unsigned int		nr_ctx;
+	struct blk_mq_ctx	**ctxs;
+
+	unsigned int		wait_index;
 
 	struct blk_mq_tags	*tags;
 

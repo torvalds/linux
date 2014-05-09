@@ -1,64 +1,257 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/random.h>
 
 #include <linux/blk-mq.h>
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
 
-void blk_mq_wait_for_tags(struct blk_mq_tags *tags, bool reserved)
+void blk_mq_wait_for_tags(struct blk_mq_tags *tags, struct blk_mq_hw_ctx *hctx,
+			  bool reserved)
 {
-	int tag = blk_mq_get_tag(tags, __GFP_WAIT, reserved);
-	blk_mq_put_tag(tags, tag);
+	int tag, zero = 0;
+
+	tag = blk_mq_get_tag(tags, hctx, &zero, __GFP_WAIT, reserved);
+	blk_mq_put_tag(tags, tag, &zero);
+}
+
+static bool bt_has_free_tags(struct blk_mq_bitmap_tags *bt)
+{
+	int i;
+
+	for (i = 0; i < bt->map_nr; i++) {
+		struct blk_mq_bitmap *bm = &bt->map[i];
+		int ret;
+
+		ret = find_first_zero_bit(&bm->word, bm->depth);
+		if (ret < bm->depth)
+			return true;
+	}
+
+	return false;
 }
 
 bool blk_mq_has_free_tags(struct blk_mq_tags *tags)
 {
-	return !tags ||
-		percpu_ida_free_tags(&tags->free_tags, nr_cpu_ids) != 0;
+	if (!tags)
+		return true;
+
+	return bt_has_free_tags(&tags->bitmap_tags);
 }
 
-static unsigned int __blk_mq_get_tag(struct blk_mq_tags *tags, gfp_t gfp)
+static int __bt_get_word(struct blk_mq_bitmap *bm, unsigned int last_tag)
+{
+	int tag, org_last_tag, end;
+
+	org_last_tag = last_tag = TAG_TO_BIT(last_tag);
+	end = bm->depth;
+	do {
+restart:
+		tag = find_next_zero_bit(&bm->word, end, last_tag);
+		if (unlikely(tag >= end)) {
+			/*
+			 * We started with an offset, start from 0 to
+			 * exhaust the map.
+			 */
+			if (org_last_tag && last_tag) {
+				end = last_tag;
+				last_tag = 0;
+				goto restart;
+			}
+			return -1;
+		}
+		last_tag = tag + 1;
+	} while (test_and_set_bit_lock(tag, &bm->word));
+
+	return tag;
+}
+
+/*
+ * Straight forward bitmap tag implementation, where each bit is a tag
+ * (cleared == free, and set == busy). The small twist is using per-cpu
+ * last_tag caches, which blk-mq stores in the blk_mq_ctx software queue
+ * contexts. This enables us to drastically limit the space searched,
+ * without dirtying an extra shared cacheline like we would if we stored
+ * the cache value inside the shared blk_mq_bitmap_tags structure. On top
+ * of that, each word of tags is in a separate cacheline. This means that
+ * multiple users will tend to stick to different cachelines, at least
+ * until the map is exhausted.
+ */
+static int __bt_get(struct blk_mq_bitmap_tags *bt, unsigned int *tag_cache)
+{
+	unsigned int last_tag, org_last_tag;
+	int index, i, tag;
+
+	last_tag = org_last_tag = *tag_cache;
+	index = TAG_TO_INDEX(last_tag);
+
+	for (i = 0; i < bt->map_nr; i++) {
+		tag = __bt_get_word(&bt->map[index], last_tag);
+		if (tag != -1) {
+			tag += index * BITS_PER_LONG;
+			goto done;
+		}
+
+		last_tag = 0;
+		if (++index >= bt->map_nr)
+			index = 0;
+	}
+
+	*tag_cache = 0;
+	return -1;
+
+	/*
+	 * Only update the cache from the allocation path, if we ended
+	 * up using the specific cached tag.
+	 */
+done:
+	if (tag == org_last_tag) {
+		last_tag = tag + 1;
+		if (last_tag >= bt->depth - 1)
+			last_tag = 0;
+
+		*tag_cache = last_tag;
+	}
+
+	return tag;
+}
+
+static inline void bt_index_inc(unsigned int *index)
+{
+	*index = (*index + 1) & (BT_WAIT_QUEUES - 1);
+}
+
+static struct bt_wait_state *bt_wait_ptr(struct blk_mq_bitmap_tags *bt,
+					 struct blk_mq_hw_ctx *hctx)
+{
+	struct bt_wait_state *bs;
+
+	if (!hctx)
+		return &bt->bs[0];
+
+	bs = &bt->bs[hctx->wait_index];
+	bt_index_inc(&hctx->wait_index);
+	return bs;
+}
+
+static int bt_get(struct blk_mq_bitmap_tags *bt, struct blk_mq_hw_ctx *hctx,
+		  unsigned int *last_tag, gfp_t gfp)
+{
+	struct bt_wait_state *bs;
+	DEFINE_WAIT(wait);
+	int tag;
+
+	tag = __bt_get(bt, last_tag);
+	if (tag != -1)
+		return tag;
+
+	if (!(gfp & __GFP_WAIT))
+		return -1;
+
+	bs = bt_wait_ptr(bt, hctx);
+	do {
+		bool was_empty;
+
+		was_empty = list_empty(&wait.task_list);
+		prepare_to_wait(&bs->wait, &wait, TASK_UNINTERRUPTIBLE);
+
+		tag = __bt_get(bt, last_tag);
+		if (tag != -1)
+			break;
+
+		if (was_empty)
+			atomic_set(&bs->wait_cnt, bt->wake_cnt);
+
+		io_schedule();
+	} while (1);
+
+	finish_wait(&bs->wait, &wait);
+	return tag;
+}
+
+static unsigned int __blk_mq_get_tag(struct blk_mq_tags *tags,
+				     struct blk_mq_hw_ctx *hctx,
+				     unsigned int *last_tag, gfp_t gfp)
 {
 	int tag;
 
-	tag = percpu_ida_alloc(&tags->free_tags, (gfp & __GFP_WAIT) ?
-			       TASK_UNINTERRUPTIBLE : TASK_RUNNING);
-	if (tag < 0)
-		return BLK_MQ_TAG_FAIL;
-	return tag + tags->nr_reserved_tags;
+	tag = bt_get(&tags->bitmap_tags, hctx, last_tag, gfp);
+	if (tag >= 0)
+		return tag + tags->nr_reserved_tags;
+
+	return BLK_MQ_TAG_FAIL;
 }
 
 static unsigned int __blk_mq_get_reserved_tag(struct blk_mq_tags *tags,
 					      gfp_t gfp)
 {
-	int tag;
+	int tag, zero = 0;
 
 	if (unlikely(!tags->nr_reserved_tags)) {
 		WARN_ON_ONCE(1);
 		return BLK_MQ_TAG_FAIL;
 	}
 
-	tag = percpu_ida_alloc(&tags->reserved_tags, (gfp & __GFP_WAIT) ?
-			       TASK_UNINTERRUPTIBLE : TASK_RUNNING);
+	tag = bt_get(&tags->breserved_tags, NULL, &zero, gfp);
 	if (tag < 0)
 		return BLK_MQ_TAG_FAIL;
+
 	return tag;
 }
 
-unsigned int blk_mq_get_tag(struct blk_mq_tags *tags, gfp_t gfp, bool reserved)
+unsigned int blk_mq_get_tag(struct blk_mq_tags *tags,
+			    struct blk_mq_hw_ctx *hctx, unsigned int *last_tag,
+			    gfp_t gfp, bool reserved)
 {
 	if (!reserved)
-		return __blk_mq_get_tag(tags, gfp);
+		return __blk_mq_get_tag(tags, hctx, last_tag, gfp);
 
 	return __blk_mq_get_reserved_tag(tags, gfp);
+}
+
+static struct bt_wait_state *bt_wake_ptr(struct blk_mq_bitmap_tags *bt)
+{
+	int i, wake_index;
+
+	wake_index = bt->wake_index;
+	for (i = 0; i < BT_WAIT_QUEUES; i++) {
+		struct bt_wait_state *bs = &bt->bs[wake_index];
+
+		if (waitqueue_active(&bs->wait)) {
+			if (wake_index != bt->wake_index)
+				bt->wake_index = wake_index;
+
+			return bs;
+		}
+
+		bt_index_inc(&wake_index);
+	}
+
+	return NULL;
+}
+
+static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
+{
+	const int index = TAG_TO_INDEX(tag);
+	struct bt_wait_state *bs;
+
+	clear_bit(TAG_TO_BIT(tag), &bt->map[index].word);
+
+	bs = bt_wake_ptr(bt);
+	if (bs && atomic_dec_and_test(&bs->wait_cnt)) {
+		smp_mb__after_clear_bit();
+		atomic_set(&bs->wait_cnt, bt->wake_cnt);
+		bt_index_inc(&bt->wake_index);
+		wake_up(&bs->wait);
+	}
 }
 
 static void __blk_mq_put_tag(struct blk_mq_tags *tags, unsigned int tag)
 {
 	BUG_ON(tag >= tags->nr_tags);
 
-	percpu_ida_free(&tags->free_tags, tag - tags->nr_reserved_tags);
+	bt_clear_tag(&tags->bitmap_tags, tag);
 }
 
 static void __blk_mq_put_reserved_tag(struct blk_mq_tags *tags,
@@ -66,22 +259,41 @@ static void __blk_mq_put_reserved_tag(struct blk_mq_tags *tags,
 {
 	BUG_ON(tag >= tags->nr_reserved_tags);
 
-	percpu_ida_free(&tags->reserved_tags, tag);
+	bt_clear_tag(&tags->breserved_tags, tag);
 }
 
-void blk_mq_put_tag(struct blk_mq_tags *tags, unsigned int tag)
+void blk_mq_put_tag(struct blk_mq_tags *tags, unsigned int tag,
+		    unsigned int *last_tag)
 {
-	if (tag >= tags->nr_reserved_tags)
-		__blk_mq_put_tag(tags, tag);
-	else
+	if (tag >= tags->nr_reserved_tags) {
+		const int real_tag = tag - tags->nr_reserved_tags;
+
+		__blk_mq_put_tag(tags, real_tag);
+		*last_tag = real_tag;
+	} else
 		__blk_mq_put_reserved_tag(tags, tag);
 }
 
-static int __blk_mq_tag_iter(unsigned id, void *data)
+static void bt_for_each_free(struct blk_mq_bitmap_tags *bt,
+			     unsigned long *free_map, unsigned int off)
 {
-	unsigned long *tag_map = data;
-	__set_bit(id, tag_map);
-	return 0;
+	int i;
+
+	for (i = 0; i < bt->map_nr; i++) {
+		struct blk_mq_bitmap *bm = &bt->map[i];
+		int bit = 0;
+
+		do {
+			bit = find_next_zero_bit(&bm->word, bm->depth, bit);
+			if (bit >= bm->depth)
+				break;
+
+			__set_bit(bit + off, free_map);
+			bit++;
+		} while (1);
+
+		off += BITS_PER_LONG;
+	}
 }
 
 void blk_mq_tag_busy_iter(struct blk_mq_tags *tags,
@@ -95,13 +307,91 @@ void blk_mq_tag_busy_iter(struct blk_mq_tags *tags,
 	if (!tag_map)
 		return;
 
-	percpu_ida_for_each_free(&tags->free_tags, __blk_mq_tag_iter, tag_map);
+	bt_for_each_free(&tags->bitmap_tags, tag_map, tags->nr_reserved_tags);
 	if (tags->nr_reserved_tags)
-		percpu_ida_for_each_free(&tags->reserved_tags, __blk_mq_tag_iter,
-			tag_map);
+		bt_for_each_free(&tags->breserved_tags, tag_map, 0);
 
 	fn(data, tag_map);
 	kfree(tag_map);
+}
+
+static unsigned int bt_unused_tags(struct blk_mq_bitmap_tags *bt)
+{
+	unsigned int i, used;
+
+	for (i = 0, used = 0; i < bt->map_nr; i++) {
+		struct blk_mq_bitmap *bm = &bt->map[i];
+
+		used += bitmap_weight(&bm->word, bm->depth);
+	}
+
+	return bt->depth - used;
+}
+
+static int bt_alloc(struct blk_mq_bitmap_tags *bt, unsigned int depth,
+			int node, bool reserved)
+{
+	int i;
+
+	/*
+	 * Depth can be zero for reserved tags, that's not a failure
+	 * condition.
+	 */
+	if (depth) {
+		int nr, i, map_depth;
+
+		nr = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
+		bt->map = kzalloc_node(nr * sizeof(struct blk_mq_bitmap),
+						GFP_KERNEL, node);
+		if (!bt->map)
+			return -ENOMEM;
+
+		bt->map_nr = nr;
+		map_depth = depth;
+		for (i = 0; i < nr; i++) {
+			bt->map[i].depth = min(map_depth, BITS_PER_LONG);
+			map_depth -= BITS_PER_LONG;
+		}
+	}
+
+	bt->bs = kzalloc(BT_WAIT_QUEUES * sizeof(*bt->bs), GFP_KERNEL);
+	if (!bt->bs) {
+		kfree(bt->map);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < BT_WAIT_QUEUES; i++)
+		init_waitqueue_head(&bt->bs[i].wait);
+
+	bt->wake_cnt = BT_WAIT_BATCH;
+	if (bt->wake_cnt > depth / 4)
+		bt->wake_cnt = max(1U, depth / 4);
+
+	bt->depth = depth;
+	return 0;
+}
+
+static void bt_free(struct blk_mq_bitmap_tags *bt)
+{
+	kfree(bt->map);
+	kfree(bt->bs);
+}
+
+static struct blk_mq_tags *blk_mq_init_bitmap_tags(struct blk_mq_tags *tags,
+						   int node)
+{
+	unsigned int depth = tags->nr_tags - tags->nr_reserved_tags;
+
+	if (bt_alloc(&tags->bitmap_tags, depth, node, false))
+		goto enomem;
+	if (bt_alloc(&tags->breserved_tags, tags->nr_reserved_tags, node, true))
+		goto enomem;
+
+	return tags;
+enomem:
+	bt_free(&tags->bitmap_tags);
+	kfree(tags);
+	return NULL;
 }
 
 struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
@@ -109,7 +399,6 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 {
 	unsigned int nr_tags, nr_cache;
 	struct blk_mq_tags *tags;
-	int ret;
 
 	if (total_tags > BLK_MQ_TAG_MAX) {
 		pr_err("blk-mq: tag depth too large\n");
@@ -121,72 +410,46 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 		return NULL;
 
 	nr_tags = total_tags - reserved_tags;
-	nr_cache = nr_tags / num_possible_cpus();
-
-	if (nr_cache < BLK_MQ_TAG_CACHE_MIN)
-		nr_cache = BLK_MQ_TAG_CACHE_MIN;
-	else if (nr_cache > BLK_MQ_TAG_CACHE_MAX)
-		nr_cache = BLK_MQ_TAG_CACHE_MAX;
+	nr_cache = nr_tags / num_online_cpus();
 
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
-	tags->nr_max_cache = nr_cache;
-	tags->nr_batch_move = max(1u, nr_cache / 2);
 
-	ret = __percpu_ida_init(&tags->free_tags, tags->nr_tags -
-				tags->nr_reserved_tags,
-				tags->nr_max_cache,
-				tags->nr_batch_move);
-	if (ret)
-		goto err_free_tags;
-
-	if (reserved_tags) {
-		/*
-		 * With max_cahe and batch set to 1, the allocator fallbacks to
-		 * no cached. It's fine reserved tags allocation is slow.
-		 */
-		ret = __percpu_ida_init(&tags->reserved_tags, reserved_tags,
-				1, 1);
-		if (ret)
-			goto err_reserved_tags;
-	}
-
-	return tags;
-
-err_reserved_tags:
-	percpu_ida_destroy(&tags->free_tags);
-err_free_tags:
-	kfree(tags);
-	return NULL;
+	return blk_mq_init_bitmap_tags(tags, node);
 }
 
 void blk_mq_free_tags(struct blk_mq_tags *tags)
 {
-	percpu_ida_destroy(&tags->free_tags);
-	percpu_ida_destroy(&tags->reserved_tags);
+	bt_free(&tags->bitmap_tags);
+	bt_free(&tags->breserved_tags);
 	kfree(tags);
+}
+
+void blk_mq_tag_init_last_tag(struct blk_mq_tags *tags, unsigned int *tag)
+{
+	unsigned int depth = tags->nr_tags - tags->nr_reserved_tags;
+
+	if (depth > 1)
+		*tag = prandom_u32() % (depth - 1);
+	else
+		*tag = 0;
 }
 
 ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page)
 {
 	char *orig_page = page;
-	unsigned int cpu;
+	unsigned int free, res;
 
 	if (!tags)
 		return 0;
 
-	page += sprintf(page, "nr_tags=%u, reserved_tags=%u, batch_move=%u,"
-			" max_cache=%u\n", tags->nr_tags, tags->nr_reserved_tags,
-			tags->nr_batch_move, tags->nr_max_cache);
+	page += sprintf(page, "nr_tags=%u, reserved_tags=%u\n",
+			tags->nr_tags, tags->nr_reserved_tags);
 
-	page += sprintf(page, "nr_free=%u, nr_reserved=%u\n",
-			percpu_ida_free_tags(&tags->free_tags, nr_cpu_ids),
-			percpu_ida_free_tags(&tags->reserved_tags, nr_cpu_ids));
+	free = bt_unused_tags(&tags->bitmap_tags);
+	res = bt_unused_tags(&tags->breserved_tags);
 
-	for_each_possible_cpu(cpu) {
-		page += sprintf(page, "  cpu%02u: nr_free=%u\n", cpu,
-				percpu_ida_free_tags(&tags->free_tags, cpu));
-	}
+	page += sprintf(page, "nr_free=%u, nr_reserved=%u\n", free, res);
 
 	return page - orig_page;
 }

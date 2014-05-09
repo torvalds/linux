@@ -74,12 +74,13 @@ static void blk_mq_hctx_mark_pending(struct blk_mq_hw_ctx *hctx,
 }
 
 static struct request *__blk_mq_alloc_request(struct blk_mq_hw_ctx *hctx,
+					      struct blk_mq_ctx *ctx,
 					      gfp_t gfp, bool reserved)
 {
 	struct request *rq;
 	unsigned int tag;
 
-	tag = blk_mq_get_tag(hctx->tags, gfp, reserved);
+	tag = blk_mq_get_tag(hctx->tags, hctx, &ctx->last_tag, gfp, reserved);
 	if (tag != BLK_MQ_TAG_FAIL) {
 		rq = hctx->tags->rqs[tag];
 		rq->tag = tag;
@@ -246,7 +247,8 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 		struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
 		struct blk_mq_hw_ctx *hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
-		rq = __blk_mq_alloc_request(hctx, gfp & ~__GFP_WAIT, reserved);
+		rq = __blk_mq_alloc_request(hctx, ctx, gfp & ~__GFP_WAIT,
+						reserved);
 		if (rq) {
 			blk_mq_rq_ctx_init(q, ctx, rq, rw);
 			break;
@@ -260,7 +262,7 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 			break;
 		}
 
-		blk_mq_wait_for_tags(hctx->tags, reserved);
+		blk_mq_wait_for_tags(hctx->tags, hctx, reserved);
 	} while (1);
 
 	return rq;
@@ -278,6 +280,7 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp)
 		blk_mq_put_ctx(rq->mq_ctx);
 	return rq;
 }
+EXPORT_SYMBOL(blk_mq_alloc_request);
 
 struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw,
 					      gfp_t gfp)
@@ -301,7 +304,7 @@ static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 	struct request_queue *q = rq->q;
 
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
-	blk_mq_put_tag(hctx->tags, tag);
+	blk_mq_put_tag(hctx->tags, tag, &ctx->last_tag);
 	blk_mq_queue_exit(q);
 }
 
@@ -677,11 +680,6 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 			queued++;
 			continue;
 		case BLK_MQ_RQ_QUEUE_BUSY:
-			/*
-			 * FIXME: we should have a mechanism to stop the queue
-			 * like blk_stop_queue, otherwise we will waste cpu
-			 * time
-			 */
 			list_add(&rq->queuelist, &rq_list);
 			__blk_mq_requeue_request(rq);
 			break;
@@ -873,6 +871,7 @@ static void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx,
 		list_add(&rq->queuelist, &ctx->rq_list);
 	else
 		list_add_tail(&rq->queuelist, &ctx->rq_list);
+
 	blk_mq_hctx_mark_pending(hctx, ctx);
 
 	/*
@@ -1046,7 +1045,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	if (is_sync)
 		rw |= REQ_SYNC;
 	trace_block_getrq(q, bio, rw);
-	rq = __blk_mq_alloc_request(hctx, GFP_ATOMIC, false);
+	rq = __blk_mq_alloc_request(hctx, ctx, GFP_ATOMIC, false);
 	if (likely(rq))
 		blk_mq_rq_ctx_init(q, ctx, rq, rw);
 	else {
@@ -1130,8 +1129,8 @@ EXPORT_SYMBOL(blk_mq_map_queue);
 struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *set,
 						   unsigned int hctx_index)
 {
-	return kmalloc_node(sizeof(struct blk_mq_hw_ctx),
-				GFP_KERNEL | __GFP_ZERO, set->numa_node);
+	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL,
+				set->numa_node);
 }
 EXPORT_SYMBOL(blk_mq_alloc_single_hw_queue);
 
