@@ -6354,7 +6354,7 @@ u8 add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		mod_timer(&psta->addba_retry_timer,
 			  jiffies + msecs_to_jiffies(ADDBA_TO));
 	} else {
-		psta->htpriv.candidate_tid_bitmap &= ~CHKBIT(pparm->tid);
+		psta->htpriv.candidate_tid_bitmap &= ~BIT(pparm->tid);
 	}
 	return	H2C_SUCCESS;
 }

@@ -823,6 +823,11 @@ u8 rtw_addbareq_cmd23a(struct rtw_adapter*padapter, u8 tid, u8 *addr)
 	struct addBaReq_parm *paddbareq_parm;
 	u8 res = _SUCCESS;
 
+	if (tid >= MAXTID) {
+		res = _FAIL;
+		goto exit;
+	}
+
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!ph2c) {
 		res = _FAIL;
