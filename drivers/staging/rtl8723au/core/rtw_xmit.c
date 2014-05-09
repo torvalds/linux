@@ -404,7 +404,7 @@ static void set_qos(struct sk_buff *skb, struct pkt_attrib *pattrib)
 {
 	u8 *pframe = skb->data;
 	struct iphdr *ip_hdr;
-	s32 UserPriority = 0;
+	u8 UserPriority = 0;
 
 	/*  get UserPriority from IP hdr */
 	if (pattrib->ether_type == ETH_P_IP) {
