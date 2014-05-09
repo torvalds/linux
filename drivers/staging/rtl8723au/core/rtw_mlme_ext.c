@@ -2086,17 +2086,17 @@ static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
 		if (token >= 0) {
 			if ((seq_ctrl == mlmeext->action_public_rxseq) &&
 			    (token == mlmeext->action_public_dialog_token)) {
-				DBG_8723A(FUNC_ADPT_FMT" seq_ctrl = 0x%x, "
-					  "rxseq = 0x%x, token:%d\n",
-					  FUNC_ADPT_ARG(adapter), seq_ctrl,
+				DBG_8723A("%s(%s): seq_ctrl = 0x%x, "
+					  "rxseq = 0x%x, token:%d\n", __func__,
+					  adapter->pnetdev->name, seq_ctrl,
 					  mlmeext->action_public_rxseq, token);
 				return _FAIL;
 			}
 		} else {
 			if (seq_ctrl == mlmeext->action_public_rxseq) {
-				DBG_8723A(FUNC_ADPT_FMT" seq_ctrl = 0x%x, "
-					  "rxseq = 0x%x\n",
-					  FUNC_ADPT_ARG(adapter), seq_ctrl,
+				DBG_8723A("%s(%s): seq_ctrl = 0x%x, "
+					  "rxseq = 0x%x\n", __func__,
+					  adapter->pnetdev->name, seq_ctrl,
 					  mlmeext->action_public_rxseq);
 				return _FAIL;
 			}
@@ -2257,15 +2257,15 @@ struct xmit_frame *alloc_mgtxmitframe23a(struct xmit_priv *pxmitpriv)
 	pmgntframe = rtw_alloc_xmitframe23a_ext(pxmitpriv);
 
 	if (!pmgntframe) {
-		DBG_8723A(FUNC_ADPT_FMT" alloc xmitframe fail\n",
-			  FUNC_ADPT_ARG(pxmitpriv->adapter));
+		DBG_8723A("%s(%s): alloc xmitframe fail\n", __func__,
+			  pxmitpriv->adapter->pnetdev->name);
 		goto exit;
 	}
 
 	pxmitbuf = rtw_alloc_xmitbuf23a_ext(pxmitpriv);
 	if (!pxmitbuf) {
-		DBG_8723A(FUNC_ADPT_FMT" alloc xmitbuf fail\n",
-			  FUNC_ADPT_ARG(pxmitpriv->adapter));
+		DBG_8723A("%s(%s): alloc xmitbuf fail\n", __func__,
+			  pxmitpriv->adapter->pnetdev->name);
 		rtw_free_xmitframe23a(pxmitpriv, pmgntframe);
 		pmgntframe = NULL;
 		goto exit;
@@ -2719,9 +2719,9 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 			remainder_ie = ssid_ie + 2;
 			remainder_ielen = pframe - remainder_ie;
 
-			DBG_8723A_LEVEL(_drv_warning_, FUNC_ADPT_FMT
-					" remainder_ielen > MAX_IE_SZ\n",
-					FUNC_ADPT_ARG(padapter));
+			DBG_8723A_LEVEL(_drv_warning_, "%s(%s): "
+					"remainder_ielen > MAX_IE_SZ\n",
+					__func__, padapter->pnetdev->name);
 			if (remainder_ielen > MAX_IE_SZ)
 				remainder_ielen = MAX_IE_SZ;
 
@@ -2947,14 +2947,15 @@ int issue_probereq23a_ex23a(struct rtw_adapter *padapter,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A(FUNC_ADPT_FMT" to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n",	FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
+				  "in %u ms\n",	__func__,
+				  padapter->pnetdev->name,
 				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
 				  ret == _SUCCESS?", acked":"", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
-			DBG_8723A(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
-				  FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
 				  ret == _SUCCESS?", acked":"", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
@@ -3646,14 +3647,15 @@ int issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A(FUNC_ADPT_FMT" to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
+				  "in %u ms\n", __func__,
+				  padapter->pnetdev->name,
 				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
 				  ret == _SUCCESS?", acked":"", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
-			DBG_8723A(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
-				  FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
 				  ret == _SUCCESS?", acked":"", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
@@ -3775,14 +3777,15 @@ int issue_qos_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A(FUNC_ADPT_FMT" to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
+				  "in %u ms\n", __func__,
+				  padapter->pnetdev->name,
 				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
 				  ret == _SUCCESS?", acked":"", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
-			DBG_8723A(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
-				  FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
 				  ret == _SUCCESS?", acked":"", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
@@ -3886,14 +3889,15 @@ int issue_deauth23a_ex23a(struct rtw_adapter *padapter, u8 *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A(FUNC_ADPT_FMT" to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
+				  "in %u ms\n", __func__,
+				  padapter->pnetdev->name,
 				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
 				  ret == _SUCCESS?", acked":"", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
-			DBG_8723A(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
-				  FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
 				  ret == _SUCCESS?", acked":"", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
@@ -5618,8 +5622,10 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 			if (rx_chk == _FAIL) {
 				pmlmeext->retry++;
 				if (pmlmeext->retry > rx_chk_limit) {
-					DBG_8723A_LEVEL(_drv_always_, FUNC_ADPT_FMT" disconnect or roaming\n",
-						FUNC_ADPT_ARG(padapter));
+					DBG_8723A_LEVEL(_drv_always_,
+							"%s(%s): disconnect or "
+							"roaming\n", __func__,
+							padapter->pnetdev->name);
 					receive_disconnect23a(padapter, pmlmeinfo->network.MacAddress,
 						WLAN_REASON_EXPIRATION_CHK);
 					return;
@@ -6083,8 +6089,6 @@ rtw_scan_ch_decision(struct rtw_adapter *padapter,
 	/* acquire channels from in */
 	j = 0;
 	for (i = 0;i<in_num;i++) {
-		if (0)
-		DBG_8723A(FUNC_ADPT_FMT" "CHAN_FMT"\n", FUNC_ADPT_ARG(padapter), CHAN_ARG(&in[i]));
 		if (in[i].hw_value && !(in[i].flags & IEEE80211_CHAN_DISABLED)
 			&& (set_idx = rtw_ch_set_search_ch23a(pmlmeext->channel_set, in[i].hw_value)) >= 0
 		)

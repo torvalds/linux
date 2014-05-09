@@ -646,8 +646,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 	if (!psta && check_fwstate(pmlmepriv, WIFI_AP_STATE)) {	/*  group key */
 		if (param->u.crypt.set_tx == 0) {	/* group key */
 			if (strcmp(param->u.crypt.alg, "WEP") == 0) {
-				DBG_8723A("%s, set group_key, WEP\n",
-					  __func__);
+				DBG_8723A("%s, set group_key, WEP\n", __func__);
 
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[param->u.crypt.idx].
@@ -1451,7 +1450,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy,
 	struct cfg80211_ssid *ssids = request->ssids;
 	bool need_indicate_scan_done = false;
 
-	DBG_8723A(FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(padapter));
+	DBG_8723A("%s(%s):\n", __func__, padapter->pnetdev->name);
 
 	spin_lock_bh(&pwdev_priv->scan_req_lock);
 	pwdev_priv->scan_request = request;
@@ -1480,8 +1479,8 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy,
 		goto check_need_indicate_scan_done;
 	}
 	if (rtw_is_scan_deny(padapter)) {
-		DBG_8723A(FUNC_ADPT_FMT ": scan deny\n",
-			  FUNC_ADPT_ARG(padapter));
+		DBG_8723A("%s(%s): scan deny\n", __func__,
+			  padapter->pnetdev->name);
 		need_indicate_scan_done = true;
 		goto check_need_indicate_scan_done;
 	}
@@ -1509,8 +1508,8 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy,
 	if (request->n_channels == 1) {
 		for (i = 0; i < request->n_channels &&
 		     i < RTW_CHANNEL_SCAN_AMOUNT; i++) {
-			DBG_8723A(FUNC_ADPT_FMT CHAN_FMT "\n",
-				  FUNC_ADPT_ARG(padapter),
+			DBG_8723A("%s:(%s):" CHAN_FMT "\n",
+				  __func__, padapter->pnetdev->name,
 				  CHAN_ARG(request->channels[i]));
 			ch[i].hw_value = request->channels[i]->hw_value;
 			ch[i].flags = request->channels[i]->flags;
@@ -2551,23 +2550,23 @@ static int rtw_cfg80211_add_monitor_if(struct rtw_adapter *padapter, char *name,
 	struct rtw_wdev_priv *pwdev_priv = wdev_to_priv(padapter->rtw_wdev);
 
 	if (!name) {
-		DBG_8723A(FUNC_ADPT_FMT " without specific name\n",
-			  FUNC_ADPT_ARG(padapter));
+		DBG_8723A("%s(%s): without specific name\n",
+			  __func__, padapter->pnetdev->name);
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (pwdev_priv->pmon_ndev) {
-		DBG_8723A(FUNC_ADPT_FMT " monitor interface exist: %s\n",
-			  FUNC_ADPT_ARG(padapter), pwdev_priv->pmon_ndev->name);
+		DBG_8723A("%s(%s): monitor interface exist: %s\n", __func__,
+			  padapter->pnetdev->name, pwdev_priv->pmon_ndev->name);
 		ret = -EBUSY;
 		goto out;
 	}
 
 	mon_ndev = alloc_etherdev(sizeof(struct rtw_adapter));
 	if (!mon_ndev) {
-		DBG_8723A(FUNC_ADPT_FMT " allocate ndev fail\n",
-			  FUNC_ADPT_ARG(padapter));
+		DBG_8723A("%s(%s): allocate ndev fail\n", __func__,
+			  padapter->pnetdev->name);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -2582,8 +2581,8 @@ static int rtw_cfg80211_add_monitor_if(struct rtw_adapter *padapter, char *name,
 	/*  wdev */
 	mon_wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!mon_wdev) {
-		DBG_8723A(FUNC_ADPT_FMT " allocate mon_wdev fail\n",
-			  FUNC_ADPT_ARG(padapter));
+		DBG_8723A("%s(%s): allocate mon_wdev fail\n", __func__,
+			  padapter->pnetdev->name);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -2624,8 +2623,8 @@ cfg80211_rtw_add_virtual_intf(struct wiphy *wiphy, const char *name,
 	struct net_device *ndev = NULL;
 	struct rtw_adapter *padapter = wiphy_to_adapter(wiphy);
 
-	DBG_8723A(FUNC_ADPT_FMT " wiphy:%s, name:%s, type:%d\n",
-		  FUNC_ADPT_ARG(padapter), wiphy_name(wiphy), name, type);
+	DBG_8723A("%s(%s): wiphy:%s, name:%s, type:%d\n", __func__,
+		  padapter->pnetdev->name, wiphy_name(wiphy), name, type);
 
 	switch (type) {
 	case NL80211_IFTYPE_ADHOC:
@@ -2654,7 +2653,8 @@ cfg80211_rtw_add_virtual_intf(struct wiphy *wiphy, const char *name,
 		break;
 	}
 
-	DBG_8723A(FUNC_ADPT_FMT " ndev:%p, ret:%d\n", FUNC_ADPT_ARG(padapter),
+	DBG_8723A("%s(%s): ndev:%p, ret:%d\n", __func__,
+		  padapter->pnetdev->name,
 		  ndev, ret);
 
 	return ndev ? ndev->ieee80211_ptr : ERR_PTR(ret);
@@ -2757,29 +2757,12 @@ static int cfg80211_rtw_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		struct wlan_bssid_ex *pbss_network_ext =
 			&adapter->mlmeextpriv.mlmext_info.network;
 
-		if (0)
-			DBG_8723A(FUNC_ADPT_FMT
-				  " ssid:(%s,%d), from ie:(%s,%d)\n",
-				  FUNC_ADPT_ARG(adapter), settings->ssid,
-				  (int)settings->ssid_len,
-				  pbss_network->Ssid.ssid,
-				  pbss_network->Ssid.ssid_len);
-
 		memcpy(pbss_network->Ssid.ssid, (void *)settings->ssid,
 		       settings->ssid_len);
 		pbss_network->Ssid.ssid_len = settings->ssid_len;
 		memcpy(pbss_network_ext->Ssid.ssid, (void *)settings->ssid,
 		       settings->ssid_len);
 		pbss_network_ext->Ssid.ssid_len = settings->ssid_len;
-
-		if (0)
-			DBG_8723A(FUNC_ADPT_FMT
-				  " after ssid:(%s,%d), (%s,%d)\n",
-				  FUNC_ADPT_ARG(adapter),
-				  pbss_network->Ssid.ssid,
-				  pbss_network->Ssid.ssid_len,
-				  pbss_network_ext->Ssid.ssid,
-				  pbss_network_ext->Ssid.ssid_len);
 	}
 
 	return ret;
@@ -3102,16 +3085,16 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	/* cookie generation */
 	*cookie = (unsigned long)buf;
 
-	DBG_8723A(FUNC_ADPT_FMT " len =%zu, ch =%d"
-		  "\n", FUNC_ADPT_ARG(padapter), len, tx_ch);
+	DBG_8723A("%s(%s): len =%zu, ch =%d\n", __func__,
+		  padapter->pnetdev->name, len, tx_ch);
 
 	/* indicate ack before issue frame to avoid racing with rsp frame */
 	rtw_cfg80211_mgmt_tx_status(padapter, *cookie, buf, len, ack,
 				    GFP_KERNEL);
 
 	if (rtw_action_frame_parse23a(buf, len, &category, &action) == false) {
-		DBG_8723A(FUNC_ADPT_FMT " frame_control:0x%x\n",
-			  FUNC_ADPT_ARG(padapter),
+		DBG_8723A("%s(%s): frame_control:0x%x\n", __func__,
+			  padapter->pnetdev->name,
 			  le16_to_cpu(hdr->frame_control));
 		goto exit;
 	}
@@ -3130,8 +3113,8 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	} while (dump_cnt < dump_limit && tx_ret != _SUCCESS);
 
 	if (tx_ret != _SUCCESS || dump_cnt > 1) {
-		DBG_8723A(FUNC_ADPT_FMT " %s (%d/%d) in %d ms\n",
-			  FUNC_ADPT_ARG(padapter),
+		DBG_8723A("%s(%s): %s (%d/%d) in %d ms\n",
+			  __func__, padapter->pnetdev->name,
 			  tx_ret == _SUCCESS ? "OK" : "FAIL", dump_cnt,
 			  dump_limit, jiffies_to_msecs(jiffies - start));
 	}
@@ -3143,9 +3126,9 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	case P2P_INVIT_RESP:
 		if (pwdev_priv->invit_info.flags & BIT(0)
 		    && pwdev_priv->invit_info.status == 0) {
-			DBG_8723A(FUNC_ADPT_FMT " agree with invitation of "
+			DBG_8723A("%s(%s): agree with invitation of "
 				  "persistent group\n",
-				  FUNC_ADPT_ARG(padapter));
+				  __func__, padapter->pnetdev->name);
 			rtw_set_scan_deny(padapter, 5000);
 			rtw_pwr_wakeup_ex(padapter, 5000);
 			rtw_clear_scan_deny(padapter);

@@ -406,8 +406,8 @@ u8 rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
 		}
 	} else {
 		if (rtw_is_scan_deny(padapter)) {
-			DBG_8723A(FUNC_ADPT_FMT": scan deny\n",
-				  FUNC_ADPT_ARG(padapter));
+			DBG_8723A("%s(%s): scan deny\n",
+				  __func__, padapter->pnetdev->name);
 			return _SUCCESS;
 		}
 

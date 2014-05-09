@@ -380,11 +380,6 @@ u8 rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 				memcpy(&psurveyPara->ssid[i], &ssid[i],
 				       sizeof(struct cfg80211_ssid));
 				psurveyPara->ssid_num++;
-				if (0)
-				DBG_8723A(FUNC_ADPT_FMT" ssid:(%s, %d)\n",
-					  FUNC_ADPT_ARG(padapter),
-					  psurveyPara->ssid[i].ssid,
-					  psurveyPara->ssid[i].ssid_len);
 			}
 		}
 	}
@@ -398,10 +393,6 @@ u8 rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 				memcpy(&psurveyPara->ch[i], &ch[i],
 				       sizeof(struct rtw_ieee80211_channel));
 				psurveyPara->ch_num++;
-				if (0)
-				DBG_8723A(FUNC_ADPT_FMT" ch:%u\n",
-					  FUNC_ADPT_ARG(padapter),
-					  psurveyPara->ch[i].hw_value);
 			}
 		}
 	}
