@@ -255,7 +255,6 @@ u32 rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 		struct list_head	*phead, *plist;
 		struct recv_frame *prframe;
 		struct rtw_queue *ppending_recvframe_queue;
-		struct rtw_queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
 
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
 
@@ -271,7 +270,7 @@ u32 rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 			prframe = container_of(plist, struct recv_frame, list);
 			plist = plist->next;
 			list_del_init(&prframe->list);
-			rtw_free_recvframe23a(prframe, pfree_recv_queue);
+			rtw_free_recvframe23a(prframe);
 		}
 		spin_unlock_bh(&ppending_recvframe_queue->lock);
 	}

@@ -73,12 +73,10 @@ int rtw_recv_indicatepkt23a(struct rtw_adapter *padapter,
 			 struct recv_frame *precv_frame)
 {
 	struct recv_priv *precvpriv;
-	struct rtw_queue *pfree_recv_queue;
 	struct sk_buff *skb;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	precvpriv = &(padapter->recvpriv);
-	pfree_recv_queue = &(precvpriv->free_recv_queue);
+	precvpriv = &padapter->recvpriv;
 
 	skb = precv_frame->pkt;
 	if (!skb) {
@@ -147,7 +145,7 @@ _recv_indicatepkt_end:
 
 	precv_frame->pkt = NULL; /*  pointers to NULL before rtw_free_recvframe23a() */
 
-	rtw_free_recvframe23a(precv_frame, pfree_recv_queue);
+	rtw_free_recvframe23a(precv_frame);
 
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
 		 ("\n rtw_recv_indicatepkt23a :after netif_rx!!!!\n"));
@@ -155,7 +153,7 @@ _recv_indicatepkt_end:
 
 _recv_indicatepkt_drop:
 
-	 rtw_free_recvframe23a(precv_frame, pfree_recv_queue);
+	 rtw_free_recvframe23a(precv_frame);
 	 return _FAIL;
 }
 

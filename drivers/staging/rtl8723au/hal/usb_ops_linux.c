@@ -513,7 +513,7 @@ static int recvbuf2recvframe(struct rtw_adapter *padapter, struct sk_buff *pskb)
 		if (pattrib->crc_err) {
 			DBG_8723A("%s()-%d: RX Warning! rx CRC ERROR !!\n",
 				  __FUNCTION__, __LINE__);
-			rtw_free_recvframe23a(precvframe, pfree_recv_queue);
+			rtw_free_recvframe23a(precvframe);
 			goto _exit_recvbuf2recvframe;
 		}
 
@@ -525,7 +525,7 @@ static int recvbuf2recvframe(struct rtw_adapter *padapter, struct sk_buff *pskb)
 				 ("recvbuf2recvframe: pkt_len<= 0\n"));
 			DBG_8723A("%s()-%d: RX Warning!\n",
 				  __FUNCTION__, __LINE__);
-			rtw_free_recvframe23a(precvframe, pfree_recv_queue);
+			rtw_free_recvframe23a(precvframe);
 			goto _exit_recvbuf2recvframe;
 		}
 
@@ -570,8 +570,7 @@ static int recvbuf2recvframe(struct rtw_adapter *padapter, struct sk_buff *pskb)
 			if ((pattrib->mfrag == 1) && (pattrib->frag_num == 0)) {
 				DBG_8723A("recvbuf2recvframe: alloc_skb fail, "
 					  "drop frag frame \n");
-				rtw_free_recvframe23a(precvframe,
-						   pfree_recv_queue);
+				rtw_free_recvframe23a(precvframe);
 				goto _exit_recvbuf2recvframe;
 			}
 
@@ -579,8 +578,7 @@ static int recvbuf2recvframe(struct rtw_adapter *padapter, struct sk_buff *pskb)
 			if (!precvframe->pkt) {
 				DBG_8723A("recvbuf2recvframe: skb_clone "
 					  "fail\n");
-				rtw_free_recvframe23a(precvframe,
-						   pfree_recv_queue);
+				rtw_free_recvframe23a(precvframe);
 				goto _exit_recvbuf2recvframe;
 			}
 		}

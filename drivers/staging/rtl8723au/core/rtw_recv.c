@@ -133,18 +133,18 @@ struct recv_frame *rtw_alloc_recvframe23a(struct rtw_queue *pfree_recv_queue)
 	return pframe;
 }
 
-int rtw_free_recvframe23a(struct recv_frame *precvframe, struct rtw_queue *pfree_recv_queue)
+int rtw_free_recvframe23a(struct recv_frame *precvframe)
 {
 	struct rtw_adapter *padapter = precvframe->adapter;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
-
-
+	struct rtw_queue *pfree_recv_queue;
 
 	if (precvframe->pkt) {
 		dev_kfree_skb_any(precvframe->pkt);/* free skb by driver */
 		precvframe->pkt = NULL;
 	}
 
+	pfree_recv_queue = &precvpriv->free_recv_queue;
 	spin_lock_bh(&pfree_recv_queue->lock);
 
 	list_del_init(&precvframe->list);
@@ -192,11 +192,10 @@ using spinlock to protect
 
 */
 
-void rtw_free_recvframe23a_queue(struct rtw_queue *pframequeue,  struct rtw_queue *pfree_recv_queue)
+static void rtw_free_recvframe23a_queue(struct rtw_queue *pframequeue)
 {
 	struct recv_frame *hdr;
 	struct list_head *plist, *phead, *ptmp;
-
 
 	spin_lock(&pframequeue->lock);
 
@@ -205,12 +204,10 @@ void rtw_free_recvframe23a_queue(struct rtw_queue *pframequeue,  struct rtw_queu
 
 	list_for_each_safe(plist, ptmp, phead) {
 		hdr = container_of(plist, struct recv_frame, list);
-		rtw_free_recvframe23a(hdr, pfree_recv_queue);
+		rtw_free_recvframe23a(hdr);
 	}
 
 	spin_unlock(&pframequeue->lock);
-
-
 }
 
 u32 rtw_free_uc_swdec_pending_queue23a(struct rtw_adapter *adapter)
@@ -218,8 +215,7 @@ u32 rtw_free_uc_swdec_pending_queue23a(struct rtw_adapter *adapter)
 	u32 cnt = 0;
 	struct recv_frame *pending_frame;
 	while ((pending_frame = rtw_alloc_recvframe23a(&adapter->recvpriv.uc_swdec_pending_queue))) {
-		rtw_free_recvframe23a(pending_frame,
-				   &adapter->recvpriv.free_recv_queue);
+		rtw_free_recvframe23a(pending_frame);
 		DBG_8723A("%s: dequeue uc_swdec_pending_queue\n", __func__);
 		cnt++;
 	}
@@ -532,8 +528,7 @@ struct recv_frame *decryptor(struct rtw_adapter *padapter,
 	}
 
 	if (res == _FAIL) {
-		rtw_free_recvframe23a(return_packet,
-				   &padapter->recvpriv.free_recv_queue);
+		rtw_free_recvframe23a(return_packet);
 		return_packet = NULL;
 	}
 
@@ -586,8 +581,7 @@ static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 				prtnframe = precv_frame;
 			} else {
 				/* free this frame */
-				rtw_free_recvframe23a(precv_frame,
-						   &adapter->recvpriv.free_recv_queue);
+				rtw_free_recvframe23a(precv_frame);
 				prtnframe = NULL;
 			}
 		} else {
@@ -1653,8 +1647,8 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 	if (curfragnum != prframe->attrib.frag_num) {
 		/* the first fragment number must be 0 */
 		/* free the whole queue */
-		rtw_free_recvframe23a(prframe, pfree_recv_queue);
-		rtw_free_recvframe23a_queue(defrag_q, pfree_recv_queue);
+		rtw_free_recvframe23a(prframe);
+		rtw_free_recvframe23a_queue(defrag_q);
 
 		return NULL;
 	}
@@ -1674,8 +1668,8 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 			/* the fragment number must be increasing
 			   (after decache) */
 			/* release the defrag_q & prframe */
-			rtw_free_recvframe23a(prframe, pfree_recv_queue);
-			rtw_free_recvframe23a_queue(defrag_q, pfree_recv_queue);
+			rtw_free_recvframe23a(prframe);
+			rtw_free_recvframe23a_queue(defrag_q);
 			return NULL;
 		}
 
@@ -1703,7 +1697,7 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 	};
 
 	/* free the defrag_q queue and return the prframe */
-	rtw_free_recvframe23a_queue(defrag_q, pfree_recv_queue);
+	rtw_free_recvframe23a_queue(defrag_q);
 
 	RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 		 ("Performance defrag!!!!!\n"));
@@ -1764,7 +1758,7 @@ struct recv_frame* recvframe_chk_defrag23a(struct rtw_adapter *padapter,
 				/* the first fragment */
 				if (_rtw_queue_empty23a(pdefrag_q) == false) {
 					/* free current defrag_q */
-					rtw_free_recvframe23a_queue(pdefrag_q, pfree_recv_queue);
+					rtw_free_recvframe23a_queue(pdefrag_q);
 				}
 			}
 
@@ -1785,7 +1779,7 @@ struct recv_frame* recvframe_chk_defrag23a(struct rtw_adapter *padapter,
 		} else {
 			/* can't find this ta's defrag_queue,
 			   so free this recv_frame */
-			rtw_free_recvframe23a(precv_frame, pfree_recv_queue);
+			rtw_free_recvframe23a(precv_frame);
 			prtnframe = NULL;
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 				 ("Free because pdefrag_q == NULL: ismfrag = "
@@ -1811,7 +1805,7 @@ struct recv_frame* recvframe_chk_defrag23a(struct rtw_adapter *padapter,
 		} else {
 			/* can't find this ta's defrag_queue,
 			   so free this recv_frame */
-			rtw_free_recvframe23a(precv_frame, pfree_recv_queue);
+			rtw_free_recvframe23a(precv_frame);
 			prtnframe = NULL;
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 				 ("Free because pdefrag_q == NULL: ismfrag = "
@@ -1826,7 +1820,7 @@ struct recv_frame* recvframe_chk_defrag23a(struct rtw_adapter *padapter,
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 				 ("recvframe_chkmic(padapter,  prtnframe) =="
 				  "_FAIL\n"));
-			rtw_free_recvframe23a(prtnframe, pfree_recv_queue);
+			rtw_free_recvframe23a(prtnframe);
 			prtnframe = NULL;
 		}
 	}
@@ -1842,8 +1836,6 @@ int amsdu_to_msdu(struct rtw_adapter *padapter, struct recv_frame *prframe)
 	struct rx_pkt_attrib *pattrib;
 	struct sk_buff *skb, *sub_skb;
 	struct sk_buff_head skb_list;
-	struct recv_priv *precvpriv = &padapter->recvpriv;
-	struct rtw_queue *pfree_recv_queue = &precvpriv->free_recv_queue;
 
 	pattrib = &prframe->attrib;
 
@@ -1865,7 +1857,7 @@ int amsdu_to_msdu(struct rtw_adapter *padapter, struct recv_frame *prframe)
 	}
 
 	prframe->pkt = NULL;
-	rtw_free_recvframe23a(prframe, pfree_recv_queue);
+	rtw_free_recvframe23a(prframe);
 	return _SUCCESS;
 }
 
@@ -2020,10 +2012,8 @@ int recv_indicatepkts_in_order(struct rtw_adapter *padapter,
 				}
 			} else {
 				if (amsdu_to_msdu(padapter, prframe) !=
-				    _SUCCESS) {
-					rtw_free_recvframe23a(prframe,
-							   &precvpriv->free_recv_queue);
-				}
+				    _SUCCESS)
+					rtw_free_recvframe23a(prframe);
 			}
 
 			/* Update local variables. */
@@ -2228,7 +2218,6 @@ int process_recv_indicatepkts(struct rtw_adapter *padapter,
 static int recv_func_prehandle(struct rtw_adapter *padapter,
 			       struct recv_frame *rframe)
 {
-	struct rtw_queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
 	int ret = _SUCCESS;
 
 	/* check the frame crtl field and decache */
@@ -2236,7 +2225,7 @@ static int recv_func_prehandle(struct rtw_adapter *padapter,
 	if (ret != _SUCCESS) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 			 ("recv_func: validate_recv_frame fail! drop pkt\n"));
-		rtw_free_recvframe23a(rframe, pfree_recv_queue);
+		rtw_free_recvframe23a(rframe);
 		goto exit;
 	}
 
@@ -2250,7 +2239,6 @@ static int recv_func_posthandle(struct rtw_adapter *padapter,
 	int ret = _SUCCESS;
 	struct recv_frame *orig_prframe = prframe;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
-	struct rtw_queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
 
 	/*  DATA FRAME */
 	rtw_led_control(padapter, LED_CTL_RX);
@@ -2296,7 +2284,7 @@ static int recv_func_posthandle(struct rtw_adapter *padapter,
 	if (ret != _SUCCESS) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 			 ("recv_func: process_recv_indicatepkts fail!\n"));
-		rtw_free_recvframe23a(orig_prframe, pfree_recv_queue);/* free this recv_frame */
+		rtw_free_recvframe23a(orig_prframe);/* free this recv_frame */
 		goto _recv_data_drop;
 	}
 	return ret;

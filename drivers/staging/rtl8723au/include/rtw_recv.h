@@ -279,11 +279,10 @@ struct recv_frame {
 
 /* get a free recv_frame from pfree_recv_queue */
 struct recv_frame *rtw_alloc_recvframe23a(struct rtw_queue *pfree_recv_queue);
-int rtw_free_recvframe23a(struct recv_frame *precvframe, struct rtw_queue *pfree_recv_queue);
+int rtw_free_recvframe23a(struct recv_frame *precvframe);
 
 int rtw_enqueue_recvframe23a(struct recv_frame *precvframe, struct rtw_queue *queue);
 
-void rtw_free_recvframe23a_queue(struct rtw_queue *pframequeue, struct rtw_queue *pfree_recv_queue);
 u32 rtw_free_uc_swdec_pending_queue23a(struct rtw_adapter *adapter);
 
 int rtw_enqueue_recvbuf23a_to_head(struct recv_buf *precvbuf, struct rtw_queue *queue);
