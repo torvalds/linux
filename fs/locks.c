@@ -2425,31 +2425,31 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	seq_printf(f, "%lld:%s ", id, pfx);
 	if (IS_POSIX(fl)) {
 		if (fl->fl_flags & FL_ACCESS)
-			seq_printf(f, "ACCESS");
+			seq_puts(f, "ACCESS");
 		else if (IS_OFDLCK(fl))
-			seq_printf(f, "OFDLCK");
+			seq_puts(f, "OFDLCK");
 		else
-			seq_printf(f, "POSIX ");
+			seq_puts(f, "POSIX ");
 
 		seq_printf(f, " %s ",
 			     (inode == NULL) ? "*NOINODE*" :
 			     mandatory_lock(inode) ? "MANDATORY" : "ADVISORY ");
 	} else if (IS_FLOCK(fl)) {
 		if (fl->fl_type & LOCK_MAND) {
-			seq_printf(f, "FLOCK  MSNFS     ");
+			seq_puts(f, "FLOCK  MSNFS     ");
 		} else {
-			seq_printf(f, "FLOCK  ADVISORY  ");
+			seq_puts(f, "FLOCK  ADVISORY  ");
 		}
 	} else if (IS_LEASE(fl)) {
-		seq_printf(f, "LEASE  ");
+		seq_puts(f, "LEASE  ");
 		if (lease_breaking(fl))
-			seq_printf(f, "BREAKING  ");
+			seq_puts(f, "BREAKING  ");
 		else if (fl->fl_file)
-			seq_printf(f, "ACTIVE    ");
+			seq_puts(f, "ACTIVE    ");
 		else
-			seq_printf(f, "BREAKER   ");
+			seq_puts(f, "BREAKER   ");
 	} else {
-		seq_printf(f, "UNKNOWN UNKNOWN  ");
+		seq_puts(f, "UNKNOWN UNKNOWN  ");
 	}
 	if (fl->fl_type & LOCK_MAND) {
 		seq_printf(f, "%s ",
@@ -2481,7 +2481,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 		else
 			seq_printf(f, "%Ld %Ld\n", fl->fl_start, fl->fl_end);
 	} else {
-		seq_printf(f, "0 EOF\n");
+		seq_puts(f, "0 EOF\n");
 	}
 }
 
