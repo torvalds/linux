@@ -344,16 +344,11 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	if ((len % 512) == 0)
 		len++;
 
-	usb_fill_bulk_urb(t->urb,
-			usbdev,
-			usb_sndbulkpipe(usbdev, 1),
-			t->buf,
-			len + padding,
-			gdm_usb_send_complete,
-			t);
+	usb_fill_bulk_urb(t->urb, usbdev, usb_sndbulkpipe(usbdev, 1), t->buf,
+			  len + padding, gdm_usb_send_complete, t);
 
-	print_hex_dump_debug("usb_send: ", DUMP_PREFIX_NONE, 16, 1,
-			     t->buf, len + padding, false);
+	print_hex_dump_debug("usb_send: ", DUMP_PREFIX_NONE, 16, 1, t->buf,
+			     len + padding, false);
 #ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	if (usbdev->state & USB_STATE_SUSPENDED) {
 		list_add_tail(&t->p_list, &tx->pending_list);
@@ -470,8 +465,8 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 }
 
 static int gdm_usb_receive(void *priv_dev,
-			void (*cb)(void *cb_data, void *data, int len),
-			void *cb_data)
+			   void (*cb)(void *cb_data, void *data, int len),
+			   void *cb_data)
 {
 	struct usbwm_dev *udev = priv_dev;
 	struct usb_device *usbdev = udev->usbdev;
@@ -494,13 +489,8 @@ static int gdm_usb_receive(void *priv_dev,
 	r->callback = cb;
 	r->cb_data = cb_data;
 
-	usb_fill_bulk_urb(r->urb,
-			usbdev,
-			usb_rcvbulkpipe(usbdev, 0x82),
-			r->buf,
-			RX_BUF_SIZE,
-			gdm_usb_rcv_complete,
-			r);
+	usb_fill_bulk_urb(r->urb, usbdev, usb_rcvbulkpipe(usbdev, 0x82), r->buf,
+			  RX_BUF_SIZE, gdm_usb_rcv_complete, r);
 
 	return usb_submit_urb(r->urb, GFP_ATOMIC);
 }
@@ -519,7 +509,7 @@ static void do_pm_control(struct work_struct *work)
 
 	spin_lock_irqsave(&tx->lock, flags);
 	if (!(udev->usbdev->state & USB_STATE_SUSPENDED) &&
-	     (!list_empty(&tx->hci_list) || !list_empty(&tx->sdu_list))) {
+	    (!list_empty(&tx->hci_list) || !list_empty(&tx->sdu_list))) {
 		struct usb_tx *t, *temp;
 
 		list_for_each_entry_safe(t, temp, &tx->pending_list, p_list) {
@@ -536,8 +526,7 @@ static void do_pm_control(struct work_struct *work)
 }
 #endif /* CONFIG_WIMAX_GDM72XX_USB_PM */
 
-static int gdm_usb_probe(struct usb_interface *intf,
-				const struct usb_device_id *id)
+static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	int ret = 0;
 	u8 bConfigurationValue;
@@ -566,8 +555,7 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	}
 
 	/* Support for EEPROM bootloader */
-	if (bConfigurationValue == DOWNLOAD_CONF_VALUE ||
-		idProduct & B_DOWNLOAD) {
+	if (bConfigurationValue == DOWNLOAD_CONF_VALUE || idProduct & B_DOWNLOAD) {
 		ret = usb_boot(usbdev, bcdDevice);
 		goto out;
 	}
@@ -639,8 +627,8 @@ static void gdm_usb_disconnect(struct usb_interface *intf)
 	idProduct = L2H(usbdev->descriptor.idProduct);
 
 	if (idProduct != EMERGENCY_PID &&
-			bConfigurationValue != DOWNLOAD_CONF_VALUE &&
-			(idProduct & B_DOWNLOAD) == 0) {
+	    bConfigurationValue != DOWNLOAD_CONF_VALUE && (idProduct & B_DOWNLOAD) == 0) {
+
 		udev = phy_dev->priv_dev;
 		udev->usbdev = NULL;
 
@@ -742,8 +730,7 @@ static int k_mode_thread(void *arg)
 
 			spin_lock_irqsave(&tx->lock, flags);
 
-			list_for_each_entry_safe(t, temp, &tx->pending_list,
-						p_list) {
+			list_for_each_entry_safe(t, temp, &tx->pending_list, p_list) {
 				list_del(&t->p_list);
 				ret = usb_submit_urb(t->urb, GFP_ATOMIC);
 

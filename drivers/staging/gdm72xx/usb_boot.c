@@ -67,6 +67,7 @@ struct fw_info {
 static void array_le32_to_cpu(u32 *arr, int num)
 {
 	int i;
+
 	for (i = 0; i < num; i++, arr++)
 		*arr = __le32_to_cpu(*arr);
 }
@@ -79,7 +80,7 @@ static int gdm_wibro_send(struct usb_device *usbdev, void *data, int len)
 	int actual;
 
 	ret = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), data, len,
-			&actual, 1000);
+			   &actual, 1000);
 
 	if (ret < 0) {
 		dev_err(&usbdev->dev, "Error : usb_bulk_msg ( result = %d )\n",
@@ -95,7 +96,7 @@ static int gdm_wibro_recv(struct usb_device *usbdev, void *data, int len)
 	int actual;
 
 	ret = usb_bulk_msg(usbdev, usb_rcvbulkpipe(usbdev, 2), data, len,
-			&actual, 5000);
+			   &actual, 5000);
 
 	if (ret < 0) {
 		dev_err(&usbdev->dev,
@@ -105,9 +106,8 @@ static int gdm_wibro_recv(struct usb_device *usbdev, void *data, int len)
 	return 0;
 }
 
-static int download_image(struct usb_device *usbdev,
-				const struct firmware *firm,
-				loff_t pos, u32 img_len, u32 magic_num)
+static int download_image(struct usb_device *usbdev, const struct firmware *firm,
+			  loff_t pos, u32 img_len, u32 magic_num)
 {
 	struct dn_header h;
 	int ret = 0;
@@ -204,8 +204,8 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 			goto out;
 		}
 
-		ret = download_image(usbdev, firm, pos,
-				fw_info.kernel_len, DN_KERNEL_MAGIC_NUMBER);
+		ret = download_image(usbdev, firm, pos, fw_info.kernel_len,
+				     DN_KERNEL_MAGIC_NUMBER);
 		if (ret < 0)
 			goto out;
 		dev_info(&usbdev->dev, "GCT: Kernel download success.\n");
@@ -216,7 +216,7 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 			goto out;
 		}
 		ret = download_image(usbdev, firm, pos, fw_info.rootfs_len,
-				DN_ROOTFS_MAGIC_NUMBER);
+				     DN_ROOTFS_MAGIC_NUMBER);
 		if (ret < 0)
 			goto out;
 		dev_info(&usbdev->dev, "GCT: Filesystem download success.\n");
@@ -261,7 +261,7 @@ out:
 }
 
 static int em_download_image(struct usb_device *usbdev, const char *img_name,
-				char *type_string)
+			     char *type_string)
 {
 	char *buf = NULL;
 	loff_t pos = 0;

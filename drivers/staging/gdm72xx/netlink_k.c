@@ -55,8 +55,7 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 	if (skb->len >= NLMSG_HDRLEN) {
 		nlh = (struct nlmsghdr *)skb->data;
 
-		if (skb->len < nlh->nlmsg_len ||
-		nlh->nlmsg_len > ND_MAX_MSG_LEN) {
+		if (skb->len < nlh->nlmsg_len || nlh->nlmsg_len > ND_MAX_MSG_LEN) {
 			netdev_err(skb->dev, "Invalid length (%d,%d)\n",
 				   skb->len, nlh->nlmsg_len);
 			return;
@@ -89,7 +88,7 @@ static void netlink_rcv(struct sk_buff *skb)
 }
 
 struct sock *netlink_init(int unit, void (*cb)(struct net_device *dev, u16 type,
-						void *msg, int len))
+					       void *msg, int len))
 {
 	struct sock *sock;
 	struct netlink_kernel_cfg cfg = {

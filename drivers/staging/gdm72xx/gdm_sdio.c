@@ -312,8 +312,7 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 	spin_unlock_irqrestore(&tx->lock, flags);
 }
 
-static void send_hci(struct sdio_func *func, struct tx_cxt *tx,
-			struct sdio_tx *t)
+static void send_hci(struct sdio_func *func, struct tx_cxt *tx, struct sdio_tx *t)
 {
 	unsigned long flags;
 
@@ -380,7 +379,7 @@ static void do_tx(struct work_struct *work)
 }
 
 static int gdm_sdio_send(void *priv_dev, void *data, int len,
-			void (*cb)(void *data), void *cb_data)
+			 void (*cb)(void *data), void *cb_data)
 {
 	struct sdiowm_dev *sdev = priv_dev;
 	struct tx_cxt *tx = &sdev->tx;
@@ -510,6 +509,7 @@ static void gdm_sdio_irq(struct sdio_func *func)
 
 	if (hdr[3] == 1) {	/* Ack */
 		u32 *ack_seq = (u32 *)&hdr[4];
+
 		spin_lock_irqsave(&tx->lock, flags);
 		tx->can_send = 1;
 
@@ -521,7 +521,7 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 	memcpy(rx->rx_buf, hdr + TYPE_A_HEADER_SIZE,
-			TYPE_A_LOOKAHEAD_SIZE - TYPE_A_HEADER_SIZE);
+	       TYPE_A_LOOKAHEAD_SIZE - TYPE_A_HEADER_SIZE);
 
 	buf = rx->rx_buf + TYPE_A_LOOKAHEAD_SIZE - TYPE_A_HEADER_SIZE;
 	remain = len - TYPE_A_LOOKAHEAD_SIZE + TYPE_A_HEADER_SIZE;
@@ -577,8 +577,8 @@ done:
 }
 
 static int gdm_sdio_receive(void *priv_dev,
-				void (*cb)(void *cb_data, void *data, int len),
-				void *cb_data)
+			    void (*cb)(void *cb_data, void *data, int len),
+			    void *cb_data)
 {
 	struct sdiowm_dev *sdev = priv_dev;
 	struct rx_cxt *rx = &sdev->rx;
@@ -601,8 +601,7 @@ static int gdm_sdio_receive(void *priv_dev,
 	return 0;
 }
 
-static int sdio_wimax_probe(struct sdio_func *func,
-				const struct sdio_device_id *id)
+static int sdio_wimax_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
 	int ret;
 	struct phy_dev *phy_dev = NULL;
