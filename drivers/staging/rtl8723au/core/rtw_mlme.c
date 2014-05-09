@@ -626,14 +626,14 @@ static int rtw_is_desired_network(struct rtw_adapter *adapter,
 }
 
 /* TODO: Perry : For Power Management */
-void rtw_atimdone_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
+void rtw_atimdone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,("receive atimdone_evet\n"));
 
 	return;
 }
 
-void rtw_survey_event_cb23a(struct rtw_adapter *adapter, u8 *pbuf)
+void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	u32 len;
 	struct wlan_bssid_ex *pnetwork;
@@ -693,7 +693,8 @@ exit:
 	return;
 }
 
-void rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
+void
+rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
@@ -814,11 +815,11 @@ void rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 	rtw_cfg80211_surveydone_event_callback(adapter);
 }
 
-void rtw_dummy_event_callback23a(struct rtw_adapter *adapter , u8 *pbuf)
+void rtw_dummy_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 }
 
-void rtw23a_fwdbg_event_callback(struct rtw_adapter *adapter , u8 *pbuf)
+void rtw23a_fwdbg_event_callback(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 }
 
@@ -1335,7 +1336,7 @@ ignore_joinbss_callback:
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-void rtw23a_joinbss_event_cb(struct rtw_adapter *adapter, u8 *pbuf)
+void rtw23a_joinbss_event_cb(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	struct wlan_network *pnetwork = (struct wlan_network *)pbuf;
 
@@ -1344,7 +1345,7 @@ void rtw23a_joinbss_event_cb(struct rtw_adapter *adapter, u8 *pbuf)
 	rtw_os_xmit_schedule23a(adapter);
 }
 
-void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
+void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	struct sta_info *psta;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
@@ -1422,7 +1423,7 @@ void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 	mlmeext_sta_add_event_callback23a(adapter, psta);
 }
 
-void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
+void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	int mac_id;
 	struct sta_info *psta;
@@ -1531,7 +1532,7 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-void rtw_cpwm_event_callback23a(struct rtw_adapter *padapter, u8 *pbuf)
+void rtw_cpwm_event_callback23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 		 ("+rtw_cpwm_event_callback23a !!!\n"));

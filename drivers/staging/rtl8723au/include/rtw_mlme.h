@@ -333,13 +333,13 @@ void hostapd_mode_unload(struct rtw_adapter *padapter);
 #endif
 
 void rtw_joinbss_event_prehandle23a(struct rtw_adapter *adapter, u8 *pbuf);
-void rtw_survey_event_cb23a(struct rtw_adapter *adapter, u8 *pbuf);
-void rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf);
-void rtw23a_joinbss_event_cb(struct rtw_adapter *adapter, u8 *pbuf);
-void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf);
-void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf);
-void rtw_atimdone_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf);
-void rtw_cpwm_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf);
+void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf);
+void rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
+void rtw23a_joinbss_event_cb(struct rtw_adapter *adapter, const u8 *pbuf);
+void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
+void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
+void rtw_atimdone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
+void rtw_cpwm_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
 
 
 int event_thread(void *context);

@@ -6417,7 +6417,7 @@ u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	u8 evt_code, evt_seq;
 	u16 evt_sz;
 	const struct C2HEvent_Header *c2h;
-	void (*event_callback)(struct rtw_adapter *dev, u8 *pbuf);
+	void (*event_callback)(struct rtw_adapter *dev, const u8 *pbuf);
 
 	c2h = (struct C2HEvent_Header *)pbuf;
 	evt_sz = c2h->len;
@@ -6439,7 +6439,7 @@ u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	}
 
 	event_callback = wlanevents[evt_code].event_callback;
-	event_callback(padapter, (u8 *)pbuf + sizeof(struct C2HEvent_Header));
+	event_callback(padapter, pbuf + sizeof(struct C2HEvent_Header));
 
 _abort_event_:
 
