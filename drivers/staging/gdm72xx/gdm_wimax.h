@@ -64,8 +64,8 @@ struct nic {
 
 /*#define LOOPBACK_TEST */
 
-extern int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);
-extern int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev);
-extern void unregister_wimax_device(struct phy_dev *phy_dev);
+int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);
+int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev);
+void unregister_wimax_device(struct phy_dev *phy_dev);
 
 #endif
