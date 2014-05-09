@@ -1922,7 +1922,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&host->irq_lock);
 
-	host->fclk = clk_get(&pdev->dev, "fck");
+	host->fclk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(host->fclk)) {
 		ret = PTR_ERR(host->fclk);
 		host->fclk = NULL;
@@ -1941,7 +1941,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	omap_hsmmc_context_save(host);
 
-	host->dbclk = clk_get(&pdev->dev, "mmchsdb_fck");
+	host->dbclk = devm_clk_get(&pdev->dev, "mmchsdb_fck");
 	/*
 	 * MMC can still work without debounce clock.
 	 */
@@ -1949,7 +1949,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		host->dbclk = NULL;
 	} else if (clk_prepare_enable(host->dbclk) != 0) {
 		dev_warn(mmc_dev(host->mmc), "Failed to enable debounce clk\n");
-		clk_put(host->dbclk);
 		host->dbclk = NULL;
 	}
 
@@ -2105,11 +2104,8 @@ err_irq:
 		dma_release_channel(host->rx_chan);
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
-	clk_put(host->fclk);
-	if (host->dbclk) {
+	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
-		clk_put(host->dbclk);
-	}
 err1:
 	iounmap(host->base);
 	mmc_free_host(mmc);
@@ -2144,11 +2140,8 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
-	clk_put(host->fclk);
-	if (host->dbclk) {
+	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
-		clk_put(host->dbclk);
-	}
 
 	omap_hsmmc_gpio_free(host->pdata);
 	iounmap(host->base);
