@@ -3,3 +3,4 @@
 #
 
 obj-y += clk-sunxi.o clk-factors.o
+obj-y += clk-a10-hosc.o
