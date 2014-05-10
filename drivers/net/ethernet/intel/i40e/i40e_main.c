@@ -657,7 +657,7 @@ static void i40e_update_link_xoff_rx(struct i40e_pf *pf)
 	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
 		struct i40e_vsi *vsi = pf->vsi[v];
 
-		if (!vsi)
+		if (!vsi || !vsi->tx_rings[0])
 			continue;
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
@@ -711,7 +711,7 @@ static void i40e_update_prio_xoff_rx(struct i40e_pf *pf)
 	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
 		struct i40e_vsi *vsi = pf->vsi[v];
 
-		if (!vsi)
+		if (!vsi || !vsi->tx_rings[0])
 			continue;
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
