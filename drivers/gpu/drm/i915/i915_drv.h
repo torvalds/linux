@@ -2484,7 +2484,8 @@ const char *i915_cache_level_str(int type);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(void);
-void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring);
+int i915_cmd_parser_init_ring(struct intel_ring_buffer *ring);
+void i915_cmd_parser_fini_ring(struct intel_ring_buffer *ring);
 bool i915_needs_cmd_parser(struct intel_ring_buffer *ring);
 int i915_parse_cmds(struct intel_ring_buffer *ring,
 		    struct drm_i915_gem_object *batch_obj,

@@ -1,6 +1,10 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+#include <linux/hashtable.h>
+
+#define I915_CMD_HASH_ORDER 9
+
 /*
  * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
  * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
@@ -176,12 +180,13 @@ struct  intel_ring_buffer {
 		volatile u32 *cpu_page;
 	} scratch;
 
+	bool needs_cmd_parser;
+
 	/*
-	 * Tables of commands the command parser needs to know about
+	 * Table of commands the command parser needs to know about
 	 * for this ring.
 	 */
-	const struct drm_i915_cmd_table *cmd_tables;
-	int cmd_table_count;
+	DECLARE_HASHTABLE(cmd_hash, I915_CMD_HASH_ORDER);
 
 	/*
 	 * Table of registers allowed in commands that read/write registers.

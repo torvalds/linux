@@ -1455,7 +1455,9 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (IS_I830(dev) || IS_845G(dev))
 		ring->effective_size -= 2 * CACHELINE_BYTES;
 
-	i915_cmd_parser_init_ring(ring);
+	ret = i915_cmd_parser_init_ring(ring);
+	if (ret)
+		return ret;
 
 	return ring->init(ring);
 }
@@ -1482,6 +1484,8 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 		ring->cleanup(ring);
 
 	cleanup_status_page(ring);
+
+	i915_cmd_parser_fini_ring(ring);
 }
 
 static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
