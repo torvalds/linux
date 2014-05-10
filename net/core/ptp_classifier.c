@@ -88,7 +88,7 @@ EXPORT_SYMBOL_GPL(ptp_classify_raw);
 
 void __init ptp_classifier_init(void)
 {
-	static struct sock_filter ptp_filter[] = {
+	static struct sock_filter ptp_filter[] __initdata = {
 		{ 0x28,  0,  0, 0x0000000c },
 		{ 0x15,  0, 12, 0x00000800 },
 		{ 0x30,  0,  0, 0x00000017 },
