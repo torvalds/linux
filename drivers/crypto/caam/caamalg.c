@@ -303,6 +303,7 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
+	keys_fit_inline = false;
 	if (DESC_AEAD_NULL_DEC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len <= CAAM_DESC_BYTES_MAX)
 		keys_fit_inline = true;
@@ -472,6 +473,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
+	keys_fit_inline = false;
 	if (DESC_AEAD_DEC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len + ctx->enckeylen <=
 	    CAAM_DESC_BYTES_MAX)
@@ -527,6 +529,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
+	keys_fit_inline = false;
 	if (DESC_AEAD_GIVENC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len + ctx->enckeylen <=
 	    CAAM_DESC_BYTES_MAX)
