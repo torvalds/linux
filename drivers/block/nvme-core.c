@@ -2912,6 +2912,7 @@ static void __exit nvme_exit(void)
 	unregister_blkdev(nvme_major, "nvme");
 	destroy_workqueue(nvme_workq);
 	BUG_ON(nvme_thread && !IS_ERR(nvme_thread));
+	_nvme_check_size();
 }
 
 MODULE_AUTHOR("Matthew Wilcox <willy@linux.intel.com>");
