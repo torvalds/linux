@@ -417,7 +417,6 @@ enomem:
 struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 				     unsigned int reserved_tags, int node)
 {
-	unsigned int nr_tags, nr_cache;
 	struct blk_mq_tags *tags;
 
 	if (total_tags > BLK_MQ_TAG_MAX) {
@@ -428,9 +427,6 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	tags = kzalloc_node(sizeof(*tags), GFP_KERNEL, node);
 	if (!tags)
 		return NULL;
-
-	nr_tags = total_tags - reserved_tags;
-	nr_cache = nr_tags / num_online_cpus();
 
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
