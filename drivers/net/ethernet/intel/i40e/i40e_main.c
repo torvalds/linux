@@ -8237,11 +8237,12 @@ static void i40e_print_features(struct i40e_pf *pf)
 
 	if (pf->flags & I40E_FLAG_RSS_ENABLED)
 		buf += sprintf(buf, "RSS ");
-	buf += sprintf(buf, "FDir ");
 	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED)
-		buf += sprintf(buf, "ATR ");
-	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
+		buf += sprintf(buf, "FD_ATR ");
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
+		buf += sprintf(buf, "FD_SB ");
 		buf += sprintf(buf, "NTUPLE ");
+	}
 	if (pf->flags & I40E_FLAG_DCB_ENABLED)
 		buf += sprintf(buf, "DCB ");
 	if (pf->flags & I40E_FLAG_PTP)
