@@ -26,7 +26,9 @@ fwmark_reflect - BOOLEAN
 	Controls the fwmark of kernel-generated IPv4 reply packets that are not
 	associated with a socket for example, TCP RSTs or ICMP echo replies).
 	If unset, these packets have a fwmark of zero. If set, they have the
-	fwmark of the packet they are replying to.
+	fwmark of the packet they are replying to. Similarly affects the fwmark
+	used by internal routing lookups triggered by incoming packets, such as
+	the ones used for Path MTU Discovery.
 	Default: 0
 
 route/max_size - INTEGER
@@ -1098,7 +1100,9 @@ fwmark_reflect - BOOLEAN
 	Controls the fwmark of kernel-generated IPv6 reply packets that are not
 	associated with a socket for example, TCP RSTs or ICMPv6 echo replies).
 	If unset, these packets have a fwmark of zero. If set, they have the
-	fwmark of the packet they are replying to.
+	fwmark of the packet they are replying to. Similarly affects the fwmark
+	used by internal routing lookups triggered by incoming packets, such as
+	the ones used for Path MTU Discovery.
 	Default: 0
 
 conf/interface/*:
