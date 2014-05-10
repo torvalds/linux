@@ -392,7 +392,7 @@ static u8 _rtl_pci_get_pciehdr_offset(struct ieee80211_hw *hw)
 					     pcicfg_addr_port +
 					     (num4bytes << 2));
 		rtl_pci_raw_read_port_ushort(PCI_CONF_DATA,
-					     (u16*)&capability_hdr);
+					     (u16 *)&capability_hdr);
 		/* Found the PCI express capability. */
 		if (capability_hdr.capability_id ==
 		    PCI_CAPABILITY_ID_PCI_EXPRESS)
