@@ -172,7 +172,6 @@ static void i40evf_tx_timeout(struct net_device *netdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	adapter->tx_timeout_count++;
-	dev_info(&adapter->pdev->dev, "TX timeout detected.\n");
 	if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING)) {
 		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
 		schedule_work(&adapter->reset_task);
@@ -662,12 +661,9 @@ i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 	f = i40evf_find_vlan(adapter, vlan);
 	if (NULL == f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
-		if (NULL == f) {
-			dev_info(&adapter->pdev->dev,
-				 "%s: no memory for new VLAN filter\n",
-				 __func__);
+		if (NULL == f)
 			return NULL;
-		}
+
 		f->vlan = vlan;
 
 		INIT_LIST_HEAD(&f->list);
@@ -771,8 +767,6 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 	if (NULL == f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
 		if (NULL == f) {
-			dev_info(&adapter->pdev->dev,
-				 "%s: no memory for new filter\n", __func__);
 			clear_bit(__I40EVF_IN_CRITICAL_TASK,
 				  &adapter->crit_section);
 			return NULL;
@@ -1332,8 +1326,7 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	    (rd32(hw, I40E_VFGEN_RSTAT) & 0x3) != I40E_VFR_VFACTIVE) {
 		adapter->state = __I40EVF_RESETTING;
 		adapter->flags |= I40EVF_FLAG_RESET_PENDING;
-		dev_err(&adapter->pdev->dev, "Hardware reset detected.\n");
-		dev_info(&adapter->pdev->dev, "Scheduling reset task\n");
+		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
 		schedule_work(&adapter->reset_task);
 		adapter->aq_pending = 0;
 		adapter->aq_required = 0;
@@ -1610,11 +1603,9 @@ static void i40evf_adminq_task(struct work_struct *work)
 
 	event.msg_size = I40EVF_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(event.msg_size, GFP_KERNEL);
-	if (!event.msg_buf) {
-		dev_info(&adapter->pdev->dev, "%s: no memory for ARQ clean\n",
-				 __func__);
+	if (!event.msg_buf)
 		return;
-	}
+
 	v_msg = (struct i40e_virtchnl_msg *)&event.desc;
 	do {
 		ret = i40evf_clean_arq_element(hw, &event, &pending);
