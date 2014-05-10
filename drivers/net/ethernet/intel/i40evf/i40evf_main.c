@@ -1028,7 +1028,7 @@ i40evf_acquire_msix_vectors(struct i40evf_adapter *adapter, int vectors)
 	err = pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
 				    vector_threshold, vectors);
 	if (err < 0) {
-		dev_err(&adapter->pdev->dev, "Unable to allocate MSI-X interrupts.\n");
+		dev_err(&adapter->pdev->dev, "Unable to allocate MSI-X interrupts\n");
 		kfree(adapter->msix_entries);
 		adapter->msix_entries = NULL;
 		return err;
@@ -1504,7 +1504,7 @@ static void i40evf_reset_task(struct work_struct *work)
 		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
 			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
 		if (rstat_val == I40E_VFR_VFACTIVE) {
-			dev_info(&adapter->pdev->dev, "Reset is complete. Reinitializing.\n");
+			dev_info(&adapter->pdev->dev, "Reset complete, reinitializing\n");
 			break;
 		} else {
 			msleep(I40EVF_RESET_WAIT_MS);
@@ -1512,7 +1512,7 @@ static void i40evf_reset_task(struct work_struct *work)
 	}
 	if (i == I40EVF_RESET_WAIT_COUNT) {
 		/* reset never finished */
-		dev_err(&adapter->pdev->dev, "Reset never finished (%x). PF driver is dead, and so am I.\n",
+		dev_err(&adapter->pdev->dev, "Reset never finished (%x)\n",
 			rstat_val);
 		adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
 
@@ -1577,7 +1577,7 @@ continue_reset:
 	}
 	return;
 reset_err:
-	dev_err(&adapter->pdev->dev, "failed to allocate resources during reinit.\n");
+	dev_err(&adapter->pdev->dev, "failed to allocate resources during reinit\n");
 	i40evf_close(adapter->netdev);
 }
 
@@ -1856,7 +1856,7 @@ void i40evf_reinit_locked(struct i40evf_adapter *adapter)
 	return;
 
 err_reinit:
-	dev_err(&adapter->pdev->dev, "failed to allocate resources during reinit.\n");
+	dev_err(&adapter->pdev->dev, "failed to allocate resources during reinit\n");
 	i40evf_close(netdev);
 }
 
@@ -1977,7 +1977,7 @@ static void i40evf_init_task(struct work_struct *work)
 		break;
 	case __I40EVF_INIT_VERSION_CHECK:
 		if (!i40evf_asq_done(hw)) {
-			dev_err(&pdev->dev, "Admin queue command never completed.\n");
+			dev_err(&pdev->dev, "Admin queue command never completed\n");
 			goto err;
 		}
 
@@ -2140,7 +2140,7 @@ err_alloc:
 err:
 	/* Things went into the weeds, so try again later */
 	if (++adapter->aq_wait_count > I40EVF_AQ_MAX_ERR) {
-		dev_err(&pdev->dev, "Failed to communicate with PF; giving up.\n");
+		dev_err(&pdev->dev, "Failed to communicate with PF; giving up\n");
 		adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
 		return; /* do not reschedule */
 	}
