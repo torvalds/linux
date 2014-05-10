@@ -2514,7 +2514,7 @@ static i40e_status i40e_validate_filter_settings(struct i40e_hw *hw,
 {
 	u32 fcoe_cntx_size, fcoe_filt_size;
 	u32 pe_cntx_size, pe_filt_size;
-	u32 fcoe_fmax, pe_fmax;
+	u32 fcoe_fmax;
 	u32 val;
 
 	/* Validate FCoE settings passed */
@@ -2587,13 +2587,6 @@ static i40e_status i40e_validate_filter_settings(struct i40e_hw *hw,
 	fcoe_fmax = (val & I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_MASK)
 		     >> I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_SHIFT;
 	if (fcoe_filt_size + fcoe_cntx_size >  fcoe_fmax)
-		return I40E_ERR_INVALID_SIZE;
-
-	/* PEHSIZE + PEDSIZE should not be greater than PMPEXFMAX */
-	val = rd32(hw, I40E_GLHMC_PEXFMAX);
-	pe_fmax = (val & I40E_GLHMC_PEXFMAX_PMPEXFMAX_MASK)
-		   >> I40E_GLHMC_PEXFMAX_PMPEXFMAX_SHIFT;
-	if (pe_filt_size + pe_cntx_size >  pe_fmax)
 		return I40E_ERR_INVALID_SIZE;
 
 	return 0;
