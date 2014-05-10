@@ -449,10 +449,7 @@ void blk_mq_tag_init_last_tag(struct blk_mq_tags *tags, unsigned int *tag)
 {
 	unsigned int depth = tags->nr_tags - tags->nr_reserved_tags;
 
-	if (depth > 1)
-		*tag = prandom_u32() % (depth - 1);
-	else
-		*tag = 0;
+	*tag = prandom_u32() % depth;
 }
 
 ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page)
