@@ -67,7 +67,7 @@
 #define SDMMC_DATA_TIMEOUT_EMMC	2500
 
 #define SDMMC_CMD_RTO_MAX_HOLD 200 
-//#define SDMMC_WAIT_FOR_UNBUSY	2500
+#define SDMMC_WAIT_FOR_UNBUSY	2500
 
 #ifdef CONFIG_MMC_DW_IDMAC
 #define IDMAC_INT_CLR		(SDMMC_IDMAC_INT_AI | SDMMC_IDMAC_INT_NI | \
@@ -1691,7 +1691,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 	struct mmc_command *cmd;
 	enum dw_mci_state state;
 	enum dw_mci_state prev_state;
-	u32 status, ctrl;
+	u32 status, ctrl, cmd_flags;
 
 	spin_lock(&host->lock);
 
@@ -1754,6 +1754,22 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				#if 1
 				if (data->stop)
 					send_stop_cmd(host, data);
+				else{
+					/*single block read/write, send stop cmd manually to prevent host controller halt*/
+					printk("%s status 1 0x%08x [%s]\n",__func__,mci_readl(host, STATUS),mmc_hostname(host->mmc));
+					mci_writel(host, CMDARG, 0);
+					wmb();
+					cmd_flags = SDMMC_CMD_STOP |SDMMC_CMD_RESP_CRC|SDMMC_CMD_RESP_EXP|MMC_STOP_TRANSMISSION;
+					if(host->mmc->hold_reg_flag)
+						cmd_flags |= SDMMC_CMD_USE_HOLD_REG;
+					// mci_writel(host, CMD, SDMMC_CMD_USE_HOLD_REG |SDMMC_CMD_STOP |SDMMC_CMD_RESP_CRC|SDMMC_CMD_RESP_EXP| SDMMC_CMD_START|0x0c);
+					mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
+					wmb();
+					while(1){
+						if(!(mci_readl(host, CMD)&SDMMC_CMD_START))
+							break;
+					}
+				}
 				#else
 				send_stop_abort(host, data);
 				#endif
@@ -1766,8 +1782,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			if (!test_and_clear_bit(EVENT_XFER_COMPLETE,
 						&host->pending_events))
 				break;
-            MMC_DBG_INFO_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]:  STATE_SENDING_DATA, wait for EVENT_DATA_COMPLETE. [%s]",\
-                        prev_state,state,mmc_hostname(host->mmc));
+                        MMC_DBG_INFO_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]:  STATE_SENDING_DATA, wait for EVENT_DATA_COMPLETE. [%s]",\
+                                          prev_state,state,mmc_hostname(host->mmc));
             
 			set_bit(EVENT_XFER_COMPLETE, &host->completed_events);
 			prev_state = state = STATE_DATA_BUSY;
@@ -1779,8 +1795,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				break;
 				
 			dw_mci_deal_data_end(host, host->mrq);			
-            MMC_DBG_INFO_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: STATE_DATA_BUSY, after EVENT_DATA_COMPLETE. [%s]", \
-                    prev_state,state,mmc_hostname(host->mmc));
+                        MMC_DBG_INFO_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: STATE_DATA_BUSY, after EVENT_DATA_COMPLETE. [%s]", \
+                                          prev_state,state,mmc_hostname(host->mmc));
 
 			host->data = NULL;
 			set_bit(EVENT_DATA_COMPLETE, &host->completed_events);
@@ -1788,7 +1804,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 
 			if (status & DW_MCI_DATA_ERROR_FLAGS) {	
 			    if((SDMMC_CTYPE_1BIT != slot->ctype)&&(MMC_SEND_EXT_CSD == host->mrq->cmd->opcode))
-                    MMC_DBG_ERR_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: DW_MCI_DATA_ERROR_FLAGS,datastatus=0x%x [%s]",\
+                        MMC_DBG_ERR_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: DW_MCI_DATA_ERROR_FLAGS,datastatus=0x%x [%s]",\
                             prev_state,state, status, mmc_hostname(host->mmc));
                             
 		        if (status & SDMMC_INT_DRTO) {
@@ -1825,8 +1841,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			}
 
 			if (!data->stop) {
-		        MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: no stop and no dataerr, exit. [%s]", \
-                    prev_state,state,mmc_hostname(host->mmc));
+		                MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: no stop and no dataerr, exit. [%s]", \
+                                      prev_state,state,mmc_hostname(host->mmc));
 				dw_mci_request_end(host, host->mrq);
 				goto unlock;
 			}
@@ -2327,7 +2343,8 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	int i;
 
 	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
-
+	//if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)
+	//	printk("%s pending: 0x%08x\n",__func__,pending);	
 	/*
 		 * DTO fix - version 2.10a and below, and only if internal DMA
 		 * is configured.
@@ -2344,7 +2361,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			host->cmd_status = pending;
 			smp_wmb();
 			MMC_DBG_INFO_FUNC(host->mmc,"Line%d..%s cmd_status INT=0x%x,[%s]",
-                __LINE__, __FUNCTION__,host->cmd_status,mmc_hostname(host->mmc));
+                                          __LINE__, __FUNCTION__,host->cmd_status,mmc_hostname(host->mmc));
             
 			set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
 		}
@@ -2357,7 +2374,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			set_bit(EVENT_DATA_ERROR, &host->pending_events);
 
 			MMC_DBG_INFO_FUNC(host->mmc,"Line%d..%s data_status INT=0x%x,[%s]",
-                __LINE__, __FUNCTION__,host->data_status,mmc_hostname(host->mmc));
+                                          __LINE__, __FUNCTION__,host->data_status,mmc_hostname(host->mmc));
 			tasklet_schedule(&host->tasklet);
 		}
 
@@ -2388,13 +2405,13 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		}
 
 		if (pending & SDMMC_INT_VSI) {
-    		MMC_DBG_SW_VOL_FUNC(host->mmc, "SDMMC_INT_VSI, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
+    		        MMC_DBG_SW_VOL_FUNC(host->mmc, "SDMMC_INT_VSI, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
 			mci_writel(host, RINTSTS, SDMMC_INT_VSI);
 			dw_mci_cmd_interrupt(host, pending);
 		}
 
 		if (pending & SDMMC_INT_CMD_DONE) {
-    		MMC_DBG_CMD_FUNC(host->mmc, "SDMMC_INT_CMD_DONE, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
+    			MMC_DBG_CMD_FUNC(host->mmc, "SDMMC_INT_CMD_DONE, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
 			mci_writel(host, RINTSTS, SDMMC_INT_CMD_DONE);
 			dw_mci_cmd_interrupt(host, pending);
 		}
@@ -2403,6 +2420,12 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			mci_writel(host, RINTSTS, SDMMC_INT_CD);
 			rk_send_wakeup_key();//wake up system
 			queue_work(host->card_workqueue, &host->card_work);
+		}
+		
+		if (pending & SDMMC_INT_HLE) {
+			mci_writel(host, RINTSTS, SDMMC_INT_HLE);
+			MMC_DBG_CMD_FUNC(host->mmc, "SDMMC_INT_HLE INT-pending=0x%x. [%s]\n",pending,mmc_hostname(host->mmc));
+			
 		}
 
 		/* Handle SDIO Interrupts */
