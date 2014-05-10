@@ -202,7 +202,7 @@ next_rule:
 	}
 
 	if (unlikely(pkt->skb->nf_trace))
-		nft_trace_packet(pkt, basechain, ++rulenum, NFT_TRACE_POLICY);
+		nft_trace_packet(pkt, basechain, -1, NFT_TRACE_POLICY);
 
 	rcu_read_lock_bh();
 	stats = rcu_dereference(nft_base_chain(basechain)->stats);
