@@ -386,6 +386,8 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 
 void digital_poll_next_tech(struct nfc_digital_dev *ddev)
 {
+	u8 rand_mod;
+
 	digital_switch_rf(ddev, 0);
 
 	mutex_lock(&ddev->poll_lock);
@@ -395,8 +397,8 @@ void digital_poll_next_tech(struct nfc_digital_dev *ddev)
 		return;
 	}
 
-	ddev->poll_tech_index = (ddev->poll_tech_index + 1) %
-				ddev->poll_tech_count;
+	get_random_bytes(&rand_mod, sizeof(rand_mod));
+	ddev->poll_tech_index = rand_mod % ddev->poll_tech_count;
 
 	mutex_unlock(&ddev->poll_lock);
 
