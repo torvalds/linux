@@ -5328,6 +5328,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_MX_L1_TLB_CNTL,
 	       (0xA << 7) |
 	       ENABLE_L1_TLB |
+	       ENABLE_L1_FRAGMENT_PROCESSING |
 	       SYSTEM_ACCESS_MODE_NOT_IN_SYS |
 	       ENABLE_ADVANCED_DRIVER_MODEL |
 	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
@@ -5340,7 +5341,8 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	       CONTEXT1_IDENTITY_ACCESS_MODE(1));
 	WREG32(VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS | INVALIDATE_L2_CACHE);
 	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
-	       L2_CACHE_BIGK_FRAGMENT_SIZE(6));
+	       BANK_SELECT(4) |
+	       L2_CACHE_BIGK_FRAGMENT_SIZE(4));
 	/* setup context0 */
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, rdev->mc.gtt_end >> 12);

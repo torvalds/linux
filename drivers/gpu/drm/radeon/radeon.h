@@ -848,6 +848,11 @@ struct radeon_mec {
 #define R600_PTE_READABLE	(1 << 5)
 #define R600_PTE_WRITEABLE	(1 << 6)
 
+/* PTE (Page Table Entry) fragment field for different page sizes */
+#define R600_PTE_FRAG_4KB	(0 << 7)
+#define R600_PTE_FRAG_64KB	(4 << 7)
+#define R600_PTE_FRAG_256KB	(6 << 7)
+
 struct radeon_vm_pt {
 	struct radeon_bo		*bo;
 	uint64_t			addr;
