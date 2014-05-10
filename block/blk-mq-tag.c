@@ -244,7 +244,6 @@ static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
 
 	bs = bt_wake_ptr(bt);
 	if (bs && atomic_dec_and_test(&bs->wait_cnt)) {
-		smp_mb__after_clear_bit();
 		atomic_set(&bs->wait_cnt, bt->wake_cnt);
 		bt_index_inc(&bt->wake_index);
 		wake_up(&bs->wait);
