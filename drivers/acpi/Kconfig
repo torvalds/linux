@@ -60,7 +60,7 @@ config ACPI_PROCFS_POWER
 	  This option has no effect on /proc/acpi/ directories
 	  and functions, which do not yet exist in /sys
 	  This option, together with the proc directories, will be
-	  deleted in 2.6.39.
+	  deleted in the future.
 
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
 
