@@ -27,7 +27,12 @@ struct nvme_id_power_state {
 	__u8			read_lat;
 	__u8			write_tput;
 	__u8			write_lat;
-	__u8			rsvd16[16];
+	__le16			idle_power;
+	__u8			idle_scale;
+	__u8			rsvd19;
+	__le16			active_power;
+	__u8			active_work_scale;
+	__u8			rsvd23[9];
 };
 
 enum {
@@ -46,7 +51,8 @@ struct nvme_id_ctrl {
 	__u8			mic;
 	__u8			mdts;
 	__u16			cntlid;
-	__u8			rsvd80[176];
+	__u32			ver;
+	__u8			rsvd84[172];
 	__le16			oacs;
 	__u8			acl;
 	__u8			aerl;
@@ -56,7 +62,9 @@ struct nvme_id_ctrl {
 	__u8			npss;
 	__u8			avscc;
 	__u8			apsta;
-	__u8			rsvd266[246];
+	__le16			wctemp;
+	__le16			cctemp;
+	__u8			rsvd270[242];
 	__u8			sqes;
 	__u8			cqes;
 	__u8			rsvd514[2];
@@ -102,7 +110,12 @@ struct nvme_id_ns {
 	__u8			dps;
 	__u8			nmic;
 	__u8			rescap;
-	__u8			rsvd32[88];
+	__u8			fpi;
+	__u8			rsvd33;
+	__le16			nawun;
+	__le16			nawupf;
+	__le16			nacwu;
+	__u8			rsvd40[80];
 	__u8			eui64[8];
 	struct nvme_lbaf	lbaf[16];
 	__u8			rsvd192[192];
@@ -134,7 +147,10 @@ struct nvme_smart_log {
 	__u8			unsafe_shutdowns[16];
 	__u8			media_errors[16];
 	__u8			num_err_log_entries[16];
-	__u8			rsvd192[320];
+	__le32			warning_temp_time;
+	__le32			critical_comp_time;
+	__le16			temp_sensor[8];
+	__u8			rsvd216[296];
 };
 
 enum {
