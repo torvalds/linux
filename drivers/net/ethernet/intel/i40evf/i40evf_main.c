@@ -1169,7 +1169,7 @@ static int i40evf_alloc_q_vectors(struct i40evf_adapter *adapter)
 		q_vector->vsi = &adapter->vsi;
 		q_vector->v_idx = q_idx;
 		netif_napi_add(adapter->netdev, &q_vector->napi,
-				       i40evf_napi_poll, 64);
+				       i40evf_napi_poll, NAPI_POLL_WEIGHT);
 		adapter->q_vector[q_idx] = q_vector;
 	}
 
