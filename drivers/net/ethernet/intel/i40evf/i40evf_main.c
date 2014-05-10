@@ -1486,15 +1486,12 @@ static void i40evf_reset_task(struct work_struct *work)
 	for (i = 0; i < I40EVF_RESET_WAIT_COUNT; i++) {
 		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
 			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if (rstat_val != I40E_VFR_VFACTIVE) {
-			dev_info(&adapter->pdev->dev, "Reset now occurring\n");
+		if (rstat_val != I40E_VFR_VFACTIVE)
 			break;
-		} else {
+		else
 			msleep(I40EVF_RESET_WAIT_MS);
-		}
 	}
 	if (i == I40EVF_RESET_WAIT_COUNT) {
-		dev_err(&adapter->pdev->dev, "Reset was not detected\n");
 		adapter->flags &= ~I40EVF_FLAG_RESET_PENDING;
 		goto continue_reset; /* act like the reset happened */
 	}
@@ -1503,12 +1500,10 @@ static void i40evf_reset_task(struct work_struct *work)
 	for (i = 0; i < I40EVF_RESET_WAIT_COUNT; i++) {
 		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
 			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if (rstat_val == I40E_VFR_VFACTIVE) {
-			dev_info(&adapter->pdev->dev, "Reset complete, reinitializing\n");
+		if (rstat_val == I40E_VFR_VFACTIVE)
 			break;
-		} else {
+		else
 			msleep(I40EVF_RESET_WAIT_MS);
-		}
 	}
 	if (i == I40EVF_RESET_WAIT_COUNT) {
 		/* reset never finished */

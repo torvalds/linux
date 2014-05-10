@@ -5623,8 +5623,6 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	/* tell the firmware that we're starting */
 	i40e_send_version(pf);
 
-	dev_info(&pf->pdev->dev, "reset complete\n");
-
 end_core_reset:
 	clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
 }
