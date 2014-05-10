@@ -701,10 +701,11 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		return 0;
 	}
 
-	if (is_long_mode(vcpu) && (cr3 & CR3_L_MODE_RESERVED_BITS))
-		return 1;
-	if (is_pae(vcpu) && is_paging(vcpu) &&
-	    !load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))
+	if (is_long_mode(vcpu)) {
+		if (cr3 & CR3_L_MODE_RESERVED_BITS)
+			return 1;
+	} else if (is_pae(vcpu) && is_paging(vcpu) &&
+		   !load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))
 		return 1;
 
 	vcpu->arch.cr3 = cr3;
