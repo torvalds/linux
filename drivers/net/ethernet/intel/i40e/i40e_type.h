@@ -36,12 +36,10 @@
 
 /* Device IDs */
 #define I40E_DEV_ID_SFP_XL710		0x1572
-#define I40E_DEV_ID_SFP_X710		0x1573
 #define I40E_DEV_ID_QEMU		0x1574
 #define I40E_DEV_ID_KX_A		0x157F
 #define I40E_DEV_ID_KX_B		0x1580
 #define I40E_DEV_ID_KX_C		0x1581
-#define I40E_DEV_ID_KX_D		0x1582
 #define I40E_DEV_ID_QSFP_A		0x1583
 #define I40E_DEV_ID_QSFP_B		0x1584
 #define I40E_DEV_ID_QSFP_C		0x1585
