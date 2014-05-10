@@ -472,7 +472,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	*cp++ = (u8)(arg >> 16);
 	*cp++ = (u8)(arg >> 8);
 	*cp++ = (u8)arg;
-	*cp++ = (crc7(0, &data->status[1], 5) << 1) | 0x01;
+	*cp++ = crc7_be(0, &data->status[1], 5) | 0x01;
 
 	/* Then, read up to 13 bytes (while writing all-ones):
 	 *  - N(CR) (== 1..8) bytes of all-ones

@@ -122,8 +122,7 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 	crc[3] = cmd[6];
 	crc[4] = cmd[5];
 
-	cmd[4] |= crc7(0, crc, WSPI_INIT_CMD_CRC_LEN) << 1;
-	cmd[4] |= WSPI_INIT_CMD_END;
+	cmd[4] = crc7_be(0, crc, WSPI_INIT_CMD_CRC_LEN) | WSPI_INIT_CMD_END;
 
 	t.tx_buf = cmd;
 	t.len = WSPI_INIT_CMD_LEN;
