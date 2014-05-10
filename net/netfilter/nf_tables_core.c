@@ -171,8 +171,12 @@ next_rule:
 		jumpstack[stackptr].rule  = rule;
 		jumpstack[stackptr].rulenum = rulenum;
 		stackptr++;
-		/* fall through */
+		chain = data[NFT_REG_VERDICT].chain;
+		goto do_chain;
 	case NFT_GOTO:
+		if (unlikely(pkt->skb->nf_trace))
+			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
+
 		chain = data[NFT_REG_VERDICT].chain;
 		goto do_chain;
 	case NFT_RETURN:
