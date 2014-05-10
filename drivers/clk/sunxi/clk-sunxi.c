@@ -1172,29 +1172,10 @@ static void __init of_sunxi_table_clock_setup(const struct of_device_id *clk_mat
 	}
 }
 
-/**
- * System clock protection
- *
- * By enabling these critical clocks, we prevent their accidental gating
- * by the framework
- */
-static void __init sunxi_clock_protect(void)
+static void __init sunxi_init_clocks(const char *clocks[], int nclocks)
 {
-	struct clk *clk;
+	unsigned int i;
 
-	/* memory bus clock - sun5i+ */
-	clk = clk_get(NULL, "mbus");
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
-
-	/* DDR clock - sun4i+ */
-	clk = clk_get(NULL, "pll5_ddr");
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
-}
-
-static void __init sunxi_init_clocks(struct device_node *np)
-{
 	/* Register factor clocks */
 	of_sunxi_table_clock_setup(clk_factors_match, sunxi_factors_clk_setup);
 
@@ -1210,11 +1191,46 @@ static void __init sunxi_init_clocks(struct device_node *np)
 	/* Register gate clocks */
 	of_sunxi_table_clock_setup(clk_gates_match, sunxi_gates_clk_setup);
 
-	/* Enable core system clocks */
-	sunxi_clock_protect();
+	/* Protect the clocks that needs to stay on */
+	for (i = 0; i < nclocks; i++) {
+		struct clk *clk = clk_get(NULL, clocks[i]);
+
+		if (!IS_ERR(clk))
+			clk_prepare_enable(clk);
+	}
 }
-CLK_OF_DECLARE(sun4i_a10_clk_init, "allwinner,sun4i-a10", sunxi_init_clocks);
-CLK_OF_DECLARE(sun5i_a10s_clk_init, "allwinner,sun5i-a10s", sunxi_init_clocks);
-CLK_OF_DECLARE(sun5i_a13_clk_init, "allwinner,sun5i-a13", sunxi_init_clocks);
-CLK_OF_DECLARE(sun6i_a31_clk_init, "allwinner,sun6i-a31", sunxi_init_clocks);
-CLK_OF_DECLARE(sun7i_a20_clk_init, "allwinner,sun7i-a20", sunxi_init_clocks);
+
+static const char *sun4i_a10_critical_clocks[] __initdata = {
+	"pll5_ddr",
+};
+
+static void __init sun4i_a10_init_clocks(struct device_node *node)
+{
+	sunxi_init_clocks(sun4i_a10_critical_clocks,
+			  ARRAY_SIZE(sun4i_a10_critical_clocks));
+}
+CLK_OF_DECLARE(sun4i_a10_clk_init, "allwinner,sun4i-a10", sun4i_a10_init_clocks);
+
+static const char *sun5i_critical_clocks[] __initdata = {
+	"mbus",
+	"pll5_ddr",
+};
+
+static void __init sun5i_init_clocks(struct device_node *node)
+{
+	sunxi_init_clocks(sun5i_critical_clocks,
+			  ARRAY_SIZE(sun5i_critical_clocks));
+}
+CLK_OF_DECLARE(sun5i_a10s_clk_init, "allwinner,sun5i-a10s", sun5i_init_clocks);
+CLK_OF_DECLARE(sun5i_a13_clk_init, "allwinner,sun5i-a13", sun5i_init_clocks);
+CLK_OF_DECLARE(sun7i_a20_clk_init, "allwinner,sun7i-a20", sun5i_init_clocks);
+
+static const char *sun6i_critical_clocks[] __initdata = {
+};
+
+static void __init sun6i_init_clocks(struct device_node *node)
+{
+	sunxi_init_clocks(sun6i_critical_clocks,
+			  ARRAY_SIZE(sun6i_critical_clocks));
+}
+CLK_OF_DECLARE(sun6i_a31_clk_init, "allwinner,sun6i-a31", sun6i_init_clocks);
