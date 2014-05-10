@@ -116,7 +116,7 @@ config B43_PHY_N
 
 config B43_PHY_LP
 	bool "Support for low-power (LP-PHY) devices"
-	depends on B43
+	depends on B43 && B43_SSB
 	default y
 	---help---
 	  Support for the LP-PHY.
