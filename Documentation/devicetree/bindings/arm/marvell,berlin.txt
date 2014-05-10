@@ -23,3 +23,50 @@ SoC and board used. Currently known SoC compatibles are:
 
 	...
 }
+
+* Marvell Berlin2 chip control binding
+
+Marvell Berlin SoCs have a chip control register set providing several
+individual registers dealing with pinmux, padmux, clock, reset, and secondary
+CPU boot address. Unfortunately, the individual registers are spread among the
+chip control registers, so there should be a single DT node only providing the
+different functions which are described below.
+
+Required properties:
+- compatible: shall be one of
+	"marvell,berlin2-chip-ctrl" for BG2
+	"marvell,berlin2cd-chip-ctrl" for BG2CD
+	"marvell,berlin2q-chip-ctrl" for BG2Q
+- reg: address and length of following register sets for
+  BG2/BG2CD: chip control register set
+  BG2Q: chip control register set and cpu pll registers
+
+* Clock provider binding
+
+As clock related registers are spread among the chip control registers, the
+chip control node also provides the clocks. Marvell Berlin2 (BG2, BG2CD, BG2Q)
+SoCs share the same IP for PLLs and clocks, with some minor differences in
+features and register layout.
+
+Required properties:
+- #clock-cells: shall be set to 1
+- clocks: clock specifiers referencing the core clock input clocks
+- clock-names: array of strings describing the input clock specifiers above.
+    Allowed clock-names for the reference clocks are
+      "refclk" for the SoCs osciallator input on all SoCs,
+    and SoC-specific input clocks for
+      BG2/BG2CD: "video_ext0" for the external video clock input
+
+Clocks provided by core clocks shall be referenced by a clock specifier
+indexing one of the provided clocks. Refer to dt-bindings/clock/berlin<soc>.h
+for the corresponding index mapping.
+
+Example:
+
+chip: chip-control@ea0000 {
+	compatible = "marvell,berlin2-chip-ctrl";
+	#clock-cells = <1>;
+	reg = <0xea0000 0x400>;
+	clocks = <&refclk>, <&externaldev 0>;
+	clock-names = "refclk", "video_ext0";
+};
