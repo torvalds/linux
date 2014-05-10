@@ -571,7 +571,7 @@ static inline void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
 	return NULL;
 }
 
-static inline void bnx2x_vf_pci_dealloc(struct bnx2 *bp) {return 0; }
+static inline void bnx2x_vf_pci_dealloc(struct bnx2x *bp) {}
 static inline int bnx2x_vf_pci_alloc(struct bnx2x *bp) {return 0; }
 static inline void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp) {}
 static inline int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs) {return 0; }
