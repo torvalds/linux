@@ -3,6 +3,8 @@
  *
  * Builtin regression testing command: ever growing number of sanity tests
  */
+#include <unistd.h>
+#include <string.h>
 #include "builtin.h"
 #include "intlist.h"
 #include "tests.h"
@@ -172,6 +174,34 @@ static bool perf_test__matches(int curr, int argc, const char *argv[])
 	return false;
 }
 
+static int run_test(struct test *test)
+{
+	int status, err = -1, child = fork();
+
+	if (child < 0) {
+		pr_err("failed to fork test: %s\n", strerror(errno));
+		return -1;
+	}
+
+	if (!child) {
+		pr_debug("test child forked, pid %d\n", getpid());
+		err = test->func();
+		exit(err);
+	}
+
+	wait(&status);
+
+	if (WIFEXITED(status)) {
+		err = WEXITSTATUS(status);
+		pr_debug("test child finished with %d\n", err);
+	} else if (WIFSIGNALED(status)) {
+		err = -1;
+		pr_debug("test child interrupted\n");
+	}
+
+	return err;
+}
+
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
 	int i = 0;
@@ -200,7 +230,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		}
 
 		pr_debug("\n--- start ---\n");
-		err = tests[curr].func();
+		err = run_test(&tests[curr]);
 		pr_debug("---- end ----\n%s:", tests[curr].desc);
 
 		switch (err) {
