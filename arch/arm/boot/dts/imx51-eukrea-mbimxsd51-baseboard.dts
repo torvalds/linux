@@ -24,6 +24,14 @@
 	model = "Eukrea CPUIMX51";
 	compatible = "eukrea,mbimxsd51","eukrea,cpuimx51", "fsl,imx51";
 
+	clocks {
+		clk24M: can_clock {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -47,6 +55,23 @@
 			label = "led1";
 			gpios = <&gpio3 30 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_can: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "CAN_RST";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio4 15 GPIO_ACTIVE_HIGH>;
+			startup-delay-us = <20000>;
+			enable-active-high;
 		};
 	};
 
@@ -86,6 +111,26 @@
 	status = "okay";
 };
 
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	can0: can@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_can>;
+		compatible = "microchip,mcp2515";
+		reg = <0>;
+		clocks = <&clk24M>;
+		spi-max-frequency = <10000000>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+		vdd-supply = <&reg_can>;
+	};
+};
+
 &i2c1 {
 	tlv320aic23: codec@1a {
 		compatible = "ti,tlv320aic23";
@@ -101,6 +146,23 @@
 				MX51_PAD_AUD3_BB_RXD__AUD3_RXD		0x80000000
 				MX51_PAD_AUD3_BB_CK__AUD3_TXC		0x80000000
 				MX51_PAD_AUD3_BB_FS__AUD3_TXFS		0x80000000
+			>;
+		};
+
+
+		pinctrl_can: cangrp {
+			fsl,pins = <
+				MX51_PAD_CSI2_PIXCLK__GPIO4_15		0x80000000	/* nReset */
+				MX51_PAD_GPIO1_1__GPIO1_1		0x80000000	/* IRQ */
+			>;
+		};
+
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX51_PAD_CSPI1_MISO__ECSPI1_MISO	0x185
+				MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI	0x185
+				MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK	0x185
+				MX51_PAD_CSPI1_SS0__GPIO4_24		0x80000000 	/* CS0 */
 			>;
 		};
 
