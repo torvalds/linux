@@ -2844,7 +2844,7 @@ static bool rcu_nohz_full_cpu(struct rcu_state *rsp)
 static void rcu_bind_gp_kthread(void)
 {
 #ifdef CONFIG_NO_HZ_FULL
-	int cpu = ACCESS_ONCE(tick_do_timer_cpu);
+	int cpu = tick_do_timer_cpu;
 
 	if (cpu < 0 || cpu >= nr_cpu_ids)
 		return;
