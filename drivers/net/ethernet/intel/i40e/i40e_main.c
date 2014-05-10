@@ -397,7 +397,7 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 	}
 	rcu_read_unlock();
 
-	/* following stats updated by ixgbe_watchdog_task() */
+	/* following stats updated by i40e_watchdog_subtask() */
 	stats->multicast	= vsi_stats->multicast;
 	stats->tx_errors	= vsi_stats->tx_errors;
 	stats->tx_dropped	= vsi_stats->tx_dropped;
@@ -6138,8 +6138,6 @@ static int i40e_reserve_msix_vectors(struct i40e_pf *pf, int vectors)
 			 "MSI-X vector reservation failed: %d\n", vectors);
 		vectors = 0;
 	}
-
-	pf->num_msix_entries = vectors;
 
 	return vectors;
 }

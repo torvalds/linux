@@ -201,7 +201,6 @@ struct i40e_pf {
 	unsigned long state;
 	unsigned long link_check_timeout;
 	struct msix_entry *msix_entries;
-	u16 num_msix_entries;
 	bool fc_autoneg_status;
 
 	u16 eeprom_version;
