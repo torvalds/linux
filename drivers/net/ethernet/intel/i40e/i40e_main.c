@@ -5520,6 +5520,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 		i40e_verify_eeprom(pf);
 	}
 
+	i40e_clear_pxe_mode(hw);
 	ret = i40e_get_capabilities(pf);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "i40e_get_capabilities failed, %d\n",
