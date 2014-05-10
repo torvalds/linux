@@ -964,6 +964,8 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
  */
 int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 {
+	const unsigned align = min(RADEON_VM_PTB_ALIGN_SIZE,
+		RADEON_VM_PTE_COUNT * 8);
 	unsigned pd_size, pd_entries, pts_size;
 	int r;
 
@@ -985,7 +987,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 		return -ENOMEM;
 	}
 
-	r = radeon_bo_create(rdev, pd_size, RADEON_VM_PTB_ALIGN_SIZE, false,
+	r = radeon_bo_create(rdev, pd_size, align, false,
 			     RADEON_GEM_DOMAIN_VRAM, NULL,
 			     &vm->page_directory);
 	if (r)
