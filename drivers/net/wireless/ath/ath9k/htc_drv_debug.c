@@ -243,30 +243,9 @@ static const struct file_operations fops_xmit = {
 };
 
 void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
-			   struct ath_htc_rx_status *rxs)
+			     struct ath_rx_status *rs)
 {
-#define RX_PHY_ERR_INC(c) priv->debug.rx_stats.err_phy_stats[c]++
-
-	if (rxs->rs_status & ATH9K_RXERR_CRC)
-		priv->debug.rx_stats.err_crc++;
-	if (rxs->rs_status & ATH9K_RXERR_DECRYPT)
-		priv->debug.rx_stats.err_decrypt_crc++;
-	if (rxs->rs_status & ATH9K_RXERR_MIC)
-		priv->debug.rx_stats.err_mic++;
-	if (rxs->rs_status & ATH9K_RX_DELIM_CRC_PRE)
-		priv->debug.rx_stats.err_pre_delim++;
-	if (rxs->rs_status & ATH9K_RX_DELIM_CRC_POST)
-		priv->debug.rx_stats.err_post_delim++;
-	if (rxs->rs_status & ATH9K_RX_DECRYPT_BUSY)
-		priv->debug.rx_stats.err_decrypt_busy++;
-
-	if (rxs->rs_status & ATH9K_RXERR_PHY) {
-		priv->debug.rx_stats.err_phy++;
-		if (rxs->rs_phyerr < ATH9K_PHYERR_MAX)
-			RX_PHY_ERR_INC(rxs->rs_phyerr);
-	}
-
-#undef RX_PHY_ERR_INC
+	ath9k_cmn_debug_stat_rx(&priv->debug.rx_stats, rs);
 }
 
 static ssize_t read_file_recv(struct file *file, char __user *user_buf,
@@ -274,7 +253,7 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 {
 #define PHY_ERR(s, p)							\
 	len += scnprintf(buf + len, size - len, "%20s : %10u\n", s,	\
-			 priv->debug.rx_stats.err_phy_stats[p]);
+			 priv->debug.rx_stats.phy_err_stats[p]);
 
 	struct ath9k_htc_priv *priv = file->private_data;
 	char *buf;
@@ -287,36 +266,13 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs allocated",
-			 priv->debug.rx_stats.skb_allocated);
+			 priv->debug.skbrx_stats.skb_allocated);
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs completed",
-			 priv->debug.rx_stats.skb_completed);
+			 priv->debug.skbrx_stats.skb_completed);
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs Dropped",
-			 priv->debug.rx_stats.skb_dropped);
-
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "CRC ERR",
-			 priv->debug.rx_stats.err_crc);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "DECRYPT CRC ERR",
-			 priv->debug.rx_stats.err_decrypt_crc);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "MIC ERR",
-			 priv->debug.rx_stats.err_mic);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "PRE-DELIM CRC ERR",
-			 priv->debug.rx_stats.err_pre_delim);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "POST-DELIM CRC ERR",
-			 priv->debug.rx_stats.err_post_delim);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "DECRYPT BUSY ERR",
-			 priv->debug.rx_stats.err_decrypt_busy);
-	len += scnprintf(buf + len, size - len,
-			 "%20s : %10u\n", "TOTAL PHY ERR",
-			 priv->debug.rx_stats.err_phy);
-
+			 priv->debug.skbrx_stats.skb_dropped);
 
 	PHY_ERR("UNDERRUN", ATH9K_PHYERR_UNDERRUN);
 	PHY_ERR("TIMING", ATH9K_PHYERR_TIMING);
@@ -530,6 +486,8 @@ int ath9k_htc_get_et_sset_count(struct ieee80211_hw *hw,
 
 #define STXBASE priv->debug.tx_stats
 #define SRXBASE priv->debug.rx_stats
+#define SKBTXBASE priv->debug.tx_stats
+#define SKBRXBASE priv->debug.skbrx_stats
 #define ASTXQ(a)					\
 	data[i++] = STXBASE.a[IEEE80211_AC_BE];		\
 	data[i++] = STXBASE.a[IEEE80211_AC_BK];		\
@@ -543,24 +501,24 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 	struct ath9k_htc_priv *priv = hw->priv;
 	int i = 0;
 
-	data[i++] = STXBASE.skb_success;
-	data[i++] = STXBASE.skb_success_bytes;
-	data[i++] = SRXBASE.skb_completed;
-	data[i++] = SRXBASE.skb_completed_bytes;
+	data[i++] = SKBTXBASE.skb_success;
+	data[i++] = SKBTXBASE.skb_success_bytes;
+	data[i++] = SKBRXBASE.skb_completed;
+	data[i++] = SKBRXBASE.skb_completed_bytes;
 
 	ASTXQ(queue_stats);
 
-	data[i++] = SRXBASE.err_crc;
-	data[i++] = SRXBASE.err_decrypt_crc;
-	data[i++] = SRXBASE.err_phy;
-	data[i++] = SRXBASE.err_mic;
-	data[i++] = SRXBASE.err_pre_delim;
-	data[i++] = SRXBASE.err_post_delim;
-	data[i++] = SRXBASE.err_decrypt_busy;
+	data[i++] = SRXBASE.crc_err;
+	data[i++] = SRXBASE.decrypt_crc_err;
+	data[i++] = SRXBASE.phy_err;
+	data[i++] = SRXBASE.mic_err;
+	data[i++] = SRXBASE.pre_delim_crc_err;
+	data[i++] = SRXBASE.post_delim_crc_err;
+	data[i++] = SRXBASE.decrypt_busy_err;
 
-	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_RADAR];
-	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_OFDM_TIMING];
-	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_CCK_TIMING];
+	data[i++] = SRXBASE.phy_err_stats[ATH9K_PHYERR_RADAR];
+	data[i++] = SRXBASE.phy_err_stats[ATH9K_PHYERR_OFDM_TIMING];
+	data[i++] = SRXBASE.phy_err_stats[ATH9K_PHYERR_CCK_TIMING];
 
 	WARN_ON(i != ATH9K_HTC_SSTATS_LEN);
 }

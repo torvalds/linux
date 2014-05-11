@@ -998,31 +998,7 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 {
-#define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
-
-	RX_STAT_INC(rx_pkts_all);
-	sc->debug.stats.rxstats.rx_bytes_all += rs->rs_datalen;
-
-	if (rs->rs_status & ATH9K_RXERR_CRC)
-		RX_STAT_INC(crc_err);
-	if (rs->rs_status & ATH9K_RXERR_DECRYPT)
-		RX_STAT_INC(decrypt_crc_err);
-	if (rs->rs_status & ATH9K_RXERR_MIC)
-		RX_STAT_INC(mic_err);
-	if (rs->rs_status & ATH9K_RX_DELIM_CRC_PRE)
-		RX_STAT_INC(pre_delim_crc_err);
-	if (rs->rs_status & ATH9K_RX_DELIM_CRC_POST)
-		RX_STAT_INC(post_delim_crc_err);
-	if (rs->rs_status & ATH9K_RX_DECRYPT_BUSY)
-		RX_STAT_INC(decrypt_busy_err);
-
-	if (rs->rs_status & ATH9K_RXERR_PHY) {
-		RX_STAT_INC(phy_err);
-		if (rs->rs_phyerr < ATH9K_PHYERR_MAX)
-			RX_PHY_ERR_INC(rs->rs_phyerr);
-	}
-
-#undef RX_PHY_ERR_INC
+	ath9k_cmn_debug_stat_rx(&sc->debug.stats.rxstats, rs);
 }
 
 static const struct file_operations fops_recv = {

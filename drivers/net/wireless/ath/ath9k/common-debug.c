@@ -86,3 +86,36 @@ void ath9k_cmn_debug_base_eeprom(struct dentry *debugfs_phy,
 			    &fops_base_eeprom);
 }
 EXPORT_SYMBOL(ath9k_cmn_debug_base_eeprom);
+
+void ath9k_cmn_debug_stat_rx(struct ath_rx_stats *rxstats,
+			     struct ath_rx_status *rs)
+{
+#define RX_PHY_ERR_INC(c) rxstats->phy_err_stats[c]++
+#define RX_CMN_STAT_INC(c) (rxstats->c++)
+
+	RX_CMN_STAT_INC(rx_pkts_all);
+	rxstats->rx_bytes_all += rs->rs_datalen;
+
+	if (rs->rs_status & ATH9K_RXERR_CRC)
+		RX_CMN_STAT_INC(crc_err);
+	if (rs->rs_status & ATH9K_RXERR_DECRYPT)
+		RX_CMN_STAT_INC(decrypt_crc_err);
+	if (rs->rs_status & ATH9K_RXERR_MIC)
+		RX_CMN_STAT_INC(mic_err);
+	if (rs->rs_status & ATH9K_RX_DELIM_CRC_PRE)
+		RX_CMN_STAT_INC(pre_delim_crc_err);
+	if (rs->rs_status & ATH9K_RX_DELIM_CRC_POST)
+		RX_CMN_STAT_INC(post_delim_crc_err);
+	if (rs->rs_status & ATH9K_RX_DECRYPT_BUSY)
+		RX_CMN_STAT_INC(decrypt_busy_err);
+
+	if (rs->rs_status & ATH9K_RXERR_PHY) {
+		RX_CMN_STAT_INC(phy_err);
+		if (rs->rs_phyerr < ATH9K_PHYERR_MAX)
+			RX_PHY_ERR_INC(rs->rs_phyerr);
+	}
+
+#undef RX_CMN_STAT_INC
+#undef RX_PHY_ERR_INC
+}
+EXPORT_SYMBOL(ath9k_cmn_debug_stat_rx);
