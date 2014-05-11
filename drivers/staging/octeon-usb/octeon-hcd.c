@@ -2008,7 +2008,6 @@ static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(
 			 ((((int)current_frame - (int)pipe->split_sc_frame)
 			   & 0x7f) < 0x40)) &&
 			(!usb->active_split || (usb->active_split == t))) {
-			CVMX_PREFETCH(pipe, 128);
 			CVMX_PREFETCH(t, 0);
 			return pipe;
 		}
@@ -2660,7 +2659,6 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 	/* Make sure this channel is tied to a valid pipe */
 	pipe = usb->pipe_for_channel[channel];
 	CVMX_PREFETCH(pipe, 0);
-	CVMX_PREFETCH(pipe, 128);
 	if (!pipe)
 		return 0;
 	transaction = list_first_entry(&pipe->transactions,
