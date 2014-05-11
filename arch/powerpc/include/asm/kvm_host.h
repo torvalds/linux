@@ -631,6 +631,7 @@ struct kvm_vcpu_arch {
 #endif
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
 	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
+	bool disable_kernel_nx;
 
 	int irq_type;		/* one of KVM_IRQ_* */
 	int irq_cpu_id;

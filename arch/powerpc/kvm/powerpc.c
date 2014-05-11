@@ -177,8 +177,18 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 		vcpu->arch.shared_big_endian = shared_big_endian;
 #endif
 
-		vcpu->arch.magic_page_pa = param1;
-		vcpu->arch.magic_page_ea = param2;
+		if (!(param2 & MAGIC_PAGE_FLAG_NOT_MAPPED_NX)) {
+			/*
+			 * Older versions of the Linux magic page code had
+			 * a bug where they would map their trampoline code
+			 * NX. If that's the case, remove !PR NX capability.
+			 */
+			vcpu->arch.disable_kernel_nx = true;
+			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+		}
+
+		vcpu->arch.magic_page_pa = param1 & ~0xfffULL;
+		vcpu->arch.magic_page_ea = param2 & ~0xfffULL;
 
 		r2 = KVM_MAGIC_FEAT_SR | KVM_MAGIC_FEAT_MAS0_TO_SPRG7;
 

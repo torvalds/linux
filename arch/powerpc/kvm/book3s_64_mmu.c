@@ -313,6 +313,9 @@ do_second:
 	gpte->raddr = (r & HPTE_R_RPN & ~eaddr_mask) | (eaddr & eaddr_mask);
 	gpte->page_size = pgsize;
 	gpte->may_execute = ((r & HPTE_R_N) ? false : true);
+	if (unlikely(vcpu->arch.disable_kernel_nx) &&
+	    !(kvmppc_get_msr(vcpu) & MSR_PR))
+		gpte->may_execute = true;
 	gpte->may_read = false;
 	gpte->may_write = false;
 
