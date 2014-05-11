@@ -1756,7 +1756,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 					send_stop_cmd(host, data);
 				else{
 					/*single block read/write, send stop cmd manually to prevent host controller halt*/
-					printk("%s status 1 0x%08x [%s]\n",__func__,mci_readl(host, STATUS),mmc_hostname(host->mmc));
+					printk("%s status 1 0x%08x [%s]\n",
+					        __func__,mci_readl(host, STATUS),mmc_hostname(host->mmc));
 					mci_writel(host, CMDARG, 0);
 					wmb();
 					cmd_flags = SDMMC_CMD_STOP |SDMMC_CMD_RESP_CRC|SDMMC_CMD_RESP_EXP|MMC_STOP_TRANSMISSION;
@@ -1765,10 +1766,15 @@ static void dw_mci_tasklet_func(unsigned long priv)
 					// mci_writel(host, CMD, SDMMC_CMD_USE_HOLD_REG |SDMMC_CMD_STOP |SDMMC_CMD_RESP_CRC|SDMMC_CMD_RESP_EXP| SDMMC_CMD_START|0x0c);
 					mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
 					wmb();
-					while(1){
+					unsigned long timeout = jiffies + msecs_to_jiffies(500);
+					bool ret=0;
+					while(ret=time_before(jiffies, timeout)){
 						if(!(mci_readl(host, CMD)&SDMMC_CMD_START))
 							break;
 					}
+					if(!ret)
+					    printk("%s EVENT_DATA_ERROR recovery failed!!! [%s]\n",
+					            __func__,mmc_hostname(host->mmc));
 				}
 				#else
 				send_stop_abort(host, data);
@@ -2228,6 +2234,10 @@ static void dw_mci_read_data_pio(struct dw_mci *host, bool dto)
 	unsigned int len;
 	unsigned int remain, fcnt;
 
+	if(!host->mmc->bus_refs){
+		printk("Note: %s host->mmc->bus_refs is 0!!!\n",__func__,host->mmc->bus_refs);
+		goto host_put;
+	}
 	do {
 		if (!sg_miter_next(sg_miter))
 			goto done;
@@ -2266,6 +2276,7 @@ static void dw_mci_read_data_pio(struct dw_mci *host, bool dto)
 
 done:
 	sg_miter_stop(sg_miter);
+host_put:	
 	host->sg = NULL;
 	smp_wmb();
 	set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
@@ -2282,6 +2293,11 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 	unsigned int len;
 	unsigned int fifo_depth = host->fifo_depth;
 	unsigned int remain, fcnt;
+	
+	if(!host->mmc->bus_refs){
+		printk("Note: %s host->mmc->bus_refs is 0!!!\n",__func__,host->mmc->bus_refs);
+		goto host_put;
+	}
 
 	do {
 		if (!sg_miter_next(sg_miter))
@@ -2320,6 +2336,7 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 
 done:
 	sg_miter_stop(sg_miter);
+host_put:	
 	host->sg = NULL;
 	smp_wmb();
 	set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
