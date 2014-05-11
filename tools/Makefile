@@ -44,6 +44,9 @@ cpupower: FORCE
 cgroup firewire hv guest usb virtio vm net: FORCE
 	$(call descend,$@)
 
+liblockdep: FORCE
+	$(call descend,lib/lockdep)
+
 libapikfs: FORCE
 	$(call descend,lib/api)
 
@@ -90,6 +93,9 @@ cpupower_clean:
 
 cgroup_clean hv_clean firewire_clean lguest_clean usb_clean virtio_clean vm_clean net_clean:
 	$(call descend,$(@:_clean=),clean)
+
+liblockdep_clean:
+	$(call descend,lib/lockdep,clean)
 
 libapikfs_clean:
 	$(call descend,lib/api,clean)
