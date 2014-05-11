@@ -1059,26 +1059,6 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 }
 
 /*
- * Handler for generic register modifier widget.
- */
-int dapm_reg_event(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol, int event)
-{
-	unsigned int val;
-
-	if (SND_SOC_DAPM_EVENT_ON(event))
-		val = w->on_val;
-	else
-		val = w->off_val;
-
-	soc_widget_update_bits(w, -(w->reg + 1),
-			    w->mask << w->shift, val << w->shift);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(dapm_reg_event);
-
-/*
  * Handler for regulator supply widget.
  */
 int dapm_regulator_event(struct snd_soc_dapm_widget *w,

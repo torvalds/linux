@@ -256,9 +256,8 @@ struct device;
 /* generic widgets */
 #define SND_SOC_DAPM_REG(wid, wname, wreg, wshift, wmask, won_val, woff_val) \
 {	.id = wid, .name = wname, .kcontrol_news = NULL, .num_kcontrols = 0, \
-	.reg = -((wreg) + 1), .shift = wshift, .mask = wmask, \
-	.on_val = won_val, .off_val = woff_val, .event = dapm_reg_event, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD}
+	.reg = wreg, .shift = wshift, .mask = wmask, \
+	.on_val = won_val, .off_val = woff_val, }
 #define SND_SOC_DAPM_SUPPLY(wname, wreg, wshift, winvert, wevent, wflags) \
 {	.id = snd_soc_dapm_supply, .name = wname, \
 	SND_SOC_DAPM_INIT_REG_VAL(wreg, wshift, winvert), \
@@ -362,8 +361,6 @@ struct regulator;
 struct snd_soc_dapm_widget_list;
 struct snd_soc_dapm_update;
 
-int dapm_reg_event(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol, int event);
 int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event);
 int dapm_clock_event(struct snd_soc_dapm_widget *w,
