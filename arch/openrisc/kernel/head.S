@@ -158,12 +158,38 @@
 
 /* =========================================================[ macros ]=== */
 
-
+#ifdef CONFIG_SMP
+#define GET_CURRENT_PGD(reg,t1)					\
+	LOAD_SYMBOL_2_GPR(reg,current_pgd)			;\
+	l.mfspr	t1,r0,SPR_COREID				;\
+	l.slli	t1,t1,2						;\
+	l.add	reg,reg,t1					;\
+	tophys  (t1,reg)					;\
+	l.lwz   reg,0(t1)
+#else
 #define GET_CURRENT_PGD(reg,t1)					\
 	LOAD_SYMBOL_2_GPR(reg,current_pgd)			;\
 	tophys  (t1,reg)					;\
 	l.lwz   reg,0(t1)
+#endif
 
+/* Load r10 from current_thread_info_set - clobbers r1 and r30 */
+#ifdef CONFIG_SMP
+#define GET_CURRENT_THREAD_INFO					\
+	LOAD_SYMBOL_2_GPR(r1,current_thread_info_set)		;\
+	tophys  (r30,r1)					;\
+	l.mfspr	r10,r0,SPR_COREID				;\
+	l.slli	r10,r10,2					;\
+	l.add	r30,r30,r10					;\
+	/* r10: current_thread_info  */				;\
+	l.lwz   r10,0(r30)
+#else
+#define GET_CURRENT_THREAD_INFO					\
+	LOAD_SYMBOL_2_GPR(r1,current_thread_info_set)		;\
+	tophys  (r30,r1)					;\
+	/* r10: current_thread_info  */				;\
+	l.lwz   r10,0(r30)
+#endif
 
 /*
  * DSCR: this is a common hook for handling exceptions. it will save
@@ -206,10 +232,7 @@
 	l.bnf   2f                            /* kernel_mode */	;\
 	 EXCEPTION_T_STORE_SP                 /* delay slot */	;\
 1: /* user_mode:   */						;\
-	LOAD_SYMBOL_2_GPR(r1,current_thread_info_set)		;\
-	tophys  (r30,r1)					;\
-	/* r10: current_thread_info  */				;\
-	l.lwz   r10,0(r30)					;\
+	GET_CURRENT_THREAD_INFO	 				;\
 	tophys  (r30,r10)					;\
 	l.lwz   r1,(TI_KSP)(r30)				;\
 	/* fall through */					;\
@@ -530,6 +553,12 @@ _start:
 	CLEAR_GPR(r30)
 	CLEAR_GPR(r31)
 
+#ifdef CONFIG_SMP
+	l.mfspr	r26,r0,SPR_COREID
+	l.sfeq	r26,r0
+	l.bnf	secondary_wait
+	 l.nop
+#endif
 	/*
 	 * set up initial ksp and current
 	 */
@@ -680,6 +709,64 @@ _flush_tlb:
 
 	l.jr	r9
 	 l.nop
+
+#ifdef CONFIG_SMP
+secondary_wait:
+	l.mfspr	r25,r0,SPR_COREID
+	l.movhi	r3,hi(secondary_release)
+	l.ori	r3,r3,lo(secondary_release)
+	tophys(r4, r3)
+	l.lwz	r3,0(r4)
+	l.sfeq	r25,r3
+	l.bnf	secondary_wait
+	 l.nop
+	/* fall through to secondary_init */
+
+secondary_init:
+	/*
+	 * set up initial ksp and current
+	 */
+	LOAD_SYMBOL_2_GPR(r10, secondary_thread_info)
+	tophys	(r30,r10)
+	l.lwz	r10,0(r30)
+	l.addi	r1,r10,THREAD_SIZE
+	tophys	(r30,r10)
+	l.sw	TI_KSP(r30),r1
+
+	l.jal	_ic_enable
+	 l.nop
+
+	l.jal	_dc_enable
+	 l.nop
+
+	l.jal	_flush_tlb
+	 l.nop
+
+	/*
+	 * enable dmmu & immu
+	 */
+	l.mfspr	r30,r0,SPR_SR
+	l.movhi	r28,hi(SPR_SR_DME | SPR_SR_IME)
+	l.ori	r28,r28,lo(SPR_SR_DME | SPR_SR_IME)
+	l.or	r30,r30,r28
+	/*
+	 * This is a bit tricky, we need to switch over from physical addresses
+	 * to virtual addresses on the fly.
+	 * To do that, we first set up ESR with the IME and DME bits set.
+	 * Then EPCR is set to secondary_start and then a l.rfe is issued to
+	 * "jump" to that.
+	 */
+	l.mtspr	r0,r30,SPR_ESR_BASE
+	LOAD_SYMBOL_2_GPR(r30, secondary_start)
+	l.mtspr	r0,r30,SPR_EPCR_BASE
+	l.rfe
+
+secondary_start:
+	LOAD_SYMBOL_2_GPR(r30, secondary_start_kernel)
+	l.jr    r30
+	 l.nop
+
+#endif
 
 /* ========================================[ cache ]=== */
 
