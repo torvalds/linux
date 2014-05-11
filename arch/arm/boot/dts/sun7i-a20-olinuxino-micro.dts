@@ -34,6 +34,7 @@
 		mmc0: mmc@01c0f000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
+			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
 			cd-gpios = <&pio 7 1 0>; /* PH1 */
 			cd-inverted;
@@ -43,6 +44,7 @@
 		mmc3: mmc@01c12000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmc3_pins_a>, <&mmc3_cd_pin_olinuxinom>;
+			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
 			cd-gpios = <&pio 7 11 0>; /* PH11 */
 			cd-inverted;
