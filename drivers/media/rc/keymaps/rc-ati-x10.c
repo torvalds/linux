@@ -26,6 +26,17 @@
 #include <linux/module.h>
 #include <media/rc-map.h>
 
+/*
+ * Intended usage comments below are from vendor-supplied
+ * Source: ATI REMOTE WONDER™ Installation Guide
+ * http://www2.ati.com/manuals/remctrl.pdf
+ *
+ * Scancodes were in strict left-right, top-bottom order on the
+ * original ATI Remote Wonder, but were moved on later models.
+ *
+ * Keys A-F are intended to be user-programmable.
+ */
+
 static struct rc_map_table ati_x10[] = {
 	/* keyboard - Above the cursor pad */
 	{ 0x00, KEY_A },
@@ -35,9 +46,11 @@ static struct rc_map_table ati_x10[] = {
 	{ 0x03, KEY_TV },         /* TV */
 	{ 0x04, KEY_DVD },        /* DVD */
 	{ 0x05, KEY_WWW },        /* WEB */
-	{ 0x06, KEY_BOOKMARKS },  /* "book" */
-	{ 0x07, KEY_EDIT },       /* "hand" */
-	/* Below the cursor pad */
+	{ 0x06, KEY_BOOKMARKS },  /* "book": Open Media Library */
+	{ 0x07, KEY_EDIT },       /* "hand": Toggle left mouse button (grab) */
+
+	/* Mouse emulation pad goes here, handled by driver separately */
+
 	{ 0x09, KEY_VOLUMEDOWN }, /* VOL + */
 	{ 0x08, KEY_VOLUMEUP },   /* VOL - */
 	{ 0x0a, KEY_MUTE },       /* MUTE  */
@@ -53,9 +66,9 @@ static struct rc_map_table ati_x10[] = {
 	{ 0x13, KEY_7 },
 	{ 0x14, KEY_8 },
 	{ 0x15, KEY_9 },
-	{ 0x16, KEY_MENU },       /* "menu" */
+	{ 0x16, KEY_MENU },       /* "menu": DVD root menu */
 	{ 0x17, KEY_0 },
-	{ 0x18, KEY_KPENTER },    /* "check" */
+	{ 0x18, KEY_KPENTER },    /* "check": DVD setup menu */
 
 	/* DVD navigation buttons */
 	{ 0x19, KEY_C },
@@ -72,13 +85,13 @@ static struct rc_map_table ati_x10[] = {
 	{ 0x22, KEY_DOWN },       /* down */
 	{ 0x23, KEY_F },
 	/* Play/stop/pause buttons */
-	{ 0x24, KEY_REWIND },     /* (<<) */
-	{ 0x25, KEY_PLAY },       /* ( >) */
-	{ 0x26, KEY_FORWARD },    /* (>>) */
+	{ 0x24, KEY_REWIND },     /* (<<) Rewind */
+	{ 0x25, KEY_PLAY },       /* ( >) Play */
+	{ 0x26, KEY_FORWARD },    /* (>>) Fast forward */
 
 	{ 0x27, KEY_RECORD },     /* ( o) red */
-	{ 0x28, KEY_STOP },       /* ([]) */
-	{ 0x29, KEY_PAUSE },      /* ('') */
+	{ 0x28, KEY_STOP },       /* ([]) Stop */
+	{ 0x29, KEY_PAUSE },      /* ('') Pause */
 
 	/* Extra keys, not on the original ATI remote */
 	{ 0x2a, KEY_NEXT },       /* (>+) */
