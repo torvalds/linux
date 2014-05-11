@@ -248,13 +248,9 @@ void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 	ath9k_cmn_debug_stat_rx(&priv->debug.rx_stats, rs);
 }
 
-static ssize_t read_file_recv(struct file *file, char __user *user_buf,
+static ssize_t read_file_skb_rx(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
-#define PHY_ERR(s, p)							\
-	len += scnprintf(buf + len, size - len, "%20s : %10u\n", s,	\
-			 priv->debug.rx_stats.phy_err_stats[p]);
-
 	struct ath9k_htc_priv *priv = file->private_data;
 	char *buf;
 	unsigned int len = 0, size = 1500;
@@ -274,33 +270,6 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 			 "%20s : %10u\n", "SKBs Dropped",
 			 priv->debug.skbrx_stats.skb_dropped);
 
-	PHY_ERR("UNDERRUN", ATH9K_PHYERR_UNDERRUN);
-	PHY_ERR("TIMING", ATH9K_PHYERR_TIMING);
-	PHY_ERR("PARITY", ATH9K_PHYERR_PARITY);
-	PHY_ERR("RATE", ATH9K_PHYERR_RATE);
-	PHY_ERR("LENGTH", ATH9K_PHYERR_LENGTH);
-	PHY_ERR("RADAR", ATH9K_PHYERR_RADAR);
-	PHY_ERR("SERVICE", ATH9K_PHYERR_SERVICE);
-	PHY_ERR("TOR", ATH9K_PHYERR_TOR);
-	PHY_ERR("OFDM-TIMING", ATH9K_PHYERR_OFDM_TIMING);
-	PHY_ERR("OFDM-SIGNAL-PARITY", ATH9K_PHYERR_OFDM_SIGNAL_PARITY);
-	PHY_ERR("OFDM-RATE", ATH9K_PHYERR_OFDM_RATE_ILLEGAL);
-	PHY_ERR("OFDM-LENGTH", ATH9K_PHYERR_OFDM_LENGTH_ILLEGAL);
-	PHY_ERR("OFDM-POWER-DROP", ATH9K_PHYERR_OFDM_POWER_DROP);
-	PHY_ERR("OFDM-SERVICE", ATH9K_PHYERR_OFDM_SERVICE);
-	PHY_ERR("OFDM-RESTART", ATH9K_PHYERR_OFDM_RESTART);
-	PHY_ERR("FALSE-RADAR-EXT", ATH9K_PHYERR_FALSE_RADAR_EXT);
-	PHY_ERR("CCK-TIMING", ATH9K_PHYERR_CCK_TIMING);
-	PHY_ERR("CCK-HEADER-CRC", ATH9K_PHYERR_CCK_HEADER_CRC);
-	PHY_ERR("CCK-RATE", ATH9K_PHYERR_CCK_RATE_ILLEGAL);
-	PHY_ERR("CCK-SERVICE", ATH9K_PHYERR_CCK_SERVICE);
-	PHY_ERR("CCK-RESTART", ATH9K_PHYERR_CCK_RESTART);
-	PHY_ERR("CCK-LENGTH", ATH9K_PHYERR_CCK_LENGTH_ILLEGAL);
-	PHY_ERR("CCK-POWER-DROP", ATH9K_PHYERR_CCK_POWER_DROP);
-	PHY_ERR("HT-CRC", ATH9K_PHYERR_HT_CRC_ERROR);
-	PHY_ERR("HT-LENGTH", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
-	PHY_ERR("HT-RATE", ATH9K_PHYERR_HT_RATE_ILLEGAL);
-
 	if (len > size)
 		len = size;
 
@@ -308,12 +277,10 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	kfree(buf);
 
 	return retval;
-
-#undef PHY_ERR
 }
 
-static const struct file_operations fops_recv = {
-	.read = read_file_recv,
+static const struct file_operations fops_skb_rx = {
+	.read = read_file_skb_rx,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -542,10 +509,11 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 			    priv, &fops_tgt_rx_stats);
 	debugfs_create_file("xmit", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_xmit);
-	debugfs_create_file("phy_err", S_IRUSR, priv->debug.debugfs_phy,
-			    priv, &fops_recv);
+	debugfs_create_file("skb_rx", S_IRUSR, priv->debug.debugfs_phy,
+			    priv, &fops_skb_rx);
 
 	ath9k_cmn_debug_recv(priv->debug.debugfs_phy, &priv->debug.rx_stats);
+	ath9k_cmn_debug_phy_err(priv->debug.debugfs_phy, &priv->debug.rx_stats);
 
 	debugfs_create_file("slot", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_slot);
