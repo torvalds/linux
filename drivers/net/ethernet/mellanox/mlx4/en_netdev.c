@@ -2539,7 +2539,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
-	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
+	dev->ethtool_ops = &mlx4_en_ethtool_ops;
 
 	/*
 	 * Set driver features

@@ -2813,7 +2813,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 5 * HZ;
 	dev->netdev_ops = &mvneta_netdev_ops;
 
-	SET_ETHTOOL_OPS(dev, &mvneta_eth_tool_ops);
+	dev->ethtool_ops = &mvneta_eth_tool_ops;
 
 	pp = netdev_priv(dev);
 

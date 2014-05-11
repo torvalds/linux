@@ -2879,7 +2879,7 @@ static int emac_probe(struct platform_device *ofdev)
 		dev->commac.ops = &emac_commac_sg_ops;
 	} else
 		ndev->netdev_ops = &emac_netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &emac_ethtool_ops);
+	ndev->ethtool_ops = &emac_ethtool_ops;
 
 	netif_carrier_off(ndev);
 

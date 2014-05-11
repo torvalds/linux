@@ -1100,7 +1100,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		netif_napi_add(netdev, &adapter->napi, t1_poll, 64);
 
-		SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
+		netdev->ethtool_ops = &t1_ethtool_ops;
 	}
 
 	if (t1_init_sw_modules(adapter, bi) < 0) {

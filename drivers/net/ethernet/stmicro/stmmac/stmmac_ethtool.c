@@ -784,5 +784,5 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 
 void stmmac_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &stmmac_ethtool_ops);
+	netdev->ethtool_ops = &stmmac_ethtool_ops;
 }

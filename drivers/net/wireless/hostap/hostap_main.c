@@ -882,7 +882,7 @@ void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 	dev->mtu = local->mtu;
 
 
-	SET_ETHTOOL_OPS(dev, &prism2_ethtool_ops);
+	dev->ethtool_ops = &prism2_ethtool_ops;
 
 }
 

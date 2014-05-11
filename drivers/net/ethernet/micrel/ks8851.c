@@ -1471,7 +1471,7 @@ static int ks8851_probe(struct spi_device *spi)
 
 	skb_queue_head_init(&ks->txq);
 
-	SET_ETHTOOL_OPS(ndev, &ks8851_ethtool_ops);
+	ndev->ethtool_ops = &ks8851_ethtool_ops;
 	SET_NETDEV_DEV(ndev, &spi->dev);
 
 	spi_set_drvdata(spi, ks);

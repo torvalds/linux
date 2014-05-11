@@ -508,5 +508,5 @@ static const struct ethtool_ops pch_gbe_ethtool_ops = {
 
 void pch_gbe_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &pch_gbe_ethtool_ops);
+	netdev->ethtool_ops = &pch_gbe_ethtool_ops;
 }

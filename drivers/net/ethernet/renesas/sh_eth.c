@@ -2843,7 +2843,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		ndev->netdev_ops = &sh_eth_netdev_ops_tsu;
 	else
 		ndev->netdev_ops = &sh_eth_netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &sh_eth_ethtool_ops);
+	ndev->ethtool_ops = &sh_eth_ethtool_ops;
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
 	/* debug message level */

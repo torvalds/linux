@@ -793,7 +793,7 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
 
 	net->netdev_ops = &eth_netdev_ops;
 
-	SET_ETHTOOL_OPS(net, &ops);
+	net->ethtool_ops = &ops;
 
 	dev->gadget = g;
 	SET_NETDEV_DEV(net, &g->dev);
@@ -850,7 +850,7 @@ struct net_device *gether_setup_name_default(const char *netname)
 
 	net->netdev_ops = &eth_netdev_ops;
 
-	SET_ETHTOOL_OPS(net, &ops);
+	net->ethtool_ops = &ops;
 	SET_NETDEV_DEVTYPE(net, &gadget_type);
 
 	return net;

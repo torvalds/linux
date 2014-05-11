@@ -705,5 +705,5 @@ static struct ethtool_ops i40evf_ethtool_ops = {
  **/
 void i40evf_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &i40evf_ethtool_ops);
+	netdev->ethtool_ops = &i40evf_ethtool_ops;
 }

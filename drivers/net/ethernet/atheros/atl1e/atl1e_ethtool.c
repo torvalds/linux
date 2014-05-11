@@ -388,5 +388,5 @@ static const struct ethtool_ops atl1e_ethtool_ops = {
 
 void atl1e_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &atl1e_ethtool_ops);
+	netdev->ethtool_ops = &atl1e_ethtool_ops;
 }

@@ -7106,7 +7106,7 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 
 		dev->netdev_ops = &netdev_ops;
-		SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+		dev->ethtool_ops = &netdev_ethtool_ops;
 		if (register_netdev(dev))
 			goto pcidev_init_reg_err;
 		port_set_power_saving(port, true);

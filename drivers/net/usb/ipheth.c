@@ -524,7 +524,7 @@ static int ipheth_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, dev);
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
-	SET_ETHTOOL_OPS(netdev, &ops);
+	netdev->ethtool_ops = &ops;
 
 	retval = register_netdev(netdev);
 	if (retval) {

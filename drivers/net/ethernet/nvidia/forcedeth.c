@@ -5766,7 +5766,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		dev->netdev_ops = &nv_netdev_ops_optimized;
 
 	netif_napi_add(dev, &np->napi, nv_napi_poll, RX_WORK_PER_LOOP);
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 	dev->watchdog_timeo = NV_WATCHDOG_TIMEO;
 
 	pci_set_drvdata(pci_dev, dev);

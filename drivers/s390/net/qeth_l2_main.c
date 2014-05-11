@@ -969,10 +969,9 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->mtu = card->info.initial_mtu;
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
-	if (card->info.type != QETH_CARD_TYPE_OSN)
-		SET_ETHTOOL_OPS(card->dev, &qeth_l2_ethtool_ops);
-	else
-		SET_ETHTOOL_OPS(card->dev, &qeth_l2_osn_ops);
+	card->dev->ethtool_ops =
+		(card->info.type != QETH_CARD_TYPE_OSN) ?
+		&qeth_l2_ethtool_ops : &qeth_l2_osn_ops;
 	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);

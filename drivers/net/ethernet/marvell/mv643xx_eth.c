@@ -2889,7 +2889,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (err)
 		goto out;
 
-	SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
+	dev->ethtool_ops = &mv643xx_eth_ethtool_ops;
 
 	init_pscr(mp, pd->speed, pd->duplex);
 

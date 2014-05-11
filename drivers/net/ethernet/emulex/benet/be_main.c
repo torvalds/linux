@@ -4304,7 +4304,7 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netdev->netdev_ops = &be_netdev_ops;
 
-	SET_ETHTOOL_OPS(netdev, &be_ethtool_ops);
+	netdev->ethtool_ops = &be_ethtool_ops;
 }
 
 static void be_unmap_pci_bars(struct be_adapter *adapter)

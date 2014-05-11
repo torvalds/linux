@@ -2716,7 +2716,7 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 		return -EEXIST;
 	}
 
-	SET_ETHTOOL_OPS(dev, &vxlan_ethtool_ops);
+	dev->ethtool_ops = &vxlan_ethtool_ops;
 
 	/* create an fdb entry for a valid default destination */
 	if (!vxlan_addr_any(&vxlan->default_dst.remote_ip)) {

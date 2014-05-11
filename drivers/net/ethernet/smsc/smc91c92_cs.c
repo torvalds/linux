@@ -318,7 +318,7 @@ static int smc91c92_probe(struct pcmcia_device *link)
 
     /* The SMC91c92-specific entries in the device structure. */
     dev->netdev_ops = &smc_netdev_ops;
-    SET_ETHTOOL_OPS(dev, &ethtool_ops);
+    dev->ethtool_ops = &ethtool_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
 
     smc->mii_if.dev = dev;

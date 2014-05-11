@@ -810,7 +810,7 @@ static int netvsc_probe(struct hv_device *dev,
 	net->features = NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_SG | NETIF_F_RXCSUM |
 			NETIF_F_IP_CSUM | NETIF_F_TSO;
 
-	SET_ETHTOOL_OPS(net, &ethtool_ops);
+	net->ethtool_ops = &ethtool_ops;
 	SET_NETDEV_DEV(net, &dev->device);
 
 	/* Notify the netvsc driver of the new device */

@@ -1980,7 +1980,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	}
 
 	ndev->netdev_ops = &emac_netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ethtool_ops);
+	ndev->ethtool_ops = &ethtool_ops;
 	netif_napi_add(ndev, &priv->napi, emac_poll, EMAC_POLL_WEIGHT);
 
 	/* register the network device */

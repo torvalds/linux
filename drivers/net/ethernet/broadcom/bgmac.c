@@ -1436,7 +1436,7 @@ static int bgmac_probe(struct bcma_device *core)
 		return -ENOMEM;
 	net_dev->netdev_ops = &bgmac_netdev_ops;
 	net_dev->irq = core->irq;
-	SET_ETHTOOL_OPS(net_dev, &bgmac_ethtool_ops);
+	net_dev->ethtool_ops = &bgmac_ethtool_ops;
 	bgmac = netdev_priv(net_dev);
 	bgmac->net_dev = net_dev;
 	bgmac->core = core;

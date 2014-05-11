@@ -1905,5 +1905,5 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 
 void e1000_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &e1000_ethtool_ops);
+	netdev->ethtool_ops = &e1000_ethtool_ops;
 }

@@ -227,7 +227,7 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 #if 0
 	dev->features = NETIF_F_IP_CSUM;
 #endif

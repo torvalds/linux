@@ -1128,5 +1128,5 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 
 void vxge_initialize_ethtool_ops(struct net_device *ndev)
 {
-	SET_ETHTOOL_OPS(ndev, &vxge_ethtool_ops);
+	ndev->ethtool_ops = &vxge_ethtool_ops;
 }

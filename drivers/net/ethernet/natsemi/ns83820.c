@@ -2030,7 +2030,7 @@ static int ns83820_init_one(struct pci_dev *pci_dev,
 		pci_dev->subsystem_vendor, pci_dev->subsystem_device);
 
 	ndev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ops);
+	ndev->ethtool_ops = &ops;
 	ndev->watchdog_timeo = 5 * HZ;
 	pci_set_drvdata(pci_dev, ndev);
 

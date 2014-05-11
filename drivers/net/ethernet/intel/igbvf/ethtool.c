@@ -476,5 +476,5 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 
 void igbvf_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &igbvf_ethtool_ops);
+	netdev->ethtool_ops = &igbvf_ethtool_ops;
 }

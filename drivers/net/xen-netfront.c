@@ -1332,7 +1332,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
          */
 	netdev->features |= netdev->hw_features;
 
-	SET_ETHTOOL_OPS(netdev, &xennet_ethtool_ops);
+	netdev->ethtool_ops = &xennet_ethtool_ops;
 	SET_NETDEV_DEV(netdev, &dev->dev);
 
 	netif_set_gso_max_size(netdev, XEN_NETIF_MAX_TX_SIZE - MAX_TCP_HEADER);

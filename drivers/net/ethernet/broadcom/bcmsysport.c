@@ -1540,7 +1540,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	dev_set_drvdata(&pdev->dev, dev);
-	SET_ETHTOOL_OPS(dev, &bcm_sysport_ethtool_ops);
+	dev->ethtool_ops = &bcm_sysport_ethtool_ops;
 	dev->netdev_ops = &bcm_sysport_netdev_ops;
 	netif_napi_add(dev, &priv->napi, bcm_sysport_poll, 64);
 

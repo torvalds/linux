@@ -7910,7 +7910,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/*  Driver entry points */
 	dev->netdev_ops = &s2io_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_RXCSUM | NETIF_F_LRO;
