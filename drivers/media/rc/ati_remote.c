@@ -739,7 +739,7 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 	for (i = 0; ati_remote_tbl[i].kind != KIND_END; i++)
 		if (ati_remote_tbl[i].kind == KIND_LITERAL ||
 		    ati_remote_tbl[i].kind == KIND_FILTERED)
-			set_bit(ati_remote_tbl[i].code, idev->keybit);
+			__set_bit(ati_remote_tbl[i].code, idev->keybit);
 
 	input_set_drvdata(idev, ati_remote);
 
