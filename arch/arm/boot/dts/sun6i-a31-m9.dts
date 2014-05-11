@@ -11,6 +11,7 @@
 
 /dts-v1/;
 /include/ "sun6i-a31.dtsi"
+/include/ "sunxi-common-regulators.dtsi"
 
 / {
 	model = "Mele M9 / A1000G Quad top set box";
@@ -24,6 +25,7 @@
 		mmc0: mmc@01c0f000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_m9>;
+			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
 			cd-gpios = <&pio 7 22 0>; /* PH22 */
 			cd-inverted;
