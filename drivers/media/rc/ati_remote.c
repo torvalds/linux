@@ -568,7 +568,6 @@ static void ati_remote_input_report(struct urb *urb)
 		 */
 		input_event(dev, EV_KEY, ati_remote_tbl[index].code,
 			!(data[2] & 1));
-		input_sync(dev);
 
 		ati_remote->old_jiffies = jiffies;
 
@@ -585,7 +584,6 @@ static void ati_remote_input_report(struct urb *urb)
 			ati_remote->first_jiffies = now;
 		}
 
-		ati_remote->old_data = data[2];
 		ati_remote->old_jiffies = now;
 
 		/* Ensure we skip at least the 4 first duplicate events
@@ -598,7 +596,10 @@ static void ati_remote_input_report(struct urb *urb)
 				      msecs_to_jiffies(repeat_delay))))
 			return;
 
-		if (index < 0) {
+		if (index >= 0) {
+			input_event(dev, EV_KEY, ati_remote_tbl[index].code, 1);
+			input_event(dev, EV_KEY, ati_remote_tbl[index].code, 0);
+		} else {
 			/* Not a mouse event, hand it to rc-core. */
 			int count = 1;
 
@@ -623,12 +624,8 @@ static void ati_remote_input_report(struct urb *urb)
 						     scancode, data[2]);
 				rc_keyup(ati_remote->rdev);
 			}
-			return;
+			goto nosync;
 		}
-
-		input_event(dev, EV_KEY, ati_remote_tbl[index].code, 1);
-		input_event(dev, EV_KEY, ati_remote_tbl[index].code, 0);
-		input_sync(dev);
 
 	} else if (ati_remote_tbl[index].kind == KIND_ACCEL) {
 		signed char dx = ati_remote_tbl[index].code >> 8;
@@ -644,14 +641,16 @@ static void ati_remote_input_report(struct urb *urb)
 			input_report_rel(dev, REL_X, dx * acc);
 		if (dy)
 			input_report_rel(dev, REL_Y, dy * acc);
-		input_sync(dev);
-
 		ati_remote->old_jiffies = jiffies;
-		ati_remote->old_data = data[2];
+
 	} else {
 		dev_dbg(&ati_remote->interface->dev, "ati_remote kind=%d\n",
 			ati_remote_tbl[index].kind);
+		return;
 	}
+	input_sync(dev);
+nosync:
+	ati_remote->old_data = data[2];
 }
 
 /*
