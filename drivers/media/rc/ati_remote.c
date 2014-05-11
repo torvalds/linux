@@ -289,11 +289,11 @@ struct ati_remote {
 
 /* Translation table from hardware messages to input events. */
 static const struct {
-	short kind;
+	unsigned char kind;
 	unsigned char data;
-	int type;
-	unsigned int code;
-	int value;
+	unsigned char type;
+	unsigned short code;
+	signed char value;
 }  ati_remote_tbl[] = {
 	/* Directional control pad axes */
 	{KIND_ACCEL,   0x70, EV_REL, REL_X, -1},   /* left */
