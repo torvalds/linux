@@ -101,19 +101,6 @@ enum mx3_cpu_pwr_mode {
 void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
 void imx_print_silicon_rev(const char *cpu, int srev);
 
-void avic_handle_irq(struct pt_regs *);
-void tzic_handle_irq(struct pt_regs *);
-
-#define imx1_handle_irq avic_handle_irq
-#define imx21_handle_irq avic_handle_irq
-#define imx25_handle_irq avic_handle_irq
-#define imx27_handle_irq avic_handle_irq
-#define imx31_handle_irq avic_handle_irq
-#define imx35_handle_irq avic_handle_irq
-#define imx50_handle_irq tzic_handle_irq
-#define imx51_handle_irq tzic_handle_irq
-#define imx53_handle_irq tzic_handle_irq
-
 void imx_enable_cpu(int cpu, bool enable);
 void imx_set_cpu_jump(int cpu, void *jump_addr);
 u32 imx_get_cpu_arg(int cpu);

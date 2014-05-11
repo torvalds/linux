@@ -327,7 +327,6 @@ MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	.map_io		= mx21_map_io,
 	.init_early = imx21_init_early,
 	.init_irq = mx21_init_irq,
-	.handle_irq = imx21_handle_irq,
 	.init_time	= mx21ads_timer_init,
 	.init_machine = mx21ads_board_init,
 	.restart	= mxc_restart,

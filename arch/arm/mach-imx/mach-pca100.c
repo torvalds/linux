@@ -420,7 +420,6 @@ MACHINE_START(PCA100, "phyCARD-i.MX27")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
 	.init_machine = pca100_init,
 	.init_time	= pca100_timer_init,
 	.restart	= mxc_restart,
