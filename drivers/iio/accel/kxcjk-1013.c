@@ -108,6 +108,7 @@ struct kxcjk1013_data {
 	bool motion_trigger_on;
 	int64_t timestamp;
 	enum kx_chipset chipset;
+	bool is_smo8500_device;
 };
 
 enum kxcjk1013_axis {
@@ -1129,12 +1130,15 @@ static irqreturn_t kxcjk1013_data_rdy_trig_poll(int irq, void *private)
 }
 
 static const char *kxcjk1013_match_acpi_device(struct device *dev,
-					       enum kx_chipset *chipset)
+					       enum kx_chipset *chipset,
+					       bool *is_smo8500_device)
 {
 	const struct acpi_device_id *id;
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
 		return NULL;
+	if (strcmp(id->id, "SMO8500") == 0)
+		*is_smo8500_device = true;
 	*chipset = (enum kx_chipset)id->driver_data;
 
 	return dev_name(dev);
@@ -1149,6 +1153,8 @@ static int kxcjk1013_gpio_probe(struct i2c_client *client,
 
 	if (!client)
 		return -EINVAL;
+	if (data->is_smo8500_device)
+		return -ENOTSUPP;
 
 	dev = &client->dev;
 
@@ -1198,7 +1204,8 @@ static int kxcjk1013_probe(struct i2c_client *client,
 		name = id->name;
 	} else if (ACPI_HANDLE(&client->dev)) {
 		name = kxcjk1013_match_acpi_device(&client->dev,
-						   &data->chipset);
+						   &data->chipset,
+						   &data->is_smo8500_device);
 	} else
 		return -ENODEV;
 
@@ -1397,6 +1404,7 @@ static const struct acpi_device_id kx_acpi_match[] = {
 	{"KXCJ1013", KXCJK1013},
 	{"KXCJ1008", KXCJ91008},
 	{"KXTJ1009", KXTJ21009},
+	{"SMO8500",  KXCJ91008},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, kx_acpi_match);
@@ -1405,6 +1413,7 @@ static const struct i2c_device_id kxcjk1013_id[] = {
 	{"kxcjk1013", KXCJK1013},
 	{"kxcj91008", KXCJ91008},
 	{"kxtj21009", KXTJ21009},
+	{"SMO8500",   KXCJ91008},
 	{}
 };
 
