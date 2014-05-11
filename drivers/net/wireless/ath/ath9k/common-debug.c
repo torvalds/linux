@@ -182,3 +182,72 @@ void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
 			    &fops_recv);
 }
 EXPORT_SYMBOL(ath9k_cmn_debug_recv);
+
+static ssize_t read_file_phy_err(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+#define PHY_ERR(s, p) \
+	len += scnprintf(buf + len, size - len, "%22s : %10u\n", s, \
+			 rxstats->phy_err_stats[p]);
+
+	struct ath_rx_stats *rxstats = file->private_data;
+	char *buf;
+	unsigned int len = 0, size = 1600;
+	ssize_t retval = 0;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	PHY_ERR("UNDERRUN ERR", ATH9K_PHYERR_UNDERRUN);
+	PHY_ERR("TIMING ERR", ATH9K_PHYERR_TIMING);
+	PHY_ERR("PARITY ERR", ATH9K_PHYERR_PARITY);
+	PHY_ERR("RATE ERR", ATH9K_PHYERR_RATE);
+	PHY_ERR("LENGTH ERR", ATH9K_PHYERR_LENGTH);
+	PHY_ERR("RADAR ERR", ATH9K_PHYERR_RADAR);
+	PHY_ERR("SERVICE ERR", ATH9K_PHYERR_SERVICE);
+	PHY_ERR("TOR ERR", ATH9K_PHYERR_TOR);
+	PHY_ERR("OFDM-TIMING ERR", ATH9K_PHYERR_OFDM_TIMING);
+	PHY_ERR("OFDM-SIGNAL-PARITY ERR", ATH9K_PHYERR_OFDM_SIGNAL_PARITY);
+	PHY_ERR("OFDM-RATE ERR", ATH9K_PHYERR_OFDM_RATE_ILLEGAL);
+	PHY_ERR("OFDM-LENGTH ERR", ATH9K_PHYERR_OFDM_LENGTH_ILLEGAL);
+	PHY_ERR("OFDM-POWER-DROP ERR", ATH9K_PHYERR_OFDM_POWER_DROP);
+	PHY_ERR("OFDM-SERVICE ERR", ATH9K_PHYERR_OFDM_SERVICE);
+	PHY_ERR("OFDM-RESTART ERR", ATH9K_PHYERR_OFDM_RESTART);
+	PHY_ERR("FALSE-RADAR-EXT ERR", ATH9K_PHYERR_FALSE_RADAR_EXT);
+	PHY_ERR("CCK-TIMING ERR", ATH9K_PHYERR_CCK_TIMING);
+	PHY_ERR("CCK-HEADER-CRC ERR", ATH9K_PHYERR_CCK_HEADER_CRC);
+	PHY_ERR("CCK-RATE ERR", ATH9K_PHYERR_CCK_RATE_ILLEGAL);
+	PHY_ERR("CCK-SERVICE ERR", ATH9K_PHYERR_CCK_SERVICE);
+	PHY_ERR("CCK-RESTART ERR", ATH9K_PHYERR_CCK_RESTART);
+	PHY_ERR("CCK-LENGTH ERR", ATH9K_PHYERR_CCK_LENGTH_ILLEGAL);
+	PHY_ERR("CCK-POWER-DROP ERR", ATH9K_PHYERR_CCK_POWER_DROP);
+	PHY_ERR("HT-CRC ERR", ATH9K_PHYERR_HT_CRC_ERROR);
+	PHY_ERR("HT-LENGTH ERR", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
+	PHY_ERR("HT-RATE ERR", ATH9K_PHYERR_HT_RATE_ILLEGAL);
+
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+
+#undef PHY_ERR
+}
+
+static const struct file_operations fops_phy_err = {
+	.read = read_file_phy_err,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
+			     struct ath_rx_stats *rxstats)
+{
+	debugfs_create_file("phy_err", S_IRUSR, debugfs_phy, rxstats,
+			    &fops_phy_err);
+}
+EXPORT_SYMBOL(ath9k_cmn_debug_phy_err);
