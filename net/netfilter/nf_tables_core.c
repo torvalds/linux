@@ -182,18 +182,16 @@ next_rule:
 	case NFT_RETURN:
 		if (unlikely(pkt->skb->nf_trace))
 			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RETURN);
-
-		/* fall through */
+		break;
 	case NFT_CONTINUE:
+		if (unlikely(pkt->skb->nf_trace && !(chain->flags & NFT_BASE_CHAIN)))
+			nft_trace_packet(pkt, chain, ++rulenum, NFT_TRACE_RETURN);
 		break;
 	default:
 		WARN_ON(1);
 	}
 
 	if (stackptr > 0) {
-		if (unlikely(pkt->skb->nf_trace))
-			nft_trace_packet(pkt, chain, ++rulenum, NFT_TRACE_RETURN);
-
 		stackptr--;
 		chain = jumpstack[stackptr].chain;
 		rule  = jumpstack[stackptr].rule;
