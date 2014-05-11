@@ -934,7 +934,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 	if (rc)
 		return rc;
 
-	if (dev->streaming_users == 0) {
+	if (v4l2->streaming_users == 0) {
 		/* First active streaming user, so allocate all the URBs */
 
 		/* Allocate the USB bandwidth */
@@ -972,7 +972,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 				     0, tuner, s_frequency, &f);
 	}
 
-	dev->streaming_users++;
+	v4l2->streaming_users++;
 
 	return rc;
 }
@@ -980,6 +980,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 static void em28xx_stop_streaming(struct vb2_queue *vq)
 {
 	struct em28xx *dev = vb2_get_drv_priv(vq);
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	struct em28xx_dmaqueue *vidq = &dev->vidq;
 	unsigned long flags = 0;
 
@@ -987,7 +988,7 @@ static void em28xx_stop_streaming(struct vb2_queue *vq)
 
 	res_free(dev, vq->type);
 
-	if (dev->streaming_users-- == 1) {
+	if (v4l2->streaming_users-- == 1) {
 		/* Last active user, so shutdown all the URBS */
 		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
 	}
@@ -1006,6 +1007,7 @@ static void em28xx_stop_streaming(struct vb2_queue *vq)
 void em28xx_stop_vbi_streaming(struct vb2_queue *vq)
 {
 	struct em28xx *dev = vb2_get_drv_priv(vq);
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	struct em28xx_dmaqueue *vbiq = &dev->vbiq;
 	unsigned long flags = 0;
 
@@ -1013,7 +1015,7 @@ void em28xx_stop_vbi_streaming(struct vb2_queue *vq)
 
 	res_free(dev, vq->type);
 
-	if (dev->streaming_users-- == 1) {
+	if (v4l2->streaming_users-- == 1) {
 		/* Last active user, so shutdown all the URBS */
 		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
 	}
@@ -1340,8 +1342,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx *dev = video_drvdata(file);
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (dev->streaming_users > 0)
+	if (v4l2->streaming_users > 0)
 		return -EBUSY;
 
 	vidioc_try_fmt_vid_cap(file, priv, f);
@@ -1380,7 +1383,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	if (norm == v4l2->norm)
 		return 0;
 
-	if (dev->streaming_users > 0)
+	if (v4l2->streaming_users > 0)
 		return -EBUSY;
 
 	v4l2->norm = norm;
@@ -1903,7 +1906,7 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	em28xx_videodbg("open dev=%s type=%s users=%d\n",
 			video_device_node_name(vdev), v4l2_type_names[fh_type],
-			dev->users);
+			v4l2->users);
 
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
@@ -1918,7 +1921,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	fh->type = fh_type;
 	filp->private_data = fh;
 
-	if (dev->users == 0) {
+	if (v4l2->users == 0) {
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 
 		if (vdev->vfl_type != VFL_TYPE_RADIO)
@@ -1938,7 +1941,7 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	kref_get(&dev->ref);
 	kref_get(&v4l2->ref);
-	dev->users++;
+	v4l2->users++;
 
 	mutex_unlock(&dev->lock);
 	v4l2_fh_add(&fh->fh);
@@ -2047,12 +2050,12 @@ static int em28xx_v4l2_close(struct file *filp)
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 	int              errCode;
 
-	em28xx_videodbg("users=%d\n", dev->users);
+	em28xx_videodbg("users=%d\n", v4l2->users);
 
 	vb2_fop_release(filp);
 	mutex_lock(&dev->lock);
 
-	if (dev->users == 1) {
+	if (v4l2->users == 1) {
 		/* No sense to try to write to the device */
 		if (dev->disconnected)
 			goto exit;
@@ -2074,8 +2077,8 @@ static int em28xx_v4l2_close(struct file *filp)
 	}
 
 exit:
+	v4l2->users--;
 	kref_put(&v4l2->ref, em28xx_free_v4l2);
-	dev->users--;
 	mutex_unlock(&dev->lock);
 	kref_put(&dev->ref, em28xx_free_device);
 
