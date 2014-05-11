@@ -507,8 +507,9 @@ static void ati_remote_input_report(struct urb *urb)
 	 */
 
 	/* Deal with strange looking inputs */
-	if ( (urb->actual_length != 4) || (data[0] != 0x14) ||
-		((data[3] & 0x0f) != 0x00) ) {
+	if ( urb->actual_length != 4 || data[0] != 0x14 ||
+	     data[1] != (unsigned char)(data[2] + data[3] + 0xD5) ||
+	     (data[3] & 0x0f) != 0x00) {
 		ati_remote_dump(&urb->dev->dev, data, urb->actual_length);
 		return;
 	}
@@ -524,9 +525,9 @@ static void ati_remote_input_report(struct urb *urb)
 	remote_num = (data[3] >> 4) & 0x0f;
 	if (channel_mask & (1 << (remote_num + 1))) {
 		dbginfo(&ati_remote->interface->dev,
-			"Masked input from channel 0x%02x: data %02x,%02x, "
+			"Masked input from channel 0x%02x: data %02x, "
 			"mask= 0x%02lx\n",
-			remote_num, data[1], data[2], channel_mask);
+			remote_num, data[2], channel_mask);
 		return;
 	}
 
