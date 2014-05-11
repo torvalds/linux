@@ -119,3 +119,66 @@ void ath9k_cmn_debug_stat_rx(struct ath_rx_stats *rxstats,
 #undef RX_PHY_ERR_INC
 }
 EXPORT_SYMBOL(ath9k_cmn_debug_stat_rx);
+
+static ssize_t read_file_recv(struct file *file, char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+#define RXS_ERR(s, e)					\
+	do {						\
+		len += scnprintf(buf + len, size - len,	\
+				 "%18s : %10u\n", s,	\
+				 rxstats->e);		\
+	} while (0)
+
+	struct ath_rx_stats *rxstats = file->private_data;
+	char *buf;
+	unsigned int len = 0, size = 1600;
+	ssize_t retval = 0;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	RXS_ERR("PKTS-ALL", rx_pkts_all);
+	RXS_ERR("BYTES-ALL", rx_bytes_all);
+	RXS_ERR("BEACONS", rx_beacons);
+	RXS_ERR("FRAGS", rx_frags);
+	RXS_ERR("SPECTRAL", rx_spectral);
+
+	RXS_ERR("CRC ERR", crc_err);
+	RXS_ERR("DECRYPT CRC ERR", decrypt_crc_err);
+	RXS_ERR("PHY ERR", phy_err);
+	RXS_ERR("MIC ERR", mic_err);
+	RXS_ERR("PRE-DELIM CRC ERR", pre_delim_crc_err);
+	RXS_ERR("POST-DELIM CRC ERR", post_delim_crc_err);
+	RXS_ERR("DECRYPT BUSY ERR", decrypt_busy_err);
+	RXS_ERR("LENGTH-ERR", rx_len_err);
+	RXS_ERR("OOM-ERR", rx_oom_err);
+	RXS_ERR("RATE-ERR", rx_rate_err);
+	RXS_ERR("TOO-MANY-FRAGS", rx_too_many_frags_err);
+
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+
+#undef RXS_ERR
+}
+
+static const struct file_operations fops_recv = {
+	.read = read_file_recv,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
+			  struct ath_rx_stats *rxstats)
+{
+	debugfs_create_file("recv", S_IRUSR, debugfs_phy, rxstats,
+			    &fops_recv);
+}
+EXPORT_SYMBOL(ath9k_cmn_debug_recv);
