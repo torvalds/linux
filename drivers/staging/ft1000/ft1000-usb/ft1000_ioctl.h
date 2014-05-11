@@ -28,12 +28,12 @@
 #ifndef _FT1000IOCTLH_
 #define _FT1000IOCTLH_
 
-typedef struct _IOCTL_GET_VER {
+struct IOCTL_GET_VER {
 	unsigned long drv_ver;
-} __packed IOCTL_GET_VER, *PIOCTL_GET_VER;
+} __packed;
 
 /* Data structure for Dsp statistics */
-typedef struct _IOCTL_GET_DSP_STAT {
+struct IOCTL_GET_DSP_STAT {
 	unsigned char DspVer[DSPVERSZ];        /* DSP version number */
 	unsigned char HwSerNum[HWSERNUMSZ];    /* Hardware Serial Number */
 	unsigned char Sku[SKUSZ];              /* SKU */
@@ -67,19 +67,19 @@ typedef struct _IOCTL_GET_DSP_STAT {
 	unsigned long ConTm;                  /* Current session connection time in seconds */
 	unsigned char CalVer[CALVERSZ];       /* Proprietary Calibration Version */
 	unsigned char CalDate[CALDATESZ];     /* Proprietary Calibration Date */
-} __packed IOCTL_GET_DSP_STAT, *PIOCTL_GET_DSP_STAT;
+} __packed;
 
 /* Data structure for Dual Ported RAM messaging between Host and Dsp */
-typedef struct _IOCTL_DPRAM_BLK {
+struct IOCTL_DPRAM_BLK {
 	unsigned short total_len;
 	struct pseudo_hdr pseudohdr;
 	unsigned char buffer[1780];
-} __packed IOCTL_DPRAM_BLK, *PIOCTL_DPRAM_BLK;
+} __packed;
 
-typedef struct _IOCTL_DPRAM_COMMAND {
+struct IOCTL_DPRAM_COMMAND {
 	unsigned short extra;
-	IOCTL_DPRAM_BLK dpram_blk;
-} __packed IOCTL_DPRAM_COMMAND, *PIOCTL_DPRAM_COMMAND;
+	struct IOCTL_DPRAM_BLK dpram_blk;
+} __packed;
 
 /*
 * Custom IOCTL command codes
@@ -94,12 +94,12 @@ typedef struct _IOCTL_DPRAM_COMMAND {
 #define IOCTL_CONNECT		10
 #define IOCTL_DISCONNECT	11
 
-#define IOCTL_FT1000_GET_DSP_STAT _IOR(FT1000_MAGIC_CODE, IOCTL_GET_DSP_STAT_CMD, IOCTL_GET_DSP_STAT)
-#define IOCTL_FT1000_GET_VER _IOR(FT1000_MAGIC_CODE, IOCTL_GET_VER_CMD, IOCTL_GET_VER)
+#define IOCTL_FT1000_GET_DSP_STAT _IOR(FT1000_MAGIC_CODE, IOCTL_GET_DSP_STAT_CMD, struct IOCTL_GET_DSP_STAT)
+#define IOCTL_FT1000_GET_VER _IOR(FT1000_MAGIC_CODE, IOCTL_GET_VER_CMD, struct IOCTL_GET_VER)
 #define IOCTL_FT1000_CONNECT _IO(FT1000_MAGIC_CODE, IOCTL_CONNECT)
 #define IOCTL_FT1000_DISCONNECT _IO(FT1000_MAGIC_CODE, IOCTL_DISCONNECT)
-#define IOCTL_FT1000_SET_DPRAM _IOW(FT1000_MAGIC_CODE, IOCTL_SET_DPRAM_CMD, IOCTL_DPRAM_BLK)
-#define IOCTL_FT1000_GET_DPRAM _IOR(FT1000_MAGIC_CODE, IOCTL_GET_DPRAM_CMD, IOCTL_DPRAM_BLK)
+#define IOCTL_FT1000_SET_DPRAM _IOW(FT1000_MAGIC_CODE, IOCTL_SET_DPRAM_CMD, struct IOCTL_DPRAM_BLK)
+#define IOCTL_FT1000_GET_DPRAM _IOR(FT1000_MAGIC_CODE, IOCTL_GET_DPRAM_CMD, struct IOCTL_DPRAM_BLK)
 #define IOCTL_FT1000_REGISTER  _IOW(FT1000_MAGIC_CODE, IOCTL_REGISTER_CMD, unsigned short *)
 
 #endif /* _FT1000IOCTLH_ */
