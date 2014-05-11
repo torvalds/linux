@@ -363,6 +363,15 @@ static irqreturn_t arc_emac_intr(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void arc_emac_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	arc_emac_intr(dev->irq, dev);
+	enable_irq(dev->irq);
+}
+#endif
+
 /**
  * arc_emac_open - Open the network device.
  * @ndev:	Pointer to the network device.
@@ -657,6 +666,9 @@ static const struct net_device_ops arc_emac_netdev_ops = {
 	.ndo_set_mac_address	= arc_emac_set_address,
 	.ndo_get_stats		= arc_emac_stats,
 	.ndo_set_rx_mode	= arc_emac_set_rx_mode,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= arc_emac_poll_controller,
+#endif
 };
 
 static int arc_emac_probe(struct platform_device *pdev)
