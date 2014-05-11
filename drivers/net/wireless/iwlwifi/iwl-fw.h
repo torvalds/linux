@@ -196,6 +196,11 @@ struct fw_img {
 	bool is_dual_cpus;
 };
 
+struct iwl_sf_region {
+	u32 addr;
+	u32 size;
+};
+
 /* uCode version contains 4 values: Major/Minor/API/Serial */
 #define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
 #define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)

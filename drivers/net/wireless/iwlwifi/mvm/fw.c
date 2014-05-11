@@ -137,6 +137,8 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		alive_data->scd_base_addr = le32_to_cpu(palive2->scd_base_ptr);
 		mvm->umac_error_event_table =
 			le32_to_cpu(palive2->error_info_addr);
+		mvm->sf_space.addr = le32_to_cpu(palive2->st_fwrd_addr);
+		mvm->sf_space.size = le32_to_cpu(palive2->st_fwrd_size);
 
 		alive_data->valid = le16_to_cpu(palive2->status) ==
 				    IWL_ALIVE_STATUS_OK;
@@ -180,6 +182,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	int ret, i;
 	enum iwl_ucode_type old_type = mvm->cur_ucode;
 	static const u8 alive_cmd[] = { MVM_ALIVE };
+	struct iwl_sf_region st_fwrd_space;
 
 	fw = iwl_get_ucode_image(mvm, ucode_type);
 	if (WARN_ON(!fw))
@@ -214,6 +217,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		mvm->cur_ucode = old_type;
 		return -EIO;
 	}
+
+	/*
+	 * update the sdio allocation according to the pointer we get in the
+	 * alive notification.
+	 */
+	st_fwrd_space.addr = mvm->sf_space.addr;
+	st_fwrd_space.size = mvm->sf_space.size;
+	ret = iwl_trans_update_sf(mvm->trans, &st_fwrd_space);
 
 	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
 

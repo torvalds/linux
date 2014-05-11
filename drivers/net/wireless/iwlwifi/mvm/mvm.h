@@ -490,6 +490,7 @@ struct iwl_mvm {
 	u32 log_event_table;
 	u32 umac_error_event_table;
 	bool support_umac_log;
+	struct iwl_sf_region sf_space;
 
 	u32 ampdu_ref;
 

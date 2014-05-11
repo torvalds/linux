@@ -473,6 +473,8 @@ struct iwl_trans_ops {
 	void (*op_mode_leave)(struct iwl_trans *iwl_trans);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
 			bool run_in_rfkill);
+	int (*update_sf)(struct iwl_trans *trans,
+			 struct iwl_sf_region *st_fwrd_space);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
@@ -634,6 +636,17 @@ static inline int iwl_trans_start_fw(struct iwl_trans *trans,
 
 	clear_bit(STATUS_FW_ERROR, &trans->status);
 	return trans->ops->start_fw(trans, fw, run_in_rfkill);
+}
+
+static inline int iwl_trans_update_sf(struct iwl_trans *trans,
+				      struct iwl_sf_region *st_fwrd_space)
+{
+	might_sleep();
+
+	if (trans->ops->update_sf)
+		return trans->ops->update_sf(trans, st_fwrd_space);
+
+	return 0;
 }
 
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
