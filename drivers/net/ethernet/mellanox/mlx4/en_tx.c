@@ -113,7 +113,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	       ring->buf_size, (unsigned long long) ring->wqres.buf.direct.map);
 
 	ring->qpn = qpn;
-	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp);
+	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating qp %d\n", ring->qpn);
 		goto err_map;
