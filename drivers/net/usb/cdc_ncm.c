@@ -541,10 +541,10 @@ void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(cdc_ncm_unbind);
 
-/* Select the MBIM altsetting iff it is preferred and available,
- * returning the number of the corresponding data interface altsetting
+/* Return the number of the MBIM control interface altsetting iff it
+ * is preferred and available,
  */
-u8 cdc_ncm_select_altsetting(struct usbnet *dev, struct usb_interface *intf)
+u8 cdc_ncm_select_altsetting(struct usb_interface *intf)
 {
 	struct usb_host_interface *alt;
 
@@ -563,15 +563,15 @@ u8 cdc_ncm_select_altsetting(struct usbnet *dev, struct usb_interface *intf)
 	 *   the rules given in section 6 (USB Device Model) of this
 	 *   specification."
 	 */
-	if (prefer_mbim && intf->num_altsetting == 2) {
+	if (intf->num_altsetting < 2)
+		return intf->cur_altsetting->desc.bAlternateSetting;
+
+	if (prefer_mbim) {
 		alt = usb_altnum_to_altsetting(intf, CDC_NCM_COMM_ALTSETTING_MBIM);
-		if (alt && cdc_ncm_comm_intf_is_mbim(alt) &&
-		    !usb_set_interface(dev->udev,
-				       intf->cur_altsetting->desc.bInterfaceNumber,
-				       CDC_NCM_COMM_ALTSETTING_MBIM))
-			return CDC_NCM_DATA_ALTSETTING_MBIM;
+		if (alt && cdc_ncm_comm_intf_is_mbim(alt))
+			return CDC_NCM_COMM_ALTSETTING_MBIM;
 	}
-	return CDC_NCM_DATA_ALTSETTING_NCM;
+	return CDC_NCM_COMM_ALTSETTING_NCM;
 }
 EXPORT_SYMBOL_GPL(cdc_ncm_select_altsetting);
 
@@ -580,12 +580,11 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	int ret;
 
 	/* MBIM backwards compatible function? */
-	cdc_ncm_select_altsetting(dev, intf);
-	if (cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
+	if (cdc_ncm_select_altsetting(intf) != CDC_NCM_COMM_ALTSETTING_NCM)
 		return -ENODEV;
 
-	/* NCM data altsetting is always 1 */
-	ret = cdc_ncm_bind_common(dev, intf, 1);
+	/* The NCM data altsetting is fixed */
+	ret = cdc_ncm_bind_common(dev, intf, CDC_NCM_DATA_ALTSETTING_NCM);
 
 	/*
 	 * We should get an event when network connection is "connected" or

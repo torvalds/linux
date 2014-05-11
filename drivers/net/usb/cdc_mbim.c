@@ -107,15 +107,54 @@ static const struct net_device_ops cdc_mbim_netdev_ops = {
 	.ndo_vlan_rx_kill_vid = cdc_mbim_rx_kill_vid,
 };
 
+/* Change the control interface altsetting and update the .driver_info
+ * pointer if the matching entry after changing class codes points to
+ * a different struct
+ */
+static int cdc_mbim_set_ctrlalt(struct usbnet *dev, struct usb_interface *intf, u8 alt)
+{
+	struct usb_driver *driver = to_usb_driver(intf->dev.driver);
+	const struct usb_device_id *id;
+	struct driver_info *info;
+	int ret;
+
+	ret = usb_set_interface(dev->udev,
+				intf->cur_altsetting->desc.bInterfaceNumber,
+				alt);
+	if (ret)
+		return ret;
+
+	id = usb_match_id(intf, driver->id_table);
+	if (!id)
+		return -ENODEV;
+
+	info = (struct driver_info *)id->driver_info;
+	if (info != dev->driver_info) {
+		dev_dbg(&intf->dev, "driver_info updated to '%s'\n",
+			info->description);
+		dev->driver_info = info;
+	}
+	return 0;
+}
+
 static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct cdc_ncm_ctx *ctx;
 	struct usb_driver *subdriver = ERR_PTR(-ENODEV);
 	int ret = -ENODEV;
-	u8 data_altsetting = cdc_ncm_select_altsetting(dev, intf);
+	u8 data_altsetting = 1;
 	struct cdc_mbim_state *info = (void *)&dev->data;
 
-	/* Probably NCM, defer for cdc_ncm_bind */
+	/* should we change control altsetting on a NCM/MBIM function? */
+	if (cdc_ncm_select_altsetting(intf) == CDC_NCM_COMM_ALTSETTING_MBIM) {
+		data_altsetting = CDC_NCM_DATA_ALTSETTING_MBIM;
+		ret = cdc_mbim_set_ctrlalt(dev, intf, CDC_NCM_COMM_ALTSETTING_MBIM);
+		if (ret)
+			goto err;
+		ret = -ENODEV;
+	}
+
+	/* we will hit this for NCM/MBIM functions if prefer_mbim is false */
 	if (!cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
 		goto err;
 
