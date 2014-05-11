@@ -47,6 +47,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/prefetch.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/usb.h>
@@ -244,9 +245,6 @@ enum cvmx_usb_pipe_flags {
 	__CVMX_USB_PIPE_FLAGS_SCHEDULED	= 1 << 17,
 	__CVMX_USB_PIPE_FLAGS_NEED_PING	= 1 << 18,
 };
-
-/* Normal prefetch that use the pref instruction. */
-#define CVMX_PREFETCH(address, offset) asm volatile ("pref %[type], %[off](%[rbase])" : : [rbase] "d" (address), [off] "I" (offset), [type] "n" (0))
 
 /* Maximum number of times to retry failed transactions */
 #define MAX_RETRIES		3
@@ -2008,7 +2006,7 @@ static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(
 			 ((((int)current_frame - (int)pipe->split_sc_frame)
 			   & 0x7f) < 0x40)) &&
 			(!usb->active_split || (usb->active_split == t))) {
-			CVMX_PREFETCH(t, 0);
+			prefetch(t);
 			return pipe;
 		}
 	}
@@ -2658,13 +2656,13 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 
 	/* Make sure this channel is tied to a valid pipe */
 	pipe = usb->pipe_for_channel[channel];
-	CVMX_PREFETCH(pipe, 0);
+	prefetch(pipe);
 	if (!pipe)
 		return 0;
 	transaction = list_first_entry(&pipe->transactions,
 				       typeof(*transaction),
 				       node);
-	CVMX_PREFETCH(transaction, 0);
+	prefetch(transaction);
 
 	/*
 	 * Disconnect this pipe from the HW channel. Later the schedule
@@ -3121,11 +3119,7 @@ static int cvmx_usb_poll(struct cvmx_usb_state *usb)
 	union cvmx_usbcx_hfnum usbc_hfnum;
 	union cvmx_usbcx_gintsts usbc_gintsts;
 
-	CVMX_PREFETCH(usb, 0);
-	CVMX_PREFETCH(usb, 1*128);
-	CVMX_PREFETCH(usb, 2*128);
-	CVMX_PREFETCH(usb, 3*128);
-	CVMX_PREFETCH(usb, 4*128);
+	prefetch_range(usb, sizeof(*usb));
 
 	/* Update the frame counter */
 	usbc_hfnum.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index));
