@@ -23,8 +23,8 @@
 #include <linux/leds.h>
 #include <linux/completion.h>
 
-#include "debug.h"
 #include "common.h"
+#include "debug.h"
 #include "mci.h"
 #include "dfs.h"
 #include "spectral.h"
