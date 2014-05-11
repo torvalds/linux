@@ -114,6 +114,7 @@ static void rk_mipi_screen_cmd_init(struct mipi_screen *screen)
 			else if (dcs_cmd->dcs_cmd.dsi_id == 2){
 				MIPI_SCREEN_DBG("dcs_cmd.dsi_id == 2 line=%d\n",__LINE__); 
 				dsi_send_packet(0, cmds, len);
+				dsi_send_packet(1, cmds, len);
 			}
 			else{
 				MIPI_SCREEN_DBG("dsi is err.");
