@@ -237,6 +237,8 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 			c[3] = tci;
 			break;
 		case 0x0100: /* VLAN ID 256 - 511 */
+			if (is_ip)
+				goto error;
 			sign = cpu_to_le32(USB_CDC_MBIM_NDP16_DSS_SIGN);
 			c = (u8 *)&sign;
 			c[3] = tci;
