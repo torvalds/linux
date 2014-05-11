@@ -935,15 +935,14 @@
 				};
 			};
 
-			pd_vpu {
-				clk_ddr_vepu_table: clk_vepu {
+			pd_vio {
+				aclk_vio1_dvfs_table: aclk_vio1 {
 					operating-points = <
 						/* KHz    uV */
-						200000 1300000
-						300000 1300000
-						400000 1300000
+						100000 1000000
+						500000 1000000
 						>;
-					status = "disabled";
+					status = "okay";
 				};
 			};
 		};
@@ -958,14 +957,6 @@
 						200000 1200000
 						300000 1200000
 						400000 1200000
-						>;
-					//temp-channel=<2>;
-					temp-limit = <
-						/*temp    freq*/
-						50	600000
-						70	500000
-						80	400000
-						100	300000
 						>;
 					status = "okay";
 				};

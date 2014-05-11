@@ -312,7 +312,7 @@ static int dvfs_get_rate_range(struct dvfs_node *clk_dvfs_node)
 	int i = 0;
 
 	if (!clk_dvfs_node)
-		return -1;
+		return -EINVAL;
 
 	clk_dvfs_node->min_rate = 0;
 	clk_dvfs_node->max_rate = 0;
@@ -385,24 +385,20 @@ static int clk_dvfs_node_get_ref_volt(struct dvfs_node *clk_dvfs_node, int rate_
 	clk_fv->frequency = 0;
 	clk_fv->index = 0;
 	//DVFS_DBG("%s get corresponding voltage error! out of bound\n", clk_dvfs_node->name);
-	return -1;
+	return -EINVAL;
 }
 
 static int dvfs_pd_get_newvolt_byclk(struct pd_node *pd, struct dvfs_node *clk_dvfs_node)
 {
 	int volt_max = 0;
 
-	if (!pd || !clk_dvfs_node)
-		return 0;
-
-	if (clk_dvfs_node->set_volt >= pd->cur_volt) {
+	if (clk_dvfs_node->enable_count && (clk_dvfs_node->set_volt >= pd->cur_volt)) {
 		return clk_dvfs_node->set_volt;
 	}
 
 	list_for_each_entry(clk_dvfs_node, &pd->clk_list, node) {
-		// DVFS_DBG("%s ,pd(%s),dvfs(%s),volt(%u)\n",__func__,pd->name,
-		// clk_dvfs_node->name,clk_dvfs_node->set_volt);
-		volt_max = max(volt_max, clk_dvfs_node->set_volt);
+		if (clk_dvfs_node->enable_count)
+			volt_max = max(volt_max, clk_dvfs_node->set_volt);
 	}
 	return volt_max;
 }
@@ -416,7 +412,7 @@ static void dvfs_update_clk_pds_volt(struct dvfs_node *clk_dvfs_node)
 	
 	pd = clk_dvfs_node->pd;
 	if (!pd)
-		return ;
+		return;
 	
 	pd->cur_volt = dvfs_pd_get_newvolt_byclk(pd, clk_dvfs_node);
 }
@@ -425,29 +421,22 @@ static int dvfs_vd_get_newvolt_bypd(struct vd_node *vd)
 {
 	int volt_max_vd = 0;
 	struct pd_node *pd;
-	//struct depend_list	*depend;
 
 	if (!vd)
 		return -EINVAL;
 	
 	list_for_each_entry(pd, &vd->pd_list, node) {
-		// DVFS_DBG("%s pd(%s,%u)\n",__func__,pd->name,pd->cur_volt);
 		volt_max_vd = max(volt_max_vd, pd->cur_volt);
 	}
 
-	/* some clks depend on this voltage domain */
-/*	if (!list_empty(&vd->req_volt_list)) {
-		list_for_each_entry(depend, &vd->req_volt_list, node2vd) {
-			volt_max_vd = max(volt_max_vd, depend->req_volt);
-		}
-	}*/
 	return volt_max_vd;
 }
 
 static int dvfs_vd_get_newvolt_byclk(struct dvfs_node *clk_dvfs_node)
 {
 	if (!clk_dvfs_node)
-		return -1;
+		return -EINVAL;
+
 	dvfs_update_clk_pds_volt(clk_dvfs_node);
 	return  dvfs_vd_get_newvolt_bypd(clk_dvfs_node->vd);
 }
@@ -692,6 +681,7 @@ EXPORT_SYMBOL(dvfs_set_freq_volt_table);
 int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 {
 	struct cpufreq_frequency_table clk_fv;
+	int volt_new;
 
 	if (!clk_dvfs_node)
 		return -EINVAL;
@@ -753,9 +743,9 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 				return 0;
 			}
 		}
-
+		clk_dvfs_node->enable_count++;
 		clk_dvfs_node->set_volt = clk_fv.index;
-		dvfs_vd_get_newvolt_byclk(clk_dvfs_node);
+		volt_new = dvfs_vd_get_newvolt_byclk(clk_dvfs_node);
 		DVFS_DBG("%s: %s, freq %u(ref vol %u)\n",
 			__func__, clk_dvfs_node->name, clk_dvfs_node->set_freq, clk_dvfs_node->set_volt);
 #if 0
@@ -764,9 +754,10 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 			clk_notifier_register(clk, clk_dvfs_node->dvfs_nb);
 		}
 #endif
-		if(clk_dvfs_node->vd->cur_volt < clk_dvfs_node->set_volt) {
+		if(clk_dvfs_node->vd->cur_volt != volt_new) {
 			int ret;
-			ret = dvfs_regulator_set_voltage_readback(clk_dvfs_node->vd->regulator, clk_dvfs_node->set_volt, clk_dvfs_node->set_volt);
+			ret = dvfs_regulator_set_voltage_readback(clk_dvfs_node->vd->regulator, volt_new, volt_new);
+			dvfs_volt_up_delay(clk_dvfs_node->vd,volt_new, clk_dvfs_node->vd->cur_volt);
 			if (ret < 0) {
 				clk_dvfs_node->vd->volt_set_flag = DVFS_SET_VOLT_FAILURE;
 				clk_dvfs_node->enable_count = 0;
@@ -774,11 +765,10 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 				mutex_unlock(&clk_dvfs_node->vd->mutex);
 				return -EAGAIN;
 			}
-			clk_dvfs_node->vd->cur_volt = clk_dvfs_node->set_volt;
+			clk_dvfs_node->vd->cur_volt = volt_new;
 			clk_dvfs_node->vd->volt_set_flag = DVFS_SET_VOLT_SUCCESS;
 		}
 
-		clk_dvfs_node->enable_count++;
 	} else {
 		DVFS_DBG("%s: dvfs already enable clk enable = %d!\n",
 			__func__, clk_dvfs_node->enable_count);
@@ -793,6 +783,8 @@ EXPORT_SYMBOL(clk_enable_dvfs);
 
 int clk_disable_dvfs(struct dvfs_node *clk_dvfs_node)
 {
+	int volt_new;
+
 	if (!clk_dvfs_node)
 		return -EINVAL;
 
@@ -803,12 +795,16 @@ int clk_disable_dvfs(struct dvfs_node *clk_dvfs_node)
 	if (!clk_dvfs_node->enable_count) {
 		DVFS_WARNING("%s:clk(%s) is already closed!\n", 
 			__func__, __clk_get_name(clk_dvfs_node->clk));
+		mutex_unlock(&clk_dvfs_node->vd->mutex);
 		return 0;
 	} else {
 		clk_dvfs_node->enable_count--;
 		if (0 == clk_dvfs_node->enable_count) {
 			DVFS_DBG("%s:dvfs clk(%s) disable dvfs ok!\n",
 				__func__, __clk_get_name(clk_dvfs_node->clk));
+			volt_new = dvfs_vd_get_newvolt_byclk(clk_dvfs_node);
+			dvfs_scale_volt_direct(clk_dvfs_node->vd, volt_new);
+
 #if 0
 			clk_notifier_unregister(clk, clk_dvfs_node->dvfs_nb);
 			DVFS_DBG("clk unregister nb!\n");
@@ -819,9 +815,6 @@ int clk_disable_dvfs(struct dvfs_node *clk_dvfs_node)
 	return 0;
 }
 EXPORT_SYMBOL(clk_disable_dvfs);
-
-
-
 
 static unsigned long dvfs_get_limit_rate(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 {

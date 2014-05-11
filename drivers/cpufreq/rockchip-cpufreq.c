@@ -32,6 +32,7 @@
 #include <asm/cpu.h>
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
+#include "../../../drivers/clk/rockchip/clk-pd.h"
 
 extern void dvfs_disable_temp_limit(void);
 
@@ -75,7 +76,7 @@ static DEFINE_MUTEX(cpufreq_mutex);
 static bool gpu_is_mali400;
 struct dvfs_node *clk_cpu_dvfs_node = NULL;
 struct dvfs_node *clk_gpu_dvfs_node = NULL;
-struct dvfs_node *clk_vepu_dvfs_node = NULL;
+struct dvfs_node *aclk_vio1_dvfs_node = NULL;
 struct dvfs_node *clk_ddr_dvfs_node = NULL;
 /*******************************************************/
 static unsigned int cpufreq_get_rate(unsigned int cpu)
@@ -180,11 +181,6 @@ static int cpufreq_init_cpu0(struct cpufreq_policy *policy)
 		clk_enable_dvfs(clk_gpu_dvfs_node);
 		if (gpu_is_mali400)
 			dvfs_clk_enable_limit(clk_gpu_dvfs_node, 133000000, 600000000);	
-	}
-
-	clk_vepu_dvfs_node = clk_get_dvfs_node("clk_vepu");
-	if (clk_vepu_dvfs_node){
-		clk_enable_dvfs(clk_vepu_dvfs_node);
 	}
 
 	clk_ddr_dvfs_node = clk_get_dvfs_node("clk_ddr");
@@ -414,6 +410,26 @@ static struct notifier_block cpufreq_reboot_notifier = {
 	.notifier_call = cpufreq_reboot_notifier_event,
 };
 
+static int clk_pd_vio_notifier_call(struct notifier_block *nb, unsigned long event, void *ptr)
+{
+	switch (event) {
+	case RK_CLK_PD_PRE_ENABLE:
+		if (aclk_vio1_dvfs_node)
+			clk_enable_dvfs(aclk_vio1_dvfs_node);
+		break;
+	case RK_CLK_PD_POST_DISABLE:
+		if (aclk_vio1_dvfs_node)
+			clk_disable_dvfs(aclk_vio1_dvfs_node);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block clk_pd_vio_notifier = {
+	.notifier_call = clk_pd_vio_notifier_call,
+};
+
+
 static struct cpufreq_driver cpufreq_driver = {
 	.flags = CPUFREQ_CONST_LOOPS,
 	.verify = cpufreq_verify,
@@ -427,8 +443,17 @@ static struct cpufreq_driver cpufreq_driver = {
 
 static int __init cpufreq_driver_init(void)
 {
+	struct clk *clk;
+
+	clk = clk_get(NULL, "pd_vio");
+	if (clk) {
+		rk_clk_pd_notifier_register(clk, &clk_pd_vio_notifier);
+		aclk_vio1_dvfs_node = clk_get_dvfs_node("aclk_vio1");
+		if (aclk_vio1_dvfs_node && __clk_is_enabled(clk)){
+			clk_enable_dvfs(aclk_vio1_dvfs_node);
+		}
+	}
 	register_pm_notifier(&cpufreq_pm_notifier);
-	//register_reboot_notifier(&cpufreq_reboot_notifier);
 	return cpufreq_register_driver(&cpufreq_driver);
 }
 
