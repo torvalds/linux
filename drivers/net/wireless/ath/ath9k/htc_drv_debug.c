@@ -542,8 +542,11 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 			    priv, &fops_tgt_rx_stats);
 	debugfs_create_file("xmit", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_xmit);
-	debugfs_create_file("recv", S_IRUSR, priv->debug.debugfs_phy,
+	debugfs_create_file("phy_err", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_recv);
+
+	ath9k_cmn_debug_recv(priv->debug.debugfs_phy, &priv->debug.rx_stats);
+
 	debugfs_create_file("slot", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_slot);
 	debugfs_create_file("queue", S_IRUSR, priv->debug.debugfs_phy,
