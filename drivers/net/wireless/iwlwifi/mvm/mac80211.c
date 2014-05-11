@@ -490,6 +490,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_TDLS_SUPPORT) {
+		IWL_DEBUG_TDLS(mvm, "TDLS supported\n");
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+	}
+
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret)
 		iwl_mvm_leds_exit(mvm);
