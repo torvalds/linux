@@ -1271,7 +1271,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 
 	while (!skb_queue_empty(&skbs)) {
 		skb = __skb_dequeue(&skbs);
-		ieee80211_tx_status_ni(priv->hw, skb);
+		ieee80211_tx_status(priv->hw, skb);
 	}
 
 	return 0;
@@ -1411,7 +1411,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 		skb = __skb_dequeue(&reclaimed_skbs);
-		ieee80211_tx_status_ni(priv->hw, skb);
+		ieee80211_tx_status(priv->hw, skb);
 	}
 
 	return 0;
