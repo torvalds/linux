@@ -890,6 +890,7 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	 */
 	{
 		union cvmx_usbcx_gusbcfg usbcx_gusbcfg;
+
 		usbcx_gusbcfg.u32 = __cvmx_usb_read_csr32(usb,
 				CVMX_USBCX_GUSBCFG(usb->index));
 		usbcx_gusbcfg.s.toutcal = 0;
@@ -947,6 +948,7 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 		 */
 		{
 			union cvmx_usbcx_hcfg usbcx_hcfg;
+
 			usbcx_hcfg.u32 = __cvmx_usb_read_csr32(usb,
 					CVMX_USBCX_HCFG(usb->index));
 			usbcx_hcfg.s.fslssupp = 0;
@@ -1074,6 +1076,7 @@ static int cvmx_usb_enable(struct cvmx_usb_state *usb)
 	 */
 	{
 		union cvmx_usbcx_gnptxfsiz siz;
+
 		siz.u32 = __cvmx_usb_read_csr32(usb,
 				CVMX_USBCX_GNPTXFSIZ(usb->index));
 		siz.s.nptxfdep = usbcx_ghwcfg3.s.dfifodepth / 2;
@@ -1088,6 +1091,7 @@ static int cvmx_usb_enable(struct cvmx_usb_state *usb)
 	 */
 	{
 		union cvmx_usbcx_hptxfsiz siz;
+
 		siz.u32 = __cvmx_usb_read_csr32(usb,
 				CVMX_USBCX_HPTXFSIZ(usb->index));
 		siz.s.ptxfsize = usbcx_ghwcfg3.s.dfifodepth / 4;
@@ -1217,8 +1221,8 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(
  * Returns: A non-NULL value is a pipe. NULL means an error.
  */
 static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
-						int device_addr, int
-						endpoint_num,
+						int device_addr,
+						int endpoint_num,
 						enum cvmx_usb_speed
 							device_speed,
 						int max_packet,
@@ -1421,6 +1425,7 @@ static void __cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
 {
 	if (usb->periodic.head != usb->periodic.tail) {
 		union cvmx_usbcx_hptxsts tx_status;
+
 		tx_status.u32 = __cvmx_usb_read_csr32(usb,
 				CVMX_USBCX_HPTXSTS(usb->index));
 		if (__cvmx_usb_fill_tx_hw(usb, &usb->periodic,
@@ -1436,6 +1441,7 @@ static void __cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
 
 	if (usb->nonperiodic.head != usb->nonperiodic.tail) {
 		union cvmx_usbcx_gnptxsts tx_status;
+
 		tx_status.u32 = __cvmx_usb_read_csr32(usb,
 				CVMX_USBCX_GNPTXSTS(usb->index));
 		if (__cvmx_usb_fill_tx_hw(usb, &usb->nonperiodic,
@@ -1720,6 +1726,7 @@ static void __cvmx_usb_start_channel(struct cvmx_usb_state *usb,
 	/* Setup the locations the DMA engines use  */
 	{
 		uint64_t dma_address = transaction->buffer + transaction->actual_bytes;
+
 		if (transaction->type == CVMX_USB_TRANSFER_ISOCHRONOUS)
 			dma_address = transaction->buffer + transaction->iso_packets[0].offset + transaction->actual_bytes;
 		__cvmx_usb_write_csr64(usb, CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) + channel*8, dma_address);
@@ -2035,6 +2042,7 @@ static void __cvmx_usb_schedule(struct cvmx_usb_state *usb, int is_sof)
 		 */
 		union cvmx_usbcx_hfnum hfnum = {.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index))};
 		union cvmx_usbcx_hfir hfir = {.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFIR(usb->index))};
+
 		if (hfnum.s.frrem < hfir.s.frint/4)
 			goto done;
 	}
@@ -2519,6 +2527,7 @@ static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb,
 	/* Simply loop through and attempt to cancel each transaction */
 	list_for_each_entry_safe(transaction, next, &pipe->transactions, node) {
 		int result = cvmx_usb_cancel(usb, pipe, transaction);
+
 		if (unlikely(result != 0))
 			return result;
 	}
@@ -3079,6 +3088,7 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 				pipe->interval;
 	} else {
 		struct cvmx_usb_port_status port;
+
 		port = cvmx_usb_get_status(usb);
 		if (port.port_enabled) {
 			/* We'll retry the exact same transaction again */
@@ -3188,6 +3198,7 @@ static int cvmx_usb_poll(struct cvmx_usb_state *usb)
 		 * to clear this bit.
 		 */
 		union cvmx_usbcx_haint usbc_haint;
+
 		usbc_haint.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HAINT(usb->index));
 		while (usbc_haint.u32) {
 			int channel;
@@ -3259,6 +3270,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		enum cvmx_usb_speed speed;
 		int split_device = 0;
 		int split_port = 0;
+
 		switch (usb_pipetype(urb->pipe)) {
 		case PIPE_ISOCHRONOUS:
 			transfer_type = CVMX_USB_TRANSFER_ISOCHRONOUS;
@@ -3295,6 +3307,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			 * tree.
 			 */
 			struct usb_device *dev = urb->dev;
+
 			while (dev->parent) {
 				/*
 				 * If our parent is high speed then he'll
@@ -3454,6 +3467,7 @@ static void octeon_usb_endpoint_disable(struct usb_hcd *hcd,
 		struct octeon_hcd *priv = hcd_to_octeon(hcd);
 		struct cvmx_usb_pipe *pipe = ep->hcpriv;
 		unsigned long flags;
+
 		spin_lock_irqsave(&priv->lock, flags);
 		cvmx_usb_cancel_all(&priv->usb, pipe);
 		if (cvmx_usb_close_pipe(&priv->usb, pipe))
@@ -3770,6 +3784,7 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	if (irq < 0) {
 		/* Defective device tree, but we know how to fix it. */
 		irq_hw_number_t hwirq = usb_num ? (1 << 6) + 17 : 56;
+
 		irq = irq_create_mapping(NULL, hwirq);
 	}
 
