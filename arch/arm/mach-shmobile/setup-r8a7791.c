@@ -210,13 +210,6 @@ void __init r8a7791_add_standard_devices(void)
 	r8a7791_register_thermal();
 }
 
-void __init r8a7791_init_early(void)
-{
-#ifndef CONFIG_ARM_ARCH_TIMER
-	shmobile_setup_delay(1500, 2, 4); /* Cortex-A15 @ 1500MHz */
-#endif
-}
-
 #ifdef CONFIG_USE_OF
 static const char *r8a7791_boards_compat_dt[] __initdata = {
 	"renesas,r8a7791",
