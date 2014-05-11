@@ -1,5 +1,6 @@
 /*
- * Common structures and definitions for FT1000 Flarion Flash OFDM PCMCIA and USB devices
+ * Common structures and definitions for FT1000 Flarion Flash OFDM PCMCIA and
+ * USB devices.
  *
  * Originally copyright (c) 2002 Flarion Technologies
  *
@@ -17,7 +18,9 @@
 #define MAGNEMITE_ID	0x1a01	/* ASIC ID for Magnemite */
 
 /* MEMORY MAP common to both ELECTRABUZZ and MAGNEMITE */
-#define	FT1000_REG_DPRAM_ADDR	0x000E	/* DPADR - Dual Port Ram Indirect Address Register */
+#define	FT1000_REG_DPRAM_ADDR	0x000E	/* DPADR - Dual Port Ram Indirect
+					 * Address Register
+					 */
 #define	FT1000_REG_SUP_CTRL	0x0020	/* HCTR - Host Control Register */
 #define	FT1000_REG_SUP_STAT	0x0022	/* HSTAT - Host Status Register */
 #define	FT1000_REG_RESET	0x0024	/* HCTR - Host Control Register */

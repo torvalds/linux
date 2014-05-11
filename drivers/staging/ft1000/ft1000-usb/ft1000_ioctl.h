@@ -60,12 +60,24 @@ struct IOCTL_GET_DSP_STAT {
 	/*                 0111 = 15dB to 22dB */
 	/*                 1111 = >22dB */
 	/*    Bits 12-15 = Reserved */
-	unsigned long nTxPkts;                /* Number of packets transmitted from host to dsp */
-	unsigned long nRxPkts;                /* Number of packets received from dsp to host */
-	unsigned long nTxBytes;               /* Number of bytes transmitted from host to dsp */
-	unsigned long nRxBytes;               /* Number of bytes received from dsp to host */
-	unsigned long ConTm;                  /* Current session connection time in seconds */
-	unsigned char CalVer[CALVERSZ];       /* Proprietary Calibration Version */
+	unsigned long nTxPkts;                /* Number of packets transmitted
+					       * from host to dsp
+					       */
+	unsigned long nRxPkts;                /* Number of packets received from
+					       * dsp to host
+					       */
+	unsigned long nTxBytes;               /* Number of bytes transmitted
+					       * from host to dsp
+					       */
+	unsigned long nRxBytes;               /* Number of bytes received from
+					       * dsp to host
+					       */
+	unsigned long ConTm;                  /* Current session connection time
+					       * in seconds
+					       */
+	unsigned char CalVer[CALVERSZ];       /* Proprietary Calibration
+					       * Version
+					       */
 	unsigned char CalDate[CALDATESZ];     /* Proprietary Calibration Date */
 } __packed;
 
@@ -94,12 +106,18 @@ struct IOCTL_DPRAM_COMMAND {
 #define IOCTL_CONNECT		10
 #define IOCTL_DISCONNECT	11
 
-#define IOCTL_FT1000_GET_DSP_STAT _IOR(FT1000_MAGIC_CODE, IOCTL_GET_DSP_STAT_CMD, struct IOCTL_GET_DSP_STAT)
-#define IOCTL_FT1000_GET_VER _IOR(FT1000_MAGIC_CODE, IOCTL_GET_VER_CMD, struct IOCTL_GET_VER)
+#define IOCTL_FT1000_GET_DSP_STAT _IOR(FT1000_MAGIC_CODE,      \
+				       IOCTL_GET_DSP_STAT_CMD, \
+				       struct IOCTL_GET_DSP_STAT)
+#define IOCTL_FT1000_GET_VER _IOR(FT1000_MAGIC_CODE, IOCTL_GET_VER_CMD, \
+				  struct IOCTL_GET_VER)
 #define IOCTL_FT1000_CONNECT _IO(FT1000_MAGIC_CODE, IOCTL_CONNECT)
 #define IOCTL_FT1000_DISCONNECT _IO(FT1000_MAGIC_CODE, IOCTL_DISCONNECT)
-#define IOCTL_FT1000_SET_DPRAM _IOW(FT1000_MAGIC_CODE, IOCTL_SET_DPRAM_CMD, struct IOCTL_DPRAM_BLK)
-#define IOCTL_FT1000_GET_DPRAM _IOR(FT1000_MAGIC_CODE, IOCTL_GET_DPRAM_CMD, struct IOCTL_DPRAM_BLK)
-#define IOCTL_FT1000_REGISTER  _IOW(FT1000_MAGIC_CODE, IOCTL_REGISTER_CMD, unsigned short *)
+#define IOCTL_FT1000_SET_DPRAM _IOW(FT1000_MAGIC_CODE, IOCTL_SET_DPRAM_CMD, \
+				    struct IOCTL_DPRAM_BLK)
+#define IOCTL_FT1000_GET_DPRAM _IOR(FT1000_MAGIC_CODE, IOCTL_GET_DPRAM_CMD, \
+				    struct IOCTL_DPRAM_BLK)
+#define IOCTL_FT1000_REGISTER  _IOW(FT1000_MAGIC_CODE, IOCTL_REGISTER_CMD, \
+				    unsigned short *)
 
 #endif /* _FT1000IOCTLH_ */
