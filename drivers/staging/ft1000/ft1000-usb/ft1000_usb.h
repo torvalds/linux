@@ -24,7 +24,7 @@ struct app_info_block {
 	struct list_head app_sqlist;   /* link list of msgs for applicaton on slow queue */
 } __packed;
 
-#define DEBUG(args...) printk(KERN_INFO args)
+#define DEBUG(args...) pr_info(args)
 
 #define FALSE           0
 #define TRUE            1
