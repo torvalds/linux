@@ -5490,15 +5490,15 @@ F:	Documentation/hwmon/ltc4261
 F:	drivers/hwmon/ltc4261.c
 
 LTP (Linux Test Project)
-M:	Shubham Goyal <shubham@linux.vnet.ibm.com>
 M:	Mike Frysinger <vapier@gentoo.org>
 M:	Cyril Hrubis <chrubis@suse.cz>
-M:	Caspar Zhang <caspar@casparzhang.com>
 M:	Wanlong Gao <gaowanlong@cn.fujitsu.com>
+M:	Jan Stancek <jstancek@redhat.com>
+M:	Stanislav Kholmanskikh <stanislav.kholmanskikh@oracle.com>
+M:	Alexey Kodanev <alexey.kodanev@oracle.com>
 L:	ltp-list@lists.sourceforge.net (subscribers-only)
-W:	http://ltp.sourceforge.net/
+W:	http://linux-test-project.github.io/
 T:	git git://github.com/linux-test-project/ltp.git
-T:	git git://ltp.git.sourceforge.net/gitroot/ltp/ltp-dev
 S:	Maintained
 
 M32R ARCHITECTURE
