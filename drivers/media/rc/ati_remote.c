@@ -632,7 +632,6 @@ static void ati_remote_input_report(struct urb *urb)
 
 		input_event(dev, ati_remote_tbl[index].type,
 			ati_remote_tbl[index].code, 1);
-		input_sync(dev);
 		input_event(dev, ati_remote_tbl[index].type,
 			ati_remote_tbl[index].code, 0);
 		input_sync(dev);
