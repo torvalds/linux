@@ -124,10 +124,10 @@ const u32 iwl_bt_cts_kill_msk[BT_KILL_MSK_MAX] = {
 };
 
 static const __le32 iwl_bt_prio_boost[BT_COEX_BOOST_SIZE] = {
-	cpu_to_le32(0xf0f0f0f0),
-	cpu_to_le32(0xc0c0c0c0),
-	cpu_to_le32(0xfcfcfcfc),
-	cpu_to_le32(0xff00ff00),
+	cpu_to_le32(0xf0f0f0f0), /* 50% */
+	cpu_to_le32(0xc0c0c0c0), /* 25% */
+	cpu_to_le32(0xfcfcfcfc), /* 75% */
+	cpu_to_le32(0xfefefefe), /* 87.5% */
 };
 
 static const __le32 iwl_single_shared_ant[BT_COEX_MAX_LUT][BT_COEX_LUT_SIZE] = {
@@ -300,8 +300,8 @@ static const __le64 iwl_ci_mask[][3] = {
 };
 
 static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
-	cpu_to_le32(0x22002200),
-	cpu_to_le32(0x33113311),
+	cpu_to_le32(0x28412201),
+	cpu_to_le32(0x11118451),
 };
 
 struct corunning_block_luts {
