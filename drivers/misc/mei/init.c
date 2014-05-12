@@ -330,7 +330,28 @@ bool mei_write_is_idle(struct mei_device *dev)
 }
 EXPORT_SYMBOL_GPL(mei_write_is_idle);
 
-void mei_device_init(struct mei_device *dev)
+int mei_fw_status(struct mei_device *dev, struct mei_fw_status *fw_status)
+{
+	int i;
+	const struct mei_fw_status *fw_src = &dev->cfg->fw_status;
+
+	if (!fw_status)
+		return -EINVAL;
+
+	fw_status->count = fw_src->count;
+	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
+		int ret;
+		ret = pci_read_config_dword(dev->pdev,
+			fw_src->status[i], &fw_status->status[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mei_fw_status);
+
+void mei_device_init(struct mei_device *dev, const struct mei_cfg *cfg)
 {
 	/* setup our list array */
 	INIT_LIST_HEAD(&dev->file_list);
@@ -368,6 +389,7 @@ void mei_device_init(struct mei_device *dev)
 	bitmap_set(dev->host_clients_map, 0, 1);
 
 	dev->pg_event = MEI_PG_EVENT_IDLE;
+	dev->cfg      = cfg;
 }
 EXPORT_SYMBOL_GPL(mei_device_init);
 

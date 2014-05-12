@@ -1104,14 +1104,27 @@ static const struct mei_hw_ops mei_txe_hw_ops = {
 
 };
 
+#define MEI_CFG_TXE_FW_STS                            \
+	.fw_status.count = 2,                         \
+	.fw_status.status[0] = PCI_CFG_TXE_FW_STS0,   \
+	.fw_status.status[1] = PCI_CFG_TXE_FW_STS1
+
+const struct mei_cfg mei_txe_cfg = {
+	MEI_CFG_TXE_FW_STS,
+};
+
+
 /**
  * mei_txe_dev_init - allocates and initializes txe hardware specific structure
  *
  * @pdev - pci device
+ * @cfg - per device generation config
+ *
  * returns struct mei_device * on success or NULL;
  *
  */
-struct mei_device *mei_txe_dev_init(struct pci_dev *pdev)
+struct mei_device *mei_txe_dev_init(struct pci_dev *pdev,
+				    const struct mei_cfg *cfg)
 {
 	struct mei_device *dev;
 	struct mei_txe_hw *hw;
@@ -1121,7 +1134,7 @@ struct mei_device *mei_txe_dev_init(struct pci_dev *pdev)
 	if (!dev)
 		return NULL;
 
-	mei_device_init(dev);
+	mei_device_init(dev, cfg);
 
 	hw = to_txe_hw(dev);
 

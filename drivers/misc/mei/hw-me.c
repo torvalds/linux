@@ -792,14 +792,44 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.read = mei_me_read_slots
 };
 
+#define MEI_CFG_LEGACY_HFS                      \
+	.fw_status.count = 0
+
+#define MEI_CFG_ICH_HFS                        \
+	.fw_status.count = 1,                   \
+	.fw_status.status[0] = PCI_CFG_HFS_1
+
+#define MEI_CFG_PCH_HFS                         \
+	.fw_status.count = 2,                   \
+	.fw_status.status[0] = PCI_CFG_HFS_1,   \
+	.fw_status.status[1] = PCI_CFG_HFS_2
+
+
+/* ICH Legacy devices */
+const struct mei_cfg mei_me_legacy_cfg = {
+	MEI_CFG_LEGACY_HFS,
+};
+
+/* ICH devices */
+const struct mei_cfg mei_me_ich_cfg = {
+	MEI_CFG_ICH_HFS,
+};
+
+/* PCH devices */
+const struct mei_cfg mei_me_pch_cfg = {
+	MEI_CFG_PCH_HFS,
+};
+
 /**
  * mei_me_dev_init - allocates and initializes the mei device structure
  *
  * @pdev: The pci device structure
+ * @cfg: per device generation config
  *
  * returns The mei_device_device pointer on success, NULL on failure.
  */
-struct mei_device *mei_me_dev_init(struct pci_dev *pdev)
+struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
+				   const struct mei_cfg *cfg)
 {
 	struct mei_device *dev;
 
@@ -808,7 +838,7 @@ struct mei_device *mei_me_dev_init(struct pci_dev *pdev)
 	if (!dev)
 		return NULL;
 
-	mei_device_init(dev);
+	mei_device_init(dev, cfg);
 
 	dev->ops = &mei_me_hw_ops;
 

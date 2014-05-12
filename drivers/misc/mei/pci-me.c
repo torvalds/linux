@@ -44,42 +44,44 @@
 
 /* mei_pci_tbl - PCI Device ID Table */
 static const struct pci_device_id mei_me_pci_tbl[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82946GZ)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82G35)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82Q965)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82G965)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82GM965)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82GME965)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_82Q35)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_82G33)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_82Q33)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_82X38)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_3200)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_6)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_7)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_8)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_9)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9_10)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9M_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9M_2)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9M_3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH9M_4)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH10_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH10_2)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH10_3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_ICH10_4)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_IBXPK_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_IBXPK_2)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_CPT_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PBG_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_2)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_PPT_3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_H)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_W)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_LP)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_LPT_HR)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_WPT_LP)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_82946GZ, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_82G35, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_82Q965, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_82G965, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_82GM965, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_82GME965, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_82Q35, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_82G33, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_82Q33, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_82X38, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_3200, mei_me_legacy_cfg)},
+
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_6, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_7, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_8, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_9, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9_10, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9M_1, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9M_2, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9M_3, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH9M_4, mei_me_legacy_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH10_1, mei_me_ich_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH10_2, mei_me_ich_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH10_3, mei_me_ich_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_ICH10_4, mei_me_ich_cfg)},
+
+	{MEI_PCI_DEVICE(MEI_DEV_ID_IBXPK_1, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_IBXPK_2, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_CPT_1, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_PBG_1, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_1, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_2, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_3, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_H, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_W, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_LP, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_HR, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_WPT_LP, mei_me_pch_cfg)},
 
 	/* required last entry */
 	{0, }
@@ -143,6 +145,7 @@ no_mei:
  */
 static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	const struct mei_cfg *cfg = (struct mei_cfg *)(ent->driver_data);
 	struct mei_device *dev;
 	struct mei_me_hw *hw;
 	int err;
@@ -183,7 +186,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 
 	/* allocates and initializes the mei dev structure */
-	dev = mei_me_dev_init(pdev);
+	dev = mei_me_dev_init(pdev, cfg);
 	if (!dev) {
 		err = -ENOMEM;
 		goto release_regions;

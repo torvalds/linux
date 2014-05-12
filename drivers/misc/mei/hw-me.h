@@ -38,7 +38,12 @@ struct mei_me_hw {
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)
 
-struct mei_device *mei_me_dev_init(struct pci_dev *pdev);
+extern const struct mei_cfg mei_me_legacy_cfg;
+extern const struct mei_cfg mei_me_ich_cfg;
+extern const struct mei_cfg mei_me_pch_cfg;
+
+struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
+				   const struct mei_cfg *cfg);
 
 int mei_me_pg_set_sync(struct mei_device *dev);
 int mei_me_pg_unset_sync(struct mei_device *dev);
