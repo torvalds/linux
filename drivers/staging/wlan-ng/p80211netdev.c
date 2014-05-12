@@ -243,19 +243,11 @@ void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 	tasklet_schedule(&wlandev->rx_bh);
 }
 
-/*----------------------------------------------------------------
-* p80211netdev_rx_bh
-*
-* Deferred processing of all received frames.
-*
-* Arguments:
-*	wlandev		WLAN network device structure
-*	skb		skbuff containing a full 802.11 frame.
-* Returns:
-*	nothing
-* Side effects:
-*
-----------------------------------------------------------------*/
+/**
+ * p80211netdev_rx_bh - deferred processing of all received frames
+ *
+ * @arg: pointer to WLAN network device structure (cast to unsigned long)
+ */
 static void p80211netdev_rx_bh(unsigned long arg)
 {
 	wlandevice_t *wlandev = (wlandevice_t *) arg;
