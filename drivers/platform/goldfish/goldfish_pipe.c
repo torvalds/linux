@@ -469,6 +469,9 @@ static irqreturn_t goldfish_pipe_interrupt(int irq, void *dev_id)
 
 #ifdef CONFIG_64BIT
 		channel = (u64)readl(dev->base + PIPE_REG_CHANNEL_HIGH) << 32;
+
+		if (channel == 0)
+			break;
 #endif
 		channel |= readl(dev->base + PIPE_REG_CHANNEL);
 
