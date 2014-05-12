@@ -3734,23 +3734,6 @@ brcmf_config_ap_mgmt_ie(struct brcmf_cfg80211_vif *vif,
 }
 
 static s32
-brcmf_cfg80211_set_channel(struct brcmf_cfg80211_info *cfg,
-			   struct brcmf_if *ifp,
-			   struct ieee80211_channel *channel)
-{
-	u16 chanspec;
-	s32 err;
-
-	brcmf_dbg(TRACE, "band=%d, center_freq=%d\n", channel->band,
-		  channel->center_freq);
-
-	chanspec = channel_to_chanspec(&cfg->d11inf, channel);
-	err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
-
-	return err;
-}
-
-static s32
 brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			struct cfg80211_ap_settings *settings)
 {
@@ -3765,9 +3748,11 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_join_params join_params;
 	enum nl80211_iftype dev_role;
 	struct brcmf_fil_bss_enable_le bss_enable;
+	u16 chanspec;
 
-	brcmf_dbg(TRACE, "channel=%d, bw=%d, beacon_interval=%d, dtim_period=%d,\n",
-		  settings->chandef.chan->hw_value, settings->chandef.width,
+	brcmf_dbg(TRACE, "ctrlchn=%d, center=%d, bw=%d, beacon_interval=%d, dtim_period=%d,\n",
+		  settings->chandef.chan->hw_value,
+		  settings->chandef.center_freq1, settings->chandef.width,
 		  settings->beacon_interval, settings->dtim_period);
 	brcmf_dbg(TRACE, "ssid=%s(%zu), auth_type=%d, inactivity_timeout=%d\n",
 		  settings->ssid, settings->ssid_len, settings->auth_type,
@@ -3825,9 +3810,10 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 	brcmf_config_ap_mgmt_ie(ifp->vif, &settings->beacon);
 
-	err = brcmf_cfg80211_set_channel(cfg, ifp, settings->chandef.chan);
+	chanspec = channel_to_chanspec(&cfg->d11inf, settings->chandef.chan);
+	err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
 	if (err < 0) {
-		brcmf_err("Set Channel failed, %d\n", err);
+		brcmf_err("Set Channel failed: chspec=%d, %d\n", chanspec, err);
 		goto exit;
 	}
 
