@@ -88,10 +88,6 @@ nvd0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.reset = nvd0_gpio_reset;
 	priv->base.drive = nvd0_gpio_drive;
 	priv->base.sense = nvd0_gpio_sense;
-	priv->base.events->priv = priv;
-	priv->base.events->enable = nv50_gpio_intr_enable;
-	priv->base.events->disable = nv50_gpio_intr_disable;
-	nv_subdev(priv)->intr = nv50_gpio_intr;
 	return 0;
 }
 
@@ -105,4 +101,6 @@ nvd0_gpio_oclass = &(struct nouveau_gpio_impl) {
 		.fini = nv50_gpio_fini,
 	},
 	.lines = 32,
+	.intr_stat = nv92_gpio_intr_stat,
+	.intr_mask = nv92_gpio_intr_mask,
 }.base;

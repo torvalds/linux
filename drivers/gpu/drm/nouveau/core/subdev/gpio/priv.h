@@ -23,18 +23,35 @@ int  nv50_gpio_ctor(struct nouveau_object *, struct nouveau_object *,
 void nv50_gpio_dtor(struct nouveau_object *);
 int  nv50_gpio_init(struct nouveau_object *);
 int  nv50_gpio_fini(struct nouveau_object *, bool);
-void nv50_gpio_intr(struct nouveau_subdev *);
-void nv50_gpio_intr_enable(struct nouveau_event *, int line);
-void nv50_gpio_intr_disable(struct nouveau_event *, int line);
 
 void nvd0_gpio_reset(struct nouveau_gpio *, u8);
 int  nvd0_gpio_drive(struct nouveau_gpio *, int, int, int);
 int  nvd0_gpio_sense(struct nouveau_gpio *, int);
 
+enum nvkm_gpio_event {
+	NVKM_GPIO_HI = 1,
+	NVKM_GPIO_LO = 2,
+	NVKM_GPIO_TOGGLED = (NVKM_GPIO_HI | NVKM_GPIO_LO),
+};
+
 struct nouveau_gpio_impl {
 	struct nouveau_oclass base;
 	int lines;
+
+	/* read and ack pending interrupts, returning only data
+	 * for lines that have not been masked off, while still
+	 * performing the ack for anything that was pending.
+	 */
+	void (*intr_stat)(struct nouveau_gpio *, u32 *, u32 *);
+
+	/* mask on/off interrupts for hi/lo transitions on a
+	 * given set of gpio lines
+	 */
+	void (*intr_mask)(struct nouveau_gpio *, u32, u32, u32);
 };
+
+void nv92_gpio_intr_stat(struct nouveau_gpio *, u32 *, u32 *);
+void nv92_gpio_intr_mask(struct nouveau_gpio *, u32, u32, u32);
 
 
 #endif

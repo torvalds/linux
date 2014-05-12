@@ -95,47 +95,25 @@ nv50_gpio_sense(struct nouveau_gpio *gpio, int line)
 	return !!(nv_rd32(gpio, reg) & (4 << shift));
 }
 
-void
-nv50_gpio_intr(struct nouveau_subdev *subdev)
+static void
+nv50_gpio_intr_stat(struct nouveau_gpio *gpio, u32 *hi, u32 *lo)
 {
-	struct nv50_gpio_priv *priv = (void *)subdev;
-	u32 intr0, intr1 = 0;
-	u32 hi, lo;
-	int i;
-
-	intr0 = nv_rd32(priv, 0xe054) & nv_rd32(priv, 0xe050);
-	if (nv_device(priv)->chipset > 0x92)
-		intr1 = nv_rd32(priv, 0xe074) & nv_rd32(priv, 0xe070);
-
-	hi = (intr0 & 0x0000ffff) | (intr1 << 16);
-	lo = (intr0 >> 16) | (intr1 & 0xffff0000);
-
-	for (i = 0; (hi | lo) && i < 32; i++) {
-		if ((hi | lo) & (1 << i))
-			nouveau_event_trigger(priv->base.events, 1, i);
-	}
-
-	nv_wr32(priv, 0xe054, intr0);
-	if (nv_device(priv)->chipset > 0x92)
-		nv_wr32(priv, 0xe074, intr1);
+	u32 intr = nv_rd32(gpio, 0x00e054);
+	u32 stat = nv_rd32(gpio, 0x00e050) & intr;
+	*lo = (stat & 0xffff0000) >> 16;
+	*hi = (stat & 0x0000ffff);
+	nv_wr32(gpio, 0x00e054, intr);
 }
 
-void
-nv50_gpio_intr_enable(struct nouveau_event *event, int line)
+static void
+nv50_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
 {
-	const u32 addr = line < 16 ? 0xe050 : 0xe070;
-	const u32 mask = 0x00010001 << (line & 0xf);
-	nv_wr32(event->priv, addr + 0x04, mask);
-	nv_mask(event->priv, addr + 0x00, mask, mask);
-}
-
-void
-nv50_gpio_intr_disable(struct nouveau_event *event, int line)
-{
-	const u32 addr = line < 16 ? 0xe050 : 0xe070;
-	const u32 mask = 0x00010001 << (line & 0xf);
-	nv_wr32(event->priv, addr + 0x04, mask);
-	nv_mask(event->priv, addr + 0x00, mask, 0x00000000);
+	u32 inte = nv_rd32(gpio, 0x00e050);
+	if (type & NVKM_GPIO_LO)
+		inte = (inte & ~(mask << 16)) | (data << 16);
+	if (type & NVKM_GPIO_HI)
+		inte = (inte & ~mask) | data;
+	nv_wr32(gpio, 0x00e050, inte);
 }
 
 int
@@ -154,10 +132,6 @@ nv50_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.reset = nv50_gpio_reset;
 	priv->base.drive = nv50_gpio_drive;
 	priv->base.sense = nv50_gpio_sense;
-	priv->base.events->priv = priv;
-	priv->base.events->enable = nv50_gpio_intr_enable;
-	priv->base.events->disable = nv50_gpio_intr_disable;
-	nv_subdev(priv)->intr = nv50_gpio_intr;
 	return 0;
 }
 
@@ -208,5 +182,7 @@ nv50_gpio_oclass = &(struct nouveau_gpio_impl) {
 		.init = nv50_gpio_init,
 		.fini = nv50_gpio_fini,
 	},
-	.lines = 16.
+	.lines = 16,
+	.intr_stat = nv50_gpio_intr_stat,
+	.intr_mask = nv50_gpio_intr_mask,
 }.base;
