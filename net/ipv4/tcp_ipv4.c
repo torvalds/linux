@@ -336,8 +336,8 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	const int code = icmp_hdr(icmp_skb)->code;
 	struct sock *sk;
 	struct sk_buff *skb;
-	struct request_sock *req;
-	__u32 seq;
+	struct request_sock *fastopen;
+	__u32 seq, snd_una;
 	__u32 remaining;
 	int err;
 	struct net *net = dev_net(icmp_skb->dev);
@@ -378,12 +378,12 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 
 	icsk = inet_csk(sk);
 	tp = tcp_sk(sk);
-	req = tp->fastopen_rsk;
 	seq = ntohl(th->seq);
+	/* XXX (TFO) - tp->snd_una should be ISN (tcp_create_openreq_child() */
+	fastopen = tp->fastopen_rsk;
+	snd_una = fastopen ? tcp_rsk(fastopen)->snt_isn : tp->snd_una;
 	if (sk->sk_state != TCP_LISTEN &&
-	    !between(seq, tp->snd_una, tp->snd_nxt) &&
-	    (req == NULL || seq != tcp_rsk(req)->snt_isn)) {
-		/* For a Fast Open socket, allow seq to be snt_isn. */
+	    !between(seq, snd_una, tp->snd_nxt)) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
 		goto out;
 	}
@@ -426,10 +426,8 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		if (code != ICMP_NET_UNREACH && code != ICMP_HOST_UNREACH)
 			break;
 		if (seq != tp->snd_una  || !icsk->icsk_retransmits ||
-		    !icsk->icsk_backoff)
+		    !icsk->icsk_backoff || fastopen)
 			break;
-
-		/* XXX (TFO) - revisit the following logic for TFO */
 
 		if (sock_owned_by_user(sk))
 			break;
@@ -461,14 +459,6 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	default:
 		goto out;
 	}
-
-	/* XXX (TFO) - if it's a TFO socket and has been accepted, rather
-	 * than following the TCP_SYN_RECV case and closing the socket,
-	 * we ignore the ICMP error and keep trying like a fully established
-	 * socket. Is this the right thing to do?
-	 */
-	if (req && req->sk == NULL)
-		goto out;
 
 	switch (sk->sk_state) {
 		struct request_sock *req, **prev;
@@ -502,10 +492,13 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		goto out;
 
 	case TCP_SYN_SENT:
-	case TCP_SYN_RECV:  /* Cannot happen.
-			       It can f.e. if SYNs crossed,
-			       or Fast Open.
-			     */
+	case TCP_SYN_RECV:
+		/* Only in fast or simultaneous open. If a fast open socket is
+		 * is already accepted it is treated as a connected one below.
+		 */
+		if (fastopen && fastopen->sk == NULL)
+			break;
+
 		if (!sock_owned_by_user(sk)) {
 			sk->sk_err = err;
 
