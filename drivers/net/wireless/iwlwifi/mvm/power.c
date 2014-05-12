@@ -902,9 +902,10 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 		if (WARN_ON(!dtimper_msec))
 			return 0;
 
-		cmd.flags |=
-			cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 		cmd.skip_dtim_periods = 300 / dtimper_msec;
+		if (cmd.skip_dtim_periods)
+			cmd.flags |=
+				cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 	}
 	iwl_mvm_power_log(mvm, &cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
