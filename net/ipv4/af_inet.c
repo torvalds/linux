@@ -1705,13 +1705,9 @@ static int __init inet_init(void)
 
 	BUILD_BUG_ON(sizeof(struct inet_skb_parm) > FIELD_SIZEOF(struct sk_buff, cb));
 
-	sysctl_local_reserved_ports = kzalloc(65536 / 8, GFP_KERNEL);
-	if (!sysctl_local_reserved_ports)
-		goto out;
-
 	rc = proto_register(&tcp_prot, 1);
 	if (rc)
-		goto out_free_reserved_ports;
+		goto out;
 
 	rc = proto_register(&udp_prot, 1);
 	if (rc)
@@ -1821,8 +1817,6 @@ out_unregister_udp_proto:
 	proto_unregister(&udp_prot);
 out_unregister_tcp_proto:
 	proto_unregister(&tcp_prot);
-out_free_reserved_ports:
-	kfree(sysctl_local_reserved_ports);
 	goto out;
 }
 

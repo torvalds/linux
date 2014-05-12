@@ -84,6 +84,10 @@ struct netns_ipv4 {
 
 	atomic_t dev_addr_genid;
 
+#ifdef CONFIG_SYSCTL
+	unsigned long *sysctl_local_reserved_ports;
+#endif
+
 #ifdef CONFIG_IP_MROUTE
 #ifndef CONFIG_IP_MROUTE_MULTIPLE_TABLES
 	struct mr_table		*mrt;

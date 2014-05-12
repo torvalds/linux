@@ -246,7 +246,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 			do {
 				if (low <= snum && snum <= high &&
 				    !test_bit(snum >> udptable->log, bitmap) &&
-				    !inet_is_reserved_local_port(snum))
+				    !inet_is_local_reserved_port(net, snum))
 					goto found;
 				snum += rand;
 			} while (snum != first);
