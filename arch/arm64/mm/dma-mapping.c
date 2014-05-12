@@ -34,9 +34,9 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flags,
 				  struct dma_attrs *attrs)
 {
-	if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
+	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
-		flags |= GFP_DMA32;
+		flags |= GFP_DMA;
 	if (IS_ENABLED(CONFIG_DMA_CMA)) {
 		struct page *page;
 
@@ -248,11 +248,17 @@ struct dma_map_ops coherent_swiotlb_dma_ops = {
 };
 EXPORT_SYMBOL(coherent_swiotlb_dma_ops);
 
-void __init arm64_swiotlb_init(void)
+extern int swiotlb_late_init_with_default_size(size_t default_size);
+
+static int __init swiotlb_late_init(void)
 {
-	dma_ops = &coherent_swiotlb_dma_ops;
-	swiotlb_init(1);
+	size_t swiotlb_size = min(SZ_64M, MAX_ORDER_NR_PAGES << PAGE_SHIFT);
+
+	dma_ops = &noncoherent_swiotlb_dma_ops;
+
+	return swiotlb_late_init_with_default_size(swiotlb_size);
 }
+subsys_initcall(swiotlb_late_init);
 
 #define PREALLOC_DMA_DEBUG_ENTRIES	4096
 
