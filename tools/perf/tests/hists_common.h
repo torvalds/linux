@@ -41,4 +41,7 @@ struct machines;
  */
 struct machine *setup_fake_machine(struct machines *machines);
 
+void print_hists_in(struct hists *hists);
+void print_hists_out(struct hists *hists);
+
 #endif /* __PERF_TESTS__HISTS_COMMON_H__ */

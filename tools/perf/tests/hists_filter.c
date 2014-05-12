@@ -98,33 +98,6 @@ out:
 	return TEST_FAIL;
 }
 
-static void print_hists(struct hists *hists)
-{
-	int i = 0;
-	struct rb_root *root;
-	struct rb_node *node;
-
-	root = &hists->entries;
-
-	pr_info("----- %s --------\n", __func__);
-	node = rb_first(root);
-	while (node) {
-		struct hist_entry *he;
-
-		he = rb_entry(node, struct hist_entry, rb_node);
-
-		if (!he->filtered) {
-			pr_info("%2d: entry: %-8s [%-8s] %20s: period = %"PRIu64"\n",
-				i, thread__comm_str(he->thread),
-				he->ms.map->dso->short_name,
-				he->ms.sym->name, he->stat.period);
-		}
-
-		i++;
-		node = rb_next(node);
-	}
-}
-
 int test__hists_filter(void)
 {
 	int err = TEST_FAIL;
@@ -169,7 +142,7 @@ int test__hists_filter(void)
 
 		if (verbose > 2) {
 			pr_info("Normal histogram\n");
-			print_hists(hists);
+			print_hists_out(hists);
 		}
 
 		TEST_ASSERT_VAL("Invalid nr samples",
@@ -193,7 +166,7 @@ int test__hists_filter(void)
 
 		if (verbose > 2) {
 			pr_info("Histogram for thread filter\n");
-			print_hists(hists);
+			print_hists_out(hists);
 		}
 
 		/* normal stats should be invariant */
@@ -222,7 +195,7 @@ int test__hists_filter(void)
 
 		if (verbose > 2) {
 			pr_info("Histogram for dso filter\n");
-			print_hists(hists);
+			print_hists_out(hists);
 		}
 
 		/* normal stats should be invariant */
@@ -257,7 +230,7 @@ int test__hists_filter(void)
 
 		if (verbose > 2) {
 			pr_info("Histogram for symbol filter\n");
-			print_hists(hists);
+			print_hists_out(hists);
 		}
 
 		/* normal stats should be invariant */
@@ -284,7 +257,7 @@ int test__hists_filter(void)
 
 		if (verbose > 2) {
 			pr_info("Histogram for all filters\n");
-			print_hists(hists);
+			print_hists_out(hists);
 		}
 
 		/* normal stats should be invariant */
