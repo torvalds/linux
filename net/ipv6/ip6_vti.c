@@ -511,6 +511,7 @@ static int vti6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		    u8 type, u8 code, int offset, __be32 info)
 {
 	__be32 spi;
+	__u32 mark;
 	struct xfrm_state *x;
 	struct ip6_tnl *t;
 	struct ip_esp_hdr *esph;
@@ -523,6 +524,8 @@ static int vti6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	t = vti6_tnl_lookup(dev_net(skb->dev), &iph->daddr, &iph->saddr);
 	if (!t)
 		return -1;
+
+	mark = be32_to_cpu(t->parms.o_key);
 
 	switch (protocol) {
 	case IPPROTO_ESP:
@@ -545,7 +548,7 @@ static int vti6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	    type != NDISC_REDIRECT)
 		return 0;
 
-	x = xfrm_state_lookup(net, skb->mark, (const xfrm_address_t *)&iph->daddr,
+	x = xfrm_state_lookup(net, mark, (const xfrm_address_t *)&iph->daddr,
 			      spi, protocol, AF_INET6);
 	if (!x)
 		return 0;
