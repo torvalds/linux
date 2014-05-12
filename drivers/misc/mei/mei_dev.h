@@ -383,9 +383,11 @@ enum mei_pg_state {
  * mei_cfg
  *
  * @fw_status - FW status
+ * @quirk_probe - device exclusion quirk
  */
 struct mei_cfg {
 	const struct mei_fw_status fw_status;
+	bool (*quirk_probe)(struct pci_dev *pdev);
 };
 
 

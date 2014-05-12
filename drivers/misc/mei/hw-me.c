@@ -792,6 +792,30 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.read = mei_me_read_slots
 };
 
+static bool mei_me_fw_type_nm(struct pci_dev *pdev)
+{
+	u32 reg;
+	pci_read_config_dword(pdev, PCI_CFG_HFS_2, &reg);
+	/* make sure that bit 9 (NM) is up and bit 10 (DM) is down */
+	return (reg & 0x600) == 0x200;
+}
+
+#define MEI_CFG_FW_NM                           \
+	.quirk_probe = mei_me_fw_type_nm
+
+static bool mei_me_fw_type_sps(struct pci_dev *pdev)
+{
+	u32 reg;
+	/* Read ME FW Status check for SPS Firmware */
+	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
+	/* if bits [19:16] = 15, running SPS Firmware */
+	return (reg & 0xf0000) == 0xf0000;
+}
+
+#define MEI_CFG_FW_SPS                           \
+	.quirk_probe = mei_me_fw_type_sps
+
+
 #define MEI_CFG_LEGACY_HFS                      \
 	.fw_status.count = 0
 
@@ -818,6 +842,19 @@ const struct mei_cfg mei_me_ich_cfg = {
 /* PCH devices */
 const struct mei_cfg mei_me_pch_cfg = {
 	MEI_CFG_PCH_HFS,
+};
+
+
+/* PCH Cougar Point and Patsburg with quirk for Node Manager exclusion */
+const struct mei_cfg mei_me_pch_cpt_pbg_cfg = {
+	MEI_CFG_PCH_HFS,
+	MEI_CFG_FW_NM,
+};
+
+/* PCH Lynx Point with quirk for SPS Firmware exclusion */
+const struct mei_cfg mei_me_lpt_cfg = {
+	MEI_CFG_PCH_HFS,
+	MEI_CFG_FW_SPS,
 };
 
 /**

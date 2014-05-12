@@ -72,15 +72,15 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 
 	{MEI_PCI_DEVICE(MEI_DEV_ID_IBXPK_1, mei_me_pch_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_IBXPK_2, mei_me_pch_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_CPT_1, mei_me_pch_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_PBG_1, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_CPT_1, mei_me_pch_cpt_pbg_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_PBG_1, mei_me_pch_cpt_pbg_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_1, mei_me_pch_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_2, mei_me_pch_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_3, mei_me_pch_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_H, mei_me_pch_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_W, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_H, mei_me_lpt_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_W, mei_me_lpt_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_LP, mei_me_pch_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_HR, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_HR, mei_me_lpt_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_WPT_LP, mei_me_pch_cfg)},
 
 	/* required last entry */
@@ -101,40 +101,21 @@ static inline void mei_me_unset_pm_domain(struct mei_device *dev) {}
  * mei_quirk_probe - probe for devices that doesn't valid ME interface
  *
  * @pdev: PCI device structure
- * @ent: entry into pci_device_table
+ * @cfg: per generation config
  *
  * returns true if ME Interface is valid, false otherwise
  */
 static bool mei_me_quirk_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+				const struct mei_cfg *cfg)
 {
-	u32 reg;
-	/* Cougar Point || Patsburg */
-	if (ent->device == MEI_DEV_ID_CPT_1 ||
-	    ent->device == MEI_DEV_ID_PBG_1) {
-		pci_read_config_dword(pdev, PCI_CFG_HFS_2, &reg);
-		/* make sure that bit 9 (NM) is up and bit 10 (DM) is down */
-		if ((reg & 0x600) == 0x200)
-			goto no_mei;
-	}
-
-	/* Lynx Point */
-	if (ent->device == MEI_DEV_ID_LPT_H  ||
-	    ent->device == MEI_DEV_ID_LPT_W  ||
-	    ent->device == MEI_DEV_ID_LPT_HR) {
-		/* Read ME FW Status check for SPS Firmware */
-		pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
-		/* if bits [19:16] = 15, running SPS Firmware */
-		if ((reg & 0xf0000) == 0xf0000)
-			goto no_mei;
+	if (cfg->quirk_probe && cfg->quirk_probe(pdev)) {
+		dev_info(&pdev->dev, "Device doesn't have valid ME Interface\n");
+		return false;
 	}
 
 	return true;
-
-no_mei:
-	dev_info(&pdev->dev, "Device doesn't have valid ME Interface\n");
-	return false;
 }
+
 /**
  * mei_probe - Device Initialization Routine
  *
@@ -151,10 +132,8 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err;
 
 
-	if (!mei_me_quirk_probe(pdev, ent)) {
-		err = -ENODEV;
-		goto end;
-	}
+	if (!mei_me_quirk_probe(pdev, cfg))
+		return -ENODEV;
 
 	/* enable pci dev */
 	err = pci_enable_device(pdev);

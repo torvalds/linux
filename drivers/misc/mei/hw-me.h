@@ -41,6 +41,8 @@ struct mei_me_hw {
 extern const struct mei_cfg mei_me_legacy_cfg;
 extern const struct mei_cfg mei_me_ich_cfg;
 extern const struct mei_cfg mei_me_pch_cfg;
+extern const struct mei_cfg mei_me_pch_cpt_pbg_cfg;
+extern const struct mei_cfg mei_me_lpt_cfg;
 
 struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 				   const struct mei_cfg *cfg);
