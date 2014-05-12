@@ -786,7 +786,7 @@ static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 	REG_FLD_MOD(base, HDMI_CORE_AUD_GP_POL, 1, 0, 0);
 
 	/* unmute audio */
-	REG_FLD_MOD(core_sys_base, HDMI_CORE_FC_AUDSCONF, 0, 7, 4);
+	REG_FLD_MOD(base, HDMI_CORE_FC_AUDSCONF, 0, 7, 4);
 }
 
 static void hdmi5_core_audio_infoframe_cfg(struct hdmi_core_data *core,
