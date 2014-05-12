@@ -127,6 +127,7 @@ toshiba	Toshiba Corporation
 toumaz	Toumaz
 usi	Universal Scientifc Industrial Co., Ltd.
 v3	V3 Semiconductor
+variscite	Variscite Ltd.
 via	VIA Technologies, Inc.
 voipac	Voipac Technologies s.r.o.
 winbond Winbond Electronics corp.
