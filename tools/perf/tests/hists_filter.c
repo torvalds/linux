@@ -69,6 +69,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			evsel->hists.symbol_filter_str = NULL;
 
 			sample.pid = fake_samples[i].pid;
+			sample.tid = fake_samples[i].pid;
 			sample.ip = fake_samples[i].ip;
 
 			if (perf_event__preprocess_sample(&event, machine, &al,
