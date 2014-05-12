@@ -263,13 +263,13 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		return ret;
 
 	dev_dbg(dev, "Gen2 device probed\n");
-	dev_dbg(dev, "SCU  : %08x => %p\n", scu_res->start,
+	dev_dbg(dev, "SCU  : %pap => %p\n", &scu_res->start,
 		gen->base[RSND_GEN2_SCU]);
-	dev_dbg(dev, "ADG  : %08x => %p\n", adg_res->start,
+	dev_dbg(dev, "ADG  : %pap => %p\n", &adg_res->start,
 		gen->base[RSND_GEN2_ADG]);
-	dev_dbg(dev, "SSIU : %08x => %p\n", ssiu_res->start,
+	dev_dbg(dev, "SSIU : %pap => %p\n", &ssiu_res->start,
 		gen->base[RSND_GEN2_SSIU]);
-	dev_dbg(dev, "SSI  : %08x => %p\n", ssi_res->start,
+	dev_dbg(dev, "SSI  : %pap => %p\n", &ssi_res->start,
 		gen->base[RSND_GEN2_SSI]);
 
 	return 0;
@@ -356,11 +356,11 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 		return ret;
 
 	dev_dbg(dev, "Gen1 device probed\n");
-	dev_dbg(dev, "SRU : %08x => %p\n",	sru_res->start,
+	dev_dbg(dev, "SRU : %pap => %p\n",	&sru_res->start,
 						gen->base[RSND_GEN1_SRU]);
-	dev_dbg(dev, "ADG : %08x => %p\n",	adg_res->start,
+	dev_dbg(dev, "ADG : %pap => %p\n",	&adg_res->start,
 						gen->base[RSND_GEN1_ADG]);
-	dev_dbg(dev, "SSI : %08x => %p\n",	ssi_res->start,
+	dev_dbg(dev, "SSI : %pap => %p\n",	&ssi_res->start,
 						gen->base[RSND_GEN1_SSI]);
 
 	return 0;
