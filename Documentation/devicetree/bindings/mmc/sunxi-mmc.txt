@@ -1,0 +1,43 @@
+* Allwinner sunxi MMC controller
+
+The highspeed MMC host controller on Allwinner SoCs provides an interface
+for MMC, SD and SDIO types of memory cards.
+
+Supported maximum speeds are the ones of the eMMC standard 4.5 as well
+as the speed of SD standard 3.0.
+Absolute maximum transfer rate is 200MB/s
+
+Required properties:
+ - compatible : "allwinner,sun4i-a10-mmc" or "allwinner,sun5i-a13-mmc"
+ - reg : mmc controller base registers
+ - clocks : a list with 2 phandle + clock specifier pairs
+ - clock-names : must contain "ahb" and "mmc"
+ - interrupts : mmc controller interrupt
+
+Optional properties:
+ - resets : phandle + reset specifier pair
+ - reset-names : must contain "ahb"
+ - for cd, bus-width and additional generic mmc parameters
+   please refer to mmc.txt within this directory
+
+Examples:
+	- Within .dtsi:
+	mmc0: mmc@01c0f000 {
+		compatible = "allwinner,sun5i-a13-mmc";
+		reg = <0x01c0f000 0x1000>;
+		clocks = <&ahb_gates 8>, <&mmc0_clk>;
+		clock-names = "ahb", "mod";
+		interrupts = <0 32 4>;
+		status = "disabled";
+	};
+
+	- Within dts:
+	mmc0: mmc@01c0f000 {
+		pinctrl-names = "default", "default";
+		pinctrl-0 = <&mmc0_pins_a>;
+		pinctrl-1 = <&mmc0_cd_pin_reference_design>;
+		bus-width = <4>;
+		cd-gpios = <&pio 7 1 0>; /* PH1 */
+		cd-inverted;
+		status = "okay";
+	};
