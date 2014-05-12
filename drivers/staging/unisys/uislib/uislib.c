@@ -23,6 +23,7 @@
 #include <config/modversions.h>
 #endif
 #include <linux/module.h>
+#include <linux/debugfs.h>
 
 #include "commontypes.h"
 
@@ -91,18 +92,22 @@ static int Go_Polling_Device_Channels;
 static struct proc_dir_entry *uislib_proc_dir;
 static struct proc_dir_entry *uislib_proc_vbus_dir;
 static struct proc_dir_entry *info_proc_entry;
-static struct proc_dir_entry *platformnumber_proc_entry;
 static struct proc_dir_entry *cycles_before_wait_proc_entry;
 static struct proc_dir_entry *smart_wakeup_proc_entry;
 
 #define DIR_PROC_ENTRY "uislib"
 #define DIR_VBUS_PROC_ENTRY "vbus"
 #define INFO_PROC_ENTRY_FN "info"
-#define PLATFORMNUMBER_PROC_ENTRY_FN "platform"
 #define CYCLES_BEFORE_WAIT_PROC_ENTRY_FN "cycles_before_wait"
 #define SMART_WAKEUP_PROC_ENTRY_FN "smart_wakeup"
 #define CALLHOME_PROC_ENTRY_FN "callhome"
 #define CALLHOME_THROTTLED_PROC_ENTRY_FN "callhome_throttled"
+
+#define DIR_DEBUGFS_ENTRY "uislib"
+static struct dentry *dir_debugfs;
+
+#define PLATFORMNUMBER_DEBUGFS_ENTRY_FN "platform"
+static struct dentry *platformnumber_debugfs_read;
 
 static unsigned long long cycles_before_wait, wait_cycles;
 
@@ -135,12 +140,6 @@ static ssize_t info_proc_read(struct file *file, char __user *buf,
 			      size_t len, loff_t *offset);
 static const struct file_operations proc_info_fops = {
 	.read = info_proc_read,
-};
-
-static ssize_t platformnumber_proc_read(struct file *file, char __user *buf,
-					size_t len, loff_t *offset);
-static const struct file_operations proc_platformnumber_fops = {
-	.read = platformnumber_proc_read,
 };
 
 static ssize_t cycles_before_wait_proc_write(struct file *file,
@@ -1386,36 +1385,6 @@ info_proc_read(struct file *file, char __user *buf, size_t len, loff_t *offset)
 				       ProcReadBuffer, totalBytes);
 }
 
-static ssize_t
-platformnumber_proc_read(struct file *file, char __user *buf,
-			 size_t len, loff_t *offset)
-{
-	int length = 0;
-	char *vbuf;
-	loff_t pos = *offset;
-
-	if (pos < 0)
-		return -EINVAL;
-
-	if (pos > 0 || !len)
-		return 0;
-
-	vbuf = kzalloc(len, GFP_KERNEL);
-	if (!vbuf)
-		return -ENOMEM;
-
-	length = sprintf(vbuf, "%d\n", PlatformNumber);
-
-	if (copy_to_user(buf, vbuf, length)) {
-		kfree(vbuf);
-		return -EFAULT;
-	}
-
-	kfree(vbuf);
-	*offset += length;
-	return length;
-}
-
 /* proc/uislib/vbus/<x>/info */
 static int
 proc_info_vbus_show(struct seq_file *m, void *v)
@@ -1824,10 +1793,13 @@ uislib_mod_init(void)
 				      &proc_info_fops);
 	SET_PROC_OWNER(info_proc_entry, THIS_MODULE);
 
-	platformnumber_proc_entry =
-	    proc_create(PLATFORMNUMBER_PROC_ENTRY_FN, 0, uislib_proc_dir,
-			&proc_platformnumber_fops);
-	SET_PROC_OWNER(platformnumberinfo_proc_entry, THIS_MODULE);
+	dir_debugfs = debugfs_create_dir(DIR_DEBUGFS_ENTRY, NULL);
+
+	if (dir_debugfs) {
+		platformnumber_debugfs_read = debugfs_create_u32(
+			PLATFORMNUMBER_DEBUGFS_ENTRY_FN, 0444, dir_debugfs,
+			&PlatformNumber);
+	}
 
 	cycles_before_wait_proc_entry =
 	    proc_create(CYCLES_BEFORE_WAIT_PROC_ENTRY_FN, 0, uislib_proc_dir,
@@ -1853,9 +1825,6 @@ uislib_mod_exit(void)
 		remove_proc_entry(SMART_WAKEUP_PROC_ENTRY_FN, uislib_proc_dir);
 	if (info_proc_entry)
 		remove_proc_entry(INFO_PROC_ENTRY_FN, uislib_proc_dir);
-	if (platformnumber_proc_entry)
-		remove_proc_entry(PLATFORMNUMBER_PROC_ENTRY_FN,
-				  uislib_proc_dir);
 	if (uislib_proc_vbus_dir)
 		remove_proc_entry(DIR_VBUS_PROC_ENTRY, uislib_proc_dir);
 	if (uislib_proc_dir)
@@ -1865,6 +1834,9 @@ uislib_mod_exit(void)
 		vfree(ProcReadBuffer);
 		ProcReadBuffer = NULL;
 	}
+
+	debugfs_remove(platformnumber_debugfs_read);
+	debugfs_remove(dir_debugfs);
 
 	DBGINF("goodbye.\n");
 	return;
