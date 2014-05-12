@@ -545,7 +545,8 @@
 					reg = <0>;
 					atmel,clk-input-range = <1000000 32000000>;
 					#atmel,pll-clk-output-range-cells = <4>;
-					atmel,pll-clk-output-ranges = <80000000 200000000 190000000 240000000>;
+					atmel,pll-clk-output-ranges = <80000000 200000000 0 1>,
+								<190000000 240000000 2 1>;
 				};
 
 				pllb: pllbck {
@@ -554,9 +555,9 @@
 					interrupts-extended = <&pmc AT91_PMC_LOCKB>;
 					clocks = <&main>;
 					reg = <1>;
-					atmel,clk-input-range = <1000000 32000000>;
+					atmel,clk-input-range = <1000000 5000000>;
 					#atmel,pll-clk-output-range-cells = <4>;
-					atmel,pll-clk-output-ranges = <80000000 200000000 190000000 240000000>;
+					atmel,pll-clk-output-ranges = <70000000 130000000 1 1>;
 				};
 
 				mck: masterck {
@@ -565,13 +566,13 @@
 					interrupts-extended = <&pmc AT91_PMC_MCKRDY>;
 					clocks = <&clk32k>, <&main>, <&plla>, <&pllb>;
 					atmel,clk-output-range = <0 94000000>;
-					atmel,clk-divisors = <1 2 4 3>;
+					atmel,clk-divisors = <1 2 4 0>;
 				};
 
 				usb: usbck {
 					compatible = "atmel,at91rm9200-clk-usb";
 					#clock-cells = <0>;
-					atmel,clk-divisors = <1 2 4 3>;
+					atmel,clk-divisors = <1 2 4 0>;
 					clocks = <&pllb>;
 				};
 
