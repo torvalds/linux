@@ -92,13 +92,11 @@ static int Go_Polling_Device_Channels;
 static struct proc_dir_entry *uislib_proc_dir;
 static struct proc_dir_entry *uislib_proc_vbus_dir;
 static struct proc_dir_entry *info_proc_entry;
-static struct proc_dir_entry *cycles_before_wait_proc_entry;
 static struct proc_dir_entry *smart_wakeup_proc_entry;
 
 #define DIR_PROC_ENTRY "uislib"
 #define DIR_VBUS_PROC_ENTRY "vbus"
 #define INFO_PROC_ENTRY_FN "info"
-#define CYCLES_BEFORE_WAIT_PROC_ENTRY_FN "cycles_before_wait"
 #define SMART_WAKEUP_PROC_ENTRY_FN "smart_wakeup"
 #define CALLHOME_PROC_ENTRY_FN "callhome"
 #define CALLHOME_THROTTLED_PROC_ENTRY_FN "callhome_throttled"
@@ -108,6 +106,9 @@ static struct dentry *dir_debugfs;
 
 #define PLATFORMNUMBER_DEBUGFS_ENTRY_FN "platform"
 static struct dentry *platformnumber_debugfs_read;
+
+#define CYCLES_BEFORE_WAIT_DEBUGFS_ENTRY_FN "cycles_before_wait"
+static struct dentry *cycles_before_wait_debugfs_read;
 
 static unsigned long long cycles_before_wait, wait_cycles;
 
@@ -140,14 +141,6 @@ static ssize_t info_proc_read(struct file *file, char __user *buf,
 			      size_t len, loff_t *offset);
 static const struct file_operations proc_info_fops = {
 	.read = info_proc_read,
-};
-
-static ssize_t cycles_before_wait_proc_write(struct file *file,
-					     const char __user *buffer,
-					     size_t count, loff_t *ppos);
-static const struct file_operations proc_cycles_before_wait_fops = {
-	.read = uislib_proc_read_writeonly,
-	.write = cycles_before_wait_proc_write,
 };
 
 static ssize_t smart_wakeup_proc_write(struct file *file,
@@ -1431,37 +1424,6 @@ uislib_proc_read_writeonly(struct file *file, char __user *buffer,
 }
 
 static ssize_t
-cycles_before_wait_proc_write(struct file *file, const char __user *buffer,
-			      size_t count, loff_t *ppos)
-{
-	char buf[16];
-
-#define CYCLES_BEFORE_WAIT_USE_ERROR  { \
-	LOGERR("Incorrect Call Home Input.\n"); \
-	pr_info("Please pass Call Home Event Parameters in the form:\n"); \
-	pr_info("EventID Category Type[parameter1][parameter2][parameter3][parameter4][parameter5][parameter6]\n"); \
-	return -EFAULT; \
-}
-	if (count >= ARRAY_SIZE(buf))
-		return -EINVAL;
-
-	if (count == 0)
-		CYCLES_BEFORE_WAIT_USE_ERROR;
-
-	if (copy_from_user(buf, buffer, count)) {
-		LOGERR("copy_from_user failed.\n");
-		return -EFAULT;
-	}
-	buf[count - 1] = '\0';	/* Replace the LF at the end of the
-				 * input with a NULL */
-	/* Pull out the cycles_before_wait must be decimal integer */
-	if (sscanf(buf, "%lld", &cycles_before_wait) != 1)
-		CYCLES_BEFORE_WAIT_USE_ERROR;
-
-	return count;
-}
-
-static ssize_t
 smart_wakeup_proc_write(struct file *file, const char __user *buffer,
 			size_t count, loff_t *ppos)
 {
@@ -1799,12 +1761,11 @@ uislib_mod_init(void)
 		platformnumber_debugfs_read = debugfs_create_u32(
 			PLATFORMNUMBER_DEBUGFS_ENTRY_FN, 0444, dir_debugfs,
 			&PlatformNumber);
-	}
 
-	cycles_before_wait_proc_entry =
-	    proc_create(CYCLES_BEFORE_WAIT_PROC_ENTRY_FN, 0, uislib_proc_dir,
-			&proc_cycles_before_wait_fops);
-	SET_PROC_OWNER(cycles_before_wait_proc_entry, THIS_MODULE);
+		cycles_before_wait_debugfs_read = debugfs_create_u64(
+			CYCLES_BEFORE_WAIT_DEBUGFS_ENTRY_FN, 0666, dir_debugfs,
+			&cycles_before_wait);
+	}
 
 	smart_wakeup_proc_entry =
 	    proc_create(SMART_WAKEUP_PROC_ENTRY_FN, 0, uislib_proc_dir,
@@ -1818,9 +1779,6 @@ uislib_mod_init(void)
 static void __exit
 uislib_mod_exit(void)
 {
-	if (cycles_before_wait_proc_entry)
-		remove_proc_entry(CYCLES_BEFORE_WAIT_PROC_ENTRY_FN,
-				  uislib_proc_dir);
 	if (smart_wakeup_proc_entry)
 		remove_proc_entry(SMART_WAKEUP_PROC_ENTRY_FN, uislib_proc_dir);
 	if (info_proc_entry)
@@ -1835,6 +1793,7 @@ uislib_mod_exit(void)
 		ProcReadBuffer = NULL;
 	}
 
+	debugfs_remove(cycles_before_wait_debugfs_read);
 	debugfs_remove(platformnumber_debugfs_read);
 	debugfs_remove(dir_debugfs);
 
