@@ -1863,7 +1863,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 	int fifo = BRCMF_FWS_FIFO_BCMC;
 	bool multicast = is_multicast_ether_addr(eh->h_dest);
-	bool pae = eh->h_proto == htons(ETH_P_PAE);
+	int rc = 0;
 
 	brcmf_dbg(DATA, "tx proto=0x%X\n", ntohs(eh->h_proto));
 	/* determine the priority */
@@ -1871,8 +1871,6 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 		skb->priority = cfg80211_classify8021d(skb, NULL);
 
 	drvr->tx_multicast += !!multicast;
-	if (pae)
-		atomic_inc(&ifp->pend_8021x_cnt);
 
 	/* set control buffer information */
 	skcb->if_flags = 0;
@@ -1894,15 +1892,12 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 		brcmf_fws_schedule_deq(fws);
 	} else {
 		brcmf_err("drop skb: no hanger slot\n");
-		if (pae) {
-			atomic_dec(&ifp->pend_8021x_cnt);
-			if (waitqueue_active(&ifp->pend_8021x_wait))
-				wake_up(&ifp->pend_8021x_wait);
-		}
-		brcmu_pkt_buf_free_skb(skb);
+		brcmf_txfinalize(drvr, skb, ifp->ifidx, false);
+		rc = -ENOMEM;
 	}
 	brcmf_fws_unlock(fws);
-	return 0;
+
+	return rc;
 }
 
 void brcmf_fws_reset_interface(struct brcmf_if *ifp)
