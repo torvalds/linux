@@ -83,9 +83,9 @@ static inline int ext4_block_in_group(struct super_block *sb,
 /* Return the number of clusters used for file system metadata; this
  * represents the overhead needed by the file system.
  */
-unsigned ext4_num_overhead_clusters(struct super_block *sb,
-				    ext4_group_t block_group,
-				    struct ext4_group_desc *gdp)
+static unsigned ext4_num_overhead_clusters(struct super_block *sb,
+					   ext4_group_t block_group,
+					   struct ext4_group_desc *gdp)
 {
 	unsigned num_clusters;
 	int block_cluster = -1, inode_cluster = -1, itbl_cluster = -1, i, c;
@@ -176,9 +176,10 @@ static unsigned int num_clusters_in_group(struct super_block *sb,
 }
 
 /* Initializes an uninitialized block bitmap */
-void ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
-			    ext4_group_t block_group,
-			    struct ext4_group_desc *gdp)
+static void ext4_init_block_bitmap(struct super_block *sb,
+				   struct buffer_head *bh,
+				   ext4_group_t block_group,
+				   struct ext4_group_desc *gdp)
 {
 	unsigned int bit, bit_max;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -351,10 +352,10 @@ static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
 	return 0;
 }
 
-void ext4_validate_block_bitmap(struct super_block *sb,
-			       struct ext4_group_desc *desc,
-			       ext4_group_t block_group,
-			       struct buffer_head *bh)
+static void ext4_validate_block_bitmap(struct super_block *sb,
+				       struct ext4_group_desc *desc,
+				       ext4_group_t block_group,
+				       struct buffer_head *bh)
 {
 	ext4_fsblk_t	blk;
 	struct ext4_group_info *grp = ext4_get_group_info(sb, block_group);

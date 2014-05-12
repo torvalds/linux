@@ -57,7 +57,7 @@ static int ext4_release_file(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-void ext4_unwritten_wait(struct inode *inode)
+static void ext4_unwritten_wait(struct inode *inode)
 {
 	wait_queue_head_t *wq = ext4_ioend_wq(inode);
 

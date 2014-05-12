@@ -3443,7 +3443,7 @@ unlock:
  * This required during truncate. We need to physically zero the tail end
  * of that block so it doesn't yield old data if the file is later grown.
  */
-int ext4_block_truncate_page(handle_t *handle,
+static int ext4_block_truncate_page(handle_t *handle,
 		struct address_space *mapping, loff_t from)
 {
 	unsigned offset = from & (PAGE_CACHE_SIZE-1);

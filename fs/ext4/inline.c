@@ -22,7 +22,7 @@
 #define EXT4_INLINE_DOTDOT_OFFSET	2
 #define EXT4_INLINE_DOTDOT_SIZE		4
 
-int ext4_get_inline_size(struct inode *inode)
+static int ext4_get_inline_size(struct inode *inode)
 {
 	if (EXT4_I(inode)->i_inline_off)
 		return EXT4_I(inode)->i_inline_size;
@@ -211,8 +211,8 @@ out:
  * value since it is already handled by ext4_xattr_ibody_inline_set.
  * That saves us one memcpy.
  */
-void ext4_write_inline_data(struct inode *inode, struct ext4_iloc *iloc,
-			    void *buffer, loff_t pos, unsigned int len)
+static void ext4_write_inline_data(struct inode *inode, struct ext4_iloc *iloc,
+				   void *buffer, loff_t pos, unsigned int len)
 {
 	struct ext4_xattr_entry *entry;
 	struct ext4_xattr_ibody_header *header;
@@ -373,8 +373,8 @@ out:
 	return error;
 }
 
-int ext4_prepare_inline_data(handle_t *handle, struct inode *inode,
-			     unsigned int len)
+static int ext4_prepare_inline_data(handle_t *handle, struct inode *inode,
+				    unsigned int len)
 {
 	int ret, size;
 	struct ext4_inode_info *ei = EXT4_I(inode);
