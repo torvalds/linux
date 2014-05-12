@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "omap4-var-som-om44.dtsi"
+#include "omap4-var-som-om44-wlan.dtsi"
 #include "omap4-var-om44customboard.dtsi"
 
 / {
