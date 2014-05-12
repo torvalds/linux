@@ -134,11 +134,6 @@ static const struct file_operations proc_info_vbus_fops = {
 	.release = single_release,
 };
 
-static ssize_t uislib_proc_read_writeonly(struct file *file,
-					  char __user *buffer,
-					  size_t count, loff_t *ppos);
-
-
 static ssize_t info_proc_read(struct file *file, char __user *buf,
 			      size_t len, loff_t *offset);
 static const struct file_operations proc_info_fops = {
@@ -859,27 +854,6 @@ init_chipset(CONTROLVM_MESSAGE *msg, char *buf)
 }
 
 static int
-stop_chipset(CONTROLVM_MESSAGE *msg, char *buf)
-{
-	/* Check that all buses and switches have been torn down and
-	 * destroyed.
-	 */
-	if (BusListHead) {
-		/* Buses still exist. */
-		LOGERR("CONTROLVM_CHIPSET_STOP: BusListHead is not NULL");
-		return CONTROLVM_RESP_ERROR_CHIPSET_STOP_FAILED_BUS;
-	}
-	if (BusListCount) {
-		/* BusListHead is NULL, but BusListCount != 0 */
-		LOGERR("CONTROLVM_CHIPSET_STOP: BusListCount != 0");
-		return CONTROLVM_RESP_ERROR_CHIPSET_STOP_FAILED_BUS;
-	}
-
-	/* Buses are shut down. */
-	return visorchipset_chipset_notready();
-}
-
-static int
 delete_bus_glue(U32 busNo)
 {
 	CONTROLVM_MESSAGE msg;
@@ -1407,13 +1381,6 @@ proc_info_vbus_show(struct seq_file *m, void *v)
 			seq_printf(m, "%s", buf);
 		}
 	}
-	return 0;
-}
-
-static ssize_t
-uislib_proc_read_writeonly(struct file *file, char __user *buffer,
-	       size_t count, loff_t *ppos)
-{
 	return 0;
 }
 
