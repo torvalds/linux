@@ -41,8 +41,8 @@
 #define IS_IRQ(x) ((x) & 1)
 #define IRQ_ID(x) (((x) >> 1) & 7)
 
-#define MEN_Z135_IER_RXCIEN BIT(0)		/* TX Space IRQ */
-#define MEN_Z135_IER_TXCIEN BIT(1)		/* RX Space IRQ */
+#define MEN_Z135_IER_RXCIEN BIT(0)		/* RX Space IRQ */
+#define MEN_Z135_IER_TXCIEN BIT(1)		/* TX Space IRQ */
 #define MEN_Z135_IER_RLSIEN BIT(2)		/* Receiver Line Status IRQ */
 #define MEN_Z135_IER_MSIEN  BIT(3)		/* Modem Status IRQ */
 #define MEN_Z135_ALL_IRQS (MEN_Z135_IER_RXCIEN		\
@@ -576,7 +576,8 @@ static int men_z135_startup(struct uart_port *port)
 
 	conf_reg = ioread32(port->membase + MEN_Z135_CONF_REG);
 
-	conf_reg |= MEN_Z135_ALL_IRQS;
+	/* Activate all but TX space available IRQ */
+	conf_reg |= MEN_Z135_ALL_IRQS & ~MEN_Z135_IER_TXCIEN;
 	conf_reg &= ~(0xff << 16);
 	conf_reg |= (txlvl << 16);
 	conf_reg |= (rxlvl << 20);
