@@ -157,13 +157,56 @@ endmenu
 
 menu "Kernel Features"
 
+choice
+	prompt "Page size"
+	default ARM64_4K_PAGES
+	help
+	  Page size (translation granule) configuration.
+
+config ARM64_4K_PAGES
+	bool "4KB"
+	help
+	  This feature enables 4KB pages support.
+
 config ARM64_64K_PAGES
-	bool "Enable 64KB pages support"
+	bool "64KB"
 	help
 	  This feature enables 64KB pages support (4KB by default)
 	  allowing only two levels of page tables and faster TLB
 	  look-up. AArch32 emulation is not available when this feature
 	  is enabled.
+
+endchoice
+
+choice
+	prompt "Virtual address space size"
+	default ARM64_VA_BITS_39 if ARM64_4K_PAGES
+	default ARM64_VA_BITS_42 if ARM64_64K_PAGES
+	help
+	  Allows choosing one of multiple possible virtual address
+	  space sizes. The level of translation table is determined by
+	  a combination of page size and virtual address space size.
+
+config ARM64_VA_BITS_39
+	bool "39-bit"
+	depends on ARM64_4K_PAGES
+
+config ARM64_VA_BITS_42
+	bool "42-bit"
+	depends on ARM64_64K_PAGES
+
+endchoice
+
+config ARM64_VA_BITS
+	int
+	default 39 if ARM64_VA_BITS_39
+	default 42 if ARM64_VA_BITS_42
+
+config ARM64_2_LEVELS
+	def_bool y if ARM64_64K_PAGES && ARM64_VA_BITS_42
+
+config ARM64_3_LEVELS
+	def_bool y if ARM64_4K_PAGES && ARM64_VA_BITS_39
 
 config CPU_BIG_ENDIAN
        bool "Build big-endian kernel"
