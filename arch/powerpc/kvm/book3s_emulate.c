@@ -634,44 +634,7 @@ unprivileged:
 
 u32 kvmppc_alignment_dsisr(struct kvm_vcpu *vcpu, unsigned int inst)
 {
-	u32 dsisr = 0;
-
-	/*
-	 * This is what the spec says about DSISR bits (not mentioned = 0):
-	 *
-	 * 12:13		[DS]	Set to bits 30:31
-	 * 15:16		[X]	Set to bits 29:30
-	 * 17			[X]	Set to bit 25
-	 *			[D/DS]	Set to bit 5
-	 * 18:21		[X]	Set to bits 21:24
-	 *			[D/DS]	Set to bits 1:4
-	 * 22:26			Set to bits 6:10 (RT/RS/FRT/FRS)
-	 * 27:31			Set to bits 11:15 (RA)
-	 */
-
-	switch (get_op(inst)) {
-	/* D-form */
-	case OP_LFS:
-	case OP_LFD:
-	case OP_STFD:
-	case OP_STFS:
-		dsisr |= (inst >> 12) & 0x4000;	/* bit 17 */
-		dsisr |= (inst >> 17) & 0x3c00; /* bits 18:21 */
-		break;
-	/* X-form */
-	case 31:
-		dsisr |= (inst << 14) & 0x18000; /* bits 15:16 */
-		dsisr |= (inst << 8)  & 0x04000; /* bit 17 */
-		dsisr |= (inst << 3)  & 0x03c00; /* bits 18:21 */
-		break;
-	default:
-		printk(KERN_INFO "KVM: Unaligned instruction 0x%x\n", inst);
-		break;
-	}
-
-	dsisr |= (inst >> 16) & 0x03ff; /* bits 22:31 */
-
-	return dsisr;
+	return make_dsisr(inst);
 }
 
 ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst)
