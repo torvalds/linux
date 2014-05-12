@@ -134,7 +134,7 @@ static u32 ppc64_stub_insns[] = {
 	0xe98b0020,			/* ld      r12,32(r11) */
 #if !defined(_CALL_ELF) || _CALL_ELF != 2
 	/* Set up new r2 from function descriptor */
-	0xe84b0026,			/* ld      r2,40(r11) */
+	0xe84b0028,			/* ld      r2,40(r11) */
 #endif
 	0x7d8903a6,			/* mtctr   r12 */
 	0x4e800420			/* bctr */
