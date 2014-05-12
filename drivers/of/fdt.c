@@ -687,32 +687,38 @@ static const char *config_cmdline = "";
 int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 				     int depth, void *data)
 {
-	unsigned long l;
-	char *p;
+	unsigned long l = 0;
+	char *p = NULL;
+	char *cmdline = data;
 
 	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 
-	if (depth != 1 || !data ||
+	if (depth != 1 || !cmdline ||
 	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
 		return 0;
 
 	early_init_dt_check_for_initrd(node);
 
 	/* Put CONFIG_CMDLINE in if forced or if data had nothing in it to start */
-	if (overwrite_incoming_cmdline || !((char *)data)[0])
-		strlcpy(data, config_cmdline, COMMAND_LINE_SIZE);
+	if (overwrite_incoming_cmdline || !cmdline[0])
+		strlcpy(cmdline, config_cmdline, COMMAND_LINE_SIZE);
 
 	/* Retrieve command line unless forcing */
-	if (read_dt_cmdline) {
+	if (read_dt_cmdline)
 		p = of_get_flat_dt_prop(node, "bootargs", &l);
-		if (p != NULL && l > 0) {
-			if (concat_cmdline) {
-				strlcat(data, " ", COMMAND_LINE_SIZE);
-				strlcat(data, p, min_t(int, (int)l,
-						       COMMAND_LINE_SIZE));
-			} else
-				strlcpy(data, p, min_t(int, (int)l,
-						       COMMAND_LINE_SIZE));
+
+	if (p != NULL && l > 0) {
+		if (concat_cmdline) {
+			int cmdline_len;
+			int copy_len;
+			strlcat(cmdline, " ", COMMAND_LINE_SIZE);
+			cmdline_len = strlen(cmdline);
+			copy_len = COMMAND_LINE_SIZE - cmdline_len - 1;
+			copy_len = min((int)l, copy_len);
+			strncpy(cmdline + cmdline_len, p, copy_len);
+			cmdline[cmdline_len + copy_len] = '\0';
+		} else {
+			strlcpy(cmdline, p, min((int)l, COMMAND_LINE_SIZE));
 		}
 	}
 

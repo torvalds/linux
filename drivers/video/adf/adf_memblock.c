@@ -28,7 +28,7 @@ static struct sg_table *adf_memblock_map(struct dma_buf_attachment *attach,
 	unsigned long pfn = PFN_DOWN(pdata->base);
 	struct page *page = pfn_to_page(pfn);
 	struct sg_table *table;
-	int ret;
+	int nents, ret;
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
@@ -36,12 +36,21 @@ static struct sg_table *adf_memblock_map(struct dma_buf_attachment *attach,
 
 	ret = sg_alloc_table(table, 1, GFP_KERNEL);
 	if (ret < 0)
-		goto err;
+		goto err_alloc;
 
 	sg_set_page(table->sgl, page, attach->dmabuf->size, 0);
+
+	nents = dma_map_sg(attach->dev, table->sgl, 1, direction);
+	if (!nents) {
+		ret = -EINVAL;
+		goto err_map;
+	}
+
 	return table;
 
-err:
+err_map:
+	sg_free_table(table);
+err_alloc:
 	kfree(table);
 	return ERR_PTR(ret);
 }
@@ -49,6 +58,7 @@ err:
 static void adf_memblock_unmap(struct dma_buf_attachment *attach,
 		struct sg_table *table, enum dma_data_direction direction)
 {
+	dma_unmap_sg(attach->dev, table->sgl, 1, direction);
 	sg_free_table(table);
 }
 
