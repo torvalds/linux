@@ -77,71 +77,71 @@
 
 	led_gpio_pins: pinmux_led_gpio_pins {
 		pinctrl-single,pins = <
-			OMAP5_CORE_IOPAD(0x28b0, PIN_OUTPUT | MUX_MODE6) /* hsi2_caflag.gpio3_80 */
+			OMAP5_IOPAD(0x00b0, PIN_OUTPUT | MUX_MODE6) /* hsi2_caflag.gpio3_80 */
 		>;
 	};
 
 	i2c1_pins: pinmux_i2c1_pins {
 		pinctrl-single,pins = <
-			OMAP5_CORE_IOPAD(0x29f2, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c1_pmic_scl */
-			OMAP5_CORE_IOPAD(0x29f4, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c1_pmic_sda */
+			OMAP5_IOPAD(0x01f2, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c1_pmic_scl */
+			OMAP5_IOPAD(0x01f4, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c1_pmic_sda */
 		>;
 	};
 
 	mmc1_pins: pinmux_mmc1_pins {
 		pinctrl-single,pins = <
-			OMAP5_CORE_IOPAD(0x29e2, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_clk */
-			OMAP5_CORE_IOPAD(0x29e4, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_cmd */
-			OMAP5_CORE_IOPAD(0x29e6, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data2 */
-			OMAP5_CORE_IOPAD(0x29e8, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data3 */
-			OMAP5_CORE_IOPAD(0x29ea, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data0 */
-			OMAP5_CORE_IOPAD(0x29ec, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data1 */
+			OMAP5_IOPAD(0x01e2, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_clk */
+			OMAP5_IOPAD(0x01e4, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_cmd */
+			OMAP5_IOPAD(0x01e6, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data2 */
+			OMAP5_IOPAD(0x01e8, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data3 */
+			OMAP5_IOPAD(0x01ea, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data0 */
+			OMAP5_IOPAD(0x01ec, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data1 */
 		>;
 	};
 
 	mmc2_pins: pinmux_mmc2_pins {
 		pinctrl-single,pins = <
-			OMAP5_CORE_IOPAD(0x2840, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_clk */
-			OMAP5_CORE_IOPAD(0x2842, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_cmd */
-			OMAP5_CORE_IOPAD(0x2844, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data0 */
-			OMAP5_CORE_IOPAD(0x2846, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data1 */
-			OMAP5_CORE_IOPAD(0x2848, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data2 */
-			OMAP5_CORE_IOPAD(0x284a, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data3 */
-			OMAP5_CORE_IOPAD(0x284c, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data4 */
-			OMAP5_CORE_IOPAD(0x284e, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data5 */
-			OMAP5_CORE_IOPAD(0x2850, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data6 */
-			OMAP5_CORE_IOPAD(0x2852, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data7 */
+			OMAP5_IOPAD(0x0040, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_clk */
+			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_cmd */
+			OMAP5_IOPAD(0x0044, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data0 */
+			OMAP5_IOPAD(0x0046, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data1 */
+			OMAP5_IOPAD(0x0048, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data2 */
+			OMAP5_IOPAD(0x004a, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data3 */
+			OMAP5_IOPAD(0x004c, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data4 */
+			OMAP5_IOPAD(0x004e, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data5 */
+			OMAP5_IOPAD(0x0050, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data6 */
+			OMAP5_IOPAD(0x0052, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data7 */
 		>;
 	};
 
 	mmc3_pins: pinmux_mmc3_pins {
 		pinctrl-single,pins = <
-			OMAP5_CORE_IOPAD(0x29a4, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_clk */
-			OMAP5_CORE_IOPAD(0x29a6, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_cmd */
-			OMAP5_CORE_IOPAD(0x29a8, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data0 */
-			OMAP5_CORE_IOPAD(0x29aa, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data1 */
-			OMAP5_CORE_IOPAD(0x29ac, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data2 */
-			OMAP5_CORE_IOPAD(0x29ae, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data3 */
+			OMAP5_IOPAD(0x01a4, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_clk */
+			OMAP5_IOPAD(0x01a6, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_cmd */
+			OMAP5_IOPAD(0x01a8, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data0 */
+			OMAP5_IOPAD(0x01aa, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data1 */
+			OMAP5_IOPAD(0x01ac, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data2 */
+			OMAP5_IOPAD(0x01ae, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data3 */
 		>;
 	};
 
 	wlan_gpios_pins: pinmux_wlan_gpios_pins {
 		pinctrl-single,pins = <
-			OMAP5_CORE_IOPAD(0x299c, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* gpio4_109 */
-			OMAP5_CORE_IOPAD(0x299e, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* gpio4_110 */
+			OMAP5_IOPAD(0x019c, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* gpio4_109 */
+			OMAP5_IOPAD(0x019e, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* gpio4_110 */
 		>;
 	};
 
 	usbhost_pins: pinmux_usbhost_pins {
 		pinctrl-single,pins = <
-			OMAP5_CORE_IOPAD(0x28c4, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_strobe */
-			OMAP5_CORE_IOPAD(0x28c6, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_data */
+			OMAP5_IOPAD(0x00c4, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_strobe */
+			OMAP5_IOPAD(0x00c6, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_data */
 
-			OMAP5_CORE_IOPAD(0x29dc, PIN_INPUT | MUX_MODE0)  /* usbb3_hsic_strobe */
-			OMAP5_CORE_IOPAD(0x29de, PIN_INPUT | MUX_MODE0)  /* usbb3_hsic_data */
+			OMAP5_IOPAD(0x01dc, PIN_INPUT | MUX_MODE0)  /* usbb3_hsic_strobe */
+			OMAP5_IOPAD(0x01de, PIN_INPUT | MUX_MODE0)  /* usbb3_hsic_data */
 
-			OMAP5_CORE_IOPAD(0x28a8, PIN_OUTPUT | MUX_MODE6) /* hsi2_caready.gpio3_76 */
-			OMAP5_CORE_IOPAD(0x28b6, PIN_OUTPUT | MUX_MODE6) /* hsi2_acdata.gpio3_83 */
+			OMAP5_IOPAD(0x00a8, PIN_OUTPUT | MUX_MODE6) /* hsi2_caready.gpio3_76 */
+			OMAP5_IOPAD(0x00b6, PIN_OUTPUT | MUX_MODE6) /* hsi2_acdata.gpio3_83 */
 		>;
 	};
 };
