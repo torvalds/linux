@@ -35,6 +35,12 @@
 #include "hdmi/rk_hdmi.h"
 #endif
 
+#if defined(CONFIG_ROCKCHIP_RGA)
+#include "rga/rga.h"
+#elif defined(CONFIG_ROCKCHIP_RGA2)
+#include "rga2/rga2.h"
+#endif
+
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -783,17 +789,234 @@ static void fb_copy_by_ipp(struct fb_info *dst_info,
 
 #endif
 
+#if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
+static int get_rga_format(int fmt)
+{
+        int rga_fmt = 0;
+#if defined(CONFIG_ROCKCHIP_RGA)
+	switch (fmt)
+        {
+        case XBGR888:
+                rga_fmt = RK_FORMAT_RGBX_8888;
+                break;
+        case ABGR888:
+                rga_fmt = RK_FORMAT_RGBA_8888;
+                break;
+        case ARGB888:
+                rga_fmt = RK_FORMAT_BGRA_8888;
+                break;
+        case RGB888:
+                rga_fmt = RK_FORMAT_RGB_888;
+                break;
+        case RGB565:
+                rga_fmt = RK_FORMAT_RGB_565;
+                break;
+        case YUV422:
+                rga_fmt = RK_FORMAT_YCbCr_422_SP;
+                break;
+        case YUV420:
+                rga_fmt = RK_FORMAT_YCbCr_420_SP;
+                break;
+        default:
+                rga_fmt = RK_FORMAT_RGBA_8888;
+                break;
+        }
+#elif defined(CONFIG_ROCKCHIP_RGA2)
+        switch (fmt)
+        {
+        case XBGR888:
+                rga_fmt = RGA2_FORMAT_RGBX_8888;
+                break;
+        case ABGR888:
+                rga_fmt = RGA2_FORMAT_RGBA_8888;
+                break;
+        case ARGB888:
+                rga_fmt = RGA2_FORMAT_BGRA_8888;
+                break;
+        case RGB888 :
+                rga_fmt = RGA2_FORMAT_RGB_888;
+                break;
+        case RGB565:
+                rga_fmt = RGA2_FORMAT_RGB_565;
+                break;
+        case YUV422:
+                rga_fmt = RGA2_FORMAT_YCbCr_422_SP;
+                break;
+        case YUV420:
+                rga_fmt = RGA2_FORMAT_YCbCr_420_SP;
+                break;
+        default:
+                rga_fmt = RGA2_FORMAT_RGBA_8888;
+                break;
+        }
+#endif
+        return rga_fmt;
 
+}
+
+static void rga_win_check(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src_win)
+{
+	int align32 = 4;
+
+	align32 -= 1;
+	/*width and height must be aligned by 32 bit*/
+	if ((src_win->area[0].xact & align32) != 0)
+		src_win->area[0].xact = (src_win->area[0].xact + align32) & (~align32);
+	if ((src_win->area[0].yact & align32) != 0)
+		src_win->area[0].yact = (src_win->area[0].yact + align32) & (~align32);
+	if (src_win->area[0].xvir < src_win->area[0].xact)
+		src_win->area[0].xvir = src_win->area[0].xact;
+
+	if ((dst_win->area[0].xact & align32) != 0)
+		dst_win->area[0].xact = (dst_win->area[0].xact + align32) & (~align32);
+	if ((dst_win->area[0].yact & align32) != 0)
+		dst_win->area[0].yact = (dst_win->area[0].yact + align32) & (~align32);
+	if (dst_win->area[0].xvir < dst_win->area[0].xact)
+		dst_win->area[0].xvir = dst_win->area[0].xact;
+}
+
+static void win_copy_by_rga(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src_win)
+{
+	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
+	struct rga_req  Rga_Request;
+	long ret = 0;
+	//int fd = 0;
+#if defined(CONFIG_FB_ROTATE)
+	int orientation = 0;
+#endif
+
+	memset(&Rga_Request, 0, sizeof(Rga_Request));
+	rga_win_check(dst_win, src_win);
+
+#if defined(CONFIG_FB_ROTATE)
+	orientation = 270 - CONFIG_ROTATE_ORIENTATION;
+	switch (orientation) {
+	case 90:
+		Rga_Request.rotate_mode = 1;
+		Rga_Request.sina = 65536;
+		Rga_Request.cosa = 0;
+		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
+		Rga_Request.dst.y_offset = 0;
+		break;
+	case 180:
+		Rga_Request.rotate_mode = 1;
+		Rga_Request.sina = 0;
+		Rga_Request.cosa = -65536;
+		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
+		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
+                break;
+	case 270:
+		Rga_Request.rotate_mode = 1;
+		Rga_Request.sina = -65536;
+		Rga_Request.cosa = 0;
+		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
+		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
+                break;
+	default:
+		Rga_Request.rotate_mode = 0;
+		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
+		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
+                break;
+        }
+#endif
+
+#if defined(CONFIG_ROCKCHIP_RGA)
+	Rga_Request.src.yrgb_addr =  src_win->area[0].smem_start + src_win->area[0].y_offset;
+	Rga_Request.src.uv_addr   =  0;
+	Rga_Request.src.v_addr    =  0;
+
+	dst_win->area[0].smem_start = rk_fb->fb[rk_fb->num_fb>>1]->fix.smem_start;
+	Rga_Request.dst.yrgb_addr = dst_win->area[0].smem_start + dst_win->area[0].y_offset;
+	Rga_Request.dst.uv_addr  = 0;
+	Rga_Request.dst.v_addr   = 0;
+#elif defined(CONFIG_ROCKCHIP_RGA2)
+/*
+	fd = ion_share_dma_buf_fd(rk_fb->ion_client, src_win->area[0].ion_hdl);
+	Rga_Request.src.yrgb_addr = fd;
+	fd = ion_share_dma_buf_fd(rk_fb->ion_client, dst_win->area[0].ion_hdl);
+	Rga_Request.dst.yrgb_addr = fd;
+*/
+	Rga_Request.src.yrgb_addr =  0;
+	Rga_Request.src.uv_addr   =  src_win->area[0].smem_start + src_win->area[0].y_offset;
+	Rga_Request.src.v_addr    =  0;
+
+	dst_win->area[0].smem_start = rk_fb->fb[rk_fb->num_fb>>1]->fix.smem_start;
+	Rga_Request.dst.yrgb_addr = 0;
+	Rga_Request.dst.uv_addr  = dst_win->area[0].smem_start + dst_win->area[0].y_offset;
+	Rga_Request.dst.v_addr   = 0;
+#endif
+
+	Rga_Request.src.vir_w = src_win->area[0].xvir;
+	Rga_Request.src.vir_h = src_win->area[0].yvir;
+	Rga_Request.src.format = get_rga_format(src_win->format);
+	Rga_Request.src.act_w = src_win->area[0].xact;
+	Rga_Request.src.act_h = src_win->area[0].yact;
+	Rga_Request.src.x_offset = 0;
+	Rga_Request.src.y_offset = 0;
+
+	Rga_Request.dst.vir_w = dst_win->area[0].xvir;
+	Rga_Request.dst.vir_h = dst_win->area[0].yvir;
+	Rga_Request.dst.format = get_rga_format(dst_win->format);
+	Rga_Request.dst.act_w = dst_win->area[0].xact;
+	Rga_Request.dst.act_h = dst_win->area[0].yact;
+
+	Rga_Request.clip.xmin = 0;
+	Rga_Request.clip.xmax = dst_win->area[0].xact - 1;
+	Rga_Request.clip.ymin = 0;
+	Rga_Request.clip.ymax = dst_win->area[0].yact - 1;
+	Rga_Request.scale_mode = 0;
+
+	ret = rga_ioctl_kernel(&Rga_Request);
+}
+
+/***********************************************************************************/
+//This function is used for copying fb by RGA Module
+//RGA only support copy RGB to RGB
+//RGA2 support copy RGB to RGB and YUV to YUV
+/***********************************************************************************/
+static void fb_copy_by_rga(struct fb_info *dst_info, struct fb_info *src_info, int yrgb_offset)
+{
+	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)src_info->par;
+	struct rk_lcdc_driver *ext_dev_drv = (struct rk_lcdc_driver *)dst_info->par;
+	int win_id = 0, ext_win_id;
+	struct rk_lcdc_win *src_win, *dst_win;
+
+	win_id = dev_drv->ops->fb_get_win_id(dev_drv, src_info->fix.id);
+	src_win = dev_drv->win[win_id];
+
+	ext_win_id = ext_dev_drv->ops->fb_get_win_id(ext_dev_drv, dst_info->fix.id);
+	dst_win = ext_dev_drv->win[ext_win_id];
+
+	win_copy_by_rga(dst_win, src_win);
+}
+
+#endif
+
+#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 static int rk_fb_rotate(struct fb_info *dst_info,
 				struct fb_info *src_info, int offset)
 {
 	#if defined(CONFIG_RK29_IPP)
 		fb_copy_by_ipp(dst_info, src_info, offset);
+	#elif defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
+		fb_copy_by_rga(dst_info, src_info, offset);
 	#else
 		return -1;
 	#endif
 		return 0;
 }
+
+static int rk_fb_win_rotate(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src_win)
+{
+	#if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
+		win_copy_by_rga(dst_win, src_win);
+	#else
+		return -1;
+	#endif
+		return 0;
+}
+#endif
+
 static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
@@ -1085,7 +1308,9 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,struct rk_fb_reg_win_dat
 		win->id = reg_win_data->win_id;
 		win->z_order = reg_win_data->z_order;
 		win->area[0].uv_vir_stride = reg_win_data->reg_area_data[0].uv_vir_stride;
+	#if !defined(RK_FB_ROTATE) && defined(CONFIG_THREE_FB_BUFFER)	/* TODO Mofidy if HDMI info is change to hwc */
 		win->area[0].cbr_start = reg_win_data->reg_area_data[0].cbr_start;
+	#endif
 		win->area[0].c_offset = reg_win_data->reg_area_data[0].c_offset;
 		win->alpha_en = reg_win_data->alpha_en;
 		win->alpha_mode = reg_win_data->alpha_mode;
@@ -1093,7 +1318,9 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,struct rk_fb_reg_win_dat
 		for(i=0;i<RK_WIN_MAX_AREA;i++)
 		{
 			if(reg_win_data->reg_area_data[i].smem_start > 0){
+			#if !defined(RK_FB_ROTATE) && defined(CONFIG_THREE_FB_BUFFER)
 				win->area[i].smem_start = reg_win_data->reg_area_data[i].smem_start;
+			#endif
 				win->area[i].xpos	   = reg_win_data->reg_area_data[i].xpos;
 				win->area[i].ypos	   = reg_win_data->reg_area_data[i].ypos;
 				win->area[i].xsize	   = reg_win_data->reg_area_data[i].xsize;
@@ -1169,6 +1396,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 		}
 
 		//hdmi just need set win0 only(win0 have only one area),other win is disable
+		win = dev_drv->win[0];
 		ext_win = ext_dev_drv->win[0];
 		for (j = 0;j < regs->win_num; j++) {
 			if(0 == regs->reg_win_data[j].win_id)
@@ -1203,11 +1431,9 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 			ext_win->area[0].xvir = win->area[0].yact;
 		}
 
-		//disable the other win,except win0
-		for (i = 1; i < ext_dev_drv->lcdc_win_num; i ++) {
-			ext_win = ext_dev_drv->win[i];
-			ext_win->state = 0;
-		}
+	#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
+		rk_fb_win_rotate(ext_win, win);
+	#endif
 		ext_dev_drv->ops->set_par(ext_dev_drv, 0);
 		ext_dev_drv->ops->pan_display(ext_dev_drv, 0);
 		ext_dev_drv->ops->cfg_done(ext_dev_drv);
@@ -2697,6 +2923,47 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 
 }
 
+#if defined(CONFIG_ION_ROCKCHIP)
+static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
+		struct rk_lcdc_win *win, unsigned long fb_mem_size)
+{
+	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+	struct ion_handle *handle;
+	ion_phys_addr_t phy_addr;
+	size_t len;
+
+	handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, ION_HEAP(ION_CMA_HEAP_ID), 0);
+	if (IS_ERR(handle)) {
+		dev_err(fbi->device, "failed to ion_alloc:%ld\n",PTR_ERR(handle));
+		return -ENOMEM;
+	}
+	win->area[0].dma_buf = ion_share_dma_buf(rk_fb->ion_client, handle);
+	if (IS_ERR_OR_NULL(win->area[0].dma_buf)) {
+		printk("ion_share_dma_buf() failed\n");
+		goto err_share_dma_buf;
+	}
+	win->area[0].ion_hdl = handle;
+	fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
+#ifdef CONFIG_ROCKCHIP_IOMMU
+	if (dev_drv->iommu_enabled)
+		ion_map_iommu(dev_drv->dev, rk_fb->ion_client, handle,
+				(unsigned long *)&phy_addr, (unsigned long *)&len);
+	else
+		ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
+#else
+		ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
+#endif
+	fbi->fix.smem_start = phy_addr;
+	fbi->fix.smem_len = len;
+	printk(KERN_INFO "alloc_buffer:ion_phy_addr=0x%lx\n", phy_addr);
+	return 0;
+
+err_share_dma_buf:
+	ion_free(rk_fb->ion_client, handle);
+	return -ENOMEM;
+}
+#endif
+
 static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
@@ -2705,11 +2972,12 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 	int win_id;
 	int ret = 0;
 	unsigned long fb_mem_size;
-#if defined(CONFIG_ION_ROCKCHIP)
-	struct ion_handle *handle;
-	ion_phys_addr_t phy_addr;
-	size_t len;
+/*
+#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
+	struct resource *res;
+	struct resource *mem;
 #endif
+*/
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	if (win_id < 0)
 		return  -ENODEV;
@@ -2717,33 +2985,10 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		win = dev_drv->win[win_id];
 
 	if (!strcmp(fbi->fix.id, "fb0")) {
-		fb_mem_size = 3 * (((fbi->var.xres + 31)&(~31))* fbi->var.yres) << 2;
-		fb_mem_size = ALIGN(fb_mem_size, SZ_1M);
+		fb_mem_size = get_fb_size();
 #if defined(CONFIG_ION_ROCKCHIP)
-		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, ION_HEAP(ION_CMA_HEAP_ID), 0);
-		if (IS_ERR(handle)) {
-			dev_err(fbi->device, "failed to ion_alloc:%ld\n",PTR_ERR(handle));
+		if(rk_fb_alloc_buffer_by_ion(fbi, win, fb_mem_size) < 0)
 			return -ENOMEM;
-		}
-		win->area[0].dma_buf = ion_share_dma_buf(rk_fb->ion_client, handle);
-		if (IS_ERR_OR_NULL(win->area[0].dma_buf)) {
-			printk("ion_share_dma_buf() failed\n");
-			goto err_share_dma_buf;
-		}
-		win->area[0].ion_hdl = handle;
-		fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
-#ifdef CONFIG_ROCKCHIP_IOMMU
-		if (dev_drv->iommu_enabled)
-			ion_map_iommu(dev_drv->dev, rk_fb->ion_client, handle,
-					(unsigned long *)&phy_addr, (unsigned long *)&len);
-		else
-			ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);
-#else
-		ion_phys(rk_fb->ion_client, handle, &phy_addr, &len);	
-#endif
-		fbi->fix.smem_start = phy_addr;
-		fbi->fix.smem_len = len;
-		printk(KERN_INFO "alloc_buffer:ion_phy_addr=0x%lx\n",phy_addr);
 #else
 		dma_addr_t fb_mem_phys;
 		void *fb_mem_virt;
@@ -2762,6 +3007,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		fbi->fix.smem_start, fbi->screen_base, fbi->fix.smem_len);
 	} else {
 #if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
+		/*
 		res = platform_get_resource_byname(fb_pdev,
 			IORESOURCE_MEM, "fb2 buf");
 		if (res == NULL) {
@@ -2774,6 +3020,25 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 			fb_pdev->name);
 		fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
 		memset(fbi->screen_base, 0, fbi->fix.smem_len);
+		*/
+		fb_mem_size = get_fb_size();
+#if defined(CONFIG_ION_ROCKCHIP)
+		if(rk_fb_alloc_buffer_by_ion(fbi, win, fb_mem_size) < 0)
+			return -ENOMEM;
+#else
+		dma_addr_t fb_mem_phys;
+		void *fb_mem_virt;
+		fb_mem_virt = dma_alloc_writecombine(fbi->dev, fb_mem_size,
+					&fb_mem_phys,GFP_KERNEL);
+		if (!fb_mem_virt) {
+			pr_err("%s: Failed to allocate framebuffer\n", __func__);
+			return -ENOMEM;
+		}
+		fbi->fix.smem_len = fb_mem_size;
+		fbi->fix.smem_start = fb_mem_phys;
+		fbi->screen_base = fb_mem_virt;
+#endif
+
 #else    /*three buffer no need to copy*/
 		fbi->fix.smem_start = rk_fb->fb[0]->fix.smem_start;
 		fbi->fix.smem_len   = rk_fb->fb[0]->fix.smem_len;
@@ -2791,11 +3056,6 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 	}
 
 	return ret;
-
-err_share_dma_buf:
-	ion_free(rk_fb->ion_client, handle);
-	return -ENOMEM;	
-	
 }
 
 static int rk_release_fb_buffer(struct fb_info *fbi)
@@ -3051,6 +3311,13 @@ if (dev_drv->prop == PRMRY) {
 	}
 #endif
 	main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
+}
+else {
+#if !defined(CONFIG_ROCKCHIP_IOMMU)
+	struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb>>1];
+	int extend_fb_id = get_extend_fb_id(extend_fbi);
+	rk_fb_alloc_buffer(extend_fbi, extend_fb_id);
+#endif
 }
 #endif
 

@@ -24,6 +24,20 @@ int rk_fb_set_prmry_screen(struct rk_screen *screen)
 	return 0;
 }
 
+size_t get_fb_size(void)
+{
+	size_t size = 0;
+	int xres = (rk_screen->mode.xres + 31) & (~31);
+	int yres = rk_screen->mode.yres;
+
+	#if defined(CONFIG_THREE_FB_BUFFER)
+		size = (xres * yres << 2) * 3; //three buffer
+	#else
+		size = (xres * yres << 2) << 1; //two buffer
+	#endif
+	return ALIGN(size, SZ_1M);
+}
+
 static int rk_screen_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
