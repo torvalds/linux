@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/goldfish.h>
 
 enum {
 	GOLDFISH_TTY_PUT_CHAR       = 0x00,
@@ -29,9 +30,7 @@ enum {
 
 	GOLDFISH_TTY_DATA_PTR       = 0x10,
 	GOLDFISH_TTY_DATA_LEN       = 0x14,
-#ifdef CONFIG_64BIT
 	GOLDFISH_TTY_DATA_PTR_HIGH  = 0x18,
-#endif
 
 	GOLDFISH_TTY_CMD_INT_DISABLE    = 0,
 	GOLDFISH_TTY_CMD_INT_ENABLE     = 1,
@@ -60,10 +59,8 @@ static void goldfish_tty_do_write(int line, const char *buf, unsigned count)
 	struct goldfish_tty *qtty = &goldfish_ttys[line];
 	void __iomem *base = qtty->base;
 	spin_lock_irqsave(&qtty->lock, irq_flags);
-	writel((u32)buf, base + GOLDFISH_TTY_DATA_PTR);
-#ifdef CONFIG_64BIT
-	writel((u32)((u64)buf >> 32), base + GOLDFISH_TTY_DATA_PTR_HIGH);
-#endif
+	gf_write64((u64)buf, base + GOLDFISH_TTY_DATA_PTR,
+				base + GOLDFISH_TTY_DATA_PTR_HIGH);
 	writel(count, base + GOLDFISH_TTY_DATA_LEN);
 	writel(GOLDFISH_TTY_CMD_WRITE_BUFFER, base + GOLDFISH_TTY_CMD);
 	spin_unlock_irqrestore(&qtty->lock, irq_flags);
@@ -84,10 +81,8 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 
 	count = tty_prepare_flip_string(&qtty->port, &buf, count);
 	spin_lock_irqsave(&qtty->lock, irq_flags);
-	writel((u32)buf, base + GOLDFISH_TTY_DATA_PTR);
-#ifdef CONFIG_64BIT
-	writel((u32)((u64)buf >> 32), base + GOLDFISH_TTY_DATA_PTR_HIGH);
-#endif
+	gf_write64((u64)buf, base + GOLDFISH_TTY_DATA_PTR,
+				base + GOLDFISH_TTY_DATA_PTR_HIGH);
 	writel(count, base + GOLDFISH_TTY_DATA_LEN);
 	writel(GOLDFISH_TTY_CMD_READ_BUFFER, base + GOLDFISH_TTY_CMD);
 	spin_unlock_irqrestore(&qtty->lock, irq_flags);
