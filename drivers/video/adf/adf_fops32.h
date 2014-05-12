@@ -7,13 +7,13 @@
 #include <video/adf.h>
 
 #define ADF_POST_CONFIG32 \
-			_IOW('D', 2, struct adf_post_config32)
+		_IOW(ADF_IOCTL_TYPE, 2, struct adf_post_config32)
 #define ADF_GET_DEVICE_DATA32 \
-			_IOR('D', 4, struct adf_device_data32)
+		_IOR(ADF_IOCTL_TYPE, 4, struct adf_device_data32)
 #define ADF_GET_INTERFACE_DATA32 \
-			_IOR('D', 5, struct adf_interface_data32)
+		_IOR(ADF_IOCTL_TYPE, 5, struct adf_interface_data32)
 #define ADF_GET_OVERLAY_ENGINE_DATA32 \
-			_IOR('D', 6, struct adf_overlay_engine_data32)
+		_IOR(ADF_IOCTL_TYPE, 6, struct adf_overlay_engine_data32)
 
 struct adf_post_config32 {
 	compat_size_t n_interfaces;
@@ -25,7 +25,7 @@ struct adf_post_config32 {
 	compat_size_t custom_data_size;
 	compat_uptr_t custom_data;
 
-	__s64 complete_fence;
+	__s32 complete_fence;
 };
 
 struct adf_device_data32 {
