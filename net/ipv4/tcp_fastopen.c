@@ -228,59 +228,44 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	return true;
 }
 
+/* Returns true if we should perform Fast Open on the SYN. The cookie (foc)
+ * may be updated and return the client in the SYN-ACK later. E.g., Fast Open
+ * cookie request (foc->len == 0).
+ */
 bool tcp_fastopen_check(struct sock *sk, struct sk_buff *skb,
 			struct request_sock *req,
-			struct tcp_fastopen_cookie *foc,
-			struct tcp_fastopen_cookie *valid_foc)
+			struct tcp_fastopen_cookie *foc)
 {
-	bool skip_cookie = false;
+	struct tcp_fastopen_cookie valid_foc = { .len = -1 };
+	bool syn_data = TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1;
 
-	if (likely(!fastopen_cookie_present(foc))) {
-		/* See include/net/tcp.h for the meaning of these knobs */
-		if ((sysctl_tcp_fastopen & TFO_SERVER_ALWAYS) ||
-		    ((sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_REQD) &&
-		    (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1)))
-			skip_cookie = true; /* no cookie to validate */
-		else
-			return false;
-	}
-	/* A FO option is present; bump the counter. */
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVE);
-
-	if ((sysctl_tcp_fastopen & TFO_SERVER_ENABLE) == 0 ||
-	    !tcp_fastopen_queue_check(sk))
+	if (!((sysctl_tcp_fastopen & TFO_SERVER_ENABLE) &&
+	      (syn_data || foc->len >= 0) &&
+	      tcp_fastopen_queue_check(sk))) {
+		foc->len = -1;
 		return false;
+	}
 
-	if (skip_cookie) {
+	if (syn_data && (sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_REQD))
+		goto fastopen;
+
+	tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
+				ip_hdr(skb)->daddr, &valid_foc);
+
+	if (foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
+	    foc->len == valid_foc.len &&
+	    !memcmp(foc->val, valid_foc.val, foc->len)) {
+fastopen:
 		tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+		foc->len = -1;
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVE);
 		return true;
 	}
 
-	if (foc->len == TCP_FASTOPEN_COOKIE_SIZE) {
-		if ((sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_CHKED) == 0) {
-			tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
-						ip_hdr(skb)->daddr, valid_foc);
-			if ((valid_foc->len != TCP_FASTOPEN_COOKIE_SIZE) ||
-			    memcmp(&foc->val[0], &valid_foc->val[0],
-			    TCP_FASTOPEN_COOKIE_SIZE) != 0)
-				return false;
-			valid_foc->len = -1;
-		}
-		/* Acknowledge the data received from the peer. */
-		tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		return true;
-	} else if (foc->len == 0) { /* Client requesting a cookie */
-		tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
-					ip_hdr(skb)->daddr, valid_foc);
-		NET_INC_STATS_BH(sock_net(sk),
-		    LINUX_MIB_TCPFASTOPENCOOKIEREQD);
-	} else {
-		/* Client sent a cookie with wrong size. Treat it
-		 * the same as invalid and return a valid one.
-		 */
-		tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
-					ip_hdr(skb)->daddr, valid_foc);
-	}
+	NET_INC_STATS_BH(sock_net(sk), foc->len ?
+			 LINUX_MIB_TCPFASTOPENPASSIVEFAIL :
+			 LINUX_MIB_TCPFASTOPENCOOKIEREQD);
+	*foc = valid_foc;
 	return false;
 }
 EXPORT_SYMBOL(tcp_fastopen_check);
