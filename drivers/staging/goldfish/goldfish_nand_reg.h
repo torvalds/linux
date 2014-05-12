@@ -57,9 +57,7 @@ enum nand_reg {
 	NAND_RESULT         = 0x040,
 	NAND_COMMAND        = 0x044,
 	NAND_DATA           = 0x048,
-#ifdef CONFIG_64BIT
 	NAND_DATA_HIGH	    = 0x100,
-#endif
 	NAND_TRANSFER_SIZE  = 0x04c,
 	NAND_ADDR_LOW       = 0x050,
 	NAND_ADDR_HIGH      = 0x054,

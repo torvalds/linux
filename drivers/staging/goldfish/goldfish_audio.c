@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
+#include <linux/goldfish.h>
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_DESCRIPTION("Android QEMU Audio Driver");
@@ -60,6 +61,8 @@ struct goldfish_audio {
 
 #define AUDIO_READ(data, addr)		(readl(data->reg_base + addr))
 #define AUDIO_WRITE(data, addr, x)	(writel(x, data->reg_base + addr))
+#define AUDIO_WRITE64(data, addr, addr2, x)	\
+	(gf_write64((u64)(x), data->reg_base + addr, data->reg_base+addr2))
 
 /*
  *  temporary variable used between goldfish_audio_probe() and
@@ -78,18 +81,14 @@ enum {
 	/* set number of bytes in buffer to write */
 	AUDIO_WRITE_BUFFER_1  = 0x10,
 	AUDIO_WRITE_BUFFER_2  = 0x14,
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	AUDIO_SET_WRITE_BUFFER_1_HIGH = 0x28,
 	AUDIO_SET_WRITE_BUFFER_2_HIGH = 0x30,
-#endif
 
 	/* true if audio input is supported */
 	AUDIO_READ_SUPPORTED = 0x18,
 	/* buffer to use for audio input */
 	AUDIO_SET_READ_BUFFER = 0x1C,
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	AUDIO_SET_READ_BUFFER_HIGH = 0x34,
-#endif
 
 	/* driver writes number of bytes to read */
 	AUDIO_START_READ  = 0x20,
@@ -274,9 +273,6 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct goldfish_audio *data;
 	dma_addr_t buf_addr;
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	u32 buf_addr_high, buf_addr_low;
-#endif
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
@@ -332,37 +328,19 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 		goto err_misc_register_failed;
 	}
 
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	buf_addr_low = (u32)(buf_addr);
-	buf_addr_high = (u32)((buf_addr) >> 32);
+	AUDIO_WRITE64(data, AUDIO_SET_WRITE_BUFFER_1,
+				AUDIO_SET_WRITE_BUFFER_1_HIGH, buf_addr);
+	buf_addr += WRITE_BUFFER_SIZE;
 
-	AUDIO_WRITE(data, AUDIO_SET_WRITE_BUFFER_1, buf_addr_low);
-	AUDIO_WRITE(data, AUDIO_SET_WRITE_BUFFER_1_HIGH, buf_addr_high);
+	AUDIO_WRITE64(data, AUDIO_SET_WRITE_BUFFER_2,
+				AUDIO_SET_WRITE_BUFFER_2_HIGH, buf_addr);
 
-	buf_addr_low = (u32)(buf_addr + WRITE_BUFFER_SIZE);
-	buf_addr_high = (u32)((buf_addr + WRITE_BUFFER_SIZE) >> 32);
-
-	AUDIO_WRITE(data, AUDIO_SET_WRITE_BUFFER_2, buf_addr_low);
-	AUDIO_WRITE(data, AUDIO_SET_WRITE_BUFFER_2_HIGH, buf_addr_high);
-
-	buf_addr_low = (u32)(buf_addr + 2 * WRITE_BUFFER_SIZE);
-	buf_addr_high = (u32)((buf_addr + 2 * WRITE_BUFFER_SIZE) >> 32);
-
-	data->read_supported = AUDIO_READ(data, AUDIO_READ_SUPPORTED);
-	if (data->read_supported){
-                AUDIO_WRITE(data, AUDIO_SET_READ_BUFFER, buf_addr_low);
-                AUDIO_WRITE(data, AUDIO_SET_READ_BUFFER_HIGH, buf_addr_high);
-	}
-#else
-	AUDIO_WRITE(data, AUDIO_SET_WRITE_BUFFER_1, buf_addr);
-	AUDIO_WRITE(data, AUDIO_SET_WRITE_BUFFER_2,
-						buf_addr + WRITE_BUFFER_SIZE);
+	buf_addr += WRITE_BUFFER_SIZE;
 
 	data->read_supported = AUDIO_READ(data, AUDIO_READ_SUPPORTED);
 	if (data->read_supported)
-		AUDIO_WRITE(data, AUDIO_SET_READ_BUFFER,
-					buf_addr + 2 * WRITE_BUFFER_SIZE);
-#endif
+		AUDIO_WRITE64(data, AUDIO_SET_READ_BUFFER,
+				AUDIO_SET_READ_BUFFER_HIGH, buf_addr);
 
 	audio_data = data;
 	return 0;

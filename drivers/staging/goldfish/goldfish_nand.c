@@ -25,7 +25,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
-
+#include <linux/goldfish.h>
 #include <asm/div64.h>
 
 #include "goldfish_nand_reg.h"
@@ -86,10 +86,7 @@ static u32 goldfish_nand_cmd(struct mtd_info *mtd, enum nand_cmd cmd,
 		writel((u32)(addr >> 32), base + NAND_ADDR_HIGH);
 		writel((u32)addr, base + NAND_ADDR_LOW);
 		writel(len, base + NAND_TRANSFER_SIZE);
-		writel((u32)ptr, base + NAND_DATA);
-#ifdef CONFIG_64BIT
-		writel((u32)((u64)ptr >> 32), base + NAND_DATA_HIGH);
-#endif
+		gf_write64((u64)ptr, base + NAND_DATA, base + NAND_DATA_HIGH);
 		writel(cmd, base + NAND_COMMAND);
 		rv = readl(base + NAND_RESULT);
 	}
