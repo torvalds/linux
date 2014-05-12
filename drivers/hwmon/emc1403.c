@@ -195,8 +195,7 @@ static SENSOR_DEVICE_ATTR_2(temp2_max_alarm, S_IRUGO,
 	show_bit, NULL, 0x35, 0x02);
 static SENSOR_DEVICE_ATTR_2(temp2_crit_alarm, S_IRUGO,
 	show_bit, NULL, 0x37, 0x02);
-static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO | S_IWUSR,
-	show_hyst, store_hyst, 0x19);
+static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_hyst, NULL, 0x19);
 
 static SENSOR_DEVICE_ATTR(temp3_min, S_IRUGO | S_IWUSR,
 	show_temp, store_temp, 0x16);
@@ -212,8 +211,7 @@ static SENSOR_DEVICE_ATTR_2(temp3_max_alarm, S_IRUGO,
 	show_bit, NULL, 0x35, 0x04);
 static SENSOR_DEVICE_ATTR_2(temp3_crit_alarm, S_IRUGO,
 	show_bit, NULL, 0x37, 0x04);
-static SENSOR_DEVICE_ATTR(temp3_crit_hyst, S_IRUGO | S_IWUSR,
-	show_hyst, store_hyst, 0x1A);
+static SENSOR_DEVICE_ATTR(temp3_crit_hyst, S_IRUGO, show_hyst, NULL, 0x1A);
 
 static SENSOR_DEVICE_ATTR(temp4_min, S_IRUGO | S_IWUSR,
 	show_temp, store_temp, 0x2D);
@@ -229,8 +227,7 @@ static SENSOR_DEVICE_ATTR_2(temp4_max_alarm, S_IRUGO,
 	show_bit, NULL, 0x35, 0x08);
 static SENSOR_DEVICE_ATTR_2(temp4_crit_alarm, S_IRUGO,
 	show_bit, NULL, 0x37, 0x08);
-static SENSOR_DEVICE_ATTR(temp4_crit_hyst, S_IRUGO | S_IWUSR,
-	show_hyst, store_hyst, 0x30);
+static SENSOR_DEVICE_ATTR(temp4_crit_hyst, S_IRUGO, show_hyst, NULL, 0x30);
 
 static SENSOR_DEVICE_ATTR_2(power_state, S_IRUGO | S_IWUSR,
 	show_bit, store_bit, 0x03, 0x40);

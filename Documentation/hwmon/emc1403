@@ -51,6 +51,9 @@ This implementation detail implies the following:
   was 80 degrees C, and the hysteresis was 75 degrees C, and you change
   the critical limit to 90 degrees C, then the hysteresis will
   automatically change to 85 degrees C.
-* While hysteresis limits can be set for all critical limits, setting a single
-  hysteresis value affects the hysteresis values for all limits on all sensors.
+* The hysteresis values can't be set independently. We decided to make
+  only temp1_crit_hyst writable, while all other hysteresis attributes
+  are read-only. Setting temp1_crit_hyst writes the difference between
+  temp1_crit_hyst and temp1_crit into the chip, and the same relative
+  hysteresis applies automatically to all other limits.
 * The limits should be set before the hysteresis.
