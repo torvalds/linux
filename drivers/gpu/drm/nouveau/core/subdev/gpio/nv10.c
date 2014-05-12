@@ -165,8 +165,8 @@ nv10_gpio_fini(struct nouveau_object *object, bool suspend)
 	return nouveau_gpio_fini(&priv->base, suspend);
 }
 
-struct nouveau_oclass
-nv10_gpio_oclass = {
+struct nouveau_oclass *
+nv10_gpio_oclass = &(struct nouveau_oclass) {
 	.handle = NV_SUBDEV(GPIO, 0x10),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv10_gpio_ctor,

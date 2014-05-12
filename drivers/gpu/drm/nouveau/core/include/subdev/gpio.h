@@ -45,9 +45,9 @@ int  nouveau_gpio_create_(struct nouveau_object *, struct nouveau_object *,
 void _nouveau_gpio_dtor(struct nouveau_object *);
 int  nouveau_gpio_init(struct nouveau_gpio *);
 
-extern struct nouveau_oclass nv10_gpio_oclass;
-extern struct nouveau_oclass nv50_gpio_oclass;
-extern struct nouveau_oclass nvd0_gpio_oclass;
-extern struct nouveau_oclass nve0_gpio_oclass;
+extern struct nouveau_oclass *nv10_gpio_oclass;
+extern struct nouveau_oclass *nv50_gpio_oclass;
+extern struct nouveau_oclass *nvd0_gpio_oclass;
+extern struct nouveau_oclass *nve0_gpio_oclass;
 
 #endif

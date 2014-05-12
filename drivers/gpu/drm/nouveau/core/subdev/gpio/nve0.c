@@ -119,8 +119,8 @@ nve0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nve0_gpio_oclass = {
+struct nouveau_oclass *
+nve0_gpio_oclass = &(struct nouveau_oclass) {
 	.handle = NV_SUBDEV(GPIO, 0xe0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nve0_gpio_ctor,
