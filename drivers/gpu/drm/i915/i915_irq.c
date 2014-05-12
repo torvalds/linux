@@ -1668,7 +1668,7 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
-	struct drm_device *dev = (struct drm_device *) arg;
+	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 iir, gt_iir, pm_iir;
 	irqreturn_t ret = IRQ_NONE;
@@ -1705,7 +1705,7 @@ out:
 
 static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 {
-	struct drm_device *dev = (struct drm_device *) arg;
+	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 master_ctl, iir;
 	irqreturn_t ret = IRQ_NONE;
@@ -2024,7 +2024,7 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 
 static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 {
-	struct drm_device *dev = (struct drm_device *) arg;
+	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
@@ -3642,7 +3642,7 @@ static bool i8xx_handle_vblank(struct drm_device *dev,
 
 static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 {
-	struct drm_device *dev = (struct drm_device *) arg;
+	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u16 iir, new_iir;
 	u32 pipe_stats[2];
@@ -3827,7 +3827,7 @@ static bool i915_handle_vblank(struct drm_device *dev,
 
 static irqreturn_t i915_irq_handler(int irq, void *arg)
 {
-	struct drm_device *dev = (struct drm_device *) arg;
+	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 iir, new_iir, pipe_stats[I915_MAX_PIPES];
 	unsigned long irqflags;
@@ -4057,7 +4057,7 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 
 static irqreturn_t i965_irq_handler(int irq, void *arg)
 {
-	struct drm_device *dev = (struct drm_device *) arg;
+	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 iir, new_iir;
 	u32 pipe_stats[I915_MAX_PIPES];
