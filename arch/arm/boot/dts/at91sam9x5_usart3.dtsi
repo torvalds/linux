@@ -42,12 +42,23 @@
 				};
 			};
 
+			pmc: pmc@fffffc00 {
+				periphck {
+					usart3_clk: usart3_clk {
+						#clock-cells = <0>;
+						reg = <8>;
+					};
+				};
+			};
+
 			usart3: serial@f8028000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8028000 0x200>;
 				interrupts = <8 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart3>;
+				clocks = <&usart3_clk>;
+				clock-names = "usart";
 				status = "disabled";
 			};
 		};
