@@ -538,31 +538,26 @@ void brcmf_rx_frame(struct device *dev, struct sk_buff *skb)
 		brcmf_netif_rx(ifp, skb);
 }
 
-void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp, u8 ifidx,
 		      bool success)
 {
 	struct brcmf_if *ifp;
 	struct ethhdr *eh;
-	u8 ifidx;
 	u16 type;
-	int res;
-
-	res = brcmf_proto_hdrpull(drvr, false, &ifidx, txp);
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp)
 		goto done;
 
-	if (res == 0) {
-		eh = (struct ethhdr *)(txp->data);
-		type = ntohs(eh->h_proto);
+	eh = (struct ethhdr *)(txp->data);
+	type = ntohs(eh->h_proto);
 
-		if (type == ETH_P_PAE) {
-			atomic_dec(&ifp->pend_8021x_cnt);
-			if (waitqueue_active(&ifp->pend_8021x_wait))
-				wake_up(&ifp->pend_8021x_wait);
-		}
+	if (type == ETH_P_PAE) {
+		atomic_dec(&ifp->pend_8021x_cnt);
+		if (waitqueue_active(&ifp->pend_8021x_wait))
+			wake_up(&ifp->pend_8021x_wait);
 	}
+
 	if (!success)
 		ifp->stats.tx_errors++;
 done:
@@ -573,13 +568,17 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	u8 ifidx;
 
 	/* await txstatus signal for firmware if active */
 	if (brcmf_fws_fc_active(drvr->fws)) {
 		if (!success)
 			brcmf_fws_bustxfail(drvr->fws, txp);
 	} else {
-		brcmf_txfinalize(drvr, txp, success);
+		if (brcmf_proto_hdrpull(drvr, false, &ifidx, txp))
+			brcmu_pkt_buf_free_skb(txp);
+		else
+			brcmf_txfinalize(drvr, txp, ifidx, success);
 	}
 }
 

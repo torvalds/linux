@@ -1369,13 +1369,12 @@ done:
 }
 
 static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
-					 struct sk_buff *skb, u32 genbit,
-					 u16 seq)
+					 struct sk_buff *skb, u8 ifidx,
+					 u32 genbit, u16 seq)
 {
 	struct brcmf_fws_mac_descriptor *entry = brcmf_skbcb(skb)->mac;
 	u32 hslot;
 	int ret;
-	u8 ifidx;
 
 	hslot = brcmf_skb_htod_tag_get_field(skb, HSLOT);
 
@@ -1389,29 +1388,21 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 
 	entry->generation = genbit;
 
-	ret = brcmf_proto_hdrpull(fws->drvr, false, &ifidx, skb);
-	if (ret == 0) {
-		brcmf_skb_htod_tag_set_field(skb, GENERATION, genbit);
-		brcmf_skbcb(skb)->htod_seq = seq;
-		if (brcmf_skb_htod_seq_get_field(skb, FROMFW)) {
-			brcmf_skb_htod_seq_set_field(skb, FROMDRV, 1);
-			brcmf_skb_htod_seq_set_field(skb, FROMFW, 0);
-		} else {
-			brcmf_skb_htod_seq_set_field(skb, FROMDRV, 0);
-		}
-		ret = brcmf_fws_enq(fws, BRCMF_FWS_SKBSTATE_SUPPRESSED, fifo,
-				    skb);
+	brcmf_skb_htod_tag_set_field(skb, GENERATION, genbit);
+	brcmf_skbcb(skb)->htod_seq = seq;
+	if (brcmf_skb_htod_seq_get_field(skb, FROMFW)) {
+		brcmf_skb_htod_seq_set_field(skb, FROMDRV, 1);
+		brcmf_skb_htod_seq_set_field(skb, FROMFW, 0);
+	} else {
+		brcmf_skb_htod_seq_set_field(skb, FROMDRV, 0);
 	}
+	ret = brcmf_fws_enq(fws, BRCMF_FWS_SKBSTATE_SUPPRESSED, fifo, skb);
 
 	if (ret != 0) {
-		/* suppress q is full or hdrpull failed, drop this packet */
-		brcmf_fws_hanger_poppkt(&fws->hanger, hslot, &skb,
-					true);
+		/* suppress q is full drop this packet */
+		brcmf_fws_hanger_poppkt(&fws->hanger, hslot, &skb, true);
 	} else {
-		/*
-		 * Mark suppressed to avoid a double free during
-		 * wlfc cleanup
-		 */
+		/* Mark suppressed to avoid a double free during wlfc cleanup */
 		brcmf_fws_hanger_mark_suppressed(&fws->hanger, hslot);
 	}
 
@@ -1428,6 +1419,7 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 	struct sk_buff *skb;
 	struct brcmf_skbuff_cb *skcb;
 	struct brcmf_fws_mac_descriptor *entry = NULL;
+	u8 ifidx;
 
 	brcmf_dbg(DATA, "flags %d\n", flags);
 
@@ -1476,12 +1468,15 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 	}
 	brcmf_fws_macdesc_return_req_credit(skb);
 
+	if (brcmf_proto_hdrpull(fws->drvr, false, &ifidx, skb)) {
+		brcmu_pkt_buf_free_skb(skb);
+		return -EINVAL;
+	}
 	if (!remove_from_hanger)
-		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb, genbit,
-						    seq);
-
+		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb, ifidx,
+						    genbit, seq);
 	if (remove_from_hanger || ret)
-		brcmf_txfinalize(fws->drvr, skb, true);
+		brcmf_txfinalize(fws->drvr, skb, ifidx, true);
 
 	return 0;
 }
@@ -1982,7 +1977,8 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 				ret = brcmf_proto_txdata(drvr, ifidx, 0, skb);
 				brcmf_fws_lock(fws);
 				if (ret < 0)
-					brcmf_txfinalize(drvr, skb, false);
+					brcmf_txfinalize(drvr, skb, ifidx,
+							 false);
 				if (fws->bus_flow_blocked)
 					break;
 			}
