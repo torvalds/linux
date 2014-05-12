@@ -20,6 +20,7 @@
 
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kdebug.h>
