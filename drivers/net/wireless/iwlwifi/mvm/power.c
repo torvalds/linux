@@ -142,7 +142,7 @@ int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 	mvmvif->bf_data.ba_enabled = enable;
 	iwl_mvm_beacon_filter_set_cqm_params(mvm, vif, &cmd);
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
-	return iwl_mvm_beacon_filter_send_cmd(mvm, &cmd, CMD_SYNC);
+	return iwl_mvm_beacon_filter_send_cmd(mvm, &cmd, 0);
 }
 
 static void iwl_mvm_power_log(struct iwl_mvm *mvm,
@@ -456,7 +456,7 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 	memcpy(&iwl_mvm_vif_from_mac80211(vif)->mac_pwr_cmd, &cmd, sizeof(cmd));
 #endif
 
-	return iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, CMD_SYNC,
+	return iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, 0,
 				    sizeof(cmd), &cmd);
 }
 
@@ -482,7 +482,7 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 			"Sending device power command with flags = 0x%X\n",
 			cmd.flags);
 
-	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC, sizeof(cmd),
+	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, 0, sizeof(cmd),
 				    &cmd);
 }
 

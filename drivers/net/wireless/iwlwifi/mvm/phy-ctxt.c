@@ -187,7 +187,7 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 	iwl_mvm_phy_ctxt_cmd_data(mvm, &cmd, chandef,
 				  chains_static, chains_dynamic);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, CMD_SYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, 0,
 				   sizeof(struct iwl_phy_context_cmd),
 				   &cmd);
 	if (ret)

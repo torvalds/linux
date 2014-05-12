@@ -327,7 +327,7 @@ static int iwl_mvm_rm_sta_common(struct iwl_mvm *mvm, u8 sta_id)
 		return -EINVAL;
 	}
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, REMOVE_STA, CMD_SYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, REMOVE_STA, 0,
 				   sizeof(rm_sta_cmd), &rm_sta_cmd);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to remove station. Id=%d\n", sta_id);
@@ -1053,12 +1053,12 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	cmd.sta_id = sta_id;
 
 	status = ADD_STA_SUCCESS;
-	if (cmd_flags == CMD_SYNC)
-		ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, sizeof(cmd),
-						  &cmd, &status);
-	else
+	if (cmd_flags & CMD_ASYNC)
 		ret =  iwl_mvm_send_cmd_pdu(mvm, ADD_STA_KEY, CMD_ASYNC,
 					    sizeof(cmd), &cmd);
+	else
+		ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, sizeof(cmd),
+						  &cmd, &status);
 
 	switch (status) {
 	case ADD_STA_SUCCESS:
@@ -1111,7 +1111,7 @@ static int iwl_mvm_send_sta_igtk(struct iwl_mvm *mvm,
 		       remove_key ? "removing" : "installing",
 		       igtk_cmd.sta_id);
 
-	return iwl_mvm_send_cmd_pdu(mvm, MGMT_MCAST_KEY, CMD_SYNC,
+	return iwl_mvm_send_cmd_pdu(mvm, MGMT_MCAST_KEY, 0,
 				    sizeof(igtk_cmd), &igtk_cmd);
 }
 
@@ -1198,15 +1198,15 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
 		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
-					   seq.tkip.iv32, p1k, CMD_SYNC);
+					   seq.tkip.iv32, p1k, 0);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
-					   0, NULL, CMD_SYNC);
+					   0, NULL, 0);
 		break;
 	default:
 		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
-					   sta_id, 0, NULL, CMD_SYNC);
+					   sta_id, 0, NULL, 0);
 	}
 
 	if (ret)

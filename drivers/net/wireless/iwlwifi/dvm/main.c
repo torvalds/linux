@@ -128,7 +128,6 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	struct iwl_tx_beacon_cmd *tx_beacon_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_TX_BEACON,
-		.flags = CMD_SYNC,
 	};
 	struct ieee80211_tx_info *info;
 	u32 frame_size;
@@ -311,8 +310,7 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 					sizeof(struct iwl_statistics_cmd),
 					&statistics_cmd);
 	else
-		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
-					CMD_SYNC,
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD, 0,
 					sizeof(struct iwl_statistics_cmd),
 					&statistics_cmd);
 }
@@ -622,7 +620,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 
 		ret = iwl_dvm_send_cmd_pdu(priv,
 				       REPLY_CT_KILL_CONFIG_CMD,
-				       CMD_SYNC, sizeof(adv_cmd), &adv_cmd);
+				       0, sizeof(adv_cmd), &adv_cmd);
 		if (ret)
 			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 		else
@@ -637,7 +635,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 
 		ret = iwl_dvm_send_cmd_pdu(priv,
 				       REPLY_CT_KILL_CONFIG_CMD,
-				       CMD_SYNC, sizeof(cmd), &cmd);
+				       0, sizeof(cmd), &cmd);
 		if (ret)
 			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 		else
@@ -673,9 +671,7 @@ static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 
 	if (IWL_UCODE_API(priv->fw->ucode_ver) > 1) {
 		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
-		return iwl_dvm_send_cmd_pdu(priv,
-					TX_ANT_CONFIGURATION_CMD,
-					CMD_SYNC,
+		return iwl_dvm_send_cmd_pdu(priv, TX_ANT_CONFIGURATION_CMD, 0,
 					sizeof(struct iwl_tx_ant_config_cmd),
 					&tx_ant_cmd);
 	} else {
@@ -703,7 +699,7 @@ static void iwl_send_bt_config(struct iwl_priv *priv)
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
 	if (iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			     CMD_SYNC, sizeof(struct iwl_bt_cmd), &bt_cmd))
+			     0, sizeof(struct iwl_bt_cmd), &bt_cmd))
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
 

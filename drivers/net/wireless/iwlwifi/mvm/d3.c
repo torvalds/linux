@@ -193,8 +193,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 			wkc.wep_key.key_offset = data->wep_key_idx;
 		}
 
-		ret = iwl_mvm_send_cmd_pdu(mvm, WEP_KEY, CMD_SYNC,
-					   sizeof(wkc), &wkc);
+		ret = iwl_mvm_send_cmd_pdu(mvm, WEP_KEY, 0, sizeof(wkc), &wkc);
 		data->error = ret != 0;
 
 		mvm->ptk_ivlen = key->iv_len;
@@ -341,7 +340,6 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 	struct iwl_host_cmd cmd = {
 		.id = WOWLAN_PATTERNS,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-		.flags = CMD_SYNC,
 	};
 	int i, err;
 
@@ -518,7 +516,6 @@ static int iwl_mvm_send_remote_wake_cfg(struct iwl_mvm *mvm,
 		.id = REMOTE_WAKE_CONFIG_CMD,
 		.len = { sizeof(*cfg), },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-		.flags = CMD_SYNC,
 	};
 	int ret;
 
@@ -719,7 +716,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	for (i = 1; i < MAX_BINDINGS; i++)
 		quota_cmd.quotas[i].id_and_color = cpu_to_le32(FW_CTXT_INVALID);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, CMD_SYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0,
 				   sizeof(quota_cmd), &quota_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send quota: %d\n", ret);
@@ -739,7 +736,7 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 	};
 	struct iwl_host_cmd cmd = {
 		.id = NON_QOS_TX_COUNTER_CMD,
-		.flags = CMD_SYNC | CMD_WANT_SKB,
+		.flags = CMD_WANT_SKB,
 	};
 	int err;
 	u32 size;
@@ -781,7 +778,7 @@ void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	mvmvif->seqno_valid = false;
 
-	if (iwl_mvm_send_cmd_pdu(mvm, NON_QOS_TX_COUNTER_CMD, CMD_SYNC,
+	if (iwl_mvm_send_cmd_pdu(mvm, NON_QOS_TX_COUNTER_CMD, 0,
 				 sizeof(query_cmd), &query_cmd))
 		IWL_ERR(mvm, "failed to set non-QoS seqno\n");
 }
@@ -796,7 +793,7 @@ iwl_mvm_send_wowlan_config_cmd(struct iwl_mvm *mvm,
 	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_WOWLAN_CONFIG_TID)
 		cmd_len = sizeof(*cmd);
 
-	return iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, CMD_SYNC,
+	return iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, 0,
 				    cmd_len, cmd);
 }
 
@@ -825,7 +822,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	};
 	struct iwl_host_cmd d3_cfg_cmd = {
 		.id = D3_CONFIG_CMD,
-		.flags = CMD_SYNC | CMD_WANT_SKB,
+		.flags = CMD_WANT_SKB,
 		.data[0] = &d3_cfg_cmd_data,
 		.len[0] = sizeof(d3_cfg_cmd_data),
 	};
@@ -975,7 +972,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 		if (key_data.use_rsc_tsc) {
 			struct iwl_host_cmd rsc_tsc_cmd = {
 				.id = WOWLAN_TSC_RSC_PARAM,
-				.flags = CMD_SYNC,
 				.data[0] = key_data.rsc_tsc,
 				.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 				.len[0] = sizeof(*key_data.rsc_tsc),
@@ -989,7 +985,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 		if (key_data.use_tkip) {
 			ret = iwl_mvm_send_cmd_pdu(mvm,
 						   WOWLAN_TKIP_PARAM,
-						   CMD_SYNC, sizeof(tkip_cmd),
+						   0, sizeof(tkip_cmd),
 						   &tkip_cmd);
 			if (ret)
 				goto out;
@@ -1006,8 +1002,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			kek_kck_cmd.replay_ctr = mvmvif->rekey_data.replay_ctr;
 
 			ret = iwl_mvm_send_cmd_pdu(mvm,
-						   WOWLAN_KEK_KCK_MATERIAL,
-						   CMD_SYNC,
+						   WOWLAN_KEK_KCK_MATERIAL, 0,
 						   sizeof(kek_kck_cmd),
 						   &kek_kck_cmd);
 			if (ret)
@@ -1023,7 +1018,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	ret = iwl_mvm_send_proto_offload(mvm, vif, false, CMD_SYNC);
+	ret = iwl_mvm_send_proto_offload(mvm, vif, false, 0);
 	if (ret)
 		goto out;
 
@@ -1466,7 +1461,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	} err_info;
 	struct iwl_host_cmd cmd = {
 		.id = WOWLAN_GET_STATUSES,
-		.flags = CMD_SYNC | CMD_WANT_SKB,
+		.flags = CMD_WANT_SKB,
 	};
 	struct iwl_wowlan_status_data status;
 	struct iwl_wowlan_status *fw_status;
@@ -1492,7 +1487,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	}
 
 	/* only for tracing for now */
-	ret = iwl_mvm_send_cmd_pdu(mvm, OFFLOADS_QUERY_CMD, CMD_SYNC, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm, OFFLOADS_QUERY_CMD, 0, 0, NULL);
 	if (ret)
 		IWL_ERR(mvm, "failed to query offload statistics (%d)\n", ret);
 

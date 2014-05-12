@@ -106,7 +106,7 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
-	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_PRIO_TABLE, CMD_SYNC,
+	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_PRIO_TABLE, 0,
 				    sizeof(struct iwl_bt_coex_prio_tbl_cmd),
 				    &iwl_bt_prio_tbl);
 }
@@ -565,7 +565,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 		.id = BT_CONFIG,
 		.len = { sizeof(*bt_cmd), },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-		.flags = CMD_SYNC,
 	};
 	int ret;
 	u32 flags;
@@ -663,7 +662,6 @@ static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
 		.data[0] = &bt_cmd,
 		.len = { sizeof(*bt_cmd), },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-		.flags = CMD_SYNC,
 	};
 	int ret = 0;
 
@@ -1022,7 +1020,7 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 
 	/* Don't spam the fw with the same command over and over */
 	if (memcmp(&cmd, &mvm->last_bt_ci_cmd, sizeof(cmd))) {
-		if (iwl_mvm_send_cmd_pdu(mvm, BT_COEX_CI, CMD_SYNC,
+		if (iwl_mvm_send_cmd_pdu(mvm, BT_COEX_CI, 0,
 					 sizeof(cmd), &cmd))
 			IWL_ERR(mvm, "Failed to send BT_CI cmd\n");
 		memcpy(&mvm->last_bt_ci_cmd, &cmd, sizeof(cmd));
@@ -1278,7 +1276,6 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 		.id = BT_CONFIG,
 		.len = { sizeof(*bt_cmd), },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-		.flags = CMD_SYNC,
 	};
 
 	if (!IWL_MVM_BT_COEX_CORUNNING)

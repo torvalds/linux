@@ -345,7 +345,6 @@ static int iwl_send_phy_db_cmd(struct iwl_phy_db *phy_db, u16 type,
 	struct iwl_phy_db_cmd phy_db_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = PHY_DB_CMD,
-		.flags = CMD_SYNC,
 	};
 
 	IWL_DEBUG_INFO(phy_db->trans,

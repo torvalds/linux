@@ -685,7 +685,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 static int iwl_mvm_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
 				     struct iwl_mac_ctx_cmd *cmd)
 {
-	int ret = iwl_mvm_send_cmd_pdu(mvm, MAC_CONTEXT_CMD, CMD_SYNC,
+	int ret = iwl_mvm_send_cmd_pdu(mvm, MAC_CONTEXT_CMD, 0,
 				       sizeof(*cmd), cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send MAC context (action:%d): %d\n",
@@ -1211,7 +1211,7 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 							   mvmvif->color));
 	cmd.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, MAC_CONTEXT_CMD, CMD_SYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, MAC_CONTEXT_CMD, 0,
 				   sizeof(cmd), &cmd);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to remove MAC context: %d\n", ret);

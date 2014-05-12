@@ -189,10 +189,9 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
 /**
  * enum CMD_MODE - how to send the host commands ?
  *
- * @CMD_SYNC: The caller will be stalled until the fw responds to the command
  * @CMD_ASYNC: Return right away and don't wait for the response
- * @CMD_WANT_SKB: valid only with CMD_SYNC. The caller needs the buffer of the
- *	response. The caller needs to call iwl_free_resp when done.
+ * @CMD_WANT_SKB: Not valid with CMD_ASYNC. The caller needs the buffer of
+ *	the response. The caller needs to call iwl_free_resp when done.
  * @CMD_HIGH_PRIO: The command is high priority - it goes to the front of the
  *	command queue, but after other high priority commands. valid only
  *	with CMD_ASYNC.
@@ -202,7 +201,6 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  *	(i.e. mark it as non-idle).
  */
 enum CMD_MODE {
-	CMD_SYNC		= 0,
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
@@ -427,7 +425,7 @@ struct iwl_trans;
  * @send_cmd:send a host command. Must return -ERFKILL if RFkill is asserted.
  *	If RFkill is asserted in the middle of a SYNC host command, it must
  *	return -ERFKILL straight away.
- *	May sleep only if CMD_SYNC is set
+ *	May sleep only if CMD_ASYNC is not set
  * @tx: send an skb
  *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.

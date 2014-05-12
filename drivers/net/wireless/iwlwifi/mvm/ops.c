@@ -1168,7 +1168,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, d0i3_exit_work);
 	struct iwl_host_cmd get_status_cmd = {
 		.id = WOWLAN_GET_STATUSES,
-		.flags = CMD_SYNC | CMD_HIGH_PRIO | CMD_WANT_SKB,
+		.flags = CMD_HIGH_PRIO | CMD_WANT_SKB,
 	};
 	struct iwl_wowlan_status *status;
 	int ret;
