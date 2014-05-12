@@ -90,9 +90,6 @@
 
 #include "cfg80211.c"
 
-/* Support functions */
-static void p80211netdev_rx_bh(unsigned long arg);
-
 /* netdevice method functions */
 static int p80211knetdev_init(netdevice_t *netdev);
 static struct net_device_stats *p80211knetdev_get_stats(netdevice_t *netdev);
