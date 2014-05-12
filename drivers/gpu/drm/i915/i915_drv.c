@@ -524,10 +524,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 			return error;
 		}
 
-		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
-
 		drm_irq_uninstall(dev);
 		dev_priv->enable_hotplug_processing = false;
+
+		intel_disable_gt_powersave(dev);
+
 		/*
 		 * Disable CRTCs directly since we want to preserve sw state
 		 * for _thaw.
