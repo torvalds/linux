@@ -97,7 +97,7 @@ static inline int __ricoh619_read(struct i2c_client *client,
 	int ret =0;
 	ret = i2c_smbus_read_byte_data(client, reg);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed reading at 0x%02x\n", reg);
+		dev_err(&client->dev, "failed reading at 0x%02x %d\n", reg,ret);
 		return ret;
 	}
 
@@ -115,7 +115,7 @@ static inline int __ricoh619_bulk_reads(struct i2c_client *client, u8 reg,
 
 	ret = i2c_smbus_read_i2c_block_data(client, reg, len, val);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed reading from 0x%02x\n", reg);
+		dev_err(&client->dev, "failed reading from 0x%02x %dn", reg,ret);
 		return ret;
 	}
 	for (i = 0; i < len; ++i) {
@@ -395,20 +395,16 @@ out:
 }
 
 static struct i2c_client *ricoh619_i2c_client;
-static int ricoh619_power_off(void)
+static int ricoh619_device_shutdown(struct i2c_client *client)
 {
 	int ret;
 	uint8_t val;
-	int err = -1;
-	int status, charge_state;
 	struct ricoh619 *ricoh619 = g_ricoh619;
+	printk("%s,line=%d\n", __func__,__LINE__);
+
 #ifdef CONFIG_BATTERY_RICOH619
 	val = g_soc;
 	val &= 0x7f;
-	ricoh619_read(ricoh619->dev, 0xBD, &status);
-	charge_state = (status & 0x1F);
-//	supply_state = ((status & 0xC0) >> 6);
-
 	ret = ricoh619_write(ricoh619->dev, RICOH619_PSWR, val);
 	if (ret < 0)
 		dev_err(ricoh619->dev, "Error in writing PSWR_REG\n");
@@ -421,20 +417,43 @@ static int ricoh619_power_off(void)
 	}
 	
 	/* set rapid timer 300 min */
-	err = ricoh619_set_bits(ricoh619->dev, TIMSET_REG, 0x03);
-	if (err < 0)
+	ret = ricoh619_set_bits(ricoh619->dev, TIMSET_REG, 0x03);
+	if (ret < 0)
 		dev_err(ricoh619->dev, "Error in writing the TIMSET_Reg\n");
 #endif  
 	ret = ricoh619_clr_bits(ricoh619->dev, 0xae, (0x1 <<6)); //disable alam_d
        ret = ricoh619_write(ricoh619->dev, RICOH619_INTC_INTEN, 0); 
 	ret = ricoh619_clr_bits(ricoh619->dev,RICOH619_PWR_REP_CNT,(0x1<<0));//Not repeat power ON after power off(Power Off/N_OE)
-
-	if(( charge_state == CHG_STATE_CHG_TRICKLE)||( charge_state == CHG_STATE_CHG_RAPID) ||(charge_state == CHG_STATE_CHG_COMPLETE))
-		 ricoh619_set_bits(ricoh619->dev, RICOH619_PWR_REP_CNT,(0x1<<0));//Power OFF
-	ret = ricoh619_set_bits(ricoh619->dev, RICOH619_PWR_SLP_CNT,(0x1<<0));//Power OFF
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ricoh619_device_shutdown);
+static int ricoh619_power_off(void)
+{
+	int ret;
+	uint8_t val,charge_state;
+	struct i2c_client *client = ricoh619_i2c_client;
+	printk("%s,line=%d\n", __func__,__LINE__);
+#ifdef CONFIG_BATTERY_RICOH619
+	ret = __ricoh619_read(client, 0xBD, &val);
+	if(ret < 0)
+		return ret;
+	charge_state = (val & 0x1F);
+	if(( charge_state == CHG_STATE_CHG_TRICKLE)||( charge_state == CHG_STATE_CHG_RAPID) ||(charge_state == CHG_STATE_CHG_COMPLETE)){
+		 ret = __ricoh619_read(client, RICOH619_PWR_REP_CNT,&val);//Power OFF
+		 if(ret < 0)
+			return ret;
+		 ret = __ricoh619_write(client, RICOH619_PWR_REP_CNT,(val |(0x1<<0)));//Power OFF
+		 if(ret < 0)
+			return ret;
+	}
+#endif  
+	ret = __ricoh619_read(client, RICOH619_PWR_SLP_CNT,&val);//Power OFF
+	 if(ret < 0)
+		return ret;
+	ret = __ricoh619_write(client, RICOH619_PWR_SLP_CNT,(val |(0x1<<0)));//Power OFF
 	if (ret < 0) {
 		printk("ricoh619 power off error!\n");
-		return err;
+		return ret;
 	}
 	return 0;
 }
@@ -914,6 +933,7 @@ static struct i2c_driver ricoh619_i2c_driver = {
 		   },
 	.probe = ricoh619_i2c_probe,
 	.remove = ricoh619_i2c_remove,
+	.shutdown = ricoh619_device_shutdown,
 #ifdef CONFIG_PM
 	.suspend = ricoh619_i2c_suspend,
 	.resume = ricoh619_i2c_resume,
