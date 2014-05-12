@@ -147,12 +147,7 @@ static ssize_t store_hyst(struct device *dev,
 		goto fail;
 
 	hyst = limit * 1000 - val;
-	hyst = DIV_ROUND_CLOSEST(hyst, 1000);
-	if (hyst < 0 || hyst > 255) {
-		retval = -ERANGE;
-		goto fail;
-	}
-
+	hyst = clamp_val(DIV_ROUND_CLOSEST(hyst, 1000), 0, 255);
 	retval = regmap_write(regmap, 0x21, hyst);
 	if (retval == 0)
 		retval = count;
