@@ -95,34 +95,22 @@ void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
 	rcu_read_unlock();
 }
 
-int tcp_fastopen_create_child(struct sock *sk,
-			      struct sk_buff *skb,
-			      struct sk_buff *skb_synack,
-			      struct request_sock *req)
+static bool tcp_fastopen_create_child(struct sock *sk,
+				      struct sk_buff *skb,
+				      struct dst_entry *dst,
+				      struct request_sock *req)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
-	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct sock *child;
-	int err;
 
 	req->num_retrans = 0;
 	req->num_timeout = 0;
 	req->sk = NULL;
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
-	if (child == NULL) {
-		NET_INC_STATS_BH(sock_net(sk),
-				 LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
-		kfree_skb(skb_synack);
-		return -1;
-	}
-	err = ip_build_and_send_pkt(skb_synack, sk, ireq->ir_loc_addr,
-				    ireq->ir_rmt_addr, ireq->opt);
-	err = net_xmit_eval(err);
-	if (!err)
-		tcp_rsk(req)->snt_synack = tcp_time_stamp;
-	/* XXX (TFO) - is it ok to ignore error and continue? */
+	if (child == NULL)
+		return false;
 
 	spin_lock(&queue->fastopenq->lock);
 	queue->fastopenq->qlen++;
@@ -167,28 +155,24 @@ int tcp_fastopen_create_child(struct sock *sk,
 	/* Queue the data carried in the SYN packet. We need to first
 	 * bump skb's refcnt because the caller will attempt to free it.
 	 *
-	 * XXX (TFO) - we honor a zero-payload TFO request for now.
-	 * (Any reason not to?)
+	 * XXX (TFO) - we honor a zero-payload TFO request for now,
+	 * (any reason not to?) but no need to queue the skb since
+	 * there is no data. How about SYN+FIN?
 	 */
-	if (TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq + 1) {
-		/* Don't queue the skb if there is no payload in SYN.
-		 * XXX (TFO) - How about SYN+FIN?
-		 */
-		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-	} else {
+	if (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1) {
 		skb = skb_get(skb);
 		skb_dst_drop(skb);
 		__skb_pull(skb, tcp_hdr(skb)->doff * 4);
 		skb_set_owner_r(skb, child);
 		__skb_queue_tail(&child->sk_receive_queue, skb);
-		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 		tp->syn_data_acked = 1;
 	}
+	tcp_rsk(req)->rcv_nxt = tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 	sk->sk_data_ready(sk);
 	bh_unlock_sock(child);
 	sock_put(child);
 	WARN_ON(req->sk == NULL);
-	return 0;
+	return true;
 }
 EXPORT_SYMBOL(tcp_fastopen_create_child);
 
@@ -232,9 +216,10 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
  * may be updated and return the client in the SYN-ACK later. E.g., Fast Open
  * cookie request (foc->len == 0).
  */
-bool tcp_fastopen_check(struct sock *sk, struct sk_buff *skb,
-			struct request_sock *req,
-			struct tcp_fastopen_cookie *foc)
+bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
+		      struct request_sock *req,
+		      struct tcp_fastopen_cookie *foc,
+		      struct dst_entry *dst)
 {
 	struct tcp_fastopen_cookie valid_foc = { .len = -1 };
 	bool syn_data = TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1;
@@ -255,11 +240,21 @@ bool tcp_fastopen_check(struct sock *sk, struct sk_buff *skb,
 	if (foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
 	    foc->len == valid_foc.len &&
 	    !memcmp(foc->val, valid_foc.val, foc->len)) {
+		/* Cookie is valid. Create a (full) child socket to accept
+		 * the data in SYN before returning a SYN-ACK to ack the
+		 * data. If we fail to create the socket, fall back and
+		 * ack the ISN only but includes the same cookie.
+		 *
+		 * Note: Data-less SYN with valid cookie is allowed to send
+		 * data in SYN_RECV state.
+		 */
 fastopen:
-		tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		foc->len = -1;
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVE);
-		return true;
+		if (tcp_fastopen_create_child(sk, skb, dst, req)) {
+			foc->len = -1;
+			NET_INC_STATS_BH(sock_net(sk),
+					 LINUX_MIB_TCPFASTOPENPASSIVE);
+			return true;
+		}
 	}
 
 	NET_INC_STATS_BH(sock_net(sk), foc->len ?
@@ -268,4 +263,4 @@ fastopen:
 	*foc = valid_foc;
 	return false;
 }
-EXPORT_SYMBOL(tcp_fastopen_check);
+EXPORT_SYMBOL(tcp_try_fastopen);

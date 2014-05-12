@@ -822,7 +822,8 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
  */
 static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 			      struct request_sock *req,
-			      u16 queue_mapping)
+			      u16 queue_mapping,
+			      struct tcp_fastopen_cookie *foc)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct flowi4 fl4;
@@ -833,7 +834,7 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 	if (!dst && (dst = inet_csk_route_req(sk, &fl4, req)) == NULL)
 		return -1;
 
-	skb = tcp_make_synack(sk, dst, req, NULL);
+	skb = tcp_make_synack(sk, dst, req, foc);
 
 	if (skb) {
 		__tcp_v4_send_check(skb, ireq->ir_loc_addr, ireq->ir_rmt_addr);
@@ -852,7 +853,7 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 
 static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req)
 {
-	int res = tcp_v4_send_synack(sk, NULL, req, 0);
+	int res = tcp_v4_send_synack(sk, NULL, req, 0, NULL);
 
 	if (!res) {
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
@@ -1270,11 +1271,10 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	__be32 saddr = ip_hdr(skb)->saddr;
 	__be32 daddr = ip_hdr(skb)->daddr;
 	__u32 isn = TCP_SKB_CB(skb)->when;
-	bool want_cookie = false;
+	bool want_cookie = false, fastopen;
 	struct flowi4 fl4;
 	struct tcp_fastopen_cookie foc = { .len = -1 };
-	struct sk_buff *skb_synack;
-	int do_fastopen;
+	int err;
 
 	/* Never answer to SYNs send to broadcast or multicast */
 	if (skb_rtable(skb)->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
@@ -1373,49 +1373,24 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 
 		isn = tcp_v4_init_sequence(skb);
 	}
-	tcp_rsk(req)->snt_isn = isn;
-
-	if (dst == NULL) {
-		dst = inet_csk_route_req(sk, &fl4, req);
-		if (dst == NULL)
-			goto drop_and_free;
-	}
-	do_fastopen = !want_cookie &&
-		      tcp_fastopen_check(sk, skb, req, &foc);
-
-	/* We don't call tcp_v4_send_synack() directly because we need
-	 * to make sure a child socket can be created successfully before
-	 * sending back synack!
-	 *
-	 * XXX (TFO) - Ideally one would simply call tcp_v4_send_synack()
-	 * (or better yet, call tcp_send_synack() in the child context
-	 * directly, but will have to fix bunch of other code first)
-	 * after syn_recv_sock() except one will need to first fix the
-	 * latter to remove its dependency on the current implementation
-	 * of tcp_v4_send_synack()->tcp_select_initial_window().
-	 */
-	skb_synack = tcp_make_synack(sk, dst, req, &foc);
-
-	if (skb_synack) {
-		__tcp_v4_send_check(skb_synack, ireq->ir_loc_addr, ireq->ir_rmt_addr);
-		skb_set_queue_mapping(skb_synack, skb_get_queue_mapping(skb));
-	} else
+	if (!dst && (dst = inet_csk_route_req(sk, &fl4, req)) == NULL)
 		goto drop_and_free;
 
-	if (likely(!do_fastopen)) {
-		int err;
-		err = ip_build_and_send_pkt(skb_synack, sk, ireq->ir_loc_addr,
-		     ireq->ir_rmt_addr, ireq->opt);
-		err = net_xmit_eval(err);
+	tcp_rsk(req)->snt_isn = isn;
+	tcp_rsk(req)->snt_synack = tcp_time_stamp;
+	tcp_openreq_init_rwin(req, sk, dst);
+	fastopen = !want_cookie &&
+		   tcp_try_fastopen(sk, skb, req, &foc, dst);
+	err = tcp_v4_send_synack(sk, dst, req,
+				 skb_get_queue_mapping(skb), &foc);
+	if (!fastopen) {
 		if (err || want_cookie)
 			goto drop_and_free;
 
 		tcp_rsk(req)->snt_synack = tcp_time_stamp;
 		tcp_rsk(req)->listener = NULL;
-		/* Add the request_sock to the SYN table */
 		inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
-	} else if (tcp_fastopen_create_child(sk, skb, skb_synack, req))
-		goto drop_and_release;
+	}
 
 	return 0;
 
