@@ -240,6 +240,48 @@ void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 	tasklet_schedule(&wlandev->rx_bh);
 }
 
+#define CONV_TO_ETHER_SKIPPED	0x01
+#define CONV_TO_ETHER_FAILED	0x02
+
+/**
+ * convert_frame_to_ether - conversion from 802.11 frame to ethernet frame
+ * @wlandev: pointer to WLAN device
+ * @skb: pointer to socket buffer
+ *
+ * Returns: 0 if conversion succeeded
+ *	    CONV_TO_ETHER_FAILED if conversion failed
+ *	    CONV_TO_ETHER_SKIPPED if frame is ignored
+ */
+static int convert_frame_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
+{
+	struct p80211_hdr_a3 *hdr;
+
+	hdr = (struct p80211_hdr_a3 *) skb->data;
+	if (p80211_rx_typedrop(wlandev, hdr->fc))
+		return CONV_TO_ETHER_SKIPPED;
+
+	/* perform mcast filtering */
+	if (wlandev->netdev->flags & IFF_ALLMULTI) {
+		/* allow my local address through */
+		if (memcmp(hdr->a1, wlandev->netdev->dev_addr, ETH_ALEN) != 0) {
+			/* but reject anything else that isn't multicast */
+			if (!(hdr->a1[0] & 0x01))
+				return CONV_TO_ETHER_SKIPPED;
+		}
+	}
+
+	if (skb_p80211_to_ether(wlandev, wlandev->ethconv, skb) == 0) {
+		skb->dev->last_rx = jiffies;
+		wlandev->linux_stats.rx_packets++;
+		wlandev->linux_stats.rx_bytes += skb->len;
+		netif_rx_ni(skb);
+		return 0;
+	}
+
+	pr_debug("p80211_to_ether failed.\n");
+	return CONV_TO_ETHER_FAILED;
+}
+
 /**
  * p80211netdev_rx_bh - deferred processing of all received frames
  *
@@ -250,7 +292,6 @@ static void p80211netdev_rx_bh(unsigned long arg)
 	wlandevice_t *wlandev = (wlandevice_t *) arg;
 	struct sk_buff *skb = NULL;
 	netdevice_t *dev = wlandev->netdev;
-	struct p80211_hdr_a3 *hdr;
 
 	/* Let's empty our our queue */
 	while ((skb = skb_dequeue(&wlandev->nsd_rxq))) {
@@ -273,37 +314,8 @@ static void p80211netdev_rx_bh(unsigned long arg)
 				netif_rx_ni(skb);
 				continue;
 			} else {
-				hdr = (struct p80211_hdr_a3 *) skb->data;
-				if (p80211_rx_typedrop(wlandev, hdr->fc)) {
-					dev_kfree_skb(skb);
+				if (!convert_frame_to_ether(wlandev, skb))
 					continue;
-				}
-
-				/* perform mcast filtering */
-				if (wlandev->netdev->flags & IFF_ALLMULTI) {
-					/* allow my local address through */
-					if (memcmp
-					    (hdr->a1, wlandev->netdev->dev_addr,
-					     ETH_ALEN) != 0) {
-						/* but reject anything else that
-						   isn't multicast */
-						if (!(hdr->a1[0] & 0x01)) {
-							dev_kfree_skb(skb);
-							continue;
-						}
-					}
-				}
-
-				if (skb_p80211_to_ether
-				    (wlandev, wlandev->ethconv, skb) == 0) {
-					skb->dev->last_rx = jiffies;
-					wlandev->linux_stats.rx_packets++;
-					wlandev->linux_stats.rx_bytes +=
-					    skb->len;
-					netif_rx_ni(skb);
-					continue;
-				}
-				pr_debug("p80211_to_ether failed.\n");
 			}
 		}
 		dev_kfree_skb(skb);
