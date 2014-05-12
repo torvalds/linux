@@ -26,8 +26,6 @@
 #include <asm/mach/map.h>
 #include <asm/memory.h>
 
-#include <plat/cpu.h>
-
 #include "common.h"
 #include "mfc.h"
 #include "regs-pmu.h"

@@ -18,8 +18,7 @@
 
 #include <mach/map.h>
 
-#include <plat/cpu.h>
-
+#include "common.h"
 #include "smc.h"
 
 static int exynos_do_idle(void)

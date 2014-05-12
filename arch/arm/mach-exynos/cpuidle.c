@@ -24,7 +24,6 @@
 #include <asm/unified.h>
 #include <asm/cpuidle.h>
 
-#include <plat/cpu.h>
 #include <plat/pm.h>
 
 #include <mach/map.h>
