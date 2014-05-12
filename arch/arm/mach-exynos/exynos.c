@@ -308,17 +308,6 @@ void __init exynos_init_io(void)
 	exynos_map_io();
 }
 
-struct bus_type exynos_subsys = {
-	.name		= "exynos-core",
-	.dev_name	= "exynos-core",
-};
-
-static int __init exynos_core_init(void)
-{
-	return subsys_system_register(&exynos_subsys, NULL);
-}
-core_initcall(exynos_core_init);
-
 static int __init exynos4_l2x0_cache_init(void)
 {
 	int ret;
