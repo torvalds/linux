@@ -109,6 +109,7 @@ static int __init mvebu_soc_id_init(void)
 
 res_ioremap:
 	clk_disable_unprepare(clk);
+	clk_put(clk);
 
 clk_err:
 	of_node_put(child);
