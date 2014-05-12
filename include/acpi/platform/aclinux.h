@@ -228,20 +228,6 @@ static inline acpi_thread_id acpi_os_get_thread_id(void)
 
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_thread_id
 
-#ifndef CONFIG_PREEMPT
-
-/*
- * Used within ACPICA to show where it is safe to preempt execution
- * when CONFIG_PREEMPT=n
- */
-#define ACPI_PREEMPTION_POINT() \
-	do { \
-		if (!irqs_disabled()) \
-			cond_resched(); \
-	} while (0)
-
-#endif
-
 /*
  * When lockdep is enabled, the spin_lock_init() macro stringifies it's
  * argument and uses that as a name for the lock in debugging.
