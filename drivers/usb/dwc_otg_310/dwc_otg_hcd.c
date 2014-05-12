@@ -177,7 +177,7 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t * hcd, dwc_list_link_t * qh_list)
 			qtd = DWC_CIRCLEQ_FIRST(&qh->qtd_list);
 			if (qtd->urb != NULL) {
 				hcd->fops->complete(hcd, qtd->urb->priv,
-						    qtd->urb, -DWC_E_TIMEOUT);
+						    qtd->urb, -DWC_E_SHUTDOWN);
 				dwc_otg_hcd_qtd_remove_and_free(hcd, qtd, qh);
 			}
 
@@ -489,7 +489,7 @@ int dwc_otg_hcd_urb_enqueue(dwc_otg_hcd_t * hcd,
 
 	if (!hcd->flags.b.port_connect_status) {
 		/* No longer connected. */
-		DWC_ERROR("Not connected\n");
+		DWC_DEBUG("Not connected\n");
 		return -DWC_E_NO_DEVICE;
 	}
 

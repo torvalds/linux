@@ -48,6 +48,7 @@
 int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t * dwc_otg_hcd)
 {
 	int retval = 0;
+	dwc_irqflags_t flags;
 
 	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	gintsts_data_t gintsts;
@@ -64,12 +65,12 @@ int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t * dwc_otg_hcd)
 	if (core_if->hibernation_suspend == 1) {
 		return retval;
 	}
-	DWC_SPINLOCK(dwc_otg_hcd->lock);
+	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
 	/* Check if HOST Mode */
 	if (dwc_otg_is_host_mode(core_if)) {
 		gintsts.d32 = dwc_otg_read_core_intr(core_if);
 		if (!gintsts.d32) {
-			DWC_SPINUNLOCK(dwc_otg_hcd->lock);
+			DWC_SPINUNLOCK_IRQRESTORE(dwc_otg_hcd->lock, flags);
 			return 0;
 		}
 #ifdef DEBUG
@@ -138,7 +139,7 @@ int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t * dwc_otg_hcd)
 #endif
 
 	}
-	DWC_SPINUNLOCK(dwc_otg_hcd->lock);
+	DWC_SPINUNLOCK_IRQRESTORE(dwc_otg_hcd->lock, flags);
 	return retval;
 }
 
@@ -1822,6 +1823,11 @@ static int32_t handle_hc_datatglerr_intr(dwc_otg_hcd_t * hcd,
 {
 	DWC_ERROR("--Host Channel %d Interrupt: "
 		  "Data Toggle Error--\n", hc->hc_num);
+	if (!hcd->flags.b.port_connect_status) {
+		/* No longer connected. */
+		DWC_ERROR("Not connected\n");
+		return 1;
+	}
 	if (hc->ep_is_in) {
 		qtd->error_count += 3;//Complete the error URB immediately
 	} else {
