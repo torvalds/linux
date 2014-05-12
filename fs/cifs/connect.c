@@ -2144,6 +2144,9 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	       sizeof(tcp_ses->srcaddr));
 	memcpy(&tcp_ses->dstaddr, &volume_info->dstaddr,
 		sizeof(tcp_ses->dstaddr));
+#ifdef CONFIG_CIFS_SMB2
+	get_random_bytes(tcp_ses->client_guid, SMB2_CLIENT_GUID_SIZE);
+#endif
 	/*
 	 * at this point we are the only ones with the pointer
 	 * to the struct since the kernel thread not created yet

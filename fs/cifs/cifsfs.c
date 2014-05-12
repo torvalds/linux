@@ -87,10 +87,6 @@ extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
 
-#ifdef CONFIG_CIFS_SMB2
-__u8 cifs_client_guid[SMB2_CLIENT_GUID_SIZE];
-#endif
-
 /*
  * Bumps refcount for cifs super block.
  * Note that it should be only called if a referece to VFS super block is
@@ -1187,10 +1183,6 @@ init_cifs(void)
 	spin_lock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&cifs_file_list_lock);
 	spin_lock_init(&GlobalMid_Lock);
-
-#ifdef CONFIG_CIFS_SMB2
-	get_random_bytes(cifs_client_guid, SMB2_CLIENT_GUID_SIZE);
-#endif
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;

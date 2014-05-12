@@ -183,8 +183,6 @@ struct smb2_symlink_err_rsp {
 
 #define SMB2_CLIENT_GUID_SIZE 16
 
-extern __u8 cifs_client_guid[SMB2_CLIENT_GUID_SIZE];
-
 struct smb2_negotiate_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 36 */
