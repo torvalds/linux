@@ -52,8 +52,12 @@ static struct test {
 		.func = test__pmu,
 	},
 	{
-		.desc = "Test dso data interface",
+		.desc = "Test dso data read",
 		.func = test__dso_data,
+	},
+	{
+		.desc = "Test dso data cache",
+		.func = test__dso_data_cache,
 	},
 	{
 		.desc = "roundtrip evsel->name check",
