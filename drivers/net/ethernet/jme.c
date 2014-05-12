@@ -2027,14 +2027,14 @@ jme_fill_tx_map(struct pci_dev *pdev,
 	return 0;
 }
 
-static void jme_drop_tx_map(struct jme_adapter *jme, int startidx, int endidx)
+static void jme_drop_tx_map(struct jme_adapter *jme, int startidx, int count)
 {
 	struct jme_ring *txring = &(jme->txring[0]);
 	struct jme_buffer_info *txbi = txring->bufinf, *ctxbi;
 	int mask = jme->tx_ring_mask;
 	int j;
 
-	for (j = startidx ; j < endidx ; ++j) {
+	for (j = 0 ; j < count ; j++) {
 		ctxbi = txbi + ((startidx + j + 2) & (mask));
 		pci_unmap_page(jme->pdev,
 				ctxbi->mapping,
@@ -2069,7 +2069,7 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 				skb_frag_page(frag),
 				frag->page_offset, skb_frag_size(frag), hidma);
 		if (ret) {
-			jme_drop_tx_map(jme, idx, idx+i);
+			jme_drop_tx_map(jme, idx, i);
 			goto out;
 		}
 
@@ -2081,7 +2081,7 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	ret = jme_fill_tx_map(jme->pdev, ctxdesc, ctxbi, virt_to_page(skb->data),
 			offset_in_page(skb->data), len, hidma);
 	if (ret)
-		jme_drop_tx_map(jme, idx, idx+i);
+		jme_drop_tx_map(jme, idx, i);
 
 out:
 	return ret;
@@ -2269,7 +2269,7 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (jme_fill_tx_desc(jme, skb, idx))
-		return NETDEV_TX_BUSY;
+		return NETDEV_TX_OK;
 
 	jwrite32(jme, JME_TXCS, jme->reg_txcs |
 				TXCS_SELECT_QUEUE0 |
