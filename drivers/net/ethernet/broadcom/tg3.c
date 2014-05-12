@@ -7871,9 +7871,7 @@ tg3_tso_bug_end:
 	return NETDEV_TX_OK;
 }
 
-/* hard_start_xmit for devices that have the 4G bug and/or 40-bit bug and
- * support TG3_FLAG_HW_TSO_1 or firmware TSO only.
- */
+/* hard_start_xmit for all devices */
 static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -7927,13 +7925,13 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb) - ETH_HLEN;
 
 		if (!skb_is_gso_v6(skb)) {
+			if (unlikely((ETH_HLEN + hdr_len) > 80) &&
+			    tg3_flag(tp, TSO_BUG))
+				return tg3_tso_bug(tp, skb);
+
 			iph->check = 0;
 			iph->tot_len = htons(mss + hdr_len);
 		}
-
-		if (unlikely((ETH_HLEN + hdr_len) > 80) &&
-		    tg3_flag(tp, TSO_BUG))
-			return tg3_tso_bug(tp, skb);
 
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
