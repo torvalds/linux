@@ -5191,6 +5191,9 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg,
 		if (!(bw_cap[band] & WLC_BW_40MHZ_BIT) &&
 		    ch.bw == BRCMU_CHAN_BW_40)
 			continue;
+		if (!(bw_cap[band] & WLC_BW_80MHZ_BIT) &&
+		    ch.bw == BRCMU_CHAN_BW_80)
+			continue;
 		update = false;
 		for (j = 0; (j < *n_cnt && (*n_cnt < array_size)); j++) {
 			if (band_chan_arr[j].hw_value == ch.chnum) {
@@ -5207,10 +5210,13 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg,
 				ieee80211_channel_to_frequency(ch.chnum, band);
 			band_chan_arr[index].hw_value = ch.chnum;
 
-			if (ch.bw == BRCMU_CHAN_BW_40) {
-				/* assuming the order is HT20, HT40 Upper,
-				 * HT40 lower from chanspecs
-				 */
+			/* assuming the chanspecs order is HT20,
+			 * HT40 upper, HT40 lower, and VHT80.
+			 */
+			if (ch.bw == BRCMU_CHAN_BW_80) {
+				band_chan_arr[index].flags &=
+					~IEEE80211_CHAN_NO_80MHZ;
+			} else if (ch.bw == BRCMU_CHAN_BW_40) {
 				ht40_flag = band_chan_arr[index].flags &
 					    IEEE80211_CHAN_NO_HT40;
 				if (ch.sb == BRCMU_CHAN_SB_U) {
@@ -5231,8 +5237,13 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg,
 						    IEEE80211_CHAN_NO_HT40MINUS;
 				}
 			} else {
+				/* disable other bandwidths for now as mentioned
+				 * order assure they are enabled for subsequent
+				 * chanspecs.
+				 */
 				band_chan_arr[index].flags =
-							IEEE80211_CHAN_NO_HT40;
+						IEEE80211_CHAN_NO_HT40 |
+						IEEE80211_CHAN_NO_80MHZ;
 				ch.bw = BRCMU_CHAN_BW_20;
 				cfg->d11inf.encchspec(&ch);
 				channel = ch.chspec;
