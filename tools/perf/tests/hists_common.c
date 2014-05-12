@@ -193,8 +193,8 @@ void print_hists_out(struct hists *hists)
 		he = rb_entry(node, struct hist_entry, rb_node);
 
 		if (!he->filtered) {
-			pr_info("%2d: entry: %-8s [%-8s] %20s: period = %"PRIu64"\n",
-				i, thread__comm_str(he->thread),
+			pr_info("%2d: entry: %8s:%5d [%-8s] %20s: period = %"PRIu64"\n",
+				i, thread__comm_str(he->thread), he->thread->tid,
 				he->ms.map->dso->short_name,
 				he->ms.sym->name, he->stat.period);
 		}
