@@ -221,7 +221,7 @@ static void __init of_ti_gate_clk_setup(struct device_node *node)
 {
 	_of_ti_gate_clk_setup(node, &omap_gate_clk_ops, NULL);
 }
-CLK_OF_DECLARE(ti_gate_clk, "ti,gate-clock", of_ti_gate_clk_setup)
+CLK_OF_DECLARE(ti_gate_clk, "ti,gate-clock", of_ti_gate_clk_setup);
 
 static void __init of_ti_wait_gate_clk_setup(struct device_node *node)
 {
