@@ -114,6 +114,42 @@
 #define acpi_spinlock                       spinlock_t *
 #define acpi_cpu_flags                      unsigned long
 
+/* Use native linux version of acpi_os_allocate_zeroed */
+
+#define USE_NATIVE_ALLOCATE_ZEROED
+
+/*
+ * Overrides for in-kernel ACPICA
+ */
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_allocate
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_allocate_zeroed
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_free
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_acquire_object
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_thread_id
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_lock
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_map_memory
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_unmap_memory
+
+/*
+ * OSL interfaces used by debugger/disassembler
+ */
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_readable
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_writable
+
+/*
+ * OSL interfaces used by utilities
+ */
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_redirect_output
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_line
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_name
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_index
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_address
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_open_directory
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_next_filename
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
+
 #else				/* !__KERNEL__ */
 
 #include <stdarg.h>
@@ -158,123 +194,5 @@
 /* Linux uses GCC */
 
 #include <acpi/platform/acgcc.h>
-
-#ifdef __KERNEL__
-
-/*
- * FIXME: Inclusion of actypes.h
- * Linux kernel need this before defining inline OSL interfaces as
- * actypes.h need to be included to find ACPICA type definitions.
- * Since from ACPICA's perspective, the actypes.h should be included after
- * acenv.h (aclinux.h), this leads to a inclusion mis-ordering issue.
- */
-#include <acpi/actypes.h>
-
-/*
- * Overrides for in-kernel ACPICA
- */
-acpi_status __init acpi_os_initialize(void);
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize
-
-acpi_status acpi_os_terminate(void);
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate
-
-/*
- * Memory allocation/deallocation
- */
-
-/*
- * The irqs_disabled() check is for resume from RAM.
- * Interrupts are off during resume, just like they are for boot.
- * However, boot has  (system_state != SYSTEM_RUNNING)
- * to quiet __might_sleep() in kmalloc() and resume does not.
- */
-static inline void *acpi_os_allocate(acpi_size size)
-{
-	return kmalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
-
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_allocate
-
-/* Use native linux version of acpi_os_allocate_zeroed */
-
-static inline void *acpi_os_allocate_zeroed(acpi_size size)
-{
-	return kzalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
-
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_allocate_zeroed
-#define USE_NATIVE_ALLOCATE_ZEROED
-
-static inline void acpi_os_free(void *memory)
-{
-	kfree(memory);
-}
-
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_free
-
-static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
-{
-	return kmem_cache_zalloc(cache,
-				 irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
-
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_acquire_object
-
-static inline acpi_thread_id acpi_os_get_thread_id(void)
-{
-	return (acpi_thread_id) (unsigned long)current;
-}
-
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_thread_id
-
-/*
- * When lockdep is enabled, the spin_lock_init() macro stringifies it's
- * argument and uses that as a name for the lock in debugging.
- * By executing spin_lock_init() in a macro the key changes from "lock" for
- * all locks to the name of the argument of acpi_os_create_lock(), which
- * prevents lockdep from reporting false positives for ACPICA locks.
- */
-#define acpi_os_create_lock(__handle) \
-	({ \
-		spinlock_t *lock = ACPI_ALLOCATE(sizeof(*lock)); \
-		if (lock) { \
-			*(__handle) = lock; \
-			spin_lock_init(*(__handle)); \
-		} \
-		lock ? AE_OK : AE_NO_MEMORY; \
-	})
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_lock
-
-void __iomem *acpi_os_map_memory(acpi_physical_address where, acpi_size length);
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_map_memory
-
-void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_unmap_memory
-
-/*
- * OSL interfaces used by debugger/disassembler
- */
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_readable
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_writable
-
-/*
- * OSL interfaces used by utilities
- */
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_redirect_output
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_line
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_name
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_index
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_address
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_open_directory
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_next_filename
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
-
-/*
- * OSL interfaces added by Linux
- */
-void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
-
-#endif				/* __KERNEL__ */
 
 #endif				/* __ACLINUX_H__ */

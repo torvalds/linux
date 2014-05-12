@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acpi.h - Master public include file used to interface to ACPICA
+ * Name: aclinuxex.h - Extra OS specific defines, etc. for Linux
  *
  *****************************************************************************/
 
@@ -41,27 +41,76 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACPI_H__
-#define __ACPI_H__
+#ifndef __ACLINUXEX_H__
+#define __ACLINUXEX_H__
+
+#ifdef __KERNEL__
 
 /*
- * Public include files for use by code that will interface to ACPICA.
- *
- * Information includes the ACPICA data types, names, exceptions, and
- * external interface prototypes. Also included are the definitions for
- * all ACPI tables (FADT, MADT, etc.)
- *
- * Note: The order of these include files is important.
+ * Overrides for in-kernel ACPICA
  */
-#include <acpi/platform/acenv.h>	/* Environment-specific items */
-#include <acpi/acnames.h>		/* Common ACPI names and strings */
-#include <acpi/actypes.h>		/* ACPICA data types and structures */
-#include <acpi/acexcep.h>		/* ACPICA exceptions */
-#include <acpi/actbl.h>		/* ACPI table definitions */
-#include <acpi/acoutput.h>		/* Error output and Debug macros */
-#include <acpi/acrestyp.h>		/* Resource Descriptor structs */
-#include <acpi/acpiosxf.h>		/* OSL interfaces (ACPICA-to-OS) */
-#include <acpi/acpixf.h>		/* ACPI core subsystem external interfaces */
-#include <acpi/platform/acenvex.h>	/* Extra environment-specific items */
+acpi_status __init acpi_os_initialize(void);
 
-#endif				/* __ACPI_H__ */
+acpi_status acpi_os_terminate(void);
+
+/*
+ * The irqs_disabled() check is for resume from RAM.
+ * Interrupts are off during resume, just like they are for boot.
+ * However, boot has  (system_state != SYSTEM_RUNNING)
+ * to quiet __might_sleep() in kmalloc() and resume does not.
+ */
+static inline void *acpi_os_allocate(acpi_size size)
+{
+	return kmalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+}
+
+static inline void *acpi_os_allocate_zeroed(acpi_size size)
+{
+	return kzalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+}
+
+static inline void acpi_os_free(void *memory)
+{
+	kfree(memory);
+}
+
+static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
+{
+	return kmem_cache_zalloc(cache,
+				 irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+}
+
+static inline acpi_thread_id acpi_os_get_thread_id(void)
+{
+	return (acpi_thread_id) (unsigned long)current;
+}
+
+/*
+ * When lockdep is enabled, the spin_lock_init() macro stringifies it's
+ * argument and uses that as a name for the lock in debugging.
+ * By executing spin_lock_init() in a macro the key changes from "lock" for
+ * all locks to the name of the argument of acpi_os_create_lock(), which
+ * prevents lockdep from reporting false positives for ACPICA locks.
+ */
+#define acpi_os_create_lock(__handle) \
+	({ \
+		spinlock_t *lock = ACPI_ALLOCATE(sizeof(*lock)); \
+		if (lock) { \
+			*(__handle) = lock; \
+			spin_lock_init(*(__handle)); \
+		} \
+		lock ? AE_OK : AE_NO_MEMORY; \
+	})
+
+void __iomem *acpi_os_map_memory(acpi_physical_address where, acpi_size length);
+
+void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
+
+/*
+ * OSL interfaces added by Linux
+ */
+void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
+
+#endif				/* __KERNEL__ */
+
+#endif				/* __ACLINUXEX_H__ */
