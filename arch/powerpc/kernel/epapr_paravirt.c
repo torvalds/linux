@@ -73,8 +73,10 @@ int __init epapr_paravirt_early_init(void)
 
 static int __init epapr_idle_init(void)
 {
+#if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
 	if (epapr_has_idle)
 		ppc_md.power_save = epapr_ev_idle;
+#endif
 
 	return 0;
 }
