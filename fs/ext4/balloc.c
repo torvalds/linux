@@ -708,16 +708,6 @@ static inline int test_root(ext4_group_t a, int b)
 	}
 }
 
-static int ext4_group_sparse(ext4_group_t group)
-{
-	if (group <= 1)
-		return 1;
-	if (!(group & 1))
-		return 0;
-	return (test_root(group, 7) || test_root(group, 5) ||
-		test_root(group, 3));
-}
-
 /**
  *	ext4_bg_has_super - number of blocks used by the superblock in group
  *	@sb: superblock for filesystem
@@ -728,11 +718,26 @@ static int ext4_group_sparse(ext4_group_t group)
  */
 int ext4_bg_has_super(struct super_block *sb, ext4_group_t group)
 {
-	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER) &&
-			!ext4_group_sparse(group))
+	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+
+	if (group == 0)
+		return 1;
+	if (EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_SPARSE_SUPER2)) {
+		if (group == le32_to_cpu(es->s_backup_bgs[0]) ||
+		    group == le32_to_cpu(es->s_backup_bgs[1]))
+			return 1;
 		return 0;
-	return 1;
+	}
+	if ((group <= 1) || !EXT4_HAS_RO_COMPAT_FEATURE(sb,
+					EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER))
+		return 1;
+	if (!(group & 1))
+		return 0;
+	if (test_root(group, 3) || (test_root(group, 5)) ||
+	    test_root(group, 7))
+		return 1;
+
+	return 0;
 }
 
 static unsigned long ext4_bg_num_gdb_meta(struct super_block *sb,
