@@ -1309,7 +1309,7 @@ static void __init sunxi_clock_protect(void)
 	}
 }
 
-static void __init sunxi_init_clocks(void)
+static void __init sunxi_init_clocks(struct device_node *np)
 {
 	/* Register factor clocks */
 	of_sunxi_table_clock_setup(clk_factors_match, sunxi_factors_clk_setup);
