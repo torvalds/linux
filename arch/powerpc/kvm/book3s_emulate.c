@@ -676,6 +676,12 @@ u32 kvmppc_alignment_dsisr(struct kvm_vcpu *vcpu, unsigned int inst)
 
 ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst)
 {
+#ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * Linux's fix_alignment() assumes that DAR is valid, so can we
+	 */
+	return vcpu->arch.fault_dar;
+#else
 	ulong dar = 0;
 	ulong ra = get_ra(inst);
 	ulong rb = get_rb(inst);
@@ -700,4 +706,5 @@ ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst)
 	}
 
 	return dar;
+#endif
 }
