@@ -874,6 +874,10 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	}
 	svc_xprt_set_local(&newsvsk->sk_xprt, sin, slen);
 
+	if (sock_is_loopback(newsock->sk))
+		set_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
+	else
+		clear_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpconn++;
 
@@ -1119,6 +1123,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
+	rqstp->rq_local	      = !!test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags);
 
 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	calldir = p[1];
