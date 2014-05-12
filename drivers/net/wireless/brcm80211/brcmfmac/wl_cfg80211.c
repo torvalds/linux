@@ -341,6 +341,60 @@ static u8 brcmf_mw_to_qdbm(u16 mw)
 	return qdbm;
 }
 
+u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
+			struct cfg80211_chan_def *ch)
+{
+	struct brcmu_chan ch_inf;
+	s32 primary_offset;
+
+	brcmf_dbg(TRACE, "chandef: control %d center %d width %d\n",
+		  ch->chan->center_freq, ch->center_freq1, ch->width);
+	ch_inf.chnum = ieee80211_frequency_to_channel(ch->center_freq1);
+	primary_offset = ch->center_freq1 - ch->chan->center_freq;
+	switch (ch->width) {
+	case NL80211_CHAN_WIDTH_20:
+		ch_inf.bw = BRCMU_CHAN_BW_20;
+		WARN_ON(primary_offset != 0);
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		ch_inf.bw = BRCMU_CHAN_BW_40;
+		if (primary_offset < 0)
+			ch_inf.sb = BRCMU_CHAN_SB_U;
+		else
+			ch_inf.sb = BRCMU_CHAN_SB_L;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		ch_inf.bw = BRCMU_CHAN_BW_80;
+		if (primary_offset < 0) {
+			if (primary_offset < -CH_10MHZ_APART)
+				ch_inf.sb = BRCMU_CHAN_SB_UU;
+			else
+				ch_inf.sb = BRCMU_CHAN_SB_UL;
+		} else {
+			if (primary_offset > CH_10MHZ_APART)
+				ch_inf.sb = BRCMU_CHAN_SB_LL;
+			else
+				ch_inf.sb = BRCMU_CHAN_SB_LU;
+		}
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
+	switch (ch->chan->band) {
+	case IEEE80211_BAND_2GHZ:
+		ch_inf.band = BRCMU_CHAN_BAND_2G;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		ch_inf.band = BRCMU_CHAN_BAND_5G;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
+	d11inf->encchspec(&ch_inf);
+
+	return ch_inf.chspec;
+}
+
 u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
 			struct ieee80211_channel *ch)
 {
@@ -1236,8 +1290,8 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 				params->chandef.chan->center_freq);
 		if (params->channel_fixed) {
 			/* adding chanspec */
-			chanspec = channel_to_chanspec(&cfg->d11inf,
-						       params->chandef.chan);
+			chanspec = chandef_to_chanspec(&cfg->d11inf,
+						       &params->chandef);
 			join_params.params_le.chanspec_list[0] =
 				cpu_to_le16(chanspec);
 			join_params.params_le.chanspec_num = cpu_to_le32(1);
@@ -3810,7 +3864,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 	brcmf_config_ap_mgmt_ie(ifp->vif, &settings->beacon);
 
-	chanspec = channel_to_chanspec(&cfg->d11inf, settings->chandef.chan);
+	chanspec = chandef_to_chanspec(&cfg->d11inf, &settings->chandef);
 	err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
 	if (err < 0) {
 		brcmf_err("Set Channel failed: chspec=%d, %d\n", chanspec, err);
