@@ -14,22 +14,6 @@
 
 #include <asm/special_insns.h>
 
-#define COMPILER_DEPENDENT_INT64   long long
-#define COMPILER_DEPENDENT_UINT64  unsigned long long
-
-/*
- * Calling conventions:
- *
- * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
- * ACPI_EXTERNAL_XFACE      - External ACPI interfaces
- * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
- * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
- */
-#define ACPI_SYSTEM_XFACE
-#define ACPI_EXTERNAL_XFACE
-#define ACPI_INTERNAL_XFACE
-#define ACPI_INTERNAL_VAR_XFACE
-
 /* Asm macros */
 
 #define ACPI_FLUSH_CPU_CACHE()	wbinvd()
