@@ -1,6 +1,7 @@
 config ARCH_KEYSTONE
 	bool "Texas Instruments Keystone Devices"
 	depends on ARCH_MULTI_V7
+	depends on ARM_PATCH_PHYS_VIRT
 	select ARM_GIC
 	select HAVE_ARM_ARCH_TIMER
 	select CLKSRC_MMIO
