@@ -17,6 +17,6 @@
 
 #include <linux/clk.h>
 
-void clk_sunxi_mmc_phase_control(struct clk_hw *hw, u8 sample, u8 output);
+void clk_sunxi_mmc_phase_control(struct clk *clk, u8 sample, u8 output);
 
 #endif
