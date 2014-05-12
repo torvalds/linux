@@ -283,3 +283,76 @@ int test__dso_data_cache(void)
 	TEST_ASSERT_VAL("failed leadking files", nr == nr_end);
 	return 0;
 }
+
+int test__dso_data_reopen(void)
+{
+	struct machine machine;
+	long nr_end, nr = open_files_cnt();
+	int fd, fd_extra;
+
+#define dso_0 (dsos[0])
+#define dso_1 (dsos[1])
+#define dso_2 (dsos[2])
+
+	memset(&machine, 0, sizeof(machine));
+
+	/*
+	 * Test scenario:
+	 * - create 3 dso objects
+	 * - set process file descriptor limit to current
+	 *   files count + 3
+	 * - test that the first dso gets closed when we
+	 *   reach the files count limit
+	 */
+
+	/* Make sure we are able to open 3 fds anyway */
+	TEST_ASSERT_VAL("failed to set file limit",
+			!set_fd_limit((nr + 3)));
+
+	TEST_ASSERT_VAL("failed to create dsos\n", !dsos__create(3, TEST_FILE_SIZE));
+
+	/* open dso_0 */
+	fd = dso__data_fd(dso_0, &machine);
+	TEST_ASSERT_VAL("failed to get fd", fd > 0);
+
+	/* open dso_1 */
+	fd = dso__data_fd(dso_1, &machine);
+	TEST_ASSERT_VAL("failed to get fd", fd > 0);
+
+	/*
+	 * open extra file descriptor and we just
+	 * reached the files count limit
+	 */
+	fd_extra = open("/dev/null", O_RDONLY);
+	TEST_ASSERT_VAL("failed to open extra fd", fd_extra > 0);
+
+	/* open dso_2 */
+	fd = dso__data_fd(dso_2, &machine);
+	TEST_ASSERT_VAL("failed to get fd", fd > 0);
+
+	/*
+	 * dso_0 should get closed, because we reached
+	 * the file descriptor limit
+	 */
+	TEST_ASSERT_VAL("failed to close dso_0", dso_0->data.fd == -1);
+
+	/* open dso_0 */
+	fd = dso__data_fd(dso_0, &machine);
+	TEST_ASSERT_VAL("failed to get fd", fd > 0);
+
+	/*
+	 * dso_1 should get closed, because we reached
+	 * the file descriptor limit
+	 */
+	TEST_ASSERT_VAL("failed to close dso_1", dso_1->data.fd == -1);
+
+	/* cleanup everything */
+	close(fd_extra);
+	dsos__delete(3);
+
+	/* Make sure we did not leak any file descriptor. */
+	nr_end = open_files_cnt();
+	pr_debug("nr start %ld, nr stop %ld\n", nr, nr_end);
+	TEST_ASSERT_VAL("failed leadking files", nr == nr_end);
+	return 0;
+}

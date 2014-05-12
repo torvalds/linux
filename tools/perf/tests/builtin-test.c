@@ -60,6 +60,10 @@ static struct test {
 		.func = test__dso_data_cache,
 	},
 	{
+		.desc = "Test dso data reopen",
+		.func = test__dso_data_reopen,
+	},
+	{
 		.desc = "roundtrip evsel->name check",
 		.func = test__perf_evsel__roundtrip_name_test,
 	},
