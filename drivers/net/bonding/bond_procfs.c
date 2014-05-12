@@ -190,7 +190,7 @@ static void bond_info_show_slave(struct seq_file *seq,
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		const struct aggregator *agg
-			= SLAVE_AD_INFO(slave).port.aggregator;
+			= SLAVE_AD_INFO(slave)->port.aggregator;
 
 		if (agg)
 			seq_printf(seq, "Aggregator ID: %d\n",

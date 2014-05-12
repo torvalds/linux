@@ -203,7 +203,7 @@ struct slave {
 	u32    speed;
 	u16    queue_id;
 	u8     perm_hwaddr[ETH_ALEN];
-	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
+	struct ad_slave_info *ad_info;
 	struct tlb_slave_info tlb_info;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll *np;

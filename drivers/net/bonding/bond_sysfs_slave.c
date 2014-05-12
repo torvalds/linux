@@ -70,7 +70,7 @@ static ssize_t ad_aggregator_id_show(struct slave *slave, char *buf)
 	const struct aggregator *agg;
 
 	if (slave->bond->params.mode == BOND_MODE_8023AD) {
-		agg = SLAVE_AD_INFO(slave).port.aggregator;
+		agg = SLAVE_AD_INFO(slave)->port.aggregator;
 		if (agg)
 			return sprintf(buf, "%d\n",
 				       agg->aggregator_identifier);

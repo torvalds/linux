@@ -59,7 +59,7 @@ static int bond_fill_slave_info(struct sk_buff *skb,
 	if (slave->bond->params.mode == BOND_MODE_8023AD) {
 		const struct aggregator *agg;
 
-		agg = SLAVE_AD_INFO(slave).port.aggregator;
+		agg = SLAVE_AD_INFO(slave)->port.aggregator;
 		if (agg)
 			if (nla_put_u16(skb, IFLA_BOND_SLAVE_AD_AGGREGATOR_ID,
 					agg->aggregator_identifier))
