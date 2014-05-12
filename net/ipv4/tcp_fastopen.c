@@ -72,27 +72,58 @@ error:		kfree(ctx);
 	return err;
 }
 
-/* Computes the fastopen cookie for the IP path.
- * The path is a 128 bits long (pad with zeros for IPv4).
- *
- * The caller must check foc->len to determine if a valid cookie
- * has been generated successfully.
-*/
-void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
-			     struct tcp_fastopen_cookie *foc)
+static bool __tcp_fastopen_cookie_gen(const void *path,
+				      struct tcp_fastopen_cookie *foc)
 {
-	__be32 path[4] = { src, dst, 0, 0 };
 	struct tcp_fastopen_context *ctx;
+	bool ok = false;
 
 	tcp_fastopen_init_key_once(true);
 
 	rcu_read_lock();
 	ctx = rcu_dereference(tcp_fastopen_ctx);
 	if (ctx) {
-		crypto_cipher_encrypt_one(ctx->tfm, foc->val, (__u8 *)path);
+		crypto_cipher_encrypt_one(ctx->tfm, foc->val, path);
 		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
+		ok = true;
 	}
 	rcu_read_unlock();
+	return ok;
+}
+
+/* Generate the fastopen cookie by doing aes128 encryption on both
+ * the source and destination addresses. Pad 0s for IPv4 or IPv4-mapped-IPv6
+ * addresses. For the longer IPv6 addresses use CBC-MAC.
+ *
+ * XXX (TFO) - refactor when TCP_FASTOPEN_COOKIE_SIZE != AES_BLOCK_SIZE.
+ */
+static bool tcp_fastopen_cookie_gen(struct request_sock *req,
+				    struct sk_buff *syn,
+				    struct tcp_fastopen_cookie *foc)
+{
+	if (req->rsk_ops->family == AF_INET) {
+		const struct iphdr *iph = ip_hdr(syn);
+
+		__be32 path[4] = { iph->saddr, iph->daddr, 0, 0 };
+		return __tcp_fastopen_cookie_gen(path, foc);
+	}
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (req->rsk_ops->family == AF_INET6) {
+		const struct ipv6hdr *ip6h = ipv6_hdr(syn);
+		struct tcp_fastopen_cookie tmp;
+
+		if (__tcp_fastopen_cookie_gen(&ip6h->saddr, &tmp)) {
+			struct in6_addr *buf = (struct in6_addr *) tmp.val;
+			int i = 4;
+
+			for (i = 0; i < 4; i++)
+				buf->s6_addr32[i] ^= ip6h->daddr.s6_addr32[i];
+			return __tcp_fastopen_cookie_gen(buf, foc);
+		}
+	}
+#endif
+	return false;
 }
 
 static bool tcp_fastopen_create_child(struct sock *sk,
@@ -234,10 +265,8 @@ bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 	if (syn_data && (sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_REQD))
 		goto fastopen;
 
-	tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
-				ip_hdr(skb)->daddr, &valid_foc);
-
-	if (foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
+	if (tcp_fastopen_cookie_gen(req, skb, &valid_foc) &&
+	    foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
 	    foc->len == valid_foc.len &&
 	    !memcmp(foc->val, valid_foc.val, foc->len)) {
 		/* Cookie is valid. Create a (full) child socket to accept
