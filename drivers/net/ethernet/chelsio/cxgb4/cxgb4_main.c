@@ -2252,12 +2252,19 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	else if (p->port_type == FW_PORT_TYPE_FIBER_XFI ||
 		 p->port_type == FW_PORT_TYPE_FIBER_XAUI)
 		cmd->port = PORT_FIBRE;
-	else if (p->port_type == FW_PORT_TYPE_SFP) {
-		if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
-		    p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
+	else if (p->port_type == FW_PORT_TYPE_SFP ||
+		 p->port_type == FW_PORT_TYPE_QSFP_10G ||
+		 p->port_type == FW_PORT_TYPE_QSFP) {
+		if (p->mod_type == FW_PORT_MOD_TYPE_LR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_SR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_ER ||
+		    p->mod_type == FW_PORT_MOD_TYPE_LRM)
+			cmd->port = PORT_FIBRE;
+		else if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
+			 p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
 			cmd->port = PORT_DA;
 		else
-			cmd->port = PORT_FIBRE;
+			cmd->port = PORT_OTHER;
 	} else
 		cmd->port = PORT_OTHER;
 

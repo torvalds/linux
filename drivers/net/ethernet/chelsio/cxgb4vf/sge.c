@@ -1510,7 +1510,8 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 {
 	struct sk_buff *skb;
 	const struct cpl_rx_pkt *pkt = (void *)rsp;
-	bool csum_ok = pkt->csum_calc && !pkt->err_vec;
+	bool csum_ok = pkt->csum_calc && !pkt->err_vec &&
+		       (rspq->netdev->features & NETIF_F_RXCSUM);
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 
 	/*
@@ -1538,8 +1539,8 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	skb_record_rx_queue(skb, rspq->idx);
 	rxq->stats.pkts++;
 
-	if (csum_ok && (rspq->netdev->features & NETIF_F_RXCSUM) &&
-	    !pkt->err_vec && (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
+	if (csum_ok && !pkt->err_vec &&
+	    (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
 		if (!pkt->ip_frag)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else {
