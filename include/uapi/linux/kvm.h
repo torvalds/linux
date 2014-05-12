@@ -399,8 +399,9 @@ struct kvm_vapic_addr {
 	__u64 vapic_addr;
 };
 
-/* for KVM_SET_MPSTATE */
+/* for KVM_SET_MP_STATE */
 
+/* not all states are valid on all architectures */
 #define KVM_MP_STATE_RUNNABLE          0
 #define KVM_MP_STATE_UNINITIALIZED     1
 #define KVM_MP_STATE_INIT_RECEIVED     2
