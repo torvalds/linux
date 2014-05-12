@@ -1329,8 +1329,14 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 
 extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 int tcp_fastopen_reset_cipher(void *key, unsigned int len);
-void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
-			     struct tcp_fastopen_cookie *foc);
+int tcp_fastopen_create_child(struct sock *sk,
+			      struct sk_buff *skb,
+			      struct sk_buff *skb_synack,
+			      struct request_sock *req);
+bool tcp_fastopen_check(struct sock *sk, struct sk_buff *skb,
+			struct request_sock *req,
+			struct tcp_fastopen_cookie *foc,
+			struct tcp_fastopen_cookie *valid_foc);
 void tcp_fastopen_init_key_once(bool publish);
 #define TCP_FASTOPEN_KEY_LENGTH 16
 
