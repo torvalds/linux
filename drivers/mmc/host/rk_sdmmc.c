@@ -1692,6 +1692,8 @@ static void dw_mci_tasklet_func(unsigned long priv)
 	enum dw_mci_state state;
 	enum dw_mci_state prev_state;
 	u32 status, ctrl, cmd_flags;
+	unsigned long timeout = 0;
+	bool ret = 0;
 
 	spin_lock(&host->lock);
 
@@ -1748,47 +1750,50 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			/* fall through */
 
 		case STATE_SENDING_DATA:
-			if (test_and_clear_bit(EVENT_DATA_ERROR,
-					       &host->pending_events)) {
+			if (test_and_clear_bit(EVENT_DATA_ERROR, &host->pending_events)) {
 				dw_mci_stop_dma(host);
 				#if 1
 				if (data->stop)
 					send_stop_cmd(host, data);
 				else{
-					/*single block read/write, send stop cmd manually to prevent host controller halt*/
-					printk("%s status 1 0x%08x [%s]\n",
-					        __func__,mci_readl(host, STATUS),mmc_hostname(host->mmc));
-					mci_writel(host, CMDARG, 0);
-					wmb();
-					cmd_flags = SDMMC_CMD_STOP |SDMMC_CMD_RESP_CRC|SDMMC_CMD_RESP_EXP|MMC_STOP_TRANSMISSION;
-					if(host->mmc->hold_reg_flag)
-						cmd_flags |= SDMMC_CMD_USE_HOLD_REG;
-					// mci_writel(host, CMD, SDMMC_CMD_USE_HOLD_REG |SDMMC_CMD_STOP |SDMMC_CMD_RESP_CRC|SDMMC_CMD_RESP_EXP| SDMMC_CMD_START|0x0c);
-					mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
-					wmb();
-					unsigned long timeout = jiffies + msecs_to_jiffies(500);
-					bool ret=0;
-					while(ret=time_before(jiffies, timeout)){
-						if(!(mci_readl(host, CMD)&SDMMC_CMD_START))
-							break;
-					}
-					if(!ret)
-					    printk("%s EVENT_DATA_ERROR recovery failed!!! [%s]\n",
-					            __func__,mmc_hostname(host->mmc));
-				}
+                        /*single block read/write, send stop cmd manually to prevent host controller halt*/
+                        MMC_DBG_INFO_FUNC(host->mmc, "%s status 1 0x%08x [%s]\n",
+                        __func__, mci_readl(host, STATUS), mmc_hostname(host->mmc));
+                        
+						mci_writel(host, CMDARG, 0);
+                        wmb();
+                        cmd_flags = SDMMC_CMD_STOP |SDMMC_CMD_RESP_CRC|SDMMC_CMD_RESP_EXP|MMC_STOP_TRANSMISSION;
+                        
+						if(host->mmc->hold_reg_flag)
+                           cmd_flags |= SDMMC_CMD_USE_HOLD_REG;
+				
+                        mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
+                        wmb();
+                        timeout = jiffies + msecs_to_jiffies(500);
+                        
+						while(ret = time_before(jiffies, timeout)){
+                            if(!(mci_readl(host, CMD) & SDMMC_CMD_START))
+                                 break;
+                        }
+                        
+						if(!ret)
+                            MMC_DBG_ERR_FUNC(host->mmc, "%s EVENT_DATA_ERROR recovery failed!!! [%s]\n",
+                             __func__, mmc_hostname(host->mmc));
+                }
 				#else
 				send_stop_abort(host, data);
 				#endif
 				state = STATE_DATA_ERROR;
 				break;
 			}
+
             MMC_DBG_CMD_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]: STATE_SENDING_DATA, wait for EVENT_XFER_COMPLETE.[%s]",\
                         prev_state,state, mmc_hostname(host->mmc));
 
 			if (!test_and_clear_bit(EVENT_XFER_COMPLETE,
 						&host->pending_events))
 				break;
-                        MMC_DBG_INFO_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]:  STATE_SENDING_DATA, wait for EVENT_DATA_COMPLETE. [%s]",\
+            MMC_DBG_INFO_FUNC(host->mmc, "Pre-state[%d]-->NowState[%d]:  STATE_SENDING_DATA, wait for EVENT_DATA_COMPLETE. [%s]",\
                                           prev_state,state,mmc_hostname(host->mmc));
             
 			set_bit(EVENT_XFER_COMPLETE, &host->completed_events);
