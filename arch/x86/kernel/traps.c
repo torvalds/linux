@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
+#include <linux/uprobes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -148,11 +149,11 @@ static siginfo_t *fill_trap_info(struct pt_regs *regs, int signr, int trapnr,
 
 	case X86_TRAP_DE:
 		sicode = FPE_INTDIV;
-		siaddr = regs->ip;
+		siaddr = uprobe_get_trap_addr(regs);
 		break;
 	case X86_TRAP_UD:
 		sicode = ILL_ILLOPN;
-		siaddr = regs->ip;
+		siaddr = uprobe_get_trap_addr(regs);
 		break;
 	case X86_TRAP_AC:
 		sicode = BUS_ADRALN;
@@ -531,7 +532,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 	task->thread.error_code = error_code;
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
-	info.si_addr = (void __user *)regs->ip;
+	info.si_addr = (void __user *)uprobe_get_trap_addr(regs);
 	if (trapnr == X86_TRAP_MF) {
 		unsigned short cwd, swd;
 		/*
