@@ -476,6 +476,7 @@ struct brcmf_fws_info {
 	bool bus_flow_blocked;
 	bool creditmap_received;
 	u8 mode;
+	bool avoid_queueing;
 };
 
 /*
@@ -1872,6 +1873,13 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 
 	drvr->tx_multicast += !!multicast;
 
+	if (fws->avoid_queueing) {
+		rc = brcmf_proto_txdata(drvr, ifp->ifidx, 0, skb);
+		if (rc < 0)
+			brcmf_txfinalize(drvr, skb, ifp->ifidx, false);
+		return rc;
+	}
+
 	/* set control buffer information */
 	skcb->if_flags = 0;
 	skcb->state = BRCMF_FWS_SKBSTATE_NEW;
@@ -2029,6 +2037,13 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	/* set linkage back */
 	fws->drvr = drvr;
 	fws->fcmode = fcmode;
+
+	if ((drvr->bus_if->always_use_fws_queue == false) &&
+	    (fcmode == BRCMF_FWS_FCMODE_NONE)) {
+		fws->avoid_queueing = true;
+		brcmf_dbg(INFO, "FWS queueing will be avoided\n");
+		return 0;
+	}
 
 	fws->fws_wq = create_singlethread_workqueue("brcmf_fws_wq");
 	if (fws->fws_wq == NULL) {

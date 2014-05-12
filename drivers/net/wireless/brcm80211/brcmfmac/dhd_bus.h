@@ -99,6 +99,7 @@ struct brcmf_bus {
 	unsigned long tx_realloc;
 	u32 chip;
 	u32 chiprev;
+	bool always_use_fws_queue;
 
 	struct brcmf_bus_ops *ops;
 };
