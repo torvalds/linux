@@ -355,9 +355,9 @@ static int emc1403_probe(struct i2c_client *client,
 	if (id->driver_data)
 		data->groups[1] = &emc1404_group;
 
-	hwmon_dev = hwmon_device_register_with_groups(&client->dev,
-						      client->name, data,
-						      data->groups);
+	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
+							   client->name, data,
+							   data->groups);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
