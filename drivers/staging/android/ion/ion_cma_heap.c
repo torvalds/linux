@@ -28,7 +28,6 @@
 #include "ion_priv.h"
 
 #define ION_CMA_ALLOCATE_FAILED -1
-#define ION_CMA_UNMAPED 0x1
 
 struct ion_cma_heap {
 	struct ion_heap heap;
@@ -52,7 +51,7 @@ struct ion_cma_buffer_info {
 static int ion_cma_get_sgtable(struct device *dev, struct sg_table *sgt,
 			       void *cpu_addr, dma_addr_t handle, size_t size)
 {
-	struct page *page = phys_to_page(handle);
+	struct page *page = virt_to_page(cpu_addr);
 	int ret;
 
 	ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
@@ -62,9 +61,6 @@ static int ion_cma_get_sgtable(struct device *dev, struct sg_table *sgt,
 	sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
 	return 0;
 }
-
-void arm_dma_free_remap(void *cpu_addr, size_t size);
-void * arm_dma_alloc_remap(struct page *page, size_t size);
 
 /* ION CMA heap operations functions */
 static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
@@ -115,10 +111,6 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		goto free_table;
 	/* keep this for memory release */
 	buffer->priv_virt = info;
-	if (PageHighMem(phys_to_page(info->handle))) {
-		arm_dma_free_remap(info->cpu_addr, len);
-		info->cpu_addr = (void*)ION_CMA_UNMAPED;
-	}
 	dev_dbg(dev, "Allocate buffer %p\n", buffer);
 	return 0;
 
@@ -199,30 +191,12 @@ static void *ion_cma_map_kernel(struct ion_heap *heap,
 {
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 	/* kernel memory mapping has been done at allocation time */
-	if (PageHighMem(phys_to_page(info->handle))) {
-		if (info->cpu_addr==(void*)ION_CMA_UNMAPED) {
-			info->cpu_addr = arm_dma_alloc_remap(phys_to_page(info->handle),
-						buffer->size);
-			if (!info->cpu_addr)
-				info->cpu_addr = (void*)ION_CMA_UNMAPED;
-			pr_debug("map addr: %x -> %x\n", info->handle,
-						(unsigned int)info->cpu_addr);
-		}
-	}
-	return (info->cpu_addr==(void*)ION_CMA_UNMAPED)?0:info->cpu_addr;
+	return info->cpu_addr;
 }
 
 static void ion_cma_unmap_kernel(struct ion_heap *heap,
 					struct ion_buffer *buffer)
 {
-	struct ion_cma_buffer_info *info = buffer->priv_virt;
-	if (PageHighMem(phys_to_page(info->handle))) {
-		struct ion_cma_buffer_info *info = buffer->priv_virt;
-		if (info->cpu_addr!=(void*)ION_CMA_UNMAPED) {
-			arm_dma_free_remap(info->cpu_addr, buffer->size);
-			info->cpu_addr = (void*)ION_CMA_UNMAPED;
-		}
-	}
 }
 
 int ion_cma_cache_ops(struct ion_heap *heap,
