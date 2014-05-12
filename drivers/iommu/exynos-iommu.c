@@ -93,6 +93,13 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define CTRL_BLOCK	0x7
 #define CTRL_DISABLE	0x0
 
+#define CFG_LRU		0x1
+#define CFG_QOS(n)	((n & 0xF) << 7)
+#define CFG_MASK	0x0150FFFF /* Selecting bit 0-15, 20, 22 and 24 */
+#define CFG_ACGEN	(1 << 24) /* System MMU 3.3 only */
+#define CFG_SYSSEL	(1 << 22) /* System MMU 3.2 only */
+#define CFG_FLPDCACHE	(1 << 20) /* System MMU 3.2+ only */
+
 #define REG_MMU_CTRL		0x000
 #define REG_MMU_CFG		0x004
 #define REG_MMU_STATUS		0x008
@@ -108,6 +115,12 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define REG_DEFAULT_SLAVE_ADDR	0x030
 
 #define REG_MMU_VERSION		0x034
+
+#define MMU_MAJ_VER(val)	((val) >> 7)
+#define MMU_MIN_VER(val)	((val) & 0x7F)
+#define MMU_RAW_VER(reg)	(((reg) >> 21) & ((1 << 11) - 1)) /* 11 bits */
+
+#define MAKE_MMU_VER(maj, min)	((((maj) & 0xF) << 7) | ((min) & 0x7F))
 
 #define REG_PB0_SADDR		0x04C
 #define REG_PB0_EADDR		0x050
@@ -217,6 +230,11 @@ static bool is_sysmmu_active(struct sysmmu_drvdata *data)
 static void sysmmu_unblock(void __iomem *sfrbase)
 {
 	__raw_writel(CTRL_ENABLE, sfrbase + REG_MMU_CTRL);
+}
+
+static unsigned int __raw_sysmmu_version(struct sysmmu_drvdata *data)
+{
+	return MMU_RAW_VER(__raw_readl(data->sfrbase + REG_MMU_VERSION));
 }
 
 static bool sysmmu_block(void __iomem *sfrbase)
@@ -374,7 +392,21 @@ static bool __sysmmu_disable(struct sysmmu_drvdata *data)
 
 static void __sysmmu_init_config(struct sysmmu_drvdata *data)
 {
-	unsigned int cfg = 0;
+	unsigned int cfg = CFG_LRU | CFG_QOS(15);
+	unsigned int ver;
+
+	ver = __raw_sysmmu_version(data);
+	if (MMU_MAJ_VER(ver) == 3) {
+		if (MMU_MIN_VER(ver) >= 2) {
+			cfg |= CFG_FLPDCACHE;
+			if (MMU_MIN_VER(ver) == 3) {
+				cfg |= CFG_ACGEN;
+				cfg &= ~CFG_LRU;
+			} else {
+				cfg |= CFG_SYSSEL;
+			}
+		}
+	}
 
 	__raw_writel(cfg, data->sfrbase + REG_MMU_CFG);
 }
@@ -494,13 +526,11 @@ static void sysmmu_tlb_invalidate_entry(struct device *dev, sysmmu_iova_t iova,
 
 	spin_lock_irqsave(&data->lock, flags);
 	if (is_sysmmu_active(data)) {
-		unsigned int maj;
 		unsigned int num_inv = 1;
 
 		if (!IS_ERR(data->clk_master))
 			clk_enable(data->clk_master);
 
-		maj = __raw_readl(data->sfrbase + REG_MMU_VERSION);
 		/*
 		 * L2TLB invalidation required
 		 * 4KB page: 1 invalidation
@@ -511,7 +541,7 @@ static void sysmmu_tlb_invalidate_entry(struct device *dev, sysmmu_iova_t iova,
 		 * 1MB page can be cached in one of all sets.
 		 * 64KB page can be one of 16 consecutive sets.
 		 */
-		if ((maj >> 28) == 2) /* major version number */
+		if (MMU_MAJ_VER(__raw_sysmmu_version(data)) == 2)
 			num_inv = min_t(unsigned int, size / PAGE_SIZE, 64);
 
 		if (sysmmu_block(data->sfrbase)) {
