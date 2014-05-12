@@ -4687,7 +4687,6 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
 	struct ieee80211_channel *chan;
 	s32 err = 0;
-	u16 reason;
 
 	if (brcmf_is_apmode(ifp->vif)) {
 		err = brcmf_notify_connect_status_ap(cfg, ndev, e, data);
@@ -4708,16 +4707,6 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 		brcmf_dbg(CONN, "Linkdown\n");
 		if (!brcmf_is_ibssmode(ifp->vif)) {
 			brcmf_bss_connect_done(cfg, ndev, e, false);
-			if (test_and_clear_bit(BRCMF_VIF_STATUS_CONNECTED,
-					       &ifp->vif->sme_state)) {
-				reason = 0;
-				if (((e->event_code == BRCMF_E_DEAUTH_IND) ||
-				     (e->event_code == BRCMF_E_DISASSOC_IND)) &&
-				    (e->reason != WLAN_REASON_UNSPECIFIED))
-					reason = e->reason;
-				cfg80211_disconnected(ndev, reason, NULL, 0,
-						      GFP_KERNEL);
-			}
 		}
 		brcmf_link_down(ifp->vif);
 		brcmf_init_prof(ndev_to_prof(ndev));
