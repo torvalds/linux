@@ -33,9 +33,9 @@
 #include <linux/module.h>
 #include <linux/sunrpc/addr.h>
 
-#include "internal.h"
-#include "nfs4session.h"
-#include "nfs4filelayout.h"
+#include "../internal.h"
+#include "../nfs4session.h"
+#include "filelayout.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 

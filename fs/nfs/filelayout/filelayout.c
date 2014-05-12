@@ -35,11 +35,11 @@
 
 #include <linux/sunrpc/metrics.h>
 
-#include "nfs4session.h"
-#include "internal.h"
-#include "delegation.h"
-#include "nfs4filelayout.h"
-#include "nfs4trace.h"
+#include "../nfs4session.h"
+#include "../internal.h"
+#include "../delegation.h"
+#include "filelayout.h"
+#include "../nfs4trace.h"
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
