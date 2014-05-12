@@ -428,6 +428,8 @@
 #define MAX_IOPAD_LATCH_TIME			100
 # ifndef __ASSEMBLER__
 
+#include <linux/delay.h>
+
 /**
  * omap_test_timeout - busy-loop, testing a condition
  * @cond: condition to test until it evaluates to true

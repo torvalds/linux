@@ -17,11 +17,8 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CM_33XX_H
 #define __ARCH_ARM_MACH_OMAP2_CM_33XX_H
 
-#include "common.h"
-
 #include "cm.h"
 #include "cm-regbits-33xx.h"
-#include "iomap.h"
 
 /* CM base address */
 #define AM33XX_CM_BASE		0x44e00000
