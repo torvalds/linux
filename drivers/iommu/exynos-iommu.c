@@ -172,6 +172,7 @@ struct sysmmu_drvdata {
 	struct device *dev;	/* Owner of system MMU */
 	void __iomem *sfrbase;
 	struct clk *clk;
+	struct clk *clk_master;
 	int activations;
 	rwlock_t lock;
 	struct iommu_domain *domain;
@@ -300,6 +301,8 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 
 	WARN_ON(!is_sysmmu_active(data));
 
+	if (!IS_ERR(data->clk_master))
+		clk_enable(data->clk_master);
 	itype = (enum exynos_sysmmu_inttype)
 		__ffs(__raw_readl(data->sfrbase + REG_INT_STATUS));
 	if (WARN_ON(!((itype >= 0) && (itype < SYSMMU_FAULT_UNKNOWN))))
@@ -326,6 +329,9 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	if (itype != SYSMMU_FAULT_UNKNOWN)
 		sysmmu_unblock(data->sfrbase);
 
+	if (!IS_ERR(data->clk_master))
+		clk_disable(data->clk_master);
+
 	read_unlock(&data->lock);
 
 	return IRQ_HANDLED;
@@ -341,9 +347,14 @@ static bool __exynos_sysmmu_disable(struct sysmmu_drvdata *data)
 	if (!set_sysmmu_inactive(data))
 		goto finish;
 
+	if (!IS_ERR(data->clk_master))
+		clk_enable(data->clk_master);
+
 	__raw_writel(CTRL_DISABLE, data->sfrbase + REG_MMU_CTRL);
 
 	clk_disable(data->clk);
+	if (!IS_ERR(data->clk_master))
+		clk_disable(data->clk_master);
 
 	disabled = true;
 	data->pgtable = 0;
@@ -386,13 +397,18 @@ static int __exynos_sysmmu_enable(struct sysmmu_drvdata *data,
 		goto finish;
 	}
 
-	clk_enable(data->clk);
-
 	data->pgtable = pgtable;
+
+	if (!IS_ERR(data->clk_master))
+		clk_enable(data->clk_master);
+	clk_enable(data->clk);
 
 	__sysmmu_set_ptbase(data->sfrbase, pgtable);
 
 	__raw_writel(CTRL_ENABLE, data->sfrbase + REG_MMU_CTRL);
+
+	if (!IS_ERR(data->clk_master))
+		clk_disable(data->clk_master);
 
 	data->domain = domain;
 
@@ -450,6 +466,10 @@ static void sysmmu_tlb_invalidate_entry(struct device *dev, unsigned long iova,
 	if (is_sysmmu_active(data)) {
 		unsigned int maj;
 		unsigned int num_inv = 1;
+
+		if (!IS_ERR(data->clk_master))
+			clk_enable(data->clk_master);
+
 		maj = __raw_readl(data->sfrbase + REG_MMU_VERSION);
 		/*
 		 * L2TLB invalidation required
@@ -469,6 +489,8 @@ static void sysmmu_tlb_invalidate_entry(struct device *dev, unsigned long iova,
 				data->sfrbase, iova, num_inv);
 			sysmmu_unblock(data->sfrbase);
 		}
+		if (!IS_ERR(data->clk_master))
+			clk_disable(data->clk_master);
 	} else {
 		dev_dbg(data->sysmmu, "Disabled. Skipping invalidating TLB.\n");
 	}
@@ -484,10 +506,14 @@ void exynos_sysmmu_tlb_invalidate(struct device *dev)
 	read_lock_irqsave(&data->lock, flags);
 
 	if (is_sysmmu_active(data)) {
+		if (!IS_ERR(data->clk_master))
+			clk_enable(data->clk_master);
 		if (sysmmu_block(data->sfrbase)) {
 			__sysmmu_tlb_invalidate(data->sfrbase);
 			sysmmu_unblock(data->sfrbase);
 		}
+		if (!IS_ERR(data->clk_master))
+			clk_disable(data->clk_master);
 	} else {
 		dev_dbg(data->sysmmu, "Disabled. Skipping invalidating TLB.\n");
 	}
@@ -532,6 +558,16 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 		ret = clk_prepare(data->clk);
 		if (ret) {
 			dev_err(dev, "Failed to prepare clk\n");
+			return ret;
+		}
+	}
+
+	data->clk_master = devm_clk_get(dev, "master");
+	if (!IS_ERR(data->clk_master)) {
+		ret = clk_prepare(data->clk_master);
+		if (ret) {
+			clk_unprepare(data->clk);
+			dev_err(dev, "Failed to prepare master's clk\n");
 			return ret;
 		}
 	}
