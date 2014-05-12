@@ -104,8 +104,11 @@ void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size)
 EXPORT_SYMBOL(ioremap_cache);
 
 static pte_t bm_pte[PTRS_PER_PTE] __page_aligned_bss;
-#ifndef CONFIG_ARM64_64K_PAGES
+#ifndef CONFIG_ARM64_2_LEVELS
 static pte_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss;
+#endif
+#ifdef CONFIG_ARM64_4_LEVELS
+static pte_t bm_pud[PTRS_PER_PUD] __page_aligned_bss;
 #endif
 
 static inline pud_t * __init early_ioremap_pud(unsigned long addr)
@@ -144,6 +147,7 @@ void __init early_ioremap_init(void)
 	unsigned long addr = fix_to_virt(FIX_BTMAP_BEGIN);
 
 	pgd = pgd_offset_k(addr);
+	pgd_populate(&init_mm, pgd, bm_pud);
 	pud = pud_offset(pgd, addr);
 	pud_populate(&init_mm, pud, bm_pmd);
 	pmd = pmd_offset(pud, addr);

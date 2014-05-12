@@ -195,18 +195,26 @@ config ARM64_VA_BITS_42
 	bool "42-bit"
 	depends on ARM64_64K_PAGES
 
+config ARM64_VA_BITS_48
+	bool "48-bit"
+	depends on BROKEN
+
 endchoice
 
 config ARM64_VA_BITS
 	int
 	default 39 if ARM64_VA_BITS_39
 	default 42 if ARM64_VA_BITS_42
+	default 48 if ARM64_VA_BITS_48
 
 config ARM64_2_LEVELS
 	def_bool y if ARM64_64K_PAGES && ARM64_VA_BITS_42
 
 config ARM64_3_LEVELS
 	def_bool y if ARM64_4K_PAGES && ARM64_VA_BITS_39
+
+config ARM64_4_LEVELS
+	def_bool y if ARM64_4K_PAGES && ARM64_VA_BITS_48
 
 config CPU_BIG_ENDIAN
        bool "Build big-endian kernel"

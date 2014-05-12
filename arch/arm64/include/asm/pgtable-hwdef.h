@@ -18,8 +18,10 @@
 
 #ifdef CONFIG_ARM64_2_LEVELS
 #include <asm/pgtable-2level-hwdef.h>
-#else
+#elif defined(CONFIG_ARM64_3_LEVELS)
 #include <asm/pgtable-3level-hwdef.h>
+#else
+#include <asm/pgtable-4level-hwdef.h>
 #endif
 
 /*
@@ -27,7 +29,7 @@
  *
  * Level 1 descriptor (PUD).
  */
-
+#define PUD_TYPE_TABLE		(_AT(pudval_t, 3) << 0)
 #define PUD_TABLE_BIT		(_AT(pgdval_t, 1) << 1)
 #define PUD_TYPE_MASK		(_AT(pgdval_t, 3) << 0)
 #define PUD_TYPE_SECT		(_AT(pgdval_t, 1) << 0)

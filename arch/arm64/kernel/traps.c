@@ -339,6 +339,11 @@ void __pmd_error(const char *file, int line, unsigned long val)
 	pr_crit("%s:%d: bad pmd %016lx.\n", file, line, val);
 }
 
+void __pud_error(const char *file, int line, unsigned long val)
+{
+	pr_crit("%s:%d: bad pud %016lx.\n", file, line, val);
+}
+
 void __pgd_error(const char *file, int line, unsigned long val)
 {
 	pr_crit("%s:%d: bad pgd %016lx.\n", file, line, val);

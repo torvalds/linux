@@ -33,19 +33,26 @@
 
 /*
  * The idmap and swapper page tables need some space reserved in the kernel
- * image. Both require a pgd and a next level table to (section) map the
- * kernel. The the swapper also maps the FDT (see __create_page_tables for
+ * image. Both require pgd, pud (4 levels only) and pmd tables to (section)
+ * map the kernel. The swapper also maps the FDT (see __create_page_tables for
  * more information).
  */
+#ifdef CONFIG_ARM64_4_LEVELS
+#define SWAPPER_DIR_SIZE	(3 * PAGE_SIZE)
+#define IDMAP_DIR_SIZE		(3 * PAGE_SIZE)
+#else
 #define SWAPPER_DIR_SIZE	(2 * PAGE_SIZE)
 #define IDMAP_DIR_SIZE		(2 * PAGE_SIZE)
+#endif
 
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_ARM64_2_LEVELS
 #include <asm/pgtable-2level-types.h>
-#else
+#elif defined(CONFIG_ARM64_3_LEVELS)
 #include <asm/pgtable-3level-types.h>
+#else
+#include <asm/pgtable-4level-types.h>
 #endif
 
 extern void __cpu_clear_user_page(void *p, unsigned long user);
