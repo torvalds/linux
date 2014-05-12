@@ -299,6 +299,39 @@ static const struct attribute_group emc1404_group = {
 	.attrs = emc1404_attrs,
 };
 
+/*
+ * EMC14x2 uses a different register and different bits to report alarm and
+ * fault status. For simplicity, provide a separate attribute group for this
+ * chip series.
+ * Since we can not re-use the same attribute names, create a separate attribute
+ * array.
+ */
+static struct sensor_device_attribute_2 emc1402_alarms[] = {
+	SENSOR_ATTR_2(temp1_min_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x20),
+	SENSOR_ATTR_2(temp1_max_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x40),
+	SENSOR_ATTR_2(temp1_crit_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x01),
+
+	SENSOR_ATTR_2(temp2_fault, S_IRUGO, show_bit, NULL, 0x02, 0x04),
+	SENSOR_ATTR_2(temp2_min_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x08),
+	SENSOR_ATTR_2(temp2_max_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x10),
+	SENSOR_ATTR_2(temp2_crit_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x02),
+};
+
+static struct attribute *emc1402_alarm_attrs[] = {
+	&emc1402_alarms[0].dev_attr.attr,
+	&emc1402_alarms[1].dev_attr.attr,
+	&emc1402_alarms[2].dev_attr.attr,
+	&emc1402_alarms[3].dev_attr.attr,
+	&emc1402_alarms[4].dev_attr.attr,
+	&emc1402_alarms[5].dev_attr.attr,
+	&emc1402_alarms[6].dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group emc1402_alarm_group = {
+	.attrs = emc1402_alarm_attrs,
+};
+
 static int emc1403_detect(struct i2c_client *client,
 			struct i2c_board_info *info)
 {
@@ -394,6 +427,9 @@ static int emc1403_probe(struct i2c_client *client,
 	case emc1402:
 		data->groups[0] = &emc1402_group;
 	}
+
+	if (id->driver_data == emc1402)
+		data->groups[1] = &emc1402_alarm_group;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
 							   client->name, data,
