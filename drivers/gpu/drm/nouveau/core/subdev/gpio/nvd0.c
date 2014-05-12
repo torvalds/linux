@@ -80,7 +80,7 @@ nvd0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvd0_gpio_priv *priv;
 	int ret;
 
-	ret = nouveau_gpio_create(parent, engine, oclass, 32, &priv);
+	ret = nouveau_gpio_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -96,12 +96,13 @@ nvd0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 struct nouveau_oclass *
-nvd0_gpio_oclass = &(struct nouveau_oclass) {
-	.handle = NV_SUBDEV(GPIO, 0xd0),
-	.ofuncs = &(struct nouveau_ofuncs) {
+nvd0_gpio_oclass = &(struct nouveau_gpio_impl) {
+	.base.handle = NV_SUBDEV(GPIO, 0xd0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvd0_gpio_ctor,
 		.dtor = nv50_gpio_dtor,
 		.init = nv50_gpio_init,
 		.fini = nv50_gpio_fini,
 	},
-};
+	.lines = 32,
+}.base;

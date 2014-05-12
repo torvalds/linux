@@ -138,7 +138,7 @@ nv50_gpio_intr_disable(struct nouveau_event *event, int line)
 	nv_mask(event->priv, addr + 0x00, mask, 0x00000000);
 }
 
-static int
+int
 nv50_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
@@ -146,9 +146,7 @@ nv50_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv50_gpio_priv *priv;
 	int ret;
 
-	ret = nouveau_gpio_create(parent, engine, oclass,
-				  nv_device(parent)->chipset > 0x92 ? 32 : 16,
-				  &priv);
+	ret = nouveau_gpio_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -202,12 +200,13 @@ nv50_gpio_fini(struct nouveau_object *object, bool suspend)
 }
 
 struct nouveau_oclass *
-nv50_gpio_oclass = &(struct nouveau_oclass) {
-	.handle = NV_SUBDEV(GPIO, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+nv50_gpio_oclass = &(struct nouveau_gpio_impl) {
+	.base.handle = NV_SUBDEV(GPIO, 0x50),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_gpio_ctor,
 		.dtor = nv50_gpio_dtor,
 		.init = nv50_gpio_init,
 		.fini = nv50_gpio_fini,
 	},
-};
+	.lines = 16.
+}.base;

@@ -31,22 +31,9 @@ nouveau_gpio(void *obj)
 	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_GPIO];
 }
 
-#define nouveau_gpio_create(p,e,o,l,d)                                         \
-	nouveau_gpio_create_((p), (e), (o), (l), sizeof(**d), (void **)d)
-#define nouveau_gpio_destroy(p) ({                                             \
-	struct nouveau_gpio *gpio = (p);                                       \
-	_nouveau_gpio_dtor(nv_object(gpio));                                   \
-})
-#define nouveau_gpio_fini(p,s)                                                 \
-	nouveau_subdev_fini(&(p)->base, (s))
-
-int  nouveau_gpio_create_(struct nouveau_object *, struct nouveau_object *,
-			  struct nouveau_oclass *, int, int, void **);
-void _nouveau_gpio_dtor(struct nouveau_object *);
-int  nouveau_gpio_init(struct nouveau_gpio *);
-
 extern struct nouveau_oclass *nv10_gpio_oclass;
 extern struct nouveau_oclass *nv50_gpio_oclass;
+extern struct nouveau_oclass *nv92_gpio_oclass;
 extern struct nouveau_oclass *nvd0_gpio_oclass;
 extern struct nouveau_oclass *nve0_gpio_oclass;
 

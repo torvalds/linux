@@ -22,9 +22,10 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/gpio.h>
 #include <subdev/bios.h>
 #include <subdev/bios/gpio.h>
+
+#include "priv.h"
 
 static int
 nouveau_gpio_drive(struct nouveau_gpio *gpio,
@@ -113,9 +114,10 @@ _nouveau_gpio_dtor(struct nouveau_object *object)
 int
 nouveau_gpio_create_(struct nouveau_object *parent,
 		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, int lines,
+		     struct nouveau_oclass *oclass,
 		     int length, void **pobject)
 {
+	const struct nouveau_gpio_impl *impl = (void *)oclass;
 	struct nouveau_gpio *gpio;
 	int ret;
 
@@ -125,7 +127,7 @@ nouveau_gpio_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	ret = nouveau_event_create(1, lines, &gpio->events);
+	ret = nouveau_event_create(1, impl->lines, &gpio->events);
 	if (ret)
 		return ret;
 
