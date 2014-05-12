@@ -493,7 +493,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 			/* pointer to the DA */
 			*datap++ = val & 0xff;
 			*datap++ = (val >> 8) & 0xff;
-			*datap++ = chan;
+			*datap++ = chan << 6;
 			devpriv->ao_readback[chan] = val;
 
 			s->async->events |= COMEDI_CB_BLOCK;
@@ -1040,11 +1040,8 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
 
-	for (i = 0; i < cmd->chanlist_len; ++i) {
-		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
-
-		devpriv->ao_chanlist[i] = chan << 6;
-	}
+	for (i = 0; i < cmd->chanlist_len; ++i)
+		devpriv->ao_chanlist[i] = CR_CHAN(cmd->chanlist[i]);
 
 	/* we count in steps of 1ms (125us) */
 	/* 125us mode not used yet */

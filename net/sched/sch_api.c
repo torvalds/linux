@@ -1085,7 +1085,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n)
 	int err;
 
 	if ((n->nlmsg_type != RTM_GETQDISC) &&
-	    !ns_capable(net->user_ns, CAP_NET_ADMIN))
+	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, NULL);
@@ -1152,7 +1152,7 @@ static int tc_modify_qdisc(struct sk_buff *skb, struct nlmsghdr *n)
 	struct Qdisc *q, *p;
 	int err;
 
-	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 replay:
@@ -1492,7 +1492,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n)
 	int err;
 
 	if ((n->nlmsg_type != RTM_GETTCLASS) &&
-	    !ns_capable(net->user_ns, CAP_NET_ADMIN))
+	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, NULL);

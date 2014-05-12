@@ -362,7 +362,7 @@ static ssize_t bonding_show_min_links(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sprintf(buf, "%d\n", bond->params.min_links);
+	return sprintf(buf, "%u\n", bond->params.min_links);
 }
 static DEVICE_ATTR(min_links, S_IRUGO | S_IWUSR,
 		   bonding_show_min_links, bonding_sysfs_store_option);

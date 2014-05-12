@@ -135,7 +135,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
 	int tp_created = 0;
 
 	if ((n->nlmsg_type != RTM_GETTFILTER) &&
-	    !ns_capable(net->user_ns, CAP_NET_ADMIN))
+	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 replay:

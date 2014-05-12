@@ -1,4 +1,4 @@
-/*
+    /*
  * Driver for Linear Technology LTC2945 I2C Power Monitor
  *
  * Copyright (c) 2014 Guenter Roeck
@@ -314,8 +314,8 @@ static ssize_t ltc2945_reset_history(struct device *dev,
 		reg = LTC2945_MAX_ADIN_H;
 		break;
 	default:
-		BUG();
-		break;
+		WARN_ONCE(1, "Bad register: 0x%x\n", reg);
+		return -EINVAL;
 	}
 	/* Reset maximum */
 	ret = regmap_bulk_write(regmap, reg, buf_max, num_regs);

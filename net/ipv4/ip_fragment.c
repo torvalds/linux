@@ -232,8 +232,9 @@ static void ip_expire(unsigned long arg)
 		 * "Fragment Reassembly Timeout" message, per RFC792.
 		 */
 		if (qp->user == IP_DEFRAG_AF_PACKET ||
-		    (qp->user == IP_DEFRAG_CONNTRACK_IN &&
-		     skb_rtable(head)->rt_type != RTN_LOCAL))
+		    ((qp->user >= IP_DEFRAG_CONNTRACK_IN) &&
+		     (qp->user <= __IP_DEFRAG_CONNTRACK_IN_END) &&
+		     (skb_rtable(head)->rt_type != RTN_LOCAL)))
 			goto out_rcu_unlock;
 
 

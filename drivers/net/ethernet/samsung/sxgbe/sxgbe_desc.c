@@ -233,6 +233,12 @@ static void sxgbe_set_rx_owner(struct sxgbe_rx_norm_desc *p)
 	p->rdes23.rx_rd_des23.own_bit = 1;
 }
 
+/* Set Interrupt on completion bit */
+static void sxgbe_set_rx_int_on_com(struct sxgbe_rx_norm_desc *p)
+{
+	p->rdes23.rx_rd_des23.int_on_com = 1;
+}
+
 /* Get the receive frame size */
 static int sxgbe_get_rx_frame_len(struct sxgbe_rx_norm_desc *p)
 {
@@ -498,6 +504,7 @@ static const struct sxgbe_desc_ops desc_ops = {
 	.init_rx_desc			= sxgbe_init_rx_desc,
 	.get_rx_owner			= sxgbe_get_rx_owner,
 	.set_rx_owner			= sxgbe_set_rx_owner,
+	.set_rx_int_on_com		= sxgbe_set_rx_int_on_com,
 	.get_rx_frame_len		= sxgbe_get_rx_frame_len,
 	.get_rx_fd_status		= sxgbe_get_rx_fd_status,
 	.get_rx_ld_status		= sxgbe_get_rx_ld_status,

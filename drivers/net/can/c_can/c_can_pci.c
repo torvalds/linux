@@ -115,8 +115,11 @@ static int c_can_pci_probe(struct pci_dev *pdev,
 		goto out_disable_device;
 	}
 
-	pci_set_master(pdev);
-	pci_enable_msi(pdev);
+	ret = pci_enable_msi(pdev);
+	if (!ret) {
+		dev_info(&pdev->dev, "MSI enabled\n");
+		pci_set_master(pdev);
+	}
 
 	addr = pci_iomap(pdev, c_can_pci_data->bar,
 			 pci_resource_len(pdev, c_can_pci_data->bar));
@@ -163,6 +166,8 @@ static int c_can_pci_probe(struct pci_dev *pdev,
 		ret = -EINVAL;
 		goto out_free_c_can;
 	}
+
+	priv->type = c_can_pci_data->type;
 
 	/* Configure access to registers */
 	switch (c_can_pci_data->reg_align) {

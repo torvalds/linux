@@ -14,7 +14,7 @@ node.
 Example:
 
 aliases {
-	mdio-gpio0 = <&mdio0>;
+	mdio-gpio0 = &mdio0;
 };
 
 mdio0: mdio {

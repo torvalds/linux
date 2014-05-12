@@ -2899,12 +2899,9 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		u32 prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_0);
 
 		if (prttsyn_stat & I40E_PRTTSYN_STAT_0_TXTIME_MASK) {
-			ena_mask &= ~I40E_PFINT_ICR0_ENA_TIMESYNC_MASK;
+			icr0 &= ~I40E_PFINT_ICR0_ENA_TIMESYNC_MASK;
 			i40e_ptp_tx_hwtstamp(pf);
-			prttsyn_stat &= ~I40E_PRTTSYN_STAT_0_TXTIME_MASK;
 		}
-
-		wr32(hw, I40E_PRTTSYN_STAT_0, prttsyn_stat);
 	}
 
 	/* If a critical error is pending we have no choice but to reset the

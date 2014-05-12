@@ -4344,6 +4344,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 					      format, len_arg, arg);
 				trace_seq_terminate(&p);
 				trace_seq_puts(s, p.buffer);
+				trace_seq_destroy(&p);
 				arg = arg->next;
 				break;
 			default:
