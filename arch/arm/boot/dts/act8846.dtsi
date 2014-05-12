@@ -11,112 +11,85 @@
 		 dcdc1_reg: regulator@0{
 			reg = <0>;
 			regulator-compatible= "act_dcdc1";
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		dcdc2_reg: regulator@1 {
 			reg = <1>;
 			regulator-compatible = "act_dcdc2";	
-			regulator-min-microvolt = <800000>;
-			regulator-max-microvolt = <1500000>;
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-				regulator-state-uv = <1200000>;
-			};		
+			regulator-always-on;
+			regulator-boot-on;			
 		};
 
 		dcdc3_reg: regulator@2 {
 			reg = <2>;
 			regulator-compatible = "act_dcdc3";
-			regulator-min-microvolt = <800000>;
-			regulator-max-microvolt = <1500000>;
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-				regulator-state-uv = <1200000>;
-			};		
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		dcdc4_reg: regulator@3 {
 			reg = <3>;
 			regulator-compatible = "act_dcdc4";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-				regulator-state-uv = <3300000>;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		ldo1_reg: regulator@4 {
 			reg = <4>;
 			regulator-compatible= "act_ldo1";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		ldo2_reg: regulator@5 {
 			reg = <5>;
 			regulator-compatible = "act_ldo2";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		ldo3_reg: regulator@6 {
 			reg = <6>;
 			regulator-compatible = "act_ldo3";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		ldo4_reg:regulator@7 {
 			reg = <7>;
 			regulator-compatible = "act_ldo4";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		ldo5_reg: regulator@8 {
 			reg = <8>;
 			regulator-compatible= "act_ldo5";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		ldo6_reg: regulator@9 {
 			reg = <9>;
 			regulator-compatible = "act_ldo6";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		ldo7_reg: regulator@10 {
 			reg = <10>;
 			regulator-compatible = "act_ldo7";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		ldo8_reg: regulator@11 {
 			reg = <11>;
 			regulator-compatible = "act_ldo8";
-			regulator-initial-state = <3>;
-			regulator-state-mem {
-				regulator-state-enabled;
-			};
+			regulator-always-on;
+			regulator-boot-on;
 		};
 	};
 		

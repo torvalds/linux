@@ -35,6 +35,7 @@ struct act8846_board {
 	struct regulator_init_data *act8846_init_data[act8846_NUM_REGULATORS];
 	struct device_node *of_node[act8846_NUM_REGULATORS];
 	int pmic_sleep_gpio; /* */
+	int pmic_hold_gpio; /* */
 	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
 	unsigned int dcdc_mode[3]; /* buckx_voltage in uV */
 	bool pmic_sleep;

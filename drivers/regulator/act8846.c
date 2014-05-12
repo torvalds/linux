@@ -57,6 +57,7 @@ struct act8846 {
 	int irq_base;
 	int chip_irq;
 	int pmic_sleep_gpio; /* */
+	int pmic_hold_gpio; /* */
 	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
 	bool pmic_sleep;
 	struct regmap *regmap;
@@ -383,6 +384,9 @@ static int act8846_dcdc_set_voltage(struct regulator_dev *dev,
 	#else
 	ret = act8846_set_bits(act8846, act8846_BUCK_SET_VOL_REG(buck) ,BUCK_VOL_MASK, val);
 	#endif
+
+	if(ret < 0)
+		printk("##################:set voltage error!voltage set is %d mv\n",vol_map[val]);
 	
 	return ret;
 }
@@ -622,7 +626,7 @@ static int act8846_i2c_read(struct i2c_client *i2c, char reg, int count,	u16 *de
 
 	DBG("***run in %s %d msgs[1].buf = %d\n",__FUNCTION__,__LINE__,*(msgs[1].buf));
 
-	return 0;   
+	return ret;   
 }
 
 static int act8846_i2c_write(struct i2c_client *i2c, char reg, int count, const u16 src)
@@ -655,10 +659,15 @@ static int act8846_i2c_write(struct i2c_client *i2c, char reg, int count, const 
 static u8 act8846_reg_read(struct act8846 *act8846, u8 reg)
 {
 	u16 val = 0;
+	int ret;
 
 	mutex_lock(&act8846->io_lock);
 
-	act8846_i2c_read(act8846->i2c, reg, 1, &val);
+	ret = act8846_i2c_read(act8846->i2c, reg, 1, &val);
+	if(ret < 0){
+		mutex_unlock(&act8846->io_lock);
+		return ret;
+	}
 
 	DBG("reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
 
@@ -675,13 +684,24 @@ static int act8846_set_bits(struct act8846 *act8846, u8 reg, u16 mask, u16 val)
 	mutex_lock(&act8846->io_lock);
 
 	ret = act8846_i2c_read(act8846->i2c, reg, 1, &tmp);
+	if(ret < 0){
+		mutex_unlock(&act8846->io_lock);
+		return ret;
+	}
 	DBG("1 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
 	tmp = (tmp & ~mask) | val;
-	if (ret == 0) {
-		ret = act8846_i2c_write(act8846->i2c, reg, 1, tmp);
-		DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
+	ret = act8846_i2c_write(act8846->i2c, reg, 1, tmp);
+	if(ret < 0){
+		mutex_unlock(&act8846->io_lock);
+		return ret;
 	}
-	act8846_i2c_read(act8846->i2c, reg, 1, &tmp);
+	DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
+	
+	ret = act8846_i2c_read(act8846->i2c, reg, 1, &tmp);
+	if(ret < 0){
+		mutex_unlock(&act8846->io_lock);
+		return ret;
+	}
 	DBG("2 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
 	mutex_unlock(&act8846->io_lock);
 
@@ -754,6 +774,11 @@ static struct act8846_board *act8846_parse_dt(struct act8846 *act8846)
 			printk("invalid gpio: %d\n",gpio);
 	pdata->pmic_sleep_gpio = gpio;	
 	pdata->pmic_sleep = true;
+	
+	gpio = of_get_named_gpio(act8846_pmic_np,"gpios", 1);
+		if (!gpio_is_valid(gpio)) 
+			printk("invalid gpio: %d\n",gpio);
+	pdata->pmic_hold_gpio = gpio;	
 
 	return pdata;
 }
@@ -887,6 +912,21 @@ static int act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 
 	if (act8846->dev->of_node)
 		pdev = act8846_parse_dt(act8846);
+
+	#ifdef CONFIG_OF
+	act8846->pmic_hold_gpio = pdev->pmic_hold_gpio;
+	if (act8846->pmic_hold_gpio) {
+			ret = gpio_request(act8846->pmic_hold_gpio, "act8846_pmic_hold");
+			if (ret < 0) {
+				dev_err(act8846->dev,"Failed to request gpio %d with ret:""%d\n",	act8846->pmic_hold_gpio, ret);
+				return IRQ_NONE;
+			}
+			gpio_direction_output(act8846->pmic_hold_gpio,1);
+			ret = gpio_get_value(act8846->pmic_hold_gpio);
+			gpio_free(act8846->pmic_hold_gpio);
+			printk("%s: act8846_pmic_hold=%x\n", __func__, ret);
+	}
+	#endif
 	
 	/******************************set sleep vol & dcdc mode******************/
 	#ifdef CONFIG_OF
