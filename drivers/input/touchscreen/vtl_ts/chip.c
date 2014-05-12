@@ -13,6 +13,7 @@
 #define		CHIP_WRITE_FLASH_CMD	0x55
 #define		CHIP_FLASH_SOURCE_SIZE	8
 
+#define 	TB1_USE_F402            0
 
 struct chip_cmd {
 	unsigned short	addr;
@@ -25,7 +26,11 @@ static struct chip_cmd (*chip) = NULL;
 
 
 static unsigned char binary_data[] = {
+#ifdef TB1_USE_F402 
+#include "f307&f317&f316_CT363S_01_V10_F7E9_140212.dat"
+#else
 #include "lx--js77_97_CT365_V01_E7DA_130419.dat"
+#endif
 };
 
 

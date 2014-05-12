@@ -1,0 +1,31 @@
+/*
+ * RockChip. DisplayPort screen LP097QX1
+ *
+ */
+
+/ {
+
+		disp_timings: display-timings {
+                        native-mode = <&timing0>;
+                        timing0: timing0 {
+				screen-type = <SCREEN_EDP>;
+				out-face    = <OUT_P666>;
+				clock-frequency = <205000000>;
+				hactive = <1536>;
+				vactive = <2048>;
+				hback-porch = <48>;
+				hfront-porch = <12>;
+				vback-porch = <8>;
+				vfront-porch = <8>;
+				hsync-len = <16>;
+				vsync-len = <4>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <1>;
+				swap-rb = <0>;
+				swap-rg = <0>;
+				swap-gb = <0>;
+                     	};
+               };
+};

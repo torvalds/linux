@@ -269,7 +269,11 @@ static void vtl_ts_report_xy_coord(struct ts_info *ts)
 		#if(Y_REVERSE_ENABLE)
 			y = ts->config_info.screen_max_y - y;
 		#endif
-	
+
+		#ifdef TB1_USE_F402
+			x = 2*x;
+			y = 2*y;
+		#endif	
 		//#if(DEBUG_ENABLE)
 		//if((ts->debug)||(DEBUG_ENABLE)){
 		if(ts->debug){
