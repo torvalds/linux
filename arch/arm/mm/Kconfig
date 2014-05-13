@@ -420,29 +420,29 @@ config CPU_32v3
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
-	select TLS_REG_EMUL if SMP || !MMU
 	select NEED_KUSER_HELPERS
+	select TLS_REG_EMUL if SMP || !MMU
 
 config CPU_32v4
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
-	select TLS_REG_EMUL if SMP || !MMU
 	select NEED_KUSER_HELPERS
+	select TLS_REG_EMUL if SMP || !MMU
 
 config CPU_32v4T
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
-	select TLS_REG_EMUL if SMP || !MMU
 	select NEED_KUSER_HELPERS
+	select TLS_REG_EMUL if SMP || !MMU
 
 config CPU_32v5
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
-	select TLS_REG_EMUL if SMP || !MMU
 	select NEED_KUSER_HELPERS
+	select TLS_REG_EMUL if SMP || !MMU
 
 config CPU_32v6
 	bool

@@ -258,7 +258,11 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 			n->flags = flags;
 			buf->tail = n;
 			b->commit = b->used;
-			smp_mb();
+			/* paired w/ barrier in flush_to_ldisc(); ensures the
+			 * latest commit value can be read before the head is
+			 * advanced to the next buffer
+			 */
+			smp_wmb();
 			b->next = n;
 		} else if (change)
 			size = 0;
@@ -444,17 +448,24 @@ static void flush_to_ldisc(struct work_struct *work)
 
 	while (1) {
 		struct tty_buffer *head = buf->head;
+		struct tty_buffer *next;
 		int count;
 
 		/* Ldisc or user is trying to gain exclusive access */
 		if (atomic_read(&buf->priority))
 			break;
 
+		next = head->next;
+		/* paired w/ barrier in __tty_buffer_request_room();
+		 * ensures commit value read is not stale if the head
+		 * is advancing to the next buffer
+		 */
+		smp_rmb();
 		count = head->commit - head->read;
 		if (!count) {
-			if (head->next == NULL)
+			if (next == NULL)
 				break;
-			buf->head = head->next;
+			buf->head = next;
 			tty_buffer_free(port, head);
 			continue;
 		}

@@ -25,11 +25,13 @@
 	clocks {
 		audio_ext {
 			compatible = "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <24576000>;
 		};
 
 		enet_ext {
 			compatible = "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <50000000>;
 		};
 	};

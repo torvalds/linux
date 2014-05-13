@@ -28,7 +28,6 @@
 	gic: interrupt-controller@c2800000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
-		#address-cells = <1>;
 		interrupt-controller;
 		reg = <0xc2800000 0x1000>,
 		      <0xc2000000 0x1000>;
