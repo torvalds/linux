@@ -48,6 +48,8 @@ struct blk_mq_hw_ctx {
 	unsigned int		numa_node;
 	unsigned int		cmd_size;	/* per-request extra data */
 
+	atomic_t		nr_active;
+
 	struct blk_mq_cpu_notifier	cpu_notifier;
 	struct kobject		kobj;
 };
@@ -64,6 +66,9 @@ struct blk_mq_tag_set {
 	void			*driver_data;
 
 	struct blk_mq_tags	**tags;
+
+	struct mutex		tag_list_lock;
+	struct list_head	tag_list;
 };
 
 typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, struct request *);
@@ -126,8 +131,10 @@ enum {
 
 	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
 	BLK_MQ_F_SHOULD_SORT	= 1 << 1,
+	BLK_MQ_F_TAG_SHARED	= 1 << 2,
 
 	BLK_MQ_S_STOPPED	= 0,
+	BLK_MQ_S_TAG_ACTIVE	= 1,
 
 	BLK_MQ_MAX_DEPTH	= 2048,
 

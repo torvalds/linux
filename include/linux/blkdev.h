@@ -481,6 +481,9 @@ struct request_queue {
 	wait_queue_head_t	mq_freeze_wq;
 	struct percpu_counter	mq_usage_counter;
 	struct list_head	all_q_node;
+
+	struct blk_mq_tag_set	*tag_set;
+	struct list_head	tag_set_list;
 };
 
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
