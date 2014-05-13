@@ -829,13 +829,13 @@ nv50_disp_base_scanoutpos(struct nouveau_object *object, u32 mthd,
 }
 
 static void
-nv50_disp_base_vblank_enable(struct nouveau_event *event, int head)
+nv50_disp_base_vblank_enable(struct nouveau_event *event, int type, int head)
 {
 	nv_mask(event->priv, 0x61002c, (4 << head), (4 << head));
 }
 
 static void
-nv50_disp_base_vblank_disable(struct nouveau_event *event, int head)
+nv50_disp_base_vblank_disable(struct nouveau_event *event, int type, int head)
 {
 	nv_mask(event->priv, 0x61002c, (4 << head), 0);
 }
@@ -1610,13 +1610,13 @@ nv50_disp_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (intr1 & 0x00000004) {
-		nouveau_event_trigger(priv->base.vblank, 0);
+		nouveau_event_trigger(priv->base.vblank, 1, 0);
 		nv_wr32(priv, 0x610024, 0x00000004);
 		intr1 &= ~0x00000004;
 	}
 
 	if (intr1 & 0x00000008) {
-		nouveau_event_trigger(priv->base.vblank, 1);
+		nouveau_event_trigger(priv->base.vblank, 1, 1);
 		nv_wr32(priv, 0x610024, 0x00000008);
 		intr1 &= ~0x00000008;
 	}

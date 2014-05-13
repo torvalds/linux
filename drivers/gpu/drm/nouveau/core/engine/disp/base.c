@@ -48,5 +48,5 @@ nouveau_disp_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	return nouveau_event_create(heads, &disp->vblank);
+	return nouveau_event_create(1, heads, &disp->vblank);
 }

@@ -934,7 +934,7 @@ nouveau_connector_hotplug_work(struct work_struct *work)
 }
 
 static int
-nouveau_connector_hotplug(void *data, int index)
+nouveau_connector_hotplug(void *data, u32 type, int index)
 {
 	struct nouveau_connector *nv_connector = data;
 	schedule_work(&nv_connector->hpd_work);
@@ -1013,7 +1013,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 			nv_connector->hpd.func = DCB_GPIO_UNUSED;
 
 		if (nv_connector->hpd.func != DCB_GPIO_UNUSED) {
-			nouveau_event_new(gpio->events, nv_connector->hpd.line,
+			nouveau_event_new(gpio->events, 1,
+					  nv_connector->hpd.line,
 					  nouveau_connector_hotplug,
 					  nv_connector,
 					 &nv_connector->hpd_func);

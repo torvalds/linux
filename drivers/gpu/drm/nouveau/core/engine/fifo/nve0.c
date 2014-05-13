@@ -859,7 +859,7 @@ nve0_fifo_intr_runlist(struct nve0_fifo_priv *priv)
 static void
 nve0_fifo_intr_engine(struct nve0_fifo_priv *priv)
 {
-	nouveau_event_trigger(priv->base.uevent, 0);
+	nouveau_event_trigger(priv->base.uevent, 1, 0);
 }
 
 static void
@@ -952,14 +952,14 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 }
 
 static void
-nve0_fifo_uevent_enable(struct nouveau_event *event, int index)
+nve0_fifo_uevent_enable(struct nouveau_event *event, int type, int index)
 {
 	struct nve0_fifo_priv *priv = event->priv;
 	nv_mask(priv, 0x002140, 0x80000000, 0x80000000);
 }
 
 static void
-nve0_fifo_uevent_disable(struct nouveau_event *event, int index)
+nve0_fifo_uevent_disable(struct nouveau_event *event, int type, int index)
 {
 	struct nve0_fifo_priv *priv = event->priv;
 	nv_mask(priv, 0x002140, 0x80000000, 0x00000000);

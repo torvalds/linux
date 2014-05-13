@@ -125,7 +125,7 @@ nouveau_gpio_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	ret = nouveau_event_create(lines, &gpio->events);
+	ret = nouveau_event_create(1, lines, &gpio->events);
 	if (ret)
 		return ret;
 

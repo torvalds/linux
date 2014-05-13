@@ -40,7 +40,7 @@ nve0_gpio_intr(struct nouveau_subdev *subdev)
 
 	for (i = 0; (hi | lo) && i < 32; i++) {
 		if ((hi | lo) & (1 << i))
-			nouveau_event_trigger(priv->base.events, i);
+			nouveau_event_trigger(priv->base.events, 1, i);
 	}
 
 	nv_wr32(priv, 0xdc00, intr0);

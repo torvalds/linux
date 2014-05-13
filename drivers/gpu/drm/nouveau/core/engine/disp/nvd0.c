@@ -748,13 +748,13 @@ nvd0_disp_base_scanoutpos(struct nouveau_object *object, u32 mthd,
 }
 
 static void
-nvd0_disp_base_vblank_enable(struct nouveau_event *event, int head)
+nvd0_disp_base_vblank_enable(struct nouveau_event *event, int type, int head)
 {
 	nv_mask(event->priv, 0x6100c0 + (head * 0x800), 0x00000001, 0x00000001);
 }
 
 static void
-nvd0_disp_base_vblank_disable(struct nouveau_event *event, int head)
+nvd0_disp_base_vblank_disable(struct nouveau_event *event, int type, int head)
 {
 	nv_mask(event->priv, 0x6100c0 + (head * 0x800), 0x00000001, 0x00000000);
 }
@@ -1317,7 +1317,7 @@ nvd0_disp_intr(struct nouveau_subdev *subdev)
 		if (mask & intr) {
 			u32 stat = nv_rd32(priv, 0x6100bc + (i * 0x800));
 			if (stat & 0x00000001)
-				nouveau_event_trigger(priv->base.vblank, i);
+				nouveau_event_trigger(priv->base.vblank, 1, i);
 			nv_mask(priv, 0x6100bc + (i * 0x800), 0, 0);
 			nv_rd32(priv, 0x6100c0 + (i * 0x800));
 		}

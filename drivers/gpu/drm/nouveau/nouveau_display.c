@@ -42,7 +42,7 @@
 #include <core/class.h>
 
 static int
-nouveau_display_vblank_handler(void *data, int head)
+nouveau_display_vblank_handler(void *data, u32 type, int head)
 {
 	struct nouveau_drm *drm = data;
 	drm_handle_vblank(drm->dev, head);
@@ -178,7 +178,7 @@ nouveau_display_vblank_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		ret = nouveau_event_new(pdisp->vblank, i,
+		ret = nouveau_event_new(pdisp->vblank, 1, i,
 					nouveau_display_vblank_handler,
 					drm, &disp->vblank[i]);
 		if (ret) {
