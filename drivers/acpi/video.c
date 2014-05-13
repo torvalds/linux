@@ -508,7 +508,7 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	 .ident = "Dell Inspiron 7520",
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "Inspiron 7520"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7520"),
 		},
 	},
 	{
