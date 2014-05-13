@@ -2190,26 +2190,8 @@ int __must_check i915_gem_set_seqno(struct drm_device *dev, u32 seqno);
 int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
 
-static inline bool
-i915_gem_object_pin_fence(struct drm_i915_gem_object *obj)
-{
-	if (obj->fence_reg != I915_FENCE_REG_NONE) {
-		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-		dev_priv->fence_regs[obj->fence_reg].pin_count++;
-		return true;
-	} else
-		return false;
-}
-
-static inline void
-i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
-{
-	if (obj->fence_reg != I915_FENCE_REG_NONE) {
-		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-		WARN_ON(dev_priv->fence_regs[obj->fence_reg].pin_count <= 0);
-		dev_priv->fence_regs[obj->fence_reg].pin_count--;
-	}
-}
+bool i915_gem_object_pin_fence(struct drm_i915_gem_object *obj);
+void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
 
 struct drm_i915_gem_request *
 i915_gem_find_active_request(struct intel_ring_buffer *ring);
