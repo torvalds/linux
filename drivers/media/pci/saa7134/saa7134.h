@@ -590,11 +590,11 @@ struct saa7134_dev {
 
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;
-	struct videobuf_queue      cap;
 	struct saa7134_pgtable     pt_cap;
+	struct videobuf_queue      video_vbq;
 	struct saa7134_dmaqueue    vbi_q;
-	struct videobuf_queue      vbi;
 	struct saa7134_pgtable     pt_vbi;
+	struct videobuf_queue      vbi_vbq;
 	unsigned int               video_fieldcount;
 	unsigned int               vbi_fieldcount;
 	struct saa7134_format      *fmt;

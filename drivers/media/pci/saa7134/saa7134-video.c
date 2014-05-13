@@ -1093,10 +1093,10 @@ static struct videobuf_queue *saa7134_queue(struct file *file)
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
-		q = fh->is_empress ? &dev->empress_vbq : &dev->cap;
+		q = fh->is_empress ? &dev->empress_vbq : &dev->video_vbq;
 		break;
 	case VFL_TYPE_VBI:
-		q = &dev->vbi;
+		q = &dev->vbi_vbq;
 		break;
 	default:
 		BUG();
@@ -1181,6 +1181,7 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 	struct saa7134_dev *dev = video_drvdata(file);
 	struct saa7134_fh *fh = file->private_data;
 	struct videobuf_buffer *buf = NULL;
+	struct videobuf_queue *q = &dev->video_vbq;
 	unsigned int rc = 0;
 
 	if (v4l2_event_pending(&fh->fh))
@@ -1189,25 +1190,24 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 		poll_wait(file, &fh->fh.wait, wait);
 
 	if (vdev->vfl_type == VFL_TYPE_VBI)
-		return rc | videobuf_poll_stream(file, &dev->vbi, wait);
+		return rc | videobuf_poll_stream(file, &dev->vbi_vbq, wait);
 
 	if (res_check(fh, RESOURCE_VIDEO)) {
-		mutex_lock(&dev->cap.vb_lock);
-		if (!list_empty(&dev->cap.stream))
-			buf = list_entry(dev->cap.stream.next, struct videobuf_buffer, stream);
+		mutex_lock(&q->vb_lock);
+		if (!list_empty(&q->stream))
+			buf = list_entry(q->stream.next, struct videobuf_buffer, stream);
 	} else {
-		mutex_lock(&dev->cap.vb_lock);
-		if (UNSET == dev->cap.read_off) {
+		mutex_lock(&q->vb_lock);
+		if (UNSET == q->read_off) {
 			/* need to capture a new frame */
 			if (res_locked(dev, RESOURCE_VIDEO))
 				goto err;
-			if (0 != dev->cap.ops->buf_prepare(&dev->cap,
-					dev->cap.read_buf, dev->cap.field))
+			if (0 != q->ops->buf_prepare(q, q->read_buf, q->field))
 				goto err;
-			dev->cap.ops->buf_queue(&dev->cap, dev->cap.read_buf);
-			dev->cap.read_off = 0;
+			q->ops->buf_queue(q, q->read_buf);
+			q->read_off = 0;
 		}
-		buf = dev->cap.read_buf;
+		buf = q->read_buf;
 	}
 
 	if (!buf)
@@ -1216,11 +1216,11 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 	poll_wait(file, &buf->done, wait);
 	if (buf->state == VIDEOBUF_DONE || buf->state == VIDEOBUF_ERROR)
 		rc |= POLLIN | POLLRDNORM;
-	mutex_unlock(&dev->cap.vb_lock);
+	mutex_unlock(&q->vb_lock);
 	return rc;
 
 err:
-	mutex_unlock(&dev->cap.vb_lock);
+	mutex_unlock(&q->vb_lock);
 	return rc | POLLERR;
 }
 
@@ -1245,22 +1245,22 @@ static int video_release(struct file *file)
 	/* stop video capture */
 	if (res_check(fh, RESOURCE_VIDEO)) {
 		pm_qos_remove_request(&dev->qos_request);
-		videobuf_streamoff(&dev->cap);
+		videobuf_streamoff(&dev->video_vbq);
 		res_free(dev, fh, RESOURCE_VIDEO);
-		videobuf_mmap_free(&dev->cap);
-		INIT_LIST_HEAD(&dev->cap.stream);
+		videobuf_mmap_free(&dev->video_vbq);
+		INIT_LIST_HEAD(&dev->video_vbq.stream);
 	}
-	if (dev->cap.read_buf) {
-		buffer_release(&dev->cap, dev->cap.read_buf);
-		kfree(dev->cap.read_buf);
+	if (dev->video_vbq.read_buf) {
+		buffer_release(&dev->video_vbq, dev->video_vbq.read_buf);
+		kfree(dev->video_vbq.read_buf);
 	}
 
 	/* stop vbi capture */
 	if (res_check(fh, RESOURCE_VBI)) {
-		videobuf_stop(&dev->vbi);
+		videobuf_stop(&dev->vbi_vbq);
 		res_free(dev, fh, RESOURCE_VBI);
-		videobuf_mmap_free(&dev->vbi);
-		INIT_LIST_HEAD(&dev->vbi.stream);
+		videobuf_mmap_free(&dev->vbi_vbq);
+		INIT_LIST_HEAD(&dev->vbi_vbq.stream);
 	}
 
 	/* ts-capture will not work in planar mode, so turn it off Hac: 04.05*/
@@ -1345,7 +1345,7 @@ static int saa7134_g_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.width        = dev->width;
 	f->fmt.pix.height       = dev->height;
-	f->fmt.pix.field        = dev->cap.field;
+	f->fmt.pix.field        = dev->video_vbq.field;
 	f->fmt.pix.pixelformat  = dev->fmt->fourcc;
 	f->fmt.pix.bytesperline =
 		(f->fmt.pix.width * dev->fmt->depth) >> 3;
@@ -1467,7 +1467,7 @@ static int saa7134_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
-	dev->cap.field = f->fmt.pix.field;
+	dev->video_vbq.field = f->fmt.pix.field;
 	return 0;
 }
 
@@ -2284,13 +2284,13 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	if (saa7134_boards[dev->board].video_out)
 		saa7134_videoport_init(dev);
 
-	videobuf_queue_sg_init(&dev->cap, &video_qops,
+	videobuf_queue_sg_init(&dev->video_vbq, &video_qops,
 			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct saa7134_buf),
 			    dev, NULL);
-	videobuf_queue_sg_init(&dev->vbi, &saa7134_vbi_qops,
+	videobuf_queue_sg_init(&dev->vbi_vbq, &saa7134_vbi_qops,
 			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
