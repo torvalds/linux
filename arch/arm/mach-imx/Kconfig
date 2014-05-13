@@ -763,6 +763,14 @@ config SOC_IMX6SL
 	help
 	  This enables support for Freescale i.MX6 SoloLite processor.
 
+config SOC_IMX6SX
+	bool "i.MX6 SoloX support"
+	select PINCTRL_IMX6SX
+	select SOC_IMX6
+
+	help
+	  This enables support for Freescale i.MX6 SoloX processor.
+
 config SOC_VF610
 	bool "Vybrid Family VF610 support"
 	select ARM_GIC
