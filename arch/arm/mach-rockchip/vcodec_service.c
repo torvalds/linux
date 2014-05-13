@@ -346,10 +346,8 @@ typedef struct vpu_service_info {
     u32 irq_status;
 #if defined(CONFIG_VCODEC_MMU)	
 	struct ion_client * ion_client;
-#endif	
-
-#if defined(CONFIG_VCODEC_MMU)
     struct list_head mem_region_list;
+    struct device *mmu_dev;
 #endif
 
 	enum vcodec_device_id dev_id;
@@ -567,6 +565,12 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 #endif
     wake_unlock(&pservice->wake_lock);
     printk("done\n");
+    
+#if defined(CONFIG_VCODEC_MMU)
+    if (pservice->mmu_dev) {
+        iovmm_deactivate(pservice->dev);
+    }
+#endif    
 }
 
 static inline void vpu_queue_power_off_work(struct vpu_service_info *pservice)
@@ -623,6 +627,12 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
     
     udelay(10);
     wake_lock(&pservice->wake_lock);
+    
+#if defined(CONFIG_VCODEC_MMU)    
+    if (pservice->mmu_dev) {
+        iovmm_activate(pservice->dev);
+    }
+#endif    
 }
 
 static inline bool reg_check_rmvb_wmv(vpu_reg *reg)
@@ -796,8 +806,10 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
 
-#if defined(CONFIG_VCODEC_MMU)    
-	INIT_LIST_HEAD(&reg->mem_region_list);
+#if defined(CONFIG_VCODEC_MMU)  
+        if (pservice->mmu_dev) {
+            INIT_LIST_HEAD(&reg->mem_region_list);
+        }
 #endif
 
 	if (copy_from_user(&reg->reg[0], (void __user *)src, size)) {
@@ -807,7 +819,7 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 	}
 
 #if defined(CONFIG_VCODEC_MMU)
-	if (0 > vcodec_reg_address_translate(pservice, reg)) {
+	if (pservice->mmu_dev && 0 > vcodec_reg_address_translate(pservice, reg)) {
 		pr_err("error: translate reg address failed\n");
 		kfree(reg);
 		return NULL;
@@ -1280,11 +1292,12 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		break;
 	}
 	case VPU_IOC_PROBE_IOMMU_STATUS: {
-#if defined(CONFIG_VCODEC_MMU)
-		int iommu_enable = 1;
-#else
 		int iommu_enable = 0;
-#endif
+
+#if defined(CONFIG_VCODEC_MMU)                
+                iommu_enable = pservice->mmu_dev ? 1 : 0; 
+#endif                
+
 		if (copy_to_user((void __user *)arg, &iommu_enable, sizeof(int))) {
 			pr_err("error: VPU_IOC_PROBE_IOMMU_STATUS copy_to_user failed\n");
 			return -EFAULT;
@@ -1438,7 +1451,6 @@ static int vcodec_probe(struct platform_device *pdev)
     struct vpu_service_info *pservice = devm_kzalloc(dev, sizeof(struct vpu_service_info), GFP_KERNEL);
     char *prop = (char*)dev_name(dev);
 #if defined(CONFIG_VCODEC_MMU)
-    struct device *mmu_dev = NULL;
     char mmu_dev_dts_name[40];
 #endif
 
@@ -1466,7 +1478,9 @@ static int vcodec_probe(struct platform_device *pdev)
     pservice->reg_pproc	= NULL;
     atomic_set(&pservice->total_running, 0);
     pservice->enabled = false;
-
+#if defined(CONFIG_VCODEC_MMU)    
+    pservice->mmu_dev = NULL;
+#endif    
     pservice->dev = dev;
 
     if (0 > vpu_get_clk(pservice)) {
@@ -1603,10 +1617,10 @@ static int vcodec_probe(struct platform_device *pdev)
         sprintf(mmu_dev_dts_name, "iommu,vpu_mmu");
     }
     
-    mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
+    pservice->mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
     
-    if (mmu_dev) {
-        platform_set_sysmmu(mmu_dev, pservice->dev);
+    if (pservice->mmu_dev) {
+        platform_set_sysmmu(pservice->mmu_dev, pservice->dev);
         iovmm_activate(pservice->dev);
     }
 #endif
