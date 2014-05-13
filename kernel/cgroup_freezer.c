@@ -267,8 +267,10 @@ static void update_if_frozen(struct cgroup_subsys_state *css)
 		struct freezer *child = css_freezer(pos);
 
 		if ((child->state & CGROUP_FREEZER_ONLINE) &&
-		    !(child->state & CGROUP_FROZEN))
+		    !(child->state & CGROUP_FROZEN)) {
+			rcu_read_unlock();
 			return;
+		}
 	}
 	rcu_read_unlock();
 
