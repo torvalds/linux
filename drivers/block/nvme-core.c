@@ -44,11 +44,15 @@
 
 #include <trace/events/block.h>
 
-#define NVME_Q_DEPTH 1024
+#define NVME_Q_DEPTH		1024
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
-#define ADMIN_TIMEOUT	(60 * HZ)
-#define IOD_TIMEOUT	(retry_time * HZ)
+#define ADMIN_TIMEOUT		(admin_timeout * HZ)
+#define IOD_TIMEOUT		(retry_time * HZ)
+
+static unsigned char admin_timeout = 60;
+module_param(admin_timeout, byte, 0644);
+MODULE_PARM_DESC(admin_timeout, "timeout in seconds for admin commands");
 
 unsigned char io_timeout = 30;
 module_param(io_timeout, byte, 0644);
