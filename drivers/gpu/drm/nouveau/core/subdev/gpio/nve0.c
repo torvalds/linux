@@ -60,37 +60,6 @@ nve0_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
 	nv_wr32(gpio, 0x00dc88, inte1);
 }
 
-int
-nve0_gpio_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nve0_gpio_priv *priv = (void *)object;
-	nv_wr32(priv, 0xdc08, 0x00000000);
-	nv_wr32(priv, 0xdc88, 0x00000000);
-	return nouveau_gpio_fini(&priv->base, suspend);
-}
-
-int
-nve0_gpio_init(struct nouveau_object *object)
-{
-	struct nve0_gpio_priv *priv = (void *)object;
-	int ret;
-
-	ret = nouveau_gpio_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0xdc00, 0xffffffff);
-	nv_wr32(priv, 0xdc80, 0xffffffff);
-	return 0;
-}
-
-void
-nve0_gpio_dtor(struct nouveau_object *object)
-{
-	struct nve0_gpio_priv *priv = (void *)object;
-	nouveau_gpio_destroy(&priv->base);
-}
-
 static int
 nve0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
@@ -115,9 +84,9 @@ nve0_gpio_oclass = &(struct nouveau_gpio_impl) {
 	.base.handle = NV_SUBDEV(GPIO, 0xe0),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nve0_gpio_ctor,
-		.dtor = nv50_gpio_dtor,
-		.init = nve0_gpio_init,
-		.fini = nve0_gpio_fini,
+		.dtor = _nouveau_gpio_dtor,
+		.init = _nouveau_gpio_init,
+		.fini = _nouveau_gpio_fini,
 	},
 	.lines = 32,
 	.intr_stat = nve0_gpio_intr_stat,

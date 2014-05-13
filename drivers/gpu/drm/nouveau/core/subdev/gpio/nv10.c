@@ -121,44 +121,14 @@ nv10_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static void
-nv10_gpio_dtor(struct nouveau_object *object)
-{
-	struct nv10_gpio_priv *priv = (void *)object;
-	nouveau_gpio_destroy(&priv->base);
-}
-
-static int
-nv10_gpio_init(struct nouveau_object *object)
-{
-	struct nv10_gpio_priv *priv = (void *)object;
-	int ret;
-
-	ret = nouveau_gpio_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x001144, 0x00000000);
-	nv_wr32(priv, 0x001104, 0xffffffff);
-	return 0;
-}
-
-static int
-nv10_gpio_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nv10_gpio_priv *priv = (void *)object;
-	nv_wr32(priv, 0x001144, 0x00000000);
-	return nouveau_gpio_fini(&priv->base, suspend);
-}
-
 struct nouveau_oclass *
 nv10_gpio_oclass = &(struct nouveau_gpio_impl) {
 	.base.handle = NV_SUBDEV(GPIO, 0x10),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv10_gpio_ctor,
-		.dtor = nv10_gpio_dtor,
-		.init = nv10_gpio_init,
-		.fini = nv10_gpio_fini,
+		.dtor = _nouveau_gpio_dtor,
+		.init = _nouveau_gpio_init,
+		.fini = _nouveau_gpio_fini,
 	},
 	.lines = 16,
 	.intr_stat = nv10_gpio_intr_stat,

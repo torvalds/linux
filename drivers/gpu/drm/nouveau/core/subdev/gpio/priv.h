@@ -9,20 +9,27 @@
 	struct nouveau_gpio *gpio = (p);                                       \
 	_nouveau_gpio_dtor(nv_object(gpio));                                   \
 })
-#define nouveau_gpio_fini(p,s)                                                 \
-	nouveau_subdev_fini(&(p)->base, (s))
+#define nouveau_gpio_init(p) ({                                                \
+	struct nouveau_gpio *gpio = (p);                                       \
+	_nouveau_gpio_init(nv_object(gpio));                                   \
+})
+#define nouveau_gpio_fini(p,s) ({                                              \
+	struct nouveau_gpio *gpio = (p);                                       \
+	_nouveau_gpio_fini(nv_object(gpio), (s));                              \
+})
 
 int  nouveau_gpio_create_(struct nouveau_object *, struct nouveau_object *,
 			  struct nouveau_oclass *, int, void **);
+int  _nouveau_gpio_ctor(struct nouveau_object *, struct nouveau_object *,
+			struct nouveau_oclass *, void *, u32,
+			struct nouveau_object **);
 void _nouveau_gpio_dtor(struct nouveau_object *);
-int  nouveau_gpio_init(struct nouveau_gpio *);
+int  _nouveau_gpio_init(struct nouveau_object *);
+int  _nouveau_gpio_fini(struct nouveau_object *, bool);
 
 int  nv50_gpio_ctor(struct nouveau_object *, struct nouveau_object *,
 		    struct nouveau_oclass *, void *, u32,
 		    struct nouveau_object **);
-void nv50_gpio_dtor(struct nouveau_object *);
-int  nv50_gpio_init(struct nouveau_object *);
-int  nv50_gpio_fini(struct nouveau_object *, bool);
 
 void nvd0_gpio_reset(struct nouveau_gpio *, u8);
 int  nvd0_gpio_drive(struct nouveau_gpio *, int, int, int);

@@ -134,6 +134,46 @@ nouveau_gpio_intr(struct nouveau_subdev *subdev)
 	}
 }
 
+int
+_nouveau_gpio_fini(struct nouveau_object *object, bool suspend)
+{
+	const struct nouveau_gpio_impl *impl = (void *)object->oclass;
+	struct nouveau_gpio *gpio = nouveau_gpio(object);
+	u32 mask = (1 << impl->lines) - 1;
+
+	impl->intr_mask(gpio, NVKM_GPIO_TOGGLED, mask, 0);
+	impl->intr_stat(gpio, &mask, &mask);
+
+	return nouveau_subdev_fini(&gpio->base, suspend);
+}
+
+static struct dmi_system_id gpio_reset_ids[] = {
+	{
+		.ident = "Apple Macbook 10,1",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro10,1"),
+		}
+	},
+	{ }
+};
+
+int
+_nouveau_gpio_init(struct nouveau_object *object)
+{
+	struct nouveau_gpio *gpio = nouveau_gpio(object);
+	int ret;
+
+	ret = nouveau_subdev_init(&gpio->base);
+	if (ret)
+		return ret;
+
+	if (gpio->reset && dmi_check_system(gpio_reset_ids))
+		gpio->reset(gpio, DCB_GPIO_UNUSED);
+
+	return ret;
+}
+
 void
 _nouveau_gpio_dtor(struct nouveau_object *object)
 {
@@ -173,24 +213,18 @@ nouveau_gpio_create_(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct dmi_system_id gpio_reset_ids[] = {
-	{
-		.ident = "Apple Macbook 10,1",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro10,1"),
-		}
-	},
-	{ }
-};
-
 int
-nouveau_gpio_init(struct nouveau_gpio *gpio)
+_nouveau_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		   struct nouveau_oclass *oclass, void *data, u32 size,
+		   struct nouveau_object **pobject)
 {
-	int ret = nouveau_subdev_init(&gpio->base);
-	if (ret == 0 && gpio->reset) {
-		if (dmi_check_system(gpio_reset_ids))
-			gpio->reset(gpio, DCB_GPIO_UNUSED);
-	}
-	return ret;
+	struct nouveau_gpio *gpio;
+	int ret;
+
+	ret = nouveau_gpio_create(parent, engine, oclass, &gpio);
+	*pobject = nv_object(gpio);
+	if (ret)
+		return ret;
+
+	return 0;
 }
