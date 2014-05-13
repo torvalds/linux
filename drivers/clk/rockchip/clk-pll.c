@@ -1152,7 +1152,7 @@ static int clk_pll_set_rate_3288_apll(struct clk_hw *hw, unsigned long rate,
 		goto CHANGE_APLL;
 	}
 
-#if 1
+#if 0
 	if (clk_prepare(arm_gpll)) {
 		clk_err("fail to prepare arm_gpll path\n");
 		clk_unprepare(arm_gpll);
@@ -1246,8 +1246,8 @@ CHANGE_APLL:
 
 	if (sel_gpll) {
 		sel_gpll = 0;
-		clk_disable(arm_gpll);
-		clk_unprepare(arm_gpll);
+		//clk_disable(arm_gpll);
+		//clk_unprepare(arm_gpll);
 	}
 
 	//clk_debug("apll set loops_per_jiffy =%lu\n", loops_per_jiffy);
