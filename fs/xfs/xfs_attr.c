@@ -106,26 +106,34 @@ xfs_inode_hasattr(
  * Overall external interface routines.
  *========================================================================*/
 
-STATIC int
-xfs_attr_get_int(
+int
+xfs_attr_get(
 	struct xfs_inode	*ip,
-	struct xfs_name		*name,
+	const unsigned char	*name,
 	unsigned char		*value,
 	int			*valuelenp,
 	int			flags)
 {
-	xfs_da_args_t   args;
-	int             error;
+	struct xfs_da_args	args;
+	struct xfs_name		xname;
+	uint			lock_mode;
+	int			error;
+
+	XFS_STATS_INC(xs_attr_get);
+
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+		return EIO;
 
 	if (!xfs_inode_hasattr(ip))
 		return ENOATTR;
 
-	/*
-	 * Fill in the arg structure for this request.
-	 */
-	memset((char *)&args, 0, sizeof(args));
-	args.name = name->name;
-	args.namelen = name->len;
+	error = xfs_attr_name_to_xname(&xname, name);
+	if (error)
+		return error;
+
+	memset(&args, 0, sizeof(args));
+	args.name = xname.name;
+	args.namelen = xname.len;
 	args.value = value;
 	args.valuelen = *valuelenp;
 	args.flags = flags;
@@ -133,52 +141,19 @@ xfs_attr_get_int(
 	args.dp = ip;
 	args.whichfork = XFS_ATTR_FORK;
 
-	/*
-	 * Decide on what work routines to call based on the inode size.
-	 */
-	if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
-		error = xfs_attr_shortform_getvalue(&args);
-	} else if (xfs_bmap_one_block(ip, XFS_ATTR_FORK)) {
-		error = xfs_attr_leaf_get(&args);
-	} else {
-		error = xfs_attr_node_get(&args);
-	}
-
-	/*
-	 * Return the number of bytes in the value to the caller.
-	 */
-	*valuelenp = args.valuelen;
-
-	if (error == EEXIST)
-		error = 0;
-	return(error);
-}
-
-int
-xfs_attr_get(
-	xfs_inode_t	*ip,
-	const unsigned char *name,
-	unsigned char	*value,
-	int		*valuelenp,
-	int		flags)
-{
-	int		error;
-	struct xfs_name	xname;
-	uint		lock_mode;
-
-	XFS_STATS_INC(xs_attr_get);
-
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return(EIO);
-
-	error = xfs_attr_name_to_xname(&xname, name);
-	if (error)
-		return error;
-
 	lock_mode = xfs_ilock_attr_map_shared(ip);
-	error = xfs_attr_get_int(ip, &xname, value, valuelenp, flags);
+	if (!xfs_inode_hasattr(ip))
+		error = ENOATTR;
+	else if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)
+		error = xfs_attr_shortform_getvalue(&args);
+	else if (xfs_bmap_one_block(ip, XFS_ATTR_FORK))
+		error = xfs_attr_leaf_get(&args);
+	else
+		error = xfs_attr_node_get(&args);
 	xfs_iunlock(ip, lock_mode);
-	return(error);
+
+	*valuelenp = args.valuelen;
+	return error == EEXIST ? 0 : error;
 }
 
 /*
