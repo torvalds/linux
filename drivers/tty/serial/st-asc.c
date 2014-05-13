@@ -194,9 +194,9 @@ static inline u32 asc_txfifo_is_empty(struct uart_port *port)
 	return asc_in(port, ASC_STA) & ASC_STA_TE;
 }
 
-static inline int asc_txfifo_is_full(struct uart_port *port)
+static inline u32 asc_txfifo_is_half_empty(struct uart_port *port)
 {
-	return asc_in(port, ASC_STA) & ASC_STA_TF;
+	return asc_in(port, ASC_STA) & ASC_STA_THE;
 }
 
 static inline const char *asc_port_name(struct uart_port *port)
@@ -628,7 +628,7 @@ static int asc_get_poll_char(struct uart_port *port)
 
 static void asc_put_poll_char(struct uart_port *port, unsigned char c)
 {
-	while (asc_txfifo_is_full(port))
+	while (!asc_txfifo_is_half_empty(port))
 		cpu_relax();
 	asc_out(port, ASC_TXBUF, c);
 }
@@ -783,7 +783,7 @@ static void asc_console_putchar(struct uart_port *port, int ch)
 	unsigned int timeout = 1000000;
 
 	/* Wait for upto 1 second in case flow control is stopping us. */
-	while (--timeout && asc_txfifo_is_full(port))
+	while (--timeout && !asc_txfifo_is_half_empty(port))
 		udelay(1);
 
 	asc_out(port, ASC_TXBUF, ch);
