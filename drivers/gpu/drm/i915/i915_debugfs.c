@@ -514,7 +514,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 	unsigned long flags;
 	struct intel_crtc *crtc;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		const char pipe = pipe_name(crtc->pipe);
 		const char plane = plane_name(crtc->plane);
 		struct intel_unpin_work *work;
@@ -2345,7 +2345,7 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	drm_modeset_lock_all(dev);
 	seq_printf(m, "CRTC info\n");
 	seq_printf(m, "---------\n");
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		bool active;
 		int x, y;
 

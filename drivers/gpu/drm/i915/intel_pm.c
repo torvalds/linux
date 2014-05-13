@@ -2170,7 +2170,7 @@ static void ilk_compute_wm_config(struct drm_device *dev,
 	struct intel_crtc *intel_crtc;
 
 	/* Compute the currently _active_ config */
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, intel_crtc) {
 		const struct intel_pipe_wm *wm = &intel_crtc->wm.active;
 
 		if (!wm->pipe_enabled)
@@ -2254,7 +2254,7 @@ static void ilk_merge_wm_level(struct drm_device *dev,
 
 	ret_wm->enable = true;
 
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, intel_crtc) {
 		const struct intel_pipe_wm *active = &intel_crtc->wm.active;
 		const struct intel_wm_level *wm = &active->wm[level];
 
@@ -2400,7 +2400,7 @@ static void ilk_compute_wm_results(struct drm_device *dev,
 	}
 
 	/* LP0 register values */
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, intel_crtc) {
 		enum pipe pipe = intel_crtc->pipe;
 		const struct intel_wm_level *r =
 			&intel_crtc->wm.active.wm[0];

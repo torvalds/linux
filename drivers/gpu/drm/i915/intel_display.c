@@ -3261,7 +3261,7 @@ bool intel_has_pending_fb_unpin(struct drm_device *dev)
 	 * cannot claim and pin a new fb without at least acquring the
 	 * struct_mutex and so serialising with us.
 	 */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		if (atomic_read(&crtc->unpin_work_count) == 0)
 			continue;
 
@@ -3993,7 +3993,7 @@ static void haswell_mode_set_planes_workaround(struct intel_crtc *crtc)
 
 	/* We want to get the other_active_crtc only if there's only 1 other
 	 * active crtc. */
-	list_for_each_entry(crtc_it, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc_it) {
 		if (!crtc_it->active || crtc_it == crtc)
 			continue;
 
@@ -4312,7 +4312,7 @@ static void modeset_update_crtc_power_domains(struct drm_device *dev)
 	 * First get all needed power domains, then put all unneeded, to avoid
 	 * any unnecessary toggling of the power wells.
 	 */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		enum intel_display_power_domain domain;
 
 		if (!crtc->base.enabled)
@@ -4324,7 +4324,7 @@ static void modeset_update_crtc_power_domains(struct drm_device *dev)
 			intel_display_power_get(dev_priv, domain);
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		enum intel_display_power_domain domain;
 
 		for_each_power_domain(domain, crtc->enabled_power_domains)
@@ -4458,8 +4458,7 @@ static int intel_mode_max_pixclk(struct drm_i915_private *dev_priv)
 	struct intel_crtc *intel_crtc;
 	int max_pixclk = 0;
 
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, intel_crtc) {
 		if (intel_crtc->new_enabled)
 			max_pixclk = max(max_pixclk,
 					 intel_crtc->new_config->adjusted_mode.crtc_clock);
@@ -4480,8 +4479,7 @@ static void valleyview_modeset_global_pipes(struct drm_device *dev,
 		return;
 
 	/* disable/enable all currently active pipes while we change cdclk */
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
-			    base.head)
+	for_each_intel_crtc(dev, intel_crtc)
 		if (intel_crtc->base.enabled)
 			*prepare_pipes |= (1 << intel_crtc->pipe);
 }
@@ -7120,7 +7118,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	struct intel_crtc *crtc;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
+	for_each_intel_crtc(dev, crtc)
 		WARN(crtc->active, "CRTC for pipe %c enabled\n",
 		     pipe_name(crtc->pipe));
 
@@ -9298,8 +9296,7 @@ static void intel_modeset_update_staged_output_state(struct drm_device *dev)
 			to_intel_crtc(encoder->base.crtc);
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		crtc->new_enabled = crtc->base.enabled;
 
 		if (crtc->new_enabled)
@@ -9330,8 +9327,7 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 		encoder->base.crtc = &encoder->new_crtc->base;
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		crtc->base.enabled = crtc->new_enabled;
 	}
 }
@@ -9685,8 +9681,7 @@ intel_modeset_affected_pipes(struct drm_crtc *crtc, unsigned *modeset_pipes,
 	}
 
 	/* Check for pipes that will be enabled/disabled ... */
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, intel_crtc) {
 		if (intel_crtc->base.enabled == intel_crtc->new_enabled)
 			continue;
 
@@ -9759,8 +9754,7 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 	intel_modeset_commit_output_state(dev);
 
 	/* Double check state. */
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, intel_crtc) {
 		WARN_ON(intel_crtc->base.enabled != intel_crtc_in_use(&intel_crtc->base));
 		WARN_ON(intel_crtc->new_config &&
 			intel_crtc->new_config != &intel_crtc->config);
@@ -10038,8 +10032,7 @@ check_crtc_state(struct drm_device *dev)
 	struct intel_encoder *encoder;
 	struct intel_crtc_config pipe_config;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		bool enabled = false;
 		bool active = false;
 
@@ -10128,8 +10121,7 @@ check_shared_dpll_state(struct drm_device *dev)
 		     "pll on state mismatch (expected %i, found %i)\n",
 		     pll->on, active);
 
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-				    base.head) {
+		for_each_intel_crtc(dev, crtc) {
 			if (crtc->base.enabled && intel_crtc_to_shared_dpll(crtc) == pll)
 				enabled_crtcs++;
 			if (crtc->active && intel_crtc_to_shared_dpll(crtc) == pll)
@@ -10370,7 +10362,7 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 	int count;
 
 	count = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		crtc->new_enabled = config->save_crtc_enabled[count++];
 
 		if (crtc->new_enabled)
@@ -10560,8 +10552,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	}
 	/* Now we've also updated encoder->new_crtc for all encoders. */
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		crtc->new_enabled = false;
 
 		list_for_each_entry(encoder,
@@ -10774,7 +10765,7 @@ static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 
 	/* Make sure no transcoder isn't still depending on us. */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		if (intel_crtc_to_shared_dpll(crtc) == pll)
 			assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
 	}
@@ -11627,8 +11618,7 @@ void intel_modeset_init(struct drm_device *dev)
 	intel_modeset_setup_hw_state(dev, false);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		if (!crtc->active)
 			continue;
 
@@ -11889,8 +11879,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	struct intel_connector *connector;
 	int i;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		memset(&crtc->config, 0, sizeof(crtc->config));
 
 		crtc->config.quirks |= PIPE_CONFIG_QUIRK_INHERITED_MODE;
@@ -11915,8 +11904,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		pll->on = pll->get_hw_state(dev_priv, pll, &pll->hw_state);
 		pll->active = 0;
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-				    base.head) {
+		for_each_intel_crtc(dev, crtc) {
 			if (crtc->active && intel_crtc_to_shared_dpll(crtc) == pll)
 				pll->active++;
 		}
@@ -11981,8 +11969,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	 * Note that this could go away if we move to using crtc_config
 	 * checking everywhere.
 	 */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
-			    base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		if (crtc->active && i915.fastboot) {
 			intel_mode_from_pipe_config(&crtc->base.mode, &crtc->config);
 			DRM_DEBUG_KMS("[CRTC:%d] found active mode: ",
