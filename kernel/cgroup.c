@@ -4246,14 +4246,9 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 {
 	struct cgroup *cgrp;
 	struct cgroup_root *root = parent->root;
-	int ssid, err;
+	int ssid, ret;
 	struct cgroup_subsys *ss;
 	struct kernfs_node *kn;
-
-	/* allocate the cgroup and its ID, 0 is reserved for the root */
-	cgrp = kzalloc(sizeof(*cgrp), GFP_KERNEL);
-	if (!cgrp)
-		return -ENOMEM;
 
 	mutex_lock(&cgroup_tree_mutex);
 
@@ -4265,8 +4260,15 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 	 * don't get nasty surprises if we ever grow another caller.
 	 */
 	if (!cgroup_lock_live_group(parent)) {
-		err = -ENODEV;
-		goto err_unlock_tree;
+		ret = -ENODEV;
+		goto out_unlock_tree;
+	}
+
+	/* allocate the cgroup and its ID, 0 is reserved for the root */
+	cgrp = kzalloc(sizeof(*cgrp), GFP_KERNEL);
+	if (!cgrp) {
+		ret = -ENOMEM;
+		goto out_unlock;
 	}
 
 	/*
@@ -4275,15 +4277,15 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 	 */
 	cgrp->id = cgroup_idr_alloc(&root->cgroup_idr, NULL, 2, 0, GFP_NOWAIT);
 	if (cgrp->id < 0) {
-		err = -ENOMEM;
-		goto err_unlock;
+		ret = -ENOMEM;
+		goto out_free_cgrp;
 	}
 
 	init_cgroup_housekeeping(cgrp);
 
 	cgrp->parent = parent;
 	cgrp->dummy_css.parent = &parent->dummy_css;
-	cgrp->root = parent->root;
+	cgrp->root = root;
 
 	if (notify_on_release(parent))
 		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
@@ -4294,8 +4296,8 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 	/* create the directory */
 	kn = kernfs_create_dir(parent->kn, name, mode, cgrp);
 	if (IS_ERR(kn)) {
-		err = PTR_ERR(kn);
-		goto err_free_id;
+		ret = PTR_ERR(kn);
+		goto out_free_id;
 	}
 	cgrp->kn = kn;
 
@@ -4318,20 +4320,20 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 	 */
 	cgroup_idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
 
-	err = cgroup_kn_set_ugid(kn);
-	if (err)
-		goto err_destroy;
+	ret = cgroup_kn_set_ugid(kn);
+	if (ret)
+		goto out_destroy;
 
-	err = cgroup_addrm_files(cgrp, cgroup_base_files, true);
-	if (err)
-		goto err_destroy;
+	ret = cgroup_addrm_files(cgrp, cgroup_base_files, true);
+	if (ret)
+		goto out_destroy;
 
 	/* let's create and online css's */
 	for_each_subsys(ss, ssid) {
 		if (parent->child_subsys_mask & (1 << ssid)) {
-			err = create_css(cgrp, ss);
-			if (err)
-				goto err_destroy;
+			ret = create_css(cgrp, ss);
+			if (ret)
+				goto out_destroy;
 		}
 	}
 
@@ -4344,25 +4346,22 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 
 	kernfs_activate(kn);
 
-	mutex_unlock(&cgroup_mutex);
-	mutex_unlock(&cgroup_tree_mutex);
+	ret = 0;
+	goto out_unlock;
 
-	return 0;
-
-err_free_id:
+out_free_id:
 	cgroup_idr_remove(&root->cgroup_idr, cgrp->id);
-err_unlock:
-	mutex_unlock(&cgroup_mutex);
-err_unlock_tree:
-	mutex_unlock(&cgroup_tree_mutex);
+out_free_cgrp:
 	kfree(cgrp);
-	return err;
-
-err_destroy:
-	cgroup_destroy_locked(cgrp);
+out_unlock:
 	mutex_unlock(&cgroup_mutex);
+out_unlock_tree:
 	mutex_unlock(&cgroup_tree_mutex);
-	return err;
+	return ret;
+
+out_destroy:
+	cgroup_destroy_locked(cgrp);
+	goto out_unlock;
 }
 
 static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
