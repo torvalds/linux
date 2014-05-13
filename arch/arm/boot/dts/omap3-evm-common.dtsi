@@ -44,6 +44,11 @@
 
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
+#include "omap3-panel-sharp-ls037v7dw01.dtsi"
+
+&backlight0 {
+	gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>;
+};
 
 &i2c2 {
 	clock-frequency = <400000>;
@@ -58,6 +63,27 @@
 	tvp5146@5c {
 		compatible = "ti,tvp5146m2";
 		reg = <0x5c>;
+	};
+};
+
+&lcd_3v3 {
+	gpio = <&gpio5 25 GPIO_ACTIVE_LOW>;	/* gpio153 */
+	enable-active-low;
+};
+
+&lcd0 {
+	enable-gpios = <&gpio5 24 GPIO_ACTIVE_HIGH>;	/* gpio152, lcd INI */
+	reset-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;	/* gpio155, lcd RESB */
+	mode-gpios = <&gpio5 26 GPIO_ACTIVE_HIGH	/* gpio154, lcd MO */
+		      &gpio1 2 GPIO_ACTIVE_HIGH		/* gpio2, lcd LR */
+		      &gpio1 3 GPIO_ACTIVE_HIGH>;	/* gpio3, lcd UD */
+};
+
+&mcspi1 {
+	tsc2046@0 {
+		interrupt-parent = <&gpio6>;
+		interrupts = <15 0>;		/* gpio175 */
+		pendown-gpio = <&gpio6 15 0>;
 	};
 };
 
