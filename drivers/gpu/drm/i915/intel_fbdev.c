@@ -488,7 +488,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		return false;
 
 	/* Find the largest fb */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	for_each_crtc(dev, crtc) {
 		intel_crtc = to_intel_crtc(crtc);
 
 		if (!intel_crtc->active || !crtc->primary->fb) {
@@ -512,7 +512,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	}
 
 	/* Now make sure all the pipes will fit into it */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	for_each_crtc(dev, crtc) {
 		unsigned int cur_size;
 
 		intel_crtc = to_intel_crtc(crtc);
@@ -577,7 +577,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	drm_framebuffer_reference(&ifbdev->fb->base);
 
 	/* Final pass to check if any active pipes don't have fbs */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	for_each_crtc(dev, crtc) {
 		intel_crtc = to_intel_crtc(crtc);
 
 		if (!intel_crtc->active)
