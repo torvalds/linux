@@ -4546,17 +4546,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 
 	/* remove @cgrp directory along with the base files */
 	mutex_unlock(&cgroup_mutex);
-
-	/*
-	 * There are two control paths which try to determine cgroup from
-	 * dentry without going through kernfs - cgroupstats_build() and
-	 * css_tryget_online_from_dir().  Those are supported by RCU
-	 * protecting clearing of cgrp->kn->priv backpointer, which should
-	 * happen after all files under it have been removed.
-	 */
 	kernfs_remove(cgrp->kn);	/* @cgrp has an extra ref on its kn */
-	RCU_INIT_POINTER(*(void __rcu __force **)&cgrp->kn->priv, NULL);
-
 	mutex_lock(&cgroup_mutex);
 
 	return 0;
@@ -4615,6 +4605,17 @@ static int cgroup_rmdir(struct kernfs_node *kn)
 	mutex_unlock(&cgroup_tree_mutex);
 
 	kernfs_unbreak_active_protection(kn);
+
+	/*
+	 * There are two control paths which try to determine cgroup from
+	 * dentry without going through kernfs - cgroupstats_build() and
+	 * css_tryget_online_from_dir().  Those are supported by RCU
+	 * protecting clearing of cgrp->kn->priv backpointer, which should
+	 * happen after all files under it have been removed.
+	 */
+	if (!ret)
+		RCU_INIT_POINTER(*(void __rcu __force **)&kn->priv, NULL);
+
 	cgroup_put(cgrp);
 	return ret;
 }
@@ -5174,7 +5175,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 	/*
 	 * This path doesn't originate from kernfs and @kn could already
 	 * have been or be removed at any point.  @kn->priv is RCU
-	 * protected for this access.  See destroy_locked() for details.
+	 * protected for this access.  See cgroup_rmdir() for details.
 	 */
 	cgrp = rcu_dereference(kn->priv);
 	if (cgrp)
