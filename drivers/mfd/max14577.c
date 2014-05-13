@@ -57,7 +57,7 @@ static struct mfd_cell max77836_devs[] = {
 	},
 };
 
-static struct of_device_id max14577_dt_match[] = {
+static const struct of_device_id max14577_dt_match[] = {
 	{
 		.compatible = "maxim,max14577",
 		.data = (void *)MAXIM_DEVICE_TYPE_MAX14577,
