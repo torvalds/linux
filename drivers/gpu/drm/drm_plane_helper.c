@@ -37,9 +37,9 @@
  * creating the primary plane.  However drivers that still call
  * drm_plane_init() will use this minimal format list as the default.
  */
-const static uint32_t safe_modeset_formats[] = {
-       DRM_FORMAT_XRGB8888,
-       DRM_FORMAT_ARGB8888,
+static const uint32_t safe_modeset_formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
 };
 
 /*
