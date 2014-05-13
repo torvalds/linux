@@ -106,7 +106,7 @@ END_FTR_SECTION(0, 1);						\
 
 	.text
 
-_GLOBAL(plpar_hcall_norets)
+_GLOBAL_TOC(plpar_hcall_norets)
 	HMT_MEDIUM
 
 	mfcr	r0
@@ -122,7 +122,7 @@ _GLOBAL(plpar_hcall_norets)
 	mtcrf	0xff,r0
 	blr				/* return r3 = status */
 
-_GLOBAL(plpar_hcall)
+_GLOBAL_TOC(plpar_hcall)
 	HMT_MEDIUM
 
 	mfcr	r0
@@ -188,7 +188,7 @@ _GLOBAL(plpar_hcall_raw)
 
 	blr				/* return r3 = status */
 
-_GLOBAL(plpar_hcall9)
+_GLOBAL_TOC(plpar_hcall9)
 	HMT_MEDIUM
 
 	mfcr	r0
