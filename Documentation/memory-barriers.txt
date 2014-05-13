@@ -1893,6 +1893,21 @@ between the STORE to indicate the event and the STORE to set TASK_RUNNING:
 	    <general barrier>		  STORE current->state
 	LOAD event_indicated
 
+To repeat, this write memory barrier is present if and only if something
+is actually awakened.  To see this, consider the following sequence of
+events, where X and Y are both initially zero:
+
+	CPU 1				CPU 2
+	===============================	===============================
+	X = 1;				STORE event_indicated
+	smp_mb();			wake_up();
+	Y = 1;				wait_event(wq, Y == 1);
+	wake_up();			  load from Y sees 1, no memory barrier
+					load from X might see 0
+
+In contrast, if a wakeup does occur, CPU 2's load from X would be guaranteed
+to see 1.
+
 The available waker functions include:
 
 	complete();
