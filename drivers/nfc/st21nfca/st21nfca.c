@@ -61,10 +61,10 @@
 static DECLARE_BITMAP(dev_mask, ST21NFCA_NUM_DEVICES);
 
 static struct nfc_hci_gate st21nfca_gates[] = {
-	{NFC_HCI_ADMIN_GATE, NFC_HCI_INVALID_PIPE},
+	{NFC_HCI_ADMIN_GATE, NFC_HCI_ADMIN_PIPE},
 	{NFC_HCI_LOOPBACK_GATE, NFC_HCI_INVALID_PIPE},
 	{NFC_HCI_ID_MGMT_GATE, NFC_HCI_INVALID_PIPE},
-	{NFC_HCI_LINK_MGMT_GATE, NFC_HCI_INVALID_PIPE},
+	{NFC_HCI_LINK_MGMT_GATE, NFC_HCI_LINK_MGMT_PIPE},
 	{NFC_HCI_RF_READER_B_GATE, NFC_HCI_INVALID_PIPE},
 	{NFC_HCI_RF_READER_A_GATE, NFC_HCI_INVALID_PIPE},
 	{ST21NFCA_DEVICE_MGNT_GATE, ST21NFCA_DEVICE_MGNT_PIPE},
@@ -170,6 +170,23 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 				st21nfca_gates[j].pipe;
 		}
 	}
+
+	/*
+	 * 3 gates have a well known pipe ID.
+	 * They will never appear in the pipe list
+	 */
+	if (skb_pipe_list->len + 3 < ARRAY_SIZE(st21nfca_gates)) {
+		for (i = skb_pipe_list->len + 3;
+				i < ARRAY_SIZE(st21nfca_gates); i++) {
+			r = nfc_hci_connect_gate(hdev,
+					NFC_HCI_HOST_CONTROLLER_ID,
+					st21nfca_gates[i].gate,
+					st21nfca_gates[i].pipe);
+			if (r < 0)
+				goto free_info;
+		}
+	}
+
 	memcpy(hdev->init_data.gates, st21nfca_gates, sizeof(st21nfca_gates));
 free_info:
 	kfree_skb(skb_pipe_info);
