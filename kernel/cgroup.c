@@ -2535,7 +2535,7 @@ out_finish:
 static int cgroup_subtree_control_write(struct cgroup_subsys_state *dummy_css,
 					struct cftype *cft, char *buffer)
 {
-	unsigned int enable_req = 0, disable_req = 0, enable, disable;
+	unsigned int enable = 0, disable = 0;
 	struct cgroup *cgrp = dummy_css->cgroup, *child;
 	struct cgroup_subsys *ss;
 	char *tok, *p;
@@ -2554,11 +2554,11 @@ static int cgroup_subtree_control_write(struct cgroup_subsys_state *dummy_css,
 				continue;
 
 			if (*tok == '+') {
-				enable_req |= 1 << ssid;
-				disable_req &= ~(1 << ssid);
+				enable |= 1 << ssid;
+				disable &= ~(1 << ssid);
 			} else if (*tok == '-') {
-				disable_req |= 1 << ssid;
-				enable_req &= ~(1 << ssid);
+				disable |= 1 << ssid;
+				enable &= ~(1 << ssid);
 			} else {
 				return -EINVAL;
 			}
@@ -2576,9 +2576,6 @@ static int cgroup_subtree_control_write(struct cgroup_subsys_state *dummy_css,
 	 */
 	cgroup_get(cgrp);
 	kernfs_break_active_protection(cgrp->control_kn);
-retry:
-	enable = enable_req;
-	disable = disable_req;
 
 	mutex_lock(&cgroup_tree_mutex);
 
@@ -2608,7 +2605,9 @@ retry:
 				schedule();
 				finish_wait(&child->offline_waitq, &wait);
 				cgroup_put(child);
-				goto retry;
+
+				ret = restart_syscall();
+				goto out_unbreak;
 			}
 
 			/* unavailable or not enabled on the parent? */
@@ -2692,6 +2691,7 @@ out_unlock:
 	mutex_unlock(&cgroup_mutex);
 out_unlock_tree:
 	mutex_unlock(&cgroup_tree_mutex);
+out_unbreak:
 	kernfs_unbreak_active_protection(cgrp->control_kn);
 	cgroup_put(cgrp);
 	return ret;
