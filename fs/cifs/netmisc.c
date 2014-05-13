@@ -795,8 +795,8 @@ cifs_print_status(__u32 status_code)
 	while (nt_errs[idx].nt_errstr != NULL) {
 		if (((nt_errs[idx].nt_errcode) & 0xFFFFFF) ==
 		    (status_code & 0xFFFFFF)) {
-			printk(KERN_NOTICE "Status code returned 0x%08x %s\n",
-				   status_code, nt_errs[idx].nt_errstr);
+			pr_notice("Status code returned 0x%08x %s\n",
+				  status_code, nt_errs[idx].nt_errstr);
 		}
 		idx++;
 	}
@@ -941,8 +941,9 @@ cifs_UnixTimeToNT(struct timespec t)
 	return (u64) t.tv_sec * 10000000 + t.tv_nsec/100 + NTFS_TIME_OFFSET;
 }
 
-static int total_days_of_prev_months[] =
-{0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
+static const int total_days_of_prev_months[] = {
+	0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
+};
 
 struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 {
