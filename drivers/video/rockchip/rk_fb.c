@@ -35,10 +35,8 @@
 #include "hdmi/rk_hdmi.h"
 #endif
 
-#if defined(CONFIG_ROCKCHIP_RGA)
+#if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
 #include "rga/rga.h"
-#elif defined(CONFIG_ROCKCHIP_RGA2)
-#include "rga2/rga2.h"
 #endif
 
 #ifdef CONFIG_OF
@@ -793,7 +791,7 @@ static void fb_copy_by_ipp(struct fb_info *dst_info,
 static int get_rga_format(int fmt)
 {
         int rga_fmt = 0;
-#if defined(CONFIG_ROCKCHIP_RGA)
+
 	switch (fmt)
         {
         case XBGR888:
@@ -821,37 +819,8 @@ static int get_rga_format(int fmt)
                 rga_fmt = RK_FORMAT_RGBA_8888;
                 break;
         }
-#elif defined(CONFIG_ROCKCHIP_RGA2)
-        switch (fmt)
-        {
-        case XBGR888:
-                rga_fmt = RGA2_FORMAT_RGBX_8888;
-                break;
-        case ABGR888:
-                rga_fmt = RGA2_FORMAT_RGBA_8888;
-                break;
-        case ARGB888:
-                rga_fmt = RGA2_FORMAT_BGRA_8888;
-                break;
-        case RGB888 :
-                rga_fmt = RGA2_FORMAT_RGB_888;
-                break;
-        case RGB565:
-                rga_fmt = RGA2_FORMAT_RGB_565;
-                break;
-        case YUV422:
-                rga_fmt = RGA2_FORMAT_YCbCr_422_SP;
-                break;
-        case YUV420:
-                rga_fmt = RGA2_FORMAT_YCbCr_420_SP;
-                break;
-        default:
-                rga_fmt = RGA2_FORMAT_RGBA_8888;
-                break;
-        }
-#endif
-        return rga_fmt;
 
+        return rga_fmt;
 }
 
 static void rga_win_check(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src_win)
@@ -899,6 +868,8 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src
 		Rga_Request.rotate_mode = 1;
 		Rga_Request.sina = 65536;
 		Rga_Request.cosa = 0;
+		Rga_Request.dst.act_w = dst_win->area[0].yact;
+		Rga_Request.dst.act_h = dst_win->area[0].xact;
 		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
 		Rga_Request.dst.y_offset = 0;
 		break;
@@ -906,6 +877,8 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src
 		Rga_Request.rotate_mode = 1;
 		Rga_Request.sina = 0;
 		Rga_Request.cosa = -65536;
+		Rga_Request.dst.act_w = dst_win->area[0].xact;
+		Rga_Request.dst.act_h = dst_win->area[0].yact;
 		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
 		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
                 break;
@@ -913,11 +886,15 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src
 		Rga_Request.rotate_mode = 1;
 		Rga_Request.sina = -65536;
 		Rga_Request.cosa = 0;
+		Rga_Request.dst.act_w = dst_win->area[0].yact;
+		Rga_Request.dst.act_h = dst_win->area[0].xact;
 		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
 		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
                 break;
 	default:
 		Rga_Request.rotate_mode = 0;
+		Rga_Request.dst.act_w = dst_win->area[0].xact;
+		Rga_Request.dst.act_h = dst_win->area[0].yact;
 		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
 		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
                 break;
@@ -961,8 +938,6 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src
 	Rga_Request.dst.vir_w = dst_win->area[0].xvir;
 	Rga_Request.dst.vir_h = dst_win->area[0].yvir;
 	Rga_Request.dst.format = get_rga_format(dst_win->format);
-	Rga_Request.dst.act_w = dst_win->area[0].xact;
-	Rga_Request.dst.act_h = dst_win->area[0].yact;
 
 	Rga_Request.clip.xmin = 0;
 	Rga_Request.clip.xmax = dst_win->area[0].xact - 1;
