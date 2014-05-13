@@ -36,6 +36,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/i8042.h>
+#include <linux/dmi.h>
 
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
 
@@ -819,6 +820,19 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 	}
 }
 
+/* Blacklist for devices where the ideapad rfkill interface does not work */
+static struct dmi_system_id rfkill_blacklist[] = {
+	/* The Lenovo Yoga 2 11 always reports everything as blocked */
+	{
+		.ident = "Lenovo Yoga 2 11",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 2 11"),
+		},
+	},
+	{}
+};
+
 static int ideapad_acpi_add(struct platform_device *pdev)
 {
 	int ret, i;
@@ -854,11 +868,10 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (ret)
 		goto input_failed;
 
-	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
-		if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
-			ideapad_register_rfkill(priv, i);
-		else
-			priv->rfk[i] = NULL;
+	if (!dmi_check_system(rfkill_blacklist)) {
+		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+			if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
+				ideapad_register_rfkill(priv, i);
 	}
 	ideapad_sync_rfk_state(priv);
 	ideapad_sync_touchpad_state(priv);
