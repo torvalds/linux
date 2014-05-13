@@ -2594,16 +2594,18 @@ retry:
 			 * cases, wait till it's gone using offline_waitq.
 			 */
 			cgroup_for_each_live_child(child, cgrp) {
-				wait_queue_t wait;
+				DEFINE_WAIT(wait);
 
 				if (!cgroup_css(child, ss))
 					continue;
 
+				cgroup_get(child);
 				prepare_to_wait(&child->offline_waitq, &wait,
 						TASK_UNINTERRUPTIBLE);
 				mutex_unlock(&cgroup_tree_mutex);
 				schedule();
 				finish_wait(&child->offline_waitq, &wait);
+				cgroup_put(child);
 				goto retry;
 			}
 
