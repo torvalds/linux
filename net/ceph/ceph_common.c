@@ -72,6 +72,8 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_MON_SUBSCRIBE_ACK: return "mon_subscribe_ack";
 	case CEPH_MSG_STATFS: return "statfs";
 	case CEPH_MSG_STATFS_REPLY: return "statfs_reply";
+	case CEPH_MSG_MON_GET_VERSION: return "mon_get_version";
+	case CEPH_MSG_MON_GET_VERSION_REPLY: return "mon_get_version_reply";
 	case CEPH_MSG_MDS_MAP: return "mds_map";
 	case CEPH_MSG_CLIENT_SESSION: return "client_session";
 	case CEPH_MSG_CLIENT_RECONNECT: return "client_reconnect";
