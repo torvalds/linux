@@ -27,12 +27,6 @@ void _nouveau_gpio_dtor(struct nouveau_object *);
 int  _nouveau_gpio_init(struct nouveau_object *);
 int  _nouveau_gpio_fini(struct nouveau_object *, bool);
 
-enum nvkm_gpio_event {
-	NVKM_GPIO_HI = 1,
-	NVKM_GPIO_LO = 2,
-	NVKM_GPIO_TOGGLED = (NVKM_GPIO_HI | NVKM_GPIO_LO),
-};
-
 struct nouveau_gpio_impl {
 	struct nouveau_oclass base;
 	int lines;

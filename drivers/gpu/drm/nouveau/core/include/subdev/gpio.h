@@ -8,6 +8,12 @@
 #include <subdev/bios.h>
 #include <subdev/bios/gpio.h>
 
+enum nvkm_gpio_event {
+	NVKM_GPIO_HI = 1,
+	NVKM_GPIO_LO = 2,
+	NVKM_GPIO_TOGGLED = (NVKM_GPIO_HI | NVKM_GPIO_LO),
+};
+
 struct nouveau_gpio {
 	struct nouveau_subdev base;
 

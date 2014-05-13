@@ -1013,7 +1013,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 			nv_connector->hpd.func = DCB_GPIO_UNUSED;
 
 		if (nv_connector->hpd.func != DCB_GPIO_UNUSED) {
-			nouveau_event_new(gpio->events, 1,
+			nouveau_event_new(gpio->events, NVKM_GPIO_TOGGLED,
 					  nv_connector->hpd.line,
 					  nouveau_connector_hotplug,
 					  nv_connector,

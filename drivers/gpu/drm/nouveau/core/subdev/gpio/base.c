@@ -110,7 +110,7 @@ nouveau_gpio_intr_disable(struct nouveau_event *event, int type, int index)
 {
 	struct nouveau_gpio *gpio = nouveau_gpio(event->priv);
 	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
-	impl->intr_mask(gpio, NVKM_GPIO_TOGGLED, 1 << index, 0);
+	impl->intr_mask(gpio, type, 1 << index, 0);
 }
 
 static void
@@ -118,7 +118,7 @@ nouveau_gpio_intr_enable(struct nouveau_event *event, int type, int index)
 {
 	struct nouveau_gpio *gpio = nouveau_gpio(event->priv);
 	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
-	impl->intr_mask(gpio, NVKM_GPIO_TOGGLED, 1 << index, 1 << index);
+	impl->intr_mask(gpio, type, 1 << index, 1 << index);
 }
 
 static void
@@ -126,13 +126,16 @@ nouveau_gpio_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_gpio *gpio = nouveau_gpio(subdev);
 	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
-	u32 hi, lo, i;
+	u32 hi, lo, e, i;
 
 	impl->intr_stat(gpio, &hi, &lo);
 
-	for (i = 0; (hi | lo) && i < impl->lines; i++) {
-		if ((hi | lo) & (1 << i))
-			nouveau_event_trigger(gpio->events, 1, i);
+	for (i = 0; e = 0, (hi | lo) && i < impl->lines; i++) {
+		if (hi & (1 << i))
+			e |= NVKM_GPIO_HI;
+		if (lo & (1 << i))
+			e |= NVKM_GPIO_LO;
+		nouveau_event_trigger(gpio->events, e, i);
 	}
 }
 
@@ -205,7 +208,7 @@ nouveau_gpio_create_(struct nouveau_object *parent,
 	gpio->get  = nouveau_gpio_get;
 	gpio->reset = impl->reset;
 
-	ret = nouveau_event_create(1, impl->lines, &gpio->events);
+	ret = nouveau_event_create(2, impl->lines, &gpio->events);
 	if (ret)
 		return ret;
 
