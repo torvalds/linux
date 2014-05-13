@@ -351,6 +351,7 @@ struct rk_fb_trsm_ops {
 
 struct rk_lcdc_drv_ops {
 	int (*open) (struct rk_lcdc_driver * dev_drv, int layer_id, bool open);
+	int (*win_direct_en)(struct rk_lcdc_driver *dev_drv, int win_id, int en);
 	int (*init_lcdc) (struct rk_lcdc_driver * dev_drv);
 	int (*ioctl) (struct rk_lcdc_driver * dev_drv, unsigned int cmd,
 		      unsigned long arg, int layer_id);
@@ -360,8 +361,9 @@ struct rk_lcdc_drv_ops {
 		      int blank_mode);
 	int (*set_par) (struct rk_lcdc_driver * dev_drv, int layer_id);
 	int (*pan_display) (struct rk_lcdc_driver * dev_drv, int layer_id);
+	int (*direct_set_addr)(struct rk_lcdc_driver *drv, int win_id, u32 addr);
 	int (*lcdc_reg_update) (struct rk_lcdc_driver * dev_drv);
-	 ssize_t(*get_disp_info) (struct rk_lcdc_driver * dev_drv, char *buf,
+	ssize_t(*get_disp_info) (struct rk_lcdc_driver * dev_drv, char *buf,
 				  int layer_id);
 	int (*load_screen) (struct rk_lcdc_driver * dev_drv, bool initscreen);
 	int (*get_win_state) (struct rk_lcdc_driver * dev_drv, int layer_id);

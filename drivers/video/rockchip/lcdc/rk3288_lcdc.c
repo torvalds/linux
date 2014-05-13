@@ -197,6 +197,97 @@ static int rk3288_lcdc_reg_dump(struct rk_lcdc_driver *dev_drv)
 
 }
 
+#define WIN_EN(id)		\
+static int win##id##_enable(struct lcdc_device *lcdc_dev, int en)	\
+{ \
+	u32 msk, val;							\
+	spin_lock(&lcdc_dev->reg_lock);					\
+	msk =  m_WIN##id##_EN;						\
+	val  =  v_WIN##id##_EN(en);					\
+	lcdc_msk_reg(lcdc_dev, WIN##id##_CTRL0, msk, val);		\
+	lcdc_cfg_done(lcdc_dev);					\
+	val = lcdc_read_bit(lcdc_dev, WIN##id##_CTRL0, msk);		\
+	while (val !=  (!!en))	{					\
+		val = lcdc_read_bit(lcdc_dev, WIN##id##_CTRL0, msk);	\
+	}								\
+	spin_unlock(&lcdc_dev->reg_lock);				\
+	return 0;							\
+}
+
+WIN_EN(0);
+WIN_EN(1);
+WIN_EN(2);
+WIN_EN(3);
+/*enable/disable win directly*/
+static int rk3288_lcdc_win_direct_en
+		(struct rk_lcdc_driver *drv, int win_id , int en)
+{
+	struct lcdc_device *lcdc_dev = container_of(drv,
+					struct lcdc_device, driver);
+	if (win_id == 0)
+		win0_enable(lcdc_dev, en);
+	else if (win_id == 1)
+		win1_enable(lcdc_dev, en);
+	else if (win_id == 2)
+		win2_enable(lcdc_dev, en);
+	else if (win_id == 3)
+		win3_enable(lcdc_dev, en);
+	else
+		dev_err(lcdc_dev->dev, "invalid win number:%d\n", win_id);
+	return 0;
+		
+}
+
+#define SET_WIN_ADDR(id) \
+static int set_win##id##_addr(struct lcdc_device *lcdc_dev, u32 addr) \
+{							\
+	u32 msk, val;					\
+	spin_lock(&lcdc_dev->reg_lock);			\
+	lcdc_writel(lcdc_dev,WIN##id##_YRGB_MST,addr);	\
+	msk =  m_WIN##id##_EN;				\
+	val  =  v_WIN0_EN(1);				\
+	lcdc_msk_reg(lcdc_dev, WIN##id##_CTRL0, msk,val);	\
+	lcdc_cfg_done(lcdc_dev);			\
+	spin_unlock(&lcdc_dev->reg_lock);		\
+	return 0;					\
+}
+
+SET_WIN_ADDR(0);
+SET_WIN_ADDR(1);
+int rk3288_lcdc_direct_set_win_addr
+		(struct rk_lcdc_driver *dev_drv, int win_id, u32 addr)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+				struct lcdc_device, driver);
+	if (win_id == 0)
+		set_win0_addr(lcdc_dev, addr);
+	else
+		set_win1_addr(lcdc_dev, addr);
+	
+	return 0;
+}
+
+static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
+{
+	int reg = 0;
+	u32 val = 0;
+	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
+
+	spin_lock(&lcdc_dev->reg_lock);
+	for (reg = 0; reg < 0x1a0; reg+= 4) {
+		val = lcdc_readl(lcdc_dev, reg);
+		switch (reg) {
+			case WIN0_ACT_INFO:
+				win0->area[0].xact = (val & m_WIN0_ACT_WIDTH)+1;
+				win0->area[0].yact = ((val & m_WIN0_ACT_HEIGHT)>>16)+1;
+			default:
+				break;
+		}
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+	
+}
+
 /********do basic init*********/
 static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 {
@@ -224,10 +315,7 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	rk3288_lcdc_clk_enable(lcdc_dev);
 
 	/*backup reg config at uboot*/
-	for (i = 0; i < 0x1a0;) {
-		lcdc_readl(lcdc_dev,i);
-		i += 4;
-	}
+	lcdc_read_reg_defalut_cfg(lcdc_dev);
 #ifndef CONFIG_RK_FPGA
 	if (lcdc_dev->pwr18 == true) {
 		v = 0x00010001;	/*bit14: 1,1.8v;0,3.3v*/
@@ -254,8 +342,9 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	mask =  m_AUTO_GATING_EN;
 	val  =  v_AUTO_GATING_EN(0);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask,val);
-	
 	lcdc_cfg_done(lcdc_dev);
+	if (dev_drv->iommu_enabled) /*disable win0 to workaround iommu pagefault*/
+		win0_enable(lcdc_dev, 0);
 	lcdc_dev->pre_init = true;
 
 
@@ -1247,8 +1336,8 @@ static int win0_display(struct lcdc_device *lcdc_dev,
 	u32 uv_addr;
 	y_addr = win->area[0].smem_start+win->area[0].y_offset;/*win->smem_start + win->y_offset;*/
 	uv_addr = win->area[0].cbr_start + win->area[0].c_offset;
-	DBG(2, "lcdc%d>>%s:y_addr:0x%x>>uv_addr:0x%x\n",
-	    lcdc_dev->id, __func__, y_addr, uv_addr);
+	DBG(2, "lcdc%d>>%s:y_addr:0x%x>>uv_addr:0x%x>>offset:%d\n",
+	    lcdc_dev->id, __func__, y_addr, uv_addr,win->area[0].y_offset);
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		win->area[0].y_addr = y_addr;
@@ -3183,9 +3272,11 @@ static struct rk_lcdc_win lcdc_win[] = {
 
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open 			= rk3288_lcdc_open,
+	.win_direct_en		= rk3288_lcdc_win_direct_en,
 	.load_screen 		= rk3288_load_screen,
 	.set_par 		= rk3288_lcdc_set_par,
 	.pan_display 		= rk3288_lcdc_pan_display,
+	.direct_set_addr 	= rk3288_lcdc_direct_set_win_addr,
 	.lcdc_reg_update	= rk3288_lcdc_reg_update,
 	.blank 			= rk3288_lcdc_blank,
 	.ioctl 			= rk3288_lcdc_ioctl,
