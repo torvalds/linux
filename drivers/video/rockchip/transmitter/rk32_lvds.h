@@ -30,9 +30,10 @@
 struct rk32_lvds {
 	struct device 		*dev;
 	void __iomem  		*regs;
-	struct clk    		*clk; /*phb clk*/
+	struct clk    		*pclk; /*phb clk*/
 	struct clk              *pd;
 	struct rk_screen	screen;
+	bool			clk_on;
 };
 
 static int inline lvds_writel(struct rk32_lvds *lvds, u32 offset, u32 val)
