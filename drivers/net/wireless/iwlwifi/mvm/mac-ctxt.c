@@ -1109,12 +1109,12 @@ static int iwl_mvm_mac_ctxt_cmd_go(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_mac_ctx_send(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				u32 action)
+				u32 action, bool force_assoc_off)
 {
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		return iwl_mvm_mac_ctxt_cmd_sta(mvm, vif, action,
-						action == FW_CTXT_ACTION_ADD);
+						force_assoc_off);
 		break;
 	case NL80211_IFTYPE_AP:
 		if (!vif->p2p)
@@ -1144,7 +1144,8 @@ int iwl_mvm_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		      vif->addr, ieee80211_vif_type_p2p(vif)))
 		return -EIO;
 
-	ret = iwl_mvm_mac_ctx_send(mvm, vif, FW_CTXT_ACTION_ADD);
+	ret = iwl_mvm_mac_ctx_send(mvm, vif, FW_CTXT_ACTION_ADD,
+				   true);
 	if (ret)
 		return ret;
 
@@ -1155,7 +1156,8 @@ int iwl_mvm_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return 0;
 }
 
-int iwl_mvm_mac_ctxt_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+int iwl_mvm_mac_ctxt_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     bool force_assoc_off)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
@@ -1163,7 +1165,8 @@ int iwl_mvm_mac_ctxt_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		      vif->addr, ieee80211_vif_type_p2p(vif)))
 		return -EIO;
 
-	return iwl_mvm_mac_ctx_send(mvm, vif, FW_CTXT_ACTION_MODIFY);
+	return iwl_mvm_mac_ctx_send(mvm, vif, FW_CTXT_ACTION_MODIFY,
+				    force_assoc_off);
 }
 
 int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
