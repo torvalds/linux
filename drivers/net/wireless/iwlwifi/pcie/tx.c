@@ -332,12 +332,12 @@ void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
 	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
 		struct iwl_txq *txq = &trans_pcie->txq[i];
 
-		spin_lock(&txq->lock);
+		spin_lock_bh(&txq->lock);
 		if (trans_pcie->txq[i].need_update) {
 			iwl_pcie_txq_inc_wr_ptr(trans, txq);
 			trans_pcie->txq[i].need_update = false;
 		}
-		spin_unlock(&txq->lock);
+		spin_unlock_bh(&txq->lock);
 	}
 }
 
