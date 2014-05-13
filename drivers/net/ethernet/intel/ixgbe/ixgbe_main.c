@@ -8449,8 +8449,8 @@ skip_sriov:
 
 	ixgbe_dbg_adapter_init(adapter);
 
-	/* Need link setup for MNG FW, else wait for IXGBE_UP */
-	if (ixgbe_mng_enabled(hw) && hw->mac.ops.setup_link)
+	/* setup link for SFP devices with MNG FW, else wait for IXGBE_UP */
+	if (ixgbe_mng_enabled(hw) && ixgbe_is_sfp(hw) && hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw,
 			IXGBE_LINK_SPEED_10GB_FULL | IXGBE_LINK_SPEED_1GB_FULL,
 			true);
