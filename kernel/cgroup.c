@@ -203,9 +203,9 @@ static int cgroup_idr_alloc(struct idr *idr, void *ptr, int start, int end,
 	int ret;
 
 	idr_preload(gfp_mask);
-	spin_lock(&cgroup_idr_lock);
+	spin_lock_bh(&cgroup_idr_lock);
 	ret = idr_alloc(idr, ptr, start, end, gfp_mask);
-	spin_unlock(&cgroup_idr_lock);
+	spin_unlock_bh(&cgroup_idr_lock);
 	idr_preload_end();
 	return ret;
 }
@@ -214,17 +214,17 @@ static void *cgroup_idr_replace(struct idr *idr, void *ptr, int id)
 {
 	void *ret;
 
-	spin_lock(&cgroup_idr_lock);
+	spin_lock_bh(&cgroup_idr_lock);
 	ret = idr_replace(idr, ptr, id);
-	spin_unlock(&cgroup_idr_lock);
+	spin_unlock_bh(&cgroup_idr_lock);
 	return ret;
 }
 
 static void cgroup_idr_remove(struct idr *idr, int id)
 {
-	spin_lock(&cgroup_idr_lock);
+	spin_lock_bh(&cgroup_idr_lock);
 	idr_remove(idr, id);
-	spin_unlock(&cgroup_idr_lock);
+	spin_unlock_bh(&cgroup_idr_lock);
 }
 
 /**
