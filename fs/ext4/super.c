@@ -5381,6 +5381,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 	bh = ext4_bread(handle, inode, blk, 1, &err);
 	if (!bh)
 		goto out;
+	BUFFER_TRACE(bh, "get write access");
 	err = ext4_journal_get_write_access(handle, bh);
 	if (err) {
 		brelse(bh);

@@ -391,6 +391,7 @@ mext_insert_extents(handle_t *handle, struct inode *orig_inode,
 
 	if (depth) {
 		/* Register to journal */
+		BUFFER_TRACE(orig_path->p_bh, "get_write_access");
 		ret = ext4_journal_get_write_access(handle, orig_path->p_bh);
 		if (ret)
 			return ret;

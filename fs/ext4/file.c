@@ -244,6 +244,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 1);
 			if (IS_ERR(handle))
 				return PTR_ERR(handle);
+			BUFFER_TRACE(sbi->s_sbh, "get_write_access");
 			err = ext4_journal_get_write_access(handle, sbi->s_sbh);
 			if (err) {
 				ext4_journal_stop(handle);

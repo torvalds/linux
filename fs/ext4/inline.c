@@ -264,6 +264,7 @@ static int ext4_create_inline_data(handle_t *handle,
 	if (error)
 		return error;
 
+	BUFFER_TRACE(is.iloc.bh, "get_write_access");
 	error = ext4_journal_get_write_access(handle, is.iloc.bh);
 	if (error)
 		goto out;
@@ -347,6 +348,7 @@ static int ext4_update_inline_data(handle_t *handle, struct inode *inode,
 	if (error == -ENODATA)
 		goto out;
 
+	BUFFER_TRACE(is.iloc.bh, "get_write_access");
 	error = ext4_journal_get_write_access(handle, is.iloc.bh);
 	if (error)
 		goto out;
@@ -424,6 +426,7 @@ static int ext4_destroy_inline_data_nolock(handle_t *handle,
 	if (error)
 		goto out;
 
+	BUFFER_TRACE(is.iloc.bh, "get_write_access");
 	error = ext4_journal_get_write_access(handle, is.iloc.bh);
 	if (error)
 		goto out;
@@ -1007,6 +1010,7 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
 	if (err)
 		return err;
 
+	BUFFER_TRACE(iloc->bh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, iloc->bh);
 	if (err)
 		return err;
@@ -1669,6 +1673,7 @@ int ext4_delete_inline_entry(handle_t *handle,
 				EXT4_MIN_INLINE_DATA_SIZE;
 	}
 
+	BUFFER_TRACE(bh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, bh);
 	if (err)
 		goto out;

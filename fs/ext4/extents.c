@@ -143,6 +143,7 @@ static int ext4_ext_get_access(handle_t *handle, struct inode *inode,
 {
 	if (path->p_bh) {
 		/* path points to block */
+		BUFFER_TRACE(path->p_bh, "get_write_access");
 		return ext4_journal_get_write_access(handle, path->p_bh);
 	}
 	/* path points to leaf/index in inode body */
