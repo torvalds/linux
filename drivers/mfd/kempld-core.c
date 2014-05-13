@@ -86,7 +86,7 @@ enum kempld_cells {
 	KEMPLD_UART,
 };
 
-static struct mfd_cell kempld_devs[] = {
+static const struct mfd_cell kempld_devs[] = {
 	[KEMPLD_I2C] = {
 		.name = "kempld-i2c",
 	},
