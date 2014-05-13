@@ -1168,6 +1168,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto pre_mutex_err;
 		}
 	} else {
+		if (args->DR4 == 0xffffffff) {
+			DRM_DEBUG("UXA submitting garbage DR4, fixing up\n");
+			args->DR4 = 0;
+		}
+
 		if (args->DR1 || args->DR4 || args->cliprects_ptr) {
 			DRM_DEBUG("0 cliprects but dirt in cliprects fields\n");
 			return -EINVAL;
