@@ -36,8 +36,6 @@
 static struct arm_pmu *cpu_pmu;
 
 static DEFINE_PER_CPU(struct arm_pmu *, percpu_pmu);
-static DEFINE_PER_CPU(struct perf_event * [ARMPMU_MAX_HWEVENTS], hw_events);
-static DEFINE_PER_CPU(unsigned long [BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)], used_mask);
 static DEFINE_PER_CPU(struct pmu_hw_events, cpu_hw_events);
 
 /*
@@ -172,8 +170,6 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	int cpu;
 	for_each_possible_cpu(cpu) {
 		struct pmu_hw_events *events = &per_cpu(cpu_hw_events, cpu);
-		events->events = per_cpu(hw_events, cpu);
-		events->used_mask = per_cpu(used_mask, cpu);
 		raw_spin_lock_init(&events->pmu_lock);
 		per_cpu(percpu_pmu, cpu) = cpu_pmu;
 	}

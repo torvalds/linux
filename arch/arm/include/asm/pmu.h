@@ -68,13 +68,13 @@ struct pmu_hw_events {
 	/*
 	 * The events that are active on the PMU for the given index.
 	 */
-	struct perf_event	**events;
+	struct perf_event	*events[ARMPMU_MAX_HWEVENTS];
 
 	/*
 	 * A 1 bit for an index indicates that the counter is being used for
 	 * an event. A 0 means that the counter can be used.
 	 */
-	unsigned long           *used_mask;
+	DECLARE_BITMAP(used_mask, ARMPMU_MAX_HWEVENTS);
 
 	/*
 	 * Hardware lock to serialize accesses to PMU registers. Needed for the
