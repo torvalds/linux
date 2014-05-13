@@ -343,15 +343,15 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 			num_connectors_detected++;
 
 		if (!enabled[i]) {
-			DRM_DEBUG_KMS("connector %d not enabled, skipping\n",
-				      connector->base.id);
+			DRM_DEBUG_KMS("connector %s not enabled, skipping\n",
+				      drm_get_connector_name(connector));
 			continue;
 		}
 
 		encoder = connector->encoder;
 		if (!encoder || WARN_ON(!encoder->crtc)) {
-			DRM_DEBUG_KMS("connector %d has no encoder or crtc, skipping\n",
-				      connector->base.id);
+			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
+				      drm_get_connector_name(connector));
 			enabled[i] = false;
 			continue;
 		}
@@ -373,16 +373,16 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 			}
 		}
 
-		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
-			      fb_conn->connector->base.id);
+		DRM_DEBUG_KMS("looking for cmdline mode on connector %s\n",
+			      drm_get_connector_name(connector));
 
 		/* go for command line mode first */
 		modes[i] = drm_pick_cmdline_mode(fb_conn, width, height);
 
 		/* try for preferred next */
 		if (!modes[i]) {
-			DRM_DEBUG_KMS("looking for preferred mode on connector %d\n",
-				      fb_conn->connector->base.id);
+			DRM_DEBUG_KMS("looking for preferred mode on connector %s\n",
+				      drm_get_connector_name(connector));
 			modes[i] = drm_has_preferred_mode(fb_conn, width,
 							  height);
 		}
@@ -400,16 +400,20 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 			 * since the fb helper layer wants a pointer to
 			 * something we own.
 			 */
+			DRM_DEBUG_KMS("looking for current mode on connector %s\n",
+				      drm_get_connector_name(connector));
 			intel_mode_from_pipe_config(&encoder->crtc->hwmode,
 						    &to_intel_crtc(encoder->crtc)->config);
 			modes[i] = &encoder->crtc->hwmode;
 		}
 		crtcs[i] = new_crtc;
 
-		DRM_DEBUG_KMS("connector %s on crtc %d: %s\n",
+		DRM_DEBUG_KMS("connector %s on pipe %d [CRTC:%d]: %dx%d%s\n",
 			      drm_get_connector_name(connector),
+			      pipe_name(to_intel_crtc(encoder->crtc)->pipe),
 			      encoder->crtc->base.id,
-			      modes[i]->name);
+			      modes[i]->hdisplay, modes[i]->vdisplay,
+			      modes[i]->flags & DRM_MODE_FLAG_INTERLACE ? "i" :"");
 
 		fallback = false;
 	}
