@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/i2c.h>
+#include "priv.h"
 
 int
 nv_rdaux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)

@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include "subdev/i2c.h"
+#include "priv.h"
 
 #ifdef CONFIG_NOUVEAU_I2C_INTERNAL
 #define T_TIMEOUT  2200000

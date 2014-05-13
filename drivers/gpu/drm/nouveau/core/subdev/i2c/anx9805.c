@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include <subdev/i2c.h>
+#include "priv.h"
 
 struct anx9805_i2c_port {
 	struct nouveau_i2c_port base;

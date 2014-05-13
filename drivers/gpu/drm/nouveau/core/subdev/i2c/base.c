@@ -27,8 +27,9 @@
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/i2c.h>
-#include <subdev/i2c.h>
 #include <subdev/vga.h>
+
+#include "priv.h"
 
 /******************************************************************************
  * interface to linux i2c bit-banging algorithm
@@ -304,9 +305,9 @@ int
 nouveau_i2c_create_(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass,
-		    struct nouveau_oclass *sclass,
 		    int length, void **pobject)
 {
+	const struct nouveau_i2c_impl *impl = (void *)oclass;
 	struct nouveau_bios *bios = nouveau_bios(parent);
 	struct nouveau_i2c *i2c;
 	struct nouveau_object *object;
@@ -331,7 +332,7 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 		if (info.type == DCB_I2C_UNUSED)
 			continue;
 
-		oclass = sclass;
+		oclass = impl->sclass;
 		do {
 			ret = -EINVAL;
 			if (oclass->handle == info.type) {
@@ -377,6 +378,22 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 			} while (ret && (++oclass)->handle);
 		}
 	}
+
+	return 0;
+}
+
+int
+_nouveau_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *data, u32 size,
+		  struct nouveau_object **pobject)
+{
+	struct nouveau_i2c *i2c;
+	int ret;
+
+	ret = nouveau_i2c_create(parent, engine, oclass, &i2c);
+	*pobject = nv_object(i2c);
+	if (ret)
+		return ret;
 
 	return 0;
 }

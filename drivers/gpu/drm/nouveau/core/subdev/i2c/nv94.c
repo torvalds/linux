@@ -262,29 +262,14 @@ nv94_i2c_sclass[] = {
 	{}
 };
 
-static int
-nv94_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
-{
-	struct nv50_i2c_priv *priv;
-	int ret;
-
-	ret = nouveau_i2c_create(parent, engine, oclass, nv94_i2c_sclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-struct nouveau_oclass
-nv94_i2c_oclass = {
-	.handle = NV_SUBDEV(I2C, 0x94),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv94_i2c_ctor,
+struct nouveau_oclass *
+nv94_i2c_oclass = &(struct nouveau_i2c_impl) {
+	.base.handle = NV_SUBDEV(I2C, 0x94),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nouveau_i2c_ctor,
 		.dtor = _nouveau_i2c_dtor,
 		.init = _nouveau_i2c_init,
 		.fini = _nouveau_i2c_fini,
 	},
-};
+	.sclass = nv94_i2c_sclass,
+}.base;
