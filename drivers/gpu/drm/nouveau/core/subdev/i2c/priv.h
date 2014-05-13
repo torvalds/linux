@@ -73,4 +73,7 @@ struct nouveau_i2c_impl {
 	void (*aux_mask)(struct nouveau_i2c *, u32, u32, u32);
 };
 
+void nv94_aux_stat(struct nouveau_i2c *, u32 *, u32 *, u32 *, u32 *);
+void nv94_aux_mask(struct nouveau_i2c *, u32, u32, u32);
+
 #endif

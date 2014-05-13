@@ -106,4 +106,7 @@ nvd0_i2c_oclass = &(struct nouveau_i2c_impl) {
 		.fini = _nouveau_i2c_fini,
 	},
 	.sclass = nvd0_i2c_sclass,
+	.aux = 4,
+	.aux_stat = nv94_aux_stat,
+	.aux_mask = nv94_aux_mask,
 }.base;

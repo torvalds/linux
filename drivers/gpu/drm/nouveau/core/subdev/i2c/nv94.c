@@ -24,6 +24,36 @@
 
 #include "nv50.h"
 
+void
+nv94_aux_stat(struct nouveau_i2c *i2c, u32 *hi, u32 *lo, u32 *rq, u32 *tx)
+{
+	u32 intr = nv_rd32(i2c, 0x00e06c);
+	u32 stat = nv_rd32(i2c, 0x00e068) & intr, i;
+	for (i = 0, *hi = *lo = *rq = *tx = 0; i < 8; i++) {
+		if ((stat & (1 << (i * 4)))) *hi |= 1 << i;
+		if ((stat & (2 << (i * 4)))) *lo |= 1 << i;
+		if ((stat & (4 << (i * 4)))) *rq |= 1 << i;
+		if ((stat & (8 << (i * 4)))) *tx |= 1 << i;
+	}
+	nv_wr32(i2c, 0x00e06c, intr);
+}
+
+void
+nv94_aux_mask(struct nouveau_i2c *i2c, u32 type, u32 mask, u32 data)
+{
+	u32 temp = nv_rd32(i2c, 0x00e068), i;
+	for (i = 0; i < 8; i++) {
+		if (mask & (1 << i)) {
+			if (!(data & (1 << i))) {
+				temp &= ~(type << (i * 4));
+				continue;
+			}
+			temp |= type << (i * 4);
+		}
+	}
+	nv_wr32(i2c, 0x00e068, temp);
+}
+
 #define AUX_DBG(fmt, args...) nv_debug(aux, "AUXCH(%d): " fmt, ch, ##args)
 #define AUX_ERR(fmt, args...) nv_error(aux, "AUXCH(%d): " fmt, ch, ##args)
 
@@ -273,4 +303,7 @@ nv94_i2c_oclass = &(struct nouveau_i2c_impl) {
 		.fini = _nouveau_i2c_fini,
 	},
 	.sclass = nv94_i2c_sclass,
+	.aux = 4,
+	.aux_stat = nv94_aux_stat,
+	.aux_mask = nv94_aux_mask,
 }.base;
