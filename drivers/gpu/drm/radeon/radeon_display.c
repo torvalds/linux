@@ -999,7 +999,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 
 	/* avoid high jitter with small fractional dividers */
 	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV && (fb_div % 10)) {
-		fb_div_min = max(fb_div_min, (9 - (fb_div % 10)) * 20 + 60);
+		fb_div_min = max(fb_div_min, (9 - (fb_div % 10)) * 20 + 50);
 		if (fb_div < fb_div_min) {
 			unsigned tmp = DIV_ROUND_UP(fb_div_min, fb_div);
 			fb_div *= tmp;
