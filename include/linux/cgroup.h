@@ -500,14 +500,6 @@ struct cftype {
 			 s64 val);
 
 	/*
-	 * trigger() callback can be used to get some kick from the
-	 * userspace, when the actual string written is not important
-	 * at all. The private field can be used to determine the
-	 * kick type for multiplexing.
-	 */
-	int (*trigger)(struct cgroup_subsys_state *css, unsigned int event);
-
-	/*
 	 * write() is the generic write callback which maps directly to
 	 * kernfs write operation and overrides all other operations.
 	 * Maximum write size is determined by ->max_write_len.  Use
