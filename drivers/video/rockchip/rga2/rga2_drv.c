@@ -770,7 +770,7 @@ static int rga2_blit_async(rga2_session *session, struct rga2_req *req)
 	int ret = -1;
 
     #if RGA2_TEST_MSG
-    if (req->src.format >= 0x10) {
+    if (1) {//req->src.format >= 0x10) {
         print_info(req);
         rga2_flag = 1;
         printk("*** rga_blit_async proc ***\n");
@@ -790,7 +790,7 @@ static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
     int ret_timeout = 0;
 
     #if RGA2_TEST_MSG
-    if (req->bitblt_mode == 0x2) {
+    if (1) {//req->bitblt_mode == 0x2) {
         print_info(req);
         rga2_flag = 1;
         printk("*** rga2_blit_sync proc ***\n");
@@ -843,6 +843,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
     struct rga_req req_rga;
 	int ret = 0;
     rga2_session *session;
+
+    memset(&req, 0x0, sizeof(req));
 
     mutex_lock(&rga2_service.mutex);
 
@@ -941,11 +943,13 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 }
 
 
-long rga_ioctl_kernel(struct rga_req *req)
+long rga_ioctl_kernel(struct rga_req *req_rga)
 {
 	int ret = 0;
     rga2_session *session;
-    struct rga2_req req_rga2;
+    struct rga2_req req;
+
+    memset(&req, 0x0, sizeof(req));
 
     mutex_lock(&rga2_service.mutex);
 
@@ -958,8 +962,8 @@ long rga_ioctl_kernel(struct rga_req *req)
 		return -EINVAL;
 	}
 
-    RGA_MSG_2_RGA2_MSG(req, &req_rga2);
-    ret = rga2_blit_sync(session, &req_rga2);
+    RGA_MSG_2_RGA2_MSG(req_rga, &req);
+    ret = rga2_blit_sync(session, &req);
 
 	mutex_unlock(&rga2_service.mutex);
 
@@ -1246,8 +1250,8 @@ EXPORT_SYMBOL(rk_get_fb);
 extern void rk_direct_fb_show(struct fb_info * fbi);
 EXPORT_SYMBOL(rk_direct_fb_show);
 
-//unsigned int src_buf[1920*1080];
-//unsigned int dst_buf[1920*1080];
+//unsigned int src_buf[4096*2304*3/2];
+//unsigned int dst_buf[3840*2304*3/2];
 //unsigned int tmp_buf[1920*1080 * 2];
 
 void rga2_test_0(void)
@@ -1276,13 +1280,13 @@ void rga2_test_0(void)
     //fb = rk_get_fb(0);
 
     memset(&req, 0, sizeof(struct rga2_req));
-    src = kmalloc(800*480*4, GFP_KERNEL);
-    dst = kmalloc(800*480*4, GFP_KERNEL);
+    src = kmalloc(4096*2304*3/2, GFP_KERNEL);
+    dst = kmalloc(3840*2160*3/2, GFP_KERNEL);
 
-    memset(src, 0x80, 800*480*4);
+    //memset(src, 0x80, 4096*2304*4);
 
-    dmac_flush_range(&src, &src[800*480*4]);
-    outer_flush_range(virt_to_phys(&src),virt_to_phys(&src[800*480*4]));
+    //dmac_flush_range(&src, &src[800*480*4]);
+    //outer_flush_range(virt_to_phys(&src),virt_to_phys(&src[800*480*4]));
 
 
     #if 0
@@ -1301,40 +1305,39 @@ void rga2_test_0(void)
     printk("************ RGA2_TEST ************\n");
     printk("********************************\n\n");
 
-    req.src.act_w  = 320;
-    req.src.act_h = 240;
+    req.src.act_w  = 4096;
+    req.src.act_h = 2304;
 
-    req.src.vir_w  = 320;
-    req.src.vir_h = 240;
-    req.src.yrgb_addr = (uint32_t)virt_to_phys(src);
-    req.src.uv_addr = (uint32_t)(req.src.yrgb_addr + 800*480);
-    req.src.v_addr = (uint32_t)virt_to_phys(src);
-    req.src.format = RGA2_FORMAT_RGBA_8888;
+    req.src.vir_w  = 4096;
+    req.src.vir_h = 2304;
+    req.src.yrgb_addr = (uint32_t)0;//virt_to_phys(src);
+    req.src.uv_addr = (uint32_t)virt_to_phys(src);
+    req.src.v_addr = 0;
+    req.src.format = RGA2_FORMAT_YCbCr_420_SP;
 
-    req.dst.act_w  = 320;
-    req.dst.act_h = 240;
+    req.dst.act_w  = 3840;
+    req.dst.act_h = 2160;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
 
-    req.dst.vir_w = 320;
-    req.dst.vir_h = 240;
+    req.dst.vir_w = 3840;
+    req.dst.vir_h = 2160;
 
-    req.dst.yrgb_addr = ((uint32_t)virt_to_phys(dst));
-    req.dst.format = RGA2_FORMAT_RGBA_8888;
+    req.dst.yrgb_addr = 0;//((uint32_t)virt_to_phys(dst));
+    req.dst.uv_addr = ((uint32_t)virt_to_phys(dst));
+    req.dst.format = RGA2_FORMAT_YCbCr_420_SP;
 
     //dst = dst0;
 
     //req.render_mode = color_fill_mode;
     //req.fg_color = 0x80ffffff;
 
-    req.rotate_mode = 1;
+    req.rotate_mode = 0;
     req.scale_bicu_mode = 2;
 
     //req.alpha_rop_flag = 0;
     //req.alpha_rop_mode = 0x19;
     //req.PD_mode = 3;
-
-    req.rotate_mode = 0;
 
     //req.mmu_info.mmu_flag = 0x21;
     //req.mmu_info.mmu_en = 1;

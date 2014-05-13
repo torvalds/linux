@@ -610,13 +610,6 @@ struct rga2_service_info {
 #define RGA2_TEST_MSG  0
 #define RGA2_TEST_TIME 0
 
-
-#if defined(CONFIG_ARCH_RK3190)
-#define RGA2_BASE                 0x1010c000
-#elif defined(CONFIG_ARCH_RK32)
-#define RGA2_BASE                 0x10114000
-#endif
-
 //General Registers
 #define RGA2_SYS_CTRL             0x000
 #define RGA2_CMD_CTRL             0x004
