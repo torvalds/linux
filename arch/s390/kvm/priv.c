@@ -119,8 +119,7 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 	if (operand2 & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	address = vcpu->arch.sie_block->prefix;
-	address = address & 0x7fffe000u;
+	address = kvm_s390_get_prefix(vcpu);
 
 	/* get the value */
 	rc = write_guest(vcpu, operand2, &address, sizeof(address));

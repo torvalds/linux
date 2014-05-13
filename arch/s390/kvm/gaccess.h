@@ -30,7 +30,7 @@
 static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
 						 unsigned long gra)
 {
-	unsigned long prefix = vcpu->arch.sie_block->prefix;
+	unsigned long prefix  = kvm_s390_get_prefix(vcpu);
 
 	if (gra < 2 * PAGE_SIZE)
 		gra += prefix;
@@ -99,7 +99,7 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
 	unsigned long __gpa;					\
 								\
 	__gpa = (unsigned long)(gra);				\
-	__gpa += __vcpu->arch.sie_block->prefix;		\
+	__gpa += kvm_s390_get_prefix(__vcpu);			\
 	kvm_write_guest(__vcpu->kvm, __gpa, &__x, sizeof(__x));	\
 })
 
@@ -124,7 +124,7 @@ static inline __must_check
 int write_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 		   unsigned long len)
 {
-	unsigned long gpa = gra + vcpu->arch.sie_block->prefix;
+	unsigned long gpa = gra + kvm_s390_get_prefix(vcpu);
 
 	return kvm_write_guest(vcpu->kvm, gpa, data, len);
 }
@@ -150,7 +150,7 @@ static inline __must_check
 int read_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 		  unsigned long len)
 {
-	unsigned long gpa = gra + vcpu->arch.sie_block->prefix;
+	unsigned long gpa = gra + kvm_s390_get_prefix(vcpu);
 
 	return kvm_read_guest(vcpu->kvm, gpa, data, len);
 }

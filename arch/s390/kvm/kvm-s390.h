@@ -61,9 +61,15 @@ static inline int kvm_is_ucontrol(struct kvm *kvm)
 #endif
 }
 
+#define GUEST_PREFIX_SHIFT 13
+static inline u32 kvm_s390_get_prefix(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.sie_block->prefix << GUEST_PREFIX_SHIFT;
+}
+
 static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 {
-	vcpu->arch.sie_block->prefix = prefix & 0x7fffe000u;
+	vcpu->arch.sie_block->prefix = prefix >> GUEST_PREFIX_SHIFT;
 	vcpu->arch.sie_block->ihcpu  = 0xffff;
 	kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 }

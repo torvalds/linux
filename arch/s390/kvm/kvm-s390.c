@@ -753,7 +753,7 @@ static void kvm_gmap_notifier(struct gmap *gmap, unsigned long address)
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		/* match against both prefix pages */
-		if (vcpu->arch.sie_block->prefix == (address & ~0x1000UL)) {
+		if (kvm_s390_get_prefix(vcpu) == (address & ~0x1000UL)) {
 			VCPU_EVENT(vcpu, 2, "gmap notifier for %lx", address);
 			kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 			exit_sie_sync(vcpu);
@@ -1017,7 +1017,7 @@ retry:
 	if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu)) {
 		int rc;
 		rc = gmap_ipte_notify(vcpu->arch.gmap,
-				      vcpu->arch.sie_block->prefix,
+				      kvm_s390_get_prefix(vcpu),
 				      PAGE_SIZE * 2);
 		if (rc)
 			return rc;
@@ -1338,7 +1338,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	kvm_run->psw_mask     = vcpu->arch.sie_block->gpsw.mask;
 	kvm_run->psw_addr     = vcpu->arch.sie_block->gpsw.addr;
-	kvm_run->s.regs.prefix = vcpu->arch.sie_block->prefix;
+	kvm_run->s.regs.prefix = kvm_s390_get_prefix(vcpu);
 	memcpy(&kvm_run->s.regs.crs, &vcpu->arch.sie_block->gcr, 128);
 
 	if (vcpu->sigset_active)
@@ -1357,6 +1357,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 {
 	unsigned char archmode = 1;
+	unsigned int px;
 	u64 clkcomp;
 	int rc;
 
@@ -1375,8 +1376,9 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 			      vcpu->run->s.regs.gprs, 128);
 	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, psw),
 			      &vcpu->arch.sie_block->gpsw, 16);
+	px = kvm_s390_get_prefix(vcpu);
 	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, pref_reg),
-			      &vcpu->arch.sie_block->prefix, 4);
+			      &px, 4);
 	rc |= write_guest_abs(vcpu,
 			      gpa + offsetof(struct save_area, fp_ctrl_reg),
 			      &vcpu->arch.guest_fpregs.fpc, 4);
