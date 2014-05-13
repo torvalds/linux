@@ -1610,47 +1610,63 @@ static void do_no_space_timeout(struct work_struct *ws)
 
 /*----------------------------------------------------------------*/
 
-struct noflush_work {
+struct pool_work {
 	struct work_struct worker;
-	struct thin_c *tc;
-
-	atomic_t complete;
-	wait_queue_head_t wait;
+	struct completion complete;
 };
 
-static void complete_noflush_work(struct noflush_work *w)
+static struct pool_work *to_pool_work(struct work_struct *ws)
 {
-	atomic_set(&w->complete, 1);
-	wake_up(&w->wait);
+	return container_of(ws, struct pool_work, worker);
+}
+
+static void pool_work_complete(struct pool_work *pw)
+{
+	complete(&pw->complete);
+}
+
+static void pool_work_wait(struct pool_work *pw, struct pool *pool,
+			   void (*fn)(struct work_struct *))
+{
+	INIT_WORK_ONSTACK(&pw->worker, fn);
+	init_completion(&pw->complete);
+	queue_work(pool->wq, &pw->worker);
+	wait_for_completion(&pw->complete);
+}
+
+/*----------------------------------------------------------------*/
+
+struct noflush_work {
+	struct pool_work pw;
+	struct thin_c *tc;
+};
+
+static struct noflush_work *to_noflush(struct work_struct *ws)
+{
+	return container_of(to_pool_work(ws), struct noflush_work, pw);
 }
 
 static void do_noflush_start(struct work_struct *ws)
 {
-	struct noflush_work *w = container_of(ws, struct noflush_work, worker);
+	struct noflush_work *w = to_noflush(ws);
 	w->tc->requeue_mode = true;
 	requeue_io(w->tc);
-	complete_noflush_work(w);
+	pool_work_complete(&w->pw);
 }
 
 static void do_noflush_stop(struct work_struct *ws)
 {
-	struct noflush_work *w = container_of(ws, struct noflush_work, worker);
+	struct noflush_work *w = to_noflush(ws);
 	w->tc->requeue_mode = false;
-	complete_noflush_work(w);
+	pool_work_complete(&w->pw);
 }
 
 static void noflush_work(struct thin_c *tc, void (*fn)(struct work_struct *))
 {
 	struct noflush_work w;
 
-	INIT_WORK_ONSTACK(&w.worker, fn);
 	w.tc = tc;
-	atomic_set(&w.complete, 0);
-	init_waitqueue_head(&w.wait);
-
-	queue_work(tc->pool->wq, &w.worker);
-
-	wait_event(w.wait, atomic_read(&w.complete));
+	pool_work_wait(&w.pw, tc->pool, fn);
 }
 
 /*----------------------------------------------------------------*/
