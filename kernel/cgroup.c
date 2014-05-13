@@ -2580,7 +2580,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 * active_ref protection.
 	 */
 	cgroup_get(cgrp);
-	kernfs_break_active_protection(cgrp->control_kn);
+	kernfs_break_active_protection(of->kn);
 
 	mutex_lock(&cgroup_tree_mutex);
 
@@ -2697,7 +2697,7 @@ out_unlock:
 out_unlock_tree:
 	mutex_unlock(&cgroup_tree_mutex);
 out_unbreak:
-	kernfs_unbreak_active_protection(cgrp->control_kn);
+	kernfs_unbreak_active_protection(of->kn);
 	cgroup_put(cgrp);
 	return ret ?: nbytes;
 
@@ -2887,9 +2887,7 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 		return ret;
 	}
 
-	if (cft->seq_show == cgroup_subtree_control_show)
-		cgrp->control_kn = kn;
-	else if (cft->seq_show == cgroup_populated_show)
+	if (cft->seq_show == cgroup_populated_show)
 		cgrp->populated_kn = kn;
 	return 0;
 }

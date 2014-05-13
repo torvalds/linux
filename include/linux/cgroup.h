@@ -177,7 +177,6 @@ struct cgroup {
 
 	struct cgroup *parent;		/* my parent */
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
-	struct kernfs_node *control_kn;	/* kn for "cgroup.subtree_control" */
 	struct kernfs_node *populated_kn; /* kn for "cgroup.subtree_populated" */
 
 	/*
