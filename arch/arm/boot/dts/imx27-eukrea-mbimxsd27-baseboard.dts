@@ -1,0 +1,274 @@
+/*
+ * Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "imx27-eukrea-cpuimx27.dtsi"
+
+/ {
+	model = "Eukrea MBIMXSD27";
+	compatible = "eukrea,mbimxsd27-baseboard", "eukrea,cpuimx27", "fsl,imx27";
+
+	display0: CMO-QVGA {
+		model = "CMO-QVGA";
+		native-mode = <&timing0>;
+		bits-per-pixel = <16>;
+		fsl,pcr = <0xfad08b80>;
+
+		display-timings {
+			timing0: 320x240 {
+				clock-frequency = <6500000>;
+				hactive = <320>;
+				vactive = <240>;
+				hback-porch = <20>;
+				hsync-len = <30>;
+				hfront-porch = <38>;
+				vback-porch = <4>;
+				vsync-len = <3>;
+				vfront-porch = <15>;
+			};
+		};
+	};
+
+	backlight {
+		compatible = "gpio-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight>;
+		gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpioleds>;
+
+		led1 {
+			label = "system::live";
+			gpios = <&gpio6 16 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led2 {
+			label = "system::user";
+			gpios = <&gpio6 19 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	regulators {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
+
+		reg_lcd: regulator@0 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_lcdreg>;
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "LCD";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 25 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+	};
+};
+
+&cspi1 {
+	pinctrl-0 = <&pinctrl_cspi1>;
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	ads7846 {
+		compatible = "ti,ads7846";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touch>;
+		reg = <0>;
+		interrupts = <&gpio4 25 IRQ_TYPE_LEVEL_LOW>;
+		spi-cpol;
+		spi-max-frequency = <1500000>;
+		ti,keep-vref-on;
+	};
+};
+
+&fb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_imxfb>;
+	display = <&display0>;
+	lcd-supply = <&reg_lcd>;
+	fsl,dmacr = <0x00040060>;
+	fsl,lscr1 = <0x00120300>;
+	fsl,lpccr = <0x00a903ff>;
+	status = "okay";
+};
+
+&i2c1 {
+	codec: codec@1a {
+		compatible = "ti,tlv320aic23";
+		reg = <0x1a>;
+	};
+};
+
+&kpp {
+	linux,keymap = <
+		MATRIX_KEY(0, 0, KEY_UP)
+		MATRIX_KEY(0, 1, KEY_DOWN)
+		MATRIX_KEY(1, 0, KEY_RIGHT)
+		MATRIX_KEY(1, 1, KEY_LEFT)
+	>;
+	status = "okay";
+};
+
+&sdhci1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhc1>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&ssi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ssi1>;
+	fsl,mode = "i2s-slave";
+	codec-handle = <&codec>;
+	status = "okay";
+};
+
+&uart1 {
+	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&uart3 {
+	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
+&iomuxc {
+	imx27-eukrea-cpuimx27-baseboard {
+		pinctrl_cspi1: cspi1grp {
+			fsl,pins = <
+				MX27_PAD_CSPI1_MISO__CSPI1_MISO	0x0
+				MX27_PAD_CSPI1_MOSI__CSPI1_MOSI	0x0
+				MX27_PAD_CSPI1_SCLK__CSPI1_SCLK	0x0
+				MX27_PAD_CSPI1_SS0__GPIO4_28	0x0 /* CS0 */
+			>;
+		};
+
+		pinctrl_backlight: backlightgrp {
+			fsl,pins = <
+				MX27_PAD_PWMO__GPIO5_5		0x0
+			>;
+		};
+
+		pinctrl_gpioleds: gpioledsgrp {
+			fsl,pins = <
+				MX27_PAD_PC_PWRON__GPIO6_16	0x0
+				MX27_PAD_PC_CD2_B__GPIO6_19	0x0
+			>;
+		};
+
+		pinctrl_imxfb: imxfbgrp {
+			fsl,pins = <
+				MX27_PAD_LD0__LD0		0x0
+				MX27_PAD_LD1__LD1		0x0
+				MX27_PAD_LD2__LD2		0x0
+				MX27_PAD_LD3__LD3		0x0
+				MX27_PAD_LD4__LD4		0x0
+				MX27_PAD_LD5__LD5		0x0
+				MX27_PAD_LD6__LD6		0x0
+				MX27_PAD_LD7__LD7		0x0
+				MX27_PAD_LD8__LD8		0x0
+				MX27_PAD_LD9__LD9		0x0
+				MX27_PAD_LD10__LD10		0x0
+				MX27_PAD_LD11__LD11		0x0
+				MX27_PAD_LD12__LD12		0x0
+				MX27_PAD_LD13__LD13		0x0
+				MX27_PAD_LD14__LD14		0x0
+				MX27_PAD_LD15__LD15		0x0
+				MX27_PAD_LD16__LD16		0x0
+				MX27_PAD_LD17__LD17		0x0
+				MX27_PAD_CONTRAST__CONTRAST	0x0
+				MX27_PAD_OE_ACD__OE_ACD		0x0
+				MX27_PAD_HSYNC__HSYNC		0x0
+				MX27_PAD_VSYNC__VSYNC		0x0
+			>;
+		};
+
+		pinctrl_lcdreg: lcdreggrp {
+			fsl,pins = <
+				MX27_PAD_CLS__GPIO1_25		0x0
+			>;
+		};
+
+		pinctrl_sdhc1: sdhc1grp {
+			fsl,pins = <
+				MX27_PAD_SD1_CLK__SD1_CLK	0x0
+				MX27_PAD_SD1_CMD__SD1_CMD	0x0
+				MX27_PAD_SD1_D0__SD1_D0		0x0
+				MX27_PAD_SD1_D1__SD1_D1		0x0
+				MX27_PAD_SD1_D2__SD1_D2		0x0
+				MX27_PAD_SD1_D3__SD1_D3		0x0
+			>;
+		};
+
+		pinctrl_ssi1: ssi1grp {
+			fsl,pins = <
+				MX27_PAD_SSI4_CLK__SSI4_CLK	0x0
+				MX27_PAD_SSI4_FS__SSI4_FS	0x0
+				MX27_PAD_SSI4_RXDAT__SSI4_RXDAT	0x1
+				MX27_PAD_SSI4_TXDAT__SSI4_TXDAT	0x1
+			>;
+		};
+
+		pinctrl_touch: touchgrp {
+			fsl,pins = <
+				MX27_PAD_CSPI1_RDY__GPIO4_25	0x0 /* IRQ */
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX27_PAD_UART1_TXD__UART1_TXD	0x0
+				MX27_PAD_UART1_RXD__UART1_RXD	0x0
+				MX27_PAD_UART1_CTS__UART1_CTS	0x0
+				MX27_PAD_UART1_RTS__UART1_RTS	0x0
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX27_PAD_UART2_TXD__UART2_TXD	0x0
+				MX27_PAD_UART2_RXD__UART2_RXD	0x0
+				MX27_PAD_UART2_CTS__UART2_CTS	0x0
+				MX27_PAD_UART2_RTS__UART2_RTS	0x0
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX27_PAD_UART3_TXD__UART3_TXD	0x0
+				MX27_PAD_UART3_RXD__UART3_RXD	0x0
+				MX27_PAD_UART3_CTS__UART3_CTS	0x0
+				MX27_PAD_UART3_RTS__UART3_RTS	0x0
+			>;
+		};
+	};
+};
