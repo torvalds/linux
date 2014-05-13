@@ -811,6 +811,7 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 	struct ricoh619_platform_data *pdata;
 	int ret;
 	uint8_t control;
+	int i=0;
 	 printk("%s,line=%d\n", __func__,__LINE__);
 
 	ricoh619 = devm_kzalloc(&client->dev,sizeof(struct ricoh619), GFP_KERNEL);
@@ -824,8 +825,22 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 
 	ret = ricoh619_read(ricoh619->dev, 0x36, &control);
 	if ((ret <0) || (control < 0) || (control == 0xff) || (control == 0) ){
-		printk(KERN_INFO "The device is not ricoh619 %08x %d\n",control,ret);
-		goto err;
+		if (ret <0){
+			printk(KERN_INFO "The device is not ricoh619 %08x %d\n",control,ret);
+			goto err;
+		}
+		else{
+			do{
+				ret = ricoh619_read(ricoh619->dev, 0x36, &control);
+				i += 1;
+				printk(KERN_INFO "##################:read ricoh619 0x36 error retry %08x %d\n",control,ret);
+			}while( ((control == 0xff) || (control == 0) ) && (i < 10));
+			if ((control == 0xff) || (control == 0) ){
+				ret = -ENXIO;	
+				printk(KERN_INFO "##################The device is not ricoh619 %08x %d\n",control,ret);
+				goto err;
+			}
+		}
 	}
 
 	ret = ricoh619_pre_init(ricoh619);
