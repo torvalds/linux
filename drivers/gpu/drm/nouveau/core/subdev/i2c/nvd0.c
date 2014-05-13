@@ -75,7 +75,7 @@ nvd0_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static struct nouveau_oclass
+struct nouveau_oclass
 nvd0_i2c_sclass[] = {
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT),
 	  .ofuncs = &(struct nouveau_ofuncs) {

@@ -80,6 +80,7 @@ extern struct nouveau_oclass *nv4e_i2c_oclass;
 extern struct nouveau_oclass *nv50_i2c_oclass;
 extern struct nouveau_oclass *nv94_i2c_oclass;
 extern struct nouveau_oclass *nvd0_i2c_oclass;
+extern struct nouveau_oclass *nve0_i2c_oclass;
 
 static inline int
 nv_rdi2cr(struct nouveau_i2c_port *port, u8 addr, u8 reg)

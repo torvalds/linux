@@ -49,6 +49,7 @@ int  _nouveau_i2c_init(struct nouveau_object *);
 int  _nouveau_i2c_fini(struct nouveau_object *, bool);
 
 extern struct nouveau_oclass nouveau_anx9805_sclass[];
+extern struct nouveau_oclass nvd0_i2c_sclass[];
 
 extern const struct i2c_algorithm nouveau_i2c_bit_algo;
 extern const struct i2c_algorithm nouveau_i2c_aux_algo;
