@@ -1893,14 +1893,15 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
 
-BROADCOM BCM281XX/BCM11XXX ARM ARCHITECTURE
+BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
 M:	Christian Daudt <bcm@fixthebug.org>
 M:	Matt Porter <mporter@linaro.org>
 L:	bcm-kernel-feedback-list@broadcom.com
-T:	git git://git.github.com/broadcom/bcm11351
+T:	git git://github.com/broadcom/mach-bcm
 S:	Maintained
 F:	arch/arm/mach-bcm/
 F:	arch/arm/boot/dts/bcm113*
+F:	arch/arm/boot/dts/bcm216*
 F:	arch/arm/boot/dts/bcm281*
 F:	arch/arm/configs/bcm_defconfig
 F:	drivers/mmc/host/sdhci_bcm_kona.c
