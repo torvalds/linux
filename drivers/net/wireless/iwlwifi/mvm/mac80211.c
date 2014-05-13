@@ -834,7 +834,8 @@ static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
 
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 	iwl_mvm_d0i3_enable_tx(mvm, NULL);
-	ret = iwl_mvm_update_quotas(mvm, NULL);
+	ret = iwl_mvm_update_quotas(mvm, NULL,
+				    IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR);
 	if (ret)
 		IWL_ERR(mvm, "Failed to update quotas after restart (%d)\n",
 			ret);
@@ -1421,7 +1422,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			/* add quota for this interface */
-			ret = iwl_mvm_update_quotas(mvm, vif);
+			ret = iwl_mvm_update_quotas(mvm, vif,
+					    IWL_MVM_QUOTA_UPDATE_TYPE_NEW);
 			if (ret) {
 				IWL_ERR(mvm, "failed to update quotas\n");
 				return;
@@ -1469,7 +1471,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 			mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
 			/* remove quota for this interface */
-			ret = iwl_mvm_update_quotas(mvm, NULL);
+			ret = iwl_mvm_update_quotas(mvm, NULL,
+					    IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR);
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 
@@ -1568,7 +1571,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	/* power updated needs to be done before quotas */
 	iwl_mvm_power_update_mac(mvm);
 
-	ret = iwl_mvm_update_quotas(mvm, vif);
+	ret = iwl_mvm_update_quotas(mvm, vif, IWL_MVM_QUOTA_UPDATE_TYPE_NEW);
 	if (ret)
 		goto out_quota_failed;
 
@@ -1617,7 +1620,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	if (vif->p2p && mvm->p2p_device_vif)
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false);
 
-	iwl_mvm_update_quotas(mvm, NULL);
+	iwl_mvm_update_quotas(mvm, NULL, IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR);
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
@@ -2403,14 +2406,15 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		mvmvif->monitor_active = true;
-		ret = iwl_mvm_update_quotas(mvm, vif);
+		ret = iwl_mvm_update_quotas(mvm, vif,
+					    IWL_MVM_QUOTA_UPDATE_TYPE_NEW);
 		if (ret)
 			goto out_remove_binding;
 	}
 
 	/* Handle binding during CSA */
 	if (vif->type == NL80211_IFTYPE_AP) {
-		iwl_mvm_update_quotas(mvm, vif);
+		iwl_mvm_update_quotas(mvm, vif, IWL_MVM_QUOTA_UPDATE_TYPE_NEW);
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false);
 	}
 
@@ -2442,7 +2446,8 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		goto out_unlock;
 	case NL80211_IFTYPE_MONITOR:
 		mvmvif->monitor_active = false;
-		iwl_mvm_update_quotas(mvm, NULL);
+		iwl_mvm_update_quotas(mvm, NULL,
+				      IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR);
 		break;
 	case NL80211_IFTYPE_AP:
 		/* This part is triggered only during CSA */
@@ -2450,8 +2455,8 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			goto out_unlock;
 
 		mvmvif->ap_ibss_active = false;
-		iwl_mvm_update_quotas(mvm, NULL);
-		/*TODO: bt_coex notification here? */
+		iwl_mvm_update_quotas(mvm, NULL,
+				      IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR);
 	default:
 		break;
 	}
@@ -2515,7 +2520,8 @@ static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
 		mvm->noa_duration = noa_duration;
 		mvm->noa_vif = vif;
 
-		return iwl_mvm_update_quotas(mvm, NULL);
+		return iwl_mvm_update_quotas(mvm, NULL,
+					     IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR);
 	case IWL_MVM_TM_CMD_SET_BEACON_FILTER:
 		/* must be associated client vif - ignore authorized */
 		if (!vif || vif->type != NL80211_IFTYPE_STATION ||

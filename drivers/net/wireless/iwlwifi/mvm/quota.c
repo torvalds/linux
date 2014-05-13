@@ -73,7 +73,8 @@ struct iwl_mvm_quota_iterator_data {
 	int colors[MAX_BINDINGS];
 	int low_latency[MAX_BINDINGS];
 	int n_low_latency_bindings;
-	struct ieee80211_vif *new_vif;
+	struct ieee80211_vif *vif;
+	enum iwl_mvm_quota_update_type type;
 };
 
 static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
@@ -89,7 +90,7 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	 * the add_interface callback (otherwise it won't show
 	 * up in iteration)
 	 */
-	if (vif == data->new_vif)
+	if (data->type == IWL_MVM_QUOTA_UPDATE_TYPE_NEW && vif == data->vif)
 		return;
 
 	if (!mvmvif->phy_ctxt)
@@ -108,6 +109,10 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 		data->colors[id] = mvmvif->phy_ctxt->color;
 	else
 		WARN_ON_ONCE(data->colors[id] != mvmvif->phy_ctxt->color);
+
+	if (data->type == IWL_MVM_QUOTA_UPDATE_TYPE_DISABLED &&
+	    vif == data->vif)
+		return;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -171,14 +176,16 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 #endif
 }
 
-int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
+int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			  enum iwl_mvm_quota_update_type type)
 {
 	struct iwl_time_quota_cmd cmd = {};
 	int i, idx, ret, num_active_macs, quota, quota_rem, n_non_lowlat;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
-		.new_vif = newvif,
+		.vif = vif,
+		.type = type,
 	};
 
 	lockdep_assert_held(&mvm->mutex);
@@ -190,12 +197,17 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 	/* iterator data above must match */
 	BUILD_BUG_ON(MAX_BINDINGS != 4);
 
+	if (WARN_ON_ONCE((type != IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR && !vif) ||
+			 (type == IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR && vif)))
+		return -EINVAL;
+
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_quota_iterator, &data);
-	if (newvif) {
-		data.new_vif = NULL;
-		iwl_mvm_quota_iterator(&data, newvif->addr, newvif);
+	if (type == IWL_MVM_QUOTA_UPDATE_TYPE_NEW) {
+		data.vif = NULL;
+		data.type = IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR;
+		iwl_mvm_quota_iterator(&data, vif->addr, vif);
 	}
 
 	/*

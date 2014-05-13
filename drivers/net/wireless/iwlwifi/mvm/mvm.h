@@ -844,7 +844,29 @@ int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 /* Quota management */
-int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif);
+
+/**
+ * enum iwl_mvm_quota_update_type - quota update type
+
+ * @IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR: regular quota update, use the
+ *	existing vifs (ie. no new vif nor a disabled vif is passed).
+ * @IWL_MVM_QUOTA_UPDATE_TYPE_NEW: a new vif is being added to the
+ *	quota calculation and needs to be treated differently.
+ * @IWL_MVM_QUOTA_UPDATE_TYPE_DISABLED: temporarily disable a vif from
+ *	the quota calculation.  The mvm mutex must remain held for the
+ *	entire time during which the vif is to remain disabled,
+ *	otherwise there is no guarantee that another code flow will
+ *	not reenable it accidentally (by updating the quotas without
+ *	marking the vif as disabled).
+ */
+enum iwl_mvm_quota_update_type {
+	IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR,
+	IWL_MVM_QUOTA_UPDATE_TYPE_NEW,
+	IWL_MVM_QUOTA_UPDATE_TYPE_DISABLED,
+};
+
+int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			  enum iwl_mvm_quota_update_type type);
 
 /* Scanning */
 int iwl_mvm_scan_request(struct iwl_mvm *mvm,
