@@ -269,6 +269,17 @@
 			clocks = <&osc24M>, <&pll6>;
 			clock-output-names = "spi3";
 		};
+
+		usb_clk: clk@01c200cc {
+			#clock-cells = <1>;
+		        #reset-cells = <1>;
+			compatible = "allwinner,sun6i-a31-usb-clk";
+			reg = <0x01c200cc 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "usb_phy0", "usb_phy1", "usb_phy2",
+					     "usb_ohci0", "usb_ohci1",
+					     "usb_ohci2";
+		};
 	};
 
 	soc@01c00000 {
