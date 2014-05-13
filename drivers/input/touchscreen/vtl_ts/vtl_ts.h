@@ -27,7 +27,7 @@
 
 #define TS_I2C_SPEED		400000	    //for rockchip
 
-#ifdef TB1_USE_F402
+#if(TB1_USE_F402)
 #define		XY_SWAP_ENABLE		1
 #else
 #define		XY_SWAP_ENABLE		0
@@ -35,7 +35,7 @@
 
 #define		X_REVERSE_ENABLE	0
 
-#ifdef TB1_USE_F402
+#if(TB1_USE_F402)
 #define		Y_REVERSE_ENABLE	0
 #else
 #define		Y_REVERSE_ENABLE	1
