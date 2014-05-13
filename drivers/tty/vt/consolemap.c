@@ -179,7 +179,6 @@ struct uni_pagedir {
 	unsigned long	sum;
 	unsigned char	*inverse_translations[4];
 	u16		*inverse_trans_unicode;
-	int		readonly;
 };
 
 static struct uni_pagedir *dflt;
@@ -501,9 +500,6 @@ static int con_do_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
 	struct uni_pagedir *p, *q;
 
 	p = *vc->vc_uni_pagedir_loc;
-	if (p && p->readonly)
-		return -EIO;
-
 	if (!p || --p->refcount) {
 		q = kzalloc(sizeof(*p), GFP_KERNEL);
 		if (!q) {
@@ -536,19 +532,13 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	int err = 0, err1, i;
 	struct uni_pagedir *p, *q;
 
+	if (!ct)
+		return 0;
+
 	console_lock();
 
 	/* Save original vc_unipagdir_loc in case we allocate a new one */
 	p = *vc->vc_uni_pagedir_loc;
-	if (p->readonly) {
-		console_unlock();
-		return -EIO;
-	}
-	
-	if (!ct) {
-		console_unlock();
-		return 0;
-	}
 	
 	if (p->refcount > 1) {
 		int j, k;
