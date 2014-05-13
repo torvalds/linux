@@ -292,7 +292,6 @@ static void runnables_device_busy(void)
 	mutex_lock(&runnables_lock);
 	if (runnables_state == RUNNING) {
 		runnables_state = IDLE;
-		cancel_work_sync(&runnables_work);
 		del_timer_sync(&runnables_timer);
 	}
 	mutex_unlock(&runnables_lock);
@@ -314,7 +313,6 @@ static void runnables_stop(void)
 
 	runnables_state = DISABLED;
 	del_timer_sync(&runnables_timer);
-	cancel_work_sync(&runnables_work);
 	kobject_put(runnables_kobject);
 	kfree(runnables_kobject);
 
