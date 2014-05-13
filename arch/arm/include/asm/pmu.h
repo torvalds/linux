@@ -109,7 +109,7 @@ struct arm_pmu {
 	struct mutex	reserve_mutex;
 	u64		max_period;
 	struct platform_device	*plat_device;
-	struct pmu_hw_events	*(*get_hw_events)(void);
+	struct pmu_hw_events	__percpu *hw_events;
 };
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))

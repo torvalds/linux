@@ -67,11 +67,6 @@ EXPORT_SYMBOL_GPL(perf_num_counters);
 #include "perf_event_v6.c"
 #include "perf_event_v7.c"
 
-static struct pmu_hw_events *cpu_pmu_get_cpu_events(void)
-{
-	return this_cpu_ptr(&cpu_hw_events);
-}
-
 static void cpu_pmu_enable_percpu_irq(void *data)
 {
 	int irq = *(int *)data;
@@ -174,7 +169,7 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 		per_cpu(percpu_pmu, cpu) = cpu_pmu;
 	}
 
-	cpu_pmu->get_hw_events	= cpu_pmu_get_cpu_events;
+	cpu_pmu->hw_events	= &cpu_hw_events;
 	cpu_pmu->request_irq	= cpu_pmu_request_irq;
 	cpu_pmu->free_irq	= cpu_pmu_free_irq;
 
