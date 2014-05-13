@@ -90,7 +90,7 @@ static const struct mfd_cell s2mpa01_devs[] = {
 };
 
 #ifdef CONFIG_OF
-static struct of_device_id sec_dt_match[] = {
+static const struct of_device_id sec_dt_match[] = {
 	{	.compatible = "samsung,s5m8767-pmic",
 		.data = (void *)S5M8767X,
 	}, {
