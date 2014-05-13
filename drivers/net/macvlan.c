@@ -1091,6 +1091,13 @@ static int macvlan_device_event(struct notifier_block *unused,
 			netdev_update_features(vlan->dev);
 		}
 		break;
+	case NETDEV_CHANGEMTU:
+		list_for_each_entry(vlan, &port->vlans, list) {
+			if (vlan->dev->mtu <= dev->mtu)
+				continue;
+			dev_set_mtu(vlan->dev, dev->mtu);
+		}
+		break;
 	case NETDEV_UNREGISTER:
 		/* twiddle thumbs on netns device moves */
 		if (dev->reg_state != NETREG_UNREGISTERING)
