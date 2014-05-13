@@ -48,11 +48,15 @@
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 #define ADMIN_TIMEOUT	(60 * HZ)
-#define IOD_TIMEOUT	(4 * NVME_IO_TIMEOUT)
+#define IOD_TIMEOUT	(retry_time * HZ)
 
 unsigned char io_timeout = 30;
 module_param(io_timeout, byte, 0644);
 MODULE_PARM_DESC(io_timeout, "timeout in seconds for I/O");
+
+static unsigned char retry_time = 30;
+module_param(retry_time, byte, 0644);
+MODULE_PARM_DESC(retry_time, "time in seconds to retry failed I/O");
 
 static int nvme_major;
 module_param(nvme_major, int, 0);
