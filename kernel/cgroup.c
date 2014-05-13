@@ -4102,7 +4102,6 @@ static void css_release(struct percpu_ref *ref)
 		container_of(ref, struct cgroup_subsys_state, refcnt);
 	struct cgroup_subsys *ss = css->ss;
 
-	RCU_INIT_POINTER(css->cgroup->subsys[ss->id], NULL);
 	cgroup_idr_remove(&ss->css_idr, css->id);
 
 	call_rcu(&css->rcu_head, css_free_rcu_fn);
