@@ -94,8 +94,25 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int rs = get_rs(inst);
 	int ra = get_ra(inst);
 	int rb = get_rb(inst);
+	u32 inst_sc = 0x44000002;
 
 	switch (get_op(inst)) {
+	case 0:
+		emulated = EMULATE_FAIL;
+		if ((kvmppc_get_msr(vcpu) & MSR_LE) &&
+		    (inst == swab32(inst_sc))) {
+			/*
+			 * This is the byte reversed syscall instruction of our
+			 * hypercall handler. Early versions of LE Linux didn't
+			 * swap the instructions correctly and ended up in
+			 * illegal instructions.
+			 * Just always fail hypercalls on these broken systems.
+			 */
+			kvmppc_set_gpr(vcpu, 3, EV_UNIMPLEMENTED);
+			kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
+			emulated = EMULATE_DONE;
+		}
+		break;
 	case 19:
 		switch (get_xop(inst)) {
 		case OP_19_XOP_RFID:
