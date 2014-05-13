@@ -24,6 +24,7 @@ extern void usb_disable_device(struct usb_device *dev, int skip_ep0);
 extern int usb_deauthorize_device(struct usb_device *);
 extern int usb_authorize_device(struct usb_device *);
 extern void usb_detect_quirks(struct usb_device *udev);
+extern void usb_detect_interface_quirks(struct usb_device *udev);
 extern int usb_remove_device(struct usb_device *udev);
 
 extern int usb_get_device_descriptor(struct usb_device *dev,
@@ -35,10 +36,13 @@ extern int usb_set_configuration(struct usb_device *dev, int configuration);
 extern int usb_choose_configuration(struct usb_device *udev);
 
 extern void usb_kick_khubd(struct usb_device *dev);
+extern int usb_match_one_id_intf(struct usb_device *dev,
+				 struct usb_host_interface *intf,
+				 const struct usb_device_id *id);
 extern int usb_match_device(struct usb_device *dev,
 			    const struct usb_device_id *id);
 extern void usb_forced_unbind_intf(struct usb_interface *intf);
-extern void usb_rebind_intf(struct usb_interface *intf);
+extern void usb_unbind_and_rebind_marked_interfaces(struct usb_device *udev);
 
 extern int usb_hub_claim_port(struct usb_device *hdev, unsigned port,
 		void *owner);

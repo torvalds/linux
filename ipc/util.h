@@ -138,8 +138,8 @@ int ipc_parse_version (int *cmd);
 #endif
 
 extern void free_msg(struct msg_msg *msg);
-extern struct msg_msg *load_msg(const void __user *src, int len);
-extern int store_msg(void __user *dest, struct msg_msg *msg, int len);
+extern struct msg_msg *load_msg(const void __user *src, size_t len);
+extern int store_msg(void __user *dest, struct msg_msg *msg, size_t len);
 
 extern void recompute_msgmni(struct ipc_namespace *);
 
