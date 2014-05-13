@@ -96,9 +96,29 @@ static const struct radar_types fcc_radar_types = {
 	.radar_types		= fcc_radar_ref_types,
 };
 
+#define JP_PATTERN FCC_PATTERN
+static const struct radar_detector_specs jp_radar_ref_types[] = {
+	JP_PATTERN(0, 0, 1, 1428, 1428, 1, 18),
+	JP_PATTERN(1, 2, 3, 3846, 3846, 1, 18),
+	JP_PATTERN(2, 0, 1, 1388, 1388, 1, 18),
+	JP_PATTERN(3, 1, 2, 4000, 4000, 1, 18),
+	JP_PATTERN(4, 0, 5, 150, 230, 1, 23),
+	JP_PATTERN(5, 6, 10, 200, 500, 1, 16),
+	JP_PATTERN(6, 11, 20, 200, 500, 1, 12),
+	JP_PATTERN(7, 50, 100, 1000, 2000, 20, 1),
+	JP_PATTERN(5, 0, 1, 333, 333, 1, 9),
+};
+
+static const struct radar_types jp_radar_types = {
+	.region			= NL80211_DFS_JP,
+	.num_radar_types	= ARRAY_SIZE(jp_radar_ref_types),
+	.radar_types		= jp_radar_ref_types,
+};
+
 static const struct radar_types *dfs_domains[] = {
 	&etsi_radar_types_v15,
 	&fcc_radar_types,
+	&jp_radar_types,
 };
 
 /**
