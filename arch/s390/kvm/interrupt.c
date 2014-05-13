@@ -585,60 +585,32 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 {
 	u64 now, sltime;
-	DECLARE_WAITQUEUE(wait, current);
 
 	vcpu->stat.exit_wait_state++;
-	if (kvm_cpu_has_interrupt(vcpu))
-		return 0;
 
-	__set_cpu_idle(vcpu);
-	spin_lock_bh(&vcpu->arch.local_int.lock);
-	vcpu->arch.local_int.timer_due = 0;
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
+	/* fast path */
+	if (kvm_cpu_has_pending_timer(vcpu) || kvm_arch_vcpu_runnable(vcpu))
+		return 0;
 
 	if (psw_interrupts_disabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "disabled wait");
-		__unset_cpu_idle(vcpu);
 		return -EOPNOTSUPP; /* disabled wait */
 	}
 
+	__set_cpu_idle(vcpu);
 	if (!ckc_interrupts_enabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "enabled wait w/o timer");
 		goto no_timer;
 	}
 
 	now = get_tod_clock_fast() + vcpu->arch.sie_block->epoch;
-	if (vcpu->arch.sie_block->ckc < now) {
-		__unset_cpu_idle(vcpu);
-		return 0;
-	}
-
 	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
-
 	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
 	VCPU_EVENT(vcpu, 5, "enabled wait via clock comparator: %llx ns", sltime);
 no_timer:
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-	spin_lock(&vcpu->arch.local_int.float_int->lock);
-	spin_lock_bh(&vcpu->arch.local_int.lock);
-	add_wait_queue(&vcpu->wq, &wait);
-	while (list_empty(&vcpu->arch.local_int.list) &&
-		list_empty(&vcpu->arch.local_int.float_int->list) &&
-		(!vcpu->arch.local_int.timer_due) &&
-		!signal_pending(current) &&
-		!kvm_s390_si_ext_call_pending(vcpu)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		spin_unlock_bh(&vcpu->arch.local_int.lock);
-		spin_unlock(&vcpu->arch.local_int.float_int->lock);
-		schedule();
-		spin_lock(&vcpu->arch.local_int.float_int->lock);
-		spin_lock_bh(&vcpu->arch.local_int.lock);
-	}
+	kvm_vcpu_block(vcpu);
 	__unset_cpu_idle(vcpu);
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&vcpu->wq, &wait);
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
-	spin_unlock(&vcpu->arch.local_int.float_int->lock);
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
@@ -649,11 +621,8 @@ void kvm_s390_tasklet(unsigned long parm)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) parm;
 
-	spin_lock(&vcpu->arch.local_int.lock);
-	vcpu->arch.local_int.timer_due = 1;
 	if (waitqueue_active(&vcpu->wq))
 		wake_up_interruptible(&vcpu->wq);
-	spin_unlock(&vcpu->arch.local_int.lock);
 }
 
 /*

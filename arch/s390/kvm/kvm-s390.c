@@ -1068,6 +1068,9 @@ retry:
 		goto retry;
 	}
 
+	/* nothing to do, just clear the request */
+	clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
+
 	return 0;
 }
 
