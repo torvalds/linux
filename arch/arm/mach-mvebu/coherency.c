@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/mbus.h>
 #include <linux/clk.h>
+#include <linux/pci.h>
 #include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
 #include "armada-370-xp.h"
@@ -274,8 +275,8 @@ static struct dma_map_ops mvebu_hwcc_dma_ops = {
 	.set_dma_mask		= arm_dma_set_mask,
 };
 
-static int mvebu_hwcc_platform_notifier(struct notifier_block *nb,
-				       unsigned long event, void *__dev)
+static int mvebu_hwcc_notifier(struct notifier_block *nb,
+			       unsigned long event, void *__dev)
 {
 	struct device *dev = __dev;
 
@@ -286,8 +287,8 @@ static int mvebu_hwcc_platform_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mvebu_hwcc_platform_nb = {
-	.notifier_call = mvebu_hwcc_platform_notifier,
+static struct notifier_block mvebu_hwcc_nb = {
+	.notifier_call = mvebu_hwcc_notifier,
 };
 
 static void __init armada_370_coherency_init(struct device_node *np)
@@ -375,9 +376,19 @@ static int __init coherency_late_init(void)
 	}
 
 	bus_register_notifier(&platform_bus_type,
-			      &mvebu_hwcc_platform_nb);
+			      &mvebu_hwcc_nb);
 
 	return 0;
 }
 
 postcore_initcall(coherency_late_init);
+
+static int __init coherency_pci_init(void)
+{
+	if (coherency_available())
+		bus_register_notifier(&pci_bus_type,
+				       &mvebu_hwcc_nb);
+	return 0;
+}
+
+arch_initcall(coherency_pci_init);
