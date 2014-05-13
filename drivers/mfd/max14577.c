@@ -26,7 +26,7 @@
 #include <linux/mfd/max14577.h>
 #include <linux/mfd/max14577-private.h>
 
-static struct mfd_cell max14577_devs[] = {
+static const struct mfd_cell max14577_devs[] = {
 	{
 		.name = "max14577-muic",
 		.of_compatible = "maxim,max14577-muic",
@@ -38,7 +38,7 @@ static struct mfd_cell max14577_devs[] = {
 	{ .name = "max14577-charger", },
 };
 
-static struct mfd_cell max77836_devs[] = {
+static const struct mfd_cell max77836_devs[] = {
 	{
 		.name = "max77836-muic",
 		.of_compatible = "maxim,max77836-muic",
@@ -292,7 +292,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 	struct device_node *np = i2c->dev.of_node;
 	int ret = 0;
 	const struct regmap_irq_chip *irq_chip;
-	struct mfd_cell *mfd_devs;
+	const struct mfd_cell *mfd_devs;
 	unsigned int mfd_devs_size;
 	int irq_flags;
 
