@@ -3112,7 +3112,7 @@ static int db8500_prcmu_register_ab8500(struct device *parent,
 {
 	struct device_node *np;
 	struct resource ab8500_resource;
-	struct mfd_cell ab8500_cell = {
+	const struct mfd_cell ab8500_cell = {
 		.name = "ab8500-core",
 		.of_compatible = "stericsson,ab8500",
 		.id = AB8500_VERSION_AB8500,
