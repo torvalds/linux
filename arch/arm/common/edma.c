@@ -1598,7 +1598,6 @@ static int edma_probe(struct platform_device *pdev)
 	struct resource		*r[EDMA_MAX_CC] = {NULL};
 	struct resource		res[EDMA_MAX_CC];
 	char			res_name[10];
-	char			irq_name[10];
 	struct device_node	*node = pdev->dev.of_node;
 	struct device		*dev = &pdev->dev;
 	int			ret;
@@ -1720,14 +1719,21 @@ static int edma_probe(struct platform_device *pdev)
 
 		if (node) {
 			irq[j] = irq_of_parse_and_map(node, 0);
+			err_irq[j] = irq_of_parse_and_map(node, 2);
 		} else {
+			char irq_name[10];
+
 			sprintf(irq_name, "edma%d", j);
 			irq[j] = platform_get_irq_byname(pdev, irq_name);
+
+			sprintf(irq_name, "edma%d_err", j);
+			err_irq[j] = platform_get_irq_byname(pdev, irq_name);
 		}
 		edma_cc[j]->irq_res_start = irq[j];
-		status = devm_request_irq(&pdev->dev, irq[j],
-					  dma_irq_handler, 0, "edma",
-					  &pdev->dev);
+		edma_cc[j]->irq_res_end = err_irq[j];
+
+		status = devm_request_irq(dev, irq[j], dma_irq_handler, 0,
+					  "edma", dev);
 		if (status < 0) {
 			dev_dbg(&pdev->dev,
 				"devm_request_irq %d failed --> %d\n",
@@ -1735,16 +1741,8 @@ static int edma_probe(struct platform_device *pdev)
 			return status;
 		}
 
-		if (node) {
-			err_irq[j] = irq_of_parse_and_map(node, 2);
-		} else {
-			sprintf(irq_name, "edma%d_err", j);
-			err_irq[j] = platform_get_irq_byname(pdev, irq_name);
-		}
-		edma_cc[j]->irq_res_end = err_irq[j];
-		status = devm_request_irq(&pdev->dev, err_irq[j],
-					  dma_ccerr_handler, 0,
-					  "edma_error", &pdev->dev);
+		status = devm_request_irq(dev, err_irq[j], dma_ccerr_handler, 0,
+					  "edma_error", dev);
 		if (status < 0) {
 			dev_dbg(&pdev->dev,
 				"devm_request_irq %d failed --> %d\n",
