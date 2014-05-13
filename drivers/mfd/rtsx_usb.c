@@ -29,7 +29,7 @@ static int polling_pipe = 1;
 module_param(polling_pipe, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(polling_pipe, "polling pipe (0: ctl, 1: bulk)");
 
-static struct mfd_cell rtsx_usb_cells[] = {
+static const struct mfd_cell rtsx_usb_cells[] = {
 	[RTSX_USB_SD_CARD] = {
 		.name = "rtsx_usb_sdmmc",
 		.pdata_size = 0,
