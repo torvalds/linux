@@ -91,9 +91,6 @@ int __init mx1_clocks_init(unsigned long fref)
 
 	clk_register_clkdev(clk[dma_gate], "ahb", "imx1-dma");
 	clk_register_clkdev(clk[hclk], "ipg", "imx1-dma");
-	clk_register_clkdev(clk[csi_gate], NULL, "mx1-camera.0");
-	clk_register_clkdev(clk[mma_gate], "mma", NULL);
-	clk_register_clkdev(clk[usbd_gate], NULL, "imx_udc.0");
 	clk_register_clkdev(clk[per1], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[hclk], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[per1], "per", "imx1-uart.0");
@@ -107,14 +104,9 @@ int __init mx1_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[dummy], "ipg", "imx1-cspi.0");
 	clk_register_clkdev(clk[per2], "per", "imx1-cspi.1");
 	clk_register_clkdev(clk[dummy], "ipg", "imx1-cspi.1");
-	clk_register_clkdev(clk[per2], NULL, "imx-mmc.0");
 	clk_register_clkdev(clk[per2], "per", "imx1-fb.0");
 	clk_register_clkdev(clk[dummy], "ipg", "imx1-fb.0");
 	clk_register_clkdev(clk[dummy], "ahb", "imx1-fb.0");
-	clk_register_clkdev(clk[hclk], "mshc", NULL);
-	clk_register_clkdev(clk[per3], "ssi", NULL);
-	clk_register_clkdev(clk[clk32], NULL, "imx1-rtc.0");
-	clk_register_clkdev(clk[clko], "clko", NULL);
 
 	mxc_timer_init(MX1_IO_ADDRESS(MX1_TIM1_BASE_ADDR), MX1_TIM1_INT);
 
