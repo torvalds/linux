@@ -295,8 +295,12 @@ uninstall:
 	- rm -f $(DESTDIR)${libdir}/libcpupower.*
 	- rm -f $(DESTDIR)${includedir}/cpufreq.h
 	- rm -f $(DESTDIR)${bindir}/utils/cpupower
-	- rm -f $(DESTDIR)${mandir}/man1/cpufreq-set.1
-	- rm -f $(DESTDIR)${mandir}/man1/cpufreq-info.1
+	- rm -f $(DESTDIR)${mandir}/man1/cpupower.1
+	- rm -f $(DESTDIR)${mandir}/man1/cpupower-frequency-set.1
+	- rm -f $(DESTDIR)${mandir}/man1/cpupower-frequency-info.1
+	- rm -f $(DESTDIR)${mandir}/man1/cpupower-set.1
+	- rm -f $(DESTDIR)${mandir}/man1/cpupower-info.1
+	- rm -f $(DESTDIR)${mandir}/man1/cpupower-monitor.1
 	- for HLANG in $(LANGUAGES); do \
 		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupower.mo; \
 	  done;
