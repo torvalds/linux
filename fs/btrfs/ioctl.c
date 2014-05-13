@@ -1503,11 +1503,12 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	sizestr = vol_args->name;
 	devstr = strchr(sizestr, ':');
 	if (devstr) {
-		char *end;
 		sizestr = devstr + 1;
 		*devstr = '\0';
 		devstr = vol_args->name;
-		devid = simple_strtoull(devstr, &end, 10);
+		ret = kstrtoull(devstr, 10, &devid);
+		if (ret)
+			goto out_free;
 		if (!devid) {
 			ret = -EINVAL;
 			goto out_free;
