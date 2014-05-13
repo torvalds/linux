@@ -220,8 +220,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define	TFO_SERVER_ENABLE	2
 #define	TFO_CLIENT_NO_COOKIE	4	/* Data in SYN w/o cookie option */
 
-/* Process SYN data but skip cookie validation */
-#define	TFO_SERVER_COOKIE_NOT_CHKED	0x100
 /* Accept SYN data w/o any cookie option */
 #define	TFO_SERVER_COOKIE_NOT_REQD	0x200
 
@@ -230,10 +228,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
  */
 #define	TFO_SERVER_WO_SOCKOPT1	0x400
 #define	TFO_SERVER_WO_SOCKOPT2	0x800
-/* Always create TFO child sockets on a TFO listener even when
- * cookie/data not present. (For testing purpose!)
- */
-#define	TFO_SERVER_ALWAYS	0x1000
 
 extern struct inet_timewait_death_row tcp_death_row;
 
@@ -1120,6 +1114,9 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->ir_num = ntohs(tcp_hdr(skb)->dest);
 }
 
+extern void tcp_openreq_init_rwin(struct request_sock *req,
+				  struct sock *sk, struct dst_entry *dst);
+
 void tcp_enter_memory_pressure(struct sock *sk);
 
 static inline int keepalive_intvl_when(const struct tcp_sock *tp)
@@ -1329,8 +1326,10 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 
 extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 int tcp_fastopen_reset_cipher(void *key, unsigned int len);
-void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
-			     struct tcp_fastopen_cookie *foc);
+bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
+		      struct request_sock *req,
+		      struct tcp_fastopen_cookie *foc,
+		      struct dst_entry *dst);
 void tcp_fastopen_init_key_once(bool publish);
 #define TCP_FASTOPEN_KEY_LENGTH 16
 

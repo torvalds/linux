@@ -366,11 +366,6 @@ static inline bool tcp_passive_fastopen(const struct sock *sk)
 		tcp_sk(sk)->fastopen_rsk != NULL);
 }
 
-static inline bool fastopen_cookie_present(struct tcp_fastopen_cookie *foc)
-{
-	return foc->len != -1;
-}
-
 extern void tcp_sock_destruct(struct sock *sk);
 
 static inline int fastopen_init_queue(struct sock *sk, int backlog)
