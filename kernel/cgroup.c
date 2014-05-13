@@ -2232,11 +2232,17 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
  * function to attach either it or all tasks in its threadgroup. Will lock
  * cgroup_mutex and threadgroup.
  */
-static int attach_task_by_pid(struct cgroup *cgrp, u64 pid, bool threadgroup)
+static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
+				    size_t nbytes, loff_t off, bool threadgroup)
 {
 	struct task_struct *tsk;
 	const struct cred *cred = current_cred(), *tcred;
+	struct cgroup *cgrp = of_css(of)->cgroup;
+	pid_t pid;
 	int ret;
+
+	if (kstrtoint(strstrip(buf), 0, &pid) || pid < 0)
+		return -EINVAL;
 
 	if (!cgroup_lock_live_group(cgrp))
 		return -ENODEV;
@@ -2305,7 +2311,7 @@ retry_find_task:
 	put_task_struct(tsk);
 out_unlock_cgroup:
 	mutex_unlock(&cgroup_mutex);
-	return ret;
+	return ret ?: nbytes;
 }
 
 /**
@@ -2339,16 +2345,16 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(cgroup_attach_task_all);
 
-static int cgroup_tasks_write(struct cgroup_subsys_state *css,
-			      struct cftype *cft, u64 pid)
+static ssize_t cgroup_tasks_write(struct kernfs_open_file *of,
+				  char *buf, size_t nbytes, loff_t off)
 {
-	return attach_task_by_pid(css->cgroup, pid, false);
+	return __cgroup_procs_write(of, buf, nbytes, off, false);
 }
 
-static int cgroup_procs_write(struct cgroup_subsys_state *css,
-			      struct cftype *cft, u64 tgid)
+static ssize_t cgroup_procs_write(struct kernfs_open_file *of,
+				  char *buf, size_t nbytes, loff_t off)
 {
-	return attach_task_by_pid(css->cgroup, tgid, true);
+	return __cgroup_procs_write(of, buf, nbytes, off, true);
 }
 
 static ssize_t cgroup_release_agent_write(struct kernfs_open_file *of,
@@ -3953,7 +3959,7 @@ static struct cftype cgroup_base_files[] = {
 		.seq_stop = cgroup_pidlist_stop,
 		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_PROCS,
-		.write_u64 = cgroup_procs_write,
+		.write = cgroup_procs_write,
 		.mode = S_IRUGO | S_IWUSR,
 	},
 	{
@@ -4002,7 +4008,7 @@ static struct cftype cgroup_base_files[] = {
 		.seq_stop = cgroup_pidlist_stop,
 		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_TASKS,
-		.write_u64 = cgroup_tasks_write,
+		.write = cgroup_tasks_write,
 		.mode = S_IRUGO | S_IWUSR,
 	},
 	{
