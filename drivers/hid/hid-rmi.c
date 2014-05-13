@@ -787,9 +787,9 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	input_set_abs_params(input, ABS_MT_POSITION_X, 1, data->max_x, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 1, data->max_y, 0, 0);
 
-	if (data->x_size_mm && data->x_size_mm) {
+	if (data->x_size_mm && data->y_size_mm) {
 		res_x = (data->max_x - 1) / data->x_size_mm;
-		res_y = (data->max_y - 1) / data->x_size_mm;
+		res_y = (data->max_y - 1) / data->y_size_mm;
 
 		input_abs_set_res(input, ABS_MT_POSITION_X, res_x);
 		input_abs_set_res(input, ABS_MT_POSITION_Y, res_y);
