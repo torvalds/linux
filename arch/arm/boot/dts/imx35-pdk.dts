@@ -18,7 +18,8 @@
 	compatible = "fsl,imx35-pdk", "fsl,imx35";
 
 	memory {
-		reg = <0x80000000 0x8000000>;
+		reg = <0x80000000 0x8000000>,
+		      <0x90000000 0x8000000>;
 	};
 };
 
