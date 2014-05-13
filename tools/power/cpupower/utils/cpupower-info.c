@@ -125,11 +125,12 @@ int cmd_info(int argc, char **argv)
 		if (params.perf_bias) {
 			ret = msr_intel_get_perf_bias(cpu);
 			if (ret < 0) {
-				printf(_("Could not read perf-bias value\n"));
-				break;
+				fprintf(stderr,
+			_("Could not read perf-bias value[%d]\n"), ret);
+				exit(EXIT_FAILURE);
 			} else
 				printf(_("perf-bias: %d\n"), ret);
 		}
 	}
-	return ret;
+	return 0;
 }
