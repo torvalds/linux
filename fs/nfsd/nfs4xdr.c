@@ -2410,6 +2410,8 @@ out_acl:
 		WRITE64(stat.ino);
 	}
 	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
+		if ((buflen -= 16) < 0)
+			goto out_resource;
 		WRITE32(3);
 		WRITE32(NFSD_SUPPATTR_EXCLCREAT_WORD0);
 		WRITE32(NFSD_SUPPATTR_EXCLCREAT_WORD1);
@@ -3405,6 +3407,9 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, int nfserr,
 {
 	struct nfsd4_test_stateid_id *stateid, *next;
 	__be32 *p;
+
+	if (nfserr)
+		return nfserr;
 
 	RESERVE_SPACE(4 + (4 * test_stateid->ts_num_ids));
 	*p++ = htonl(test_stateid->ts_num_ids);
