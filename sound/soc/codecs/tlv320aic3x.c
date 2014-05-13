@@ -1399,7 +1399,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 	}
 
 	aic3x_add_widgets(codec);
-	list_add(&aic3x->list, &reset_list);
 
 	return 0;
 
@@ -1569,7 +1568,13 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_aic3x, &aic3x_dai, 1);
-	return ret;
+
+	if (ret != 0)
+		goto err_gpio;
+
+	list_add(&aic3x->list, &reset_list);
+
+	return 0;
 
 err_gpio:
 	if (gpio_is_valid(aic3x->gpio_reset) &&
