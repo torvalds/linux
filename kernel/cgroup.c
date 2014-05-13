@@ -2583,6 +2583,10 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	kernfs_break_active_protection(of->kn);
 
 	mutex_lock(&cgroup_tree_mutex);
+	if (!cgroup_lock_live_group(cgrp)) {
+		ret = -ENODEV;
+		goto out_unlock_tree;
+	}
 
 	for_each_subsys(ss, ssid) {
 		if (enable & (1 << ssid)) {
@@ -2606,6 +2610,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 				cgroup_get(child);
 				prepare_to_wait(&child->offline_waitq, &wait,
 						TASK_UNINTERRUPTIBLE);
+				mutex_unlock(&cgroup_mutex);
 				mutex_unlock(&cgroup_tree_mutex);
 				schedule();
 				finish_wait(&child->offline_waitq, &wait);
@@ -2620,7 +2625,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 			    (cgrp->parent &&
 			     !(cgrp->parent->child_subsys_mask & (1 << ssid)))) {
 				ret = -ENOENT;
-				goto out_unlock_tree;
+				goto out_unlock;
 			}
 		} else if (disable & (1 << ssid)) {
 			if (!(cgrp->child_subsys_mask & (1 << ssid))) {
@@ -2632,7 +2637,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 			cgroup_for_each_live_child(child, cgrp) {
 				if (child->child_subsys_mask & (1 << ssid)) {
 					ret = -EBUSY;
-					goto out_unlock_tree;
+					goto out_unlock;
 				}
 			}
 		}
@@ -2640,12 +2645,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 
 	if (!enable && !disable) {
 		ret = 0;
-		goto out_unlock_tree;
-	}
-
-	if (!cgroup_lock_live_group(cgrp)) {
-		ret = -ENODEV;
-		goto out_unlock_tree;
+		goto out_unlock;
 	}
 
 	/*
