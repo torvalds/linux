@@ -453,8 +453,7 @@ struct cftype {
 
 	/*
 	 * The maximum length of string, excluding trailing nul, that can
-	 * be passed to write_string.  If < PAGE_SIZE-1, PAGE_SIZE-1 is
-	 * assumed.
+	 * be passed to write.  If < PAGE_SIZE-1, PAGE_SIZE-1 is assumed.
 	 */
 	size_t max_write_len;
 
@@ -500,13 +499,6 @@ struct cftype {
 	int (*write_s64)(struct cgroup_subsys_state *css, struct cftype *cft,
 			 s64 val);
 
-	/*
-	 * write_string() is passed a nul-terminated kernelspace
-	 * buffer of maximum length determined by max_write_len.
-	 * Returns 0 or -ve error code.
-	 */
-	int (*write_string)(struct cgroup_subsys_state *css, struct cftype *cft,
-			    char *buffer);
 	/*
 	 * trigger() callback can be used to get some kick from the
 	 * userspace, when the actual string written is not important

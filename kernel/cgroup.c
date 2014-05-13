@@ -1035,7 +1035,7 @@ static umode_t cgroup_file_mode(const struct cftype *cft)
 		mode |= S_IRUGO;
 
 	if (cft->write_u64 || cft->write_s64 || cft->write ||
-	    cft->write_string || cft->trigger)
+	    cft->trigger)
 		mode |= S_IWUSR;
 
 	return mode;
@@ -2352,20 +2352,21 @@ static int cgroup_procs_write(struct cgroup_subsys_state *css,
 	return attach_task_by_pid(css->cgroup, tgid, true);
 }
 
-static int cgroup_release_agent_write(struct cgroup_subsys_state *css,
-				      struct cftype *cft, char *buffer)
+static ssize_t cgroup_release_agent_write(struct kernfs_open_file *of,
+					  char *buf, size_t nbytes, loff_t off)
 {
-	struct cgroup_root *root = css->cgroup->root;
+	struct cgroup *cgrp = of_css(of)->cgroup;
+	struct cgroup_root *root = cgrp->root;
 
 	BUILD_BUG_ON(sizeof(root->release_agent_path) < PATH_MAX);
-	if (!cgroup_lock_live_group(css->cgroup))
+	if (!cgroup_lock_live_group(cgrp))
 		return -ENODEV;
 	spin_lock(&release_agent_path_lock);
-	strlcpy(root->release_agent_path, buffer,
+	strlcpy(root->release_agent_path, strstrip(buf),
 		sizeof(root->release_agent_path));
 	spin_unlock(&release_agent_path_lock);
 	mutex_unlock(&cgroup_mutex);
-	return 0;
+	return nbytes;
 }
 
 static int cgroup_release_agent_show(struct seq_file *seq, void *v)
@@ -2530,21 +2531,22 @@ out_finish:
 }
 
 /* change the enabled child controllers for a cgroup in the default hierarchy */
-static int cgroup_subtree_control_write(struct cgroup_subsys_state *dummy_css,
-					struct cftype *cft, char *buffer)
+static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
+					    char *buf, size_t nbytes,
+					    loff_t off)
 {
 	unsigned int enable = 0, disable = 0;
-	struct cgroup *cgrp = dummy_css->cgroup, *child;
+	struct cgroup *cgrp = of_css(of)->cgroup, *child;
 	struct cgroup_subsys *ss;
-	char *tok, *p;
+	char *tok;
 	int ssid, ret;
 
 	/*
 	 * Parse input - space separated list of subsystem names prefixed
 	 * with either + or -.
 	 */
-	p = buffer;
-	while ((tok = strsep(&p, " "))) {
+	buf = strstrip(buf);
+	while ((tok = strsep(&buf, " "))) {
 		if (tok[0] == '\0')
 			continue;
 		for_each_subsys(ss, ssid) {
@@ -2692,7 +2694,7 @@ out_unlock_tree:
 out_unbreak:
 	kernfs_unbreak_active_protection(cgrp->control_kn);
 	cgroup_put(cgrp);
-	return ret;
+	return ret ?: nbytes;
 
 err_undo_css:
 	cgrp->child_subsys_mask &= ~enable;
@@ -2738,9 +2740,7 @@ static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
 	css = cgroup_css(cgrp, cft->ss);
 	rcu_read_unlock();
 
-	if (cft->write_string) {
-		ret = cft->write_string(css, cft, strstrip(buf));
-	} else if (cft->write_u64) {
+	if (cft->write_u64) {
 		unsigned long long v;
 		ret = kstrtoull(buf, 0, &v);
 		if (!ret)
@@ -3984,7 +3984,7 @@ static struct cftype cgroup_base_files[] = {
 		.name = "cgroup.subtree_control",
 		.flags = CFTYPE_ONLY_ON_DFL,
 		.seq_show = cgroup_subtree_control_show,
-		.write_string = cgroup_subtree_control_write,
+		.write = cgroup_subtree_control_write,
 	},
 	{
 		.name = "cgroup.populated",
@@ -4018,7 +4018,7 @@ static struct cftype cgroup_base_files[] = {
 		.name = "release_agent",
 		.flags = CFTYPE_INSANE | CFTYPE_ONLY_ON_ROOT,
 		.seq_show = cgroup_release_agent_show,
-		.write_string = cgroup_release_agent_write,
+		.write = cgroup_release_agent_write,
 		.max_write_len = PATH_MAX - 1,
 	},
 	{ }	/* terminate */

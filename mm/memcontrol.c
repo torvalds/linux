@@ -5143,17 +5143,18 @@ static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
  * The user of this function is...
  * RES_LIMIT.
  */
-static int mem_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			    char *buffer)
+static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
+				char *buf, size_t nbytes, loff_t off)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
 	enum res_type type;
 	int name;
 	unsigned long long val;
 	int ret;
 
-	type = MEMFILE_TYPE(cft->private);
-	name = MEMFILE_ATTR(cft->private);
+	buf = strstrip(buf);
+	type = MEMFILE_TYPE(of_cft(of)->private);
+	name = MEMFILE_ATTR(of_cft(of)->private);
 
 	switch (name) {
 	case RES_LIMIT:
@@ -5162,7 +5163,7 @@ static int mem_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
 			break;
 		}
 		/* This function does all necessary parse...reuse it */
-		ret = res_counter_memparse_write_strategy(buffer, &val);
+		ret = res_counter_memparse_write_strategy(buf, &val);
 		if (ret)
 			break;
 		if (type == _MEM)
@@ -5175,7 +5176,7 @@ static int mem_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
 			return -EINVAL;
 		break;
 	case RES_SOFT_LIMIT:
-		ret = res_counter_memparse_write_strategy(buffer, &val);
+		ret = res_counter_memparse_write_strategy(buf, &val);
 		if (ret)
 			break;
 		/*
@@ -5192,7 +5193,7 @@ static int mem_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
 		ret = -EINVAL; /* should be BUG() ? */
 		break;
 	}
-	return ret;
+	return ret ?: nbytes;
 }
 
 static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
@@ -5964,9 +5965,10 @@ static void memcg_event_ptable_queue_proc(struct file *file,
  * Input must be in format '<event_fd> <control_fd> <args>'.
  * Interpretation of args is defined by control file implementation.
  */
-static int memcg_write_event_control(struct cgroup_subsys_state *css,
-				     struct cftype *cft, char *buffer)
+static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
+					 char *buf, size_t nbytes, loff_t off)
 {
+	struct cgroup_subsys_state *css = of_css(of);
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_event *event;
 	struct cgroup_subsys_state *cfile_css;
@@ -5977,15 +5979,17 @@ static int memcg_write_event_control(struct cgroup_subsys_state *css,
 	char *endp;
 	int ret;
 
-	efd = simple_strtoul(buffer, &endp, 10);
+	buf = strstrip(buf);
+
+	efd = simple_strtoul(buf, &endp, 10);
 	if (*endp != ' ')
 		return -EINVAL;
-	buffer = endp + 1;
+	buf = endp + 1;
 
-	cfd = simple_strtoul(buffer, &endp, 10);
+	cfd = simple_strtoul(buf, &endp, 10);
 	if ((*endp != ' ') && (*endp != '\0'))
 		return -EINVAL;
-	buffer = endp + 1;
+	buf = endp + 1;
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
@@ -6063,7 +6067,7 @@ static int memcg_write_event_control(struct cgroup_subsys_state *css,
 		goto out_put_cfile;
 	}
 
-	ret = event->register_event(memcg, event->eventfd, buffer);
+	ret = event->register_event(memcg, event->eventfd, buf);
 	if (ret)
 		goto out_put_css;
 
@@ -6076,7 +6080,7 @@ static int memcg_write_event_control(struct cgroup_subsys_state *css,
 	fdput(cfile);
 	fdput(efile);
 
-	return 0;
+	return nbytes;
 
 out_put_css:
 	css_put(css);
@@ -6107,13 +6111,13 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_LIMIT),
-		.write_string = mem_cgroup_write,
+		.write = mem_cgroup_write,
 		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
 		.name = "soft_limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_SOFT_LIMIT),
-		.write_string = mem_cgroup_write,
+		.write = mem_cgroup_write,
 		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
@@ -6138,7 +6142,7 @@ static struct cftype mem_cgroup_files[] = {
 	},
 	{
 		.name = "cgroup.event_control",		/* XXX: for compat */
-		.write_string = memcg_write_event_control,
+		.write = memcg_write_event_control,
 		.flags = CFTYPE_NO_PREFIX,
 		.mode = S_IWUGO,
 	},
@@ -6171,7 +6175,7 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "kmem.limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
-		.write_string = mem_cgroup_write,
+		.write = mem_cgroup_write,
 		.read_u64 = mem_cgroup_read_u64,
 	},
 	{
@@ -6217,7 +6221,7 @@ static struct cftype memsw_cgroup_files[] = {
 	{
 		.name = "memsw.limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
-		.write_string = mem_cgroup_write,
+		.write = mem_cgroup_write,
 		.read_u64 = mem_cgroup_read_u64,
 	},
 	{

@@ -767,27 +767,27 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	return rc;
 }
 
-static int devcgroup_access_write(struct cgroup_subsys_state *css,
-				  struct cftype *cft, char *buffer)
+static ssize_t devcgroup_access_write(struct kernfs_open_file *of,
+				      char *buf, size_t nbytes, loff_t off)
 {
 	int retval;
 
 	mutex_lock(&devcgroup_mutex);
-	retval = devcgroup_update_access(css_to_devcgroup(css),
-					 cft->private, buffer);
+	retval = devcgroup_update_access(css_to_devcgroup(of_css(of)),
+					 of_cft(of)->private, strstrip(buf));
 	mutex_unlock(&devcgroup_mutex);
-	return retval;
+	return retval ?: nbytes;
 }
 
 static struct cftype dev_cgroup_files[] = {
 	{
 		.name = "allow",
-		.write_string  = devcgroup_access_write,
+		.write = devcgroup_access_write,
 		.private = DEVCG_ALLOW,
 	},
 	{
 		.name = "deny",
-		.write_string = devcgroup_access_write,
+		.write = devcgroup_access_write,
 		.private = DEVCG_DENY,
 	},
 	{

@@ -102,17 +102,19 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 	return 0;
 }
 
-static int tcp_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			    char *buffer)
+static ssize_t tcp_cgroup_write(struct kernfs_open_file *of,
+				char *buf, size_t nbytes, loff_t off)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
 	unsigned long long val;
 	int ret = 0;
 
-	switch (cft->private) {
+	buf = strstrip(buf);
+
+	switch (of_cft(of)->private) {
 	case RES_LIMIT:
 		/* see memcontrol.c */
-		ret = res_counter_memparse_write_strategy(buffer, &val);
+		ret = res_counter_memparse_write_strategy(buf, &val);
 		if (ret)
 			break;
 		ret = tcp_update_limit(memcg, val);
@@ -121,7 +123,7 @@ static int tcp_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
 		ret = -EINVAL;
 		break;
 	}
-	return ret;
+	return ret ?: nbytes;
 }
 
 static u64 tcp_read_stat(struct mem_cgroup *memcg, int type, u64 default_val)
@@ -193,7 +195,7 @@ static int tcp_cgroup_reset(struct cgroup_subsys_state *css, unsigned int event)
 static struct cftype tcp_files[] = {
 	{
 		.name = "kmem.tcp.limit_in_bytes",
-		.write_string = tcp_cgroup_write,
+		.write = tcp_cgroup_write,
 		.read_u64 = tcp_cgroup_read,
 		.private = RES_LIMIT,
 	},

@@ -1670,11 +1670,11 @@ static int cfq_print_leaf_weight(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static int __cfqg_set_weight_device(struct cgroup_subsys_state *css,
-				    struct cftype *cft, const char *buf,
-				    bool is_leaf_weight)
+static ssize_t __cfqg_set_weight_device(struct kernfs_open_file *of,
+					char *buf, size_t nbytes, loff_t off,
+					bool is_leaf_weight)
 {
-	struct blkcg *blkcg = css_to_blkcg(css);
+	struct blkcg *blkcg = css_to_blkcg(of_css(of));
 	struct blkg_conf_ctx ctx;
 	struct cfq_group *cfqg;
 	int ret;
@@ -1697,19 +1697,19 @@ static int __cfqg_set_weight_device(struct cgroup_subsys_state *css,
 	}
 
 	blkg_conf_finish(&ctx);
-	return ret;
+	return ret ?: nbytes;
 }
 
-static int cfqg_set_weight_device(struct cgroup_subsys_state *css,
-				  struct cftype *cft, char *buf)
+static ssize_t cfqg_set_weight_device(struct kernfs_open_file *of,
+				      char *buf, size_t nbytes, loff_t off)
 {
-	return __cfqg_set_weight_device(css, cft, buf, false);
+	return __cfqg_set_weight_device(of, buf, nbytes, off, false);
 }
 
-static int cfqg_set_leaf_weight_device(struct cgroup_subsys_state *css,
-				       struct cftype *cft, char *buf)
+static ssize_t cfqg_set_leaf_weight_device(struct kernfs_open_file *of,
+					   char *buf, size_t nbytes, loff_t off)
 {
-	return __cfqg_set_weight_device(css, cft, buf, true);
+	return __cfqg_set_weight_device(of, buf, nbytes, off, true);
 }
 
 static int __cfq_set_weight(struct cgroup_subsys_state *css, struct cftype *cft,
@@ -1837,7 +1837,7 @@ static struct cftype cfq_blkcg_files[] = {
 		.name = "weight_device",
 		.flags = CFTYPE_ONLY_ON_ROOT,
 		.seq_show = cfqg_print_leaf_weight_device,
-		.write_string = cfqg_set_leaf_weight_device,
+		.write = cfqg_set_leaf_weight_device,
 	},
 	{
 		.name = "weight",
@@ -1851,7 +1851,7 @@ static struct cftype cfq_blkcg_files[] = {
 		.name = "weight_device",
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.seq_show = cfqg_print_weight_device,
-		.write_string = cfqg_set_weight_device,
+		.write = cfqg_set_weight_device,
 	},
 	{
 		.name = "weight",
@@ -1863,7 +1863,7 @@ static struct cftype cfq_blkcg_files[] = {
 	{
 		.name = "leaf_weight_device",
 		.seq_show = cfqg_print_leaf_weight_device,
-		.write_string = cfqg_set_leaf_weight_device,
+		.write = cfqg_set_leaf_weight_device,
 	},
 	{
 		.name = "leaf_weight",
