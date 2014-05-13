@@ -232,6 +232,7 @@ nv94_aux_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	port->base.aux = info->drive;
 	port->addr = info->drive;
 	if (info->share != DCB_I2C_UNUSED) {
 		port->ctrl = 0x00e500 + (info->drive * 0x50);

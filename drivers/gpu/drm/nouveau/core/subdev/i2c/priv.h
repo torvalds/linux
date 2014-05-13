@@ -55,7 +55,22 @@ extern const struct i2c_algorithm nouveau_i2c_aux_algo;
 
 struct nouveau_i2c_impl {
 	struct nouveau_oclass base;
+
+	/* supported i2c port classes */
 	struct nouveau_oclass *sclass;
+
+	/* number of native dp aux channels present */
+	int aux;
+
+	/* read and ack pending interrupts, returning only data
+	 * for ports that have not been masked off, while still
+	 * performing the ack for anything that was pending.
+	 */
+	void (*aux_stat)(struct nouveau_i2c *, u32 *, u32 *, u32 *, u32 *);
+
+	/* mask on/off interrupt types for a given set of auxch
+	 */
+	void (*aux_mask)(struct nouveau_i2c *, u32, u32, u32);
 };
 
 #endif

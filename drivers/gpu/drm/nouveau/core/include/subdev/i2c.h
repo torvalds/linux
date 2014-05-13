@@ -14,12 +14,24 @@
 #define NV_I2C_TYPE_EXTDDC(e) (0x0005 | (e) << 8)
 #define NV_I2C_TYPE_EXTAUX(e) (0x0006 | (e) << 8)
 
+enum nvkm_i2c_event {
+	NVKM_I2C_PLUG = 1,
+	NVKM_I2C_UNPLUG = 2,
+	NVKM_I2C_IRQ = 4,
+	NVKM_I2C_DONE = 8,
+	NVKM_I2C_ANY = (NVKM_I2C_PLUG |
+			NVKM_I2C_UNPLUG |
+			NVKM_I2C_IRQ |
+			NVKM_I2C_DONE),
+};
+
 struct nouveau_i2c_port {
 	struct nouveau_object base;
 	struct i2c_adapter adapter;
 
 	struct list_head head;
 	u8  index;
+	int aux;
 
 	const struct nouveau_i2c_func *func;
 };
@@ -46,6 +58,7 @@ struct nouveau_i2c_board_info {
 
 struct nouveau_i2c {
 	struct nouveau_subdev base;
+	struct nouveau_event *ntfy;
 
 	struct nouveau_i2c_port *(*find)(struct nouveau_i2c *, u8 index);
 	struct nouveau_i2c_port *(*find_type)(struct nouveau_i2c *, u16 type);
