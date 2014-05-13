@@ -1623,7 +1623,7 @@ config TEST_USER_COPY
 config TEST_BPF
 	tristate "Test BPF filter functionality"
 	default n
-	depends on m
+	depends on m && NET
 	help
 	  This builds the "test_bpf" module that runs various test vectors
 	  against the BPF interpreter or BPF JIT compiler depending on the
