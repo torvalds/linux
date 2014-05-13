@@ -26,10 +26,6 @@
 
 #include "priv.h"
 
-struct nv10_gpio_priv {
-	struct nouveau_gpio base;
-};
-
 static int
 nv10_gpio_sense(struct nouveau_gpio *gpio, int line)
 {
@@ -103,29 +99,11 @@ nv10_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
 	nv_wr32(gpio, 0x001144, inte);
 }
 
-static int
-nv10_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
-{
-	struct nv10_gpio_priv *priv;
-	int ret;
-
-	ret = nouveau_gpio_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.drive = nv10_gpio_drive;
-	priv->base.sense = nv10_gpio_sense;
-	return 0;
-}
-
 struct nouveau_oclass *
 nv10_gpio_oclass = &(struct nouveau_gpio_impl) {
 	.base.handle = NV_SUBDEV(GPIO, 0x10),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv10_gpio_ctor,
+		.ctor = _nouveau_gpio_ctor,
 		.dtor = _nouveau_gpio_dtor,
 		.init = _nouveau_gpio_init,
 		.fini = _nouveau_gpio_fini,
@@ -133,4 +111,6 @@ nv10_gpio_oclass = &(struct nouveau_gpio_impl) {
 	.lines = 16,
 	.intr_stat = nv10_gpio_intr_stat,
 	.intr_mask = nv10_gpio_intr_mask,
+	.drive = nv10_gpio_drive,
+	.sense = nv10_gpio_sense,
 }.base;

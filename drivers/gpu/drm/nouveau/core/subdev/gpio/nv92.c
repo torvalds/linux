@@ -60,7 +60,7 @@ struct nouveau_oclass *
 nv92_gpio_oclass = &(struct nouveau_gpio_impl) {
 	.base.handle = NV_SUBDEV(GPIO, 0x92),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_gpio_ctor,
+		.ctor = _nouveau_gpio_ctor,
 		.dtor = _nouveau_gpio_dtor,
 		.init = _nouveau_gpio_init,
 		.fini = _nouveau_gpio_fini,
@@ -68,4 +68,7 @@ nv92_gpio_oclass = &(struct nouveau_gpio_impl) {
 	.lines = 32,
 	.intr_stat = nv92_gpio_intr_stat,
 	.intr_mask = nv92_gpio_intr_mask,
+	.drive = nv50_gpio_drive,
+	.sense = nv50_gpio_sense,
+	.reset = nv50_gpio_reset,
 }.base;

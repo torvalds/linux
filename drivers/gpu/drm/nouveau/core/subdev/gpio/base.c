@@ -31,13 +31,15 @@ static int
 nouveau_gpio_drive(struct nouveau_gpio *gpio,
 		   int idx, int line, int dir, int out)
 {
-	return gpio->drive ? gpio->drive(gpio, line, dir, out) : -ENODEV;
+	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	return impl->drive ? impl->drive(gpio, line, dir, out) : -ENODEV;
 }
 
 static int
 nouveau_gpio_sense(struct nouveau_gpio *gpio, int idx, int line)
 {
-	return gpio->sense ? gpio->sense(gpio, line) : -ENODEV;
+	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	return impl->sense ? impl->sense(gpio, line) : -ENODEV;
 }
 
 static int
@@ -201,6 +203,7 @@ nouveau_gpio_create_(struct nouveau_object *parent,
 	gpio->find = nouveau_gpio_find;
 	gpio->set  = nouveau_gpio_set;
 	gpio->get  = nouveau_gpio_get;
+	gpio->reset = impl->reset;
 
 	ret = nouveau_event_create(1, impl->lines, &gpio->events);
 	if (ret)

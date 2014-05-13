@@ -13,12 +13,7 @@ struct nouveau_gpio {
 
 	struct nouveau_event *events;
 
-	/* hardware interfaces */
 	void (*reset)(struct nouveau_gpio *, u8 func);
-	int  (*drive)(struct nouveau_gpio *, int line, int dir, int out);
-	int  (*sense)(struct nouveau_gpio *, int line);
-
-	/* software interfaces */
 	int  (*find)(struct nouveau_gpio *, int idx, u8 tag, u8 line,
 		     struct dcb_gpio_func *);
 	int  (*set)(struct nouveau_gpio *, int idx, u8 tag, u8 line, int state);

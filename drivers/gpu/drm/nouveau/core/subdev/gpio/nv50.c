@@ -24,15 +24,10 @@
 
 #include "priv.h"
 
-struct nv50_gpio_priv {
-	struct nouveau_gpio base;
-};
-
-static void
+void
 nv50_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 {
 	struct nouveau_bios *bios = nouveau_bios(gpio);
-	struct nv50_gpio_priv *priv = (void *)gpio;
 	u8 ver, len;
 	u16 entry;
 	int ent = -1;
@@ -55,7 +50,7 @@ nv50_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 
 		gpio->set(gpio, 0, func, line, defs);
 
-		nv_mask(priv, reg, 0x00010001 << lsh, val << lsh);
+		nv_mask(gpio, reg, 0x00010001 << lsh, val << lsh);
 	}
 }
 
@@ -72,7 +67,7 @@ nv50_gpio_location(int line, u32 *reg, u32 *shift)
 	return 0;
 }
 
-static int
+int
 nv50_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 {
 	u32 reg, shift;
@@ -84,7 +79,7 @@ nv50_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 	return 0;
 }
 
-static int
+int
 nv50_gpio_sense(struct nouveau_gpio *gpio, int line)
 {
 	u32 reg, shift;
@@ -116,30 +111,11 @@ nv50_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
 	nv_wr32(gpio, 0x00e050, inte);
 }
 
-int
-nv50_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
-{
-	struct nv50_gpio_priv *priv;
-	int ret;
-
-	ret = nouveau_gpio_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.reset = nv50_gpio_reset;
-	priv->base.drive = nv50_gpio_drive;
-	priv->base.sense = nv50_gpio_sense;
-	return 0;
-}
-
 struct nouveau_oclass *
 nv50_gpio_oclass = &(struct nouveau_gpio_impl) {
 	.base.handle = NV_SUBDEV(GPIO, 0x50),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_gpio_ctor,
+		.ctor = _nouveau_gpio_ctor,
 		.dtor = _nouveau_gpio_dtor,
 		.init = _nouveau_gpio_init,
 		.fini = _nouveau_gpio_fini,
@@ -147,4 +123,7 @@ nv50_gpio_oclass = &(struct nouveau_gpio_impl) {
 	.lines = 16,
 	.intr_stat = nv50_gpio_intr_stat,
 	.intr_mask = nv50_gpio_intr_mask,
+	.drive = nv50_gpio_drive,
+	.sense = nv50_gpio_sense,
+	.reset = nv50_gpio_reset,
 }.base;
