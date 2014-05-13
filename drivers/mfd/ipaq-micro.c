@@ -368,7 +368,7 @@ static irqreturn_t micro_serial_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct mfd_cell micro_cells[] = {
+static const struct mfd_cell micro_cells[] = {
 	{ .name = "ipaq-micro-backlight", },
 	{ .name = "ipaq-micro-battery", },
 	{ .name = "ipaq-micro-keys", },
