@@ -1553,4 +1553,7 @@ config SERIAL_MEN_Z135
 
 endmenu
 
+config SERIAL_MCTRL_GPIO
+	tristate
+
 endif # TTY
