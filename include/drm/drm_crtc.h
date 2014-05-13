@@ -196,7 +196,7 @@ struct drm_framebuffer {
 struct drm_property_blob {
 	struct drm_mode_object base;
 	struct list_head head;
-	unsigned int length;
+	size_t length;
 	unsigned char data[];
 };
 
