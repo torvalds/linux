@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <drm/drmP.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_plane_helper.h>
 
 #define SUBPIXEL_MASK 0xffff
 

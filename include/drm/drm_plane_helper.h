@@ -42,7 +42,7 @@ extern int drm_primary_helper_disable(struct drm_plane *plane);
 extern void drm_primary_helper_destroy(struct drm_plane *plane);
 extern const struct drm_plane_funcs drm_primary_helper_funcs;
 extern struct drm_plane *drm_primary_helper_create_plane(struct drm_device *dev,
-							 uint32_t *formats,
+							 const uint32_t *formats,
 							 int num_formats);
 
 
