@@ -3124,7 +3124,7 @@ static const struct file_operations i915_display_crc_ctl_fops = {
 static void wm_latency_show(struct seq_file *m, const uint16_t wm[5])
 {
 	struct drm_device *dev = m->private;
-	int num_levels = IS_HASWELL(dev) || IS_BROADWELL(dev) ? 5 : 4;
+	int num_levels = ilk_wm_max_level(dev) + 1;
 	int level;
 
 	drm_modeset_lock_all(dev);
@@ -3207,7 +3207,7 @@ static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
 	struct seq_file *m = file->private_data;
 	struct drm_device *dev = m->private;
 	uint16_t new[5] = { 0 };
-	int num_levels = IS_HASWELL(dev) || IS_BROADWELL(dev) ? 5 : 4;
+	int num_levels = ilk_wm_max_level(dev) + 1;
 	int level;
 	int ret;
 	char tmp[32];
