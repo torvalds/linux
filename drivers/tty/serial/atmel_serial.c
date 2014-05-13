@@ -43,6 +43,8 @@
 #include <linux/platform_data/atmel.h>
 #include <linux/timer.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/err.h>
 
 #include <asm/io.h>
 #include <asm/ioctls.h>
@@ -56,6 +58,8 @@
 #endif
 
 #include <linux/serial_core.h>
+
+#include "serial_mctrl_gpio.h"
 
 static void atmel_start_rx(struct uart_port *port);
 static void atmel_stop_rx(struct uart_port *port);
@@ -162,7 +166,7 @@ struct atmel_uart_port {
 	struct circ_buf		rx_ring;
 
 	struct serial_rs485	rs485;		/* rs485 settings */
-	int			rts_gpio;	/* optional RTS GPIO */
+	struct mctrl_gpios	*gpios;
 	unsigned int		tx_done_mask;
 	bool			is_usart;	/* usart or uart */
 	struct timer_list	uart_timer;	/* uart timer */
@@ -237,6 +241,50 @@ static bool atmel_use_dma_rx(struct uart_port *port)
 	return atmel_port->use_dma_rx;
 }
 
+static unsigned int atmel_get_lines_status(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	unsigned int status, ret = 0;
+
+	status = UART_GET_CSR(port);
+
+	mctrl_gpio_get(atmel_port->gpios, &ret);
+
+	if (!IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(atmel_port->gpios,
+						UART_GPIO_CTS))) {
+		if (ret & TIOCM_CTS)
+			status &= ~ATMEL_US_CTS;
+		else
+			status |= ATMEL_US_CTS;
+	}
+
+	if (!IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(atmel_port->gpios,
+						UART_GPIO_DSR))) {
+		if (ret & TIOCM_DSR)
+			status &= ~ATMEL_US_DSR;
+		else
+			status |= ATMEL_US_DSR;
+	}
+
+	if (!IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(atmel_port->gpios,
+						UART_GPIO_RI))) {
+		if (ret & TIOCM_RI)
+			status &= ~ATMEL_US_RI;
+		else
+			status |= ATMEL_US_RI;
+	}
+
+	if (!IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(atmel_port->gpios,
+						UART_GPIO_DCD))) {
+		if (ret & TIOCM_CD)
+			status &= ~ATMEL_US_DCD;
+		else
+			status |= ATMEL_US_DCD;
+	}
+
+	return status;
+}
+
 /* Enable or disable the rs485 support */
 void atmel_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
 {
@@ -296,17 +344,6 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 	unsigned int mode;
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
-	/*
-	 * AT91RM9200 Errata #39: RTS0 is not internally connected
-	 * to PA21. We need to drive the pin as a GPIO.
-	 */
-	if (gpio_is_valid(atmel_port->rts_gpio)) {
-		if (mctrl & TIOCM_RTS)
-			gpio_set_value(atmel_port->rts_gpio, 0);
-		else
-			gpio_set_value(atmel_port->rts_gpio, 1);
-	}
-
 	if (mctrl & TIOCM_RTS)
 		control |= ATMEL_US_RTSEN;
 	else
@@ -318,6 +355,8 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 		control |= ATMEL_US_DTRDIS;
 
 	UART_PUT_CR(port, control);
+
+	mctrl_gpio_set(atmel_port->gpios, mctrl);
 
 	/* Local loopback mode? */
 	mode = UART_GET_MR(port) & ~ATMEL_US_CHMODE;
@@ -346,7 +385,8 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
  */
 static u_int atmel_get_mctrl(struct uart_port *port)
 {
-	unsigned int status, ret = 0;
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	unsigned int ret = 0, status;
 
 	status = UART_GET_CSR(port);
 
@@ -362,7 +402,7 @@ static u_int atmel_get_mctrl(struct uart_port *port)
 	if (!(status & ATMEL_US_RI))
 		ret |= TIOCM_RI;
 
-	return ret;
+	return mctrl_gpio_get(atmel_port->gpios, &ret);
 }
 
 /*
@@ -1042,7 +1082,7 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 	unsigned int status, pending, pass_counter = 0;
 
 	do {
-		status = UART_GET_CSR(port);
+		status = atmel_get_lines_status(port);
 		pending = status & UART_GET_IMR(port);
 		if (!pending)
 			break;
@@ -1568,7 +1608,7 @@ static int atmel_startup(struct uart_port *port)
 	}
 
 	/* Save current CSR for comparison in atmel_tasklet_func() */
-	atmel_port->irq_status_prev = UART_GET_CSR(port);
+	atmel_port->irq_status_prev = atmel_get_lines_status(port);
 	atmel_port->irq_status = atmel_port->irq_status_prev;
 
 	/*
@@ -2324,6 +2364,15 @@ static int atmel_serial_resume(struct platform_device *pdev)
 #define atmel_serial_resume NULL
 #endif
 
+static int atmel_init_gpios(struct atmel_uart_port *p, struct device *dev)
+{
+	p->gpios = mctrl_gpio_init(dev, 0);
+	if (IS_ERR_OR_NULL(p->gpios))
+		return -1;
+
+	return 0;
+}
+
 static int atmel_serial_probe(struct platform_device *pdev)
 {
 	struct atmel_uart_port *port;
@@ -2359,25 +2408,11 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	port = &atmel_ports[ret];
 	port->backup_imr = 0;
 	port->uart.line = ret;
-	port->rts_gpio = -EINVAL; /* Invalid, zero could be valid */
-	if (pdata)
-		port->rts_gpio = pdata->rts_gpio;
-	else if (np)
-		port->rts_gpio = of_get_named_gpio(np, "rts-gpios", 0);
 
-	if (gpio_is_valid(port->rts_gpio)) {
-		ret = devm_gpio_request(&pdev->dev, port->rts_gpio, "RTS");
-		if (ret) {
-			dev_err(&pdev->dev, "error requesting RTS GPIO\n");
-			goto err;
-		}
-		/* Default to 1 as RTS is active low */
-		ret = gpio_direction_output(port->rts_gpio, 1);
-		if (ret) {
-			dev_err(&pdev->dev, "error setting up RTS GPIO\n");
-			goto err;
-		}
-	}
+	ret = atmel_init_gpios(port, &pdev->dev);
+	if (ret < 0)
+		dev_err(&pdev->dev, "%s",
+			"Failed to initialize GPIOs. The serial port may not work as expected");
 
 	ret = atmel_init_port(port, pdev);
 	if (ret)

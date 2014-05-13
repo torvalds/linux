@@ -117,6 +117,7 @@ config SERIAL_ATMEL
 	bool "AT91 / AT32 on-chip serial port support"
 	depends on ARCH_AT91 || AVR32
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
 	  AT91 and AT32 processors.
