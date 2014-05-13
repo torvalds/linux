@@ -341,6 +341,83 @@
 			status = "disabled";
 		};
 
+		usbphy: phy@01c19400 {
+			compatible = "allwinner,sun6i-a31-usb-phy";
+			reg = <0x01c19400 0x10>,
+			      <0x01c1a800 0x4>,
+			      <0x01c1b800 0x4>;
+			reg-names = "phy_ctrl",
+				    "pmu1",
+				    "pmu2";
+			clocks = <&usb_clk 8>,
+				 <&usb_clk 9>,
+				 <&usb_clk 10>;
+			clock-names = "usb0_phy",
+				      "usb1_phy",
+				      "usb2_phy";
+			resets = <&usb_clk 0>,
+				 <&usb_clk 1>,
+				 <&usb_clk 2>;
+			reset-names = "usb0_reset",
+				      "usb1_reset",
+				      "usb2_reset";
+			status = "disabled";
+			#phy-cells = <1>;
+		};
+
+		ehci0: usb@01c1a000 {
+			compatible = "allwinner,sun6i-a31-ehci", "generic-ehci";
+			reg = <0x01c1a000 0x100>;
+			interrupts = <0 72 4>;
+			clocks = <&ahb1_gates 26>;
+			resets = <&ahb1_rst 26>;
+			phys = <&usbphy 1>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		ohci0: usb@01c1a400 {
+			compatible = "allwinner,sun6i-a31-ohci", "generic-ohci";
+			reg = <0x01c1a400 0x100>;
+			interrupts = <0 73 4>;
+			clocks = <&ahb1_gates 29>, <&usb_clk 16>;
+			resets = <&ahb1_rst 29>;
+			phys = <&usbphy 1>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		ehci1: usb@01c1b000 {
+			compatible = "allwinner,sun6i-a31-ehci", "generic-ehci";
+			reg = <0x01c1b000 0x100>;
+			interrupts = <0 74 4>;
+			clocks = <&ahb1_gates 27>;
+			resets = <&ahb1_rst 27>;
+			phys = <&usbphy 2>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		ohci1: usb@01c1b400 {
+			compatible = "allwinner,sun6i-a31-ohci", "generic-ohci";
+			reg = <0x01c1b400 0x100>;
+			interrupts = <0 75 4>;
+			clocks = <&ahb1_gates 30>, <&usb_clk 17>;
+			resets = <&ahb1_rst 30>;
+			phys = <&usbphy 2>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		ohci2: usb@01c1c000 {
+			compatible = "allwinner,sun6i-a31-ohci", "generic-ohci";
+			reg = <0x01c1c400 0x100>;
+			interrupts = <0 77 4>;
+			clocks = <&ahb1_gates 31>, <&usb_clk 18>;
+			resets = <&ahb1_rst 31>;
+			status = "disabled";
+		};
+
 		pio: pinctrl@01c20800 {
 			compatible = "allwinner,sun6i-a31-pinctrl";
 			reg = <0x01c20800 0x400>;
