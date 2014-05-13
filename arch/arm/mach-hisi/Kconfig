@@ -4,6 +4,9 @@ config ARCH_HISI
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804
+	select POWER_RESET
+	select POWER_RESET_HISI
+	select POWER_SUPPLY
 
 if ARCH_HISI
 

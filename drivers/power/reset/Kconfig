@@ -28,6 +28,12 @@ config POWER_RESET_GPIO
 	  If your board needs a GPIO high/low to power down, say Y and
 	  create a binding in your devicetree.
 
+config POWER_RESET_HISI
+	bool "Hisilicon power-off driver"
+	depends on POWER_RESET && ARCH_HISI
+	help
+	  Reboot support for Hisilicon boards.
+
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
 	depends on POWER_RESET && ARCH_QCOM
