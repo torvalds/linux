@@ -662,10 +662,8 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	int ret;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct exynos5_i2c), GFP_KERNEL);
-	if (!i2c) {
-		dev_err(&pdev->dev, "no memory for state\n");
+	if (!i2c)
 		return -ENOMEM;
-	}
 
 	if (of_property_read_u32(np, "clock-frequency", &op_clock)) {
 		i2c->speed_mode = HSI2C_FAST_SPD;
