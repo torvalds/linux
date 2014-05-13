@@ -1020,7 +1020,7 @@ static void iwl_mvm_mc_iface_iterator(void *_data, u8 *mac,
 	memcpy(cmd->bssid, vif->bss_conf.bssid, ETH_ALEN);
 	len = roundup(sizeof(*cmd) + cmd->count * ETH_ALEN, 4);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, MCAST_FILTER_CMD, CMD_SYNC, len, cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, MCAST_FILTER_CMD, CMD_ASYNC, len, cmd);
 	if (ret)
 		IWL_ERR(mvm, "mcast filter cmd error. ret=%d\n", ret);
 }
@@ -1036,7 +1036,7 @@ static void iwl_mvm_recalc_multicast(struct iwl_mvm *mvm)
 	if (WARN_ON_ONCE(!mvm->mcast_filter_cmd))
 		return;
 
-	ieee80211_iterate_active_interfaces(
+	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_mc_iface_iterator, &iter_data);
 }
@@ -1831,6 +1831,11 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
+
+	if (iwl_mvm_is_associated(mvm)) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	switch (mvm->scan_status) {
 	case IWL_MVM_SCAN_OS:
