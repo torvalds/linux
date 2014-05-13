@@ -1,5 +1,6 @@
 #include <linux/slab.h>
 #include <asm/io.h>
+#include <linux/rockchip/cpu.h>
 
 #include "clk-ops.h"
 #include "clk-pll.h"
@@ -677,6 +678,15 @@ static int clk_pll_set_rate_3188plus(struct clk_hw *hw, unsigned long rate,
 			break;
 		}
 		clk_set++;
+	}
+
+	if (cpu_is_rk3288() && (rate == 297*MHZ)) {
+		if((strncmp(__clk_get_name(hw->clk), "clk_gpll",
+			strlen("clk_gpll")) == 0)) {
+
+			printk("rk3288 set GPLL BW 20 for HDMI!\n");
+			clk_set->pllcon2 = RK3188_PLL_CLK_BWADJ_SET(20);
+		}
 	}
 
 	if (clk_set->rate == rate) {
