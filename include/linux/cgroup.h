@@ -515,6 +515,15 @@ struct cftype {
 	 */
 	int (*trigger)(struct cgroup_subsys_state *css, unsigned int event);
 
+	/*
+	 * write() is the generic write callback which maps directly to
+	 * kernfs write operation and overrides all other operations.
+	 * Maximum write size is determined by ->max_write_len.  Use
+	 * of_css/cft() to access the associated css and cft.
+	 */
+	ssize_t (*write)(struct kernfs_open_file *of,
+			 char *buf, size_t nbytes, loff_t off);
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	lockdep_key;
 #endif
@@ -552,14 +561,24 @@ static inline ino_t cgroup_ino(struct cgroup *cgrp)
 		return 0;
 }
 
-static inline struct cftype *seq_cft(struct seq_file *seq)
+/* cft/css accessors for cftype->write() operation */
+static inline struct cftype *of_cft(struct kernfs_open_file *of)
 {
-	struct kernfs_open_file *of = seq->private;
-
 	return of->kn->priv;
 }
 
-struct cgroup_subsys_state *seq_css(struct seq_file *seq);
+struct cgroup_subsys_state *of_css(struct kernfs_open_file *of);
+
+/* cft/css accessors for cftype->seq_*() operations */
+static inline struct cftype *seq_cft(struct seq_file *seq)
+{
+	return of_cft(seq->private);
+}
+
+static inline struct cgroup_subsys_state *seq_css(struct seq_file *seq)
+{
+	return of_css(seq->private);
+}
 
 /*
  * Name / path handling functions.  All are thin wrappers around the kernfs

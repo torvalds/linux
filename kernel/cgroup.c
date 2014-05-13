@@ -283,11 +283,10 @@ static inline bool cgroup_is_dead(const struct cgroup *cgrp)
 	return test_bit(CGRP_DEAD, &cgrp->flags);
 }
 
-struct cgroup_subsys_state *seq_css(struct seq_file *seq)
+struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
 {
-	struct kernfs_open_file *of = seq->private;
 	struct cgroup *cgrp = of->kn->parent->priv;
-	struct cftype *cft = seq_cft(seq);
+	struct cftype *cft = of_cft(of);
 
 	/*
 	 * This is open and unprotected implementation of cgroup_css().
@@ -302,7 +301,7 @@ struct cgroup_subsys_state *seq_css(struct seq_file *seq)
 	else
 		return &cgrp->dummy_css;
 }
-EXPORT_SYMBOL_GPL(seq_css);
+EXPORT_SYMBOL_GPL(of_css);
 
 /**
  * cgroup_is_descendant - test ancestry
@@ -1035,8 +1034,8 @@ static umode_t cgroup_file_mode(const struct cftype *cft)
 	if (cft->read_u64 || cft->read_s64 || cft->seq_show)
 		mode |= S_IRUGO;
 
-	if (cft->write_u64 || cft->write_s64 || cft->write_string ||
-	    cft->trigger)
+	if (cft->write_u64 || cft->write_s64 || cft->write ||
+	    cft->write_string || cft->trigger)
 		mode |= S_IWUSR;
 
 	return mode;
@@ -2725,6 +2724,9 @@ static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
 	struct cftype *cft = of->kn->priv;
 	struct cgroup_subsys_state *css;
 	int ret;
+
+	if (cft->write)
+		return cft->write(of, buf, nbytes, off);
 
 	/*
 	 * kernfs guarantees that a file isn't deleted with operations in
