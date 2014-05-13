@@ -163,6 +163,9 @@ enum hpd_pin {
 #define for_each_pipe(p) for ((p) = 0; (p) < INTEL_INFO(dev)->num_pipes; (p)++)
 #define for_each_sprite(p, s) for ((s) = 0; (s) < INTEL_INFO(dev)->num_sprites[(p)]; (s)++)
 
+#define for_each_intel_crtc(dev, intel_crtc) \
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
+
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))
