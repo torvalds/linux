@@ -47,31 +47,31 @@ static DEFINE_SPINLOCK(raminit_lock);
  * registers can be aligned to a 16-bit boundary or 32-bit boundary etc.
  * Handle the same by providing a common read/write interface.
  */
-static u16 c_can_plat_read_reg_aligned_to_16bit(struct c_can_priv *priv,
+static u16 c_can_plat_read_reg_aligned_to_16bit(const struct c_can_priv *priv,
 						enum reg index)
 {
 	return readw(priv->base + priv->regs[index]);
 }
 
-static void c_can_plat_write_reg_aligned_to_16bit(struct c_can_priv *priv,
+static void c_can_plat_write_reg_aligned_to_16bit(const struct c_can_priv *priv,
 						enum reg index, u16 val)
 {
 	writew(val, priv->base + priv->regs[index]);
 }
 
-static u16 c_can_plat_read_reg_aligned_to_32bit(struct c_can_priv *priv,
+static u16 c_can_plat_read_reg_aligned_to_32bit(const struct c_can_priv *priv,
 						enum reg index)
 {
 	return readw(priv->base + 2 * priv->regs[index]);
 }
 
-static void c_can_plat_write_reg_aligned_to_32bit(struct c_can_priv *priv,
+static void c_can_plat_write_reg_aligned_to_32bit(const struct c_can_priv *priv,
 						enum reg index, u16 val)
 {
 	writew(val, priv->base + 2 * priv->regs[index]);
 }
 
-static void c_can_hw_raminit_wait(const struct c_can_priv *priv, u32 mask,
+static void c_can_hw_raminit_wait_ti(const struct c_can_priv *priv, u32 mask,
 				  u32 val)
 {
 	/* We look only at the bits of our instance. */

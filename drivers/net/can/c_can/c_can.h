@@ -176,8 +176,8 @@ struct c_can_priv {
 	atomic_t tx_active;
 	unsigned long tx_dir;
 	int last_status;
-	u16 (*read_reg) (struct c_can_priv *priv, enum reg index);
-	void (*write_reg) (struct c_can_priv *priv, enum reg index, u16 val);
+	u16 (*read_reg) (const struct c_can_priv *priv, enum reg index);
+	void (*write_reg) (const struct c_can_priv *priv, enum reg index, u16 val);
 	void __iomem *base;
 	const u16 *regs;
 	void *priv;		/* for board-specific data */
