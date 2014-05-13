@@ -6,27 +6,27 @@ config PINCTRL_SUNXI
 	select GENERIC_PINCONF
 
 config PINCTRL_SUN4I_A10
-       bool
+       def_bool PINCTRL_SUNXI || MACH_SUN4I
        select PINCTRL_SUNXI
 
 config PINCTRL_SUN5I_A10S
-       bool
+       def_bool PINCTRL_SUNXI || MACH_SUN5I
        select PINCTRL_SUNXI
 
 config PINCTRL_SUN5I_A13
-       bool
+       def_bool PINCTRL_SUNXI || MACH_SUN5I
        select PINCTRL_SUNXI
 
 config PINCTRL_SUN6I_A31
-       bool
+       def_bool PINCTRL_SUNXI || MACH_SUN6I
        select PINCTRL_SUNXI
 
 config PINCTRL_SUN6I_A31_R
-       bool
+       def_bool PINCTRL_SUNXI || MACH_SUN6I
        select PINCTRL_SUNXI
 
 config PINCTRL_SUN7I_A20
-       bool
+       def_bool PINCTRL_SUNXI || MACH_SUN7I
        select PINCTRL_SUNXI
 
 endif
