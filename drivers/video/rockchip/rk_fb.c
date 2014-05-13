@@ -866,6 +866,8 @@ static void rga_win_check(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src_w
 		src_win->area[0].yact = (src_win->area[0].yact + align32) & (~align32);
 	if (src_win->area[0].xvir < src_win->area[0].xact)
 		src_win->area[0].xvir = src_win->area[0].xact;
+	if (src_win->area[0].yvir < src_win->area[0].yact)
+		src_win->area[0].yvir = src_win->area[0].yact;
 
 	if ((dst_win->area[0].xact & align32) != 0)
 		dst_win->area[0].xact = (dst_win->area[0].xact + align32) & (~align32);
@@ -873,6 +875,8 @@ static void rga_win_check(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src_w
 		dst_win->area[0].yact = (dst_win->area[0].yact + align32) & (~align32);
 	if (dst_win->area[0].xvir < dst_win->area[0].xact)
 		dst_win->area[0].xvir = dst_win->area[0].xact;
+	if (dst_win->area[0].yvir < dst_win->area[0].yact)
+		dst_win->area[0].yvir = dst_win->area[0].yact;
 }
 
 static void win_copy_by_rga(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src_win)
@@ -965,6 +969,13 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win, struct rk_lcdc_win *src
 	Rga_Request.clip.ymin = 0;
 	Rga_Request.clip.ymax = dst_win->area[0].yact - 1;
 	Rga_Request.scale_mode = 0;
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	Rga_Request.mmu_info.mmu_en = 1;	/* TODO Modify for use mmu*/
+	Rga_Request.mmu_info.mmu_flag = 1;
+#else
+	Rga_Request.mmu_info.mmu_en = 0;
+	Rga_Request.mmu_info.mmu_flag = 0;
+#endif
 
 	ret = rga_ioctl_kernel(&Rga_Request);
 }
