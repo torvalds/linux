@@ -1,10 +1,12 @@
 /*
 drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 */
-#include <linux/rockchip/grf.h>
+
 #ifndef RK32_MIPI_DSI_H
 #define RK32_MIPI_DSI_H
-
+#ifndef CONFIG_RK_3288_DSI_UBOOT
+#include <linux/rockchip/grf.h>
+#endif
 #define MIPI_DSI_HOST_OFFSET	0x1000
 
 //function bits definition    register addr | bits | offest
@@ -197,11 +199,9 @@ struct dsi_phy {
 	u32 Tpclk;   		//ps
 	u32 Ttxclkesc;		//ps
 
-#ifdef CONFIG_MIPI_DSI_LINUX
 	struct clk	*refclk; 
 	unsigned long iobase;
 	void __iomem *membase;
-#endif	
 	u16 prediv;
 	u16 fbdiv;
 	u8 flag;
@@ -216,10 +216,8 @@ struct dsi_host {
 	u8 video_mode;
 	u32 clk;
 	u32 irq;
-#ifdef CONFIG_MIPI_DSI_LINUX
 	unsigned long iobase;
 	void __iomem *membase;
-#endif
 };
 
 struct dsi {

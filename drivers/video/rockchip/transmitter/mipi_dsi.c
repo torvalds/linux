@@ -12,8 +12,20 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
- 
-
+#ifndef CONFIG_MIPI_DSI
+#include <common.h>
+#endif
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+#include <asm/io.h>
+#include <errno.h>
+#include <malloc.h>
+#include <fdtdec.h>
+#include <errno.h>
+#include <asm/io.h>
+#include <asm/arch/rkplat.h>
+#include <lcd.h>
+#include "mipi_dsi.h"
+#else
 #include <linux/module.h>
 #include <linux/init.h>
 #include <asm/system.h>
@@ -24,6 +36,7 @@
 #include <linux/ktime.h>
 
 #include "mipi_dsi.h"
+#endif
 
 #define MAX_DSI_CHIPS 5
 
@@ -36,6 +49,9 @@
 *v1.3 : fix send commad's methods  
 */
 #define MIPI_DSI_VERSION_AND_TIME  "mipi_dsi v1.3 2014-04-17"
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+#define	printk(x...)	printf(x)
+#endif
 
 
 static struct mipi_dsi_ops *dsi_ops[MAX_DSI_CHIPS] = {NULL};
@@ -50,8 +66,9 @@ int register_dsi_ops(unsigned int id, struct mipi_dsi_ops *ops) {
 	dsi_ops[id] = ops;
 	return 0;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(register_dsi_ops);
-
+#endif
 
 int del_dsi_ops(struct mipi_dsi_ops *ops) {
 
@@ -70,7 +87,9 @@ int del_dsi_ops(struct mipi_dsi_ops *ops) {
 	}
 	return 0;	
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(del_dsi_ops);
+#endif
 
 int dsi_probe_current_chip(unsigned int id) {
 	int ret = 0;
@@ -94,8 +113,9 @@ int dsi_probe_current_chip(unsigned int id) {
 
 	return ret;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_probe_current_chip);
-
+#endif
 int dsi_power_up(unsigned int id) {
 
 	struct mipi_dsi_ops *ops = NULL;
@@ -111,8 +131,9 @@ int dsi_power_up(unsigned int id) {
 		ops->power_up(ops->dsi);
 	return 0;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_power_up);
-
+#endif
 
 int dsi_power_off(unsigned int id) {
 
@@ -131,8 +152,9 @@ int dsi_power_off(unsigned int id) {
 
 	return 0;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_power_off);
-
+#endif
 int dsi_set_regs(unsigned int id, void *array, u32 n) {
 
 	struct mipi_dsi_ops *ops = NULL;
@@ -150,8 +172,9 @@ int dsi_set_regs(unsigned int id, void *array, u32 n) {
 
 	return 0;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_set_regs);
-
+#endif
 int dsi_init(unsigned int id, u32 n) {
 
 	struct mipi_dsi_ops *ops = NULL;
@@ -169,8 +192,9 @@ int dsi_init(unsigned int id, u32 n) {
 
 	return 0;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_init);
-
+#endif
 int dsi_enable_video_mode(unsigned int id, u32 enable) {
 
 	struct mipi_dsi_ops *ops = NULL;
@@ -189,8 +213,9 @@ int dsi_enable_video_mode(unsigned int id, u32 enable) {
 	return 0;
 
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_enable_video_mode);
-
+#endif
 int dsi_enable_command_mode(unsigned int id, u32 enable) {
 
 	struct mipi_dsi_ops *ops = NULL;
@@ -209,8 +234,9 @@ int dsi_enable_command_mode(unsigned int id, u32 enable) {
 	return 0;
 
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_enable_command_mode);
-
+#endif
 int dsi_enable_hs_clk(unsigned int id, u32 enable) {
 
 	struct mipi_dsi_ops *ops = NULL;
@@ -229,8 +255,9 @@ int dsi_enable_hs_clk(unsigned int id, u32 enable) {
 	return 0;
 
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_enable_hs_clk);
-
+#endif
 int dsi_is_active(unsigned int id) {
 
 	struct mipi_dsi_ops *ops = NULL;
@@ -248,8 +275,9 @@ int dsi_is_active(unsigned int id) {
 	else
 		return -1;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_is_active);
-
+#endif
 int dsi_is_enable(unsigned int id, u32 enable){
 
     struct mipi_dsi_ops *ops = NULL;
@@ -268,8 +296,9 @@ int dsi_is_enable(unsigned int id, u32 enable){
 	return 0;
 	
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_is_enable);
-
+#endif
 int dsi_send_dcs_packet(unsigned int id, unsigned char *packet, u32 n) {
 
 	struct mipi_dsi_ops *ops = NULL;
@@ -287,8 +316,9 @@ int dsi_send_dcs_packet(unsigned int id, unsigned char *packet, u32 n) {
 		ops->dsi_send_dcs_packet(ops->dsi, packet, n);
 	return 0;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_send_dcs_packet);
-
+#endif
 
 int dsi_read_dcs_packet(unsigned int id, unsigned char *packet, u32 n) {
 
@@ -306,8 +336,9 @@ int dsi_read_dcs_packet(unsigned int id, unsigned char *packet, u32 n) {
 		ops->dsi_read_dcs_packet(ops->dsi, packet, n);
 	return 0;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_read_dcs_packet);
-
+#endif
 
 int dsi_send_packet(unsigned int id, unsigned char *packet, u32 n) {
 
@@ -326,4 +357,6 @@ int dsi_send_packet(unsigned int id, unsigned char *packet, u32 n) {
 		
 	return 0;
 }
+#ifdef CONFIG_MIPI_DSI
 EXPORT_SYMBOL(dsi_send_packet);
+#endif

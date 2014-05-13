@@ -13,15 +13,39 @@
  * GNU General Public License for more details.
  */
 
+#ifndef CONFIG_LCD_MIPI
+#include <common.h>
+#endif
+#ifdef CONFIG_LCD_MIPI
 #include "../transmitter/mipi_dsi.h"
 #include <linux/delay.h>
+#endif
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+#include <common.h>
+#include <asm/io.h>
+#include <errno.h>
+#include <malloc.h>
+#include <fdtdec.h>
+#include <errno.h>
+#include <asm/io.h>
+#include <asm/arch/clock.h>
+#include <asm/arch/reg.h>
+#include <asm/arch/gpio.h>
+#include <lcd.h>
+#include "../transmitter/mipi_dsi.h"
+#endif
 
-#if 0
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+#define	MIPI_SCREEN_DBG(x...)	//printf(x)
+#elif defined CONFIG_LCD_MIPI
 #define	MIPI_SCREEN_DBG(x...)	printk(KERN_ERR x)
 #else
 #define	MIPI_SCREEN_DBG(x...)  
 #endif
-
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+#define msleep(a) udelay(a * 1000)
+#define	printk(x...)	//printf(x)
+#endif
 static struct mipi_screen *gmipi_screen;
 
 static void rk_mipi_screen_pwr_disable(struct mipi_screen *screen)
@@ -251,7 +275,7 @@ int rk_mipi_screen_standby(u8 enable)
 	}
     return 0;
 }
-
+#ifdef CONFIG_LCD_MIPI
 static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 {
 	struct device_node *childnode, *grandchildnode, *root;
@@ -489,26 +513,216 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 	}
 	return 0; 
 }
-
+#endif
 int rk_mipi_get_dsi_num(void)
 {
 	return gmipi_screen->mipi_dsi_num;
 }
+#ifdef CONFIG_LCD_MIPI
 EXPORT_SYMBOL(rk_mipi_get_dsi_num);
-
+#endif
 int rk_mipi_get_dsi_lane(void)
 {
 	return gmipi_screen->dsi_lane;
 }
+#ifdef CONFIG_LCD_MIPI
 EXPORT_SYMBOL(rk_mipi_get_dsi_lane);
-
+#endif
 
 int rk_mipi_get_dsi_clk(void)
 {
     return gmipi_screen->hs_tx_clk;
 }
+#ifdef CONFIG_LCD_MIPI
 EXPORT_SYMBOL(rk_mipi_get_dsi_clk);
+#endif
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
+{
+    struct mipi_dcs_cmd_ctr_list  *dcs_cmd;
+    u32 i,cmds[20],length;
+    int err;
+    int node;
+    void *blob;
+    struct fdt_gpio_state gpio_val;
+    int noffset;
+    
+    INIT_LIST_HEAD(&screen->cmdlist_head);
 
+    blob = getenv_hex("fdtaddr", 0);
+    node = fdtdec_next_compatible(blob, 0, COMPAT_ROCKCHIP_MIPI_INIT);
+    if(node < 0){
+    	MIPI_SCREEN_DBG("Can not get node of COMPAT_ROCKCHIP_MIPI_INIT\n");
+    }
+    screen->screen_init = fdtdec_get_int(blob, node, "rockchip,screen_init", -1);
+    if(screen->screen_init < 0){
+    	MIPI_SCREEN_DBG("Can not get screen_init\n");
+    }
+    screen->dsi_lane = fdtdec_get_int(blob, node, "rockchip,dsi_lane", -1);
+    if(screen->dsi_lane < 0){
+    	MIPI_SCREEN_DBG("Can not get dsi_lane\n");
+    }
+    screen->hs_tx_clk= fdtdec_get_int(blob, node, "rockchip,dsi_hs_clk", -1);
+    if(screen->hs_tx_clk < 0){
+    	MIPI_SCREEN_DBG("Can not get dsi_hs_clk\n");
+    }else{
+    	screen->hs_tx_clk = screen->hs_tx_clk*MHZ;
+    }
+    screen->mipi_dsi_num= fdtdec_get_int(blob, node, "rockchip,mipi_dsi_num", -1);
+    if(screen->mipi_dsi_num < 0){
+    	MIPI_SCREEN_DBG("Can't get mipi_dsi_num\n");
+    }
+    #if 0   
+    node = fdtdec_next_compatible(blob, 0, COMPAT_ROCKCHIP_MIPI_PWR);
+    if(node < 0){
+    	printf("Can not get node of COMPAT_ROCKCHIP_MIPI_PWR\n");
+    }
+    #endif
+
+#if 0
+    /*get the lcd rst status*/    
+//    handle = fdt_getprop_u32_default(blob, "/mipi_power_ctr", "mipi_lcd_rst", -1);
+//    node = fdt_node_offset_by_phandle(blob, handle);
+    node = fdtdec_next_compatible(blob, 0, COMPAT_ROCKCHIP_MIPI_PWR);
+    if(node < 0){
+        printf("Can not get node of COMPAT_ROCKCHIP_MIPI_PWR\n");
+    }else{
+        subnode = fdtdec_next_compatible_subnode(blob, node,
+				COMPAT_ROCKCHIP_MIPI_LCD_RST, &depth);
+	if (subnode <=0) {
+	    screen->lcd_rst_gpio = INVALID_GPIO;
+	    printf("Can't get pin of mipi_lcd_rst\n");
+	} else {
+	   err = fdtdec_decode_gpio(blob, subnode, "rockchip,gpios", &gpio_val);
+	   gpio_val.gpio = rk_gpio_base_to_bank(gpio_val.gpio & RK_GPIO_BANK_MASK) | (gpio_val.gpio & RK_GPIO_PIN_MASK);
+	    if(err < 0){    
+		screen->lcd_rst_gpio = INVALID_GPIO;
+		printf("Can't find GPIO rst\n");
+	    }else{
+		screen->lcd_rst_gpio = gpio_val.gpio;
+		screen->lcd_rst_atv_val = !(gpio_val.flags & OF_GPIO_ACTIVE_LOW);
+	    }	    
+	    screen->lcd_rst_delay = fdtdec_get_int(blob, subnode, "rockchip,delay", -1);
+	    if(screen->lcd_rst_delay < 0){
+		printf("Can't get delay of rst delay\n");
+	    }
+	    printf("Get lcd rst gpio and delay successfully!\n");
+	}
+    }
+    #endif
+	/*get the lcd rst & en status*/
+    node = fdtdec_next_compatible(blob, 0, COMPAT_ROCKCHIP_MIPI_PWR);
+    if(node < 0){
+        MIPI_SCREEN_DBG("Can not get node of COMPAT_ROCKCHIP_MIPI_PWR\n");
+    }else{	
+	#if 0
+	noffset = fdt_first_subnode(blob,node);
+	const char *name = fdt_get_name(blob, noffset, NULL);
+	printf("XJH_DEBUG1:%s\n",name);
+	noffset = fdt_next_subnode(blob,noffset);
+	const char *name1 = fdt_get_name(blob, noffset, NULL);
+	printf("XJH_DEBUG2:%s\n",name1);	
+        #endif
+	for (noffset = fdt_first_subnode(blob,node);
+	     noffset >= 0;
+	     noffset = fdt_next_subnode(blob, noffset)) {
+	    if ( 0 == fdt_node_check_compatible(blob, noffset, "rockchip,lcd_rst")){
+                err = fdtdec_decode_gpio(blob, noffset, "rockchip,gpios", &gpio_val);
+                gpio_val.gpio = rk_gpio_base_to_bank(gpio_val.gpio & RK_GPIO_BANK_MASK) | (gpio_val.gpio & RK_GPIO_PIN_MASK);
+                if(err < 0){    
+                    screen->lcd_rst_gpio = INVALID_GPIO;
+                    MIPI_SCREEN_DBG("Can't find GPIO rst\n");
+                }else{
+                    screen->lcd_rst_gpio = gpio_val.gpio;
+                    screen->lcd_rst_atv_val = !(gpio_val.flags & OF_GPIO_ACTIVE_LOW);
+	        }	    
+	        screen->lcd_rst_delay = fdtdec_get_int(blob, noffset, "rockchip,delay", -1);
+	        if(screen->lcd_rst_delay < 0){
+		    MIPI_SCREEN_DBG("Can't get delay of rst delay\n");
+	        }
+	        MIPI_SCREEN_DBG("Get lcd rst gpio and delay successfully!\n");
+	    }
+	    if ( 0 == fdt_node_check_compatible(blob, noffset, "rockchip,lcd_en")){
+	    
+	        err = fdtdec_decode_gpio(blob, noffset, "rockchip,gpios", &gpio_val);
+	         gpio_val.gpio = rk_gpio_base_to_bank(gpio_val.gpio & RK_GPIO_BANK_MASK) | (gpio_val.gpio & RK_GPIO_PIN_MASK);
+	        if(err < 0){    
+	            screen->lcd_en_gpio = INVALID_GPIO;
+	            MIPI_SCREEN_DBG("Can't find GPIO en\n");
+                }else{
+                    screen->lcd_en_gpio = gpio_val.gpio;
+                    screen->lcd_en_atv_val = !(gpio_val.flags & OF_GPIO_ACTIVE_LOW);
+		}	     
+		screen->lcd_en_delay = fdtdec_get_int(blob, noffset, "rockchip,delay", -1);
+		if(screen->lcd_en_delay < 0){
+		 MIPI_SCREEN_DBG("Can't get delay of lcd_en delay\n");
+		}
+		MIPI_SCREEN_DBG("Get lcd en gpio and delay successfully:delay %d!\n",screen->lcd_en_delay);
+	    }
+	}
+    }
+
+    /*get the initial command list*/
+    node = fdtdec_next_compatible(blob, 0, COMPAT_ROCKCHIP_MIPI_SONCMDS);
+    if(node < 0){
+        MIPI_SCREEN_DBG("Can not get node of COMPAT_ROCKCHIP_MIPI_SONCMDS\n");
+    }else{
+           for (noffset = fdt_first_subnode(blob,node);
+                 noffset >= 0;
+		 noffset = fdt_next_subnode(blob, noffset)) {
+
+            MIPI_SCREEN_DBG("build MIPI LCD init cmd tables\n");
+	   // subnode = fdtdec_next_compatible_subnode(blob, node,
+	   //			COMPAT_ROCKCHIP_MIPI_ONCMDS, &depth);
+	   // if (noffset < 0)
+	//	break;
+            dcs_cmd = calloc(1,sizeof(struct mipi_dcs_cmd_ctr_list));
+	   //node = fdt_node_offset_by_phandle(blob, handle);
+            strcpy(dcs_cmd->dcs_cmd.name, fdt_get_name(blob, noffset, NULL));
+	    MIPI_SCREEN_DBG("%s\n",dcs_cmd->dcs_cmd.name);
+	    dcs_cmd->dcs_cmd.type = fdtdec_get_int(blob, noffset, "rockchip,cmd_type", -1);
+	    MIPI_SCREEN_DBG("dcs_cmd.type=%02x\n",dcs_cmd->dcs_cmd.type);
+	    dcs_cmd->dcs_cmd.dsi_id = fdtdec_get_int(blob, noffset, "rockchip,dsi_id", -1);
+	    MIPI_SCREEN_DBG("dcs_cmd.dsi_id=%02x\n",dcs_cmd->dcs_cmd.dsi_id);
+	    err = fdt_getprop(blob, noffset, "rockchip,cmd", &length);
+	    dcs_cmd->dcs_cmd.cmd_len =	length / sizeof(u32) ;
+	    err = fdtdec_get_int_array(blob, noffset, "rockchip,cmd", cmds, dcs_cmd->dcs_cmd.cmd_len);
+	    MIPI_SCREEN_DBG("length=%d,cmd_len = %d  err = %d\n",length,dcs_cmd->dcs_cmd.cmd_len,err);
+	    for(i = 0; i < (length / sizeof(u32)); i++){   
+	       MIPI_SCREEN_DBG("cmd[%d]=0x%08x, ",i+1,cmds[i]);
+	       dcs_cmd->dcs_cmd.cmds[i] = cmds[i];
+	    }	    
+	    MIPI_SCREEN_DBG("\n");
+	    dcs_cmd->dcs_cmd.delay = fdtdec_get_int(blob, noffset, "rockchip,cmd_delay", -1);
+	    MIPI_SCREEN_DBG("dcs_cmd.delay=%d\n",dcs_cmd->dcs_cmd.delay);
+	    list_add_tail(&dcs_cmd->list, &screen->cmdlist_head);
+        }
+    }
+
+    return 0; 
+}
+
+int rk_mipi_screen_probe(void)
+{
+    int ret = 0;
+    gmipi_screen = calloc(1, sizeof(struct mipi_screen));
+	if(!gmipi_screen) {
+		printf("request struct screen fail!\n");
+		return -ENOMEM;
+	}
+    ret = rk_mipi_screen_init_dt(gmipi_screen);
+    if(ret < 0){
+        printf(" rk_mipi_screen_init_dt fail!\n");
+        return -1;
+    }
+    
+//    MIPI_SCREEN_DBG("---rk_mipi_screen_probe--end\n");
+
+	return 0;
+}
+
+#endif
+#ifdef CONFIG_LCD_MIPI
 static int __init rk_mipi_screen_probe(struct platform_device *pdev)
 {
 	static int ret = 0;
@@ -549,3 +763,4 @@ static void __exit rk_mipi_screen_exit(void)
 
 subsys_initcall_sync(rk_mipi_screen_init);
 module_exit(rk_mipi_screen_exit);
+#endif

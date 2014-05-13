@@ -14,6 +14,10 @@ drivers/video/rockchip/transmitter/mipi_dsi.h
 #include <linux/of_gpio.h>
 #include <dt-bindings/gpio/gpio.h>
 #endif
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+#include <linux/list.h>
+#endif
+
 
 //DSI DATA TYPE
 #define DTYPE_DCS_SWRITE_0P		0x05 
