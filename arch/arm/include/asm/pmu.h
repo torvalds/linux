@@ -81,6 +81,12 @@ struct pmu_hw_events {
 	 * read/modify/write sequences.
 	 */
 	raw_spinlock_t		pmu_lock;
+
+	/*
+	 * When using percpu IRQs, we need a percpu dev_id. Place it here as we
+	 * already have to allocate this struct per cpu.
+	 */
+	struct arm_pmu		*percpu_pmu;
 };
 
 struct arm_pmu {

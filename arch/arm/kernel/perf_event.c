@@ -304,17 +304,21 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 	int ret;
 	u64 start_clock, finish_clock;
 
-	if (irq_is_percpu(irq))
-		dev = *(void **)dev;
-	armpmu = dev;
+	/*
+	 * we request the IRQ with a (possibly percpu) struct arm_pmu**, but
+	 * the handlers expect a struct arm_pmu*. The percpu_irq framework will
+	 * do any necessary shifting, we just need to perform the first
+	 * dereference.
+	 */
+	armpmu = *(void **)dev;
 	plat_device = armpmu->plat_device;
 	plat = dev_get_platdata(&plat_device->dev);
 
 	start_clock = sched_clock();
 	if (plat && plat->handle_irq)
-		ret = plat->handle_irq(irq, dev, armpmu->handle_irq);
+		ret = plat->handle_irq(irq, armpmu, armpmu->handle_irq);
 	else
-		ret = armpmu->handle_irq(irq, dev);
+		ret = armpmu->handle_irq(irq, armpmu);
 	finish_clock = sched_clock();
 
 	perf_sample_event_took(finish_clock - start_clock);

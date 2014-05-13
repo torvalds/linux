@@ -35,7 +35,6 @@
 /* Set at runtime when we know what CPU type we are. */
 static struct arm_pmu *cpu_pmu;
 
-static DEFINE_PER_CPU(struct arm_pmu *, percpu_pmu);
 static DEFINE_PER_CPU(struct pmu_hw_events, cpu_hw_events);
 
 /*
@@ -85,20 +84,21 @@ static void cpu_pmu_free_irq(struct arm_pmu *cpu_pmu)
 {
 	int i, irq, irqs;
 	struct platform_device *pmu_device = cpu_pmu->plat_device;
+	struct pmu_hw_events __percpu *hw_events = cpu_pmu->hw_events;
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 
 	irq = platform_get_irq(pmu_device, 0);
 	if (irq >= 0 && irq_is_percpu(irq)) {
 		on_each_cpu(cpu_pmu_disable_percpu_irq, &irq, 1);
-		free_percpu_irq(irq, &percpu_pmu);
+		free_percpu_irq(irq, &hw_events->percpu_pmu);
 	} else {
 		for (i = 0; i < irqs; ++i) {
 			if (!cpumask_test_and_clear_cpu(i, &cpu_pmu->active_irqs))
 				continue;
 			irq = platform_get_irq(pmu_device, i);
 			if (irq >= 0)
-				free_irq(irq, cpu_pmu);
+				free_irq(irq, per_cpu_ptr(&hw_events->percpu_pmu, i));
 		}
 	}
 }
@@ -107,6 +107,7 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 {
 	int i, err, irq, irqs;
 	struct platform_device *pmu_device = cpu_pmu->plat_device;
+	struct pmu_hw_events __percpu *hw_events = cpu_pmu->hw_events;
 
 	if (!pmu_device)
 		return -ENODEV;
@@ -119,7 +120,8 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 
 	irq = platform_get_irq(pmu_device, 0);
 	if (irq >= 0 && irq_is_percpu(irq)) {
-		err = request_percpu_irq(irq, handler, "arm-pmu", &percpu_pmu);
+		err = request_percpu_irq(irq, handler, "arm-pmu",
+					 &hw_events->percpu_pmu);
 		if (err) {
 			pr_err("unable to request IRQ%d for ARM PMU counters\n",
 				irq);
@@ -146,7 +148,7 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 
 			err = request_irq(irq, handler,
 					  IRQF_NOBALANCING | IRQF_NO_THREAD, "arm-pmu",
-					  cpu_pmu);
+					  per_cpu_ptr(&hw_events->percpu_pmu, i));
 			if (err) {
 				pr_err("unable to request IRQ%d for ARM PMU counters\n",
 					irq);
@@ -166,7 +168,7 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	for_each_possible_cpu(cpu) {
 		struct pmu_hw_events *events = &per_cpu(cpu_hw_events, cpu);
 		raw_spin_lock_init(&events->pmu_lock);
-		per_cpu(percpu_pmu, cpu) = cpu_pmu;
+		events->percpu_pmu = cpu_pmu;
 	}
 
 	cpu_pmu->hw_events	= &cpu_hw_events;
