@@ -4530,7 +4530,7 @@ static void e1000e_update_phy_task(struct work_struct *work)
 	e1000_get_phy_info(hw);
 
 	/* Enable EEE on 82579 after link up */
-	if (hw->phy.type == e1000_phy_82579)
+	if (hw->phy.type >= e1000_phy_82579)
 		e1000_set_eee_pchlan(hw);
 }
 
