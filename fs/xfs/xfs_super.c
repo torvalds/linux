@@ -1749,13 +1749,9 @@ init_xfs_fs(void)
 	if (error)
 		goto out_destroy_wq;
 
-	error = xfs_filestream_init();
-	if (error)
-		goto out_mru_cache_uninit;
-
 	error = xfs_buf_init();
 	if (error)
-		goto out_filestream_uninit;
+		goto out_mru_cache_uninit;
 
 	error = xfs_init_procfs();
 	if (error)
@@ -1782,8 +1778,6 @@ init_xfs_fs(void)
 	xfs_cleanup_procfs();
  out_buf_terminate:
 	xfs_buf_terminate();
- out_filestream_uninit:
-	xfs_filestream_uninit();
  out_mru_cache_uninit:
 	xfs_mru_cache_uninit();
  out_destroy_wq:
@@ -1802,7 +1796,6 @@ exit_xfs_fs(void)
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
 	xfs_buf_terminate();
-	xfs_filestream_uninit();
 	xfs_mru_cache_uninit();
 	xfs_destroy_workqueues();
 	xfs_destroy_zones();

@@ -655,7 +655,6 @@ xfs_ialloc(
 	uint		flags;
 	int		error;
 	timespec_t	tv;
-	int		filestreams = 0;
 
 	/*
 	 * Call the space management code to pick
@@ -772,13 +771,6 @@ xfs_ialloc(
 		flags |= XFS_ILOG_DEV;
 		break;
 	case S_IFREG:
-		/*
-		 * we can't set up filestreams until after the VFS inode
-		 * is set up properly.
-		 */
-		if (pip && xfs_inode_is_filestream(pip))
-			filestreams = 1;
-		/* fall through */
 	case S_IFDIR:
 		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
 			uint	di_flags = 0;
@@ -843,15 +835,6 @@ xfs_ialloc(
 
 	/* now that we have an i_mode we can setup inode ops and unlock */
 	xfs_setup_inode(ip);
-
-	/* now we have set up the vfs inode we can associate the filestream */
-	if (filestreams) {
-		error = xfs_filestream_associate(pip, ip);
-		if (error < 0)
-			return -error;
-		if (!error)
-			xfs_iflags_set(ip, XFS_IFILESTREAM);
-	}
 
 	*ipp = ip;
 	return 0;
@@ -1697,16 +1680,6 @@ xfs_release(
 
 	if (!XFS_FORCED_SHUTDOWN(mp)) {
 		int truncated;
-
-		/*
-		 * If we are using filestreams, and we have an unlinked
-		 * file that we are processing the last close on, then nothing
-		 * will be able to reopen and write to this file. Purge this
-		 * inode from the filestreams cache so that it doesn't delay
-		 * teardown of the inode.
-		 */
-		if ((ip->i_d.di_nlink == 0) && xfs_inode_is_filestream(ip))
-			xfs_filestream_deassociate(ip);
 
 		/*
 		 * If we previously truncated this file and removed old data
@@ -2664,13 +2637,7 @@ xfs_remove(
 	if (error)
 		goto std_return;
 
-	/*
-	 * If we are using filestreams, kill the stream association.
-	 * If the file is still open it may get a new one but that
-	 * will get killed on last close in xfs_close() so we don't
-	 * have to worry about that.
-	 */
-	if (!is_dir && link_zero && xfs_inode_is_filestream(ip))
+	if (is_dir && xfs_inode_is_filestream(ip))
 		xfs_filestream_deassociate(ip);
 
 	return 0;
