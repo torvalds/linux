@@ -79,7 +79,8 @@ static int amba_kmi_open(struct serio *io)
 	writeb(divisor, KMICLKDIV);
 	writeb(KMICR_EN, KMICR);
 
-	ret = request_irq(kmi->irq, amba_kmi_int, 0, "kmi-pl050", kmi);
+	ret = request_irq(kmi->irq, amba_kmi_int, IRQF_SHARED, "kmi-pl050",
+			  kmi);
 	if (ret) {
 		printk(KERN_ERR "kmi: failed to claim IRQ%d\n", kmi->irq);
 		writeb(0, KMICR);
