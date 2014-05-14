@@ -413,11 +413,11 @@ static struct notifier_block cpufreq_reboot_notifier = {
 static int clk_pd_vio_notifier_call(struct notifier_block *nb, unsigned long event, void *ptr)
 {
 	switch (event) {
-	case RK_CLK_PD_PRE_ENABLE:
+	case RK_CLK_PD_PREPARE:
 		if (aclk_vio1_dvfs_node)
 			clk_enable_dvfs(aclk_vio1_dvfs_node);
 		break;
-	case RK_CLK_PD_POST_DISABLE:
+	case RK_CLK_PD_UNPREPARE:
 		if (aclk_vio1_dvfs_node)
 			clk_disable_dvfs(aclk_vio1_dvfs_node);
 		break;

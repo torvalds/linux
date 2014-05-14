@@ -576,10 +576,10 @@ static struct input_handler ddr_freq_input_handler = {
 static int ddrfreq_clk_event(int status, unsigned long event)
 {
 	switch (event) {
-	case RK_CLK_PD_PRE_ENABLE:
+	case RK_CLK_PD_PREPARE:
 		ddrfreq_set_sys_status(status);
 		break;
-	case RK_CLK_PD_POST_DISABLE:
+	case RK_CLK_PD_UNPREPARE:
 		ddrfreq_clear_sys_status(status);
 		break;
 	}
