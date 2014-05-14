@@ -27,6 +27,7 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <linux/interrupt.h>
+#include <linux/vmalloc.h>
 
 #include "saa7134.h"
 #include "saa7134-reg.h"
