@@ -1802,6 +1802,26 @@ static void ath10k_pci_fw_interrupt_handler(struct ath10k *ar)
 	ath10k_pci_sleep(ar);
 }
 
+/* this function effectively clears target memory controller assert line */
+static void ath10k_pci_warm_reset_si0(struct ath10k *ar)
+{
+	u32 val;
+
+	val = ath10k_pci_soc_read32(ar, SOC_RESET_CONTROL_ADDRESS);
+	ath10k_pci_soc_write32(ar, SOC_RESET_CONTROL_ADDRESS,
+			       val | SOC_RESET_CONTROL_SI0_RST_MASK);
+	val = ath10k_pci_soc_read32(ar, SOC_RESET_CONTROL_ADDRESS);
+
+	msleep(10);
+
+	val = ath10k_pci_soc_read32(ar, SOC_RESET_CONTROL_ADDRESS);
+	ath10k_pci_soc_write32(ar, SOC_RESET_CONTROL_ADDRESS,
+			       val & ~SOC_RESET_CONTROL_SI0_RST_MASK);
+	val = ath10k_pci_soc_read32(ar, SOC_RESET_CONTROL_ADDRESS);
+
+	msleep(10);
+}
+
 static int ath10k_pci_warm_reset(struct ath10k *ar)
 {
 	int ret = 0;
@@ -1859,6 +1879,8 @@ static int ath10k_pci_warm_reset(struct ath10k *ar)
 	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
 				SOC_RESET_CONTROL_ADDRESS);
 	msleep(10);
+
+	ath10k_pci_warm_reset_si0(ar);
 
 	/* debug */
 	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
