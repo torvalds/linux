@@ -27,6 +27,11 @@ The drivers must consider how to handle those System MMUs. One of the idea is
 to implement child devices or sub-devices which are the client devices of the
 System MMU.
 
+Note:
+The current DT binding for the Exynos System MMU is incomplete.
+The following properties can be removed or changed, if found incompatible with
+the "Generic IOMMU Binding" support for attaching devices to the IOMMU.
+
 Required properties:
 - compatible: Should be "samsung,exynos-sysmmu"
 - reg: A tuple of base address and size of System MMU registers.
