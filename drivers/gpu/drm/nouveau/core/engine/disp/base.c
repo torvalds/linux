@@ -22,7 +22,20 @@
  * Authors: Ben Skeggs
  */
 
-#include <engine/disp.h>
+#include "priv.h"
+
+int
+_nouveau_disp_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nouveau_disp *disp = (void *)object;
+	return nouveau_engine_fini(&disp->base, suspend);
+}
+
+int
+_nouveau_disp_init(struct nouveau_object *object)
+{
+	return 0;
+}
 
 void
 _nouveau_disp_dtor(struct nouveau_object *object)
@@ -48,5 +61,9 @@ nouveau_disp_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	return nouveau_event_create(1, heads, &disp->vblank);
+	ret = nouveau_event_create(1, heads, &disp->vblank);
+	if (ret)
+		return ret;
+
+	return 0;
 }
