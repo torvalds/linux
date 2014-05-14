@@ -5729,15 +5729,9 @@ static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
 static void vlv_display_power_well_disable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	struct drm_device *dev = dev_priv->dev;
-	enum pipe pipe;
-
 	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DISP2D);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	for_each_pipe(pipe)
-		__intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
-
 	valleyview_disable_display_irqs(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 

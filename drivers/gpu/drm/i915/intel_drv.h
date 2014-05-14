@@ -644,8 +644,6 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 /* i915_irq.c */
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 					   enum pipe pipe, bool enable);
-bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
-					     enum pipe pipe, bool enable);
 bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 					   enum transcoder pch_transcoder,
 					   bool enable);

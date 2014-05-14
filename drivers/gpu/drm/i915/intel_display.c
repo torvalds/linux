@@ -11504,10 +11504,17 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			encoder->base.crtc = NULL;
 		}
 	}
-	if (crtc->active) {
+
+	if (crtc->active || IS_VALLEYVIEW(dev) || INTEL_INFO(dev)->gen < 5) {
 		/*
 		 * We start out with underrun reporting disabled to avoid races.
 		 * For correct bookkeeping mark this on active crtcs.
+		 *
+		 * Also on gmch platforms we dont have any hardware bits to
+		 * disable the underrun reporting. Which means we need to start
+		 * out with underrun reporting disabled also on inactive pipes,
+		 * since otherwise we'll complain about the garbage we read when
+		 * e.g. coming up after runtime pm.
 		 *
 		 * No protection against concurrent access is required - at
 		 * worst a fifo underrun happens which also sets this to false.
