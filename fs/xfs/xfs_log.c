@@ -3952,11 +3952,14 @@ xfs_log_force_umount(
 		retval = xlog_state_ioerror(log);
 		spin_unlock(&log->l_icloglock);
 	}
+
 	/*
-	 * Wake up everybody waiting on xfs_log_force.
-	 * Callback all log item committed functions as if the
-	 * log writes were completed.
+	 * Wake up everybody waiting on xfs_log_force. Wake the CIL push first
+	 * as if the log writes were completed. The abort handling in the log
+	 * item committed callback functions will do this again under lock to
+	 * avoid races.
 	 */
+	wake_up_all(&log->l_cilp->xc_commit_wait);
 	xlog_state_do_callback(log, XFS_LI_ABORTED, NULL);
 
 #ifdef XFSERRORDEBUG

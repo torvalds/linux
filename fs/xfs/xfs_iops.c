@@ -829,22 +829,34 @@ xfs_setattr_size(
 	 */
 	inode_dio_wait(inode);
 
+	/*
+	 * Do all the page cache truncate work outside the transaction context
+	 * as the "lock" order is page lock->log space reservation.  i.e.
+	 * locking pages inside the transaction can ABBA deadlock with
+	 * writeback. We have to do the VFS inode size update before we truncate
+	 * the pagecache, however, to avoid racing with page faults beyond the
+	 * new EOF they are not serialised against truncate operations except by
+	 * page locks and size updates.
+	 *
+	 * Hence we are in a situation where a truncate can fail with ENOMEM
+	 * from xfs_trans_reserve(), but having already truncated the in-memory
+	 * version of the file (i.e. made user visible changes). There's not
+	 * much we can do about this, except to hope that the caller sees ENOMEM
+	 * and retries the truncate operation.
+	 */
 	error = -block_truncate_page(inode->i_mapping, newsize, xfs_get_blocks);
 	if (error)
 		return error;
+	truncate_setsize(inode, newsize);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
 	if (error)
 		goto out_trans_cancel;
 
-	truncate_setsize(inode, newsize);
-
 	commit_flags = XFS_TRANS_RELEASE_LOG_RES;
 	lock_flags |= XFS_ILOCK_EXCL;
-
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-
 	xfs_trans_ijoin(tp, ip, 0);
 
 	/*
