@@ -130,7 +130,7 @@ static enum mlx4_net_trans_rule_id mlx4_ip_proto_to_trans_rule_id(u8 ip_proto)
 	case IPPROTO_TCP:
 		return MLX4_NET_TRANS_RULE_ID_TCP;
 	default:
-		return -EPROTONOSUPPORT;
+		return MLX4_NET_TRANS_RULE_NUM;
 	}
 };
 
@@ -177,7 +177,7 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	int rc;
 	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
-	if (spec_tcp_udp.id < 0) {
+	if (spec_tcp_udp.id >= MLX4_NET_TRANS_RULE_NUM) {
 		en_warn(priv, "RFS: ignoring unsupported ip protocol (%d)\n",
 			filter->ip_proto);
 		goto ignore;
@@ -770,10 +770,11 @@ static int mlx4_en_do_set_mac(struct mlx4_en_priv *priv)
 					  priv->dev->dev_addr, priv->prev_mac);
 		if (err)
 			en_err(priv, "Failed changing HW MAC address\n");
-		memcpy(priv->prev_mac, priv->dev->dev_addr,
-		       sizeof(priv->prev_mac));
 	} else
 		en_dbg(HW, priv, "Port is down while registering mac, exiting...\n");
+
+	memcpy(priv->prev_mac, priv->dev->dev_addr,
+	       sizeof(priv->prev_mac));
 
 	return err;
 }
@@ -788,9 +789,8 @@ static int mlx4_en_set_mac(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(saddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
-
 	mutex_lock(&mdev->state_lock);
+	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
 	err = mlx4_en_do_set_mac(priv);
 	mutex_unlock(&mdev->state_lock);
 

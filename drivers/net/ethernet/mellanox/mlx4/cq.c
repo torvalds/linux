@@ -293,6 +293,9 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	atomic_set(&cq->refcount, 1);
 	init_completion(&cq->free);
 
+	cq->irq = priv->eq_table.eq[cq->vector].irq;
+	cq->irq_affinity_change = false;
+
 	return 0;
 
 err_radix:

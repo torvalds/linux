@@ -577,6 +577,9 @@ struct mlx4_cq {
 
 	u32			cons_index;
 
+	u16                     irq;
+	bool                    irq_affinity_change;
+
 	__be32		       *set_ci_db;
 	__be32		       *arm_db;
 	int			arm_sn;

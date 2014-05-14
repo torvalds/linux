@@ -895,10 +895,17 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 	mlx4_en_cq_unlock_napi(cq);
 
 	/* If we used up all the quota - we're probably not done yet... */
-	if (done == budget)
+	if (done == budget) {
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
-	else {
+		if (unlikely(cq->mcq.irq_affinity_change)) {
+			cq->mcq.irq_affinity_change = false;
+			napi_complete(napi);
+			mlx4_en_arm_cq(priv, cq);
+			return 0;
+		}
+	} else {
 		/* Done for now */
+		cq->mcq.irq_affinity_change = false;
 		napi_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
 	}
