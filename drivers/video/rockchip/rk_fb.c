@@ -2015,12 +2015,12 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 		if (copy_to_user(argp, &enable, sizeof(enable)))
 			return -EFAULT;
 		break;
-	case RK_FBIOSET_OVERLAY_STATE:
+	case RK_FBIOSET_OVERLAY_STA:
 		if (copy_from_user(&ovl, argp, sizeof(ovl)))
 			return -EFAULT;
 		dev_drv->ops->ovl_mgr(dev_drv, ovl, 1);
 		break;
-	case RK_FBIOGET_OVERLAY_STATE:
+	case RK_FBIOGET_OVERLAY_STA:
 		ovl = dev_drv->ops->ovl_mgr(dev_drv, 0, 0);
 		if (copy_to_user(argp, &ovl, sizeof(ovl)))
 			return -EFAULT;
@@ -2041,13 +2041,17 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 		if (copy_to_user(argp, &dsp_addr, sizeof(dsp_addr)))
 			return -EFAULT;
 		break;
-	case RK_FBIOGET_LIST_STAT:
+	case RK_FBIOGET_LIST_STA:
 		list_stat = rk_fb_get_list_stat(dev_drv);
 		if (copy_to_user(argp, &list_stat, sizeof(list_stat)))
 			return -EFAULT;
 
 		break;
-
+	case RK_FBIOGET_IOMMU_STA:
+		if (copy_to_user(argp, &dev_drv->iommu_enabled,
+				sizeof(dev_drv->iommu_enabled)))
+			return -EFAULT;
+		break;
 #if defined(CONFIG_ION_ROCKCHIP)
 	case RK_FBIOSET_DMABUF_FD:
 	{
@@ -2958,12 +2962,14 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 	struct ion_handle *handle;
 	ion_phys_addr_t phy_addr;
 	size_t len;
-
-	handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, ION_HEAP(ION_CMA_HEAP_ID), 0);
-	if (IS_ERR(handle)) {
-		dev_err(fbi->device, "failed to ion_alloc:%ld\n",PTR_ERR(handle));
-		return -ENOMEM;
-	}
+	if (dev_drv->iommu_enabled)
+		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, ION_HEAP(ION_VMALLOC_HEAP_ID), 0);
+	else
+		handle = ion_alloc(rk_fb->ion_client, (size_t)fb_mem_size, 0, ION_HEAP(ION_CMA_HEAP_ID), 0);
+		if (IS_ERR(handle)) {
+			dev_err(fbi->device, "failed to ion_alloc:%ld\n",PTR_ERR(handle));
+			return -ENOMEM;
+		}
 	win->area[0].dma_buf = ion_share_dma_buf(rk_fb->ion_client, handle);
 	if (IS_ERR_OR_NULL(win->area[0].dma_buf)) {
 		printk("ion_share_dma_buf() failed\n");
