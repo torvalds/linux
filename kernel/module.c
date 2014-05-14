@@ -3023,21 +3023,6 @@ static int do_init_module(struct module *mod)
 	 */
 	current->flags &= ~PF_USED_ASYNC;
 
-	blocking_notifier_call_chain(&module_notify_list,
-			MODULE_STATE_COMING, mod);
-
-	/* Set RO and NX regions for core */
-	set_section_ro_nx(mod->module_core,
-				mod->core_text_size,
-				mod->core_ro_size,
-				mod->core_size);
-
-	/* Set RO and NX regions for init */
-	set_section_ro_nx(mod->module_init,
-				mod->init_text_size,
-				mod->init_ro_size,
-				mod->init_size);
-
 	do_mod_ctors(mod);
 	/* Start the module */
 	if (mod->init != NULL)
@@ -3168,9 +3153,26 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	/* This relies on module_mutex for list integrity. */
 	module_bug_finalize(info->hdr, info->sechdrs, mod);
 
+	/* Set RO and NX regions for core */
+	set_section_ro_nx(mod->module_core,
+				mod->core_text_size,
+				mod->core_ro_size,
+				mod->core_size);
+
+	/* Set RO and NX regions for init */
+	set_section_ro_nx(mod->module_init,
+				mod->init_text_size,
+				mod->init_ro_size,
+				mod->init_size);
+
 	/* Mark state as coming so strong_try_module_get() ignores us,
 	 * but kallsyms etc. can see us. */
 	mod->state = MODULE_STATE_COMING;
+	mutex_unlock(&module_mutex);
+
+	blocking_notifier_call_chain(&module_notify_list,
+				     MODULE_STATE_COMING, mod);
+	return 0;
 
 out:
 	mutex_unlock(&module_mutex);
