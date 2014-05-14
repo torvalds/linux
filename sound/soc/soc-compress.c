@@ -316,8 +316,9 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 		cmd == SND_COMPR_TRIGGER_DRAIN) {
 
 		if (platform->driver->compr_ops &&
-			platform->driver->compr_ops->trigger)
-		return platform->driver->compr_ops->trigger(cstream, cmd);
+		    platform->driver->compr_ops->trigger)
+			return platform->driver->compr_ops->trigger(cstream,
+								    cmd);
 	}
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK)
