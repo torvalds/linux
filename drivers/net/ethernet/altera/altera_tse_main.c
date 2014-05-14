@@ -1376,6 +1376,11 @@ static int altera_tse_probe(struct platform_device *pdev)
 		of_property_read_bool(pdev->dev.of_node,
 				      "altr,has-hash-multicast-filter");
 
+	/* Set hash filter to not set for now until the
+	 * multicast filter receive issue is debugged
+	 */
+	priv->hash_filter = 0;
+
 	/* get supplemental address settings for this instance */
 	priv->added_unicast =
 		of_property_read_bool(pdev->dev.of_node,
