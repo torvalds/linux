@@ -59,6 +59,7 @@ MODULE_PARM_DESC(reset_mode, "0: auto, 1: warm only (default: 0)");
 
 /* how long wait to wait for target to initialise, in ms */
 #define ATH10K_PCI_TARGET_WAIT 3000
+#define ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS 3
 
 #define QCA988X_2_0_DEVICE_ID	(0x003c)
 
@@ -2010,6 +2011,28 @@ err:
 	return ret;
 }
 
+static int ath10k_pci_hif_power_up_warm(struct ath10k *ar)
+{
+	int i, ret;
+
+	/*
+	 * Sometime warm reset succeeds after retries.
+	 *
+	 * FIXME: It might be possible to tune ath10k_pci_warm_reset() to work
+	 * at first try.
+	 */
+	for (i = 0; i < ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS; i++) {
+		ret = __ath10k_pci_hif_power_up(ar, false);
+		if (ret == 0)
+			break;
+
+		ath10k_warn("failed to warm reset (attempt %d out of %d): %d\n",
+			    i + 1, ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS, ret);
+	}
+
+	return ret;
+}
+
 static int ath10k_pci_hif_power_up(struct ath10k *ar)
 {
 	int ret;
@@ -2021,10 +2044,10 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	 * preferred (and safer) way to perform a device reset is through a
 	 * warm reset.
 	 *
-	 * Warm reset doesn't always work though (notably after a firmware
-	 * crash) so fall back to cold reset if necessary.
+	 * Warm reset doesn't always work though so fall back to cold reset may
+	 * be necessary.
 	 */
-	ret = __ath10k_pci_hif_power_up(ar, false);
+	ret = ath10k_pci_hif_power_up_warm(ar);
 	if (ret) {
 		ath10k_warn("failed to power up target using warm reset: %d\n",
 			    ret);
