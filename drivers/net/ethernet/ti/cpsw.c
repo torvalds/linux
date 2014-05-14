@@ -143,13 +143,13 @@ do {								\
 		u32 i;		\
 		for (i = 0; i < priv->num_irqs; i++) \
 			enable_irq(priv->irqs_table[i]); \
-	} while (0);
+	} while (0)
 #define cpsw_disable_irq(priv)	\
 	do {			\
 		u32 i;		\
 		for (i = 0; i < priv->num_irqs; i++) \
 			disable_irq_nosync(priv->irqs_table[i]); \
-	} while (0);
+	} while (0)
 
 #define cpsw_slave_index(priv)				\
 		((priv->data.dual_emac) ? priv->emac_port :	\
