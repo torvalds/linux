@@ -82,14 +82,14 @@ struct lock_writer_stress_stats {
 };
 static struct lock_writer_stress_stats *lwsa;
 
-#if defined(MODULE) || defined(CONFIG_LOCK_TORTURE_TEST_RUNNABLE)
+#if defined(MODULE)
 #define LOCKTORTURE_RUNNABLE_INIT 1
 #else
 #define LOCKTORTURE_RUNNABLE_INIT 0
 #endif
 int locktorture_runnable = LOCKTORTURE_RUNNABLE_INIT;
 module_param(locktorture_runnable, int, 0444);
-MODULE_PARM_DESC(locktorture_runnable, "Start locktorture at boot");
+MODULE_PARM_DESC(locktorture_runnable, "Start locktorture at module init");
 
 /* Forward reference. */
 static void lock_torture_cleanup(void);
@@ -219,7 +219,8 @@ static int lock_torture_writer(void *arg)
 	set_user_nice(current, 19);
 
 	do {
-		schedule_timeout_uninterruptible(1);
+		if ((torture_random(&rand) & 0xfffff) == 0)
+			schedule_timeout_uninterruptible(1);
 		cur_ops->writelock();
 		if (WARN_ON_ONCE(lock_is_write_held))
 			lwsp->n_write_lock_fail++;
@@ -354,7 +355,8 @@ static int __init lock_torture_init(void)
 		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops,
 	};
 
-	torture_init_begin(torture_type, verbose, &locktorture_runnable);
+	if (!torture_init_begin(torture_type, verbose, &locktorture_runnable))
+		return -EBUSY;
 
 	/* Process args and tell the world that the torturer is on the job. */
 	for (i = 0; i < ARRAY_SIZE(torture_ops); i++) {

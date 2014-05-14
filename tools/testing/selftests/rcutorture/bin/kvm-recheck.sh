@@ -25,6 +25,7 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
+. tools/testing/selftests/rcutorture/bin/functions.sh
 for rd in "$@"
 do
 	firsttime=1
@@ -39,13 +40,24 @@ do
 		fi
 		TORTURE_SUITE="`cat $i/../TORTURE_SUITE`"
 		kvm-recheck-${TORTURE_SUITE}.sh $i
-		configcheck.sh $i/.config $i/ConfigFragment
-		parse-build.sh $i/Make.out $configfile
-		parse-rcutorture.sh $i/console.log $configfile
-		parse-console.sh $i/console.log $configfile
-		if test -r $i/Warnings
+		if test -f "$i/console.log"
 		then
-			cat $i/Warnings
+			configcheck.sh $i/.config $i/ConfigFragment
+			parse-build.sh $i/Make.out $configfile
+			parse-torture.sh $i/console.log $configfile
+			parse-console.sh $i/console.log $configfile
+			if test -r $i/Warnings
+			then
+				cat $i/Warnings
+			fi
+		else
+			if test -f "$i/qemu-cmd"
+			then
+				print_bug qemu failed
+			else
+				print_bug Build failed
+			fi
+			echo "   $i"
 		fi
 	done
 done
