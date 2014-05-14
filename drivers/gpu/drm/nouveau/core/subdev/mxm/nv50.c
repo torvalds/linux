@@ -150,7 +150,7 @@ mxm_dcb_sanitise_entry(struct nouveau_bios *bios, void *data, int idx, u16 pdcb)
 	 * common example is DP->eDP.
 	 */
 	conn  = bios->data;
-	conn += dcb_conn(bios, (ctx.outp[0] & 0x0000f000) >> 12, &ver, &len);
+	conn += nvbios_connEe(bios, (ctx.outp[0] & 0x0000f000) >> 12, &ver, &len);
 	type  = conn[0];
 	switch (ctx.desc.conn_type) {
 	case 0x01: /* LVDS */
