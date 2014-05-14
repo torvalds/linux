@@ -1,7 +1,8 @@
 /*
  * Device Tree Source for the Genmai board
  *
- * Copyright (C) 2013 Renesas Solutions Corp.
+ * Copyright (C) 2013-14 Renesas Solutions Corp.
+ * Copyright (C) 2014 Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -14,6 +15,10 @@
 / {
 	model = "Genmai";
 	compatible = "renesas,genmai-reference", "renesas,r7s72100";
+
+	aliases {
+		serial2 = &scif2;
+	};
 
 	chosen {
 		bootargs = "console=ttySC2,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp";
@@ -47,4 +52,8 @@
 		reg = <0x50>;
 		pagesize = <64>;
 	};
+};
+
+&scif2 {
+	status = "okay";
 };
