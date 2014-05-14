@@ -259,7 +259,9 @@ int ast_mm_init(struct ast_private *ast)
 
 	ret = ttm_bo_device_init(&ast->ttm.bdev,
 				 ast->ttm.bo_global_ref.ref.object,
-				 &ast_bo_driver, DRM_FILE_PAGE_OFFSET,
+				 &ast_bo_driver,
+				 dev->anon_inode->i_mapping,
+				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
@@ -324,7 +326,6 @@ int ast_bo_create(struct drm_device *dev, int size, int align,
 	}
 
 	astbo->bo.bdev = &ast->ttm.bdev;
-	astbo->bo.bdev->dev_mapping = dev->dev_mapping;
 
 	ast_ttm_placement(astbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
 

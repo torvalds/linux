@@ -445,7 +445,7 @@ struct ptlrpc_reply_state {
 	lnet_handle_md_t       rs_md_h;
 	atomic_t	   rs_refcount;
 
-	/** Context for the sevice thread */
+	/** Context for the service thread */
 	struct ptlrpc_svc_ctx *rs_svc_ctx;
 	/** Reply buffer (actually sent to the client), encoded if needed */
 	struct lustre_msg     *rs_repbuf;       /* wrapper */
@@ -454,9 +454,9 @@ struct ptlrpc_reply_state {
 	/** Size of the reply message */
 	int		    rs_repdata_len;  /* wrapper msg length */
 	/**
-	 * Actual reply message. Its content is encrupted (if needed) to
+	 * Actual reply message. Its content is encrypted (if needed) to
 	 * produce reply buffer for actual sending. In simple case
-	 * of no network encryption we jus set \a rs_repbuf to \a rs_msg
+	 * of no network encryption we just set \a rs_repbuf to \a rs_msg
 	 */
 	struct lustre_msg     *rs_msg;	  /* reply message */
 
@@ -497,7 +497,7 @@ struct ptlrpc_request_pool {
 	spinlock_t prp_lock;
 	/** list of ptlrpc_request structs */
 	struct list_head prp_req_list;
-	/** Maximum message size that would fit into a rquest from this pool */
+	/** Maximum message size that would fit into a request from this pool */
 	int prp_rq_size;
 	/** Function to allocate more requests for this pool */
 	void (*prp_populate)(struct ptlrpc_request_pool *, int);
@@ -904,7 +904,7 @@ struct ptlrpc_nrs_pol_conf {
 	 */
 	struct module			  *nc_owner;
 	/**
-	 * Policy registration flags; a bitmast of \e nrs_policy_flags
+	 * Policy registration flags; a bitmask of \e nrs_policy_flags
 	 */
 	unsigned			   nc_flags;
 };
@@ -1351,7 +1351,7 @@ struct nrs_orr_data {
 	 */
 	enum nrs_orr_supp		od_supp;
 	/**
-	 * Round Robin quantum; the maxium number of RPCs that each request
+	 * Round Robin quantum; the maximum number of RPCs that each request
 	 * batch for each object or OST can have in a scheduling round.
 	 */
 	__u16				od_quantum;
@@ -1486,7 +1486,7 @@ struct ptlrpc_nrs_request {
 		 */
 		struct nrs_fifo_req	fifo;
 		/**
-		 * CRR-N request defintion
+		 * CRR-N request definition
 		 */
 		struct nrs_crrn_req	crr;
 		/** ORR and TRR share the same request definition */
@@ -1550,7 +1550,7 @@ struct ptlrpc_request {
 	 * requests in time
 	 */
 	struct list_head rq_timed_list;
-	/** server-side history, used for debuging purposes. */
+	/** server-side history, used for debugging purposes. */
 	struct list_head rq_history_list;
 	/** server-side per-export list */
 	struct list_head rq_exp_list;
@@ -1611,7 +1611,7 @@ struct ptlrpc_request {
 	enum rq_phase rq_phase; /* one of RQ_PHASE_* */
 	enum rq_phase rq_next_phase; /* one of RQ_PHASE_* to be used next */
 	atomic_t rq_refcount;/* client-side refcount for SENT race,
-				    server-side refcounf for multiple replies */
+				    server-side refcount for multiple replies */
 
 	/** Portal to which this request would be sent */
 	short rq_request_portal;  /* XXX FIXME bug 249 */
@@ -1637,7 +1637,7 @@ struct ptlrpc_request {
 	/** xid */
 	__u64 rq_xid;
 	/**
-	 * List item to for replay list. Not yet commited requests get linked
+	 * List item to for replay list. Not yet committed requests get linked
 	 * there.
 	 * Also see \a rq_replay comment above.
 	 */
@@ -1952,7 +1952,7 @@ void _debug_req(struct ptlrpc_request *req,
 	__attribute__ ((format (printf, 3, 4)));
 
 /**
- * Helper that decides if we need to print request accordig to current debug
+ * Helper that decides if we need to print request according to current debug
  * level settings
  */
 #define debug_req(msgdata, mask, cdls, req, fmt, a...)			\
@@ -1966,7 +1966,7 @@ do {									  \
 } while(0)
 
 /**
- * This is the debug print function you need to use to print request sturucture
+ * This is the debug print function you need to use to print request structure
  * content into lustre debug log.
  * for most callers (level is a constant) this is resolved at compile time */
 #define DEBUG_REQ(level, req, fmt, args...)				   \
@@ -2621,6 +2621,8 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd);
  * request queues, request management, etc.
  * @{
  */
+void ptlrpc_request_committed(struct ptlrpc_request *req, int force);
+
 void ptlrpc_init_client(int req_portal, int rep_portal, char *name,
 			struct ptlrpc_client *);
 void ptlrpc_cleanup_client(struct obd_import *imp);

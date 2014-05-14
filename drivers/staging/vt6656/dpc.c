@@ -627,7 +627,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
 
     // Now it only supports 802.11g Infrastructure Mode, and support rate must up to 54 Mbps
     if (pDevice->bDiversityEnable && (FrameSize>50) &&
-       (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
+	pDevice->op_mode == NL80211_IFTYPE_STATION &&
        (pDevice->bLinkPass == true)) {
         BBvAntennaDiversity(pDevice, s_byGetRateIdx(*pbyRxRate), 0);
     }
@@ -1227,14 +1227,13 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
     if (is_multicast_ether_addr((u8 *)(skb->data+cbHeaderOffset))) {
        if (pMgmt->sNodeDBTable[0].bPSEnable) {
 
-           skbcpy = dev_alloc_skb((int)pDevice->rx_buf_sz);
+	    skbcpy = netdev_alloc_skb(pDevice->dev, pDevice->rx_buf_sz);
 
         // if any node in PS mode, buffer packet until DTIM.
            if (skbcpy == NULL) {
                DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available \n");
            }
            else {
-               skbcpy->dev = pDevice->dev;
                skbcpy->len = FrameSize;
                memcpy(skbcpy->data, skb->data+cbHeaderOffset, FrameSize);
                skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), skbcpy);
@@ -1295,63 +1294,66 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
 
 void RXvWorkItem(struct work_struct *work)
 {
-	struct vnt_private *pDevice =
+	struct vnt_private *priv =
 		container_of(work, struct vnt_private, read_work_item);
-	int ntStatus;
-	struct vnt_rcb *pRCB = NULL;
+	int status;
+	struct vnt_rcb *rcb = NULL;
 
-	if (pDevice->Flags & fMP_DISCONNECTED)
+	if (priv->Flags & fMP_DISCONNECTED)
 		return;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
-    spin_lock_irq(&pDevice->lock);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
 
-    while ((pDevice->Flags & fMP_POST_READS) &&
-            MP_IS_READY(pDevice) &&
-            (pDevice->NumRecvFreeList != 0) ) {
-        pRCB = pDevice->FirstRecvFreeList;
-        pDevice->NumRecvFreeList--;
-        DequeueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList);
-        ntStatus = PIPEnsBulkInUsbRead(pDevice, pRCB);
-    }
-    pDevice->bIsRxWorkItemQueued = false;
-    spin_unlock_irq(&pDevice->lock);
+	spin_lock_irq(&priv->lock);
 
-}
+	while ((priv->Flags & fMP_POST_READS) && MP_IS_READY(priv) &&
+			(priv->NumRecvFreeList != 0)) {
+		rcb = priv->FirstRecvFreeList;
 
-void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb)
-{
-	struct vnt_private *pDevice = pRCB->pDevice;
+		priv->NumRecvFreeList--;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->RXvFreeRCB\n");
+		DequeueRCB(priv->FirstRecvFreeList, priv->LastRecvFreeList);
 
-	if (bReAllocSkb == false) {
-		kfree_skb(pRCB->skb);
-		bReAllocSkb = true;
+		status = PIPEnsBulkInUsbRead(priv, rcb);
 	}
 
-    if (bReAllocSkb == true) {
-        pRCB->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-        // todo error handling
-        if (pRCB->skb == NULL) {
-            DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to re-alloc rx skb\n");
-        }else {
-            pRCB->skb->dev = pDevice->dev;
-        }
-    }
-    //
-    // Insert the RCB back in the Recv free list
-    //
-    EnqueueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList, pRCB);
-    pDevice->NumRecvFreeList++;
+	priv->bIsRxWorkItemQueued = false;
 
-    if ((pDevice->Flags & fMP_POST_READS) && MP_IS_READY(pDevice) &&
-        (pDevice->bIsRxWorkItemQueued == false) ) {
+	spin_unlock_irq(&priv->lock);
+}
 
-        pDevice->bIsRxWorkItemQueued = true;
-	schedule_work(&pDevice->read_work_item);
-    }
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);
+void RXvFreeRCB(struct vnt_rcb *rcb, int re_alloc_skb)
+{
+	struct vnt_private *priv = rcb->pDevice;
+
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->RXvFreeRCB\n");
+
+	if (re_alloc_skb == false) {
+		kfree_skb(rcb->skb);
+		re_alloc_skb = true;
+	}
+
+	if (re_alloc_skb == true) {
+		rcb->skb = netdev_alloc_skb(priv->dev, priv->rx_buf_sz);
+		/* TODO error handling */
+		if (!rcb->skb) {
+			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
+				" Failed to re-alloc rx skb\n");
+		}
+	}
+
+	/* Insert the RCB back in the Recv free list */
+	EnqueueRCB(priv->FirstRecvFreeList, priv->LastRecvFreeList, rcb);
+	priv->NumRecvFreeList++;
+
+	if ((priv->Flags & fMP_POST_READS) && MP_IS_READY(priv) &&
+			(priv->bIsRxWorkItemQueued == false)) {
+		priv->bIsRxWorkItemQueued = true;
+		schedule_work(&priv->read_work_item);
+	}
+
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",
+			priv->NumRecvFreeList, priv->NumRecvMngList);
 }
 
 void RXvMngWorkItem(struct work_struct *work)

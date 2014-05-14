@@ -660,11 +660,6 @@ static int ethoc_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	return -EBUSY;
 }
 
-static int ethoc_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void ethoc_mdio_poll(struct net_device *dev)
 {
 }
@@ -1210,7 +1205,6 @@ static int ethoc_probe(struct platform_device *pdev)
 			priv->mdio->name, pdev->id);
 	priv->mdio->read = ethoc_mdio_read;
 	priv->mdio->write = ethoc_mdio_write;
-	priv->mdio->reset = ethoc_mdio_reset;
 	priv->mdio->priv = priv;
 
 	priv->mdio->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);

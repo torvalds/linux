@@ -164,6 +164,7 @@ static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.n_alarm = 0,
 	.n_ext_ts = 0,
 	.n_per_out = 0,
+	.n_pins = 0,
 	.pps = 0,
 	.adjfreq = stmmac_adjust_freq,
 	.adjtime = stmmac_adjust_time,

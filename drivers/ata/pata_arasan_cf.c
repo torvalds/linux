@@ -356,7 +356,7 @@ static void cf_exit(struct arasan_cf_dev *acdev)
 
 static void dma_callback(void *dev)
 {
-	struct arasan_cf_dev *acdev = (struct arasan_cf_dev *) dev;
+	struct arasan_cf_dev *acdev = dev;
 
 	complete(&acdev->dma_completion);
 }
@@ -898,9 +898,12 @@ static int arasan_cf_probe(struct platform_device *pdev)
 
 	cf_card_detect(acdev, 0);
 
-	return ata_host_activate(host, acdev->irq, irq_handler, 0,
-			&arasan_cf_sht);
+	ret = ata_host_activate(host, acdev->irq, irq_handler, 0,
+				&arasan_cf_sht);
+	if (!ret)
+		return 0;
 
+	cf_exit(acdev);
 free_clk:
 	clk_put(acdev->clk);
 	return ret;

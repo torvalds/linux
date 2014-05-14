@@ -572,7 +572,7 @@ struct ptlrpc_sec_cops {
 	/**
 	 * Called then the reference of \a ctx dropped to 0. The policy module
 	 * is supposed to destroy this context or whatever else according to
-	 * its cache maintainance mechamism.
+	 * its cache maintenance mechanism.
 	 *
 	 * \param sync if zero, we shouldn't wait for the context being
 	 * destroyed completely.
@@ -1002,7 +1002,7 @@ struct ptlrpc_sec *sptlrpc_sec_get(struct ptlrpc_sec *sec);
 void sptlrpc_sec_put(struct ptlrpc_sec *sec);
 
 /*
- * internal apis which only used by policy impelentation
+ * internal apis which only used by policy implementation
  */
 int  sptlrpc_get_next_secid(void);
 void sptlrpc_sec_destroy(struct ptlrpc_sec *sec);

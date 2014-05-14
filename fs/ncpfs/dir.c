@@ -339,7 +339,7 @@ ncp_lookup_validate(struct dentry *dentry, unsigned int flags)
 	if (val)
 		goto finished;
 
-	DDPRINTK("ncp_lookup_validate: %pd2 not valid, age=%ld, server lookup\n",
+	ncp_dbg(2, "%pd2 not valid, age=%ld, server lookup\n",
 		dentry, NCP_GET_AGE(dentry));
 
 	len = sizeof(__name);
@@ -358,7 +358,7 @@ ncp_lookup_validate(struct dentry *dentry, unsigned int flags)
 			res = ncp_obtain_info(server, dir, __name, &(finfo.i));
 	}
 	finfo.volume = finfo.i.volNumber;
-	DDPRINTK("ncp_lookup_validate: looked for %pd/%s, res=%d\n",
+	ncp_dbg(2, "looked for %pd/%s, res=%d\n",
 		dentry->d_parent, __name, res);
 	/*
 	 * If we didn't find it, or if it has a different dirEntNum to
@@ -372,14 +372,14 @@ ncp_lookup_validate(struct dentry *dentry, unsigned int flags)
 			ncp_new_dentry(dentry);
 			val=1;
 		} else
-			DDPRINTK("ncp_lookup_validate: found, but dirEntNum changed\n");
+			ncp_dbg(2, "found, but dirEntNum changed\n");
 
 		ncp_update_inode2(inode, &finfo);
 		mutex_unlock(&inode->i_mutex);
 	}
 
 finished:
-	DDPRINTK("ncp_lookup_validate: result=%d\n", val);
+	ncp_dbg(2, "result=%d\n", val);
 	dput(parent);
 	return val;
 }
@@ -453,8 +453,7 @@ static int ncp_readdir(struct file *file, struct dir_context *ctx)
 	ctl.page  = NULL;
 	ctl.cache = NULL;
 
-	DDPRINTK("ncp_readdir: reading %pD2, pos=%d\n", file,
-		(int) ctx->pos);
+	ncp_dbg(2, "reading %pD2, pos=%d\n", file, (int)ctx->pos);
 
 	result = -EIO;
 	/* Do not generate '.' and '..' when server is dead. */
@@ -697,8 +696,7 @@ ncp_read_volume_list(struct file *file, struct dir_context *ctx,
 	struct ncp_entry_info entry;
 	int i;
 
-	DPRINTK("ncp_read_volume_list: pos=%ld\n",
-			(unsigned long) ctx->pos);
+	ncp_dbg(1, "pos=%ld\n", (unsigned long)ctx->pos);
 
 	for (i = 0; i < NCP_NUMBER_OF_VOLUMES; i++) {
 		int inval_dentry;
@@ -708,12 +706,11 @@ ncp_read_volume_list(struct file *file, struct dir_context *ctx,
 		if (!strlen(info.volume_name))
 			continue;
 
-		DPRINTK("ncp_read_volume_list: found vol: %s\n",
-			info.volume_name);
+		ncp_dbg(1, "found vol: %s\n", info.volume_name);
 
 		if (ncp_lookup_volume(server, info.volume_name,
 					&entry.i)) {
-			DPRINTK("ncpfs: could not lookup vol %s\n",
+			ncp_dbg(1, "could not lookup vol %s\n",
 				info.volume_name);
 			continue;
 		}
@@ -738,14 +735,13 @@ ncp_do_readdir(struct file *file, struct dir_context *ctx,
 	int more;
 	size_t bufsize;
 
-	DPRINTK("ncp_do_readdir: %pD2, fpos=%ld\n", file,
-		(unsigned long) ctx->pos);
-	PPRINTK("ncp_do_readdir: init %pD, volnum=%d, dirent=%u\n",
-		file, NCP_FINFO(dir)->volNumber, NCP_FINFO(dir)->dirEntNum);
+	ncp_dbg(1, "%pD2, fpos=%ld\n", file, (unsigned long)ctx->pos);
+	ncp_vdbg("init %pD, volnum=%d, dirent=%u\n",
+		 file, NCP_FINFO(dir)->volNumber, NCP_FINFO(dir)->dirEntNum);
 
 	err = ncp_initialize_search(server, dir, &seq);
 	if (err) {
-		DPRINTK("ncp_do_readdir: init failed, err=%d\n", err);
+		ncp_dbg(1, "init failed, err=%d\n", err);
 		return;
 	}
 	/* We MUST NOT use server->buffer_size handshaked with server if we are
@@ -808,8 +804,7 @@ int ncp_conn_logged_in(struct super_block *sb)
 			goto out;
 		result = -ENOENT;
 		if (ncp_get_volume_root(server, __name, &volNumber, &dirEntNum, &DosDirNum)) {
-			PPRINTK("ncp_conn_logged_in: %s not found\n",
-				server->m.mounted_vol);
+			ncp_vdbg("%s not found\n", server->m.mounted_vol);
 			goto out;
 		}
 		dent = sb->s_root;
@@ -822,10 +817,10 @@ int ncp_conn_logged_in(struct super_block *sb)
 				NCP_FINFO(ino)->DosDirNum = DosDirNum;
 				result = 0;
 			} else {
-				DPRINTK("ncpfs: sb->s_root->d_inode == NULL!\n");
+				ncp_dbg(1, "sb->s_root->d_inode == NULL!\n");
 			}
 		} else {
-			DPRINTK("ncpfs: sb->s_root == NULL!\n");
+			ncp_dbg(1, "sb->s_root == NULL!\n");
 		}
 	} else
 		result = 0;
@@ -846,7 +841,7 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, unsig
 	if (!ncp_conn_valid(server))
 		goto finished;
 
-	PPRINTK("ncp_lookup: server lookup for %pd2\n", dentry);
+	ncp_vdbg("server lookup for %pd2\n", dentry);
 
 	len = sizeof(__name);
 	if (ncp_is_server_root(dir)) {
@@ -854,15 +849,15 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, unsig
 				 dentry->d_name.len, 1);
 		if (!res)
 			res = ncp_lookup_volume(server, __name, &(finfo.i));
-			if (!res)
-				ncp_update_known_namespace(server, finfo.i.volNumber, NULL);
+		if (!res)
+			ncp_update_known_namespace(server, finfo.i.volNumber, NULL);
 	} else {
 		res = ncp_io2vol(server, __name, &len, dentry->d_name.name,
 				 dentry->d_name.len, !ncp_preserve_case(dir));
 		if (!res)
 			res = ncp_obtain_info(server, dir, __name, &(finfo.i));
 	}
-	PPRINTK("ncp_lookup: looked for %pd2, res=%d\n", dentry, res);
+	ncp_vdbg("looked for %pd2, res=%d\n", dentry, res);
 	/*
 	 * If we didn't find an entry, make a negative dentry.
 	 */
@@ -886,7 +881,7 @@ add_entry:
 	}
 
 finished:
-	PPRINTK("ncp_lookup: result=%d\n", error);
+	ncp_vdbg("result=%d\n", error);
 	return ERR_PTR(error);
 }
 
@@ -909,7 +904,7 @@ out:
 	return error;
 
 out_close:
-	PPRINTK("ncp_instantiate: %pd2 failed, closing file\n", dentry);
+	ncp_vdbg("%pd2 failed, closing file\n", dentry);
 	ncp_close_file(NCP_SERVER(dir), finfo->file_handle);
 	goto out;
 }
@@ -923,7 +918,7 @@ int ncp_create_new(struct inode *dir, struct dentry *dentry, umode_t mode,
 	int opmode;
 	__u8 __name[NCP_MAXPATHLEN + 1];
 	
-	PPRINTK("ncp_create_new: creating %pd2, mode=%hx\n", dentry, mode);
+	ncp_vdbg("creating %pd2, mode=%hx\n", dentry, mode);
 
 	ncp_age_dentry(server, dentry);
 	len = sizeof(__name);
@@ -952,7 +947,7 @@ int ncp_create_new(struct inode *dir, struct dentry *dentry, umode_t mode,
 				error = -ENAMETOOLONG;
 			else if (result < 0)
 				error = result;
-			DPRINTK("ncp_create: %pd2 failed\n", dentry);
+			ncp_dbg(1, "%pd2 failed\n", dentry);
 			goto out;
 		}
 		opmode = O_WRONLY;
@@ -985,7 +980,7 @@ static int ncp_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	int error, len;
 	__u8 __name[NCP_MAXPATHLEN + 1];
 
-	DPRINTK("ncp_mkdir: making %pd2\n", dentry);
+	ncp_dbg(1, "making %pd2\n", dentry);
 
 	ncp_age_dentry(server, dentry);
 	len = sizeof(__name);
@@ -1022,7 +1017,7 @@ static int ncp_rmdir(struct inode *dir, struct dentry *dentry)
 	int error, result, len;
 	__u8 __name[NCP_MAXPATHLEN + 1];
 
-	DPRINTK("ncp_rmdir: removing %pd2\n", dentry);
+	ncp_dbg(1, "removing %pd2\n", dentry);
 
 	len = sizeof(__name);
 	error = ncp_io2vol(server, __name, &len, dentry->d_name.name,
@@ -1067,13 +1062,13 @@ static int ncp_unlink(struct inode *dir, struct dentry *dentry)
 	int error;
 
 	server = NCP_SERVER(dir);
-	DPRINTK("ncp_unlink: unlinking %pd2\n", dentry);
+	ncp_dbg(1, "unlinking %pd2\n", dentry);
 	
 	/*
 	 * Check whether to close the file ...
 	 */
 	if (inode) {
-		PPRINTK("ncp_unlink: closing file\n");
+		ncp_vdbg("closing file\n");
 		ncp_make_closed(inode);
 	}
 
@@ -1087,7 +1082,7 @@ static int ncp_unlink(struct inode *dir, struct dentry *dentry)
 #endif
 	switch (error) {
 		case 0x00:
-			DPRINTK("ncp: removed %pd2\n", dentry);
+			ncp_dbg(1, "removed %pd2\n", dentry);
 			break;
 		case 0x85:
 		case 0x8A:
@@ -1120,7 +1115,7 @@ static int ncp_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int old_len, new_len;
 	__u8 __old_name[NCP_MAXPATHLEN + 1], __new_name[NCP_MAXPATHLEN + 1];
 
-	DPRINTK("ncp_rename: %pd2 to %pd2\n", old_dentry, new_dentry);
+	ncp_dbg(1, "%pd2 to %pd2\n", old_dentry, new_dentry);
 
 	ncp_age_dentry(server, old_dentry);
 	ncp_age_dentry(server, new_dentry);
@@ -1150,8 +1145,8 @@ static int ncp_rename(struct inode *old_dir, struct dentry *old_dentry,
 #endif
 	switch (error) {
 		case 0x00:
-               	        DPRINTK("ncp renamed %pd -> %pd.\n",
-                                old_dentry, new_dentry);
+			ncp_dbg(1, "renamed %pd -> %pd\n",
+				old_dentry, new_dentry);
 			break;
 		case 0x9E:
 			error = -ENAMETOOLONG;
@@ -1173,7 +1168,7 @@ static int ncp_mknod(struct inode * dir, struct dentry *dentry,
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 	if (ncp_is_nfs_extras(NCP_SERVER(dir), NCP_FINFO(dir)->volNumber)) {
-		DPRINTK(KERN_DEBUG "ncp_mknod: mode = 0%ho\n", mode);
+		ncp_dbg(1, "mode = 0%ho\n", mode);
 		return ncp_create_new(dir, dentry, mode, rdev, 0);
 	}
 	return -EPERM; /* Strange, but true */

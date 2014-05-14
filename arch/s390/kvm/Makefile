@@ -7,7 +7,7 @@
 # as published by the Free Software Foundation.
 
 KVM := ../../../virt/kvm
-common-objs = $(KVM)/kvm_main.o $(KVM)/eventfd.o
+common-objs = $(KVM)/kvm_main.o $(KVM)/eventfd.o  $(KVM)/async_pf.o $(KVM)/irqchip.o
 
 ccflags-y := -Ivirt/kvm -Iarch/s390/kvm
 

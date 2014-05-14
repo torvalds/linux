@@ -88,7 +88,7 @@ struct ts5500_sbc {
 static const struct {
 	const char * const string;
 	const ssize_t offset;
-} ts5500_signatures[] __initdata = {
+} ts5500_signatures[] __initconst = {
 	{ "TS-5x00 AMD Elan", 0xb14 },
 };
 

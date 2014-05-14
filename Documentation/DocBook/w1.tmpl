@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+
+<book id="w1id">
+  <bookinfo>
+    <title>W1: Dallas' 1-wire bus</title>
+
+    <authorgroup>
+      <author>
+        <firstname>David</firstname>
+        <surname>Fries</surname>
+        <affiliation>
+          <address>
+            <email>David@Fries.net</email>
+          </address>
+        </affiliation>
+      </author>
+
+    </authorgroup>
+
+    <copyright>
+      <year>2013</year>
+      <!--
+      <holder></holder>
+      -->
+    </copyright>
+
+    <legalnotice>
+      <para>
+        This documentation is free software; you can redistribute
+        it and/or modify it under the terms of the GNU General Public
+        License version 2.
+      </para>
+
+      <para>
+        This program is distributed in the hope that it will be
+        useful, but WITHOUT ANY WARRANTY; without even the implied
+        warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+        For more details see the file COPYING in the source
+        distribution of Linux.
+      </para>
+    </legalnotice>
+  </bookinfo>
+
+  <toc></toc>
+
+  <chapter id="w1_internal">
+    <title>W1 API internal to the kernel</title>
+
+    <sect1 id="w1_internal_api">
+      <title>W1 API internal to the kernel</title>
+      <sect2 id="w1.h">
+        <title>drivers/w1/w1.h</title>
+        <para>W1 core functions.</para>
+!Idrivers/w1/w1.h
+      </sect2>
+
+      <sect2 id="w1.c">
+        <title>drivers/w1/w1.c</title>
+        <para>W1 core functions.</para>
+!Idrivers/w1/w1.c
+      </sect2>
+
+      <sect2 id="w1_family.h">
+        <title>drivers/w1/w1_family.h</title>
+        <para>Allows registering device family operations.</para>
+!Idrivers/w1/w1_family.h
+      </sect2>
+
+      <sect2 id="w1_family.c">
+        <title>drivers/w1/w1_family.c</title>
+        <para>Allows registering device family operations.</para>
+!Edrivers/w1/w1_family.c
+      </sect2>
+
+      <sect2 id="w1_int.c">
+        <title>drivers/w1/w1_int.c</title>
+        <para>W1 internal initialization for master devices.</para>
+!Edrivers/w1/w1_int.c
+      </sect2>
+
+      <sect2 id="w1_netlink.h">
+        <title>drivers/w1/w1_netlink.h</title>
+        <para>W1 external netlink API structures and commands.</para>
+!Idrivers/w1/w1_netlink.h
+      </sect2>
+
+      <sect2 id="w1_io.c">
+        <title>drivers/w1/w1_io.c</title>
+        <para>W1 input/output.</para>
+!Edrivers/w1/w1_io.c
+!Idrivers/w1/w1_io.c
+      </sect2>
+
+    </sect1>
+
+
+  </chapter>
+
+</book>

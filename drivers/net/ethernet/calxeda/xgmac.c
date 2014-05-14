@@ -897,7 +897,7 @@ static void xgmac_tx_complete(struct xgmac_priv *priv)
 		/* Check tx error on the last segment */
 		if (desc_get_tx_ls(p)) {
 			desc_get_tx_status(priv, p);
-			dev_kfree_skb(skb);
+			dev_consume_skb_any(skb);
 		}
 
 		priv->tx_skbuff[entry] = NULL;
@@ -1105,7 +1105,7 @@ static netdev_tx_t xgmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	len = skb_headlen(skb);
 	paddr = dma_map_single(priv->device, skb->data, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(priv->device, paddr)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 	priv->tx_skbuff[entry] = skb;
@@ -1169,7 +1169,7 @@ dma_err:
 	desc = first;
 	dma_unmap_single(priv->device, desc_get_buf_addr(desc),
 			 desc_get_buf_len(desc), DMA_TO_DEVICE);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 

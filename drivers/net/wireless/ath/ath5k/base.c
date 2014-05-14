@@ -751,6 +751,9 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 	bf->skbaddr = dma_map_single(ah->dev, skb->data, skb->len,
 			DMA_TO_DEVICE);
 
+	if (dma_mapping_error(ah->dev, bf->skbaddr))
+		return -ENOSPC;
+
 	ieee80211_get_tx_rates(info->control.vif, (control) ? control->sta : NULL, skb, bf->rates,
 			       ARRAY_SIZE(bf->rates));
 

@@ -629,9 +629,8 @@ static int tb10x_gpio_request_enable(struct pinctrl_dev *pctl,
 	 */
 	for (i = 0; i < state->pinfuncgrpcnt; i++) {
 		const struct tb10x_pinfuncgrp *pfg = &state->pingroups[i];
-		unsigned int port = pfg->port;
 		unsigned int mode = pfg->mode;
-		int j;
+		int j, port = pfg->port;
 
 		/*
 		 * Skip pin groups which are always mapped and don't need

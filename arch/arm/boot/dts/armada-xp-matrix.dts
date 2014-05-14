@@ -23,7 +23,12 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0 0x00000000 0 0x80000000>; /* 2 GB */
+		/*
+		 * This board has 4 GB of RAM, but the last 256 MB of
+		 * RAM are not usable due to the overlap with the MBus
+		 * Window address range
+		 */
+		reg = <0 0x00000000 0 0xf0000000>;
 	};
 
 	soc {

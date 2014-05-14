@@ -623,7 +623,7 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 	if (check_pst_table(data, pst, maxvid))
 		return -EINVAL;
 
-	powernow_table = kmalloc((sizeof(*powernow_table)
+	powernow_table = kzalloc((sizeof(*powernow_table)
 		* (data->numps + 1)), GFP_KERNEL);
 	if (!powernow_table) {
 		printk(KERN_ERR PFX "powernow_table memory alloc failure\n");
@@ -793,7 +793,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	}
 
 	/* fill in data->powernow_table */
-	powernow_table = kmalloc((sizeof(*powernow_table)
+	powernow_table = kzalloc((sizeof(*powernow_table)
 		* (data->acpi_data.state_count + 1)), GFP_KERNEL);
 	if (!powernow_table) {
 		pr_debug("powernow_table memory alloc failure\n");
@@ -810,7 +810,6 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 
 	powernow_table[data->acpi_data.state_count].frequency =
 		CPUFREQ_TABLE_END;
-	powernow_table[data->acpi_data.state_count].driver_data = 0;
 	data->powernow_table = powernow_table;
 
 	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
@@ -963,9 +962,9 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data,
 	policy = cpufreq_cpu_get(smp_processor_id());
 	cpufreq_cpu_put(policy);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 	res = transition_fid_vid(data, fid, vid);
-	cpufreq_notify_post_transition(policy, &freqs, res);
+	cpufreq_freq_transition_end(policy, &freqs, res);
 
 	return res;
 }
@@ -1163,8 +1162,6 @@ static int powernowk8_cpu_exit(struct cpufreq_policy *pol)
 		return -EINVAL;
 
 	powernow_k8_cpu_exit_acpi(data);
-
-	cpufreq_frequency_table_put_attr(pol->cpu);
 
 	kfree(data->powernow_table);
 	kfree(data);

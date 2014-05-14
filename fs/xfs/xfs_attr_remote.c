@@ -125,7 +125,6 @@ xfs_attr3_rmt_read_verify(
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	char		*ptr;
 	int		len;
-	bool		corrupt = false;
 	xfs_daddr_t	bno;
 
 	/* no verification of non-crc buffers */
@@ -140,11 +139,11 @@ xfs_attr3_rmt_read_verify(
 	while (len > 0) {
 		if (!xfs_verify_cksum(ptr, XFS_LBSIZE(mp),
 				      XFS_ATTR3_RMT_CRC_OFF)) {
-			corrupt = true;
+			xfs_buf_ioerror(bp, EFSBADCRC);
 			break;
 		}
 		if (!xfs_attr3_rmt_verify(mp, ptr, XFS_LBSIZE(mp), bno)) {
-			corrupt = true;
+			xfs_buf_ioerror(bp, EFSCORRUPTED);
 			break;
 		}
 		len -= XFS_LBSIZE(mp);
@@ -152,10 +151,9 @@ xfs_attr3_rmt_read_verify(
 		bno += mp->m_bsize;
 	}
 
-	if (corrupt) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	} else
+	if (bp->b_error)
+		xfs_verifier_error(bp);
+	else
 		ASSERT(len == 0);
 }
 
@@ -180,9 +178,8 @@ xfs_attr3_rmt_write_verify(
 
 	while (len > 0) {
 		if (!xfs_attr3_rmt_verify(mp, ptr, XFS_LBSIZE(mp), bno)) {
-			XFS_CORRUPTION_ERROR(__func__,
-					    XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 			xfs_buf_ioerror(bp, EFSCORRUPTED);
+			xfs_verifier_error(bp);
 			return;
 		}
 		if (bip) {
@@ -340,7 +337,7 @@ xfs_attr_rmtval_get(
 	struct xfs_buf		*bp;
 	xfs_dablk_t		lblkno = args->rmtblkno;
 	__uint8_t		*dst = args->value;
-	int			valuelen = args->valuelen;
+	int			valuelen;
 	int			nmap;
 	int			error;
 	int			blkcnt = args->rmtblkcnt;
@@ -350,7 +347,9 @@ xfs_attr_rmtval_get(
 	trace_xfs_attr_rmtval_get(args);
 
 	ASSERT(!(args->flags & ATTR_KERNOVAL));
+	ASSERT(args->rmtvaluelen == args->valuelen);
 
+	valuelen = args->rmtvaluelen;
 	while (valuelen > 0) {
 		nmap = ATTR_RMTVALUE_MAPSIZE;
 		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkno,
@@ -418,7 +417,7 @@ xfs_attr_rmtval_set(
 	 * attributes have headers, we can't just do a straight byte to FSB
 	 * conversion and have to take the header space into account.
 	 */
-	blkcnt = xfs_attr3_rmt_blocks(mp, args->valuelen);
+	blkcnt = xfs_attr3_rmt_blocks(mp, args->rmtvaluelen);
 	error = xfs_bmap_first_unused(args->trans, args->dp, blkcnt, &lfileoff,
 						   XFS_ATTR_FORK);
 	if (error)
@@ -483,7 +482,7 @@ xfs_attr_rmtval_set(
 	 */
 	lblkno = args->rmtblkno;
 	blkcnt = args->rmtblkcnt;
-	valuelen = args->valuelen;
+	valuelen = args->rmtvaluelen;
 	while (valuelen > 0) {
 		struct xfs_buf	*bp;
 		xfs_daddr_t	dblkno;

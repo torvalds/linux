@@ -158,8 +158,8 @@ sn9c102_request_buffers(struct sn9c102_device* cam, u32 count,
 
 	cam->nbuffers = count;
 	while (cam->nbuffers > 0) {
-		if ((buff = vmalloc_32_user(cam->nbuffers *
-					    PAGE_ALIGN(imagesize))))
+		buff = vmalloc_32_user(cam->nbuffers * PAGE_ALIGN(imagesize));
+		if (buff)
 			break;
 		cam->nbuffers--;
 	}
@@ -1121,7 +1121,8 @@ static ssize_t sn9c102_show_val(struct device* cd,
 		return -ENODEV;
 	}
 
-	if ((val = sn9c102_read_reg(cam, cam->sysfs.reg)) < 0) {
+	val = sn9c102_read_reg(cam, cam->sysfs.reg);
+	if (val < 0) {
 		mutex_unlock(&sn9c102_sysfs_lock);
 		return -EIO;
 	}
@@ -1256,7 +1257,8 @@ static ssize_t sn9c102_show_i2c_val(struct device* cd,
 		return -ENOSYS;
 	}
 
-	if ((val = sn9c102_i2c_read(cam, cam->sysfs.i2c_reg)) < 0) {
+	val = sn9c102_i2c_read(cam, cam->sysfs.i2c_reg);
+	if (val < 0) {
 		mutex_unlock(&sn9c102_sysfs_lock);
 		return -EIO;
 	}
@@ -1440,27 +1442,35 @@ static int sn9c102_create_sysfs(struct sn9c102_device* cam)
 	struct device *dev = &(cam->v4ldev->dev);
 	int err = 0;
 
-	if ((err = device_create_file(dev, &dev_attr_reg)))
+	err = device_create_file(dev, &dev_attr_reg);
+	if (err)
 		goto err_out;
-	if ((err = device_create_file(dev, &dev_attr_val)))
+	err = device_create_file(dev, &dev_attr_val);
+	if (err)
 		goto err_reg;
-	if ((err = device_create_file(dev, &dev_attr_frame_header)))
+	err = device_create_file(dev, &dev_attr_frame_header);
+	if (err)
 		goto err_val;
 
 	if (cam->sensor.sysfs_ops) {
-		if ((err = device_create_file(dev, &dev_attr_i2c_reg)))
+		err = device_create_file(dev, &dev_attr_i2c_reg);
+		if (err)
 			goto err_frame_header;
-		if ((err = device_create_file(dev, &dev_attr_i2c_val)))
+		err = device_create_file(dev, &dev_attr_i2c_val);
+		if (err)
 			goto err_i2c_reg;
 	}
 
 	if (cam->bridge == BRIDGE_SN9C101 || cam->bridge == BRIDGE_SN9C102) {
-		if ((err = device_create_file(dev, &dev_attr_green)))
+		err = device_create_file(dev, &dev_attr_green);
+		if (err)
 			goto err_i2c_val;
 	} else {
-		if ((err = device_create_file(dev, &dev_attr_blue)))
+		err = device_create_file(dev, &dev_attr_blue);
+		if (err)
 			goto err_i2c_val;
-		if ((err = device_create_file(dev, &dev_attr_red)))
+		err = device_create_file(dev, &dev_attr_red);
+		if (err)
 			goto err_blue;
 	}
 
@@ -1684,11 +1694,13 @@ static int sn9c102_init(struct sn9c102_device* cam)
 	else
 		DBG(3, "Uncompressed video format is active");
 
-	if (s->set_crop)
-		if ((err = s->set_crop(cam, rect))) {
+	if (s->set_crop) {
+		err = s->set_crop(cam, rect);
+		if (err) {
 			DBG(3, "set_crop() failed");
 			return err;
 		}
+	}
 
 	if (s->set_ctrl) {
 		for (i = 0; i < ARRAY_SIZE(s->qctrl); i++)
@@ -1835,7 +1847,8 @@ static int sn9c102_open(struct file *filp)
 		cam->state &= ~DEV_MISCONFIGURED;
 	}
 
-	if ((err = sn9c102_start_transfer(cam)))
+	err = sn9c102_start_transfer(cam);
+	if (err)
 		goto out;
 
 	filp->private_data = cam;
@@ -2308,7 +2321,8 @@ sn9c102_vidioc_s_ctrl(struct sn9c102_device* cam, void __user * arg)
 	}
 	if (i == ARRAY_SIZE(s->qctrl))
 		return -EINVAL;
-	if ((err = s->set_ctrl(cam, &ctrl)))
+	err = s->set_ctrl(cam, &ctrl);
+	if (err)
 		return err;
 
 	s->_qctrl[i].default_value = ctrl.value;
@@ -2416,9 +2430,11 @@ sn9c102_vidioc_s_crop(struct sn9c102_device* cam, void __user * arg)
 	} else
 		scale = 1;
 
-	if (cam->stream == STREAM_ON)
-		if ((err = sn9c102_stream_interrupt(cam)))
+	if (cam->stream == STREAM_ON) {
+		err = sn9c102_stream_interrupt(cam);
+		if (err)
 			return err;
+	}
 
 	if (copy_to_user(arg, &crop, sizeof(crop))) {
 		cam->stream = stream;
@@ -2672,9 +2688,11 @@ sn9c102_vidioc_try_s_fmt(struct sn9c102_device* cam, unsigned int cmd,
 				return -EBUSY;
 			}
 
-	if (cam->stream == STREAM_ON)
-		if ((err = sn9c102_stream_interrupt(cam)))
+	if (cam->stream == STREAM_ON) {
+		err = sn9c102_stream_interrupt(cam);
+		if (err)
 			return err;
+	}
 
 	if (copy_to_user(arg, &format, sizeof(format))) {
 		cam->stream = stream;
@@ -2746,9 +2764,11 @@ sn9c102_vidioc_s_jpegcomp(struct sn9c102_device* cam, void __user * arg)
 	if (jc.quality != 0 && jc.quality != 1)
 		return -EINVAL;
 
-	if (cam->stream == STREAM_ON)
-		if ((err = sn9c102_stream_interrupt(cam)))
+	if (cam->stream == STREAM_ON) {
+		err = sn9c102_stream_interrupt(cam);
+		if (err)
 			return err;
+	}
 
 	err += sn9c102_set_compression(cam, &jc);
 	if (err) { /* atomic, no rollback in ioctl() */
@@ -2794,9 +2814,11 @@ sn9c102_vidioc_reqbufs(struct sn9c102_device* cam, void __user * arg)
 			return -EBUSY;
 		}
 
-	if (cam->stream == STREAM_ON)
-		if ((err = sn9c102_stream_interrupt(cam)))
+	if (cam->stream == STREAM_ON) {
+		err = sn9c102_stream_interrupt(cam);
+		if (err)
 			return err;
+	}
 
 	sn9c102_empty_framequeues(cam);
 
@@ -2974,9 +2996,11 @@ sn9c102_vidioc_streamoff(struct sn9c102_device* cam, void __user * arg)
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE || cam->io != IO_MMAP)
 		return -EINVAL;
 
-	if (cam->stream == STREAM_ON)
-		if ((err = sn9c102_stream_interrupt(cam)))
+	if (cam->stream == STREAM_ON) {
+		err = sn9c102_stream_interrupt(cam);
+		if (err)
 			return err;
+	}
 
 	sn9c102_empty_framequeues(cam);
 
@@ -3250,7 +3274,8 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	unsigned int i;
 	int err = 0, r;
 
-	if (!(cam = kzalloc(sizeof(struct sn9c102_device), GFP_KERNEL)))
+	cam = kzalloc(sizeof(struct sn9c102_device), GFP_KERNEL);
+	if (!cam)
 		return -ENOMEM;
 
 	cam->usbdev = udev;
@@ -3262,13 +3287,15 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		goto fail;
 	}
 
-	if (!(cam->control_buffer = kzalloc(8, GFP_KERNEL))) {
+	cam->control_buffer = kzalloc(8, GFP_KERNEL);
+	if (!cam->control_buffer) {
 		DBG(1, "kzalloc() failed");
 		err = -ENOMEM;
 		goto fail;
 	}
 
-	if (!(cam->v4ldev = video_device_alloc())) {
+	cam->v4ldev = video_device_alloc();
+	if (!cam->v4ldev) {
 		DBG(1, "video_device_alloc() failed");
 		err = -ENOMEM;
 		goto fail;

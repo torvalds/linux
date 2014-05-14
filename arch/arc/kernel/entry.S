@@ -141,7 +141,7 @@ VECTOR   EV_Extension            ; 0x130, Extn Intruction Excp  (0x26)
 VECTOR   reserved                ; Reserved Exceptions
 .endr
 
-#include <linux/linkage.h>   /* ARC_{EXTRY,EXIT} */
+#include <linux/linkage.h>   /* {EXTRY,EXIT} */
 #include <asm/entry.h>       /* SAVE_ALL_{INT1,INT2,SYS...} */
 #include <asm/errno.h>
 #include <asm/arcregs.h>
@@ -184,7 +184,7 @@ reserved:		; processor restart
 ; ---------------------------------------------
 ;  Level 2 ISR: Can interrupt a Level 1 ISR
 ; ---------------------------------------------
-ARC_ENTRY handle_interrupt_level2
+ENTRY(handle_interrupt_level2)
 
 	; TODO-vineetg for SMP this wont work
 	; free up r9 as scratchpad
@@ -225,14 +225,14 @@ ARC_ENTRY handle_interrupt_level2
 
 	b   ret_from_exception
 
-ARC_EXIT handle_interrupt_level2
+END(handle_interrupt_level2)
 
 #endif
 
 ; ---------------------------------------------
 ;  Level 1 ISR
 ; ---------------------------------------------
-ARC_ENTRY handle_interrupt_level1
+ENTRY(handle_interrupt_level1)
 
 	/* free up r9 as scratchpad */
 #ifdef CONFIG_SMP
@@ -265,7 +265,7 @@ ARC_ENTRY handle_interrupt_level1
 	sr r8, [AUX_IRQ_LV12]       ; clear bit in Sticky Status Reg
 
 	b   ret_from_exception
-ARC_EXIT handle_interrupt_level1
+END(handle_interrupt_level1)
 
 ;################### Non TLB Exception Handling #############################
 
@@ -273,7 +273,7 @@ ARC_EXIT handle_interrupt_level1
 ; Instruction Error Exception Handler
 ; ---------------------------------------------
 
-ARC_ENTRY instr_service
+ENTRY(instr_service)
 
 	EXCEPTION_PROLOGUE
 
@@ -284,13 +284,13 @@ ARC_ENTRY instr_service
 
 	bl  do_insterror_or_kprobe
 	b   ret_from_exception
-ARC_EXIT instr_service
+END(instr_service)
 
 ; ---------------------------------------------
 ; Memory Error Exception Handler
 ; ---------------------------------------------
 
-ARC_ENTRY mem_service
+ENTRY(mem_service)
 
 	EXCEPTION_PROLOGUE
 
@@ -301,13 +301,13 @@ ARC_ENTRY mem_service
 
 	bl  do_memory_error
 	b   ret_from_exception
-ARC_EXIT mem_service
+END(mem_service)
 
 ; ---------------------------------------------
 ; Machine Check Exception Handler
 ; ---------------------------------------------
 
-ARC_ENTRY EV_MachineCheck
+ENTRY(EV_MachineCheck)
 
 	EXCEPTION_PROLOGUE
 
@@ -331,13 +331,13 @@ ARC_ENTRY EV_MachineCheck
 
 	j  do_machine_check_fault
 
-ARC_EXIT EV_MachineCheck
+END(EV_MachineCheck)
 
 ; ---------------------------------------------
 ; Protection Violation Exception Handler
 ; ---------------------------------------------
 
-ARC_ENTRY EV_TLBProtV
+ENTRY(EV_TLBProtV)
 
 	EXCEPTION_PROLOGUE
 
@@ -385,12 +385,12 @@ ARC_ENTRY EV_TLBProtV
 
 	b   ret_from_exception
 
-ARC_EXIT EV_TLBProtV
+END(EV_TLBProtV)
 
 ; ---------------------------------------------
 ; Privilege Violation Exception Handler
 ; ---------------------------------------------
-ARC_ENTRY EV_PrivilegeV
+ENTRY(EV_PrivilegeV)
 
 	EXCEPTION_PROLOGUE
 
@@ -401,12 +401,12 @@ ARC_ENTRY EV_PrivilegeV
 
 	bl  do_privilege_fault
 	b   ret_from_exception
-ARC_EXIT EV_PrivilegeV
+END(EV_PrivilegeV)
 
 ; ---------------------------------------------
 ; Extension Instruction Exception Handler
 ; ---------------------------------------------
-ARC_ENTRY EV_Extension
+ENTRY(EV_Extension)
 
 	EXCEPTION_PROLOGUE
 
@@ -417,7 +417,7 @@ ARC_ENTRY EV_Extension
 
 	bl  do_extension_fault
 	b   ret_from_exception
-ARC_EXIT EV_Extension
+END(EV_Extension)
 
 ;######################### System Call Tracing #########################
 
@@ -504,7 +504,7 @@ trap_with_param:
 ;   (2) Break Points
 ;------------------------------------------------------------------
 
-ARC_ENTRY EV_Trap
+ENTRY(EV_Trap)
 
 	EXCEPTION_PROLOGUE
 
@@ -534,9 +534,9 @@ ARC_ENTRY EV_Trap
 	jl      [r9]        ; Entry into Sys Call Handler
 
 	; fall through to ret_from_system_call
-ARC_EXIT EV_Trap
+END(EV_Trap)
 
-ARC_ENTRY ret_from_system_call
+ENTRY(ret_from_system_call)
 
 	st  r0, [sp, PT_r0]     ; sys call return value in pt_regs
 
@@ -546,7 +546,7 @@ ARC_ENTRY ret_from_system_call
 ;
 ; If ret to user mode do we need to handle signals, schedule() et al.
 
-ARC_ENTRY ret_from_exception
+ENTRY(ret_from_exception)
 
 	; Pre-{IRQ,Trap,Exception} K/U mode from pt_regs->status32
 	ld  r8, [sp, PT_status32]   ; returning to User/Kernel Mode
@@ -614,10 +614,12 @@ resume_user_mode_begin:
 
 resume_kernel_mode:
 
-#ifdef CONFIG_PREEMPT
-
-	; This is a must for preempt_schedule_irq()
+	; Disable Interrupts from this point on
+	; CONFIG_PREEMPT: This is a must for preempt_schedule_irq()
+	; !CONFIG_PREEMPT: To ensure restore_regs is intr safe
 	IRQ_DISABLE	r9
+
+#ifdef CONFIG_PREEMPT
 
 	; Can't preempt if preemption disabled
 	GET_CURR_THR_INFO_FROM_SP   r10
@@ -726,9 +728,9 @@ not_level1_interrupt:
 debug_marker_syscall:
 	rtie
 
-ARC_EXIT ret_from_exception
+END(ret_from_exception)
 
-ARC_ENTRY ret_from_fork
+ENTRY(ret_from_fork)
 	; when the forked child comes here from the __switch_to function
 	; r0 has the last task pointer.
 	; put last task in scheduler queue
@@ -745,11 +747,11 @@ ARC_ENTRY ret_from_fork
 	; special case of kernel_thread entry point returning back due to
 	; kernel_execve() - pretend return from syscall to ret to userland
 	b    ret_from_exception
-ARC_EXIT ret_from_fork
+END(ret_from_fork)
 
 ;################### Special Sys Call Wrappers ##########################
 
-ARC_ENTRY sys_clone_wrapper
+ENTRY(sys_clone_wrapper)
 	SAVE_CALLEE_SAVED_USER
 	bl  @sys_clone
 	DISCARD_CALLEE_SAVED_USER
@@ -759,7 +761,7 @@ ARC_ENTRY sys_clone_wrapper
 	bnz  tracesys_exit
 
 	b ret_from_system_call
-ARC_EXIT sys_clone_wrapper
+END(sys_clone_wrapper)
 
 #ifdef CONFIG_ARC_DW2_UNWIND
 ; Workaround for bug 94179 (STAR ):

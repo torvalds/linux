@@ -1,15 +1,16 @@
 snd-hda-intel-objs := hda_intel.o
+snd-hda-controller-objs := hda_controller.o
 # for haswell power well
 snd-hda-intel-$(CONFIG_SND_HDA_I915) +=	hda_i915.o
 
-snd-hda-codec-y := hda_codec.o hda_jack.o hda_auto_parser.o
+snd-hda-codec-y := hda_codec.o hda_jack.o hda_auto_parser.o hda_sysfs.o
 snd-hda-codec-$(CONFIG_PROC_FS) += hda_proc.o
 snd-hda-codec-$(CONFIG_SND_HDA_HWDEP) += hda_hwdep.o
 snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
 
 # for trace-points
 CFLAGS_hda_codec.o := -I$(src)
-CFLAGS_hda_intel.o := -I$(src)
+CFLAGS_hda_controller.o := -I$(src)
 
 snd-hda-codec-generic-objs :=	hda_generic.o
 snd-hda-codec-realtek-objs :=	patch_realtek.o
@@ -25,7 +26,8 @@ snd-hda-codec-via-objs :=	patch_via.o
 snd-hda-codec-hdmi-objs :=	patch_hdmi.o hda_eld.o
 
 # common driver
-obj-$(CONFIG_SND_HDA_INTEL) := snd-hda-codec.o
+obj-$(CONFIG_SND_HDA) := snd-hda-codec.o
+obj-$(CONFIG_SND_HDA) += snd-hda-controller.o
 
 # codec drivers
 obj-$(CONFIG_SND_HDA_GENERIC) += snd-hda-codec-generic.o

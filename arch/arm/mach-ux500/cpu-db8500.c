@@ -27,7 +27,6 @@
 #include <asm/mach/map.h>
 
 #include "setup.h"
-#include "irqs.h"
 
 #include "board-mop500-regulators.h"
 #include "board-mop500.h"
@@ -35,14 +34,11 @@
 #include "id.h"
 
 struct ab8500_platform_data ab8500_platdata = {
-	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator	= &ab8500_regulator_plat_data,
 };
 
 struct prcmu_pdata db8500_prcmu_pdata = {
 	.ab_platdata	= &ab8500_platdata,
-	.ab_irq		= IRQ_DB8500_AB8500,
-	.irq_base	= IRQ_PRCMU_BASE,
 	.version_offset	= DB8500_PRCMU_FW_VERSION_OFFSET,
 	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
 };
@@ -146,7 +142,6 @@ static struct device * __init db8500_soc_device_init(void)
 	return ux500_soc_device_init(soc_id);
 }
 
-#ifdef CONFIG_MACH_UX500_DT
 static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
@@ -191,16 +186,6 @@ static void __init u8500_init_machine(void)
 {
 	struct device *parent = db8500_soc_device_init();
 
-	/* Pinmaps must be in place before devices register */
-	if (of_machine_is_compatible("st-ericsson,mop500"))
-		mop500_pinmaps_init();
-	else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
-		snowball_pinmaps_init();
-	} else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
-		hrefv60_pinmaps_init();
-	else if (of_machine_is_compatible("st-ericsson,ccu9540")) {}
-		/* TODO: Add pinmaps for ccu9540 board. */
-
 	/* automatically probe child nodes of dbx5x0 devices */
 	if (of_machine_is_compatible("st-ericsson,u8540"))
 		of_platform_populate(NULL, u8500_local_bus_nodes,
@@ -229,5 +214,3 @@ DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.dt_compat      = stericsson_dt_platform_compat,
 	.restart        = ux500_restart,
 MACHINE_END
-
-#endif

@@ -151,9 +151,8 @@ CONFIG_S5P_DEV_FIMC1  \
 CONFIG_S5P_DEV_FIMC2  |    optional
 CONFIG_S5P_DEV_FIMC3  |
 CONFIG_S5P_SETUP_FIMC /
-CONFIG_S5P_SETUP_MIPIPHY \
-CONFIG_S5P_DEV_CSIS0     | optional for MIPI-CSI interface
-CONFIG_S5P_DEV_CSIS1     /
+CONFIG_S5P_DEV_CSIS0  \    optional for MIPI-CSI interface
+CONFIG_S5P_DEV_CSIS1  /
 
 Except that, relevant s5p_device_fimc? should be registered in the machine code
 in addition to a "s5p-fimc-md" platform device to which the media device driver

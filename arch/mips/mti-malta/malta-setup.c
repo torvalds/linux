@@ -26,12 +26,12 @@
 #include <linux/time.h>
 
 #include <asm/fw/fw.h>
+#include <asm/mips-cm.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/malta.h>
 #include <asm/mips-boards/maltaint.h>
 #include <asm/dma.h>
 #include <asm/traps.h>
-#include <asm/gcmpregs.h>
 #ifdef CONFIG_VT
 #include <linux/console.h>
 #endif
@@ -127,7 +127,7 @@ static int __init plat_enable_iocoherency(void)
 				 BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
 			pr_info("Enabled Bonito IOBC coherency\n");
 		}
-	} else if (gcmp_niocu() != 0) {
+	} else if (mips_cm_numiocu() != 0) {
 		/* Nothing special needs to be done to enable coherency */
 		pr_info("CMP IOCU detected\n");
 		if ((*(unsigned int *)0xbf403000 & 0x81) != 0x81) {
@@ -165,7 +165,6 @@ static void __init plat_setup_iocoherency(void)
 #endif
 }
 
-#ifdef CONFIG_BLK_DEV_IDE
 static void __init pci_clock_check(void)
 {
 	unsigned int __iomem *jmpr_p =
@@ -175,18 +174,25 @@ static void __init pci_clock_check(void)
 		33, 20, 25, 30, 12, 16, 37, 10
 	};
 	int pciclock = pciclocks[jmpr];
-	char *argptr = fw_getcmdline();
+	char *optptr, *argptr = fw_getcmdline();
 
-	if (pciclock != 33 && !strstr(argptr, "idebus=")) {
-		pr_warn("WARNING: PCI clock is %dMHz, setting idebus\n",
+	/*
+	 * If user passed a pci_clock= option, don't tack on another one
+	 */
+	optptr = strstr(argptr, "pci_clock=");
+	if (optptr && (optptr == argptr || optptr[-1] == ' '))
+		return;
+
+	if (pciclock != 33) {
+		pr_warn("WARNING: PCI clock is %dMHz, setting pci_clock\n",
 			pciclock);
 		argptr += strlen(argptr);
-		sprintf(argptr, " idebus=%d", pciclock);
+		sprintf(argptr, " pci_clock=%d", pciclock);
 		if (pciclock < 20 || pciclock > 66)
-			pr_warn("WARNING: IDE timing calculations will be incorrect\n");
+			pr_warn("WARNING: IDE timing calculations will be "
+			        "incorrect\n");
 	}
 }
-#endif
 
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 static void __init screen_info_setup(void)
@@ -247,6 +253,10 @@ void __init plat_mem_setup(void)
 {
 	unsigned int i;
 
+	if (config_enabled(CONFIG_EVA))
+		/* EVA has already been configured in mach-malta/kernel-init.h */
+		pr_info("Enhanced Virtual Addressing (EVA) activated\n");
+
 	mips_pcibios_init();
 
 	/* Request I/O space for devices used on the Malta board. */
@@ -268,9 +278,7 @@ void __init plat_mem_setup(void)
 
 	plat_setup_iocoherency();
 
-#ifdef CONFIG_BLK_DEV_IDE
 	pci_clock_check();
-#endif
 
 #ifdef CONFIG_BLK_DEV_FD
 	fd_activate();

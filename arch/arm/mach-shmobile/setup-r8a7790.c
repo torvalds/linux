@@ -24,11 +24,99 @@
 #include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <mach/common.h>
+#include <mach/dma-register.h>
 #include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
+
+/* Audio-DMAC */
+#define AUDIO_DMAC_SLAVE(_id, _addr, t, r)			\
+{								\
+	.slave_id	= AUDIO_DMAC_SLAVE_## _id ##_TX,	\
+	.addr		= _addr + 0x8,				\
+	.chcr		= CHCR_TX(XMIT_SZ_32BIT),		\
+	.mid_rid	= t,					\
+}, {								\
+	.slave_id	= AUDIO_DMAC_SLAVE_## _id ##_RX,	\
+	.addr		= _addr + 0xc,				\
+	.chcr		= CHCR_RX(XMIT_SZ_32BIT),		\
+	.mid_rid	= r,					\
+}
+
+static const struct sh_dmae_slave_config r8a7790_audio_dmac_slaves[] = {
+	AUDIO_DMAC_SLAVE(SSI0, 0xec241000, 0x01, 0x02),
+	AUDIO_DMAC_SLAVE(SSI1, 0xec241040, 0x03, 0x04),
+	AUDIO_DMAC_SLAVE(SSI2, 0xec241080, 0x05, 0x06),
+	AUDIO_DMAC_SLAVE(SSI3, 0xec2410c0, 0x07, 0x08),
+	AUDIO_DMAC_SLAVE(SSI4, 0xec241100, 0x09, 0x0a),
+	AUDIO_DMAC_SLAVE(SSI5, 0xec241140, 0x0b, 0x0c),
+	AUDIO_DMAC_SLAVE(SSI6, 0xec241180, 0x0d, 0x0e),
+	AUDIO_DMAC_SLAVE(SSI7, 0xec2411c0, 0x0f, 0x10),
+	AUDIO_DMAC_SLAVE(SSI8, 0xec241200, 0x11, 0x12),
+	AUDIO_DMAC_SLAVE(SSI9, 0xec241240, 0x13, 0x14),
+};
+
+#define DMAE_CHANNEL(a, b)			\
+{						\
+	.offset		= (a) - 0x20,		\
+	.dmars		= (a) - 0x20 + 0x40,	\
+	.chclr_bit	= (b),			\
+	.chclr_offset	= 0x80 - 0x20,		\
+}
+
+static const struct sh_dmae_channel r8a7790_audio_dmac_channels[] = {
+	DMAE_CHANNEL(0x8000, 0),
+	DMAE_CHANNEL(0x8080, 1),
+	DMAE_CHANNEL(0x8100, 2),
+	DMAE_CHANNEL(0x8180, 3),
+	DMAE_CHANNEL(0x8200, 4),
+	DMAE_CHANNEL(0x8280, 5),
+	DMAE_CHANNEL(0x8300, 6),
+	DMAE_CHANNEL(0x8380, 7),
+	DMAE_CHANNEL(0x8400, 8),
+	DMAE_CHANNEL(0x8480, 9),
+	DMAE_CHANNEL(0x8500, 10),
+	DMAE_CHANNEL(0x8580, 11),
+	DMAE_CHANNEL(0x8600, 12),
+};
+
+static struct sh_dmae_pdata r8a7790_audio_dmac_platform_data = {
+	.slave		= r8a7790_audio_dmac_slaves,
+	.slave_num	= ARRAY_SIZE(r8a7790_audio_dmac_slaves),
+	.channel	= r8a7790_audio_dmac_channels,
+	.channel_num	= ARRAY_SIZE(r8a7790_audio_dmac_channels),
+	.ts_low_shift	= TS_LOW_SHIFT,
+	.ts_low_mask	= TS_LOW_BIT << TS_LOW_SHIFT,
+	.ts_high_shift	= TS_HI_SHIFT,
+	.ts_high_mask	= TS_HI_BIT << TS_HI_SHIFT,
+	.ts_shift	= dma_ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_ts_shift),
+	.dmaor_init	= DMAOR_DME,
+	.chclr_present	= 1,
+	.chclr_bitwise	= 1,
+};
+
+static struct resource r8a7790_audio_dmac_resources[] = {
+	/* Channel registers and DMAOR for low */
+	DEFINE_RES_MEM(0xec700020, 0x8663 - 0x20),
+	DEFINE_RES_IRQ(gic_spi(346)),
+	DEFINE_RES_NAMED(gic_spi(320), 13, NULL, IORESOURCE_IRQ),
+
+	/* Channel registers and DMAOR for hi */
+	DEFINE_RES_MEM(0xec720020, 0x8663 - 0x20), /* hi */
+	DEFINE_RES_IRQ(gic_spi(347)),
+	DEFINE_RES_NAMED(gic_spi(333), 13, NULL, IORESOURCE_IRQ),
+};
+
+#define r8a7790_register_audio_dmac(id)				\
+	platform_device_register_resndata(			\
+		&platform_bus, "sh-dma-engine", id,		\
+		&r8a7790_audio_dmac_resources[id * 3],	3,	\
+		&r8a7790_audio_dmac_platform_data,		\
+		sizeof(r8a7790_audio_dmac_platform_data))
 
 static const struct resource pfc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
@@ -101,6 +189,8 @@ void __init r8a7790_pinmux_init(void)
 	r8a7790_register_i2c(1);
 	r8a7790_register_i2c(2);
 	r8a7790_register_i2c(3);
+	r8a7790_register_audio_dmac(0);
+	r8a7790_register_audio_dmac(1);
 }
 
 #define __R8A7790_SCIF(scif_type, _scscr, index, baseaddr, irq)		\

@@ -10,7 +10,7 @@ struct mnt_namespace {
 	struct user_namespace	*user_ns;
 	u64			seq;	/* Sequence number to prevent loops */
 	wait_queue_head_t poll;
-	int event;
+	u64 event;
 };
 
 struct mnt_pcp {
@@ -19,13 +19,13 @@ struct mnt_pcp {
 };
 
 struct mountpoint {
-	struct list_head m_hash;
+	struct hlist_node m_hash;
 	struct dentry *m_dentry;
 	int m_count;
 };
 
 struct mount {
-	struct list_head mnt_hash;
+	struct hlist_node mnt_hash;
 	struct mount *mnt_parent;
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
@@ -104,6 +104,9 @@ struct proc_mounts {
 	struct mnt_namespace *ns;
 	struct path root;
 	int (*show)(struct seq_file *, struct vfsmount *);
+	void *cached_mount;
+	u64 cached_event;
+	loff_t cached_index;
 };
 
 #define proc_mounts(p) (container_of((p), struct proc_mounts, m))

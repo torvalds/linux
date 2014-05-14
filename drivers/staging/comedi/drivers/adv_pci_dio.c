@@ -1130,10 +1130,12 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < MAX_DIO_SUBDEVG; i++)
 		for (j = 0; j < this_board->sdio[i].regs; j++) {
 			s = &dev->subdevices[subdev];
-			subdev_8255_init(dev, s, NULL,
-					 dev->iobase +
-					 this_board->sdio[i].addr +
-					 SIZE_8255 * j);
+			ret = subdev_8255_init(dev, s, NULL,
+					       dev->iobase +
+					       this_board->sdio[i].addr +
+					       SIZE_8255 * j);
+			if (ret)
+				return ret;
 			subdev++;
 		}
 

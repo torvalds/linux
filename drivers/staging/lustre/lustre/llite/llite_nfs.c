@@ -167,10 +167,10 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 	}
 
 	result = d_obtain_alias(inode);
-	if (IS_ERR(result))
+	if (IS_ERR(result)) {
+		iput(inode);
 		return result;
-
-	ll_dops_init(result, 1, 0);
+	}
 
 	return result;
 }

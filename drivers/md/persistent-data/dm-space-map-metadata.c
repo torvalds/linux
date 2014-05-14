@@ -91,6 +91,69 @@ struct block_op {
 	dm_block_t block;
 };
 
+struct bop_ring_buffer {
+	unsigned begin;
+	unsigned end;
+	struct block_op bops[MAX_RECURSIVE_ALLOCATIONS + 1];
+};
+
+static void brb_init(struct bop_ring_buffer *brb)
+{
+	brb->begin = 0;
+	brb->end = 0;
+}
+
+static bool brb_empty(struct bop_ring_buffer *brb)
+{
+	return brb->begin == brb->end;
+}
+
+static unsigned brb_next(struct bop_ring_buffer *brb, unsigned old)
+{
+	unsigned r = old + 1;
+	return (r >= (sizeof(brb->bops) / sizeof(*brb->bops))) ? 0 : r;
+}
+
+static int brb_push(struct bop_ring_buffer *brb,
+		    enum block_op_type type, dm_block_t b)
+{
+	struct block_op *bop;
+	unsigned next = brb_next(brb, brb->end);
+
+	/*
+	 * We don't allow the last bop to be filled, this way we can
+	 * differentiate between full and empty.
+	 */
+	if (next == brb->begin)
+		return -ENOMEM;
+
+	bop = brb->bops + brb->end;
+	bop->type = type;
+	bop->block = b;
+
+	brb->end = next;
+
+	return 0;
+}
+
+static int brb_pop(struct bop_ring_buffer *brb, struct block_op *result)
+{
+	struct block_op *bop;
+
+	if (brb_empty(brb))
+		return -ENODATA;
+
+	bop = brb->bops + brb->begin;
+	result->type = bop->type;
+	result->block = bop->block;
+
+	brb->begin = brb_next(brb, brb->begin);
+
+	return 0;
+}
+
+/*----------------------------------------------------------------*/
+
 struct sm_metadata {
 	struct dm_space_map sm;
 
@@ -101,24 +164,19 @@ struct sm_metadata {
 
 	unsigned recursion_count;
 	unsigned allocated_this_transaction;
-	unsigned nr_uncommitted;
-	struct block_op uncommitted[MAX_RECURSIVE_ALLOCATIONS];
+	struct bop_ring_buffer uncommitted;
 
 	struct threshold threshold;
 };
 
 static int add_bop(struct sm_metadata *smm, enum block_op_type type, dm_block_t b)
 {
-	struct block_op *op;
+	int r = brb_push(&smm->uncommitted, type, b);
 
-	if (smm->nr_uncommitted == MAX_RECURSIVE_ALLOCATIONS) {
+	if (r) {
 		DMERR("too many recursive allocations");
 		return -ENOMEM;
 	}
-
-	op = smm->uncommitted + smm->nr_uncommitted++;
-	op->type = type;
-	op->block = b;
 
 	return 0;
 }
@@ -158,11 +216,17 @@ static int out(struct sm_metadata *smm)
 		return -ENOMEM;
 	}
 
-	if (smm->recursion_count == 1 && smm->nr_uncommitted) {
-		while (smm->nr_uncommitted && !r) {
-			smm->nr_uncommitted--;
-			r = commit_bop(smm, smm->uncommitted +
-				       smm->nr_uncommitted);
+	if (smm->recursion_count == 1) {
+		while (!brb_empty(&smm->uncommitted)) {
+			struct block_op bop;
+
+			r = brb_pop(&smm->uncommitted, &bop);
+			if (r) {
+				DMERR("bug in bop ring buffer");
+				break;
+			}
+
+			r = commit_bop(smm, &bop);
 			if (r)
 				break;
 		}
@@ -217,7 +281,8 @@ static int sm_metadata_get_nr_free(struct dm_space_map *sm, dm_block_t *count)
 static int sm_metadata_get_count(struct dm_space_map *sm, dm_block_t b,
 				 uint32_t *result)
 {
-	int r, i;
+	int r;
+	unsigned i;
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 	unsigned adjustment = 0;
 
@@ -225,8 +290,10 @@ static int sm_metadata_get_count(struct dm_space_map *sm, dm_block_t b,
 	 * We may have some uncommitted adjustments to add.  This list
 	 * should always be really short.
 	 */
-	for (i = 0; i < smm->nr_uncommitted; i++) {
-		struct block_op *op = smm->uncommitted + i;
+	for (i = smm->uncommitted.begin;
+	     i != smm->uncommitted.end;
+	     i = brb_next(&smm->uncommitted, i)) {
+		struct block_op *op = smm->uncommitted.bops + i;
 
 		if (op->block != b)
 			continue;
@@ -254,7 +321,8 @@ static int sm_metadata_get_count(struct dm_space_map *sm, dm_block_t b,
 static int sm_metadata_count_is_more_than_one(struct dm_space_map *sm,
 					      dm_block_t b, int *result)
 {
-	int r, i, adjustment = 0;
+	int r, adjustment = 0;
+	unsigned i;
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 	uint32_t rc;
 
@@ -262,8 +330,11 @@ static int sm_metadata_count_is_more_than_one(struct dm_space_map *sm,
 	 * We may have some uncommitted adjustments to add.  This list
 	 * should always be really short.
 	 */
-	for (i = 0; i < smm->nr_uncommitted; i++) {
-		struct block_op *op = smm->uncommitted + i;
+	for (i = smm->uncommitted.begin;
+	     i != smm->uncommitted.end;
+	     i = brb_next(&smm->uncommitted, i)) {
+
+		struct block_op *op = smm->uncommitted.bops + i;
 
 		if (op->block != b)
 			continue;
@@ -671,7 +742,7 @@ int dm_sm_metadata_create(struct dm_space_map *sm,
 	smm->begin = superblock + 1;
 	smm->recursion_count = 0;
 	smm->allocated_this_transaction = 0;
-	smm->nr_uncommitted = 0;
+	brb_init(&smm->uncommitted);
 	threshold_init(&smm->threshold);
 
 	memcpy(&smm->sm, &bootstrap_ops, sizeof(smm->sm));
@@ -680,6 +751,8 @@ int dm_sm_metadata_create(struct dm_space_map *sm,
 	if (r)
 		return r;
 
+	if (nr_blocks > DM_SM_METADATA_MAX_BLOCKS)
+		nr_blocks = DM_SM_METADATA_MAX_BLOCKS;
 	r = sm_ll_extend(&smm->ll, nr_blocks);
 	if (r)
 		return r;
@@ -713,7 +786,7 @@ int dm_sm_metadata_open(struct dm_space_map *sm,
 	smm->begin = 0;
 	smm->recursion_count = 0;
 	smm->allocated_this_transaction = 0;
-	smm->nr_uncommitted = 0;
+	brb_init(&smm->uncommitted);
 	threshold_init(&smm->threshold);
 
 	memcpy(&smm->old_ll, &smm->ll, sizeof(smm->old_ll));

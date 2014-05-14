@@ -303,24 +303,27 @@ int otg_statemachine(struct otg_fsm *fsm)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_VRISE);
 		break;
 	case OTG_STATE_A_WAIT_VRISE:
-		if (fsm->id || fsm->a_bus_drop || fsm->a_vbus_vld ||
-				fsm->a_wait_vrise_tmout) {
+		if (fsm->a_vbus_vld)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_BCON);
-		}
+		else if (fsm->id || fsm->a_bus_drop ||
+				fsm->a_wait_vrise_tmout)
+			otg_set_state(fsm, OTG_STATE_A_WAIT_VFALL);
 		break;
 	case OTG_STATE_A_WAIT_BCON:
 		if (!fsm->a_vbus_vld)
 			otg_set_state(fsm, OTG_STATE_A_VBUS_ERR);
 		else if (fsm->b_conn)
 			otg_set_state(fsm, OTG_STATE_A_HOST);
-		else if (fsm->id | fsm->a_bus_drop | fsm->a_wait_bcon_tmout)
+		else if (fsm->id || fsm->a_bus_drop || fsm->a_wait_bcon_tmout)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_VFALL);
 		break;
 	case OTG_STATE_A_HOST:
-		if ((!fsm->a_bus_req || fsm->a_suspend_req_inf) &&
+		if (fsm->id || fsm->a_bus_drop)
+			otg_set_state(fsm, OTG_STATE_A_WAIT_VFALL);
+		else if ((!fsm->a_bus_req || fsm->a_suspend_req_inf) &&
 				fsm->otg->host->b_hnp_enable)
 			otg_set_state(fsm, OTG_STATE_A_SUSPEND);
-		else if (fsm->id || !fsm->b_conn || fsm->a_bus_drop)
+		else if (!fsm->b_conn)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_BCON);
 		else if (!fsm->a_vbus_vld)
 			otg_set_state(fsm, OTG_STATE_A_VBUS_ERR);
@@ -346,8 +349,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 			otg_set_state(fsm, OTG_STATE_A_VBUS_ERR);
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
-		if (fsm->a_wait_vfall_tmout || fsm->id || fsm->a_bus_req ||
-				(!fsm->a_sess_vld && !fsm->b_conn))
+		if (fsm->a_wait_vfall_tmout)
 			otg_set_state(fsm, OTG_STATE_A_IDLE);
 		break;
 	case OTG_STATE_A_VBUS_ERR:

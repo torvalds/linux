@@ -43,6 +43,7 @@
 #define G25_REV_MIN 0x22
 #define G27_REV_MAJ 0x12
 #define G27_REV_MIN 0x38
+#define G27_2_REV_MIN 0x39
 
 #define to_hid_device(pdev) container_of(pdev, struct hid_device, dev)
 
@@ -130,6 +131,7 @@ static const struct lg4ff_usb_revision lg4ff_revs[] = {
 	{DFP_REV_MAJ,  DFP_REV_MIN,  &native_dfp},	/* Driving Force Pro */
 	{G25_REV_MAJ,  G25_REV_MIN,  &native_g25},	/* G25 */
 	{G27_REV_MAJ,  G27_REV_MIN,  &native_g27},	/* G27 */
+	{G27_REV_MAJ,  G27_2_REV_MIN,  &native_g27},	/* G27 v2 */
 };
 
 /* Recalculates X axis value accordingly to currently selected range */

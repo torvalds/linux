@@ -180,7 +180,11 @@ nodes to be present and contain the properties described below.
 			  be one of:
 			     "spin-table"
 			     "psci"
-			# On ARM 32-bit systems this property is optional.
+			# On ARM 32-bit systems this property is optional and
+			  can be one of:
+			    "qcom,gcc-msm8660"
+			    "qcom,kpss-acc-v1"
+			    "qcom,kpss-acc-v2"
 
 	- cpu-release-addr
 		Usage: required for systems that have an "enable-method"
@@ -190,6 +194,21 @@ nodes to be present and contain the properties described below.
 			# On ARM v8 64-bit systems must be a two cell
 			  property identifying a 64-bit zero-initialised
 			  memory location.
+
+	- qcom,saw
+		Usage: required for systems that have an "enable-method"
+		       property value of "qcom,kpss-acc-v1" or
+		       "qcom,kpss-acc-v2"
+		Value type: <phandle>
+		Definition: Specifies the SAW[1] node associated with this CPU.
+
+	- qcom,acc
+		Usage: required for systems that have an "enable-method"
+		       property value of "qcom,kpss-acc-v1" or
+		       "qcom,kpss-acc-v2"
+		Value type: <phandle>
+		Definition: Specifies the ACC[2] node associated with this CPU.
+
 
 Example 1 (dual-cluster big.LITTLE system 32-bit):
 
@@ -382,3 +401,7 @@ cpus {
 		cpu-release-addr = <0 0x20000000>;
 	};
 };
+
+--
+[1] arm/msm/qcom,saw2.txt
+[2] arm/msm/qcom,kpss-acc.txt

@@ -426,6 +426,11 @@ void ft_queue_tm_resp(struct se_cmd *se_cmd)
 	ft_send_resp_code(cmd, code);
 }
 
+void ft_aborted_task(struct se_cmd *se_cmd)
+{
+	return;
+}
+
 static void ft_send_work(struct work_struct *work);
 
 /*

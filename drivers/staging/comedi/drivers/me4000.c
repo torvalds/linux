@@ -1112,9 +1112,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	/* Reset all events */
-	s->async->events = 0;
-
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_BIT_AI_HF) {
 		/* Read status register to find out what happened */

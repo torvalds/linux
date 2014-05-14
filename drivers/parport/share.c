@@ -905,7 +905,8 @@ int parport_claim_or_block(struct pardevice *dev)
 		/* If dev->waiting is clear now, an interrupt
 		   gave us the port and we would deadlock if we slept.  */
 		if (dev->waiting) {
-			interruptible_sleep_on (&dev->wait_q);
+			wait_event_interruptible(dev->wait_q,
+						 !dev->waiting);
 			if (signal_pending (current)) {
 				return -EINTR;
 			}

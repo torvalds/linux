@@ -383,11 +383,12 @@ static int vmci_enable_msix(struct pci_dev *pdev,
 		vmci_dev->msix_entries[i].vector = i;
 	}
 
-	result = pci_enable_msix(pdev, vmci_dev->msix_entries, VMCI_MAX_INTRS);
+	result = pci_enable_msix_exact(pdev,
+				       vmci_dev->msix_entries, VMCI_MAX_INTRS);
 	if (result == 0)
 		vmci_dev->exclusive_vectors = true;
-	else if (result > 0)
-		result = pci_enable_msix(pdev, vmci_dev->msix_entries, 1);
+	else if (result == -ENOSPC)
+		result = pci_enable_msix_exact(pdev, vmci_dev->msix_entries, 1);
 
 	return result;
 }

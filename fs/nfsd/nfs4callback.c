@@ -32,6 +32,7 @@
  */
 
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/xprt.h>
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/slab.h>
 #include "nfsd.h"
@@ -635,11 +636,29 @@ static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc
 	}
 }
 
+static struct rpc_clnt *create_backchannel_client(struct rpc_create_args *args)
+{
+	struct rpc_xprt *xprt;
+
+	if (args->protocol != XPRT_TRANSPORT_BC_TCP)
+		return rpc_create(args);
+
+	xprt = args->bc_xprt->xpt_bc_xprt;
+	if (xprt) {
+		xprt_get(xprt);
+		return rpc_create_xprt(args, xprt);
+	}
+
+	return rpc_create(args);
+}
+
 static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn, struct nfsd4_session *ses)
 {
+	int maxtime = max_cb_time(clp->net);
 	struct rpc_timeout	timeparms = {
-		.to_initval	= max_cb_time(clp->net),
+		.to_initval	= maxtime,
 		.to_retries	= 0,
+		.to_maxval	= maxtime,
 	};
 	struct rpc_create_args args = {
 		.net		= clp->net,
@@ -674,7 +693,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		args.authflavor = ses->se_cb_sec.flavor;
 	}
 	/* Create RPC client */
-	client = rpc_create(&args);
+	client = create_backchannel_client(&args);
 	if (IS_ERR(client)) {
 		dprintk("NFSD: couldn't create callback client: %ld\n",
 			PTR_ERR(client));

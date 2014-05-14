@@ -50,6 +50,7 @@ struct drm_msm_timespec {
 
 #define MSM_PARAM_GPU_ID     0x01
 #define MSM_PARAM_GMEM_SIZE  0x02
+#define MSM_PARAM_CHIP_ID    0x03
 
 struct drm_msm_param {
 	uint32_t pipe;           /* in, MSM_PIPE_x */
@@ -69,6 +70,12 @@ struct drm_msm_param {
 #define MSM_BO_WC            0x00020000
 #define MSM_BO_UNCACHED      0x00040000
 
+#define MSM_BO_FLAGS         (MSM_BO_SCANOUT | \
+                              MSM_BO_GPU_READONLY | \
+                              MSM_BO_CACHED | \
+                              MSM_BO_WC | \
+                              MSM_BO_UNCACHED)
+
 struct drm_msm_gem_new {
 	uint64_t size;           /* in */
 	uint32_t flags;          /* in, mask of MSM_BO_x */
@@ -84,6 +91,8 @@ struct drm_msm_gem_info {
 #define MSM_PREP_READ        0x01
 #define MSM_PREP_WRITE       0x02
 #define MSM_PREP_NOSYNC      0x04
+
+#define MSM_PREP_FLAGS       (MSM_PREP_READ | MSM_PREP_WRITE | MSM_PREP_NOSYNC)
 
 struct drm_msm_gem_cpu_prep {
 	uint32_t handle;         /* in */
@@ -152,6 +161,9 @@ struct drm_msm_gem_submit_cmd {
  */
 #define MSM_SUBMIT_BO_READ             0x0001
 #define MSM_SUBMIT_BO_WRITE            0x0002
+
+#define MSM_SUBMIT_BO_FLAGS            (MSM_SUBMIT_BO_READ | MSM_SUBMIT_BO_WRITE)
+
 struct drm_msm_gem_submit_bo {
 	uint32_t flags;          /* in, mask of MSM_SUBMIT_BO_x */
 	uint32_t handle;         /* in, GEM handle */

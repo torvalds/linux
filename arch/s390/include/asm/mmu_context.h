@@ -15,6 +15,7 @@
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	cpumask_clear(&mm->context.cpu_attach_mask);
 	atomic_set(&mm->context.attach_count, 0);
 	mm->context.flush_mm = 0;
 	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
@@ -29,32 +30,81 @@ static inline int init_new_context(struct task_struct *tsk,
 
 #define destroy_context(mm)             do { } while (0)
 
-#ifndef CONFIG_64BIT
-#define LCTL_OPCODE "lctl"
-#else
-#define LCTL_OPCODE "lctlg"
-#endif
-
-static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
+static inline void update_user_asce(struct mm_struct *mm, int load_primary)
 {
 	pgd_t *pgd = mm->pgd;
 
 	S390_lowcore.user_asce = mm->context.asce_bits | __pa(pgd);
-	/* Load primary space page table origin. */
-	asm volatile(LCTL_OPCODE" 1,1,%0\n" : : "m" (S390_lowcore.user_asce));
+	if (load_primary)
+		__ctl_load(S390_lowcore.user_asce, 1, 1);
 	set_fs(current->thread.mm_segment);
+}
+
+static inline void clear_user_asce(struct mm_struct *mm, int load_primary)
+{
+	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
+
+	if (load_primary)
+		__ctl_load(S390_lowcore.user_asce, 1, 1);
+	__ctl_load(S390_lowcore.user_asce, 7, 7);
+}
+
+static inline void update_primary_asce(struct task_struct *tsk)
+{
+	unsigned long asce;
+
+	__ctl_store(asce, 1, 1);
+	if (asce != S390_lowcore.kernel_asce)
+		__ctl_load(S390_lowcore.kernel_asce, 1, 1);
+	set_tsk_thread_flag(tsk, TIF_ASCE);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
-	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
-	update_mm(next, tsk);
+	int cpu = smp_processor_id();
+
+	update_primary_asce(tsk);
+	if (prev == next)
+		return;
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
+	if (atomic_inc_return(&next->context.attach_count) >> 16) {
+		/* Delay update_user_asce until all TLB flushes are done. */
+		set_tsk_thread_flag(tsk, TIF_TLB_WAIT);
+		/* Clear old ASCE by loading the kernel ASCE. */
+		clear_user_asce(next, 0);
+	} else {
+		cpumask_set_cpu(cpu, mm_cpumask(next));
+		update_user_asce(next, 0);
+		if (next->context.flush_mm)
+			/* Flush pending TLBs */
+			__tlb_flush_mm(next);
+	}
 	atomic_dec(&prev->context.attach_count);
 	WARN_ON(atomic_read(&prev->context.attach_count) < 0);
-	atomic_inc(&next->context.attach_count);
-	/* Check for TLBs not flushed yet */
-	__tlb_flush_mm_lazy(next);
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
+}
+
+#define finish_arch_post_lock_switch finish_arch_post_lock_switch
+static inline void finish_arch_post_lock_switch(void)
+{
+	struct task_struct *tsk = current;
+	struct mm_struct *mm = tsk->mm;
+
+	if (!test_tsk_thread_flag(tsk, TIF_TLB_WAIT))
+		return;
+	preempt_disable();
+	clear_tsk_thread_flag(tsk, TIF_TLB_WAIT);
+	while (atomic_read(&mm->context.attach_count) >> 16)
+		cpu_relax();
+
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
+	update_user_asce(mm, 0);
+	if (mm->context.flush_mm)
+		__tlb_flush_mm(mm);
+	preempt_enable();
 }
 
 #define enter_lazy_tlb(mm,tsk)	do { } while (0)

@@ -38,7 +38,6 @@
 
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
-#define NAND_DEV_READY_TIMEOUT  50
 #define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
 #define NAND_STOP_DELAY		(2 * HZ/50)
 #define PAGE_CHUNK_SIZE		(2048)
@@ -1531,7 +1530,7 @@ KEEP_CONFIG:
 	if (!ret) {
 		dev_err(&info->pdev->dev,
 			"ECC strength %d at page size %d is not supported\n",
-			chip->ecc_strength_ds, mtd->writesize);
+			ecc_strength, mtd->writesize);
 		return -ENODEV;
 	}
 

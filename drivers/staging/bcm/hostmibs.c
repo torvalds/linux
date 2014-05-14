@@ -27,9 +27,9 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_m
 	/* Copy the classifier Table */
 	for (nClassifierIndex = 0; nClassifierIndex < MAX_CLASSIFIERS; nClassifierIndex++) {
 		if (Adapter->astClassifierTable[nClassifierIndex].bUsed == TRUE)
-			memcpy((PVOID) & pstHostMibs->
+			memcpy((PVOID) &pstHostMibs->
 			       astClassifierTable[nClassifierIndex],
-			       (PVOID) & Adapter->
+			       (PVOID) &Adapter->
 			       astClassifierTable[nClassifierIndex],
 			       sizeof(struct bcm_mibs_classifier_rule));
 	}
@@ -37,8 +37,8 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_m
 	/* Copy the SF Table */
 	for (nSfIndex = 0; nSfIndex < NO_OF_QUEUES; nSfIndex++) {
 		if (Adapter->PackInfo[nSfIndex].bValid) {
-			memcpy((PVOID) & pstHostMibs->astSFtable[nSfIndex],
-			       (PVOID) & Adapter->PackInfo[nSfIndex],
+			memcpy((PVOID) &pstHostMibs->astSFtable[nSfIndex],
+			       (PVOID) &Adapter->PackInfo[nSfIndex],
 				sizeof(struct bcm_mibs_table));
 		} else {
 			/* If index in not valid,

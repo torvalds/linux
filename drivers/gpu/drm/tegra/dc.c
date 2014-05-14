@@ -235,14 +235,14 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 	if (!dc->event)
 		return;
 
-	bo = tegra_fb_get_plane(crtc->fb, 0);
+	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
 
 	/* check if new start address has been latched */
 	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
 	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
-	if (base == bo->paddr + crtc->fb->offsets[0]) {
+	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
 		spin_lock_irqsave(&drm->event_lock, flags);
 		drm_send_vblank_event(drm, dc->pipe, dc->event);
 		drm_vblank_put(drm, dc->pipe);
@@ -284,7 +284,7 @@ static int tegra_dc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	}
 
 	tegra_dc_set_base(dc, 0, 0, fb);
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 
 	return 0;
 }
@@ -312,7 +312,7 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *drm = crtc->dev;
 	struct drm_plane *plane;
 
-	list_for_each_entry(plane, &drm->mode_config.plane_list, head) {
+	drm_for_each_legacy_plane(plane, &drm->mode_config.plane_list) {
 		if (plane->crtc == crtc) {
 			tegra_plane_disable(plane);
 			plane->crtc = NULL;
@@ -645,7 +645,7 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *adjusted,
 			       int x, int y, struct drm_framebuffer *old_fb)
 {
-	struct tegra_bo *bo = tegra_fb_get_plane(crtc->fb, 0);
+	struct tegra_bo *bo = tegra_fb_get_plane(crtc->primary->fb, 0);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct tegra_dc_window window;
 	unsigned long div, value;
@@ -682,9 +682,9 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	window.dst.y = 0;
 	window.dst.w = mode->hdisplay;
 	window.dst.h = mode->vdisplay;
-	window.format = tegra_dc_format(crtc->fb->pixel_format);
-	window.bits_per_pixel = crtc->fb->bits_per_pixel;
-	window.stride[0] = crtc->fb->pitches[0];
+	window.format = tegra_dc_format(crtc->primary->fb->pixel_format);
+	window.bits_per_pixel = crtc->primary->fb->bits_per_pixel;
+	window.stride[0] = crtc->primary->fb->pitches[0];
 	window.base[0] = bo->paddr;
 
 	err = tegra_dc_setup_window(dc, 0, &window);
@@ -699,7 +699,7 @@ static int tegra_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 
-	return tegra_dc_set_base(dc, x, y, crtc->fb);
+	return tegra_dc_set_base(dc, x, y, crtc->primary->fb);
 }
 
 static void tegra_crtc_prepare(struct drm_crtc *crtc)

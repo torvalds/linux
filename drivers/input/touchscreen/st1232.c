@@ -134,7 +134,8 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 	} else if (!ts->low_latency_req.dev) {
 		/* First contact, request 100 us latency. */
 		dev_pm_qos_add_ancestor_request(&ts->client->dev,
-						&ts->low_latency_req, 100);
+						&ts->low_latency_req,
+						DEV_PM_QOS_RESUME_LATENCY, 100);
 	}
 
 	/* SYN_REPORT */

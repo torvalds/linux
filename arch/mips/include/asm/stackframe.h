@@ -435,7 +435,7 @@
 
 		.macro	RESTORE_SP_AND_RET
 		LONG_L	sp, PT_R29(sp)
-		.set	mips3
+		.set	arch=r4000
 		eret
 		.set	mips0
 		.endm

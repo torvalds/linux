@@ -511,7 +511,7 @@ static inline u32 sunxi_pull_offset(u16 pin)
 
 static inline u32 sunxi_irq_cfg_reg(u16 irq)
 {
-	u8 reg = irq / IRQ_CFG_IRQ_PER_REG;
+	u8 reg = irq / IRQ_CFG_IRQ_PER_REG * 0x04;
 	return reg + IRQ_CFG_REG;
 }
 
@@ -523,7 +523,7 @@ static inline u32 sunxi_irq_cfg_offset(u16 irq)
 
 static inline u32 sunxi_irq_ctrl_reg(u16 irq)
 {
-	u8 reg = irq / IRQ_CTRL_IRQ_PER_REG;
+	u8 reg = irq / IRQ_CTRL_IRQ_PER_REG * 0x04;
 	return reg + IRQ_CTRL_REG;
 }
 
@@ -535,7 +535,7 @@ static inline u32 sunxi_irq_ctrl_offset(u16 irq)
 
 static inline u32 sunxi_irq_status_reg(u16 irq)
 {
-	u8 reg = irq / IRQ_STATUS_IRQ_PER_REG;
+	u8 reg = irq / IRQ_STATUS_IRQ_PER_REG * 0x04;
 	return reg + IRQ_STATUS_REG;
 }
 

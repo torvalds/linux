@@ -32,6 +32,7 @@
 /* Bit field in CMR */
 #define PWM_CMR_CPOL		(1 << 9)
 #define PWM_CMR_UPD_CDTY	(1 << 10)
+#define PWM_CMR_CPRE_MSK	0xF
 
 /* The following registers for PWM v1 */
 #define PWMV1_CDTY		0x04
@@ -104,6 +105,7 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long clk_rate, prd, dty;
 	unsigned long long div;
 	unsigned int pres = 0;
+	u32 val;
 	int ret;
 
 	if (test_bit(PWMF_ENABLED, &pwm->flags) && (period_ns != pwm->period)) {
@@ -131,7 +133,7 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	prd = div;
 	div *= duty_ns;
 	do_div(div, period_ns);
-	dty = div;
+	dty = prd - div;
 
 	ret = clk_enable(atmel_pwm->clk);
 	if (ret) {
@@ -139,7 +141,10 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return ret;
 	}
 
-	atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWM_CMR, pres);
+	/* It is necessary to preserve CPOL, inside CMR */
+	val = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm, PWM_CMR);
+	val = (val & ~PWM_CMR_CPRE_MSK) | (pres & PWM_CMR_CPRE_MSK);
+	atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWM_CMR, val);
 	atmel_pwm->config(chip, pwm, dty, prd);
 
 	clk_disable(atmel_pwm->clk);

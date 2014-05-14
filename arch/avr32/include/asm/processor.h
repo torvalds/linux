@@ -83,13 +83,8 @@ static inline unsigned int avr32_get_chip_revision(struct avr32_cpuinfo *cpu)
 
 extern struct avr32_cpuinfo boot_cpu_data;
 
-#ifdef CONFIG_SMP
-extern struct avr32_cpuinfo cpu_data[];
-#define current_cpu_data cpu_data[smp_processor_id()]
-#else
-#define cpu_data (&boot_cpu_data)
+/* No SMP support so far */
 #define current_cpu_data boot_cpu_data
-#endif
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's

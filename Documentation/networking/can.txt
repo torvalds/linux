@@ -554,12 +554,6 @@ solution for a couple of reasons:
   not specified in the struct can_frame and therefore it is only valid in
   CANFD_MTU sized CAN FD frames.
 
-  As long as the payload length is <=8 the received CAN frames from CAN FD
-  capable CAN devices can be received and read by legacy sockets too. When
-  user-generated CAN FD frames have a payload length <=8 these can be send
-  by legacy CAN network interfaces too. Sending CAN FD frames with payload
-  length > 8 to a legacy CAN network interface returns an -EMSGSIZE error.
-
   Implementation hint for new CAN applications:
 
   To build a CAN FD aware application use struct canfd_frame as basic CAN
@@ -1023,7 +1017,7 @@ solution for a couple of reasons:
 	in case of a bus-off condition after the specified delay time
 	in milliseconds. By default it's off.
 
-    "bitrate 125000 sample_point 0.875"
+    "bitrate 125000 sample-point 0.875"
 	Shows the real bit-rate in bits/sec and the sample-point in the
 	range 0.000..0.999. If the calculation of bit-timing parameters
 	is enabled in the kernel (CONFIG_CAN_CALC_BITTIMING=y), the

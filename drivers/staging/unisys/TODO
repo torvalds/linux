@@ -1,0 +1,21 @@
+TODO:
+	-checkpatch warnings
+	-move /proc entries to /sys
+	-proper major number(s)
+	-add other drivers needed for full functionality:
+		-visorclientbus
+		-visorbus
+		-visordiag
+		-virtnic
+		-visornoop
+		-visorserial
+		-visorvideoclient
+		-visorconinclient
+		-sparstop
+	-move individual drivers into proper driver subsystems
+		
+
+Patches to:
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+	Ken Cox <jkc@redhat.com>
+	Unisys s-Par maintainer mailing list <sparmaintainer@unisys.com>

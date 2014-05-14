@@ -281,7 +281,7 @@ xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (!acl)
 		goto set_acl;
 
-	error = -EINVAL;
+	error = -E2BIG;
 	if (acl->a_count > XFS_ACL_MAX_ENTRIES(XFS_M(inode->i_sb)))
 		return error;
 

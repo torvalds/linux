@@ -53,34 +53,55 @@ static int osdmap_show(struct seq_file *s, void *p)
 {
 	int i;
 	struct ceph_client *client = s->private;
+	struct ceph_osdmap *map = client->osdc.osdmap;
 	struct rb_node *n;
 
-	if (client->osdc.osdmap == NULL)
+	if (map == NULL)
 		return 0;
-	seq_printf(s, "epoch %d\n", client->osdc.osdmap->epoch);
+
+	seq_printf(s, "epoch %d\n", map->epoch);
 	seq_printf(s, "flags%s%s\n",
-		   (client->osdc.osdmap->flags & CEPH_OSDMAP_NEARFULL) ?
-		   " NEARFULL" : "",
-		   (client->osdc.osdmap->flags & CEPH_OSDMAP_FULL) ?
-		   " FULL" : "");
-	for (n = rb_first(&client->osdc.osdmap->pg_pools); n; n = rb_next(n)) {
+		   (map->flags & CEPH_OSDMAP_NEARFULL) ?  " NEARFULL" : "",
+		   (map->flags & CEPH_OSDMAP_FULL) ?  " FULL" : "");
+
+	for (n = rb_first(&map->pg_pools); n; n = rb_next(n)) {
 		struct ceph_pg_pool_info *pool =
 			rb_entry(n, struct ceph_pg_pool_info, node);
-		seq_printf(s, "pg_pool %llu pg_num %d / %d\n",
-			   (unsigned long long)pool->id, pool->pg_num,
-			   pool->pg_num_mask);
+
+		seq_printf(s, "pool %lld pg_num %u (%d) read_tier %lld write_tier %lld\n",
+			   pool->id, pool->pg_num, pool->pg_num_mask,
+			   pool->read_tier, pool->write_tier);
 	}
-	for (i = 0; i < client->osdc.osdmap->max_osd; i++) {
-		struct ceph_entity_addr *addr =
-			&client->osdc.osdmap->osd_addr[i];
-		int state = client->osdc.osdmap->osd_state[i];
+	for (i = 0; i < map->max_osd; i++) {
+		struct ceph_entity_addr *addr = &map->osd_addr[i];
+		int state = map->osd_state[i];
 		char sb[64];
 
-		seq_printf(s, "\tosd%d\t%s\t%3d%%\t(%s)\n",
+		seq_printf(s, "osd%d\t%s\t%3d%%\t(%s)\t%3d%%\n",
 			   i, ceph_pr_addr(&addr->in_addr),
-			   ((client->osdc.osdmap->osd_weight[i]*100) >> 16),
-			   ceph_osdmap_state_str(sb, sizeof(sb), state));
+			   ((map->osd_weight[i]*100) >> 16),
+			   ceph_osdmap_state_str(sb, sizeof(sb), state),
+			   ((ceph_get_primary_affinity(map, i)*100) >> 16));
 	}
+	for (n = rb_first(&map->pg_temp); n; n = rb_next(n)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(n, struct ceph_pg_mapping, node);
+
+		seq_printf(s, "pg_temp %llu.%x [", pg->pgid.pool,
+			   pg->pgid.seed);
+		for (i = 0; i < pg->pg_temp.len; i++)
+			seq_printf(s, "%s%d", (i == 0 ? "" : ","),
+				   pg->pg_temp.osds[i]);
+		seq_printf(s, "]\n");
+	}
+	for (n = rb_first(&map->primary_temp); n; n = rb_next(n)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(n, struct ceph_pg_mapping, node);
+
+		seq_printf(s, "primary_temp %llu.%x %d\n", pg->pgid.pool,
+			   pg->pgid.seed, pg->primary_temp.osd);
+	}
+
 	return 0;
 }
 

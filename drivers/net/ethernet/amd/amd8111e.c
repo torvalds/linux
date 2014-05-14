@@ -720,6 +720,9 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 	int rx_pkt_limit = budget;
 	unsigned long flags;
 
+	if (rx_pkt_limit <= 0)
+		goto rx_not_empty;
+
 	do{
 		/* process receive packets until we use the quota*/
 		/* If we own the next entry, it's a new packet. Send it up. */

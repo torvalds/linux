@@ -21,63 +21,44 @@ static void __iomem *reg_base;
 static struct clk_onecell_data clk_data;
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-static struct samsung_clk_reg_dump *reg_dump;
-static unsigned long nr_reg_dump;
-
-static int samsung_clk_suspend(void)
+void samsung_clk_save(void __iomem *base,
+				    struct samsung_clk_reg_dump *rd,
+				    unsigned int num_regs)
 {
-	struct samsung_clk_reg_dump *rd = reg_dump;
-	unsigned long i;
-
-	for (i = 0; i < nr_reg_dump; i++, rd++)
-		rd->value = __raw_readl(reg_base + rd->offset);
-
-	return 0;
+	for (; num_regs > 0; --num_regs, ++rd)
+		rd->value = readl(base + rd->offset);
 }
 
-static void samsung_clk_resume(void)
+void samsung_clk_restore(void __iomem *base,
+				      const struct samsung_clk_reg_dump *rd,
+				      unsigned int num_regs)
 {
-	struct samsung_clk_reg_dump *rd = reg_dump;
-	unsigned long i;
-
-	for (i = 0; i < nr_reg_dump; i++, rd++)
-		__raw_writel(rd->value, reg_base + rd->offset);
+	for (; num_regs > 0; --num_regs, ++rd)
+		writel(rd->value, base + rd->offset);
 }
 
-static struct syscore_ops samsung_clk_syscore_ops = {
-	.suspend	= samsung_clk_suspend,
-	.resume		= samsung_clk_resume,
-};
-#endif /* CONFIG_PM_SLEEP */
+struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
+						const unsigned long *rdump,
+						unsigned long nr_rdump)
+{
+	struct samsung_clk_reg_dump *rd;
+	unsigned int i;
+
+	rd = kcalloc(nr_rdump, sizeof(*rd), GFP_KERNEL);
+	if (!rd)
+		return NULL;
+
+	for (i = 0; i < nr_rdump; ++i)
+		rd[i].offset = rdump[i];
+
+	return rd;
+}
 
 /* setup the essentials required to support clock lookup using ccf */
 void __init samsung_clk_init(struct device_node *np, void __iomem *base,
-		unsigned long nr_clks, unsigned long *rdump,
-		unsigned long nr_rdump, unsigned long *soc_rdump,
-		unsigned long nr_soc_rdump)
+			     unsigned long nr_clks)
 {
 	reg_base = base;
-
-#ifdef CONFIG_PM_SLEEP
-	if (rdump && nr_rdump) {
-		unsigned int idx;
-		reg_dump = kzalloc(sizeof(struct samsung_clk_reg_dump)
-				* (nr_rdump + nr_soc_rdump), GFP_KERNEL);
-		if (!reg_dump) {
-			pr_err("%s: memory alloc for register dump failed\n",
-					__func__);
-			return;
-		}
-
-		for (idx = 0; idx < nr_rdump; idx++)
-			reg_dump[idx].offset = rdump[idx];
-		for (idx = 0; idx < nr_soc_rdump; idx++)
-			reg_dump[nr_rdump + idx].offset = soc_rdump[idx];
-		nr_reg_dump = nr_rdump + nr_soc_rdump;
-		register_syscore_ops(&samsung_clk_syscore_ops);
-	}
-#endif
 
 	clk_table = kzalloc(sizeof(struct clk *) * nr_clks, GFP_KERNEL);
 	if (!clk_table)

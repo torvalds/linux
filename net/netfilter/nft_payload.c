@@ -135,7 +135,8 @@ nft_payload_select_ops(const struct nft_ctx *ctx,
 	if (len == 0 || len > FIELD_SIZEOF(struct nft_data, data))
 		return ERR_PTR(-EINVAL);
 
-	if (len <= 4 && IS_ALIGNED(offset, len) && base != NFT_PAYLOAD_LL_HEADER)
+	if (len <= 4 && is_power_of_2(len) && IS_ALIGNED(offset, len) &&
+	    base != NFT_PAYLOAD_LL_HEADER)
 		return &nft_payload_fast_ops;
 	else
 		return &nft_payload_ops;

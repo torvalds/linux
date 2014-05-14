@@ -186,6 +186,11 @@
 				reg = <0x20000 0x80>, <0x800100 0x8>;
 			};
 
+			sysc: system-ctrl@20000 {
+				compatible = "marvell,orion-system-controller";
+				reg = <0x20000 0x110>;
+			};
+
 			bridge_intc: bridge-interrupt-ctrl@20110 {
 				compatible = "marvell,orion-bridge-intc";
 				interrupt-controller;
@@ -207,6 +212,14 @@
 				reg = <0x20300 0x20>;
 				interrupt-parent = <&bridge_intc>;
 				interrupts = <1>, <2>;
+				clocks = <&core_clk 0>;
+			};
+
+			watchdog@20300 {
+				compatible = "marvell,orion-wdt";
+				reg = <0x20300 0x28>, <0x20108 0x4>;
+				interrupt-parent = <&bridge_intc>;
+				interrupts = <3>;
 				clocks = <&core_clk 0>;
 			};
 
@@ -381,7 +394,8 @@
 
 			pinctrl: pin-ctrl@d0200 {
 				compatible = "marvell,dove-pinctrl";
-				reg = <0xd0200 0x10>;
+				reg = <0xd0200 0x14>,
+				      <0xd0440 0x04>;
 				clocks = <&gate_clk 22>;
 
 				pmx_gpio_0: pmx-gpio-0 {
@@ -601,6 +615,12 @@
 			rtc: real-time-clock@d8500 {
 				compatible = "marvell,orion-rtc";
 				reg = <0xd8500 0x20>;
+			};
+
+			gconf: global-config@e802c {
+				compatible = "marvell,dove-global-config",
+				             "syscon";
+				reg = <0xe802c 0x14>;
 			};
 
 			gpio2: gpio-ctrl@e8400 {

@@ -266,8 +266,6 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[IMX5_CLK_ECSPI2_PER_GATE], "per", "imx51-ecspi.1");
 	clk_register_clkdev(clk[IMX5_CLK_ECSPI2_IPG_GATE], "ipg", "imx51-ecspi.1");
 	clk_register_clkdev(clk[IMX5_CLK_CSPI_IPG_GATE], NULL, "imx35-cspi.2");
-	clk_register_clkdev(clk[IMX5_CLK_PWM1_IPG_GATE], "pwm", "mxc_pwm.0");
-	clk_register_clkdev(clk[IMX5_CLK_PWM2_IPG_GATE], "pwm", "mxc_pwm.1");
 	clk_register_clkdev(clk[IMX5_CLK_I2C1_GATE], NULL, "imx21-i2c.0");
 	clk_register_clkdev(clk[IMX5_CLK_I2C2_GATE], NULL, "imx21-i2c.1");
 	clk_register_clkdev(clk[IMX5_CLK_USBOH3_PER_GATE], "per", "mxc-ehci.0");

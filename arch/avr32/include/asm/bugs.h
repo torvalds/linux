@@ -9,7 +9,7 @@
 
 static void __init check_bugs(void)
 {
-	cpu_data->loops_per_jiffy = loops_per_jiffy;
+	boot_cpu_data.loops_per_jiffy = loops_per_jiffy;
 }
 
 #endif /* __ASM_AVR32_BUGS_H */

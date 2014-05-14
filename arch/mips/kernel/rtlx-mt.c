@@ -144,5 +144,8 @@ void __exit rtlx_module_exit(void)
 
 	for (i = 0; i < RTLX_CHANNELS; i++)
 		device_destroy(mt_class, MKDEV(major, i));
+
 	unregister_chrdev(major, RTLX_MODULE_NAME);
+
+	aprp_hook = NULL;
 }

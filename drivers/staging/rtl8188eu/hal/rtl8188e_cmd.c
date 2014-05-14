@@ -72,7 +72,6 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 	u32 h2c_cmd_ex = 0;
 	s32 ret = _FAIL;
 
-_func_enter_;
 
 	if (!adapt->bFWReady) {
 		DBG_88E("FillH2CCmd_88E(): return H2C cmd because fw is not ready\n");
@@ -125,7 +124,6 @@ _func_enter_;
 
 exit:
 
-_func_exit_;
 
 	return ret;
 }
@@ -134,7 +132,6 @@ u8 rtl8188e_set_rssi_cmd(struct adapter *adapt, u8 *param)
 {
 	u8 res = _SUCCESS;
 	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
-_func_enter_;
 
 	if (haldata->fw_ractrl) {
 		;
@@ -143,7 +140,6 @@ _func_enter_;
 		res = _FAIL;
 	}
 
-_func_exit_;
 
 	return res;
 }
@@ -154,7 +150,6 @@ u8 rtl8188e_set_raid_cmd(struct adapter *adapt, u32 mask)
 	u8 res = _SUCCESS;
 	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
 
-_func_enter_;
 	if (haldata->fw_ractrl) {
 		__le32 lmask;
 
@@ -168,7 +163,6 @@ _func_enter_;
 		res = _FAIL;
 	}
 
-_func_exit_;
 
 	return res;
 }
@@ -215,7 +209,6 @@ void rtl8188e_set_FwPwrMode_cmd(struct adapter *adapt, u8 Mode)
 	struct setpwrmode_parm H2CSetPwrMode;
 	struct pwrctrl_priv *pwrpriv = &adapt->pwrctrlpriv;
 	u8 RLBM = 0; /*  0:Min, 1:Max, 2:User define */
-_func_enter_;
 
 	DBG_88E("%s: Mode=%d SmartPS=%d UAPSD=%d\n", __func__,
 		Mode, pwrpriv->smart_ps, adapt->registrypriv.uapsd_enable);
@@ -256,7 +249,6 @@ _func_enter_;
 
 	FillH2CCmd_88E(adapt, H2C_PS_PWR_MODE, sizeof(H2CSetPwrMode), (u8 *)&H2CSetPwrMode);
 
-_func_exit_;
 }
 
 void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt)
@@ -617,7 +609,6 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 	u8 DLBcnCount = 0;
 	u32 poll = 0;
 
-_func_enter_;
 
 	DBG_88E("%s mstatus(%x)\n", __func__, mstatus);
 
@@ -701,7 +692,6 @@ _func_enter_;
 		haldata->RegCR_1 &= (~BIT0);
 		rtw_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 	}
-_func_exit_;
 }
 
 void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state)
@@ -712,7 +702,6 @@ void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state)
 	struct P2P_PS_Offload_t	*p2p_ps_offload = &haldata->p2p_ps_offload;
 	u8 i;
 
-_func_enter_;
 
 	switch (p2p_ps_state) {
 	case P2P_PS_DISABLE:
@@ -775,5 +764,4 @@ _func_enter_;
 	FillH2CCmd_88E(adapt, H2C_PS_P2P_OFFLOAD, 1, (u8 *)p2p_ps_offload);
 #endif
 
-_func_exit_;
 }

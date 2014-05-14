@@ -629,7 +629,7 @@ halbtc8723a1ant_TdmaDurationAdjust(
 	}
 	else
 	{
-		//accquire the BT TRx retry count from BT_Info byte2
+		//acquire the BT TRx retry count from BT_Info byte2
 		retryCount = pCoexSta->btRetryCnt;
 		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE, ("[BTCoex], retryCount = %d\n", retryCount));
 		result = 0;

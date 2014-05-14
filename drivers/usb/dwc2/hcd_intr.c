@@ -975,14 +975,19 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 				  struct dwc2_qtd *qtd)
 {
 	struct dwc2_hcd_urb *urb = qtd->urb;
-	int pipe_type = dwc2_hcd_get_pipe_type(&urb->pipe_info);
 	enum dwc2_halt_status halt_status = DWC2_HC_XFER_COMPLETE;
+	int pipe_type;
 	int urb_xfer_done;
 
 	if (dbg_hc(chan))
 		dev_vdbg(hsotg->dev,
 			 "--Host Channel %d Interrupt: Transfer Complete--\n",
 			 chnum);
+
+	if (!urb)
+		goto handle_xfercomp_done;
+
+	pipe_type = dwc2_hcd_get_pipe_type(&urb->pipe_info);
 
 	if (hsotg->core_params->dma_desc_enable > 0) {
 		dwc2_hcd_complete_xfer_ddma(hsotg, chan, chnum, halt_status);
@@ -1004,9 +1009,6 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 			qtd->complete_split = 0;
 		}
 	}
-
-	if (!urb)
-		goto handle_xfercomp_done;
 
 	/* Update the QTD and URB states */
 	switch (pipe_type) {
@@ -1105,7 +1107,7 @@ static void dwc2_hc_stall_intr(struct dwc2_hsotg *hsotg,
 			       struct dwc2_qtd *qtd)
 {
 	struct dwc2_hcd_urb *urb = qtd->urb;
-	int pipe_type = dwc2_hcd_get_pipe_type(&urb->pipe_info);
+	int pipe_type;
 
 	dev_dbg(hsotg->dev, "--Host Channel %d Interrupt: STALL Received--\n",
 		chnum);
@@ -1118,6 +1120,8 @@ static void dwc2_hc_stall_intr(struct dwc2_hsotg *hsotg,
 
 	if (!urb)
 		goto handle_stall_halt;
+
+	pipe_type = dwc2_hcd_get_pipe_type(&urb->pipe_info);
 
 	if (pipe_type == USB_ENDPOINT_XFER_CONTROL)
 		dwc2_host_complete(hsotg, qtd, -EPIPE);

@@ -21,12 +21,12 @@
 #undef ORE_DBGMSG2
 #define ORE_DBGMSG2 ORE_DBGMSG
 
-struct page *_raid_page_alloc(void)
+static struct page *_raid_page_alloc(void)
 {
 	return alloc_page(GFP_KERNEL);
 }
 
-void _raid_page_free(struct page *p)
+static void _raid_page_free(struct page *p)
 {
 	__free_page(p);
 }

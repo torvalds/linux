@@ -282,11 +282,11 @@ static struct reg_default twl4030_49_defaults[] = {
 static bool twl4030_49_nop_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case 0:
-	case 3:
-	case 40:
-	case 41:
-	case 42:
+	case 0x00:
+	case 0x03:
+	case 0x40:
+	case 0x41:
+	case 0x42:
 		return false;
 	default:
 		return true;

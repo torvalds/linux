@@ -65,7 +65,9 @@ static ssize_t dgrp_class_pollrate_store(struct device *c,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	sscanf(buf, "0x%x\n", &dgrp_poll_tick);
+	if (sscanf(buf, "0x%x\n", &dgrp_poll_tick) != 1)
+		return -EINVAL;
+
 	return count;
 }
 static DEVICE_ATTR(pollrate, 0600, dgrp_class_pollrate_show,

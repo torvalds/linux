@@ -1225,7 +1225,7 @@ struct bus_type iscsi_flashnode_bus = {
  * Adds a sysfs entry for the flashnode session attributes
  *
  * Returns:
- *  pointer to allocated flashnode sess on sucess
+ *  pointer to allocated flashnode sess on success
  *  %NULL on failure
  */
 struct iscsi_bus_flash_session *
@@ -1423,7 +1423,7 @@ static int iscsi_iter_destroy_flashnode_conn_fn(struct device *dev, void *data)
 }
 
 /**
- * iscsi_destroy_flashnode_sess - destory flashnode session entry
+ * iscsi_destroy_flashnode_sess - destroy flashnode session entry
  * @fnode_sess: pointer to flashnode session entry to be destroyed
  *
  * Deletes the flashnode session entry and all children flashnode connection
@@ -1453,7 +1453,7 @@ static int iscsi_iter_destroy_flashnode_fn(struct device *dev, void *data)
 }
 
 /**
- * iscsi_destroy_all_flashnode - destory all flashnode session entries
+ * iscsi_destroy_all_flashnode - destroy all flashnode session entries
  * @shost: pointer to host data
  *
  * Destroys all the flashnode session entries and all corresponding children

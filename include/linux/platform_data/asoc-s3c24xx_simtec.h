@@ -1,5 +1,4 @@
-/* arch/arm/plat-samsung/include/plat/audio-simtec.h
- *
+/*
  * Copyright 2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>

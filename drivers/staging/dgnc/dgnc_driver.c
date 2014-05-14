@@ -88,7 +88,7 @@ module_exit(dgnc_cleanup_module);
 /*
  * File operations permitted on Control/Management major.
  */
-static struct file_operations dgnc_BoardFops =
+static const struct file_operations dgnc_BoardFops =
 {
 	.owner		=	THIS_MODULE,
 	.unlocked_ioctl =  	dgnc_mgmt_ioctl,
@@ -236,7 +236,7 @@ int dgnc_init_module(void)
 		if (dgnc_NumBoards)
 			pci_unregister_driver(&dgnc_driver);
 		else
-			printk("WARNING: dgnc driver load failed.  No Digi Neo or Classic boards found.\n");
+			pr_warn("WARNING: dgnc driver load failed.  No Digi Neo or Classic boards found.\n");
 
 		dgnc_cleanup_module();
 	}

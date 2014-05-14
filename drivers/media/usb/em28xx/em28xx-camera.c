@@ -120,7 +120,7 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 		reg = 0x00;
 		ret = i2c_master_send(&client, &reg, 1);
 		if (ret < 0) {
-			if (ret != -ENODEV)
+			if (ret != -ENXIO)
 				em28xx_errdev("couldn't read from i2c device 0x%02x: error %i\n",
 					      client.addr << 1, ret);
 			continue;
@@ -218,7 +218,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 		reg = 0x1c;
 		ret = i2c_smbus_read_byte_data(&client, reg);
 		if (ret < 0) {
-			if (ret != -ENODEV)
+			if (ret != -ENXIO)
 				em28xx_errdev("couldn't read from i2c device 0x%02x: error %i\n",
 					      client.addr << 1, ret);
 			continue;

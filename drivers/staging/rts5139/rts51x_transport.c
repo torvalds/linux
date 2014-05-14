@@ -646,9 +646,9 @@ int rts51x_get_epc_status(struct rts51x_chip *chip, u16 *status)
 				    chip->usb->intr_urb->actual_length);
 }
 
-u8 media_not_present[] = {
+static u8 media_not_present[] = {
 	0x70, 0, 0x02, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x3A, 0, 0, 0, 0, 0 };
-u8 invalid_cmd_field[] = {
+static u8 invalid_cmd_field[] = {
 	0x70, 0, 0x05, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x24, 0, 0, 0, 0, 0 };
 
 void rts51x_invoke_transport(struct scsi_cmnd *srb, struct rts51x_chip *chip)

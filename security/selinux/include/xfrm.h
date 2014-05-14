@@ -10,7 +10,8 @@
 #include <net/flow.h>
 
 int selinux_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
-			      struct xfrm_user_sec_ctx *uctx);
+			      struct xfrm_user_sec_ctx *uctx,
+			      gfp_t gfp);
 int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
 			      struct xfrm_sec_ctx **new_ctxp);
 void selinux_xfrm_policy_free(struct xfrm_sec_ctx *ctx);
@@ -45,10 +46,11 @@ static inline void selinux_xfrm_notify_policyload(void)
 {
 	struct net *net;
 
-	atomic_inc(&flow_cache_genid);
 	rtnl_lock();
-	for_each_net(net)
+	for_each_net(net) {
+		atomic_inc(&net->xfrm.flow_cache_genid);
 		rt_genid_bump_all(net);
+	}
 	rtnl_unlock();
 }
 #else

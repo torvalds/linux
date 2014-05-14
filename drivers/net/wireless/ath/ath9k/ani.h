@@ -22,12 +22,16 @@
 /* units are errors per second */
 #define ATH9K_ANI_OFDM_TRIG_HIGH           3500
 #define ATH9K_ANI_OFDM_TRIG_HIGH_BELOW_INI 1000
+#define ATH9K_ANI_OFDM_TRIG_HIGH_OLD       500
 
 #define ATH9K_ANI_OFDM_TRIG_LOW           400
 #define ATH9K_ANI_OFDM_TRIG_LOW_ABOVE_INI 900
+#define ATH9K_ANI_OFDM_TRIG_LOW_OLD       200
 
 #define ATH9K_ANI_CCK_TRIG_HIGH           600
+#define ATH9K_ANI_CCK_TRIG_HIGH_OLD       200
 #define ATH9K_ANI_CCK_TRIG_LOW            300
+#define ATH9K_ANI_CCK_TRIG_LOW_OLD        100
 
 #define ATH9K_ANI_SPUR_IMMUNE_LVL         3
 #define ATH9K_ANI_FIRSTEP_LVL             2

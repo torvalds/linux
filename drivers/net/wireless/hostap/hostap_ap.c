@@ -147,7 +147,7 @@ static void ap_free_sta(struct ap_data *ap, struct sta_info *sta)
 
 	if (!sta->ap && sta->u.sta.challenge)
 		kfree(sta->u.sta.challenge);
-	del_timer(&sta->timer);
+	del_timer_sync(&sta->timer);
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
 	kfree(sta);

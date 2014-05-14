@@ -2383,6 +2383,11 @@ static void qla4_8xxx_mark_entry_skipped(struct scsi_qla_host *ha,
 			  "scsi(%ld): Skipping entry[%d]: ETYPE[0x%x]-ELEVEL[0x%x]\n",
 			  ha->host_no, index, entry_hdr->entry_type,
 			  entry_hdr->d_ctrl.entry_capture_mask));
+	/* If driver encounters a new entry type that it cannot process,
+	 * it should just skip the entry and adjust the total buffer size by
+	 * from subtracting the skipped bytes from it
+	 */
+	ha->fw_dump_skip_size += entry_hdr->entry_capture_size;
 }
 
 /* ISP83xx functions to process new minidump entries... */
@@ -2590,6 +2595,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 	uint64_t now;
 	uint32_t timestamp;
 
+	ha->fw_dump_skip_size = 0;
 	if (!ha->fw_dump) {
 		ql4_printk(KERN_INFO, ha, "%s(%ld) No buffer to dump\n",
 			   __func__, ha->host_no);
@@ -2761,7 +2767,7 @@ skip_nxt_entry:
 				 entry_hdr->entry_size);
 	}
 
-	if (data_collected != ha->fw_dump_size) {
+	if ((data_collected + ha->fw_dump_skip_size) != ha->fw_dump_size) {
 		ql4_printk(KERN_INFO, ha,
 			   "Dump data mismatch: Data collected: [0x%x], total_data_size:[0x%x]\n",
 			   data_collected, ha->fw_dump_size);
@@ -2820,62 +2826,34 @@ void qla4_8xxx_get_minidump(struct scsi_qla_host *ha)
 int qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 {
 	int rval = QLA_ERROR;
-	int i, timeout;
-	uint32_t old_count, count, idc_ctrl;
-	int need_reset = 0, peg_stuck = 1;
+	int i;
+	uint32_t old_count, count;
+	int need_reset = 0;
 
 	need_reset = ha->isp_ops->need_reset(ha);
-	old_count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
-
-	for (i = 0; i < 10; i++) {
-		timeout = msleep_interruptible(200);
-		if (timeout) {
-			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
-					    QLA8XXX_DEV_FAILED);
-			return rval;
-		}
-
-		count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
-		if (count != old_count)
-			peg_stuck = 0;
-	}
 
 	if (need_reset) {
 		/* We are trying to perform a recovery here. */
-		if (peg_stuck)
+		if (test_bit(AF_FW_RECOVERY, &ha->flags))
 			ha->isp_ops->rom_lock_recovery(ha);
-		goto dev_initialize;
 	} else  {
-		/* Start of day for this ha context. */
-		if (peg_stuck) {
-			/* Either we are the first or recovery in progress. */
-			ha->isp_ops->rom_lock_recovery(ha);
-			goto dev_initialize;
-		} else {
-			/* Firmware already running. */
-			rval = QLA_SUCCESS;
-			goto dev_ready;
+		old_count = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_ALIVE_COUNTER);
+		for (i = 0; i < 10; i++) {
+			msleep(200);
+			count = qla4_8xxx_rd_direct(ha,
+						    QLA8XXX_PEG_ALIVE_COUNTER);
+			if (count != old_count) {
+				rval = QLA_SUCCESS;
+				goto dev_ready;
+			}
 		}
+		ha->isp_ops->rom_lock_recovery(ha);
 	}
 
-dev_initialize:
 	/* set to DEV_INITIALIZING */
 	ql4_printk(KERN_INFO, ha, "HW State: INITIALIZING\n");
 	qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 			    QLA8XXX_DEV_INITIALIZING);
-
-	/*
-	 * For ISP8324 and ISP8042, if IDC_CTRL GRACEFUL_RESET_BIT1 is set,
-	 * reset it after device goes to INIT state.
-	 */
-	if (is_qla8032(ha) || is_qla8042(ha)) {
-		idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
-		if (idc_ctrl & GRACEFUL_RESET_BIT1) {
-			qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
-					 (idc_ctrl & ~GRACEFUL_RESET_BIT1));
-			set_bit(AF_83XX_NO_FW_DUMP, &ha->flags);
-		}
-	}
 
 	ha->isp_ops->idc_unlock(ha);
 
@@ -3208,6 +3186,10 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 	}
 
 	retval = qla4_8xxx_device_state_handler(ha);
+
+	/* Initialize request and response queues. */
+	if (retval == QLA_SUCCESS)
+		qla4xxx_init_rings(ha);
 
 	if (retval == QLA_SUCCESS && !test_bit(AF_IRQ_ATTACHED, &ha->flags))
 		retval = qla4xxx_request_irqs(ha);
@@ -3835,4 +3817,25 @@ qla4_8xxx_enable_msix(struct scsi_qla_host *ha)
 	}
 msix_out:
 	return ret;
+}
+
+int qla4_8xxx_check_init_adapter_retry(struct scsi_qla_host *ha)
+{
+	int status = QLA_SUCCESS;
+
+	/* Dont retry adapter initialization if IRQ allocation failed */
+	if (!test_bit(AF_IRQ_ATTACHED, &ha->flags)) {
+		ql4_printk(KERN_WARNING, ha, "%s: Skipping retry of adapter initialization as IRQs are not attached\n",
+			   __func__);
+		status = QLA_ERROR;
+		goto exit_init_adapter_failure;
+	}
+
+	/* Since interrupts are registered in start_firmware for
+	 * 8xxx, release them here if initialize_adapter fails
+	 * and retry adapter initialization */
+	qla4xxx_free_irqs(ha);
+
+exit_init_adapter_failure:
+	return status;
 }

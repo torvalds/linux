@@ -363,10 +363,8 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(&pdev->dev, "Memory alloction failed\n");
+	if (!pdata)
 		return NULL;
-	}
 
 	for (i = 0; i < num; i++) {
 		int id;
@@ -398,7 +396,7 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 {
 	struct tps6586x_regulator *ri = NULL;
 	struct regulator_config config = { };
-	struct regulator_dev **rdev;
+	struct regulator_dev *rdev;
 	struct regulator_init_data *reg_data;
 	struct tps6586x_platform_data *pdata;
 	struct of_regulator_match *tps6586x_reg_matches = NULL;
@@ -416,13 +414,6 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 	if (!pdata) {
 		dev_err(&pdev->dev, "Platform data not available, exiting\n");
 		return -ENODEV;
-	}
-
-	rdev = devm_kzalloc(&pdev->dev, TPS6586X_ID_MAX_REGULATOR *
-				sizeof(*rdev), GFP_KERNEL);
-	if (!rdev) {
-		dev_err(&pdev->dev, "Mmemory alloc failed\n");
-		return -ENOMEM;
 	}
 
 	version = tps6586x_get_version(pdev->dev.parent);
@@ -451,12 +442,11 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 		if (tps6586x_reg_matches)
 			config.of_node = tps6586x_reg_matches[id].of_node;
 
-		rdev[id] = devm_regulator_register(&pdev->dev, &ri->desc,
-						   &config);
-		if (IS_ERR(rdev[id])) {
+		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
+		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 					ri->desc.name);
-			return PTR_ERR(rdev[id]);
+			return PTR_ERR(rdev);
 		}
 
 		if (reg_data) {

@@ -39,8 +39,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_root");
 #define ACPI_PCI_ROOT_CLASS		"pci_bridge"
@@ -51,7 +49,7 @@ static void acpi_pci_root_remove(struct acpi_device *device);
 
 static int acpi_pci_root_scan_dependent(struct acpi_device *adev)
 {
-	acpiphp_check_host_bridge(adev->handle);
+	acpiphp_check_host_bridge(adev);
 	return 0;
 }
 

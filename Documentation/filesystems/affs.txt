@@ -49,6 +49,10 @@ mode=mode	Sets the mode flags to the given (octal) value, regardless
 		This is useful since most of the plain AmigaOS files
 		will map to 600.
 
+nofilenametruncate
+		The file system will return an error when filename exceeds
+		standard maximum filename length (30 characters).
+
 reserved=num	Sets the number of reserved blocks at the start of the
 		partition to num. You should never need this option.
 		Default is 2.
@@ -181,9 +185,8 @@ tested, though several hundred MB have been read and written using
 this fs. For a most up-to-date list of bugs please consult
 fs/affs/Changes.
 
-Filenames are truncated to 30 characters without warning (this
-can be changed by setting the compile-time option AFFS_NO_TRUNCATE
-in include/linux/amigaffs.h).
+By default, filenames are truncated to 30 characters without warning.
+'nofilenametruncate' mount option can change that behavior.
 
 Case is ignored by the affs in filename matching, but Linux shells
 do care about the case. Example (with /wb being an affs mounted fs):

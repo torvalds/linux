@@ -73,6 +73,20 @@ config HID_SENSOR_ALS
 	  Say yes here to build support for the HID SENSOR
 	  Ambient light sensor.
 
+config HID_SENSOR_PROX
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	tristate "HID PROX"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Proximity sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-sensor-prox.
+
 config SENSORS_LM3533
 	tristate "LM3533 ambient light sensor"
 	depends on MFD_LM3533
@@ -89,6 +103,18 @@ config SENSORS_LM3533
 	  light zone through sysfs. A threshold event can be generated on zone
 	  changes. The ALS-control output values can be set per zone for the
 	  three current output channels.
+
+config LTR501
+	tristate "LTR-501ALS-01 light sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	 If you say yes here you get support for the Lite-On LTR-501ALS-01
+	 ambient light and proximity sensor.
+
+	 This driver can also be built as a module.  If so, the module
+         will be called ltr501.
 
 config TCS3472
 	tristate "TAOS TCS3472 color light-to-digital converter"

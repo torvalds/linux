@@ -1,0 +1,9 @@
+config BT_NOKIA_H4P
+	tristate "HCI driver with H4 Nokia extensions"
+	depends on BT && ARCH_OMAP
+	help
+	  Bluetooth HCI driver with H4 extensions.  This driver provides
+	  support for H4+ Bluetooth chip with vendor-specific H4 extensions.
+
+	  Say Y here to compile support for h4 extended devices into the kernel
+	  or say M to compile it as module (btnokia_h4p).

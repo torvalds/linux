@@ -106,6 +106,11 @@ struct audit_names {
 	bool			should_free;
 };
 
+struct audit_proctitle {
+	int	len;	/* length of the cmdline field. */
+	char	*value;	/* the cmdline field */
+};
+
 /* The per-task audit context. */
 struct audit_context {
 	int		    dummy;	/* must be the first element */
@@ -202,6 +207,7 @@ struct audit_context {
 		} execve;
 	};
 	int fds[2];
+	struct audit_proctitle proctitle;
 
 #if AUDIT_DEBUG
 	int		    put_count;
@@ -247,7 +253,7 @@ extern void		    audit_panic(const char *message);
 
 struct audit_netlink_list {
 	__u32 portid;
-	pid_t pid;
+	struct net *net;
 	struct sk_buff_head q;
 };
 

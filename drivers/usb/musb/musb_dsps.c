@@ -45,6 +45,8 @@
 #include <linux/of_irq.h>
 #include <linux/usb/of.h>
 
+#include <linux/debugfs.h>
+
 #include "musb_core.h"
 
 static const struct of_device_id musb_dsps_of_match[];
@@ -136,6 +138,26 @@ struct dsps_glue {
 	unsigned long last_timer;    /* last timer data for each instance */
 
 	struct dsps_context context;
+	struct debugfs_regset32 regset;
+	struct dentry *dbgfs_root;
+};
+
+static const struct debugfs_reg32 dsps_musb_regs[] = {
+	{ "revision",		0x00 },
+	{ "control",		0x14 },
+	{ "status",		0x18 },
+	{ "eoi",		0x24 },
+	{ "intr0_stat",		0x30 },
+	{ "intr1_stat",		0x34 },
+	{ "intr0_set",		0x38 },
+	{ "intr1_set",		0x3c },
+	{ "txmode",		0x70 },
+	{ "rxmode",		0x74 },
+	{ "autoreq",		0xd0 },
+	{ "srpfixtime",		0xd4 },
+	{ "tdown",		0xd8 },
+	{ "phy_utmi",		0xe0 },
+	{ "mode",		0xe8 },
 };
 
 static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
@@ -368,6 +390,30 @@ out:
 	return ret;
 }
 
+static int dsps_musb_dbg_init(struct musb *musb, struct dsps_glue *glue)
+{
+	struct dentry *root;
+	struct dentry *file;
+	char buf[128];
+
+	sprintf(buf, "%s.dsps", dev_name(musb->controller));
+	root = debugfs_create_dir(buf, NULL);
+	if (!root)
+		return -ENOMEM;
+	glue->dbgfs_root = root;
+
+	glue->regset.regs = dsps_musb_regs;
+	glue->regset.nregs = ARRAY_SIZE(dsps_musb_regs);
+	glue->regset.base = musb->ctrl_base;
+
+	file = debugfs_create_regset32("regdump", S_IRUGO, root, &glue->regset);
+	if (!file) {
+		debugfs_remove_recursive(root);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
 static int dsps_musb_init(struct musb *musb)
 {
 	struct device *dev = musb->controller;
@@ -377,6 +423,7 @@ static int dsps_musb_init(struct musb *musb)
 	void __iomem *reg_base;
 	struct resource *r;
 	u32 rev, val;
+	int ret;
 
 	r = platform_get_resource_byname(parent, IORESOURCE_MEM, "control");
 	if (!r)
@@ -410,6 +457,10 @@ static int dsps_musb_init(struct musb *musb)
 	val &= ~(1 << wrp->otg_disable);
 	dsps_writel(musb->ctrl_base, wrp->phy_utmi, val);
 
+	ret = dsps_musb_dbg_init(musb, glue);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -419,8 +470,9 @@ static int dsps_musb_exit(struct musb *musb)
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 
 	del_timer_sync(&glue->timer);
-
 	usb_phy_shutdown(musb->xceiv);
+	debugfs_remove_recursive(glue->dbgfs_root);
+
 	return 0;
 }
 
@@ -616,7 +668,7 @@ static int dsps_probe(struct platform_device *pdev)
 	wrp = match->data;
 
 	/* allocate glue */
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&pdev->dev, "unable to allocate glue memory\n");
 		return -ENOMEM;
@@ -644,7 +696,6 @@ err3:
 	pm_runtime_put(&pdev->dev);
 err2:
 	pm_runtime_disable(&pdev->dev);
-	kfree(glue);
 	return ret;
 }
 
@@ -657,7 +708,7 @@ static int dsps_remove(struct platform_device *pdev)
 	/* disable usbss clocks */
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	kfree(glue);
+
 	return 0;
 }
 

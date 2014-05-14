@@ -46,13 +46,6 @@
 #include <asm/kgdb.h>
 #endif
 
-void
-init_waitqueue_entry_current(wait_queue_t *link)
-{
-	init_waitqueue_entry(link, current);
-}
-EXPORT_SYMBOL(init_waitqueue_entry_current);
-
 /**
  * wait_queue_t of Linux (version < 2.6.34) is a FIFO list for exclusively
  * waiting threads, which is not always desirable because all threads will
@@ -76,37 +69,6 @@ add_wait_queue_exclusive_head(wait_queue_head_t *waitq, wait_queue_t *link)
 	spin_unlock_irqrestore(&waitq->lock, flags);
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive_head);
-
-void
-waitq_wait(wait_queue_t *link, long state)
-{
-	schedule();
-}
-EXPORT_SYMBOL(waitq_wait);
-
-int64_t
-waitq_timedwait(wait_queue_t *link, long state, int64_t timeout)
-{
-	return schedule_timeout(timeout);
-}
-EXPORT_SYMBOL(waitq_timedwait);
-
-void
-schedule_timeout_and_set_state(long state, int64_t timeout)
-{
-	set_current_state(state);
-	schedule_timeout(timeout);
-}
-EXPORT_SYMBOL(schedule_timeout_and_set_state);
-
-/* deschedule for a bit... */
-void
-cfs_pause(cfs_duration_t ticks)
-{
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(ticks);
-}
-EXPORT_SYMBOL(cfs_pause);
 
 void cfs_init_timer(struct timer_list *t)
 {

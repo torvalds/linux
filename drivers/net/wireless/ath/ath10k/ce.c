@@ -266,12 +266,12 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
  * ath10k_ce_sendlist_send.
  * The caller takes responsibility for any needed locking.
  */
-static int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
-				 void *per_transfer_context,
-				 u32 buffer,
-				 unsigned int nbytes,
-				 unsigned int transfer_id,
-				 unsigned int flags)
+int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
+			  void *per_transfer_context,
+			  u32 buffer,
+			  unsigned int nbytes,
+			  unsigned int transfer_id,
+			  unsigned int flags)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
@@ -1067,9 +1067,9 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 	 *
 	 * For the lack of a better place do the check here.
 	 */
-	BUILD_BUG_ON(TARGET_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2*TARGET_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
-	BUILD_BUG_ON(TARGET_10X_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2*TARGET_10X_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 
 	ret = ath10k_pci_wake(ar);

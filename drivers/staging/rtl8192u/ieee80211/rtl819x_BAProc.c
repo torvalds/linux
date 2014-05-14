@@ -13,7 +13,7 @@
  *	     u16			Time //indicate time delay.
  *  output:  none
 ********************************************************************************************************************/
-void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 Time)
+static void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 Time)
 {
 	pBA->bValid = true;
 	if(Time != 0)
@@ -25,7 +25,7 @@ void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 Time)
  *   input:  PBA_RECORD			pBA  //BA entry to be disabled
  *  output:  none
 ********************************************************************************************************************/
-void DeActivateBAEntry( struct ieee80211_device *ieee, PBA_RECORD pBA)
+static void DeActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA)
 {
 	pBA->bValid = false;
 	del_timer_sync(&pBA->Timer);
@@ -37,7 +37,7 @@ void DeActivateBAEntry( struct ieee80211_device *ieee, PBA_RECORD pBA)
  *  output:  none
  *  notice:  As PTX_TS_RECORD structure will be defined in QOS, so wait to be merged. //FIXME
 ********************************************************************************************************************/
-u8 TxTsDeleteBA( struct ieee80211_device *ieee, PTX_TS_RECORD	pTxTs)
+static u8 TxTsDeleteBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTxTs)
 {
 	PBA_RECORD		pAdmittedBa = &pTxTs->TxAdmittedBARecord;  //These two BA entries must exist in TS structure
 	PBA_RECORD		pPendingBa = &pTxTs->TxPendingBARecord;
@@ -67,7 +67,7 @@ u8 TxTsDeleteBA( struct ieee80211_device *ieee, PTX_TS_RECORD	pTxTs)
  *  output:  none
  *  notice:  As PRX_TS_RECORD structure will be defined in QOS, so wait to be merged. //FIXME, same with above
 ********************************************************************************************************************/
-u8 RxTsDeleteBA( struct ieee80211_device *ieee, PRX_TS_RECORD	pRxTs)
+static u8 RxTsDeleteBA(struct ieee80211_device *ieee, PRX_TS_RECORD pRxTs)
 {
 	PBA_RECORD		pBa = &pRxTs->RxAdmittedBARecord;
 	u8			bSendDELBA = false;
@@ -307,7 +307,9 @@ static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
  *  notice: If any possible, please hide pBA in ieee. And temporarily use Manage Queue as softmac_mgmt_xmit() usually does
 ********************************************************************************************************************/
 
-void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst, PBA_RECORD pBA, TR_SELECT TxRxSelect, u16 ReasonCode)
+static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
+				 PBA_RECORD pBA, TR_SELECT TxRxSelect,
+				 u16 ReasonCode)
 {
 	struct sk_buff *skb = NULL;
 	skb = ieee80211_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode); //construct ACT_ADDBARSP frames

@@ -161,43 +161,6 @@ int dbm( int value )
 
 
 
-
-/*******************************************************************************
- *	percent()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      Return a value as a percentage of min to max.
- *
- *  PARAMETERS:
- *
- *      value   - the value in question
- *      min     - the minimum range value
- *      max     - the maximum range value
- *
- *  RETURNS:
- *
- *      the percentage value
- *
- ******************************************************************************/
-int percent( int value, int min, int max )
-{
-    /* Truncate the value to be between min and max. */
-    if( value < min )
-        value = min;
-
-    if( value > max )
-        value = max;
-
-    /* Return the value as a percentage of min to max. */
-    return ((( value - min ) * 100 ) / ( max - min ));
-} // percent
-/*============================================================================*/
-
-
-
-
 /*******************************************************************************
  *	is_valid_key_string()
  *******************************************************************************

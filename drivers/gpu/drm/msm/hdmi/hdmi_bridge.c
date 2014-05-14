@@ -19,11 +19,7 @@
 
 struct hdmi_bridge {
 	struct drm_bridge base;
-
 	struct hdmi *hdmi;
-	bool power_on;
-
-	unsigned long int pixclock;
 };
 #define to_hdmi_bridge(x) container_of(x, struct hdmi_bridge, base)
 
@@ -52,8 +48,8 @@ static void power_on(struct drm_bridge *bridge)
 	}
 
 	if (config->pwr_clk_cnt > 0) {
-		DBG("pixclock: %lu", hdmi_bridge->pixclock);
-		ret = clk_set_rate(hdmi->pwr_clks[0], hdmi_bridge->pixclock);
+		DBG("pixclock: %lu", hdmi->pixclock);
+		ret = clk_set_rate(hdmi->pwr_clks[0], hdmi->pixclock);
 		if (ret) {
 			dev_err(dev->dev, "failed to set pixel clk: %s (%d)\n",
 					config->pwr_clk_names[0], ret);
@@ -102,12 +98,13 @@ static void hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 
 	DBG("power up");
 
-	if (!hdmi_bridge->power_on) {
+	if (!hdmi->power_on) {
 		power_on(bridge);
-		hdmi_bridge->power_on = true;
+		hdmi->power_on = true;
+		hdmi_audio_update(hdmi);
 	}
 
-	phy->funcs->powerup(phy, hdmi_bridge->pixclock);
+	phy->funcs->powerup(phy, hdmi->pixclock);
 	hdmi_set_mode(hdmi, true);
 }
 
@@ -129,9 +126,10 @@ static void hdmi_bridge_post_disable(struct drm_bridge *bridge)
 	hdmi_set_mode(hdmi, false);
 	phy->funcs->powerdown(phy);
 
-	if (hdmi_bridge->power_on) {
+	if (hdmi->power_on) {
 		power_off(bridge);
-		hdmi_bridge->power_on = false;
+		hdmi->power_on = false;
+		hdmi_audio_update(hdmi);
 	}
 }
 
@@ -146,7 +144,7 @@ static void hdmi_bridge_mode_set(struct drm_bridge *bridge,
 
 	mode = adjusted_mode;
 
-	hdmi_bridge->pixclock = mode->clock * 1000;
+	hdmi->pixclock = mode->clock * 1000;
 
 	hdmi->hdmi_mode = drm_match_cea_mode(mode) > 1;
 
@@ -194,9 +192,7 @@ static void hdmi_bridge_mode_set(struct drm_bridge *bridge,
 	DBG("frame_ctrl=%08x", frame_ctrl);
 	hdmi_write(hdmi, REG_HDMI_FRAME_CTRL, frame_ctrl);
 
-	// TODO until we have audio, this might be safest:
-	if (hdmi->hdmi_mode)
-		hdmi_write(hdmi, REG_HDMI_GC, HDMI_GC_MUTE);
+	hdmi_audio_update(hdmi);
 }
 
 static const struct drm_bridge_funcs hdmi_bridge_funcs = {

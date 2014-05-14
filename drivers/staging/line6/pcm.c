@@ -501,8 +501,6 @@ int line6_init_pcm(struct usb_line6 *line6,
 	if (err < 0)
 		return err;
 
-	snd_card_set_dev(line6->card, line6->ifcdev);
-
 	err = snd_line6_new_pcm(line6pcm);
 	if (err < 0)
 		return err;

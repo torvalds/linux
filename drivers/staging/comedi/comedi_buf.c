@@ -61,6 +61,8 @@ static void __comedi_buf_free(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
+	struct comedi_buf_map *bm;
+	unsigned long flags;
 
 	if (async->prealloc_buf) {
 		vunmap(async->prealloc_buf);
@@ -68,8 +70,11 @@ static void __comedi_buf_free(struct comedi_device *dev,
 		async->prealloc_bufsz = 0;
 	}
 
-	comedi_buf_map_put(async->buf_map);
+	spin_lock_irqsave(&s->spin_lock, flags);
+	bm = async->buf_map;
 	async->buf_map = NULL;
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+	comedi_buf_map_put(bm);
 }
 
 static void __comedi_buf_alloc(struct comedi_device *dev,
@@ -80,6 +85,7 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 	struct page **pages = NULL;
 	struct comedi_buf_map *bm;
 	struct comedi_buf_page *buf;
+	unsigned long flags;
 	unsigned i;
 
 	if (!IS_ENABLED(CONFIG_HAS_DMA) && s->async_dma_dir != DMA_NONE) {
@@ -92,8 +98,10 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 	if (!bm)
 		return;
 
-	async->buf_map = bm;
 	kref_init(&bm->refcount);
+	spin_lock_irqsave(&s->spin_lock, flags);
+	async->buf_map = bm;
+	spin_unlock_irqrestore(&s->spin_lock, flags);
 	bm->dma_dir = s->async_dma_dir;
 	if (bm->dma_dir != DMA_NONE)
 		/* Need ref to hardware device to free buffer later. */
@@ -127,7 +135,9 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 
 		pages[i] = virt_to_page(buf->virt_addr);
 	}
+	spin_lock_irqsave(&s->spin_lock, flags);
 	bm->n_pages = i;
+	spin_unlock_irqrestore(&s->spin_lock, flags);
 
 	/* vmap the prealloc_buf if all the pages were allocated */
 	if (i == n_pages)
@@ -148,6 +158,29 @@ int comedi_buf_map_put(struct comedi_buf_map *bm)
 	if (bm)
 		return kref_put(&bm->refcount, comedi_buf_map_kref_release);
 	return 1;
+}
+
+/* returns s->async->buf_map and increments its kref refcount */
+struct comedi_buf_map *
+comedi_buf_map_from_subdev_get(struct comedi_subdevice *s)
+{
+	struct comedi_async *async = s->async;
+	struct comedi_buf_map *bm = NULL;
+	unsigned long flags;
+
+	if (!async)
+		return NULL;
+
+	spin_lock_irqsave(&s->spin_lock, flags);
+	bm = async->buf_map;
+	/* only want it if buffer pages allocated */
+	if (bm && bm->n_pages)
+		comedi_buf_map_get(bm);
+	else
+		bm = NULL;
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+
+	return bm;
 }
 
 bool comedi_buf_is_mmapped(struct comedi_async *async)

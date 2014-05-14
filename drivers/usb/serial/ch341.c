@@ -323,11 +323,11 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (r)
 		goto out;
 
-	dev_dbg(&port->dev, "%s - submitting interrupt urb", __func__);
+	dev_dbg(&port->dev, "%s - submitting interrupt urb\n", __func__);
 	r = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (r) {
-		dev_err(&port->dev, "%s - failed submitting interrupt urb,"
-			" error %d\n", __func__, r);
+		dev_err(&port->dev, "%s - failed to submit interrupt urb: %d\n",
+			__func__, r);
 		ch341_close(port);
 		goto out;
 	}

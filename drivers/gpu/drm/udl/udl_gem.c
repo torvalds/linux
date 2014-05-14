@@ -60,7 +60,7 @@ int udl_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args)
 {
-	args->pitch = args->width * ((args->bpp + 1) / 8);
+	args->pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
 	args->size = args->pitch * args->height;
 	return udl_gem_create(file, dev,
 			      args->size, &args->handle);
@@ -177,8 +177,10 @@ void udl_gem_free_object(struct drm_gem_object *gem_obj)
 	if (obj->vmapping)
 		udl_gem_vunmap(obj);
 
-	if (gem_obj->import_attach)
+	if (gem_obj->import_attach) {
 		drm_prime_gem_destroy(gem_obj, obj->sg);
+		put_device(gem_obj->dev->dev);
+	}
 
 	if (obj->pages)
 		udl_gem_put_pages(obj);
@@ -256,9 +258,12 @@ struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
 	int ret;
 
 	/* need to attach */
+	get_device(dev->dev);
 	attach = dma_buf_attach(dma_buf, dev->dev);
-	if (IS_ERR(attach))
+	if (IS_ERR(attach)) {
+		put_device(dev->dev);
 		return ERR_CAST(attach);
+	}
 
 	get_dma_buf(dma_buf);
 
@@ -282,6 +287,6 @@ fail_unmap:
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
 	dma_buf_put(dma_buf);
-
+	put_device(dev->dev);
 	return ERR_PTR(ret);
 }

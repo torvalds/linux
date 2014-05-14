@@ -106,6 +106,15 @@ config IR_SANYO_DECODER
 	   uses the Sanyo protocol (Sanyo, Aiwa, Chinon remotes),
 	   and you need software decoding support.
 
+config IR_SHARP_DECODER
+	tristate "Enable IR raw decoder for the Sharp protocol"
+	depends on RC_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sharp protocol, and you need software decoding support.
+
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
 	depends on RC_CORE
@@ -299,6 +308,8 @@ config IR_RX51
 
 	   The driver uses omap DM timers for generating the carrier
 	   wave and pulses.
+
+source "drivers/media/rc/img-ir/Kconfig"
 
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"

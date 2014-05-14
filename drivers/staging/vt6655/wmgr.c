@@ -967,10 +967,10 @@ s_vMgrRxAssocResponse(
 		sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
 		// decode the frame
 		vMgrDecodeAssocResponse(&sFrame);
-		if ((sFrame.pwCapInfo == 0) ||
-		    (sFrame.pwStatus == 0) ||
-		    (sFrame.pwAid == 0) ||
-		    (sFrame.pSuppRates == 0)) {
+		if ((sFrame.pwCapInfo == NULL) ||
+		    (sFrame.pwStatus == NULL) ||
+		    (sFrame.pwAid == NULL) ||
+		    (sFrame.pSuppRates == NULL)) {
 			DBG_PORT80(0xCC);
 			return;
 		}
@@ -1812,10 +1812,10 @@ s_vMgrRxBeacon(
 	// decode the beacon frame
 	vMgrDecodeBeacon(&sFrame);
 
-	if ((sFrame.pwBeaconInterval == 0) ||
-	    (sFrame.pwCapInfo == 0) ||
-	    (sFrame.pSSID == 0) ||
-	    (sFrame.pSuppRates == 0)) {
+	if ((sFrame.pwBeaconInterval == NULL) ||
+	    (sFrame.pwCapInfo == NULL) ||
+	    (sFrame.pSSID == NULL) ||
+	    (sFrame.pSuppRates == NULL)) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx beacon frame error\n");
 		return;
 	}
@@ -2072,7 +2072,7 @@ s_vMgrRxBeacon(
 		if (bTSFLargeDiff)
 			bUpdateTSF = true;
 
-		if (pDevice->bEnablePSMode && (sFrame.pTIM != 0)) {
+		if (pDevice->bEnablePSMode && (sFrame.pTIM != NULL)) {
 			// deal with DTIM, analysis TIM
 			pMgmt->bMulticastTIM = WLAN_MGMT_IS_MULTICAST_TIM(sFrame.pTIM->byBitMapCtl) ? true : false;
 			pMgmt->byDTIMCount = sFrame.pTIM->byDTIMCount;
@@ -4107,11 +4107,11 @@ s_vMgrRxProbeResponse(
 	sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
 	vMgrDecodeProbeResponse(&sFrame);
 
-	if ((sFrame.pqwTimestamp == 0) ||
-	    (sFrame.pwBeaconInterval == 0) ||
-	    (sFrame.pwCapInfo == 0) ||
-	    (sFrame.pSSID == 0) ||
-	    (sFrame.pSuppRates == 0)) {
+	if ((sFrame.pqwTimestamp == NULL) ||
+	    (sFrame.pwBeaconInterval == NULL) ||
+	    (sFrame.pwCapInfo == NULL) ||
+	    (sFrame.pSSID == NULL) ||
+	    (sFrame.pSuppRates == NULL)) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe resp:Fail addr:[%p] \n", pRxPacket->p80211Header);
 		DBG_PORT80(0xCC);
 		return;
@@ -4120,7 +4120,7 @@ s_vMgrRxProbeResponse(
 	if (sFrame.pSSID->len == 0)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx Probe resp: SSID len = 0 \n");
 
-	if (sFrame.pDSParms != 0) {
+	if (sFrame.pDSParms != NULL) {
 		if (byCurrChannel > CB_MAX_CHANNEL_24G) {
 			// channel remapping to
 			byIEChannel = get_channel_mapping(pMgmt->pAdapter, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);

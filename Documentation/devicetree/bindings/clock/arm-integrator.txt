@@ -1,0 +1,34 @@
+Clock bindings for ARM Integrator Core Module clocks
+
+Auxilary Oscillator Clock
+
+This is a configurable clock fed from a 24 MHz chrystal,
+used for generating e.g. video clocks. It is located on the
+core module and there is only one of these.
+
+This clock node *must* be a subnode of the core module, since
+it obtains the base address for it's address range from its
+parent node.
+
+
+Required properties:
+- compatible: must be "arm,integrator-cm-auxosc"
+- #clock-cells: must be <0>
+
+Optional properties:
+- clocks: parent clock(s)
+
+Example:
+
+core-module@10000000 {
+	xtal24mhz: xtal24mhz@24M {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+	auxosc: cm_aux_osc@25M {
+		#clock-cells = <0>;
+		compatible = "arm,integrator-cm-auxosc";
+		clocks = <&xtal24mhz>;
+	};
+};

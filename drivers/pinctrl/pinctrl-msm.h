@@ -13,10 +13,7 @@
 #ifndef __PINCTRL_MSM_H__
 #define __PINCTRL_MSM_H__
 
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/machine.h>
+struct pinctrl_pin_desc;
 
 /**
  * struct msm_function - a pinmux function
@@ -87,6 +84,7 @@ struct msm_pingroup {
 
 	unsigned intr_enable_bit:5;
 	unsigned intr_status_bit:5;
+	unsigned intr_ack_high:1;
 
 	unsigned intr_target_bit:5;
 	unsigned intr_raw_status_bit:5;

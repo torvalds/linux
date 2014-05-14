@@ -95,7 +95,7 @@ static void cvm_oct_kick_tx_poll_watchdog(void)
 	cvmx_write_csr(CVMX_CIU_TIMX(1), ciu_timx.u64);
 }
 
-void cvm_oct_free_tx_skbs(struct net_device *dev)
+static void cvm_oct_free_tx_skbs(struct net_device *dev)
 {
 	int32_t skb_to_free;
 	int qos, queues_per_port;
@@ -554,7 +554,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		printk_ratelimited("%s: Failed to allocate a work queue entry\n",
 				   dev->name);
 		priv->stats.tx_dropped++;
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return 0;
 	}
 
@@ -565,7 +565,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 				   dev->name);
 		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
 		priv->stats.tx_dropped++;
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return 0;
 	}
 
@@ -682,7 +682,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 			     work->grp);
 	priv->stats.tx_packets++;
 	priv->stats.tx_bytes += skb->len;
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 	return 0;
 }
 

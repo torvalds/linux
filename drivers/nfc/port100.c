@@ -27,7 +27,8 @@
 #define PORT100_PROTOCOLS (NFC_PROTO_JEWEL_MASK    | \
 			   NFC_PROTO_MIFARE_MASK   | \
 			   NFC_PROTO_FELICA_MASK   | \
-			   NFC_PROTO_NFC_DEP_MASK)
+			   NFC_PROTO_NFC_DEP_MASK  | \
+			   NFC_PROTO_ISO14443_MASK)
 
 #define PORT100_CAPABILITIES (NFC_DIGITAL_DRV_CAPS_IN_CRC | \
 			      NFC_DIGITAL_DRV_CAPS_TG_CRC)
@@ -139,6 +140,8 @@ static const struct port100_in_rf_setting in_rf_settings[] = {
 		.in_recv_set_number = 15,
 		.in_recv_comm_type  = PORT100_COMM_TYPE_IN_106A,
 	},
+	/* Ensures the array has NFC_DIGITAL_RF_TECH_LAST elements */
+	[NFC_DIGITAL_RF_TECH_LAST] = { 0 },
 };
 
 /**
@@ -174,6 +177,9 @@ static const struct port100_tg_rf_setting tg_rf_settings[] = {
 		.tg_set_number = 8,
 		.tg_comm_type = PORT100_COMM_TYPE_TG_424F,
 	},
+	/* Ensures the array has NFC_DIGITAL_RF_TECH_LAST elements */
+	[NFC_DIGITAL_RF_TECH_LAST] = { 0 },
+
 };
 
 #define PORT100_IN_PROT_INITIAL_GUARD_TIME      0x00
@@ -293,6 +299,10 @@ in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 		{ PORT100_IN_PROT_CHECK_CRC, 0 },
 		{ PORT100_IN_PROT_END,       0 },
 	},
+	[NFC_DIGITAL_FRAMING_NFCA_T4T] = {
+		/* nfc_digital_framing_nfca_standard_with_crc_a */
+		{ PORT100_IN_PROT_END,       0 },
+	},
 	[NFC_DIGITAL_FRAMING_NFCA_NFC_DEP] = {
 		/* nfc_digital_framing_nfca_standard */
 		{ PORT100_IN_PROT_END, 0 },
@@ -328,6 +338,10 @@ in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 		{ PORT100_IN_PROT_END, 0 },
 	},
 	[NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED] = {
+		{ PORT100_IN_PROT_END, 0 },
+	},
+	/* Ensures the array has NFC_DIGITAL_FRAMING_LAST elements */
+	[NFC_DIGITAL_FRAMING_LAST] = {
 		{ PORT100_IN_PROT_END, 0 },
 	},
 };
@@ -369,6 +383,10 @@ tg_protocols[][PORT100_TG_MAX_NUM_PROTOCOLS + 1] = {
 	},
 	[NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED] = {
 		{ PORT100_TG_PROT_RF_OFF, 1 },
+		{ PORT100_TG_PROT_END,    0 },
+	},
+	/* Ensures the array has NFC_DIGITAL_FRAMING_LAST elements */
+	[NFC_DIGITAL_FRAMING_LAST] = {
 		{ PORT100_TG_PROT_END,    0 },
 	},
 };
@@ -1356,10 +1374,7 @@ static struct nfc_digital_ops port100_digital_ops = {
 };
 
 static const struct usb_device_id port100_table[] = {
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= SONY_VENDOR_ID,
-	  .idProduct		= RCS380_PRODUCT_ID,
-	},
+	{ USB_DEVICE(SONY_VENDOR_ID, RCS380_PRODUCT_ID), },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, port100_table);

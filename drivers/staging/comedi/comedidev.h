@@ -61,31 +61,31 @@ struct comedi_subdevice {
 
 	unsigned int *chanlist;	/* driver-owned chanlist (not used) */
 
-	int (*insn_read) (struct comedi_device *, struct comedi_subdevice *,
+	int (*insn_read)(struct comedi_device *, struct comedi_subdevice *,
+			 struct comedi_insn *, unsigned int *);
+	int (*insn_write)(struct comedi_device *, struct comedi_subdevice *,
 			  struct comedi_insn *, unsigned int *);
-	int (*insn_write) (struct comedi_device *, struct comedi_subdevice *,
+	int (*insn_bits)(struct comedi_device *, struct comedi_subdevice *,
+			 struct comedi_insn *, unsigned int *);
+	int (*insn_config)(struct comedi_device *, struct comedi_subdevice *,
 			   struct comedi_insn *, unsigned int *);
-	int (*insn_bits) (struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_insn *, unsigned int *);
-	int (*insn_config) (struct comedi_device *, struct comedi_subdevice *,
-			    struct comedi_insn *, unsigned int *);
 
-	int (*do_cmd) (struct comedi_device *, struct comedi_subdevice *);
-	int (*do_cmdtest) (struct comedi_device *, struct comedi_subdevice *,
-			   struct comedi_cmd *);
-	int (*poll) (struct comedi_device *, struct comedi_subdevice *);
-	int (*cancel) (struct comedi_device *, struct comedi_subdevice *);
+	int (*do_cmd)(struct comedi_device *, struct comedi_subdevice *);
+	int (*do_cmdtest)(struct comedi_device *, struct comedi_subdevice *,
+			  struct comedi_cmd *);
+	int (*poll)(struct comedi_device *, struct comedi_subdevice *);
+	int (*cancel)(struct comedi_device *, struct comedi_subdevice *);
 	/* int (*do_lock)(struct comedi_device *, struct comedi_subdevice *); */
 	/* int (*do_unlock)(struct comedi_device *, \
 			struct comedi_subdevice *); */
 
 	/* called when the buffer changes */
-	int (*buf_change) (struct comedi_device *dev,
-			   struct comedi_subdevice *s, unsigned long new_size);
+	int (*buf_change)(struct comedi_device *dev,
+			  struct comedi_subdevice *s, unsigned long new_size);
 
-	void (*munge) (struct comedi_device *dev, struct comedi_subdevice *s,
-		       void *data, unsigned int num_bytes,
-		       unsigned int start_chan_index);
+	void (*munge)(struct comedi_device *dev, struct comedi_subdevice *s,
+		      void *data, unsigned int num_bytes,
+		      unsigned int start_chan_index);
 	enum dma_data_direction async_dma_dir;
 
 	unsigned int state;
@@ -146,8 +146,8 @@ struct comedi_async {
 
 	unsigned int cb_mask;
 
-	int (*inttrig) (struct comedi_device *dev, struct comedi_subdevice *s,
-			unsigned int x);
+	int (*inttrig)(struct comedi_device *dev, struct comedi_subdevice *s,
+		       unsigned int x);
 };
 
 struct comedi_driver {
@@ -155,9 +155,9 @@ struct comedi_driver {
 
 	const char *driver_name;
 	struct module *module;
-	int (*attach) (struct comedi_device *, struct comedi_devconfig *);
-	void (*detach) (struct comedi_device *);
-	int (*auto_attach) (struct comedi_device *, unsigned long);
+	int (*attach)(struct comedi_device *, struct comedi_devconfig *);
+	void (*detach)(struct comedi_device *);
+	int (*auto_attach)(struct comedi_device *, unsigned long);
 
 	/* number of elements in board_name and board_id arrays */
 	unsigned int num_names;
@@ -202,8 +202,8 @@ struct comedi_device {
 
 	struct fasync_struct *async_queue;
 
-	int (*open) (struct comedi_device *dev);
-	void (*close) (struct comedi_device *dev);
+	int (*open)(struct comedi_device *dev);
+	void (*close)(struct comedi_device *dev);
 };
 
 static inline const void *comedi_board(const struct comedi_device *dev)
@@ -352,6 +352,14 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 			    void *destination, unsigned int num_bytes);
 
 /* drivers.c - general comedi driver functions */
+
+#define COMEDI_TIMEOUT_MS	1000
+
+int comedi_timeout(struct comedi_device *, struct comedi_subdevice *,
+		   struct comedi_insn *,
+		   int (*cb)(struct comedi_device *, struct comedi_subdevice *,
+			     struct comedi_insn *, unsigned long context),
+		   unsigned long context);
 
 int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
 			   struct comedi_insn *, unsigned int *data,

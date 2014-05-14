@@ -53,7 +53,7 @@ static int snd_adlib_probe(struct device *dev, unsigned int n)
 	struct snd_opl3 *opl3;
 	int error;
 
-	error = snd_card_create(index[n], id[n], THIS_MODULE, 0, &card);
+	error = snd_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
 	if (error < 0) {
 		dev_err(dev, "could not create card\n");
 		return error;
@@ -82,8 +82,6 @@ static int snd_adlib_probe(struct device *dev, unsigned int n)
 		dev_err(dev, "could not create FM\n");
 		goto out;
 	}
-
-	snd_card_set_dev(card, dev);
 
 	error = snd_card_register(card);
 	if (error < 0) {

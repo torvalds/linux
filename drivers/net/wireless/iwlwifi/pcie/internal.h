@@ -304,7 +304,7 @@ struct iwl_trans_pcie {
 	bool bc_table_dword;
 	u32 rx_page_order;
 
-	const char **command_names;
+	const char *const *command_names;
 
 	/* queue watchdog */
 	unsigned long wd_timeout;
@@ -487,5 +487,7 @@ static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
 {
 	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, mask);
 }
+
+void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
 
 #endif /* __iwl_trans_int_pcie_h__ */

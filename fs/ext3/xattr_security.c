@@ -43,8 +43,9 @@ ext3_xattr_security_set(struct dentry *dentry, const char *name,
 			      name, value, size, flags);
 }
 
-int ext3_initxattrs(struct inode *inode, const struct xattr *xattr_array,
-		    void *fs_info)
+static int ext3_initxattrs(struct inode *inode,
+			   const struct xattr *xattr_array,
+			   void *fs_info)
 {
 	const struct xattr *xattr;
 	handle_t *handle = fs_info;

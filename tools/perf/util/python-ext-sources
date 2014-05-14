@@ -17,6 +17,6 @@ util/xyarray.c
 util/cgroup.c
 util/rblist.c
 util/strlist.c
-util/fs.c
+../lib/api/fs/fs.c
 util/trace-event.c
 ../../lib/rbtree.c

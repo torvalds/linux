@@ -351,28 +351,17 @@ static struct device_attribute dev_rescan_attr = __ATTR(rescan,
 							(S_IWUSR|S_IWGRP),
 							NULL, dev_rescan_store);
 
-static void remove_callback(struct device *dev)
-{
-	pci_stop_and_remove_bus_device_locked(to_pci_dev(dev));
-}
-
 static ssize_t
-remove_store(struct device *dev, struct device_attribute *dummy,
+remove_store(struct device *dev, struct device_attribute *attr,
 	     const char *buf, size_t count)
 {
-	int ret = 0;
 	unsigned long val;
 
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
-	/* An attribute cannot be unregistered by one of its own methods,
-	 * so we have to use this roundabout approach.
-	 */
-	if (val)
-		ret = device_schedule_callback(dev, remove_callback);
-	if (ret)
-		count = ret;
+	if (val && device_remove_file_self(dev, attr))
+		pci_stop_and_remove_bus_device_locked(to_pci_dev(dev));
 	return count;
 }
 static struct device_attribute dev_remove_attr = __ATTR(remove,

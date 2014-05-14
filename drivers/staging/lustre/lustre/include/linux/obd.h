@@ -96,7 +96,8 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 			LCONSOLE_WARN("====== for current process =====\n");
 			dump_stack();
 			LCONSOLE_WARN("====== end =======\n");
-			cfs_pause(1000 * HZ);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(1000 * HZ);
 		}
 		cpu_relax();
 	}

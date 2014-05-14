@@ -418,8 +418,9 @@ static int create_card(struct usb_device *usb_dev,
 	if (devnum >= SNDRV_CARDS)
 		return -ENODEV;
 
-	err = snd_card_create(index[devnum], id[devnum], THIS_MODULE,
-			      sizeof(struct snd_usb_caiaqdev), &card);
+	err = snd_card_new(&intf->dev,
+			   index[devnum], id[devnum], THIS_MODULE,
+			   sizeof(struct snd_usb_caiaqdev), &card);
 	if (err < 0)
 		return err;
 
@@ -429,7 +430,6 @@ static int create_card(struct usb_device *usb_dev,
 	cdev->chip.usb_id = USB_ID(le16_to_cpu(usb_dev->descriptor.idVendor),
 				  le16_to_cpu(usb_dev->descriptor.idProduct));
 	spin_lock_init(&cdev->spinlock);
-	snd_card_set_dev(card, &intf->dev);
 
 	*cardp = card;
 	return 0;

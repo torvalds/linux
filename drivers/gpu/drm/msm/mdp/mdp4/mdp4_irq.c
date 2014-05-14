@@ -70,11 +70,11 @@ irqreturn_t mdp4_irq(struct msm_kms *kms)
 
 	VERB("status=%08x", status);
 
+	mdp_dispatch_irqs(mdp_kms, status);
+
 	for (id = 0; id < priv->num_crtcs; id++)
 		if (status & mdp4_crtc_vblank(priv->crtcs[id]))
 			drm_handle_vblank(dev, id);
-
-	mdp_dispatch_irqs(mdp_kms, status);
 
 	return IRQ_HANDLED;
 }

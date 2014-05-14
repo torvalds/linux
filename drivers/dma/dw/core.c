@@ -33,8 +33,8 @@
  * of which use ARM any more).  See the "Databook" from Synopsys for
  * information beyond what licensees probably provide.
  *
- * The driver has currently been tested only with the Atmel AT32AP7000,
- * which does not support descriptor writeback.
+ * The driver has been tested with the Atmel AT32AP7000, which does not
+ * support descriptor writeback.
  */
 
 static inline bool is_request_line_unset(struct dw_dma_chan *dwc)
@@ -1479,13 +1479,19 @@ static void dw_dma_off(struct dw_dma *dw)
 int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 {
 	struct dw_dma		*dw;
-	size_t			size;
 	bool			autocfg;
 	unsigned int		dw_params;
 	unsigned int		nr_channels;
 	unsigned int		max_blk_size = 0;
 	int			err;
 	int			i;
+
+	dw = devm_kzalloc(chip->dev, sizeof(*dw), GFP_KERNEL);
+	if (!dw)
+		return -ENOMEM;
+
+	dw->regs = chip->regs;
+	chip->dw = dw;
 
 	dw_params = dma_read_byaddr(chip->regs, DW_PARAMS);
 	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
@@ -1509,18 +1515,15 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	else
 		nr_channels = pdata->nr_channels;
 
-	size = sizeof(struct dw_dma) + nr_channels * sizeof(struct dw_dma_chan);
-	dw = devm_kzalloc(chip->dev, size, GFP_KERNEL);
-	if (!dw)
+	dw->chan = devm_kcalloc(chip->dev, nr_channels, sizeof(*dw->chan),
+				GFP_KERNEL);
+	if (!dw->chan)
 		return -ENOMEM;
 
 	dw->clk = devm_clk_get(chip->dev, "hclk");
 	if (IS_ERR(dw->clk))
 		return PTR_ERR(dw->clk);
 	clk_prepare_enable(dw->clk);
-
-	dw->regs = chip->regs;
-	chip->dw = dw;
 
 	/* Get hardware configuration parameters */
 	if (autocfg) {

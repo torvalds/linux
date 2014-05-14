@@ -24,6 +24,7 @@
 	aliases {
 	       gpio0 = &gpio0;
 	       gpio1 = &gpio1;
+	       i2c0 = &i2c0;
 	};
 
 	mbus {
@@ -111,7 +112,7 @@
 			clocks = <&gate_clk 7>;
 		};
 
-		i2c@11000 {
+		i2c0: i2c@11000 {
 			compatible = "marvell,mv64xxx-i2c";
 			reg = <0x11000 0x20>;
 			#address-cells = <1>;
@@ -145,6 +146,11 @@
 			reg = <0x20000 0x80>, <0x1500 0x20>;
 		};
 
+		system-controller@20000 {
+			compatible = "marvell,orion-system-controller";
+			reg = <0x20000 0x120>;
+		};
+
 		bridge_intc: bridge-interrupt-ctrl@20110 {
 			compatible = "marvell,orion-bridge-intc";
 			interrupt-controller;
@@ -159,6 +165,11 @@
 			reg = <0x2011c 0x4>;
 			clocks = <&core_clk 0>;
 			#clock-cells = <1>;
+		};
+
+		l2: l2-cache@20128 {
+			compatible = "marvell,kirkwood-cache";
+			reg = <0x20128 0x4>;
 		};
 
 		intc: main-interrupt-ctrl@20200 {
@@ -178,7 +189,7 @@
 
 		wdt: watchdog-timer@20300 {
 			compatible = "marvell,orion-wdt";
-			reg = <0x20300 0x28>;
+			reg = <0x20300 0x28>, <0x20108 0x4>;
 			interrupt-parent = <&bridge_intc>;
 			interrupts = <3>;
 			clocks = <&gate_clk 7>;
@@ -299,6 +310,15 @@
 			clock-names = "sata";
 			#phy-cells = <0>;
 			status = "ok";
+		};
+
+		audio0: audio-controller@a0000 {
+			compatible = "marvell,kirkwood-audio";
+			reg = <0xa0000 0x2210>;
+			interrupts = <24>;
+			clocks = <&gate_clk 9>;
+			clock-names = "internal";
+			status = "disabled";
 		};
 	};
 };

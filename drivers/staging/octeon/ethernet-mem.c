@@ -30,6 +30,7 @@
 
 #include <asm/octeon/octeon.h>
 
+#include "ethernet-mem.h"
 #include "ethernet-defines.h"
 
 #include <asm/octeon/cvmx-fpa.h>
@@ -79,10 +80,10 @@ static void cvm_oct_free_hw_skbuff(int pool, int size, int elements)
 	} while (memory);
 
 	if (elements < 0)
-		pr_warning("Freeing of pool %u had too many skbuffs (%d)\n",
+		pr_warn("Freeing of pool %u had too many skbuffs (%d)\n",
 		     pool, elements);
 	else if (elements > 0)
-		pr_warning("Freeing of pool %u is missing %d skbuffs\n",
+		pr_warn("Freeing of pool %u is missing %d skbuffs\n",
 		       pool, elements);
 }
 
@@ -113,7 +114,7 @@ static int cvm_oct_fill_hw_memory(int pool, int size, int elements)
 		 */
 		memory = kmalloc(size + 256, GFP_ATOMIC);
 		if (unlikely(memory == NULL)) {
-			pr_warning("Unable to allocate %u bytes for FPA pool %d\n",
+			pr_warn("Unable to allocate %u bytes for FPA pool %d\n",
 				   elements * size, pool);
 			break;
 		}
@@ -146,10 +147,10 @@ static void cvm_oct_free_hw_memory(int pool, int size, int elements)
 	} while (fpa);
 
 	if (elements < 0)
-		pr_warning("Freeing of pool %u had too many buffers (%d)\n",
+		pr_warn("Freeing of pool %u had too many buffers (%d)\n",
 			pool, elements);
 	else if (elements > 0)
-		pr_warning("Warning: Freeing of pool %u is missing %d buffers\n",
+		pr_warn("Warning: Freeing of pool %u is missing %d buffers\n",
 			pool, elements);
 }
 

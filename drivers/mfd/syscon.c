@@ -69,13 +69,6 @@ EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_compatible);
 
 static int syscon_match_pdevname(struct device *dev, void *data)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	const struct platform_device_id *id = platform_get_device_id(pdev);
-
-	if (id)
-		if (!strcmp(id->name, (const char *)data))
-			return 1;
-
 	return !strcmp(dev_name(dev), (const char *)data);
 }
 
@@ -152,7 +145,7 @@ static int syscon_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, syscon);
 
-	dev_info(dev, "regmap %pR registered\n", res);
+	dev_dbg(dev, "regmap %pR registered\n", res);
 
 	return 0;
 }

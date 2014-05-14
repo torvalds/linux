@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Given the results directories for previous KVM runs of rcutorture,
+# Given the results directories for previous KVM-based torture runs,
 # check the build and console output for errors.  Given a directory
 # containing results directories, this recursively checks them all.
 #
@@ -27,11 +27,18 @@
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
 for rd in "$@"
 do
+	firsttime=1
 	dirs=`find $rd -name Make.defconfig.out -print | sort | sed -e 's,/[^/]*$,,' | sort -u`
 	for i in $dirs
 	do
-		configfile=`echo $i | sed -e 's/^.*\///'`
-		echo $configfile
+		if test -n "$firsttime"
+		then
+			firsttime=""
+			resdir=`echo $i | sed -e 's,/$,,' -e 's,/[^/]*$,,'`
+			head -1 $resdir/log
+		fi
+		TORTURE_SUITE="`cat $i/../TORTURE_SUITE`"
+		kvm-recheck-${TORTURE_SUITE}.sh $i
 		configcheck.sh $i/.config $i/ConfigFragment
 		parse-build.sh $i/Make.out $configfile
 		parse-rcutorture.sh $i/console.log $configfile

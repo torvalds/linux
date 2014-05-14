@@ -27,7 +27,7 @@
 #include <linux/io.h>
 #include <linux/usb/musb-omap.h>
 #include <linux/usb/phy_companion.h>
-#include <linux/usb/omap_usb.h>
+#include <linux/phy/omap_usb.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>

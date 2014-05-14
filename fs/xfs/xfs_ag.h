@@ -89,6 +89,8 @@ typedef struct xfs_agf {
 	/* structure must be padded to 64 bit alignment */
 } xfs_agf_t;
 
+#define XFS_AGF_CRC_OFF		offsetof(struct xfs_agf, agf_crc)
+
 #define	XFS_AGF_MAGICNUM	0x00000001
 #define	XFS_AGF_VERSIONNUM	0x00000002
 #define	XFS_AGF_SEQNO		0x00000004
@@ -167,6 +169,8 @@ typedef struct xfs_agi {
 	/* structure must be padded to 64 bit alignment */
 } xfs_agi_t;
 
+#define XFS_AGI_CRC_OFF		offsetof(struct xfs_agi, agi_crc)
+
 #define	XFS_AGI_MAGICNUM	0x00000001
 #define	XFS_AGI_VERSIONNUM	0x00000002
 #define	XFS_AGI_SEQNO		0x00000004
@@ -221,6 +225,8 @@ typedef struct xfs_agfl {
 	__be32		agfl_crc;
 	__be32		agfl_bno[];	/* actually XFS_AGFL_SIZE(mp) */
 } xfs_agfl_t;
+
+#define XFS_AGFL_CRC_OFF	offsetof(struct xfs_agfl, agfl_crc)
 
 /*
  * tags for inode radix tree

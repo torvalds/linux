@@ -88,6 +88,8 @@ enum lcfg_command_type {
 	LCFG_SET_LDLM_TIMEOUT   = 0x00ce030, /**< set ldlm_timeout */
 	LCFG_PRE_CLEANUP	= 0x00cf031, /**< call type-specific pre
 					      * cleanup cleanup */
+	LCFG_SET_PARAM		= 0x00ce032, /**< use set_param syntax to set
+					      *a proc parameters */
 };
 
 struct lustre_cfg_bufs {

@@ -50,12 +50,14 @@
 #define PORTSC_PTC            (0x0FUL << 16)
 #define PORTSC_PHCD(d)	      ((d) ? BIT(22) : BIT(23))
 /* PTS and PTW for non lpm version only */
+#define PORTSC_PFSC           BIT(24)
 #define PORTSC_PTS(d)						\
 	(u32)((((d) & 0x3) << 30) | (((d) & 0x4) ? BIT(25) : 0))
 #define PORTSC_PTW            BIT(28)
 #define PORTSC_STS            BIT(29)
 
 /* DEVLC */
+#define DEVLC_PFSC            BIT(23)
 #define DEVLC_PSPD            (0x03UL << 25)
 #define DEVLC_PSPD_HS         (0x02UL << 25)
 #define DEVLC_PTW             BIT(27)

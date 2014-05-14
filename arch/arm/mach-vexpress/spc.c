@@ -392,7 +392,7 @@ static irqreturn_t ve_spc_irq_handler(int irq, void *data)
  *  +--------------------------+
  *  | 31      20 | 19        0 |
  *  +--------------------------+
- *  |   u_volt   |  freq(kHz)  |
+ *  |   m_volt   |  freq(kHz)  |
  *  +--------------------------+
  */
 #define MULT_FACTOR	20
@@ -414,7 +414,7 @@ static int ve_spc_populate_opps(uint32_t cluster)
 		ret = ve_spc_read_sys_cfg(SYSCFG_SCC, off, &data);
 		if (!ret) {
 			opps->freq = (data & FREQ_MASK) * MULT_FACTOR;
-			opps->u_volt = data >> VOLT_SHIFT;
+			opps->u_volt = (data >> VOLT_SHIFT) * 1000;
 		} else {
 			break;
 		}

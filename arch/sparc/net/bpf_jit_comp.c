@@ -618,7 +618,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 				emit_load16(r_A, struct net_device, type, r_A);
 				break;
 			case BPF_S_ANC_RXHASH:
-				emit_skb_load32(rxhash, r_A);
+				emit_skb_load32(hash, r_A);
 				break;
 			case BPF_S_ANC_VLAN_TAG:
 			case BPF_S_ANC_VLAN_TAG_PRESENT:
@@ -809,6 +809,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 	if (image) {
 		bpf_flush_icache(image, image + proglen);
 		fp->bpf_func = (void *)image;
+		fp->jited = 1;
 	}
 out:
 	kfree(addrs);
@@ -817,7 +818,7 @@ out:
 
 void bpf_jit_free(struct sk_filter *fp)
 {
-	if (fp->bpf_func != sk_run_filter)
+	if (fp->jited)
 		module_free(NULL, fp->bpf_func);
 	kfree(fp);
 }

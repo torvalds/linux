@@ -53,6 +53,7 @@ enum soc_mic_bias_zones {
 
 static unsigned int	hs_switch;
 static unsigned int	lo_dac;
+static struct snd_soc_codec *mfld_codec;
 
 struct mfld_mc_private {
 	void __iomem *int_base;
@@ -100,40 +101,47 @@ static int headset_get_switch(struct snd_kcontrol *kcontrol,
 static int headset_set_switch(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = &card->dapm;
 
 	if (ucontrol->value.integer.value[0] == hs_switch)
 		return 0;
 
+	snd_soc_dapm_mutex_lock(dapm);
+
 	if (ucontrol->value.integer.value[0]) {
 		pr_debug("hs_set HS path\n");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headphones");
-		snd_soc_dapm_disable_pin(&codec->dapm, "EPOUT");
+		snd_soc_dapm_enable_pin_unlocked(dapm, "Headphones");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "EPOUT");
 	} else {
 		pr_debug("hs_set EP path\n");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphones");
-		snd_soc_dapm_enable_pin(&codec->dapm, "EPOUT");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "Headphones");
+		snd_soc_dapm_enable_pin_unlocked(dapm, "EPOUT");
 	}
-	snd_soc_dapm_sync(&codec->dapm);
+
+	snd_soc_dapm_sync_unlocked(dapm);
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
 	hs_switch = ucontrol->value.integer.value[0];
 
 	return 0;
 }
 
-static void lo_enable_out_pins(struct snd_soc_codec *codec)
+static void lo_enable_out_pins(struct snd_soc_dapm_context *dapm)
 {
-	snd_soc_dapm_enable_pin(&codec->dapm, "IHFOUTL");
-	snd_soc_dapm_enable_pin(&codec->dapm, "IHFOUTR");
-	snd_soc_dapm_enable_pin(&codec->dapm, "LINEOUTL");
-	snd_soc_dapm_enable_pin(&codec->dapm, "LINEOUTR");
-	snd_soc_dapm_enable_pin(&codec->dapm, "VIB1OUT");
-	snd_soc_dapm_enable_pin(&codec->dapm, "VIB2OUT");
+	snd_soc_dapm_enable_pin_unlocked(dapm, "IHFOUTL");
+	snd_soc_dapm_enable_pin_unlocked(dapm, "IHFOUTR");
+	snd_soc_dapm_enable_pin_unlocked(dapm, "LINEOUTL");
+	snd_soc_dapm_enable_pin_unlocked(dapm, "LINEOUTR");
+	snd_soc_dapm_enable_pin_unlocked(dapm, "VIB1OUT");
+	snd_soc_dapm_enable_pin_unlocked(dapm, "VIB2OUT");
 	if (hs_switch) {
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headphones");
-		snd_soc_dapm_disable_pin(&codec->dapm, "EPOUT");
+		snd_soc_dapm_enable_pin_unlocked(dapm, "Headphones");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "EPOUT");
 	} else {
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphones");
-		snd_soc_dapm_enable_pin(&codec->dapm, "EPOUT");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "Headphones");
+		snd_soc_dapm_enable_pin_unlocked(dapm, "EPOUT");
 	}
 }
 
@@ -147,45 +155,53 @@ static int lo_get_switch(struct snd_kcontrol *kcontrol,
 static int lo_set_switch(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = &card->dapm;
 
 	if (ucontrol->value.integer.value[0] == lo_dac)
 		return 0;
 
+	snd_soc_dapm_mutex_lock(dapm);
+
 	/* we dont want to work with last state of lineout so just enable all
 	 * pins and then disable pins not required
 	 */
-	lo_enable_out_pins(codec);
+	lo_enable_out_pins(dapm);
+
 	switch (ucontrol->value.integer.value[0]) {
 	case 0:
 		pr_debug("set vibra path\n");
-		snd_soc_dapm_disable_pin(&codec->dapm, "VIB1OUT");
-		snd_soc_dapm_disable_pin(&codec->dapm, "VIB2OUT");
-		snd_soc_update_bits(codec, SN95031_LOCTL, 0x66, 0);
+		snd_soc_dapm_disable_pin_unlocked(dapm, "VIB1OUT");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "VIB2OUT");
+		snd_soc_update_bits(mfld_codec, SN95031_LOCTL, 0x66, 0);
 		break;
 
 	case 1:
 		pr_debug("set hs  path\n");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphones");
-		snd_soc_dapm_disable_pin(&codec->dapm, "EPOUT");
-		snd_soc_update_bits(codec, SN95031_LOCTL, 0x66, 0x22);
+		snd_soc_dapm_disable_pin_unlocked(dapm, "Headphones");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "EPOUT");
+		snd_soc_update_bits(mfld_codec, SN95031_LOCTL, 0x66, 0x22);
 		break;
 
 	case 2:
 		pr_debug("set spkr path\n");
-		snd_soc_dapm_disable_pin(&codec->dapm, "IHFOUTL");
-		snd_soc_dapm_disable_pin(&codec->dapm, "IHFOUTR");
-		snd_soc_update_bits(codec, SN95031_LOCTL, 0x66, 0x44);
+		snd_soc_dapm_disable_pin_unlocked(dapm, "IHFOUTL");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "IHFOUTR");
+		snd_soc_update_bits(mfld_codec, SN95031_LOCTL, 0x66, 0x44);
 		break;
 
 	case 3:
 		pr_debug("set null path\n");
-		snd_soc_dapm_disable_pin(&codec->dapm, "LINEOUTL");
-		snd_soc_dapm_disable_pin(&codec->dapm, "LINEOUTR");
-		snd_soc_update_bits(codec, SN95031_LOCTL, 0x66, 0x66);
+		snd_soc_dapm_disable_pin_unlocked(dapm, "LINEOUTL");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "LINEOUTR");
+		snd_soc_update_bits(mfld_codec, SN95031_LOCTL, 0x66, 0x66);
 		break;
 	}
-	snd_soc_dapm_sync(&codec->dapm);
+
+	snd_soc_dapm_sync_unlocked(dapm);
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
 	lo_dac = ucontrol->value.integer.value[0];
 	return 0;
 }
@@ -221,26 +237,11 @@ static void mfld_jack_check(unsigned int intr_status)
 
 static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 {
-	struct snd_soc_codec *codec = runtime->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = &runtime->card->dapm;
 	int ret_val;
 
-	/* Add jack sense widgets */
-	snd_soc_dapm_new_controls(dapm, mfld_widgets, ARRAY_SIZE(mfld_widgets));
+	mfld_codec = runtime->codec;
 
-	/* Set up the map */
-	snd_soc_dapm_add_routes(dapm, mfld_map, ARRAY_SIZE(mfld_map));
-
-	/* always connected */
-	snd_soc_dapm_enable_pin(dapm, "Headphones");
-	snd_soc_dapm_enable_pin(dapm, "Mic");
-
-	ret_val = snd_soc_add_codec_controls(codec, mfld_snd_controls,
-				ARRAY_SIZE(mfld_snd_controls));
-	if (ret_val) {
-		pr_err("soc_add_controls failed %d", ret_val);
-		return ret_val;
-	}
 	/* default is earpiece pin, userspace sets it explcitly */
 	snd_soc_dapm_disable_pin(dapm, "Headphones");
 	/* default is lineout NC, userspace sets it explcitly */
@@ -253,7 +254,7 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_disable_pin(dapm, "LINEINR");
 
 	/* Headset and button jack detection */
-	ret_val = snd_soc_jack_new(codec, "Intel(R) MID Audio Jack",
+	ret_val = snd_soc_jack_new(mfld_codec, "Intel(R) MID Audio Jack",
 			SND_JACK_HEADSET | SND_JACK_BTN_0 |
 			SND_JACK_BTN_1, &mfld_jack);
 	if (ret_val) {
@@ -335,6 +336,13 @@ static struct snd_soc_card snd_soc_card_mfld = {
 	.owner = THIS_MODULE,
 	.dai_link = mfld_msic_dailink,
 	.num_links = ARRAY_SIZE(mfld_msic_dailink),
+
+	.controls = mfld_snd_controls,
+	.num_controls = ARRAY_SIZE(mfld_snd_controls),
+	.dapm_widgets = mfld_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(mfld_widgets),
+	.dapm_routes = mfld_map,
+	.num_dapm_routes = ARRAY_SIZE(mfld_map),
 };
 
 static irqreturn_t snd_mfld_jack_intr_handler(int irq, void *dev)

@@ -19,7 +19,7 @@ MODULE_AUTHOR("Márton Németh <nm127@freemail.hu>");
 MODULE_DESCRIPTION("Clevo mail LED driver");
 MODULE_LICENSE("GPL");
 
-static bool __initdata nodetect;
+static bool nodetect;
 module_param_named(nodetect, nodetect, bool, 0);
 MODULE_PARM_DESC(nodetect, "Skip DMI hardware detection");
 
@@ -153,7 +153,7 @@ static struct led_classdev clevo_mail_led = {
 	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
-static int clevo_mail_led_probe(struct platform_device *pdev)
+static int __init clevo_mail_led_probe(struct platform_device *pdev)
 {
 	return led_classdev_register(&pdev->dev, &clevo_mail_led);
 }
@@ -165,7 +165,6 @@ static int clevo_mail_led_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver clevo_mail_led_driver = {
-	.probe		= clevo_mail_led_probe,
 	.remove		= clevo_mail_led_remove,
 	.driver		= {
 		.name		= KBUILD_MODNAME,

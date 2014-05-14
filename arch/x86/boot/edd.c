@@ -15,6 +15,7 @@
 
 #include "boot.h"
 #include <linux/edd.h>
+#include "string.h"
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
 

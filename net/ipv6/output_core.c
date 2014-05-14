@@ -6,24 +6,24 @@
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
 #include <net/addrconf.h>
+#include <net/secure_seq.h>
 
 void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
 {
 	static atomic_t ipv6_fragmentation_id;
+	struct in6_addr addr;
 	int old, new;
 
 #if IS_ENABLED(CONFIG_IPV6)
-	if (rt && !(rt->dst.flags & DST_NOPEER)) {
-		struct inet_peer *peer;
-		struct net *net;
+	struct inet_peer *peer;
+	struct net *net;
 
-		net = dev_net(rt->dst.dev);
-		peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
-		if (peer) {
-			fhdr->identification = htonl(inet_getid(peer, 0));
-			inet_putpeer(peer);
-			return;
-		}
+	net = dev_net(rt->dst.dev);
+	peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
+	if (peer) {
+		fhdr->identification = htonl(inet_getid(peer, 0));
+		inet_putpeer(peer);
+		return;
 	}
 #endif
 	do {
@@ -32,7 +32,10 @@ void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
 		if (!new)
 			new = 1;
 	} while (atomic_cmpxchg(&ipv6_fragmentation_id, old, new) != old);
-	fhdr->identification = htonl(new);
+
+	addr = rt->rt6i_dst.addr;
+	addr.s6_addr32[0] ^= (__force __be32)new;
+	fhdr->identification = htonl(secure_ipv6_id(addr.s6_addr32));
 }
 EXPORT_SYMBOL(ipv6_select_ident);
 
