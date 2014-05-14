@@ -11,6 +11,22 @@
 	sys_clkin_ck: sys_clkin_ck {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
+		clocks = <&sysboot_freq_sel_ck>, <&crystal_freq_sel_ck>;
+		ti,bit-shift = <31>;
+		reg = <0x0040>;
+	};
+
+	crystal_freq_sel_ck: crystal_freq_sel_ck {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&virt_19200000_ck>, <&virt_24000000_ck>, <&virt_25000000_ck>, <&virt_26000000_ck>;
+		ti,bit-shift = <29>;
+		reg = <0x0040>;
+	};
+
+	sysboot_freq_sel_ck: sysboot_freq_sel_ck@44e10040 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
 		clocks = <&virt_19200000_ck>, <&virt_24000000_ck>, <&virt_25000000_ck>, <&virt_26000000_ck>;
 		ti,bit-shift = <22>;
 		reg = <0x0040>;
