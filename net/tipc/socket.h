@@ -69,6 +69,6 @@ static inline void tipc_sock_wakeup(struct tipc_sock *tsk)
 	tsk->sk.sk_write_space(&tsk->sk);
 }
 
-u32 tipc_sk_rcv(struct sock *sk, struct sk_buff *buf);
+int tipc_sk_rcv(struct sk_buff *buf);
 
 #endif

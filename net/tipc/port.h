@@ -135,7 +135,6 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 /*
  * TIPC messaging routines
  */
-int tipc_port_rcv(struct sk_buff *buf);
 
 int tipc_send(struct tipc_port *port,
 	      struct iovec const *msg_sect,

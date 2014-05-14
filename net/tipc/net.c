@@ -39,6 +39,7 @@
 #include "name_distr.h"
 #include "subscr.h"
 #include "port.h"
+#include "socket.h"
 #include "node.h"
 #include "config.h"
 
@@ -141,7 +142,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 			if (msg_mcast(msg))
 				tipc_port_mcast_rcv(buf, NULL);
 			else if (msg_destport(msg))
-				tipc_port_rcv(buf);
+				tipc_sk_rcv(buf);
 			else
 				net_route_named_msg(buf);
 			return;

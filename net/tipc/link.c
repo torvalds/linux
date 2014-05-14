@@ -37,6 +37,7 @@
 #include "core.h"
 #include "link.h"
 #include "port.h"
+#include "socket.h"
 #include "name_distr.h"
 #include "discover.h"
 #include "config.h"
@@ -1590,7 +1591,7 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		case TIPC_HIGH_IMPORTANCE:
 		case TIPC_CRITICAL_IMPORTANCE:
 			tipc_node_unlock(n_ptr);
-			tipc_port_rcv(buf);
+			tipc_sk_rcv(buf);
 			continue;
 		case MSG_BUNDLER:
 			l_ptr->stats.recv_bundles++;
