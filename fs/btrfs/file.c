@@ -40,6 +40,7 @@
 #include "tree-log.h"
 #include "locking.h"
 #include "volumes.h"
+#include "qgroup.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 /*
@@ -849,7 +850,7 @@ next_slot:
 						disk_bytenr, num_bytes, 0,
 						root->root_key.objectid,
 						new_key.objectid,
-						start - extent_offset, 0);
+						start - extent_offset, 1);
 				BUG_ON(ret); /* -ENOMEM */
 			}
 			key.offset = start;
@@ -1206,7 +1207,7 @@ again:
 
 		ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes, 0,
 					   root->root_key.objectid,
-					   ino, orig_offset, 0);
+					   ino, orig_offset, 1);
 		BUG_ON(ret); /* -ENOMEM */
 
 		if (split == start) {

@@ -31,6 +31,7 @@
 #include "inode-map.h"
 #include "volumes.h"
 #include "dev-replace.h"
+#include "qgroup.h"
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
@@ -703,22 +704,8 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
-	/*
-	 * do the qgroup accounting as early as possible
-	 */
-	err = btrfs_delayed_refs_qgroup_accounting(trans, info);
-
 	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
-
-	if (trans->qgroup_reserved) {
-		/*
-		 * the same root has to be passed here between start_transaction
-		 * and end_transaction. Subvolume quota depends on this.
-		 */
-		btrfs_qgroup_free(trans->root, trans->qgroup_reserved);
-		trans->qgroup_reserved = 0;
-	}
 
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans, root);
@@ -728,6 +715,15 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		cur = max_t(unsigned long, cur, 32);
 		trans->delayed_ref_updates = 0;
 		btrfs_run_delayed_refs(trans, root, cur);
+	}
+
+	if (trans->qgroup_reserved) {
+		/*
+		 * the same root has to be passed here between start_transaction
+		 * and end_transaction. Subvolume quota depends on this.
+		 */
+		btrfs_qgroup_free(trans->root, trans->qgroup_reserved);
+		trans->qgroup_reserved = 0;
 	}
 
 	btrfs_trans_release_metadata(trans, root);
@@ -1169,12 +1165,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 			goto no_free_objectid;
 	}
 
-	pending->error = btrfs_qgroup_inherit(trans, fs_info,
-					      root->root_key.objectid,
-					      objectid, pending->inherit);
-	if (pending->error)
-		goto no_free_objectid;
-
 	key.objectid = objectid;
 	key.offset = (u64)-1;
 	key.type = BTRFS_ROOT_ITEM_KEY;
@@ -1270,6 +1260,22 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, root, ret);
 		goto fail;
 	}
+
+	/*
+	 * We need to flush delayed refs in order to make sure all of our quota
+	 * operations have been done before we call btrfs_qgroup_inherit.
+	 */
+	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto fail;
+	}
+
+	pending->error = btrfs_qgroup_inherit(trans, fs_info,
+					      root->root_key.objectid,
+					      objectid, pending->inherit);
+	if (pending->error)
+		goto no_free_objectid;
 
 	/* see comments in should_cow_block() */
 	set_bit(BTRFS_ROOT_FORCE_COW, &root->state);
@@ -1599,12 +1605,6 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 	 * them now so that they hinder processing of more delayed refs
 	 * as little as possible.
 	 */
-	if (ret) {
-		btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
-		return ret;
-	}
-
-	ret = btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
 	if (ret)
 		return ret;
 
