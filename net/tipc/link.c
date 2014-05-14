@@ -398,9 +398,8 @@ static void link_release_outqueue(struct tipc_link *l_ptr)
  */
 void tipc_link_reset_fragments(struct tipc_link *l_ptr)
 {
-	kfree_skb(l_ptr->reasm_head);
-	l_ptr->reasm_head = NULL;
-	l_ptr->reasm_tail = NULL;
+	kfree_skb(l_ptr->reasm_buf);
+	l_ptr->reasm_buf = NULL;
 }
 
 /**
@@ -1573,17 +1572,12 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			}
 			msg = buf_msg(buf);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
-			int rc;
-
 			l_ptr->stats.recv_fragments++;
-			rc = tipc_link_frag_rcv(&l_ptr->reasm_head,
-						&l_ptr->reasm_tail,
-						&buf);
-			if (rc == LINK_REASM_COMPLETE) {
+			if (tipc_buf_append(&l_ptr->reasm_buf, &buf)) {
 				l_ptr->stats.recv_fragmented++;
 				msg = buf_msg(buf);
 			} else {
-				if (rc == LINK_REASM_ERROR)
+				if (!l_ptr->reasm_buf)
 					tipc_link_reset(l_ptr);
 				tipc_node_unlock(n_ptr);
 				continue;
@@ -2169,9 +2163,7 @@ static struct sk_buff *tipc_link_failover_rcv(struct tipc_link *l_ptr,
 		}
 		if (msg_user(msg) == MSG_FRAGMENTER) {
 			l_ptr->stats.recv_fragments++;
-			tipc_link_frag_rcv(&l_ptr->reasm_head,
-					   &l_ptr->reasm_tail,
-					   &buf);
+			tipc_buf_append(&l_ptr->reasm_buf, &buf);
 		}
 	}
 exit:
@@ -2307,55 +2299,6 @@ static int tipc_link_frag_xmit(struct tipc_link *l_ptr, struct sk_buff *buf)
 	tipc_link_push_queue(l_ptr);
 
 	return dsz;
-}
-
-/* tipc_link_frag_rcv(): Called with node lock on. Returns
- * the reassembled buffer if message is complete.
- */
-int tipc_link_frag_rcv(struct sk_buff **head, struct sk_buff **tail,
-		       struct sk_buff **fbuf)
-{
-	struct sk_buff *frag = *fbuf;
-	struct tipc_msg *msg = buf_msg(frag);
-	u32 fragid = msg_type(msg);
-	bool headstolen;
-	int delta;
-
-	skb_pull(frag, msg_hdr_sz(msg));
-	if (fragid == FIRST_FRAGMENT) {
-		if (*head || skb_unclone(frag, GFP_ATOMIC))
-			goto out_free;
-		*head = frag;
-		skb_frag_list_init(*head);
-		*fbuf = NULL;
-		return 0;
-	} else if (*head &&
-		   skb_try_coalesce(*head, frag, &headstolen, &delta)) {
-		kfree_skb_partial(frag, headstolen);
-	} else {
-		if (!*head)
-			goto out_free;
-		if (!skb_has_frag_list(*head))
-			skb_shinfo(*head)->frag_list = frag;
-		else
-			(*tail)->next = frag;
-		*tail = frag;
-		(*head)->truesize += frag->truesize;
-		(*head)->data_len += frag->len;
-		(*head)->len += frag->len;
-	}
-	if (fragid == LAST_FRAGMENT) {
-		*fbuf = *head;
-		*tail = *head = NULL;
-		return LINK_REASM_COMPLETE;
-	}
-	*fbuf = NULL;
-	return 0;
-out_free:
-	pr_warn_ratelimited("Link unable to reassemble fragmented message\n");
-	kfree_skb(*fbuf);
-	*fbuf = NULL;
-	return LINK_REASM_ERROR;
 }
 
 static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tolerance)

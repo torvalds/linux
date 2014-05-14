@@ -506,18 +506,14 @@ receive:
 			tipc_node_unlock(node);
 			tipc_link_bundle_rcv(buf);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
-			int ret;
-			ret = tipc_link_frag_rcv(&node->bclink.reasm_head,
-						 &node->bclink.reasm_tail,
-						 &buf);
-			if (ret == LINK_REASM_ERROR)
+			tipc_buf_append(&node->bclink.reasm_buf, &buf);
+			if (unlikely(!buf && !node->bclink.reasm_buf))
 				goto unlock;
 			tipc_bclink_lock();
 			bclink_accept_pkt(node, seqno);
 			bcl->stats.recv_fragments++;
-			if (ret == LINK_REASM_COMPLETE) {
+			if (buf) {
 				bcl->stats.recv_fragmented++;
-				/* Point msg to inner header */
 				msg = buf_msg(buf);
 				tipc_bclink_unlock();
 				goto receive;

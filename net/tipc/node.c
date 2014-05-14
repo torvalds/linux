@@ -286,10 +286,9 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		kfree_skb_list(n_ptr->bclink.deferred_head);
 		n_ptr->bclink.deferred_size = 0;
 
-		if (n_ptr->bclink.reasm_head) {
-			kfree_skb(n_ptr->bclink.reasm_head);
-			n_ptr->bclink.reasm_head = NULL;
-			n_ptr->bclink.reasm_tail = NULL;
+		if (n_ptr->bclink.reasm_buf) {
+			kfree_skb(n_ptr->bclink.reasm_buf);
+			n_ptr->bclink.reasm_buf = NULL;
 		}
 
 		tipc_bclink_remove_node(n_ptr->addr);
