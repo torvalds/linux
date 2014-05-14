@@ -274,7 +274,7 @@ struct sock *__inet_lookup_established(struct net *net,
 				  const __be32 daddr, const u16 hnum,
 				  const int dif)
 {
-	INET_ADDR_COOKIE(acookie, saddr, daddr)
+	INET_ADDR_COOKIE(acookie, saddr, daddr);
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	struct sock *sk;
 	const struct hlist_nulls_node *node;
@@ -327,7 +327,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	__be32 daddr = inet->inet_rcv_saddr;
 	__be32 saddr = inet->inet_daddr;
 	int dif = sk->sk_bound_dev_if;
-	INET_ADDR_COOKIE(acookie, saddr, daddr)
+	INET_ADDR_COOKIE(acookie, saddr, daddr);
 	const __portpair ports = INET_COMBINED_PORTS(inet->inet_dport, lport);
 	struct net *net = sock_net(sk);
 	unsigned int hash = inet_ehashfn(net, daddr, lport,
