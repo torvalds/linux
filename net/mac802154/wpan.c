@@ -124,7 +124,7 @@ void mac802154_get_mac_params(struct net_device *dev,
 	mutex_unlock(&priv->hw->slaves_mtx);
 }
 
-int mac802154_wpan_open(struct net_device *dev)
+static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
