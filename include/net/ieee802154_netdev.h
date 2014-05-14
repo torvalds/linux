@@ -27,6 +27,7 @@
 #ifndef IEEE802154_NETDEVICE_H
 #define IEEE802154_NETDEVICE_H
 
+#include <net/ieee802154.h>
 #include <net/af_ieee802154.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -113,6 +114,34 @@ int ieee802154_hdr_pull(struct sk_buff *skb, struct ieee802154_hdr *hdr);
  */
 int ieee802154_hdr_peek_addrs(const struct sk_buff *skb,
 			      struct ieee802154_hdr *hdr);
+
+/* parses the full 802.15.4 header a given skb and stores them into hdr,
+ * performing pan id decompression and length checks to be suitable for use in
+ * header_ops.parse
+ */
+int ieee802154_hdr_peek(const struct sk_buff *skb, struct ieee802154_hdr *hdr);
+
+int ieee802154_max_payload(const struct ieee802154_hdr *hdr);
+
+static inline int
+ieee802154_sechdr_authtag_len(const struct ieee802154_sechdr *sec)
+{
+	switch (sec->level) {
+	case IEEE802154_SCF_SECLEVEL_MIC32:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC32:
+		return 4;
+	case IEEE802154_SCF_SECLEVEL_MIC64:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC64:
+		return 8;
+	case IEEE802154_SCF_SECLEVEL_MIC128:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC128:
+		return 16;
+	case IEEE802154_SCF_SECLEVEL_NONE:
+	case IEEE802154_SCF_SECLEVEL_ENC:
+	default:
+		return 0;
+	}
+}
 
 static inline int ieee802154_hdr_length(struct sk_buff *skb)
 {
