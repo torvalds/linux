@@ -140,8 +140,6 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_ETRON &&
 			pdev->device == PCI_DEVICE_ID_ASROCK_P67) {
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
-		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-				"QUIRK: Resetting on resume");
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_RENESAS &&
@@ -149,6 +147,10 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
 	if (pdev->vendor == PCI_VENDOR_ID_VIA)
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
+
+	if (xhci->quirks & XHCI_RESET_ON_RESUME)
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"QUIRK: Resetting on resume");
 }
 
 /* called during probe() after chip reset completes */
