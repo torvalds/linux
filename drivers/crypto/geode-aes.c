@@ -547,7 +547,7 @@ static int geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (ret)
 		goto eecb;
 
-	printk(KERN_NOTICE "geode-aes: GEODE AES engine enabled.\n");
+	dev_notice(&dev->dev, "GEODE AES engine enabled.\n");
 	return 0;
 
  eecb:
@@ -565,7 +565,7 @@ static int geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
  eenable:
 	pci_disable_device(dev);
 
-	printk(KERN_ERR "geode-aes:  GEODE AES initialization failed.\n");
+	dev_err(&dev->dev, "GEODE AES initialization failed.\n");
 	return ret;
 }
 
