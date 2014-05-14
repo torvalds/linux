@@ -19,7 +19,7 @@ to specify the clock which they consume. Some of the clocks are available only
 on a particular SoC.
 
 All available clocks are defined as preprocessor macros in
-dt-bindings/clock/samsung,s3c2410-clock.h header and can be used in device
+dt-bindings/clock/s3c2410.h header and can be used in device
 tree sources.
 
 External clocks:
