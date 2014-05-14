@@ -12,7 +12,6 @@
 /* driver logic flags */
 #define AES_IV_LENGTH  16
 #define AES_KEY_LENGTH 16
-#define AES_MIN_BLOCK_SIZE 16
 
 #define AES_MODE_ECB 0
 #define AES_MODE_CBC 1

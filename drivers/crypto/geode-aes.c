@@ -226,7 +226,7 @@ geode_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	op->dst = (void *) out;
 	op->mode = AES_MODE_ECB;
 	op->flags = 0;
-	op->len = AES_MIN_BLOCK_SIZE;
+	op->len = AES_BLOCK_SIZE;
 	op->dir = AES_DIR_ENCRYPT;
 
 	geode_aes_crypt(op);
@@ -247,7 +247,7 @@ geode_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	op->dst = (void *) out;
 	op->mode = AES_MODE_ECB;
 	op->flags = 0;
-	op->len = AES_MIN_BLOCK_SIZE;
+	op->len = AES_BLOCK_SIZE;
 	op->dir = AES_DIR_DECRYPT;
 
 	geode_aes_crypt(op);
@@ -286,7 +286,7 @@ static struct crypto_alg geode_alg = {
 							CRYPTO_ALG_NEED_FALLBACK,
 	.cra_init			=	fallback_init_cip,
 	.cra_exit			=	fallback_exit_cip,
-	.cra_blocksize		=	AES_MIN_BLOCK_SIZE,
+	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct geode_aes_op),
 	.cra_module			=	THIS_MODULE,
 	.cra_u				=	{
@@ -320,7 +320,7 @@ geode_cbc_decrypt(struct blkcipher_desc *desc,
 		op->src = walk.src.virt.addr,
 		op->dst = walk.dst.virt.addr;
 		op->mode = AES_MODE_CBC;
-		op->len = nbytes - (nbytes % AES_MIN_BLOCK_SIZE);
+		op->len = nbytes - (nbytes % AES_BLOCK_SIZE);
 		op->dir = AES_DIR_DECRYPT;
 
 		ret = geode_aes_crypt(op);
@@ -352,7 +352,7 @@ geode_cbc_encrypt(struct blkcipher_desc *desc,
 		op->src = walk.src.virt.addr,
 		op->dst = walk.dst.virt.addr;
 		op->mode = AES_MODE_CBC;
-		op->len = nbytes - (nbytes % AES_MIN_BLOCK_SIZE);
+		op->len = nbytes - (nbytes % AES_BLOCK_SIZE);
 		op->dir = AES_DIR_ENCRYPT;
 
 		ret = geode_aes_crypt(op);
@@ -396,7 +396,7 @@ static struct crypto_alg geode_cbc_alg = {
 						CRYPTO_ALG_NEED_FALLBACK,
 	.cra_init			=	fallback_init_blk,
 	.cra_exit			=	fallback_exit_blk,
-	.cra_blocksize		=	AES_MIN_BLOCK_SIZE,
+	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct geode_aes_op),
 	.cra_alignmask		=	15,
 	.cra_type			=	&crypto_blkcipher_type,
@@ -432,7 +432,7 @@ geode_ecb_decrypt(struct blkcipher_desc *desc,
 		op->src = walk.src.virt.addr,
 		op->dst = walk.dst.virt.addr;
 		op->mode = AES_MODE_ECB;
-		op->len = nbytes - (nbytes % AES_MIN_BLOCK_SIZE);
+		op->len = nbytes - (nbytes % AES_BLOCK_SIZE);
 		op->dir = AES_DIR_DECRYPT;
 
 		ret = geode_aes_crypt(op);
@@ -462,7 +462,7 @@ geode_ecb_encrypt(struct blkcipher_desc *desc,
 		op->src = walk.src.virt.addr,
 		op->dst = walk.dst.virt.addr;
 		op->mode = AES_MODE_ECB;
-		op->len = nbytes - (nbytes % AES_MIN_BLOCK_SIZE);
+		op->len = nbytes - (nbytes % AES_BLOCK_SIZE);
 		op->dir = AES_DIR_ENCRYPT;
 
 		ret = geode_aes_crypt(op);
@@ -482,7 +482,7 @@ static struct crypto_alg geode_ecb_alg = {
 						CRYPTO_ALG_NEED_FALLBACK,
 	.cra_init			=	fallback_init_blk,
 	.cra_exit			=	fallback_exit_blk,
-	.cra_blocksize		=	AES_MIN_BLOCK_SIZE,
+	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct geode_aes_op),
 	.cra_alignmask		=	15,
 	.cra_type			=	&crypto_blkcipher_type,
