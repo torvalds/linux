@@ -421,6 +421,12 @@ static int load_twl4030_script(struct twl4030_script *tscript,
 			goto out;
 	}
 	if (tscript->flags & TWL4030_WAKEUP12_SCRIPT) {
+		/* Reset any existing sleep script to avoid hangs on reboot */
+		err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, END_OF_SCRIPT,
+				       R_SEQ_ADD_A2S);
+		if (err)
+			goto out;
+
 		err = twl4030_config_wakeup12_sequence(address);
 		if (err)
 			goto out;
