@@ -160,8 +160,6 @@ struct cgroup {
 	 */
 	int populated_cnt;
 
-	atomic_t refcnt;
-
 	/*
 	 * We link our 'sibling' struct into our parent's 'children'.
 	 * Our children link their 'sibling' into our 'children'.
@@ -217,10 +215,6 @@ struct cgroup {
 	 */
 	struct list_head pidlists;
 	struct mutex pidlist_mutex;
-
-	/* For css percpu_ref killing and RCU-protected deletion */
-	struct rcu_head rcu_head;
-	struct work_struct destroy_work;
 
 	/* used to wait for offlining of csses */
 	wait_queue_head_t offline_waitq;
