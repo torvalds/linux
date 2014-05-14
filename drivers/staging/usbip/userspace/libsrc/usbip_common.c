@@ -237,7 +237,7 @@ int usbip_names_init(char *f)
 	return names_init(f);
 }
 
-void usbip_names_free()
+void usbip_names_free(void)
 {
 	names_free();
 }

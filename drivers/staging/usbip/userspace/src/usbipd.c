@@ -458,7 +458,7 @@ static void set_signal(void)
 
 static const char *pid_file;
 
-static void write_pid_file()
+static void write_pid_file(void)
 {
 	if (pid_file) {
 		dbg("creating pid file %s", pid_file);
@@ -475,7 +475,7 @@ static void write_pid_file()
 	}
 }
 
-static void remove_pid_file()
+static void remove_pid_file(void)
 {
 	if (pid_file) {
 		dbg("removing pid file %s", pid_file);
