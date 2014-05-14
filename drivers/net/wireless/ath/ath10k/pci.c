@@ -2647,18 +2647,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, ar);
 
-	/*
-	 * Without any knowledge of the Host, the Target may have been reset or
-	 * power cycled and its Config Space may no longer reflect the PCI
-	 * address space that was assigned earlier by the PCI infrastructure.
-	 * Refresh it now.
-	 */
-	ret = pci_assign_resource(pdev, BAR_NUM);
-	if (ret) {
-		ath10k_err("failed to assign PCI space: %d\n", ret);
-		goto err_ar;
-	}
-
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		ath10k_err("failed to enable PCI device: %d\n", ret);
