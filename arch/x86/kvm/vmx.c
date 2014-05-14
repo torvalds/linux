@@ -414,7 +414,6 @@ struct vcpu_vmx {
 	struct kvm_vcpu       vcpu;
 	unsigned long         host_rsp;
 	u8                    fail;
-	u8                    cpl;
 	bool                  nmi_known_unmasked;
 	u32                   exit_intr_info;
 	u32                   idt_vectoring_info;
@@ -3150,10 +3149,6 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	fix_pmode_seg(vcpu, VCPU_SREG_DS, &vmx->rmode.segs[VCPU_SREG_DS]);
 	fix_pmode_seg(vcpu, VCPU_SREG_FS, &vmx->rmode.segs[VCPU_SREG_FS]);
 	fix_pmode_seg(vcpu, VCPU_SREG_GS, &vmx->rmode.segs[VCPU_SREG_GS]);
-
-	/* CPL is always 0 when CPU enters protected mode */
-	__set_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
-	vmx->cpl = 0;
 }
 
 static void fix_rmode_seg(int seg, struct kvm_segment *save)
@@ -3555,21 +3550,13 @@ static int vmx_get_cpl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (!is_protmode(vcpu))
+	if (unlikely(vmx->rmode.vm86_active))
 		return 0;
-
-	if (!is_long_mode(vcpu)
-	    && (kvm_get_rflags(vcpu) & X86_EFLAGS_VM)) /* if virtual 8086 */
-		return 3;
-
-	if (!test_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail)) {
-		__set_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
-		vmx->cpl = vmx_read_guest_seg_selector(vmx, VCPU_SREG_CS) & 3;
+	else {
+		int ar = vmx_read_guest_seg_ar(vmx, VCPU_SREG_SS);
+		return AR_DPL(ar);
 	}
-
-	return vmx->cpl;
 }
-
 
 static u32 vmx_segment_access_rights(struct kvm_segment *var)
 {
@@ -3598,8 +3585,6 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	const struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 
 	vmx_segment_cache_clear(vmx);
-	if (seg == VCPU_SREG_CS)
-		__clear_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
 
 	if (vmx->rmode.vm86_active && seg != VCPU_SREG_LDTR) {
 		vmx->rmode.segs[seg] = *var;
@@ -7471,7 +7456,6 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP)
 				  | (1 << VCPU_EXREG_RFLAGS)
-				  | (1 << VCPU_EXREG_CPL)
 				  | (1 << VCPU_EXREG_PDPTR)
 				  | (1 << VCPU_EXREG_SEGMENTS)
 				  | (1 << VCPU_EXREG_CR3));
