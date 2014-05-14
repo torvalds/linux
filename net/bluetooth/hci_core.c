@@ -579,6 +579,62 @@ static int sniff_max_interval_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(sniff_max_interval_fops, sniff_max_interval_get,
 			sniff_max_interval_set, "%llu\n");
 
+static int conn_info_min_age_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val == 0 || val > hdev->conn_info_max_age)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->conn_info_min_age = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int conn_info_min_age_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->conn_info_min_age;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(conn_info_min_age_fops, conn_info_min_age_get,
+			conn_info_min_age_set, "%llu\n");
+
+static int conn_info_max_age_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val == 0 || val < hdev->conn_info_min_age)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->conn_info_max_age = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int conn_info_max_age_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->conn_info_max_age;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(conn_info_max_age_fops, conn_info_max_age_get,
+			conn_info_max_age_set, "%llu\n");
+
 static int identity_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
@@ -1753,6 +1809,11 @@ static int __hci_init(struct hci_dev *hdev)
 	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
 			    &blacklist_fops);
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
+
+	debugfs_create_file("conn_info_min_age", 0644, hdev->debugfs, hdev,
+			    &conn_info_min_age_fops);
+	debugfs_create_file("conn_info_max_age", 0644, hdev->debugfs, hdev,
+			    &conn_info_max_age_fops);
 
 	if (lmp_bredr_capable(hdev)) {
 		debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
@@ -3789,6 +3850,8 @@ struct hci_dev *hci_alloc_dev(void)
 
 	hdev->rpa_timeout = HCI_DEFAULT_RPA_TIMEOUT;
 	hdev->discov_interleaved_timeout = DISCOV_INTERLEAVED_TIMEOUT;
+	hdev->conn_info_min_age = DEFAULT_CONN_INFO_MIN_AGE;
+	hdev->conn_info_max_age = DEFAULT_CONN_INFO_MAX_AGE;
 
 	mutex_init(&hdev->lock);
 	mutex_init(&hdev->req_lock);
