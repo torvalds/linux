@@ -3295,6 +3295,21 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 	return css_parent(pos);
 }
 
+static bool cgroup_has_live_children(struct cgroup *cgrp)
+{
+	struct cgroup *child;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(child, &cgrp->children, sibling) {
+		if (!cgroup_is_dead(child)) {
+			rcu_read_unlock();
+			return true;
+		}
+	}
+	rcu_read_unlock();
+	return false;
+}
+
 /**
  * css_advance_task_iter - advance a task itererator to the next css_set
  * @it: the iterator to advance
@@ -4465,7 +4480,6 @@ static void kill_css(struct cgroup_subsys_state *css)
 static int cgroup_destroy_locked(struct cgroup *cgrp)
 	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
 {
-	struct cgroup *child;
 	struct cgroup_subsys_state *css;
 	bool empty;
 	int ssid;
@@ -4487,15 +4501,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * emptiness as dead children linger on it while being destroyed;
 	 * otherwise, "rmdir parent/child parent" may fail with -EBUSY.
 	 */
-	empty = true;
-	rcu_read_lock();
-	list_for_each_entry_rcu(child, &cgrp->children, sibling) {
-		empty = cgroup_is_dead(child);
-		if (!empty)
-			break;
-	}
-	rcu_read_unlock();
-	if (!empty)
+	if (cgroup_has_live_children(cgrp))
 		return -EBUSY;
 
 	/*
