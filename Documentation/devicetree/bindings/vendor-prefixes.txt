@@ -34,6 +34,7 @@ chipidea	Chipidea, Inc
 chrp	Common Hardware Reference Platform
 chunghwa	Chunghwa Picture Tubes Ltd.
 cirrus	Cirrus Logic, Inc.
+cnm	Chips&Media, Inc.
 cortina	Cortina Systems, Inc.
 crystalfontz	Crystalfontz America, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
