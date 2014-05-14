@@ -342,7 +342,7 @@ static int sst_byt_pcm_new(struct snd_soc_pcm_runtime *rtd)
 
 static struct snd_soc_dai_driver byt_dais[] = {
 	{
-		.name  = "Front-cpu-dai",
+		.name  = "Baytrail PCM",
 		.playback = {
 			.stream_name = "System Playback",
 			.channels_min = 2,
@@ -351,9 +351,6 @@ static struct snd_soc_dai_driver byt_dais[] = {
 			.formats = SNDRV_PCM_FMTBIT_S24_3LE |
 				   SNDRV_PCM_FMTBIT_S16_LE,
 		},
-	},
-	{
-		.name  = "Mic1-cpu-dai",
 		.capture = {
 			.stream_name = "Analog Capture",
 			.channels_min = 2,
@@ -378,7 +375,7 @@ static int sst_byt_pcm_probe(struct snd_soc_platform *platform)
 	priv_data->byt = plat_data->dsp;
 	snd_soc_platform_set_drvdata(platform, priv_data);
 
-	for (i = 0; i < ARRAY_SIZE(byt_dais); i++) {
+	for (i = 0; i < BYT_PCM_COUNT; i++) {
 		mutex_init(&priv_data->pcm[i].mutex);
 		INIT_WORK(&priv_data->pcm[i].work, sst_byt_pcm_work);
 	}
