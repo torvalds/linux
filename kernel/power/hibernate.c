@@ -35,7 +35,7 @@
 static int nocompress;
 static int noresume;
 static int resume_wait;
-static int resume_delay;
+static unsigned int resume_delay;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
@@ -1115,7 +1115,7 @@ static int __init resumewait_setup(char *str)
 
 static int __init resumedelay_setup(char *str)
 {
-	int rc = kstrtoul(str, 0, (unsigned long *)&resume_delay);
+	int rc = kstrtouint(str, 0, &resume_delay);
 
 	if (rc)
 		return rc;
