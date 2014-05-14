@@ -403,17 +403,17 @@ static int micro_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	micro->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!micro->base)
-		return -ENOMEM;
+	micro->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(micro->base))
+		return PTR_ERR(micro->base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res)
 		return -EINVAL;
 
-	micro->sdlc = devm_request_and_ioremap(&pdev->dev, res);
-	if (!micro->sdlc)
-		return -ENOMEM;
+	micro->sdlc = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(micro->sdlc))
+		return PTR_ERR(micro->sdlc);
 
 	micro_reset_comm(micro);
 
