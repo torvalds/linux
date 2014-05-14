@@ -787,8 +787,8 @@ rockchip,power_type = <GPIO>;
 
 		ldo3_reg: regulator@6 {
 			regulator-name= "act_ldo3";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 			
 		};
 

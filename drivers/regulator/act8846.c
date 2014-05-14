@@ -937,7 +937,7 @@ static int act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 				dev_err(act8846->dev,"Failed to request gpio %d with ret:""%d\n",	act8846->pmic_sleep_gpio, ret);
 				return IRQ_NONE;
 			}
-			gpio_direction_output(act8846->pmic_sleep_gpio,0);
+			gpio_direction_output(act8846->pmic_sleep_gpio,1);
 			ret = gpio_get_value(act8846->pmic_sleep_gpio);
 			gpio_free(act8846->pmic_sleep_gpio);
 			printk("%s: act8846_pmic_sleep=%x\n", __func__, ret);
