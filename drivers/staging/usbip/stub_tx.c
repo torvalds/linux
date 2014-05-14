@@ -218,6 +218,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			 */
 
 			int i;
+
 			for (i = 0; i < urb->number_of_packets; i++) {
 				iov[iovnum].iov_base = urb->transfer_buffer +
 					urb->iso_frame_desc[i].offset;
