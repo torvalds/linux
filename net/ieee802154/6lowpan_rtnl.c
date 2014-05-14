@@ -92,6 +92,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 	const u8 *saddr = _saddr;
 	const u8 *daddr = _daddr;
 	struct ieee802154_addr sa, da;
+	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 
 	/* TODO:
 	 * if this package isn't ipv6 one, where should it be routed?
@@ -115,8 +116,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 	 * from MAC subif of the 'dev' and 'real_dev' network devices, but
 	 * this isn't implemented in mainline yet, so currently we assign 0xff
 	 */
-	mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA;
-	mac_cb(skb)->seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
+	cb->type = IEEE802154_FC_TYPE_DATA;
 
 	/* prepare wpan address data */
 	sa.mode = IEEE802154_ADDR_LONG;
@@ -135,10 +135,9 @@ static int lowpan_header_create(struct sk_buff *skb,
 	} else {
 		da.mode = IEEE802154_ADDR_LONG;
 		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
-
-		/* request acknowledgment */
-		mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
 	}
+
+	cb->ackreq = !lowpan_is_addr_broadcast(daddr);
 
 	return dev_hard_header(skb, lowpan_dev_info(dev)->real_dev,
 			type, (void *)&da, (void *)&sa, 0);

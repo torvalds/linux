@@ -192,15 +192,17 @@ static int mac802154_header_create(struct sk_buff *skb,
 {
 	struct ieee802154_hdr hdr;
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	int hlen;
 
 	if (!daddr)
 		return -EINVAL;
 
 	memset(&hdr.fc, 0, sizeof(hdr.fc));
-	hdr.fc.type = mac_cb_type(skb);
-	hdr.fc.security_enabled = mac_cb_is_secen(skb);
-	hdr.fc.ack_request = mac_cb_is_ackreq(skb);
+	hdr.fc.type = cb->type;
+	hdr.fc.security_enabled = cb->secen;
+	hdr.fc.ack_request = cb->ackreq;
+	hdr.seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
 
 	if (!saddr) {
 		spin_lock_bh(&priv->mib_lock);
@@ -391,12 +393,12 @@ mac802154_subif_frame(struct mac802154_sub_if_data *sdata, struct sk_buff *skb)
 	sdata->dev->stats.rx_packets++;
 	sdata->dev->stats.rx_bytes += skb->len;
 
-	switch (mac_cb_type(skb)) {
+	switch (mac_cb(skb)->type) {
 	case IEEE802154_FC_TYPE_DATA:
 		return mac802154_process_data(sdata->dev, skb);
 	default:
 		pr_warn("ieee802154: bad frame received (type = %d)\n",
-			mac_cb_type(skb));
+			mac_cb(skb)->type);
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -423,6 +425,7 @@ static int mac802154_parse_frame_start(struct sk_buff *skb)
 {
 	int hlen;
 	struct ieee802154_hdr hdr;
+	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 
 	hlen = ieee802154_hdr_pull(skb, &hdr);
 	if (hlen < 0)
@@ -433,18 +436,15 @@ static int mac802154_parse_frame_start(struct sk_buff *skb)
 	pr_debug("fc: %04x dsn: %02x\n", le16_to_cpup((__le16 *)&hdr.fc),
 		 hdr.seq);
 
-	mac_cb(skb)->flags = hdr.fc.type;
-
-	if (hdr.fc.ack_request)
-		mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
-	if (hdr.fc.security_enabled)
-		mac_cb(skb)->flags |= MAC_CB_FLAG_SECEN;
+	cb->type = hdr.fc.type;
+	cb->ackreq = hdr.fc.ack_request;
+	cb->secen = hdr.fc.security_enabled;
 
 	mac802154_print_addr("destination", &hdr.dest);
 	mac802154_print_addr("source", &hdr.source);
 
-	mac_cb(skb)->source = hdr.source;
-	mac_cb(skb)->dest = hdr.dest;
+	cb->source = hdr.source;
+	cb->dest = hdr.dest;
 
 	if (hdr.fc.security_enabled) {
 		u64 key;

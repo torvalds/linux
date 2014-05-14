@@ -222,8 +222,9 @@ static inline void ieee802154_addr_to_sa(struct ieee802154_addr_sa *sa,
  */
 struct ieee802154_mac_cb {
 	u8 lqi;
-	u8 flags;
-	u8 seq;
+	u8 type;
+	bool ackreq;
+	bool secen;
 	struct ieee802154_addr source;
 	struct ieee802154_addr dest;
 };
@@ -233,24 +234,12 @@ static inline struct ieee802154_mac_cb *mac_cb(struct sk_buff *skb)
 	return (struct ieee802154_mac_cb *)skb->cb;
 }
 
-#define MAC_CB_FLAG_TYPEMASK		((1 << 3) - 1)
-
-#define MAC_CB_FLAG_ACKREQ		(1 << 3)
-#define MAC_CB_FLAG_SECEN		(1 << 4)
-
-static inline bool mac_cb_is_ackreq(struct sk_buff *skb)
+static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 {
-	return mac_cb(skb)->flags & MAC_CB_FLAG_ACKREQ;
-}
+	BUILD_BUG_ON(sizeof(struct ieee802154_mac_cb) > sizeof(skb->cb));
 
-static inline bool mac_cb_is_secen(struct sk_buff *skb)
-{
-	return mac_cb(skb)->flags & MAC_CB_FLAG_SECEN;
-}
-
-static inline int mac_cb_type(struct sk_buff *skb)
-{
-	return mac_cb(skb)->flags & MAC_CB_FLAG_TYPEMASK;
+	memset(skb->cb, 0, sizeof(struct ieee802154_mac_cb));
+	return mac_cb(skb);
 }
 
 #define IEEE802154_MAC_SCAN_ED		0

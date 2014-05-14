@@ -209,6 +209,7 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 	struct net_device *dev;
 	unsigned int mtu;
 	struct sk_buff *skb;
+	struct ieee802154_mac_cb *cb;
 	struct dgram_sock *ro = dgram_sk(sk);
 	int hlen, tlen;
 	int err;
@@ -249,17 +250,14 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	skb_reset_network_header(skb);
 
-	mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA;
-	if (ro->want_ack)
-		mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
+	cb = mac_cb_init(skb);
+	cb->type = IEEE802154_FC_TYPE_DATA;
+	cb->ackreq = ro->want_ack;
 
-	mac_cb(skb)->seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
 	err = dev_hard_header(skb, dev, ETH_P_IEEE802154, &ro->dst_addr,
 			ro->bound ? &ro->src_addr : NULL, size);
 	if (err < 0)
 		goto out_skb;
-
-	skb_reset_mac_header(skb);
 
 	err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
 	if (err < 0)
