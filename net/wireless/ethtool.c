@@ -43,7 +43,7 @@ static void cfg80211_get_ringparam(struct net_device *dev,
 				   struct ethtool_ringparam *rp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
 	memset(rp, 0, sizeof(*rp));
 
@@ -56,7 +56,7 @@ static int cfg80211_set_ringparam(struct net_device *dev,
 				  struct ethtool_ringparam *rp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
 	if (rp->rx_mini_pending != 0 || rp->rx_jumbo_pending != 0)
 		return -EINVAL;
@@ -70,7 +70,7 @@ static int cfg80211_set_ringparam(struct net_device *dev,
 static int cfg80211_get_sset_count(struct net_device *dev, int sset)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	if (rdev->ops->get_et_sset_count)
 		return rdev_get_et_sset_count(rdev, dev, sset);
 	return -EOPNOTSUPP;
@@ -80,7 +80,7 @@ static void cfg80211_get_stats(struct net_device *dev,
 			       struct ethtool_stats *stats, u64 *data)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	if (rdev->ops->get_et_stats)
 		rdev_get_et_stats(rdev, dev, stats, data);
 }
@@ -88,7 +88,7 @@ static void cfg80211_get_stats(struct net_device *dev,
 static void cfg80211_get_strings(struct net_device *dev, u32 sset, u8 *data)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	if (rdev->ops->get_et_strings)
 		rdev_get_et_strings(rdev, dev, sset, data);
 }

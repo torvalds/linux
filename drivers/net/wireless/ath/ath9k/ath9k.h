@@ -23,8 +23,8 @@
 #include <linux/leds.h>
 #include <linux/completion.h>
 
-#include "debug.h"
 #include "common.h"
+#include "debug.h"
 #include "mci.h"
 #include "dfs.h"
 #include "spectral.h"
@@ -254,7 +254,6 @@ struct ath_atx_tid {
 
 	s8 bar_index;
 	bool sched;
-	bool paused;
 	bool active;
 };
 

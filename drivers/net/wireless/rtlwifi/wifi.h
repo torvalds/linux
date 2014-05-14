@@ -2030,6 +2030,10 @@ struct rtl_mod_params {
 
 	/* default: 1 = using linked fw power save */
 	bool fwctrl_lps;
+
+	/* default: 0 = not using MSI interrupts mode */
+	/* submodules should set their own defalut value */
+	bool msi_support;
 };
 
 struct rtl_hal_usbint_cfg {

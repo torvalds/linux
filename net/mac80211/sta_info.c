@@ -552,7 +552,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 {
 	struct ieee80211_local *local = sta->local;
-	int err = 0;
+	int err;
 
 	might_sleep();
 
@@ -570,7 +570,6 @@ int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 
 	return 0;
  out_free:
-	BUG_ON(!err);
 	sta_info_free(local, sta);
 	return err;
 }
@@ -1148,7 +1147,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	atomic_dec(&ps->num_sta_ps);
 
 	/* This station just woke up and isn't aware of our SMPS state */
-	if (!ieee80211_smps_is_restrictive(sta->known_smps_mode,
+	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
+	    !ieee80211_smps_is_restrictive(sta->known_smps_mode,
 					   sdata->smps_mode) &&
 	    sta->known_smps_mode != sdata->bss->req_smps &&
 	    sta_info_tx_streams(sta) != 1) {

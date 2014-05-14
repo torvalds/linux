@@ -1237,11 +1237,23 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	u32 rate __maybe_unused =
 		le32_to_cpu(beacon->beacon_notify_hdr.initial_rate);
 
+	lockdep_assert_held(&mvm->mutex);
+
 	IWL_DEBUG_RX(mvm, "beacon status %#x retries:%d tsf:0x%16llX rate:%d\n",
 		     status & TX_STATUS_MSK,
 		     beacon->beacon_notify_hdr.failure_frame,
 		     le64_to_cpu(beacon->tsf),
 		     rate);
+
+	if (unlikely(mvm->csa_vif && mvm->csa_vif->csa_active)) {
+		if (!ieee80211_csa_is_complete(mvm->csa_vif)) {
+			iwl_mvm_mac_ctxt_beacon_changed(mvm, mvm->csa_vif);
+		} else {
+			ieee80211_csa_finish(mvm->csa_vif);
+			mvm->csa_vif = NULL;
+		}
+	}
+
 	return 0;
 }
 

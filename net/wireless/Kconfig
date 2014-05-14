@@ -95,6 +95,43 @@ config CFG80211_CERTIFICATION_ONUS
 	  you are a wireless researcher and are working in a controlled
 	  and approved environment by your local regulatory agency.
 
+config CFG80211_REG_CELLULAR_HINTS
+	bool "cfg80211 regulatory support for cellular base station hints"
+	depends on CFG80211_CERTIFICATION_ONUS
+	---help---
+	  This option enables support for parsing regulatory hints
+	  from cellular base stations. If enabled and at least one driver
+	  claims support for parsing cellular base station hints the
+	  regulatory core will allow and parse these regulatory hints.
+	  The regulatory core will only apply these regulatory hints on
+	  drivers that support this feature. You should only enable this
+	  feature if you have tested and validated this feature on your
+	  systems.
+
+config CFG80211_REG_RELAX_NO_IR
+	bool "cfg80211 support for NO_IR relaxation"
+	depends on CFG80211_CERTIFICATION_ONUS
+	---help---
+	 This option enables support for relaxation of the NO_IR flag for
+	 situations that certain regulatory bodies have provided clarifications
+	 on how relaxation can occur. This feature has an inherent dependency on
+	 userspace features which must have been properly tested and as such is
+	 not enabled by default.
+
+	 A relaxation feature example is allowing the operation of a P2P group
+	 owner (GO) on channels marked with NO_IR if there is an additional BSS
+	 interface which associated to an AP which userspace assumes or confirms
+	 to be an authorized master, i.e., with radar detection support and DFS
+	 capabilities. However, note that in order to not create daisy chain
+	 scenarios, this relaxation is not allowed in cases that the BSS client
+	 is associated to P2P GO and in addition the P2P GO instantiated on
+	 a channel due to this relaxation should not allow connection from
+	 non P2P clients.
+
+	 The regulatory core will apply these relaxations only for drivers that
+	 support this feature by declaring the appropriate channel flags and
+	 capabilities in their registration flow.
+
 config CFG80211_DEFAULT_PS
 	bool "enable powersave by default"
 	depends on CFG80211

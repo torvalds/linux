@@ -519,6 +519,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 		iwl_mvm_dump_umac_error_log(mvm);
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_mvm_fw_error_sram_dump(struct iwl_mvm *mvm)
 {
 	const struct fw_img *img;
@@ -581,6 +582,7 @@ void iwl_mvm_fw_error_rxf_dump(struct iwl_mvm *mvm)
 	}
 	iwl_trans_release_nic_access(mvm->trans, &flags);
 }
+#endif
 
 /**
  * iwl_mvm_send_lq_cmd() - Send link quality command
@@ -687,4 +689,23 @@ bool iwl_mvm_low_latency(struct iwl_mvm *mvm)
 			iwl_mvm_ll_iter, &result);
 
 	return result;
+}
+
+static void iwl_mvm_idle_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
+{
+	bool *idle = _data;
+
+	if (!vif->bss_conf.idle)
+		*idle = false;
+}
+
+bool iwl_mvm_is_idle(struct iwl_mvm *mvm)
+{
+	bool idle = true;
+
+	ieee80211_iterate_active_interfaces_atomic(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_idle_iter, &idle);
+
+	return idle;
 }

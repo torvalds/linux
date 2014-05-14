@@ -1083,7 +1083,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 {
 	if (status) {
 		rsi_hal_send_sta_notify_frame(common,
-					      NL80211_IFTYPE_STATION,
+					      RSI_IFTYPE_STATION,
 					      STA_CONNECTED,
 					      bssid,
 					      qos_enable,
@@ -1092,7 +1092,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 			rsi_send_auto_rate_request(common);
 	} else {
 		rsi_hal_send_sta_notify_frame(common,
-					      NL80211_IFTYPE_STATION,
+					      RSI_IFTYPE_STATION,
 					      STA_DISCONNECTED,
 					      bssid,
 					      qos_enable,

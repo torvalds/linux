@@ -37,9 +37,6 @@ static struct mwifiex_if_ops pcie_ops;
 
 static struct semaphore add_remove_card_sem;
 
-/* enum mwifiex_pcie_work_flags bitmap */
-static unsigned long pcie_work_flags;
-
 static int
 mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		       size_t size, int flags)
@@ -224,8 +221,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	if (!adapter || !adapter->priv_num)
 		return;
 
-	cancel_work_sync(&adapter->iface_work);
-
 	if (user_rmmod) {
 #ifdef CONFIG_PM_SLEEP
 		if (adapter->is_suspended)
@@ -308,17 +303,6 @@ static int mwifiex_read_reg(struct mwifiex_adapter *adapter, int reg, u32 *data)
 	struct pcie_service_card *card = adapter->card;
 
 	*data = ioread32(card->pci_mmap1 + reg);
-
-	return 0;
-}
-
-/* This function reads u8 data from PCIE card register. */
-static int mwifiex_read_reg_byte(struct mwifiex_adapter *adapter,
-				 int reg, u8 *data)
-{
-	struct pcie_service_card *card = adapter->card;
-
-	*data = ioread8(card->pci_mmap1 + reg);
 
 	return 0;
 }
@@ -2188,215 +2172,6 @@ static int mwifiex_pcie_host_to_card(struct mwifiex_adapter *adapter, u8 type,
 	return 0;
 }
 
-/* This function read/write firmware */
-static enum rdwr_status
-mwifiex_pcie_rdwr_firmware(struct mwifiex_adapter *adapter, u8 doneflag)
-{
-	int ret, tries;
-	u8 ctrl_data;
-
-	ret = mwifiex_write_reg(adapter, DEBUG_DUMP_CTRL_REG, DEBUG_HOST_READY);
-	if (ret) {
-		dev_err(adapter->dev, "PCIE write err\n");
-		return RDWR_STATUS_FAILURE;
-	}
-
-	for (tries = 0; tries < MAX_POLL_TRIES; tries++) {
-		mwifiex_read_reg_byte(adapter, DEBUG_DUMP_CTRL_REG, &ctrl_data);
-		if (ctrl_data == DEBUG_FW_DONE)
-			return RDWR_STATUS_SUCCESS;
-		if (doneflag && ctrl_data == doneflag)
-			return RDWR_STATUS_DONE;
-		if (ctrl_data != DEBUG_HOST_READY) {
-			dev_info(adapter->dev,
-				 "The ctrl reg was changed, re-try again!\n");
-			mwifiex_write_reg(adapter, DEBUG_DUMP_CTRL_REG,
-					  DEBUG_HOST_READY);
-			if (ret) {
-				dev_err(adapter->dev, "PCIE write err\n");
-				return RDWR_STATUS_FAILURE;
-			}
-		}
-		usleep_range(100, 200);
-	}
-
-	dev_err(adapter->dev, "Fail to pull ctrl_data\n");
-	return RDWR_STATUS_FAILURE;
-}
-
-/* This function dump firmware memory to file */
-static void mwifiex_pcie_fw_dump_work(struct work_struct *work)
-{
-	struct mwifiex_adapter *adapter =
-			container_of(work, struct mwifiex_adapter, iface_work);
-	unsigned int reg, reg_start, reg_end;
-	u8 *dbg_ptr;
-	struct timeval t;
-	u8 dump_num = 0, idx, i, read_reg, doneflag = 0;
-	enum rdwr_status stat;
-	u32 memory_size;
-	u8 filename[MAX_FULL_NAME_LEN];
-	mm_segment_t fs;
-	loff_t pos;
-	u8 *end_ptr;
-	u8 *name_prefix = "/var/log/fw_dump_";
-	struct memory_type_mapping mem_type_mapping_tbl[] = {
-		{"ITCM", NULL, NULL, 0xF0},
-		{"DTCM", NULL, NULL, 0xF1},
-		{"SQRAM", NULL, NULL, 0xF2},
-		{"IRAM", NULL, NULL, 0xF3},
-	};
-
-	if (!adapter) {
-		dev_err(adapter->dev, "Could not dump firmwware info\n");
-		return;
-	}
-
-	do_gettimeofday(&t);
-	dev_info(adapter->dev, "== mwifiex firmware dump start: %u.%06u ==\n",
-		 (u32)t.tv_sec, (u32)t.tv_usec);
-
-	/* Read the number of the memories which will dump */
-	stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
-	if (stat == RDWR_STATUS_FAILURE)
-		goto done;
-
-	reg = DEBUG_DUMP_START_REG;
-	mwifiex_read_reg_byte(adapter, reg, &dump_num);
-
-	/* Read the length of every memory which will dump */
-	for (idx = 0; idx < dump_num; idx++) {
-		struct memory_type_mapping *entry = &mem_type_mapping_tbl[idx];
-
-		stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
-		if (stat == RDWR_STATUS_FAILURE)
-			goto done;
-
-		memory_size = 0;
-		reg = DEBUG_DUMP_START_REG;
-		for (i = 0; i < 4; i++) {
-			mwifiex_read_reg_byte(adapter, reg, &read_reg);
-			memory_size |= (read_reg << (i * 8));
-			reg++;
-		}
-
-		if (memory_size == 0) {
-			dev_info(adapter->dev, "Firmware dump Finished!\n");
-			break;
-		}
-
-		dev_info(adapter->dev,
-			 "%s_SIZE=0x%x\n", entry->mem_name, memory_size);
-		entry->mem_ptr = vmalloc(memory_size + 1);
-		if (!entry->mem_ptr) {
-			dev_err(adapter->dev,
-				"Vmalloc %s failed\n", entry->mem_name);
-			goto done;
-		}
-		dbg_ptr = entry->mem_ptr;
-		end_ptr = dbg_ptr + memory_size;
-
-		doneflag = entry->done_flag;
-		do_gettimeofday(&t);
-		dev_info(adapter->dev, "Start %s output %u.%06u, please wait...\n",
-			 entry->mem_name, (u32)t.tv_sec, (u32)t.tv_usec);
-
-		do {
-			stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
-			if (RDWR_STATUS_FAILURE == stat)
-				goto done;
-
-			reg_start = DEBUG_DUMP_START_REG;
-			reg_end = DEBUG_DUMP_END_REG;
-			for (reg = reg_start; reg <= reg_end; reg++) {
-				mwifiex_read_reg_byte(adapter, reg, dbg_ptr);
-				if (dbg_ptr < end_ptr)
-					dbg_ptr++;
-				else
-					dev_err(adapter->dev,
-						"Allocated buf not enough\n");
-			}
-
-			if (stat != RDWR_STATUS_DONE)
-				continue;
-
-			dev_info(adapter->dev, "%s done: size=0x%lx\n",
-				 entry->mem_name, dbg_ptr - entry->mem_ptr);
-			memset(filename, 0, sizeof(filename));
-			memcpy(filename, name_prefix, strlen(name_prefix));
-			strcat(filename, entry->mem_name);
-			do_gettimeofday(&t);
-			entry->file_mem = filp_open(filename, O_CREAT | O_RDWR,
-						    0644);
-			if (IS_ERR(entry->file_mem)) {
-				dev_info(adapter->dev,
-					 "Create %s file failed at %s, opening another dir /tmp\n",
-					 entry->mem_name, filename);
-				memset(filename, 0, sizeof(filename));
-				sprintf(filename, "%s%s", "/tmp/fw_dump_",
-					entry->mem_name);
-				entry->file_mem =
-					filp_open(filename,
-						  O_CREAT | O_RDWR, 0644);
-			}
-			if (!IS_ERR(entry->file_mem)) {
-				dev_info(adapter->dev,
-					 "Start to save the output : %u.%06u, please wait...\n",
-					 (u32)t.tv_sec, (u32)t.tv_usec);
-				fs = get_fs();
-				set_fs(KERNEL_DS);
-				pos = 0;
-				vfs_write(entry->file_mem,
-					  (char __user *)entry->mem_ptr,
-					  memory_size, &pos);
-				filp_close(entry->file_mem, NULL);
-				set_fs(fs);
-				dev_info(adapter->dev,
-					 "The output %s have been saved to file successfully!\n",
-					 entry->mem_name);
-			} else {
-				dev_err(adapter->dev,
-					"Failed to create file %s\n", filename);
-			}
-			vfree(entry->mem_ptr);
-			entry->mem_ptr = NULL;
-			break;
-		} while (true);
-	}
-	do_gettimeofday(&t);
-	dev_info(adapter->dev, "== mwifiex firmware dump end: %u.%06u ==\n",
-		 (u32)t.tv_sec, (u32)t.tv_usec);
-
-done:
-	for (idx = 0; idx < ARRAY_SIZE(mem_type_mapping_tbl); idx++) {
-		struct memory_type_mapping *entry = &mem_type_mapping_tbl[idx];
-
-		if (entry->mem_ptr) {
-			vfree(entry->mem_ptr);
-			entry->mem_ptr = NULL;
-		}
-	}
-
-	return;
-}
-
-static void mwifiex_pcie_work(struct work_struct *work)
-{
-	if (test_and_clear_bit(MWIFIEX_PCIE_WORK_FW_DUMP, &pcie_work_flags))
-		mwifiex_pcie_fw_dump_work(work);
-}
-
-/* This function dumps FW information */
-static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
-{
-	if (test_bit(MWIFIEX_PCIE_WORK_FW_DUMP, &pcie_work_flags))
-		return;
-
-	set_bit(MWIFIEX_PCIE_WORK_FW_DUMP, &pcie_work_flags);
-
-	schedule_work(&adapter->iface_work);
-}
-
 /*
  * This function initializes the PCI-E host memory space, WCB rings, etc.
  *
@@ -2618,8 +2393,6 @@ static struct mwifiex_if_ops pcie_ops = {
 	.cleanup_mpa_buf =		NULL,
 	.init_fw_port =			mwifiex_pcie_init_fw_port,
 	.clean_pcie_ring =		mwifiex_clean_pcie_ring_buf,
-	.fw_dump =			mwifiex_pcie_fw_dump,
-	.iface_work =			mwifiex_pcie_work,
 };
 
 /*
