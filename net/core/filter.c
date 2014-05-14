@@ -1524,6 +1524,10 @@ out_err:
 	return ERR_PTR(err);
 }
 
+void __weak bpf_int_jit_compile(struct sk_filter *prog)
+{
+}
+
 static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
 					     struct sock *sk)
 {
@@ -1544,9 +1548,12 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
 	/* JIT compiler couldn't process this filter, so do the
 	 * internal BPF translation for the optimized interpreter.
 	 */
-	if (!fp->jited)
+	if (!fp->jited) {
 		fp = __sk_migrate_filter(fp, sk);
 
+		/* Probe if internal BPF can be jit-ed */
+		bpf_int_jit_compile(fp);
+	}
 	return fp;
 }
 
