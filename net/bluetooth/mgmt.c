@@ -4717,10 +4717,16 @@ static int get_conn_info(struct sock *sk, struct hci_dev *hdev, void *data,
 		hci_req_add(&req, HCI_OP_READ_RSSI, sizeof(req_rssi_cp),
 			    &req_rssi_cp);
 
-		req_txp_cp.handle = cpu_to_le16(conn->handle);
-		req_txp_cp.type = 0x00;
-		hci_req_add(&req, HCI_OP_READ_TX_POWER,
-			    sizeof(req_txp_cp), &req_txp_cp);
+		/* For LE links TX power does not change thus we don't need to
+		 * query for it once value is known.
+		 */
+		if (!bdaddr_type_is_le(cp->addr.type) ||
+		    conn->tx_power == HCI_TX_POWER_INVALID) {
+			req_txp_cp.handle = cpu_to_le16(conn->handle);
+			req_txp_cp.type = 0x00;
+			hci_req_add(&req, HCI_OP_READ_TX_POWER,
+				    sizeof(req_txp_cp), &req_txp_cp);
+		}
 
 		err = hci_req_run(&req, conn_info_refresh_complete);
 		if (err < 0)
