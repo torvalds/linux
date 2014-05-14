@@ -434,7 +434,7 @@ xfs_dir2_leaf_readbuf(
 		 */
 		if (i > mip->ra_current &&
 		    map[mip->ra_index].br_blockcount >= mp->m_dirblkfsbs) {
-			xfs_dir3_data_readahead(NULL, dp,
+			xfs_dir3_data_readahead(dp,
 				map[mip->ra_index].br_startoff + mip->ra_offset,
 				XFS_FSB_TO_DADDR(mp,
 					map[mip->ra_index].br_startblock +
@@ -447,7 +447,7 @@ xfs_dir2_leaf_readbuf(
 		 * use our mapping, but this is a very rare case.
 		 */
 		else if (i > mip->ra_current) {
-			xfs_dir3_data_readahead(NULL, dp,
+			xfs_dir3_data_readahead(dp,
 					map[mip->ra_index].br_startoff +
 							mip->ra_offset, -1);
 			mip->ra_current = i;
@@ -531,7 +531,7 @@ xfs_dir2_leaf_getdents(
 	 * Inside the loop we keep the main offset value as a byte offset
 	 * in the directory file.
 	 */
-	curoff = xfs_dir2_dataptr_to_byte(mp, ctx->pos);
+	curoff = xfs_dir2_dataptr_to_byte(ctx->pos);
 
 	/*
 	 * Force this conversion through db so we truncate the offset
@@ -635,7 +635,7 @@ xfs_dir2_leaf_getdents(
 		length = dp->d_ops->data_entsize(dep->namelen);
 		filetype = dp->d_ops->data_get_ftype(dep);
 
-		ctx->pos = xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff;
+		ctx->pos = xfs_dir2_byte_to_dataptr(curoff) & 0x7fffffff;
 		if (!dir_emit(ctx, (char *)dep->name, dep->namelen,
 			    be64_to_cpu(dep->inumber),
 			    xfs_dir3_get_dtype(mp, filetype)))
@@ -653,10 +653,10 @@ xfs_dir2_leaf_getdents(
 	/*
 	 * All done.  Set output offset value to current offset.
 	 */
-	if (curoff > xfs_dir2_dataptr_to_byte(mp, XFS_DIR2_MAX_DATAPTR))
+	if (curoff > xfs_dir2_dataptr_to_byte(XFS_DIR2_MAX_DATAPTR))
 		ctx->pos = XFS_DIR2_MAX_DATAPTR & 0x7fffffff;
 	else
-		ctx->pos = xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff;
+		ctx->pos = xfs_dir2_byte_to_dataptr(curoff) & 0x7fffffff;
 	kmem_free(map_info);
 	if (bp)
 		xfs_trans_brelse(NULL, bp);
@@ -687,7 +687,7 @@ xfs_readdir(
 	lock_mode = xfs_ilock_data_map_shared(dp);
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_getdents(dp, ctx);
-	else if ((rval = xfs_dir2_isblock(NULL, dp, &v)))
+	else if ((rval = xfs_dir2_isblock(dp, &v)))
 		;
 	else if (v)
 		rval = xfs_dir2_block_getdents(dp, ctx);

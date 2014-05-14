@@ -3145,7 +3145,7 @@ xlog_recover_efd_pass2(
 		}
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 	}
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 
 	return 0;
@@ -3520,8 +3520,7 @@ out:
 
 STATIC int
 xlog_recover_unmount_trans(
-	struct xlog		*log,
-	struct xlog_recover	*trans)
+	struct xlog		*log)
 {
 	/* Do nothing now */
 	xfs_warn(log->l_mp, "%s: Unmount LR", __func__);
@@ -3595,7 +3594,7 @@ xlog_recover_process_data(
 								trans, pass);
 				break;
 			case XLOG_UNMOUNT_TRANS:
-				error = xlog_recover_unmount_trans(log, trans);
+				error = xlog_recover_unmount_trans(log);
 				break;
 			case XLOG_WAS_CONT_TRANS:
 				error = xlog_recover_add_to_cont_trans(log,
@@ -3757,7 +3756,7 @@ xlog_recover_process_efis(
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 	}
 out:
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 	return error;
 }

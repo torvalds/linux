@@ -68,7 +68,6 @@ xfs_attr3_rmt_blocks(
  */
 static bool
 xfs_attr3_rmt_hdr_ok(
-	struct xfs_mount	*mp,
 	void			*ptr,
 	xfs_ino_t		ino,
 	uint32_t		offset,
@@ -251,7 +250,7 @@ xfs_attr_rmtval_copyout(
 		byte_cnt = min(*valuelen, byte_cnt);
 
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {
-			if (!xfs_attr3_rmt_hdr_ok(mp, src, ino, *offset,
+			if (!xfs_attr3_rmt_hdr_ok(src, ino, *offset,
 						  byte_cnt, bno)) {
 				xfs_alert(mp,
 "remote attribute header mismatch bno/off/len/owner (0x%llx/0x%x/Ox%x/0x%llx)",

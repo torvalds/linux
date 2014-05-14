@@ -319,7 +319,6 @@ xfs_dir2_block_compact(
 		(xfs_dir2_data_aoff_t)((char *)blp - (char *)hdr),
 		(xfs_dir2_data_aoff_t)((be32_to_cpu(btp->stale) - 1) * sizeof(*blp)),
 		needlog, &needscan);
-	blp += be32_to_cpu(btp->stale) - 1;
 	btp->stale = cpu_to_be32(1);
 	/*
 	 * If we now need to rebuild the bestfree map, do so.
@@ -537,7 +536,7 @@ xfs_dir2_block_addname(
 	 * Fill in the leaf entry.
 	 */
 	blp[mid].hashval = cpu_to_be32(args->hashval);
-	blp[mid].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
+	blp[mid].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(
 				(char *)dep - (char *)hdr));
 	xfs_dir2_block_log_leaf(tp, bp, lfloglow, lfloghigh);
 	/*
@@ -1170,7 +1169,7 @@ xfs_dir2_sf_to_block(
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	xfs_dir2_data_log_entry(tp, dp, bp, dep);
 	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
-	blp[0].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
+	blp[0].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(
 				(char *)dep - (char *)hdr));
 	/*
 	 * Create entry for ..
@@ -1184,7 +1183,7 @@ xfs_dir2_sf_to_block(
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	xfs_dir2_data_log_entry(tp, dp, bp, dep);
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
-	blp[1].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
+	blp[1].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(
 				(char *)dep - (char *)hdr));
 	offset = dp->d_ops->data_first_offset;
 	/*
@@ -1238,7 +1237,7 @@ xfs_dir2_sf_to_block(
 		name.len = sfep->namelen;
 		blp[2 + i].hashval = cpu_to_be32(mp->m_dirnameops->
 							hashname(&name));
-		blp[2 + i].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
+		blp[2 + i].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(
 						 (char *)dep - (char *)hdr));
 		offset = (int)((char *)(tagp + 1) - (char *)hdr);
 		if (++i == sfp->count)

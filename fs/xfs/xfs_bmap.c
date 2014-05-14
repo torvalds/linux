@@ -94,7 +94,7 @@ xfs_bmap_compute_maxlevels(
 		maxleafents = MAXAEXTNUM;
 		sz = XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	}
-	maxrootrecs = xfs_bmdr_maxrecs(mp, sz, 0);
+	maxrootrecs = xfs_bmdr_maxrecs(sz, 0);
 	minleafrecs = mp->m_bmap_dmnr[0];
 	minnoderecs = mp->m_bmap_dmnr[1];
 	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
@@ -233,7 +233,6 @@ xfs_default_attroffset(
  */
 STATIC void
 xfs_bmap_forkoff_reset(
-	xfs_mount_t	*mp,
 	xfs_inode_t	*ip,
 	int		whichfork)
 {
@@ -905,7 +904,7 @@ xfs_bmap_local_to_extents_empty(
 	ASSERT(ifp->if_bytes == 0);
 	ASSERT(XFS_IFORK_NEXTENTS(ip, whichfork) == 0);
 
-	xfs_bmap_forkoff_reset(ip->i_mount, ip, whichfork);
+	xfs_bmap_forkoff_reset(ip, whichfork);
 	ifp->if_flags &= ~XFS_IFINLINE;
 	ifp->if_flags |= XFS_IFEXTENTS;
 	XFS_IFORK_FMT_SET(ip, whichfork, XFS_DINODE_FMT_EXTENTS);
@@ -1675,7 +1674,6 @@ xfs_bmap_isaeof(
  */
 int
 xfs_bmap_last_offset(
-	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	xfs_fileoff_t		*last_block,
 	int			whichfork)

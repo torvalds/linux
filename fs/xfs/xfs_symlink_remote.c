@@ -80,7 +80,6 @@ xfs_symlink_hdr_set(
  */
 bool
 xfs_symlink_hdr_ok(
-	struct xfs_mount	*mp,
 	xfs_ino_t		ino,
 	uint32_t		offset,
 	uint32_t		size,

@@ -541,7 +541,7 @@ xfs_dir2_leaf_bests_p(struct xfs_dir2_leaf_tail *ltp)
  * Convert dataptr to byte in file space
  */
 static inline xfs_dir2_off_t
-xfs_dir2_dataptr_to_byte(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
+xfs_dir2_dataptr_to_byte(xfs_dir2_dataptr_t dp)
 {
 	return (xfs_dir2_off_t)dp << XFS_DIR2_DATA_ALIGN_LOG;
 }
@@ -550,7 +550,7 @@ xfs_dir2_dataptr_to_byte(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
  * Convert byte in file space to dataptr.  It had better be aligned.
  */
 static inline xfs_dir2_dataptr_t
-xfs_dir2_byte_to_dataptr(struct xfs_mount *mp, xfs_dir2_off_t by)
+xfs_dir2_byte_to_dataptr(xfs_dir2_off_t by)
 {
 	return (xfs_dir2_dataptr_t)(by >> XFS_DIR2_DATA_ALIGN_LOG);
 }
@@ -571,7 +571,7 @@ xfs_dir2_byte_to_db(struct xfs_mount *mp, xfs_dir2_off_t by)
 static inline xfs_dir2_db_t
 xfs_dir2_dataptr_to_db(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
 {
-	return xfs_dir2_byte_to_db(mp, xfs_dir2_dataptr_to_byte(mp, dp));
+	return xfs_dir2_byte_to_db(mp, xfs_dir2_dataptr_to_byte(dp));
 }
 
 /*
@@ -590,7 +590,7 @@ xfs_dir2_byte_to_off(struct xfs_mount *mp, xfs_dir2_off_t by)
 static inline xfs_dir2_data_aoff_t
 xfs_dir2_dataptr_to_off(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
 {
-	return xfs_dir2_byte_to_off(mp, xfs_dir2_dataptr_to_byte(mp, dp));
+	return xfs_dir2_byte_to_off(mp, xfs_dir2_dataptr_to_byte(dp));
 }
 
 /*
@@ -629,7 +629,7 @@ static inline xfs_dir2_dataptr_t
 xfs_dir2_db_off_to_dataptr(struct xfs_mount *mp, xfs_dir2_db_t db,
 			   xfs_dir2_data_aoff_t o)
 {
-	return xfs_dir2_byte_to_dataptr(mp, xfs_dir2_db_off_to_byte(mp, db, o));
+	return xfs_dir2_byte_to_dataptr(xfs_dir2_db_off_to_byte(mp, db, o));
 }
 
 /*

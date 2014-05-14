@@ -1727,7 +1727,7 @@ xfs_dir2_node_addname_int(
 	if (dbno == -1) {
 		xfs_fileoff_t	fo;		/* freespace block number */
 
-		if ((error = xfs_bmap_last_offset(tp, dp, &fo, XFS_DATA_FORK)))
+		if ((error = xfs_bmap_last_offset(dp, &fo, XFS_DATA_FORK)))
 			return error;
 		lastfbno = xfs_dir2_da_to_db(mp, (xfs_dablk_t)fo);
 		fbno = ifbno;
