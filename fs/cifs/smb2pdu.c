@@ -972,6 +972,7 @@ create_durable_buf(void)
 	buf->ccontext.NameOffset = cpu_to_le16(offsetof
 				(struct create_durable, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
+	/* SMB2_CREATE_DURABLE_HANDLE_REQUEST is "DHnQ" */
 	buf->Name[0] = 'D';
 	buf->Name[1] = 'H';
 	buf->Name[2] = 'n';
@@ -996,6 +997,7 @@ create_reconnect_durable_buf(struct cifs_fid *fid)
 	buf->ccontext.NameLength = cpu_to_le16(4);
 	buf->Data.Fid.PersistentFileId = fid->persistent_fid;
 	buf->Data.Fid.VolatileFileId = fid->volatile_fid;
+	/* SMB2_CREATE_DURABLE_HANDLE_RECONNECT is "DHnC" */
 	buf->Name[0] = 'D';
 	buf->Name[1] = 'H';
 	buf->Name[2] = 'n';
