@@ -928,12 +928,12 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
 
 		if (touch) {
-			int t_x = le16_to_cpup((__le16 *)&data[offset + 2]);
-			int c_x = le16_to_cpup((__le16 *)&data[offset + 4]);
-			int t_y = le16_to_cpup((__le16 *)&data[offset + 6]);
-			int c_y = le16_to_cpup((__le16 *)&data[offset + 8]);
-			int w = le16_to_cpup((__le16 *)&data[offset + 10]);
-			int h = le16_to_cpup((__le16 *)&data[offset + 12]);
+			int t_x = get_unaligned_le16(&data[offset + 2]);
+			int c_x = get_unaligned_le16(&data[offset + 4]);
+			int t_y = get_unaligned_le16(&data[offset + 6]);
+			int c_y = get_unaligned_le16(&data[offset + 8]);
+			int w = get_unaligned_le16(&data[offset + 10]);
+			int h = get_unaligned_le16(&data[offset + 12]);
 
 			input_report_abs(input, ABS_MT_POSITION_X, t_x);
 			input_report_abs(input, ABS_MT_POSITION_Y, t_y);
@@ -978,7 +978,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	for (i = 0; i < contacts_to_send; i++) {
 		int offset = (WACOM_BYTES_PER_MT_PACKET + x_offset) * i + 3;
 		bool touch = data[offset] & 0x1;
-		int id = le16_to_cpup((__le16 *)&data[offset + 1]);
+		int id = get_unaligned_le16(&data[offset + 1]);
 		int slot = input_mt_get_slot_by_key(input, id);
 
 		if (slot < 0)
@@ -987,8 +987,8 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 		input_mt_slot(input, slot);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
 		if (touch) {
-			int x = le16_to_cpup((__le16 *)&data[offset + x_offset + 7]);
-			int y = le16_to_cpup((__le16 *)&data[offset + x_offset + 9]);
+			int x = get_unaligned_le16(&data[offset + x_offset + 7]);
+			int y = get_unaligned_le16(&data[offset + x_offset + 9]);
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
 		}
