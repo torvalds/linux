@@ -55,7 +55,7 @@ static int ahci_probe(struct platform_device *pdev)
 			goto disable_resources;
 	}
 
-	rc = ahci_platform_init_host(pdev, hpriv, &ahci_port_info, 0, 0);
+	rc = ahci_platform_init_host(pdev, hpriv, &ahci_port_info, 0, 0, 0);
 	if (rc)
 		goto pdata_exit;
 
