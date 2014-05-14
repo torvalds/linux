@@ -142,7 +142,21 @@ static int clk_pd_is_enabled(struct clk_hw *hw)
 	return rockchip_pmu_ops.power_domain_is_on(pd->id);
 }
 
+static int clk_pd_prepare(struct clk_hw *hw)
+{
+	__clk_pd_notify(hw->clk, RK_CLK_PD_PREPARE);
+
+	return 0;
+}
+
+static void clk_pd_unprepare(struct clk_hw *hw)
+{
+	__clk_pd_notify(hw->clk, RK_CLK_PD_UNPREPARE);
+}
+
 const struct clk_ops clk_pd_ops = {
+	.prepare = clk_pd_prepare,
+	.unprepare = clk_pd_unprepare,
 	.enable = clk_pd_enable,
 	.disable = clk_pd_disable,
 	.is_enabled = clk_pd_is_enabled,
@@ -165,6 +179,8 @@ static void clk_pd_virt_disable(struct clk_hw *hw)
 }
 
 const struct clk_ops clk_pd_virt_ops = {
+	.prepare = clk_pd_prepare,
+	.unprepare = clk_pd_unprepare,
 	.enable = clk_pd_virt_enable,
 	.disable = clk_pd_virt_disable,
 };
