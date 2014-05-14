@@ -1586,7 +1586,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 				      np ? "alt_core" : "usb_hs_core_clk");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	motg->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	motg->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(motg->regs))
 		return PTR_ERR(motg->regs);
 
