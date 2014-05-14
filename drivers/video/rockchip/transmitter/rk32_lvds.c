@@ -86,7 +86,7 @@ static int rk32_lvds_en(void)
 
 	val |= (screen->pin_dclk << 8) | (screen->pin_hsync << 9) |
 		(screen->pin_den << 10);
-	val |= (val << 16);
+	val |= (0xffff << 16);
 	grf_writel(val, RK3288_GRF_SOC_CON7);
 
 	if (screen->type == SCREEN_RGB) {
