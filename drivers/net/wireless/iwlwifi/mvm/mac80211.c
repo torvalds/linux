@@ -2299,10 +2299,10 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	}
 
 	iwl_mvm_binding_remove_vif(mvm, vif);
-	iwl_mvm_power_update_mac(mvm, vif);
 
 out_unlock:
 	mvmvif->phy_ctxt = NULL;
+	iwl_mvm_power_update_mac(mvm, vif);
 	mutex_unlock(&mvm->mutex);
 }
 
