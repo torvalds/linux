@@ -2341,6 +2341,8 @@ int tipc_link_frag_rcv(struct sk_buff **head, struct sk_buff **tail,
 			(*tail)->next = frag;
 		*tail = frag;
 		(*head)->truesize += frag->truesize;
+		(*head)->data_len += frag->len;
+		(*head)->len += frag->len;
 	}
 	if (fragid == LAST_FRAGMENT) {
 		*fbuf = *head;
