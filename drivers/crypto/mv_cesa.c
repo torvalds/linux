@@ -843,7 +843,7 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 static int mv_cra_hash_init(struct crypto_tfm *tfm, const char *base_hash_name,
 			    enum hash_op op, int count_add)
 {
-	const char *fallback_driver_name = tfm->__crt_alg->cra_name;
+	const char *fallback_driver_name = crypto_tfm_alg_name(tfm);
 	struct mv_tfm_hash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_shash *fallback_tfm = NULL;
 	struct crypto_shash *base_hash = NULL;
