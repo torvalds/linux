@@ -143,6 +143,9 @@ enum {
 };
 
 struct cgroup {
+	/* self css with NULL ->ss, points back to this cgroup */
+	struct cgroup_subsys_state self;
+
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
 	/*
@@ -223,9 +226,6 @@ struct cgroup {
 	 */
 	struct list_head pidlists;
 	struct mutex pidlist_mutex;
-
-	/* dummy css with NULL ->ss, points back to this cgroup */
-	struct cgroup_subsys_state dummy_css;
 
 	/* For css percpu_ref killing and RCU-protected deletion */
 	struct rcu_head rcu_head;

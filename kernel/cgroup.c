@@ -220,7 +220,7 @@ static void cgroup_idr_remove(struct idr *idr, int id)
 /**
  * cgroup_css - obtain a cgroup's css for the specified subsystem
  * @cgrp: the cgroup of interest
- * @ss: the subsystem of interest (%NULL returns the dummy_css)
+ * @ss: the subsystem of interest (%NULL returns @cgrp->self)
  *
  * Return @cgrp's css (cgroup_subsys_state) associated with @ss.  This
  * function must be called either under cgroup_mutex or rcu_read_lock() and
@@ -235,13 +235,13 @@ static struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
 		return rcu_dereference_check(cgrp->subsys[ss->id],
 					lockdep_is_held(&cgroup_mutex));
 	else
-		return &cgrp->dummy_css;
+		return &cgrp->self;
 }
 
 /**
  * cgroup_e_css - obtain a cgroup's effective css for the specified subsystem
  * @cgrp: the cgroup of interest
- * @ss: the subsystem of interest (%NULL returns the dummy_css)
+ * @ss: the subsystem of interest (%NULL returns @cgrp->self)
  *
  * Similar to cgroup_css() but returns the effctive css, which is defined
  * as the matching css of the nearest ancestor including self which has @ss
@@ -254,7 +254,7 @@ static struct cgroup_subsys_state *cgroup_e_css(struct cgroup *cgrp,
 	lockdep_assert_held(&cgroup_mutex);
 
 	if (!ss)
-		return &cgrp->dummy_css;
+		return &cgrp->self;
 
 	if (!(cgrp->root->subsys_mask & (1 << ss->id)))
 		return NULL;
@@ -288,7 +288,7 @@ struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
 	if (cft->ss)
 		return rcu_dereference_raw(cgrp->subsys[cft->ss->id]);
 	else
-		return &cgrp->dummy_css;
+		return &cgrp->self;
 }
 EXPORT_SYMBOL_GPL(of_css);
 
@@ -1551,7 +1551,7 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 	INIT_LIST_HEAD(&cgrp->release_list);
 	INIT_LIST_HEAD(&cgrp->pidlists);
 	mutex_init(&cgrp->pidlist_mutex);
-	cgrp->dummy_css.cgroup = cgrp;
+	cgrp->self.cgroup = cgrp;
 
 	for_each_subsys(ss, ssid)
 		INIT_LIST_HEAD(&cgrp->e_csets[ssid]);
@@ -3454,7 +3454,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 	 * ->can_attach() fails.
 	 */
 	do {
-		css_task_iter_start(&from->dummy_css, &it);
+		css_task_iter_start(&from->self, &it);
 		task = css_task_iter_next(&it);
 		if (task)
 			get_task_struct(task);
@@ -3719,7 +3719,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	if (!array)
 		return -ENOMEM;
 	/* now, populate the array */
-	css_task_iter_start(&cgrp->dummy_css, &it);
+	css_task_iter_start(&cgrp->self, &it);
 	while ((tsk = css_task_iter_next(&it))) {
 		if (unlikely(n == length))
 			break;
@@ -3793,7 +3793,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	}
 	rcu_read_unlock();
 
-	css_task_iter_start(&cgrp->dummy_css, &it);
+	css_task_iter_start(&cgrp->self, &it);
 	while ((tsk = css_task_iter_next(&it))) {
 		switch (tsk->state) {
 		case TASK_RUNNING:
@@ -4274,7 +4274,7 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	init_cgroup_housekeeping(cgrp);
 
 	cgrp->parent = parent;
-	cgrp->dummy_css.parent = &parent->dummy_css;
+	cgrp->self.parent = &parent->self;
 	cgrp->root = root;
 
 	if (notify_on_release(parent))
