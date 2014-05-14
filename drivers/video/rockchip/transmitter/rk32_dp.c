@@ -44,10 +44,10 @@ static struct rk32_edp *rk32_edp;
 static int rk32_edp_clk_enable(struct rk32_edp *edp)
 {
 	if (!edp->clk_on) {
-		clk_enable(edp->pd);
-		clk_enable(edp->pclk);
-		clk_enable(edp->clk_edp);
-		clk_enable(edp->clk_24m);
+		clk_prepare_enable(edp->pd);
+		clk_prepare_enable(edp->pclk);
+		clk_prepare_enable(edp->clk_edp);
+		clk_prepare_enable(edp->clk_24m);
 		edp->clk_on = true;
 	}
 
@@ -57,10 +57,10 @@ static int rk32_edp_clk_enable(struct rk32_edp *edp)
 static int rk32_edp_clk_disable(struct rk32_edp *edp)
 {
 	if (edp->clk_on) {
-		clk_disable(edp->pclk);
-		clk_disable(edp->clk_edp);
-		clk_disable(edp->clk_24m);
-		clk_disable(edp->pd);
+		clk_disable_unprepare(edp->pclk);
+		clk_disable_unprepare(edp->clk_edp);
+		clk_disable_unprepare(edp->clk_24m);
+		clk_disable_unprepare(edp->pd);
 		edp->clk_on = false;
 	}
 
@@ -92,7 +92,7 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 	struct rk_screen *screen = &edp->screen;
 	u32 val = 0;
 
-	screen->lcdc_id = 1;
+	rk_fb_get_prmry_screen(screen);
 	if (screen->lcdc_id == 1)  /*select lcdc*/
 		val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
 	else
@@ -1360,10 +1360,6 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot get pclk\n");
 		return PTR_ERR(edp->pclk);
 	}
-	clk_prepare(edp->pd);
-	clk_prepare(edp->pclk);
-	clk_prepare(edp->clk_edp);
-	clk_prepare(edp->clk_24m);
 	rk32_edp_clk_enable(edp);
 	if (!support_uboot_display())
 		rk32_edp_pre_init();
