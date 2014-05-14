@@ -761,6 +761,19 @@ static struct twl4030_power_data omap3_idle = {
 	.resource_config	= omap3_idle_rconfig,
 };
 
+/* Disable 32 KiHz oscillator during idle */
+static struct twl4030_resconfig osc_off_rconfig[] = {
+	TWL_REMAP_OFF(RES_CLKEN, DEV_GRP_P1 | DEV_GRP_P3, 3, 2),
+	{ /* Terminator */ },
+};
+
+static struct twl4030_power_data osc_off_idle = {
+	.scripts		= omap3_idle_scripts,
+	.num			= ARRAY_SIZE(omap3_idle_scripts),
+	.resource_config	= omap3_idle_rconfig,
+	.board_config		= osc_off_rconfig,
+};
+
 static struct of_device_id twl4030_power_of_match[] = {
 	{
 		.compatible = "ti,twl4030-power-reset",
@@ -769,6 +782,10 @@ static struct of_device_id twl4030_power_of_match[] = {
 	{
 		.compatible = "ti,twl4030-power-idle",
 		.data = &omap3_idle,
+	},
+	{
+		.compatible = "ti,twl4030-power-idle-osc-off",
+		.data = &osc_off_idle,
 	},
 	{ },
 };
