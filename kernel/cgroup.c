@@ -4542,6 +4542,9 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 */
 	kernfs_remove(cgrp->kn);
 
+	set_bit(CGRP_RELEASABLE, &cgrp->parent->flags);
+	check_for_release(cgrp->parent);
+
 	return 0;
 };
 
@@ -4556,17 +4559,12 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
  */
 static void cgroup_destroy_css_killed(struct cgroup *cgrp)
 {
-	struct cgroup *parent = cgrp->parent;
-
 	lockdep_assert_held(&cgroup_mutex);
 
 	/* delete this cgroup from parent->children */
 	list_del_rcu(&cgrp->sibling);
 
 	cgroup_put(cgrp);
-
-	set_bit(CGRP_RELEASABLE, &parent->flags);
-	check_for_release(parent);
 }
 
 static int cgroup_rmdir(struct kernfs_node *kn)
@@ -5006,7 +5004,7 @@ void cgroup_exit(struct task_struct *tsk)
 static void check_for_release(struct cgroup *cgrp)
 {
 	if (cgroup_is_releasable(cgrp) &&
-	    list_empty(&cgrp->cset_links) && list_empty(&cgrp->children)) {
+	    list_empty(&cgrp->cset_links) && !cgroup_has_live_children(cgrp)) {
 		/*
 		 * Control Group is currently removeable. If it's not
 		 * already queued for a userspace notification, queue
