@@ -121,6 +121,19 @@
 			>;
 			clock-output-names = "i2c0", "i2c1", "i2c2", "i2c3";
 		};
+
+		mstp10_clks: mstp10_clks@fcfe043c {
+			#clock-cells = <1>;
+			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xfcfe043c 4>;
+			clocks = <&p1_clk>, <&p1_clk>, <&p1_clk>, <&p1_clk>,
+				 <&p1_clk>;
+			clock-indices = <
+				R7S72100_CLK_SPI0 R7S72100_CLK_SPI1 R7S72100_CLK_SPI2 R7S72100_CLK_SPI3
+				R7S72100_CLK_SPI4
+			>;
+			clock-output-names = "spi0", "spi1", "spi2", "spi3", "spi4";
+		};
 	};
 
 	cpus {
@@ -318,6 +331,7 @@
 			     <0 239 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 240 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "error", "rx", "tx";
+		clocks = <&mstp10_clks R7S72100_CLK_SPI0>;
 		num-cs = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -331,6 +345,7 @@
 			     <0 242 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 243 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "error", "rx", "tx";
+		clocks = <&mstp10_clks R7S72100_CLK_SPI1>;
 		num-cs = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -344,6 +359,7 @@
 			     <0 245 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 246 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "error", "rx", "tx";
+		clocks = <&mstp10_clks R7S72100_CLK_SPI2>;
 		num-cs = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -357,6 +373,7 @@
 			     <0 248 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 249 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "error", "rx", "tx";
+		clocks = <&mstp10_clks R7S72100_CLK_SPI3>;
 		num-cs = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -370,6 +387,7 @@
 			     <0 251 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 252 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "error", "rx", "tx";
+		clocks = <&mstp10_clks R7S72100_CLK_SPI4>;
 		num-cs = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
