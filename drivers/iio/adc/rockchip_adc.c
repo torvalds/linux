@@ -73,7 +73,7 @@ enum host_chn_mask{
 #define SAMPLE_RATE		(20/ADC_CLK_RATE)  //20 CLK
 
 #define MAX_RK_ADC_CHANNELS	3
-#define RK_ADC_TIMEOUT	(msecs_to_jiffies(100))
+#define RK_ADC_TIMEOUT		HZ
 
 struct rk_adc {
 	void __iomem	*regs;
@@ -109,6 +109,7 @@ static int rk_read_raw(struct iio_dev *indio_dev,
 				int *val2,
 				long mask)
 {
+	int ret = IIO_VAL_INT;
 	struct rk_adc *info = iio_priv(indio_dev);
 	unsigned long timeout;
 
@@ -116,6 +117,8 @@ static int rk_read_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
+
+	INIT_COMPLETION(info->completion);
 
         /* Select the channel to be used and Trigger conversion */
         writel_relaxed(0x08, info->regs + ADC_DELAY_PU_SOC);
@@ -125,17 +128,18 @@ static int rk_read_raw(struct iio_dev *indio_dev,
 			(&info->completion, RK_ADC_TIMEOUT);
 	*val = info->value;
 	
-	mutex_unlock(&indio_dev->mlock);
 	RK_ADC_DBG("read adc value: %d form channel: %d\n", *val, chan->channel);
 	if (timeout == 0)
 	{
-	    rk_adc_dump(indio_dev);
-            writel_relaxed(0, info->regs + ADC_CTRL);
-            writel_relaxed(0, info->regs + ADC_DELAY_PU_SOC);
-            return -ETIMEDOUT;
+		rk_adc_dump(indio_dev);
+		writel_relaxed(0, info->regs + ADC_CTRL);
+		writel_relaxed(0, info->regs + ADC_DELAY_PU_SOC);
+		ret = -ETIMEDOUT;
 	}
 
-	return IIO_VAL_INT;
+	mutex_unlock(&indio_dev->mlock);
+
+	return ret;
 }
 
 static irqreturn_t rk_adc_isr(int irq, void *dev_id)
