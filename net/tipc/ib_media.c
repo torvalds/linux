@@ -42,7 +42,7 @@
 #include "core.h"
 #include "bearer.h"
 
-/* convert InfiniBand address to string */
+/* convert InfiniBand address (media address format) media address to string */
 static int tipc_ib_addr2str(struct tipc_media_addr *a, char *str_buf,
 			    int str_size)
 {
@@ -54,21 +54,33 @@ static int tipc_ib_addr2str(struct tipc_media_addr *a, char *str_buf,
 	return 0;
 }
 
-/* convert InfiniBand address format to message header format */
-static int tipc_ib_addr2msg(struct tipc_media_addr *a, char *msg_area)
+/* Convert from media address format to discovery message addr format */
+static int tipc_ib_addr2msg(char *msg, struct tipc_media_addr *addr)
 {
-	memset(msg_area, 0, TIPC_MEDIA_ADDR_SIZE);
-	msg_area[TIPC_MEDIA_TYPE_OFFSET] = TIPC_MEDIA_TYPE_IB;
-	memcpy(msg_area, a->value, INFINIBAND_ALEN);
+	memset(msg, 0, TIPC_MEDIA_ADDR_SIZE);
+	memcpy(msg, addr->value, INFINIBAND_ALEN);
 	return 0;
 }
 
-/* convert message header address format to InfiniBand format */
-static int tipc_ib_msg2addr(const struct tipc_bearer *tb_ptr,
-			    struct tipc_media_addr *a, char *msg_area)
+/* Convert raw InfiniBand address format to media addr format */
+static int tipc_ib_raw2addr(struct tipc_bearer *b,
+			    struct tipc_media_addr *addr,
+			    char *msg)
 {
-	tipc_l2_media_addr_set(tb_ptr, a, msg_area);
+	memset(addr, 0, sizeof(*addr));
+	memcpy(addr->value, msg, INFINIBAND_ALEN);
+	addr->media_id = TIPC_MEDIA_TYPE_IB;
+	addr->broadcast = !memcmp(msg, b->bcast_addr.value,
+				  INFINIBAND_ALEN);
 	return 0;
+}
+
+/* Convert discovery msg addr format to InfiniBand media addr format */
+static int tipc_ib_msg2addr(struct tipc_bearer *b,
+			    struct tipc_media_addr *addr,
+			    char *msg)
+{
+	return tipc_ib_raw2addr(b, addr, msg);
 }
 
 /* InfiniBand media registration info */
@@ -79,6 +91,7 @@ struct tipc_media ib_media_info = {
 	.addr2str	= tipc_ib_addr2str,
 	.addr2msg	= tipc_ib_addr2msg,
 	.msg2addr	= tipc_ib_msg2addr,
+	.raw2addr	= tipc_ib_raw2addr,
 	.priority	= TIPC_DEF_LINK_PRI,
 	.tolerance	= TIPC_DEF_LINK_TOL,
 	.window		= TIPC_DEF_LINK_WIN,
@@ -86,4 +99,3 @@ struct tipc_media ib_media_info = {
 	.hwaddr_len	= INFINIBAND_ALEN,
 	.name		= "ib"
 };
-

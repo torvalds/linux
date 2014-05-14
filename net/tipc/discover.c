@@ -83,7 +83,7 @@ static void tipc_disc_init_msg(struct sk_buff *buf, u32 type,
 	msg_set_node_sig(msg, tipc_random);
 	msg_set_dest_domain(msg, dest_domain);
 	msg_set_bc_netid(msg, tipc_net_id);
-	b_ptr->media->addr2msg(&b_ptr->addr, msg_media_addr(msg));
+	b_ptr->media->addr2msg(msg_media_addr(msg), &b_ptr->addr);
 }
 
 /**

@@ -57,6 +57,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
+#include <linux/etherdevice.h>
 
 #define TIPC_MOD_VER "2.0.0"
 

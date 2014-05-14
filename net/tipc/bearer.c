@@ -411,28 +411,6 @@ int tipc_disable_bearer(const char *name)
 	return res;
 }
 
-
-/* tipc_l2_media_addr_set - initialize Ethernet media address structure
- *
- * Media-dependent "value" field stores MAC address in first 6 bytes
- * and zeroes out the remaining bytes.
- */
-void tipc_l2_media_addr_set(const struct tipc_bearer *b,
-			    struct tipc_media_addr *a, char *mac)
-{
-	int len = b->media->hwaddr_len;
-
-	if (unlikely(sizeof(a->value) < len)) {
-		WARN_ONCE(1, "Media length invalid\n");
-		return;
-	}
-
-	memcpy(a->value, mac, len);
-	memset(a->value + len, 0, sizeof(a->value) - len);
-	a->media_id = b->media->type_id;
-	a->broadcast = !memcmp(mac, b->bcast_addr.value, len);
-}
-
 int tipc_enable_l2_media(struct tipc_bearer *b)
 {
 	struct net_device *dev;
@@ -443,21 +421,21 @@ int tipc_enable_l2_media(struct tipc_bearer *b)
 	if (!dev)
 		return -ENODEV;
 
-	/* Associate TIPC bearer with Ethernet bearer */
+	/* Associate TIPC bearer with L2 bearer */
 	rcu_assign_pointer(b->media_ptr, dev);
-	memset(b->bcast_addr.value, 0, sizeof(b->bcast_addr.value));
+	memset(&b->bcast_addr, 0, sizeof(b->bcast_addr));
 	memcpy(b->bcast_addr.value, dev->broadcast, b->media->hwaddr_len);
 	b->bcast_addr.media_id = b->media->type_id;
 	b->bcast_addr.broadcast = 1;
 	b->mtu = dev->mtu;
-	tipc_l2_media_addr_set(b, &b->addr, (char *)dev->dev_addr);
+	b->media->raw2addr(b, &b->addr, (char *)dev->dev_addr);
 	rcu_assign_pointer(dev->tipc_ptr, b);
 	return 0;
 }
 
-/* tipc_disable_l2_media - detach TIPC bearer from an Ethernet interface
+/* tipc_disable_l2_media - detach TIPC bearer from an L2 interface
  *
- * Mark Ethernet bearer as inactive so that incoming buffers are thrown away,
+ * Mark L2 bearer as inactive so that incoming buffers are thrown away,
  * then get worker thread to complete bearer cleanup.  (Can't do cleanup
  * here because cleanup code needs to sleep and caller holds spinlocks.)
  */
@@ -473,7 +451,7 @@ void tipc_disable_l2_media(struct tipc_bearer *b)
 }
 
 /**
- * tipc_l2_send_msg - send a TIPC packet out over an Ethernet interface
+ * tipc_l2_send_msg - send a TIPC packet out over an L2 interface
  * @buf: the packet to be sent
  * @b_ptr: the bearer through which the packet is to be sent
  * @dest: peer destination address
@@ -597,7 +575,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		tipc_reset_bearer(b_ptr);
 		break;
 	case NETDEV_CHANGEADDR:
-		tipc_l2_media_addr_set(b_ptr, &b_ptr->addr,
+		b_ptr->media->raw2addr(b_ptr, &b_ptr->addr,
 				       (char *)dev->dev_addr);
 		tipc_reset_bearer(b_ptr);
 		break;

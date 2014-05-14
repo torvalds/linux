@@ -42,14 +42,12 @@
 #define MAX_BEARERS	2
 #define MAX_MEDIA	2
 
-/*
- * Identifiers associated with TIPC message header media address info
- *
- * - address info field is 20 bytes long
- * - media type identifier located at offset 3
- * - remaining bytes vary according to media type
+/* Identifiers associated with TIPC message header media address info
+ * - address info field is 32 bytes long
+ * - the field's actual content and length is defined per media
+ * - remaining unused bytes in the field are set to zero
  */
-#define TIPC_MEDIA_ADDR_SIZE	20
+#define TIPC_MEDIA_ADDR_SIZE	32
 #define TIPC_MEDIA_TYPE_OFFSET	3
 
 /*
@@ -77,9 +75,10 @@ struct tipc_bearer;
  * @send_msg: routine which handles buffer transmission
  * @enable_media: routine which enables a media
  * @disable_media: routine which disables a media
- * @addr2str: routine which converts media address to string
- * @addr2msg: routine which converts media address to protocol message area
- * @msg2addr: routine which converts media address from protocol message area
+ * @addr2str: convert media address format to string
+ * @addr2msg: convert from media addr format to discovery msg addr format
+ * @msg2addr: convert from discovery msg addr format to media addr format
+ * @raw2addr: convert from raw addr format to media addr format
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
@@ -93,10 +92,16 @@ struct tipc_media {
 			struct tipc_media_addr *dest);
 	int (*enable_media)(struct tipc_bearer *b_ptr);
 	void (*disable_media)(struct tipc_bearer *b_ptr);
-	int (*addr2str)(struct tipc_media_addr *a, char *str_buf, int str_size);
-	int (*addr2msg)(struct tipc_media_addr *a, char *msg_area);
-	int (*msg2addr)(const struct tipc_bearer *b_ptr,
-			struct tipc_media_addr *a, char *msg_area);
+	int (*addr2str)(struct tipc_media_addr *addr,
+			char *strbuf,
+			int bufsz);
+	int (*addr2msg)(char *msg, struct tipc_media_addr *addr);
+	int (*msg2addr)(struct tipc_bearer *b,
+			struct tipc_media_addr *addr,
+			char *msg);
+	int (*raw2addr)(struct tipc_bearer *b,
+			struct tipc_media_addr *addr,
+			char *raw);
 	u32 priority;
 	u32 tolerance;
 	u32 window;
@@ -175,8 +180,6 @@ int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);
 void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
-void tipc_l2_media_addr_set(const struct tipc_bearer *b,
-			    struct tipc_media_addr *a, char *mac);
 int tipc_enable_l2_media(struct tipc_bearer *b);
 void tipc_disable_l2_media(struct tipc_bearer *b);
 int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
