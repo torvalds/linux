@@ -1225,6 +1225,9 @@ int rk_fb_sysmmu_fault_handler(struct device *dev,
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
 	int i = 0;
+	static int page_fault_cnt;
+	if ((page_fault_cnt++) >= 10)
+		return 0;
 	pr_err("PAGE FAULT occurred at 0x%lx (Page table base: 0x%lx),status=%d\n",
 			fault_addr, pgtable_base,status);
 	printk("last config addr:\n"
@@ -1354,35 +1357,46 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,struct rk_fb_reg_win_dat
 
 }
 
+static struct rk_fb_reg_win_data *rk_fb_get_win_data(
+				struct rk_fb_reg_data *regs, int win_id)
+{
+	int i;
+	struct rk_fb_reg_win_data *win_data = NULL;
+	for (i = 0; i < regs->win_num; i++) {
+		if (regs->reg_win_data[i].win_id == win_id) {
+			win_data = &(regs->reg_win_data[i]);
+			break;
+		}
+	}
+	
+	return win_data;
+}
 static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_data *regs)
 {
 	int i,j;
 	struct rk_lcdc_win *win;
 	ktime_t timestamp = dev_drv->vsync_info.timestamp;
-	//struct rk_fb_reg_win_data old_reg_win_data[RK30_MAX_LAYER_SUPPORT];
 	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
 	struct rk_lcdc_driver *ext_dev_drv;
 	struct rk_lcdc_win *ext_win;
+	struct rk_fb_reg_win_data *win_data;
+	struct rk_fb_reg_win_data *last_win_data;
 	bool wait_for_vsync;
 	int count = 100;
 	unsigned int dsp_addr[4];
 	long timeout;
-	for(i=0;i<dev_drv->lcdc_win_num;i++){ 
-		//old_reg_win_data[i]= regs->reg_win_data[i];
+	for (i=0; i<dev_drv->lcdc_win_num; i++){ 
 		win = dev_drv->win[i];
-		for(j=0;j<regs->win_num;j++){
-			if(i == regs->reg_win_data[j].win_id)
-				break;
-		}
-		if(j<regs->win_num){
-			rk_fb_update_driver(win,&regs->reg_win_data[j]);
+		win_data = rk_fb_get_win_data(regs, i);
+		if(win_data){
+			rk_fb_update_driver(win, win_data);
 			win->state = 1;
 			dev_drv->ops->set_par(dev_drv,i);
 			dev_drv->ops->pan_display(dev_drv,i);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 			if (dev_drv->iommu_enabled) {
-				g_last_addr[i] = regs->reg_win_data[j].reg_area_data[0].smem_start +
-						regs->reg_win_data[j].reg_area_data[0].y_offset;
+				g_last_addr[i] = win_data->reg_area_data[0].smem_start +
+							win_data->reg_area_data[0].y_offset;
 			}
 #endif
 		}else{
@@ -1460,16 +1474,6 @@ ext_win_exit:
 		}
 	}
 #endif	
-	/*dev_drv->screen0->post_xsize = regs->post_cfg.xsize;
-	dev_drv->screen0->post_ysize = regs->post_cfg.ysize;
-	dev_drv->screen0->post_dsp_stx = regs->post_cfg.xpos;
-	dev_drv->screen0->post_dsp_sty = regs->post_cfg.ypos;*/
-
-	/*dev_drv->atv_layer_cnt = regs->win_num;
-	dev_drv->ops->set_par(dev_drv,0);*/
-
-	//ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
-	//		!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));
 	do {
 		timestamp = dev_drv->vsync_info.timestamp;
 		timeout = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
@@ -1481,9 +1485,19 @@ ext_win_exit:
 				u32 new_start = dev_drv->win[i]->area[0].smem_start +
 						dev_drv->win[i]->area[0].y_offset;
 				u32 reg_start = dsp_addr[i];
+				/*for (j = 0; j < 4; j++) {
+					if ( g_reg_win_data[j].win_id == i) {
+						last_win_data = &g_reg_win_data[j];
+						break;
+					}
+				}
+				if ( (j <4 ) && (last_win_data->reg_area_data[0].smem_start == new_start))
+					printk(KERN_WARNING "waring: mapped two same virtual addrs! win%d---%08x\n",
+					i, new_start);
+				*/
 				if (unlikely(new_start != reg_start)) {
 					wait_for_vsync = true;
-					printk(KERN_DEBUG "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
+					printk(KERN_INFO "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
 						i, new_start, reg_start, 101 - count);
 					break;
 				}
@@ -1498,8 +1512,6 @@ ext_win_exit:
 		if (dev_drv->iommu_enabled) {
 			freed_index = 0;
 			g_last_timeout = timeout;
-			//if (timeout >= 3)
-			//	msleep(15);
 		}
 #endif
 		for(i=0;i< g_last_win_num;i++){
@@ -2942,6 +2954,7 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 		struct rk_lcdc_win *win, unsigned long fb_mem_size)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
 	struct ion_handle *handle;
 	ion_phys_addr_t phy_addr;
 	size_t len;
