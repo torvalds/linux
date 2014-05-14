@@ -148,6 +148,8 @@ static const struct snd_kcontrol_new ak4642_snd_controls[] = {
 
 	SOC_DOUBLE_R_TLV("Digital Playback Volume", L_DVC, R_DVC,
 			 0, 0xFF, 1, out_tlv),
+	SOC_SINGLE("ALC Capture Switch", ALC_CTL1, 5, 1, 0),
+	SOC_SINGLE("ALC Capture ZC Switch", ALC_CTL1, 4, 1, 1),
 };
 
 static const struct snd_kcontrol_new ak4642_headphone_control =
