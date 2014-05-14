@@ -810,7 +810,12 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			bpp = dev_priv->vbt.edp_bpp;
 		}
 
-		if (dev_priv->vbt.edp_lanes) {
+		if (IS_BROADWELL(dev)) {
+			/* Yes, it's an ugly hack. */
+			min_lane_count = max_lane_count;
+			DRM_DEBUG_KMS("forcing lane count to max (%u) on BDW\n",
+				      min_lane_count);
+		} else if (dev_priv->vbt.edp_lanes) {
 			min_lane_count = min(dev_priv->vbt.edp_lanes,
 					     max_lane_count);
 			DRM_DEBUG_KMS("using min %u lanes per VBT\n",
