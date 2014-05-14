@@ -837,7 +837,7 @@ xfs_file_fallocate(
 		unsigned blksize_mask = (1 << inode->i_blkbits) - 1;
 
 		if (offset & blksize_mask || len & blksize_mask) {
-			error = -EINVAL;
+			error = EINVAL;
 			goto out_unlock;
 		}
 
@@ -846,7 +846,7 @@ xfs_file_fallocate(
 		 * in which case it is effectively a truncate operation
 		 */
 		if (offset + len >= i_size_read(inode)) {
-			error = -EINVAL;
+			error = EINVAL;
 			goto out_unlock;
 		}
 
