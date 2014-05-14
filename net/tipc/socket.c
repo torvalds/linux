@@ -1101,7 +1101,7 @@ restart:
 	/* Consume received message (optional) */
 	if (likely(!(flags & MSG_PEEK))) {
 		if ((sock->state != SS_READY) &&
-		    (++port->conn_unacked >= TIPC_FLOW_CONTROL_WIN))
+		    (++port->conn_unacked >= TIPC_CONNACK_INTV))
 			tipc_acknowledge(port->ref, port->conn_unacked);
 		advance_rx_queue(sk);
 	}
@@ -1210,7 +1210,7 @@ restart:
 
 	/* Consume received message (optional) */
 	if (likely(!(flags & MSG_PEEK))) {
-		if (unlikely(++port->conn_unacked >= TIPC_FLOW_CONTROL_WIN))
+		if (unlikely(++port->conn_unacked >= TIPC_CONNACK_INTV))
 			tipc_acknowledge(port->ref, port->conn_unacked);
 		advance_rx_queue(sk);
 	}

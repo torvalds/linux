@@ -154,10 +154,11 @@ static int __init tipc_init(void)
 	tipc_max_ports = CONFIG_TIPC_PORTS;
 	tipc_net_id = 4711;
 
-	sysctl_tipc_rmem[0] = CONN_OVERLOAD_LIMIT >> 4 << TIPC_LOW_IMPORTANCE;
-	sysctl_tipc_rmem[1] = CONN_OVERLOAD_LIMIT >> 4 <<
+	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
+			      TIPC_LOW_IMPORTANCE;
+	sysctl_tipc_rmem[1] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
 			      TIPC_CRITICAL_IMPORTANCE;
-	sysctl_tipc_rmem[2] = CONN_OVERLOAD_LIMIT;
+	sysctl_tipc_rmem[2] = TIPC_CONN_OVERLOAD_LIMIT;
 
 	res = tipc_core_start();
 	if (res)
