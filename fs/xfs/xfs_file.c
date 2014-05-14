@@ -295,7 +295,7 @@ xfs_file_aio_read(
 		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
 
 		if (inode->i_mapping->nrpages) {
-			ret = -filemap_write_and_wait_range(
+			ret = filemap_write_and_wait_range(
 							VFS_I(ip)->i_mapping,
 							pos, -1);
 			if (ret) {
