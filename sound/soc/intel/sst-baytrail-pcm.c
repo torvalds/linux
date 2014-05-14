@@ -68,7 +68,7 @@ static int sst_byt_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sst_byt_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct sst_byt_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct sst_byt_pcm_data *pcm_data = &pdata->pcm[substream->stream];
 	struct sst_byt *byt = pdata->byt;
 	u32 rate, bits;
 	u8 channels;
@@ -140,7 +140,7 @@ static int sst_byt_pcm_restore_stream_context(struct snd_pcm_substream *substrea
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sst_byt_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct sst_byt_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct sst_byt_pcm_data *pcm_data = &pdata->pcm[substream->stream];
 	struct sst_byt *byt = pdata->byt;
 	int ret;
 
@@ -172,7 +172,7 @@ static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sst_byt_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct sst_byt_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct sst_byt_pcm_data *pcm_data = &pdata->pcm[substream->stream];
 	struct sst_byt *byt = pdata->byt;
 
 	dev_dbg(rtd->dev, "PCM: trigger %d\n", cmd);
@@ -229,7 +229,9 @@ static snd_pcm_uframes_t sst_byt_pcm_pointer(struct snd_pcm_substream *substream
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct sst_byt_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct sst_byt_priv_data *pdata =
+		snd_soc_platform_get_drvdata(rtd->platform);
+	struct sst_byt_pcm_data *pcm_data = &pdata->pcm[substream->stream];
 
 	dev_dbg(rtd->dev, "PCM: DMA pointer %u bytes\n", pcm_data->hw_ptr);
 
@@ -241,15 +243,13 @@ static int sst_byt_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sst_byt_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct sst_byt_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct sst_byt_pcm_data *pcm_data = &pdata->pcm[substream->stream];
 	struct sst_byt *byt = pdata->byt;
 
 	dev_dbg(rtd->dev, "PCM: open\n");
 
-	pcm_data = &pdata->pcm[rtd->cpu_dai->id];
 	mutex_lock(&pcm_data->mutex);
 
-	snd_soc_pcm_set_drvdata(rtd, pcm_data);
 	pcm_data->substream = substream;
 
 	snd_soc_set_runtime_hwparams(substream, &sst_byt_pcm_hardware);
@@ -271,7 +271,7 @@ static int sst_byt_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sst_byt_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct sst_byt_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct sst_byt_pcm_data *pcm_data = &pdata->pcm[substream->stream];
 	struct sst_byt *byt = pdata->byt;
 	int ret;
 
