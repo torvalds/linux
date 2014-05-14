@@ -473,6 +473,13 @@ static int mlx4_cmd_poll(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 		goto out;
 	}
 
+	if (out_is_imm && !out_param) {
+		mlx4_err(dev, "response expected while output mailbox is NULL for command 0x%x\n",
+			 op);
+		err = -EINVAL;
+		goto out;
+	}
+
 	err = mlx4_cmd_post(dev, in_param, out_param ? *out_param : 0,
 			    in_modifier, op_modifier, op, CMD_POLL_TOKEN, 0);
 	if (err)
@@ -550,6 +557,13 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	context->token += cmd->token_mask + 1;
 	cmd->free_head = context->next;
 	spin_unlock(&cmd->context_lock);
+
+	if (out_is_imm && !out_param) {
+		mlx4_err(dev, "response expected while output mailbox is NULL for command 0x%x\n",
+			 op);
+		err = -EINVAL;
+		goto out;
+	}
 
 	init_completion(&context->done);
 
