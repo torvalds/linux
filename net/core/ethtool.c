@@ -561,19 +561,17 @@ static int ethtool_copy_validate_indir(u32 *indir, void __user *useraddr,
 					struct ethtool_rxnfc *rx_rings,
 					u32 size)
 {
-	int ret = 0, i;
+	int i;
 
 	if (copy_from_user(indir, useraddr, size * sizeof(indir[0])))
-		ret = -EFAULT;
+		return -EFAULT;
 
 	/* Validate ring indices */
-	for (i = 0; i < size; i++) {
-		if (indir[i] >= rx_rings->data) {
-			ret = -EINVAL;
-			break;
-		}
-	}
-	return ret;
+	for (i = 0; i < size; i++)
+		if (indir[i] >= rx_rings->data)
+			return -EINVAL;
+
+	return 0;
 }
 
 static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
