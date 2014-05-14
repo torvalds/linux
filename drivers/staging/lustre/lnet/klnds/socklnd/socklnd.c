@@ -1567,7 +1567,7 @@ ksocknal_terminate_conn (ksock_conn_t *conn)
 	conn->ksnc_tx_ready = 1;
 
 	if (!conn->ksnc_tx_scheduled &&
-	    !list_empty(&conn->ksnc_tx_queue)){
+	    !list_empty(&conn->ksnc_tx_queue)) {
 		list_add_tail (&conn->ksnc_tx_list,
 			       &sched->kss_tx_conns);
 		conn->ksnc_tx_scheduled = 1;
@@ -2094,7 +2094,7 @@ ksocknal_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
 	struct libcfs_ioctl_data *data = arg;
 	int rc;
 
-	switch(cmd) {
+	switch (cmd) {
 	case IOC_LIBCFS_GET_INTERFACE: {
 		ksock_net_t       *net = ni->ni_data;
 		ksock_interface_t *iface;
