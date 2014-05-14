@@ -770,10 +770,11 @@ static int mlx4_en_do_set_mac(struct mlx4_en_priv *priv)
 					  priv->dev->dev_addr, priv->prev_mac);
 		if (err)
 			en_err(priv, "Failed changing HW MAC address\n");
-		memcpy(priv->prev_mac, priv->dev->dev_addr,
-		       sizeof(priv->prev_mac));
 	} else
 		en_dbg(HW, priv, "Port is down while registering mac, exiting...\n");
+
+	memcpy(priv->prev_mac, priv->dev->dev_addr,
+	       sizeof(priv->prev_mac));
 
 	return err;
 }
