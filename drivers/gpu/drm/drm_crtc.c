@@ -277,21 +277,11 @@ EXPORT_SYMBOL(drm_get_encoder_name);
 
 /**
  * drm_get_connector_name - return a string for connector
- * @connector: connector to compute name of
- *
- * Note that the buffer used by this function is globally shared and owned by
- * the function itself.
- *
- * FIXME: This isn't really multithreading safe.
+ * @connector: the connector to get name for
  */
 const char *drm_get_connector_name(const struct drm_connector *connector)
 {
-	static char buf[32];
-
-	snprintf(buf, 32, "%s-%d",
-		 drm_connector_enum_list[connector->connector_type].name,
-		 connector->connector_type_id);
-	return buf;
+	return connector->name;
 }
 EXPORT_SYMBOL(drm_get_connector_name);
 
@@ -824,7 +814,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	ret = drm_mode_object_get(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR);
 	if (ret)
-		goto out;
+		goto out_unlock;
 
 	connector->base.properties = &connector->properties;
 	connector->dev = dev;
@@ -834,9 +824,17 @@ int drm_connector_init(struct drm_device *dev,
 		ida_simple_get(connector_ida, 1, 0, GFP_KERNEL);
 	if (connector->connector_type_id < 0) {
 		ret = connector->connector_type_id;
-		drm_mode_object_put(dev, &connector->base);
-		goto out;
+		goto out_put;
 	}
+	connector->name =
+		kasprintf(GFP_KERNEL, "%s-%d",
+			  drm_connector_enum_list[connector_type].name,
+			  connector->connector_type_id);
+	if (!connector->name) {
+		ret = -ENOMEM;
+		goto out_put;
+	}
+
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
 	connector->edid_blob_ptr = NULL;
@@ -853,7 +851,11 @@ int drm_connector_init(struct drm_device *dev,
 	drm_object_attach_property(&connector->base,
 				      dev->mode_config.dpms_property, 0);
 
- out:
+out_put:
+	if (ret)
+		drm_mode_object_put(dev, &connector->base);
+
+out_unlock:
 	drm_modeset_unlock_all(dev);
 
 	return ret;
@@ -881,6 +883,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		   connector->connector_type_id);
 
 	drm_mode_object_put(dev, &connector->base);
+	kfree(connector->name);
+	connector->name = NULL;
 	list_del(&connector->head);
 	dev->mode_config.num_connector--;
 }

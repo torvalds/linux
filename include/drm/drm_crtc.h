@@ -444,6 +444,7 @@ struct drm_encoder {
  * @attr: sysfs attributes
  * @head: list management
  * @base: base KMS object
+ * @name: connector name
  * @connector_type: one of the %DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
  * @connector_type_id: index into connector type enum
  * @interlace_allowed: can this connector handle interlaced modes?
@@ -482,6 +483,7 @@ struct drm_connector {
 
 	struct drm_mode_object base;
 
+	char *name;
 	int connector_type;
 	int connector_type_id;
 	bool interlace_allowed;
