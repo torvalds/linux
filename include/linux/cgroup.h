@@ -77,7 +77,6 @@ struct cgroup_subsys_state {
 
 /* bits in struct cgroup_subsys_state flags field */
 enum {
-	CSS_ROOT	= (1 << 0), /* this CSS is the root of the subsystem */
 	CSS_ONLINE	= (1 << 1), /* between ->css_online() and ->css_offline() */
 };
 
@@ -89,9 +88,7 @@ enum {
  */
 static inline void css_get(struct cgroup_subsys_state *css)
 {
-	/* We don't need to reference count the root state */
-	if (!(css->flags & CSS_ROOT))
-		percpu_ref_get(&css->refcnt);
+	percpu_ref_get(&css->refcnt);
 }
 
 /**
@@ -106,8 +103,6 @@ static inline void css_get(struct cgroup_subsys_state *css)
  */
 static inline bool css_tryget_online(struct cgroup_subsys_state *css)
 {
-	if (css->flags & CSS_ROOT)
-		return true;
 	return percpu_ref_tryget_live(&css->refcnt);
 }
 
@@ -119,8 +114,7 @@ static inline bool css_tryget_online(struct cgroup_subsys_state *css)
  */
 static inline void css_put(struct cgroup_subsys_state *css)
 {
-	if (!(css->flags & CSS_ROOT))
-		percpu_ref_put(&css->refcnt);
+	percpu_ref_put(&css->refcnt);
 }
 
 /* bits in struct cgroup flags field */
