@@ -2291,6 +2291,7 @@ int open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->balance_cancel_req, 0);
 	fs_info->balance_ctl = NULL;
 	init_waitqueue_head(&fs_info->balance_wait_q);
+	btrfs_init_async_reclaim_work(&fs_info->async_reclaim_work);
 
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
@@ -3602,6 +3603,8 @@ int close_ctree(struct btrfs_root *root)
 
 	/* clear out the rbtree of defraggable inodes */
 	btrfs_cleanup_defrag_inodes(fs_info);
+
+	cancel_work_sync(&fs_info->async_reclaim_work);
 
 	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
 		ret = btrfs_commit_super(root);

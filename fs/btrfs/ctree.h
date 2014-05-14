@@ -33,6 +33,7 @@
 #include <asm/kmap_types.h>
 #include <linux/pagemap.h>
 #include <linux/btrfs.h>
+#include <linux/workqueue.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
@@ -1322,6 +1323,8 @@ struct btrfs_stripe_hash_table {
 
 #define BTRFS_STRIPE_HASH_TABLE_BITS 11
 
+void btrfs_init_async_reclaim_work(struct work_struct *work);
+
 /* fs_info */
 struct reloc_control;
 struct btrfs_device;
@@ -1697,6 +1700,9 @@ struct btrfs_fs_info {
 
 	struct semaphore uuid_tree_rescan_sem;
 	unsigned int update_uuid_tree_gen:1;
+
+	/* Used to reclaim the metadata space in the background. */
+	struct work_struct async_reclaim_work;
 };
 
 struct btrfs_subvolume_writers {

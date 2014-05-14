@@ -1413,6 +1413,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		 * this also happens on 'umount -rf' or on shutdown, when
 		 * the filesystem is busy.
 		 */
+		cancel_work_sync(&fs_info->async_reclaim_work);
 
 		/* wait for the uuid_scan task to finish */
 		down(&fs_info->uuid_tree_rescan_sem);
