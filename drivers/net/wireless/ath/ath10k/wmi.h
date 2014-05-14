@@ -2323,9 +2323,9 @@ struct wmi_pdev_param_map {
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
 
 enum wmi_pdev_param {
-	/* TX chian mask */
+	/* TX chain mask */
 	WMI_PDEV_PARAM_TX_CHAIN_MASK = 0x1,
-	/* RX chian mask */
+	/* RX chain mask */
 	WMI_PDEV_PARAM_RX_CHAIN_MASK,
 	/* TX power limit for 2G Radio */
 	WMI_PDEV_PARAM_TXPOWER_LIMIT2G,
