@@ -1282,9 +1282,19 @@ static void hci_cc_read_tx_power(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
-	if (conn && sent->type == 0x00)
-		conn->tx_power = rp->tx_power;
+	if (!conn)
+		goto unlock;
 
+	switch (sent->type) {
+	case 0x00:
+		conn->tx_power = rp->tx_power;
+		break;
+	case 0x01:
+		conn->max_tx_power = rp->tx_power;
+		break;
+	}
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
