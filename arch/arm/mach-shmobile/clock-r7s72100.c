@@ -194,11 +194,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("rspi-rz.2", &mstp_clks[MSTP105]),
 	CLKDEV_DEV_ID("rspi-rz.3", &mstp_clks[MSTP104]),
 	CLKDEV_DEV_ID("rspi-rz.4", &mstp_clks[MSTP103]),
-	CLKDEV_DEV_ID("e800c800.spi", &mstp_clks[MSTP107]),
-	CLKDEV_DEV_ID("e800d000.spi", &mstp_clks[MSTP106]),
-	CLKDEV_DEV_ID("e800d800.spi", &mstp_clks[MSTP105]),
-	CLKDEV_DEV_ID("e800e000.spi", &mstp_clks[MSTP104]),
-	CLKDEV_DEV_ID("e800e800.spi", &mstp_clks[MSTP103]),
 	CLKDEV_DEV_ID("r7s72100-ether", &mstp_clks[MSTP74]),
 
 	/* ICK */
