@@ -148,6 +148,13 @@ struct cgroup_root cgrp_dfl_root;
  */
 static bool cgrp_dfl_root_visible;
 
+/* some controllers are not supported in the default hierarchy */
+static const unsigned int cgrp_dfl_root_inhibit_ss_mask = 0
+#ifdef CONFIG_CGROUP_DEBUG
+	| (1 << debug_cgrp_id)
+#endif
+	;
+
 /* The list of hierarchy roots */
 
 static LIST_HEAD(cgroup_roots);
@@ -1126,6 +1133,7 @@ static void cgroup_clear_dir(struct cgroup *cgrp, unsigned int subsys_mask)
 static int rebind_subsystems(struct cgroup_root *dst_root, unsigned int ss_mask)
 {
 	struct cgroup_subsys *ss;
+	unsigned int tmp_ss_mask;
 	int ssid, i, ret;
 
 	lockdep_assert_held(&cgroup_mutex);
@@ -1143,7 +1151,12 @@ static int rebind_subsystems(struct cgroup_root *dst_root, unsigned int ss_mask)
 			return -EBUSY;
 	}
 
-	ret = cgroup_populate_dir(&dst_root->cgrp, ss_mask);
+	/* skip creating root files on dfl_root for inhibited subsystems */
+	tmp_ss_mask = ss_mask;
+	if (dst_root == &cgrp_dfl_root)
+		tmp_ss_mask &= ~cgrp_dfl_root_inhibit_ss_mask;
+
+	ret = cgroup_populate_dir(&dst_root->cgrp, tmp_ss_mask);
 	if (ret) {
 		if (dst_root != &cgrp_dfl_root)
 			return ret;
@@ -2426,7 +2439,8 @@ static int cgroup_root_controllers_show(struct seq_file *seq, void *v)
 {
 	struct cgroup *cgrp = seq_css(seq)->cgroup;
 
-	cgroup_print_ss_mask(seq, cgrp->root->subsys_mask);
+	cgroup_print_ss_mask(seq, cgrp->root->subsys_mask &
+			     ~cgrp_dfl_root_inhibit_ss_mask);
 	return 0;
 }
 
@@ -2564,7 +2578,8 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 		if (tok[0] == '\0')
 			continue;
 		for_each_subsys(ss, ssid) {
-			if (ss->disabled || strcmp(tok + 1, ss->name))
+			if (ss->disabled || strcmp(tok + 1, ss->name) ||
+			    ((1 << ss->id) & cgrp_dfl_root_inhibit_ss_mask))
 				continue;
 
 			if (*tok == '+') {

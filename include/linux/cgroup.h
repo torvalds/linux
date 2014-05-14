@@ -305,6 +305,8 @@ enum {
 	 *   the flag is not created.
 	 *
 	 * - blkcg: blk-throttle becomes properly hierarchical.
+	 *
+	 * - debug: disallowed on the default hierarchy.
 	 */
 	CGRP_ROOT_SANE_BEHAVIOR	= (1 << 0),
 
