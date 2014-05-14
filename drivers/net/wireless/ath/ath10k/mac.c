@@ -54,7 +54,10 @@ static int ath10k_send_key(struct ath10k_vif *arvif,
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
 		arg.key_cipher = WMI_CIPHER_AES_CCM;
-		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+		if (arvif->vdev_type == WMI_VDEV_TYPE_AP)
+			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV_MGMT;
+		else
+			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		arg.key_cipher = WMI_CIPHER_TKIP;
