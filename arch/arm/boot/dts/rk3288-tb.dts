@@ -425,6 +425,13 @@
 		is_dc_charge = <1>;
 		is_usb_charge = <0>;
 	};
+	
+	rtc@d {
+		compatible = "rtc,hym8563";
+		reg = <0xd>;
+		irq_gpio = <&gpio0 GPIO_A4 GPIO_ACTIVE_LOW>;
+	};
+
 };
 
 &i2c1 {

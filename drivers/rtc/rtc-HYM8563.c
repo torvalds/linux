@@ -22,11 +22,8 @@
 #include <linux/delay.h>
 #include <linux/wakelock.h>
 #include <linux/slab.h>
-#include <mach/gpio.h>
-#include <mach/iomux.h>
 #include "rtc-HYM8563.h"
-#include <mach/board.h>
-
+#include <linux/of_gpio.h>
 #define RTC_SPEED 	200 * 1000
 
 struct hym8563 {
@@ -40,6 +37,55 @@ struct hym8563 {
 	struct wake_lock wake_lock;
 };
 static struct i2c_client *gClient = NULL;
+
+static int i2c_master_reg8_send(const struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	char *tx_buf = (char *)kzalloc(count + 1, GFP_KERNEL);
+	if(!tx_buf)
+		return -ENOMEM;
+	tx_buf[0] = reg;
+	memcpy(tx_buf+1, buf, count); 
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = count + 1;
+	msg.buf = (char *)tx_buf;
+	msg.scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	kfree(tx_buf);
+	return (ret == 1) ? count : ret;
+
+}
+
+static int i2c_master_reg8_recv(const struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msgs[2];
+	int ret;
+	char reg_buf = reg;
+	
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = 1;
+	msgs[0].buf = &reg_buf;
+	msgs[0].scl_rate = scl_rate;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = count;
+	msgs[1].buf = (char *)buf;
+	msgs[1].scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, msgs, 2);
+
+	return (ret == 2)? count : ret;
+}
+
+
 
 static int hym8563_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned len)
 {
@@ -158,7 +204,7 @@ exit:
 static int hym8563_read_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct hym8563 *hym8563 = i2c_get_clientdata(client);
-	u8 i,regs[HYM8563_RTC_SECTION_LEN] = { 0, };
+	u8 regs[HYM8563_RTC_SECTION_LEN] = { 0, };
 	mutex_lock(&hym8563->mutex);
 //	for (i = 0; i < HYM8563_RTC_SECTION_LEN; i++) {
 //		hym8563_i2c_read_regs(client, RTC_SEC+i, &regs[i], 1);
@@ -204,8 +250,8 @@ static int hym8563_set_time(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 	u8 regs[HYM8563_RTC_SECTION_LEN] = { 0, };
-	u8 mon_day,i;
-	u8 ret = 0;
+	u8 mon_day;
+	//u8 ret = 0;
 
 	pr_debug("%4d-%02d-%02d(%d) %02d:%02d:%02d\n",
 		1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,
@@ -493,7 +539,7 @@ static const struct rtc_class_ops hym8563_rtc_ops = {
 	.proc		= hym8563_rtc_proc
 };
 
-static int __devinit hym8563_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int  hym8563_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int rc = 0;
 	u8 reg = 0;
@@ -508,11 +554,15 @@ static int __devinit hym8563_probe(struct i2c_client *client, const struct i2c_d
 		.tm_min = 0,
 		.tm_sec = 0,
 	};	
+
+	struct device_node *np = client->dev.of_node;
+	unsigned long irq_flags;
+	int result;
 	
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 		
-	hym8563 = kzalloc(sizeof(struct hym8563), GFP_KERNEL);
+	hym8563 = devm_kzalloc(&client->dev,sizeof(*hym8563), GFP_KERNEL);
 	if (!hym8563) {
 		return -ENOMEM;
 	}
@@ -541,20 +591,14 @@ static int __devinit hym8563_probe(struct i2c_client *client, const struct i2c_d
 		hym8563_set_time(client, &tm);	//initialize the hym8563 
 	}	
 	
-	if(gpio_request(client->irq, "rtc gpio"))
-	{
-		dev_err(&client->dev, "gpio request fail\n");
-		gpio_free(client->irq);
-		goto exit;
-	}
+	client->irq = of_get_named_gpio_flags(np, "irq_gpio", 0,(enum of_gpio_flags *)&irq_flags);
 	
 	hym8563->irq = gpio_to_irq(client->irq);
-	gpio_pull_updown(client->irq,GPIOPullUp);
-	if (request_threaded_irq(hym8563->irq, NULL, hym8563_wakeup_irq, IRQF_TRIGGER_LOW | IRQF_ONESHOT, client->dev.driver->name, hym8563) < 0)
-	{
-		printk("unable to request rtc irq\n");
-		goto exit;
-	}	
+	result = devm_request_threaded_irq(&client->dev, hym8563->irq, NULL, hym8563_wakeup_irq, irq_flags | IRQF_ONESHOT, client->dev.driver->name,hym8563 );
+	if (result) {
+		printk(KERN_ERR "%s:fail to request irq = %d, ret = 0x%x\n",__func__, hym8563->irq, result);	       
+		goto exit;	       
+	}
 	enable_irq_wake(hym8563->irq);
 
 	rtc = rtc_device_register(client->name, &client->dev,
@@ -578,7 +622,7 @@ exit:
 	return rc;
 }
 
-static int __devexit hym8563_remove(struct i2c_client *client)
+static int  hym8563_remove(struct i2c_client *client)
 {
 	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 
@@ -618,18 +662,20 @@ static const struct i2c_device_id hym8563_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hym8563_id);
 
-static struct i2c_driver hym8563_driver = {
+static struct of_device_id rtc_dt_ids[] = {
+	{ .compatible = "rtc,hym8563" },
+	{},
+};
+
+struct i2c_driver hym8563_driver = {
 	.driver		= {
 		.name	= "rtc_hym8563",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(rtc_dt_ids),
 	},
 	.probe		= hym8563_probe,
-	.remove		= __devexit_p(hym8563_remove),
-#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK319X)
+	.remove		= hym8563_remove,
 	//.shutdown=hym8563_shutdown,
-#else
-	.shutdown=hym8563_shutdown,
-#endif
 	.id_table	= hym8563_id,
 };
 
