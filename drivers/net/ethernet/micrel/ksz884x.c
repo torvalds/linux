@@ -7072,6 +7072,7 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev = alloc_etherdev(sizeof(struct dev_priv));
 		if (!dev)
 			goto pcidev_init_reg_err;
+		SET_NETDEV_DEV(dev, &pdev->dev);
 		info->netdev[i] = dev;
 
 		priv = netdev_priv(dev);
