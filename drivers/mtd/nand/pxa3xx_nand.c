@@ -1519,8 +1519,13 @@ KEEP_CONFIG:
 		}
 	}
 
-	ecc_strength = chip->ecc_strength_ds;
-	ecc_step = chip->ecc_step_ds;
+	if (pdata->ecc_strength && pdata->ecc_step_size) {
+		ecc_strength = pdata->ecc_strength;
+		ecc_step = pdata->ecc_step_size;
+	} else {
+		ecc_strength = chip->ecc_strength_ds;
+		ecc_step = chip->ecc_step_ds;
+	}
 
 	/* Set default ECC strength requirements on non-ONFI devices */
 	if (ecc_strength < 1 && ecc_step < 1) {
@@ -1728,6 +1733,14 @@ static int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 		pdata->keep_config = 1;
 	of_property_read_u32(np, "num-cs", &pdata->num_cs);
 	pdata->flash_bbt = of_get_nand_on_flash_bbt(np);
+
+	pdata->ecc_strength = of_get_nand_ecc_strength(np);
+	if (pdata->ecc_strength < 0)
+		pdata->ecc_strength = 0;
+
+	pdata->ecc_step_size = of_get_nand_ecc_step_size(np);
+	if (pdata->ecc_step_size < 0)
+		pdata->ecc_step_size = 0;
 
 	pdev->dev.platform_data = pdata;
 
