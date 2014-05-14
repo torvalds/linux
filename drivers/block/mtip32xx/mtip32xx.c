@@ -3890,7 +3890,7 @@ skip_create_disk:
 
 	/* Allocate the request queue. */
 	dd->queue = blk_mq_init_queue(&dd->tags);
-	if (dd->queue == NULL) {
+	if (IS_ERR(dd->queue)) {
 		dev_err(&dd->pdev->dev,
 			"Unable to allocate request queue\n");
 		rv = -ENOMEM;
