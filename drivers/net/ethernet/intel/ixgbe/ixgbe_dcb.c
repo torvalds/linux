@@ -389,7 +389,6 @@ static void ixgbe_dcb_read_rtrup2tc_82599(struct ixgbe_hw *hw, u8 *map)
 	for (i = 0; i < MAX_USER_PRIORITY; i++)
 		map[i] = IXGBE_RTRUP2TC_UP_MASK &
 			(reg >> (i * IXGBE_RTRUP2TC_UP_SHIFT));
-	return;
 }
 
 void ixgbe_dcb_read_rtrup2tc(struct ixgbe_hw *hw, u8 *map)
