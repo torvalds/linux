@@ -31,7 +31,7 @@
  * @priv:		Private data, for use by the RNG driver.
  */
 struct hwrng {
-	const char *name;
+	char *name;
 	int (*init)(struct hwrng *rng);
 	void (*cleanup)(struct hwrng *rng);
 	int (*data_present)(struct hwrng *rng, int wait);
