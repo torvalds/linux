@@ -1095,6 +1095,34 @@ static void task_numa_assign(struct task_numa_env *env,
 	env->best_cpu = env->dst_cpu;
 }
 
+static bool load_too_imbalanced(long orig_src_load, long orig_dst_load,
+				long src_load, long dst_load,
+				struct task_numa_env *env)
+{
+	long imb, old_imb;
+
+	/* We care about the slope of the imbalance, not the direction. */
+	if (dst_load < src_load)
+		swap(dst_load, src_load);
+
+	/* Is the difference below the threshold? */
+	imb = dst_load * 100 - src_load * env->imbalance_pct;
+	if (imb <= 0)
+		return false;
+
+	/*
+	 * The imbalance is above the allowed threshold.
+	 * Compare it with the old imbalance.
+	 */
+	if (orig_dst_load < orig_src_load)
+		swap(orig_dst_load, orig_src_load);
+
+	old_imb = orig_dst_load * 100 - orig_src_load * env->imbalance_pct;
+
+	/* Would this change make things worse? */
+	return (old_imb > imb);
+}
+
 /*
  * This checks if the overall compute and NUMA accesses of the system would
  * be improved if the source tasks was migrated to the target dst_cpu taking
@@ -1107,7 +1135,8 @@ static void task_numa_compare(struct task_numa_env *env,
 	struct rq *src_rq = cpu_rq(env->src_cpu);
 	struct rq *dst_rq = cpu_rq(env->dst_cpu);
 	struct task_struct *cur;
-	long dst_load, src_load;
+	long orig_src_load, src_load;
+	long orig_dst_load, dst_load;
 	long load;
 	long imp = (groupimp > 0) ? groupimp : taskimp;
 
@@ -1181,13 +1210,13 @@ static void task_numa_compare(struct task_numa_env *env,
 	 * In the overloaded case, try and keep the load balanced.
 	 */
 balance:
-	dst_load = env->dst_stats.load;
-	src_load = env->src_stats.load;
+	orig_dst_load = env->dst_stats.load;
+	orig_src_load = env->src_stats.load;
 
 	/* XXX missing power terms */
 	load = task_h_load(env->p);
-	dst_load += load;
-	src_load -= load;
+	dst_load = orig_dst_load + load;
+	src_load = orig_src_load - load;
 
 	if (cur) {
 		load = task_h_load(cur);
@@ -1195,11 +1224,8 @@ balance:
 		src_load += load;
 	}
 
-	/* make src_load the smaller */
-	if (dst_load < src_load)
-		swap(dst_load, src_load);
-
-	if (src_load * env->imbalance_pct < dst_load * 100)
+	if (load_too_imbalanced(orig_src_load, orig_dst_load,
+				src_load, dst_load, env))
 		goto unlock;
 
 assign:
