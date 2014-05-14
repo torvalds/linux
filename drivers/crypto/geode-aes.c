@@ -408,7 +408,7 @@ static struct crypto_alg geode_cbc_alg = {
 			.setkey			=	geode_setkey_blk,
 			.encrypt		=	geode_cbc_encrypt,
 			.decrypt		=	geode_cbc_decrypt,
-			.ivsize			=	AES_IV_LENGTH,
+			.ivsize			=	AES_BLOCK_SIZE,
 		}
 	}
 };

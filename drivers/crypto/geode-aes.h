@@ -10,7 +10,6 @@
 #define _GEODE_AES_H_
 
 /* driver logic flags */
-#define AES_IV_LENGTH  16
 #define AES_KEY_LENGTH 16
 
 #define AES_MODE_ECB 0
