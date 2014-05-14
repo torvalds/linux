@@ -713,14 +713,6 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
 		ctxt_sta = &cmd.p2p_sta.sta;
 	} else {
-		/* Allow beacons to pass through as long as we are not
-		 * associated, or we do not have dtim period information.
-		 */
-		if (!vif->bss_conf.assoc || !vif->bss_conf.dtim_period)
-			cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
-		else
-			cmd.filter_flags &= ~cpu_to_le32(MAC_FILTER_IN_BEACON);
-
 		ctxt_sta = &cmd.sta;
 	}
 
@@ -728,6 +720,12 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period &&
 	    !force_assoc_off) {
 		u32 dtim_offs;
+
+		/* Allow beacons to pass through as long as we are not
+		 * associated, or we do not have dtim period information.
+		 */
+		if (!vif->p2p)
+			cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
 
 		/*
 		 * The DTIM count counts down, so when it is N that means N
