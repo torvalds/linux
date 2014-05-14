@@ -71,8 +71,9 @@
 *        1) check extdev is activate or not before delete from camsys_dev active list;
 *v0.8.0:
 *        1) fix deregister a unregister extdev oops in camsys_extdev_deregister;
+*v0.9.0: 1) set isp freq to 210M
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,8,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,9,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"

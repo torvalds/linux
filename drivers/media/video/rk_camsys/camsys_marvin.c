@@ -336,8 +336,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
         goto clk_failed;
     }
     
-    clk_set_rate(mrv_clk->isp,384000000);
-    clk_set_rate(mrv_clk->isp_jpe, 384000000);
+    clk_set_rate(mrv_clk->isp,210000000);
+    clk_set_rate(mrv_clk->isp_jpe, 210000000);
     
     mutex_init(&mrv_clk->lock);
     
