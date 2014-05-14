@@ -136,6 +136,7 @@
 
 struct ak4642_drvdata {
 	const struct regmap_config *regmap_config;
+	int extended_frequencies;
 };
 
 struct ak4642_priv {
@@ -297,7 +298,9 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct ak4642_priv *priv = snd_soc_codec_get_drvdata(codec);
 	u8 pll;
+	int extended_freq = 0;
 
 	switch (freq) {
 	case 11289600:
@@ -318,9 +321,25 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	case 27000000:
 		pll = PLL3 | PLL2 | PLL0;
 		break;
+	case 19200000:
+		pll = PLL3;
+		extended_freq = 1;
+		break;
+	case 13000000:
+		pll = PLL3 | PLL2 | PLL1;
+		extended_freq = 1;
+		break;
+	case 26000000:
+		pll = PLL3 | PLL2 | PLL1 | PLL0;
+		extended_freq = 1;
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	if (extended_freq && !priv->drvdata->extended_frequencies)
+		return -EINVAL;
+
 	snd_soc_update_bits(codec, MD_CTL1, PLL_MASK, pll);
 
 	return 0;
@@ -525,6 +544,7 @@ static const struct ak4642_drvdata ak4643_drvdata = {
 
 static const struct ak4642_drvdata ak4648_drvdata = {
 	.regmap_config = &ak4648_regmap,
+	.extended_frequencies = 1,
 };
 
 static struct of_device_id ak4642_of_match[];
