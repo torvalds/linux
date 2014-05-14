@@ -57,6 +57,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
+#include <linux/etherdevice.h>
 
 #define TIPC_MOD_VER "2.0.0"
 
@@ -187,6 +188,7 @@ static inline void k_term_timer(struct timer_list *timer)
 struct tipc_skb_cb {
 	void *handle;
 	bool deferred;
+	struct sk_buff *tail;
 };
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))
