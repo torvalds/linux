@@ -2241,10 +2241,7 @@ static void ath10k_pci_early_irq_tasklet(unsigned long data)
 	if (fw_ind & FW_IND_EVENT_PENDING) {
 		ath10k_pci_write32(ar, FW_INDICATOR_ADDRESS,
 				   fw_ind & ~FW_IND_EVENT_PENDING);
-
-		/* Some structures are unavailable during early boot or at
-		 * driver teardown so just print that the device has crashed. */
-		ath10k_warn("device crashed - no diagnostics available\n");
+		ath10k_pci_hif_dump_area(ar);
 	}
 
 	ath10k_pci_sleep(ar);
@@ -2521,6 +2518,9 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 
 	if (val & FW_IND_EVENT_PENDING) {
 		ath10k_warn("device has crashed during init\n");
+		ath10k_pci_write32(ar, FW_INDICATOR_ADDRESS,
+				   val & ~FW_IND_EVENT_PENDING);
+		ath10k_pci_hif_dump_area(ar);
 		ret = -ECOMM;
 		goto out;
 	}
