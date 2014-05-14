@@ -1681,7 +1681,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	ret = parse_cgroupfs_options(data, &opts);
 	if (ret)
 		goto out_unlock;
-retry:
+
 	/* look for a matching existing root */
 	if (!opts.subsys_mask && !opts.none && !opts.name) {
 		cgrp_dfl_root_visible = true;
@@ -1740,8 +1740,8 @@ retry:
 		if (!atomic_inc_not_zero(&root->cgrp.refcnt)) {
 			mutex_unlock(&cgroup_mutex);
 			msleep(10);
-			mutex_lock(&cgroup_mutex);
-			goto retry;
+			ret = restart_syscall();
+			goto out_free;
 		}
 
 		ret = 0;
@@ -1772,7 +1772,7 @@ retry:
 
 out_unlock:
 	mutex_unlock(&cgroup_mutex);
-
+out_free:
 	kfree(opts.release_agent);
 	kfree(opts.name);
 
