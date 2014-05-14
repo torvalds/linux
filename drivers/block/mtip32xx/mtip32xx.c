@@ -1031,6 +1031,8 @@ static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 	unsigned int n;
 	unsigned int active = 1;
 
+	blk_mq_stop_hw_queues(port->dd->queue);
+
 	to = jiffies + msecs_to_jiffies(timeout);
 	do {
 		if (test_bit(MTIP_PF_SVC_THD_ACTIVE_BIT, &port->flags) &&
@@ -1039,7 +1041,7 @@ static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 			continue; /* svc thd is actively issuing commands */
 		}
 		if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &port->dd->dd_flag))
-			return -EFAULT;
+			goto err_fault;
 		/*
 		 * Ignore s_active bit 0 of array element 0.
 		 * This bit will always be set
@@ -1054,7 +1056,11 @@ static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 		msleep(20);
 	} while (time_before(jiffies, to));
 
+	blk_mq_start_stopped_hw_queues(port->dd->queue, true);
 	return active ? -EBUSY : 0;
+err_fault:
+	blk_mq_start_stopped_hw_queues(port->dd->queue, true);
+	return -EFAULT;
 }
 
 /*
