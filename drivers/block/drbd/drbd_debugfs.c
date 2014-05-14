@@ -670,6 +670,13 @@ void drbd_debugfs_connection_add(struct drbd_connection *connection)
 	if (IS_ERR_OR_NULL(dentry))
 		goto fail;
 	connection->debugfs_conn_callback_history = dentry;
+
+	dentry = debugfs_create_file("oldest_requests", S_IRUSR|S_IRGRP,
+			connection->debugfs_conn, connection,
+			&connection_oldest_requests_fops);
+	if (IS_ERR_OR_NULL(dentry))
+		goto fail;
+	connection->debugfs_conn_oldest_requests = dentry;
 	return;
 
 fail:
