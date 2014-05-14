@@ -772,7 +772,7 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 	  </row>
 	  <row id="V4L2-PIX-FMT-H264-MVC">
 		<entry><constant>V4L2_PIX_FMT_H264_MVC</constant></entry>
-		<entry>'MVC'</entry>
+		<entry>'M264'</entry>
 		<entry>H264 MVC video elementary stream.</entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-H263">
@@ -812,7 +812,7 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 	  </row>
 	  <row id="V4L2-PIX-FMT-VP8">
 		<entry><constant>V4L2_PIX_FMT_VP8</constant></entry>
-		<entry>'VP8'</entry>
+		<entry>'VP80'</entry>
 		<entry>VP8 video elementary stream.</entry>
 	  </row>
 	</tbody>
