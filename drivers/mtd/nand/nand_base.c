@@ -3794,6 +3794,39 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 }
 EXPORT_SYMBOL(nand_scan_ident);
 
+/*
+ * Check if the chip configuration meet the datasheet requirements.
+
+ * If our configuration corrects A bits per B bytes and the minimum
+ * required correction level is X bits per Y bytes, then we must ensure
+ * both of the following are true:
+ *
+ * (1) A / B >= X / Y
+ * (2) A >= X
+ *
+ * Requirement (1) ensures we can correct for the required bitflip density.
+ * Requirement (2) ensures we can correct even when all bitflips are clumped
+ * in the same sector.
+ */
+static bool nand_ecc_strength_good(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+	int corr, ds_corr;
+
+	if (ecc->size == 0 || chip->ecc_step_ds == 0)
+		/* Not enough information */
+		return true;
+
+	/*
+	 * We get the number of corrected bits per page to compare
+	 * the correction density.
+	 */
+	corr = (mtd->writesize * ecc->strength) / ecc->size;
+	ds_corr = (mtd->writesize * chip->ecc_strength_ds) / chip->ecc_step_ds;
+
+	return corr >= ds_corr && ecc->strength >= chip->ecc_strength_ds;
+}
 
 /**
  * nand_scan_tail - [NAND Interface] Scan for the NAND device
@@ -4013,6 +4046,9 @@ int nand_scan_tail(struct mtd_info *mtd)
 			&& i < ARRAY_SIZE(ecc->layout->oobfree); i++)
 		ecc->layout->oobavail += ecc->layout->oobfree[i].length;
 	mtd->oobavail = ecc->layout->oobavail;
+
+	/* ECC sanity check: warn noisily if it's too weak */
+	WARN_ON(!nand_ecc_strength_good(mtd));
 
 	/*
 	 * Set the number of read / write steps for one page depending on ECC
