@@ -119,10 +119,11 @@ static int hdmi_process_command(struct hdmi *hdmi)
 				mutex_lock(&hdmi->enable_mutex);
 				if(!hdmi->enable || hdmi->suspend)
 				{
-					if(hdmi->hotplug == HDMI_HPD_ACTIVED)
+					if(hdmi->hotplug != HDMI_HPD_REMOVED) {
+						hdmi->hotplug = HDMI_HPD_REMOVED;
 						hdmi_sys_remove(hdmi);
+					}
 					hdmi->state = HDMI_SLEEP;
-					hdmi->hotplug = HDMI_HPD_REMOVED;
 					hdmi->remove(hdmi);
 					state = HDMI_SLEEP;
 				}
