@@ -4126,15 +4126,24 @@ static void css_free_rcu_fn(struct rcu_head *rcu_head)
 	queue_work(cgroup_destroy_wq, &css->destroy_work);
 }
 
-static void css_release(struct percpu_ref *ref)
+static void css_release_work_fn(struct work_struct *work)
 {
 	struct cgroup_subsys_state *css =
-		container_of(ref, struct cgroup_subsys_state, refcnt);
+		container_of(work, struct cgroup_subsys_state, destroy_work);
 	struct cgroup_subsys *ss = css->ss;
 
 	cgroup_idr_remove(&ss->css_idr, css->id);
 
 	call_rcu(&css->rcu_head, css_free_rcu_fn);
+}
+
+static void css_release(struct percpu_ref *ref)
+{
+	struct cgroup_subsys_state *css =
+		container_of(ref, struct cgroup_subsys_state, refcnt);
+
+	INIT_WORK(&css->destroy_work, css_release_work_fn);
+	queue_work(cgroup_destroy_wq, &css->destroy_work);
 }
 
 static void init_and_link_css(struct cgroup_subsys_state *css,
