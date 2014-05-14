@@ -124,8 +124,9 @@ static ssize_t foo_store(struct foo_obj *foo_obj, struct foo_attribute *attr,
 	return count;
 }
 
+/* Sysfs attributes cannot be world-writable. */
 static struct foo_attribute foo_attribute =
-	__ATTR(foo, 0666, foo_show, foo_store);
+	__ATTR(foo, 0664, foo_show, foo_store);
 
 /*
  * More complex function where we determine which variable is being accessed by
@@ -157,9 +158,9 @@ static ssize_t b_store(struct foo_obj *foo_obj, struct foo_attribute *attr,
 }
 
 static struct foo_attribute baz_attribute =
-	__ATTR(baz, 0666, b_show, b_store);
+	__ATTR(baz, 0664, b_show, b_store);
 static struct foo_attribute bar_attribute =
-	__ATTR(bar, 0666, b_show, b_store);
+	__ATTR(bar, 0664, b_show, b_store);
 
 /*
  * Create a group of attributes so that we can create and destroy them all
