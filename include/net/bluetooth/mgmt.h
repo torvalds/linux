@@ -409,6 +409,18 @@ struct mgmt_cp_load_irks {
 } __packed;
 #define MGMT_LOAD_IRKS_SIZE		2
 
+#define MGMT_OP_GET_CONN_INFO		0x0031
+struct mgmt_cp_get_conn_info {
+	struct mgmt_addr_info addr;
+} __packed;
+#define MGMT_GET_CONN_INFO_SIZE		MGMT_ADDR_INFO_SIZE
+struct mgmt_rp_get_conn_info {
+	struct mgmt_addr_info addr;
+	__s8	rssi;
+	__s8	tx_power;
+	__s8	max_tx_power;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;

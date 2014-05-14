@@ -384,6 +384,8 @@ struct hci_conn {
 	__s8		tx_power;
 	unsigned long	flags;
 
+	unsigned long	conn_info_timestamp;
+
 	__u8		remote_cap;
 	__u8		remote_auth;
 	__u8		remote_id;
