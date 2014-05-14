@@ -587,18 +587,6 @@ static inline bool keventd_up(void)
 	return system_wq != NULL;
 }
 
-/* used to be different but now identical to flush_work(), deprecated */
-static inline bool __deprecated flush_work_sync(struct work_struct *work)
-{
-	return flush_work(work);
-}
-
-/* used to be different but now identical to flush_delayed_work(), deprecated */
-static inline bool __deprecated flush_delayed_work_sync(struct delayed_work *dwork)
-{
-	return flush_delayed_work(dwork);
-}
-
 #ifndef CONFIG_SMP
 static inline long work_on_cpu(int cpu, long (*fn)(void *), void *arg)
 {
