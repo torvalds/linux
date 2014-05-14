@@ -1514,10 +1514,9 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	priv->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!priv->base) {
-		dev_err(&pdev->dev, "register remap failed\n");
-		ret = -ENOMEM;
+	priv->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(priv->base)) {
+		ret = PTR_ERR(priv->base);
 		goto err;
 	}
 
