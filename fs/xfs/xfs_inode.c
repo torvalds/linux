@@ -1811,9 +1811,33 @@ xfs_inactive_ifree(
 	int			error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ifree, 0, 0);
+
+	/*
+	 * The ifree transaction might need to allocate blocks for record
+	 * insertion to the finobt. We don't want to fail here at ENOSPC, so
+	 * allow ifree to dip into the reserved block pool if necessary.
+	 *
+	 * Freeing large sets of inodes generally means freeing inode chunks,
+	 * directory and file data blocks, so this should be relatively safe.
+	 * Only under severe circumstances should it be possible to free enough
+	 * inodes to exhaust the reserve block pool via finobt expansion while
+	 * at the same time not creating free space in the filesystem.
+	 *
+	 * Send a warning if the reservation does happen to fail, as the inode
+	 * now remains allocated and sits on the unlinked list until the fs is
+	 * repaired.
+	 */
+	tp->t_flags |= XFS_TRANS_RESERVE;
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ifree,
+				  XFS_IFREE_SPACE_RES(mp), 0);
 	if (error) {
-		ASSERT(XFS_FORCED_SHUTDOWN(mp));
+		if (error == ENOSPC) {
+			xfs_warn_ratelimited(mp,
+			"Failed to remove inode(s) from unlinked list. "
+			"Please free space, unmount and run xfs_repair.");
+		} else {
+			ASSERT(XFS_FORCED_SHUTDOWN(mp));
+		}
 		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES);
 		return error;
 	}
