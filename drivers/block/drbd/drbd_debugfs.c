@@ -760,6 +760,25 @@ static int device_oldest_requests_show(struct seq_file *m, void *ignored)
 	return 0;
 }
 
+static int device_data_gen_id_show(struct seq_file *m, void *ignored)
+{
+	struct drbd_device *device = m->private;
+	struct drbd_md *md;
+	enum drbd_uuid_index idx;
+
+	if (!get_ldev_if_state(device, D_FAILED))
+		return -ENODEV;
+
+	md = &device->ldev->md;
+	spin_lock_irq(&md->uuid_lock);
+	for (idx = UI_CURRENT; idx <= UI_HISTORY_END; idx++) {
+		seq_printf(m, "0x%016llX\n", md->uuid[idx]);
+	}
+	spin_unlock_irq(&md->uuid_lock);
+	put_ldev(device);
+	return 0;
+}
+
 #define drbd_debugfs_device_attr(name)						\
 static int device_ ## name ## _open(struct inode *inode, struct file *file)	\
 {										\
@@ -784,6 +803,7 @@ static const struct file_operations device_ ## name ## _fops = {		\
 drbd_debugfs_device_attr(oldest_requests)
 drbd_debugfs_device_attr(act_log_extents)
 drbd_debugfs_device_attr(resync_extents)
+drbd_debugfs_device_attr(data_gen_id)
 
 void drbd_debugfs_device_add(struct drbd_device *device)
 {
@@ -826,6 +846,8 @@ void drbd_debugfs_device_add(struct drbd_device *device)
 	DCF(oldest_requests);
 	DCF(act_log_extents);
 	DCF(resync_extents);
+	DCF(data_gen_id);
+#undef DCF
 	return;
 
 fail:
