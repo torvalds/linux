@@ -55,10 +55,9 @@ struct clk *mcf_clks[] = {
 
 /***************************************************************************/
 
-#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
-
 static void __init m527x_qspi_init(void)
 {
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 #if defined(CONFIG_M5271)
 	u16 par;
 
@@ -72,9 +71,8 @@ static void __init m527x_qspi_init(void)
 	/* setup QSPS pins for QSPI with gpio CS control */
 	writew(0x003e, MCFGPIO_PAR_QSPI);
 #endif
-}
-
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
+}
 
 /***************************************************************************/
 
@@ -122,9 +120,7 @@ void __init config_BSP(char *commandp, int size)
 	mach_sched_init = hw_timer_init;
 	m527x_uarts_init();
 	m527x_fec_init();
-#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	m527x_qspi_init();
-#endif
 }
 
 /***************************************************************************/
