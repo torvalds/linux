@@ -622,8 +622,8 @@ static int queue_manag(void *data)
 		}
 
 		if (async_req) {
-			if (async_req->tfm->__crt_alg->cra_type !=
-			    &crypto_ahash_type) {
+			if (crypto_tfm_alg_type(async_req->tfm) !=
+			    CRYPTO_ALG_TYPE_AHASH) {
 				struct ablkcipher_request *req =
 				    ablkcipher_request_cast(async_req);
 				mv_start_new_crypt_req(req);
