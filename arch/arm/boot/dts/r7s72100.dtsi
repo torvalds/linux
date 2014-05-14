@@ -1,13 +1,15 @@
 /*
  * Device Tree Source for the r7s72100 SoC
  *
- * Copyright (C) 2013 Renesas Solutions Corp.
+ * Copyright (C) 2013-14 Renesas Solutions Corp.
+ * Copyright (C) 2014 Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/clock/r7s72100-clock.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
@@ -26,6 +28,88 @@
 		spi2 = &spi2;
 		spi3 = &spi3;
 		spi4 = &spi4;
+	};
+
+	clocks {
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* External clocks */
+		extal_clk: extal_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			/* If clk present, value must be set by board */
+			clock-frequency = <0>;
+			clock-output-names = "extal";
+		};
+
+		usb_x1_clk: usb_x1_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			/* If clk present, value must be set by board */
+			clock-frequency = <0>;
+			clock-output-names = "usb_x1";
+		};
+
+		/* Special CPG clocks */
+		cpg_clocks: cpg_clocks@fcfe0000 {
+			#clock-cells = <1>;
+			compatible = "renesas,r7s72100-cpg-clocks",
+				     "renesas,rz-cpg-clocks";
+			reg = <0xfcfe0000 0x18>;
+			clocks = <&extal_clk>, <&usb_x1_clk>;
+			clock-output-names = "pll", "i", "g";
+		};
+
+		/* Fixed factor clocks */
+		b_clk: b_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R7S72100_CLK_PLL>;
+			clock-mult = <1>;
+			clock-div = <3>;
+			clock-output-names = "b";
+		};
+		p1_clk: p1_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R7S72100_CLK_PLL>;
+			clock-mult = <1>;
+			clock-div = <6>;
+			clock-output-names = "p1";
+		};
+		p0_clk: p0_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R7S72100_CLK_PLL>;
+			clock-mult = <1>;
+			clock-div = <12>;
+			clock-output-names = "p0";
+		};
+
+		/* MSTP clocks */
+		mstp3_clks: mstp3_clks@fcfe0420 {
+			#clock-cells = <1>;
+			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xfcfe0420 4>;
+			clocks = <&p0_clk>;
+			clock-indices = <R7S72100_CLK_MTU2>;
+			clock-output-names = "mtu2";
+		};
+
+		mstp4_clks: mstp4_clks@fcfe0424 {
+			#clock-cells = <1>;
+			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xfcfe0424 4>;
+			clocks = <&p1_clk>, <&p1_clk>, <&p1_clk>, <&p1_clk>,
+				 <&p1_clk>, <&p1_clk>, <&p1_clk>, <&p1_clk>;
+			clock-indices = <
+				R7S72100_CLK_SCIF0 R7S72100_CLK_SCIF1 R7S72100_CLK_SCIF2 R7S72100_CLK_SCIF3
+				R7S72100_CLK_SCIF4 R7S72100_CLK_SCIF5 R7S72100_CLK_SCIF6 R7S72100_CLK_SCIF7
+			>;
+			clock-output-names = "scif0", "scif1", "scif2", "scif3", "scif4", "scif5", "scif6", "scif7";
+		};
 	};
 
 	cpus {
