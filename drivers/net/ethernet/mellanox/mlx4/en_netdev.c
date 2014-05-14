@@ -130,7 +130,7 @@ static enum mlx4_net_trans_rule_id mlx4_ip_proto_to_trans_rule_id(u8 ip_proto)
 	case IPPROTO_TCP:
 		return MLX4_NET_TRANS_RULE_ID_TCP;
 	default:
-		return -EPROTONOSUPPORT;
+		return MLX4_NET_TRANS_RULE_NUM;
 	}
 };
 
@@ -177,7 +177,7 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	int rc;
 	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
-	if (spec_tcp_udp.id < 0) {
+	if (spec_tcp_udp.id >= MLX4_NET_TRANS_RULE_NUM) {
 		en_warn(priv, "RFS: ignoring unsupported ip protocol (%d)\n",
 			filter->ip_proto);
 		goto ignore;
