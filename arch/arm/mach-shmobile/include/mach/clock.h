@@ -16,6 +16,7 @@ void shmobile_clk_workaround(const struct clk_name *clks, int nr_clks,
 #else /* CONFIG_COMMON_CLK */
 /* legacy clock implementation */
 
+struct clk;
 unsigned long shmobile_fixed_ratio_clk_recalc(struct clk *clk);
 extern struct sh_clk_ops shmobile_fixed_ratio_clk_ops;
 
