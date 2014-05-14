@@ -5545,33 +5545,6 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void reset_vblank_counter(struct drm_device *dev, enum pipe pipe)
-{
-	assert_spin_locked(&dev->vbl_lock);
-
-	dev->vblank[pipe].last = 0;
-}
-
-static void hsw_power_well_post_disable(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-	enum pipe pipe;
-	unsigned long irqflags;
-
-	/*
-	 * After this, the registers on the pipes that are part of the power
-	 * well will become zero, so we have to adjust our counters according to
-	 * that.
-	 *
-	 * FIXME: Should we do this in general in drm_vblank_post_modeset?
-	 */
-	spin_lock_irqsave(&dev->vbl_lock, irqflags);
-	for_each_pipe(pipe)
-		if (pipe != PIPE_A)
-			reset_vblank_counter(dev, pipe);
-	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
-}
-
 static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 			       struct i915_power_well *power_well, bool enable)
 {
@@ -5600,8 +5573,6 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
-
-			hsw_power_well_post_disable(dev_priv);
 		}
 	}
 }
@@ -5769,11 +5740,6 @@ static void vlv_display_power_well_disable(struct drm_i915_private *dev_priv,
 
 	valleyview_disable_display_irqs(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
-
-	spin_lock_irq(&dev->vbl_lock);
-	for_each_pipe(pipe)
-		reset_vblank_counter(dev, pipe);
-	spin_unlock_irq(&dev->vbl_lock);
 
 	vlv_set_power_well(dev_priv, power_well, false);
 }
