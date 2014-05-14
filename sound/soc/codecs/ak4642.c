@@ -98,7 +98,7 @@
 #define MGAIN0		(1 << 0) /* MIC amp gain*/
 
 /* TIMER */
-#define ZTM(param)	((param & 0x3) << 4) /* ALC Zoro Crossing TimeOut */
+#define ZTM(param)	((param & 0x3) << 4) /* ALC Zero Crossing TimeOut */
 #define WTM(param)	(((param & 0x4) << 4) | ((param & 0x3) << 2))
 
 /* ALC_CTL1 */
