@@ -255,7 +255,7 @@ geode_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 static int fallback_init_cip(struct crypto_tfm *tfm)
 {
-	const char *name = tfm->__crt_alg->cra_name;
+	const char *name = crypto_tfm_alg_name(tfm);
 	struct geode_aes_op *op = crypto_tfm_ctx(tfm);
 
 	op->fallback.cip = crypto_alloc_cipher(name, 0,
@@ -365,7 +365,7 @@ geode_cbc_encrypt(struct blkcipher_desc *desc,
 
 static int fallback_init_blk(struct crypto_tfm *tfm)
 {
-	const char *name = tfm->__crt_alg->cra_name;
+	const char *name = crypto_tfm_alg_name(tfm);
 	struct geode_aes_op *op = crypto_tfm_ctx(tfm);
 
 	op->fallback.blk = crypto_alloc_blkcipher(name, 0,
