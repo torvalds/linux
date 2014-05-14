@@ -111,6 +111,7 @@ static struct platform_driver snow_driver = {
 	.driver = {
 		.name = "snow-audio",
 		.owner = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = snow_of_match,
 	},
 	.probe = snow_probe,
