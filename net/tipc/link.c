@@ -1831,9 +1831,6 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr, struct sk_buff *buf)
 	if (l_ptr->exp_msg_count)
 		goto exit;
 
-	/* record unnumbered packet arrival (force mismatch on next timeout) */
-	l_ptr->checkpoint--;
-
 	if (l_ptr->net_plane != msg_net_plane(msg))
 		if (tipc_own_addr > msg_prevnode(msg))
 			l_ptr->net_plane = msg_net_plane(msg);
@@ -1909,6 +1906,10 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr, struct sk_buff *buf)
 			tipc_link_reset(l_ptr); /* Enforce change to take effect */
 			break;
 		}
+
+		/* Record reception; force mismatch at next timeout: */
+		l_ptr->checkpoint--;
+
 		link_state_event(l_ptr, TRAFFIC_MSG_EVT);
 		l_ptr->stats.recv_states++;
 		if (link_reset_unknown(l_ptr))
