@@ -104,8 +104,6 @@ module_param(enable_64b_cqe_eqe, bool, 0444);
 MODULE_PARM_DESC(enable_64b_cqe_eqe,
 		 "Enable 64 byte CQEs/EQEs when the FW supports this (default: True)");
 
-#define HCA_GLOBAL_CAP_MASK            0
-
 #define PF_CONTEXT_BEHAVIOUR_MASK	MLX4_FUNC_CAP_64B_EQE_CQE
 
 static char mlx4_version[] =
@@ -582,9 +580,10 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return err;
 	}
 
-	/*fail if the hca has an unknown capability */
-	if ((hca_param.global_caps | HCA_GLOBAL_CAP_MASK) !=
-	    HCA_GLOBAL_CAP_MASK) {
+	/* fail if the hca has an unknown global capability
+	 * at this time global_caps should be always zeroed
+	 */
+	if (hca_param.global_caps) {
 		mlx4_err(dev, "Unknown hca global capabilities\n");
 		return -ENOSYS;
 	}
