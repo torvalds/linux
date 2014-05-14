@@ -400,6 +400,7 @@ struct drm_encoder_funcs {
  * @dev: parent DRM device
  * @head: list management
  * @base: base KMS object
+ * @name: encoder name
  * @encoder_type: one of the %DRM_MODE_ENCODER_<foo> types in drm_mode.h
  * @possible_crtcs: bitmask of potential CRTC bindings
  * @possible_clones: bitmask of potential sibling encoders for cloning
@@ -416,6 +417,7 @@ struct drm_encoder {
 	struct list_head head;
 
 	struct drm_mode_object base;
+	char *name;
 	int encoder_type;
 	uint32_t possible_crtcs;
 	uint32_t possible_clones;

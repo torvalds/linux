@@ -257,21 +257,11 @@ void drm_connector_ida_destroy(void)
 
 /**
  * drm_get_encoder_name - return a string for encoder
- * @encoder: encoder to compute name of
- *
- * Note that the buffer used by this function is globally shared and owned by
- * the function itself.
- *
- * FIXME: This isn't really multithreading safe.
+ * @encoder: the encoder to get name for
  */
 const char *drm_get_encoder_name(const struct drm_encoder *encoder)
 {
-	static char buf[32];
-
-	snprintf(buf, 32, "%s-%d",
-		 drm_encoder_enum_list[encoder->encoder_type].name,
-		 encoder->base.id);
-	return buf;
+	return encoder->name;
 }
 EXPORT_SYMBOL(drm_get_encoder_name);
 
@@ -986,16 +976,27 @@ int drm_encoder_init(struct drm_device *dev,
 
 	ret = drm_mode_object_get(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
 	if (ret)
-		goto out;
+		goto out_unlock;
 
 	encoder->dev = dev;
 	encoder->encoder_type = encoder_type;
 	encoder->funcs = funcs;
+	encoder->name = kasprintf(GFP_KERNEL, "%s-%d",
+				  drm_encoder_enum_list[encoder_type].name,
+				  encoder->base.id);
+	if (!encoder->name) {
+		ret = -ENOMEM;
+		goto out_put;
+	}
 
 	list_add_tail(&encoder->head, &dev->mode_config.encoder_list);
 	dev->mode_config.num_encoder++;
 
- out:
+out_put:
+	if (ret)
+		drm_mode_object_put(dev, &encoder->base);
+
+out_unlock:
 	drm_modeset_unlock_all(dev);
 
 	return ret;
@@ -1013,6 +1014,8 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	drm_modeset_lock_all(dev);
 	drm_mode_object_put(dev, &encoder->base);
+	kfree(encoder->name);
+	encoder->name = NULL;
 	list_del(&encoder->head);
 	dev->mode_config.num_encoder--;
 	drm_modeset_unlock_all(dev);
