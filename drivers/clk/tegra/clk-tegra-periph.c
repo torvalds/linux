@@ -329,7 +329,9 @@ static u32 mux_clkm_pllp_pllc_pllre_idx[] = {
 static const char *mux_clkm_48M_pllp_480M[] = {
 	"clk_m", "pll_u_48M", "pll_p", "pll_u_480M"
 };
-#define mux_clkm_48M_pllp_480M_idx NULL
+static u32 mux_clkm_48M_pllp_480M_idx[] = {
+	[0] = 0, [1] = 2, [2] = 4, [3] = 6,
+};
 
 static const char *mux_clkm_pllre_clk32_480M_pllc_ref[] = {
 	"clk_m", "pll_re_out", "clk_32k", "pll_u_480M", "pll_c", "pll_ref"
