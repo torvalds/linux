@@ -27,6 +27,7 @@
 #ifndef IEEE802154_NETDEVICE_H
 #define IEEE802154_NETDEVICE_H
 
+#include <net/ieee802154.h>
 #include <net/af_ieee802154.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -114,6 +115,34 @@ int ieee802154_hdr_pull(struct sk_buff *skb, struct ieee802154_hdr *hdr);
 int ieee802154_hdr_peek_addrs(const struct sk_buff *skb,
 			      struct ieee802154_hdr *hdr);
 
+/* parses the full 802.15.4 header a given skb and stores them into hdr,
+ * performing pan id decompression and length checks to be suitable for use in
+ * header_ops.parse
+ */
+int ieee802154_hdr_peek(const struct sk_buff *skb, struct ieee802154_hdr *hdr);
+
+int ieee802154_max_payload(const struct ieee802154_hdr *hdr);
+
+static inline int
+ieee802154_sechdr_authtag_len(const struct ieee802154_sechdr *sec)
+{
+	switch (sec->level) {
+	case IEEE802154_SCF_SECLEVEL_MIC32:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC32:
+		return 4;
+	case IEEE802154_SCF_SECLEVEL_MIC64:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC64:
+		return 8;
+	case IEEE802154_SCF_SECLEVEL_MIC128:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC128:
+		return 16;
+	case IEEE802154_SCF_SECLEVEL_NONE:
+	case IEEE802154_SCF_SECLEVEL_ENC:
+	default:
+		return 0;
+	}
+}
+
 static inline int ieee802154_hdr_length(struct sk_buff *skb)
 {
 	struct ieee802154_hdr hdr;
@@ -193,8 +222,9 @@ static inline void ieee802154_addr_to_sa(struct ieee802154_addr_sa *sa,
  */
 struct ieee802154_mac_cb {
 	u8 lqi;
-	u8 flags;
-	u8 seq;
+	u8 type;
+	bool ackreq;
+	bool secen;
 	struct ieee802154_addr source;
 	struct ieee802154_addr dest;
 };
@@ -204,24 +234,12 @@ static inline struct ieee802154_mac_cb *mac_cb(struct sk_buff *skb)
 	return (struct ieee802154_mac_cb *)skb->cb;
 }
 
-#define MAC_CB_FLAG_TYPEMASK		((1 << 3) - 1)
-
-#define MAC_CB_FLAG_ACKREQ		(1 << 3)
-#define MAC_CB_FLAG_SECEN		(1 << 4)
-
-static inline bool mac_cb_is_ackreq(struct sk_buff *skb)
+static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 {
-	return mac_cb(skb)->flags & MAC_CB_FLAG_ACKREQ;
-}
+	BUILD_BUG_ON(sizeof(struct ieee802154_mac_cb) > sizeof(skb->cb));
 
-static inline bool mac_cb_is_secen(struct sk_buff *skb)
-{
-	return mac_cb(skb)->flags & MAC_CB_FLAG_SECEN;
-}
-
-static inline int mac_cb_type(struct sk_buff *skb)
-{
-	return mac_cb(skb)->flags & MAC_CB_FLAG_TYPEMASK;
+	memset(skb->cb, 0, sizeof(struct ieee802154_mac_cb));
+	return mac_cb(skb);
 }
 
 #define IEEE802154_MAC_SCAN_ED		0
