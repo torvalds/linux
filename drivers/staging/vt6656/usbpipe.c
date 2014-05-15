@@ -64,44 +64,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb);
 
-int PIPEnsControlOutAsyn(struct vnt_private *pDevice, u8 byRequest,
-	u16 wValue, u16 wIndex, u16 wLength, u8 *pbyBuffer)
-{
-	int ntStatus;
-
-    if (pDevice->Flags & fMP_DISCONNECTED)
-        return STATUS_FAILURE;
-
-    if (in_interrupt()) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"in_interrupt return ..byRequest %x\n", byRequest);
-        return STATUS_FAILURE;
-    }
-
-	mutex_lock(&pDevice->usb_lock);
-
-    ntStatus = usb_control_msg(
-                            pDevice->usb,
-                            usb_sndctrlpipe(pDevice->usb , 0),
-                            byRequest,
-                            0x40, // RequestType
-                            wValue,
-                            wIndex,
-			    (void *) pbyBuffer,
-                            wLength,
-                            HZ
-                          );
-    if (ntStatus >= 0) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"usb_sndctrlpipe ntStatus= %d\n", ntStatus);
-        ntStatus = 0;
-    } else {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"usb_sndctrlpipe fail, ntStatus= %d\n", ntStatus);
-    }
-
-	mutex_unlock(&pDevice->usb_lock);
-
-    return ntStatus;
-}
-
 int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 		u16 wIndex, u16 wLength, u8 *pbyBuffer)
 {

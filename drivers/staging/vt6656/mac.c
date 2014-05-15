@@ -75,7 +75,7 @@ void MACvWriteMultiAddr(struct vnt_private *pDevice, u64 mc_filter)
  */
 void MACbShutdown(struct vnt_private *pDevice)
 {
-    CONTROLnsRequestOutAsyn(pDevice,
+	CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_MACSHUTDOWN,
                         0,
                         0,
