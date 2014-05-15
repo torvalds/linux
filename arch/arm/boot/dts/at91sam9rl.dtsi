@@ -348,6 +348,15 @@
 				};
 			};
 
+			dma0: dma-controller@ffffe600 {
+				compatible = "atmel,at91sam9rl-dma";
+				reg = <0xffffe600 0x200>;
+				interrupts = <21 IRQ_TYPE_LEVEL_HIGH 0>;
+				#dma-cells = <2>;
+				clocks = <&dma0_clk>;
+				clock-names = "dma_clk";
+			};
+
 			ramc0: ramc@ffffea00 {
 				compatible = "atmel,at91sam9260-sdramc";
 				reg = <0xffffea00 0x200>;
