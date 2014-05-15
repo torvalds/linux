@@ -99,7 +99,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	struct resource		res[2];
 	struct platform_device	*dwc3;
 	struct dwc3_pci		*glue;
-	int			ret = -ENOMEM;
+	int			ret;
 	struct device		*dev = &pci->dev;
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);

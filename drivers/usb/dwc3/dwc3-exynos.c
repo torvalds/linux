@@ -110,12 +110,12 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	struct device_node	*node = dev->of_node;
 
-	int			ret = -ENOMEM;
+	int			ret;
 
 	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
 	if (!exynos) {
 		dev_err(dev, "not enough memory\n");
-		goto err1;
+		return -ENOMEM;
 	}
 
 	/*
@@ -125,21 +125,20 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	 */
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
-		goto err1;
+		return ret;
 
 	platform_set_drvdata(pdev, exynos);
 
 	ret = dwc3_exynos_register_phys(exynos);
 	if (ret) {
 		dev_err(dev, "couldn't register PHYs\n");
-		goto err1;
+		return ret;
 	}
 
 	clk = devm_clk_get(dev, "usbdrd30");
 	if (IS_ERR(clk)) {
 		dev_err(dev, "couldn't get clock\n");
-		ret = -EINVAL;
-		goto err1;
+		return -EINVAL;
 	}
 
 	exynos->dev	= dev;
@@ -189,7 +188,6 @@ err3:
 	regulator_disable(exynos->vdd33);
 err2:
 	clk_disable_unprepare(clk);
-err1:
 	return ret;
 }
 

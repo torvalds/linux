@@ -584,7 +584,7 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 {
 	struct dwc3		*dwc = dep->dwc;
 	u32			reg;
-	int			ret = -ENOMEM;
+	int			ret;
 
 	dev_vdbg(dwc->dev, "Enabling %s\n", dep->name);
 

@@ -626,7 +626,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	struct resource		*res;
 	struct dwc3		*dwc;
 
-	int			ret = -ENOMEM;
+	int			ret;
 
 	void __iomem		*regs;
 	void			*mem;
