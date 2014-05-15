@@ -36,7 +36,6 @@ enum stream_type {
 };
 
 struct snd_pcm_params {
-	u16 codec;	/* codec type */
 	u8 num_chan;	/* 1=Mono, 2=Stereo */
 	u8 pcm_wd_sz;	/* 16/24 - bit*/
 	u32 reserved;	/* Bitrate in bits per second */
@@ -49,7 +48,6 @@ struct snd_pcm_params {
 
 /* MP3 Music Parameters Message */
 struct snd_mp3_params {
-	u16 codec;
 	u8  num_chan;	/* 1=Mono, 2=Stereo	*/
 	u8  pcm_wd_sz; /* 16/24 - bit*/
 	u8  crc_check; /* crc_check - disable (0) or enable (1) */
@@ -63,7 +61,6 @@ struct snd_mp3_params {
 
 /* AAC Music Parameters Message */
 struct snd_aac_params {
-	u16 codec;
 	u8 num_chan; /* 1=Mono, 2=Stereo*/
 	u8 pcm_wd_sz; /* 16/24 - bit*/
 	u8 bdownsample; /*SBR downsampling 0 - disable 1 -enabled AAC+ only */
@@ -77,7 +74,6 @@ struct snd_aac_params {
 
 /* WMA Music Parameters Message */
 struct snd_wma_params {
-	u16 codec;
 	u8  num_chan;	/* 1=Mono, 2=Stereo */
 	u8  pcm_wd_sz;	/* 16/24 - bit*/
 	u32 brate;	/* Use the hard coded value. */

@@ -112,7 +112,6 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 	switch (params->codec.id) {
 	case SND_AUDIOCODEC_MP3: {
 		str_params.codec = SST_CODEC_TYPE_MP3;
-		str_params.sparams.uc.mp3_params.codec = SST_CODEC_TYPE_MP3;
 		str_params.sparams.uc.mp3_params.num_chan = params->codec.ch_in;
 		str_params.sparams.uc.mp3_params.pcm_wd_sz = 16;
 		break;
@@ -120,7 +119,6 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 
 	case SND_AUDIOCODEC_AAC: {
 		str_params.codec = SST_CODEC_TYPE_AAC;
-		str_params.sparams.uc.aac_params.codec = SST_CODEC_TYPE_AAC;
 		str_params.sparams.uc.aac_params.num_chan = params->codec.ch_in;
 		str_params.sparams.uc.aac_params.pcm_wd_sz = 16;
 		if (params->codec.format == SND_AUDIOSTREAMFORMAT_MP4ADTS)

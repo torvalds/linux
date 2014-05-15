@@ -147,7 +147,6 @@ static void sst_fill_pcm_params(struct snd_pcm_substream *substream,
 				struct sst_pcm_params *param)
 {
 
-	param->codec = SST_CODEC_TYPE_PCM;
 	param->num_chan = (u8) substream->runtime->channels;
 	param->pcm_wd_sz = substream->runtime->sample_bits;
 	param->reserved = 0;
