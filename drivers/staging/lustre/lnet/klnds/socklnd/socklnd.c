@@ -650,8 +650,7 @@ ksocknal_get_conn_by_idx (lnet_ni_t *ni, int index)
 				conn = list_entry (ctmp, ksock_conn_t,
 						       ksnc_list);
 				ksocknal_conn_addref(conn);
-				read_unlock(&ksocknal_data. \
-						 ksnd_global_lock);
+				read_unlock(&ksocknal_data.ksnd_global_lock);
 				return conn;
 			}
 		}
@@ -2295,12 +2294,12 @@ ksocknal_base_shutdown(void)
 				for (j = 0; j < info->ksi_nthreads_max; j++) {
 
 					sched = &info->ksi_scheds[j];
-					LASSERT(list_empty(&sched->\
-							       kss_tx_conns));
-					LASSERT(list_empty(&sched->\
-							       kss_rx_conns));
-					LASSERT(list_empty(&sched-> \
-						  kss_zombie_noop_txs));
+					LASSERT(list_empty(
+						&sched->kss_tx_conns));
+					LASSERT(list_empty(
+						&sched->kss_rx_conns));
+					LASSERT(list_empty(
+						&sched->kss_zombie_noop_txs));
 					LASSERT(sched->kss_nconns == 0);
 				}
 			}
@@ -2680,8 +2679,8 @@ ksocknal_search_new_ipif(ksock_net_t *net)
 		list_for_each_entry(tmp, &ksocknal_data.ksnd_nets,
 					ksnn_list) {
 			for (j = 0; !found && j < tmp->ksnn_ninterfaces; j++) {
-				char *ifnam2 = &tmp->ksnn_interfaces[j].\
-					     ksni_name[0];
+				char *ifnam2 =
+					&tmp->ksnn_interfaces[j].ksni_name[0];
 				char *colon2 = strchr(ifnam2, ':');
 
 				if (colon2 != NULL)
