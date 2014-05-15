@@ -105,10 +105,16 @@ static void nfs_readpage_release(struct nfs_page *req)
 {
 	struct inode *d_inode = req->wb_context->dentry->d_inode;
 
-	if (PageUptodate(req->wb_page))
-		nfs_readpage_to_fscache(d_inode, req->wb_page, 0);
+	dprintk("NFS: read done (%s/%llu %d@%lld)\n", d_inode->i_sb->s_id,
+		(unsigned long long)NFS_FILEID(d_inode), req->wb_bytes,
+		(long long)req_offset(req));
 
-	unlock_page(req->wb_page);
+	if (nfs_page_group_sync_on_bit(req, PG_UNLOCKPAGE)) {
+		if (PageUptodate(req->wb_page))
+			nfs_readpage_to_fscache(d_inode, req->wb_page, 0);
+
+		unlock_page(req->wb_page);
+	}
 
 	dprintk("NFS: read done (%s/%Lu %d@%Ld)\n",
 			req->wb_context->dentry->d_inode->i_sb->s_id,
@@ -116,6 +122,12 @@ static void nfs_readpage_release(struct nfs_page *req)
 			req->wb_bytes,
 			(long long)req_offset(req));
 	nfs_release_request(req);
+}
+
+static void nfs_page_group_set_uptodate(struct nfs_page *req)
+{
+	if (nfs_page_group_sync_on_bit(req, PG_UPTODATE))
+		SetPageUptodate(req->wb_page);
 }
 
 /* Note io was page aligned */
@@ -140,9 +152,9 @@ static void nfs_read_completion(struct nfs_pgio_header *hdr)
 		bytes += req->wb_bytes;
 		if (test_bit(NFS_IOHDR_ERROR, &hdr->flags)) {
 			if (bytes <= hdr->good_bytes)
-				SetPageUptodate(page);
+				nfs_page_group_set_uptodate(req);
 		} else
-			SetPageUptodate(page);
+			nfs_page_group_set_uptodate(req);
 		nfs_list_remove_request(req);
 		nfs_readpage_release(req);
 	}

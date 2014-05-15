@@ -395,6 +395,8 @@ static void nfs_free_request(struct nfs_page *req)
 
 	/* extra debug: make sure no sync bits are still set */
 	WARN_ON_ONCE(test_bit(PG_TEARDOWN, &req->wb_flags));
+	WARN_ON_ONCE(test_bit(PG_UNLOCKPAGE, &req->wb_flags));
+	WARN_ON_ONCE(test_bit(PG_UPTODATE, &req->wb_flags));
 
 	/* Release struct file and open context */
 	nfs_clear_request(req);

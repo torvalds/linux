@@ -29,6 +29,8 @@ enum {
 	PG_INODE_REF,		/* extra ref held by inode (head req only) */
 	PG_HEADLOCK,		/* page group lock of wb_head */
 	PG_TEARDOWN,		/* page group sync for destroy */
+	PG_UNLOCKPAGE,		/* page group sync bit in read path */
+	PG_UPTODATE,		/* page group sync bit in read path */
 };
 
 struct nfs_inode;
