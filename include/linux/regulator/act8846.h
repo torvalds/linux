@@ -40,6 +40,7 @@ struct act8846_board {
 	unsigned int dcdc_mode[3]; /* buckx_voltage in uV */
 	bool pmic_sleep;
 	unsigned int ldo_slp_voltage[7];
+	bool pm_off;
 };
 
 struct act8846_regulator_subdev {

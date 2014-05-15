@@ -779,6 +779,7 @@ static struct act8846_board *act8846_parse_dt(struct act8846 *act8846)
 		if (!gpio_is_valid(gpio)) 
 			printk("invalid gpio: %d\n",gpio);
 	pdata->pmic_hold_gpio = gpio;	
+	pdata->pm_off = of_property_read_bool(act8846_pmic_np,"act8846,system-power-controller");
 
 	return pdata;
 }
@@ -798,7 +799,11 @@ int act8846_device_shutdown(void)
 	struct act8846 *act8846 = g_act8846;
 	
 	printk("%s\n",__func__);
-
+#if 1
+	if (act8846->pmic_hold_gpio) {
+			gpio_direction_output(act8846->pmic_hold_gpio,0);
+	}
+#else
 	ret = act8846_reg_read(act8846,0xc3);
 	ret = act8846_set_bits(act8846, 0xc3,(0x1<<3),(0x1<<3));
 	ret = act8846_set_bits(act8846, 0xc3,(0x1<<4),(0x1<<4));
@@ -806,6 +811,7 @@ int act8846_device_shutdown(void)
 		printk("act8846 set 0xc3 error!\n");
 		return err;
 	}
+#endif
 	return 0;	
 }
 EXPORT_SYMBOL_GPL(act8846_device_shutdown);
@@ -923,7 +929,7 @@ static int act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 			}
 			gpio_direction_output(act8846->pmic_hold_gpio,1);
 			ret = gpio_get_value(act8846->pmic_hold_gpio);
-			gpio_free(act8846->pmic_hold_gpio);
+	//		gpio_free(act8846->pmic_hold_gpio);
 			printk("%s: act8846_pmic_hold=%x\n", __func__, ret);
 	}
 	#endif
@@ -976,6 +982,10 @@ static int act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 		}
 		act8846->rdev[i] = act_rdev;
 		}
+	}
+
+	if (pdev->pm_off && !pm_power_off) {
+		pm_power_off = act8846_device_shutdown;
 	}
 	
 	#ifdef CONFIG_HAS_EARLYSUSPEND
