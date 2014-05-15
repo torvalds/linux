@@ -530,17 +530,17 @@ int PIPEnsSendBulkOut(struct vnt_private *priv,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_nsSendBulkOut\n");
 
 	if (!(MP_IS_READY(priv) && priv->Flags & fMP_POST_WRITES)) {
-		context->bBoolInUse = false;
+		context->in_use = false;
 		return STATUS_RESOURCES;
 	}
 
-	urb = context->pUrb;
+	urb = context->urb;
 
 	usb_fill_bulk_urb(urb,
 			priv->usb,
 			usb_sndbulkpipe(priv->usb, 3),
-			context->Data,
-			context->uBufLen,
+			context->data,
+			context->buf_len,
 			s_nsBulkOutIoCompleteWrite,
 			context);
 
@@ -548,7 +548,7 @@ int PIPEnsSendBulkOut(struct vnt_private *priv,
 	if (status != 0) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"Submit Tx URB failed %d\n", status);
-		context->bBoolInUse = false;
+		context->in_use = false;
 		return STATUS_FAILURE;
 	}
 
@@ -586,7 +586,7 @@ int PIPEnsSendBulkOut(struct vnt_private *priv,
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 {
 	struct vnt_usb_send_context *context = urb->context;
-	struct vnt_private *priv = context->pDevice;
+	struct vnt_private *priv = context->priv;
 	u8 context_type = context->type;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkOutIoCompleteWrite\n");
@@ -594,12 +594,12 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"Write %d bytes\n", context->uBufLen);
+			"Write %d bytes\n", context->buf_len);
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		context->bBoolInUse = false;
+		context->in_use = false;
 		return;
 	case -ETIMEDOUT:
 	default:
@@ -612,11 +612,11 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 		return;
 
 	if (CONTEXT_DATA_PACKET == context_type) {
-		if (context->pPacket != NULL) {
-			dev_kfree_skb_irq(context->pPacket);
-			context->pPacket = NULL;
+		if (context->skb != NULL) {
+			dev_kfree_skb_irq(context->skb);
+			context->skb = NULL;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				"tx  %d bytes\n", context->uBufLen);
+				"tx  %d bytes\n", context->buf_len);
 		}
 
 		priv->dev->trans_start = jiffies;
@@ -627,7 +627,7 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 			netif_wake_queue(priv->dev);
 	}
 
-	context->bBoolInUse = false;
+	context->in_use = false;
 
 	return;
 }

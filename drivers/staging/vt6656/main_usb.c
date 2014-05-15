@@ -760,9 +760,9 @@ static void device_free_tx_bufs(struct vnt_private *priv)
 	for (ii = 0; ii < priv->cbTD; ii++) {
 		tx_context = priv->apTD[ii];
 		/* deallocate URBs */
-		if (tx_context->pUrb) {
-			usb_kill_urb(tx_context->pUrb);
-			usb_free_urb(tx_context->pUrb);
+		if (tx_context->urb) {
+			usb_kill_urb(tx_context->urb);
+			usb_free_urb(tx_context->urb);
 		}
 
 		kfree(tx_context);
@@ -828,17 +828,17 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 		}
 
 		priv->apTD[ii] = tx_context;
-		tx_context->pDevice = priv;
+		tx_context->priv = priv;
 
 		/* allocate URBs */
-		tx_context->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
-		if (tx_context->pUrb == NULL) {
+		tx_context->urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!tx_context->urb) {
 			DBG_PRT(MSG_LEVEL_ERR,
 				KERN_ERR "alloc tx urb failed\n");
 			goto free_tx;
 		}
 
-		tx_context->bBoolInUse = false;
+		tx_context->in_use = false;
 	}
 
 	/* allocate RCB mem */

@@ -176,13 +176,13 @@ struct vnt_rcb {
 
 /* used to track bulk out irps */
 struct vnt_usb_send_context {
-	void *pDevice;
-	struct sk_buff *pPacket;
-	struct urb *pUrb;
-	unsigned int uBufLen;
+	void *priv;
+	struct sk_buff *skb;
+	struct urb *urb;
+	unsigned int buf_len;
 	u8 type;
-	bool bBoolInUse;
-	unsigned char Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
+	bool in_use;
+	unsigned char data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 };
 
 /* tx packet info for rxtx */
