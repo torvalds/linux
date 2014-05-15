@@ -1244,6 +1244,12 @@ static inline void umac_enable_set(struct bcm_sysport_priv *priv,
 	else
 		reg &= ~(CMD_RX_EN | CMD_TX_EN);
 	umac_writel(priv, reg, UMAC_CMD);
+
+	/* UniMAC stops on a packet boundary, wait for a full-sized packet
+	 * to be processed (1 msec).
+	 */
+	if (enable == 0)
+		usleep_range(1000, 2000);
 }
 
 static inline int umac_reset(struct bcm_sysport_priv *priv)
