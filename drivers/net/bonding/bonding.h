@@ -65,10 +65,6 @@
 		 ((mode) == BOND_MODE_TLB)	||	\
 		 ((mode) == BOND_MODE_ALB))
 
-#define TX_QUEUE_OVERRIDE(mode)				\
-			(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
-			 ((mode) == BOND_MODE_ROUNDROBIN))
-
 #define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
 	((htonl(INADDR_BROADCAST) == a) ||	\
 	 ipv4_is_zeronet(a))
@@ -282,6 +278,12 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 	if (!slave || !slave->bond)
 		return NULL;
 	return slave->bond;
+}
+
+static inline bool bond_should_override_tx_queue(struct bonding *bond)
+{
+	return bond->params.mode == BOND_MODE_ACTIVEBACKUP ||
+	       bond->params.mode == BOND_MODE_ROUNDROBIN;
 }
 
 static inline bool bond_is_lb(const struct bonding *bond)

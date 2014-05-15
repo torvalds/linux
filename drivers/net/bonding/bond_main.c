@@ -3788,10 +3788,9 @@ static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev
 {
 	struct bonding *bond = netdev_priv(dev);
 
-	if (TX_QUEUE_OVERRIDE(bond->params.mode)) {
-		if (!bond_slave_override(bond, skb))
-			return NETDEV_TX_OK;
-	}
+	if (bond_should_override_tx_queue(bond) &&
+	    !bond_slave_override(bond, skb))
+		return NETDEV_TX_OK;
 
 	switch (bond->params.mode) {
 	case BOND_MODE_ROUNDROBIN:
