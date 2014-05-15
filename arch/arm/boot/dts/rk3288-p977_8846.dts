@@ -615,8 +615,8 @@
 		1416000 1200000
 		1512000 1250000
 		1608000 1300000
-		1704000 1350000
-		1800000 1400000
+	//	1704000 1350000
+	//	1800000 1400000
 		>;
 	status="okay";
 };
@@ -666,6 +666,7 @@
 /include/ "act8846.dtsi"
 &act8846 {
 	gpios =<&gpio7 GPIO_A1 GPIO_ACTIVE_LOW>,<&gpio0 GPIO_B2 GPIO_ACTIVE_HIGH>;
+	act8846,system-power-controller;
 
 	regulators {
 		
