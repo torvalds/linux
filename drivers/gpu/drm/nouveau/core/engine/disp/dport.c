@@ -30,6 +30,8 @@
 
 #include <engine/disp.h>
 
+#include <core/class.h>
+
 #include "dport.h"
 
 #define DBG(fmt, args...) nv_debug(dp->disp, "DP:%04x:%04x: " fmt,             \
@@ -53,6 +55,9 @@ struct dp_state {
 	u32 link_bw;
 	u8  stat[6];
 	u8  conf[4];
+	bool pc2;
+	u8  pc2stat;
+	u8  pc2conf[2];
 };
 
 static int
@@ -122,9 +127,11 @@ dp_set_training_pattern(struct dp_state *dp, u8 pattern)
 }
 
 static int
-dp_link_train_commit(struct dp_state *dp)
+dp_link_train_commit(struct dp_state *dp, bool pc)
 {
-	int i;
+	const struct nouveau_dp_func *func = dp->func;
+	struct nouveau_disp *disp = dp->disp;
+	int ret, i;
 
 	for (i = 0; i < dp->link_nr; i++) {
 		u8 lane = (dp->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
@@ -136,16 +143,27 @@ dp_link_train_commit(struct dp_state *dp)
 			dp->conf[i] |= DPCD_LC03_MAX_SWING_REACHED;
 		if (lpre == 3)
 			dp->conf[i] |= DPCD_LC03_MAX_PRE_EMPHASIS_REACHED;
+		dp->pc2conf[i >> 1] |= 4 << ((i & 1) * 4);
 
 		DBG("config lane %d %02x\n", i, dp->conf[i]);
-		dp->func->drv_ctl(dp->disp, dp->outp, dp->head, i, lvsw, lpre);
+		func->drv_ctl(disp, dp->outp, dp->head, i, lvsw, lpre);
 	}
 
-	return nv_wraux(dp->aux, DPCD_LC03(0), dp->conf, 4);
+	ret = nv_wraux(dp->aux, DPCD_LC03(0), dp->conf, 4);
+	if (ret)
+		return ret;
+
+	if (pc) {
+		ret = nv_wraux(dp->aux, DPCD_LC0F, dp->pc2conf, 2);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int
-dp_link_train_update(struct dp_state *dp, u32 delay)
+dp_link_train_update(struct dp_state *dp, bool pc, u32 delay)
 {
 	int ret;
 
@@ -158,7 +176,15 @@ dp_link_train_update(struct dp_state *dp, u32 delay)
 	if (ret)
 		return ret;
 
-	DBG("status %6ph\n", dp->stat);
+	if (pc) {
+		ret = nv_rdaux(dp->aux, DPCD_LS0C, &dp->pc2stat, 1);
+		if (ret)
+			dp->pc2stat = 0x00;
+		DBG("status %6ph pc2 %02x\n", dp->stat, dp->pc2stat);
+	} else {
+		DBG("status %6ph\n", dp->stat);
+	}
+
 	return 0;
 }
 
@@ -172,8 +198,8 @@ dp_link_train_cr(struct dp_state *dp)
 	dp_set_training_pattern(dp, 1);
 
 	do {
-		if (dp_link_train_commit(dp) ||
-		    dp_link_train_update(dp, 100))
+		if (dp_link_train_commit(dp, false) ||
+		    dp_link_train_update(dp, false, 100))
 			break;
 
 		cr_done = true;
@@ -208,7 +234,7 @@ dp_link_train_eq(struct dp_state *dp)
 		dp_set_training_pattern(dp, 2);
 
 	do {
-		if (dp_link_train_update(dp, 400))
+		if (dp_link_train_update(dp, dp->pc2, 400))
 			break;
 
 		eq_done = !!(dp->stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE);
@@ -221,7 +247,7 @@ dp_link_train_eq(struct dp_state *dp)
 				eq_done = false;
 		}
 
-		if (dp_link_train_commit(dp))
+		if (dp_link_train_commit(dp, dp->pc2))
 			break;
 	} while (!eq_done && cr_done && ++tries <= 5);
 
@@ -319,7 +345,7 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 	}
 
 	/* bring capabilities within encoder limits */
-	if (nv_oclass(disp)->handle < NV_ENGINE(DISP, 0x90))
+	if (nv_mclass(disp) < NVD0_DISP_CLASS)
 		dp->dpcd[2] &= ~DPCD_RC02_TPS3_SUPPORTED;
 	if ((dp->dpcd[2] & 0x1f) > dp->outp->dpconf.link_nr) {
 		dp->dpcd[2] &= ~DPCD_RC02_MAX_LANE_COUNT;
@@ -327,6 +353,7 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 	}
 	if (dp->dpcd[1] > dp->outp->dpconf.link_bw)
 		dp->dpcd[1] = dp->outp->dpconf.link_bw;
+	dp->pc2 = dp->dpcd[2] & DPCD_RC02_TPS3_SUPPORTED;
 
 	/* adjust required bandwidth for 8B/10B coding overhead */
 	datarate = (datarate / 8) * 10;

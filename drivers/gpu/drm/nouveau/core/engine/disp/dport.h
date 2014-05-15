@@ -25,6 +25,16 @@
 #define DPCD_LC03_PRE_EMPHASIS_SET                                         0x18
 #define DPCD_LC03_MAX_SWING_REACHED                                        0x04
 #define DPCD_LC03_VOLTAGE_SWING_SET                                        0x03
+#define DPCD_LC0F                                                       0x0010f
+#define DPCD_LC0F_LANE1_MAX_POST_CURSOR2_REACHED                           0x40
+#define DPCD_LC0F_LANE1_POST_CURSOR2_SET                                   0x30
+#define DPCD_LC0F_LANE0_MAX_POST_CURSOR2_REACHED                           0x04
+#define DPCD_LC0F_LANE0_POST_CURSOR2_SET                                   0x03
+#define DPCD_LC10                                                       0x00110
+#define DPCD_LC10_LANE3_MAX_POST_CURSOR2_REACHED                           0x40
+#define DPCD_LC10_LANE3_POST_CURSOR2_SET                                   0x30
+#define DPCD_LC10_LANE2_MAX_POST_CURSOR2_REACHED                           0x04
+#define DPCD_LC10_LANE2_POST_CURSOR2_SET                                   0x03
 
 /* DPCD Link/Sink Status */
 #define DPCD_LS02                                                       0x00202
@@ -55,6 +65,11 @@
 #define DPCD_LS07_LANE3_VOLTAGE_SWING                                      0x30
 #define DPCD_LS07_LANE2_PRE_EMPHASIS                                       0x0c
 #define DPCD_LS07_LANE2_VOLTAGE_SWING                                      0x03
+#define DPCD_LS0C                                                       0x0020c
+#define DPCD_LS0C_LANE3_POST_CURSOR2                                       0xc0
+#define DPCD_LS0C_LANE2_POST_CURSOR2                                       0x30
+#define DPCD_LS0C_LANE1_POST_CURSOR2                                       0x0c
+#define DPCD_LS0C_LANE0_POST_CURSOR2                                       0x03
 
 struct nouveau_disp;
 struct dcb_output;
