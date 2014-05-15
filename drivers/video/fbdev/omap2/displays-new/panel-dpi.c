@@ -210,13 +210,17 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 	struct gpio_desc *gpio;
 
 	gpio = devm_gpiod_get(&pdev->dev, "enable");
+
 	if (IS_ERR(gpio)) {
-		dev_err(&pdev->dev, "failed to parse enable gpio\n");
-		return PTR_ERR(gpio);
+		if (PTR_ERR(gpio) != -ENOENT)
+			return PTR_ERR(gpio);
+		else
+			gpio = NULL;
 	} else {
 		gpiod_direction_output(gpio, 0);
-		ddata->enable_gpio = gpio;
 	}
+
+	ddata->enable_gpio = gpio;
 
 	ddata->backlight_gpio = -ENOENT;
 
