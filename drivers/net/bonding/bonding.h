@@ -41,15 +41,6 @@
 #define BOND_DEFAULT_MIIMON	100
 
 /*
- * Checks whether slave is ready for transmit.
- */
-#define SLAVE_IS_OK(slave)			        \
-		    (((slave)->dev->flags & IFF_UP)  && \
-		     netif_running((slave)->dev)     && \
-		     ((slave)->link == BOND_LINK_UP) && \
-		     bond_is_active_slave(slave))
-
-/*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.
  * Needs "ioctl" variable to be supplied by calling context.
