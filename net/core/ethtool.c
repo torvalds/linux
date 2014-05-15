@@ -681,11 +681,11 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 {
 	int ret;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
-	u32 user_indir_size = 0, user_key_size = 0;
+	u32 user_indir_size, user_key_size;
 	u32 dev_indir_size = 0, dev_key_size = 0;
+	struct ethtool_rxfh rxfh;
 	u32 total_size;
-	u32 indir_offset, indir_bytes;
-	u32 key_offset;
+	u32 indir_bytes;
 	u32 *indir = NULL;
 	u8 *hkey = NULL;
 	u8 *rss_config;
@@ -697,33 +697,24 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 
 	if (ops->get_rxfh_indir_size)
 		dev_indir_size = ops->get_rxfh_indir_size(dev);
-
-	indir_offset = offsetof(struct ethtool_rxfh, indir_size);
-
-	if (copy_from_user(&user_indir_size,
-			   useraddr + indir_offset,
-			   sizeof(user_indir_size)))
-		return -EFAULT;
-
-	if (copy_to_user(useraddr + indir_offset,
-			 &dev_indir_size, sizeof(dev_indir_size)))
-		return -EFAULT;
-
 	if (ops->get_rxfh_key_size)
 		dev_key_size = ops->get_rxfh_key_size(dev);
 
 	if ((dev_key_size + dev_indir_size) == 0)
 		return -EOPNOTSUPP;
 
-	key_offset = offsetof(struct ethtool_rxfh, key_size);
-
-	if (copy_from_user(&user_key_size,
-			   useraddr + key_offset,
-			   sizeof(user_key_size)))
+	if (copy_from_user(&rxfh, useraddr, sizeof(rxfh)))
 		return -EFAULT;
+	user_indir_size = rxfh.indir_size;
+	user_key_size = rxfh.key_size;
 
-	if (copy_to_user(useraddr + key_offset,
-			 &dev_key_size, sizeof(dev_key_size)))
+	/* Check that reserved fields are 0 for now */
+	if (rxfh.rss_context || rxfh.rsvd[0] || rxfh.rsvd[1])
+		return -EINVAL;
+
+	rxfh.indir_size = dev_indir_size;
+	rxfh.key_size = dev_key_size;
+	if (copy_to_user(useraddr, &rxfh, sizeof(rxfh)))
 		return -EFAULT;
 
 	/* If the user buffer size is 0, this is just a query for the
@@ -768,12 +759,11 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	int ret;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct ethtool_rxnfc rx_rings;
-	u32 user_indir_size = 0, dev_indir_size = 0, i;
-	u32 user_key_size = 0, dev_key_size = 0;
+	struct ethtool_rxfh rxfh;
+	u32 dev_indir_size = 0, dev_key_size = 0, i;
 	u32 *indir = NULL, indir_bytes = 0;
 	u8 *hkey = NULL;
 	u8 *rss_config;
-	u32 indir_offset, key_offset;
 	u32 rss_cfg_offset = offsetof(struct ethtool_rxfh, rss_config[0]);
 
 	if (!(ops->get_rxfh_indir_size || ops->get_rxfh_key_size) ||
@@ -782,40 +772,33 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 
 	if (ops->get_rxfh_indir_size)
 		dev_indir_size = ops->get_rxfh_indir_size(dev);
-
-	indir_offset = offsetof(struct ethtool_rxfh, indir_size);
-	if (copy_from_user(&user_indir_size,
-			   useraddr + indir_offset,
-			   sizeof(user_indir_size)))
-		return -EFAULT;
-
 	if (ops->get_rxfh_key_size)
 		dev_key_size = dev->ethtool_ops->get_rxfh_key_size(dev);
-
 	if ((dev_key_size + dev_indir_size) == 0)
 		return -EOPNOTSUPP;
 
-	key_offset = offsetof(struct ethtool_rxfh, key_size);
-	if (copy_from_user(&user_key_size,
-			   useraddr + key_offset,
-			   sizeof(user_key_size)))
+	if (copy_from_user(&rxfh, useraddr, sizeof(rxfh)))
 		return -EFAULT;
+
+	/* Check that reserved fields are 0 for now */
+	if (rxfh.rss_context || rxfh.rsvd[0] || rxfh.rsvd[1])
+		return -EINVAL;
 
 	/* If either indir or hash key is valid, proceed further.
 	 * It is not valid to request that both be unchanged.
 	 */
-	if ((user_indir_size &&
-	     user_indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
-	     user_indir_size != dev_indir_size) ||
-	    (user_key_size && (user_key_size != dev_key_size)) ||
-	    (user_indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
-	     user_key_size == 0))
+	if ((rxfh.indir_size &&
+	     rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
+	     rxfh.indir_size != dev_indir_size) ||
+	    (rxfh.key_size && (rxfh.key_size != dev_key_size)) ||
+	    (rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
+	     rxfh.key_size == 0))
 		return -EINVAL;
 
-	if (user_indir_size != ETH_RXFH_INDIR_NO_CHANGE)
+	if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
 		indir_bytes = dev_indir_size * sizeof(indir[0]);
 
-	rss_config = kzalloc(indir_bytes + user_key_size, GFP_USER);
+	rss_config = kzalloc(indir_bytes + rxfh.key_size, GFP_USER);
 	if (!rss_config)
 		return -ENOMEM;
 
@@ -824,29 +807,29 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	if (ret)
 		goto out;
 
-	/* user_indir_size == 0 means reset the indir table to default.
-	 * user_indir_size == ETH_RXFH_INDIR_NO_CHANGE means leave it unchanged.
+	/* rxfh.indir_size == 0 means reset the indir table to default.
+	 * rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE means leave it unchanged.
 	 */
-	if (user_indir_size &&
-	    user_indir_size != ETH_RXFH_INDIR_NO_CHANGE) {
+	if (rxfh.indir_size &&
+	    rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE) {
 		indir = (u32 *)rss_config;
 		ret = ethtool_copy_validate_indir(indir,
 						  useraddr + rss_cfg_offset,
 						  &rx_rings,
-						  user_indir_size);
+						  rxfh.indir_size);
 		if (ret)
 			goto out;
-	} else if (user_indir_size == 0) {
+	} else if (rxfh.indir_size == 0) {
 		indir = (u32 *)rss_config;
 		for (i = 0; i < dev_indir_size; i++)
 			indir[i] = ethtool_rxfh_indir_default(i, rx_rings.data);
 	}
 
-	if (user_key_size) {
+	if (rxfh.key_size) {
 		hkey = rss_config + indir_bytes;
 		if (copy_from_user(hkey,
 				   useraddr + rss_cfg_offset + indir_bytes,
-				   user_key_size)) {
+				   rxfh.key_size)) {
 			ret = -EFAULT;
 			goto out;
 		}
