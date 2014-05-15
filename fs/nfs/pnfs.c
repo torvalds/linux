@@ -1573,23 +1573,18 @@ pnfs_try_to_write_data(struct nfs_pgio_data *wdata,
 }
 
 static void
-pnfs_do_multiple_writes(struct nfs_pageio_descriptor *desc, struct list_head *head, int how)
+pnfs_do_write(struct nfs_pageio_descriptor *desc,
+	      struct nfs_pgio_header *hdr, int how)
 {
-	struct nfs_pgio_data *data;
+	struct nfs_pgio_data *data = hdr->data;
 	const struct rpc_call_ops *call_ops = desc->pg_rpc_callops;
 	struct pnfs_layout_segment *lseg = desc->pg_lseg;
+	enum pnfs_try_status trypnfs;
 
 	desc->pg_lseg = NULL;
-	while (!list_empty(head)) {
-		enum pnfs_try_status trypnfs;
-
-		data = list_first_entry(head, struct nfs_pgio_data, list);
-		list_del_init(&data->list);
-
-		trypnfs = pnfs_try_to_write_data(data, call_ops, lseg, how);
-		if (trypnfs == PNFS_NOT_ATTEMPTED)
-			pnfs_write_through_mds(desc, data);
-	}
+	trypnfs = pnfs_try_to_write_data(data, call_ops, lseg, how);
+	if (trypnfs == PNFS_NOT_ATTEMPTED)
+		pnfs_write_through_mds(desc, data);
 	pnfs_put_lseg(lseg);
 }
 
@@ -1623,7 +1618,7 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 		pnfs_put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
 	} else
-		pnfs_do_multiple_writes(desc, &hdr->rpc_list, desc->pg_ioflags);
+		pnfs_do_write(desc, hdr, desc->pg_ioflags);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 	return ret;
@@ -1731,23 +1726,17 @@ pnfs_try_to_read_data(struct nfs_pgio_data *rdata,
 }
 
 static void
-pnfs_do_multiple_reads(struct nfs_pageio_descriptor *desc, struct list_head *head)
+pnfs_do_read(struct nfs_pageio_descriptor *desc, struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_data *data;
+	struct nfs_pgio_data *data = hdr->data;
 	const struct rpc_call_ops *call_ops = desc->pg_rpc_callops;
 	struct pnfs_layout_segment *lseg = desc->pg_lseg;
+	enum pnfs_try_status trypnfs;
 
 	desc->pg_lseg = NULL;
-	while (!list_empty(head)) {
-		enum pnfs_try_status trypnfs;
-
-		data = list_first_entry(head, struct nfs_pgio_data, list);
-		list_del_init(&data->list);
-
-		trypnfs = pnfs_try_to_read_data(data, call_ops, lseg);
-		if (trypnfs == PNFS_NOT_ATTEMPTED)
-			pnfs_read_through_mds(desc, data);
-	}
+	trypnfs = pnfs_try_to_read_data(data, call_ops, lseg);
+	if (trypnfs == PNFS_NOT_ATTEMPTED)
+		pnfs_read_through_mds(desc, data);
 	pnfs_put_lseg(lseg);
 }
 
@@ -1782,7 +1771,7 @@ pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 		pnfs_put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
 	} else
-		pnfs_do_multiple_reads(desc, &hdr->rpc_list);
+		pnfs_do_read(desc, hdr);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 	return ret;

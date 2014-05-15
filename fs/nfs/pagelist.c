@@ -470,7 +470,6 @@ struct nfs_rw_header *nfs_rw_header_alloc(const struct nfs_rw_ops *ops)
 		struct nfs_pgio_header *hdr = &header->header;
 
 		INIT_LIST_HEAD(&hdr->pages);
-		INIT_LIST_HEAD(&hdr->rpc_list);
 		spin_lock_init(&hdr->lock);
 		atomic_set(&hdr->refcnt, 0);
 		hdr->rw_ops = ops;
@@ -648,27 +647,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(nfs_initiate_pgio);
 
-static int nfs_do_multiple_pgios(struct list_head *head,
-				 const struct rpc_call_ops *call_ops,
-				 int how)
-{
-	struct nfs_pgio_data *data;
-	int ret = 0;
-
-	while (!list_empty(head)) {
-		int ret2;
-
-		data = list_first_entry(head, struct nfs_pgio_data, list);
-		list_del_init(&data->list);
-
-		ret2 = nfs_initiate_pgio(NFS_CLIENT(data->header->inode),
-					 data, call_ops, how, 0);
-		if (ret == 0)
-			 ret = ret2;
-	}
-	return ret;
-}
-
 /**
  * nfs_pgio_error - Clean up from a pageio error
  * @desc: IO descriptor
@@ -677,14 +655,9 @@ static int nfs_do_multiple_pgios(struct list_head *head,
 static int nfs_pgio_error(struct nfs_pageio_descriptor *desc,
 			  struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_data *data;
-
 	set_bit(NFS_IOHDR_REDO, &hdr->flags);
-	while (!list_empty(&hdr->rpc_list)) {
-		data = list_first_entry(&hdr->rpc_list, struct nfs_pgio_data, list);
-		list_del(&data->list);
-		nfs_pgio_data_release(data);
-	}
+	nfs_pgio_data_release(hdr->data);
+	hdr->data = NULL;
 	desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 	return -ENOMEM;
 }
@@ -794,7 +767,7 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 
 	/* Set up the argument struct */
 	nfs_pgio_rpcsetup(data, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
-	list_add(&data->list, &hdr->rpc_list);
+	hdr->data = data;
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
@@ -816,9 +789,9 @@ static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 	atomic_inc(&hdr->refcnt);
 	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
-		ret = nfs_do_multiple_pgios(&hdr->rpc_list,
-					    desc->pg_rpc_callops,
-					    desc->pg_ioflags);
+		ret = nfs_initiate_pgio(NFS_CLIENT(hdr->inode),
+					hdr->data, desc->pg_rpc_callops,
+					desc->pg_ioflags, 0);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 	return ret;

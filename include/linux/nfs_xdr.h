@@ -1256,11 +1256,13 @@ enum {
 	NFS_IOHDR_NEED_RESCHED,
 };
 
+struct nfs_pgio_data;
+
 struct nfs_pgio_header {
 	struct inode		*inode;
 	struct rpc_cred		*cred;
 	struct list_head	pages;
-	struct list_head	rpc_list;
+	struct nfs_pgio_data	*data;
 	atomic_t		refcnt;
 	struct nfs_page		*req;
 	struct nfs_writeverf	verf;		/* Used for writes */
@@ -1282,7 +1284,6 @@ struct nfs_pgio_header {
 
 struct nfs_pgio_data {
 	struct nfs_pgio_header	*header;
-	struct list_head	list;
 	struct rpc_task		task;
 	struct nfs_fattr	fattr;
 	struct nfs_writeverf	verf;		/* Used for writes */
