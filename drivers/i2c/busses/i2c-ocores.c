@@ -250,7 +250,7 @@ static struct i2c_adapter ocores_adapter = {
 	.algo		= &ocores_algorithm,
 };
 
-static struct of_device_id ocores_i2c_match[] = {
+static const struct of_device_id ocores_i2c_match[] = {
 	{
 		.compatible = "opencores,i2c-ocores",
 		.data = (void *)TYPE_OCORES,
