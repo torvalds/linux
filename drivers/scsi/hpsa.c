@@ -2977,6 +2977,7 @@ u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position, int i,
 static int hpsa_hba_mode_enabled(struct ctlr_info *h)
 {
 	int rc;
+	int hba_mode_enabled;
 	struct bmic_controller_parameters *ctlr_params;
 	ctlr_params = kzalloc(sizeof(struct bmic_controller_parameters),
 		GFP_KERNEL);
@@ -2989,7 +2990,11 @@ static int hpsa_hba_mode_enabled(struct ctlr_info *h)
 		kfree(ctlr_params);
 		return 0;
 	}
-	return ctlr_params->nvram_flags & (1 << 3) ? 1 : 0;
+
+	hba_mode_enabled =
+		((ctlr_params->nvram_flags & HBA_MODE_ENABLED_FLAG) != 0);
+	kfree(ctlr_params);
+	return hba_mode_enabled;
 }
 
 static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
