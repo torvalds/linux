@@ -117,6 +117,7 @@ struct vgic_params {
 struct vgic_dist {
 #ifdef CONFIG_KVM_ARM_VGIC
 	spinlock_t		lock;
+	bool			in_kernel;
 	bool			ready;
 
 	/* Virtual control interface mapping */
@@ -212,7 +213,7 @@ int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
 bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		      struct kvm_exit_mmio *mmio);
 
-#define irqchip_in_kernel(k)	(!!((k)->arch.vgic.vctrl_base))
+#define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
 #define vgic_initialized(k)	((k)->arch.vgic.ready)
 
 int vgic_v2_probe(struct device_node *vgic_node,
