@@ -312,22 +312,15 @@ static int device_init_registers(struct vnt_private *pDevice)
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n",
 				DEVICE_INIT_COLD, pDevice->byPacketType);
 
-	spin_lock_irq(&pDevice->lock);
-
 	memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
 	memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
 	memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
 
 	if (!FIRMWAREbCheckVersion(pDevice)) {
-
-		spin_unlock_irq(&pDevice->lock);
 		if (FIRMWAREbDownload(pDevice) == true) {
-
-			spin_lock_irq(&pDevice->lock);
 			if (FIRMWAREbBrach2Sram(pDevice) == false) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 					" FIRMWAREbBrach2Sram fail\n");
-				spin_unlock_irq(&pDevice->lock);
 				return false;
 			}
 		} else {
@@ -339,7 +332,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	if (!BBbVT3184Init(pDevice)) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" BBbVT3184Init fail\n");
-		spin_unlock_irq(&pDevice->lock);
 		return false;
 	}
 
@@ -356,7 +348,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 		sizeof(struct vnt_cmd_card_init), (u8 *)init_cmd);
 	if (ntStatus != STATUS_SUCCESS) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail\n");
-		spin_unlock_irq(&pDevice->lock);
 		return false;
 	}
 
@@ -365,7 +356,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 	if (ntStatus != STATUS_SUCCESS) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"Cardinit request in status fail!\n");
-		spin_unlock_irq(&pDevice->lock);
 		return false;
 	}
 
@@ -373,10 +363,8 @@ static int device_init_registers(struct vnt_private *pDevice)
 	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
 		MAC_REG_LOCALID, MESSAGE_REQUEST_MACREG, 1,
 			&pDevice->byLocalID);
-	if (ntStatus != STATUS_SUCCESS) {
-		spin_unlock_irq(&pDevice->lock);
+	if (ntStatus != STATUS_SUCCESS)
 		return false;
-	}
 
 	/* do MACbSoftwareReset in MACvInitialize */
 
@@ -607,10 +595,8 @@ static int device_init_registers(struct vnt_private *pDevice)
 		ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
 			MAC_REG_GPIOCTL1, MESSAGE_REQUEST_MACREG, 1, &byTmp);
 
-		if (ntStatus != STATUS_SUCCESS) {
-			spin_unlock_irq(&pDevice->lock);
+		if (ntStatus != STATUS_SUCCESS)
 			return false;
-		}
 
 		if ((byTmp & GPIO3_DATA) == 0) {
 			pDevice->bHWRadioOff = true;
@@ -636,9 +622,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 	} else {
 		CARDbRadioPowerOn(pDevice);
 	}
-
-
-	spin_unlock_irq(&pDevice->lock);
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----INIbInitAdapter Exit\n");
 
@@ -1028,7 +1011,6 @@ static int  device_open(struct net_device *dev)
 
     /* if WEP key already set by iwconfig but device not yet open */
     if ((pDevice->bEncryptionEnable == true) && (pDevice->bTransmitKey == true)) {
-         spin_lock_irq(&pDevice->lock);
          KeybSetDefaultKey( pDevice,
                             &(pDevice->sKey),
                             pDevice->byKeyIndex | (1 << 31),
@@ -1037,7 +1019,7 @@ static int  device_open(struct net_device *dev)
                             pDevice->abyKey,
                             KEY_CTL_WEP
                           );
-         spin_unlock_irq(&pDevice->lock);
+
          pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
     }
 
@@ -1084,10 +1066,9 @@ static int device_close(struct net_device *dev)
         pMgmt->bShareKeyAlgorithm = false;
         pDevice->bEncryptionEnable = false;
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-	spin_lock_irq(&pDevice->lock);
+
 	for (uu = 0; uu < MAX_KEY_TABLE; uu++)
                 MACvDisableKeyEntry(pDevice,uu);
-	spin_unlock_irq(&pDevice->lock);
 
     if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == false) {
         MACbShutdown(pDevice);

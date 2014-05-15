@@ -97,7 +97,6 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
 	int i, jj;
 	u8 pbyData[MAX_KEY_TABLE+1];
 
-    spin_lock_irq(&pDevice->lock);
     for (i=0;i<MAX_KEY_TABLE;i++) {
         pTable->KeyTable[i].bInUse = false;
         pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
@@ -121,8 +120,6 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
                         11,
                         pbyData
                         );
-
-    spin_unlock_irq(&pDevice->lock);
 
     return;
 }

@@ -146,7 +146,6 @@ int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 		return STATUS_FAILURE;
 	}
 
-	spin_unlock_irq(&pDevice->lock);
     for (ii = 0; ii <= USB_CTL_WAIT; ii ++) {
 
 	if (pDevice->Flags & fMP_CONTROL_WRITES)
@@ -157,12 +156,10 @@ int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
         if (ii >= USB_CTL_WAIT) {
 		DBG_PRT(MSG_LEVEL_DEBUG,
 			KERN_INFO "control send request submission timeout\n");
-            spin_lock_irq(&pDevice->lock);
             MP_CLEAR_FLAG(pDevice, fMP_CONTROL_WRITES);
             return STATUS_FAILURE;
         }
     }
-	spin_lock_irq(&pDevice->lock);
 
     return STATUS_SUCCESS;
 }
@@ -208,7 +205,6 @@ int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 		return STATUS_FAILURE;
 	}
 
-	spin_unlock_irq(&pDevice->lock);
     for (ii = 0; ii <= USB_CTL_WAIT; ii ++) {
 
 	if (pDevice->Flags & fMP_CONTROL_READS)
@@ -219,12 +215,10 @@ int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 	if (ii >= USB_CTL_WAIT) {
 		DBG_PRT(MSG_LEVEL_DEBUG,
 			KERN_INFO "control rcv request submission timeout\n");
-            spin_lock_irq(&pDevice->lock);
             MP_CLEAR_FLAG(pDevice, fMP_CONTROL_READS);
             return STATUS_FAILURE;
         }
     }
-	spin_lock_irq(&pDevice->lock);
 
     return ntStatus;
 }

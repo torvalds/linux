@@ -818,8 +818,6 @@ void BSSvSecondCallBack(struct work_struct *work)
 	if (pDevice->Flags & fMP_DISCONNECTED)
 		return;
 
-	spin_lock_irq(&pDevice->lock);
-
 	pDevice->uAssocCount = 0;
 
 	/* Power Saving Mode Tx Burst */
@@ -1157,8 +1155,6 @@ void BSSvSecondCallBack(struct work_struct *work)
 		if (netif_queue_stopped(pDevice->dev))
 			netif_wake_queue(pDevice->dev);
 	}
-
-	spin_unlock_irq(&pDevice->lock);
 
 	schedule_delayed_work(&pDevice->second_callback_work, HZ);
 }
