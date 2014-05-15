@@ -159,7 +159,8 @@ static int lb035q02_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_data_lines(in, ddata->data_lines);
+	if (ddata->data_lines)
+		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->videomode);
 
 	r = in->ops.dpi->enable(in);
@@ -277,6 +278,35 @@ err_gpio:
 	return r;
 }
 
+static int lb035q02_probe_of(struct spi_device *spi)
+{
+	struct device_node *node = spi->dev.of_node;
+	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
+	struct omap_dss_device *in;
+	struct gpio_desc *gpio;
+
+	gpio = devm_gpiod_get(&spi->dev, "enable");
+	if (IS_ERR(gpio)) {
+		dev_err(&spi->dev, "failed to parse enable gpio\n");
+		return PTR_ERR(gpio);
+	} else {
+		gpiod_direction_output(gpio, 0);
+		ddata->enable_gpio = gpio;
+	}
+
+	ddata->backlight_gpio = -ENOENT;
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&spi->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
+
+	return 0;
+}
+
 static int lb035q02_panel_spi_probe(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata;
@@ -293,6 +323,10 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 
 	if (dev_get_platdata(&spi->dev)) {
 		r = lb035q02_probe_pdata(spi);
+		if (r)
+			return r;
+	} else if (spi->dev.of_node) {
+		r = lb035q02_probe_of(spi);
 		if (r)
 			return r;
 	} else {
@@ -346,17 +380,26 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id lb035q02_of_match[] = {
+	{ .compatible = "omapdss,lgphilips,lb035q02", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, lb035q02_of_match);
+
 static struct spi_driver lb035q02_spi_driver = {
 	.probe		= lb035q02_panel_spi_probe,
 	.remove		= lb035q02_panel_spi_remove,
 	.driver		= {
 		.name	= "panel_lgphilips_lb035q02",
 		.owner	= THIS_MODULE,
+		.of_match_table = lb035q02_of_match,
 	},
 };
 
 module_spi_driver(lb035q02_spi_driver);
 
+MODULE_ALIAS("spi:lgphilips,lb035q02");
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("LG.Philips LB035Q02 LCD Panel driver");
 MODULE_LICENSE("GPL");
