@@ -2936,6 +2936,11 @@ struct wiphy_vendor_command {
  *	(including P2P GO) or 0 to indicate no such limit is advertised. The
  *	driver is allowed to advertise a theoretical limit that it can reach in
  *	some cases, but may not always reach.
+ *
+ * @max_num_csa_counters: Number of supported csa_counters in beacons
+ *	and probe responses.  This value should be set if the driver
+ *	wishes to limit the number of csa counters. Default (0) means
+ *	infinite.
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -3053,11 +3058,6 @@ struct wiphy {
 
 	u16 max_ap_assoc_sta;
 
-	/*
-	 * Number of supported csa_counters in beacons and probe responses.
-	 * This value should be set if the driver wishes to limit the number of
-	 * csa counters. Default (0) means infinite.
-	 */
 	u8 max_num_csa_counters;
 
 	char priv[0] __aligned(NETDEV_ALIGN);
