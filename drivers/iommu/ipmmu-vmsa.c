@@ -209,6 +209,11 @@ static LIST_HEAD(ipmmu_devices);
 #define ARM_VMSA_PTE_MEMATTR_NC		(((pteval_t)0x5) << 2)
 #define ARM_VMSA_PTE_MEMATTR_DEV	(((pteval_t)0x1) << 2)
 
+#define IPMMU_PTRS_PER_PTE		512
+#define IPMMU_PTRS_PER_PMD		512
+#define IPMMU_PTRS_PER_PGD		4
+#define IPMMU_PTRS_PER_PUD		1
+
 /* -----------------------------------------------------------------------------
  * Read/Write Access
  */
@@ -327,7 +332,7 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 
 	/* TTBR0 */
 	ipmmu_flush_pgtable(domain->mmu, domain->pgd,
-			    PTRS_PER_PGD * sizeof(*domain->pgd));
+			    IPMMU_PTRS_PER_PGD * sizeof(*domain->pgd));
 	ttbr = __pa(domain->pgd);
 	ipmmu_ctx_write(domain, IMTTLBR0, ttbr);
 	ipmmu_ctx_write(domain, IMTTUBR0, ttbr >> 32);
@@ -469,7 +474,7 @@ static void ipmmu_free_pmds(pud_t *pud)
 	unsigned int i;
 
 	pmd = pmd_base;
-	for (i = 0; i < PTRS_PER_PMD; ++i) {
+	for (i = 0; i < IPMMU_PTRS_PER_PMD; ++i) {
 		if (pmd_none(*pmd))
 			continue;
 
@@ -486,7 +491,7 @@ static void ipmmu_free_puds(pgd_t *pgd)
 	unsigned int i;
 
 	pud = pud_base;
-	for (i = 0; i < PTRS_PER_PUD; ++i) {
+	for (i = 0; i < IPMMU_PTRS_PER_PUD; ++i) {
 		if (pud_none(*pud))
 			continue;
 
@@ -509,7 +514,7 @@ static void ipmmu_free_pgtables(struct ipmmu_vmsa_domain *domain)
 	 * tables.
 	 */
 	pgd = pgd_base;
-	for (i = 0; i < PTRS_PER_PGD; ++i) {
+	for (i = 0; i < IPMMU_PTRS_PER_PGD; ++i) {
 		if (pgd_none(*pgd))
 			continue;
 		ipmmu_free_puds(pgd);
@@ -694,7 +699,7 @@ static int ipmmu_domain_init(struct iommu_domain *io_domain)
 
 	spin_lock_init(&domain->lock);
 
-	domain->pgd = kzalloc(PTRS_PER_PGD * sizeof(pgd_t), GFP_KERNEL);
+	domain->pgd = kzalloc(IPMMU_PTRS_PER_PGD * sizeof(pgd_t), GFP_KERNEL);
 	if (!domain->pgd) {
 		kfree(domain);
 		return -ENOMEM;
