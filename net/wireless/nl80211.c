@@ -5822,7 +5822,7 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 		return -EBUSY;
 
 	err = cfg80211_chandef_dfs_required(wdev->wiphy, &chandef,
-					    NL80211_IFTYPE_UNSPECIFIED);
+					    wdev->iftype);
 	if (err < 0)
 		return err;
 
