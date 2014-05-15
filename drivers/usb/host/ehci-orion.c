@@ -154,10 +154,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 
 	pr_debug("Initializing Orion-SoC USB Host Controller\n");
 
-	if (pdev->dev.of_node)
-		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	else
-		irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev,
 			"Found HC with no IRQ. Check %s setup!\n",
