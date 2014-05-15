@@ -744,12 +744,8 @@ void __init r8a7779_init_delay(void)
 
 void __init r8a7779_add_standard_devices_dt(void)
 {
-	/* clocks are setup late during boot in the case of DT */
-	r8a7779_clock_init();
-
 	platform_add_devices(r8a7779_devices_dt,
 			     ARRAY_SIZE(r8a7779_devices_dt));
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 #define MODEMR		0xffcc0020
