@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 {
 	int len, klen, opcodes = 0;
 	char *kbuff;
-	uint8_t image[4096];
+	static uint8_t image[32768];
 
 	if (argc > 1) {
 		if (!strncmp("-o", argv[argc - 1], 2)) {
