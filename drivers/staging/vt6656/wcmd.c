@@ -279,6 +279,7 @@ void vRunCommand(struct work_struct *work)
 	int ii;
 	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	u8 byData;
+	unsigned long flags;
 
 	if (pDevice->Flags & fMP_DISCONNECTED)
 		return;
@@ -667,8 +668,12 @@ void vRunCommand(struct work_struct *work)
 					pDevice->bMoreData = true;
 				}
 
+				spin_lock_irqsave(&pDevice->lock, flags);
+
 				if (nsDMA_tx_packet(pDevice, skb) != 0)
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail\n");
+
+				spin_unlock_irqrestore(&pDevice->lock, flags);
 
 				pMgmt->sNodeDBTable[0].wEnQueueCnt--;
 			}
@@ -690,8 +695,12 @@ void vRunCommand(struct work_struct *work)
 						pDevice->bMoreData = true;
 					}
 
+					spin_lock_irqsave(&pDevice->lock, flags);
+
 					if (nsDMA_tx_packet(pDevice, skb) != 0)
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail\n");
+
+					spin_unlock_irqrestore(&pDevice->lock, flags);
 
 					pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
 					// check if sta ps enable, wait next pspoll
