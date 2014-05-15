@@ -66,5 +66,8 @@ extern void exynos_sys_powerdown_conf(enum sys_powerdown mode);
 extern void exynos_cpu_power_down(int cpu);
 extern void exynos_cpu_power_up(int cpu);
 extern int  exynos_cpu_power_state(int cpu);
+extern void exynos_cluster_power_down(int cluster);
+extern void exynos_cluster_power_up(int cluster);
+extern int  exynos_cluster_power_state(int cluster);
 
 #endif /* __ARCH_ARM_MACH_EXYNOS_COMMON_H */
