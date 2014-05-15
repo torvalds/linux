@@ -1047,10 +1047,6 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 
 	down_read(&mm->mmap_sem);
 
-	err = migrate_vmas(mm, from, to, flags);
-	if (err)
-		goto out;
-
 	/*
 	 * Find a 'source' bit set in 'tmp' whose corresponding 'dest'
 	 * bit in 'to' is not also set in 'tmp'.  Clear the found 'source'
@@ -1130,7 +1126,6 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 		if (err < 0)
 			break;
 	}
-out:
 	up_read(&mm->mmap_sem);
 	if (err < 0)
 		return err;
