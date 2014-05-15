@@ -672,7 +672,7 @@ const struct bond_option *bond_opt_get(unsigned int option)
 
 int bond_option_mode_set(struct bonding *bond, const struct bond_opt_value *newval)
 {
-	if (BOND_NO_USES_ARP(newval->value) && bond->params.arp_interval) {
+	if (!bond_mode_uses_arp(newval->value) && bond->params.arp_interval) {
 		pr_info("%s: %s mode is incompatible with arp monitoring, start mii monitoring\n",
 			bond->dev->name, newval->string);
 		/* disable arp monitoring */

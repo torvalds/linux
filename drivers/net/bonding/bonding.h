@@ -60,11 +60,6 @@
 		 ((mode) == BOND_MODE_TLB)          ||	\
 		 ((mode) == BOND_MODE_ALB))
 
-#define BOND_NO_USES_ARP(mode)				\
-		(((mode) == BOND_MODE_8023AD)	||	\
-		 ((mode) == BOND_MODE_TLB)	||	\
-		 ((mode) == BOND_MODE_ALB))
-
 #define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
 	((htonl(INADDR_BROADCAST) == a) ||	\
 	 ipv4_is_zeronet(a))
@@ -290,6 +285,12 @@ static inline bool bond_is_lb(const struct bonding *bond)
 {
 	return bond->params.mode == BOND_MODE_TLB ||
 	       bond->params.mode == BOND_MODE_ALB;
+}
+
+static inline bool bond_mode_uses_arp(int mode)
+{
+	return mode != BOND_MODE_8023AD && mode != BOND_MODE_TLB &&
+	       mode != BOND_MODE_ALB;
 }
 
 static inline void bond_set_active_slave(struct slave *slave)

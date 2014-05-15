@@ -4113,7 +4113,7 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	/* reset values for 802.3ad/TLB/ALB */
-	if (BOND_NO_USES_ARP(bond_mode)) {
+	if (!bond_mode_uses_arp(bond_mode)) {
 		if (!miimon) {
 			pr_warn("Warning: miimon must be specified, otherwise bonding will not detect link failure, speed and duplex which are essential for 802.3ad operation\n");
 			pr_warn("Forcing miimon to 100msec\n");
