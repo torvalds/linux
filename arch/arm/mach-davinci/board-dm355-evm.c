@@ -350,11 +350,7 @@ static struct davinci_mmc_config dm355evm_mmc_config = {
  * you have proper Mini-B or Mini-A cables (or Mini-A adapters)
  * the ID pin won't need any help.
  */
-#ifdef CONFIG_USB_MUSB_PERIPHERAL
-#define USB_ID_VALUE	0	/* ID pulled high; *should* float */
-#else
 #define USB_ID_VALUE	1	/* ID pulled low */
-#endif
 
 static struct spi_eeprom at25640a = {
 	.byte_len	= SZ_64K / 8,
