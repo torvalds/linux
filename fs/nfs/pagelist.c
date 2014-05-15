@@ -397,6 +397,8 @@ static void nfs_free_request(struct nfs_page *req)
 	WARN_ON_ONCE(test_bit(PG_TEARDOWN, &req->wb_flags));
 	WARN_ON_ONCE(test_bit(PG_UNLOCKPAGE, &req->wb_flags));
 	WARN_ON_ONCE(test_bit(PG_UPTODATE, &req->wb_flags));
+	WARN_ON_ONCE(test_bit(PG_WB_END, &req->wb_flags));
+	WARN_ON_ONCE(test_bit(PG_REMOVE, &req->wb_flags));
 
 	/* Release struct file and open context */
 	nfs_clear_request(req);

@@ -31,6 +31,8 @@ enum {
 	PG_TEARDOWN,		/* page group sync for destroy */
 	PG_UNLOCKPAGE,		/* page group sync bit in read path */
 	PG_UPTODATE,		/* page group sync bit in read path */
+	PG_WB_END,		/* page group sync bit in write path */
+	PG_REMOVE,		/* page group sync bit in write path */
 };
 
 struct nfs_inode;
