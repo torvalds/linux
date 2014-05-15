@@ -139,7 +139,6 @@ nfs_iocounter_wait(struct nfs_io_counter *c)
 /**
  * nfs_create_request - Create an NFS read/write request.
  * @ctx: open context to use
- * @inode: inode to which the request is attached
  * @page: page to write
  * @offset: starting offset within the page for the write
  * @count: number of bytes to read/write
@@ -149,8 +148,7 @@ nfs_iocounter_wait(struct nfs_io_counter *c)
  * User should ensure it is safe to sleep in this function.
  */
 struct nfs_page *
-nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
-		   struct page *page,
+nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 		   unsigned int offset, unsigned int count)
 {
 	struct nfs_page		*req;

@@ -85,7 +85,6 @@ struct nfs_pageio_descriptor {
 #define NFS_WBACK_BUSY(req)	(test_bit(PG_BUSY,&(req)->wb_flags))
 
 extern	struct nfs_page *nfs_create_request(struct nfs_open_context *ctx,
-					    struct inode *inode,
 					    struct page *page,
 					    unsigned int offset,
 					    unsigned int count);
