@@ -928,7 +928,7 @@ EXPORT_SYMBOL_GPL(acpi_subsys_prepare);
  * acpi_subsys_complete - Finalize device's resume during system resume.
  * @dev: Device to handle.
  */
-static void acpi_subsys_complete(struct device *dev)
+void acpi_subsys_complete(struct device *dev)
 {
 	/*
 	 * If the device had been runtime-suspended before the system went into
@@ -938,6 +938,7 @@ static void acpi_subsys_complete(struct device *dev)
 	if (dev->power.direct_complete)
 		pm_request_resume(dev);
 }
+EXPORT_SYMBOL_GPL(acpi_subsys_complete);
 
 /**
  * acpi_subsys_suspend - Run the device driver's suspend callback.
@@ -951,6 +952,7 @@ int acpi_subsys_suspend(struct device *dev)
 	pm_runtime_resume(dev);
 	return pm_generic_suspend(dev);
 }
+EXPORT_SYMBOL_GPL(acpi_subsys_suspend);
 
 /**
  * acpi_subsys_suspend_late - Suspend device using ACPI.
@@ -996,6 +998,7 @@ int acpi_subsys_freeze(struct device *dev)
 	pm_runtime_resume(dev);
 	return pm_generic_freeze(dev);
 }
+EXPORT_SYMBOL_GPL(acpi_subsys_freeze);
 
 #endif /* CONFIG_PM_SLEEP */
 
