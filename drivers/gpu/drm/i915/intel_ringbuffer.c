@@ -684,6 +684,8 @@ static int gen6_signal(struct intel_ring_buffer *signaller,
 #define MBOX_UPDATE_DWORDS 4
 	if (i915_semaphore_is_enabled(dev))
 		num_dwords += ((I915_NUM_RINGS-1) * MBOX_UPDATE_DWORDS);
+	else
+		return intel_ring_begin(signaller, num_dwords);
 
 	ret = intel_ring_begin(signaller, num_dwords);
 	if (ret)
