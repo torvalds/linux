@@ -1410,11 +1410,11 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 }
 
 /* Does not support long mode */
-static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
-				   u16 selector, int seg)
+static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				     u16 selector, int seg, u8 cpl)
 {
 	struct desc_struct seg_desc, old_desc;
-	u8 dpl, rpl, cpl;
+	u8 dpl, rpl;
 	unsigned err_vec = GP_VECTOR;
 	u32 err_code = 0;
 	bool null_selector = !(selector & ~0x3); /* 0000-0003 are null */
@@ -1442,7 +1442,6 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	}
 
 	rpl = selector & 3;
-	cpl = ctxt->ops->cpl(ctxt);
 
 	/* NULL selector is not valid for TR, CS and SS (except for long mode) */
 	if ((seg == VCPU_SREG_CS
@@ -1542,6 +1541,13 @@ load:
 exception:
 	emulate_exception(ctxt, err_vec, err_code, true);
 	return X86EMUL_PROPAGATE_FAULT;
+}
+
+static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				   u16 selector, int seg)
+{
+	u8 cpl = ctxt->ops->cpl(ctxt);
+	return __load_segment_descriptor(ctxt, selector, seg, cpl);
 }
 
 static void write_register_operand(struct operand *op)
@@ -2405,6 +2411,7 @@ static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
 				 struct tss_segment_16 *tss)
 {
 	int ret;
+	u8 cpl;
 
 	ctxt->_eip = tss->ip;
 	ctxt->eflags = tss->flag | 2;
@@ -2427,23 +2434,25 @@ static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
 	set_segment_selector(ctxt, tss->ss, VCPU_SREG_SS);
 	set_segment_selector(ctxt, tss->ds, VCPU_SREG_DS);
 
+	cpl = tss->cs & 3;
+
 	/*
 	 * Now load segment descriptors. If fault happens at this stage
 	 * it is handled in a context of new task
 	 */
-	ret = load_segment_descriptor(ctxt, tss->ldt, VCPU_SREG_LDTR);
+	ret = __load_segment_descriptor(ctxt, tss->ldt, VCPU_SREG_LDTR, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->es, VCPU_SREG_ES);
+	ret = __load_segment_descriptor(ctxt, tss->es, VCPU_SREG_ES, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->cs, VCPU_SREG_CS);
+	ret = __load_segment_descriptor(ctxt, tss->cs, VCPU_SREG_CS, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->ss, VCPU_SREG_SS);
+	ret = __load_segment_descriptor(ctxt, tss->ss, VCPU_SREG_SS, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->ds, VCPU_SREG_DS);
+	ret = __load_segment_descriptor(ctxt, tss->ds, VCPU_SREG_DS, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
@@ -2521,6 +2530,7 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 				 struct tss_segment_32 *tss)
 {
 	int ret;
+	u8 cpl;
 
 	if (ctxt->ops->set_cr(ctxt, 3, tss->cr3))
 		return emulate_gp(ctxt, 0);
@@ -2539,7 +2549,8 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 
 	/*
 	 * SDM says that segment selectors are loaded before segment
-	 * descriptors
+	 * descriptors.  This is important because CPL checks will
+	 * use CS.RPL.
 	 */
 	set_segment_selector(ctxt, tss->ldt_selector, VCPU_SREG_LDTR);
 	set_segment_selector(ctxt, tss->es, VCPU_SREG_ES);
@@ -2553,43 +2564,38 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	 * If we're switching between Protected Mode and VM86, we need to make
 	 * sure to update the mode before loading the segment descriptors so
 	 * that the selectors are interpreted correctly.
-	 *
-	 * Need to get rflags to the vcpu struct immediately because it
-	 * influences the CPL which is checked at least when loading the segment
-	 * descriptors and when pushing an error code to the new kernel stack.
-	 *
-	 * TODO Introduce a separate ctxt->ops->set_cpl callback
 	 */
-	if (ctxt->eflags & X86_EFLAGS_VM)
+	if (ctxt->eflags & X86_EFLAGS_VM) {
 		ctxt->mode = X86EMUL_MODE_VM86;
-	else
+		cpl = 3;
+	} else {
 		ctxt->mode = X86EMUL_MODE_PROT32;
-
-	ctxt->ops->set_rflags(ctxt, ctxt->eflags);
+		cpl = tss->cs & 3;
+	}
 
 	/*
 	 * Now load segment descriptors. If fault happenes at this stage
 	 * it is handled in a context of new task
 	 */
-	ret = load_segment_descriptor(ctxt, tss->ldt_selector, VCPU_SREG_LDTR);
+	ret = __load_segment_descriptor(ctxt, tss->ldt_selector, VCPU_SREG_LDTR, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->es, VCPU_SREG_ES);
+	ret = __load_segment_descriptor(ctxt, tss->es, VCPU_SREG_ES, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->cs, VCPU_SREG_CS);
+	ret = __load_segment_descriptor(ctxt, tss->cs, VCPU_SREG_CS, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->ss, VCPU_SREG_SS);
+	ret = __load_segment_descriptor(ctxt, tss->ss, VCPU_SREG_SS, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->ds, VCPU_SREG_DS);
+	ret = __load_segment_descriptor(ctxt, tss->ds, VCPU_SREG_DS, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->fs, VCPU_SREG_FS);
+	ret = __load_segment_descriptor(ctxt, tss->fs, VCPU_SREG_FS, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = load_segment_descriptor(ctxt, tss->gs, VCPU_SREG_GS);
+	ret = __load_segment_descriptor(ctxt, tss->gs, VCPU_SREG_GS, cpl);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
