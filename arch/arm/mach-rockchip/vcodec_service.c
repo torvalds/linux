@@ -551,6 +551,12 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
         pr_alert("alert: delay 50 ms for running task\n");
         vpu_service_dump(pservice);
     }
+    
+#if defined(CONFIG_VCODEC_MMU)
+    if (pservice->mmu_dev) {
+        iovmm_deactivate(pservice->dev);
+    }
+#endif 
 
     printk("%s: power off...", dev_name(pservice->dev));
     udelay(10);
@@ -565,12 +571,6 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 #endif
     wake_unlock(&pservice->wake_lock);
     printk("done\n");
-    
-#if defined(CONFIG_VCODEC_MMU)
-    if (pservice->mmu_dev) {
-        iovmm_deactivate(pservice->dev);
-    }
-#endif    
 }
 
 static inline void vpu_queue_power_off_work(struct vpu_service_info *pservice)
