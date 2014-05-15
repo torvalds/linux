@@ -367,6 +367,8 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
+	WARN_ON_ONCE(req->wb_this_page != req);
+
 	/* Lock the request! */
 	nfs_lock_request(req);
 
@@ -383,6 +385,7 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 		set_page_private(req->wb_page, (unsigned long)req);
 	}
 	nfsi->npages++;
+	set_bit(PG_INODE_REF, &req->wb_flags);
 	kref_get(&req->wb_kref);
 	spin_unlock(&inode->i_lock);
 }
@@ -567,6 +570,7 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 {
 	struct nfs_commit_info cinfo;
 	unsigned long bytes = 0;
+	bool do_destroy;
 
 	if (test_bit(NFS_IOHDR_REDO, &hdr->flags))
 		goto out;
@@ -596,6 +600,7 @@ remove_req:
 next:
 		nfs_unlock_request(req);
 		nfs_end_page_writeback(req->wb_page);
+		do_destroy = !test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags);
 		nfs_release_request(req);
 	}
 out:
@@ -700,6 +705,10 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 		if (req == NULL)
 			goto out_unlock;
 
+		/* should be handled by nfs_flush_incompatible */
+		WARN_ON_ONCE(req->wb_head != req);
+		WARN_ON_ONCE(req->wb_this_page != req);
+
 		rqend = req->wb_offset + req->wb_bytes;
 		/*
 		 * Tell the caller to flush out the request if
@@ -761,7 +770,7 @@ static struct nfs_page * nfs_setup_write_request(struct nfs_open_context* ctx,
 	req = nfs_try_to_update_request(inode, page, offset, bytes);
 	if (req != NULL)
 		goto out;
-	req = nfs_create_request(ctx, page, offset, bytes);
+	req = nfs_create_request(ctx, page, NULL, offset, bytes);
 	if (IS_ERR(req))
 		goto out;
 	nfs_inode_add_request(inode, req);
@@ -805,6 +814,8 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 			return 0;
 		l_ctx = req->wb_lock_context;
 		do_flush = req->wb_page != page || req->wb_context != ctx;
+		/* for now, flush if more than 1 request in page_group */
+		do_flush |= req->wb_this_page != req;
 		if (l_ctx && ctx->dentry->d_inode->i_flock != NULL) {
 			do_flush |= l_ctx->lockowner.l_owner != current->files
 				|| l_ctx->lockowner.l_pid != current->tgid;

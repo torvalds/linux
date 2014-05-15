@@ -26,6 +26,9 @@ enum {
 	PG_MAPPED,		/* page private set for buffered io */
 	PG_CLEAN,		/* write succeeded */
 	PG_COMMIT_TO_DS,	/* used by pnfs layouts */
+	PG_INODE_REF,		/* extra ref held by inode (head req only) */
+	PG_HEADLOCK,		/* page group lock of wb_head */
+	PG_TEARDOWN,		/* page group sync for destroy */
 };
 
 struct nfs_inode;
@@ -41,6 +44,8 @@ struct nfs_page {
 	struct kref		wb_kref;	/* reference count */
 	unsigned long		wb_flags;
 	struct nfs_write_verifier	wb_verf;	/* Commit cookie */
+	struct nfs_page		*wb_this_page;  /* list of reqs for this page */
+	struct nfs_page		*wb_head;       /* head pointer for req list */
 };
 
 struct nfs_pageio_descriptor;
@@ -87,9 +92,10 @@ struct nfs_pageio_descriptor {
 
 extern	struct nfs_page *nfs_create_request(struct nfs_open_context *ctx,
 					    struct page *page,
+					    struct nfs_page *last,
 					    unsigned int offset,
 					    unsigned int count);
-extern	void nfs_release_request(struct nfs_page *req);
+extern	void nfs_release_request(struct nfs_page *);
 
 
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
@@ -108,7 +114,10 @@ extern size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 				struct nfs_page *req);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
-extern	void nfs_unlock_and_release_request(struct nfs_page *req);
+extern	void nfs_unlock_and_release_request(struct nfs_page *);
+extern void nfs_page_group_lock(struct nfs_page *);
+extern void nfs_page_group_unlock(struct nfs_page *);
+extern bool nfs_page_group_sync_on_bit(struct nfs_page *, unsigned int);
 
 /*
  * Lock the page of an asynchronous request

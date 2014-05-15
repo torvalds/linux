@@ -380,7 +380,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_pageio_descriptor *de
 			struct nfs_page *req;
 			unsigned int req_len = min_t(size_t, bytes, PAGE_SIZE - pgbase);
 			/* XXX do we need to do the eof zeroing found in async_filler? */
-			req = nfs_create_request(dreq->ctx, pagevec[i],
+			req = nfs_create_request(dreq->ctx, pagevec[i], NULL,
 						 pgbase, req_len);
 			if (IS_ERR(req)) {
 				result = PTR_ERR(req);
@@ -749,7 +749,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 			struct nfs_page *req;
 			unsigned int req_len = min_t(size_t, bytes, PAGE_SIZE - pgbase);
 
-			req = nfs_create_request(dreq->ctx, pagevec[i],
+			req = nfs_create_request(dreq->ctx, pagevec[i], NULL,
 						 pgbase, req_len);
 			if (IS_ERR(req)) {
 				result = PTR_ERR(req);
@@ -827,6 +827,8 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 	spin_unlock(&dreq->lock);
 
 	while (!list_empty(&hdr->pages)) {
+		bool do_destroy = true;
+
 		req = nfs_list_entry(hdr->pages.next);
 		nfs_list_remove_request(req);
 		switch (bit) {
@@ -834,6 +836,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		case NFS_IOHDR_NEED_COMMIT:
 			kref_get(&req->wb_kref);
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
+			do_destroy = false;
 		}
 		nfs_unlock_and_release_request(req);
 	}

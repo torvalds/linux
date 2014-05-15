@@ -29,6 +29,8 @@
 static struct kmem_cache *nfs_page_cachep;
 static const struct rpc_call_ops nfs_pgio_common_ops;
 
+static void nfs_free_request(struct nfs_page *);
+
 static bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
 {
 	p->npages = pagecount;
@@ -136,10 +138,151 @@ nfs_iocounter_wait(struct nfs_io_counter *c)
 	return __nfs_iocounter_wait(c);
 }
 
+/*
+ * nfs_page_group_lock - lock the head of the page group
+ * @req - request in group that is to be locked
+ *
+ * this lock must be held if modifying the page group list
+ */
+void
+nfs_page_group_lock(struct nfs_page *req)
+{
+	struct nfs_page *head = req->wb_head;
+	int err = -EAGAIN;
+
+	WARN_ON_ONCE(head != head->wb_head);
+
+	while (err)
+		err = wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
+			nfs_wait_bit_killable, TASK_KILLABLE);
+}
+
+/*
+ * nfs_page_group_unlock - unlock the head of the page group
+ * @req - request in group that is to be unlocked
+ */
+void
+nfs_page_group_unlock(struct nfs_page *req)
+{
+	struct nfs_page *head = req->wb_head;
+
+	WARN_ON_ONCE(head != head->wb_head);
+
+	smp_mb__before_clear_bit();
+	clear_bit(PG_HEADLOCK, &head->wb_flags);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&head->wb_flags, PG_HEADLOCK);
+}
+
+/*
+ * nfs_page_group_sync_on_bit_locked
+ *
+ * must be called with page group lock held
+ */
+static bool
+nfs_page_group_sync_on_bit_locked(struct nfs_page *req, unsigned int bit)
+{
+	struct nfs_page *head = req->wb_head;
+	struct nfs_page *tmp;
+
+	WARN_ON_ONCE(!test_bit(PG_HEADLOCK, &head->wb_flags));
+	WARN_ON_ONCE(test_and_set_bit(bit, &req->wb_flags));
+
+	tmp = req->wb_this_page;
+	while (tmp != req) {
+		if (!test_bit(bit, &tmp->wb_flags))
+			return false;
+		tmp = tmp->wb_this_page;
+	}
+
+	/* true! reset all bits */
+	tmp = req;
+	do {
+		clear_bit(bit, &tmp->wb_flags);
+		tmp = tmp->wb_this_page;
+	} while (tmp != req);
+
+	return true;
+}
+
+/*
+ * nfs_page_group_sync_on_bit - set bit on current request, but only
+ *   return true if the bit is set for all requests in page group
+ * @req - request in page group
+ * @bit - PG_* bit that is used to sync page group
+ */
+bool nfs_page_group_sync_on_bit(struct nfs_page *req, unsigned int bit)
+{
+	bool ret;
+
+	nfs_page_group_lock(req);
+	ret = nfs_page_group_sync_on_bit_locked(req, bit);
+	nfs_page_group_unlock(req);
+
+	return ret;
+}
+
+/*
+ * nfs_page_group_init - Initialize the page group linkage for @req
+ * @req - a new nfs request
+ * @prev - the previous request in page group, or NULL if @req is the first
+ *         or only request in the group (the head).
+ */
+static inline void
+nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
+{
+	WARN_ON_ONCE(prev == req);
+
+	if (!prev) {
+		req->wb_head = req;
+		req->wb_this_page = req;
+	} else {
+		WARN_ON_ONCE(prev->wb_this_page != prev->wb_head);
+		WARN_ON_ONCE(!test_bit(PG_HEADLOCK, &prev->wb_head->wb_flags));
+		req->wb_head = prev->wb_head;
+		req->wb_this_page = prev->wb_this_page;
+		prev->wb_this_page = req;
+
+		/* grab extra ref if head request has extra ref from
+		 * the write/commit path to handle handoff between write
+		 * and commit lists */
+		if (test_bit(PG_INODE_REF, &prev->wb_head->wb_flags))
+			kref_get(&req->wb_kref);
+	}
+}
+
+/*
+ * nfs_page_group_destroy - sync the destruction of page groups
+ * @req - request that no longer needs the page group
+ *
+ * releases the page group reference from each member once all
+ * members have called this function.
+ */
+static void
+nfs_page_group_destroy(struct kref *kref)
+{
+	struct nfs_page *req = container_of(kref, struct nfs_page, wb_kref);
+	struct nfs_page *tmp, *next;
+
+	if (!nfs_page_group_sync_on_bit(req, PG_TEARDOWN))
+		return;
+
+	tmp = req;
+	do {
+		next = tmp->wb_this_page;
+		/* unlink and free */
+		tmp->wb_this_page = tmp;
+		tmp->wb_head = tmp;
+		nfs_free_request(tmp);
+		tmp = next;
+	} while (tmp != req);
+}
+
 /**
  * nfs_create_request - Create an NFS read/write request.
  * @ctx: open context to use
  * @page: page to write
+ * @last: last nfs request created for this page group or NULL if head
  * @offset: starting offset within the page for the write
  * @count: number of bytes to read/write
  *
@@ -149,7 +292,8 @@ nfs_iocounter_wait(struct nfs_io_counter *c)
  */
 struct nfs_page *
 nfs_create_request(struct nfs_open_context *ctx, struct page *page,
-		   unsigned int offset, unsigned int count)
+		   struct nfs_page *last, unsigned int offset,
+		   unsigned int count)
 {
 	struct nfs_page		*req;
 	struct nfs_lock_context *l_ctx;
@@ -181,6 +325,7 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 	req->wb_bytes   = count;
 	req->wb_context = get_nfs_open_context(ctx);
 	kref_init(&req->wb_kref);
+	nfs_page_group_init(req, last);
 	return req;
 }
 
@@ -238,16 +383,18 @@ static void nfs_clear_request(struct nfs_page *req)
 	}
 }
 
-
 /**
  * nfs_release_request - Release the count on an NFS read/write request
  * @req: request to release
  *
  * Note: Should never be called with the spinlock held!
  */
-static void nfs_free_request(struct kref *kref)
+static void nfs_free_request(struct nfs_page *req)
 {
-	struct nfs_page *req = container_of(kref, struct nfs_page, wb_kref);
+	WARN_ON_ONCE(req->wb_this_page != req);
+
+	/* extra debug: make sure no sync bits are still set */
+	WARN_ON_ONCE(test_bit(PG_TEARDOWN, &req->wb_flags));
 
 	/* Release struct file and open context */
 	nfs_clear_request(req);
@@ -256,7 +403,7 @@ static void nfs_free_request(struct kref *kref)
 
 void nfs_release_request(struct nfs_page *req)
 {
-	kref_put(&req->wb_kref, nfs_free_request);
+	kref_put(&req->wb_kref, nfs_page_group_destroy);
 }
 
 static int nfs_wait_bit_uninterruptible(void *word)
@@ -832,21 +979,66 @@ static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
  * @desc: destination io descriptor
  * @req: request
  *
+ * This may split a request into subrequests which are all part of the
+ * same page group.
+ *
  * Returns true if the request 'req' was successfully coalesced into the
  * existing list of pages 'desc'.
  */
 static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			   struct nfs_page *req)
 {
-	while (!nfs_pageio_do_add_request(desc, req)) {
-		desc->pg_moreio = 1;
-		nfs_pageio_doio(desc);
-		if (desc->pg_error < 0)
-			return 0;
-		desc->pg_moreio = 0;
-		if (desc->pg_recoalesce)
-			return 0;
-	}
+	struct nfs_page *subreq;
+	unsigned int bytes_left = 0;
+	unsigned int offset, pgbase;
+
+	nfs_page_group_lock(req);
+
+	subreq = req;
+	bytes_left = subreq->wb_bytes;
+	offset = subreq->wb_offset;
+	pgbase = subreq->wb_pgbase;
+
+	do {
+		if (!nfs_pageio_do_add_request(desc, subreq)) {
+			/* make sure pg_test call(s) did nothing */
+			WARN_ON_ONCE(subreq->wb_bytes != bytes_left);
+			WARN_ON_ONCE(subreq->wb_offset != offset);
+			WARN_ON_ONCE(subreq->wb_pgbase != pgbase);
+
+			nfs_page_group_unlock(req);
+			desc->pg_moreio = 1;
+			nfs_pageio_doio(desc);
+			if (desc->pg_error < 0)
+				return 0;
+			desc->pg_moreio = 0;
+			if (desc->pg_recoalesce)
+				return 0;
+			/* retry add_request for this subreq */
+			nfs_page_group_lock(req);
+			continue;
+		}
+
+		/* check for buggy pg_test call(s) */
+		WARN_ON_ONCE(subreq->wb_bytes + subreq->wb_pgbase > PAGE_SIZE);
+		WARN_ON_ONCE(subreq->wb_bytes > bytes_left);
+		WARN_ON_ONCE(subreq->wb_bytes == 0);
+
+		bytes_left -= subreq->wb_bytes;
+		offset += subreq->wb_bytes;
+		pgbase += subreq->wb_bytes;
+
+		if (bytes_left) {
+			subreq = nfs_create_request(req->wb_context,
+					req->wb_page,
+					subreq, pgbase, bytes_left);
+			nfs_lock_request(subreq);
+			subreq->wb_offset  = offset;
+			subreq->wb_index = req->wb_index;
+		}
+	} while (bytes_left > 0);
+
+	nfs_page_group_unlock(req);
 	return 1;
 }
 
