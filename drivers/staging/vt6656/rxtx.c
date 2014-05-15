@@ -2172,14 +2172,6 @@ int nsDMA_tx_packet(struct vnt_private *pDevice, struct sk_buff *skb)
         }
     }
 
-	pContext = s_vGetFreeContext(pDevice);
-
-    if (pContext == NULL) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG" pContext == NULL\n");
-        dev_kfree_skb_irq(skb);
-        return STATUS_RESOURCES;
-    }
-
 	memcpy(&pDevice->sTxEthHeader, skb->data, ETH_HLEN);
 
 //mike add:station mode check eapol-key challenge--->
@@ -2402,13 +2394,19 @@ int nsDMA_tx_packet(struct vnt_private *pDevice, struct sk_buff *skb)
 
             if (pTransmitKey == NULL) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"return no tx key\n");
-		pContext->bBoolInUse = false;
                 dev_kfree_skb_irq(skb);
                 pStats->tx_dropped++;
                 return STATUS_FAILURE;
             }
         }
     }
+
+	pContext = s_vGetFreeContext(pDevice);
+	if (!pContext) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG" pContext == NULL\n");
+		dev_kfree_skb_irq(skb);
+		return STATUS_RESOURCES;
+	}
 
 	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
 
