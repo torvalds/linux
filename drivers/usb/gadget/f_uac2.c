@@ -196,7 +196,7 @@ agdev_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	struct snd_uac2_chip *uac2 = prm->uac2;
 
 	/* i/f shutting down */
-	if (!prm->ep_enabled)
+	if (!prm->ep_enabled || req->status == -ESHUTDOWN)
 		return;
 
 	/*
