@@ -564,14 +564,19 @@ int objio_write_pagelist(struct nfs_pgio_data *wdata, int how)
 	return 0;
 }
 
-static bool objio_pg_test(struct nfs_pageio_descriptor *pgio,
+/*
+ * Return 0 if @req cannot be coalesced into @pgio, otherwise return the number
+ * of bytes (maximum @req->wb_bytes) that can be coalesced.
+ */
+static size_t objio_pg_test(struct nfs_pageio_descriptor *pgio,
 			  struct nfs_page *prev, struct nfs_page *req)
 {
-	if (!pnfs_generic_pg_test(pgio, prev, req))
-		return false;
+	if (!pnfs_generic_pg_test(pgio, prev, req) ||
+	    pgio->pg_count + req->wb_bytes >
+	    (unsigned long)pgio->pg_layout_private)
+		return 0;
 
-	return pgio->pg_count + req->wb_bytes <=
-			(unsigned long)pgio->pg_layout_private;
+	return req->wb_bytes;
 }
 
 static void objio_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)

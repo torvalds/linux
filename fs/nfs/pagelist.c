@@ -280,7 +280,17 @@ nfs_wait_on_request(struct nfs_page *req)
 			TASK_UNINTERRUPTIBLE);
 }
 
-bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc, struct nfs_page *prev, struct nfs_page *req)
+/*
+ * nfs_generic_pg_test - determine if requests can be coalesced
+ * @desc: pointer to descriptor
+ * @prev: previous request in desc, or NULL
+ * @req: this request
+ *
+ * Returns zero if @req can be coalesced into @desc, otherwise it returns
+ * the size of the request.
+ */
+size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
+			   struct nfs_page *prev, struct nfs_page *req)
 {
 	/*
 	 * FIXME: ideally we should be able to coalesce all requests
@@ -292,7 +302,9 @@ bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc, struct nfs_page *pr
 	if (desc->pg_bsize < PAGE_SIZE)
 		return 0;
 
-	return desc->pg_count + req->wb_bytes <= desc->pg_bsize;
+	if (desc->pg_count + req->wb_bytes <= desc->pg_bsize)
+		return req->wb_bytes;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
 
@@ -747,6 +759,8 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 				      struct nfs_page *req,
 				      struct nfs_pageio_descriptor *pgio)
 {
+	size_t size;
+
 	if (!nfs_match_open_context(req->wb_context, prev->wb_context))
 		return false;
 	if (req->wb_context->dentry->d_inode->i_flock != NULL &&
@@ -758,7 +772,9 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 		return false;
 	if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
 		return false;
-	return pgio->pg_ops->pg_test(pgio, prev, req);
+	size = pgio->pg_ops->pg_test(pgio, prev, req);
+	WARN_ON_ONCE(size && size != req->wb_bytes);
+	return size > 0;
 }
 
 /**

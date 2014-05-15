@@ -1189,13 +1189,17 @@ bl_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 		pnfs_generic_pg_init_read(pgio, req);
 }
 
-static bool
+/*
+ * Return 0 if @req cannot be coalesced into @pgio, otherwise return the number
+ * of bytes (maximum @req->wb_bytes) that can be coalesced.
+ */
+static size_t
 bl_pg_test_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		struct nfs_page *req)
 {
 	if (pgio->pg_dreq != NULL &&
 	    !is_aligned_req(req, SECTOR_SIZE))
-		return false;
+		return 0;
 
 	return pnfs_generic_pg_test(pgio, prev, req);
 }
@@ -1241,13 +1245,17 @@ bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 	}
 }
 
-static bool
+/*
+ * Return 0 if @req cannot be coalesced into @pgio, otherwise return the number
+ * of bytes (maximum @req->wb_bytes) that can be coalesced.
+ */
+static size_t
 bl_pg_test_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		 struct nfs_page *req)
 {
 	if (pgio->pg_dreq != NULL &&
 	    !is_aligned_req(req, PAGE_CACHE_SIZE))
-		return false;
+		return 0;
 
 	return pnfs_generic_pg_test(pgio, prev, req);
 }

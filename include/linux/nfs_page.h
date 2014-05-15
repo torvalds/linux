@@ -46,7 +46,8 @@ struct nfs_page {
 struct nfs_pageio_descriptor;
 struct nfs_pageio_ops {
 	void	(*pg_init)(struct nfs_pageio_descriptor *, struct nfs_page *);
-	bool	(*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
+	size_t	(*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *,
+			   struct nfs_page *);
 	int	(*pg_doio)(struct nfs_pageio_descriptor *);
 };
 
@@ -102,7 +103,7 @@ extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
 				   struct nfs_page *);
 extern	void nfs_pageio_complete(struct nfs_pageio_descriptor *desc);
 extern	void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *, pgoff_t);
-extern bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
+extern size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 				struct nfs_page *prev,
 				struct nfs_page *req);
 extern  int nfs_wait_on_request(struct nfs_page *);

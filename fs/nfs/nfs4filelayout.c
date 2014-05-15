@@ -915,10 +915,10 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 /*
  * filelayout_pg_test(). Called by nfs_can_coalesce_requests()
  *
- * return true  : coalesce page
- * return false : don't coalesce page
+ * Return 0 if @req cannot be coalesced into @pgio, otherwise return the number
+ * of bytes (maximum @req->wb_bytes) that can be coalesced.
  */
-static bool
+static size_t
 filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		   struct nfs_page *req)
 {
@@ -927,7 +927,7 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 
 	if (!pnfs_generic_pg_test(pgio, prev, req) ||
 	    !nfs_generic_pg_test(pgio, prev, req))
-		return false;
+		return 0;
 
 	p_stripe = (u64)req_offset(prev);
 	r_stripe = (u64)req_offset(req);
@@ -936,7 +936,9 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	do_div(p_stripe, stripe_unit);
 	do_div(r_stripe, stripe_unit);
 
-	return (p_stripe == r_stripe);
+	if (p_stripe == r_stripe)
+		return req->wb_bytes;
+	return 0;
 }
 
 static void
