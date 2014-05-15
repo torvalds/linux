@@ -63,5 +63,8 @@ struct exynos_pmu_conf {
 };
 
 extern void exynos_sys_powerdown_conf(enum sys_powerdown mode);
+extern void exynos_cpu_power_down(int cpu);
+extern void exynos_cpu_power_up(int cpu);
+extern int  exynos_cpu_power_state(int cpu);
 
 #endif /* __ARCH_ARM_MACH_EXYNOS_COMMON_H */
