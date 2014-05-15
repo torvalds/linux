@@ -724,8 +724,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 		/* Allow beacons to pass through as long as we are not
 		 * associated, or we do not have dtim period information.
 		 */
-		if (!vif->p2p)
-			cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
+		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
 
 		/*
 		 * The DTIM count counts down, so when it is N that means N
