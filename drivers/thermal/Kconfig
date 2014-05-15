@@ -222,12 +222,24 @@ config ACPI_INT3403_THERMAL
 	  the Intel Thermal Daemon can use this information to allow the user
 	  to select his laptop to run without turning on the fans.
 
+config INTEL_SOC_DTS_THERMAL
+	tristate "Intel SoCs DTS thermal driver"
+	depends on X86 && IOSF_MBI
+	help
+	  Enable this to register Intel SoCs (e.g. Bay Trail) platform digital
+	  temperature sensor (DTS). These SoCs have two additional DTSs in
+	  addition to DTSs on CPU cores. Each DTS will be registered as a
+	  thermal zone. There are two trip points. One of the trip point can
+	  be set by user mode programs to get notifications via Linux thermal
+	  notification methods.The other trip is a critical trip point, which
+	  was set by the driver based on the TJ MAX temperature.
+
 menu "Texas Instruments thermal drivers"
 source "drivers/thermal/ti-soc-thermal/Kconfig"
 endmenu
 
 menu "Samsung thermal drivers"
-depends on PLAT_SAMSUNG
+depends on ARCH_EXYNOS
 source "drivers/thermal/samsung/Kconfig"
 endmenu
 
