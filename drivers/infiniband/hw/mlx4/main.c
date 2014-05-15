@@ -48,6 +48,7 @@
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/cmd.h>
+#include <linux/mlx4/qp.h>
 
 #include "mlx4_ib.h"
 #include "user.h"
@@ -1614,6 +1615,53 @@ static int mlx4_ib_inet6_event(struct notifier_block *this, unsigned long event,
 }
 #endif
 
+#define MLX4_IB_INVALID_MAC	((u64)-1)
+static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
+			       struct net_device *dev,
+			       int port)
+{
+	u64 new_smac = 0;
+	u64 release_mac = MLX4_IB_INVALID_MAC;
+	struct mlx4_ib_qp *qp;
+
+	read_lock(&dev_base_lock);
+	new_smac = mlx4_mac_to_u64(dev->dev_addr);
+	read_unlock(&dev_base_lock);
+
+	mutex_lock(&ibdev->qp1_proxy_lock[port - 1]);
+	qp = ibdev->qp1_proxy[port - 1];
+	if (qp) {
+		int new_smac_index;
+		u64 old_smac = qp->pri.smac;
+		struct mlx4_update_qp_params update_params;
+
+		if (new_smac == old_smac)
+			goto unlock;
+
+		new_smac_index = mlx4_register_mac(ibdev->dev, port, new_smac);
+
+		if (new_smac_index < 0)
+			goto unlock;
+
+		update_params.smac_index = new_smac_index;
+		if (mlx4_update_qp(ibdev->dev, &qp->mqp, MLX4_UPDATE_QP_SMAC,
+				   &update_params)) {
+			release_mac = new_smac;
+			goto unlock;
+		}
+
+		qp->pri.smac = new_smac;
+		qp->pri.smac_index = new_smac_index;
+
+		release_mac = old_smac;
+	}
+
+unlock:
+	mutex_unlock(&ibdev->qp1_proxy_lock[port - 1]);
+	if (release_mac != MLX4_IB_INVALID_MAC)
+		mlx4_unregister_mac(ibdev->dev, port, release_mac);
+}
+
 static void mlx4_ib_get_dev_addr(struct net_device *dev,
 				 struct mlx4_ib_dev *ibdev, u8 port)
 {
@@ -1689,9 +1737,13 @@ static int mlx4_ib_init_gid_table(struct mlx4_ib_dev *ibdev)
 	return 0;
 }
 
-static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev)
+static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
+				 struct net_device *dev,
+				 unsigned long event)
+
 {
 	struct mlx4_ib_iboe *iboe;
+	int update_qps_port = -1;
 	int port;
 
 	iboe = &ibdev->iboe;
@@ -1718,6 +1770,11 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev)
 			iboe->masters[port - 1] = NULL;
 		}
 		curr_master = iboe->masters[port - 1];
+
+		if (dev == iboe->netdevs[port - 1] &&
+		    (event == NETDEV_CHANGEADDR || event == NETDEV_REGISTER ||
+		     event == NETDEV_UP || event == NETDEV_CHANGE))
+			update_qps_port = port;
 
 		if (curr_netdev) {
 			port_state = (netif_running(curr_netdev) && netif_carrier_ok(curr_netdev)) ?
@@ -1752,6 +1809,9 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev)
 	}
 
 	spin_unlock(&iboe->lock);
+
+	if (update_qps_port > 0)
+		mlx4_ib_update_qps(ibdev, dev, update_qps_port);
 }
 
 static int mlx4_ib_netdev_event(struct notifier_block *this,
@@ -1764,7 +1824,7 @@ static int mlx4_ib_netdev_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	ibdev = container_of(this, struct mlx4_ib_dev, iboe.nb);
-	mlx4_ib_scan_netdevs(ibdev);
+	mlx4_ib_scan_netdevs(ibdev, dev, event);
 
 	return NOTIFY_DONE;
 }
@@ -2043,6 +2103,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		goto err_map;
 
 	for (i = 0; i < ibdev->num_ports; ++i) {
+		mutex_init(&ibdev->qp1_proxy_lock[i]);
 		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
 						IB_LINK_LAYER_ETHERNET) {
 			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
@@ -2126,7 +2187,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		for (i = 1 ; i <= ibdev->num_ports ; ++i)
 			reset_gid_table(ibdev, i);
 		rtnl_lock();
-		mlx4_ib_scan_netdevs(ibdev);
+		mlx4_ib_scan_netdevs(ibdev, NULL, 0);
 		rtnl_unlock();
 		mlx4_ib_init_gid_table(ibdev);
 	}
