@@ -30,7 +30,7 @@ extern u32 epapr_ev_idle_start[];
 #endif
 
 bool epapr_paravirt_enabled;
-static bool epapr_has_idle;
+static bool __maybe_unused epapr_has_idle;
 
 static int __init early_init_dt_scan_epapr(unsigned long node,
 					   const char *uname,
