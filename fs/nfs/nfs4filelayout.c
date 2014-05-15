@@ -928,26 +928,27 @@ static size_t
 filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		   struct nfs_page *req)
 {
+	unsigned int size;
 	u64 p_stripe, r_stripe;
 	u32 stripe_unit;
 
-	if (!pnfs_generic_pg_test(pgio, prev, req) ||
-	    !nfs_generic_pg_test(pgio, prev, req))
+	/* calls nfs_generic_pg_test */
+	size = pnfs_generic_pg_test(pgio, prev, req);
+	if (!size)
 		return 0;
 
-	if (!prev)
-		return req->wb_bytes;
+	if (prev) {
+		p_stripe = (u64)req_offset(prev);
+		r_stripe = (u64)req_offset(req);
+		stripe_unit = FILELAYOUT_LSEG(pgio->pg_lseg)->stripe_unit;
 
-	p_stripe = (u64)req_offset(prev);
-	r_stripe = (u64)req_offset(req);
-	stripe_unit = FILELAYOUT_LSEG(pgio->pg_lseg)->stripe_unit;
+		do_div(p_stripe, stripe_unit);
+		do_div(r_stripe, stripe_unit);
 
-	do_div(p_stripe, stripe_unit);
-	do_div(r_stripe, stripe_unit);
-
-	if (p_stripe == r_stripe)
-		return req->wb_bytes;
-	return 0;
+		if (p_stripe != r_stripe)
+			return 0;
+	}
+	return min(size, req->wb_bytes);
 }
 
 static void

@@ -571,12 +571,15 @@ int objio_write_pagelist(struct nfs_pgio_data *wdata, int how)
 static size_t objio_pg_test(struct nfs_pageio_descriptor *pgio,
 			  struct nfs_page *prev, struct nfs_page *req)
 {
-	if (!pnfs_generic_pg_test(pgio, prev, req) ||
-	    pgio->pg_count + req->wb_bytes >
+	unsigned int size;
+
+	size = pnfs_generic_pg_test(pgio, prev, req);
+
+	if (!size || pgio->pg_count + req->wb_bytes >
 	    (unsigned long)pgio->pg_layout_private)
 		return 0;
 
-	return req->wb_bytes;
+	return min(size, req->wb_bytes);
 }
 
 static void objio_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)

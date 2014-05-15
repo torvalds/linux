@@ -1442,8 +1442,12 @@ size_t
 pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		     struct nfs_page *req)
 {
-	if (pgio->pg_lseg == NULL)
-		return nfs_generic_pg_test(pgio, prev, req);
+	unsigned int size;
+
+	size = nfs_generic_pg_test(pgio, prev, req);
+
+	if (!size)
+		return 0;
 
 	/*
 	 * Test if a nfs_page is fully contained in the pnfs_layout_range.
@@ -1459,10 +1463,11 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	 * first byte that lies outside the pnfs_layout_range. FIXME?
 	 *
 	 */
-	if (req_offset(req) < end_offset(pgio->pg_lseg->pls_range.offset,
+	if (req_offset(req) >= end_offset(pgio->pg_lseg->pls_range.offset,
 					 pgio->pg_lseg->pls_range.length))
-		return req->wb_bytes;
-	return 0;
+		return 0;
+
+	return min(size, req->wb_bytes);
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_test);
 
