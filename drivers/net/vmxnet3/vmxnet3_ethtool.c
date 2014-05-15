@@ -579,7 +579,7 @@ vmxnet3_get_rss_indir_size(struct net_device *netdev)
 }
 
 static int
-vmxnet3_get_rss_indir(struct net_device *netdev, u32 *p)
+vmxnet3_get_rss(struct net_device *netdev, u32 *p, u8 *key)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
@@ -592,7 +592,7 @@ vmxnet3_get_rss_indir(struct net_device *netdev, u32 *p)
 }
 
 static int
-vmxnet3_set_rss_indir(struct net_device *netdev, const u32 *p)
+vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key)
 {
 	unsigned int i;
 	unsigned long flags;
@@ -628,8 +628,8 @@ static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_rxnfc         = vmxnet3_get_rxnfc,
 #ifdef VMXNET3_RSS
 	.get_rxfh_indir_size = vmxnet3_get_rss_indir_size,
-	.get_rxfh_indir    = vmxnet3_get_rss_indir,
-	.set_rxfh_indir    = vmxnet3_set_rss_indir,
+	.get_rxfh          = vmxnet3_get_rss,
+	.set_rxfh          = vmxnet3_set_rss,
 #endif
 };
 

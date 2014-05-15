@@ -2830,7 +2830,7 @@ static u32 igb_get_rxfh_indir_size(struct net_device *netdev)
 	return IGB_RETA_SIZE;
 }
 
-static int igb_get_rxfh_indir(struct net_device *netdev, u32 *indir)
+static int igb_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	int i;
@@ -2876,7 +2876,8 @@ void igb_write_rss_indir_tbl(struct igb_adapter *adapter)
 	}
 }
 
-static int igb_set_rxfh_indir(struct net_device *netdev, const u32 *indir)
+static int igb_set_rxfh(struct net_device *netdev, const u32 *indir,
+			const u8 *key)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -3025,8 +3026,8 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_module_info	= igb_get_module_info,
 	.get_module_eeprom	= igb_get_module_eeprom,
 	.get_rxfh_indir_size	= igb_get_rxfh_indir_size,
-	.get_rxfh_indir		= igb_get_rxfh_indir,
-	.set_rxfh_indir		= igb_set_rxfh_indir,
+	.get_rxfh		= igb_get_rxfh,
+	.set_rxfh		= igb_set_rxfh,
 	.get_channels		= igb_get_channels,
 	.set_channels		= igb_set_channels,
 	.begin			= igb_ethtool_begin,

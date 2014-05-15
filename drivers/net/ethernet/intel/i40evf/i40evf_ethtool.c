@@ -626,13 +626,14 @@ static u32 i40evf_get_rxfh_indir_size(struct net_device *netdev)
 }
 
 /**
- * i40evf_get_rxfh_indir - get the rx flow hash indirection table
+ * i40evf_get_rxfh - get the rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
+ * @key: hash key (will be %NULL until get_rxfh_key_size is implemented)
  *
  * Reads the indirection table directly from the hardware. Always returns 0.
  **/
-static int i40evf_get_rxfh_indir(struct net_device *netdev, u32 *indir)
+static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
@@ -650,14 +651,16 @@ static int i40evf_get_rxfh_indir(struct net_device *netdev, u32 *indir)
 }
 
 /**
- * i40evf_set_rxfh_indir - set the rx flow hash indirection table
+ * i40evf_set_rxfh - set the rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
+ * @key: hash key (will be %NULL until get_rxfh_key_size is implemented)
  *
  * Returns -EINVAL if the table specifies an inavlid queue id, otherwise
  * returns 0 after programming the table.
  **/
-static int i40evf_set_rxfh_indir(struct net_device *netdev, const u32 *indir)
+static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
+			   const u8 *key)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
@@ -691,8 +694,8 @@ static struct ethtool_ops i40evf_ethtool_ops = {
 	.get_rxnfc		= i40evf_get_rxnfc,
 	.set_rxnfc		= i40evf_set_rxnfc,
 	.get_rxfh_indir_size	= i40evf_get_rxfh_indir_size,
-	.get_rxfh_indir		= i40evf_get_rxfh_indir,
-	.set_rxfh_indir		= i40evf_set_rxfh_indir,
+	.get_rxfh		= i40evf_get_rxfh,
+	.set_rxfh		= i40evf_set_rxfh,
 	.get_channels		= i40evf_get_channels,
 };
 
