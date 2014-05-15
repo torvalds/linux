@@ -54,9 +54,6 @@
 		     ((slave)->link == BOND_LINK_UP) && \
 		     bond_is_active_slave(slave))
 
-#define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
-	((htonl(INADDR_BROADCAST) == a) ||	\
-	 ipv4_is_zeronet(a))
 /*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.
@@ -404,6 +401,11 @@ static inline int slave_do_arp_validate(struct bonding *bond,
 static inline int slave_do_arp_validate_only(struct bonding *bond)
 {
 	return bond->params.arp_validate & BOND_ARP_FILTER;
+}
+
+static inline int bond_is_ip_target_ok(__be32 addr)
+{
+	return !ipv4_is_lbcast(addr) && !ipv4_is_zeronet(addr);
 }
 
 /* Get the oldest arp which we've received on this slave for bond's

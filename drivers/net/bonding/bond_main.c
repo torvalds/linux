@@ -4195,7 +4195,7 @@ static int bond_check_params(struct bond_params *params)
 		   catch mistakes */
 		__be32 ip;
 		if (!in4_pton(arp_ip_target[i], -1, (u8 *)&ip, -1, NULL) ||
-		    IS_IP_TARGET_UNUSABLE_ADDRESS(ip)) {
+		    !bond_is_ip_target_ok(ip)) {
 			pr_warn("Warning: bad arp_ip_target module parameter (%s), ARP monitoring will not be performed\n",
 				arp_ip_target[i]);
 			arp_interval = 0;

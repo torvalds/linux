@@ -942,7 +942,7 @@ static int _bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 	__be32 *targets = bond->params.arp_targets;
 	int ind;
 
-	if (IS_IP_TARGET_UNUSABLE_ADDRESS(target)) {
+	if (!bond_is_ip_target_ok(target)) {
 		pr_err("%s: invalid ARP target %pI4 specified for addition\n",
 		       bond->dev->name, &target);
 		return -EINVAL;
@@ -987,7 +987,7 @@ static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 	unsigned long *targets_rx;
 	int ind, i;
 
-	if (IS_IP_TARGET_UNUSABLE_ADDRESS(target)) {
+	if (!bond_is_ip_target_ok(target)) {
 		pr_err("%s: invalid ARP target %pI4 specified for removal\n",
 		       bond->dev->name, &target);
 		return -EINVAL;
