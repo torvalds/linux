@@ -95,7 +95,7 @@ static struct snd_pcm_hardware sst_platform_pcm_hw = {
 /* MFLD - MSIC */
 static struct snd_soc_dai_driver sst_platform_dai[] = {
 {
-	.name = "media-cpu-dai",
+	.name = "Headset-cpu-dai",
 	.id = 0,
 	.playback = {
 		.channels_min = SST_STEREO,
@@ -231,13 +231,13 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 }
 /* end -- helper functions */
 
-static int sst_platform_media_open(struct snd_pcm_substream *substream)
+static int sst_platform_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct sst_runtime_stream *stream;
 	int ret_val;
 
-	pr_debug("sst_platform_media_open called\n");
+	pr_debug("sst_platform_open called\n");
 
 	snd_soc_set_runtime_hwparams(substream, &sst_platform_pcm_hw);
 	ret_val = snd_pcm_hw_constraint_integer(runtime,
@@ -275,12 +275,12 @@ static int sst_platform_media_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int sst_platform_media_close(struct snd_pcm_substream *substream)
+static int sst_platform_close(struct snd_pcm_substream *substream)
 {
 	struct sst_runtime_stream *stream;
 	int ret_val = 0, str_id;
 
-	pr_debug("sst_platform_media_close called\n");
+	pr_debug("sst_platform_close called\n");
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
 	if (str_id)
@@ -290,12 +290,12 @@ static int sst_platform_media_close(struct snd_pcm_substream *substream)
 	return ret_val;
 }
 
-static int sst_platform_pcm_media_prepare(struct snd_pcm_substream *substream)
+static int sst_platform_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct sst_runtime_stream *stream;
 	int ret_val = 0, str_id;
 
-	pr_debug("sst_platform_pcm_media_prepare called\n");
+	pr_debug("sst_platform_pcm_prepare called\n");
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
 	if (stream->stream_info.str_id) {
@@ -317,14 +317,14 @@ static int sst_platform_pcm_media_prepare(struct snd_pcm_substream *substream)
 	return ret_val;
 }
 
-static int sst_platform_pcm_media_trigger(struct snd_pcm_substream *substream,
+static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 					int cmd)
 {
 	int ret_val = 0, str_id;
 	struct sst_runtime_stream *stream;
 	int str_cmd, status;
 
-	pr_debug("sst_platform_pcm_media_trigger called\n");
+	pr_debug("sst_platform_pcm_trigger called\n");
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
 	switch (cmd) {
@@ -360,7 +360,7 @@ static int sst_platform_pcm_media_trigger(struct snd_pcm_substream *substream,
 }
 
 
-static snd_pcm_uframes_t sst_platform_pcm_media_pointer
+static snd_pcm_uframes_t sst_platform_pcm_pointer
 			(struct snd_pcm_substream *substream)
 {
 	struct sst_runtime_stream *stream;
@@ -381,7 +381,7 @@ static snd_pcm_uframes_t sst_platform_pcm_media_pointer
 	return stream->stream_info.buffer_ptr;
 }
 
-static int sst_platform_pcm_media_hw_params(struct snd_pcm_substream *substream,
+static int sst_platform_pcm_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
 {
 	snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
@@ -390,20 +390,20 @@ static int sst_platform_pcm_media_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int sst_platform_pcm_media_hw_free(struct snd_pcm_substream *substream)
+static int sst_platform_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
 
 static struct snd_pcm_ops sst_platform_ops = {
-	.open = sst_platform_media_open,
-	.close = sst_platform_media_close,
+	.open = sst_platform_open,
+	.close = sst_platform_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.prepare = sst_platform_pcm_media_prepare,
-	.trigger = sst_platform_pcm_media_trigger,
-	.pointer = sst_platform_pcm_media_pointer,
-	.hw_params = sst_platform_pcm_media_hw_params,
-	.hw_free = sst_platform_pcm_media_hw_free,
+	.prepare = sst_platform_pcm_prepare,
+	.trigger = sst_platform_pcm_trigger,
+	.pointer = sst_platform_pcm_pointer,
+	.hw_params = sst_platform_pcm_hw_params,
+	.hw_free = sst_platform_pcm_hw_free,
 };
 
 static void sst_pcm_free(struct snd_pcm *pcm)
