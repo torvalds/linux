@@ -11,11 +11,11 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#include <linux/platform_device.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/of.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include "xhci.h"
 
