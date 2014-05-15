@@ -1388,11 +1388,6 @@ pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *r
 
 	WARN_ON_ONCE(pgio->pg_lseg != NULL);
 
-	if (req->wb_offset != req->wb_pgbase) {
-		nfs_pageio_reset_read_mds(pgio);
-		return;
-	}
-
 	if (pgio->pg_dreq == NULL)
 		rd_size = i_size_read(pgio->pg_inode) - req_offset(req);
 	else
@@ -1417,11 +1412,6 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 {
 	WARN_ON_ONCE(pgio->pg_lseg != NULL);
 
-	if (req->wb_offset != req->wb_pgbase) {
-		nfs_pageio_reset_write_mds(pgio);
-		return;
-	}
-
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 					   req->wb_context,
 					   req_offset(req),
@@ -1443,9 +1433,9 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		     struct nfs_page *req)
 {
 	unsigned int size;
+	u64 end;
 
 	size = nfs_generic_pg_test(pgio, prev, req);
-
 	if (!size)
 		return 0;
 
@@ -1463,11 +1453,16 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	 * first byte that lies outside the pnfs_layout_range. FIXME?
 	 *
 	 */
-	if (req_offset(req) >= end_offset(pgio->pg_lseg->pls_range.offset,
-					 pgio->pg_lseg->pls_range.length))
-		return 0;
+	if (pgio->pg_lseg) {
+		end = end_offset(pgio->pg_lseg->pls_range.offset,
+				 pgio->pg_lseg->pls_range.length);
+		WARN_ON_ONCE(req_offset(req) > end);
+		if (req_offset(req) >= end)
+			return 0;
+		size = min((unsigned int)(end - req_offset(req)), size);
+	}
 
-	return min(size, req->wb_bytes);
+	return size;
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_test);
 
