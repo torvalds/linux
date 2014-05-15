@@ -104,6 +104,8 @@ struct sst_stream_params {
 struct sst_compress_cb {
 	void *param;
 	void (*compr_cb)(void *param);
+	void *drain_cb_param;
+	void (*drain_notify)(void *param);
 };
 
 struct compress_sst_ops {

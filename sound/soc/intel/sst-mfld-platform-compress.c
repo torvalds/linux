@@ -38,6 +38,15 @@ static void sst_compr_fragment_elapsed(void *arg)
 		snd_compr_fragment_elapsed(cstream);
 }
 
+static void sst_drain_notify(void *arg)
+{
+	struct snd_compr_stream *cstream = (struct snd_compr_stream *)arg;
+
+	pr_debug("drain notify by driver\n");
+	if (cstream)
+		snd_compr_drain_notify(cstream);
+}
+
 static int sst_platform_compr_open(struct snd_compr_stream *cstream)
 {
 
@@ -143,6 +152,8 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 
 	cb.param = cstream;
 	cb.compr_cb = sst_compr_fragment_elapsed;
+	cb.drain_cb_param = cstream;
+	cb.drain_notify = sst_drain_notify;
 
 	retval = stream->compr_ops->open(&str_params, &cb);
 	if (retval < 0) {
