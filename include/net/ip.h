@@ -208,7 +208,7 @@ static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_o
 
 void inet_get_local_port_range(struct net *net, int *low, int *high);
 
-#if CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL
 static inline int inet_is_local_reserved_port(struct net *net, int port)
 {
 	if (!net->ipv4.sysctl_local_reserved_ports)
