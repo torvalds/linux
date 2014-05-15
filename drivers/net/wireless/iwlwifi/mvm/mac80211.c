@@ -1843,6 +1843,26 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
+static int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm)
+{
+	struct ieee80211_sta *sta;
+	int count = 0;
+	int i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
+						lockdep_is_held(&mvm->mutex));
+		if (!sta || IS_ERR(sta) || !sta->tdls)
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -1881,6 +1901,16 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			ret = -EINVAL;
 			goto out_unlock;
 		}
+
+		if (sta->tdls &&
+		    (vif->p2p ||
+		     iwl_mvm_tdls_sta_count(mvm) == IWL_MVM_TDLS_STA_COUNT ||
+		     iwl_mvm_phy_ctx_count(mvm) > 1)) {
+			IWL_DEBUG_MAC80211(mvm, "refusing TDLS sta\n");
+			ret = -EBUSY;
+			goto out_unlock;
+		}
+
 		ret = iwl_mvm_add_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {

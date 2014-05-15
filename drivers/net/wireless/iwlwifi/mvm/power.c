@@ -246,30 +246,10 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		IWL_MVM_PS_HEAVY_RX_THLD_PERCENT;
 }
 
-static void iwl_mvm_binding_iterator(void *_data, u8 *mac,
-				      struct ieee80211_vif *vif)
-{
-	unsigned long *data = _data;
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (!mvmvif->phy_ctxt)
-		return;
-
-	if (vif->type == NL80211_IFTYPE_STATION ||
-	    vif->type == NL80211_IFTYPE_AP)
-		__set_bit(mvmvif->phy_ctxt->id, data);
-}
-
 static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	unsigned long phy_ctxt_counter = 0;
-
-	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
-						   iwl_mvm_binding_iterator,
-						   &phy_ctxt_counter);
 
 	if (!memcmp(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
 		    ETH_ALEN))
@@ -291,7 +271,7 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	 * Avoid using uAPSD if client is in DCM -
 	 * low latency issue in Miracast
 	 */
-	if (hweight8(phy_ctxt_counter) >= 2)
+	if (iwl_mvm_phy_ctx_count(mvm) >= 2)
 		return false;
 
 	return true;

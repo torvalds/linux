@@ -86,6 +86,8 @@ enum {
 
 #define IWL_MVM_STATION_COUNT	16
 
+#define IWL_MVM_TDLS_STA_COUNT	4
+
 /* commands */
 enum {
 	MVM_ALIVE = 0x1,

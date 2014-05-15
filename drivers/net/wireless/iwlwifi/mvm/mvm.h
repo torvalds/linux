@@ -838,6 +838,7 @@ void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm,
 			  struct iwl_mvm_phy_ctxt *ctxt);
 void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm,
 			    struct iwl_mvm_phy_ctxt *ctxt);
+int iwl_mvm_phy_ctx_count(struct iwl_mvm *mvm);
 
 /* MAC (virtual interface) programming */
 int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
