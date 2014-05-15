@@ -747,7 +747,7 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
 	bond_for_each_slave(bond, slave, iter) {
 		if (slave->link == BOND_LINK_UP)
 			return slave;
-		if (slave->link == BOND_LINK_BACK && IS_UP(slave->dev) &&
+		if (slave->link == BOND_LINK_BACK && bond_slave_is_up(slave) &&
 		    slave->delay < mintime) {
 			mintime = slave->delay;
 			bestslave = slave;
@@ -958,7 +958,7 @@ static void bond_netpoll_cleanup(struct net_device *bond_dev)
 	struct slave *slave;
 
 	bond_for_each_slave(bond, slave, iter)
-		if (IS_UP(slave->dev))
+		if (bond_slave_is_up(slave))
 			slave_disable_netpoll(slave);
 }
 
@@ -2490,7 +2490,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 		 * do - all replies will be rx'ed on same link causing slaves
 		 * to be unstable during low/no traffic periods
 		 */
-		if (IS_UP(slave->dev))
+		if (bond_slave_is_up(slave))
 			bond_arp_send_all(bond, slave);
 	}
 
@@ -2712,10 +2712,10 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 	bond_set_slave_inactive_flags(curr_arp_slave, BOND_SLAVE_NOTIFY_LATER);
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		if (!found && !before && IS_UP(slave->dev))
+		if (!found && !before && bond_slave_is_up(slave))
 			before = slave;
 
-		if (found && !new_slave && IS_UP(slave->dev))
+		if (found && !new_slave && bond_slave_is_up(slave))
 			new_slave = slave;
 		/* if the link state is up at this point, we
 		 * mark it down - this can happen if we have
@@ -2724,7 +2724,7 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 		 * one the current slave so it is still marked
 		 * up when it is actually down
 		 */
-		if (!IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
+		if (!bond_slave_is_up(slave) && slave->link == BOND_LINK_UP) {
 			slave->link = BOND_LINK_DOWN;
 			if (slave->link_failure_count < UINT_MAX)
 				slave->link_failure_count++;
@@ -3710,7 +3710,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (bond_is_last_slave(bond, slave))
 			break;
-		if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
+		if (bond_slave_is_up(slave) && slave->link == BOND_LINK_UP) {
 			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 			if (!skb2) {
@@ -3722,7 +3722,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 			bond_dev_queue_xmit(bond, skb2, slave->dev);
 		}
 	}
-	if (slave && IS_UP(slave->dev) && slave->link == BOND_LINK_UP)
+	if (slave && bond_slave_is_up(slave) && slave->link == BOND_LINK_UP)
 		bond_dev_queue_xmit(bond, skb, slave->dev);
 	else
 		dev_kfree_skb_any(skb);

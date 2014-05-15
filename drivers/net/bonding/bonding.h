@@ -40,11 +40,6 @@
 
 #define BOND_DEFAULT_MIIMON	100
 
-#define IS_UP(dev)					   \
-	      ((((dev)->flags & IFF_UP) == IFF_UP)	&& \
-	       netif_running(dev)			&& \
-	       netif_carrier_ok(dev))
-
 /*
  * Checks whether slave is ready for transmit.
  */
@@ -297,6 +292,11 @@ static inline bool bond_uses_primary(struct bonding *bond)
 	return bond_mode_uses_primary(BOND_MODE(bond));
 }
 
+static inline bool bond_slave_is_up(struct slave *slave)
+{
+	return netif_running(slave->dev) && netif_carrier_ok(slave->dev);
+}
+
 static inline void bond_set_active_slave(struct slave *slave)
 {
 	if (slave->backup) {
@@ -487,7 +487,7 @@ static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be3
 
 static inline bool slave_can_tx(struct slave *slave)
 {
-	if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP &&
+	if (bond_slave_is_up(slave) && slave->link == BOND_LINK_UP &&
 	    bond_is_active_slave(slave))
 		return true;
 	else
