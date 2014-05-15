@@ -1359,9 +1359,14 @@ extern void drm_send_vblank_event(struct drm_device *dev, int crtc,
 extern bool drm_handle_vblank(struct drm_device *dev, int crtc);
 extern int drm_vblank_get(struct drm_device *dev, int crtc);
 extern void drm_vblank_put(struct drm_device *dev, int crtc);
+extern int drm_crtc_vblank_get(struct drm_crtc *crtc);
+extern void drm_crtc_vblank_put(struct drm_crtc *crtc);
 extern void drm_vblank_off(struct drm_device *dev, int crtc);
 extern void drm_vblank_on(struct drm_device *dev, int crtc);
+extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
+extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
 extern void drm_vblank_cleanup(struct drm_device *dev);
+
 extern u32 drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
 				     struct timeval *tvblank, unsigned flags);
 extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,

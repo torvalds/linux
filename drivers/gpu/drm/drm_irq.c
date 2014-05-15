@@ -916,6 +916,8 @@ static int drm_vblank_enable(struct drm_device *dev, int crtc)
  * Acquire a reference count on vblank events to avoid having them disabled
  * while in use.
  *
+ * This is the legacy version of drm_crtc_vblank_get().
+ *
  * Returns:
  * Zero on success, nonzero on failure.
  */
@@ -941,12 +943,32 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 EXPORT_SYMBOL(drm_vblank_get);
 
 /**
+ * drm_crtc_vblank_get - get a reference count on vblank events
+ * @crtc: which CRTC to own
+ *
+ * Acquire a reference count on vblank events to avoid having them disabled
+ * while in use.
+ *
+ * This is the native kms version of drm_vblank_off().
+ *
+ * Returns:
+ * Zero on success, nonzero on failure.
+ */
+int drm_crtc_vblank_get(struct drm_crtc *crtc)
+{
+	return drm_vblank_get(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_get);
+
+/**
  * drm_vblank_put - give up ownership of vblank events
  * @dev: DRM device
  * @crtc: which counter to give up
  *
  * Release ownership of a given vblank counter, turning off interrupts
  * if possible. Disable interrupts after drm_vblank_offdelay milliseconds.
+ *
+ * This is the legacy version of drm_crtc_vblank_put().
  */
 void drm_vblank_put(struct drm_device *dev, int crtc)
 {
@@ -961,6 +983,21 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 EXPORT_SYMBOL(drm_vblank_put);
 
 /**
+ * drm_crtc_vblank_put - give up ownership of vblank events
+ * @crtc: which counter to give up
+ *
+ * Release ownership of a given vblank counter, turning off interrupts
+ * if possible. Disable interrupts after drm_vblank_offdelay milliseconds.
+ *
+ * This is the native kms version of drm_vblank_put().
+ */
+void drm_crtc_vblank_put(struct drm_crtc *crtc)
+{
+	drm_vblank_put(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_put);
+
+/**
  * drm_vblank_off - disable vblank events on a CRTC
  * @dev: DRM device
  * @crtc: CRTC in question
@@ -971,6 +1008,8 @@ EXPORT_SYMBOL(drm_vblank_put);
  *
  * Drivers must use this function when the hardware vblank counter can get
  * reset, e.g. when suspending.
+ *
+ * This is the legacy version of drm_crtc_vblank_off().
  */
 void drm_vblank_off(struct drm_device *dev, int crtc)
 {
@@ -1004,6 +1043,25 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 EXPORT_SYMBOL(drm_vblank_off);
 
 /**
+ * drm_crtc_vblank_off - disable vblank events on a CRTC
+ * @crtc: CRTC in question
+ *
+ * Drivers can use this function to shut down the vblank interrupt handling when
+ * disabling a crtc. This function ensures that the latest vblank frame count is
+ * stored so that drm_vblank_on can restore it again.
+ *
+ * Drivers must use this function when the hardware vblank counter can get
+ * reset, e.g. when suspending.
+ *
+ * This is the native kms version of drm_vblank_off().
+ */
+void drm_crtc_vblank_off(struct drm_crtc *crtc)
+{
+	drm_vblank_off(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_off);
+
+/**
  * drm_vblank_on - enable vblank events on a CRTC
  * @dev: DRM device
  * @crtc: CRTC in question
@@ -1012,6 +1070,8 @@ EXPORT_SYMBOL(drm_vblank_off);
  * drm_vblank_off() again. Note that calls to drm_vblank_on() and
  * drm_vblank_off() can be unbalanced and so can also be unconditionaly called
  * in driver load code to reflect the current hardware state of the crtc.
+ *
+ * This is the legacy version of drm_crtc_vblank_on().
  */
 void drm_vblank_on(struct drm_device *dev, int crtc)
 {
@@ -1024,6 +1084,23 @@ void drm_vblank_on(struct drm_device *dev, int crtc)
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 EXPORT_SYMBOL(drm_vblank_on);
+
+/**
+ * drm_crtc_vblank_on - enable vblank events on a CRTC
+ * @crtc: CRTC in question
+ *
+ * This functions restores the vblank interrupt state captured with
+ * drm_vblank_off() again. Note that calls to drm_vblank_on() and
+ * drm_vblank_off() can be unbalanced and so can also be unconditionaly called
+ * in driver load code to reflect the current hardware state of the crtc.
+ *
+ * This is the native kms version of drm_vblank_on().
+ */
+void drm_crtc_vblank_on(struct drm_crtc *crtc)
+{
+	drm_vblank_on(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_on);
 
 /**
  * drm_vblank_pre_modeset - account for vblanks across mode sets
