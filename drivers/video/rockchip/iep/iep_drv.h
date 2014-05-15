@@ -6,7 +6,7 @@
 #include <linux/mutex.h>
 
 #if defined(CONFIG_ROCKCHIP_IOMMU) && defined(CONFIG_ION_ROCKCHIP)
-//#define CONFIG_IEP_IOMMU
+#define CONFIG_IEP_IOMMU
 #endif
 
 #ifdef CONFIG_IEP_IOMMU

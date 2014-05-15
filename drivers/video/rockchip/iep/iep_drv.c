@@ -218,6 +218,13 @@ static void iep_power_on(void)
 #endif
 
     wake_lock(&iep_drvdata1->wake_lock);
+    
+#if defined(CONFIG_IEP_IOMMU)
+    if (iep_service.iommu_dev) {
+        iovmm_activate(iep_service.iommu_dev);
+    }
+#endif    
+    
     iep_service.enable = true;
 }
 
@@ -238,6 +245,12 @@ static void iep_power_off(void)
         IEP_WARNING("delay 50 ms for running task\n");
         iep_dump();
     }
+    
+#if defined(CONFIG_IEP_IOMMU)
+    if (iep_service.iommu_dev) {
+        iovmm_deactivate(iep_service.iommu_dev);
+    }
+#endif    
 
 #ifdef IEP_CLK_ENABLE
     clk_disable_unprepare(iep_drvdata1->aclk_iep);
@@ -870,16 +883,17 @@ static int iep_drv_probe(struct platform_device *pdev)
     }
     
 #if defined(CONFIG_IEP_IOMMU)
+    iep_service.iommu_dev = NULL;
     iep_power_on();
     iep_service.ion_client = rockchip_ion_client_create("iep");
     if (IS_ERR(iep_service.ion_client)) {
-        dev_err(&pdev->dev, "failed to create ion client for vcodec");
+        IEP_ERR("failed to create ion client for vcodec");
         return PTR_ERR(iep_service.ion_client);
     } else {
-        dev_info(&pdev->dev, "vcodec ion client create success!\n");
+        IEP_INFO("iep ion client create success!\n");
     }
    
-    mmu_dev = rockchip_get_sysmmu_device_by_compatible("iommu,iep");
+    mmu_dev = rockchip_get_sysmmu_device_by_compatible("iommu,iep_mmu");
     
     if (mmu_dev) {
         platform_set_sysmmu(mmu_dev, &pdev->dev);
