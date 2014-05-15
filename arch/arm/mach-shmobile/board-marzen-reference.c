@@ -19,7 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/clk-provider.h>
+#include <linux/clk/shmobile.h>
+#include <linux/clocksource.h>
 #include <linux/of_platform.h>
 #include <mach/r8a7779.h>
 #include <asm/irq.h>
@@ -27,11 +28,17 @@
 #include "common.h"
 #include "irqs.h"
 
-static void __init marzen_init(void)
+static void __init marzen_init_timer(void)
 {
 #ifdef CONFIG_COMMON_CLK
-	of_clk_init(NULL);
-#else
+	r8a7779_clocks_init(r8a7779_read_mode_pins());
+#endif
+	clocksource_of_init();
+}
+
+static void __init marzen_init(void)
+{
+#ifndef CONFIG_COMMON_CLK
 	r8a7779_clock_init();
 #endif
 	r8a7779_add_standard_devices_dt();
@@ -48,6 +55,7 @@ DT_MACHINE_START(MARZEN, "marzen")
 	.smp		= smp_ops(r8a7779_smp_ops),
 	.map_io		= r8a7779_map_io,
 	.init_early	= r8a7779_init_delay,
+	.init_time	= marzen_init_timer,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= r8a7779_init_irq_dt,
 	.init_machine	= marzen_init,
