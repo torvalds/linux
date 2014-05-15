@@ -3733,6 +3733,25 @@ static int qp_detach(struct mlx4_dev *dev, struct mlx4_qp *qp,
 	}
 }
 
+static int mlx4_adjust_port(struct mlx4_dev *dev, int slave,
+			    u8 *gid, enum mlx4_protocol prot)
+{
+	int real_port;
+
+	if (prot != MLX4_PROT_ETH)
+		return 0;
+
+	if (dev->caps.steering_mode == MLX4_STEERING_MODE_B0 ||
+	    dev->caps.steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		real_port = mlx4_slave_convert_port(dev, slave, gid[5]);
+		if (real_port < 0)
+			return -EINVAL;
+		gid[5] = real_port;
+	}
+
+	return 0;
+}
+
 int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 			       struct mlx4_vhcr *vhcr,
 			       struct mlx4_cmd_mailbox *inbox,
@@ -3768,6 +3787,10 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		if (err)
 			goto ex_detach;
 	} else {
+		err = mlx4_adjust_port(dev, slave, gid, prot);
+		if (err)
+			goto ex_put;
+
 		err = rem_mcg_res(dev, slave, rqp, gid, prot, type, &reg_id);
 		if (err)
 			goto ex_put;

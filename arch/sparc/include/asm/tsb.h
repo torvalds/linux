@@ -171,7 +171,8 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	andcc		REG1, REG2, %g0;		\
 	be,pt		%xcc, 700f;			\
 	 sethi		%hi(4 * 1024 * 1024), REG2;	\
-	andn		REG1, REG2, REG1;		\
+	brgez,pn	REG1, FAIL_LABEL;		\
+	 andn		REG1, REG2, REG1;		\
 	and		VADDR, REG2, REG2;		\
 	brlz,pt		REG1, PTE_LABEL;		\
 	 or		REG1, REG2, REG1;		\

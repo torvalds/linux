@@ -429,14 +429,14 @@ static inline void __smp_thermal_interrupt(void)
 	smp_thermal_vector();
 }
 
-asmlinkage void smp_thermal_interrupt(struct pt_regs *regs)
+asmlinkage __visible void smp_thermal_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_thermal_interrupt();
 	exiting_ack_irq();
 }
 
-asmlinkage void smp_trace_thermal_interrupt(struct pt_regs *regs)
+asmlinkage __visible void smp_trace_thermal_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	trace_thermal_apic_entry(THERMAL_APIC_VECTOR);

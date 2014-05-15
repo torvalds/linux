@@ -70,21 +70,25 @@
 
 		ckil {
 			compatible = "fsl,imx-ckil", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
 
 		ckih1 {
 			compatible = "fsl,imx-ckih1", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <22579200>;
 		};
 
 		ckih2 {
 			compatible = "fsl,imx-ckih2", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 
 		osc {
 			compatible = "fsl,imx-osc", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
 	};
@@ -111,7 +115,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,imx53-ipu";
-			reg = <0x18000000 0x080000000>;
+			reg = <0x18000000 0x08000000>;
 			interrupts = <11 10>;
 			clocks = <&clks IMX5_CLK_IPU_GATE>,
 			         <&clks IMX5_CLK_IPU_DI0_GATE>,
@@ -430,7 +434,7 @@
 
 					port {
 						lvds1_in: endpoint {
-							remote-endpoint = <&ipu_di0_lvds0>;
+							remote-endpoint = <&ipu_di1_lvds1>;
 						};
 					};
 				};

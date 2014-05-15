@@ -451,7 +451,20 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 	struct blkcg_gq *blkg;
 	int i;
 
-	mutex_lock(&blkcg_pol_mutex);
+	/*
+	 * XXX: We invoke cgroup_add/rm_cftypes() under blkcg_pol_mutex
+	 * which ends up putting cgroup's internal cgroup_tree_mutex under
+	 * it; however, cgroup_tree_mutex is nested above cgroup file
+	 * active protection and grabbing blkcg_pol_mutex from a cgroup
+	 * file operation creates a possible circular dependency.  cgroup
+	 * internal locking is planned to go through further simplification
+	 * and this issue should go away soon.  For now, let's trylock
+	 * blkcg_pol_mutex and restart the write on failure.
+	 *
+	 * http://lkml.kernel.org/g/5363C04B.4010400@oracle.com
+	 */
+	if (!mutex_trylock(&blkcg_pol_mutex))
+		return restart_syscall();
 	spin_lock_irq(&blkcg->lock);
 
 	/*

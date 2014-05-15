@@ -212,4 +212,9 @@ error_free:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(zevio_timer, "lsi,zevio-timer", zevio_timer_add);
+static void __init zevio_timer_init(struct device_node *node)
+{
+	BUG_ON(zevio_timer_add(node));
+}
+
+CLOCKSOURCE_OF_DECLARE(zevio_timer, "lsi,zevio-timer", zevio_timer_init);
