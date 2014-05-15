@@ -1112,6 +1112,7 @@ struct pnfs_commit_bucket {
 	struct list_head committing;
 	struct pnfs_layout_segment *wlseg;
 	struct pnfs_layout_segment *clseg;
+	struct nfs_writeverf direct_verf;
 };
 
 struct pnfs_ds_commit_info {
@@ -1294,6 +1295,7 @@ struct nfs_pgio_data {
 	__u64			mds_offset;	/* Filelayout dense stripe */
 	struct nfs_page_array	pages;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
+	int			ds_idx;		/* ds index if ds_clp is set */
 };
 
 struct nfs_rw_header {

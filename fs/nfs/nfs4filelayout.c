@@ -560,6 +560,7 @@ filelayout_read_pagelist(struct nfs_pgio_data *data)
 	/* No multipath support. Use first DS */
 	atomic_inc(&ds->ds_clp->cl_count);
 	data->ds_clp = ds->ds_clp;
+	data->ds_idx = idx;
 	fh = nfs4_fl_select_ds_fh(lseg, j);
 	if (fh)
 		data->args.fh = fh;
@@ -603,6 +604,7 @@ filelayout_write_pagelist(struct nfs_pgio_data *data, int sync)
 	data->pgio_done_cb = filelayout_write_done_cb;
 	atomic_inc(&ds->ds_clp->cl_count);
 	data->ds_clp = ds->ds_clp;
+	data->ds_idx = idx;
 	fh = nfs4_fl_select_ds_fh(lseg, j);
 	if (fh)
 		data->args.fh = fh;
@@ -875,6 +877,8 @@ filelayout_alloc_commit_info(struct pnfs_layout_segment *lseg,
 	for (i = 0; i < size; i++) {
 		INIT_LIST_HEAD(&buckets[i].written);
 		INIT_LIST_HEAD(&buckets[i].committing);
+		/* mark direct verifier as unset */
+		buckets[i].direct_verf.committed = NFS_INVALID_STABLE_HOW;
 	}
 
 	spin_lock(cinfo->lock);
@@ -885,6 +889,8 @@ filelayout_alloc_commit_info(struct pnfs_layout_segment *lseg,
 			    &buckets[i].written);
 		list_splice(&cinfo->ds->buckets[i].committing,
 			    &buckets[i].committing);
+		buckets[i].direct_verf.committed =
+			cinfo->ds->buckets[i].direct_verf.committed;
 		buckets[i].wlseg = cinfo->ds->buckets[i].wlseg;
 		buckets[i].clseg = cinfo->ds->buckets[i].clseg;
 	}
