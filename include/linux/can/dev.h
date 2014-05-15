@@ -10,8 +10,8 @@
  *
  */
 
-#ifndef CAN_DEV_H
-#define CAN_DEV_H
+#ifndef _CAN_DEV_H
+#define _CAN_DEV_H
 
 #include <linux/can.h>
 #include <linux/can/netlink.h>
@@ -132,4 +132,4 @@ struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 struct sk_buff *alloc_can_err_skb(struct net_device *dev,
 				  struct can_frame **cf);
 
-#endif /* CAN_DEV_H */
+#endif /* !_CAN_DEV_H */
