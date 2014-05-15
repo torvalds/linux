@@ -248,6 +248,46 @@ static bool ivb_can_enable_err_int(struct drm_device *dev)
 	return true;
 }
 
+/**
+  * bdw_update_pm_irq - update GT interrupt 2
+  * @dev_priv: driver private
+  * @interrupt_mask: mask of interrupt bits to update
+  * @enabled_irq_mask: mask of interrupt bits to enable
+  *
+  * Copied from the snb function, updated with relevant register offsets
+  */
+static void bdw_update_pm_irq(struct drm_i915_private *dev_priv,
+			      uint32_t interrupt_mask,
+			      uint32_t enabled_irq_mask)
+{
+	uint32_t new_val;
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (WARN_ON(dev_priv->pm.irqs_disabled))
+		return;
+
+	new_val = dev_priv->pm_irq_mask;
+	new_val &= ~interrupt_mask;
+	new_val |= (~enabled_irq_mask & interrupt_mask);
+
+	if (new_val != dev_priv->pm_irq_mask) {
+		dev_priv->pm_irq_mask = new_val;
+		I915_WRITE(GEN8_GT_IMR(2), dev_priv->pm_irq_mask);
+		POSTING_READ(GEN8_GT_IMR(2));
+	}
+}
+
+void bdw_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+{
+	bdw_update_pm_irq(dev_priv, mask, mask);
+}
+
+void bdw_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+{
+	bdw_update_pm_irq(dev_priv, mask, 0);
+}
+
 static bool cpt_can_enable_serr_int(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1098,8 +1138,12 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	spin_lock_irq(&dev_priv->irq_lock);
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
-	/* Make sure not to corrupt PMIMR state used by ringbuffer code */
-	snb_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	if (IS_BROADWELL(dev_priv->dev))
+		bdw_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	else {
+		/* Make sure not to corrupt PMIMR state used by ringbuffer */
+		snb_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	}
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Make sure we didn't queue anything we're not going to process. */
@@ -1296,6 +1340,19 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 		ivybridge_parity_error_irq_handler(dev, gt_iir);
 }
 
+static void gen8_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
+{
+	if ((pm_iir & dev_priv->pm_rps_events) == 0)
+		return;
+
+	spin_lock(&dev_priv->irq_lock);
+	dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
+	bdw_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
+	spin_unlock(&dev_priv->irq_lock);
+
+	queue_work(dev_priv->wq, &dev_priv->rps.work);
+}
+
 static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 				       struct drm_i915_private *dev_priv,
 				       u32 master_ctl)
@@ -1332,6 +1389,17 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			I915_WRITE(GEN8_GT_IIR(1), tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT1)!\n");
+	}
+
+	if (master_ctl & GEN8_GT_PM_IRQ) {
+		tmp = I915_READ(GEN8_GT_IIR(2));
+		if (tmp & dev_priv->pm_rps_events) {
+			ret = IRQ_HANDLED;
+			gen8_rps_irq_handler(dev_priv, tmp);
+			I915_WRITE(GEN8_GT_IIR(2),
+				   tmp & dev_priv->pm_rps_events);
+		} else
+			DRM_ERROR("The master control interrupt lied (PM)!\n");
 	}
 
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
@@ -3372,6 +3440,8 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	for (i = 0; i < ARRAY_SIZE(gt_interrupts); i++)
 		GEN8_IRQ_INIT_NDX(GT, i, ~gt_interrupts[i], gt_interrupts[i]);
+
+	dev_priv->pm_irq_mask = 0xffffffff;
 }
 
 static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)

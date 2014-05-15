@@ -4378,6 +4378,7 @@ enum punit_power_well {
 #define  GEN8_DE_PIPE_A_IRQ		(1<<16)
 #define  GEN8_DE_PIPE_IRQ(pipe)		(1<<(16+pipe))
 #define  GEN8_GT_VECS_IRQ		(1<<6)
+#define  GEN8_GT_PM_IRQ			(1<<4)
 #define  GEN8_GT_VCS2_IRQ		(1<<3)
 #define  GEN8_GT_VCS1_IRQ		(1<<2)
 #define  GEN8_GT_BCS_IRQ		(1<<1)
