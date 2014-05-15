@@ -23,6 +23,7 @@ config MACH_SUN6I
 	default ARCH_SUNXI
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_GIC
+	select MFD_SUN6I_PRCM
 	select RESET_CONTROLLER
 	select SUN5I_HSTIMER
 
