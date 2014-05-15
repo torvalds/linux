@@ -44,6 +44,13 @@
 		sd3_bus4: sd3-bus-width4 {
 			samsung,pin-drv = <0>;
 		};
+
+		tps65090_irq: tps65090-irq {
+			samsung,pins = "gpx2-6";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
 	};
 
 	pinctrl@13400000 {
@@ -73,6 +80,12 @@
 			debounce-interval = <1>;
 			gpio-key,wakeup;
 		};
+	};
+
+	vbat: vbat-fixed-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat-supply";
+		regulator-boot-on;
 	};
 
 	i2c-arbitrator {
@@ -199,6 +212,83 @@
 							0x07090018	/* O */
 							0x070b0067	/* UP */
 							0x070c0069>;	/* LEFT */
+				};
+			};
+
+			power-regulator {
+				compatible = "ti,tps65090";
+				reg = <0x48>;
+
+				/*
+				 * Config irq to disable internal pulls
+				 * even though we run in polling mode.
+				 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&tps65090_irq>;
+
+				vsys1-supply = <&vbat>;
+				vsys2-supply = <&vbat>;
+				vsys3-supply = <&vbat>;
+				infet1-supply = <&vbat>;
+				infet2-supply = <&vbat>;
+				infet3-supply = <&vbat>;
+				infet4-supply = <&vbat>;
+				infet5-supply = <&vbat>;
+				infet6-supply = <&vbat>;
+				infet7-supply = <&vbat>;
+				vsys-l1-supply = <&vbat>;
+				vsys-l2-supply = <&vbat>;
+
+				regulators {
+					dcdc1 {
+						ti,enable-ext-control;
+					};
+					dcdc2 {
+						ti,enable-ext-control;
+					};
+					dcdc3 {
+						ti,enable-ext-control;
+					};
+					fet1 {
+						regulator-name = "vcd_led";
+						ti,overcurrent-wait = <3>;
+					};
+					tps65090_fet2: fet2 {
+						regulator-name = "video_mid";
+						regulator-always-on;
+						ti,overcurrent-wait = <3>;
+					};
+					fet3 {
+						regulator-name = "wwan_r";
+						regulator-always-on;
+						ti,overcurrent-wait = <3>;
+					};
+					fet4 {
+						regulator-name = "sdcard";
+						ti,overcurrent-wait = <3>;
+					};
+					fet5 {
+						regulator-name = "camout";
+						regulator-always-on;
+						ti,overcurrent-wait = <3>;
+					};
+					fet6 {
+						regulator-name = "lcd_vdd";
+						ti,overcurrent-wait = <3>;
+					};
+					tps65090_fet7: fet7 {
+						regulator-name = "video_mid_1a";
+						regulator-always-on;
+						ti,overcurrent-wait = <3>;
+					};
+					ldo1 {
+					};
+					ldo2 {
+					};
+				};
+
+				charger {
+					compatible = "ti,tps65090-charger";
 				};
 			};
 		};
