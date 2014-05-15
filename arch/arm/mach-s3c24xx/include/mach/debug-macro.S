@@ -12,18 +12,13 @@
  * published by the Free Software Foundation.
 */
 
-#include <mach/map.h>
 #include <linux/serial_s3c.h>
 
 #define S3C2410_UART1_OFF (0x4000)
 
 	.macro addruart, rp, rv, tmp
-		ldr	\rp, = S3C24XX_PA_UART
-		ldr	\rv, = S3C24XX_VA_UART
-#if CONFIG_DEBUG_S3C_UART != 0
-		add	\rp, \rp, #(S3C2410_UART1_OFF * CONFIG_DEBUG_S3C_UART)
-		add	\rv, \rv, #(S3C2410_UART1_OFF * CONFIG_DEBUG_S3C_UART)
-#endif
+		ldr	\rp, = CONFIG_DEBUG_UART_PHYS
+		ldr	\rv, = CONFIG_DEBUG_UART_VIRT
 	.endm
 
 	.macro  fifo_full_s3c2410 rd, rx
