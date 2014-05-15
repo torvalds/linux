@@ -18,6 +18,11 @@
 	model = "marzen";
 	compatible = "renesas,marzen", "renesas,r8a7779";
 
+	aliases {
+		serial2 = &scif2;
+		serial4 = &scif4;
+	};
+
 	chosen {
 		bootargs = "console=ttySC2,115200 ignore_loglevel root=/dev/nfs ip=on";
 	};
@@ -74,9 +79,6 @@
 };
 
 &pfc {
-	pinctrl-0 = <&scif2_pins &scif4_pins>;
-	pinctrl-names = "default";
-
 	lan0_pins: lan0 {
 		intc {
 			renesas,groups = "intc_irq1_b";
@@ -107,6 +109,20 @@
 		renesas,groups = "hspi0";
 		renesas,function = "hspi0";
 	};
+};
+
+&scif2 {
+       pinctrl-0 = <&scif2_pins>;
+       pinctrl-names = "default";
+
+       status = "okay";
+};
+
+&scif4 {
+       pinctrl-0 = <&scif4_pins>;
+       pinctrl-names = "default";
+
+       status = "okay";
 };
 
 &sdhi0 {

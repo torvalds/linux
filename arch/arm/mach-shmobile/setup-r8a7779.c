@@ -640,16 +640,16 @@ static void __init r8a7779_register_hpb_dmae(void)
 }
 
 static struct platform_device *r8a7779_devices_dt[] __initdata = {
+	&tmu0_device,
+};
+
+static struct platform_device *r8a7779_standard_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
 	&scif3_device,
 	&scif4_device,
 	&scif5_device,
-	&tmu0_device,
-};
-
-static struct platform_device *r8a7779_standard_devices[] __initdata = {
 	&i2c0_device,
 	&i2c1_device,
 	&i2c2_device,
