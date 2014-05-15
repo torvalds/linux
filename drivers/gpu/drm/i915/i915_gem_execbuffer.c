@@ -610,6 +610,8 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 	if (list_empty(vmas))
 		return 0;
 
+	i915_gem_retire_requests_ring(ring);
+
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
 
 	INIT_LIST_HEAD(&ordered_vmas);
