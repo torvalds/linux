@@ -175,7 +175,7 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 
 	mutex_lock(&mvm->mutex);
 	iwl_dbgfs_update_pm(mvm, vif, param, val);
-	ret = iwl_mvm_power_update_mac(mvm, vif);
+	ret = iwl_mvm_power_update_mac(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;

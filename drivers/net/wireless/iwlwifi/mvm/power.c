@@ -828,7 +828,7 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_power_update_mac(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_vif *mvmvif;
 	struct iwl_power_vifs vifs = {};
@@ -868,11 +868,11 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (!vifs.bf_vif)
 		return 0;
 
-	vif = vifs.bf_vif;
-	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	mvmvif = iwl_mvm_vif_from_mac80211(vifs.bf_vif);
 
 	ba_enable = !(!mvmvif->pm_enabled || mvm->ps_disabled ||
-		      !vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif));
+		      !vifs.bf_vif->bss_conf.ps ||
+		      iwl_mvm_vif_low_latency(mvmvif));
 
 	return iwl_mvm_update_beacon_abort(mvm, vifs.bf_vif, ba_enable);
 }

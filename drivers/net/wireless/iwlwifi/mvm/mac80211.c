@@ -832,7 +832,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_release;
 
-	ret = iwl_mvm_power_update_mac(mvm, vif);
+	ret = iwl_mvm_power_update_mac(mvm);
 	if (ret)
 		goto out_release;
 
@@ -983,7 +983,7 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	if (mvm->vif_count && vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
 
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
 out_release:
@@ -1354,7 +1354,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 	} else if (changes & (BSS_CHANGED_PS | BSS_CHANGED_P2P_PS |
 			      BSS_CHANGED_QOS)) {
-		ret = iwl_mvm_power_update_mac(mvm, vif);
+		ret = iwl_mvm_power_update_mac(mvm);
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
 	}
@@ -1423,7 +1423,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	mvmvif->ap_ibss_active = true;
 
 	/* power updated needs to be done before quotas */
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 
 	ret = iwl_mvm_update_quotas(mvm, vif);
 	if (ret)
@@ -1441,7 +1441,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	return 0;
 
 out_quota_failed:
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 	mvmvif->ap_ibss_active = false;
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 out_unbind:
@@ -1477,7 +1477,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
@@ -2239,7 +2239,7 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 	 * Power state must be updated before quotas,
 	 * otherwise fw will complain.
 	 */
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 
 	/* Setting the quota at this stage is only required for monitor
 	 * interfaces. For the other types, the bss_info changed flow
@@ -2262,7 +2262,7 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 
  out_remove_binding:
 	iwl_mvm_binding_remove_vif(mvm, vif);
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
 	if (ret)
@@ -2304,7 +2304,7 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 out_unlock:
 	mvmvif->phy_ctxt = NULL;
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 	mutex_unlock(&mvm->mutex);
 }
 

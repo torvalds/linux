@@ -894,7 +894,7 @@ int rs_pretty_print_rate(char *buf, const u32 rate);
 
 /* power management */
 int iwl_mvm_power_update_device(struct iwl_mvm *mvm);
-int iwl_mvm_power_update_mac(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_power_update_mac(struct iwl_mvm *mvm);
 int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				 char *buf, int bufsz);
 
