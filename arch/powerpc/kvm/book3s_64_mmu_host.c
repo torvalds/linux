@@ -271,11 +271,8 @@ static int kvmppc_mmu_next_segment(struct kvm_vcpu *vcpu, ulong esid)
 	int found_inval = -1;
 	int r;
 
-	if (!svcpu->slb_max)
-		svcpu->slb_max = 1;
-
 	/* Are we overwriting? */
-	for (i = 1; i < svcpu->slb_max; i++) {
+	for (i = 0; i < svcpu->slb_max; i++) {
 		if (!(svcpu->slb[i].esid & SLB_ESID_V))
 			found_inval = i;
 		else if ((svcpu->slb[i].esid & ESID_MASK) == esid) {
@@ -285,7 +282,7 @@ static int kvmppc_mmu_next_segment(struct kvm_vcpu *vcpu, ulong esid)
 	}
 
 	/* Found a spare entry that was invalidated before */
-	if (found_inval > 0) {
+	if (found_inval >= 0) {
 		r = found_inval;
 		goto out;
 	}
@@ -359,7 +356,7 @@ void kvmppc_mmu_flush_segment(struct kvm_vcpu *vcpu, ulong ea, ulong seg_size)
 	ulong seg_mask = -seg_size;
 	int i;
 
-	for (i = 1; i < svcpu->slb_max; i++) {
+	for (i = 0; i < svcpu->slb_max; i++) {
 		if ((svcpu->slb[i].esid & SLB_ESID_V) &&
 		    (svcpu->slb[i].esid & seg_mask) == ea) {
 			/* Invalidate this entry */
@@ -373,7 +370,7 @@ void kvmppc_mmu_flush_segment(struct kvm_vcpu *vcpu, ulong ea, ulong seg_size)
 void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
-	svcpu->slb_max = 1;
+	svcpu->slb_max = 0;
 	svcpu->slb[0].esid = 0;
 	svcpu_put(svcpu);
 }

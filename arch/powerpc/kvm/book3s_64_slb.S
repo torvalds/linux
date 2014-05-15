@@ -138,7 +138,8 @@ slb_do_enter:
 
 	/* Restore bolted entries from the shadow and fix it along the way */
 
-	/* We don't store anything in entry 0, so we don't need to take care of it */
+	li	r0, r0
+	slbmte	r0, r0
 	slbia
 	isync
 
