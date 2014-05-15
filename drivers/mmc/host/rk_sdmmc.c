@@ -906,6 +906,20 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 		mci_send_cmd(slot,
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 
+                
+                if(div > 1){
+                        if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+                          && clock > 100000000){
+                                printk("rk_sdmmc: emmc : div larger than 1, illegal clk in dts ![%s]\n ", 
+                                        mmc_hostname(host->mmc));
+                                printk("eMMC ERROR, emergancy halt!!!!!!!!!\n");        
+                                printk("Please refer to your eMMC datasheet to determine speed mode!\n");
+                                printk("DDR mode: clk in dts should <= 50MHz!\n");
+                                printk("SDR mode: clk in dts should <= 50MHz!\n");
+                                printk("HS200 mode: clk in dts should <= 150MHz!\n");
+                                BUG();
+                        }
+                }
 		/* set clock to desired speed */
 		mci_writel(host, CLKDIV, div);
 
