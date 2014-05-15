@@ -101,6 +101,10 @@
 				};
 			};
 
+			usb@54000 {
+				status = "okay";
+			};
+
 			usb3@58000 {
 				status = "okay";
 			};
