@@ -754,10 +754,8 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 
 		if (!t && (cmd == SIOCADDTUNNEL)) {
 			t = ip_tunnel_create(net, itn, p);
-			if (IS_ERR(t)) {
-				err = PTR_ERR(t);
-				break;
-			}
+			err = PTR_ERR_OR_ZERO(t);
+			break;
 		}
 		if (dev != itn->fb_tunnel_dev && cmd == SIOCCHGTUNNEL) {
 			if (t != NULL) {
