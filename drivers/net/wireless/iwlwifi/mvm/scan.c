@@ -277,51 +277,22 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_scan_condition_iterator,
 					    &global_bound);
-	/*
-	 * Under low latency traffic passive scan is fragmented meaning
-	 * that dwell on a particular channel will be fragmented. Each fragment
-	 * dwell time is 20ms and fragments period is 105ms. Skipping to next
-	 * channel will be delayed by the same period - 105ms. So suspend_time
-	 * parameter describing both fragments and channels skipping periods is
-	 * set to 105ms. This value is chosen so that overall passive scan
-	 * duration will not be too long. Max_out_time in this case is set to
-	 * 70ms, so for active scanning operating channel will be left for 70ms
-	 * while for passive still for 20ms (fragment dwell).
-	 */
-	if (global_bound) {
-		if (!iwl_mvm_low_latency(mvm)) {
-			params->suspend_time = ieee80211_tu_to_usec(100);
-			params->max_out_time = ieee80211_tu_to_usec(600);
-		} else {
-			params->suspend_time = ieee80211_tu_to_usec(105);
-			/* P2P doesn't support fragmented passive scan, so
-			 * configure max_out_time to be at least longest dwell
-			 * time for passive scan.
-			 */
-			if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p) {
-				params->max_out_time = ieee80211_tu_to_usec(70);
-				params->passive_fragmented = true;
-			} else {
-				u32 passive_dwell;
 
-				/*
-				 * Use band G so that passive channel dwell time
-				 * will be assigned with maximum value.
-				 */
-				band = IEEE80211_BAND_2GHZ;
-				passive_dwell = iwl_mvm_get_passive_dwell(band);
-				params->max_out_time =
-					ieee80211_tu_to_usec(passive_dwell);
-			}
-		}
+	if (!global_bound)
+		goto not_bound;
+
+	params->suspend_time = 100;
+	params->max_out_time = 600;
+
+	if (iwl_mvm_low_latency(mvm)) {
+		params->suspend_time = 250;
+		params->max_out_time = 250;
 	}
 
+not_bound:
+
 	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
-		if (params->passive_fragmented)
-			params->dwell[band].passive = 20;
-		else
-			params->dwell[band].passive =
-				iwl_mvm_get_passive_dwell(band);
+		params->dwell[band].passive = iwl_mvm_get_passive_dwell(band);
 		params->dwell[band].active = iwl_mvm_get_active_dwell(band,
 								      n_ssids);
 	}
@@ -761,7 +732,7 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 	int band_2ghz = mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels;
 	int band_5ghz = mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
 	int head = 0;
-	int tail = band_2ghz + band_5ghz;
+	int tail = band_2ghz + band_5ghz - 1;
 	u32 ssid_bitmap;
 	int cmd_len;
 	int ret;
