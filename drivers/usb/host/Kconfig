@@ -29,6 +29,14 @@ if USB_XHCI_HCD
 config USB_XHCI_PLATFORM
 	tristate
 
+config USB_XHCI_MVEBU
+	tristate "xHCI support for Marvell Armada 375/38x"
+	select USB_XHCI_PLATFORM
+	depends on ARCH_MVEBU || COMPILE_TEST
+	---help---
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in Marvell Armada 375/38x ARM SOCs.
+
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
