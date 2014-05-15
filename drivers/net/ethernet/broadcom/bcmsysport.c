@@ -479,7 +479,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 		cb = &priv->rx_cbs[priv->rx_read_ptr];
 		skb = cb->skb;
 		dma_unmap_single(kdev, dma_unmap_addr(cb, dma_addr),
-				dma_unmap_len(cb, dma_len), DMA_FROM_DEVICE);
+				RX_BUF_LENGTH, DMA_FROM_DEVICE);
 
 		/* Extract the Receive Status Block prepended */
 		rsb = (struct rsb *)skb->data;
