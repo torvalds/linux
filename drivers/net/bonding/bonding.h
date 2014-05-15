@@ -70,6 +70,8 @@
 	set_fs(fs);			\
 	res; })
 
+#define BOND_MODE(bond) ((bond)->params.mode)
+
 /* slave list primitives */
 #define bond_slave_list(bond) (&(bond)->dev->adj_list.lower)
 
@@ -271,14 +273,14 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 
 static inline bool bond_should_override_tx_queue(struct bonding *bond)
 {
-	return bond->params.mode == BOND_MODE_ACTIVEBACKUP ||
-	       bond->params.mode == BOND_MODE_ROUNDROBIN;
+	return BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP ||
+	       BOND_MODE(bond) == BOND_MODE_ROUNDROBIN;
 }
 
 static inline bool bond_is_lb(const struct bonding *bond)
 {
-	return bond->params.mode == BOND_MODE_TLB ||
-	       bond->params.mode == BOND_MODE_ALB;
+	return BOND_MODE(bond) == BOND_MODE_TLB ||
+	       BOND_MODE(bond) == BOND_MODE_ALB;
 }
 
 static inline bool bond_mode_uses_arp(int mode)
@@ -295,7 +297,7 @@ static inline bool bond_mode_uses_primary(int mode)
 
 static inline bool bond_uses_primary(struct bonding *bond)
 {
-	return bond_mode_uses_primary(bond->params.mode);
+	return bond_mode_uses_primary(BOND_MODE(bond));
 }
 
 static inline void bond_set_active_slave(struct slave *slave)

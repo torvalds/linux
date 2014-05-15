@@ -1057,7 +1057,7 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[])
 	struct net_device *dev = slave->dev;
 	struct sockaddr s_addr;
 
-	if (slave->bond->params.mode == BOND_MODE_TLB) {
+	if (BOND_MODE(slave->bond) == BOND_MODE_TLB) {
 		memcpy(dev->dev_addr, addr, dev->addr_len);
 		return 0;
 	}
@@ -1745,7 +1745,7 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	/* in TLB mode, the slave might flip down/up with the old dev_addr,
 	 * and thus filter bond->dev_addr's packets, so force bond's mac
 	 */
-	if (bond->params.mode == BOND_MODE_TLB) {
+	if (BOND_MODE(bond) == BOND_MODE_TLB) {
 		struct sockaddr sa;
 		u8 tmp_addr[ETH_ALEN];
 
