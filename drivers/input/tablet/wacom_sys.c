@@ -349,6 +349,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						break;
 
 					case MTTPC:
+					case MTTPC_B:
 						features->pktlen = WACOM_PKGLEN_MTTPC;
 						break;
 
@@ -378,6 +379,16 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						features->unit = report[i - 1];
 						features->unitExpo = report[i - 3];
 						i += 12;
+						break;
+
+					case MTTPC_B:
+						features->x_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->x_phy =
+							get_unaligned_le16(&report[i + 6]);
+						features->unit = report[i - 5];
+						features->unitExpo = report[i - 3];
+						i += 9;
 						break;
 
 					default:
@@ -428,6 +439,14 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						features->y_max =
 							get_unaligned_le16(&report[i + 6]);
 						i += 12;
+						break;
+
+					case MTTPC_B:
+						features->y_max =
+							get_unaligned_le16(&report[i + 3]);
+						features->y_phy =
+							get_unaligned_le16(&report[i + 6]);
+						i += 9;
 						break;
 
 					default:
