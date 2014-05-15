@@ -803,12 +803,13 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 
 	/* If either indir or hash key is valid, proceed further.
 	 */
-	if ((user_indir_size && ((user_indir_size != 0xDEADBEEF) &&
-				 user_indir_size != dev_indir_size)) ||
+	if ((user_indir_size &&
+	     user_indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
+	     user_indir_size != dev_indir_size) ||
 	    (user_key_size && (user_key_size != dev_key_size)))
 		return -EINVAL;
 
-	if (user_indir_size != 0xDEADBEEF)
+	if (user_indir_size != ETH_RXFH_INDIR_NO_CHANGE)
 		indir_bytes = dev_indir_size * sizeof(indir[0]);
 
 	rss_config = kzalloc(indir_bytes + user_key_size, GFP_USER);
@@ -821,9 +822,10 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		goto out;
 
 	/* user_indir_size == 0 means reset the indir table to default.
-	 * user_indir_size == 0xDEADBEEF means indir setting is not requested.
+	 * user_indir_size == ETH_RXFH_INDIR_NO_CHANGE means leave it unchanged.
 	 */
-	if (user_indir_size && user_indir_size != 0xDEADBEEF) {
+	if (user_indir_size &&
+	    user_indir_size != ETH_RXFH_INDIR_NO_CHANGE) {
 		indir = (u32 *)rss_config;
 		ret = ethtool_copy_validate_indir(indir,
 						  useraddr + rss_cfg_offset,

@@ -850,7 +850,8 @@ struct ethtool_rxfh_indir {
  * struct ethtool_rxfh - command to get/set RX flow hash indir or/and hash key.
  * @cmd: Specific command number - %ETHTOOL_GRSSH or %ETHTOOL_SRSSH
  * @rss_context: RSS context identifier.
- * @indir_size: On entry, the array size of the user buffer, which may be zero.
+ * @indir_size: On entry, the array size of the user buffer, which may be zero,
+ *		or (for %ETHTOOL_SRSSH), %ETH_RXFH_INDIR_NO_CHANGE.
  *		On return from %ETHTOOL_GRSSH, the array size of the hardware
  *		indirection table.
  * @key_size:	On entry, the array size of the user buffer in bytes,
@@ -861,10 +862,10 @@ struct ethtool_rxfh_indir {
  *		of size @indir_size followed by hash key of size @key_size.
  *
  * For %ETHTOOL_GRSSH, a @indir_size and key_size of zero means that only the
- * size should be returned.  For %ETHTOOL_SRSSH, a @indir_size of 0xDEADBEEF
- * means that indir table setting is not requested and a @indir_size of zero
- * means the indir table should be reset to default values.  This last feature
- * is not supported by the original implementations.
+ * size should be returned.  For %ETHTOOL_SRSSH, an @indir_size of
+ * %ETH_RXFH_INDIR_NO_CHANGE means that indir table setting is not requested
+ * and a @indir_size of zero means the indir table should be reset to default
+ * values.
  */
 struct ethtool_rxfh {
 	__u32   cmd;
@@ -874,6 +875,7 @@ struct ethtool_rxfh {
 	__u32	rsvd[2];
 	__u32   rss_config[0];
 };
+#define ETH_RXFH_INDIR_NO_CHANGE	0xffffffff
 
 /**
  * struct ethtool_rx_ntuple_flow_spec - specification for RX flow filter
