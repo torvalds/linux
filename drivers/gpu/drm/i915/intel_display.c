@@ -10231,6 +10231,44 @@ void ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config
 	     pipe_config->adjusted_mode.crtc_clock, dotclock);
 }
 
+static void update_scanline_offset(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+
+	/*
+	 * The scanline counter increments at the leading edge of hsync.
+	 *
+	 * On most platforms it starts counting from vtotal-1 on the
+	 * first active line. That means the scanline counter value is
+	 * always one less than what we would expect. Ie. just after
+	 * start of vblank, which also occurs at start of hsync (on the
+	 * last active line), the scanline counter will read vblank_start-1.
+	 *
+	 * On gen2 the scanline counter starts counting from 1 instead
+	 * of vtotal-1, so we have to subtract one (or rather add vtotal-1
+	 * to keep the value positive), instead of adding one.
+	 *
+	 * On HSW+ the behaviour of the scanline counter depends on the output
+	 * type. For DP ports it behaves like most other platforms, but on HDMI
+	 * there's an extra 1 line difference. So we need to add two instead of
+	 * one to the value.
+	 */
+	if (IS_GEN2(dev)) {
+		const struct drm_display_mode *mode = &crtc->config.adjusted_mode;
+		int vtotal;
+
+		vtotal = mode->crtc_vtotal;
+		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+			vtotal /= 2;
+
+		crtc->scanline_offset = vtotal - 1;
+	} else if (HAS_DDI(dev) &&
+		   intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI)) {
+		crtc->scanline_offset = 2;
+	} else
+		crtc->scanline_offset = 1;
+}
+
 static int __intel_set_mode(struct drm_crtc *crtc,
 			    struct drm_display_mode *mode,
 			    int x, int y, struct drm_framebuffer *fb)
@@ -10349,8 +10387,11 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
-	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc)
+	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc) {
+		update_scanline_offset(intel_crtc);
+
 		dev_priv->display.crtc_enable(&intel_crtc->base);
+	}
 
 	/* FIXME: add subpixel order */
 done:
@@ -11900,6 +11941,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 */
 		crtc->cpu_fifo_underrun_disabled = true;
 		crtc->pch_fifo_underrun_disabled = true;
+
+		update_scanline_offset(crtc);
 	}
 }
 

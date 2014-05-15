@@ -889,9 +889,9 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct drm_display_mode *mode = &crtc->config.adjusted_mode;
 	enum pipe pipe = crtc->pipe;
-	int vtotal = mode->crtc_vtotal;
-	int position;
+	int position, vtotal;
 
+	vtotal = mode->crtc_vtotal;
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vtotal /= 2;
 
@@ -901,14 +901,10 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 		position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
 	/*
-	 * Scanline counter increments at leading edge of hsync, and
-	 * it starts counting from vtotal-1 on the first active line.
-	 * That means the scanline counter value is always one less
-	 * than what we would expect. Ie. just after start of vblank,
-	 * which also occurs at start of hsync (on the last active line),
-	 * the scanline counter will read vblank_start-1.
+	 * See update_scanline_offset() for the details on the
+	 * scanline_offset adjustment.
 	 */
-	return (position + 1) % vtotal;
+	return (position + crtc->scanline_offset) % vtotal;
 }
 
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,

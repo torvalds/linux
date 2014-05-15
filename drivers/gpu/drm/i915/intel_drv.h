@@ -409,6 +409,8 @@ struct intel_crtc {
 	} wm;
 
 	wait_queue_head_t vbl_wait;
+
+	int scanline_offset;
 };
 
 struct intel_plane_wm_parameters {
