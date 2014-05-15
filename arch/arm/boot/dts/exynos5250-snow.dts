@@ -25,6 +25,13 @@
 	};
 
 	pinctrl@11400000 {
+		ec_irq: ec-irq {
+			samsung,pins = "gpx1-6";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
 		sd3_clk: sd3-clk {
 			samsung,pin-drv = <0>;
 		};
@@ -101,6 +108,8 @@
 				reg = <0x1e>;
 				interrupts = <6 0>;
 				interrupt-parent = <&gpx1>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&ec_irq>;
 				wakeup-source;
 
 				keyboard-controller {
