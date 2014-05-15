@@ -116,6 +116,14 @@
 				bus-width = <8>;
 				status = "okay";
 			};
+
+			usb3@f0000 {
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				status = "okay";
+			};
 		};
 
 		pcie-controller {
