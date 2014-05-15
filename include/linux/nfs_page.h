@@ -22,12 +22,10 @@
  * Valid flags for a dirty buffer
  */
 enum {
-	PG_BUSY = 0,
-	PG_MAPPED,
-	PG_CLEAN,
-	PG_NEED_COMMIT,
-	PG_NEED_RESCHED,
-	PG_COMMIT_TO_DS,
+	PG_BUSY = 0,		/* nfs_{un}lock_request */
+	PG_MAPPED,		/* page private set for buffered io */
+	PG_CLEAN,		/* write succeeded */
+	PG_COMMIT_TO_DS,	/* used by pnfs layouts */
 };
 
 struct nfs_inode;
