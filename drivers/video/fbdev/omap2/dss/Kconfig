@@ -1,6 +1,10 @@
+config OMAP2_DSS_INIT
+	bool
+
 menuconfig OMAP2_DSS
         tristate "OMAP2+ Display Subsystem support"
 	select VIDEOMODE_HELPERS
+	select OMAP2_DSS_INIT
         help
 	  OMAP2+ Display Subsystem support.
 
