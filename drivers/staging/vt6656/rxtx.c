@@ -1383,13 +1383,32 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	u16 wTxBufSize;
 	u32 cbMacHdLen;
 	u16 wCurrentRate = RATE_1M;
+	unsigned long flags;
+
+	if (pDevice->byBBType == BB_TYPE_11A) {
+		wCurrentRate = RATE_6M;
+		byPktType = PK_TYPE_11A;
+	} else {
+		wCurrentRate = RATE_1M;
+		byPktType = PK_TYPE_11B;
+	}
+
+	if (pMgmt->eScanState != WMAC_NO_SCANNING)
+		RFbSetPower(pDevice, wCurrentRate, pDevice->byCurrentCh);
+	else
+		RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
+
+	pDevice->wCurrentRate = wCurrentRate;
+
+	spin_lock_irqsave(&pDevice->lock, flags);
 
 	pContext = s_vGetFreeContext(pDevice);
-
-    if (NULL == pContext) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ManagementSend TX...NO CONTEXT!\n");
-        return CMD_STATUS_RESOURCES;
-    }
+	if (!pContext) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"ManagementSend TX...NO CONTEXT!\n");
+		spin_unlock_irqrestore(&pDevice->lock, flags);
+		return CMD_STATUS_RESOURCES;
+	}
 
 	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->data[0];
     cbFrameBodySize = pPacket->cbPayloadLen;
@@ -1397,24 +1416,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	pbyTxBufferAddr = (u8 *)&pTxBufHead->adwTxKey[0];
 	wTxBufSize = sizeof(struct vnt_tx_fifo_head);
 
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        wCurrentRate = RATE_6M;
-        byPktType = PK_TYPE_11A;
-    } else {
-        wCurrentRate = RATE_1M;
-        byPktType = PK_TYPE_11B;
-    }
-
-    // SetPower will cause error power TX state for OFDM Date packet in TX buffer.
-    // 2004.11.11 Kyle -- Using OFDM power to tx MngPkt will decrease the connection capability.
-    //                    And cmd timer will wait data pkt TX finish before scanning so it's OK
-    //                    to set power here.
-    if (pMgmt->eScanState != WMAC_NO_SCANNING) {
-        RFbSetPower(pDevice, wCurrentRate, pDevice->byCurrentCh);
-    } else {
-        RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
-    }
-    pDevice->wCurrentRate = wCurrentRate;
 
     //Set packet type
     if (byPktType == PK_TYPE_11A) {//0000 0000 0000 0000
@@ -1625,6 +1626,9 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     }
 
     PIPEnsSendBulkOut(pDevice,pContext);
+
+	spin_unlock_irqrestore(&pDevice->lock, flags);
+
     return CMD_STATUS_PENDING;
 }
 
