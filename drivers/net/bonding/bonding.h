@@ -69,10 +69,6 @@
 			(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
 			 ((mode) == BOND_MODE_ROUNDROBIN))
 
-#define BOND_MODE_IS_LB(mode)			\
-		(((mode) == BOND_MODE_TLB) ||	\
-		 ((mode) == BOND_MODE_ALB))
-
 #define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
 	((htonl(INADDR_BROADCAST) == a) ||	\
 	 ipv4_is_zeronet(a))
@@ -290,7 +286,8 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 
 static inline bool bond_is_lb(const struct bonding *bond)
 {
-	return BOND_MODE_IS_LB(bond->params.mode);
+	return bond->params.mode == BOND_MODE_TLB ||
+	       bond->params.mode == BOND_MODE_ALB;
 }
 
 static inline void bond_set_active_slave(struct slave *slave)
