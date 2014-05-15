@@ -443,21 +443,13 @@ nfs_wait_on_request(struct nfs_page *req)
 size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 			   struct nfs_page *prev, struct nfs_page *req)
 {
-	if (!prev)
-		return req->wb_bytes;
-	/*
-	 * FIXME: ideally we should be able to coalesce all requests
-	 * that are not block boundary aligned, but currently this
-	 * is problematic for the case of bsize < PAGE_CACHE_SIZE,
-	 * since nfs_flush_multi and nfs_pagein_multi assume you
-	 * can have only one struct nfs_page.
-	 */
-	if (desc->pg_bsize < PAGE_SIZE)
+	if (desc->pg_count > desc->pg_bsize) {
+		/* should never happen */
+		WARN_ON_ONCE(1);
 		return 0;
+	}
 
-	if (desc->pg_count + req->wb_bytes <= desc->pg_bsize)
-		return req->wb_bytes;
-	return 0;
+	return min(desc->pg_bsize - desc->pg_count, (size_t)req->wb_bytes);
 }
 EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
 
@@ -766,50 +758,6 @@ static void nfs_pgio_result(struct rpc_task *task, void *calldata)
 }
 
 /*
- * Generate multiple small requests to read or write a single
- * contiguous dirty on one page.
- */
-static int nfs_pgio_multi(struct nfs_pageio_descriptor *desc,
-			  struct nfs_pgio_header *hdr)
-{
-	struct nfs_page *req = hdr->req;
-	struct page *page = req->wb_page;
-	struct nfs_pgio_data *data;
-	size_t wsize = desc->pg_bsize, nbytes;
-	unsigned int offset;
-	int requests = 0;
-	struct nfs_commit_info cinfo;
-
-	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
-
-	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
-	    (desc->pg_moreio || nfs_reqs_to_commit(&cinfo) ||
-	     desc->pg_count > wsize))
-		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
-
-	offset = 0;
-	nbytes = desc->pg_count;
-	do {
-		size_t len = min(nbytes, wsize);
-
-		data = nfs_pgio_data_alloc(hdr, 1);
-		if (!data)
-			return nfs_pgio_error(desc, hdr);
-		data->pages.pagevec[0] = page;
-		nfs_pgio_rpcsetup(data, len, offset, desc->pg_ioflags, &cinfo);
-		list_add(&data->list, &hdr->rpc_list);
-		requests++;
-		nbytes -= len;
-		offset += len;
-	} while (nbytes != 0);
-
-	nfs_list_remove_request(req);
-	nfs_list_add_request(req, &hdr->pages);
-	desc->pg_rpc_callops = &nfs_pgio_common_ops;
-	return 0;
-}
-
-/*
  * Create an RPC task for the given read or write request and kick it.
  * The page must have been locked by the caller.
  *
@@ -817,8 +765,8 @@ static int nfs_pgio_multi(struct nfs_pageio_descriptor *desc,
  * This is the case if nfs_updatepage detects a conflicting request
  * that has been written but not committed.
  */
-static int nfs_pgio_one(struct nfs_pageio_descriptor *desc,
-			struct nfs_pgio_header *hdr)
+int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
+		     struct nfs_pgio_header *hdr)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
@@ -850,6 +798,7 @@ static int nfs_pgio_one(struct nfs_pageio_descriptor *desc,
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_generic_pgio);
 
 static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 {
@@ -874,15 +823,6 @@ static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 		hdr->completion_ops->completion(hdr);
 	return ret;
 }
-
-int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
-		     struct nfs_pgio_header *hdr)
-{
-	if (desc->pg_bsize < PAGE_CACHE_SIZE)
-		return nfs_pgio_multi(desc, hdr);
-	return nfs_pgio_one(desc, hdr);
-}
-EXPORT_SYMBOL_GPL(nfs_generic_pgio);
 
 static bool nfs_match_open_context(const struct nfs_open_context *ctx1,
 		const struct nfs_open_context *ctx2)
@@ -925,7 +865,9 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 			return false;
 	}
 	size = pgio->pg_ops->pg_test(pgio, prev, req);
-	WARN_ON_ONCE(size && size != req->wb_bytes);
+	WARN_ON_ONCE(size > req->wb_bytes);
+	if (size && size < req->wb_bytes)
+		req->wb_bytes = size;
 	return size > 0;
 }
 
