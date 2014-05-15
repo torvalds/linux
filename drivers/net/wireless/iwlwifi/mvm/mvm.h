@@ -1098,6 +1098,9 @@ void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		      bool added_vif);
 
+/* TDLS */
+int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 
 #endif /* __IWL_MVM_H__ */

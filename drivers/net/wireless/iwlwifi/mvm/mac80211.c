@@ -1843,9 +1843,10 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
-static int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm)
+int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
 	int count = 0;
 	int i;
 
@@ -1857,10 +1858,31 @@ static int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm)
 		if (!sta || IS_ERR(sta) || !sta->tdls)
 			continue;
 
+		if (vif) {
+			mvmsta = iwl_mvm_sta_from_mac80211(sta);
+			if (mvmsta->vif != vif)
+				continue;
+		}
+
 		count++;
 	}
 
 	return count;
+}
+
+static void iwl_mvm_recalc_tdls_state(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      bool sta_added)
+{
+	int tdls_sta_cnt = iwl_mvm_tdls_sta_count(mvm, vif);
+
+	/*
+	 * Disable ps when the first TDLS sta is added and re-enable it
+	 * when the last TDLS sta is removed
+	 */
+	if ((tdls_sta_cnt == 1 && sta_added) ||
+	    (tdls_sta_cnt == 0 && !sta_added))
+		iwl_mvm_power_update_mac(mvm);
 }
 
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
@@ -1904,7 +1926,8 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 
 		if (sta->tdls &&
 		    (vif->p2p ||
-		     iwl_mvm_tdls_sta_count(mvm) == IWL_MVM_TDLS_STA_COUNT ||
+		     iwl_mvm_tdls_sta_count(mvm, NULL) ==
+						IWL_MVM_TDLS_STA_COUNT ||
 		     iwl_mvm_phy_ctx_count(mvm) > 1)) {
 			IWL_DEBUG_MAC80211(mvm, "refusing TDLS sta\n");
 			ret = -EBUSY;
@@ -1912,6 +1935,8 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		}
 
 		ret = iwl_mvm_add_sta(mvm, vif, sta);
+		if (sta->tdls && ret == 0)
+			iwl_mvm_recalc_tdls_state(mvm, vif, true);
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
 		/*
@@ -1946,6 +1971,8 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_NOTEXIST) {
 		ret = iwl_mvm_rm_sta(mvm, vif, sta);
+		if (sta->tdls)
+			iwl_mvm_recalc_tdls_state(mvm, vif, false);
 	} else {
 		ret = -EIO;
 	}
