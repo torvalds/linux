@@ -744,7 +744,6 @@ struct vnt_private {
 #define fMP_POST_READS                      0x00000100
 #define fMP_POST_WRITES                     0x00000200
 #define fMP_CONTROL_READS                   0x00000400
-#define fMP_CONTROL_WRITES                  0x00000800
 
 #define MP_SET_FLAG(_M, _F)             ((_M)->Flags |= (_F))
 #define MP_CLEAR_FLAG(_M, _F)            ((_M)->Flags &= ~(_F))

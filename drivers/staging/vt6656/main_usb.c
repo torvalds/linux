@@ -965,7 +965,6 @@ static int  device_open(struct net_device *dev)
 
     MP_CLEAR_FLAG(pDevice, fMP_DISCONNECTED);
     MP_CLEAR_FLAG(pDevice, fMP_CONTROL_READS);
-    MP_CLEAR_FLAG(pDevice, fMP_CONTROL_WRITES);
     MP_SET_FLAG(pDevice, fMP_POST_READS);
     MP_SET_FLAG(pDevice, fMP_POST_WRITES);
 
