@@ -39,6 +39,22 @@
 		};
 	};
 
+	pinctrl@13400000 {
+		arb_their_claim: arb-their-claim {
+			samsung,pins = "gpe0-4";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
+
+		arb_our_claim: arb-our-claim {
+			samsung,pins = "gpf0-3";
+			samsung,pin-function = <1>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -64,6 +80,9 @@
 		slew-delay-us = <10>;
 		wait-retry-us = <3000>;
 		wait-free-us = <50000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&arb_our_claim &arb_their_claim>;
 
 		/* Use ID 104 as a hint that we're on physical bus 4 */
 		i2c_104: i2c@0 {
