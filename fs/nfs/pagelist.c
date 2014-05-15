@@ -921,10 +921,6 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 		    !nfs_match_lock_context(req->wb_lock_context,
 					    prev->wb_lock_context))
 			return false;
-		if (req->wb_pgbase != 0)
-			return false;
-		if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
-			return false;
 		if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
 			return false;
 	}
