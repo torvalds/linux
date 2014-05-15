@@ -380,9 +380,7 @@ struct vnt_private {
 	u32 uCurrentDFCBIdx;
 
 	/* USB */
-	struct urb *pControlURB;
 	struct urb *pInterruptURB;
-	struct usb_ctrlrequest sUsbCtlRequest;
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */
@@ -743,7 +741,6 @@ struct vnt_private {
 #define fMP_RECV_SIDE_RESOURCE_ALLOCATED    0x00000080
 #define fMP_POST_READS                      0x00000100
 #define fMP_POST_WRITES                     0x00000200
-#define fMP_CONTROL_READS                   0x00000400
 
 #define MP_SET_FLAG(_M, _F)             ((_M)->Flags |= (_F))
 #define MP_CLEAR_FLAG(_M, _F)            ((_M)->Flags &= ~(_F))

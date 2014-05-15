@@ -702,12 +702,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	INIT_WORK(&pDevice->read_work_item, RXvWorkItem);
 	INIT_WORK(&pDevice->rx_mng_work_item, RXvMngWorkItem);
 
-	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!pDevice->pControlURB) {
-		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc control urb\n");
-		goto err_netdev;
-	}
-
 	pDevice->tx_80211 = device_dma0_tx_80211;
 	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
 
@@ -964,7 +958,6 @@ static int  device_open(struct net_device *dev)
     }
 
     MP_CLEAR_FLAG(pDevice, fMP_DISCONNECTED);
-    MP_CLEAR_FLAG(pDevice, fMP_CONTROL_READS);
     MP_SET_FLAG(pDevice, fMP_POST_READS);
     MP_SET_FLAG(pDevice, fMP_POST_WRITES);
 
@@ -1130,10 +1123,6 @@ static void vt6656_disconnect(struct usb_interface *intf)
 
 	if (device->dev) {
 		unregister_netdev(device->dev);
-
-		usb_kill_urb(device->pControlURB);
-		usb_free_urb(device->pControlURB);
-
 		free_netdev(device->dev);
 	}
 }
