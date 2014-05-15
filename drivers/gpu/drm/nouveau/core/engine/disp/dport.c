@@ -48,7 +48,7 @@ struct dp_state {
 	u8 version;
 	struct nouveau_i2c_port *aux;
 	int head;
-	u8  dpcd[4];
+	u8  dpcd[16];
 	int link_nr;
 	u32 link_bw;
 	u8  stat[6];
@@ -149,7 +149,10 @@ dp_link_train_update(struct dp_state *dp, u32 delay)
 {
 	int ret;
 
-	udelay(delay);
+	if (dp->dpcd[DPCD_RC0E_AUX_RD_INTERVAL])
+		mdelay(dp->dpcd[DPCD_RC0E_AUX_RD_INTERVAL] * 4);
+	else
+		udelay(delay);
 
 	ret = nv_rdaux(dp->aux, DPCD_LS02, dp->stat, 6);
 	if (ret)
