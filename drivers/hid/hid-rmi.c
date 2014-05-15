@@ -277,9 +277,9 @@ static void rmi_f11_process_touch(struct rmi_data *hdata, int slot,
 	input_mt_report_slot_state(hdata->input, MT_TOOL_FINGER,
 			finger_state == 0x01);
 	if (finger_state == 0x01) {
-		x = (touch_data[0] << 4) | (touch_data[2] & 0x07);
+		x = (touch_data[0] << 4) | (touch_data[2] & 0x0F);
 		y = (touch_data[1] << 4) | (touch_data[2] >> 4);
-		wx = touch_data[3] & 0x07;
+		wx = touch_data[3] & 0x0F;
 		wy = touch_data[3] >> 4;
 		wide = (wx > wy);
 		major = max(wx, wy);
