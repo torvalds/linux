@@ -740,6 +740,56 @@ i915_pipe_enabled(struct drm_device *dev, int pipe)
 	}
 }
 
+/*
+ * This timing diagram depicts the video signal in and
+ * around the vertical blanking period.
+ *
+ * Assumptions about the fictitious mode used in this example:
+ *  vblank_start >= 3
+ *  vsync_start = vblank_start + 1
+ *  vsync_end = vblank_start + 2
+ *  vtotal = vblank_start + 3
+ *
+ *           start of vblank:
+ *           latch double buffered registers
+ *           increment frame counter (ctg+)
+ *           generate start of vblank interrupt (gen4+)
+ *           |
+ *           |          frame start:
+ *           |          generate frame start interrupt (aka. vblank interrupt) (gmch)
+ *           |          may be shifted forward 1-3 extra lines via PIPECONF
+ *           |          |
+ *           |          |  start of vsync:
+ *           |          |  generate vsync interrupt
+ *           |          |  |
+ * ___xxxx___    ___xxxx___    ___xxxx___    ___xxxx___    ___xxxx___    ___xxxx
+ *       .   \hs/   .      \hs/          \hs/          \hs/   .      \hs/
+ * ----va---> <-----------------vb--------------------> <--------va-------------
+ *       |          |       <----vs----->                     |
+ * -vbs-----> <---vbs+1---> <---vbs+2---> <-----0-----> <-----1-----> <-----2--- (scanline counter gen2)
+ * -vbs-2---> <---vbs-1---> <---vbs-----> <---vbs+1---> <---vbs+2---> <-----0--- (scanline counter gen3+)
+ * -vbs-2---> <---vbs-2---> <---vbs-1---> <---vbs-----> <---vbs+1---> <---vbs+2- (scanline counter hsw+ hdmi)
+ *       |          |                                         |
+ *       last visible pixel                                   first visible pixel
+ *                  |                                         increment frame counter (gen3/4)
+ *                  pixel counter = vblank_start * htotal     pixel counter = 0 (gen3/4)
+ *
+ * x  = horizontal active
+ * _  = horizontal blanking
+ * hs = horizontal sync
+ * va = vertical active
+ * vb = vertical blanking
+ * vs = vertical sync
+ * vbs = vblank_start (number)
+ *
+ * Summary:
+ * - most events happen at the start of horizontal sync
+ * - frame start happens at the start of horizontal blank, 1-4 lines
+ *   (depending on PIPECONF settings) after the start of vblank
+ * - gen3/4 pixel and frame counter are synchronized with the start
+ *   of horizontal active on the first line of vertical active
+ */
+
 static u32 i8xx_get_vblank_counter(struct drm_device *dev, int pipe)
 {
 	/* Gen2 doesn't have a hardware frame counter */
