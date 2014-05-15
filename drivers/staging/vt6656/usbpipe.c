@@ -474,6 +474,7 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 {
 	struct vnt_rcb *rcb = urb->context;
 	struct vnt_private *priv = rcb->pDevice;
+	unsigned long flags;
 	int re_alloc_skb = false;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
@@ -493,23 +494,23 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 	}
 
 	if (urb->actual_length) {
-		spin_lock(&priv->lock);
+		spin_lock_irqsave(&priv->lock, flags);
 
 		if (RXbBulkInProcessData(priv, rcb, urb->actual_length) == true)
 			re_alloc_skb = true;
 
-		spin_unlock(&priv->lock);
+		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	rcb->Ref--;
 	if (rcb->Ref == 0) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RxvFreeNormal %d\n",
 							priv->NumRecvFreeList);
-		spin_lock(&priv->lock);
+		spin_lock_irqsave(&priv->lock, flags);
 
 		RXvFreeRCB(rcb, re_alloc_skb);
 
-		spin_unlock(&priv->lock);
+		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	return;
