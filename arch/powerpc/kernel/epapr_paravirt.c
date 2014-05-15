@@ -48,9 +48,10 @@ static int __init early_init_dt_scan_epapr(unsigned long node,
 		return -1;
 
 	for (i = 0; i < (len / 4); i++) {
-		patch_instruction(epapr_hypercall_start + i, insts[i]);
+		u32 inst = be32_to_cpu(insts[i]);
+		patch_instruction(epapr_hypercall_start + i, inst);
 #if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
-		patch_instruction(epapr_ev_idle_start + i, insts[i]);
+		patch_instruction(epapr_ev_idle_start + i, inst);
 #endif
 	}
 
