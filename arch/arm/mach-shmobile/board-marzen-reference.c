@@ -25,6 +25,7 @@
 #include <mach/r8a7779.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
+#include "clock.h"
 #include "common.h"
 #include "irqs.h"
 
@@ -36,9 +37,27 @@ static void __init marzen_init_timer(void)
 	clocksource_of_init();
 }
 
+#ifdef CONFIG_COMMON_CLK
+/*
+ * This is a really crude hack to provide clkdev support to platform
+ * devices until they get moved to DT.
+ */
+static const struct clk_name clk_names[] __initconst = {
+	{ "scif0", NULL, "sh-sci.0" },
+	{ "scif1", NULL, "sh-sci.1" },
+	{ "scif2", NULL, "sh-sci.2" },
+	{ "scif3", NULL, "sh-sci.3" },
+	{ "scif4", NULL, "sh-sci.4" },
+	{ "scif5", NULL, "sh-sci.5" },
+	{ "tmu0", "fck", "sh-tmu.0" },
+};
+#endif
+
 static void __init marzen_init(void)
 {
-#ifndef CONFIG_COMMON_CLK
+#ifdef CONFIG_COMMON_CLK
+	shmobile_clk_workaround(clk_names, ARRAY_SIZE(clk_names), false);
+#else
 	r8a7779_clock_init();
 #endif
 	r8a7779_add_standard_devices_dt();
