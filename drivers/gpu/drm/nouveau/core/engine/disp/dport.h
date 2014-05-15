@@ -6,6 +6,7 @@
 #define DPCD_RC01_MAX_LINK_RATE                                         0x00001
 #define DPCD_RC02                                                       0x00002
 #define DPCD_RC02_ENHANCED_FRAME_CAP                                       0x80
+#define DPCD_RC02_TPS3_SUPPORTED                                           0x40
 #define DPCD_RC02_MAX_LANE_COUNT                                           0x1f
 #define DPCD_RC03                                                       0x00003
 #define DPCD_RC03_MAX_DOWNSPREAD                                           0x01

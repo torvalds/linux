@@ -202,7 +202,10 @@ dp_link_train_eq(struct dp_state *dp)
 	bool eq_done = false, cr_done = true;
 	int tries = 0, i;
 
-	dp_set_training_pattern(dp, 2);
+	if (dp->dpcd[2] & DPCD_RC02_TPS3_SUPPORTED)
+		dp_set_training_pattern(dp, 3);
+	else
+		dp_set_training_pattern(dp, 2);
 
 	do {
 		if (dp_link_train_update(dp, 400))
@@ -316,8 +319,10 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 	}
 
 	/* bring capabilities within encoder limits */
+	if (nv_oclass(disp)->handle < NV_ENGINE(DISP, 0x90))
+		dp->dpcd[2] &= ~DPCD_RC02_TPS3_SUPPORTED;
 	if ((dp->dpcd[2] & 0x1f) > dp->outp->dpconf.link_nr) {
-		dp->dpcd[2] &= ~0x1f;
+		dp->dpcd[2] &= ~DPCD_RC02_MAX_LANE_COUNT;
 		dp->dpcd[2] |= dp->outp->dpconf.link_nr;
 	}
 	if (dp->dpcd[1] > dp->outp->dpconf.link_bw)
