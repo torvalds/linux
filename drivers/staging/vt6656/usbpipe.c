@@ -82,6 +82,8 @@ int PIPEnsControlOutAsyn(struct vnt_private *pDevice, u8 byRequest,
         return STATUS_FAILURE;
     }
 
+	mutex_lock(&pDevice->usb_lock);
+
     ntStatus = usb_control_msg(
                             pDevice->usb,
                             usb_sndctrlpipe(pDevice->usb , 0),
@@ -99,6 +101,8 @@ int PIPEnsControlOutAsyn(struct vnt_private *pDevice, u8 byRequest,
     } else {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"usb_sndctrlpipe fail, ntStatus= %d\n", ntStatus);
     }
+
+	mutex_unlock(&pDevice->usb_lock);
 
     return ntStatus;
 }
@@ -123,6 +127,8 @@ int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 	if (pDevice->pControlURB->hcpriv)
 		return STATUS_FAILURE;
 
+	mutex_lock(&pDevice->usb_lock);
+
 	MP_SET_FLAG(pDevice, fMP_CONTROL_WRITES);
 
 	pDevice->sUsbCtlRequest.bRequestType = 0x40;
@@ -143,6 +149,7 @@ int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 			"control send request submission failed: %d\n",
 				ntStatus);
 		MP_CLEAR_FLAG(pDevice, fMP_CONTROL_WRITES);
+		mutex_unlock(&pDevice->usb_lock);
 		return STATUS_FAILURE;
 	}
 
@@ -157,9 +164,12 @@ int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 		DBG_PRT(MSG_LEVEL_DEBUG,
 			KERN_INFO "control send request submission timeout\n");
             MP_CLEAR_FLAG(pDevice, fMP_CONTROL_WRITES);
+	    mutex_unlock(&pDevice->usb_lock);
             return STATUS_FAILURE;
         }
     }
+
+	mutex_unlock(&pDevice->usb_lock);
 
     return STATUS_SUCCESS;
 }
@@ -184,6 +194,8 @@ int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 	if (pDevice->pControlURB->hcpriv)
 		return STATUS_FAILURE;
 
+	mutex_lock(&pDevice->usb_lock);
+
 	MP_SET_FLAG(pDevice, fMP_CONTROL_READS);
 
 	pDevice->sUsbCtlRequest.bRequestType = 0xC0;
@@ -202,6 +214,7 @@ int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"control request submission failed: %d\n", ntStatus);
 		MP_CLEAR_FLAG(pDevice, fMP_CONTROL_READS);
+		mutex_unlock(&pDevice->usb_lock);
 		return STATUS_FAILURE;
 	}
 
@@ -216,9 +229,12 @@ int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
 		DBG_PRT(MSG_LEVEL_DEBUG,
 			KERN_INFO "control rcv request submission timeout\n");
             MP_CLEAR_FLAG(pDevice, fMP_CONTROL_READS);
+	    mutex_unlock(&pDevice->usb_lock);
             return STATUS_FAILURE;
         }
     }
+
+	mutex_unlock(&pDevice->usb_lock);
 
     return ntStatus;
 }

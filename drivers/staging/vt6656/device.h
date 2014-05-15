@@ -363,6 +363,7 @@ struct vnt_private {
 	u8 byRxMode;
 
 	spinlock_t lock;
+	struct mutex usb_lock;
 
 	u32 rx_bytes;
 
