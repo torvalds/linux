@@ -2123,11 +2123,13 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 		new_tsec->exec_sid = 0;
 
 		/*
-		 * Minimize confusion: if no_new_privs and a transition is
-		 * explicitly requested, then fail the exec.
+		 * Minimize confusion: if no_new_privs or nosuid and a
+		 * transition is explicitly requested, then fail the exec.
 		 */
 		if (bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS)
 			return -EPERM;
+		if (bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)
+			return -EACCES;
 	} else {
 		/* Check for a default transition on this program. */
 		rc = security_transition_sid(old_tsec->sid, isec->sid,
