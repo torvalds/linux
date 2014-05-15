@@ -144,8 +144,10 @@ next_rule:
 		switch (data[NFT_REG_VERDICT].verdict) {
 		case NFT_BREAK:
 			data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
-			/* fall through */
+			continue;
 		case NFT_CONTINUE:
+			if (unlikely(pkt->skb->nf_trace))
+				nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
 			continue;
 		}
 		break;
