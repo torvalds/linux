@@ -2033,7 +2033,7 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 }
 
 int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
-		      u32 rss_hash_opts, u16 table_size, u8 *rss_hkey)
+		      u32 rss_hash_opts, u16 table_size, const u8 *rss_hkey)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_rss_config *req;

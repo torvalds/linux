@@ -246,7 +246,8 @@ struct ethtool_ops {
 	u32	(*get_rxfh_key_size)(struct net_device *);
 	u32	(*get_rxfh_indir_size)(struct net_device *);
 	int	(*get_rxfh)(struct net_device *, u32 *indir, u8 *key);
-	int	(*set_rxfh)(struct net_device *, u32 *indir, u8 *key);
+	int	(*set_rxfh)(struct net_device *, const u32 *indir,
+			    const u8 *key);
 	int	(*get_rxfh_indir)(struct net_device *, u32 *);
 	int	(*set_rxfh_indir)(struct net_device *, const u32 *);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
