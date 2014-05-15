@@ -254,7 +254,7 @@ static int sst_byt_pcm_open(struct snd_pcm_substream *substream)
 
 	snd_soc_set_runtime_hwparams(substream, &sst_byt_pcm_hardware);
 
-	pcm_data->stream = sst_byt_stream_new(byt, rtd->cpu_dai->id + 1,
+	pcm_data->stream = sst_byt_stream_new(byt, substream->stream + 1,
 					      byt_notify_pointer, pcm_data);
 	if (pcm_data->stream == NULL) {
 		dev_err(rtd->dev, "failed to create stream\n");
