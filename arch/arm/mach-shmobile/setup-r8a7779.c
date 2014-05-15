@@ -674,16 +674,6 @@ void __init r8a7779_add_standard_devices(void)
 	r8a7779_register_hpb_dmae();
 }
 
-/* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
-void __init __weak r8a7779_register_twd(void) { }
-
-void __init r8a7779_earlytimer_init(void)
-{
-	r8a7779_clock_init();
-	r8a7779_register_twd();
-	shmobile_earlytimer_init();
-}
-
 void __init r8a7779_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7779_devices_dt,
