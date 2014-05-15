@@ -4133,7 +4133,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		if (!devs_max)
 			devs_max = BTRFS_MAX_DEVS_SYS_CHUNK;
 	} else {
-		btrfs_err(info, "invalid chunk type 0x%llx requested\n",
+		btrfs_err(info, "invalid chunk type 0x%llx requested",
 		       type);
 		BUG_ON(1);
 	}
@@ -4381,7 +4381,7 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 
 	if (em->start != chunk_offset || em->len != chunk_size) {
 		btrfs_crit(extent_root->fs_info, "found a bad mapping, wanted"
-			  " %Lu-%Lu, found %Lu-%Lu\n", chunk_offset,
+			  " %Lu-%Lu, found %Lu-%Lu", chunk_offset,
 			  chunk_size, em->start, em->len);
 		free_extent_map(em);
 		return -EINVAL;
@@ -4583,14 +4583,14 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 	 * and exit, so return 1 so the callers don't try to use other copies.
 	 */
 	if (!em) {
-		btrfs_crit(fs_info, "No mapping for %Lu-%Lu\n", logical,
+		btrfs_crit(fs_info, "No mapping for %Lu-%Lu", logical,
 			    logical+len);
 		return 1;
 	}
 
 	if (em->start > logical || em->start + em->len < logical) {
 		btrfs_crit(fs_info, "Invalid mapping for %Lu-%Lu, got "
-			    "%Lu-%Lu\n", logical, logical+len, em->start,
+			    "%Lu-%Lu", logical, logical+len, em->start,
 			    em->start + em->len);
 		free_extent_map(em);
 		return 1;
@@ -4771,7 +4771,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 
 	if (em->start > logical || em->start + em->len < logical) {
 		btrfs_crit(fs_info, "found a bad mapping, wanted %Lu, "
-			   "found %Lu-%Lu\n", logical, em->start,
+			   "found %Lu-%Lu", logical, em->start,
 			   em->start + em->len);
 		free_extent_map(em);
 		return -EINVAL;

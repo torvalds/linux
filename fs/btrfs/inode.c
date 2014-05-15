@@ -3475,7 +3475,7 @@ cache_acl:
 		ret = btrfs_load_inode_props(inode, path);
 		if (ret)
 			btrfs_err(root->fs_info,
-				  "error loading props for ino %llu (root %llu): %d\n",
+				  "error loading props for ino %llu (root %llu): %d",
 				  btrfs_ino(inode),
 				  root->root_key.objectid, ret);
 	}
@@ -8010,7 +8010,7 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 	err = btrfs_subvol_inherit_props(trans, new_root, parent_root);
 	if (err)
 		btrfs_err(new_root->fs_info,
-			  "error inheriting subvolume %llu properties: %d\n",
+			  "error inheriting subvolume %llu properties: %d",
 			  new_root->root_key.objectid, err);
 
 	err = btrfs_update_inode(trans, new_root, inode);

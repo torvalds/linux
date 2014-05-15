@@ -511,7 +511,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			} else if (compress) {
 				if (!btrfs_test_opt(root, COMPRESS))
 					btrfs_info(root->fs_info,
-						   "btrfs: use %s compression\n",
+						   "btrfs: use %s compression",
 						   compress_type);
 			}
 			break;

@@ -1349,7 +1349,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 		ret = -EIO;
 		btrfs_err(sctx->send_root->fs_info, "did not find backref in "
 				"send_root. inode=%llu, offset=%llu, "
-				"disk_byte=%llu found extent=%llu\n",
+				"disk_byte=%llu found extent=%llu",
 				ino, data_offset, disk_byte, found_key.objectid);
 		goto out;
 	}
@@ -5472,7 +5472,7 @@ static void btrfs_root_dec_send_in_progress(struct btrfs_root* root)
 	 */
 	if (root->send_in_progress < 0)
 		btrfs_err(root->fs_info,
-			"send_in_progres unbalanced %d root %llu\n",
+			"send_in_progres unbalanced %d root %llu",
 			root->send_in_progress, root->root_key.objectid);
 	spin_unlock(&root->root_item_lock);
 }
