@@ -3334,10 +3334,6 @@ static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 	if (INTEL_INFO(dev)->gen == 5 && !IS_IRONLAKE_M(dev))
 		return 0;
 
-	/* Disable RC6 on Broadwell for now */
-	if (IS_BROADWELL(dev))
-		return 0;
-
 	/* Respect the kernel parameter if it is set */
 	if (enable_rc6 >= 0) {
 		int mask;
@@ -4645,7 +4641,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_disable_drps(dev);
 		ironlake_disable_rc6(dev);
-	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
+	} else if (IS_GEN6(dev) || IS_GEN7(dev) || IS_BROADWELL(dev)) {
 		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
 		cancel_work_sync(&dev_priv->rps.work);
 		mutex_lock(&dev_priv->rps.hw_lock);
@@ -4692,7 +4688,7 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		ironlake_enable_rc6(dev);
 		intel_init_emon(dev);
 		mutex_unlock(&dev->struct_mutex);
-	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
+	} else if (IS_GEN6(dev) || IS_GEN7(dev) || IS_BROADWELL(dev)) {
 		/*
 		 * PCU communication is slow and this doesn't need to be
 		 * done at any specific time, so do this out of our fast path
