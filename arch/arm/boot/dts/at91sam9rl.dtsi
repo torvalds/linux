@@ -95,6 +95,7 @@
 			      <0xffffe800 0x200>;
 			atmel,nand-addr-offset = <21>;
 			atmel,nand-cmd-offset = <22>;
+			atmel,nand-has-dma;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand>;
 			gpios = <&pioD 17 GPIO_ACTIVE_HIGH>,
