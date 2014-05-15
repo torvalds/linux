@@ -1781,11 +1781,11 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     // 2004.11.11 Kyle -- Using OFDM power to tx MngPkt will decrease the connection capability.
     //                    And cmd timer will wait data pkt TX finish before scanning so it's OK
     //                    to set power here.
-    if (pMgmt->eScanState != WMAC_NO_SCANNING) {
-        RFbSetPower(pDevice, wCurrentRate, pDevice->byCurrentCh);
-    } else {
-        RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
-    }
+	if (wCurrentRate != pDevice->wCurrentRate) {
+		pDevice->wCurrentRate = wCurrentRate;
+
+		bScheduleCommand(pDevice, WLAN_CMD_SETPOWER, NULL);
+	}
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vDMA0_tx_80211: p80211Header->sA3.wFrameCtl = %x \n", p80211Header->sA3.wFrameCtl);
 
