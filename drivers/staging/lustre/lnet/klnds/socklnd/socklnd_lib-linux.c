@@ -380,7 +380,7 @@ ksocknal_lib_recv_kiov (ksock_conn_t *conn)
 			kunmap(kiov[i].kiov_page);
 	}
 
-	return (rc);
+	return rc;
 }
 
 void
@@ -433,7 +433,7 @@ ksocknal_lib_get_conn_tunables (ksock_conn_t *conn, int *txmem, int *rxmem, int 
 	if (rc != 0) {
 		LASSERT (conn->ksnc_closing);
 		*txmem = *rxmem = *nagle = 0;
-		return (-ESHUTDOWN);
+		return -ESHUTDOWN;
 	}
 
 	rc = libcfs_sock_getbuf(sock, txmem, rxmem);
@@ -450,7 +450,7 @@ ksocknal_lib_get_conn_tunables (ksock_conn_t *conn, int *txmem, int *rxmem, int 
 	else
 		*txmem = *rxmem = *nagle = 0;
 
-	return (rc);
+	return rc;
 }
 
 int
@@ -476,7 +476,7 @@ ksocknal_lib_setup_sock (struct socket *sock)
 			      (char *)&linger, sizeof (linger));
 	if (rc != 0) {
 		CERROR ("Can't set SO_LINGER: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	option = -1;
@@ -484,7 +484,7 @@ ksocknal_lib_setup_sock (struct socket *sock)
 				    (char *)&option, sizeof (option));
 	if (rc != 0) {
 		CERROR ("Can't set SO_LINGER2: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	if (!*ksocknal_tunables.ksnd_nagle) {
@@ -494,7 +494,7 @@ ksocknal_lib_setup_sock (struct socket *sock)
 					    (char *)&option, sizeof (option));
 		if (rc != 0) {
 			CERROR ("Can't disable nagle: %d\n", rc);
-			return (rc);
+			return rc;
 		}
 	}
 
@@ -505,7 +505,7 @@ ksocknal_lib_setup_sock (struct socket *sock)
 		CERROR ("Can't set buffer tx %d, rx %d buffers: %d\n",
 			*ksocknal_tunables.ksnd_tx_buffer_size,
 			*ksocknal_tunables.ksnd_rx_buffer_size, rc);
-		return (rc);
+		return rc;
 	}
 
 /* TCP_BACKOFF_* sockopt tunables unsupported in stock kernels */
@@ -522,34 +522,34 @@ ksocknal_lib_setup_sock (struct socket *sock)
 			      (char *)&option, sizeof (option));
 	if (rc != 0) {
 		CERROR ("Can't set SO_KEEPALIVE: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	if (!do_keepalive)
-		return (0);
+		return 0;
 
 	rc = kernel_setsockopt(sock, SOL_TCP, TCP_KEEPIDLE,
 				    (char *)&keep_idle, sizeof (keep_idle));
 	if (rc != 0) {
 		CERROR ("Can't set TCP_KEEPIDLE: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	rc = kernel_setsockopt(sock, SOL_TCP, TCP_KEEPINTVL,
 				    (char *)&keep_intvl, sizeof (keep_intvl));
 	if (rc != 0) {
 		CERROR ("Can't set TCP_KEEPINTVL: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	rc = kernel_setsockopt(sock, SOL_TCP, TCP_KEEPCNT,
 				    (char *)&keep_count, sizeof (keep_count));
 	if (rc != 0) {
 		CERROR ("Can't set TCP_KEEPCNT: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
-	return (0);
+	return 0;
 }
 
 void

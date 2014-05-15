@@ -459,7 +459,7 @@ ksocknal_add_peer (lnet_ni_t *ni, lnet_process_id_t id, __u32 ipaddr, int port)
 
 	if (id.nid == LNET_NID_ANY ||
 	    id.pid == LNET_PID_ANY)
-		return (-EINVAL);
+		return -EINVAL;
 
 	/* Have a brand new peer ready... */
 	rc = ksocknal_create_peer(&peer, ni, id);
@@ -469,7 +469,7 @@ ksocknal_add_peer (lnet_ni_t *ni, lnet_process_id_t id, __u32 ipaddr, int port)
 	route = ksocknal_create_route (ipaddr, port);
 	if (route == NULL) {
 		ksocknal_peer_decref(peer);
-		return (-ENOMEM);
+		return -ENOMEM;
 	}
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
@@ -1950,7 +1950,7 @@ ksocknal_add_interface(lnet_ni_t *ni, __u32 ipaddress, __u32 netmask)
 
 	if (ipaddress == 0 ||
 	    netmask == 0)
-		return (-EINVAL);
+		return -EINVAL;
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 
