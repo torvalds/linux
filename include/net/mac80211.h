@@ -3417,8 +3417,9 @@ void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
  * struct ieee80211_mutable_offsets - mutable beacon offsets
  * @tim_offset: position of TIM element
  * @tim_length: size of TIM element
- * @csa_offs: array of IEEE80211_MAX_CSA_COUNTERS_NUM offsets to CSA counters.
- *	This array can contain zero values which should be ignored.
+ * @csa_counter_offs: array of IEEE80211_MAX_CSA_COUNTERS_NUM offsets
+ *	to CSA counters.  This array can contain zero values which
+ *	should be ignored.
  */
 struct ieee80211_mutable_offsets {
 	u16 tim_offset;
