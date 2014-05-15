@@ -2510,7 +2510,8 @@ ksocknal_debug_peerhash (lnet_ni_t *ni)
 		list_for_each (tmp, &ksocknal_data.ksnd_peers[i]) {
 			peer = list_entry (tmp, ksock_peer_t, ksnp_list);
 
-			if (peer->ksnp_ni == ni) break;
+			if (peer->ksnp_ni == ni)
+				break;
 
 			peer = NULL;
 		}
