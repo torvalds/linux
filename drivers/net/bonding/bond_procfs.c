@@ -91,7 +91,7 @@ static void bond_info_show_master(struct seq_file *seq)
 			   optval->string, bond->params.xmit_policy);
 	}
 
-	if (USES_PRIMARY(bond->params.mode)) {
+	if (bond_uses_primary(bond)) {
 		seq_printf(seq, "Primary Slave: %s",
 			   (bond->primary_slave) ?
 			   bond->primary_slave->dev->name : "None");

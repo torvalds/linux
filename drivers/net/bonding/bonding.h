@@ -54,12 +54,6 @@
 		     ((slave)->link == BOND_LINK_UP) && \
 		     bond_is_active_slave(slave))
 
-
-#define USES_PRIMARY(mode)				\
-		(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
-		 ((mode) == BOND_MODE_TLB)          ||	\
-		 ((mode) == BOND_MODE_ALB))
-
 #define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
 	((htonl(INADDR_BROADCAST) == a) ||	\
 	 ipv4_is_zeronet(a))
@@ -291,6 +285,17 @@ static inline bool bond_mode_uses_arp(int mode)
 {
 	return mode != BOND_MODE_8023AD && mode != BOND_MODE_TLB &&
 	       mode != BOND_MODE_ALB;
+}
+
+static inline bool bond_mode_uses_primary(int mode)
+{
+	return mode == BOND_MODE_ACTIVEBACKUP || mode == BOND_MODE_TLB ||
+	       mode == BOND_MODE_ALB;
+}
+
+static inline bool bond_uses_primary(struct bonding *bond)
+{
+	return bond_mode_uses_primary(bond->params.mode);
 }
 
 static inline void bond_set_active_slave(struct slave *slave)
