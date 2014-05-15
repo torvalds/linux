@@ -40,12 +40,6 @@ static void __init marzen_init_timer(void)
  * devices until they get moved to DT.
  */
 static const struct clk_name clk_names[] __initconst = {
-	{ "scif0", NULL, "sh-sci.0" },
-	{ "scif1", NULL, "sh-sci.1" },
-	{ "scif2", NULL, "sh-sci.2" },
-	{ "scif3", NULL, "sh-sci.3" },
-	{ "scif4", NULL, "sh-sci.4" },
-	{ "scif5", NULL, "sh-sci.5" },
 	{ "tmu0", "fck", "sh-tmu.0" },
 };
 
