@@ -612,6 +612,22 @@ static const struct platform_suspend_ops acpi_suspend_ops_old = {
 	.recover = acpi_pm_finish,
 };
 
+static int acpi_freeze_begin(void)
+{
+	acpi_scan_lock_acquire();
+	return 0;
+}
+
+static void acpi_freeze_end(void)
+{
+	acpi_scan_lock_release();
+}
+
+static const struct platform_freeze_ops acpi_freeze_ops = {
+	.begin = acpi_freeze_begin,
+	.end = acpi_freeze_end,
+};
+
 static void acpi_sleep_suspend_setup(void)
 {
 	int i;
@@ -622,7 +638,9 @@ static void acpi_sleep_suspend_setup(void)
 
 	suspend_set_ops(old_suspend_ordering ?
 		&acpi_suspend_ops_old : &acpi_suspend_ops);
+	freeze_set_ops(&acpi_freeze_ops);
 }
+
 #else /* !CONFIG_SUSPEND */
 static inline void acpi_sleep_suspend_setup(void) {}
 #endif /* !CONFIG_SUSPEND */
