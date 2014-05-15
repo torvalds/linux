@@ -292,6 +292,8 @@ nfs_wait_on_request(struct nfs_page *req)
 size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 			   struct nfs_page *prev, struct nfs_page *req)
 {
+	if (!prev)
+		return req->wb_bytes;
 	/*
 	 * FIXME: ideally we should be able to coalesce all requests
 	 * that are not block boundary aligned, but currently this
@@ -761,17 +763,20 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 {
 	size_t size;
 
-	if (!nfs_match_open_context(req->wb_context, prev->wb_context))
-		return false;
-	if (req->wb_context->dentry->d_inode->i_flock != NULL &&
-	    !nfs_match_lock_context(req->wb_lock_context, prev->wb_lock_context))
-		return false;
-	if (req->wb_pgbase != 0)
-		return false;
-	if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
-		return false;
-	if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
-		return false;
+	if (prev) {
+		if (!nfs_match_open_context(req->wb_context, prev->wb_context))
+			return false;
+		if (req->wb_context->dentry->d_inode->i_flock != NULL &&
+		    !nfs_match_lock_context(req->wb_lock_context,
+					    prev->wb_lock_context))
+			return false;
+		if (req->wb_pgbase != 0)
+			return false;
+		if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
+			return false;
+		if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
+			return false;
+	}
 	size = pgio->pg_ops->pg_test(pgio, prev, req);
 	WARN_ON_ONCE(size && size != req->wb_bytes);
 	return size > 0;
@@ -788,17 +793,16 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 				     struct nfs_page *req)
 {
+	struct nfs_page *prev = NULL;
 	if (desc->pg_count != 0) {
-		struct nfs_page *prev;
-
 		prev = nfs_list_entry(desc->pg_list.prev);
-		if (!nfs_can_coalesce_requests(prev, req, desc))
-			return 0;
 	} else {
 		if (desc->pg_ops->pg_init)
 			desc->pg_ops->pg_init(desc, req);
 		desc->pg_base = req->wb_pgbase;
 	}
+	if (!nfs_can_coalesce_requests(prev, req, desc))
+		return 0;
 	nfs_list_remove_request(req);
 	nfs_list_add_request(req, &desc->pg_list);
 	desc->pg_count += req->wb_bytes;

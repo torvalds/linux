@@ -929,6 +929,9 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	    !nfs_generic_pg_test(pgio, prev, req))
 		return 0;
 
+	if (!prev)
+		return req->wb_bytes;
+
 	p_stripe = (u64)req_offset(prev);
 	r_stripe = (u64)req_offset(req);
 	stripe_unit = FILELAYOUT_LSEG(pgio->pg_lseg)->stripe_unit;
