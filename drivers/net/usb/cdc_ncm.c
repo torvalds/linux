@@ -89,11 +89,20 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 			min, max, val);
 	}
 
+	/* usbnet use these values for sizing rx queues */
+	dev->rx_urb_size = val;
+
 	/* inform device about NTB input size changes */
 	if (val != ctx->rx_max) {
 		__le32 dwNtbInMaxSize = cpu_to_le32(val);
 
 		dev_info(&dev->intf->dev, "setting rx_max = %u\n", val);
+
+		/* need to unlink rx urbs before increasing buffer size */
+		if (netif_running(dev->net) && dev->rx_urb_size > ctx->rx_max)
+			usbnet_unlink_rx_urbs(dev);
+
+		/* tell device to use new size */
 		if (usbnet_write_cmd(dev, USB_CDC_SET_NTB_INPUT_SIZE,
 				     USB_TYPE_CLASS | USB_DIR_OUT
 				     | USB_RECIP_INTERFACE,
@@ -117,7 +126,6 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 	}
 	if (val != ctx->tx_max)
 		dev_info(&dev->intf->dev, "setting tx_max = %u\n", val);
-	ctx->tx_max = val;
 
 	/* Adding a pad byte here if necessary simplifies the handling
 	 * in cdc_ncm_fill_tx_frame, making tx_max always represent
@@ -126,13 +134,24 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 	 * We cannot use dev->maxpacket here because this is called from
 	 * .bind which is called before usbnet sets up dev->maxpacket
 	 */
-	if (ctx->tx_max != le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize) &&
-	    ctx->tx_max % usb_maxpacket(dev->udev, dev->out, 1) == 0)
-		ctx->tx_max++;
+	if (val != le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize) &&
+	    val % usb_maxpacket(dev->udev, dev->out, 1) == 0)
+		val++;
 
-	/* usbnet use these values for sizing tx/rx queues */
+	/* we might need to flush any pending tx buffers if running */
+	if (netif_running(dev->net) && val > ctx->tx_max) {
+		netif_tx_lock_bh(dev->net);
+		usbnet_start_xmit(NULL, dev->net);
+		ctx->tx_max = val;
+		netif_tx_unlock_bh(dev->net);
+	} else {
+		ctx->tx_max = val;
+	}
+
 	dev->hard_mtu = ctx->tx_max;
-	dev->rx_urb_size = ctx->rx_max;
+
+	/* max qlen depend on hard_mtu and rx_urb_size */
+	usbnet_update_max_qlen(dev);
 }
 
 /* helpers for NCM and MBIM differences */
