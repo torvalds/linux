@@ -84,10 +84,6 @@ struct hal_ops {
 				  enum hal_def_variable eVariable,
 				  void *pValue);
 
-	void (*SetHalODMVarHandler)(struct rtw_adapter *padapter,
-				    enum hal_odm_variable eVariable,
-				    void *pValue1, bool bSet);
-
 	void (*UpdateRAMaskHandler)(struct rtw_adapter *padapter,
 				    u32 mac_id, u8 rssi_level);
 
@@ -173,10 +169,6 @@ u8 rtw_hal_set_def_var23a(struct rtw_adapter *padapter,
 u8 rtw_hal_get_def_var23a(struct rtw_adapter *padapter,
 			  enum hal_def_variable eVariable,
 			  void *pValue);
-
-void rtw_hal_set_odm_var23a(struct rtw_adapter *padapter,
-			    enum hal_odm_variable eVariable,
-			    void *pValue1, bool bSet);
 
 void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter);
 void rtw_hal_disable_interrupt23a(struct rtw_adapter *padapter);

@@ -1020,10 +1020,10 @@ rtw_joinbss_update_stainfo(struct rtw_adapter *padapter,
 		DBG_8723A("%s\n", __func__);
 
 		psta->aid  = pnetwork->join_res;
-			psta->mac_id = 0;
+		psta->mac_id = 0;
 
 		/* sta mode */
-		rtw_hal_set_odm_var23a(padapter, HAL_ODM_STA_INFO, psta, true);
+		rtl8723a_SetHalODMVar(padapter, HAL_ODM_STA_INFO, psta, true);
 
 		/* security related */
 		if (padapter->securitypriv.dot11AuthAlgrthm ==
@@ -1394,7 +1394,7 @@ void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	/* psta->aid = (uint)pstassoc->cam_id; */
 	DBG_8723A("%s\n",__func__);
 	/* for ad-hoc mode */
-	rtw_hal_set_odm_var23a(adapter, HAL_ODM_STA_INFO, psta, true);
+	rtl8723a_SetHalODMVar(adapter, HAL_ODM_STA_INFO, psta, true);
 
 	if (adapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X)
 		psta->dot118021XPrivacy =

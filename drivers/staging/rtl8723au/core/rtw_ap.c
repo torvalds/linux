@@ -19,6 +19,7 @@
 #include <linux/ieee80211.h>
 #include <wifi.h>
 #include <rtl8723a_cmd.h>
+#include <rtl8723a_hal.h>
 
 #ifdef CONFIG_8723AU_AP_MODE
 
@@ -497,7 +498,7 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 		init_rate = get_highest_rate_idx23a(tx_ra_bitmap&0x0fffffff)&0x3f;
 
 		/* ap mode */
-		rtw_hal_set_odm_var23a(padapter, HAL_ODM_STA_INFO, psta, true);
+		rtl8723a_SetHalODMVar(padapter, HAL_ODM_STA_INFO, psta, true);
 
 		{
 			u8 arg = 0;
@@ -552,7 +553,7 @@ void update_sta_info23a_apmode23a(struct rtw_adapter *padapter, struct sta_info 
 	DBG_8723A("%s\n", __func__);
 
 	/* ap mode */
-	rtw_hal_set_odm_var23a(padapter, HAL_ODM_STA_INFO, psta, true);
+	rtl8723a_SetHalODMVar(padapter, HAL_ODM_STA_INFO, psta, true);
 
 	if (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X)
 		psta->ieee8021x_blocked = true;

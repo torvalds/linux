@@ -90,12 +90,6 @@ u8 rtw_hal_get_def_var23a(struct rtw_adapter *padapter, enum hal_def_variable eV
 	return _FAIL;
 }
 
-void rtw_hal_set_odm_var23a(struct rtw_adapter *padapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
-{
-	if (padapter->HalFunc.SetHalODMVarHandler)
-		padapter->HalFunc.SetHalODMVarHandler(padapter, eVariable, pValue1, bSet);
-}
-
 void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.enable_interrupt)

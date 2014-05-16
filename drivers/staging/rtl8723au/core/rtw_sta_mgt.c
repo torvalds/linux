@@ -20,6 +20,7 @@
 #include <xmit_osdep.h>
 #include <mlme_osdep.h>
 #include <sta_info.h>
+#include <rtl8723a_hal.h>
 
 static void _rtw_init_stainfo(struct sta_info *psta)
 {
@@ -273,7 +274,7 @@ u32 rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 		spin_unlock_bh(&ppending_recvframe_queue->lock);
 	}
 	if (!(psta->state & WIFI_AP_STATE))
-		rtw_hal_set_odm_var23a(padapter, HAL_ODM_STA_INFO, psta, false);
+		rtl8723a_SetHalODMVar(padapter, HAL_ODM_STA_INFO, psta, false);
 #ifdef CONFIG_8723AU_AP_MODE
 	spin_lock_bh(&pstapriv->auth_list_lock);
 	if (!list_empty(&psta->auth_list)) {

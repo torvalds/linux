@@ -550,5 +550,8 @@ void rtl8723a_read_adapter_info(struct rtw_adapter *Adapter);
 void rtl8723a_read_chip_version(struct rtw_adapter *padapter);
 void rtl8723a_notch_filter(struct rtw_adapter *adapter, bool enable);
 void rtl8723a_SetBeaconRelatedRegisters(struct rtw_adapter *padapter);
+void rtl8723a_SetHalODMVar(struct rtw_adapter *Adapter,
+			   enum hal_odm_variable eVariable,
+			   void *pValue1, bool bSet);
 
 #endif
