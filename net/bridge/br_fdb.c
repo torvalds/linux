@@ -874,3 +874,59 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 out:
 	return err;
 }
+
+int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p)
+{
+	struct net_bridge_fdb_entry *fdb, *tmp;
+	int i;
+	int err;
+
+	ASSERT_RTNL();
+
+	for (i = 0; i < BR_HASH_SIZE; i++) {
+		hlist_for_each_entry(fdb, &br->hash[i], hlist) {
+			/* We only care for static entries */
+			if (!fdb->is_static)
+				continue;
+
+			err = dev_uc_add(p->dev, fdb->addr.addr);
+			if (err)
+				goto rollback;
+		}
+	}
+	return 0;
+
+rollback:
+	for (i = 0; i < BR_HASH_SIZE; i++) {
+		hlist_for_each_entry(tmp, &br->hash[i], hlist) {
+			/* If we reached the fdb that failed, we can stop */
+			if (tmp == fdb)
+				break;
+
+			/* We only care for static entries */
+			if (!tmp->is_static)
+				continue;
+
+			dev_uc_del(p->dev, tmp->addr.addr);
+		}
+	}
+	return err;
+}
+
+void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p)
+{
+	struct net_bridge_fdb_entry *fdb;
+	int i;
+
+	ASSERT_RTNL();
+
+	for (i = 0; i < BR_HASH_SIZE; i++) {
+		hlist_for_each_entry_rcu(fdb, &br->hash[i], hlist) {
+			/* We only care for static entries */
+			if (!fdb->is_static)
+				continue;
+
+			dev_uc_del(p->dev, fdb->addr.addr);
+		}
+	}
+}
