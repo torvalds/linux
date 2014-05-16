@@ -9530,7 +9530,8 @@ static void BTDM_Display8723ABtCoexInfo(struct rtw_adapter *padapter)
 
 					btInfoExt = pHalData->bt_coexist.halCoex8723.btInfoExt;
 					rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %s", "A2DP rate", \
-						(btInfoExt&BIT0) ? "Basic rate" : "EDR rate");
+						 (btInfoExt & BIT(0)) ?
+						 "Basic rate" : "EDR rate");
 					DCMD_Printf(btCoexDbgBuf);
 				} else {
 					rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %s/ %s", "Bt link type/spec", \
