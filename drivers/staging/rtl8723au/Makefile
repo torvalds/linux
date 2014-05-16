@@ -45,7 +45,6 @@ r8723au-y :=				\
 		hal/usb_ops_linux.o	\
 		os_dep/ioctl_cfg80211.o	\
 		os_dep/mlme_linux.o	\
-		os_dep/osdep_service.o	\
 		os_dep/os_intfs.o	\
 		os_dep/recv_linux.o	\
 		os_dep/usb_intf.o	\

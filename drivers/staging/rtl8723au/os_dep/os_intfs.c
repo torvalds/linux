@@ -884,3 +884,9 @@ void rtw_ndev_destructor(struct net_device *ndev)
 	kfree(ndev->ieee80211_ptr);
 	free_netdev(ndev);
 }
+
+void _rtw_init_queue23a(struct rtw_queue *pqueue)
+{
+	INIT_LIST_HEAD(&pqueue->queue);
+	spin_lock_init(&pqueue->lock);
+}
