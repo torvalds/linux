@@ -347,7 +347,8 @@ static void odm_Process_RSSIForDM(struct dm_odm_t *pDM_Odm,
 							(RSSI_Ave)) / (Rx_Smooth_Factor);
 				}
 			}
-			pEntry->rssi_stat.PacketMap = (pEntry->rssi_stat.PacketMap<<1) | BIT0;
+			pEntry->rssi_stat.PacketMap =
+				(pEntry->rssi_stat.PacketMap<<1) | BIT(0);
 		} else {
 			RSSI_Ave = pPhyInfo->RxPWDBAll;
 
@@ -377,7 +378,8 @@ static void odm_Process_RSSIForDM(struct dm_odm_t *pDM_Odm,
 			pEntry->rssi_stat.ValidBit++;
 
 		for (i = 0; i < pEntry->rssi_stat.ValidBit; i++)
-			OFDM_pkt += (u8)(pEntry->rssi_stat.PacketMap>>i)&BIT0;
+			OFDM_pkt +=
+				(u8)(pEntry->rssi_stat.PacketMap>>i) & BIT(0);
 
 		if (pEntry->rssi_stat.ValidBit == 64) {
 			Weighting = ((OFDM_pkt<<4) > 64)?64:(OFDM_pkt<<4);
