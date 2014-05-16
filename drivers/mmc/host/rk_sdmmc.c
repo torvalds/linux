@@ -906,17 +906,19 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 		mci_send_cmd(slot,
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 
-                
                 if(div > 1){
                         if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-                          && clock > 100000000){
+                          && host->bus_hz > 100000000){
                                 printk("rk_sdmmc: emmc : div larger than 1, illegal clk in dts ![%s]\n ", 
                                         mmc_hostname(host->mmc));
                                 printk("eMMC ERROR, emergancy halt!!!!!!!!!\n");        
                                 printk("Please refer to your eMMC datasheet to determine speed mode!\n");
-                                printk("DDR mode: clk in dts should <= 50MHz!\n");
-                                printk("SDR mode: clk in dts should <= 50MHz!\n");
+                                printk("================================rk3288====================================");
+                                printk("DDR 8-bits mode: clk in dts should be 100MHz!\n");
+                                printk("DDR 4-bits mode: clk in dts should be <=100MHz(recommand 50 or 100Mhz)!\n");
+                                printk("SDR mode: clk in dts should <= 100MHz(recommand 50 or 100Mhz)!\n");
                                 printk("HS200 mode: clk in dts should <= 150MHz!\n");
+                                printk("==========================================================================");
                                 BUG();
                         }
                 }
@@ -3192,39 +3194,41 @@ int dw_mci_probe(struct dw_mci *host)
 	else
 		host->data_offset = DATA_240A_OFFSET;
 
-    //hclk enable
-    host->hclk_mmc= devm_clk_get(host->dev, "hclk_mmc");
-    if (IS_ERR(host->hclk_mmc)) {
-        dev_err(host->dev, "failed to get hclk_mmc\n");
-        ret = PTR_ERR(host->hclk_mmc);
-        goto err_hclk_mmc;
-    }
-    clk_prepare_enable(host->hclk_mmc);
+        //hclk enable
+        host->hclk_mmc= devm_clk_get(host->dev, "hclk_mmc");
+        if (IS_ERR(host->hclk_mmc)) {
+                dev_err(host->dev, "failed to get hclk_mmc\n");
+                ret = PTR_ERR(host->hclk_mmc);
+                goto err_hclk_mmc;
+        }
+        clk_prepare_enable(host->hclk_mmc);
 
-    //mmc clk enable
-    host->clk_mmc = devm_clk_get(host->dev, "clk_mmc");
-    if (IS_ERR(host->clk_mmc)) {
-        dev_err(host->dev, "failed to get clk mmc_per\n");
-        ret = PTR_ERR(host->clk_mmc);
-        goto err_clk_mmc;
-    }
+        //mmc clk enable
+        host->clk_mmc = devm_clk_get(host->dev, "clk_mmc");
+        if (IS_ERR(host->clk_mmc)) {
+                dev_err(host->dev, "failed to get clk mmc_per\n");
+                ret = PTR_ERR(host->clk_mmc);
+                goto err_clk_mmc;
+        }
     
-    if (host->verid < DW_MMC_240A)
-        host->bus_hz = host->pdata->bus_hz;
-    else
-        host->bus_hz = host->pdata->bus_hz*2;// *2 due to fix divider 2 in controller.          
-    if (!host->bus_hz) {
-        dev_err(host->dev,"Platform data must supply bus speed\n");
-        ret = -ENODEV;
-        goto err_clk_mmc;
-    }
+        host->bus_hz = host->pdata->bus_hz;   
+        if (!host->bus_hz) {
+                dev_err(host->dev,"Platform data must supply bus speed\n");
+                ret = -ENODEV;
+                goto err_clk_mmc;
+        }
 
-	ret = clk_set_rate(host->clk_mmc, host->bus_hz);
+        if (host->verid < DW_MMC_240A)
+	        ret = clk_set_rate(host->clk_mmc, host->bus_hz);
+	else
+                //rockchip: fix divider 2 in clksum before controlller
+	        ret = clk_set_rate(host->clk_mmc, host->bus_hz * 2);
+	        
 	if(ret < 0) {
 	    dev_err(host->dev, "failed to set clk mmc\n");
 	    goto err_clk_mmc;
 	}
-    clk_prepare_enable(host->clk_mmc);
+        clk_prepare_enable(host->clk_mmc);
 
 	if (drv_data && drv_data->setup_clock) {
         ret = drv_data->setup_clock(host);
