@@ -196,12 +196,46 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct channel_obj *ch = vb2_get_drv_priv(vq);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct vpif_params *vpif = &ch->vpifparams;
-	unsigned long addr = 0;
-	unsigned long flags;
+	struct vpif_disp_buffer *buf, *tmp;
+	unsigned long addr, flags;
 	int ret;
 
 	spin_lock_irqsave(&common->irqlock, flags);
 
+	/* Initialize field_id and started member */
+	ch->field_id = 0;
+	common->started = 1;
+
+	/* Calculate the offset for Y and C data  in the buffer */
+	vpif_calculate_offsets(ch);
+
+	if ((ch->vpifparams.std_info.frm_fmt &&
+		((common->fmt.fmt.pix.field != V4L2_FIELD_NONE)
+		&& (common->fmt.fmt.pix.field != V4L2_FIELD_ANY)))
+		|| (!ch->vpifparams.std_info.frm_fmt
+		&& (common->fmt.fmt.pix.field == V4L2_FIELD_NONE))) {
+		vpif_err("conflict in field format and std format\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* clock settings */
+	if (vpif_config_data->set_clock) {
+		ret = vpif_config_data->set_clock(ch->vpifparams.std_info.
+		ycmux_mode, ch->vpifparams.std_info.hd_sd);
+		if (ret < 0) {
+			vpif_err("can't set clock\n");
+			goto err;
+		}
+	}
+
+	/* set the parameters and addresses */
+	ret = vpif_set_video_params(vpif, ch->channel_id + 2);
+	if (ret < 0)
+		goto err;
+
+	common->started = ret;
+	vpif_config_addr(ch, ret);
 	/* Get the next frame from the buffer queue */
 	common->next_frm = common->cur_frm =
 			    list_entry(common->dma_queue.next,
@@ -212,39 +246,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Mark state of the current frame to active */
 	common->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 
-	/* Initialize field_id and started member */
-	ch->field_id = 0;
-	common->started = 1;
 	addr = vb2_dma_contig_plane_dma_addr(&common->cur_frm->vb, 0);
-	/* Calculate the offset for Y and C data  in the buffer */
-	vpif_calculate_offsets(ch);
-
-	if ((ch->vpifparams.std_info.frm_fmt &&
-		((common->fmt.fmt.pix.field != V4L2_FIELD_NONE)
-		&& (common->fmt.fmt.pix.field != V4L2_FIELD_ANY)))
-		|| (!ch->vpifparams.std_info.frm_fmt
-		&& (common->fmt.fmt.pix.field == V4L2_FIELD_NONE))) {
-		vpif_err("conflict in field format and std format\n");
-		return -EINVAL;
-	}
-
-	/* clock settings */
-	if (vpif_config_data->set_clock) {
-		ret = vpif_config_data->set_clock(ch->vpifparams.std_info.
-		ycmux_mode, ch->vpifparams.std_info.hd_sd);
-		if (ret < 0) {
-			vpif_err("can't set clock\n");
-			return ret;
-		}
-	}
-
-	/* set the parameters and addresses */
-	ret = vpif_set_video_params(vpif, ch->channel_id + 2);
-	if (ret < 0)
-		return ret;
-
-	common->started = ret;
-	vpif_config_addr(ch, ret);
 	common->set_addr((addr + common->ytop_off),
 			    (addr + common->ybtm_off),
 			    (addr + common->ctop_off),
@@ -271,6 +273,14 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	return 0;
+
+err:
+	list_for_each_entry_safe(buf, tmp, &common->dma_queue, list) {
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+	}
+
+	return ret;
 }
 
 /* abort streaming and wait for last buffer */
