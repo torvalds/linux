@@ -587,21 +587,6 @@ static int propagate_exception(struct dev_cgroup *devcg_root,
 	return rc;
 }
 
-static inline bool has_children(struct dev_cgroup *devcgroup)
-{
-	bool ret;
-
-	/*
-	 * FIXME: There may be lingering offline csses and this function
-	 * may return %true when there isn't any userland-visible child
-	 * which is incorrect for our purposes.
-	 */
-	rcu_read_lock();
-	ret = css_next_child(NULL, &devcgroup->css);
-	rcu_read_unlock();
-	return ret;
-}
-
 /*
  * Modify the exception list using allow/deny rules.
  * CAP_SYS_ADMIN is needed for this.  It's at least separate from CAP_MKNOD
@@ -634,7 +619,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	case 'a':
 		switch (filetype) {
 		case DEVCG_ALLOW:
-			if (has_children(devcgroup))
+			if (css_has_online_children(&devcgroup->css))
 				return -EINVAL;
 
 			if (!may_allow_all(parent))
@@ -650,7 +635,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 				return rc;
 			break;
 		case DEVCG_DENY:
-			if (has_children(devcgroup))
+			if (css_has_online_children(&devcgroup->css))
 				return -EINVAL;
 
 			dev_exception_clean(devcgroup);
