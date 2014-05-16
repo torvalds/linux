@@ -198,7 +198,7 @@ u32 rtl8723au_read32(struct rtw_adapter *padapter, u32 addr)
 	return le32_to_cpu(data);
 }
 
-static int usb_write8(struct rtw_adapter *padapter, u32 addr, u8 val)
+int rtl8723au_write8(struct rtw_adapter *padapter, u32 addr, u8 val)
 {
 	u8 request;
 	u8 requesttype;
@@ -223,7 +223,7 @@ static int usb_write8(struct rtw_adapter *padapter, u32 addr, u8 val)
 	return ret;
 }
 
-static int usb_write16(struct rtw_adapter *padapter, u32 addr, u16 val)
+int rtl8723au_write16(struct rtw_adapter *padapter, u32 addr, u16 val)
 {
 	u8 request;
 	u8 requesttype;
@@ -247,7 +247,7 @@ static int usb_write16(struct rtw_adapter *padapter, u32 addr, u16 val)
 	return ret;
 }
 
-static int usb_write32(struct rtw_adapter *padapter, u32 addr, u32 val)
+int rtl8723au_write32(struct rtw_adapter *padapter, u32 addr, u32 val)
 {
 	u8 request;
 	u8 requesttype;
@@ -271,8 +271,8 @@ static int usb_write32(struct rtw_adapter *padapter, u32 addr, u32 val)
 	return ret;
 }
 
-static int usb_writeN(struct rtw_adapter *padapter,
-		      u32 addr, u32 length, u8 *pdata)
+int rtl8723au_writeN(struct rtw_adapter *padapter,
+		     u32 addr, u32 length, u8 *pdata)
 {
 	u8 request;
 	u8 requesttype;
@@ -831,18 +831,6 @@ void rtl8723au_xmit_tasklet(void *priv)
 		if (!ret)
 			break;
 	}
-}
-
-void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
-{
-	struct _io_ops *pops = &padapter->io_ops;
-
-	memset((u8 *)pops, 0, sizeof(struct _io_ops));
-
-	pops->_write8 = &usb_write8;
-	pops->_write16 = &usb_write16;
-	pops->_write32 = &usb_write32;
-	pops->_writeN = &usb_writeN;
 }
 
 void rtl8723au_set_hw_type(struct rtw_adapter *padapter)

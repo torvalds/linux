@@ -48,14 +48,17 @@ static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 
 	tmp1byte = rtl8723au_read8(padapter, GPIO_IO_SEL);
 	tmp1byte |= (HAL_8192C_HW_GPIO_WPS_BIT);
-	rtw_write8(padapter, GPIO_IO_SEL, tmp1byte);	/* enable GPIO[2] as output mode */
+	/* enable GPIO[2] as output mode */
+	rtl8723au_write8(padapter, GPIO_IO_SEL, tmp1byte);
 
 	tmp1byte &= ~(HAL_8192C_HW_GPIO_WPS_BIT);
-	rtw_write8(padapter,  GPIO_IN, tmp1byte);		/* reset the floating voltage level */
+	/* reset the floating voltage level */
+	rtl8723au_write8(padapter,  GPIO_IN, tmp1byte);
 
 	tmp1byte = rtl8723au_read8(padapter, GPIO_IO_SEL);
 	tmp1byte &= ~(HAL_8192C_HW_GPIO_WPS_BIT);
-	rtw_write8(padapter, GPIO_IO_SEL, tmp1byte);	/* enable GPIO[2] as input mode */
+	/* enable GPIO[2] as input mode */
+	rtl8723au_write8(padapter, GPIO_IO_SEL, tmp1byte);
 
 	tmp1byte = rtl8723au_read8(padapter, GPIO_IN);
 

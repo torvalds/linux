@@ -100,7 +100,7 @@ static int _InitPowerOn(struct rtw_adapter *padapter)
 
 	/*  RSV_CTRL 0x1C[7:0] = 0x00
 	    unlock ISO/CLK/Power control register */
-	rtw_write8(padapter, REG_RSV_CTRL, 0x0);
+	rtl8723au_write8(padapter, REG_RSV_CTRL, 0x0);
 
 	/*  HW Power on sequence */
 	if (!HalPwrSeqCmdParsing23a(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
@@ -109,7 +109,7 @@ static int _InitPowerOn(struct rtw_adapter *padapter)
 
 	/*  0x04[19] = 1, suggest by Jackie 2011.05.09, reset 8051 */
 	value8 = rtl8723au_read8(padapter, REG_APS_FSMCO+2);
-	rtw_write8(padapter, REG_APS_FSMCO + 2, value8 | BIT(3));
+	rtl8723au_write8(padapter, REG_APS_FSMCO + 2, value8 | BIT(3));
 
 	/*  Enable MAC DMA/WMAC/SCHEDULE/SEC block */
 	/*  Set CR bit10 to enable 32k calibration. Suggested by SD1 Gimmy.
@@ -118,7 +118,7 @@ static int _InitPowerOn(struct rtw_adapter *padapter)
 	value16 |= (HCI_TXDMA_EN | HCI_RXDMA_EN | TXDMA_EN | RXDMA_EN |
 		    PROTOCOL_EN | SCHEDULE_EN | MACTXEN | MACRXEN |
 		    ENSEC | CALTMR_EN);
-	rtw_write16(padapter, REG_CR, value16);
+	rtl8723au_write16(padapter, REG_CR, value16);
 
 	/* for Efuse PG, suggest by Jackie 2011.11.23 */
 	PHY_SetBBReg(padapter, REG_EFUSE_CTRL, BIT(28)|BIT(29)|BIT(30), 0x06);
@@ -133,10 +133,10 @@ static void _InitInterrupt(struct rtw_adapter *Adapter)
 
 	/*  HISR - turn all on */
 	value32 = 0xFFFFFFFF;
-	rtw_write32(Adapter, REG_HISR, value32);
+	rtl8723au_write32(Adapter, REG_HISR, value32);
 
 	/*  HIMR - turn all on */
-	rtw_write32(Adapter, REG_HIMR, value32);
+	rtl8723au_write32(Adapter, REG_HIMR, value32);
 }
 
 static void _InitQueueReservedPage(struct rtw_adapter *Adapter)
@@ -175,12 +175,12 @@ static void _InitQueueReservedPage(struct rtw_adapter *Adapter)
 				WMM_NORMAL_PAGE_NUM_NPQ : NORMAL_PAGE_NUM_NPQ;
 		}
 		value8 = (u8)_NPQ(numNQ);
-		rtw_write8(Adapter, REG_RQPN_NPQ, value8);
+		rtl8723au_write8(Adapter, REG_RQPN_NPQ, value8);
 	}
 
 	/*  TX DMA */
 	value32 = _HPQ(numHQ) | _LPQ(numLQ) | _PUBQ(numPubQ) | LD_RQPN;
-	rtw_write32(Adapter, REG_RQPN, value32);
+	rtl8723au_write32(Adapter, REG_RQPN, value32);
 }
 
 static void _InitTxBufferBoundary(struct rtw_adapter *Adapter)
@@ -194,11 +194,11 @@ static void _InitTxBufferBoundary(struct rtw_adapter *Adapter)
 	else /* for WMM */
 		txpktbuf_bndy = WMM_NORMAL_TX_PAGE_BOUNDARY;
 
-	rtw_write8(Adapter, REG_TXPKTBUF_BCNQ_BDNY, txpktbuf_bndy);
-	rtw_write8(Adapter, REG_TXPKTBUF_MGQ_BDNY, txpktbuf_bndy);
-	rtw_write8(Adapter, REG_TXPKTBUF_WMAC_LBK_BF_HD, txpktbuf_bndy);
-	rtw_write8(Adapter, REG_TRXFF_BNDY, txpktbuf_bndy);
-	rtw_write8(Adapter, REG_TDECTRL+1, txpktbuf_bndy);
+	rtl8723au_write8(Adapter, REG_TXPKTBUF_BCNQ_BDNY, txpktbuf_bndy);
+	rtl8723au_write8(Adapter, REG_TXPKTBUF_MGQ_BDNY, txpktbuf_bndy);
+	rtl8723au_write8(Adapter, REG_TXPKTBUF_WMAC_LBK_BF_HD, txpktbuf_bndy);
+	rtl8723au_write8(Adapter, REG_TRXFF_BNDY, txpktbuf_bndy);
+	rtl8723au_write8(Adapter, REG_TDECTRL+1, txpktbuf_bndy);
 }
 
 static void _InitPageBoundary(struct rtw_adapter *Adapter)
@@ -207,7 +207,7 @@ static void _InitPageBoundary(struct rtw_adapter *Adapter)
 	/* srand(static_cast<unsigned int>(time(NULL))); */
 	u16 rxff_bndy = 0x27FF;/* rand() % 1) ? 0x27FF : 0x23FF; */
 
-	rtw_write16(Adapter, (REG_TRXFF_BNDY + 2), rxff_bndy);
+	rtl8723au_write16(Adapter, (REG_TRXFF_BNDY + 2), rxff_bndy);
 
 	/*  TODO: ?? shall we set tx boundary? */
 }
@@ -222,7 +222,7 @@ _InitNormalChipRegPriority(struct rtw_adapter *Adapter, u16 beQ, u16 bkQ,
 		_TXDMA_VIQ_MAP(viQ) | _TXDMA_VOQ_MAP(voQ) |
 		_TXDMA_MGQ_MAP(mgtQ) | _TXDMA_HIQ_MAP(hiQ);
 
-	rtw_write16(Adapter, REG_TRXDMA_CTRL, value16);
+	rtl8723au_write16(Adapter, REG_TRXDMA_CTRL, value16);
 }
 
 static void _InitNormalChipOneOutEpPriority(struct rtw_adapter *Adapter)
@@ -350,7 +350,7 @@ static void _InitNetworkType(struct rtw_adapter *Adapter)
 
 	/*  TODO: use the other function to set network type */
 	value32 = (value32 & ~MASK_NETTYPE) | _NETTYPE(NT_LINK_AP);
-	rtw_write32(Adapter, REG_CR, value32);
+	rtl8723au_write32(Adapter, REG_CR, value32);
 }
 
 static void _InitTransferPageSize(struct rtw_adapter *Adapter)
@@ -359,12 +359,12 @@ static void _InitTransferPageSize(struct rtw_adapter *Adapter)
 
 	u8 value8;
 	value8 = _PSRX(PBP_128) | _PSTX(PBP_128);
-	rtw_write8(Adapter, REG_PBP, value8);
+	rtl8723au_write8(Adapter, REG_PBP, value8);
 }
 
 static void _InitDriverInfoSize(struct rtw_adapter *Adapter, u8 drvInfoSize)
 {
-	rtw_write8(Adapter, REG_RX_DRVINFO_SZ, drvInfoSize);
+	rtl8723au_write8(Adapter, REG_RX_DRVINFO_SZ, drvInfoSize);
 }
 
 static void _InitWMACSetting(struct rtw_adapter *Adapter)
@@ -379,15 +379,15 @@ static void _InitWMACSetting(struct rtw_adapter *Adapter)
 
 	/*  some REG_RCR will be modified later by
 	    phy_ConfigMACWithHeaderFile() */
-	rtw_write32(Adapter, REG_RCR, pHalData->ReceiveConfig);
+	rtl8723au_write32(Adapter, REG_RCR, pHalData->ReceiveConfig);
 
 	/*  Accept all multicast address */
-	rtw_write32(Adapter, REG_MAR, 0xFFFFFFFF);
-	rtw_write32(Adapter, REG_MAR + 4, 0xFFFFFFFF);
+	rtl8723au_write32(Adapter, REG_MAR, 0xFFFFFFFF);
+	rtl8723au_write32(Adapter, REG_MAR + 4, 0xFFFFFFFF);
 
 	/*  Accept all data frames */
 	/* value16 = 0xFFFF; */
-	/* rtw_write16(Adapter, REG_RXFLTMAP2, value16); */
+	/* rtl8723au_write16(Adapter, REG_RXFLTMAP2, value16); */
 
 	/*  2010.09.08 hpfan */
 	/*  Since ADF is removed from RCR, ps-poll will not be indicate
@@ -395,14 +395,14 @@ static void _InitWMACSetting(struct rtw_adapter *Adapter)
 	/*  RxFilterMap should mask ps-poll to gurantee AP mode can
 	    rx ps-poll. */
 	/* value16 = 0x400; */
-	/* rtw_write16(Adapter, REG_RXFLTMAP1, value16); */
+	/* rtl8723au_write16(Adapter, REG_RXFLTMAP1, value16); */
 
 	/*  Accept all management frames */
 	/* value16 = 0xFFFF; */
-	/* rtw_write16(Adapter, REG_RXFLTMAP0, value16); */
+	/* rtl8723au_write16(Adapter, REG_RXFLTMAP0, value16); */
 
 	/* enable RX_SHIFT bits */
-	/* rtw_write8(Adapter, REG_TRXDMA_CTRL, rtl8723au_read8(Adapter,
+	/* rtl8723au_write8(Adapter, REG_TRXDMA_CTRL, rtl8723au_read8(Adapter,
 	   REG_TRXDMA_CTRL)|BIT(1)); */
 }
 
@@ -415,46 +415,46 @@ static void _InitAdaptiveCtrl(struct rtw_adapter *Adapter)
 	value32 = rtl8723au_read32(Adapter, REG_RRSR);
 	value32 &= ~RATE_BITMAP_ALL;
 	value32 |= RATE_RRSR_CCK_ONLY_1M;
-	rtw_write32(Adapter, REG_RRSR, value32);
+	rtl8723au_write32(Adapter, REG_RRSR, value32);
 
 	/*  CF-END Threshold */
-	/* m_spIoBase->rtw_write8(REG_CFEND_TH, 0x1); */
+	/* m_spIoBase->rtl8723au_write8(REG_CFEND_TH, 0x1); */
 
 	/*  SIFS (used in NAV) */
 	value16 = _SPEC_SIFS_CCK(0x10) | _SPEC_SIFS_OFDM(0x10);
-	rtw_write16(Adapter, REG_SPEC_SIFS, value16);
+	rtl8723au_write16(Adapter, REG_SPEC_SIFS, value16);
 
 	/*  Retry Limit */
 	value16 = _LRL(0x30) | _SRL(0x30);
-	rtw_write16(Adapter, REG_RL, value16);
+	rtl8723au_write16(Adapter, REG_RL, value16);
 }
 
 static void _InitRateFallback(struct rtw_adapter *Adapter)
 {
 	/*  Set Data Auto Rate Fallback Retry Count register. */
-	rtw_write32(Adapter, REG_DARFRC, 0x00000000);
-	rtw_write32(Adapter, REG_DARFRC+4, 0x10080404);
-	rtw_write32(Adapter, REG_RARFRC, 0x04030201);
-	rtw_write32(Adapter, REG_RARFRC+4, 0x08070605);
+	rtl8723au_write32(Adapter, REG_DARFRC, 0x00000000);
+	rtl8723au_write32(Adapter, REG_DARFRC+4, 0x10080404);
+	rtl8723au_write32(Adapter, REG_RARFRC, 0x04030201);
+	rtl8723au_write32(Adapter, REG_RARFRC+4, 0x08070605);
 }
 
 static void _InitEDCA(struct rtw_adapter *Adapter)
 {
 	/*  Set Spec SIFS (used in NAV) */
-	rtw_write16(Adapter, REG_SPEC_SIFS, 0x100a);
-	rtw_write16(Adapter, REG_MAC_SPEC_SIFS, 0x100a);
+	rtl8723au_write16(Adapter, REG_SPEC_SIFS, 0x100a);
+	rtl8723au_write16(Adapter, REG_MAC_SPEC_SIFS, 0x100a);
 
 	/*  Set SIFS for CCK */
-	rtw_write16(Adapter, REG_SIFS_CTX, 0x100a);
+	rtl8723au_write16(Adapter, REG_SIFS_CTX, 0x100a);
 
 	/*  Set SIFS for OFDM */
-	rtw_write16(Adapter, REG_SIFS_TRX, 0x100a);
+	rtl8723au_write16(Adapter, REG_SIFS_TRX, 0x100a);
 
 	/*  TXOP */
-	rtw_write32(Adapter, REG_EDCA_BE_PARAM, 0x005EA42B);
-	rtw_write32(Adapter, REG_EDCA_BK_PARAM, 0x0000A44F);
-	rtw_write32(Adapter, REG_EDCA_VI_PARAM, 0x005EA324);
-	rtw_write32(Adapter, REG_EDCA_VO_PARAM, 0x002FA226);
+	rtl8723au_write32(Adapter, REG_EDCA_BE_PARAM, 0x005EA42B);
+	rtl8723au_write32(Adapter, REG_EDCA_BK_PARAM, 0x0000A44F);
+	rtl8723au_write32(Adapter, REG_EDCA_VI_PARAM, 0x005EA324);
+	rtl8723au_write32(Adapter, REG_EDCA_VO_PARAM, 0x002FA226);
 }
 
 static void _InitHWLed(struct rtw_adapter *Adapter)
@@ -471,9 +471,9 @@ static void _InitHWLed(struct rtw_adapter *Adapter)
 
 static void _InitRDGSetting(struct rtw_adapter *Adapter)
 {
-	rtw_write8(Adapter, REG_RD_CTRL, 0xFF);
-	rtw_write16(Adapter, REG_RD_NAV_NXT, 0x200);
-	rtw_write8(Adapter, REG_RD_RESP_PKT_TH, 0x05);
+	rtl8723au_write8(Adapter, REG_RD_CTRL, 0xFF);
+	rtl8723au_write16(Adapter, REG_RD_NAV_NXT, 0x200);
+	rtl8723au_write8(Adapter, REG_RD_RESP_PKT_TH, 0x05);
 }
 
 static void _InitRetryFunction(struct rtw_adapter *Adapter)
@@ -482,10 +482,10 @@ static void _InitRetryFunction(struct rtw_adapter *Adapter)
 
 	value8 = rtl8723au_read8(Adapter, REG_FWHW_TXQ_CTRL);
 	value8 |= EN_AMPDU_RTY_NEW;
-	rtw_write8(Adapter, REG_FWHW_TXQ_CTRL, value8);
+	rtl8723au_write8(Adapter, REG_FWHW_TXQ_CTRL, value8);
 
 	/*  Set ACK timeout */
-	rtw_write8(Adapter, REG_ACKTO, 0x40);
+	rtl8723au_write8(Adapter, REG_ACKTO, 0x40);
 }
 
 /*-----------------------------------------------------------------------------
@@ -593,9 +593,9 @@ enum rt_rf_power_state RfOnOffDetect23a(struct rtw_adapter *pAdapter)
 		DBG_8723A("pwrdown, 0x5c(BIT7) =%02x\n", val8);
 		rfpowerstate = (val8 & BIT(7)) ? rf_off : rf_on;
 	} else { /*  rf on/off */
-		rtw_write8(pAdapter, REG_MAC_PINMUX_CFG,
-			   rtl8723au_read8(pAdapter, REG_MAC_PINMUX_CFG) &
-			   ~BIT(3));
+		rtl8723au_write8(pAdapter, REG_MAC_PINMUX_CFG,
+				 rtl8723au_read8(pAdapter, REG_MAC_PINMUX_CFG) &
+				 ~BIT(3));
 		val8 = rtl8723au_read8(pAdapter, REG_GPIO_IO_SEL);
 		DBG_8723A("GPIO_IN =%02x\n", val8);
 		rfpowerstate = (val8 & BIT(3)) ? rf_on : rf_off;
@@ -798,16 +798,16 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	/*  HW SEQ CTRL */
 	/* set 0x0 to 0xFF by tynli. Default enable HW SEQ NUM. */
-	rtw_write8(Adapter, REG_HWSEQ_CTRL, 0xFF);
+	rtl8723au_write8(Adapter, REG_HWSEQ_CTRL, 0xFF);
 
 	/*  */
 	/*  Disable BAR, suggested by Scott */
 	/*  2010.04.09 add by hpfan */
 	/*  */
-	rtw_write32(Adapter, REG_BAR_MODE_CTRL, 0x0201ffff);
+	rtl8723au_write32(Adapter, REG_BAR_MODE_CTRL, 0x0201ffff);
 
 	if (pregistrypriv->wifi_spec)
-		rtw_write16(Adapter, REG_FAST_EDCA_CTRL, 0);
+		rtl8723au_write16(Adapter, REG_FAST_EDCA_CTRL, 0);
 
 	/*  Move by Neo for USB SS from above setp */
 	_RfPowerSave(Adapter);
@@ -838,31 +838,31 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC21);
  /* fixed USB interface interference issue */
-	rtw_write8(Adapter, 0xfe40, 0xe0);
-	rtw_write8(Adapter, 0xfe41, 0x8d);
-	rtw_write8(Adapter, 0xfe42, 0x80);
-	rtw_write32(Adapter, 0x20c, 0xfd0320);
+	rtl8723au_write8(Adapter, 0xfe40, 0xe0);
+	rtl8723au_write8(Adapter, 0xfe41, 0x8d);
+	rtl8723au_write8(Adapter, 0xfe42, 0x80);
+	rtl8723au_write32(Adapter, 0x20c, 0xfd0320);
 	/* Solve too many protocol error on USB bus */
 	if (!IS_81xxC_VENDOR_UMC_A_CUT(pHalData->VersionID)) {
 		/*  0xE6 = 0x94 */
-		rtw_write8(Adapter, 0xFE40, 0xE6);
-		rtw_write8(Adapter, 0xFE41, 0x94);
-		rtw_write8(Adapter, 0xFE42, 0x80);
+		rtl8723au_write8(Adapter, 0xFE40, 0xE6);
+		rtl8723au_write8(Adapter, 0xFE41, 0x94);
+		rtl8723au_write8(Adapter, 0xFE42, 0x80);
 
 		/*  0xE0 = 0x19 */
-		rtw_write8(Adapter, 0xFE40, 0xE0);
-		rtw_write8(Adapter, 0xFE41, 0x19);
-		rtw_write8(Adapter, 0xFE42, 0x80);
+		rtl8723au_write8(Adapter, 0xFE40, 0xE0);
+		rtl8723au_write8(Adapter, 0xFE41, 0x19);
+		rtl8723au_write8(Adapter, 0xFE42, 0x80);
 
 		/*  0xE5 = 0x91 */
-		rtw_write8(Adapter, 0xFE40, 0xE5);
-		rtw_write8(Adapter, 0xFE41, 0x91);
-		rtw_write8(Adapter, 0xFE42, 0x80);
+		rtl8723au_write8(Adapter, 0xFE40, 0xE5);
+		rtl8723au_write8(Adapter, 0xFE41, 0x91);
+		rtl8723au_write8(Adapter, 0xFE42, 0x80);
 
 		/*  0xE2 = 0x81 */
-		rtw_write8(Adapter, 0xFE40, 0xE2);
-		rtw_write8(Adapter, 0xFE41, 0x81);
-		rtw_write8(Adapter, 0xFE42, 0x80);
+		rtl8723au_write8(Adapter, 0xFE40, 0xE2);
+		rtl8723au_write8(Adapter, 0xFE41, 0x81);
+		rtl8723au_write8(Adapter, 0xFE42, 0x80);
 
 	}
 
@@ -889,8 +889,8 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	}
 
 	/* ack for xmit mgmt frames. */
-	rtw_write32(Adapter, REG_FWHW_TXQ_CTRL,
-		    rtl8723au_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
+	rtl8723au_write32(Adapter, REG_FWHW_TXQ_CTRL,
+			  rtl8723au_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
 
 exit:
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
@@ -916,9 +916,9 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 			   ReadXBYTE(REG_SYS_CLKR+1) | BIT(3)); */
 
 			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
-			rtw_write8(Adapter, REG_SPS0_CTRL,
-				   rtl8723au_read8(Adapter, REG_SPS0_CTRL) |
-				   BIT(0) | BIT(3));
+			rtl8723au_write8(Adapter, REG_SPS0_CTRL,
+					 rtl8723au_read8(Adapter, REG_SPS0_CTRL) |
+					 BIT(0) | BIT(3));
 
 			/*  3. restore BB, AFE control register. */
 			/* RF */
@@ -952,17 +952,17 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 		} else {		/*  Level 2 or others. */
 			/* h.	AFE_PLL_CTRL 0x28[7:0] = 0x80
 			   disable AFE PLL */
-			rtw_write8(Adapter, REG_AFE_PLL_CTRL, 0x81);
+			rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL, 0x81);
 
 			/*  i.	AFE_XTAL_CTRL 0x24[15:0] = 0x880F
 			    gated AFE DIG_CLOCK */
-			rtw_write16(Adapter, REG_AFE_XTAL_CTRL, 0x800F);
+			rtl8723au_write16(Adapter, REG_AFE_XTAL_CTRL, 0x800F);
 			mdelay(1);
 
 			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
-			rtw_write8(Adapter, REG_SPS0_CTRL,
-				   rtl8723au_read8(Adapter, REG_SPS0_CTRL) |
-				   BIT(0) | BIT(3));
+			rtl8723au_write8(Adapter, REG_SPS0_CTRL,
+					 rtl8723au_read8(Adapter, REG_SPS0_CTRL) |
+					 BIT(0) | BIT(3));
 
 			/*  3. restore BB, AFE control register. */
 			/* RF */
@@ -996,15 +996,17 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 
 			/*  5. gated MAC Clock */
 			bytetmp = rtl8723au_read8(Adapter, REG_APSD_CTRL);
-			rtw_write8(Adapter, REG_APSD_CTRL, bytetmp & ~BIT(6));
+			rtl8723au_write8(Adapter, REG_APSD_CTRL,
+					 bytetmp & ~BIT(6));
 
 			mdelay(10);
 
 			/*  Set BB reset at first */
-			rtw_write8(Adapter, REG_SYS_FUNC_EN, 0x17); /* 0x16 */
+			/* 0x16 */
+			rtl8723au_write8(Adapter, REG_SYS_FUNC_EN, 0x17);
 
 			/*  Enable TX */
-			rtw_write8(Adapter, REG_TXPAUSE, 0x0);
+			rtl8723au_write8(Adapter, REG_TXPAUSE, 0x0);
 		}
 		break;
 	case rf_sleep:
@@ -1063,18 +1065,19 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 					     bRFRegOffsetMask, 0);
 
 			/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
-			rtw_write8(Adapter, REG_SPS0_CTRL, value8);
+			rtl8723au_write8(Adapter, REG_SPS0_CTRL, value8);
 		} else {	/*  Level 2 or others. */
 			RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL2\n"));
 			{
 				u8 eRFPath = RF_PATH_A, value8 = 0;
-				rtw_write8(Adapter, REG_TXPAUSE, 0xFF);
+				rtl8723au_write8(Adapter, REG_TXPAUSE, 0xFF);
 				PHY_SetRFReg(Adapter,
 					     (enum RF_RADIO_PATH)eRFPath,
 					     0x0, bMaskByte0, 0x0);
 				value8 |= APSDOFF;
 				/* 0x40 */
-				rtw_write8(Adapter, REG_APSD_CTRL, value8);
+				rtl8723au_write8(Adapter, REG_APSD_CTRL,
+						 value8);
 
 				/*  After switch APSD, we need to delay
 				    for stability */
@@ -1085,7 +1088,8 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 				value8 |= (FEN_USBD | FEN_USBA |
 					   FEN_BB_GLB_RSTn);
 				/* 0x16 */
-				rtw_write8(Adapter, REG_SYS_FUNC_EN, value8);
+				rtl8723au_write8(Adapter, REG_SYS_FUNC_EN,
+						 value8);
 			}
 
 			/*  Disable RF and BB only for SelectSuspend. */
@@ -1134,17 +1138,17 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 					     bRFRegOffsetMask, 0);
 
 			/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
-			rtw_write8(Adapter, REG_SPS0_CTRL, value8);
+			rtl8723au_write8(Adapter, REG_SPS0_CTRL, value8);
 
 			/*  2010/10/13 MH/Isaachsu exchange sequence. */
 			/* h.	AFE_PLL_CTRL 0x28[7:0] = 0x80
 				disable AFE PLL */
-			rtw_write8(Adapter, REG_AFE_PLL_CTRL, 0x80);
+			rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL, 0x80);
 			mdelay(1);
 
 			/*  i.	AFE_XTAL_CTRL 0x24[15:0] = 0x880F
 				gated AFE DIG_CLOCK */
-			rtw_write16(Adapter, REG_AFE_XTAL_CTRL, 0xA80F);
+			rtl8723au_write16(Adapter, REG_AFE_XTAL_CTRL, 0xA80F);
 		}
 		break;
 	default:
@@ -1170,7 +1174,7 @@ static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 			    PWR_INTF_USB_MSK, rtl8723AU_enter_lps_flow);
 
 	/*  2. 0x1F[7:0] = 0		turn off RF */
-	rtw_write8(Adapter, REG_RF_CTRL, 0x00);
+	rtl8723au_write8(Adapter, REG_RF_CTRL, 0x00);
 
 	/*	==== Reset digital sequence   ====== */
 	if ((rtl8723au_read8(Adapter, REG_MCUFWDL) & BIT(7)) &&
@@ -1179,10 +1183,10 @@ static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 
 	/*  Reset MCU. Suggested by Filen. 2011.01.26. by tynli. */
 	u1bTmp = rtl8723au_read8(Adapter, REG_SYS_FUNC_EN+1);
-	rtw_write8(Adapter, REG_SYS_FUNC_EN+1, u1bTmp & ~BIT(2));
+	rtl8723au_write8(Adapter, REG_SYS_FUNC_EN+1, u1bTmp & ~BIT(2));
 
 	/*  g.	MCUFWDL 0x80[1:0]= 0		reset MCU ready status */
-	rtw_write8(Adapter, REG_MCUFWDL, 0x00);
+	rtl8723au_write8(Adapter, REG_MCUFWDL, 0x00);
 
 	/*	==== Reset digital sequence end ====== */
 	/*  Card disable power action flow */
@@ -1192,12 +1196,12 @@ static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 
 	/*  Reset MCU IO Wrapper, added by Roger, 2011.08.30. */
 	u1bTmp = rtl8723au_read8(Adapter, REG_RSV_CTRL + 1);
-	rtw_write8(Adapter, REG_RSV_CTRL+1, u1bTmp & ~BIT(0));
+	rtl8723au_write8(Adapter, REG_RSV_CTRL+1, u1bTmp & ~BIT(0));
 	u1bTmp = rtl8723au_read8(Adapter, REG_RSV_CTRL + 1);
-	rtw_write8(Adapter, REG_RSV_CTRL+1, u1bTmp | BIT(0));
+	rtl8723au_write8(Adapter, REG_RSV_CTRL+1, u1bTmp | BIT(0));
 
 	/*  7. RSV_CTRL 0x1C[7:0] = 0x0E  lock ISO/CLK/Power control register */
-	rtw_write8(Adapter, REG_RSV_CTRL, 0x0e);
+	rtl8723au_write8(Adapter, REG_RSV_CTRL, 0x0e);
 }
 
 static int rtl8723au_hal_deinit(struct rtw_adapter *padapter)
@@ -1248,7 +1252,7 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 	pHalData->IntrMask[0] = rtl8723au_read32(Adapter, REG_USB_HIMR);
 	MSG_8723A("pHalData->IntrMask = 0x%04x\n", pHalData->IntrMask[0]);
 	pHalData->IntrMask[0] |= UHIMR_C2HCMD|UHIMR_CPWM;
-	rtw_write32(Adapter, REG_USB_HIMR, pHalData->IntrMask[0]);
+	rtl8723au_write32(Adapter, REG_USB_HIMR, pHalData->IntrMask[0]);
 exit:
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
 		 ("<=== usb_inirp_init\n"));
@@ -1266,7 +1270,7 @@ int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
 	MSG_8723A("%s pHalData->IntrMask = 0x%04x\n", __func__,
 		  pHalData->IntrMask[0]);
 	pHalData->IntrMask[0] = 0x0;
-	rtw_write32(Adapter, REG_USB_HIMR, pHalData->IntrMask[0]);
+	rtl8723au_write32(Adapter, REG_USB_HIMR, pHalData->IntrMask[0]);
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
 		 ("\n <=== usb_rx_deinit\n"));
 	return _SUCCESS;
@@ -1444,7 +1448,7 @@ static void hal_EfuseCellSel(struct rtw_adapter *Adapter)
 
 	value32 = rtl8723au_read32(Adapter, EFUSE_TEST);
 	value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_WIFI_SEL_0);
-	rtw_write32(Adapter, EFUSE_TEST, value32);
+	rtl8723au_write32(Adapter, EFUSE_TEST, value32);
 }
 
 void rtl8723a_read_adapter_info(struct rtw_adapter *Adapter)
@@ -1628,7 +1632,8 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		if (shortGIrate == true)
 			init_rate |= BIT(6);
 
-		rtw_write8(padapter, (REG_INIDATA_RATE_SEL+mac_id), init_rate);
+		rtl8723au_write8(padapter, (REG_INIDATA_RATE_SEL+mac_id),
+				 init_rate);
 	}
 
 	/* set ra_id */

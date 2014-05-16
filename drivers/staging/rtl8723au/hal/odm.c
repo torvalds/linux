@@ -1458,7 +1458,8 @@ void odm_DynamicTxPower23aRestorePowerIndex(struct dm_odm_t *pDM_Odm)
 	u32 Power_Index_REG[6] = {0xc90, 0xc91, 0xc92, 0xc98, 0xc99, 0xc9a};
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
 	for (index = 0; index < 6; index++)
-		rtw_write8(Adapter, Power_Index_REG[index], pdmpriv->PowerIndex_backup[index]);
+		rtl8723au_write8(Adapter, Power_Index_REG[index],
+				 pdmpriv->PowerIndex_backup[index]);
 }
 
 void odm_DynamicTxPower23aWritePowerIndex(struct dm_odm_t *pDM_Odm,
@@ -1766,7 +1767,8 @@ void odm_EdcaTurboCheck23aCE23a(struct dm_odm_t *pDM_Odm)
 				edca_param = EDCAParam[pmlmeinfo->assoc_AP_vendor][trafficIndex];
 			else
 				edca_param = EDCAParam[HT_IOT_PEER_UNKNOWN][trafficIndex];
-			rtw_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
+			rtl8723au_write32(Adapter, REG_EDCA_BE_PARAM,
+					  edca_param);
 
 			pDM_Odm->DM_EDCA_Table.prv_traffic_idx = trafficIndex;
 		}
@@ -1776,7 +1778,8 @@ void odm_EdcaTurboCheck23aCE23a(struct dm_odm_t *pDM_Odm)
 		/*  Turn Off EDCA turbo here. */
 		/*  Restore original EDCA according to the declaration of AP. */
 		if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
-			rtw_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
+			rtl8723au_write32(Adapter, REG_EDCA_BE_PARAM,
+					  pHalData->AcParam_BE);
 			pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 		}
 	}

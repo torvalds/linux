@@ -28,22 +28,22 @@ static void _FWDownloadEnable(struct rtw_adapter *padapter, bool enable)
 	if (enable) {
 		/*  8051 enable */
 		tmp = rtl8723au_read8(padapter, REG_SYS_FUNC_EN + 1);
-		rtw_write8(padapter, REG_SYS_FUNC_EN + 1, tmp | 0x04);
+		rtl8723au_write8(padapter, REG_SYS_FUNC_EN + 1, tmp | 0x04);
 
 		/*  MCU firmware download enable. */
 		tmp = rtl8723au_read8(padapter, REG_MCUFWDL);
-		rtw_write8(padapter, REG_MCUFWDL, tmp | 0x01);
+		rtl8723au_write8(padapter, REG_MCUFWDL, tmp | 0x01);
 
 		/*  8051 reset */
 		tmp = rtl8723au_read8(padapter, REG_MCUFWDL + 2);
-		rtw_write8(padapter, REG_MCUFWDL + 2, tmp & 0xf7);
+		rtl8723au_write8(padapter, REG_MCUFWDL + 2, tmp & 0xf7);
 	} else {
 		/*  MCU firmware download disable. */
 		tmp = rtl8723au_read8(padapter, REG_MCUFWDL);
-		rtw_write8(padapter, REG_MCUFWDL, tmp & 0xfe);
+		rtl8723au_write8(padapter, REG_MCUFWDL, tmp & 0xfe);
 
 		/*  Reserved for fw extension. */
-		rtw_write8(padapter, REG_MCUFWDL + 1, 0x00);
+		rtl8723au_write8(padapter, REG_MCUFWDL + 1, 0x00);
 	}
 }
 
@@ -76,9 +76,10 @@ static int _BlockWrite(struct rtw_adapter *padapter, void *buffer, u32 buffSize)
 	}
 
 	for (i = 0; i < blockCount_p1; i++) {
-		ret = rtw_writeN(padapter,
-				 (FW_8723A_START_ADDRESS + i * blockSize_p1),
-				 blockSize_p1, (bufferPtr + i * blockSize_p1));
+		ret = rtl8723au_writeN(padapter, (FW_8723A_START_ADDRESS +
+						  i * blockSize_p1),
+				       blockSize_p1,
+				       (bufferPtr + i * blockSize_p1));
 		if (ret == _FAIL)
 			goto exit;
 	}
@@ -100,11 +101,12 @@ static int _BlockWrite(struct rtw_adapter *padapter, void *buffer, u32 buffSize)
 		}
 
 		for (i = 0; i < blockCount_p2; i++) {
-			ret = rtw_writeN(padapter,
-					 (FW_8723A_START_ADDRESS + offset +
-					  i * blockSize_p2), blockSize_p2,
-					 (bufferPtr + offset +
-					  i * blockSize_p2));
+			ret = rtl8723au_writeN(padapter,
+					       (FW_8723A_START_ADDRESS +
+						offset + i * blockSize_p2),
+					       blockSize_p2,
+					       (bufferPtr + offset +
+						i * blockSize_p2));
 
 			if (ret == _FAIL)
 				goto exit;
@@ -124,9 +126,9 @@ static int _BlockWrite(struct rtw_adapter *padapter, void *buffer, u32 buffSize)
 			  (buffSize - offset), blockSize_p3, blockCount_p3));
 
 		for (i = 0; i < blockCount_p3; i++) {
-			ret = rtw_write8(padapter,
-					 (FW_8723A_START_ADDRESS + offset + i),
-					 *(bufferPtr + offset + i));
+			ret = rtl8723au_write8(padapter,
+					       (FW_8723A_START_ADDRESS + offset + i),
+					       *(bufferPtr + offset + i));
 
 			if (ret == _FAIL)
 				goto exit;
@@ -144,7 +146,7 @@ _PageWrite(struct rtw_adapter *padapter, u32 page, void *buffer, u32 size)
 	u8 u8Page = (u8) (page & 0x07);
 
 	value8 = (rtl8723au_read8(padapter, REG_MCUFWDL + 2) & 0xF8) | u8Page;
-	rtw_write8(padapter, REG_MCUFWDL + 2, value8);
+	rtl8723au_write8(padapter, REG_MCUFWDL + 2, value8);
 
 	return _BlockWrite(padapter, buffer, size);
 }
@@ -213,7 +215,7 @@ static int _FWFreeToGo(struct rtw_adapter *padapter)
 	value32 = rtl8723au_read32(padapter, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
-	rtw_write32(padapter, REG_MCUFWDL, value32);
+	rtl8723au_write32(padapter, REG_MCUFWDL, value32);
 
 	/*  polling for FW ready */
 	counter = 0;
@@ -249,7 +251,7 @@ void rtl8723a_FirmwareSelfReset(struct rtw_adapter *padapter)
 		pHalData->FirmwareSubVersion < 0x01)))) {
 		/*  after 88C Fw v33.1 */
 		/* 0x1cf = 0x20. Inform 8051 to reset. 2009.12.25. tynli_test */
-		rtw_write8(padapter, REG_HMETFR + 3, 0x20);
+		rtl8723au_write8(padapter, REG_HMETFR + 3, 0x20);
 
 		u1bTmp = rtl8723au_read8(padapter, REG_SYS_FUNC_EN + 1);
 		while (u1bTmp & BIT(2)) {
@@ -266,8 +268,8 @@ void rtl8723a_FirmwareSelfReset(struct rtw_adapter *padapter)
 		if ((Delay == 0)) {
 			/* force firmware reset */
 			u1bTmp = rtl8723au_read8(padapter, REG_SYS_FUNC_EN + 1);
-			rtw_write8(padapter, REG_SYS_FUNC_EN + 1,
-				   u1bTmp & ~BIT(2));
+			rtl8723au_write8(padapter, REG_SYS_FUNC_EN + 1,
+					 u1bTmp & ~BIT(2));
 		}
 	}
 }
@@ -376,15 +378,16 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 	if (rtl8723au_read8(padapter, REG_MCUFWDL) & RAM_DL_SEL) {
 		/* 8051 RAM code */
 		rtl8723a_FirmwareSelfReset(padapter);
-		rtw_write8(padapter, REG_MCUFWDL, 0x00);
+		rtl8723au_write8(padapter, REG_MCUFWDL, 0x00);
 	}
 
 	_FWDownloadEnable(padapter, true);
 	fwdl_start_time = jiffies;
 	while (1) {
 		/* reset the FWDL chksum */
-		rtw_write8(padapter, REG_MCUFWDL,
-			   rtl8723au_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);
+		rtl8723au_write8(padapter, REG_MCUFWDL,
+				 rtl8723au_read8(padapter, REG_MCUFWDL) |
+				 FWDL_ChkSum_rpt);
 
 		rtStatus = _WriteFW(padapter, buf, fw_size);
 
@@ -463,7 +466,7 @@ hal_EfuseSwitchToBank(struct rtw_adapter *padapter, u8 bank)
 		bRet = false;
 		break;
 	}
-	rtw_write32(padapter, EFUSE_TEST, value32);
+	rtl8723au_write32(padapter, EFUSE_TEST, value32);
 
 	return bRet;
 }
@@ -972,29 +975,30 @@ void SetBcnCtrlReg23a(struct rtw_adapter *padapter, u8 SetBits, u8 ClearBits)
 	*pRegBcnCtrlVal |= SetBits;
 	*pRegBcnCtrlVal &= ~ClearBits;
 
-	rtw_write8(padapter, addr, *pRegBcnCtrlVal);
+	rtl8723au_write8(padapter, addr, *pRegBcnCtrlVal);
 }
 
 void rtl8723a_InitBeaconParameters(struct rtw_adapter *padapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
-	rtw_write16(padapter, REG_BCN_CTRL, 0x1010);
+	rtl8723au_write16(padapter, REG_BCN_CTRL, 0x1010);
 	pHalData->RegBcnCtrlVal = 0x1010;
 
 	/*  TODO: Remove these magic number */
-	rtw_write16(padapter, REG_TBTT_PROHIBIT, 0x6404);	/*  ms */
+	rtl8723au_write16(padapter, REG_TBTT_PROHIBIT, 0x6404);	/*  ms */
 	/*  Firmware will control REG_DRVERLYINT when power saving is enable, */
 	/*  so don't set this register on STA mode. */
 	if (check_fwstate(&padapter->mlmepriv, WIFI_STATION_STATE) == false)
-		rtw_write8(padapter, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);
+		rtl8723au_write8(padapter, REG_DRVERLYINT,
+				 DRIVER_EARLY_INT_TIME);
 	/*  2ms */
-	rtw_write8(padapter, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME);
+	rtl8723au_write8(padapter, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME);
 
 	/*  Suggested by designer timchen. Change beacon AIFS to the
 	    largest number beacause test chip does not contension before
 	    sending beacon. by tynli. 2009.11.03 */
-	rtw_write16(padapter, REG_BCNTCFG, 0x660F);
+	rtl8723au_write16(padapter, REG_BCNTCFG, 0x660F);
 }
 
 static void ResumeTxBeacon(struct rtw_adapter *padapter)
@@ -1008,10 +1012,11 @@ static void ResumeTxBeacon(struct rtw_adapter *padapter)
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("+ResumeTxBeacon\n"));
 
 	pHalData->RegFwHwTxQCtrl |= BIT(6);
-	rtw_write8(padapter, REG_FWHW_TXQ_CTRL + 2, pHalData->RegFwHwTxQCtrl);
-	rtw_write8(padapter, REG_TBTT_PROHIBIT + 1, 0xff);
+	rtl8723au_write8(padapter, REG_FWHW_TXQ_CTRL + 2,
+			 pHalData->RegFwHwTxQCtrl);
+	rtl8723au_write8(padapter, REG_TBTT_PROHIBIT + 1, 0xff);
 	pHalData->RegReg542 |= BIT(0);
-	rtw_write8(padapter, REG_TBTT_PROHIBIT + 2, pHalData->RegReg542);
+	rtl8723au_write8(padapter, REG_TBTT_PROHIBIT + 2, pHalData->RegReg542);
 }
 
 static void StopTxBeacon(struct rtw_adapter *padapter)
@@ -1025,10 +1030,11 @@ static void StopTxBeacon(struct rtw_adapter *padapter)
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("+StopTxBeacon\n"));
 
 	pHalData->RegFwHwTxQCtrl &= ~BIT(6);
-	rtw_write8(padapter, REG_FWHW_TXQ_CTRL + 2, pHalData->RegFwHwTxQCtrl);
-	rtw_write8(padapter, REG_TBTT_PROHIBIT + 1, 0x64);
+	rtl8723au_write8(padapter, REG_FWHW_TXQ_CTRL + 2,
+			 pHalData->RegFwHwTxQCtrl);
+	rtl8723au_write8(padapter, REG_TBTT_PROHIBIT + 1, 0x64);
 	pHalData->RegReg542 &= ~BIT(0);
-	rtw_write8(padapter, REG_TBTT_PROHIBIT + 2, pHalData->RegReg542);
+	rtl8723au_write8(padapter, REG_TBTT_PROHIBIT + 2, pHalData->RegReg542);
 
 	CheckFwRsvdPageContent23a(padapter); /*  2010.06.23. Added by tynli. */
 }
@@ -1038,7 +1044,7 @@ static void _BeaconFunctionEnable(struct rtw_adapter *padapter, u8 Enable,
 {
 	SetBcnCtrlReg23a(padapter, DIS_TSF_UDT | EN_BCN_FUNCTION | DIS_BCNQ_SUB,
 		      0);
-	rtw_write8(padapter, REG_RD_CTRL + 1, 0x6F);
+	rtl8723au_write8(padapter, REG_RD_CTRL + 1, 0x6F);
 }
 
 void rtl8723a_SetBeaconRelatedRegisters(struct rtw_adapter *padapter)
@@ -1062,32 +1068,32 @@ void rtl8723a_SetBeaconRelatedRegisters(struct rtw_adapter *padapter)
 	/*  */
 	/*  ATIM window */
 	/*  */
-	rtw_write16(padapter, REG_ATIMWND, 2);
+	rtl8723au_write16(padapter, REG_ATIMWND, 2);
 
 	/*  */
 	/*  Beacon interval (in unit of TU). */
 	/*  */
-	rtw_write16(padapter, REG_BCN_INTERVAL, pmlmeinfo->bcn_interval);
+	rtl8723au_write16(padapter, REG_BCN_INTERVAL, pmlmeinfo->bcn_interval);
 
 	rtl8723a_InitBeaconParameters(padapter);
 
-	rtw_write8(padapter, REG_SLOT, 0x09);
+	rtl8723au_write8(padapter, REG_SLOT, 0x09);
 
 	/*  */
 	/*  Reset TSF Timer to zero, added by Roger. 2008.06.24 */
 	/*  */
 	value32 = rtl8723au_read32(padapter, REG_TCR);
 	value32 &= ~TSFRST;
-	rtw_write32(padapter, REG_TCR, value32);
+	rtl8723au_write32(padapter, REG_TCR, value32);
 
 	value32 |= TSFRST;
-	rtw_write32(padapter, REG_TCR, value32);
+	rtl8723au_write32(padapter, REG_TCR, value32);
 
 	/*  NOTE: Fix test chip's bug (about contention windows's randomness) */
 	if (check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE |
 			  WIFI_ADHOC_MASTER_STATE | WIFI_AP_STATE) == true) {
-		rtw_write8(padapter, REG_RXTSF_OFFSET_CCK, 0x50);
-		rtw_write8(padapter, REG_RXTSF_OFFSET_OFDM, 0x50);
+		rtl8723au_write8(padapter, REG_RXTSF_OFFSET_CCK, 0x50);
+		rtl8723au_write8(padapter, REG_RXTSF_OFFSET_OFDM, 0x50);
 	}
 
 	_BeaconFunctionEnable(padapter, true, true);
@@ -1135,12 +1141,14 @@ void rtl8723a_notch_filter(struct rtw_adapter *adapter, bool enable)
 {
 	if (enable) {
 		DBG_8723A("Enable notch filter\n");
-		rtw_write8(adapter, rOFDM0_RxDSP + 1,
-			   rtl8723au_read8(adapter, rOFDM0_RxDSP + 1) | BIT(1));
+		rtl8723au_write8(adapter, rOFDM0_RxDSP + 1,
+				 rtl8723au_read8(adapter, rOFDM0_RxDSP + 1) |
+				 BIT(1));
 	} else {
 		DBG_8723A("Disable notch filter\n");
-		rtw_write8(adapter, rOFDM0_RxDSP + 1,
-			   rtl8723au_read8(adapter, rOFDM0_RxDSP + 1) & ~BIT(1));
+		rtl8723au_write8(adapter, rOFDM0_RxDSP + 1,
+			   rtl8723au_read8(adapter, rOFDM0_RxDSP + 1) &
+				 ~BIT(1));
 	}
 }
 
@@ -1218,7 +1226,7 @@ void rtl8723a_InitAntenna_Selection(struct rtw_adapter *padapter)
 	val = rtl8723au_read8(padapter, REG_LEDCFG2);
 	/*  Let 8051 take control antenna settting */
 	val |= BIT(7);		/*  DPDT_SEL_EN, 0x4C[23] */
-	rtw_write8(padapter, REG_LEDCFG2, val);
+	rtl8723au_write8(padapter, REG_LEDCFG2, val);
 }
 
 void rtl8723a_CheckAntenna_Selection(struct rtw_adapter *padapter)
@@ -1229,7 +1237,7 @@ void rtl8723a_CheckAntenna_Selection(struct rtw_adapter *padapter)
 	/*  Let 8051 take control antenna settting */
 	if (!(val & BIT(7))) {
 		val |= BIT(7);	/*  DPDT_SEL_EN, 0x4C[23] */
-		rtw_write8(padapter, REG_LEDCFG2, val);
+		rtl8723au_write8(padapter, REG_LEDCFG2, val);
 	}
 }
 
@@ -1240,7 +1248,7 @@ void rtl8723a_DeinitAntenna_Selection(struct rtw_adapter *padapter)
 	val = rtl8723au_read8(padapter, REG_LEDCFG2);
 	/*  Let 8051 take control antenna settting */
 	val &= ~BIT(7);		/*  DPDT_SEL_EN, clear 0x4C[23] */
-	rtw_write8(padapter, REG_LEDCFG2, val);
+	rtl8723au_write8(padapter, REG_LEDCFG2, val);
 }
 
 void rtl8723a_init_default_value(struct rtw_adapter *padapter)
@@ -1302,7 +1310,7 @@ static int _LLTWrite(struct rtw_adapter *padapter, u32 address, u32 data)
 		    _LLT_OP(_LLT_WRITE_ACCESS);
 	u16 LLTReg = REG_LLT_INIT;
 
-	rtw_write32(padapter, LLTReg, value);
+	rtl8723au_write32(padapter, LLTReg, value);
 
 	/* polling */
 	do {
@@ -1376,11 +1384,11 @@ n. LEDCFG 0x4C[15:0] = 0x8080
 	u32 u4bTmp;
 
 	/* 1. Disable GPIO[7:0] */
-	rtw_write16(padapter, REG_GPIO_PIN_CTRL + 2, 0x0000);
+	rtl8723au_write16(padapter, REG_GPIO_PIN_CTRL + 2, 0x0000);
 	value32 = rtl8723au_read32(padapter, REG_GPIO_PIN_CTRL) & 0xFFFF00FF;
 	u4bTmp = value32 & 0x000000FF;
 	value32 |= ((u4bTmp << 8) | 0x00FF0000);
-	rtw_write32(padapter, REG_GPIO_PIN_CTRL, value32);
+	rtl8723au_write32(padapter, REG_GPIO_PIN_CTRL, value32);
 
 	/*  */
 	/*  <Roger_Notes> For RTL8723u multi-function configuration which
@@ -1391,15 +1399,15 @@ n. LEDCFG 0x4C[15:0] = 0x8080
 	/* 2. Disable GPIO[8] and GPIO[12] */
 
 	/*  Configure all pins as input mode. */
-	rtw_write16(padapter, REG_GPIO_IO_SEL_2, 0x0000);
+	rtl8723au_write16(padapter, REG_GPIO_IO_SEL_2, 0x0000);
 	value32 = rtl8723au_read32(padapter, REG_GPIO_PIN_CTRL_2) & 0xFFFF001F;
 	u4bTmp = value32 & 0x0000001F;
 	/*  Set pin 8, 10, 11 and pin 12 to output mode. */
 	value32 |= ((u4bTmp << 8) | 0x001D0000);
-	rtw_write32(padapter, REG_GPIO_PIN_CTRL_2, value32);
+	rtl8723au_write32(padapter, REG_GPIO_PIN_CTRL_2, value32);
 
 	/* 3. Disable LED0 & 1 */
-	rtw_write16(padapter, REG_LEDCFG0, 0x8080);
+	rtl8723au_write16(padapter, REG_LEDCFG0, 0x8080);
 }				/* end of _DisableGPIO() */
 
 static void _DisableRFAFEAndResetBB8192C(struct rtw_adapter *padapter)
@@ -1413,21 +1421,21 @@ e.	SYS_FUNC_EN 0x02[7:0] = 0x14		reset BB state machine
 ***************************************/
 	u8 eRFPath = 0, value8 = 0;
 
-	rtw_write8(padapter, REG_TXPAUSE, 0xFF);
+	rtl8723au_write8(padapter, REG_TXPAUSE, 0xFF);
 
 	PHY_SetRFReg(padapter, (enum RF_RADIO_PATH) eRFPath, 0x0, bMaskByte0, 0x0);
 
 	value8 |= APSDOFF;
-	rtw_write8(padapter, REG_APSD_CTRL, value8);	/* 0x40 */
+	rtl8723au_write8(padapter, REG_APSD_CTRL, value8);	/* 0x40 */
 
 	/*  Set BB reset at first */
 	value8 = 0;
 	value8 |= (FEN_USBD | FEN_USBA | FEN_BB_GLB_RSTn);
-	rtw_write8(padapter, REG_SYS_FUNC_EN, value8);	/* 0x16 */
+	rtl8723au_write8(padapter, REG_SYS_FUNC_EN, value8);	/* 0x16 */
 
 	/*  Set global reset. */
 	value8 &= ~FEN_BB_GLB_RSTn;
-	rtw_write8(padapter, REG_SYS_FUNC_EN, value8);	/* 0x14 */
+	rtl8723au_write8(padapter, REG_SYS_FUNC_EN, value8);	/* 0x14 */
 
 	/*  2010/08/12 MH We need to set BB/GLBAL reset to save power
 	    for SS mode. */
@@ -1454,19 +1462,22 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 						(8051 enable)
 	******************************/
 		u16 valu16 = 0;
-		rtw_write8(padapter, REG_MCUFWDL, 0);
+		rtl8723au_write8(padapter, REG_MCUFWDL, 0);
 
 		valu16 = rtl8723au_read16(padapter, REG_SYS_FUNC_EN);
 		/* reset MCU , 8051 */
-		rtw_write16(padapter, REG_SYS_FUNC_EN, (valu16 & (~FEN_CPUEN)));
+		rtl8723au_write16(padapter, REG_SYS_FUNC_EN,
+				  valu16 & (~FEN_CPUEN));
 
 		valu16 = rtl8723au_read16(padapter, REG_SYS_FUNC_EN) & 0x0FFF;
-		rtw_write16(padapter, REG_SYS_FUNC_EN,
-			    (valu16 | (FEN_HWPDN | FEN_ELDR)));	/* reset MAC */
+		/* reset MAC */
+		rtl8723au_write16(padapter, REG_SYS_FUNC_EN,
+				  valu16 | (FEN_HWPDN | FEN_ELDR));
 
 		valu16 = rtl8723au_read16(padapter, REG_SYS_FUNC_EN);
 		/* enable MCU , 8051 */
-		rtw_write16(padapter, REG_SYS_FUNC_EN, (valu16 | FEN_CPUEN));
+		rtl8723au_write16(padapter, REG_SYS_FUNC_EN,
+				  valu16 | FEN_CPUEN);
 	} else {
 		u8 retry_cnts = 0;
 
@@ -1481,15 +1492,16 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 				/*  2010/08/25 MH Accordign to RD alfred's
 				    suggestion, we need to disable other */
 				/*  HRCV INT to influence 8051 reset. */
-				rtw_write8(padapter, REG_FWIMR, 0x20);
+				rtl8723au_write8(padapter, REG_FWIMR, 0x20);
 				/*  2011/02/15 MH According to Alex's
 				    suggestion, close mask to prevent
 				    incorrect FW write operation. */
-				rtw_write8(padapter, REG_FTIMR, 0x00);
-				rtw_write8(padapter, REG_FSIMR, 0x00);
+				rtl8723au_write8(padapter, REG_FTIMR, 0x00);
+				rtl8723au_write8(padapter, REG_FSIMR, 0x00);
 
 				/* 8051 reset by self */
-				rtw_write8(padapter, REG_HMETFR + 3, 0x20);
+				rtl8723au_write8(padapter, REG_HMETFR + 3,
+						 0x20);
 
 				while ((retry_cnts++ < 100) &&
 				       (FEN_CPUEN &
@@ -1500,15 +1512,16 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 
 				if (retry_cnts >= 100) {
 					/* Reset MAC and Enable 8051 */
-					rtw_write8(padapter,
-						   REG_SYS_FUNC_EN + 1, 0x50);
+					rtl8723au_write8(padapter,
+							 REG_SYS_FUNC_EN + 1,
+							 0x50);
 					mdelay(10);
 				}
 			}
 		}
 		/* Reset MAC and Enable 8051 */
-		rtw_write8(padapter, REG_SYS_FUNC_EN + 1, 0x54);
-		rtw_write8(padapter, REG_MCUFWDL, 0);
+		rtl8723au_write8(padapter, REG_SYS_FUNC_EN + 1, 0x54);
+		rtl8723au_write8(padapter, REG_MCUFWDL, 0);
 	}
 
 	if (bWithoutHWSM) {
@@ -1520,13 +1533,13 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 	j.	SYS_ISO_CTRL 0x00[7:0] = 0xF9		isolated digital to PON
 	******************************/
 		/* modify to 0x70A3 by Scott. */
-		rtw_write16(padapter, REG_SYS_CLKR, 0x70A3);
-		rtw_write8(padapter, REG_AFE_PLL_CTRL, 0x80);
-		rtw_write16(padapter, REG_AFE_XTAL_CTRL, 0x880F);
-		rtw_write8(padapter, REG_SYS_ISO_CTRL, 0xF9);
+		rtl8723au_write16(padapter, REG_SYS_CLKR, 0x70A3);
+		rtl8723au_write8(padapter, REG_AFE_PLL_CTRL, 0x80);
+		rtl8723au_write16(padapter, REG_AFE_XTAL_CTRL, 0x880F);
+		rtl8723au_write8(padapter, REG_SYS_ISO_CTRL, 0xF9);
 	} else {
 		/*  Disable all RF/BB power */
-		rtw_write8(padapter, REG_RF_CTRL, 0x00);
+		rtl8723au_write8(padapter, REG_RF_CTRL, 0x00);
 	}
 }
 
@@ -1544,9 +1557,9 @@ l.	SYS_CLKR 0x08[15:0] = 0x3083		disable ELDR clock
 m.	SYS_ISO_CTRL 0x01[7:0] = 0x83		isolated ELDR to PON
 ******************************/
 	/* modify to 0x70a3 by Scott. */
-	rtw_write16(padapter, REG_SYS_CLKR, 0x70a3);
+	rtl8723au_write16(padapter, REG_SYS_CLKR, 0x70a3);
 	/* modify to 0x82 by Scott. */
-	rtw_write8(padapter, REG_SYS_ISO_CTRL + 1, 0x82);
+	rtl8723au_write8(padapter, REG_SYS_ISO_CTRL + 1, 0x82);
 }
 
 static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
@@ -1563,12 +1576,12 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 		clock automatically
 	******************************/
 
-		rtw_write8(padapter, REG_LDOA15_CTRL, 0x04);
-		/* rtw_write8(padapter, REG_LDOV12D_CTRL, 0x54); */
+		rtl8723au_write8(padapter, REG_LDOA15_CTRL, 0x04);
+		/* rtl8723au_write8(padapter, REG_LDOV12D_CTRL, 0x54); */
 
 		value8 = rtl8723au_read8(padapter, REG_LDOV12D_CTRL);
 		value8 &= (~LDV12_EN);
-		rtw_write8(padapter, REG_LDOV12D_CTRL, value8);
+		rtl8723au_write8(padapter, REG_LDOV12D_CTRL, value8);
 /*		RT_TRACE(COMP_INIT, DBG_LOUD,
 		(" REG_LDOV12D_CTRL Reg0x21:0x%02x.\n", value8)); */
 	}
@@ -1581,7 +1594,7 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 	if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID))
 		value8 |= BIT(3);
 
-	rtw_write8(padapter, REG_SPS0_CTRL, value8);
+	rtl8723au_write8(padapter, REG_SPS0_CTRL, value8);
 
 	if (bWithoutHWSM) {
 		/* value16 |= (APDM_HOST | FSM_HSUS |/PFM_ALDN); */
@@ -1594,9 +1607,9 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 		value16 |= (APDM_HOST | AFSM_HSUS | PFM_ALDN);
 	}
 
-	rtw_write16(padapter, REG_APS_FSMCO, value16);	/* 0x4802 */
+	rtl8723au_write16(padapter, REG_APS_FSMCO, value16);	/* 0x4802 */
 
-	rtw_write8(padapter, REG_RSV_CTRL, 0x0e);
+	rtl8723au_write8(padapter, REG_RSV_CTRL, 0x0e);
 }
 
 /*  HW Auto state machine */
@@ -2395,26 +2408,29 @@ void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode)
 		SetBcnCtrlReg23a(padapter, val8, ~val8);
 
 		/*  Set RCR */
-		/* rtw_write32(padapter, REG_RCR, 0x70002a8e);
+		/* rtl8723au_write32(padapter, REG_RCR, 0x70002a8e);
 		   CBSSID_DATA must set to 0 */
 		/* CBSSID_DATA must set to 0 */
-		rtw_write32(padapter, REG_RCR, 0x7000228e);
+		rtl8723au_write32(padapter, REG_RCR, 0x7000228e);
 		/*  enable to rx data frame */
-		rtw_write16(padapter, REG_RXFLTMAP2, 0xFFFF);
+		rtl8723au_write16(padapter, REG_RXFLTMAP2, 0xFFFF);
 		/*  enable to rx ps-poll */
-		rtw_write16(padapter, REG_RXFLTMAP1, 0x0400);
+		rtl8723au_write16(padapter, REG_RXFLTMAP1, 0x0400);
 
 		/*  Beacon Control related register for first time */
-		rtw_write8(padapter, REG_BCNDMATIM, 0x02);	/*  2ms */
-		rtw_write8(padapter, REG_DRVERLYINT, 0x05);	/*  5ms */
-		rtw_write8(padapter, REG_ATIMWND, 0x0a); /*  10ms for port0 */
-		rtw_write16(padapter, REG_BCNTCFG, 0x00);
-		rtw_write16(padapter, REG_TBTT_PROHIBIT, 0xff04);
+		/*  2ms */
+		rtl8723au_write8(padapter, REG_BCNDMATIM, 0x02);
+		/*  5ms */
+		rtl8723au_write8(padapter, REG_DRVERLYINT, 0x05);
+		/*  10ms for port0 */
+		rtl8723au_write8(padapter, REG_ATIMWND, 0x0a);
+		rtl8723au_write16(padapter, REG_BCNTCFG, 0x00);
+		rtl8723au_write16(padapter, REG_TBTT_PROHIBIT, 0xff04);
 		/*  +32767 (~32ms) */
-		rtw_write16(padapter, REG_TSFTR_SYN_OFFSET, 0x7fff);
+		rtl8723au_write16(padapter, REG_TSFTR_SYN_OFFSET, 0x7fff);
 
 		/*  reset TSF */
-		rtw_write8(padapter, REG_DUAL_TSF_RST, BIT(0));
+		rtl8723au_write8(padapter, REG_DUAL_TSF_RST, BIT(0));
 
 		/*  enable BCN Function */
 		/*  don't enable update TSF (due to TSF update when
@@ -2426,7 +2442,7 @@ void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode)
 
 	val8 = rtl8723au_read8(padapter, MSR);
 	val8 = (val8 & 0xC) | mode;
-	rtw_write8(padapter, MSR, val8);
+	rtl8723au_write8(padapter, MSR, val8);
 }
 
 void hw_var_set_macaddr(struct rtw_adapter *padapter, u8 *val)
@@ -2437,7 +2453,7 @@ void hw_var_set_macaddr(struct rtw_adapter *padapter, u8 *val)
 	reg_macid = REG_MACID;
 
 	for (idx = 0; idx < 6; idx++)
-		rtw_write8(padapter, (reg_macid + idx), val[idx]);
+		rtl8723au_write8(padapter, (reg_macid + idx), val[idx]);
 }
 
 void hw_var_set_bssid(struct rtw_adapter *padapter, u8 *val)
@@ -2448,7 +2464,7 @@ void hw_var_set_bssid(struct rtw_adapter *padapter, u8 *val)
 	reg_bssid = REG_BSSID;
 
 	for (idx = 0; idx < 6; idx++)
-		rtw_write8(padapter, (reg_bssid + idx), val[idx]);
+		rtl8723au_write8(padapter, (reg_bssid + idx), val[idx]);
 }
 
 void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
@@ -2467,7 +2483,7 @@ void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
 	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
 		/* pHalData->RegTxPause |= STOP_BCNQ;BIT(6) */
-		/* rtw_write8(padapter, REG_TXPAUSE,
+		/* rtl8723au_write8(padapter, REG_TXPAUSE,
 		   (rtl8723au_read8(Adapter, REG_TXPAUSE)|BIT(6))); */
 		StopTxBeacon(padapter);
 	}
@@ -2477,8 +2493,8 @@ void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 	/*  disable related TSF function */
 	SetBcnCtrlReg23a(padapter, 0, EN_BCN_FUNCTION);
 
-	rtw_write32(padapter, reg_tsftr, tsf);
-	rtw_write32(padapter, reg_tsftr + 4, tsf >> 32);
+	rtl8723au_write32(padapter, reg_tsftr, tsf);
+	rtl8723au_write32(padapter, reg_tsftr + 4, tsf >> 32);
 
 	/* enable related TSF function */
 	SetBcnCtrlReg23a(padapter, EN_BCN_FUNCTION, 0);
@@ -2491,10 +2507,10 @@ void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter)
 {
 	/*  reject all data frames */
-	rtw_write16(padapter, REG_RXFLTMAP2, 0);
+	rtl8723au_write16(padapter, REG_RXFLTMAP2, 0);
 
 	/*  reset TSF */
-	rtw_write8(padapter, REG_DUAL_TSF_RST, BIT(0));
+	rtl8723au_write8(padapter, REG_DUAL_TSF_RST, BIT(0));
 
 	/*  disable update TSF */
 	SetBcnCtrlReg23a(padapter, DIS_TSF_UDT, 0);
@@ -2511,13 +2527,13 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 		u32 v32;
 
 		/*  enable to rx data frame.Accept all data frame */
-		/* rtw_write32(padapter, REG_RCR,
+		/* rtl8723au_write32(padapter, REG_RCR,
 		   rtl8723au_read32(padapter, REG_RCR)|RCR_ADF); */
-		rtw_write16(padapter, REG_RXFLTMAP2, 0xFFFF);
+		rtl8723au_write16(padapter, REG_RXFLTMAP2, 0xFFFF);
 
 		v32 = rtl8723au_read32(padapter, REG_RCR);
 		v32 |= RCR_CBSSID_DATA | RCR_CBSSID_BCN;
-		rtw_write32(padapter, REG_RCR, v32);
+		rtl8723au_write32(padapter, REG_RCR, v32);
 
 		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true)
 			RetryLimit =
@@ -2527,7 +2543,7 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 	} else if (type == 1) {	/*  joinbss_event callback when join res < 0 */
 		/*  config RCR to receive different BSSID & not to
 		    receive data frame during linking */
-		rtw_write16(padapter, REG_RXFLTMAP2, 0);
+		rtl8723au_write16(padapter, REG_RXFLTMAP2, 0);
 	} else if (type == 2) {	/*  sta add event callback */
 		/*  enable update TSF */
 		SetBcnCtrlReg23a(padapter, 0, DIS_TSF_UDT);
@@ -2535,14 +2551,14 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 		if (check_fwstate(pmlmepriv,
 				  WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE)) {
 			/*  fixed beacon issue for 8191su........... */
-			rtw_write8(padapter, 0x542, 0x02);
+			rtl8723au_write8(padapter, 0x542, 0x02);
 			RetryLimit = 0x7;
 		}
 	}
 
-	rtw_write16(padapter, REG_RL,
-		    RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit <<
-		    RETRY_LIMIT_LONG_SHIFT);
+	rtl8723au_write16(padapter, REG_RL,
+			  RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit <<
+			  RETRY_LIMIT_LONG_SHIFT);
 
 #ifdef CONFIG_8723AU_BT_COEXIST
 	switch (type) {

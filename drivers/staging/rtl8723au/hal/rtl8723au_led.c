@@ -43,16 +43,17 @@ void SwLedOn23a(struct rtw_adapter *padapter, struct led_8723a *pLed)
 		break;
 	case LED_PIN_LED0:
 		/*  SW control led0 on. */
-		rtw_write8(padapter, REG_LEDCFG0, (LedCfg&0xf0)|BIT(5)|BIT(6));
+		rtl8723au_write8(padapter, REG_LEDCFG0,
+				 (LedCfg&0xf0)|BIT(5)|BIT(6));
 		break;
 	case LED_PIN_LED1:
 		 /*  SW control led1 on. */
-		rtw_write8(padapter, REG_LEDCFG1, (LedCfg&0x00)|BIT(6));
+		rtl8723au_write8(padapter, REG_LEDCFG1, (LedCfg&0x00)|BIT(6));
 		break;
 	case LED_PIN_LED2:
 		LedCfg = rtl8723au_read8(padapter, REG_LEDCFG2);
 		 /*  SW control led1 on. */
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0x80)|BIT(5));
+		rtl8723au_write8(padapter, REG_LEDCFG2, (LedCfg&0x80)|BIT(5));
 		break;
 	default:
 		break;
@@ -75,16 +76,19 @@ void SwLedOff23a(struct rtw_adapter *padapter, struct led_8723a *pLed)
 		break;
 	case LED_PIN_LED0:
 		/*  SW control led0 on. */
-		rtw_write8(padapter, REG_LEDCFG0, (LedCfg&0xf0)|BIT(5)|BIT(6));
+		rtl8723au_write8(padapter, REG_LEDCFG0,
+				 (LedCfg&0xf0)|BIT(5)|BIT(6));
 		break;
 	case LED_PIN_LED1:
 		/*  SW control led1 on. */
-		rtw_write8(padapter, REG_LEDCFG1, (LedCfg&0x00)|BIT(5)|BIT(6));
+		rtl8723au_write8(padapter, REG_LEDCFG1,
+				 (LedCfg&0x00)|BIT(5)|BIT(6));
 		break;
 	case LED_PIN_LED2:
 		LedCfg = rtl8723au_read8(padapter, REG_LEDCFG2);
 		/*  SW control led1 on. */
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0x80)|BIT(3)|BIT(5));
+		rtl8723au_write8(padapter, REG_LEDCFG2,
+				 (LedCfg&0x80)|BIT(3)|BIT(5));
 		break;
 	default:
 		break;

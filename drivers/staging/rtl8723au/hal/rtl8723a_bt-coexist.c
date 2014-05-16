@@ -5280,7 +5280,7 @@ static void btdm_1AntTSFSwitch(struct rtw_adapter *padapter, u8 enable)
 		newVal = oldVal & ~EN_BCN_FUNCTION;
 
 	if (oldVal != newVal)
-		rtw_write8(padapter, 0x550, newVal);
+		rtl8723au_write8(padapter, 0x550, newVal);
 }
 
 static u8 btdm_Is1AntPsTdmaStateChange(struct rtw_adapter *padapter)
@@ -5379,8 +5379,8 @@ btdm_1AntPsTdma(
 		case 29: /*  WiFi DHCP/Site Survey & BT ACL busy */
 			if (btdm_Is1AntPsTdmaStateChange(padapter)) {
 				BTDM_SetFw3a(padapter, 0xeb, 0x1a, 0x1a, 0x01, 0x18);
-				rtw_write32(padapter, 0x6c0, 0x5afa5afa);
-				rtw_write32(padapter, 0x6c4, 0x5afa5afa);
+				rtl8723au_write32(padapter, 0x6c0, 0x5afa5afa);
+				rtl8723au_write32(padapter, 0x6c4, 0x5afa5afa);
 			}
 			break;
 		case 30: /*  WiFi idle & BT Inquiry */
@@ -5423,7 +5423,8 @@ btdm_1AntPsTdma(
 				/*  Antenna control by PTA, 0x870 = 0x310 */
 				BTDM_SetFw3a(padapter, 0x0, 0x0, 0x0, 0x8, 0x0);
 			}
-			rtw_write16(padapter, 0x860, 0x210); /*  Switch Antenna to BT */
+			/*  Switch Antenna to BT */
+			rtl8723au_write16(padapter, 0x860, 0x210);
 			RTPRINT(FBT, BT_TRACE, ("[BTCoex], 0x860 = 0x210, Switch Antenna to BT\n"));
 			break;
 		case 9:
@@ -5431,7 +5432,8 @@ btdm_1AntPsTdma(
 				/*  Antenna control by PTA, 0x870 = 0x310 */
 				BTDM_SetFw3a(padapter, 0x0, 0x0, 0x0, 0x8, 0x0);
 			}
-			rtw_write16(padapter, 0x860, 0x110); /*  Switch Antenna to WiFi */
+			/*  Switch Antenna to WiFi */
+			rtl8723au_write16(padapter, 0x860, 0x110);
 			RTPRINT(FBT, BT_TRACE, ("[BTCoex], 0x860 = 0x110, Switch Antenna to WiFi\n"));
 			break;
 		}
@@ -5561,24 +5563,28 @@ static void btdm_1AntWifiParaAdjust(struct rtw_adapter *padapter, u8 bEnable)
 static void btdm_1AntPtaParaReload(struct rtw_adapter *padapter)
 {
 	/*  PTA parameter */
-	rtw_write8(padapter, 0x6cc, 0x0);			/*  1-Ant coex */
-	rtw_write32(padapter, 0x6c8, 0xffff);		/*  wifi break table */
-	rtw_write32(padapter, 0x6c4, 0x55555555);	/*  coex table */
+	rtl8723au_write8(padapter, 0x6cc, 0x0);		/*  1-Ant coex */
+	rtl8723au_write32(padapter, 0x6c8, 0xffff);	/*  wifi break table */
+	rtl8723au_write32(padapter, 0x6c4, 0x55555555);	/*  coex table */
 
 	/*  Antenna switch control parameter */
-	rtw_write32(padapter, 0x858, 0xaaaaaaaa);
+	rtl8723au_write32(padapter, 0x858, 0xaaaaaaaa);
 	if (IS_8723A_A_CUT(GET_HAL_DATA(padapter)->VersionID)) {
-		rtw_write32(padapter, 0x870, 0x0);	/*  SPDT(connected with TRSW) control by hardware PTA */
-		rtw_write8(padapter, 0x40, 0x24);
+		/*  SPDT(connected with TRSW) control by hardware PTA */
+		rtl8723au_write32(padapter, 0x870, 0x0);
+		rtl8723au_write8(padapter, 0x40, 0x24);
 	} else {
-		rtw_write8(padapter, 0x40, 0x20);
-		rtw_write16(padapter, 0x860, 0x210);	/*  set antenna at bt side if ANTSW is software control */
-		rtw_write32(padapter, 0x870, 0x300);	/*  SPDT(connected with TRSW) control by hardware PTA */
-		rtw_write32(padapter, 0x874, 0x22804000);	/*  ANTSW keep by GNT_BT */
+		rtl8723au_write8(padapter, 0x40, 0x20);
+		/*  set antenna at bt side if ANTSW is software control */
+		rtl8723au_write16(padapter, 0x860, 0x210);
+		/*  SPDT(connected with TRSW) control by hardware PTA */
+		rtl8723au_write32(padapter, 0x870, 0x300);
+		/*  ANTSW keep by GNT_BT */
+		rtl8723au_write32(padapter, 0x874, 0x22804000);
 	}
 
 	/*  coexistence parameters */
-	rtw_write8(padapter, 0x778, 0x1);	/*  enable RTK mode PTA */
+	rtl8723au_write8(padapter, 0x778, 0x1);	/*  enable RTK mode PTA */
 
 	/*  BT don't ignore WLAN_Act */
 	btdm_SetFwIgnoreWlanAct(padapter, false);
@@ -5775,8 +5781,8 @@ static void btdm_1AntCoexProcessForWifiConnect(struct rtw_adapter *padapter)
 		case BT_INFO_STATE_CONNECT_IDLE:
 			/*  WiFi is Busy */
 			btdm_1AntSetPSTDMA(padapter, false, 0, true, 5);
-			rtw_write32(padapter, 0x6c0, 0x5a5a5a5a);
-			rtw_write32(padapter, 0x6c4, 0x5a5a5a5a);
+			rtl8723au_write32(padapter, 0x6c0, 0x5a5a5a5a);
+			rtl8723au_write32(padapter, 0x6c4, 0x5a5a5a5a);
 			break;
 		case BT_INFO_STATE_ACL_INQ_OR_PAG:
 			RTPRINT(FBT, BT_TRACE,
@@ -5798,8 +5804,8 @@ static void btdm_1AntCoexProcessForWifiConnect(struct rtw_adapter *padapter)
 #else /*  !BTCOEX_CMCC_TEST */
 				btdm_1AntSetPSTDMA(padapter, false, 0,
 						   false, 8);
-				rtw_write32(padapter, 0x6c0, 0x5a5a5a5a);
-				rtw_write32(padapter, 0x6c4, 0x5a5a5a5a);
+				rtl8723au_write32(padapter, 0x6c0, 0x5a5a5a5a);
+				rtl8723au_write32(padapter, 0x6c4, 0x5a5a5a5a);
 #endif /*  !BTCOEX_CMCC_TEST */
 			}
 			break;
@@ -5922,7 +5928,8 @@ btdm_1AntUpdateHalRAMask(struct rtw_adapter *padapter, u32 mac_id, u32 filter)
 		if (shortGIrate)
 			init_rate |= BIT(6);
 
-		rtw_write8(padapter, (REG_INIDATA_RATE_SEL+mac_id), init_rate);
+		rtl8723au_write8(padapter, REG_INIDATA_RATE_SEL + mac_id,
+				 init_rate);
 	}
 
 	psta->init_rate = init_rate;
@@ -6181,7 +6188,7 @@ static void BTDM_1AntParaInit(struct rtw_adapter *padapter)
 	pBtdm8723 = &pBtCoex->btdm1Ant;
 
 	/*  Enable counter statistics */
-	rtw_write8(padapter, 0x76e, 0x4);
+	rtl8723au_write8(padapter, 0x76e, 0x4);
 	btdm_1AntPtaParaReload(padapter);
 
 	pBtdm8723->wifiRssiThresh = 48;
@@ -6255,8 +6262,8 @@ static void BTDM_1AntWifiAssociateNotify(struct rtw_adapter *padapter, u8 type)
 				   BtState == BT_INFO_STATE_ACL_SCO_BUSY) {
 				btdm_1AntSetPSTDMA(padapter, false, 0,
 						   false, 8);
-				rtw_write32(padapter, 0x6c0, 0x5a5a5a5a);
-				rtw_write32(padapter, 0x6c4, 0x5a5a5a5a);
+				rtl8723au_write32(padapter, 0x6c0, 0x5a5a5a5a);
+				rtl8723au_write32(padapter, 0x6c4, 0x5a5a5a5a);
 			} else if (BtState == BT_INFO_STATE_ACL_ONLY_BUSY ||
 				   BtState == BT_INFO_STATE_ACL_INQ_OR_PAG) {
 				if (pBtCoex->c2hBtProfile == BT_INFO_HID)
@@ -6751,13 +6758,13 @@ btdm_SetCoexTable(struct rtw_adapter *padapter, u32 val0x6c0,
 		  u32 val0x6c8, u8 val0x6cc)
 {
 	RTPRINT(FBT, BT_TRACE, ("set coex table, set 0x6c0 = 0x%x\n", val0x6c0));
-	rtw_write32(padapter, 0x6c0, val0x6c0);
+	rtl8723au_write32(padapter, 0x6c0, val0x6c0);
 
 	RTPRINT(FBT, BT_TRACE, ("set coex table, set 0x6c8 = 0x%x\n", val0x6c8));
-	rtw_write32(padapter, 0x6c8, val0x6c8);
+	rtl8723au_write32(padapter, 0x6c8, val0x6c8);
 
 	RTPRINT(FBT, BT_TRACE, ("set coex table, set 0x6cc = 0x%x\n", val0x6cc));
-	rtw_write8(padapter, 0x6cc, val0x6cc);
+	rtl8723au_write8(padapter, 0x6cc, val0x6cc);
 }
 
 static void
@@ -8580,9 +8587,9 @@ static void BTDM_2AntParaInit(struct rtw_adapter *padapter)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], 2Ant Parameter Init!!\n"));
 
 	/*  Enable counter statistics */
-	rtw_write8(padapter, 0x76e, 0x4);
-	rtw_write8(padapter, 0x778, 0x3);
-	rtw_write8(padapter, 0x40, 0x20);
+	rtl8723au_write8(padapter, 0x76e, 0x4);
+	rtl8723au_write8(padapter, 0x778, 0x3);
+	rtl8723au_write8(padapter, 0x40, 0x20);
 
 	/*  force to reset coex mechanism */
 	pBtdm8723->preVal0x6c0 = 0x0;
@@ -9049,7 +9056,7 @@ static void btdm_BtHwCountersMonitor(struct rtw_adapter *padapter)
 	RTPRINT(FBT, BT_TRACE, ("Low Priority Tx/Rx = %d / %d\n", regLPTx, regLPRx));
 
 	/*  reset counter */
-	rtw_write8(padapter, 0x76e, 0xc);
+	rtl8723au_write8(padapter, 0x76e, 0xc);
 }
 
 /*  This function check if 8723 bt is disabled */
@@ -9355,7 +9362,7 @@ BTDM_SetSwPenaltyTxRateAdaptive(
 		tmpU1 |= BIT(2);
 	}
 
-	rtw_write8(padapter, 0x4fd, tmpU1);
+	rtl8723au_write8(padapter, 0x4fd, tmpU1);
 }
 
 void BTDM_SetFwDecBtPwr(struct rtw_adapter *padapter, u8 bDecBtPwr)
@@ -10591,7 +10598,8 @@ u8 BTDM_DisableEDCATurbo(struct rtw_adapter *padapter)
 		if (cur_EDCA_reg != EDCA_BT_BE)
 			bBtChangeEDCA = true;
 		if (bBtChangeEDCA || !pHalData->bt_coexist.bEDCAInitialized) {
-			rtw_write32(padapter, REG_EDCA_BE_PARAM, EDCA_BT_BE);
+			rtl8723au_write32(padapter, REG_EDCA_BE_PARAM,
+					  EDCA_BT_BE);
 			pHalData->bt_coexist.lastBtEdca = EDCA_BT_BE;
 		}
 		bRet = true;
@@ -10638,11 +10646,11 @@ void BTDM_AGCTable(struct rtw_adapter *padapter, u8 type)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	if (type == BT_AGCTABLE_OFF) {
 		RTPRINT(FBT, BT_TRACE, ("[BT]AGCTable Off!\n"));
-		rtw_write32(padapter, 0xc78, 0x641c0001);
-		rtw_write32(padapter, 0xc78, 0x631d0001);
-		rtw_write32(padapter, 0xc78, 0x621e0001);
-		rtw_write32(padapter, 0xc78, 0x611f0001);
-		rtw_write32(padapter, 0xc78, 0x60200001);
+		rtl8723au_write32(padapter, 0xc78, 0x641c0001);
+		rtl8723au_write32(padapter, 0xc78, 0x631d0001);
+		rtl8723au_write32(padapter, 0xc78, 0x621e0001);
+		rtl8723au_write32(padapter, 0xc78, 0x611f0001);
+		rtl8723au_write32(padapter, 0xc78, 0x60200001);
 
 		PHY_SetRFReg(padapter, PathA, RF_RX_AGC_HP, bRFRegOffsetMask, 0x32000);
 		PHY_SetRFReg(padapter, PathA, RF_RX_AGC_HP, bRFRegOffsetMask, 0x71000);
@@ -10653,11 +10661,11 @@ void BTDM_AGCTable(struct rtw_adapter *padapter, u8 type)
 		pHalData->bt_coexist.b8723aAgcTableOn = false;
 	} else if (type == BT_AGCTABLE_ON) {
 		RTPRINT(FBT, BT_TRACE, ("[BT]AGCTable On!\n"));
-		rtw_write32(padapter, 0xc78, 0x4e1c0001);
-		rtw_write32(padapter, 0xc78, 0x4d1d0001);
-		rtw_write32(padapter, 0xc78, 0x4c1e0001);
-		rtw_write32(padapter, 0xc78, 0x4b1f0001);
-		rtw_write32(padapter, 0xc78, 0x4a200001);
+		rtl8723au_write32(padapter, 0xc78, 0x4e1c0001);
+		rtl8723au_write32(padapter, 0xc78, 0x4d1d0001);
+		rtl8723au_write32(padapter, 0xc78, 0x4c1e0001);
+		rtl8723au_write32(padapter, 0xc78, 0x4b1f0001);
+		rtl8723au_write32(padapter, 0xc78, 0x4a200001);
 
 		PHY_SetRFReg(padapter, PathA, RF_RX_AGC_HP, bRFRegOffsetMask, 0xdc000);
 		PHY_SetRFReg(padapter, PathA, RF_RX_AGC_HP, bRFRegOffsetMask, 0x90000);
@@ -10677,10 +10685,10 @@ void BTDM_BBBackOffLevel(struct rtw_adapter *padapter, u8 type)
 
 	if (type == BT_BB_BACKOFF_OFF) {
 		RTPRINT(FBT, BT_TRACE, ("[BT]BBBackOffLevel Off!\n"));
-		rtw_write32(padapter, 0xc04, 0x3a05611);
+		rtl8723au_write32(padapter, 0xc04, 0x3a05611);
 	} else if (type == BT_BB_BACKOFF_ON) {
 		RTPRINT(FBT, BT_TRACE, ("[BT]BBBackOffLevel On!\n"));
-		rtw_write32(padapter, 0xc04, 0x3a07611);
+		rtl8723au_write32(padapter, 0xc04, 0x3a07611);
 		pHalData->bt_coexist.bSWCoexistAllOff = false;
 	}
 }

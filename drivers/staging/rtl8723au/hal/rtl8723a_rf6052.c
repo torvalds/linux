@@ -40,6 +40,7 @@
 #include <drv_types.h>
 
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 /*---------------------------Define Local Constant---------------------------*/
 /*  Define local structure for debug!!!!! */
@@ -368,7 +369,8 @@ static void writeOFDMPowerReg(struct rtw_adapter *Adapter, u8 index, u32 *pValue
 					writeVal = (writeVal > 8) ? (writeVal-8) : 0;
 				else
 					writeVal = (writeVal > 6) ? (writeVal-6) : 0;
-				rtw_write8(Adapter, (u32)(RegOffset+i), (u8)writeVal);
+				rtl8723au_write8(Adapter, RegOffset + i,
+						 (u8)writeVal);
 			}
 		}
 	}

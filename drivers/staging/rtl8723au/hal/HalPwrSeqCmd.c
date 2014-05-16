@@ -97,7 +97,7 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 					  GET_PWR_CFG_MASK(PwrCfgCmd));
 
 				/*  Write the value back to sytem register */
-				rtw_write8(padapter, offset, value);
+				rtl8723au_write8(padapter, offset, value);
 				break;
 
 			case PWR_CMD_POLLING:

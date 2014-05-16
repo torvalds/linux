@@ -223,10 +223,10 @@ void HalSetBrateCfg23a(struct rtw_adapter *padapter, u8 *mBratesOS)
 	DBG_8723A("HW_VAR_BASIC_RATE: BrateCfg(%#x)\n", brate_cfg);
 
 	/*  Set RRSR rate table. */
-	rtw_write8(padapter, REG_RRSR, brate_cfg & 0xff);
-	rtw_write8(padapter, REG_RRSR + 1, (brate_cfg >> 8) & 0xff);
-	rtw_write8(padapter, REG_RRSR + 2,
-		   rtl8723au_read8(padapter, REG_RRSR + 2) & 0xf0);
+	rtl8723au_write8(padapter, REG_RRSR, brate_cfg & 0xff);
+	rtl8723au_write8(padapter, REG_RRSR + 1, (brate_cfg >> 8) & 0xff);
+	rtl8723au_write8(padapter, REG_RRSR + 2,
+			 rtl8723au_read8(padapter, REG_RRSR + 2) & 0xf0);
 
 	rate_index = 0;
 	/*  Set RTS initial rate */
@@ -235,7 +235,7 @@ void HalSetBrateCfg23a(struct rtw_adapter *padapter, u8 *mBratesOS)
 		rate_index++;
 	}
 		/*  Ziv - Check */
-	rtw_write8(padapter, REG_INIRTS_RATE_SEL, rate_index);
+	rtl8723au_write8(padapter, REG_INIRTS_RATE_SEL, rate_index);
 
 	return;
 }
@@ -353,7 +353,7 @@ bool Hal_MappingOutPipe23a(struct rtw_adapter *pAdapter, u8 NumOutPipe)
 
 void c2h_evt_clear23a(struct rtw_adapter *adapter)
 {
-	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
+	rtl8723au_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
 }
 
 int c2h_evt_read23a(struct rtw_adapter *adapter, u8 *buf)
@@ -443,8 +443,8 @@ rtl8723a_set_ampdu_min_space(struct rtw_adapter *padapter, u8 MinSpacingToSet)
 		   padapter->MgntInfo.MinSpaceCfg)); */
 		MinSpacingToSet |=
 			rtl8723au_read8(padapter, REG_AMPDU_MIN_SPACE) & 0xf8;
-		rtw_write8(padapter, REG_AMPDU_MIN_SPACE,
-			   MinSpacingToSet);
+		rtl8723au_write8(padapter, REG_AMPDU_MIN_SPACE,
+				 MinSpacingToSet);
 	}
 }
 
@@ -480,8 +480,8 @@ void rtl8723a_set_ampdu_factor(struct rtw_adapter *padapter, u8 FactorToSet)
 				pRegToSet[index] = (pRegToSet[index] & 0xf0) |
 					FactorToSet;
 
-			rtw_write8(padapter, REG_AGGLEN_LMT + index,
-				   pRegToSet[index]);
+			rtl8723au_write8(padapter, REG_AGGLEN_LMT + index,
+					 pRegToSet[index]);
 		}
 
 		/* RT_TRACE(COMP_MLME, DBG_LOUD,
@@ -507,7 +507,7 @@ void rtl8723a_set_acm_ctrl(struct rtw_adapter *padapter, u8 ctrl)
 	}
 
 	DBG_8723A("[HW_VAR_ACM_CTRL] Write 0x%02X\n", hwctrl);
-	rtw_write8(padapter, REG_ACMHWCTRL, hwctrl);
+	rtl8723au_write8(padapter, REG_ACMHWCTRL, hwctrl);
 }
 
 void rtl8723a_set_media_status(struct rtw_adapter *padapter, u8 status)
@@ -516,7 +516,7 @@ void rtl8723a_set_media_status(struct rtw_adapter *padapter, u8 status)
 
 	val8 = rtl8723au_read8(padapter, MSR) & 0x0c;
 	val8 |= status;
-	rtw_write8(padapter, MSR, val8);
+	rtl8723au_write8(padapter, MSR, val8);
 }
 
 void rtl8723a_set_media_status1(struct rtw_adapter *padapter, u8 status)
@@ -525,7 +525,7 @@ void rtl8723a_set_media_status1(struct rtw_adapter *padapter, u8 status)
 
 	val8 = rtl8723au_read8(padapter, MSR) & 0x03;
 	val8 |= status << 2;
-	rtw_write8(padapter, MSR, val8);
+	rtl8723au_write8(padapter, MSR, val8);
 }
 
 void rtl8723a_set_bcn_func(struct rtw_adapter *padapter, u8 val)
@@ -544,7 +544,7 @@ void rtl8723a_check_bssid(struct rtw_adapter *padapter, u8 val)
 		val32 |= RCR_CBSSID_DATA | RCR_CBSSID_BCN;
 	else
 		val32 &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);
-	rtw_write32(padapter, REG_RCR, val32);
+	rtl8723au_write32(padapter, REG_RCR, val32);
 }
 
 void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
@@ -556,9 +556,9 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 		    to receive data frame */
 		v32 = rtl8723au_read32(padapter, REG_RCR);
 		v32 &= ~(RCR_CBSSID_BCN);
-		rtw_write32(padapter, REG_RCR, v32);
+		rtl8723au_write32(padapter, REG_RCR, v32);
 		/*  reject all data frame */
-		rtw_write16(padapter, REG_RXFLTMAP2, 0);
+		rtl8723au_write16(padapter, REG_RXFLTMAP2, 0);
 
 		/*  disable update TSF */
 		SetBcnCtrlReg23a(padapter, DIS_TSF_UDT, 0);
@@ -574,7 +574,7 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 		    ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
 		    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
 			/*  enable to rx data frame */
-			rtw_write16(padapter, REG_RXFLTMAP2, 0xFFFF);
+			rtl8723au_write16(padapter, REG_RXFLTMAP2, 0xFFFF);
 
 			/*  enable update TSF */
 			SetBcnCtrlReg23a(padapter, 0, DIS_TSF_UDT);
@@ -582,7 +582,7 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 
 		v32 = rtl8723au_read32(padapter, REG_RCR);
 		v32 |= RCR_CBSSID_BCN;
-		rtw_write32(padapter, REG_RCR, v32);
+		rtl8723au_write32(padapter, REG_RCR, v32);
 	}
 
 #ifdef CONFIG_8723AU_BT_COEXIST
@@ -592,7 +592,7 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 
 void rtl8723a_on_rcr_am(struct rtw_adapter *padapter)
 {
-	rtw_write32(padapter, REG_RCR,
+	rtl8723au_write32(padapter, REG_RCR,
 		    rtl8723au_read32(padapter, REG_RCR) | RCR_AM);
 	DBG_8723A("%s, %d, RCR = %x \n", __FUNCTION__, __LINE__,
 		  rtl8723au_read32(padapter, REG_RCR));
@@ -600,7 +600,7 @@ void rtl8723a_on_rcr_am(struct rtw_adapter *padapter)
 
 void rtl8723a_off_rcr_am(struct rtw_adapter *padapter)
 {
-	rtw_write32(padapter, REG_RCR,
+	rtl8723au_write32(padapter, REG_RCR,
 		    rtl8723au_read32(padapter, REG_RCR) & (~RCR_AM));
 	DBG_8723A("%s, %d, RCR = %x \n", __FUNCTION__, __LINE__,
 		  rtl8723au_read32(padapter, REG_RCR));
@@ -612,7 +612,7 @@ void rtl8723a_set_slot_time(struct rtw_adapter *padapter, u8 slottime)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	rtw_write8(padapter, REG_SLOT, slottime);
+	rtl8723au_write8(padapter, REG_SLOT, slottime);
 
 	if (pmlmeinfo->WMM_enable == 0) {
 		if (pmlmeext->cur_wireless_mode == WIRELESS_11B)
@@ -623,10 +623,10 @@ void rtl8723a_set_slot_time(struct rtw_adapter *padapter, u8 slottime)
 		u1bAIFS = aSifsTime + (2 * pmlmeinfo->slotTime);
 
 		/*  <Roger_EXP> Temporary removed, 2008.06.20. */
-		rtw_write8(padapter, REG_EDCA_VO_PARAM, u1bAIFS);
-		rtw_write8(padapter, REG_EDCA_VI_PARAM, u1bAIFS);
-		rtw_write8(padapter, REG_EDCA_BE_PARAM, u1bAIFS);
-		rtw_write8(padapter, REG_EDCA_BK_PARAM, u1bAIFS);
+		rtl8723au_write8(padapter, REG_EDCA_VO_PARAM, u1bAIFS);
+		rtl8723au_write8(padapter, REG_EDCA_VI_PARAM, u1bAIFS);
+		rtl8723au_write8(padapter, REG_EDCA_BE_PARAM, u1bAIFS);
+		rtl8723au_write8(padapter, REG_EDCA_BK_PARAM, u1bAIFS);
 	}
 }
 
@@ -641,12 +641,12 @@ void rtl8723a_ack_preamble(struct rtw_adapter *padapter, u8 bShortPreamble)
 	/* regTmp = 0; */
 	if (bShortPreamble)
 		regTmp |= 0x80;
-	rtw_write8(padapter, REG_RRSR + 2, regTmp);
+	rtl8723au_write8(padapter, REG_RRSR + 2, regTmp);
 }
 
 void rtl8723a_set_sec_cfg(struct rtw_adapter *padapter, u8 sec)
 {
-	rtw_write8(padapter, REG_SECCFG, sec);
+	rtl8723au_write8(padapter, REG_SECCFG, sec);
 }
 
 void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
@@ -670,12 +670,12 @@ void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
 		ulCommand = ulCommand | CAM_POLLINIG | CAM_WRITE;
 		/*  write content 0 is equall to mark invalid */
 		/* delay_ms(40); */
-		rtw_write32(padapter, WCAMI, ulContent);
+		rtl8723au_write32(padapter, WCAMI, ulContent);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
 		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx \n",
 		   ulContent));*/
 		/* delay_ms(40); */
-		rtw_write32(padapter, RWCAM, ulCommand);
+		rtl8723au_write32(padapter, RWCAM, ulCommand);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
 		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx \n",
 		   ulCommand));*/
@@ -684,7 +684,7 @@ void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
 
 void rtl8723a_cam_invalid_all(struct rtw_adapter *padapter)
 {
-	rtw_write32(padapter, RWCAM, BIT(31) | BIT(30));
+	rtl8723au_write32(padapter, RWCAM, BIT(31) | BIT(30));
 }
 
 void rtl8723a_cam_write(struct rtw_adapter *padapter,
@@ -712,9 +712,9 @@ void rtl8723a_cam_write(struct rtw_adapter *padapter,
 			break;
 		}
 
-		rtw_write32(padapter, WCAMI, val);
+		rtl8723au_write32(padapter, WCAMI, val);
 		cmd = CAM_POLLINIG | CAM_WRITE | (addr + j);
-		rtw_write32(padapter, RWCAM, cmd);
+		rtl8723au_write32(padapter, RWCAM, cmd);
 
 		/* DBG_8723A("%s => cam write: %x, %x\n", __func__, cmd, val);*/
 	}
@@ -729,7 +729,7 @@ void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter)
 	u8 trycnt = 100;
 
 	/*  pause tx */
-	rtw_write8(padapter, REG_TXPAUSE, 0xff);
+	rtl8723au_write8(padapter, REG_TXPAUSE, 0xff);
 
 	/*  keep sn */
 	padapter->xmitpriv.nqos_ssn = rtl8723au_read16(padapter, REG_NQOS_SEQ);
@@ -740,7 +740,7 @@ void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter)
 		/*  RX DMA stop */
 		v32 = rtl8723au_read32(padapter, REG_RXPKT_NUM);
 		v32 |= RW_RELEASE_EN;
-		rtw_write32(padapter, REG_RXPKT_NUM, v32);
+		rtl8723au_write32(padapter, REG_RXPKT_NUM, v32);
 		do {
 			v32 = rtl8723au_read32(padapter,
 					       REG_RXPKT_NUM) & RXDMA_IDLE;
@@ -752,8 +752,8 @@ void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter)
 		}
 
 		/*  RQPN Load 0 */
-		rtw_write16(padapter, REG_RQPN_NPQ, 0);
-		rtw_write32(padapter, REG_RQPN, 0x80000000);
+		rtl8723au_write16(padapter, REG_RQPN_NPQ, 0);
+		rtl8723au_write32(padapter, REG_RQPN, 0x80000000);
 		mdelay(10);
 	}
 }
@@ -762,8 +762,8 @@ void rtl8723a_bcn_valid(struct rtw_adapter *padapter)
 {
 	/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2,
 	   write 1 to clear, Clear by sw */
-	rtw_write8(padapter, REG_TDECTRL + 2,
-		   rtl8723au_read8(padapter, REG_TDECTRL + 2) | BIT(0));
+	rtl8723au_write8(padapter, REG_TDECTRL + 2,
+			 rtl8723au_read8(padapter, REG_TDECTRL + 2) | BIT(0));
 }
 
 bool rtl8723a_get_bcn_valid(struct rtw_adapter *padapter)
@@ -777,7 +777,7 @@ bool rtl8723a_get_bcn_valid(struct rtw_adapter *padapter)
 
 void rtl8723a_set_beacon_interval(struct rtw_adapter *padapter, u16 interval)
 {
-	rtw_write16(padapter, REG_BCN_INTERVAL, interval);
+	rtl8723au_write16(padapter, REG_BCN_INTERVAL, interval);
 }
 
 void rtl8723a_set_resp_sifs(struct rtw_adapter *padapter,
@@ -786,24 +786,24 @@ void rtl8723a_set_resp_sifs(struct rtw_adapter *padapter,
 	/* SIFS_Timer = 0x0a0a0808; */
 	/* RESP_SIFS for CCK */
 	/*  SIFS_T2T_CCK (0x08) */
-	rtw_write8(padapter, REG_R2T_SIFS, r2t1);
+	rtl8723au_write8(padapter, REG_R2T_SIFS, r2t1);
 	/* SIFS_R2T_CCK(0x08) */
-	rtw_write8(padapter, REG_R2T_SIFS + 1, r2t2);
+	rtl8723au_write8(padapter, REG_R2T_SIFS + 1, r2t2);
 	/* RESP_SIFS for OFDM */
 	/* SIFS_T2T_OFDM (0x0a) */
-	rtw_write8(padapter, REG_T2T_SIFS, t2t1);
+	rtl8723au_write8(padapter, REG_T2T_SIFS, t2t1);
 	/* SIFS_R2T_OFDM(0x0a) */
-	rtw_write8(padapter, REG_T2T_SIFS + 1, t2t2);
+	rtl8723au_write8(padapter, REG_T2T_SIFS + 1, t2t2);
 }
 
 void rtl8723a_set_ac_param_vo(struct rtw_adapter *padapter, u32 vo)
 {
-	rtw_write32(padapter, REG_EDCA_VO_PARAM, vo);
+	rtl8723au_write32(padapter, REG_EDCA_VO_PARAM, vo);
 }
 
 void rtl8723a_set_ac_param_vi(struct rtw_adapter *padapter, u32 vi)
 {
-	rtw_write32(padapter, REG_EDCA_VI_PARAM, vi);
+	rtl8723au_write32(padapter, REG_EDCA_VI_PARAM, vi);
 }
 
 void rtl8723a_set_ac_param_be(struct rtw_adapter *padapter, u32 be)
@@ -811,17 +811,17 @@ void rtl8723a_set_ac_param_be(struct rtw_adapter *padapter, u32 be)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	pHalData->AcParam_BE = be;
-	rtw_write32(padapter, REG_EDCA_BE_PARAM, be);
+	rtl8723au_write32(padapter, REG_EDCA_BE_PARAM, be);
 }
 
 void rtl8723a_set_ac_param_bk(struct rtw_adapter *padapter, u32 bk)
 {
-	rtw_write32(padapter, REG_EDCA_BK_PARAM, bk);
+	rtl8723au_write32(padapter, REG_EDCA_BK_PARAM, bk);
 }
 
 void rtl8723a_set_rxdma_agg_pg_th(struct rtw_adapter *padapter, u8 val)
 {
-	rtw_write8(padapter, REG_RXDMA_AGG_PG_TH, val);
+	rtl8723au_write8(padapter, REG_RXDMA_AGG_PG_TH, val);
 }
 
 void rtl8723a_set_nav_upper(struct rtw_adapter *padapter, u32 usNavUpper)
@@ -839,7 +839,7 @@ void rtl8723a_set_nav_upper(struct rtw_adapter *padapter, u32 usNavUpper)
 	/*  is getting the upper integer. */
 	usNavUpper = (usNavUpper + HAL_8723A_NAV_UPPER_UNIT - 1) /
 		HAL_8723A_NAV_UPPER_UNIT;
-	rtw_write8(padapter, REG_NAV_UPPER, (u8) usNavUpper);
+	rtl8723au_write8(padapter, REG_NAV_UPPER, (u8) usNavUpper);
 }
 
 void rtl8723a_set_initial_gain(struct rtw_adapter *padapter, u32 rx_gain)
@@ -890,7 +890,7 @@ void rtl8723a_odm_support_ability_clr(struct rtw_adapter *padapter, u32 val)
 
 void rtl8723a_set_rpwm(struct rtw_adapter *padapter, u8 val)
 {
-	rtw_write8(padapter, REG_USB_HRPWM, val);
+	rtl8723au_write8(padapter, REG_USB_HRPWM, val);
 }
 
 u8 rtl8723a_get_rf_type(struct rtw_adapter *padapter)

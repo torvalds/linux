@@ -601,8 +601,6 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	if (!padapter->HalData)
 		goto free_wdev;
 
-	rtl8723au_set_intf_ops(padapter);
-
 	/* step read_chip_version */
 	rtl8723a_read_chip_version(padapter);
 

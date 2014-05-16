@@ -271,23 +271,23 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 
 			/* Adjust CCK according to IQK result */
 			if (!pdmpriv->bCCKinCH14) {
-				rtw_write8(Adapter, 0xa22, CCKSwingTable_Ch1_Ch1323A[CCK_index][0]);
-				rtw_write8(Adapter, 0xa23, CCKSwingTable_Ch1_Ch1323A[CCK_index][1]);
-				rtw_write8(Adapter, 0xa24, CCKSwingTable_Ch1_Ch1323A[CCK_index][2]);
-				rtw_write8(Adapter, 0xa25, CCKSwingTable_Ch1_Ch1323A[CCK_index][3]);
-				rtw_write8(Adapter, 0xa26, CCKSwingTable_Ch1_Ch1323A[CCK_index][4]);
-				rtw_write8(Adapter, 0xa27, CCKSwingTable_Ch1_Ch1323A[CCK_index][5]);
-				rtw_write8(Adapter, 0xa28, CCKSwingTable_Ch1_Ch1323A[CCK_index][6]);
-				rtw_write8(Adapter, 0xa29, CCKSwingTable_Ch1_Ch1323A[CCK_index][7]);
+				rtl8723au_write8(Adapter, 0xa22, CCKSwingTable_Ch1_Ch1323A[CCK_index][0]);
+				rtl8723au_write8(Adapter, 0xa23, CCKSwingTable_Ch1_Ch1323A[CCK_index][1]);
+				rtl8723au_write8(Adapter, 0xa24, CCKSwingTable_Ch1_Ch1323A[CCK_index][2]);
+				rtl8723au_write8(Adapter, 0xa25, CCKSwingTable_Ch1_Ch1323A[CCK_index][3]);
+				rtl8723au_write8(Adapter, 0xa26, CCKSwingTable_Ch1_Ch1323A[CCK_index][4]);
+				rtl8723au_write8(Adapter, 0xa27, CCKSwingTable_Ch1_Ch1323A[CCK_index][5]);
+				rtl8723au_write8(Adapter, 0xa28, CCKSwingTable_Ch1_Ch1323A[CCK_index][6]);
+				rtl8723au_write8(Adapter, 0xa29, CCKSwingTable_Ch1_Ch1323A[CCK_index][7]);
 			} else {
-				rtw_write8(Adapter, 0xa22, CCKSwingTable_Ch1423A[CCK_index][0]);
-				rtw_write8(Adapter, 0xa23, CCKSwingTable_Ch1423A[CCK_index][1]);
-				rtw_write8(Adapter, 0xa24, CCKSwingTable_Ch1423A[CCK_index][2]);
-				rtw_write8(Adapter, 0xa25, CCKSwingTable_Ch1423A[CCK_index][3]);
-				rtw_write8(Adapter, 0xa26, CCKSwingTable_Ch1423A[CCK_index][4]);
-				rtw_write8(Adapter, 0xa27, CCKSwingTable_Ch1423A[CCK_index][5]);
-				rtw_write8(Adapter, 0xa28, CCKSwingTable_Ch1423A[CCK_index][6]);
-				rtw_write8(Adapter, 0xa29, CCKSwingTable_Ch1423A[CCK_index][7]);
+				rtl8723au_write8(Adapter, 0xa22, CCKSwingTable_Ch1423A[CCK_index][0]);
+				rtl8723au_write8(Adapter, 0xa23, CCKSwingTable_Ch1423A[CCK_index][1]);
+				rtl8723au_write8(Adapter, 0xa24, CCKSwingTable_Ch1423A[CCK_index][2]);
+				rtl8723au_write8(Adapter, 0xa25, CCKSwingTable_Ch1423A[CCK_index][3]);
+				rtl8723au_write8(Adapter, 0xa26, CCKSwingTable_Ch1423A[CCK_index][4]);
+				rtl8723au_write8(Adapter, 0xa27, CCKSwingTable_Ch1423A[CCK_index][5]);
+				rtl8723au_write8(Adapter, 0xa28, CCKSwingTable_Ch1423A[CCK_index][6]);
+				rtl8723au_write8(Adapter, 0xa29, CCKSwingTable_Ch1423A[CCK_index][7]);
 			}
 
 			if (is2T) {
@@ -600,10 +600,10 @@ static void _PHY_ReloadMACRegisters(struct rtw_adapter *pAdapter, u32 *MACReg, u
 {
 	u32 i;
 
-	for (i = 0 ; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(pAdapter, MACReg[i], (u8)MACBackup[i]);
-	}
-	rtw_write32(pAdapter, MACReg[i], MACBackup[i]);
+	for (i = 0 ; i < (IQK_MAC_REG_NUM - 1); i++)
+		rtl8723au_write8(pAdapter, MACReg[i], (u8)MACBackup[i]);
+
+	rtl8723au_write32(pAdapter, MACReg[i], MACBackup[i]);
 }
 
 static void _PHY_PathADDAOn(struct rtw_adapter *pAdapter, u32 *ADDAReg, bool isPathAOn, bool is2T)
@@ -627,12 +627,13 @@ static void _PHY_MACSettingCalibration(struct rtw_adapter *pAdapter, u32 *MACReg
 {
 	u32 i = 0;
 
-	rtw_write8(pAdapter, MACReg[i], 0x3F);
+	rtl8723au_write8(pAdapter, MACReg[i], 0x3F);
 
 	for (i = 1 ; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(pAdapter, MACReg[i], (u8)(MACBackup[i] & ~BIT(3)));
+		rtl8723au_write8(pAdapter, MACReg[i],
+				 (u8)(MACBackup[i] & ~BIT(3)));
 	}
-	rtw_write8(pAdapter, MACReg[i], (u8)(MACBackup[i] & ~BIT(5)));
+	rtl8723au_write8(pAdapter, MACReg[i], (u8)(MACBackup[i] & ~BIT(5)));
 }
 
 static void _PHY_PathAStandBy(struct rtw_adapter *pAdapter)
@@ -881,10 +882,15 @@ static void _PHY_LCCalibrate(struct rtw_adapter *pAdapter, bool is2T)
 	/* Check continuous TX and Packet TX */
 	tmpReg = rtl8723au_read8(pAdapter, 0xd03);
 
-	if ((tmpReg&0x70) != 0)			/* Deal with contisuous TX case */
-		rtw_write8(pAdapter, 0xd03, tmpReg&0x8F);	/* disable all continuous TX */
-	else							/*  Deal with Packet TX case */
-		rtw_write8(pAdapter, REG_TXPAUSE, 0xFF);			/*  block all queues */
+	if ((tmpReg&0x70) != 0) {
+		/* Deal with contisuous TX case */
+		/* disable all continuous TX */
+		rtl8723au_write8(pAdapter, 0xd03, tmpReg&0x8F);
+	} else {
+		/*  Deal with Packet TX case */
+		/*  block all queues */
+		rtl8723au_write8(pAdapter, REG_TXPAUSE, 0xFF);
+	}
 
 	if ((tmpReg&0x70) != 0) {
 		/* 1. Read original RF mode */
@@ -915,15 +921,14 @@ static void _PHY_LCCalibrate(struct rtw_adapter *pAdapter, bool is2T)
 	/* Restore original situation */
 	if ((tmpReg&0x70) != 0) {	/* Deal with contuous TX case  */
 		/* Path-A */
-		rtw_write8(pAdapter, 0xd03, tmpReg);
+		rtl8723au_write8(pAdapter, 0xd03, tmpReg);
 		PHY_SetRFReg(pAdapter, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
 
 		/* Path-B */
 		if (is2T)
 			PHY_SetRFReg(pAdapter, RF_PATH_B, RF_AC, bMask12Bits, RF_Bmode);
-	} else { /*  Deal with Packet TX case */
-		rtw_write8(pAdapter, REG_TXPAUSE, 0x00);
-	}
+	} else /*  Deal with Packet TX case */
+		rtl8723au_write8(pAdapter, REG_TXPAUSE, 0x00);
 }
 
 /* Analog Pre-distortion calibration */

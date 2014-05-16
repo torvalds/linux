@@ -129,7 +129,7 @@ PHY_SetBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask, u32	Data)
 		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
 	}
 
-	rtw_write32(Adapter, RegAddr, Data);
+	rtl8723au_write32(Adapter, RegAddr, Data);
 
 	/* RTPRINT(FPHY, PHY_BBW, ("BBW MASK = 0x%lx Addr[0x%lx]= 0x%lx\n", BitMask, RegAddr, Data)); */
 	/* RT_TRACE(COMP_RF, DBG_TRACE, ("<---PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
@@ -430,9 +430,9 @@ int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 
 	/*  2010.07.13 AMPDU aggregation number 9 */
 	/* rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM); */
-	rtw_write8(Adapter, REG_MAX_AGGR_NUM, 0x0A); /* By tynli. 2010.11.18. */
+	rtl8723au_write8(Adapter, REG_MAX_AGGR_NUM, 0x0A);
 	if (is92C && (BOARD_USB_DONGLE == pHalData->BoardType))
-		rtw_write8(Adapter, 0x40, 0x04);
+		rtl8723au_write8(Adapter, 0x40, 0x04);
 
 	return rtStatus;
 }
@@ -807,28 +807,28 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 	/* 1. 0x28[1] = 1 */
 	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_PLL_CTRL);
 	udelay(2);
-	rtw_write8(Adapter, REG_AFE_PLL_CTRL, TmpU1B | BIT(1));
+	rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL, TmpU1B | BIT(1));
 	udelay(2);
 
 	/* 2. 0x29[7:0] = 0xFF */
-	rtw_write8(Adapter, REG_AFE_PLL_CTRL+1, 0xff);
+	rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL+1, 0xff);
 	udelay(2);
 
 	/* 3. 0x02[1:0] = 2b'11 */
 	TmpU1B = rtl8723au_read8(Adapter, REG_SYS_FUNC_EN);
-	rtw_write8(Adapter, REG_SYS_FUNC_EN,
-		   (TmpU1B | FEN_BB_GLB_RSTn | FEN_BBRSTB));
+	rtl8723au_write8(Adapter, REG_SYS_FUNC_EN,
+			 (TmpU1B | FEN_BB_GLB_RSTn | FEN_BBRSTB));
 
 	/* 4. 0x25[6] = 0 */
 	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_XTAL_CTRL + 1);
-	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+1, TmpU1B & ~BIT(6));
+	rtl8723au_write8(Adapter, REG_AFE_XTAL_CTRL+1, TmpU1B & ~BIT(6));
 
 	/* 5. 0x24[20] = 0	Advised by SD3 Alex Wang. 2011.02.09. */
 	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_XTAL_CTRL+2);
-	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+2, TmpU1B & ~BIT(4));
+	rtl8723au_write8(Adapter, REG_AFE_XTAL_CTRL+2, TmpU1B & ~BIT(4));
 
 	/* 6. 0x1f[7:0] = 0x07 */
-	rtw_write8(Adapter, REG_RF_CTRL, 0x07);
+	rtl8723au_write8(Adapter, REG_RF_CTRL, 0x07);
 
 	/*  */
 	/*  Config BB and AGC */
@@ -963,14 +963,14 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	switch (pHalData->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:
 		regBwOpMode |= BW_OPMODE_20MHZ;
-		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
+		rtl8723au_write8(Adapter, REG_BWOPMODE, regBwOpMode);
 		break;
 	case HT_CHANNEL_WIDTH_40:
 		regBwOpMode &= ~BW_OPMODE_20MHZ;
-		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
+		rtl8723au_write8(Adapter, REG_BWOPMODE, regBwOpMode);
 		regRRSR_RSC = (regRRSR_RSC & 0x90) |
 			(pHalData->nCur40MhzPrimeSC << 5);
-		rtw_write8(Adapter, REG_RRSR+2, regRRSR_RSC);
+		rtl8723au_write8(Adapter, REG_RRSR+2, regRRSR_RSC);
 		break;
 
 	default:
