@@ -251,7 +251,7 @@ void rtl8723a_FirmwareSelfReset(struct rtw_adapter *padapter)
 		rtw_write8(padapter, REG_HMETFR + 3, 0x20);
 
 		u1bTmp = rtw_read8(padapter, REG_SYS_FUNC_EN + 1);
-		while (u1bTmp & BIT2) {
+		while (u1bTmp & BIT(2)) {
 			Delay--;
 			if (Delay == 0)
 				break;
@@ -266,7 +266,7 @@ void rtl8723a_FirmwareSelfReset(struct rtw_adapter *padapter)
 			/* force firmware reset */
 			u1bTmp = rtw_read8(padapter, REG_SYS_FUNC_EN + 1);
 			rtw_write8(padapter, REG_SYS_FUNC_EN + 1,
-				   u1bTmp & (~BIT2));
+				   u1bTmp & ~BIT(2));
 		}
 	}
 }
@@ -996,7 +996,7 @@ Hal_EfuseWordEnableDataWrite(struct rtw_adapter *padapter,
 		efuse_OneByteRead23a(padapter, tmpaddr, &tmpdata[0]);
 		efuse_OneByteRead23a(padapter, tmpaddr + 1, &tmpdata[1]);
 		if ((data[0] != tmpdata[0]) || (data[1] != tmpdata[1])) {
-			badworden &= (~BIT(0));
+			badworden &= ~BIT(0);
 		}
 	}
 	if (!(word_en & BIT(1))) {
@@ -1007,7 +1007,7 @@ Hal_EfuseWordEnableDataWrite(struct rtw_adapter *padapter,
 		efuse_OneByteRead23a(padapter, tmpaddr, &tmpdata[2]);
 		efuse_OneByteRead23a(padapter, tmpaddr + 1, &tmpdata[3]);
 		if ((data[2] != tmpdata[2]) || (data[3] != tmpdata[3])) {
-			badworden &= (~BIT(1));
+			badworden &= ~BIT(1);
 		}
 	}
 	if (!(word_en & BIT(2))) {
@@ -1018,7 +1018,7 @@ Hal_EfuseWordEnableDataWrite(struct rtw_adapter *padapter,
 		efuse_OneByteRead23a(padapter, tmpaddr, &tmpdata[4]);
 		efuse_OneByteRead23a(padapter, tmpaddr + 1, &tmpdata[5]);
 		if ((data[4] != tmpdata[4]) || (data[5] != tmpdata[5])) {
-			badworden &= (~BIT(2));
+			badworden &= ~BIT(2);
 		}
 	}
 	if (!(word_en & BIT(3))) {
@@ -1029,7 +1029,7 @@ Hal_EfuseWordEnableDataWrite(struct rtw_adapter *padapter,
 		efuse_OneByteRead23a(padapter, tmpaddr, &tmpdata[6]);
 		efuse_OneByteRead23a(padapter, tmpaddr + 1, &tmpdata[7]);
 		if ((data[6] != tmpdata[6]) || (data[7] != tmpdata[7])) {
-			badworden &= (~BIT(3));
+			badworden &= ~BIT(3);
 		}
 	}
 
@@ -1644,11 +1644,11 @@ static void hal_notch_filter_8723a(struct rtw_adapter *adapter, bool enable)
 	if (enable) {
 		DBG_8723A("Enable notch filter\n");
 		rtw_write8(adapter, rOFDM0_RxDSP + 1,
-			   rtw_read8(adapter, rOFDM0_RxDSP + 1) | BIT1);
+			   rtw_read8(adapter, rOFDM0_RxDSP + 1) | BIT(1));
 	} else {
 		DBG_8723A("Disable notch filter\n");
 		rtw_write8(adapter, rOFDM0_RxDSP + 1,
-			   rtw_read8(adapter, rOFDM0_RxDSP + 1) & ~BIT1);
+			   rtw_read8(adapter, rOFDM0_RxDSP + 1) & ~BIT(1));
 	}
 }
 
@@ -2037,7 +2037,7 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 		    S3/S4/S5/Disable, we can stop 8051 because */
 		/*  we will init FW when power on again. */
 		/*  If we want to SS mode, we can not reset 8051. */
-		if (rtw_read8(padapter, REG_MCUFWDL) & BIT1) {
+		if (rtw_read8(padapter, REG_MCUFWDL) & BIT(1)) {
 			/* IF fw in RAM code, do reset */
 			if (padapter->bFWReady) {
 				/*  2010/08/25 MH Accordign to RD alfred's
@@ -2140,7 +2140,7 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 	******************************/
 	value8 = 0x23;
 	if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID))
-		value8 |= BIT3;
+		value8 |= BIT(3);
 
 	rtw_write8(padapter, REG_SPS0_CTRL, value8);
 
@@ -2340,7 +2340,7 @@ Hal_ReadPowerValueFromPROM_8723A(struct txpowerinfo *pwrInfo,
 				 [EEPROM_HT20_TX_PWR_INX_DIFF_8723A +
 				  group] >> (rfPath * 4)) & 0xF;
 			/* 4bit sign number to 8 bit sign number */
-			if (pwrInfo->HT20IndexDiff[rfPath][group] & BIT3)
+			if (pwrInfo->HT20IndexDiff[rfPath][group] & BIT(3))
 				pwrInfo->HT20IndexDiff[rfPath][group] |= 0xF0;
 
 			pwrInfo->OFDMIndexDiff[rfPath][group] =
