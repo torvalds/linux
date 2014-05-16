@@ -25,6 +25,7 @@
 #include <linux/virtio_rng.h>
 #include <linux/module.h>
 
+static DEFINE_IDA(rng_index_ida);
 
 struct virtrng_info {
 	struct virtio_device *vdev;
@@ -33,6 +34,8 @@ struct virtrng_info {
 	unsigned int data_avail;
 	struct completion have_data;
 	bool busy;
+	char name[25];
+	int index;
 };
 
 static void random_recv_done(struct virtqueue *vq)
@@ -92,41 +95,45 @@ static void virtio_cleanup(struct hwrng *rng)
 
 static int probe_common(struct virtio_device *vdev)
 {
-	int err, i;
+	int err, index;
 	struct virtrng_info *vi = NULL;
 
 	vi = kzalloc(sizeof(struct virtrng_info), GFP_KERNEL);
-	vi->hwrng.name = kmalloc(40, GFP_KERNEL);
+	if (!vi)
+		return -ENOMEM;
+
+	vi->index = index = ida_simple_get(&rng_index_ida, 0, 0, GFP_KERNEL);
+	if (index < 0) {
+		kfree(vi);
+		return index;
+	}
+	sprintf(vi->name, "virtio_rng.%d", index);
 	init_completion(&vi->have_data);
 
-	vi->hwrng.read = virtio_read;
-	vi->hwrng.cleanup = virtio_cleanup;
-	vi->hwrng.priv = (unsigned long)vi;
+	vi->hwrng = (struct hwrng) {
+		.read = virtio_read,
+		.cleanup = virtio_cleanup,
+		.priv = (unsigned long)vi,
+		.name = vi->name,
+	};
 	vdev->priv = vi;
 
 	/* We expect a single virtqueue. */
 	vi->vq = virtio_find_single_vq(vdev, random_recv_done, "input");
 	if (IS_ERR(vi->vq)) {
 		err = PTR_ERR(vi->vq);
-		kfree(vi->hwrng.name);
 		vi->vq = NULL;
 		kfree(vi);
-		vi = NULL;
+		ida_simple_remove(&rng_index_ida, index);
 		return err;
 	}
 
-	i = 0;
-	do {
-		sprintf(vi->hwrng.name, "virtio_rng.%d", i++);
-		err = hwrng_register(&vi->hwrng);
-	} while (err == -EEXIST);
-
+	err = hwrng_register(&vi->hwrng);
 	if (err) {
 		vdev->config->del_vqs(vdev);
-		kfree(vi->hwrng.name);
 		vi->vq = NULL;
 		kfree(vi);
-		vi = NULL;
+		ida_simple_remove(&rng_index_ida, index);
 		return err;
 	}
 
@@ -140,10 +147,8 @@ static void remove_common(struct virtio_device *vdev)
 	vi->busy = false;
 	hwrng_unregister(&vi->hwrng);
 	vdev->config->del_vqs(vdev);
-	kfree(vi->hwrng.name);
-	vi->vq = NULL;
+	ida_simple_remove(&rng_index_ida, vi->index);
 	kfree(vi);
-	vi = NULL;
 }
 
 static int virtrng_probe(struct virtio_device *vdev)
