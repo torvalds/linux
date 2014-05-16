@@ -334,7 +334,7 @@ static int ixgbe_ptp_settime(struct ptp_clock_info *ptp,
 }
 
 /**
- * ixgbe_ptp_enable
+ * ixgbe_ptp_feature_enable
  * @ptp: the ptp clock structure
  * @rq: the requested feature to change
  * @on: whether to enable or disable the feature
@@ -342,8 +342,8 @@ static int ixgbe_ptp_settime(struct ptp_clock_info *ptp,
  * enable (or disable) ancillary features of the phc subsystem.
  * our driver only supports the PPS feature on the X540
  */
-static int ixgbe_ptp_enable(struct ptp_clock_info *ptp,
-			    struct ptp_clock_request *rq, int on)
+static int ixgbe_ptp_feature_enable(struct ptp_clock_info *ptp,
+				    struct ptp_clock_request *rq, int on)
 {
 	struct ixgbe_adapter *adapter =
 		container_of(ptp, struct ixgbe_adapter, ptp_caps);
@@ -851,7 +851,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 		adapter->ptp_caps.adjtime = ixgbe_ptp_adjtime;
 		adapter->ptp_caps.gettime = ixgbe_ptp_gettime;
 		adapter->ptp_caps.settime = ixgbe_ptp_settime;
-		adapter->ptp_caps.enable = ixgbe_ptp_enable;
+		adapter->ptp_caps.enable = ixgbe_ptp_feature_enable;
 		break;
 	case ixgbe_mac_82599EB:
 		snprintf(adapter->ptp_caps.name,
@@ -867,7 +867,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 		adapter->ptp_caps.adjtime = ixgbe_ptp_adjtime;
 		adapter->ptp_caps.gettime = ixgbe_ptp_gettime;
 		adapter->ptp_caps.settime = ixgbe_ptp_settime;
-		adapter->ptp_caps.enable = ixgbe_ptp_enable;
+		adapter->ptp_caps.enable = ixgbe_ptp_feature_enable;
 		break;
 	default:
 		adapter->ptp_clock = NULL;
