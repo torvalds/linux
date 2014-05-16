@@ -1235,8 +1235,8 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 	/* issue Rx irp to receive data */
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		if (rtl8723a_usb_read_port(Adapter, RECV_BULK_IN_ADDR, 0,
-					   precvbuf) == _FAIL) {
+		if (rtl8723au_read_port(Adapter, RECV_BULK_IN_ADDR, 0,
+					precvbuf) == _FAIL) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
 				 ("usb_rx_init: usb_read_port error\n"));
 			status = _FAIL;
@@ -1244,7 +1244,7 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 		}
 		precvbuf++;
 	}
-	if (rtl8723a_usb_read_interrupt(Adapter, RECV_INT_IN_ADDR) == _FAIL) {
+	if (rtl8723au_read_interrupt(Adapter, RECV_INT_IN_ADDR) == _FAIL) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
 			 ("usb_rx_init: usb_read_interrupt error\n"));
 		status = _FAIL;
@@ -1265,7 +1265,7 @@ int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
 		 ("\n ===> usb_rx_deinit\n"));
-	rtl8723a_usb_read_port_cancel(Adapter);
+	rtl8723au_read_port_cancel(Adapter);
 	pHalData->IntrMask[0] = rtl8723au_read32(Adapter, REG_USB_HIMR);
 	MSG_8723A("%s pHalData->IntrMask = 0x%04x\n", __func__,
 		  pHalData->IntrMask[0]);

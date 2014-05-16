@@ -292,7 +292,7 @@ void rtl8723a_usb_intf_stop(struct rtw_adapter *padapter)
 	rtl8723au_inirp_deinit(padapter);
 
 	/* cancel out irp */
-	rtl8723a_usb_write_port_cancel(padapter);
+	rtl8723au_write_port_cancel(padapter);
 
 	/* todo:cancel other irps */
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_stop\n"));

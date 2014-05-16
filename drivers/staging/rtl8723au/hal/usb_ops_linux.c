@@ -447,7 +447,7 @@ urb_submit:
 	}
 }
 
-int rtl8723a_usb_read_interrupt(struct rtw_adapter *adapter, u32 addr)
+int rtl8723au_read_interrupt(struct rtw_adapter *adapter, u32 addr)
 {
 	int err;
 	unsigned int pipe;
@@ -676,8 +676,8 @@ static void usb_read_port_complete(struct urb *purb)
 				 ("usb_read_port_complete: (purb->actual_"
 				  "length > MAX_RECVBUF_SZ) || (purb->actual_"
 				  "length < RXDESC_SIZE)\n"));
-			rtl8723a_usb_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					       precvbuf);
+			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
+					    precvbuf);
 			DBG_8723A("%s()-%d: RX Warning!\n",
 				  __FUNCTION__, __LINE__);
 		} else {
@@ -692,8 +692,8 @@ static void usb_read_port_complete(struct urb *purb)
 				tasklet_schedule(&precvpriv->recv_tasklet);
 
 			precvbuf->pskb = NULL;
-			rtl8723a_usb_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					       precvbuf);
+			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
+					    precvbuf);
 		}
 	} else {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
@@ -730,8 +730,8 @@ static void usb_read_port_complete(struct urb *purb)
 			pHalData = GET_HAL_DATA(padapter);
 			pHalData->srestpriv.Wifi_Error_Status =
 				USB_READ_PORT_FAIL;
-			rtl8723a_usb_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					       precvbuf);
+			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
+					    precvbuf);
 			break;
 		case -EINPROGRESS:
 			DBG_8723A("ERROR: URB IS IN PROGRESS!/n");
@@ -742,8 +742,8 @@ static void usb_read_port_complete(struct urb *purb)
 	}
 }
 
-int rtl8723a_usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
-			   struct recv_buf *precvbuf)
+int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+			struct recv_buf *precvbuf)
 {
 	int err;
 	unsigned int pipe;

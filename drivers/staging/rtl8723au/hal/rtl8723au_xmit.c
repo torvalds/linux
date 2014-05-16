@@ -345,8 +345,8 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 		}
 
 		ff_hwaddr = rtw_get_ff_hwaddr23a(pxmitframe);
-		inner_ret = rtl8723a_usb_write_port(padapter, ff_hwaddr,
-						    w_sz, pxmitbuf);
+		inner_ret = rtl8723au_write_port(padapter, ff_hwaddr,
+						 w_sz, pxmitbuf);
 		rtw_count_tx_stats23a(padapter, pxmitframe, sz);
 
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,

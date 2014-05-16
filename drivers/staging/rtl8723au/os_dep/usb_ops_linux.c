@@ -25,7 +25,7 @@ struct zero_bulkout_context {
 	void *padapter;
 };
 
-void rtl8723a_usb_read_port_cancel(struct rtw_adapter *padapter)
+void rtl8723au_read_port_cancel(struct rtw_adapter *padapter)
 {
 	struct recv_buf *precvbuf;
 	int i;
@@ -140,8 +140,8 @@ check_completion:
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 }
 
-int rtl8723a_usb_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
-			    struct xmit_buf *pxmitbuf)
+int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
+			 struct xmit_buf *pxmitbuf)
 {
 	struct urb *purb = NULL;
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
@@ -237,7 +237,7 @@ exit:
 	return ret;
 }
 
-void rtl8723a_usb_write_port_cancel(struct rtw_adapter *padapter)
+void rtl8723au_write_port_cancel(struct rtw_adapter *padapter)
 {
 	struct xmit_buf *pxmitbuf;
 	struct list_head *plist;
