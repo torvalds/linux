@@ -53,6 +53,12 @@ struct seq_file;
 void smp_bogo(struct seq_file *);
 void smp_info(struct seq_file *);
 
+void smp_callin(void);
+void cpu_panic(void);
+void smp_synchronize_tick_client(void);
+void smp_capture(void);
+void smp_release(void);
+
 #ifdef CONFIG_HOTPLUG_CPU
 int __cpu_disable(void);
 void __cpu_die(unsigned int cpu);

@@ -2,6 +2,7 @@
 #define __SPARC_KERNEL_H
 
 #include <linux/interrupt.h>
+#include <linux/ftrace.h>
 
 #include <asm/traps.h>
 #include <asm/head.h>
@@ -17,7 +18,7 @@ extern int ncpus_probed;
 struct seq_file;
 void cpucap_info(struct seq_file *);
 
-static inline unsigned long kimage_addr_to_ra(const char *p)
+static inline unsigned long kimage_addr_to_ra(const void *p)
 {
 	unsigned long val = (unsigned long) p;
 
@@ -32,6 +33,13 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
 int handle_popc(u32 insn, struct pt_regs *regs);
 void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr);
 void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr);
+
+/* smp_64.c */
+void __irq_entry smp_call_function_client(int irq, struct pt_regs *regs);
+void __irq_entry smp_call_function_single_client(int irq, struct pt_regs *regs);
+void __irq_entry smp_new_mmu_context_version_client(int irq, struct pt_regs *regs);
+void __irq_entry smp_penguin_jailcell(int irq, struct pt_regs *regs);
+void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs);
 
 #endif
 

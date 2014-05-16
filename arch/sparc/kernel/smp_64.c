@@ -52,6 +52,7 @@
 #include <asm/pcr.h>
 
 #include "cpumap.h"
+#include "kernel.h"
 
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map) = CPU_MASK_NONE;
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
@@ -272,14 +273,6 @@ static void smp_synchronize_one_tick(int cpu)
 }
 
 #if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
-/* XXX Put this in some common place. XXX */
-static unsigned long kimage_addr_to_ra(void *p)
-{
-	unsigned long val = (unsigned long) p;
-
-	return kern_base + (val - KERNBASE);
-}
-
 static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg,
 				void **descrp)
 {
