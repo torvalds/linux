@@ -2209,8 +2209,6 @@ out:
 	exception_exit(prev_state);
 }
 
-extern int do_mathemu(struct pt_regs *, struct fpustate *, bool);
-
 void do_fpother(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();

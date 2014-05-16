@@ -253,6 +253,8 @@ static inline void prefetchw(const void *x)
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
+int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap);
+
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(__ASM_SPARC64_PROCESSOR_H) */
