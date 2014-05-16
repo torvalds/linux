@@ -96,6 +96,6 @@ void sun4d_handler_irq(unsigned int pil, struct pt_regs *regs);
 /* All SUN4D IPIs are sent on this IRQ, may be shared with hard IRQs */
 #define SUN4D_IPI_IRQ 13
 
-extern void sun4d_ipi_interrupt(void);
+void sun4d_ipi_interrupt(void);
 
 #endif
