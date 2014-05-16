@@ -164,6 +164,11 @@
 	};
 };
 
+&fimd {
+	status = "okay";
+	samsung,invert-vclk;
+};
+
 &hsi2c_9 {
 	status = "okay";
 	clock-frequency = <400000>;
