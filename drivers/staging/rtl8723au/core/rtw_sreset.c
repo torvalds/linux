@@ -14,6 +14,7 @@
  ******************************************************************************/
 
 #include <rtw_sreset.h>
+#include <usb_ops_linux.h>
 
 void rtw_sreset_init(struct rtw_adapter *padapter)
 {
@@ -47,7 +48,7 @@ u8 rtw_sreset_get_wifi_status(struct rtw_adapter *padapter)
 
 	if (psrtpriv->silent_reset_inprogress)
 		return status;
-	val32 = rtw_read32(padapter, REG_TXDMA_STATUS);
+	val32 = rtl8723au_read32(padapter, REG_TXDMA_STATUS);
 	if (val32 == 0xeaeaeaea) {
 		psrtpriv->Wifi_Error_Status = WIFI_IF_NOT_EXIST;
 	} else if (val32 != 0) {

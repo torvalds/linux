@@ -132,7 +132,7 @@ exit:
 	return status;
 }
 
-static u8 usb_read8(struct rtw_adapter *padapter, u32 addr)
+u8 rtl8723au_read8(struct rtw_adapter *padapter, u32 addr)
 {
 	u8 request;
 	u8 requesttype;
@@ -154,7 +154,7 @@ static u8 usb_read8(struct rtw_adapter *padapter, u32 addr)
 	return data;
 }
 
-static u16 usb_read16(struct rtw_adapter *padapter, u32 addr)
+u16 rtl8723au_read16(struct rtw_adapter *padapter, u32 addr)
 {
 	u8 request;
 	u8 requesttype;
@@ -176,7 +176,7 @@ static u16 usb_read16(struct rtw_adapter *padapter, u32 addr)
 	return le16_to_cpu(data);
 }
 
-static u32 usb_read32(struct rtw_adapter *padapter, u32 addr)
+u32 rtl8723au_read32(struct rtw_adapter *padapter, u32 addr)
 {
 	u8 request;
 	u8 requesttype;
@@ -838,10 +838,6 @@ void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
 	struct _io_ops *pops = &padapter->io_ops;
 
 	memset((u8 *)pops, 0, sizeof(struct _io_ops));
-
-	pops->_read8 = &usb_read8;
-	pops->_read16 = &usb_read16;
-	pops->_read32 = &usb_read32;
 
 	pops->_write8 = &usb_write8;
 	pops->_write16 = &usb_write16;

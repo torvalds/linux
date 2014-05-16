@@ -21,6 +21,7 @@
 /*  */
 /*  ODM IO Relative API. */
 /*  */
+#include <usb_ops_linux.h>
 
 u8 ODM_Read1Byte(struct dm_odm_t *pDM_Odm,
 	u32			RegAddr
@@ -28,25 +29,21 @@ u8 ODM_Read1Byte(struct dm_odm_t *pDM_Odm,
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 
-	return rtw_read8(Adapter, RegAddr);
+	return rtl8723au_read8(Adapter, RegAddr);
 }
 
-u16 ODM_Read2Byte(struct dm_odm_t *pDM_Odm,
-	u32			RegAddr
-	)
+u16 ODM_Read2Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 
-	return rtw_read16(Adapter, RegAddr);
+	return rtl8723au_read16(Adapter, RegAddr);
 }
 
-u32 ODM_Read4Byte(struct dm_odm_t *pDM_Odm,
-	u32			RegAddr
-	)
+u32 ODM_Read4Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 
-	return rtw_read32(Adapter, RegAddr);
+	return rtl8723au_read32(Adapter, RegAddr);
 }
 
 void ODM_Write1Byte(

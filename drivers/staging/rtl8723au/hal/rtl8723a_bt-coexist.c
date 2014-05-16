@@ -15,6 +15,7 @@
 #include <drv_types.h>
 #include <rtl8723a_hal.h>
 #include <rtw_ioctl_set.h>
+#include <usb_ops_linux.h>
 
 #define DIS_PS_RX_BCN
 
@@ -5271,7 +5272,7 @@ static void btdm_1AntTSFSwitch(struct rtw_adapter *padapter, u8 enable)
 {
 	u8 oldVal, newVal;
 
-	oldVal = rtw_read8(padapter, 0x550);
+	oldVal = rtl8723au_read8(padapter, 0x550);
 
 	if (enable)
 		newVal = oldVal | EN_BCN_FUNCTION;
@@ -9031,11 +9032,11 @@ static void btdm_BtHwCountersMonitor(struct rtw_adapter *padapter)
 	regHPTxRx = REG_HIGH_PRIORITY_TXRX;
 	regLPTxRx = REG_LOW_PRIORITY_TXRX;
 
-	u4Tmp = rtw_read32(padapter, regHPTxRx);
+	u4Tmp = rtl8723au_read32(padapter, regHPTxRx);
 	regHPTx = u4Tmp & bMaskLWord;
 	regHPRx = (u4Tmp & bMaskHWord)>>16;
 
-	u4Tmp = rtw_read32(padapter, regLPTxRx);
+	u4Tmp = rtl8723au_read32(padapter, regLPTxRx);
 	regLPTx = u4Tmp & bMaskLWord;
 	regLPRx = (u4Tmp & bMaskHWord)>>16;
 
@@ -9061,7 +9062,7 @@ static void btdm_BtEnableDisableCheck8723A(struct rtw_adapter *padapter)
 	u8 val8;
 
 	/*  ox68[28]= 1 => BT enable; otherwise disable */
-	val8 = rtw_read8(padapter, 0x6B);
+	val8 = rtl8723au_read8(padapter, 0x6B);
 	if (!(val8 & BIT(4)))
 		btAlife = false;
 
@@ -9345,7 +9346,7 @@ BTDM_SetSwPenaltyTxRateAdaptive(
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	u8 tmpU1;
 
-	tmpU1 = rtw_read8(padapter, 0x4fd);
+	tmpU1 = rtl8723au_read8(padapter, 0x4fd);
 	tmpU1 |= BIT(0);
 	if (BT_TX_RATE_ADAPTIVE_LOW_PENALTY == raType) {
 		tmpU1 &= ~BIT(2);
@@ -9585,9 +9586,9 @@ static void BTDM_Display8723ABtCoexInfo(struct rtw_adapter *padapter)
 			pBtCoex->btdm2Ant.bCurDecBtPwr);
 		DCMD_Printf(btCoexDbgBuf);
 	}
-	u1Tmp = rtw_read8(padapter, 0x778);
-	u1Tmp1 = rtw_read8(padapter, 0x783);
-	u1Tmp2 = rtw_read8(padapter, 0x796);
+	u1Tmp = rtl8723au_read8(padapter, 0x778);
+	u1Tmp1 = rtl8723au_read8(padapter, 0x783);
+	u1Tmp2 = rtl8723au_read8(padapter, 0x796);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x/ 0x%x/ 0x%x", "0x778/ 0x783/ 0x796", \
 		u1Tmp, u1Tmp1, u1Tmp2);
 	DCMD_Printf(btCoexDbgBuf);
@@ -9597,7 +9598,7 @@ static void BTDM_Display8723ABtCoexInfo(struct rtw_adapter *padapter)
 			pBtCoex->btdm2Ant.bCurDacSwingOn, pBtCoex->btdm2Ant.curDacSwingLvl);
 		DCMD_Printf(btCoexDbgBuf);
 	}
-	u4Tmp[0] =  rtw_read32(padapter, 0x880);
+	u4Tmp[0] =  rtl8723au_read32(padapter, 0x880);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x", "0x880", \
 		u4Tmp[0]);
 	DCMD_Printf(btCoexDbgBuf);
@@ -9608,56 +9609,56 @@ static void BTDM_Display8723ABtCoexInfo(struct rtw_adapter *padapter)
 		DCMD_Printf(btCoexDbgBuf);
 	}
 
-	u1Tmp = rtw_read8(padapter, 0x40);
+	u1Tmp = rtl8723au_read8(padapter, 0x40);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x", "0x40", \
 		u1Tmp);
 	DCMD_Printf(btCoexDbgBuf);
 
-	u4Tmp[0] = rtw_read32(padapter, 0x550);
-	u1Tmp = rtw_read8(padapter, 0x522);
+	u4Tmp[0] = rtl8723au_read32(padapter, 0x550);
+	u1Tmp = rtl8723au_read8(padapter, 0x522);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x/0x%x", "0x550(bcn contrl)/0x522", \
 		u4Tmp[0], u1Tmp);
 	DCMD_Printf(btCoexDbgBuf);
 
-	u4Tmp[0] = rtw_read32(padapter, 0x484);
+	u4Tmp[0] = rtl8723au_read32(padapter, 0x484);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x", "0x484(rate adaptive)", \
 		u4Tmp[0]);
 	DCMD_Printf(btCoexDbgBuf);
 
-	u4Tmp[0] = rtw_read32(padapter, 0x50);
+	u4Tmp[0] = rtl8723au_read32(padapter, 0x50);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x", "0xc50(dig)", \
 		u4Tmp[0]);
 	DCMD_Printf(btCoexDbgBuf);
 
-	u4Tmp[0] = rtw_read32(padapter, 0xda0);
-	u4Tmp[1] = rtw_read32(padapter, 0xda4);
-	u4Tmp[2] = rtw_read32(padapter, 0xda8);
-	u4Tmp[3] = rtw_read32(padapter, 0xdac);
+	u4Tmp[0] = rtl8723au_read32(padapter, 0xda0);
+	u4Tmp[1] = rtl8723au_read32(padapter, 0xda4);
+	u4Tmp[2] = rtl8723au_read32(padapter, 0xda8);
+	u4Tmp[3] = rtl8723au_read32(padapter, 0xdac);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x/ 0x%x/ 0x%x/ 0x%x", "0xda0/0xda4/0xda8/0xdac(FA cnt)", \
 		u4Tmp[0], u4Tmp[1], u4Tmp[2], u4Tmp[3]);
 	DCMD_Printf(btCoexDbgBuf);
 
-	u4Tmp[0] = rtw_read32(padapter, 0x6c0);
-	u4Tmp[1] = rtw_read32(padapter, 0x6c4);
-	u4Tmp[2] = rtw_read32(padapter, 0x6c8);
-	u1Tmp = rtw_read8(padapter, 0x6cc);
+	u4Tmp[0] = rtl8723au_read32(padapter, 0x6c0);
+	u4Tmp[1] = rtl8723au_read32(padapter, 0x6c4);
+	u4Tmp[2] = rtl8723au_read32(padapter, 0x6c8);
+	u1Tmp = rtl8723au_read8(padapter, 0x6cc);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x/ 0x%x/ 0x%x/ 0x%x", "0x6c0/0x6c4/0x6c8/0x6cc(coexTable)", \
 		u4Tmp[0], u4Tmp[1], u4Tmp[2], u1Tmp);
 	DCMD_Printf(btCoexDbgBuf);
 
-	/* u4Tmp = rtw_read32(padapter, 0x770); */
+	/* u4Tmp = rtl8723au_read32(padapter, 0x770); */
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d / %d", "0x770(Hi pri Rx[31:16]/Tx[15:0])", \
 		pHalData->bt_coexist.halCoex8723.highPriorityRx,
 		pHalData->bt_coexist.halCoex8723.highPriorityTx);
 	DCMD_Printf(btCoexDbgBuf);
-	/* u4Tmp = rtw_read32(padapter, 0x774); */
+	/* u4Tmp = rtl8723au_read32(padapter, 0x774); */
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d / %d", "0x774(Lo pri Rx[31:16]/Tx[15:0])", \
 		pHalData->bt_coexist.halCoex8723.lowPriorityRx,
 		pHalData->bt_coexist.halCoex8723.lowPriorityTx);
 	DCMD_Printf(btCoexDbgBuf);
 
 	/*  Tx mgnt queue hang or not, 0x41b should = 0xf, ex: 0xd ==>hang */
-	u1Tmp = rtw_read8(padapter, 0x41b);
+	u1Tmp = rtl8723au_read8(padapter, 0x41b);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x", "0x41b (hang chk == 0xf)", \
 		u1Tmp);
 	DCMD_Printf(btCoexDbgBuf);
@@ -9941,15 +9942,15 @@ void BTDM_CheckBTIdleChange1Ant(struct rtw_adapter *padapter)
 	else
 		regBTPolling = REG_BT_POLLING;
 
-	BT_Active = rtw_read32(padapter, regBTActive);
+	BT_Active = rtl8723au_read32(padapter, regBTActive);
 	RTPRINT(FBT, BT_TRACE, ("[DM][BT], BT_Active(0x%x) =%x\n", regBTActive, BT_Active));
 	BT_Active = BT_Active & 0x00ffffff;
 
-	BT_State = rtw_read32(padapter, regBTState);
+	BT_State = rtl8723au_read32(padapter, regBTState);
 	RTPRINT(FBT, BT_TRACE, ("[DM][BT], BT_State(0x%x) =%x\n", regBTState, BT_State));
 	BT_State = BT_State & 0x00ffffff;
 
-	BT_Polling = rtw_read32(padapter, regBTPolling);
+	BT_Polling = rtl8723au_read32(padapter, regBTPolling);
 	RTPRINT(FBT, BT_TRACE, ("[DM][BT], BT_Polling(0x%x) =%x\n", regBTPolling, BT_Polling));
 
 	if (BT_Active == 0xffffffff && BT_State == 0xffffffff && BT_Polling == 0xffffffff)
@@ -10585,7 +10586,7 @@ u8 BTDM_DisableEDCATurbo(struct rtw_adapter *padapter)
 			pHalData->odmpriv.DM_EDCA_Table.bCurrentTurboEDCA = false;
 			pHalData->dmpriv.prv_traffic_idx = 3;
 		}
-		cur_EDCA_reg = rtw_read32(padapter, REG_EDCA_BE_PARAM);
+		cur_EDCA_reg = rtl8723au_read32(padapter, REG_EDCA_BE_PARAM);
 
 		if (cur_EDCA_reg != EDCA_BT_BE)
 			bBtChangeEDCA = true;

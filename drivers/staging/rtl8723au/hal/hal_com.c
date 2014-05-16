@@ -18,6 +18,7 @@
 #include <hal_intf.h>
 #include <hal_com.h>
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 #define _HAL_INIT_C_
 
@@ -225,7 +226,7 @@ void HalSetBrateCfg23a(struct rtw_adapter *padapter, u8 *mBratesOS)
 	rtw_write8(padapter, REG_RRSR, brate_cfg & 0xff);
 	rtw_write8(padapter, REG_RRSR + 1, (brate_cfg >> 8) & 0xff);
 	rtw_write8(padapter, REG_RRSR + 2,
-		   rtw_read8(padapter, REG_RRSR + 2) & 0xf0);
+		   rtl8723au_read8(padapter, REG_RRSR + 2) & 0xf0);
 
 	rate_index = 0;
 	/*  Set RTS initial rate */
@@ -365,7 +366,7 @@ int c2h_evt_read23a(struct rtw_adapter *adapter, u8 *buf)
 	if (buf == NULL)
 		goto exit;
 
-	trigger = rtw_read8(adapter, REG_C2HEVT_CLEAR);
+	trigger = rtl8723au_read8(adapter, REG_C2HEVT_CLEAR);
 
 	if (trigger == C2H_EVT_HOST_CLOSE)
 		goto exit;	/* Not ready */
@@ -376,8 +377,8 @@ int c2h_evt_read23a(struct rtw_adapter *adapter, u8 *buf)
 
 	memset(c2h_evt, 0, 16);
 
-	*buf = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL);
-	*(buf + 1) = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);
+	*buf = rtl8723au_read8(adapter, REG_C2HEVT_MSG_NORMAL);
+	*(buf + 1) = rtl8723au_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);
 
 	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read23a(): ",
 		      &c2h_evt, sizeof(c2h_evt));
@@ -390,7 +391,7 @@ int c2h_evt_read23a(struct rtw_adapter *adapter, u8 *buf)
 
 	/* Read the content */
 	for (i = 0; i < c2h_evt->plen; i++)
-		c2h_evt->payload[i] = rtw_read8(adapter,
+		c2h_evt->payload[i] = rtl8723au_read8(adapter,
 						REG_C2HEVT_MSG_NORMAL +
 						sizeof(*c2h_evt) + i);
 
@@ -441,7 +442,7 @@ rtl8723a_set_ampdu_min_space(struct rtw_adapter *padapter, u8 MinSpacingToSet)
 		   ("Set HW_VAR_AMPDU_MIN_SPACE: %#x\n",
 		   padapter->MgntInfo.MinSpaceCfg)); */
 		MinSpacingToSet |=
-			rtw_read8(padapter, REG_AMPDU_MIN_SPACE) & 0xf8;
+			rtl8723au_read8(padapter, REG_AMPDU_MIN_SPACE) & 0xf8;
 		rtw_write8(padapter, REG_AMPDU_MIN_SPACE,
 			   MinSpacingToSet);
 	}
@@ -513,7 +514,7 @@ void rtl8723a_set_media_status(struct rtw_adapter *padapter, u8 status)
 {
 	u8 val8;
 
-	val8 = rtw_read8(padapter, MSR) & 0x0c;
+	val8 = rtl8723au_read8(padapter, MSR) & 0x0c;
 	val8 |= status;
 	rtw_write8(padapter, MSR, val8);
 }
@@ -522,7 +523,7 @@ void rtl8723a_set_media_status1(struct rtw_adapter *padapter, u8 status)
 {
 	u8 val8;
 
-	val8 = rtw_read8(padapter, MSR) & 0x03;
+	val8 = rtl8723au_read8(padapter, MSR) & 0x03;
 	val8 |= status << 2;
 	rtw_write8(padapter, MSR, val8);
 }
@@ -538,7 +539,7 @@ void rtl8723a_set_bcn_func(struct rtw_adapter *padapter, u8 val)
 void rtl8723a_check_bssid(struct rtw_adapter *padapter, u8 val)
 {
 	u32 val32;
-	val32 = rtw_read32(padapter, REG_RCR);
+	val32 = rtl8723au_read32(padapter, REG_RCR);
 	if (val)
 		val32 |= RCR_CBSSID_DATA | RCR_CBSSID_BCN;
 	else
@@ -553,7 +554,7 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 
 		/*  config RCR to receive different BSSID & not
 		    to receive data frame */
-		v32 = rtw_read32(padapter, REG_RCR);
+		v32 = rtl8723au_read32(padapter, REG_RCR);
 		v32 &= ~(RCR_CBSSID_BCN);
 		rtw_write32(padapter, REG_RCR, v32);
 		/*  reject all data frame */
@@ -579,7 +580,7 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 			SetBcnCtrlReg23a(padapter, 0, DIS_TSF_UDT);
 		}
 
-		v32 = rtw_read32(padapter, REG_RCR);
+		v32 = rtl8723au_read32(padapter, REG_RCR);
 		v32 |= RCR_CBSSID_BCN;
 		rtw_write32(padapter, REG_RCR, v32);
 	}
@@ -591,17 +592,18 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 
 void rtl8723a_on_rcr_am(struct rtw_adapter *padapter)
 {
-	rtw_write32(padapter, REG_RCR, rtw_read32(padapter, REG_RCR) | RCR_AM);
+	rtw_write32(padapter, REG_RCR,
+		    rtl8723au_read32(padapter, REG_RCR) | RCR_AM);
 	DBG_8723A("%s, %d, RCR = %x \n", __FUNCTION__, __LINE__,
-		  rtw_read32(padapter, REG_RCR));
+		  rtl8723au_read32(padapter, REG_RCR));
 }
 
 void rtl8723a_off_rcr_am(struct rtw_adapter *padapter)
 {
 	rtw_write32(padapter, REG_RCR,
-		    rtw_read32(padapter, REG_RCR) & (~RCR_AM));
+		    rtl8723au_read32(padapter, REG_RCR) & (~RCR_AM));
 	DBG_8723A("%s, %d, RCR = %x \n", __FUNCTION__, __LINE__,
-		  rtw_read32(padapter, REG_RCR));
+		  rtl8723au_read32(padapter, REG_RCR));
 }
 
 void rtl8723a_set_slot_time(struct rtw_adapter *padapter, u8 slottime)
@@ -730,17 +732,18 @@ void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter)
 	rtw_write8(padapter, REG_TXPAUSE, 0xff);
 
 	/*  keep sn */
-	padapter->xmitpriv.nqos_ssn = rtw_read16(padapter, REG_NQOS_SEQ);
+	padapter->xmitpriv.nqos_ssn = rtl8723au_read16(padapter, REG_NQOS_SEQ);
 
 	if (pwrpriv->bkeepfwalive != true) {
 		u32 v32;
 
 		/*  RX DMA stop */
-		v32 = rtw_read32(padapter, REG_RXPKT_NUM);
+		v32 = rtl8723au_read32(padapter, REG_RXPKT_NUM);
 		v32 |= RW_RELEASE_EN;
 		rtw_write32(padapter, REG_RXPKT_NUM, v32);
 		do {
-			v32 = rtw_read32(padapter, REG_RXPKT_NUM) & RXDMA_IDLE;
+			v32 = rtl8723au_read32(padapter,
+					       REG_RXPKT_NUM) & RXDMA_IDLE;
 			if (!v32)
 				break;
 		} while (trycnt--);
@@ -760,14 +763,14 @@ void rtl8723a_bcn_valid(struct rtw_adapter *padapter)
 	/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2,
 	   write 1 to clear, Clear by sw */
 	rtw_write8(padapter, REG_TDECTRL + 2,
-		   rtw_read8(padapter, REG_TDECTRL + 2) | BIT(0));
+		   rtl8723au_read8(padapter, REG_TDECTRL + 2) | BIT(0));
 }
 
 bool rtl8723a_get_bcn_valid(struct rtw_adapter *padapter)
 {
 	bool retval;
 
-	retval = (rtw_read8(padapter, REG_TDECTRL + 2) & BIT(0)) ? true : false;
+	retval = (rtl8723au_read8(padapter, REG_TDECTRL + 2) & BIT(0)) ? true : false;
 
 	return retval;
 }
@@ -910,7 +913,7 @@ bool rtl8723a_get_fwlps_rf_on(struct rtw_adapter *padapter)
 		    not check Fw LPS Leave, because Fw is unload. */
 		retval = true;
 	} else {
-		valRCR = rtw_read32(padapter, REG_RCR);
+		valRCR = rtl8723au_read32(padapter, REG_RCR);
 		if (valRCR & 0x00070000)
 			retval = false;
 		else
@@ -924,7 +927,7 @@ bool rtl8723a_chk_hi_queue_empty(struct rtw_adapter *padapter)
 {
 	u32 hgq;
 
-	hgq = rtw_read32(padapter, REG_HGQ_INFORMATION);
+	hgq = rtl8723au_read32(padapter, REG_HGQ_INFORMATION);
 
 	return ((hgq & 0x0000ff00) == 0) ? true : false;
 }

@@ -22,6 +22,7 @@
 #ifdef CONFIG_8723AU_BT_COEXIST
 #include <rtl8723a_hal.h>
 #endif
+#include <usb_ops_linux.h>
 
 void ips_enter23a(struct rtw_adapter * padapter)
 {
@@ -98,7 +99,7 @@ int ips_leave23a(struct rtw_adapter * padapter)
 		}
 
 		DBG_8723A("==> ips_leave23a.....LED(0x%08x)...\n",
-			  rtw_read32(padapter, 0x4c));
+			  rtl8723au_read32(padapter, 0x4c));
 		pwrpriv->bips_processing = false;
 
 		pwrpriv->bkeepfwalive = false;

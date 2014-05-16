@@ -20,6 +20,7 @@
 #include <mlme_osdep.h>
 #include <rtw_ioctl_set.h>
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 #define RTL92C_MAX_H2C_BOX_NUMS		4
 #define RTL92C_MAX_CMD_LEN		5
@@ -33,7 +34,7 @@ static u8 _is_fw_read_cmd_down(struct rtw_adapter *padapter, u8 msgbox_num)
 	u8 valid;
 
 	do {
-		valid = rtw_read8(padapter, REG_HMETFR) & BIT(msgbox_num);
+		valid = rtl8723au_read8(padapter, REG_HMETFR) & BIT(msgbox_num);
 		if (0 == valid)
 			read_down = true;
 	} while ((!read_down) && (retry_cnts--));
@@ -610,7 +611,7 @@ void rtl8723a_set_FwJoinBssReport_cmd(struct rtw_adapter *padapter, u8 mstatus)
 		/* rtw_write8(padapter, REG_HWSEQ_CTRL, 0xFF); */
 
 		/*  set REG_CR bit 8 */
-		v8 = rtw_read8(padapter, REG_CR+1);
+		v8 = rtl8723au_read8(padapter, REG_CR+1);
 		v8 |= BIT(0); /*  ENSWBCN */
 		rtw_write8(padapter,  REG_CR+1, v8);
 
@@ -626,7 +627,7 @@ void rtl8723a_set_FwJoinBssReport_cmd(struct rtw_adapter *padapter, u8 mstatus)
 			bRecover = true;
 
 		/*  To tell Hw the packet is not a real beacon frame. */
-		/* U1bTmp = rtw_read8(padapter, REG_FWHW_TXQ_CTRL+2); */
+		/* U1bTmp = rtl8723au_read8(padapter, REG_FWHW_TXQ_CTRL+2); */
 		rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl & ~BIT(6));
 		pHalData->RegFwHwTxQCtrl &= ~BIT(6);
 		SetFwRsvdPagePkt(padapter, 0);
@@ -645,7 +646,7 @@ void rtl8723a_set_FwJoinBssReport_cmd(struct rtw_adapter *padapter, u8 mstatus)
 		}
 
 		/*  Clear CR[8] or beacon packet will not be send to TxBuf anymore. */
-		v8 = rtw_read8(padapter, REG_CR+1);
+		v8 = rtl8723au_read8(padapter, REG_CR+1);
 		v8 &= ~BIT(0); /*  ~ENSWBCN */
 		rtw_write8(padapter, REG_CR+1, v8);
 	}

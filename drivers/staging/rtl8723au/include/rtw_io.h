@@ -100,10 +100,6 @@ struct intf_priv;
 
 struct _io_ops
 {
-	u8 (*_read8)(struct rtw_adapter *adapter, u32 addr);
-	u16 (*_read16)(struct rtw_adapter *adapter, u32 addr);
-	u32 (*_read32)(struct rtw_adapter *adapter, u32 addr);
-
 	int (*_write8)(struct rtw_adapter *adapter, u32 addr, u8 val);
 	int (*_write16)(struct rtw_adapter *adapter, u32 addr, u16 val);
 	int (*_write32)(struct rtw_adapter *adapter, u32 addr, u32 val);
@@ -240,9 +236,6 @@ struct reg_protocol_wt {
 void _rtw_attrib_read(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 void _rtw_attrib_write(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
-u8 _rtw_read823a(struct rtw_adapter *adapter, u32 addr);
-u16 _rtw_read1623a(struct rtw_adapter *adapter, u32 addr);
-u32 _rtw_read3223a(struct rtw_adapter *adapter, u32 addr);
 void _rtw_read_port23a_cancel(struct rtw_adapter *adapter);
 
 int _rtw_write823a(struct rtw_adapter *adapter, u32 addr, u8 val);
@@ -256,28 +249,16 @@ void _rtw_write_port23a_cancel(struct rtw_adapter *adapter);
 bool match_read_sniff_ranges(u16 addr, u16 len);
 bool match_write_sniff_ranges(u16 addr, u16 len);
 
-u8 dbg_rtw_read823a(struct rtw_adapter *adapter, u32 addr, const char *caller, const int line);
-u16 dbg_rtw_read1623a(struct rtw_adapter *adapter, u32 addr, const char *caller, const int line);
-u32 dbg_rtw_read3223a(struct rtw_adapter *adapter, u32 addr, const char *caller, const int line);
-
 int dbg_rtw_write823a(struct rtw_adapter *adapter, u32 addr, u8 val, const char *caller, const int line);
 int dbg_rtw_write1623a(struct rtw_adapter *adapter, u32 addr, u16 val, const char *caller, const int line);
 int dbg_rtw_write3223a(struct rtw_adapter *adapter, u32 addr, u32 val, const char *caller, const int line);
 int dbg_rtw_writeN23a(struct rtw_adapter *adapter, u32 addr ,u32 length , u8 *data, const char *caller, const int line);
-
-#define rtw_read8(adapter, addr) dbg_rtw_read823a((adapter), (addr), __FUNCTION__, __LINE__)
-#define rtw_read16(adapter, addr) dbg_rtw_read1623a((adapter), (addr), __FUNCTION__, __LINE__)
-#define rtw_read32(adapter, addr) dbg_rtw_read3223a((adapter), (addr), __FUNCTION__, __LINE__)
 
 #define  rtw_write8(adapter, addr, val) dbg_rtw_write823a((adapter), (addr), (val), __FUNCTION__, __LINE__)
 #define  rtw_write16(adapter, addr, val) dbg_rtw_write1623a((adapter), (addr), (val), __FUNCTION__, __LINE__)
 #define  rtw_write32(adapter, addr, val) dbg_rtw_write3223a((adapter), (addr), (val), __FUNCTION__, __LINE__)
 #define  rtw_writeN(adapter, addr, length, data) dbg_rtw_writeN23a((adapter), (addr), (length), (data), __FUNCTION__, __LINE__)
 #else /* DBG_IO */
-#define rtw_read8(adapter, addr) _rtw_read823a((adapter), (addr))
-#define rtw_read16(adapter, addr) _rtw_read1623a((adapter), (addr))
-#define rtw_read32(adapter, addr) _rtw_read3223a((adapter), (addr))
-
 #define  rtw_write8(adapter, addr, val) _rtw_write823a((adapter), (addr), (val))
 #define  rtw_write16(adapter, addr, val) _rtw_write1623a((adapter), (addr), (val))
 #define  rtw_write32(adapter, addr, val) _rtw_write3223a((adapter), (addr), (val))
@@ -291,11 +272,8 @@ int dbg_rtw_writeN23a(struct rtw_adapter *adapter, u32 addr ,u32 length , u8 *da
 #define PlatformEFIOWrite4Byte(_a,_b,_c)		\
 	rtw_write32(_a,_b,_c)
 
-#define PlatformEFIORead1Byte(_a,_b)		\
-		rtw_read8(_a,_b)
-#define PlatformEFIORead2Byte(_a,_b)		\
-		rtw_read16(_a,_b)
-#define PlatformEFIORead4Byte(_a,_b)		\
-		rtw_read32(_a,_b)
+#define PlatformEFIORead1Byte(_a,_b)		rtl8723au_read8(_a,_b)
+#define PlatformEFIORead2Byte(_a,_b)		rtl8723au_read16(_a,_b)
+#define PlatformEFIORead4Byte(_a,_b)		rtl8723au_read32(_a,_b)
 
 #endif	/* _RTL8711_IO_H_ */

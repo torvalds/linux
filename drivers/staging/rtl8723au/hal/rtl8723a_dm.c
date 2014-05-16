@@ -28,6 +28,7 @@
 #include <drv_types.h>
 
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 /*  */
 /*  Global var */
@@ -45,18 +46,18 @@ static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 	if (!padapter->registrypriv.hw_wps_pbc)
 		return;
 
-	tmp1byte = rtw_read8(padapter, GPIO_IO_SEL);
+	tmp1byte = rtl8723au_read8(padapter, GPIO_IO_SEL);
 	tmp1byte |= (HAL_8192C_HW_GPIO_WPS_BIT);
 	rtw_write8(padapter, GPIO_IO_SEL, tmp1byte);	/* enable GPIO[2] as output mode */
 
 	tmp1byte &= ~(HAL_8192C_HW_GPIO_WPS_BIT);
 	rtw_write8(padapter,  GPIO_IN, tmp1byte);		/* reset the floating voltage level */
 
-	tmp1byte = rtw_read8(padapter, GPIO_IO_SEL);
+	tmp1byte = rtl8723au_read8(padapter, GPIO_IO_SEL);
 	tmp1byte &= ~(HAL_8192C_HW_GPIO_WPS_BIT);
 	rtw_write8(padapter, GPIO_IO_SEL, tmp1byte);	/* enable GPIO[2] as input mode */
 
-	tmp1byte = rtw_read8(padapter, GPIO_IN);
+	tmp1byte = rtl8723au_read8(padapter, GPIO_IN);
 
 	if (tmp1byte == 0xff)
 		return;
@@ -197,7 +198,7 @@ void rtl8723a_InitHalDm(struct rtw_adapter *Adapter)
 	ODM23a_DMInit(pDM_Odm);
 	/*  Save REG_INIDATA_RATE_SEL value for TXDESC. */
 	for (i = 0; i < 32; i++)
-		pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
+		pdmpriv->INIDATA_RATE[i] = rtl8723au_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
 }
 
 void
@@ -225,11 +226,11 @@ rtl8723a_HalDmWatchDog(
 
 		/*  Read REG_INIDATA_RATE_SEL value for TXDESC. */
 		if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE)) {
-			pdmpriv->INIDATA_RATE[0] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL) & 0x3f;
+			pdmpriv->INIDATA_RATE[0] = rtl8723au_read8(Adapter, REG_INIDATA_RATE_SEL) & 0x3f;
 		} else {
 			u8	i;
 			for (i = 1 ; i < (Adapter->stapriv.asoc_sta_count + 1); i++)
-				pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, (REG_INIDATA_RATE_SEL+i)) & 0x3f;
+				pdmpriv->INIDATA_RATE[i] = rtl8723au_read8(Adapter, (REG_INIDATA_RATE_SEL+i)) & 0x3f;
 		}
 	}
 

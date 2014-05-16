@@ -19,6 +19,7 @@
 
 #include <rtw_efuse.h>
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 /*------------------------Define local variable------------------------------*/
 
@@ -59,13 +60,13 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 
 		/*  1.2V Power: From VDDON with Power
 		    Cut(0x0000h[15]), defualt valid */
-		tmpV16 = rtw_read16(padapter, REG_SYS_ISO_CTRL);
+		tmpV16 = rtl8723au_read16(padapter, REG_SYS_ISO_CTRL);
 		if (!(tmpV16 & PWC_EV12V)) {
 			tmpV16 |= PWC_EV12V;
 			rtw_write16(padapter, REG_SYS_ISO_CTRL, tmpV16);
 		}
 		/*  Reset: 0x0000h[28], default valid */
-		tmpV16 = rtw_read16(padapter, REG_SYS_FUNC_EN);
+		tmpV16 = rtl8723au_read16(padapter, REG_SYS_FUNC_EN);
 		if (!(tmpV16 & FEN_ELDR)) {
 			tmpV16 |= FEN_ELDR;
 			rtw_write16(padapter, REG_SYS_FUNC_EN, tmpV16);
@@ -73,7 +74,7 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 
 		/*  Clock: Gated(0x0008h[5]) 8M(0x0008h[1]) clock
 		    from ANA, default valid */
-		tmpV16 = rtw_read16(padapter, REG_SYS_CLKR);
+		tmpV16 = rtl8723au_read16(padapter, REG_SYS_CLKR);
 		if ((!(tmpV16 & LOADER_CLK_EN)) || (!(tmpV16 & ANA8M))) {
 			tmpV16 |= (LOADER_CLK_EN | ANA8M);
 			rtw_write16(padapter, REG_SYS_CLKR, tmpV16);
@@ -81,7 +82,7 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 
 		if (bWrite == true) {
 			/*  Enable LDO 2.5V before read/write action */
-			tempval = rtw_read8(padapter, EFUSE_TEST + 3);
+			tempval = rtl8723au_read8(padapter, EFUSE_TEST + 3);
 			tempval &= 0x0F;
 			tempval |= (VOLTAGE_V25 << 4);
 			rtw_write8(padapter, EFUSE_TEST + 3, (tempval | 0x80));
@@ -91,7 +92,7 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 
 		if (bWrite == true) {
 			/*  Disable LDO 2.5V after read/write action */
-			tempval = rtw_read8(padapter, EFUSE_TEST + 3);
+			tempval = rtl8723au_read8(padapter, EFUSE_TEST + 3);
 			rtw_write8(padapter, EFUSE_TEST + 3, (tempval & 0x7F));
 		}
 	}
@@ -158,20 +159,20 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 
 	/* Write Address */
 	rtw_write8(Adapter, EFUSE_CTRL+1, (_offset & 0xff));
-	readbyte = rtw_read8(Adapter, EFUSE_CTRL+2);
+	readbyte = rtl8723au_read8(Adapter, EFUSE_CTRL+2);
 	rtw_write8(Adapter, EFUSE_CTRL+2, ((_offset >> 8) & 0x03) | (readbyte & 0xfc));
 
 	/* Write bit 32 0 */
-	readbyte = rtw_read8(Adapter, EFUSE_CTRL+3);
+	readbyte = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 	rtw_write8(Adapter, EFUSE_CTRL+3, (readbyte & 0x7f));
 
 	/* Check bit 32 read-ready */
 	retry = 0;
-	value32 = rtw_read32(Adapter, EFUSE_CTRL);
+	value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
 	/* while(!(((value32 >> 24) & 0xff) & 0x80)  && (retry<10)) */
 	while(!(((value32 >> 24) & 0xff) & 0x80)  && (retry<10000))
 	{
-		value32 = rtw_read32(Adapter, EFUSE_CTRL);
+		value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
 		retry++;
 	}
 
@@ -180,7 +181,7 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 	/*  Designer says that there shall be some delay after ready bit is set, or the */
 	/*  result will always stay on last data we read. */
 	udelay(50);
-	value32 = rtw_read32(Adapter, EFUSE_CTRL);
+	value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
 
 	*pbuf = (u8)(value32 & 0xff);
 }
@@ -302,21 +303,21 @@ EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 		/* Write E-fuse Register address bit0~7 */
 		temp = Address & 0xFF;
 		rtw_write8(Adapter, EFUSE_CTRL+1, temp);
-		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+2);
+		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+2);
 		/* Write E-fuse Register address bit8~9 */
 		temp = ((Address >> 8) & 0x03) | (Bytetemp & 0xFC);
 		rtw_write8(Adapter, EFUSE_CTRL+2, temp);
 
 		/* Write 0x30[31]= 0 */
-		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+3);
+		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 		temp = Bytetemp & 0x7F;
 		rtw_write8(Adapter, EFUSE_CTRL+3, temp);
 
 		/* Wait Write-ready (0x30[31]= 1) */
-		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+3);
+		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 		while(!(Bytetemp & 0x80))
 		{
-			Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+3);
+			Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 			k++;
 			if (k == 1000)
 			{
@@ -324,7 +325,7 @@ EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 				break;
 			}
 		}
-		data = rtw_read8(Adapter, EFUSE_CTRL);
+		data = rtl8723au_read8(Adapter, EFUSE_CTRL);
 		return data;
 	}
 	else
@@ -376,22 +377,22 @@ EFUSE_Write1Byte(
 		/* Write E-fuse Register address bit0~7 */
 		temp = Address & 0xFF;
 		rtw_write8(Adapter, EFUSE_CTRL+1, temp);
-		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+2);
+		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+2);
 
 		/* Write E-fuse Register address bit8~9 */
 		temp = ((Address >> 8) & 0x03) | (Bytetemp & 0xFC);
 		rtw_write8(Adapter, EFUSE_CTRL+2, temp);
 
 		/* Write 0x30[31]= 1 */
-		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+3);
+		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 		temp = Bytetemp | 0x80;
 		rtw_write8(Adapter, EFUSE_CTRL+3, temp);
 
 		/* Wait Write-ready (0x30[31]= 0) */
-		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+3);
+		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 		while(Bytetemp & 0x80)
 		{
-			Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+3);
+			Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 			k++;
 			if (k == 100)
 			{
@@ -413,14 +414,14 @@ efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data)
 	/* address */
 	rtw_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr&0xff));
 	rtw_write8(pAdapter, EFUSE_CTRL+2, ((u8)((addr>>8) &0x03)) |
-	(rtw_read8(pAdapter, EFUSE_CTRL+2)&0xFC));
+	(rtl8723au_read8(pAdapter, EFUSE_CTRL+2)&0xFC));
 
 	rtw_write8(pAdapter, EFUSE_CTRL+3,  0x72);/* read cmd */
 
-	while(!(0x80 &rtw_read8(pAdapter, EFUSE_CTRL+3)) && (tmpidx<100))
+	while(!(0x80 &rtl8723au_read8(pAdapter, EFUSE_CTRL+3)) && (tmpidx<100))
 		tmpidx++;
 	if (tmpidx < 100) {
-		*data = rtw_read8(pAdapter, EFUSE_CTRL);
+		*data = rtl8723au_read8(pAdapter, EFUSE_CTRL);
 		bResult = _SUCCESS;
 	} else {
 		*data = 0xff;
@@ -444,12 +445,13 @@ efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
 	/* address */
 	rtw_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr&0xff));
 	rtw_write8(pAdapter, EFUSE_CTRL+2,
-	(rtw_read8(pAdapter, EFUSE_CTRL+2)&0xFC)|(u8)((addr>>8)&0x03));
+	(rtl8723au_read8(pAdapter, EFUSE_CTRL+2)&0xFC)|(u8)((addr>>8)&0x03));
 	rtw_write8(pAdapter, EFUSE_CTRL, data);/* data */
 
 	rtw_write8(pAdapter, EFUSE_CTRL+3, 0xF2);/* write cmd */
 
-	while((0x80 &  rtw_read8(pAdapter, EFUSE_CTRL+3)) && (tmpidx<100)) {
+	while((0x80 & rtl8723au_read8(pAdapter, EFUSE_CTRL+3)) &&
+	      (tmpidx<100)) {
 		tmpidx++;
 	}
 

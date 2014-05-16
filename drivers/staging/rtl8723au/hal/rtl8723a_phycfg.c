@@ -18,6 +18,7 @@
 #include <drv_types.h>
 
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 /*---------------------------Define Local Constant---------------------------*/
 /* Channel switch:The size of command tables for switch channel*/
@@ -87,7 +88,7 @@ PHY_QueryBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask)
 {
 	u32	ReturnValue = 0, OriginalValue, BitShift;
 
-	OriginalValue = rtw_read32(Adapter, RegAddr);
+	OriginalValue = rtl8723au_read32(Adapter, RegAddr);
 	BitShift = phy_CalculateBitShift(BitMask);
 	ReturnValue = (OriginalValue & BitMask) >> BitShift;
 	return ReturnValue;
@@ -123,7 +124,7 @@ PHY_SetBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask, u32	Data)
 	/* RT_TRACE(COMP_RF, DBG_TRACE, ("--->PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
 
 	if (BitMask != bMaskDWord) {/* if not "double word" write */
-		OriginalValue = rtw_read32(Adapter, RegAddr);
+		OriginalValue = rtl8723au_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
 		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
 	}
@@ -804,7 +805,7 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 
 	/*  Suggested by Scott. tynli_test. 2010.12.30. */
 	/* 1. 0x28[1] = 1 */
-	TmpU1B = rtw_read8(Adapter, REG_AFE_PLL_CTRL);
+	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_PLL_CTRL);
 	udelay(2);
 	rtw_write8(Adapter, REG_AFE_PLL_CTRL, TmpU1B | BIT(1));
 	udelay(2);
@@ -814,16 +815,16 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 	udelay(2);
 
 	/* 3. 0x02[1:0] = 2b'11 */
-	TmpU1B = rtw_read8(Adapter, REG_SYS_FUNC_EN);
+	TmpU1B = rtl8723au_read8(Adapter, REG_SYS_FUNC_EN);
 	rtw_write8(Adapter, REG_SYS_FUNC_EN,
 		   (TmpU1B | FEN_BB_GLB_RSTn | FEN_BBRSTB));
 
 	/* 4. 0x25[6] = 0 */
-	TmpU1B = rtw_read8(Adapter, REG_AFE_XTAL_CTRL + 1);
+	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_XTAL_CTRL + 1);
 	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+1, TmpU1B & ~BIT(6));
 
 	/* 5. 0x24[20] = 0	Advised by SD3 Alex Wang. 2011.02.09. */
-	TmpU1B = rtw_read8(Adapter, REG_AFE_XTAL_CTRL+2);
+	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_XTAL_CTRL+2);
 	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+2, TmpU1B & ~BIT(4));
 
 	/* 6. 0x1f[7:0] = 0x07 */
@@ -956,8 +957,8 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	/* 3<1>Set MAC register */
 	/* 3 */
 
-	regBwOpMode = rtw_read8(Adapter, REG_BWOPMODE);
-	regRRSR_RSC = rtw_read8(Adapter, REG_RRSR+2);
+	regBwOpMode = rtl8723au_read8(Adapter, REG_BWOPMODE);
+	regRRSR_RSC = rtl8723au_read8(Adapter, REG_RRSR+2);
 
 	switch (pHalData->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:

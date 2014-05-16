@@ -39,30 +39,6 @@ jackson@realtek.com.tw
 
 #include <usb_ops.h>
 
-u8 _rtw_read823a(struct rtw_adapter *adapter, u32 addr)
-{
-	u8 r_val;
-	struct _io_ops *io_ops = &adapter->io_ops;
-
-	r_val = io_ops->_read8(adapter, addr);
-
-	return r_val;
-}
-
-u16 _rtw_read1623a(struct rtw_adapter *adapter, u32 addr)
-{
-	struct _io_ops *io_ops = &adapter->io_ops;
-
-	return io_ops->_read16(adapter, addr);
-}
-
-u32 _rtw_read3223a(struct rtw_adapter *adapter, u32 addr)
-{
-	struct _io_ops *io_ops = &adapter->io_ops;
-
-	return io_ops->_read32(adapter, addr);
-}
-
 int _rtw_write823a(struct rtw_adapter *adapter, u32 addr, u8 val)
 {
 	struct _io_ops *io_ops = &adapter->io_ops;

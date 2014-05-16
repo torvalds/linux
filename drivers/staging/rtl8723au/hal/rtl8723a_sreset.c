@@ -16,6 +16,7 @@
 
 #include <rtl8723a_sreset.h>
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 void rtl8723a_sreset_xmit_status_check(struct rtw_adapter *padapter)
 {
@@ -27,7 +28,7 @@ void rtl8723a_sreset_xmit_status_check(struct rtw_adapter *padapter)
 	unsigned int diff_time;
 	u32 txdma_status;
 
-	txdma_status = rtw_read32(padapter, REG_TXDMA_STATUS);
+	txdma_status = rtl8723au_read32(padapter, REG_TXDMA_STATUS);
 	if (txdma_status != 0) {
 		DBG_8723A("%s REG_TXDMA_STATUS:0x%08x\n", __func__, txdma_status);
 		rtw_sreset_reset(padapter);

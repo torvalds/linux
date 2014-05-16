@@ -18,6 +18,7 @@
 /*  include files */
 
 #include "odm_precomp.h"
+#include <usb_ops_linux.h>
 
 #define		DPK_DELTA_MAPPING_NUM	13
 #define		index_mapping_HP_NUM	15
@@ -581,9 +582,9 @@ static void _PHY_SaveMACRegisters(struct rtw_adapter *pAdapter, u32 *MACReg, u32
 	u32 i;
 
 	for (i = 0 ; i < (IQK_MAC_REG_NUM - 1); i++) {
-		MACBackup[i] = rtw_read8(pAdapter, MACReg[i]);
+		MACBackup[i] = rtl8723au_read8(pAdapter, MACReg[i]);
 	}
-	MACBackup[i] = rtw_read32(pAdapter, MACReg[i]);
+	MACBackup[i] = rtl8723au_read32(pAdapter, MACReg[i]);
 }
 
 static void _PHY_ReloadADDARegisters(struct rtw_adapter *pAdapter, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
@@ -878,7 +879,7 @@ static void _PHY_LCCalibrate(struct rtw_adapter *pAdapter, bool is2T)
 	u32 RF_Amode = 0, RF_Bmode = 0, LC_Cal;
 
 	/* Check continuous TX and Packet TX */
-	tmpReg = rtw_read8(pAdapter, 0xd03);
+	tmpReg = rtl8723au_read8(pAdapter, 0xd03);
 
 	if ((tmpReg&0x70) != 0)			/* Deal with contisuous TX case */
 		rtw_write8(pAdapter, 0xd03, tmpReg&0x8F);	/* disable all continuous TX */

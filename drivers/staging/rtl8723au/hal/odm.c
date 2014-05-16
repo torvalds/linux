@@ -14,6 +14,7 @@
  ******************************************************************************/
 
 #include "odm_precomp.h"
+#include "usb_ops_linux.h"
 
 static const u16 dB_Invert_Table[8][12] = {
 	{1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4},
@@ -1444,7 +1445,8 @@ void odm_DynamicTxPower23aSavePowerIndex(struct dm_odm_t *pDM_Odm)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
 	for (index = 0; index < 6; index++)
-		pdmpriv->PowerIndex_backup[index] = rtw_read8(Adapter, Power_Index_REG[index]);
+		pdmpriv->PowerIndex_backup[index] =
+			rtl8723au_read8(Adapter, Power_Index_REG[index]);
 }
 
 void odm_DynamicTxPower23aRestorePowerIndex(struct dm_odm_t *pDM_Odm)
