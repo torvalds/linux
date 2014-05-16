@@ -100,9 +100,9 @@ void rtl8723au_chip_configure(struct rtw_adapter *padapter)
 					 pdvobjpriv->RtNumOutPipes);
 }
 
-static u8 _InitPowerOn(struct rtw_adapter *padapter)
+static int _InitPowerOn(struct rtw_adapter *padapter)
 {
-	u8 status = _SUCCESS;
+	int status = _SUCCESS;
 	u16 value16 = 0;
 	u8 value8 = 0;
 
