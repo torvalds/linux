@@ -140,6 +140,10 @@ void __init clock_stop_probe(void);
 void __init auxio_probe(void);
 void __init auxio_power_probe(void);
 
+/* pcic.c */
+extern void __iomem *pcic_regs;
+void pcic_nmi(unsigned int pend, struct pt_regs *regs);
+
 #else /* CONFIG_SPARC32 */
 #endif /* CONFIG_SPARC32 */
 #endif /* !(__SPARC_KERNEL_H) */
