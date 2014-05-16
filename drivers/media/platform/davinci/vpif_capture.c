@@ -1134,13 +1134,25 @@ static int
 vpif_enum_dv_timings(struct file *file, void *priv,
 		     struct v4l2_enum_dv_timings *timings)
 {
+	struct vpif_capture_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
+	struct vpif_capture_chan_config *chan_cfg;
+	struct v4l2_input input;
 	int ret;
+
+	if (config->chan_config[ch->channel_id].inputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	input = chan_cfg->inputs[ch->input_idx].input;
+	if (input.capabilities != V4L2_IN_CAP_DV_TIMINGS)
+		return -ENODATA;
 
 	ret = v4l2_subdev_call(ch->sd, video, enum_dv_timings, timings);
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		return -EINVAL;
+
 	return ret;
 }
 
@@ -1154,13 +1166,25 @@ static int
 vpif_query_dv_timings(struct file *file, void *priv,
 		      struct v4l2_dv_timings *timings)
 {
+	struct vpif_capture_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
+	struct vpif_capture_chan_config *chan_cfg;
+	struct v4l2_input input;
 	int ret;
+
+	if (config->chan_config[ch->channel_id].inputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	input = chan_cfg->inputs[ch->input_idx].input;
+	if (input.capabilities != V4L2_IN_CAP_DV_TIMINGS)
+		return -ENODATA;
 
 	ret = v4l2_subdev_call(ch->sd, video, query_dv_timings, timings);
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		return -ENODATA;
+
 	return ret;
 }
 
@@ -1173,18 +1197,33 @@ vpif_query_dv_timings(struct file *file, void *priv,
 static int vpif_s_dv_timings(struct file *file, void *priv,
 		struct v4l2_dv_timings *timings)
 {
+	struct vpif_capture_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct vpif_params *vpifparams = &ch->vpifparams;
 	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
+	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct video_obj *vid_ch = &ch->video;
 	struct v4l2_bt_timings *bt = &vid_ch->dv_timings.bt;
+	struct vpif_capture_chan_config *chan_cfg;
+	struct v4l2_input input;
 	int ret;
+
+	if (config->chan_config[ch->channel_id].inputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	input = chan_cfg->inputs[ch->input_idx].input;
+	if (input.capabilities != V4L2_IN_CAP_DV_TIMINGS)
+		return -ENODATA;
 
 	if (timings->type != V4L2_DV_BT_656_1120) {
 		vpif_dbg(2, debug, "Timing type not defined\n");
 		return -EINVAL;
 	}
+
+	if (vb2_is_busy(&common->buffer_queue))
+		return -EBUSY;
 
 	/* Configure subdevice timings, if any */
 	ret = v4l2_subdev_call(ch->sd, video, s_dv_timings, timings);
@@ -1261,9 +1300,20 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 static int vpif_g_dv_timings(struct file *file, void *priv,
 		struct v4l2_dv_timings *timings)
 {
+	struct vpif_capture_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct video_obj *vid_ch = &ch->video;
+	struct vpif_capture_chan_config *chan_cfg;
+	struct v4l2_input input;
+
+	if (config->chan_config[ch->channel_id].inputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	input = chan_cfg->inputs[ch->input_idx].input;
+	if (input.capabilities != V4L2_IN_CAP_DV_TIMINGS)
+		return -ENODATA;
 
 	*timings = vid_ch->dv_timings;
 
