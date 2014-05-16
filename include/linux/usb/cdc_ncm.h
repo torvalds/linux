@@ -118,7 +118,6 @@ struct cdc_ncm_ctx {
 	u16 tx_ndp_modulus;
 	u16 tx_seq;
 	u16 rx_seq;
-	u16 connected;
 	u16 min_tx_pkt;
 
 	/* statistics */

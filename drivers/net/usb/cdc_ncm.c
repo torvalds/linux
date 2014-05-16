@@ -1364,11 +1364,10 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		 * USB_CDC_NOTIFY_NETWORK_CONNECTION notification shall be
 		 * sent by device after USB_CDC_NOTIFY_SPEED_CHANGE.
 		 */
-		ctx->connected = le16_to_cpu(event->wValue);
 		netif_info(dev, link, dev->net,
 			   "network connection: %sconnected\n",
-			   ctx->connected ? "" : "dis");
-		usbnet_link_change(dev, ctx->connected, 0);
+			   !!event->wValue ? "" : "dis");
+		usbnet_link_change(dev, !!event->wValue, 0);
 		break;
 
 	case USB_CDC_NOTIFY_SPEED_CHANGE:
@@ -1388,23 +1387,11 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 	}
 }
 
-static int cdc_ncm_check_connect(struct usbnet *dev)
-{
-	struct cdc_ncm_ctx *ctx;
-
-	ctx = (struct cdc_ncm_ctx *)dev->data[0];
-	if (ctx == NULL)
-		return 1;	/* disconnected */
-
-	return !ctx->connected;
-}
-
 static const struct driver_info cdc_ncm_info = {
 	.description = "CDC NCM",
 	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
-	.check_connect = cdc_ncm_check_connect,
 	.manage_power = usbnet_manage_power,
 	.status = cdc_ncm_status,
 	.rx_fixup = cdc_ncm_rx_fixup,
@@ -1418,7 +1405,6 @@ static const struct driver_info wwan_info = {
 			| FLAG_WWAN,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
-	.check_connect = cdc_ncm_check_connect,
 	.manage_power = usbnet_manage_power,
 	.status = cdc_ncm_status,
 	.rx_fixup = cdc_ncm_rx_fixup,
@@ -1432,7 +1418,6 @@ static const struct driver_info wwan_noarp_info = {
 			| FLAG_WWAN | FLAG_NOARP,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
-	.check_connect = cdc_ncm_check_connect,
 	.manage_power = usbnet_manage_power,
 	.status = cdc_ncm_status,
 	.rx_fixup = cdc_ncm_rx_fixup,
