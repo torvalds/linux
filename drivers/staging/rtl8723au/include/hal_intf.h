@@ -84,8 +84,6 @@ struct hal_ops {
 
 	void (*intf_chip_configure)(struct rtw_adapter *padapter);
 
-	void (*read_adapter_info)(struct rtw_adapter *padapter);
-
 	void (*enable_interrupt)(struct rtw_adapter *padapter);
 	void (*disable_interrupt)(struct rtw_adapter *padapter);
 	s32 (*interrupt_handler)(struct rtw_adapter *padapter);

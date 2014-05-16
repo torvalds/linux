@@ -25,6 +25,7 @@
 #include <usb_ops.h>
 #include <usb_osintf.h>
 #include <usb_hal.h>
+#include <rtl8723a_hal.h>
 
 static int rtw_suspend(struct usb_interface *intf, pm_message_t message);
 static int rtw_resume(struct usb_interface *intf);
@@ -631,7 +632,7 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtw_hal_chip_configure23a(padapter);
 
 	/* step read efuse/eeprom data and get mac_addr */
-	rtw_hal_read_chip_info23a(padapter);
+	rtl8723a_read_adapter_info(padapter);
 
 	/* step 5. */
 	if (rtw_init_drv_sw23a(padapter) == _FAIL) {

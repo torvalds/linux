@@ -1462,10 +1462,12 @@ static void hal_EfuseCellSel(struct rtw_adapter *Adapter)
 	rtw_write32(Adapter, EFUSE_TEST, value32);
 }
 
-static int _ReadAdapterInfo8723AU(struct rtw_adapter *Adapter)
+void rtl8723a_read_adapter_info(struct rtw_adapter *Adapter)
 {
-	/* struct hal_data_8723a	*pHalData = GET_HAL_DATA(Adapter); */
 	unsigned long start = jiffies;
+
+	/*  Read EEPROM size before call any EEPROM function */
+	Adapter->EepromAddressSize = GetEEPROMSize8723A(Adapter);
 
 	MSG_8723A("====> _ReadAdapterInfo8723AU\n");
 
@@ -1483,16 +1485,6 @@ static int _ReadAdapterInfo8723AU(struct rtw_adapter *Adapter)
 
 	MSG_8723A("<==== _ReadAdapterInfo8723AU in %d ms\n",
 		  jiffies_to_msecs(jiffies - start));
-
-	return _SUCCESS;
-}
-
-static void ReadAdapterInfo8723AU(struct rtw_adapter *Adapter)
-{
-	/*  Read EEPROM size before call any EEPROM function */
-	Adapter->EepromAddressSize = GetEEPROMSize8723A(Adapter);
-
-	_ReadAdapterInfo8723AU(Adapter);
 }
 
 /*  */
@@ -1757,7 +1749,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->DeInitSwLeds = NULL;
 
 	pHalFunc->intf_chip_configure = &rtl8723au_interface_configure;
-	pHalFunc->read_adapter_info = &ReadAdapterInfo8723AU;
 	pHalFunc->GetHalDefVarHandler = &GetHalDefVar8192CUsb;
 	pHalFunc->SetHalDefVarHandler = &SetHalDefVar8192CUsb;
 	pHalFunc->UpdateRAMaskHandler = &UpdateHalRAMask8192CUsb;

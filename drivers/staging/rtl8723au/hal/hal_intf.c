@@ -27,12 +27,6 @@ void rtw_hal_chip_configure23a(struct rtw_adapter *padapter)
 		padapter->HalFunc.intf_chip_configure(padapter);
 }
 
-void rtw_hal_read_chip_info23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.read_adapter_info)
-		padapter->HalFunc.read_adapter_info(padapter);
-}
-
 void rtw_hal_read_chip_version23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.read_chip_version)
