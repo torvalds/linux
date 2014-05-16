@@ -1029,9 +1029,11 @@
 #define HDMI0_AUDIO_PACKET_CONTROL   0x7408
 #       define HDMI0_AUDIO_SAMPLE_SEND  (1 << 0)
 #       define HDMI0_AUDIO_DELAY_EN(x)  (((x) & 3) << 4)
+#       define HDMI0_AUDIO_DELAY_EN_MASK	(3 << 4)
 #       define HDMI0_AUDIO_SEND_MAX_PACKETS  (1 << 8)
 #       define HDMI0_AUDIO_TEST_EN         (1 << 12)
 #       define HDMI0_AUDIO_PACKETS_PER_LINE(x)  (((x) & 0x1f) << 16)
+#       define HDMI0_AUDIO_PACKETS_PER_LINE_MASK	(0x1f << 16)
 #       define HDMI0_AUDIO_CHANNEL_SWAP    (1 << 24)
 #       define HDMI0_60958_CS_UPDATE       (1 << 26)
 #       define HDMI0_AZ_FORMAT_WTRIG_MASK  (1 << 28)
@@ -1055,7 +1057,9 @@
 #       define HDMI0_MPEG_INFO_UPDATE  (1 << 10)
 #define HDMI0_INFOFRAME_CONTROL1     0x7418
 #       define HDMI0_AVI_INFO_LINE(x)  (((x) & 0x3f) << 0)
+#       define HDMI0_AVI_INFO_LINE_MASK		(0x3f << 0)
 #       define HDMI0_AUDIO_INFO_LINE(x)  (((x) & 0x3f) << 8)
+#       define HDMI0_AUDIO_INFO_LINE_MASK	(0x3f << 8)
 #       define HDMI0_MPEG_INFO_LINE(x)  (((x) & 0x3f) << 16)
 #define HDMI0_GENERIC_PACKET_CONTROL 0x741c
 #       define HDMI0_GENERIC0_SEND   (1 << 0)
@@ -1064,7 +1068,9 @@
 #       define HDMI0_GENERIC1_SEND   (1 << 4)
 #       define HDMI0_GENERIC1_CONT   (1 << 5)
 #       define HDMI0_GENERIC0_LINE(x)  (((x) & 0x3f) << 16)
+#       define HDMI0_GENERIC0_LINE_MASK		(0x3f << 16)
 #       define HDMI0_GENERIC1_LINE(x)  (((x) & 0x3f) << 24)
+#       define HDMI0_GENERIC1_LINE_MASK		(0x3f << 24)
 #define HDMI0_GC                     0x7428
 #       define HDMI0_GC_AVMUTE       (1 << 0)
 #define HDMI0_AVI_INFO0              0x7454
@@ -1120,16 +1126,22 @@
 #define HDMI0_GENERIC1_6             0x74a8
 #define HDMI0_ACR_32_0               0x74ac
 #       define HDMI0_ACR_CTS_32(x)   (((x) & 0xfffff) << 12)
+#       define HDMI0_ACR_CTS_32_MASK		(0xfffff << 12)
 #define HDMI0_ACR_32_1               0x74b0
 #       define HDMI0_ACR_N_32(x)   (((x) & 0xfffff) << 0)
+#       define HDMI0_ACR_N_32_MASK		(0xfffff << 0)
 #define HDMI0_ACR_44_0               0x74b4
 #       define HDMI0_ACR_CTS_44(x)   (((x) & 0xfffff) << 12)
+#       define HDMI0_ACR_CTS_44_MASK		(0xfffff << 12)
 #define HDMI0_ACR_44_1               0x74b8
 #       define HDMI0_ACR_N_44(x)   (((x) & 0xfffff) << 0)
+#       define HDMI0_ACR_N_44_MASK		(0xfffff << 0)
 #define HDMI0_ACR_48_0               0x74bc
 #       define HDMI0_ACR_CTS_48(x)   (((x) & 0xfffff) << 12)
+#       define HDMI0_ACR_CTS_48_MASK		(0xfffff << 12)
 #define HDMI0_ACR_48_1               0x74c0
 #       define HDMI0_ACR_N_48(x)   (((x) & 0xfffff) << 0)
+#       define HDMI0_ACR_N_48_MASK		(0xfffff << 0)
 #define HDMI0_ACR_STATUS_0           0x74c4
 #define HDMI0_ACR_STATUS_1           0x74c8
 #define HDMI0_AUDIO_INFO0            0x74cc
@@ -1149,14 +1161,17 @@
 #       define HDMI0_60958_CS_CATEGORY_CODE(x)      (((x) & 0xff) << 8)
 #       define HDMI0_60958_CS_SOURCE_NUMBER(x)      (((x) & 0xf) << 16)
 #       define HDMI0_60958_CS_CHANNEL_NUMBER_L(x)   (((x) & 0xf) << 20)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_L_MASK	(0xf << 20)
 #       define HDMI0_60958_CS_SAMPLING_FREQUENCY(x) (((x) & 0xf) << 24)
 #       define HDMI0_60958_CS_CLOCK_ACCURACY(x)     (((x) & 3) << 28)
+#       define HDMI0_60958_CS_CLOCK_ACCURACY_MASK	(3 << 28)
 #define HDMI0_60958_1                0x74d8
 #       define HDMI0_60958_CS_WORD_LENGTH(x)        (((x) & 0xf) << 0)
 #       define HDMI0_60958_CS_ORIGINAL_SAMPLING_FREQUENCY(x)   (((x) & 0xf) << 4)
 #       define HDMI0_60958_CS_VALID_L(x)   (((x) & 1) << 16)
 #       define HDMI0_60958_CS_VALID_R(x)   (((x) & 1) << 18)
 #       define HDMI0_60958_CS_CHANNEL_NUMBER_R(x)   (((x) & 0xf) << 20)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_R_MASK	(0xf << 20)
 #define HDMI0_ACR_PACKET_CONTROL     0x74dc
 #       define HDMI0_ACR_SEND        (1 << 0)
 #       define HDMI0_ACR_CONT        (1 << 1)
