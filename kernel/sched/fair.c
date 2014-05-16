@@ -4065,7 +4065,7 @@ static void record_wakee(struct task_struct *p)
 	 * about the loss.
 	 */
 	if (jiffies > current->wakee_flip_decay_ts + HZ) {
-		current->wakee_flips = 0;
+		current->wakee_flips >>= 1;
 		current->wakee_flip_decay_ts = jiffies;
 	}
 
