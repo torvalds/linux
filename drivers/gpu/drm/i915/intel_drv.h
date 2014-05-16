@@ -680,6 +680,7 @@ void bdw_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
 void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
+void i9xx_check_fifo_underruns(struct drm_device *dev);
 
 
 /* intel_crt.c */
