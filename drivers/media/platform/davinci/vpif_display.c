@@ -67,41 +67,40 @@ static struct device *vpif_dev;
 static void vpif_calculate_offsets(struct channel_obj *ch);
 static void vpif_config_addr(struct channel_obj *ch, int muxmode);
 
-/*
- * buffer_prepare: This is the callback function called from vb2_qbuf()
- * function the buffer is prepared and user space virtual address is converted
- * into physical address
+/**
+ * vpif_buffer_prepare :  callback function for buffer prepare
+ * @vb: ptr to vb2_buffer
+ *
+ * This is the callback function for buffer prepare when vb2_qbuf()
+ * function is called. The buffer is prepared and user space virtual address
+ * or user address is converted into  physical address
  */
 static int vpif_buffer_prepare(struct vb2_buffer *vb)
 {
-	struct vb2_queue *q = vb->vb2_queue;
-	struct channel_obj *ch = vb2_get_drv_priv(q);
+	struct channel_obj *ch = vb2_get_drv_priv(vb->vb2_queue);
 	struct common_obj *common;
-	unsigned long addr;
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
-	if (vb->state != VB2_BUF_STATE_ACTIVE &&
-		vb->state != VB2_BUF_STATE_PREPARED) {
-		vb2_set_plane_payload(vb, 0, common->fmt.fmt.pix.sizeimage);
-		if (vb2_plane_vaddr(vb, 0) &&
-		vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
-			goto buf_align_exit;
 
-		addr = vb2_dma_contig_plane_dma_addr(vb, 0);
-		if (q->streaming &&
-			(V4L2_BUF_TYPE_SLICED_VBI_OUTPUT != q->type)) {
-			if (!ISALIGNED(addr + common->ytop_off) ||
+	vb2_set_plane_payload(vb, 0, common->fmt.fmt.pix.sizeimage);
+	if (vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
+		return -EINVAL;
+
+	vb->v4l2_buf.field = common->fmt.fmt.pix.field;
+
+	if (vb->vb2_queue->type != V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
+		unsigned long addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+
+		if (!ISALIGNED(addr + common->ytop_off) ||
 			!ISALIGNED(addr + common->ybtm_off) ||
 			!ISALIGNED(addr + common->ctop_off) ||
-			!ISALIGNED(addr + common->cbtm_off))
-				goto buf_align_exit;
+			!ISALIGNED(addr + common->cbtm_off)) {
+			vpif_err("buffer offset not aligned to 8 bytes\n");
+			return -EINVAL;
 		}
 	}
-	return 0;
 
-buf_align_exit:
-	vpif_err("buffer offset not aligned to 8 bytes\n");
-	return -EINVAL;
+	return 0;
 }
 
 /*
