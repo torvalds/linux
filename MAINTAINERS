@@ -6511,10 +6511,10 @@ T:	git git://openrisc.net/~jonas/linux
 F:	arch/openrisc/
 
 OPENVSWITCH
-M:	Jesse Gross <jesse@nicira.com>
+M:	Pravin Shelar <pshelar@nicira.com>
 L:	dev@openvswitch.org
 W:	http://openvswitch.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jesse/openvswitch.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pshelar/openvswitch.git
 S:	Maintained
 F:	net/openvswitch/
 
