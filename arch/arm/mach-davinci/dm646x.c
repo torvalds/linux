@@ -543,11 +543,6 @@ dm646x_queue_priority_mapping[][2] = {
 };
 
 static struct edma_soc_info edma_cc0_info = {
-	.n_channel		= 64,
-	.n_region		= 6,	/* 0-1, 4-7 */
-	.n_slot			= 512,
-	.n_tc			= 4,
-	.n_cc			= 1,
 	.queue_priority_mapping	= dm646x_queue_priority_mapping,
 	.default_queue		= EVENTQ_1,
 };
