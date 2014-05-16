@@ -316,5 +316,9 @@
 #define GCC_CE2_CLK_SLEEP_ENA					299
 #define GCC_CE2_AXI_CLK_SLEEP_ENA				300
 #define GCC_CE2_AHB_CLK_SLEEP_ENA				301
+#define GPLL4							302
+#define GPLL4_VOTE						303
+#define GCC_SDCC1_CDCCAL_SLEEP_CLK				304
+#define GCC_SDCC1_CDCCAL_FF_CLK					305
 
 #endif
