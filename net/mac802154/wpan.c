@@ -35,6 +35,28 @@
 
 #include "mac802154.h"
 
+static int mac802154_wpan_update_llsec(struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
+	int rc = 0;
+
+	if (ops->llsec) {
+		struct ieee802154_llsec_params params;
+		int changed = 0;
+
+		params.pan_id = priv->pan_id;
+		changed |= IEEE802154_LLSEC_PARAM_PAN_ID;
+
+		params.hwaddr = priv->extended_addr;
+		changed |= IEEE802154_LLSEC_PARAM_HWADDR;
+
+		rc = ops->llsec->set_params(dev, &params, changed);
+	}
+
+	return rc;
+}
+
 static int
 mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -81,7 +103,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		priv->pan_id = cpu_to_le16(sa->addr.pan_id);
 		priv->short_addr = cpu_to_le16(sa->addr.short_addr);
 
-		err = 0;
+		err = mac802154_wpan_update_llsec(dev);
 		break;
 	}
 
@@ -99,7 +121,7 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	/* FIXME: validate addr */
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	mac802154_dev_set_ieee_addr(dev);
-	return 0;
+	return mac802154_wpan_update_llsec(dev);
 }
 
 int mac802154_set_mac_params(struct net_device *dev,
