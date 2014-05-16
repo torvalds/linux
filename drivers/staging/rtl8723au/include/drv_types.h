@@ -268,7 +268,6 @@ struct rtw_adapter {
 	int net_closed;
 
 	u8 bFWReady;
-	u8 bBTFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
 	/* The driver will show the desired chan nor when this flag is 1. */
