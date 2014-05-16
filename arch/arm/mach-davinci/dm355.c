@@ -569,14 +569,6 @@ static u8 dm355_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 /*----------------------------------------------------------------------*/
 
 static s8
-queue_tc_mapping[][2] = {
-	/* {event queue no, TC no} */
-	{0, 0},
-	{1, 1},
-	{-1, -1},
-};
-
-static s8
 queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 3},
@@ -590,7 +582,6 @@ static struct edma_soc_info edma_cc0_info = {
 	.n_slot			= 128,
 	.n_tc			= 2,
 	.n_cc			= 1,
-	.queue_tc_mapping	= queue_tc_mapping,
 	.queue_priority_mapping	= queue_priority_mapping,
 	.default_queue		= EVENTQ_1,
 };
