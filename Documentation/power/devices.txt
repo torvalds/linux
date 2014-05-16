@@ -2,6 +2,7 @@ Device Power Management
 
 Copyright (c) 2010-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
 Copyright (c) 2010 Alan Stern <stern@rowland.harvard.edu>
+Copyright (c) 2014 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
 
 Most of the code in Linux is device drivers, so most of the Linux power
@@ -326,6 +327,20 @@ the phases are:
 	driver in some way for the upcoming system power transition, but it
 	should not put the device into a low-power state.
 
+	For devices supporting runtime power management, the return value of the
+	prepare callback can be used to indicate to the PM core that it may
+	safely leave the device in runtime suspend (if runtime-suspended
+	already), provided that all of the device's descendants are also left in
+	runtime suspend.  Namely, if the prepare callback returns a positive
+	number and that happens for all of the descendants of the device too,
+	and all of them (including the device itself) are runtime-suspended, the
+	PM core will skip the suspend, suspend_late and	suspend_noirq suspend
+	phases as well as the resume_noirq, resume_early and resume phases of
+	the following system resume for all of these devices.	In that case,
+	the complete callback will be called directly after the prepare callback
+	and is entirely responsible for bringing the device back to the
+	functional state as appropriate.
+
     2.	The suspend methods should quiesce the device to stop it from performing
 	I/O.  They also may save the device registers and put it into the
 	appropriate low-power state, depending on the bus type the device is on,
@@ -400,12 +415,23 @@ When resuming from freeze, standby or memory sleep, the phases are:
 	the resume callbacks occur; it's not necessary to wait until the
 	complete phase.
 
+	Moreover, if the preceding prepare callback returned a positive number,
+	the device may have been left in runtime suspend throughout the whole
+	system suspend and resume (the suspend, suspend_late, suspend_noirq
+	phases of system suspend and the resume_noirq, resume_early, resume
+	phases of system resume may have been skipped for it).  In that case,
+	the complete callback is entirely responsible for bringing the device
+	back to the functional state after system suspend if necessary.  [For
+	example, it may need to queue up a runtime resume request for the device
+	for this purpose.]  To check if that is the case, the complete callback
+	can consult the device's power.direct_complete flag.  Namely, if that
+	flag is set when the complete callback is being run, it has been called
+	directly after the preceding prepare and special action may be required
+	to make the device work correctly afterward.
+
 At the end of these phases, drivers should be as functional as they were before
 suspending: I/O can be performed using DMA and IRQs, and the relevant clocks are
-gated on.  Even if the device was in a low-power state before the system sleep
-because of runtime power management, afterwards it should be back in its
-full-power state.  There are multiple reasons why it's best to do this; they are
-discussed in more detail in Documentation/power/runtime_pm.txt.
+gated on.
 
 However, the details here may again be platform-specific.  For example,
 some systems support multiple "run" states, and the mode in effect at
