@@ -572,11 +572,6 @@ static void vpif_config_format(struct channel_obj *ch)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 
 	common->fmt.fmt.pix.field = V4L2_FIELD_ANY;
-	if (config_params.numbuffers[ch->channel_id] == 0)
-		common->memory = V4L2_MEMORY_USERPTR;
-	else
-		common->memory = V4L2_MEMORY_MMAP;
-
 	common->fmt.fmt.pix.sizeimage =
 			config_params.channel_bufsize[ch->channel_id];
 	common->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV422P;

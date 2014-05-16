@@ -72,9 +72,6 @@ struct common_obj {
 						 * vb2_buffer */
 	struct vpif_disp_buffer *next_frm;	/* Pointer pointing to next
 						 * vb2_buffer */
-	enum v4l2_memory memory;		/* This field keeps track of
-						 * type of buffer exchange
-						 * method user has selected */
 	struct v4l2_format fmt;			/* Used to store the format */
 	struct vb2_queue buffer_queue;		/* Buffer queue used in
 						 * video-buf */
