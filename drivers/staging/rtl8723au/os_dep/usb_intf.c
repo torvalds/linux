@@ -275,13 +275,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 	usb_put_dev(interface_to_usbdev(usb_intf));
 }
 
-static void decide_chip_type_by_usb_device_id(struct rtw_adapter *padapter,
-					      const struct usb_device_id *pdid)
-{
-	padapter->chip_type = NULL_CHIP_TYPE;
-	hal_set_hw_type(padapter);
-}
-
 static void usb_intf_start(struct rtw_adapter *padapter)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_start\n"));
@@ -601,8 +594,7 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	dvobj->padapters[dvobj->iface_nums++] = padapter;
 	padapter->iface_id = IFACE_ID0;
 
-	/* step 1-1., decide the chip_type via vid/pid */
-	decide_chip_type_by_usb_device_id(padapter, pdid);
+	rtl8723au_set_hw_type(padapter);
 
 	if (rtw_handle_dualmac23a(padapter, 1) != _SUCCESS)
 		goto free_adapter;

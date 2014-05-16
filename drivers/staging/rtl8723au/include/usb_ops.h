@@ -43,7 +43,6 @@ enum {
 		     (timeout_ms))
 
 void rtl8723au_set_hw_type(struct rtw_adapter *padapter);
-#define hal_set_hw_type rtl8723au_set_hw_type
 
 void rtl8723au_set_intf_ops(struct rtw_adapter *padapter);
 
