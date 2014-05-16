@@ -802,7 +802,7 @@ static int usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 
 void rtl8723au_xmit_tasklet(void *priv)
 {
-	int ret = false;
+	int ret;
 	struct rtw_adapter *padapter = (struct rtw_adapter *)priv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
