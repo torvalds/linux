@@ -119,7 +119,7 @@ static u8 _InitPowerOn(struct rtw_adapter *padapter)
 
 	/*  0x04[19] = 1, suggest by Jackie 2011.05.09, reset 8051 */
 	value8 = rtw_read8(padapter, REG_APS_FSMCO+2);
-	rtw_write8(padapter, REG_APS_FSMCO + 2, (value8 | BIT3));
+	rtw_write8(padapter, REG_APS_FSMCO + 2, value8 | BIT(3));
 
 	/*  Enable MAC DMA/WMAC/SCHEDULE/SEC block */
 	/*  Set CR bit10 to enable 32k calibration. Suggested by SD1 Gimmy.
@@ -131,7 +131,7 @@ static u8 _InitPowerOn(struct rtw_adapter *padapter)
 	rtw_write16(padapter, REG_CR, value16);
 
 	/* for Efuse PG, suggest by Jackie 2011.11.23 */
-	PHY_SetBBReg(padapter, REG_EFUSE_CTRL, BIT28|BIT29|BIT30, 0x06);
+	PHY_SetBBReg(padapter, REG_EFUSE_CTRL, BIT(28)|BIT(29)|BIT(30), 0x06);
 
 	return status;
 }
@@ -601,13 +601,13 @@ enum rt_rf_power_state RfOnOffDetect23a(struct rtw_adapter *pAdapter)
 	if (pAdapter->pwrctrlpriv.bHWPowerdown) {
 		val8 = rtw_read8(pAdapter, REG_HSISR);
 		DBG_8723A("pwrdown, 0x5c(BIT7) =%02x\n", val8);
-		rfpowerstate = (val8 & BIT7) ? rf_off : rf_on;
+		rfpowerstate = (val8 & BIT(7)) ? rf_off : rf_on;
 	} else { /*  rf on/off */
 		rtw_write8(pAdapter, REG_MAC_PINMUX_CFG,
-			   rtw_read8(pAdapter, REG_MAC_PINMUX_CFG) & ~BIT3);
+			   rtw_read8(pAdapter, REG_MAC_PINMUX_CFG) & ~BIT(3));
 		val8 = rtw_read8(pAdapter, REG_GPIO_IO_SEL);
 		DBG_8723A("GPIO_IN =%02x\n", val8);
-		rfpowerstate = (val8 & BIT3) ? rf_on : rf_off;
+		rfpowerstate = (val8 & BIT(3)) ? rf_on : rf_off;
 	}
 	return rfpowerstate;
 }	/*  HalDetectPwrDownMode */
@@ -924,7 +924,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
 			rtw_write8(Adapter, REG_SPS0_CTRL,
 				   rtw_read8(Adapter, REG_SPS0_CTRL) |
-				   (BIT0|BIT3));
+				   BIT(0) | BIT(3));
 
 			/*  3. restore BB, AFE control register. */
 			/* RF */
@@ -935,7 +935,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
 					     0x38, 1);
 			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 1);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT1, 0);
+			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 0);
 
 			/* AFE */
 			if (pHalData->rf_type ==  RF_2T2R)
@@ -968,7 +968,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
 			rtw_write8(Adapter, REG_SPS0_CTRL,
 				   rtw_read8(Adapter, REG_SPS0_CTRL) |
-				   (BIT0|BIT3));
+				   BIT(0) | BIT(3));
 
 			/*  3. restore BB, AFE control register. */
 			/* RF */
@@ -979,7 +979,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
 					     0x38, 1);
 			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 1);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT1, 0);
+			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 0);
 
 			/* AFE */
 			if (pHalData->rf_type ==  RF_2T2R)
@@ -1002,7 +1002,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 
 			/*  5. gated MAC Clock */
 			bytetmp = rtw_read8(Adapter, REG_APSD_CTRL);
-			rtw_write8(Adapter, REG_APSD_CTRL, bytetmp & ~BIT6);
+			rtw_write8(Adapter, REG_APSD_CTRL, bytetmp & ~BIT(6));
 
 			mdelay(10);
 
@@ -1017,9 +1017,9 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 	case rf_off:
 		value8 = rtw_read8(Adapter, REG_SPS0_CTRL) ;
 		if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID))
-			value8 &= ~(BIT0);
+			value8 &= ~BIT(0);
 		else
-			value8 &= ~(BIT0|BIT3);
+			value8 &= ~(BIT(0) | BIT(3));
 		if (bRegSSPwrLvl == 1) {
 			RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL1\n"));
 			/*  Disable RF and BB only for SelectSuspend. */
@@ -1049,7 +1049,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 					     0x38, 0);
 			}
 			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT1, 1);
+			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
 
 			/*  2 .AFE control register to power down. bit[30:22] */
 			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
@@ -1120,7 +1120,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
 					     0x38, 0);
 			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT1, 1);
+			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
 
 			/*  2 .AFE control register to power down. bit[30:22] */
 			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
@@ -1179,13 +1179,13 @@ static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 	rtw_write8(Adapter, REG_RF_CTRL, 0x00);
 
 	/*	==== Reset digital sequence   ====== */
-	if ((rtw_read8(Adapter, REG_MCUFWDL)&BIT7) &&
+	if ((rtw_read8(Adapter, REG_MCUFWDL) & BIT(7)) &&
 	    Adapter->bFWReady) /* 8051 RAM code */
 		rtl8723a_FirmwareSelfReset(Adapter);
 
 	/*  Reset MCU. Suggested by Filen. 2011.01.26. by tynli. */
 	u1bTmp = rtw_read8(Adapter, REG_SYS_FUNC_EN+1);
-	rtw_write8(Adapter, REG_SYS_FUNC_EN+1, (u1bTmp & (~BIT2)));
+	rtw_write8(Adapter, REG_SYS_FUNC_EN+1, u1bTmp & ~BIT(2));
 
 	/*  g.	MCUFWDL 0x80[1:0]= 0		reset MCU ready status */
 	rtw_write8(Adapter, REG_MCUFWDL, 0x00);
@@ -1198,9 +1198,9 @@ static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 
 	/*  Reset MCU IO Wrapper, added by Roger, 2011.08.30. */
 	u1bTmp = rtw_read8(Adapter, REG_RSV_CTRL + 1);
-	rtw_write8(Adapter, REG_RSV_CTRL+1, (u1bTmp & (~BIT0)));
+	rtw_write8(Adapter, REG_RSV_CTRL+1, u1bTmp & ~BIT(0));
 	u1bTmp = rtw_read8(Adapter, REG_RSV_CTRL + 1);
-	rtw_write8(Adapter, REG_RSV_CTRL+1, u1bTmp | BIT0);
+	rtw_write8(Adapter, REG_RSV_CTRL+1, u1bTmp | BIT(0));
 
 	/*  7. RSV_CTRL 0x1C[7:0] = 0x0E  lock ISO/CLK/Power control register */
 	rtw_write8(Adapter, REG_RSV_CTRL, 0x0e);
