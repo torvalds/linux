@@ -614,10 +614,11 @@ enum rt_rf_power_state RfOnOffDetect23a(struct rtw_adapter *pAdapter)
 
 void _ps_open_RF23a(struct rtw_adapter *padapter);
 
-static u32 rtl8723au_hal_init(struct rtw_adapter *Adapter)
+static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 {
-	u8	val8 = 0;
-	u32	boundary, status = _SUCCESS;
+	u8 val8 = 0;
+	u32 boundary;
+	int status = _SUCCESS;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
@@ -1206,7 +1207,7 @@ static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 	rtw_write8(Adapter, REG_RSV_CTRL, 0x0e);
 }
 
-static u32 rtl8723au_hal_deinit(struct rtw_adapter *padapter)
+static int rtl8723au_hal_deinit(struct rtw_adapter *padapter)
 {
 	DBG_8723A("==> %s\n", __func__);
 
@@ -1725,6 +1726,43 @@ static void UpdateHalRAMask8192CUsb(struct rtw_adapter *padapter,
 	pdmpriv->INIDATA_RATE[mac_id] = init_rate;
 }
 
+int rtw_hal_init23a(struct rtw_adapter *padapter)
+{
+	int status;
+
+	padapter->hw_init_completed = false;
+
+	status = rtl8723au_hal_init(padapter);
+
+	if (status == _SUCCESS) {
+		padapter->hw_init_completed = true;
+
+		if (padapter->registrypriv.notch_filter == 1)
+			rtl8723a_notch_filter(padapter, 1);
+	} else {
+		padapter->hw_init_completed = false;
+		DBG_8723A("rtw_hal_init23a: hal__init fail\n");
+	}
+
+	RT_TRACE(_module_hal_init_c_, _drv_err_,
+		 ("-rtl871x_hal_init:status = 0x%x\n", status));
+
+	return status;
+}
+
+int rtw_hal_deinit23a(struct rtw_adapter *padapter)
+{
+	int status;
+
+	status = rtl8723au_hal_deinit(padapter);
+
+	if (status == _SUCCESS)
+		padapter->hw_init_completed = false;
+	else
+		DBG_8723A("\n rtw_hal_deinit23a: hal_init fail\n");
+	return status;
+}
+
 int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 {
 	struct hal_ops	*pHalFunc = &padapter->HalFunc;
@@ -1734,9 +1772,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 		DBG_8723A("cannot alloc memory for HAL DATA\n");
 		return -ENOMEM;
 	}
-
-	pHalFunc->hal_init = &rtl8723au_hal_init;
-	pHalFunc->hal_deinit = &rtl8723au_hal_deinit;
 
 	pHalFunc->init_xmit_priv = &rtl8723au_init_xmit_priv;
 

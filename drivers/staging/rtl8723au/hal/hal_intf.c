@@ -41,42 +41,6 @@ u32 rtw_hal_power_on23a(struct rtw_adapter *padapter)
 	return _FAIL;
 }
 
-uint	 rtw_hal_init23a(struct rtw_adapter *padapter)
-{
-	uint	status = _SUCCESS;
-
-	padapter->hw_init_completed = false;
-
-	status = padapter->HalFunc.hal_init(padapter);
-
-	if (status == _SUCCESS) {
-		padapter->hw_init_completed = true;
-
-		if (padapter->registrypriv.notch_filter == 1)
-			rtl8723a_notch_filter(padapter, 1);
-	} else {
-		padapter->hw_init_completed = false;
-		DBG_8723A("rtw_hal_init23a: hal__init fail\n");
-	}
-
-	RT_TRACE(_module_hal_init_c_, _drv_err_, ("-rtl871x_hal_init:status = 0x%x\n", status));
-
-	return status;
-}
-
-uint rtw_hal_deinit23a(struct rtw_adapter *padapter)
-{
-	uint	status = _SUCCESS;
-
-	status = padapter->HalFunc.hal_deinit(padapter);
-
-	if (status == _SUCCESS)
-		padapter->hw_init_completed = false;
-	else
-		DBG_8723A("\n rtw_hal_deinit23a: hal_init fail\n");
-	return status;
-}
-
 u8 rtw_hal_set_def_var23a(struct rtw_adapter *padapter, enum hal_def_variable eVariable, void *pValue)
 {
 	if (padapter->HalFunc.SetHalDefVarHandler)
