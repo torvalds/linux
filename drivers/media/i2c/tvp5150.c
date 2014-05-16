@@ -913,7 +913,7 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 
 static int tvp5150_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct tvp5150 *decoder = container_of(sd, struct tvp5150, sd);
+	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	a->c	= decoder->rect;
 	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -923,7 +923,7 @@ static int tvp5150_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int tvp5150_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 {
-	struct tvp5150 *decoder = container_of(sd, struct tvp5150, sd);
+	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
