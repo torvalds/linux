@@ -3089,21 +3089,25 @@ static int cgroup_task_count(const struct cgroup *cgrp)
 
 /**
  * css_next_child - find the next child of a given css
- * @pos_css: the current position (%NULL to initiate traversal)
- * @parent_css: css whose children to walk
+ * @pos: the current position (%NULL to initiate traversal)
+ * @parent: css whose children to walk
  *
- * This function returns the next child of @parent_css and should be called
+ * This function returns the next child of @parent and should be called
  * under either cgroup_mutex or RCU read lock.  The only requirement is
- * that @parent_css and @pos_css are accessible.  The next sibling is
- * guaranteed to be returned regardless of their states.
+ * that @parent and @pos are accessible.  The next sibling is guaranteed to
+ * be returned regardless of their states.
+ *
+ * If a subsystem synchronizes ->css_online() and the start of iteration, a
+ * css which finished ->css_online() is guaranteed to be visible in the
+ * future iterations and will stay visible until the last reference is put.
+ * A css which hasn't finished ->css_online() or already finished
+ * ->css_offline() may show up during traversal.  It's each subsystem's
+ * responsibility to synchronize against on/offlining.
  */
-struct cgroup_subsys_state *
-css_next_child(struct cgroup_subsys_state *pos_css,
-	       struct cgroup_subsys_state *parent_css)
+struct cgroup_subsys_state *css_next_child(struct cgroup_subsys_state *pos,
+					   struct cgroup_subsys_state *parent)
 {
-	struct cgroup *pos = pos_css ? pos_css->cgroup : NULL;
-	struct cgroup *cgrp = parent_css->cgroup;
-	struct cgroup *next;
+	struct cgroup_subsys_state *next;
 
 	cgroup_assert_mutex_or_rcu_locked();
 
@@ -3128,27 +3132,21 @@ css_next_child(struct cgroup_subsys_state *pos_css,
 	 * races against release and the race window is very small.
 	 */
 	if (!pos) {
-		next = list_entry_rcu(cgrp->self.children.next, struct cgroup, self.sibling);
-	} else if (likely(!(pos->self.flags & CSS_RELEASED))) {
-		next = list_entry_rcu(pos->self.sibling.next, struct cgroup, self.sibling);
+		next = list_entry_rcu(parent->children.next, struct cgroup_subsys_state, sibling);
+	} else if (likely(!(pos->flags & CSS_RELEASED))) {
+		next = list_entry_rcu(pos->sibling.next, struct cgroup_subsys_state, sibling);
 	} else {
-		list_for_each_entry_rcu(next, &cgrp->self.children, self.sibling)
-			if (next->self.serial_nr > pos->self.serial_nr)
+		list_for_each_entry_rcu(next, &parent->children, sibling)
+			if (next->serial_nr > pos->serial_nr)
 				break;
 	}
 
 	/*
 	 * @next, if not pointing to the head, can be dereferenced and is
-	 * the next sibling; however, it might have @ss disabled.  If so,
-	 * fast-forward to the next enabled one.
+	 * the next sibling.
 	 */
-	while (&next->self.sibling != &cgrp->self.children) {
-		struct cgroup_subsys_state *next_css = cgroup_css(next, parent_css->ss);
-
-		if (next_css)
-			return next_css;
-		next = list_entry_rcu(next->self.sibling.next, struct cgroup, self.sibling);
-	}
+	if (&next->sibling != &parent->children)
+		return next;
 	return NULL;
 }
 
@@ -3165,6 +3163,13 @@ css_next_child(struct cgroup_subsys_state *pos_css,
  * doesn't require the whole traversal to be contained in a single critical
  * section.  This function will return the correct next descendant as long
  * as both @pos and @root are accessible and @pos is a descendant of @root.
+ *
+ * If a subsystem synchronizes ->css_online() and the start of iteration, a
+ * css which finished ->css_online() is guaranteed to be visible in the
+ * future iterations and will stay visible until the last reference is put.
+ * A css which hasn't finished ->css_online() or already finished
+ * ->css_offline() may show up during traversal.  It's each subsystem's
+ * responsibility to synchronize against on/offlining.
  */
 struct cgroup_subsys_state *
 css_next_descendant_pre(struct cgroup_subsys_state *pos,
@@ -3252,6 +3257,13 @@ css_leftmost_descendant(struct cgroup_subsys_state *pos)
  * section.  This function will return the correct next descendant as long
  * as both @pos and @cgroup are accessible and @pos is a descendant of
  * @cgroup.
+ *
+ * If a subsystem synchronizes ->css_online() and the start of iteration, a
+ * css which finished ->css_online() is guaranteed to be visible in the
+ * future iterations and will stay visible until the last reference is put.
+ * A css which hasn't finished ->css_online() or already finished
+ * ->css_offline() may show up during traversal.  It's each subsystem's
+ * responsibility to synchronize against on/offlining.
  */
 struct cgroup_subsys_state *
 css_next_descendant_post(struct cgroup_subsys_state *pos,

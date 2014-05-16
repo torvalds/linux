@@ -764,14 +764,14 @@ struct cgroup_subsys_state *css_from_id(int id, struct cgroup_subsys *ss);
  * @pos: the css * to use as the loop cursor
  * @parent: css whose children to walk
  *
- * Walk @parent's children.  Must be called under rcu_read_lock().  A child
- * css which hasn't finished ->css_online() or already has finished
- * ->css_offline() may show up during traversal and it's each subsystem's
- * responsibility to verify that each @pos is alive.
+ * Walk @parent's children.  Must be called under rcu_read_lock().
  *
- * If a subsystem synchronizes against the parent in its ->css_online() and
- * before starting iterating, a css which finished ->css_online() is
- * guaranteed to be visible in the future iterations.
+ * If a subsystem synchronizes ->css_online() and the start of iteration, a
+ * css which finished ->css_online() is guaranteed to be visible in the
+ * future iterations and will stay visible until the last reference is put.
+ * A css which hasn't finished ->css_online() or already finished
+ * ->css_offline() may show up during traversal.  It's each subsystem's
+ * responsibility to synchronize against on/offlining.
  *
  * It is allowed to temporarily drop RCU read lock during iteration.  The
  * caller is responsible for ensuring that @pos remains accessible until
@@ -794,17 +794,16 @@ css_rightmost_descendant(struct cgroup_subsys_state *pos);
  * @root: css whose descendants to walk
  *
  * Walk @root's descendants.  @root is included in the iteration and the
- * first node to be visited.  Must be called under rcu_read_lock().  A
- * descendant css which hasn't finished ->css_online() or already has
- * finished ->css_offline() may show up during traversal and it's each
- * subsystem's responsibility to verify that each @pos is alive.
+ * first node to be visited.  Must be called under rcu_read_lock().
  *
- * If a subsystem synchronizes against the parent in its ->css_online() and
- * before starting iterating, and synchronizes against @pos on each
- * iteration, any descendant css which finished ->css_online() is
- * guaranteed to be visible in the future iterations.
+ * If a subsystem synchronizes ->css_online() and the start of iteration, a
+ * css which finished ->css_online() is guaranteed to be visible in the
+ * future iterations and will stay visible until the last reference is put.
+ * A css which hasn't finished ->css_online() or already finished
+ * ->css_offline() may show up during traversal.  It's each subsystem's
+ * responsibility to synchronize against on/offlining.
  *
- * In other words, the following guarantees that a descendant can't escape
+ * For example, the following guarantees that a descendant can't escape
  * state updates of its ancestors.
  *
  * my_online(@css)
@@ -860,8 +859,17 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
  *
  * Similar to css_for_each_descendant_pre() but performs post-order
  * traversal instead.  @root is included in the iteration and the last
- * node to be visited.  Note that the walk visibility guarantee described
- * in pre-order walk doesn't apply the same to post-order walks.
+ * node to be visited.
+ *
+ * If a subsystem synchronizes ->css_online() and the start of iteration, a
+ * css which finished ->css_online() is guaranteed to be visible in the
+ * future iterations and will stay visible until the last reference is put.
+ * A css which hasn't finished ->css_online() or already finished
+ * ->css_offline() may show up during traversal.  It's each subsystem's
+ * responsibility to synchronize against on/offlining.
+ *
+ * Note that the walk visibility guarantee example described in pre-order
+ * walk doesn't apply the same to post-order walks.
  */
 #define css_for_each_descendant_post(pos, css)				\
 	for ((pos) = css_next_descendant_post(NULL, (css)); (pos);	\
