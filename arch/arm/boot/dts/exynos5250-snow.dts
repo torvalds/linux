@@ -45,6 +45,13 @@
 			samsung,pin-drv = <0>;
 		};
 
+		max98095_en: max98095-en {
+			samsung,pins = "gpx1-7";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
+
 		tps65090_irq: tps65090-irq {
 			samsung,pins = "gpx2-6";
 			samsung,pin-function = <0>;
@@ -319,6 +326,26 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&sd3_clk &sd3_cmd &sd3_bus4>;
 		};
+	};
+
+	i2c@12CD0000 {
+		max98095: codec@11 {
+			compatible = "maxim,max98095";
+			reg = <0x11>;
+			pinctrl-0 = <&max98095_en>;
+			pinctrl-names = "default";
+		};
+	};
+
+	i2s0: i2s@03830000 {
+		status = "okay";
+	};
+
+	sound {
+		compatible = "google,snow-audio-max98095";
+
+		samsung,i2s-controller = <&i2s0>;
+		samsung,audio-codec = <&max98095>;
 	};
 
 	usb@12110000 {
