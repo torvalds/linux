@@ -65,6 +65,8 @@ static struct vpif_config_params config_params = {
 	.channel_bufsize[1] = 720 * 576 * 2,
 };
 
+#define VPIF_DRIVER_NAME	"vpif_capture"
+
 /* global variables */
 static struct vpif_device vpif_obj = { {NULL} };
 static struct device *vpif_dev;
@@ -1114,7 +1116,7 @@ static int vpif_querycap(struct file *file, void  *priv,
 
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	snprintf(cap->driver, sizeof(cap->driver), "%s", dev_name(vpif_dev));
+	strlcpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(vpif_dev));
 	strlcpy(cap->card, config->card_name, sizeof(cap->card));
@@ -1349,14 +1351,6 @@ static struct v4l2_file_operations vpif_fops = {
 	.poll = vb2_fop_poll
 };
 
-/* vpif video template */
-static struct video_device vpif_video_template = {
-	.name		= "vpif",
-	.fops		= &vpif_fops,
-	.minor		= -1,
-	.ioctl_ops	= &vpif_ioctl_ops,
-};
-
 /**
  * initialize_vpif() - Initialize vpif data structures
  *
@@ -1476,7 +1470,14 @@ static int vpif_probe_complete(void)
 
 		INIT_LIST_HEAD(&common->dma_queue);
 
+		/* Initialize the video_device structure */
 		vdev = ch->video_dev;
+		strlcpy(vdev->name, VPIF_DRIVER_NAME, sizeof(vdev->name));
+		vdev->release = video_device_release;
+		vdev->fops = &vpif_fops;
+		vdev->ioctl_ops = &vpif_ioctl_ops;
+		vdev->v4l2_dev = &vpif_obj.v4l2_dev;
+		vdev->vfl_dir = VFL_DIR_RX;
 		vdev->queue = q;
 		vdev->lock = &common->lock;
 		set_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags);
@@ -1549,7 +1550,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, res_idx))) {
 		err = devm_request_irq(&pdev->dev, res->start, vpif_channel_isr,
-					IRQF_SHARED, "VPIF_Capture",
+					IRQF_SHARED, VPIF_DRIVER_NAME,
 					(void *)(&vpif_obj.dev[res_idx]->
 					channel_id));
 		if (err) {
@@ -1573,13 +1574,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto vpif_unregister;
 		}
 
-		/* Initialize field of video device */
-		*vfd = vpif_video_template;
-		vfd->v4l2_dev = &vpif_obj.v4l2_dev;
-		vfd->release = video_device_release;
-		snprintf(vfd->name, sizeof(vfd->name),
-			 "VPIF_Capture_DRIVER_V%s",
-			 VPIF_CAPTURE_VERSION);
 		/* Set video_dev to the video device */
 		ch->video_dev = vfd;
 	}
@@ -1754,7 +1748,7 @@ static const struct dev_pm_ops vpif_dev_pm_ops = {
 
 static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
-		.name	= "vpif_capture",
+		.name	= VPIF_DRIVER_NAME,
 		.owner	= THIS_MODULE,
 		.pm	= vpif_pm_ops,
 	},
