@@ -201,29 +201,6 @@ static void vpif_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&common->irqlock, flags);
 }
 
-/**
- * vpif_buf_cleanup : Callback function to free buffer
- * @vb: ptr to vb2_buffer
- *
- * This function is called from the videobuf2 layer to free memory
- * allocated to  the buffers
- */
-static void vpif_buf_cleanup(struct vb2_buffer *vb)
-{
-	struct channel_obj *ch = vb2_get_drv_priv(vb->vb2_queue);
-	struct vpif_cap_buffer *buf = to_vpif_buffer(vb);
-	struct common_obj *common;
-	unsigned long flags;
-
-	common = &ch->common[VPIF_VIDEO_INDEX];
-
-	spin_lock_irqsave(&common->irqlock, flags);
-	if (vb->state == VB2_BUF_STATE_ACTIVE)
-		list_del_init(&buf->list);
-	spin_unlock_irqrestore(&common->irqlock, flags);
-
-}
-
 static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vpif_capture_config *vpif_config_data =
@@ -370,7 +347,6 @@ static struct vb2_ops video_qops = {
 	.buf_prepare		= vpif_buffer_prepare,
 	.start_streaming	= vpif_start_streaming,
 	.stop_streaming		= vpif_stop_streaming,
-	.buf_cleanup		= vpif_buf_cleanup,
 	.buf_queue		= vpif_buffer_queue,
 };
 
