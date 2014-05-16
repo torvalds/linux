@@ -567,7 +567,7 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 void report_add_sta_event23a(struct rtw_adapter *padapter,
 			  unsigned char *MacAddr, int cam_idx);
 
-u8 set_tx_beacon_cmd23a(struct rtw_adapter*padapter);
+int set_tx_beacon_cmd23a(struct rtw_adapter*padapter);
 unsigned int setup_beacon_frame(struct rtw_adapter *padapter,
 				unsigned char *beacon_frame);
 void update_mgnt_tx_rate23a(struct rtw_adapter *padapter, u8 rate);
@@ -637,39 +637,39 @@ void correct_TSF23a(struct rtw_adapter *padapter, struct mlme_ext_priv *pmlmeext
 
 struct cmd_hdl {
 	uint	parmsize;
-	u8 (*h2cfuns)(struct rtw_adapter *padapter, const u8 *pbuf);
+	int (*h2cfuns)(struct rtw_adapter *padapter, const u8 *pbuf);
 };
 
 
-u8 read_macreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
-u8 write_macreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
-u8 read_bbreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
-u8 write_bbreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
-u8 read_rfreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
-u8 write_rfreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
+int read_macreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
+int write_macreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
+int read_bbreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
+int write_bbreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
+int read_rfreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
+int write_rfreg_hdl(struct rtw_adapter *padapter, u8 *pbuf);
 
 
-u8 NULL_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 setopmode_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 set_assocsta_hdl(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 del_assocsta_hdl(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int NULL_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int setopmode_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int set_assocsta_hdl(struct rtw_adapter *padapter, const u8 *pbuf);
+int del_assocsta_hdl(struct rtw_adapter *padapter, const u8 *pbuf);
+int add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
 
-u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 h2c_msg_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 set_chplan_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 led_blink_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
-u8 set_csa_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);	/* Kurt: Handling DFS channel switch announcement ie. */
-u8 tdls_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int h2c_msg_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int set_chplan_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int led_blink_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
+int set_csa_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);	/* Kurt: Handling DFS channel switch announcement ie. */
+int tdls_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf);
 
 #define GEN_DRV_CMD_HANDLER(size, cmd)	{size, &cmd ## _hdl23a},
 #define GEN_MLME_EXT_HANDLER(size, cmd)	{size, cmd},
