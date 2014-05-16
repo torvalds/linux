@@ -517,6 +517,11 @@ static struct lock_class_key macvlan_netdev_addr_lock_key;
 #define MACVLAN_STATE_MASK \
 	((1<<__LINK_STATE_NOCARRIER) | (1<<__LINK_STATE_DORMANT))
 
+static int macvlan_get_nest_level(struct net_device *dev)
+{
+	return ((struct macvlan_dev *)netdev_priv(dev))->nest_level;
+}
+
 static void macvlan_set_lockdep_class_one(struct net_device *dev,
 					  struct netdev_queue *txq,
 					  void *_unused)
@@ -527,8 +532,9 @@ static void macvlan_set_lockdep_class_one(struct net_device *dev,
 
 static void macvlan_set_lockdep_class(struct net_device *dev)
 {
-	lockdep_set_class(&dev->addr_list_lock,
-			  &macvlan_netdev_addr_lock_key);
+	lockdep_set_class_and_subclass(&dev->addr_list_lock,
+				       &macvlan_netdev_addr_lock_key,
+				       macvlan_get_nest_level(dev));
 	netdev_for_each_tx_queue(dev, macvlan_set_lockdep_class_one, NULL);
 }
 
@@ -723,6 +729,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_fdb_add		= macvlan_fdb_add,
 	.ndo_fdb_del		= macvlan_fdb_del,
 	.ndo_fdb_dump		= ndo_dflt_fdb_dump,
+	.ndo_get_lock_subclass  = macvlan_get_nest_level,
 };
 
 void macvlan_common_setup(struct net_device *dev)
@@ -851,6 +858,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	vlan->dev      = dev;
 	vlan->port     = port;
 	vlan->set_features = MACVLAN_FEATURES;
+	vlan->nest_level = dev_get_nest_level(lowerdev, netif_is_macvlan) + 1;
 
 	vlan->mode     = MACVLAN_MODE_VEPA;
 	if (data && data[IFLA_MACVLAN_MODE])
