@@ -25,7 +25,6 @@
 #include <linux/ieee80211.h>
 
 #include <usb_ops.h>
-#include <usb_hal.h>
 #include <usb_osintf.h>
 
 static void
@@ -1690,15 +1689,4 @@ int rtw_hal_deinit23a(struct rtw_adapter *padapter)
 	else
 		DBG_8723A("\n rtw_hal_deinit23a: hal_init fail\n");
 	return status;
-}
-
-int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
-{
-	padapter->HalData = kzalloc(sizeof(struct hal_data_8723a), GFP_KERNEL);
-	if (!padapter->HalData) {
-		DBG_8723A("cannot alloc memory for HAL DATA\n");
-		return -ENOMEM;
-	}
-
-	return 0;
 }

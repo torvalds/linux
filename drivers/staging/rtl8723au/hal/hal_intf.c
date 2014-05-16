@@ -19,7 +19,6 @@
 
 #include <hal_intf.h>
 
-#include <usb_hal.h>
 #include <rtl8723a_hal.h>
 
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level)

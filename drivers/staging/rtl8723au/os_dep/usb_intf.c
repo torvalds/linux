@@ -24,7 +24,6 @@
 #include <usb_vendor_req.h>
 #include <usb_ops.h>
 #include <usb_osintf.h>
-#include <usb_hal.h>
 #include <rtl8723a_hal.h>
 
 static int rtw_suspend(struct usb_interface *intf, pm_message_t message);
@@ -616,9 +615,10 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	if (rtw_wdev_alloc(padapter, dvobj_to_dev(dvobj)))
 		goto handle_dualmac;
 
-	/* step 2. hook HalFunc, allocate HalData */
-	if (rtl8723au_set_hal_ops(padapter))
-		return NULL;
+	/* step 2. allocate HalData */
+	padapter->HalData = kzalloc(sizeof(struct hal_data_8723a), GFP_KERNEL);
+	if (!padapter->HalData)
+		goto free_wdev;
 
 	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;
@@ -674,6 +674,7 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 free_hal_data:
 	if (status != _SUCCESS)
 		kfree(padapter->HalData);
+free_wdev:
 	if (status != _SUCCESS) {
 		rtw_wdev_unregister(padapter->rtw_wdev);
 		rtw_wdev_free(padapter->rtw_wdev);
