@@ -958,8 +958,10 @@ void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
 	unsigned long addr, next;
 	pgd_t *pgd;
 
+	down_write(&mm->mmap_sem);
+	if (init_skey && mm_use_skey(mm))
+		goto out_up;
 	addr = start;
-	down_read(&mm->mmap_sem);
 	pgd = pgd_offset(mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
@@ -967,7 +969,10 @@ void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
 			continue;
 		next = page_table_reset_pud(mm, pgd, addr, next, init_skey);
 	} while (pgd++, addr = next, addr != end);
-	up_read(&mm->mmap_sem);
+	if (init_skey)
+		current->mm->context.use_skey = 1;
+out_up:
+	up_write(&mm->mmap_sem);
 }
 EXPORT_SYMBOL(page_table_reset_pgste);
 
@@ -1384,19 +1389,6 @@ EXPORT_SYMBOL_GPL(s390_enable_sie);
  */
 void s390_enable_skey(void)
 {
-	/*
-	 * To avoid races between multiple vcpus, ending in calling
-	 * page_table_reset twice or more,
-	 * the page_table_lock is taken for serialization.
-	 */
-	spin_lock(&current->mm->page_table_lock);
-	if (mm_use_skey(current->mm)) {
-		spin_unlock(&current->mm->page_table_lock);
-		return;
-	}
-
-	current->mm->context.use_skey = 1;
-	spin_unlock(&current->mm->page_table_lock);
 	page_table_reset_pgste(current->mm, 0, TASK_SIZE, true);
 }
 EXPORT_SYMBOL_GPL(s390_enable_skey);
