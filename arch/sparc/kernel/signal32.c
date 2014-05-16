@@ -31,6 +31,7 @@
 #include <asm/switch_to.h>
 
 #include "sigutil.h"
+#include "kernel.h"
 
 /* This magic should be in g_upper[0] for all upper parts
  * to be valid.
