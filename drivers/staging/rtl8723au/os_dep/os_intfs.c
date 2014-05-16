@@ -523,7 +523,6 @@ u8 rtw_init_drv_sw23a(struct rtw_adapter *padapter)
 	ret8 = rtw_init_default_value(padapter);
 
 	rtl8723a_init_dm_priv(padapter);
-	rtw_hal_sw_led_init23a(padapter);
 
 	rtw_sreset_init(padapter);
 
@@ -549,8 +548,6 @@ void rtw_cancel_all_timer23a(struct rtw_adapter *padapter)
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
 		 ("rtw_cancel_all_timer23a:cancel dynamic_chk_timer!\n"));
 
-	/*  cancel sw led timer */
-	rtw_hal_sw_led_deinit23a(padapter);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
 		 ("rtw_cancel_all_timer23a:cancel DeInitSwLeds!\n"));
 

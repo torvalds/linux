@@ -22,18 +22,6 @@
 #include <usb_hal.h>
 #include <rtl8723a_hal.h>
 
-void	rtw_hal_sw_led_init23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.InitSwLeds)
-		padapter->HalFunc.InitSwLeds(padapter);
-}
-
-void rtw_hal_sw_led_deinit23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.DeInitSwLeds)
-		padapter->HalFunc.DeInitSwLeds(padapter);
-}
-
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level)
 {
 	struct rtw_adapter *padapter;

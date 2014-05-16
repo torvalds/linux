@@ -1694,16 +1694,11 @@ int rtw_hal_deinit23a(struct rtw_adapter *padapter)
 
 int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 {
-	struct hal_ops	*pHalFunc = &padapter->HalFunc;
-
 	padapter->HalData = kzalloc(sizeof(struct hal_data_8723a), GFP_KERNEL);
 	if (!padapter->HalData) {
 		DBG_8723A("cannot alloc memory for HAL DATA\n");
 		return -ENOMEM;
 	}
-
-	pHalFunc->InitSwLeds = NULL;
-	pHalFunc->DeInitSwLeds = NULL;
 
 	return 0;
 }

@@ -60,11 +60,6 @@ enum hal_odm_variable {
 	HAL_ODM_WIFI_DISPLAY_STATE,
 };
 
-struct hal_ops {
-	void (*InitSwLeds)(struct rtw_adapter *padapter);
-	void (*DeInitSwLeds)(struct rtw_adapter *padapter);
-};
-
 enum rt_eeprom_type {
 	EEPROM_93C46,
 	EEPROM_93C56,
@@ -107,9 +102,6 @@ enum hardware_type {
 void rtw_hal_def_value_init23a(struct rtw_adapter *padapter);
 int pm_netdev_open23a(struct net_device *pnetdev, u8 bnormal);
 int rtw_resume_process23a(struct rtw_adapter *padapter);
-
-void rtw_hal_sw_led_init23a(struct rtw_adapter *padapter);
-void rtw_hal_sw_led_deinit23a(struct rtw_adapter *padapter);
 
 int rtw_hal_init23a(struct rtw_adapter *padapter);
 int rtw_hal_deinit23a(struct rtw_adapter *padapter);

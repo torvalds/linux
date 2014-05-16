@@ -239,7 +239,6 @@ struct rtw_adapter {
 	u32	setband;
 
 	void *HalData;
-	struct hal_ops	HalFunc;
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
