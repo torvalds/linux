@@ -45,6 +45,7 @@ enum {
 	SMP_FLAG_MITM_AUTH,
 	SMP_FLAG_COMPLETE,
 	SMP_FLAG_INITIATOR,
+	SMP_FLAG_SC,
 };
 
 struct smp_chan {
@@ -973,6 +974,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	build_pairing_cmd(conn, req, &rsp, auth);
 
+	if (rsp.auth_req & SMP_AUTH_SC)
+		set_bit(SMP_FLAG_SC, &smp->flags);
+
 	key_size = min(req->max_key_size, rsp.max_key_size);
 	if (check_enc_key_size(conn, key_size))
 		return SMP_ENC_KEY_SIZE;
@@ -1019,6 +1023,9 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 		return SMP_ENC_KEY_SIZE;
 
 	auth = rsp->auth_req & AUTH_REQ_MASK(hdev);
+
+	if ((req->auth_req & SMP_AUTH_SC) && (auth & SMP_AUTH_SC))
+		set_bit(SMP_FLAG_SC, &smp->flags);
 
 	/* If we need MITM check that it can be achieved */
 	if (conn->hcon->pending_sec_level >= BT_SECURITY_HIGH) {
