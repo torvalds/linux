@@ -447,7 +447,7 @@ urb_submit:
 	}
 }
 
-static int usb_read_interrupt(struct rtw_adapter *adapter, u32 addr)
+int rtl8723a_usb_read_interrupt(struct rtw_adapter *adapter, u32 addr)
 {
 	int err;
 	unsigned int pipe;
@@ -847,8 +847,6 @@ void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
 	pops->_write16 = &usb_write16;
 	pops->_write32 = &usb_write32;
 	pops->_writeN = &usb_writeN;
-
-	pops->_read_interrupt = &usb_read_interrupt;
 }
 
 void rtl8723au_set_hw_type(struct rtw_adapter *padapter)

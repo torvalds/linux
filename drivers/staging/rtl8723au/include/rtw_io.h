@@ -109,8 +109,6 @@ struct _io_ops
 	int (*_write32)(struct rtw_adapter *adapter, u32 addr, u32 val);
 	int (*_writeN)(struct rtw_adapter *adapter, u32 addr, u32 length,
 		       u8 *pdata);
-
-	int (*_read_interrupt)(struct rtw_adapter *adapter, u32 addr);
 };
 
 struct io_req {

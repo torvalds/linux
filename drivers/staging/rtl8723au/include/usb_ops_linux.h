@@ -27,5 +27,6 @@ void rtl8723a_usb_read_port_cancel(struct rtw_adapter *padapter);
 int rtl8723a_usb_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 			    struct xmit_buf *pxmitbuf);
 void rtl8723a_usb_write_port_cancel(struct rtw_adapter *padapter);
+int rtl8723a_usb_read_interrupt(struct rtw_adapter *adapter, u32 addr);
 
 #endif
