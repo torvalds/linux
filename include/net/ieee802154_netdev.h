@@ -358,6 +358,40 @@ enum {
 	IEEE802154_LLSEC_PARAM_COORD_SHORTADDR = 1 << 8,
 };
 
+struct ieee802154_llsec_ops {
+	int (*get_params)(struct net_device *dev,
+			  struct ieee802154_llsec_params *params);
+	int (*set_params)(struct net_device *dev,
+			  const struct ieee802154_llsec_params *params,
+			  int changed);
+
+	int (*add_key)(struct net_device *dev,
+		       const struct ieee802154_llsec_key_id *id,
+		       const struct ieee802154_llsec_key *key);
+	int (*del_key)(struct net_device *dev,
+		       const struct ieee802154_llsec_key_id *id);
+
+	int (*add_dev)(struct net_device *dev,
+		       const struct ieee802154_llsec_device *llsec_dev);
+	int (*del_dev)(struct net_device *dev, __le64 dev_addr);
+
+	int (*add_devkey)(struct net_device *dev,
+			  __le64 device_addr,
+			  const struct ieee802154_llsec_device_key *key);
+	int (*del_devkey)(struct net_device *dev,
+			  __le64 device_addr,
+			  const struct ieee802154_llsec_device_key *key);
+
+	int (*add_seclevel)(struct net_device *dev,
+			    const struct ieee802154_llsec_seclevel *sl);
+	int (*del_seclevel)(struct net_device *dev,
+			    const struct ieee802154_llsec_seclevel *sl);
+
+	void (*lock_table)(struct net_device *dev);
+	void (*get_table)(struct net_device *dev,
+			  struct ieee802154_llsec_table **t);
+	void (*unlock_table)(struct net_device *dev);
+};
 /*
  * This should be located at net_device->ml_priv
  *
@@ -387,6 +421,8 @@ struct ieee802154_mlme_ops {
 			      const struct ieee802154_mac_params *params);
 	void (*get_mac_params)(struct net_device *dev,
 			       struct ieee802154_mac_params *params);
+
+	struct ieee802154_llsec_ops *llsec;
 
 	/* The fields below are required. */
 

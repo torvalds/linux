@@ -136,4 +136,37 @@ int mac802154_set_mac_params(struct net_device *dev,
 void mac802154_get_mac_params(struct net_device *dev,
 			      struct ieee802154_mac_params *params);
 
+int mac802154_get_params(struct net_device *dev,
+			 struct ieee802154_llsec_params *params);
+int mac802154_set_params(struct net_device *dev,
+			 const struct ieee802154_llsec_params *params,
+			 int changed);
+
+int mac802154_add_key(struct net_device *dev,
+		      const struct ieee802154_llsec_key_id *id,
+		      const struct ieee802154_llsec_key *key);
+int mac802154_del_key(struct net_device *dev,
+		      const struct ieee802154_llsec_key_id *id);
+
+int mac802154_add_dev(struct net_device *dev,
+		      const struct ieee802154_llsec_device *llsec_dev);
+int mac802154_del_dev(struct net_device *dev, __le64 dev_addr);
+
+int mac802154_add_devkey(struct net_device *dev,
+			 __le64 device_addr,
+			 const struct ieee802154_llsec_device_key *key);
+int mac802154_del_devkey(struct net_device *dev,
+			 __le64 device_addr,
+			 const struct ieee802154_llsec_device_key *key);
+
+int mac802154_add_seclevel(struct net_device *dev,
+			   const struct ieee802154_llsec_seclevel *sl);
+int mac802154_del_seclevel(struct net_device *dev,
+			   const struct ieee802154_llsec_seclevel *sl);
+
+void mac802154_lock_table(struct net_device *dev);
+void mac802154_get_table(struct net_device *dev,
+			 struct ieee802154_llsec_table **t);
+void mac802154_unlock_table(struct net_device *dev);
+
 #endif /* MAC802154_H */
