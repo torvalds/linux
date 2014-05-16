@@ -48,22 +48,28 @@ enum cgroup_subsys_id {
 };
 #undef SUBSYS
 
-/* Per-subsystem/per-cgroup state maintained by the system. */
+/*
+ * Per-subsystem/per-cgroup state maintained by the system.  This is the
+ * fundamental structural building block that controllers deal with.
+ *
+ * Fields marked with "PI:" are public and immutable and may be accessed
+ * directly without synchronization.
+ */
 struct cgroup_subsys_state {
-	/* the cgroup that this css is attached to */
+	/* PI: the cgroup that this css is attached to */
 	struct cgroup *cgroup;
 
-	/* the cgroup subsystem that this css is attached to */
+	/* PI: the cgroup subsystem that this css is attached to */
 	struct cgroup_subsys *ss;
 
 	/* reference count - access via css_[try]get() and css_put() */
 	struct percpu_ref refcnt;
 
-	/* the parent css */
+	/* PI: the parent css */
 	struct cgroup_subsys_state *parent;
 
 	/*
-	 * Subsys-unique ID.  0 is unused and root is always 1.  The
+	 * PI: Subsys-unique ID.  0 is unused and root is always 1.  The
 	 * matching css can be looked up using css_from_id().
 	 */
 	int id;
@@ -668,19 +674,6 @@ struct cgroup_subsys {
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _cgrp_subsys;
 #include <linux/cgroup_subsys.h>
 #undef SUBSYS
-
-/**
- * css_parent - find the parent css
- * @css: the target cgroup_subsys_state
- *
- * Return the parent css of @css.  This function is guaranteed to return
- * non-NULL parent as long as @css isn't the root.
- */
-static inline
-struct cgroup_subsys_state *css_parent(struct cgroup_subsys_state *css)
-{
-	return css->parent;
-}
 
 /**
  * task_css_set_check - obtain a task's css_set with extra access conditions

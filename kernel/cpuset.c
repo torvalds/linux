@@ -124,7 +124,7 @@ static inline struct cpuset *task_cs(struct task_struct *task)
 
 static inline struct cpuset *parent_cs(struct cpuset *cs)
 {
-	return css_cs(css_parent(&cs->css));
+	return css_cs(cs->css.parent);
 }
 
 #ifdef CONFIG_NUMA

@@ -52,7 +52,7 @@ static inline bool hugetlb_cgroup_is_root(struct hugetlb_cgroup *h_cg)
 static inline struct hugetlb_cgroup *
 parent_hugetlb_cgroup(struct hugetlb_cgroup *h_cg)
 {
-	return hugetlb_cgroup_from_css(css_parent(&h_cg->css));
+	return hugetlb_cgroup_from_css(h_cg->css.parent);
 }
 
 static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)

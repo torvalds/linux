@@ -182,7 +182,7 @@ static inline bool is_devcg_online(const struct dev_cgroup *devcg)
 static int devcgroup_online(struct cgroup_subsys_state *css)
 {
 	struct dev_cgroup *dev_cgroup = css_to_devcgroup(css);
-	struct dev_cgroup *parent_dev_cgroup = css_to_devcgroup(css_parent(css));
+	struct dev_cgroup *parent_dev_cgroup = css_to_devcgroup(css->parent);
 	int ret = 0;
 
 	mutex_lock(&devcgroup_mutex);
@@ -455,7 +455,7 @@ static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
 static int parent_has_perm(struct dev_cgroup *childcg,
 				  struct dev_exception_item *ex)
 {
-	struct dev_cgroup *parent = css_to_devcgroup(css_parent(&childcg->css));
+	struct dev_cgroup *parent = css_to_devcgroup(childcg->css.parent);
 
 	if (!parent)
 		return 1;
@@ -476,7 +476,7 @@ static int parent_has_perm(struct dev_cgroup *childcg,
 static bool parent_allows_removal(struct dev_cgroup *childcg,
 				  struct dev_exception_item *ex)
 {
-	struct dev_cgroup *parent = css_to_devcgroup(css_parent(&childcg->css));
+	struct dev_cgroup *parent = css_to_devcgroup(childcg->css.parent);
 
 	if (!parent)
 		return true;
@@ -614,7 +614,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	char temp[12];		/* 11 + 1 characters needed for a u32 */
 	int count, rc = 0;
 	struct dev_exception_item ex;
-	struct dev_cgroup *parent = css_to_devcgroup(css_parent(&devcgroup->css));
+	struct dev_cgroup *parent = css_to_devcgroup(devcgroup->css.parent);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;

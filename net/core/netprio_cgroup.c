@@ -140,7 +140,7 @@ cgrp_css_alloc(struct cgroup_subsys_state *parent_css)
 
 static int cgrp_css_online(struct cgroup_subsys_state *css)
 {
-	struct cgroup_subsys_state *parent_css = css_parent(css);
+	struct cgroup_subsys_state *parent_css = css->parent;
 	struct net_device *dev;
 	int ret = 0;
 
