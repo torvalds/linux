@@ -435,12 +435,12 @@ void rtw_cfg80211_indicate_disconnect(struct rtw_adapter *padapter)
 }
 
 #ifdef CONFIG_8723AU_AP_MODE
-static u8 set_pairwise_key(struct rtw_adapter *padapter, struct sta_info *psta)
+static int set_pairwise_key(struct rtw_adapter *padapter, struct sta_info *psta)
 {
 	struct cmd_obj *ph2c;
 	struct set_stakey_parm *psetstakey_para;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-	u8 res = _SUCCESS;
+	int res = _SUCCESS;
 
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
 	if (ph2c == NULL) {
