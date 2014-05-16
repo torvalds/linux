@@ -39,32 +39,10 @@ MODULE_VERSION(VPIF_CAPTURE_VERSION);
 		v4l2_dbg(level, debug, &vpif_obj.v4l2_dev, fmt, ## arg)
 
 static int debug = 1;
-static u32 ch0_numbuffers = 3;
-static u32 ch1_numbuffers = 3;
-static u32 ch0_bufsize = 1920 * 1080 * 2;
-static u32 ch1_bufsize = 720 * 576 * 2;
 
 module_param(debug, int, 0644);
-module_param(ch0_numbuffers, uint, S_IRUGO);
-module_param(ch1_numbuffers, uint, S_IRUGO);
-module_param(ch0_bufsize, uint, S_IRUGO);
-module_param(ch1_bufsize, uint, S_IRUGO);
 
 MODULE_PARM_DESC(debug, "Debug level 0-1");
-MODULE_PARM_DESC(ch2_numbuffers, "Channel0 buffer count (default:3)");
-MODULE_PARM_DESC(ch3_numbuffers, "Channel1 buffer count (default:3)");
-MODULE_PARM_DESC(ch2_bufsize, "Channel0 buffer size (default:1920 x 1080 x 2)");
-MODULE_PARM_DESC(ch3_bufsize, "Channel1 buffer size (default:720 x 576 x 2)");
-
-static struct vpif_config_params config_params = {
-	.min_numbuffers = 3,
-	.numbuffers[0] = 3,
-	.numbuffers[1] = 3,
-	.min_bufsize[0] = 720 * 480 * 2,
-	.min_bufsize[1] = 720 * 480 * 2,
-	.channel_bufsize[0] = 1920 * 1080 * 2,
-	.channel_bufsize[1] = 720 * 576 * 2,
-};
 
 #define VPIF_DRIVER_NAME	"vpif_capture"
 
@@ -610,9 +588,6 @@ static void vpif_config_format(struct channel_obj *ch)
 	vpif_dbg(2, debug, "vpif_config_format\n");
 
 	common->fmt.fmt.pix.field = V4L2_FIELD_ANY;
-	common->fmt.fmt.pix.sizeimage
-	    = config_params.channel_bufsize[ch->channel_id];
-
 	if (ch->vpifparams.iface.if_type == VPIF_IF_RAW_BAYER)
 		common->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_SBGGR8;
 	else
@@ -1410,35 +1385,8 @@ static struct v4l2_file_operations vpif_fops = {
  */
 static int initialize_vpif(void)
 {
-	int err = 0, i, j;
+	int err, i, j;
 	int free_channel_objects_index;
-
-	/* Default number of buffers should be 3 */
-	if ((ch0_numbuffers > 0) &&
-	    (ch0_numbuffers < config_params.min_numbuffers))
-		ch0_numbuffers = config_params.min_numbuffers;
-	if ((ch1_numbuffers > 0) &&
-	    (ch1_numbuffers < config_params.min_numbuffers))
-		ch1_numbuffers = config_params.min_numbuffers;
-
-	/* Set buffer size to min buffers size if it is invalid */
-	if (ch0_bufsize < config_params.min_bufsize[VPIF_CHANNEL0_VIDEO])
-		ch0_bufsize =
-		    config_params.min_bufsize[VPIF_CHANNEL0_VIDEO];
-	if (ch1_bufsize < config_params.min_bufsize[VPIF_CHANNEL1_VIDEO])
-		ch1_bufsize =
-		    config_params.min_bufsize[VPIF_CHANNEL1_VIDEO];
-
-	config_params.numbuffers[VPIF_CHANNEL0_VIDEO] = ch0_numbuffers;
-	config_params.numbuffers[VPIF_CHANNEL1_VIDEO] = ch1_numbuffers;
-	if (ch0_numbuffers) {
-		config_params.channel_bufsize[VPIF_CHANNEL0_VIDEO]
-		    = ch0_bufsize;
-	}
-	if (ch1_numbuffers) {
-		config_params.channel_bufsize[VPIF_CHANNEL1_VIDEO]
-		    = ch1_bufsize;
-	}
 
 	/* Allocate memory for six channel objects */
 	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
