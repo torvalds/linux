@@ -4708,7 +4708,8 @@ static int get_conn_info(struct sock *sk, struct hci_dev *hdev, void *data,
 	/* Query controller to refresh cached values if they are too old or were
 	 * never read.
 	 */
-	if (time_after(jiffies, conn->conn_info_timestamp + conn_info_age) ||
+	if (time_after(jiffies, conn->conn_info_timestamp +
+		       msecs_to_jiffies(conn_info_age)) ||
 	    !conn->conn_info_timestamp) {
 		struct hci_request req;
 		struct hci_cp_read_tx_power req_txp_cp;
