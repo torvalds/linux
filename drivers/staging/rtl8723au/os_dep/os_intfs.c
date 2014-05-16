@@ -693,8 +693,7 @@ int netdev_open23a(struct net_device *pnetdev)
 			goto netdev_open23a_error;
 		}
 
-		if (padapter->intf_start)
-			padapter->intf_start(padapter);
+		rtl8723au_inirp_init(padapter);
 
 		rtw_cfg80211_init_wiphy(padapter);
 
@@ -756,8 +755,7 @@ static int ips_netdrv_open(struct rtw_adapter *padapter)
 		goto netdev_open23a_error;
 	}
 
-	if (padapter->intf_start)
-		padapter->intf_start(padapter);
+	rtl8723au_inirp_init(padapter);
 
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 	mod_timer(&padapter->mlmepriv.dynamic_chk_timer,
@@ -811,8 +809,7 @@ void rtw_ips_dev_unload23a(struct rtw_adapter *padapter)
 {
 	rtl8723a_fifo_cleanup(padapter);
 
-	if (padapter->intf_stop)
-		padapter->intf_stop(padapter);
+	rtl8723a_usb_intf_stop(padapter);
 
 	/* s5. */
 	if (!padapter->bSurpriseRemoved)

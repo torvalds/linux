@@ -275,14 +275,7 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 	usb_put_dev(interface_to_usbdev(usb_intf));
 }
 
-static void usb_intf_start(struct rtw_adapter *padapter)
-{
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_start\n"));
-	rtl8723au_inirp_init(padapter);
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_start\n"));
-}
-
-static void usb_intf_stop(struct rtw_adapter *padapter)
+void rtl8723a_usb_intf_stop(struct rtw_adapter *padapter)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_stop\n"));
 
@@ -318,8 +311,7 @@ static void rtw_dev_unload(struct rtw_adapter *padapter)
 					RTW_SCTX_DONE_DRV_STOP);
 
 		/* s3. */
-		if (padapter->intf_stop)
-			padapter->intf_stop(padapter);
+		rtl8723a_usb_intf_stop(padapter);
 
 		/* s4. */
 		if (!padapter->pwrctrlpriv.bInternalAutoSuspend)
@@ -608,9 +600,6 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	padapter->HalData = kzalloc(sizeof(struct hal_data_8723a), GFP_KERNEL);
 	if (!padapter->HalData)
 		goto free_wdev;
-
-	padapter->intf_start = &usb_intf_start;
-	padapter->intf_stop = &usb_intf_stop;
 
 	rtl8723au_set_intf_ops(padapter);
 

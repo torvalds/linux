@@ -91,8 +91,6 @@ static inline u8 rtw_usb_bulk_size_boundary(struct rtw_adapter *padapter,
 	return rst;
 }
 
-int rtl8723au_inirp_init(struct rtw_adapter *Adapter);
-int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter);
 void rtl8723au_chip_configure(struct rtw_adapter *padapter);
 
 #endif /* __USB_OPS_H_ */

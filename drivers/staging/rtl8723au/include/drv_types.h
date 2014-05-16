@@ -251,9 +251,6 @@ struct rtw_adapter {
 	u8	init_adpt_in_progress;
 	u8	bHaltInProgress;
 
-	void (*intf_start)(struct rtw_adapter *adapter);
-	void (*intf_stop)(struct rtw_adapter *adapter);
-
 	struct net_device *pnetdev;
 
 	/*  used by rtw_rereg_nd_name related function */
