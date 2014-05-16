@@ -429,7 +429,7 @@ RPS and RFS were introduced in kernel 2.6.35. XPS was incorporated into
 (therbert@google.com)
 
 Accelerated RFS was introduced in 2.6.35. Original patches were
-submitted by Ben Hutchings (bhutchings@solarflare.com)
+submitted by Ben Hutchings (bwh@kernel.org)
 
 Authors:
 Tom Herbert (therbert@google.com)
