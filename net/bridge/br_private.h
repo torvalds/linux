@@ -175,6 +175,7 @@ struct net_bridge_port
 #define BR_LEARNING		0x00000020
 #define BR_FLOOD		0x00000040
 #define BR_AUTO_MASK (BR_FLOOD | BR_LEARNING)
+#define BR_PROMISC		0x00000080
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct bridge_mcast_query	ip4_query;
@@ -200,6 +201,7 @@ struct net_bridge_port
 };
 
 #define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)
+#define br_promisc_port(p) ((p)->flags & BR_PROMISC)
 
 #define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
 
