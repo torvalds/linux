@@ -65,7 +65,6 @@
 #include "mvm.h"
 #include "sta.h"
 #include "iwl-io.h"
-#include "iwl-prph.h"
 #include "debugfs.h"
 #include "iwl-fw-error-dump.h"
 
@@ -681,7 +680,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 		mvm->restart_fw++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
-	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, CMD_SYNC, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, 0, 0, NULL);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -691,7 +690,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 				      size_t count, loff_t *ppos)
 {
-	iwl_write_prph(mvm->trans, DEVICE_SET_NMI_REG, 1);
+	iwl_force_nmi(mvm->trans);
 
 	return count;
 }
@@ -838,7 +837,7 @@ static ssize_t iwl_dbgfs_bcast_filters_write(struct iwl_mvm *mvm, char *buf,
 	/* send updated bcast filtering configuration */
 	if (mvm->dbgfs_bcast_filtering.override &&
 	    iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
-		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, CMD_SYNC,
+		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, 0,
 					   sizeof(cmd), &cmd);
 	mutex_unlock(&mvm->mutex);
 
@@ -910,7 +909,7 @@ static ssize_t iwl_dbgfs_bcast_filters_macs_write(struct iwl_mvm *mvm,
 	/* send updated bcast filtering configuration */
 	if (mvm->dbgfs_bcast_filtering.override &&
 	    iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
-		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, CMD_SYNC,
+		err = iwl_mvm_send_cmd_pdu(mvm, BCAST_FILTER_CMD, 0,
 					   sizeof(cmd), &cmd);
 	mutex_unlock(&mvm->mutex);
 

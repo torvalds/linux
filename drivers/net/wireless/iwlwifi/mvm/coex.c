@@ -106,7 +106,7 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
-	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_PRIO_TABLE, CMD_SYNC,
+	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_PRIO_TABLE, 0,
 				    sizeof(struct iwl_bt_coex_prio_tbl_cmd),
 				    &iwl_bt_prio_tbl);
 }
@@ -124,10 +124,10 @@ const u32 iwl_bt_cts_kill_msk[BT_KILL_MSK_MAX] = {
 };
 
 static const __le32 iwl_bt_prio_boost[BT_COEX_BOOST_SIZE] = {
-	cpu_to_le32(0xf0f0f0f0),
-	cpu_to_le32(0xc0c0c0c0),
-	cpu_to_le32(0xfcfcfcfc),
-	cpu_to_le32(0xff00ff00),
+	cpu_to_le32(0xf0f0f0f0), /* 50% */
+	cpu_to_le32(0xc0c0c0c0), /* 25% */
+	cpu_to_le32(0xfcfcfcfc), /* 75% */
+	cpu_to_le32(0xfefefefe), /* 87.5% */
 };
 
 static const __le32 iwl_single_shared_ant[BT_COEX_MAX_LUT][BT_COEX_LUT_SIZE] = {
@@ -300,8 +300,8 @@ static const __le64 iwl_ci_mask[][3] = {
 };
 
 static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
-	cpu_to_le32(0x22002200),
-	cpu_to_le32(0x33113311),
+	cpu_to_le32(0x28412201),
+	cpu_to_le32(0x11118451),
 };
 
 struct corunning_block_luts {
@@ -565,7 +565,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 		.id = BT_CONFIG,
 		.len = { sizeof(*bt_cmd), },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-		.flags = CMD_SYNC,
 	};
 	int ret;
 	u32 flags;
@@ -663,7 +662,6 @@ static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
 		.data[0] = &bt_cmd,
 		.len = { sizeof(*bt_cmd), },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-		.flags = CMD_SYNC,
 	};
 	int ret = 0;
 
@@ -803,23 +801,10 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
+		/* Count BSSes vifs */
+		data->num_bss_ifaces++;
 		/* default smps_mode for BSS / P2P client is AUTOMATIC */
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
-		data->num_bss_ifaces++;
-
-		/*
-		 * Count unassoc BSSes, relax SMSP constraints
-		 * and disable reduced Tx Power
-		 */
-		if (!vif->bss_conf.assoc) {
-			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
-					    smps_mode);
-			if (iwl_mvm_bt_coex_reduced_txp(mvm,
-							mvmvif->ap_sta_id,
-							false))
-				IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
-			return;
-		}
 		break;
 	case NL80211_IFTYPE_AP:
 		/* default smps_mode for AP / GO is OFF */
@@ -845,6 +830,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		/* ... relax constraints and disable rssi events */
 		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
 				    smps_mode);
+		data->reduced_tx_power = false;
 		if (vif->type == NL80211_IFTYPE_STATION)
 			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
@@ -857,6 +843,11 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		smps_mode = vif->type == NL80211_IFTYPE_AP ?
 				IEEE80211_SMPS_OFF :
 				IEEE80211_SMPS_DYNAMIC;
+
+	/* relax SMPS contraints for next association */
+	if (!vif->bss_conf.assoc)
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
 	IWL_DEBUG_COEX(data->mvm,
 		       "mac %d: bt_status %d bt_activity_grading %d smps_req %d\n",
 		       mvmvif->id, data->notif->bt_status, bt_activity_grading,
@@ -903,22 +894,17 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		/* if secondary is not NULL, it might be a GO */
 		data->secondary = chanctx_conf;
 
-	/* don't reduce the Tx power if in loose scheme */
+	/*
+	 * don't reduce the Tx power if one of these is true:
+	 *  we are in LOOSE
+	 *  single share antenna product
+	 *  BT is active
+	 *  we are associated
+	 */
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
-	    mvm->cfg->bt_shared_single_ant) {
+	    mvm->cfg->bt_shared_single_ant || !vif->bss_conf.assoc ||
+	    !data->notif->bt_status) {
 		data->reduced_tx_power = false;
-		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
-		return;
-	}
-
-	/* reduced Txpower only if BT is on, so ...*/
-	if (!data->notif->bt_status) {
-		/* ... cancel reduced Tx power ... */
-		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
-			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
-		data->reduced_tx_power = false;
-
-		/* ... and there is no need to get reports on RSSI any more. */
 		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}
@@ -1022,9 +1008,9 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 
 	/* Don't spam the fw with the same command over and over */
 	if (memcmp(&cmd, &mvm->last_bt_ci_cmd, sizeof(cmd))) {
-		if (iwl_mvm_send_cmd_pdu(mvm, BT_COEX_CI, CMD_SYNC,
+		if (iwl_mvm_send_cmd_pdu(mvm, BT_COEX_CI, 0,
 					 sizeof(cmd), &cmd))
-			IWL_ERR(mvm, "Failed to send BT_CI cmd");
+			IWL_ERR(mvm, "Failed to send BT_CI cmd\n");
 		memcpy(&mvm->last_bt_ci_cmd, &cmd, sizeof(cmd));
 	}
 
@@ -1039,7 +1025,6 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
 }
 
-/* upon association, the fw will send in BT Coex notification */
 int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 			     struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *dev_cmd)
@@ -1278,7 +1263,6 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 		.id = BT_CONFIG,
 		.len = { sizeof(*bt_cmd), },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-		.flags = CMD_SYNC,
 	};
 
 	if (!IWL_MVM_BT_COEX_CORUNNING)

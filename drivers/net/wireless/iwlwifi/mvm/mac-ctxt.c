@@ -685,7 +685,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 static int iwl_mvm_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
 				     struct iwl_mac_ctx_cmd *cmd)
 {
-	int ret = iwl_mvm_send_cmd_pdu(mvm, MAC_CONTEXT_CMD, CMD_SYNC,
+	int ret = iwl_mvm_send_cmd_pdu(mvm, MAC_CONTEXT_CMD, 0,
 				       sizeof(*cmd), cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send MAC context (action:%d): %d\n",
@@ -693,14 +693,37 @@ static int iwl_mvm_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
 	return ret;
 }
 
-/*
- * Fill the specific data for mac context of type station or p2p client
- */
-static void iwl_mvm_mac_ctxt_cmd_fill_sta(struct iwl_mvm *mvm,
-					  struct ieee80211_vif *vif,
-					  struct iwl_mac_data_sta *ctxt_sta,
-					  bool force_assoc_off)
+static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    u32 action, bool force_assoc_off)
 {
+	struct iwl_mac_ctx_cmd cmd = {};
+	struct iwl_mac_data_sta *ctxt_sta;
+
+	WARN_ON(vif->type != NL80211_IFTYPE_STATION);
+
+	/* Fill the common data for all mac context types */
+	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
+
+	if (vif->p2p) {
+		struct ieee80211_p2p_noa_attr *noa =
+			&vif->bss_conf.p2p_noa_attr;
+
+		cmd.p2p_sta.ctwin = cpu_to_le32(noa->oppps_ctwindow &
+					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
+		ctxt_sta = &cmd.p2p_sta.sta;
+	} else {
+		/* Allow beacons to pass through as long as we are not
+		 * associated, or we do not have dtim period information.
+		 */
+		if (!vif->bss_conf.assoc || !vif->bss_conf.dtim_period)
+			cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
+		else
+			cmd.filter_flags &= ~cpu_to_le32(MAC_FILTER_IN_BEACON);
+
+		ctxt_sta = &cmd.sta;
+	}
+
 	/* We need the dtim_period to set the MAC as associated */
 	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period &&
 	    !force_assoc_off) {
@@ -752,51 +775,6 @@ static void iwl_mvm_mac_ctxt_cmd_fill_sta(struct iwl_mvm *mvm,
 
 	ctxt_sta->listen_interval = cpu_to_le32(mvm->hw->conf.listen_interval);
 	ctxt_sta->assoc_id = cpu_to_le32(vif->bss_conf.aid);
-}
-
-static int iwl_mvm_mac_ctxt_cmd_station(struct iwl_mvm *mvm,
-					struct ieee80211_vif *vif,
-					u32 action)
-{
-	struct iwl_mac_ctx_cmd cmd = {};
-
-	WARN_ON(vif->type != NL80211_IFTYPE_STATION || vif->p2p);
-
-	/* Fill the common data for all mac context types */
-	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
-
-	/* Allow beacons to pass through as long as we are not associated,or we
-	 * do not have dtim period information */
-	if (!vif->bss_conf.assoc || !vif->bss_conf.dtim_period)
-		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
-	else
-		cmd.filter_flags &= ~cpu_to_le32(MAC_FILTER_IN_BEACON);
-
-	/* Fill the data specific for station mode */
-	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.sta,
-				      action == FW_CTXT_ACTION_ADD);
-
-	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
-}
-
-static int iwl_mvm_mac_ctxt_cmd_p2p_client(struct iwl_mvm *mvm,
-					   struct ieee80211_vif *vif,
-					   u32 action)
-{
-	struct iwl_mac_ctx_cmd cmd = {};
-	struct ieee80211_p2p_noa_attr *noa = &vif->bss_conf.p2p_noa_attr;
-
-	WARN_ON(vif->type != NL80211_IFTYPE_STATION || !vif->p2p);
-
-	/* Fill the common data for all mac context types */
-	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
-
-	/* Fill the data specific for station mode */
-	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.p2p_sta.sta,
-				      action == FW_CTXT_ACTION_ADD);
-
-	cmd.p2p_sta.ctwin = cpu_to_le32(noa->oppps_ctwindow &
-					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -1138,12 +1116,8 @@ static int iwl_mvm_mac_ctx_send(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (!vif->p2p)
-			return iwl_mvm_mac_ctxt_cmd_station(mvm, vif,
-							    action);
-		else
-			return iwl_mvm_mac_ctxt_cmd_p2p_client(mvm, vif,
-							       action);
+		return iwl_mvm_mac_ctxt_cmd_sta(mvm, vif, action,
+						action == FW_CTXT_ACTION_ADD);
 		break;
 	case NL80211_IFTYPE_AP:
 		if (!vif->p2p)
@@ -1211,7 +1185,7 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 							   mvmvif->color));
 	cmd.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, MAC_CONTEXT_CMD, CMD_SYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, MAC_CONTEXT_CMD, 0,
 				   sizeof(cmd), &cmd);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to remove MAC context: %d\n", ret);

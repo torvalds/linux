@@ -201,7 +201,7 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
 			le32_to_cpu(txq->scratchbufs[i].scratch));
 
-	iwl_write_prph(trans, DEVICE_SET_NMI_REG, 1);
+	iwl_force_nmi(trans);
 }
 
 /*
@@ -332,12 +332,12 @@ void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
 	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
 		struct iwl_txq *txq = &trans_pcie->txq[i];
 
-		spin_lock(&txq->lock);
+		spin_lock_bh(&txq->lock);
 		if (trans_pcie->txq[i].need_update) {
 			iwl_pcie_txq_inc_wr_ptr(trans, txq);
 			trans_pcie->txq[i].need_update = false;
 		}
-		spin_unlock(&txq->lock);
+		spin_unlock_bh(&txq->lock);
 	}
 }
 
@@ -1029,7 +1029,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		if (nfreed++ > 0) {
 			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n",
 				idx, q->write_ptr, q->read_ptr);
-			iwl_write_prph(trans, DEVICE_SET_NMI_REG, 1);
+			iwl_force_nmi(trans);
 		}
 	}
 
@@ -1600,7 +1600,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 			       get_cmd_string(trans_pcie, cmd->id));
 		ret = -ETIMEDOUT;
 
-		iwl_write_prph(trans, DEVICE_SET_NMI_REG, 1);
+		iwl_force_nmi(trans);
 		iwl_trans_fw_error(trans);
 
 		goto cancel;

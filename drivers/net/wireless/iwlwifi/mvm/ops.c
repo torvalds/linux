@@ -466,8 +466,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	min_backoff = calc_min_backoff(trans, cfg);
 	iwl_mvm_tt_initialize(mvm, min_backoff);
+	/* set the nvm_file_name according to priority */
+	if (iwlwifi_mod_params.nvm_file)
+		mvm->nvm_file_name = iwlwifi_mod_params.nvm_file;
+	else
+		mvm->nvm_file_name = mvm->cfg->default_nvm_file;
 
-	if (WARN(cfg->no_power_up_nic_in_init && !iwlwifi_mod_params.nvm_file,
+	if (WARN(cfg->no_power_up_nic_in_init && !mvm->nvm_file_name,
 		 "not allowing power-up and not having nvm_file\n"))
 		goto out_free;
 
@@ -477,7 +482,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	 * and not in the file.
 	 * for nics with no_power_up_nic_in_init: rely completley on nvm_file
 	 */
-	if (cfg->no_power_up_nic_in_init && iwlwifi_mod_params.nvm_file) {
+	if (cfg->no_power_up_nic_in_init && mvm->nvm_file_name) {
 		err = iwl_nvm_init(mvm, false);
 		if (err)
 			goto out_free;
@@ -525,7 +530,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  out_free:
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
-	if (!cfg->no_power_up_nic_in_init || !iwlwifi_mod_params.nvm_file)
+	if (!cfg->no_power_up_nic_in_init || !mvm->nvm_file_name)
 		iwl_trans_op_mode_leave(trans);
 	ieee80211_free_hw(mvm->hw);
 	return NULL;
@@ -1163,7 +1168,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, d0i3_exit_work);
 	struct iwl_host_cmd get_status_cmd = {
 		.id = WOWLAN_GET_STATUSES,
-		.flags = CMD_SYNC | CMD_HIGH_PRIO | CMD_WANT_SKB,
+		.flags = CMD_HIGH_PRIO | CMD_WANT_SKB,
 	};
 	struct iwl_wowlan_status *status;
 	int ret;

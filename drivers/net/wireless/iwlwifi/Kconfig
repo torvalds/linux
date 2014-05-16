@@ -42,7 +42,7 @@ config IWLWIFI
 config IWLWIFI_LEDS
 	bool
 	depends on IWLWIFI
-	depends on LEDS_CLASS
+	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
 	select LEDS_TRIGGERS
 	select MAC80211_LEDS
 	default y
@@ -128,7 +128,6 @@ config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
 	  Enable use of experimental ucode for testing and debugging.
 
 config IWLWIFI_DEVICE_TRACING
-
 	bool "iwlwifi device access tracing"
 	depends on IWLWIFI
 	depends on EVENT_TRACING
