@@ -498,9 +498,9 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter);
 bool IsLegal5GChannel(struct rtw_adapter *Adapter, u8 channel);
 
 void site_survey23a(struct rtw_adapter *padapter);
-u8 collect_bss_info23a(struct rtw_adapter *padapter,
-		    struct recv_frame *precv_frame,
-		    struct wlan_bssid_ex *bssid);
+int collect_bss_info23a(struct rtw_adapter *padapter,
+			struct recv_frame *precv_frame,
+			struct wlan_bssid_ex *bssid);
 void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		    struct rtw_adapter *padapter, bool update_ie);
 
@@ -548,8 +548,8 @@ unsigned int update_MSC_rate23a(struct HT_caps_element *pHT_caps);
 void Update_RA_Entry23a(struct rtw_adapter *padapter, struct sta_info *psta);
 void set_sta_rate23a(struct rtw_adapter *padapter, struct sta_info *psta);
 
-unsigned int receive_disconnect23a(struct rtw_adapter *padapter,
-				unsigned char *MacAddr, unsigned short reason);
+int receive_disconnect23a(struct rtw_adapter *padapter,
+			  unsigned char *MacAddr, unsigned short reason);
 
 unsigned char get_highest_rate_idx23a(u32 mask);
 int support_short_GI23a(struct rtw_adapter *padapter,
@@ -605,8 +605,8 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter, u8 *ra,
 void issue_action_BA23a(struct rtw_adapter *padapter,
 			const unsigned char *raddr,
 			unsigned char action, unsigned short status);
-unsigned int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr);
-unsigned int send_beacon23a(struct rtw_adapter *padapter);
+int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr);
+int send_beacon23a(struct rtw_adapter *padapter);
 
 void start_clnt_assoc23a(struct rtw_adapter *padapter);
 void start_clnt_auth23a(struct rtw_adapter *padapter);

@@ -2065,7 +2065,7 @@ static int OnAction23a_back23a(struct rtw_adapter *padapter,
 	return _SUCCESS;
 }
 
-static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
+static int rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
 {
 	struct rtw_adapter *adapter = recv_frame->adapter;
 	struct mlme_ext_priv *mlmeext = &adapter->mlmeextpriv;
@@ -2105,7 +2105,7 @@ static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
 	return _SUCCESS;
 }
 
-static unsigned int on_action_public23a_p2p(struct recv_frame *precv_frame)
+static int on_action_public23a_p2p(struct recv_frame *precv_frame)
 {
 	struct sk_buff *skb = precv_frame->pkt;
 	u8 *pframe = skb->data;
@@ -2123,7 +2123,7 @@ static unsigned int on_action_public23a_p2p(struct recv_frame *precv_frame)
 	return _SUCCESS;
 }
 
-static unsigned int on_action_public23a_vendor(struct recv_frame *precv_frame)
+static int on_action_public23a_vendor(struct recv_frame *precv_frame)
 {
 	unsigned int ret = _FAIL;
 	struct sk_buff *skb = precv_frame->pkt;
@@ -2168,7 +2168,7 @@ exit:
 static int on_action_public23a(struct rtw_adapter *padapter,
 			       struct recv_frame *precv_frame)
 {
-	unsigned int ret = _FAIL;
+	int ret = _FAIL;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u8 *pframe = skb->data;
@@ -2332,10 +2332,10 @@ void dump_mgntframe23a(struct rtw_adapter *padapter,
 	rtl8723au_mgnt_xmit(padapter, pmgntframe);
 }
 
-s32 dump_mgntframe23a_and_wait(struct rtw_adapter *padapter,
+int dump_mgntframe23a_and_wait(struct rtw_adapter *padapter,
 			       struct xmit_frame *pmgntframe, int timeout_ms)
 {
-	s32 ret = _FAIL;
+	int ret = _FAIL;
 	unsigned long irqL;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_buf *pxmitbuf = pmgntframe->pxmitbuf;
@@ -2360,16 +2360,16 @@ s32 dump_mgntframe23a_and_wait(struct rtw_adapter *padapter,
 	return ret;
 }
 
-s32 dump_mgntframe23a_and_wait_ack23a(struct rtw_adapter *padapter,
+int dump_mgntframe23a_and_wait_ack23a(struct rtw_adapter *padapter,
 				      struct xmit_frame *pmgntframe)
 {
-	s32 ret = _FAIL;
+	int ret = _FAIL;
 	u32 timeout_ms = 500;/*   500ms */
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	if (padapter->bSurpriseRemoved == true ||
 	    padapter->bDriverStopped == true)
-		return -1;
+		return _FAIL;
 
 	mutex_lock(&pxmitpriv->ack_tx_mutex);
 	pxmitpriv->ack_tx = true;
@@ -4278,7 +4278,7 @@ out:
 	dump_mgntframe23a(padapter, pmgntframe);
 }
 
-unsigned int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr)
+int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr)
 {
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *psta = NULL;
@@ -4318,7 +4318,7 @@ unsigned int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr)
 	return _SUCCESS;
 }
 
-unsigned int send_beacon23a(struct rtw_adapter *padapter)
+int send_beacon23a(struct rtw_adapter *padapter)
 {
 	bool	bxmitok;
 	int	issue = 0;
@@ -4464,9 +4464,9 @@ void site_survey23a(struct rtw_adapter *padapter)
 }
 
 /* collect bss info from Beacon and Probe request/response frames. */
-u8 collect_bss_info23a(struct rtw_adapter *padapter,
-		       struct recv_frame *precv_frame,
-		       struct wlan_bssid_ex *bssid)
+int collect_bss_info23a(struct rtw_adapter *padapter,
+			struct recv_frame *precv_frame,
+			struct wlan_bssid_ex *bssid)
 {
 	int i;
 	const u8 *p;
@@ -4808,7 +4808,8 @@ void start_clnt_assoc23a(struct rtw_adapter* padapter)
 	set_link_timer(pmlmeext, REASSOC_TO);
 }
 
-unsigned int receive_disconnect23a(struct rtw_adapter *padapter, unsigned char *MacAddr, unsigned short reason)
+int receive_disconnect23a(struct rtw_adapter *padapter,
+			  unsigned char *MacAddr, unsigned short reason)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
