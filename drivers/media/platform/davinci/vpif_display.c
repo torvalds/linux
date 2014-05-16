@@ -1124,10 +1124,8 @@ static int vpif_probe_complete(void)
 	for (j = 0; j < VPIF_DISPLAY_MAX_DEVICES; j++) {
 		ch = vpif_obj.dev[j];
 		/* Initialize field of the channel objects */
-		atomic_set(&ch->usrs, 0);
 		for (k = 0; k < VPIF_NUMOBJECTS; k++) {
 			common = &ch->common[k];
-			common->io_usrs = 0;
 			spin_lock_init(&common->irqlock);
 			mutex_init(&common->lock);
 			common->set_addr = NULL;
@@ -1371,7 +1369,7 @@ static int vpif_remove(struct platform_device *device)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int vpif_suspend(struct device *dev)
 {
 	struct common_obj *common;
@@ -1382,18 +1380,20 @@ static int vpif_suspend(struct device *dev)
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
 		common = &ch->common[VPIF_VIDEO_INDEX];
+
+		if (!vb2_is_streaming(&common->buffer_queue))
+			continue;
+
 		mutex_lock(&common->lock);
-		if (atomic_read(&ch->usrs) && common->io_usrs) {
-			/* Disable channel */
-			if (ch->channel_id == VPIF_CHANNEL2_VIDEO) {
-				enable_channel2(0);
-				channel2_intr_enable(0);
-			}
-			if (ch->channel_id == VPIF_CHANNEL3_VIDEO ||
-				ycmux_mode == 2) {
-				enable_channel3(0);
-				channel3_intr_enable(0);
-			}
+		/* Disable channel */
+		if (ch->channel_id == VPIF_CHANNEL2_VIDEO) {
+			enable_channel2(0);
+			channel2_intr_enable(0);
+		}
+		if (ch->channel_id == VPIF_CHANNEL3_VIDEO ||
+			ycmux_mode == 2) {
+			enable_channel3(0);
+			channel3_intr_enable(0);
 		}
 		mutex_unlock(&common->lock);
 	}
@@ -1412,18 +1412,20 @@ static int vpif_resume(struct device *dev)
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
 		common = &ch->common[VPIF_VIDEO_INDEX];
+
+		if (!vb2_is_streaming(&common->buffer_queue))
+			continue;
+
 		mutex_lock(&common->lock);
-		if (atomic_read(&ch->usrs) && common->io_usrs) {
-			/* Enable channel */
-			if (ch->channel_id == VPIF_CHANNEL2_VIDEO) {
-				enable_channel2(1);
-				channel2_intr_enable(1);
-			}
-			if (ch->channel_id == VPIF_CHANNEL3_VIDEO ||
-					ycmux_mode == 2) {
-				enable_channel3(1);
-				channel3_intr_enable(1);
-			}
+		/* Enable channel */
+		if (ch->channel_id == VPIF_CHANNEL2_VIDEO) {
+			enable_channel2(1);
+			channel2_intr_enable(1);
+		}
+		if (ch->channel_id == VPIF_CHANNEL3_VIDEO ||
+				ycmux_mode == 2) {
+			enable_channel3(1);
+			channel3_intr_enable(1);
 		}
 		mutex_unlock(&common->lock);
 	}
@@ -1431,21 +1433,15 @@ static int vpif_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops vpif_pm = {
-	.suspend        = vpif_suspend,
-	.resume         = vpif_resume,
-};
-
-#define vpif_pm_ops (&vpif_pm)
-#else
-#define vpif_pm_ops NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(vpif_pm_ops, vpif_suspend, vpif_resume);
 
 static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 			.name	= VPIF_DRIVER_NAME,
 			.owner	= THIS_MODULE,
-			.pm	= vpif_pm_ops,
+			.pm	= &vpif_pm_ops,
 	},
 	.probe	= vpif_probe,
 	.remove	= vpif_remove,

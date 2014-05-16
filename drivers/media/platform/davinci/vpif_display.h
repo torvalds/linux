@@ -83,8 +83,6 @@ struct common_obj {
 	/* channel specific parameters */
 	struct mutex lock;			/* lock used to access this
 						 * structure */
-	u32 io_usrs;				/* number of users performing
-						 * IO */
 	u32 ytop_off;				/* offset of Y top from the
 						 * starting of the buffer */
 	u32 ybtm_off;				/* offset of Y bottom from the
@@ -104,8 +102,6 @@ struct channel_obj {
 	/* V4l2 specific parameters */
 	struct video_device *video_dev;	/* Identifies video device for
 					 * this channel */
-	atomic_t usrs;			/* number of open instances of
-					 * the channel */
 	u32 field_id;			/* Indicates id of the field
 					 * which is being displayed */
 	u8 initialized;			/* flag to indicate whether
