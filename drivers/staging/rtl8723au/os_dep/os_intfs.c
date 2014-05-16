@@ -22,6 +22,8 @@
 #include <rtw_version.h>
 
 #include <usb_osintf.h>
+#include <rtl8723a_hal.h>
+
 #include <linux/version.h>
 
 MODULE_LICENSE("GPL");
@@ -419,7 +421,7 @@ static u8 rtw_init_default_value(struct rtw_adapter *padapter)
 	rtw_update_registrypriv_dev_network23a(padapter);
 
 	/* hal_priv */
-	rtw_hal_def_value_init23a(padapter);
+	rtl8723a_init_default_value(padapter);
 
 	/* misc. */
 	padapter->bReadPortCancel = false;
@@ -435,7 +437,7 @@ u8 rtw_reset_drv_sw23a(struct rtw_adapter *padapter)
 	u8 ret8 = _SUCCESS;
 
 	/* hal_priv */
-	rtw_hal_def_value_init23a(padapter);
+	rtl8723a_init_default_value(padapter);
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
 	pmlmepriv->scan_interval = SCAN_INTERVAL;/*  30*2 sec = 60sec */

@@ -39,11 +39,6 @@ void rtw_hal_read_chip_version23a(struct rtw_adapter *padapter)
 		padapter->HalFunc.read_chip_version(padapter);
 }
 
-void rtw_hal_def_value_init23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.init_default_value)
-		padapter->HalFunc.init_default_value(padapter);
-}
 void	rtw_hal_free_data23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.free_hal_data)

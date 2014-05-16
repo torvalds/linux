@@ -1733,11 +1733,6 @@ static void UpdateHalRAMask8192CUsb(struct rtw_adapter *padapter,
 	pdmpriv->INIDATA_RATE[mac_id] = init_rate;
 }
 
-static void rtl8723au_init_default_value(struct rtw_adapter *padapter)
-{
-	rtl8723a_init_default_value(padapter);
-}
-
 int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 {
 	struct hal_ops	*pHalFunc = &padapter->HalFunc;
@@ -1761,7 +1756,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->InitSwLeds = NULL;
 	pHalFunc->DeInitSwLeds = NULL;
 
-	pHalFunc->init_default_value = &rtl8723au_init_default_value;
 	pHalFunc->intf_chip_configure = &rtl8723au_interface_configure;
 	pHalFunc->read_adapter_info = &ReadAdapterInfo8723AU;
 	pHalFunc->GetHalDefVarHandler = &GetHalDefVar8192CUsb;

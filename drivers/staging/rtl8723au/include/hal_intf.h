@@ -82,8 +82,6 @@ struct hal_ops {
 	void (*dm_deinit)(struct rtw_adapter *padapter);
 	void (*read_chip_version)(struct rtw_adapter *padapter);
 
-	void (*init_default_value)(struct rtw_adapter *padapter);
-
 	void (*intf_chip_configure)(struct rtw_adapter *padapter);
 
 	void (*read_adapter_info)(struct rtw_adapter *padapter);
