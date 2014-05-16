@@ -266,7 +266,7 @@ static int p80211_convert_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
 		if (!ether_addr_equal_unaligned(wlandev->netdev->dev_addr,
 						hdr->a1)) {
 			/* but reject anything else that isn't multicast */
-			if (!(hdr->a1[0] & 0x01))
+			if (!is_multicast_ether_addr(hdr->a1))
 				return CONV_TO_ETHER_SKIPPED;
 		}
 	}
