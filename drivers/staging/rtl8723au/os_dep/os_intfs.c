@@ -172,10 +172,10 @@ MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
 
 static int netdev_close(struct net_device *pnetdev);
 
-static uint loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
+static int loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
-	uint status = _SUCCESS;
+	int status = _SUCCESS;
 
 	GlobalDebugLevel23A = rtw_debug;
 	registry_par->chip_version = (u8)rtw_chip_version;
@@ -378,13 +378,13 @@ struct net_device *rtw_init_netdev23a(struct rtw_adapter *old_padapter)
 	return pnetdev;
 }
 
-static u8 rtw_init_default_value(struct rtw_adapter *padapter)
+static int rtw_init_default_value(struct rtw_adapter *padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	u8 ret = _SUCCESS;
+	int ret = _SUCCESS;
 
 	/* xmit_priv */
 	pxmitpriv->vcs_setting = pregistrypriv->vrtl_carrier_sense;
@@ -429,11 +429,11 @@ static u8 rtw_init_default_value(struct rtw_adapter *padapter)
 	return ret;
 }
 
-u8 rtw_reset_drv_sw23a(struct rtw_adapter *padapter)
+int rtw_reset_drv_sw23a(struct rtw_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
-	u8 ret8 = _SUCCESS;
+	int ret8 = _SUCCESS;
 
 	/* hal_priv */
 	rtl8723a_init_default_value(padapter);
@@ -458,9 +458,9 @@ u8 rtw_reset_drv_sw23a(struct rtw_adapter *padapter)
 	return ret8;
 }
 
-u8 rtw_init_drv_sw23a(struct rtw_adapter *padapter)
+int rtw_init_drv_sw23a(struct rtw_adapter *padapter)
 {
-	u8 ret8 = _SUCCESS;
+	int ret8 = _SUCCESS;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_init_drv_sw23a\n"));
 
@@ -562,7 +562,7 @@ void rtw_cancel_all_timer23a(struct rtw_adapter *padapter)
 	rtl8723a_deinit_dm_priv(padapter);
 }
 
-u8 rtw_free_drv_sw23a(struct rtw_adapter *padapter)
+int rtw_free_drv_sw23a(struct rtw_adapter *padapter)
 {
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("==>rtw_free_drv_sw23a"));
 
@@ -655,7 +655,7 @@ int netdev_open23a(struct net_device *pnetdev)
 	struct rtw_adapter *padapter = netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctrlpriv;
 	int ret = 0;
-	uint status;
+	int status;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+871x_drv - dev_open\n"));
 	DBG_8723A("+871x_drv - drv_open, bup =%d\n", padapter->bup);
