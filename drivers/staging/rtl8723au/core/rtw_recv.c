@@ -476,8 +476,7 @@ struct recv_frame *decryptor(struct rtw_adapter *padapter,
 	struct rx_pkt_attrib *prxattrib = &precv_frame->attrib;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct recv_frame *return_packet = precv_frame;
-	u32 res = _SUCCESS;
-
+	int res = _SUCCESS;
 
 	RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 		 ("prxstat->decrypted =%x prxattrib->encrypt = 0x%03x\n",
