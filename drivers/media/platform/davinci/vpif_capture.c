@@ -134,44 +134,23 @@ static int vpif_buffer_queue_setup(struct vb2_queue *vq,
 {
 	struct channel_obj *ch = vb2_get_drv_priv(vq);
 	struct common_obj *common;
-	unsigned long size;
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
 	vpif_dbg(2, debug, "vpif_buffer_setup\n");
 
-	/* If memory type is not mmap, return */
-	if (V4L2_MEMORY_MMAP == common->memory) {
-		/* Calculate the size of the buffer */
-		size = config_params.channel_bufsize[ch->channel_id];
-		/*
-		 * Checking if the buffer size exceeds the available buffer
-		 * ycmux_mode = 0 means 1 channel mode HD and
-		 * ycmux_mode = 1 means 2 channels mode SD
-		 */
-		if (ch->vpifparams.std_info.ycmux_mode == 0) {
-			if (config_params.video_limit[ch->channel_id])
-				while (size * *nbuffers >
-					(config_params.video_limit[0]
-						+ config_params.video_limit[1]))
-					(*nbuffers)--;
-		} else {
-			if (config_params.video_limit[ch->channel_id])
-				while (size * *nbuffers >
-				config_params.video_limit[ch->channel_id])
-					(*nbuffers)--;
-		}
+	if (fmt && fmt->fmt.pix.sizeimage < common->fmt.fmt.pix.sizeimage)
+		return -EINVAL;
 
-	} else {
-		size = common->fmt.fmt.pix.sizeimage;
-	}
-
-	if (*nbuffers < config_params.min_numbuffers)
-		*nbuffers = config_params.min_numbuffers;
+	if (vq->num_buffers + *nbuffers < 3)
+		*nbuffers = 3 - vq->num_buffers;
 
 	*nplanes = 1;
-	sizes[0] = size;
+	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : common->fmt.fmt.pix.sizeimage;
 	alloc_ctxs[0] = common->alloc_ctx;
+
+	/* Calculate the offset for Y and C data in the buffer */
+	vpif_calculate_offsets(ch);
 
 	return 0;
 }
@@ -213,9 +192,6 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Initialize field_id and started member */
 	ch->field_id = 0;
 	common->started = 1;
-
-	/* Calculate the offset for Y and C data in the buffer */
-	vpif_calculate_offsets(ch);
 
 	if ((vpif->std_info.frm_fmt &&
 	    ((common->fmt.fmt.pix.field != V4L2_FIELD_NONE) &&
