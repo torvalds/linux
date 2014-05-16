@@ -34,23 +34,6 @@ void rtw_hal_sw_led_deinit23a(struct rtw_adapter *padapter)
 		padapter->HalFunc.DeInitSwLeds(padapter);
 }
 
-void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.enable_interrupt)
-		padapter->HalFunc.enable_interrupt(padapter);
-	else
-		DBG_8723A("%s: HalFunc.enable_interrupt is NULL!\n", __FUNCTION__);
-
-}
-void rtw_hal_disable_interrupt23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.disable_interrupt)
-		padapter->HalFunc.disable_interrupt(padapter);
-	else
-		DBG_8723A("%s: HalFunc.disable_interrupt is NULL!\n", __FUNCTION__);
-
-}
-
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level)
 {
 	struct rtw_adapter *padapter;
@@ -69,11 +52,4 @@ void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level)
 #endif
 	} else
 		rtl8723a_update_ramask(padapter, psta->mac_id, rssi_level);
-}
-
-s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.interrupt_handler)
-		return padapter->HalFunc.interrupt_handler(padapter);
-	return _FAIL;
 }
