@@ -56,6 +56,7 @@ enum otg_fsm_timer {
 	B_DATA_PLS,
 	B_SSEND_SRP,
 	A_DP_END,
+	HNP_POLLING,
 
 	NUM_OTG_FSM_TIMERS,
 };

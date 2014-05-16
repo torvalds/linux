@@ -1,7 +1,7 @@
 /*
  * OTG Finite State Machine from OTG spec
  *
- * Copyright (C) 2007,2008 Freescale Semiconductor, Inc.
+ * Copyright (C) 2007-2015 Freescale Semiconductor, Inc.
  *
  * Author:	Li Yang <LeoLi@freescale.com>
  *		Jerry Huang <Chang-Ming.Huang@freescale.com>
@@ -169,6 +169,7 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_set_protocol(fsm, PROTO_HOST);
 		usb_bus_start_enum(fsm->otg->host,
 				fsm->otg->host->otg_port);
+		otg_add_timer(fsm, HNP_POLLING);
 		break;
 	case OTG_STATE_A_IDLE:
 		otg_drv_vbus(fsm, 0);
@@ -203,6 +204,7 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		 */
 		if (!fsm->a_bus_req || fsm->a_suspend_req_inf)
 			otg_add_timer(fsm, A_WAIT_ENUM);
+		otg_add_timer(fsm, HNP_POLLING);
 		break;
 	case OTG_STATE_A_SUSPEND:
 		otg_drv_vbus(fsm, 1);
