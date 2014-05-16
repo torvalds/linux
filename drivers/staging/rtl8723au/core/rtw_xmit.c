@@ -424,7 +424,7 @@ static void set_qos(struct sk_buff *skb, struct pkt_attrib *pattrib)
 	pattrib->subtype = WIFI_QOS_DATA_TYPE;
 }
 
-static s32 update_attrib(struct rtw_adapter *padapter,
+static int update_attrib(struct rtw_adapter *padapter,
 			 struct sk_buff *skb, struct pkt_attrib *pattrib)
 {
 	struct sta_info *psta = NULL;
@@ -647,7 +647,7 @@ exit:
 	return res;
 }
 
-static s32 xmitframe_addmic(struct rtw_adapter *padapter,
+static int xmitframe_addmic(struct rtw_adapter *padapter,
 			    struct xmit_frame *pxmitframe) {
 	struct mic_data micdata;
 	struct sta_info *stainfo;
@@ -823,7 +823,7 @@ static s32 xmitframe_addmic(struct rtw_adapter *padapter,
 	return _SUCCESS;
 }
 
-static s32 xmitframe_swencrypt(struct rtw_adapter *padapter,
+static int xmitframe_swencrypt(struct rtw_adapter *padapter,
 			       struct xmit_frame *pxmitframe)
 {
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
@@ -856,7 +856,7 @@ static s32 xmitframe_swencrypt(struct rtw_adapter *padapter,
 	return _SUCCESS;
 }
 
-s32 rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
+int rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
 		        struct pkt_attrib *pattrib)
 {
 	u16 *qc;
@@ -1070,7 +1070,7 @@ This sub-routine will perform all the following:
 6. apply sw-encrypt, if necessary.
 
 */
-s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
+int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 			      struct xmit_frame *pxmitframe)
 {
 	struct sta_info *psta;
@@ -1083,7 +1083,7 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 	u8 *pdata = skb->data;
 	int data_len = skb->len;
 	s32 bmcst = is_multicast_ether_addr(pattrib->ra);
-	s32 res = _SUCCESS;
+	int res = _SUCCESS;
 
 	if (pattrib->psta)
 		psta = pattrib->psta;
@@ -1363,7 +1363,8 @@ struct xmit_buf *rtw_alloc_xmitbuf23a_ext(struct xmit_priv *pxmitpriv)
 	return pxmitbuf;
 }
 
-s32 rtw_free_xmitbuf_ext23a(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
+int rtw_free_xmitbuf_ext23a(struct xmit_priv *pxmitpriv,
+			    struct xmit_buf *pxmitbuf)
 {
 	unsigned long irqL;
 	struct rtw_queue *pfree_queue = &pxmitpriv->free_xmit_extbuf_queue;
@@ -1417,7 +1418,7 @@ struct xmit_buf *rtw_alloc_xmitbuf23a(struct xmit_priv *pxmitpriv)
 	return pxmitbuf;
 }
 
-s32 rtw_free_xmitbuf23a(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
+int rtw_free_xmitbuf23a(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 {
 	unsigned long irqL;
 	struct rtw_queue *pfree_xmitbuf_queue = &pxmitpriv->free_xmitbuf_queue;
@@ -1607,7 +1608,7 @@ void rtw_free_xmitframe_queue23a(struct xmit_priv *pxmitpriv,
 
 }
 
-s32 rtw_xmitframe_enqueue23a(struct rtw_adapter *padapter,
+int rtw_xmitframe_enqueue23a(struct rtw_adapter *padapter,
 			     struct xmit_frame *pxmitframe)
 {
 	if (rtw_xmit23a_classifier(padapter, pxmitframe) == _FAIL) {
@@ -1731,8 +1732,8 @@ struct tx_servq *rtw_get_sta_pending23a(struct rtw_adapter *padapter, struct sta
  * Will enqueue pxmitframe to the proper queue,
  * and indicate it to xx_pending list.....
  */
-s32 rtw_xmit23a_classifier(struct rtw_adapter *padapter,
-			struct xmit_frame *pxmitframe)
+int rtw_xmit23a_classifier(struct rtw_adapter *padapter,
+			   struct xmit_frame *pxmitframe)
 {
 	struct sta_info	*psta;
 	struct tx_servq	*ptxservq;
@@ -1909,7 +1910,7 @@ int rtw_xmit23a(struct rtw_adapter *padapter, struct sk_buff *skb)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = NULL;
-	s32 res;
+	int res;
 
 	pxmitframe = rtw_alloc_xmitframe(pxmitpriv);
 
@@ -1959,7 +1960,7 @@ int xmitframe_enqueue_for_sleeping_sta23a(struct rtw_adapter *padapter, struct x
 	int bmcst = is_multicast_ether_addr(pattrib->ra);
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false)
-	    return ret;
+		return ret;
 
 	if (pattrib->psta) {
 		psta = pattrib->psta;
