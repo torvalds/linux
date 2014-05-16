@@ -348,7 +348,7 @@ static void fsl_espi_cmd_trans(struct spi_message *m,
 	}
 
 	espi_trans->tx_buf = local_buf;
-	espi_trans->rx_buf = local_buf + espi_trans->n_tx;
+	espi_trans->rx_buf = local_buf;
 	fsl_espi_do_trans(m, espi_trans);
 
 	espi_trans->actual_length = espi_trans->len;
@@ -397,7 +397,7 @@ static void fsl_espi_rw_trans(struct spi_message *m,
 		espi_trans->n_rx = trans_len;
 		espi_trans->len = trans_len + n_tx;
 		espi_trans->tx_buf = local_buf;
-		espi_trans->rx_buf = local_buf + n_tx;
+		espi_trans->rx_buf = local_buf;
 		fsl_espi_do_trans(m, espi_trans);
 
 		memcpy(rx_buf + pos, espi_trans->rx_buf + n_tx, trans_len);
