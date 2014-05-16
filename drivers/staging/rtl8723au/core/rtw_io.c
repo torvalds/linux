@@ -115,23 +115,6 @@ int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr , u32 length , u8 *pdat
 		return _SUCCESS;
 }
 
-int _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
-		       struct recv_buf *rbuf)
-{
-	struct _io_ops *io_ops = &adapter->io_ops;
-
-	if ((adapter->bDriverStopped == true) ||
-	    (adapter->bSurpriseRemoved == true)) {
-	     RT_TRACE(_module_rtl871x_io_c_, _drv_info_,
-		      ("rtw_read_port:bDriverStopped(%d) OR "
-		       "bSurpriseRemoved(%d)", adapter->bDriverStopped,
-		       adapter->bSurpriseRemoved));
-	     return _FAIL;
-	}
-
-	return io_ops->_read_port(adapter, addr, cnt, rbuf);
-}
-
 void _rtw_read_port23a_cancel(struct rtw_adapter *adapter)
 {
 	void (*_read_port_cancel)(struct rtw_adapter *adapter);
@@ -141,17 +124,6 @@ void _rtw_read_port23a_cancel(struct rtw_adapter *adapter)
 
 	if (_read_port_cancel)
 		_read_port_cancel(adapter);
-}
-
-int _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
-		    struct xmit_buf *xbuf)
-{
-	struct _io_ops *io_ops = &adapter->io_ops;
-	int ret = _SUCCESS;
-
-	ret = io_ops->_write_port(adapter, addr, cnt, xbuf);
-
-	return ret;
 }
 
 void _rtw_write_port23a_cancel(struct rtw_adapter *adapter)

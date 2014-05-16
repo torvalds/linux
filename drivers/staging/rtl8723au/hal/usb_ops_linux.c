@@ -457,7 +457,7 @@ static int usb_read_interrupt(struct rtw_adapter *adapter, u32 addr)
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
 	/* translate DMA FIFO addr to pipehandle */
-	pipe = ffaddr2pipehdl23a(pdvobj, addr);
+	pipe = usb_rcvintpipe(pusbd, pdvobj->RtInPipe[1]);
 
 	usb_fill_int_urb(precvpriv->int_in_urb, pusbd, pipe,
 			 precvpriv->int_in_buf, USB_INTR_CONTENT_LENGTH,
@@ -676,8 +676,8 @@ static void usb_read_port_complete(struct urb *purb)
 				 ("usb_read_port_complete: (purb->actual_"
 				  "length > MAX_RECVBUF_SZ) || (purb->actual_"
 				  "length < RXDESC_SIZE)\n"));
-			rtw_read_port(padapter, precvpriv->ff_hwaddr, 0,
-				      precvbuf);
+			rtl8723a_usb_read_port(padapter, RECV_BULK_IN_ADDR, 0,
+					       precvbuf);
 			DBG_8723A("%s()-%d: RX Warning!\n",
 				  __FUNCTION__, __LINE__);
 		} else {
@@ -692,8 +692,8 @@ static void usb_read_port_complete(struct urb *purb)
 				tasklet_schedule(&precvpriv->recv_tasklet);
 
 			precvbuf->pskb = NULL;
-			rtw_read_port(padapter, precvpriv->ff_hwaddr, 0,
-				      precvbuf);
+			rtl8723a_usb_read_port(padapter, RECV_BULK_IN_ADDR, 0,
+					       precvbuf);
 		}
 	} else {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
@@ -730,8 +730,8 @@ static void usb_read_port_complete(struct urb *purb)
 			pHalData = GET_HAL_DATA(padapter);
 			pHalData->srestpriv.Wifi_Error_Status =
 				USB_READ_PORT_FAIL;
-			rtw_read_port(padapter, precvpriv->ff_hwaddr,
-				      0, precvbuf);
+			rtl8723a_usb_read_port(padapter, RECV_BULK_IN_ADDR, 0,
+					       precvbuf);
 			break;
 		case -EINPROGRESS:
 			DBG_8723A("ERROR: URB IS IN PROGRESS!/n");
@@ -742,8 +742,8 @@ static void usb_read_port_complete(struct urb *purb)
 	}
 }
 
-static int usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
-			 struct recv_buf *precvbuf)
+int rtl8723a_usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+			   struct recv_buf *precvbuf)
 {
 	int err;
 	unsigned int pipe;
@@ -791,7 +791,7 @@ static int usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 	purb = precvbuf->purb;
 
 	/* translate DMA FIFO addr to pipehandle */
-	pipe = ffaddr2pipehdl23a(pdvobj, addr);
+	pipe = usb_rcvbulkpipe(pusbd, pdvobj->RtInPipe[0]);
 
 	usb_fill_bulk_urb(purb, pusbd, pipe, precvbuf->pskb->data,
 			  MAX_RECVBUF_SZ, usb_read_port_complete,
@@ -842,14 +842,11 @@ void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
 	pops->_read8 = &usb_read8;
 	pops->_read16 = &usb_read16;
 	pops->_read32 = &usb_read32;
-	pops->_read_port = &usb_read_port;
 
 	pops->_write8 = &usb_write8;
 	pops->_write16 = &usb_write16;
 	pops->_write32 = &usb_write32;
 	pops->_writeN = &usb_writeN;
-
-	pops->_write_port = &usb_write_port23a;
 
 	pops->_read_port_cancel = &usb_read_port_cancel23a;
 	pops->_write_port_cancel = &usb_write_port23a_cancel;

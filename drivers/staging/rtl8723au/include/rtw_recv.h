@@ -187,7 +187,6 @@ struct recv_priv {
 	uint  rx_middlepacket_crcerr;
 
 	/* u8 *pallocated_urb_buf; */
-	uint	ff_hwaddr;
 	u8	rx_pending_cnt;
 
 	struct urb *int_in_urb;

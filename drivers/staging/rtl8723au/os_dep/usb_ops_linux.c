@@ -18,22 +18,6 @@
 #include <usb_ops_linux.h>
 #include <rtw_sreset.h>
 
-unsigned int ffaddr2pipehdl23a(struct dvobj_priv *pdvobj, u32 addr)
-{
-	struct usb_device *pusbd = pdvobj->pusbdev;
-	unsigned int pipe = 0, ep_num = 0;
-
-	if (addr == RECV_BULK_IN_ADDR) {
-		pipe = usb_rcvbulkpipe(pusbd, pdvobj->RtInPipe[0]);
-	} else if (addr == RECV_INT_IN_ADDR) {
-		pipe = usb_rcvintpipe(pusbd, pdvobj->RtInPipe[1]);
-	} else if (addr < HW_QUEUE_ENTRY) {
-		ep_num = pdvobj->Queue2Pipe[addr];
-		pipe = usb_sndbulkpipe(pusbd, ep_num);
-	}
-	return pipe;
-}
-
 struct zero_bulkout_context {
 	void *pbuf;
 	void *purb;
@@ -156,8 +140,8 @@ check_completion:
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 }
 
-int usb_write_port23a(struct rtw_adapter *padapter, u32 addr, u32 cnt,
-		      struct xmit_buf *pxmitbuf)
+int rtl8723a_usb_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
+			    struct xmit_buf *pxmitbuf)
 {
 	struct urb *purb = NULL;
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
@@ -165,7 +149,7 @@ int usb_write_port23a(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 	struct xmit_frame *pxmitframe;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 	unsigned long irqL;
-	unsigned int pipe;
+	unsigned int pipe, ep_num;
 	int status;
 	int ret = _FAIL;
 
@@ -214,7 +198,8 @@ int usb_write_port23a(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 	purb = pxmitbuf->pxmit_urb[0];
 
 	/* translate DMA FIFO addr to pipehandle */
-	pipe = ffaddr2pipehdl23a(pdvobj, addr);
+	ep_num = pdvobj->Queue2Pipe[addr];
+	pipe = usb_sndbulkpipe(pusbd, ep_num);
 
 	usb_fill_bulk_urb(purb, pusbd, pipe,
 			  pxmitframe->buf_addr, /*  pxmitbuf->pbuf */
