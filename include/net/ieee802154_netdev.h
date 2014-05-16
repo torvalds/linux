@@ -242,6 +242,88 @@ static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 	return mac_cb(skb);
 }
 
+#define IEEE802154_LLSEC_KEY_SIZE 16
+
+struct ieee802154_llsec_key_id {
+	u8 mode;
+	u8 id;
+	union {
+		struct ieee802154_addr device_addr;
+		__le32 short_source;
+		__le64 extended_source;
+	};
+};
+
+struct ieee802154_llsec_key {
+	u8 frame_types;
+	u32 cmd_frame_ids;
+	u8 key[IEEE802154_LLSEC_KEY_SIZE];
+};
+
+struct ieee802154_llsec_key_entry {
+	struct list_head list;
+
+	struct ieee802154_llsec_key_id id;
+	struct ieee802154_llsec_key *key;
+};
+
+struct ieee802154_llsec_device_key {
+	struct list_head list;
+
+	struct ieee802154_llsec_key_id key_id;
+	u32 frame_counter;
+};
+
+enum {
+	IEEE802154_LLSEC_DEVKEY_IGNORE,
+	IEEE802154_LLSEC_DEVKEY_RESTRICT,
+
+	__IEEE802154_LLSEC_DEVKEY_MAX,
+};
+
+struct ieee802154_llsec_device {
+	struct list_head list;
+
+	__le16 pan_id;
+	__le16 short_addr;
+	__le64 hwaddr;
+	u32 frame_counter;
+	bool seclevel_exempt;
+
+	u8 key_mode;
+	struct list_head keys;
+};
+
+struct ieee802154_llsec_seclevel {
+	struct list_head list;
+
+	u8 frame_type;
+	u8 cmd_frame_id;
+	bool device_override;
+	u32 sec_levels;
+};
+
+struct ieee802154_llsec_params {
+	bool enabled;
+
+	__be32 frame_counter;
+	u8 out_level;
+	struct ieee802154_llsec_key_id out_key;
+
+	__le64 default_key_source;
+
+	__le16 pan_id;
+	__le64 hwaddr;
+	__le64 coord_hwaddr;
+	__le16 coord_shortaddr;
+};
+
+struct ieee802154_llsec_table {
+	struct list_head keys;
+	struct list_head devices;
+	struct list_head security_levels;
+};
+
 #define IEEE802154_MAC_SCAN_ED		0
 #define IEEE802154_MAC_SCAN_ACTIVE	1
 #define IEEE802154_MAC_SCAN_PASSIVE	2
@@ -260,6 +342,19 @@ struct ieee802154_mac_params {
 };
 
 struct wpan_phy;
+
+enum {
+	IEEE802154_LLSEC_PARAM_ENABLED = 1 << 0,
+	IEEE802154_LLSEC_PARAM_FRAME_COUNTER = 1 << 1,
+	IEEE802154_LLSEC_PARAM_OUT_LEVEL = 1 << 2,
+	IEEE802154_LLSEC_PARAM_OUT_KEY = 1 << 3,
+	IEEE802154_LLSEC_PARAM_KEY_SOURCE = 1 << 4,
+	IEEE802154_LLSEC_PARAM_PAN_ID = 1 << 5,
+	IEEE802154_LLSEC_PARAM_HWADDR = 1 << 6,
+	IEEE802154_LLSEC_PARAM_COORD_HWADDR = 1 << 7,
+	IEEE802154_LLSEC_PARAM_COORD_SHORTADDR = 1 << 8,
+};
+
 /*
  * This should be located at net_device->ml_priv
  *
