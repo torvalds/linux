@@ -26,7 +26,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#ifdef CONFIG_COMMON_CLK
 /*
  * This is a really crude hack to provide clkdev support to platform
  * devices until they get moved to DT.
@@ -34,15 +33,10 @@
 static const struct clk_name clk_names[] = {
 	{ "mtu2", "fck", "sh-mtu2" },
 };
-#endif
 
 static void __init genmai_add_standard_devices(void)
 {
-#ifdef CONFIG_COMMON_CLK
 	shmobile_clk_workaround(clk_names, ARRAY_SIZE(clk_names), true);
-#else
-	r7s72100_clock_init();
-#endif
 	r7s72100_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
