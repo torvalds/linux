@@ -25,6 +25,7 @@
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
+#include <linux/kgdb.h>
 
 #include <asm/head.h>
 #include <asm/ptrace.h>
