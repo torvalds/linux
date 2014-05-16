@@ -78,8 +78,6 @@ struct hal_ops {
 	void (*InitSwLeds)(struct rtw_adapter *padapter);
 	void (*DeInitSwLeds)(struct rtw_adapter *padapter);
 
-	void (*dm_init)(struct rtw_adapter *padapter);
-	void (*dm_deinit)(struct rtw_adapter *padapter);
 	void (*read_chip_version)(struct rtw_adapter *padapter);
 
 	void (*intf_chip_configure)(struct rtw_adapter *padapter);
@@ -90,8 +88,6 @@ struct hal_ops {
 	void (*set_bwmode_handler)(struct rtw_adapter *padapter,
 				   enum ht_channel_width Bandwidth, u8 Offset);
 	void (*set_channel_handler)(struct rtw_adapter *padapter, u8 channel);
-
-	void (*hal_dm_watchdog)(struct rtw_adapter *padapter);
 
 	u8 (*GetHalDefVarHandler)(struct rtw_adapter *padapter,
 				  enum hal_def_variable eVariable,
@@ -200,8 +196,6 @@ int rtw_resume_process23a(struct rtw_adapter *padapter);
 
 void	rtw_hal_free_data23a(struct rtw_adapter *padapter);
 
-void rtw_hal_dm_init23a(struct rtw_adapter *padapter);
-void rtw_hal_dm_deinit23a(struct rtw_adapter *padapter);
 void rtw_hal_sw_led_init23a(struct rtw_adapter *padapter);
 void rtw_hal_sw_led_deinit23a(struct rtw_adapter *padapter);
 
@@ -260,7 +254,6 @@ s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter);
 void	rtw_hal_set_bwmode23a(struct rtw_adapter *padapter,
 			   enum ht_channel_width Bandwidth, u8 Offset);
 void	rtw_hal_set_chan23a(struct rtw_adapter *padapter, u8 channel);
-void	rtw_hal_dm_watchdog23a(struct rtw_adapter *padapter);
 
 void rtw_hal_sreset_init23a(struct rtw_adapter *padapter);
 void rtw_hal_sreset_reset23a(struct rtw_adapter *padapter);

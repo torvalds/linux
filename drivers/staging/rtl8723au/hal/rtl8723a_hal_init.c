@@ -1723,15 +1723,10 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 {
 	pHalFunc->free_hal_data = &rtl8723a_free_hal_data;
 
-	pHalFunc->dm_init = &rtl8723a_init_dm_priv;
-	pHalFunc->dm_deinit = &rtl8723a_deinit_dm_priv;
-
 	pHalFunc->read_chip_version = &rtl8723a_read_chip_version;
 
 	pHalFunc->set_bwmode_handler = &PHY_SetBWMode23a8723A;
 	pHalFunc->set_channel_handler = &PHY_SwChnl8723A;
-
-	pHalFunc->hal_dm_watchdog = &rtl8723a_HalDmWatchDog;
 
 	pHalFunc->SetBeaconRelatedRegistersHandler =
 		&rtl8723a_SetBeaconRelatedRegisters;

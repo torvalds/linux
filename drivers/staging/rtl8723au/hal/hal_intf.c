@@ -38,17 +38,6 @@ void	rtw_hal_free_data23a(struct rtw_adapter *padapter)
 	if (padapter->HalFunc.free_hal_data)
 		padapter->HalFunc.free_hal_data(padapter);
 }
-void	rtw_hal_dm_init23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.dm_init)
-		padapter->HalFunc.dm_init(padapter);
-}
-void rtw_hal_dm_deinit23a(struct rtw_adapter *padapter)
-{
-	/*  cancel dm  timer */
-	if (padapter->HalFunc.dm_deinit)
-		padapter->HalFunc.dm_deinit(padapter);
-}
 void	rtw_hal_sw_led_init23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.InitSwLeds)
@@ -271,12 +260,6 @@ void	rtw_hal_set_chan23a(struct rtw_adapter *padapter, u8 channel)
 {
 	if (padapter->HalFunc.set_channel_handler)
 		padapter->HalFunc.set_channel_handler(padapter, channel);
-}
-
-void	rtw_hal_dm_watchdog23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.hal_dm_watchdog)
-		padapter->HalFunc.hal_dm_watchdog(padapter);
 }
 
 void rtw_hal_bcn_related_reg_setting23a(struct rtw_adapter *padapter)

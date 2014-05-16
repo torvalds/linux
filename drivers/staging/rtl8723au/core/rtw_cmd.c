@@ -1038,7 +1038,7 @@ static void dynamic_chk_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
 	linked_status_chk23a(padapter);
 	traffic_status_watchdog(padapter);
 
-	rtw_hal_dm_watchdog23a(padapter);
+	rtl8723a_HalDmWatchDog(padapter);
 
 #ifdef CONFIG_8723AU_BT_COEXIST
 	/*  */

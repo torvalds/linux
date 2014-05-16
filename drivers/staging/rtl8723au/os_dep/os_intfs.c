@@ -522,7 +522,7 @@ u8 rtw_init_drv_sw23a(struct rtw_adapter *padapter)
 
 	ret8 = rtw_init_default_value(padapter);
 
-	rtw_hal_dm_init23a(padapter);
+	rtl8723a_init_dm_priv(padapter);
 	rtw_hal_sw_led_init23a(padapter);
 
 	rtw_hal_sreset_init23a(padapter);
@@ -563,7 +563,7 @@ void rtw_cancel_all_timer23a(struct rtw_adapter *padapter)
 
 	del_timer_sync(&padapter->recvpriv.signal_stat_timer);
 	/* cancel dm timer */
-	rtw_hal_dm_deinit23a(padapter);
+	rtl8723a_deinit_dm_priv(padapter);
 }
 
 u8 rtw_free_drv_sw23a(struct rtw_adapter *padapter)
