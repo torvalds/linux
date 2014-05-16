@@ -236,6 +236,7 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 		return;
 	kfree(txb);
 }
+EXPORT_SYMBOL(ieee80211_txb_free);
 
 static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 						 gfp_t gfp_mask)
@@ -913,5 +914,3 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 
 }
-
-EXPORT_SYMBOL(ieee80211_txb_free);

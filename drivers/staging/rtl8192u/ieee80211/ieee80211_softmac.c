@@ -28,11 +28,13 @@ short ieee80211_is_54g(const struct ieee80211_network *net)
 {
 	return (net->rates_ex_len > 0) || (net->rates_len > 4);
 }
+EXPORT_SYMBOL(ieee80211_is_54g);
 
 short ieee80211_is_shortslot(const struct ieee80211_network *net)
 {
 	return net->capability & WLAN_CAPABILITY_SHORT_SLOT;
 }
+EXPORT_SYMBOL(ieee80211_is_shortslot);
 
 /* returns the total length needed for pleacing the RATE MFIE
  * tag and the EXTENDED RATE MFIE tag if needed.
@@ -415,6 +417,7 @@ void ieee80211_send_probe_requests(struct ieee80211_device *ieee)
 		ieee80211_send_probe(ieee);
 	}
 }
+EXPORT_SYMBOL(ieee80211_send_probe_requests);
 
 /* this performs syncro scan blocking the caller until all channels
  * in the allowed channel map has been checked.
@@ -485,7 +488,7 @@ out:
 	up(&ieee->scan_sem);
 }
 }
-
+EXPORT_SYMBOL(ieee80211_softmac_scan_syncro);
 
 static void ieee80211_softmac_scan_wq(struct work_struct *work)
 {
@@ -563,7 +566,7 @@ void ieee80211_stop_send_beacons(struct ieee80211_device *ieee)
 	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		ieee80211_beacons_stop(ieee);
 }
-
+EXPORT_SYMBOL(ieee80211_stop_send_beacons);
 
 void ieee80211_start_send_beacons(struct ieee80211_device *ieee)
 {
@@ -572,7 +575,7 @@ void ieee80211_start_send_beacons(struct ieee80211_device *ieee)
 	if(ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		ieee80211_beacons_start(ieee);
 }
-
+EXPORT_SYMBOL(ieee80211_start_send_beacons);
 
 static void ieee80211_softmac_stop_scan(struct ieee80211_device *ieee)
 {
@@ -600,6 +603,7 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 	else
 		ieee->stop_scan(ieee->dev);
 }
+EXPORT_SYMBOL(ieee80211_stop_scan);
 
 /* called with ieee->lock held */
 static void ieee80211_start_scan(struct ieee80211_device *ieee)
@@ -638,6 +642,7 @@ void ieee80211_start_scan_syncro(struct ieee80211_device *ieee)
 		ieee->scan_syncro(ieee->dev);
 
 }
+EXPORT_SYMBOL(ieee80211_start_scan_syncro);
 
 inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *beacon,
 	struct ieee80211_device *ieee, int challengelen)
@@ -1709,8 +1714,6 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	//FIXME
 }
 
-
-
 static void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee,
 					     short pwr)
 {
@@ -1721,7 +1724,7 @@ static void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee,
 		softmac_ps_mgmt_xmit(buf, ieee);
 
 }
-
+/* EXPORT_SYMBOL(ieee80211_sta_ps_send_null_frame); */
 
 static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 				    u32 *time_l)
@@ -1889,6 +1892,8 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
+EXPORT_SYMBOL(ieee80211_ps_tx_ack);
+
 static void ieee80211_process_action(struct ieee80211_device *ieee,
 				     struct sk_buff *skb)
 {
@@ -2188,6 +2193,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 	spin_unlock_irqrestore(&ieee->lock,flags);
 
 }
+EXPORT_SYMBOL(ieee80211_softmac_xmit);
 
 /* called with ieee->lock acquired */
 static void ieee80211_resume_tx(struct ieee80211_device *ieee)
@@ -2229,6 +2235,7 @@ void ieee80211_reset_queue(struct ieee80211_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock,flags);
 
 }
+EXPORT_SYMBOL(ieee80211_reset_queue);
 
 void ieee80211_wake_queue(struct ieee80211_device *ieee)
 {
@@ -2269,7 +2276,7 @@ void ieee80211_wake_queue(struct ieee80211_device *ieee)
 exit :
 	spin_unlock_irqrestore(&ieee->lock,flags);
 }
-
+EXPORT_SYMBOL(ieee80211_wake_queue);
 
 void ieee80211_stop_queue(struct ieee80211_device *ieee)
 {
@@ -2284,7 +2291,7 @@ void ieee80211_stop_queue(struct ieee80211_device *ieee)
 	//spin_unlock_irqrestore(&ieee->lock,flags);
 
 }
-
+EXPORT_SYMBOL(ieee80211_stop_queue);
 
 inline void ieee80211_randomize_cell(struct ieee80211_device *ieee)
 {
@@ -2502,6 +2509,8 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 	notify_wx_assoc_event(ieee);
 
 }
+EXPORT_SYMBOL(ieee80211_disassociate);
+
 static void ieee80211_associate_retry_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
@@ -2581,6 +2590,7 @@ struct sk_buff *ieee80211_get_beacon(struct ieee80211_device *ieee)
 
 	return skb;
 }
+EXPORT_SYMBOL(ieee80211_get_beacon);
 
 void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee)
 {
@@ -2589,7 +2599,7 @@ void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee)
 	ieee80211_stop_protocol(ieee);
 	up(&ieee->wx_sem);
 }
-
+EXPORT_SYMBOL(ieee80211_softmac_stop_protocol);
 
 void ieee80211_stop_protocol(struct ieee80211_device *ieee)
 {
@@ -2615,6 +2625,7 @@ void ieee80211_softmac_start_protocol(struct ieee80211_device *ieee)
 	ieee80211_start_protocol(ieee);
 	up(&ieee->wx_sem);
 }
+EXPORT_SYMBOL(ieee80211_softmac_start_protocol);
 
 void ieee80211_start_protocol(struct ieee80211_device *ieee)
 {
@@ -3138,6 +3149,7 @@ SendDisassociation(
 				//dev_kfree_skb_any(skb);//edit by thomas
 		}
 }
+EXPORT_SYMBOL(SendDisassociation);
 
 int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee, struct iw_point *p)
 {
@@ -3193,6 +3205,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL(ieee80211_wpa_supplicant_ioctl);
 
 void notify_wx_assoc_event(struct ieee80211_device *ieee)
 {
@@ -3204,25 +3217,4 @@ void notify_wx_assoc_event(struct ieee80211_device *ieee)
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	wireless_send_event(ieee->dev, SIOCGIWAP, &wrqu, NULL);
 }
-
-EXPORT_SYMBOL(ieee80211_get_beacon);
-EXPORT_SYMBOL(ieee80211_wake_queue);
-EXPORT_SYMBOL(ieee80211_stop_queue);
-EXPORT_SYMBOL(ieee80211_reset_queue);
-EXPORT_SYMBOL(ieee80211_softmac_stop_protocol);
-EXPORT_SYMBOL(ieee80211_softmac_start_protocol);
-EXPORT_SYMBOL(ieee80211_is_shortslot);
-EXPORT_SYMBOL(ieee80211_is_54g);
-EXPORT_SYMBOL(ieee80211_wpa_supplicant_ioctl);
-EXPORT_SYMBOL(ieee80211_ps_tx_ack);
-EXPORT_SYMBOL(ieee80211_softmac_xmit);
-EXPORT_SYMBOL(ieee80211_stop_send_beacons);
 EXPORT_SYMBOL(notify_wx_assoc_event);
-EXPORT_SYMBOL(SendDisassociation);
-EXPORT_SYMBOL(ieee80211_disassociate);
-EXPORT_SYMBOL(ieee80211_start_send_beacons);
-EXPORT_SYMBOL(ieee80211_stop_scan);
-EXPORT_SYMBOL(ieee80211_send_probe_requests);
-EXPORT_SYMBOL(ieee80211_softmac_scan_syncro);
-EXPORT_SYMBOL(ieee80211_start_scan_syncro);
-//EXPORT_SYMBOL(ieee80211_sta_ps_send_null_frame);

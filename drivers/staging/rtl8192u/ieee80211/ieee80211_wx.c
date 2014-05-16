@@ -305,6 +305,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 
 	return err;
 }
+EXPORT_SYMBOL(ieee80211_wx_get_scan);
 
 int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			    struct iw_request_info *info,
@@ -479,6 +480,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_encode);
 
 int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 			    struct iw_request_info *info,
@@ -521,6 +523,8 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_get_encode);
+
 #if (WIRELESS_EXT >= 18)
 int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
@@ -695,6 +699,7 @@ done:
 	}
 	return ret;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_encode_ext);
 
 int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
@@ -750,6 +755,7 @@ int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_get_encode_ext);
 
 int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
@@ -766,6 +772,7 @@ int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_mlme);
 
 int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
@@ -828,7 +835,9 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_auth);
 #endif
+
 int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
 	u8 *buf;
@@ -862,14 +871,4 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 	return 0;
 
 }
-
 EXPORT_SYMBOL(ieee80211_wx_set_gen_ie);
-#if (WIRELESS_EXT >= 18)
-EXPORT_SYMBOL(ieee80211_wx_set_mlme);
-EXPORT_SYMBOL(ieee80211_wx_set_auth);
-EXPORT_SYMBOL(ieee80211_wx_set_encode_ext);
-EXPORT_SYMBOL(ieee80211_wx_get_encode_ext);
-#endif
-EXPORT_SYMBOL(ieee80211_wx_get_scan);
-EXPORT_SYMBOL(ieee80211_wx_set_encode);
-EXPORT_SYMBOL(ieee80211_wx_get_encode);

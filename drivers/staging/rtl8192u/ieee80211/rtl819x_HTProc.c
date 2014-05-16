@@ -1319,6 +1319,7 @@ void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,	struct ieee80211_
 		//
 	}
 }
+EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);
 
 /********************************************************************************************************************
  *function:  check whether HT control field exists
@@ -1416,5 +1417,3 @@ void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
 
 	pHTInfo->bSwBwInProgress = false;
 }
-
-EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);

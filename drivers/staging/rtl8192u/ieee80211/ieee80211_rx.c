@@ -1387,6 +1387,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	 * hardware as a DMA target */
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_rx);
 
 #define MGMT_FRAME_FIXED_PART_LENGTH            0x24
 
@@ -2643,6 +2644,4 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 
 	}
 }
-
 EXPORT_SYMBOL(ieee80211_rx_mgt);
-EXPORT_SYMBOL(ieee80211_rx);
