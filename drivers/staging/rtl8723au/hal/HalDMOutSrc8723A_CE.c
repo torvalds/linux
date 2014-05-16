@@ -252,14 +252,20 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 				PHY_SetBBReg(Adapter, rOFDM0_XCTxAFE, bMaskH4Bits, value32);
 
 				value32 = ((X * ele_D)>>7)&0x01;
-				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT31, value32);
+				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold,
+					     BIT(31), value32);
 
 				value32 = ((Y * ele_D)>>7)&0x01;
-				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT29, value32);
+				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold,
+					     BIT(29), value32);
 			} else {
-				PHY_SetBBReg(Adapter, rOFDM0_XATxIQImbalance, bMaskDWord, OFDMSwingTable23A[OFDM_index[0]]);
-				PHY_SetBBReg(Adapter, rOFDM0_XCTxAFE, bMaskH4Bits, 0x00);
-				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT31|BIT29, 0x00);
+				PHY_SetBBReg(Adapter, rOFDM0_XATxIQImbalance,
+					     bMaskDWord,
+					     OFDMSwingTable23A[OFDM_index[0]]);
+				PHY_SetBBReg(Adapter, rOFDM0_XCTxAFE,
+					     bMaskH4Bits, 0x00);
+				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold,
+					     BIT(31) | BIT(29), 0x00);
 			}
 
 			/* Adjust CCK according to IQK result */
@@ -308,14 +314,25 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 					PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, value32);
 
 					value32 = ((X * ele_D)>>7)&0x01;
-					PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT27, value32);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_ECCAThreshold,
+						     BIT(27), value32);
 
 					value32 = ((Y * ele_D)>>7)&0x01;
-					PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT25, value32);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_ECCAThreshold,
+						     BIT(25), value32);
 				} else {
-					PHY_SetBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, OFDMSwingTable23A[OFDM_index[1]]);
-					PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, 0x00);
-					PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT27|BIT25, 0x00);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_XBTxIQImbalance,
+						     bMaskDWord,
+						     OFDMSwingTable23A[OFDM_index[1]]);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_XDTxAFE,
+						     bMaskH4Bits, 0x00);
+					PHY_SetBBReg(Adapter,
+						     rOFDM0_ECCAThreshold,
+						     BIT(27) | BIT(25), 0x00);
 				}
 			}
 
@@ -410,14 +427,14 @@ static u8 _PHY_PathA_IQK(struct rtw_adapter *pAdapter, bool configPathB)
 	regE9C = PHY_QueryBBReg(pAdapter, rTx_Power_After_IQK_A, bMaskDWord);
 	regEA4 = PHY_QueryBBReg(pAdapter, rRx_Power_Before_IQK_A_2, bMaskDWord);
 
-	if (!(regEAC & BIT28) &&
+	if (!(regEAC & BIT(28)) &&
 	    (((regE94 & 0x03FF0000)>>16) != 0x142) &&
 	    (((regE9C & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
 	else			/* if Tx not OK, ignore Rx */
 		return result;
 
-	if (!(regEAC & BIT27) &&		/* if Tx is OK, check whether Rx is OK */
+	if (!(regEAC & BIT(27)) &&		/* if Tx is OK, check whether Rx is OK */
 	    (((regEA4 & 0x03FF0000)>>16) != 0x132) &&
 	    (((regEAC & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
@@ -445,14 +462,14 @@ static u8 _PHY_PathB_IQK(struct rtw_adapter *pAdapter)
 	regEC4 = PHY_QueryBBReg(pAdapter, rRx_Power_Before_IQK_B_2, bMaskDWord);
 	regECC = PHY_QueryBBReg(pAdapter, rRx_Power_After_IQK_B_2, bMaskDWord);
 
-	if (!(regEAC & BIT31) &&
+	if (!(regEAC & BIT(31)) &&
 	    (((regEB4 & 0x03FF0000)>>16) != 0x142) &&
 	    (((regEBC & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
 	else
 		return result;
 
-	if (!(regEAC & BIT30) &&
+	if (!(regEAC & BIT(30)) &&
 	    (((regEC4 & 0x03FF0000)>>16) != 0x132) &&
 	    (((regECC & 0x03FF0000)>>16) != 0x36))
 		result |= 0x02;
@@ -612,9 +629,9 @@ static void _PHY_MACSettingCalibration(struct rtw_adapter *pAdapter, u32 *MACReg
 	rtw_write8(pAdapter, MACReg[i], 0x3F);
 
 	for (i = 1 ; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(pAdapter, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
+		rtw_write8(pAdapter, MACReg[i], (u8)(MACBackup[i] & ~BIT(3)));
 	}
-	rtw_write8(pAdapter, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
+	rtw_write8(pAdapter, MACReg[i], (u8)(MACBackup[i] & ~BIT(5)));
 }
 
 static void _PHY_PathAStandBy(struct rtw_adapter *pAdapter)
@@ -737,21 +754,23 @@ static void _PHY_IQCalibrate(struct rtw_adapter *pAdapter, int result[][8], u8 t
 	_PHY_PathADDAOn(pAdapter, ADDA_REG, true, is2T);
 
 	if (t == 0)
-		pdmpriv->bRfPiEnable = (u8)PHY_QueryBBReg(pAdapter, rFPGA0_XA_HSSIParameter1, BIT(8));
+		pdmpriv->bRfPiEnable = (u8)
+			PHY_QueryBBReg(pAdapter, rFPGA0_XA_HSSIParameter1,
+				       BIT(8));
 
 	if (!pdmpriv->bRfPiEnable) {
 		/*  Switch BB to PI mode to do IQ Calibration. */
 		_PHY_PIModeSwitch(pAdapter, true);
 	}
 
-	PHY_SetBBReg(pAdapter, rFPGA0_RFMOD, BIT24, 0x00);
+	PHY_SetBBReg(pAdapter, rFPGA0_RFMOD, BIT(24), 0x00);
 	PHY_SetBBReg(pAdapter, rOFDM0_TRxPathEnable, bMaskDWord, 0x03a05600);
 	PHY_SetBBReg(pAdapter, rOFDM0_TRMuxPar, bMaskDWord, 0x000800e4);
 	PHY_SetBBReg(pAdapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22204000);
-	PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT10, 0x01);
-	PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT26, 0x01);
-	PHY_SetBBReg(pAdapter, rFPGA0_XA_RFInterfaceOE, BIT10, 0x00);
-	PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT10, 0x00);
+	PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(10), 0x01);
+	PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT(26), 0x01);
+	PHY_SetBBReg(pAdapter, rFPGA0_XA_RFInterfaceOE, BIT(10), 0x00);
+	PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT(10), 0x00);
 
 	if (is2T) {
 		PHY_SetBBReg(pAdapter, rFPGA0_XA_LSSIParameter, bMaskDWord, 0x00010000);
