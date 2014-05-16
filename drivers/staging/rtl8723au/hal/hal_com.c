@@ -760,14 +760,14 @@ void rtl8723a_bcn_valid(struct rtw_adapter *padapter)
 	/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2,
 	   write 1 to clear, Clear by sw */
 	rtw_write8(padapter, REG_TDECTRL + 2,
-		   rtw_read8(padapter, REG_TDECTRL + 2) | BIT0);
+		   rtw_read8(padapter, REG_TDECTRL + 2) | BIT(0));
 }
 
 bool rtl8723a_get_bcn_valid(struct rtw_adapter *padapter)
 {
 	bool retval;
 
-	retval = (rtw_read8(padapter, REG_TDECTRL + 2) & BIT0) ? true : false;
+	retval = (rtw_read8(padapter, REG_TDECTRL + 2) & BIT(0)) ? true : false;
 
 	return retval;
 }
