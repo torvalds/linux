@@ -76,15 +76,6 @@
 #define CDC_NCM_TIMER_INTERVAL_MIN		5UL
 #define CDC_NCM_TIMER_INTERVAL_MAX		(15UL * USEC_PER_SEC)
 
-/* The following macro defines the minimum header space */
-#define	CDC_NCM_MIN_HDR_SIZE \
-	(sizeof(struct usb_cdc_ncm_nth16) + sizeof(struct usb_cdc_ncm_ndp16) + \
-	(CDC_NCM_DPT_DATAGRAMS_MAX + 1) * sizeof(struct usb_cdc_ncm_dpe16))
-
-#define CDC_NCM_NDP_SIZE \
-	(sizeof(struct usb_cdc_ncm_ndp16) +				\
-	      (CDC_NCM_DPT_DATAGRAMS_MAX + 1) * sizeof(struct usb_cdc_ncm_dpe16))
-
 #define cdc_ncm_comm_intf_is_mbim(x)  ((x)->desc.bInterfaceSubClass == USB_CDC_SUBCLASS_MBIM && \
 				       (x)->desc.bInterfaceProtocol == USB_CDC_PROTO_NONE)
 #define cdc_ncm_data_intf_is_mbim(x)  ((x)->desc.bInterfaceProtocol == USB_CDC_MBIM_PROTO_NTB)
@@ -110,6 +101,7 @@ struct cdc_ncm_ctx {
 	atomic_t stop;
 
 	u64 timer_interval;
+	u32 max_ndp_size;
 
 	u32 tx_timer_pending;
 	u32 tx_curr_frame_num;
