@@ -415,7 +415,7 @@ PHY_SetRFReg(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
  *  08/12/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-s32 PHY_MACConfig8723A(struct rtw_adapter *Adapter)
+int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 {
 	int rtStatus = _SUCCESS;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
