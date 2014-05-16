@@ -466,6 +466,7 @@ static int vpif_update_resolution(struct channel_obj *ch)
 			return -EINVAL;
 	}
 
+	common->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV422P;
 	common->fmt.fmt.pix.width = std_info->width;
 	common->fmt.fmt.pix.height = std_info->height;
 	vpif_dbg(1, debug, "Pixel details: Width = %d,Height = %d\n",
@@ -474,6 +475,17 @@ static int vpif_update_resolution(struct channel_obj *ch)
 	/* Set height and width paramateres */
 	common->height = std_info->height;
 	common->width = std_info->width;
+	common->fmt.fmt.pix.sizeimage = common->height * common->width * 2;
+
+	if (vid_ch->stdid)
+		common->fmt.fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	else
+		common->fmt.fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
+
+	if (ch->vpifparams.std_info.frm_fmt)
+		common->fmt.fmt.pix.field = V4L2_FIELD_NONE;
+	else
+		common->fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
 
 	return 0;
 }
@@ -544,63 +556,6 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 	ch->vpifparams.video_params.stdid = ch->vpifparams.std_info.stdid;
 }
 
-static void vpif_config_format(struct channel_obj *ch)
-{
-	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-
-	common->fmt.fmt.pix.field = V4L2_FIELD_ANY;
-	common->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV422P;
-	common->fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-}
-
-static int vpif_check_format(struct channel_obj *ch,
-			     struct v4l2_pix_format *pixfmt)
-{
-	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	enum v4l2_field field = pixfmt->field;
-	u32 sizeimage, hpitch, vpitch;
-
-	if (pixfmt->pixelformat != V4L2_PIX_FMT_YUV422P)
-		goto invalid_fmt_exit;
-
-	if (!(VPIF_VALID_FIELD(field)))
-		goto invalid_fmt_exit;
-
-	if (pixfmt->bytesperline <= 0)
-		goto invalid_pitch_exit;
-
-	sizeimage = pixfmt->sizeimage;
-
-	if (vpif_update_resolution(ch))
-		return -EINVAL;
-
-	hpitch = pixfmt->bytesperline;
-	vpitch = sizeimage / (hpitch * 2);
-
-	/* Check for valid value of pitch */
-	if ((hpitch < ch->vpifparams.std_info.width) ||
-	    (vpitch < ch->vpifparams.std_info.height))
-		goto invalid_pitch_exit;
-
-	/* Check for 8 byte alignment */
-	if (!ISALIGNED(hpitch)) {
-		vpif_err("invalid pitch alignment\n");
-		return -EINVAL;
-	}
-	pixfmt->width = common->fmt.fmt.pix.width;
-	pixfmt->height = common->fmt.fmt.pix.height;
-
-	return 0;
-
-invalid_fmt_exit:
-	vpif_err("invalid field format\n");
-	return -EINVAL;
-
-invalid_pitch_exit:
-	vpif_err("invalid pitch\n");
-	return -EINVAL;
-}
-
 static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 {
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
@@ -640,16 +595,14 @@ static int vpif_querycap(struct file *file, void  *priv,
 static int vpif_enum_fmt_vid_out(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *fmt)
 {
-	if (fmt->index != 0) {
-		vpif_err("Invalid format index\n");
+	if (fmt->index != 0)
 		return -EINVAL;
-	}
 
 	/* Fill in the information about format */
 	fmt->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 	strcpy(fmt->description, "YCbCr4:2:2 YC Planar");
 	fmt->pixelformat = V4L2_PIX_FMT_YUV422P;
-
+	fmt->flags = 0;
 	return 0;
 }
 
@@ -670,31 +623,6 @@ static int vpif_g_fmt_vid_out(struct file *file, void *priv,
 	return 0;
 }
 
-static int vpif_s_fmt_vid_out(struct file *file, void *priv,
-				struct v4l2_format *fmt)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct channel_obj *ch = video_get_drvdata(vdev);
-	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	struct v4l2_pix_format *pixfmt;
-	int ret = 0;
-
-	if (vb2_is_busy(&common->buffer_queue))
-		return -EBUSY;
-
-	pixfmt = &fmt->fmt.pix;
-	/* Check for valid field format */
-	ret = vpif_check_format(ch, pixfmt);
-	if (ret)
-		return ret;
-
-	/* store the pix format in the channel object */
-	common->fmt.fmt.pix = *pixfmt;
-	/* store the format in the channel object */
-	common->fmt = *fmt;
-	return 0;
-}
-
 static int vpif_try_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *fmt)
 {
@@ -702,15 +630,50 @@ static int vpif_try_fmt_vid_out(struct file *file, void *priv,
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
-	int ret = 0;
 
-	ret = vpif_check_format(ch, pixfmt);
-	if (ret) {
-		*pixfmt = common->fmt.fmt.pix;
-		pixfmt->sizeimage = pixfmt->width * pixfmt->height * 2;
-	}
+	/*
+	 * to supress v4l-compliance warnings silently correct
+	 * the pixelformat
+	 */
+	if (pixfmt->pixelformat != V4L2_PIX_FMT_YUV422P)
+		pixfmt->pixelformat = common->fmt.fmt.pix.pixelformat;
 
-	return ret;
+	if (vpif_update_resolution(ch))
+		return -EINVAL;
+
+	pixfmt->colorspace = common->fmt.fmt.pix.colorspace;
+	pixfmt->field = common->fmt.fmt.pix.field;
+	pixfmt->bytesperline = common->fmt.fmt.pix.width;
+	pixfmt->width = common->fmt.fmt.pix.width;
+	pixfmt->height = common->fmt.fmt.pix.height;
+	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height * 2;
+	pixfmt->priv = 0;
+
+	return 0;
+}
+
+static int vpif_s_fmt_vid_out(struct file *file, void *priv,
+				struct v4l2_format *fmt)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct channel_obj *ch = video_get_drvdata(vdev);
+	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
+	int ret;
+
+	if (vb2_is_busy(&common->buffer_queue))
+		return -EBUSY;
+
+	ret = vpif_try_fmt_vid_out(file, priv, fmt);
+	if (ret)
+		return ret;
+
+	/* store the pix format in the channel object */
+	common->fmt.fmt.pix = *pixfmt;
+
+	/* store the format in the channel object */
+	common->fmt = *fmt;
+	return 0;
 }
 
 static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
@@ -738,7 +701,6 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	if (!(std_id & VPIF_V4L2_STD))
 		return -EINVAL;
 
-
 	/* Call encoder subdevice function to set the standard */
 	ch->video.stdid = std_id;
 	memset(&ch->video.dv_timings, 0, sizeof(ch->video.dv_timings));
@@ -747,8 +709,6 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 		return -EINVAL;
 
 	common->fmt.fmt.pix.bytesperline = common->fmt.fmt.pix.width;
-	/* Configure the default format information */
-	vpif_config_format(ch);
 
 	ret = v4l2_device_call_until_err(&vpif_obj.v4l2_dev, 1, video,
 						s_std_output, std_id);
@@ -1215,6 +1175,11 @@ static int vpif_probe_complete(void)
 		if (err)
 			goto probe_out;
 
+		/* set initial format */
+		ch->video.stdid = V4L2_STD_525_60;
+		memset(&ch->video.dv_timings, 0, sizeof(ch->video.dv_timings));
+		vpif_update_resolution(ch);
+
 		/* Initialize vb2 queue */
 		q = &common->buffer_queue;
 		q->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
@@ -1226,7 +1191,6 @@ static int vpif_probe_complete(void)
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 1;
 		q->lock = &common->lock;
-
 		err = vb2_queue_init(q);
 		if (err) {
 			vpif_err("vpif_display: vb2_queue_init() failed\n");
