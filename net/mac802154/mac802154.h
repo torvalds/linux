@@ -23,6 +23,7 @@
 #ifndef MAC802154_H
 #define MAC802154_H
 
+#include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 
 /* mac802154 device private data */
