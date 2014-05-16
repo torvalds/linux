@@ -260,12 +260,12 @@ static int p80211_convert_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
 	if (p80211_rx_typedrop(wlandev, hdr->fc))
 		return CONV_TO_ETHER_SKIPPED;
 
-	/* perform mcast filtering */
+	/* perform mcast filtering: allow my local address through but reject
+	 * anything else that isn't multicast
+	 */
 	if (wlandev->netdev->flags & IFF_ALLMULTI) {
-		/* allow my local address through */
 		if (!ether_addr_equal_unaligned(wlandev->netdev->dev_addr,
 						hdr->a1)) {
-			/* but reject anything else that isn't multicast */
 			if (!is_multicast_ether_addr(hdr->a1))
 				return CONV_TO_ETHER_SKIPPED;
 		}
