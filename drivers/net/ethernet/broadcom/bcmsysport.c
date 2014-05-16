@@ -479,7 +479,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 		cb = &priv->rx_cbs[priv->rx_read_ptr];
 		skb = cb->skb;
 		dma_unmap_single(kdev, dma_unmap_addr(cb, dma_addr),
-				dma_unmap_len(cb, dma_len), DMA_FROM_DEVICE);
+				RX_BUF_LENGTH, DMA_FROM_DEVICE);
 
 		/* Extract the Receive Status Block prepended */
 		rsb = (struct rsb *)skb->data;
@@ -1244,6 +1244,12 @@ static inline void umac_enable_set(struct bcm_sysport_priv *priv,
 	else
 		reg &= ~(CMD_RX_EN | CMD_TX_EN);
 	umac_writel(priv, reg, UMAC_CMD);
+
+	/* UniMAC stops on a packet boundary, wait for a full-sized packet
+	 * to be processed (1 msec).
+	 */
+	if (enable == 0)
+		usleep_range(1000, 2000);
 }
 
 static inline int umac_reset(struct bcm_sysport_priv *priv)
