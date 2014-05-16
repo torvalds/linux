@@ -214,9 +214,9 @@ static ssize_t bonding_show_mode(struct device *d,
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
 
-	val = bond_opt_get_val(BOND_OPT_MODE, bond->params.mode);
+	val = bond_opt_get_val(BOND_OPT_MODE, BOND_MODE(bond));
 
-	return sprintf(buf, "%s %d\n", val->string, bond->params.mode);
+	return sprintf(buf, "%s %d\n", val->string, BOND_MODE(bond));
 }
 static DEVICE_ATTR(mode, S_IRUGO | S_IWUSR,
 		   bonding_show_mode, bonding_sysfs_store_option);
@@ -505,7 +505,7 @@ static ssize_t bonding_show_ad_aggregator(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
@@ -525,7 +525,7 @@ static ssize_t bonding_show_ad_num_ports(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
@@ -545,7 +545,7 @@ static ssize_t bonding_show_ad_actor_key(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
@@ -565,7 +565,7 @@ static ssize_t bonding_show_ad_partner_key(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
@@ -585,7 +585,7 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 		if (!bond_3ad_get_active_agg_info(bond, &ad_info))
 			count = sprintf(buf, "%pM\n", ad_info.partner_system);

@@ -192,7 +192,7 @@ static inline void __enable_port(struct port *port)
 {
 	struct slave *slave = port->slave;
 
-	if ((slave->link == BOND_LINK_UP) && IS_UP(slave->dev))
+	if ((slave->link == BOND_LINK_UP) && bond_slave_is_up(slave))
 		bond_set_slave_active_flags(slave, BOND_SLAVE_NOTIFY_LATER);
 }
 
@@ -2449,13 +2449,13 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 			continue;
 
 		if (slave_agg_no >= 0) {
-			if (!first_ok_slave && SLAVE_IS_OK(slave))
+			if (!first_ok_slave && bond_slave_can_tx(slave))
 				first_ok_slave = slave;
 			slave_agg_no--;
 			continue;
 		}
 
-		if (SLAVE_IS_OK(slave)) {
+		if (bond_slave_can_tx(slave)) {
 			bond_dev_queue_xmit(bond, skb, slave->dev);
 			goto out;
 		}

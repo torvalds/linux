@@ -40,42 +40,6 @@
 
 #define BOND_DEFAULT_MIIMON	100
 
-#define IS_UP(dev)					   \
-	      ((((dev)->flags & IFF_UP) == IFF_UP)	&& \
-	       netif_running(dev)			&& \
-	       netif_carrier_ok(dev))
-
-/*
- * Checks whether slave is ready for transmit.
- */
-#define SLAVE_IS_OK(slave)			        \
-		    (((slave)->dev->flags & IFF_UP)  && \
-		     netif_running((slave)->dev)     && \
-		     ((slave)->link == BOND_LINK_UP) && \
-		     bond_is_active_slave(slave))
-
-
-#define USES_PRIMARY(mode)				\
-		(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
-		 ((mode) == BOND_MODE_TLB)          ||	\
-		 ((mode) == BOND_MODE_ALB))
-
-#define BOND_NO_USES_ARP(mode)				\
-		(((mode) == BOND_MODE_8023AD)	||	\
-		 ((mode) == BOND_MODE_TLB)	||	\
-		 ((mode) == BOND_MODE_ALB))
-
-#define TX_QUEUE_OVERRIDE(mode)				\
-			(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
-			 ((mode) == BOND_MODE_ROUNDROBIN))
-
-#define BOND_MODE_IS_LB(mode)			\
-		(((mode) == BOND_MODE_TLB) ||	\
-		 ((mode) == BOND_MODE_ALB))
-
-#define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
-	((htonl(INADDR_BROADCAST) == a) ||	\
-	 ipv4_is_zeronet(a))
 /*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.
@@ -88,6 +52,8 @@
 	res = ioctl(dev, arg, cmd);	\
 	set_fs(fs);			\
 	res; })
+
+#define BOND_MODE(bond) ((bond)->params.mode)
 
 /* slave list primitives */
 #define bond_slave_list(bond) (&(bond)->dev->adj_list.lower)
@@ -288,9 +254,38 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 	return slave->bond;
 }
 
+static inline bool bond_should_override_tx_queue(struct bonding *bond)
+{
+	return BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP ||
+	       BOND_MODE(bond) == BOND_MODE_ROUNDROBIN;
+}
+
 static inline bool bond_is_lb(const struct bonding *bond)
 {
-	return BOND_MODE_IS_LB(bond->params.mode);
+	return BOND_MODE(bond) == BOND_MODE_TLB ||
+	       BOND_MODE(bond) == BOND_MODE_ALB;
+}
+
+static inline bool bond_mode_uses_arp(int mode)
+{
+	return mode != BOND_MODE_8023AD && mode != BOND_MODE_TLB &&
+	       mode != BOND_MODE_ALB;
+}
+
+static inline bool bond_mode_uses_primary(int mode)
+{
+	return mode == BOND_MODE_ACTIVEBACKUP || mode == BOND_MODE_TLB ||
+	       mode == BOND_MODE_ALB;
+}
+
+static inline bool bond_uses_primary(struct bonding *bond)
+{
+	return bond_mode_uses_primary(BOND_MODE(bond));
+}
+
+static inline bool bond_slave_is_up(struct slave *slave)
+{
+	return netif_running(slave->dev) && netif_carrier_ok(slave->dev);
 }
 
 static inline void bond_set_active_slave(struct slave *slave)
@@ -363,6 +358,12 @@ static inline bool bond_is_active_slave(struct slave *slave)
 	return !bond_slave_state(slave);
 }
 
+static inline bool bond_slave_can_tx(struct slave *slave)
+{
+	return bond_slave_is_up(slave) && slave->link == BOND_LINK_UP &&
+	       bond_is_active_slave(slave);
+}
+
 #define BOND_PRI_RESELECT_ALWAYS	0
 #define BOND_PRI_RESELECT_BETTER	1
 #define BOND_PRI_RESELECT_FAILURE	2
@@ -397,6 +398,11 @@ static inline int slave_do_arp_validate(struct bonding *bond,
 static inline int slave_do_arp_validate_only(struct bonding *bond)
 {
 	return bond->params.arp_validate & BOND_ARP_FILTER;
+}
+
+static inline int bond_is_ip_target_ok(__be32 addr)
+{
+	return !ipv4_is_lbcast(addr) && !ipv4_is_zeronet(addr);
 }
 
 /* Get the oldest arp which we've received on this slave for bond's
@@ -474,15 +480,6 @@ static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be3
 					 RT_SCOPE_HOST);
 	rcu_read_unlock();
 	return addr;
-}
-
-static inline bool slave_can_tx(struct slave *slave)
-{
-	if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP &&
-	    bond_is_active_slave(slave))
-		return true;
-	else
-		return false;
 }
 
 struct bond_net {

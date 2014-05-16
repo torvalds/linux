@@ -672,7 +672,7 @@ const struct bond_option *bond_opt_get(unsigned int option)
 
 int bond_option_mode_set(struct bonding *bond, const struct bond_opt_value *newval)
 {
-	if (BOND_NO_USES_ARP(newval->value) && bond->params.arp_interval) {
+	if (!bond_mode_uses_arp(newval->value) && bond->params.arp_interval) {
 		pr_info("%s: %s mode is incompatible with arp monitoring, start mii monitoring\n",
 			bond->dev->name, newval->string);
 		/* disable arp monitoring */
@@ -693,7 +693,7 @@ int bond_option_mode_set(struct bonding *bond, const struct bond_opt_value *newv
 static struct net_device *__bond_option_active_slave_get(struct bonding *bond,
 							 struct slave *slave)
 {
-	return USES_PRIMARY(bond->params.mode) && slave ? slave->dev : NULL;
+	return bond_uses_primary(bond) && slave ? slave->dev : NULL;
 }
 
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond)
@@ -758,7 +758,7 @@ static int bond_option_active_slave_set(struct bonding *bond,
 				bond->dev->name, new_active->dev->name);
 		} else {
 			if (old_active && (new_active->link == BOND_LINK_UP) &&
-			    IS_UP(new_active->dev)) {
+			    bond_slave_is_up(new_active)) {
 				pr_info("%s: Setting %s as active slave\n",
 					bond->dev->name, new_active->dev->name);
 				bond_change_active_slave(bond, new_active);
@@ -942,7 +942,7 @@ static int _bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 	__be32 *targets = bond->params.arp_targets;
 	int ind;
 
-	if (IS_IP_TARGET_UNUSABLE_ADDRESS(target)) {
+	if (!bond_is_ip_target_ok(target)) {
 		pr_err("%s: invalid ARP target %pI4 specified for addition\n",
 		       bond->dev->name, &target);
 		return -EINVAL;
@@ -987,7 +987,7 @@ static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 	unsigned long *targets_rx;
 	int ind, i;
 
-	if (IS_IP_TARGET_UNUSABLE_ADDRESS(target)) {
+	if (!bond_is_ip_target_ok(target)) {
 		pr_err("%s: invalid ARP target %pI4 specified for removal\n",
 		       bond->dev->name, &target);
 		return -EINVAL;

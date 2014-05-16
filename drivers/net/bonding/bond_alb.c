@@ -228,7 +228,7 @@ static struct slave *tlb_get_least_loaded_slave(struct bonding *bond)
 
 	/* Find the slave with the largest gap */
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		if (SLAVE_IS_OK(slave)) {
+		if (bond_slave_can_tx(slave)) {
 			long long gap = compute_gap(slave);
 
 			if (max_gap < gap) {
@@ -383,7 +383,7 @@ static struct slave *rlb_next_rx_slave(struct bonding *bond)
 	bool found = false;
 
 	bond_for_each_slave(bond, slave, iter) {
-		if (!SLAVE_IS_OK(slave))
+		if (!bond_slave_can_tx(slave))
 			continue;
 		if (!found) {
 			if (!before || before->speed < slave->speed)
@@ -416,7 +416,7 @@ static struct slave *__rlb_next_rx_slave(struct bonding *bond)
 	bool found = false;
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		if (!SLAVE_IS_OK(slave))
+		if (!bond_slave_can_tx(slave))
 			continue;
 		if (!found) {
 			if (!before || before->speed < slave->speed)
@@ -1057,7 +1057,7 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[])
 	struct net_device *dev = slave->dev;
 	struct sockaddr s_addr;
 
-	if (slave->bond->params.mode == BOND_MODE_TLB) {
+	if (BOND_MODE(slave->bond) == BOND_MODE_TLB) {
 		memcpy(dev->dev_addr, addr, dev->addr_len);
 		return 0;
 	}
@@ -1100,13 +1100,13 @@ static void alb_swap_mac_addr(struct slave *slave1, struct slave *slave2)
 static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
 				struct slave *slave2)
 {
-	int slaves_state_differ = (SLAVE_IS_OK(slave1) != SLAVE_IS_OK(slave2));
+	int slaves_state_differ = (bond_slave_can_tx(slave1) != bond_slave_can_tx(slave2));
 	struct slave *disabled_slave = NULL;
 
 	ASSERT_RTNL();
 
 	/* fasten the change in the switch */
-	if (SLAVE_IS_OK(slave1)) {
+	if (bond_slave_can_tx(slave1)) {
 		alb_send_learning_packets(slave1, slave1->dev->dev_addr);
 		if (bond->alb_info.rlb_enabled) {
 			/* inform the clients that the mac address
@@ -1118,7 +1118,7 @@ static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
 		disabled_slave = slave1;
 	}
 
-	if (SLAVE_IS_OK(slave2)) {
+	if (bond_slave_can_tx(slave2)) {
 		alb_send_learning_packets(slave2, slave2->dev->dev_addr);
 		if (bond->alb_info.rlb_enabled) {
 			/* inform the clients that the mac address
@@ -1360,7 +1360,7 @@ static int bond_do_alb_xmit(struct sk_buff *skb, struct bonding *bond,
 			bond_info->unbalanced_load += skb->len;
 	}
 
-	if (tx_slave && SLAVE_IS_OK(tx_slave)) {
+	if (tx_slave && bond_slave_can_tx(tx_slave)) {
 		if (tx_slave != rcu_dereference(bond->curr_active_slave)) {
 			ether_addr_copy(eth_data->h_source,
 					tx_slave->dev->dev_addr);
@@ -1745,7 +1745,7 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	/* in TLB mode, the slave might flip down/up with the old dev_addr,
 	 * and thus filter bond->dev_addr's packets, so force bond's mac
 	 */
-	if (bond->params.mode == BOND_MODE_TLB) {
+	if (BOND_MODE(bond) == BOND_MODE_TLB) {
 		struct sockaddr sa;
 		u8 tmp_addr[ETH_ALEN];
 
