@@ -47,7 +47,8 @@ static u8 _is_fw_read_cmd_down(struct rtw_adapter *padapter, u8 msgbox_num)
 *| h2c_msg	|Ext_bit	|CMD_ID	|
 *
 ******************************************/
-s32 FillH2CCmd(struct rtw_adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer)
+int FillH2CCmd(struct rtw_adapter *padapter, u8 ElementID, u32 CmdLen,
+	       u8 *pCmdBuffer)
 {
 	u8 bcmd_down = false;
 	s32 retry_cnts = 100;
@@ -57,7 +58,7 @@ s32 FillH2CCmd(struct rtw_adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmdB
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	u32 h2c_cmd = 0;
 	u16 h2c_cmd_ex = 0;
-	s32 ret = _FAIL;
+	int ret = _FAIL;
 
 	padapter = GET_PRIMARY_ADAPTER(padapter);
 	pHalData = GET_HAL_DATA(padapter);
@@ -112,9 +113,9 @@ exit:
 	return ret;
 }
 
-u8 rtl8723a_set_rssi_cmd(struct rtw_adapter *padapter, u8 *param)
+int rtl8723a_set_rssi_cmd(struct rtw_adapter *padapter, u8 *param)
 {
-	u8 res = _SUCCESS;
+	int res = _SUCCESS;
 
 	*((u32 *)param) = cpu_to_le32(*((u32 *)param));
 
@@ -123,10 +124,10 @@ u8 rtl8723a_set_rssi_cmd(struct rtw_adapter *padapter, u8 *param)
 	return res;
 }
 
-u8 rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg)
+int rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg)
 {
 	u8 buf[5];
-	u8 res = _SUCCESS;
+	int res = _SUCCESS;
 
 	memset(buf, 0, 5);
 	mask = cpu_to_le32(mask);
@@ -136,7 +137,6 @@ u8 rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg)
 	FillH2CCmd(padapter, MACID_CONFIG_EID, 5, buf);
 
 	return res;
-
 }
 
 /* bitmap[0:27] = tx_rate_bitmap */
