@@ -3108,27 +3108,28 @@ css_next_child(struct cgroup_subsys_state *pos_css,
 	cgroup_assert_mutex_or_rcu_locked();
 
 	/*
-	 * @pos could already have been removed.  Once a cgroup is removed,
-	 * its ->sibling.next is no longer updated when its next sibling
-	 * changes.  As CGRP_DEAD assertion is serialized and happens
-	 * before the cgroup is taken off the ->sibling list, if we see it
-	 * unasserted, it's guaranteed that the next sibling hasn't
-	 * finished its grace period even if it's already removed, and thus
-	 * safe to dereference from this RCU critical section.  If
-	 * ->sibling.next is inaccessible, cgroup_is_dead() is guaranteed
-	 * to be visible as %true here.
+	 * @pos could already have been unlinked from the sibling list.
+	 * Once a cgroup is removed, its ->sibling.next is no longer
+	 * updated when its next sibling changes.  CSS_RELEASED is set when
+	 * @pos is taken off list, at which time its next pointer is valid,
+	 * and, as releases are serialized, the one pointed to by the next
+	 * pointer is guaranteed to not have started release yet.  This
+	 * implies that if we observe !CSS_RELEASED on @pos in this RCU
+	 * critical section, the one pointed to by its next pointer is
+	 * guaranteed to not have finished its RCU grace period even if we
+	 * have dropped rcu_read_lock() inbetween iterations.
 	 *
-	 * If @pos is dead, its next pointer can't be dereferenced;
-	 * however, as each cgroup is given a monotonically increasing
-	 * unique serial number and always appended to the sibling list,
-	 * the next one can be found by walking the parent's children until
-	 * we see a cgroup with higher serial number than @pos's.  While
-	 * this path can be slower, it's taken only when either the current
-	 * cgroup is removed or iteration and removal race.
+	 * If @pos has CSS_RELEASED set, its next pointer can't be
+	 * dereferenced; however, as each css is given a monotonically
+	 * increasing unique serial number and always appended to the
+	 * sibling list, the next one can be found by walking the parent's
+	 * children until the first css with higher serial number than
+	 * @pos's.  While this path can be slower, it happens iff iteration
+	 * races against release and the race window is very small.
 	 */
 	if (!pos) {
 		next = list_entry_rcu(cgrp->self.children.next, struct cgroup, self.sibling);
-	} else if (likely(!cgroup_is_dead(pos))) {
+	} else if (likely(!(pos->self.flags & CSS_RELEASED))) {
 		next = list_entry_rcu(pos->self.sibling.next, struct cgroup, self.sibling);
 	} else {
 		list_for_each_entry_rcu(next, &cgrp->self.children, self.sibling)
@@ -4139,6 +4140,7 @@ static void css_release_work_fn(struct work_struct *work)
 
 	mutex_lock(&cgroup_mutex);
 
+	css->flags |= CSS_RELEASED;
 	list_del_rcu(&css->sibling);
 
 	if (ss) {
@@ -4525,10 +4527,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 
 	/*
 	 * Mark @cgrp dead.  This prevents further task migration and child
-	 * creation by disabling cgroup_lock_live_group().  Note that
-	 * CGRP_DEAD assertion is depended upon by css_next_child() to
-	 * resume iteration after dropping RCU read lock.  See
-	 * css_next_child() for details.
+	 * creation by disabling cgroup_lock_live_group().
 	 */
 	set_bit(CGRP_DEAD, &cgrp->flags);
 

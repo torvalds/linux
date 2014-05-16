@@ -97,6 +97,7 @@ struct cgroup_subsys_state {
 enum {
 	CSS_NO_REF	= (1 << 0), /* no reference counting for this css */
 	CSS_ONLINE	= (1 << 1), /* between ->css_online() and ->css_offline() */
+	CSS_RELEASED	= (1 << 2), /* refcnt reached zero, released */
 };
 
 /**
