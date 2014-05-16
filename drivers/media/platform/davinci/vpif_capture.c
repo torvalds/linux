@@ -1647,7 +1647,7 @@ static int vpif_remove(struct platform_device *device)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /**
  * vpif_suspend: vpif device suspend
  */
@@ -1662,18 +1662,20 @@ static int vpif_suspend(struct device *dev)
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
 		common = &ch->common[VPIF_VIDEO_INDEX];
+
+		if (!vb2_is_streaming(&common->buffer_queue))
+			continue;
+
 		mutex_lock(&common->lock);
-		if (ch->usrs && common->io_usrs) {
-			/* Disable channel */
-			if (ch->channel_id == VPIF_CHANNEL0_VIDEO) {
-				enable_channel0(0);
-				channel0_intr_enable(0);
-			}
-			if (ch->channel_id == VPIF_CHANNEL1_VIDEO ||
-				ycmux_mode == 2) {
-				enable_channel1(0);
-				channel1_intr_enable(0);
-			}
+		/* Disable channel */
+		if (ch->channel_id == VPIF_CHANNEL0_VIDEO) {
+			enable_channel0(0);
+			channel0_intr_enable(0);
+		}
+		if (ch->channel_id == VPIF_CHANNEL1_VIDEO ||
+			ycmux_mode == 2) {
+			enable_channel1(0);
+			channel1_intr_enable(0);
 		}
 		mutex_unlock(&common->lock);
 	}
@@ -1694,40 +1696,35 @@ static int vpif_resume(struct device *dev)
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
 		common = &ch->common[VPIF_VIDEO_INDEX];
+
+		if (!vb2_is_streaming(&common->buffer_queue))
+			continue;
+
 		mutex_lock(&common->lock);
-		if (ch->usrs && common->io_usrs) {
-			/* Disable channel */
-			if (ch->channel_id == VPIF_CHANNEL0_VIDEO) {
-				enable_channel0(1);
-				channel0_intr_enable(1);
-			}
-			if (ch->channel_id == VPIF_CHANNEL1_VIDEO ||
-				ycmux_mode == 2) {
-				enable_channel1(1);
-				channel1_intr_enable(1);
-			}
+		/* Enable channel */
+		if (ch->channel_id == VPIF_CHANNEL0_VIDEO) {
+			enable_channel0(1);
+			channel0_intr_enable(1);
+		}
+		if (ch->channel_id == VPIF_CHANNEL1_VIDEO ||
+			ycmux_mode == 2) {
+			enable_channel1(1);
+			channel1_intr_enable(1);
 		}
 		mutex_unlock(&common->lock);
 	}
 
 	return 0;
 }
-
-static const struct dev_pm_ops vpif_dev_pm_ops = {
-	.suspend = vpif_suspend,
-	.resume = vpif_resume,
-};
-
-#define vpif_pm_ops (&vpif_dev_pm_ops)
-#else
-#define vpif_pm_ops NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(vpif_pm_ops, vpif_suspend, vpif_resume);
 
 static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 		.name	= VPIF_DRIVER_NAME,
 		.owner	= THIS_MODULE,
-		.pm	= vpif_pm_ops,
+		.pm	= &vpif_pm_ops,
 	},
 	.probe = vpif_probe,
 	.remove = vpif_remove,

@@ -75,8 +75,6 @@ struct common_obj {
 	spinlock_t irqlock;
 	/* lock used to access this structure */
 	struct mutex lock;
-	/* number of users performing IO */
-	u32 io_usrs;
 	/* Function pointer to set the addresses */
 	void (*set_addr) (unsigned long, unsigned long, unsigned long,
 			  unsigned long);
@@ -97,8 +95,6 @@ struct common_obj {
 struct channel_obj {
 	/* Identifies video device for this channel */
 	struct video_device *video_dev;
-	/* number of open instances of the channel */
-	int usrs;
 	/* Indicates id of the field which is being displayed */
 	u32 field_id;
 	/* flag to indicate whether decoder is initialized */
