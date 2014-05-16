@@ -42,7 +42,7 @@ static void __init genmai_add_standard_devices(void)
 }
 
 static const char * const genmai_boards_compat_dt[] __initconst = {
-	"renesas,genmai-reference",
+	"renesas,genmai",
 	NULL,
 };
 
