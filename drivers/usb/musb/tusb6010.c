@@ -1012,6 +1012,7 @@ static int tusb_musb_start(struct musb *musb)
 		goto err;
 	}
 
+	musb->tusb_revision = tusb_get_revision(musb);
 	ret = tusb_print_revision(musb);
 	if (ret < 2) {
 		printk(KERN_ERR "tusb: Unsupported TUSB6010 revision %i\n",

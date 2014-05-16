@@ -339,6 +339,7 @@ struct musb {
 	dma_addr_t		async;
 	dma_addr_t		sync;
 	void __iomem		*sync_va;
+	u8			tusb_revision;
 #endif
 
 	/* passed down from chip/board specific irq handlers */
