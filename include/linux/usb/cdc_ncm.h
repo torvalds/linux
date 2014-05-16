@@ -115,6 +115,7 @@ struct cdc_ncm_ctx {
 	u16 tx_seq;
 	u16 rx_seq;
 	u16 connected;
+	u16 min_tx_pkt;
 };
 
 u8 cdc_ncm_select_altsetting(struct usb_interface *intf);

@@ -213,6 +213,10 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 
 	/* max qlen depend on hard_mtu and rx_urb_size */
 	usbnet_update_max_qlen(dev);
+
+	/* never pad more than 3 full USB packets per transfer */
+	ctx->min_tx_pkt = clamp_t(u16, ctx->tx_max - 3 * usb_maxpacket(dev->udev, dev->out, 1),
+				  CDC_NCM_MIN_TX_PKT, ctx->tx_max);
 }
 
 /* helpers for NCM and MBIM differences */
@@ -947,7 +951,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		/* variables will be reset at next call */
 	}
 
-	/* If collected data size is less or equal CDC_NCM_MIN_TX_PKT
+	/* If collected data size is less or equal ctx->min_tx_pkt
 	 * bytes, we send buffers as it is. If we get more data, it
 	 * would be more efficient for USB HS mobile device with DMA
 	 * engine to receive a full size NTB, than canceling DMA
@@ -957,7 +961,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	 * a ZLP after full sized NTBs.
 	 */
 	if (!(dev->driver_info->flags & FLAG_SEND_ZLP) &&
-	    skb_out->len > CDC_NCM_MIN_TX_PKT)
+	    skb_out->len > ctx->min_tx_pkt)
 		memset(skb_put(skb_out, ctx->tx_max - skb_out->len), 0,
 		       ctx->tx_max - skb_out->len);
 	else if (skb_out->len < ctx->tx_max && (skb_out->len % dev->maxpacket) == 0)
