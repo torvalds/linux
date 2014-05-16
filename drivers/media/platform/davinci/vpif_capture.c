@@ -176,6 +176,11 @@ static void vpif_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&common->irqlock, flags);
 }
 
+/**
+ * vpif_start_streaming : Starts the DMA engine for streaming
+ * @vb: ptr to vb2_buffer
+ * @count: number of buffers
+ */
 static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vpif_capture_config *vpif_config_data =
@@ -192,16 +197,6 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Initialize field_id and started member */
 	ch->field_id = 0;
 	common->started = 1;
-
-	if ((vpif->std_info.frm_fmt &&
-	    ((common->fmt.fmt.pix.field != V4L2_FIELD_NONE) &&
-	     (common->fmt.fmt.pix.field != V4L2_FIELD_ANY))) ||
-	    (!vpif->std_info.frm_fmt &&
-	     (common->fmt.fmt.pix.field == V4L2_FIELD_NONE))) {
-		vpif_dbg(1, debug, "conflict in field format and std format\n");
-		ret = -EINVAL;
-		goto err;
-	}
 
 	/* configure 1 or 2 channel mode */
 	if (vpif_config_data->setup_input_channel_mode) {
@@ -245,13 +240,13 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 * VPIF register
 	 */
 	channel_first_int[VPIF_VIDEO_INDEX][ch->channel_id] = 1;
-	if ((VPIF_CHANNEL0_VIDEO == ch->channel_id)) {
+	if (VPIF_CHANNEL0_VIDEO == ch->channel_id) {
 		channel0_intr_assert();
 		channel0_intr_enable(1);
 		enable_channel0(1);
 	}
-	if ((VPIF_CHANNEL1_VIDEO == ch->channel_id) ||
-	    (common->started == 2)) {
+	if (VPIF_CHANNEL1_VIDEO == ch->channel_id ||
+		common->started == 2) {
 		channel1_intr_assert();
 		channel1_intr_enable(1);
 		enable_channel1(1);
@@ -268,15 +263,18 @@ err:
 	return ret;
 }
 
-/* abort streaming and wait for last buffer */
+/**
+ * vpif_stop_streaming : Stop the DMA engine
+ * @vq: ptr to vb2_queue
+ *
+ * This callback stops the DMA engine and any remaining buffers
+ * in the DMA queue are released.
+ */
 static void vpif_stop_streaming(struct vb2_queue *vq)
 {
 	struct channel_obj *ch = vb2_get_drv_priv(vq);
 	struct common_obj *common;
 	unsigned long flags;
-
-	if (!vb2_is_streaming(vq))
-		return;
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
@@ -285,8 +283,8 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 		enable_channel0(0);
 		channel0_intr_enable(0);
 	}
-	if ((VPIF_CHANNEL1_VIDEO == ch->channel_id) ||
-		(2 == common->started)) {
+	if (VPIF_CHANNEL1_VIDEO == ch->channel_id ||
+		2 == common->started) {
 		enable_channel1(0);
 		channel1_intr_enable(0);
 	}
