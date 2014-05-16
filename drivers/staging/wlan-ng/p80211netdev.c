@@ -263,7 +263,8 @@ static int p80211_convert_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
 	/* perform mcast filtering */
 	if (wlandev->netdev->flags & IFF_ALLMULTI) {
 		/* allow my local address through */
-		if (memcmp(hdr->a1, wlandev->netdev->dev_addr, ETH_ALEN) != 0) {
+		if (!ether_addr_equal_unaligned(wlandev->netdev->dev_addr,
+						hdr->a1)) {
 			/* but reject anything else that isn't multicast */
 			if (!(hdr->a1[0] & 0x01))
 				return CONV_TO_ETHER_SKIPPED;
