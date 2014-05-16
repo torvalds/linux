@@ -1222,11 +1222,11 @@ static u32 rtl8723au_hal_deinit(struct rtw_adapter *padapter)
 	return _SUCCESS;
 }
 
-static unsigned int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
+int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 {
 	u8 i;
 	struct recv_buf *precvbuf;
-	uint	status;
+	int status;
 	struct _io_ops *io_ops = &Adapter->io_ops;
 	struct recv_priv *precvpriv = &Adapter->recvpriv;
 	u32 (*_read_port)(struct rtw_adapter *padapter, u32 addr, u32 cnt,
@@ -1270,7 +1270,7 @@ exit:
 	return status;
 }
 
-static unsigned int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
+int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a	*pHalData = GET_HAL_DATA(Adapter);
 
@@ -1737,9 +1737,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 
 	pHalFunc->hal_init = &rtl8723au_hal_init;
 	pHalFunc->hal_deinit = &rtl8723au_hal_deinit;
-
-	pHalFunc->inirp_init = &rtl8723au_inirp_init;
-	pHalFunc->inirp_deinit = &rtl8723au_inirp_deinit;
 
 	pHalFunc->init_xmit_priv = &rtl8723au_init_xmit_priv;
 

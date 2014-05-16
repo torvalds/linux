@@ -129,26 +129,6 @@ void rtw_hal_disable_interrupt23a(struct rtw_adapter *padapter)
 
 }
 
-u32	rtw_hal_inirp_init23a(struct rtw_adapter *padapter)
-{
-	u32 rst = _FAIL;
-	if (padapter->HalFunc.inirp_init)
-		rst = padapter->HalFunc.inirp_init(padapter);
-	else
-		DBG_8723A(" %s HalFunc.inirp_init is NULL!!!\n", __FUNCTION__);
-	return rst;
-}
-
-u32	rtw_hal_inirp_deinit23a(struct rtw_adapter *padapter)
-{
-
-	if (padapter->HalFunc.inirp_deinit)
-		return padapter->HalFunc.inirp_deinit(padapter);
-
-	return _FAIL;
-
-}
-
 s32	rtw_hal_xmit23aframe_enqueue(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
 {
 	if (padapter->HalFunc.hal_xmitframe_enqueue)

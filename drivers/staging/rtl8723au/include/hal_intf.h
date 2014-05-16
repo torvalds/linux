@@ -67,9 +67,6 @@ struct hal_ops {
 
 	void (*free_hal_data)(struct rtw_adapter *padapter);
 
-	u32 (*inirp_init)(struct rtw_adapter *padapter);
-	u32 (*inirp_deinit)(struct rtw_adapter *padapter);
-
 	s32 (*init_xmit_priv)(struct rtw_adapter *padapter);
 
 	s32 (*init_recv_priv)(struct rtw_adapter *padapter);
@@ -204,9 +201,6 @@ void rtw_hal_get_odm_var23a(struct rtw_adapter *padapter,
 
 void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter);
 void rtw_hal_disable_interrupt23a(struct rtw_adapter *padapter);
-
-u32 rtw_hal_inirp_init23a(struct rtw_adapter *padapter);
-u32 rtw_hal_inirp_deinit23a(struct rtw_adapter *padapter);
 
 s32 rtw_hal_xmit23aframe_enqueue(struct rtw_adapter *padapter,
 				 struct xmit_frame *pxmitframe);

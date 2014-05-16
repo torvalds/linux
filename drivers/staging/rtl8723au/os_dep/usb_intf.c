@@ -289,7 +289,7 @@ static void decide_chip_type_by_usb_device_id(struct rtw_adapter *padapter,
 static void usb_intf_start(struct rtw_adapter *padapter)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_start\n"));
-	rtw_hal_inirp_init23a(padapter);
+	rtl8723au_inirp_init(padapter);
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_start\n"));
 }
 
@@ -307,7 +307,7 @@ static void usb_intf_stop(struct rtw_adapter *padapter)
 	}
 
 	/* cancel in irp */
-	rtw_hal_inirp_deinit23a(padapter);
+	rtl8723au_inirp_deinit(padapter);
 
 	/* cancel out irp */
 	rtw_write_port_cancel(padapter);
