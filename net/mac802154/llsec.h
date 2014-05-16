@@ -102,4 +102,6 @@ int mac802154_llsec_seclevel_add(struct mac802154_llsec *sec,
 int mac802154_llsec_seclevel_del(struct mac802154_llsec *sec,
 				 const struct ieee802154_llsec_seclevel *sl);
 
+int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb);
+
 #endif /* MAC802154_LLSEC_H */
