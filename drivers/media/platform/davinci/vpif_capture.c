@@ -1287,11 +1287,12 @@ static int vpif_log_status(struct file *filep, void *priv)
 
 /* vpif capture ioctl operations */
 static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
-	.vidioc_querycap        	= vpif_querycap,
+	.vidioc_querycap		= vpif_querycap,
 	.vidioc_enum_fmt_vid_cap	= vpif_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap  		= vpif_g_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap		= vpif_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= vpif_s_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap		= vpif_try_fmt_vid_cap,
+
 	.vidioc_enum_input		= vpif_enum_input,
 	.vidioc_s_input			= vpif_s_input,
 	.vidioc_g_input			= vpif_g_input,
@@ -1306,13 +1307,14 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
 
 	.vidioc_querystd		= vpif_querystd,
-	.vidioc_s_std           	= vpif_s_std,
+	.vidioc_s_std			= vpif_s_std,
 	.vidioc_g_std			= vpif_g_std,
 
-	.vidioc_enum_dv_timings         = vpif_enum_dv_timings,
-	.vidioc_query_dv_timings        = vpif_query_dv_timings,
-	.vidioc_s_dv_timings            = vpif_s_dv_timings,
-	.vidioc_g_dv_timings            = vpif_g_dv_timings,
+	.vidioc_enum_dv_timings		= vpif_enum_dv_timings,
+	.vidioc_query_dv_timings	= vpif_query_dv_timings,
+	.vidioc_s_dv_timings		= vpif_s_dv_timings,
+	.vidioc_g_dv_timings		= vpif_g_dv_timings,
+
 	.vidioc_log_status		= vpif_log_status,
 };
 
