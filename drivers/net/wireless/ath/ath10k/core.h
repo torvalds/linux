@@ -440,6 +440,12 @@ struct ath10k {
 	bool radar_enabled;
 	int num_started_vdevs;
 
+	/* Protected by conf-mutex */
+	u8 supp_tx_chainmask;
+	u8 supp_rx_chainmask;
+	u8 cfg_tx_chainmask;
+	u8 cfg_rx_chainmask;
+
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
 
