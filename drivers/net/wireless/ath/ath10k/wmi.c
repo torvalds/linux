@@ -1431,6 +1431,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 					 ATH10K_SKB_CB(arvif->beacon)->paddr,
 					 arvif->beacon->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(arvif->beacon);
+			arvif->beacon = NULL;
 		}
 
 		ATH10K_SKB_CB(bcn)->paddr = dma_map_single(arvif->ar->dev,
@@ -1440,6 +1441,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 					ATH10K_SKB_CB(bcn)->paddr);
 		if (ret) {
 			ath10k_warn("failed to map beacon: %d\n", ret);
+			dev_kfree_skb_any(bcn);
 			goto skip;
 		}
 
