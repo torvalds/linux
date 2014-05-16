@@ -1038,6 +1038,7 @@
 #       define HDMI0_AZ_FORMAT_WTRIG_ACK   (1 << 29)
 #define HDMI0_AUDIO_CRC_CONTROL      0x740c
 #       define HDMI0_AUDIO_CRC_EN    (1 << 0)
+#define DCE3_HDMI0_ACR_PACKET_CONTROL	0x740c
 #define HDMI0_VBI_PACKET_CONTROL     0x7410
 #       define HDMI0_NULL_SEND       (1 << 0)
 #       define HDMI0_GC_SEND         (1 << 4)
@@ -1166,6 +1167,7 @@
 #       define HDMI0_ACR_48          3
 #       define HDMI0_ACR_SOURCE      (1 << 8) /* 0 - hw; 1 - cts value */
 #       define HDMI0_ACR_AUTO_SEND   (1 << 12)
+#define DCE3_HDMI0_AUDIO_CRC_CONTROL	0x74dc
 #define HDMI0_RAMP_CONTROL0          0x74e0
 #       define HDMI0_RAMP_MAX_COUNT(x)   (((x) & 0xffffff) << 0)
 #define HDMI0_RAMP_CONTROL1          0x74e4

@@ -332,6 +332,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
 	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
+	uint32_t acr_ctl;
 	ssize_t err;
 
 	if (!dig || !dig->afmt)
@@ -351,15 +352,16 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
 	       HDMI0_NULL_SEND); /* send null packets when required */
 
-	WREG32(HDMI0_AUDIO_CRC_CONTROL + offset, 0x1000);
-
 	WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
 	       HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */
 	       HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
 	       HDMI0_AUDIO_PACKETS_PER_LINE(3) | /* should be suffient for all audio modes and small enough for all hblanks */
 	       HDMI0_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
 
-	WREG32(HDMI0_ACR_PACKET_CONTROL + offset,
+	/* DCE 3.0 uses register that's normally for CRC_CONTROL */
+	acr_ctl = ASIC_IS_DCE3(rdev) ? DCE3_HDMI0_ACR_PACKET_CONTROL :
+				       HDMI0_ACR_PACKET_CONTROL;
+	WREG32(acr_ctl + offset,
 	       HDMI0_ACR_SOURCE | /* select SW CTS value - XXX verify that hw CTS works on all families */
 	       HDMI0_ACR_AUTO_SEND); /* allow hw to sent ACR packets when required */
 
