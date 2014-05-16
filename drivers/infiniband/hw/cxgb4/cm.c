@@ -47,6 +47,8 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 
+#include <rdma/ib_addr.h>
+
 #include "iw_cxgb4.h"
 
 static char *states[] = {
@@ -341,10 +343,7 @@ static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp)
 
 static struct net_device *get_real_dev(struct net_device *egress_dev)
 {
-	struct net_device *phys_dev = egress_dev;
-	if (egress_dev->priv_flags & IFF_802_1Q_VLAN)
-		phys_dev = vlan_dev_real_dev(egress_dev);
-	return phys_dev;
+	return rdma_vlan_dev_real_dev(egress_dev) ? : egress_dev;
 }
 
 static int our_interface(struct c4iw_dev *dev, struct net_device *egress_dev)
@@ -1746,16 +1745,16 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 		if (!ep->l2t)
 			goto out;
 		ep->mtu = dst_mtu(dst);
-		ep->tx_chan = cxgb4_port_chan(n->dev);
-		ep->smac_idx = (cxgb4_port_viid(n->dev) & 0x7F) << 1;
+		ep->tx_chan = cxgb4_port_chan(pdev);
+		ep->smac_idx = (cxgb4_port_viid(pdev) & 0x7F) << 1;
 		step = cdev->rdev.lldi.ntxq /
 			cdev->rdev.lldi.nchan;
-		ep->txq_idx = cxgb4_port_idx(n->dev) * step;
-		ep->ctrlq_idx = cxgb4_port_idx(n->dev);
+		ep->txq_idx = cxgb4_port_idx(pdev) * step;
+		ep->ctrlq_idx = cxgb4_port_idx(pdev);
 		step = cdev->rdev.lldi.nrxq /
 			cdev->rdev.lldi.nchan;
 		ep->rss_qid = cdev->rdev.lldi.rxq_ids[
-			cxgb4_port_idx(n->dev) * step];
+			cxgb4_port_idx(pdev) * step];
 
 		if (clear_mpa_v1) {
 			ep->retry_with_mpa_v1 = 0;
