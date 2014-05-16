@@ -1201,7 +1201,7 @@ static struct radeon_asic rv770_asic = {
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
 		.hdmi_enable = &r600_hdmi_enable,
-		.hdmi_setmode = &r600_hdmi_setmode,
+		.hdmi_setmode = &dce3_1_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,

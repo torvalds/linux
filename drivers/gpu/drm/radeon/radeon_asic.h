@@ -387,6 +387,11 @@ void r600_rlc_stop(struct radeon_device *rdev);
 int r600_audio_init(struct radeon_device *rdev);
 struct r600_audio_pin r600_audio_status(struct radeon_device *rdev);
 void r600_audio_fini(struct radeon_device *rdev);
+void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock);
+void r600_hdmi_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
+				    size_t size);
+void r600_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t clock);
+void r600_hdmi_audio_workaround(struct drm_encoder *encoder);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
@@ -458,6 +463,8 @@ int rv770_copy_dma(struct radeon_device *rdev,
 u32 rv770_get_xclk(struct radeon_device *rdev);
 int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int rv770_get_temp(struct radeon_device *rdev);
+/* hdmi */
+void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 /* rv7xx pm */
 int rv770_dpm_init(struct radeon_device *rdev);
 int rv770_dpm_enable(struct radeon_device *rdev);
