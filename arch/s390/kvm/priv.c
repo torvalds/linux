@@ -119,8 +119,7 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 	if (operand2 & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	address = vcpu->arch.sie_block->prefix;
-	address = address & 0x7fffe000u;
+	address = kvm_s390_get_prefix(vcpu);
 
 	/* get the value */
 	rc = write_guest(vcpu, operand2, &address, sizeof(address));
@@ -365,7 +364,8 @@ static void handle_new_psw(struct kvm_vcpu *vcpu)
 #define PSW_ADDR_24 0x0000000000ffffffUL
 #define PSW_ADDR_31 0x000000007fffffffUL
 
-static int is_valid_psw(psw_t *psw) {
+int is_valid_psw(psw_t *psw)
+{
 	if (psw->mask & PSW_MASK_UNASSIGNED)
 		return 0;
 	if ((psw->mask & PSW_MASK_ADDR_MODE) == PSW_MASK_BA) {
@@ -375,6 +375,8 @@ static int is_valid_psw(psw_t *psw) {
 	if (!(psw->mask & PSW_MASK_ADDR_MODE) && (psw->addr & ~PSW_ADDR_24))
 		return 0;
 	if ((psw->mask & PSW_MASK_ADDR_MODE) ==  PSW_MASK_EA)
+		return 0;
+	if (psw->addr & 1)
 		return 0;
 	return 1;
 }

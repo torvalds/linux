@@ -195,6 +195,7 @@ static int handle_itdb(struct kvm_vcpu *vcpu)
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_pgm_info pgm_info;
+	psw_t psw;
 	int rc;
 
 	vcpu->stat.exit_program_interruption++;
@@ -207,7 +208,14 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	}
 
 	trace_kvm_s390_intercept_prog(vcpu, vcpu->arch.sie_block->iprcc);
-
+	if (vcpu->arch.sie_block->iprcc == PGM_SPECIFICATION) {
+		rc = read_guest_lc(vcpu, __LC_PGM_NEW_PSW, &psw, sizeof(psw_t));
+		if (rc)
+			return rc;
+		/* Avoid endless loops of specification exceptions */
+		if (!is_valid_psw(&psw))
+			return -EOPNOTSUPP;
+	}
 	rc = handle_itdb(vcpu);
 	if (rc)
 		return rc;
@@ -264,6 +272,8 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 		irq.type = KVM_S390_INT_CPU_TIMER;
 		break;
 	case EXT_IRQ_EXTERNAL_CALL:
+		if (kvm_s390_si_ext_call_pending(vcpu))
+			return 0;
 		irq.type = KVM_S390_INT_EXTERNAL_CALL;
 		irq.parm = vcpu->arch.sie_block->extcpuaddr;
 		break;
@@ -284,33 +294,26 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
  */
 static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 {
-	unsigned long hostaddr, srcaddr, dstaddr;
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	struct mm_struct *mm = current->mm;
+	unsigned long srcaddr, dstaddr;
 	int reg1, reg2, rc;
 
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
-	srcaddr = kvm_s390_real_to_abs(vcpu, vcpu->run->s.regs.gprs[reg2]);
-	dstaddr = kvm_s390_real_to_abs(vcpu, vcpu->run->s.regs.gprs[reg1]);
 
 	/* Make sure that the source is paged-in */
-	hostaddr = gmap_fault(srcaddr, vcpu->arch.gmap);
-	if (IS_ERR_VALUE(hostaddr))
+	srcaddr = kvm_s390_real_to_abs(vcpu, vcpu->run->s.regs.gprs[reg2]);
+	if (kvm_is_error_gpa(vcpu->kvm, srcaddr))
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-	down_read(&mm->mmap_sem);
-	rc = get_user_pages(current, mm, hostaddr, 1, 0, 0, NULL, NULL);
-	up_read(&mm->mmap_sem);
-	if (rc < 0)
+	rc = kvm_arch_fault_in_page(vcpu, srcaddr, 0);
+	if (rc != 0)
 		return rc;
 
 	/* Make sure that the destination is paged-in */
-	hostaddr = gmap_fault(dstaddr, vcpu->arch.gmap);
-	if (IS_ERR_VALUE(hostaddr))
+	dstaddr = kvm_s390_real_to_abs(vcpu, vcpu->run->s.regs.gprs[reg1]);
+	if (kvm_is_error_gpa(vcpu->kvm, dstaddr))
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-	down_read(&mm->mmap_sem);
-	rc = get_user_pages(current, mm, hostaddr, 1, 1, 0, NULL, NULL);
-	up_read(&mm->mmap_sem);
-	if (rc < 0)
+	rc = kvm_arch_fault_in_page(vcpu, dstaddr, 1);
+	if (rc != 0)
 		return rc;
 
 	psw->addr = __rewind_psw(*psw, 4);
@@ -322,6 +325,8 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.sie_block->ipa == 0xb254)	/* MVPG */
 		return handle_mvpg_pei(vcpu);
+	if (vcpu->arch.sie_block->ipa >> 8 == 0xae)	/* SIGP */
+		return kvm_s390_handle_sigp_pei(vcpu);
 
 	return -EOPNOTSUPP;
 }

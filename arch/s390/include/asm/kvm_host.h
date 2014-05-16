@@ -32,8 +32,10 @@
 #define KVM_NR_IRQCHIPS 1
 #define KVM_IRQCHIP_NUM_PINS 4096
 
+#define SIGP_CTRL_C	0x00800000
+
 struct sca_entry {
-	atomic_t scn;
+	atomic_t ctrl;
 	__u32	reserved;
 	__u64	sda;
 	__u64	reserved2[2];
@@ -80,7 +82,9 @@ struct sca_block {
 
 struct kvm_s390_sie_block {
 	atomic_t cpuflags;		/* 0x0000 */
-	__u32	prefix;			/* 0x0004 */
+	__u32 : 1;			/* 0x0004 */
+	__u32 prefix : 18;
+	__u32 : 13;
 	__u8	reserved08[4];		/* 0x0008 */
 #define PROG_IN_SIE (1<<0)
 	__u32	prog0c;			/* 0x000c */

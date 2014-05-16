@@ -2,7 +2,7 @@
 #define _TRACE_KVM_H
 
 #include <linux/tracepoint.h>
-#include <asm/sigp.h>
+#include <asm/sie.h>
 #include <asm/debug.h>
 #include <asm/dis.h>
 
@@ -125,17 +125,6 @@ TRACE_EVENT(kvm_s390_sie_fault,
 	    VCPU_TP_PRINTK("%s", "fault in sie instruction")
 	);
 
-#define sie_intercept_code				\
-	{0x04, "Instruction"},				\
-	{0x08, "Program interruption"},			\
-	{0x0C, "Instruction and program interruption"},	\
-	{0x10, "External request"},			\
-	{0x14, "External interruption"},		\
-	{0x18, "I/O request"},				\
-	{0x1C, "Wait state"},				\
-	{0x20, "Validity"},				\
-	{0x28, "Stop request"}
-
 TRACE_EVENT(kvm_s390_sie_exit,
 	    TP_PROTO(VCPU_PROTO_COMMON, u8 icptcode),
 	    TP_ARGS(VCPU_ARGS_COMMON, icptcode),
@@ -165,7 +154,6 @@ TRACE_EVENT(kvm_s390_intercept_instruction,
 	    TP_STRUCT__entry(
 		    VCPU_FIELD_COMMON
 		    __field(__u64, instruction)
-		    __field(char, insn[8])
 		    ),
 
 	    TP_fast_assign(
@@ -176,10 +164,8 @@ TRACE_EVENT(kvm_s390_intercept_instruction,
 
 	    VCPU_TP_PRINTK("intercepted instruction %016llx (%s)",
 			   __entry->instruction,
-			   insn_to_mnemonic((unsigned char *)
-					    &__entry->instruction,
-					 __entry->insn, sizeof(__entry->insn)) ?
-			   "unknown" : __entry->insn)
+			   __print_symbolic(icpt_insn_decoder(__entry->instruction),
+					    icpt_insn_codes))
 	);
 
 /*
@@ -227,18 +213,6 @@ TRACE_EVENT(kvm_s390_intercept_validity,
  * Trace points for instructions that are of special interest.
  */
 
-#define sigp_order_codes					\
-	{SIGP_SENSE, "sense"},					\
-	{SIGP_EXTERNAL_CALL, "external call"},			\
-	{SIGP_EMERGENCY_SIGNAL, "emergency signal"},		\
-	{SIGP_STOP, "stop"},					\
-	{SIGP_STOP_AND_STORE_STATUS, "stop and store status"},	\
-	{SIGP_SET_ARCHITECTURE, "set architecture"},		\
-	{SIGP_SET_PREFIX, "set prefix"},			\
-	{SIGP_STORE_STATUS_AT_ADDRESS, "store status at addr"},	\
-	{SIGP_SENSE_RUNNING, "sense running"},			\
-	{SIGP_RESTART, "restart"}
-
 TRACE_EVENT(kvm_s390_handle_sigp,
 	    TP_PROTO(VCPU_PROTO_COMMON, __u8 order_code, __u16 cpu_addr, \
 		     __u32 parameter),
@@ -265,12 +239,28 @@ TRACE_EVENT(kvm_s390_handle_sigp,
 			   __entry->cpu_addr, __entry->parameter)
 	);
 
-#define diagnose_codes				\
-	{0x10, "release pages"},		\
-	{0x44, "time slice end"},		\
-	{0x308, "ipl functions"},		\
-	{0x500, "kvm hypercall"},		\
-	{0x501, "kvm breakpoint"}
+TRACE_EVENT(kvm_s390_handle_sigp_pei,
+	    TP_PROTO(VCPU_PROTO_COMMON, __u8 order_code, __u16 cpu_addr),
+	    TP_ARGS(VCPU_ARGS_COMMON, order_code, cpu_addr),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    __field(__u8, order_code)
+		    __field(__u16, cpu_addr)
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    __entry->order_code = order_code;
+		    __entry->cpu_addr = cpu_addr;
+		    ),
+
+	    VCPU_TP_PRINTK("handle sigp pei order %02x (%s), cpu address %04x",
+			   __entry->order_code,
+			   __print_symbolic(__entry->order_code,
+					    sigp_order_codes),
+			   __entry->cpu_addr)
+	);
 
 TRACE_EVENT(kvm_s390_handle_diag,
 	    TP_PROTO(VCPU_PROTO_COMMON, __u16 code),

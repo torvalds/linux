@@ -23,7 +23,7 @@
 static int diag_release_pages(struct kvm_vcpu *vcpu)
 {
 	unsigned long start, end;
-	unsigned long prefix  = vcpu->arch.sie_block->prefix;
+	unsigned long prefix  = kvm_s390_get_prefix(vcpu);
 
 	start = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
 	end = vcpu->run->s.regs.gprs[vcpu->arch.sie_block->ipa & 0xf] + 4096;

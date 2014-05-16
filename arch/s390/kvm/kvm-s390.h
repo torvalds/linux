@@ -61,9 +61,15 @@ static inline int kvm_is_ucontrol(struct kvm *kvm)
 #endif
 }
 
+#define GUEST_PREFIX_SHIFT 13
+static inline u32 kvm_s390_get_prefix(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.sie_block->prefix << GUEST_PREFIX_SHIFT;
+}
+
 static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 {
-	vcpu->arch.sie_block->prefix = prefix & 0x7fffe000u;
+	vcpu->arch.sie_block->prefix = prefix >> GUEST_PREFIX_SHIFT;
 	vcpu->arch.sie_block->ihcpu  = 0xffff;
 	kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 }
@@ -142,6 +148,7 @@ void kvm_s390_reinject_io_int(struct kvm *kvm,
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
 
 /* implemented in priv.c */
+int is_valid_psw(psw_t *psw);
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu);
@@ -153,8 +160,10 @@ int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
+long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu);
@@ -212,6 +221,7 @@ static inline int kvm_s390_inject_prog_cond(struct kvm_vcpu *vcpu, int rc)
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int psw_extint_disabled(struct kvm_vcpu *vcpu);
 void kvm_s390_destroy_adapters(struct kvm *kvm);
+int kvm_s390_si_ext_call_pending(struct kvm_vcpu *vcpu);
 
 /* implemented in guestdbg.c */
 void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);
