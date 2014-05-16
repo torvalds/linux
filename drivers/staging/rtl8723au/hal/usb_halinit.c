@@ -1747,7 +1747,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 		DBG_8723A("cannot alloc memory for HAL DATA\n");
 		return -ENOMEM;
 	}
-	padapter->hal_data_sz = sizeof(struct hal_data_8723a);
 
 	pHalFunc->hal_init = &rtl8723au_hal_init;
 	pHalFunc->hal_deinit = &rtl8723au_hal_deinit;
