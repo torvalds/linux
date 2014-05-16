@@ -1166,7 +1166,7 @@ void update_beacon23a_info(struct rtw_adapter *padapter, u8 *pframe, uint pkt_le
 	}
 }
 
-unsigned int is_ap_in_tkip23a(struct rtw_adapter *padapter)
+bool is_ap_in_tkip23a(struct rtw_adapter *padapter)
 {
 	u32 i;
 	struct ndis_802_11_var_ies *pIE;
@@ -1201,7 +1201,7 @@ unsigned int is_ap_in_tkip23a(struct rtw_adapter *padapter)
 		return false;
 }
 
-unsigned int should_forbid_n_rate23a(struct rtw_adapter * padapter)
+bool should_forbid_n_rate23a(struct rtw_adapter * padapter)
 {
 	u32 i;
 	struct ndis_802_11_var_ies *pIE;
@@ -1241,7 +1241,7 @@ unsigned int should_forbid_n_rate23a(struct rtw_adapter * padapter)
 	}
 }
 
-unsigned int is_ap_in_wep23a(struct rtw_adapter *padapter)
+bool is_ap_in_wep23a(struct rtw_adapter *padapter)
 {
 	u32 i;
 	struct ndis_802_11_var_ies *pIE;

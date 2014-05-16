@@ -554,9 +554,9 @@ int receive_disconnect23a(struct rtw_adapter *padapter,
 unsigned char get_highest_rate_idx23a(u32 mask);
 int support_short_GI23a(struct rtw_adapter *padapter,
 		     struct HT_caps_element *pHT_caps);
-unsigned int is_ap_in_tkip23a(struct rtw_adapter *padapter);
-unsigned int is_ap_in_wep23a(struct rtw_adapter *padapter);
-unsigned int should_forbid_n_rate23a(struct rtw_adapter *padapter);
+bool is_ap_in_tkip23a(struct rtw_adapter *padapter);
+bool is_ap_in_wep23a(struct rtw_adapter *padapter);
+bool should_forbid_n_rate23a(struct rtw_adapter *padapter);
 
 void report_join_res23a(struct rtw_adapter *padapter, int res);
 void report_survey_event23a(struct rtw_adapter *padapter,
