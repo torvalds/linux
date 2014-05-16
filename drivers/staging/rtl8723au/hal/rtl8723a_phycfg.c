@@ -212,10 +212,12 @@ phy_RFSerialRead(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 
 	if (eRFPath == RF_PATH_A)
 		RfPiEnable = (u8)PHY_QueryBBReg(Adapter,
-						rFPGA0_XA_HSSIParameter1, BIT8);
+						rFPGA0_XA_HSSIParameter1,
+						BIT(8));
 	else if (eRFPath == RF_PATH_B)
 		RfPiEnable = (u8)PHY_QueryBBReg(Adapter,
-						rFPGA0_XB_HSSIParameter1, BIT8);
+						rFPGA0_XB_HSSIParameter1,
+						BIT(8));
 
 	if (RfPiEnable)	{
 		/* Read from BBreg8b8, 12 bits for 8190, 20bits for T65 RF */
@@ -804,7 +806,7 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 	/* 1. 0x28[1] = 1 */
 	TmpU1B = rtw_read8(Adapter, REG_AFE_PLL_CTRL);
 	udelay(2);
-	rtw_write8(Adapter, REG_AFE_PLL_CTRL, (TmpU1B|BIT1));
+	rtw_write8(Adapter, REG_AFE_PLL_CTRL, TmpU1B | BIT(1));
 	udelay(2);
 
 	/* 2. 0x29[7:0] = 0xFF */
@@ -818,11 +820,11 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 
 	/* 4. 0x25[6] = 0 */
 	TmpU1B = rtw_read8(Adapter, REG_AFE_XTAL_CTRL + 1);
-	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+1, (TmpU1B & (~BIT6)));
+	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+1, TmpU1B & ~BIT(6));
 
 	/* 5. 0x24[20] = 0	Advised by SD3 Alex Wang. 2011.02.09. */
 	TmpU1B = rtw_read8(Adapter, REG_AFE_XTAL_CTRL+2);
-	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+2, (TmpU1B & (~BIT4)));
+	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+2, TmpU1B & ~BIT(4));
 
 	/* 6. 0x1f[7:0] = 0x07 */
 	rtw_write8(Adapter, REG_RF_CTRL, 0x07);
@@ -982,7 +984,7 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	case HT_CHANNEL_WIDTH_20:
 		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bRFMOD, 0x0);
 		PHY_SetBBReg(Adapter, rFPGA1_RFMOD, bRFMOD, 0x0);
-		PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, BIT10, 1);
+		PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, BIT(10), 1);
 
 		break;
 
@@ -997,9 +999,9 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 			     (pHalData->nCur40MhzPrimeSC >> 1));
 		PHY_SetBBReg(Adapter, rOFDM1_LSTF, 0xC00,
 			     pHalData->nCur40MhzPrimeSC);
-		PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, BIT10, 0);
+		PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, BIT(10), 0);
 
-		PHY_SetBBReg(Adapter, 0x818, (BIT26 | BIT27),
+		PHY_SetBBReg(Adapter, 0x818, BIT(26) | BIT(27),
 			     (pHalData->nCur40MhzPrimeSC ==
 			      HAL_PRIME_CHNL_OFFSET_LOWER) ? 2:1);
 		break;
