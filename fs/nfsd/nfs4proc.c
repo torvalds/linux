@@ -1489,7 +1489,7 @@ static inline u32 nfsd4_read_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 	if (rlen > maxcount)
 		rlen = maxcount;
 
-	return (op_encode_hdr_size + 2) * sizeof(__be32) + rlen;
+	return (op_encode_hdr_size + 2 + XDR_QUADLEN(rlen)) * sizeof(__be32);
 }
 
 static inline u32 nfsd4_readdir_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
