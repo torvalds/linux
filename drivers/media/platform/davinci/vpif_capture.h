@@ -77,8 +77,6 @@ struct common_obj {
 	struct mutex lock;
 	/* number of users performing IO */
 	u32 io_usrs;
-	/* Indicates whether streaming started */
-	u8 started;
 	/* Function pointer to set the addresses */
 	void (*set_addr) (unsigned long, unsigned long, unsigned long,
 			  unsigned long);
