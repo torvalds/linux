@@ -508,9 +508,9 @@ int get_bsstype23a(unsigned short capability);
 u8 *get_my_bssid23a(struct wlan_bssid_ex *pnetwork);
 u16 get_beacon_interval23a(struct wlan_bssid_ex *bss);
 
-int is_client_associated_to_ap23a(struct rtw_adapter *padapter);
-int is_client_associated_to_ibss23a(struct rtw_adapter *padapter);
-int is_IBSS_empty23a(struct rtw_adapter *padapter);
+bool is_client_associated_to_ap23a(struct rtw_adapter *padapter);
+bool is_client_associated_to_ibss23a(struct rtw_adapter *padapter);
+bool is_IBSS_empty23a(struct rtw_adapter *padapter);
 
 unsigned char check_assoc_AP23a(u8 *pframe, uint len);
 

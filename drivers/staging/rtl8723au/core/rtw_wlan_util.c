@@ -415,13 +415,13 @@ u16 get_beacon_interval23a(struct wlan_bssid_ex *bss)
 	return le16_to_cpu(val);
 }
 
-int is_client_associated_to_ap23a(struct rtw_adapter *padapter)
+bool is_client_associated_to_ap23a(struct rtw_adapter *padapter)
 {
 	struct mlme_ext_priv *pmlmeext;
 	struct mlme_ext_info *pmlmeinfo;
 
 	if (!padapter)
-		return _FAIL;
+		return false;
 
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
@@ -430,10 +430,10 @@ int is_client_associated_to_ap23a(struct rtw_adapter *padapter)
 	    (pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE)
 		return true;
 	else
-		return _FAIL;
+		return false;
 }
 
-int is_client_associated_to_ibss23a(struct rtw_adapter *padapter)
+bool is_client_associated_to_ibss23a(struct rtw_adapter *padapter)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -442,10 +442,10 @@ int is_client_associated_to_ibss23a(struct rtw_adapter *padapter)
 	    (pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE)
 		return true;
 	else
-		return _FAIL;
+		return false;
 }
 
-int is_IBSS_empty23a(struct rtw_adapter *padapter)
+bool is_IBSS_empty23a(struct rtw_adapter *padapter)
 {
 	unsigned int i;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -453,7 +453,7 @@ int is_IBSS_empty23a(struct rtw_adapter *padapter)
 
 	for (i = IBSS_START_MAC_ID; i < NUM_STA; i++) {
 		if (pmlmeinfo->FW_sta_info[i].status == 1)
-			return _FAIL;
+			return false;
 	}
 
 	return true;
