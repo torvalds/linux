@@ -1842,7 +1842,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		reg_win_data = &regs->reg_win_data[i];
 		for(j=0;j<RK_WIN_MAX_AREA;j++){
 			if(reg_win_data->reg_area_data[j].acq_fence){
-				printk("acq_fence wait!!!!!\n");
+				//printk("acq_fence wait!!!!!\n");
 				rk_fd_fence_wait(dev_drv,
 				reg_win_data->reg_area_data[j].acq_fence);
 			}
