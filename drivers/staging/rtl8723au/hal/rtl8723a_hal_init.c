@@ -427,14 +427,6 @@ void rtl8723a_InitializeFirmwareVars(struct rtw_adapter *padapter)
 	pHalData->LastHMEBoxNum = 0;
 }
 
-static void rtl8723a_free_hal_data(struct rtw_adapter *padapter)
-{
-
-	kfree(padapter->HalData);
-	padapter->HalData = NULL;
-
-}
-
 /*  */
 /*				Efuse related code */
 /*  */
@@ -1714,8 +1706,6 @@ exit:
 
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->free_hal_data = &rtl8723a_free_hal_data;
-
 	pHalFunc->set_bwmode_handler = &PHY_SetBWMode23a8723A;
 	pHalFunc->set_channel_handler = &PHY_SwChnl8723A;
 

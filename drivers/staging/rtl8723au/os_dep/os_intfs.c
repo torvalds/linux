@@ -584,7 +584,8 @@ u8 rtw_free_drv_sw23a(struct rtw_adapter *padapter)
 
 	rtw_free_pwrctrl_priv(padapter);
 
-	rtw_hal_free_data23a(padapter);
+	kfree(padapter->HalData);
+	padapter->HalData = NULL;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("<== rtw_free_drv_sw23a\n"));
 

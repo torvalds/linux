@@ -65,8 +65,6 @@ struct hal_ops {
 	u32 (*hal_init)(struct rtw_adapter *padapter);
 	u32 (*hal_deinit)(struct rtw_adapter *padapter);
 
-	void (*free_hal_data)(struct rtw_adapter *padapter);
-
 	s32 (*init_xmit_priv)(struct rtw_adapter *padapter);
 
 	s32 (*init_recv_priv)(struct rtw_adapter *padapter);
@@ -172,8 +170,6 @@ enum hardware_type {
 void rtw_hal_def_value_init23a(struct rtw_adapter *padapter);
 int pm_netdev_open23a(struct net_device *pnetdev, u8 bnormal);
 int rtw_resume_process23a(struct rtw_adapter *padapter);
-
-void	rtw_hal_free_data23a(struct rtw_adapter *padapter);
 
 void rtw_hal_sw_led_init23a(struct rtw_adapter *padapter);
 void rtw_hal_sw_led_deinit23a(struct rtw_adapter *padapter);
