@@ -23,7 +23,6 @@
 #include <osdep_intf.h>
 #include <usb_vendor_req.h>
 #include <usb_ops.h>
-#include <usb_osintf.h>
 #include <rtl8723a_hal.h>
 
 static int rtw_suspend(struct usb_interface *intf, pm_message_t message);

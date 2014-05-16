@@ -25,7 +25,6 @@
 #include <linux/ieee80211.h>
 
 #include <usb_ops.h>
-#include <usb_osintf.h>
 
 static void
 _ConfigChipOutEP(struct rtw_adapter *pAdapter, u8 NumOutPipe)

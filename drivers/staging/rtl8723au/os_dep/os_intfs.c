@@ -21,7 +21,6 @@
 #include <hal_intf.h>
 #include <rtw_version.h>
 
-#include <usb_osintf.h>
 #include <rtl8723a_hal.h>
 
 #include <linux/version.h>

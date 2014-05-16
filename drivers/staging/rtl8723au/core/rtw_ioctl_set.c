@@ -19,7 +19,6 @@
 #include <rtw_ioctl_set.h>
 #include <hal_intf.h>
 
-#include <usb_osintf.h>
 #include <usb_ops.h>
 #include <linux/ieee80211.h>
 
