@@ -49,6 +49,11 @@ static inline void copy_exception_handler(unsigned int addr)
 	unsigned int start = (unsigned int) exception_handler_hook;
 	volatile unsigned int tmp = 0;
 
+	if (start == addr) {
+		/* The CPU exception address already points to the handler. */
+		return;
+	}
+
 	/* FIXME: check overlap of source and destination address here? */
 
 	__asm__ __volatile__ (
