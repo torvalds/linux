@@ -256,7 +256,7 @@ static void gre_tnl_destroy(struct vport *vport)
 
 	ovs_net = net_generic(net, ovs_net_id);
 
-	rcu_assign_pointer(ovs_net->vport_net.gre_vport, NULL);
+	RCU_INIT_POINTER(ovs_net->vport_net.gre_vport, NULL);
 	ovs_vport_deferred_free(vport);
 	gre_exit();
 }
