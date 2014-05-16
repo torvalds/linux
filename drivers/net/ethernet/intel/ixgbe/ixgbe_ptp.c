@@ -960,28 +960,45 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_ptp_stop - disable ptp device and stop the overflow check
- * @adapter: pointer to adapter struct
+ * ixgbe_ptp_suspend - stop PTP work items
+ * @ adapter: pointer to adapter struct
  *
- * this function stops the ptp support, and cancels the delayed work.
+ * this function suspends PTP activity, and prevents more PTP work from being
+ * generated, but does not destroy the PTP clock device.
  */
-void ixgbe_ptp_stop(struct ixgbe_adapter *adapter)
+void ixgbe_ptp_suspend(struct ixgbe_adapter *adapter)
 {
 	/* Leave the IXGBE_PTP_RUNNING state. */
 	if (!test_and_clear_bit(__IXGBE_PTP_RUNNING, &adapter->state))
 		return;
 
-	/* stop the PPS signal */
-	adapter->flags2 &= ~IXGBE_FLAG2_PTP_PPS_ENABLED;
-	ixgbe_ptp_setup_sdp(adapter);
+	/* since this might be called in suspend, we don't clear the state,
+	 * but simply reset the auxiliary PPS signal control register
+	 */
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TSAUXC, 0x0);
 
+	/* ensure that we cancel any pending PTP Tx work item in progress */
 	cancel_work_sync(&adapter->ptp_tx_work);
 	if (adapter->ptp_tx_skb) {
 		dev_kfree_skb_any(adapter->ptp_tx_skb);
 		adapter->ptp_tx_skb = NULL;
 		clear_bit_unlock(__IXGBE_PTP_TX_IN_PROGRESS, &adapter->state);
 	}
+}
 
+/**
+ * ixgbe_ptp_stop - close the PTP device
+ * @adapter: pointer to adapter struct
+ *
+ * completely destroy the PTP device, should only be called when the device is
+ * being fully closed.
+ */
+void ixgbe_ptp_stop(struct ixgbe_adapter *adapter)
+{
+	/* first, suspend PTP activity */
+	ixgbe_ptp_suspend(adapter);
+
+	/* disable the PTP clock device */
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);
 		adapter->ptp_clock = NULL;
