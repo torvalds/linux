@@ -237,6 +237,8 @@ MEM
   devm_kzalloc()
   devm_kfree()
   devm_kmemdup()
+  devm_get_free_pages()
+  devm_free_pages()
 
 IIO
   devm_iio_device_alloc()
