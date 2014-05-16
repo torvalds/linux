@@ -23,6 +23,7 @@
 #include <linux/ieee80211.h>
 #include <wifi.h>
 #include <rtl8723a_recv.h>
+#include <rtl8723a_xmit.h>
 
 void rtw_signal_stat_timer_hdl23a(unsigned long data);
 
@@ -1178,7 +1179,8 @@ static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 
 	                        /* DBG_8723A("handling ps-poll, q_len =%d, tim =%x\n", psta->sleepq_len, pstapriv->tim_bitmap); */
 
-				rtw_hal_xmit23aframe_enqueue(padapter, pxmitframe);
+				rtl8723au_hal_xmitframe_enqueue(padapter,
+								pxmitframe);
 
 				if (psta->sleepq_len == 0) {
 					pstapriv->tim_bitmap &= ~CHKBIT(psta->aid);

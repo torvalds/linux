@@ -578,7 +578,7 @@ static void SetFwRsvdPagePkt(struct rtw_adapter *padapter, bool bDLFinished)
 	pattrib->pktlen = pattrib->last_txcmdsz = TotalPacketLen - TXDESC_OFFSET;
 	memcpy(pmgntframe->buf_addr, ReservedPagePacket, TotalPacketLen);
 
-	rtw_hal_mgnt_xmit23a(padapter, pmgntframe);
+	rtl8723au_mgnt_xmit(padapter, pmgntframe);
 
 	DBG_8723A("%s: Set RSVD page location to Fw\n", __FUNCTION__);
 	FillH2CCmd(padapter, RSVD_PAGE_EID, sizeof(RsvdPageLoc), (u8 *)&RsvdPageLoc);
@@ -737,7 +737,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct rtw_adapter *padapter)
 	pattrib->pktlen = pattrib->last_txcmdsz = TotalPacketLen - TXDESC_OFFSET;
 	memcpy(pmgntframe->buf_addr, ReservedPagePacket, TotalPacketLen);
 
-	rtw_hal_mgnt_xmit23a(padapter, pmgntframe);
+	rtl8723au_mgnt_xmit(padapter, pmgntframe);
 
 	DBG_8723A("%s: Set RSVD page location to Fw\n", __FUNCTION__);
 	FillH2CCmd(padapter, RSVD_PAGE_EID, sizeof(RsvdPageLoc), (u8 *)&RsvdPageLoc);

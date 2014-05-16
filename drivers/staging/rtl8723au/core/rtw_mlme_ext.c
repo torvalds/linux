@@ -2329,7 +2329,7 @@ void dump_mgntframe23a(struct rtw_adapter *padapter,
 	    padapter->bDriverStopped == true)
 		return;
 
-	rtw_hal_mgnt_xmit23a(padapter, pmgntframe);
+	rtl8723au_mgnt_xmit(padapter, pmgntframe);
 }
 
 s32 dump_mgntframe23a_and_wait(struct rtw_adapter *padapter,
@@ -2348,7 +2348,7 @@ s32 dump_mgntframe23a_and_wait(struct rtw_adapter *padapter,
 	rtw_sctx_init23a(&sctx, timeout_ms);
 	pxmitbuf->sctx = &sctx;
 
-	ret = rtw_hal_mgnt_xmit23a(padapter, pmgntframe);
+	ret = rtl8723au_mgnt_xmit(padapter, pmgntframe);
 
 	if (ret == _SUCCESS)
 		ret = rtw_sctx_wait23a(&sctx);
@@ -2375,9 +2375,8 @@ s32 dump_mgntframe23a_and_wait_ack23a(struct rtw_adapter *padapter,
 	pxmitpriv->ack_tx = true;
 
 	pmgntframe->ack_report = 1;
-	if (rtw_hal_mgnt_xmit23a(padapter, pmgntframe) == _SUCCESS) {
+	if (rtl8723au_mgnt_xmit(padapter, pmgntframe) == _SUCCESS)
 		ret = rtw_ack_tx_wait23a(pxmitpriv, timeout_ms);
-	}
 
 	pxmitpriv->ack_tx = false;
 	mutex_unlock(&pxmitpriv->ack_tx_mutex);
@@ -6492,7 +6491,8 @@ u8 tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 				pxmitframe->attrib.qsel = 0x11;/* HIQ */
 
-				rtw_hal_xmit23aframe_enqueue(padapter, pxmitframe);
+				rtl8723au_hal_xmitframe_enqueue(padapter,
+								pxmitframe);
 			}
 
 			/* spin_unlock_bh(&psta_bmc->sleep_q.lock); */

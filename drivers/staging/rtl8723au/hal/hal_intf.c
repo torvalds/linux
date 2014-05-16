@@ -71,30 +71,6 @@ void rtw_hal_disable_interrupt23a(struct rtw_adapter *padapter)
 
 }
 
-s32	rtw_hal_xmit23aframe_enqueue(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
-{
-	if (padapter->HalFunc.hal_xmitframe_enqueue)
-		return padapter->HalFunc.hal_xmitframe_enqueue(padapter, pxmitframe);
-
-	return false;
-}
-
-s32	rtw_hal_xmit23a(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
-{
-	if (padapter->HalFunc.hal_xmit)
-		return padapter->HalFunc.hal_xmit(padapter, pxmitframe);
-
-	return false;
-}
-
-s32	rtw_hal_mgnt_xmit23a(struct rtw_adapter *padapter, struct xmit_frame *pmgntframe)
-{
-	s32 ret = _FAIL;
-	if (padapter->HalFunc.mgnt_xmit)
-		ret = padapter->HalFunc.mgnt_xmit(padapter, pmgntframe);
-	return ret;
-}
-
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level)
 {
 	struct rtw_adapter *padapter;

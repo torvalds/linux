@@ -79,13 +79,6 @@ struct hal_ops {
 
 	void (*UpdateRAMaskHandler)(struct rtw_adapter *padapter,
 				    u32 mac_id, u8 rssi_level);
-
-	s32 (*hal_xmit)(struct rtw_adapter *padapter,
-			struct xmit_frame *pxmitframe);
-	s32 (*mgnt_xmit)(struct rtw_adapter *padapter,
-			 struct xmit_frame *pmgntframe);
-	s32 (*hal_xmitframe_enqueue)(struct rtw_adapter *padapter,
-				     struct xmit_frame *pxmitframe);
 };
 
 enum rt_eeprom_type {
@@ -148,13 +141,6 @@ u8 rtw_hal_get_def_var23a(struct rtw_adapter *padapter,
 
 void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter);
 void rtw_hal_disable_interrupt23a(struct rtw_adapter *padapter);
-
-s32 rtw_hal_xmit23aframe_enqueue(struct rtw_adapter *padapter,
-				 struct xmit_frame *pxmitframe);
-s32 rtw_hal_xmit23a(struct rtw_adapter *padapter,
-		    struct xmit_frame *pxmitframe);
-s32 rtw_hal_mgnt_xmit23a(struct rtw_adapter *padapter,
-			 struct xmit_frame *pmgntframe);
 
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level);
 void	rtw_hal_clone_data(struct rtw_adapter *dst_padapter, struct rtw_adapter *src_padapter);

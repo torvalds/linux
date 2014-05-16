@@ -428,9 +428,10 @@ static s32 xmitframe_direct(struct rtw_adapter *padapter, struct xmit_frame *pxm
  *	true	dump packet directly
  *	false	enqueue packet
  */
-static s32 pre_xmitframe(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
+bool rtl8723au_hal_xmit(struct rtw_adapter *padapter,
+			struct xmit_frame *pxmitframe)
 {
-	s32 res;
+	int res;
 	struct xmit_buf *pxmitbuf = NULL;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
@@ -502,16 +503,6 @@ enqueue:
 s32 rtl8723au_mgnt_xmit(struct rtw_adapter *padapter, struct xmit_frame *pmgntframe)
 {
 	return rtw_dump_xframe(padapter, pmgntframe);
-}
-
-/*
- * Return
- *	true	dump packet directly ok
- *	false	temporary can't transmit packets to hardware
- */
-s32 rtl8723au_hal_xmit(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
-{
-	return pre_xmitframe(padapter, pxmitframe);
 }
 
 s32	rtl8723au_hal_xmitframe_enqueue(struct rtw_adapter *padapter,

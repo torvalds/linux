@@ -20,6 +20,7 @@
 #include <osdep_intf.h>
 #include <linux/ip.h>
 #include <usb_ops.h>
+#include <rtl8723a_xmit.h>
 
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
@@ -1940,7 +1941,7 @@ int rtw_xmit23a(struct rtw_adapter *padapter, struct sk_buff *skb)
 	spin_unlock_bh(&pxmitpriv->lock);
 #endif
 
-	if (rtw_hal_xmit23a(padapter, pxmitframe) == false)
+	if (rtl8723au_hal_xmit(padapter, pxmitframe) == false)
 		return 1;
 
 	return 0;
@@ -2212,7 +2213,7 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 		}
 
 		pxmitframe->attrib.triggered = 1;
-		rtw_hal_xmit23aframe_enqueue(padapter, pxmitframe);
+		rtl8723au_hal_xmitframe_enqueue(padapter, pxmitframe);
 	}
 
 	if (psta->sleepq_len == 0) {
@@ -2259,7 +2260,7 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 				pxmitframe->attrib.mdata = 0;
 
 			pxmitframe->attrib.triggered = 1;
-			rtw_hal_xmit23aframe_enqueue(padapter, pxmitframe);
+			rtl8723au_hal_xmitframe_enqueue(padapter, pxmitframe);
 		}
 		if (psta_bmc->sleepq_len == 0) {
 			pstapriv->tim_bitmap &= ~BIT(0);
@@ -2333,7 +2334,7 @@ void xmit_delivery_enabled_frames23a(struct rtw_adapter *padapter,
 
 		pxmitframe->attrib.triggered = 1;
 
-		rtw_hal_xmit23aframe_enqueue(padapter, pxmitframe);
+		rtl8723au_hal_xmitframe_enqueue(padapter, pxmitframe);
 
 		if ((psta->sleepq_ac_len == 0) && (!psta->has_legacy_ac) &&
 		    (wmmps_ac)) {

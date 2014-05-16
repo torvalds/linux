@@ -1779,8 +1779,5 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->GetHalDefVarHandler = &GetHalDefVar8192CUsb;
 	pHalFunc->SetHalDefVarHandler = &SetHalDefVar8192CUsb;
 	pHalFunc->UpdateRAMaskHandler = &UpdateHalRAMask8192CUsb;
-	pHalFunc->hal_xmit = &rtl8723au_hal_xmit;
-	pHalFunc->mgnt_xmit = &rtl8723au_mgnt_xmit;
-	pHalFunc->hal_xmitframe_enqueue = &rtl8723au_hal_xmitframe_enqueue;
 	return 0;
 }
