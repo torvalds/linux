@@ -49,7 +49,7 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 #endif	/*  CONFIG_8723AU_AP_MODE */
 }
 
-u32 _rtw_init_sta_priv23a(struct sta_priv *pstapriv)
+int _rtw_init_sta_priv23a(struct sta_priv *pstapriv)
 {
 	int i;
 
@@ -77,12 +77,12 @@ u32 _rtw_init_sta_priv23a(struct sta_priv *pstapriv)
 	return _SUCCESS;
 }
 
-u32	_rtw_free_sta_priv23a(struct	sta_priv *pstapriv)
+int _rtw_free_sta_priv23a(struct sta_priv *pstapriv)
 {
 	struct list_head *phead, *plist, *ptmp;
 	struct sta_info *psta;
 	struct recv_reorder_ctrl *preorder_ctrl;
-	int	index;
+	int index;
 
 	if (pstapriv) {
 		/*	delete all reordering_ctrl_timer		*/
@@ -186,7 +186,7 @@ exit:
 }
 
 /*  using pstapriv->sta_hash_lock to protect */
-u32 rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
+int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 {
 	struct recv_reorder_ctrl *preorder_ctrl;
 	struct	sta_xmit_priv	*pstaxmitpriv;
@@ -373,12 +373,12 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 	return psta;
 }
 
-u32 rtw_init_bcmc_stainfo23a(struct rtw_adapter* padapter)
+int rtw_init_bcmc_stainfo23a(struct rtw_adapter* padapter)
 {
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info		*psta;
 	struct tx_servq	*ptxservq;
-	u32 res = _SUCCESS;
+	int res = _SUCCESS;
 	unsigned char bcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	psta = rtw_alloc_stainfo23a(pstapriv, bcast_addr, GFP_KERNEL);
@@ -405,13 +405,13 @@ struct sta_info *rtw_get_bcmc_stainfo23a(struct rtw_adapter *padapter)
 	return psta;
 }
 
-u8 rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr)
+bool rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr)
 {
-	u8 res = true;
+	bool res = true;
 #ifdef CONFIG_8723AU_AP_MODE
 	struct list_head *plist, *phead;
 	struct rtw_wlan_acl_node *paclnode;
-	u8 match = false;
+	bool match = false;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 	struct rtw_queue *pacl_node_q = &pacl_list->acl_node_q;

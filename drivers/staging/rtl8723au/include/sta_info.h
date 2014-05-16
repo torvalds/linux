@@ -359,15 +359,15 @@ static inline u32 wifi_mac_hash(const u8 *mac)
 	return x;
 }
 
-u32	_rtw_init_sta_priv23a(struct sta_priv *pstapriv);
-u32	_rtw_free_sta_priv23a(struct sta_priv *pstapriv);
+int _rtw_init_sta_priv23a(struct sta_priv *pstapriv);
+int _rtw_free_sta_priv23a(struct sta_priv *pstapriv);
 
 struct sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, int gfp);
-u32 rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta);
+int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta);
 void rtw_free_all_stainfo23a(struct rtw_adapter *padapter);
 struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr);
-u32 rtw_init_bcmc_stainfo23a(struct rtw_adapter *padapter);
+int rtw_init_bcmc_stainfo23a(struct rtw_adapter *padapter);
 struct sta_info *rtw_get_bcmc_stainfo23a(struct rtw_adapter *padapter);
-u8 rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr);
+bool rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr);
 
 #endif /* _STA_INFO_H_ */
