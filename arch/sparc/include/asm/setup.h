@@ -47,6 +47,13 @@ unsigned long safe_compute_effective_address(struct pt_regs *, unsigned int);
 
 #endif
 
+#ifdef CONFIG_SPARC64
+/* unaligned_64.c */
+int handle_ldf_stq(u32 insn, struct pt_regs *regs);
+void handle_ld_nf(u32 insn, struct pt_regs *regs);
+
+#endif
+
 void sun_do_break(void);
 extern int stop_a_enabled;
 extern int scons_pwroff;

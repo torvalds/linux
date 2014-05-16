@@ -23,6 +23,16 @@ static inline unsigned long kimage_addr_to_ra(const char *p)
 
 	return kern_base + (val - KERNBASE);
 }
+
+/* sys_sparc_64.c */
+asmlinkage long sys_kern_features(void);
+
+/* unaligned_64.c */
+asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
+int handle_popc(u32 insn, struct pt_regs *regs);
+void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr);
+void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr);
+
 #endif
 
 #ifdef CONFIG_SPARC32
