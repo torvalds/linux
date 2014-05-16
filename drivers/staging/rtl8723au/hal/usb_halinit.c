@@ -85,14 +85,6 @@ void rtl8723au_chip_configure(struct rtw_adapter *padapter)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
 
-	if (pdvobjpriv->ishighspeed == true) {
-		/* 512 bytes */
-		pHalData->UsbBulkOutSize = USB_HIGH_SPEED_BULK_SIZE;
-	} else {
-		/* 64 bytes */
-		pHalData->UsbBulkOutSize = USB_FULL_SPEED_BULK_SIZE;
-	}
-
 	pHalData->interfaceIndex = pdvobjpriv->InterfaceNumber;
 
 	rtl8723au_set_queue_pipe_mapping(padapter,

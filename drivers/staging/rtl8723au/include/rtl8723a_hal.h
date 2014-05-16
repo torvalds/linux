@@ -413,11 +413,6 @@ struct hal_data_8723a {
 
 	bool				bMACFuncEnable;
 
-	/*  */
-	/*  For USB Interface HAL related */
-	/*  */
-	u32	UsbBulkOutSize;
-
 	/*  Interrupt related register information. */
 	u32	IntArray[2];
 	u32	IntrMask[2];
