@@ -41,6 +41,9 @@ void __irq_entry smp_new_mmu_context_version_client(int irq, struct pt_regs *reg
 void __irq_entry smp_penguin_jailcell(int irq, struct pt_regs *regs);
 void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs);
 
+/* kgdb_64.c */
+void __irq_entry smp_kgdb_capture_client(int irq, struct pt_regs *regs);
+
 /* pci.c */
 int pci64_dma_supported(struct pci_dev *pdev, u64 device_mask);
 
