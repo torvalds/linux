@@ -231,24 +231,15 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct channel_obj *ch = vb2_get_drv_priv(vq);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct vpif_params *vpif = &ch->vpifparams;
-	unsigned long addr = 0;
-	unsigned long flags;
+	struct vpif_cap_buffer *buf, *tmp;
+	unsigned long addr, flags;
 	int ret;
 
 	spin_lock_irqsave(&common->irqlock, flags);
 
-	/* Get the next frame from the buffer queue */
-	common->cur_frm = common->next_frm = list_entry(common->dma_queue.next,
-				    struct vpif_cap_buffer, list);
-	/* Remove buffer from the buffer queue */
-	list_del(&common->cur_frm->list);
-	spin_unlock_irqrestore(&common->irqlock, flags);
-	/* Mark state of the current frame to active */
-	common->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 	/* Initialize field_id and started member */
 	ch->field_id = 0;
 	common->started = 1;
-	addr = vb2_dma_contig_plane_dma_addr(&common->cur_frm->vb, 0);
 
 	/* Calculate the offset for Y and C data in the buffer */
 	vpif_calculate_offsets(ch);
@@ -259,7 +250,8 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	    (!vpif->std_info.frm_fmt &&
 	     (common->fmt.fmt.pix.field == V4L2_FIELD_NONE))) {
 		vpif_dbg(1, debug, "conflict in field format and std format\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	/* configure 1 or 2 channel mode */
@@ -268,7 +260,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 			setup_input_channel_mode(vpif->std_info.ycmux_mode);
 		if (ret < 0) {
 			vpif_dbg(1, debug, "can't set vpif channel mode\n");
-			return ret;
+			goto err;
 		}
 	}
 
@@ -277,11 +269,22 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	if (ret < 0) {
 		vpif_dbg(1, debug, "can't set video params\n");
-		return ret;
+		goto err;
 	}
 
 	common->started = ret;
 	vpif_config_addr(ch, ret);
+
+	/* Get the next frame from the buffer queue */
+	common->cur_frm = common->next_frm = list_entry(common->dma_queue.next,
+				    struct vpif_cap_buffer, list);
+	/* Remove buffer from the buffer queue */
+	list_del(&common->cur_frm->list);
+	spin_unlock_irqrestore(&common->irqlock, flags);
+	/* Mark state of the current frame to active */
+	common->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
+
+	addr = vb2_dma_contig_plane_dma_addr(&common->cur_frm->vb, 0);
 
 	common->set_addr(addr + common->ytop_off,
 			 addr + common->ybtm_off,
@@ -306,6 +309,14 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	return 0;
+
+err:
+	list_for_each_entry_safe(buf, tmp, &common->dma_queue, list) {
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+	}
+
+	return ret;
 }
 
 /* abort streaming and wait for last buffer */
