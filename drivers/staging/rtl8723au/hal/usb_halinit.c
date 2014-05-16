@@ -1773,10 +1773,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 		return -ENOMEM;
 	}
 
-	pHalFunc->init_xmit_priv = &rtl8723au_init_xmit_priv;
-
-	pHalFunc->init_recv_priv = &rtl8723au_init_recv_priv;
-	pHalFunc->free_recv_priv = &rtl8723au_free_recv_priv;
 	pHalFunc->InitSwLeds = NULL;
 	pHalFunc->DeInitSwLeds = NULL;
 

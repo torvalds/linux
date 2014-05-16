@@ -95,26 +95,6 @@ s32	rtw_hal_mgnt_xmit23a(struct rtw_adapter *padapter, struct xmit_frame *pmgntf
 	return ret;
 }
 
-s32	rtw_hal_init23a_xmit_priv(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.init_xmit_priv != NULL)
-		return padapter->HalFunc.init_xmit_priv(padapter);
-	return _FAIL;
-}
-
-s32	rtw_hal_init23a_recv_priv(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.init_recv_priv)
-		return padapter->HalFunc.init_recv_priv(padapter);
-
-	return _FAIL;
-}
-void	rtw_hal_free_recv_priv23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.free_recv_priv)
-		padapter->HalFunc.free_recv_priv(padapter);
-}
-
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level)
 {
 	struct rtw_adapter *padapter;

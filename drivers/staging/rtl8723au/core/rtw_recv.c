@@ -22,6 +22,7 @@
 #include <usb_ops.h>
 #include <linux/ieee80211.h>
 #include <wifi.h>
+#include <rtl8723a_recv.h>
 
 void rtw_signal_stat_timer_hdl23a(unsigned long data);
 
@@ -72,7 +73,7 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 	precvpriv->free_recvframe_cnt = i;
 	precvpriv->rx_pending_cnt = 1;
 
-	res = rtw_hal_init23a_recv_priv(padapter);
+	res = rtl8723au_init_recv_priv(padapter);
 
 	setup_timer(&precvpriv->signal_stat_timer, rtw_signal_stat_timer_hdl23a,
 		    (unsigned long)padapter);
@@ -98,7 +99,7 @@ void _rtw_free_recv_priv23a (struct recv_priv *precvpriv)
 		kfree(precvframe);
 	}
 
-	rtw_hal_free_recv_priv23a(padapter);
+	rtl8723au_free_recv_priv(padapter);
 }
 
 struct recv_frame *rtw_alloc_recvframe23a(struct rtw_queue *pfree_recv_queue)

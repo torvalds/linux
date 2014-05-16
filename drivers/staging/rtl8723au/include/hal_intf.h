@@ -63,11 +63,6 @@ enum hal_odm_variable {
 struct hal_ops {
 	u32 (*hal_power_on)(struct rtw_adapter *padapter);
 
-	s32 (*init_xmit_priv)(struct rtw_adapter *padapter);
-
-	s32 (*init_recv_priv)(struct rtw_adapter *padapter);
-	void (*free_recv_priv)(struct rtw_adapter *padapter);
-
 	void (*InitSwLeds)(struct rtw_adapter *padapter);
 	void (*DeInitSwLeds)(struct rtw_adapter *padapter);
 
@@ -160,11 +155,6 @@ s32 rtw_hal_xmit23a(struct rtw_adapter *padapter,
 		    struct xmit_frame *pxmitframe);
 s32 rtw_hal_mgnt_xmit23a(struct rtw_adapter *padapter,
 			 struct xmit_frame *pmgntframe);
-
-s32	rtw_hal_init23a_xmit_priv(struct rtw_adapter *padapter);
-
-s32	rtw_hal_init23a_recv_priv(struct rtw_adapter *padapter);
-void	rtw_hal_free_recv_priv23a(struct rtw_adapter *padapter);
 
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level);
 void	rtw_hal_clone_data(struct rtw_adapter *dst_padapter, struct rtw_adapter *src_padapter);

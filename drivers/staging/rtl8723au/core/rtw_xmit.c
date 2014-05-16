@@ -194,7 +194,9 @@ int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 	pxmitpriv->ack_tx = false;
 	mutex_init(&pxmitpriv->ack_tx_mutex);
 	rtw_sctx_init23a(&pxmitpriv->ack_tx_ops, 0);
-	rtw_hal_init23a_xmit_priv(padapter);
+	tasklet_init(&padapter->xmitpriv.xmit_tasklet,
+		     (void(*)(unsigned long))rtl8723au_xmit_tasklet,
+		     (unsigned long)padapter);
 
 exit:
 

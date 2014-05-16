@@ -21,16 +21,6 @@
 /* include <rtl8192c_hal.h> */
 #include <rtl8723a_hal.h>
 
-s32	rtl8723au_init_xmit_priv(struct rtw_adapter *padapter)
-{
-	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
-
-	tasklet_init(&pxmitpriv->xmit_tasklet,
-	     (void(*)(unsigned long))rtl8723au_xmit_tasklet,
-	     (unsigned long)padapter);
-	return _SUCCESS;
-}
-
 static void do_queue_select(struct rtw_adapter	*padapter, struct pkt_attrib *pattrib)
 {
 	u8 qsel;
