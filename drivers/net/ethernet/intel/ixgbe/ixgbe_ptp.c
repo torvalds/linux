@@ -851,16 +851,23 @@ void ixgbe_ptp_reset(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_ptp_init
+ * ixgbe_ptp_create_clock
  * @adapter: the ixgbe private adapter structure
  *
- * This function performs the required steps for enabling ptp
- * support. If ptp support has already been loaded it simply calls the
- * cyclecounter init routine and exits.
+ * This function performs setup of the user entry point function table and
+ * initializes the PTP clock device, which is used to access the clock-like
+ * features of the PTP core. It will be called by ixgbe_ptp_init, only if
+ * there isn't already a clock device (such as after a suspend/resume cycle,
+ * where the clock device wasn't destroyed).
  */
-void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
+static int ixgbe_ptp_create_clock(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	long err;
+
+	/* do nothing if we already have a clock device */
+	if (!IS_ERR_OR_NULL(adapter->ptp_clock))
+		return 0;
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_X540:
@@ -897,22 +904,53 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 		break;
 	default:
 		adapter->ptp_clock = NULL;
-		return;
+		return -EOPNOTSUPP;
 	}
-
-	spin_lock_init(&adapter->tmreg_lock);
-	INIT_WORK(&adapter->ptp_tx_work, ixgbe_ptp_tx_hwtstamp_work);
 
 	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
 						&adapter->pdev->dev);
 	if (IS_ERR(adapter->ptp_clock)) {
+		err = PTR_ERR(adapter->ptp_clock);
 		adapter->ptp_clock = NULL;
 		e_dev_err("ptp_clock_register failed\n");
+		return err;
 	} else
 		e_dev_info("registered PHC device on %s\n", netdev->name);
 
+	/* set default timestamp mode to disabled here. We do this in
+	 * create_clock instead of init, because we don't want to override the
+	 * previous settings during a resume cycle.
+	 */
 	adapter->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 	adapter->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
+
+	return 0;
+}
+
+/**
+ * ixgbe_ptp_init
+ * @adapter: the ixgbe private adapter structure
+ *
+ * This function performs the required steps for enabling PTP
+ * support. If PTP support has already been loaded it simply calls the
+ * cyclecounter init routine and exits.
+ */
+void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
+{
+	/* initialize the spin lock first since we can't control when a user
+	 * will call the entry functions once we have initialized the clock
+	 * device
+	 */
+	spin_lock_init(&adapter->tmreg_lock);
+
+	/* obtain a PTP device, or re-use an existing device */
+	if (ixgbe_ptp_create_clock(adapter))
+		return;
+
+	/* we have a clock so we can initialize work now */
+	INIT_WORK(&adapter->ptp_tx_work, ixgbe_ptp_tx_hwtstamp_work);
+
+	/* reset the PTP related hardware bits */
 	ixgbe_ptp_reset(adapter);
 
 	/* enter the IXGBE_PTP_RUNNING state */
