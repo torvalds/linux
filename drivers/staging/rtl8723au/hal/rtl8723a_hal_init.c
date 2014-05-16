@@ -1727,10 +1727,7 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 
 void rtl8723a_InitAntenna_Selection(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData;
 	u8 val;
-
-	pHalData = GET_HAL_DATA(padapter);
 
 	val = rtw_read8(padapter, REG_LEDCFG2);
 	/*  Let 8051 take control antenna settting */
@@ -1740,10 +1737,7 @@ void rtl8723a_InitAntenna_Selection(struct rtw_adapter *padapter)
 
 void rtl8723a_CheckAntenna_Selection(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData;
 	u8 val;
-
-	pHalData = GET_HAL_DATA(padapter);
 
 	val = rtw_read8(padapter, REG_LEDCFG2);
 	/*  Let 8051 take control antenna settting */
@@ -1755,10 +1749,8 @@ void rtl8723a_CheckAntenna_Selection(struct rtw_adapter *padapter)
 
 void rtl8723a_DeinitAntenna_Selection(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData;
 	u8 val;
 
-	pHalData = GET_HAL_DATA(padapter);
 	val = rtw_read8(padapter, REG_LEDCFG2);
 	/*  Let 8051 take control antenna settting */
 	val &= ~BIT(7);		/*  DPDT_SEL_EN, clear 0x4C[23] */
