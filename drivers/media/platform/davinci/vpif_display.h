@@ -113,8 +113,6 @@ struct channel_obj {
 	/* V4l2 specific parameters */
 	struct video_device *video_dev;	/* Identifies video device for
 					 * this channel */
-	struct v4l2_prio_state prio;	/* Used to keep track of state of
-					 * the priority */
 	atomic_t usrs;			/* number of open instances of
 					 * the channel */
 	u32 field_id;			/* Indicates id of the field
@@ -128,19 +126,6 @@ struct channel_obj {
 	struct vpif_params vpifparams;
 	struct common_obj common[VPIF_NUMOBJECTS];
 	struct video_obj video;
-};
-
-/* File handle structure */
-struct vpif_fh {
-	struct channel_obj *channel;	/* pointer to channel object for
-					 * opened device */
-	u8 io_allowed[VPIF_NUMOBJECTS];	/* Indicates whether this file handle
-					 * is doing IO */
-	enum v4l2_priority prio;	/* Used to keep track priority of
-					 * this instance */
-	u8 initialized;			/* Used to keep track of whether this
-					 * file handle has initialized
-					 * channel or not */
 };
 
 /* vpif device structure */
