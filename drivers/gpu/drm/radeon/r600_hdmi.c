@@ -442,14 +442,16 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_RAMP_CONTROL2 + offset, 0x00000001);
 	WREG32(HDMI0_RAMP_CONTROL3 + offset, 0x00000001);
 
-	r600_hdmi_audio_workaround(encoder);
-
 	/* enable audio after to setting up hw */
 	r600_audio_enable(rdev, dig->afmt->pin, true);
 }
 
-/*
- * update settings with current parameters from audio engine
+/**
+ * r600_hdmi_update_audio_settings - Update audio infoframe
+ *
+ * @encoder: drm encoder
+ *
+ * Gets info about current audio stream and updates audio infoframe.
  */
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 {
@@ -461,7 +463,7 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 	uint8_t buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AUDIO_INFOFRAME_SIZE];
 	struct hdmi_audio_infoframe frame;
 	uint32_t offset;
-	uint32_t iec;
+	uint32_t value;
 	ssize_t err;
 
 	if (!dig->afmt || !dig->afmt->enabled)
@@ -473,60 +475,6 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 		  audio.channels, audio.rate, audio.bits_per_sample);
 	DRM_DEBUG("0x%02X IEC60958 status bits and 0x%02X category code\n",
 		  (int)audio.status_bits, (int)audio.category_code);
-
-	iec = 0;
-	if (audio.status_bits & AUDIO_STATUS_PROFESSIONAL)
-		iec |= 1 << 0;
-	if (audio.status_bits & AUDIO_STATUS_NONAUDIO)
-		iec |= 1 << 1;
-	if (audio.status_bits & AUDIO_STATUS_COPYRIGHT)
-		iec |= 1 << 2;
-	if (audio.status_bits & AUDIO_STATUS_EMPHASIS)
-		iec |= 1 << 3;
-
-	iec |= HDMI0_60958_CS_CATEGORY_CODE(audio.category_code);
-
-	switch (audio.rate) {
-	case 32000:
-		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0x3);
-		break;
-	case 44100:
-		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0x0);
-		break;
-	case 48000:
-		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0x2);
-		break;
-	case 88200:
-		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0x8);
-		break;
-	case 96000:
-		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0xa);
-		break;
-	case 176400:
-		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0xc);
-		break;
-	case 192000:
-		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0xe);
-		break;
-	}
-
-	WREG32(HDMI0_60958_0 + offset, iec);
-
-	iec = 0;
-	switch (audio.bits_per_sample) {
-	case 16:
-		iec |= HDMI0_60958_CS_WORD_LENGTH(0x2);
-		break;
-	case 20:
-		iec |= HDMI0_60958_CS_WORD_LENGTH(0x3);
-		break;
-	case 24:
-		iec |= HDMI0_60958_CS_WORD_LENGTH(0xb);
-		break;
-	}
-	if (audio.status_bits & AUDIO_STATUS_V)
-		iec |= 0x5 << 16;
-	WREG32_P(HDMI0_60958_1 + offset, iec, ~0x5000f);
 
 	err = hdmi_audio_infoframe_init(&frame);
 	if (err < 0) {
@@ -542,8 +490,22 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 		return;
 	}
 
+	value = RREG32(HDMI0_AUDIO_PACKET_CONTROL + offset);
+	if (value & HDMI0_AUDIO_TEST_EN)
+		WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
+		       value & ~HDMI0_AUDIO_TEST_EN);
+
+	WREG32_OR(HDMI0_CONTROL + offset,
+		  HDMI0_ERROR_ACK);
+
+	WREG32_AND(HDMI0_INFOFRAME_CONTROL0 + offset,
+		   ~HDMI0_AUDIO_INFO_SOURCE);
+
 	r600_hdmi_update_audio_infoframe(encoder, buffer, sizeof(buffer));
-	r600_hdmi_audio_workaround(encoder);
+
+	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
+		  HDMI0_AUDIO_INFO_CONT |
+		  HDMI0_AUDIO_INFO_UPDATE);
 }
 
 /*
