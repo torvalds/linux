@@ -67,7 +67,6 @@ struct vpif_disp_buffer {
 };
 
 struct common_obj {
-	u32 numbuffers;				/* number of buffers */
 	struct vpif_disp_buffer *cur_frm;	/* Pointer pointing to current
 						 * vb2_buffer */
 	struct vpif_disp_buffer *next_frm;	/* Pointer pointing to next

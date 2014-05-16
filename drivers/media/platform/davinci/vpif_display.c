@@ -1221,13 +1221,11 @@ static int vpif_probe_complete(void)
 		/* Initialize field of the channel objects */
 		atomic_set(&ch->usrs, 0);
 		for (k = 0; k < VPIF_NUMOBJECTS; k++) {
-			ch->common[k].numbuffers = 0;
 			common = &ch->common[k];
 			common->io_usrs = 0;
 			common->started = 0;
 			spin_lock_init(&common->irqlock);
 			mutex_init(&common->lock);
-			common->numbuffers = 0;
 			common->set_addr = NULL;
 			common->ytop_off = 0;
 			common->ybtm_off = 0;
@@ -1236,17 +1234,11 @@ static int vpif_probe_complete(void)
 			common->cur_frm = NULL;
 			common->next_frm = NULL;
 			memset(&common->fmt, 0, sizeof(common->fmt));
-			common->numbuffers = config_params.numbuffers[k];
 		}
 		ch->initialized = 0;
 		if (vpif_obj.config->subdev_count)
 			ch->sd = vpif_obj.sd[0];
 		ch->channel_id = j;
-		if (j < 2)
-			ch->common[VPIF_VIDEO_INDEX].numbuffers =
-			    config_params.numbuffers[ch->channel_id];
-		else
-			ch->common[VPIF_VIDEO_INDEX].numbuffers = 0;
 
 		memset(&ch->vpifparams, 0, sizeof(ch->vpifparams));
 
