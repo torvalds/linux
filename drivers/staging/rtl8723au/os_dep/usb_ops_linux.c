@@ -60,7 +60,7 @@ void usb_read_port_cancel23a(struct rtw_adapter *padapter)
 	usb_kill_urb(padapter->recvpriv.int_in_urb);
 }
 
-static void usb_write_port23a_complete(struct urb *purb, struct pt_regs *regs)
+static void usb_write_port23a_complete(struct urb *purb)
 {
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)purb->context;
 	struct rtw_adapter *padapter = pxmitbuf->padapter;

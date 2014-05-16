@@ -343,7 +343,7 @@ InterruptRecognized8723AU(struct rtw_adapter *Adapter, void *pContent,
 		(pHalData->IntArray[1] & pHalData->IntrMask[1]) != 0;
 }
 
-static void usb_read_interrupt_complete(struct urb *purb, struct pt_regs *regs)
+static void usb_read_interrupt_complete(struct urb *purb)
 {
 	int err;
 	struct rtw_adapter *padapter = (struct rtw_adapter *)purb->context;
@@ -643,7 +643,7 @@ void rtl8723au_recv_tasklet(void *priv)
 	}
 }
 
-static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
+static void usb_read_port_complete(struct urb *purb)
 {
 	struct recv_buf *precvbuf = (struct recv_buf *)purb->context;
 	struct rtw_adapter *padapter = (struct rtw_adapter *)precvbuf->adapter;

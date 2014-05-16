@@ -24,13 +24,6 @@
 
 #define RTW_USB_BULKOUT_TIMEOUT	5000/* ms */
 
-#define _usbctrl_vendorreq_async_callback(urb, regs)		\
-	_usbctrl_vendorreq_async_callback(urb)
-#define usb_write_port23a_complete(purb, regs)	usb_write_port23a_complete(purb)
-#define usb_read_port_complete(purb, regs)	usb_read_port_complete(purb)
-#define usb_read_interrupt_complete(purb, regs)			\
-	usb_read_interrupt_complete(purb)
-
 unsigned int ffaddr2pipehdl23a(struct dvobj_priv *pdvobj, u32 addr);
 
 void usb_read_port_cancel23a(struct rtw_adapter *adapter);
