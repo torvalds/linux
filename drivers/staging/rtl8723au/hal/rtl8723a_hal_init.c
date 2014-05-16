@@ -3171,10 +3171,3 @@ void rtl8723a_SingleDualAntennaDetection(struct rtw_adapter *padapter)
 	}
 }
 #endif /*  CONFIG_8723AU_BT_COEXIST */
-
-void rtl8723a_clone_haldata(struct rtw_adapter *dst_adapter,
-			    struct rtw_adapter *src_adapter)
-{
-	memcpy(dst_adapter->HalData, src_adapter->HalData,
-	       dst_adapter->hal_data_sz);
-}

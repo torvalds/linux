@@ -540,7 +540,6 @@ void rtl8723a_SingleDualAntennaDetection(struct rtw_adapter *padapter);
 void SetBcnCtrlReg23a(struct rtw_adapter *padapter, u8 SetBits, u8 ClearBits);
 void rtl8723a_InitBeaconParameters(struct rtw_adapter *padapter);
 
-void rtl8723a_clone_haldata(struct rtw_adapter *dst_adapter, struct rtw_adapter *src_adapter);
 void rtl8723a_start_thread(struct rtw_adapter *padapter);
 void rtl8723a_stop_thread(struct rtw_adapter *padapter);
 
