@@ -3514,12 +3514,6 @@ int __init amd_iommu_init_passthrough(void)
 		dev_data = get_dev_data(&dev->dev);
 		dev_data->passthrough = true;
 
-		devid = get_device_id(&dev->dev);
-
-		iommu = amd_iommu_rlookup_table[devid];
-		if (!iommu)
-			continue;
-
 		attach_device(&dev->dev, pt_domain);
 	}
 
