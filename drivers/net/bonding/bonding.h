@@ -36,6 +36,7 @@
 
 #define bond_version DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n"
 
+#define BOND_MAX_VLAN_ENCAP	2
 #define BOND_MAX_ARP_TARGETS	16
 
 #define BOND_DEFAULT_MIIMON	100

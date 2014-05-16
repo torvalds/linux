@@ -4542,6 +4542,32 @@ void *netdev_adjacent_get_private(struct list_head *adj_list)
 EXPORT_SYMBOL(netdev_adjacent_get_private);
 
 /**
+ * netdev_upper_get_next_dev_rcu - Get the next dev from upper list
+ * @dev: device
+ * @iter: list_head ** of the current position
+ *
+ * Gets the next device from the dev's upper list, starting from iter
+ * position. The caller must hold RCU read lock.
+ */
+struct net_device *netdev_upper_get_next_dev_rcu(struct net_device *dev,
+						 struct list_head **iter)
+{
+	struct netdev_adjacent *upper;
+
+	WARN_ON_ONCE(!rcu_read_lock_held() && !lockdep_rtnl_is_held());
+
+	upper = list_entry_rcu((*iter)->next, struct netdev_adjacent, list);
+
+	if (&upper->list == &dev->adj_list.upper)
+		return NULL;
+
+	*iter = &upper->list;
+
+	return upper->dev;
+}
+EXPORT_SYMBOL(netdev_upper_get_next_dev_rcu);
+
+/**
  * netdev_all_upper_get_next_dev_rcu - Get the next dev from upper list
  * @dev: device
  * @iter: list_head ** of the current position
