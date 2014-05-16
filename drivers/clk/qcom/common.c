@@ -62,8 +62,10 @@ int qcom_cc_probe(struct platform_device *pdev, const struct qcom_cc_desc *desc)
 	data->clk_num = num_clks;
 
 	for (i = 0; i < num_clks; i++) {
-		if (!rclks[i])
+		if (!rclks[i]) {
+			clks[i] = ERR_PTR(-ENOENT);
 			continue;
+		}
 		clk = devm_clk_register_regmap(dev, rclks[i]);
 		if (IS_ERR(clk))
 			return PTR_ERR(clk);
