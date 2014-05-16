@@ -125,8 +125,9 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	return rc ? rc : SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
+static int __inject_sigp_stop(struct kvm_vcpu *dst_vcpu, int action)
 {
+	struct kvm_s390_local_interrupt *li = &dst_vcpu->arch.local_int;
 	struct kvm_s390_interrupt_info *inti;
 	int rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
@@ -151,8 +152,7 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 	atomic_set(&li->active, 1);
 	li->action_bits |= action;
 	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
-	if (waitqueue_active(li->wq))
-		wake_up_interruptible(li->wq);
+	kvm_s390_vcpu_wakeup(dst_vcpu);
 out:
 	spin_unlock(&li->lock);
 
@@ -161,7 +161,6 @@ out:
 
 static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
 {
-	struct kvm_s390_local_interrupt *li;
 	struct kvm_vcpu *dst_vcpu = NULL;
 	int rc;
 
@@ -171,9 +170,8 @@ static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
 	dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
 	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
-	li = &dst_vcpu->arch.local_int;
 
-	rc = __inject_sigp_stop(li, action);
+	rc = __inject_sigp_stop(dst_vcpu, action);
 
 	VCPU_EVENT(vcpu, 4, "sent sigp stop to cpu %x", cpu_addr);
 
@@ -258,8 +256,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
-	if (waitqueue_active(li->wq))
-		wake_up_interruptible(li->wq);
+	kvm_s390_vcpu_wakeup(dst_vcpu);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
 	VCPU_EVENT(vcpu, 4, "set prefix of cpu %02x to %x", cpu_addr, address);
@@ -466,12 +463,7 @@ int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu)
 		dest_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
 		BUG_ON(dest_vcpu == NULL);
 
-		spin_lock(&dest_vcpu->arch.local_int.lock);
-		if (waitqueue_active(&dest_vcpu->wq))
-			wake_up_interruptible(&dest_vcpu->wq);
-		dest_vcpu->preempted = true;
-		spin_unlock(&dest_vcpu->arch.local_int.lock);
-
+		kvm_s390_vcpu_wakeup(dest_vcpu);
 		kvm_s390_set_psw_cc(vcpu, SIGP_CC_ORDER_CODE_ACCEPTED);
 		return 0;
 	}

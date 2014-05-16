@@ -617,12 +617,22 @@ no_timer:
 	return 0;
 }
 
+void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
+{
+	if (waitqueue_active(&vcpu->wq)) {
+		/*
+		 * The vcpu gave up the cpu voluntarily, mark it as a good
+		 * yield-candidate.
+		 */
+		vcpu->preempted = true;
+		wake_up_interruptible(&vcpu->wq);
+	}
+}
+
 void kvm_s390_tasklet(unsigned long parm)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) parm;
-
-	if (waitqueue_active(&vcpu->wq))
-		wake_up_interruptible(&vcpu->wq);
+	kvm_s390_vcpu_wakeup(vcpu);
 }
 
 /*
@@ -905,10 +915,8 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	li = &dst_vcpu->arch.local_int;
 	spin_lock(&li->lock);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(li->wq))
-		wake_up_interruptible(li->wq);
-	kvm_get_vcpu(kvm, sigcpu)->preempted = true;
 	spin_unlock(&li->lock);
+	kvm_s390_vcpu_wakeup(kvm_get_vcpu(kvm, sigcpu));
 unlock_fi:
 	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
@@ -1059,11 +1067,9 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 	if (inti->type == KVM_S390_SIGP_STOP)
 		li->action_bits |= ACTION_STOP_ON_STOP;
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(&vcpu->wq))
-		wake_up_interruptible(&vcpu->wq);
-	vcpu->preempted = true;
 	spin_unlock(&li->lock);
 	mutex_unlock(&vcpu->kvm->lock);
+	kvm_s390_vcpu_wakeup(vcpu);
 	return 0;
 }
 
