@@ -11,6 +11,7 @@
 
 #include "dport.h"
 #include "priv.h"
+#include "outp.h"
 
 struct nv50_disp_impl {
 	struct nouveau_disp_impl base;

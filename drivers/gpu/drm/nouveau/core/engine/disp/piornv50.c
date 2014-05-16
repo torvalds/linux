@@ -33,8 +33,43 @@
 #include "nv50.h"
 
 /******************************************************************************
+ * TMDS
+ *****************************************************************************/
+
+static int
+nv50_pior_tmds_ctor(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void *info, u32 index,
+		    struct nouveau_object **pobject)
+{
+	struct nouveau_i2c *i2c = nouveau_i2c(parent);
+	struct nvkm_output *outp;
+	int ret;
+
+	ret = nvkm_output_create(parent, engine, oclass, info, index, &outp);
+	*pobject = nv_object(outp);
+	if (ret)
+		return ret;
+
+	outp->edid = i2c->find_type(i2c, NV_I2C_TYPE_EXTDDC(outp->info.extdev));
+	return 0;
+}
+
+struct nvkm_output_impl
+nv50_pior_tmds_impl = {
+	.base.handle = DCB_OUTPUT_TMDS | 0x0100,
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_pior_tmds_ctor,
+		.dtor = _nvkm_output_dtor,
+		.init = _nvkm_output_init,
+		.fini = _nvkm_output_fini,
+	},
+};
+
+/******************************************************************************
  * DisplayPort
  *****************************************************************************/
+
 static struct nouveau_i2c_port *
 nv50_pior_dp_find(struct nouveau_disp *disp, struct dcb_output *outp)
 {
@@ -99,9 +134,40 @@ nv50_pior_dp_func = {
 	.drv_ctl = nv50_pior_dp_drv_ctl,
 };
 
+static int
+nv50_pior_dp_ctor(struct nouveau_object *parent,
+		  struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *info, u32 index,
+		  struct nouveau_object **pobject)
+{
+	struct nouveau_i2c *i2c = nouveau_i2c(parent);
+	struct nvkm_output *outp;
+	int ret;
+
+	ret = nvkm_output_create(parent, engine, oclass, info, index, &outp);
+	*pobject = nv_object(outp);
+	if (ret)
+		return ret;
+
+	outp->edid = i2c->find_type(i2c, NV_I2C_TYPE_EXTAUX(outp->info.extdev));
+	return 0;
+}
+
+struct nvkm_output_impl
+nv50_pior_dp_impl = {
+	.base.handle = DCB_OUTPUT_DP | 0x0100,
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_pior_dp_ctor,
+		.dtor = _nvkm_output_dtor,
+		.init = _nvkm_output_init,
+		.fini = _nvkm_output_fini,
+	},
+};
+
 /******************************************************************************
  * General PIOR handling
  *****************************************************************************/
+
 int
 nv50_pior_power(struct nv50_disp_priv *priv, int or, u32 data)
 {
