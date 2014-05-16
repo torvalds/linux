@@ -424,6 +424,7 @@ int br_min_mtu(const struct net_bridge *br);
 netdev_features_t br_features_recompute(struct net_bridge *br,
 					netdev_features_t features);
 void br_port_flags_change(struct net_bridge_port *port, unsigned long mask);
+void br_manage_promisc(struct net_bridge *br);
 
 /* br_input.c */
 int br_handle_frame_finish(struct sk_buff *skb);
@@ -641,6 +642,10 @@ static inline u16 br_get_pvid(const struct net_port_vlans *v)
 	return v->pvid ?: VLAN_N_VID;
 }
 
+static inline int br_vlan_enabled(struct net_bridge *br)
+{
+	return br->vlan_enabled;
+}
 #else
 static inline bool br_allowed_ingress(struct net_bridge *br,
 				      struct net_port_vlans *v,
@@ -720,6 +725,11 @@ static inline u16 br_vlan_get_tag(const struct sk_buff *skb, u16 *tag)
 static inline u16 br_get_pvid(const struct net_port_vlans *v)
 {
 	return VLAN_N_VID;	/* Returns invalid vid */
+}
+
+static inline int br_vlan_enabled(struct net_bridge *br);
+{
+	return 0;
 }
 #endif
 
