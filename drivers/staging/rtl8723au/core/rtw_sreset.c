@@ -13,11 +13,11 @@
  *
  ******************************************************************************/
 
-#include<rtw_sreset.h>
+#include <rtw_sreset.h>
 
-void sreset_init_value23a(struct rtw_adapter *padapter)
+void rtw_sreset_init(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 
 	mutex_init(&psrtpriv->silentreset_mutex);
@@ -26,9 +26,10 @@ void sreset_init_value23a(struct rtw_adapter *padapter)
 	psrtpriv->last_tx_time = 0;
 	psrtpriv->last_tx_complete_time = 0;
 }
-void sreset_reset_value23a(struct rtw_adapter *padapter)
+
+void rtw_sreset_reset_value(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 
 	psrtpriv->silent_reset_inprogress = false;
@@ -37,9 +38,9 @@ void sreset_reset_value23a(struct rtw_adapter *padapter)
 	psrtpriv->last_tx_complete_time = 0;
 }
 
-u8 sreset_get_wifi_status23a(struct rtw_adapter *padapter)
+u8 rtw_sreset_get_wifi_status(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 	u8 status = WIFI_STATUS_SUCCESS;
 	u32 val32 = 0;
@@ -80,9 +81,10 @@ void sreset_set_trigger_point(struct rtw_adapter *padapter, s32 tgp)
 	pHalData->srestpriv.dbg_trigger_point = tgp;
 }
 
-bool sreset_inprogress(struct rtw_adapter *padapter)
+bool rtw_sreset_inprogress(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
+	struct rtw_adapter *primary_adapter = GET_PRIMARY_ADAPTER(padapter);
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(primary_adapter);
 
 	return pHalData->srestpriv.silent_reset_inprogress;
 }
@@ -227,9 +229,10 @@ static void sreset_start_adapter(struct rtw_adapter *padapter)
 		netif_tx_wake_all_queues(padapter->pnetdev);
 }
 
-void sreset_reset(struct rtw_adapter *padapter)
+void rtw_sreset_reset(struct rtw_adapter *active_adapter)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
+	struct rtw_adapter *padapter = GET_PRIMARY_ADAPTER(active_adapter);
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	unsigned long start = jiffies;

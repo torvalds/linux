@@ -25,6 +25,7 @@
 #include <wifi.h>
 #include <wlan_bssdef.h>
 #include <rtw_ioctl_set.h>
+#include <rtw_sreset.h>
 
 static void rtw_init_mlme_timer(struct rtw_adapter *padapter)
 {
@@ -808,7 +809,7 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	rtw_os_xmit_schedule23a(adapter);
 
 	if (pmlmeext->sitesurvey_res.bss_cnt == 0)
-		rtw_hal_sreset_reset23a(adapter);
+		rtw_sreset_reset(adapter);
 
 	rtw_cfg80211_surveydone_event_callback(adapter);
 }

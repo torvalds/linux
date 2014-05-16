@@ -546,12 +546,12 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 			DBG_8723A("%s wait ps_processing done\n", __func__);
 	}
 
-	if (rtw_hal_sreset_inprogress(padapter)) {
+	if (rtw_sreset_inprogress(padapter)) {
 		DBG_8723A("%s wait sreset_inprogress...\n", __func__);
-		while (rtw_hal_sreset_inprogress(padapter) &&
+		while (rtw_sreset_inprogress(padapter) &&
 		       jiffies_to_msecs(jiffies - start) <= 4000)
 			msleep(10);
-		if (rtw_hal_sreset_inprogress(padapter))
+		if (rtw_sreset_inprogress(padapter))
 			DBG_8723A("%s wait sreset_inprogress timeout\n",
 				  __func__);
 		else

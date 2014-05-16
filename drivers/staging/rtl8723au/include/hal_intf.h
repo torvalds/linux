@@ -139,14 +139,6 @@ struct hal_ops {
 	bool (*Efuse_PgPacketWrite23a_BT)(struct rtw_adapter *padapter,
 					  u8 offset, u8 word_en, u8 *data);
 
-	void (*sreset_init_value23a)(struct rtw_adapter *padapter);
-	void (*sreset_reset_value23a)(struct rtw_adapter *padapter);
-	void (*silentreset)(struct rtw_adapter *padapter);
-	void (*sreset_xmit_status_check)(struct rtw_adapter *padapter);
-	void (*sreset_linked_status_check) (struct rtw_adapter *padapter);
-	u8 (*sreset_get_wifi_status23a)(struct rtw_adapter *padapter);
-	bool (*sreset_inprogress)(struct rtw_adapter *padapter);
-
 	void (*hal_notch_filter)(struct rtw_adapter *adapter, bool enable);
 	void (*hal_reset_security_engine)(struct rtw_adapter *adapter);
 };
@@ -254,14 +246,6 @@ s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter);
 void	rtw_hal_set_bwmode23a(struct rtw_adapter *padapter,
 			   enum ht_channel_width Bandwidth, u8 Offset);
 void	rtw_hal_set_chan23a(struct rtw_adapter *padapter, u8 channel);
-
-void rtw_hal_sreset_init23a(struct rtw_adapter *padapter);
-void rtw_hal_sreset_reset23a(struct rtw_adapter *padapter);
-void rtw_hal_sreset_reset23a_value23a(struct rtw_adapter *padapter);
-void rtw_hal_sreset_xmit_status_check23a(struct rtw_adapter *padapter);
-void rtw_hal_sreset_linked_status_check23a (struct rtw_adapter *padapter);
-u8   rtw_hal_sreset_get_wifi_status23a(struct rtw_adapter *padapter);
-bool rtw_hal_sreset_inprogress(struct rtw_adapter *padapter);
 
 void rtw_hal_notch_filter23a(struct rtw_adapter *adapter, bool enable);
 void rtw_hal_reset_security_engine23a(struct rtw_adapter *adapter);

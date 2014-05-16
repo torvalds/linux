@@ -30,7 +30,7 @@ void rtl8723a_sreset_xmit_status_check(struct rtw_adapter *padapter)
 	txdma_status = rtw_read32(padapter, REG_TXDMA_STATUS);
 	if (txdma_status != 0) {
 		DBG_8723A("%s REG_TXDMA_STATUS:0x%08x\n", __func__, txdma_status);
-		rtw_hal_sreset_reset23a(padapter);
+		rtw_sreset_reset(padapter);
 	}
 
 	current_time = jiffies;
@@ -47,7 +47,7 @@ void rtl8723a_sreset_xmit_status_check(struct rtw_adapter *padapter)
 				if (diff_time > 4000) {
 					/* padapter->Wifi_Error_Status = WIFI_TX_HANG; */
 					DBG_8723A("%s tx hang\n", __func__);
-					rtw_hal_sreset_reset23a(padapter);
+					rtw_sreset_reset(padapter);
 				}
 			}
 		}
@@ -55,7 +55,7 @@ void rtl8723a_sreset_xmit_status_check(struct rtw_adapter *padapter)
 
 	if (psrtpriv->dbg_trigger_point == SRESET_TGP_XMIT_STATUS) {
 		psrtpriv->dbg_trigger_point = SRESET_TGP_NULL;
-		rtw_hal_sreset_reset23a(padapter);
+		rtw_sreset_reset(padapter);
 		return;
 	}
 }
@@ -67,7 +67,7 @@ void rtl8723a_sreset_linked_status_check(struct rtw_adapter *padapter)
 
 	if (psrtpriv->dbg_trigger_point == SRESET_TGP_LINK_STATUS) {
 		psrtpriv->dbg_trigger_point = SRESET_TGP_NULL;
-		rtw_hal_sreset_reset23a(padapter);
+		rtw_sreset_reset(padapter);
 		return;
 	}
 }

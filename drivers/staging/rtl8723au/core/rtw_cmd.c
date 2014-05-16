@@ -1033,7 +1033,7 @@ static void dynamic_chk_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
 		expire_timeout_chk23a(padapter);
 #endif
 
-	rtw_hal_sreset_xmit_status_check23a(padapter);
+	rtl8723a_sreset_xmit_status_check(padapter);
 
 	linked_status_chk23a(padapter);
 	traffic_status_watchdog(padapter);

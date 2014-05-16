@@ -268,54 +268,6 @@ void rtw_hal_bcn_related_reg_setting23a(struct rtw_adapter *padapter)
 		padapter->HalFunc.SetBeaconRelatedRegistersHandler(padapter);
 }
 
-void	rtw_hal_sreset_init23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.sreset_init_value23a)
-		padapter->HalFunc.sreset_init_value23a(padapter);
-}
-void rtw_hal_sreset_reset23a(struct rtw_adapter *padapter)
-{
-	padapter = GET_PRIMARY_ADAPTER(padapter);
-
-	if (padapter->HalFunc.silentreset)
-		padapter->HalFunc.silentreset(padapter);
-}
-
-void rtw_hal_sreset_reset23a_value23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.sreset_reset_value23a)
-		padapter->HalFunc.sreset_reset_value23a(padapter);
-}
-
-void rtw_hal_sreset_xmit_status_check23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.sreset_xmit_status_check)
-		padapter->HalFunc.sreset_xmit_status_check(padapter);
-}
-void rtw_hal_sreset_linked_status_check23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.sreset_linked_status_check)
-		padapter->HalFunc.sreset_linked_status_check(padapter);
-}
-u8   rtw_hal_sreset_get_wifi_status23a(struct rtw_adapter *padapter)
-{
-	u8 status = 0;
-	if (padapter->HalFunc.sreset_get_wifi_status23a)
-		status = padapter->HalFunc.sreset_get_wifi_status23a(padapter);
-	return status;
-}
-
-bool rtw_hal_sreset_inprogress(struct rtw_adapter *padapter)
-{
-	bool inprogress = false;
-
-	padapter = GET_PRIMARY_ADAPTER(padapter);
-
-	if (padapter->HalFunc.sreset_inprogress)
-		inprogress = padapter->HalFunc.sreset_inprogress(padapter);
-	return inprogress;
-}
-
 void rtw_hal_notch_filter23a(struct rtw_adapter *adapter, bool enable)
 {
 	if (adapter->HalFunc.hal_notch_filter)

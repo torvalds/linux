@@ -1746,14 +1746,6 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->Efuse_WordEnableDataWrite23a = &Hal_EfuseWordEnableDataWrite;
 	pHalFunc->Efuse_PgPacketWrite23a_BT = &Hal_EfusePgPacketWrite_BT;
 
-	pHalFunc->sreset_init_value23a = &sreset_init_value23a;
-	pHalFunc->sreset_reset_value23a = &sreset_reset_value23a;
-	pHalFunc->silentreset = &sreset_reset;
-	pHalFunc->sreset_xmit_status_check = &rtl8723a_sreset_xmit_status_check;
-	pHalFunc->sreset_linked_status_check =
-		&rtl8723a_sreset_linked_status_check;
-	pHalFunc->sreset_get_wifi_status23a = &sreset_get_wifi_status23a;
-	pHalFunc->sreset_inprogress = &sreset_inprogress;
 	pHalFunc->GetHalODMVarHandler = &rtl8723a_GetHalODMVar;
 	pHalFunc->SetHalODMVarHandler = &rtl8723a_SetHalODMVar;
 
