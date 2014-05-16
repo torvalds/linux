@@ -795,10 +795,10 @@ struct node_mem_mask {
 static struct node_mem_mask node_masks[MAX_NUMNODES];
 static int num_node_masks;
 
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+
 int numa_cpu_lookup_table[NR_CPUS];
 cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
-
-#ifdef CONFIG_NEED_MULTIPLE_NODES
 
 struct mdesc_mblock {
 	u64	base;
@@ -888,17 +888,21 @@ static void __init allocate_node_data(int nid)
 
 static void init_node_masks_nonnuma(void)
 {
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	int i;
+#endif
 
 	numadbg("Initializing tables for non-numa.\n");
 
 	node_masks[0].mask = node_masks[0].val = 0;
 	num_node_masks = 1;
 
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	for (i = 0; i < NR_CPUS; i++)
 		numa_cpu_lookup_table[i] = 0;
 
 	cpumask_setall(&numa_cpumask_lookup_table[0]);
+#endif
 }
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
