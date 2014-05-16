@@ -80,6 +80,14 @@ struct cgroup_subsys_state {
 
 	unsigned int flags;
 
+	/*
+	 * Monotonically increasing unique serial number which defines a
+	 * uniform order among all csses.  It's guaranteed that all
+	 * ->children lists are in the ascending order of ->serial_nr and
+	 * used to allow interrupting and resuming iterations.
+	 */
+	u64 serial_nr;
+
 	/* percpu_ref killing and RCU release */
 	struct rcu_head rcu_head;
 	struct work_struct destroy_work;
@@ -177,14 +185,6 @@ struct cgroup {
 
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
 	struct kernfs_node *populated_kn; /* kn for "cgroup.subtree_populated" */
-
-	/*
-	 * Monotonically increasing unique serial number which defines a
-	 * uniform order among all cgroups.  It's guaranteed that all
-	 * ->children lists are in the ascending order of ->serial_nr.
-	 * It's used to allow interrupting and resuming iterations.
-	 */
-	u64 serial_nr;
 
 	/* the bitmask of subsystems enabled on the child cgroups */
 	unsigned int child_subsys_mask;
