@@ -1387,7 +1387,7 @@ Hal_EfusePgPacketWrite_BT(struct rtw_adapter *pAdapter,
 	return true;
 }
 
-static struct hal_version ReadChipVersion8723A(struct rtw_adapter *padapter)
+void rtl8723a_read_chip_version(struct rtw_adapter *padapter)
 {
 	u32 value32;
 	struct hal_version ChipVersion;
@@ -1433,13 +1433,6 @@ static struct hal_version ReadChipVersion8723A(struct rtw_adapter *padapter)
 		pHalData->rf_type = RF_1T1R;
 
 	MSG_8723A("RF_Type is %x!!\n", pHalData->rf_type);
-
-	return ChipVersion;
-}
-
-static void rtl8723a_read_chip_version(struct rtw_adapter *padapter)
-{
-	ReadChipVersion8723A(padapter);
 }
 
 /*  */
@@ -1722,8 +1715,6 @@ exit:
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 {
 	pHalFunc->free_hal_data = &rtl8723a_free_hal_data;
-
-	pHalFunc->read_chip_version = &rtl8723a_read_chip_version;
 
 	pHalFunc->set_bwmode_handler = &PHY_SetBWMode23a8723A;
 	pHalFunc->set_channel_handler = &PHY_SwChnl8723A;
