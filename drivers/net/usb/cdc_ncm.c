@@ -65,6 +65,67 @@ static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx);
 static enum hrtimer_restart cdc_ncm_tx_timer_cb(struct hrtimer *hr_timer);
 static struct usb_driver cdc_ncm_driver;
 
+static int cdc_ncm_get_coalesce(struct net_device *netdev,
+				struct ethtool_coalesce *ec)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+
+	/* assuming maximum sized dgrams and ignoring NDPs */
+	ec->rx_max_coalesced_frames = ctx->rx_max / ctx->max_datagram_size;
+	ec->tx_max_coalesced_frames = ctx->tx_max / ctx->max_datagram_size;
+
+	/* the timer will fire CDC_NCM_TIMER_PENDING_CNT times in a row */
+	ec->tx_coalesce_usecs = (ctx->timer_interval * CDC_NCM_TIMER_PENDING_CNT) / NSEC_PER_USEC;
+	return 0;
+}
+
+static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx);
+
+static int cdc_ncm_set_coalesce(struct net_device *netdev,
+				struct ethtool_coalesce *ec)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	u32 new_rx_max = ctx->rx_max;
+	u32 new_tx_max = ctx->tx_max;
+
+	/* assuming maximum sized dgrams and a single NDP */
+	if (ec->rx_max_coalesced_frames)
+		new_rx_max = ec->rx_max_coalesced_frames * ctx->max_datagram_size;
+	if (ec->tx_max_coalesced_frames)
+		new_tx_max = ec->tx_max_coalesced_frames * ctx->max_datagram_size;
+
+	if (ec->tx_coalesce_usecs &&
+	    (ec->tx_coalesce_usecs < CDC_NCM_TIMER_INTERVAL_MIN * CDC_NCM_TIMER_PENDING_CNT ||
+	     ec->tx_coalesce_usecs > CDC_NCM_TIMER_INTERVAL_MAX * CDC_NCM_TIMER_PENDING_CNT))
+		return -EINVAL;
+
+	spin_lock_bh(&ctx->mtx);
+	ctx->timer_interval = ec->tx_coalesce_usecs * NSEC_PER_USEC / CDC_NCM_TIMER_PENDING_CNT;
+	if (!ctx->timer_interval)
+		ctx->tx_timer_pending = 0;
+	spin_unlock_bh(&ctx->mtx);
+
+	/* inform device of new values */
+	if (new_rx_max != ctx->rx_max || new_tx_max != ctx->tx_max)
+		cdc_ncm_update_rxtx_max(dev, new_rx_max, new_tx_max);
+	return 0;
+}
+
+static const struct ethtool_ops cdc_ncm_ethtool_ops = {
+	.get_settings      = usbnet_get_settings,
+	.set_settings      = usbnet_set_settings,
+	.get_link          = usbnet_get_link,
+	.nway_reset        = usbnet_nway_reset,
+	.get_drvinfo       = usbnet_get_drvinfo,
+	.get_msglevel      = usbnet_get_msglevel,
+	.set_msglevel      = usbnet_set_msglevel,
+	.get_ts_info       = ethtool_op_get_ts_info,
+	.get_coalesce      = cdc_ncm_get_coalesce,
+	.set_coalesce      = cdc_ncm_set_coalesce,
+};
+
 /* handle rx_max and tx_max changes */
 static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 {
@@ -256,6 +317,9 @@ static int cdc_ncm_init(struct usbnet *dev)
 	if ((ctx->tx_max_datagrams == 0) ||
 			(ctx->tx_max_datagrams > CDC_NCM_DPT_DATAGRAMS_MAX))
 		ctx->tx_max_datagrams = CDC_NCM_DPT_DATAGRAMS_MAX;
+
+	/* initial coalescing timer interval */
+	ctx->timer_interval = CDC_NCM_TIMER_INTERVAL_USEC * NSEC_PER_USEC;
 
 	return 0;
 }
@@ -596,6 +660,9 @@ advance:
 	/* finish setting up the device specific data */
 	cdc_ncm_setup(dev);
 
+	/* override ethtool_ops */
+	dev->net->ethtool_ops = &cdc_ncm_ethtool_ops;
+
 	return 0;
 
 error2:
@@ -863,7 +930,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		ctx->tx_curr_skb = skb_out;
 		goto exit_no_skb;
 
-	} else if ((n < ctx->tx_max_datagrams) && (ready2send == 0)) {
+	} else if ((n < ctx->tx_max_datagrams) && (ready2send == 0) && (ctx->timer_interval > 0)) {
 		/* wait for more frames */
 		/* push variables */
 		ctx->tx_curr_skb = skb_out;
@@ -915,7 +982,7 @@ static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx)
 	/* start timer, if not already started */
 	if (!(hrtimer_active(&ctx->tx_timer) || atomic_read(&ctx->stop)))
 		hrtimer_start(&ctx->tx_timer,
-				ktime_set(0, CDC_NCM_TIMER_INTERVAL),
+				ktime_set(0, ctx->timer_interval),
 				HRTIMER_MODE_REL);
 }
 

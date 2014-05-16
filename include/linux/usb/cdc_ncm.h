@@ -72,7 +72,9 @@
 /* Restart the timer, if amount of datagrams is less than given value */
 #define	CDC_NCM_RESTART_TIMER_DATAGRAM_CNT	3
 #define	CDC_NCM_TIMER_PENDING_CNT		2
-#define CDC_NCM_TIMER_INTERVAL			(400UL * NSEC_PER_USEC)
+#define CDC_NCM_TIMER_INTERVAL_USEC		400UL
+#define CDC_NCM_TIMER_INTERVAL_MIN		5UL
+#define CDC_NCM_TIMER_INTERVAL_MAX		(15UL * USEC_PER_SEC)
 
 /* The following macro defines the minimum header space */
 #define	CDC_NCM_MIN_HDR_SIZE \
@@ -106,6 +108,8 @@ struct cdc_ncm_ctx {
 
 	spinlock_t mtx;
 	atomic_t stop;
+
+	u64 timer_interval;
 
 	u32 tx_timer_pending;
 	u32 tx_curr_frame_num;
