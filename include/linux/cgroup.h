@@ -873,6 +873,8 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 	for ((pos) = css_next_descendant_post(NULL, (css)); (pos);	\
 	     (pos) = css_next_descendant_post((pos), (css)))
 
+bool css_has_online_children(struct cgroup_subsys_state *css);
+
 /* A css_task_iter should be treated as an opaque object */
 struct css_task_iter {
 	struct cgroup_subsys		*ss;

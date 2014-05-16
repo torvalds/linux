@@ -175,7 +175,6 @@ static int need_forkexit_callback __read_mostly;
 static struct cftype cgroup_base_files[];
 
 static void cgroup_put(struct cgroup *cgrp);
-static bool cgroup_has_live_children(struct cgroup *cgrp);
 static int rebind_subsystems(struct cgroup_root *dst_root,
 			     unsigned int ss_mask);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
@@ -1769,7 +1768,7 @@ static void cgroup_kill_sb(struct super_block *sb)
 	 * This prevents new mounts by disabling percpu_ref_tryget_live().
 	 * cgroup_mount() may wait for @root's release.
 	 */
-	if (cgroup_has_live_children(&root->cgrp))
+	if (css_has_online_children(&root->cgrp.self))
 		cgroup_put(&root->cgrp);
 	else
 		percpu_ref_kill(&root->cgrp.self.refcnt);
@@ -3291,19 +3290,28 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 	return pos->parent;
 }
 
-static bool cgroup_has_live_children(struct cgroup *cgrp)
+/**
+ * css_has_online_children - does a css have online children
+ * @css: the target css
+ *
+ * Returns %true if @css has any online children; otherwise, %false.  This
+ * function can be called from any context but the caller is responsible
+ * for synchronizing against on/offlining as necessary.
+ */
+bool css_has_online_children(struct cgroup_subsys_state *css)
 {
-	struct cgroup *child;
+	struct cgroup_subsys_state *child;
+	bool ret = false;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(child, &cgrp->self.children, self.sibling) {
-		if (!cgroup_is_dead(child)) {
-			rcu_read_unlock();
-			return true;
+	css_for_each_child(child, css) {
+		if (css->flags & CSS_ONLINE) {
+			ret = true;
+			break;
 		}
 	}
 	rcu_read_unlock();
-	return false;
+	return ret;
 }
 
 /**
@@ -4535,7 +4543,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * ->self.children as dead children linger on it while being
 	 * drained; otherwise, "rmdir parent/child parent" may fail.
 	 */
-	if (cgroup_has_live_children(cgrp))
+	if (css_has_online_children(&cgrp->self))
 		return -EBUSY;
 
 	/*
@@ -5014,8 +5022,8 @@ void cgroup_exit(struct task_struct *tsk)
 
 static void check_for_release(struct cgroup *cgrp)
 {
-	if (cgroup_is_releasable(cgrp) &&
-	    list_empty(&cgrp->cset_links) && !cgroup_has_live_children(cgrp)) {
+	if (cgroup_is_releasable(cgrp) && list_empty(&cgrp->cset_links) &&
+	    !css_has_online_children(&cgrp->self)) {
 		/*
 		 * Control Group is currently removeable. If it's not
 		 * already queued for a userspace notification, queue
