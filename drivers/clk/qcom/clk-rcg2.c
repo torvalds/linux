@@ -181,7 +181,8 @@ struct freq_tbl *find_freq(const struct freq_tbl *f, unsigned long rate)
 		if (rate <= f->freq)
 			return f;
 
-	return NULL;
+	/* Default to our fastest rate */
+	return f - 1;
 }
 
 static long _freq_tbl_determine_rate(struct clk_hw *hw,
