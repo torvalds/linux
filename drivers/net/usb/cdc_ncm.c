@@ -118,6 +118,21 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 	if (val != ctx->tx_max)
 		dev_info(&dev->intf->dev, "setting tx_max = %u\n", val);
 	ctx->tx_max = val;
+
+	/* Adding a pad byte here if necessary simplifies the handling
+	 * in cdc_ncm_fill_tx_frame, making tx_max always represent
+	 * the real skb max size.
+	 *
+	 * We cannot use dev->maxpacket here because this is called from
+	 * .bind which is called before usbnet sets up dev->maxpacket
+	 */
+	if (ctx->tx_max != le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize) &&
+	    ctx->tx_max % usb_maxpacket(dev->udev, dev->out, 1) == 0)
+		ctx->tx_max++;
+
+	/* usbnet use these values for sizing tx/rx queues */
+	dev->hard_mtu = ctx->tx_max;
+	dev->rx_urb_size = ctx->rx_max;
 }
 
 /* helpers for NCM and MBIM differences */
@@ -322,9 +337,6 @@ static void cdc_ncm_fix_modulus(struct usbnet *dev)
 static int cdc_ncm_setup(struct usbnet *dev)
 {
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
-
-	/* initialize basic device settings */
-	cdc_ncm_init(dev);
 
 	/* clamp rx_max and tx_max and inform device */
 	cdc_ncm_update_rxtx_max(dev, le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize),
@@ -532,8 +544,8 @@ advance:
 		goto error2;
 	}
 
-	/* initialize data interface */
-	if (cdc_ncm_setup(dev))
+	/* initialize basic device settings */
+	if (cdc_ncm_init(dev))
 		goto error2;
 
 	/* configure data interface */
@@ -562,18 +574,8 @@ advance:
 		dev_info(&intf->dev, "MAC-Address: %pM\n", dev->net->dev_addr);
 	}
 
-	/* usbnet use these values for sizing tx/rx queues */
-	dev->hard_mtu = ctx->tx_max;
-	dev->rx_urb_size = ctx->rx_max;
-
-	/* cdc_ncm_setup will override dwNtbOutMaxSize if it is
-	 * outside the sane range. Adding a pad byte here if necessary
-	 * simplifies the handling in cdc_ncm_fill_tx_frame, making
-	 * tx_max always represent the real skb max size.
-	 */
-	if (ctx->tx_max != le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize) &&
-	    ctx->tx_max % usb_maxpacket(dev->udev, dev->out, 1) == 0)
-		ctx->tx_max++;
+	/* finish setting up the device specific data */
+	cdc_ncm_setup(dev);
 
 	return 0;
 
