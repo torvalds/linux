@@ -403,11 +403,11 @@ EFUSE_Write1Byte(
 }/* EFUSE_Write1Byte */
 
 /*  11/16/2008 MH Read one byte from real Efuse. */
-u8
+int
 efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data)
 {
 	u8	tmpidx = 0;
-	u8	bResult;
+	int	bResult;
 
 	/*  -----------------e-fuse reg ctrl --------------------------------- */
 	/* address */
@@ -421,20 +421,20 @@ efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data)
 		tmpidx++;
 	if (tmpidx < 100) {
 		*data = rtw_read8(pAdapter, EFUSE_CTRL);
-		bResult = true;
+		bResult = _SUCCESS;
 	} else {
 		*data = 0xff;
-		bResult = false;
+		bResult = _FAIL;
 	}
 	return bResult;
 }
 
 /*  11/16/2008 MH Write one byte to reald Efuse. */
-u8
+int
 efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
 {
 	u8	tmpidx = 0;
-	u8	bResult;
+	int	bResult;
 
 	/* RT_TRACE(COMP_EFUSE, DBG_LOUD, ("Addr = %x Data =%x\n", addr, data)); */
 
@@ -453,14 +453,10 @@ efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
 		tmpidx++;
 	}
 
-	if (tmpidx<100)
-	{
-		bResult = true;
-	}
+	if (tmpidx < 100)
+		bResult = _SUCCESS;
 	else
-	{
-		bResult = false;
-	}
+		bResult = _FAIL;
 
 	return bResult;
 }
@@ -509,12 +505,12 @@ efuse_WordEnableDataRead23a(u8	word_en,
 	}
 }
 
-static u8 efuse_read8(struct rtw_adapter *padapter, u16 address, u8 *value)
+static int efuse_read8(struct rtw_adapter *padapter, u16 address, u8 *value)
 {
 	return efuse_OneByteRead23a(padapter, address, value);
 }
 
-static u8 efuse_write8(struct rtw_adapter *padapter, u16 address, u8 *value)
+static int efuse_write8(struct rtw_adapter *padapter, u16 address, u8 *value)
 {
 	return efuse_OneByteWrite23a(padapter, address, *value);
 }
@@ -522,13 +518,13 @@ static u8 efuse_write8(struct rtw_adapter *padapter, u16 address, u8 *value)
 /*
  * read/wirte raw efuse data
  */
-u8 rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
-		    u16 cnts, u8 *data)
+int rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
+			u16 cnts, u8 *data)
 {
 	int i = 0;
-	u16	real_content_len = 0, max_available_size = 0;
-	u8 res = _FAIL ;
-	u8 (*rw8)(struct rtw_adapter *, u16, u8*);
+	u16 real_content_len = 0, max_available_size = 0;
+	int res = _FAIL ;
+	int (*rw8)(struct rtw_adapter *, u16, u8*);
 
 	EFUSE_GetEfuseDefinition23a(padapter, EFUSE_WIFI,
 				 TYPE_EFUSE_REAL_CONTENT_LEN,
@@ -557,7 +553,8 @@ u8 rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
 		}
 
 		res = rw8(padapter, start_addr++, data++);
-		if (_FAIL == res) break;
+		if (res == _FAIL)
+			break;
 	}
 
 	Efuse_PowerSwitch(padapter, bWrite, false);
@@ -567,14 +564,14 @@ u8 rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
 /*  */
 u16 efuse_GetMaxSize23a(struct rtw_adapter *padapter)
 {
-	u16	max_size;
+	u16 max_size;
 	EFUSE_GetEfuseDefinition23a(padapter, EFUSE_WIFI,
 				 TYPE_AVAILABLE_EFUSE_BYTES_TOTAL,
 				 (void *)&max_size);
 	return max_size;
 }
 /*  */
-u8 efuse_GetCurrentSize23a(struct rtw_adapter *padapter, u16 *size)
+int efuse_GetCurrentSize23a(struct rtw_adapter *padapter, u16 *size)
 {
 	Efuse_PowerSwitch(padapter, false, true);
 	*size = Efuse_GetCurrentSize23a(padapter, EFUSE_WIFI);
@@ -583,9 +580,10 @@ u8 efuse_GetCurrentSize23a(struct rtw_adapter *padapter, u16 *size)
 	return _SUCCESS;
 }
 /*  */
-u8 rtw_efuse_map_read23a(struct rtw_adapter *padapter, u16 addr, u16 cnts, u8 *data)
+int rtw_efuse_map_read23a(struct rtw_adapter *padapter,
+			  u16 addr, u16 cnts, u8 *data)
 {
-	u16	mapLen = 0;
+	u16 mapLen = 0;
 
 	EFUSE_GetEfuseDefinition23a(padapter, EFUSE_WIFI,
 				 TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
@@ -602,9 +600,10 @@ u8 rtw_efuse_map_read23a(struct rtw_adapter *padapter, u16 addr, u16 cnts, u8 *d
 	return _SUCCESS;
 }
 
-u8 rtw_BT_efuse_map_read23a(struct rtw_adapter *padapter, u16 addr, u16 cnts, u8 *data)
+int rtw_BT_efuse_map_read23a(struct rtw_adapter *padapter,
+			     u16 addr, u16 cnts, u8 *data)
 {
-	u16	mapLen = 0;
+	u16 mapLen = 0;
 
 	EFUSE_GetEfuseDefinition23a(padapter, EFUSE_BT,
 				 TYPE_EFUSE_MAP_LEN, (void *)&mapLen);

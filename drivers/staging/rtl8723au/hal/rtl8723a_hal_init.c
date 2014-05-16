@@ -703,7 +703,7 @@ u16 rtl8723a_EfuseGetCurrentSize_WiFi(struct rtw_adapter *padapter)
 
 	while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
 		if (efuse_OneByteRead23a(padapter, efuse_addr, &efuse_data) ==
-		    false) {
+		    _FAIL) {
 			DBG_8723A(KERN_ERR "%s: efuse_OneByteRead23a Fail! "
 				  "addr = 0x%X !!\n", __func__, efuse_addr);
 			break;
@@ -774,7 +774,7 @@ u16 rtl8723a_EfuseGetCurrentSize_BT(struct rtw_adapter *padapter)
 
 		while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
 			if (efuse_OneByteRead23a(padapter, efuse_addr,
-					      &efuse_data) == false) {
+					      &efuse_data) == _FAIL) {
 				DBG_8723A(KERN_ERR "%s: efuse_OneByteRead23a Fail!"
 					  " addr = 0x%X !!\n",
 					  __func__, efuse_addr);
@@ -851,7 +851,7 @@ rtl8723a_EfusePgPacketRead(struct rtw_adapter *padapter, u8 offset, u8 *data)
 	/*  */
 	while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
 		if (efuse_OneByteRead23a(padapter, efuse_addr++, &efuse_data) ==
-		    false) {
+		    _FAIL) {
 			ret = false;
 			break;
 		}
