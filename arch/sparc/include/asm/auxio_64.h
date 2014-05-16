@@ -82,7 +82,7 @@
  *
  * on - AUXIO_LTE_ON or AUXIO_LTE_OFF
  */
-extern void auxio_set_lte(int on);
+void auxio_set_lte(int on);
 
 #define AUXIO_LED_ON	1
 #define AUXIO_LED_OFF	0
@@ -91,7 +91,7 @@ extern void auxio_set_lte(int on);
  *
  * on - AUXIO_LED_ON or AUXIO_LED_OFF
  */
-extern void auxio_set_led(int on);
+void auxio_set_led(int on);
 
 #endif /* ifndef __ASSEMBLY__ */
 

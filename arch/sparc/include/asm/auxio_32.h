@@ -34,8 +34,8 @@
  * NOTE: these routines are implementation dependent--
  * understand the hardware you are querying!
  */
-extern void set_auxio(unsigned char bits_on, unsigned char bits_off);
-extern unsigned char get_auxio(void); /* .../asm/floppy.h */
+void set_auxio(unsigned char bits_on, unsigned char bits_off);
+unsigned char get_auxio(void); /* .../asm/floppy.h */
 
 /*
  * The following routines are provided for driver-compatibility

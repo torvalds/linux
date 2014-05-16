@@ -30,7 +30,7 @@ enum regnames {
 #define NUMREGBYTES		((GDB_Y + 1) * 8)
 #endif
 
-extern void arch_kgdb_breakpoint(void);
+void arch_kgdb_breakpoint(void);
 
 #define BREAK_INSTR_SIZE	4
 #define CACHE_FLUSH_IS_SAFE	1

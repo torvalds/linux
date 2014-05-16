@@ -23,8 +23,8 @@ struct sparc64_tick_ops {
 
 extern struct sparc64_tick_ops *tick_ops;
 
-extern unsigned long sparc64_get_clock_tick(unsigned int cpu);
-extern void setup_sparc64_timer(void);
-extern void __init time_init(void);
+unsigned long sparc64_get_clock_tick(unsigned int cpu);
+void setup_sparc64_timer(void);
+void __init time_init(void);
 
 #endif /* _SPARC64_TIMER_H */

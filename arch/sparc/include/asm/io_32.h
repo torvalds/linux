@@ -130,18 +130,18 @@ static inline void sbus_memcpy_toio(volatile void __iomem *dst,
  * Bus number may be embedded in the higher bits of the physical address.
  * This is why we have no bus number argument to ioremap().
  */
-extern void __iomem *ioremap(unsigned long offset, unsigned long size);
+void __iomem *ioremap(unsigned long offset, unsigned long size);
 #define ioremap_nocache(X,Y)	ioremap((X),(Y))
 #define ioremap_wc(X,Y)		ioremap((X),(Y))
-extern void iounmap(volatile void __iomem *addr);
+void iounmap(volatile void __iomem *addr);
 
 /* Create a virtual mapping cookie for an IO port range */
-extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
-extern void ioport_unmap(void __iomem *);
+void __iomem *ioport_map(unsigned long port, unsigned int nr);
+void ioport_unmap(void __iomem *);
 
 /* Create a virtual mapping cookie for a PCI BAR (memory or IO) */
 struct pci_dev;
-extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
+void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
 
 
@@ -162,7 +162,7 @@ static inline int sbus_can_burst64(void)
 	return 0; /* actually, sparc_cpu_model==sun4d */
 }
 struct device;
-extern void sbus_set_sbus64(struct device *, int);
+void sbus_set_sbus64(struct device *, int);
 
 #endif
 

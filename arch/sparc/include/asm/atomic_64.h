@@ -19,15 +19,15 @@
 #define atomic_set(v, i)	(((v)->counter) = i)
 #define atomic64_set(v, i)	(((v)->counter) = i)
 
-extern void atomic_add(int, atomic_t *);
-extern void atomic64_add(long, atomic64_t *);
-extern void atomic_sub(int, atomic_t *);
-extern void atomic64_sub(long, atomic64_t *);
+void atomic_add(int, atomic_t *);
+void atomic64_add(long, atomic64_t *);
+void atomic_sub(int, atomic_t *);
+void atomic64_sub(long, atomic64_t *);
 
-extern int atomic_add_ret(int, atomic_t *);
-extern long atomic64_add_ret(long, atomic64_t *);
-extern int atomic_sub_ret(int, atomic_t *);
-extern long atomic64_sub_ret(long, atomic64_t *);
+int atomic_add_ret(int, atomic_t *);
+long atomic64_add_ret(long, atomic64_t *);
+int atomic_sub_ret(int, atomic_t *);
+long atomic64_sub_ret(long, atomic64_t *);
 
 #define atomic_dec_return(v) atomic_sub_ret(1, v)
 #define atomic64_dec_return(v) atomic64_sub_ret(1, v)
@@ -106,7 +106,7 @@ static inline long atomic64_add_unless(atomic64_t *v, long a, long u)
 
 #define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
 
-extern long atomic64_dec_if_positive(atomic64_t *v);
+long atomic64_dec_if_positive(atomic64_t *v);
 
 /* Atomic operations are already serializing */
 #define smp_mb__before_atomic_dec()	barrier()

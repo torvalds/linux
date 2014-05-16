@@ -18,9 +18,9 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
-extern unsigned long ___set_bit(unsigned long *addr, unsigned long mask);
-extern unsigned long ___clear_bit(unsigned long *addr, unsigned long mask);
-extern unsigned long ___change_bit(unsigned long *addr, unsigned long mask);
+unsigned long ___set_bit(unsigned long *addr, unsigned long mask);
+unsigned long ___clear_bit(unsigned long *addr, unsigned long mask);
+unsigned long ___change_bit(unsigned long *addr, unsigned long mask);
 
 /*
  * Set bit 'nr' in 32-bit quantity at address 'addr' where bit '0'

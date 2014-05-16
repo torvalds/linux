@@ -95,7 +95,7 @@ struct thread_struct {
 
 /* Return saved PC of a blocked thread. */
 struct task_struct;
-extern unsigned long thread_saved_pc(struct task_struct *);
+unsigned long thread_saved_pc(struct task_struct *);
 
 /* On Uniprocessor, even in RMO processes see TSO semantics */
 #ifdef CONFIG_SMP
@@ -194,7 +194,7 @@ do { \
 /* Free all resources held by a thread. */
 #define release_thread(tsk)		do { } while (0)
 
-extern unsigned long get_wchan(struct task_struct *task);
+unsigned long get_wchan(struct task_struct *task);
 
 #define task_pt_regs(tsk) (task_thread_info(tsk)->kregs)
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->tpc)

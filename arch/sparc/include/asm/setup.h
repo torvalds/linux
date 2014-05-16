@@ -47,7 +47,7 @@ unsigned long safe_compute_effective_address(struct pt_regs *, unsigned int);
 
 #endif
 
-extern void sun_do_break(void);
+void sun_do_break(void);
 extern int stop_a_enabled;
 extern int scons_pwroff;
 

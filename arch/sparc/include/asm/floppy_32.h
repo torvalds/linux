@@ -256,8 +256,7 @@ static inline void sun_fd_enable_dma(void)
 	pdma_areasize = pdma_size;
 }
 
-extern int sparc_floppy_request_irq(unsigned int irq,
-                                    irq_handler_t irq_handler);
+int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler);
 
 static int sun_fd_request_irq(void)
 {

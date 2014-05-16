@@ -6,7 +6,7 @@
 #define MCOUNT_INSN_SIZE	4 /* sizeof mcount call */
 
 #ifndef __ASSEMBLY__
-extern void _mcount(void);
+void _mcount(void);
 #endif
 
 #endif
