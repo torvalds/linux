@@ -67,9 +67,6 @@ struct vpif_disp_buffer {
 };
 
 struct common_obj {
-	/* Buffer specific parameters */
-	u8 *fbuffers[VIDEO_MAX_FRAME];		/* List of buffer pointers for
-						 * storing frames */
 	u32 numbuffers;				/* number of buffers */
 	struct vpif_disp_buffer *cur_frm;	/* Pointer pointing to current
 						 * vb2_buffer */
