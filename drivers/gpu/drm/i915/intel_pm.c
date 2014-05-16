@@ -3253,7 +3253,7 @@ static void gen8_disable_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
+	I915_WRITE(GEN6_PMINTRMSK, ~GEN8_PMINTR_REDIRECT_TO_NON_DISP);
 	I915_WRITE(GEN8_GT_IER(2), I915_READ(GEN8_GT_IER(2)) &
 				   ~dev_priv->pm_rps_events);
 	/* Complete PM interrupt masking here doesn't race with the rps work
