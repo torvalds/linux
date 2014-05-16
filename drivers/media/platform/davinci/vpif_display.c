@@ -103,8 +103,17 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-/*
- * vpif_buffer_queue_setup: This function allocates memory for the buffers
+/**
+ * vpif_buffer_queue_setup : Callback function for buffer setup.
+ * @vq: vb2_queue ptr
+ * @fmt: v4l2 format
+ * @nbuffers: ptr to number of buffers requested by application
+ * @nplanes:: contains number of distinct video planes needed to hold a frame
+ * @sizes[]: contains the size (in bytes) of each plane.
+ * @alloc_ctxs: ptr to allocation context
+ *
+ * This callback function is called when reqbuf() is called to adjust
+ * the buffer count and buffer size
  */
 static int vpif_buffer_queue_setup(struct vb2_queue *vq,
 				const struct v4l2_format *fmt,
@@ -113,37 +122,20 @@ static int vpif_buffer_queue_setup(struct vb2_queue *vq,
 {
 	struct channel_obj *ch = vb2_get_drv_priv(vq);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	unsigned long size;
 
-	if (V4L2_MEMORY_MMAP == common->memory) {
-		size = config_params.channel_bufsize[ch->channel_id];
-		/*
-		* Checking if the buffer size exceeds the available buffer
-		* ycmux_mode = 0 means 1 channel mode HD and
-		* ycmux_mode = 1 means 2 channels mode SD
-		*/
-		if (ch->vpifparams.std_info.ycmux_mode == 0) {
-			if (config_params.video_limit[ch->channel_id])
-				while (size * *nbuffers >
-					(config_params.video_limit[0]
-						+ config_params.video_limit[1]))
-					(*nbuffers)--;
-		} else {
-			if (config_params.video_limit[ch->channel_id])
-				while (size * *nbuffers >
-				config_params.video_limit[ch->channel_id])
-					(*nbuffers)--;
-		}
-	} else {
-		size = common->fmt.fmt.pix.sizeimage;
-	}
+	if (fmt && fmt->fmt.pix.sizeimage < common->fmt.fmt.pix.sizeimage)
+		return -EINVAL;
 
-	if (*nbuffers < config_params.min_numbuffers)
-			*nbuffers = config_params.min_numbuffers;
+	if (vq->num_buffers + *nbuffers < 3)
+		*nbuffers = 3 - vq->num_buffers;
 
 	*nplanes = 1;
-	sizes[0] = size;
+	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : common->fmt.fmt.pix.sizeimage;
 	alloc_ctxs[0] = common->alloc_ctx;
+
+	/* Calculate the offset for Y and C data  in the buffer */
+	vpif_calculate_offsets(ch);
+
 	return 0;
 }
 
@@ -184,9 +176,6 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Initialize field_id and started member */
 	ch->field_id = 0;
 	common->started = 1;
-
-	/* Calculate the offset for Y and C data  in the buffer */
-	vpif_calculate_offsets(ch);
 
 	if ((ch->vpifparams.std_info.frm_fmt &&
 		((common->fmt.fmt.pix.field != V4L2_FIELD_NONE)
