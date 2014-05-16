@@ -1683,11 +1683,6 @@ void process_addba_req23a(struct rtw_adapter *padapter,
 	}
 }
 
-void beacon_timing_control23a(struct rtw_adapter *padapter)
-{
-	rtw_hal_bcn_related_reg_setting23a(padapter);
-}
-
 static struct rtw_adapter *pbuddy_padapter;
 
 int rtw_handle_dualmac23a(struct rtw_adapter *adapter, bool init)

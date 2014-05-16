@@ -196,9 +196,3 @@ s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter)
 		return padapter->HalFunc.interrupt_handler(padapter);
 	return _FAIL;
 }
-
-void rtw_hal_bcn_related_reg_setting23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.SetBeaconRelatedRegistersHandler)
-		padapter->HalFunc.SetBeaconRelatedRegistersHandler(padapter);
-}

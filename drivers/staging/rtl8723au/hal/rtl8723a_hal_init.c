@@ -1522,7 +1522,7 @@ static void _BeaconFunctionEnable(struct rtw_adapter *padapter, u8 Enable,
 	rtw_write8(padapter, REG_RD_CTRL + 1, 0x6F);
 }
 
-static void rtl8723a_SetBeaconRelatedRegisters(struct rtw_adapter *padapter)
+void rtl8723a_SetBeaconRelatedRegisters(struct rtw_adapter *padapter)
 {
 	u32 value32;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -1706,9 +1706,6 @@ exit:
 
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->SetBeaconRelatedRegistersHandler =
-		&rtl8723a_SetBeaconRelatedRegisters;
-
 	pHalFunc->Add_RateATid = &rtl8723a_add_rateatid;
 
 	/*  Efuse related function */

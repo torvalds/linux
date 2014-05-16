@@ -4674,7 +4674,7 @@ void start_create_ibss23a(struct rtw_adapter* padapter)
 		/* SelectChannel23a(padapter, pmlmeext->cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE); */
 		set_channel_bwmode23a(padapter, pmlmeext->cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 
-		beacon_timing_control23a(padapter);
+		rtl8723a_SetBeaconRelatedRegisters(padapter);
 
 		/* set msr to WIFI_FW_ADHOC_STATE */
 		pmlmeinfo->state = WIFI_FW_ADHOC_STATE;
@@ -4752,7 +4752,7 @@ void start_clnt_join23a(struct rtw_adapter* padapter)
 		/* switch channel */
 		set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
-		beacon_timing_control23a(padapter);
+		rtl8723a_SetBeaconRelatedRegisters(padapter);
 
 		pmlmeinfo->state = WIFI_FW_ADHOC_STATE;
 

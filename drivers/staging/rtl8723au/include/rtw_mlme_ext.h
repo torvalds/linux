@@ -567,7 +567,6 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 void report_add_sta_event23a(struct rtw_adapter *padapter,
 			  unsigned char *MacAddr, int cam_idx);
 
-void beacon_timing_control23a(struct rtw_adapter *padapter);
 u8 set_tx_beacon_cmd23a(struct rtw_adapter*padapter);
 unsigned int setup_beacon_frame(struct rtw_adapter *padapter,
 				unsigned char *beacon_frame);
