@@ -65,6 +65,68 @@ static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx);
 static enum hrtimer_restart cdc_ncm_tx_timer_cb(struct hrtimer *hr_timer);
 static struct usb_driver cdc_ncm_driver;
 
+struct cdc_ncm_stats {
+	char stat_string[ETH_GSTRING_LEN];
+	int sizeof_stat;
+	int stat_offset;
+};
+
+#define CDC_NCM_STAT(str, m) { \
+		.stat_string = str, \
+		.sizeof_stat = sizeof(((struct cdc_ncm_ctx *)0)->m), \
+		.stat_offset = offsetof(struct cdc_ncm_ctx, m) }
+#define CDC_NCM_SIMPLE_STAT(m)	CDC_NCM_STAT(__stringify(m), m)
+
+static const struct cdc_ncm_stats cdc_ncm_gstrings_stats[] = {
+	CDC_NCM_SIMPLE_STAT(tx_reason_ntb_full),
+	CDC_NCM_SIMPLE_STAT(tx_reason_ndp_full),
+	CDC_NCM_SIMPLE_STAT(tx_reason_timeout),
+	CDC_NCM_SIMPLE_STAT(tx_reason_max_datagram),
+	CDC_NCM_SIMPLE_STAT(tx_overhead),
+	CDC_NCM_SIMPLE_STAT(tx_ntbs),
+	CDC_NCM_SIMPLE_STAT(rx_overhead),
+	CDC_NCM_SIMPLE_STAT(rx_ntbs),
+};
+
+static int cdc_ncm_get_sset_count(struct net_device __always_unused *netdev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(cdc_ncm_gstrings_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void cdc_ncm_get_ethtool_stats(struct net_device *netdev,
+				    struct ethtool_stats __always_unused *stats,
+				    u64 *data)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	int i;
+	char *p = NULL;
+
+	for (i = 0; i < ARRAY_SIZE(cdc_ncm_gstrings_stats); i++) {
+		p = (char *)ctx + cdc_ncm_gstrings_stats[i].stat_offset;
+		data[i] = (cdc_ncm_gstrings_stats[i].sizeof_stat == sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+}
+
+static void cdc_ncm_get_strings(struct net_device __always_unused *netdev, u32 stringset, u8 *data)
+{
+	u8 *p = data;
+	int i;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < ARRAY_SIZE(cdc_ncm_gstrings_stats); i++) {
+			memcpy(p, cdc_ncm_gstrings_stats[i].stat_string, ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+	}
+}
+
 static int cdc_ncm_get_coalesce(struct net_device *netdev,
 				struct ethtool_coalesce *ec)
 {
@@ -122,6 +184,9 @@ static const struct ethtool_ops cdc_ncm_ethtool_ops = {
 	.get_msglevel      = usbnet_get_msglevel,
 	.set_msglevel      = usbnet_set_msglevel,
 	.get_ts_info       = ethtool_op_get_ts_info,
+	.get_sset_count    = cdc_ncm_get_sset_count,
+	.get_strings       = cdc_ncm_get_strings,
+	.get_ethtool_stats = cdc_ncm_get_ethtool_stats,
 	.get_coalesce      = cdc_ncm_get_coalesce,
 	.set_coalesce      = cdc_ncm_set_coalesce,
 };
@@ -862,6 +927,9 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 
 		/* count total number of frames in this NTB */
 		ctx->tx_curr_frame_num = 0;
+
+		/* recent payload counter for this skb_out */
+		ctx->tx_curr_frame_payload = 0;
 	}
 
 	for (n = ctx->tx_curr_frame_num; n < ctx->tx_max_datagrams; n++) {
@@ -899,6 +967,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 				ctx->tx_rem_sign = sign;
 				skb = NULL;
 				ready2send = 1;
+				ctx->tx_reason_ntb_full++;	/* count reason for transmitting */
 			}
 			break;
 		}
@@ -912,12 +981,14 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		ndp16->dpe16[index].wDatagramIndex = cpu_to_le16(skb_out->len);
 		ndp16->wLength = cpu_to_le16(ndplen + sizeof(struct usb_cdc_ncm_dpe16));
 		memcpy(skb_put(skb_out, skb->len), skb->data, skb->len);
+		ctx->tx_curr_frame_payload += skb->len;	/* count real tx payload data */
 		dev_kfree_skb_any(skb);
 		skb = NULL;
 
 		/* send now if this NDP is full */
 		if (index >= CDC_NCM_DPT_DATAGRAMS_MAX) {
 			ready2send = 1;
+			ctx->tx_reason_ndp_full++;	/* count reason for transmitting */
 			break;
 		}
 	}
@@ -947,6 +1018,8 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		goto exit_no_skb;
 
 	} else {
+		if (n == ctx->tx_max_datagrams)
+			ctx->tx_reason_max_datagram++;	/* count reason for transmitting */
 		/* frame goes out */
 		/* variables will be reset at next call */
 	}
@@ -974,6 +1047,17 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	/* return skb */
 	ctx->tx_curr_skb = NULL;
 	dev->net->stats.tx_packets += ctx->tx_curr_frame_num;
+
+	/* keep private stats: framing overhead and number of NTBs */
+	ctx->tx_overhead += skb_out->len - ctx->tx_curr_frame_payload;
+	ctx->tx_ntbs++;
+
+	/* usbnet has already counted all the framing overhead.
+	 * Adjust the stats so that the tx_bytes counter show real
+	 * payload data instead.
+	 */
+	dev->net->stats.tx_bytes -= skb_out->len - ctx->tx_curr_frame_payload;
+
 	return skb_out;
 
 exit_no_skb:
@@ -1014,6 +1098,7 @@ static void cdc_ncm_txpath_bh(unsigned long param)
 		cdc_ncm_tx_timeout_start(ctx);
 		spin_unlock_bh(&ctx->mtx);
 	} else if (dev->net != NULL) {
+		ctx->tx_reason_timeout++;	/* count reason for transmitting */
 		spin_unlock_bh(&ctx->mtx);
 		netif_tx_lock_bh(dev->net);
 		usbnet_start_xmit(NULL, dev->net);
@@ -1149,6 +1234,7 @@ int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 	struct usb_cdc_ncm_dpe16 *dpe16;
 	int ndpoffset;
 	int loopcount = 50; /* arbitrary max preventing infinite loop */
+	u32 payload = 0;
 
 	ndpoffset = cdc_ncm_rx_verify_nth16(ctx, skb_in);
 	if (ndpoffset < 0)
@@ -1201,6 +1287,7 @@ next_ndp:
 			skb->data = ((u8 *)skb_in->data) + offset;
 			skb_set_tail_pointer(skb, len);
 			usbnet_skb_return(dev, skb);
+			payload += len;	/* count payload bytes in this NTB */
 		}
 	}
 err_ndp:
@@ -1208,6 +1295,10 @@ err_ndp:
 	ndpoffset = le16_to_cpu(ndp16->wNextNdpIndex);
 	if (ndpoffset && loopcount--)
 		goto next_ndp;
+
+	/* update stats */
+	ctx->rx_overhead += skb_in->len - payload;
+	ctx->rx_ntbs++;
 
 	return 1;
 error:

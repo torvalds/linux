@@ -116,6 +116,17 @@ struct cdc_ncm_ctx {
 	u16 rx_seq;
 	u16 connected;
 	u16 min_tx_pkt;
+
+	/* statistics */
+	u32 tx_curr_frame_payload;
+	u32 tx_reason_ntb_full;
+	u32 tx_reason_ndp_full;
+	u32 tx_reason_timeout;
+	u32 tx_reason_max_datagram;
+	u64 tx_overhead;
+	u64 tx_ntbs;
+	u64 rx_overhead;
+	u64 rx_ntbs;
 };
 
 u8 cdc_ncm_select_altsetting(struct usb_interface *intf);
