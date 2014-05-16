@@ -540,9 +540,10 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	unsigned int max_headroom;	/* The extra header space needed */
 	__be32 dst;
 	int err;
-	bool connected = true;
+	bool connected;
 
 	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
+	connected = (tunnel->parms.iph.daddr != 0);
 
 	dst = tnl_params->daddr;
 	if (dst == 0) {
