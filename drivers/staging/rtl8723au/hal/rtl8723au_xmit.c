@@ -295,10 +295,11 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	return pull;
 }
 
-static s32 rtw_dump_xframe(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
+static int rtw_dump_xframe(struct rtw_adapter *padapter,
+			   struct xmit_frame *pxmitframe)
 {
-	s32 ret = _SUCCESS;
-	s32 inner_ret = _SUCCESS;
+	int ret = _SUCCESS;
+	int inner_ret = _SUCCESS;
 	int t, sz, w_sz, pull = 0;
 	u8 *mem_addr;
 	u32 ff_hwaddr;
@@ -363,8 +364,9 @@ static s32 rtw_dump_xframe(struct rtw_adapter *padapter, struct xmit_frame *pxmi
 	return ret;
 }
 
-s32 rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
-				 struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
+bool rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
+				  struct xmit_priv *pxmitpriv,
+				  struct xmit_buf *pxmitbuf)
 {
 	struct hw_xmit *phwxmits;
 	struct xmit_frame *pxmitframe;
@@ -413,9 +415,10 @@ s32 rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
 	return true;
 }
 
-static s32 xmitframe_direct(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
+static int xmitframe_direct(struct rtw_adapter *padapter,
+			    struct xmit_frame *pxmitframe)
 {
-	s32 res = _SUCCESS;
+	int res;
 
 	res = rtw_xmitframe_coalesce23a(padapter, pxmitframe->pkt, pxmitframe);
 	if (res == _SUCCESS)
@@ -500,16 +503,17 @@ enqueue:
 	return false;
 }
 
-s32 rtl8723au_mgnt_xmit(struct rtw_adapter *padapter, struct xmit_frame *pmgntframe)
+int rtl8723au_mgnt_xmit(struct rtw_adapter *padapter,
+			struct xmit_frame *pmgntframe)
 {
 	return rtw_dump_xframe(padapter, pmgntframe);
 }
 
-s32	rtl8723au_hal_xmitframe_enqueue(struct rtw_adapter *padapter,
-					struct xmit_frame *pxmitframe)
+int rtl8723au_hal_xmitframe_enqueue(struct rtw_adapter *padapter,
+				    struct xmit_frame *pxmitframe)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-	s32 err;
+	int err;
 
 	err = rtw_xmitframe_enqueue23a(padapter, pxmitframe);
 	if (err != _SUCCESS) {
