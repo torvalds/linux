@@ -350,8 +350,8 @@ static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
 
 		if (!was_enabled &&
 		    (I915_READ(GEN7_ERR_INT) & ERR_INT_FIFO_UNDERRUN(pipe))) {
-			DRM_DEBUG_KMS("uncleared fifo underrun on pipe %c\n",
-				      pipe_name(pipe));
+			DRM_ERROR("uncleared fifo underrun on pipe %c\n",
+				  pipe_name(pipe));
 		}
 	}
 }
@@ -435,8 +435,8 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
 
 		if (!was_enabled &&
 		    (tmp & SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder))) {
-			DRM_DEBUG_KMS("uncleared pch fifo underrun on pch transcoder %c\n",
-				      transcoder_name(pch_transcoder));
+			DRM_ERROR("uncleared pch fifo underrun on pch transcoder %c\n",
+				  transcoder_name(pch_transcoder));
 		}
 	}
 }
