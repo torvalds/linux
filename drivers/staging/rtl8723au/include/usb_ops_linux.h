@@ -26,16 +26,12 @@
 
 #define _usbctrl_vendorreq_async_callback(urb, regs)		\
 	_usbctrl_vendorreq_async_callback(urb)
-#define usb_write_mem23a_complete(purb, regs)	usb_write_mem23a_complete(purb)
 #define usb_write_port23a_complete(purb, regs)	usb_write_port23a_complete(purb)
 #define usb_read_port_complete(purb, regs)	usb_read_port_complete(purb)
 #define usb_read_interrupt_complete(purb, regs)			\
 	usb_read_interrupt_complete(purb)
 
 unsigned int ffaddr2pipehdl23a(struct dvobj_priv *pdvobj, u32 addr);
-
-void usb_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *rmem);
-void usb_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *wmem);
 
 void usb_read_port_cancel23a(struct rtw_adapter *adapter);
 

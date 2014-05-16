@@ -41,14 +41,6 @@ struct zero_bulkout_context {
 	void *padapter;
 };
 
-void usb_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *rmem)
-{
-}
-
-void usb_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *wmem)
-{
-}
-
 void usb_read_port_cancel23a(struct rtw_adapter *padapter)
 {
 	struct recv_buf *precvbuf;

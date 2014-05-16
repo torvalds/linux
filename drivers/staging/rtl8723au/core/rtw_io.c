@@ -27,8 +27,6 @@ Compiler Flag Option:
 1. For USB:
    a. USE_ASYNC_IRP: Both sync/async operations are provided.
 
-Only sync read/rtw_write_mem operations are provided.
-
 jackson@realtek.com.tw
 
 */
@@ -115,28 +113,6 @@ int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr , u32 length , u8 *pdat
 		return _FAIL;
 	else
 		return _SUCCESS;
-}
-void _rtw_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
-{
-	struct _io_ops *io_ops = &adapter->io_ops;
-
-	if ((adapter->bDriverStopped == true) ||
-	    (adapter->bSurpriseRemoved == true)) {
-	     RT_TRACE(_module_rtl871x_io_c_, _drv_info_,
-		      ("rtw_read_mem:bDriverStopped(%d) OR "
-		       "bSurpriseRemoved(%d)", adapter->bDriverStopped,
-		       adapter->bSurpriseRemoved));
-	     return;
-	}
-
-	io_ops->_read_mem(adapter, addr, cnt, pmem);
-}
-
-void _rtw_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
-{
-	struct _io_ops *io_ops = &adapter->io_ops;
-
-	io_ops->_write_mem(adapter, addr, cnt, pmem);
 }
 
 int _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
