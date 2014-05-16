@@ -99,9 +99,9 @@ static inline int RT_usb_endpoint_num(const struct usb_endpoint_descriptor *epd)
 	return epd->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
 }
 
-static u8 rtw_init_intf_priv(struct dvobj_priv *dvobj)
+static int rtw_init_intf_priv(struct dvobj_priv *dvobj)
 {
-	u8 rst = _SUCCESS;
+	int rst = _SUCCESS;
 
 	mutex_init(&dvobj->usb_vendor_req_mutex);
 	dvobj->usb_alloc_vendor_req_buf = kzalloc(MAX_USB_IO_CTL_SIZE,
@@ -117,9 +117,9 @@ exit:
 	return rst;
 }
 
-static u8 rtw_deinit_intf_priv(struct dvobj_priv *dvobj)
+static int rtw_deinit_intf_priv(struct dvobj_priv *dvobj)
 {
-	u8 rst = _SUCCESS;
+	int rst = _SUCCESS;
 
 	kfree(dvobj->usb_alloc_vendor_req_buf);
 
