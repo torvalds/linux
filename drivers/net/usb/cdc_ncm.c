@@ -65,6 +65,61 @@ static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx);
 static enum hrtimer_restart cdc_ncm_tx_timer_cb(struct hrtimer *hr_timer);
 static struct usb_driver cdc_ncm_driver;
 
+/* handle rx_max and tx_max changes */
+static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	u8 iface_no = ctx->control->cur_altsetting->desc.bInterfaceNumber;
+	u32 val, max, min;
+
+	/* clamp new_rx to sane values */
+	min = USB_CDC_NCM_NTB_MIN_IN_SIZE;
+	max = min_t(u32, CDC_NCM_NTB_MAX_SIZE_RX, le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize));
+
+	/* dwNtbInMaxSize spec violation? Use MIN size for both limits */
+	if (max < min) {
+		dev_warn(&dev->intf->dev, "dwNtbInMaxSize=%u is too small. Using %u\n",
+			 le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize), min);
+		max = min;
+	}
+
+	val = clamp_t(u32, new_rx, min, max);
+	if (val != new_rx) {
+		dev_dbg(&dev->intf->dev, "rx_max must be in the [%u, %u] range. Using %u\n",
+			min, max, val);
+	}
+
+	/* inform device about NTB input size changes */
+	if (val != ctx->rx_max) {
+		__le32 dwNtbInMaxSize = cpu_to_le32(val);
+
+		dev_info(&dev->intf->dev, "setting rx_max = %u\n", val);
+		if (usbnet_write_cmd(dev, USB_CDC_SET_NTB_INPUT_SIZE,
+				     USB_TYPE_CLASS | USB_DIR_OUT
+				     | USB_RECIP_INTERFACE,
+				     0, iface_no, &dwNtbInMaxSize, 4) < 0)
+			dev_dbg(&dev->intf->dev, "Setting NTB Input Size failed\n");
+		else
+			ctx->rx_max = val;
+	}
+
+	/* clamp new_tx to sane values */
+	min = CDC_NCM_MIN_HDR_SIZE + ctx->max_datagram_size;
+	max = min_t(u32, CDC_NCM_NTB_MAX_SIZE_TX, le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize));
+
+	/* some devices set dwNtbOutMaxSize too low for the above default */
+	min = min(min, max);
+
+	val = clamp_t(u32, new_tx, min, max);
+	if (val != new_tx) {
+		dev_dbg(&dev->intf->dev, "tx_max must be in the [%u, %u] range. Using %u\n",
+			min, max, val);
+	}
+	if (val != ctx->tx_max)
+		dev_info(&dev->intf->dev, "setting tx_max = %u\n", val);
+	ctx->tx_max = val;
+}
+
 static int cdc_ncm_setup(struct usbnet *dev)
 {
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -132,37 +187,8 @@ static int cdc_ncm_setup(struct usbnet *dev)
 			(ctx->tx_max_datagrams > CDC_NCM_DPT_DATAGRAMS_MAX))
 		ctx->tx_max_datagrams = CDC_NCM_DPT_DATAGRAMS_MAX;
 
-	/* verify maximum size of received NTB in bytes */
-	if (ctx->rx_max < USB_CDC_NCM_NTB_MIN_IN_SIZE) {
-		dev_dbg(&dev->intf->dev, "Using min receive length=%d\n",
-			USB_CDC_NCM_NTB_MIN_IN_SIZE);
-		ctx->rx_max = USB_CDC_NCM_NTB_MIN_IN_SIZE;
-	}
-
-	if (ctx->rx_max > CDC_NCM_NTB_MAX_SIZE_RX) {
-		dev_dbg(&dev->intf->dev, "Using default maximum receive length=%d\n",
-			CDC_NCM_NTB_MAX_SIZE_RX);
-		ctx->rx_max = CDC_NCM_NTB_MAX_SIZE_RX;
-	}
-
-	/* inform device about NTB input size changes */
-	if (ctx->rx_max != le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize)) {
-		__le32 dwNtbInMaxSize = cpu_to_le32(ctx->rx_max);
-
-		err = usbnet_write_cmd(dev, USB_CDC_SET_NTB_INPUT_SIZE,
-				       USB_TYPE_CLASS | USB_DIR_OUT
-				       | USB_RECIP_INTERFACE,
-				       0, iface_no, &dwNtbInMaxSize, 4);
-		if (err < 0)
-			dev_dbg(&dev->intf->dev, "Setting NTB Input Size failed\n");
-	}
-
-	/* verify maximum size of transmitted NTB in bytes */
-	if (ctx->tx_max > CDC_NCM_NTB_MAX_SIZE_TX) {
-		dev_dbg(&dev->intf->dev, "Using default maximum transmit length=%d\n",
-			CDC_NCM_NTB_MAX_SIZE_TX);
-		ctx->tx_max = CDC_NCM_NTB_MAX_SIZE_TX;
-	}
+	/* clamp rx_max and tx_max and inform device */
+	cdc_ncm_update_rxtx_max(dev, le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize), le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize));
 
 	/*
 	 * verify that the structure alignment is:
