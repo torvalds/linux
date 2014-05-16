@@ -82,7 +82,7 @@ static bool rtl8723au_set_queue_pipe_mapping(struct rtw_adapter *pAdapter,
 	return result;
 }
 
-static void rtl8723au_interface_configure(struct rtw_adapter *padapter)
+void rtl8723au_chip_configure(struct rtw_adapter *padapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
@@ -1745,7 +1745,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->InitSwLeds = NULL;
 	pHalFunc->DeInitSwLeds = NULL;
 
-	pHalFunc->intf_chip_configure = &rtl8723au_interface_configure;
 	pHalFunc->GetHalDefVarHandler = &GetHalDefVar8192CUsb;
 	pHalFunc->SetHalDefVarHandler = &SetHalDefVar8192CUsb;
 	pHalFunc->UpdateRAMaskHandler = &UpdateHalRAMask8192CUsb;

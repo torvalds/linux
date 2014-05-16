@@ -22,12 +22,6 @@
 #include <usb_hal.h>
 #include <rtl8723a_hal.h>
 
-void rtw_hal_chip_configure23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.intf_chip_configure)
-		padapter->HalFunc.intf_chip_configure(padapter);
-}
-
 void	rtw_hal_sw_led_init23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.InitSwLeds)

@@ -73,8 +73,6 @@ struct hal_ops {
 	void (*InitSwLeds)(struct rtw_adapter *padapter);
 	void (*DeInitSwLeds)(struct rtw_adapter *padapter);
 
-	void (*intf_chip_configure)(struct rtw_adapter *padapter);
-
 	void (*enable_interrupt)(struct rtw_adapter *padapter);
 	void (*disable_interrupt)(struct rtw_adapter *padapter);
 	s32 (*interrupt_handler)(struct rtw_adapter *padapter);
@@ -178,8 +176,6 @@ u32 rtw_hal_power_on23a(struct rtw_adapter *padapter);
 uint rtw_hal_init23a(struct rtw_adapter *padapter);
 uint rtw_hal_deinit23a(struct rtw_adapter *padapter);
 void rtw_hal_stop(struct rtw_adapter *padapter);
-
-void rtw_hal_chip_configure23a(struct rtw_adapter *padapter);
 
 u8 rtw_hal_set_def_var23a(struct rtw_adapter *padapter,
 			  enum hal_def_variable eVariable,

@@ -629,7 +629,7 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtl8723a_read_chip_version(padapter);
 
 	/* step usb endpoint mapping */
-	rtw_hal_chip_configure23a(padapter);
+	rtl8723au_chip_configure(padapter);
 
 	/* step read efuse/eeprom data and get mac_addr */
 	rtl8723a_read_adapter_info(padapter);
