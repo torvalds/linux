@@ -147,9 +147,6 @@
 				<0x44e10f90 0x10>;
 			interrupts = <12 13 14>;
 			#dma-cells = <1>;
-			dma-channels = <64>;
-			ti,edma-regions = <4>;
-			ti,edma-slots = <256>;
 		};
 
 		gpio0: gpio@44e07000 {
