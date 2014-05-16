@@ -22,4 +22,8 @@ struct dyn_arch_ftrace {
 };
 #endif /*  CONFIG_DYNAMIC_FTRACE */
 
+unsigned long prepare_ftrace_return(unsigned long parent,
+				    unsigned long self_addr,
+				    unsigned long frame_pointer);
+
 #endif /* _ASM_SPARC64_FTRACE */
