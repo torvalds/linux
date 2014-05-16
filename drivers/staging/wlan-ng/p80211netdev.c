@@ -244,7 +244,7 @@ void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 #define CONV_TO_ETHER_FAILED	0x02
 
 /**
- * convert_frame_to_ether - conversion from 802.11 frame to ethernet frame
+ * p80211_convert_to_ether - conversion from 802.11 frame to ethernet frame
  * @wlandev: pointer to WLAN device
  * @skb: pointer to socket buffer
  *
@@ -252,7 +252,7 @@ void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
  *	    CONV_TO_ETHER_FAILED if conversion failed
  *	    CONV_TO_ETHER_SKIPPED if frame is ignored
  */
-static int convert_frame_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
+static int p80211_convert_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
 {
 	struct p80211_hdr_a3 *hdr;
 
@@ -314,7 +314,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 				netif_rx_ni(skb);
 				continue;
 			} else {
-				if (!convert_frame_to_ether(wlandev, skb))
+				if (!p80211_convert_to_ether(wlandev, skb))
 					continue;
 			}
 		}
