@@ -377,13 +377,9 @@ static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
 
 		ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
 	} else {
-		bool was_enabled = !(I915_READ(DEIMR) & DE_ERR_INT_IVB);
-
-		/* Change the state _after_ we've read out the current one. */
 		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
 
-		if (!was_enabled &&
-		    (I915_READ(GEN7_ERR_INT) & ERR_INT_FIFO_UNDERRUN(pipe))) {
+		if (I915_READ(GEN7_ERR_INT) & ERR_INT_FIFO_UNDERRUN(pipe)) {
 			DRM_ERROR("uncleared fifo underrun on pipe %c\n",
 				  pipe_name(pipe));
 		}
@@ -461,14 +457,9 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
 
 		ibx_enable_display_interrupt(dev_priv, SDE_ERROR_CPT);
 	} else {
-		uint32_t tmp = I915_READ(SERR_INT);
-		bool was_enabled = !(I915_READ(SDEIMR) & SDE_ERROR_CPT);
-
-		/* Change the state _after_ we've read out the current one. */
 		ibx_disable_display_interrupt(dev_priv, SDE_ERROR_CPT);
 
-		if (!was_enabled &&
-		    (tmp & SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder))) {
+		if (I915_READ(SERR_INT) & SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder)) {
 			DRM_ERROR("uncleared pch fifo underrun on pch transcoder %c\n",
 				  transcoder_name(pch_transcoder));
 		}
