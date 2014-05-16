@@ -233,7 +233,6 @@ struct edma {
 	unsigned	num_region;
 	unsigned	num_slots;
 	unsigned	num_tc;
-	unsigned	num_cc;
 	enum dma_event_q 	default_queue;
 
 	/* list of channels with no even trigger; terminated by "-1" */
@@ -1499,7 +1498,6 @@ static int edma_of_parse_dt(struct device *dev,
 		return ret;
 	pdata->n_slot = value;
 
-	pdata->n_cc = 1;
 	pdata->n_tc = 3;
 
 	rsv_info = devm_kzalloc(dev, sizeof(struct edma_rsv_info), GFP_KERNEL);
@@ -1645,8 +1643,6 @@ static int edma_probe(struct platform_device *pdev)
 							EDMA_MAX_DMACH);
 		edma_cc[j]->num_slots = min_t(unsigned, info[j]->n_slot,
 							EDMA_MAX_PARAMENTRY);
-		edma_cc[j]->num_cc = min_t(unsigned, info[j]->n_cc,
-							EDMA_MAX_CC);
 		edma_cc[j]->num_tc = info[j]->n_tc;
 
 		edma_cc[j]->default_queue = info[j]->default_queue;
