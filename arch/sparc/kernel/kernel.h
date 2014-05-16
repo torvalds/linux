@@ -27,6 +27,7 @@ static inline unsigned long kimage_addr_to_ra(const char *p)
 
 #ifdef CONFIG_SPARC32
 /* setup_32.c */
+struct linux_romvec;
 void sparc32_start_kernel(struct linux_romvec *rp);
 
 /* cpu.c */
