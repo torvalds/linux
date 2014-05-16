@@ -23,8 +23,11 @@
 #ifndef MAC802154_H
 #define MAC802154_H
 
+#include <linux/mutex.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
+
+#include "llsec.h"
 
 /* mac802154 device private data */
 struct mac802154_priv {
@@ -91,6 +94,13 @@ struct mac802154_sub_if_data {
 	u8 bsn;
 	/* MAC DSN field */
 	u8 dsn;
+
+	/* protects sec from concurrent access by netlink. access by
+	 * encrypt/decrypt/header_create safe without additional protection.
+	 */
+	struct mutex sec_mtx;
+
+	struct mac802154_llsec sec;
 };
 
 #define mac802154_to_priv(_hw)	container_of(_hw, struct mac802154_priv, hw)
