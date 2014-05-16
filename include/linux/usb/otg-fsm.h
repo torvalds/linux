@@ -40,6 +40,14 @@
 #define PROTO_HOST	(1)
 #define PROTO_GADGET	(2)
 
+#define OTG_STS_SELECTOR	0xF000	/* OTG status selector, according to
+					 * OTG and EH 2.0 Charpter 6.2.3
+					 * Table:6-4
+					 */
+#define HOST_REQUEST_FLAG	1	/* Host request flag, according to
+					 * OTG and EH 2.0 Charpter 6.2.3
+					 * Table:6-5
+					 */
 enum otg_fsm_timer {
 	/* Standard OTG timers */
 	A_WAIT_VRISE,
@@ -243,6 +251,7 @@ static inline int otg_start_gadget(struct otg_fsm *fsm, int on)
 	return fsm->ops->start_gadget(fsm, on);
 }
 
+int otg_hnp_polling(struct otg_fsm *fsm);
 int otg_statemachine(struct otg_fsm *fsm);
 
 #endif /* __LINUX_USB_OTG_FSM_H */
