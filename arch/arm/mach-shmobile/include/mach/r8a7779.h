@@ -10,7 +10,6 @@ enum {
 	HPBDMA_SLAVE_SDHI0_RX,
 };
 
-extern void r8a7779_init_delay(void);
 extern void r8a7779_init_irq_extpin(int irlm);
 extern void r8a7779_init_irq_extpin_dt(int irlm);
 extern void r8a7779_init_irq_dt(void);

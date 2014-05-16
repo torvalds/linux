@@ -737,11 +737,6 @@ void __init r8a7779_init_irq_dt(void)
 	__raw_writel(0x003fee3f, INT2SMSKCR4);
 }
 
-void __init r8a7779_init_delay(void)
-{
-	shmobile_setup_delay(1000, 2, 4); /* Cortex-A9 @ 1000MHz */
-}
-
 void __init r8a7779_add_standard_devices_dt(void)
 {
 	platform_add_devices(r8a7779_devices_dt,
