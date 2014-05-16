@@ -17,6 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/of_gpio.h>
 
 #include <video/omapdss.h>
 #include <video/omap-panel-data.h>
@@ -376,7 +377,8 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_data_lines(in, ddata->data_lines);
+	if (ddata->data_lines)
+		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->videomode);
 
 	r = in->ops.dpi->enable(in);
@@ -489,6 +491,31 @@ static int tpo_td043_probe_pdata(struct spi_device *spi)
 	return 0;
 }
 
+static int tpo_td043_probe_of(struct spi_device *spi)
+{
+	struct device_node *node = spi->dev.of_node;
+	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
+	struct omap_dss_device *in;
+	int gpio;
+
+	gpio = of_get_named_gpio(node, "reset-gpios", 0);
+	if (!gpio_is_valid(gpio)) {
+		dev_err(&spi->dev, "failed to parse enable gpio\n");
+		return gpio;
+	}
+	ddata->nreset_gpio = gpio;
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&spi->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
+
+	return 0;
+}
+
 static int tpo_td043_probe(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata;
@@ -516,6 +543,10 @@ static int tpo_td043_probe(struct spi_device *spi)
 
 	if (dev_get_platdata(&spi->dev)) {
 		r = tpo_td043_probe_pdata(spi);
+		if (r)
+			return r;
+	} else if (spi->dev.of_node) {
+		r = tpo_td043_probe_of(spi);
 		if (r)
 			return r;
 	} else {
@@ -629,11 +660,19 @@ static int tpo_td043_spi_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(tpo_td043_spi_pm,
 	tpo_td043_spi_suspend, tpo_td043_spi_resume);
 
+static const struct of_device_id tpo_td043_of_match[] = {
+	{ .compatible = "omapdss,tpo,td043mtea1", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, tpo_td043_of_match);
+
 static struct spi_driver tpo_td043_spi_driver = {
 	.driver = {
 		.name	= "panel-tpo-td043mtea1",
 		.owner	= THIS_MODULE,
 		.pm	= &tpo_td043_spi_pm,
+		.of_match_table = tpo_td043_of_match,
 	},
 	.probe	= tpo_td043_probe,
 	.remove	= tpo_td043_remove,
@@ -641,6 +680,7 @@ static struct spi_driver tpo_td043_spi_driver = {
 
 module_spi_driver(tpo_td043_spi_driver);
 
+MODULE_ALIAS("spi:tpo,td043mtea1");
 MODULE_AUTHOR("Gražvydas Ignotas <notasas@gmail.com>");
 MODULE_DESCRIPTION("TPO TD043MTEA1 LCD Driver");
 MODULE_LICENSE("GPL");
