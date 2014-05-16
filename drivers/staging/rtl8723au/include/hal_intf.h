@@ -138,8 +138,6 @@ struct hal_ops {
 					   u8 *data);
 	bool (*Efuse_PgPacketWrite23a_BT)(struct rtw_adapter *padapter,
 					  u8 offset, u8 word_en, u8 *data);
-
-	void (*hal_notch_filter)(struct rtw_adapter *adapter, bool enable);
 };
 
 enum rt_eeprom_type {
@@ -245,8 +243,6 @@ s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter);
 void	rtw_hal_set_bwmode23a(struct rtw_adapter *padapter,
 			   enum ht_channel_width Bandwidth, u8 Offset);
 void	rtw_hal_set_chan23a(struct rtw_adapter *padapter, u8 channel);
-
-void rtw_hal_notch_filter23a(struct rtw_adapter *adapter, bool enable);
 
 void hw_var_set_correct_tsf(struct rtw_adapter *padapter);
 void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter);

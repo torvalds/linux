@@ -20,6 +20,7 @@
 #include <hal_intf.h>
 
 #include <usb_hal.h>
+#include <rtl8723a_hal.h>
 
 void rtw_hal_chip_configure23a(struct rtw_adapter *padapter)
 {
@@ -69,7 +70,7 @@ uint	 rtw_hal_init23a(struct rtw_adapter *padapter)
 		padapter->hw_init_completed = true;
 
 		if (padapter->registrypriv.notch_filter == 1)
-			rtw_hal_notch_filter23a(padapter, 1);
+			rtl8723a_notch_filter(padapter, 1);
 	} else {
 		padapter->hw_init_completed = false;
 		DBG_8723A("rtw_hal_init23a: hal__init fail\n");
@@ -264,10 +265,4 @@ void rtw_hal_bcn_related_reg_setting23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.SetBeaconRelatedRegistersHandler)
 		padapter->HalFunc.SetBeaconRelatedRegistersHandler(padapter);
-}
-
-void rtw_hal_notch_filter23a(struct rtw_adapter *adapter, bool enable)
-{
-	if (adapter->HalFunc.hal_notch_filter)
-		adapter->HalFunc.hal_notch_filter(adapter, enable);
 }

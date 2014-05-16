@@ -1639,7 +1639,7 @@ static void rtl8723a_SetHalODMVar(struct rtw_adapter *Adapter,
 	}
 }
 
-static void hal_notch_filter_8723a(struct rtw_adapter *adapter, bool enable)
+void rtl8723a_notch_filter(struct rtw_adapter *adapter, bool enable)
 {
 	if (enable) {
 		DBG_8723A("Enable notch filter\n");
@@ -1748,8 +1748,6 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->GetHalODMVarHandler = &rtl8723a_GetHalODMVar;
 	pHalFunc->SetHalODMVarHandler = &rtl8723a_SetHalODMVar;
-
-	pHalFunc->hal_notch_filter = &hal_notch_filter_8723a;
 }
 
 void rtl8723a_InitAntenna_Selection(struct rtw_adapter *padapter)
