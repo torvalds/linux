@@ -610,9 +610,9 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 }
 
 /* The hlen isn't include the IV */
-u32 rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
-		     struct xmit_frame *pxmitframe)
-{																	/*  exclude ICV */
+int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
+			struct xmit_frame *pxmitframe)
+{
 	u16	pnl;
 	u32	pnh;
 	u8	rc4key[16];
@@ -622,14 +622,13 @@ u32 rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 	struct arc4context mycontext;
 	int			curfragnum, length;
 	u32	prwskeylen;
-
 	u8	*pframe, *payload,*iv,*prwskey;
 	union pn48 dot11txpn;
 	struct	sta_info		*stainfo;
 	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
-	u32	res = _SUCCESS;
+	int res = _SUCCESS;
 
 	if (!pxmitframe->buf_addr)
 		return _FAIL;
@@ -716,10 +715,9 @@ u32 rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 }
 
 /* The hlen isn't include the IV */
-u32 rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
-		     struct recv_frame *precvframe)
+int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
+			struct recv_frame *precvframe)
 {
-	/*  exclude ICV */
 	u16 pnl;
 	u32 pnh;
 	u8   rc4key[16];
@@ -734,7 +732,7 @@ u32 rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 	struct	rx_pkt_attrib *prxattrib = &precvframe->attrib;
 	struct	security_priv *psecuritypriv = &padapter->securitypriv;
 	struct sk_buff * skb = precvframe->pkt;
-	u32	res = _SUCCESS;
+	int res = _SUCCESS;
 
 	pframe = skb->data;
 
@@ -1303,7 +1301,8 @@ static int aes_cipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 	return _SUCCESS;
 }
 
-u32 rtw_aes_encrypt23a(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
+int rtw_aes_encrypt23a(struct rtw_adapter *padapter,
+		       struct xmit_frame *pxmitframe)
 {	/*  exclude ICV */
 	/* Intermediate Buffers */
 	int curfragnum, length;
@@ -1314,7 +1313,7 @@ u32 rtw_aes_encrypt23a(struct rtw_adapter *padapter, struct xmit_frame *pxmitfra
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-	u32 res = _SUCCESS;
+	int res = _SUCCESS;
 
 	if (!pxmitframe->buf_addr)
 		return _FAIL;
@@ -1586,7 +1585,8 @@ static int aes_decipher(u8 *key, uint	hdrlen,
 	return res;
 }
 
-u32 rtw_aes_decrypt23a(struct rtw_adapter *padapter, struct recv_frame *precvframe)
+int rtw_aes_decrypt23a(struct rtw_adapter *padapter,
+		       struct recv_frame *precvframe)
 {	/*  exclude ICV */
 	struct sta_info *stainfo;
 	struct rx_pkt_attrib *prxattrib = &precvframe->attrib;
@@ -1594,7 +1594,7 @@ u32 rtw_aes_decrypt23a(struct rtw_adapter *padapter, struct recv_frame *precvfra
 	struct sk_buff *skb = precvframe->pkt;
 	int length;
 	u8 *pframe, *prwskey;	/*  *payload,*iv */
-	u32 res = _SUCCESS;
+	int res = _SUCCESS;
 
 	pframe = skb->data;
 	/* 4 start to encrypt each fragment */

@@ -323,15 +323,15 @@ void rtw_secgetmic23a(struct mic_data *pmicdata, u8 *dst);
 void rtw_seccalctkipmic23a(u8 *key, u8 *header, u8 *data, u32 data_len,
 			u8 *Miccode, u8 priorityi);
 
-u32 rtw_aes_encrypt23a(struct rtw_adapter *padapter,
+int rtw_aes_encrypt23a(struct rtw_adapter *padapter,
 		    struct xmit_frame *pxmitframe);
-u32 rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
+int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 		     struct xmit_frame *pxmitframe);
 void rtw_wep_encrypt23a(struct rtw_adapter *padapter,
 		     struct xmit_frame *pxmitframe);
-u32 rtw_aes_decrypt23a(struct rtw_adapter *padapter,
+int rtw_aes_decrypt23a(struct rtw_adapter *padapter,
 		    struct recv_frame *precvframe);
-u32 rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
+int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 		     struct recv_frame *precvframe);
 void rtw_wep_decrypt23a(struct rtw_adapter *padapter, struct recv_frame *precvframe);
 
