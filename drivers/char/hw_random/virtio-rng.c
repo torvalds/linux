@@ -95,7 +95,7 @@ static int probe_common(struct virtio_device *vdev)
 	int err, i;
 	struct virtrng_info *vi = NULL;
 
-	vi = kmalloc(sizeof(struct virtrng_info), GFP_KERNEL);
+	vi = kzalloc(sizeof(struct virtrng_info), GFP_KERNEL);
 	vi->hwrng.name = kmalloc(40, GFP_KERNEL);
 	init_completion(&vi->have_data);
 
