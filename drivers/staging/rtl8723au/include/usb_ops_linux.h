@@ -21,16 +21,11 @@
 
 #define MAX_USBCTRL_VENDORREQ_TIMES	10
 
-unsigned int ffaddr2pipehdl23a(struct dvobj_priv *pdvobj, u32 addr);
-
-void usb_read_port_cancel23a(struct rtw_adapter *adapter);
-
-int usb_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
-		      struct xmit_buf *wmem);
-void usb_write_port23a_cancel(struct rtw_adapter *adapter);
 int rtl8723a_usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 			   struct recv_buf *precvbuf);
+void rtl8723a_usb_read_port_cancel(struct rtw_adapter *padapter);
 int rtl8723a_usb_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 			    struct xmit_buf *pxmitbuf);
+void rtl8723a_usb_write_port_cancel(struct rtw_adapter *padapter);
 
 #endif

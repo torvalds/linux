@@ -1261,7 +1261,7 @@ int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
 		 ("\n ===> usb_rx_deinit\n"));
-	rtw_read_port_cancel(Adapter);
+	rtl8723a_usb_read_port_cancel(Adapter);
 	pHalData->IntrMask[0] = rtw_read32(Adapter, REG_USB_HIMR);
 	MSG_8723A("%s pHalData->IntrMask = 0x%04x\n", __func__,
 		  pHalData->IntrMask[0]);

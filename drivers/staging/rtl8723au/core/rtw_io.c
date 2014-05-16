@@ -114,25 +114,3 @@ int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr , u32 length , u8 *pdat
 	else
 		return _SUCCESS;
 }
-
-void _rtw_read_port23a_cancel(struct rtw_adapter *adapter)
-{
-	void (*_read_port_cancel)(struct rtw_adapter *adapter);
-	struct _io_ops *io_ops = &adapter->io_ops;
-
-	_read_port_cancel = io_ops->_read_port_cancel;
-
-	if (_read_port_cancel)
-		_read_port_cancel(adapter);
-}
-
-void _rtw_write_port23a_cancel(struct rtw_adapter *adapter)
-{
-	void (*_write_port_cancel)(struct rtw_adapter *adapter);
-	struct _io_ops *io_ops = &adapter->io_ops;
-
-	_write_port_cancel = io_ops->_write_port_cancel;
-
-	if (_write_port_cancel)
-		_write_port_cancel(adapter);
-}

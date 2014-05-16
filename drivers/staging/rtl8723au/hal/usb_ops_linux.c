@@ -848,9 +848,6 @@ void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
 	pops->_write32 = &usb_write32;
 	pops->_writeN = &usb_writeN;
 
-	pops->_read_port_cancel = &usb_read_port_cancel23a;
-	pops->_write_port_cancel = &usb_write_port23a_cancel;
-
 	pops->_read_interrupt = &usb_read_interrupt;
 }
 

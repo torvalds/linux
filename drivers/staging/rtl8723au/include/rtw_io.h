@@ -111,9 +111,6 @@ struct _io_ops
 		       u8 *pdata);
 
 	int (*_read_interrupt)(struct rtw_adapter *adapter, u32 addr);
-
-	void (*_read_port_cancel)(struct rtw_adapter *adapter);
-	void (*_write_port_cancel)(struct rtw_adapter *adapter);
 };
 
 struct io_req {
@@ -273,26 +270,20 @@ int dbg_rtw_writeN23a(struct rtw_adapter *adapter, u32 addr ,u32 length , u8 *da
 #define rtw_read8(adapter, addr) dbg_rtw_read823a((adapter), (addr), __FUNCTION__, __LINE__)
 #define rtw_read16(adapter, addr) dbg_rtw_read1623a((adapter), (addr), __FUNCTION__, __LINE__)
 #define rtw_read32(adapter, addr) dbg_rtw_read3223a((adapter), (addr), __FUNCTION__, __LINE__)
-#define rtw_read_port_cancel(adapter) _rtw_read_port23a_cancel((adapter))
 
 #define  rtw_write8(adapter, addr, val) dbg_rtw_write823a((adapter), (addr), (val), __FUNCTION__, __LINE__)
 #define  rtw_write16(adapter, addr, val) dbg_rtw_write1623a((adapter), (addr), (val), __FUNCTION__, __LINE__)
 #define  rtw_write32(adapter, addr, val) dbg_rtw_write3223a((adapter), (addr), (val), __FUNCTION__, __LINE__)
 #define  rtw_writeN(adapter, addr, length, data) dbg_rtw_writeN23a((adapter), (addr), (length), (data), __FUNCTION__, __LINE__)
-
-#define rtw_write_port_cancel(adapter) _rtw_write_port23a_cancel(adapter)
 #else /* DBG_IO */
 #define rtw_read8(adapter, addr) _rtw_read823a((adapter), (addr))
 #define rtw_read16(adapter, addr) _rtw_read1623a((adapter), (addr))
 #define rtw_read32(adapter, addr) _rtw_read3223a((adapter), (addr))
-#define rtw_read_port_cancel(adapter) _rtw_read_port23a_cancel((adapter))
 
 #define  rtw_write8(adapter, addr, val) _rtw_write823a((adapter), (addr), (val))
 #define  rtw_write16(adapter, addr, val) _rtw_write1623a((adapter), (addr), (val))
 #define  rtw_write32(adapter, addr, val) _rtw_write3223a((adapter), (addr), (val))
 #define  rtw_writeN(adapter, addr, length, data) _rtw_writeN23a((adapter), (addr), (length), (data))
-
-#define rtw_write_port_cancel(adapter) _rtw_write_port23a_cancel((adapter))
 #endif /* DBG_IO */
 
 #define PlatformEFIOWrite1Byte(_a,_b,_c)		\
