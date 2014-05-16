@@ -43,8 +43,6 @@ static inline unsigned long device_to_mask(struct device *dev)
 	return 0xfffffffful;
 }
 
-extern struct dma_map_ops *dma_ops;
-
 /*
  * Available generic sets of operations
  */
@@ -52,15 +50,9 @@ extern struct dma_map_ops dma_direct_ops;
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
-	/* We don't handle the NULL dev case for ISA for now. We could
-	 * do it via an out of line call but it is not needed for now. The
-	 * only ISA DMA device we support is the floppy and we have a hack
-	 * in the floppy driver directly to get a device for us.
-	 */
-	if (unlikely(!dev) || !dev->archdata.dma_ops)
-		return NULL;
-
-	return dev->archdata.dma_ops;
+	if (dev && dev->archdata.dma_ops)
+		return dev->archdata.dma_ops;
+	return &dma_direct_ops;
 }
 
 static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)

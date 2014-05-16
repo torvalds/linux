@@ -229,31 +229,3 @@ static int __init debugfs_tlb(void)
 device_initcall(debugfs_tlb);
 # endif
 #endif
-
-static int dflt_bus_notify(struct notifier_block *nb,
-				unsigned long action, void *data)
-{
-	struct device *dev = data;
-
-	/* We are only intereted in device addition */
-	if (action != BUS_NOTIFY_ADD_DEVICE)
-		return 0;
-
-	set_dma_ops(dev, &dma_direct_ops);
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block dflt_plat_bus_notifier = {
-	.notifier_call = dflt_bus_notify,
-	.priority = INT_MAX,
-};
-
-static int __init setup_bus_notifier(void)
-{
-	bus_register_notifier(&platform_bus_type, &dflt_plat_bus_notifier);
-
-	return 0;
-}
-
-arch_initcall(setup_bus_notifier);
