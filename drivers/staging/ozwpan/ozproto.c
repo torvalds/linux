@@ -765,7 +765,7 @@ static char *oz_get_next_device_name(char *s, char *dname, int max_size)
 int oz_protocol_init(char *devs)
 {
 	skb_queue_head_init(&g_rx_queue);
-	if (devs && (devs[0] == '*')) {
+	if (devs[0] == '*') {
 		oz_binding_add(NULL);
 	} else {
 		char d[32];
