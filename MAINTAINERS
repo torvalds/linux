@@ -1617,12 +1617,6 @@ S:	Supported
 F:	drivers/misc/atmel_tclib.c
 F:	drivers/clocksource/tcb_clksrc.c
 
-ATMEL TSADCC DRIVER
-M:	Josh Wu <josh.wu@atmel.com>
-L:	linux-input@vger.kernel.org
-S:	Supported
-F:	drivers/input/touchscreen/atmel_tsadcc.c
-
 ATMEL USBA UDC DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
