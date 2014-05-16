@@ -4594,6 +4594,8 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc->active = true;
 
+	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
@@ -4617,7 +4619,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
-	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
@@ -4687,6 +4688,9 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc->active = true;
 
+	if (!IS_GEN2(dev))
+		intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
@@ -4699,12 +4703,21 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
-	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
 
 	intel_crtc_enable_planes(crtc);
+
+	/*
+	 * Gen2 reports pipe underruns whenever all planes are disabled.
+	 * So don't enable underrun reporting before at least some planes
+	 * are enabled.
+	 * FIXME: Need to fix the logic to work when we turn off all planes
+	 * but leave the pipe running.
+	 */
+	if (IS_GEN2(dev))
+		intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
 
 	drm_crtc_vblank_on(crtc);
 
@@ -4738,6 +4751,15 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
+	/*
+	 * Gen2 reports pipe underruns whenever all planes are disabled.
+	 * So diasble underrun reporting before all the planes get disabled.
+	 * FIXME: Need to fix the logic to work when we turn off all planes
+	 * but leave the pipe running.
+	 */
+	if (IS_GEN2(dev))
+		intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
+
 	intel_crtc_disable_planes(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
@@ -4750,7 +4772,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	if (IS_GEN2(dev))
 		intel_wait_for_vblank(dev, pipe);
 
-	intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
 	intel_disable_pipe(dev_priv, pipe);
 
 	i9xx_pfit_disable(intel_crtc);
@@ -4767,6 +4788,9 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		else
 			i9xx_disable_pll(dev_priv, pipe);
 	}
+
+	if (!IS_GEN2(dev))
+		intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
 
 	intel_crtc->active = false;
 	intel_update_watermarks(crtc);
