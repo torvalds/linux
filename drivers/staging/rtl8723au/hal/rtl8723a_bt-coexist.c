@@ -4662,8 +4662,8 @@ bthci_StateConnected(struct rtw_adapter *padapter,
 
 		/*  for rate adaptive */
 
-		if (padapter->HalFunc.UpdateRAMaskHandler)
-			padapter->HalFunc.UpdateRAMaskHandler(padapter, MAX_FW_SUPPORT_MACID_NUM-1-EntryNum, 0);
+		rtl8723a_update_ramask(padapter,
+				       MAX_FW_SUPPORT_MACID_NUM-1-EntryNum, 0);
 
 		HalSetBrateCfg23a(padapter, padapter->mlmepriv.cur_network.network.SupportedRates);
 		BTDM_SetFwChnlInfo(padapter, RT_MEDIA_CONNECT);

@@ -1612,8 +1612,8 @@ static u8 SetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
 	return bResult;
 }
 
-static void UpdateHalRAMask8192CUsb(struct rtw_adapter *padapter,
-				    u32 mac_id, u8 rssi_level)
+void rtl8723a_update_ramask(struct rtw_adapter *padapter,
+			    u32 mac_id, u8 rssi_level)
 {
 	u8	init_rate = 0;
 	u8	networkType, raid;
@@ -1778,6 +1778,5 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 
 	pHalFunc->GetHalDefVarHandler = &GetHalDefVar8192CUsb;
 	pHalFunc->SetHalDefVarHandler = &SetHalDefVar8192CUsb;
-	pHalFunc->UpdateRAMaskHandler = &UpdateHalRAMask8192CUsb;
 	return 0;
 }

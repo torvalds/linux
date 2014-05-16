@@ -76,9 +76,6 @@ struct hal_ops {
 	u8 (*SetHalDefVarHandler)(struct rtw_adapter *padapter,
 				  enum hal_def_variable eVariable,
 				  void *pValue);
-
-	void (*UpdateRAMaskHandler)(struct rtw_adapter *padapter,
-				    u32 mac_id, u8 rssi_level);
 };
 
 enum rt_eeprom_type {

@@ -87,10 +87,8 @@ void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level)
 #ifdef CONFIG_8723AU_AP_MODE
 		add_RATid23a(padapter, psta, rssi_level);
 #endif
-	} else {
-		if (padapter->HalFunc.UpdateRAMaskHandler)
-			padapter->HalFunc.UpdateRAMaskHandler(padapter, psta->mac_id, rssi_level);
-	}
+	} else
+		rtl8723a_update_ramask(padapter, psta->mac_id, rssi_level);
 }
 
 s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter)
