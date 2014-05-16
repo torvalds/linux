@@ -1733,9 +1733,6 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->Add_RateATid = &rtl8723a_add_rateatid;
 
-	pHalFunc->read_rfreg = &PHY_QueryRFReg;
-	pHalFunc->write_rfreg = &PHY_SetRFReg;
-
 	/*  Efuse related function */
 	pHalFunc->EfusePowerSwitch = &Hal_EfusePowerSwitch;
 	pHalFunc->ReadEFuse = &Hal_ReadEFuse;
