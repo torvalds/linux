@@ -41,9 +41,11 @@
 #define P_EDPVCO	3
 #define P_GPLL1		4
 #define P_DSI0PLL	4
+#define P_DSI0PLL_BYTE	4
 #define P_MMPLL2	4
 #define P_MMPLL3	4
 #define P_DSI1PLL	5
+#define P_DSI1PLL_BYTE	5
 
 static const u8 mmcc_xo_mmpll0_mmpll1_gpll0_map[] = {
 	[P_XO]		= 0,
@@ -159,6 +161,24 @@ static const char *mmcc_xo_dsi_hdmi_edp_gpll0[] = {
 	"gpll0_vote",
 	"dsi0pll",
 	"dsi1pll",
+};
+
+static const u8 mmcc_xo_dsibyte_hdmi_edp_gpll0_map[] = {
+	[P_XO]			= 0,
+	[P_EDPLINK]		= 4,
+	[P_HDMIPLL]		= 3,
+	[P_GPLL0]		= 5,
+	[P_DSI0PLL_BYTE]	= 1,
+	[P_DSI1PLL_BYTE]	= 2,
+};
+
+static const char *mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
+	"xo",
+	"edp_link_clk",
+	"hdmipll",
+	"gpll0_vote",
+	"dsi0pllbyte",
+	"dsi1pllbyte",
 };
 
 #define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
@@ -500,15 +520,8 @@ static struct clk_rcg2 jpeg2_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_mdss_pclk0_clk[] = {
-	F(125000000, P_DSI0PLL, 2, 0, 0),
-	F(250000000, P_DSI0PLL, 1, 0, 0),
-	{ }
-};
-
-static struct freq_tbl ftbl_mdss_pclk1_clk[] = {
-	F(125000000, P_DSI1PLL, 2, 0, 0),
-	F(250000000, P_DSI1PLL, 1, 0, 0),
+static struct freq_tbl pixel_freq_tbl[] = {
+	{ .src = P_DSI0PLL },
 	{ }
 };
 
@@ -517,12 +530,13 @@ static struct clk_rcg2 pclk0_clk_src = {
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_pclk0_clk,
+	.freq_tbl = pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk0_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_pixel_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -531,12 +545,13 @@ static struct clk_rcg2 pclk1_clk_src = {
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_pclk1_clk,
+	.freq_tbl = pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk1_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_pixel_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -754,41 +769,36 @@ static struct clk_rcg2 cpp_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_mdss_byte0_clk[] = {
-	F(93750000, P_DSI0PLL, 8, 0, 0),
-	F(187500000, P_DSI0PLL, 4, 0, 0),
-	{ }
-};
-
-static struct freq_tbl ftbl_mdss_byte1_clk[] = {
-	F(93750000, P_DSI1PLL, 8, 0, 0),
-	F(187500000, P_DSI1PLL, 4, 0, 0),
+static struct freq_tbl byte_freq_tbl[] = {
+	{ .src = P_DSI0PLL_BYTE },
 	{ }
 };
 
 static struct clk_rcg2 byte0_clk_src = {
 	.cmd_rcgr = 0x2120,
 	.hid_width = 5,
-	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_byte0_clk,
+	.parent_map = mmcc_xo_dsibyte_hdmi_edp_gpll0_map,
+	.freq_tbl = byte_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "byte0_clk_src",
-		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
+		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_byte_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
 static struct clk_rcg2 byte1_clk_src = {
 	.cmd_rcgr = 0x2140,
 	.hid_width = 5,
-	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_byte1_clk,
+	.parent_map = mmcc_xo_dsibyte_hdmi_edp_gpll0_map,
+	.freq_tbl = byte_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "byte1_clk_src",
-		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
+		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_byte_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -826,12 +836,12 @@ static struct clk_rcg2 edplink_clk_src = {
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
 		.num_parents = 6,
 		.ops = &clk_rcg2_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct freq_tbl ftbl_mdss_edppixel_clk[] = {
-	F(175000000, P_EDPVCO, 2, 0, 0),
-	F(350000000, P_EDPVCO, 11, 0, 0),
+static struct freq_tbl edp_pixel_freq_tbl[] = {
+	{ .src = P_EDPVCO },
 	{ }
 };
 
@@ -840,12 +850,12 @@ static struct clk_rcg2 edppixel_clk_src = {
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_map,
-	.freq_tbl = ftbl_mdss_edppixel_clk,
+	.freq_tbl = edp_pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "edppixel_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_edp_pixel_ops,
 	},
 };
 
@@ -857,11 +867,11 @@ static struct freq_tbl ftbl_mdss_esc0_1_clk[] = {
 static struct clk_rcg2 esc0_clk_src = {
 	.cmd_rcgr = 0x2160,
 	.hid_width = 5,
-	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
+	.parent_map = mmcc_xo_dsibyte_hdmi_edp_gpll0_map,
 	.freq_tbl = ftbl_mdss_esc0_1_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "esc0_clk_src",
-		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
+		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
 		.ops = &clk_rcg2_ops,
 	},
@@ -870,26 +880,18 @@ static struct clk_rcg2 esc0_clk_src = {
 static struct clk_rcg2 esc1_clk_src = {
 	.cmd_rcgr = 0x2180,
 	.hid_width = 5,
-	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
+	.parent_map = mmcc_xo_dsibyte_hdmi_edp_gpll0_map,
 	.freq_tbl = ftbl_mdss_esc0_1_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "esc1_clk_src",
-		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
+		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
 		.ops = &clk_rcg2_ops,
 	},
 };
 
-static struct freq_tbl ftbl_mdss_extpclk_clk[] = {
-	F(25200000, P_HDMIPLL, 1, 0, 0),
-	F(27000000, P_HDMIPLL, 1, 0, 0),
-	F(27030000, P_HDMIPLL, 1, 0, 0),
-	F(65000000, P_HDMIPLL, 1, 0, 0),
-	F(74250000, P_HDMIPLL, 1, 0, 0),
-	F(108000000, P_HDMIPLL, 1, 0, 0),
-	F(148500000, P_HDMIPLL, 1, 0, 0),
-	F(268500000, P_HDMIPLL, 1, 0, 0),
-	F(297000000, P_HDMIPLL, 1, 0, 0),
+static struct freq_tbl extpclk_freq_tbl[] = {
+	{ .src = P_HDMIPLL },
 	{ }
 };
 
@@ -897,12 +899,13 @@ static struct clk_rcg2 extpclk_clk_src = {
 	.cmd_rcgr = 0x2060,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_extpclk_clk,
+	.freq_tbl = extpclk_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "extpclk_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_byte_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
