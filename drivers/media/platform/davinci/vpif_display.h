@@ -13,8 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef DAVINCIHD_DISPLAY_H
-#define DAVINCIHD_DISPLAY_H
+#ifndef VPIF_DISPLAY_H
+#define VPIF_DISPLAY_H
 
 /* Header files */
 #include <media/videobuf2-dma-contig.h>
@@ -92,7 +92,7 @@ struct common_obj {
 	u32 cbtm_off;				/* offset of C bottom from the
 						 * starting of the buffer */
 	/* Function pointer to set the addresses */
-	void (*set_addr) (unsigned long, unsigned long,
+	void (*set_addr)(unsigned long, unsigned long,
 				unsigned long, unsigned long);
 	u32 height;
 	u32 width;
@@ -124,4 +124,4 @@ struct vpif_device {
 	struct vpif_display_config *config;
 };
 
-#endif				/* DAVINCIHD_DISPLAY_H */
+#endif				/* VPIF_DISPLAY_H */
