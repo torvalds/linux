@@ -62,7 +62,7 @@
 #include <linux/rockchip/iomap.h>
 #endif
 #ifdef CONFIG_RK32_MIPI_DSI
-#define	MIPI_DBG(x...)	printk(KERN_INFO x)
+#define	MIPI_DBG(x...)	//printk(KERN_INFO x)
 #elif defined CONFIG_RK_3288_DSI_UBOOT
 #define	MIPI_DBG(x...)	//printf( x)
 #define	printk(x...)	//printf( x)
@@ -71,7 +71,7 @@
 #endif
 
 #ifdef CONFIG_MIPI_DSI_LINUX
-#define	MIPI_TRACE(x...)	printk(KERN_INFO x)
+#define	MIPI_TRACE(x...)	//printk(KERN_INFO x)
 #else
 #define	MIPI_TRACE(...)    \
 	do\
@@ -90,7 +90,7 @@
 *
 */
 
-#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.0 2014-05-08"
+#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.0 2014-05-16"
 
 static struct dsi *dsi0;
 static struct dsi *dsi1;
@@ -309,7 +309,7 @@ static int rk32_phy_init(struct dsi *dsi)
 	test_data[0] = 0x80 | val << 3 | 0x3;
 	rk32_dwc_phy_test_wr(dsi, 0x10, test_data, 1);
 	
-	test_data[0] = 0xf;
+	test_data[0] = 0x8;
 	rk32_dwc_phy_test_wr(dsi, 0x11, test_data, 1); 
 	
 	test_data[0] = 0x80 | 0x40;
@@ -1594,11 +1594,11 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 		return dsi->host.irq;
 	}
 	
-	ret = request_irq(dsi->host.irq, rk32_mipi_dsi_irq_handler, 0,dev_name(&pdev->dev), dsi);
-	if(ret) {
-		dev_err(&pdev->dev, "request mipi_dsi irq fail\n");
-		return -EINVAL;
-	}
+	//ret = request_irq(dsi->host.irq, rk32_mipi_dsi_irq_handler, 0,dev_name(&pdev->dev), dsi);
+	//if(ret) {
+	//	dev_err(&pdev->dev, "request mipi_dsi irq fail\n");
+	//	return -EINVAL;
+	//}
 	printk("dsi->host.irq =%d\n",dsi->host.irq); 
 
 	disable_irq(dsi->host.irq);
@@ -1663,7 +1663,9 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	}	
 
 	if(id == 1){
-		rk32_init_phy_mode(dsi_screen->lcdc_id);
+
+		if(!support_uboot_display())
+			rk32_init_phy_mode(dsi_screen->lcdc_id);
 		rk_fb_trsm_ops_register(&trsm_dsi_ops, SCREEN_MIPI);
 	
 #ifdef MIPI_DSI_REGISTER_IO        

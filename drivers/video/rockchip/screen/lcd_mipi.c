@@ -38,7 +38,7 @@
 #ifdef CONFIG_RK_3288_DSI_UBOOT
 #define	MIPI_SCREEN_DBG(x...)	//printf(x)
 #elif defined CONFIG_LCD_MIPI
-#define	MIPI_SCREEN_DBG(x...)	printk(KERN_ERR x)
+#define	MIPI_SCREEN_DBG(x...)	//printk(KERN_ERR x)
 #else
 #define	MIPI_SCREEN_DBG(x...)  
 #endif

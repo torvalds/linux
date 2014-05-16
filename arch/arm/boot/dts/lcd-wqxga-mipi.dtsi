@@ -117,7 +117,7 @@
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
 							rockchip,cmd = <0x05 dcs_exit_sleep_mode>;
-							rockchip,cmd_delay = <100>;
+							rockchip,cmd_delay = <120>;
 					};
 
 					rockchip,on-cmds13 {
