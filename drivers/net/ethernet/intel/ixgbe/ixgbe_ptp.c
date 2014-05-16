@@ -812,9 +812,13 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
  * ixgbe_ptp_reset
  * @adapter: the ixgbe private board structure
  *
- * When the MAC resets, all timesync features are reset. This function should be
- * called to re-enable the PTP clock structure. It will re-init the timecounter
- * structure based on the kernel time as well as setup the cycle counter data.
+ * When the MAC resets, all the hardware bits for timesync are reset. This
+ * function is used to re-enable the device for PTP based on current settings.
+ * We do lose the current clock time, so just reset the cyclecounter to the
+ * system real clock time.
+ *
+ * This function will maintain hwtstamp_config settings, and resets the SDP
+ * output if it was enabled.
  */
 void ixgbe_ptp_reset(struct ixgbe_adapter *adapter)
 {
@@ -826,8 +830,8 @@ void ixgbe_ptp_reset(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0x00000000);
 	IXGBE_WRITE_FLUSH(hw);
 
-	/* Reset the saved tstamp_config */
-	memset(&adapter->tstamp_config, 0, sizeof(adapter->tstamp_config));
+	/* reset the hardware timestamping mode */
+	ixgbe_ptp_set_timestamp_mode(adapter, &adapter->tstamp_config);
 
 	ixgbe_ptp_start_cyclecounter(adapter);
 
@@ -907,6 +911,8 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 	} else
 		e_dev_info("registered PHC device on %s\n", netdev->name);
 
+	adapter->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+	adapter->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
 	ixgbe_ptp_reset(adapter);
 
 	/* enter the IXGBE_PTP_RUNNING state */
