@@ -887,10 +887,21 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
  */
 static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 {
+	struct vpif_capture_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
+	struct vpif_capture_chan_config *chan_cfg;
+	struct v4l2_input input;
 
 	vpif_dbg(2, debug, "vpif_g_std\n");
+
+	if (config->chan_config[ch->channel_id].inputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	input = chan_cfg->inputs[ch->input_idx].input;
+	if (input.capabilities != V4L2_IN_CAP_STD)
+		return -ENODATA;
 
 	*std = ch->video.stdid;
 	return 0;
@@ -904,12 +915,23 @@ static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
  */
 static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
+	struct vpif_capture_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	int ret = 0;
+	struct vpif_capture_chan_config *chan_cfg;
+	struct v4l2_input input;
+	int ret;
 
 	vpif_dbg(2, debug, "vpif_s_std\n");
+
+	if (config->chan_config[ch->channel_id].inputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	input = chan_cfg->inputs[ch->input_idx].input;
+	if (input.capabilities != V4L2_IN_CAP_STD)
+		return -ENODATA;
 
 	if (vb2_is_busy(&common->buffer_queue))
 		return -EBUSY;
