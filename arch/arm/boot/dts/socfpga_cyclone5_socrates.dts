@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2012 Altera Corporation <www.altera.com>
+ *  Copyright (C) 2014 Steffen Trumtrar <s.trumtrar@pengutronix.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 #include "socfpga_cyclone5.dtsi"
 
 / {
-	model = "Altera SOCFPGA Cyclone V SoC Development Kit";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	model = "EBV SOCrates";
+	compatible = "ebv,socrates", "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
 		bootargs = "console=ttyS0,115200";
@@ -30,44 +30,21 @@
 		device_type = "memory";
 		reg = <0x0 0x40000000>; /* 1GB */
 	};
-
-	aliases {
-		/* this allow the ethaddr uboot environmnet variable contents
-		 * to be added to the gmac1 device tree blob.
-		 */
-		ethernet0 = &gmac1;
-	};
 };
 
 &gmac1 {
 	status = "okay";
-	phy-mode = "rgmii";
-
-	rxd0-skew-ps = <0>;
-	rxd1-skew-ps = <0>;
-	rxd2-skew-ps = <0>;
-	rxd3-skew-ps = <0>;
-	txen-skew-ps = <0>;
-	txc-skew-ps = <2600>;
-	rxdv-skew-ps = <0>;
-	rxc-skew-ps = <2000>;
 };
 
 &i2c0 {
 	status = "okay";
 
-	eeprom@51 {
-		compatible = "atmel,24c32";
-		reg = <0x51>;
-		pagesize = <32>;
-	};
-
-	rtc@68 {
-		compatible = "dallas,ds1339";
+	rtc: rtc@68 {
+		compatible = "stm,m41t82";
 		reg = <0x68>;
 	};
 };
 
-&usb1 {
+&mmc {
 	status = "okay";
 };
