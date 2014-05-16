@@ -197,20 +197,6 @@ s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter)
 	return _FAIL;
 }
 
-void	rtw_hal_set_bwmode23a(struct rtw_adapter *padapter,
-			   enum ht_channel_width Bandwidth, u8 offset)
-{
-	if (padapter->HalFunc.set_bwmode_handler)
-		padapter->HalFunc.set_bwmode_handler(padapter, Bandwidth,
-						     offset);
-}
-
-void	rtw_hal_set_chan23a(struct rtw_adapter *padapter, u8 channel)
-{
-	if (padapter->HalFunc.set_channel_handler)
-		padapter->HalFunc.set_channel_handler(padapter, channel);
-}
-
 void rtw_hal_bcn_related_reg_setting23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.SetBeaconRelatedRegistersHandler)

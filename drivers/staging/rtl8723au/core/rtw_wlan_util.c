@@ -335,7 +335,7 @@ void SelectChannel23a(struct rtw_adapter *padapter, unsigned char channel)
 	/* saved channel info */
 	rtw_set_oper_ch23a(padapter, channel);
 
-	rtw_hal_set_chan23a(padapter, channel);
+	PHY_SwChnl8723A(padapter, channel);
 
 	mutex_unlock(&adapter_to_dvobj(padapter)->setch_mutex);
 }
@@ -348,8 +348,8 @@ void SetBWMode23a(struct rtw_adapter *padapter, unsigned short bwmode, unsigned 
 	rtw_set_oper_bw23a(padapter, bwmode);
 	rtw_set_oper_ch23aoffset23a(padapter, channel_offset);
 
-	rtw_hal_set_bwmode23a(padapter, (enum ht_channel_width)bwmode,
-			   channel_offset);
+	PHY_SetBWMode23a8723A(padapter, (enum ht_channel_width)bwmode,
+			      channel_offset);
 
 	mutex_unlock(&adapter_to_dvobj(padapter)->setbw_mutex);
 }
@@ -386,7 +386,7 @@ void set_channel_bwmode23a(struct rtw_adapter *padapter, unsigned char channel,
 	rtw_set_oper_bw23a(padapter, bwmode);
 	rtw_set_oper_ch23aoffset23a(padapter, channel_offset);
 
-	rtw_hal_set_chan23a(padapter, center_ch); /*  set center channel */
+	PHY_SwChnl8723A(padapter, center_ch); /*  set center channel */
 
 	mutex_unlock(&adapter_to_dvobj(padapter)->setch_mutex);
 

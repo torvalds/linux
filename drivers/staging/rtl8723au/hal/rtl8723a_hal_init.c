@@ -1706,9 +1706,6 @@ exit:
 
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->set_bwmode_handler = &PHY_SetBWMode23a8723A;
-	pHalFunc->set_channel_handler = &PHY_SwChnl8723A;
-
 	pHalFunc->SetBeaconRelatedRegistersHandler =
 		&rtl8723a_SetBeaconRelatedRegisters;
 

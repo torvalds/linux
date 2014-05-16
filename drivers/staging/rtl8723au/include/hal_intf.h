@@ -76,9 +76,6 @@ struct hal_ops {
 	void (*enable_interrupt)(struct rtw_adapter *padapter);
 	void (*disable_interrupt)(struct rtw_adapter *padapter);
 	s32 (*interrupt_handler)(struct rtw_adapter *padapter);
-	void (*set_bwmode_handler)(struct rtw_adapter *padapter,
-				   enum ht_channel_width Bandwidth, u8 Offset);
-	void (*set_channel_handler)(struct rtw_adapter *padapter, u8 channel);
 
 	u8 (*GetHalDefVarHandler)(struct rtw_adapter *padapter,
 				  enum hal_def_variable eVariable,
@@ -213,10 +210,6 @@ void	rtw_hal_clone_data(struct rtw_adapter *dst_padapter, struct rtw_adapter *sr
 void rtw_hal_bcn_related_reg_setting23a(struct rtw_adapter *padapter);
 
 s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter);
-
-void	rtw_hal_set_bwmode23a(struct rtw_adapter *padapter,
-			   enum ht_channel_width Bandwidth, u8 Offset);
-void	rtw_hal_set_chan23a(struct rtw_adapter *padapter, u8 channel);
 
 void hw_var_set_correct_tsf(struct rtw_adapter *padapter);
 void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter);
