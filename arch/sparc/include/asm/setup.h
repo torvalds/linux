@@ -52,6 +52,7 @@ unsigned long safe_compute_effective_address(struct pt_regs *, unsigned int);
 int handle_ldf_stq(u32 insn, struct pt_regs *regs);
 void handle_ld_nf(u32 insn, struct pt_regs *regs);
 
+extern int sysctl_tsb_ratio;
 #endif
 
 void sun_do_break(void);
