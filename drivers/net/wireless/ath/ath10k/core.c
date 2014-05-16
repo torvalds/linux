@@ -58,36 +58,6 @@ static void ath10k_send_suspend_complete(struct ath10k *ar)
 	complete(&ar->target_suspend);
 }
 
-static int ath10k_init_connect_htc(struct ath10k *ar)
-{
-	int status;
-
-	status = ath10k_wmi_connect_htc_service(ar);
-	if (status)
-		goto conn_fail;
-
-	/* Start HTC */
-	status = ath10k_htc_start(&ar->htc);
-	if (status)
-		goto conn_fail;
-
-	/* Wait for WMI event to be ready */
-	status = ath10k_wmi_wait_for_service_ready(ar);
-	if (status <= 0) {
-		ath10k_warn("wmi service ready event not received");
-		status = -ETIMEDOUT;
-		goto timeout;
-	}
-
-	ath10k_dbg(ATH10K_DBG_BOOT, "boot wmi ready\n");
-	return 0;
-
-timeout:
-	ath10k_htc_stop(&ar->htc);
-conn_fail:
-	return status;
-}
-
 static int ath10k_init_configure_target(struct ath10k *ar)
 {
 	u32 param_host;
@@ -805,10 +775,28 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err;
 	}
 
+	status = ath10k_htt_init(ar);
+	if (status) {
+		ath10k_err("failed to init htt: %d\n", status);
+		goto err_wmi_detach;
+	}
+
+	status = ath10k_htt_tx_alloc(&ar->htt);
+	if (status) {
+		ath10k_err("failed to alloc htt tx: %d\n", status);
+		goto err_wmi_detach;
+	}
+
+	status = ath10k_htt_rx_alloc(&ar->htt);
+	if (status) {
+		ath10k_err("failed to alloc htt rx: %d\n", status);
+		goto err_htt_tx_detach;
+	}
+
 	status = ath10k_hif_start(ar);
 	if (status) {
 		ath10k_err("could not start HIF: %d\n", status);
-		goto err_wmi_detach;
+		goto err_htt_rx_detach;
 	}
 
 	status = ath10k_htc_wait_target(&ar->htc);
@@ -817,15 +805,30 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err_hif_stop;
 	}
 
-	status = ath10k_htt_attach(ar);
+	status = ath10k_htt_connect(&ar->htt);
 	if (status) {
-		ath10k_err("could not attach htt (%d)\n", status);
+		ath10k_err("failed to connect htt (%d)\n", status);
 		goto err_hif_stop;
 	}
 
-	status = ath10k_init_connect_htc(ar);
-	if (status)
-		goto err_htt_detach;
+	status = ath10k_wmi_connect(ar);
+	if (status) {
+		ath10k_err("could not connect wmi: %d\n", status);
+		goto err_hif_stop;
+	}
+
+	status = ath10k_htc_start(&ar->htc);
+	if (status) {
+		ath10k_err("failed to start htc: %d\n", status);
+		goto err_hif_stop;
+	}
+
+	status = ath10k_wmi_wait_for_service_ready(ar);
+	if (status <= 0) {
+		ath10k_warn("wmi service ready event not received");
+		status = -ETIMEDOUT;
+		goto err_htc_stop;
+	}
 
 	ath10k_dbg(ATH10K_DBG_BOOT, "firmware %s booted\n",
 		   ar->hw->wiphy->fw_version);
@@ -833,23 +836,25 @@ int ath10k_core_start(struct ath10k *ar)
 	status = ath10k_wmi_cmd_init(ar);
 	if (status) {
 		ath10k_err("could not send WMI init command (%d)\n", status);
-		goto err_disconnect_htc;
+		goto err_htc_stop;
 	}
 
 	status = ath10k_wmi_wait_for_unified_ready(ar);
 	if (status <= 0) {
 		ath10k_err("wmi unified ready event not received\n");
 		status = -ETIMEDOUT;
-		goto err_disconnect_htc;
+		goto err_htc_stop;
 	}
 
-	status = ath10k_htt_attach_target(&ar->htt);
-	if (status)
-		goto err_disconnect_htc;
+	status = ath10k_htt_setup(&ar->htt);
+	if (status) {
+		ath10k_err("failed to setup htt: %d\n", status);
+		goto err_htc_stop;
+	}
 
 	status = ath10k_debug_start(ar);
 	if (status)
-		goto err_disconnect_htc;
+		goto err_htc_stop;
 
 	ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
 	INIT_LIST_HEAD(&ar->arvifs);
@@ -868,12 +873,14 @@ int ath10k_core_start(struct ath10k *ar)
 
 	return 0;
 
-err_disconnect_htc:
+err_htc_stop:
 	ath10k_htc_stop(&ar->htc);
-err_htt_detach:
-	ath10k_htt_detach(&ar->htt);
 err_hif_stop:
 	ath10k_hif_stop(ar);
+err_htt_rx_detach:
+	ath10k_htt_rx_free(&ar->htt);
+err_htt_tx_detach:
+	ath10k_htt_tx_free(&ar->htt);
 err_wmi_detach:
 	ath10k_wmi_detach(ar);
 err:
@@ -913,7 +920,9 @@ void ath10k_core_stop(struct ath10k *ar)
 
 	ath10k_debug_stop(ar);
 	ath10k_htc_stop(&ar->htc);
-	ath10k_htt_detach(&ar->htt);
+	ath10k_hif_stop(ar);
+	ath10k_htt_tx_free(&ar->htt);
+	ath10k_htt_rx_free(&ar->htt);
 	ath10k_wmi_detach(ar);
 }
 EXPORT_SYMBOL(ath10k_core_stop);

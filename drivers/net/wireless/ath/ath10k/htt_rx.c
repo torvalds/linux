@@ -243,7 +243,7 @@ static void ath10k_htt_rx_ring_clean_up(struct ath10k_htt *htt)
 	}
 }
 
-void ath10k_htt_rx_detach(struct ath10k_htt *htt)
+void ath10k_htt_rx_free(struct ath10k_htt *htt)
 {
 	del_timer_sync(&htt->rx_ring.refill_retry_timer);
 	tasklet_kill(&htt->rx_replenish_task);
@@ -492,7 +492,7 @@ static void ath10k_htt_rx_replenish_task(unsigned long ptr)
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
 
-int ath10k_htt_rx_attach(struct ath10k_htt *htt)
+int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 {
 	dma_addr_t paddr;
 	void *vaddr;

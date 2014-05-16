@@ -2375,7 +2375,7 @@ void ath10k_wmi_detach(struct ath10k *ar)
 	ar->wmi.num_mem_chunks = 0;
 }
 
-int ath10k_wmi_connect_htc_service(struct ath10k *ar)
+int ath10k_wmi_connect(struct ath10k *ar)
 {
 	int status;
 	struct ath10k_htc_svc_conn_req conn_req;
