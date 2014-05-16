@@ -898,9 +898,20 @@ static int
 vpif_enum_dv_timings(struct file *file, void *priv,
 		     struct v4l2_enum_dv_timings *timings)
 {
+	struct vpif_display_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
+	struct vpif_display_chan_config *chan_cfg;
+	struct v4l2_output output;
 	int ret;
+
+	if (config->chan_config[ch->channel_id].outputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	output = chan_cfg->outputs[ch->output_idx].output;
+	if (output.capabilities != V4L2_OUT_CAP_DV_TIMINGS)
+		return -ENODATA;
 
 	ret = v4l2_subdev_call(ch->sd, video, enum_dv_timings, timings);
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
@@ -917,13 +928,28 @@ vpif_enum_dv_timings(struct file *file, void *priv,
 static int vpif_s_dv_timings(struct file *file, void *priv,
 		struct v4l2_dv_timings *timings)
 {
+	struct vpif_display_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct vpif_params *vpifparams = &ch->vpifparams;
+	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
 	struct video_obj *vid_ch = &ch->video;
 	struct v4l2_bt_timings *bt = &vid_ch->dv_timings.bt;
+	struct vpif_display_chan_config *chan_cfg;
+	struct v4l2_output output;
 	int ret;
+
+	if (config->chan_config[ch->channel_id].outputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	output = chan_cfg->outputs[ch->output_idx].output;
+	if (output.capabilities != V4L2_OUT_CAP_DV_TIMINGS)
+		return -ENODATA;
+
+	if (vb2_is_busy(&common->buffer_queue))
+		return -EBUSY;
 
 	if (timings->type != V4L2_DV_BT_656_1120) {
 		vpif_dbg(2, debug, "Timing type not defined\n");
@@ -1006,13 +1032,27 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 static int vpif_g_dv_timings(struct file *file, void *priv,
 		struct v4l2_dv_timings *timings)
 {
+	struct vpif_display_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
+	struct vpif_display_chan_config *chan_cfg;
 	struct video_obj *vid_ch = &ch->video;
+	struct v4l2_output output;
+
+	if (config->chan_config[ch->channel_id].outputs == NULL)
+		goto error;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	output = chan_cfg->outputs[ch->output_idx].output;
+
+	if (output.capabilities != V4L2_OUT_CAP_DV_TIMINGS)
+		goto error;
 
 	*timings = vid_ch->dv_timings;
 
 	return 0;
+error:
+	return -ENODATA;
 }
 
 /*
