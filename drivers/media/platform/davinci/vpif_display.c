@@ -715,13 +715,25 @@ static int vpif_try_fmt_vid_out(struct file *file, void *priv,
 
 static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
+	struct vpif_display_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	int ret = 0;
+	struct vpif_display_chan_config *chan_cfg;
+	struct v4l2_output output;
+	int ret;
+
+	if (config->chan_config[ch->channel_id].outputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	output = chan_cfg->outputs[ch->output_idx].output;
+	if (output.capabilities != V4L2_OUT_CAP_STD)
+		return -ENODATA;
 
 	if (vb2_is_busy(&common->buffer_queue))
 		return -EBUSY;
+
 
 	if (!(std_id & VPIF_V4L2_STD))
 		return -EINVAL;
@@ -754,8 +766,19 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 
 static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 {
+	struct vpif_display_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
+	struct vpif_display_chan_config *chan_cfg;
+	struct v4l2_output output;
+
+	if (config->chan_config[ch->channel_id].outputs == NULL)
+		return -ENODATA;
+
+	chan_cfg = &config->chan_config[ch->channel_id];
+	output = chan_cfg->outputs[ch->output_idx].output;
+	if (output.capabilities != V4L2_OUT_CAP_STD)
+		return -ENODATA;
 
 	*std = ch->video.stdid;
 	return 0;
