@@ -1522,13 +1522,13 @@ void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 	online_vcpus = atomic_read(&vcpu->kvm->online_vcpus);
 
 	/* Need to lock access to action_bits to avoid a SIGP race condition */
-	spin_lock_bh(&vcpu->arch.local_int.lock);
+	spin_lock(&vcpu->arch.local_int.lock);
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
 
 	/* SIGP STOP and SIGP STOP AND STORE STATUS has been fully processed */
 	vcpu->arch.local_int.action_bits &=
 				 ~(ACTION_STOP_ON_STOP | ACTION_STORE_ON_STOP);
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
+	spin_unlock(&vcpu->arch.local_int.lock);
 
 	__disable_ibs_on_vcpu(vcpu);
 

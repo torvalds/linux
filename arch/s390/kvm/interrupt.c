@@ -544,13 +544,13 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	int rc = 0;
 
 	if (atomic_read(&li->active)) {
-		spin_lock_bh(&li->lock);
+		spin_lock(&li->lock);
 		list_for_each_entry(inti, &li->list, list)
 			if (__interrupt_is_deliverable(vcpu, inti)) {
 				rc = 1;
 				break;
 			}
-		spin_unlock_bh(&li->lock);
+		spin_unlock(&li->lock);
 	}
 
 	if ((!rc) && atomic_read(&fi->active)) {
@@ -645,13 +645,13 @@ void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_interrupt_info  *n, *inti = NULL;
 
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	list_for_each_entry_safe(inti, n, &li->list, list) {
 		list_del(&inti->list);
 		kfree(inti);
 	}
 	atomic_set(&li->active, 0);
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 
 	/* clear pending external calls set by sigp interpretation facility */
 	atomic_clear_mask(CPUSTAT_ECALL_PEND, &vcpu->arch.sie_block->cpuflags);
@@ -670,7 +670,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 	if (atomic_read(&li->active)) {
 		do {
 			deliver = 0;
-			spin_lock_bh(&li->lock);
+			spin_lock(&li->lock);
 			list_for_each_entry_safe(inti, n, &li->list, list) {
 				if (__interrupt_is_deliverable(vcpu, inti)) {
 					list_del(&inti->list);
@@ -681,7 +681,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			}
 			if (list_empty(&li->list))
 				atomic_set(&li->active, 0);
-			spin_unlock_bh(&li->lock);
+			spin_unlock(&li->lock);
 			if (deliver) {
 				__do_deliver_interrupt(vcpu, inti);
 				kfree(inti);
@@ -727,7 +727,7 @@ void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu)
 	if (atomic_read(&li->active)) {
 		do {
 			deliver = 0;
-			spin_lock_bh(&li->lock);
+			spin_lock(&li->lock);
 			list_for_each_entry_safe(inti, n, &li->list, list) {
 				if ((inti->type == KVM_S390_MCHK) &&
 				    __interrupt_is_deliverable(vcpu, inti)) {
@@ -739,7 +739,7 @@ void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu)
 			}
 			if (list_empty(&li->list))
 				atomic_set(&li->active, 0);
-			spin_unlock_bh(&li->lock);
+			spin_unlock(&li->lock);
 			if (deliver) {
 				__do_deliver_interrupt(vcpu, inti);
 				kfree(inti);
@@ -786,11 +786,11 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 
 	VCPU_EVENT(vcpu, 3, "inject: program check %d (from kernel)", code);
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, inti->type, code, 0, 1);
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	list_add(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	BUG_ON(waitqueue_active(li->wq));
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 	return 0;
 }
 
@@ -811,11 +811,11 @@ int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
 
 	inti->type = KVM_S390_PROGRAM_INT;
 	memcpy(&inti->pgm, pgm_info, sizeof(inti->pgm));
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	list_add(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	BUG_ON(waitqueue_active(li->wq));
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 	return 0;
 }
 
@@ -903,12 +903,12 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	}
 	dst_vcpu = kvm_get_vcpu(kvm, sigcpu);
 	li = &dst_vcpu->arch.local_int;
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
 	if (waitqueue_active(li->wq))
 		wake_up_interruptible(li->wq);
 	kvm_get_vcpu(kvm, sigcpu)->preempted = true;
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 unlock_fi:
 	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
@@ -1050,7 +1050,7 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 
 	mutex_lock(&vcpu->kvm->lock);
 	li = &vcpu->arch.local_int;
-	spin_lock_bh(&li->lock);
+	spin_lock(&li->lock);
 	if (inti->type == KVM_S390_PROGRAM_INT)
 		list_add(&inti->list, &li->list);
 	else
@@ -1062,7 +1062,7 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 	if (waitqueue_active(&vcpu->wq))
 		wake_up_interruptible(&vcpu->wq);
 	vcpu->preempted = true;
-	spin_unlock_bh(&li->lock);
+	spin_unlock(&li->lock);
 	mutex_unlock(&vcpu->kvm->lock);
 	return 0;
 }
