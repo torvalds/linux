@@ -2381,7 +2381,7 @@ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 	return (struct reg_window *) (fp + STACK_BIAS);
 }
 
-void die_if_kernel(char *str, struct pt_regs *regs)
+void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int count = 0;
