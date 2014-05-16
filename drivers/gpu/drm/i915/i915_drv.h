@@ -41,6 +41,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <drm/intel-gtt.h>
 #include <linux/backlight.h>
+#include <linux/hashtable.h>
 #include <linux/intel-iommu.h>
 #include <linux/kref.h>
 #include <linux/pm_qos.h>
@@ -178,6 +179,7 @@ enum hpd_pin {
 		if ((intel_connector)->base.encoder == (__encoder))
 
 struct drm_i915_private;
+struct i915_mmu_object;
 
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
@@ -403,6 +405,7 @@ struct drm_i915_error_state {
 		u32 tiling:2;
 		u32 dirty:1;
 		u32 purgeable:1;
+		u32 userptr:1;
 		s32 ring:4;
 		u32 cache_level:3;
 	} **active_bo, **pinned_bo;
@@ -1447,6 +1450,9 @@ struct drm_i915_private {
 	struct i915_gtt gtt; /* VM representing the global address space */
 
 	struct i915_gem_mm mm;
+#if defined(CONFIG_MMU_NOTIFIER)
+	DECLARE_HASHTABLE(mmu_notifiers, 7);
+#endif
 
 	/* Kernel Modesetting */
 
@@ -1580,6 +1586,8 @@ struct drm_i915_gem_object_ops {
 	 */
 	int (*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *);
+	int (*dmabuf_export)(struct drm_i915_gem_object *);
+	void (*release)(struct drm_i915_gem_object *);
 };
 
 struct drm_i915_gem_object {
@@ -1693,8 +1701,20 @@ struct drm_i915_gem_object {
 
 	/** for phy allocated objects */
 	struct drm_i915_gem_phys_object *phys_obj;
-};
 
+	union {
+		struct i915_gem_userptr {
+			uintptr_t ptr;
+			unsigned read_only :1;
+			unsigned workers :4;
+#define I915_GEM_USERPTR_MAX_WORKERS 15
+
+			struct mm_struct *mm;
+			struct i915_mmu_object *mn;
+			struct work_struct *work;
+		} userptr;
+	};
+};
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
 /**
@@ -2119,6 +2139,9 @@ int i915_gem_set_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_get_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int i915_gem_init_userptr(struct drm_device *dev);
+int i915_gem_userptr_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file);
 int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 int i915_gem_wait_ioctl(struct drm_device *dev, void *data,

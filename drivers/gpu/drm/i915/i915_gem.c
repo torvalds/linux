@@ -4263,6 +4263,9 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	if (obj->base.import_attach)
 		drm_prime_gem_destroy(&obj->base, NULL);
 
+	if (obj->ops->release)
+		obj->ops->release(obj);
+
 	drm_gem_object_release(&obj->base);
 	i915_gem_info_remove_obj(dev_priv, obj->base.size);
 
@@ -4542,6 +4545,7 @@ int i915_gem_init(struct drm_device *dev)
 			DRM_DEBUG_DRIVER("allow wake ack timed out\n");
 	}
 
+	i915_gem_init_userptr(dev);
 	i915_gem_init_global_gtt(dev);
 
 	ret = i915_gem_context_init(dev);
