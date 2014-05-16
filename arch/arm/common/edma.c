@@ -1490,8 +1490,6 @@ static int edma_of_parse_dt(struct device *dev,
 	struct edma_rsv_info *rsv_info;
 	s8 (*queue_tc_map)[2], (*queue_priority_map)[2];
 
-	memset(pdata, 0, sizeof(struct edma_soc_info));
-
 	ret = of_property_read_u32(node, "dma-channels", &value);
 	if (ret < 0)
 		return ret;
