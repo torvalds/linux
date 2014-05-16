@@ -95,11 +95,6 @@ void rtw_hal_set_odm_var23a(struct rtw_adapter *padapter, enum hal_odm_variable 
 	if (padapter->HalFunc.SetHalODMVarHandler)
 		padapter->HalFunc.SetHalODMVarHandler(padapter, eVariable, pValue1, bSet);
 }
-void	rtw_hal_get_odm_var23a(struct rtw_adapter *padapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
-{
-	if (padapter->HalFunc.GetHalODMVarHandler)
-		padapter->HalFunc.GetHalODMVarHandler(padapter, eVariable, pValue1, bSet);
-}
 
 void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter)
 {

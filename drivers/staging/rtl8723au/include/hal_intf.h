@@ -84,9 +84,6 @@ struct hal_ops {
 				  enum hal_def_variable eVariable,
 				  void *pValue);
 
-	void (*GetHalODMVarHandler)(struct rtw_adapter *padapter,
-				    enum hal_odm_variable eVariable,
-				    void *pValue1, bool bSet);
 	void (*SetHalODMVarHandler)(struct rtw_adapter *padapter,
 				    enum hal_odm_variable eVariable,
 				    void *pValue1, bool bSet);
@@ -178,9 +175,6 @@ u8 rtw_hal_get_def_var23a(struct rtw_adapter *padapter,
 			  void *pValue);
 
 void rtw_hal_set_odm_var23a(struct rtw_adapter *padapter,
-			    enum hal_odm_variable eVariable,
-			    void *pValue1, bool bSet);
-void rtw_hal_get_odm_var23a(struct rtw_adapter *padapter,
 			    enum hal_odm_variable eVariable,
 			    void *pValue1, bool bSet);
 

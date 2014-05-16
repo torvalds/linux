@@ -1577,18 +1577,6 @@ void rtl8723a_SetBeaconRelatedRegisters(struct rtw_adapter *padapter)
 	SetBcnCtrlReg23a(padapter, DIS_BCNQ_SUB, 0);
 }
 
-static void rtl8723a_GetHalODMVar(struct rtw_adapter *Adapter,
-				  enum hal_odm_variable eVariable,
-				  void *pValue1, bool bSet)
-{
-	switch (eVariable) {
-	case HAL_ODM_STA_INFO:
-		break;
-	default:
-		break;
-	}
-}
-
 static void rtl8723a_SetHalODMVar(struct rtw_adapter *Adapter,
 				  enum hal_odm_variable eVariable,
 				  void *pValue1, bool bSet)
@@ -1716,7 +1704,6 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->Efuse_WordEnableDataWrite23a = &Hal_EfuseWordEnableDataWrite;
 	pHalFunc->Efuse_PgPacketWrite23a_BT = &Hal_EfusePgPacketWrite_BT;
 
-	pHalFunc->GetHalODMVarHandler = &rtl8723a_GetHalODMVar;
 	pHalFunc->SetHalODMVarHandler = &rtl8723a_SetHalODMVar;
 }
 
