@@ -140,7 +140,6 @@ struct hal_ops {
 					  u8 offset, u8 word_en, u8 *data);
 
 	void (*hal_notch_filter)(struct rtw_adapter *adapter, bool enable);
-	void (*hal_reset_security_engine)(struct rtw_adapter *adapter);
 };
 
 enum rt_eeprom_type {
@@ -248,7 +247,6 @@ void	rtw_hal_set_bwmode23a(struct rtw_adapter *padapter,
 void	rtw_hal_set_chan23a(struct rtw_adapter *padapter, u8 channel);
 
 void rtw_hal_notch_filter23a(struct rtw_adapter *adapter, bool enable);
-void rtw_hal_reset_security_engine23a(struct rtw_adapter *adapter);
 
 void hw_var_set_correct_tsf(struct rtw_adapter *padapter);
 void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter);

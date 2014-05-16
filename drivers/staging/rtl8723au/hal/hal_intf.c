@@ -70,8 +70,6 @@ uint	 rtw_hal_init23a(struct rtw_adapter *padapter)
 
 		if (padapter->registrypriv.notch_filter == 1)
 			rtw_hal_notch_filter23a(padapter, 1);
-
-		rtw_hal_reset_security_engine23a(padapter);
 	} else {
 		padapter->hw_init_completed = false;
 		DBG_8723A("rtw_hal_init23a: hal__init fail\n");
@@ -272,10 +270,4 @@ void rtw_hal_notch_filter23a(struct rtw_adapter *adapter, bool enable)
 {
 	if (adapter->HalFunc.hal_notch_filter)
 		adapter->HalFunc.hal_notch_filter(adapter, enable);
-}
-
-void rtw_hal_reset_security_engine23a(struct rtw_adapter *adapter)
-{
-	if (adapter->HalFunc.hal_reset_security_engine)
-		adapter->HalFunc.hal_reset_security_engine(adapter);
 }
