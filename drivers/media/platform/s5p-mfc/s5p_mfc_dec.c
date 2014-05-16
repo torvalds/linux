@@ -32,9 +32,6 @@
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_pm.h"
 
-#define DEF_SRC_FMT_DEC	V4L2_PIX_FMT_H264
-#define DEF_DST_FMT_DEC	V4L2_PIX_FMT_NV12MT_16X16
-
 static struct s5p_mfc_fmt formats[] = {
 	{
 		.name		= "4:2:0 2 Planes 16x16 Tiles",
@@ -1190,9 +1187,12 @@ void s5p_mfc_dec_ctrls_delete(struct s5p_mfc_ctx *ctx)
 void s5p_mfc_dec_init(struct s5p_mfc_ctx *ctx)
 {
 	struct v4l2_format f;
-	f.fmt.pix_mp.pixelformat = DEF_SRC_FMT_DEC;
+	f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_H264;
 	ctx->src_fmt = find_format(&f, MFC_FMT_DEC);
-	f.fmt.pix_mp.pixelformat = DEF_DST_FMT_DEC;
+	if (IS_MFCV6_PLUS(ctx->dev))
+		f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12MT_16X16;
+	else
+		f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12MT;
 	ctx->dst_fmt = find_format(&f, MFC_FMT_RAW);
 	mfc_debug(2, "Default src_fmt is %x, dest_fmt is %x\n",
 			(unsigned int)ctx->src_fmt, (unsigned int)ctx->dst_fmt);
