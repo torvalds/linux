@@ -1492,11 +1492,11 @@ void rtl8723a_read_adapter_info(struct rtw_adapter *Adapter)
 /*	Description: */
 /*		Query setting of specified variable. */
 /*  */
-static u8 GetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
-			       enum hal_def_variable eVariable, void *pValue)
+int GetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
+			 enum hal_def_variable eVariable, void *pValue)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(Adapter);
-	u8			bResult = _SUCCESS;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
+	int bResult = _SUCCESS;
 
 	switch (eVariable) {
 	case HAL_DEF_UNDERCORATEDSMOOTHEDPWDB:
@@ -1533,77 +1533,6 @@ static u8 GetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
 		break;
 	default:
 		/* RT_TRACE(COMP_INIT, DBG_WARNING, ("GetHalDefVar8192CUsb(): "
-		   "Unkown variable: %d!\n", eVariable)); */
-		bResult = _FAIL;
-		break;
-	}
-
-	return bResult;
-}
-
-/*	Change default setting of specified variable. */
-static u8 SetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
-			       enum hal_def_variable eVariable, void *pValue)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	u8 bResult = _SUCCESS;
-
-	switch (eVariable) {
-	case HAL_DEF_DBG_DUMP_RXPKT:
-		pHalData->bDumpRxPkt = *((u8 *)pValue);
-		break;
-	case HAL_DEF_DBG_DM_FUNC:
-	{
-		u8 dm_func = *((u8 *)pValue);
-		struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-		struct dm_odm_t *podmpriv = &pHalData->odmpriv;
-
-		if (dm_func == 0) { /* disable all dynamic func */
-			podmpriv->SupportAbility = DYNAMIC_FUNC_DISABLE;
-			DBG_8723A("==> Disable all dynamic function...\n");
-		} else if (dm_func == 1) {/* disable DIG */
-			podmpriv->SupportAbility &= (~DYNAMIC_BB_DIG);
-			DBG_8723A("==> Disable DIG...\n");
-		} else if (dm_func == 2) {/* disable High power */
-			podmpriv->SupportAbility &= (~DYNAMIC_BB_DYNAMIC_TXPWR);
-		} else if (dm_func == 3) {/* disable tx power tracking */
-			podmpriv->SupportAbility &= (~DYNAMIC_RF_CALIBRATION);
-			DBG_8723A("==> Disable tx power tracking...\n");
-		} else if (dm_func == 4) {/* disable BT coexistence */
-			pdmpriv->DMFlag &= (~DYNAMIC_FUNC_BT);
-		} else if (dm_func == 5) {/* disable antenna diversity */
-			podmpriv->SupportAbility &= (~DYNAMIC_BB_ANT_DIV);
-		} else if (dm_func == 6) {/* turn on all dynamic func */
-			if (!(podmpriv->SupportAbility & DYNAMIC_BB_DIG)) {
-				struct dig_t *pDigTable =
-					&podmpriv->DM_DigTable;
-				pDigTable->CurIGValue = rtw_read8(Adapter, 0xc50);
-			}
-			pdmpriv->DMFlag |= DYNAMIC_FUNC_BT;
-			podmpriv->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
-			DBG_8723A("==> Turn on all dynamic function...\n");
-		}
-	}
-		break;
-	case HW_DEF_FA_CNT_DUMP:
-	{
-		u8 bRSSIDump = *((u8 *)pValue);
-		struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
-		if (bRSSIDump)
-			pDM_Odm->DebugComponents = ODM_COMP_DIG|ODM_COMP_FA_CNT;
-		else
-			pDM_Odm->DebugComponents = 0;
-	}
-		break;
-	case HW_DEF_ODM_DBG_FLAG:
-	{
-		u64 DebugComponents = *((u64 *)pValue);
-		struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
-		pDM_Odm->DebugComponents = DebugComponents;
-	}
-		break;
-	default:
-		/* RT_TRACE(COMP_INIT, DBG_TRACE, ("SetHalDefVar819xUsb(): "
 		   "Unkown variable: %d!\n", eVariable)); */
 		bResult = _FAIL;
 		break;
@@ -1776,7 +1705,5 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->InitSwLeds = NULL;
 	pHalFunc->DeInitSwLeds = NULL;
 
-	pHalFunc->GetHalDefVarHandler = &GetHalDefVar8192CUsb;
-	pHalFunc->SetHalDefVarHandler = &SetHalDefVar8192CUsb;
 	return 0;
 }

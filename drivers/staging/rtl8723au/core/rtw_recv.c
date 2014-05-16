@@ -1506,7 +1506,7 @@ static int validate_recv_frame(struct rtw_adapter *adapter,
 	pattrib->privacy = ieee80211_has_protected(hdr->frame_control);
 	pattrib->order = ieee80211_has_order(hdr->frame_control);
 
-	rtw_hal_get_def_var23a(adapter, HAL_DEF_DBG_DUMP_RXPKT, &bDumpRxPkt);
+	GetHalDefVar8192CUsb(adapter, HAL_DEF_DBG_DUMP_RXPKT, &bDumpRxPkt);
 
 	if (unlikely(bDumpRxPkt == 1))
 		dump_rx_pkt(skb, type, bDumpRxPkt);

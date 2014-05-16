@@ -41,19 +41,6 @@ u32 rtw_hal_power_on23a(struct rtw_adapter *padapter)
 	return _FAIL;
 }
 
-u8 rtw_hal_set_def_var23a(struct rtw_adapter *padapter, enum hal_def_variable eVariable, void *pValue)
-{
-	if (padapter->HalFunc.SetHalDefVarHandler)
-		return padapter->HalFunc.SetHalDefVarHandler(padapter, eVariable, pValue);
-	return _FAIL;
-}
-u8 rtw_hal_get_def_var23a(struct rtw_adapter *padapter, enum hal_def_variable eVariable, void *pValue)
-{
-	if (padapter->HalFunc.GetHalDefVarHandler)
-		return padapter->HalFunc.GetHalDefVarHandler(padapter, eVariable, pValue);
-	return _FAIL;
-}
-
 void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.enable_interrupt)

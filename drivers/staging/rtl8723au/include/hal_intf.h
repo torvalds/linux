@@ -69,13 +69,6 @@ struct hal_ops {
 	void (*enable_interrupt)(struct rtw_adapter *padapter);
 	void (*disable_interrupt)(struct rtw_adapter *padapter);
 	s32 (*interrupt_handler)(struct rtw_adapter *padapter);
-
-	u8 (*GetHalDefVarHandler)(struct rtw_adapter *padapter,
-				  enum hal_def_variable eVariable,
-				  void *pValue);
-	u8 (*SetHalDefVarHandler)(struct rtw_adapter *padapter,
-				  enum hal_def_variable eVariable,
-				  void *pValue);
 };
 
 enum rt_eeprom_type {
@@ -129,13 +122,6 @@ int rtw_hal_init23a(struct rtw_adapter *padapter);
 int rtw_hal_deinit23a(struct rtw_adapter *padapter);
 void rtw_hal_stop(struct rtw_adapter *padapter);
 
-u8 rtw_hal_set_def_var23a(struct rtw_adapter *padapter,
-			  enum hal_def_variable eVariable,
-			  void *pValue);
-u8 rtw_hal_get_def_var23a(struct rtw_adapter *padapter,
-			  enum hal_def_variable eVariable,
-			  void *pValue);
-
 void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter);
 void rtw_hal_disable_interrupt23a(struct rtw_adapter *padapter);
 
@@ -150,5 +136,8 @@ void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode);
 void hw_var_set_macaddr(struct rtw_adapter *padapter, u8 *val);
 void hw_var_set_bssid(struct rtw_adapter *padapter, u8 *val);
 void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type);
+
+int GetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
+			 enum hal_def_variable eVariable, void *pValue);
 
 #endif /* __HAL_INTF_H__ */

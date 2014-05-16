@@ -4084,8 +4084,8 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 		pframe = rtw_set_fixed_ie23a(pframe, 2,
 					     (unsigned char *)&status,
 					     &pattrib->pktlen);
-		rtw_hal_get_def_var23a(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR,
-				       &max_rx_ampdu_factor);
+		GetHalDefVar8192CUsb(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR,
+				     &max_rx_ampdu_factor);
 		if (max_rx_ampdu_factor == IEEE80211_HT_MAX_AMPDU_64K)
 			BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */
 		else if (max_rx_ampdu_factor == IEEE80211_HT_MAX_AMPDU_32K)

@@ -2270,13 +2270,13 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 			IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 |
 			IEEE80211_HT_CAP_TX_STBC | IEEE80211_HT_CAP_DSSSCCK40;
 
-		rtw_hal_get_def_var23a(padapter, HAL_DEF_RX_PACKET_OFFSET,
-				    &rx_packet_offset);
-		rtw_hal_get_def_var23a(padapter, HAL_DEF_MAX_RECVBUF_SZ,
-				    &max_recvbuf_sz);
+		GetHalDefVar8192CUsb(padapter, HAL_DEF_RX_PACKET_OFFSET,
+				     &rx_packet_offset);
+		GetHalDefVar8192CUsb(padapter, HAL_DEF_MAX_RECVBUF_SZ,
+				     &max_recvbuf_sz);
 
-		rtw_hal_get_def_var23a(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR,
-				    &max_rx_ampdu_factor);
+		GetHalDefVar8192CUsb(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR,
+				     &max_rx_ampdu_factor);
 		ht_capie.ampdu_params_info = max_rx_ampdu_factor & 0x03;
 
 		if (padapter->securitypriv.dot11PrivacyAlgrthm == _AES_)
