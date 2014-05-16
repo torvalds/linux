@@ -716,7 +716,7 @@ done:
 		notify_remote_via_irq(vif->rx_irq);
 }
 
-void xenvif_check_rx_xenvif(struct xenvif *vif)
+void xenvif_napi_schedule_or_enable_events(struct xenvif *vif)
 {
 	int more_to_do;
 
@@ -750,7 +750,7 @@ static void tx_credit_callback(unsigned long data)
 {
 	struct xenvif *vif = (struct xenvif *)data;
 	tx_add_credit(vif);
-	xenvif_check_rx_xenvif(vif);
+	xenvif_napi_schedule_or_enable_events(vif);
 }
 
 static void xenvif_tx_err(struct xenvif *vif,
