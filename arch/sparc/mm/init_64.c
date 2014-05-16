@@ -47,6 +47,7 @@
 #include <asm/prom.h>
 #include <asm/mdesc.h>
 #include <asm/cpudata.h>
+#include <asm/setup.h>
 #include <asm/irq.h>
 
 #include "init_64.h"

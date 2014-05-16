@@ -52,6 +52,10 @@ unsigned long safe_compute_effective_address(struct pt_regs *, unsigned int);
 int handle_ldf_stq(u32 insn, struct pt_regs *regs);
 void handle_ld_nf(u32 insn, struct pt_regs *regs);
 
+/* init_64.c */
+extern atomic_t dcpage_flushes;
+extern atomic_t dcpage_flushes_xcall;
+
 extern int sysctl_tsb_ratio;
 #endif
 
