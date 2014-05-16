@@ -19,8 +19,6 @@
 #ifndef VPIF_CAPTURE_H
 #define VPIF_CAPTURE_H
 
-#ifdef __KERNEL__
-
 /* Header files */
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-device.h>
@@ -132,5 +130,4 @@ struct vpif_config_params {
 	u8 max_device_type;
 };
 
-#endif				/* End of __KERNEL__ */
 #endif				/* VPIF_CAPTURE_H */
