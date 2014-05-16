@@ -1343,7 +1343,8 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 
 	rtw_wdev->iftype = type;
 
-	if (rtw_set_802_11_infrastructure_mode23a(padapter, networkType) == false) {
+	if (rtw_set_802_11_infrastructure_mode23a
+	    (padapter, networkType) != _SUCCESS) {
 		rtw_wdev->iftype = old_type;
 		ret = -EPERM;
 		goto exit;
@@ -1982,7 +1983,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	if (rtw_set_802_11_infrastructure_mode23a
-	    (padapter, pnetwork->network.InfrastructureMode) == false) {
+	    (padapter, pnetwork->network.InfrastructureMode) != _SUCCESS) {
 		ret = -EPERM;
 		goto exit;
 	}
@@ -2069,9 +2070,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 		memcpy(pwep->KeyMaterial, (void *)sme->key, pwep->KeyLength);
 
-		if (rtw_set_802_11_add_wep23a(padapter, pwep) == (u8) _FAIL) {
+		if (rtw_set_802_11_add_wep23a(padapter, pwep) != _SUCCESS)
 			ret = -EOPNOTSUPP;
-		}
 
 		kfree(pwep);
 
