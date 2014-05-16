@@ -104,8 +104,6 @@ struct common_obj {
 struct channel_obj {
 	/* Identifies video device for this channel */
 	struct video_device *video_dev;
-	/* Used to keep track of state of the priority */
-	struct v4l2_prio_state prio;
 	/* number of open instances of the channel */
 	int usrs;
 	/* Indicates id of the field which is being displayed */
@@ -124,18 +122,6 @@ struct channel_obj {
 	struct common_obj common[VPIF_NUMBER_OF_OBJECTS];
 	/* video object */
 	struct video_obj video;
-};
-
-/* File handle structure */
-struct vpif_fh {
-	/* pointer to channel object for opened device */
-	struct channel_obj *channel;
-	/* Indicates whether this file handle is doing IO */
-	u8 io_allowed[VPIF_NUMBER_OF_OBJECTS];
-	/* Used to keep track priority of this instance */
-	enum v4l2_priority prio;
-	/* Used to indicate channel is initialize or not */
-	u8 initialized;
 };
 
 struct vpif_device {
