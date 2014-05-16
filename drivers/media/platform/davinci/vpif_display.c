@@ -62,6 +62,10 @@ static struct vpif_config_params config_params = {
 	.channel_bufsize[1]	= 720 * 576 * 2,
 };
 
+
+/* Is set to 1 in case of SDTV formats, 2 in case of HDTV formats. */
+static int ycmux_mode;
+
 static u8 channel_first_int[VPIF_NUMOBJECTS][2] = { {1, 1} };
 
 static struct vpif_device vpif_obj = { {NULL} };
@@ -185,9 +189,8 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	spin_lock_irqsave(&common->irqlock, flags);
 
-	/* Initialize field_id and started member */
+	/* Initialize field_id */
 	ch->field_id = 0;
-	common->started = 1;
 
 	/* clock settings */
 	if (vpif_config_data->set_clock) {
@@ -204,7 +207,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (ret < 0)
 		goto err;
 
-	common->started = ret;
+	ycmux_mode = ret;
 	vpif_config_addr(ch, ret);
 	/* Get the next frame from the buffer queue */
 	common->next_frm = common->cur_frm =
@@ -235,8 +238,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 			channel2_clipping_enable(1);
 	}
 
-	if (VPIF_CHANNEL3_VIDEO == ch->channel_id ||
-		common->started == 2) {
+	if (VPIF_CHANNEL3_VIDEO == ch->channel_id || ycmux_mode == 2) {
 		channel3_intr_assert();
 		channel3_intr_enable(1);
 		enable_channel3(1);
@@ -275,12 +277,10 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 		enable_channel2(0);
 		channel2_intr_enable(0);
 	}
-	if (VPIF_CHANNEL3_VIDEO == ch->channel_id ||
-		2 == common->started) {
+	if (VPIF_CHANNEL3_VIDEO == ch->channel_id || ycmux_mode == 2) {
 		enable_channel3(0);
 		channel3_intr_enable(0);
 	}
-	common->started = 0;
 
 	/* release all active buffers */
 	spin_lock_irqsave(&common->irqlock, flags);
@@ -392,8 +392,6 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	for (i = 0; i < VPIF_NUMOBJECTS; i++) {
 		common = &ch->common[i];
 		/* If streaming is started in this channel */
-		if (0 == common->started)
-			continue;
 
 		if (1 == ch->vpifparams.std_info.frm_fmt) {
 			spin_lock(&common->irqlock);
@@ -704,10 +702,8 @@ static int vpif_s_fmt_vid_out(struct file *file, void *priv,
 	struct v4l2_pix_format *pixfmt;
 	int ret = 0;
 
-	if (common->started) {
-		vpif_dbg(1, debug, "Streaming in progress\n");
+	if (vb2_is_busy(&common->buffer_queue))
 		return -EBUSY;
-	}
 
 	pixfmt = &fmt->fmt.pix;
 	/* Check for valid field format */
@@ -747,13 +743,12 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	int ret = 0;
 
+	if (vb2_is_busy(&common->buffer_queue))
+		return -EBUSY;
+
 	if (!(std_id & VPIF_V4L2_STD))
 		return -EINVAL;
 
-	if (common->started) {
-		vpif_err("streaming in progress\n");
-		return -EBUSY;
-	}
 
 	/* Call encoder subdevice function to set the standard */
 	ch->video.stdid = std_id;
@@ -920,15 +915,13 @@ static int vpif_s_output(struct file *file, void *priv, unsigned int i)
 	struct vpif_display_chan_config *chan_cfg;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 
+	if (vb2_is_busy(&common->buffer_queue))
+		return -EBUSY;
+
 	chan_cfg = &config->chan_config[ch->channel_id];
 
 	if (i >= chan_cfg->output_count)
 		return -EINVAL;
-
-	if (common->started) {
-		vpif_err("Streaming in progress\n");
-		return -EBUSY;
-	}
 
 	return vpif_set_output(config, ch, i);
 }
@@ -1223,7 +1216,6 @@ static int vpif_probe_complete(void)
 		for (k = 0; k < VPIF_NUMOBJECTS; k++) {
 			common = &ch->common[k];
 			common->io_usrs = 0;
-			common->started = 0;
 			spin_lock_init(&common->irqlock);
 			mutex_init(&common->lock);
 			common->set_addr = NULL;
@@ -1488,7 +1480,7 @@ static int vpif_suspend(struct device *dev)
 				channel2_intr_enable(0);
 			}
 			if (ch->channel_id == VPIF_CHANNEL3_VIDEO ||
-					common->started == 2) {
+				ycmux_mode == 2) {
 				enable_channel3(0);
 				channel3_intr_enable(0);
 			}
@@ -1518,7 +1510,7 @@ static int vpif_resume(struct device *dev)
 				channel2_intr_enable(1);
 			}
 			if (ch->channel_id == VPIF_CHANNEL3_VIDEO ||
-					common->started == 2) {
+					ycmux_mode == 2) {
 				enable_channel3(1);
 				channel3_intr_enable(1);
 			}

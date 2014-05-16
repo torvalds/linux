@@ -85,8 +85,6 @@ struct common_obj {
 						 * structure */
 	u32 io_usrs;				/* number of users performing
 						 * IO */
-	u8 started;				/* Indicates whether streaming
-						 * started */
 	u32 ytop_off;				/* offset of Y top from the
 						 * starting of the buffer */
 	u32 ybtm_off;				/* offset of Y bottom from the
