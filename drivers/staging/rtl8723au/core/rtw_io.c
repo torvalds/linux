@@ -139,7 +139,7 @@ void _rtw_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 	io_ops->_write_mem(adapter, addr, cnt, pmem);
 }
 
-void _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+int _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 		       struct recv_buf *rbuf)
 {
 	struct _io_ops *io_ops = &adapter->io_ops;
@@ -150,10 +150,10 @@ void _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 		      ("rtw_read_port:bDriverStopped(%d) OR "
 		       "bSurpriseRemoved(%d)", adapter->bDriverStopped,
 		       adapter->bSurpriseRemoved));
-	     return;
+	     return _FAIL;
 	}
 
-	io_ops->_read_port(adapter, addr, cnt, rbuf);
+	return io_ops->_read_port(adapter, addr, cnt, rbuf);
 }
 
 void _rtw_read_port23a_cancel(struct rtw_adapter *adapter)
@@ -167,11 +167,11 @@ void _rtw_read_port23a_cancel(struct rtw_adapter *adapter)
 		_read_port_cancel(adapter);
 }
 
-u32 _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+int _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 		    struct xmit_buf *xbuf)
 {
 	struct _io_ops *io_ops = &adapter->io_ops;
-	u32 ret = _SUCCESS;
+	int ret = _SUCCESS;
 
 	ret = io_ops->_write_port(adapter, addr, cnt, xbuf);
 

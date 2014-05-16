@@ -107,15 +107,20 @@ struct _io_ops
 	int (*_write8)(struct rtw_adapter *adapter, u32 addr, u8 val);
 	int (*_write16)(struct rtw_adapter *adapter, u32 addr, u16 val);
 	int (*_write32)(struct rtw_adapter *adapter, u32 addr, u32 val);
-	int (*_writeN)(struct rtw_adapter *adapter, u32 addr, u32 length, u8 *pdata);
+	int (*_writeN)(struct rtw_adapter *adapter, u32 addr, u32 length,
+		       u8 *pdata);
 
-	void (*_read_mem)(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-	void (*_write_mem)(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+	void (*_read_mem)(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+			  u8 *pmem);
+	void (*_write_mem)(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+			   u8 *pmem);
 
-	u32 (*_read_interrupt)(struct rtw_adapter *adapter, u32 addr);
+	int (*_read_interrupt)(struct rtw_adapter *adapter, u32 addr);
 
-	u32 (*_read_port)(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct recv_buf *rbuf);
-	u32 (*_write_port)(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct xmit_buf *pmem);
+	int (*_read_port)(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+			  struct recv_buf *rbuf);
+	int (*_write_port)(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+			   struct xmit_buf *pmem);
 
 	void (*_read_port_cancel)(struct rtw_adapter *adapter);
 	void (*_write_port_cancel)(struct rtw_adapter *adapter);
@@ -254,7 +259,7 @@ u8 _rtw_read823a(struct rtw_adapter *adapter, u32 addr);
 u16 _rtw_read1623a(struct rtw_adapter *adapter, u32 addr);
 u32 _rtw_read3223a(struct rtw_adapter *adapter, u32 addr);
 void _rtw_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-void _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct recv_buf *rbuf);
+int _rtw_read_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct recv_buf *rbuf);
 void _rtw_read_port23a_cancel(struct rtw_adapter *adapter);
 
 int _rtw_write823a(struct rtw_adapter *adapter, u32 addr, u8 val);
@@ -263,7 +268,7 @@ int _rtw_write3223a(struct rtw_adapter *adapter, u32 addr, u32 val);
 int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr, u32 length, u8 *pdata);
 
 void _rtw_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-u32 _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct xmit_buf *pmem);
+int _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct xmit_buf *pmem);
 void _rtw_write_port23a_cancel(struct rtw_adapter *adapter);
 
 #ifdef DBG_IO

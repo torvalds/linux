@@ -39,7 +39,7 @@ void usb_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *wmem);
 
 void usb_read_port_cancel23a(struct rtw_adapter *adapter);
 
-u32 usb_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+int usb_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 		      struct xmit_buf *wmem);
 void usb_write_port23a_cancel(struct rtw_adapter *adapter);
 

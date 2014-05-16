@@ -160,7 +160,7 @@ check_completion:
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 }
 
-u32 usb_write_port23a(struct rtw_adapter *padapter, u32 addr, u32 cnt,
+int usb_write_port23a(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 		      struct xmit_buf *pxmitbuf)
 {
 	struct urb *purb = NULL;
@@ -171,7 +171,7 @@ u32 usb_write_port23a(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 	unsigned long irqL;
 	unsigned int pipe;
 	int status;
-	u32 ret = _FAIL;
+	int ret = _FAIL;
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("+usb_write_port23a\n"));
 

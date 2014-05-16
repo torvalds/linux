@@ -439,11 +439,11 @@ urb_submit:
 	}
 }
 
-static u32 usb_read_interrupt(struct rtw_adapter *adapter, u32 addr)
+static int usb_read_interrupt(struct rtw_adapter *adapter, u32 addr)
 {
 	int err;
 	unsigned int pipe;
-	u32 ret = _SUCCESS;
+	int ret = _SUCCESS;
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(adapter);
 	struct recv_priv *precvpriv = &adapter->recvpriv;
 	struct usb_device *pusbd = pdvobj->pusbdev;
@@ -733,14 +733,14 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	}
 }
 
-static u32 usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+static int usb_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 			 struct recv_buf *precvbuf)
 {
 	int err;
 	unsigned int pipe;
 	unsigned long tmpaddr = 0;
 	unsigned long alignment = 0;
-	u32 ret = _SUCCESS;
+	int ret = _SUCCESS;
 	struct urb *purb = NULL;
 	struct dvobj_priv	*pdvobj = adapter_to_dvobj(adapter);
 	struct recv_priv	*precvpriv = &adapter->recvpriv;
