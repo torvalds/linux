@@ -64,14 +64,14 @@ _current_thread:
 ENTRY(_start)
 	wrctl	status, r0		/* Disable interrupts */
 
-	/* Flush all cache lines within the instruction cache */
+	/* Initialize all cache lines within the instruction cache */
 	movia	r1, NIOS2_ICACHE_SIZE
 	movui	r2, NIOS2_ICACHE_LINE_SIZE
 
-text_flush:
-	flushi	r1
+icache_init:
+	initi	r1
 	sub	r1, r1, r2
-	bgt	r1, r0, text_flush
+	bgt	r1, r0, icache_init
 	br	1f
 
 	/*
@@ -112,16 +112,16 @@ ENTRY(fast_handler_end)
 
 1:
 	/*
-	 * After flushing the instruction cache, we must flush the data
-	 * cache.
+	 * After the instruction cache is initialized, the data cache must
+	 * also be initialized.
 	 */
 	movia	r1, NIOS2_DCACHE_SIZE
 	movui	r2, NIOS2_DCACHE_LINE_SIZE
 
-data_flush:
-	flushd	0(r1)
+dcache_init:
+	initd	0(r1)
 	sub	r1, r1, r2
-	bgt	r1, r0, data_flush
+	bgt	r1, r0, dcache_init
 
 	nextpc	r1			/* Find out where we are */
 chkadr:
