@@ -223,12 +223,6 @@ struct reg_protocol_wt {
 
 };
 
-
-#ifdef DBG_IO
-bool match_read_sniff_ranges(u16 addr, u16 len);
-bool match_write_sniff_ranges(u16 addr, u16 len);
-#endif /* DBG_IO */
-
 #define PlatformEFIOWrite1Byte(_a,_b,_c)		\
 	rtl8723au_write8(_a,_b,_c)
 #define PlatformEFIOWrite2Byte(_a,_b,_c)		\
