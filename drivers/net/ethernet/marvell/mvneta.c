@@ -2797,9 +2797,22 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	phy_node = of_parse_phandle(dn, "phy", 0);
 	if (!phy_node) {
-		dev_err(&pdev->dev, "no associated PHY\n");
-		err = -ENODEV;
-		goto err_free_irq;
+		if (!of_phy_is_fixed_link(dn)) {
+			dev_err(&pdev->dev, "no PHY specified\n");
+			err = -ENODEV;
+			goto err_free_irq;
+		}
+
+		err = of_phy_register_fixed_link(dn);
+		if (err < 0) {
+			dev_err(&pdev->dev, "cannot register fixed PHY\n");
+			goto err_free_irq;
+		}
+
+		/* In the case of a fixed PHY, the DT node associated
+		 * to the PHY is the Ethernet MAC DT node.
+		 */
+		phy_node = dn;
 	}
 
 	phy_mode = of_get_phy_mode(dn);

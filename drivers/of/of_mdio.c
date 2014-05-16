@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/err.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
@@ -301,3 +302,69 @@ struct phy_device *of_phy_attach(struct net_device *dev,
 	return phy_attach_direct(dev, phy, flags, iface) ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_attach);
+
+#if defined(CONFIG_FIXED_PHY)
+/*
+ * of_phy_is_fixed_link() and of_phy_register_fixed_link() must
+ * support two DT bindings:
+ * - the old DT binding, where 'fixed-link' was a property with 5
+ *   cells encoding various informations about the fixed PHY
+ * - the new DT binding, where 'fixed-link' is a sub-node of the
+ *   Ethernet device.
+ */
+bool of_phy_is_fixed_link(struct device_node *np)
+{
+	struct device_node *dn;
+	int len;
+
+	/* New binding */
+	dn = of_get_child_by_name(np, "fixed-link");
+	if (dn) {
+		of_node_put(dn);
+		return true;
+	}
+
+	/* Old binding */
+	if (of_get_property(np, "fixed-link", &len) &&
+	    len == (5 * sizeof(__be32)))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(of_phy_is_fixed_link);
+
+int of_phy_register_fixed_link(struct device_node *np)
+{
+	struct fixed_phy_status status = {};
+	struct device_node *fixed_link_node;
+	const __be32 *fixed_link_prop;
+	int len;
+
+	/* New binding */
+	fixed_link_node = of_get_child_by_name(np, "fixed-link");
+	if (fixed_link_node) {
+		status.link = 1;
+		status.duplex = of_property_read_bool(np, "full-duplex");
+		if (of_property_read_u32(fixed_link_node, "speed", &status.speed))
+			return -EINVAL;
+		status.pause = of_property_read_bool(np, "pause");
+		status.asym_pause = of_property_read_bool(np, "asym-pause");
+		of_node_put(fixed_link_node);
+		return fixed_phy_register(PHY_POLL, &status, np);
+	}
+
+	/* Old binding */
+	fixed_link_prop = of_get_property(np, "fixed-link", &len);
+	if (fixed_link_prop && len == (5 * sizeof(__be32))) {
+		status.link = 1;
+		status.duplex = be32_to_cpu(fixed_link_prop[1]);
+		status.speed = be32_to_cpu(fixed_link_prop[2]);
+		status.pause = be32_to_cpu(fixed_link_prop[3]);
+		status.asym_pause = be32_to_cpu(fixed_link_prop[4]);
+		return fixed_phy_register(PHY_POLL, &status, np);
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL(of_phy_register_fixed_link);
+#endif

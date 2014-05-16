@@ -9,12 +9,23 @@ struct fixed_phy_status {
 	int asym_pause;
 };
 
+struct device_node;
+
 #ifdef CONFIG_FIXED_PHY
 extern int fixed_phy_add(unsigned int irq, int phy_id,
 			 struct fixed_phy_status *status);
+extern int fixed_phy_register(unsigned int irq,
+			      struct fixed_phy_status *status,
+			      struct device_node *np);
 #else
 static inline int fixed_phy_add(unsigned int irq, int phy_id,
 				struct fixed_phy_status *status)
+{
+	return -ENODEV;
+}
+static inline int fixed_phy_register(unsigned int irq,
+				     struct fixed_phy_status *status,
+				     struct device_node *np)
 {
 	return -ENODEV;
 }
