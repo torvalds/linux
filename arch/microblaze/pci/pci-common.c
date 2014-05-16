@@ -47,23 +47,9 @@ static int global_phb_number;		/* Global phb counter */
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
 
-static struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
-
 unsigned long isa_io_base;
 unsigned long pci_dram_offset;
 static int pci_bus_count;
-
-
-void set_pci_dma_ops(struct dma_map_ops *dma_ops)
-{
-	pci_dma_ops = dma_ops;
-}
-
-struct dma_map_ops *get_pci_dma_ops(void)
-{
-	return pci_dma_ops;
-}
-EXPORT_SYMBOL(get_pci_dma_ops);
 
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
@@ -886,8 +872,6 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 		 */
 		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
 
-		/* Hook up default DMA ops */
-		set_dma_ops(&dev->dev, pci_dma_ops);
 		dev->dev.archdata.dma_data = (void *)PCI_DRAM_OFFSET;
 
 		/* Read default IRQs and fixup if necessary */
