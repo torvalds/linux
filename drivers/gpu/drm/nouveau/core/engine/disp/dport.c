@@ -293,20 +293,36 @@ dp_link_train_fini(struct dp_state *dp)
 	nvbios_exec(&init);
 }
 
+static const struct dp_rates {
+	u32 rate;
+	u8  bw;
+	u8  nr;
+} nouveau_dp_rates[] = {
+	{ 2160000, 0x14, 4 },
+	{ 1080000, 0x0a, 4 },
+	{ 1080000, 0x14, 2 },
+	{  648000, 0x06, 4 },
+	{  540000, 0x0a, 2 },
+	{  540000, 0x14, 1 },
+	{  324000, 0x06, 2 },
+	{  270000, 0x0a, 1 },
+	{  162000, 0x06, 1 },
+	{}
+};
+
 int
 nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 		 struct dcb_output *outp, int head, u32 datarate)
 {
 	struct nouveau_bios *bios = nouveau_bios(disp);
 	struct nouveau_i2c *i2c = nouveau_i2c(disp);
+	const struct dp_rates *cfg = nouveau_dp_rates;
 	struct dp_state _dp = {
 		.disp = disp,
 		.func = func,
 		.outp = outp,
 		.head = head,
 	}, *dp = &_dp;
-	const u32 bw_list[] = { 540000, 270000, 162000, 0 };
-	const u32 *link_bw = bw_list;
 	u8  hdr, cnt, len;
 	u32 data;
 	int ret;
@@ -338,8 +354,8 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 		 * so results at best in an UPDATE hanging, and at worst
 		 * with PDISP running away to join the circus.
 		 */
-		dp->dpcd[1] = link_bw[0] / 27000;
-		dp->dpcd[2] = 4;
+		dp->dpcd[1] = dp->outp->dpconf.link_bw;
+		dp->dpcd[2] = dp->outp->dpconf.link_nr;
 		dp->dpcd[3] = 0x00;
 		ERR("failed to read DPCD\n");
 	}
@@ -355,26 +371,24 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 		dp->dpcd[1] = dp->outp->dpconf.link_bw;
 	dp->pc2 = dp->dpcd[2] & DPCD_RC02_TPS3_SUPPORTED;
 
-	/* adjust required bandwidth for 8B/10B coding overhead */
-	datarate = (datarate / 8) * 10;
+	/* restrict link config to the lowest required rate, if requested */
+	if (datarate) {
+		datarate = (datarate / 8) * 10; /* 8B/10B coding overhead */
+		while (cfg[1].rate >= datarate)
+			cfg++;
+	}
+	cfg--;
 
 	/* enable down-spreading and execute pre-train script from vbios */
 	dp_link_train_init(dp, dp->dpcd[3] & 0x01);
 
-	/* start off at highest link rate supported by encoder and display */
-	while (*link_bw > (dp->dpcd[1] * 27000))
-		link_bw++;
-
-	while ((ret = -EIO) && link_bw[0]) {
-		/* find minimum required lane count at this link rate */
-		dp->link_nr = dp->dpcd[2] & DPCD_RC02_MAX_LANE_COUNT;
-		while ((dp->link_nr >> 1) * link_bw[0] > datarate)
-			dp->link_nr >>= 1;
-
-		/* drop link rate to minimum with this lane count */
-		while ((link_bw[1] * dp->link_nr) > datarate)
-			link_bw++;
-		dp->link_bw = link_bw[0];
+	while (ret = -EIO, (++cfg)->rate) {
+		/* select next configuration supported by encoder and sink */
+		while (cfg->nr > (dp->dpcd[2] & DPCD_RC02_MAX_LANE_COUNT) ||
+		       cfg->bw > (dp->dpcd[DPCD_RC01_MAX_LINK_RATE]))
+			cfg++;
+		dp->link_bw = cfg->bw * 27000;
+		dp->link_nr = cfg->nr;
 
 		/* program selected link configuration */
 		ret = dp_set_link_config(dp);
@@ -391,9 +405,6 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 			 */
 			break;
 		}
-
-		/* retry at lower rate */
-		link_bw++;
 	}
 
 	/* finish link training */
