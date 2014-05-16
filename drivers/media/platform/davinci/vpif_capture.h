@@ -63,11 +63,6 @@ struct common_obj {
 	struct vpif_cap_buffer *cur_frm;
 	/* Pointer pointing to current v4l2_buffer */
 	struct vpif_cap_buffer *next_frm;
-	/*
-	 * This field keeps track of type of buffer exchange mechanism
-	 * user has selected
-	 */
-	enum v4l2_memory memory;
 	/* Used to store pixel format */
 	struct v4l2_format fmt;
 	/* Buffer queue used in video-buf */
