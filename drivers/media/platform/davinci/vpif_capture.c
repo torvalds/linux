@@ -242,15 +242,6 @@ static void vpif_wait_finish(struct vb2_queue *vq)
 	mutex_lock(&common->lock);
 }
 
-static int vpif_buffer_init(struct vb2_buffer *vb)
-{
-	struct vpif_cap_buffer *buf = to_vpif_buffer(vb);
-
-	INIT_LIST_HEAD(&buf->list);
-
-	return 0;
-}
-
 static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vpif_capture_config *vpif_config_data =
@@ -385,7 +376,6 @@ static struct vb2_ops video_qops = {
 	.queue_setup		= vpif_buffer_queue_setup,
 	.wait_prepare		= vpif_wait_prepare,
 	.wait_finish		= vpif_wait_finish,
-	.buf_init		= vpif_buffer_init,
 	.buf_prepare		= vpif_buffer_prepare,
 	.start_streaming	= vpif_start_streaming,
 	.stop_streaming		= vpif_stop_streaming,
