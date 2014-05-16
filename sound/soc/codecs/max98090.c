@@ -1795,13 +1795,6 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		if (max98090->jack_state == M98090_JACK_STATE_HEADSET) {
-			/*
-			 * Set to normal bias level.
-			 */
-			snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
-				M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
-		}
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
@@ -2295,6 +2288,9 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	/* Turn on VCM bandgap reference */
 	snd_soc_write(codec, M98090_REG_BIAS_CONTROL,
 		M98090_VCM_MODE_MASK);
+
+	snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
+		M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
 
 	max98090_handle_pdata(codec);
 
