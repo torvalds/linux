@@ -646,44 +646,6 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 }
 
 /*
- * vpif_mmap: It is used to map kernel space buffers into user spaces
- */
-static int vpif_mmap(struct file *filep, struct vm_area_struct *vma)
-{
-	struct vpif_fh *fh = filep->private_data;
-	struct channel_obj *ch = fh->channel;
-	struct common_obj *common = &(ch->common[VPIF_VIDEO_INDEX]);
-	int ret;
-
-	vpif_dbg(2, debug, "vpif_mmap\n");
-
-	if (mutex_lock_interruptible(&common->lock))
-		return -ERESTARTSYS;
-	ret = vb2_mmap(&common->buffer_queue, vma);
-	mutex_unlock(&common->lock);
-	return ret;
-}
-
-/*
- * vpif_poll: It is used for select/poll system call
- */
-static unsigned int vpif_poll(struct file *filep, poll_table *wait)
-{
-	struct vpif_fh *fh = filep->private_data;
-	struct channel_obj *ch = fh->channel;
-	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	unsigned int res = 0;
-
-	if (common->started) {
-		mutex_lock(&common->lock);
-		res = vb2_poll(&common->buffer_queue, filep, wait);
-		mutex_unlock(&common->lock);
-	}
-
-	return res;
-}
-
-/*
  * vpif_open: It creates object of file handle structure and stores it in
  * private_data member of filepointer
  */
@@ -1463,8 +1425,8 @@ static const struct v4l2_file_operations vpif_fops = {
 	.open		= vpif_open,
 	.release	= vpif_release,
 	.unlocked_ioctl	= video_ioctl2,
-	.mmap		= vpif_mmap,
-	.poll		= vpif_poll
+	.mmap		= vb2_fop_mmap,
+	.poll		= vb2_fop_poll
 };
 
 static struct video_device vpif_video_template = {
@@ -1555,6 +1517,7 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 static int vpif_probe_complete(void)
 {
 	struct common_obj *common;
+	struct video_device *vdev;
 	struct channel_obj *ch;
 	struct vb2_queue *q;
 	int j, err, k;
@@ -1636,8 +1599,10 @@ static int vpif_probe_complete(void)
 		vpif_dbg(1, debug, "channel=%x,channel->video_dev=%x\n",
 			 (int)ch, (int)&ch->video_dev);
 
-		err = video_register_device(ch->video_dev,
-					  VFL_TYPE_GRABBER, (j ? 3 : 2));
+		vdev = ch->video_dev;
+		vdev->queue = q;
+		err = video_register_device(vdev, VFL_TYPE_GRABBER,
+					    (j ? 3 : 2));
 		if (err < 0)
 			goto probe_out;
 	}
