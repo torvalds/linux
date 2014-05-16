@@ -224,13 +224,6 @@ struct reg_protocol_wt {
 };
 
 
-void _rtw_attrib_read(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-void _rtw_attrib_write(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-
-void _rtw_read_port23a_cancel(struct rtw_adapter *adapter);
-
-void _rtw_write_port23a_cancel(struct rtw_adapter *adapter);
-
 #ifdef DBG_IO
 bool match_read_sniff_ranges(u16 addr, u16 len);
 bool match_write_sniff_ranges(u16 addr, u16 len);
