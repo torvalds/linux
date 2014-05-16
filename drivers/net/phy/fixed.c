@@ -31,7 +31,7 @@ struct fixed_mdio_bus {
 };
 
 struct fixed_phy {
-	int id;
+	int addr;
 	u16 regs[MII_REGS_NUM];
 	struct phy_device *phydev;
 	struct fixed_phy_status status;
@@ -104,8 +104,8 @@ static int fixed_phy_update_regs(struct fixed_phy *fp)
 	if (fp->status.asym_pause)
 		lpa |= LPA_PAUSE_ASYM;
 
-	fp->regs[MII_PHYSID1] = fp->id >> 16;
-	fp->regs[MII_PHYSID2] = fp->id;
+	fp->regs[MII_PHYSID1] = 0;
+	fp->regs[MII_PHYSID2] = 0;
 
 	fp->regs[MII_BMSR] = bmsr;
 	fp->regs[MII_BMCR] = bmcr;
@@ -115,7 +115,7 @@ static int fixed_phy_update_regs(struct fixed_phy *fp)
 	return 0;
 }
 
-static int fixed_mdio_read(struct mii_bus *bus, int phy_id, int reg_num)
+static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 {
 	struct fixed_mdio_bus *fmb = bus->priv;
 	struct fixed_phy *fp;
@@ -124,7 +124,7 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_id, int reg_num)
 		return -1;
 
 	list_for_each_entry(fp, &fmb->phys, node) {
-		if (fp->id == phy_id) {
+		if (fp->addr == phy_addr) {
 			/* Issue callback if user registered it. */
 			if (fp->link_update) {
 				fp->link_update(fp->phydev->attached_dev,
@@ -138,7 +138,7 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_id, int reg_num)
 	return 0xFFFF;
 }
 
-static int fixed_mdio_write(struct mii_bus *bus, int phy_id, int reg_num,
+static int fixed_mdio_write(struct mii_bus *bus, int phy_addr, int reg_num,
 			    u16 val)
 {
 	return 0;
@@ -160,7 +160,7 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 		return -EINVAL;
 
 	list_for_each_entry(fp, &fmb->phys, node) {
-		if (fp->id == phydev->phy_id) {
+		if (fp->addr == phydev->addr) {
 			fp->link_update = link_update;
 			fp->phydev = phydev;
 			return 0;
@@ -171,7 +171,7 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 }
 EXPORT_SYMBOL_GPL(fixed_phy_set_link_update);
 
-int fixed_phy_add(unsigned int irq, int phy_id,
+int fixed_phy_add(unsigned int irq, int phy_addr,
 		  struct fixed_phy_status *status)
 {
 	int ret;
@@ -184,9 +184,9 @@ int fixed_phy_add(unsigned int irq, int phy_id,
 
 	memset(fp->regs, 0xFF,  sizeof(fp->regs[0]) * MII_REGS_NUM);
 
-	fmb->irqs[phy_id] = irq;
+	fmb->irqs[phy_addr] = irq;
 
-	fp->id = phy_id;
+	fp->addr = phy_addr;
 	fp->status = *status;
 
 	ret = fixed_phy_update_regs(fp);
