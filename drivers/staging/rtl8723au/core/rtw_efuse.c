@@ -18,6 +18,7 @@
 #include <drv_types.h>
 
 #include <rtw_efuse.h>
+#include <rtl8723a_hal.h>
 
 /*------------------------Define local variable------------------------------*/
 
@@ -26,8 +27,11 @@
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 /*  */
 
+#define VOLTAGE_V25		0x03
+#define LDOE25_SHIFT		28
+
 /*-----------------------------------------------------------------------------
- * Function:	Efuse_PowerSwitch23a
+ * Function:	Efuse_PowerSwitch
  *
  * Overview:	When we want to enable write operation, we should change to
  *				pwr on state. When we stop write, we should switch to 500k mode
@@ -44,13 +48,53 @@
  * 11/17/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-void
-Efuse_PowerSwitch23a(
-	struct rtw_adapter *	pAdapter,
-	u8		bWrite,
-	u8		PwrState)
+static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
+			      u8 bWrite, u8 PwrState)
 {
-	pAdapter->HalFunc.EfusePowerSwitch(pAdapter, bWrite, PwrState);
+	u8 tempval;
+	u16 tmpV16;
+
+	if (PwrState == true) {
+		rtw_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
+
+		/*  1.2V Power: From VDDON with Power
+		    Cut(0x0000h[15]), defualt valid */
+		tmpV16 = rtw_read16(padapter, REG_SYS_ISO_CTRL);
+		if (!(tmpV16 & PWC_EV12V)) {
+			tmpV16 |= PWC_EV12V;
+			rtw_write16(padapter, REG_SYS_ISO_CTRL, tmpV16);
+		}
+		/*  Reset: 0x0000h[28], default valid */
+		tmpV16 = rtw_read16(padapter, REG_SYS_FUNC_EN);
+		if (!(tmpV16 & FEN_ELDR)) {
+			tmpV16 |= FEN_ELDR;
+			rtw_write16(padapter, REG_SYS_FUNC_EN, tmpV16);
+		}
+
+		/*  Clock: Gated(0x0008h[5]) 8M(0x0008h[1]) clock
+		    from ANA, default valid */
+		tmpV16 = rtw_read16(padapter, REG_SYS_CLKR);
+		if ((!(tmpV16 & LOADER_CLK_EN)) || (!(tmpV16 & ANA8M))) {
+			tmpV16 |= (LOADER_CLK_EN | ANA8M);
+			rtw_write16(padapter, REG_SYS_CLKR, tmpV16);
+		}
+
+		if (bWrite == true) {
+			/*  Enable LDO 2.5V before read/write action */
+			tempval = rtw_read8(padapter, EFUSE_TEST + 3);
+			tempval &= 0x0F;
+			tempval |= (VOLTAGE_V25 << 4);
+			rtw_write8(padapter, EFUSE_TEST + 3, (tempval | 0x80));
+		}
+	} else {
+		rtw_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_OFF);
+
+		if (bWrite == true) {
+			/*  Disable LDO 2.5V after read/write action */
+			tempval = rtw_read8(padapter, EFUSE_TEST + 3);
+			rtw_write8(padapter, EFUSE_TEST + 3, (tempval & 0x7F));
+		}
+	}
 }
 
 /*-----------------------------------------------------------------------------
@@ -74,7 +118,10 @@ Efuse_GetCurrentSize23a(struct rtw_adapter *pAdapter, u8 efuseType)
 {
 	u16 ret = 0;
 
-	ret = pAdapter->HalFunc.EfuseGetCurrentSize(pAdapter, efuseType);
+	if (efuseType == EFUSE_WIFI)
+		ret = rtl8723a_EfuseGetCurrentSize_WiFi(pAdapter);
+	else
+		ret = rtl8723a_EfuseGetCurrentSize_BT(pAdapter);
 
 	return ret;
 }
@@ -138,41 +185,87 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 	*pbuf = (u8)(value32 & 0xff);
 }
 
-/*  */
-/*	Description: */
-/*		1. Execute E-Fuse read byte operation according as map offset and */
-/*		    save to E-Fuse table. */
-/*		2. Refered from SD1 Richard. */
-/*  */
-/*	Assumption: */
-/*		1. Boot from E-Fuse and successfully auto-load. */
-/*		2. PASSIVE_LEVEL (USB interface) */
-/*  */
-/*	Created by Roger, 2008.10.21. */
-/*  */
-/*	2008/12/12 MH	1. Reorganize code flow and reserve bytes. and add description. */
-/*					2. Add efuse utilization collect. */
-/*	2008/12/22 MH	Read Efuse must check if we write section 1 data again!!! Sec1 */
-/*					write addr must be after sec5. */
-/*  */
-
-void
-efuse_ReadEFuse(struct rtw_adapter *Adapter, u8 efuseType,
-		u16 _offset, u16 _size_byte, u8 *pbuf);
-void
-efuse_ReadEFuse(struct rtw_adapter *Adapter, u8 efuseType,
-		u16 _offset, u16 _size_byte, u8 *pbuf)
-{
-	Adapter->HalFunc.ReadEFuse(Adapter, efuseType, _offset,
-				   _size_byte, pbuf);
-}
-
 void
 EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
-			 u8 type, void *pOut)
+			    u8 type, void *pOut)
 {
-	pAdapter->HalFunc.EFUSEGetEfuseDefinition(pAdapter, efuseType,
-						  type, pOut);
+	u8 *pu1Tmp;
+	u16 *pu2Tmp;
+	u8 *pMax_section;
+
+	switch (type) {
+	case TYPE_EFUSE_MAX_SECTION:
+		pMax_section = (u8 *) pOut;
+
+		if (efuseType == EFUSE_WIFI)
+			*pMax_section = EFUSE_MAX_SECTION_8723A;
+		else
+			*pMax_section = EFUSE_BT_MAX_SECTION;
+		break;
+
+	case TYPE_EFUSE_REAL_CONTENT_LEN:
+		pu2Tmp = (u16 *) pOut;
+
+		if (efuseType == EFUSE_WIFI)
+			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_8723A;
+		else
+			*pu2Tmp = EFUSE_BT_REAL_CONTENT_LEN;
+		break;
+
+	case TYPE_AVAILABLE_EFUSE_BYTES_BANK:
+		pu2Tmp = (u16 *) pOut;
+
+		if (efuseType == EFUSE_WIFI)
+			*pu2Tmp = (EFUSE_REAL_CONTENT_LEN_8723A -
+				   EFUSE_OOB_PROTECT_BYTES);
+		else
+			*pu2Tmp = (EFUSE_BT_REAL_BANK_CONTENT_LEN -
+				   EFUSE_PROTECT_BYTES_BANK);
+		break;
+
+	case TYPE_AVAILABLE_EFUSE_BYTES_TOTAL:
+		pu2Tmp = (u16 *) pOut;
+
+		if (efuseType == EFUSE_WIFI)
+			*pu2Tmp = (EFUSE_REAL_CONTENT_LEN_8723A -
+				   EFUSE_OOB_PROTECT_BYTES);
+		else
+			*pu2Tmp = (EFUSE_BT_REAL_CONTENT_LEN -
+				   (EFUSE_PROTECT_BYTES_BANK * 3));
+		break;
+
+	case TYPE_EFUSE_MAP_LEN:
+		pu2Tmp = (u16 *) pOut;
+
+		if (efuseType == EFUSE_WIFI)
+			*pu2Tmp = EFUSE_MAP_LEN_8723A;
+		else
+			*pu2Tmp = EFUSE_BT_MAP_LEN;
+		break;
+
+	case TYPE_EFUSE_PROTECT_BYTES_BANK:
+		pu1Tmp = (u8 *) pOut;
+
+		if (efuseType == EFUSE_WIFI)
+			*pu1Tmp = EFUSE_OOB_PROTECT_BYTES;
+		else
+			*pu1Tmp = EFUSE_PROTECT_BYTES_BANK;
+		break;
+
+	case TYPE_EFUSE_CONTENT_LEN_BANK:
+		pu2Tmp = (u16 *) pOut;
+
+		if (efuseType == EFUSE_WIFI)
+			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_8723A;
+		else
+			*pu2Tmp = EFUSE_BT_REAL_BANK_CONTENT_LEN;
+		break;
+
+	default:
+		pu1Tmp = (u8 *) pOut;
+		*pu1Tmp = 0;
+		break;
+	}
 }
 
 /*-----------------------------------------------------------------------------
@@ -488,7 +581,7 @@ u8 rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
 	} else
 		rw8 = &efuse_read8;
 
-	Efuse_PowerSwitch23a(padapter, bWrite, true);
+	Efuse_PowerSwitch(padapter, bWrite, true);
 
 	/*  e-fuse one byte read / write */
 	for (i = 0; i < cnts; i++) {
@@ -501,7 +594,7 @@ u8 rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
 		if (_FAIL == res) break;
 	}
 
-	Efuse_PowerSwitch23a(padapter, bWrite, false);
+	Efuse_PowerSwitch(padapter, bWrite, false);
 
 	return res;
 }
@@ -517,9 +610,9 @@ u16 efuse_GetMaxSize23a(struct rtw_adapter *padapter)
 /*  */
 u8 efuse_GetCurrentSize23a(struct rtw_adapter *padapter, u16 *size)
 {
-	Efuse_PowerSwitch23a(padapter, false, true);
+	Efuse_PowerSwitch(padapter, false, true);
 	*size = Efuse_GetCurrentSize23a(padapter, EFUSE_WIFI);
-	Efuse_PowerSwitch23a(padapter, false, false);
+	Efuse_PowerSwitch(padapter, false, false);
 
 	return _SUCCESS;
 }
@@ -534,11 +627,11 @@ u8 rtw_efuse_map_read23a(struct rtw_adapter *padapter, u16 addr, u16 cnts, u8 *d
 	if ((addr + cnts) > mapLen)
 		return _FAIL;
 
-	Efuse_PowerSwitch23a(padapter, false, true);
+	Efuse_PowerSwitch(padapter, false, true);
 
-	efuse_ReadEFuse(padapter, EFUSE_WIFI, addr, cnts, data);
+	rtl8723a_readefuse(padapter, EFUSE_WIFI, addr, cnts, data);
 
-	Efuse_PowerSwitch23a(padapter, false, false);
+	Efuse_PowerSwitch(padapter, false, false);
 
 	return _SUCCESS;
 }
@@ -553,11 +646,11 @@ u8 rtw_BT_efuse_map_read23a(struct rtw_adapter *padapter, u16 addr, u16 cnts, u8
 	if ((addr + cnts) > mapLen)
 		return _FAIL;
 
-	Efuse_PowerSwitch23a(padapter, false, true);
+	Efuse_PowerSwitch(padapter, false, true);
 
-	efuse_ReadEFuse(padapter, EFUSE_BT, addr, cnts, data);
+	rtl8723a_readefuse(padapter, EFUSE_BT, addr, cnts, data);
 
-	Efuse_PowerSwitch23a(padapter, false, false);
+	Efuse_PowerSwitch(padapter, false, false);
 
 	return _SUCCESS;
 }
@@ -585,14 +678,14 @@ Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType, u8 *Efuse)
 {
 	u16	mapLen = 0;
 
-	Efuse_PowerSwitch23a(pAdapter, false, true);
+	Efuse_PowerSwitch(pAdapter, false, true);
 
 	EFUSE_GetEfuseDefinition23a(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN,
 				 (void *)&mapLen);
 
-	efuse_ReadEFuse(pAdapter, efuseType, 0, mapLen, Efuse);
+	rtl8723a_readefuse(pAdapter, efuseType, 0, mapLen, Efuse);
 
-	Efuse_PowerSwitch23a(pAdapter, false, false);
+	Efuse_PowerSwitch(pAdapter, false, false);
 }
 
 /*-----------------------------------------------------------------------------

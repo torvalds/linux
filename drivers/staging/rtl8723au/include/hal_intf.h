@@ -94,10 +94,6 @@ struct hal_ops {
 	s32 (*hal_xmitframe_enqueue)(struct rtw_adapter *padapter,
 				     struct xmit_frame *pxmitframe);
 
-	void (*EfusePowerSwitch)(struct rtw_adapter *padapter, u8 bWrite,
-				 u8 PwrState);
-	void (*ReadEFuse)(struct rtw_adapter *padapter, u8 efuseType,
-			  u16 _offset, u16 _size_byte, u8 *pbuf);
 	void (*EFUSEGetEfuseDefinition)(struct rtw_adapter *padapter,
 					u8 efuseType, u8 type, void *pOut);
 	u16 (*EfuseGetCurrentSize)(struct rtw_adapter *padapter, u8 efuseType);

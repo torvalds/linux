@@ -553,5 +553,10 @@ void rtl8723a_SetBeaconRelatedRegisters(struct rtw_adapter *padapter);
 void rtl8723a_SetHalODMVar(struct rtw_adapter *Adapter,
 			   enum hal_odm_variable eVariable,
 			   void *pValue1, bool bSet);
+void
+rtl8723a_readefuse(struct rtw_adapter *padapter,
+		   u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf);
+u16 rtl8723a_EfuseGetCurrentSize_WiFi(struct rtw_adapter *padapter);
+u16 rtl8723a_EfuseGetCurrentSize_BT(struct rtw_adapter *padapter);
 
 #endif

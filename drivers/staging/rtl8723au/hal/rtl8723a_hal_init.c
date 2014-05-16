@@ -468,141 +468,6 @@ hal_EfuseSwitchToBank(struct rtw_adapter *padapter, u8 bank)
 }
 
 static void
-Hal_GetEfuseDefinition(struct rtw_adapter *padapter,
-		       u8 efuseType, u8 type, void *pOut)
-{
-	u8 *pu1Tmp;
-	u16 *pu2Tmp;
-	u8 *pMax_section;
-
-	switch (type) {
-	case TYPE_EFUSE_MAX_SECTION:
-		pMax_section = (u8 *) pOut;
-
-		if (efuseType == EFUSE_WIFI)
-			*pMax_section = EFUSE_MAX_SECTION_8723A;
-		else
-			*pMax_section = EFUSE_BT_MAX_SECTION;
-		break;
-
-	case TYPE_EFUSE_REAL_CONTENT_LEN:
-		pu2Tmp = (u16 *) pOut;
-
-		if (efuseType == EFUSE_WIFI)
-			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_8723A;
-		else
-			*pu2Tmp = EFUSE_BT_REAL_CONTENT_LEN;
-		break;
-
-	case TYPE_AVAILABLE_EFUSE_BYTES_BANK:
-		pu2Tmp = (u16 *) pOut;
-
-		if (efuseType == EFUSE_WIFI)
-			*pu2Tmp = (EFUSE_REAL_CONTENT_LEN_8723A -
-				   EFUSE_OOB_PROTECT_BYTES);
-		else
-			*pu2Tmp = (EFUSE_BT_REAL_BANK_CONTENT_LEN -
-				   EFUSE_PROTECT_BYTES_BANK);
-		break;
-
-	case TYPE_AVAILABLE_EFUSE_BYTES_TOTAL:
-		pu2Tmp = (u16 *) pOut;
-
-		if (efuseType == EFUSE_WIFI)
-			*pu2Tmp = (EFUSE_REAL_CONTENT_LEN_8723A -
-				   EFUSE_OOB_PROTECT_BYTES);
-		else
-			*pu2Tmp = (EFUSE_BT_REAL_CONTENT_LEN -
-				   (EFUSE_PROTECT_BYTES_BANK * 3));
-		break;
-
-	case TYPE_EFUSE_MAP_LEN:
-		pu2Tmp = (u16 *) pOut;
-
-		if (efuseType == EFUSE_WIFI)
-			*pu2Tmp = EFUSE_MAP_LEN_8723A;
-		else
-			*pu2Tmp = EFUSE_BT_MAP_LEN;
-		break;
-
-	case TYPE_EFUSE_PROTECT_BYTES_BANK:
-		pu1Tmp = (u8 *) pOut;
-
-		if (efuseType == EFUSE_WIFI)
-			*pu1Tmp = EFUSE_OOB_PROTECT_BYTES;
-		else
-			*pu1Tmp = EFUSE_PROTECT_BYTES_BANK;
-		break;
-
-	case TYPE_EFUSE_CONTENT_LEN_BANK:
-		pu2Tmp = (u16 *) pOut;
-
-		if (efuseType == EFUSE_WIFI)
-			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_8723A;
-		else
-			*pu2Tmp = EFUSE_BT_REAL_BANK_CONTENT_LEN;
-		break;
-
-	default:
-		pu1Tmp = (u8 *) pOut;
-		*pu1Tmp = 0;
-		break;
-	}
-}
-
-#define VOLTAGE_V25		0x03
-#define LDOE25_SHIFT	28
-
-static void
-Hal_EfusePowerSwitch(struct rtw_adapter *padapter, u8 bWrite, u8 PwrState)
-{
-	u8 tempval;
-	u16 tmpV16;
-
-	if (PwrState == true) {
-		rtw_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
-
-		/*  1.2V Power: From VDDON with Power
-		    Cut(0x0000h[15]), defualt valid */
-		tmpV16 = rtw_read16(padapter, REG_SYS_ISO_CTRL);
-		if (!(tmpV16 & PWC_EV12V)) {
-			tmpV16 |= PWC_EV12V;
-			rtw_write16(padapter, REG_SYS_ISO_CTRL, tmpV16);
-		}
-		/*  Reset: 0x0000h[28], default valid */
-		tmpV16 = rtw_read16(padapter, REG_SYS_FUNC_EN);
-		if (!(tmpV16 & FEN_ELDR)) {
-			tmpV16 |= FEN_ELDR;
-			rtw_write16(padapter, REG_SYS_FUNC_EN, tmpV16);
-		}
-
-		/*  Clock: Gated(0x0008h[5]) 8M(0x0008h[1]) clock
-		    from ANA, default valid */
-		tmpV16 = rtw_read16(padapter, REG_SYS_CLKR);
-		if ((!(tmpV16 & LOADER_CLK_EN)) || (!(tmpV16 & ANA8M))) {
-			tmpV16 |= (LOADER_CLK_EN | ANA8M);
-			rtw_write16(padapter, REG_SYS_CLKR, tmpV16);
-		}
-
-		if (bWrite == true) {
-			/*  Enable LDO 2.5V before read/write action */
-			tempval = rtw_read8(padapter, EFUSE_TEST + 3);
-			tempval &= 0x0F;
-			tempval |= (VOLTAGE_V25 << 4);
-			rtw_write8(padapter, EFUSE_TEST + 3, (tempval | 0x80));
-		}
-	} else {
-		rtw_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_OFF);
-
-		if (bWrite == true) {
-			/*  Disable LDO 2.5V after read/write action */
-			tempval = rtw_read8(padapter, EFUSE_TEST + 3);
-			rtw_write8(padapter, EFUSE_TEST + 3, (tempval & 0x7F));
-		}
-	}
-}
-
-static void
 hal_ReadEFuse_WiFi(struct rtw_adapter *padapter,
 		   u16 _offset, u16 _size_byte, u8 *pbuf)
 {
@@ -812,9 +677,9 @@ exit:
 	kfree(efuseTbl);
 }
 
-static void
-Hal_ReadEFuse(struct rtw_adapter *padapter,
-	      u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf)
+void
+rtl8723a_readefuse(struct rtw_adapter *padapter,
+		   u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf)
 {
 	if (efuseType == EFUSE_WIFI)
 		hal_ReadEFuse_WiFi(padapter, _offset, _size_byte, pbuf);
@@ -822,8 +687,7 @@ Hal_ReadEFuse(struct rtw_adapter *padapter,
 		hal_ReadEFuse_BT(padapter, _offset, _size_byte, pbuf);
 }
 
-static u16
-hal_EfuseGetCurrentSize_WiFi(struct rtw_adapter *padapter)
+u16 rtl8723a_EfuseGetCurrentSize_WiFi(struct rtw_adapter *padapter)
 {
 	u16 efuse_addr = 0;
 	u8 hoffset = 0, hworden = 0;
@@ -874,8 +738,7 @@ hal_EfuseGetCurrentSize_WiFi(struct rtw_adapter *padapter)
 	return efuse_addr;
 }
 
-static u16
-hal_EfuseGetCurrentSize_BT(struct rtw_adapter *padapter)
+u16 rtl8723a_EfuseGetCurrentSize_BT(struct rtw_adapter *padapter)
 {
 	u16 btusedbytes;
 	u16 efuse_addr;
@@ -954,19 +817,6 @@ hal_EfuseGetCurrentSize_BT(struct rtw_adapter *padapter)
 
 	DBG_8723A("%s: CurrentSize =%d\n", __func__, retU2);
 	return retU2;
-}
-
-static u16
-Hal_EfuseGetCurrentSize(struct rtw_adapter *pAdapter, u8 efuseType)
-{
-	u16 ret = 0;
-
-	if (efuseType == EFUSE_WIFI)
-		ret = hal_EfuseGetCurrentSize_WiFi(pAdapter);
-	else
-		ret = hal_EfuseGetCurrentSize_BT(pAdapter);
-
-	return ret;
 }
 
 static u8
@@ -1695,10 +1545,6 @@ exit:
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 {
 	/*  Efuse related function */
-	pHalFunc->EfusePowerSwitch = &Hal_EfusePowerSwitch;
-	pHalFunc->ReadEFuse = &Hal_ReadEFuse;
-	pHalFunc->EFUSEGetEfuseDefinition = &Hal_GetEfuseDefinition;
-	pHalFunc->EfuseGetCurrentSize = &Hal_EfuseGetCurrentSize;
 	pHalFunc->Efuse_PgPacketRead23a = &Hal_EfusePgPacketRead;
 	pHalFunc->Efuse_PgPacketWrite23a = &Hal_EfusePgPacketWrite;
 	pHalFunc->Efuse_WordEnableDataWrite23a = &Hal_EfuseWordEnableDataWrite;
