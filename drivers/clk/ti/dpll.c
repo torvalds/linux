@@ -433,6 +433,27 @@ static void __init of_ti_omap4_dpll_setup(struct device_node *node)
 CLK_OF_DECLARE(ti_omap4_dpll_clock, "ti,omap4-dpll-clock",
 	       of_ti_omap4_dpll_setup);
 
+static void __init of_ti_omap5_mpu_dpll_setup(struct device_node *node)
+{
+	const struct dpll_data dd = {
+		.idlest_mask = 0x1,
+		.enable_mask = 0x7,
+		.autoidle_mask = 0x7,
+		.mult_mask = 0x7ff << 8,
+		.div1_mask = 0x7f,
+		.max_multiplier = 2047,
+		.max_divider = 128,
+		.dcc_mask = BIT(22),
+		.dcc_rate = 1400000000, /* DCC beyond 1.4GHz */
+		.min_divider = 1,
+		.modes = (1 << DPLL_LOW_POWER_BYPASS) | (1 << DPLL_LOCKED),
+	};
+
+	of_ti_dpll_setup(node, &dpll_ck_ops, &dd);
+}
+CLK_OF_DECLARE(of_ti_omap5_mpu_dpll_clock, "ti,omap5-mpu-dpll-clock",
+	       of_ti_omap5_mpu_dpll_setup);
+
 static void __init of_ti_omap4_core_dpll_setup(struct device_node *node)
 {
 	const struct dpll_data dd = {
