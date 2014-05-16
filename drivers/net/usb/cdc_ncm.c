@@ -120,19 +120,51 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 	ctx->tx_max = val;
 }
 
-static int cdc_ncm_setup(struct usbnet *dev)
+/* helpers for NCM and MBIM differences */
+static u8 cdc_ncm_flags(struct usbnet *dev)
 {
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
-	u32 val;
-	u8 flags;
-	u8 iface_no;
-	int err;
-	int eth_hlen;
-	u16 mbim_mtu;
-	u16 ntb_fmt_supported;
-	__le16 max_datagram_size;
 
-	iface_no = ctx->control->cur_altsetting->desc.bInterfaceNumber;
+	if (cdc_ncm_comm_intf_is_mbim(dev->intf->cur_altsetting) && ctx->mbim_desc)
+		return ctx->mbim_desc->bmNetworkCapabilities;
+	if (ctx->func_desc)
+		return ctx->func_desc->bmNetworkCapabilities;
+	return 0;
+}
+
+static int cdc_ncm_eth_hlen(struct usbnet *dev)
+{
+	if (cdc_ncm_comm_intf_is_mbim(dev->intf->cur_altsetting))
+		return 0;
+	return ETH_HLEN;
+}
+
+static u32 cdc_ncm_min_dgram_size(struct usbnet *dev)
+{
+	if (cdc_ncm_comm_intf_is_mbim(dev->intf->cur_altsetting))
+		return CDC_MBIM_MIN_DATAGRAM_SIZE;
+	return CDC_NCM_MIN_DATAGRAM_SIZE;
+}
+
+static u32 cdc_ncm_max_dgram_size(struct usbnet *dev)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+
+	if (cdc_ncm_comm_intf_is_mbim(dev->intf->cur_altsetting) && ctx->mbim_desc)
+		return le16_to_cpu(ctx->mbim_desc->wMaxSegmentSize);
+	if (ctx->ether_desc)
+		return le16_to_cpu(ctx->ether_desc->wMaxSegmentSize);
+	return CDC_NCM_MAX_DATAGRAM_SIZE;
+}
+
+/* initial one-time device setup.  MUST be called with the data interface
+ * in altsetting 0
+ */
+static int cdc_ncm_init(struct usbnet *dev)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	u8 iface_no = ctx->control->cur_altsetting->desc.bInterfaceNumber;
+	int err;
 
 	err = usbnet_read_cmd(dev, USB_CDC_GET_NTB_PARAMETERS,
 			      USB_TYPE_CLASS | USB_DIR_IN
@@ -144,7 +176,35 @@ static int cdc_ncm_setup(struct usbnet *dev)
 		return err; /* GET_NTB_PARAMETERS is required */
 	}
 
-	/* read correct set of parameters according to device mode */
+	/* set CRC Mode */
+	if (cdc_ncm_flags(dev) & USB_CDC_NCM_NCAP_CRC_MODE) {
+		dev_dbg(&dev->intf->dev, "Setting CRC mode off\n");
+		err = usbnet_write_cmd(dev, USB_CDC_SET_CRC_MODE,
+				       USB_TYPE_CLASS | USB_DIR_OUT
+				       | USB_RECIP_INTERFACE,
+				       USB_CDC_NCM_CRC_NOT_APPENDED,
+				       iface_no, NULL, 0);
+		if (err < 0)
+			dev_err(&dev->intf->dev, "SET_CRC_MODE failed\n");
+	}
+
+	/* set NTB format, if both formats are supported.
+	 *
+	 * "The host shall only send this command while the NCM Data
+	 *  Interface is in alternate setting 0."
+	 */
+	if (le16_to_cpu(ctx->ncm_parm.bmNtbFormatsSupported) & USB_CDC_NCM_NTH32_SIGN) {
+		dev_dbg(&dev->intf->dev, "Setting NTB format to 16-bit\n");
+		err = usbnet_write_cmd(dev, USB_CDC_SET_NTB_FORMAT,
+				       USB_TYPE_CLASS | USB_DIR_OUT
+				       | USB_RECIP_INTERFACE,
+				       USB_CDC_NCM_NTB16_FORMAT,
+				       iface_no, NULL, 0);
+		if (err < 0)
+			dev_err(&dev->intf->dev, "SET_NTB_FORMAT failed\n");
+	}
+
+	/* set initial device values */
 	ctx->rx_max = le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize);
 	ctx->tx_max = le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize);
 	ctx->tx_remainder = le16_to_cpu(ctx->ncm_parm.wNdpOutPayloadRemainder);
@@ -152,43 +212,73 @@ static int cdc_ncm_setup(struct usbnet *dev)
 	ctx->tx_ndp_modulus = le16_to_cpu(ctx->ncm_parm.wNdpOutAlignment);
 	/* devices prior to NCM Errata shall set this field to zero */
 	ctx->tx_max_datagrams = le16_to_cpu(ctx->ncm_parm.wNtbOutMaxDatagrams);
-	ntb_fmt_supported = le16_to_cpu(ctx->ncm_parm.bmNtbFormatsSupported);
-
-	/* there are some minor differences in NCM and MBIM defaults */
-	if (cdc_ncm_comm_intf_is_mbim(ctx->control->cur_altsetting)) {
-		if (!ctx->mbim_desc)
-			return -EINVAL;
-		eth_hlen = 0;
-		flags = ctx->mbim_desc->bmNetworkCapabilities;
-		ctx->max_datagram_size = le16_to_cpu(ctx->mbim_desc->wMaxSegmentSize);
-		if (ctx->max_datagram_size < CDC_MBIM_MIN_DATAGRAM_SIZE)
-			ctx->max_datagram_size = CDC_MBIM_MIN_DATAGRAM_SIZE;
-	} else {
-		if (!ctx->func_desc)
-			return -EINVAL;
-		eth_hlen = ETH_HLEN;
-		flags = ctx->func_desc->bmNetworkCapabilities;
-		ctx->max_datagram_size = le16_to_cpu(ctx->ether_desc->wMaxSegmentSize);
-		if (ctx->max_datagram_size < CDC_NCM_MIN_DATAGRAM_SIZE)
-			ctx->max_datagram_size = CDC_NCM_MIN_DATAGRAM_SIZE;
-	}
-
-	/* common absolute max for NCM and MBIM */
-	if (ctx->max_datagram_size > CDC_NCM_MAX_DATAGRAM_SIZE)
-		ctx->max_datagram_size = CDC_NCM_MAX_DATAGRAM_SIZE;
 
 	dev_dbg(&dev->intf->dev,
 		"dwNtbInMaxSize=%u dwNtbOutMaxSize=%u wNdpOutPayloadRemainder=%u wNdpOutDivisor=%u wNdpOutAlignment=%u wNtbOutMaxDatagrams=%u flags=0x%x\n",
 		ctx->rx_max, ctx->tx_max, ctx->tx_remainder, ctx->tx_modulus,
-		ctx->tx_ndp_modulus, ctx->tx_max_datagrams, flags);
+		ctx->tx_ndp_modulus, ctx->tx_max_datagrams, cdc_ncm_flags(dev));
 
 	/* max count of tx datagrams */
 	if ((ctx->tx_max_datagrams == 0) ||
 			(ctx->tx_max_datagrams > CDC_NCM_DPT_DATAGRAMS_MAX))
 		ctx->tx_max_datagrams = CDC_NCM_DPT_DATAGRAMS_MAX;
 
-	/* clamp rx_max and tx_max and inform device */
-	cdc_ncm_update_rxtx_max(dev, le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize), le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize));
+	return 0;
+}
+
+/* set a new max datagram size */
+static void cdc_ncm_set_dgram_size(struct usbnet *dev, int new_size)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	u8 iface_no = ctx->control->cur_altsetting->desc.bInterfaceNumber;
+	__le16 max_datagram_size;
+	u16 mbim_mtu;
+	int err;
+
+	/* set default based on descriptors */
+	ctx->max_datagram_size = clamp_t(u32, new_size,
+					 cdc_ncm_min_dgram_size(dev),
+					 CDC_NCM_MAX_DATAGRAM_SIZE);
+
+	/* inform the device about the selected Max Datagram Size? */
+	if (!(cdc_ncm_flags(dev) & USB_CDC_NCM_NCAP_MAX_DATAGRAM_SIZE))
+		goto out;
+
+	/* read current mtu value from device */
+	err = usbnet_read_cmd(dev, USB_CDC_GET_MAX_DATAGRAM_SIZE,
+			      USB_TYPE_CLASS | USB_DIR_IN | USB_RECIP_INTERFACE,
+			      0, iface_no, &max_datagram_size, 2);
+	if (err < 0) {
+		dev_dbg(&dev->intf->dev, "GET_MAX_DATAGRAM_SIZE failed\n");
+		goto out;
+	}
+
+	if (le16_to_cpu(max_datagram_size) == ctx->max_datagram_size)
+		goto out;
+
+	max_datagram_size = cpu_to_le16(ctx->max_datagram_size);
+	err = usbnet_write_cmd(dev, USB_CDC_SET_MAX_DATAGRAM_SIZE,
+			       USB_TYPE_CLASS | USB_DIR_OUT | USB_RECIP_INTERFACE,
+			       0, iface_no, &max_datagram_size, 2);
+	if (err < 0)
+		dev_dbg(&dev->intf->dev, "SET_MAX_DATAGRAM_SIZE failed\n");
+
+out:
+	/* set MTU to max supported by the device if necessary */
+	dev->net->mtu = min_t(int, dev->net->mtu, ctx->max_datagram_size - cdc_ncm_eth_hlen(dev));
+
+	/* do not exceed operater preferred MTU */
+	if (ctx->mbim_extended_desc) {
+		mbim_mtu = le16_to_cpu(ctx->mbim_extended_desc->wMTU);
+		if (mbim_mtu != 0 && mbim_mtu < dev->net->mtu)
+			dev->net->mtu = mbim_mtu;
+	}
+}
+
+static void cdc_ncm_fix_modulus(struct usbnet *dev)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	u32 val;
 
 	/*
 	 * verify that the structure alignment is:
@@ -225,68 +315,26 @@ static int cdc_ncm_setup(struct usbnet *dev)
 	}
 
 	/* adjust TX-remainder according to NCM specification. */
-	ctx->tx_remainder = ((ctx->tx_remainder - eth_hlen) &
+	ctx->tx_remainder = ((ctx->tx_remainder - cdc_ncm_eth_hlen(dev)) &
 			     (ctx->tx_modulus - 1));
+}
 
-	/* additional configuration */
+static int cdc_ncm_setup(struct usbnet *dev)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 
-	/* set CRC Mode */
-	if (flags & USB_CDC_NCM_NCAP_CRC_MODE) {
-		err = usbnet_write_cmd(dev, USB_CDC_SET_CRC_MODE,
-				       USB_TYPE_CLASS | USB_DIR_OUT
-				       | USB_RECIP_INTERFACE,
-				       USB_CDC_NCM_CRC_NOT_APPENDED,
-				       iface_no, NULL, 0);
-		if (err < 0)
-			dev_dbg(&dev->intf->dev, "Setting CRC mode off failed\n");
-	}
+	/* initialize basic device settings */
+	cdc_ncm_init(dev);
 
-	/* set NTB format, if both formats are supported */
-	if (ntb_fmt_supported & USB_CDC_NCM_NTH32_SIGN) {
-		err = usbnet_write_cmd(dev, USB_CDC_SET_NTB_FORMAT,
-				       USB_TYPE_CLASS | USB_DIR_OUT
-				       | USB_RECIP_INTERFACE,
-				       USB_CDC_NCM_NTB16_FORMAT,
-				       iface_no, NULL, 0);
-		if (err < 0)
-			dev_dbg(&dev->intf->dev, "Setting NTB format to 16-bit failed\n");
-	}
+	/* clamp rx_max and tx_max and inform device */
+	cdc_ncm_update_rxtx_max(dev, le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize),
+				le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize));
 
-	/* inform the device about the selected Max Datagram Size */
-	if (!(flags & USB_CDC_NCM_NCAP_MAX_DATAGRAM_SIZE))
-		goto out;
+	/* sanitize the modulus and remainder values */
+	cdc_ncm_fix_modulus(dev);
 
-	/* read current mtu value from device */
-	err = usbnet_read_cmd(dev, USB_CDC_GET_MAX_DATAGRAM_SIZE,
-			      USB_TYPE_CLASS | USB_DIR_IN | USB_RECIP_INTERFACE,
-			      0, iface_no, &max_datagram_size, 2);
-	if (err < 0) {
-		dev_dbg(&dev->intf->dev, "GET_MAX_DATAGRAM_SIZE failed\n");
-		goto out;
-	}
-
-	if (le16_to_cpu(max_datagram_size) == ctx->max_datagram_size)
-		goto out;
-
-	max_datagram_size = cpu_to_le16(ctx->max_datagram_size);
-	err = usbnet_write_cmd(dev, USB_CDC_SET_MAX_DATAGRAM_SIZE,
-			       USB_TYPE_CLASS | USB_DIR_OUT | USB_RECIP_INTERFACE,
-			       0, iface_no, &max_datagram_size, 2);
-	if (err < 0)
-		dev_dbg(&dev->intf->dev, "SET_MAX_DATAGRAM_SIZE failed\n");
-
-out:
-	/* set MTU to max supported by the device if necessary */
-	if (dev->net->mtu > ctx->max_datagram_size - eth_hlen)
-		dev->net->mtu = ctx->max_datagram_size - eth_hlen;
-
-	/* do not exceed operater preferred MTU */
-	if (ctx->mbim_extended_desc) {
-		mbim_mtu = le16_to_cpu(ctx->mbim_extended_desc->wMTU);
-		if (mbim_mtu != 0 && mbim_mtu < dev->net->mtu)
-			dev->net->mtu = mbim_mtu;
-	}
-
+	/* set max datagram size */
+	cdc_ncm_set_dgram_size(dev, cdc_ncm_max_dgram_size(dev));
 	return 0;
 }
 
@@ -450,9 +498,20 @@ advance:
 	}
 
 	/* check if we got everything */
-	if (!ctx->data || (!ctx->mbim_desc && !ctx->ether_desc)) {
-		dev_dbg(&intf->dev, "CDC descriptors missing\n");
+	if (!ctx->data) {
+		dev_dbg(&intf->dev, "CDC Union missing and no IAD found\n");
 		goto error;
+	}
+	if (cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting)) {
+		if (!ctx->mbim_desc) {
+			dev_dbg(&intf->dev, "MBIM functional descriptor missing\n");
+			goto error;
+		}
+	} else {
+		if (!ctx->ether_desc || !ctx->func_desc) {
+			dev_dbg(&intf->dev, "NCM or ECM functional descriptors missing\n");
+			goto error;
+		}
 	}
 
 	/* claim data interface, if different from control */
