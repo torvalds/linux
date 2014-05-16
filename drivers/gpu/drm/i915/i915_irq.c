@@ -306,16 +306,22 @@ static bool cpt_can_enable_serr_int(struct drm_device *dev)
 	return true;
 }
 
-static void i9xx_clear_fifo_underrun(struct drm_device *dev, enum pipe pipe)
+static void i9xx_set_fifo_underrun_reporting(struct drm_device *dev,
+					     enum pipe pipe, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg = PIPESTAT(pipe);
-	u32 pipestat = I915_READ(reg) & 0x7fff0000;
+	u32 pipestat = I915_READ(reg) & 0xffff0000;
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	I915_WRITE(reg, pipestat | PIPE_FIFO_UNDERRUN_STATUS);
-	POSTING_READ(reg);
+	if (enable) {
+		I915_WRITE(reg, pipestat | PIPE_FIFO_UNDERRUN_STATUS);
+		POSTING_READ(reg);
+	} else {
+		if (pipestat & PIPE_FIFO_UNDERRUN_STATUS)
+			DRM_ERROR("pipe %c underrun\n", pipe_name(pipe));
+	}
 }
 
 static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
@@ -472,8 +478,8 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 
 	intel_crtc->cpu_fifo_underrun_disabled = !enable;
 
-	if (enable && (INTEL_INFO(dev)->gen < 5 || IS_VALLEYVIEW(dev)))
-		i9xx_clear_fifo_underrun(dev, pipe);
+	if (INTEL_INFO(dev)->gen < 5 || IS_VALLEYVIEW(dev))
+		i9xx_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN7(dev))
