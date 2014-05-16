@@ -761,24 +761,6 @@ static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 	return 0;
 }
 
-static int vpif_cropcap(struct file *file, void *priv,
-			struct v4l2_cropcap *crop)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct channel_obj *ch = video_get_drvdata(vdev);
-	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-
-	if (V4L2_BUF_TYPE_VIDEO_OUTPUT != crop->type)
-		return -EINVAL;
-
-	crop->bounds.left = crop->bounds.top = 0;
-	crop->defrect.left = crop->defrect.top = 0;
-	crop->defrect.height = crop->bounds.height = common->height;
-	crop->defrect.width = crop->bounds.width = common->width;
-
-	return 0;
-}
-
 static int vpif_enum_output(struct file *file, void *fh,
 				struct v4l2_output *output)
 {
@@ -1070,7 +1052,6 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_enum_output		= vpif_enum_output,
 	.vidioc_s_output		= vpif_s_output,
 	.vidioc_g_output		= vpif_g_output,
-	.vidioc_cropcap         	= vpif_cropcap,
 	.vidioc_enum_dv_timings         = vpif_enum_dv_timings,
 	.vidioc_s_dv_timings            = vpif_s_dv_timings,
 	.vidioc_g_dv_timings            = vpif_g_dv_timings,
