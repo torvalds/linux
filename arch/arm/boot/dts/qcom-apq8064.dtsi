@@ -206,6 +206,26 @@
 			regulator-always-on;
 		};
 
+		sdcc1bam:dma@12402000{
+			compatible = "qcom,bam-v1.3.0";
+			reg = <0x12402000 0x8000>;
+			interrupts = <0 98 0>;
+			clocks = <&gcc SDC1_H_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+
+		sdcc3bam:dma@12182000{
+			compatible = "qcom,bam-v1.3.0";
+			reg = <0x12182000 0x8000>;
+			interrupts = <0 96 0>;
+			clocks = <&gcc SDC3_H_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+
 		amba {
 			compatible = "arm,amba-bus";
 			#address-cells = <1>;
@@ -226,6 +246,8 @@
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				vmmc-supply = <&vsdcc_fixed>;
+				dmas = <&sdcc1bam 2>, <&sdcc1bam 1>;
+				dma-names = "tx", "rx";
 			};
 
 			sdcc3: sdcc@12180000 {
@@ -243,6 +265,8 @@
 				max-frequency	= <192000000>;
 				no-1-8-v;
 				vmmc-supply = <&vsdcc_fixed>;
+				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
+				dma-names = "tx", "rx";
 			};
 		};
 	};
