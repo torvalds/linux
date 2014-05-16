@@ -184,12 +184,6 @@ void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level)
 	}
 }
 
-void	rtw_hal_add_ra_tid23a(struct rtw_adapter *padapter, u32 bitmap, u8 arg, u8 rssi_level)
-{
-	if (padapter->HalFunc.Add_RateATid)
-		padapter->HalFunc.Add_RateATid(padapter, bitmap, arg, rssi_level);
-}
-
 s32	rtw_hal_interrupt_handler23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.interrupt_handler)

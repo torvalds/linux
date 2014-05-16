@@ -1706,8 +1706,6 @@ exit:
 
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->Add_RateATid = &rtl8723a_add_rateatid;
-
 	/*  Efuse related function */
 	pHalFunc->EfusePowerSwitch = &Hal_EfusePowerSwitch;
 	pHalFunc->ReadEFuse = &Hal_ReadEFuse;

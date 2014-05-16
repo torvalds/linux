@@ -18,6 +18,7 @@
 #include <drv_types.h>
 #include <linux/ieee80211.h>
 #include <wifi.h>
+#include <rtl8723a_cmd.h>
 
 #ifdef CONFIG_8723AU_AP_MODE
 
@@ -430,7 +431,7 @@ void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_l
 		/* bitmap[28:31]= Rate Adaptive id */
 		/* arg[0:4] = macid */
 		/* arg[5] = Short GI */
-		rtw_hal_add_ra_tid23a(padapter, tx_ra_bitmap, arg, rssi_level);
+		rtl8723a_add_rateatid(padapter, tx_ra_bitmap, arg, rssi_level);
 
 		if (shortGIrate == true)
 			init_rate |= BIT(6);
@@ -513,8 +514,7 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 			/* bitmap[28:31]= Rate Adaptive id */
 			/* arg[0:4] = macid */
 			/* arg[5] = Short GI */
-			rtw_hal_add_ra_tid23a(padapter, tx_ra_bitmap, arg, 0);
-
+			rtl8723a_add_rateatid(padapter, tx_ra_bitmap, arg, 0);
 		}
 
 		/* set ra_id, init_rate */
