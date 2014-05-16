@@ -589,9 +589,17 @@ static int propagate_exception(struct dev_cgroup *devcg_root,
 
 static inline bool has_children(struct dev_cgroup *devcgroup)
 {
-	struct cgroup *cgrp = devcgroup->css.cgroup;
+	bool ret;
 
-	return !list_empty(&cgrp->children);
+	/*
+	 * FIXME: There may be lingering offline csses and this function
+	 * may return %true when there isn't any userland-visible child
+	 * which is incorrect for our purposes.
+	 */
+	rcu_read_lock();
+	ret = css_next_child(NULL, &devcgroup->css);
+	rcu_read_unlock();
+	return ret;
 }
 
 /*
