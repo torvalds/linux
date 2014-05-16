@@ -21,6 +21,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #define MII_REGS_NUM 29
 
@@ -202,6 +203,66 @@ err_regs:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fixed_phy_add);
+
+void fixed_phy_del(int phy_addr)
+{
+	struct fixed_mdio_bus *fmb = &platform_fmb;
+	struct fixed_phy *fp, *tmp;
+
+	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {
+		if (fp->addr == phy_addr) {
+			list_del(&fp->node);
+			kfree(fp);
+			return;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(fixed_phy_del);
+
+static int phy_fixed_addr;
+static DEFINE_SPINLOCK(phy_fixed_addr_lock);
+
+int fixed_phy_register(unsigned int irq,
+		       struct fixed_phy_status *status,
+		       struct device_node *np)
+{
+	struct fixed_mdio_bus *fmb = &platform_fmb;
+	struct phy_device *phy;
+	int phy_addr;
+	int ret;
+
+	/* Get the next available PHY address, up to PHY_MAX_ADDR */
+	spin_lock(&phy_fixed_addr_lock);
+	if (phy_fixed_addr == PHY_MAX_ADDR) {
+		spin_unlock(&phy_fixed_addr_lock);
+		return -ENOSPC;
+	}
+	phy_addr = phy_fixed_addr++;
+	spin_unlock(&phy_fixed_addr_lock);
+
+	ret = fixed_phy_add(PHY_POLL, phy_addr, status);
+	if (ret < 0)
+		return ret;
+
+	phy = get_phy_device(fmb->mii_bus, phy_addr, false);
+	if (!phy || IS_ERR(phy)) {
+		fixed_phy_del(phy_addr);
+		return -EINVAL;
+	}
+
+	of_node_get(np);
+	phy->dev.of_node = np;
+
+	ret = phy_device_register(phy);
+	if (ret) {
+		phy_device_free(phy);
+		of_node_put(np);
+		fixed_phy_del(phy_addr);
+		return ret;
+	}
+
+	return 0;
+}
 
 static int __init fixed_mdio_bus_init(void)
 {
