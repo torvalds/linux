@@ -755,6 +755,7 @@ void start_secondary(void *unused)
 	 * numa_node_id() works after this.
 	 */
 	set_numa_node(numa_cpu_lookup_table[cpu]);
+	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
 
 	smp_wmb();
 	notify_cpu_starting(cpu);
