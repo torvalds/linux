@@ -64,6 +64,9 @@ static struct phy *phy_lookup(struct device *device, const char *port)
 	class_dev_iter_init(&iter, phy_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		phy = to_phy(dev);
+
+		if (!phy->init_data)
+			continue;
 		count = phy->init_data->num_consumers;
 		consumers = phy->init_data->consumers;
 		while (count--) {

@@ -522,6 +522,10 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	if (unlikely(map->m_len > INT_MAX))
 		map->m_len = INT_MAX;
 
+	/* We can handle the block number less than EXT_MAX_BLOCKS */
+	if (unlikely(map->m_lblk >= EXT_MAX_BLOCKS))
+		return -EIO;
+
 	/* Lookup extent status tree firstly */
 	if (ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
 		ext4_es_lru_add(inode);
@@ -2243,13 +2247,23 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 			return err;
 	} while (map->m_len);
 
-	/* Update on-disk size after IO is submitted */
+	/*
+	 * Update on-disk size after IO is submitted.  Races with
+	 * truncate are avoided by checking i_size under i_data_sem.
+	 */
 	disksize = ((loff_t)mpd->first_page) << PAGE_CACHE_SHIFT;
 	if (disksize > EXT4_I(inode)->i_disksize) {
 		int err2;
+		loff_t i_size;
 
-		ext4_wb_update_i_disksize(inode, disksize);
+		down_write(&EXT4_I(inode)->i_data_sem);
+		i_size = i_size_read(inode);
+		if (disksize > i_size)
+			disksize = i_size;
+		if (disksize > EXT4_I(inode)->i_disksize)
+			EXT4_I(inode)->i_disksize = disksize;
 		err2 = ext4_mark_inode_dirty(handle, inode);
+		up_write(&EXT4_I(inode)->i_data_sem);
 		if (err2)
 			ext4_error(inode->i_sb,
 				   "Failed to mark inode %lu dirty",
@@ -3527,15 +3541,6 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 	}
 
 	mutex_lock(&inode->i_mutex);
-	/* It's not possible punch hole on append only file */
-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode)) {
-		ret = -EPERM;
-		goto out_mutex;
-	}
-	if (IS_SWAPFILE(inode)) {
-		ret = -ETXTBSY;
-		goto out_mutex;
-	}
 
 	/* No need to punch hole beyond i_size */
 	if (offset >= inode->i_size)
@@ -3616,7 +3621,6 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 		ret = ext4_free_hole_blocks(handle, inode, first_block,
 					    stop_block);
 
-	ext4_discard_preallocations(inode);
 	up_write(&EXT4_I(inode)->i_data_sem);
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
@@ -4423,21 +4427,20 @@ out_brelse:
  *
  * We are called from a few places:
  *
- * - Within generic_file_write() for O_SYNC files.
+ * - Within generic_file_aio_write() -> generic_write_sync() for O_SYNC files.
  *   Here, there will be no transaction running. We wait for any running
  *   transaction to commit.
  *
- * - Within sys_sync(), kupdate and such.
- *   We wait on commit, if tol to.
+ * - Within flush work (sys_sync(), kupdate and such).
+ *   We wait on commit, if told to.
  *
- * - Within prune_icache() (PF_MEMALLOC == true)
- *   Here we simply return.  We can't afford to block kswapd on the
- *   journal commit.
+ * - Within iput_final() -> write_inode_now()
+ *   We wait on commit, if told to.
  *
  * In all cases it is actually safe for us to return without doing anything,
  * because the inode has been copied into a raw inode buffer in
- * ext4_mark_inode_dirty().  This is a correctness thing for O_SYNC and for
- * knfsd.
+ * ext4_mark_inode_dirty().  This is a correctness thing for WB_SYNC_ALL
+ * writeback.
  *
  * Note that we are absolutely dependent upon all inode dirtiers doing the
  * right thing: they *must* call mark_inode_dirty() after dirtying info in
@@ -4449,15 +4452,15 @@ out_brelse:
  *	stuff();
  *	inode->i_size = expr;
  *
- * is in error because a kswapd-driven write_inode() could occur while
- * `stuff()' is running, and the new i_size will be lost.  Plus the inode
- * will no longer be on the superblock's dirty inode list.
+ * is in error because write_inode() could occur while `stuff()' is running,
+ * and the new i_size will be lost.  Plus the inode will no longer be on the
+ * superblock's dirty inode list.
  */
 int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int err;
 
-	if (current->flags & PF_MEMALLOC)
+	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
 		return 0;
 
 	if (EXT4_SB(inode->i_sb)->s_journal) {
