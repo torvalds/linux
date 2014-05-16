@@ -389,6 +389,7 @@ static const DECLARE_TLV_DB_SCALE(max98090_alc_tlv, -1500, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_alcmakeup_tlv, 0, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_alccomp_tlv, -3100, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_drcexp_tlv, -6600, 100, 0);
+static const DECLARE_TLV_DB_SCALE(max98090_sdg_tlv, 50, 200, 0);
 
 static const unsigned int max98090_mixout_tlv[] = {
 	TLV_DB_RANGE_HEAD(2),
@@ -665,7 +666,7 @@ static const struct snd_kcontrol_new max98090_snd_controls[] = {
 	SOC_SINGLE_EXT_TLV("Digital Sidetone Volume",
 		M98090_REG_ADC_SIDETONE, M98090_DVST_SHIFT,
 		M98090_DVST_NUM - 1, 1, max98090_get_enab_tlv,
-		max98090_put_enab_tlv, max98090_micboost_tlv),
+		max98090_put_enab_tlv, max98090_sdg_tlv),
 	SOC_SINGLE_TLV("Digital Coarse Volume", M98090_REG_DAI_PLAYBACK_LEVEL,
 		M98090_DVG_SHIFT, M98090_DVG_NUM - 1, 0,
 		max98090_dvg_tlv),
