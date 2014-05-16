@@ -144,6 +144,9 @@ void __init auxio_power_probe(void);
 extern void __iomem *pcic_regs;
 void pcic_nmi(unsigned int pend, struct pt_regs *regs);
 
+/* time_32.c */
+void __init time_init(void);
+
 #else /* CONFIG_SPARC32 */
 #endif /* CONFIG_SPARC32 */
 #endif /* !(__SPARC_KERNEL_H) */

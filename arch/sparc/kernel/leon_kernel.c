@@ -32,7 +32,7 @@ struct leon3_gptimer_regs_map *leon3_gptimer_regs; /* timer controller base addr
 
 int leondebug_irq_disable;
 int leon_debug_irqout;
-static volatile unsigned int dummy_master_l10_counter;
+static volatile u32 dummy_master_l10_counter;
 unsigned long amba_system_id;
 static DEFINE_SPINLOCK(leon_irq_lock);
 
@@ -313,8 +313,7 @@ void __init leon_init_timers(void)
 
 	leondebug_irq_disable = 0;
 	leon_debug_irqout = 0;
-	master_l10_counter =
-		(unsigned int __iomem *)&dummy_master_l10_counter;
+	master_l10_counter = (u32 __iomem *)&dummy_master_l10_counter;
 	dummy_master_l10_counter = 0;
 
 	rootnp = of_find_node_by_path("/ambapp0");
