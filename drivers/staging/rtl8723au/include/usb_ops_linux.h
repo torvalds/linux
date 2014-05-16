@@ -17,12 +17,9 @@
 
 #define VENDOR_CMD_MAX_DATA_LEN	254
 
-#define RTW_USB_CONTROL_MSG_TIMEOUT_TEST	10/* ms */
 #define RTW_USB_CONTROL_MSG_TIMEOUT	500/* ms */
 
 #define MAX_USBCTRL_VENDORREQ_TIMES	10
-
-#define RTW_USB_BULKOUT_TIMEOUT	5000/* ms */
 
 unsigned int ffaddr2pipehdl23a(struct dvobj_priv *pdvobj, u32 addr);
 
