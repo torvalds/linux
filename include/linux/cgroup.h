@@ -68,6 +68,10 @@ struct cgroup_subsys_state {
 	/* PI: the parent css */
 	struct cgroup_subsys_state *parent;
 
+	/* siblings list anchored at the parent's ->children */
+	struct list_head sibling;
+	struct list_head children;
+
 	/*
 	 * PI: Subsys-unique ID.  0 is unused and root is always 1.  The
 	 * matching css can be looked up using css_from_id().
@@ -170,13 +174,6 @@ struct cgroup {
 	 * in this cgroup or its subtree.
 	 */
 	int populated_cnt;
-
-	/*
-	 * We link our 'sibling' struct into our parent's 'children'.
-	 * Our children link their 'sibling' into our 'children'.
-	 */
-	struct list_head sibling;	/* my parent's children */
-	struct list_head children;	/* my children */
 
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
 	struct kernfs_node *populated_kn; /* kn for "cgroup.subtree_populated" */
