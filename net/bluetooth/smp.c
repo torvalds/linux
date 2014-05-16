@@ -284,17 +284,22 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 	schedule_delayed_work(&smp->security_timer, SMP_TIMEOUT);
 }
 
-static __u8 authreq_to_seclevel(__u8 authreq)
+static u8 authreq_to_seclevel(u8 authreq)
 {
-	if (authreq & SMP_AUTH_MITM)
-		return BT_SECURITY_HIGH;
-	else
+	if (authreq & SMP_AUTH_MITM) {
+		if (authreq & SMP_AUTH_SC)
+			return BT_SECURITY_FIPS;
+		else
+			return BT_SECURITY_HIGH;
+	} else {
 		return BT_SECURITY_MEDIUM;
+	}
 }
 
 static __u8 seclevel_to_authreq(__u8 sec_level)
 {
 	switch (sec_level) {
+	case BT_SECURITY_FIPS:
 	case BT_SECURITY_HIGH:
 		return SMP_AUTH_MITM | SMP_AUTH_BONDING;
 	case BT_SECURITY_MEDIUM:
@@ -1026,6 +1031,8 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if ((req->auth_req & SMP_AUTH_SC) && (auth & SMP_AUTH_SC))
 		set_bit(SMP_FLAG_SC, &smp->flags);
+	else if (conn->hcon->pending_sec_level > BT_SECURITY_HIGH)
+		conn->hcon->pending_sec_level = BT_SECURITY_HIGH;
 
 	/* If we need MITM check that it can be achieved */
 	if (conn->hcon->pending_sec_level >= BT_SECURITY_HIGH) {
@@ -1254,6 +1261,9 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	}
 
 	authreq = seclevel_to_authreq(sec_level);
+
+	if (test_bit(HCI_SC_ENABLED, &hcon->hdev->dev_flags))
+		authreq |= SMP_AUTH_SC;
 
 	/* Require MITM if IO Capability allows or the security level
 	 * requires it.
