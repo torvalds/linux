@@ -79,7 +79,7 @@ static inline struct vpif_cap_buffer *to_vpif_buffer(struct vb2_buffer *vb)
 }
 
 /**
- * buffer_prepare :  callback function for buffer prepare
+ * vpif_buffer_prepare :  callback function for buffer prepare
  * @vb: ptr to vb2_buffer
  *
  * This is the callback function for buffer prepare when vb2_qbuf()
@@ -97,26 +97,22 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
-	if (vb->state != VB2_BUF_STATE_ACTIVE &&
-		vb->state != VB2_BUF_STATE_PREPARED) {
-		vb2_set_plane_payload(vb, 0, common->fmt.fmt.pix.sizeimage);
-		if (vb2_plane_vaddr(vb, 0) &&
-		vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
-			goto exit;
-		addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+	vb2_set_plane_payload(vb, 0, common->fmt.fmt.pix.sizeimage);
+	if (vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
+		return -EINVAL;
 
-		if (q->streaming) {
-			if (!IS_ALIGNED((addr + common->ytop_off), 8) ||
-				!IS_ALIGNED((addr + common->ybtm_off), 8) ||
-				!IS_ALIGNED((addr + common->ctop_off), 8) ||
-				!IS_ALIGNED((addr + common->cbtm_off), 8))
-				goto exit;
-		}
+	vb->v4l2_buf.field = common->fmt.fmt.pix.field;
+
+	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+	if (!IS_ALIGNED((addr + common->ytop_off), 8) ||
+		!IS_ALIGNED((addr + common->ybtm_off), 8) ||
+		!IS_ALIGNED((addr + common->ctop_off), 8) ||
+		!IS_ALIGNED((addr + common->cbtm_off), 8)) {
+		vpif_dbg(1, debug, "offset is not aligned\n");
+		return -EINVAL;
 	}
+
 	return 0;
-exit:
-	vpif_dbg(1, debug, "buffer_prepare:offset is not aligned to 8 bytes\n");
-	return -EINVAL;
 }
 
 /**
