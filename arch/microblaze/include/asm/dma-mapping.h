@@ -50,14 +50,7 @@ extern struct dma_map_ops dma_direct_ops;
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
-	if (dev && dev->archdata.dma_ops)
-		return dev->archdata.dma_ops;
 	return &dma_direct_ops;
-}
-
-static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
-{
-	dev->archdata.dma_ops = ops;
 }
 
 static inline int dma_supported(struct device *dev, u64 mask)
