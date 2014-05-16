@@ -1069,8 +1069,8 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	return skb_out;
 
 exit_no_skb:
-	/* Start timer, if there is a remaining skb */
-	if (ctx->tx_curr_skb != NULL)
+	/* Start timer, if there is a remaining non-empty skb */
+	if (ctx->tx_curr_skb != NULL && n > 0)
 		cdc_ncm_tx_timeout_start(ctx);
 	return NULL;
 }
