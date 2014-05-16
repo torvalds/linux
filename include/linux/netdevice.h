@@ -1144,6 +1144,7 @@ struct net_device_ops {
 	netdev_tx_t		(*ndo_dfwd_start_xmit) (struct sk_buff *skb,
 							struct net_device *dev,
 							void *priv);
+	int			(*ndo_get_lock_subclass)(struct net_device *dev);
 };
 
 /**
@@ -2950,7 +2951,12 @@ static inline void netif_addr_lock(struct net_device *dev)
 
 static inline void netif_addr_lock_nested(struct net_device *dev)
 {
-	spin_lock_nested(&dev->addr_list_lock, SINGLE_DEPTH_NESTING);
+	int subclass = SINGLE_DEPTH_NESTING;
+
+	if (dev->netdev_ops->ndo_get_lock_subclass)
+		subclass = dev->netdev_ops->ndo_get_lock_subclass(dev);
+
+	spin_lock_nested(&dev->addr_list_lock, subclass);
 }
 
 static inline void netif_addr_lock_bh(struct net_device *dev)
