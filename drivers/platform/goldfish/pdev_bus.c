@@ -133,7 +133,7 @@ static int goldfish_new_pdev(void)
 #ifdef CONFIG_64BIT
 	writel((u32)((u64)name>>32), pdev_bus_base + PDEV_BUS_GET_NAME_HIGH);
 #endif
-	writel((u32)(u64)name, pdev_bus_base + PDEV_BUS_GET_NAME);
+	writel((u32)(unsigned long)name, pdev_bus_base + PDEV_BUS_GET_NAME);
 	name[name_len] = '\0';
 	dev->pdev.id = readl(pdev_bus_base + PDEV_BUS_ID);
 	dev->pdev.resource[0].start = base;
