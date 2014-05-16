@@ -85,6 +85,18 @@ void br_port_carrier_check(struct net_bridge_port *p)
 	spin_unlock_bh(&br->lock);
 }
 
+static void nbp_update_port_count(struct net_bridge *br)
+{
+	struct net_bridge_port *p;
+	u32 cnt = 0;
+
+	list_for_each_entry(p, &br->port_list, list) {
+		if (br_auto_port(p))
+			cnt++;
+	}
+	br->auto_cnt = cnt;
+}
+
 static void release_nbp(struct kobject *kobj)
 {
 	struct net_bridge_port *p
@@ -145,6 +157,8 @@ static void del_nbp(struct net_bridge_port *p)
 	br_fdb_delete_by_port(br, p, 1);
 
 	list_del_rcu(&p->list);
+
+	nbp_update_port_count(br);
 
 	dev->priv_flags &= ~IFF_BRIDGE_PORT;
 
@@ -384,6 +398,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	list_add_rcu(&p->list, &br->port_list);
 
+	nbp_update_port_count(br);
+
 	netdev_update_features(br->dev);
 
 	if (br->dev->needed_headroom < dev->needed_headroom)
@@ -454,4 +470,12 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	netdev_update_features(br->dev);
 
 	return 0;
+}
+
+void br_port_flags_change(struct net_bridge_port *p, unsigned long mask)
+{
+	struct net_bridge *br = p->br;
+
+	if (mask & BR_AUTO_MASK)
+		nbp_update_port_count(br);
 }

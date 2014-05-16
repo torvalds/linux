@@ -174,6 +174,7 @@ struct net_bridge_port
 #define BR_ADMIN_COST		0x00000010
 #define BR_LEARNING		0x00000020
 #define BR_FLOOD		0x00000040
+#define BR_AUTO_MASK (BR_FLOOD | BR_LEARNING)
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct bridge_mcast_query	ip4_query;
@@ -197,6 +198,8 @@ struct net_bridge_port
 	struct net_port_vlans __rcu	*vlan_info;
 #endif
 };
+
+#define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)
 
 #define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
 
@@ -290,6 +293,7 @@ struct net_bridge
 	struct timer_list		topology_change_timer;
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
+	u32				auto_cnt;
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	u8				vlan_enabled;
 	struct net_port_vlans __rcu	*vlan_info;
@@ -415,6 +419,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev);
 int br_min_mtu(const struct net_bridge *br);
 netdev_features_t br_features_recompute(struct net_bridge *br,
 					netdev_features_t features);
+void br_port_flags_change(struct net_bridge_port *port, unsigned long mask);
 
 /* br_input.c */
 int br_handle_frame_finish(struct sk_buff *skb);
