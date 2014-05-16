@@ -52,6 +52,10 @@
 #define	CDC_NCM_NTB_MAX_SIZE_TX			32768	/* bytes */
 #define	CDC_NCM_NTB_MAX_SIZE_RX			32768	/* bytes */
 
+/* Initial NTB length */
+#define	CDC_NCM_NTB_DEF_SIZE_TX			16384	/* bytes */
+#define	CDC_NCM_NTB_DEF_SIZE_RX			16384	/* bytes */
+
 /* Minimum value for MaxDatagramSize, ch. 6.2.9 */
 #define	CDC_NCM_MIN_DATAGRAM_SIZE		1514	/* bytes */
 
