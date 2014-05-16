@@ -143,6 +143,7 @@ void _raw_read_lock_wait_flags(arch_rwlock_t *rw, unsigned long flags)
 		local_irq_disable();
 		if (_raw_compare_and_swap(&rw->lock, old, old + 1))
 			return;
+		local_irq_restore(flags);
 	}
 }
 EXPORT_SYMBOL(_raw_read_lock_wait_flags);
@@ -199,6 +200,7 @@ void _raw_write_lock_wait_flags(arch_rwlock_t *rw, unsigned long flags)
 		local_irq_disable();
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
 			return;
+		local_irq_restore(flags);
 	}
 }
 EXPORT_SYMBOL(_raw_write_lock_wait_flags);
