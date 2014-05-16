@@ -531,7 +531,6 @@ void Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter, u8 *hwinfo, 
 
 void Hal_InitChannelPlan23a(struct rtw_adapter *padapter);
 
-void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc);
 #ifdef CONFIG_8723AU_BT_COEXIST
 void rtl8723a_SingleDualAntennaDetection(struct rtw_adapter *padapter);
 #endif

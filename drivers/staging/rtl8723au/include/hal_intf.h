@@ -93,19 +93,6 @@ struct hal_ops {
 			 struct xmit_frame *pmgntframe);
 	s32 (*hal_xmitframe_enqueue)(struct rtw_adapter *padapter,
 				     struct xmit_frame *pxmitframe);
-
-	void (*EFUSEGetEfuseDefinition)(struct rtw_adapter *padapter,
-					u8 efuseType, u8 type, void *pOut);
-	u16 (*EfuseGetCurrentSize)(struct rtw_adapter *padapter, u8 efuseType);
-	int (*Efuse_PgPacketRead23a)(struct rtw_adapter *padapter,
-				     u8 offset, u8 *data);
-	int (*Efuse_PgPacketWrite23a)(struct rtw_adapter *padapter,
-				      u8 offset, u8 word_en, u8 *data);
-	u8 (*Efuse_WordEnableDataWrite23a)(struct rtw_adapter *padapter,
-					   u16 efuse_addr, u8 word_en,
-					   u8 *data);
-	bool (*Efuse_PgPacketWrite23a_BT)(struct rtw_adapter *padapter,
-					  u8 offset, u8 word_en, u8 *data);
 };
 
 enum rt_eeprom_type {

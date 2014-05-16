@@ -1751,6 +1751,5 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->hal_xmit = &rtl8723au_hal_xmit;
 	pHalFunc->mgnt_xmit = &rtl8723au_mgnt_xmit;
 	pHalFunc->hal_xmitframe_enqueue = &rtl8723au_hal_xmitframe_enqueue;
-	rtl8723a_set_hal_ops(pHalFunc);
 	return 0;
 }

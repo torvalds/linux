@@ -465,28 +465,6 @@ efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
 	return bResult;
 }
 
-int
-Efuse_PgPacketRead23a(struct rtw_adapter *pAdapter, u8 offset, u8 *data)
-{
-	int	ret = 0;
-
-	ret =  pAdapter->HalFunc.Efuse_PgPacketRead23a(pAdapter, offset, data);
-
-	return ret;
-}
-
-int
-Efuse_PgPacketWrite23a(struct rtw_adapter *pAdapter, u8 offset,
-		    u8 word_en, u8 *data)
-{
-	int ret;
-
-	ret =  pAdapter->HalFunc.Efuse_PgPacketWrite23a(pAdapter, offset,
-						     word_en, data);
-
-	return ret;
-}
-
 /*-----------------------------------------------------------------------------
  * Function:	efuse_WordEnableDataRead23a
  *
@@ -529,18 +507,6 @@ efuse_WordEnableDataRead23a(u8	word_en,
 		targetdata[6] = sourdata[6];
 		targetdata[7] = sourdata[7];
 	}
-}
-
-u8
-Efuse_WordEnableDataWrite23a(struct rtw_adapter *pAdapter, u16 efuse_addr,
-			  u8 word_en, u8 *data)
-{
-	u8 ret = 0;
-
-	ret = pAdapter->HalFunc.Efuse_WordEnableDataWrite23a(pAdapter, efuse_addr,
-							  word_en, data);
-
-	return ret;
 }
 
 static u8 efuse_read8(struct rtw_adapter *padapter, u16 address, u8 *value)
