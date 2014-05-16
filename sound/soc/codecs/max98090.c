@@ -2392,9 +2392,32 @@ static int max98090_runtime_suspend(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM
+static int max98090_resume(struct device *dev)
+{
+	struct max98090_priv *max98090 = dev_get_drvdata(dev);
+	unsigned int status;
+
+	max98090_reset(max98090);
+
+	/* clear IRQ status */
+	regmap_read(max98090->regmap, M98090_REG_DEVICE_STATUS, &status);
+
+	regcache_sync(max98090->regmap);
+
+	return 0;
+}
+
+static int max98090_suspend(struct device *dev)
+{
+	return 0;
+}
+#endif
+
 static const struct dev_pm_ops max98090_pm = {
 	SET_RUNTIME_PM_OPS(max98090_runtime_suspend,
 		max98090_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(max98090_suspend, max98090_resume)
 };
 
 static const struct i2c_device_id max98090_i2c_id[] = {
