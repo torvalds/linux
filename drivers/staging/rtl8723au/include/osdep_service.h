@@ -42,17 +42,11 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/delay.h>
-#include <linux/proc_fs.h>	/*  Necessary because we use the proc fs */
 #include <linux/interrupt.h>	/*  for struct tasklet_struct */
 #include <linux/ip.h>
-#include <linux/kthread.h>
 
-
-/*	#include <linux/ieee80211.h> */
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
-#include <linux/usb.h>
-#include <linux/usb/ch9.h>
 
 struct rtw_queue {
 	struct	list_head	queue;
