@@ -274,9 +274,9 @@ static struct net_device_stats *rtw_net_get_stats(struct net_device *pnetdev)
 static const u16 rtw_1d_to_queue[8] = { 2, 3, 3, 2, 1, 1, 0, 0 };
 
 /* Given a data frame determine the 802.1p/1d tag to use. */
-static unsigned int rtw_classify8021d(struct sk_buff *skb)
+static u32 rtw_classify8021d(struct sk_buff *skb)
 {
-	unsigned int dscp;
+	u32 dscp;
 
 	/* skb->priority values from 256->263 are magic values to
 	 * directly indicate a specific 802.1d priority.  This is used
@@ -433,7 +433,6 @@ int rtw_reset_drv_sw23a(struct rtw_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
-	int ret8 = _SUCCESS;
 
 	/* hal_priv */
 	rtl8723a_init_default_value(padapter);
@@ -455,7 +454,7 @@ int rtw_reset_drv_sw23a(struct rtw_adapter *padapter)
 	padapter->mlmeextpriv.sitesurvey_res.state = SCAN_DISABLE;
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
-	return ret8;
+	return _SUCCESS;
 }
 
 int rtw_init_drv_sw23a(struct rtw_adapter *padapter)
@@ -464,7 +463,7 @@ int rtw_init_drv_sw23a(struct rtw_adapter *padapter)
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_init_drv_sw23a\n"));
 
-	if ((rtw_init_cmd_priv23a(&padapter->cmdpriv)) == _FAIL) {
+	if (rtw_init_cmd_priv23a(&padapter->cmdpriv) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
 			 ("\n Can't init cmd_priv\n"));
 		ret8 = _FAIL;
@@ -533,29 +532,30 @@ exit:
 
 void rtw_cancel_all_timer23a(struct rtw_adapter *padapter)
 {
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_cancel_all_timer23a\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_,
+		 ("+rtw_cancel_all_timer23a\n"));
 
 	del_timer_sync(&padapter->mlmepriv.assoc_timer);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("rtw_cancel_all_timer23a:cancel association timer complete!\n"));
+		 ("%s:cancel association timer complete!\n", __func__));
 
 	del_timer_sync(&padapter->mlmepriv.scan_to_timer);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("rtw_cancel_all_timer23a:cancel scan_to_timer!\n"));
+		 ("%s:cancel scan_to_timer!\n", __func__));
 
 	del_timer_sync(&padapter->mlmepriv.dynamic_chk_timer);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("rtw_cancel_all_timer23a:cancel dynamic_chk_timer!\n"));
+		 ("%s:cancel dynamic_chk_timer!\n", __func__));
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("rtw_cancel_all_timer23a:cancel DeInitSwLeds!\n"));
+		 ("%s:cancel DeInitSwLeds!\n", __func__));
 
 	del_timer_sync(&padapter->pwrctrlpriv.pwr_state_check_timer);
 
 	del_timer_sync(&padapter->mlmepriv.set_scan_deny_timer);
 	rtw_clear_scan_deny(padapter);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("rtw_cancel_all_timer23a:cancel set_scan_deny_timer!\n"));
+		 ("%s:cancel set_scan_deny_timer!\n", __func__));
 
 	del_timer_sync(&padapter->recvpriv.signal_stat_timer);
 	/* cancel dm timer */
@@ -574,7 +574,8 @@ int rtw_free_drv_sw23a(struct rtw_adapter *padapter)
 
 	_rtw_free_xmit_priv23a(&padapter->xmitpriv);
 
-	_rtw_free_sta_priv23a(&padapter->stapriv);/* will free bcmc_stainfo here */
+	/* will free bcmc_stainfo here */
+	_rtw_free_sta_priv23a(&padapter->stapriv);
 
 	_rtw_free_recv_priv23a(&padapter->recvpriv);
 
@@ -627,26 +628,30 @@ int rtw_drv_register_netdev(struct rtw_adapter *if1)
 	struct dvobj_priv *dvobj = if1->dvobj;
 	int i, status = _SUCCESS;
 
-	if (dvobj->iface_nums < IFACE_ID_MAX) {
-		for (i = 0; i < dvobj->iface_nums; i++) {
-			struct rtw_adapter *padapter = dvobj->padapters[i];
+	if (dvobj->iface_nums >= IFACE_ID_MAX) {
+		status = _FAIL; /* -EINVAL */
+		goto exit;
+	}
 
-			if (padapter) {
-				char *name;
+	for (i = 0; i < dvobj->iface_nums; i++) {
+		struct rtw_adapter *padapter = dvobj->padapters[i];
 
-				if (padapter->iface_id == IFACE_ID0)
-					name = if1->registrypriv.ifname;
-				else if (padapter->iface_id == IFACE_ID1)
-					name = if1->registrypriv.if2name;
-				else
-					name = "wlan%d";
-				status = _rtw_drv_register_netdev(padapter,
-								  name);
-				if (status != _SUCCESS)
-					break;
-			}
+		if (padapter) {
+			char *name;
+
+			if (padapter->iface_id == IFACE_ID0)
+				name = if1->registrypriv.ifname;
+			else if (padapter->iface_id == IFACE_ID1)
+				name = if1->registrypriv.if2name;
+			else
+				name = "wlan%d";
+			status = _rtw_drv_register_netdev(padapter, name);
+			if (status != _SUCCESS)
+				break;
 		}
 	}
+
+exit:
 	return status;
 }
 
@@ -733,7 +738,7 @@ netdev_open23a_error:
 	goto exit;
 }
 
-static int  ips_netdrv_open(struct rtw_adapter *padapter)
+static int ips_netdrv_open(struct rtw_adapter *padapter)
 {
 	int status = _SUCCESS;
 
@@ -840,8 +845,8 @@ static int netdev_close(struct net_device *pnetdev)
 	padapter->net_closed = true;
 
 	if (padapter->pwrctrlpriv.rf_pwrstate == rf_on) {
-		DBG_8723A("(2)871x_drv - drv_close, bup =%d, hw_init_completed =%d\n",
-			  padapter->bup,
+		DBG_8723A("(2)871x_drv - drv_close, bup =%d, "
+			  "hw_init_completed =%d\n", padapter->bup,
 			  padapter->hw_init_completed);
 
 		/* s1. */
