@@ -13,7 +13,7 @@
 #define ARM_EXIT_DISCARD(x)	x
 
 OUTPUT_ARCH(aarch64)
-ENTRY(stext)
+ENTRY(_text)
 
 jiffies = jiffies_64;
 
