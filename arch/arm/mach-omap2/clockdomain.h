@@ -18,7 +18,6 @@
 
 #include "powerdomain.h"
 #include "clock.h"
-#include "omap_hwmod.h"
 
 /*
  * Clockdomain flags
@@ -97,6 +96,8 @@ struct clkdm_dep {
 
 /* Possible flags for struct clockdomain._flags */
 #define _CLKDM_FLAG_HWSUP_ENABLED		BIT(0)
+
+struct omap_hwmod;
 
 /**
  * struct clockdomain - OMAP clockdomain

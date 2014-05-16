@@ -21,8 +21,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include "iomap.h"
-#include "common.h"
 #include "clockdomain.h"
 #include "cm.h"
 #include "cm1_44xx.h"
@@ -30,11 +28,17 @@
 #include "cm44xx.h"
 #include "cminst44xx.h"
 #include "cm-regbits-34xx.h"
-#include "cm-regbits-44xx.h"
 #include "prcm44xx.h"
 #include "prm44xx.h"
 #include "prcm_mpu44xx.h"
 #include "prcm-common.h"
+
+#define OMAP4430_IDLEST_SHIFT		16
+#define OMAP4430_IDLEST_MASK		(0x3 << 16)
+#define OMAP4430_CLKTRCTRL_SHIFT	0
+#define OMAP4430_CLKTRCTRL_MASK		(0x3 << 0)
+#define OMAP4430_MODULEMODE_SHIFT	0
+#define OMAP4430_MODULEMODE_MASK	(0x3 << 0)
 
 /*
  * CLKCTRL_IDLEST_*: possible values for the CM_*_CLKCTRL.IDLEST bitfield:
