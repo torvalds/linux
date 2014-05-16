@@ -629,23 +629,12 @@ void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 	}
 }
 
-void kvm_s390_tasklet(unsigned long parm)
-{
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) parm;
-	kvm_s390_vcpu_wakeup(vcpu);
-}
-
-/*
- * low level hrtimer wake routine. Because this runs in hardirq context
- * we schedule a tasklet to do the real work.
- */
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
-	vcpu->preempted = true;
-	tasklet_schedule(&vcpu->arch.tasklet);
+	kvm_s390_vcpu_wakeup(vcpu);
 
 	return HRTIMER_NORESTART;
 }
