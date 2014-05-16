@@ -12,15 +12,18 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-
+#include <linux/regulator/consumer.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-data.h>
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
 	struct omap_dss_device *in;
+	struct regulator *vcc;
 
 	int data_lines;
 
@@ -95,12 +98,21 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_data_lines(in, ddata->data_lines);
+	if (ddata->data_lines)
+		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->videomode);
 
+	if (ddata->vcc) {
+		r = regulator_enable(ddata->vcc);
+		if (r != 0)
+			return r;
+	}
+
 	r = in->ops.dpi->enable(in);
-	if (r)
+	if (r) {
+		regulator_disable(ddata->vcc);
 		return r;
+	}
 
 	/* wait couple of vsyncs until enabling the LCD */
 	msleep(50);
@@ -135,6 +147,9 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 	msleep(100);
 
 	in->ops.dpi->disable(in);
+
+	if (ddata->vcc)
+		regulator_disable(ddata->vcc);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
@@ -249,6 +264,75 @@ static int sharp_ls_probe_pdata(struct platform_device *pdev)
 	return 0;
 }
 
+static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,
+	const char *desc, struct gpio_desc **gpiod)
+{
+	struct gpio_desc *gd;
+	int r;
+
+	*gpiod = NULL;
+
+	gd = devm_gpiod_get_index(dev, desc, index);
+	if (IS_ERR(gd))
+		return PTR_ERR(gd) == -ENOENT ? 0 : PTR_ERR(gd);
+
+	r = gpiod_direction_output(gd, val);
+	if (r)
+		return r;
+
+	*gpiod = gd;
+	return 0;
+}
+
+static int sharp_ls_probe_of(struct platform_device *pdev)
+{
+	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
+	struct device_node *node = pdev->dev.of_node;
+	struct omap_dss_device *in;
+	int r;
+
+	ddata->vcc = devm_regulator_get(&pdev->dev, "envdd");
+	if (IS_ERR(ddata->vcc)) {
+		dev_err(&pdev->dev, "failed to get regulator\n");
+		return PTR_ERR(ddata->vcc);
+	}
+
+	/* lcd INI */
+	r = sharp_ls_get_gpio_of(&pdev->dev, 0, 0, "enable", &ddata->ini_gpio);
+	if (r)
+		return r;
+
+	/* lcd RESB */
+	r = sharp_ls_get_gpio_of(&pdev->dev, 0, 0, "reset", &ddata->resb_gpio);
+	if (r)
+		return r;
+
+	/* lcd MO */
+	r = sharp_ls_get_gpio_of(&pdev->dev, 0, 0, "mode", &ddata->mo_gpio);
+	if (r)
+		return r;
+
+	/* lcd LR */
+	r = sharp_ls_get_gpio_of(&pdev->dev, 1, 1, "mode", &ddata->lr_gpio);
+	if (r)
+		return r;
+
+	/* lcd UD */
+	r = sharp_ls_get_gpio_of(&pdev->dev, 2, 1, "mode", &ddata->ud_gpio);
+	if (r)
+		return r;
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&pdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
+
+	return 0;
+}
+
 static int sharp_ls_probe(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata;
@@ -263,6 +347,10 @@ static int sharp_ls_probe(struct platform_device *pdev)
 
 	if (dev_get_platdata(&pdev->dev)) {
 		r = sharp_ls_probe_pdata(pdev);
+		if (r)
+			return r;
+	} else if (pdev->dev.of_node) {
+		r = sharp_ls_probe_of(pdev);
 		if (r)
 			return r;
 	} else {
@@ -308,12 +396,20 @@ static int __exit sharp_ls_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id sharp_ls_of_match[] = {
+	{ .compatible = "omapdss,sharp,ls037v7dw01", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, sharp_ls_of_match);
+
 static struct platform_driver sharp_ls_driver = {
 	.probe = sharp_ls_probe,
 	.remove = __exit_p(sharp_ls_remove),
 	.driver = {
 		.name = "panel-sharp-ls037v7dw01",
 		.owner = THIS_MODULE,
+		.of_match_table = sharp_ls_of_match,
 	},
 };
 
