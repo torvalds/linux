@@ -61,8 +61,6 @@ enum hal_odm_variable {
 };
 
 struct hal_ops {
-	u32 (*hal_power_on)(struct rtw_adapter *padapter);
-
 	void (*InitSwLeds)(struct rtw_adapter *padapter);
 	void (*DeInitSwLeds)(struct rtw_adapter *padapter);
 
@@ -117,7 +115,6 @@ int rtw_resume_process23a(struct rtw_adapter *padapter);
 void rtw_hal_sw_led_init23a(struct rtw_adapter *padapter);
 void rtw_hal_sw_led_deinit23a(struct rtw_adapter *padapter);
 
-u32 rtw_hal_power_on23a(struct rtw_adapter *padapter);
 int rtw_hal_init23a(struct rtw_adapter *padapter);
 int rtw_hal_deinit23a(struct rtw_adapter *padapter);
 void rtw_hal_stop(struct rtw_adapter *padapter);

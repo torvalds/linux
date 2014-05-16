@@ -34,13 +34,6 @@ void rtw_hal_sw_led_deinit23a(struct rtw_adapter *padapter)
 		padapter->HalFunc.DeInitSwLeds(padapter);
 }
 
-u32 rtw_hal_power_on23a(struct rtw_adapter *padapter)
-{
-	if (padapter->HalFunc.hal_power_on)
-		return padapter->HalFunc.hal_power_on(padapter);
-	return _FAIL;
-}
-
 void rtw_hal_enable_interrupt23a(struct rtw_adapter *padapter)
 {
 	if (padapter->HalFunc.enable_interrupt)
