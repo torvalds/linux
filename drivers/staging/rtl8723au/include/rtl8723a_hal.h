@@ -527,7 +527,7 @@ void Hal_EfuseParseCustomerID(struct rtw_adapter *padapter, u8 *hwinfo, bool Aut
 void Hal_EfuseParseAntennaDiversity(struct rtw_adapter *padapter, u8 *hwinfo, bool AutoLoadFail);
 void Hal_EfuseParseRateIndicationOption(struct rtw_adapter *padapter, u8 *hwinfo, bool AutoLoadFail);
 void Hal_EfuseParseXtal_8723A(struct rtw_adapter *pAdapter, u8 *hwinfo, u8 AutoLoadFail);
-void Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter, u8 *hwinfo, u8 AutoLoadFail);
+void Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter, u8 *hwinfo, bool AutoLoadFail);
 
 void Hal_InitChannelPlan23a(struct rtw_adapter *padapter);
 
@@ -542,8 +542,8 @@ void rtl8723a_InitBeaconParameters(struct rtw_adapter *padapter);
 void rtl8723a_start_thread(struct rtw_adapter *padapter);
 void rtl8723a_stop_thread(struct rtw_adapter *padapter);
 
-s32 c2h_id_filter_ccx_8723a(u8 id);
-s32 c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt);
+bool c2h_id_filter_ccx_8723a(u8 id);
+int c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt);
 
 void rtl8723a_read_adapter_info(struct rtw_adapter *Adapter);
 void rtl8723a_read_chip_version(struct rtw_adapter *padapter);

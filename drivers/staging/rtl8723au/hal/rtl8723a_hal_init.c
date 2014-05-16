@@ -187,7 +187,7 @@ exit:
 	return ret;
 }
 
-static s32 _FWFreeToGo(struct rtw_adapter *padapter)
+static int _FWFreeToGo(struct rtw_adapter *padapter)
 {
 	u32 counter = 0;
 	u32 value32;
@@ -276,9 +276,9 @@ void rtl8723a_FirmwareSelfReset(struct rtw_adapter *padapter)
 /*		Download 8192C firmware code. */
 /*  */
 /*  */
-s32 rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
+int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 {
-	s32 rtStatus = _SUCCESS;
+	int rtStatus = _SUCCESS;
 	u8 writeFW_retry = 0;
 	unsigned long fwdl_start_time;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
@@ -1143,18 +1143,18 @@ void rtl8723a_notch_filter(struct rtw_adapter *adapter, bool enable)
 	}
 }
 
-s32 c2h_id_filter_ccx_8723a(u8 id)
+bool c2h_id_filter_ccx_8723a(u8 id)
 {
-	s32 ret = false;
+	bool ret = false;
 	if (id == C2H_CCX_TX_RPT)
 		ret = true;
 
 	return ret;
 }
 
-s32 c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
+int c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
 {
-	s32 ret = _SUCCESS;
+	int ret = _SUCCESS;
 	u8 i = 0;
 
 	if (c2h_evt == NULL) {
@@ -1293,9 +1293,9 @@ u8 GetEEPROMSize8723A(struct rtw_adapter *padapter)
 /*  LLT R/W/Init function */
 /*  */
 /*  */
-static s32 _LLTWrite(struct rtw_adapter *padapter, u32 address, u32 data)
+static int _LLTWrite(struct rtw_adapter *padapter, u32 address, u32 data)
 {
-	s32 status = _SUCCESS;
+	int status = _SUCCESS;
 	s32 count = 0;
 	u32 value = _LLT_INIT_ADDR(address) | _LLT_INIT_DATA(data) |
 		    _LLT_OP(_LLT_WRITE_ACCESS);
@@ -1322,23 +1322,23 @@ static s32 _LLTWrite(struct rtw_adapter *padapter, u32 address, u32 data)
 	return status;
 }
 
-s32 InitLLTTable23a(struct rtw_adapter *padapter, u32 boundary)
+int InitLLTTable23a(struct rtw_adapter *padapter, u32 boundary)
 {
-	s32 status = _SUCCESS;
+	int status = _SUCCESS;
 	u32 i;
 	u32 txpktbuf_bndy = boundary;
 	u32 Last_Entry_Of_TxPktBuf = LAST_ENTRY_OF_TX_PKT_BUFFER;
 
 	for (i = 0; i < (txpktbuf_bndy - 1); i++) {
 		status = _LLTWrite(padapter, i, i + 1);
-		if (_SUCCESS != status) {
+		if (status != _SUCCESS) {
 			return status;
 		}
 	}
 
 	/*  end of list */
 	status = _LLTWrite(padapter, (txpktbuf_bndy - 1), 0xFF);
-	if (_SUCCESS != status) {
+	if (status != _SUCCESS) {
 		return status;
 	}
 
@@ -1355,7 +1355,7 @@ s32 InitLLTTable23a(struct rtw_adapter *padapter, u32 boundary)
 
 	/*  Let last entry point to the start entry of ring buffer */
 	status = _LLTWrite(padapter, Last_Entry_Of_TxPktBuf, txpktbuf_bndy);
-	if (_SUCCESS != status) {
+	if (status != _SUCCESS) {
 		return status;
 	}
 
@@ -1598,7 +1598,7 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 }
 
 /*  HW Auto state machine */
-s32 CardDisableHWSM(struct rtw_adapter *padapter, u8 resetMCU)
+int CardDisableHWSM(struct rtw_adapter *padapter, u8 resetMCU)
 {
 	int rtStatus = _SUCCESS;
 
@@ -1624,9 +1624,9 @@ s32 CardDisableHWSM(struct rtw_adapter *padapter, u8 resetMCU)
 }
 
 /*  without HW Auto state machine */
-s32 CardDisableWithoutHWSM(struct rtw_adapter *padapter)
+int CardDisableWithoutHWSM(struct rtw_adapter *padapter)
 {
-	s32 rtStatus = _SUCCESS;
+	int rtStatus = _SUCCESS;
 
 	/* RT_TRACE(COMP_INIT, DBG_LOUD,
 	   ("======> Card Disable Without HWSM .\n")); */
@@ -2017,20 +2017,20 @@ Hal_EfuseParseXtal_8723A(struct rtw_adapter *pAdapter,
 
 void
 Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter,
-				 u8 *PROMContent, u8 AutoloadFail)
+				 u8 *PROMContent, bool AutoloadFail)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	/*  */
 	/*  ThermalMeter from EEPROM */
 	/*  */
-	if (false == AutoloadFail)
+	if (AutoloadFail == false)
 		pHalData->EEPROMThermalMeter =
 		    PROMContent[EEPROM_THERMAL_METER_8723A];
 	else
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
 
-	if ((pHalData->EEPROMThermalMeter == 0xff) || (true == AutoloadFail)) {
+	if ((pHalData->EEPROMThermalMeter == 0xff) || (AutoloadFail == true)) {
 		pHalData->bAPKThermalMeterIgnore = true;
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
 	}
