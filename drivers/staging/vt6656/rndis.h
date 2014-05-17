@@ -64,20 +64,7 @@
 #define MESSAGE_REQUEST_RF_CH1          0x0C
 #define MESSAGE_REQUEST_RF_CH2          0x0D
 
-#define VIAUSB20_PACKET_HEADER          0x04
-
 #define USB_REG4	0x604
-
-typedef struct _CMD_MESSAGE
-{
-    u8        byData[256];
-} CMD_MESSAGE, *PCMD_MESSAGE;
-
-typedef struct _CMD_WRITE_MASK
-{
-    u8        byData;
-    u8        byMask;
-} CMD_WRITE_MASK, *PCMD_WRITE_MASK;
 
 struct vnt_cmd_card_init
 {
@@ -96,56 +83,5 @@ struct vnt_rsp_card_init
 	u8 min_channel;
 	u8 max_channel;
 };
-
-typedef struct _CMD_SET_KEY
-{
-    u16        wKCTL;
-    u8        abyMacAddr[6];
-    u8        abyKey[16];
-} CMD_SET_KEY, *PCMD_SET_KEY;
-
-typedef struct _CMD_CLRKEY_ENTRY
-{
-    u8        abyKeyEntry[11];
-} CMD_CLRKEY_ENTRY, *PCMD_CLRKEY_ENTRY;
-
-typedef struct _CMD_WRITE_MISCFF
-{
-    u32       adwMiscFFData[22][4];  //a key entry has only 22 dwords
-} CMD_WRITE_MISCFF, *PCMD_WRITE_MISCFF;
-
-typedef struct _CMD_SET_TSFTBTT
-{
-    u8        abyTSF_TBTT[8];
-} CMD_SET_TSFTBTT, *PCMD_SET_TSFTBTT;
-
-typedef struct _CMD_SET_SSTIFS
-{
-    u8        bySIFS;
-    u8        byDIFS;
-    u8        byEIFS;
-    u8        bySlotTime;
-    u8        byCwMax_Min;
-    u8        byBBCR10;
-} CMD_SET_SSTIFS, *PCMD_SET_SSTIFS;
-
-typedef struct _CMD_CHANGE_BBTYPE
-{
-    u8        bySIFS;
-    u8        byDIFS;
-    u8        byEIFS;
-    u8        bySlotTime;
-    u8        byCwMax_Min;
-    u8        byBBCR10;
-    u8        byBB_BBType;    //CR88
-    u8        byMAC_BBType;
-    u32       dwRSPINF_b_1;
-    u32       dwRSPINF_b_2;
-    u32       dwRSPINF_b_55;
-    u32       dwRSPINF_b_11;
-    u16        wRSPINF_a[9];
-} CMD_CHANGE_BBTYPE, *PCMD_CHANGE_BBTYPE;
-
-#define EXCH_WORD(w) ((u16)((u16)(w)<<8) | (u16)((u16)(w)>>8))
 
 #endif /* _RNDIS_H_ */
