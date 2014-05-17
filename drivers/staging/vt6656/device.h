@@ -581,7 +581,6 @@ struct vnt_private {
 
 	u32 dwMaxReceiveLifetime;  /* dot11MaxReceiveLifetime */
 
-	int bCCK;
 	int bEncryptionEnable;
 	int bShortSlotTime;
 	int bProtectMode;

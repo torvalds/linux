@@ -2571,7 +2571,6 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     }
 
     // Init the BSS informations
-    pDevice->bCCK = true;
     pDevice->bProtectMode = false;
     MACvDisableProtectMD(pDevice);
     pDevice->bBarkerPreambleMd = false;

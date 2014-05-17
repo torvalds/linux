@@ -368,8 +368,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	/* do MACbSoftwareReset in MACvInitialize */
 
-	/* force CCK */
-	pDevice->bCCK = true;
 	pDevice->bProtectMode = false;
 	/* only used in 11g type, sync with ERP IE */
 	pDevice->bNonERPPresent = false;
