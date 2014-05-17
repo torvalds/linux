@@ -522,22 +522,8 @@ enable_dc:
 	 l.nop
 
 flush_tlb:
-	/*
-	 *  I N V A L I D A T E   T L B   e n t r i e s
-	 */
-	LOAD_SYMBOL_2_GPR(r5,SPR_DTLBMR_BASE(0))
-	LOAD_SYMBOL_2_GPR(r6,SPR_ITLBMR_BASE(0))
-	l.addi	r7,r0,128 /* Maximum number of sets */
-1:
-	l.mtspr	r5,r0,0x0
-	l.mtspr	r6,r0,0x0
-
-	l.addi	r5,r5,1
-	l.addi	r6,r6,1
-	l.sfeq	r7,r0
-	l.bnf	1b
-	 l.addi	r7,r7,-1
-
+	l.jal	_flush_tlb
+	 l.nop
 
 /* The MMU needs to be enabled before or32_early_setup is called */
 
@@ -627,6 +613,26 @@ jump_start_kernel:
 	 */
 	LOAD_SYMBOL_2_GPR(r30, start_kernel)
 	l.jr    r30
+	 l.nop
+
+_flush_tlb:
+	/*
+	 *  I N V A L I D A T E   T L B   e n t r i e s
+	 */
+	LOAD_SYMBOL_2_GPR(r5,SPR_DTLBMR_BASE(0))
+	LOAD_SYMBOL_2_GPR(r6,SPR_ITLBMR_BASE(0))
+	l.addi	r7,r0,128 /* Maximum number of sets */
+1:
+	l.mtspr	r5,r0,0x0
+	l.mtspr	r6,r0,0x0
+
+	l.addi	r5,r5,1
+	l.addi	r6,r6,1
+	l.sfeq	r7,r0
+	l.bnf	1b
+	 l.addi	r7,r7,-1
+
+	l.jr	r9
 	 l.nop
 
 /* ========================================[ cache ]=== */
