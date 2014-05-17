@@ -387,7 +387,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	pDevice->byTopOFDMBasicRate = RATE_24M;
 	pDevice->byTopCCKBasicRate = RATE_1M;
-	pDevice->byRevId = 0;
+
 	/* target to IF pin while programming to RF chip */
 	pDevice->byCurPwr = 0xFF;
 
@@ -507,11 +507,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	/* get RFType */
 	pDevice->byRFType = init_rsp->rf_type;
-
-	if ((pDevice->byRFType & RF_EMU) != 0) {
-		/* force change RevID for VT3253 emu */
-		pDevice->byRevId = 0x80;
-	}
 
 	/* load vt3266 calibration parameters in EEPROM */
 	if (pDevice->byRFType == RF_VT3226D0) {

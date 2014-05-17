@@ -409,8 +409,6 @@ struct vnt_private {
 
 	u32 rx_bytes;
 
-	u8 byRevId;
-
 	u32 flags;
 	unsigned long Flags;
 
