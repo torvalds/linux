@@ -803,8 +803,7 @@ void dgnc_input(struct channel_t *ch)
 				else
 					tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_NORMAL);
 			}
-		}
-		else {
+		} else {
 			tty_insert_flip_string(tp->port, ch->ch_rqueue + tail, s);
 		}
 
@@ -1267,12 +1266,10 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	if (!IS_PRINT(minor)) {
 		un = &brd->channels[PORT_NUM(minor)]->ch_tun;
 		un->un_type = DGNC_SERIAL;
-	}
-	else if (IS_PRINT(minor)) {
+	} else if (IS_PRINT(minor)) {
 		un = &brd->channels[PORT_NUM(minor)]->ch_pun;
 		un->un_type = DGNC_PRINT;
-	}
-	else {
+	} else {
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		DPR_OPEN(("%d Unknown TYPE!\n", __LINE__));
 		return -ENXIO;
@@ -1507,8 +1504,7 @@ static int dgnc_block_til_ready(struct tty_struct *tty, struct file *file, struc
 				DPR_OPEN(("%d: ch_flags: %x\n", __LINE__, ch->ch_flags));
 				break;
 			}
-		}
-		else {
+		} else {
 			sleep_on_un_flags = 1;
 		}
 
@@ -1550,8 +1546,7 @@ static int dgnc_block_til_ready(struct tty_struct *tty, struct file *file, struc
 		if (sleep_on_un_flags) {
 			retval = wait_event_interruptible(un->un_flags_wait,
 				(old_flags != (ch->ch_tun.un_flags | ch->ch_pun.un_flags)));
-		}
-		else {
+		} else {
 			retval = wait_event_interruptible(ch->ch_flags_wait,
 				(old_flags != ch->ch_flags));
 		}
@@ -1748,8 +1743,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 
 		/* Turn off UART interrupts for this port */
 		ch->ch_bd->bd_ops->uart_off(ch);
-	}
-	else {
+	} else {
 		/*
 		 * turn off print device when closing print device.
 		 */
@@ -1867,12 +1861,10 @@ static int dgnc_maxcps_room(struct tty_struct *tty, int bytes_available)
 			/* buffer is empty */
 			ch->ch_cpstime = current_time;	    /* reset ch_cpstime */
 			cps_limit = ch->ch_digi.digi_bufsize;
-		}
-		else if (ch->ch_cpstime < buffer_time) {
+		} else if (ch->ch_cpstime < buffer_time) {
 			/* still room in the buffer */
 			cps_limit = ((buffer_time - ch->ch_cpstime) * ch->ch_digi.digi_maxcps) / HZ;
-		}
-		else {
+		} else {
 			/* no room in the buffer */
 			cps_limit = 0;
 		}
@@ -1931,8 +1923,7 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 		if (!(ch->ch_flags & CH_PRON))
 			ret -= ch->ch_digi.digi_onlen;
 		ret -= ch->ch_digi.digi_offlen;
-	}
-	else {
+	} else {
 		if (ch->ch_flags & CH_PRON)
 			ret -= ch->ch_digi.digi_offlen;
 	}
@@ -2560,15 +2551,13 @@ static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 
 		if (arg & TIOCM_RTS) {
 			ch->ch_mostat |= UART_MCR_RTS;
-		}
-		else {
+		} else {
 			ch->ch_mostat &= ~(UART_MCR_RTS);
 		}
 
 		if (arg & TIOCM_DTR) {
 			ch->ch_mostat |= UART_MCR_DTR;
-		}
-		else {
+		} else {
 			ch->ch_mostat &= ~(UART_MCR_DTR);
 		}
 
@@ -3279,8 +3268,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 				return -EINTR;
 			}
 			DGNC_LOCK(ch->ch_lock, lock_flags);
-		}
-		else {
+		} else {
 			tty_ldisc_flush(tty);
 		}
 		/* fall thru */

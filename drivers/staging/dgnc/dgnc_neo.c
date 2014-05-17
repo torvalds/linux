@@ -485,8 +485,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 					DGNC_UNLOCK(ch->ch_lock, lock_flags);
 				}
 				DPR_INTR(("Port %d. XON detected in incoming data\n", port));
-			}
-			else if (cause == UART_17158_XOFF_DETECT) {
+			} else if (cause == UART_17158_XOFF_DETECT) {
 				if (!(brd->channels[port]->ch_flags & CH_STOP)) {
 					DGNC_LOCK(ch->ch_lock, lock_flags);
 					ch->ch_flags |= CH_STOP;
@@ -511,8 +510,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 					DGNC_LOCK(ch->ch_lock, lock_flags);
 					ch->ch_mostat |= UART_MCR_RTS;
 					DGNC_UNLOCK(ch->ch_lock, lock_flags);
-				}
-				else {
+				} else {
 					DGNC_LOCK(ch->ch_lock, lock_flags);
 					ch->ch_mostat &= ~(UART_MCR_RTS);
 					DGNC_UNLOCK(ch->ch_lock, lock_flags);
@@ -522,8 +520,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 					DGNC_LOCK(ch->ch_lock, lock_flags);
 					ch->ch_mostat |= UART_MCR_DTR;
 					DGNC_UNLOCK(ch->ch_lock, lock_flags);
-				}
-				else {
+				} else {
 					DGNC_LOCK(ch->ch_lock, lock_flags);
 					ch->ch_mostat &= ~(UART_MCR_DTR);
 					DGNC_UNLOCK(ch->ch_lock, lock_flags);
@@ -624,8 +621,7 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 
 		/* Transfer data (if any) from Write Queue -> UART. */
 		neo_copy_data_from_queue_to_uart(ch);
-	}
-	else if (linestatus & UART_17158_TX_AND_FIFO_CLR) {
+	} else if (linestatus & UART_17158_TX_AND_FIFO_CLR) {
 		brd->intr_tx++;
 		ch->ch_intr_tx++;
 		DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -834,8 +830,7 @@ static void neo_param(struct tty_struct *tty)
 
 	if (ch->ch_c_cflag & CREAD) {
 		ier |= (UART_IER_RDI | UART_IER_RLSI);
-	}
-	else {
+	} else {
 		ier &= ~(UART_IER_RDI | UART_IER_RLSI);
 	}
 
@@ -848,8 +843,7 @@ static void neo_param(struct tty_struct *tty)
 		!(ch->ch_c_cflag & CLOCAL))
 	{
 		ier |= UART_IER_MSI;
-	}
-	else {
+	} else {
 		ier &= ~UART_IER_MSI;
 	}
 
@@ -863,29 +857,25 @@ static void neo_param(struct tty_struct *tty)
 
 	if (ch->ch_digi.digi_flags & CTSPACE || ch->ch_c_cflag & CRTSCTS) {
 		neo_set_cts_flow_control(ch);
-	}
-	else if (ch->ch_c_iflag & IXON) {
+	} else if (ch->ch_c_iflag & IXON) {
 		/* If start/stop is set to disable, then we should disable flow control */
 		if ((ch->ch_startc == _POSIX_VDISABLE) || (ch->ch_stopc == _POSIX_VDISABLE))
 			neo_set_no_output_flow_control(ch);
 		else
 			neo_set_ixon_flow_control(ch);
-	}
-	else {
+	} else {
 		neo_set_no_output_flow_control(ch);
 	}
 
 	if (ch->ch_digi.digi_flags & RTSPACE || ch->ch_c_cflag & CRTSCTS) {
 		neo_set_rts_flow_control(ch);
-	}
-	else if (ch->ch_c_iflag & IXOFF) {
+	} else if (ch->ch_c_iflag & IXOFF) {
 		/* If start/stop is set to disable, then we should disable flow control */
 		if ((ch->ch_startc == _POSIX_VDISABLE) || (ch->ch_stopc == _POSIX_VDISABLE))
 			neo_set_no_input_flow_control(ch);
 		else
 			neo_set_ixoff_flow_control(ch);
-	}
-	else {
+	} else {
 		neo_set_no_input_flow_control(ch);
 	}
 
@@ -1227,8 +1217,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 */
 		if ((ch->ch_bd->dvid & 0xf0) >= UART_XR17E158_DVID) {
 			total -= 1;
-		}
-		else {
+		} else {
 			total -= 3;
 		}
 	}
@@ -1435,8 +1424,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	/* If ret is non-zero, user ctrl-c'ed us */
 	if (rc) {
 		DPR_IOCTL(("%d Drain - User ctrl c'ed\n", __LINE__));
-	}
-	else {
+	} else {
 		DPR_IOCTL(("%d Drain wait finished.\n", __LINE__));
 	}
 
@@ -1468,8 +1456,7 @@ static void neo_flush_uart_write(struct channel_t *ch)
 		if (tmp & 4) {
 			DPR_IOCTL(("Still flushing TX UART... i: %d\n", i));
 			udelay(10);
-		}
-		else
+		} else
 			break;
 	}
 
@@ -1501,8 +1488,7 @@ static void neo_flush_uart_read(struct channel_t *ch)
 		if (tmp & 2) {
 			DPR_IOCTL(("Still flushing RX UART... i: %d\n", i));
 			udelay(10);
-		}
-		else
+		} else
 			break;
 	}
 }
@@ -1598,8 +1584,7 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 		}
 
 		n = UART_17158_TX_FIFOSIZE - ch->ch_t_tlevel;
-	}
-	else {
+	} else {
 		n = UART_17158_TX_FIFOSIZE - readb(&ch->ch_neo_uart->tfifo);
 	}
 
@@ -1963,8 +1948,7 @@ static void neo_vpd(struct dgnc_board *brd)
 		||  (brd->vpd[0x7F] != 0x78))   /* small resource end tag */
 	{
 		memset(brd->vpd, '\0', NEO_VPD_IMAGESIZE);
-	}
-	else {
+	} else {
 		/* Search for the serial number */
 		for (i = 0; i < NEO_VPD_IMAGEBYTES - 3; i++) {
 			if (brd->vpd[i] == 'S' && brd->vpd[i + 1] == 'N') {
