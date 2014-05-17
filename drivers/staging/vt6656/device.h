@@ -672,12 +672,6 @@ struct vnt_private {
 
 	int bRadioCmd;
 
-	/* BaseBand Loopback Use */
-	u8 byBBCR4d;
-	u8 byBBCRc9;
-	u8 byBBCR88;
-	u8 byBBCR09;
-
 	/* command timer */
 	struct delayed_work run_command_work;
 	/* One second callback */
