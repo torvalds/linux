@@ -1676,7 +1676,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		/*
 		 * turn off print device when closing print device.
 		 */
-		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON) ) {
+		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
 			dgnc_wmove(ch, ch->ch_digi.digi_offstr,
 				(int) ch->ch_digi.digi_offlen);
 			ch->ch_flags &= ~CH_PRON;
@@ -1734,7 +1734,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		/*
 		 * turn off print device when closing print device.
 		 */
-		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON) ) {
+		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
 			dgnc_wmove(ch, ch->ch_digi.digi_offstr,
 				(int) ch->ch_digi.digi_offlen);
 			ch->ch_flags &= ~CH_PRON;
@@ -1838,7 +1838,7 @@ static int dgnc_maxcps_room(struct tty_struct *tty, int bytes_available)
 	if (un->un_type != DGNC_PRINT)
 		return bytes_available;
 
-	if (ch->ch_digi.digi_maxcps > 0 && ch->ch_digi.digi_bufsize > 0 ) {
+	if (ch->ch_digi.digi_maxcps > 0 && ch->ch_digi.digi_bufsize > 0) {
 		int cps_limit = 0;
 		unsigned long current_time = jiffies;
 		unsigned long buffer_time = current_time +
