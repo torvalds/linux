@@ -769,6 +769,32 @@ int RFbSetPower(struct vnt_private *priv, u32 rate, u32 channel)
 	return ret;
 }
 
+static u8 vnt_rf_addpower(struct vnt_private *priv)
+{
+	s32 rssi = -priv->uCurrRSSI;
+
+	if (!rssi)
+		return 7;
+
+	if (priv->byRFType == RF_VT3226D0) {
+		if (rssi < -70)
+			return 9;
+		else if (rssi < -65)
+			return 7;
+		else if (rssi < -60)
+			return 5;
+	} else {
+		if (rssi < -80)
+			return 9;
+		else if (rssi < -75)
+			return 7;
+		else if (rssi < -70)
+			return 5;
+	}
+
+	return 0;
+}
+
 /*
  * Description: Set Tx power
  *
@@ -787,6 +813,10 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
 {
 	u32 power_setting = 0;
 	int ret = true;
+
+	power += vnt_rf_addpower(priv);
+	if (power > VNT_RF_MAX_POWER)
+		power = VNT_RF_MAX_POWER;
 
 	if (priv->byCurPwr == power)
 		return true;
