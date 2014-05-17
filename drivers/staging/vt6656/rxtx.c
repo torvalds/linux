@@ -2341,12 +2341,10 @@ int nsDMA_tx_packet(struct vnt_private *pDevice, struct sk_buff *skb)
 	if (pDevice->sTxEthHeader.h_proto == cpu_to_be16(ETH_P_PAE)) {
 		if (pDevice->byBBType != BB_TYPE_11A) {
 			pDevice->wCurrentRate = RATE_1M;
-			pDevice->byACKRate = RATE_1M;
 			pDevice->byTopCCKBasicRate = RATE_1M;
 			pDevice->byTopOFDMBasicRate = RATE_6M;
 		} else {
 			pDevice->wCurrentRate = RATE_6M;
-			pDevice->byACKRate = RATE_6M;
 			pDevice->byTopCCKBasicRate = RATE_1M;
 			pDevice->byTopOFDMBasicRate = RATE_6M;
 		}
