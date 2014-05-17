@@ -60,11 +60,12 @@
 #define RT_DOWNDEV_EVENT_FLAG                        0x0105
 #define RT_RMMOD_EVENT_FLAG                              0x0106
 
+#define MAX_RATE			12
+
 /*
  * device specific
  */
 
-#include "device_cfg.h"
 #include "80211hdr.h"
 #include "tether.h"
 #include "wmgr.h"
@@ -78,6 +79,16 @@
 
 #define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
+
+#define DEVICE_NAME			"vt6656"
+#define DEVICE_FULL_DRV_NAM		"VIA Networking Wireless LAN USB Driver"
+
+#define DEVICE_VERSION			"1.19_12"
+
+#define CONFIG_PATH			"/etc/vntconfiguration.dat"
+
+#define MAX_UINTS			8
+#define OPTION_DEFAULT			{ [0 ... MAX_UINTS-1] = -1}
 
 #define MAC_MAX_CONTEXT_REG     (256+128)
 
