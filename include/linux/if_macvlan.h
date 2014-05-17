@@ -56,6 +56,7 @@ struct macvlan_dev {
 	int			numqueues;
 	netdev_features_t	tap_features;
 	int			minor;
+	int			nest_level;
 };
 
 static inline void macvlan_count_rx(const struct macvlan_dev *vlan,
