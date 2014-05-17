@@ -488,9 +488,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 	/* get Auto Fall Back type */
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
 
-	/* set SCAN Time */
-	pDevice->uScanTime = WLAN_SCAN_MINITIME;
-
 	/* default Auto Mode */
 	/* pDevice->NetworkType = Ndis802_11Automode; */
 	pDevice->eConfigPHYMode = PHY_TYPE_AUTO;

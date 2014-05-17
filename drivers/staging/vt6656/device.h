@@ -607,7 +607,6 @@ struct vnt_private {
 	int bBeaconSent;
 	int bFixRate;
 	u8 byCurrentCh;
-	u32 uScanTime;
 
 	CMD_STATE eCommandState;
 
