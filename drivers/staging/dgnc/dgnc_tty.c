@@ -660,7 +660,7 @@ void dgnc_input(struct channel_t *ch)
 	tp = ch->ch_tun.un_tty;
 
 	bd = ch->ch_bd;
-	if(!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -1038,7 +1038,7 @@ void dgnc_check_queue_flow_control(struct channel_t *ch)
 	if (qleft < 256) {
 		/* HWFLOW */
 		if (ch->ch_digi.digi_flags & CTSPACE || ch->ch_c_cflag & CRTSCTS) {
-			if(!(ch->ch_flags & CH_RECEIVER_OFF)) {
+			if (!(ch->ch_flags & CH_RECEIVER_OFF)) {
 				ch->ch_bd->bd_ops->disable_receiver(ch);
 				ch->ch_flags |= (CH_RECEIVER_OFF);
 				DPR_READ(("Internal queue hit hilevel mark (%d)! Turning off interrupts.\n",
@@ -3025,7 +3025,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		DGNC_LOCK(ch->ch_lock, lock_flags);
 
-		if(((cmd == TCSBRK) && (!arg)) || (cmd == TCSBRKP)) {
+		if (((cmd == TCSBRK) && (!arg)) || (cmd == TCSBRKP)) {
 			ch->ch_bd->bd_ops->send_break(ch, 250);
 		}
 
