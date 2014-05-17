@@ -446,7 +446,7 @@ MODULE_PARM_DESC(ips, "using no link power save (default 1 is open)\n");
 MODULE_PARM_DESC(fwlps, "using linked fw control power save (default 1 is open)\n");
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
-static const SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);
+static SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29))
