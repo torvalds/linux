@@ -672,12 +672,6 @@ struct vnt_private {
 
 	int bRadioCmd;
 
-	/* For FOE Tuning */
-	u8  byFOETuning;
-
-	/* For Auto Power Tunning */
-	u8  byAutoPwrTunning;
-
 	/* BaseBand Loopback Use */
 	u8 byBBCR4d;
 	u8 byBBCRc9;
