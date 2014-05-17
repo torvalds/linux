@@ -420,6 +420,7 @@ static int cdc_mbim_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 	struct usb_cdc_ncm_dpe16 *dpe16;
 	int ndpoffset;
 	int loopcount = 50; /* arbitrary max preventing infinite loop */
+	u32 payload = 0;
 	u8 *c;
 	u16 tci;
 
@@ -482,6 +483,7 @@ next_ndp:
 			if (!skb)
 				goto error;
 			usbnet_skb_return(dev, skb);
+			payload += len;	/* count payload bytes in this NTB */
 		}
 	}
 err_ndp:
@@ -489,6 +491,10 @@ err_ndp:
 	ndpoffset = le16_to_cpu(ndp16->wNextNdpIndex);
 	if (ndpoffset && loopcount--)
 		goto next_ndp;
+
+	/* update stats */
+	ctx->rx_overhead += skb_in->len - payload;
+	ctx->rx_ntbs++;
 
 	return 1;
 error:
