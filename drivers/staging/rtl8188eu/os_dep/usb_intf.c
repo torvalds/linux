@@ -714,8 +714,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 
 	status = _SUCCESS;
 
-	if (status != _SUCCESS && if1)
-		rtw_usb_if1_deinit(if1);
 free_dvobj:
 	if (status != _SUCCESS)
 		usb_dvobj_deinit(pusb_intf);
