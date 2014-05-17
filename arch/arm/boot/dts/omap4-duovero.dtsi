@@ -67,8 +67,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <
 			&twl6040_pins
-			&mcpdm_pins
-			&mcbsp1_pins
 			&hsusbb1_pins
 	>;
 
@@ -200,6 +198,18 @@
 	pinctrl-0 = <&i2c4_pins>;
 
 	clock-frequency = <400000>;
+};
+
+&mcbsp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp1_pins>;
+	status = "okay";
+};
+
+&mcpdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
 };
 
 &mmc1 {
