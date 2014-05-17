@@ -178,7 +178,7 @@ static void nbp_update_port_count(struct net_bridge *br)
 
 static void nbp_delete_promisc(struct net_bridge_port *p)
 {
-	/* If port is currently promiscous, unset promiscuity.
+	/* If port is currently promiscuous, unset promiscuity.
 	 * Otherwise, it is a static port so remove all addresses
 	 * from it.
 	 */
