@@ -838,14 +838,14 @@ static void neo_param(struct tty_struct *tty)
 	 * Have the UART interrupt on modem signal changes ONLY when
 	 * we are in hardware flow control mode, or CLOCAL/FORCEDCD is not set.
 	 */
-	if ((ch->ch_digi.digi_flags & CTSPACE) || (ch->ch_digi.digi_flags & RTSPACE) ||
-		(ch->ch_c_cflag & CRTSCTS) || !(ch->ch_digi.digi_flags & DIGI_FORCEDCD) ||
-		!(ch->ch_c_cflag & CLOCAL))
-	{
+	if ((ch->ch_digi.digi_flags & CTSPACE) ||
+	    (ch->ch_digi.digi_flags & RTSPACE) ||
+	    (ch->ch_c_cflag & CRTSCTS) ||
+	    !(ch->ch_digi.digi_flags & DIGI_FORCEDCD) ||
+	    !(ch->ch_c_cflag & CLOCAL))
 		ier |= UART_IER_MSI;
-	} else {
+	else
 		ier &= ~UART_IER_MSI;
-	}
 
 	ier |= UART_IER_THRI;
 
