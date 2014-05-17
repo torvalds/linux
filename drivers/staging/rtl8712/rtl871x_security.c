@@ -272,6 +272,7 @@ static void secmicputuint32(u8 *p, u32 val)
 /* Convert from Us4Byte32 to Byte[] in a portable way */
 {
 	long i;
+
 	for (i = 0; i < 4; i++) {
 		*p++ = (u8) (val & 0xff);
 		val >>= 8;
@@ -765,6 +766,7 @@ static void xor_128(u8 *a, u8 *b, u8 *out)
 static void xor_32(u8 *a, u8 *b, u8 *out)
 {
 	sint i;
+
 	for (i = 0; i < 4; i++)
 		out[i] = a[i] ^ b[i];
 }
@@ -798,6 +800,7 @@ static void next_key(u8 *key, sint round)
 static void byte_sub(u8 *in, u8 *out)
 {
 	sint i;
+
 	for (i = 0; i < 16; i++)
 		out[i] = sbox(in[i]);
 }
