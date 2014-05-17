@@ -40,7 +40,6 @@
 #include "mac.h"
 #include "baseband.h"
 #include "rf.h"
-#include "srom.h"
 #include "control.h"
 #include "datarate.h"
 #include "rndis.h"

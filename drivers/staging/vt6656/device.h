@@ -62,7 +62,6 @@
 #include "tether.h"
 #include "wmgr.h"
 #include "wcmd.h"
-#include "srom.h"
 #include "rc4.h"
 #include "desc.h"
 #include "key.h"
@@ -105,6 +104,41 @@
 
 #define BB_VGA_LEVEL            4
 #define BB_VGA_CHANGE_THRESHOLD 3
+
+#define EEP_MAX_CONTEXT_SIZE    256
+
+/* Contents in the EEPROM */
+#define EEP_OFS_PAR		0x0
+#define EEP_OFS_ANTENNA		0x17
+#define EEP_OFS_RADIOCTL	0x18
+#define EEP_OFS_RFTYPE		0x1b
+#define EEP_OFS_MINCHANNEL	0x1c
+#define EEP_OFS_MAXCHANNEL	0x1d
+#define EEP_OFS_SIGNATURE	0x1e
+#define EEP_OFS_ZONETYPE	0x1f
+#define EEP_OFS_RFTABLE		0x20
+#define EEP_OFS_PWR_CCK		0x20
+#define EEP_OFS_SETPT_CCK	0x21
+#define EEP_OFS_PWR_OFDMG	0x23
+
+#define EEP_OFS_CALIB_TX_IQ	0x24
+#define EEP_OFS_CALIB_TX_DC	0x25
+#define EEP_OFS_CALIB_RX_IQ	0x26
+
+#define EEP_OFS_MAJOR_VER	0x2e
+#define EEP_OFS_MINOR_VER	0x2f
+
+#define EEP_OFS_CCK_PWR_TBL	0x30
+#define EEP_OFS_OFDM_PWR_TBL	0x40
+#define EEP_OFS_OFDMA_PWR_TBL	0x50
+
+/* Bits in EEP_OFS_ANTENNA */
+#define EEP_ANTENNA_MAIN	0x1
+#define EEP_ANTENNA_AUX		0x2
+#define EEP_ANTINV		0x4
+
+/* Bits in EEP_OFS_RADIOCTL */
+#define EEP_RADIOCTL_ENABLE	0x80
 
 #ifndef RUN_AT
 #define RUN_AT(x)                       (jiffies+(x))
