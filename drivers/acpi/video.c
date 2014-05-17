@@ -2078,6 +2078,20 @@ void acpi_video_unregister(void)
 }
 EXPORT_SYMBOL(acpi_video_unregister);
 
+void acpi_video_unregister_backlight(void)
+{
+	struct acpi_video_bus *video;
+
+	if (!register_count)
+		return;
+
+	mutex_lock(&video_list_lock);
+	list_for_each_entry(video, &video_bus_head, entry)
+		acpi_video_bus_unregister_backlight(video);
+	mutex_unlock(&video_list_lock);
+}
+EXPORT_SYMBOL(acpi_video_unregister_backlight);
+
 /*
  * This is kind of nasty. Hardware using Intel chipsets may require
  * the video opregion code to be run first in order to initialise
