@@ -40,7 +40,6 @@
 #include "iowpa.h"
 #include "wpactl.h"
 #include "control.h"
-#include "rndis.h"
 #include "baseband.h"
 
 static const long frequency_list[] = {

@@ -39,7 +39,6 @@
 #include "iocmd.h"
 #include "iowpa.h"
 #include "control.h"
-#include "rndis.h"
 #include "rf.h"
 
 static int msglevel = MSG_LEVEL_INFO;

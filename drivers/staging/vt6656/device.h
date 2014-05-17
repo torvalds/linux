@@ -66,7 +66,6 @@
 #include "desc.h"
 #include "key.h"
 #include "card.h"
-#include "rndis.h"
 
 #define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
@@ -140,6 +139,44 @@
 /* Bits in EEP_OFS_RADIOCTL */
 #define EEP_RADIOCTL_ENABLE	0x80
 
+/* control commands */
+#define MESSAGE_TYPE_READ		0x1
+#define MESSAGE_TYPE_WRITE		0x0
+#define MESSAGE_TYPE_LOCK_OR		0x2
+#define MESSAGE_TYPE_LOCK_AND		0x3
+#define MESSAGE_TYPE_WRITE_MASK		0x4
+#define MESSAGE_TYPE_CARDINIT		0x5
+#define MESSAGE_TYPE_INIT_RSP		0x6
+#define MESSAGE_TYPE_MACSHUTDOWN	0x7
+#define MESSAGE_TYPE_SETKEY		0x8
+#define MESSAGE_TYPE_CLRKEYENTRY	0x9
+#define MESSAGE_TYPE_WRITE_MISCFF	0xa
+#define MESSAGE_TYPE_SET_ANTMD		0xb
+#define MESSAGE_TYPE_SELECT_CHANNLE	0xc
+#define MESSAGE_TYPE_SET_TSFTBTT	0xd
+#define MESSAGE_TYPE_SET_SSTIFS		0xe
+#define MESSAGE_TYPE_CHANGE_BBTYPE	0xf
+#define MESSAGE_TYPE_DISABLE_PS		0x10
+#define MESSAGE_TYPE_WRITE_IFRF		0x11
+
+/* command read/write(index) */
+#define MESSAGE_REQUEST_MEM		0x1
+#define MESSAGE_REQUEST_BBREG		0x2
+#define MESSAGE_REQUEST_MACREG		0x3
+#define MESSAGE_REQUEST_EEPROM		0x4
+#define MESSAGE_REQUEST_TSF		0x5
+#define MESSAGE_REQUEST_TBTT		0x6
+#define MESSAGE_REQUEST_BBAGC		0x7
+#define MESSAGE_REQUEST_VERSION		0x8
+#define MESSAGE_REQUEST_RF_INIT		0x9
+#define MESSAGE_REQUEST_RF_INIT2	0xa
+#define MESSAGE_REQUEST_RF_CH0		0xb
+#define MESSAGE_REQUEST_RF_CH1		0xc
+#define MESSAGE_REQUEST_RF_CH2		0xd
+
+/* USB registers */
+#define USB_REG4			0x604
+
 #ifndef RUN_AT
 #define RUN_AT(x)                       (jiffies+(x))
 #endif
@@ -160,6 +197,23 @@ typedef enum __device_msg_level {
 #define DEVICE_INIT_COLD	0x0 /* cold init */
 #define DEVICE_INIT_RESET	0x1 /* reset init or Dx to D0 power remain */
 #define DEVICE_INIT_DXPL	0x2 /* Dx to D0 power lost init */
+
+/* Device init */
+struct vnt_cmd_card_init {
+	u8 init_class;
+	u8 exist_sw_net_addr;
+	u8 sw_net_addr[6];
+	u8 short_retry_limit;
+	u8 long_retry_limit;
+};
+
+struct vnt_rsp_card_init {
+	u8 status;
+	u8 net_addr[6];
+	u8 rf_type;
+	u8 min_channel;
+	u8 max_channel;
+};
 
 /* USB */
 

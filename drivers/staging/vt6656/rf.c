@@ -39,7 +39,6 @@
 #include "rf.h"
 #include "baseband.h"
 #include "control.h"
-#include "rndis.h"
 #include "datarate.h"
 
 static int          msglevel                =MSG_LEVEL_INFO;

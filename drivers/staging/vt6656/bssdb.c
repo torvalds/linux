@@ -54,7 +54,6 @@
 #include "mac.h"
 #include "wpa2.h"
 #include "control.h"
-#include "rndis.h"
 #include "iowpa.h"
 #include "power.h"
 

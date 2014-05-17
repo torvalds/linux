@@ -39,7 +39,6 @@
 #include "mac.h"
 #include "tmacro.h"
 #include "key.h"
-#include "rndis.h"
 #include "control.h"
 
 static int          msglevel                =MSG_LEVEL_INFO;

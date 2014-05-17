@@ -51,7 +51,6 @@
 #include "control.h"
 #include "rxtx.h"
 #include "rf.h"
-#include "rndis.h"
 #include "channel.h"
 #include "iowpa.h"
 

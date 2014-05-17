@@ -35,7 +35,6 @@
 #include "desc.h"
 #include "mac.h"
 #include "80211hdr.h"
-#include "rndis.h"
 #include "control.h"
 
 //static int          msglevel                =MSG_LEVEL_DEBUG;

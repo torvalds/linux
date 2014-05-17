@@ -42,7 +42,6 @@
 #include "rf.h"
 #include "control.h"
 #include "datarate.h"
-#include "rndis.h"
 
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;

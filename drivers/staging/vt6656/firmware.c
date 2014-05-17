@@ -34,7 +34,6 @@
 #include <linux/compiler.h>
 #include "firmware.h"
 #include "control.h"
-#include "rndis.h"
 
 static int msglevel = MSG_LEVEL_INFO;
 /* static int msglevel = MSG_LEVEL_DEBUG; */
