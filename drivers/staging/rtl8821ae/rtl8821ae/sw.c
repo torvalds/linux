@@ -45,7 +45,7 @@
 #include "hal_btc.h"
 #include "../btcoexist/rtl_btc.h"
 
-void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
+static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
@@ -225,7 +225,7 @@ void rtl8821ae_deinit_sw_vars(struct ieee80211_hw *hw)
 	//printk("<=========rtl8821ae_deinit_sw_vars().\n");
 }
 
-u32 rtl8812ae_rx_command_packet_handler(
+static u32 rtl8812ae_rx_command_packet_handler(
 	struct ieee80211_hw *hw,
 	struct rtl_stats status,
 	struct sk_buff *skb
@@ -260,7 +260,7 @@ bool rtl8821ae_get_btc_status(void)
 	return true;
 }
 
-struct rtl_hal_ops rtl8821ae_hal_ops = {
+static struct rtl_hal_ops rtl8821ae_hal_ops = {
 	.init_sw_vars = rtl8821ae_init_sw_vars,
 	.deinit_sw_vars = rtl8821ae_deinit_sw_vars,
 	.read_eeprom_info = rtl8821ae_read_eeprom_info,
@@ -311,14 +311,14 @@ struct rtl_hal_ops rtl8821ae_hal_ops = {
 	.rx_command_packet_handler = rtl8812ae_rx_command_packet_handler,
 };
 
-struct rtl_mod_params rtl8821ae_mod_params = {
+static struct rtl_mod_params rtl8821ae_mod_params = {
 	.sw_crypto = false,
 	.b_inactiveps = false,//true,
 	.b_swctrl_lps = false,
 	.b_fwctrl_lps = false, //true,
 };
 
-struct rtl_hal_cfg rtl8821ae_hal_cfg = {
+static struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8821ae_pci",
