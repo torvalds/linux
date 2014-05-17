@@ -27,61 +27,16 @@
 #ifndef __DEVICE_CONFIG_H
 #define __DEVICE_CONFIG_H
 
-#include <linux/types.h>
-
-typedef
-struct _version {
-    unsigned char   major;
-    unsigned char   minor;
-    unsigned char   build;
-} version_t, *pversion_t;
-
-#ifndef false
-#define false   (0)
-#endif
-
-#ifndef true
-#define true    (!(false))
-#endif
-
-#define VID_TABLE_SIZE      64
-#define MCAST_TABLE_SIZE    64
-#define MCAM_SIZE           32
-#define VCAM_SIZE           32
-#define TX_QUEUE_NO         8
-
 #define DEVICE_NAME         "vt6656"
 #define DEVICE_FULL_DRV_NAM "VIA Networking Wireless LAN USB Driver"
 
-#ifndef MAJOR_VERSION
-#define MAJOR_VERSION       1
-#endif
-
-#ifndef MINOR_VERSION
-#define MINOR_VERSION       13
-#endif
-
-#ifndef DEVICE_VERSION
 #define DEVICE_VERSION       "1.19_12"
-#endif
 
 #define MAX_RATE	12
 
-/* config file */
-#include <linux/fs.h>
-#include <linux/fcntl.h>
-#ifndef CONFIG_PATH
 #define CONFIG_PATH            "/etc/vntconfiguration.dat"
-#endif
-
-/* Max: 2378 = 2312 Payload + 30HD + 4CRC + 2Padding + 4Len + 8TSF + 4RSR */
-#define PKT_BUF_SZ          2390
 
 #define MAX_UINTS           8
 #define OPTION_DEFAULT      { [0 ... MAX_UINTS-1] = -1}
-
-typedef enum  _chip_type {
-    VT3184 = 1
-} CHIP_TYPE, *PCHIP_TYPE;
 
 #endif
