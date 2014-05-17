@@ -660,7 +660,6 @@ struct vnt_private {
 	int bRxMICFail;
 
 	/* For Update BaseBand VGA Gain Offset */
-	int bUpdateBBVGA;
 	u32 uBBVGADiffCount;
 	u8 byBBVGANew;
 	u8 byBBVGACurrent;

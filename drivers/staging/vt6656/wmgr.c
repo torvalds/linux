@@ -2653,8 +2653,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     pMgmt->uCurrChannel = pCurr->uChannel;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "<----s_bSynchBSS Set Channel [%d]\n", pCurr->uChannel);
 
-    if ((pDevice->bUpdateBBVGA) &&
-        (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0])) {
+    if (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0]) {
         pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
         BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
         BBvSetShortSlotTime(pDevice);

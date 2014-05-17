@@ -262,7 +262,6 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->byBBType = BBP_TYPE_DEF;
     pDevice->byPacketType = pDevice->byBBType;
     pDevice->byAutoFBCtrl = AUTO_FB_0;
-    pDevice->bUpdateBBVGA = true;
     pDevice->byPreambleType = 0;
     pDevice->bExistSWNetAddr = false;
     /* pDevice->bDiversityRegCtlON = true; */
@@ -566,12 +565,10 @@ static int device_init_registers(struct vnt_private *pDevice)
 	BBvSetShortSlotTime(pDevice);
 	CARDvSetBSSMode(pDevice);
 
-	if (pDevice->bUpdateBBVGA) {
-		pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
-		pDevice->byBBVGANew = pDevice->byBBVGACurrent;
+	pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
+	pDevice->byBBVGANew = pDevice->byBBVGACurrent;
 
-		BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
-	}
+	BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
 
 	pDevice->byRadioCtl = pDevice->abyEEPROM[EEP_OFS_RADIOCTL];
 	pDevice->bHWRadioOff = false;

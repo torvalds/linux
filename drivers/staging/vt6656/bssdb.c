@@ -455,16 +455,14 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 		}
 	}
 
-	if (pDevice->bUpdateBBVGA) {
-		/* Monitor if RSSI is too strong. */
-		pBSSList->byRSSIStatCnt = 0;
-		RFvRSSITodBm(pDevice, (u8) (pRxPacket->uRSSI),
+	/* Monitor if RSSI is too strong. */
+	pBSSList->byRSSIStatCnt = 0;
+	RFvRSSITodBm(pDevice, (u8) (pRxPacket->uRSSI),
 			     &pBSSList->ldBmMAX);
-		pBSSList->ldBmAverage[0] = pBSSList->ldBmMAX;
-		pBSSList->ldBmAverRange = pBSSList->ldBmMAX;
-		for (ii = 1; ii < RSSI_STAT_COUNT; ii++)
-			pBSSList->ldBmAverage[ii] = 0;
-	}
+	pBSSList->ldBmAverage[0] = pBSSList->ldBmMAX;
+	pBSSList->ldBmAverRange = pBSSList->ldBmMAX;
+	for (ii = 1; ii < RSSI_STAT_COUNT; ii++)
+		pBSSList->ldBmAverage[ii] = 0;
 
 	pBSSList->uIELength = uIELength;
 	if (pBSSList->uIELength > WLAN_BEACON_FR_MAXLEN)
@@ -998,10 +996,8 @@ void BSSvSecondCallBack(struct work_struct *work)
 
 		if (pMgmt->sNodeDBTable[0].bActive) { /* Assoc with BSS */
 
-			if (pDevice->bUpdateBBVGA) {
-				s_vCheckSensitivity(pDevice);
-				s_vCheckPreEDThreshold(pDevice);
-			}
+			s_vCheckSensitivity(pDevice);
+			s_vCheckPreEDThreshold(pDevice);
 
 			if (pMgmt->sNodeDBTable[0].uInActiveCount >=
 							(LOST_BEACON_COUNT/2) &&
@@ -1118,10 +1114,9 @@ void BSSvSecondCallBack(struct work_struct *work)
 		}
 		if (pMgmt->eCurrState == WMAC_STATE_JOINTED) {
 
-			if (pDevice->bUpdateBBVGA) {
-				s_vCheckSensitivity(pDevice);
-				s_vCheckPreEDThreshold(pDevice);
-			}
+			s_vCheckSensitivity(pDevice);
+			s_vCheckPreEDThreshold(pDevice);
+
 			if (pMgmt->sNodeDBTable[0].uInActiveCount >=
 						ADHOC_LOST_BEACON_COUNT) {
 				DBG_PRT(MSG_LEVEL_NOTICE,

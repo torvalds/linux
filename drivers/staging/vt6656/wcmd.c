@@ -344,11 +344,10 @@ void vRunCommand(struct work_struct *work)
 			CARDbSetMediaChannel(pDevice, pMgmt->uScanChannel);
 			// Set Baseband to be more sensitive.
 
-			if (pDevice->bUpdateBBVGA) {
-				BBvSetShortSlotTime(pDevice);
-				BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
-				BBvUpdatePreEDThreshold(pDevice, true);
-			}
+			BBvSetShortSlotTime(pDevice);
+			BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
+			BBvUpdatePreEDThreshold(pDevice, true);
+
 			pMgmt->uScanChannel++;
 
 			while (!ChannelValid(pDevice->byZoneType, pMgmt->uScanChannel) &&
@@ -381,11 +380,9 @@ void vRunCommand(struct work_struct *work)
 			CARDvSetBSSMode(pDevice);
 		}
 
-		if (pDevice->bUpdateBBVGA) {
-			BBvSetShortSlotTime(pDevice);
-			BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
-			BBvUpdatePreEDThreshold(pDevice, false);
-		}
+		BBvSetShortSlotTime(pDevice);
+		BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
+		BBvUpdatePreEDThreshold(pDevice, false);
 
 		// Set channel back
 		vAdHocBeaconRestart(pDevice);
