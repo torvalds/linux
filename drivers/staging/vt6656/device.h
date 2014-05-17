@@ -538,10 +538,6 @@ struct vnt_private {
 	u8 byTopOFDMBasicRate;
 	u8 byTopCCKBasicRate;
 
-	u32 dwAotoRateTxOkCnt;
-	u32 dwAotoRateTxFailCnt;
-	u32 dwErrorRateThreshold[13];
-	u32 dwTPTable[MAX_RATE];
 	u8 abyEEPROM[EEP_MAX_CONTEXT_SIZE];  /*u32 alignment */
 
 	u8 byMinChannel;
