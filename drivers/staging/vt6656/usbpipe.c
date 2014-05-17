@@ -126,9 +126,6 @@ int PIPEnsInterruptRead(struct vnt_private *priv)
 {
 	int status = STATUS_FAILURE;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"---->s_nsStartInterruptUsbRead()\n");
-
 	if (priv->int_buf.in_use == true)
 		return STATUS_FAILURE;
 
@@ -149,9 +146,6 @@ int PIPEnsInterruptRead(struct vnt_private *priv)
 			"Submit int URB failed %d\n", status);
 		priv->int_buf.in_use = false;
 	}
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-		"<----s_nsStartInterruptUsbRead Return(%x)\n", status);
 
 	return status;
 }
@@ -176,9 +170,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 	struct vnt_private *priv = urb->context;
 	int status;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"---->s_nsInterruptUsbIoCompleteRead\n");
-
 	switch (urb->status) {
 	case 0:
 	case -ETIMEDOUT:
@@ -193,9 +184,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 	}
 
 	status = urb->status;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-		"s_nsInterruptUsbIoCompleteRead Status %d\n", status);
 
 	if (status != STATUS_SUCCESS) {
 		priv->int_buf.in_use = false;
@@ -235,8 +223,6 @@ int PIPEnsBulkInUsbRead(struct vnt_private *priv, struct vnt_rcb *rcb)
 {
 	int status = 0;
 	struct urb *urb;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartBulkInUsbRead\n");
 
 	if (priv->Flags & fMP_DISCONNECTED)
 		return STATUS_FAILURE;
@@ -289,8 +275,6 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 	struct vnt_private *priv = rcb->pDevice;
 	unsigned long flags;
 	int re_alloc_skb = false;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
 
 	switch (urb->status) {
 	case 0:
@@ -351,8 +335,6 @@ int PIPEnsSendBulkOut(struct vnt_private *priv,
 
 	priv->bPWBitOn = false;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_nsSendBulkOut\n");
-
 	if (!(MP_IS_READY(priv) && priv->Flags & fMP_POST_WRITES)) {
 		context->in_use = false;
 		return STATUS_RESOURCES;
@@ -412,8 +394,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	struct vnt_usb_send_context *context = urb->context;
 	struct vnt_private *priv = context->priv;
 	u8 context_type = context->type;
-
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkOutIoCompleteWrite\n");
 
 	switch (urb->status) {
 	case 0:
