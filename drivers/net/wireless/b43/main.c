@@ -3706,39 +3706,6 @@ static void b43_op_set_tsf(struct ieee80211_hw *hw,
 	mutex_unlock(&wl->mutex);
 }
 
-static void b43_put_phy_into_reset(struct b43_wldev *dev)
-{
-#ifdef CONFIG_B43_SSB
-	u32 tmp;
-#endif
-
-	switch (dev->dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
-	case B43_BUS_BCMA:
-		b43err(dev->wl,
-		       "Putting PHY into reset not supported on BCMA\n");
-		break;
-#endif
-#ifdef CONFIG_B43_SSB
-	case B43_BUS_SSB:
-		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
-		tmp &= ~B43_TMSLOW_GMODE;
-		tmp |= B43_TMSLOW_PHYRESET;
-		tmp |= SSB_TMSLOW_FGC;
-		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
-		msleep(1);
-
-		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
-		tmp &= ~SSB_TMSLOW_FGC;
-		tmp |= B43_TMSLOW_PHYRESET;
-		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
-		msleep(1);
-
-		break;
-#endif
-	}
-}
-
 static const char *band_to_string(enum ieee80211_band band)
 {
 	switch (band) {
@@ -3804,7 +3771,7 @@ static int b43_switch_band(struct b43_wl *wl, struct ieee80211_channel *chan)
 	if (down_dev != up_dev) {
 		/* We switch to a different core, so we put PHY into
 		 * RESET on the old core. */
-		b43_put_phy_into_reset(down_dev);
+		b43_phy_put_into_reset(down_dev);
 	}
 
 	/* Now start the new core. */
