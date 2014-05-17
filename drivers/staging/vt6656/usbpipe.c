@@ -61,23 +61,23 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb);
 
-int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
-		u16 wIndex, u16 wLength, u8 *pbyBuffer)
+int PIPEnsControlOut(struct vnt_private *priv, u8 request, u16 value,
+		u16 index, u16 length, u8 *buffer)
 {
-	int ntStatus = 0;
+	int status = 0;
 
-	if (pDevice->Flags & fMP_DISCONNECTED)
+	if (priv->Flags & fMP_DISCONNECTED)
 		return STATUS_FAILURE;
 
-	mutex_lock(&pDevice->usb_lock);
+	mutex_lock(&priv->usb_lock);
 
-	ntStatus = usb_control_msg(pDevice->usb,
-		usb_sndctrlpipe(pDevice->usb, 0), byRequest, 0x40, wValue,
-			wIndex, pbyBuffer, wLength, USB_CTL_WAIT);
+	status = usb_control_msg(priv->usb,
+		usb_sndctrlpipe(priv->usb, 0), request, 0x40, value,
+			index, buffer, length, USB_CTL_WAIT);
 
-	mutex_unlock(&pDevice->usb_lock);
+	mutex_unlock(&priv->usb_lock);
 
-	if (ntStatus < (int)wLength)
+	if (status < (int)length)
 		return STATUS_FAILURE;
 
 	return STATUS_SUCCESS;
