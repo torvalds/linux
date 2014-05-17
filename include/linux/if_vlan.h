@@ -484,4 +484,10 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 		 */
 		skb->protocol = htons(ETH_P_802_2);
 }
+
+static inline int vlan_get_encap_level(struct net_device *dev)
+{
+	BUG_ON(!is_vlan_dev(dev));
+	return vlan_dev_priv(dev)->nest_level;
+}
 #endif /* !(_LINUX_IF_VLAN_H_) */
