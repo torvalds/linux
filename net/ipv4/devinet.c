@@ -827,7 +827,7 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	ifa_existing = find_matching_ifa(ifa);
 	if (!ifa_existing) {
 		/* It would be best to check for !NLM_F_CREATE here but
-		 * userspace alreay relies on not having to provide this.
+		 * userspace already relies on not having to provide this.
 		 */
 		set_ifa_lifetime(ifa, valid_lft, prefered_lft);
 		return __inet_insert_ifa(ifa, nlh, NETLINK_CB(skb).portid);
