@@ -141,26 +141,27 @@ nv50_pior_dp_ctor(struct nouveau_object *parent,
 		  struct nouveau_object **pobject)
 {
 	struct nouveau_i2c *i2c = nouveau_i2c(parent);
-	struct nvkm_output *outp;
+	struct nvkm_output_dp *outp;
 	int ret;
 
-	ret = nvkm_output_create(parent, engine, oclass, info, index, &outp);
+	ret = nvkm_output_dp_create(parent, engine, oclass, info, index, &outp);
 	*pobject = nv_object(outp);
 	if (ret)
 		return ret;
 
-	outp->edid = i2c->find_type(i2c, NV_I2C_TYPE_EXTAUX(outp->info.extdev));
+	outp->base.edid = i2c->find_type(i2c, NV_I2C_TYPE_EXTAUX(
+					 outp->base.info.extdev));
 	return 0;
 }
 
-struct nvkm_output_impl
+struct nvkm_output_dp_impl
 nv50_pior_dp_impl = {
-	.base.handle = DCB_OUTPUT_DP | 0x0100,
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.handle = DCB_OUTPUT_DP | 0x0010,
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_pior_dp_ctor,
-		.dtor = _nvkm_output_dtor,
-		.init = _nvkm_output_init,
-		.fini = _nvkm_output_fini,
+		.dtor = _nvkm_output_dp_dtor,
+		.init = _nvkm_output_dp_init,
+		.fini = _nvkm_output_dp_fini,
 	},
 };
 

@@ -129,6 +129,13 @@ nv94_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 struct nouveau_oclass *
+nv94_disp_outp_sclass[] = {
+	&nv50_pior_dp_impl.base.base,
+	&nv94_sor_dp_impl.base.base,
+	NULL
+};
+
+struct nouveau_oclass *
 nv94_disp_oclass = &(struct nv50_disp_impl) {
 	.base.base.handle = NV_ENGINE(DISP, 0x88),
 	.base.base.ofuncs = &(struct nouveau_ofuncs) {
@@ -137,6 +144,7 @@ nv94_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
+	.base.outp =  nv94_disp_outp_sclass,
 	.mthd.core = &nv94_disp_mast_mthd_chan,
 	.mthd.base = &nv84_disp_sync_mthd_chan,
 	.mthd.ovly = &nv84_disp_ovly_mthd_chan,

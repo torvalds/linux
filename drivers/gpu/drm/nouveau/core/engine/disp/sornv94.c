@@ -31,6 +31,7 @@
 #include <subdev/bios/init.h>
 
 #include "nv50.h"
+#include "outpdp.h"
 
 static inline u32
 nv94_sor_soff(struct dcb_output *outp)
@@ -128,4 +129,15 @@ nv94_sor_dp_func = {
 	.pattern = nv94_sor_dp_pattern,
 	.lnk_ctl = nv94_sor_dp_lnk_ctl,
 	.drv_ctl = nv94_sor_dp_drv_ctl,
+};
+
+struct nvkm_output_dp_impl
+nv94_sor_dp_impl = {
+	.base.base.handle = DCB_OUTPUT_DP,
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nvkm_output_dp_ctor,
+		.dtor = _nvkm_output_dp_dtor,
+		.init = _nvkm_output_dp_init,
+		.fini = _nvkm_output_dp_fini,
+	},
 };
