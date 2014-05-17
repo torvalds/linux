@@ -83,23 +83,23 @@ int PIPEnsControlOut(struct vnt_private *priv, u8 request, u16 value,
 	return STATUS_SUCCESS;
 }
 
-int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
-	u16 wIndex, u16 wLength, u8 *pbyBuffer)
+int PIPEnsControlIn(struct vnt_private *priv, u8 request, u16 value,
+		u16 index, u16 length, u8 *buffer)
 {
-	int ntStatus;
+	int status;
 
-	if (pDevice->Flags & fMP_DISCONNECTED)
+	if (priv->Flags & fMP_DISCONNECTED)
 		return STATUS_FAILURE;
 
-	mutex_lock(&pDevice->usb_lock);
+	mutex_lock(&priv->usb_lock);
 
-	ntStatus = usb_control_msg(pDevice->usb,
-		usb_rcvctrlpipe(pDevice->usb, 0), byRequest, 0xc0, wValue,
-			wIndex, pbyBuffer, wLength, USB_CTL_WAIT);
+	status = usb_control_msg(priv->usb,
+		usb_rcvctrlpipe(priv->usb, 0), request, 0xc0, value,
+			index, buffer, length, USB_CTL_WAIT);
 
-	mutex_unlock(&pDevice->usb_lock);
+	mutex_unlock(&priv->usb_lock);
 
-	if (ntStatus < (int)wLength)
+	if (status < (int)length)
 		return STATUS_FAILURE;
 
 	return STATUS_SUCCESS;
