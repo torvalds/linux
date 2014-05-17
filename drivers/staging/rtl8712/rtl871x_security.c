@@ -1178,7 +1178,7 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 			prwskeylen = 16;
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
-				if ((curfragnum + 1) == pattrib->nr_frags) {\
+				if ((curfragnum + 1) == pattrib->nr_frags) {
 					length = pattrib->last_txcmdsz -
 						 pattrib->hdrlen -
 						 pattrib->iv_len -
