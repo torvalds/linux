@@ -639,7 +639,6 @@ struct vnt_private {
 	u8 bSameBSSCurNum;
 	int bRoaming;
 	int b11hEable;
-	unsigned long ulTxPower;
 
 	/* Encryption */
 	NDIS_802_11_WEP_STATUS eEncryptionStatus;

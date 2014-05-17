@@ -498,9 +498,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 	pDevice->eConfigPHYMode = PHY_TYPE_AUTO;
 	pDevice->byBBType = BB_TYPE_11G;
 
-	/* initialize BBP registers */
-	pDevice->ulTxPower = 25;
-
 	/* get channel range */
 	pDevice->byMinChannel = 1;
 	pDevice->byMaxChannel = CB_MAX_CHANNEL;
