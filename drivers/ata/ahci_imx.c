@@ -258,6 +258,8 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 				   IMX6Q_GPR13_SATA_MPLL_CLK_EN,
 				   IMX6Q_GPR13_SATA_MPLL_CLK_EN);
 
+		usleep_range(100, 200);
+
 		ret = imx_sata_phy_reset(hpriv);
 		if (ret) {
 			dev_err(dev, "failed to reset phy: %d\n", ret);
