@@ -434,9 +434,8 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 		isr = readb(&ch->ch_neo_uart->isr_fcr);
 
 		/* Bail if no pending interrupt */
-		if (isr & UART_IIR_NO_INT)  {
+		if (isr & UART_IIR_NO_INT)
 			break;
-		}
 
 		/*
 		 * Yank off the upper 2 bits, which just show that the FIFO's are enabled.
@@ -650,24 +649,20 @@ static void neo_param(struct tty_struct *tty)
 	struct channel_t *ch;
 	struct un_t   *un;
 
-	if (!tty || tty->magic != TTY_MAGIC) {
+	if (!tty || tty->magic != TTY_MAGIC)
 		return;
-	}
 
 	un = (struct un_t *) tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC) {
+	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
-	}
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
-	}
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC) {
+	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
-	}
 
 	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
 		ch->ch_tun.un_dev, ch->ch_c_cflag, ch->ch_c_oflag, ch->ch_c_iflag));
@@ -773,13 +768,11 @@ static void neo_param(struct tty_struct *tty)
 		}
 	}
 
-	if (ch->ch_c_cflag & PARENB) {
+	if (ch->ch_c_cflag & PARENB)
 		lcr |= UART_LCR_PARITY;
-	}
 
-	if (!(ch->ch_c_cflag & PARODD)) {
+	if (!(ch->ch_c_cflag & PARODD))
 		lcr |= UART_LCR_EPAR;
-	}
 
 	/*
 	 * Not all platforms support mark/space parity,
@@ -828,11 +821,10 @@ static void neo_param(struct tty_struct *tty)
 	if (uart_lcr != lcr)
 		writeb(lcr, &ch->ch_neo_uart->lcr);
 
-	if (ch->ch_c_cflag & CREAD) {
+	if (ch->ch_c_cflag & CREAD)
 		ier |= (UART_IER_RDI | UART_IER_RLSI);
-	} else {
+	else
 		ier &= ~(UART_IER_RDI | UART_IER_RLSI);
-	}
 
 	/*
 	 * Have the UART interrupt on modem signal changes ONLY when
@@ -1215,11 +1207,10 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * The count can be any where from 0-3 bytes "off".
 		 * Bizarre, but true.
 		 */
-		if ((ch->ch_bd->dvid & 0xf0) >= UART_XR17E158_DVID) {
+		if ((ch->ch_bd->dvid & 0xf0) >= UART_XR17E158_DVID)
 			total -= 1;
-		} else {
+		else
 			total -= 3;
-		}
 	}
 
 
@@ -1263,9 +1254,8 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * will reset some bits after our read, we need to ensure
 		 * we don't miss our TX FIFO emptys.
 		 */
-		if (linestatus & (UART_LSR_THRE | UART_17158_TX_AND_FIFO_CLR)) {
+		if (linestatus & (UART_LSR_THRE | UART_17158_TX_AND_FIFO_CLR))
 			ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
-		}
 
 		linestatus = 0;
 
@@ -1393,19 +1383,16 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	struct un_t *un;
 	int rc = 0;
 
-	if (!tty || tty->magic != TTY_MAGIC) {
+	if (!tty || tty->magic != TTY_MAGIC)
 		return -ENXIO;
-	}
 
 	un = (struct un_t *) tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC) {
+	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return -ENXIO;
-	}
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return -ENXIO;
-	}
 
 	DPR_IOCTL(("%d Drain wait started.\n", __LINE__));
 
@@ -1422,11 +1409,10 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	rc = wait_event_interruptible(un->un_flags_wait, ((un->un_flags & UN_EMPTY) == 0));
 
 	/* If ret is non-zero, user ctrl-c'ed us */
-	if (rc) {
+	if (rc)
 		DPR_IOCTL(("%d Drain - User ctrl c'ed\n", __LINE__));
-	} else {
+	else
 		DPR_IOCTL(("%d Drain wait finished.\n", __LINE__));
-	}
 
 	return rc;
 }
@@ -1442,9 +1428,8 @@ static void neo_flush_uart_write(struct channel_t *ch)
 	uchar tmp = 0;
 	int i = 0;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
-	}
 
 	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_XMIT), &ch->ch_neo_uart->isr_fcr);
 	neo_pci_posting_flush(ch->ch_bd);
@@ -1474,9 +1459,8 @@ static void neo_flush_uart_read(struct channel_t *ch)
 	uchar tmp = 0;
 	int i = 0;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
-	}
 
 	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR), &ch->ch_neo_uart->isr_fcr);
 	neo_pci_posting_flush(ch->ch_bd);
@@ -1950,10 +1934,8 @@ static void neo_vpd(struct dgnc_board *brd)
 		memset(brd->vpd, '\0', NEO_VPD_IMAGESIZE);
 	} else {
 		/* Search for the serial number */
-		for (i = 0; i < NEO_VPD_IMAGEBYTES - 3; i++) {
-			if (brd->vpd[i] == 'S' && brd->vpd[i + 1] == 'N') {
+		for (i = 0; i < NEO_VPD_IMAGEBYTES - 3; i++)
+			if (brd->vpd[i] == 'S' && brd->vpd[i + 1] == 'N')
 				strncpy(brd->serial_num, &(brd->vpd[i + 3]), 9);
-			}
-		}
 	}
 }
