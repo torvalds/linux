@@ -2228,7 +2228,7 @@ static int __init acer_wmi_init(void)
 		pr_info("Brightness must be controlled by acpi video driver\n");
 	} else {
 		pr_info("Disabling ACPI video driver\n");
-		acpi_video_unregister();
+		acpi_video_unregister_backlight();
 	}
 
 	if (wmi_has_guid(WMID_GUID3)) {
