@@ -1932,8 +1932,8 @@ static int rt5645_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			RT5645_I2S_MS_MASK | RT5645_I2S_BP_MASK |
 			RT5645_I2S_DF_MASK, reg_val);
 		break;
-	case  RT5645_AIF2:
-		snd_soc_update_bits(codec, RT5645_I2S1_SDP,
+	case RT5645_AIF2:
+		snd_soc_update_bits(codec, RT5645_I2S2_SDP,
 			RT5645_I2S_MS_MASK | RT5645_I2S_BP_MASK |
 			RT5645_I2S_DF_MASK, reg_val);
 		break;
