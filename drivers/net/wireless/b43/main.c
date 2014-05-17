@@ -1175,18 +1175,7 @@ static void b43_bcma_phy_reset(struct b43_wldev *dev)
 	bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
 	udelay(2);
 
-	/* Take PHY out of reset */
-	flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
-	flags &= ~B43_BCMA_IOCTL_PHY_RESET;
-	flags |= BCMA_IOCTL_FGC;
-	bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
-	udelay(1);
-
-	/* Do not force clock anymore */
-	flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
-	flags &= ~BCMA_IOCTL_FGC;
-	bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
-	udelay(1);
+	b43_phy_take_out_of_reset(dev);
 }
 
 static void b43_bcma_wireless_core_reset(struct b43_wldev *dev, bool gmode)
@@ -1211,8 +1200,6 @@ static void b43_bcma_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 #ifdef CONFIG_B43_SSB
 static void b43_ssb_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 {
-	struct ssb_device *sdev = dev->dev->sdev;
-	u32 tmslow;
 	u32 flags = 0;
 
 	if (gmode)
@@ -1224,17 +1211,7 @@ static void b43_ssb_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 	b43_device_enable(dev, flags);
 	msleep(2);		/* Wait for the PLL to turn on. */
 
-	/* Now take the PHY out of Reset again */
-	tmslow = ssb_read32(sdev, SSB_TMSLOW);
-	tmslow |= SSB_TMSLOW_FGC;
-	tmslow &= ~B43_TMSLOW_PHYRESET;
-	ssb_write32(sdev, SSB_TMSLOW, tmslow);
-	ssb_read32(sdev, SSB_TMSLOW);	/* flush */
-	msleep(1);
-	tmslow &= ~SSB_TMSLOW_FGC;
-	ssb_write32(sdev, SSB_TMSLOW, tmslow);
-	ssb_read32(sdev, SSB_TMSLOW);	/* flush */
-	msleep(1);
+	b43_phy_take_out_of_reset(dev);
 }
 #endif
 

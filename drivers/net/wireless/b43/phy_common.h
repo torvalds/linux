@@ -391,6 +391,7 @@ void b43_phy_lock(struct b43_wldev *dev);
 void b43_phy_unlock(struct b43_wldev *dev);
 
 void b43_phy_put_into_reset(struct b43_wldev *dev);
+void b43_phy_take_out_of_reset(struct b43_wldev *dev);
 
 /**
  * b43_switch_channel - Switch to another channel
