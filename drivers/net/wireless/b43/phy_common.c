@@ -96,6 +96,7 @@ int b43_phy_init(struct b43_wldev *dev)
 
 	phy->channel = ops->get_default_chan(dev);
 
+	phy->ops->switch_analog(dev, true);
 	b43_software_rfkill(dev, false);
 	err = ops->init(dev);
 	if (err) {
