@@ -296,6 +296,8 @@
 				reg-io-width = <1>;
 				interrupts = <8>;
 				clocks = <&refclk>;
+				pinctrl-0 = <&uart0_pmux>;
+				pinctrl-names = "default";
 				status = "disabled";
 			};
 
@@ -306,6 +308,8 @@
 				reg-io-width = <1>;
 				interrupts = <9>;
 				clocks = <&refclk>;
+				pinctrl-0 = <&uart1_pmux>;
+				pinctrl-names = "default";
 				status = "disabled";
 			};
 
@@ -316,7 +320,29 @@
 				reg-io-width = <1>;
 				interrupts = <10>;
 				clocks = <&refclk>;
+				pinctrl-0 = <&uart2_pmux>;
+				pinctrl-names = "default";
 				status = "disabled";
+			};
+
+			sysctrl: system-controller@d000 {
+				compatible = "marvell,berlin2-system-ctrl";
+				reg = <0xd000 0x100>;
+
+				uart0_pmux: uart0-pmux {
+					groups = "GSM4";
+					function = "uart0";
+				};
+
+				uart1_pmux: uart1-pmux {
+					groups = "GSM5";
+					function = "uart1";
+				};
+
+				uart2_pmux: uart2-pmux {
+					groups = "GSM3";
+					function = "uart2";
+				};
 			};
 
 			sic: interrupt-controller@e000 {

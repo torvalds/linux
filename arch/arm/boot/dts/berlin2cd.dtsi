@@ -234,6 +234,11 @@
 			reg = <0xea0000 0x400>;
 			clocks = <&refclk>;
 			clock-names = "refclk";
+
+			uart0_pmux: uart0-pmux {
+				groups = "G6";
+				function = "uart0";
+			};
 		};
 
 		apb@fc0000 {
@@ -281,6 +286,8 @@
 				reg-io-width = <1>;
 				interrupts = <8>;
 				clocks = <&refclk>;
+				pinctrl-0 = <&uart0_pmux>;
+				pinctrl-names = "default";
 				status = "disabled";
 			};
 
@@ -292,6 +299,11 @@
 				interrupts = <9>;
 				clocks = <&refclk>;
 				status = "disabled";
+			};
+
+			sysctrl: system-controller@d000 {
+				compatible = "marvell,berlin2cd-system-ctrl";
+				reg = <0xd000 0x100>;
 			};
 
 			sic: interrupt-controller@e000 {
