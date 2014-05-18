@@ -2078,6 +2078,7 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 	struct ib_sig_domain *wire = &sig_attrs->wire;
 	int ret, selector;
 
+	memset(bsf, 0, sizeof(*bsf));
 	switch (sig_attrs->mem.sig_type) {
 	case IB_SIG_TYPE_T10_DIF:
 		if (sig_attrs->wire.sig_type != IB_SIG_TYPE_T10_DIF)
@@ -2090,9 +2091,11 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 			/* Same block structure */
 			basic->bsf_size_sbs = 1 << 4;
 			if (mem->sig.dif.bg_type == wire->sig.dif.bg_type)
-				basic->wire.copy_byte_mask = 0xff;
-			else
-				basic->wire.copy_byte_mask = 0x3f;
+				basic->wire.copy_byte_mask |= 0xc0;
+			if (mem->sig.dif.app_tag == wire->sig.dif.app_tag)
+				basic->wire.copy_byte_mask |= 0x30;
+			if (mem->sig.dif.ref_tag == wire->sig.dif.ref_tag)
+				basic->wire.copy_byte_mask |= 0x0f;
 		} else
 			basic->wire.bs_selector = bs_selector(wire->sig.dif.pi_interval);
 
