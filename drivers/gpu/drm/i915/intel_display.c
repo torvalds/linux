@@ -962,7 +962,7 @@ bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 	u32 bit;
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
-		switch(port->port) {
+		switch (port->port) {
 		case PORT_B:
 			bit = SDE_PORTB_HOTPLUG;
 			break;
@@ -976,7 +976,7 @@ bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 			return true;
 		}
 	} else {
-		switch(port->port) {
+		switch (port->port) {
 		case PORT_B:
 			bit = SDE_PORTB_HOTPLUG_CPT;
 			break;
@@ -3212,9 +3212,8 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	udelay(100);
 
 	/* Ironlake workaround, disable clock pointer after downing FDI */
-	if (HAS_PCH_IBX(dev)) {
+	if (HAS_PCH_IBX(dev))
 		I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_OVR);
-	}
 
 	/* still set train pattern 1 */
 	reg = FDI_TX_CTL(pipe);
@@ -5838,7 +5837,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	} else {
 		i9xx_update_pll(intel_crtc,
 				has_reduced_clock ? &reduced_clock : NULL,
-                                num_connectors);
+				num_connectors);
 	}
 
 skip_dpll:
@@ -6217,8 +6216,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 			if (intel_panel_use_ssc(dev_priv) && can_ssc) {
 				DRM_DEBUG_KMS("Using SSC on eDP\n");
 				val |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
-			}
-			else
+			} else
 				val |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
 		} else
 			val |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
@@ -8806,7 +8804,7 @@ void intel_prepare_page_flip(struct drm_device *dev, int plane)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-inline static void intel_mark_page_flip_active(struct intel_crtc *intel_crtc)
+static inline void intel_mark_page_flip_active(struct intel_crtc *intel_crtc)
 {
 	/* Ensure that the work item is consistent when activating it ... */
 	smp_wmb();
@@ -9016,7 +9014,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	if (ret)
 		goto err;
 
-	switch(intel_crtc->plane) {
+	switch (intel_crtc->plane) {
 	case PLANE_A:
 		plane_bit = MI_DISPLAY_FLIP_IVB_PLANE_A;
 		break;
@@ -9295,7 +9293,7 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 }
 
 static void
-connected_sink_compute_bpp(struct intel_connector * connector,
+connected_sink_compute_bpp(struct intel_connector *connector,
 			   struct intel_crtc_config *pipe_config)
 {
 	int bpp = pipe_config->pipe_bpp;
