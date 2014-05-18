@@ -1133,10 +1133,6 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 		 eeprom->mac_addr[4], eeprom->mac_addr[5]));
 }
 
-static void Hal_CustomizeByCustomerID_8188EU(struct adapter *adapt)
-{
-}
-
 static void
 readAdapterInfo_8188EU(
 		struct adapter *adapt
@@ -1163,7 +1159,6 @@ readAdapterInfo_8188EU(
 	/*  The following part initialize some vars by PG info. */
 	/*  */
 	Hal_InitChannelPlan(adapt);
-	Hal_CustomizeByCustomerID_8188EU(adapt);
 }
 
 static void _ReadPROMContent(
