@@ -429,15 +429,19 @@ static void ib_port_release(struct kobject *kobj)
 	struct attribute *a;
 	int i;
 
-	for (i = 0; (a = p->gid_group.attrs[i]); ++i)
-		kfree(a);
+	if (p->gid_group.attrs) {
+		for (i = 0; (a = p->gid_group.attrs[i]); ++i)
+			kfree(a);
 
-	kfree(p->gid_group.attrs);
+		kfree(p->gid_group.attrs);
+	}
 
-	for (i = 0; (a = p->pkey_group.attrs[i]); ++i)
-		kfree(a);
+	if (p->pkey_group.attrs) {
+		for (i = 0; (a = p->pkey_group.attrs[i]); ++i)
+			kfree(a);
 
-	kfree(p->pkey_group.attrs);
+		kfree(p->pkey_group.attrs);
+	}
 
 	kfree(p);
 }
@@ -536,8 +540,10 @@ static int add_port(struct ib_device *device, int port_num,
 	ret = kobject_init_and_add(&p->kobj, &port_type,
 				   device->ports_parent,
 				   "%d", port_num);
-	if (ret)
-		goto err_put;
+	if (ret) {
+		kfree(p);
+		return ret;
+	}
 
 	ret = sysfs_create_group(&p->kobj, &pma_group);
 	if (ret)
@@ -585,6 +591,7 @@ err_free_pkey:
 		kfree(p->pkey_group.attrs[i]);
 
 	kfree(p->pkey_group.attrs);
+	p->pkey_group.attrs = NULL;
 
 err_remove_gid:
 	sysfs_remove_group(&p->kobj, &p->gid_group);
@@ -594,12 +601,13 @@ err_free_gid:
 		kfree(p->gid_group.attrs[i]);
 
 	kfree(p->gid_group.attrs);
+	p->gid_group.attrs = NULL;
 
 err_remove_pma:
 	sysfs_remove_group(&p->kobj, &pma_group);
 
 err_put:
-	kfree(p);
+	kobject_put(&p->kobj);
 	return ret;
 }
 
