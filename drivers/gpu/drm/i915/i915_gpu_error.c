@@ -42,6 +42,7 @@ static const char *ring_str(int ring)
 	case VCS: return "bsd";
 	case BCS: return "blt";
 	case VECS: return "vebox";
+	case VCS2: return "bsd2";
 	default: return "";
 	}
 }
@@ -756,14 +757,14 @@ static void i915_record_ring_state(struct drm_device *dev,
 			= I915_READ(RING_SYNC_0(ring->mmio_base));
 		ering->semaphore_mboxes[1]
 			= I915_READ(RING_SYNC_1(ring->mmio_base));
-		ering->semaphore_seqno[0] = ring->sync_seqno[0];
-		ering->semaphore_seqno[1] = ring->sync_seqno[1];
+		ering->semaphore_seqno[0] = ring->semaphore.sync_seqno[0];
+		ering->semaphore_seqno[1] = ring->semaphore.sync_seqno[1];
 	}
 
 	if (HAS_VEBOX(dev)) {
 		ering->semaphore_mboxes[2] =
 			I915_READ(RING_SYNC_2(ring->mmio_base));
-		ering->semaphore_seqno[2] = ring->sync_seqno[2];
+		ering->semaphore_seqno[2] = ring->semaphore.sync_seqno[2];
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -1028,7 +1029,6 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int pipe;
 
 	/* General organization
 	 * 1. Registers specific to a single generation
@@ -1053,9 +1053,6 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 		error->gfx_mode = I915_READ(GFX_MODE);
 	}
 
-	if (IS_GEN2(dev))
-		error->ier = I915_READ16(IER);
-
 	/* 2: Registers which belong to multiple generations */
 	if (INTEL_INFO(dev)->gen >= 7)
 		error->forcewake = I915_READ(FORCEWAKE_MT);
@@ -1079,9 +1076,10 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (HAS_PCH_SPLIT(dev))
 		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
 	else {
-		error->ier = I915_READ(IER);
-		for_each_pipe(pipe)
-			error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
+		if (IS_GEN2(dev))
+			error->ier = I915_READ16(IER);
+		else
+			error->ier = I915_READ(IER);
 	}
 
 	/* 4: Everything else */

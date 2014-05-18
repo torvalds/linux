@@ -49,13 +49,19 @@ find_section(struct bdb_header *bdb, int section_id)
 	total = bdb->bdb_size;
 
 	/* walk the sections looking for section_id */
-	while (index < total) {
+	while (index + 3 < total) {
 		current_id = *(base + index);
 		index++;
+
 		current_size = *((u16 *)(base + index));
 		index += 2;
+
+		if (index + current_size > total)
+			return NULL;
+
 		if (current_id == section_id)
 			return base + index;
+
 		index += current_size;
 	}
 
@@ -1099,6 +1105,46 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
 	{ }
 };
 
+static struct bdb_header *validate_vbt(char *base, size_t size,
+				       struct vbt_header *vbt,
+				       const char *source)
+{
+	size_t offset;
+	struct bdb_header *bdb;
+
+	if (vbt == NULL) {
+		DRM_DEBUG_DRIVER("VBT signature missing\n");
+		return NULL;
+	}
+
+	offset = (char *)vbt - base;
+	if (offset + sizeof(struct vbt_header) > size) {
+		DRM_DEBUG_DRIVER("VBT header incomplete\n");
+		return NULL;
+	}
+
+	if (memcmp(vbt->signature, "$VBT", 4)) {
+		DRM_DEBUG_DRIVER("VBT invalid signature\n");
+		return NULL;
+	}
+
+	offset += vbt->bdb_offset;
+	if (offset + sizeof(struct bdb_header) > size) {
+		DRM_DEBUG_DRIVER("BDB header incomplete\n");
+		return NULL;
+	}
+
+	bdb = (struct bdb_header *)(base + offset);
+	if (offset + bdb->bdb_size > size) {
+		DRM_DEBUG_DRIVER("BDB incomplete\n");
+		return NULL;
+	}
+
+	DRM_DEBUG_KMS("Using VBT from %s: %20s\n",
+		      source, vbt->signature);
+	return bdb;
+}
+
 /**
  * intel_parse_bios - find VBT and initialize settings from the BIOS
  * @dev: DRM device
@@ -1122,20 +1168,13 @@ intel_parse_bios(struct drm_device *dev)
 	init_vbt_defaults(dev_priv);
 
 	/* XXX Should this validation be moved to intel_opregion.c? */
-	if (!dmi_check_system(intel_no_opregion_vbt) && dev_priv->opregion.vbt) {
-		struct vbt_header *vbt = dev_priv->opregion.vbt;
-		if (memcmp(vbt->signature, "$VBT", 4) == 0) {
-			DRM_DEBUG_KMS("Using VBT from OpRegion: %20s\n",
-					 vbt->signature);
-			bdb = (struct bdb_header *)((char *)vbt + vbt->bdb_offset);
-		} else
-			dev_priv->opregion.vbt = NULL;
-	}
+	if (!dmi_check_system(intel_no_opregion_vbt) && dev_priv->opregion.vbt)
+		bdb = validate_vbt((char *)dev_priv->opregion.header, OPREGION_SIZE,
+				   (struct vbt_header *)dev_priv->opregion.vbt,
+				   "OpRegion");
 
 	if (bdb == NULL) {
-		struct vbt_header *vbt = NULL;
-		size_t size;
-		int i;
+		size_t i, size;
 
 		bios = pci_map_rom(pdev, &size);
 		if (!bios)
@@ -1143,19 +1182,18 @@ intel_parse_bios(struct drm_device *dev)
 
 		/* Scour memory looking for the VBT signature */
 		for (i = 0; i + 4 < size; i++) {
-			if (!memcmp(bios + i, "$VBT", 4)) {
-				vbt = (struct vbt_header *)(bios + i);
+			if (memcmp(bios + i, "$VBT", 4) == 0) {
+				bdb = validate_vbt(bios, size,
+						   (struct vbt_header *)(bios + i),
+						   "PCI ROM");
 				break;
 			}
 		}
 
-		if (!vbt) {
-			DRM_DEBUG_DRIVER("VBT signature missing\n");
+		if (!bdb) {
 			pci_unmap_rom(pdev, bios);
 			return -1;
 		}
-
-		bdb = (struct bdb_header *)(bios + i + vbt->bdb_offset);
 	}
 
 	/* Grab useful general definitions */

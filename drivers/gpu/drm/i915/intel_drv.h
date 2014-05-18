@@ -401,6 +401,8 @@ struct intel_crtc {
 		/* watermarks currently being used  */
 		struct intel_pipe_wm active;
 	} wm;
+
+	wait_queue_head_t vbl_wait;
 };
 
 struct intel_plane_wm_parameters {
@@ -653,6 +655,7 @@ void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void snb_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
 void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
+int intel_get_crtc_scanline(struct intel_crtc *crtc);
 
 
 /* intel_crt.c */
@@ -925,6 +928,7 @@ void intel_init_gt_powersave(struct drm_device *dev);
 void intel_cleanup_gt_powersave(struct drm_device *dev);
 void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);
+void intel_reset_gt_powersave(struct drm_device *dev);
 void ironlake_teardown_rc6(struct drm_device *dev);
 void gen6_update_ring_freq(struct drm_device *dev);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
@@ -932,6 +936,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
 void intel_init_runtime_pm(struct drm_i915_private *dev_priv);
 void intel_fini_runtime_pm(struct drm_i915_private *dev_priv);

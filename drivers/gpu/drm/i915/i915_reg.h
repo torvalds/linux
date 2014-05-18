@@ -760,6 +760,7 @@ enum punit_power_well {
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
+#define GEN8_BSD2_RING_BASE	0x1c000
 #define VEBOX_RING_BASE		0x1a000
 #define BLT_RING_BASE		0x22000
 #define RING_TAIL(base)		((base)+0x30)
@@ -4996,9 +4997,15 @@ enum punit_power_well {
 #define  FORCEWAKE_ACK_HSW			0x130044
 #define  FORCEWAKE_ACK				0x130090
 #define  VLV_GTLC_WAKE_CTRL			0x130090
+#define   VLV_GTLC_RENDER_CTX_EXISTS		(1 << 25)
+#define   VLV_GTLC_MEDIA_CTX_EXISTS		(1 << 24)
+#define   VLV_GTLC_ALLOWWAKEREQ			(1 << 0)
+
 #define  VLV_GTLC_PW_STATUS			0x130094
-#define VLV_GTLC_PW_RENDER_STATUS_MASK		0x80
-#define VLV_GTLC_PW_MEDIA_STATUS_MASK		0x20
+#define   VLV_GTLC_ALLOWWAKEACK			(1 << 0)
+#define   VLV_GTLC_ALLOWWAKEERR			(1 << 1)
+#define   VLV_GTLC_PW_MEDIA_STATUS_MASK		(1 << 5)
+#define   VLV_GTLC_PW_RENDER_STATUS_MASK	(1 << 7)
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define   FORCEWAKE_KERNEL			0x1
 #define   FORCEWAKE_USER			0x2
@@ -5130,6 +5137,9 @@ enum punit_power_well {
 #define   VLV_MEDIA_RC6_COUNT_EN		(1<<1)
 #define   VLV_RENDER_RC6_COUNT_EN		(1<<0)
 #define GEN6_GT_GFX_RC6				0x138108
+#define VLV_GT_RENDER_RC6			0x138108
+#define VLV_GT_MEDIA_RC6			0x13810C
+
 #define GEN6_GT_GFX_RC6p			0x13810C
 #define GEN6_GT_GFX_RC6pp			0x138110
 

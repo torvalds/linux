@@ -263,6 +263,8 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
+	intel_runtime_pm_get(dev_priv);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
 		u32 freq;
@@ -272,6 +274,8 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 		ret = dev_priv->rps.cur_freq * GT_FREQUENCY_MULTIPLIER;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }

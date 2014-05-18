@@ -279,6 +279,26 @@ static const struct intel_device_info intel_broadwell_m_info = {
 	GEN_DEFAULT_PIPEOFFSETS,
 };
 
+static const struct intel_device_info intel_broadwell_gt3d_info = {
+	.gen = 8, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+};
+
+static const struct intel_device_info intel_broadwell_gt3m_info = {
+	.gen = 8, .is_mobile = 1, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -311,8 +331,10 @@ static const struct intel_device_info intel_broadwell_m_info = {
 	INTEL_HSW_M_IDS(&intel_haswell_m_info), \
 	INTEL_VLV_M_IDS(&intel_valleyview_m_info),	\
 	INTEL_VLV_D_IDS(&intel_valleyview_d_info),	\
-	INTEL_BDW_M_IDS(&intel_broadwell_m_info),	\
-	INTEL_BDW_D_IDS(&intel_broadwell_d_info)
+	INTEL_BDW_GT12M_IDS(&intel_broadwell_m_info),	\
+	INTEL_BDW_GT12D_IDS(&intel_broadwell_d_info),	\
+	INTEL_BDW_GT3M_IDS(&intel_broadwell_gt3m_info),	\
+	INTEL_BDW_GT3D_IDS(&intel_broadwell_gt3d_info)
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
@@ -551,7 +573,6 @@ static int i915_drm_thaw_early(struct drm_device *dev)
 static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int error = 0;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
 	    restore_gtt_mappings) {
@@ -569,8 +590,10 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		drm_mode_config_reset(dev);
 
 		mutex_lock(&dev->struct_mutex);
-
-		error = i915_gem_init_hw(dev);
+		if (i915_gem_init_hw(dev)) {
+			DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
+			atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
+		}
 		mutex_unlock(&dev->struct_mutex);
 
 		/* We need working interrupts for modeset enabling ... */
@@ -613,7 +636,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	mutex_unlock(&dev_priv->modeset_restore_lock);
 
 	intel_runtime_pm_put(dev_priv);
-	return error;
+	return 0;
 }
 
 static int i915_drm_thaw(struct drm_device *dev)
@@ -758,11 +781,8 @@ int i915_reset(struct drm_device *dev)
 		 * reset and the re-install of drm irq. Skip for ironlake per
 		 * previous concerns that it doesn't respond well to some forms
 		 * of re-init after reset. */
-		if (INTEL_INFO(dev)->gen > 5) {
-			mutex_lock(&dev->struct_mutex);
-			intel_enable_gt_powersave(dev);
-			mutex_unlock(&dev->struct_mutex);
-		}
+		if (INTEL_INFO(dev)->gen > 5)
+			intel_reset_gt_powersave(dev);
 
 		intel_hpd_init(dev);
 	} else {
@@ -896,13 +916,6 @@ static int i915_pm_poweroff(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
-static void snb_runtime_suspend(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	intel_runtime_pm_disable_interrupts(dev);
-}
-
 static void hsw_runtime_suspend(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_pc8(dev_priv);
@@ -912,17 +925,49 @@ static void snb_runtime_resume(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	intel_runtime_pm_restore_interrupts(dev);
 	intel_init_pch_refclk(dev);
-	i915_gem_init_swizzling(dev);
-	mutex_lock(&dev_priv->rps.hw_lock);
-	gen6_update_ring_freq(dev);
-	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void hsw_runtime_resume(struct drm_i915_private *dev_priv)
 {
 	hsw_disable_pc8(dev_priv);
+}
+
+int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
+{
+	u32 val;
+	int err;
+
+	val = I915_READ(VLV_GTLC_SURVIVABILITY_REG);
+	WARN_ON(!!(val & VLV_GFX_CLK_FORCE_ON_BIT) == force_on);
+
+#define COND (I915_READ(VLV_GTLC_SURVIVABILITY_REG) & VLV_GFX_CLK_STATUS_BIT)
+	/* Wait for a previous force-off to settle */
+	if (force_on) {
+		err = wait_for(!COND, 20);
+		if (err) {
+			DRM_ERROR("timeout waiting for GFX clock force-off (%08x)\n",
+				  I915_READ(VLV_GTLC_SURVIVABILITY_REG));
+			return err;
+		}
+	}
+
+	val = I915_READ(VLV_GTLC_SURVIVABILITY_REG);
+	val &= ~VLV_GFX_CLK_FORCE_ON_BIT;
+	if (force_on)
+		val |= VLV_GFX_CLK_FORCE_ON_BIT;
+	I915_WRITE(VLV_GTLC_SURVIVABILITY_REG, val);
+
+	if (!force_on)
+		return 0;
+
+	err = wait_for(COND, 20);
+	if (err)
+		DRM_ERROR("timeout waiting for GFX clock force-on (%08x)\n",
+			  I915_READ(VLV_GTLC_SURVIVABILITY_REG));
+
+	return err;
+#undef COND
 }
 
 static int intel_runtime_suspend(struct device *device)
@@ -931,13 +976,24 @@ static int intel_runtime_suspend(struct device *device)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (WARN_ON_ONCE(!(dev_priv->rps.enabled && intel_enable_rc6(dev))))
+		return -ENODEV;
+
 	WARN_ON(!HAS_RUNTIME_PM(dev));
 	assert_force_wake_inactive(dev_priv);
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
+	/*
+	 * rps.work can't be rearmed here, since we get here only after making
+	 * sure the GPU is idle and the RPS freq is set to the minimum. See
+	 * intel_mark_idle().
+	 */
+	cancel_work_sync(&dev_priv->rps.work);
+	intel_runtime_pm_disable_interrupts(dev);
+
 	if (IS_GEN6(dev))
-		snb_runtime_suspend(dev_priv);
+		;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_runtime_suspend(dev_priv);
 	else
@@ -980,6 +1036,12 @@ static int intel_runtime_resume(struct device *device)
 		hsw_runtime_resume(dev_priv);
 	else
 		WARN_ON(1);
+
+	i915_gem_init_swizzling(dev);
+	gen6_update_ring_freq(dev);
+
+	intel_runtime_pm_restore_interrupts(dev);
+	intel_reset_gt_powersave(dev);
 
 	DRM_DEBUG_KMS("Device resumed\n");
 	return 0;

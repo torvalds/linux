@@ -144,28 +144,49 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
-	u32 temp;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
+	u32 adpa;
 
-	temp = I915_READ(crt->adpa_reg);
-	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
-	temp &= ~ADPA_DAC_ENABLE;
+	if (INTEL_INFO(dev)->gen >= 5)
+		adpa = ADPA_HOTPLUG_BITS;
+	else
+		adpa = 0;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+		adpa |= ADPA_HSYNC_ACTIVE_HIGH;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
+
+	/* For CPT allow 3 pipe config, for others just use A or B */
+	if (HAS_PCH_LPT(dev))
+		; /* Those bits don't exist here */
+	else if (HAS_PCH_CPT(dev))
+		adpa |= PORT_TRANS_SEL_CPT(crtc->pipe);
+	else if (crtc->pipe == 0)
+		adpa |= ADPA_PIPE_A_SELECT;
+	else
+		adpa |= ADPA_PIPE_B_SELECT;
+
+	if (!HAS_PCH_SPLIT(dev))
+		I915_WRITE(BCLRPAT(crtc->pipe), 0);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		temp |= ADPA_DAC_ENABLE;
+		adpa |= ADPA_DAC_ENABLE;
 		break;
 	case DRM_MODE_DPMS_STANDBY:
-		temp |= ADPA_DAC_ENABLE | ADPA_HSYNC_CNTL_DISABLE;
+		adpa |= ADPA_DAC_ENABLE | ADPA_HSYNC_CNTL_DISABLE;
 		break;
 	case DRM_MODE_DPMS_SUSPEND:
-		temp |= ADPA_DAC_ENABLE | ADPA_VSYNC_CNTL_DISABLE;
+		adpa |= ADPA_DAC_ENABLE | ADPA_VSYNC_CNTL_DISABLE;
 		break;
 	case DRM_MODE_DPMS_OFF:
-		temp |= ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE;
+		adpa |= ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE;
 		break;
 	}
 
-	I915_WRITE(crt->adpa_reg, temp);
+	I915_WRITE(crt->adpa_reg, adpa);
 }
 
 static void intel_disable_crt(struct intel_encoder *encoder)
@@ -272,42 +293,6 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 		pipe_config->port_clock = 135000 * 2;
 
 	return true;
-}
-
-static void intel_crt_mode_set(struct intel_encoder *encoder)
-{
-
-	struct drm_device *dev = encoder->base.dev;
-	struct intel_crt *crt = intel_encoder_to_crt(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
-	u32 adpa;
-
-	if (INTEL_INFO(dev)->gen >= 5)
-		adpa = ADPA_HOTPLUG_BITS;
-	else
-		adpa = 0;
-
-	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
-		adpa |= ADPA_HSYNC_ACTIVE_HIGH;
-	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
-		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
-
-	/* For CPT allow 3 pipe config, for others just use A or B */
-	if (HAS_PCH_LPT(dev))
-		; /* Those bits don't exist here */
-	else if (HAS_PCH_CPT(dev))
-		adpa |= PORT_TRANS_SEL_CPT(crtc->pipe);
-	else if (crtc->pipe == 0)
-		adpa |= ADPA_PIPE_A_SELECT;
-	else
-		adpa |= ADPA_PIPE_B_SELECT;
-
-	if (!HAS_PCH_SPLIT(dev))
-		I915_WRITE(BCLRPAT(crtc->pipe), 0);
-
-	I915_WRITE(crt->adpa_reg, adpa);
 }
 
 static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
@@ -867,7 +852,6 @@ void intel_crt_init(struct drm_device *dev)
 		crt->adpa_reg = ADPA;
 
 	crt->base.compute_config = intel_crt_compute_config;
-	crt->base.mode_set = intel_crt_mode_set;
 	crt->base.disable = intel_disable_crt;
 	crt->base.enable = intel_enable_crt;
 	if (I915_HAS_HOTPLUG(dev))

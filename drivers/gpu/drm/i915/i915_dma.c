@@ -1340,7 +1340,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = i915_gem_init(dev);
 	if (ret)
-		goto cleanup_power;
+		goto cleanup_irq;
 
 	INIT_WORK(&dev_priv->console_resume_work, intel_console_resume);
 
@@ -1349,10 +1349,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = true;
-	if (INTEL_INFO(dev)->num_pipes == 0) {
-		intel_display_power_put(dev_priv, POWER_DOMAIN_VGA);
+	if (INTEL_INFO(dev)->num_pipes == 0)
 		return 0;
-	}
 
 	ret = intel_fbdev_init(dev);
 	if (ret)
@@ -1387,8 +1385,7 @@ cleanup_gem:
 	mutex_unlock(&dev->struct_mutex);
 	WARN_ON(dev_priv->mm.aliasing_ppgtt);
 	drm_mm_takedown(&dev_priv->gtt.base.mm);
-cleanup_power:
-	intel_display_power_put(dev_priv, POWER_DOMAIN_VGA);
+cleanup_irq:
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
 	i915_gem_cleanup_stolen(dev);
@@ -1573,6 +1570,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	spin_lock_init(&dev_priv->backlight_lock);
 	spin_lock_init(&dev_priv->uncore.lock);
 	spin_lock_init(&dev_priv->mm.object_stat_lock);
+	dev_priv->ring_index = 0;
 	mutex_init(&dev_priv->dpio_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 
@@ -1930,6 +1928,8 @@ void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
+	if (file_priv && file_priv->bsd_ring)
+		file_priv->bsd_ring = NULL;
 	kfree(file_priv);
 }
 

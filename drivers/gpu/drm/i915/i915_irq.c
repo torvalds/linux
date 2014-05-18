@@ -751,24 +751,32 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 /* raw reads, only for fast reads of display block, no need for forcewake etc. */
 #define __raw_i915_read32(dev_priv__, reg__) readl((dev_priv__)->regs + (reg__))
 
-static bool ilk_pipe_in_vblank_locked(struct drm_device *dev, enum pipe pipe)
+static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 {
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t status;
-	int reg;
+	const struct drm_display_mode *mode = &crtc->config.adjusted_mode;
+	enum pipe pipe = crtc->pipe;
+	int vtotal = mode->crtc_vtotal;
+	int position;
 
-	if (INTEL_INFO(dev)->gen >= 8) {
-		status = GEN8_PIPE_VBLANK;
-		reg = GEN8_DE_PIPE_ISR(pipe);
-	} else if (INTEL_INFO(dev)->gen >= 7) {
-		status = DE_PIPE_VBLANK_IVB(pipe);
-		reg = DEISR;
-	} else {
-		status = DE_PIPE_VBLANK(pipe);
-		reg = DEISR;
-	}
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vtotal /= 2;
 
-	return __raw_i915_read32(dev_priv, reg) & status;
+	if (IS_GEN2(dev))
+		position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
+	else
+		position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
+
+	/*
+	 * Scanline counter increments at leading edge of hsync, and
+	 * it starts counting from vtotal-1 on the first active line.
+	 * That means the scanline counter value is always one less
+	 * than what we would expect. Ie. just after start of vblank,
+	 * which also occurs at start of hsync (on the last active line),
+	 * the scanline counter will read vblank_start-1.
+	 */
+	return (position + 1) % vtotal;
 }
 
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
@@ -780,7 +788,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	const struct drm_display_mode *mode = &intel_crtc->config.adjusted_mode;
 	int position;
-	int vbl_start, vbl_end, htotal, vtotal;
+	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
 	int ret = 0;
 	unsigned long irqflags;
@@ -792,6 +800,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	}
 
 	htotal = mode->crtc_htotal;
+	hsync_start = mode->crtc_hsync_start;
 	vtotal = mode->crtc_vtotal;
 	vbl_start = mode->crtc_vblank_start;
 	vbl_end = mode->crtc_vblank_end;
@@ -810,7 +819,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	 * following code must not block on uncore.lock.
 	 */
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-	
+
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
 	/* Get optional system timestamp before query. */
@@ -821,68 +830,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */
-		if (IS_GEN2(dev))
-			position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
-		else
-			position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
-
-		if (HAS_DDI(dev)) {
-			/*
-			 * On HSW HDMI outputs there seems to be a 2 line
-			 * difference, whereas eDP has the normal 1 line
-			 * difference that earlier platforms have. External
-			 * DP is unknown. For now just check for the 2 line
-			 * difference case on all output types on HSW+.
-			 *
-			 * This might misinterpret the scanline counter being
-			 * one line too far along on eDP, but that's less
-			 * dangerous than the alternative since that would lead
-			 * the vblank timestamp code astray when it sees a
-			 * scanline count before vblank_start during a vblank
-			 * interrupt.
-			 */
-			in_vbl = ilk_pipe_in_vblank_locked(dev, pipe);
-			if ((in_vbl && (position == vbl_start - 2 ||
-					position == vbl_start - 1)) ||
-			    (!in_vbl && (position == vbl_end - 2 ||
-					 position == vbl_end - 1)))
-				position = (position + 2) % vtotal;
-		} else if (HAS_PCH_SPLIT(dev)) {
-			/*
-			 * The scanline counter increments at the leading edge
-			 * of hsync, ie. it completely misses the active portion
-			 * of the line. Fix up the counter at both edges of vblank
-			 * to get a more accurate picture whether we're in vblank
-			 * or not.
-			 */
-			in_vbl = ilk_pipe_in_vblank_locked(dev, pipe);
-			if ((in_vbl && position == vbl_start - 1) ||
-			    (!in_vbl && position == vbl_end - 1))
-				position = (position + 1) % vtotal;
-		} else {
-			/*
-			 * ISR vblank status bits don't work the way we'd want
-			 * them to work on non-PCH platforms (for
-			 * ilk_pipe_in_vblank_locked()), and there doesn't
-			 * appear any other way to determine if we're currently
-			 * in vblank.
-			 *
-			 * Instead let's assume that we're already in vblank if
-			 * we got called from the vblank interrupt and the
-			 * scanline counter value indicates that we're on the
-			 * line just prior to vblank start. This should result
-			 * in the correct answer, unless the vblank interrupt
-			 * delivery really got delayed for almost exactly one
-			 * full frame/field.
-			 */
-			if (flags & DRM_CALLED_FROM_VBLIRQ &&
-			    position == vbl_start - 1) {
-				position = (position + 1) % vtotal;
-
-				/* Signal this correction as "applied". */
-				ret |= 0x8;
-			}
-		}
+		position = __intel_get_crtc_scanline(intel_crtc);
 	} else {
 		/* Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
@@ -894,6 +842,17 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		vbl_start *= htotal;
 		vbl_end *= htotal;
 		vtotal *= htotal;
+
+		/*
+		 * Start of vblank interrupt is triggered at start of hsync,
+		 * just prior to the first active line of vblank. However we
+		 * consider lines to start at the leading edge of horizontal
+		 * active. So, should we get here before we've crossed into
+		 * the horizontal active of the first line in vblank, we would
+		 * not set the DRM_SCANOUTPOS_INVBL flag. In order to fix that,
+		 * always add htotal-hsync_start to the current pixel position.
+		 */
+		position = (position + htotal - hsync_start) % vtotal;
 	}
 
 	/* Get optional system timestamp after query. */
@@ -930,6 +889,19 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		ret |= DRM_SCANOUTPOS_INVBL;
 
 	return ret;
+}
+
+int intel_get_crtc_scanline(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	unsigned long irqflags;
+	int position;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	position = __intel_get_crtc_scanline(crtc);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+
+	return position;
 }
 
 static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
@@ -1347,13 +1319,16 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			DRM_ERROR("The master control interrupt lied (GT0)!\n");
 	}
 
-	if (master_ctl & GEN8_GT_VCS1_IRQ) {
+	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
 		tmp = I915_READ(GEN8_GT_IIR(1));
 		if (tmp) {
 			ret = IRQ_HANDLED;
 			vcs = tmp >> GEN8_VCS1_IRQ_SHIFT;
 			if (vcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, &dev_priv->ring[VCS]);
+			vcs = tmp >> GEN8_VCS2_IRQ_SHIFT;
+			if (vcs & GT_RENDER_USER_INTERRUPT)
+				notify_ring(dev, &dev_priv->ring[VCS2]);
 			I915_WRITE(GEN8_GT_IIR(1), tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT1)!\n");
@@ -1581,6 +1556,19 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 	}
 }
 
+static bool intel_pipe_handle_vblank(struct drm_device *dev, enum pipe pipe)
+{
+	struct intel_crtc *crtc;
+
+	if (!drm_handle_vblank(dev, pipe))
+		return false;
+
+	crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
+	wake_up(&crtc->vbl_wait);
+
+	return true;
+}
+
 static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1632,7 +1620,7 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 
 	for_each_pipe(pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
-			drm_handle_vblank(dev, pipe);
+			intel_pipe_handle_vblank(dev, pipe);
 
 		if (pipe_stats[pipe] & PLANE_FLIP_DONE_INT_STATUS_VLV) {
 			intel_prepare_page_flip(dev, pipe);
@@ -1875,7 +1863,7 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 
 	for_each_pipe(pipe) {
 		if (de_iir & DE_PIPE_VBLANK(pipe))
-			drm_handle_vblank(dev, pipe);
+			intel_pipe_handle_vblank(dev, pipe);
 
 		if (de_iir & DE_PIPE_FIFO_UNDERRUN(pipe))
 			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
@@ -1925,7 +1913,7 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 
 	for_each_pipe(pipe) {
 		if (de_iir & (DE_PIPE_VBLANK_IVB(pipe)))
-			drm_handle_vblank(dev, pipe);
+			intel_pipe_handle_vblank(dev, pipe);
 
 		/* plane/pipes map 1:1 on ilk+ */
 		if (de_iir & DE_PLANE_FLIP_DONE_IVB(pipe)) {
@@ -2068,7 +2056,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 
 		pipe_iir = I915_READ(GEN8_DE_PIPE_IIR(pipe));
 		if (pipe_iir & GEN8_PIPE_VBLANK)
-			drm_handle_vblank(dev, pipe);
+			intel_pipe_handle_vblank(dev, pipe);
 
 		if (pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE) {
 			intel_prepare_page_flip(dev, pipe);
@@ -2185,6 +2173,14 @@ static void i915_error_work_func(struct work_struct *work)
 				   reset_event);
 
 		/*
+		 * In most cases it's guaranteed that we get here with an RPM
+		 * reference held, for example because there is a pending GPU
+		 * request that won't finish until the reset is done. This
+		 * isn't the case at least when we get here by doing a
+		 * simulated reset via debugs, so get an RPM reference.
+		 */
+		intel_runtime_pm_get(dev_priv);
+		/*
 		 * All state reset _must_ be completed before we update the
 		 * reset counter, for otherwise waiters might miss the reset
 		 * pending state and not properly drop locks, resulting in
@@ -2193,6 +2189,8 @@ static void i915_error_work_func(struct work_struct *work)
 		ret = i915_reset(dev);
 
 		intel_display_handle_reset(dev);
+
+		intel_runtime_pm_put(dev_priv);
 
 		if (ret == 0) {
 			/*
@@ -2597,8 +2595,7 @@ semaphore_wait_to_signaller_ring(struct intel_ring_buffer *ring, u32 ipehr)
 			if(ring == signaller)
 				continue;
 
-			if (sync_bits ==
-			    signaller->semaphore_register[ring->id])
+			if (sync_bits == signaller->semaphore.mbox.wait[ring->id])
 				return signaller;
 		}
 	}
@@ -3315,6 +3312,8 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 	if (!dev_priv)
 		return;
 
+	I915_WRITE(VLV_MASTER_IER, 0);
+
 	intel_hpd_irq_uninstall(dev_priv);
 
 	for_each_pipe(pipe)
@@ -3404,7 +3403,7 @@ static bool i8xx_handle_vblank(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u16 flip_pending = DISPLAY_PLANE_FLIP_PENDING(plane);
 
-	if (!drm_handle_vblank(dev, pipe))
+	if (!intel_pipe_handle_vblank(dev, pipe))
 		return false;
 
 	if ((iir & flip_pending) == 0)
@@ -3589,7 +3588,7 @@ static bool i915_handle_vblank(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 flip_pending = DISPLAY_PLANE_FLIP_PENDING(plane);
 
-	if (!drm_handle_vblank(dev, pipe))
+	if (!intel_pipe_handle_vblank(dev, pipe))
 		return false;
 
 	if ((iir & flip_pending) == 0)

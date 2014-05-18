@@ -28,7 +28,7 @@
 #include "i915_drv.h"
 
 /**
- * DOC: i915 batch buffer command parser
+ * DOC: batch buffer command parser
  *
  * Motivation:
  * Certain OpenGL features (e.g. transform feedback, performance monitoring)
@@ -919,7 +919,7 @@ int i915_parse_cmds(struct intel_ring_buffer *ring,
 			DRM_DEBUG_DRIVER("CMD: Command length exceeds batch length: 0x%08X length=%u batchlen=%td\n",
 					 *cmd,
 					 length,
-					 (unsigned long)(batch_end - cmd));
+					 batch_end - cmd);
 			ret = -EINVAL;
 			break;
 		}
