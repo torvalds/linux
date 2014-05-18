@@ -1553,7 +1553,7 @@ static void nop_completion(struct usb_ep *ep, struct usb_request *r)
 {
 }
 
-static int __init m66592_probe(struct platform_device *pdev)
+static int m66592_probe(struct platform_device *pdev)
 {
 	struct resource *res, *ires;
 	void __iomem *reg = NULL;
