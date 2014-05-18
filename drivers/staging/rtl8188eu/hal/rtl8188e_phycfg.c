@@ -633,50 +633,6 @@ int PHY_RFConfig8188E(struct adapter *Adapter)
 
 /*  */
 /*	Description: */
-/*		Map dBm into Tx power index according to */
-/*		current HW model, for example, RF and PA, and */
-/*		current wireless mode. */
-/*	By Bruce, 2008-01-29. */
-/*  */
-static	u8 phy_DbmToTxPwrIdx(struct adapter *Adapter, enum wireless_mode WirelessMode, int PowerInDbm)
-{
-	u8 TxPwrIdx = 0;
-	int				Offset = 0;
-
-
-	/*  */
-	/*  Tested by MP, we found that CCK Index 0 equals to 8dbm, OFDM legacy equals to */
-	/*  3dbm, and OFDM HT equals to 0dbm respectively. */
-	/*  Note: */
-	/*	The mapping may be different by different NICs. Do not use this formula for what needs accurate result. */
-	/*  By Bruce, 2008-01-29. */
-	/*  */
-	switch (WirelessMode) {
-	case WIRELESS_MODE_B:
-		Offset = -7;
-		break;
-
-	case WIRELESS_MODE_G:
-	case WIRELESS_MODE_N_24G:
-	default:
-		Offset = -8;
-		break;
-	}
-
-	if ((PowerInDbm - Offset) > 0)
-		TxPwrIdx = (u8)((PowerInDbm - Offset) * 2);
-	else
-		TxPwrIdx = 0;
-
-	/*  Tx Power Index is too large. */
-	if (TxPwrIdx > MAX_TXPWR_IDX_NMODE_92S)
-		TxPwrIdx = MAX_TXPWR_IDX_NMODE_92S;
-
-	return TxPwrIdx;
-}
-
-/*  */
-/*	Description: */
 /*		Map Tx power index into dBm according to */
 /*		current HW model, for example, RF and PA, and */
 /*		current wireless mode. */
