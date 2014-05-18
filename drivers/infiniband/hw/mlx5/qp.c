@@ -2275,7 +2275,10 @@ static int set_sig_umr_wr(struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 
 	/* length of the protected region, data + protection */
 	region_len = wr->sg_list->length;
-	if (wr->wr.sig_handover.prot)
+	if (wr->wr.sig_handover.prot &&
+	    (wr->wr.sig_handover.prot->lkey != wr->sg_list->lkey  ||
+	     wr->wr.sig_handover.prot->addr != wr->sg_list->addr  ||
+	     wr->wr.sig_handover.prot->length != wr->sg_list->length))
 		region_len += wr->wr.sig_handover.prot->length;
 
 	/**
