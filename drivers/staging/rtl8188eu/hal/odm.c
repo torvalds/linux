@@ -1131,15 +1131,6 @@ void odm_DynamicTxPower(struct odm_dm_struct *pDM_Odm)
 	/*  2012/01/12 MH According to Luke's suggestion, only high power will support the feature. */
 	if (!pDM_Odm->ExtPA)
 		return;
-
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	odm_DynamicTxPowerNIC(pDM_Odm);
-}
-
-void odm_DynamicTxPowerNIC(struct odm_dm_struct *pDM_Odm)
-{
 }
 
 /* 3============================================================ */
