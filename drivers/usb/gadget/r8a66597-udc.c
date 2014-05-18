@@ -1839,7 +1839,7 @@ static void nop_completion(struct usb_ep *ep, struct usb_request *r)
 {
 }
 
-static int __init r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
+static int r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 					  struct platform_device *pdev)
 {
 	struct resource *res;
@@ -1854,7 +1854,7 @@ static int __init r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 	return 0;
 }
 
-static int __init r8a66597_probe(struct platform_device *pdev)
+static int r8a66597_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	char clk_name[8];
