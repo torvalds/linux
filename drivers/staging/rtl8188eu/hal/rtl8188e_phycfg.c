@@ -878,43 +878,6 @@ PHY_SetTxPowerLevel8188E(
 	rtl8188e_PHY_RF6052SetOFDMTxPower(Adapter, &ofdmPowerLevel[0], &BW20PowerLevel[0], &BW40PowerLevel[0], channel);
 }
 
-/*  */
-/*	Description: */
-/*		Update transmit power level of all channel supported. */
-/*  */
-/*	TODO: */
-/*		A mode. */
-/*	By Bruce, 2008-02-04. */
-/*  */
-bool
-PHY_UpdateTxPowerDbm8188E(
-		struct adapter *Adapter,
-		int		powerInDbm
-	)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
-	u8 idx;
-	u8 rf_path;
-
-	/*  TODO: A mode Tx power. */
-	u8 CckTxPwrIdx = phy_DbmToTxPwrIdx(Adapter, WIRELESS_MODE_B, powerInDbm);
-	u8 OfdmTxPwrIdx = phy_DbmToTxPwrIdx(Adapter, WIRELESS_MODE_N_24G, powerInDbm);
-
-	if (OfdmTxPwrIdx - pHalData->LegacyHTTxPowerDiff > 0)
-		OfdmTxPwrIdx -= pHalData->LegacyHTTxPowerDiff;
-	else
-		OfdmTxPwrIdx = 0;
-
-	for (idx = 0; idx < 14; idx++) {
-		for (rf_path = 0; rf_path < 2; rf_path++) {
-			pHalData->TxPwrLevelCck[rf_path][idx] = CckTxPwrIdx;
-			pHalData->TxPwrLevelHT40_1S[rf_path][idx] =
-			pHalData->TxPwrLevelHT40_2S[rf_path][idx] = OfdmTxPwrIdx;
-		}
-	}
-	return true;
-}
-
 void
 PHY_ScanOperationBackup8188E(
 		struct adapter *Adapter,
