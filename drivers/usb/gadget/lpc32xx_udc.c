@@ -3036,7 +3036,7 @@ struct lpc32xx_usbd_cfg lpc32xx_usbddata = {
 
 static u64 lpc32xx_usbd_dmamask = ~(u32) 0x7F;
 
-static int __init lpc32xx_udc_probe(struct platform_device *pdev)
+static int lpc32xx_udc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct lpc32xx_udc *udc;
