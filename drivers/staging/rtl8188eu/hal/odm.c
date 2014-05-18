@@ -214,7 +214,6 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 
 	odm_RefreshRateAdaptiveMask(pDM_Odm);
 
-	odm_DynamicPrimaryCCA(pDM_Odm);
 	if ((pDM_Odm->AntDivType ==  CG_TRX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))

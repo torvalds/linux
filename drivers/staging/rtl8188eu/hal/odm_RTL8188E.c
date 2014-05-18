@@ -376,8 +376,3 @@ void odm_PrimaryCCA_Init(struct odm_dm_struct *dm_odm)
 	PrimaryCCA->Monitor_flag = 0;
 	PrimaryCCA->PriCCA_flag = 0;
 }
-
-void odm_DynamicPrimaryCCA(struct odm_dm_struct *dm_odm)
-{
-	return;
-}
