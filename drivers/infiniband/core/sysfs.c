@@ -534,7 +534,7 @@ static int add_port(struct ib_device *device, int port_num,
 	p->port_num   = port_num;
 
 	ret = kobject_init_and_add(&p->kobj, &port_type,
-				   kobject_get(device->ports_parent),
+				   device->ports_parent,
 				   "%d", port_num);
 	if (ret)
 		goto err_put;
@@ -599,7 +599,6 @@ err_remove_pma:
 	sysfs_remove_group(&p->kobj, &pma_group);
 
 err_put:
-	kobject_put(device->ports_parent);
 	kfree(p);
 	return ret;
 }
@@ -835,7 +834,7 @@ int ib_device_register_sysfs(struct ib_device *device,
 	}
 
 	device->ports_parent = kobject_create_and_add("ports",
-					kobject_get(&class_dev->kobj));
+						      &class_dev->kobj);
 	if (!device->ports_parent) {
 		ret = -ENOMEM;
 		goto err_put;
@@ -875,8 +874,6 @@ err_put:
 			kobject_put(p);
 		}
 	}
-
-	kobject_put(&class_dev->kobj);
 
 err_unregister:
 	device_unregister(class_dev);
