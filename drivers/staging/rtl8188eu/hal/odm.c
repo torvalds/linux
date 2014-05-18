@@ -848,40 +848,6 @@ void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres)
 	pDM_DigTable->CurCCK_CCAThres = CurCCK_CCAThres;
 }
 
-void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *adapter = pDM_Odm->Adapter;
-	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
-
-	if (pDM_Odm->RSSI_Min != 0xFF) {
-		if (pDM_PSTable->PreCCAState == CCA_2R) {
-			if (pDM_Odm->RSSI_Min >= 35)
-				pDM_PSTable->CurCCAState = CCA_1R;
-			else
-				pDM_PSTable->CurCCAState = CCA_2R;
-		} else {
-			if (pDM_Odm->RSSI_Min <= 30)
-				pDM_PSTable->CurCCAState = CCA_2R;
-			else
-				pDM_PSTable->CurCCAState = CCA_1R;
-		}
-	} else {
-		pDM_PSTable->CurCCAState = CCA_MAX;
-	}
-
-	if (pDM_PSTable->PreCCAState != pDM_PSTable->CurCCAState) {
-		if (pDM_PSTable->CurCCAState == CCA_1R) {
-			if (pDM_Odm->RFType == ODM_2T2R)
-				PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x13);
-			else
-				PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x23);
-		} else {
-			PHY_SetBBReg(adapter, 0xc04, bMaskByte0, 0x33);
-		}
-		pDM_PSTable->PreCCAState = pDM_PSTable->CurCCAState;
-	}
-}
-
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 {
 	struct adapter *adapter = pDM_Odm->Adapter;
