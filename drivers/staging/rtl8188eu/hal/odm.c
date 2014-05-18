@@ -183,7 +183,6 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 	odm_RateAdaptiveMaskInit(pDM_Odm);
 
 	odm_PrimaryCCA_Init(pDM_Odm);    /*  Gary */
-	odm_DynamicBBPowerSavingInit(pDM_Odm);
 	odm_DynamicTxPowerInit(pDM_Odm);
 	odm_TXPowerTrackingInit(pDM_Odm);
 	ODM_EdcaTurboInit(pDM_Odm);
@@ -215,7 +214,6 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 
 	odm_RefreshRateAdaptiveMask(pDM_Odm);
 
-	odm_DynamicBBPowerSaving(pDM_Odm);
 	odm_DynamicPrimaryCCA(pDM_Odm);
 	if ((pDM_Odm->AntDivType ==  CG_TRX_HW_ANTDIV)	||
 	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
@@ -863,10 +861,6 @@ void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
 	pDM_PSTable->CurRFState = RF_MAX;
 	pDM_PSTable->Rssi_val_min = 0;
 	pDM_PSTable->initialize = 0;
-}
-
-void odm_DynamicBBPowerSaving(struct odm_dm_struct *pDM_Odm)
-{
 }
 
 void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
