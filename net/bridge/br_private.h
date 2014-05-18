@@ -727,7 +727,7 @@ static inline u16 br_get_pvid(const struct net_port_vlans *v)
 	return VLAN_N_VID;	/* Returns invalid vid */
 }
 
-static inline int br_vlan_enabled(struct net_bridge *br);
+static inline int br_vlan_enabled(struct net_bridge *br)
 {
 	return 0;
 }
