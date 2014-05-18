@@ -1566,6 +1566,7 @@ static int ims_pcu_buffers_alloc(struct ims_pcu *pcu)
 	if (!pcu->urb_ctrl_buf) {
 		dev_err(pcu->dev,
 			"Failed to allocate memory for read buffer\n");
+		error = -ENOMEM;
 		goto err_free_urb_out_buf;
 	}
 
