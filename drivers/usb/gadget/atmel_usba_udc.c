@@ -1979,7 +1979,7 @@ static struct usba_ep * usba_udc_pdata(struct platform_device *pdev,
 	return eps;
 }
 
-static int __init usba_udc_probe(struct platform_device *pdev)
+static int usba_udc_probe(struct platform_device *pdev)
 {
 	struct resource *regs, *fifo;
 	struct clk *pclk, *hclk;
