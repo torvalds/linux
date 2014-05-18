@@ -2131,9 +2131,13 @@ static int set_sig_data_segment(struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 	int ret;
 	int wqe_size;
 
-	if (!wr->wr.sig_handover.prot) {
+	if (!wr->wr.sig_handover.prot ||
+	    (data_key == wr->wr.sig_handover.prot->lkey &&
+	     data_va == wr->wr.sig_handover.prot->addr &&
+	     data_len == wr->wr.sig_handover.prot->length)) {
 		/**
 		 * Source domain doesn't contain signature information
+		 * or data and protection are interleaved in memory.
 		 * So need construct:
 		 *                  ------------------
 		 *                 |     data_klm     |
@@ -2187,23 +2191,13 @@ static int set_sig_data_segment(struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 		data_sentry->bcount = cpu_to_be16(block_size);
 		data_sentry->key = cpu_to_be32(data_key);
 		data_sentry->va = cpu_to_be64(data_va);
+		data_sentry->stride = cpu_to_be16(block_size);
+
 		prot_sentry->bcount = cpu_to_be16(prot_size);
 		prot_sentry->key = cpu_to_be32(prot_key);
+		prot_sentry->va = cpu_to_be64(prot_va);
+		prot_sentry->stride = cpu_to_be16(prot_size);
 
-		if (prot_key == data_key && prot_va == data_va) {
-			/**
-			 * The data and protection are interleaved
-			 * in a single memory region
-			 **/
-			prot_sentry->va = cpu_to_be64(data_va + block_size);
-			prot_sentry->stride = cpu_to_be16(block_size + prot_size);
-			data_sentry->stride = prot_sentry->stride;
-		} else {
-			/* The data and protection are two different buffers */
-			prot_sentry->va = cpu_to_be64(prot_va);
-			data_sentry->stride = cpu_to_be16(block_size);
-			prot_sentry->stride = cpu_to_be16(prot_size);
-		}
 		wqe_size = ALIGN(sizeof(*sblock_ctrl) + sizeof(*data_sentry) +
 				 sizeof(*prot_sentry), 64);
 	}
