@@ -1033,10 +1033,6 @@ void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
 	odm_RefreshRateAdaptiveMaskCE(pDM_Odm);
 }
 
-void odm_RefreshRateAdaptiveMaskMP(struct odm_dm_struct *pDM_Odm)
-{
-}
-
 void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm)
 {
 	u8 i;
