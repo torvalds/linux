@@ -109,9 +109,9 @@ int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 	/* Check Permissions */
 	if (!capable(CAP_NET_ADMIN) &&
 	(msg->msgcode != DIDmsg_dot11req_mibget)) {
-		printk(KERN_ERR
-		       "%s: only dot11req_mibget allowed for non-root.\n",
-		       wlandev->name);
+		netdev_err(wlandev->netdev,
+			   "%s: only dot11req_mibget allowed for non-root.\n",
+			   wlandev->name);
 		return -EPERM;
 	}
 
