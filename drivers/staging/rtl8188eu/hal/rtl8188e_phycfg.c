@@ -665,52 +665,6 @@ static int phy_TxPwrIdxToDbm(struct adapter *Adapter, enum wireless_mode Wireles
 	return PwrOutDbm;
 }
 
-
-/*-----------------------------------------------------------------------------
- * Function:    GetTxPowerLevel8190()
- *
- * Overview:    This function is export to "common" moudule
- *
- * Input:       struct adapter *Adapter
- *			psByte			Power Level
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- *---------------------------------------------------------------------------*/
-void PHY_GetTxPowerLevel8188E(struct adapter *Adapter, u32 *powerlevel)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
-	u8 TxPwrLevel = 0;
-	int			TxPwrDbm;
-
-	/*  */
-	/*  Because the Tx power indexes are different, we report the maximum of them to */
-	/*  meet the CCX TPC request. By Bruce, 2008-01-31. */
-	/*  */
-
-	/*  CCK */
-	TxPwrLevel = pHalData->CurrentCckTxPwrIdx;
-	TxPwrDbm = phy_TxPwrIdxToDbm(Adapter, WIRELESS_MODE_B, TxPwrLevel);
-
-	/*  Legacy OFDM */
-	TxPwrLevel = pHalData->CurrentOfdm24GTxPwrIdx + pHalData->LegacyHTTxPowerDiff;
-
-	/*  Compare with Legacy OFDM Tx power. */
-	if (phy_TxPwrIdxToDbm(Adapter, WIRELESS_MODE_G, TxPwrLevel) > TxPwrDbm)
-		TxPwrDbm = phy_TxPwrIdxToDbm(Adapter, WIRELESS_MODE_G, TxPwrLevel);
-
-	/*  HT OFDM */
-	TxPwrLevel = pHalData->CurrentOfdm24GTxPwrIdx;
-
-	/*  Compare with HT OFDM Tx power. */
-	if (phy_TxPwrIdxToDbm(Adapter, WIRELESS_MODE_N_24G, TxPwrLevel) > TxPwrDbm)
-		TxPwrDbm = phy_TxPwrIdxToDbm(Adapter, WIRELESS_MODE_N_24G, TxPwrLevel);
-
-	*powerlevel = TxPwrDbm;
-}
-
 static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPowerLevel,
 			       u8 *ofdmPowerLevel, u8 *BW20PowerLevel,
 			       u8 *BW40PowerLevel)
