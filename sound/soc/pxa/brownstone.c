@@ -70,8 +70,6 @@ static int brownstone_wm8994_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "IN2RP:VXRP");
 	snd_soc_dapm_nc_pin(dapm, "IN2LN");
 
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 

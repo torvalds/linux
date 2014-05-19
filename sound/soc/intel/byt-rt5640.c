@@ -105,7 +105,6 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_enable_pin(dapm, "Speaker");
 	snd_soc_dapm_enable_pin(dapm, "Internal Mic");
 
-	snd_soc_dapm_sync(dapm);
 	return ret;
 }
 
