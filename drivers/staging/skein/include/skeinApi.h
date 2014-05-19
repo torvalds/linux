@@ -59,7 +59,7 @@ OTHER DEALINGS IN THE SOFTWARE.
  *
  * // Now update Skein with any number of message bits. A function that
  * // takes a number of bytes is also available.
- * skein_update_bits(&ctx, message, msgLength);
+ * skein_update_bits(&ctx, message, msg_length);
  *
  * // Now get the result of the Skein hash. The output buffer must be
  * // large enough to hold the request number of output bits. The application
@@ -99,8 +99,8 @@ enum skein_size {
  * structures as well.
  */
 struct skein_ctx {
-	u64 skeinSize;
-	u64  XSave[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
+	u64 skein_size;
+	u64 X_save[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
 	union {
 		struct skein_ctx_hdr h;
 		struct skein_256_ctx s256;
@@ -133,13 +133,13 @@ int skein_ctx_prepare(struct skein_ctx *ctx, enum skein_size size);
  *
  * @param ctx
  *     Pointer to a Skein context.
- * @param hashBitLen
+ * @param hash_bit_len
  *     Number of MAC hash bits to compute
  * @return
  *     SKEIN_SUCESS of SKEIN_FAIL
  * @see skein_reset
  */
-int skein_init(struct skein_ctx *ctx, size_t hashBitLen);
+int skein_init(struct skein_ctx *ctx, size_t hash_bit_len);
 
 /**
  * Resets a Skein context for further use.
@@ -166,15 +166,15 @@ void skein_reset(struct skein_ctx *ctx);
  *     Pointer to an empty or preinitialized Skein MAC context
  * @param key
  *     Pointer to key bytes or NULL
- * @param keyLen
+ * @param key_len
  *     Length of the key in bytes or zero
- * @param hashBitLen
+ * @param hash_bit_len
  *     Number of MAC hash bits to compute
  * @return
  *     SKEIN_SUCESS of SKEIN_FAIL
  */
-int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
-		   size_t hashBitLen);
+int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
+		   size_t hash_bit_len);
 
 /**
  * Update Skein with the next part of the message.
@@ -183,13 +183,13 @@ int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
  *     Pointer to initialized Skein context
  * @param msg
  *     Pointer to the message.
- * @param msgByteCnt
+ * @param msg_byte_cnt
  *     Length of the message in @b bytes
  * @return
  *     Success or error code.
  */
 int skein_update(struct skein_ctx *ctx, const u8 *msg,
-		 size_t msgByteCnt);
+		 size_t msg_byte_cnt);
 
 /**
  * Update the hash with a message bit string.
@@ -201,11 +201,11 @@ int skein_update(struct skein_ctx *ctx, const u8 *msg,
  *     Pointer to initialized Skein context
  * @param msg
  *     Pointer to the message.
- * @param msgBitCnt
+ * @param msg_bit_cnt
  *     Length of the message in @b bits.
  */
 int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
-		      size_t msgBitCnt);
+		      size_t msg_bit_cnt);
 
 /**
  * Finalize Skein and return the hash.
@@ -217,7 +217,7 @@ int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
  *     Pointer to initialized Skein context
  * @param hash
  *     Pointer to buffer that receives the hash. The buffer must be large
- *     enough to store @c hashBitLen bits.
+ *     enough to store @c hash_bit_len bits.
  * @return
  *     Success or error code.
  * @see skein_reset

@@ -2,20 +2,20 @@
 #include <threefishApi.h>
 
 
-void threefish_encrypt_512(struct threefish_key *keyCtx, u64 *input,
+void threefish_encrypt_512(struct threefish_key *key_ctx, u64 *input,
 			   u64 *output)
 {
 	u64 b0 = input[0], b1 = input[1],
-	  b2 = input[2], b3 = input[3],
-	  b4 = input[4], b5 = input[5],
-	  b6 = input[6], b7 = input[7];
-	u64 k0 = keyCtx->key[0], k1 = keyCtx->key[1],
-	  k2 = keyCtx->key[2], k3 = keyCtx->key[3],
-	  k4 = keyCtx->key[4], k5 = keyCtx->key[5],
-	  k6 = keyCtx->key[6], k7 = keyCtx->key[7],
-	  k8 = keyCtx->key[8];
-	u64 t0 = keyCtx->tweak[0], t1 = keyCtx->tweak[1],
-	  t2 = keyCtx->tweak[2];
+	    b2 = input[2], b3 = input[3],
+	    b4 = input[4], b5 = input[5],
+	    b6 = input[6], b7 = input[7];
+	u64 k0 = key_ctx->key[0], k1 = key_ctx->key[1],
+	    k2 = key_ctx->key[2], k3 = key_ctx->key[3],
+	    k4 = key_ctx->key[4], k5 = key_ctx->key[5],
+	    k6 = key_ctx->key[6], k7 = key_ctx->key[7],
+	    k8 = key_ctx->key[8];
+	u64 t0 = key_ctx->tweak[0], t1 = key_ctx->tweak[1],
+	    t2 = key_ctx->tweak[2];
 
 	b1 += k1;
 	b0 += b1 + k0;
@@ -963,20 +963,20 @@ void threefish_encrypt_512(struct threefish_key *keyCtx, u64 *input,
 	output[7] = b7 + k7 + 18;
 }
 
-void threefish_decrypt_512(struct threefish_key *keyCtx, u64 *input,
+void threefish_decrypt_512(struct threefish_key *key_ctx, u64 *input,
 			   u64 *output)
 {
 	u64 b0 = input[0], b1 = input[1],
-	  b2 = input[2], b3 = input[3],
-	  b4 = input[4], b5 = input[5],
-	  b6 = input[6], b7 = input[7];
-	u64 k0 = keyCtx->key[0], k1 = keyCtx->key[1],
-	  k2 = keyCtx->key[2], k3 = keyCtx->key[3],
-	  k4 = keyCtx->key[4], k5 = keyCtx->key[5],
-	  k6 = keyCtx->key[6], k7 = keyCtx->key[7],
-	  k8 = keyCtx->key[8];
-	u64 t0 = keyCtx->tweak[0], t1 = keyCtx->tweak[1],
-	  t2 = keyCtx->tweak[2];
+	    b2 = input[2], b3 = input[3],
+	    b4 = input[4], b5 = input[5],
+	    b6 = input[6], b7 = input[7];
+	u64 k0 = key_ctx->key[0], k1 = key_ctx->key[1],
+	    k2 = key_ctx->key[2], k3 = key_ctx->key[3],
+	    k4 = key_ctx->key[4], k5 = key_ctx->key[5],
+	    k6 = key_ctx->key[6], k7 = key_ctx->key[7],
+	    k8 = key_ctx->key[8];
+	u64 t0 = key_ctx->tweak[0], t1 = key_ctx->tweak[1],
+	    t2 = key_ctx->tweak[2];
 
 	u64 tmp;
 

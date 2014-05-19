@@ -12,11 +12,11 @@
 
 #include <skein.h> /* get the Skein API definitions   */
 
-void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blkPtr,
-			     size_t blkCnt, size_t byteCntAdd);
-void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blkPtr,
-			     size_t blkCnt, size_t byteCntAdd);
-void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blkPtr,
-			      size_t blkCnt, size_t byteCntAdd);
+void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
+			     size_t blk_cnt, size_t byte_cnt_add);
+void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
+			     size_t blk_cnt, size_t byte_cnt_add);
+void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blk_ptr,
+			      size_t blk_cnt, size_t byte_cnt_add);
 
 #endif

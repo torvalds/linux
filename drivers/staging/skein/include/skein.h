@@ -33,8 +33,9 @@
 #endif
 
 /* below two prototype assume we are handed aligned data */
-#define Skein_Put64_LSB_First(dst08, src64, bCnt) memcpy(dst08, src64, bCnt)
-#define Skein_Get64_LSB_First(dst64, src08, wCnt) memcpy(dst64, src08, 8*(wCnt))
+#define Skein_Put64_LSB_First(dst08, src64, b_cnt) memcpy(dst08, src64, b_cnt)
+#define Skein_Get64_LSB_First(dst64, src08, w_cnt) \
+		memcpy(dst64, src08, 8*(w_cnt))
 #define Skein_Swap64(w64)  (w64)
 
 enum {
@@ -63,82 +64,82 @@ enum {
 #define  SKEIN1024_BLOCK_BYTES  (8*SKEIN1024_STATE_WORDS)
 
 struct skein_ctx_hdr {
-	size_t  hashBitLen;		/* size of hash result, in bits */
-	size_t  bCnt;			/* current byte count in buffer b[] */
-	u64  T[SKEIN_MODIFIER_WORDS];	/* tweak: T[0]=byte cnt, T[1]=flags */
+	size_t hash_bit_len;		/* size of hash result, in bits */
+	size_t b_cnt;			/* current byte count in buffer b[] */
+	u64 T[SKEIN_MODIFIER_WORDS];	/* tweak: T[0]=byte cnt, T[1]=flags */
 };
 
 struct skein_256_ctx { /* 256-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
-	u64  X[SKEIN_256_STATE_WORDS];	/* chaining variables */
-	u8  b[SKEIN_256_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
+	u64 X[SKEIN_256_STATE_WORDS];	/* chaining variables */
+	u8 b[SKEIN_256_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
 struct skein_512_ctx { /* 512-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
-	u64  X[SKEIN_512_STATE_WORDS];	/* chaining variables */
-	u8  b[SKEIN_512_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
+	u64 X[SKEIN_512_STATE_WORDS];	/* chaining variables */
+	u8 b[SKEIN_512_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
 struct skein1024_ctx { /* 1024-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
-	u64  X[SKEIN1024_STATE_WORDS];	/* chaining variables */
-	u8  b[SKEIN1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
+	u64 X[SKEIN1024_STATE_WORDS];	/* chaining variables */
+	u8 b[SKEIN1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
 /* Skein APIs for (incremental) "straight hashing" */
-int skein_256_init(struct skein_256_ctx *ctx, size_t hashBitLen);
-int skein_512_init(struct skein_512_ctx *ctx, size_t hashBitLen);
-int skein_1024_init(struct skein1024_ctx *ctx, size_t hashBitLen);
+int skein_256_init(struct skein_256_ctx *ctx, size_t hash_bit_len);
+int skein_512_init(struct skein_512_ctx *ctx, size_t hash_bit_len);
+int skein_1024_init(struct skein1024_ctx *ctx, size_t hash_bit_len);
 
 int skein_256_update(struct skein_256_ctx *ctx, const u8 *msg,
-		     size_t msgByteCnt);
+		     size_t msg_byte_cnt);
 int skein_512_update(struct skein_512_ctx *ctx, const u8 *msg,
-		     size_t msgByteCnt);
+		     size_t msg_byte_cnt);
 int skein_1024_update(struct skein1024_ctx *ctx, const u8 *msg,
-		      size_t msgByteCnt);
+		      size_t msg_byte_cnt);
 
-int skein_256_final(struct skein_256_ctx *ctx, u8 *hashVal);
-int skein_512_final(struct skein_512_ctx *ctx, u8 *hashVal);
-int skein_1024_final(struct skein1024_ctx *ctx, u8 *hashVal);
+int skein_256_final(struct skein_256_ctx *ctx, u8 *hash_val);
+int skein_512_final(struct skein_512_ctx *ctx, u8 *hash_val);
+int skein_1024_final(struct skein1024_ctx *ctx, u8 *hash_val);
 
 /*
 **   Skein APIs for "extended" initialization: MAC keys, tree hashing.
 **   After an init_ext() call, just use update/final calls as with init().
 **
-**   Notes: Same parameters as _init() calls, plus treeInfo/key/keyBytes.
-**          When keyBytes == 0 and treeInfo == SKEIN_SEQUENTIAL,
+**   Notes: Same parameters as _init() calls, plus tree_info/key/key_bytes.
+**          When key_bytes == 0 and tree_info == SKEIN_SEQUENTIAL,
 **              the results of init_ext() are identical to calling init().
 **          The function init() may be called once to "precompute" the IV for
-**              a given hashBitLen value, then by saving a copy of the context
+**              a given hash_bit_len value, then by saving a copy of the context
 **              the IV computation may be avoided in later calls.
 **          Similarly, the function init_ext() may be called once per MAC key
 **              to precompute the MAC IV, then a copy of the context saved and
 **              reused for each new MAC computation.
 **/
-int skein_256_init_ext(struct skein_256_ctx *ctx, size_t hashBitLen,
-		       u64 treeInfo, const u8 *key, size_t keyBytes);
-int skein_512_init_ext(struct skein_512_ctx *ctx, size_t hashBitLen,
-		       u64 treeInfo, const u8 *key, size_t keyBytes);
-int skein_1024_init_ext(struct skein1024_ctx *ctx, size_t hashBitLen,
-			u64 treeInfo, const u8 *key, size_t keyBytes);
+int skein_256_init_ext(struct skein_256_ctx *ctx, size_t hash_bit_len,
+		       u64 tree_info, const u8 *key, size_t key_bytes);
+int skein_512_init_ext(struct skein_512_ctx *ctx, size_t hash_bit_len,
+		       u64 tree_info, const u8 *key, size_t key_bytes);
+int skein_1024_init_ext(struct skein1024_ctx *ctx, size_t hash_bit_len,
+			u64 tree_info, const u8 *key, size_t key_bytes);
 
 /*
 **   Skein APIs for MAC and tree hash:
 **      final_pad:  pad, do final block, but no OUTPUT type
 **      output:     do just the output stage
 */
-int skein_256_final_pad(struct skein_256_ctx *ctx, u8 *hashVal);
-int skein_512_final_pad(struct skein_512_ctx *ctx, u8 *hashVal);
-int skein_1024_final_pad(struct skein1024_ctx *ctx, u8 *hashVal);
+int skein_256_final_pad(struct skein_256_ctx *ctx, u8 *hash_val);
+int skein_512_final_pad(struct skein_512_ctx *ctx, u8 *hash_val);
+int skein_1024_final_pad(struct skein1024_ctx *ctx, u8 *hash_val);
 
 #ifndef SKEIN_TREE_HASH
 #define SKEIN_TREE_HASH (1)
 #endif
 #if  SKEIN_TREE_HASH
-int skein_256_output(struct skein_256_ctx *ctx, u8 *hashVal);
-int skein_512_output(struct skein_512_ctx *ctx, u8 *hashVal);
-int skein_1024_output(struct skein1024_ctx *ctx, u8 *hashVal);
+int skein_256_output(struct skein_256_ctx *ctx, u8 *hash_val);
+int skein_512_output(struct skein_512_ctx *ctx, u8 *hash_val);
+int skein_1024_output(struct skein1024_ctx *ctx, u8 *hash_val);
 #endif
 
 /*****************************************************************
@@ -207,7 +208,7 @@ int skein_1024_output(struct skein1024_ctx *ctx, u8 *hashVal);
 
 #define SKEIN_CFG_STR_LEN       (4*8)
 
-/* bit field definitions in config block treeInfo word */
+/* bit field definitions in config block tree_info word */
 #define SKEIN_CFG_TREE_LEAF_SIZE_POS  (0)
 #define SKEIN_CFG_TREE_NODE_SIZE_POS  (8)
 #define SKEIN_CFG_TREE_MAX_LEVEL_POS  (16)
@@ -219,46 +220,46 @@ int skein_1024_output(struct skein1024_ctx *ctx, u8 *hashVal);
 #define SKEIN_CFG_TREE_MAX_LEVEL_MSK (((u64)0xFF) << \
 					SKEIN_CFG_TREE_MAX_LEVEL_POS)
 
-#define SKEIN_CFG_TREE_INFO(leaf, node, maxLvl)                   \
+#define SKEIN_CFG_TREE_INFO(leaf, node, max_lvl)                   \
 	((((u64)(leaf))   << SKEIN_CFG_TREE_LEAF_SIZE_POS) |    \
 	 (((u64)(node))   << SKEIN_CFG_TREE_NODE_SIZE_POS) |    \
-	 (((u64)(maxLvl)) << SKEIN_CFG_TREE_MAX_LEVEL_POS))
+	 (((u64)(max_lvl)) << SKEIN_CFG_TREE_MAX_LEVEL_POS))
 
-/* use as treeInfo in InitExt() call for sequential processing */
+/* use as tree_info in InitExt() call for sequential processing */
 #define SKEIN_CFG_TREE_INFO_SEQUENTIAL SKEIN_CFG_TREE_INFO(0, 0, 0)
 
 /*
 **   Skein macros for getting/setting tweak words, etc.
 **   These are useful for partial input bytes, hash tree init/update, etc.
 **/
-#define Skein_Get_Tweak(ctxPtr, TWK_NUM)          ((ctxPtr)->h.T[TWK_NUM])
-#define Skein_Set_Tweak(ctxPtr, TWK_NUM, tVal) { \
-		(ctxPtr)->h.T[TWK_NUM] = (tVal); \
+#define Skein_Get_Tweak(ctx_ptr, TWK_NUM)          ((ctx_ptr)->h.T[TWK_NUM])
+#define Skein_Set_Tweak(ctx_ptr, TWK_NUM, t_val) { \
+		(ctx_ptr)->h.T[TWK_NUM] = (t_val); \
 	}
 
-#define Skein_Get_T0(ctxPtr)     Skein_Get_Tweak(ctxPtr, 0)
-#define Skein_Get_T1(ctxPtr)     Skein_Get_Tweak(ctxPtr, 1)
-#define Skein_Set_T0(ctxPtr, T0) Skein_Set_Tweak(ctxPtr, 0, T0)
-#define Skein_Set_T1(ctxPtr, T1) Skein_Set_Tweak(ctxPtr, 1, T1)
+#define Skein_Get_T0(ctx_ptr)     Skein_Get_Tweak(ctx_ptr, 0)
+#define Skein_Get_T1(ctx_ptr)     Skein_Get_Tweak(ctx_ptr, 1)
+#define Skein_Set_T0(ctx_ptr, T0) Skein_Set_Tweak(ctx_ptr, 0, T0)
+#define Skein_Set_T1(ctx_ptr, T1) Skein_Set_Tweak(ctx_ptr, 1, T1)
 
 /* set both tweak words at once */
-#define Skein_Set_T0_T1(ctxPtr, T0, T1)           \
+#define Skein_Set_T0_T1(ctx_ptr, T0, T1)           \
 	{                                           \
-	Skein_Set_T0(ctxPtr, (T0));                  \
-	Skein_Set_T1(ctxPtr, (T1));                  \
+	Skein_Set_T0(ctx_ptr, (T0));                  \
+	Skein_Set_T1(ctx_ptr, (T1));                  \
 	}
 
-#define Skein_Set_Type(ctxPtr, BLK_TYPE)         \
-	Skein_Set_T1(ctxPtr, SKEIN_T1_BLK_TYPE_##BLK_TYPE)
+#define Skein_Set_Type(ctx_ptr, BLK_TYPE)         \
+	Skein_Set_T1(ctx_ptr, SKEIN_T1_BLK_TYPE_##BLK_TYPE)
 
 /*
  * setup for starting with a new type:
- * h.T[0]=0; h.T[1] = NEW_TYPE; h.bCnt=0;
+ * h.T[0]=0; h.T[1] = NEW_TYPE; h.b_cnt=0;
  */
-#define Skein_Start_New_Type(ctxPtr, BLK_TYPE) { \
-		Skein_Set_T0_T1(ctxPtr, 0, SKEIN_T1_FLAG_FIRST | \
+#define Skein_Start_New_Type(ctx_ptr, BLK_TYPE) { \
+		Skein_Set_T0_T1(ctx_ptr, 0, SKEIN_T1_FLAG_FIRST | \
 				SKEIN_T1_BLK_TYPE_##BLK_TYPE); \
-		(ctxPtr)->h.bCnt = 0; \
+		(ctx_ptr)->h.b_cnt = 0; \
 	}
 
 #define Skein_Clear_First_Flag(hdr) { \
@@ -278,14 +279,14 @@ int skein_1024_output(struct skein1024_ctx *ctx, u8 *hashVal);
 #ifdef SKEIN_DEBUG             /* examine/display intermediate values? */
 #include "skein_debug.h"
 #else                           /* default is no callouts */
-#define Skein_Show_Block(bits, ctx, X, blkPtr, wPtr, ksEvenPtr, ksOddPtr)
+#define Skein_Show_Block(bits, ctx, X, blk_ptr, w_ptr, ks_event_ptr, ks_odd_ptr)
 #define Skein_Show_Round(bits, ctx, r, X)
 #define Skein_Show_R_Ptr(bits, ctx, r, X_ptr)
-#define Skein_Show_Final(bits, ctx, cnt, outPtr)
-#define Skein_Show_Key(bits, ctx, key, keyBytes)
+#define Skein_Show_Final(bits, ctx, cnt, out_ptr)
+#define Skein_Show_Key(bits, ctx, key, key_bytes)
 #endif
 
-#define Skein_Assert(x, retCode)/* ignore all Asserts, for performance */
+#define Skein_Assert(x, ret_code)/* ignore all Asserts, for performance */
 #define Skein_assert(x)
 
 /*****************************************************************

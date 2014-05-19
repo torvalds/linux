@@ -2,28 +2,28 @@
 #include <threefishApi.h>
 
 
-void threefish_encrypt_1024(struct threefish_key *keyCtx, u64 *input,
+void threefish_encrypt_1024(struct threefish_key *key_ctx, u64 *input,
 			    u64 *output)
 {
 	u64 b0 = input[0], b1 = input[1],
-	  b2 = input[2], b3 = input[3],
-	  b4 = input[4], b5 = input[5],
-	  b6 = input[6], b7 = input[7],
-	  b8 = input[8], b9 = input[9],
-	  b10 = input[10], b11 = input[11],
-	  b12 = input[12], b13 = input[13],
-	  b14 = input[14], b15 = input[15];
-	u64 k0 = keyCtx->key[0], k1 = keyCtx->key[1],
-	  k2 = keyCtx->key[2], k3 = keyCtx->key[3],
-	  k4 = keyCtx->key[4], k5 = keyCtx->key[5],
-	  k6 = keyCtx->key[6], k7 = keyCtx->key[7],
-	  k8 = keyCtx->key[8], k9 = keyCtx->key[9],
-	  k10 = keyCtx->key[10], k11 = keyCtx->key[11],
-	  k12 = keyCtx->key[12], k13 = keyCtx->key[13],
-	  k14 = keyCtx->key[14], k15 = keyCtx->key[15],
-	  k16 = keyCtx->key[16];
-	u64 t0 = keyCtx->tweak[0], t1 = keyCtx->tweak[1],
-	  t2 = keyCtx->tweak[2];
+	    b2 = input[2], b3 = input[3],
+	    b4 = input[4], b5 = input[5],
+	    b6 = input[6], b7 = input[7],
+	    b8 = input[8], b9 = input[9],
+	    b10 = input[10], b11 = input[11],
+	    b12 = input[12], b13 = input[13],
+	    b14 = input[14], b15 = input[15];
+	u64 k0 = key_ctx->key[0], k1 = key_ctx->key[1],
+	    k2 = key_ctx->key[2], k3 = key_ctx->key[3],
+	    k4 = key_ctx->key[4], k5 = key_ctx->key[5],
+	    k6 = key_ctx->key[6], k7 = key_ctx->key[7],
+	    k8 = key_ctx->key[8], k9 = key_ctx->key[9],
+	    k10 = key_ctx->key[10], k11 = key_ctx->key[11],
+	    k12 = key_ctx->key[12], k13 = key_ctx->key[13],
+	    k14 = key_ctx->key[14], k15 = key_ctx->key[15],
+	    k16 = key_ctx->key[16];
+	u64 t0 = key_ctx->tweak[0], t1 = key_ctx->tweak[1],
+	    t2 = key_ctx->tweak[2];
 
 	b1 += k1;
 	b0 += b1 + k0;
@@ -2123,28 +2123,28 @@ void threefish_encrypt_1024(struct threefish_key *keyCtx, u64 *input,
 	output[15] = b15 + k1 + 20;
 }
 
-void threefish_decrypt_1024(struct threefish_key *keyCtx, u64 *input,
+void threefish_decrypt_1024(struct threefish_key *key_ctx, u64 *input,
 			    u64 *output)
 {
 	u64 b0 = input[0], b1 = input[1],
-	  b2 = input[2], b3 = input[3],
-	  b4 = input[4], b5 = input[5],
-	  b6 = input[6], b7 = input[7],
-	  b8 = input[8], b9 = input[9],
-	  b10 = input[10], b11 = input[11],
-	  b12 = input[12], b13 = input[13],
-	  b14 = input[14], b15 = input[15];
-	u64 k0 = keyCtx->key[0], k1 = keyCtx->key[1],
-	  k2 = keyCtx->key[2], k3 = keyCtx->key[3],
-	  k4 = keyCtx->key[4], k5 = keyCtx->key[5],
-	  k6 = keyCtx->key[6], k7 = keyCtx->key[7],
-	  k8 = keyCtx->key[8], k9 = keyCtx->key[9],
-	  k10 = keyCtx->key[10], k11 = keyCtx->key[11],
-	  k12 = keyCtx->key[12], k13 = keyCtx->key[13],
-	  k14 = keyCtx->key[14], k15 = keyCtx->key[15],
-	  k16 = keyCtx->key[16];
-	u64 t0 = keyCtx->tweak[0], t1 = keyCtx->tweak[1],
-	  t2 = keyCtx->tweak[2];
+	    b2 = input[2], b3 = input[3],
+	    b4 = input[4], b5 = input[5],
+	    b6 = input[6], b7 = input[7],
+	    b8 = input[8], b9 = input[9],
+	    b10 = input[10], b11 = input[11],
+	    b12 = input[12], b13 = input[13],
+	    b14 = input[14], b15 = input[15];
+	u64 k0 = key_ctx->key[0], k1 = key_ctx->key[1],
+	    k2 = key_ctx->key[2], k3 = key_ctx->key[3],
+	    k4 = key_ctx->key[4], k5 = key_ctx->key[5],
+	    k6 = key_ctx->key[6], k7 = key_ctx->key[7],
+	    k8 = key_ctx->key[8], k9 = key_ctx->key[9],
+	    k10 = key_ctx->key[10], k11 = key_ctx->key[11],
+	    k12 = key_ctx->key[12], k13 = key_ctx->key[13],
+	    k14 = key_ctx->key[14], k15 = key_ctx->key[15],
+	    k16 = key_ctx->key[16];
+	u64 t0 = key_ctx->tweak[0], t1 = key_ctx->tweak[1],
+	    t2 = key_ctx->tweak[2];
 	u64 tmp;
 
 	b0 -= k3;

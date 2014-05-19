@@ -5,8 +5,8 @@
 
 
 /*****************************  Skein_256 ******************************/
-void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blkPtr,
-			     size_t blkCnt, size_t byteCntAdd)
+void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
+			     size_t blk_cnt, size_t byte_cnt_add)
 {
 	struct threefish_key key;
 	u64 tweak[2];
@@ -14,12 +14,12 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blkPtr,
 	u64  w[SKEIN_256_STATE_WORDS]; /* local copy of input block */
 	u64 words[3];
 
-	Skein_assert(blkCnt != 0); /* never call with blkCnt == 0! */
+	Skein_assert(blk_cnt != 0); /* never call with blk_cnt == 0! */
 	tweak[0] = ctx->h.T[0];
 	tweak[1] = ctx->h.T[1];
 
 	do  {
-		u64 carry = byteCntAdd;
+		u64 carry = byte_cnt_add;
 
 		words[0] = tweak[0] & 0xffffffffL;
 		words[1] = ((tweak[0] >> 32) & 0xffffffffL);
@@ -37,11 +37,11 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blkPtr,
 		threefish_set_key(&key, Threefish256, ctx->X, tweak);
 
 		/* get input block in little-endian format */
-		Skein_Get64_LSB_First(w, blkPtr, SKEIN_256_STATE_WORDS);
+		Skein_Get64_LSB_First(w, blk_ptr, SKEIN_256_STATE_WORDS);
 
 		threefish_encrypt_block_words(&key, w, ctx->X);
 
-		blkPtr += SKEIN_256_BLOCK_BYTES;
+		blk_ptr += SKEIN_256_BLOCK_BYTES;
 
 		/* do the final "feedforward" xor, update ctx chaining vars */
 		ctx->X[0] = ctx->X[0] ^ w[0];
@@ -50,14 +50,14 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blkPtr,
 		ctx->X[3] = ctx->X[3] ^ w[3];
 
 		tweak[1] &= ~SKEIN_T1_FLAG_FIRST;
-	} while (--blkCnt);
+	} while (--blk_cnt);
 
 	ctx->h.T[0] = tweak[0];
 	ctx->h.T[1] = tweak[1];
 }
 
-void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blkPtr,
-			     size_t blkCnt, size_t byteCntAdd)
+void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
+			     size_t blk_cnt, size_t byte_cnt_add)
 {
 	struct threefish_key key;
 	u64 tweak[2];
@@ -65,12 +65,12 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blkPtr,
 	u64 words[3];
 	u64  w[SKEIN_512_STATE_WORDS]; /* local copy of input block */
 
-	Skein_assert(blkCnt != 0); /* never call with blkCnt == 0! */
+	Skein_assert(blk_cnt != 0); /* never call with blk_cnt == 0! */
 	tweak[0] = ctx->h.T[0];
 	tweak[1] = ctx->h.T[1];
 
 	do  {
-		u64 carry = byteCntAdd;
+		u64 carry = byte_cnt_add;
 
 		words[0] = tweak[0] & 0xffffffffL;
 		words[1] = ((tweak[0] >> 32) & 0xffffffffL);
@@ -88,11 +88,11 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blkPtr,
 		threefish_set_key(&key, Threefish512, ctx->X, tweak);
 
 		/* get input block in little-endian format */
-		Skein_Get64_LSB_First(w, blkPtr, SKEIN_512_STATE_WORDS);
+		Skein_Get64_LSB_First(w, blk_ptr, SKEIN_512_STATE_WORDS);
 
 		threefish_encrypt_block_words(&key, w, ctx->X);
 
-		blkPtr += SKEIN_512_BLOCK_BYTES;
+		blk_ptr += SKEIN_512_BLOCK_BYTES;
 
 		/* do the final "feedforward" xor, update ctx chaining vars */
 		ctx->X[0] = ctx->X[0] ^ w[0];
@@ -105,14 +105,14 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blkPtr,
 		ctx->X[7] = ctx->X[7] ^ w[7];
 
 		tweak[1] &= ~SKEIN_T1_FLAG_FIRST;
-	} while (--blkCnt);
+	} while (--blk_cnt);
 
 	ctx->h.T[0] = tweak[0];
 	ctx->h.T[1] = tweak[1];
 }
 
-void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blkPtr,
-			      size_t blkCnt, size_t byteCntAdd)
+void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blk_ptr,
+			      size_t blk_cnt, size_t byte_cnt_add)
 {
 	struct threefish_key key;
 	u64 tweak[2];
@@ -120,12 +120,12 @@ void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blkPtr,
 	u64 words[3];
 	u64  w[SKEIN1024_STATE_WORDS]; /* local copy of input block */
 
-	Skein_assert(blkCnt != 0); /* never call with blkCnt == 0! */
+	Skein_assert(blk_cnt != 0); /* never call with blk_cnt == 0! */
 	tweak[0] = ctx->h.T[0];
 	tweak[1] = ctx->h.T[1];
 
 	do  {
-		u64 carry = byteCntAdd;
+		u64 carry = byte_cnt_add;
 
 		words[0] = tweak[0] & 0xffffffffL;
 		words[1] = ((tweak[0] >> 32) & 0xffffffffL);
@@ -143,11 +143,11 @@ void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blkPtr,
 		threefish_set_key(&key, Threefish1024, ctx->X, tweak);
 
 		/* get input block in little-endian format */
-		Skein_Get64_LSB_First(w, blkPtr, SKEIN1024_STATE_WORDS);
+		Skein_Get64_LSB_First(w, blk_ptr, SKEIN1024_STATE_WORDS);
 
 		threefish_encrypt_block_words(&key, w, ctx->X);
 
-		blkPtr += SKEIN1024_BLOCK_BYTES;
+		blk_ptr += SKEIN1024_BLOCK_BYTES;
 
 		/* do the final "feedforward" xor, update ctx chaining vars */
 		ctx->X[0]  = ctx->X[0]  ^ w[0];
@@ -168,7 +168,7 @@ void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blkPtr,
 		ctx->X[15] = ctx->X[15] ^ w[15];
 
 		tweak[1] &= ~SKEIN_T1_FLAG_FIRST;
-	} while (--blkCnt);
+	} while (--blk_cnt);
 
 	ctx->h.T[0] = tweak[0];
 	ctx->h.T[1] = tweak[1];
