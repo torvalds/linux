@@ -23,6 +23,17 @@
 	};
 };
 
+&sdhci1 {
+	broken-cd;
+	sdhci,wp-inverted;
+	status = "okay";
+};
+
+&sdhci2 {
+	non-removable;
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };
