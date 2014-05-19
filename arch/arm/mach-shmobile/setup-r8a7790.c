@@ -308,13 +308,6 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_audio_dmac(1);
 }
 
-void __init r8a7790_init_early(void)
-{
-#ifndef CONFIG_ARM_ARCH_TIMER
-	shmobile_setup_delay(1300, 2, 4); /* Cortex-A15 @ 1300MHz */
-#endif
-}
-
 #ifdef CONFIG_USE_OF
 
 static const char * const r8a7790_boards_compat_dt[] __initconst = {
