@@ -17,14 +17,14 @@
  * functions.
  *
 @code
-    // Threefish cipher context data
-    struct threefish_key key_ctx;
+	// Threefish cipher context data
+	struct threefish_key key_ctx;
 
-    // Initialize the context
-    threefish_set_key(&key_ctx, Threefish512, key, tweak);
+	// Initialize the context
+	threefish_set_key(&key_ctx, THREEFISH_512, key, tweak);
 
-    // Encrypt
-    threefish_encrypt_block_bytes(&key_ctx, input, cipher);
+	// Encrypt
+	threefish_encrypt_block_bytes(&key_ctx, input, cipher);
 @endcode
  */
 
@@ -37,9 +37,9 @@
  * Which Threefish size to use
  */
 enum threefish_size {
-	Threefish256 = 256,     /*!< Skein with 256 bit state */
-	Threefish512 = 512,     /*!< Skein with 512 bit state */
-	Threefish1024 = 1024    /*!< Skein with 1024 bit state */
+	THREEFISH_256 = 256,     /*!< Skein with 256 bit state */
+	THREEFISH_512 = 512,     /*!< Skein with 512 bit state */
+	THREEFISH_1024 = 1024    /*!< Skein with 1024 bit state */
 };
 
 /**

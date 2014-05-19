@@ -57,15 +57,15 @@ int skein_init(struct skein_ctx *ctx, size_t hash_bit_len)
 	 * the save chaining variables.
 	 */
 	switch (ctx->skein_size) {
-	case Skein256:
+	case SKEIN_256:
 		ret = skein_256_init_ext(&ctx->m.s256, hash_bit_len,
 					 tree_info, NULL, 0);
 		break;
-	case Skein512:
+	case SKEIN_512:
 		ret = skein_512_init_ext(&ctx->m.s512, hash_bit_len,
 					 tree_info, NULL, 0);
 		break;
-	case Skein1024:
+	case SKEIN_1024:
 		ret = skein_1024_init_ext(&ctx->m.s1024, hash_bit_len,
 					  tree_info, NULL, 0);
 		break;
@@ -97,18 +97,18 @@ int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
 	Skein_Assert(hash_bit_len, SKEIN_BAD_HASHLEN);
 
 	switch (ctx->skein_size) {
-	case Skein256:
+	case SKEIN_256:
 		ret = skein_256_init_ext(&ctx->m.s256, hash_bit_len,
 					 tree_info,
 					 (const u8 *)key, key_len);
 
 		break;
-	case Skein512:
+	case SKEIN_512:
 		ret = skein_512_init_ext(&ctx->m.s512, hash_bit_len,
 					 tree_info,
 					 (const u8 *)key, key_len);
 		break;
-	case Skein1024:
+	case SKEIN_1024:
 		ret = skein_1024_init_ext(&ctx->m.s1024, hash_bit_len,
 					  tree_info,
 					  (const u8 *)key, key_len);
@@ -152,15 +152,15 @@ int skein_update(struct skein_ctx *ctx, const u8 *msg,
 	Skein_Assert(ctx, SKEIN_FAIL);
 
 	switch (ctx->skein_size) {
-	case Skein256:
+	case SKEIN_256:
 		ret = skein_256_update(&ctx->m.s256, (const u8 *)msg,
 				       msg_byte_cnt);
 		break;
-	case Skein512:
+	case SKEIN_512:
 		ret = skein_512_update(&ctx->m.s512, (const u8 *)msg,
 				       msg_byte_cnt);
 		break;
-	case Skein1024:
+	case SKEIN_1024:
 		ret = skein_1024_update(&ctx->m.s1024, (const u8 *)msg,
 					msg_byte_cnt);
 		break;
@@ -225,13 +225,13 @@ int skein_final(struct skein_ctx *ctx, u8 *hash)
 	Skein_Assert(ctx, SKEIN_FAIL);
 
 	switch (ctx->skein_size) {
-	case Skein256:
+	case SKEIN_256:
 		ret = skein_256_final(&ctx->m.s256, (u8 *)hash);
 		break;
-	case Skein512:
+	case SKEIN_512:
 		ret = skein_512_final(&ctx->m.s512, (u8 *)hash);
 		break;
-	case Skein1024:
+	case SKEIN_1024:
 		ret = skein_1024_final(&ctx->m.s1024, (u8 *)hash);
 		break;
 	}

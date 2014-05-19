@@ -34,7 +34,7 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;
 
-		threefish_set_key(&key, Threefish256, ctx->X, tweak);
+		threefish_set_key(&key, THREEFISH_256, ctx->X, tweak);
 
 		/* get input block in little-endian format */
 		Skein_Get64_LSB_First(w, blk_ptr, SKEIN_256_STATE_WORDS);
@@ -85,7 +85,7 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;
 
-		threefish_set_key(&key, Threefish512, ctx->X, tweak);
+		threefish_set_key(&key, THREEFISH_512, ctx->X, tweak);
 
 		/* get input block in little-endian format */
 		Skein_Get64_LSB_First(w, blk_ptr, SKEIN_512_STATE_WORDS);
@@ -140,7 +140,7 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;
 
-		threefish_set_key(&key, Threefish1024, ctx->X, tweak);
+		threefish_set_key(&key, THREEFISH_1024, ctx->X, tweak);
 
 		/* get input block in little-endian format */
 		Skein_Get64_LSB_First(w, blk_ptr, SKEIN1024_STATE_WORDS);

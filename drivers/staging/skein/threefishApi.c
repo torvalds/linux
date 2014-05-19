@@ -38,13 +38,13 @@ void threefish_encrypt_block_words(struct threefish_key *key_ctx, u64 *in,
 				   u64 *out)
 {
 	switch (key_ctx->state_size) {
-	case Threefish256:
+	case THREEFISH_256:
 		threefish_encrypt_256(key_ctx, in, out);
 		break;
-	case Threefish512:
+	case THREEFISH_512:
 		threefish_encrypt_512(key_ctx, in, out);
 		break;
-	case Threefish1024:
+	case THREEFISH_1024:
 		threefish_encrypt_1024(key_ctx, in, out);
 		break;
 	}
@@ -65,13 +65,13 @@ void threefish_decrypt_block_words(struct threefish_key *key_ctx, u64 *in,
 				   u64 *out)
 {
 	switch (key_ctx->state_size) {
-	case Threefish256:
+	case THREEFISH_256:
 		threefish_decrypt_256(key_ctx, in, out);
 		break;
-	case Threefish512:
+	case THREEFISH_512:
 		threefish_decrypt_512(key_ctx, in, out);
 		break;
-	case Threefish1024:
+	case THREEFISH_1024:
 		threefish_decrypt_1024(key_ctx, in, out);
 		break;
 	}

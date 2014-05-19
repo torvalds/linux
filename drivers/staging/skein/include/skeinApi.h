@@ -50,7 +50,7 @@ OTHER DEALINGS IN THE SOFTWARE.
  * struct skein_ctx ctx;             // a Skein hash or MAC context
  *
  * // prepare context, here for a Skein with a state size of 512 bits.
- * skein_ctx_prepare(&ctx, Skein512);
+ * skein_ctx_prepare(&ctx, SKEIN_512);
  *
  * // Initialize the context to set the requested hash length in bits
  * // here request a output hash size of 31 bits (Skein supports variable
@@ -85,9 +85,9 @@ OTHER DEALINGS IN THE SOFTWARE.
  * Which Skein size to use
  */
 enum skein_size {
-	Skein256 = 256,     /*!< Skein with 256 bit state */
-	Skein512 = 512,     /*!< Skein with 512 bit state */
-	Skein1024 = 1024    /*!< Skein with 1024 bit state */
+	SKEIN_256 = 256,     /*!< Skein with 256 bit state */
+	SKEIN_512 = 512,     /*!< Skein with 512 bit state */
+	SKEIN_1024 = 1024    /*!< Skein with 1024 bit state */
 };
 
 /**

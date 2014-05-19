@@ -37,7 +37,7 @@
 #define DebugSaveTweak(ctx)
 #endif
 
-/*****************************  Skein_256 ******************************/
+/*****************************  SKEIN_256 ******************************/
 #if !(SKEIN_USE_ASM & 256)
 void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 			     size_t blk_cnt, size_t byte_cnt_add)
@@ -246,7 +246,7 @@ unsigned int skein_256_unroll_cnt(void)
 #endif
 #endif
 
-/*****************************  Skein_512 ******************************/
+/*****************************  SKEIN_512 ******************************/
 #if !(SKEIN_USE_ASM & 512)
 void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 			     size_t blk_cnt, size_t byte_cnt_add)
@@ -477,7 +477,7 @@ unsigned int skein_512_unroll_cnt(void)
 #endif
 #endif
 
-/*****************************  Skein1024 ******************************/
+/*****************************  SKEIN_1024 ******************************/
 #if !(SKEIN_USE_ASM & 1024)
 void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 			      size_t blk_cnt, size_t byte_cnt_add)

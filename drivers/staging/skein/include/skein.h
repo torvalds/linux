@@ -293,7 +293,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 ** Skein block function constants (shared across Ref and Opt code)
 ******************************************************************/
 enum {
-	    /* Skein_256 round rotation constants */
+	    /* SKEIN_256 round rotation constants */
 	R_256_0_0 = 14, R_256_0_1 = 16,
 	R_256_1_0 = 52, R_256_1_1 = 57,
 	R_256_2_0 = 23, R_256_2_1 = 40,
@@ -303,7 +303,7 @@ enum {
 	R_256_6_0 = 58, R_256_6_1 = 22,
 	R_256_7_0 = 32, R_256_7_1 = 32,
 
-	    /* Skein_512 round rotation constants */
+	    /* SKEIN_512 round rotation constants */
 	R_512_0_0 = 46, R_512_0_1 = 36, R_512_0_2 = 19, R_512_0_3 = 37,
 	R_512_1_0 = 33, R_512_1_1 = 27, R_512_1_2 = 14, R_512_1_3 = 42,
 	R_512_2_0 = 17, R_512_2_1 = 49, R_512_2_2 = 36, R_512_2_3 = 39,
@@ -313,7 +313,7 @@ enum {
 	R_512_6_0 = 25, R_512_6_1 = 29, R_512_6_2 = 39, R_512_6_3 = 43,
 	R_512_7_0 =  8, R_512_7_1 = 35, R_512_7_2 = 56, R_512_7_3 = 22,
 
-	    /* Skein1024 round rotation constants */
+	    /* SKEIN_1024 round rotation constants */
 	R1024_0_0 = 24, R1024_0_1 = 13, R1024_0_2 =  8, R1024_0_3 = 47,
 	R1024_0_4 =  8, R1024_0_5 = 17, R1024_0_6 = 22, R1024_0_7 = 37,
 	R1024_1_0 = 38, R1024_1_1 = 19, R1024_1_2 = 10, R1024_1_3 = 55,
