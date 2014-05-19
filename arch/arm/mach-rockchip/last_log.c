@@ -15,15 +15,19 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
+#include <linux/rockchip/cpu.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#define LOG_BUF_LEN	(1 << CONFIG_LOG_BUF_SHIFT)
-#define LOG_BUF_PAGE_ORDER	(CONFIG_LOG_BUF_SHIFT - PAGE_SHIFT)
-static char last_log_buf[LOG_BUF_LEN];
-extern void __init switch_log_buf(char *new_log_buf, unsigned size);
+#define LOG_BUF_SHIFT	CONFIG_LOG_BUF_SHIFT
+#define LOG_BUF_LEN	(1 << LOG_BUF_SHIFT)
+#define LOG_BUF_PAGE_ORDER	(LOG_BUF_SHIFT - PAGE_SHIFT)
+static char *last_log_buf;
+static char *log_buf;
+static size_t log_pos;
+static char early_log_buf[8192];
 
-char *last_log_get(unsigned *size)
+char *rk_last_log_get(unsigned *size)
 {
 	*size = LOG_BUF_LEN;
 	return last_log_buf;
@@ -64,41 +68,70 @@ static void * __init last_log_vmap(phys_addr_t start, unsigned int page_count)
 	return vmap(pages, page_count + 1, VM_MAP, pgprot_noncached(PAGE_KERNEL));
 }
 
-static int __init last_log_init(void)
+static int __init rk_last_log_init(void)
 {
-	char *log_buf, *new_log_buf;
+	size_t early_log_size;
+	char *buf;
 	struct proc_dir_entry *entry;
 
-	log_buf = (char *)__get_free_pages(GFP_KERNEL, LOG_BUF_PAGE_ORDER);
-	if (!log_buf) {
+	if (!cpu_is_rockchip())
+		return 0;
+
+	buf = (char *)__get_free_pages(GFP_KERNEL, LOG_BUF_PAGE_ORDER);
+	if (!buf) {
 		pr_err("failed to __get_free_pages(%d)\n", LOG_BUF_PAGE_ORDER);
 		return 0;
 	}
 
-	new_log_buf = last_log_vmap(virt_to_phys(log_buf), 1 << LOG_BUF_PAGE_ORDER);
-	if (!new_log_buf) {
-		pr_err("failed to map %d pages at 0x%08x\n", 1 << LOG_BUF_PAGE_ORDER, virt_to_phys(log_buf));
+	log_buf = last_log_vmap(virt_to_phys(buf), 1 << LOG_BUF_PAGE_ORDER);
+	if (!log_buf) {
+		pr_err("failed to map %d pages at 0x%08x\n", 1 << LOG_BUF_PAGE_ORDER, virt_to_phys(buf));
 		return 0;
 	}
 
-	pr_info("0x%08x map to 0x%p and copy to 0x%p (version 2.2)\n", virt_to_phys(log_buf), new_log_buf, last_log_buf);
+	last_log_buf = (char *)vmalloc(LOG_BUF_LEN);
+	if (!last_log_buf) {
+		pr_err("failed to vmalloc(%d)\n", LOG_BUF_LEN);
+		return 0;
+	}
 
-	memcpy(last_log_buf, new_log_buf, LOG_BUF_LEN);
-	memset(new_log_buf, 0, LOG_BUF_LEN);
-	switch_log_buf(new_log_buf, LOG_BUF_LEN);
+	memcpy(last_log_buf, buf, LOG_BUF_LEN);
+	early_log_size = log_pos > sizeof(early_log_buf) ? sizeof(early_log_buf) : log_pos;
+	memcpy(log_buf, early_log_buf, early_log_size);
+	memset(log_buf + early_log_size, 0, LOG_BUF_LEN - early_log_size);
 
-	entry = proc_create("last_log", S_IRUSR, NULL, &last_log_fops);
+	pr_info("0x%08x map to 0x%p and copy to 0x%p, size 0x%x early 0x%x (version 3.0)\n", virt_to_phys(buf), log_buf, last_log_buf, LOG_BUF_LEN, early_log_size);
+
+	entry = proc_create("last_kmsg", S_IRUSR, NULL, &last_log_fops);
 	if (!entry) {
 		pr_err("failed to create proc entry\n");
 		return 0;
 	}
 	proc_set_size(entry, LOG_BUF_LEN);
 
-#ifndef CONFIG_ANDROID_RAM_CONSOLE
-	proc_symlink("last_kmsg", NULL, "last_log");
-#endif
+	proc_symlink("last_log", NULL, "last_kmsg");
 
 	return 0;
 }
 
-postcore_initcall(last_log_init);
+early_initcall(rk_last_log_init);
+
+void rk_last_log_text(char *text, size_t size)
+{
+	char *buf = log_buf ? log_buf : early_log_buf;
+	size_t log_size = log_buf ? LOG_BUF_LEN : sizeof(early_log_buf);
+	size_t pos;
+
+	/* Check overflow */
+	pos = log_pos & (log_size - 1);
+	if (likely(size + pos <= log_size))
+		memcpy(&buf[pos], text, size);
+	else {
+		size_t first = log_size - pos;
+		size_t second = size - first;
+		memcpy(&buf[pos], text, first);
+		memcpy(&buf[0], text + first, second);
+	}
+
+	log_pos += size;
+}
