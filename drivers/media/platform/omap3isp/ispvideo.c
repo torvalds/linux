@@ -637,14 +637,40 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 	if (format->type != video->type)
 		return -EINVAL;
 
-	/* Default to the progressive field order if the requested value is not
-	 * supported (or set to ANY). The only supported orders are progressive
-	 * (available on all video nodes) and alternate (available on capture
-	 * nodes only).
-	 */
-	if (format->fmt.pix.field != V4L2_FIELD_ALTERNATE ||
-	    video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+	/* Replace unsupported field orders with sane defaults. */
+	switch (format->fmt.pix.field) {
+	case V4L2_FIELD_NONE:
+		/* Progressive is supported everywhere. */
+		break;
+	case V4L2_FIELD_ALTERNATE:
+		/* ALTERNATE is not supported on output nodes. */
+		if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+			format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	case V4L2_FIELD_INTERLACED:
+		/* The ISP has no concept of video standard, select the
+		 * top-bottom order when the unqualified interlaced order is
+		 * requested.
+		 */
+		format->fmt.pix.field = V4L2_FIELD_INTERLACED_TB;
+		/* Fall-through */
+	case V4L2_FIELD_INTERLACED_TB:
+	case V4L2_FIELD_INTERLACED_BT:
+		/* Interlaced orders are only supported at the CCDC output. */
+		if (video != &video->isp->isp_ccdc.video_out)
+			format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	case V4L2_FIELD_TOP:
+	case V4L2_FIELD_BOTTOM:
+	case V4L2_FIELD_SEQ_TB:
+	case V4L2_FIELD_SEQ_BT:
+	default:
+		/* All other field orders are currently unsupported, default to
+		 * progressive.
+		 */
 		format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	}
 
 	/* Fill the bytesperline and sizeimage fields by converting to media bus
 	 * format and back to pixel format.
