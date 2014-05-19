@@ -183,7 +183,8 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 			 * the symbol. No need to print it otherwise it appears as
 			 * displayed twice.
 			 */
-			if (!i++ && sort__first_dimension == SORT_SYM)
+			if (!i++ && field_order == NULL &&
+			    sort_order && !prefixcmp(sort_order, "sym"))
 				continue;
 			if (!printed) {
 				ret += callchain__fprintf_left_margin(fp, left_margin);
@@ -296,13 +297,20 @@ static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
 	int left_margin = 0;
 	u64 total_period = hists->stats.total_period;
 
-	if (sort__first_dimension == SORT_COMM) {
-		struct sort_entry *se = list_first_entry(&hist_entry__sort_list,
-							 typeof(*se), list);
-		left_margin = hists__col_len(hists, se->se_width_idx);
-		left_margin -= thread__comm_len(he->thread);
-	}
+	if (field_order == NULL && (sort_order == NULL ||
+				    !prefixcmp(sort_order, "comm"))) {
+		struct perf_hpp_fmt *fmt;
 
+		perf_hpp__for_each_format(fmt) {
+			if (!perf_hpp__is_sort_entry(fmt))
+				continue;
+
+			/* must be 'comm' sort entry */
+			left_margin = fmt->width(fmt, NULL, hists_to_evsel(hists));
+			left_margin -= thread__comm_len(he->thread);
+			break;
+		}
+	}
 	return hist_entry_callchain__fprintf(he, total_period, left_margin, fp);
 }
 

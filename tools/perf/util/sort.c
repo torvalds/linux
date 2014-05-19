@@ -22,9 +22,6 @@ int		sort__has_sym = 0;
 int		sort__has_dso = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
-enum sort_type	sort__first_dimension;
-
-LIST_HEAD(hist_entry__sort_list);
 
 static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
 {
@@ -1190,7 +1187,7 @@ static int __sort_dimension__add_hpp_output(struct sort_dimension *sd)
 	return 0;
 }
 
-static int __sort_dimension__add(struct sort_dimension *sd, enum sort_type idx)
+static int __sort_dimension__add(struct sort_dimension *sd)
 {
 	if (sd->taken)
 		return 0;
@@ -1201,10 +1198,6 @@ static int __sort_dimension__add(struct sort_dimension *sd, enum sort_type idx)
 	if (sd->entry->se_collapse)
 		sort__need_collapse = 1;
 
-	if (list_empty(&hist_entry__sort_list))
-		sort__first_dimension = idx;
-
-	list_add_tail(&sd->entry->list, &hist_entry__sort_list);
 	sd->taken = 1;
 
 	return 0;
@@ -1268,7 +1261,7 @@ int sort_dimension__add(const char *tok)
 			sort__has_dso = 1;
 		}
 
-		return __sort_dimension__add(sd, i);
+		return __sort_dimension__add(sd);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
@@ -1292,7 +1285,7 @@ int sort_dimension__add(const char *tok)
 		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)
 			sort__has_sym = 1;
 
-		__sort_dimension__add(sd, i + __SORT_BRANCH_STACK);
+		__sort_dimension__add(sd);
 		return 0;
 	}
 
@@ -1308,7 +1301,7 @@ int sort_dimension__add(const char *tok)
 		if (sd->entry == &sort_mem_daddr_sym)
 			sort__has_sym = 1;
 
-		__sort_dimension__add(sd, i + __SORT_MEMORY_MODE);
+		__sort_dimension__add(sd);
 		return 0;
 	}
 
@@ -1395,7 +1388,8 @@ static void sort_entry__setup_elide(struct sort_entry *se,
 
 void sort__setup_elide(FILE *output)
 {
-	struct sort_entry *se;
+	struct perf_hpp_fmt *fmt;
+	struct hpp_sort_entry *hse;
 
 	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
 				"dso", output);
@@ -1436,13 +1430,22 @@ void sort__setup_elide(FILE *output)
 	 * It makes no sense to elide all of sort entries.
 	 * Just revert them to show up again.
 	 */
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (!se->elide)
+	perf_hpp__for_each_format(fmt) {
+		if (!perf_hpp__is_sort_entry(fmt))
+			continue;
+
+		hse = container_of(fmt, struct hpp_sort_entry, hpp);
+		if (!hse->se->elide)
 			return;
 	}
 
-	list_for_each_entry(se, &hist_entry__sort_list, list)
-		se->elide = false;
+	perf_hpp__for_each_format(fmt) {
+		if (!perf_hpp__is_sort_entry(fmt))
+			continue;
+
+		hse = container_of(fmt, struct hpp_sort_entry, hpp);
+		hse->se->elide = false;
+	}
 }
 
 static int output_field_add(char *tok)
