@@ -26,21 +26,73 @@
 
 #include "outpdp.h"
 #include "conn.h"
+#include "dport.h"
+
+static void
+nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool present)
+{
+	struct nouveau_i2c_port *port = outp->base.edid;
+	if (present) {
+		if (!outp->present) {
+			nouveau_i2c(port)->acquire_pad(port, 0);
+			DBG("aux power -> always\n");
+			outp->present = true;
+		}
+	} else {
+		if (outp->present) {
+			nouveau_i2c(port)->release_pad(port);
+			DBG("aux power -> demand\n");
+			outp->present = false;
+		}
+	}
+}
+
+static void
+nvkm_output_dp_detect(struct nvkm_output_dp *outp)
+{
+	struct nouveau_i2c_port *port = outp->base.edid;
+	int ret = nouveau_i2c(port)->acquire_pad(port, 0);
+	if (ret == 0) {
+		ret = nv_rdaux(outp->base.edid, DPCD_RC00_DPCD_REV,
+			       outp->dpcd, sizeof(outp->dpcd));
+		nvkm_output_dp_enable(outp, ret == 0);
+		nouveau_i2c(port)->release_pad(port);
+	}
+}
+
+static void
+nvkm_output_dp_service_work(struct work_struct *work)
+{
+	struct nvkm_output_dp *outp = container_of(work, typeof(*outp), work);
+	struct nouveau_disp *disp = nouveau_disp(outp);
+	int type = atomic_xchg(&outp->pending, 0);
+	u32 send = 0;
+
+	if (type & (NVKM_I2C_PLUG | NVKM_I2C_UNPLUG)) {
+		nvkm_output_dp_detect(outp);
+		if (type & NVKM_I2C_UNPLUG)
+			send |= NVKM_HPD_UNPLUG;
+		if (type & NVKM_I2C_PLUG)
+			send |= NVKM_HPD_PLUG;
+		nouveau_event_get(outp->base.conn->hpd.event);
+	}
+
+	if (type & NVKM_I2C_IRQ) {
+		nouveau_event_get(outp->irq);
+		send |= NVKM_HPD_IRQ;
+	}
+
+	nouveau_event_trigger(disp->hpd, send, outp->base.info.connector);
+}
 
 static int
 nvkm_output_dp_service(void *data, u32 type, int index)
 {
 	struct nvkm_output_dp *outp = data;
-	DBG("IRQ: %d\n", type);
-	return NVKM_EVENT_KEEP;
-}
-
-static int
-nvkm_output_dp_hotplug(void *data, u32 type, int index)
-{
-	struct nvkm_output_dp *outp = data;
 	DBG("HPD: %d\n", type);
-	return NVKM_EVENT_KEEP;
+	atomic_or(type, &outp->pending);
+	schedule_work(&outp->work);
+	return NVKM_EVENT_DROP;
 }
 
 int
@@ -48,6 +100,7 @@ _nvkm_output_dp_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nvkm_output_dp *outp = (void *)object;
 	nouveau_event_put(outp->irq);
+	nvkm_output_dp_enable(outp, false);
 	return nvkm_output_fini(&outp->base, suspend);
 }
 
@@ -55,6 +108,7 @@ int
 _nvkm_output_dp_init(struct nouveau_object *object)
 {
 	struct nvkm_output_dp *outp = (void *)object;
+	nvkm_output_dp_detect(outp);
 	return nvkm_output_init(&outp->base);
 }
 
@@ -113,10 +167,12 @@ nvkm_output_dp_create_(struct nouveau_object *parent,
 		return ret;
 	}
 
+	INIT_WORK(&outp->work, nvkm_output_dp_service_work);
+
 	/* hotplug detect, replaces gpio-based mechanism with aux events */
 	ret = nouveau_event_new(i2c->ntfy, NVKM_I2C_PLUG | NVKM_I2C_UNPLUG,
 				outp->base.edid->index,
-				nvkm_output_dp_hotplug, outp,
+				nvkm_output_dp_service, outp,
 			       &outp->base.conn->hpd.event);
 	if (ret) {
 		ERR("error monitoring aux hpd events: %d\n", ret);

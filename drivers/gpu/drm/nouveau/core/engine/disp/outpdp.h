@@ -14,6 +14,10 @@ struct nvkm_output_dp {
 
 	struct nouveau_eventh *irq;
 	struct nouveau_eventh *hpd;
+	struct work_struct work;
+	atomic_t pending;
+	bool present;
+	u8 dpcd[16];
 };
 
 #define nvkm_output_dp_create(p,e,c,b,i,d)                                     \
