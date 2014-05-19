@@ -540,10 +540,6 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
                   (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates
                 );
     if (pTxPacket != NULL ){
-
-        if (pDevice->bEnableHostapd) {
-            return;
-        }
         /* send the frame */
         Status = csMgmt_xmit(pDevice, pTxPacket);
         if (Status != CMD_STATUS_PENDING) {
@@ -689,9 +685,6 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
 
     if (pTxPacket != NULL ){
         /* send the frame */
-        if (pDevice->bEnableHostapd) {
-            return;
-        }
         Status = csMgmt_xmit(pDevice, pTxPacket);
         if (Status != CMD_STATUS_PENDING) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:ReAssoc response tx failed\n");
@@ -1074,9 +1067,6 @@ static void s_vMgrRxAuthenSequence_1(struct vnt_private *pDevice,
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     // send the frame
-    if (pDevice->bEnableHostapd) {
-        return;
-    }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx.. \n");
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx failed.\n");
@@ -1256,9 +1246,6 @@ reply:
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     // send the frame
-    if (pDevice->bEnableHostapd) {
-        return;
-    }
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_4 tx failed.\n");
     }
@@ -2929,16 +2916,6 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
     }
-    // hostapd wpa/wpa2 IE
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == true)) {
-         if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-             if (pMgmt->wWPAIELen != 0) {
-                 sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
-                 memcpy(sFrame.pRSN, pMgmt->abyWPAIE, pMgmt->wWPAIELen);
-                 sFrame.len += pMgmt->wWPAIELen;
-             }
-         }
-    }
 
     /* Adjust the length fields */
     pTxPacket->cbMPDULen = sFrame.len;
@@ -3047,17 +3024,6 @@ static struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
              pCurrExtSuppRates,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
-    }
-
-    // hostapd wpa/wpa2 IE
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == true)) {
-         if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-             if (pMgmt->wWPAIELen != 0) {
-                 sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
-                 memcpy(sFrame.pRSN, pMgmt->abyWPAIE, pMgmt->wWPAIELen);
-                 sFrame.len += pMgmt->wWPAIELen;
-             }
-         }
     }
 
     // Adjust the length fields
@@ -4058,12 +4024,11 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
 	unsigned long flags;
 
 //    pDevice->bBeaconBufReady = false;
-    if (pDevice->bEncryptionEnable || pDevice->bEnable8021x){
-        pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
-    }
-    else {
-        pMgmt->wCurrCapInfo &= ~WLAN_SET_CAP_INFO_PRIVACY(1);
-    }
+	if (pDevice->bEncryptionEnable)
+		pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
+	else
+		pMgmt->wCurrCapInfo &= ~WLAN_SET_CAP_INFO_PRIVACY(1);
+
     pTxPacket = s_MgrMakeBeacon
                 (
                   pDevice,

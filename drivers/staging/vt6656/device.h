@@ -707,13 +707,6 @@ struct vnt_private {
 	int bwextstep3;
 	int bWPASuppWextEnabled;
 
-	/* user space daemon: hostapd, is used for HOSTAP */
-	int bEnableHostapd;
-	int bEnable8021x;
-	int bEnableHostWEP;
-	struct net_device *apdev;
-	int (*tx_80211)(struct sk_buff *skb, struct net_device *dev);
-
 	u32 uChannel;
 
 	struct iw_statistics wstats; /* wireless stats */

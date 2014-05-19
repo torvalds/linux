@@ -771,8 +771,8 @@ void BSSvAddMulticastNode(struct vnt_private *pDevice)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 
-	if (!pDevice->bEnableHostWEP)
-		memset(&pMgmt->sNodeDBTable[0], 0, sizeof(KnownNodeDB));
+	memset(&pMgmt->sNodeDBTable[0], 0, sizeof(KnownNodeDB));
+
 	memset(pMgmt->sNodeDBTable[0].abyMACAddr, 0xff, WLAN_ADDR_LEN);
 	pMgmt->sNodeDBTable[0].bActive = true;
 	pMgmt->sNodeDBTable[0].bPSEnable = false;

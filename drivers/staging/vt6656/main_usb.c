@@ -216,7 +216,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int device_init_registers(struct vnt_private *pDevice);
 static bool device_init_defrag_cb(struct vnt_private *pDevice);
 static void device_init_diversity_timer(struct vnt_private *pDevice);
-static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
 
 static int  ethtool_ioctl(struct net_device *dev, struct ifreq *);
 static void device_free_tx_bufs(struct vnt_private *pDevice);
@@ -683,7 +682,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	INIT_WORK(&pDevice->read_work_item, RXvWorkItem);
 	INIT_WORK(&pDevice->rx_mng_work_item, RXvMngWorkItem);
 
-	pDevice->tx_80211 = device_dma0_tx_80211;
 	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
 
 	netdev->netdev_ops = &device_netdev_ops;
@@ -1106,22 +1104,6 @@ static void vt6656_disconnect(struct usb_interface *intf)
 		unregister_netdev(device->dev);
 		free_netdev(device->dev);
 	}
-}
-
-static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
-{
-	struct vnt_private *pDevice = netdev_priv(dev);
-
-	spin_lock_irq(&pDevice->lock);
-
-	if (unlikely(pDevice->bStopTx0Pkt))
-		dev_kfree_skb_irq(skb);
-	else
-		vDMA0_tx_80211(pDevice, skb);
-
-	spin_unlock_irq(&pDevice->lock);
-
-	return NETDEV_TX_OK;
 }
 
 static int device_xmit(struct sk_buff *skb, struct net_device *dev)
