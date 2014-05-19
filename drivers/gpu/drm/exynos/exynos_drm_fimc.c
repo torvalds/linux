@@ -58,7 +58,6 @@
 #define FIMC_SHFACTOR	10
 #define FIMC_BUF_STOP	1
 #define FIMC_BUF_START	2
-#define FIMC_REG_SZ		32
 #define FIMC_WIDTH_ITU_709	1280
 #define FIMC_REFRESH_MAX	60
 #define FIMC_REFRESH_MIN	12
@@ -1123,16 +1122,13 @@ static int fimc_dst_set_size(struct device *dev, int swap,
 	return 0;
 }
 
-static int fimc_dst_get_buf_seq(struct fimc_context *ctx)
+static int fimc_dst_get_buf_count(struct fimc_context *ctx)
 {
-	u32 cfg, i, buf_num = 0;
-	u32 mask = 0x00000001;
+	u32 cfg, buf_num;
 
 	cfg = fimc_read(ctx, EXYNOS_CIFCNTSEQ);
 
-	for (i = 0; i < FIMC_REG_SZ; i++)
-		if (cfg & (mask << i))
-			buf_num++;
+	buf_num = hweight32(cfg);
 
 	DRM_DEBUG_KMS("buf_num[%d]\n", buf_num);
 
@@ -1176,12 +1172,12 @@ static int fimc_dst_set_buf_seq(struct fimc_context *ctx, u32 buf_id,
 
 	/* interrupt enable */
 	if (buf_type == IPP_BUF_ENQUEUE &&
-	    fimc_dst_get_buf_seq(ctx) >= FIMC_BUF_START)
+	    fimc_dst_get_buf_count(ctx) >= FIMC_BUF_START)
 		fimc_mask_irq(ctx, true);
 
 	/* interrupt disable */
 	if (buf_type == IPP_BUF_DEQUEUE &&
-	    fimc_dst_get_buf_seq(ctx) <= FIMC_BUF_STOP)
+	    fimc_dst_get_buf_count(ctx) <= FIMC_BUF_STOP)
 		fimc_mask_irq(ctx, false);
 
 err_unlock:
