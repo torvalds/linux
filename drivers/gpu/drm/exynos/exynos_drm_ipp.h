@@ -165,7 +165,7 @@ struct exynos_drm_ippdrv {
 	struct workqueue_struct	*event_workq;
 	struct drm_exynos_ipp_cmd_node *c_node;
 	struct list_head	cmd_list;
-	struct drm_exynos_ipp_prop_list *prop_list;
+	struct drm_exynos_ipp_prop_list prop_list;
 
 	int (*check_property)(struct device *dev,
 		struct drm_exynos_ipp_property *property);

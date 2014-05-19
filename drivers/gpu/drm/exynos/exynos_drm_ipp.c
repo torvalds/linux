@@ -346,7 +346,7 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 			return PTR_ERR(ippdrv);
 		}
 
-		*prop_list = *ippdrv->prop_list;
+		*prop_list = ippdrv->prop_list;
 	}
 
 	return 0;
@@ -1713,7 +1713,7 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]ipp_id[%d]\n",
 			count++, (int)ippdrv, ipp_id);
 
-		ippdrv->prop_list->ipp_id = ipp_id;
+		ippdrv->prop_list.ipp_id = ipp_id;
 
 		/* store parent device for node */
 		ippdrv->parent_dev = dev;

@@ -470,11 +470,7 @@ static struct exynos_drm_ipp_ops rot_dst_ops = {
 
 static int rotator_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 {
-	struct drm_exynos_ipp_prop_list *prop_list;
-
-	prop_list = devm_kzalloc(ippdrv->dev, sizeof(*prop_list), GFP_KERNEL);
-	if (!prop_list)
-		return -ENOMEM;
+	struct drm_exynos_ipp_prop_list *prop_list = &ippdrv->prop_list;
 
 	prop_list->version = 1;
 	prop_list->flip = (1 << EXYNOS_DRM_FLIP_VERTICAL) |
@@ -486,8 +482,6 @@ static int rotator_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 	prop_list->csc = 0;
 	prop_list->crop = 0;
 	prop_list->scale = 0;
-
-	ippdrv->prop_list = prop_list;
 
 	return 0;
 }
