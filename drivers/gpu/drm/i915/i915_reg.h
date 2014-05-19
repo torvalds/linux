@@ -1032,6 +1032,7 @@ enum punit_power_well {
 #define   GFX_PPGTT_ENABLE		(1<<9)
 
 #define VLV_DISPLAY_BASE 0x180000
+#define VLV_MIPI_BASE VLV_DISPLAY_BASE
 
 #define VLV_GU_CTL0	(VLV_DISPLAY_BASE + 0x2030)
 #define VLV_GU_CTL1	(VLV_DISPLAY_BASE + 0x2034)

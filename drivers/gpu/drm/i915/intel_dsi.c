@@ -649,6 +649,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_display_mode *fixed_mode = NULL;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct intel_dsi_device *dsi;
 	unsigned int i;
 
@@ -667,6 +668,13 @@ bool intel_dsi_init(struct drm_device *dev)
 	intel_encoder = &intel_dsi->base;
 	encoder = &intel_encoder->base;
 	intel_dsi->attached_connector = intel_connector;
+
+	if (IS_VALLEYVIEW(dev)) {
+		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
+	} else {
+		DRM_ERROR("Unsupported Mipi device to reg base");
+		return false;
+	}
 
 	connector = &intel_connector->base;
 

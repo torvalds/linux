@@ -1360,6 +1360,9 @@ struct drm_i915_private {
 	 */
 	uint32_t gpio_mmio_base;
 
+	/* MMIO base address for MIPI regs */
+	uint32_t mipi_mmio_base;
+
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
