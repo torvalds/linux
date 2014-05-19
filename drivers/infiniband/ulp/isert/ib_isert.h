@@ -150,6 +150,7 @@ struct isert_conn {
 #define ISERT_COMP_BATCH_COUNT	8
 	int			conn_comp_batch;
 	struct llist_head	conn_comp_llist;
+	bool                    disconnect;
 };
 
 #define ISERT_MAX_CQ 64
