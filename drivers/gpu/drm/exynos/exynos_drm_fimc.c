@@ -290,25 +290,18 @@ static void fimc_handle_jpeg(struct fimc_context *ctx, bool enable)
 	fimc_write(cfg, EXYNOS_CIGCTRL);
 }
 
-static void fimc_handle_irq(struct fimc_context *ctx, bool enable,
-		bool overflow, bool level)
+static void fimc_mask_irq(struct fimc_context *ctx, bool enable)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("enable[%d]overflow[%d]level[%d]\n",
-			enable, overflow, level);
+	DRM_DEBUG_KMS("enable[%d]\n", enable);
 
 	cfg = fimc_read(EXYNOS_CIGCTRL);
 	if (enable) {
-		cfg &= ~(EXYNOS_CIGCTRL_IRQ_OVFEN | EXYNOS_CIGCTRL_IRQ_LEVEL);
-		cfg |= EXYNOS_CIGCTRL_IRQ_ENABLE;
-		if (overflow)
-			cfg |= EXYNOS_CIGCTRL_IRQ_OVFEN;
-		if (level)
-			cfg |= EXYNOS_CIGCTRL_IRQ_LEVEL;
+		cfg &= ~EXYNOS_CIGCTRL_IRQ_OVFEN;
+		cfg |= EXYNOS_CIGCTRL_IRQ_ENABLE | EXYNOS_CIGCTRL_IRQ_LEVEL;
 	} else
-		cfg &= ~(EXYNOS_CIGCTRL_IRQ_OVFEN | EXYNOS_CIGCTRL_IRQ_ENABLE);
-
+		cfg &= ~EXYNOS_CIGCTRL_IRQ_ENABLE;
 	fimc_write(cfg, EXYNOS_CIGCTRL);
 }
 
@@ -1180,12 +1173,12 @@ static int fimc_dst_set_buf_seq(struct fimc_context *ctx, u32 buf_id,
 	/* interrupt enable */
 	if (buf_type == IPP_BUF_ENQUEUE &&
 	    fimc_dst_get_buf_seq(ctx) >= FIMC_BUF_START)
-		fimc_handle_irq(ctx, true, false, true);
+		fimc_mask_irq(ctx, true);
 
 	/* interrupt disable */
 	if (buf_type == IPP_BUF_DEQUEUE &&
 	    fimc_dst_get_buf_seq(ctx) <= FIMC_BUF_STOP)
-		fimc_handle_irq(ctx, false, false, true);
+		fimc_mask_irq(ctx, false);
 
 err_unlock:
 	mutex_unlock(&ctx->lock);
@@ -1520,7 +1513,7 @@ static int fimc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 
 	property = &c_node->property;
 
-	fimc_handle_irq(ctx, true, false, true);
+	fimc_mask_irq(ctx, true);
 
 	for_each_ipp_ops(i) {
 		config = &property->config[i];
@@ -1639,7 +1632,7 @@ static void fimc_ippdrv_stop(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 		break;
 	}
 
-	fimc_handle_irq(ctx, false, false, true);
+	fimc_mask_irq(ctx, false);
 
 	/* reset sequence */
 	fimc_write(0x0, EXYNOS_CIFCNTSEQ);
