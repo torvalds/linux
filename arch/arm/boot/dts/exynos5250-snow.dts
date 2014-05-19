@@ -397,4 +397,8 @@
 		pinctrl-names = "default";
 	};
 
+	fimd@14400000 {
+		status = "okay";
+		samsung,invert-vclk;
+	};
 };
