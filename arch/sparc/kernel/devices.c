@@ -134,5 +134,4 @@ void __init device_scan(void)
 
 	auxio_probe();
 	auxio_power_probe();
-	clock_stop_probe();
 }

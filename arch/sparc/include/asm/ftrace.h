@@ -6,7 +6,7 @@
 #define MCOUNT_INSN_SIZE	4 /* sizeof mcount call */
 
 #ifndef __ASSEMBLY__
-extern void _mcount(void);
+void _mcount(void);
 #endif
 
 #endif
@@ -21,5 +21,9 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 struct dyn_arch_ftrace {
 };
 #endif /*  CONFIG_DYNAMIC_FTRACE */
+
+unsigned long prepare_ftrace_return(unsigned long parent,
+				    unsigned long self_addr,
+				    unsigned long frame_pointer);
 
 #endif /* _ASM_SPARC64_FTRACE */

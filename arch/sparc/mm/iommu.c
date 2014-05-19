@@ -58,6 +58,8 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	struct iommu_struct *iommu;
 	unsigned int impl, vers;
 	unsigned long *bitmap;
+	unsigned long control;
+	unsigned long base;
 	unsigned long tmp;
 
 	iommu = kmalloc(sizeof(struct iommu_struct), GFP_KERNEL);
@@ -72,12 +74,14 @@ static void __init sbus_iommu_init(struct platform_device *op)
 		prom_printf("Cannot map IOMMU registers\n");
 		prom_halt();
 	}
-	impl = (iommu->regs->control & IOMMU_CTRL_IMPL) >> 28;
-	vers = (iommu->regs->control & IOMMU_CTRL_VERS) >> 24;
-	tmp = iommu->regs->control;
-	tmp &= ~(IOMMU_CTRL_RNGE);
-	tmp |= (IOMMU_RNGE_256MB | IOMMU_CTRL_ENAB);
-	iommu->regs->control = tmp;
+
+	control = sbus_readl(&iommu->regs->control);
+	impl = (control & IOMMU_CTRL_IMPL) >> 28;
+	vers = (control & IOMMU_CTRL_VERS) >> 24;
+	control &= ~(IOMMU_CTRL_RNGE);
+	control |= (IOMMU_RNGE_256MB | IOMMU_CTRL_ENAB);
+	sbus_writel(control, &iommu->regs->control);
+
 	iommu_invalidate(iommu->regs);
 	iommu->start = IOMMU_START;
 	iommu->end = 0xffffffff;
@@ -99,7 +103,9 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	memset(iommu->page_table, 0, IOMMU_NPTES*sizeof(iopte_t));
 	flush_cache_all();
 	flush_tlb_all();
-	iommu->regs->base = __pa((unsigned long) iommu->page_table) >> 4;
+
+	base = __pa((unsigned long)iommu->page_table) >> 4;
+	sbus_writel(base, &iommu->regs->base);
 	iommu_invalidate(iommu->regs);
 
 	bitmap = kmalloc(IOMMU_NPTES>>3, GFP_KERNEL);

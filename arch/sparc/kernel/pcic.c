@@ -36,6 +36,7 @@
 #include <asm/uaccess.h>
 #include <asm/irq_regs.h>
 
+#include "kernel.h"
 #include "irq.h"
 
 /*
@@ -162,8 +163,8 @@ static int pcic0_up;
 static struct linux_pcic pcic0;
 
 void __iomem *pcic_regs;
-volatile int pcic_speculative;
-volatile int pcic_trapped;
+static volatile int pcic_speculative;
+static volatile int pcic_trapped;
 
 /* forward */
 unsigned int pcic_build_device_irq(struct platform_device *op,
@@ -329,7 +330,7 @@ int __init pcic_probe(void)
 
 	pcic->pcic_res_cfg_addr.name = "pcic_cfg_addr";
 	if ((pcic->pcic_config_space_addr =
-	    ioremap(regs[2].phys_addr, regs[2].reg_size * 2)) == 0) {
+	    ioremap(regs[2].phys_addr, regs[2].reg_size * 2)) == NULL) {
 		prom_printf("PCIC: Error, cannot map "
 			    "PCI Configuration Space Address.\n");
 		prom_halt();
@@ -341,7 +342,7 @@ int __init pcic_probe(void)
 	 */
 	pcic->pcic_res_cfg_data.name = "pcic_cfg_data";
 	if ((pcic->pcic_config_space_data =
-	    ioremap(regs[3].phys_addr, regs[3].reg_size * 2)) == 0) {
+	    ioremap(regs[3].phys_addr, regs[3].reg_size * 2)) == NULL) {
 		prom_printf("PCIC: Error, cannot map "
 			    "PCI Configuration Space Data.\n");
 		prom_halt();
@@ -353,7 +354,6 @@ int __init pcic_probe(void)
 	strcpy(pbm->prom_name, namebuf);
 
 	{
-		extern volatile int t_nmi[4];
 		extern int pcic_nmi_trap_patch[4];
 
 		t_nmi[0] = pcic_nmi_trap_patch[0];
@@ -536,7 +536,7 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 		prom_getstring(node, "name", namebuf, sizeof(namebuf));
 	}
 
-	if ((p = pcic->pcic_imap) == 0) {
+	if ((p = pcic->pcic_imap) == NULL) {
 		dev->irq = 0;
 		return;
 	}
@@ -668,30 +668,6 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 
 		pcic_fill_irq(pcic, dev, node);
 	}
-}
-
-/*
- * pcic_pin_to_irq() is exported to bus probing code
- */
-unsigned int
-pcic_pin_to_irq(unsigned int pin, const char *name)
-{
-	struct linux_pcic *pcic = &pcic0;
-	unsigned int irq;
-	unsigned int ivec;
-
-	if (pin < 4) {
-		ivec = readw(pcic->pcic_regs+PCI_INT_SELECT_LO);
-		irq = ivec >> (pin << 2) & 0xF;
-	} else if (pin < 8) {
-		ivec = readw(pcic->pcic_regs+PCI_INT_SELECT_HI);
-		irq = ivec >> ((pin-4) << 2) & 0xF;
-	} else {					/* Corrupted map */
-		printk("PCIC: BAD PIN %d FOR %s\n", pin, name);
-		for (;;) {}	/* XXX Cannot panic properly in case of PROLL */
-	}
-/* P3 */ /* printk("PCIC: dev %s pin %d ivec 0x%x irq %x\n", name, pin, ivec, irq); */
-	return irq;
 }
 
 /* Makes compiler happy */

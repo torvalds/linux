@@ -152,10 +152,6 @@ static unsigned long hung_task_timeout_max = (LONG_MAX/HZ);
 #ifdef CONFIG_SPARC
 #endif
 
-#ifdef CONFIG_SPARC64
-extern int sysctl_tsb_ratio;
-#endif
-
 #ifdef __hppa__
 extern int pwrsw_enabled;
 #endif
