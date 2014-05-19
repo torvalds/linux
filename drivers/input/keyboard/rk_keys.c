@@ -191,31 +191,33 @@ static int rk_key_adc_iio_read(struct rk_keys_drvdata *data)
 
 static void adc_key_poll(struct work_struct *work)
 {
-	struct rk_keys_drvdata *ddata;
-	int i, result = -1;
+    struct rk_keys_drvdata *ddata;
+    int i, result = -1;
 
-	ddata = container_of(work, struct rk_keys_drvdata, adc_poll_work.work);
-	if (!ddata->in_suspend)
-		result = rk_key_adc_iio_read(ddata);
+    ddata = container_of(work, struct rk_keys_drvdata, adc_poll_work.work);
+    if (!ddata->in_suspend)
+    {
+        result = rk_key_adc_iio_read(ddata);
+        if(result > INVALID_ADVALUE && result < EMPTY_ADVALUE)
+            ddata->result = result;
+        for (i = 0; i < ddata->nbuttons; i++) 
+        {
+            struct rk_keys_button *button = &ddata->button[i];
+            if(!button->adc_value)
+                continue;
+            if(result < button->adc_value + DRIFT_ADVALUE &&
+                result > button->adc_value - DRIFT_ADVALUE)
+                button->adc_state = 1;
+            else
+                button->adc_state = 0;
+            if(button->state != button->adc_state)
+                mod_timer(&button->timer,
+                    jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
+        }
+    }
 
-	if(result > INVALID_ADVALUE && result < EMPTY_ADVALUE)
-		ddata->result = result;
-	for (i = 0; i < ddata->nbuttons; i++) {
-		struct rk_keys_button *button = &ddata->button[i];
-		if(!button->adc_value)
-			continue;
-					
-		if(result < button->adc_value + DRIFT_ADVALUE &&
-			result > button->adc_value - DRIFT_ADVALUE)
-			button->adc_state = 1;
-		else
-			button->adc_state = 0;
-		if(button->state != button->adc_state)
-			mod_timer(&button->timer,
-				jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
-	}
     schedule_delayed_work(&ddata->adc_poll_work,
-            msecs_to_jiffies(ADC_SAMPLE_TIME));
+        msecs_to_jiffies(ADC_SAMPLE_TIME));
 }
 
 static int rk_key_type_get(struct device_node *node, struct rk_keys_button *button)
@@ -223,11 +225,11 @@ static int rk_key_type_get(struct device_node *node, struct rk_keys_button *butt
 	u32 adc_value;
 
 	if (!of_property_read_u32(node, "rockchip,adc_value", &adc_value))
-        return TYPE_ADC;
-    else if(of_get_gpio(node, 0) >= 0)
+	    return TYPE_ADC;
+	else if(of_get_gpio(node, 0) >= 0)
 	    return TYPE_GPIO;
 	else
-		return -1;
+	    return -1;
 }
 
 static int rk_keys_parse_dt(struct rk_keys_drvdata *pdata,
