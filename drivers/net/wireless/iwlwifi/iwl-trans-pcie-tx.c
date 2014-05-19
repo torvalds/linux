@@ -825,14 +825,15 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	trace_idx = 1;
 #endif
 
+	/* map the remaining (adjusted) nocopy/dup fragments */
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
-		if (!cmd->len[i])
+		if (!cmdlen[i])
 			continue;
 		if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
 			continue;
 		phys_addr = dma_map_single(trans->dev,
-					   (void *)cmd->data[i],
-					   cmd->len[i], DMA_BIDIRECTIONAL);
+					   (void *)cmddata[i],
+					   cmdlen[i], DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(trans->dev, phys_addr)) {
 			iwlagn_unmap_tfd(trans, out_meta,
 					 &txq->tfds[q->write_ptr],
