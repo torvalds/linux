@@ -9,6 +9,10 @@ config PINCTRL_BERLIN_BG2
 	bool
 	select PINCTRL_BERLIN
 
+config PINCTRL_BERLIN_BG2CD
+	bool
+	select PINCTRL_BERLIN
+
 config PINCTRL_BERLIN_BG2Q
 	bool
 	select PINCTRL_BERLIN
