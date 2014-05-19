@@ -1192,6 +1192,7 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 	unsigned int frame_size;
 	unsigned int pos = 0;
 	unsigned int retry = 0;
+	unsigned int frame = 0;
 	int ret;
 
 	ret = request_firmware(&fw, fn, dev);
@@ -1251,9 +1252,12 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 		} else {
 			retry = 0;
 			pos += frame_size;
+			frame++;
 		}
 
-		dev_dbg(dev, "Updated %d bytes / %zd bytes\n", pos, fw->size);
+		if (frame % 50 == 0)
+			dev_dbg(dev, "Sent %d frames, %d/%zd bytes\n",
+				frame, pos, fw->size);
 	}
 
 	/* Wait for flash. */
@@ -1261,6 +1265,8 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 				      MXT_FW_RESET_TIME);
 	if (ret)
 		goto disable_irq;
+
+	dev_dbg(dev, "Sent %d frames, %d bytes\n", frame, pos);
 
 	/*
 	 * Wait for device to reset. Some bootloader versions do not assert
