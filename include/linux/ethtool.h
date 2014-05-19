@@ -168,8 +168,8 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
  * @set_rxfh_indir: Set the contents of the RX flow hash indirection table.
  *	Will not be called if @get_rxfh_indir_size returns zero.
  * @set_rxfh: Set the contents of the RX flow hash indirection table and/or
- *	hash key.  Either or both arguments may be %NULL if that attribute
- *	is not to be changed.
+ *	hash key.  In case only the indirection table or hash key is to be
+ *	changed, the other argument will be %NULL.
  *	Will only be called if one or both of @get_rxfh_indir_size and
  *	@get_rxfh_key_size are implemented and return non-zero.
  *	Returns a negative error code or zero.

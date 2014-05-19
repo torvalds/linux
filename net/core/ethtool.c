@@ -802,11 +802,14 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		return -EFAULT;
 
 	/* If either indir or hash key is valid, proceed further.
+	 * It is not valid to request that both be unchanged.
 	 */
 	if ((user_indir_size &&
 	     user_indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
 	     user_indir_size != dev_indir_size) ||
-	    (user_key_size && (user_key_size != dev_key_size)))
+	    (user_key_size && (user_key_size != dev_key_size)) ||
+	    (user_indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
+	     user_key_size == 0))
 		return -EINVAL;
 
 	if (user_indir_size != ETH_RXFH_INDIR_NO_CHANGE)
