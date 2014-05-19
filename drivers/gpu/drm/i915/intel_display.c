@@ -3274,8 +3274,9 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 
 	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
 
-	wait_event(dev_priv->pending_flip_queue,
-		   !intel_crtc_has_pending_flip(crtc));
+	WARN_ON(wait_event_timeout(dev_priv->pending_flip_queue,
+				   !intel_crtc_has_pending_flip(crtc),
+				   60*HZ) == 0);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_finish_fb(crtc->primary->fb);
