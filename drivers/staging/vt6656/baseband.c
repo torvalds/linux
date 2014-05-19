@@ -663,53 +663,47 @@ s_vClearSQ3Value(PSDevice pDevice);
  * Return Value: FrameTime
  *
  */
-unsigned int
-BBuGetFrameTime(
-     u8 byPreambleType,
-     u8 byPktType,
-     unsigned int cbFrameLength,
-     u16 wRate
-    )
+unsigned int BBuGetFrameTime(u8 byPreambleType,  u8 byPktType,
+	unsigned int cbFrameLength, u16 wRate)
 {
-    unsigned int uFrameTime;
-    unsigned int uPreamble;
-    unsigned int uTmp;
-    unsigned int uRateIdx = (unsigned int)wRate;
-    unsigned int uRate = 0;
+	unsigned int uFrameTime;
+	unsigned int uPreamble;
+	unsigned int uTmp;
+	unsigned int uRateIdx = (unsigned int)wRate;
+	unsigned int uRate = 0;
 
-    if (uRateIdx > RATE_54M) {
-        return 0;
-    }
+	if (uRateIdx > RATE_54M)
+		return 0;
 
-    uRate = (unsigned int)awcFrameTime[uRateIdx];
+	uRate = (unsigned int)awcFrameTime[uRateIdx];
 
-    if (uRateIdx <= 3) {          //CCK mode
+	if (uRateIdx <= 3) {
+		if (byPreambleType == 1)
+			uPreamble = 96;
+		else
+			uPreamble = 192;
 
-        if (byPreambleType == 1) {//Short
-            uPreamble = 96;
-        } else {
-            uPreamble = 192;
-        }
-        uFrameTime = (cbFrameLength * 80) / uRate;  //?????
-        uTmp = (uFrameTime * uRate) / 80;
-        if (cbFrameLength != uTmp) {
-            uFrameTime ++;
-        }
+		uFrameTime = (cbFrameLength * 80) / uRate;
+		uTmp = (uFrameTime * uRate) / 80;
 
-        return (uPreamble + uFrameTime);
-    }
-    else {
-        uFrameTime = (cbFrameLength * 8 + 22) / uRate;   //????????
-        uTmp = ((uFrameTime * uRate) - 22) / 8;
-        if(cbFrameLength != uTmp) {
-            uFrameTime ++;
-        }
-        uFrameTime = uFrameTime * 4;    //???????
-        if(byPktType != PK_TYPE_11A) {
-            uFrameTime += 6;
-        }
-        return (20 + uFrameTime); //??????
-    }
+		if (cbFrameLength != uTmp)
+			uFrameTime++;
+
+		return uPreamble + uFrameTime;
+	} else {
+		uFrameTime = (cbFrameLength * 8 + 22) / uRate;
+		uTmp = ((uFrameTime * uRate) - 22) / 8;
+
+		if (cbFrameLength != uTmp)
+			uFrameTime++;
+
+		uFrameTime = uFrameTime * 4;
+
+		if (byPktType != PK_TYPE_11A)
+			uFrameTime += 6;
+
+		return 20 + uFrameTime;
+	}
 }
 
 /*
