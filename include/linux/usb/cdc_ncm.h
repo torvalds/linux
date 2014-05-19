@@ -78,7 +78,7 @@
 #define	CDC_NCM_TIMER_PENDING_CNT		2
 #define CDC_NCM_TIMER_INTERVAL_USEC		400UL
 #define CDC_NCM_TIMER_INTERVAL_MIN		5UL
-#define CDC_NCM_TIMER_INTERVAL_MAX		(15UL * USEC_PER_SEC)
+#define CDC_NCM_TIMER_INTERVAL_MAX		(U32_MAX / NSEC_PER_USEC)
 
 #define cdc_ncm_comm_intf_is_mbim(x)  ((x)->desc.bInterfaceSubClass == USB_CDC_SUBCLASS_MBIM && \
 				       (x)->desc.bInterfaceProtocol == USB_CDC_PROTO_NONE)
@@ -104,7 +104,7 @@ struct cdc_ncm_ctx {
 	spinlock_t mtx;
 	atomic_t stop;
 
-	u64 timer_interval;
+	u32 timer_interval;
 	u32 max_ndp_size;
 
 	u32 tx_timer_pending;

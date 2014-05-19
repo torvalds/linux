@@ -138,7 +138,7 @@ static int cdc_ncm_get_coalesce(struct net_device *netdev,
 	ec->tx_max_coalesced_frames = ctx->tx_max / ctx->max_datagram_size;
 
 	/* the timer will fire CDC_NCM_TIMER_PENDING_CNT times in a row */
-	ec->tx_coalesce_usecs = (ctx->timer_interval * CDC_NCM_TIMER_PENDING_CNT) / NSEC_PER_USEC;
+	ec->tx_coalesce_usecs = ctx->timer_interval / (NSEC_PER_USEC / CDC_NCM_TIMER_PENDING_CNT);
 	return 0;
 }
 
@@ -164,7 +164,7 @@ static int cdc_ncm_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 
 	spin_lock_bh(&ctx->mtx);
-	ctx->timer_interval = ec->tx_coalesce_usecs * NSEC_PER_USEC / CDC_NCM_TIMER_PENDING_CNT;
+	ctx->timer_interval = ec->tx_coalesce_usecs * (NSEC_PER_USEC / CDC_NCM_TIMER_PENDING_CNT);
 	if (!ctx->timer_interval)
 		ctx->tx_timer_pending = 0;
 	spin_unlock_bh(&ctx->mtx);
