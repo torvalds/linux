@@ -1078,27 +1078,28 @@ int BBbVT3184Init(struct vnt_private *priv)
  *
  * Parameters:
  *  In:
- *      pDevice     - Device Structure
+ *	priv	- Device Structure
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void BBvSetShortSlotTime(struct vnt_private *pDevice)
+void BBvSetShortSlotTime(struct vnt_private *priv)
 {
-    u8 byBBVGA=0;
+	u8 bb_vga = 0;
 
-	if (pDevice->bShortSlotTime)
-        pDevice->byBBRxConf &= 0xDF;//1101 1111
+	if (priv->bShortSlotTime)
+		priv->byBBRxConf &= 0xdf;
 	else
-        pDevice->byBBRxConf |= 0x20;//0010 0000
+		priv->byBBRxConf |= 0x20;
 
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0xE7, &byBBVGA);
-	if (byBBVGA == pDevice->abyBBVGA[0])
-        pDevice->byBBRxConf |= 0x20;//0010 0000
+	ControlvReadByte(priv, MESSAGE_REQUEST_BBREG, 0xe7, &bb_vga);
 
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0A, pDevice->byBBRxConf);
+	if (bb_vga == priv->abyBBVGA[0])
+		priv->byBBRxConf |= 0x20;
+
+	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->byBBRxConf);
 }
 
 void BBvSetVGAGainOffset(struct vnt_private *pDevice, u8 byData)
