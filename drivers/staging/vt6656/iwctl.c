@@ -34,7 +34,6 @@
 #include "iwctl.h"
 #include "mac.h"
 #include "card.h"
-#include "hostap.h"
 #include "power.h"
 #include "rf.h"
 #include "iowpa.h"

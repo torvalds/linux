@@ -60,7 +60,6 @@
 #include "tcrc.h"
 #include "rxtx.h"
 #include "bssdb.h"
-#include "hostap.h"
 #include "wpactl.h"
 #include "iwctl.h"
 #include "dpc.h"
@@ -1391,20 +1390,9 @@ static struct net_device_stats *device_get_stats(struct net_device *dev)
 
 static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct vnt_private *pDevice = netdev_priv(dev);
-	struct iwreq *wrq = (struct iwreq *) rq;
 	int rc = 0;
 
 	switch (cmd) {
-
-	case IOCTL_CMD_HOSTAPD:
-
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
-			rc = -EFAULT;
-
-		rc = vt6656_hostap_ioctl(pDevice, &wrq->u.data);
-		break;
-
 	case SIOCETHTOOL:
 		return ethtool_ioctl(dev, rq);
 

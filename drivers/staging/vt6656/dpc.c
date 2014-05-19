@@ -50,7 +50,6 @@
 #include "tkip.h"
 #include "tcrc.h"
 #include "wctl.h"
-#include "hostap.h"
 #include "rf.h"
 #include "iowpa.h"
 #include "aes_ccmp.h"
