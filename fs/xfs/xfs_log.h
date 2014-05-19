@@ -24,7 +24,8 @@ struct xfs_log_vec {
 	struct xfs_log_iovec	*lv_iovecp;	/* iovec array */
 	struct xfs_log_item	*lv_item;	/* owner */
 	char			*lv_buf;	/* formatted buffer */
-	int			lv_buf_len;	/* size of formatted buffer */
+	int			lv_bytes;	/* accounted space in buffer */
+	int			lv_buf_len;	/* aligned size of buffer */
 	int			lv_size;	/* size of allocated lv */
 };
 
@@ -52,15 +53,21 @@ xlog_prepare_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
 	return vec->i_addr;
 }
 
+/*
+ * We need to make sure the next buffer is naturally aligned for the biggest
+ * basic data type we put into it.  We already accounted for this padding when
+ * sizing the buffer.
+ *
+ * However, this padding does not get written into the log, and hence we have to
+ * track the space used by the log vectors separately to prevent log space hangs
+ * due to inaccurate accounting (i.e. a leak) of the used log space through the
+ * CIL context ticket.
+ */
 static inline void
 xlog_finish_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec *vec, int len)
 {
-	/*
-	 * We need to make sure the next buffer is naturally aligned for the
-	 * biggest basic data type we put into it.  We already accounted for
-	 * this when sizing the buffer.
-	 */
 	lv->lv_buf_len += round_up(len, sizeof(uint64_t));
+	lv->lv_bytes += len;
 	vec->i_len = len;
 }
 

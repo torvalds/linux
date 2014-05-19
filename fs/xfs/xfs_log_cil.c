@@ -97,7 +97,7 @@ xfs_cil_prepare_item(
 {
 	/* Account for the new LV being passed in */
 	if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED) {
-		*diff_len += lv->lv_buf_len;
+		*diff_len += lv->lv_bytes;
 		*diff_iovecs += lv->lv_niovecs;
 	}
 
@@ -111,7 +111,7 @@ xfs_cil_prepare_item(
 	else if (old_lv != lv) {
 		ASSERT(lv->lv_buf_len != XFS_LOG_VEC_ORDERED);
 
-		*diff_len -= old_lv->lv_buf_len;
+		*diff_len -= old_lv->lv_bytes;
 		*diff_iovecs -= old_lv->lv_niovecs;
 		kmem_free(old_lv);
 	}
@@ -239,7 +239,7 @@ xlog_cil_insert_format_items(
 			 * that the space reservation accounting is correct.
 			 */
 			*diff_iovecs -= lv->lv_niovecs;
-			*diff_len -= lv->lv_buf_len;
+			*diff_len -= lv->lv_bytes;
 		} else {
 			/* allocate new data chunk */
 			lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
@@ -259,6 +259,7 @@ xlog_cil_insert_format_items(
 
 		/* The allocated data region lies beyond the iovec region */
 		lv->lv_buf_len = 0;
+		lv->lv_bytes = 0;
 		lv->lv_buf = (char *)lv + buf_size - nbytes;
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
 

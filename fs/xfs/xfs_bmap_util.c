@@ -1519,7 +1519,6 @@ xfs_collapse_file_space(
 
 	while (!error && !done) {
 		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
-		tp->t_flags |= XFS_TRANS_RESERVE;
 		/*
 		 * We would need to reserve permanent block for transaction.
 		 * This will come into picture when after shifting extent into
@@ -1529,7 +1528,6 @@ xfs_collapse_file_space(
 		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
 				XFS_DIOSTRAT_SPACE_RES(mp, 0), 0);
 		if (error) {
-			ASSERT(error == ENOSPC || XFS_FORCED_SHUTDOWN(mp));
 			xfs_trans_cancel(tp, 0);
 			break;
 		}
