@@ -3053,6 +3053,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	unsigned long maxcount; 
 	struct xdr_stream *xdr = &resp->xdr;
 	int starting_len = xdr->buf->len;
+	int space_left;
 	long len;
 	__be32 *p;
 
@@ -3117,7 +3118,6 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	resp->xdr.buf->page_len = maxcount;
 	xdr->buf->len += maxcount;
 	xdr->page_ptr += v;
-	xdr->buf->buflen = maxcount + PAGE_SIZE - 2 * RPC_MAX_AUTH_SIZE;
 	xdr->iov = xdr->buf->tail;
 
 	/* Use rest of head for padding and remaining ops: */
@@ -3130,6 +3130,12 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 		resp->xdr.buf->tail[0].iov_len = 4 - (maxcount&3);
 		xdr->buf->len -= (maxcount&3);
 	}
+
+	space_left = min_t(int, (void *)xdr->end - (void *)xdr->p,
+				xdr->buf->buflen - xdr->buf->len);
+	xdr->buf->buflen = xdr->buf->len + space_left;
+	xdr->end = (__be32 *)((void *)xdr->end + space_left);
+
 	return 0;
 }
 
