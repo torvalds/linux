@@ -6,7 +6,9 @@ Supported chips:
     Prefix: 'coretemp'
     CPUID: family 0x6, models 0xe (Pentium M DC), 0xf (Core 2 DC 65nm),
                               0x16 (Core 2 SC 65nm), 0x17 (Penryn 45nm),
-                              0x1a (Nehalem), 0x1c (Atom), 0x1e (Lynnfield)
+                              0x1a (Nehalem), 0x1c (Atom), 0x1e (Lynnfield),
+                              0x26 (Tunnel Creek Atom), 0x27 (Medfield Atom),
+                              0x36 (Cedar Trail Atom)
     Datasheet: Intel 64 and IA-32 Architectures Software Developer's Manual
                Volume 3A: System Programming Guide
                http://softwarecommunity.intel.com/Wiki/Mobility/720.htm
@@ -65,6 +67,11 @@ Process		Processor					TjMax(C)
 		U3400						105
 		P4505/P4500 					90
 
+32nm		Atom Processors
+		Z2460						90
+		D2700/2550/2500					100
+		N2850/2800/2650/2600				100
+
 45nm		Xeon Processors 5400 Quad-Core
 		X5492, X5482, X5472, X5470, X5460, X5450	85
 		E5472, E5462, E5450/40/30/20/10/05		85
@@ -85,6 +92,9 @@ Process		Processor					TjMax(C)
 		N475/470/455/450				100
 		N280/270					90
 		330/230						125
+		E680/660/640/620				90
+		E680T/660T/640T/620T				110
+		CE4170/4150/4110				110
 
 45nm		Core2 Processors
 		Solo ULV SU3500/3300				100

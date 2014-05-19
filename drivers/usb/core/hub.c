@@ -920,6 +920,11 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 			clear_port_feature(hub->hdev, port1,
 					USB_PORT_FEAT_C_ENABLE);
 		}
+		if (portchange & USB_PORT_STAT_C_RESET) {
+			need_debounce_delay = true;
+			clear_port_feature(hub->hdev, port1,
+					USB_PORT_FEAT_C_RESET);
+		}
 		if ((portchange & USB_PORT_STAT_C_BH_RESET) &&
 				hub_is_superspeed(hub->hdev)) {
 			need_debounce_delay = true;
@@ -1917,7 +1922,7 @@ static int usb_enumerate_device(struct usb_device *udev)
 		if (err < 0) {
 			dev_err(&udev->dev, "can't read configurations, error %d\n",
 				err);
-			goto fail;
+			return err;
 		}
 	}
 
@@ -1928,8 +1933,12 @@ static int usb_enumerate_device(struct usb_device *udev)
 	udev->serial = usb_cache_string(udev, udev->descriptor.iSerialNumber);
 
 	err = usb_enumerate_device_otg(udev);
-fail:
-	return err;
+	if (err < 0)
+		return err;
+
+	usb_detect_interface_quirks(udev);
+
+	return 0;
 }
 
 static void set_usb_port_removable(struct usb_device *udev)
@@ -4135,6 +4144,12 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		return -EISDIR;
 	}
 	parent_hub = hdev_to_hub(parent_hdev);
+
+	/* Disable USB2 hardware LPM.
+	 * It will be re-enabled by the enumeration process.
+	 */
+	if (udev->usb2_hw_lpm_enabled == 1)
+		usb_set_usb2_hardware_lpm(udev, 0);
 
 	set_bit(port1, parent_hub->busy_bits);
 	for (i = 0; i < SET_CONFIG_TRIES; ++i) {
