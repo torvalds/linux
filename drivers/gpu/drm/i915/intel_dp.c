@@ -121,6 +121,22 @@ intel_dp_max_link_bw(struct intel_dp *intel_dp)
 	return max_link_bw;
 }
 
+static u8 intel_dp_max_lane_count(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	u8 source_max, sink_max;
+
+	source_max = 4;
+	if (HAS_DDI(dev) && intel_dig_port->port == PORT_A &&
+	    (intel_dig_port->saved_port_bits & DDI_A_4_LANES) == 0)
+		source_max = 2;
+
+	sink_max = drm_dp_max_lane_count(intel_dp->dpcd);
+
+	return min(source_max, sink_max);
+}
+
 /*
  * The units on the numbers in the next two are... bizarre.  Examples will
  * make it clearer; this one parallels an example in the eDP spec.
@@ -171,7 +187,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	}
 
 	max_link_clock = drm_dp_bw_code_to_link_rate(intel_dp_max_link_bw(intel_dp));
-	max_lanes = drm_dp_max_lane_count(intel_dp->dpcd);
+	max_lanes = intel_dp_max_lane_count(intel_dp);
 
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
 	mode_rate = intel_dp_link_required(target_clock, 18);
@@ -751,8 +767,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct intel_crtc *intel_crtc = encoder->new_crtc;
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int lane_count, clock;
-	int max_lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
+	int min_lane_count = 1;
+	int max_lane_count = intel_dp_max_lane_count(intel_dp);
 	/* Conveniently, the link BW constants become indices with a shift...*/
+	int min_clock = 0;
 	int max_clock = intel_dp_max_link_bw(intel_dp) >> 3;
 	int bpp, mode_rate;
 	static int bws[] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7, DP_LINK_BW_5_4 };
@@ -785,19 +803,38 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
 	bpp = pipe_config->pipe_bpp;
-	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp &&
-	    dev_priv->vbt.edp_bpp < bpp) {
-		DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
-			      dev_priv->vbt.edp_bpp);
-		bpp = dev_priv->vbt.edp_bpp;
+	if (is_edp(intel_dp)) {
+		if (dev_priv->vbt.edp_bpp && dev_priv->vbt.edp_bpp < bpp) {
+			DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
+				      dev_priv->vbt.edp_bpp);
+			bpp = dev_priv->vbt.edp_bpp;
+		}
+
+		if (IS_BROADWELL(dev)) {
+			/* Yes, it's an ugly hack. */
+			min_lane_count = max_lane_count;
+			DRM_DEBUG_KMS("forcing lane count to max (%u) on BDW\n",
+				      min_lane_count);
+		} else if (dev_priv->vbt.edp_lanes) {
+			min_lane_count = min(dev_priv->vbt.edp_lanes,
+					     max_lane_count);
+			DRM_DEBUG_KMS("using min %u lanes per VBT\n",
+				      min_lane_count);
+		}
+
+		if (dev_priv->vbt.edp_rate) {
+			min_clock = min(dev_priv->vbt.edp_rate >> 3, max_clock);
+			DRM_DEBUG_KMS("using min %02x link bw per VBT\n",
+				      bws[min_clock]);
+		}
 	}
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
 		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
 						   bpp);
 
-		for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
-			for (clock = 0; clock <= max_clock; clock++) {
+		for (lane_count = min_lane_count; lane_count <= max_lane_count; lane_count <<= 1) {
+			for (clock = min_clock; clock <= max_clock; clock++) {
 				link_clock = drm_dp_bw_code_to_link_rate(bws[clock]);
 				link_avail = intel_dp_max_data_rate(link_clock,
 								    lane_count);
