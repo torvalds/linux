@@ -1677,11 +1677,6 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 			op->opnum = OP_ILLEGAL;
 			op->status = nfserr_op_illegal;
 		}
-
-		if (op->status) {
-			argp->opcnt = i+1;
-			break;
-		}
 		/*
 		 * We'll try to cache the result in the DRC if any one
 		 * op in the compound wants to be cached:
@@ -1689,6 +1684,11 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		cachethis |= nfsd4_cache_this_op(op);
 
 		max_reply = max(max_reply, nfsd4_max_reply(op->opnum));
+
+		if (op->status) {
+			argp->opcnt = i+1;
+			break;
+		}
 	}
 	/* Sessions make the DRC unnecessary: */
 	if (argp->minorversion)
