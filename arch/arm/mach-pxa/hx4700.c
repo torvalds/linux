@@ -574,7 +574,14 @@ static struct platform_device backlight = {
 };
 
 static struct pwm_lookup hx4700_pwm_lookup[] = {
-	PWM_LOOKUP("pxa27x-pwm.1", 0, "pwm-backlight", NULL),
+	{
+		.provider = "pxa27x-pwm.1",
+		.index = 0,
+		.dev_id = "pwm-backlight",
+		.con_id = NULL,
+		.period = 30923,
+		.polarity = PWM_POLARITY_NORMAL,
+	},
 };
 
 /*
