@@ -484,9 +484,6 @@
 /* See configdb bunit SB addr map */
 #define BUNIT_REG_BISOC				0x11
 
-#define PUNIT_OPCODE_REG_READ			6
-#define PUNIT_OPCODE_REG_WRITE			7
-
 #define PUNIT_REG_DSPFREQ			0x36
 #define   DSPFREQSTAT_SHIFT			30
 #define   DSPFREQSTAT_MASK			(0x3 << DSPFREQSTAT_SHIFT)
@@ -580,8 +577,6 @@ enum punit_power_well {
  * Note: digital port B is DDI0, digital pot C is DDI1
  */
 #define DPIO_DEVFN			0
-#define DPIO_OPCODE_REG_WRITE		1
-#define DPIO_OPCODE_REG_READ		0
 
 #define DPIO_CTL			(VLV_DISPLAY_BASE + 0x2110)
 #define  DPIO_MODSEL1			(1<<3) /* if ref clk b == 27 */
