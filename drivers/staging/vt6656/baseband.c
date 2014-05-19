@@ -654,54 +654,54 @@ s_vClearSQ3Value(PSDevice pDevice);
  *
  * Parameters:
  *  In:
- *      byPreambleType  - Preamble Type
- *      byPktType        - PK_TYPE_11A, PK_TYPE_11B, PK_TYPE_11GB, PK_TYPE_11GA
- *      cbFrameLength   - Baseband Type
+ *	preamble_type	- Preamble Type
+ *	pkt_type	- PK_TYPE_11A, PK_TYPE_11B, PK_TYPE_11GB, PK_TYPE_11GA
+ *	frame_length	- Baseband Type
  *	tx_rate		- Tx Rate
  *  Out:
  *
  * Return Value: FrameTime
  *
  */
-unsigned int BBuGetFrameTime(u8 byPreambleType, u8 byPktType,
-	unsigned int cbFrameLength, u16 tx_rate)
+unsigned int BBuGetFrameTime(u8 preamble_type, u8 pkt_type,
+	unsigned int frame_length, u16 tx_rate)
 {
-	unsigned int uFrameTime;
-	unsigned int uPreamble;
-	unsigned int uTmp;
-	unsigned int uRate = 0;
+	unsigned int frame_time;
+	unsigned int preamble;
+	unsigned int tmp;
+	unsigned int rate = 0;
 
 	if (tx_rate > RATE_54M)
 		return 0;
 
-	uRate = (unsigned int)awcFrameTime[tx_rate];
+	rate = (unsigned int)awcFrameTime[tx_rate];
 
 	if (tx_rate <= 3) {
-		if (byPreambleType == 1)
-			uPreamble = 96;
+		if (preamble_type == 1)
+			preamble = 96;
 		else
-			uPreamble = 192;
+			preamble = 192;
 
-		uFrameTime = (cbFrameLength * 80) / uRate;
-		uTmp = (uFrameTime * uRate) / 80;
+		frame_time = (frame_length * 80) / rate;
+		tmp = (frame_time * rate) / 80;
 
-		if (cbFrameLength != uTmp)
-			uFrameTime++;
+		if (frame_length != tmp)
+			frame_time++;
 
-		return uPreamble + uFrameTime;
+		return preamble + frame_time;
 	} else {
-		uFrameTime = (cbFrameLength * 8 + 22) / uRate;
-		uTmp = ((uFrameTime * uRate) - 22) / 8;
+		frame_time = (frame_length * 8 + 22) / rate;
+		tmp = ((frame_time * rate) - 22) / 8;
 
-		if (cbFrameLength != uTmp)
-			uFrameTime++;
+		if (frame_length != tmp)
+			frame_time++;
 
-		uFrameTime = uFrameTime * 4;
+		frame_time = frame_time * 4;
 
-		if (byPktType != PK_TYPE_11A)
-			uFrameTime += 6;
+		if (pkt_type != PK_TYPE_11A)
+			frame_time += 6;
 
-		return 20 + uFrameTime;
+		return 20 + frame_time;
 	}
 }
 
