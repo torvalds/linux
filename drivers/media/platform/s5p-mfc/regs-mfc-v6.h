@@ -381,8 +381,7 @@
 	 (DIV_ROUND_UP((mbw) * (mbh), 32) * 16))
 #define S5P_FIMV_SCRATCH_BUF_SIZE_H264_DEC_V6(w, h)	(((w) * 192) + 64)
 #define S5P_FIMV_SCRATCH_BUF_SIZE_MPEG4_DEC_V6(w, h) \
-			((w) * ((h) * 64 + 144) + (2048/16 * (h) * 64) + \
-			 (2048/16 * 256 + 8320))
+			((w) * 144 + 8192 * (h) + 49216 + 1048576)
 #define S5P_FIMV_SCRATCH_BUF_SIZE_VC1_DEC_V6(w, h) \
 						(2096 * ((w) + (h) + 1))
 #define S5P_FIMV_SCRATCH_BUF_SIZE_H263_DEC_V6(w, h)	((w) * 400)
