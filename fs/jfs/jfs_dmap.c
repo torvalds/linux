@@ -1208,7 +1208,7 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
 				 * by this leaf.
 				 */
 				l2size =
-				    min((int)leaf[word], NLSTOL2BSZ(nwords));
+				    min_t(int, leaf[word], NLSTOL2BSZ(nwords));
 
 				/* determine how many words were handled.
 				 */
@@ -1902,7 +1902,7 @@ dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno, s64 * results)
 
 		/* determine how many blocks to allocate from this dmap.
 		 */
-		nb = min(n, (s64)BPERDMAP);
+		nb = min_t(s64, n, BPERDMAP);
 
 		/* allocate the blocks from the dmap.
 		 */
@@ -2260,7 +2260,8 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 				 * of bits being allocated and the l2 number
 				 * of bits currently described by this leaf.
 				 */
-				size = min((int)leaf[word], NLSTOL2BSZ(nwords));
+				size = min_t(int, leaf[word],
+					     NLSTOL2BSZ(nwords));
 
 				/* update the leaf to reflect the allocation.
 				 * in addition to setting the leaf value to
@@ -3563,7 +3564,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 					if (mp == NULL)
 						goto errout;
 
-					n = min(nblocks, (s64)BPERDMAP);
+					n = min_t(s64, nblocks, BPERDMAP);
 				}
 
 				dp = (struct dmap *) mp->data;
