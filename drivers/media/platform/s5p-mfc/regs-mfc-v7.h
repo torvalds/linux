@@ -18,8 +18,6 @@
 #define S5P_FIMV_CODEC_VP8_ENC_V7	25
 
 /* Additional registers for v7 */
-#define S5P_FIMV_D_INIT_BUFFER_OPTIONS_V7		0xf47c
-
 #define S5P_FIMV_E_SOURCE_FIRST_ADDR_V7			0xf9e0
 #define S5P_FIMV_E_SOURCE_SECOND_ADDR_V7		0xf9e4
 #define S5P_FIMV_E_SOURCE_THIRD_ADDR_V7			0xf9e8

@@ -141,6 +141,7 @@
 #define S5P_FIMV_D_SLICE_IF_ENABLE_V6		0xf4c4
 #define S5P_FIMV_D_PICTURE_TAG_V6		0xf4c8
 #define S5P_FIMV_D_STREAM_DATA_SIZE_V6		0xf4d0
+#define S5P_FIMV_D_INIT_BUFFER_OPTIONS_V6	0xf47c
 
 /* Display information register */
 #define S5P_FIMV_D_DISPLAY_FRAME_WIDTH_V6	0xf500

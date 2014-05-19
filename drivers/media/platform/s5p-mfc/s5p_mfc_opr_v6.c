@@ -1310,7 +1310,7 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 		reg |= (0x1 << S5P_FIMV_D_OPT_TILE_MODE_SHIFT_V6);
 
 	if (IS_MFCV7(dev))
-		WRITEL(reg, S5P_FIMV_D_INIT_BUFFER_OPTIONS_V7);
+		WRITEL(reg, S5P_FIMV_D_INIT_BUFFER_OPTIONS_V6);
 	else
 		WRITEL(reg, S5P_FIMV_D_DEC_OPTIONS_V6);
 
