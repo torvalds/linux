@@ -102,8 +102,14 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 	switch (ctx->codec_mode) {
 	case S5P_MFC_CODEC_H264_DEC:
 	case S5P_MFC_CODEC_H264_MVC_DEC:
-		ctx->scratch_buf_size =
-			S5P_FIMV_SCRATCH_BUF_SIZE_H264_DEC_V6(
+		if (IS_MFCV8(dev))
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_H264_DEC_V8(
+					mb_width,
+					mb_height);
+		else
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_H264_DEC_V6(
 					mb_width,
 					mb_height);
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size,
@@ -153,10 +159,16 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 		ctx->bank1.size = ctx->scratch_buf_size;
 		break;
 	case S5P_MFC_CODEC_VP8_DEC:
-		ctx->scratch_buf_size =
-			S5P_FIMV_SCRATCH_BUF_SIZE_VP8_DEC_V6(
-					mb_width,
-					mb_height);
+		if (IS_MFCV8(dev))
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_VP8_DEC_V8(
+						mb_width,
+						mb_height);
+		else
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_VP8_DEC_V6(
+						mb_width,
+						mb_height);
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size,
 				S5P_FIMV_SCRATCH_BUFFER_ALIGN_V6);
 		ctx->bank1.size = ctx->scratch_buf_size;
@@ -332,6 +344,12 @@ static void s5p_mfc_dec_calc_dpb_size_v6(struct s5p_mfc_ctx *ctx)
 
 	ctx->luma_size = calc_plane(ctx->img_width, ctx->img_height);
 	ctx->chroma_size = calc_plane(ctx->img_width, (ctx->img_height >> 1));
+	if (IS_MFCV8(ctx->dev)) {
+		/* MFCv8 needs additional 64 bytes for luma,chroma dpb*/
+		ctx->luma_size += S5P_FIMV_D_ALIGN_PLANE_SIZE_V8;
+		ctx->chroma_size += S5P_FIMV_D_ALIGN_PLANE_SIZE_V8;
+	}
+
 	if (ctx->codec_mode == S5P_MFC_CODEC_H264_DEC ||
 			ctx->codec_mode == S5P_MFC_CODEC_H264_MVC_DEC) {
 		ctx->mv_size = S5P_MFC_DEC_MV_SIZE_V6(ctx->img_width,
@@ -406,6 +424,14 @@ static int s5p_mfc_set_dec_frame_buffer_v6(struct s5p_mfc_ctx *ctx)
 
 	WRITEL(buf_addr1, mfc_regs->d_scratch_buffer_addr);
 	WRITEL(ctx->scratch_buf_size, mfc_regs->d_scratch_buffer_size);
+
+	if (IS_MFCV8(dev)) {
+		WRITEL(ctx->img_width,
+			mfc_regs->d_first_plane_dpb_stride_size);
+		WRITEL(ctx->img_width,
+			mfc_regs->d_second_plane_dpb_stride_size);
+	}
+
 	buf_addr1 += ctx->scratch_buf_size;
 	buf_size1 -= ctx->scratch_buf_size;
 
@@ -2151,7 +2177,7 @@ const struct s5p_mfc_regs *s5p_mfc_init_regs_v6_plus(struct s5p_mfc_dev *dev)
 	if (!IS_MFCV7_PLUS(dev))
 		goto done;
 
-	/* Initialize registers used in MFC v7 */
+	/* Initialize registers used in MFC v7+ */
 	R(e_source_first_plane_addr, S5P_FIMV_E_SOURCE_FIRST_ADDR_V7);
 	R(e_source_second_plane_addr, S5P_FIMV_E_SOURCE_SECOND_ADDR_V7);
 	R(e_source_third_plane_addr, S5P_FIMV_E_SOURCE_THIRD_ADDR_V7);
@@ -2163,6 +2189,51 @@ const struct s5p_mfc_regs *s5p_mfc_init_regs_v6_plus(struct s5p_mfc_dev *dev)
 	R(e_encoded_source_second_plane_addr,
 			S5P_FIMV_E_ENCODED_SOURCE_SECOND_ADDR_V7);
 	R(e_vp8_options, S5P_FIMV_E_VP8_OPTIONS_V7);
+
+	if (!IS_MFCV8(dev))
+		goto done;
+
+	/* Initialize registers used in MFC v8 only.
+	 * Also, over-write the registers which have
+	 * a different offset for MFC v8. */
+	R(d_stream_data_size, S5P_FIMV_D_STREAM_DATA_SIZE_V8);
+	R(d_cpb_buffer_addr, S5P_FIMV_D_CPB_BUFFER_ADDR_V8);
+	R(d_cpb_buffer_size, S5P_FIMV_D_CPB_BUFFER_SIZE_V8);
+	R(d_cpb_buffer_offset, S5P_FIMV_D_CPB_BUFFER_OFFSET_V8);
+	R(d_first_plane_dpb_size, S5P_FIMV_D_FIRST_PLANE_DPB_SIZE_V8);
+	R(d_second_plane_dpb_size, S5P_FIMV_D_SECOND_PLANE_DPB_SIZE_V8);
+	R(d_scratch_buffer_addr, S5P_FIMV_D_SCRATCH_BUFFER_ADDR_V8);
+	R(d_scratch_buffer_size, S5P_FIMV_D_SCRATCH_BUFFER_SIZE_V8);
+	R(d_first_plane_dpb_stride_size,
+			S5P_FIMV_D_FIRST_PLANE_DPB_STRIDE_SIZE_V8);
+	R(d_second_plane_dpb_stride_size,
+			S5P_FIMV_D_SECOND_PLANE_DPB_STRIDE_SIZE_V8);
+	R(d_mv_buffer_size, S5P_FIMV_D_MV_BUFFER_SIZE_V8);
+	R(d_num_mv, S5P_FIMV_D_NUM_MV_V8);
+	R(d_first_plane_dpb, S5P_FIMV_D_FIRST_PLANE_DPB_V8);
+	R(d_second_plane_dpb, S5P_FIMV_D_SECOND_PLANE_DPB_V8);
+	R(d_mv_buffer, S5P_FIMV_D_MV_BUFFER_V8);
+	R(d_init_buffer_options, S5P_FIMV_D_INIT_BUFFER_OPTIONS_V8);
+	R(d_available_dpb_flag_lower, S5P_FIMV_D_AVAILABLE_DPB_FLAG_LOWER_V8);
+	R(d_slice_if_enable, S5P_FIMV_D_SLICE_IF_ENABLE_V8);
+	R(d_display_first_plane_addr, S5P_FIMV_D_DISPLAY_FIRST_PLANE_ADDR_V8);
+	R(d_display_second_plane_addr, S5P_FIMV_D_DISPLAY_SECOND_PLANE_ADDR_V8);
+	R(d_decoded_first_plane_addr, S5P_FIMV_D_DECODED_FIRST_PLANE_ADDR_V8);
+	R(d_decoded_second_plane_addr, S5P_FIMV_D_DECODED_SECOND_PLANE_ADDR_V8);
+	R(d_display_status, S5P_FIMV_D_DISPLAY_STATUS_V8);
+	R(d_decoded_status, S5P_FIMV_D_DECODED_STATUS_V8);
+	R(d_decoded_frame_type, S5P_FIMV_D_DECODED_FRAME_TYPE_V8);
+	R(d_display_frame_type, S5P_FIMV_D_DISPLAY_FRAME_TYPE_V8);
+	R(d_decoded_nal_size, S5P_FIMV_D_DECODED_NAL_SIZE_V8);
+	R(d_display_frame_width, S5P_FIMV_D_DISPLAY_FRAME_WIDTH_V8);
+	R(d_display_frame_height, S5P_FIMV_D_DISPLAY_FRAME_HEIGHT_V8);
+	R(d_frame_pack_sei_avail, S5P_FIMV_D_FRAME_PACK_SEI_AVAIL_V8);
+	R(d_mvc_num_views, S5P_FIMV_D_MVC_NUM_VIEWS_V8);
+	R(d_mvc_view_id, S5P_FIMV_D_MVC_VIEW_ID_V8);
+	R(d_ret_picture_tag_top, S5P_FIMV_D_RET_PICTURE_TAG_TOP_V8);
+	R(d_ret_picture_tag_bot, S5P_FIMV_D_RET_PICTURE_TAG_BOT_V8);
+	R(d_display_crop_info1, S5P_FIMV_D_DISPLAY_CROP_INFO1_V8);
+	R(d_display_crop_info2, S5P_FIMV_D_DISPLAY_CROP_INFO2_V8);
 
 done:
 	return &mfc_regs;

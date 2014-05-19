@@ -10,7 +10,8 @@ Required properties:
   - compatible : value should be either one among the following
 	(a) "samsung,mfc-v5" for MFC v5 present in Exynos4 SoCs
 	(b) "samsung,mfc-v6" for MFC v6 present in Exynos5 SoCs
-	(b) "samsung,mfc-v7" for MFC v7 present in Exynos5420 SoC
+	(c) "samsung,mfc-v7" for MFC v7 present in Exynos5420 SoC
+	(d) "samsung,mfc-v8" for MFC v8 present in Exynos5800 SoC
 
   - reg : Physical base address of the IP registers and length of memory
 	  mapped region.
