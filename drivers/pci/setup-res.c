@@ -211,15 +211,31 @@ static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 
 	/* First, try exact prefetching match.. */
 	ret = pci_bus_alloc_resource(bus, res, size, align, min,
-				     IORESOURCE_PREFETCH,
+				     IORESOURCE_PREFETCH | IORESOURCE_MEM_64,
 				     pcibios_align_resource, dev);
 
-	if (ret < 0 && (res->flags & IORESOURCE_PREFETCH)) {
+	if (ret < 0 &&
+	    (res->flags & (IORESOURCE_PREFETCH | IORESOURCE_MEM_64)) ==
+	     (IORESOURCE_PREFETCH | IORESOURCE_MEM_64)) {
+		/*
+		 * That failed.
+		 *
+		 * Try 32bit pref
+		 */
+		ret = pci_bus_alloc_resource(bus, res, size, align, min,
+					     IORESOURCE_PREFETCH,
+					     pcibios_align_resource, dev);
+	}
+
+	if (ret < 0 &&
+	    (res->flags & (IORESOURCE_PREFETCH | IORESOURCE_MEM_64))) {
 		/*
 		 * That failed.
 		 *
 		 * But a prefetching area can handle a non-prefetching
 		 * window (it will just not perform as well).
+		 *
+		 * Also can put 64bit under 32bit range. (below 4g).
 		 */
 		ret = pci_bus_alloc_resource(bus, res, size, align, min, 0,
 					     pcibios_align_resource, dev);
