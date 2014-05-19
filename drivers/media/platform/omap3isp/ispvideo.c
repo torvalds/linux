@@ -309,10 +309,11 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 	    vfh->format.fmt.pix.height != format.fmt.pix.height ||
 	    vfh->format.fmt.pix.width != format.fmt.pix.width ||
 	    vfh->format.fmt.pix.bytesperline != format.fmt.pix.bytesperline ||
-	    vfh->format.fmt.pix.sizeimage != format.fmt.pix.sizeimage)
+	    vfh->format.fmt.pix.sizeimage != format.fmt.pix.sizeimage ||
+	    vfh->format.fmt.pix.field != format.fmt.pix.field)
 		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
