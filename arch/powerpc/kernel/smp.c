@@ -390,6 +390,7 @@ void smp_prepare_boot_cpu(void)
 #ifdef CONFIG_PPC64
 	paca[boot_cpuid].__current = current;
 #endif
+	set_numa_node(numa_cpu_lookup_table[boot_cpuid]);
 	current_set[boot_cpuid] = task_thread_info(current);
 }
 
@@ -749,6 +750,11 @@ void start_secondary(void *unused)
 		cpumask_set_cpu(base + i, cpu_core_mask(cpu));
 	}
 	traverse_core_siblings(cpu, true);
+
+	/*
+	 * numa_node_id() works after this.
+	 */
+	set_numa_node(numa_cpu_lookup_table[cpu]);
 
 	smp_wmb();
 	notify_cpu_starting(cpu);
