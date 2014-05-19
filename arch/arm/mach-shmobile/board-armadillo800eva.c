@@ -407,14 +407,8 @@ static struct platform_device pwm_device = {
 };
 
 static struct pwm_lookup pwm_lookup[] = {
-	{
-		.provider = "renesas-tpu-pwm",
-		.index = 2,
-		.dev_id = "pwm-backlight.0",
-		.con_id = NULL,
-		.period = 33333,
-		.polarity = PWM_POLARITY_INVERSED,
-	},
+	PWM_LOOKUP("renesas-tpu-pwm", 2, "pwm-backlight.0", NULL,
+		   33333, PWM_POLARITY_INVERSED),
 };
 
 /* LCDC and backlight */
