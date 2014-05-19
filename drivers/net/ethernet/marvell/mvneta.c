@@ -2896,8 +2896,8 @@ static int mvneta_probe(struct platform_device *pdev)
 	netif_napi_add(dev, &pp->napi, mvneta_poll, pp->weight);
 
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM;
-	dev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM;
-	dev->vlan_features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->hw_features |= dev->features;
+	dev->vlan_features |= dev->features;
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
 	err = register_netdev(dev);
