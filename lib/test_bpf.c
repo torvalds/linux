@@ -1489,7 +1489,7 @@ static __init int test_bpf(void)
 			memcpy(fp_ext->insns, tests[i].insns_int,
 			       fprog.len * 8);
 			fp->len = fprog.len;
-			fp->bpf_func = sk_run_filter_int_skb;
+			sk_filter_select_runtime(fp);
 		} else {
 			err = sk_unattached_filter_create(&fp, &fprog);
 			if (tests[i].data_type == EXPECTED_FAIL) {
@@ -1516,7 +1516,7 @@ static __init int test_bpf(void)
 		if (tests[i].data_type != SKB_INT)
 			sk_unattached_filter_destroy(fp);
 		else
-			kfree(fp);
+			sk_filter_free(fp);
 
 		if (err) {
 			pr_cont("FAIL %d\n", err);

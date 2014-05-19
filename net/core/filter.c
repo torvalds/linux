@@ -153,7 +153,7 @@ noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
  * keep, 0 for none. @ctx is the data we are operating on, @insn is the
  * array of filter instructions.
  */
-unsigned int __sk_run_filter(void *ctx, const struct sock_filter_int *insn)
+static unsigned int __sk_run_filter(void *ctx, const struct sock_filter_int *insn)
 {
 	u64 stack[MAX_BPF_STACK / sizeof(u64)];
 	u64 regs[MAX_BPF_REG], tmp;
@@ -570,15 +570,6 @@ load_byte:
 		WARN_RATELIMIT(1, "unknown opcode %02x\n", insn->code);
 		return 0;
 }
-
-u32 sk_run_filter_int_seccomp(const struct seccomp_data *ctx,
-			      const struct sock_filter_int *insni)
-    __attribute__ ((alias ("__sk_run_filter")));
-
-u32 sk_run_filter_int_skb(const struct sk_buff *ctx,
-			  const struct sock_filter_int *insni)
-    __attribute__ ((alias ("__sk_run_filter")));
-EXPORT_SYMBOL_GPL(sk_run_filter_int_skb);
 
 /* Helper to find the offset of pkt_type in sk_buff structure. We want
  * to make sure its still a 3bit field starting at a byte boundary;
@@ -1397,7 +1388,7 @@ static void sk_filter_release_rcu(struct rcu_head *rcu)
 	struct sk_filter *fp = container_of(rcu, struct sk_filter, rcu);
 
 	sk_release_orig_filter(fp);
-	bpf_jit_free(fp);
+	sk_filter_free(fp);
 }
 
 /**
@@ -1497,7 +1488,6 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp,
 		goto out_err_free;
 	}
 
-	fp->bpf_func = sk_run_filter_int_skb;
 	fp->len = new_len;
 
 	/* 2nd pass: remap sock_filter insns into sock_filter_int insns. */
@@ -1509,6 +1499,8 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp,
 		 * by __sk_migrate_realloc().
 		 */
 		goto out_err_free;
+
+	sk_filter_select_runtime(fp);
 
 	kfree(old_prog);
 	return fp;
@@ -1527,6 +1519,29 @@ out_err:
 void __weak bpf_int_jit_compile(struct sk_filter *prog)
 {
 }
+
+/**
+ *	sk_filter_select_runtime - select execution runtime for BPF program
+ *	@fp: sk_filter populated with internal BPF program
+ *
+ * try to JIT internal BPF program, if JIT is not available select interpreter
+ * BPF program will be executed via SK_RUN_FILTER() macro
+ */
+void sk_filter_select_runtime(struct sk_filter *fp)
+{
+	fp->bpf_func = (void *) __sk_run_filter;
+
+	/* Probe if internal BPF can be JITed */
+	bpf_int_jit_compile(fp);
+}
+EXPORT_SYMBOL_GPL(sk_filter_select_runtime);
+
+/* free internal BPF program */
+void sk_filter_free(struct sk_filter *fp)
+{
+	bpf_jit_free(fp);
+}
+EXPORT_SYMBOL_GPL(sk_filter_free);
 
 static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
 					     struct sock *sk)
@@ -1548,12 +1563,9 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
 	/* JIT compiler couldn't process this filter, so do the
 	 * internal BPF translation for the optimized interpreter.
 	 */
-	if (!fp->jited) {
+	if (!fp->jited)
 		fp = __sk_migrate_filter(fp, sk);
 
-		/* Probe if internal BPF can be jit-ed */
-		bpf_int_jit_compile(fp);
-	}
 	return fp;
 }
 
