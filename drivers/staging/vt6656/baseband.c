@@ -731,129 +731,117 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
 	int bExtBit;
 	u8 byPreambleType = pDevice->byPreambleType;
 
-    cbBitCount = cbFrameLength * 8;
-    bExtBit = false;
+	cbBitCount = cbFrameLength * 8;
+	bExtBit = false;
 
-    switch (wRate) {
-    case RATE_1M :
-        cbUsCount = cbBitCount;
-	phy->signal = 0x00;
-        break;
+	switch (wRate) {
+	case RATE_1M:
+		cbUsCount = cbBitCount;
 
-    case RATE_2M :
-        cbUsCount = cbBitCount / 2;
-        if (byPreambleType == 1)
-		phy->signal = 0x09;
-        else // long preamble
-		phy->signal = 0x01;
-        break;
+		phy->signal = 0x00;
 
-    case RATE_5M :
-        cbUsCount = (cbBitCount * 10) / 55;
-        cbTmp = (cbUsCount * 55) / 10;
-        if (cbTmp != cbBitCount)
-            cbUsCount ++;
-        if (byPreambleType == 1)
-		phy->signal = 0x0a;
-        else // long preamble
-		phy->signal = 0x02;
-        break;
+		break;
+	case RATE_2M:
+		cbUsCount = cbBitCount / 2;
 
-    case RATE_11M :
-        cbUsCount = cbBitCount / 11;
-        cbTmp = cbUsCount * 11;
-        if (cbTmp != cbBitCount) {
-            cbUsCount ++;
-            if ((cbBitCount - cbTmp) <= 3)
-                bExtBit = true;
-        }
-        if (byPreambleType == 1)
-		phy->signal = 0x0b;
-        else // long preamble
-		phy->signal = 0x03;
-        break;
+		if (byPreambleType == 1)
+			phy->signal = 0x09;
+		else
+			phy->signal = 0x01;
 
-    case RATE_6M :
-        if(byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x9b;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x8b;
-        }
-        break;
+		break;
+	case RATE_5M:
+		cbUsCount = (cbBitCount * 10) / 55;
+		cbTmp = (cbUsCount * 55) / 10;
 
-    case RATE_9M :
-        if(byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x9f;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x8f;
-        }
-        break;
+		if (cbTmp != cbBitCount)
+			cbUsCount++;
 
-    case RATE_12M :
-        if(byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x9a;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x8a;
-        }
-        break;
+		if (byPreambleType == 1)
+			phy->signal = 0x0a;
+		else
+			phy->signal = 0x02;
 
-    case RATE_18M :
-        if(byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x9e;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x8e;
-        }
-        break;
+		break;
+	case RATE_11M:
+		cbUsCount = cbBitCount / 11;
+		cbTmp = cbUsCount * 11;
 
-    case RATE_24M :
-        if(byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x99;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x89;
-        }
-        break;
+		if (cbTmp != cbBitCount) {
+			cbUsCount++;
 
-    case RATE_36M :
-        if(byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x9d;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x8d;
-        }
-        break;
+			if ((cbBitCount - cbTmp) <= 3)
+				bExtBit = true;
+		}
 
-    case RATE_48M :
-        if(byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x98;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x88;
-        }
-        break;
+		if (byPreambleType == 1)
+			phy->signal = 0x0b;
+		else
+			phy->signal = 0x03;
 
-    case RATE_54M :
-        if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x9c;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x8c;
-        }
-        break;
+		break;
+	case RATE_6M:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x9b;
+		else
+			phy->signal = 0x8b;
 
-    default :
-        if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
-		phy->signal = 0x9c;
-        }
-        else {//11g, 2.4GHZ
-		phy->signal = 0x8c;
-        }
-        break;
-    }
+		break;
+	case RATE_9M:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x9f;
+		else
+			phy->signal = 0x8f;
+
+		break;
+	case RATE_12M:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x9a;
+		else
+			phy->signal = 0x8a;
+
+		break;
+	case RATE_18M:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x9e;
+		else
+			phy->signal = 0x8e;
+
+		break;
+	case RATE_24M:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x99;
+		else
+			phy->signal = 0x89;
+
+		break;
+	case RATE_36M:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x9d;
+		else
+			phy->signal = 0x8d;
+
+		break;
+	case RATE_48M:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x98;
+		else
+			phy->signal = 0x88;
+
+		break;
+	case RATE_54M:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x9c;
+		else
+			phy->signal = 0x8c;
+		break;
+	default:
+		if (byPacketType == PK_TYPE_11A)
+			phy->signal = 0x9c;
+		else
+			phy->signal = 0x8c;
+		break;
+	}
 
 	if (byPacketType == PK_TYPE_11B) {
 		phy->service = 0x00;
