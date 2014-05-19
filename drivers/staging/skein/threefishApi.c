@@ -9,7 +9,7 @@ void threefish_set_key(struct threefish_key *key_ctx,
 {
 	int key_words = state_size / 64;
 	int i;
-	u64 parity = KeyScheduleConst;
+	u64 parity = KEY_SCHEDULE_CONST;
 
 	key_ctx->tweak[0] = tweak[0];
 	key_ctx->tweak[1] = tweak[1];
@@ -29,9 +29,9 @@ void threefish_encrypt_block_bytes(struct threefish_key *key_ctx, u8 *in,
 	u64 plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
 	u64 cipher[SKEIN_MAX_STATE_WORDS];
 
-	Skein_Get64_LSB_First(plain, in, key_ctx->state_size / 64);
+	skein_get64_lsb_first(plain, in, key_ctx->state_size / 64);
 	threefish_encrypt_block_words(key_ctx, plain, cipher);
-	Skein_Put64_LSB_First(out, cipher, key_ctx->state_size / 8);
+	skein_put64_lsb_first(out, cipher, key_ctx->state_size / 8);
 }
 
 void threefish_encrypt_block_words(struct threefish_key *key_ctx, u64 *in,
@@ -56,9 +56,9 @@ void threefish_decrypt_block_bytes(struct threefish_key *key_ctx, u8 *in,
 	u64 plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
 	u64 cipher[SKEIN_MAX_STATE_WORDS];
 
-	Skein_Get64_LSB_First(cipher, in, key_ctx->state_size / 64);
+	skein_get64_lsb_first(cipher, in, key_ctx->state_size / 64);
 	threefish_decrypt_block_words(key_ctx, cipher, plain);
-	Skein_Put64_LSB_First(out, plain, key_ctx->state_size / 8);
+	skein_put64_lsb_first(out, plain, key_ctx->state_size / 8);
 }
 
 void threefish_decrypt_block_words(struct threefish_key *key_ctx, u64 *in,

@@ -31,7 +31,7 @@
 #include <linux/types.h>
 #include <skein.h>
 
-#define KeyScheduleConst 0x1BD11BDAA9FC1A22L
+#define KEY_SCHEDULE_CONST 0x1BD11BDAA9FC1A22L
 
 /**
  * Which Threefish size to use

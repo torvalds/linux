@@ -124,7 +124,7 @@ const u64 SKEIN_512_IV_512[] = {
 };
 
 /* blkSize = 1024 bits. hashSize =  384 bits */
-const u64 SKEIN1024_IV_384[] = {
+const u64 SKEIN_1024_IV_384[] = {
 	MK_64(0x5102B6B8, 0xC1894A35),
 	MK_64(0xFEEBC9E3, 0xFE8AF11A),
 	MK_64(0x0C807F06, 0xE32BED71),
@@ -144,7 +144,7 @@ const u64 SKEIN1024_IV_384[] = {
 };
 
 /* blkSize = 1024 bits. hashSize =  512 bits */
-const u64 SKEIN1024_IV_512[] = {
+const u64 SKEIN_1024_IV_512[] = {
 	MK_64(0xCAEC0E5D, 0x7C1B1B18),
 	MK_64(0xA01B0E04, 0x5F03E802),
 	MK_64(0x33840451, 0xED912885),
@@ -164,7 +164,7 @@ const u64 SKEIN1024_IV_512[] = {
 };
 
 /* blkSize = 1024 bits. hashSize = 1024 bits */
-const u64 SKEIN1024_IV_1024[] = {
+const u64 SKEIN_1024_IV_1024[] = {
 	MK_64(0xD593DA07, 0x41E72355),
 	MK_64(0x15B5E511, 0xAC73E00C),
 	MK_64(0x5180E5AE, 0xBAF2C4F0),

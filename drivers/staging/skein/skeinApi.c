@@ -29,7 +29,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 int skein_ctx_prepare(struct skein_ctx *ctx, enum skein_size size)
 {
-	Skein_Assert(ctx && size, SKEIN_FAIL);
+	skein_assert_ret(ctx && size, SKEIN_FAIL);
 
 	memset(ctx , 0, sizeof(struct skein_ctx));
 	ctx->skein_size = size;
@@ -44,7 +44,7 @@ int skein_init(struct skein_ctx *ctx, size_t hash_bit_len)
 	u64 *X = NULL;
 	u64 tree_info = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
-	Skein_Assert(ctx, SKEIN_FAIL);
+	skein_assert_ret(ctx, SKEIN_FAIL);
 	/*
 	 * The following two lines rely of the fact that the real Skein
 	 * contexts are a union in out context and thus have tha maximum
@@ -89,12 +89,12 @@ int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
 	size_t X_len = 0;
 	u64 tree_info = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
-	Skein_Assert(ctx, SKEIN_FAIL);
+	skein_assert_ret(ctx, SKEIN_FAIL);
 
 	X = ctx->m.s256.X;
 	X_len = ctx->skein_size/8;
 
-	Skein_Assert(hash_bit_len, SKEIN_BAD_HASHLEN);
+	skein_assert_ret(hash_bit_len, SKEIN_BAD_HASHLEN);
 
 	switch (ctx->skein_size) {
 	case SKEIN_256:
@@ -141,7 +141,7 @@ void skein_reset(struct skein_ctx *ctx)
 	memcpy(X, ctx->X_save, X_len);
 
 	/* Setup context to process the message */
-	Skein_Start_New_Type(&ctx->m, MSG);
+	skein_start_new_type(&ctx->m, MSG);
 }
 
 int skein_update(struct skein_ctx *ctx, const u8 *msg,
@@ -149,7 +149,7 @@ int skein_update(struct skein_ctx *ctx, const u8 *msg,
 {
 	int ret = SKEIN_FAIL;
 
-	Skein_Assert(ctx, SKEIN_FAIL);
+	skein_assert_ret(ctx, SKEIN_FAIL);
 
 	switch (ctx->skein_size) {
 	case SKEIN_256:
@@ -185,8 +185,8 @@ int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
 	 * only the final Update() call is allowed do partial bytes, else
 	 * assert an error
 	 */
-	Skein_Assert((ctx->m.h.T[1] & SKEIN_T1_FLAG_BIT_PAD) == 0 ||
-			msg_bit_cnt == 0, SKEIN_FAIL);
+	skein_assert_ret((ctx->m.h.T[1] & SKEIN_T1_FLAG_BIT_PAD) == 0 ||
+			 msg_bit_cnt == 0, SKEIN_FAIL);
 
 	/* if number of bits is a multiple of bytes - that's easy */
 	if ((msg_bit_cnt & 0x7) == 0)
@@ -203,13 +203,13 @@ int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
 	up = (u8 *)ctx->m.s256.X + ctx->skein_size / 8;
 
 	/* set tweak flag for the skein_final call */
-	Skein_Set_Bit_Pad_Flag(ctx->m.h);
+	skein_set_bit_pad_flag(ctx->m.h);
 
 	/* now "pad" the final partial byte the way NIST likes */
 	/* get the b_cnt value (same location for all block sizes) */
 	length = ctx->m.h.b_cnt;
 	/* internal sanity check: there IS a partial byte in the buffer! */
-	Skein_assert(length != 0);
+	skein_assert(length != 0);
 	/* partial byte bit mask */
 	mask = (u8) (1u << (7 - (msg_bit_cnt & 7)));
 	/* apply bit padding on final byte (in the buffer) */
@@ -222,7 +222,7 @@ int skein_final(struct skein_ctx *ctx, u8 *hash)
 {
 	int ret = SKEIN_FAIL;
 
-	Skein_Assert(ctx, SKEIN_FAIL);
+	skein_assert_ret(ctx, SKEIN_FAIL);
 
 	switch (ctx->skein_size) {
 	case SKEIN_256:

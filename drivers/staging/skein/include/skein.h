@@ -28,15 +28,15 @@
 **
 ***************************************************************************/
 
-#ifndef RotL_64
-#define RotL_64(x, N)    (((x) << (N)) | ((x) >> (64-(N))))
+#ifndef rotl_64
+#define rotl_64(x, N)    (((x) << (N)) | ((x) >> (64-(N))))
 #endif
 
 /* below two prototype assume we are handed aligned data */
-#define Skein_Put64_LSB_First(dst08, src64, b_cnt) memcpy(dst08, src64, b_cnt)
-#define Skein_Get64_LSB_First(dst64, src08, w_cnt) \
+#define skein_put64_lsb_first(dst08, src64, b_cnt) memcpy(dst08, src64, b_cnt)
+#define skein_get64_lsb_first(dst64, src08, w_cnt) \
 		memcpy(dst64, src08, 8*(w_cnt))
-#define Skein_Swap64(w64)  (w64)
+#define skein_swap64(w64)  (w64)
 
 enum {
 	SKEIN_SUCCESS         =      0, /* return codes from Skein calls */
@@ -48,20 +48,20 @@ enum {
 
 #define  SKEIN_256_STATE_WORDS  (4)
 #define  SKEIN_512_STATE_WORDS  (8)
-#define  SKEIN1024_STATE_WORDS (16)
+#define  SKEIN_1024_STATE_WORDS (16)
 #define  SKEIN_MAX_STATE_WORDS (16)
 
 #define  SKEIN_256_STATE_BYTES  (8*SKEIN_256_STATE_WORDS)
 #define  SKEIN_512_STATE_BYTES  (8*SKEIN_512_STATE_WORDS)
-#define  SKEIN1024_STATE_BYTES  (8*SKEIN1024_STATE_WORDS)
+#define  SKEIN_1024_STATE_BYTES  (8*SKEIN_1024_STATE_WORDS)
 
 #define  SKEIN_256_STATE_BITS  (64*SKEIN_256_STATE_WORDS)
 #define  SKEIN_512_STATE_BITS  (64*SKEIN_512_STATE_WORDS)
-#define  SKEIN1024_STATE_BITS  (64*SKEIN1024_STATE_WORDS)
+#define  SKEIN_1024_STATE_BITS  (64*SKEIN_1024_STATE_WORDS)
 
 #define  SKEIN_256_BLOCK_BYTES  (8*SKEIN_256_STATE_WORDS)
 #define  SKEIN_512_BLOCK_BYTES  (8*SKEIN_512_STATE_WORDS)
-#define  SKEIN1024_BLOCK_BYTES  (8*SKEIN1024_STATE_WORDS)
+#define  SKEIN_1024_BLOCK_BYTES  (8*SKEIN_1024_STATE_WORDS)
 
 struct skein_ctx_hdr {
 	size_t hash_bit_len;		/* size of hash result, in bits */
@@ -83,8 +83,8 @@ struct skein_512_ctx { /* 512-bit Skein hash context structure */
 
 struct skein_1024_ctx { /* 1024-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
-	u64 X[SKEIN1024_STATE_WORDS];	/* chaining variables */
-	u8 b[SKEIN1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
+	u64 X[SKEIN_1024_STATE_WORDS];	/* chaining variables */
+	u8 b[SKEIN_1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
 /* Skein APIs for (incremental) "straight hashing" */
@@ -232,44 +232,44 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 **   Skein macros for getting/setting tweak words, etc.
 **   These are useful for partial input bytes, hash tree init/update, etc.
 **/
-#define Skein_Get_Tweak(ctx_ptr, TWK_NUM)          ((ctx_ptr)->h.T[TWK_NUM])
-#define Skein_Set_Tweak(ctx_ptr, TWK_NUM, t_val) { \
+#define skein_get_tweak(ctx_ptr, TWK_NUM)          ((ctx_ptr)->h.T[TWK_NUM])
+#define skein_set_tweak(ctx_ptr, TWK_NUM, t_val) { \
 		(ctx_ptr)->h.T[TWK_NUM] = (t_val); \
 	}
 
-#define Skein_Get_T0(ctx_ptr)     Skein_Get_Tweak(ctx_ptr, 0)
-#define Skein_Get_T1(ctx_ptr)     Skein_Get_Tweak(ctx_ptr, 1)
-#define Skein_Set_T0(ctx_ptr, T0) Skein_Set_Tweak(ctx_ptr, 0, T0)
-#define Skein_Set_T1(ctx_ptr, T1) Skein_Set_Tweak(ctx_ptr, 1, T1)
+#define skein_get_T0(ctx_ptr)     skein_get_tweak(ctx_ptr, 0)
+#define skein_get_T1(ctx_ptr)     skein_get_tweak(ctx_ptr, 1)
+#define skein_set_T0(ctx_ptr, T0) skein_set_tweak(ctx_ptr, 0, T0)
+#define skein_set_T1(ctx_ptr, T1) skein_set_tweak(ctx_ptr, 1, T1)
 
 /* set both tweak words at once */
-#define Skein_Set_T0_T1(ctx_ptr, T0, T1)           \
-	{                                           \
-	Skein_Set_T0(ctx_ptr, (T0));                  \
-	Skein_Set_T1(ctx_ptr, (T1));                  \
+#define skein_set_T0_T1(ctx_ptr, T0, T1)           \
+	{                                          \
+	skein_set_T0(ctx_ptr, (T0));               \
+	skein_set_T1(ctx_ptr, (T1));               \
 	}
 
-#define Skein_Set_Type(ctx_ptr, BLK_TYPE)         \
-	Skein_Set_T1(ctx_ptr, SKEIN_T1_BLK_TYPE_##BLK_TYPE)
+#define skein_set_type(ctx_ptr, BLK_TYPE)         \
+	skein_set_T1(ctx_ptr, SKEIN_T1_BLK_TYPE_##BLK_TYPE)
 
 /*
  * setup for starting with a new type:
  * h.T[0]=0; h.T[1] = NEW_TYPE; h.b_cnt=0;
  */
-#define Skein_Start_New_Type(ctx_ptr, BLK_TYPE) { \
-		Skein_Set_T0_T1(ctx_ptr, 0, SKEIN_T1_FLAG_FIRST | \
+#define skein_start_new_type(ctx_ptr, BLK_TYPE) { \
+		skein_set_T0_T1(ctx_ptr, 0, SKEIN_T1_FLAG_FIRST | \
 				SKEIN_T1_BLK_TYPE_##BLK_TYPE); \
 		(ctx_ptr)->h.b_cnt = 0; \
 	}
 
-#define Skein_Clear_First_Flag(hdr) { \
+#define skein_clear_first_flag(hdr) { \
 		(hdr).T[1] &= ~SKEIN_T1_FLAG_FIRST; \
 	}
-#define Skein_Set_Bit_Pad_Flag(hdr) { \
+#define skein_set_bit_pad_flag(hdr) { \
 		(hdr).T[1] |=  SKEIN_T1_FLAG_BIT_PAD; \
 	}
 
-#define Skein_Set_Tree_Level(hdr, height) { \
+#define skein_set_tree_level(hdr, height) { \
 		(hdr).T[1] |= SKEIN_T1_TREE_LEVEL(height); \
 	}
 
@@ -279,15 +279,16 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #ifdef SKEIN_DEBUG             /* examine/display intermediate values? */
 #include "skein_debug.h"
 #else                           /* default is no callouts */
-#define Skein_Show_Block(bits, ctx, X, blk_ptr, w_ptr, ks_event_ptr, ks_odd_ptr)
-#define Skein_Show_Round(bits, ctx, r, X)
-#define Skein_Show_R_Ptr(bits, ctx, r, X_ptr)
-#define Skein_Show_Final(bits, ctx, cnt, out_ptr)
-#define Skein_Show_Key(bits, ctx, key, key_bytes)
+#define skein_show_block(bits, ctx, X, blk_ptr, w_ptr, ks_event_ptr, ks_odd_ptr)
+#define skein_show_round(bits, ctx, r, X)
+#define skein_show_r_ptr(bits, ctx, r, X_ptr)
+#define skein_show_final(bits, ctx, cnt, out_ptr)
+#define skein_show_key(bits, ctx, key, key_bytes)
 #endif
 
-#define Skein_Assert(x, ret_code)/* ignore all Asserts, for performance */
-#define Skein_assert(x)
+/* ignore all asserts, for performance */
+#define skein_assert_ret(x, ret_code)
+#define skein_assert(x)
 
 /*****************************************************************
 ** Skein block function constants (shared across Ref and Opt code)
@@ -335,11 +336,11 @@ enum {
 #ifndef SKEIN_ROUNDS
 #define SKEIN_256_ROUNDS_TOTAL (72)	/* # rounds for diff block sizes */
 #define SKEIN_512_ROUNDS_TOTAL (72)
-#define SKEIN1024_ROUNDS_TOTAL (80)
+#define SKEIN_1024_ROUNDS_TOTAL (80)
 #else			/* allow command-line define in range 8*(5..14)   */
 #define SKEIN_256_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/100) + 5) % 10) + 5))
 #define SKEIN_512_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/10)  + 5) % 10) + 5))
-#define SKEIN1024_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS)     + 5) % 10) + 5))
+#define SKEIN_1024_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS)     + 5) % 10) + 5))
 #endif
 
 #endif  /* ifndef _SKEIN_H_ */
