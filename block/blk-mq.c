@@ -56,12 +56,21 @@ static bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
 {
 	unsigned int i;
 
-	for (i = 0; i < hctx->nr_ctx_map; i++)
-		if (hctx->ctx_map[i])
+	for (i = 0; i < hctx->ctx_map.map_size; i++)
+		if (hctx->ctx_map.map[i].word)
 			return true;
 
 	return false;
 }
+
+static inline struct blk_align_bitmap *get_bm(struct blk_mq_hw_ctx *hctx,
+					      struct blk_mq_ctx *ctx)
+{
+	return &hctx->ctx_map.map[ctx->index_hw / hctx->ctx_map.bits_per_word];
+}
+
+#define CTX_TO_BIT(hctx, ctx)	\
+	((ctx)->index_hw & ((hctx)->ctx_map.bits_per_word - 1))
 
 /*
  * Mark this ctx as having pending work in this hardware queue
@@ -69,8 +78,18 @@ static bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
 static void blk_mq_hctx_mark_pending(struct blk_mq_hw_ctx *hctx,
 				     struct blk_mq_ctx *ctx)
 {
-	if (!test_bit(ctx->index_hw, hctx->ctx_map))
-		set_bit(ctx->index_hw, hctx->ctx_map);
+	struct blk_align_bitmap *bm = get_bm(hctx, ctx);
+
+	if (!test_bit(CTX_TO_BIT(hctx, ctx), &bm->word))
+		set_bit(CTX_TO_BIT(hctx, ctx), &bm->word);
+}
+
+static void blk_mq_hctx_clear_pending(struct blk_mq_hw_ctx *hctx,
+				      struct blk_mq_ctx *ctx)
+{
+	struct blk_align_bitmap *bm = get_bm(hctx, ctx);
+
+	clear_bit(CTX_TO_BIT(hctx, ctx), &bm->word);
 }
 
 static struct request *__blk_mq_alloc_request(struct blk_mq_hw_ctx *hctx,
@@ -615,6 +634,40 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 }
 
 /*
+ * Process software queues that have been marked busy, splicing them
+ * to the for-dispatch
+ */
+static void flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list)
+{
+	struct blk_mq_ctx *ctx;
+	int i;
+
+	for (i = 0; i < hctx->ctx_map.map_size; i++) {
+		struct blk_align_bitmap *bm = &hctx->ctx_map.map[i];
+		unsigned int off, bit;
+
+		if (!bm->word)
+			continue;
+
+		bit = 0;
+		off = i * hctx->ctx_map.bits_per_word;
+		do {
+			bit = find_next_bit(&bm->word, bm->depth, bit);
+			if (bit >= bm->depth)
+				break;
+
+			ctx = hctx->ctxs[bit + off];
+			clear_bit(bit, &bm->word);
+			spin_lock(&ctx->lock);
+			list_splice_tail_init(&ctx->rq_list, list);
+			spin_unlock(&ctx->lock);
+
+			bit++;
+		} while (1);
+	}
+}
+
+/*
  * Run this hardware queue, pulling any software queues mapped to it in.
  * Note that this function currently has various problems around ordering
  * of IO. In particular, we'd like FIFO behaviour on handling existing
@@ -623,10 +676,9 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
-	struct blk_mq_ctx *ctx;
 	struct request *rq;
 	LIST_HEAD(rq_list);
-	int bit, queued;
+	int queued;
 
 	WARN_ON(!cpumask_test_cpu(raw_smp_processor_id(), hctx->cpumask));
 
@@ -638,14 +690,7 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 	/*
 	 * Touch any software queue that has pending entries.
 	 */
-	for_each_set_bit(bit, hctx->ctx_map, hctx->nr_ctx) {
-		clear_bit(bit, hctx->ctx_map);
-		ctx = hctx->ctxs[bit];
-
-		spin_lock(&ctx->lock);
-		list_splice_tail_init(&ctx->rq_list, &rq_list);
-		spin_unlock(&ctx->lock);
-	}
+	flush_busy_ctxs(hctx, &rq_list);
 
 	/*
 	 * If we have previous entries on our dispatch list, grab them
@@ -659,13 +704,9 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 	}
 
 	/*
-	 * Delete and return all entries from our dispatch list
-	 */
-	queued = 0;
-
-	/*
 	 * Now process all the entries, sending them to the driver.
 	 */
+	queued = 0;
 	while (!list_empty(&rq_list)) {
 		int ret;
 
@@ -1158,7 +1199,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	spin_lock(&ctx->lock);
 	if (!list_empty(&ctx->rq_list)) {
 		list_splice_init(&ctx->rq_list, &tmp);
-		clear_bit(ctx->index_hw, hctx->ctx_map);
+		blk_mq_hctx_clear_pending(hctx, ctx);
 	}
 	spin_unlock(&ctx->lock);
 
@@ -1298,6 +1339,34 @@ fail:
 	return NULL;
 }
 
+static void blk_mq_free_bitmap(struct blk_mq_ctxmap *bitmap)
+{
+	kfree(bitmap->map);
+}
+
+static int blk_mq_alloc_bitmap(struct blk_mq_ctxmap *bitmap, int node)
+{
+	unsigned int bpw = 8, total, num_maps, i;
+
+	bitmap->bits_per_word = bpw;
+
+	num_maps = ALIGN(nr_cpu_ids, bpw) / bpw;
+	bitmap->map = kzalloc_node(num_maps * sizeof(struct blk_align_bitmap),
+					GFP_KERNEL, node);
+	if (!bitmap->map)
+		return -ENOMEM;
+
+	bitmap->map_size = num_maps;
+
+	total = nr_cpu_ids;
+	for (i = 0; i < num_maps; i++) {
+		bitmap->map[i].depth = min(total, bitmap->bits_per_word);
+		total -= bitmap->map[i].depth;
+	}
+
+	return 0;
+}
+
 static int blk_mq_init_hw_queues(struct request_queue *q,
 		struct blk_mq_tag_set *set)
 {
@@ -1308,7 +1377,6 @@ static int blk_mq_init_hw_queues(struct request_queue *q,
 	 * Initialize hardware queues
 	 */
 	queue_for_each_hw_ctx(q, hctx, i) {
-		unsigned int num_maps;
 		int node;
 
 		node = hctx->numa_node;
@@ -1339,13 +1407,9 @@ static int blk_mq_init_hw_queues(struct request_queue *q,
 		if (!hctx->ctxs)
 			break;
 
-		num_maps = ALIGN(nr_cpu_ids, BITS_PER_LONG) / BITS_PER_LONG;
-		hctx->ctx_map = kzalloc_node(num_maps * sizeof(unsigned long),
-						GFP_KERNEL, node);
-		if (!hctx->ctx_map)
+		if (blk_mq_alloc_bitmap(&hctx->ctx_map, node))
 			break;
 
-		hctx->nr_ctx_map = num_maps;
 		hctx->nr_ctx = 0;
 
 		if (set->ops->init_hctx &&
@@ -1368,7 +1432,7 @@ static int blk_mq_init_hw_queues(struct request_queue *q,
 
 		blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
 		kfree(hctx->ctxs);
-		kfree(hctx->ctx_map);
+		blk_mq_free_bitmap(&hctx->ctx_map);
 	}
 
 	return 1;
@@ -1542,7 +1606,6 @@ void blk_mq_free_queue(struct request_queue *q)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		kfree(hctx->ctx_map);
 		kfree(hctx->ctxs);
 		blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
 		if (q->mq_ops->exit_hctx)

@@ -11,6 +11,12 @@ struct blk_mq_cpu_notifier {
 	void (*notify)(void *data, unsigned long action, unsigned int cpu);
 };
 
+struct blk_mq_ctxmap {
+	unsigned int map_size;
+	unsigned int bits_per_word;
+	struct blk_align_bitmap *map;
+};
+
 struct blk_mq_hw_ctx {
 	struct {
 		spinlock_t		lock;
@@ -31,8 +37,8 @@ struct blk_mq_hw_ctx {
 
 	void			*driver_data;
 
-	unsigned int 		nr_ctx_map;
-	unsigned long		*ctx_map;
+	struct blk_mq_ctxmap	ctx_map;
+
 	unsigned int		nr_ctx;
 	struct blk_mq_ctx	**ctxs;
 
