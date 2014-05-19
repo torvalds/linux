@@ -89,8 +89,6 @@ static struct snd_soc_ops haswell_rt5640_ops = {
 
 static int haswell_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct sst_pdata *pdata = dev_get_platdata(rtd->platform->dev);
 	struct sst_hsw *haswell = pdata->dsp;
 	int ret;
@@ -103,10 +101,6 @@ static int haswell_rtd_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(rtd->dev, "failed to set device config\n");
 		return ret;
 	}
-
-	/* always connected */
-	snd_soc_dapm_enable_pin(dapm, "Headphones");
-	snd_soc_dapm_enable_pin(dapm, "Mic");
 
 	return 0;
 }
