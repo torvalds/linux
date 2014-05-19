@@ -1506,8 +1506,12 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 	case STA_NOTIFY_SLEEP:
 		an->sleeping = true;
 		ath_tx_aggr_sleep(sta, sc, an);
+		if (an->ps_key > 0)
+			ath9k_hw_set_tx_filter(sc->sc_ah, an->ps_key, true);
 		break;
 	case STA_NOTIFY_AWAKE:
+		if (an->ps_key > 0)
+			ath9k_hw_set_tx_filter(sc->sc_ah, an->ps_key, false);
 		an->sleeping = false;
 		ath_tx_aggr_wakeup(sc, an);
 		break;
@@ -1593,6 +1597,8 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			ath9k_del_ps_key(sc, vif, sta);
 
 		ret = ath_key_config(common, vif, sta, key);
+		if (sta && (ret > 0))
+			((struct ath_node *)sta->drv_priv)->ps_key = ret;
 		if (ret >= 0) {
 			key->hw_key_idx = ret;
 			/* push IV and Michael MIC generation to stack */
@@ -1607,6 +1613,8 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 		break;
 	case DISABLE_KEY:
 		ath_key_delete(common, key);
+		if (sta)
+			((struct ath_node *)sta->drv_priv)->ps_key = 0;
 		break;
 	default:
 		ret = -EINVAL;
