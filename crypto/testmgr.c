@@ -414,16 +414,18 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	void *input;
 	void *output;
 	void *assoc;
-	char iv[MAX_IVLEN];
+	char *iv;
 	char *xbuf[XBUFSIZE];
 	char *xoutbuf[XBUFSIZE];
 	char *axbuf[XBUFSIZE];
 
+	iv = kzalloc(MAX_IVLEN, GFP_KERNEL);
+	if (!iv)
+		return ret;
 	if (testmgr_alloc_buf(xbuf))
 		goto out_noxbuf;
 	if (testmgr_alloc_buf(axbuf))
 		goto out_noaxbuf;
-
 	if (diff_dst && testmgr_alloc_buf(xoutbuf))
 		goto out_nooutbuf;
 
@@ -767,6 +769,7 @@ out_nooutbuf:
 out_noaxbuf:
 	testmgr_free_buf(xbuf);
 out_noxbuf:
+	kfree(iv);
 	return ret;
 }
 
