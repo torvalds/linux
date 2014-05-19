@@ -1185,11 +1185,19 @@ int kern_addr_valid(unsigned long addr)
  * covers the 64bit vsyscall page now. 32bit has a real VMA now and does
  * not need special handling anymore:
  */
+static const char *gate_vma_name(struct vm_area_struct *vma)
+{
+	return "[vsyscall]";
+}
+static struct vm_operations_struct gate_vma_ops = {
+	.name = gate_vma_name,
+};
 static struct vm_area_struct gate_vma = {
 	.vm_start	= VSYSCALL_ADDR,
 	.vm_end		= VSYSCALL_ADDR + PAGE_SIZE,
 	.vm_page_prot	= PAGE_READONLY_EXEC,
-	.vm_flags	= VM_READ | VM_EXEC
+	.vm_flags	= VM_READ | VM_EXEC,
+	.vm_ops		= &gate_vma_ops,
 };
 
 struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
@@ -1219,13 +1227,6 @@ int in_gate_area(struct mm_struct *mm, unsigned long addr)
 int in_gate_area_no_mm(unsigned long addr)
 {
 	return (addr & PAGE_MASK) == VSYSCALL_ADDR;
-}
-
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	if (vma == &gate_vma)
-		return "[vsyscall]";
-	return NULL;
 }
 
 #ifdef CONFIG_X86_UV
