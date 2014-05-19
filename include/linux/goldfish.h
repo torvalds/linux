@@ -7,7 +7,7 @@ static inline void gf_write64(unsigned long data,
 		void __iomem *portl, void __iomem *porth)
 {
 	writel((u32)data, portl);
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+#ifdef CONFIG_64BIT
 	writel(data>>32, porth);
 #endif
 }
