@@ -81,7 +81,7 @@ struct skein_512_ctx { /* 512-bit Skein hash context structure */
 	u8 b[SKEIN_512_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
-struct skein1024_ctx { /* 1024-bit Skein hash context structure */
+struct skein_1024_ctx { /* 1024-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
 	u64 X[SKEIN1024_STATE_WORDS];	/* chaining variables */
 	u8 b[SKEIN1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
@@ -90,18 +90,18 @@ struct skein1024_ctx { /* 1024-bit Skein hash context structure */
 /* Skein APIs for (incremental) "straight hashing" */
 int skein_256_init(struct skein_256_ctx *ctx, size_t hash_bit_len);
 int skein_512_init(struct skein_512_ctx *ctx, size_t hash_bit_len);
-int skein_1024_init(struct skein1024_ctx *ctx, size_t hash_bit_len);
+int skein_1024_init(struct skein_1024_ctx *ctx, size_t hash_bit_len);
 
 int skein_256_update(struct skein_256_ctx *ctx, const u8 *msg,
 		     size_t msg_byte_cnt);
 int skein_512_update(struct skein_512_ctx *ctx, const u8 *msg,
 		     size_t msg_byte_cnt);
-int skein_1024_update(struct skein1024_ctx *ctx, const u8 *msg,
+int skein_1024_update(struct skein_1024_ctx *ctx, const u8 *msg,
 		      size_t msg_byte_cnt);
 
 int skein_256_final(struct skein_256_ctx *ctx, u8 *hash_val);
 int skein_512_final(struct skein_512_ctx *ctx, u8 *hash_val);
-int skein_1024_final(struct skein1024_ctx *ctx, u8 *hash_val);
+int skein_1024_final(struct skein_1024_ctx *ctx, u8 *hash_val);
 
 /*
 **   Skein APIs for "extended" initialization: MAC keys, tree hashing.
@@ -121,7 +121,7 @@ int skein_256_init_ext(struct skein_256_ctx *ctx, size_t hash_bit_len,
 		       u64 tree_info, const u8 *key, size_t key_bytes);
 int skein_512_init_ext(struct skein_512_ctx *ctx, size_t hash_bit_len,
 		       u64 tree_info, const u8 *key, size_t key_bytes);
-int skein_1024_init_ext(struct skein1024_ctx *ctx, size_t hash_bit_len,
+int skein_1024_init_ext(struct skein_1024_ctx *ctx, size_t hash_bit_len,
 			u64 tree_info, const u8 *key, size_t key_bytes);
 
 /*
@@ -131,7 +131,7 @@ int skein_1024_init_ext(struct skein1024_ctx *ctx, size_t hash_bit_len,
 */
 int skein_256_final_pad(struct skein_256_ctx *ctx, u8 *hash_val);
 int skein_512_final_pad(struct skein_512_ctx *ctx, u8 *hash_val);
-int skein_1024_final_pad(struct skein1024_ctx *ctx, u8 *hash_val);
+int skein_1024_final_pad(struct skein_1024_ctx *ctx, u8 *hash_val);
 
 #ifndef SKEIN_TREE_HASH
 #define SKEIN_TREE_HASH (1)
@@ -139,7 +139,7 @@ int skein_1024_final_pad(struct skein1024_ctx *ctx, u8 *hash_val);
 #if  SKEIN_TREE_HASH
 int skein_256_output(struct skein_256_ctx *ctx, u8 *hash_val);
 int skein_512_output(struct skein_512_ctx *ctx, u8 *hash_val);
-int skein_1024_output(struct skein1024_ctx *ctx, u8 *hash_val);
+int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #endif
 
 /*****************************************************************

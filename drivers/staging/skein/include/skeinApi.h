@@ -105,7 +105,7 @@ struct skein_ctx {
 		struct skein_ctx_hdr h;
 		struct skein_256_ctx s256;
 		struct skein_512_ctx s512;
-		struct skein1024_ctx s1024;
+		struct skein_1024_ctx s1024;
 	} m;
 };
 

@@ -479,7 +479,7 @@ unsigned int skein_512_unroll_cnt(void)
 
 /*****************************  Skein1024 ******************************/
 #if !(SKEIN_USE_ASM & 1024)
-void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blk_ptr,
+void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 			      size_t blk_cnt, size_t byte_cnt_add)
 { /* do it in C, always looping (unrolled is bigger AND slower!) */
 	enum {

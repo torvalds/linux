@@ -111,7 +111,7 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 	ctx->h.T[1] = tweak[1];
 }
 
-void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blk_ptr,
+void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 			      size_t blk_cnt, size_t byte_cnt_add)
 {
 	struct threefish_key key;

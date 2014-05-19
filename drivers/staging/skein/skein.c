@@ -476,7 +476,7 @@ int skein_512_final(struct skein_512_ctx *ctx, u8 *hash_val)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* init the context for a straight hashing operation  */
-int skein_1024_init(struct skein1024_ctx *ctx, size_t hash_bit_len)
+int skein_1024_init(struct skein_1024_ctx *ctx, size_t hash_bit_len)
 {
 	union {
 		u8 b[SKEIN1024_STATE_BYTES];
@@ -531,7 +531,7 @@ int skein_1024_init(struct skein1024_ctx *ctx, size_t hash_bit_len)
 /* init the context for a MAC and/or tree hash operation */
 /* [identical to skein_1024_init() when key_bytes == 0 && \
  *	tree_info == SKEIN_CFG_TREE_INFO_SEQUENTIAL] */
-int skein_1024_init_ext(struct skein1024_ctx *ctx, size_t hash_bit_len,
+int skein_1024_init_ext(struct skein_1024_ctx *ctx, size_t hash_bit_len,
 			u64 tree_info, const u8 *key, size_t key_bytes)
 {
 	union {
@@ -592,7 +592,7 @@ int skein_1024_init_ext(struct skein1024_ctx *ctx, size_t hash_bit_len,
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* process the input bytes */
-int skein_1024_update(struct skein1024_ctx *ctx, const u8 *msg,
+int skein_1024_update(struct skein_1024_ctx *ctx, const u8 *msg,
 		      size_t msg_byte_cnt)
 {
 	size_t n;
@@ -647,7 +647,7 @@ int skein_1024_update(struct skein1024_ctx *ctx, const u8 *msg,
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* finalize the hash computation and output the result */
-int skein_1024_final(struct skein1024_ctx *ctx, u8 *hash_val)
+int skein_1024_final(struct skein_1024_ctx *ctx, u8 *hash_val)
 {
 	size_t i, n, byte_cnt;
 	u64 X[SKEIN1024_STATE_WORDS];
@@ -743,7 +743,7 @@ int skein_512_final_pad(struct skein_512_ctx *ctx, u8 *hash_val)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* finalize the hash computation and output the block, no OUTPUT stage */
-int skein_1024_final_pad(struct skein1024_ctx *ctx, u8 *hash_val)
+int skein_1024_final_pad(struct skein_1024_ctx *ctx, u8 *hash_val)
 {
 	/* catch uninitialized context */
 	Skein_Assert(ctx->h.b_cnt <= SKEIN1024_BLOCK_BYTES, SKEIN_FAIL);
@@ -844,7 +844,7 @@ int skein_512_output(struct skein_512_ctx *ctx, u8 *hash_val)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* just do the OUTPUT stage                                       */
-int skein_1024_output(struct skein1024_ctx *ctx, u8 *hash_val)
+int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val)
 {
 	size_t i, n, byte_cnt;
 	u64 X[SKEIN1024_STATE_WORDS];
