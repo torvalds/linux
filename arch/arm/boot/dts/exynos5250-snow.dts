@@ -59,6 +59,13 @@
 			samsung,pin-drv = <0>;
 		};
 
+		usb3_vbus_en: usb3-vbus-en {
+			samsung,pins = "gpx2-7";
+			samsung,pin-function = <1>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
 		hdmi_hpd_irq: hdmi-hpd-irq {
 			samsung,pins = "gpx3-7";
 			samsung,pin-function = <0>;
@@ -346,6 +353,21 @@
 
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&max98095>;
+	};
+
+	usb3_vbus_reg: regulator-usb3 {
+		compatible = "regulator-fixed";
+		regulator-name = "P5.0V_USB3CON";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpx2 7 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb3_vbus_en>;
+		enable-active-high;
+	};
+
+	phy@12100000 {
+		vbus-supply = <&usb3_vbus_reg>;
 	};
 
 	usb@12110000 {
