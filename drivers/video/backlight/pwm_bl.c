@@ -296,12 +296,15 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	/*
 	 * The DT case will set the pwm_period_ns field to 0 and store the
 	 * period, parsed from the DT, in the PWM device. For the non-DT case,
-	 * set the period from platform data.
+	 * set the period from platform data if it has not already been set
+	 * via the PWM lookup table.
 	 */
-	if (data->pwm_period_ns > 0)
-		pwm_set_period(pb->pwm, data->pwm_period_ns);
-
 	pb->period = pwm_get_period(pb->pwm);
+	if (!pb->period && (data->pwm_period_ns > 0)) {
+		pb->period = data->pwm_period_ns;
+		pwm_set_period(pb->pwm, data->pwm_period_ns);
+	}
+
 	pb->lth_brightness = data->lth_brightness * (pb->period / pb->scale);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
