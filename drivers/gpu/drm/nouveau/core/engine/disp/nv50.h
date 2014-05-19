@@ -45,13 +45,11 @@ struct nv50_disp_priv {
 		int (*hda_eld)(struct nv50_disp_priv *, int sor, u8 *, u32);
 		int (*hdmi)(struct nv50_disp_priv *, int head, int sor, u32);
 		u32 lvdsconf;
-		const struct nouveau_dp_func *dp;
 	} sor;
 	struct {
 		int nr;
 		int (*power)(struct nv50_disp_priv *, int ext, u32 data);
 		u8 type[3];
-		const struct nouveau_dp_func *dp;
 	} pior;
 };
 

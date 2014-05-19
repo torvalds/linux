@@ -1471,8 +1471,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 			break;
 		}
 
-		nouveau_dp_train(&priv->base, priv->sor.dp,
-				 &outp->info, head, datarate);
+		nouveau_dp_train((void *)outp, datarate);
 	}
 
 	exec_clkcmp(priv, head, 0, pclk, &conf);
@@ -1551,8 +1550,7 @@ nv50_disp_intr_unk40_0(struct nv50_disp_priv *priv, int head)
 			break;
 		}
 
-		nouveau_dp_train(&priv->base, priv->pior.dp,
-				 &outp->info, head, datarate);
+		nouveau_dp_train((void *)outp, datarate);
 	}
 }
 
@@ -1665,7 +1663,6 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
 	priv->pior.power = nv50_pior_power;
-	priv->pior.dp = &nv50_pior_dp_func;
 	return 0;
 }
 

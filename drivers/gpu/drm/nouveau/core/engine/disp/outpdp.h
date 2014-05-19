@@ -48,6 +48,11 @@ int  _nvkm_output_dp_fini(struct nouveau_object *, bool);
 
 struct nvkm_output_dp_impl {
 	struct nvkm_output_impl base;
+	int (*pattern)(struct nvkm_output_dp *, int);
+	int (*lnk_ctl)(struct nvkm_output_dp *, int nr, int bw, bool ef);
+	int (*drv_ctl)(struct nvkm_output_dp *, int ln, int vs, int pe, int pc);
 };
+
+int nouveau_dp_train(struct nvkm_output_dp *, u32 rate);
 
 #endif

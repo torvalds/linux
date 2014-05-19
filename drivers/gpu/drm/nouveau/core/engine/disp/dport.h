@@ -71,23 +71,4 @@
 #define DPCD_LS0C_LANE1_POST_CURSOR2                                       0x0c
 #define DPCD_LS0C_LANE0_POST_CURSOR2                                       0x03
 
-struct nouveau_disp;
-struct dcb_output;
-
-struct nouveau_dp_func {
-	int (*pattern)(struct nouveau_disp *, struct dcb_output *,
-		       int head, int pattern);
-	int (*lnk_ctl)(struct nouveau_disp *, struct dcb_output *, int head,
-		       int link_nr, int link_bw, bool enh_frame);
-	int (*drv_ctl)(struct nouveau_disp *, struct dcb_output *, int head,
-		       int lane, int swing, int preem);
-};
-
-extern const struct nouveau_dp_func nv94_sor_dp_func;
-extern const struct nouveau_dp_func nvd0_sor_dp_func;
-extern const struct nouveau_dp_func nv50_pior_dp_func;
-
-int nouveau_dp_train(struct nouveau_disp *, const struct nouveau_dp_func *,
-		     struct dcb_output *, int, u32);
-
 #endif

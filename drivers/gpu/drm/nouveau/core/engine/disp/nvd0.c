@@ -1149,8 +1149,7 @@ nvd0_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 			break;
 		}
 
-		nouveau_dp_train(&priv->base, priv->sor.dp,
-				 &outp->info, head, pclk);
+		nouveau_dp_train((void *)outp, pclk);
 	}
 
 	exec_clkcmp(priv, head, 0, pclk, &conf);
@@ -1360,7 +1359,6 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hda_eld = nvd0_hda_eld;
 	priv->sor.hdmi = nvd0_hdmi_ctrl;
-	priv->sor.dp = &nvd0_sor_dp_func;
 	return 0;
 }
 

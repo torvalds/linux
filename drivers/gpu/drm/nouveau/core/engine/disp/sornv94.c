@@ -34,15 +34,15 @@
 #include "outpdp.h"
 
 static inline u32
-nv94_sor_soff(struct dcb_output *outp)
+nv94_sor_soff(struct nvkm_output_dp *outp)
 {
-	return (ffs(outp->or) - 1) * 0x800;
+	return (ffs(outp->base.info.or) - 1) * 0x800;
 }
 
 static inline u32
-nv94_sor_loff(struct dcb_output *outp)
+nv94_sor_loff(struct nvkm_output_dp *outp)
 {
-	return nv94_sor_soff(outp) + !(outp->sorconf.link & 1) * 0x80;
+	return nv94_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
 }
 
 static inline u32
@@ -56,20 +56,18 @@ nv94_sor_dp_lane_map(struct nv50_disp_priv *priv, u8 lane)
 }
 
 static int
-nv94_sor_dp_pattern(struct nouveau_disp *disp, struct dcb_output *outp,
-		    int head, int pattern)
+nv94_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
-	struct nv50_disp_priv *priv = (void *)disp;
+	struct nv50_disp_priv *priv = (void *)nouveau_disp(outp);
 	const u32 loff = nv94_sor_loff(outp);
 	nv_mask(priv, 0x61c10c + loff, 0x0f000000, pattern << 24);
 	return 0;
 }
 
 static int
-nv94_sor_dp_lnk_ctl(struct nouveau_disp *disp, struct dcb_output *outp,
-		    int head, int link_nr, int link_bw, bool enh_frame)
+nv94_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
-	struct nv50_disp_priv *priv = (void *)disp;
+	struct nv50_disp_priv *priv = (void *)nouveau_disp(outp);
 	const u32 soff = nv94_sor_soff(outp);
 	const u32 loff = nv94_sor_loff(outp);
 	u32 dpctrl = 0x00000000;
@@ -77,13 +75,13 @@ nv94_sor_dp_lnk_ctl(struct nouveau_disp *disp, struct dcb_output *outp,
 	u32 lane = 0;
 	int i;
 
-	dpctrl |= ((1 << link_nr) - 1) << 16;
-	if (enh_frame)
+	dpctrl |= ((1 << nr) - 1) << 16;
+	if (ef)
 		dpctrl |= 0x00004000;
-	if (link_bw > 0x06)
+	if (bw > 0x06)
 		clksor |= 0x00040000;
 
-	for (i = 0; i < link_nr; i++)
+	for (i = 0; i < nr; i++)
 		lane |= 1 << (nv94_sor_dp_lane_map(priv, i) >> 3);
 
 	nv_mask(priv, 0x614300 + soff, 0x000c0000, clksor);
@@ -93,24 +91,24 @@ nv94_sor_dp_lnk_ctl(struct nouveau_disp *disp, struct dcb_output *outp,
 }
 
 static int
-nv94_sor_dp_drv_ctl(struct nouveau_disp *disp, struct dcb_output *outp,
-		    int head, int lane, int swing, int preem)
+nv94_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 {
-	struct nouveau_bios *bios = nouveau_bios(disp);
-	struct nv50_disp_priv *priv = (void *)disp;
-	const u32 shift = nv94_sor_dp_lane_map(priv, lane);
+	struct nv50_disp_priv *priv = (void *)nouveau_disp(outp);
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	const u32 shift = nv94_sor_dp_lane_map(priv, ln);
 	const u32 loff = nv94_sor_loff(outp);
 	u32 addr, data[3];
 	u8  ver, hdr, cnt, len;
 	struct nvbios_dpout info;
 	struct nvbios_dpcfg ocfg;
 
-	addr = nvbios_dpout_match(bios, outp->hasht, outp->hashm,
+	addr = nvbios_dpout_match(bios, outp->base.info.hasht,
+					outp->base.info.hashm,
 				 &ver, &hdr, &cnt, &len, &info);
 	if (!addr)
 		return -ENODEV;
 
-	addr = nvbios_dpcfg_match(bios, addr, 0, swing, preem,
+	addr = nvbios_dpcfg_match(bios, addr, 0, vs, pe,
 				 &ver, &hdr, &cnt, &len, &ocfg);
 	if (!addr)
 		return -EINVAL;
@@ -124,13 +122,6 @@ nv94_sor_dp_drv_ctl(struct nouveau_disp *disp, struct dcb_output *outp,
 	return 0;
 }
 
-const struct nouveau_dp_func
-nv94_sor_dp_func = {
-	.pattern = nv94_sor_dp_pattern,
-	.lnk_ctl = nv94_sor_dp_lnk_ctl,
-	.drv_ctl = nv94_sor_dp_drv_ctl,
-};
-
 struct nvkm_output_dp_impl
 nv94_sor_dp_impl = {
 	.base.base.handle = DCB_OUTPUT_DP,
@@ -140,4 +131,7 @@ nv94_sor_dp_impl = {
 		.init = _nvkm_output_dp_init,
 		.fini = _nvkm_output_dp_fini,
 	},
+	.pattern = nv94_sor_dp_pattern,
+	.lnk_ctl = nv94_sor_dp_lnk_ctl,
+	.drv_ctl = nv94_sor_dp_drv_ctl,
 };
