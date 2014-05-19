@@ -57,6 +57,8 @@ void bcm_wlan_power_off(int flag)
 {
 	if (flag == 1) {
 		printk("======== Card detection to remove SDIO card! ========\n");
+		rockchip_wifi_power(1);
+        rockchip_wifi_set_carddetect(0);
 		rockchip_wifi_power(0);
 	} else {
 		printk("======== PULL WL_REG_ON LOW! (flag = %d) ========\n", flag);
