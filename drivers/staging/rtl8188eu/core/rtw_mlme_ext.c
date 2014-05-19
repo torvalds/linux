@@ -6551,7 +6551,6 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 	struct registry_priv	*pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	__le32 le32_tmp;
 
 	len = packet_len - sizeof(struct rtw_ieee80211_hdr_3addr);
 
@@ -6665,8 +6664,8 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 		return _SUCCESS;
 	}
 
-	memcpy(&le32_tmp, rtw_get_beacon_interval_from_ie(bssid->IEs), 2);
-	bssid->Configuration.BeaconPeriod = le32_to_cpu(le32_tmp);
+	bssid->Configuration.BeaconPeriod =
+		get_unaligned_le16(rtw_get_beacon_interval_from_ie(bssid->IEs));
 
 	val16 = rtw_get_capability((struct wlan_bssid_ex *)bssid);
 
