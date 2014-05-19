@@ -130,7 +130,6 @@ int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 	struct iwl_beacon_filter_cmd cmd = {
 		IWL_BF_CMD_CONFIG_DEFAULTS,
 		.bf_enable_beacon_filter = cpu_to_le32(1),
-		.ba_enable_beacon_abort = cpu_to_le32(enable),
 	};
 
 	if (!mvmvif->bf_data.bf_enabled)
