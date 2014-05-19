@@ -71,7 +71,7 @@ static void companion_common(struct pci_dev *pdev, struct usb_hcd *hcd,
 			continue;
 
 		companion_hcd = pci_get_drvdata(companion);
-		if (!companion_hcd)
+		if (!companion_hcd || !companion_hcd->self.root_hub)
 			continue;
 
 		/* For SET_HS_COMPANION, store a pointer to the EHCI bus in
