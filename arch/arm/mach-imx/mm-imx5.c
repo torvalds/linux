@@ -93,23 +93,6 @@ void __init imx53_init_early(void)
 	imx_src_init();
 }
 
-void __init mx51_init_irq(void)
-{
-	tzic_init_irq(MX51_IO_ADDRESS(MX51_TZIC_BASE_ADDR));
-}
-
-void __init mx53_init_irq(void)
-{
-	struct device_node *np;
-	void __iomem *base;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-tzic");
-	base = of_iomap(np, 0);
-	WARN_ON(!base);
-
-	tzic_init_irq(base);
-}
-
 static struct sdma_platform_data imx51_sdma_pdata __initdata = {
 	.fw_name = "sdma-imx51.bin",
 };
