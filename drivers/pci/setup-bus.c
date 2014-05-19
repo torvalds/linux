@@ -921,7 +921,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 {
 	struct pci_dev *dev;
 	resource_size_t min_align, align, size, size0, size1;
-	resource_size_t aligns[12];	/* Alignments from 1Mb to 2Gb */
+	resource_size_t aligns[14];	/* Alignments from 1Mb to 8Gb */
 	int order, max_order;
 	struct resource *b_res = find_free_bus_resource(bus, type);
 	unsigned int mem64_mask = 0;
@@ -957,10 +957,17 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 				continue;
 			}
 #endif
-			/* For bridges size != alignment */
+			/*
+			 * aligns[0] is for 1MB (since bridge memory
+			 * windows are always at least 1MB aligned), so
+			 * keep "order" from being negative for smaller
+			 * resources.
+			 */
 			align = pci_resource_alignment(dev, r);
 			order = __ffs(align) - 20;
-			if (order > 11) {
+			if (order < 0)
+				order = 0;
+			if (order >= ARRAY_SIZE(aligns)) {
 				dev_warn(&dev->dev, "disabling BAR %d: %pR "
 					 "(bad alignment %#llx)\n", i, r,
 					 (unsigned long long) align);
@@ -968,8 +975,6 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 				continue;
 			}
 			size += r_size;
-			if (order < 0)
-				order = 0;
 			/* Exclude ranges with size > align from
 			   calculation of the alignment. */
 			if (r_size == align)
