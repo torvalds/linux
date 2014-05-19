@@ -22,7 +22,7 @@
 #define MCS_NBITS (AVG_PKT_SIZE << 3)
 
 /* Number of symbols for a packet with (bps) bits per symbol */
-#define MCS_NSYMS(bps) ((MCS_NBITS + (bps) - 1) / (bps))
+#define MCS_NSYMS(bps) DIV_ROUND_UP(MCS_NBITS, (bps))
 
 /* Transmission time (nanoseconds) for a packet containing (syms) symbols */
 #define MCS_SYMBOL_TIME(sgi, syms)					\
@@ -226,8 +226,9 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
 
 	nsecs += minstrel_mcs_groups[group].duration[rate];
-	tp = 1000000 * ((prob * 1000) / nsecs);
 
+	/* prob is scaled - see MINSTREL_FRAC above */
+	tp = 1000000 * ((prob * 1000) / nsecs);
 	mr->cur_tp = MINSTREL_TRUNC(tp);
 }
 
