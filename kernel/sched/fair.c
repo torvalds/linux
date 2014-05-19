@@ -3224,10 +3224,12 @@ static void expire_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	 * has not truly expired.
 	 *
 	 * Fortunately we can check determine whether this the case by checking
-	 * whether the global deadline has advanced.
+	 * whether the global deadline has advanced. It is valid to compare
+	 * cfs_b->runtime_expires without any locks since we only care about
+	 * exact equality, so a partial write will still work.
 	 */
 
-	if ((s64)(cfs_rq->runtime_expires - cfs_b->runtime_expires) >= 0) {
+	if (cfs_rq->runtime_expires != cfs_b->runtime_expires) {
 		/* extend local deadline, drift is bounded above by 2 ticks */
 		cfs_rq->runtime_expires += TICK_NSEC;
 	} else {
@@ -3456,21 +3458,21 @@ next:
 static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 {
 	u64 runtime, runtime_expires;
-	int idle = 1, throttled;
+	int throttled;
 
-	raw_spin_lock(&cfs_b->lock);
 	/* no need to continue the timer with no bandwidth constraint */
 	if (cfs_b->quota == RUNTIME_INF)
-		goto out_unlock;
+		goto out_deactivate;
 
 	throttled = !list_empty(&cfs_b->throttled_cfs_rq);
-	/* idle depends on !throttled (for the case of a large deficit) */
-	idle = cfs_b->idle && !throttled;
 	cfs_b->nr_periods += overrun;
 
-	/* if we're going inactive then everything else can be deferred */
-	if (idle)
-		goto out_unlock;
+	/*
+	 * idle depends on !throttled (for the case of a large deficit), and if
+	 * we're going inactive then everything else can be deferred
+	 */
+	if (cfs_b->idle && !throttled)
+		goto out_deactivate;
 
 	/*
 	 * if we have relooped after returning idle once, we need to update our
@@ -3484,7 +3486,7 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	if (!throttled) {
 		/* mark as potentially idle for the upcoming period */
 		cfs_b->idle = 1;
-		goto out_unlock;
+		return 0;
 	}
 
 	/* account preceding periods in which throttling occurred */
@@ -3524,12 +3526,12 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	 * timer to remain active while there are any throttled entities.)
 	 */
 	cfs_b->idle = 0;
-out_unlock:
-	if (idle)
-		cfs_b->timer_active = 0;
-	raw_spin_unlock(&cfs_b->lock);
 
-	return idle;
+	return 0;
+
+out_deactivate:
+	cfs_b->timer_active = 0;
+	return 1;
 }
 
 /* a cfs_rq won't donate quota below this amount */
@@ -3706,6 +3708,7 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 	int overrun;
 	int idle = 0;
 
+	raw_spin_lock(&cfs_b->lock);
 	for (;;) {
 		now = hrtimer_cb_get_time(timer);
 		overrun = hrtimer_forward(timer, now, cfs_b->period);
@@ -3715,6 +3718,7 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 
 		idle = do_sched_cfs_period_timer(cfs_b, overrun);
 	}
+	raw_spin_unlock(&cfs_b->lock);
 
 	return idle ? HRTIMER_NORESTART : HRTIMER_RESTART;
 }
@@ -3774,8 +3778,6 @@ static void __maybe_unused unthrottle_offline_cfs_rqs(struct rq *rq)
 	struct cfs_rq *cfs_rq;
 
 	for_each_leaf_cfs_rq(rq, cfs_rq) {
-		struct cfs_bandwidth *cfs_b = tg_cfs_bandwidth(cfs_rq->tg);
-
 		if (!cfs_rq->runtime_enabled)
 			continue;
 
@@ -3783,7 +3785,7 @@ static void __maybe_unused unthrottle_offline_cfs_rqs(struct rq *rq)
 		 * clock_task is not advancing so we just need to make sure
 		 * there's some valid quota amount
 		 */
-		cfs_rq->runtime_remaining = cfs_b->quota;
+		cfs_rq->runtime_remaining = 1;
 		if (cfs_rq_throttled(cfs_rq))
 			unthrottle_cfs_rq(cfs_rq);
 	}
