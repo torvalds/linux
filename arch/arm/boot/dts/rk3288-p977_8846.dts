@@ -176,8 +176,8 @@
 };
 
 &emmc {
-	clock-frequency = <150000000>;
-	clock-freq-min-max = <400000 150000000>;
+	clock-frequency = <100000000>;
+	clock-freq-min-max = <400000 100000000>;
 
         supports-highspeed;
 	supports-emmc;
@@ -378,9 +378,9 @@
 		is_usb_charge = <0>;
 	};
 	
-	rtc@d {
+	rtc@51 {
 		compatible = "rtc,hym8563";
-		reg = <0xd>;
+		reg = <0x51>;
 		irq_gpio = <&gpio0 GPIO_A4 GPIO_ACTIVE_LOW>;
 	};
 
@@ -613,8 +613,8 @@
 		1008000 1050000
 		1200000 1100000
 		1416000 1200000
-		1512000 1250000
-		1608000 1300000
+		1512000 1300000
+		1608000 1350000
 	//	1704000 1350000
 	//	1800000 1400000
 		>;
