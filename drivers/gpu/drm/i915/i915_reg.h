@@ -1835,6 +1835,10 @@ enum punit_power_well {
 #define VF_UNIT_CLOCK_GATE_DISABLE		(1 << 9)
 #define GS_UNIT_CLOCK_GATE_DISABLE		(1 << 7)
 #define CL_UNIT_CLOCK_GATE_DISABLE		(1 << 6)
+
+#define VDECCLK_GATE_D		0x620C		/* g4x only */
+#define  VCP_UNIT_CLOCK_GATE_DISABLE		(1 << 4)
+
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
 #define DEUC			0x6214          /* CRL only */
 

@@ -988,6 +988,36 @@ static int i965_do_reset(struct drm_device *dev)
 	return 0;
 }
 
+static int g4x_do_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	pci_write_config_byte(dev->pdev, I965_GDRST,
+			      GRDOM_RENDER | GRDOM_RESET_ENABLE);
+	ret =  wait_for(i965_reset_complete(dev), 500);
+	if (ret)
+		return ret;
+
+	/* WaVcpClkGateDisableForMediaReset:ctg,elk */
+	I915_WRITE(VDECCLK_GATE_D, I915_READ(VDECCLK_GATE_D) | VCP_UNIT_CLOCK_GATE_DISABLE);
+	POSTING_READ(VDECCLK_GATE_D);
+
+	pci_write_config_byte(dev->pdev, I965_GDRST,
+			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
+	ret =  wait_for(i965_reset_complete(dev), 500);
+	if (ret)
+		return ret;
+
+	/* WaVcpClkGateDisableForMediaReset:ctg,elk */
+	I915_WRITE(VDECCLK_GATE_D, I915_READ(VDECCLK_GATE_D) & ~VCP_UNIT_CLOCK_GATE_DISABLE);
+	POSTING_READ(VDECCLK_GATE_D);
+
+	pci_write_config_byte(dev->pdev, I965_GDRST, 0);
+
+	return 0;
+}
+
 static int ironlake_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1040,7 +1070,11 @@ int intel_gpu_reset(struct drm_device *dev)
 	case 7:
 	case 6: return gen6_do_reset(dev);
 	case 5: return ironlake_do_reset(dev);
-	case 4: return i965_do_reset(dev);
+	case 4:
+		if (IS_G4X(dev))
+			return g4x_do_reset(dev);
+		else
+			return i965_do_reset(dev);
 	default: return -ENODEV;
 	}
 }
