@@ -61,14 +61,8 @@
 
 static struct pwm_lookup pwm_lookup[] = {
 	/* LEDB -> PMU_STAT */
-	{
-		.provider = "twl-pwmled",
-		.index = 1,
-		.dev_id = "leds_pwm",
-		.con_id = "beagleboard::pmu_stat",
-		.period = 7812500,
-		.polarity = PWM_POLARITY_NORMAL,
-	},
+	PWM_LOOKUP("twl-pwmled", 1, "leds_pwm", "beagleboard::pmu_stat",
+		   7812500, PWM_POLARITY_NORMAL),
 };
 
 static struct led_pwm pwm_leds[] = {
