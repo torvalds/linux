@@ -451,6 +451,10 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 	u32 mod = readl(i2s->addr + I2SMOD);
 
 	switch (clk_id) {
+	case SAMSUNG_I2S_OPCLK:
+		mod &= ~MOD_OPCLK_MASK;
+		mod |= dir;
+		break;
 	case SAMSUNG_I2S_CDCLK:
 		/* Shouldn't matter in GATING(CLOCK_IN) mode */
 		if (dir == SND_SOC_CLOCK_IN)
