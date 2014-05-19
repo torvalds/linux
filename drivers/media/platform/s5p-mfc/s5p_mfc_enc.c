@@ -58,7 +58,8 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
+								MFC_V8_BIT,
 	},
 	{
 		.name		= "4:2:0 2 Planes Y/CrCb",
@@ -66,7 +67,8 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
+								MFC_V8_BIT,
 	},
 	{
 		.name		= "H264 Encoded Stream",
@@ -74,7 +76,8 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_H264_ENC,
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
+								MFC_V8_BIT,
 	},
 	{
 		.name		= "MPEG4 Encoded Stream",
@@ -82,7 +85,8 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_MPEG4_ENC,
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
+								MFC_V8_BIT,
 	},
 	{
 		.name		= "H263 Encoded Stream",
@@ -90,7 +94,8 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_H263_ENC,
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
+								MFC_V8_BIT,
 	},
 	{
 		.name		= "VP8 Encoded Stream",
@@ -98,7 +103,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_VP8_ENC,
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
-		.versions	= MFC_V7_BIT,
+		.versions	= MFC_V7_BIT | MFC_V8_BIT,
 	},
 };
 

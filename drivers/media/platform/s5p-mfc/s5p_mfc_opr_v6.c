@@ -77,7 +77,12 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 			  ctx->luma_size, ctx->chroma_size, ctx->mv_size);
 		mfc_debug(2, "Totals bufs: %d\n", ctx->total_dpb_count);
 	} else if (ctx->type == MFCINST_ENCODER) {
-		ctx->tmv_buffer_size = S5P_FIMV_NUM_TMV_BUFFERS_V6 *
+		if (IS_MFCV8(dev))
+			ctx->tmv_buffer_size = S5P_FIMV_NUM_TMV_BUFFERS_V6 *
+			ALIGN(S5P_FIMV_TMV_BUFFER_SIZE_V8(mb_width, mb_height),
+			S5P_FIMV_TMV_BUFFER_ALIGN_V6);
+		else
+			ctx->tmv_buffer_size = S5P_FIMV_NUM_TMV_BUFFERS_V6 *
 			ALIGN(S5P_FIMV_TMV_BUFFER_SIZE_V6(mb_width, mb_height),
 			S5P_FIMV_TMV_BUFFER_ALIGN_V6);
 
@@ -87,10 +92,16 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 		ctx->chroma_dpb_size = ALIGN((mb_width * mb_height) *
 				S5P_FIMV_CHROMA_MB_TO_PIXEL_V6,
 				S5P_FIMV_CHROMA_DPB_BUFFER_ALIGN_V6);
-		ctx->me_buffer_size = ALIGN(S5P_FIMV_ME_BUFFER_SIZE_V6(
-					ctx->img_width, ctx->img_height,
-					mb_width, mb_height),
-					S5P_FIMV_ME_BUFFER_ALIGN_V6);
+		if (IS_MFCV8(dev))
+			ctx->me_buffer_size = ALIGN(S5P_FIMV_ME_BUFFER_SIZE_V8(
+						ctx->img_width, ctx->img_height,
+						mb_width, mb_height),
+						S5P_FIMV_ME_BUFFER_ALIGN_V6);
+		else
+			ctx->me_buffer_size = ALIGN(S5P_FIMV_ME_BUFFER_SIZE_V6(
+						ctx->img_width, ctx->img_height,
+						mb_width, mb_height),
+						S5P_FIMV_ME_BUFFER_ALIGN_V6);
 
 		mfc_debug(2, "recon luma size: %d chroma size: %d\n",
 			  ctx->luma_dpb_size, ctx->chroma_dpb_size);
@@ -174,10 +185,16 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 		ctx->bank1.size = ctx->scratch_buf_size;
 		break;
 	case S5P_MFC_CODEC_H264_ENC:
-		ctx->scratch_buf_size =
-			S5P_FIMV_SCRATCH_BUF_SIZE_H264_ENC_V6(
+		if (IS_MFCV8(dev))
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_H264_ENC_V8(
 					mb_width,
 					mb_height);
+		else
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_H264_ENC_V6(
+						mb_width,
+						mb_height);
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size,
 				S5P_FIMV_SCRATCH_BUFFER_ALIGN_V6);
 		ctx->bank1.size =
@@ -201,10 +218,16 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 		ctx->bank2.size = 0;
 		break;
 	case S5P_MFC_CODEC_VP8_ENC:
-		ctx->scratch_buf_size =
-			S5P_FIMV_SCRATCH_BUF_SIZE_VP8_ENC_V7(
+		if (IS_MFCV8(dev))
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_VP8_ENC_V8(
 					mb_width,
 					mb_height);
+		else
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_VP8_ENC_V7(
+						mb_width,
+						mb_height);
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size,
 				S5P_FIMV_SCRATCH_BUFFER_ALIGN_V6);
 		ctx->bank1.size =
@@ -2234,6 +2257,21 @@ const struct s5p_mfc_regs *s5p_mfc_init_regs_v6_plus(struct s5p_mfc_dev *dev)
 	R(d_ret_picture_tag_bot, S5P_FIMV_D_RET_PICTURE_TAG_BOT_V8);
 	R(d_display_crop_info1, S5P_FIMV_D_DISPLAY_CROP_INFO1_V8);
 	R(d_display_crop_info2, S5P_FIMV_D_DISPLAY_CROP_INFO2_V8);
+
+	/* encoder registers */
+	R(e_padding_ctrl, S5P_FIMV_E_PADDING_CTRL_V8);
+	R(e_rc_config, S5P_FIMV_E_RC_CONFIG_V8);
+	R(e_rc_mode, S5P_FIMV_E_RC_RPARAM_V8);
+	R(e_mv_hor_range, S5P_FIMV_E_MV_HOR_RANGE_V8);
+	R(e_mv_ver_range, S5P_FIMV_E_MV_VER_RANGE_V8);
+	R(e_rc_qp_bound, S5P_FIMV_E_RC_QP_BOUND_V8);
+	R(e_fixed_picture_qp, S5P_FIMV_E_FIXED_PICTURE_QP_V8);
+	R(e_vbv_buffer_size, S5P_FIMV_E_VBV_BUFFER_SIZE_V8);
+	R(e_vbv_init_delay, S5P_FIMV_E_VBV_INIT_DELAY_V8);
+	R(e_mb_rc_config, S5P_FIMV_E_MB_RC_CONFIG_V8);
+	R(e_aspect_ratio, S5P_FIMV_E_ASPECT_RATIO_V8);
+	R(e_extended_sar, S5P_FIMV_E_EXTENDED_SAR_V8);
+	R(e_h264_options, S5P_FIMV_E_H264_OPTIONS_V8);
 
 done:
 	return &mfc_regs;
