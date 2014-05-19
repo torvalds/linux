@@ -164,7 +164,8 @@ static void sst_byt_pcm_work(struct work_struct *work)
 	struct sst_byt_pcm_data *pcm_data =
 		container_of(work, struct sst_byt_pcm_data, work);
 
-	sst_byt_pcm_restore_stream_context(pcm_data->substream);
+	if (snd_pcm_running(pcm_data->substream))
+		sst_byt_pcm_restore_stream_context(pcm_data->substream);
 }
 
 static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -277,6 +278,7 @@ static int sst_byt_pcm_close(struct snd_pcm_substream *substream)
 
 	dev_dbg(rtd->dev, "PCM: close\n");
 
+	cancel_work_sync(&pcm_data->work);
 	mutex_lock(&pcm_data->mutex);
 	ret = sst_byt_stream_free(byt, pcm_data->stream);
 	if (ret < 0) {
