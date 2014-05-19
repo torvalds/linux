@@ -91,8 +91,8 @@ struct vnt_phy_field {
 unsigned int BBuGetFrameTime(u8 preamble_type, u8 pkt_type,
 	unsigned int frame_length, u16 tx_rate);
 
-void BBvCalculateParameter(struct vnt_private *, u32 cbFrameLength,
-	u16 wRate, u8 byPacketType, struct vnt_phy_field *);
+void BBvCalculateParameter(struct vnt_private *, u32 frame_length,
+	u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
 
 /* timer for antenna diversity */
 

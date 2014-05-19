@@ -710,9 +710,9 @@ unsigned int BBuGetFrameTime(u8 preamble_type, u8 pkt_type,
  *
  * Parameters:
  *  In:
- *      pDevice         - Device Structure
- *      cbFrameLength   - Tx Frame Length
- *      wRate           - Tx Rate
+ *      priv         - Device Structure
+ *      frame_length   - Tx Frame Length
+ *      tx_rate           - Tx Rate
  *  Out:
  *	struct vnt_phy_field *phy
  * 			- pointer to Phy Length field
@@ -722,135 +722,135 @@ unsigned int BBuGetFrameTime(u8 preamble_type, u8 pkt_type,
  * Return Value: none
  *
  */
-void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
-	u16 wRate, u8 byPacketType, struct vnt_phy_field *phy)
+void BBvCalculateParameter(struct vnt_private *priv, u32 frame_length,
+	u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy)
 {
-	u32 cbBitCount;
-	u32 cbUsCount = 0;
-	u32 cbTmp;
-	int bExtBit;
-	u8 byPreambleType = pDevice->byPreambleType;
+	u32 bit_count;
+	u32 count = 0;
+	u32 tmp;
+	int ext_bit;
+	u8 preamble_type = priv->byPreambleType;
 
-	cbBitCount = cbFrameLength * 8;
-	bExtBit = false;
+	bit_count = frame_length * 8;
+	ext_bit = false;
 
-	switch (wRate) {
+	switch (tx_rate) {
 	case RATE_1M:
-		cbUsCount = cbBitCount;
+		count = bit_count;
 
 		phy->signal = 0x00;
 
 		break;
 	case RATE_2M:
-		cbUsCount = cbBitCount / 2;
+		count = bit_count / 2;
 
-		if (byPreambleType == 1)
+		if (preamble_type == 1)
 			phy->signal = 0x09;
 		else
 			phy->signal = 0x01;
 
 		break;
 	case RATE_5M:
-		cbUsCount = (cbBitCount * 10) / 55;
-		cbTmp = (cbUsCount * 55) / 10;
+		count = (bit_count * 10) / 55;
+		tmp = (count * 55) / 10;
 
-		if (cbTmp != cbBitCount)
-			cbUsCount++;
+		if (tmp != bit_count)
+			count++;
 
-		if (byPreambleType == 1)
+		if (preamble_type == 1)
 			phy->signal = 0x0a;
 		else
 			phy->signal = 0x02;
 
 		break;
 	case RATE_11M:
-		cbUsCount = cbBitCount / 11;
-		cbTmp = cbUsCount * 11;
+		count = bit_count / 11;
+		tmp = count * 11;
 
-		if (cbTmp != cbBitCount) {
-			cbUsCount++;
+		if (tmp != bit_count) {
+			count++;
 
-			if ((cbBitCount - cbTmp) <= 3)
-				bExtBit = true;
+			if ((bit_count - tmp) <= 3)
+				ext_bit = true;
 		}
 
-		if (byPreambleType == 1)
+		if (preamble_type == 1)
 			phy->signal = 0x0b;
 		else
 			phy->signal = 0x03;
 
 		break;
 	case RATE_6M:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x9b;
 		else
 			phy->signal = 0x8b;
 
 		break;
 	case RATE_9M:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x9f;
 		else
 			phy->signal = 0x8f;
 
 		break;
 	case RATE_12M:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x9a;
 		else
 			phy->signal = 0x8a;
 
 		break;
 	case RATE_18M:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x9e;
 		else
 			phy->signal = 0x8e;
 
 		break;
 	case RATE_24M:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x99;
 		else
 			phy->signal = 0x89;
 
 		break;
 	case RATE_36M:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x9d;
 		else
 			phy->signal = 0x8d;
 
 		break;
 	case RATE_48M:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x98;
 		else
 			phy->signal = 0x88;
 
 		break;
 	case RATE_54M:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x9c;
 		else
 			phy->signal = 0x8c;
 		break;
 	default:
-		if (byPacketType == PK_TYPE_11A)
+		if (pkt_type == PK_TYPE_11A)
 			phy->signal = 0x9c;
 		else
 			phy->signal = 0x8c;
 		break;
 	}
 
-	if (byPacketType == PK_TYPE_11B) {
+	if (pkt_type == PK_TYPE_11B) {
 		phy->service = 0x00;
-		if (bExtBit)
+		if (ext_bit)
 			phy->service |= 0x80;
-		phy->len = cpu_to_le16((u16)cbUsCount);
+		phy->len = cpu_to_le16((u16)count);
 	} else {
 		phy->service = 0x00;
-		phy->len = cpu_to_le16((u16)cbFrameLength);
+		phy->len = cpu_to_le16((u16)frame_length);
 	}
 }
 
