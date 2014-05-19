@@ -662,6 +662,7 @@ static void batadv_dat_tvlv_container_update(struct batadv_priv *bat_priv)
 void batadv_dat_status_update(struct net_device *net_dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+
 	batadv_dat_tvlv_container_update(bat_priv);
 }
 
