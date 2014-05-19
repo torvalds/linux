@@ -99,9 +99,16 @@ static struct request *__blk_mq_alloc_request(struct blk_mq_hw_ctx *hctx,
 	struct request *rq;
 	unsigned int tag;
 
-	tag = blk_mq_get_tag(hctx->tags, hctx, &ctx->last_tag, gfp, reserved);
+	tag = blk_mq_get_tag(hctx, &ctx->last_tag, gfp, reserved);
 	if (tag != BLK_MQ_TAG_FAIL) {
 		rq = hctx->tags->rqs[tag];
+
+		rq->cmd_flags = 0;
+		if (blk_mq_tag_busy(hctx)) {
+			rq->cmd_flags = REQ_MQ_INFLIGHT;
+			atomic_inc(&hctx->nr_active);
+		}
+
 		rq->tag = tag;
 		return rq;
 	}
@@ -209,7 +216,7 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	/* csd/requeue_work/fifo_time is initialized before use */
 	rq->q = q;
 	rq->mq_ctx = ctx;
-	rq->cmd_flags = rw_flags;
+	rq->cmd_flags |= rw_flags;
 	rq->cmd_type = 0;
 	/* do not touch atomic flags, it needs atomic ops against the timer */
 	rq->cpu = -1;
@@ -281,7 +288,7 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 			break;
 		}
 
-		blk_mq_wait_for_tags(hctx->tags, hctx, reserved);
+		blk_mq_wait_for_tags(hctx, reserved);
 	} while (1);
 
 	return rq;
@@ -322,8 +329,11 @@ static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 	const int tag = rq->tag;
 	struct request_queue *q = rq->q;
 
+	if (rq->cmd_flags & REQ_MQ_INFLIGHT)
+		atomic_dec(&hctx->nr_active);
+
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
-	blk_mq_put_tag(hctx->tags, tag, &ctx->last_tag);
+	blk_mq_put_tag(hctx, tag, &ctx->last_tag);
 	blk_mq_queue_exit(q);
 }
 
@@ -590,8 +600,13 @@ static void blk_mq_rq_timer(unsigned long data)
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_hw_ctx_check_timeout(hctx, &next, &next_set);
 
-	if (next_set)
-		mod_timer(&q->timeout, round_jiffies_up(next));
+	if (next_set) {
+		next = blk_rq_timeout(round_jiffies_up(next));
+		mod_timer(&q->timeout, next);
+	} else {
+		queue_for_each_hw_ctx(q, hctx, i)
+			blk_mq_tag_idle(hctx);
+	}
 }
 
 /*
@@ -1501,6 +1516,56 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	}
 }
 
+static void blk_mq_update_tag_set_depth(struct blk_mq_tag_set *set)
+{
+	struct blk_mq_hw_ctx *hctx;
+	struct request_queue *q;
+	bool shared;
+	int i;
+
+	if (set->tag_list.next == set->tag_list.prev)
+		shared = false;
+	else
+		shared = true;
+
+	list_for_each_entry(q, &set->tag_list, tag_set_list) {
+		blk_mq_freeze_queue(q);
+
+		queue_for_each_hw_ctx(q, hctx, i) {
+			if (shared)
+				hctx->flags |= BLK_MQ_F_TAG_SHARED;
+			else
+				hctx->flags &= ~BLK_MQ_F_TAG_SHARED;
+		}
+		blk_mq_unfreeze_queue(q);
+	}
+}
+
+static void blk_mq_del_queue_tag_set(struct request_queue *q)
+{
+	struct blk_mq_tag_set *set = q->tag_set;
+
+	blk_mq_freeze_queue(q);
+
+	mutex_lock(&set->tag_list_lock);
+	list_del_init(&q->tag_set_list);
+	blk_mq_update_tag_set_depth(set);
+	mutex_unlock(&set->tag_list_lock);
+
+	blk_mq_unfreeze_queue(q);
+}
+
+static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
+				     struct request_queue *q)
+{
+	q->tag_set = set;
+
+	mutex_lock(&set->tag_list_lock);
+	list_add_tail(&q->tag_set_list, &set->tag_list);
+	blk_mq_update_tag_set_depth(set);
+	mutex_unlock(&set->tag_list_lock);
+}
+
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 {
 	struct blk_mq_hw_ctx **hctxs;
@@ -1526,6 +1591,7 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 		if (!zalloc_cpumask_var(&hctxs[i]->cpumask, GFP_KERNEL))
 			goto err_hctxs;
 
+		atomic_set(&hctxs[i]->nr_active, 0);
 		hctxs[i]->numa_node = NUMA_NO_NODE;
 		hctxs[i]->queue_num = i;
 	}
@@ -1578,6 +1644,8 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	list_add_tail(&q->all_q_node, &all_q_list);
 	mutex_unlock(&all_q_mutex);
 
+	blk_mq_add_queue_tag_set(set, q);
+
 	return q;
 
 err_flush_rq:
@@ -1604,6 +1672,8 @@ void blk_mq_free_queue(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	int i;
+
+	blk_mq_del_queue_tag_set(q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		kfree(hctx->ctxs);
@@ -1695,6 +1765,9 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 		if (!set->tags[i])
 			goto out_unwind;
 	}
+
+	mutex_init(&set->tag_list_lock);
+	INIT_LIST_HEAD(&set->tag_list);
 
 	return 0;
 

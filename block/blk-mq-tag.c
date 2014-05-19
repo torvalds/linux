@@ -7,13 +7,12 @@
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
 
-void blk_mq_wait_for_tags(struct blk_mq_tags *tags, struct blk_mq_hw_ctx *hctx,
-			  bool reserved)
+void blk_mq_wait_for_tags(struct blk_mq_hw_ctx *hctx, bool reserved)
 {
 	int tag, zero = 0;
 
-	tag = blk_mq_get_tag(tags, hctx, &zero, __GFP_WAIT, reserved);
-	blk_mq_put_tag(tags, tag, &zero);
+	tag = blk_mq_get_tag(hctx, &zero, __GFP_WAIT, reserved);
+	blk_mq_put_tag(hctx, tag, &zero);
 }
 
 static bool bt_has_free_tags(struct blk_mq_bitmap_tags *bt)
@@ -38,6 +37,84 @@ bool blk_mq_has_free_tags(struct blk_mq_tags *tags)
 		return true;
 
 	return bt_has_free_tags(&tags->bitmap_tags);
+}
+
+static inline void bt_index_inc(unsigned int *index)
+{
+	*index = (*index + 1) & (BT_WAIT_QUEUES - 1);
+}
+
+/*
+ * If a previously inactive queue goes active, bump the active user count.
+ */
+bool __blk_mq_tag_busy(struct blk_mq_hw_ctx *hctx)
+{
+	if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state) &&
+	    !test_and_set_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+		atomic_inc(&hctx->tags->active_queues);
+
+	return true;
+}
+
+/*
+ * If a previously busy queue goes inactive, potential waiters could now
+ * be allowed to queue. Wake them up and check.
+ */
+void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
+{
+	struct blk_mq_tags *tags = hctx->tags;
+	struct blk_mq_bitmap_tags *bt;
+	int i, wake_index;
+
+	if (!test_and_clear_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+		return;
+
+	atomic_dec(&tags->active_queues);
+
+	/*
+	 * Will only throttle depth on non-reserved tags
+	 */
+	bt = &tags->bitmap_tags;
+	wake_index = bt->wake_index;
+	for (i = 0; i < BT_WAIT_QUEUES; i++) {
+		struct bt_wait_state *bs = &bt->bs[wake_index];
+
+		if (waitqueue_active(&bs->wait))
+			wake_up(&bs->wait);
+
+		bt_index_inc(&wake_index);
+	}
+}
+
+/*
+ * For shared tag users, we track the number of currently active users
+ * and attempt to provide a fair share of the tag depth for each of them.
+ */
+static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
+				  struct blk_mq_bitmap_tags *bt)
+{
+	unsigned int depth, users;
+
+	if (!hctx || !(hctx->flags & BLK_MQ_F_TAG_SHARED))
+		return true;
+	if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+		return true;
+
+	/*
+	 * Don't try dividing an ant
+	 */
+	if (bt->depth == 1)
+		return true;
+
+	users = atomic_read(&hctx->tags->active_queues);
+	if (!users)
+		return true;
+
+	/*
+	 * Allow at least some tags
+	 */
+	depth = max((bt->depth + users - 1) / users, 4U);
+	return atomic_read(&hctx->nr_active) < depth;
 }
 
 static int __bt_get_word(struct blk_align_bitmap *bm, unsigned int last_tag)
@@ -78,10 +155,14 @@ restart:
  * multiple users will tend to stick to different cachelines, at least
  * until the map is exhausted.
  */
-static int __bt_get(struct blk_mq_bitmap_tags *bt, unsigned int *tag_cache)
+static int __bt_get(struct blk_mq_hw_ctx *hctx, struct blk_mq_bitmap_tags *bt,
+		    unsigned int *tag_cache)
 {
 	unsigned int last_tag, org_last_tag;
 	int index, i, tag;
+
+	if (!hctx_may_queue(hctx, bt))
+		return -1;
 
 	last_tag = org_last_tag = *tag_cache;
 	index = TAG_TO_INDEX(bt, last_tag);
@@ -117,11 +198,6 @@ done:
 	return tag;
 }
 
-static inline void bt_index_inc(unsigned int *index)
-{
-	*index = (*index + 1) & (BT_WAIT_QUEUES - 1);
-}
-
 static struct bt_wait_state *bt_wait_ptr(struct blk_mq_bitmap_tags *bt,
 					 struct blk_mq_hw_ctx *hctx)
 {
@@ -142,7 +218,7 @@ static int bt_get(struct blk_mq_bitmap_tags *bt, struct blk_mq_hw_ctx *hctx,
 	DEFINE_WAIT(wait);
 	int tag;
 
-	tag = __bt_get(bt, last_tag);
+	tag = __bt_get(hctx, bt, last_tag);
 	if (tag != -1)
 		return tag;
 
@@ -156,7 +232,7 @@ static int bt_get(struct blk_mq_bitmap_tags *bt, struct blk_mq_hw_ctx *hctx,
 		was_empty = list_empty(&wait.task_list);
 		prepare_to_wait(&bs->wait, &wait, TASK_UNINTERRUPTIBLE);
 
-		tag = __bt_get(bt, last_tag);
+		tag = __bt_get(hctx, bt, last_tag);
 		if (tag != -1)
 			break;
 
@@ -200,14 +276,13 @@ static unsigned int __blk_mq_get_reserved_tag(struct blk_mq_tags *tags,
 	return tag;
 }
 
-unsigned int blk_mq_get_tag(struct blk_mq_tags *tags,
-			    struct blk_mq_hw_ctx *hctx, unsigned int *last_tag,
+unsigned int blk_mq_get_tag(struct blk_mq_hw_ctx *hctx, unsigned int *last_tag,
 			    gfp_t gfp, bool reserved)
 {
 	if (!reserved)
-		return __blk_mq_get_tag(tags, hctx, last_tag, gfp);
+		return __blk_mq_get_tag(hctx->tags, hctx, last_tag, gfp);
 
-	return __blk_mq_get_reserved_tag(tags, gfp);
+	return __blk_mq_get_reserved_tag(hctx->tags, gfp);
 }
 
 static struct bt_wait_state *bt_wake_ptr(struct blk_mq_bitmap_tags *bt)
@@ -265,9 +340,11 @@ static void __blk_mq_put_reserved_tag(struct blk_mq_tags *tags,
 	bt_clear_tag(&tags->breserved_tags, tag);
 }
 
-void blk_mq_put_tag(struct blk_mq_tags *tags, unsigned int tag,
+void blk_mq_put_tag(struct blk_mq_hw_ctx *hctx, unsigned int tag,
 		    unsigned int *last_tag)
 {
+	struct blk_mq_tags *tags = hctx->tags;
+
 	if (tag >= tags->nr_reserved_tags) {
 		const int real_tag = tag - tags->nr_reserved_tags;
 
@@ -465,6 +542,7 @@ ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page)
 	res = bt_unused_tags(&tags->breserved_tags);
 
 	page += sprintf(page, "nr_free=%u, nr_reserved=%u\n", free, res);
+	page += sprintf(page, "active_queues=%u\n", atomic_read(&tags->active_queues));
 
 	return page - orig_page;
 }

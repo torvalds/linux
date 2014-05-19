@@ -208,6 +208,11 @@ static ssize_t blk_mq_hw_sysfs_tags_show(struct blk_mq_hw_ctx *hctx, char *page)
 	return blk_mq_tag_sysfs_show(hctx->tags, page);
 }
 
+static ssize_t blk_mq_hw_sysfs_active_show(struct blk_mq_hw_ctx *hctx, char *page)
+{
+	return sprintf(page, "%u\n", atomic_read(&hctx->nr_active));
+}
+
 static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
 {
 	unsigned int i, first = 1;
@@ -267,6 +272,10 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_dispatched = {
 	.attr = {.name = "dispatched", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_dispatched_show,
 };
+static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_active = {
+	.attr = {.name = "active", .mode = S_IRUGO },
+	.show = blk_mq_hw_sysfs_active_show,
+};
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_pending = {
 	.attr = {.name = "pending", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_rq_list_show,
@@ -287,6 +296,7 @@ static struct attribute *default_hw_ctx_attrs[] = {
 	&blk_mq_hw_sysfs_pending.attr,
 	&blk_mq_hw_sysfs_tags.attr,
 	&blk_mq_hw_sysfs_cpus.attr,
+	&blk_mq_hw_sysfs_active.attr,
 	NULL,
 };
 

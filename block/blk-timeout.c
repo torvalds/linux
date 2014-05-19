@@ -166,6 +166,17 @@ void blk_abort_request(struct request *req)
 }
 EXPORT_SYMBOL_GPL(blk_abort_request);
 
+unsigned long blk_rq_timeout(unsigned long timeout)
+{
+	unsigned long maxt;
+
+	maxt = round_jiffies_up(jiffies + BLK_MAX_TIMEOUT);
+	if (time_after(timeout, maxt))
+		timeout = maxt;
+
+	return timeout;
+}
+
 /**
  * blk_add_timer - Start timeout timer for a single request
  * @req:	request that is about to start running.
@@ -200,7 +211,7 @@ void blk_add_timer(struct request *req)
 	 * than an existing one, modify the timer. Round up to next nearest
 	 * second.
 	 */
-	expiry = round_jiffies_up(req->deadline);
+	expiry = blk_rq_timeout(round_jiffies_up(req->deadline));
 
 	if (!timer_pending(&q->timeout) ||
 	    time_before(expiry, q->timeout.expires)) {
