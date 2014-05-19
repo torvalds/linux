@@ -561,7 +561,6 @@ static int dummy_disable(struct usb_ep *_ep)
 	struct dummy_ep		*ep;
 	struct dummy		*dum;
 	unsigned long		flags;
-	int			retval;
 
 	ep = usb_ep_to_dummy_ep(_ep);
 	if (!_ep || !ep->desc || _ep->name == ep0name)
@@ -571,12 +570,11 @@ static int dummy_disable(struct usb_ep *_ep)
 	spin_lock_irqsave(&dum->lock, flags);
 	ep->desc = NULL;
 	ep->stream_en = 0;
-	retval = 0;
 	nuke(dum, ep);
 	spin_unlock_irqrestore(&dum->lock, flags);
 
 	dev_dbg(udc_dev(dum), "disabled %s\n", _ep->name);
-	return retval;
+	return 0;
 }
 
 static struct usb_request *dummy_alloc_request(struct usb_ep *_ep,

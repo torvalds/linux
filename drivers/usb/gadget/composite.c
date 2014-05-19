@@ -1312,9 +1312,7 @@ static void fill_ext_compat(struct usb_configuration *c, u8 *buf)
 static int count_ext_prop(struct usb_configuration *c, int interface)
 {
 	struct usb_function *f;
-	int j, res;
-
-	res = 0;
+	int j;
 
 	f = c->interface[interface];
 	for (j = 0; j < f->os_desc_n; ++j) {
@@ -1326,7 +1324,7 @@ static int count_ext_prop(struct usb_configuration *c, int interface)
 		if (d && d->ext_compat_id)
 			return d->ext_prop_count;
 	}
-	return res;
+	return 0;
 }
 
 static int len_ext_prop(struct usb_configuration *c, int interface)
