@@ -1,15 +1,10 @@
-/**
- * \file drm_stub.h
- * Stub support
- *
- * \author Rickard E. (Rik) Faith <faith@valinux.com>
- */
-
 /*
  * Created: Fri Jan 19 10:48:35 2001 by faith@acm.org
  *
  * Copyright 2001 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
+ *
+ * Author Rickard E. (Rik) Faith <faith@valinux.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -425,11 +420,15 @@ void drm_minor_release(struct drm_minor *minor)
 }
 
 /**
- * Called via drm_exit() at module unload time or when pci device is
- * unplugged.
+ * drm_put_dev - Unregister and release a DRM device
+ * @dev: DRM device
+ *
+ * Called at module unload time or when a PCI device is unplugged.
+ *
+ * Use of this function is discouraged. It will eventually go away completely.
+ * Please use drm_dev_unregister() and drm_dev_unref() explicitly instead.
  *
  * Cleans up all DRM device, calling drm_lastclose().
- *
  */
 void drm_put_dev(struct drm_device *dev)
 {
@@ -536,7 +535,7 @@ static void drm_fs_inode_free(struct inode *inode)
 }
 
 /**
- * drm_dev_alloc - Allocate new drm device
+ * drm_dev_alloc - Allocate new DRM device
  * @driver: DRM driver to allocate device for
  * @parent: Parent device object
  *
@@ -690,6 +689,7 @@ EXPORT_SYMBOL(drm_dev_unref);
 /**
  * drm_dev_register - Register DRM device
  * @dev: Device to register
+ * @flags: Flags passed to the driver's .load() function
  *
  * Register the DRM device @dev with the system, advertise device to user-space
  * and start normal device operation. @dev must be allocated via drm_dev_alloc()

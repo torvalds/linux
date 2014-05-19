@@ -45,7 +45,17 @@ static int drm_usb_set_busid(struct drm_device *dev,
 static struct drm_bus drm_usb_bus = {
 	.set_busid = drm_usb_set_busid,
 };
-    
+
+/**
+ * drm_usb_init - Register matching USB devices with the DRM subsystem
+ * @driver: DRM device driver
+ * @udriver: USB device driver
+ *
+ * Registers one or more devices matched by a USB driver with the DRM
+ * subsystem.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int drm_usb_init(struct drm_driver *driver, struct usb_driver *udriver)
 {
 	int res;
@@ -58,6 +68,14 @@ int drm_usb_init(struct drm_driver *driver, struct usb_driver *udriver)
 }
 EXPORT_SYMBOL(drm_usb_init);
 
+/**
+ * drm_usb_exit - Unregister matching USB devices from the DRM subsystem
+ * @driver: DRM device driver
+ * @udriver: USB device driver
+ *
+ * Unregisters one or more devices matched by a USB driver from the DRM
+ * subsystem.
+ */
 void drm_usb_exit(struct drm_driver *driver,
 		  struct usb_driver *udriver)
 {

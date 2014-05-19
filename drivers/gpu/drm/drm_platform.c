@@ -106,17 +106,16 @@ static struct drm_bus drm_platform_bus = {
 };
 
 /**
- * Platform device initialization. Called direct from modules.
+ * drm_platform_init - Register a platform device with the DRM subsystem
+ * @driver: DRM device driver
+ * @platform_device: platform device to register
  *
- * \return zero on success or a negative number on failure.
+ * Registers the specified DRM device driver and platform device with the DRM
+ * subsystem, initializing a drm_device structure and calling the driver's
+ * .load() function.
  *
- * Initializes a drm_device structures,registering the
- * stubs
- *
- * Expands the \c DRIVER_PREINIT and \c DRIVER_POST_INIT macros before and
- * after the initialization for driver customization.
+ * Return: 0 on success or a negative error code on failure.
  */
-
 int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device)
 {
 	DRM_DEBUG("\n");
