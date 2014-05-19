@@ -1210,9 +1210,11 @@ static int dgap_ms_sleep(ulong ms)
  */
 static int dgap_tty_register(struct board_t *brd)
 {
-	int rc = 0;
+	int rc;
 
-	brd->serial_driver = alloc_tty_driver(MAXPORTS);
+	brd->serial_driver = tty_alloc_driver(MAXPORTS, 0);
+	if (IS_ERR(brd->serial_driver))
+		return PTR_ERR(brd->serial_driver);
 
 	snprintf(brd->serial_name, MAXTTYNAMELEN, "tty_dgap_%d_",
 		 brd->boardnum);
@@ -1231,8 +1233,10 @@ static int dgap_tty_register(struct board_t *brd)
 	/* The kernel wants space to store pointers to tty_structs */
 	brd->serial_driver->ttys =
 		kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
-	if (!brd->serial_driver->ttys)
-		return -ENOMEM;
+	if (!brd->serial_driver->ttys) {
+		rc = -ENOMEM;
+		goto free_serial_drv;
+	}
 
 	/*
 	 * Entry points for driver.  Called by the kernel from
@@ -1245,7 +1249,11 @@ static int dgap_tty_register(struct board_t *brd)
 	 * again, separately so we don't get the LD confused about what major
 	 * we are when we get into the dgap_tty_open() routine.
 	 */
-	brd->print_driver = alloc_tty_driver(MAXPORTS);
+	brd->print_driver = tty_alloc_driver(MAXPORTS, 0);
+	if (IS_ERR(brd->print_driver)) {
+		rc = PTR_ERR(brd->print_driver);
+		goto free_serial_drv;
+	}
 
 	snprintf(brd->print_name, MAXTTYNAMELEN, "pr_dgap_%d_",
 		 brd->boardnum);
@@ -1264,8 +1272,10 @@ static int dgap_tty_register(struct board_t *brd)
 	/* The kernel wants space to store pointers to tty_structs */
 	brd->print_driver->ttys =
 		kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
-	if (!brd->print_driver->ttys)
-		return -ENOMEM;
+	if (!brd->print_driver->ttys) {
+		rc = -ENOMEM;
+		goto free_print_drv;
+	}
 
 	/*
 	 * Entry points for driver.  Called by the kernel from
@@ -1276,18 +1286,29 @@ static int dgap_tty_register(struct board_t *brd)
 	/* Register tty devices */
 	rc = tty_register_driver(brd->serial_driver);
 	if (rc < 0)
-		return rc;
-	brd->dgap_major_serial_registered = TRUE;
-	dgap_boards_by_major[brd->serial_driver->major] = brd;
-	brd->dgap_serial_major = brd->serial_driver->major;
+		goto free_print_drv;
 
 	/* Register Transparent Print devices */
 	rc = tty_register_driver(brd->print_driver);
 	if (rc < 0)
-		return rc;
+		goto unregister_serial_drv;
+
+	brd->dgap_major_serial_registered = TRUE;
+	dgap_boards_by_major[brd->serial_driver->major] = brd;
+	brd->dgap_serial_major = brd->serial_driver->major;
+
 	brd->dgap_major_transparent_print_registered = TRUE;
 	dgap_boards_by_major[brd->print_driver->major] = brd;
 	brd->dgap_transparent_print_major = brd->print_driver->major;
+
+	return 0;
+
+unregister_serial_drv:
+	tty_unregister_driver(brd->serial_driver);
+free_print_drv:
+	put_tty_driver(brd->print_driver);
+free_serial_drv:
+	put_tty_driver(brd->serial_driver);
 
 	return rc;
 }
