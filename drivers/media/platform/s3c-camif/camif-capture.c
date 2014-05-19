@@ -1270,6 +1270,7 @@ static int s3c_camif_subdev_get_fmt(struct v4l2_subdev *sd,
 	}
 
 	mutex_unlock(&camif->lock);
+	mf->field = V4L2_FIELD_NONE;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	return 0;
 }
@@ -1318,6 +1319,7 @@ static int s3c_camif_subdev_set_fmt(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "pad%d: code: 0x%x, %ux%u\n",
 		 fmt->pad, mf->code, mf->width, mf->height);
 
+	mf->field = V4L2_FIELD_NONE;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	mutex_lock(&camif->lock);
 
