@@ -35,13 +35,6 @@
 #define MXC_USB_PHY_CTR_FUNC2_OFFSET	0xc
 #define MXC_USBH2CTRL_OFFSET		0x14
 
-#define MX5_USBOTHER_REGS_OFFSET	0x800
-
-/* USB_PHY_CTRL_FUNC2*/
-#define MX5_USB_UTMI_PHYCTRL1_PLLDIV_MASK		0x3
-#define MX5_USB_UTMI_PHYCTRL1_PLLDIV_SHIFT		0
-
-int mx51_initialize_usb_hw(int port, unsigned int flags);
 int mx25_initialize_usb_hw(int port, unsigned int flags);
 int mx31_initialize_usb_hw(int port, unsigned int flags);
 int mx35_initialize_usb_hw(int port, unsigned int flags);
