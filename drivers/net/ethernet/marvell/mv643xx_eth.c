@@ -732,8 +732,10 @@ static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 		skb_frag_t *this_frag;
 		int tx_index;
 		struct tx_desc *desc;
+		void *addr;
 
 		this_frag = &skb_shinfo(skb)->frags[frag];
+		addr = page_address(this_frag->page.p) + this_frag->page_offset;
 		tx_index = txq->tx_curr_desc++;
 		if (txq->tx_curr_desc == txq->tx_ring_size)
 			txq->tx_curr_desc = 0;
@@ -753,10 +755,8 @@ static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 
 		desc->l4i_chk = 0;
 		desc->byte_cnt = skb_frag_size(this_frag);
-		desc->buf_ptr = skb_frag_dma_map(mp->dev->dev.parent,
-						 this_frag, 0,
-						 skb_frag_size(this_frag),
-						 DMA_TO_DEVICE);
+		desc->buf_ptr = dma_map_single(mp->dev->dev.parent, addr,
+					       desc->byte_cnt, DMA_TO_DEVICE);
 	}
 }
 
@@ -927,14 +927,8 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 			mp->dev->stats.tx_errors++;
 		}
 
-		if (cmd_sts & TX_FIRST_DESC) {
-			dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
-					 desc->byte_cnt, DMA_TO_DEVICE);
-		} else {
-			dma_unmap_page(mp->dev->dev.parent, desc->buf_ptr,
-				       desc->byte_cnt, DMA_TO_DEVICE);
-		}
-
+		dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
+				 desc->byte_cnt, DMA_TO_DEVICE);
 		dev_kfree_skb(skb);
 	}
 
