@@ -573,8 +573,10 @@ isert_disconnect_work(struct work_struct *work)
 		return;
 	}
 
-	/* Send DREQ/DREP towards our initiator */
-	rdma_disconnect(isert_conn->conn_cm_id);
+	if (isert_conn->disconnect) {
+		/* Send DREQ/DREP towards our initiator */
+		rdma_disconnect(isert_conn->conn_cm_id);
+	}
 
 	mutex_unlock(&isert_conn->conn_mutex);
 
@@ -584,10 +586,11 @@ wake_up:
 }
 
 static void
-isert_disconnected_handler(struct rdma_cm_id *cma_id)
+isert_disconnected_handler(struct rdma_cm_id *cma_id, bool disconnect)
 {
 	struct isert_conn *isert_conn = (struct isert_conn *)cma_id->context;
 
+	isert_conn->disconnect = disconnect;
 	INIT_WORK(&isert_conn->conn_logout_work, isert_disconnect_work);
 	schedule_work(&isert_conn->conn_logout_work);
 }
@@ -596,29 +599,28 @@ static int
 isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 {
 	int ret = 0;
+	bool disconnect = false;
 
 	pr_debug("isert_cma_handler: event %d status %d conn %p id %p\n",
 		 event->event, event->status, cma_id->context, cma_id);
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
-		pr_debug("RDMA_CM_EVENT_CONNECT_REQUEST: >>>>>>>>>>>>>>>\n");
 		ret = isert_connect_request(cma_id, event);
 		break;
 	case RDMA_CM_EVENT_ESTABLISHED:
-		pr_debug("RDMA_CM_EVENT_ESTABLISHED >>>>>>>>>>>>>>\n");
 		isert_connected_handler(cma_id);
 		break;
-	case RDMA_CM_EVENT_DISCONNECTED:
-		pr_debug("RDMA_CM_EVENT_DISCONNECTED: >>>>>>>>>>>>>>\n");
-		isert_disconnected_handler(cma_id);
-		break;
-	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-	case RDMA_CM_EVENT_ADDR_CHANGE:
+	case RDMA_CM_EVENT_ADDR_CHANGE:    /* FALLTHRU */
+	case RDMA_CM_EVENT_DISCONNECTED:   /* FALLTHRU */
+	case RDMA_CM_EVENT_DEVICE_REMOVAL: /* FALLTHRU */
+		disconnect = true;
+	case RDMA_CM_EVENT_TIMEWAIT_EXIT:  /* FALLTHRU */
+		isert_disconnected_handler(cma_id, disconnect);
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 	default:
-		pr_err("Unknown RDMA CMA event: %d\n", event->event);
+		pr_err("Unhandled RDMA CMA event: %d\n", event->event);
 		break;
 	}
 
