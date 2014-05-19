@@ -2122,7 +2122,7 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 static void adaptive_coalesce_tx_interrupts(struct vxge_fifo *fifo)
 {
 	fifo->interrupt_count++;
-	if (jiffies > fifo->jiffies + HZ / 100) {
+	if (time_before(fifo->jiffies + HZ / 100, jiffies)) {
 		struct __vxge_hw_fifo *hw_fifo = fifo->handle;
 
 		fifo->jiffies = jiffies;
@@ -2150,7 +2150,7 @@ static void adaptive_coalesce_tx_interrupts(struct vxge_fifo *fifo)
 static void adaptive_coalesce_rx_interrupts(struct vxge_ring *ring)
 {
 	ring->interrupt_count++;
-	if (jiffies > ring->jiffies + HZ / 100) {
+	if (time_before(ring->jiffies + HZ / 100, jiffies)) {
 		struct __vxge_hw_ring *hw_ring = ring->handle;
 
 		ring->jiffies = jiffies;
