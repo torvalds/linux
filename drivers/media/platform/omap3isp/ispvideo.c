@@ -631,6 +631,15 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 	if (format->type != video->type)
 		return -EINVAL;
 
+	/* Default to the progressive field order if the requested value is not
+	 * supported (or set to ANY). The only supported orders are progressive
+	 * (available on all video nodes) and alternate (available on capture
+	 * nodes only).
+	 */
+	if (format->fmt.pix.field != V4L2_FIELD_ALTERNATE ||
+	    video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		format->fmt.pix.field = V4L2_FIELD_NONE;
+
 	/* Fill the bytesperline and sizeimage fields by converting to media bus
 	 * format and back to pixel format.
 	 */
