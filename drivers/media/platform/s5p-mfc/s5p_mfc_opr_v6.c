@@ -113,7 +113,7 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 			(ctx->mv_count * ctx->mv_size);
 		break;
 	case S5P_MFC_CODEC_MPEG4_DEC:
-		if (IS_MFCV7(dev)) {
+		if (IS_MFCV7_PLUS(dev)) {
 			ctx->scratch_buf_size =
 				S5P_FIMV_SCRATCH_BUF_SIZE_MPEG4_DEC_V7(
 						mb_width,
@@ -354,7 +354,7 @@ static void s5p_mfc_enc_calc_src_size_v6(struct s5p_mfc_ctx *ctx)
 	ctx->chroma_size = ALIGN((mb_width * mb_height) * 128, 256);
 
 	/* MFCv7 needs pad bytes for Luma and Chroma */
-	if (IS_MFCV7(ctx->dev)) {
+	if (IS_MFCV7_PLUS(ctx->dev)) {
 		ctx->luma_size += MFC_LUMA_PAD_BYTES_V7;
 		ctx->chroma_size += MFC_CHROMA_PAD_BYTES_V7;
 	}
@@ -1303,7 +1303,7 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 		WRITEL(ctx->display_delay, mfc_regs->d_display_delay);
 	}
 
-	if (IS_MFCV7(dev)) {
+	if (IS_MFCV7_PLUS(dev)) {
 		WRITEL(reg, mfc_regs->d_dec_options);
 		reg = 0;
 	}
@@ -1318,7 +1318,7 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 	if (ctx->dst_fmt->fourcc == V4L2_PIX_FMT_NV12MT_16X16)
 		reg |= (0x1 << S5P_FIMV_D_OPT_TILE_MODE_SHIFT_V6);
 
-	if (IS_MFCV7(dev))
+	if (IS_MFCV7_PLUS(dev))
 		WRITEL(reg, mfc_regs->d_init_buffer_options);
 	else
 		WRITEL(reg, mfc_regs->d_dec_options);
@@ -1406,7 +1406,7 @@ static int s5p_mfc_init_encode_v6(struct s5p_mfc_ctx *ctx)
 	}
 
 	/* Set stride lengths for v7 & above */
-	if (IS_MFCV7(dev)) {
+	if (IS_MFCV7_PLUS(dev)) {
 		WRITEL(ctx->img_width, mfc_regs->e_source_first_plane_stride);
 		WRITEL(ctx->img_width, mfc_regs->e_source_second_plane_stride);
 	}
@@ -2148,7 +2148,7 @@ const struct s5p_mfc_regs *s5p_mfc_init_regs_v6_plus(struct s5p_mfc_dev *dev)
 	R(e_h264_frame_packing_sei_info,
 			S5P_FIMV_E_H264_FRAME_PACKING_SEI_INFO_V6);
 
-	if (!IS_MFCV7(dev))
+	if (!IS_MFCV7_PLUS(dev))
 		goto done;
 
 	/* Initialize registers used in MFC v7 */
