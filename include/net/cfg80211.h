@@ -341,8 +341,8 @@ struct vif_params {
  * @seq_len: length of @seq.
  */
 struct key_params {
-	u8 *key;
-	u8 *seq;
+	const u8 *key;
+	const u8 *seq;
 	int key_len;
 	int seq_len;
 	u32 cipher;
@@ -1169,7 +1169,7 @@ struct bss_parameters {
 	int use_cts_prot;
 	int use_short_preamble;
 	int use_short_slot_time;
-	u8 *basic_rates;
+	const u8 *basic_rates;
 	u8 basic_rates_len;
 	int ap_isolate;
 	int ht_opmode;
@@ -1699,10 +1699,10 @@ struct cfg80211_disassoc_request {
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
  */
 struct cfg80211_ibss_params {
-	u8 *ssid;
-	u8 *bssid;
+	const u8 *ssid;
+	const u8 *bssid;
 	struct cfg80211_chan_def chandef;
-	u8 *ie;
+	const u8 *ie;
 	u8 ssid_len, ie_len;
 	u16 beacon_interval;
 	u32 basic_rates;
@@ -1811,8 +1811,8 @@ struct cfg80211_bitrate_mask {
  * @pmkid: The PMK material itself.
  */
 struct cfg80211_pmksa {
-	u8 *bssid;
-	u8 *pmkid;
+	const u8 *bssid;
+	const u8 *pmkid;
 };
 
 /**
@@ -3289,7 +3289,7 @@ struct wireless_dev {
 		struct cfg80211_ibss_params ibss;
 		struct cfg80211_connect_params connect;
 		struct cfg80211_cached_keys *keys;
-		u8 *ie;
+		const u8 *ie;
 		size_t ie_len;
 		u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 		u8 ssid[IEEE80211_MAX_SSID_LEN];
@@ -3530,7 +3530,8 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
  * Return: 0 on success, or a negative error code.
  */
 int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
-			     enum nl80211_iftype iftype, u8 *bssid, bool qos);
+			     enum nl80211_iftype iftype, const u8 *bssid,
+			     bool qos);
 
 /**
  * ieee80211_amsdu_to_8023s - decode an IEEE 802.11n A-MSDU frame
@@ -4319,7 +4320,7 @@ void cfg80211_roamed_bss(struct net_device *dev, struct cfg80211_bss *bss,
  * and not try to connect to any AP any more.
  */
 void cfg80211_disconnected(struct net_device *dev, u16 reason,
-			   u8 *ie, size_t ie_len, gfp_t gfp);
+			   const u8 *ie, size_t ie_len, gfp_t gfp);
 
 /**
  * cfg80211_ready_on_channel - notification of remain_on_channel start

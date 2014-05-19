@@ -1006,9 +1006,8 @@ struct cmd_key_material {
 } __packed;
 
 static int lbs_set_key_material(struct lbs_private *priv,
-				int key_type,
-				int key_info,
-				u8 *key, u16 key_len)
+				int key_type, int key_info,
+				const u8 *key, u16 key_len)
 {
 	struct cmd_key_material cmd;
 	int ret;

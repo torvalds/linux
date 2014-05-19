@@ -476,7 +476,8 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 EXPORT_SYMBOL(ieee80211_data_to_8023);
 
 int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
-			     enum nl80211_iftype iftype, u8 *bssid, bool qos)
+			     enum nl80211_iftype iftype,
+			     const u8 *bssid, bool qos)
 {
 	struct ieee80211_hdr hdr;
 	u16 hdrlen, ethertype;
