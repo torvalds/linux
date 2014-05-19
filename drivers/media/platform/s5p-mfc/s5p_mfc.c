@@ -309,11 +309,14 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	unsigned int dst_frame_status;
+	unsigned int dec_frame_status;
 	struct s5p_mfc_buf *src_buf;
 	unsigned long flags;
 	unsigned int res_change;
 
 	dst_frame_status = s5p_mfc_hw_call(dev->mfc_ops, get_dspl_status, dev)
+				& S5P_FIMV_DEC_STATUS_DECODING_STATUS_MASK;
+	dec_frame_status = s5p_mfc_hw_call(dev->mfc_ops, get_dec_status, dev)
 				& S5P_FIMV_DEC_STATUS_DECODING_STATUS_MASK;
 	res_change = (s5p_mfc_hw_call(dev->mfc_ops, get_dspl_status, dev)
 				& S5P_FIMV_DEC_STATUS_RESOLUTION_MASK)
@@ -347,8 +350,7 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		}
 	}
 
-	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY ||
-		dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_ONLY)
+	if (dec_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY)
 		s5p_mfc_handle_frame_copy_time(ctx);
 
 	/* A frame has been decoded and is in the buffer  */
