@@ -5,4 +5,8 @@ config PINCTRL_BERLIN
 	select PINMUX
 	select REGMAP_MMIO
 
+config PINCTRL_BERLIN_BG2Q
+	bool
+	select PINCTRL_BERLIN
+
 endif
