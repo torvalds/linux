@@ -657,27 +657,26 @@ s_vClearSQ3Value(PSDevice pDevice);
  *      byPreambleType  - Preamble Type
  *      byPktType        - PK_TYPE_11A, PK_TYPE_11B, PK_TYPE_11GB, PK_TYPE_11GA
  *      cbFrameLength   - Baseband Type
- *      wRate           - Tx Rate
+ *	tx_rate		- Tx Rate
  *  Out:
  *
  * Return Value: FrameTime
  *
  */
-unsigned int BBuGetFrameTime(u8 byPreambleType,  u8 byPktType,
-	unsigned int cbFrameLength, u16 wRate)
+unsigned int BBuGetFrameTime(u8 byPreambleType, u8 byPktType,
+	unsigned int cbFrameLength, u16 tx_rate)
 {
 	unsigned int uFrameTime;
 	unsigned int uPreamble;
 	unsigned int uTmp;
-	unsigned int uRateIdx = (unsigned int)wRate;
 	unsigned int uRate = 0;
 
-	if (uRateIdx > RATE_54M)
+	if (tx_rate > RATE_54M)
 		return 0;
 
-	uRate = (unsigned int)awcFrameTime[uRateIdx];
+	uRate = (unsigned int)awcFrameTime[tx_rate];
 
-	if (uRateIdx <= 3) {
+	if (tx_rate <= 3) {
 		if (byPreambleType == 1)
 			uPreamble = 96;
 		else

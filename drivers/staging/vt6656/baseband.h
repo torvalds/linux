@@ -88,13 +88,8 @@ struct vnt_phy_field {
 	__le16 len;
 } __packed;
 
-unsigned int
-BBuGetFrameTime(
-     u8 byPreambleType,
-     u8 byFreqType,
-     unsigned int cbFrameLength,
-     u16 wRate
-    );
+unsigned int BBuGetFrameTime(u8 byPreambleType, u8 byPktType,
+	unsigned int cbFrameLength, u16 tx_rate);
 
 void BBvCalculateParameter(struct vnt_private *, u32 cbFrameLength,
 	u16 wRate, u8 byPacketType, struct vnt_phy_field *);
