@@ -694,11 +694,6 @@ config SOC_IMX5
 	select HAVE_IMX_SRC
 	select MXC_TZIC
 
-config	SOC_IMX51
-	bool
-	select PINCTRL_IMX51
-	select SOC_IMX5
-
 config	SOC_IMX50
 	bool "i.MX50 support"
 	select PINCTRL_IMX50
@@ -707,9 +702,10 @@ config	SOC_IMX50
 	help
 	  This enables support for Freescale i.MX50 processor.
 
-config MACH_IMX51_DT
+config SOC_IMX51
 	bool "i.MX51 support"
-	select SOC_IMX51
+	select PINCTRL_IMX51
+	select SOC_IMX5
 	help
 	  This enables support for Freescale i.MX51 processor
 
