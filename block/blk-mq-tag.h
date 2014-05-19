@@ -1,6 +1,8 @@
 #ifndef INT_BLK_MQ_TAG_H
 #define INT_BLK_MQ_TAG_H
 
+#include "blk-mq.h"
+
 enum {
 	BT_WAIT_QUEUES	= 8,
 	BT_WAIT_BATCH	= 8,
@@ -14,18 +16,13 @@ struct bt_wait_state {
 #define TAG_TO_INDEX(bt, tag)	((tag) >> (bt)->bits_per_word)
 #define TAG_TO_BIT(bt, tag)	((tag) & ((1 << (bt)->bits_per_word) - 1))
 
-struct blk_mq_bitmap {
-	unsigned long word;
-	unsigned long depth;
-} ____cacheline_aligned_in_smp;
-
 struct blk_mq_bitmap_tags {
 	unsigned int depth;
 	unsigned int wake_cnt;
 	unsigned int bits_per_word;
 
 	unsigned int map_nr;
-	struct blk_mq_bitmap *map;
+	struct blk_align_bitmap *map;
 
 	unsigned int wake_index;
 	struct bt_wait_state *bs;

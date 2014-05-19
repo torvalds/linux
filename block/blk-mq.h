@@ -52,4 +52,13 @@ void blk_mq_disable_hotplug(void);
 extern unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set);
 extern int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues);
 
+/*
+ * Basic implementation of sparser bitmap, allowing the user to spread
+ * the bits over more cachelines.
+ */
+struct blk_align_bitmap {
+	unsigned long word;
+	unsigned long depth;
+} ____cacheline_aligned_in_smp;
+
 #endif
