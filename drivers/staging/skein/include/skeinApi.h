@@ -50,31 +50,31 @@ OTHER DEALINGS IN THE SOFTWARE.
  * struct skein_ctx ctx;             // a Skein hash or MAC context
  *
  * // prepare context, here for a Skein with a state size of 512 bits.
- * skeinCtxPrepare(&ctx, Skein512);
+ * skein_ctx_prepare(&ctx, Skein512);
  *
  * // Initialize the context to set the requested hash length in bits
  * // here request a output hash size of 31 bits (Skein supports variable
  * // output sizes even very strange sizes)
- * skeinInit(&ctx, 31);
+ * skein_init(&ctx, 31);
  *
  * // Now update Skein with any number of message bits. A function that
  * // takes a number of bytes is also available.
- * skeinUpdateBits(&ctx, message, msgLength);
+ * skein_update_bits(&ctx, message, msgLength);
  *
  * // Now get the result of the Skein hash. The output buffer must be
  * // large enough to hold the request number of output bits. The application
  * // may now extract the bits.
- * skeinFinal(&ctx, result);
+ * skein_final(&ctx, result);
  * ...
  * @endcode
  *
- * An application may use @c skeinReset to reset a Skein context and use
+ * An application may use @c skein_reset to reset a Skein context and use
  * it for creation of another hash with the same Skein state size and output
  * bit length. In this case the API implementation restores some internal
  * internal state data and saves a full Skein initialization round.
  *
- * To create a MAC the application just uses @c skeinMacInit instead of
- * @c skeinInit. All other functions calls remain the same.
+ * To create a MAC the application just uses @c skein_mac_init instead of
+ * @c skein_init. All other functions calls remain the same.
  *
  */
 
@@ -123,7 +123,7 @@ struct skein_ctx {
  * @return
  *     SKEIN_SUCESS of SKEIN_FAIL
  */
-int skeinCtxPrepare(struct skein_ctx *ctx, enum skein_size size);
+int skein_ctx_prepare(struct skein_ctx *ctx, enum skein_size size);
 
 /**
  * Initialize a Skein context.
@@ -137,9 +137,9 @@ int skeinCtxPrepare(struct skein_ctx *ctx, enum skein_size size);
  *     Number of MAC hash bits to compute
  * @return
  *     SKEIN_SUCESS of SKEIN_FAIL
- * @see skeinReset
+ * @see skein_reset
  */
-int skeinInit(struct skein_ctx *ctx, size_t hashBitLen);
+int skein_init(struct skein_ctx *ctx, size_t hashBitLen);
 
 /**
  * Resets a Skein context for further use.
@@ -151,7 +151,7 @@ int skeinInit(struct skein_ctx *ctx, size_t hashBitLen);
  * @param ctx
  *     Pointer to a pre-initialized Skein MAC context
  */
-void skeinReset(struct skein_ctx *ctx);
+void skein_reset(struct skein_ctx *ctx);
 
 /**
  * Initializes a Skein context for MAC usage.
@@ -173,8 +173,8 @@ void skeinReset(struct skein_ctx *ctx);
  * @return
  *     SKEIN_SUCESS of SKEIN_FAIL
  */
-int skeinMacInit(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
-		 size_t hashBitLen);
+int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
+		   size_t hashBitLen);
 
 /**
  * Update Skein with the next part of the message.
@@ -188,8 +188,8 @@ int skeinMacInit(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
  * @return
  *     Success or error code.
  */
-int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
-		size_t msgByteCnt);
+int skein_update(struct skein_ctx *ctx, const u8 *msg,
+		 size_t msgByteCnt);
 
 /**
  * Update the hash with a message bit string.
@@ -204,8 +204,8 @@ int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
  * @param msgBitCnt
  *     Length of the message in @b bits.
  */
-int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
-		    size_t msgBitCnt);
+int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
+		      size_t msgBitCnt);
 
 /**
  * Finalize Skein and return the hash.
@@ -220,9 +220,9 @@ int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
  *     enough to store @c hashBitLen bits.
  * @return
  *     Success or error code.
- * @see skeinReset
+ * @see skein_reset
  */
-int skeinFinal(struct skein_ctx *ctx, u8 *hash);
+int skein_final(struct skein_ctx *ctx, u8 *hash);
 
 /**
  * @}

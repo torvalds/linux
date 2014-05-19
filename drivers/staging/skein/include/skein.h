@@ -86,59 +86,59 @@ struct skein1024_ctx { /* 1024-bit Skein hash context structure */
 	u8  b[SKEIN1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
-/*   Skein APIs for (incremental) "straight hashing" */
-int  Skein_256_Init(struct skein_256_ctx *ctx, size_t hashBitLen);
-int  Skein_512_Init(struct skein_512_ctx *ctx, size_t hashBitLen);
-int  Skein1024_Init(struct skein1024_ctx *ctx, size_t hashBitLen);
+/* Skein APIs for (incremental) "straight hashing" */
+int skein_256_init(struct skein_256_ctx *ctx, size_t hashBitLen);
+int skein_512_init(struct skein_512_ctx *ctx, size_t hashBitLen);
+int skein_1024_init(struct skein1024_ctx *ctx, size_t hashBitLen);
 
-int  Skein_256_Update(struct skein_256_ctx *ctx, const u8 *msg,
-			size_t msgByteCnt);
-int  Skein_512_Update(struct skein_512_ctx *ctx, const u8 *msg,
-			size_t msgByteCnt);
-int  Skein1024_Update(struct skein1024_ctx *ctx, const u8 *msg,
-			size_t msgByteCnt);
+int skein_256_update(struct skein_256_ctx *ctx, const u8 *msg,
+		     size_t msgByteCnt);
+int skein_512_update(struct skein_512_ctx *ctx, const u8 *msg,
+		     size_t msgByteCnt);
+int skein_1024_update(struct skein1024_ctx *ctx, const u8 *msg,
+		      size_t msgByteCnt);
 
-int  Skein_256_Final(struct skein_256_ctx *ctx, u8 *hashVal);
-int  Skein_512_Final(struct skein_512_ctx *ctx, u8 *hashVal);
-int  Skein1024_Final(struct skein1024_ctx *ctx, u8 *hashVal);
+int skein_256_final(struct skein_256_ctx *ctx, u8 *hashVal);
+int skein_512_final(struct skein_512_ctx *ctx, u8 *hashVal);
+int skein_1024_final(struct skein1024_ctx *ctx, u8 *hashVal);
 
 /*
 **   Skein APIs for "extended" initialization: MAC keys, tree hashing.
-**   After an InitExt() call, just use Update/Final calls as with Init().
+**   After an init_ext() call, just use update/final calls as with init().
 **
-**   Notes: Same parameters as _Init() calls, plus treeInfo/key/keyBytes.
+**   Notes: Same parameters as _init() calls, plus treeInfo/key/keyBytes.
 **          When keyBytes == 0 and treeInfo == SKEIN_SEQUENTIAL,
-**              the results of InitExt() are identical to calling Init().
-**          The function Init() may be called once to "precompute" the IV for
+**              the results of init_ext() are identical to calling init().
+**          The function init() may be called once to "precompute" the IV for
 **              a given hashBitLen value, then by saving a copy of the context
 **              the IV computation may be avoided in later calls.
-**          Similarly, the function InitExt() may be called once per MAC key
+**          Similarly, the function init_ext() may be called once per MAC key
 **              to precompute the MAC IV, then a copy of the context saved and
 **              reused for each new MAC computation.
 **/
-int  Skein_256_InitExt(struct skein_256_ctx *ctx, size_t hashBitLen,
-			u64 treeInfo, const u8 *key, size_t keyBytes);
-int  Skein_512_InitExt(struct skein_512_ctx *ctx, size_t hashBitLen,
-			u64 treeInfo, const u8 *key, size_t keyBytes);
-int  Skein1024_InitExt(struct skein1024_ctx *ctx, size_t hashBitLen,
+int skein_256_init_ext(struct skein_256_ctx *ctx, size_t hashBitLen,
+		       u64 treeInfo, const u8 *key, size_t keyBytes);
+int skein_512_init_ext(struct skein_512_ctx *ctx, size_t hashBitLen,
+		       u64 treeInfo, const u8 *key, size_t keyBytes);
+int skein_1024_init_ext(struct skein1024_ctx *ctx, size_t hashBitLen,
 			u64 treeInfo, const u8 *key, size_t keyBytes);
 
 /*
 **   Skein APIs for MAC and tree hash:
-**      Final_Pad:  pad, do final block, but no OUTPUT type
-**      Output:     do just the output stage
+**      final_pad:  pad, do final block, but no OUTPUT type
+**      output:     do just the output stage
 */
-int  Skein_256_Final_Pad(struct skein_256_ctx *ctx, u8 *hashVal);
-int  Skein_512_Final_Pad(struct skein_512_ctx *ctx, u8 *hashVal);
-int  Skein1024_Final_Pad(struct skein1024_ctx *ctx, u8 *hashVal);
+int skein_256_final_pad(struct skein_256_ctx *ctx, u8 *hashVal);
+int skein_512_final_pad(struct skein_512_ctx *ctx, u8 *hashVal);
+int skein_1024_final_pad(struct skein1024_ctx *ctx, u8 *hashVal);
 
 #ifndef SKEIN_TREE_HASH
 #define SKEIN_TREE_HASH (1)
 #endif
 #if  SKEIN_TREE_HASH
-int  Skein_256_Output(struct skein_256_ctx *ctx, u8 *hashVal);
-int  Skein_512_Output(struct skein_512_ctx *ctx, u8 *hashVal);
-int  Skein1024_Output(struct skein1024_ctx *ctx, u8 *hashVal);
+int skein_256_output(struct skein_256_ctx *ctx, u8 *hashVal);
+int skein_512_output(struct skein_512_ctx *ctx, u8 *hashVal);
+int skein_1024_output(struct skein1024_ctx *ctx, u8 *hashVal);
 #endif
 
 /*****************************************************************

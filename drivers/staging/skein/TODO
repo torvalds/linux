@@ -1,7 +1,6 @@
 skein/threefish TODO
 
  - rename camelcase vars
- - rename camelcase functions
  - rename files
  - move macros into appropriate header files
  - add / pass test vectors

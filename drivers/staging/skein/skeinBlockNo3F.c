@@ -5,8 +5,8 @@
 
 
 /*****************************  Skein_256 ******************************/
-void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd)
+void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blkPtr,
+			     size_t blkCnt, size_t byteCntAdd)
 {
 	struct threefish_key key;
 	u64 tweak[2];
@@ -34,12 +34,12 @@ void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;
 
-		threefishSetKey(&key, Threefish256, ctx->X, tweak);
+		threefish_set_key(&key, Threefish256, ctx->X, tweak);
 
 		/* get input block in little-endian format */
 		Skein_Get64_LSB_First(w, blkPtr, SKEIN_256_STATE_WORDS);
 
-		threefishEncryptBlockWords(&key, w, ctx->X);
+		threefish_encrypt_block_words(&key, w, ctx->X);
 
 		blkPtr += SKEIN_256_BLOCK_BYTES;
 
@@ -56,8 +56,8 @@ void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
 	ctx->h.T[1] = tweak[1];
 }
 
-void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd)
+void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blkPtr,
+			     size_t blkCnt, size_t byteCntAdd)
 {
 	struct threefish_key key;
 	u64 tweak[2];
@@ -85,12 +85,12 @@ void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;
 
-		threefishSetKey(&key, Threefish512, ctx->X, tweak);
+		threefish_set_key(&key, Threefish512, ctx->X, tweak);
 
 		/* get input block in little-endian format */
 		Skein_Get64_LSB_First(w, blkPtr, SKEIN_512_STATE_WORDS);
 
-		threefishEncryptBlockWords(&key, w, ctx->X);
+		threefish_encrypt_block_words(&key, w, ctx->X);
 
 		blkPtr += SKEIN_512_BLOCK_BYTES;
 
@@ -111,8 +111,8 @@ void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
 	ctx->h.T[1] = tweak[1];
 }
 
-void Skein1024_Process_Block(struct skein1024_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd)
+void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blkPtr,
+			      size_t blkCnt, size_t byteCntAdd)
 {
 	struct threefish_key key;
 	u64 tweak[2];
@@ -140,12 +140,12 @@ void Skein1024_Process_Block(struct skein1024_ctx *ctx, const u8 *blkPtr,
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;
 
-		threefishSetKey(&key, Threefish1024, ctx->X, tweak);
+		threefish_set_key(&key, Threefish1024, ctx->X, tweak);
 
 		/* get input block in little-endian format */
 		Skein_Get64_LSB_First(w, blkPtr, SKEIN1024_STATE_WORDS);
 
-		threefishEncryptBlockWords(&key, w, ctx->X);
+		threefish_encrypt_block_words(&key, w, ctx->X);
 
 		blkPtr += SKEIN1024_BLOCK_BYTES;
 

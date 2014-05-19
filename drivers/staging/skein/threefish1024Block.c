@@ -2,7 +2,8 @@
 #include <threefishApi.h>
 
 
-void threefishEncrypt1024(struct threefish_key *keyCtx, u64 *input, u64 *output)
+void threefish_encrypt_1024(struct threefish_key *keyCtx, u64 *input,
+			    u64 *output)
 {
 	u64 b0 = input[0], b1 = input[1],
 	  b2 = input[2], b3 = input[3],
@@ -2122,7 +2123,8 @@ void threefishEncrypt1024(struct threefish_key *keyCtx, u64 *input, u64 *output)
 	output[15] = b15 + k1 + 20;
 }
 
-void threefishDecrypt1024(struct threefish_key *keyCtx, u64 *input, u64 *output)
+void threefish_decrypt_1024(struct threefish_key *keyCtx, u64 *input,
+			    u64 *output)
 {
 	u64 b0 = input[0], b1 = input[1],
 	  b2 = input[2], b3 = input[3],

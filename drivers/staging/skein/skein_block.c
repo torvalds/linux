@@ -39,8 +39,8 @@
 
 /*****************************  Skein_256 ******************************/
 #if !(SKEIN_USE_ASM & 256)
-void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd)
+void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blkPtr,
+			     size_t blkCnt, size_t byteCntAdd)
 	{ /* do it in C */
 	enum {
 		WCNT = SKEIN_256_STATE_WORDS
@@ -215,7 +215,7 @@ do { \
 		R256_8_rounds(14);
 	#endif
 	#if  (SKEIN_UNROLL_256 > 14)
-#error  "need more unrolling in Skein_256_Process_Block"
+#error  "need more unrolling in skein_256_process_block"
 	#endif
 		}
 		/* do the final "feedforward" xor, update context chaining */
@@ -233,12 +233,12 @@ do { \
 }
 
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
-size_t Skein_256_Process_Block_CodeSize(void)
+size_t skein_256_process_block_code_size(void)
 {
-	return ((u8 *) Skein_256_Process_Block_CodeSize) -
-		((u8 *) Skein_256_Process_Block);
+	return ((u8 *) skein_256_process_block_code_size) -
+		((u8 *) skein_256_process_block);
 }
-unsigned int Skein_256_Unroll_Cnt(void)
+unsigned int skein_256_unroll_cnt(void)
 {
 	return SKEIN_UNROLL_256;
 }
@@ -247,8 +247,8 @@ unsigned int Skein_256_Unroll_Cnt(void)
 
 /*****************************  Skein_512 ******************************/
 #if !(SKEIN_USE_ASM & 512)
-void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd)
+void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blkPtr,
+			     size_t blkCnt, size_t byteCntAdd)
 { /* do it in C */
 	enum {
 		WCNT = SKEIN_512_STATE_WORDS
@@ -441,7 +441,7 @@ do { \
 			R512_8_rounds(14);
 	#endif
 	#if  (SKEIN_UNROLL_512 > 14)
-#error  "need more unrolling in Skein_512_Process_Block"
+#error  "need more unrolling in skein_512_process_block"
 	#endif
 		}
 
@@ -463,12 +463,12 @@ do { \
 }
 
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
-size_t Skein_512_Process_Block_CodeSize(void)
+size_t skein_512_process_block_code_size(void)
 {
-	return ((u8 *) Skein_512_Process_Block_CodeSize) -
-		((u8 *) Skein_512_Process_Block);
+	return ((u8 *) skein_512_process_block_code_size) -
+		((u8 *) skein_512_process_block);
 }
-unsigned int Skein_512_Unroll_Cnt(void)
+unsigned int skein_512_unroll_cnt(void)
 {
 	return SKEIN_UNROLL_512;
 }
@@ -477,8 +477,8 @@ unsigned int Skein_512_Unroll_Cnt(void)
 
 /*****************************  Skein1024 ******************************/
 #if !(SKEIN_USE_ASM & 1024)
-void Skein1024_Process_Block(struct skein1024_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd)
+void skein_1024_process_block(struct skein1024_ctx *ctx, const u8 *blkPtr,
+			      size_t blkCnt, size_t byteCntAdd)
 { /* do it in C, always looping (unrolled is bigger AND slower!) */
 	enum {
 		WCNT = SKEIN1024_STATE_WORDS
@@ -757,12 +757,12 @@ do { \
 }
 
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
-size_t Skein1024_Process_Block_CodeSize(void)
+size_t skein_1024_process_block_code_size(void)
 {
-	return ((u8 *) Skein1024_Process_Block_CodeSize) -
-		((u8 *) Skein1024_Process_Block);
+	return ((u8 *) skein_1024_process_block_code_size) -
+		((u8 *) skein_1024_process_block);
 }
-unsigned int Skein1024_Unroll_Cnt(void)
+unsigned int skein_1024_unroll_cnt(void)
 {
 	return SKEIN_UNROLL_1024;
 }
