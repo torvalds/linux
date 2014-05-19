@@ -2332,6 +2332,7 @@ destroy_rx_wq:
 
 static void __exit isert_exit(void)
 {
+	flush_scheduled_work();
 	kmem_cache_destroy(isert_cmd_cache);
 	destroy_workqueue(isert_comp_wq);
 	destroy_workqueue(isert_rx_wq);
