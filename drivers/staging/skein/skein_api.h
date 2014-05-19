@@ -28,7 +28,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #define SKEINAPI_H
 
 /**
- * @file skeinApi.h
+ * @file skein_api.h
  * @brief A Skein API and its functions.
  * @{
  *
@@ -44,7 +44,7 @@ OTHER DEALINGS IN THE SOFTWARE.
  *
  * @code
  *
- * #include <skeinApi.h>
+ * #include "skein_api.h"
  *
  * ...
  * struct skein_ctx ctx;             // a Skein hash or MAC context
@@ -79,7 +79,7 @@ OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include <linux/types.h>
-#include <skein.h>
+#include "skein.h"
 
 /**
  * Which Skein size to use

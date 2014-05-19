@@ -25,7 +25,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <linux/string.h>
-#include <skeinApi.h>
+#include "skein_api.h"
 
 int skein_ctx_prepare(struct skein_ctx *ctx, enum skein_size size)
 {

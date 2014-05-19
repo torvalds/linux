@@ -3,7 +3,7 @@
 #define THREEFISHAPI_H
 
 /**
- * @file threefishApi.h
+ * @file threefish_api.h
  * @brief A Threefish cipher API and its functions.
  * @{
  *
@@ -29,7 +29,7 @@
  */
 
 #include <linux/types.h>
-#include <skein.h>
+#include "skein.h"
 
 #define KEY_SCHEDULE_CONST 0x1BD11BDAA9FC1A22L
 

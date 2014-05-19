@@ -15,7 +15,7 @@
 ************************************************************************/
 
 #include <linux/string.h>
-#include <skein.h>
+#include "skein.h"
 
 #ifndef SKEIN_USE_ASM
 #define SKEIN_USE_ASM   (0) /* default is all C code (no ASM) */

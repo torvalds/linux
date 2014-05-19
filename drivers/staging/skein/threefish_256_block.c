@@ -1,5 +1,5 @@
 #include <linux/string.h>
-#include <threefishApi.h>
+#include "threefish_api.h"
 
 
 void threefish_encrypt_256(struct threefish_key *key_ctx, u64 *input,

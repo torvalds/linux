@@ -1,7 +1,5 @@
-
-
 #include <linux/string.h>
-#include <threefishApi.h>
+#include "threefish_api.h"
 
 void threefish_set_key(struct threefish_key *key_ctx,
 		       enum threefish_size state_size,
