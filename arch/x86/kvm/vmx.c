@@ -5401,7 +5401,7 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 	}
 
 	/* clear all local breakpoint enable flags */
-	vmcs_writel(GUEST_DR7, vmcs_readl(GUEST_DR7) & ~55);
+	vmcs_writel(GUEST_DR7, vmcs_readl(GUEST_DR7) & ~0x55);
 
 	/*
 	 * TODO: What about debug traps on tss switch?
