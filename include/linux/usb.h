@@ -352,6 +352,8 @@ struct usb_bus {
 	struct usb_bus *hs_companion;	/* Companion EHCI bus, if any */
 	struct list_head bus_list;	/* list of busses */
 
+	struct mutex usb_address0_mutex; /* unaddressed device mutex */
+
 	int bandwidth_allocated;	/* on this bus: how much of the time
 					 * reserved for periodic (intr/iso)
 					 * requests is used, on average?

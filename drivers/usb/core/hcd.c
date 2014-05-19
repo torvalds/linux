@@ -918,6 +918,7 @@ static void usb_bus_init (struct usb_bus *bus)
 	bus->bandwidth_allocated = 0;
 	bus->bandwidth_int_reqs  = 0;
 	bus->bandwidth_isoc_reqs = 0;
+	mutex_init(&bus->usb_address0_mutex);
 
 	INIT_LIST_HEAD (&bus->bus_list);
 }
