@@ -123,11 +123,11 @@ config SOC_IMX5
 	bool
 	select ARCH_HAS_OPP
 	select ARCH_MXC_IOMUX_V3
+	select HAVE_IMX_SRC
 	select MXC_TZIC
 
 config	SOC_IMX51
 	bool
-	select HAVE_IMX_SRC
 	select PINCTRL_IMX51
 	select SOC_IMX5
 
@@ -702,7 +702,6 @@ comment "Device tree only"
 
 config	SOC_IMX50
 	bool "i.MX50 support"
-	select HAVE_IMX_SRC
 	select PINCTRL_IMX50
 	select SOC_IMX5
 
@@ -717,7 +716,6 @@ config MACH_IMX51_DT
 
 config	SOC_IMX53
 	bool "i.MX53 support"
-	select HAVE_IMX_SRC
 	select PINCTRL_IMX53
 	select SOC_IMX5
 
