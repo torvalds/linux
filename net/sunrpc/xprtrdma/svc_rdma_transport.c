@@ -65,6 +65,7 @@ static void dto_tasklet_func(unsigned long data);
 static void svc_rdma_detach(struct svc_xprt *xprt);
 static void svc_rdma_free(struct svc_xprt *xprt);
 static int svc_rdma_has_wspace(struct svc_xprt *xprt);
+static int svc_rdma_secure_port(struct svc_rqst *);
 static void rq_cq_reap(struct svcxprt_rdma *xprt);
 static void sq_cq_reap(struct svcxprt_rdma *xprt);
 
@@ -82,6 +83,7 @@ static struct svc_xprt_ops svc_rdma_ops = {
 	.xpo_prep_reply_hdr = svc_rdma_prep_reply_hdr,
 	.xpo_has_wspace = svc_rdma_has_wspace,
 	.xpo_accept = svc_rdma_accept,
+	.xpo_secure_port = svc_rdma_secure_port,
 };
 
 struct svc_xprt_class svc_rdma_class = {
@@ -1204,6 +1206,11 @@ static int svc_rdma_has_wspace(struct svc_xprt *xprt)
 		return 0;
 
 	/* Otherwise return true. */
+	return 1;
+}
+
+static int svc_rdma_secure_port(struct svc_rqst *rqstp)
+{
 	return 1;
 }
 

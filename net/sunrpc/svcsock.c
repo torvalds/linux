@@ -400,6 +400,12 @@ static void svc_sock_setbufsize(struct socket *sock, unsigned int snd,
 	release_sock(sock->sk);
 #endif
 }
+
+static int svc_sock_secure_port(struct svc_rqst *rqstp)
+{
+	return svc_port_is_privileged(svc_addr(rqstp));
+}
+
 /*
  * INET callback when data has been received on the socket.
  */
@@ -678,6 +684,7 @@ static struct svc_xprt_ops svc_udp_ops = {
 	.xpo_prep_reply_hdr = svc_udp_prep_reply_hdr,
 	.xpo_has_wspace = svc_udp_has_wspace,
 	.xpo_accept = svc_udp_accept,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_udp_class = {
@@ -1234,6 +1241,7 @@ static struct svc_xprt_ops svc_tcp_bc_ops = {
 	.xpo_detach = svc_bc_tcp_sock_detach,
 	.xpo_free = svc_bc_sock_free,
 	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_tcp_bc_class = {
@@ -1272,6 +1280,7 @@ static struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
 	.xpo_has_wspace = svc_tcp_has_wspace,
 	.xpo_accept = svc_tcp_accept,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_tcp_class = {
