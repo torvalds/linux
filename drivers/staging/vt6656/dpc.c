@@ -49,7 +49,6 @@
 #include "wctl.h"
 #include "rf.h"
 #include "iowpa.h"
-#include "aes_ccmp.h"
 #include "datarate.h"
 #include "usbpipe.h"
 

@@ -26,7 +26,6 @@ vt6656_stage-y +=	main_usb.o \
 			rf.o \
 			iwctl.o \
 			wpactl.o \
-			aes_ccmp.o \
 			usbpipe.o \
 			channel.o \
 			control.o \
