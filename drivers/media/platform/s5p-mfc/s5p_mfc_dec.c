@@ -25,6 +25,7 @@
 #include <media/v4l2-event.h>
 #include <media/videobuf2-core.h>
 #include "s5p_mfc_common.h"
+#include "s5p_mfc_ctrl.h"
 #include "s5p_mfc_debug.h"
 #include "s5p_mfc_dec.h"
 #include "s5p_mfc_intr.h"
@@ -674,36 +675,19 @@ static int vidioc_streamon(struct file *file, void *priv,
 
 	mfc_debug_enter();
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-
 		if (ctx->state == MFCINST_INIT) {
 			ctx->dst_bufs_cnt = 0;
 			ctx->src_bufs_cnt = 0;
 			ctx->capture_state = QUEUE_FREE;
 			ctx->output_state = QUEUE_FREE;
-			s5p_mfc_hw_call(dev->mfc_ops, alloc_instance_buffer,
-					ctx);
-			s5p_mfc_hw_call(dev->mfc_ops, alloc_dec_temp_buffers,
-					ctx);
-			set_work_bit_irqsave(ctx);
-			s5p_mfc_clean_ctx_int_flags(ctx);
-			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
-
-			if (s5p_mfc_wait_for_done_ctx(ctx,
-				S5P_MFC_R2H_CMD_OPEN_INSTANCE_RET, 0)) {
-				/* Error or timeout */
-				mfc_err("Error getting instance from hardware\n");
-				s5p_mfc_hw_call(dev->mfc_ops,
-						release_instance_buffer, ctx);
-				s5p_mfc_hw_call(dev->mfc_ops,
-						release_dec_desc_buffer, ctx);
-				return -EIO;
-			}
-			mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
+			ret = s5p_mfc_open_mfc_inst(dev, ctx);
+			if (ret)
+				return ret;
 		}
 		ret = vb2_streamon(&ctx->vq_src, type);
-		}
-	else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		ret = vb2_streamon(&ctx->vq_dst, type);
+	}
 	mfc_debug_leave();
 	return ret;
 }

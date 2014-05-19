@@ -26,6 +26,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/videobuf2-core.h>
 #include "s5p_mfc_common.h"
+#include "s5p_mfc_ctrl.h"
 #include "s5p_mfc_debug.h"
 #include "s5p_mfc_enc.h"
 #include "s5p_mfc_intr.h"
@@ -1106,20 +1107,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 		ctx->dst_bufs_cnt = 0;
 		ctx->capture_state = QUEUE_FREE;
-		s5p_mfc_hw_call(dev->mfc_ops, alloc_instance_buffer, ctx);
-		set_work_bit_irqsave(ctx);
-		s5p_mfc_clean_ctx_int_flags(ctx);
-		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
-		if (s5p_mfc_wait_for_done_ctx(ctx, \
-				S5P_MFC_R2H_CMD_OPEN_INSTANCE_RET, 1)) {
-				/* Error or timeout */
-			mfc_err("Error getting instance from hardware\n");
-			s5p_mfc_hw_call(dev->mfc_ops, release_instance_buffer,
-					ctx);
-			ret = -EIO;
-			goto out;
-		}
-		mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
+		ret = s5p_mfc_open_mfc_inst(dev, ctx);
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		/* src_fmt is validated by call to vidioc_try_fmt */
 		ctx->src_fmt = find_format(f, MFC_FMT_RAW);
@@ -1140,7 +1128,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		ctx->output_state = QUEUE_FREE;
 	} else {
 		mfc_err("invalid buf type\n");
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 out:
 	mfc_debug_leave();
