@@ -173,11 +173,11 @@
 
 			msch@0 {
 				reg = <0xffac0000 0x40>;
-				rockchip,read-latency = <0xff>;
+				rockchip,read-latency = <0x34>;
 			};
 			msch@1 {
 				reg = <0xffac0080 0x40>;
-				rockchip,read-latency = <0xff>;
+				rockchip,read-latency = <0x34>;
 			};
 		};
 	};
