@@ -462,102 +462,122 @@ out:
 	return ret;
 }
 
+static int reqbufs_output(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
+				struct v4l2_requestbuffers *reqbufs)
+{
+	int ret = 0;
+
+	s5p_mfc_clock_on();
+
+	if (reqbufs->count == 0) {
+		mfc_debug(2, "Freeing buffers\n");
+		ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
+		if (ret)
+			goto out;
+		ctx->src_bufs_cnt = 0;
+	} else if (ctx->output_state == QUEUE_FREE) {
+		/* Can only request buffers after the instance
+		 * has been opened.
+		 */
+		WARN_ON(ctx->src_bufs_cnt != 0);
+		if (ctx->state != MFCINST_INIT) {
+			mfc_err("Reqbufs called in an invalid state\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		mfc_debug(2, "Allocating %d buffers for OUTPUT queue\n",
+				reqbufs->count);
+		ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
+		if (ret)
+			goto out;
+
+		ctx->output_state = QUEUE_BUFS_REQUESTED;
+	} else {
+		mfc_err("Buffers have already been requested\n");
+		ret = -EINVAL;
+	}
+out:
+	s5p_mfc_clock_off();
+	if (ret)
+		mfc_err("Failed allocating buffers for OUTPUT queue\n");
+	return ret;
+}
+
+static int reqbufs_capture(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
+				struct v4l2_requestbuffers *reqbufs)
+{
+	int ret = 0;
+
+	s5p_mfc_clock_on();
+
+	if (reqbufs->count == 0) {
+		mfc_debug(2, "Freeing buffers\n");
+		ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
+		if (ret)
+			goto out;
+		s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers, ctx);
+		ctx->dst_bufs_cnt = 0;
+	} else if (ctx->capture_state == QUEUE_FREE) {
+		WARN_ON(ctx->dst_bufs_cnt != 0);
+		mfc_debug(2, "Allocating %d buffers for CAPTURE queue\n",
+				reqbufs->count);
+		ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
+		if (ret)
+			goto out;
+
+		ctx->capture_state = QUEUE_BUFS_REQUESTED;
+		ctx->total_dpb_count = reqbufs->count;
+
+		ret = s5p_mfc_hw_call(dev->mfc_ops, alloc_codec_buffers, ctx);
+		if (ret) {
+			mfc_err("Failed to allocate decoding buffers\n");
+			reqbufs->count = 0;
+			vb2_reqbufs(&ctx->vq_dst, reqbufs);
+			ret = -ENOMEM;
+			ctx->capture_state = QUEUE_FREE;
+			goto out;
+		}
+
+		WARN_ON(ctx->dst_bufs_cnt != ctx->total_dpb_count);
+		ctx->capture_state = QUEUE_BUFS_MMAPED;
+
+		if (s5p_mfc_ctx_ready(ctx))
+			set_work_bit_irqsave(ctx);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+		s5p_mfc_wait_for_done_ctx(ctx, S5P_MFC_R2H_CMD_INIT_BUFFERS_RET,
+					  0);
+	} else {
+		mfc_err("Buffers have already been requested\n");
+		ret = -EINVAL;
+	}
+out:
+	s5p_mfc_clock_off();
+	if (ret)
+		mfc_err("Failed allocating buffers for CAPTURE queue\n");
+	return ret;
+}
+
 /* Reqeust buffers */
 static int vidioc_reqbufs(struct file *file, void *priv,
 					  struct v4l2_requestbuffers *reqbufs)
 {
 	struct s5p_mfc_dev *dev = video_drvdata(file);
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
-	int ret = 0;
 
 	if (reqbufs->memory != V4L2_MEMORY_MMAP) {
 		mfc_err("Only V4L2_MEMORY_MAP is supported\n");
 		return -EINVAL;
 	}
+
 	if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		/* Can only request buffers after an instance has been opened.*/
-		if (ctx->state == MFCINST_INIT) {
-			ctx->src_bufs_cnt = 0;
-			if (reqbufs->count == 0) {
-				mfc_debug(2, "Freeing buffers\n");
-				s5p_mfc_clock_on();
-				ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
-				s5p_mfc_clock_off();
-				return ret;
-			}
-			/* Decoding */
-			if (ctx->output_state != QUEUE_FREE) {
-				mfc_err("Bufs have already been requested\n");
-				return -EINVAL;
-			}
-			s5p_mfc_clock_on();
-			ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
-			s5p_mfc_clock_off();
-			if (ret) {
-				mfc_err("vb2_reqbufs on output failed\n");
-				return ret;
-			}
-			mfc_debug(2, "vb2_reqbufs: %d\n", ret);
-			ctx->output_state = QUEUE_BUFS_REQUESTED;
-		}
+		return reqbufs_output(dev, ctx, reqbufs);
 	} else if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		ctx->dst_bufs_cnt = 0;
-		if (reqbufs->count == 0) {
-			mfc_debug(2, "Freeing buffers\n");
-			s5p_mfc_clock_on();
-			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
-			s5p_mfc_clock_off();
-			return ret;
-		}
-		if (ctx->capture_state != QUEUE_FREE) {
-			mfc_err("Bufs have already been requested\n");
-			return -EINVAL;
-		}
-		ctx->capture_state = QUEUE_BUFS_REQUESTED;
-		s5p_mfc_clock_on();
-		ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
-		s5p_mfc_clock_off();
-		if (ret) {
-			mfc_err("vb2_reqbufs on capture failed\n");
-			return ret;
-		}
-		if (reqbufs->count < ctx->pb_count) {
-			mfc_err("Not enough buffers allocated\n");
-			reqbufs->count = 0;
-			s5p_mfc_clock_on();
-			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
-			s5p_mfc_clock_off();
-			return -ENOMEM;
-		}
-		ctx->total_dpb_count = reqbufs->count;
-		ret = s5p_mfc_hw_call(dev->mfc_ops, alloc_codec_buffers, ctx);
-		if (ret) {
-			mfc_err("Failed to allocate decoding buffers\n");
-			reqbufs->count = 0;
-			s5p_mfc_clock_on();
-			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
-			s5p_mfc_clock_off();
-			return -ENOMEM;
-		}
-		if (ctx->dst_bufs_cnt == ctx->total_dpb_count) {
-			ctx->capture_state = QUEUE_BUFS_MMAPED;
-		} else {
-			mfc_err("Not all buffers passed to buf_init\n");
-			reqbufs->count = 0;
-			s5p_mfc_clock_on();
-			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
-			s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers,
-					ctx);
-			s5p_mfc_clock_off();
-			return -ENOMEM;
-		}
-		if (s5p_mfc_ctx_ready(ctx))
-			set_work_bit_irqsave(ctx);
-		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
-		s5p_mfc_wait_for_done_ctx(ctx,
-					S5P_MFC_R2H_CMD_INIT_BUFFERS_RET, 0);
+		return reqbufs_capture(dev, ctx, reqbufs);
+	} else {
+		mfc_err("Invalid type requested\n");
+		return -EINVAL;
 	}
-	return ret;
 }
 
 /* Query buffer */
