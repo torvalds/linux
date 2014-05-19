@@ -957,43 +957,13 @@ static int fimc_dst_set_transf(struct device *dev,
 	return 0;
 }
 
-static int fimc_get_ratio_shift(u32 src, u32 dst, u32 *ratio, u32 *shift)
-{
-	DRM_DEBUG_KMS("src[%d]dst[%d]\n", src, dst);
-
-	if (src >= dst * 64) {
-		DRM_ERROR("failed to make ratio and shift.\n");
-		return -EINVAL;
-	} else if (src >= dst * 32) {
-		*ratio = 32;
-		*shift = 5;
-	} else if (src >= dst * 16) {
-		*ratio = 16;
-		*shift = 4;
-	} else if (src >= dst * 8) {
-		*ratio = 8;
-		*shift = 3;
-	} else if (src >= dst * 4) {
-		*ratio = 4;
-		*shift = 2;
-	} else if (src >= dst * 2) {
-		*ratio = 2;
-		*shift = 1;
-	} else {
-		*ratio = 1;
-		*shift = 0;
-	}
-
-	return 0;
-}
-
 static int fimc_set_prescaler(struct fimc_context *ctx, struct fimc_scaler *sc,
 		struct drm_exynos_pos *src, struct drm_exynos_pos *dst)
 {
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
 	u32 cfg, cfg_ext, shfactor;
 	u32 pre_dst_width, pre_dst_height;
-	u32 pre_hratio, hfactor, pre_vratio, vfactor;
+	u32 hfactor, vfactor;
 	int ret = 0;
 	u32 src_w, src_h, dst_w, dst_h;
 
@@ -1014,24 +984,24 @@ static int fimc_set_prescaler(struct fimc_context *ctx, struct fimc_scaler *sc,
 		dst_h = dst->h;
 	}
 
-	ret = fimc_get_ratio_shift(src_w, dst_w, &pre_hratio, &hfactor);
-	if (ret) {
+	/* fimc_ippdrv_check_property assures that dividers are not null */
+	hfactor = fls(src_w / dst_w / 2);
+	if (hfactor > FIMC_SHFACTOR / 2) {
 		dev_err(ippdrv->dev, "failed to get ratio horizontal.\n");
-		return ret;
+		return -EINVAL;
 	}
 
-	ret = fimc_get_ratio_shift(src_h, dst_h, &pre_vratio, &vfactor);
-	if (ret) {
+	vfactor = fls(src_h / dst_h / 2);
+	if (vfactor > FIMC_SHFACTOR / 2) {
 		dev_err(ippdrv->dev, "failed to get ratio vertical.\n");
-		return ret;
+		return -EINVAL;
 	}
 
-	pre_dst_width = src_w / pre_hratio;
-	pre_dst_height = src_h / pre_vratio;
+	pre_dst_width = src_w >> hfactor;
+	pre_dst_height = src_h >> vfactor;
 	DRM_DEBUG_KMS("pre_dst_width[%d]pre_dst_height[%d]\n",
 		pre_dst_width, pre_dst_height);
-	DRM_DEBUG_KMS("pre_hratio[%d]hfactor[%d]pre_vratio[%d]vfactor[%d]\n",
-		pre_hratio, hfactor, pre_vratio, vfactor);
+	DRM_DEBUG_KMS("hfactor[%d]vfactor[%d]\n", hfactor, vfactor);
 
 	sc->hratio = (src_w << 14) / (dst_w << hfactor);
 	sc->vratio = (src_h << 14) / (dst_h << vfactor);
@@ -1044,8 +1014,8 @@ static int fimc_set_prescaler(struct fimc_context *ctx, struct fimc_scaler *sc,
 	DRM_DEBUG_KMS("shfactor[%d]\n", shfactor);
 
 	cfg = (EXYNOS_CISCPRERATIO_SHFACTOR(shfactor) |
-		EXYNOS_CISCPRERATIO_PREHORRATIO(pre_hratio) |
-		EXYNOS_CISCPRERATIO_PREVERRATIO(pre_vratio));
+		EXYNOS_CISCPRERATIO_PREHORRATIO(1 << hfactor) |
+		EXYNOS_CISCPRERATIO_PREVERRATIO(1 << vfactor));
 	fimc_write(cfg, EXYNOS_CISCPRERATIO);
 
 	cfg = (EXYNOS_CISCPREDST_PREDSTWIDTH(pre_dst_width) |
