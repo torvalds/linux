@@ -36,6 +36,7 @@
 #include "../../mm/internal.h"	/* munlock_vma_page */
 #include <linux/percpu-rwsem.h>
 #include <linux/task_work.h>
+#include <linux/shmem_fs.h>
 
 #include <linux/uprobes.h>
 
@@ -537,10 +538,14 @@ static int __copy_insn(struct address_space *mapping, struct file *filp,
 {
 	struct page *page;
 	/*
-	 * Ensure that the page that has the original instruction is
-	 * populated and in page-cache.
+	 * Ensure that the page that has the original instruction is populated
+	 * and in page-cache. If ->readpage == NULL it must be shmem_mapping(),
+	 * see uprobe_register().
 	 */
-	page = read_mapping_page(mapping, offset >> PAGE_CACHE_SHIFT, filp);
+	if (mapping->a_ops->readpage)
+		page = read_mapping_page(mapping, offset >> PAGE_CACHE_SHIFT, filp);
+	else
+		page = shmem_read_mapping_page(mapping, offset >> PAGE_CACHE_SHIFT);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
@@ -876,8 +881,8 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	if (!uc->handler && !uc->ret_handler)
 		return -EINVAL;
 
-	/* copy_insn()->read_mapping_page() needs ->readpage() */
-	if (!inode->i_mapping->a_ops->readpage)
+	/* copy_insn() uses read_mapping_page() or shmem_read_mapping_page() */
+	if (!inode->i_mapping->a_ops->readpage && !shmem_mapping(inode->i_mapping))
 		return -EIO;
 	/* Racy, just to catch the obvious mistakes */
 	if (offset > i_size_read(inode))
