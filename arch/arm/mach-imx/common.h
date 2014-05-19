@@ -50,7 +50,6 @@ void imx25_soc_init(void);
 void imx27_soc_init(void);
 void imx31_soc_init(void);
 void imx35_soc_init(void);
-void imx51_soc_init(void);
 void imx51_init_late(void);
 void imx53_init_late(void);
 void epit_timer_init(void __iomem *base, int irq);

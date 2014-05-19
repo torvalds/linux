@@ -93,39 +93,6 @@ void __init imx53_init_early(void)
 	imx_src_init();
 }
 
-static struct sdma_platform_data imx51_sdma_pdata __initdata = {
-	.fw_name = "sdma-imx51.bin",
-};
-
-static const struct resource imx51_audmux_res[] __initconst = {
-	DEFINE_RES_MEM(MX51_AUDMUX_BASE_ADDR, SZ_16K),
-};
-
-void __init imx51_soc_init(void)
-{
-	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG1_BASE_ADDR));
-	mxc_device_init();
-
-	/* i.mx51 has the i.mx35 type gpio */
-	mxc_register_gpio("imx35-gpio", 0, MX51_GPIO1_BASE_ADDR, SZ_16K, MX51_INT_GPIO1_LOW, MX51_INT_GPIO1_HIGH);
-	mxc_register_gpio("imx35-gpio", 1, MX51_GPIO2_BASE_ADDR, SZ_16K, MX51_INT_GPIO2_LOW, MX51_INT_GPIO2_HIGH);
-	mxc_register_gpio("imx35-gpio", 2, MX51_GPIO3_BASE_ADDR, SZ_16K, MX51_INT_GPIO3_LOW, MX51_INT_GPIO3_HIGH);
-	mxc_register_gpio("imx35-gpio", 3, MX51_GPIO4_BASE_ADDR, SZ_16K, MX51_INT_GPIO4_LOW, MX51_INT_GPIO4_HIGH);
-
-	pinctrl_provide_dummies();
-
-	/* i.mx51 has the i.mx35 type sdma */
-	imx_add_imx_sdma("imx35-sdma", MX51_SDMA_BASE_ADDR, MX51_INT_SDMA, &imx51_sdma_pdata);
-
-	/* Setup AIPS registers */
-	imx_set_aips(MX51_IO_ADDRESS(MX51_AIPS1_BASE_ADDR));
-	imx_set_aips(MX51_IO_ADDRESS(MX51_AIPS2_BASE_ADDR));
-
-	/* i.mx51 has the i.mx31 type audmux */
-	platform_device_register_simple("imx31-audmux", 0, imx51_audmux_res,
-					ARRAY_SIZE(imx51_audmux_res));
-}
-
 void __init imx51_init_late(void)
 {
 	mx51_neon_fixup();
