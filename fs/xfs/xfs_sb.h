@@ -51,11 +51,12 @@ struct xfs_trans;
 
 /*
  * Supported feature bit list is just all bits in the versionnum field because
- * we've used them all up and understand them all.
+ * we've used them all up and understand them all. Except, of course, for the
+ * shared superblock bit, which nobody knows what it does and so is unsupported.
  */
 #define	XFS_SB_VERSION_OKBITS		\
-	(XFS_SB_VERSION_NUMBITS		| \
-	 XFS_SB_VERSION_ALLFBITS)
+	((XFS_SB_VERSION_NUMBITS | XFS_SB_VERSION_ALLFBITS) & \
+		~XFS_SB_VERSION_SHAREDBIT)
 
 /*
  * There are two words to hold XFS "feature" bits: the original
@@ -341,10 +342,6 @@ static inline bool xfs_sb_good_v4_features(struct xfs_sb *sbp)
 	     (sbp->sb_features2 & ~XFS_SB_VERSION2_OKBITS)))
 		return false;
 
-	/* We don't support shared superblocks - nobody knows what it is */
-	if (sbp->sb_versionnum & XFS_SB_VERSION_SHAREDBIT)
-		return false;
-
 	return true;
 }
 
@@ -395,12 +392,6 @@ static inline bool xfs_sb_version_hasalign(struct xfs_sb *sbp)
 static inline bool xfs_sb_version_hasdalign(struct xfs_sb *sbp)
 {
 	return (sbp->sb_versionnum & XFS_SB_VERSION_DALIGNBIT);
-}
-
-static inline bool xfs_sb_version_hasshared(struct xfs_sb *sbp)
-{
-	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4 &&
-		(sbp->sb_versionnum & XFS_SB_VERSION_SHAREDBIT);
 }
 
 static inline bool xfs_sb_version_haslogv2(struct xfs_sb *sbp)
