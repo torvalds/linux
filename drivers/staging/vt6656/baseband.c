@@ -1121,17 +1121,17 @@ void BBvSetVGAGainOffset(struct vnt_private *priv, u8 data)
  *
  * Parameters:
  *  In:
- *      pDevice          - Device Structure
+ *	priv	- Device Structure
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void BBvSetDeepSleep(struct vnt_private *pDevice)
+void BBvSetDeepSleep(struct vnt_private *priv)
 {
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0c, 0x17);//CR12
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0D, 0xB9);//CR13
+	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x0c, 0x17);/* CR12 */
+	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x0d, 0xB9);/* CR13 */
 }
 
 void BBvExitDeepSleep(struct vnt_private *pDevice)
