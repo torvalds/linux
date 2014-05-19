@@ -244,3 +244,8 @@
 &i2s0 {
 	status = "okay";
 };
+
+&fimd {
+	status = "okay";
+	samsung,invert-vclk;
+};
