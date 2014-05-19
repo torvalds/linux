@@ -1227,15 +1227,8 @@ xfs_ioctl_setattr(
 				olddquot = xfs_qm_vop_chown(tp, ip,
 							&ip->i_pdquot, pdqp);
 			}
+			ASSERT(ip->i_d.di_version > 1);
 			xfs_set_projid(ip, fa->fsx_projid);
-
-			/*
-			 * We may have to rev the inode as well as
-			 * the superblock version number since projids didn't
-			 * exist before DINODE_VERSION_2 and SB_VERSION_NLINK.
-			 */
-			if (ip->i_d.di_version == 1)
-				xfs_bump_ino_vers2(tp, ip);
 		}
 
 	}

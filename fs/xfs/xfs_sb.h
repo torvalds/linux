@@ -376,16 +376,6 @@ static inline void xfs_sb_version_addattr(struct xfs_sb *sbp)
 	sbp->sb_versionnum |= XFS_SB_VERSION_ATTRBIT;
 }
 
-static inline bool xfs_sb_version_hasnlink(struct xfs_sb *sbp)
-{
-	return (sbp->sb_versionnum & XFS_SB_VERSION_NLINKBIT);
-}
-
-static inline void xfs_sb_version_addnlink(struct xfs_sb *sbp)
-{
-	sbp->sb_versionnum |= XFS_SB_VERSION_NLINKBIT;
-}
-
 static inline bool xfs_sb_version_hasquota(struct xfs_sb *sbp)
 {
 	return (sbp->sb_versionnum & XFS_SB_VERSION_QUOTABIT);
