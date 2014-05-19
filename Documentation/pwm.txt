@@ -19,7 +19,8 @@ should instead register a static mapping that can be used to match PWM
 consumers to providers, as given in the following example:
 
 	static struct pwm_lookup board_pwm_lookup[] = {
-		PWM_LOOKUP("tegra-pwm", 0, "pwm-backlight", NULL),
+		PWM_LOOKUP("tegra-pwm", 0, "pwm-backlight", NULL,
+			   50000, PWM_POLARITY_NORMAL),
 	};
 
 	static void __init board_init(void)
