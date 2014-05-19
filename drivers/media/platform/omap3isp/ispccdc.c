@@ -1114,6 +1114,9 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 		pdata = &((struct isp_v4l2_subdevs_group *)sensor->host_priv)
 			->bus.parallel;
 
+	/* CCDC_PAD_SINK */
+	format = &ccdc->formats[CCDC_PAD_SINK];
+
 	/* Compute the lane shifter shift value and enable the bridge when the
 	 * input format is YUV.
 	 */
@@ -1124,8 +1127,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 		depth_in = fmt_info->width;
 	}
 
-	fmt_info = omap3isp_video_format_info
-		(isp->isp_ccdc.formats[CCDC_PAD_SINK].code);
+	fmt_info = omap3isp_video_format_info(format->code);
 	depth_out = fmt_info->width;
 	shift = depth_in - depth_out;
 
@@ -1156,9 +1158,6 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 		syn_mode |= ISPCCDC_SYN_MODE_SDR2RSZ;
 	else
 		syn_mode &= ~ISPCCDC_SYN_MODE_SDR2RSZ;
-
-	/* CCDC_PAD_SINK */
-	format = &ccdc->formats[CCDC_PAD_SINK];
 
 	/* Mosaic filter */
 	switch (format->code) {
