@@ -998,7 +998,8 @@ static int ironlake_do_reset(struct drm_device *dev)
 	gdrst &= ~GRDOM_MASK;
 	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
 		   gdrst | GRDOM_RENDER | GRDOM_RESET_ENABLE);
-	ret = wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
+	ret = wait_for((I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) &
+			GRDOM_RESET_ENABLE) == 0, 500);
 	if (ret)
 		return ret;
 
@@ -1006,7 +1007,8 @@ static int ironlake_do_reset(struct drm_device *dev)
 	gdrst &= ~GRDOM_MASK;
 	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
 		   gdrst | GRDOM_MEDIA | GRDOM_RESET_ENABLE);
-	return wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
+	return wait_for((I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) &
+			 GRDOM_RESET_ENABLE) == 0, 500);
 }
 
 static int gen6_do_reset(struct drm_device *dev)
