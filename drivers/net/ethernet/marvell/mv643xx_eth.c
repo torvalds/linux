@@ -250,6 +250,7 @@ struct tx_desc {
 #define GEN_TCP_UDP_CHECKSUM		0x00020000
 #define UDP_FRAME			0x00010000
 #define MAC_HDR_EXTRA_4_BYTES		0x00008000
+#define GEN_TCP_UDP_CHK_FULL		0x00000400
 #define MAC_HDR_EXTRA_8_BYTES		0x00000200
 
 #define TX_IHL_SHIFT			11
@@ -695,17 +696,19 @@ static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
 		if (tag_bytes & 8)
 			cmd |= MAC_HDR_EXTRA_8_BYTES;
 
-		cmd |= GEN_TCP_UDP_CHECKSUM |
+		cmd |= GEN_TCP_UDP_CHECKSUM | GEN_TCP_UDP_CHK_FULL |
 			   GEN_IP_V4_CHECKSUM   |
 			   ip_hdr(skb)->ihl << TX_IHL_SHIFT;
 
+		/* TODO: Revisit this. With the usage of GEN_TCP_UDP_CHK_FULL
+		 * it seems we don't need to pass the initial checksum. */
 		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_UDP:
 			cmd |= UDP_FRAME;
-			*l4i_chk = ntohs(sum16_as_be(udp_hdr(skb)->check));
+			*l4i_chk = 0;
 			break;
 		case IPPROTO_TCP:
-			*l4i_chk = ntohs(sum16_as_be(tcp_hdr(skb)->check));
+			*l4i_chk = 0;
 			break;
 		default:
 			WARN(1, "protocol not supported");
