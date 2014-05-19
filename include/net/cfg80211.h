@@ -1827,7 +1827,7 @@ struct cfg80211_pmksa {
  * memory, free @mask only!
  */
 struct cfg80211_pkt_pattern {
-	u8 *mask, *pattern;
+	const u8 *mask, *pattern;
 	int pattern_len;
 	int pkt_offset;
 };
