@@ -73,6 +73,9 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 					(s32)report_val);
 	}
 
+	sensor_hub_get_feature(st->hsdev, st->power_state.report_id,
+					st->power_state.index,
+					&state_val);
 	return 0;
 }
 
