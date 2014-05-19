@@ -1001,6 +1001,9 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 	if (pdata && pdata->vs_pol)
 		syn_mode |= ISPCCDC_SYN_MODE_VDPOL;
 
+	if (pdata && pdata->fld_pol)
+		syn_mode |= ISPCCDC_SYN_MODE_FLDPOL;
+
 	isp_reg_writel(isp, syn_mode, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_SYN_MODE);
 
 	/* The CCDC_CFG.Y8POS bit is used in YCbCr8 input mode only. The
@@ -1140,6 +1143,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 
 	omap3isp_configure_bridge(isp, ccdc->input, pdata, shift, bridge);
 
+	/* Configure the sync interface. */
 	ccdc_config_sync_if(ccdc, pdata, depth_out);
 
 	syn_mode = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_SYN_MODE);
@@ -1499,6 +1503,17 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 		return 1;
 	}
 
+	/* When capturing fields in alternate order read the current field
+	 * identifier and store it in the pipeline.
+	 */
+	if (ccdc->formats[CCDC_PAD_SOURCE_OF].field == V4L2_FIELD_ALTERNATE) {
+		u32 syn_mode = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCDC,
+					     ISPCCDC_SYN_MODE);
+
+		pipe->field = syn_mode & ISPCCDC_SYN_MODE_FLDSTAT
+			    ? V4L2_FIELD_BOTTOM : V4L2_FIELD_TOP;
+	}
+
 	if (ccdc_sbl_wait_idle(ccdc, 1000)) {
 		dev_info(isp->dev, "CCDC won't become idle!\n");
 		isp->crashed |= 1U << ccdc->subdev.entity.id;
@@ -1830,6 +1845,11 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_fh *fh,
 		/* Clamp the input size. */
 		fmt->width = clamp_t(u32, width, 32, 4096);
 		fmt->height = clamp_t(u32, height, 32, 4096);
+
+		/* Default to progressive field order. */
+		if (fmt->field == V4L2_FIELD_ANY)
+			fmt->field = V4L2_FIELD_NONE;
+
 		break;
 
 	case CCDC_PAD_SOURCE_OF:
@@ -1885,7 +1905,6 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_fh *fh,
 	 * stored on 2 bytes.
 	 */
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	fmt->field = V4L2_FIELD_NONE;
 }
 
 /*

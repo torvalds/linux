@@ -78,6 +78,7 @@ enum isp_pipeline_state {
 
 /*
  * struct isp_pipeline - An ISP hardware pipeline
+ * @field: The field being processed by the pipeline
  * @error: A hardware error occurred during capture
  * @entities: Bitmask of entities in the pipeline (indexed by entity ID)
  */
@@ -91,6 +92,7 @@ struct isp_pipeline {
 	u32 entities;
 	unsigned long l3_ick;
 	unsigned int max_rate;
+	enum v4l2_field field;
 	atomic_t frame_number;
 	bool do_propagation; /* of frame number */
 	bool error;

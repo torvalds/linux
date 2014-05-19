@@ -482,6 +482,11 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 	else
 		buf->vb.v4l2_buf.sequence = atomic_read(&pipe->frame_number);
 
+	if (pipe->field != V4L2_FIELD_NONE)
+		buf->vb.v4l2_buf.sequence /= 2;
+
+	buf->vb.v4l2_buf.field = pipe->field;
+
 	/* Report pipeline errors to userspace on the capture device side. */
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->error) {
 		state = VB2_BUF_STATE_ERROR;
@@ -1038,6 +1043,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->queue = &vfh->queue;
 	INIT_LIST_HEAD(&video->dmaqueue);
 	atomic_set(&pipe->frame_number, -1);
+	pipe->field = vfh->format.fmt.pix.field;
 
 	mutex_lock(&video->queue_lock);
 	ret = vb2_streamon(&vfh->queue, type);
