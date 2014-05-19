@@ -280,10 +280,8 @@ xfs_ialloc_inode_init(
 		if (tp)
 			xfs_icreate_log(tp, agno, agbno, mp->m_ialloc_inos,
 					mp->m_sb.sb_inodesize, length, gen);
-	} else if (xfs_sb_version_hasnlink(&mp->m_sb))
+	} else
 		version = 2;
-	else
-		version = 1;
 
 	for (j = 0; j < nbufs; j++) {
 		/*

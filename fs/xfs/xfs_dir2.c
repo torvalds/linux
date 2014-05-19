@@ -92,7 +92,7 @@ xfs_dir_mount(
 	int	nodehdr_size;
 
 
-	ASSERT(xfs_sb_version_hasdirv2(&mp->m_sb));
+	ASSERT(mp->m_sb.sb_versionnum & XFS_SB_VERSION_DIRV2BIT);
 	ASSERT((1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog)) <=
 	       XFS_MAX_BLOCKSIZE);
 
