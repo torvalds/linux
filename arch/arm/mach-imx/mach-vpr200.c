@@ -34,6 +34,7 @@
 
 #include "common.h"
 #include "devices-imx35.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx35.h"
 
