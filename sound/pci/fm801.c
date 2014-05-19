@@ -158,21 +158,27 @@ MODULE_PARM_DESC(radio_nr, "Radio device numbers");
 #define FM801_GPIO_GS3		(1<<15)
 #define FM801_GPIO_GS(x)	(1<<(12+(x)))
 	
-/*
-
+/**
+ * struct fm801 - describes FM801 chip
+ * @port:		I/O port number
+ * @multichannel:	multichannel support
+ * @secondary:		secondary codec
+ * @secondary_addr:	address of the secondary codec
+ * @tea575x_tuner:	tuner access method & flags
+ * @ply_ctrl:		playback control
+ * @cap_ctrl:		capture control
  */
-
 struct fm801 {
 	int irq;
 
-	unsigned long port;	/* I/O port number */
-	unsigned int multichannel: 1,	/* multichannel support */
-		     secondary: 1;	/* secondary codec */
-	unsigned char secondary_addr;	/* address of the secondary codec */
-	unsigned int tea575x_tuner;	/* tuner access method & flags */
+	unsigned long port;
+	unsigned int multichannel: 1,
+		     secondary: 1;
+	unsigned char secondary_addr;
+	unsigned int tea575x_tuner;
 
-	unsigned short ply_ctrl; /* playback control */
-	unsigned short cap_ctrl; /* capture control */
+	unsigned short ply_ctrl;
+	unsigned short cap_ctrl;
 
 	unsigned long ply_buffer;
 	unsigned int ply_buf;
