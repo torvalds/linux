@@ -1,0 +1,8 @@
+if ARCH_BERLIN
+
+config PINCTRL_BERLIN
+	bool
+	select PINMUX
+	select REGMAP_MMIO
+
+endif
