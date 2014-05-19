@@ -1102,18 +1102,18 @@ void BBvSetShortSlotTime(struct vnt_private *priv)
 	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->byBBRxConf);
 }
 
-void BBvSetVGAGainOffset(struct vnt_private *pDevice, u8 byData)
+void BBvSetVGAGainOffset(struct vnt_private *priv, u8 data)
 {
 
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xE7, byData);
+	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0xE7, data);
 
-    // patch for 3253B0 Baseband with Cardbus module
-	if (pDevice->bShortSlotTime)
-		pDevice->byBBRxConf &= 0xDF; /* 1101 1111 */
+	/* patch for 3253B0 Baseband with Cardbus module */
+	if (priv->bShortSlotTime)
+		priv->byBBRxConf &= 0xdf; /* 1101 1111 */
 	else
-		pDevice->byBBRxConf |= 0x20; /* 0010 0000 */
+		priv->byBBRxConf |= 0x20; /* 0010 0000 */
 
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0A, pDevice->byBBRxConf);//CR10
+	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x0a, priv->byBBRxConf);
 }
 
 /*
