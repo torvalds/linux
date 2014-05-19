@@ -403,12 +403,6 @@ static inline bool xfs_sb_version_hasshared(struct xfs_sb *sbp)
 		(sbp->sb_versionnum & XFS_SB_VERSION_SHAREDBIT);
 }
 
-static inline bool xfs_sb_version_hasdirv2(struct xfs_sb *sbp)
-{
-	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
-	       (sbp->sb_versionnum & XFS_SB_VERSION_DIRV2BIT);
-}
-
 static inline bool xfs_sb_version_haslogv2(struct xfs_sb *sbp)
 {
 	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
