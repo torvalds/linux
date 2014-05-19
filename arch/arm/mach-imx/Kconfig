@@ -119,18 +119,6 @@ config SOC_IMX35
 	select PINCTRL_IMX35
 	select SMP_ON_UP if SMP
 
-config SOC_IMX5
-	bool
-	select ARCH_HAS_OPP
-	select ARCH_MXC_IOMUX_V3
-	select HAVE_IMX_SRC
-	select MXC_TZIC
-
-config	SOC_IMX51
-	bool
-	select PINCTRL_IMX51
-	select SOC_IMX5
-
 if ARCH_MULTI_V4T
 
 comment "MX1 platforms:"
@@ -699,6 +687,17 @@ endif
 if ARCH_MULTI_V7
 
 comment "Device tree only"
+
+config SOC_IMX5
+	bool
+	select ARCH_HAS_OPP
+	select HAVE_IMX_SRC
+	select MXC_TZIC
+
+config	SOC_IMX51
+	bool
+	select PINCTRL_IMX51
+	select SOC_IMX5
 
 config	SOC_IMX50
 	bool "i.MX50 support"
