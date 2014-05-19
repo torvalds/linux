@@ -2941,9 +2941,11 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 
-	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->vlan_features = dev->features;
+
+	dev->features |= NETIF_F_RXCSUM;
+	dev->hw_features = dev->features;
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
