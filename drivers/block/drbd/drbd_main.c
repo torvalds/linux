@@ -2541,6 +2541,20 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 	if (nr_cpu_ids > 1 && res_opts->cpu_mask[0] != 0) {
 		err = bitmap_parse(res_opts->cpu_mask, DRBD_CPU_MASK_SIZE,
 				   cpumask_bits(new_cpu_mask), nr_cpu_ids);
+		if (err == -EOVERFLOW) {
+			/* So what. mask it out. */
+			cpumask_var_t tmp_cpu_mask;
+			if (zalloc_cpumask_var(&tmp_cpu_mask, GFP_KERNEL)) {
+				cpumask_setall(tmp_cpu_mask);
+				cpumask_and(new_cpu_mask, new_cpu_mask, tmp_cpu_mask);
+				drbd_warn(resource, "Overflow in bitmap_parse(%.12s%s), truncating to %u bits\n",
+					res_opts->cpu_mask,
+					strlen(res_opts->cpu_mask) > 12 ? "..." : "",
+					nr_cpu_ids);
+				free_cpumask_var(tmp_cpu_mask);
+				err = 0;
+			}
+		}
 		if (err) {
 			drbd_warn(resource, "bitmap_parse() failed with %d\n", err);
 			/* retcode = ERR_CPU_MASK_PARSE; */
