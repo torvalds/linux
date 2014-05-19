@@ -1554,6 +1554,7 @@ static int __smiapp_get_format(struct v4l2_subdev *subdev,
 		fmt->format.code = __smiapp_get_mbus_code(subdev, fmt->pad);
 		fmt->format.width = r->width;
 		fmt->format.height = r->height;
+		fmt->format.field = V4L2_FIELD_NONE;
 	}
 
 	return 0;
@@ -1687,6 +1688,7 @@ static int smiapp_set_format(struct v4l2_subdev *subdev,
 	fmt->format.code = __smiapp_get_mbus_code(subdev, fmt->pad);
 	fmt->format.width &= ~1;
 	fmt->format.height &= ~1;
+	fmt->format.field = V4L2_FIELD_NONE;
 
 	fmt->format.width =
 		clamp(fmt->format.width,
@@ -2674,6 +2676,7 @@ static int smiapp_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		try_fmt->width = sensor->limits[SMIAPP_LIMIT_X_ADDR_MAX] + 1;
 		try_fmt->height = sensor->limits[SMIAPP_LIMIT_Y_ADDR_MAX] + 1;
 		try_fmt->code = mbus_code;
+		try_fmt->field = V4L2_FIELD_NONE;
 
 		try_crop->top = 0;
 		try_crop->left = 0;
