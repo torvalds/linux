@@ -64,8 +64,6 @@ int mx25_clocks_init(void);
 int mx27_clocks_init(unsigned long fref);
 int mx31_clocks_init(unsigned long fref);
 int mx35_clocks_init(void);
-int mx51_clocks_init(unsigned long ckil, unsigned long osc,
-			unsigned long ckih1, unsigned long ckih2);
 int mx25_clocks_init_dt(void);
 int mx27_clocks_init_dt(void);
 int mx31_clocks_init_dt(void);

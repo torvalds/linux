@@ -375,12 +375,10 @@ static void __init mx50_clocks_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx50_ccm, "fsl,imx50-ccm", mx50_clocks_init);
 
-int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
-			unsigned long rate_ckih1, unsigned long rate_ckih2)
+static void __init mx51_clocks_init(struct device_node *np)
 {
 	int i;
 	u32 val;
-	struct device_node *np;
 
 	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", MX51_DPLL1_BASE);
 	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", MX51_DPLL2_BASE);
@@ -422,12 +420,11 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 			pr_err("i.MX51 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-ccm");
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
-	mx5_clocks_common_init(rate_ckil, rate_osc, rate_ckih1, rate_ckih2);
+	mx5_clocks_common_init(0, 0, 0, 0);
 
 	clk_register_clkdev(clk[IMX5_CLK_HSI2C_GATE], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[IMX5_CLK_MX51_MIPI], "mipi_hsp", NULL);
@@ -474,15 +471,8 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	val = readl(MXC_CCM_CLPCR);
 	val |= 1 << 23;
 	writel(val, MXC_CCM_CLPCR);
-
-	return 0;
 }
-
-static void __init mx51_clocks_init_dt(struct device_node *np)
-{
-	mx51_clocks_init(0, 0, 0, 0);
-}
-CLK_OF_DECLARE(imx51_ccm, "fsl,imx51-ccm", mx51_clocks_init_dt);
+CLK_OF_DECLARE(imx51_ccm, "fsl,imx51-ccm", mx51_clocks_init);
 
 static void __init mx53_clocks_init(struct device_node *np)
 {
