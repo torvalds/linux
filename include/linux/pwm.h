@@ -274,6 +274,8 @@ struct pwm_lookup {
 	unsigned int index;
 	const char *dev_id;
 	const char *con_id;
+	unsigned int period;
+	enum pwm_polarity polarity;
 };
 
 #define PWM_LOOKUP(_provider, _index, _dev_id, _con_id)	\
