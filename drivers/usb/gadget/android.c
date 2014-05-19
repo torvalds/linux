@@ -756,7 +756,8 @@ static int mass_storage_function_init(struct android_usb_function *f,
 {
 	struct mass_storage_function_config *config;
 	struct fsg_common *common;
-	int err;
+	int err, i;
+	const char *name[2];
 
 	config = kzalloc(sizeof(struct mass_storage_function_config),
 								GFP_KERNEL);
@@ -764,8 +765,12 @@ static int mass_storage_function_init(struct android_usb_function *f,
 		return -ENOMEM;
 
 	config->fsg.nluns = 2;
-	config->fsg.luns[0].removable = 1;
-	config->fsg.luns[1].removable = 1;
+	name[0] = "lun";
+	name[1] = "lun1";
+	for (i = 0; i < config->fsg.nluns; i++) {
+		config->fsg.luns[i].removable = 1;
+		config->fsg.luns[i].nofua = 1;
+	}
 
 	common = fsg_common_init(NULL, cdev, &config->fsg);
 	if (IS_ERR(common)) {
@@ -773,20 +778,23 @@ static int mass_storage_function_init(struct android_usb_function *f,
 		return PTR_ERR(common);
 	}
 
-	err = sysfs_create_link(&f->dev->kobj,
-				&common->luns[0].dev.kobj,
-				"lun");
-	err = sysfs_create_link(&f->dev->kobj,
-				&common->luns[1].dev.kobj,
-				"lun1");
-	if (err) {
-		kfree(config);
-		return err;
+	for (i = 0; i < config->fsg.nluns; i++) {
+		err = sysfs_create_link(&f->dev->kobj,
+					&common->luns[i].dev.kobj,
+					name[i]);
+		if (err)
+			goto error;
 	}
 
 	config->common = common;
 	f->config = config;
 	return 0;
+error:
+	for (; i > 0 ; i--)
+		sysfs_remove_link(&f->dev->kobj, name[i-1]);
+	fsg_common_release(&common->ref);
+	kfree(config);
+	return err;
 }
 
 static void mass_storage_function_cleanup(struct android_usb_function *f)
