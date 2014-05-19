@@ -296,6 +296,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
+	dev->bbu = -1;
 
 	/* we can register the device now, as it is ready */
 	retval = usb_register_dev(interface, &yurex_class);
@@ -305,8 +306,6 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
-
-	dev->bbu = -1;
 
 	dev_info(&interface->dev,
 		 "USB YUREX device now attached to Yurex #%d\n",
