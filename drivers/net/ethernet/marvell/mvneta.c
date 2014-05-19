@@ -1584,7 +1584,6 @@ static int mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 	u16 txq_id = skb_get_queue_mapping(skb);
 	struct mvneta_tx_queue *txq = &pp->txqs[txq_id];
 	struct mvneta_tx_desc *tx_desc;
-	struct netdev_queue *nq;
 	int frags = 0;
 	u32 tx_cmd;
 
@@ -1592,7 +1591,6 @@ static int mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
-	nq    = netdev_get_tx_queue(dev, txq_id);
 
 	/* Get a descriptor for the first part of the packet */
 	tx_desc = mvneta_txq_next_desc_get(txq);
@@ -1635,15 +1633,16 @@ static int mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	txq->count += frags;
-	mvneta_txq_pend_desc_add(pp, txq, frags);
-
-	if (txq->size - txq->count < MAX_SKB_FRAGS + 1)
-		netif_tx_stop_queue(nq);
-
 out:
 	if (frags > 0) {
 		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+		struct netdev_queue *nq = netdev_get_tx_queue(dev, txq_id);
+
+		txq->count += frags;
+		mvneta_txq_pend_desc_add(pp, txq, frags);
+
+		if (txq->size - txq->count < MAX_SKB_FRAGS + 1)
+			netif_tx_stop_queue(nq);
 
 		u64_stats_update_begin(&stats->syncp);
 		stats->tx_packets++;
