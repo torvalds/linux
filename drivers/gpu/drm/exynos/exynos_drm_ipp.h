@@ -160,7 +160,6 @@ struct exynos_drm_ippdrv {
 	struct device	*parent_dev;
 	struct device	*dev;
 	struct drm_device	*drm_dev;
-	u32	ipp_id;
 	bool	dedicated;
 	struct exynos_drm_ipp_ops	*ops[EXYNOS_DRM_OPS_MAX];
 	struct workqueue_struct	*event_workq;

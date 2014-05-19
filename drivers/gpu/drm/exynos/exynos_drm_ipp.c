@@ -1699,23 +1699,21 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 
 	/* get ipp driver entry */
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
+		u32 ipp_id;
+
 		ippdrv->drm_dev = drm_dev;
 
 		ret = ipp_create_id(&ctx->ipp_idr, &ctx->ipp_lock, ippdrv,
-			&ippdrv->ipp_id);
-		if (ret) {
+				    &ipp_id);
+		if (ret || ipp_id == 0) {
 			DRM_ERROR("failed to create id.\n");
 			goto err_idr;
 		}
 
 		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]ipp_id[%d]\n",
-			count++, (int)ippdrv, ippdrv->ipp_id);
+			count++, (int)ippdrv, ipp_id);
 
-		if (ippdrv->ipp_id == 0) {
-			DRM_ERROR("failed to get ipp_id[%d]\n",
-				ippdrv->ipp_id);
-			goto err_idr;
-		}
+		ippdrv->prop_list->ipp_id = ipp_id;
 
 		/* store parent device for node */
 		ippdrv->parent_dev = dev;
