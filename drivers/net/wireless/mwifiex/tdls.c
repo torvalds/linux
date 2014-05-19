@@ -25,8 +25,8 @@
 #define TDLS_RESP_FIX_LEN     8
 #define TDLS_CONFIRM_FIX_LEN  6
 
-static void
-mwifiex_restore_tdls_packets(struct mwifiex_private *priv, u8 *mac, u8 status)
+static void mwifiex_restore_tdls_packets(struct mwifiex_private *priv,
+					 const u8 *mac, u8 status)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 	struct list_head *tid_list;
@@ -84,7 +84,8 @@ mwifiex_restore_tdls_packets(struct mwifiex_private *priv, u8 *mac, u8 status)
 	return;
 }
 
-static void mwifiex_hold_tdls_packets(struct mwifiex_private *priv, u8 *mac)
+static void mwifiex_hold_tdls_packets(struct mwifiex_private *priv,
+				      const u8 *mac)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 	struct list_head *ra_list_head;
@@ -186,7 +187,7 @@ static int mwifiex_tdls_add_vht_capab(struct mwifiex_private *priv,
 }
 
 static int mwifiex_tdls_add_vht_oper(struct mwifiex_private *priv,
-				     u8 *mac, struct sk_buff *skb)
+				     const u8 *mac, struct sk_buff *skb)
 {
 	struct mwifiex_bssdescriptor *bss_desc;
 	struct ieee80211_vht_operation *vht_oper;
@@ -325,8 +326,9 @@ static void mwifiex_tdls_add_qos_capab(struct sk_buff *skb)
 }
 
 static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
-			     u8 *peer, u8 action_code, u8 dialog_token,
-			     u16 status_code, struct sk_buff *skb)
+					const u8 *peer, u8 action_code,
+					u8 dialog_token,
+					u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_tdls_data *tf;
 	int ret;
@@ -453,7 +455,8 @@ static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
 }
 
 static void
-mwifiex_tdls_add_link_ie(struct sk_buff *skb, u8 *src_addr, u8 *peer, u8 *bssid)
+mwifiex_tdls_add_link_ie(struct sk_buff *skb, const u8 *src_addr,
+			 const u8 *peer, const u8 *bssid)
 {
 	struct ieee80211_tdls_lnkie *lnkid;
 
@@ -467,8 +470,8 @@ mwifiex_tdls_add_link_ie(struct sk_buff *skb, u8 *src_addr, u8 *peer, u8 *bssid)
 	memcpy(lnkid->resp_sta, peer, ETH_ALEN);
 }
 
-int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv,
-				 u8 *peer, u8 action_code, u8 dialog_token,
+int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
+				 u8 action_code, u8 dialog_token,
 				 u16 status_code, const u8 *extra_ies,
 				 size_t extra_ies_len)
 {
@@ -560,7 +563,8 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv,
 }
 
 static int
-mwifiex_construct_tdls_action_frame(struct mwifiex_private *priv, u8 *peer,
+mwifiex_construct_tdls_action_frame(struct mwifiex_private *priv,
+				    const u8 *peer,
 				    u8 action_code, u8 dialog_token,
 				    u16 status_code, struct sk_buff *skb)
 {
@@ -638,10 +642,10 @@ mwifiex_construct_tdls_action_frame(struct mwifiex_private *priv, u8 *peer,
 	return 0;
 }
 
-int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv,
-				 u8 *peer, u8 action_code, u8 dialog_token,
-				 u16 status_code, const u8 *extra_ies,
-				 size_t extra_ies_len)
+int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv, const u8 *peer,
+				   u8 action_code, u8 dialog_token,
+				   u16 status_code, const u8 *extra_ies,
+				   size_t extra_ies_len)
 {
 	struct sk_buff *skb;
 	struct mwifiex_txinfo *tx_info;
@@ -848,7 +852,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 }
 
 static int
-mwifiex_tdls_process_config_link(struct mwifiex_private *priv, u8 *peer)
+mwifiex_tdls_process_config_link(struct mwifiex_private *priv, const u8 *peer)
 {
 	struct mwifiex_sta_node *sta_ptr;
 	struct mwifiex_ds_tdls_oper tdls_oper;
@@ -869,7 +873,7 @@ mwifiex_tdls_process_config_link(struct mwifiex_private *priv, u8 *peer)
 }
 
 static int
-mwifiex_tdls_process_create_link(struct mwifiex_private *priv, u8 *peer)
+mwifiex_tdls_process_create_link(struct mwifiex_private *priv, const u8 *peer)
 {
 	struct mwifiex_sta_node *sta_ptr;
 	struct mwifiex_ds_tdls_oper tdls_oper;
@@ -896,7 +900,7 @@ mwifiex_tdls_process_create_link(struct mwifiex_private *priv, u8 *peer)
 }
 
 static int
-mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, u8 *peer)
+mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, const u8 *peer)
 {
 	struct mwifiex_sta_node *sta_ptr;
 	struct mwifiex_ds_tdls_oper tdls_oper;
@@ -925,7 +929,7 @@ mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, u8 *peer)
 }
 
 static int
-mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, u8 *peer)
+mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, const u8 *peer)
 {
 	struct mwifiex_sta_node *sta_ptr;
 	struct ieee80211_mcs_info mcs;
@@ -982,7 +986,7 @@ mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, u8 *peer)
 	return 0;
 }
 
-int mwifiex_tdls_oper(struct mwifiex_private *priv, u8 *peer, u8 action)
+int mwifiex_tdls_oper(struct mwifiex_private *priv, const u8 *peer, u8 action)
 {
 	switch (action) {
 	case MWIFIEX_TDLS_ENABLE_LINK:
@@ -997,7 +1001,7 @@ int mwifiex_tdls_oper(struct mwifiex_private *priv, u8 *peer, u8 action)
 	return 0;
 }
 
-int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, u8 *mac)
+int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, const u8 *mac)
 {
 	struct mwifiex_sta_node *sta_ptr;
 

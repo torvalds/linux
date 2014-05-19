@@ -199,7 +199,7 @@ static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
 }
 
 static inline u8
-mwifiex_tdls_peer_11n_enabled(struct mwifiex_private *priv, u8 *ra)
+mwifiex_tdls_peer_11n_enabled(struct mwifiex_private *priv, const u8 *ra)
 {
 	struct mwifiex_sta_node *node = mwifiex_get_sta_entry(priv, ra);
 	if (node)

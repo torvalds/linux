@@ -40,8 +40,8 @@ static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata)
 	return capab;
 }
 
-static void ieee80211_tdls_add_link_ie(struct sk_buff *skb, u8 *src_addr,
-				       u8 *peer, u8 *bssid)
+static void ieee80211_tdls_add_link_ie(struct sk_buff *skb, const u8 *src_addr,
+				       const u8 *peer, const u8 *bssid)
 {
 	struct ieee80211_tdls_lnkie *lnkid;
 
@@ -57,7 +57,7 @@ static void ieee80211_tdls_add_link_ie(struct sk_buff *skb, u8 *src_addr,
 
 static int
 ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
-			       u8 *peer, u8 action_code, u8 dialog_token,
+			       const u8 *peer, u8 action_code, u8 dialog_token,
 			       u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -130,7 +130,7 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 
 static int
 ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
-			   u8 *peer, u8 action_code, u8 dialog_token,
+			   const u8 *peer, u8 action_code, u8 dialog_token,
 			   u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -169,7 +169,7 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 }
 
 int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-			u8 *peer, u8 action_code, u8 dialog_token,
+			const u8 *peer, u8 action_code, u8 dialog_token,
 			u16 status_code, u32 peer_capability,
 			const u8 *extra_ies, size_t extra_ies_len)
 {
@@ -285,7 +285,7 @@ fail:
 }
 
 int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
-			u8 *peer, enum nl80211_tdls_operation oper)
+			const u8 *peer, enum nl80211_tdls_operation oper)
 {
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);

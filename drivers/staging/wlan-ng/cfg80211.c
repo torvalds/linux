@@ -298,7 +298,7 @@ static int prism2_set_default_key(struct wiphy *wiphy, struct net_device *dev,
 
 
 static int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
-			      u8 *mac, struct station_info *sinfo)
+			      const u8 *mac, struct station_info *sinfo)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
 	struct p80211msg_lnxreq_commsquality quality;
