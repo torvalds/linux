@@ -475,11 +475,11 @@ static int reqbufs_output(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
 		ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
 		if (ret)
 			goto out;
+		s5p_mfc_close_mfc_inst(dev, ctx);
 		ctx->src_bufs_cnt = 0;
+		ctx->output_state = QUEUE_FREE;
 	} else if (ctx->output_state == QUEUE_FREE) {
-		/* Can only request buffers after the instance
-		 * has been opened.
-		 */
+		/* Can only request buffers when we have a valid format set. */
 		WARN_ON(ctx->src_bufs_cnt != 0);
 		if (ctx->state != MFCINST_INIT) {
 			mfc_err("Reqbufs called in an invalid state\n");
@@ -492,6 +492,13 @@ static int reqbufs_output(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
 		ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
 		if (ret)
 			goto out;
+
+		ret = s5p_mfc_open_mfc_inst(dev, ctx);
+		if (ret) {
+			reqbufs->count = 0;
+			vb2_reqbufs(&ctx->vq_src, reqbufs);
+			goto out;
+		}
 
 		ctx->output_state = QUEUE_BUFS_REQUESTED;
 	} else {
@@ -594,7 +601,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 		return -EINVAL;
 	}
 	mfc_debug(2, "State: %d, buf->type: %d\n", ctx->state, buf->type);
-	if (ctx->state == MFCINST_INIT &&
+	if (ctx->state == MFCINST_GOT_INST &&
 			buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		ret = vb2_querybuf(&ctx->vq_src, buf);
 	} else if (ctx->state == MFCINST_RUNNING &&
@@ -670,24 +677,13 @@ static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
-	struct s5p_mfc_dev *dev = ctx->dev;
 	int ret = -EINVAL;
 
 	mfc_debug_enter();
-	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		if (ctx->state == MFCINST_INIT) {
-			ctx->dst_bufs_cnt = 0;
-			ctx->src_bufs_cnt = 0;
-			ctx->capture_state = QUEUE_FREE;
-			ctx->output_state = QUEUE_FREE;
-			ret = s5p_mfc_open_mfc_inst(dev, ctx);
-			if (ret)
-				return ret;
-		}
+	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		ret = vb2_streamon(&ctx->vq_src, type);
-	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+	else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		ret = vb2_streamon(&ctx->vq_dst, type);
-	}
 	mfc_debug_leave();
 	return ret;
 }

@@ -459,5 +459,6 @@ void s5p_mfc_close_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 	if (ctx->type == MFCINST_DECODER)
 		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
 
+	ctx->inst_no = MFC_NO_INSTANCE_SET;
 	ctx->state = MFCINST_FREE;
 }

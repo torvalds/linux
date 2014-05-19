@@ -643,6 +643,7 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 
 	case S5P_MFC_R2H_CMD_CLOSE_INSTANCE_RET:
 		clear_work_bit(ctx);
+		ctx->inst_no = MFC_NO_INSTANCE_SET;
 		ctx->state = MFCINST_FREE;
 		wake_up(&ctx->queue);
 		goto irq_cleanup_hw;
@@ -763,7 +764,7 @@ static int s5p_mfc_open(struct file *file)
 		goto err_bad_node;
 	}
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
-	ctx->inst_no = -1;
+	ctx->inst_no = MFC_NO_INSTANCE_SET;
 	/* Load firmware if this is the first instance */
 	if (dev->num_inst == 1) {
 		dev->watchdog_timer.expires = jiffies +
@@ -873,12 +874,11 @@ static int s5p_mfc_release(struct file *file)
 	vb2_queue_release(&ctx->vq_dst);
 	/* Mark context as idle */
 	clear_work_bit_irqsave(ctx);
-	/* If instance was initialised then
+	/* If instance was initialised and not yet freed,
 	 * return instance and free resources */
-	if (ctx->inst_no != MFC_NO_INSTANCE_SET) {
+	if (ctx->state != MFCINST_FREE && ctx->state != MFCINST_INIT) {
 		mfc_debug(2, "Has to free instance\n");
 		s5p_mfc_close_mfc_inst(dev, ctx);
-		ctx->inst_no = MFC_NO_INSTANCE_SET;
 	}
 	/* hardware locking scheme */
 	if (dev->curr_ctx == ctx->num)
