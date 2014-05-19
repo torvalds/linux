@@ -107,6 +107,6 @@ void BBvSetAntennaMode(struct vnt_private *, u8 byAntennaMode);
 int BBbVT3184Init(struct vnt_private *);
 void BBvSetDeepSleep(struct vnt_private *);
 void BBvExitDeepSleep(struct vnt_private *);
-void BBvUpdatePreEDThreshold(struct vnt_private *, int bScanning);
+void BBvUpdatePreEDThreshold(struct vnt_private *, int scanning);
 
 #endif /* __BASEBAND_H__ */
