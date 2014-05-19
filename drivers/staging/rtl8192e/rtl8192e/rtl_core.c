@@ -1915,8 +1915,7 @@ int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	if (queue_index == TXCMD_QUEUE) {
 		rtl8192_tx_cmd(dev, skb);
-		ret = 0;
-		return ret;
+		return 0;
 	} else {
 		tcb_desc->RATRIndex = 7;
 		tcb_desc->bTxDisableRateFallBack = 1;
