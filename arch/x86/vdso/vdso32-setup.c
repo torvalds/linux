@@ -119,13 +119,6 @@ __initcall(ia32_binfmt_init);
 
 #else  /* CONFIG_X86_32 */
 
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	if (vma->vm_mm && vma->vm_start == (long)vma->vm_mm->context.vdso)
-		return "[vdso]";
-	return NULL;
-}
-
 struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 {
 	return NULL;

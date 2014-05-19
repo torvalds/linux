@@ -30,7 +30,8 @@ void __init init_vdso_image(const struct vdso_image *image)
 
 	BUG_ON(image->size % PAGE_SIZE != 0);
 	for (i = 0; i < npages; i++)
-		image->pages[i] = virt_to_page(image->data + i*PAGE_SIZE);
+		image->text_mapping.pages[i] =
+			virt_to_page(image->data + i*PAGE_SIZE);
 
 	apply_alternatives((struct alt_instr *)(image->data + image->alt),
 			   (struct alt_instr *)(image->data + image->alt +
@@ -91,6 +92,10 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 	unsigned long addr;
 	int ret = 0;
 	static struct page *no_pages[] = {NULL};
+	static struct vm_special_mapping vvar_mapping = {
+		.name = "[vvar]",
+		.pages = no_pages,
+	};
 
 	if (calculate_addr) {
 		addr = vdso_addr(current->mm->start_stack,
@@ -112,21 +117,23 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 	/*
 	 * MAYWRITE to allow gdb to COW and set breakpoints
 	 */
-	ret = install_special_mapping(mm,
-				      addr,
-				      image->size,
-				      VM_READ|VM_EXEC|
-				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				      image->pages);
+	vma = _install_special_mapping(mm,
+				       addr,
+				       image->size,
+				       VM_READ|VM_EXEC|
+				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				       &image->text_mapping);
 
-	if (ret)
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto up_fail;
+	}
 
 	vma = _install_special_mapping(mm,
 				       addr + image->size,
 				       image->sym_end_mapping - image->size,
 				       VM_READ,
-				       no_pages);
+				       &vvar_mapping);
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);

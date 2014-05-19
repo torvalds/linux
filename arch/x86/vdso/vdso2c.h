@@ -136,7 +136,10 @@ static int GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	fprintf(outfile, "const struct vdso_image %s = {\n", name);
 	fprintf(outfile, "\t.data = raw_data,\n");
 	fprintf(outfile, "\t.size = %lu,\n", data_size);
-	fprintf(outfile, "\t.pages = pages,\n");
+	fprintf(outfile, "\t.text_mapping = {\n");
+	fprintf(outfile, "\t\t.name = \"[vdso]\",\n");
+	fprintf(outfile, "\t\t.pages = pages,\n");
+	fprintf(outfile, "\t},\n");
 	if (alt_sec) {
 		fprintf(outfile, "\t.alt = %lu,\n",
 			(unsigned long)alt_sec->sh_offset);
