@@ -5084,19 +5084,50 @@ static void b43_supported_bands(struct b43_wldev *dev, bool *have_2ghz_phy,
 {
 	u16 dev_id = 0;
 
+#ifdef CONFIG_B43_BCMA
+	if (dev->dev->bus_type == B43_BUS_BCMA &&
+	    dev->dev->bdev->bus->hosttype == BCMA_HOSTTYPE_PCI)
+		dev_id = dev->dev->bdev->bus->host_pci->device;
+#endif
 #ifdef CONFIG_B43_SSB
 	if (dev->dev->bus_type == B43_BUS_SSB &&
 	    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI)
 		dev_id = dev->dev->sdev->bus->host_pci->device;
 #endif
+	/* Override with SPROM value if available */
+	if (dev->dev->bus_sprom->dev_id)
+		dev_id = dev->dev->bus_sprom->dev_id;
 
 	/* Note: below IDs can be "virtual" (not maching e.g. real PCI ID) */
 	switch (dev_id) {
 	case 0x4324: /* BCM4306 */
 	case 0x4312: /* BCM4311 */
 	case 0x4319: /* BCM4318 */
+	case 0x4328: /* BCM4321 */
+	case 0x432b: /* BCM4322 */
+	case 0x4350: /* BCM43222 */
+	case 0x4353: /* BCM43224 */
+	case 0x0576: /* BCM43224 */
+	case 0x435f: /* BCM6362 */
+	case 0x4331: /* BCM4331 */
+	case 0x4359: /* BCM43228 */
+	case 0x43a0: /* BCM4360 */
+	case 0x43b1: /* BCM4352 */
 		/* Dual band devices */
 		*have_2ghz_phy = true;
+		*have_5ghz_phy = true;
+		return;
+	case 0x4321: /* BCM4306 */
+	case 0x4313: /* BCM4311 */
+	case 0x431a: /* BCM4318 */
+	case 0x432a: /* BCM4321 */
+	case 0x432d: /* BCM4322 */
+	case 0x4352: /* BCM43222 */
+	case 0x4333: /* BCM4331 */
+	case 0x43a2: /* BCM4360 */
+	case 0x43b3: /* BCM4352 */
+		/* 5 GHz only devices */
+		*have_2ghz_phy = false;
 		*have_5ghz_phy = true;
 		return;
 	}
@@ -5177,6 +5208,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	case B43_PHYTYPE_A:
 	case B43_PHYTYPE_N:
 	case B43_PHYTYPE_LP:
+	case B43_PHYTYPE_HT:
 		b43warn(wl, "5 GHz band is unsupported on this PHY\n");
 		have_5ghz_phy = false;
 	}
