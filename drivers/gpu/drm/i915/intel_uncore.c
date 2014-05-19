@@ -991,22 +991,17 @@ static int i965_do_reset(struct drm_device *dev)
 static int ironlake_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 gdrst;
 	int ret;
 
-	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
-	gdrst &= ~ILK_GRDOM_MASK;
 	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
-		   gdrst | ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
+		   ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
 	ret = wait_for((I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) &
 			ILK_GRDOM_RESET_ENABLE) == 0, 500);
 	if (ret)
 		return ret;
 
-	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
-	gdrst &= ~ILK_GRDOM_MASK;
 	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
-		   gdrst | ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
+		   ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
 	return wait_for((I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) &
 			 ILK_GRDOM_RESET_ENABLE) == 0, 500);
 }
