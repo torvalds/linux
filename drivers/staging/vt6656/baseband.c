@@ -1134,10 +1134,10 @@ void BBvSetDeepSleep(struct vnt_private *priv)
 	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x0d, 0xB9);/* CR13 */
 }
 
-void BBvExitDeepSleep(struct vnt_private *pDevice)
+void BBvExitDeepSleep(struct vnt_private *priv)
 {
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0C, 0x00);//CR12
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0D, 0x01);//CR13
+	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x0c, 0x00);/* CR12 */
+	ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x0d, 0x01);/* CR13 */
 }
 
 static unsigned long s_ulGetLowSQ3(struct vnt_private *pDevice)
