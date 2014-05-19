@@ -449,7 +449,7 @@ static void __init mx51_clocks_init(struct device_node *np)
 	clk_set_rate(clk[IMX5_CLK_ESDHC_B_PODF], 166250000);
 
 	/* System timer */
-	mxc_timer_init(MX51_IO_ADDRESS(MX51_GPT1_BASE_ADDR), MX51_INT_GPT);
+	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx51-gpt"));
 
 	clk_prepare_enable(clk[IMX5_CLK_IIM_GATE]);
 	imx_print_silicon_rev("i.MX51", mx51_revision());
