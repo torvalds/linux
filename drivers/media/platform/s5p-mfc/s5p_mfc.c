@@ -1193,6 +1193,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	/* Initialize HW ops and commands based on MFC version */
 	s5p_mfc_init_hw_ops(dev);
 	s5p_mfc_init_hw_cmds(dev);
+	s5p_mfc_init_regs(dev);
 
 	pr_debug("%s--\n", __func__);
 	return 0;
