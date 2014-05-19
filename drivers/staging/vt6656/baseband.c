@@ -869,25 +869,21 @@ void BBvCalculateParameter(struct vnt_private *priv, u32 frame_length,
  */
 void BBvSetAntennaMode(struct vnt_private *pDevice, u8 byAntennaMode)
 {
-    switch (byAntennaMode) {
-        case ANT_TXA:
-        case ANT_TXB:
-            break;
-        case ANT_RXA:
-            pDevice->byBBRxConf &= 0xFC;
-            break;
-        case ANT_RXB:
-            pDevice->byBBRxConf &= 0xFE;
-            pDevice->byBBRxConf |= 0x02;
-            break;
-    }
+	switch (byAntennaMode) {
+	case ANT_TXA:
+	case ANT_TXB:
+		break;
+	case ANT_RXA:
+		pDevice->byBBRxConf &= 0xFC;
+		break;
+	case ANT_RXB:
+		pDevice->byBBRxConf &= 0xFE;
+		pDevice->byBBRxConf |= 0x02;
+		break;
+	}
 
-    CONTROLnsRequestOut(pDevice,
-                    MESSAGE_TYPE_SET_ANTMD,
-                    (u16) byAntennaMode,
-                    0,
-                    0,
-                    NULL);
+	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_SET_ANTMD,
+		(u16)byAntennaMode, 0, 0, NULL);
 }
 
 /*
