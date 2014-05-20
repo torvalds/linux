@@ -12,7 +12,7 @@
  * follow the openSSL design but at the same time take care of some Threefish
  * specific behaviour and possibilities.
  *
- * These are the low level functions that deal with Threefisch blocks only.
+ * These are the low level functions that deal with Threefish blocks only.
  * Implementations for cipher modes such as ECB, CFB, or CBC may use these
  * functions.
  *
@@ -77,9 +77,9 @@ void threefish_set_key(struct threefish_key *key_ctx,
 		       u64 *key_data, u64 *tweak);
 
 /**
- * Encrypt Threefisch block (bytes).
+ * Encrypt Threefish block (bytes).
  *
- * The buffer must have at least the same length (number of bits) aas the
+ * The buffer must have at least the same length (number of bits) as the
  * state size for this key. The function uses the first @c state_size bits
  * of the input buffer, encrypts them and stores the result in the output
  * buffer.
@@ -95,9 +95,9 @@ void threefish_encrypt_block_bytes(struct threefish_key *key_ctx, u8 *in,
 				   u8 *out);
 
 /**
- * Encrypt Threefisch block (words).
+ * Encrypt Threefish block (words).
  *
- * The buffer must have at least the same length (number of bits) aas the
+ * The buffer must have at least the same length (number of bits) as the
  * state size for this key. The function uses the first @c state_size bits
  * of the input buffer, encrypts them and stores the result in the output
  * buffer.
@@ -115,9 +115,9 @@ void threefish_encrypt_block_words(struct threefish_key *key_ctx, u64 *in,
 				   u64 *out);
 
 /**
- * Decrypt Threefisch block (bytes).
+ * Decrypt Threefish block (bytes).
  *
- * The buffer must have at least the same length (number of bits) aas the
+ * The buffer must have at least the same length (number of bits) as the
  * state size for this key. The function uses the first @c state_size bits
  * of the input buffer, decrypts them and stores the result in the output
  * buffer
@@ -133,9 +133,9 @@ void threefish_decrypt_block_bytes(struct threefish_key *key_ctx, u8 *in,
 				   u8 *out);
 
 /**
- * Decrypt Threefisch block (words).
+ * Decrypt Threefish block (words).
  *
- * The buffer must have at least the same length (number of bits) aas the
+ * The buffer must have at least the same length (number of bits) as the
  * state size for this key. The function uses the first @c state_size bits
  * of the input buffer, encrypts them and stores the result in the output
  * buffer.
