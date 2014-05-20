@@ -368,7 +368,6 @@
 		/* no elm on omap3 */
 
 		gpmc,mux-add-data = <0>;
-		gpmc,device-nand;
 		gpmc,device-width = <2>;
 		gpmc,wait-pin = <0>;
 		gpmc,wait-monitoring-ns = <0>;
