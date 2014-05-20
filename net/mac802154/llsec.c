@@ -776,7 +776,7 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 	return rc < 0 ? rc : 0;
 
 fail_read:
-	read_unlock(&sec->lock);
+	read_unlock_bh(&sec->lock);
 fail:
 	rcu_read_unlock();
 	return rc;
