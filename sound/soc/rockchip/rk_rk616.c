@@ -26,28 +26,21 @@
 #include "rk_i2s.h"
 
 #if 1
-#define	DBG(x...)	printk(KERN_INFO x)
+#define	DBG(x...)	pr_info(KERN_INFO x)
 #else
 #define	DBG(x...)
-#endif
-
-#ifdef CONFIG_HDMI
-	extern int hdmi_is_insert(void);
-#endif
-
-#ifdef CONFIG_HDMI_RK30
-	extern int hdmi_get_hotplug(void);
 #endif
 
 static bool get_hdmi_state(void)
 {
 #ifdef CONFIG_HDMI
-	if(hdmi_is_insert())
+	if (hdmi_is_insert())
 		return true;
 #endif
 
 #ifdef CONFIG_HDMI_RK30
-	if(hdmi_get_hotplug() == 2/*HDMI_HPD_ACTIVED*/)
+	/*HDMI_HPD_ACTIVED*/
+	if (hdmi_get_hotplug() == 2)
 		return true;
 #endif
 
@@ -61,14 +54,14 @@ static const struct snd_soc_dapm_widget rk_rk616_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 };
 
-static const struct snd_soc_dapm_route rk_rk616_audio_map[]={
+static const struct snd_soc_dapm_route rk_rk616_audio_map[] = {
 
 	/* Mic Jack --> MIC_IN*/
 	{"Mic1 Bias", NULL, "Mic Jack"},
 	{"MIC1P", NULL, "Mic1 Bias"},
 	{"MIC1N", NULL, "Mic1 Bias"},
 
-	// HP MIC
+	/* HP MIC */
 	{"Mic2 Bias", NULL, "Headset Jack"},
 	{"MIC2P", NULL, "Mic2 Bias"},
 	{"MIC2N", NULL, "Mic2 Bias"},
@@ -78,7 +71,7 @@ static const struct snd_soc_dapm_route rk_rk616_audio_map[]={
 
 	{"Headphone Jack", NULL, "HPOUTR"},
 	{"Headphone Jack", NULL, "HPOUTL"},
-} ;
+};
 
 static const struct snd_kcontrol_new rk_rk616_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
@@ -92,12 +85,14 @@ static int rk616_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	// if is for mid that using tiny alsa, 
-	// it don't need this controls and route, so return.
+	/*
+	* if is for mid that using tiny alsa,
+	* it don't need this controls and route, so return.
+	*/
 	if (rk616_get_for_mid())
 		return 0;
 
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	DBG("%s() %d\n", __func__, __LINE__);
 
 	mutex_lock(&dapm->card->dapm_mutex);
 
@@ -122,68 +117,81 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	unsigned int pll_out = 0, div = 4, dai_fmt = rtd->dai_link->dai_fmt;
 	int ret;
 
-	DBG("Enter::%s----%d\n", __FUNCTION__, __LINE__);
+	DBG("%s() %d\n", __func__, __LINE__);
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
 	if (ret < 0) {
-		printk("%s():failed to set the format for codec side\n", __FUNCTION__);
+		pr_info(KERN_INFO "%s():failed to set the format for codec side\n",
+			__func__);
 		return ret;
 	}
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
 	if (ret < 0) {
-		printk("%s():failed to set the format for cpu side\n", __FUNCTION__);
+		pr_info(KERN_INFO "%s():failed to set the format for cpu side\n",
+			__func__);
 		return ret;
 	}
 
-	switch(params_rate(params)) {
-		case 16000:
-		case 24000:
-		case 32000:
-		case 48000:
-			pll_out = 12288000;
-			break;
-		case 11025:
-		case 22050:
-		case 44100:
-			pll_out = 11289600;
-			break;
-		case 8000:
-			pll_out = 12000000;
-			div = 6;
-			break;
-		default:
-			DBG("Enter:%s, %d, Error rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
-			return -EINVAL;
-			break;
+	switch (params_rate(params)) {
+	case 16000:
+	case 24000:
+	case 32000:
+	case 48000:
+		pll_out = 12288000;
+		break;
+	case 11025:
+	case 22050:
+	case 44100:
+		pll_out = 11289600;
+		break;
+	case 8000:
+		pll_out = 12000000;
+		div = 6;
+		break;
+	default:
+		DBG("Enter:%s, %d, Error rate=%d\n",
+			__func__, __LINE__,
+			params_rate(params));
+		return -EINVAL;
+		break;
 	}
 
-	DBG("Enter:%s, %d, rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
+	DBG("Enter:%s, %d, rate=%d\n",
+		__func__, __LINE__,
+		params_rate(params));
 
 	#if defined(CONFIG_RK616_USE_MCLK_12M)
 	/* MCLK must be 12M when RK616 HDMI is in */
 	if (get_hdmi_state() && pll_out != 12000000) {
-		DBG("%s : HDMI is in, don't set sys clk %u\n",__FUNCTION__, pll_out);
+		DBG("%s : HDMI is in, don't set sys clk %u\n",
+			__func__, pll_out);
 		goto __setdiv;
 	}
 	#endif
 
 	/* Set the system clk for codec
 	   mclk will be setted in set_sysclk of codec_dai*/
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+		pll_out, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
-		DBG("rk_hifi_hw_params:failed to set the sysclk for codec side\n");
+		DBG("%s : failed to set the sysclk for codec side\n",
+			__func__);
 		return ret;
 	}
 #if defined(CONFIG_RK616_USE_MCLK_12M)
 __setdiv:
 #endif
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out / div)/params_rate(params)-1);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div - 1);
+	snd_soc_dai_set_clkdiv(cpu_dai,
+		ROCKCHIP_DIV_BCLK,
+		(pll_out / div)/params_rate(params)-1);
+	snd_soc_dai_set_clkdiv(cpu_dai,
+		ROCKCHIP_DIV_MCLK, div - 1);
 
-	DBG("Enter:%s, %d, pll_out/div/params_rate(params) = %d \n", __FUNCTION__, __LINE__, (pll_out/div)/params_rate(params));
+	DBG("Enter:%s, %d, pll_out/div/params_rate(params) = %d\n",
+		__func__, __LINE__, (pll_out/div)/params_rate(params));
 
 	return 0;
 }
@@ -197,54 +205,55 @@ static int rk_voice_hw_params(struct snd_pcm_substream *substream,
 	unsigned int pll_out = 0, dai_fmt = rtd->dai_link->dai_fmt;
 	int ret;
 
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	DBG("%s() %d\n", __func__, __LINE__);
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
 	if (ret < 0) {
-		printk("rk_voice_hw_params:failed to set the format for codec side\n");
+		pr_info(KERN_INFO "rk_voice_hw_params:failed to set the format for codec side\n");
 		return ret;
 	}
 
-	switch(params_rate(params)) {
-		case 8000:
-		case 16000:
-		case 24000:
-		case 32000:
-		case 48000:
-			pll_out = 12288000;
-			break;
-		case 11025:
-		case 22050:
-		case 44100:
-			pll_out = 11289600;
-			break;
-		default:
-			DBG("Enter:%s, %d, Error rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
-			return -EINVAL;
-			break;
+	switch (params_rate(params)) {
+	case 8000:
+	case 16000:
+	case 24000:
+	case 32000:
+	case 48000:
+		pll_out = 12288000;
+		break;
+	case 11025:
+	case 22050:
+	case 44100:
+		pll_out = 11289600;
+		break;
+	default:
+		DBG("Enter:%s, %d, Error rate=%d\n",
+			__func__, __LINE__,
+			params_rate(params));
+		return -EINVAL;
+		break;
 	}
 
 	/* MCLK must be 12M when RK616 HDMI is in */
 	#if defined(CONFIG_RK616_USE_MCLK_12M)
 	if (get_hdmi_state() && pll_out != 12000000) {
-		DBG("%s : HDMI is in, set mclk to 12Mn",__FUNCTION__);
+		DBG("%s : HDMI is in, set mclk to 12Mn", __func__);
 		pll_out = 12000000;
 	}
 	#endif
 
-	//snd_soc_dai_set_pll(codec_dai, RT5625_PLL_MCLK_TO_VSYSCLK, 0, pll_out, 24576000);
-
 	/*Set the system clk for codec*/
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+		pll_out, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
-		printk("rk_voice_hw_params:failed to set the sysclk for codec side\n");
+		pr_info(KERN_INFO "rk_voice_hw_params:failed to set the sysclk for codec side\n");
 		return ret;
 	}
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	if (ret < 0) {
-		printk("rk_voice_hw_params:failed to set the sysclk for cpu side\n");
+		pr_info(KERN_INFO "rk_voice_hw_params:failed to set the sysclk for cpu side\n");
 		return ret;
 	}
 
@@ -272,7 +281,6 @@ static struct snd_soc_dai_link rk_dai[] = {
 		.stream_name = "RK616 PCM",
 		.codec_dai_name = "rk616-voice",
 		.ops = &rk616_voice_ops,
-		//.no_pcm = 1,
 	},
 };
 
@@ -288,33 +296,33 @@ static struct snd_soc_card rockchip_rk616_snd_card = {
 	.num_dapm_routes = ARRAY_SIZE(rk_rk616_audio_map),
 };
 /*
-dts:
-	rockchip-rk616 {
-		compatible = "rockchip-rk616";
-		dais {
-			dai0 {
-				audio-codec = <&rk616>;
-				i2s-controller = <&i2s0>;
-				format = "i2s";
-				//continuous-clock;
-				//bitclock-inversion;
-				//frame-inversion;
-				//bitclock-master;
-				//frame-master;
-			};
-
-			dai1 {
-				audio-codec = <&rk616>;
-				i2s-controller = <&i2s0>;
-				format = "dsp_a";
-				//continuous-clock;
-				bitclock-inversion;
-				//frame-inversion;
-				//bitclock-master;
-				//frame-master;
-			};
-		};
-	};
+* dts:
+* rockchip-rk616 {
+*	compatible = "rockchip-rk616";
+*	dais {
+*		dai0 {
+*			audio-codec = <&rk616>;
+*			i2s-controller = <&i2s0>;
+*			format = "i2s";
+*			//continuous-clock;
+*			//bitclock-inversion;
+*			//frame-inversion;
+*			//bitclock-master;
+*			//frame-master;
+*		};
+*
+*		dai1 {
+*			audio-codec = <&rk616>;
+*			i2s-controller = <&i2s0>;
+*			format = "dsp_a";
+*			//continuous-clock;
+*			bitclock-inversion;
+*			//frame-inversion;
+*			//bitclock-master;
+*			//frame-master;
+*		};
+*	};
+* };
 */
 static int rockchip_rk616_audio_probe(struct platform_device *pdev)
 {
@@ -325,13 +333,15 @@ static int rockchip_rk616_audio_probe(struct platform_device *pdev)
 
 	ret = rockchip_of_get_sound_card_info(card);
 	if (ret) {
-		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		pr_info(KERN_INFO "%s() get sound card info failed:%d\n",
+			__func__, ret);
 		return ret;
 	}
 
 	ret = snd_soc_register_card(card);
 	if (ret)
-		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
+		pr_info(KERN_INFO "%s() register card failed:%d\n",
+			__func__, ret);
 
 	return ret;
 }

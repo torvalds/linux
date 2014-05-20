@@ -19,7 +19,7 @@
 #include "rk_i2s.h"
 
 #if 0
-#define DBG(x...) printk(KERN_INFO "rk_hdmi_i2s:"x)
+#define DBG(x...) pr_info(KERN_INFO "rk_hdmi_i2s:"x)
 #else
 #define DBG(x...) do { } while (0)
 #endif
@@ -32,41 +32,47 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 	unsigned int pll_out = 0, dai_fmt = rtd->dai_link->dai_fmt;
 	int ret;
 
-	DBG("Enter::%s----%d\n", __FUNCTION__, __LINE__);
+	DBG("Enter::%s----%d\n", __func__, __LINE__);
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
 	if (ret < 0) {
-		printk("%s():failed to set the format for cpu side\n", __FUNCTION__);
+		pr_info(KERN_INFO "%s():failed to set the format for cpu side\n",
+			__func__);
 		return ret;
 	}
 
-	switch(params_rate(params)) {
-		case 8000:
-		case 16000:
-		case 24000:
-		case 32000:
-		case 48000:
-			pll_out = 12288000;
-			break;
-		case 11025:
-		case 22050:
-		case 44100:
-			pll_out = 11289600;
-			break;
-		default:
-			printk("Enter:%s, %d, Error rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
-			return -EINVAL;
-			break;
+	switch (params_rate(params)) {
+	case 8000:
+	case 16000:
+	case 24000:
+	case 32000:
+	case 48000:
+		pll_out = 12288000;
+		break;
+	case 11025:
+	case 22050:
+	case 44100:
+		pll_out = 11289600;
+		break;
+	default:
+		pr_info(KERN_INFO "Enter:%s, %d, Error rate=%d\n",
+			__func__, __LINE__, params_rate(params));
+		return -EINVAL;
+		break;
 	}
 
-	DBG("Enter:%s, %d, rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
+	DBG("Enter:%s, %d, rate=%d\n",
+		__func__, __LINE__,
+		params_rate(params));
 
 	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,
+		(pll_out / 4) / params_rate(params) - 1);
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
 
-	DBG("Enter:%s, %d, pll_out/4/params_rate(params) = %d \n", __FUNCTION__, __LINE__, (pll_out/4)/params_rate(params));
+	DBG("Enter:%s, %d, pll_out / 4 / params_rate(params) = %d\n",
+		__func__, __LINE__, (pll_out / 4) / params_rate(params));
 
 	return 0;
 }
@@ -99,13 +105,15 @@ static int rockchip_hdmi_i2s_audio_probe(struct platform_device *pdev)
 
 	ret = rockchip_of_get_sound_card_info(card);
 	if (ret) {
-		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		pr_info(KERN_INFO "%s() get sound card info failed:%d\n",
+			__func__, ret);
 		return ret;
 	}
 
 	ret = snd_soc_register_card(card);
 	if (ret)
-		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
+		pr_info(KERN_INFO "%s() register card failed:%d\n",
+			__func__, ret);
 
 	return ret;
 }
@@ -121,8 +129,8 @@ static int rockchip_hdmi_i2s_audio_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id rockchip_hdmi_i2s_of_match[] = {
-        { .compatible = "rockchip-hdmi-i2s", },
-        {},
+	{ .compatible = "rockchip-hdmi-i2s", },
+	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_hdmi_i2s_of_match);
 #endif /* CONFIG_OF */

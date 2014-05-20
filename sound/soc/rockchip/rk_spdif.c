@@ -39,14 +39,13 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
-#include <asm/io.h>
 
 #include <linux/spinlock.h>
 
 #include "rk_pcm.h"
 
 #if 0
-#define RK_SPDIF_DBG(x...) printk(KERN_INFO "rk_spdif:"x)
+#define RK_SPDIF_DBG(x...) pr_info(KERN_INFO "rk_spdif:"x)
 #else
 #define RK_SPDIF_DBG(x...) do { } while (0)
 #endif
@@ -74,7 +73,7 @@
 #define SPDIF_CHNSR10_ADDR    0xE8
 #define SPDIF_CHNSR11_ADDR    0xEC
 
-#define SPDIF_BURSTINFO       0x100
+#define SPDIF_BURST_INFO       0x100
 #define SPDIF_REPETTION       0x104
 
 #define DATA_OUTBUF           0x20
@@ -82,10 +81,10 @@
 #define SPDIF_CHANNEL_SEL_8CH	((0x2<<16)|(0x0<<0))
 #define SPDIF_CHANNEL_SEL_2CH	((0x2<<16)|(0x2<<0))
 
-//BURSTINFO bit0:6 //AC-3:0x01, DTS-I -II -III:11,12,13
-#define BURSTINFO_DATA_TYPE_AC3     0x01
-#define BURSTINFO_DATA_TYPE_EAC3    0x15
-#define BURSTINFO_DATA_TYPE_DTS_I   0x0b
+/* burst_info bit0:6 AC-3:0x01, DTS-I -II -III:11,12,13 */
+#define burst_info_DATA_TYPE_AC3     0x01
+#define burst_info_DATA_TYPE_EAC3    0x15
+#define BURST_INFO_DATA_TYPE_DTS_I   0x0b
 
 #define CFGR_MASK                   0x0ffffff
 #define CFGR_VALID_DATA_16bit       (00)
@@ -97,27 +96,25 @@
 #define CFGR_HALFWORD_TX_DISABLE    (0x0<<2)
 #define CFGR_HALFWORD_TX_MASK       (0x1<<2)
 
-#define CFGR_CLK_RATE_MASK          (0xFF<<16)                 
+#define CFGR_CLK_RATE_MASK          (0xFF<<16)
 
 #define CFGR_JUSTIFIED_RIGHT        (0<<3)
 #define CFGR_JUSTIFIED_LEFT         (1<<3)
 #define CFGR_JUSTIFIED_MASK         (1<<3)
 
-//CSE:channel status enable
-//The bit should be set to 1 when the channel conveys non-linear PCM
+/* CSE:channel status enable *
+/* The bit should be set to 1 when the channel conveys non-linear PCM */
 #define CFGR_CSE_DISABLE            (0<<6)
 #define CFGR_CSE_ENABLE             (1<<6)
 #define CFGR_CSE_MASK               (1<<6)
 
-
 #define CFGR_MCLK_CLR               (1<<7)
 
-//new
 #define CFGR_LINEAR_PCM             (0<<8)
 #define CFGR_NON_LINEAR_PCM         (1<<8)
 #define CFGR_LINEAR_MASK            (1<<8)
 
-//support 7.1 amplifier,new
+/* support 7.1 amplifier,new */
 #define CFGR_PRE_CHANGE_ENALBLE     (1<<9)
 #define CFGR_PRE_CHANGE_DISABLE     (0<<9)
 #define CFGR_PRE_CHANGE_MASK        (1<<9)
@@ -134,12 +131,11 @@
 #define DMACR_TRAN_DATA_LEVEL_MASK  0x1F
 #define DMACR_TRAN_DMA_MASK         0x3F
 
-//Sample Date Buffer empty interrupt enable,new
+/* Sample Date Buffer empty interrupt enable, new */
 #define INTCR_SDBEIE_DISABLE        (0<<4)
 #define INTCR_SDBEIE_ENABLE         (1<<4)
 #define INTCR_SDBEIE_MASK           (1<<4)
 
- 
 struct rockchip_spdif_info {
 	spinlock_t	lock;
 	void __iomem	*regs;
@@ -156,26 +152,29 @@ static inline struct rockchip_spdif_info *to_info(struct snd_soc_dai *cpu_dai)
 static void spdif_snd_txctrl(struct rockchip_spdif_info *spdif, int on)
 {
 	void __iomem *regs = spdif->regs;
-	u32 opr,xfer;
+	u32 opr, xfer;
 
-	RK_SPDIF_DBG( "Entered %s\n", __func__);
+	RK_SPDIF_DBG("Entered %s\n", __func__);
 
 	xfer = readl(regs + XFER) & XFER_MASK;
-	opr  = readl(regs + DMACR) & DMACR_TRAN_DMA_MASK & (~DMACR_TRAN_DMA_CTL_MASK);
-	
-	if (on){
+	opr = readl(regs + DMACR) & DMACR_TRAN_DMA_MASK
+		& (~DMACR_TRAN_DMA_CTL_MASK);
+
+	if (on) {
 		xfer |= XFER_TRAN_START;
 		opr |= DMACR_TRAN_DMA_ENABLE;
 		writel(xfer, regs + XFER);
 		writel(opr, regs + DMACR);
-		RK_SPDIF_DBG("on xfer=0x%x,opr=0x%x\n",readl(regs + XFER),readl(regs + DMACR));
-    }else{
-  	    xfer &= ~XFER_TRAN_START;
-  	    opr  &= ~DMACR_TRAN_DMA_ENABLE; 
+		RK_SPDIF_DBG("on xfer=0x%x,opr=0x%x\n",
+			readl(regs + XFER), readl(regs + DMACR));
+	} else {
+		xfer &= ~XFER_TRAN_START;
+		opr &= ~DMACR_TRAN_DMA_ENABLE;
 		writel(xfer, regs + XFER);
 		writel(opr, regs + DMACR);
 		writel(1<<7, regs + CFGR);
-		RK_SPDIF_DBG("off xfer=0x%x,opr=0x%x\n",readl(regs + XFER),readl(regs + DMACR));
+		RK_SPDIF_DBG("off xfer=0x%x,opr=0x%x\n",
+			readl(regs + XFER), readl(regs + DMACR));
 	}
 }
 
@@ -198,7 +197,7 @@ static int spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct rockchip_spdif_info *spdif = to_info(rtd->cpu_dai);
 	unsigned long flags;
 
-	RK_SPDIF_DBG( "Entered %s\n", __func__);
+	RK_SPDIF_DBG("Entered %s\n", __func__);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -230,43 +229,45 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	struct rockchip_spdif_info *spdif = to_info(dai);
 	void __iomem *regs = spdif->regs;
 	unsigned long flags;
-	int cfgr, dmac,intcr,chnsr_byte[5]={0};
-	int dataType,ErrFlag,DataLen,DataInfo,BsNum,Repetition,BurstInfo;
+	int cfgr, dmac, intcr, chnsr_byte[5] = {0};
+	int data_type, err_flag, data_len, data_info;
+	int bs_num, repetition, burst_info;
 
 	RK_SPDIF_DBG("Entered %s\n", __func__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dai->playback_dma_data = &spdif->dma_playback;
 	else {
-		printk("spdif:Capture is not supported\n");
+		pr_info(KERN_INFO "spdif:Capture is not supported\n");
 		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&spdif->lock, flags);
-	
+
 	cfgr = readl(regs + CFGR) & CFGR_VALID_DATA_MASK;
-	
+
 	cfgr &= ~CFGR_VALID_DATA_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		cfgr |= CFGR_VALID_DATA_16bit;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE :
+	case SNDRV_PCM_FORMAT_S20_3LE:
 		cfgr |= CFGR_VALID_DATA_20bit;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		cfgr |= CFGR_VALID_DATA_24bit;
-		break;			
+		break;
 	default:
 		goto err;
 	}
-	
+
 	cfgr &= ~CFGR_HALFWORD_TX_MASK;
 	cfgr |= CFGR_HALFWORD_TX_ENABLE;
-	
-	cfgr &= ~CFGR_CLK_RATE_MASK;//set most MCLK:192kHz
+
+	/* set most MCLK:192kHz */
+	cfgr &= ~CFGR_CLK_RATE_MASK;
 	cfgr |= (1<<16);
-	
+
 	cfgr &= ~CFGR_JUSTIFIED_MASK;
 	cfgr |= CFGR_JUSTIFIED_RIGHT;
 
@@ -275,10 +276,11 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 
 	cfgr &= ~CFGR_LINEAR_MASK;
 	cfgr |= CFGR_LINEAR_PCM;
-	if(!snd_pcm_format_linear(params_format(params))){//stream type
+
+	/* stream type*/
+	if (!snd_pcm_format_linear(params_format(params)))
 		cfgr |= CFGR_NON_LINEAR_PCM;
-	}
-	
+
 	cfgr &= ~CFGR_PRE_CHANGE_MASK;
 	cfgr |= CFGR_PRE_CHANGE_ENALBLE;
 
@@ -288,54 +290,70 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	intcr |= INTCR_SDBEIE_ENABLE;
 	writel(intcr, regs + INTCR);
 
-	dmac = readl(regs + DMACR) & DMACR_TRAN_DMA_MASK & (~DMACR_TRAN_DATA_LEVEL_MASK);
+	dmac = readl(regs + DMACR) & DMACR_TRAN_DMA_MASK &
+		(~DMACR_TRAN_DATA_LEVEL_MASK);
 	dmac |= 0x10;
 	writel(dmac, regs + DMACR);
 
-	/*  channel byte 0:
-        Bit 1  1  Main data field represents linear PCM samples.
-               0  Main data field used for purposes other purposes.
+	/*
+	* channel byte 0:
+	* Bit 1
+	* 1 Main data field represents linear PCM samples.
+	* 0 Main data field used for purposes other purposes.
 	*/
-	chnsr_byte[0]= (0x0)|(0x0<<1)|(0x0<<2)|(0x0<<3)|(0x00<<6);//consumer|pcm|copyright?|pre-emphasis|(0x00<<6);
-	chnsr_byte[1]= (0x0);//category code general mode??
-	chnsr_byte[2]= (0x0)|(0x0<<4)|(0x0<<6);//
-	chnsr_byte[3]= (0x00)|(0x00);//khz;clock acurracy
-	chnsr_byte[4]= (0x0<<4)|(0x01<<1|0x0);//16 bit;
+	chnsr_byte[0] = (0x0) | (0x0 << 1) |
+		(0x0 << 2) | (0x0 << 3) |
+		(0x00 << 6);
+	chnsr_byte[1] = (0x0);
+	chnsr_byte[2] = (0x0) | (0x0 << 4) | (0x0 << 6);
+	chnsr_byte[3] = (0x00) | (0x00);
+	chnsr_byte[4] = (0x0 << 4) | (0x01 << 1 | 0x0);
 
-	if(!snd_pcm_format_linear(params_format(params))){//set stream type
-		chnsr_byte[0] |= (0x1<<1);//set 0:represent main data is linear
-		chnsr_byte[4] = (0x0<<4)|(0x00<<1|0x0);//16 bit;
+	/* set stream type */
+	if (!snd_pcm_format_linear(params_format(params))) {
+		chnsr_byte[0] |= (0x1<<1);
+		chnsr_byte[4] = (0x0<<4)|(0x00<<1|0x0);
 	}
-	writel((chnsr_byte[4]<<16)|(chnsr_byte[4]),regs+SPDIF_CHNSR02_ADDR);
-	writel((chnsr_byte[3]<<24)|(chnsr_byte[2]<<16)|(chnsr_byte[3]<<8)|(chnsr_byte[2]),regs+SPDIF_CHNSR01_ADDR);
-	writel((chnsr_byte[1]<<24)|(chnsr_byte[0]<<16)|(chnsr_byte[1]<<8)|(chnsr_byte[0]),regs+SPDIF_CHNSR00_ADDR);
+	writel((chnsr_byte[4] << 16) | (chnsr_byte[4]),
+		regs + SPDIF_CHNSR02_ADDR);
+	writel((chnsr_byte[3] << 24) | (chnsr_byte[2] << 16) |
+		(chnsr_byte[3] << 8) | (chnsr_byte[2]),
+		regs + SPDIF_CHNSR01_ADDR);
+	writel((chnsr_byte[1] << 24) | (chnsr_byte[0] << 16) |
+		(chnsr_byte[1] << 8) | (chnsr_byte[0]),
+		regs + SPDIF_CHNSR00_ADDR);
 
-	if(!snd_pcm_format_linear(params_format(params))) {//set non-linear params
-		switch(params_format(params)){
+	/* set non-linear params */
+	if (!snd_pcm_format_linear(params_format(params))) {
+		switch (params_format(params)) {
 		case SNDRV_NON_LINEAR_PCM_FORMAT_AC3:
-			//bit0:6 //AC-3:0x01, DTS-I -II -III:11,12,13
-			dataType = BURSTINFO_DATA_TYPE_AC3;
-			//Repetition:AC-3:1536  DTS-I -II -III:512,1024,2048 EAC3:6144
-			Repetition = 1536;
+			/* bit0:6 AC-3:0x01, DTS-I -II -III:11,12,13 */
+			data_type = burst_info_DATA_TYPE_AC3;
+			/*
+			* repetition:AC-3:1536
+			* DTS-I -II -III:512,1024,2048 EAC3:6144
+			*/
+			repetition = 1536;
 			break;
 		case SNDRV_NON_LINEAR_PCM_FORMAT_DTS_I:
-			dataType = BURSTINFO_DATA_TYPE_DTS_I;
-			Repetition = 512;
+			data_type = BURST_INFO_DATA_TYPE_DTS_I;
+			repetition = 512;
 			break;
 		case SNDRV_NON_LINEAR_PCM_FORMAT_EAC3:
-			dataType = BURSTINFO_DATA_TYPE_EAC3;
-			Repetition = 6144;
+			data_type = burst_info_DATA_TYPE_EAC3;
+			repetition = 6144;
 			break;
 		default:
 			return -EINVAL;
 		}
-		ErrFlag=0x0;
-		DataLen=params_period_size(params)*2*16;//bit32:16 //640kbps:0x5000    448kbps:0x3800
-		DataInfo=0;
-		BsNum=0x0;
-		BurstInfo = (DataLen<<16)|(BsNum<<13)|(DataInfo<<8)|(ErrFlag<<7)|dataType;
-		writel(BurstInfo,regs+SPDIF_BURSTINFO);
-		writel(Repetition,regs+SPDIF_REPETTION);
+		err_flag = 0x0;
+		data_len = params_period_size(params) * 2 * 16;
+		data_info = 0;
+		bs_num = 0x0;
+		burst_info = (data_len << 16) | (bs_num << 13) |
+			(data_info << 8) | (err_flag << 7) | data_type;
+		writel(burst_info, regs + SPDIF_BURST_INFO);
+		writel(repetition, regs + SPDIF_REPETTION);
 	}
 	spin_unlock_irqrestore(&spdif->lock, flags);
 
@@ -348,14 +366,14 @@ err:
 #ifdef CONFIG_PM
 static int spdif_suspend(struct snd_soc_dai *cpu_dai)
 {
-	RK_SPDIF_DBG( "spdif:Entered %s\n", __func__);
+	RK_SPDIF_DBG("spdif:Entered %s\n", __func__);
 
 	return 0;
 }
 
 static int spdif_resume(struct snd_soc_dai *cpu_dai)
 {
-	RK_SPDIF_DBG( "spdif:Entered %s\n", __func__);
+	RK_SPDIF_DBG("spdif:Entered %s\n", __func__);
 
 	return 0;
 }
@@ -389,7 +407,7 @@ struct snd_soc_dai_driver rockchip_spdif_dai = {
 };
 
 static const struct snd_soc_component_driver rockchip_spdif_component = {
-        .name           = "rockchip-spdif",
+	.name = "rockchip-spdif",
 };
 
 static int spdif_probe(struct platform_device *pdev)
@@ -400,7 +418,9 @@ static int spdif_probe(struct platform_device *pdev)
 
 	RK_SPDIF_DBG("Entered %s\n", __func__);
 
-	spdif = devm_kzalloc(&pdev->dev, sizeof(struct rockchip_spdif_info), GFP_KERNEL);
+	spdif = devm_kzalloc(&pdev->dev,
+		sizeof(struct rockchip_spdif_info),
+		GFP_KERNEL);
 	if (!spdif) {
 		dev_err(&pdev->dev, "Can't allocate spdif info\n");
 		return -ENOMEM;
@@ -410,29 +430,30 @@ static int spdif_probe(struct platform_device *pdev)
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem_res) {
-		printk("spdif:Unable to get register resource.\n");
+		pr_info(KERN_INFO "spdif:Unable to get register resource.\n");
 		return -ENXIO;
 	}
 
-	spdif->clk= clk_get(&pdev->dev, "spdif_mclk");
+	spdif->clk = clk_get(&pdev->dev, "spdif_mclk");
 	if (IS_ERR(spdif->clk)) {
 		dev_err(&pdev->dev, "Can't retrieve spdif clock\n");
 		return PTR_ERR(spdif->clk);
 	}
-	clk_set_rate(spdif->clk, 12288000);//clk have some problem
+	clk_set_rate(spdif->clk, 12288000);
 	clk_set_rate(spdif->clk, 11289600);
 	clk_prepare_enable(spdif->clk);
 
 
 	/* Request S/PDIF Register's memory region */
 	if (!request_mem_region(mem_res->start,
-				resource_size(mem_res), "rockchip-spdif")) {
-		printk("spdif:Unable to request register region\n");
+		resource_size(mem_res), "rockchip-spdif")) {
+		pr_info(KERN_INFO "spdif:Unable to request register region\n");
 		ret = -EBUSY;
 		goto err_clk_put;
 	}
 
-	spdif->regs = devm_ioremap(&pdev->dev, mem_res->start, resource_size(mem_res));
+	spdif->regs = devm_ioremap(&pdev->dev,
+		mem_res->start, resource_size(mem_res));
 	if (!spdif->regs) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
@@ -443,10 +464,11 @@ static int spdif_probe(struct platform_device *pdev)
 	spdif->dma_playback.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	spdif->dma_playback.maxburst = 4;
 
-	//set dev name to driver->name for sound card register
+	/* set dev name to driver->name for sound card register */
 	dev_set_name(&pdev->dev, "%s", pdev->dev.driver->name);
 
-	ret = snd_soc_register_component(&pdev->dev, &rockchip_spdif_component,
+	ret = snd_soc_register_component(&pdev->dev,
+		&rockchip_spdif_component,
 		&rockchip_spdif_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
@@ -461,7 +483,8 @@ static int spdif_probe(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(&pdev->dev, spdif);
-	writel_relaxed(SPDIF_CHANNEL_SEL_8CH, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
+	writel_relaxed(SPDIF_CHANNEL_SEL_8CH,
+		RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
 
 	RK_SPDIF_DBG("spdif:spdif probe ok!\n");
 
@@ -477,7 +500,7 @@ err_clk_put:
 static int spdif_remove(struct platform_device *pdev)
 {
 	RK_SPDIF_DBG("Entered %s\n", __func__);
-	
+
 	rockchip_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_component(&pdev->dev);
 
@@ -486,8 +509,8 @@ static int spdif_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_spdif_match[] = {
-        { .compatible = "rockchip-spdif"},
-        {},
+	{ .compatible = "rockchip-spdif"},
+	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_spdif_match);
 #endif

@@ -35,9 +35,9 @@ static const struct snd_pcm_hardware rockchip_pcm_hardware = {
 	.channels_min		= 2,
 	.channels_max		= 8,
 	.buffer_bytes_max	= 128*1024,
-	.period_bytes_min	= 64,  ///PAGE_SIZE,
-	.period_bytes_max	= 2048*4,///PAGE_SIZE*2,
-	.periods_min		= 3,///2,
+	.period_bytes_min	= 64,
+	.period_bytes_max	= 2048*4,
+	.periods_min		= 3,
 	.periods_max		= 128,
 	.fifo_size		= 16,
 };

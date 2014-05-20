@@ -10,13 +10,13 @@
 #define __RK616_CODEC_H__
 
 /* mfd register */
-//#define CRU_PCM2IS2_CON2   			0x0098
+/* CRU_PCM2IS2_CON2 (0x0098) */
 #define PCM_TO_I2S_MUX				(1 << 3)
 #define APS_SEL					(1 << 2)
 #define APS_CLR					(1 << 1)
 #define I2S_CHANNEL_SEL				(1 << 0)
 
-//#define CRU_CFGMISC_CON			0x009C
+/* CRU_CFGMISC_CON (0x009C) */
 #define MICDET1_PIN_F_CODEC			(1 << 18)
 #define MICDET2_PIN_F_CODEC			(1 << 17)
 #define AD_DA_LOOP				(1 << 0)
@@ -61,8 +61,10 @@
 #define RK616_MICKEY_DET_CTL			(RK616_CODEC_BASE + 0xa0)
 #define RK616_PWR_ADD3				(RK616_CODEC_BASE + 0xa4)
 #define RK616_ADC_CTL				(RK616_CODEC_BASE + 0xa8)
-#define RK616_SINGNAL_ZC_CTL1			(RK616_CODEC_BASE + 0xac)//Signal zero-crossing detection
-#define RK616_SINGNAL_ZC_CTL2			(RK616_CODEC_BASE + 0xB0)//Signal zero-crossing detection
+/* Signal zero-crossing detection */
+#define RK616_SINGNAL_ZC_CTL1			(RK616_CODEC_BASE + 0xac)
+/* Signal zero-crossing detection */
+#define RK616_SINGNAL_ZC_CTL2			(RK616_CODEC_BASE + 0xB0)
 #define RK616_PGAL_AGC_CTL1			(RK616_CODEC_BASE + 0xc0)
 #define RK616_PGAL_AGC_CTL2			(RK616_CODEC_BASE + 0xc4)
 #define RK616_PGAL_AGC_CTL3			(RK616_CODEC_BASE + 0xc8)
@@ -282,7 +284,6 @@
 #define RK616_HMM_F_IN1N			0x1
 #define RK616_HMM_F_DIFFIN			0x0
 
-
 /* BSTR MUXMIC MIXINL Control (0x48) */
 #define RK616_SE_BSTR_F_MASK			(0x1 << 6)
 #define RK616_SE_BSTR_F_SFT			6
@@ -363,7 +364,6 @@
 #define RK616_PGA_VOL_MASK			(0x1f << 0)
 #define RK616_PGA_VOL_SFT			0
 
-
 /* Power Management Addition 2 (0x68) */
 #define RK616_HPL_HPR_PWRD			(0x1 << 7)
 #define RK616_HPL_HPR_PWRD_SFT			7
@@ -380,7 +380,7 @@
 #define RK616_DACR_RLPWRD			(0x1 << 3)
 #define RK616_DACR_RLPWRD_SFT			3
 
-#define RK616_DACR_SPKR_RLPWRD			(0x1 << 2)//? BIT 3 BIT 6 BIT 2
+#define RK616_DACR_SPKR_RLPWRD			(0x1 << 2)
 #define RK616_DACR_SPKR_RLPWRD_SFT		2
 
 #define RK616_LM_LO_RLPWRD			(0x1 << 1)
@@ -583,7 +583,7 @@
 #define RK616_ADCL_PWRD				(0x1 << 4)
 #define RK616_ADCL_PWRD_SFT			4
 
-#define RK616_ADCL_CLEAR_MASK			(0x1 << 3)//clear buf
+#define RK616_ADCL_CLEAR_MASK			(0x1 << 3)
 #define RK616_ADCL_CLEAR_SFT			3
 #define RK616_ADCL_CLEAR_EN			(0x1 << 3)
 #define RK616_ADCL_CLEAR_DIS			(0x0 << 3)
@@ -594,7 +594,7 @@
 #define RK616_ADCR_PWRD				(0x1 << 1)
 #define RK616_ADCR_PWRD_SFT			1
 
-#define RK616_ADCR_CLEAR_MASK			0x1//clear buf
+#define RK616_ADCR_CLEAR_MASK			0x1
 #define RK616_ADCR_CLEAR_SFT			0
 #define RK616_ADCR_CLEAR_EN			0x1
 #define RK616_ADCR_CLEAR_DIS			0x0
@@ -763,9 +763,9 @@ enum {
 
 enum {
 	MIC_OFF,
-	Main_Mic,
-	Hands_Free_Mic,
-	BT_Sco_Mic,
+	MAIN_MIC,
+	HANDS_FREE_MIC,
+	BT_SCO_MIC,
 };
 
 struct rk616_reg_val_typ {
@@ -781,4 +781,12 @@ struct rk616_init_bit_typ {
 
 bool rk616_get_for_mid(void);
 
-#endif //__RK616_CODEC_H__
+#ifdef CONFIG_HDMI
+extern int hdmi_is_insert(void);
+#endif
+
+#ifdef CONFIG_HDMI_RK30
+extern int hdmi_get_hotplug(void);
+#endif
+
+#endif /* __RK616_CODEC_H__ */

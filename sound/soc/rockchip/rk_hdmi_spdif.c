@@ -26,26 +26,24 @@
 #include "card_info.h"
 #include "rk_pcm.h"
 
-
 #if 0
-#define RK_SPDIF_DBG(x...) printk(KERN_INFO "rk_hdmi_spdif:"x)
+#define RK_SPDIF_DBG(x...) pr_info(KERN_INFO "rk_hdmi_spdif:"x)
 #else
 #define RK_SPDIF_DBG(x...) do { } while (0)
 #endif
-
 
 static int set_audio_clock_rate(unsigned long pll_rate,
 				unsigned long audio_rate)
 {
 	struct clk *sclk_spdif;
-#if defined (CONFIG_ARCH_RK30) || defined (CONFIG_ARCH_RK3188)
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 	struct clk *hclk_spdif;
 #endif
 
-#if defined (CONFIG_ARCH_RK30) || defined (CONFIG_ARCH_RK3188)
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 	hclk_spdif = clk_get(NULL, "hclk_spdif");
 	if (IS_ERR(hclk_spdif)) {
-		printk(KERN_ERR "spdif:failed to get hclk_spdif\n");
+		pr_info(KERN_INFO "spdif:failed to get hclk_spdif\n");
 		return -ENOENT;
 	}
 
@@ -55,7 +53,7 @@ static int set_audio_clock_rate(unsigned long pll_rate,
 
 	sclk_spdif = clk_get(NULL, "spdif");
 	if (IS_ERR(sclk_spdif)) {
-		printk(KERN_ERR "spdif:failed to get sclk_spdif\n");
+		pr_info(KERN_INFO "spdif:failed to get sclk_spdif\n");
 		return -ENOENT;
 	}
 
@@ -81,17 +79,19 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
 	if (ret < 0) {
-		printk("%s():failed to set the format for codec side\n", __func__);
+		pr_info(KERN_INFO "%s():failed to set the format for codec side\n",
+			__func__);
 		return ret;
 	}
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
 	if (ret < 0) {
-		printk("%s():failed to set the format for cpu side\n", __func__);
+		pr_info(KERN_INFO "%s():failed to set the format for cpu side\n",
+			__func__);
 		return ret;
 	}
-  
+
 	switch (params_rate(params)) {
 	case 44100:
 		pll_out = 11289600;
@@ -106,7 +106,7 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 		pll_out = 24576000;
 		break;
 	default:
-		printk("rk_spdif: params not support\n");
+		pr_info(KERN_INFO "rk_spdif: params not support\n");
 		return -EINVAL;
 	}
 
@@ -117,12 +117,6 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 	ret = set_audio_clock_rate(pll_out, rclk_rate);
 	if (ret < 0)
 		return ret;
-
-	/* Set S/PDIF uses internal source clock */
-	//ret = snd_soc_dai_set_sysclk(cpu_dai, SND_SOC_SPDIF_INT_MCLK,
-					//rclk_rate, SND_SOC_CLOCK_IN);
-	//if (ret < 0)
-		//return ret;
 
 	return ret;
 }
@@ -153,14 +147,16 @@ static int rockchip_hdmi_spdif_audio_probe(struct platform_device *pdev)
 
 	ret = rockchip_of_get_sound_card_info_(card, false);
 	if (ret) {
-		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		pr_info(KERN_INFO "%s() get sound card info failed:%d\n",
+			__func__, ret);
 		return ret;
 	}
 
 	ret = snd_soc_register_card(card);
 
 	if (ret)
-		printk("%s() register card failed:%d\n", __FUNCTION__, ret);
+		pr_info(KERN_INFO "%s() register card failed:%d\n",
+			__func__, ret);
 
 	return ret;
 }

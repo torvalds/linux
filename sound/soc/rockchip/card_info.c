@@ -58,14 +58,16 @@
 			};
 		};
  */
-int rockchip_of_get_sound_card_info_(struct snd_soc_card *card, bool is_need_fmt)
+int rockchip_of_get_sound_card_info_(struct snd_soc_card *card,
+	bool is_need_fmt)
 {
 	struct device_node *dai_node, *child_dai_node;
 	int dai_num;
 
 	dai_node = of_get_child_by_name(card->dev->of_node, "dais");
 	if (!dai_node) {
-		dev_err(card->dev, "%s() Can not get child: dais\n", __FUNCTION__);
+		dev_err(card->dev, "%s() Can not get child: dais\n",
+			__func__);
 		return -EINVAL;
 	}
 
@@ -74,8 +76,10 @@ int rockchip_of_get_sound_card_info_(struct snd_soc_card *card, bool is_need_fmt
 	for_each_child_of_node(dai_node, child_dai_node) {
 
 		if (is_need_fmt) {
-			card->dai_link[dai_num].dai_fmt = snd_soc_of_parse_daifmt(child_dai_node, NULL);
-			if ((card->dai_link[dai_num].dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == 0) {
+			card->dai_link[dai_num].dai_fmt =
+				snd_soc_of_parse_daifmt(child_dai_node, NULL);
+			if ((card->dai_link[dai_num].dai_fmt &
+				SND_SOC_DAIFMT_MASTER_MASK) == 0) {
 				dev_err(card->dev,
 					"Property 'format' missing or invalid\n");
 				return -EINVAL;
@@ -86,7 +90,8 @@ int rockchip_of_get_sound_card_info_(struct snd_soc_card *card, bool is_need_fmt
 		card->dai_link[dai_num].cpu_dai_name = NULL;
 		card->dai_link[dai_num].platform_name = NULL;
 
-		card->dai_link[dai_num].codec_of_node = of_parse_phandle(child_dai_node,
+		card->dai_link[dai_num].codec_of_node = of_parse_phandle(
+			child_dai_node,
 			"audio-codec", 0);
 		if (!card->dai_link[dai_num].codec_of_node) {
 			dev_err(card->dev,
@@ -94,7 +99,8 @@ int rockchip_of_get_sound_card_info_(struct snd_soc_card *card, bool is_need_fmt
 			return -EINVAL;
 		}
 
-		card->dai_link[dai_num].cpu_of_node = of_parse_phandle(child_dai_node,
+		card->dai_link[dai_num].cpu_of_node = of_parse_phandle(
+			child_dai_node,
 			"i2s-controller", 0);
 		if (!card->dai_link[dai_num].cpu_of_node) {
 			dev_err(card->dev,
@@ -102,7 +108,8 @@ int rockchip_of_get_sound_card_info_(struct snd_soc_card *card, bool is_need_fmt
 			return -EINVAL;
 		}
 
-		card->dai_link[dai_num].platform_of_node = card->dai_link[dai_num].cpu_of_node;
+		card->dai_link[dai_num].platform_of_node =
+			card->dai_link[dai_num].cpu_of_node;
 
 		if (++dai_num >= card->num_links)
 			break;
@@ -110,7 +117,7 @@ int rockchip_of_get_sound_card_info_(struct snd_soc_card *card, bool is_need_fmt
 
 	if (dai_num < card->num_links) {
 		dev_err(card->dev, "%s() Can not get enough property for dais, dai: %d, max dai num: %d\n",
-			__FUNCTION__, dai_num, card->num_links);
+			__func__, dai_num, card->num_links);
 		return -EINVAL;
 	}
 
