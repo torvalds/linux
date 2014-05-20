@@ -2403,6 +2403,7 @@ static inline void iommu_prepare_isa(void)
 		printk(KERN_ERR "IOMMU: Failed to create 0-16MiB identity map; "
 		       "floppy might not work\n");
 
+	pci_dev_put(pdev);
 }
 #else
 static inline void iommu_prepare_isa(void)
