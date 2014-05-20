@@ -1480,7 +1480,6 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 	struct isp_pipeline *pipe = to_isp_pipeline(&ccdc->subdev.entity);
 	struct isp_device *isp = to_isp_device(ccdc);
 	struct isp_buffer *buffer;
-	int restart = 0;
 
 	/* The CCDC generates VD0 interrupts even when disabled (the datasheet
 	 * doesn't explicitly state if that's supposed to happen or not, so it
@@ -1489,30 +1488,27 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 	 * would thus not be enough, we need to handle the situation explicitly.
 	 */
 	if (list_empty(&ccdc->video_out.dmaqueue))
-		goto done;
+		return 0;
 
 	/* We're in continuous mode, and memory writes were disabled due to a
 	 * buffer underrun. Reenable them now that we have a buffer. The buffer
 	 * address has been set in ccdc_video_queue.
 	 */
 	if (ccdc->state == ISP_PIPELINE_STREAM_CONTINUOUS && ccdc->underrun) {
-		restart = 1;
 		ccdc->underrun = 0;
-		goto done;
+		return 1;
 	}
 
 	if (ccdc_sbl_wait_idle(ccdc, 1000)) {
 		dev_info(isp->dev, "CCDC won't become idle!\n");
 		isp->crashed |= 1U << ccdc->subdev.entity.id;
 		omap3isp_pipeline_cancel_stream(pipe);
-		goto done;
+		return 0;
 	}
 
 	buffer = omap3isp_video_buffer_next(&ccdc->video_out);
-	if (buffer != NULL) {
+	if (buffer != NULL)
 		ccdc_set_outaddr(ccdc, buffer->dma);
-		restart = 1;
-	}
 
 	pipe->state |= ISP_PIPELINE_IDLE_OUTPUT;
 
@@ -1521,8 +1517,7 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 		omap3isp_pipeline_set_stream(pipe,
 					ISP_PIPELINE_STREAM_SINGLESHOT);
 
-done:
-	return restart;
+	return buffer != NULL;
 }
 
 /*
