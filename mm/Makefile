@@ -30,7 +30,6 @@ endif
 
 obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
 
-obj-$(CONFIG_BOUNCE)	+= bounce.o
 obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
 obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
 obj-$(CONFIG_ZSWAP)	+= zswap.o
