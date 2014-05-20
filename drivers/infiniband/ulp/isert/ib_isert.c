@@ -663,8 +663,9 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 
 	pi_support = np->tpg_np->tpg->tpg_attrib.t10_pi;
 	if (pi_support && !device->pi_capable) {
-		pr_err("Protection information requested but not supported\n");
-		ret = -EINVAL;
+		pr_err("Protection information requested but not supported, "
+		       "rejecting connect request\n");
+		ret = rdma_reject(cma_id, NULL, 0);
 		goto out_mr;
 	}
 
