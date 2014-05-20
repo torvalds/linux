@@ -163,6 +163,7 @@ struct worker_pool {
 	struct mutex		manager_arb;	/* manager arbitration */
 	struct mutex		manager_mutex;	/* manager exclusion */
 	struct idr		worker_idr;	/* M: worker IDs and iteration */
+	struct completion	*detach_completion; /* all workers detached */
 
 	struct workqueue_attrs	*attrs;		/* I: worker attributes */
 	struct hlist_node	hash_node;	/* PL: unbound_pool_hash node */
@@ -1688,6 +1689,30 @@ static struct worker *alloc_worker(void)
 }
 
 /**
+ * worker_detach_from_pool() - detach a worker from its pool
+ * @worker: worker which is attached to its pool
+ * @pool: the pool @worker is attached to
+ *
+ * Undo the attaching which had been done in create_worker().  The caller
+ * worker shouldn't access to the pool after detached except it has other
+ * reference to the pool.
+ */
+static void worker_detach_from_pool(struct worker *worker,
+				    struct worker_pool *pool)
+{
+	struct completion *detach_completion = NULL;
+
+	mutex_lock(&pool->manager_mutex);
+	idr_remove(&pool->worker_idr, worker->id);
+	if (idr_is_empty(&pool->worker_idr))
+		detach_completion = pool->detach_completion;
+	mutex_unlock(&pool->manager_mutex);
+
+	if (detach_completion)
+		complete(detach_completion);
+}
+
+/**
  * create_worker - create a new workqueue worker
  * @pool: pool the new worker will belong to
  *
@@ -1815,13 +1840,12 @@ static int create_and_start_worker(struct worker_pool *pool)
  * be idle.
  *
  * CONTEXT:
- * spin_lock_irq(pool->lock) which is released and regrabbed.
+ * spin_lock_irq(pool->lock).
  */
 static void destroy_worker(struct worker *worker)
 {
 	struct worker_pool *pool = worker->pool;
 
-	lockdep_assert_held(&pool->manager_mutex);
 	lockdep_assert_held(&pool->lock);
 
 	/* sanity check frenzy */
@@ -1833,24 +1857,9 @@ static void destroy_worker(struct worker *worker)
 	pool->nr_workers--;
 	pool->nr_idle--;
 
-	/*
-	 * Once WORKER_DIE is set, the kworker may destroy itself at any
-	 * point.  Pin to ensure the task stays until we're done with it.
-	 */
-	get_task_struct(worker->task);
-
 	list_del_init(&worker->entry);
 	worker->flags |= WORKER_DIE;
-
-	idr_remove(&pool->worker_idr, worker->id);
-
-	spin_unlock_irq(&pool->lock);
-
-	kthread_stop(worker->task);
-	put_task_struct(worker->task);
-	kfree(worker);
-
-	spin_lock_irq(&pool->lock);
+	wake_up_process(worker->task);
 }
 
 static void idle_worker_timeout(unsigned long __pool)
@@ -2289,6 +2298,10 @@ woke_up:
 		spin_unlock_irq(&pool->lock);
 		WARN_ON_ONCE(!list_empty(&worker->entry));
 		worker->task->flags &= ~PF_WQ_WORKER;
+
+		set_task_comm(worker->task, "kworker/dying");
+		worker_detach_from_pool(worker, pool);
+		kfree(worker);
 		return 0;
 	}
 
@@ -3560,6 +3573,7 @@ static void rcu_free_pool(struct rcu_head *rcu)
  */
 static void put_unbound_pool(struct worker_pool *pool)
 {
+	DECLARE_COMPLETION_ONSTACK(detach_completion);
 	struct worker *worker;
 
 	lockdep_assert_held(&wq_pool_mutex);
@@ -3583,15 +3597,21 @@ static void put_unbound_pool(struct worker_pool *pool)
 	 * manager_mutex.
 	 */
 	mutex_lock(&pool->manager_arb);
-	mutex_lock(&pool->manager_mutex);
-	spin_lock_irq(&pool->lock);
 
+	spin_lock_irq(&pool->lock);
 	while ((worker = first_worker(pool)))
 		destroy_worker(worker);
 	WARN_ON(pool->nr_workers || pool->nr_idle);
-
 	spin_unlock_irq(&pool->lock);
+
+	mutex_lock(&pool->manager_mutex);
+	if (!idr_is_empty(&pool->worker_idr))
+		pool->detach_completion = &detach_completion;
 	mutex_unlock(&pool->manager_mutex);
+
+	if (pool->detach_completion)
+		wait_for_completion(pool->detach_completion);
+
 	mutex_unlock(&pool->manager_arb);
 
 	/* shut down the timers */
