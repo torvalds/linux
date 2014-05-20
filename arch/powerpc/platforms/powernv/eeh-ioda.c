@@ -477,127 +477,49 @@ out:
 	return 0;
 }
 
-static bool ioda_eeh_is_plx_dnport(struct pci_dev *dev, int *reg,
-				   int *mask, int *len)
-{
-	unsigned short *pid;
-	unsigned short ids[] = {
-		0x10b5, 0x8748, 0x0080, 0x0400, /* PLX#8748     */
-		0x0000, 0x0000, 0x0000, 0x0000, /* End flag     */
-	};
-
-	if (!pci_is_pcie(dev))
-		return false;
-	if (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)
-		return false;
-
-	pid = &ids[0];
-	while (!reg) {
-		if (pid[0] == 0x0)
-			break;
-
-		if (dev->vendor == pid[0] &&
-		    dev->device == pid[1]) {
-                        *reg  = pid[2];
-                        *mask = pid[3];
-                        *len  = 2;
-                        return true;
-                }
-        }
-
-	*reg  = PCI_BRIDGE_CONTROL;
-	*mask = PCI_BRIDGE_CTL_BUS_RESET;
-	*len  = 2;
-	return false;
-}
-
 static int ioda_eeh_bridge_reset(struct pci_dev *dev, int option)
 
 {
 	struct device_node *dn = pci_device_to_OF_node(dev);
 	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
 	int aer = edev ? edev->aer_cap : 0;
-	int reg, mask, val, len;
-	bool is_plx_dnport;
+	u32 ctrl;
 
 	pr_debug("%s: Reset PCI bus %04x:%02x with option %d\n",
 		 __func__, pci_domain_nr(dev->bus),
 		 dev->bus->number, option);
 
-
-	is_plx_dnport = ioda_eeh_is_plx_dnport(dev, &reg, &mask, &len);
-	if (option == EEH_RESET_FUNDAMENTAL)
-		if (!is_plx_dnport || !edev)
-			option = EEH_RESET_HOT;
-
-	if (option == EEH_RESET_HOT) {
-		reg  = PCI_BRIDGE_CONTROL;
-		mask = PCI_BRIDGE_CTL_BUS_RESET;
-		len  = 2;
-	}
-
-	if (option == EEH_RESET_DEACTIVATE) {
-		if (!is_plx_dnport || !edev ||
-		    !(edev->mode & EEH_DEV_FRESET)) {
-			reg  = PCI_BRIDGE_CONTROL;
-			mask = PCI_BRIDGE_CTL_BUS_RESET;
-			len  = 2;
-		}
-	}
-
 	switch (option) {
 	case EEH_RESET_FUNDAMENTAL:
-		edev->mode |= EEH_DEV_FRESET;
-		/* Fall through */
 	case EEH_RESET_HOT:
+		/* Don't report linkDown event */
 		if (aer) {
-			/* Mask receiver error */
-			eeh_ops->read_config(dn, aer + PCI_ERR_COR_MASK,
-					     4, &val);
-			val |= PCI_ERR_COR_RCVR;
-			eeh_ops->write_config(dn, aer + PCI_ERR_COR_MASK,
-					      4, val);
-
-			/* Mask linkDown */
 			eeh_ops->read_config(dn, aer + PCI_ERR_UNCOR_MASK,
-					     4, &val);
-			val |= PCI_ERR_UNC_SURPDN;
+					     4, &ctrl);
+			ctrl |= PCI_ERR_UNC_SURPDN;
                         eeh_ops->write_config(dn, aer + PCI_ERR_UNCOR_MASK,
-					      4, val);
-		}
+					      4, ctrl);
+                }
 
-		eeh_ops->read_config(dn, reg, len, &val);
-		val |= mask;
-		eeh_ops->write_config(dn, reg, len, val);
+		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
+		ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
+		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
 		msleep(EEH_PE_RST_HOLD_TIME);
 
 		break;
 	case EEH_RESET_DEACTIVATE:
-		eeh_ops->read_config(dn, reg, len, &val);
-		val &= ~mask;
-		eeh_ops->write_config(dn, reg, len, val);
+		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
+		ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
+		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
 		msleep(EEH_PE_RST_SETTLE_TIME);
 
-		if (edev)
-			edev->mode &= ~EEH_DEV_FRESET;
+		/* Continue reporting linkDown event */
 		if (aer) {
-			/* Clear receive error and enable it */
-			eeh_ops->write_config(dn, aer + PCI_ERR_COR_STATUS,
-					      4, PCI_ERR_COR_RCVR);
-			eeh_ops->read_config(dn, aer + PCI_ERR_COR_MASK,
-					     4, &val);
-                        val &= ~PCI_ERR_COR_RCVR;
-			eeh_ops->write_config(dn, aer + PCI_ERR_COR_MASK,
-					      4, val);
-
-			/* Clear linkDown and enable it */
-			eeh_ops->write_config(dn, aer + PCI_ERR_UNCOR_STATUS,
-					      4, PCI_ERR_UNC_SURPDN);
 			eeh_ops->read_config(dn, aer + PCI_ERR_UNCOR_MASK,
-					     4, &val);
-			val &= ~PCI_ERR_UNC_SURPDN;
+					     4, &ctrl);
+			ctrl &= ~PCI_ERR_UNC_SURPDN;
 			eeh_ops->write_config(dn, aer + PCI_ERR_UNCOR_MASK,
-					      4, val);
+					      4, ctrl);
 		}
 
 		break;
