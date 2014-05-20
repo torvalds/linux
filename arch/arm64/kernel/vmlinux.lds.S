@@ -85,11 +85,9 @@ SECTIONS
 
 	. = ALIGN(PAGE_SIZE);
 	_data = .;
-	__data_loc = _data - LOAD_OFFSET;
 	_sdata = .;
 	RW_DATA_SECTION(64, PAGE_SIZE, THREAD_SIZE)
 	_edata = .;
-	_edata_loc = __data_loc + SIZEOF(.data);
 
 	BSS_SECTION(0, 0, 0)
 	_end = .;
