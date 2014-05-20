@@ -22,13 +22,14 @@
 #include "common.h"
 #include "hardware.h"
 
-#define MX51_DPLL1_BASE		MX51_IO_ADDRESS(MX51_PLL1_BASE_ADDR)
-#define MX51_DPLL2_BASE		MX51_IO_ADDRESS(MX51_PLL2_BASE_ADDR)
-#define MX51_DPLL3_BASE		MX51_IO_ADDRESS(MX51_PLL3_BASE_ADDR)
-#define MX53_DPLL1_BASE		MX53_IO_ADDRESS(MX53_PLL1_BASE_ADDR)
-#define MX53_DPLL2_BASE		MX53_IO_ADDRESS(MX53_PLL2_BASE_ADDR)
-#define MX53_DPLL3_BASE		MX53_IO_ADDRESS(MX53_PLL3_BASE_ADDR)
-#define MX53_DPLL4_BASE		MX53_IO_ADDRESS(MX53_PLL4_BASE_ADDR)
+#define MX51_DPLL1_BASE		0x83f80000
+#define MX51_DPLL2_BASE		0x83f84000
+#define MX51_DPLL3_BASE		0x83f88000
+
+#define MX53_DPLL1_BASE		0x63f80000
+#define MX53_DPLL2_BASE		0x63f84000
+#define MX53_DPLL3_BASE		0x63f88000
+#define MX53_DPLL4_BASE		0x63f8c000
 
 #define MXC_CCM_CCR		(ccm_base + 0x00)
 #define MXC_CCM_CCDR		(ccm_base + 0x04)
@@ -363,12 +364,21 @@ static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 static void __init mx50_clocks_init(struct device_node *np)
 {
 	void __iomem *ccm_base;
+	void __iomem *pll_base;
 	unsigned long r;
 	int i;
 
-	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", MX53_DPLL1_BASE);
-	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", MX53_DPLL2_BASE);
-	clk[IMX5_CLK_PLL3_SW]		= imx_clk_pllv2("pll3_sw", "osc", MX53_DPLL3_BASE);
+	pll_base = ioremap(MX53_DPLL1_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", pll_base);
+
+	pll_base = ioremap(MX53_DPLL2_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", pll_base);
+
+	pll_base = ioremap(MX53_DPLL3_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL3_SW]		= imx_clk_pllv2("pll3_sw", "osc", pll_base);
 
 	ccm_base = of_iomap(np, 0);
 	WARN_ON(!ccm_base);
@@ -422,12 +432,21 @@ CLK_OF_DECLARE(imx50_ccm, "fsl,imx50-ccm", mx50_clocks_init);
 static void __init mx51_clocks_init(struct device_node *np)
 {
 	void __iomem *ccm_base;
+	void __iomem *pll_base;
 	int i;
 	u32 val;
 
-	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", MX51_DPLL1_BASE);
-	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", MX51_DPLL2_BASE);
-	clk[IMX5_CLK_PLL3_SW]		= imx_clk_pllv2("pll3_sw", "osc", MX51_DPLL3_BASE);
+	pll_base = ioremap(MX51_DPLL1_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", pll_base);
+
+	pll_base = ioremap(MX51_DPLL2_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", pll_base);
+
+	pll_base = ioremap(MX51_DPLL3_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL3_SW]		= imx_clk_pllv2("pll3_sw", "osc", pll_base);
 
 	ccm_base = of_iomap(np, 0);
 	WARN_ON(!ccm_base);
@@ -526,13 +545,25 @@ CLK_OF_DECLARE(imx51_ccm, "fsl,imx51-ccm", mx51_clocks_init);
 static void __init mx53_clocks_init(struct device_node *np)
 {
 	void __iomem *ccm_base;
+	void __iomem *pll_base;
 	int i;
 	unsigned long r;
 
-	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", MX53_DPLL1_BASE);
-	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", MX53_DPLL2_BASE);
-	clk[IMX5_CLK_PLL3_SW]		= imx_clk_pllv2("pll3_sw", "osc", MX53_DPLL3_BASE);
-	clk[IMX5_CLK_PLL4_SW]		= imx_clk_pllv2("pll4_sw", "osc", MX53_DPLL4_BASE);
+	pll_base = ioremap(MX53_DPLL1_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", pll_base);
+
+	pll_base = ioremap(MX53_DPLL2_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", pll_base);
+
+	pll_base = ioremap(MX53_DPLL3_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL3_SW]		= imx_clk_pllv2("pll3_sw", "osc", pll_base);
+
+	pll_base = ioremap(MX53_DPLL4_BASE, SZ_16K);
+	WARN_ON(!pll_base);
+	clk[IMX5_CLK_PLL4_SW]		= imx_clk_pllv2("pll4_sw", "osc", pll_base);
 
 	ccm_base = of_iomap(np, 0);
 	WARN_ON(!ccm_base);
