@@ -77,14 +77,8 @@ struct rockchip_i2c {
 	unsigned int		suspended:1;
 
 	struct i2c_msg		*msg;
-	union {
-		unsigned int	msg_num;
-		unsigned int	is_busy;
-	};
-	union {
-		unsigned int	msg_idx;
-		int		error;
-	};
+	unsigned int		is_busy;
+	int			error;
 	unsigned int		msg_ptr;
 
 	unsigned int		irq;
@@ -630,6 +624,8 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 	 * max cycles: (32 + 2 + 3) * 9 --> 400 cycles
 	 */
 	int msleep_time = 400 * 1000 / i2c->scl_rate;	// ms
+	int can_sleep = !(in_atomic() || irqs_disabled());
+	int cpu = smp_processor_id();
 
 	if (i2c->suspended) {
 		dev_err(i2c->dev, "i2c is suspended\n");
@@ -659,22 +655,44 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 	i2c->state = STATE_START;
 	i2c->complete_what = 0;
 	i2c_writel(I2C_STARTIEN, i2c->regs + I2C_IEN);
-	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	rockchip_i2c_enable(i2c, (i2c->count > 32) ? 0 : 1);	//if count > 32,  byte(32) send ack
 
-	if (in_atomic()) {
+	if (can_sleep) {
+		long ret = msecs_to_jiffies(I2C_WAIT_TIMEOUT);
+		if (i2c->is_busy) {
+			DEFINE_WAIT(wait);
+			for (;;) {
+				prepare_to_wait(&i2c->wait, &wait, TASK_UNINTERRUPTIBLE);
+				if (i2c->is_busy == 0)
+					break;
+				spin_unlock_irqrestore(&i2c->lock, flags);
+				ret = schedule_timeout(ret);
+				spin_lock_irqsave(&i2c->lock, flags);
+				if (!ret)
+					break;
+			}
+			if (!ret && (i2c->is_busy == 0))
+				ret = 1;
+			finish_wait(&i2c->wait, &wait);
+		}
+		timeout = ret;
+	} else {
 		int tmo = I2C_WAIT_TIMEOUT * USEC_PER_MSEC;
-		while (tmo-- && i2c->is_busy != 0)
+		while (tmo-- && i2c->is_busy != 0) {
+			spin_unlock_irqrestore(&i2c->lock, flags);
 			udelay(1);
+			if (cpu == 0 && irqs_disabled()
+			    && (i2c_readl(i2c->regs + I2C_IPD)
+				& i2c_readl(i2c->regs + I2C_IEN))) {
+				rockchip_i2c_irq(i2c->irq, i2c);
+			}
+			spin_lock_irqsave(&i2c->lock, flags);
+		}
 		timeout = (tmo <= 0) ? 0 : 1;
-	} else
-		timeout = wait_event_timeout(i2c->wait, (i2c->is_busy == 0), msecs_to_jiffies(I2C_WAIT_TIMEOUT));
+	}
 
-	spin_lock_irqsave(&i2c->lock, flags);
-	i2c->state = STATE_IDLE;
 	error = i2c->error;
-	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	if (timeout == 0) {
 		unsigned int ipd = i2c_readl(i2c->regs + I2C_IPD);
@@ -687,21 +705,19 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 				msgs[0].addr, i2c->state, i2c->is_busy, error, i2c->complete_what, ipd);
 			//rockchip_show_regs(i2c);
 			error = -ETIMEDOUT;
-			if (in_atomic())
-				mdelay(msleep_time);
-			else
-				msleep(msleep_time);
+			mdelay(msleep_time);
 			rockchip_i2c_send_stop(i2c);
-			if (in_atomic())
-				mdelay(1);
-			else
-				msleep(1);
+			mdelay(1);
 		} else
 			i2c_dbg(i2c->dev, "Addr[0x%02x] wait event timeout, but transfer complete\n", i2c->addr);
 	}
+
+	i2c->state = STATE_IDLE;
+
 	i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
 	rockchip_i2c_disable_irq(i2c);
 	rockchip_i2c_disable(i2c);
+	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	if (error == -EAGAIN)
 		i2c_dbg(i2c->dev, "No ack(complete_what: 0x%x), Maybe slave(addr: 0x%04x) not exist or abnormal power-on\n",
@@ -729,7 +745,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 			state = rockchip_i2c_check_idle(i2c);
 			if (state == I2C_IDLE)
 				break;
-			if (in_atomic())
+			if (in_atomic() || irqs_disabled())
 				mdelay(10);
 			else
 				msleep(10);
