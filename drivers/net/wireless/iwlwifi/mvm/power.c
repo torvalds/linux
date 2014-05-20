@@ -642,55 +642,6 @@ iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 	}
 }
 
-int iwl_mvm_power_update_mac(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif;
-	struct iwl_power_vifs vifs = {};
-	bool ba_enable;
-	int ret;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	iwl_mvm_power_set_pm(mvm, &vifs);
-
-	/* disable PS if CAM */
-	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM) {
-		mvm->ps_disabled = true;
-	} else {
-	/* don't update device power state unless we add / remove monitor */
-		if (vifs.monitor_vif) {
-			if (vifs.monitor_active)
-				mvm->ps_disabled = true;
-			ret = iwl_mvm_power_update_device(mvm);
-			if (ret)
-				return ret;
-		}
-	}
-
-	if (vifs.bss_vif) {
-		ret = iwl_mvm_power_send_cmd(mvm, vifs.bss_vif);
-		if (ret)
-			return ret;
-	}
-
-	if (vifs.p2p_vif) {
-		ret = iwl_mvm_power_send_cmd(mvm, vifs.p2p_vif);
-		if (ret)
-			return ret;
-	}
-
-	if (!vifs.bf_vif)
-		return 0;
-
-	vif = vifs.bf_vif;
-	mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	ba_enable = !(!mvmvif->pm_enabled || mvm->ps_disabled ||
-		      !vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif));
-
-	return iwl_mvm_update_beacon_abort(mvm, vifs.bf_vif, ba_enable);
-}
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif, char *buf,
@@ -838,8 +789,9 @@ int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 	return _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd, flags, false);
 }
 
-int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif, bool enable)
+static int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       bool enable)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_beacon_filter_cmd cmd = {
@@ -874,6 +826,55 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 		mvmvif->bf_data.bf_enabled = false;
 
 	return ret;
+}
+
+int iwl_mvm_power_update_mac(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif;
+	struct iwl_power_vifs vifs = {};
+	bool ba_enable;
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	iwl_mvm_power_set_pm(mvm, &vifs);
+
+	/* disable PS if CAM */
+	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM) {
+		mvm->ps_disabled = true;
+	} else {
+	/* don't update device power state unless we add / remove monitor */
+		if (vifs.monitor_vif) {
+			if (vifs.monitor_active)
+				mvm->ps_disabled = true;
+			ret = iwl_mvm_power_update_device(mvm);
+			if (ret)
+				return ret;
+		}
+	}
+
+	if (vifs.bss_vif) {
+		ret = iwl_mvm_power_send_cmd(mvm, vifs.bss_vif);
+		if (ret)
+			return ret;
+	}
+
+	if (vifs.p2p_vif) {
+		ret = iwl_mvm_power_send_cmd(mvm, vifs.p2p_vif);
+		if (ret)
+			return ret;
+	}
+
+	if (!vifs.bf_vif)
+		return 0;
+
+	vif = vifs.bf_vif;
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	ba_enable = !(!mvmvif->pm_enabled || mvm->ps_disabled ||
+		      !vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif));
+
+	return iwl_mvm_update_beacon_abort(mvm, vifs.bf_vif, ba_enable);
 }
 
 int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
