@@ -111,13 +111,18 @@ static u16 device_id(struct pci_dev *pdev)
 	return devid;
 }
 
+static struct device_state *__get_device_state(u16 devid)
+{
+	return state_table[devid];
+}
+
 static struct device_state *get_device_state(u16 devid)
 {
 	struct device_state *dev_state;
 	unsigned long flags;
 
 	spin_lock_irqsave(&state_lock, flags);
-	dev_state = state_table[devid];
+	dev_state = __get_device_state(devid);
 	if (dev_state != NULL)
 		atomic_inc(&dev_state->count);
 	spin_unlock_irqrestore(&state_lock, flags);
@@ -841,7 +846,7 @@ void amd_iommu_free_device(struct pci_dev *pdev)
 
 	spin_lock_irqsave(&state_lock, flags);
 
-	dev_state = state_table[devid];
+	dev_state = __get_device_state(devid);
 	if (dev_state == NULL) {
 		spin_unlock_irqrestore(&state_lock, flags);
 		return;
@@ -874,7 +879,7 @@ int amd_iommu_set_invalid_ppr_cb(struct pci_dev *pdev,
 	spin_lock_irqsave(&state_lock, flags);
 
 	ret = -EINVAL;
-	dev_state = state_table[devid];
+	dev_state = __get_device_state(devid);
 	if (dev_state == NULL)
 		goto out_unlock;
 
@@ -905,7 +910,7 @@ int amd_iommu_set_invalidate_ctx_cb(struct pci_dev *pdev,
 	spin_lock_irqsave(&state_lock, flags);
 
 	ret = -EINVAL;
-	dev_state = state_table[devid];
+	dev_state = __get_device_state(devid);
 	if (dev_state == NULL)
 		goto out_unlock;
 
