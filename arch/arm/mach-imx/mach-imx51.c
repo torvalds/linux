@@ -19,7 +19,6 @@
 
 #include "common.h"
 #include "hardware.h"
-#include "mx51.h"
 
 static void __init imx51_init_early(void)
 {

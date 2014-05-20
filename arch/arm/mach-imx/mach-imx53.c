@@ -22,7 +22,6 @@
 
 #include "common.h"
 #include "hardware.h"
-#include "mx53.h"
 
 static void __init imx53_init_early(void)
 {
