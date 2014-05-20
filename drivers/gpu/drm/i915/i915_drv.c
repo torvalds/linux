@@ -597,24 +597,6 @@ void intel_console_resume(struct work_struct *work)
 	console_unlock();
 }
 
-static void intel_resume_hotplug(struct drm_device *dev)
-{
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct intel_encoder *encoder;
-
-	mutex_lock(&mode_config->mutex);
-	DRM_DEBUG_KMS("running encoder hotplug functions\n");
-
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
-		if (encoder->hot_plug)
-			encoder->hot_plug(encoder);
-
-	mutex_unlock(&mode_config->mutex);
-
-	/* Just fire off a uevent and let userspace tell us what to do */
-	drm_helper_hpd_irq_event(dev);
-}
-
 static int i915_drm_thaw_early(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -670,7 +652,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		intel_hpd_init(dev);
 		dev_priv->enable_hotplug_processing = true;
 		/* Config may have changed between suspend and resume */
-		intel_resume_hotplug(dev);
+		drm_helper_hpd_irq_event(dev);
 	}
 
 	intel_opregion_init(dev);
