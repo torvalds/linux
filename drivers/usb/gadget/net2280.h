@@ -43,6 +43,7 @@ set_idx_reg (struct net2280_regs __iomem *regs, u32 index, u32 value)
 
 #endif	/* __KERNEL__ */
 
+#define PCI_VENDOR_ID_PLX_LEGACY 0x17cc
 
 #define REG_DIAG		0x0
 #define     RETRY_COUNTER                                       16
