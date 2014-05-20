@@ -284,4 +284,6 @@ static inline void btrfs_inode_resume_unlocked_dio(struct inode *inode)
 		  &BTRFS_I(inode)->runtime_flags);
 }
 
+bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end);
+
 #endif

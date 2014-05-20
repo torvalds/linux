@@ -2266,9 +2266,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		if ((!ordered ||
 		    (ordered->file_offset + ordered->len <= lockstart ||
 		     ordered->file_offset > lockend)) &&
-		     !test_range_bit(&BTRFS_I(inode)->io_tree, lockstart,
-				     lockend, EXTENT_UPTODATE, 0,
-				     cached_state)) {
+		     !btrfs_page_exists_in_range(inode, lockstart, lockend)) {
 			if (ordered)
 				btrfs_put_ordered_extent(ordered);
 			break;
