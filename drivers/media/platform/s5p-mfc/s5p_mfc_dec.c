@@ -39,6 +39,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
+		.versions	= MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "4:2:0 2 Planes 64x32 Tiles",
@@ -46,6 +47,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
+		.versions	= MFC_V5_BIT,
 	},
 	{
 		.name		= "4:2:0 2 Planes Y/CbCr",
@@ -53,6 +55,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
+		.versions	= MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "4:2:0 2 Planes Y/CrCb",
@@ -60,6 +63,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
+		.versions	= MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "H264 Encoded Stream",
@@ -67,6 +71,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_H264_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "H264/MVC Encoded Stream",
@@ -74,6 +79,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_H264_MVC_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "H263 Encoded Stream",
@@ -81,6 +87,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_H263_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "MPEG1 Encoded Stream",
@@ -88,6 +95,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_MPEG2_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "MPEG2 Encoded Stream",
@@ -95,6 +103,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_MPEG2_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "MPEG4 Encoded Stream",
@@ -102,6 +111,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_MPEG4_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "XviD Encoded Stream",
@@ -109,6 +119,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_MPEG4_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "VC1 Encoded Stream",
@@ -116,6 +127,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_VC1_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "VC1 RCV Encoded Stream",
@@ -123,6 +135,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_VC1RCV_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.name		= "VP8 Encoded Stream",
@@ -130,6 +143,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_VP8_DEC,
 		.type		= MFC_FMT_DEC,
 		.num_planes	= 1,
+		.versions	= MFC_V6_BIT | MFC_V7_BIT,
 	},
 };
 
@@ -260,8 +274,10 @@ static int vidioc_querycap(struct file *file, void *priv,
 }
 
 /* Enumerate format */
-static int vidioc_enum_fmt(struct v4l2_fmtdesc *f, bool mplane, bool out)
+static int vidioc_enum_fmt(struct file *file, struct v4l2_fmtdesc *f,
+							bool mplane, bool out)
 {
+	struct s5p_mfc_dev *dev = video_drvdata(file);
 	struct s5p_mfc_fmt *fmt;
 	int i, j = 0;
 
@@ -273,6 +289,8 @@ static int vidioc_enum_fmt(struct v4l2_fmtdesc *f, bool mplane, bool out)
 		if (out && formats[i].type != MFC_FMT_DEC)
 			continue;
 		else if (!out && formats[i].type != MFC_FMT_RAW)
+			continue;
+		else if ((dev->variant->version_bit & formats[i].versions) == 0)
 			continue;
 
 		if (j == f->index)
@@ -290,25 +308,25 @@ static int vidioc_enum_fmt(struct v4l2_fmtdesc *f, bool mplane, bool out)
 static int vidioc_enum_fmt_vid_cap(struct file *file, void *pirv,
 							struct v4l2_fmtdesc *f)
 {
-	return vidioc_enum_fmt(f, false, false);
+	return vidioc_enum_fmt(file, f, false, false);
 }
 
 static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
 							struct v4l2_fmtdesc *f)
 {
-	return vidioc_enum_fmt(f, true, false);
+	return vidioc_enum_fmt(file, f, true, false);
 }
 
-static int vidioc_enum_fmt_vid_out(struct file *file, void *prov,
+static int vidioc_enum_fmt_vid_out(struct file *file, void *priv,
 							struct v4l2_fmtdesc *f)
 {
-	return vidioc_enum_fmt(f, false, true);
+	return vidioc_enum_fmt(file, f, false, true);
 }
 
-static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *prov,
+static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *priv,
 							struct v4l2_fmtdesc *f)
 {
-	return vidioc_enum_fmt(f, true, true);
+	return vidioc_enum_fmt(file, f, true, true);
 }
 
 /* Get format */
@@ -384,11 +402,9 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			mfc_err("Unknown codec\n");
 			return -EINVAL;
 		}
-		if (!IS_MFCV6_PLUS(dev)) {
-			if (fmt->fourcc == V4L2_PIX_FMT_VP8) {
-				mfc_err("Not supported format.\n");
-				return -EINVAL;
-			}
+		if ((dev->variant->version_bit & fmt->versions) == 0) {
+			mfc_err("Unsupported format by this MFC version.\n");
+			return -EINVAL;
 		}
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		fmt = find_format(f, MFC_FMT_RAW);
@@ -396,13 +412,8 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			mfc_err("Unsupported format for destination.\n");
 			return -EINVAL;
 		}
-		if (IS_MFCV6_PLUS(dev) &&
-				(fmt->fourcc == V4L2_PIX_FMT_NV12MT)) {
-			mfc_err("Not supported format.\n");
-			return -EINVAL;
-		} else if (!IS_MFCV6_PLUS(dev) &&
-				(fmt->fourcc != V4L2_PIX_FMT_NV12MT)) {
-			mfc_err("Not supported format.\n");
+		if ((dev->variant->version_bit & fmt->versions) == 0) {
+			mfc_err("Unsupported format by this MFC version.\n");
 			return -EINVAL;
 		}
 	}
