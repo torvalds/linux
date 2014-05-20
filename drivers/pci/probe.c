@@ -1215,6 +1215,7 @@ static void pci_release_dev(struct device *dev)
 	pci_release_of_node(pci_dev);
 	pcibios_release_device(pci_dev);
 	pci_bus_put(pci_dev->bus);
+	kfree(pci_dev->driver_override);
 	kfree(pci_dev);
 }
 

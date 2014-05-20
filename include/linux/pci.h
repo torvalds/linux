@@ -365,6 +365,7 @@ struct pci_dev {
 #endif
 	phys_addr_t rom; /* Physical address of ROM if it's not from the BAR */
 	size_t romlen; /* Length of ROM if it's not from the BAR */
+	char *driver_override; /* Driver name to force a match */
 };
 
 static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
