@@ -2282,17 +2282,17 @@ static int iwl_mvm_cancel_roc(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static int iwl_mvm_add_chanctx(struct ieee80211_hw *hw,
-			       struct ieee80211_chanctx_conf *ctx)
+static int __iwl_mvm_add_chanctx(struct iwl_mvm *mvm,
+				 struct ieee80211_chanctx_conf *ctx)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt;
 	int ret;
 
+	lockdep_assert_held(&mvm->mutex);
+
 	IWL_DEBUG_MAC80211(mvm, "Add channel context\n");
 
-	mutex_lock(&mvm->mutex);
 	phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
 	if (!phy_ctxt) {
 		ret = -ENOSPC;
@@ -2310,19 +2310,40 @@ static int iwl_mvm_add_chanctx(struct ieee80211_hw *hw,
 	iwl_mvm_phy_ctxt_ref(mvm, phy_ctxt);
 	*phy_ctxt_id = phy_ctxt->id;
 out:
-	mutex_unlock(&mvm->mutex);
 	return ret;
+}
+
+static int iwl_mvm_add_chanctx(struct ieee80211_hw *hw,
+			       struct ieee80211_chanctx_conf *ctx)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = __iwl_mvm_add_chanctx(mvm, ctx);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
+static void __iwl_mvm_remove_chanctx(struct iwl_mvm *mvm,
+				     struct ieee80211_chanctx_conf *ctx)
+{
+	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
+	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
+
+	lockdep_assert_held(&mvm->mutex);
+
+	iwl_mvm_phy_ctxt_unref(mvm, phy_ctxt);
 }
 
 static void iwl_mvm_remove_chanctx(struct ieee80211_hw *hw,
 				   struct ieee80211_chanctx_conf *ctx)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
-	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_phy_ctxt_unref(mvm, phy_ctxt);
+	__iwl_mvm_remove_chanctx(mvm, ctx);
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -2351,17 +2372,16 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
-static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
-				      struct ieee80211_vif *vif,
-				      struct ieee80211_chanctx_conf *ctx)
+static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					struct ieee80211_chanctx_conf *ctx)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
-	mutex_lock(&mvm->mutex);
+	lockdep_assert_held(&mvm->mutex);
 
 	mvmvif->phy_ctxt = phy_ctxt;
 
@@ -2378,18 +2398,18 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 		 * (in bss_info_changed), similarly for IBSS.
 		 */
 		ret = 0;
-		goto out_unlock;
+		goto out;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_MONITOR:
 		break;
 	default:
 		ret = -EINVAL;
-		goto out_unlock;
+		goto out;
 	}
 
 	ret = iwl_mvm_binding_add_vif(mvm, vif);
 	if (ret)
-		goto out_unlock;
+		goto out;
 
 	/*
 	 * Power state must be updated before quotas,
@@ -2414,32 +2434,43 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false);
 	}
 
-	goto out_unlock;
+	goto out;
 
- out_remove_binding:
+out_remove_binding:
 	iwl_mvm_binding_remove_vif(mvm, vif);
 	iwl_mvm_power_update_mac(mvm);
- out_unlock:
-	mutex_unlock(&mvm->mutex);
+out:
 	if (ret)
 		mvmvif->phy_ctxt = NULL;
 	return ret;
 }
-
-static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_chanctx_conf *ctx)
+static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_chanctx_conf *ctx)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
 
 	mutex_lock(&mvm->mutex);
+	ret = __iwl_mvm_assign_vif_chanctx(mvm, vif, ctx);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
+static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_chanctx_conf *ctx)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
 
 	iwl_mvm_remove_time_event(mvm, mvmvif, &mvmvif->time_event_data);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_ADHOC:
-		goto out_unlock;
+		goto out;
 	case NL80211_IFTYPE_MONITOR:
 		mvmvif->monitor_active = false;
 		iwl_mvm_update_quotas(mvm, NULL);
@@ -2447,7 +2478,7 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	case NL80211_IFTYPE_AP:
 		/* This part is triggered only during CSA */
 		if (!vif->csa_active || !mvmvif->ap_ibss_active)
-			goto out_unlock;
+			goto out;
 
 		mvmvif->ap_ibss_active = false;
 		iwl_mvm_update_quotas(mvm, NULL);
@@ -2457,10 +2488,78 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
-out_unlock:
+out:
 	mvmvif->phy_ctxt = NULL;
 	iwl_mvm_power_update_mac(mvm);
+}
+
+static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_chanctx_conf *ctx)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	mutex_lock(&mvm->mutex);
+	__iwl_mvm_unassign_vif_chanctx(mvm, vif, ctx);
 	mutex_unlock(&mvm->mutex);
+}
+
+static int iwl_mvm_switch_vif_chanctx(struct ieee80211_hw *hw,
+				      struct ieee80211_vif_chanctx_switch *vifs,
+				      int n_vifs,
+				      enum ieee80211_chanctx_switch_mode mode)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	/* we only support SWAP_CONTEXTS and with a single-vif right now */
+	if (mode != CHANCTX_SWMODE_SWAP_CONTEXTS || n_vifs > 1)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&mvm->mutex);
+	__iwl_mvm_unassign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx);
+	__iwl_mvm_remove_chanctx(mvm, vifs[0].old_ctx);
+
+	ret = __iwl_mvm_add_chanctx(mvm, vifs[0].new_ctx);
+	if (ret) {
+		IWL_ERR(mvm, "failed to add new_ctx during channel switch\n");
+		goto out_reassign;
+	}
+
+	ret = __iwl_mvm_assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].new_ctx);
+	if (ret) {
+		IWL_ERR(mvm,
+			"failed to assign new_ctx during channel switch\n");
+		goto out_remove;
+	}
+
+	goto out;
+
+out_remove:
+	__iwl_mvm_remove_chanctx(mvm, vifs[0].new_ctx);
+
+out_reassign:
+	ret = __iwl_mvm_add_chanctx(mvm, vifs[0].old_ctx);
+	if (ret) {
+		IWL_ERR(mvm, "failed to add old_ctx back after failure.\n");
+		goto out_restart;
+	}
+
+	ret = __iwl_mvm_assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx);
+	if (ret) {
+		IWL_ERR(mvm, "failed to reassign old_ctx after failure.\n");
+		goto out_restart;
+	}
+
+	goto out;
+
+out_restart:
+	/* things keep failing, better restart the hw */
+	iwl_mvm_nic_restart(mvm, false);
+
+out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
 }
 
 static int iwl_mvm_set_tim(struct ieee80211_hw *hw,
@@ -2627,6 +2726,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.change_chanctx = iwl_mvm_change_chanctx,
 	.assign_vif_chanctx = iwl_mvm_assign_vif_chanctx,
 	.unassign_vif_chanctx = iwl_mvm_unassign_vif_chanctx,
+	.switch_vif_chanctx = iwl_mvm_switch_vif_chanctx,
 
 	.start_ap = iwl_mvm_start_ap_ibss,
 	.stop_ap = iwl_mvm_stop_ap_ibss,
