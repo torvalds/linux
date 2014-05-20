@@ -45,6 +45,8 @@ struct pri_queue {
 struct pasid_state {
 	struct list_head list;			/* For global state-list */
 	atomic_t count;				/* Reference count */
+	atomic_t mmu_notifier_count;		/* Counting nested mmu_notifier
+						   calls */
 	struct task_struct *task;		/* Task bound to this PASID */
 	struct mm_struct *mm;			/* mm_struct for the faults */
 	struct mmu_notifier mn;                 /* mmu_otifier handle */
@@ -433,8 +435,11 @@ static void mn_invalidate_range_start(struct mmu_notifier *mn,
 	pasid_state = mn_to_state(mn);
 	dev_state   = pasid_state->device_state;
 
-	amd_iommu_domain_set_gcr3(dev_state->domain, pasid_state->pasid,
-				  __pa(empty_page_table));
+	if (atomic_add_return(1, &pasid_state->mmu_notifier_count) == 1) {
+		amd_iommu_domain_set_gcr3(dev_state->domain,
+					  pasid_state->pasid,
+					  __pa(empty_page_table));
+	}
 }
 
 static void mn_invalidate_range_end(struct mmu_notifier *mn,
@@ -447,8 +452,11 @@ static void mn_invalidate_range_end(struct mmu_notifier *mn,
 	pasid_state = mn_to_state(mn);
 	dev_state   = pasid_state->device_state;
 
-	amd_iommu_domain_set_gcr3(dev_state->domain, pasid_state->pasid,
-				  __pa(pasid_state->mm->pgd));
+	if (atomic_dec_and_test(&pasid_state->mmu_notifier_count)) {
+		amd_iommu_domain_set_gcr3(dev_state->domain,
+					  pasid_state->pasid,
+					  __pa(pasid_state->mm->pgd));
+	}
 }
 
 static void mn_release(struct mmu_notifier *mn, struct mm_struct *mm)
@@ -642,6 +650,7 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 		goto out;
 
 	atomic_set(&pasid_state->count, 1);
+	atomic_set(&pasid_state->mmu_notifier_count, 0);
 	init_waitqueue_head(&pasid_state->wq);
 	spin_lock_init(&pasid_state->lock);
 
