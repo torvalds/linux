@@ -25,19 +25,18 @@
  * caller must own the device lock.
  */
 
-static inline u32
-get_idx_reg (struct net2280_regs __iomem *regs, u32 index)
+static inline u32 get_idx_reg(struct net2280_regs __iomem *regs, u32 index)
 {
-	writel (index, &regs->idxaddr);
+	writel(index, &regs->idxaddr);
 	/* NOTE:  synchs device/cpu memory views */
-	return readl (&regs->idxdata);
+	return readl(&regs->idxdata);
 }
 
 static inline void
-set_idx_reg (struct net2280_regs __iomem *regs, u32 index, u32 value)
+set_idx_reg(struct net2280_regs __iomem *regs, u32 index, u32 value)
 {
-	writel (index, &regs->idxaddr);
-	writel (value, &regs->idxdata);
+	writel(index, &regs->idxaddr);
+	writel(value, &regs->idxdata);
 	/* posted, may not be visible yet */
 }
 
@@ -81,7 +80,7 @@ struct net2280_dma {
 	__le32		dmaaddr;		/* the buffer */
 	__le32		dmadesc;		/* next dma descriptor */
 	__le32		_reserved;
-} __attribute__ ((aligned (16)));
+} __aligned(16);
 
 /*-------------------------------------------------------------------------*/
 
@@ -113,7 +112,7 @@ struct net2280_ep {
 						responded : 1;
 };
 
-static inline void allow_status (struct net2280_ep *ep)
+static inline void allow_status(struct net2280_ep *ep)
 {
 	/* ep0 only */
 	writel(BIT(CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE) |
@@ -152,7 +151,7 @@ struct net2280 {
 	struct usb_gadget		gadget;
 	spinlock_t			lock;
 	struct net2280_ep		ep[9];
-	struct usb_gadget_driver 	*driver;
+	struct usb_gadget_driver	*driver;
 	unsigned			enabled : 1,
 					protocol_stall : 1,
 					softconnect : 1,
@@ -185,10 +184,10 @@ struct net2280 {
 	struct usb338x_pl_regs		__iomem *plregs;
 
 	struct pci_pool			*requests;
-	// statistics...
+	/* statistics...*/
 };
 
-static inline void set_halt (struct net2280_ep *ep)
+static inline void set_halt(struct net2280_ep *ep)
 {
 	/* ep0 and bulk/intr endpoints */
 	writel(BIT(CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE) |
@@ -198,7 +197,7 @@ static inline void set_halt (struct net2280_ep *ep)
 		&ep->regs->ep_rsp);
 }
 
-static inline void clear_halt (struct net2280_ep *ep)
+static inline void clear_halt(struct net2280_ep *ep)
 {
 	/* ep0 and bulk/intr endpoints */
 	writel(BIT(CLEAR_ENDPOINT_HALT) |
@@ -250,7 +249,7 @@ static inline void clear_halt (struct net2280_ep *ep)
 
 #ifdef USE_RDK_LEDS
 
-static inline void net2280_led_init (struct net2280 *dev)
+static inline void net2280_led_init(struct net2280 *dev)
 {
 	/* LED3 (green) is on during USB activity. note erratum 0113. */
 	writel(BIT(GPIO3_LED_SELECT) |
@@ -263,9 +262,9 @@ static inline void net2280_led_init (struct net2280 *dev)
 
 /* indicate speed with bi-color LED 0/1 */
 static inline
-void net2280_led_speed (struct net2280 *dev, enum usb_device_speed speed)
+void net2280_led_speed(struct net2280 *dev, enum usb_device_speed speed)
 {
-	u32	val = readl (&dev->regs->gpioctl);
+	u32	val = readl(&dev->regs->gpioctl);
 	switch (speed) {
 	case USB_SPEED_SUPER:		/* green + red */
 		val |= BIT(GPIO0_DATA) | BIT(GPIO1_DATA);
@@ -282,25 +281,26 @@ void net2280_led_speed (struct net2280 *dev, enum usb_device_speed speed)
 		val &= ~(BIT(GPIO1_DATA) | BIT(GPIO0_DATA));
 		break;
 	}
-	writel (val, &dev->regs->gpioctl);
+	writel(val, &dev->regs->gpioctl);
 }
 
 /* indicate power with LED 2 */
-static inline void net2280_led_active (struct net2280 *dev, int is_active)
+static inline void net2280_led_active(struct net2280 *dev, int is_active)
 {
-	u32	val = readl (&dev->regs->gpioctl);
+	u32	val = readl(&dev->regs->gpioctl);
 
-	// FIXME this LED never seems to turn on.
+	/* FIXME this LED never seems to turn on.*/
 	if (is_active)
 		val |= GPIO2_DATA;
 	else
 		val &= ~GPIO2_DATA;
-	writel (val, &dev->regs->gpioctl);
+	writel(val, &dev->regs->gpioctl);
 }
-static inline void net2280_led_shutdown (struct net2280 *dev)
+
+static inline void net2280_led_shutdown(struct net2280 *dev)
 {
 	/* turn off all four GPIO*_DATA bits */
-	writel (readl (&dev->regs->gpioctl) & ~0x0f,
+	writel(readl(&dev->regs->gpioctl) & ~0x0f,
 			&dev->regs->gpioctl);
 }
 
@@ -314,32 +314,32 @@ static inline void net2280_led_shutdown (struct net2280 *dev)
 
 /*-------------------------------------------------------------------------*/
 
-#define xprintk(dev,level,fmt,args...) \
-	printk(level "%s %s: " fmt , driver_name , \
-			pci_name(dev->pdev) , ## args)
+#define xprintk(dev, level, fmt, args...) \
+	printk(level "%s %s: " fmt, driver_name, \
+			pci_name(dev->pdev), ## args)
 
 #ifdef DEBUG
 #undef DEBUG
-#define DEBUG(dev,fmt,args...) \
-	xprintk(dev , KERN_DEBUG , fmt , ## args)
+#define DEBUG(dev, fmt, args...) \
+	xprintk(dev, KERN_DEBUG, fmt, ## args)
 #else
-#define DEBUG(dev,fmt,args...) \
+#define DEBUG(dev, fmt, args...) \
 	do { } while (0)
-#endif /* DEBUG */
+#endif /* DEBUG*/
 
 #ifdef VERBOSE
 #define VDEBUG DEBUG
 #else
-#define VDEBUG(dev,fmt,args...) \
+#define VDEBUG(dev, fmt, args...) \
 	do { } while (0)
 #endif	/* VERBOSE */
 
-#define ERROR(dev,fmt,args...) \
-	xprintk(dev , KERN_ERR , fmt , ## args)
-#define WARNING(dev,fmt,args...) \
-	xprintk(dev , KERN_WARNING , fmt , ## args)
-#define INFO(dev,fmt,args...) \
-	xprintk(dev , KERN_INFO , fmt , ## args)
+#define ERROR(dev, fmt, args...) \
+	xprintk(dev, KERN_ERR, fmt, ## args)
+#define WARNING(dev, fmt, args...) \
+	xprintk(dev, KERN_WARNING, fmt, ## args)
+#define INFO(dev, fmt, args...) \
+	xprintk(dev, KERN_INFO, fmt, ## args)
 
 /*-------------------------------------------------------------------------*/
 
@@ -354,36 +354,36 @@ static inline void set_fifo_bytecount(struct net2280_ep *ep, unsigned count)
 	}
 }
 
-static inline void start_out_naking (struct net2280_ep *ep)
+static inline void start_out_naking(struct net2280_ep *ep)
 {
 	/* NOTE:  hardware races lurk here, and PING protocol issues */
 	writel(BIT(SET_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
 	/* synch with device */
-	readl (&ep->regs->ep_rsp);
+	readl(&ep->regs->ep_rsp);
 }
 
 #ifdef DEBUG
-static inline void assert_out_naking (struct net2280_ep *ep, const char *where)
+static inline void assert_out_naking(struct net2280_ep *ep, const char *where)
 {
-	u32	tmp = readl (&ep->regs->ep_stat);
+	u32	tmp = readl(&ep->regs->ep_stat);
 
 	if ((tmp & BIT(NAK_OUT_PACKETS)) == 0) {
-		DEBUG (ep->dev, "%s %s %08x !NAK\n",
+		DEBUG(ep->dev, "%s %s %08x !NAK\n",
 				ep->ep.name, where, tmp);
 		writel(BIT(SET_NAK_OUT_PACKETS),
 			&ep->regs->ep_rsp);
 	}
 }
-#define ASSERT_OUT_NAKING(ep) assert_out_naking(ep,__func__)
+#define ASSERT_OUT_NAKING(ep) assert_out_naking(ep, __func__)
 #else
 #define ASSERT_OUT_NAKING(ep) do {} while (0)
 #endif
 
-static inline void stop_out_naking (struct net2280_ep *ep)
+static inline void stop_out_naking(struct net2280_ep *ep)
 {
 	u32	tmp;
 
-	tmp = readl (&ep->regs->ep_stat);
+	tmp = readl(&ep->regs->ep_stat);
 	if ((tmp & BIT(NAK_OUT_PACKETS)) != 0)
 		writel(BIT(CLEAR_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
 }
