@@ -8,9 +8,13 @@ Required properties:
 - compatible : must be one of the following
 	"ti,twl4030-power"
 	"ti,twl4030-power-reset"
+	"ti,twl4030-power-idle"
 
 The use of ti,twl4030-power-reset is recommended at least on
 3530 that needs a special configuration for warm reset to work.
+
+When using ti,twl4030-power-idle, the TI recommended configuration
+for idle modes is loaded to the tlw4030 PMIC.
 
 Optional properties:
 - ti,use_poweroff: With this flag, the chip will initiates an ACTIVE-to-OFF or
