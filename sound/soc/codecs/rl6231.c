@@ -131,6 +131,22 @@ code_find:
 }
 EXPORT_SYMBOL_GPL(rl6231_pll_calc);
 
+int rl6231_get_clk_info(int sclk, int rate)
+{
+	int i, pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
+
+	if (sclk <= 0 || rate <= 0)
+		return -EINVAL;
+
+	rate = rate << 8;
+	for (i = 0; i < ARRAY_SIZE(pd); i++)
+		if (sclk == rate * pd[i])
+			return i;
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(rl6231_get_clk_info);
+
 MODULE_DESCRIPTION("RL6231 class device shared support");
 MODULE_AUTHOR("Oder Chiou <oder_chiou@realtek.com>");
 MODULE_LICENSE("GPL v2");

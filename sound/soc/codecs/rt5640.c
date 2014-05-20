@@ -1625,21 +1625,6 @@ static int get_sdp_info(struct snd_soc_codec *codec, int dai_id)
 	return ret;
 }
 
-static int get_clk_info(int sclk, int rate)
-{
-	int i, pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
-
-	if (sclk <= 0 || rate <= 0)
-		return -EINVAL;
-
-	rate = rate << 8;
-	for (i = 0; i < ARRAY_SIZE(pd); i++)
-		if (sclk == rate * pd[i])
-			return i;
-
-	return -EINVAL;
-}
-
 static int rt5640_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
@@ -1649,7 +1634,7 @@ static int rt5640_hw_params(struct snd_pcm_substream *substream,
 	int dai_sel, pre_div, bclk_ms, frame_size;
 
 	rt5640->lrck[dai->id] = params_rate(params);
-	pre_div = get_clk_info(rt5640->sysclk, rt5640->lrck[dai->id]);
+	pre_div = rl6231_get_clk_info(rt5640->sysclk, rt5640->lrck[dai->id]);
 	if (pre_div < 0) {
 		dev_err(codec->dev, "Unsupported clock setting %d for DAI %d\n",
 			rt5640->lrck[dai->id], dai->id);
