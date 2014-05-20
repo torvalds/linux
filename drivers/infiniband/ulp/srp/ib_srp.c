@@ -1047,12 +1047,54 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	return ret;
 }
 
+static void srp_map_fmr(struct srp_map_state *state,
+			struct srp_target_port *target, struct srp_request *req,
+			struct scatterlist *scat, int count)
+{
+	struct srp_device *dev = target->srp_host->srp_dev;
+	struct ib_device *ibdev = dev->dev;
+	struct scatterlist *sg;
+	int i, use_fmr;
+
+	state->desc	= req->indirect_desc;
+	state->pages	= req->map_page;
+	state->next_fmr	= req->fmr_list;
+
+	use_fmr = dev->fmr_pool ? SRP_MAP_ALLOW_FMR : SRP_MAP_NO_FMR;
+
+	for_each_sg(scat, sg, count, i) {
+		if (srp_map_sg_entry(state, target, sg, i, use_fmr)) {
+			/* FMR mapping failed, so backtrack to the first
+			 * unmapped entry and continue on without using FMR.
+			 */
+			dma_addr_t dma_addr;
+			unsigned int dma_len;
+
+backtrack:
+			sg = state->unmapped_sg;
+			i = state->unmapped_index;
+
+			dma_addr = ib_sg_dma_address(ibdev, sg);
+			dma_len = ib_sg_dma_len(ibdev, sg);
+			dma_len -= (state->unmapped_addr - dma_addr);
+			dma_addr = state->unmapped_addr;
+			use_fmr = SRP_MAP_NO_FMR;
+			srp_map_desc(state, dma_addr, dma_len, target->rkey);
+		}
+	}
+
+	if (use_fmr == SRP_MAP_ALLOW_FMR && srp_map_finish_fmr(state, target))
+		goto backtrack;
+
+	req->nfmr = state->nfmr;
+}
+
 static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 			struct srp_request *req)
 {
-	struct scatterlist *scat, *sg;
+	struct scatterlist *scat;
 	struct srp_cmd *cmd = req->cmd->buf;
-	int i, len, nents, count, use_fmr;
+	int len, nents, count;
 	struct srp_device *dev;
 	struct ib_device *ibdev;
 	struct srp_map_state state;
@@ -1111,35 +1153,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 				   target->indirect_size, DMA_TO_DEVICE);
 
 	memset(&state, 0, sizeof(state));
-	state.desc	= req->indirect_desc;
-	state.pages	= req->map_page;
-	state.next_fmr	= req->fmr_list;
-
-	use_fmr = dev->fmr_pool ? SRP_MAP_ALLOW_FMR : SRP_MAP_NO_FMR;
-
-	for_each_sg(scat, sg, count, i) {
-		if (srp_map_sg_entry(&state, target, sg, i, use_fmr)) {
-			/* FMR mapping failed, so backtrack to the first
-			 * unmapped entry and continue on without using FMR.
-			 */
-			dma_addr_t dma_addr;
-			unsigned int dma_len;
-
-backtrack:
-			sg = state.unmapped_sg;
-			i = state.unmapped_index;
-
-			dma_addr = ib_sg_dma_address(ibdev, sg);
-			dma_len = ib_sg_dma_len(ibdev, sg);
-			dma_len -= (state.unmapped_addr - dma_addr);
-			dma_addr = state.unmapped_addr;
-			use_fmr = SRP_MAP_NO_FMR;
-			srp_map_desc(&state, dma_addr, dma_len, target->rkey);
-		}
-	}
-
-	if (use_fmr == SRP_MAP_ALLOW_FMR && srp_map_finish_fmr(&state, target))
-		goto backtrack;
+	srp_map_fmr(&state, target, req, scat, count);
 
 	/* We've mapped the request, now pull as much of the indirect
 	 * descriptor table as we can into the command buffer. If this
@@ -1147,7 +1161,6 @@ backtrack:
 	 * guaranteed to fit into the command, as the SCSI layer won't
 	 * give us more S/G entries than we allow.
 	 */
-	req->nfmr = state.nfmr;
 	if (state.ndesc == 1) {
 		/* FMR mapping was able to collapse this to one entry,
 		 * so use a direct descriptor.
