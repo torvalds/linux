@@ -2102,13 +2102,11 @@ static inline void unlink_domain_info(struct device_domain_info *info)
 
 static void domain_remove_dev_info(struct dmar_domain *domain)
 {
-	struct device_domain_info *info;
+	struct device_domain_info *info, *tmp;
 	unsigned long flags, flags2;
 
 	spin_lock_irqsave(&device_domain_lock, flags);
-	while (!list_empty(&domain->devices)) {
-		info = list_entry(domain->devices.next,
-			struct device_domain_info, link);
+	list_for_each_entry_safe(info, tmp, &domain->devices, link) {
 		unlink_domain_info(info);
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 
