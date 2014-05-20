@@ -1279,6 +1279,9 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,struct rk_fb_reg_win_data
 #endif
 		if(area_data->ion_handle != NULL)
 			ion_free(rk_fb->ion_client, area_data->ion_handle);
+		if(area_data->acq_fence) {
+			sync_fence_put(area_data->acq_fence);
+		}
 	}
 	memset(reg_win_data, 0, sizeof(struct rk_fb_reg_win_data));
 }
