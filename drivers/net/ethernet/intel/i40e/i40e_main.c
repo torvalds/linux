@@ -7990,15 +7990,6 @@ int i40e_fetch_switch_configuration(struct i40e_pf *pf, bool printconfig)
 				 "header: %d reported %d total\n",
 				 num_reported, num_total);
 
-		if (num_reported) {
-			int sz = sizeof(*sw_config) * num_reported;
-
-			kfree(pf->sw_config);
-			pf->sw_config = kzalloc(sz, GFP_KERNEL);
-			if (pf->sw_config)
-				memcpy(pf->sw_config, sw_config, sz);
-		}
-
 		for (i = 0; i < num_reported; i++) {
 			struct i40e_aqc_switch_config_element_resp *ele =
 				&sw_config->element[i];
@@ -8718,7 +8709,6 @@ static void i40e_remove(struct pci_dev *pdev)
 
 	kfree(pf->qp_pile);
 	kfree(pf->irq_pile);
-	kfree(pf->sw_config);
 	kfree(pf->vsi);
 
 	/* force a PF reset to clean anything leftover */

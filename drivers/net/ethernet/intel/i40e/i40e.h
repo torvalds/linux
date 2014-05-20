@@ -297,7 +297,6 @@ struct i40e_pf {
 	u16 pf_seid;
 	u16 main_vsi_seid;
 	u16 mac_seid;
-	struct i40e_aqc_get_switch_config_data *sw_config;
 	struct kobject *switch_kobj;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *i40e_dbg_pf;
