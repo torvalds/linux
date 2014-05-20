@@ -1623,6 +1623,11 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	if (set->timeout)
 		blk_queue_rq_timeout(q, set->timeout);
 
+	/*
+	 * Do this after blk_queue_make_request() overrides it...
+	 */
+	q->nr_requests = set->queue_depth;
+
 	if (set->ops->complete)
 		blk_queue_softirq_done(q, set->ops->complete);
 
