@@ -62,6 +62,75 @@ int rl6231_calc_dmic_clk(int rate)
 }
 EXPORT_SYMBOL_GPL(rl6231_calc_dmic_clk);
 
+/**
+ * rl6231_pll_calc - Calcualte PLL M/N/K code.
+ * @freq_in: external clock provided to codec.
+ * @freq_out: target clock which codec works on.
+ * @pll_code: Pointer to structure with M, N, K and bypass flag.
+ *
+ * Calcualte M/N/K code to configure PLL for codec.
+ *
+ * Returns 0 for success or negative error code.
+ */
+int rl6231_pll_calc(const unsigned int freq_in,
+	const unsigned int freq_out, struct rl6231_pll_code *pll_code)
+{
+	int max_n = RL6231_PLL_N_MAX, max_m = RL6231_PLL_M_MAX;
+	int k, red, n_t, pll_out, in_t, out_t;
+	int n = 0, m = 0, m_t = 0;
+	int red_t = abs(freq_out - freq_in);
+	bool bypass = false;
+
+	if (RL6231_PLL_INP_MAX < freq_in || RL6231_PLL_INP_MIN > freq_in)
+		return -EINVAL;
+
+	k = 100000000 / freq_out - 2;
+	if (k > RL6231_PLL_K_MAX)
+		k = RL6231_PLL_K_MAX;
+	for (n_t = 0; n_t <= max_n; n_t++) {
+		in_t = freq_in / (k + 2);
+		pll_out = freq_out / (n_t + 2);
+		if (in_t < 0)
+			continue;
+		if (in_t == pll_out) {
+			bypass = true;
+			n = n_t;
+			goto code_find;
+		}
+		red = abs(in_t - pll_out);
+		if (red < red_t) {
+			bypass = true;
+			n = n_t;
+			m = m_t;
+			if (red == 0)
+				goto code_find;
+			red_t = red;
+		}
+		for (m_t = 0; m_t <= max_m; m_t++) {
+			out_t = in_t / (m_t + 2);
+			red = abs(out_t - pll_out);
+			if (red < red_t) {
+				bypass = false;
+				n = n_t;
+				m = m_t;
+				if (red == 0)
+					goto code_find;
+				red_t = red;
+			}
+		}
+	}
+	pr_debug("Only get approximation about PLL\n");
+
+code_find:
+
+	pll_code->m_bp = bypass;
+	pll_code->m_code = m;
+	pll_code->n_code = n;
+	pll_code->k_code = k;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rl6231_pll_calc);
+
 MODULE_DESCRIPTION("RL6231 class device shared support");
 MODULE_AUTHOR("Oder Chiou <oder_chiou@realtek.com>");
 MODULE_LICENSE("GPL v2");

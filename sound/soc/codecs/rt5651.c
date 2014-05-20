@@ -1516,65 +1516,12 @@ static int rt5651_set_dai_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-/**
- * rt5651_pll_calc - Calcualte PLL M/N/K code.
- * @freq_in: external clock provided to codec.
- * @freq_out: target clock which codec works on.
- * @pll_code: Pointer to structure with M, N, K and bypass flag.
- *
- * Calcualte M/N/K code to configure PLL for codec. And K is assigned to 2
- * which make calculation more efficiently.
- *
- * Returns 0 for success or negative error code.
- */
-static int rt5651_pll_calc(const unsigned int freq_in,
-	const unsigned int freq_out, struct rt5651_pll_code *pll_code)
-{
-	int max_n = RT5651_PLL_N_MAX, max_m = RT5651_PLL_M_MAX;
-	int n = 0, m = 0, red, n_t, m_t, in_t, out_t;
-	int red_t = abs(freq_out - freq_in);
-	bool bypass = false;
-
-	if (RT5651_PLL_INP_MAX < freq_in || RT5651_PLL_INP_MIN > freq_in)
-		return -EINVAL;
-
-	for (n_t = 0; n_t <= max_n; n_t++) {
-		in_t = (freq_in >> 1) + (freq_in >> 2) * n_t;
-		if (in_t < 0)
-			continue;
-		if (in_t == freq_out) {
-			bypass = true;
-			n = n_t;
-			goto code_find;
-		}
-		for (m_t = 0; m_t <= max_m; m_t++) {
-			out_t = in_t / (m_t + 2);
-			red = abs(out_t - freq_out);
-			if (red < red_t) {
-				n = n_t;
-				m = m_t;
-				if (red == 0)
-					goto code_find;
-				red_t = red;
-			}
-		}
-	}
-	pr_debug("Only get approximation about PLL\n");
-
-code_find:
-	pll_code->m_bp = bypass;
-	pll_code->m_code = m;
-	pll_code->n_code = n;
-	pll_code->k_code = 2;
-	return 0;
-}
-
 static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
-	struct rt5651_pll_code *pll_code = &rt5651->pll_code;
+	struct rl6231_pll_code pll_code;
 	int ret;
 
 	if (source == rt5651->pll_src && freq_in == rt5651->pll_in &&
@@ -1609,20 +1556,21 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		return -EINVAL;
 	}
 
-	ret = rt5651_pll_calc(freq_in, freq_out, pll_code);
+	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
 		dev_err(codec->dev, "Unsupport input clock %d\n", freq_in);
 		return ret;
 	}
 
-	dev_dbg(codec->dev, "bypass=%d m=%d n=%d k=2\n", pll_code->m_bp,
-		(pll_code->m_bp ? 0 : pll_code->m_code), pll_code->n_code);
+	dev_dbg(codec->dev, "bypass=%d m=%d n=%d k=%d\n",
+		pll_code.m_bp, (pll_code.m_bp ? 0 : pll_code.m_code),
+		pll_code.n_code, pll_code.k_code);
 
 	snd_soc_write(codec, RT5651_PLL_CTRL1,
-		pll_code->n_code << RT5651_PLL_N_SFT | pll_code->k_code);
+		pll_code.n_code << RT5651_PLL_N_SFT | pll_code.k_code);
 	snd_soc_write(codec, RT5651_PLL_CTRL2,
-		(pll_code->m_bp ? 0 : pll_code->m_code) << RT5651_PLL_M_SFT |
-		pll_code->m_bp << RT5651_PLL_M_BP_SFT);
+		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5651_PLL_M_SFT |
+		pll_code.m_bp << RT5651_PLL_M_BP_SFT);
 
 	rt5651->pll_in = freq_in;
 	rt5651->pll_out = freq_out;

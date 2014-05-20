@@ -2069,7 +2069,6 @@ struct rt5651_priv {
 	int bclk[RT5651_AIFS];
 	int master[RT5651_AIFS];
 
-	struct rt5651_pll_code pll_code;
 	int pll_src;
 	int pll_in;
 	int pll_out;
