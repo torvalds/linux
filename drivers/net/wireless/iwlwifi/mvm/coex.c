@@ -831,8 +831,11 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
 				    smps_mode);
 		data->reduced_tx_power = false;
-		if (vif->type == NL80211_IFTYPE_STATION)
+		if (vif->type == NL80211_IFTYPE_STATION) {
+			iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
+						    false);
 			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
+		}
 		return;
 	}
 
@@ -905,6 +908,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	    mvm->cfg->bt_shared_single_ant || !vif->bss_conf.assoc ||
 	    !data->notif->bt_status) {
 		data->reduced_tx_power = false;
+		iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false);
 		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}
