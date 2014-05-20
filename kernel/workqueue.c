@@ -73,7 +73,6 @@ enum {
 	POOL_FREEZING		= 1 << 3,	/* freeze in progress */
 
 	/* worker flags */
-	WORKER_STARTED		= 1 << 0,	/* started */
 	WORKER_DIE		= 1 << 1,	/* die die die */
 	WORKER_IDLE		= 1 << 2,	/* is idle */
 	WORKER_PREP		= 1 << 3,	/* preparing to run works */
@@ -1692,9 +1691,8 @@ static struct worker *alloc_worker(void)
  * create_worker - create a new workqueue worker
  * @pool: pool the new worker will belong to
  *
- * Create a new worker which is bound to @pool.  The returned worker
- * can be started by calling start_worker() or destroyed using
- * destroy_worker().
+ * Create a new worker which is attached to @pool.  The new worker must be
+ * started by start_worker().
  *
  * CONTEXT:
  * Might sleep.  Does GFP_KERNEL allocations.
@@ -1778,7 +1776,6 @@ fail:
  */
 static void start_worker(struct worker *worker)
 {
-	worker->flags |= WORKER_STARTED;
 	worker->pool->nr_workers++;
 	worker_enter_idle(worker);
 	wake_up_process(worker->task);
@@ -1814,7 +1811,8 @@ static int create_and_start_worker(struct worker_pool *pool)
  * destroy_worker - destroy a workqueue worker
  * @worker: worker to be destroyed
  *
- * Destroy @worker and adjust @pool stats accordingly.
+ * Destroy @worker and adjust @pool stats accordingly.  The worker should
+ * be idle.
  *
  * CONTEXT:
  * spin_lock_irq(pool->lock) which is released and regrabbed.
@@ -1828,13 +1826,12 @@ static void destroy_worker(struct worker *worker)
 
 	/* sanity check frenzy */
 	if (WARN_ON(worker->current_work) ||
-	    WARN_ON(!list_empty(&worker->scheduled)))
+	    WARN_ON(!list_empty(&worker->scheduled)) ||
+	    WARN_ON(!(worker->flags & WORKER_IDLE)))
 		return;
 
-	if (worker->flags & WORKER_STARTED)
-		pool->nr_workers--;
-	if (worker->flags & WORKER_IDLE)
-		pool->nr_idle--;
+	pool->nr_workers--;
+	pool->nr_idle--;
 
 	/*
 	 * Once WORKER_DIE is set, the kworker may destroy itself at any
