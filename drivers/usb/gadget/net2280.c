@@ -1777,15 +1777,7 @@ static ssize_t queues_show(struct device *_dev, struct device_attribute *attr,
 				"\n%s (ep%d%s-%s) max %04x %s fifo %d\n",
 				ep->ep.name, t & USB_ENDPOINT_NUMBER_MASK,
 				(t & USB_DIR_IN) ? "in" : "out",
-				({ char *val;
-				 switch (d->bmAttributes & 0x03) {
-				 case USB_ENDPOINT_XFER_BULK:
-					val = "bulk"; break;
-				 case USB_ENDPOINT_XFER_INT:
-					val = "intr"; break;
-				 default:
-					val = "iso"; break;
-				 } val; }),
+				type_string(d->bmAttributes),
 				usb_endpoint_maxp (d) & 0x1fff,
 				ep->dma ? "dma" : "pio", ep->fifo_size
 				);
