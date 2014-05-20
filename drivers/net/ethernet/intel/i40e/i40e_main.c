@@ -8194,6 +8194,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 			       I40E_FLAG_VMDQ_ENABLED);
 	} else if (!(pf->flags & (I40E_FLAG_RSS_ENABLED |
 				  I40E_FLAG_FD_SB_ENABLED |
+				  I40E_FLAG_FD_ATR_ENABLED |
 				  I40E_FLAG_DCB_ENABLED))) {
 		/* one qp for PF */
 		pf->rss_size = pf->num_lan_qps = 1;
