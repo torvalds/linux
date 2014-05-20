@@ -1366,7 +1366,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	vsi->tc_config.numtc = numtc;
 	vsi->tc_config.enabled_tc = enabled_tc ? enabled_tc : 1;
 	/* Number of queues per enabled TC */
-	num_tc_qps = rounddown_pow_of_two(vsi->alloc_queue_pairs/numtc);
+	num_tc_qps = vsi->alloc_queue_pairs/numtc;
 	num_tc_qps = min_t(int, num_tc_qps, I40E_MAX_QUEUES_PER_TC);
 
 	/* Setup queue offset/count for all TCs for given VSI */
@@ -6498,7 +6498,6 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 		return 0;
 
 	queue_count = min_t(int, queue_count, pf->rss_size_max);
-	queue_count = rounddown_pow_of_two(queue_count);
 
 	if (queue_count != pf->rss_size) {
 		i40e_prep_for_reset(pf);
@@ -6554,7 +6553,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	if (pf->hw.func_caps.rss) {
 		pf->flags |= I40E_FLAG_RSS_ENABLED;
 		pf->rss_size = min_t(int, pf->rss_size_max, num_online_cpus());
-		pf->rss_size = rounddown_pow_of_two(pf->rss_size);
 	} else {
 		pf->rss_size = 1;
 	}
