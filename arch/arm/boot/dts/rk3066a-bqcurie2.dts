@@ -18,6 +18,7 @@
 
 / {
 	model = "bq Curie 2";
+	compatible = "mundoreader,bq-curie2", "rockchip,rk3066a";
 
 	memory {
 		reg = <0x60000000 0x40000000>;
