@@ -1014,6 +1014,9 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "fuse", .dt_id = TEGRA124_CLK_FUSE },
 	{ .dev_id = "rtc-tegra", .dt_id = TEGRA124_CLK_RTC },
 	{ .dev_id = "timer", .dt_id = TEGRA124_CLK_TIMER },
+	{ .con_id = "hda", .dt_id = TEGRA124_CLK_HDA },
+	{ .con_id = "hda2codec_2x", .dt_id = TEGRA124_CLK_HDA2CODEC_2X },
+	{ .con_id = "hda2hdmi", .dt_id = TEGRA124_CLK_HDA2HDMI },
 };
 
 static struct clk **clks;
@@ -1395,6 +1398,8 @@ static struct tegra_clk_init_table common_init_table[] __initdata = {
 static struct tegra_clk_init_table tegra124_init_table[] __initdata = {
 	{TEGRA124_CLK_SOC_THERM, TEGRA124_CLK_PLL_P, 51000000, 0},
 	{TEGRA124_CLK_CCLK_G, TEGRA124_CLK_CLK_MAX, 0, 1},
+	{TEGRA124_CLK_HDA, TEGRA124_CLK_PLL_P, 102000000, 0},
+	{TEGRA124_CLK_HDA2CODEC_2X, TEGRA124_CLK_PLL_P, 48000000, 0},
 	/* This MUST be the last entry. */
 	{TEGRA124_CLK_CLK_MAX, TEGRA124_CLK_CLK_MAX, 0, 0},
 };
