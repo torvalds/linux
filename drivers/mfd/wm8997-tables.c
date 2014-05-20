@@ -174,10 +174,10 @@ static const struct reg_default wm8997_reg_default[] = {
 	{ 0x00000062, 0x01FF },    /* R98    - Sample Rate Sequence Select 2 */
 	{ 0x00000063, 0x01FF },    /* R99    - Sample Rate Sequence Select 3 */
 	{ 0x00000064, 0x01FF },    /* R100   - Sample Rate Sequence Select 4 */
-	{ 0x00000068, 0x01FF },    /* R104   - Always On Triggers Sequence Select 1 */
-	{ 0x00000069, 0x01FF },    /* R105   - Always On Triggers Sequence Select 2 */
-	{ 0x0000006A, 0x01FF },    /* R106   - Always On Triggers Sequence Select 3 */
-	{ 0x0000006B, 0x01FF },    /* R107   - Always On Triggers Sequence Select 4 */
+	{ 0x00000068, 0x01FF },    /* R104   - Always On Triggers Sequence Select 3 */
+	{ 0x00000069, 0x01FF },    /* R105   - Always On Triggers Sequence Select 4 */
+	{ 0x0000006A, 0x01FF },    /* R106   - Always On Triggers Sequence Select 5 */
+	{ 0x0000006B, 0x01FF },    /* R107   - Always On Triggers Sequence Select 6 */
 	{ 0x00000070, 0x0000 },    /* R112   - Comfort Noise Generator */
 	{ 0x00000090, 0x0000 },    /* R144   - Haptics Control 1 */
 	{ 0x00000091, 0x7FFF },    /* R145   - Haptics Control 2 */
@@ -814,10 +814,10 @@ static bool wm8997_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_2:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_3:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_4:
-	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_1:
-	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_2:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_3:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_4:
+	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_5:
+	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_6:
 	case ARIZONA_COMFORT_NOISE_GENERATOR:
 	case ARIZONA_HAPTICS_CONTROL_1:
 	case ARIZONA_HAPTICS_CONTROL_2:
