@@ -3048,22 +3048,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		to_intel_crtc(intel_dig_port->base.base.crtc);
 	uint32_t DP = intel_dp->DP;
 
-	/*
-	 * DDI code has a strict mode set sequence and we should try to respect
-	 * it, otherwise we might hang the machine in many different ways. So we
-	 * really should be disabling the port only on a complete crtc_disable
-	 * sequence. This function is just called under two conditions on DDI
-	 * code:
-	 * - Link train failed while doing crtc_enable, and on this case we
-	 *   really should respect the mode set sequence and wait for a
-	 *   crtc_disable.
-	 * - Someone turned the monitor off and intel_dp_check_link_status
-	 *   called us. We don't need to disable the whole port on this case, so
-	 *   when someone turns the monitor on again,
-	 *   intel_ddi_prepare_link_retrain will take care of redoing the link
-	 *   train.
-	 */
-	if (HAS_DDI(dev))
+	if (WARN_ON(HAS_DDI(dev)))
 		return;
 
 	if (WARN_ON((I915_READ(intel_dp->output_reg) & DP_PORT_EN) == 0))
