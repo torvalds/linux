@@ -1074,6 +1074,7 @@ static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
 	unsigned int order = get_order(size);
 	unsigned int align = 0;
 	unsigned int count, start;
+	size_t mapping_size = mapping->bits << PAGE_SHIFT;
 	unsigned long flags;
 	dma_addr_t iova;
 	int i;
@@ -1119,7 +1120,7 @@ static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
 	}
 	spin_unlock_irqrestore(&mapping->lock, flags);
 
-	iova = mapping->base + (mapping->size * i);
+	iova = mapping->base + (mapping_size * i);
 	iova += start << PAGE_SHIFT;
 
 	return iova;
@@ -1129,6 +1130,7 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 			       dma_addr_t addr, size_t size)
 {
 	unsigned int start, count;
+	size_t mapping_size = mapping->bits << PAGE_SHIFT;
 	unsigned long flags;
 	dma_addr_t bitmap_base;
 	u32 bitmap_index;
@@ -1136,14 +1138,14 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 	if (!size)
 		return;
 
-	bitmap_index = (u32) (addr - mapping->base) / (u32) mapping->size;
+	bitmap_index = (u32) (addr - mapping->base) / (u32) mapping_size;
 	BUG_ON(addr < mapping->base || bitmap_index > mapping->extensions);
 
-	bitmap_base = mapping->base + mapping->size * bitmap_index;
+	bitmap_base = mapping->base + mapping_size * bitmap_index;
 
 	start = (addr - bitmap_base) >>	PAGE_SHIFT;
 
-	if (addr + size > bitmap_base + mapping->size) {
+	if (addr + size > bitmap_base + mapping_size) {
 		/*
 		 * The address range to be freed reaches into the iova
 		 * range of the next bitmap. This should not happen as
@@ -1964,7 +1966,6 @@ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size)
 	mapping->extensions = extensions;
 	mapping->base = base;
 	mapping->bits = BITS_PER_BYTE * bitmap_size;
-	mapping->size = mapping->bits << PAGE_SHIFT;
 
 	spin_lock_init(&mapping->lock);
 
