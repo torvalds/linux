@@ -1595,7 +1595,9 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 				num_del = 0;
 				memset(del_list, 0, sizeof(*del_list));
 
-				if (aq_ret)
+				if (aq_ret &&
+				    pf->hw.aq.asq_last_status !=
+							      I40E_AQ_RC_ENOENT)
 					dev_info(&pf->pdev->dev,
 						 "ignoring delete macvlan error, err %d, aq_err %d while flushing a full buffer\n",
 						 aq_ret,
@@ -1607,7 +1609,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 						     del_list, num_del, NULL);
 			num_del = 0;
 
-			if (aq_ret)
+			if (aq_ret &&
+			    pf->hw.aq.asq_last_status != I40E_AQ_RC_ENOENT)
 				dev_info(&pf->pdev->dev,
 					 "ignoring delete macvlan error, err %d, aq_err %d\n",
 					 aq_ret, pf->hw.aq.asq_last_status);
