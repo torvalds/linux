@@ -487,6 +487,8 @@ static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 		 */
 		nfc_hci_recv_frame(phy->hdev, phy->pending_skb);
 		phy->crc_trials = 0;
+	} else {
+		kfree_skb(phy->pending_skb);
 	}
 
 	phy->pending_skb = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE * 2, GFP_KERNEL);
