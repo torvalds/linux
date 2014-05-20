@@ -936,7 +936,11 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 	if (scan_rx_ant & ~mvm->fw->valid_rx_ant)
 		return -EINVAL;
 
-	mvm->scan_rx_ant = scan_rx_ant;
+	if (mvm->scan_rx_ant != scan_rx_ant) {
+		mvm->scan_rx_ant = scan_rx_ant;
+		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+			iwl_mvm_config_scan(mvm);
+	}
 
 	return count;
 }

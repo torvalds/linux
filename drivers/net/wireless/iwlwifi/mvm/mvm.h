@@ -588,6 +588,10 @@ struct iwl_mvm {
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 
+	/* UMAC scan tracking */
+	u32 scan_uid[IWL_MVM_MAX_SIMULTANEOUS_SCANS];
+	u8 scan_seq_num, sched_scan_seq_num;
+
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
 
@@ -943,6 +947,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *disabled_vif);
 
 /* Scanning */
+int iwl_mvm_scan_size(struct iwl_mvm *mvm);
 int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 			 struct ieee80211_vif *vif,
 			 struct cfg80211_scan_request *req);
@@ -982,6 +987,17 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct cfg80211_sched_scan_request *req,
 				    struct ieee80211_scan_ies *ies);
+
+/* UMAC scan */
+int iwl_mvm_config_scan(struct iwl_mvm *mvm);
+int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		      struct ieee80211_scan_request *req);
+int iwl_mvm_sched_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			    struct cfg80211_sched_scan_request *req,
+			    struct ieee80211_scan_ies *ies);
+int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
+					struct iwl_rx_cmd_buffer *rxb,
+					struct iwl_device_cmd *cmd);
 
 /* MVM debugfs */
 #ifdef CONFIG_IWLWIFI_DEBUGFS

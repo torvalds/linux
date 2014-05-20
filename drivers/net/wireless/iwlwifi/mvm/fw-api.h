@@ -106,6 +106,12 @@ enum {
 	DBG_CFG = 0x9,
 	ANTENNA_COUPLING_NOTIFICATION = 0xa,
 
+	/* UMAC scan commands */
+	SCAN_CFG_CMD = 0xc,
+	SCAN_REQ_UMAC = 0xd,
+	SCAN_ABORT_UMAC = 0xe,
+	SCAN_COMPLETE_UMAC = 0xf,
+
 	/* station table */
 	ADD_STA_KEY = 0x17,
 	ADD_STA = 0x18,

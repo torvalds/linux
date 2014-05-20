@@ -343,7 +343,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 	}
 
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN ||
+	    mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
 		hw->flags |= IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS;
 
 	hw->sta_data_size = sizeof(struct iwl_mvm_sta);
@@ -1935,9 +1936,11 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
 		return -EINVAL;
 
-	ret = iwl_mvm_cancel_scan_wait_notif(mvm, IWL_MVM_SCAN_SCHED);
-	if (ret)
-		return ret;
+	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
+		ret = iwl_mvm_cancel_scan_wait_notif(mvm, IWL_MVM_SCAN_SCHED);
+		if (ret)
+			return ret;
+	}
 
 	mutex_lock(&mvm->mutex);
 
@@ -1950,6 +1953,8 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
 		ret = iwl_mvm_unified_scan_lmac(mvm, vif, hw_req);
+	else if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		ret = iwl_mvm_scan_umac(mvm, vif, hw_req);
 	else
 		ret = iwl_mvm_scan_request(mvm, vif, req);
 
@@ -2247,9 +2252,11 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
-	ret = iwl_mvm_cancel_scan_wait_notif(mvm, IWL_MVM_SCAN_OS);
-	if (ret)
-		return ret;
+	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
+		ret = iwl_mvm_cancel_scan_wait_notif(mvm, IWL_MVM_SCAN_OS);
+		if (ret)
+			return ret;
+	}
 
 	mutex_lock(&mvm->mutex);
 
@@ -2269,11 +2276,10 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	mvm->scan_status = IWL_MVM_SCAN_SCHED;
-
 	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
 	if (ret)
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
+
 out:
 	mutex_unlock(&mvm->mutex);
 	return ret;
@@ -2291,6 +2297,7 @@ static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 	iwl_mvm_wait_for_async_handlers(mvm);
 
 	return ret;
+
 }
 
 static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
