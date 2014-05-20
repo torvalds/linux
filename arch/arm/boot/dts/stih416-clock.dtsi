@@ -33,17 +33,6 @@
 			clock-frequency = <600000000>;
 		};
 
-		/*
-		 * Bootloader initialized system infrastructure clock for
-		 * serial devices.
-		 */
-		CLK_S_ICN_REG_0: clockgenA0@4 {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <100000000>;
-			clock-output-names = "CLK_S_ICN_REG_0";
-		};
-
 		CLK_S_GMAC0_PHY: clockgenA1@7 {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
