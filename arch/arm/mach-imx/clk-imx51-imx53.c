@@ -18,10 +18,53 @@
 #include <linux/of_irq.h>
 #include <dt-bindings/clock/imx5-clock.h>
 
-#include "crm-regs-imx5.h"
 #include "clk.h"
 #include "common.h"
 #include "hardware.h"
+
+#define MX51_CCM_BASE		MX51_IO_ADDRESS(MX51_CCM_BASE_ADDR)
+#define MX51_DPLL1_BASE		MX51_IO_ADDRESS(MX51_PLL1_BASE_ADDR)
+#define MX51_DPLL2_BASE		MX51_IO_ADDRESS(MX51_PLL2_BASE_ADDR)
+#define MX51_DPLL3_BASE		MX51_IO_ADDRESS(MX51_PLL3_BASE_ADDR)
+#define MX53_DPLL1_BASE		MX53_IO_ADDRESS(MX53_PLL1_BASE_ADDR)
+#define MX53_DPLL2_BASE		MX53_IO_ADDRESS(MX53_PLL2_BASE_ADDR)
+#define MX53_DPLL3_BASE		MX53_IO_ADDRESS(MX53_PLL3_BASE_ADDR)
+#define MX53_DPLL4_BASE		MX53_IO_ADDRESS(MX53_PLL4_BASE_ADDR)
+
+#define MXC_CCM_CCR		(MX51_CCM_BASE + 0x00)
+#define MXC_CCM_CCDR		(MX51_CCM_BASE + 0x04)
+#define MXC_CCM_CSR		(MX51_CCM_BASE + 0x08)
+#define MXC_CCM_CCSR		(MX51_CCM_BASE + 0x0c)
+#define MXC_CCM_CACRR		(MX51_CCM_BASE + 0x10)
+#define MXC_CCM_CBCDR		(MX51_CCM_BASE + 0x14)
+#define MXC_CCM_CBCMR		(MX51_CCM_BASE + 0x18)
+#define MXC_CCM_CSCMR1		(MX51_CCM_BASE + 0x1c)
+#define MXC_CCM_CSCMR2		(MX51_CCM_BASE + 0x20)
+#define MXC_CCM_CSCDR1		(MX51_CCM_BASE + 0x24)
+#define MXC_CCM_CS1CDR		(MX51_CCM_BASE + 0x28)
+#define MXC_CCM_CS2CDR		(MX51_CCM_BASE + 0x2c)
+#define MXC_CCM_CDCDR		(MX51_CCM_BASE + 0x30)
+#define MXC_CCM_CHSCDR		(MX51_CCM_BASE + 0x34)
+#define MXC_CCM_CSCDR2		(MX51_CCM_BASE + 0x38)
+#define MXC_CCM_CSCDR3		(MX51_CCM_BASE + 0x3c)
+#define MXC_CCM_CSCDR4		(MX51_CCM_BASE + 0x40)
+#define MXC_CCM_CWDR		(MX51_CCM_BASE + 0x44)
+#define MXC_CCM_CDHIPR		(MX51_CCM_BASE + 0x48)
+#define MXC_CCM_CDCR		(MX51_CCM_BASE + 0x4c)
+#define MXC_CCM_CTOR		(MX51_CCM_BASE + 0x50)
+#define MXC_CCM_CLPCR		(MX51_CCM_BASE + 0x54)
+#define MXC_CCM_CISR		(MX51_CCM_BASE + 0x58)
+#define MXC_CCM_CIMR		(MX51_CCM_BASE + 0x5c)
+#define MXC_CCM_CCOSR		(MX51_CCM_BASE + 0x60)
+#define MXC_CCM_CGPR		(MX51_CCM_BASE + 0x64)
+#define MXC_CCM_CCGR0		(MX51_CCM_BASE + 0x68)
+#define MXC_CCM_CCGR1		(MX51_CCM_BASE + 0x6c)
+#define MXC_CCM_CCGR2		(MX51_CCM_BASE + 0x70)
+#define MXC_CCM_CCGR3		(MX51_CCM_BASE + 0x74)
+#define MXC_CCM_CCGR4		(MX51_CCM_BASE + 0x78)
+#define MXC_CCM_CCGR5		(MX51_CCM_BASE + 0x7c)
+#define MXC_CCM_CCGR6		(MX51_CCM_BASE + 0x80)
+#define MXC_CCM_CCGR7		(MX51_CCM_BASE + 0x84)
 
 /* Low-power Audio Playback Mode clock */
 static const char *lp_apm_sel[] = { "osc", };
