@@ -76,7 +76,7 @@ static inline int __flip_bit(u32 msr, u8 bit, bool set)
 	if (m1.q == m.q)
 		return 0;
 
-	err = msr_write(msr, &m);
+	err = msr_write(msr, &m1);
 	if (err)
 		return err;
 
