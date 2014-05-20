@@ -15,8 +15,13 @@
         sdio_vref = <1800>; //1800mv or 3300mv
 
         //power_ctrl_by_pmu;
-        pmu_regulator = "act_ldo3";
-        pmu_enable_level = <1>; //1->HIGH, 0->LOW
+        power_pmu_regulator = "act_ldo3";
+        power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
+
+        //vref_ctrl_enable;
+        //vref_ctrl_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_HIGH>;
+        vref_pmu_regulator = "act_ldo3";
+        vref_pmu_enable_level = <1>; //1->HIGH, 0->LOW
 
         WIFI,poweren_gpio = <&gpio4 GPIO_D4 GPIO_ACTIVE_HIGH>;
         WIFI,host_wake_irq = <&gpio4 GPIO_D6 GPIO_ACTIVE_HIGH>;

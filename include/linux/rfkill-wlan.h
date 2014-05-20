@@ -26,7 +26,9 @@ struct rksdmmc_pmu {
 
 struct rksdmmc_gpio_wifi_moudle {
     int sdio_vol;    //sdio reference voltage
+    bool vref_ctrl_enble;
     struct rksdmmc_pmu    mregulator;
+    struct rksdmmc_pmu    ioregulator;
     struct rksdmmc_gpio   power_n;  //PMU_EN  
     struct rksdmmc_gpio   reset_n;  //SYSRET_B, DAIRST 
     struct rksdmmc_gpio   vddio;
@@ -38,8 +40,9 @@ struct rksdmmc_gpio_wifi_moudle {
     struct rksdmmc_gpio   GPS_LAN;  //pin33--GPS_LAN
 };
 
-int rfkill_get_wifi_power_state(int *power);
+int rfkill_get_wifi_power_state(int *power, int *vref_ctrl_enable);
 void *rockchip_mem_prealloc(int section, unsigned long size);
+int rockchip_wifi_ref_voltage(int on);
 int rockchip_wifi_power(int on);
 int rockchip_wifi_set_carddetect(int val);
 int rockchip_wifi_get_oob_irq(void);

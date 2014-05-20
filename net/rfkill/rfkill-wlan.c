@@ -185,7 +185,7 @@ EXPORT_SYMBOL(rockchip_mem_prealloc);
  *
  *************************************************************************/
 static int wifi_power_state = 0;
-int rfkill_get_wifi_power_state(int *power)
+int rfkill_get_wifi_power_state(int *power, int *vref_ctrl_enable)
 {
     struct rfkill_wlan_data *mrfkill = g_rfkill;
 
@@ -194,9 +194,97 @@ int rfkill_get_wifi_power_state(int *power)
         return -1;
     }
 
+    if (mrfkill->pdata->vref_ctrl_enble)
+        *vref_ctrl_enable = 1;
     *power = wifi_power_state;
 
     return 0;
+}
+
+/**************************************************************************
+ *
+ * wifi reference voltage control Func
+ *
+ *************************************************************************/
+int rockchip_wifi_ref_voltage(int on)
+{
+    struct rfkill_wlan_data *mrfkill = g_rfkill;
+    struct rksdmmc_gpio *vddio;
+    struct regulator *ldo = NULL;
+    int power = 0;
+    bool toggle = false;
+
+    LOG("%s: %d\n", __func__, on);
+
+    if (mrfkill == NULL) {
+        LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
+        return -1;
+    }
+
+    if (!mrfkill->pdata->vref_ctrl_enble) {
+        LOG("%s: wifi io reference voltage control is disabled.\n", __func__);
+        return 0;
+    }
+
+    if (!rfkill_get_bt_power_state(&power, &toggle)) {
+        if (power == 1) {
+            LOG("%s: wifi shouldn't control io reference voltage, BT is running!\n", __func__);
+            return 0;
+        }
+    }
+
+    if (mrfkill->pdata->ioregulator.power_ctrl_by_pmu) {
+        int ret = -1;
+        char *ldostr;
+        int level = mrfkill->pdata->ioregulator.enable;
+        int voltage = 1000 * mrfkill->pdata->sdio_vol;
+
+        ldostr = mrfkill->pdata->ioregulator.pmu_regulator;
+        if (ldostr == NULL) {
+            LOG("%s: wifi io reference voltage set to be controled by pmic, but which one?\n", __func__);
+            return -1;
+        }
+        ldo = regulator_get(NULL, ldostr);
+        if (ldo == NULL || IS_ERR(ldo)) {
+            LOG("\n\n\n%s get ldo error,please mod this\n\n\n", __func__);
+            return -1;
+        } else {
+            if (on == level) {
+                regulator_set_voltage(ldo, voltage, voltage);
+                LOG("%s: %s enabled, level = %d\n", __func__, ldostr, voltage);
+                ret = regulator_enable(ldo);
+                LOG("wifi turn on io reference voltage.\n");
+            } else {
+                LOG("%s: %s disabled\n", __func__, ldostr);
+                while (regulator_is_enabled(ldo) > 0) {
+                    ret = regulator_disable(ldo);
+                }
+                LOG("wifi shut off io reference voltage.\n");
+            }
+            regulator_put(ldo);
+            msleep(100);
+        }
+    } else {
+        vddio = &mrfkill->pdata->power_n;
+
+        if (on){
+            if (gpio_is_valid(vddio->io)) {
+                gpio_set_value(vddio->io, vddio->enable);
+                msleep(100);
+            }
+
+            LOG("wifi turn on io reference voltage.\n");
+        }else{
+            if (gpio_is_valid(vddio->io)) {
+                gpio_set_value(vddio->io, !(vddio->enable));
+                msleep(100);
+            }
+
+            LOG("wifi shut off io reference voltage.\n");
+        }
+    }
+
+	return 0;
 }
 
 /**************************************************************************
@@ -221,16 +309,19 @@ int rockchip_wifi_power(int on)
         return -1;
     }
 
-    if(!rfkill_get_bt_power_state(&power, &toggle)) {
+    if (!rfkill_get_bt_power_state(&power, &toggle)) {
         if (toggle == true && power == 1) {
             LOG("%s: wifi shouldn't control the power, it was enabled by BT!\n", __func__);
             return 0;
         }
     }
+    
+    if (on)
+        rockchip_wifi_ref_voltage(1);
 
     if (mrfkill->pdata->mregulator.power_ctrl_by_pmu) {
-        char *ldostr;
         int ret = -1;
+        char *ldostr;
         int level = mrfkill->pdata->mregulator.enable;
 
         ldostr = mrfkill->pdata->mregulator.pmu_regulator;
@@ -239,28 +330,23 @@ int rockchip_wifi_power(int on)
             return -1;
         }
         ldo = regulator_get(NULL, ldostr);
-        if (ldo == NULL) {
+        if (ldo == NULL || IS_ERR(ldo)) {
             LOG("\n\n\n%s get ldo error,please mod this\n\n\n", __func__);
+            return -1;
         } else {
 			if (on == level) {
 				regulator_set_voltage(ldo, 3000000, 3000000);
 			    LOG("%s: %s enabled\n", __func__, ldostr);
 				ret = regulator_enable(ldo);
-				if(ret != 0){
-				    LOG("%s: faild to enable %s\n", __func__, ldostr);
-				} else {
-                    wifi_power_state = 1;
-			        LOG("wifi turn on power.\n");
-                }
+                wifi_power_state = 1;
+			    LOG("wifi turn on power.\n");
             } else {
 				LOG("%s: %s disabled\n", __func__, ldostr);
-				ret = regulator_disable(ldo);
-				if(ret != 0){
-					LOG("%s: faild to disable %s\n", __func__, ldostr);
-				} else {
-                    wifi_power_state = 0;
-			        LOG("wifi shut off power.\n");
+                while (regulator_is_enabled(ldo) > 0) {
+				    ret = regulator_disable(ldo);
                 }
+                wifi_power_state = 0;
+			    LOG("wifi shut off power.\n");
 			}
 			regulator_put(ldo);
 			msleep(100);
@@ -296,6 +382,9 @@ int rockchip_wifi_power(int on)
 			LOG("wifi shut off power.\n");
 		}
     }
+
+    if (!on)
+        rockchip_wifi_ref_voltage(0);
 
     return 0;
 }
@@ -493,19 +582,60 @@ static int wlan_platdata_parse_dt(struct device *dev,
     }
     data->sdio_vol = value;
 
+    if (of_find_property(node, "vref_ctrl_enable", NULL)) {
+        LOG("%s: enable wifi io reference voltage control.\n", __func__);
+        data->vref_ctrl_enble = true;
+        if (of_find_property(node, "vref_ctrl_gpio", NULL)) {
+            gpio = of_get_named_gpio_flags(node, "vref_ctrl_gpio", 0, &flags);
+            if (gpio_is_valid(gpio)){
+                data->vddio.io = gpio;
+                data->vddio.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
+                data->ioregulator.power_ctrl_by_pmu = false;
+                LOG("%s: get property: vref_ctrl_gpio = %d, flags = %d.\n", __func__, gpio, flags);
+            } else {
+                data->vddio.io = -1;
+                data->vref_ctrl_enble = false;
+                LOG("%s: vref_ctrl_gpio defined invalid, disable wifi io reference voltage control.\n", __func__);
+            }
+        } else {
+            data->ioregulator.power_ctrl_by_pmu = true;
+            ret = of_property_read_string(node, "vref_pmu_regulator", &strings);
+            if (ret) {
+                LOG("%s: Can not read property: vref_pmu_regulator.\n", __func__);
+                data->vref_ctrl_enble = false;
+                data->ioregulator.power_ctrl_by_pmu = false;
+            } else {
+                LOG("%s: wifi io reference voltage controled by pmu(%s).\n", __func__, strings);
+                sprintf(data->ioregulator.pmu_regulator, "%s", strings);
+            }
+            ret = of_property_read_u32(node, "vref_pmu_enable_level", &value);
+            if (ret) {
+                LOG("%s: Can not read property: vref_pmu_enable_level.\n", __func__);
+                data->vref_ctrl_enble = false;
+                data->ioregulator.power_ctrl_by_pmu = false;
+            } else {
+                LOG("%s: wifi io reference voltage controled by pmu(level = %s).\n", __func__, (value == 1)?"HIGH":"LOW");
+                data->ioregulator.enable = value;
+            }
+        }
+    } else {
+        data->vref_ctrl_enble = false;
+        LOG("%s: disable wifi io reference voltage control.\n", __func__);
+    }
+
     if (of_find_property(node, "power_ctrl_by_pmu", NULL)) {
         data->mregulator.power_ctrl_by_pmu = true;
-        ret = of_property_read_string(node, "pmu_regulator", &strings);
+        ret = of_property_read_string(node, "power_pmu_regulator", &strings);
         if (ret) {
-            LOG("%s: Can not read property: pmu_regulator.\n", __func__);
+            LOG("%s: Can not read property: power_pmu_regulator.\n", __func__);
             data->mregulator.power_ctrl_by_pmu = false;
         } else {
             LOG("%s: wifi power controled by pmu(%s).\n", __func__, strings);
             sprintf(data->mregulator.pmu_regulator, "%s", strings);
         }
-        ret = of_property_read_u32(node, "pmu_enable_level", &value);
+        ret = of_property_read_u32(node, "power_pmu_enable_level", &value);
         if (ret) {
-            LOG("%s: Can not read property: pmu_enable_level.\n", __func__);
+            LOG("%s: Can not read property: power_pmu_enable_level.\n", __func__);
             data->mregulator.power_ctrl_by_pmu = false;
         } else {
             LOG("%s: wifi power controled by pmu(level = %s).\n", __func__, (value == 1)?"HIGH":"LOW");

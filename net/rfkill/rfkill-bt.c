@@ -271,21 +271,28 @@ static int rfkill_rk_set_power(void *data, bool blocked)
     struct rfkill_rk_gpio* rts = &rfkill->pdata->rts_gpio;
     struct pinctrl *pinctrl = rfkill->pdata->pinctrl;
 #endif
-    int power = 0; bool toggle = false;
+    int power = 0, vref_ctrl_enable = 0;
+    bool toggle = false;
 
     DBG("Enter %s\n", __func__);
 
     DBG("Set blocked:%d\n", blocked);
 
     toggle = rfkill->pdata->power_toggle;
-    if (toggle) {
-        if(!rfkill_get_wifi_power_state(&power) && power == 1) {
+    if (!rfkill_get_wifi_power_state(&power, &vref_ctrl_enable)) {
+        if (true == toggle && 1 == power) {
             LOG("%s: bt shouldn't control the power, it was enabled by wifi!\n", __func__);
             return 0;
         }
+    } else {
+        LOG("%s: cannot get wifi power state!\n", __func__);
+        return -1;
     }
 
 	if (false == blocked) { 
+        if (1 == vref_ctrl_enable && 0 == power)
+            rockchip_wifi_ref_voltage(1);
+
         rfkill_rk_sleep_bt(BT_WAKEUP); // ensure bt is wakeup
 
 		if (gpio_is_valid(poweron->io))
@@ -329,6 +336,9 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 			gpio_direction_output(reset->io, !reset->enable);/* bt reset active*/
             msleep(20);
         }
+
+        if (1 == vref_ctrl_enable && 0 == power)
+            rockchip_wifi_ref_voltage(0);
 	}
 
 	return 0;
