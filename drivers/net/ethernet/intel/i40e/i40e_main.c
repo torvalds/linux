@@ -5132,10 +5132,46 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	u16 pending, i = 0;
 	i40e_status ret;
 	u16 opcode;
+	u32 oldval;
 	u32 val;
 
 	if (!test_bit(__I40E_ADMINQ_EVENT_PENDING, &pf->state))
 		return;
+
+	/* check for error indications */
+	val = rd32(&pf->hw, pf->hw.aq.arq.len);
+	oldval = val;
+	if (val & I40E_PF_ARQLEN_ARQVFE_MASK) {
+		dev_info(&pf->pdev->dev, "ARQ VF Error detected\n");
+		val &= ~I40E_PF_ARQLEN_ARQVFE_MASK;
+	}
+	if (val & I40E_PF_ARQLEN_ARQOVFL_MASK) {
+		dev_info(&pf->pdev->dev, "ARQ Overflow Error detected\n");
+		val &= ~I40E_PF_ARQLEN_ARQOVFL_MASK;
+	}
+	if (val & I40E_PF_ARQLEN_ARQCRIT_MASK) {
+		dev_info(&pf->pdev->dev, "ARQ Critical Error detected\n");
+		val &= ~I40E_PF_ARQLEN_ARQCRIT_MASK;
+	}
+	if (oldval != val)
+		wr32(&pf->hw, pf->hw.aq.arq.len, val);
+
+	val = rd32(&pf->hw, pf->hw.aq.asq.len);
+	oldval = val;
+	if (val & I40E_PF_ATQLEN_ATQVFE_MASK) {
+		dev_info(&pf->pdev->dev, "ASQ VF Error detected\n");
+		val &= ~I40E_PF_ATQLEN_ATQVFE_MASK;
+	}
+	if (val & I40E_PF_ATQLEN_ATQOVFL_MASK) {
+		dev_info(&pf->pdev->dev, "ASQ Overflow Error detected\n");
+		val &= ~I40E_PF_ATQLEN_ATQOVFL_MASK;
+	}
+	if (val & I40E_PF_ATQLEN_ATQCRIT_MASK) {
+		dev_info(&pf->pdev->dev, "ASQ Critical Error detected\n");
+		val &= ~I40E_PF_ATQLEN_ATQCRIT_MASK;
+	}
+	if (oldval != val)
+		wr32(&pf->hw, pf->hw.aq.asq.len, val);
 
 	event.msg_size = I40E_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(event.msg_size, GFP_KERNEL);
