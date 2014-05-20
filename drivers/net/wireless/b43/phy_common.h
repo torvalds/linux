@@ -231,7 +231,7 @@ struct b43_phy {
 	/* HT info */
 	bool is_40mhz;
 
-	/* GMODE bit enabled? */
+	/* Is GMODE (2 GHz mode) bit enabled? */
 	bool gmode;
 
 	/* Analog Type */
