@@ -496,7 +496,7 @@ static const struct of_device_id hda_tegra_match[] = {
 	{ .compatible = "nvidia,tegra30-hda" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, tegra_platform_hda_match);
+MODULE_DEVICE_TABLE(of, hda_tegra_match);
 
 static int hda_tegra_probe(struct platform_device *pdev)
 {
