@@ -685,8 +685,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_pairing rsp, *req = (void *) skb->data;
 	struct smp_chan *smp;
-	u8 key_size;
-	u8 auth = SMP_AUTH_NONE;
+	u8 key_size, auth;
 	int ret;
 
 	BT_DBG("conn %p", conn);
@@ -710,8 +709,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	skb_pull(skb, sizeof(*req));
 
 	/* We didn't start the pairing, so match remote */
-	if (req->auth_req & SMP_AUTH_BONDING)
-		auth = req->auth_req;
+	auth = req->auth_req;
 
 	conn->hcon->pending_sec_level = authreq_to_seclevel(auth);
 
