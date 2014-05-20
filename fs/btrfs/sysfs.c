@@ -374,11 +374,8 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	struct btrfs_root *root = fs_info->fs_root;
 	int ret;
 
-	if (len >= BTRFS_LABEL_SIZE) {
-		pr_err("BTRFS: unable to set label with more than %d bytes\n",
-		       BTRFS_LABEL_SIZE - 1);
+	if (len >= BTRFS_LABEL_SIZE)
 		return -EINVAL;
-	}
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans))
