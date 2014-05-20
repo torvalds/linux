@@ -3602,6 +3602,8 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
 			      crtc->base.base.id, pll->name);
 
+		WARN_ON(pll->refcount);
+
 		goto found;
 	}
 
@@ -3635,14 +3637,14 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 	return NULL;
 
 found:
+	if (pll->refcount == 0)
+		pll->hw_state = crtc->config.dpll_hw_state;
+
 	crtc->config.shared_dpll = i;
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
 			 pipe_name(crtc->pipe));
 
 	if (pll->active == 0) {
-		memcpy(&pll->hw_state, &crtc->config.dpll_hw_state,
-		       sizeof(pll->hw_state));
-
 		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
