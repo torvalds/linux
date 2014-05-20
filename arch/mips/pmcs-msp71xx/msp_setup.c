@@ -27,7 +27,6 @@
 #endif
 
 extern void msp_serial_setup(void);
-extern void pmctwiled_setup(void);
 
 #if defined(CONFIG_PMC_MSP7120_EVAL) || \
     defined(CONFIG_PMC_MSP7120_GW) || \
@@ -235,12 +234,4 @@ void __init prom_init(void)
 		register_smp_ops(&msp_smtc_smp_ops);
 #endif
 	}
-
-#ifdef CONFIG_PMCTWILED
-	/*
-	 * Setup LED states before the subsys_initcall loads other
-	 * dependent drivers/modules.
-	 */
-	pmctwiled_setup();
-#endif
 }
