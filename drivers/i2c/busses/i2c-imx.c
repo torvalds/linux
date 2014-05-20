@@ -183,6 +183,8 @@ struct imx_i2c_struct {
 	unsigned int 		disable_delay;
 	int			stopped;
 	unsigned int		ifdr; /* IMX_I2C_IFDR */
+	unsigned int		cur_clk;
+	unsigned int		bitrate;
 	const struct imx_i2c_hwdata	*hwdata;
 };
 
@@ -305,12 +307,56 @@ static int i2c_imx_acked(struct imx_i2c_struct *i2c_imx)
 	return 0;
 }
 
+static void i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx)
+{
+	struct imx_i2c_clk_pair *i2c_clk_div = i2c_imx->hwdata->clk_div;
+	unsigned int i2c_clk_rate;
+	unsigned int div;
+	int i;
+
+	/* Divider value calculation */
+	i2c_clk_rate = clk_get_rate(i2c_imx->clk);
+	if (i2c_imx->cur_clk == i2c_clk_rate)
+		return;
+	else
+		i2c_imx->cur_clk = i2c_clk_rate;
+
+	div = (i2c_clk_rate + i2c_imx->bitrate - 1) / i2c_imx->bitrate;
+	if (div < i2c_clk_div[0].div)
+		i = 0;
+	else if (div > i2c_clk_div[i2c_imx->hwdata->ndivs - 1].div)
+		i = i2c_imx->hwdata->ndivs - 1;
+	else
+		for (i = 0; i2c_clk_div[i].div < div; i++);
+
+	/* Store divider value */
+	i2c_imx->ifdr = i2c_clk_div[i].val;
+
+	/*
+	 * There dummy delay is calculated.
+	 * It should be about one I2C clock period long.
+	 * This delay is used in I2C bus disable function
+	 * to fix chip hardware bug.
+	 */
+	i2c_imx->disable_delay = (500000U * i2c_clk_div[i].div
+		+ (i2c_clk_rate / 2) - 1) / (i2c_clk_rate / 2);
+
+#ifdef CONFIG_I2C_DEBUG_BUS
+	dev_dbg(&i2c_imx->adapter.dev, "I2C_CLK=%d, REQ DIV=%d\n",
+		i2c_clk_rate, div);
+	dev_dbg(&i2c_imx->adapter.dev, "IFDR[IC]=0x%x, REAL DIV=%d\n",
+		i2c_clk_div[i].val, i2c_clk_div[i].div);
+#endif
+}
+
 static int i2c_imx_start(struct imx_i2c_struct *i2c_imx)
 {
 	unsigned int temp = 0;
 	int result;
 
 	dev_dbg(&i2c_imx->adapter.dev, "<%s>\n", __func__);
+
+	i2c_imx_set_clk(i2c_imx);
 
 	result = clk_prepare_enable(i2c_imx->clk);
 	if (result)
@@ -365,45 +411,6 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 	temp = i2c_imx->hwdata->i2cr_ien_opcode ^ I2CR_IEN,
 	imx_i2c_write_reg(temp, i2c_imx, IMX_I2C_I2CR);
 	clk_disable_unprepare(i2c_imx->clk);
-}
-
-static void i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx,
-							unsigned int rate)
-{
-	struct imx_i2c_clk_pair *i2c_clk_div = i2c_imx->hwdata->clk_div;
-	unsigned int i2c_clk_rate;
-	unsigned int div;
-	int i;
-
-	/* Divider value calculation */
-	i2c_clk_rate = clk_get_rate(i2c_imx->clk);
-	div = (i2c_clk_rate + rate - 1) / rate;
-	if (div < i2c_clk_div[0].div)
-		i = 0;
-	else if (div > i2c_clk_div[i2c_imx->hwdata->ndivs - 1].div)
-		i = i2c_imx->hwdata->ndivs - 1;
-	else
-		for (i = 0; i2c_clk_div[i].div < div; i++);
-
-	/* Store divider value */
-	i2c_imx->ifdr = i2c_clk_div[i].val;
-
-	/*
-	 * There dummy delay is calculated.
-	 * It should be about one I2C clock period long.
-	 * This delay is used in I2C bus disable function
-	 * to fix chip hardware bug.
-	 */
-	i2c_imx->disable_delay = (500000U * i2c_clk_div[i].div
-		+ (i2c_clk_rate / 2) - 1) / (i2c_clk_rate / 2);
-
-	/* dev_dbg() can't be used, because adapter is not yet registered */
-#ifdef CONFIG_I2C_DEBUG_BUS
-	dev_dbg(&i2c_imx->adapter.dev, "<%s> I2C_CLK=%d, REQ DIV=%d\n",
-		__func__, i2c_clk_rate, div);
-	dev_dbg(&i2c_imx->adapter.dev, "<%s> IFDR[IC]=0x%x, REAL DIV=%d\n",
-		__func__, i2c_clk_div[i].val, i2c_clk_div[i].div);
-#endif
 }
 
 static irqreturn_t i2c_imx_isr(int irq, void *dev_id)
@@ -644,7 +651,6 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	struct imxi2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	void __iomem *base;
 	int irq, ret;
-	u32 bitrate;
 
 	dev_dbg(&pdev->dev, "<%s>\n", __func__);
 
@@ -708,12 +714,11 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&i2c_imx->adapter, i2c_imx);
 
 	/* Set up clock divider */
-	bitrate = IMX_I2C_BIT_RATE;
+	i2c_imx->bitrate = IMX_I2C_BIT_RATE;
 	ret = of_property_read_u32(pdev->dev.of_node,
-				   "clock-frequency", &bitrate);
+				   "clock-frequency", &i2c_imx->bitrate);
 	if (ret < 0 && pdata && pdata->bitrate)
-		bitrate = pdata->bitrate;
-	i2c_imx_set_clk(i2c_imx, bitrate);
+		i2c_imx->bitrate = pdata->bitrate;
 
 	/* Set up chip registers to defaults */
 	imx_i2c_write_reg(i2c_imx->hwdata->i2cr_ien_opcode ^ I2CR_IEN,
