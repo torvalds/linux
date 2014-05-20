@@ -6,6 +6,7 @@ config ARCH_MVEBU
 	select IRQ_DOMAIN
 	select PINCTRL
 	select PLAT_ORION
+	select SOC_BUS
 	select MVEBU_MBUS
 	select ZONE_DMA if ARM_LPAE
 	select ARCH_REQUIRE_GPIOLIB
@@ -39,6 +40,9 @@ config MACH_ARMADA_375
 	select ARM_GIC
 	select ARMADA_375_CLK
 	select CPU_V7
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if SMP
+	select HAVE_SMP
 	select MACH_MVEBU_V7
 	select PINCTRL_ARMADA_375
 	help
@@ -52,6 +56,9 @@ config MACH_ARMADA_38X
 	select ARM_GIC
 	select ARMADA_38X_CLK
 	select CPU_V7
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if SMP
+	select HAVE_SMP
 	select MACH_MVEBU_V7
 	select PINCTRL_ARMADA_38X
 	help
@@ -96,13 +103,6 @@ config MACH_KIRKWOOD
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Kirkwood device tree.
-
-config MACH_T5325
-	bool "HP T5325 thin client"
-	depends on MACH_KIRKWOOD
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  HP T5325 Thin client
 
 endmenu
 
