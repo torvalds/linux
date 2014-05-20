@@ -381,7 +381,7 @@
 	rtc@51 {
 		compatible = "rtc,hym8563";
 		reg = <0x51>;
-		irq_gpio = <&gpio0 GPIO_A4 GPIO_ACTIVE_LOW>;
+		irq_gpio = <&gpio0 GPIO_A4 IRQ_TYPE_EDGE_FALLING>;
 	};
 
 };

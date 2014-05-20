@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include "rtc-HYM8563.h"
 #include <linux/of_gpio.h>
+#include <linux/irqdomain.h>
 #define RTC_SPEED 	200 * 1000
 
 struct hym8563 {
@@ -600,9 +601,10 @@ static int  hym8563_probe(struct i2c_client *client, const struct i2c_device_id 
 		goto exit;	       
 	}
 	enable_irq_wake(hym8563->irq);
-
-	rtc = rtc_device_register(client->name, &client->dev,
-				  &hym8563_rtc_ops, THIS_MODULE);
+	device_init_wakeup(&client->dev, 1);    
+	rtc = devm_rtc_device_register(&client->dev,
+			client->name,
+                       	&hym8563_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		rc = PTR_ERR(rtc);
 		rtc = NULL;
