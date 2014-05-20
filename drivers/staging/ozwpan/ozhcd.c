@@ -2011,7 +2011,6 @@ static void oz_get_hub_descriptor(struct usb_hcd *hcd,
 static int oz_set_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 {
 	struct oz_port *port;
-	int err = 0;
 	u8 port_id = (u8)windex;
 	struct oz_hcd *ozhcd = oz_hcd_private(hcd);
 	unsigned set_bits = 0;
@@ -2078,7 +2077,7 @@ static int oz_set_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 		spin_unlock_bh(&port->port_lock);
 	}
 	oz_dbg(HUB, "Port[%d] status = 0x%x\n", port_id, port->status);
-	return err;
+	return 0;
 }
 
 /*
@@ -2087,7 +2086,6 @@ static int oz_set_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 static int oz_clear_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 {
 	struct oz_port *port;
-	int err = 0;
 	u8 port_id = (u8)windex;
 	struct oz_hcd *ozhcd = oz_hcd_private(hcd);
 	unsigned clear_bits = 0;
@@ -2154,7 +2152,7 @@ static int oz_clear_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 	}
 	oz_dbg(HUB, "Port[%d] status = 0x%x\n",
 	       port_id, ozhcd->ports[port_id-1].status);
-	return err;
+	return 0;
 }
 
 /*
