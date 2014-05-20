@@ -189,28 +189,27 @@ static struct snd_soc_dai_driver ad1980_dai = {
 
 static int ad1980_reset(struct snd_soc_codec *codec, int try_warm)
 {
-	u16 retry_cnt = 0;
+	unsigned int retry_cnt = 0;
 
-retry:
-	if (try_warm && soc_ac97_ops->warm_reset) {
-		soc_ac97_ops->warm_reset(codec->ac97);
-		if (ac97_read(codec, AC97_RESET) == 0x0090)
-			return 1;
-	}
+	do {
+		if (try_warm && soc_ac97_ops->warm_reset) {
+			soc_ac97_ops->warm_reset(codec->ac97);
+			if (ac97_read(codec, AC97_RESET) == 0x0090)
+				return 1;
+		}
 
-	soc_ac97_ops->reset(codec->ac97);
-	/* Set bit 16slot in register 74h, then every slot will has only 16
-	 * bits. This command is sent out in 20bit mode, in which case the
-	 * first nibble of data is eaten by the addr. (Tag is always 16 bit)*/
-	ac97_write(codec, AC97_AD_SERIAL_CFG, 0x9900);
+		soc_ac97_ops->reset(codec->ac97);
+		/*
+		 * Set bit 16slot in register 74h, then every slot will has only
+		 * 16 bits. This command is sent out in 20bit mode, in which
+		 * case the first nibble of data is eaten by the addr. (Tag is
+		 * always 16 bit)
+		 */
+		ac97_write(codec, AC97_AD_SERIAL_CFG, 0x9900);
 
-	if (ac97_read(codec, AC97_RESET)  != 0x0090)
-		goto err;
-	return 0;
-
-err:
-	while (retry_cnt++ < 10)
-		goto retry;
+		if (ac97_read(codec, AC97_RESET)  == 0x0090)
+			return 0;
+	} while (retry_cnt++ < 10);
 
 	printk(KERN_ERR "AD1980 AC97 reset failed\n");
 	return -EIO;
