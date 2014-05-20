@@ -961,7 +961,6 @@ static struct dma_async_tx_descriptor *s3c24xx_dma_prep_slave_sg(
 			dsg->src_addr = slave_addr;
 			dsg->dst_addr = sg_dma_address(sg);
 		}
-		break;
 	}
 
 	return vchan_tx_prep(&s3cchan->vc, &txd->vd, flags);
