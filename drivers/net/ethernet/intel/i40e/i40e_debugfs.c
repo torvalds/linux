@@ -1238,7 +1238,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	} else if (strncmp(cmd_buf, "add pvid", 8) == 0) {
 		i40e_status ret;
 		u16 vid;
-		int v;
+		unsigned int v;
 
 		cnt = sscanf(&cmd_buf[8], "%i %u", &vsi_seid, &v);
 		if (cnt != 2) {
@@ -1254,7 +1254,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
-		vid = (unsigned)v;
+		vid = v;
 		ret = i40e_vsi_add_pvid(vsi, vid);
 		if (!ret)
 			dev_info(&pf->pdev->dev,
