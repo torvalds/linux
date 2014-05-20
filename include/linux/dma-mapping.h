@@ -192,7 +192,7 @@ static inline int dma_get_cache_alignment(void)
 
 #ifndef ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
 static inline int
-dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
+dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 			    dma_addr_t device_addr, size_t size, int flags)
 {
 	return 0;
@@ -223,13 +223,14 @@ extern void *dmam_alloc_noncoherent(struct device *dev, size_t size,
 extern void dmam_free_noncoherent(struct device *dev, size_t size, void *vaddr,
 				  dma_addr_t dma_handle);
 #ifdef ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
-extern int dmam_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
+extern int dmam_declare_coherent_memory(struct device *dev,
+					phys_addr_t phys_addr,
 					dma_addr_t device_addr, size_t size,
 					int flags);
 extern void dmam_release_declared_memory(struct device *dev);
 #else /* ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY */
 static inline int dmam_declare_coherent_memory(struct device *dev,
-				dma_addr_t bus_addr, dma_addr_t device_addr,
+				phys_addr_t phys_addr, dma_addr_t device_addr,
 				size_t size, gfp_t gfp)
 {
 	return 0;
