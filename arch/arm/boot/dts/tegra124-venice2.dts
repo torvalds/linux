@@ -874,6 +874,10 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
+	hda@0,70030000 {
+		status = "okay";
+	};
+
 	sdhci@0,700b0400 {
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
