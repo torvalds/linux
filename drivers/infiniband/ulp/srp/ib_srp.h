@@ -66,7 +66,7 @@ enum {
 	SRP_TAG_NO_REQ		= ~0U,
 	SRP_TAG_TSK_MGMT	= 1U << 31,
 
-	SRP_FMR_SIZE		= 512,
+	SRP_MAX_PAGES_PER_MR	= 512,
 
 	SRP_MAP_ALLOW_FMR	= 0,
 	SRP_MAP_NO_FMR		= 1,
@@ -88,10 +88,10 @@ struct srp_device {
 	struct ib_device       *dev;
 	struct ib_pd	       *pd;
 	struct ib_mr	       *mr;
-	u64			fmr_page_mask;
-	int			fmr_page_size;
-	int			fmr_max_size;
-	int			max_pages_per_fmr;
+	u64			mr_page_mask;
+	int			mr_page_size;
+	int			mr_max_size;
+	int			max_pages_per_mr;
 	bool			has_fmr;
 };
 
@@ -114,7 +114,7 @@ struct srp_request {
 	u64		       *map_page;
 	struct srp_direct_buf  *indirect_desc;
 	dma_addr_t		indirect_dma_addr;
-	short			nfmr;
+	short			nmdesc;
 	short			index;
 };
 
@@ -201,10 +201,10 @@ struct srp_map_state {
 	struct srp_direct_buf  *desc;
 	u64		       *pages;
 	dma_addr_t		base_dma_addr;
-	u32			fmr_len;
+	u32			dma_len;
 	u32			total_len;
 	unsigned int		npages;
-	unsigned int		nfmr;
+	unsigned int		nmdesc;
 	unsigned int		ndesc;
 	struct scatterlist     *unmapped_sg;
 	int			unmapped_index;
