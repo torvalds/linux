@@ -290,6 +290,7 @@ static int srp_new_cm_id(struct srp_target_port *target)
 
 static int srp_create_target_ib(struct srp_target_port *target)
 {
+	struct srp_device *dev = target->srp_host->srp_dev;
 	struct ib_qp_init_attr *init_attr;
 	struct ib_cq *recv_cq, *send_cq;
 	struct ib_qp *qp;
@@ -299,16 +300,14 @@ static int srp_create_target_ib(struct srp_target_port *target)
 	if (!init_attr)
 		return -ENOMEM;
 
-	recv_cq = ib_create_cq(target->srp_host->srp_dev->dev,
-			       srp_recv_completion, NULL, target,
+	recv_cq = ib_create_cq(dev->dev, srp_recv_completion, NULL, target,
 			       target->queue_size, target->comp_vector);
 	if (IS_ERR(recv_cq)) {
 		ret = PTR_ERR(recv_cq);
 		goto err;
 	}
 
-	send_cq = ib_create_cq(target->srp_host->srp_dev->dev,
-			       srp_send_completion, NULL, target,
+	send_cq = ib_create_cq(dev->dev, srp_send_completion, NULL, target,
 			       target->queue_size, target->comp_vector);
 	if (IS_ERR(send_cq)) {
 		ret = PTR_ERR(send_cq);
@@ -327,7 +326,7 @@ static int srp_create_target_ib(struct srp_target_port *target)
 	init_attr->send_cq             = send_cq;
 	init_attr->recv_cq             = recv_cq;
 
-	qp = ib_create_qp(target->srp_host->srp_dev->pd, init_attr);
+	qp = ib_create_qp(dev->pd, init_attr);
 	if (IS_ERR(qp)) {
 		ret = PTR_ERR(qp);
 		goto err_send_cq;
