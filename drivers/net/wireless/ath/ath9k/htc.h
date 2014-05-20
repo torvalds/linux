@@ -378,7 +378,7 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 #define TX_QSTAT_INC(c) do { } while (0)
 
 static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
-					 struct ath_rx_status *rs);
+					 struct ath_rx_status *rs)
 {
 }
 
