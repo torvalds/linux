@@ -31,6 +31,7 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+#include <linux/oom.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -61,6 +62,9 @@ static unsigned long i915_gem_shrinker_count(struct shrinker *shrinker,
 					     struct shrink_control *sc);
 static unsigned long i915_gem_shrinker_scan(struct shrinker *shrinker,
 					    struct shrink_control *sc);
+static int i915_gem_shrinker_oom(struct notifier_block *nb,
+				 unsigned long event,
+				 void *ptr);
 static unsigned long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
 static unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 
@@ -4759,6 +4763,9 @@ i915_gem_load(struct drm_device *dev)
 	dev_priv->mm.shrinker.count_objects = i915_gem_shrinker_count;
 	dev_priv->mm.shrinker.seeks = DEFAULT_SEEKS;
 	register_shrinker(&dev_priv->mm.shrinker);
+
+	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
+	register_oom_notifier(&dev_priv->mm.oom_notifier);
 }
 
 /*
@@ -5154,13 +5161,74 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 		freed += __i915_gem_shrink(dev_priv,
 					   sc->nr_to_scan - freed,
 					   false);
-	if (freed < sc->nr_to_scan)
-		freed += i915_gem_shrink_all(dev_priv);
-
 	if (unlock)
 		mutex_unlock(&dev->struct_mutex);
 
 	return freed;
+}
+
+static int
+i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(nb, struct drm_i915_private, mm.oom_notifier);
+	struct drm_device *dev = dev_priv->dev;
+	struct drm_i915_gem_object *obj;
+	unsigned long timeout = msecs_to_jiffies(5000) + 1;
+	unsigned long pinned, bound, unbound, freed;
+	bool was_interruptible;
+	bool unlock;
+
+	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout)
+		schedule_timeout_killable(1);
+	if (timeout == 0) {
+		pr_err("Unable to purge GPU memory due lock contention.\n");
+		return NOTIFY_DONE;
+	}
+
+	was_interruptible = dev_priv->mm.interruptible;
+	dev_priv->mm.interruptible = false;
+
+	freed = i915_gem_shrink_all(dev_priv);
+
+	dev_priv->mm.interruptible = was_interruptible;
+
+	/* Because we may be allocating inside our own driver, we cannot
+	 * assert that there are no objects with pinned pages that are not
+	 * being pointed to by hardware.
+	 */
+	unbound = bound = pinned = 0;
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
+		if (!obj->base.filp) /* not backed by a freeable object */
+			continue;
+
+		if (obj->pages_pin_count)
+			pinned += obj->base.size;
+		else
+			unbound += obj->base.size;
+	}
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		if (!obj->base.filp)
+			continue;
+
+		if (obj->pages_pin_count)
+			pinned += obj->base.size;
+		else
+			bound += obj->base.size;
+	}
+
+	if (unlock)
+		mutex_unlock(&dev->struct_mutex);
+
+	pr_info("Purging GPU memory, %lu bytes freed, %lu bytes still pinned.\n",
+		freed, pinned);
+	if (unbound || bound)
+		pr_err("%lu and %lu bytes still available in the "
+		       "bound and unbound GPU page lists.\n",
+		       bound, unbound);
+
+	*(unsigned long *)ptr += freed;
+	return NOTIFY_DONE;
 }
 
 struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj)

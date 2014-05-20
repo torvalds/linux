@@ -1057,6 +1057,7 @@ struct i915_gem_mm {
 	/** PPGTT used for aliasing the PPGTT with the GTT */
 	struct i915_hw_ppgtt *aliasing_ppgtt;
 
+	struct notifier_block oom_notifier;
 	struct shrinker shrinker;
 	bool shrinker_no_lock_stealing;
 
