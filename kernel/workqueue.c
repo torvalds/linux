@@ -1725,8 +1725,6 @@ static struct worker *create_worker(struct worker_pool *pool)
 	int id = -1;
 	char id_buf[16];
 
-	lockdep_assert_held(&pool->manager_mutex);
-
 	/* ID is needed to determine kthread name */
 	id = ida_simple_get(&pool->worker_ida, 0, 0, GFP_KERNEL);
 	if (id < 0)
@@ -1755,6 +1753,8 @@ static struct worker *create_worker(struct worker_pool *pool)
 	/* prevent userland from meddling with cpumask of workqueue workers */
 	worker->task->flags |= PF_NO_SETAFFINITY;
 
+	mutex_lock(&pool->manager_mutex);
+
 	/*
 	 * set_cpus_allowed_ptr() will fail if the cpumask doesn't have any
 	 * online CPUs.  It'll be re-applied when any of the CPUs come up.
@@ -1762,7 +1762,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 	set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
 
 	/*
-	 * The caller is responsible for ensuring %POOL_DISASSOCIATED
+	 * The pool->manager_mutex ensures %POOL_DISASSOCIATED
 	 * remains stable across this function.  See the comments above the
 	 * flag definition for details.
 	 */
@@ -1771,6 +1771,8 @@ static struct worker *create_worker(struct worker_pool *pool)
 
 	/* successful, attach the worker to the pool */
 	list_add_tail(&worker->node, &pool->workers);
+
+	mutex_unlock(&pool->manager_mutex);
 
 	return worker;
 
@@ -1809,16 +1811,12 @@ static int create_and_start_worker(struct worker_pool *pool)
 {
 	struct worker *worker;
 
-	mutex_lock(&pool->manager_mutex);
-
 	worker = create_worker(pool);
 	if (worker) {
 		spin_lock_irq(&pool->lock);
 		start_worker(worker);
 		spin_unlock_irq(&pool->lock);
 	}
-
-	mutex_unlock(&pool->manager_mutex);
 
 	return worker ? 0 : -ENOMEM;
 }
@@ -2019,8 +2017,6 @@ static bool manage_workers(struct worker *worker)
 	bool ret = false;
 
 	/*
-	 * Managership is governed by two mutexes - manager_arb and
-	 * manager_mutex.  manager_arb handles arbitration of manager role.
 	 * Anyone who successfully grabs manager_arb wins the arbitration
 	 * and becomes the manager.  mutex_trylock() on pool->manager_arb
 	 * failure while holding pool->lock reliably indicates that someone
@@ -2029,33 +2025,12 @@ static bool manage_workers(struct worker *worker)
 	 * grabbing manager_arb is responsible for actually performing
 	 * manager duties.  If manager_arb is grabbed and released without
 	 * actual management, the pool may stall indefinitely.
-	 *
-	 * manager_mutex is used for exclusion of actual management
-	 * operations.  The holder of manager_mutex can be sure that none
-	 * of management operations, including creation and destruction of
-	 * workers, won't take place until the mutex is released.  Because
-	 * manager_mutex doesn't interfere with manager role arbitration,
-	 * it is guaranteed that the pool's management, while may be
-	 * delayed, won't be disturbed by someone else grabbing
-	 * manager_mutex.
 	 */
 	if (!mutex_trylock(&pool->manager_arb))
 		return ret;
 
-	/*
-	 * With manager arbitration won, manager_mutex would be free in
-	 * most cases.  trylock first without dropping @pool->lock.
-	 */
-	if (unlikely(!mutex_trylock(&pool->manager_mutex))) {
-		spin_unlock_irq(&pool->lock);
-		mutex_lock(&pool->manager_mutex);
-		spin_lock_irq(&pool->lock);
-		ret = true;
-	}
-
 	ret |= maybe_create_worker(pool);
 
-	mutex_unlock(&pool->manager_mutex);
 	mutex_unlock(&pool->manager_arb);
 	return ret;
 }
