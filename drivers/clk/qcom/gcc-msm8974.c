@@ -1341,7 +1341,7 @@ static struct clk_branch gcc_blsp1_uart6_apps_clk = {
 };
 
 static struct clk_branch gcc_blsp2_ahb_clk = {
-	.halt_reg = 0x05c4,
+	.halt_reg = 0x0944,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x1484,
