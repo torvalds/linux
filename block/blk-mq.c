@@ -1087,7 +1087,8 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		return;
 	}
 
-	if (use_plug && blk_attempt_plug_merge(q, bio, &request_count))
+	if (use_plug && !blk_queue_nomerges(q) &&
+	    blk_attempt_plug_merge(q, bio, &request_count))
 		return;
 
 	if (blk_mq_queue_enter(q)) {

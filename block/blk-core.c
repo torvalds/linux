@@ -1471,6 +1471,8 @@ bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
  * added on the elevator at this point.  In addition, we don't have
  * reliable access to the elevator outside queue lock.  Only check basic
  * merging parameters without querying the elevator.
+ *
+ * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 			    unsigned int *request_count)
@@ -1479,9 +1481,6 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	struct request *rq;
 	bool ret = false;
 	struct list_head *plug_list;
-
-	if (blk_queue_nomerges(q))
-		goto out;
 
 	plug = current->plug;
 	if (!plug)
@@ -1561,7 +1560,8 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (blk_attempt_plug_merge(q, bio, &request_count))
+	if (!blk_queue_nomerges(q) &&
+	    blk_attempt_plug_merge(q, bio, &request_count))
 		return;
 
 	spin_lock_irq(q->queue_lock);
