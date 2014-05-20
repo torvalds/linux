@@ -1144,105 +1144,26 @@ static void slic_config_get(struct adapter *adapter, u32 config,
 }
 
 /*
- *  this is here to checksum the eeprom, there is some ucode bug
- *  which prevens us from using the ucode result.
- *  remove this once ucode is fixed.
+ * Compute a checksum of the EEPROM according to RFC 1071.
  */
-static ushort slic_eeprom_cksum(char *m, int len)
+static u16 slic_eeprom_cksum(void *eeprom, unsigned len)
 {
-#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);\
-		}
+	u16 *wp = eeprom;
+	u32 checksum = 0;
 
-	u16 *w;
-	u32 sum = 0;
-	u32 byte_swapped = 0;
-	u32 w_int;
-
-	union {
-		char c[2];
-		ushort s;
-	} s_util;
-
-	union {
-		ushort s[2];
-		int l;
-	} l_util;
-
-	l_util.l = 0;
-	s_util.s = 0;
-
-	w = (u16 *)m;
-#if BITS_PER_LONG == 64
-	w_int = (u32) ((ulong) w & 0x00000000FFFFFFFF);
-#else
-	w_int = (u32) (w);
-#endif
-	if ((1 & w_int) && (len > 0)) {
-		REDUCE;
-		sum <<= 8;
-		s_util.c[0] = *(unsigned char *)w;
-		w = (u16 *)((char *)w + 1);
-		len--;
-		byte_swapped = 1;
+	while (len > 1) {
+		checksum += *(wp++);
+		len -= 2;
 	}
 
-	/* Unroll the loop to make overhead from branches &c small. */
-	while ((len -= 32) >= 0) {
-		sum += w[0];
-		sum += w[1];
-		sum += w[2];
-		sum += w[3];
-		sum += w[4];
-		sum += w[5];
-		sum += w[6];
-		sum += w[7];
-		sum += w[8];
-		sum += w[9];
-		sum += w[10];
-		sum += w[11];
-		sum += w[12];
-		sum += w[13];
-		sum += w[14];
-		sum += w[15];
-		w = (u16 *)((ulong) w + 16);	/* verify */
-	}
-	len += 32;
-	while ((len -= 8) >= 0) {
-		sum += w[0];
-		sum += w[1];
-		sum += w[2];
-		sum += w[3];
-		w = (u16 *)((ulong) w + 4);	/* verify */
-	}
-	len += 8;
-	if (len != 0 || byte_swapped != 0) {
-		REDUCE;
-		while ((len -= 2) >= 0)
-			sum += *w++;	/* verify */
-		if (byte_swapped) {
-			REDUCE;
-			sum <<= 8;
-			byte_swapped = 0;
-			if (len == -1) {
-				s_util.c[1] = *(char *) w;
-				sum += s_util.s;
-				len = 0;
-			} else {
-				len = -1;
-			}
+	if (len > 0)
+		checksum += *(u8 *) wp;
 
-		} else if (len == -1) {
-			s_util.c[0] = *(char *) w;
-		}
 
-		if (len == -1) {
-			s_util.c[1] = 0;
-			sum += s_util.s;
-		}
-	}
-	REDUCE;
-	return (ushort) sum;
+	while (checksum >> 16)
+		checksum = (checksum & 0xFFFF) + ((checksum >> 16) & 0xFFFF);
+
+	return ~checksum;
 }
 
 static void slic_rspqueue_free(struct adapter *adapter)
@@ -2902,9 +2823,8 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			/*
 			    calculate the EEPROM checksum
 			*/
-			calc_chksum =
-			    ~slic_eeprom_cksum((char *) peeprom,
-					       (eecodesize - 2));
+			calc_chksum = slic_eeprom_cksum(peeprom,
+							eecodesize - 2);
 			/*
 			    if the ucdoe chksum flag bit worked,
 			    we wouldn't need this
