@@ -11778,6 +11778,12 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	reg = PIPECONF(crtc->config.cpu_transcoder);
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
+	/* restore vblank interrupts to correct state */
+	if (crtc->active)
+		drm_vblank_on(dev, crtc->pipe);
+	else
+		drm_vblank_off(dev, crtc->pipe);
+
 	/* We need to sanitize the plane -> pipe mapping first because this will
 	 * disable the crtc (and hence change the state) if it is wrong. Note
 	 * that gen4+ has a fixed plane -> pipe mapping.  */
