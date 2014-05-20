@@ -66,7 +66,7 @@ enum {
 	 *
 	 * Note that DISASSOCIATED should be flipped only while holding
 	 * attach_mutex to avoid changing binding state while
-	 * create_worker() is in progress.
+	 * worker_attach_to_pool() is in progress.
 	 */
 	POOL_DISASSOCIATED	= 1 << 2,	/* cpu can't serve workers */
 	POOL_FREEZING		= 1 << 3,	/* freeze in progress */
@@ -1683,13 +1683,46 @@ static struct worker *alloc_worker(void)
 }
 
 /**
+ * worker_attach_to_pool() - attach a worker to a pool
+ * @worker: worker to be attached
+ * @pool: the target pool
+ *
+ * Attach @worker to @pool.  Once attached, the %WORKER_UNBOUND flag and
+ * cpu-binding of @worker are kept coordinated with the pool across
+ * cpu-[un]hotplugs.
+ */
+static void worker_attach_to_pool(struct worker *worker,
+				   struct worker_pool *pool)
+{
+	mutex_lock(&pool->attach_mutex);
+
+	/*
+	 * set_cpus_allowed_ptr() will fail if the cpumask doesn't have any
+	 * online CPUs.  It'll be re-applied when any of the CPUs come up.
+	 */
+	set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
+
+	/*
+	 * The pool->attach_mutex ensures %POOL_DISASSOCIATED remains
+	 * stable across this function.  See the comments above the
+	 * flag definition for details.
+	 */
+	if (pool->flags & POOL_DISASSOCIATED)
+		worker->flags |= WORKER_UNBOUND;
+
+	list_add_tail(&worker->node, &pool->workers);
+
+	mutex_unlock(&pool->attach_mutex);
+}
+
+/**
  * worker_detach_from_pool() - detach a worker from its pool
  * @worker: worker which is attached to its pool
  * @pool: the pool @worker is attached to
  *
- * Undo the attaching which had been done in create_worker().  The caller
- * worker shouldn't access to the pool after detached except it has other
- * reference to the pool.
+ * Undo the attaching which had been done in worker_attach_to_pool().  The
+ * caller worker shouldn't access to the pool after detached except it has
+ * other reference to the pool.
  */
 static void worker_detach_from_pool(struct worker *worker,
 				    struct worker_pool *pool)
@@ -1753,26 +1786,8 @@ static struct worker *create_worker(struct worker_pool *pool)
 	/* prevent userland from meddling with cpumask of workqueue workers */
 	worker->task->flags |= PF_NO_SETAFFINITY;
 
-	mutex_lock(&pool->attach_mutex);
-
-	/*
-	 * set_cpus_allowed_ptr() will fail if the cpumask doesn't have any
-	 * online CPUs.  It'll be re-applied when any of the CPUs come up.
-	 */
-	set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
-
-	/*
-	 * The pool->attach_mutex ensures %POOL_DISASSOCIATED
-	 * remains stable across this function.  See the comments above the
-	 * flag definition for details.
-	 */
-	if (pool->flags & POOL_DISASSOCIATED)
-		worker->flags |= WORKER_UNBOUND;
-
 	/* successful, attach the worker to the pool */
-	list_add_tail(&worker->node, &pool->workers);
-
-	mutex_unlock(&pool->attach_mutex);
+	worker_attach_to_pool(worker, pool);
 
 	return worker;
 
