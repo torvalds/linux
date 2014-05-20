@@ -1138,6 +1138,7 @@ nvd0_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 	if (!outp)
 		return;
 
+	/* see note in nv50_disp_intr_unk20_2() */
 	if (outp->info.type == DCB_OUTPUT_DP) {
 		u32 sync = nv_rd32(priv, 0x660404 + (head * 0x300));
 		switch ((sync & 0x000003c0) >> 6) {
@@ -1149,7 +1150,8 @@ nvd0_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 			break;
 		}
 
-		nouveau_dp_train((void *)outp, pclk);
+		if (nvkm_output_dp_train(outp, pclk, true))
+			ERR("link not trained before attach\n");
 	}
 
 	exec_clkcmp(priv, head, 0, pclk, &conf);

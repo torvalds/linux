@@ -102,7 +102,7 @@ dp_set_link_config(struct dp_state *dp)
 	if (outp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
 
-	return nv_wraux(outp->base.edid, DPCD_LC00, sink, 2);
+	return nv_wraux(outp->base.edid, DPCD_LC00_LINK_BW_SET, sink, 2);
 }
 
 static void
@@ -313,14 +313,16 @@ static const struct dp_rates {
 	{}
 };
 
-int
-nouveau_dp_train(struct nvkm_output_dp *outp, u32 datarate)
+void
+nouveau_dp_train(struct work_struct *w)
 {
+	struct nvkm_output_dp *outp = container_of(w, typeof(*outp), lt.work);
 	struct nouveau_disp *disp = nouveau_disp(outp);
 	const struct dp_rates *cfg = nouveau_dp_rates;
 	struct dp_state _dp = {
 		.outp = outp,
 	}, *dp = &_dp;
+	u32 datarate = 0;
 	int ret;
 
 	/* bring capabilities within encoder limits */
@@ -341,6 +343,9 @@ nouveau_dp_train(struct nvkm_output_dp *outp, u32 datarate)
 			cfg++;
 	}
 	cfg--;
+
+	/* disable link interrupt handling during link training */
+	nouveau_event_put(outp->irq);
 
 	/* enable down-spreading and execute pre-train script from vbios */
 	dp_link_train_init(dp, outp->dpcd[3] & 0x01);
@@ -370,12 +375,16 @@ nouveau_dp_train(struct nvkm_output_dp *outp, u32 datarate)
 		}
 	}
 
-	/* finish link training */
+	/* finish link training and execute post-train script from vbios */
 	dp_set_training_pattern(dp, 0);
 	if (ret < 0)
 		ERR("link training failed\n");
 
-	/* execute post-train script from vbios */
 	dp_link_train_fini(dp);
-	return (ret < 0) ? false : true;
+
+	/* signal completion and enable link interrupt handling */
+	DBG("training complete\n");
+	atomic_set(&outp->lt.done, 1);
+	wake_up(&outp->lt.wait);
+	nouveau_event_get(outp->irq);
 }

@@ -13,8 +13,7 @@
 #define DPCD_RC0E_AUX_RD_INTERVAL                                       0x0000e
 
 /* DPCD Link Configuration */
-#define DPCD_LC00                                                       0x00100
-#define DPCD_LC00_LINK_BW_SET                                              0xff
+#define DPCD_LC00_LINK_BW_SET                                           0x00100
 #define DPCD_LC01                                                       0x00101
 #define DPCD_LC01_ENHANCED_FRAME_EN                                        0x80
 #define DPCD_LC01_LANE_COUNT_SET                                           0x1f
@@ -70,5 +69,7 @@
 #define DPCD_LS0C_LANE2_POST_CURSOR2                                       0x30
 #define DPCD_LS0C_LANE1_POST_CURSOR2                                       0x0c
 #define DPCD_LS0C_LANE0_POST_CURSOR2                                       0x03
+
+void nouveau_dp_train(struct work_struct *);
 
 #endif

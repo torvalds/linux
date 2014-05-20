@@ -18,6 +18,12 @@ struct nvkm_output_dp {
 	atomic_t pending;
 	bool present;
 	u8 dpcd[16];
+
+	struct {
+		struct work_struct work;
+		wait_queue_head_t wait;
+		atomic_t done;
+	} lt;
 };
 
 #define nvkm_output_dp_create(p,e,c,b,i,d)                                     \
@@ -54,6 +60,6 @@ struct nvkm_output_dp_impl {
 	int (*drv_ctl)(struct nvkm_output_dp *, int ln, int vs, int pe, int pc);
 };
 
-int nouveau_dp_train(struct nvkm_output_dp *, u32 rate);
+int nvkm_output_dp_train(struct nvkm_output *, u32 rate, bool wait);
 
 #endif

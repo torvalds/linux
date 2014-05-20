@@ -1457,6 +1457,24 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 	if (!outp)
 		return;
 
+	/* we allow both encoder attach and detach operations to occur
+	 * within a single supervisor (ie. modeset) sequence.  the
+	 * encoder detach scripts quite often switch off power to the
+	 * lanes, which requires the link to be re-trained.
+	 *
+	 * this is not generally an issue as the sink "must" (heh)
+	 * signal an irq when it's lost sync so the driver can
+	 * re-train.
+	 *
+	 * however, on some boards, if one does not configure at least
+	 * the gpu side of the link *before* attaching, then various
+	 * things can go horribly wrong (PDISP disappearing from mmio,
+	 * third supervisor never happens, etc).
+	 *
+	 * the solution is simply to retrain here, if necessary.  last
+	 * i checked, the binary driver userspace does not appear to
+	 * trigger this situation (it forces an UPDATE between steps).
+	 */
 	if (outp->info.type == DCB_OUTPUT_DP) {
 		u32 soff = (ffs(outp->info.or) - 1) * 0x08;
 		u32 ctrl, datarate;
@@ -1478,7 +1496,8 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 			break;
 		}
 
-		nouveau_dp_train((void *)outp, datarate / soff);
+		if (nvkm_output_dp_train(outp, datarate / soff, true))
+			ERR("link not trained before attach\n");
 	}
 
 	exec_clkcmp(priv, head, 0, pclk, &conf);

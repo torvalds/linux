@@ -28,6 +28,75 @@
 #include "conn.h"
 #include "dport.h"
 
+int
+nvkm_output_dp_train(struct nvkm_output *base, u32 datarate, bool wait)
+{
+	struct nvkm_output_dp *outp = (void *)base;
+	bool retrain = true;
+	u8 link[2], stat[3];
+	u32 rate;
+	int ret, i;
+
+	/* check that the link is trained at a high enough rate */
+	ret = nv_rdaux(outp->base.edid, DPCD_LC00_LINK_BW_SET, link, 2);
+	if (ret) {
+		DBG("failed to read link config, assuming no sink\n");
+		goto done;
+	}
+
+	rate = link[0] * 27000 * (link[1] & DPCD_LC01_LANE_COUNT_SET);
+	if (rate < ((datarate / 8) * 10)) {
+		DBG("link not trained at sufficient rate\n");
+		goto done;
+	}
+
+	/* check that link is still trained */
+	ret = nv_rdaux(outp->base.edid, DPCD_LS02, stat, 3);
+	if (ret) {
+		DBG("failed to read link status, assuming no sink\n");
+		goto done;
+	}
+
+	if (stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE) {
+		for (i = 0; i < (link[1] & DPCD_LC01_LANE_COUNT_SET); i++) {
+			u8 lane = (stat[i >> 1] >> ((i & 1) * 4)) & 0x0f;
+			if (!(lane & DPCD_LS02_LANE0_CR_DONE) ||
+			    !(lane & DPCD_LS02_LANE0_CHANNEL_EQ_DONE) ||
+			    !(lane & DPCD_LS02_LANE0_SYMBOL_LOCKED)) {
+				DBG("lane %d not equalised\n", lane);
+				goto done;
+			}
+		}
+		retrain = false;
+	} else {
+		DBG("no inter-lane alignment\n");
+	}
+
+done:
+	if (retrain || !atomic_read(&outp->lt.done)) {
+		/* no sink, but still need to configure source */
+		if (outp->dpcd[DPCD_RC00_DPCD_REV] == 0x00) {
+			outp->dpcd[DPCD_RC01_MAX_LINK_RATE] =
+				outp->base.info.dpconf.link_bw;
+			outp->dpcd[DPCD_RC02] =
+				outp->base.info.dpconf.link_nr;
+		}
+		atomic_set(&outp->lt.done, 0);
+		schedule_work(&outp->lt.work);
+	} else {
+		nouveau_event_get(outp->irq);
+	}
+
+	if (wait) {
+		if (!wait_event_timeout(outp->lt.wait,
+					atomic_read(&outp->lt.done),
+					msecs_to_jiffies(2000)))
+			ret = -ETIMEDOUT;
+	}
+
+	return ret;
+}
+
 static void
 nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool present)
 {
@@ -38,12 +107,14 @@ nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool present)
 			DBG("aux power -> always\n");
 			outp->present = true;
 		}
+		nvkm_output_dp_train(&outp->base, 0, true);
 	} else {
 		if (outp->present) {
 			nouveau_i2c(port)->release_pad(port);
 			DBG("aux power -> demand\n");
 			outp->present = false;
 		}
+		atomic_set(&outp->lt.done, 0);
 	}
 }
 
@@ -78,7 +149,7 @@ nvkm_output_dp_service_work(struct work_struct *work)
 	}
 
 	if (type & NVKM_I2C_IRQ) {
-		nouveau_event_get(outp->irq);
+		nvkm_output_dp_train(&outp->base, 0, true);
 		send |= NVKM_HPD_IRQ;
 	}
 
@@ -158,6 +229,11 @@ nvkm_output_dp_create_(struct nouveau_object *parent,
 	}
 
 	DBG("bios dp %02x %02x %02x %02x\n", outp->version, hdr, cnt, len);
+
+	/* link training */
+	INIT_WORK(&outp->lt.work, nouveau_dp_train);
+	init_waitqueue_head(&outp->lt.wait);
+	atomic_set(&outp->lt.done, 0);
 
 	/* link maintenance */
 	ret = nouveau_event_new(i2c->ntfy, NVKM_I2C_IRQ, outp->base.edid->index,
