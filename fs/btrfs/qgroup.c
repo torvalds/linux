@@ -2478,6 +2478,7 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 out:
 	kfree(scratch_leaf);
 	ulist_free(qgroups);
+	ulist_free(tmp);
 	btrfs_free_path(path);
 
 	mutex_lock(&fs_info->qgroup_rescan_lock);
