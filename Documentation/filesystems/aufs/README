@@ -228,6 +228,23 @@ And then,
   then run "make install_ulib" too. And refer to the aufs manual in
   detail.
 
+There several other patches in aufs3-standalone.git. They are all
+optional. When you meet some problems, they will help you.
+- aufs3-loopback.patch
+  Supports a nested loopback mount in a branch-fs. This patch is
+  unnecessary until aufs produces a message like "you may want to try
+  another patch for loopback file".
+- vfs-ino.patch
+  Modifies a system global kernel internal function get_next_ino() in
+  order to stop assigning 0 for an inode-number. Not directly related to
+  aufs, but recommended generally.
+- tmpfs-ibitmap.patch
+  Keeps the tmpfs inode number as the lowest value. Effective to reduce
+  the size of aufs XINO files for tmpfs branch. Also it prevents the
+  duplication of inode number, which is important for NFS-exporting,
+  backup tools, or other utilities. When you find aufs XINO files for
+  tmpfs branch growing too much, try this patch.
+
 
 4. Usage
 ----------------------------------------
