@@ -19,7 +19,7 @@ To get the dma_ API, you must #include <linux/dma-mapping.h>.  This
 provides dma_addr_t and the interfaces described below.
 
 A dma_addr_t can hold any valid DMA or bus address for the platform.  It
-can be given to a device to use as a DMA source or target.  A cpu cannot
+can be given to a device to use as a DMA source or target.  A CPU cannot
 reference a dma_addr_t directly because there may be translation between
 its physical address space and the bus address space.
 
@@ -112,7 +112,7 @@ size and alignment requirements specified at creation time.  Pass
 GFP_ATOMIC to prevent blocking, or if it's permitted (not
 in_interrupt, not holding SMP locks), pass GFP_KERNEL to allow
 blocking.  Like dma_alloc_coherent(), this returns two values:  an
-address usable by the cpu, and the DMA address usable by the pool's
+address usable by the CPU, and the DMA address usable by the pool's
 device.
 
 
@@ -120,7 +120,7 @@ device.
 			dma_addr_t addr);
 
 This puts memory back into the pool.  The pool is what was passed to
-dma_pool_alloc(); the cpu (vaddr) and DMA addresses are what
+dma_pool_alloc(); the CPU (vaddr) and DMA addresses are what
 were returned when that routine allocated the memory being freed.
 
 
@@ -355,7 +355,7 @@ void
 dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
 		       enum dma_data_direction direction)
 
-Synchronise a single contiguous or scatter/gather mapping for the cpu
+Synchronise a single contiguous or scatter/gather mapping for the CPU
 and device. With the sync_sg API, all the parameters must be the same
 as those passed into the single mapping API. With the sync_single API,
 you can use dma_handle and size parameters that aren't identical to
@@ -504,8 +504,8 @@ dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 Declare region of memory to be handed out by dma_alloc_coherent() when
 it's asked for coherent memory for this device.
 
-phys_addr is the cpu physical address to which the memory is currently
-assigned (this will be ioremapped so the cpu can access the region).
+phys_addr is the CPU physical address to which the memory is currently
+assigned (this will be ioremapped so the CPU can access the region).
 
 device_addr is the bus address the device needs to be programmed
 with to actually address this memory (this will be handed out as the

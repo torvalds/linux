@@ -575,10 +575,10 @@ Incorrect example 2:
 You should call dma_unmap_single() when the DMA activity is finished, e.g.,
 from the interrupt which told you that the DMA transfer is done.
 
-Using cpu pointers like this for single mappings has a disadvantage:
+Using CPU pointers like this for single mappings has a disadvantage:
 you cannot reference HIGHMEM memory in this way.  Thus, there is a
 map/unmap interface pair akin to dma_{map,unmap}_single().  These
-interfaces deal with page/offset pairs instead of cpu pointers.
+interfaces deal with page/offset pairs instead of CPU pointers.
 Specifically:
 
 	struct device *dev = &my_dev->dev;
@@ -650,7 +650,7 @@ you could render the machine unusable by consuming all bus addresses.
 
 If you need to use the same streaming DMA region multiple times and touch
 the data in between the DMA transfers, the buffer needs to be synced
-properly in order for the cpu and device to see the most up-to-date and
+properly in order for the CPU and device to see the most up-to-date and
 correct copy of the DMA buffer.
 
 So, firstly, just map it with dma_map_{single,sg}(), and after each DMA
@@ -665,7 +665,7 @@ or:
 as appropriate.
 
 Then, if you wish to let the device get at the DMA area again,
-finish accessing the data with the cpu, and then before actually
+finish accessing the data with the CPU, and then before actually
 giving the buffer to the hardware call either:
 
 	dma_sync_single_for_device(dev, dma_handle, size, direction);
