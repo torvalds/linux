@@ -1395,7 +1395,7 @@ restart_watchdog:
 }
 
 /**
- * i40evf_configure_rss - increment to next available tx queue
+ * next_queue - increment to next available tx queue
  * @adapter: board private structure
  * @j: queue counter
  *
