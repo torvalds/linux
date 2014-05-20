@@ -45,7 +45,7 @@ static struct i40e_vsi *i40e_dbg_find_vsi(struct i40e_pf *pf, int seid)
 	if (seid < 0)
 		dev_info(&pf->pdev->dev, "%d: bad seid\n", seid);
 	else
-		for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
+		for (i = 0; i < pf->num_alloc_vsi; i++)
 			if (pf->vsi[i] && (pf->vsi[i]->seid == seid))
 				return pf->vsi[i];
 
@@ -843,7 +843,7 @@ static void i40e_dbg_dump_vsi_no_seid(struct i40e_pf *pf)
 {
 	int i;
 
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
+	for (i = 0; i < pf->num_alloc_vsi; i++)
 		if (pf->vsi[i])
 			dev_info(&pf->pdev->dev, "dump vsi[%d]: %d\n",
 				 i, pf->vsi[i]->seid);
@@ -1526,7 +1526,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			cnt = sscanf(&cmd_buf[15], "%i", &vsi_seid);
 			if (cnt == 0) {
 				int i;
-				for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
+				for (i = 0; i < pf->num_alloc_vsi; i++)
 					i40e_vsi_reset_stats(pf->vsi[i]);
 				dev_info(&pf->pdev->dev, "vsi clear stats called for all vsi's\n");
 			} else if (cnt == 1) {

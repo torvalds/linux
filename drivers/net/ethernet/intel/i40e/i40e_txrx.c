@@ -62,7 +62,7 @@ int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
 
 	/* find existing FDIR VSI */
 	vsi = NULL;
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
+	for (i = 0; i < pf->num_alloc_vsi; i++)
 		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR)
 			vsi = pf->vsi[i];
 	if (!vsi)

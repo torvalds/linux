@@ -72,6 +72,7 @@
 #define I40E_MIN_NUM_DESCRIPTORS      64
 #define I40E_MIN_MSIX                 2
 #define I40E_DEFAULT_NUM_VMDQ_VSI     8 /* max 256 VSIs */
+#define I40E_MIN_VSI_ALLOC            51 /* LAN, ATR, FCOE, 32 VF, 16 VMDQ */
 #define I40E_DEFAULT_QUEUES_PER_VMDQ  2 /* max 16 qps */
 #define I40E_DEFAULT_QUEUES_PER_VF    4
 #define I40E_DEFAULT_QUEUES_PER_TC    1 /* should be a power of 2 */
@@ -215,6 +216,7 @@ struct i40e_pf {
 	u16 rss_size;              /* num queues in the RSS array */
 	u16 rss_size_max;          /* HW defined max RSS queues */
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
+	u16 num_alloc_vsi;         /* num VSIs this driver supports */
 	u8 atr_sample_rate;
 	bool wol_en;
 

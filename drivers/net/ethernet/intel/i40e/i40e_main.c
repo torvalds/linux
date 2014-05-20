@@ -652,7 +652,7 @@ static void i40e_update_link_xoff_rx(struct i40e_pf *pf)
 		return;
 
 	/* Clear the __I40E_HANG_CHECK_ARMED bit for all Tx rings */
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		struct i40e_vsi *vsi = pf->vsi[v];
 
 		if (!vsi || !vsi->tx_rings[0])
@@ -706,7 +706,7 @@ static void i40e_update_prio_xoff_rx(struct i40e_pf *pf)
 	}
 
 	/* Clear the __I40E_HANG_CHECK_ARMED bit for Tx rings */
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		struct i40e_vsi *vsi = pf->vsi[v];
 
 		if (!vsi || !vsi->tx_rings[0])
@@ -1734,7 +1734,7 @@ static void i40e_sync_filters_subtask(struct i40e_pf *pf)
 		return;
 	pf->flags &= ~I40E_FLAG_FILTER_SYNC;
 
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v] &&
 		    (pf->vsi[v]->flags & I40E_VSI_FLAG_FILTER_CHANGED))
 			i40e_sync_vsi_filters(pf->vsi[v]);
@@ -3524,7 +3524,7 @@ static void i40e_clear_interrupt_scheme(struct i40e_pf *pf)
 	int i;
 
 	i40e_put_lump(pf->irq_pile, 0, I40E_PILE_VALID_BIT-1);
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
+	for (i = 0; i < pf->num_alloc_vsi; i++)
 		if (pf->vsi[i])
 			i40e_vsi_free_q_vectors(pf->vsi[i]);
 	i40e_reset_interrupt_capability(pf);
@@ -3614,7 +3614,7 @@ static void i40e_pf_quiesce_all_vsi(struct i40e_pf *pf)
 {
 	int v;
 
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v])
 			i40e_quiesce_vsi(pf->vsi[v]);
 	}
@@ -3628,7 +3628,7 @@ static void i40e_pf_unquiesce_all_vsi(struct i40e_pf *pf)
 {
 	int v;
 
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v])
 			i40e_unquiesce_vsi(pf->vsi[v]);
 	}
@@ -4069,7 +4069,7 @@ static void i40e_dcb_reconfigure(struct i40e_pf *pf)
 	}
 
 	/* Update each VSI */
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (!pf->vsi[v])
 			continue;
 
@@ -4592,7 +4592,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		/* Find the VSI(s) that requested a re-init */
 		dev_info(&pf->pdev->dev,
 			 "VSI reinit requested\n");
-		for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+		for (v = 0; v < pf->num_alloc_vsi; v++) {
 			struct i40e_vsi *vsi = pf->vsi[v];
 			if (vsi != NULL &&
 			    test_bit(__I40E_REINIT_REQUESTED, &vsi->state)) {
@@ -4919,7 +4919,7 @@ static void i40e_veb_link_event(struct i40e_veb *veb, bool link_up)
 			i40e_veb_link_event(pf->veb[i], link_up);
 
 	/* ... now the local VSIs */
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
+	for (i = 0; i < pf->num_alloc_vsi; i++)
 		if (pf->vsi[i] && (pf->vsi[i]->uplink_seid == veb->seid))
 			i40e_vsi_link_event(pf->vsi[i], link_up);
 }
@@ -4976,7 +4976,7 @@ static void i40e_check_hang_subtask(struct i40e_pf *pf)
 	 *     for each q_vector
 	 *         force an interrupt
 	 */
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		struct i40e_vsi *vsi = pf->vsi[v];
 		int armed = 0;
 
@@ -5026,7 +5026,7 @@ static void i40e_watchdog_subtask(struct i40e_pf *pf)
 	/* Update the stats for active netdevs so the network stack
 	 * can look at updated numbers whenever it cares to
 	 */
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++)
+	for (i = 0; i < pf->num_alloc_vsi; i++)
 		if (pf->vsi[i] && pf->vsi[i]->netdev)
 			i40e_update_stats(pf->vsi[i]);
 
@@ -5278,7 +5278,7 @@ static int i40e_reconstitute_veb(struct i40e_veb *veb)
 	int ret;
 
 	/* build VSI that owns this VEB, temporarily attached to base VEB */
-	for (v = 0; v < pf->hw.func_caps.num_vsis && !ctl_vsi; v++) {
+	for (v = 0; v < pf->num_alloc_vsi && !ctl_vsi; v++) {
 		if (pf->vsi[v] &&
 		    pf->vsi[v]->veb_idx == veb->idx &&
 		    pf->vsi[v]->flags & I40E_VSI_FLAG_VEB_OWNER) {
@@ -5308,7 +5308,7 @@ static int i40e_reconstitute_veb(struct i40e_veb *veb)
 		goto end_reconstitute;
 
 	/* create the remaining VSIs attached to this VEB */
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (!pf->vsi[v] || pf->vsi[v] == ctl_vsi)
 			continue;
 
@@ -5421,7 +5421,7 @@ static void i40e_fdir_sb_setup(struct i40e_pf *pf)
 
 	/* find existing VSI and see if it needs configuring */
 	vsi = NULL;
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR) {
 			vsi = pf->vsi[i];
 			break;
@@ -5451,7 +5451,7 @@ static void i40e_fdir_teardown(struct i40e_pf *pf)
 	int i;
 
 	i40e_fdir_filter_exit(pf);
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR) {
 			i40e_vsi_release(pf->vsi[i]);
 			break;
@@ -5480,7 +5480,7 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 	/* quiesce the VSIs and their queues that are not already DOWN */
 	i40e_pf_quiesce_all_vsi(pf);
 
-	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v])
 			pf->vsi[v]->seid = 0;
 	}
@@ -5960,15 +5960,15 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	 * find next empty vsi slot, looping back around if necessary
 	 */
 	i = pf->next_vsi;
-	while (i < pf->hw.func_caps.num_vsis && pf->vsi[i])
+	while (i < pf->num_alloc_vsi && pf->vsi[i])
 		i++;
-	if (i >= pf->hw.func_caps.num_vsis) {
+	if (i >= pf->num_alloc_vsi) {
 		i = 0;
 		while (i < pf->next_vsi && pf->vsi[i])
 			i++;
 	}
 
-	if (i < pf->hw.func_caps.num_vsis && !pf->vsi[i]) {
+	if (i < pf->num_alloc_vsi && !pf->vsi[i]) {
 		vsi_idx = i;             /* Found one! */
 	} else {
 		ret = -ENODEV;
@@ -7229,7 +7229,7 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 	 * the orphan VEBs yet.  We'll wait for an explicit remove request
 	 * from up the network stack.
 	 */
-	for (n = 0, i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+	for (n = 0, i = 0; i < pf->num_alloc_vsi; i++) {
 		if (pf->vsi[i] &&
 		    pf->vsi[i]->uplink_seid == uplink_seid &&
 		    (pf->vsi[i]->flags & I40E_VSI_FLAG_VEB_OWNER) == 0) {
@@ -7408,7 +7408,7 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 
 	if (!veb && uplink_seid != pf->mac_seid) {
 
-		for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+		for (i = 0; i < pf->num_alloc_vsi; i++) {
 			if (pf->vsi[i] && pf->vsi[i]->seid == uplink_seid) {
 				vsi = pf->vsi[i];
 				break;
@@ -7651,7 +7651,7 @@ static void i40e_switch_branch_release(struct i40e_veb *branch)
 	 * NOTE: Removing the last VSI on a VEB has the SIDE EFFECT of removing
 	 *       the VEB itself, so don't use (*branch) after this loop.
 	 */
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		if (!pf->vsi[i])
 			continue;
 		if (pf->vsi[i]->uplink_seid == branch_seid &&
@@ -7703,7 +7703,7 @@ void i40e_veb_release(struct i40e_veb *veb)
 	pf = veb->pf;
 
 	/* find the remaining VSI and check for extras */
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		if (pf->vsi[i] && pf->vsi[i]->uplink_seid == veb->seid) {
 			n++;
 			vsi = pf->vsi[i];
@@ -7815,10 +7815,10 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags,
 	}
 
 	/* make sure there is such a vsi and uplink */
-	for (vsi_idx = 0; vsi_idx < pf->hw.func_caps.num_vsis; vsi_idx++)
+	for (vsi_idx = 0; vsi_idx < pf->num_alloc_vsi; vsi_idx++)
 		if (pf->vsi[vsi_idx] && pf->vsi[vsi_idx]->seid == vsi_seid)
 			break;
-	if (vsi_idx >= pf->hw.func_caps.num_vsis && vsi_seid != 0) {
+	if (vsi_idx >= pf->num_alloc_vsi && vsi_seid != 0) {
 		dev_info(&pf->pdev->dev, "vsi seid %d not found\n",
 			 vsi_seid);
 		return NULL;
@@ -8484,10 +8484,18 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i40e_determine_queue_usage(pf);
 	i40e_init_interrupt_scheme(pf);
 
-	/* Set up the *vsi struct based on the number of VSIs in the HW,
-	 * and set up our local tracking of the MAIN PF vsi.
+	/* The number of VSIs reported by the FW is the minimum guaranteed
+	 * to us; HW supports far more and we share the remaining pool with
+	 * the other PFs. We allocate space for more than the guarantee with
+	 * the understanding that we might not get them all later.
 	 */
-	len = sizeof(struct i40e_vsi *) * pf->hw.func_caps.num_vsis;
+	if (pf->hw.func_caps.num_vsis < I40E_MIN_VSI_ALLOC)
+		pf->num_alloc_vsi = I40E_MIN_VSI_ALLOC;
+	else
+		pf->num_alloc_vsi = pf->hw.func_caps.num_vsis;
+
+	/* Set up the *vsi struct and our local tracking of the MAIN PF vsi. */
+	len = sizeof(struct i40e_vsi *) * pf->num_alloc_vsi;
 	pf->vsi = kzalloc(len, GFP_KERNEL);
 	if (!pf->vsi) {
 		err = -ENOMEM;
@@ -8500,7 +8508,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_vsis;
 	}
 	/* if FDIR VSI was set up, start it now */
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR) {
 			i40e_vsi_open(pf->vsi[i]);
 			break;
@@ -8695,7 +8703,7 @@ static void i40e_remove(struct pci_dev *pdev)
 
 	/* Clear all dynamic memory lists of rings, q_vectors, and VSIs */
 	i40e_clear_interrupt_scheme(pf);
-	for (i = 0; i < pf->hw.func_caps.num_vsis; i++) {
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		if (pf->vsi[i]) {
 			i40e_vsi_clear_rings(pf->vsi[i]);
 			i40e_vsi_clear(pf->vsi[i]);
