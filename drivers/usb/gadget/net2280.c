@@ -3588,6 +3588,9 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	void			__iomem *base = NULL;
 	int			retval, i;
 
+	if (!use_dma)
+		use_dma_chaining = 0;
+
 	/* alloc, and start init */
 	dev = kzalloc (sizeof *dev, GFP_KERNEL);
 	if (dev == NULL){
@@ -3833,20 +3836,8 @@ static struct pci_driver net2280_pci_driver = {
 	/* FIXME add power management support */
 };
 
+module_pci_driver(net2280_pci_driver);
+
 MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_AUTHOR ("David Brownell");
 MODULE_LICENSE ("GPL");
-
-static int __init init (void)
-{
-	if (!use_dma)
-		use_dma_chaining = 0;
-	return pci_register_driver (&net2280_pci_driver);
-}
-module_init (init);
-
-static void __exit cleanup (void)
-{
-	pci_unregister_driver (&net2280_pci_driver);
-}
-module_exit (cleanup);
