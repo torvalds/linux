@@ -45,7 +45,7 @@
 #include "rk_pcm.h"
 
 #if 0
-#define RK_SPDIF_DBG(x...) pr_info(KERN_INFO "rk_spdif:"x)
+#define RK_SPDIF_DBG(x...) pr_info("rk_spdif:"x)
 #else
 #define RK_SPDIF_DBG(x...) do { } while (0)
 #endif
@@ -238,7 +238,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dai->playback_dma_data = &spdif->dma_playback;
 	else {
-		pr_info(KERN_INFO "spdif:Capture is not supported\n");
+		pr_err("spdif:Capture is not supported\n");
 		return -EINVAL;
 	}
 
@@ -430,7 +430,7 @@ static int spdif_probe(struct platform_device *pdev)
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem_res) {
-		pr_info(KERN_INFO "spdif:Unable to get register resource.\n");
+		pr_err("spdif:Unable to get register resource.\n");
 		return -ENXIO;
 	}
 
@@ -447,7 +447,7 @@ static int spdif_probe(struct platform_device *pdev)
 	/* Request S/PDIF Register's memory region */
 	if (!request_mem_region(mem_res->start,
 		resource_size(mem_res), "rockchip-spdif")) {
-		pr_info(KERN_INFO "spdif:Unable to request register region\n");
+		pr_err("spdif:Unable to request register region\n");
 		ret = -EBUSY;
 		goto err_clk_put;
 	}

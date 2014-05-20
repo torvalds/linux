@@ -26,7 +26,7 @@
 #include "rk_i2s.h"
 
 #if 1
-#define	DBG(x...)	pr_info(KERN_INFO x)
+#define	DBG(x...)	pr_info(x)
 #else
 #define	DBG(x...)
 #endif
@@ -122,7 +122,7 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
 	if (ret < 0) {
-		pr_info(KERN_INFO "%s():failed to set the format for codec side\n",
+		pr_err("%s():failed to set the format for codec side\n",
 			__func__);
 		return ret;
 	}
@@ -130,7 +130,7 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
 	if (ret < 0) {
-		pr_info(KERN_INFO "%s():failed to set the format for cpu side\n",
+		pr_err("%s():failed to set the format for cpu side\n",
 			__func__);
 		return ret;
 	}
@@ -210,7 +210,7 @@ static int rk_voice_hw_params(struct snd_pcm_substream *substream,
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
 	if (ret < 0) {
-		pr_info(KERN_INFO "rk_voice_hw_params:failed to set the format for codec side\n");
+		pr_err("rk_voice_hw_params:failed to set the format for codec side\n");
 		return ret;
 	}
 
@@ -247,13 +247,13 @@ static int rk_voice_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
 		pll_out, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
-		pr_info(KERN_INFO "rk_voice_hw_params:failed to set the sysclk for codec side\n");
+		pr_err("rk_voice_hw_params:failed to set the sysclk for codec side\n");
 		return ret;
 	}
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	if (ret < 0) {
-		pr_info(KERN_INFO "rk_voice_hw_params:failed to set the sysclk for cpu side\n");
+		pr_err("rk_voice_hw_params:failed to set the sysclk for cpu side\n");
 		return ret;
 	}
 
@@ -333,14 +333,14 @@ static int rockchip_rk616_audio_probe(struct platform_device *pdev)
 
 	ret = rockchip_of_get_sound_card_info(card);
 	if (ret) {
-		pr_info(KERN_INFO "%s() get sound card info failed:%d\n",
+		pr_err("%s() get sound card info failed:%d\n",
 			__func__, ret);
 		return ret;
 	}
 
 	ret = snd_soc_register_card(card);
 	if (ret)
-		pr_info(KERN_INFO "%s() register card failed:%d\n",
+		pr_err("%s() register card failed:%d\n",
 			__func__, ret);
 
 	return ret;

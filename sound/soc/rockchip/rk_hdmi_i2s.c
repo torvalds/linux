@@ -19,7 +19,7 @@
 #include "rk_i2s.h"
 
 #if 0
-#define DBG(x...) pr_info(KERN_INFO "rk_hdmi_i2s:"x)
+#define DBG(x...) pr_info("rk_hdmi_i2s:"x)
 #else
 #define DBG(x...) do { } while (0)
 #endif
@@ -37,7 +37,7 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
 	if (ret < 0) {
-		pr_info(KERN_INFO "%s():failed to set the format for cpu side\n",
+		pr_err("%s():failed to set the format for cpu side\n",
 			__func__);
 		return ret;
 	}
@@ -56,7 +56,7 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 		pll_out = 11289600;
 		break;
 	default:
-		pr_info(KERN_INFO "Enter:%s, %d, Error rate=%d\n",
+		pr_err("Enter:%s, %d, Error rate=%d\n",
 			__func__, __LINE__, params_rate(params));
 		return -EINVAL;
 		break;
@@ -105,14 +105,14 @@ static int rockchip_hdmi_i2s_audio_probe(struct platform_device *pdev)
 
 	ret = rockchip_of_get_sound_card_info(card);
 	if (ret) {
-		pr_info(KERN_INFO "%s() get sound card info failed:%d\n",
+		pr_err("%s() get sound card info failed:%d\n",
 			__func__, ret);
 		return ret;
 	}
 
 	ret = snd_soc_register_card(card);
 	if (ret)
-		pr_info(KERN_INFO "%s() register card failed:%d\n",
+		pr_err("%s() register card failed:%d\n",
 			__func__, ret);
 
 	return ret;

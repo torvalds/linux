@@ -26,7 +26,7 @@
 #include "rk616_codec.h"
 
 #if 0
-#define	DBG(x...)	pr_info(KERN_INFO x)
+#define	DBG(x...)	pr_info(x)
 #else
 #define	DBG(x...)
 #endif
@@ -97,7 +97,7 @@ static int rk616_get_parameter(void)
 	char *command_line = strstr(saved_command_line, "ap_has_alsa=");
 
 	if (command_line == NULL) {
-		pr_info(KERN_INFO "%s : Can not get ap_has_alsa from kernel command line!\n",
+		pr_info("%s : Can not get ap_has_alsa from kernel command line!\n",
 			__func__);
 		return 0;
 	}
@@ -107,10 +107,10 @@ static int rk616_get_parameter(void)
 	val = kstrtol(command_line, 10, NULL);
 	if (val == 0 || val == 1) {
 		rk616_for_mid = (val ? 0 : 1);
-		pr_info(KERN_INFO "%s : THIS IS FOR %s\n",
+		pr_info("%s : THIS IS FOR %s\n",
 			__func__, rk616_for_mid ? "mid" : "phone");
 	} else {
-		pr_info(KERN_INFO "%s : get ap_has_alsa error, val = %d\n",
+		pr_info("%s : get ap_has_alsa error, val = %d\n",
 			__func__, val);
 	}
 
@@ -402,7 +402,7 @@ static inline unsigned int rk616_read_reg_cache(struct snd_soc_codec *codec,
 		}
 	}
 
-	pr_info(KERN_INFO "%s : reg error!\n", __func__);
+	pr_err("%s : reg error!\n", __func__);
 
 	return -EINVAL;
 }
@@ -427,7 +427,7 @@ static inline void rk616_write_reg_cache(struct snd_soc_codec *codec,
 		}
 	}
 
-	pr_info(KERN_INFO "%s : reg error!\n", __func__);
+	pr_err("%s : reg error!\n", __func__);
 }
 
 static unsigned int rk616_codec_read(struct snd_soc_codec *codec,
@@ -437,12 +437,12 @@ static unsigned int rk616_codec_read(struct snd_soc_codec *codec,
 	unsigned int value;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616 is NULL\n", __func__);
+		pr_err("%s : rk616 is NULL\n", __func__);
 		return -EINVAL;
 	}
 
 	if (!rk616_mfd_register(reg) && !rk616_codec_register(codec, reg)) {
-		pr_info(KERN_INFO "%s : reg error!\n", __func__);
+		pr_err("%s : reg error!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -450,7 +450,7 @@ static unsigned int rk616_codec_read(struct snd_soc_codec *codec,
 		value = rk616_read_reg_cache(codec, reg);
 	} else {
 		if (rk616->read_dev(rk616, reg, &value) < 0) {
-			pr_info(KERN_INFO "%s : reg = 0x%x failed\n",
+			pr_err("%s : reg = 0x%x failed\n",
 				__func__, reg);
 			return -EIO;
 		}
@@ -469,11 +469,11 @@ static int rk616_codec_write(struct snd_soc_codec *codec,
 	int i;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616 is NULL\n", __func__);
+		pr_err("%s : rk616 is NULL\n", __func__);
 		return -EINVAL;
 	} else if (!rk616_mfd_register(reg) &&
 		!rk616_codec_register(codec, reg)) {
-		pr_info(KERN_INFO "%s : reg error!\n", __func__);
+		pr_err("%s : reg error!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -492,14 +492,14 @@ static int rk616_codec_write(struct snd_soc_codec *codec,
 
 	/* write i2c */
 	if (rk616->write_dev(rk616, reg, &value) < 0) {
-		pr_info(KERN_INFO "%s : reg = 0x%x failed\n",
+		pr_err("%s : reg = 0x%x failed\n",
 			__func__, reg);
 		return -EIO;
 	}
 
 	if (new_value != value) {
 		if (rk616->write_dev(rk616, reg, &new_value) < 0) {
-			pr_info(KERN_INFO "%s : reg = 0x%x failed\n",
+			pr_err("%s : reg = 0x%x failed\n",
 				__func__, reg);
 			return -EIO;
 		}
@@ -521,7 +521,7 @@ static int rk616_hw_write(const struct i2c_client *client,
 	int ret = -1;
 
 	if (!rk616 || !rk616->codec) {
-		pr_info(KERN_INFO "%s : rk616_priv or rk616_priv->codec is NULL\n",
+		pr_err("%s : rk616_priv or rk616_priv->codec is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -533,7 +533,7 @@ static int rk616_hw_write(const struct i2c_client *client,
 		value = (buf[1] & 0xff00) | (0x00ff & buf[2]);
 		ret = rk616_codec_write(codec, reg, value);
 	} else {
-		pr_info(KERN_INFO "%s : i2c len error\n",
+		pr_err("%s : i2c len error\n",
 			__func__);
 	}
 
@@ -575,7 +575,7 @@ static int rk616_set_gpio(int gpio, bool level)
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return 0;
 	}
@@ -699,14 +699,14 @@ static int rk616_codec_power_up(int type)
 	int i;
 
 	if (!rk616 || !rk616->codec) {
-		pr_info(KERN_INFO "%s : rk616_priv or rk616_priv->codec is NULL\n",
+		pr_err("%s : rk616_priv or rk616_priv->codec is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
 
 	codec = rk616->codec;
 
-	pr_info(KERN_INFO "%s : power up %s %s %s\n", __func__,
+	pr_info("%s : power up %s %s %s\n", __func__,
 		type & RK616_CODEC_PLAYBACK ? "playback" : "",
 		type & RK616_CODEC_CAPTURE ? "capture" : "",
 		type & RK616_CODEC_INCALL ? "incall" : "");
@@ -789,14 +789,14 @@ static int rk616_codec_power_down(int type)
 	int i;
 
 	if (!rk616 || !rk616->codec) {
-		pr_info(KERN_INFO "%s : rk616_priv or rk616_priv->codec is NULL\n",
+		pr_err("%s : rk616_priv or rk616_priv->codec is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
 
 	codec = rk616->codec;
 
-	pr_info(KERN_INFO "%s : power down %s %s %s\n", __func__,
+	pr_info("%s : power down %s %s %s\n", __func__,
 		type & RK616_CODEC_PLAYBACK ? "playback" : "",
 		type & RK616_CODEC_CAPTURE ? "capture" : "",
 		type & RK616_CODEC_INCALL ? "incall" : "");
@@ -1120,7 +1120,7 @@ static int snd_soc_get_gpio_enum_double(struct snd_kcontrol *kcontrol,
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n", __func__);
+		pr_err("%s : rk616_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1150,7 +1150,7 @@ static int snd_soc_put_gpio_enum_double(struct snd_kcontrol *kcontrol,
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1413,7 +1413,7 @@ static int rk616_playback_path_get(struct snd_kcontrol *kcontrol,
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1433,7 +1433,7 @@ static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
 	long int pre_path;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1514,7 +1514,7 @@ static int rk616_capture_path_get(struct snd_kcontrol *kcontrol,
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1535,7 +1535,7 @@ static int rk616_capture_path_put(struct snd_kcontrol *kcontrol,
 	long int pre_path;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1610,7 +1610,7 @@ static int rk616_voice_call_path_get(struct snd_kcontrol *kcontrol,
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1631,7 +1631,7 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 	long int pre_path;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1763,7 +1763,7 @@ static int rk616_voip_path_get(struct snd_kcontrol *kcontrol,
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1783,7 +1783,7 @@ static int rk616_voip_path_put(struct snd_kcontrol *kcontrol,
 	long int pre_path;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1866,7 +1866,7 @@ static int rk616_modem_input_get(struct snd_kcontrol *kcontrol,
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1887,7 +1887,7 @@ static int rk616_modem_input_put(struct snd_kcontrol *kcontrol,
 	int set_gpio = 0;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n",
+		pr_err("%s : rk616_priv is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -2462,7 +2462,7 @@ static int rk616_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616 || !rk616_mfd) {
-		pr_info(KERN_INFO "%s : %s %s\n",
+		pr_err("%s : %s %s\n",
 			__func__, !rk616 ? "rk616 is NULL" : "",
 			!rk616_mfd ? "rk616_mfd is NULL" : "");
 		return -EINVAL;
@@ -2490,7 +2490,7 @@ static int rk616_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		adc_aif2 |= RK616_I2S_MODE_MST;
 		break;
 	default:
-		pr_info(KERN_INFO "%s : set master mask failed!\n",
+		pr_err("%s : set master mask failed!\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -2515,7 +2515,7 @@ static int rk616_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		dac_aif1 |= RK616_DAC_DF_LJ;
 		break;
 	default:
-		pr_info(KERN_INFO "%s : set format failed!\n", __func__);
+		pr_err("%s : set format failed!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -2545,7 +2545,7 @@ static int rk616_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		dac_aif2 |= RK616_DBCLK_POL_DIS;
 		break;
 	default:
-		pr_info(KERN_INFO "%s : set dai format failed!\n", __func__);
+		pr_err("%s : set dai format failed!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -2574,7 +2574,7 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 	u32 mfd_aif1 = 0, mfd_aif2 = 0, mfd_i2s_ctl = 0;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616 is NULL\n", __func__);
+		pr_err("%s : rk616 is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -2587,7 +2587,7 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 		if ((rk616->stereo_sysclk % (4 * rate * 2) > 0) ||
 		    (div != 16 && div != 20 && div != 24 && div != 32)) {
-			pr_info(KERN_INFO "%s : need PLL\n", __func__);
+			pr_err("%s : need PLL\n", __func__);
 			return -EINVAL;
 		}
 	} else {
@@ -2714,7 +2714,7 @@ static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 	}
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n", __func__);
+		pr_err("%s : rk616_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -2821,7 +2821,7 @@ static int rk616_resume(struct snd_soc_codec *codec)
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616 priv is NULL!\n", __func__);
+		pr_err("%s : rk616 priv is NULL!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -2850,7 +2850,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 	DBG("%s\n", __func__);
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616 priv is NULL!\n",
+		pr_err("%s : rk616 priv is NULL!\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -2872,7 +2872,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
-		pr_info(KERN_INFO "%s : Failed to set cache I/O: %d\n",
+		pr_err("%s : Failed to set cache I/O: %d\n",
 			__func__, ret);
 		goto err__;
 	}
@@ -2884,7 +2884,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	val = snd_soc_read(codec, RK616_RESET);
 	if (val != rk616_reg_defaults[RK616_RESET] && val != 0x43) {
-		pr_info(KERN_INFO "%s : codec register 0: %x is not a 0x00000003\n",
+		pr_err("%s : codec register 0: %x is not a 0x00000003\n",
 			__func__, val);
 		ret = -ENODEV;
 		goto err__;
@@ -2906,7 +2906,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 			"Speaker Playback Volume") == 0) {
 			mixer = (struct soc_mixer_control *)
 				kcontrol[i].private_value;
-			pr_info(KERN_INFO "Speaker Playback Volume mixer->max %d\n",
+			pr_info("Speaker Playback Volume mixer->max %d\n",
 				mixer->max);
 			mixer->max = rk616->spk_volume;
 			mixer->platform_max = rk616->spk_volume;
@@ -2914,7 +2914,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 			"Headphone Playback Volume") == 0) {
 			mixer = (struct soc_mixer_control *)
 				kcontrol[i].private_value;
-			pr_info(KERN_INFO "Headphone Playback Volume mixer->max %d\n",
+			pr_info("Headphone Playback Volume mixer->max %d\n",
 				mixer->max);
 			mixer->max = rk616->hp_volume;
 			mixer->platform_max = rk616->hp_volume;
@@ -2922,7 +2922,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 			"Earpiece Playback Volume") == 0) {
 			mixer = (struct soc_mixer_control *)
 				kcontrol[i].private_value;
-			pr_info(KERN_INFO "Headphone Playback Volume mixer->max %d\n",
+			pr_info("Headphone Playback Volume mixer->max %d\n",
 				mixer->max);
 			mixer->max = rk616->spk_volume;
 			mixer->platform_max = rk616->spk_volume;
@@ -2968,7 +2968,7 @@ static int rk616_remove(struct snd_soc_codec *codec)
 	DBG("%s\n", __func__);
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616_priv is NULL\n", __func__);
+		pr_err("%s : rk616_priv is NULL\n", __func__);
 		return 0;
 	}
 
@@ -3007,20 +3007,20 @@ static int rk616_codec_parse_gpio(struct device *dev,
 
 	*gpio = of_get_named_gpio_flags(node, name, 0, &flags);
 	if (*gpio < 0) {
-		pr_info(KERN_INFO "%s : %s is NULL!\n",
+		pr_err("%s : %s is NULL!\n",
 			__func__, name);
 		*gpio = INVALID_GPIO;
 	} else {
 		ret = devm_gpio_request(dev, *gpio, name);
 		if (ret < 0) {
-			pr_info(KERN_INFO "%s() %s request ERROR\n",
+			pr_err("%s() %s request ERROR\n",
 				__func__, name);
 			return ret;
 		}
 		/* set gpio to low level */
 		ret = gpio_direction_output(*gpio , flags);
 		if (ret < 0) {
-			pr_info(KERN_INFO "%s() %s set ERROR\n",
+			pr_err("%s() %s set ERROR\n",
 				__func__, name);
 			return ret;
 		}
@@ -3062,14 +3062,14 @@ static int rk616_codec_parse_dt_property(struct device *dev,
 	DBG("%s()\n", __func__);
 
 	if (!node) {
-		pr_info(KERN_INFO "%s() dev->of_node is NULL\n",
+		pr_err("%s() dev->of_node is NULL\n",
 			__func__);
 		return -ENODEV;
 	}
 
 	node = of_get_child_by_name(dev->of_node, "rk616-codec");
 	if (!node) {
-		pr_info(KERN_INFO "%s() Can not get child: rk616-codec\n",
+		pr_err("%s() Can not get child: rk616-codec\n",
 			__func__);
 		return -ENODEV;
 	}
@@ -3077,7 +3077,7 @@ static int rk616_codec_parse_dt_property(struct device *dev,
 	ret = rk616_codec_parse_gpio(dev, node,
 		&rk616->spk_ctl_gpio, "spk-ctl-gpio");
 	if (ret < 0) {
-		pr_info(KERN_INFO "%s() parse gpio : spk-ctl-gpio ERROR\n",
+		pr_err("%s() parse gpio : spk-ctl-gpio ERROR\n",
 			__func__);
 		return ret;
 	}
@@ -3085,7 +3085,7 @@ static int rk616_codec_parse_dt_property(struct device *dev,
 	ret = rk616_codec_parse_gpio(dev, node,
 		&rk616->hp_ctl_gpio, "hp-ctl-gpio");
 	if ((ret < 0) && (rk616->hp_ctl_gpio != rk616->spk_ctl_gpio)) {
-		pr_info(KERN_INFO "%s() parse gpio : hp-ctl-gpio ERROR\n",
+		pr_err("%s() parse gpio : hp-ctl-gpio ERROR\n",
 			__func__);
 		return ret;
 	}
@@ -3093,7 +3093,7 @@ static int rk616_codec_parse_dt_property(struct device *dev,
 	ret = rk616_codec_parse_gpio(dev, node,
 		&rk616->rcv_ctl_gpio, "rcv-ctl-gpio");
 	if (ret < 0) {
-		pr_info(KERN_INFO "%s() parse gpio : rcv-ctl-gpio ERROR\n",
+		pr_err("%s() parse gpio : rcv-ctl-gpio ERROR\n",
 			__func__);
 		return ret;
 	}
@@ -3101,7 +3101,7 @@ static int rk616_codec_parse_dt_property(struct device *dev,
 	ret = rk616_codec_parse_gpio(dev, node,
 		&rk616->mic_sel_gpio, "mic-sel-gpio");
 	if (ret < 0) {
-		pr_info(KERN_INFO "%s() parse gpio : mic-sel-gpio ERROR\n",
+		pr_err("%s() parse gpio : mic-sel-gpio ERROR\n",
 			__func__);
 		return ret;
 	}
@@ -3168,7 +3168,7 @@ static int rk616_platform_probe(struct platform_device *pdev)
 	DBG("%s\n", __func__);
 
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616 is NULL\n", __func__);
+		pr_err("%s : rk616 is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -3176,7 +3176,7 @@ static int rk616_platform_probe(struct platform_device *pdev)
 
 	rk616_priv = kzalloc(sizeof(struct rk616_codec_priv), GFP_KERNEL);
 	if (!rk616) {
-		pr_info(KERN_INFO "%s : rk616 priv kzalloc failed!\n",
+		pr_err("%s : rk616 priv kzalloc failed!\n",
 			__func__);
 		return -ENOMEM;
 	}
@@ -3186,7 +3186,7 @@ static int rk616_platform_probe(struct platform_device *pdev)
 
 	ret = rk616_codec_parse_dt_property(&pdev->dev, rk616_priv);
 	if (ret < 0) {
-		pr_info(KERN_INFO "%s() parse device tree property error %d\n",
+		pr_err("%s() parse device tree property error %d\n",
 			__func__, ret);
 		goto err_;
 	}
@@ -3194,7 +3194,7 @@ static int rk616_platform_probe(struct platform_device *pdev)
 	ret = snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_rk616, rk616_dai, ARRAY_SIZE(rk616_dai));
 	if (ret < 0) {
-		pr_info(KERN_INFO "%s() register codec error %d\n",
+		pr_err("%s() register codec error %d\n",
 			__func__, ret);
 		goto err_;
 	}
@@ -3228,7 +3228,7 @@ void rk616_platform_shutdown(struct platform_device *pdev)
 	DBG("%s\n", __func__);
 
 	if (!rk616 || !rk616->codec) {
-		pr_info(KERN_INFO "%s : rk616_priv or rk616_priv->codec is NULL\n",
+		pr_err("%s : rk616_priv or rk616_priv->codec is NULL\n",
 			__func__);
 		return;
 	}
