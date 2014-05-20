@@ -40,9 +40,11 @@
 #define MTIP_MAX_RETRIES	2
 
 /* Various timeout values in ms */
-#define MTIP_NCQ_COMMAND_TIMEOUT_MS       5000
-#define MTIP_IOCTL_COMMAND_TIMEOUT_MS     5000
-#define MTIP_INTERNAL_COMMAND_TIMEOUT_MS  5000
+#define MTIP_NCQ_CMD_TIMEOUT_MS      15000
+#define MTIP_IOCTL_CMD_TIMEOUT_MS    5000
+#define MTIP_INT_CMD_TIMEOUT_MS      5000
+#define MTIP_QUIESCE_IO_TIMEOUT_MS   (MTIP_NCQ_CMD_TIMEOUT_MS * \
+				     (MTIP_MAX_RETRIES + 1))
 
 /* check for timeouts every 500ms */
 #define MTIP_TIMEOUT_CHECK_PERIOD	500
