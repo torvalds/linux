@@ -815,8 +815,9 @@
 					clocks = <&main>;
 					reg = <0>;
 					atmel,clk-input-range = <1000000 32000000>;
-					#atmel,pll-clk-output-range-cells = <4>;
-					atmel,pll-clk-output-ranges = <80000000 200000000 190000000 240000000>;
+					#atmel,pll-clk-output-range-cells = <3>;
+					atmel,pll-clk-output-ranges = <80000000 200000000 0>,
+								<190000000 240000000 2>;
 				};
 
 				utmi: utmick {
@@ -833,7 +834,7 @@
 					interrupts-extended = <&pmc AT91_PMC_MCKRDY>;
 					clocks = <&clk32k>, <&main>, <&plla>, <&utmi>;
 					atmel,clk-output-range = <0 94000000>;
-					atmel,clk-divisors = <1 2 4 3>;
+					atmel,clk-divisors = <1 2 4 0>;
 				};
 
 				prog: progck {
