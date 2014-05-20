@@ -44,6 +44,10 @@ set_idx_reg(struct net2280_regs __iomem *regs, u32 index, u32 value)
 
 #define PCI_VENDOR_ID_PLX_LEGACY 0x17cc
 
+#define PLX_LEGACY		BIT(0)
+#define PLX_2280		BIT(1)
+#define PLX_SUPERSPEED		BIT(2)
+
 #define REG_DIAG		0x0
 #define     RETRY_COUNTER                                       16
 #define     FORCE_PCI_SERR                                      11
@@ -166,6 +170,8 @@ struct net2280 {
 	u16				chiprev;
 	int enhanced_mode;
 	int n_ep;
+	kernel_ulong_t			quirks;
+
 
 	/* pci state used to access those endpoints */
 	struct pci_dev			*pdev;
