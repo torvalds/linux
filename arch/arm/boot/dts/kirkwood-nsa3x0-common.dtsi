@@ -5,17 +5,42 @@
 	model = "ZyXEL NSA310";
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 
-			pmx_usb_power_off: pmx-usb-power-off {
+			pmx_usb_power: pmx-usb-power {
 				marvell,pins = "mpp21";
 				marvell,function = "gpio";
 			};
+
 			pmx_pwr_off: pmx-pwr-off {
 				marvell,pins = "mpp48";
 				marvell,function = "gpio";
 			};
 
+			pmx_btn_reset: pmx-btn-reset {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+
+			pmx_btn_copy: pmx-btn-copy {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+
+			pmx_btn_power: pmx-btn-power {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_copy_green: pmx-led-copy-green {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_copy_red: pmx-led-copy-red {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
 		};
 
 		serial@12000 {
@@ -43,17 +68,42 @@
 		gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>;
 	};
 
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_btn_reset &pmx_btn_copy &pmx_btn_power>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "Power Button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+		};
+		button@2 {
+			label = "Copy Button";
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+		};
+		button@3 {
+			label = "Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-0 = <&pmx_usb_power_off>;
+		pinctrl-0 = <&pmx_usb_power>;
 		pinctrl-names = "default";
 
-		usb0_power_off: regulator@1 {
+		usb0_power: regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
-			regulator-name = "USB Power Off";
+			regulator-name = "USB Power";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
