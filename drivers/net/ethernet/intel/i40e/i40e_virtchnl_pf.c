@@ -2063,14 +2063,11 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	i40e_del_filter(vsi, vf->default_lan_addr.addr, vf->port_vlan_id,
 			true, false);
 
-	/* add the new mac address */
-	f = i40e_add_filter(vsi, mac, vf->port_vlan_id, true, false);
-	if (!f) {
-		dev_err(&pf->pdev->dev,
-			"Unable to add VF ucast filter\n");
-		ret = -ENOMEM;
-		goto error_param;
-	}
+	/* Delete all the filters for this VSI - we're going to kill it
+	 * anyway.
+	 */
+	list_for_each_entry(f, &vsi->mac_filter_list, list)
+		i40e_del_filter(vsi, f->macaddr, f->vlan, true, false);
 
 	dev_info(&pf->pdev->dev, "Setting MAC %pM on VF %d\n", mac, vf_id);
 	/* program mac filter */
