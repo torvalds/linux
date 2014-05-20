@@ -331,7 +331,8 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 
 		of_id = of_match_device(max14577_dt_match, &i2c->dev);
 		if (of_id)
-			max14577->dev_type = (unsigned int)of_id->data;
+			max14577->dev_type =
+				(enum maxim_device_type)of_id->data;
 	} else {
 		max14577->dev_type = id->driver_data;
 	}
