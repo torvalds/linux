@@ -29,6 +29,7 @@
 #include <linux/i2c/twl.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/mach-types.h>
 
@@ -127,6 +128,40 @@ static u8 res_config_addrs[] = {
 	[RES_RESET]	= 0x91,
 	[RES_MAIN_REF]	= 0x94,
 };
+
+/*
+ * Usable values for .remap_sleep and .remap_off
+ * Based on table "5.3.3 Resource Operating modes"
+ */
+enum {
+	TWL_REMAP_OFF = 0,
+	TWL_REMAP_SLEEP = 8,
+	TWL_REMAP_ACTIVE = 9,
+};
+
+/*
+ * Macros to configure the PM register states for various resources.
+ * Note that we can make MSG_SINGULAR etc private to this driver once
+ * omap3 has been made DT only.
+ */
+#define TWL_DFLT_DELAY		2	/* typically 2 32 KiHz cycles */
+#define TWL_RESOURCE_SET(res, state)					\
+	{ MSG_SINGULAR(DEV_GRP_NULL, (res), (state)), TWL_DFLT_DELAY }
+#define TWL_RESOURCE_ON(res)	TWL_RESOURCE_SET(res, RES_STATE_ACTIVE)
+#define TWL_RESOURCE_OFF(res)	TWL_RESOURCE_SET(res, RES_STATE_OFF)
+#define TWL_RESOURCE_RESET(res)	TWL_RESOURCE_SET(res, RES_STATE_WRST)
+/*
+ * It seems that type1 and type2 is just the resource init order
+ * number for the type1 and type2 group.
+ */
+#define TWL_RESOURCE_GROUP_RESET(group, type1, type2)			\
+	{ MSG_BROADCAST(DEV_GRP_NULL, (group), (type1), (type2),	\
+		RES_STATE_WRST), TWL_DFLT_DELAY }
+#define TWL_REMAP_SLEEP(res, devgrp, typ, typ2)				\
+	{ .resource = (res), .devgroup = (devgrp),			\
+	  .type = (typ), .type2 = (typ2),				\
+	  .remap_off = TWL_REMAP_OFF,					\
+	  .remap_sleep = TWL_REMAP_SLEEP, }
 
 static int twl4030_write_script_byte(u8 address, u8 byte)
 {
@@ -502,7 +537,8 @@ int twl4030_remove_script(u8 flags)
 	return err;
 }
 
-static int twl4030_power_configure_scripts(struct twl4030_power_data *pdata)
+static int
+twl4030_power_configure_scripts(const struct twl4030_power_data *pdata)
 {
 	int err;
 	int i;
@@ -518,7 +554,8 @@ static int twl4030_power_configure_scripts(struct twl4030_power_data *pdata)
 	return 0;
 }
 
-static int twl4030_power_configure_resources(struct twl4030_power_data *pdata)
+static int
+twl4030_power_configure_resources(const struct twl4030_power_data *pdata)
 {
 	struct twl4030_resconfig *resconfig = pdata->resource_config;
 	int err;
@@ -550,7 +587,7 @@ void twl4030_power_off(void)
 		pr_err("TWL4030 Unable to power off\n");
 }
 
-static bool twl4030_power_use_poweroff(struct twl4030_power_data *pdata,
+static bool twl4030_power_use_poweroff(const struct twl4030_power_data *pdata,
 					struct device_node *node)
 {
 	if (pdata && pdata->use_poweroff)
@@ -562,10 +599,60 @@ static bool twl4030_power_use_poweroff(struct twl4030_power_data *pdata,
 	return false;
 }
 
+#ifdef CONFIG_OF
+
+/* Generic warm reset configuration for omap3 */
+
+static struct twl4030_ins omap3_wrst_seq[] = {
+	TWL_RESOURCE_OFF(RES_NRES_PWRON),
+	TWL_RESOURCE_OFF(RES_RESET),
+	TWL_RESOURCE_RESET(RES_MAIN_REF),
+	TWL_RESOURCE_GROUP_RESET(RES_GRP_ALL, RES_TYPE_R0, RES_TYPE2_R2),
+	TWL_RESOURCE_RESET(RES_VUSB_3V1),
+	TWL_RESOURCE_GROUP_RESET(RES_GRP_ALL, RES_TYPE_R0, RES_TYPE2_R1),
+	TWL_RESOURCE_GROUP_RESET(RES_GRP_RC, RES_TYPE_ALL, RES_TYPE2_R0),
+	TWL_RESOURCE_ON(RES_RESET),
+	TWL_RESOURCE_ON(RES_NRES_PWRON),
+};
+
+static struct twl4030_script omap3_wrst_script = {
+	.script	= omap3_wrst_seq,
+	.size	= ARRAY_SIZE(omap3_wrst_seq),
+	.flags	= TWL4030_WRST_SCRIPT,
+};
+
+static struct twl4030_script *omap3_reset_scripts[] = {
+	&omap3_wrst_script,
+};
+
+static struct twl4030_resconfig omap3_rconfig[] = {
+	TWL_REMAP_SLEEP(RES_HFCLKOUT, DEV_GRP_P3, -1, -1),
+	TWL_REMAP_SLEEP(RES_VDD1, DEV_GRP_P1, -1, -1),
+	TWL_REMAP_SLEEP(RES_VDD2, DEV_GRP_P1, -1, -1),
+	{ 0, 0 },
+};
+
+static struct twl4030_power_data omap3_reset = {
+	.scripts		= omap3_reset_scripts,
+	.num			= ARRAY_SIZE(omap3_reset_scripts),
+	.resource_config	= omap3_rconfig,
+};
+
+static struct of_device_id twl4030_power_of_match[] = {
+	{
+		.compatible = "ti,twl4030-power-reset",
+		.data = &omap3_reset,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, twl4030_power_of_match);
+#endif	/* CONFIG_OF */
+
 static int twl4030_power_probe(struct platform_device *pdev)
 {
-	struct twl4030_power_data *pdata = dev_get_platdata(&pdev->dev);
+	const struct twl4030_power_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
+	const struct of_device_id *match;
 	int err = 0;
 	int err2 = 0;
 	u8 val;
@@ -586,8 +673,12 @@ static int twl4030_power_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	match = of_match_device(of_match_ptr(twl4030_power_of_match),
+				&pdev->dev);
+	if (match && match->data)
+		pdata = match->data;
+
 	if (pdata) {
-		/* TODO: convert to device tree */
 		err = twl4030_power_configure_scripts(pdata);
 		if (err) {
 			pr_err("TWL4030 failed to load scripts\n");
@@ -636,14 +727,6 @@ static int twl4030_power_remove(struct platform_device *pdev)
 {
 	return 0;
 }
-
-#ifdef CONFIG_OF
-static const struct of_device_id twl4030_power_of_match[] = {
-	{.compatible = "ti,twl4030-power", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, twl4030_power_of_match);
-#endif
 
 static struct platform_driver twl4030_power_driver = {
 	.driver = {
