@@ -1164,17 +1164,16 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 			additional_io_size  = pci_hotplug_io_size;
 			additional_mem_size = pci_hotplug_mem_size;
 		}
-		/*
-		 * Follow thru
-		 */
+		/* Fall through */
 	default:
 		pbus_size_io(bus, realloc_head ? 0 : additional_io_size,
 			     additional_io_size, realloc_head);
-		/* If the bridge supports prefetchable range, size it
-		   separately. If it doesn't, or its prefetchable window
-		   has already been allocated by arch code, try
-		   non-prefetchable range for both types of PCI memory
-		   resources. */
+
+		/*
+		 * If there's a 64-bit prefetchable MMIO window, compute
+		 * the size required to put all 64-bit prefetchable
+		 * resources in it.
+		 */
 		b_res = &bus->self->resource[PCI_BRIDGE_RESOURCES];
 		mask = IORESOURCE_MEM;
 		prefmask = IORESOURCE_MEM | IORESOURCE_PREFETCH;
@@ -1184,29 +1183,58 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 				  prefmask, prefmask,
 				  realloc_head ? 0 : additional_mem_size,
 				  additional_mem_size, realloc_head);
+
+			/*
+			 * If successful, all non-prefetchable resources
+			 * and any 32-bit prefetchable resources will go in
+			 * the non-prefetchable window.
+			 */
 			if (ret == 0) {
-				/*
-				 * Success, with pref mmio64,
-				 * next will size non-pref or
-				 * non-mmio64 */
 				mask = prefmask;
 				type2 = prefmask & ~IORESOURCE_MEM_64;
 				type3 = prefmask & ~IORESOURCE_PREFETCH;
 			}
 		}
+
+		/*
+		 * If there is no 64-bit prefetchable window, compute the
+		 * size required to put all prefetchable resources in the
+		 * 32-bit prefetchable window (if there is one).
+		 */
 		if (!type2) {
 			prefmask &= ~IORESOURCE_MEM_64;
 			ret = pbus_size_mem(bus, prefmask, prefmask,
 					 prefmask, prefmask,
 					 realloc_head ? 0 : additional_mem_size,
 					 additional_mem_size, realloc_head);
-			if (ret == 0) {
-				/* Success, next will size non-prefetch. */
+
+			/*
+			 * If successful, only non-prefetchable resources
+			 * will go in the non-prefetchable window.
+			 */
+			if (ret == 0)
 				mask = prefmask;
-			} else
+			else
 				additional_mem_size += additional_mem_size;
+
 			type2 = type3 = IORESOURCE_MEM;
 		}
+
+		/*
+		 * Compute the size required to put everything else in the
+		 * non-prefetchable window.  This includes:
+		 *
+		 *   - all non-prefetchable resources
+		 *   - 32-bit prefetchable resources if there's a 64-bit
+		 *     prefetchable window or no prefetchable window at all
+		 *   - 64-bit prefetchable resources if there's no
+		 *     prefetchable window at all
+		 *
+		 * Note that the strategy in __pci_assign_resource() must
+		 * match that used here.  Specifically, we cannot put a
+		 * 32-bit prefetchable resource in a 64-bit prefetchable
+		 * window.
+		 */
 		pbus_size_mem(bus, mask, IORESOURCE_MEM, type2, type3,
 				realloc_head ? 0 : additional_mem_size,
 				additional_mem_size, realloc_head);
