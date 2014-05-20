@@ -207,6 +207,8 @@ static bool llsec_key_id_equal(const struct ieee802154_llsec_key_id *a,
 		return false;
 
 	switch (a->mode) {
+	case IEEE802154_SCF_KEY_INDEX:
+		return true;
 	case IEEE802154_SCF_KEY_SHORT_INDEX:
 		return a->short_source == b->short_source;
 	case IEEE802154_SCF_KEY_HW_INDEX:
