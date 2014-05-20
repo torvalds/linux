@@ -124,6 +124,7 @@ OPAL_CALL(opal_xscom_write,			OPAL_XSCOM_WRITE);
 OPAL_CALL(opal_lpc_read,			OPAL_LPC_READ);
 OPAL_CALL(opal_lpc_write,			OPAL_LPC_WRITE);
 OPAL_CALL(opal_return_cpu,			OPAL_RETURN_CPU);
+OPAL_CALL(opal_reinit_cpus,			OPAL_REINIT_CPUS);
 OPAL_CALL(opal_read_elog,			OPAL_ELOG_READ);
 OPAL_CALL(opal_send_ack_elog,			OPAL_ELOG_ACK);
 OPAL_CALL(opal_get_elog_size,			OPAL_ELOG_SIZE);

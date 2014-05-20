@@ -57,6 +57,21 @@ static DEFINE_SPINLOCK(opal_notifier_lock);
 static uint64_t last_notified_mask = 0x0ul;
 static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
 
+static void opal_reinit_cores(void)
+{
+	/* Do the actual re-init, This will clobber all FPRs, VRs, etc...
+	 *
+	 * It will preserve non volatile GPRs and HSPRG0/1. It will
+	 * also restore HIDs and other SPRs to their original value
+	 * but it might clobber a bunch.
+	 */
+#ifdef __BIG_ENDIAN__
+	opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_BE);
+#else
+	opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_LE);
+#endif
+}
+
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
@@ -95,6 +110,13 @@ int __init early_init_dt_scan_opal(unsigned long node,
 	} else {
 		printk("OPAL V1 detected !\n");
 	}
+
+	/* Reinit all cores with the right endian */
+	opal_reinit_cores();
+
+	/* Restore some bits */
+	if (cur_cpu_spec->cpu_restore)
+		cur_cpu_spec->cpu_restore();
 
 	return 1;
 }
