@@ -198,6 +198,12 @@ extern void vlan_vids_del_by_dev(struct net_device *dev,
 				 const struct net_device *by_dev);
 
 extern bool vlan_uses_dev(const struct net_device *dev);
+
+static inline int vlan_get_encap_level(struct net_device *dev)
+{
+	BUG_ON(!is_vlan_dev(dev));
+	return vlan_dev_priv(dev)->nest_level;
+}
 #else
 static inline struct net_device *
 __vlan_find_dev_deep(struct net_device *real_dev,
@@ -263,6 +269,11 @@ static inline void vlan_vids_del_by_dev(struct net_device *dev,
 static inline bool vlan_uses_dev(const struct net_device *dev)
 {
 	return false;
+}
+static inline int vlan_get_encap_level(struct net_device *dev)
+{
+	BUG();
+	return 0;
 }
 #endif
 
@@ -485,9 +496,4 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 		skb->protocol = htons(ETH_P_802_2);
 }
 
-static inline int vlan_get_encap_level(struct net_device *dev)
-{
-	BUG_ON(!is_vlan_dev(dev));
-	return vlan_dev_priv(dev)->nest_level;
-}
 #endif /* !(_LINUX_IF_VLAN_H_) */
