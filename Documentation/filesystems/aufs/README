@@ -20,9 +20,15 @@ If you want older kernel version support, try aufs2-2.6.git or
 aufs2-standalone.git repository, aufs1 from CVS on SourceForge.
 
 Note: it becomes clear that "Aufs was rejected. Let's give it up."
-According to Christoph Hellwig, linux rejects all union-type filesystems
-but UnionMount.
+      According to Christoph Hellwig, linux rejects all union-type
+      filesystems but UnionMount.
 <http://marc.info/?l=linux-kernel&m=123938533724484&w=2>
+
+PS. Al Viro seems have a plan to merge aufs as well as overlayfs and
+    UnionMount, and he pointed out an issue around a directory mutex
+    lock and aufs addressed it. But it is still unsure whether aufs will
+    be merged (or any other union solution).
+<http://lkml.org/lkml/2013/3/12/637>
 
 
 1. Features
@@ -227,6 +233,23 @@ And then,
 - if you want to use readdir(3) in userspace or pathconf(3) wrapper,
   then run "make install_ulib" too. And refer to the aufs manual in
   detail.
+
+There several other patches in aufs3-standalone.git. They are all
+optional. When you meet some problems, they will help you.
+- aufs3-loopback.patch
+  Supports a nested loopback mount in a branch-fs. This patch is
+  unnecessary until aufs produces a message like "you may want to try
+  another patch for loopback file".
+- vfs-ino.patch
+  Modifies a system global kernel internal function get_next_ino() in
+  order to stop assigning 0 for an inode-number. Not directly related to
+  aufs, but recommended generally.
+- tmpfs-ibitmap.patch
+  Keeps the tmpfs inode number as the lowest value. Effective to reduce
+  the size of aufs XINO files for tmpfs branch. Also it prevents the
+  duplication of inode number, which is important for NFS-exporting,
+  backup tools, or other utilities. When you find aufs XINO files for
+  tmpfs branch growing too much, try this patch.
 
 
 4. Usage
