@@ -1865,7 +1865,6 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	struct emac_priv *priv;
 	unsigned long hw_ram_addr;
 	struct emac_platform_data *pdata;
-	struct device *emac_dev;
 	struct cpdma_params dma_params;
 	struct clk *emac_clk;
 	unsigned long emac_bus_frequency;
@@ -1911,7 +1910,6 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	priv->coal_intvl = 0;
 	priv->bus_freq_mhz = (u32)(emac_bus_frequency / 1000000);
 
-	emac_dev = &ndev->dev;
 	/* Get EMAC platform data */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
@@ -1930,7 +1928,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 		hw_ram_addr = (u32 __force)res->start + pdata->ctrl_ram_offset;
 
 	memset(&dma_params, 0, sizeof(dma_params));
-	dma_params.dev			= emac_dev;
+	dma_params.dev			= &pdev->dev;
 	dma_params.dmaregs		= priv->emac_base;
 	dma_params.rxthresh		= priv->emac_base + 0x120;
 	dma_params.rxfree		= priv->emac_base + 0x140;
@@ -1994,7 +1992,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 
 
 	if (netif_msg_probe(priv)) {
-		dev_notice(emac_dev, "DaVinci EMAC Probe found device "\
+		dev_notice(&pdev->dev, "DaVinci EMAC Probe found device "
 			   "(regs: %p, irq: %d)\n",
 			   (void *)priv->emac_base_phys, ndev->irq);
 	}
