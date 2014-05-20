@@ -101,7 +101,7 @@ static struct phy *exynos_mipi_video_phy_xlate(struct device *dev,
 {
 	struct exynos_mipi_video_phy *state = dev_get_drvdata(dev);
 
-	if (WARN_ON(args->args[0] > EXYNOS_MIPI_PHYS_NUM))
+	if (WARN_ON(args->args[0] >= EXYNOS_MIPI_PHYS_NUM))
 		return ERR_PTR(-ENODEV);
 
 	return state->phys[args->args[0]].phy;
