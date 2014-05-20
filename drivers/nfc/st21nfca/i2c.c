@@ -397,12 +397,11 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 		 * The first read sequence does not start with SOF.
 		 * Data is corrupeted so we drop it.
 		 */
-		if (!phy->current_read_len && buf[0] != ST21NFCA_SOF_EOF) {
+		if (!phy->current_read_len && !IS_START_OF_FRAME(buf)) {
 			skb_trim(skb, 0);
 			phy->current_read_len = 0;
 			return -EIO;
-		} else if (phy->current_read_len &&
-			IS_START_OF_FRAME(buf)) {
+		} else if (phy->current_read_len && IS_START_OF_FRAME(buf)) {
 			/*
 			 * Previous frame transmission was interrupted and
 			 * the frame got repeated.
