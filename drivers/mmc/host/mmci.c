@@ -366,7 +366,6 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
 #ifdef CONFIG_DMA_ENGINE
 static void mmci_dma_setup(struct mmci_host *host)
 {
-	struct mmci_platform_data *plat = host->plat;
 	const char *rxname, *txname;
 	dma_cap_mask_t mask;
 
@@ -379,25 +378,6 @@ static void mmci_dma_setup(struct mmci_host *host)
 	/* Try to acquire a generic DMA engine slave channel */
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-
-	if (plat && plat->dma_filter) {
-		if (!host->dma_rx_channel && plat->dma_rx_param) {
-			host->dma_rx_channel = dma_request_channel(mask,
-							   plat->dma_filter,
-							   plat->dma_rx_param);
-			/* E.g if no DMA hardware is present */
-			if (!host->dma_rx_channel)
-				dev_err(mmc_dev(host->mmc), "no RX DMA channel\n");
-		}
-
-		if (!host->dma_tx_channel && plat->dma_tx_param) {
-			host->dma_tx_channel = dma_request_channel(mask,
-							   plat->dma_filter,
-							   plat->dma_tx_param);
-			if (!host->dma_tx_channel)
-				dev_warn(mmc_dev(host->mmc), "no TX DMA channel\n");
-		}
-	}
 
 	/*
 	 * If only an RX channel is specified, the driver will
@@ -446,11 +426,9 @@ static void mmci_dma_setup(struct mmci_host *host)
  */
 static inline void mmci_dma_release(struct mmci_host *host)
 {
-	struct mmci_platform_data *plat = host->plat;
-
 	if (host->dma_rx_channel)
 		dma_release_channel(host->dma_rx_channel);
-	if (host->dma_tx_channel && plat->dma_tx_param)
+	if (host->dma_tx_channel)
 		dma_release_channel(host->dma_tx_channel);
 	host->dma_rx_channel = host->dma_tx_channel = NULL;
 }
