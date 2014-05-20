@@ -249,10 +249,10 @@ the case would look like this:
 		goto ignore_this_device;
 	}
 
-The coherent coherent mask will always be able to set the same or a
-smaller mask as the streaming mask. However for the rare case that a
-device driver only uses consistent allocations, one would have to
-check the return value from dma_set_coherent_mask().
+The coherent mask will always be able to set the same or a smaller mask as
+the streaming mask. However for the rare case that a device driver only
+uses consistent allocations, one would have to check the return value from
+dma_set_coherent_mask().
 
 Finally, if your device can only drive the low 24-bits of
 address you might do something like:
