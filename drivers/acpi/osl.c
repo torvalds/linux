@@ -355,7 +355,7 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
 }
 
 void __iomem *__init_refok
-acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
+acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map;
 	void __iomem *virt;
@@ -401,9 +401,16 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 
 	list_add_tail_rcu(&map->list, &acpi_ioremaps);
 
- out:
+out:
 	mutex_unlock(&acpi_ioremap_lock);
 	return map->virt + (phys - map->phys);
+}
+EXPORT_SYMBOL_GPL(acpi_os_map_iomem);
+
+void *__init_refok
+acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
+{
+	return (void *)acpi_os_map_iomem(phys, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
@@ -422,7 +429,7 @@ static void acpi_os_map_cleanup(struct acpi_ioremap *map)
 	}
 }
 
-void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
+void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
 
@@ -442,6 +449,12 @@ void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 	mutex_unlock(&acpi_ioremap_lock);
 
 	acpi_os_map_cleanup(map);
+}
+EXPORT_SYMBOL_GPL(acpi_os_unmap_iomem);
+
+void __ref acpi_os_unmap_memory(void *virt, acpi_size size)
+{
+	return acpi_os_unmap_iomem((void __iomem *)virt, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
@@ -464,7 +477,7 @@ int acpi_os_map_generic_address(struct acpi_generic_address *gas)
 	if (!addr || !gas->bit_width)
 		return -EINVAL;
 
-	virt = acpi_os_map_memory(addr, gas->bit_width / 8);
+	virt = acpi_os_map_iomem(addr, gas->bit_width / 8);
 	if (!virt)
 		return -EIO;
 

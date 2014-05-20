@@ -220,13 +220,13 @@ static int __init extlog_init(void)
 		goto err;
 	}
 
-	extlog_l1_hdr = acpi_os_map_memory(l1_dirbase, l1_hdr_size);
+	extlog_l1_hdr = acpi_os_map_iomem(l1_dirbase, l1_hdr_size);
 	l1_head = (struct extlog_l1_head *)extlog_l1_hdr;
 	l1_size = l1_head->total_len;
 	l1_percpu_entry = l1_head->entries;
 	elog_base = l1_head->elog_base;
 	elog_size = l1_head->elog_len;
-	acpi_os_unmap_memory(extlog_l1_hdr, l1_hdr_size);
+	acpi_os_unmap_iomem(extlog_l1_hdr, l1_hdr_size);
 	release_mem_region(l1_dirbase, l1_hdr_size);
 
 	/* remap L1 header again based on completed information */
@@ -237,7 +237,7 @@ static int __init extlog_init(void)
 			(unsigned long long)l1_dirbase + l1_size);
 		goto err;
 	}
-	extlog_l1_addr = acpi_os_map_memory(l1_dirbase, l1_size);
+	extlog_l1_addr = acpi_os_map_iomem(l1_dirbase, l1_size);
 	l1_entry_base = (u64 *)((u8 *)extlog_l1_addr + l1_hdr_size);
 
 	/* remap elog table */
@@ -248,7 +248,7 @@ static int __init extlog_init(void)
 			(unsigned long long)elog_base + elog_size);
 		goto err_release_l1_dir;
 	}
-	elog_addr = acpi_os_map_memory(elog_base, elog_size);
+	elog_addr = acpi_os_map_iomem(elog_base, elog_size);
 
 	rc = -ENOMEM;
 	/* allocate buffer to save elog record */
@@ -270,11 +270,11 @@ static int __init extlog_init(void)
 
 err_release_elog:
 	if (elog_addr)
-		acpi_os_unmap_memory(elog_addr, elog_size);
+		acpi_os_unmap_iomem(elog_addr, elog_size);
 	release_mem_region(elog_base, elog_size);
 err_release_l1_dir:
 	if (extlog_l1_addr)
-		acpi_os_unmap_memory(extlog_l1_addr, l1_size);
+		acpi_os_unmap_iomem(extlog_l1_addr, l1_size);
 	release_mem_region(l1_dirbase, l1_size);
 err:
 	pr_warn(FW_BUG "Extended error log disabled because of problems parsing f/w tables\n");
@@ -287,9 +287,9 @@ static void __exit extlog_exit(void)
 	mce_unregister_decode_chain(&extlog_mce_dec);
 	((struct extlog_l1_head *)extlog_l1_addr)->flags &= ~FLAG_OS_OPTIN;
 	if (extlog_l1_addr)
-		acpi_os_unmap_memory(extlog_l1_addr, l1_size);
+		acpi_os_unmap_iomem(extlog_l1_addr, l1_size);
 	if (elog_addr)
-		acpi_os_unmap_memory(elog_addr, elog_size);
+		acpi_os_unmap_iomem(elog_addr, elog_size);
 	release_mem_region(elog_base, elog_size);
 	release_mem_region(l1_dirbase, l1_size);
 	kfree(elog_buf);
