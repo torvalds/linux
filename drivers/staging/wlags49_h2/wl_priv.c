@@ -179,8 +179,6 @@ int wvlan_uil(struct uilreq *urq, struct wl_private *lp)
  ******************************************************************************/
 int wvlan_uil_connect(struct uilreq *urq, struct wl_private *lp)
 {
-	int result = 0;
-
 	if (!(lp->flags & WVLAN2_UIL_CONNECTED)) {
 		lp->flags |= WVLAN2_UIL_CONNECTED;
 		urq->hcfCtx = &(lp->hcfCtx);
@@ -190,7 +188,7 @@ int wvlan_uil_connect(struct uilreq *urq, struct wl_private *lp)
 		urq->result = UIL_ERR_IN_USE;
 	}
 
-	return result;
+	return 0;
 } /* wvlan_uil_connect */
 /*============================================================================*/
 
@@ -218,8 +216,6 @@ int wvlan_uil_connect(struct uilreq *urq, struct wl_private *lp)
  ******************************************************************************/
 int wvlan_uil_disconnect(struct uilreq *urq, struct wl_private *lp)
 {
-	int result = 0;
-
 	if (urq->hcfCtx == &(lp->hcfCtx)) {
 		if (lp->flags & WVLAN2_UIL_CONNECTED) {
 			lp->flags &= ~WVLAN2_UIL_CONNECTED;
@@ -238,7 +234,7 @@ int wvlan_uil_disconnect(struct uilreq *urq, struct wl_private *lp)
 		urq->result = UIL_ERR_WRONG_IFB;
 	}
 
-	return result;
+	return 0;
 } /* wvlan_uil_disconnect */
 /*============================================================================*/
 
@@ -1580,7 +1576,6 @@ int wvlan_set_netname(struct net_device *dev,
 {
 	struct wl_private *lp = wl_priv(dev);
 	unsigned long flags;
-	int ret = 0;
 
 	wl_lock(lp, &flags);
 
@@ -1591,7 +1586,7 @@ int wvlan_set_netname(struct net_device *dev,
 	wl_apply(lp);
 	wl_unlock(lp, &flags);
 
-	return ret;
+	return 0;
 } /* wvlan_set_netname */
 /*============================================================================*/
 
@@ -1683,7 +1678,6 @@ int wvlan_set_station_nickname(struct net_device *dev,
 	struct wl_private *lp = wl_priv(dev);
 	unsigned long flags;
 	size_t len;
-	int         ret = 0;
 
 	wl_lock(lp, &flags);
 
@@ -1695,7 +1689,7 @@ int wvlan_set_station_nickname(struct net_device *dev,
 	wl_apply(lp);
 	wl_unlock(lp, &flags);
 
-	return ret;
+	return 0;
 } /* wvlan_set_station_nickname */
 /*============================================================================*/
 
