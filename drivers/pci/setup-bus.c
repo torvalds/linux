@@ -915,6 +915,10 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
  *
  * Calculate the size of the bus and minimal alignment which
  * guarantees that all child resources fit in this size.
+ *
+ * Returns -ENOSPC if there's no available bus resource of the desired type.
+ * Otherwise, sets the bus resource start/end to indicate the required
+ * size, adds things to realloc_head (if supplied), and returns 0.
  */
 static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			 unsigned long type, unsigned long type2,
@@ -931,7 +935,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	resource_size_t children_add_size = 0;
 
 	if (!b_res)
-		return 0;
+		return -ENOSPC;
 
 	memset(aligns, 0, sizeof(aligns));
 	max_order = 0;
@@ -1003,7 +1007,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 				 "%pR to %pR (unused)\n", b_res,
 				 &bus->busn_res);
 		b_res->flags = 0;
-		return 1;
+		return 0;
 	}
 	b_res->start = min_align;
 	b_res->end = size0 + min_align - 1;
@@ -1014,7 +1018,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 				 "%pR to %pR add_size %llx\n", b_res,
 				 &bus->busn_res, (unsigned long long)size1-size0);
 	}
-	return 1;
+	return 0;
 }
 
 unsigned long pci_cardbus_resource_alignment(struct resource *res)
@@ -1126,6 +1130,7 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 	unsigned long mask, prefmask, type2 = 0, type3 = 0;
 	resource_size_t additional_mem_size = 0, additional_io_size = 0;
 	struct resource *b_res;
+	int ret;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		struct pci_bus *b = dev->subordinate;
@@ -1175,25 +1180,27 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 		prefmask = IORESOURCE_MEM | IORESOURCE_PREFETCH;
 		if (b_res[2].flags & IORESOURCE_MEM_64) {
 			prefmask |= IORESOURCE_MEM_64;
-			if (pbus_size_mem(bus, prefmask, prefmask,
+			ret = pbus_size_mem(bus, prefmask, prefmask,
 				  prefmask, prefmask,
 				  realloc_head ? 0 : additional_mem_size,
-				  additional_mem_size, realloc_head)) {
-					/*
-					 * Success, with pref mmio64,
-					 * next will size non-pref or
-					 * non-mmio64 */
-					mask = prefmask;
-					type2 = prefmask & ~IORESOURCE_MEM_64;
-					type3 = prefmask & ~IORESOURCE_PREFETCH;
+				  additional_mem_size, realloc_head);
+			if (ret == 0) {
+				/*
+				 * Success, with pref mmio64,
+				 * next will size non-pref or
+				 * non-mmio64 */
+				mask = prefmask;
+				type2 = prefmask & ~IORESOURCE_MEM_64;
+				type3 = prefmask & ~IORESOURCE_PREFETCH;
 			}
 		}
 		if (!type2) {
 			prefmask &= ~IORESOURCE_MEM_64;
-			if (pbus_size_mem(bus, prefmask, prefmask,
+			ret = pbus_size_mem(bus, prefmask, prefmask,
 					 prefmask, prefmask,
 					 realloc_head ? 0 : additional_mem_size,
-					 additional_mem_size, realloc_head)) {
+					 additional_mem_size, realloc_head);
+			if (ret == 0) {
 				/* Success, next will size non-prefetch. */
 				mask = prefmask;
 			} else
