@@ -935,16 +935,6 @@ static int srp_map_finish_fmr(struct srp_map_state *state,
 	struct ib_pool_fmr *fmr;
 	u64 io_addr = 0;
 
-	if (!state->npages)
-		return 0;
-
-	if (state->npages == 1) {
-		srp_map_desc(state, state->base_dma_addr, state->fmr_len,
-			     target->rkey);
-		state->npages = state->fmr_len = 0;
-		return 0;
-	}
-
 	fmr = ib_fmr_pool_map_phys(dev->fmr_pool, state->pages,
 				   state->npages, io_addr);
 	if (IS_ERR(fmr))
@@ -954,8 +944,30 @@ static int srp_map_finish_fmr(struct srp_map_state *state,
 	state->nfmr++;
 
 	srp_map_desc(state, 0, state->fmr_len, fmr->fmr->rkey);
-	state->npages = state->fmr_len = 0;
+
 	return 0;
+}
+
+static int srp_finish_mapping(struct srp_map_state *state,
+			      struct srp_target_port *target)
+{
+	int ret = 0;
+
+	if (state->npages == 0)
+		return 0;
+
+	if (state->npages == 1)
+		srp_map_desc(state, state->base_dma_addr, state->fmr_len,
+			     target->rkey);
+	else
+		ret = srp_map_finish_fmr(state, target);
+
+	if (ret == 0) {
+		state->npages = 0;
+		state->fmr_len = 0;
+	}
+
+	return ret;
 }
 
 static void srp_map_update_start(struct srp_map_state *state,
@@ -998,7 +1010,7 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	 * avoided using FMR on such page fragments.
 	 */
 	if (dma_addr & ~dev->fmr_page_mask || dma_len > dev->fmr_max_size) {
-		ret = srp_map_finish_fmr(state, target);
+		ret = srp_finish_mapping(state, target);
 		if (ret)
 			return ret;
 
@@ -1017,7 +1029,7 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 
 	while (dma_len) {
 		if (state->npages == SRP_FMR_SIZE) {
-			ret = srp_map_finish_fmr(state, target);
+			ret = srp_finish_mapping(state, target);
 			if (ret)
 				return ret;
 
@@ -1040,7 +1052,7 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	 */
 	ret = 0;
 	if (len != dev->fmr_page_size) {
-		ret = srp_map_finish_fmr(state, target);
+		ret = srp_finish_mapping(state, target);
 		if (!ret)
 			srp_map_update_start(state, NULL, 0, 0);
 	}
@@ -1083,7 +1095,7 @@ backtrack:
 		}
 	}
 
-	if (use_fmr == SRP_MAP_ALLOW_FMR && srp_map_finish_fmr(state, target))
+	if (use_fmr == SRP_MAP_ALLOW_FMR && srp_finish_mapping(state, target))
 		goto backtrack;
 
 	req->nfmr = state->nfmr;
