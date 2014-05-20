@@ -4148,7 +4148,6 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width)
 	domain->iommu_snooping = 0;
 	domain->iommu_superpage = 0;
 	domain->max_addr = 0;
-	domain->nid = -1;
 
 	/* always allocate the top pgd */
 	domain->pgd = (struct dma_pte *)alloc_pgtable_page(domain->nid);
