@@ -86,10 +86,6 @@ struct fault {
 static LIST_HEAD(state_list);
 static spinlock_t state_lock;
 
-/* List and lock for all pasid_states */
-static LIST_HEAD(pasid_state_list);
-static DEFINE_SPINLOCK(ps_lock);
-
 static struct workqueue_struct *iommu_wq;
 
 /*
@@ -169,25 +165,6 @@ static void put_device_state_wait(struct device_state *dev_state)
 	finish_wait(&dev_state->wq, &wait);
 
 	free_device_state(dev_state);
-}
-
-static void link_pasid_state(struct pasid_state *pasid_state)
-{
-	spin_lock(&ps_lock);
-	list_add_tail(&pasid_state->list, &pasid_state_list);
-	spin_unlock(&ps_lock);
-}
-
-static void __unlink_pasid_state(struct pasid_state *pasid_state)
-{
-	list_del(&pasid_state->list);
-}
-
-static void unlink_pasid_state(struct pasid_state *pasid_state)
-{
-	spin_lock(&ps_lock);
-	__unlink_pasid_state(pasid_state);
-	spin_unlock(&ps_lock);
 }
 
 /* Must be called under dev_state->lock */
@@ -346,7 +323,6 @@ static void unbind_pasid(struct device_state *dev_state, int pasid)
 	if (pasid_state == NULL)
 		return;
 
-	unlink_pasid_state(pasid_state);
 	__unbind_pasid(pasid_state);
 	put_pasid_state_wait(pasid_state); /* Reference taken in this function */
 }
@@ -688,8 +664,6 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 					__pa(pasid_state->mm->pgd));
 	if (ret)
 		goto out_clear_state;
-
-	link_pasid_state(pasid_state);
 
 	return 0;
 
