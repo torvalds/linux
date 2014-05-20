@@ -64,6 +64,7 @@ void mxc_set_cpu_type(unsigned int type);
 void mxc_restart(enum reboot_mode, const char *);
 void mxc_arch_reset_init(void __iomem *);
 void mxc_arch_reset_init_dt(void);
+int mx51_revision(void);
 int mx53_revision(void);
 void imx_set_aips(void __iomem *);
 int mxc_device_init(void);

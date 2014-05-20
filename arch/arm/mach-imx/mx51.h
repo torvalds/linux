@@ -305,9 +305,4 @@
 #define MX51_INT_EMI_NFC		(NR_IRQS_LEGACY + 101)
 #define MX51_INT_GPU_IDLE		(NR_IRQS_LEGACY + 102)
 
-#if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
-extern int mx51_revision(void);
-extern void mx51_display_revision(void);
-#endif
-
 #endif	/* ifndef __MACH_MX51_H__ */
