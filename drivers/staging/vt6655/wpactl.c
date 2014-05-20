@@ -411,12 +411,11 @@ static int wpa_set_wpa(PSDevice pDevice,
 		       struct viawget_wpa_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
-	int ret = 0;
 
 	pMgmt->eAuthenMode = WMAC_AUTH_OPEN;
 	pMgmt->bShareKeyAlgorithm = false;
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -437,7 +436,6 @@ static int wpa_set_disassociate(PSDevice pDevice,
 				struct viawget_wpa_param *param)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
-	int ret = 0;
 
 	spin_lock_irq(&pDevice->lock);
 	if (pDevice->bLinkPass) {
@@ -446,7 +444,7 @@ static int wpa_set_disassociate(PSDevice pDevice,
 	}
 	spin_unlock_irq(&pDevice->lock);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -466,14 +464,12 @@ static int wpa_set_disassociate(PSDevice pDevice,
 static int wpa_set_scan(PSDevice pDevice,
 			struct viawget_wpa_param *param)
 {
-	int ret = 0;
-
 	spin_lock_irq(&pDevice->lock);
 	BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 	bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 	spin_unlock_irq(&pDevice->lock);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -494,11 +490,10 @@ static int wpa_get_bssid(PSDevice pDevice,
 			 struct viawget_wpa_param *param)
 {
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
-	int ret = 0;
 
 	memcpy(param->u.wpa_associate.bssid, pMgmt->abyCurrBSSID , 6);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -520,14 +515,13 @@ static int wpa_get_ssid(PSDevice pDevice,
 {
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 	PWLAN_IE_SSID       pItemSSID;
-	int ret = 0;
 
 	pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
 
 	memcpy(param->u.wpa_associate.ssid, pItemSSID->abySSID , pItemSSID->len);
 	param->u.wpa_associate.ssid_len = pItemSSID->len;
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -668,7 +662,6 @@ static int wpa_set_associate(PSDevice pDevice,
 	PWLAN_IE_SSID   pItemSSID;
 	unsigned char abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	unsigned char abyWPAIE[64];
-	int ret = 0;
 	bool bWepEnabled = false;
 
 	// set key type & algorithm
@@ -788,7 +781,7 @@ static int wpa_set_associate(PSDevice pDevice,
 	bScheduleCommand((void *)pDevice, WLAN_CMD_SSID, NULL);
 	spin_unlock_irq(&pDevice->lock);
 
-	return ret;
+	return 0;
 }
 
 /*

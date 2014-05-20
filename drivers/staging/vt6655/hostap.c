@@ -421,7 +421,6 @@ static int hostap_set_encryption(PSDevice pDevice,
 	unsigned char abySeq[MAX_KEY_LEN];
 	unsigned long long KeyRSC;
 	unsigned char byKeyDecMode = KEY_CTL_WEP;
-	int     ret = 0;
 	int     iNodeIndex = -1;
 	int     ii;
 	bool bKeyTableFull = false;
@@ -475,7 +474,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 		       MAX_KEY_LEN
 );
 
-		return ret;
+		return 0;
 	}
 
 	memcpy(abyKey, param->u.crypt.key, param->u.crypt.key_len);
@@ -531,7 +530,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 		pMgmt->byCSSGK = KEY_CTL_WEP;
 		pMgmt->sNodeDBTable[iNodeIndex].byCipherSuite = KEY_CTL_WEP;
 		pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex = dwKeyIndex;
-		return ret;
+		return 0;
 	}
 
 	if (param->u.crypt.seq) {
@@ -622,7 +621,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 	pMgmt->sNodeDBTable[iNodeIndex].dwTSC47_16 = 0;
 	pMgmt->sNodeDBTable[iNodeIndex].wTSC15_0 = 0;
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -643,7 +642,6 @@ static int hostap_get_encryption(PSDevice pDevice,
 				 int param_len)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
-	int     ret = 0;
 	int     ii;
 	int     iNodeIndex = 0;
 
@@ -663,7 +661,7 @@ static int hostap_get_encryption(PSDevice pDevice,
 	for (ii = 0; ii < 8; ii++)
 		param->u.crypt.seq[ii] = (unsigned char)pMgmt->sNodeDBTable[iNodeIndex].KeyRSC >> (ii * 8);
 
-	return ret;
+	return 0;
 }
 
 /*
