@@ -500,26 +500,23 @@ int i2400m_pm_notifier(struct notifier_block *notifier,
  */
 int i2400m_pre_reset(struct i2400m *i2400m)
 {
-	int result;
 	struct device *dev = i2400m_dev(i2400m);
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	d_printf(1, dev, "pre-reset shut down\n");
 
-	result = 0;
 	mutex_lock(&i2400m->init_mutex);
 	if (i2400m->updown) {
 		netif_tx_disable(i2400m->wimax_dev.net_dev);
 		__i2400m_dev_stop(i2400m);
-		result = 0;
 		/* down't set updown to zero -- this way
 		 * post_reset can restore properly */
 	}
 	mutex_unlock(&i2400m->init_mutex);
 	if (i2400m->bus_release)
 		i2400m->bus_release(i2400m);
-	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
-	return result;
+	d_fnend(3, dev, "(i2400m %p) = 0\n", i2400m);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(i2400m_pre_reset);
 
