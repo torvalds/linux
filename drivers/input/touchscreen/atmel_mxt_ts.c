@@ -2089,8 +2089,8 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 	if (error)
 		return error;
 
-	le16_to_cpus(range.x);
-	le16_to_cpus(range.y);
+	le16_to_cpus(&range.x);
+	le16_to_cpus(&range.y);
 
 	error =  __mxt_read_reg(client,
 				object->start_address + MXT_T9_ORIENT,
