@@ -1339,9 +1339,6 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 		return -ENOMEM;
 	}
 
-	qi->free_head = qi->free_tail = 0;
-	qi->free_cnt = QI_LENGTH;
-
 	raw_spin_lock_init(&qi->q_lock);
 
 	__dmar_enable_qi(iommu);
