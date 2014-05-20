@@ -432,8 +432,10 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	 * Rembember workqueues are cheap, they're not threads.
 	 */
 	dev->wq = alloc_workqueue("%s", 0, 0, gd->disk_name);
-	if (!dev->wq)
+	if (!dev->wq) {
+		ret = -ENOMEM;
 		goto out_free_queue;
+	}
 	INIT_WORK(&dev->work, ubiblock_do_work);
 
 	mutex_lock(&devices_mutex);
