@@ -55,11 +55,13 @@ static struct tracer_opt trace_opts[] = {
 	{ TRACER_OPT(funcgraph-abstime, TRACE_GRAPH_PRINT_ABS_TIME) },
 	/* Display interrupts */
 	{ TRACER_OPT(funcgraph-irqs, TRACE_GRAPH_PRINT_IRQS) },
+	/* Display function name after trailing } */
+	{ TRACER_OPT(funcgraph-tail, TRACE_GRAPH_PRINT_TAIL) },
 	{ } /* Empty entry */
 };
 
 static struct tracer_flags tracer_flags = {
-	/* Don't display overruns and proc by default */
+	/* Don't display overruns, proc, or tail by default */
 	.val = TRACE_GRAPH_PRINT_CPU | TRACE_GRAPH_PRINT_OVERHEAD |
 	       TRACE_GRAPH_PRINT_DURATION | TRACE_GRAPH_PRINT_IRQS,
 	.opts = trace_opts
@@ -1167,9 +1169,10 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 	 * If the return function does not have a matching entry,
 	 * then the entry was lost. Instead of just printing
 	 * the '}' and letting the user guess what function this
-	 * belongs to, write out the function name.
+	 * belongs to, write out the function name. Always do
+	 * that if the funcgraph-tail option is enabled.
 	 */
-	if (func_match) {
+	if (func_match && !(flags & TRACE_GRAPH_PRINT_TAIL)) {
 		ret = trace_seq_puts(s, "}\n");
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
