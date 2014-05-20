@@ -6,6 +6,7 @@
 /*
  * Copyright (C) 2002 NetChip Technology, Inc. (http://www.netchip.com)
  * Copyright (C) 2003 David Brownell
+ * Copyright (C) 2014 Ricardo Ribalda - Qtechnology/AS
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,6 +15,7 @@
  */
 
 #include <linux/usb/net2280.h>
+#include <linux/usb/usb338x.h>
 
 /*-------------------------------------------------------------------------*/
 
@@ -59,13 +61,14 @@ set_idx_reg (struct net2280_regs __iomem *regs, u32 index, u32 value)
 #define	CHIPREV_1	0x0100
 #define	CHIPREV_1A	0x0110
 
-#ifdef	__KERNEL__
+/* DEFECT 7374 */
+#define DEFECT_7374_NUMBEROF_MAX_WAIT_LOOPS         200
+#define DEFECT_7374_PROCESSOR_WAIT_TIME             10
 
-/* ep a-f highspeed and fullspeed maxpacket, addresses
- * computed from ep->num
- */
-#define REG_EP_MAXPKT(dev,num) (((num) + 1) * 0x10 + \
-		(((dev)->gadget.speed == USB_SPEED_HIGH) ? 0 : 1))
+/* ep0 max packet size */
+#define EP0_SS_MAX_PACKET_SIZE  0x200
+#define EP0_HS_MAX_PACKET_SIZE  0x40
+#ifdef	__KERNEL__
 
 /*-------------------------------------------------------------------------*/
 
@@ -85,12 +88,15 @@ struct net2280_dma {
 
 struct net2280_ep {
 	struct usb_ep				ep;
+	struct net2280_ep_regs __iomem *cfg;
 	struct net2280_ep_regs			__iomem *regs;
 	struct net2280_dma_regs			__iomem *dma;
 	struct net2280_dma			*dummy;
+	struct usb338x_fifo_regs __iomem *fiforegs;
 	dma_addr_t				td_dma;	/* of dummy */
 	struct net2280				*dev;
 	unsigned long				irqs;
+	unsigned is_halt:1, dma_started:1;
 
 	/* analogous to a host-side qh */
 	struct list_head			queue;
@@ -116,10 +122,19 @@ static inline void allow_status (struct net2280_ep *ep)
 	ep->stopped = 1;
 }
 
-/* count (<= 4) bytes in the next fifo write will be valid */
-static inline void set_fifo_bytecount (struct net2280_ep *ep, unsigned count)
+static void allow_status_338x(struct net2280_ep *ep)
 {
-	writeb (count, 2 + (u8 __iomem *) &ep->regs->ep_cfg);
+	/*
+	 * Control Status Phase Handshake was set by the chip when the setup
+	 * packet arrived. While set, the chip automatically NAKs the host's
+	 * Status Phase tokens.
+	 */
+	writel(1 << CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE, &ep->regs->ep_rsp);
+
+	ep->stopped = 1;
+
+	/* TD 9.9 Halt Endpoint test.  TD 9.22 set feature test. */
+	ep->responded = 0;
 }
 
 struct net2280_request {
@@ -135,23 +150,38 @@ struct net2280 {
 	/* each pci device provides one gadget, several endpoints */
 	struct usb_gadget		gadget;
 	spinlock_t			lock;
-	struct net2280_ep		ep [7];
+	struct net2280_ep		ep[9];
 	struct usb_gadget_driver 	*driver;
 	unsigned			enabled : 1,
 					protocol_stall : 1,
 					softconnect : 1,
 					got_irq : 1,
-					region : 1;
+					region:1,
+					u1_enable:1,
+					u2_enable:1,
+					ltm_enable:1,
+					wakeup_enable:1,
+					selfpowered:1,
+					addressed_state:1;
 	u16				chiprev;
+	int enhanced_mode;
+	int n_ep;
 
 	/* pci state used to access those endpoints */
 	struct pci_dev			*pdev;
 	struct net2280_regs		__iomem *regs;
 	struct net2280_usb_regs		__iomem *usb;
+	struct usb338x_usb_ext_regs	__iomem *usb_ext;
 	struct net2280_pci_regs		__iomem *pci;
 	struct net2280_dma_regs		__iomem *dma;
 	struct net2280_dep_regs		__iomem *dep;
 	struct net2280_ep_regs		__iomem *epregs;
+	struct usb338x_fifo_regs	__iomem *fiforegs;
+	struct usb338x_ll_regs		__iomem *llregs;
+	struct usb338x_ll_lfps_regs	__iomem *ll_lfps_regs;
+	struct usb338x_ll_tsn_regs	__iomem *ll_tsn_regs;
+	struct usb338x_ll_chi_regs	__iomem *ll_chicken_reg;
+	struct usb338x_pl_regs		__iomem *plregs;
 
 	struct pci_pool			*requests;
 	// statistics...
@@ -179,6 +209,43 @@ static inline void clear_halt (struct net2280_ep *ep)
 		, &ep->regs->ep_rsp);
 }
 
+/*
+ * FSM value for Defect 7374 (U1U2 Test) is managed in
+ * chip's SCRATCH register:
+ */
+#define DEFECT7374_FSM_FIELD    28
+
+/* Waiting for Control Read:
+ *  - A transition to this state indicates a fresh USB connection,
+ *    before the first Setup Packet. The connection speed is not
+ *    known. Firmware is waiting for the first Control Read.
+ *  - Starting state: This state can be thought of as the FSM's typical
+ *    starting state.
+ *  - Tip: Upon the first SS Control Read the FSM never
+ *    returns to this state.
+ */
+#define DEFECT7374_FSM_WAITING_FOR_CONTROL_READ (1 << DEFECT7374_FSM_FIELD)
+
+/* Non-SS Control Read:
+ *  - A transition to this state indicates detection of the first HS
+ *    or FS Control Read.
+ *  - Tip: Upon the first SS Control Read the FSM never
+ *    returns to this state.
+ */
+#define	DEFECT7374_FSM_NON_SS_CONTROL_READ (2 << DEFECT7374_FSM_FIELD)
+
+/* SS Control Read:
+ *  - A transition to this state indicates detection of the
+ *    first SS Control Read.
+ *  - This state indicates workaround completion. Workarounds no longer
+ *    need to be applied (as long as the chip remains powered up).
+ *  - Tip: Once in this state the FSM state does not change (until
+ *    the chip's power is lost and restored).
+ *  - This can be thought of as the final state of the FSM;
+ *    the FSM 'locks-up' in this state until the chip loses power.
+ */
+#define DEFECT7374_FSM_SS_CONTROL_READ (3 << DEFECT7374_FSM_FIELD)
+
 #ifdef USE_RDK_LEDS
 
 static inline void net2280_led_init (struct net2280 *dev)
@@ -198,6 +265,9 @@ void net2280_led_speed (struct net2280 *dev, enum usb_device_speed speed)
 {
 	u32	val = readl (&dev->regs->gpioctl);
 	switch (speed) {
+	case USB_SPEED_SUPER:		/* green + red */
+		val |= (1 << GPIO0_DATA) | (1 << GPIO1_DATA);
+		break;
 	case USB_SPEED_HIGH:		/* green */
 		val &= ~(1 << GPIO0_DATA);
 		val |= (1 << GPIO1_DATA);
@@ -271,6 +341,17 @@ static inline void net2280_led_shutdown (struct net2280 *dev)
 
 /*-------------------------------------------------------------------------*/
 
+static inline void set_fifo_bytecount(struct net2280_ep *ep, unsigned count)
+{
+	if (ep->dev->pdev->vendor == 0x17cc)
+		writeb(count, 2 + (u8 __iomem *) &ep->regs->ep_cfg);
+	else{
+		u32 tmp = readl(&ep->cfg->ep_cfg) &
+					(~(0x07 << EP_FIFO_BYTE_COUNT));
+		writel(tmp | (count << EP_FIFO_BYTE_COUNT), &ep->cfg->ep_cfg);
+	}
+}
+
 static inline void start_out_naking (struct net2280_ep *ep)
 {
 	/* NOTE:  hardware races lurk here, and PING protocol issues */
@@ -303,6 +384,24 @@ static inline void stop_out_naking (struct net2280_ep *ep)
 	tmp = readl (&ep->regs->ep_stat);
 	if ((tmp & (1 << NAK_OUT_PACKETS)) != 0)
 		writel ((1 << CLEAR_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
+}
+
+
+static inline void set_max_speed(struct net2280_ep *ep, u32 max)
+{
+	u32 reg;
+	static const u32 ep_enhanced[9] = { 0x10, 0x60, 0x30, 0x80,
+					  0x50, 0x20, 0x70, 0x40, 0x90 };
+
+	if (ep->dev->enhanced_mode)
+		reg = ep_enhanced[ep->num];
+	else{
+		reg = (ep->num + 1) * 0x10;
+		if (ep->dev->gadget.speed != USB_SPEED_HIGH)
+			reg += 1;
+	}
+
+	set_idx_reg(ep->dev->regs, reg, max);
 }
 
 #endif	/* __KERNEL__ */

@@ -409,13 +409,21 @@ config USB_NET2272_DMA
 	  If unsure, say "N" here.  The driver works fine in PIO mode.
 
 config USB_NET2280
-	tristate "NetChip 228x"
+	tristate "NetChip 228x / PLX USB338x"
 	depends on PCI
 	help
 	   NetChip 2280 / 2282 is a PCI based USB peripheral controller which
 	   supports both full and high speed USB 2.0 data transfers.
 
 	   It has six configurable endpoints, as well as endpoint zero
+	   (for control transfers) and several endpoints with dedicated
+	   functions.
+
+	   PLX 3380 / 3382 is a PCIe based USB peripheral controller which
+	   supports full, high speed USB 2.0 and super speed USB 3.0
+	   data transfers.
+
+	   It has eight configurable endpoints, as well as endpoint zero
 	   (for control transfers) and several endpoints with dedicated
 	   functions.
 
