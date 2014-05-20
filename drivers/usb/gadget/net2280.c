@@ -95,9 +95,9 @@ static const char *const ep_name [] = {
  * Some gadget drivers work better with the dma support here than others.
  * These two parameters let you use PIO or more aggressive DMA.
  */
-static bool use_dma = 1;
-static bool use_dma_chaining = 0;
-static bool use_msi = 1;
+static bool use_dma = true;
+static bool use_dma_chaining;
+static bool use_msi = true;
 
 /* "modprobe net2280 use_dma=n" etc */
 module_param (use_dma, bool, S_IRUGO);
@@ -118,7 +118,7 @@ module_param (fifo_mode, ushort, 0644);
  * USB suspend requests will be ignored.  This is acceptable for
  * self-powered devices
  */
-static bool enable_suspend = 0;
+static bool enable_suspend;
 
 /* "modprobe net2280 enable_suspend=1" etc */
 module_param (enable_suspend, bool, S_IRUGO);
