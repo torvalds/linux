@@ -415,7 +415,7 @@ struct palmas_usb {
 	struct palmas *palmas;
 	struct device *dev;
 
-	struct extcon_dev edev;
+	struct extcon_dev *edev;
 
 	int id_otg_irq;
 	int id_irq;
