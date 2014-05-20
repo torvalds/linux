@@ -40,8 +40,8 @@ int skein_ctx_prepare(struct skein_ctx *ctx, enum skein_size size)
 int skein_init(struct skein_ctx *ctx, size_t hash_bit_len)
 {
 	int ret = SKEIN_FAIL;
-	size_t X_len = 0;
-	u64 *X = NULL;
+	size_t x_len = 0;
+	u64 *x = NULL;
 	u64 tree_info = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
 	skein_assert_ret(ctx, SKEIN_FAIL);
@@ -50,8 +50,8 @@ int skein_init(struct skein_ctx *ctx, size_t hash_bit_len)
 	 * contexts are a union in out context and thus have tha maximum
 	 * memory available.  The beauty of C :-) .
 	 */
-	X = ctx->m.s256.X;
-	X_len = ctx->skein_size/8;
+	x = ctx->m.s256.x;
+	x_len = ctx->skein_size/8;
 	/*
 	 * If size is the same and hash bit length is zero then reuse
 	 * the save chaining variables.
@@ -76,7 +76,7 @@ int skein_init(struct skein_ctx *ctx, size_t hash_bit_len)
 		 * Save chaining variables for this combination of size and
 		 * hash_bit_len
 		 */
-		memcpy(ctx->X_save, X, X_len);
+		memcpy(ctx->x_save, x, x_len);
 	}
 	return ret;
 }
@@ -85,14 +85,14 @@ int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
 		   size_t hash_bit_len)
 {
 	int ret = SKEIN_FAIL;
-	u64 *X = NULL;
-	size_t X_len = 0;
+	u64 *x = NULL;
+	size_t x_len = 0;
 	u64 tree_info = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
 	skein_assert_ret(ctx, SKEIN_FAIL);
 
-	X = ctx->m.s256.X;
-	X_len = ctx->skein_size/8;
+	x = ctx->m.s256.x;
+	x_len = ctx->skein_size/8;
 
 	skein_assert_ret(hash_bit_len, SKEIN_BAD_HASHLEN);
 
@@ -120,25 +120,25 @@ int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
 		 * Save chaining variables for this combination of key,
 		 * key_len, hash_bit_len
 		 */
-		memcpy(ctx->X_save, X, X_len);
+		memcpy(ctx->x_save, x, x_len);
 	}
 	return ret;
 }
 
 void skein_reset(struct skein_ctx *ctx)
 {
-	size_t X_len = 0;
-	u64 *X = NULL;
+	size_t x_len = 0;
+	u64 *x = NULL;
 
 	/*
 	 * The following two lines rely of the fact that the real Skein
 	 * contexts are a union in out context and thus have tha maximum
 	 * memory available.  The beautiy of C :-) .
 	 */
-	X = ctx->m.s256.X;
-	X_len = ctx->skein_size/8;
+	x = ctx->m.s256.x;
+	x_len = ctx->skein_size/8;
 	/* Restore the chaing variable, reset byte counter */
-	memcpy(X, ctx->X_save, X_len);
+	memcpy(x, ctx->x_save, x_len);
 
 	/* Setup context to process the message */
 	skein_start_new_type(&ctx->m, MSG);
@@ -200,7 +200,7 @@ int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
 	 * Skein's real partial block buffer.
 	 * If this layout ever changes we have to adapt this as well.
 	 */
-	up = (u8 *)ctx->m.s256.X + ctx->skein_size / 8;
+	up = (u8 *)ctx->m.s256.x + ctx->skein_size / 8;
 
 	/* set tweak flag for the skein_final call */
 	skein_set_bit_pad_flag(ctx->m.h);

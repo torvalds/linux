@@ -66,24 +66,24 @@ enum {
 struct skein_ctx_hdr {
 	size_t hash_bit_len;		/* size of hash result, in bits */
 	size_t b_cnt;			/* current byte count in buffer b[] */
-	u64 T[SKEIN_MODIFIER_WORDS];	/* tweak: T[0]=byte cnt, T[1]=flags */
+	u64 tweak[SKEIN_MODIFIER_WORDS]; /* tweak[0]=byte cnt, tweak[1]=flags */
 };
 
 struct skein_256_ctx { /* 256-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
-	u64 X[SKEIN_256_STATE_WORDS];	/* chaining variables */
+	u64 x[SKEIN_256_STATE_WORDS];	/* chaining variables */
 	u8 b[SKEIN_256_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
 struct skein_512_ctx { /* 512-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
-	u64 X[SKEIN_512_STATE_WORDS];	/* chaining variables */
+	u64 x[SKEIN_512_STATE_WORDS];	/* chaining variables */
 	u8 b[SKEIN_512_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
 struct skein_1024_ctx { /* 1024-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
-	u64 X[SKEIN_1024_STATE_WORDS];	/* chaining variables */
+	u64 x[SKEIN_1024_STATE_WORDS];	/* chaining variables */
 	u8 b[SKEIN_1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
@@ -150,7 +150,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 **           reference and optimized code.
 ******************************************************************/
 
-/* tweak word T[1]: bit field starting positions */
+/* tweak word tweak[1]: bit field starting positions */
 #define SKEIN_T1_BIT(BIT)       ((BIT) - 64)      /* second word  */
 
 #define SKEIN_T1_POS_TREE_LVL   SKEIN_T1_BIT(112) /* 112..118 hash tree level */
@@ -159,16 +159,16 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #define SKEIN_T1_POS_FIRST      SKEIN_T1_BIT(126) /* 126      first blk flag */
 #define SKEIN_T1_POS_FINAL      SKEIN_T1_BIT(127) /* 127      final blk flag */
 
-/* tweak word T[1]: flag bit definition(s) */
+/* tweak word tweak[1]: flag bit definition(s) */
 #define SKEIN_T1_FLAG_FIRST     (((u64)  1) << SKEIN_T1_POS_FIRST)
 #define SKEIN_T1_FLAG_FINAL     (((u64)  1) << SKEIN_T1_POS_FINAL)
 #define SKEIN_T1_FLAG_BIT_PAD   (((u64)  1) << SKEIN_T1_POS_BIT_PAD)
 
-/* tweak word T[1]: tree level bit field mask */
+/* tweak word tweak[1]: tree level bit field mask */
 #define SKEIN_T1_TREE_LVL_MASK  (((u64)0x7F) << SKEIN_T1_POS_TREE_LVL)
 #define SKEIN_T1_TREE_LEVEL(n)  (((u64) (n)) << SKEIN_T1_POS_TREE_LVL)
 
-/* tweak word T[1]: block type field */
+/* tweak word tweak[1]: block type field */
 #define SKEIN_BLK_TYPE_KEY       (0) /* key, for MAC and KDF */
 #define SKEIN_BLK_TYPE_CFG       (4) /* configuration block */
 #define SKEIN_BLK_TYPE_PERS      (8) /* personalization string */
@@ -232,9 +232,9 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 **   Skein macros for getting/setting tweak words, etc.
 **   These are useful for partial input bytes, hash tree init/update, etc.
 **/
-#define skein_get_tweak(ctx_ptr, TWK_NUM)          ((ctx_ptr)->h.T[TWK_NUM])
+#define skein_get_tweak(ctx_ptr, TWK_NUM)          ((ctx_ptr)->h.tweak[TWK_NUM])
 #define skein_set_tweak(ctx_ptr, TWK_NUM, t_val) { \
-		(ctx_ptr)->h.T[TWK_NUM] = (t_val); \
+		(ctx_ptr)->h.tweak[TWK_NUM] = (t_val); \
 	}
 
 #define skein_get_T0(ctx_ptr)     skein_get_tweak(ctx_ptr, 0)
@@ -254,7 +254,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 
 /*
  * setup for starting with a new type:
- * h.T[0]=0; h.T[1] = NEW_TYPE; h.b_cnt=0;
+ * h.tweak[0]=0; h.tweak[1] = NEW_TYPE; h.b_cnt=0;
  */
 #define skein_start_new_type(ctx_ptr, BLK_TYPE) { \
 		skein_set_T0_T1(ctx_ptr, 0, SKEIN_T1_FLAG_FIRST | \
@@ -263,14 +263,14 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 	}
 
 #define skein_clear_first_flag(hdr) { \
-		(hdr).T[1] &= ~SKEIN_T1_FLAG_FIRST; \
+		(hdr).tweak[1] &= ~SKEIN_T1_FLAG_FIRST; \
 	}
 #define skein_set_bit_pad_flag(hdr) { \
-		(hdr).T[1] |=  SKEIN_T1_FLAG_BIT_PAD; \
+		(hdr).tweak[1] |=  SKEIN_T1_FLAG_BIT_PAD; \
 	}
 
 #define skein_set_tree_level(hdr, height) { \
-		(hdr).T[1] |= SKEIN_T1_TREE_LEVEL(height); \
+		(hdr).tweak[1] |= SKEIN_T1_TREE_LEVEL(height); \
 	}
 
 /*****************************************************************
@@ -279,9 +279,9 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #ifdef SKEIN_DEBUG             /* examine/display intermediate values? */
 #include "skein_debug.h"
 #else                           /* default is no callouts */
-#define skein_show_block(bits, ctx, X, blk_ptr, w_ptr, ks_event_ptr, ks_odd_ptr)
-#define skein_show_round(bits, ctx, r, X)
-#define skein_show_r_ptr(bits, ctx, r, X_ptr)
+#define skein_show_block(bits, ctx, x, blk_ptr, w_ptr, ks_event_ptr, ks_odd_ptr)
+#define skein_show_round(bits, ctx, r, x)
+#define skein_show_r_ptr(bits, ctx, r, x_ptr)
 #define skein_show_final(bits, ctx, cnt, out_ptr)
 #define skein_show_key(bits, ctx, key, key_bytes)
 #endif

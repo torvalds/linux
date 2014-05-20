@@ -32,7 +32,8 @@
 #define ts              (kw + KW_TWK_BASE)
 
 #ifdef SKEIN_DEBUG
-#define debug_save_tweak(ctx) { ctx->h.T[0] = ts[0]; ctx->h.T[1] = ts[1]; }
+#define debug_save_tweak(ctx) { \
+                        ctx->h.tweak[0] = ts[0]; ctx->h.tweak[1] = ts[1]; }
 #else
 #define debug_save_tweak(ctx)
 #endif
@@ -71,8 +72,8 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 	X_ptr[0] = &X0;  X_ptr[1] = &X1;  X_ptr[2] = &X2;  X_ptr[3] = &X3;
 #endif
 	skein_assert(blk_cnt != 0); /* never call with blk_cnt == 0! */
-	ts[0] = ctx->h.T[0];
-	ts[1] = ctx->h.T[1];
+	ts[0] = ctx->h.tweak[0];
+	ts[1] = ctx->h.tweak[1];
 	do  {
 		/*
 		 * this implementation only supports 2**64 input bytes
@@ -81,10 +82,10 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 		ts[0] += byte_cnt_add; /* update processed length */
 
 		/* precompute the key schedule for this block */
-		ks[0] = ctx->X[0];
-		ks[1] = ctx->X[1];
-		ks[2] = ctx->X[2];
-		ks[3] = ctx->X[3];
+		ks[0] = ctx->x[0];
+		ks[1] = ctx->x[1];
+		ks[2] = ctx->x[2];
+		ks[3] = ctx->x[3];
 		ks[4] = ks[0] ^ ks[1] ^ ks[2] ^ ks[3] ^ SKEIN_KS_PARITY;
 
 		ts[2] = ts[0] ^ ts[1];
@@ -92,7 +93,7 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 		/* get input block in little-endian format */
 		skein_get64_lsb_first(w, blk_ptr, WCNT);
 		debug_save_tweak(ctx);
-		skein_show_block(BLK_BITS, &ctx->h, ctx->X, blk_ptr, w, ks, ts);
+		skein_show_block(BLK_BITS, &ctx->h, ctx->x, blk_ptr, w, ks, ts);
 
 		X0 = w[0] + ks[0]; /* do the first full key injection */
 		X1 = w[1] + ks[1] + ts[0];
@@ -101,7 +102,7 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 
 		/* show starting state values */
 		skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INITIAL,
-				 X_ptr);
+				 x_ptr);
 
 		blk_ptr += SKEIN_256_BLOCK_BYTES;
 
@@ -220,17 +221,17 @@ do { \
 	#endif
 		}
 		/* do the final "feedforward" xor, update context chaining */
-		ctx->X[0] = X0 ^ w[0];
-		ctx->X[1] = X1 ^ w[1];
-		ctx->X[2] = X2 ^ w[2];
-		ctx->X[3] = X3 ^ w[3];
+		ctx->x[0] = X0 ^ w[0];
+		ctx->x[1] = X1 ^ w[1];
+		ctx->x[2] = X2 ^ w[2];
+		ctx->x[3] = X3 ^ w[3];
 
-		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->X);
+		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->x);
 
 		ts[1] &= ~SKEIN_T1_FLAG_FIRST;
 	} while (--blk_cnt);
-	ctx->h.T[0] = ts[0];
-	ctx->h.T[1] = ts[1];
+	ctx->h.tweak[0] = ts[0];
+	ctx->h.tweak[1] = ts[1];
 }
 
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
@@ -282,8 +283,8 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 #endif
 
 	skein_assert(blk_cnt != 0); /* never call with blk_cnt == 0! */
-	ts[0] = ctx->h.T[0];
-	ts[1] = ctx->h.T[1];
+	ts[0] = ctx->h.tweak[0];
+	ts[1] = ctx->h.tweak[1];
 	do  {
 		/*
 		 * this implementation only supports 2**64 input bytes
@@ -292,14 +293,14 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 		ts[0] += byte_cnt_add; /* update processed length */
 
 		/* precompute the key schedule for this block */
-		ks[0] = ctx->X[0];
-		ks[1] = ctx->X[1];
-		ks[2] = ctx->X[2];
-		ks[3] = ctx->X[3];
-		ks[4] = ctx->X[4];
-		ks[5] = ctx->X[5];
-		ks[6] = ctx->X[6];
-		ks[7] = ctx->X[7];
+		ks[0] = ctx->x[0];
+		ks[1] = ctx->x[1];
+		ks[2] = ctx->x[2];
+		ks[3] = ctx->x[3];
+		ks[4] = ctx->x[4];
+		ks[5] = ctx->x[5];
+		ks[6] = ctx->x[6];
+		ks[7] = ctx->x[7];
 		ks[8] = ks[0] ^ ks[1] ^ ks[2] ^ ks[3] ^
 			ks[4] ^ ks[5] ^ ks[6] ^ ks[7] ^ SKEIN_KS_PARITY;
 
@@ -308,7 +309,7 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 		/* get input block in little-endian format */
 		skein_get64_lsb_first(w, blk_ptr, WCNT);
 		debug_save_tweak(ctx);
-		skein_show_block(BLK_BITS, &ctx->h, ctx->X, blk_ptr, w, ks, ts);
+		skein_show_block(BLK_BITS, &ctx->h, ctx->x, blk_ptr, w, ks, ts);
 
 		X0   = w[0] + ks[0]; /* do the first full key injection */
 		X1   = w[1] + ks[1];
@@ -448,20 +449,20 @@ do { \
 		}
 
 		/* do the final "feedforward" xor, update context chaining */
-		ctx->X[0] = X0 ^ w[0];
-		ctx->X[1] = X1 ^ w[1];
-		ctx->X[2] = X2 ^ w[2];
-		ctx->X[3] = X3 ^ w[3];
-		ctx->X[4] = X4 ^ w[4];
-		ctx->X[5] = X5 ^ w[5];
-		ctx->X[6] = X6 ^ w[6];
-		ctx->X[7] = X7 ^ w[7];
-		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->X);
+		ctx->x[0] = X0 ^ w[0];
+		ctx->x[1] = X1 ^ w[1];
+		ctx->x[2] = X2 ^ w[2];
+		ctx->x[3] = X3 ^ w[3];
+		ctx->x[4] = X4 ^ w[4];
+		ctx->x[5] = X5 ^ w[5];
+		ctx->x[6] = X6 ^ w[6];
+		ctx->x[7] = X7 ^ w[7];
+		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->x);
 
 		ts[1] &= ~SKEIN_T1_FLAG_FIRST;
 	} while (--blk_cnt);
-	ctx->h.T[0] = ts[0];
-	ctx->h.T[1] = ts[1];
+	ctx->h.tweak[0] = ts[0];
+	ctx->h.tweak[1] = ts[1];
 }
 
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
@@ -520,8 +521,8 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 #endif
 
 	skein_assert(blk_cnt != 0); /* never call with blk_cnt == 0! */
-	ts[0] = ctx->h.T[0];
-	ts[1] = ctx->h.T[1];
+	ts[0] = ctx->h.tweak[0];
+	ts[1] = ctx->h.tweak[1];
 	do  {
 		/*
 		 * this implementation only supports 2**64 input bytes
@@ -530,22 +531,22 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 		ts[0] += byte_cnt_add; /* update processed length */
 
 		/* precompute the key schedule for this block */
-		ks[0]  = ctx->X[0];
-		ks[1]  = ctx->X[1];
-		ks[2]  = ctx->X[2];
-		ks[3]  = ctx->X[3];
-		ks[4]  = ctx->X[4];
-		ks[5]  = ctx->X[5];
-		ks[6]  = ctx->X[6];
-		ks[7]  = ctx->X[7];
-		ks[8]  = ctx->X[8];
-		ks[9]  = ctx->X[9];
-		ks[10] = ctx->X[10];
-		ks[11] = ctx->X[11];
-		ks[12] = ctx->X[12];
-		ks[13] = ctx->X[13];
-		ks[14] = ctx->X[14];
-		ks[15] = ctx->X[15];
+		ks[0]  = ctx->x[0];
+		ks[1]  = ctx->x[1];
+		ks[2]  = ctx->x[2];
+		ks[3]  = ctx->x[3];
+		ks[4]  = ctx->x[4];
+		ks[5]  = ctx->x[5];
+		ks[6]  = ctx->x[6];
+		ks[7]  = ctx->x[7];
+		ks[8]  = ctx->x[8];
+		ks[9]  = ctx->x[9];
+		ks[10] = ctx->x[10];
+		ks[11] = ctx->x[11];
+		ks[12] = ctx->x[12];
+		ks[13] = ctx->x[13];
+		ks[14] = ctx->x[14];
+		ks[15] = ctx->x[15];
 		ks[16] =  ks[0] ^  ks[1] ^  ks[2] ^  ks[3] ^
 			  ks[4] ^  ks[5] ^  ks[6] ^  ks[7] ^
 			  ks[8] ^  ks[9] ^ ks[10] ^ ks[11] ^
@@ -556,7 +557,7 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 		/* get input block in little-endian format */
 		skein_get64_lsb_first(w, blk_ptr, WCNT);
 		debug_save_tweak(ctx);
-		skein_show_block(BLK_BITS, &ctx->h, ctx->X, blk_ptr, w, ks, ts);
+		skein_show_block(BLK_BITS, &ctx->h, ctx->x, blk_ptr, w, ks, ts);
 
 		X00    =  w[0] +  ks[0]; /* do the first full key injection */
 		X01    =  w[1] +  ks[1];
@@ -735,30 +736,30 @@ do { \
 		}
 		/* do the final "feedforward" xor, update context chaining */
 
-		ctx->X[0] = X00 ^ w[0];
-		ctx->X[1] = X01 ^ w[1];
-		ctx->X[2] = X02 ^ w[2];
-		ctx->X[3] = X03 ^ w[3];
-		ctx->X[4] = X04 ^ w[4];
-		ctx->X[5] = X05 ^ w[5];
-		ctx->X[6] = X06 ^ w[6];
-		ctx->X[7] = X07 ^ w[7];
-		ctx->X[8] = X08 ^ w[8];
-		ctx->X[9] = X09 ^ w[9];
-		ctx->X[10] = X10 ^ w[10];
-		ctx->X[11] = X11 ^ w[11];
-		ctx->X[12] = X12 ^ w[12];
-		ctx->X[13] = X13 ^ w[13];
-		ctx->X[14] = X14 ^ w[14];
-		ctx->X[15] = X15 ^ w[15];
+		ctx->x[0] = X00 ^ w[0];
+		ctx->x[1] = X01 ^ w[1];
+		ctx->x[2] = X02 ^ w[2];
+		ctx->x[3] = X03 ^ w[3];
+		ctx->x[4] = X04 ^ w[4];
+		ctx->x[5] = X05 ^ w[5];
+		ctx->x[6] = X06 ^ w[6];
+		ctx->x[7] = X07 ^ w[7];
+		ctx->x[8] = X08 ^ w[8];
+		ctx->x[9] = X09 ^ w[9];
+		ctx->x[10] = X10 ^ w[10];
+		ctx->x[11] = X11 ^ w[11];
+		ctx->x[12] = X12 ^ w[12];
+		ctx->x[13] = X13 ^ w[13];
+		ctx->x[14] = X14 ^ w[14];
+		ctx->x[15] = X15 ^ w[15];
 
-		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->X);
+		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->x);
 
 		ts[1] &= ~SKEIN_T1_FLAG_FIRST;
 		blk_ptr += SKEIN_1024_BLOCK_BYTES;
 	} while (--blk_cnt);
-	ctx->h.T[0] = ts[0];
-	ctx->h.T[1] = ts[1];
+	ctx->h.tweak[0] = ts[0];
+	ctx->h.tweak[1] = ts[1];
 }
 
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)

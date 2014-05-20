@@ -100,7 +100,7 @@ enum skein_size {
  */
 struct skein_ctx {
 	u64 skein_size;
-	u64 X_save[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
+	u64 x_save[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
 	union {
 		struct skein_ctx_hdr h;
 		struct skein_256_ctx s256;
