@@ -142,10 +142,12 @@ void imx6sl_pm_init(void);
 void imx6q_pm_set_ccm_base(void __iomem *base);
 
 #ifdef CONFIG_PM
-void imx5_pm_init(void);
+void imx51_pm_init(void);
+void imx53_pm_init(void);
 void imx5_pm_set_ccm_base(void __iomem *base);
 #else
-static inline void imx5_pm_init(void) {}
+static inline void imx51_pm_init(void) {}
+static inline void imx53_pm_init(void) {}
 static inline void imx5_pm_set_ccm_base(void __iomem *base) {}
 #endif
 

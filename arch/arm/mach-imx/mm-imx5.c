@@ -96,10 +96,10 @@ void __init imx53_init_early(void)
 void __init imx51_init_late(void)
 {
 	mx51_neon_fixup();
-	imx5_pm_init();
+	imx51_pm_init();
 }
 
 void __init imx53_init_late(void)
 {
-	imx5_pm_init();
+	imx53_pm_init();
 }
