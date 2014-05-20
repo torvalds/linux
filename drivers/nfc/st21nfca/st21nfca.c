@@ -53,6 +53,7 @@
 #define ST21NFCA_DM_PIPE_CREATED        0x02
 #define ST21NFCA_DM_PIPE_OPEN           0x04
 #define ST21NFCA_DM_RF_ACTIVE           0x80
+#define ST21NFCA_DM_DISCONNECT		0x30
 
 #define ST21NFCA_DM_IS_PIPE_OPEN(p) \
 	((p & 0x0f) == (ST21NFCA_DM_PIPE_CREATED | ST21NFCA_DM_PIPE_OPEN))
@@ -356,6 +357,12 @@ static int st21nfca_hci_start_poll(struct nfc_hci_dev *hdev,
 	return r;
 }
 
+static void st21nfca_hci_stop_poll(struct nfc_hci_dev *hdev)
+{
+	nfc_hci_send_cmd(hdev, ST21NFCA_DEVICE_MGNT_GATE,
+			ST21NFCA_DM_DISCONNECT, NULL, 0, NULL);
+}
+
 static int st21nfca_get_iso14443_3_atqa(struct nfc_hci_dev *hdev, u16 *atqa)
 {
 	int r;
@@ -601,6 +608,7 @@ static struct nfc_hci_ops st21nfca_hci_ops = {
 	.hci_ready = st21nfca_hci_ready,
 	.xmit = st21nfca_hci_xmit,
 	.start_poll = st21nfca_hci_start_poll,
+	.stop_poll = st21nfca_hci_stop_poll,
 	.target_from_gate = st21nfca_hci_target_from_gate,
 	.im_transceive = st21nfca_hci_im_transceive,
 	.check_presence = st21nfca_hci_check_presence,
