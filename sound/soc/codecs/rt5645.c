@@ -26,6 +26,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include "rl6231.h"
 #include "rt5645.h"
 
 #define RT5645_DEVICE_ID 0x6308
@@ -519,30 +520,15 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
  * @kcontrol: The kcontrol of this widget.
  * @event: Event id.
  *
- * Choose dmic clock between 1MHz and 3MHz.
- * It is better for clock to approximate 3MHz.
  */
 static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
-	int div[] = {2, 3, 4, 6, 8, 12};
-	int idx = -EINVAL, i;
-	int rate, red, bound, temp;
+	int idx = -EINVAL;
 
-	rate = rt5645->sysclk;
-	red = 3000000 * 12;
-	for (i = 0; i < ARRAY_SIZE(div); i++) {
-		bound = div[i] * 3000000;
-		if (rate > bound)
-			continue;
-		temp = bound - rate;
-		if (temp < red) {
-			red = temp;
-			idx = i;
-		}
-	}
+	idx = rl6231_calc_dmic_clk(rt5645->sysclk);
 
 	if (idx < 0)
 		dev_err(codec->dev, "Failed to set DMIC clock\n");

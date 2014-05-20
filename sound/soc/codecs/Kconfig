@@ -392,6 +392,15 @@ config SND_SOC_PCM512x_SPI
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
 
+config SND_SOC_RL6231
+	tristate
+	default y if SND_SOC_RT5640=y
+	default y if SND_SOC_RT5645=y
+	default y if SND_SOC_RT5651=y
+	default m if SND_SOC_RT5640=m
+	default m if SND_SOC_RT5645=m
+	default m if SND_SOC_RT5651=m
+
 config SND_SOC_RT5631
 	tristate
 
