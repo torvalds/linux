@@ -830,34 +830,10 @@ out_err:
 	return err;
 }
 
-/* PM Support */
-#ifdef CONFIG_PM
-
-static int bf5xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
-{
-	struct bf5xx_nand_info *info = platform_get_drvdata(dev);
-
-	return 0;
-}
-
-static int bf5xx_nand_resume(struct platform_device *dev)
-{
-	struct bf5xx_nand_info *info = platform_get_drvdata(dev);
-
-	return 0;
-}
-
-#else
-#define bf5xx_nand_suspend NULL
-#define bf5xx_nand_resume NULL
-#endif
-
 /* driver device registration */
 static struct platform_driver bf5xx_nand_driver = {
 	.probe		= bf5xx_nand_probe,
 	.remove		= bf5xx_nand_remove,
-	.suspend	= bf5xx_nand_suspend,
-	.resume		= bf5xx_nand_resume,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
