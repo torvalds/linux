@@ -892,7 +892,7 @@ static struct dma_pte *dma_pfn_level_pte(struct dmar_domain *domain,
 			break;
 		}
 
-		if (pte->val & DMA_PTE_LARGE_PAGE) {
+		if (dma_pte_superpage(pte)) {
 			*large_page = total;
 			return pte;
 		}
