@@ -322,18 +322,16 @@ tlb_miss_common_e6500:
 	b	1b
 	.previous
 
-	mfspr	r15,SPRN_MAS2
+	mfspr	r15,SPRN_MAS1
+	mfspr	r10,SPRN_MAS2
 
 	tlbsx	0,r16
+	mtspr	SPRN_MAS2,r10
 	mfspr	r10,SPRN_MAS1
+	mtspr	SPRN_MAS1,r15
+
 	andis.	r10,r10,MAS1_VALID@h
 	bne	tlb_miss_done_e6500
-
-	/* Undo MAS-damage from the tlbsx */
-	mfspr	r10,SPRN_MAS1
-	oris	r10,r10,MAS1_VALID@h
-	mtspr	SPRN_MAS1,r10
-	mtspr	SPRN_MAS2,r15
 
 	/* Now, we need to walk the page tables. First check if we are in
 	 * range.
