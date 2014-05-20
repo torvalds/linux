@@ -113,6 +113,7 @@ struct ispccdc_lsc {
  * @lsc: Lens shading compensation configuration
  * @update: Bitmask of controls to update during the next interrupt
  * @shadow_update: Controls update in progress by userspace
+ * @bt656: Whether the input interface uses BT.656 synchronization
  * @underrun: A buffer underrun occurred and a new buffer has been queued
  * @state: Streaming state
  * @lock: Serializes shadow_update with interrupt handler
@@ -141,6 +142,7 @@ struct isp_ccdc_device {
 	unsigned int update;
 	unsigned int shadow_update;
 
+	bool bt656;
 	unsigned int underrun:1;
 	enum isp_pipeline_stream_state state;
 	spinlock_t lock;
