@@ -2386,9 +2386,7 @@ retry_bootloader:
 			goto retry_bootloader;
 		} else {
 			if (retry) {
-				dev_err(&client->dev,
-						"Could not recover device from "
-						"bootloader mode\n");
+				dev_err(&client->dev, "Could not recover from bootloader mode\n");
 				/*
 				 * We can reflash from this state, so do not
 				 * abort init
