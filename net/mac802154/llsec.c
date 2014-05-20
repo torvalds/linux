@@ -773,7 +773,7 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 	rc = llsec_do_encrypt(skb, sec, &hdr, key);
 	llsec_key_put(key);
 
-	return rc < 0 ? rc : 0;
+	return rc;
 
 fail_read:
 	read_unlock_bh(&sec->lock);
