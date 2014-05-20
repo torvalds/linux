@@ -26,8 +26,6 @@ void mx25_map_io(void);
 void mx27_map_io(void);
 void mx31_map_io(void);
 void mx35_map_io(void);
-void mx51_map_io(void);
-void mx53_map_io(void);
 void imx1_init_early(void);
 void imx21_init_early(void);
 void imx25_init_early(void);
