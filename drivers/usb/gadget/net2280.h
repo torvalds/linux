@@ -314,32 +314,20 @@ static inline void net2280_led_shutdown(struct net2280 *dev)
 
 /*-------------------------------------------------------------------------*/
 
-#define xprintk(dev, level, fmt, args...) \
-	printk(level "%s %s: " fmt, driver_name, \
-			pci_name(dev->pdev), ## args)
+#define ep_dbg(ndev, fmt, args...) \
+	dev_dbg((&((ndev)->pdev->dev)), fmt, ##args)
 
-#ifdef DEBUG
-#undef DEBUG
-#define DEBUG(dev, fmt, args...) \
-	xprintk(dev, KERN_DEBUG, fmt, ## args)
-#else
-#define DEBUG(dev, fmt, args...) \
-	do { } while (0)
-#endif /* DEBUG*/
+#define ep_vdbg(ndev, fmt, args...) \
+	dev_vdbg((&((ndev)->pdev->dev)), fmt, ##args)
 
-#ifdef VERBOSE
-#define VDEBUG DEBUG
-#else
-#define VDEBUG(dev, fmt, args...) \
-	do { } while (0)
-#endif	/* VERBOSE */
+#define ep_info(ndev, fmt, args...) \
+	dev_info((&((ndev)->pdev->dev)), fmt, ##args)
 
-#define ERROR(dev, fmt, args...) \
-	xprintk(dev, KERN_ERR, fmt, ## args)
-#define WARNING(dev, fmt, args...) \
-	xprintk(dev, KERN_WARNING, fmt, ## args)
-#define INFO(dev, fmt, args...) \
-	xprintk(dev, KERN_INFO, fmt, ## args)
+#define ep_warn(ndev, fmt, args...) \
+	dev_warn((&((ndev)->pdev->dev)), fmt, ##args)
+
+#define ep_err(ndev, fmt, args...) \
+	dev_err((&((ndev)->pdev->dev)), fmt, ##args)
 
 /*-------------------------------------------------------------------------*/
 
@@ -368,7 +356,7 @@ static inline void assert_out_naking(struct net2280_ep *ep, const char *where)
 	u32	tmp = readl(&ep->regs->ep_stat);
 
 	if ((tmp & BIT(NAK_OUT_PACKETS)) == 0) {
-		DEBUG(ep->dev, "%s %s %08x !NAK\n",
+		ep_dbg(ep->dev, "%s %s %08x !NAK\n",
 				ep->ep.name, where, tmp);
 		writel(BIT(SET_NAK_OUT_PACKETS),
 			&ep->regs->ep_rsp);
