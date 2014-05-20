@@ -8180,9 +8180,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 	queues_left = pf->hw.func_caps.num_tx_qp;
 
 	if ((queues_left == 1) ||
-	    !(pf->flags & I40E_FLAG_MSIX_ENABLED) ||
-	    !(pf->flags & (I40E_FLAG_RSS_ENABLED | I40E_FLAG_FD_SB_ENABLED |
-			   I40E_FLAG_DCB_ENABLED))) {
+	    !(pf->flags & I40E_FLAG_MSIX_ENABLED)) {
 		/* one qp for PF, no queues for anything else */
 		queues_left = 0;
 		pf->rss_size = pf->num_lan_qps = 1;
@@ -8193,6 +8191,18 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 			       I40E_FLAG_FD_ATR_ENABLED	|
 			       I40E_FLAG_DCB_ENABLED	|
 			       I40E_FLAG_SRIOV_ENABLED	|
+			       I40E_FLAG_VMDQ_ENABLED);
+	} else if (!(pf->flags & (I40E_FLAG_RSS_ENABLED |
+				  I40E_FLAG_FD_SB_ENABLED |
+				  I40E_FLAG_DCB_ENABLED))) {
+		/* one qp for PF */
+		pf->rss_size = pf->num_lan_qps = 1;
+		queues_left -= pf->num_lan_qps;
+
+		pf->flags &= ~(I40E_FLAG_RSS_ENABLED	|
+			       I40E_FLAG_FD_SB_ENABLED	|
+			       I40E_FLAG_FD_ATR_ENABLED	|
+			       I40E_FLAG_DCB_ENABLED	|
 			       I40E_FLAG_VMDQ_ENABLED);
 	} else {
 		/* Not enough queues for all TCs */
