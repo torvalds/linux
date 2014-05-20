@@ -429,13 +429,13 @@ Create a dma_pool like this:
 
 	struct dma_pool *pool;
 
-	pool = dma_pool_create(name, dev, size, align, alloc);
+	pool = dma_pool_create(name, dev, size, align, boundary);
 
 The "name" is for diagnostics (like a kmem_cache name); dev and size
 are as above.  The device's hardware alignment requirement for this
 type of data is "align" (which is expressed in bytes, and must be a
 power of two).  If your device has no boundary crossing restrictions,
-pass 0 for alloc; passing 4096 says memory allocated from this pool
+pass 0 for boundary; passing 4096 says memory allocated from this pool
 must not cross 4KByte boundaries (but at that time it may be better to
 use dma_alloc_coherent() directly instead).
 
@@ -443,8 +443,8 @@ Allocate memory from a DMA pool like this:
 
 	cpu_addr = dma_pool_alloc(pool, flags, &dma_handle);
 
-flags are SLAB_KERNEL if blocking is permitted (not in_interrupt nor
-holding SMP locks), SLAB_ATOMIC otherwise.  Like dma_alloc_coherent(),
+flags are GFP_KERNEL if blocking is permitted (not in_interrupt nor
+holding SMP locks), GFP_ATOMIC otherwise.  Like dma_alloc_coherent(),
 this returns two values, cpu_addr and dma_handle.
 
 Free memory that was allocated from a dma_pool like this:
