@@ -71,12 +71,8 @@ void __init setup_arch(char **cmdline_p)
 
 	xilinx_pci_init();
 
-#ifdef CONFIG_VT
-#if defined(CONFIG_XILINX_CONSOLE)
-	conswitchp = &xil_con;
-#elif defined(CONFIG_DUMMY_CONSOLE)
+#if defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
-#endif
 #endif
 }
 
