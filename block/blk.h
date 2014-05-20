@@ -188,6 +188,8 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 	return q->nr_congestion_off;
 }
 
+extern int blk_update_nr_requests(struct request_queue *, unsigned int);
+
 /*
  * Contribute to IO statistics IFF:
  *

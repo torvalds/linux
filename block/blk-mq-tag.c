@@ -57,23 +57,13 @@ bool __blk_mq_tag_busy(struct blk_mq_hw_ctx *hctx)
 }
 
 /*
- * If a previously busy queue goes inactive, potential waiters could now
- * be allowed to queue. Wake them up and check.
+ * Wakeup all potentially sleeping on normal (non-reserved) tags
  */
-void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
+static void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags)
 {
-	struct blk_mq_tags *tags = hctx->tags;
 	struct blk_mq_bitmap_tags *bt;
 	int i, wake_index;
 
-	if (!test_and_clear_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
-		return;
-
-	atomic_dec(&tags->active_queues);
-
-	/*
-	 * Will only throttle depth on non-reserved tags
-	 */
 	bt = &tags->bitmap_tags;
 	wake_index = bt->wake_index;
 	for (i = 0; i < BT_WAIT_QUEUES; i++) {
@@ -84,6 +74,22 @@ void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
 
 		bt_index_inc(&wake_index);
 	}
+}
+
+/*
+ * If a previously busy queue goes inactive, potential waiters could now
+ * be allowed to queue. Wake them up and check.
+ */
+void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
+{
+	struct blk_mq_tags *tags = hctx->tags;
+
+	if (!test_and_clear_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+		return;
+
+	atomic_dec(&tags->active_queues);
+
+	blk_mq_tag_wakeup_all(tags);
 }
 
 /*
@@ -408,6 +414,28 @@ static unsigned int bt_unused_tags(struct blk_mq_bitmap_tags *bt)
 	return bt->depth - used;
 }
 
+static void bt_update_count(struct blk_mq_bitmap_tags *bt,
+			    unsigned int depth)
+{
+	unsigned int tags_per_word = 1U << bt->bits_per_word;
+	unsigned int map_depth = depth;
+
+	if (depth) {
+		int i;
+
+		for (i = 0; i < bt->map_nr; i++) {
+			bt->map[i].depth = min(map_depth, tags_per_word);
+			map_depth -= bt->map[i].depth;
+		}
+	}
+
+	bt->wake_cnt = BT_WAIT_BATCH;
+	if (bt->wake_cnt > depth / 4)
+		bt->wake_cnt = max(1U, depth / 4);
+
+	bt->depth = depth;
+}
+
 static int bt_alloc(struct blk_mq_bitmap_tags *bt, unsigned int depth,
 			int node, bool reserved)
 {
@@ -420,7 +448,7 @@ static int bt_alloc(struct blk_mq_bitmap_tags *bt, unsigned int depth,
 	 * condition.
 	 */
 	if (depth) {
-		unsigned int nr, i, map_depth, tags_per_word;
+		unsigned int nr, tags_per_word;
 
 		tags_per_word = (1 << bt->bits_per_word);
 
@@ -444,11 +472,6 @@ static int bt_alloc(struct blk_mq_bitmap_tags *bt, unsigned int depth,
 			return -ENOMEM;
 
 		bt->map_nr = nr;
-		map_depth = depth;
-		for (i = 0; i < nr; i++) {
-			bt->map[i].depth = min(map_depth, tags_per_word);
-			map_depth -= tags_per_word;
-		}
 	}
 
 	bt->bs = kzalloc(BT_WAIT_QUEUES * sizeof(*bt->bs), GFP_KERNEL);
@@ -460,11 +483,7 @@ static int bt_alloc(struct blk_mq_bitmap_tags *bt, unsigned int depth,
 	for (i = 0; i < BT_WAIT_QUEUES; i++)
 		init_waitqueue_head(&bt->bs[i].wait);
 
-	bt->wake_cnt = BT_WAIT_BATCH;
-	if (bt->wake_cnt > depth / 4)
-		bt->wake_cnt = max(1U, depth / 4);
-
-	bt->depth = depth;
+	bt_update_count(bt, depth);
 	return 0;
 }
 
@@ -523,6 +542,21 @@ void blk_mq_tag_init_last_tag(struct blk_mq_tags *tags, unsigned int *tag)
 	unsigned int depth = tags->nr_tags - tags->nr_reserved_tags;
 
 	*tag = prandom_u32() % depth;
+}
+
+int blk_mq_tag_update_depth(struct blk_mq_tags *tags, unsigned int tdepth)
+{
+	tdepth -= tags->nr_reserved_tags;
+	if (tdepth > tags->nr_tags)
+		return -EINVAL;
+
+	/*
+	 * Don't need (or can't) update reserved tags here, they remain
+	 * static and should never need resizing.
+	 */
+	bt_update_count(&tags->bitmap_tags, tdepth);
+	blk_mq_tag_wakeup_all(tags);
+	return 0;
 }
 
 ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page)

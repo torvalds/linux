@@ -63,7 +63,7 @@ struct blk_mq_hw_ctx {
 struct blk_mq_tag_set {
 	struct blk_mq_ops	*ops;
 	unsigned int		nr_hw_queues;
-	unsigned int		queue_depth;
+	unsigned int		queue_depth;	/* max hw supported */
 	unsigned int		reserved_tags;
 	unsigned int		cmd_size;	/* per-request extra data */
 	int			numa_node;
