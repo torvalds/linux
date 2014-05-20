@@ -67,9 +67,6 @@ enum {
 	SRP_TAG_TSK_MGMT	= 1U << 31,
 
 	SRP_FMR_SIZE		= 512,
-	SRP_FMR_MIN_SIZE	= 128,
-	SRP_FMR_POOL_SIZE	= 1024,
-	SRP_FMR_DIRTY_SIZE	= SRP_FMR_POOL_SIZE / 4,
 
 	SRP_MAP_ALLOW_FMR	= 0,
 	SRP_MAP_NO_FMR		= 1,
@@ -91,10 +88,11 @@ struct srp_device {
 	struct ib_device       *dev;
 	struct ib_pd	       *pd;
 	struct ib_mr	       *mr;
-	struct ib_fmr_pool     *fmr_pool;
 	u64			fmr_page_mask;
 	int			fmr_page_size;
 	int			fmr_max_size;
+	int			max_pages_per_fmr;
+	bool			has_fmr;
 };
 
 struct srp_host {
@@ -131,6 +129,7 @@ struct srp_target_port {
 	struct ib_cq	       *send_cq ____cacheline_aligned_in_smp;
 	struct ib_cq	       *recv_cq;
 	struct ib_qp	       *qp;
+	struct ib_fmr_pool     *fmr_pool;
 	u32			lkey;
 	u32			rkey;
 	enum srp_target_state	state;
