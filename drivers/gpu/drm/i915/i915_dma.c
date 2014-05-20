@@ -44,6 +44,7 @@
 #include <acpi/video.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/oom.h>
 
 #define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
 
@@ -1741,8 +1742,8 @@ out_power_well:
 	intel_power_domains_remove(dev_priv);
 	drm_vblank_cleanup(dev);
 out_gem_unload:
-	if (dev_priv->mm.shrinker.scan_objects)
-		unregister_shrinker(&dev_priv->mm.shrinker);
+	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
+	unregister_shrinker(&dev_priv->mm.shrinker);
 
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
@@ -1793,8 +1794,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_teardown_sysfs(dev);
 
-	if (dev_priv->mm.shrinker.scan_objects)
-		unregister_shrinker(&dev_priv->mm.shrinker);
+	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
+	unregister_shrinker(&dev_priv->mm.shrinker);
 
 	io_mapping_free(dev_priv->gtt.mappable);
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
