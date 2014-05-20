@@ -883,6 +883,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			which are not unmapped.
 
 	earlycon=	[KNL] Output early console device and options.
+
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]
@@ -891,6 +892,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			MMIO inter-register address stride is either 8-bit
 			(mmio) or 32-bit (mmio32).
 			The options are the same as for ttyS, above.
+
+		pl011,<addr>
+			Start an early, polled-mode console on a pl011 serial
+			port at the specified address. The pl011 serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
+		smh	Use ARM semihosting calls for early console.
 
 	earlyprintk=	[X86,SH,BLACKFIN,ARM]
 			earlyprintk=vga

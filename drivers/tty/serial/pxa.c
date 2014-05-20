@@ -711,13 +711,8 @@ static void serial_pxa_put_poll_char(struct uart_port *port,
 	wait_for_xmitr(up);
 	/*
 	 *	Send the character out.
-	 *	If a LF, also do CR...
 	 */
 	serial_out(up, UART_TX, c);
-	if (c == 10) {
-		wait_for_xmitr(up);
-		serial_out(up, UART_TX, 13);
-	}
 
 	/*
 	 *	Finally, wait for transmitter to become empty
