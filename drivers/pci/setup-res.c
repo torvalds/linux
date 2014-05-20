@@ -213,9 +213,10 @@ static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 	ret = pci_bus_alloc_resource(bus, res, size, align, min,
 				     IORESOURCE_PREFETCH | IORESOURCE_MEM_64,
 				     pcibios_align_resource, dev);
+	if (ret == 0)
+		return 0;
 
-	if (ret < 0 &&
-	    (res->flags & (IORESOURCE_PREFETCH | IORESOURCE_MEM_64)) ==
+	if ((res->flags & (IORESOURCE_PREFETCH | IORESOURCE_MEM_64)) ==
 	     (IORESOURCE_PREFETCH | IORESOURCE_MEM_64)) {
 		/*
 		 * That failed.
@@ -225,10 +226,11 @@ static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 		ret = pci_bus_alloc_resource(bus, res, size, align, min,
 					     IORESOURCE_PREFETCH,
 					     pcibios_align_resource, dev);
+		if (ret == 0)
+			return 0;
 	}
 
-	if (ret < 0 &&
-	    (res->flags & (IORESOURCE_PREFETCH | IORESOURCE_MEM_64))) {
+	if (res->flags & (IORESOURCE_PREFETCH | IORESOURCE_MEM_64)) {
 		/*
 		 * That failed.
 		 *
