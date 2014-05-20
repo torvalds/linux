@@ -6887,6 +6887,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
+	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofck,
 #ifdef CONFIG_I40E_VXLAN
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
@@ -7121,6 +7122,13 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 
 		ctxt.info.valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_VLAN_VALID);
 		ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_MODE_ALL;
+		if (pf->vf[vsi->vf_id].spoofchk) {
+			ctxt.info.valid_sections |=
+				cpu_to_le16(I40E_AQ_VSI_PROP_SECURITY_VALID);
+			ctxt.info.sec_flags |=
+				(I40E_AQ_VSI_SEC_FLAG_ENABLE_VLAN_CHK |
+				 I40E_AQ_VSI_SEC_FLAG_ENABLE_MAC_CHK);
+		}
 		/* Setup the VSI tx/rx queue map for TC0 only for now */
 		i40e_vsi_setup_queue_map(vsi, &ctxt, enabled_tc, true);
 		break;

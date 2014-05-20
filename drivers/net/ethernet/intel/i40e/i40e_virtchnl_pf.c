@@ -899,6 +899,7 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
+	pf->vf = vfs;
 
 	/* apply default profile */
 	for (i = 0; i < num_alloc_vfs; i++) {
@@ -908,13 +909,13 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 
 		/* assign default capabilities */
 		set_bit(I40E_VIRTCHNL_VF_CAP_L2, &vfs[i].vf_caps);
+		vfs[i].spoofchk = true;
 		/* vf resources get allocated during reset */
 		i40e_reset_vf(&vfs[i], false);
 
 		/* enable vf vplan_qtable mappings */
 		i40e_enable_vf_mappings(&vfs[i]);
 	}
-	pf->vf = vfs;
 	pf->num_alloc_vfs = num_alloc_vfs;
 
 	i40e_enable_pf_switch_lb(pf);
@@ -2328,7 +2329,7 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 		ivi->linkstate = IFLA_VF_LINK_STATE_ENABLE;
 	else
 		ivi->linkstate = IFLA_VF_LINK_STATE_DISABLE;
-
+	ivi->spoofchk = vf->spoofchk;
 	ret = 0;
 
 error_param:
@@ -2393,5 +2394,52 @@ int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
 			       0, (u8 *)&pfe, sizeof(pfe), NULL);
 
 error_out:
+	return ret;
+}
+
+/**
+ * i40e_ndo_set_vf_spoofchk
+ * @netdev: network interface device structure
+ * @vf_id: vf identifier
+ * @enable: flag to enable or disable feature
+ *
+ * Enable or disable VF spoof checking
+ **/
+int i40e_ndo_set_vf_spoofck(struct net_device *netdev, int vf_id, bool enable)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_vsi_context ctxt;
+	struct i40e_hw *hw = &pf->hw;
+	struct i40e_vf *vf;
+	int ret = 0;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		dev_err(&pf->pdev->dev, "Invalid VF Identifier %d\n", vf_id);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	vf = &(pf->vf[vf_id]);
+
+	if (enable == vf->spoofchk)
+		goto out;
+
+	vf->spoofchk = enable;
+	memset(&ctxt, 0, sizeof(ctxt));
+	ctxt.seid = pf->vsi[vf->lan_vsi_index]->seid;
+	ctxt.pf_num = pf->hw.pf_id;
+	ctxt.info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_SECURITY_VALID);
+	if (enable)
+		ctxt.info.sec_flags |= I40E_AQ_VSI_SEC_FLAG_ENABLE_MAC_CHK;
+	ret = i40e_aq_update_vsi_params(hw, &ctxt, NULL);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Error %d updating VSI parameters\n",
+			ret);
+		ret = -EIO;
+	}
+out:
 	return ret;
 }
