@@ -43,4 +43,13 @@
 	};
 };
 
+/*
+ * AzureWave AW-NH387 (Marvell 88W8787)
+ * 802.11b/g/n + Bluetooth 2.1
+ */
+&sdhci0 {
+	non-removable;
+	status = "okay";
+};
+
 &uart0 { status = "okay"; };
