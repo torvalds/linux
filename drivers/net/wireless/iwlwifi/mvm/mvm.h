@@ -999,11 +999,6 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 				  u32 flags);
 int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif, bool enable);
-int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 bool force,
-				 u32 flags);
-
 /* SMPS */
 void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				enum iwl_mvm_smps_type_request req_type,

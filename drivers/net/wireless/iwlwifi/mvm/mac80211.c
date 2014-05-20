@@ -1368,9 +1368,12 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_MAC80211(mvm, "cqm info_changed\n");
 		/* reset cqm events tracking */
 		mvmvif->bf_data.last_cqm_event = 0;
-		ret = iwl_mvm_update_beacon_filter(mvm, vif, false, 0);
-		if (ret)
-			IWL_ERR(mvm, "failed to update CQM thresholds\n");
+		if (mvmvif->bf_data.bf_enabled) {
+			ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
+			if (ret)
+				IWL_ERR(mvm,
+					"failed to update CQM thresholds\n");
+		}
 	}
 
 	if (changes & BSS_CHANGED_ARP_FILTER) {
@@ -1734,8 +1737,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		/* enable beacon filtering */
-		if (vif->bss_conf.dtim_period)
-			WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
+		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
