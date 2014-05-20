@@ -53,6 +53,7 @@ enum smk_inos {
 	SMK_REVOKE_SUBJ	= 18,	/* set rules with subject label to '-' */
 	SMK_CHANGE_RULE	= 19,	/* change or add rules (long labels) */
 	SMK_SYSLOG	= 20,	/* change syslog label) */
+	SMK_PTRACE	= 21,	/* set ptrace rule */
 };
 
 /*
@@ -99,6 +100,15 @@ struct smack_known *smack_onlycap;
  * It can be reset via smackfs/syslog
  */
 struct smack_known *smack_syslog_label;
+
+/*
+ * Ptrace current rule
+ * SMACK_PTRACE_DEFAULT    regular smack ptrace rules (/proc based)
+ * SMACK_PTRACE_EXACT      labels must match, but can be overriden with
+ *			   CAP_SYS_PTRACE
+ * SMACK_PTRACE_DRACONIAN  lables must match, CAP_SYS_PTRACE has no effect
+ */
+int smack_ptrace_rule = SMACK_PTRACE_DEFAULT;
 
 /*
  * Certain IP addresses may be designated as single label hosts.
@@ -1183,7 +1193,7 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 
 	data[count] = '\0';
 
-	rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd/%d %s",
+	rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd/%u %s",
 		&host[0], &host[1], &host[2], &host[3], &m, smack);
 	if (rc != 6) {
 		rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd %s",
@@ -2244,6 +2254,68 @@ static const struct file_operations smk_syslog_ops = {
 
 
 /**
+ * smk_read_ptrace - read() for /smack/ptrace
+ * @filp: file pointer, not actually used
+ * @buf: where to put the result
+ * @count: maximum to send along
+ * @ppos: where to start
+ *
+ * Returns number of bytes read or error code, as appropriate
+ */
+static ssize_t smk_read_ptrace(struct file *filp, char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	char temp[32];
+	ssize_t rc;
+
+	if (*ppos != 0)
+		return 0;
+
+	sprintf(temp, "%d\n", smack_ptrace_rule);
+	rc = simple_read_from_buffer(buf, count, ppos, temp, strlen(temp));
+	return rc;
+}
+
+/**
+ * smk_write_ptrace - write() for /smack/ptrace
+ * @file: file pointer
+ * @buf: data from user space
+ * @count: bytes sent
+ * @ppos: where to start - must be 0
+ */
+static ssize_t smk_write_ptrace(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	char temp[32];
+	int i;
+
+	if (!smack_privileged(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	if (*ppos != 0 || count >= sizeof(temp) || count == 0)
+		return -EINVAL;
+
+	if (copy_from_user(temp, buf, count) != 0)
+		return -EFAULT;
+
+	temp[count] = '\0';
+
+	if (sscanf(temp, "%d", &i) != 1)
+		return -EINVAL;
+	if (i < SMACK_PTRACE_DEFAULT || i > SMACK_PTRACE_MAX)
+		return -EINVAL;
+	smack_ptrace_rule = i;
+
+	return count;
+}
+
+static const struct file_operations smk_ptrace_ops = {
+	.write		= smk_write_ptrace,
+	.read		= smk_read_ptrace,
+	.llseek		= default_llseek,
+};
+
+/**
  * smk_fill_super - fill the smackfs superblock
  * @sb: the empty superblock
  * @data: unused
@@ -2296,6 +2368,8 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 			"change-rule", &smk_change_rule_ops, S_IRUGO|S_IWUSR},
 		[SMK_SYSLOG] = {
 			"syslog", &smk_syslog_ops, S_IRUGO|S_IWUSR},
+		[SMK_PTRACE] = {
+			"ptrace", &smk_ptrace_ops, S_IRUGO|S_IWUSR},
 		/* last one */
 			{""}
 	};
