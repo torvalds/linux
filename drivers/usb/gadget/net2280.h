@@ -116,9 +116,9 @@ struct net2280_ep {
 static inline void allow_status (struct net2280_ep *ep)
 {
 	/* ep0 only */
-	writel (  (1 << CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE)
-		| (1 << CLEAR_NAK_OUT_PACKETS)
-		| (1 << CLEAR_NAK_OUT_PACKETS_MODE)
+	writel(BIT(CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE) |
+		BIT(CLEAR_NAK_OUT_PACKETS) |
+		BIT(CLEAR_NAK_OUT_PACKETS_MODE)
 		, &ep->regs->ep_rsp);
 	ep->stopped = 1;
 }
@@ -130,7 +130,7 @@ static void allow_status_338x(struct net2280_ep *ep)
 	 * packet arrived. While set, the chip automatically NAKs the host's
 	 * Status Phase tokens.
 	 */
-	writel(1 << CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE, &ep->regs->ep_rsp);
+	writel(BIT(CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE), &ep->regs->ep_rsp);
 
 	ep->stopped = 1;
 
@@ -191,23 +191,24 @@ struct net2280 {
 static inline void set_halt (struct net2280_ep *ep)
 {
 	/* ep0 and bulk/intr endpoints */
-	writel (  (1 << CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE)
-		    /* set NAK_OUT for erratum 0114 */
-		| ((ep->dev->chiprev == CHIPREV_1) << SET_NAK_OUT_PACKETS)
-		| (1 << SET_ENDPOINT_HALT)
-		, &ep->regs->ep_rsp);
+	writel(BIT(CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE) |
+		/* set NAK_OUT for erratum 0114 */
+		((ep->dev->chiprev == CHIPREV_1) << SET_NAK_OUT_PACKETS) |
+		BIT(SET_ENDPOINT_HALT),
+		&ep->regs->ep_rsp);
 }
 
 static inline void clear_halt (struct net2280_ep *ep)
 {
 	/* ep0 and bulk/intr endpoints */
-	writel (  (1 << CLEAR_ENDPOINT_HALT)
-		| (1 << CLEAR_ENDPOINT_TOGGLE)
-		    /* unless the gadget driver left a short packet in the
+	writel(BIT(CLEAR_ENDPOINT_HALT) |
+		BIT(CLEAR_ENDPOINT_TOGGLE) |
+		    /*
+		     * unless the gadget driver left a short packet in the
 		     * fifo, this reverses the erratum 0114 workaround.
 		     */
-		| ((ep->dev->chiprev == CHIPREV_1) << CLEAR_NAK_OUT_PACKETS)
-		, &ep->regs->ep_rsp);
+		((ep->dev->chiprev == CHIPREV_1) << CLEAR_NAK_OUT_PACKETS),
+		&ep->regs->ep_rsp);
 }
 
 /*
@@ -225,7 +226,7 @@ static inline void clear_halt (struct net2280_ep *ep)
  *  - Tip: Upon the first SS Control Read the FSM never
  *    returns to this state.
  */
-#define DEFECT7374_FSM_WAITING_FOR_CONTROL_READ (1 << DEFECT7374_FSM_FIELD)
+#define DEFECT7374_FSM_WAITING_FOR_CONTROL_READ BIT(DEFECT7374_FSM_FIELD)
 
 /* Non-SS Control Read:
  *  - A transition to this state indicates detection of the first HS
@@ -252,12 +253,12 @@ static inline void clear_halt (struct net2280_ep *ep)
 static inline void net2280_led_init (struct net2280 *dev)
 {
 	/* LED3 (green) is on during USB activity. note erratum 0113. */
-	writel ((1 << GPIO3_LED_SELECT)
-		| (1 << GPIO3_OUTPUT_ENABLE)
-		| (1 << GPIO2_OUTPUT_ENABLE)
-		| (1 << GPIO1_OUTPUT_ENABLE)
-		| (1 << GPIO0_OUTPUT_ENABLE)
-		, &dev->regs->gpioctl);
+	writel(BIT(GPIO3_LED_SELECT) |
+		BIT(GPIO3_OUTPUT_ENABLE) |
+		BIT(GPIO2_OUTPUT_ENABLE) |
+		BIT(GPIO1_OUTPUT_ENABLE) |
+		BIT(GPIO0_OUTPUT_ENABLE),
+		&dev->regs->gpioctl);
 }
 
 /* indicate speed with bi-color LED 0/1 */
@@ -267,18 +268,18 @@ void net2280_led_speed (struct net2280 *dev, enum usb_device_speed speed)
 	u32	val = readl (&dev->regs->gpioctl);
 	switch (speed) {
 	case USB_SPEED_SUPER:		/* green + red */
-		val |= (1 << GPIO0_DATA) | (1 << GPIO1_DATA);
+		val |= BIT(GPIO0_DATA) | BIT(GPIO1_DATA);
 		break;
 	case USB_SPEED_HIGH:		/* green */
-		val &= ~(1 << GPIO0_DATA);
-		val |= (1 << GPIO1_DATA);
+		val &= ~BIT(GPIO0_DATA);
+		val |= BIT(GPIO1_DATA);
 		break;
 	case USB_SPEED_FULL:		/* red */
-		val &= ~(1 << GPIO1_DATA);
-		val |= (1 << GPIO0_DATA);
+		val &= ~BIT(GPIO1_DATA);
+		val |= BIT(GPIO0_DATA);
 		break;
 	default:			/* (off/black) */
-		val &= ~((1 << GPIO1_DATA) | (1 << GPIO0_DATA));
+		val &= ~(BIT(GPIO1_DATA) | BIT(GPIO0_DATA));
 		break;
 	}
 	writel (val, &dev->regs->gpioctl);
@@ -356,7 +357,7 @@ static inline void set_fifo_bytecount(struct net2280_ep *ep, unsigned count)
 static inline void start_out_naking (struct net2280_ep *ep)
 {
 	/* NOTE:  hardware races lurk here, and PING protocol issues */
-	writel ((1 << SET_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
+	writel(BIT(SET_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
 	/* synch with device */
 	readl (&ep->regs->ep_rsp);
 }
@@ -366,10 +367,10 @@ static inline void assert_out_naking (struct net2280_ep *ep, const char *where)
 {
 	u32	tmp = readl (&ep->regs->ep_stat);
 
-	if ((tmp & (1 << NAK_OUT_PACKETS)) == 0) {
+	if ((tmp & BIT(NAK_OUT_PACKETS)) == 0) {
 		DEBUG (ep->dev, "%s %s %08x !NAK\n",
 				ep->ep.name, where, tmp);
-		writel ((1 << SET_NAK_OUT_PACKETS),
+		writel(BIT(SET_NAK_OUT_PACKETS),
 			&ep->regs->ep_rsp);
 	}
 }
@@ -383,8 +384,8 @@ static inline void stop_out_naking (struct net2280_ep *ep)
 	u32	tmp;
 
 	tmp = readl (&ep->regs->ep_stat);
-	if ((tmp & (1 << NAK_OUT_PACKETS)) != 0)
-		writel ((1 << CLEAR_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
+	if ((tmp & BIT(NAK_OUT_PACKETS)) != 0)
+		writel(BIT(CLEAR_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
 }
 
 
