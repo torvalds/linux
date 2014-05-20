@@ -715,7 +715,8 @@ static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id, bool enable)
+static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
+				       bool enable)
 {
 	struct iwl_bt_coex_cmd *bt_cmd;
 	/* Send ASYNC since this can be sent from an atomic context */
@@ -733,8 +734,7 @@ int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id, bool enable)
 		return 0;
 
 	/* nothing to do */
-	if (mvmsta->bt_reduced_txpower_dbg ||
-	    mvmsta->bt_reduced_txpower == enable)
+	if (mvmsta->bt_reduced_txpower == enable)
 		return 0;
 
 	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_ATOMIC);

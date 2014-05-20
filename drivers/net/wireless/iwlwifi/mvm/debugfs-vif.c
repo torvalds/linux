@@ -262,10 +262,9 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 			struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
 
 			pos += scnprintf(buf+pos, bufsz-pos,
-					 "ap_sta_id %d - reduced Tx power %d force %d\n",
+					 "ap_sta_id %d - reduced Tx power %d\n",
 					 ap_sta_id,
-					 mvm_sta->bt_reduced_txpower,
-					 mvm_sta->bt_reduced_txpower_dbg);
+					 mvm_sta->bt_reduced_txpower);
 		}
 	}
 
@@ -281,41 +280,6 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 	mutex_unlock(&mvm->mutex);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
-static ssize_t iwl_dbgfs_reduced_txp_write(struct ieee80211_vif *vif,
-					   char *buf, size_t count,
-					   loff_t *ppos)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = mvmvif->mvm;
-	struct iwl_mvm_sta *mvmsta;
-	bool reduced_tx_power;
-	int ret;
-
-	if (mvmvif->ap_sta_id >= ARRAY_SIZE(mvm->fw_id_to_mac_id))
-		return -ENOTCONN;
-
-	if (strtobool(buf, &reduced_tx_power) != 0)
-		return -EINVAL;
-
-	mutex_lock(&mvm->mutex);
-
-	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, mvmvif->ap_sta_id);
-	if (IS_ERR_OR_NULL(mvmsta)) {
-		mutex_unlock(&mvm->mutex);
-		return -ENOTCONN;
-	}
-
-	mvmsta->bt_reduced_txpower_dbg = false;
-	ret = iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
-					  reduced_tx_power);
-	if (!ret)
-		mvmsta->bt_reduced_txpower_dbg = true;
-
-	mutex_unlock(&mvm->mutex);
-
-	return ret ? : count;
 }
 
 static void iwl_dbgfs_update_bf(struct ieee80211_vif *vif,
@@ -558,7 +522,6 @@ MVM_DEBUGFS_READ_FILE_OPS(mac_params);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(pm_params, 32);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bf_params, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(low_latency, 10);
-MVM_DEBUGFS_WRITE_FILE_OPS(reduced_txp, 10);
 
 void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
@@ -590,7 +553,6 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 					 S_IRUSR);
 
 	MVM_DEBUGFS_ADD_FILE_VIF(mac_params, mvmvif->dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE_VIF(reduced_txp, mvmvif->dbgfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE_VIF(low_latency, mvmvif->dbgfs_dir,
 				 S_IRUSR | S_IWUSR);
 
