@@ -80,9 +80,8 @@ _exit_init_mp_priv:
 
 static int free_mp_priv(struct mp_priv *pmp_priv)
 {
-	int res = 0;
 	kfree(pmp_priv->pallocated_mp_xmitframe_buf);
-	return res;
+	return 0;
 }
 
 void mp871xinit(struct _adapter *padapter)

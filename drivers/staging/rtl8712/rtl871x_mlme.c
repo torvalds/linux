@@ -1211,7 +1211,6 @@ sint r8712_set_auth(struct _adapter *adapter,
 	struct cmd_priv	*pcmdpriv = &adapter->cmdpriv;
 	struct cmd_obj *pcmd;
 	struct setauth_parm *psetauthparm;
-	sint ret = _SUCCESS;
 
 	pcmd = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
 	if (pcmd == NULL)
@@ -1232,7 +1231,7 @@ sint r8712_set_auth(struct _adapter *adapter,
 	pcmd->rspsz = 0;
 	_init_listhead(&pcmd->list);
 	r8712_enqueue_cmd(pcmdpriv, pcmd);
-	return ret;
+	return _SUCCESS;
 }
 
 sint r8712_set_key(struct _adapter *adapter,

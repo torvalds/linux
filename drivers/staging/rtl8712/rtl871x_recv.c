@@ -605,8 +605,6 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	u8	bsnaphdr;
 	u8	*psnap_type;
 	struct ieee80211_snap_hdr *psnap;
-
-	sint ret = _SUCCESS;
 	struct _adapter	*adapter = precvframe->u.hdr.adapter;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
@@ -653,7 +651,7 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 		len = htons(len);
 		memcpy(ptr + 12, &len, 2);
 	}
-	return ret;
+	return _SUCCESS;
 }
 
 s32 r8712_recv_entry(union recv_frame *precvframe)
