@@ -585,4 +585,8 @@
 #define HDMI_PHY_DISABLE_MODE_SET	0x80
 #define HDMI_PHY_ENABLE_MODE_SET	0x00
 
+/* PMU Registers for PHY */
+#define PMU_HDMI_PHY_CONTROL		0x700
+#define PMU_HDMI_PHY_ENABLE_BIT		BIT(0)
+
 #endif /* SAMSUNG_REGS_HDMI_H */

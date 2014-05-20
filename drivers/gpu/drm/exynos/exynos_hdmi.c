@@ -38,6 +38,8 @@
 #include <linux/of_gpio.h>
 #include <linux/hdmi.h>
 #include <linux/component.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #include <drm/exynos_drm.h>
 
@@ -81,7 +83,6 @@ struct hdmi_resources {
 	struct clk			*sclk_hdmi;
 	struct clk			*sclk_pixel;
 	struct clk			*sclk_hdmiphy;
-	struct clk			*hdmiphy;
 	struct clk			*mout_hdmi;
 	struct regulator_bulk_data	*regul_bulk;
 	int				regul_count;
@@ -208,6 +209,7 @@ struct hdmi_context {
 	const struct hdmiphy_config		*phy_confs;
 	unsigned int			phy_conf_count;
 
+	struct regmap			*pmureg;
 	enum hdmi_type			type;
 };
 
@@ -2013,7 +2015,10 @@ static void hdmi_poweron(struct exynos_drm_display *display)
 	if (regulator_bulk_enable(res->regul_count, res->regul_bulk))
 		DRM_DEBUG_KMS("failed to enable regulator bulk\n");
 
-	clk_prepare_enable(res->hdmiphy);
+	/* set pmu hdmiphy control bit to enable hdmiphy */
+	regmap_update_bits(hdata->pmureg, PMU_HDMI_PHY_CONTROL,
+			PMU_HDMI_PHY_ENABLE_BIT, 1);
+
 	clk_prepare_enable(res->hdmi);
 	clk_prepare_enable(res->sclk_hdmi);
 
@@ -2040,7 +2045,11 @@ static void hdmi_poweroff(struct exynos_drm_display *display)
 
 	clk_disable_unprepare(res->sclk_hdmi);
 	clk_disable_unprepare(res->hdmi);
-	clk_disable_unprepare(res->hdmiphy);
+
+	/* reset pmu hdmiphy control bit to disable hdmiphy */
+	regmap_update_bits(hdata->pmureg, PMU_HDMI_PHY_CONTROL,
+			PMU_HDMI_PHY_ENABLE_BIT, 0);
+
 	regulator_bulk_disable(res->regul_count, res->regul_bulk);
 
 	pm_runtime_put_sync(hdata->dev);
@@ -2141,11 +2150,6 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	res->sclk_hdmiphy = devm_clk_get(dev, "sclk_hdmiphy");
 	if (IS_ERR(res->sclk_hdmiphy)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmiphy'\n");
-		goto fail;
-	}
-	res->hdmiphy = devm_clk_get(dev, "hdmiphy");
-	if (IS_ERR(res->hdmiphy)) {
-		DRM_ERROR("failed to get clock 'hdmiphy'\n");
 		goto fail;
 	}
 	res->mout_hdmi = devm_clk_get(dev, "mout_hdmi");
@@ -2380,6 +2384,13 @@ out_get_phy_port:
 			"hdmi", hdata);
 	if (ret) {
 		DRM_ERROR("failed to register hdmi interrupt\n");
+		goto err_hdmiphy;
+	}
+
+	hdata->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
+			"samsung,syscon-phandle");
+	if (IS_ERR(hdata->pmureg)) {
+		DRM_ERROR("syscon regmap lookup failed.\n");
 		goto err_hdmiphy;
 	}
 
