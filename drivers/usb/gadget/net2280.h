@@ -117,8 +117,8 @@ static inline void allow_status(struct net2280_ep *ep)
 	/* ep0 only */
 	writel(BIT(CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE) |
 		BIT(CLEAR_NAK_OUT_PACKETS) |
-		BIT(CLEAR_NAK_OUT_PACKETS_MODE)
-		, &ep->regs->ep_rsp);
+		BIT(CLEAR_NAK_OUT_PACKETS_MODE),
+		&ep->regs->ep_rsp);
 	ep->stopped = 1;
 }
 
