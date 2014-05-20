@@ -779,12 +779,6 @@ void __init prom_init(void)
 				MAX_MEMORY = 32ull << 30;
 			if (*p == '@')
 				RESERVE_LOW_MEM = memparse(p + 1, &p);
-		} else if (strcmp(arg, "ecc_verbose") == 0) {
-#ifdef CONFIG_CAVIUM_REPORT_SINGLE_BIT_ECC
-			__cvmx_interrupt_ecc_report_single_bit_errors = 1;
-			pr_notice("Reporting of single bit ECC errors is "
-				  "turned on\n");
-#endif
 #ifdef CONFIG_KEXEC
 		} else if (strncmp(arg, "crashkernel=", 12) == 0) {
 			crashk_size = memparse(arg+12, &p);
