@@ -86,8 +86,6 @@ struct _pid {
 struct cpudata {
 	int cpu;
 
-	char name[64];
-
 	struct timer_list timer;
 
 	struct pstate_data pstate;
@@ -535,8 +533,6 @@ static inline void intel_pstate_pstate_decrease(struct cpudata *cpu, int steps)
 
 static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 {
-	sprintf(cpu->name, "Intel 2nd generation core");
-
 	cpu->pstate.min_pstate = pstate_funcs.get_min();
 	cpu->pstate.max_pstate = pstate_funcs.get_max();
 	cpu->pstate.turbo_pstate = pstate_funcs.get_turbo();
