@@ -6,16 +6,17 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
 / {
 	clocks {
+
 		/*
 		 * Fixed 30MHz oscillator inputs to SoC
 		 */
-		CLK_SYSIN: CLK_SYSIN {
+		clk_sysin: clk-sysin {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <30000000>;
-			clock-output-names = "CLK_SYSIN";
 		};
 
 		/*

@@ -91,7 +91,7 @@
 			status 		= "disabled";
 			reg		= <0xfe531000 0x2c>;
 			interrupts	= <0 210 0>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_sbc_serial1>;
 		};
@@ -126,7 +126,7 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfe540000 0x110>;
 			interrupts	= <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -139,7 +139,7 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfe541000 0x110>;
 			interrupts	= <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -200,7 +200,7 @@
 			compatible	= "st,comms-irb";
 			reg		= <0xfe518000 0x234>;
 			interrupts	=  <0 203 0>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			rx-mode		= "infrared";
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_ir>;
@@ -212,7 +212,7 @@
 			status = "disabled";
 			reg = <0xfe4b0000 0x2000>;
 			interrupts = <GIC_SPI 212 IRQ_TYPE_NONE>;
-			clocks = <&CLK_SYSIN>;
+			clocks = <&clk_sysin>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_keyscan>;
 			resets	= <&powerdown STIH415_KEYSCAN_POWERDOWN>,
