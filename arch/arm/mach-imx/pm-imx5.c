@@ -21,8 +21,7 @@
 #include "cpuidle.h"
 #include "hardware.h"
 
-#define MX51_CCM_BASE			MX51_IO_ADDRESS(MX51_CCM_BASE_ADDR)
-#define MXC_CCM_CLPCR			(MX51_CCM_BASE + 0x54)
+#define MXC_CCM_CLPCR			0x54
 #define MXC_CCM_CLPCR_LPM_OFFSET	0
 #define MXC_CCM_CLPCR_LPM_MASK		0x3
 #define MXC_CCM_CLPCR_STBY_COUNT_OFFSET	9
@@ -57,6 +56,13 @@
  */
 #define IMX5_DEFAULT_CPU_IDLE_STATE WAIT_UNCLOCKED_POWER_OFF
 
+static void __iomem *ccm_base;
+
+void __init imx5_pm_set_ccm_base(void __iomem *base)
+{
+	ccm_base = base;
+}
+
 /*
  * set cpu low power mode before WFI instruction. This function is called
  * mx5 because it can be used for mx51, and mx53.
@@ -70,7 +76,8 @@ static void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
 	/* always allow platform to issue a deep sleep mode request */
 	plat_lpc = __raw_readl(MXC_CORTEXA8_PLAT_LPC) &
 	    ~(MXC_CORTEXA8_PLAT_LPC_DSM);
-	ccm_clpcr = __raw_readl(MXC_CCM_CLPCR) & ~(MXC_CCM_CLPCR_LPM_MASK);
+	ccm_clpcr = __raw_readl(ccm_base + MXC_CCM_CLPCR) &
+		    ~(MXC_CCM_CLPCR_LPM_MASK);
 	arm_srpgcr = __raw_readl(MXC_SRPG_ARM_SRPGCR) & ~(MXC_SRPGCR_PCR);
 	empgc0 = __raw_readl(MXC_SRPG_EMPGC0_SRPGCR) & ~(MXC_SRPGCR_PCR);
 	empgc1 = __raw_readl(MXC_SRPG_EMPGC1_SRPGCR) & ~(MXC_SRPGCR_PCR);
@@ -108,7 +115,7 @@ static void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
 	}
 
 	__raw_writel(plat_lpc, MXC_CORTEXA8_PLAT_LPC);
-	__raw_writel(ccm_clpcr, MXC_CCM_CLPCR);
+	__raw_writel(ccm_clpcr, ccm_base + MXC_CCM_CLPCR);
 	__raw_writel(arm_srpgcr, MXC_SRPG_ARM_SRPGCR);
 	__raw_writel(arm_srpgcr, MXC_SRPG_NEON_SRPGCR);
 
@@ -187,6 +194,8 @@ static int __init imx5_pm_common_init(void)
 		return ret;
 
 	arm_pm_idle = imx5_pm_idle;
+
+	WARN_ON(!ccm_base);
 
 	/* Set the registers to the default cpu idle state. */
 	mx5_cpu_lp_set(IMX5_DEFAULT_CPU_IDLE_STATE);

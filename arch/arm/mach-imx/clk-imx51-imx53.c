@@ -133,6 +133,8 @@ static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 {
 	int i;
 
+	imx5_pm_set_ccm_base(ccm_base);
+
 	clk[IMX5_CLK_DUMMY]		= imx_clk_fixed("dummy", 0);
 	clk[IMX5_CLK_CKIL]		= imx_obtain_fixed_clock("ckil", 0);
 	clk[IMX5_CLK_OSC]		= imx_obtain_fixed_clock("osc", 0);

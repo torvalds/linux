@@ -143,8 +143,10 @@ void imx6q_pm_set_ccm_base(void __iomem *base);
 
 #ifdef CONFIG_PM
 void imx5_pm_init(void);
+void imx5_pm_set_ccm_base(void __iomem *base);
 #else
 static inline void imx5_pm_init(void) {}
+static inline void imx5_pm_set_ccm_base(void __iomem *base) {}
 #endif
 
 #ifdef CONFIG_NEON
