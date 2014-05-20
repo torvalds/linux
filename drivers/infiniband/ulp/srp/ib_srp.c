@@ -66,6 +66,7 @@ static unsigned int srp_sg_tablesize;
 static unsigned int cmd_sg_entries;
 static unsigned int indirect_sg_entries;
 static bool allow_ext_sg;
+static bool register_always;
 static int topspin_workarounds = 1;
 
 module_param(srp_sg_tablesize, uint, 0444);
@@ -86,6 +87,10 @@ MODULE_PARM_DESC(allow_ext_sg,
 module_param(topspin_workarounds, int, 0444);
 MODULE_PARM_DESC(topspin_workarounds,
 		 "Enable workarounds for Topspin/Cisco SRP target bugs if != 0");
+
+module_param(register_always, bool, 0444);
+MODULE_PARM_DESC(register_always,
+		 "Use memory registration even for contiguous memory regions");
 
 static struct kernel_param_ops srp_tmo_ops;
 
@@ -956,7 +961,7 @@ static int srp_finish_mapping(struct srp_map_state *state,
 	if (state->npages == 0)
 		return 0;
 
-	if (state->npages == 1)
+	if (state->npages == 1 && !register_always)
 		srp_map_desc(state, state->base_dma_addr, state->fmr_len,
 			     target->rkey);
 	else
@@ -1138,7 +1143,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 	fmt = SRP_DATA_DESC_DIRECT;
 	len = sizeof (struct srp_cmd) +	sizeof (struct srp_direct_buf);
 
-	if (count == 1) {
+	if (count == 1 && !register_always) {
 		/*
 		 * The midlayer only generated a single gather/scatter
 		 * entry, or DMA mapping coalesced everything to a
