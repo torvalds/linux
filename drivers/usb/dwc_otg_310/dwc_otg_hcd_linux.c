@@ -158,6 +158,9 @@ inline struct usb_host_endpoint *dwc_urb_to_endpoint(struct urb *urb)
 	struct usb_device *dev = urb->dev;
 	int ep_num = usb_pipeendpoint(urb->pipe);
 
+	if (!dev)
+		return NULL;
+
 	if (usb_pipein(urb->pipe))
 		return dev->ep_in[ep_num];
 	else
