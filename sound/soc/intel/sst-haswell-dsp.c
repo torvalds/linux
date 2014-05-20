@@ -433,7 +433,7 @@ static int hsw_init(struct sst_dsp *sst, struct sst_pdata *pdata)
 	int ret = -ENODEV, i, j, region_count;
 	u32 offset, size;
 
-	dev = sst->dev;
+	dev = sst->dma_dev;
 
 	switch (sst->id) {
 	case SST_DEV_ID_LYNX_POINT:
@@ -466,7 +466,7 @@ static int hsw_init(struct sst_dsp *sst, struct sst_pdata *pdata)
 		return ret;
 	}
 
-	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(31));
 	if (ret)
 		return ret;
 
