@@ -422,6 +422,7 @@ static int __init coherency_late_init(void)
 
 postcore_initcall(coherency_late_init);
 
+#if IS_ENABLED(CONFIG_PCI)
 static int __init coherency_pci_init(void)
 {
 	if (coherency_available())
@@ -431,3 +432,4 @@ static int __init coherency_pci_init(void)
 }
 
 arch_initcall(coherency_pci_init);
+#endif
