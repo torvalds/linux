@@ -3393,9 +3393,10 @@ void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
 		    TASK_UNINTERRUPTIBLE);
 }
 
-static int lock_extent_buffer_for_io(struct extent_buffer *eb,
-				     struct btrfs_fs_info *fs_info,
-				     struct extent_page_data *epd)
+static noinline_for_stack int
+lock_extent_buffer_for_io(struct extent_buffer *eb,
+			  struct btrfs_fs_info *fs_info,
+			  struct extent_page_data *epd)
 {
 	unsigned long i, num_pages;
 	int flush = 0;
@@ -3500,7 +3501,7 @@ static void end_bio_extent_buffer_writepage(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-static int write_one_eb(struct extent_buffer *eb,
+static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 			struct btrfs_fs_info *fs_info,
 			struct writeback_control *wbc,
 			struct extent_page_data *epd)
