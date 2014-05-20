@@ -362,12 +362,6 @@ struct slic_shmem {
 	volatile struct slic_stats     inicstats;
 };
 
-struct slic_reg_params {
-	u32       linkspeed;
-	u32       linkduplex;
-	u32       fail_on_bad_eeprom;
-};
-
 struct slic_upr {
 	uint               adapter;
 	u32            upr_request;
@@ -493,7 +487,6 @@ struct adapter {
 	u32             intagg_period;
 	struct inicpm_state    *inicpm_info;
 	void *pinicpm_info;
-	struct slic_reg_params   reg_params;
 	struct slic_ifevents  if_events;
 	struct slic_stats        inicstats_prev;
 	struct slicnet_stats     slic_stats;

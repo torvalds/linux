@@ -2850,8 +2850,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 				    sizeof(struct slic_eeprom),
 				    peeprom, phys_config);
 
-		if ((!card->config.EepromValid) &&
-		    (adapter->reg_params.fail_on_bad_eeprom)) {
+		if (!card->config.EepromValid) {
 			slic_reg64_write(adapter, &slic_regs->slic_isp, 0,
 					 &slic_regs->slic_addr_upper,
 					 0, FLUSH);
