@@ -813,6 +813,10 @@ static struct scsi_cmnd *srp_claim_req(struct srp_target_port *target,
 
 /**
  * srp_free_req() - Unmap data and add request to the free request list.
+ * @target: SRP target port.
+ * @req:    Request to be freed.
+ * @scmnd:  SCSI command associated with @req.
+ * @req_lim_delta: Amount to be added to @target->req_lim.
  */
 static void srp_free_req(struct srp_target_port *target,
 			 struct srp_request *req, struct scsi_cmnd *scmnd,
@@ -1455,6 +1459,7 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 
 /**
  * srp_tl_err_work() - handle a transport layer error
+ * @work: Work structure embedded in an SRP target port.
  *
  * Note: This function may get invoked before the rport has been created,
  * hence the target->rport test.
@@ -2316,6 +2321,8 @@ static struct class srp_class = {
 
 /**
  * srp_conn_unique() - check whether the connection to a target is unique
+ * @host:   SRP host.
+ * @target: SRP target port.
  */
 static bool srp_conn_unique(struct srp_host *host,
 			    struct srp_target_port *target)
