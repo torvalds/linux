@@ -161,9 +161,10 @@ struct worker_pool {
 	/* see manage_workers() for details on the two manager mutexes */
 	struct mutex		manager_arb;	/* manager arbitration */
 	struct mutex		manager_mutex;	/* manager exclusion */
-	struct idr		worker_idr;	/* M: worker IDs */
 	struct list_head	workers;	/* M: attached workers */
 	struct completion	*detach_completion; /* all workers detached */
+
+	struct ida		worker_ida;	/* worker IDs for task name */
 
 	struct workqueue_attrs	*attrs;		/* I: worker attributes */
 	struct hlist_node	hash_node;	/* PL: unbound_pool_hash node */
@@ -1696,7 +1697,6 @@ static void worker_detach_from_pool(struct worker *worker,
 	struct completion *detach_completion = NULL;
 
 	mutex_lock(&pool->manager_mutex);
-	idr_remove(&pool->worker_idr, worker->id);
 	list_del(&worker->node);
 	if (list_empty(&pool->workers))
 		detach_completion = pool->detach_completion;
@@ -1727,11 +1727,8 @@ static struct worker *create_worker(struct worker_pool *pool)
 
 	lockdep_assert_held(&pool->manager_mutex);
 
-	/*
-	 * ID is needed to determine kthread name.  Allocate ID first
-	 * without installing the pointer.
-	 */
-	id = idr_alloc(&pool->worker_idr, NULL, 0, 0, GFP_KERNEL);
+	/* ID is needed to determine kthread name */
+	id = ida_simple_get(&pool->worker_ida, 0, 0, GFP_KERNEL);
 	if (id < 0)
 		goto fail;
 
@@ -1772,8 +1769,6 @@ static struct worker *create_worker(struct worker_pool *pool)
 	if (pool->flags & POOL_DISASSOCIATED)
 		worker->flags |= WORKER_UNBOUND;
 
-	/* successful, commit the pointer to idr */
-	idr_replace(&pool->worker_idr, worker, worker->id);
 	/* successful, attach the worker to the pool */
 	list_add_tail(&worker->node, &pool->workers);
 
@@ -1781,7 +1776,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 
 fail:
 	if (id >= 0)
-		idr_remove(&pool->worker_idr, id);
+		ida_simple_remove(&pool->worker_ida, id);
 	kfree(worker);
 	return NULL;
 }
@@ -2250,6 +2245,7 @@ woke_up:
 		worker->task->flags &= ~PF_WQ_WORKER;
 
 		set_task_comm(worker->task, "kworker/dying");
+		ida_simple_remove(&pool->worker_ida, worker->id);
 		worker_detach_from_pool(worker, pool);
 		kfree(worker);
 		return 0;
@@ -3486,9 +3482,9 @@ static int init_worker_pool(struct worker_pool *pool)
 
 	mutex_init(&pool->manager_arb);
 	mutex_init(&pool->manager_mutex);
-	idr_init(&pool->worker_idr);
 	INIT_LIST_HEAD(&pool->workers);
 
+	ida_init(&pool->worker_ida);
 	INIT_HLIST_NODE(&pool->hash_node);
 	pool->refcnt = 1;
 
@@ -3503,7 +3499,7 @@ static void rcu_free_pool(struct rcu_head *rcu)
 {
 	struct worker_pool *pool = container_of(rcu, struct worker_pool, rcu);
 
-	idr_destroy(&pool->worker_idr);
+	ida_destroy(&pool->worker_ida);
 	free_workqueue_attrs(pool->attrs);
 	kfree(pool);
 }
