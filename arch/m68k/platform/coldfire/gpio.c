@@ -114,37 +114,39 @@ EXPORT_SYMBOL(__mcfgpio_free);
 
 #ifdef CONFIG_GPIOLIB
 
-int mcfgpio_direction_input(struct gpio_chip *chip, unsigned offset)
+static int mcfgpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	return __mcfgpio_direction_input(offset);
 }
 
-int mcfgpio_get_value(struct gpio_chip *chip, unsigned offset)
+static int mcfgpio_get_value(struct gpio_chip *chip, unsigned offset)
 {
 	return __mcfgpio_get_value(offset);
 }
 
-int mcfgpio_direction_output(struct gpio_chip *chip, unsigned offset, int value)
+static int mcfgpio_direction_output(struct gpio_chip *chip, unsigned offset,
+				    int value)
 {
 	return __mcfgpio_direction_output(offset, value);
 }
 
-void mcfgpio_set_value(struct gpio_chip *chip, unsigned offset, int value)
+static void mcfgpio_set_value(struct gpio_chip *chip, unsigned offset,
+			      int value)
 {
 	__mcfgpio_set_value(offset, value);
 }
 
-int mcfgpio_request(struct gpio_chip *chip, unsigned offset)
+static int mcfgpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	return __mcfgpio_request(offset);
 }
 
-void mcfgpio_free(struct gpio_chip *chip, unsigned offset)
+static void mcfgpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	__mcfgpio_free(offset);
 }
 
-int mcfgpio_to_irq(struct gpio_chip *chip, unsigned offset)
+static int mcfgpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 #if defined(MCFGPIO_IRQ_MIN)
 	if ((offset >= MCFGPIO_IRQ_MIN) && (offset < MCFGPIO_IRQ_MAX))
@@ -156,7 +158,7 @@ int mcfgpio_to_irq(struct gpio_chip *chip, unsigned offset)
 		return -EINVAL;
 }
 
-struct bus_type mcfgpio_subsys = {
+static struct bus_type mcfgpio_subsys = {
 	.name		= "gpio",
 	.dev_name	= "gpio",
 };
