@@ -129,6 +129,14 @@ config CAN_RCAR
 	  To compile this driver as a module, choose M here: the module will
 	  be called rcar_can.
 
+config CAN_XILINXCAN
+	tristate "Xilinx CAN"
+	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
+	depends on COMMON_CLK && HAS_IOMEM
+	---help---
+	  Xilinx CAN driver. This driver supports both soft AXI CAN IP and
+	  Zynq CANPS IP.
+
 source "drivers/net/can/mscan/Kconfig"
 
 source "drivers/net/can/sja1000/Kconfig"
