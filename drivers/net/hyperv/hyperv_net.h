@@ -791,6 +791,7 @@ enum ndis_per_pkt_info_type {
 	IEEE_8021Q_INFO,
 	ORIGINAL_PKTINFO,
 	PACKET_CANCEL_ID,
+	NBL_HASH_VALUE = PACKET_CANCEL_ID,
 	ORIGINAL_NET_BUFLIST,
 	CACHED_NET_BUFLIST,
 	SHORT_PKT_PADINFO,
@@ -936,6 +937,9 @@ struct ndis_tcp_lso_info {
 
 #define NDIS_LSO_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
 		sizeof(struct ndis_tcp_lso_info))
+
+#define NDIS_HASH_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
+		sizeof(u32))
 
 /* Format of Information buffer passed in a SetRequest for the OID */
 /* OID_GEN_RNDIS_CONFIG_PARAMETER. */

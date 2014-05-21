@@ -224,9 +224,11 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 	if (nvsc_dev == NULL || ndev->real_num_tx_queues <= 1)
 		return 0;
 
-	if (netvsc_set_hash(&hash, skb))
+	if (netvsc_set_hash(&hash, skb)) {
 		q_idx = nvsc_dev->send_table[hash % VRSS_SEND_TAB_SIZE] %
 			ndev->real_num_tx_queues;
+		skb_set_hash(skb, hash, PKT_HASH_TYPE_L3);
+	}
 
 	return q_idx;
 }
@@ -384,6 +386,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct ndis_tcp_lso_info *lso_info;
 	int  hdr_offset;
 	u32 net_trans_info;
+	u32 hash;
 
 
 	/* We will atmost need two pages to describe the rndis
@@ -402,9 +405,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
 			 (num_data_pgs * sizeof(struct hv_page_buffer)) +
 			 sizeof(struct rndis_message) +
-			 NDIS_VLAN_PPI_SIZE +
-			 NDIS_CSUM_PPI_SIZE +
-			 NDIS_LSO_PPI_SIZE, GFP_ATOMIC);
+			 NDIS_VLAN_PPI_SIZE + NDIS_CSUM_PPI_SIZE +
+			 NDIS_LSO_PPI_SIZE + NDIS_HASH_PPI_SIZE, GFP_ATOMIC);
 	if (!packet) {
 		/* out of memory, drop packet */
 		netdev_err(net, "unable to allocate hv_netvsc_packet\n");
@@ -442,6 +444,14 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	rndis_pkt->per_pkt_info_offset = sizeof(struct rndis_packet);
 
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
+
+	hash = skb_get_hash_raw(skb);
+	if (hash != 0 && net->real_num_tx_queues > 1) {
+		rndis_msg_size += NDIS_HASH_PPI_SIZE;
+		ppi = init_ppi_data(rndis_msg, NDIS_HASH_PPI_SIZE,
+				    NBL_HASH_VALUE);
+		*(u32 *)((void *)ppi + ppi->ppi_offset) = hash;
+	}
 
 	if (isvlan) {
 		struct ndis_pkt_8021q_info *vlan;
