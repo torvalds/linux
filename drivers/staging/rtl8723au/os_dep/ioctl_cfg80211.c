@@ -1936,22 +1936,19 @@ exit:
 }
 
 static int rtw_cfg80211_add_wep(struct rtw_adapter *padapter,
-				struct ndis_802_11_wep *wep)
+				struct rtw_wep_key *wep, u8 keyid)
 {
-	int keyid, res;
+	int res;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 
-	keyid = wep->KeyIndex & 0x3fffffff;
-
-	if (keyid >= 4) {
+	if (keyid >= NUM_WEP_KEYS) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
 			 ("%s:keyid>4 =>fail\n", __func__));
 		res = _FAIL;
 		goto exit;
 	}
 
-	switch (wep->KeyLength)
-	{
+	switch (wep->keylen) {
 	case 5:
 		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
@@ -1971,14 +1968,10 @@ static int rtw_cfg80211_add_wep(struct rtw_adapter *padapter,
 	}
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("%s:before memcpy, wep->KeyLength = 0x%x "
-		  "wep->KeyIndex = 0x%x  keyid =%x\n", __func__,
-		  wep->KeyLength, wep->KeyIndex, keyid));
+		 ("%s:before memcpy, wep->KeyLength = 0x%x keyid =%x\n",
+		  __func__, wep->keylen, keyid));
 
-	memcpy(&psecuritypriv->wep_key[keyid].key, &wep->KeyMaterial,
-	       wep->KeyLength);
-
-	psecuritypriv->wep_key[keyid].keylen = wep->KeyLength;
+	memcpy(&psecuritypriv->wep_key[keyid], wep, sizeof(struct rtw_wep_key));
 
 	psecuritypriv->dot11PrivacyKeyIndex = keyid;
 
@@ -2176,56 +2169,42 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if ((psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_Shared ||
 	     psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_Auto) &&
 	    sme->key) {
-		u32 wep_key_idx, wep_key_len, wep_total_len;
-		struct ndis_802_11_wep *pwep = NULL;
+		struct rtw_wep_key wep_key;
+		u8 wep_key_idx, wep_key_len;
 		DBG_8723A("%s(): Shared/Auto WEP\n", __func__);
 
 		wep_key_idx = sme->key_idx;
 		wep_key_len = sme->key_len;
 
-		if (sme->key_idx > WEP_KEYS) {
+		if (wep_key_idx > WEP_KEYS || !wep_key_len ||
+		    wep_key_len > WLAN_KEY_LEN_WEP104) {
 			ret = -EINVAL;
 			goto exit;
 		}
 
-		if (wep_key_len > 0) {
-			wep_key_len = wep_key_len <= 5 ? 5 : 13;
-			wep_total_len =
-				wep_key_len +
-				offsetof(struct ndis_802_11_wep, KeyMaterial);
-			pwep = (struct ndis_802_11_wep *)kmalloc(wep_total_len,
-								 GFP_KERNEL);
-			if (pwep == NULL) {
-				DBG_8723A(" wpa_set_encryption: pwep "
-					  "allocate fail !!!\n");
-				ret = -ENOMEM;
-				goto exit;
-			}
+		wep_key_len = wep_key_len <= 5 ? 5 : 13;
 
-			memset(pwep, 0, wep_total_len);
+		memset(&wep_key, 0, sizeof(struct rtw_wep_key));
 
-			pwep->KeyLength = wep_key_len;
-			pwep->Length = wep_total_len;
+		wep_key.keylen = wep_key_len;
 
-			if (wep_key_len == 13) {
-				padapter->securitypriv.dot11PrivacyAlgrthm =
-				    WLAN_CIPHER_SUITE_WEP104;
-				padapter->securitypriv.dot118021XGrpPrivacy =
-				    WLAN_CIPHER_SUITE_WEP104;
-			}
+		if (wep_key_len == 13) {
+			padapter->securitypriv.dot11PrivacyAlgrthm =
+				WLAN_CIPHER_SUITE_WEP104;
+			padapter->securitypriv.dot118021XGrpPrivacy =
+				WLAN_CIPHER_SUITE_WEP104;
 		} else {
-			ret = -EINVAL;
-			goto exit;
+			padapter->securitypriv.dot11PrivacyAlgrthm =
+				WLAN_CIPHER_SUITE_WEP40;
+			padapter->securitypriv.dot118021XGrpPrivacy =
+				WLAN_CIPHER_SUITE_WEP40;
 		}
 
-		pwep->KeyIndex = wep_key_idx;
+		memcpy(wep_key.key, (void *)sme->key, wep_key.keylen);
 
-		memcpy(pwep->KeyMaterial, (void *)sme->key, pwep->KeyLength);
-
-		if (rtw_cfg80211_add_wep(padapter, pwep) != _SUCCESS)
+		if (rtw_cfg80211_add_wep(padapter, &wep_key, wep_key_idx) !=
+		    _SUCCESS)
 			ret = -EOPNOTSUPP;
-
-		kfree(pwep);
 
 		if (ret < 0)
 			goto exit;

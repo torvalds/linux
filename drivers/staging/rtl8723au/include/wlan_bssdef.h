@@ -99,13 +99,6 @@ struct ndis_802_11_key {
 	u8 KeyMaterial[32]; /*  variable length depending on above field */
 };
 
-struct ndis_802_11_wep {
-	u32     Length;        /*  Length of this structure */
-	u32     KeyIndex;      /*  0 is the per-client key, 1-N are global */
-	u32     KeyLength;     /*  length of key in bytes */
-	u8     KeyMaterial[16];/*  variable length depending on above field */
-};
-
 enum NDIS_802_11_STATUS_TYPE {
 	Ndis802_11StatusType_Authentication,
 	Ndis802_11StatusType_MediaStreamMode,
