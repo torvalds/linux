@@ -76,10 +76,7 @@ int __mcfgpio_direction_output(unsigned gpio, int value)
 
 	local_irq_save(flags);
 	data = mcfgpio_read(__mcfgpio_pddr(gpio));
-	if (value)
-		data |= mcfgpio_bit(gpio);
-	else
-		data &= mcfgpio_bit(gpio);
+	data |= mcfgpio_bit(gpio);
 	mcfgpio_write(data, __mcfgpio_pddr(gpio));
 
 	/* now set the data to output */
