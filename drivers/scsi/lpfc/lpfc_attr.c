@@ -4660,7 +4660,7 @@ LPFC_ATTR_R(EnableXLane, 0, 0, 1, "Enable Express Lane Feature.");
 #       0x0 - 0x7f  = CS_CTL field in FC header (high 7 bits)
 # Value range is [0x0,0x7f]. Default value is 0
 */
-LPFC_ATTR_R(XLanePriority, 0, 0x0, 0x7f, "CS_CTL for Express Lane Feature.");
+LPFC_ATTR_RW(XLanePriority, 0, 0x0, 0x7f, "CS_CTL for Express Lane Feature.");
 
 /*
 # lpfc_enable_bg: Enable BlockGuard (Emulex's Implementation of T10-DIF)
