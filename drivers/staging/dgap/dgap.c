@@ -2731,16 +2731,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 		ch->ch_flags &= ~CH_PRON;
 	}
 
-	/*
-	 * If there is nothing left to copy, or
-	 * I can't handle any more data, leave.
-	 */
-	if (count <= 0) {
-		dgap_set_firmware_event(un, UN_LOW | UN_EMPTY);
-		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
-		return 0;
-	}
-
 	n = count;
 
 	/*
