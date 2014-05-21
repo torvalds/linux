@@ -502,7 +502,6 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		    struct rtw_adapter *padapter, bool update_ie);
 
-int get_bsstype23a(unsigned short capability);
 u8 *get_my_bssid23a(struct wlan_bssid_ex *pnetwork);
 u16 get_beacon_interval23a(struct wlan_bssid_ex *bss);
 

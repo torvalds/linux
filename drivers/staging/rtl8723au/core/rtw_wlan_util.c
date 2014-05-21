@@ -394,15 +394,6 @@ void set_channel_bwmode23a(struct rtw_adapter *padapter, unsigned char channel,
 	set_bwmode(padapter, bwmode, channel_offset);
 }
 
-int get_bsstype23a(unsigned short capability)
-{
-	if (capability & BIT(0))
-		return WIFI_FW_AP_STATE;
-	else if (capability & BIT(1))
-		return WIFI_FW_ADHOC_STATE;
-	return 0;
-}
-
 inline u8 *get_my_bssid23a(struct wlan_bssid_ex *pnetwork)
 {
 	return pnetwork->MacAddress;
