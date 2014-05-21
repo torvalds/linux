@@ -1720,9 +1720,9 @@ static void Hal_EEValueCheck(u8 EEType, void *pInValue, void *pOutValue)
 		u8 *pIn, *pOut;
 		pIn = (u8 *) pInValue;
 		pOut = (u8 *) pOutValue;
-		if (*pIn >= 0 && *pIn <= 63) {
+		if (*pIn <= 63)
 			*pOut = *pIn;
-		} else {
+		else {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
 				 ("EETYPE_TX_PWR, value =%d is invalid, set "
 				  "to default = 0x%x\n",
