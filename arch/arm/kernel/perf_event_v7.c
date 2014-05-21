@@ -1286,6 +1286,7 @@ static void krait_pmu_disable_event(struct perf_event *event)
 	unsigned long flags;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
+	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
 
 	/* Disable counter and interrupt */
@@ -1311,6 +1312,7 @@ static void krait_pmu_enable_event(struct perf_event *event)
 	unsigned long flags;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
+	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
 
 	/*
