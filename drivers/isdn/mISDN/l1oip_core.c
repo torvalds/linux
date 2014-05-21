@@ -287,7 +287,7 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	p = frame;
 
 	/* restart timer */
-	if ((int)(hc->keep_tl.expires-jiffies) < 5 * HZ) {
+	if (time_before(hc->keep_tl.expires, jiffies + 5 * HZ)) {
 		del_timer(&hc->keep_tl);
 		hc->keep_tl.expires = jiffies + L1OIP_KEEPALIVE * HZ;
 		add_timer(&hc->keep_tl);
@@ -621,7 +621,7 @@ multiframe:
 		goto multiframe;
 
 	/* restart timer */
-	if ((int)(hc->timeout_tl.expires-jiffies) < 5 * HZ || !hc->timeout_on) {
+	if (time_before(hc->timeout_tl.expires, jiffies + 5 * HZ) || !hc->timeout_on) {
 		hc->timeout_on = 1;
 		del_timer(&hc->timeout_tl);
 		hc->timeout_tl.expires = jiffies + L1OIP_TIMEOUT * HZ;
