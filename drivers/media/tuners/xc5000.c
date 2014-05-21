@@ -293,11 +293,6 @@ static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 	return 0;
 }
 
-static void xc_wait(int wait_ms)
-{
-	msleep(wait_ms);
-}
-
 static int xc5000_TunerReset(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
@@ -342,7 +337,7 @@ static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 					/* busy flag cleared */
 					break;
 				} else {
-					xc_wait(5); /* wait 5 ms */
+					msleep(5); /* wait 5 ms */
 					WatchDogTimer--;
 				}
 			}
@@ -374,7 +369,7 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 				return result;
 		} else if (len & 0x8000) {
 			/* WAIT command */
-			xc_wait(len & 0x7FFF);
+			msleep(len & 0x7FFF);
 			index += 2;
 		} else {
 			/* Send i2c data whilst ensuring individual transactions
@@ -571,7 +566,7 @@ static u16 WaitForLock(struct xc5000_priv *priv)
 	while ((lockState == 0) && (watchDogCount > 0)) {
 		xc_get_lock_status(priv, &lockState);
 		if (lockState != 1) {
-			xc_wait(5);
+			msleep(5);
 			watchDogCount--;
 		}
 	}
@@ -687,7 +682,7 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	 * Frame Lines needs two frame times after initial lock
 	 * before it is valid.
 	 */
-	xc_wait(100);
+	msleep(100);
 
 	xc_get_ADC_Envelope(priv,  &adc_envelope);
 	dprintk(1, "*** ADC envelope (0-1023) = %d\n", adc_envelope);
@@ -1137,7 +1132,7 @@ fw_retry:
 		 * I2C transactions until calibration is complete.  This way we
 		 * don't have to rely on clock stretching working.
 		 */
-		xc_wait(100);
+		msleep(100);
 
 		if (priv->init_status_supported) {
 			if (xc5000_readreg(priv, XREG_INIT_STATUS, &fw_ck) != 0) {
