@@ -3261,7 +3261,7 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 			rel->seq = cpu_to_le32(cap->seq);
 			rel->issue_seq = cpu_to_le32(cap->issue_seq),
 			rel->mseq = cpu_to_le32(cap->mseq);
-			rel->caps = cpu_to_le32(cap->issued);
+			rel->caps = cpu_to_le32(cap->implemented);
 			rel->wanted = cpu_to_le32(cap->mds_wanted);
 			rel->dname_len = 0;
 			rel->dname_seq = 0;

@@ -282,8 +282,8 @@ sun4v_chip_type:
 	stx	%l2, [%l4 + 0x0]
 	ldx	[%sp + 2047 + 128 + 0x50], %l3	! physaddr low
 	/* 4MB align */
-	srlx	%l3, 22, %l3
-	sllx	%l3, 22, %l3
+	srlx	%l3, ILOG2_4MB, %l3
+	sllx	%l3, ILOG2_4MB, %l3
 	stx	%l3, [%l4 + 0x8]
 
 	/* Leave service as-is, "call-method" */
