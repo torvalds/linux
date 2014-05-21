@@ -337,7 +337,6 @@ ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
 			  u8 bEosp, u8 bForcePowerSave)
 {
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	u32 pktlen;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *cur_network = &pmlmepriv->cur_network;
@@ -349,15 +348,13 @@ ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
 	pwlanhdr->frame_control = 0;
 	pwlanhdr->seq_ctrl = 0;
 
-	fctrl = &pwlanhdr->frame_control;
-
 	if (bForcePowerSave)
 		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
 	switch (cur_network->network.ifmode) {
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
-		SetToDs(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		memcpy(pwlanhdr->addr1,
 		       get_my_bssid23a(&pmlmeinfo->network), ETH_ALEN);
 		memcpy(pwlanhdr->addr2, myid(&padapter->eeprompriv),
@@ -366,7 +363,7 @@ ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
 		break;
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_AP:
-		SetFrDs(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
 		memcpy(pwlanhdr->addr2,
 		       get_my_bssid23a(&pmlmeinfo->network), ETH_ALEN);
