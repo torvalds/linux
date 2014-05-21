@@ -107,7 +107,7 @@ int _rtw_free_sta_priv23a(struct sta_priv *pstapriv)
 }
 
 struct sta_info *
-rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, int gfp)
+rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, gfp_t gfp)
 {
 	struct list_head	*phash_list;
 	struct sta_info	*psta;
