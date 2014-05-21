@@ -4564,8 +4564,6 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		memcpy(bssid->SupportedRates + i, p + 2, p[1]);
 	}
 
-	bssid->NetworkTypeInUse = Ndis802_11OFDM24;
-
 	if (bssid->IELength < 12)
 		return _FAIL;
 

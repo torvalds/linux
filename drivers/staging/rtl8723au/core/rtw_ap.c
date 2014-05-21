@@ -1008,24 +1008,6 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	if (p && ie_len > 0)
 		pHT_info_ie = p;
 
-	switch (network_type) {
-	case WIRELESS_11B:
-		pbss_network->NetworkTypeInUse = Ndis802_11DS;
-		break;
-	case WIRELESS_11G:
-	case WIRELESS_11BG:
-            case WIRELESS_11G_24N:
-	case WIRELESS_11BG_24N:
-		pbss_network->NetworkTypeInUse = Ndis802_11OFDM24;
-		break;
-	case WIRELESS_11A:
-		pbss_network->NetworkTypeInUse = Ndis802_11OFDM5;
-		break;
-	default :
-		pbss_network->NetworkTypeInUse = Ndis802_11OFDM24;
-		break;
-	}
-
 	pmlmepriv->cur_network.network_type = network_type;
 
 	pmlmepriv->htpriv.ht_option = false;

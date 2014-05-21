@@ -22,14 +22,6 @@
 #define NDIS_802_11_LENGTH_RATES        8
 #define NDIS_802_11_LENGTH_RATES_EX     16
 
-enum ndis_802_11_net_type {
-	Ndis802_11FH,
-	Ndis802_11DS,
-	Ndis802_11OFDM5,
-	Ndis802_11OFDM24,
-	Ndis802_11NetworkTypeMax    /*  just an upper bound */
-};
-
 struct ndis_802_11_configuration_fh {
 	u32           Length;             /*  Length of structure */
 	u32           HopPattern;         /*  As defined by 802.11, MSB set */
@@ -158,7 +150,6 @@ struct wlan_bssid_ex {
 	struct cfg80211_ssid Ssid;
 	u32  Privacy;
 	long  Rssi;/* in dBM, raw data , get from PHY) */
-	enum ndis_802_11_net_type  NetworkTypeInUse;
 	struct ndis_802_11_config  Configuration;
 	enum nl80211_iftype ifmode;
 	unsigned char SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
