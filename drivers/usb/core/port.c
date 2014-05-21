@@ -82,7 +82,7 @@ static int usb_port_runtime_resume(struct device *dev)
 	if (!hub)
 		return -EINVAL;
 	if (hub->in_reset) {
-		port_dev->power_is_on = 1;
+		set_bit(port1, hub->power_bits);
 		return 0;
 	}
 
@@ -320,7 +320,7 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 
 	hub->ports[port1 - 1] = port_dev;
 	port_dev->portnum = port1;
-	port_dev->power_is_on = true;
+	set_bit(port1, hub->power_bits);
 	port_dev->dev.parent = hub->intfdev;
 	port_dev->dev.groups = port_dev_group;
 	port_dev->dev.type = &usb_port_device_type;

@@ -51,6 +51,9 @@ struct usb_hub {
 							device present */
 	unsigned long		wakeup_bits[1];	/* ports that have signaled
 							remote wakeup */
+	unsigned long		power_bits[1]; /* ports that are powered */
+	unsigned long		child_usage_bits[1]; /* ports powered on for
+							children */
 #if USB_MAXCHILDREN > 31 /* 8*sizeof(unsigned long) - 1 */
 #error event_bits[] is too short!
 #endif
@@ -86,8 +89,6 @@ struct usb_hub {
  * @connect_type: port's connect type
  * @location: opaque representation of platform connector location
  * @portnum: port index num based one
- * @power_is_on: port's power state
- * @did_runtime_put: port has done pm_runtime_put().
  */
 struct usb_port {
 	struct usb_device *child;
@@ -97,8 +98,6 @@ struct usb_port {
 	enum usb_port_connect_type connect_type;
 	usb_port_location_t location;
 	u8 portnum;
-	unsigned power_is_on:1;
-	unsigned did_runtime_put:1;
 };
 
 #define to_usb_port(_dev) \

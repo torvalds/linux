@@ -751,16 +751,20 @@ int usb_hub_set_port_power(struct usb_device *hdev, struct usb_hub *hub,
 			   int port1, bool set)
 {
 	int ret;
-	struct usb_port *port_dev = hub->ports[port1 - 1];
 
 	if (set)
 		ret = set_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
 	else
 		ret = usb_clear_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
 
-	if (!ret)
-		port_dev->power_is_on = set;
-	return ret;
+	if (ret)
+		return ret;
+
+	if (set)
+		set_bit(port1, hub->power_bits);
+	else
+		clear_bit(port1, hub->power_bits);
+	return 0;
 }
 
 /**
@@ -839,7 +843,7 @@ static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
 		dev_dbg(hub->intfdev, "trying to enable port power on "
 				"non-switchable hub\n");
 	for (port1 = 1; port1 <= hub->hdev->maxchild; port1++)
-		if (hub->ports[port1 - 1]->power_is_on)
+		if (test_bit(port1, hub->power_bits))
 			set_port_feature(hub->hdev, port1, USB_PORT_FEAT_POWER);
 		else
 			usb_clear_port_feature(hub->hdev, port1,
@@ -1180,15 +1184,13 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 				set_bit(port1, hub->change_bits);
 
 		} else if (udev->persist_enabled) {
-			struct usb_port *port_dev = hub->ports[port1 - 1];
-
 #ifdef CONFIG_PM
 			udev->reset_resume = 1;
 #endif
 			/* Don't set the change_bits when the device
 			 * was powered off.
 			 */
-			if (port_dev->power_is_on)
+			if (test_bit(port1, hub->power_bits))
 				set_bit(port1, hub->change_bits);
 
 		} else {
@@ -2096,16 +2098,15 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_hcd_synchronize_unlinks(udev);
 
 	if (udev->parent) {
+		int port1 = udev->portnum;
 		struct usb_hub *hub = usb_hub_to_struct_hub(udev->parent);
-		struct usb_port	*port_dev = hub->ports[udev->portnum - 1];
+		struct usb_port	*port_dev = hub->ports[port1 - 1];
 
 		sysfs_remove_link(&udev->dev.kobj, "port");
 		sysfs_remove_link(&port_dev->dev.kobj, "device");
 
-		if (!port_dev->did_runtime_put)
+		if (test_and_clear_bit(port1, hub->child_usage_bits))
 			pm_runtime_put(&port_dev->dev);
-		else
-			port_dev->did_runtime_put = false;
 	}
 
 	usb_remove_ep_devs(&udev->ep0);
@@ -2416,7 +2417,8 @@ int usb_new_device(struct usb_device *udev)
 	/* Create link files between child device and usb port device. */
 	if (udev->parent) {
 		struct usb_hub *hub = usb_hub_to_struct_hub(udev->parent);
-		struct usb_port	*port_dev = hub->ports[udev->portnum - 1];
+		int port1 = udev->portnum;
+		struct usb_port	*port_dev = hub->ports[port1 - 1];
 
 		err = sysfs_create_link(&udev->dev.kobj,
 				&port_dev->dev.kobj, "port");
@@ -2430,7 +2432,8 @@ int usb_new_device(struct usb_device *udev)
 			goto fail;
 		}
 
-		pm_runtime_get_sync(&port_dev->dev);
+		if (!test_and_set_bit(port1, hub->child_usage_bits))
+			pm_runtime_get_sync(&port_dev->dev);
 	}
 
 	(void) usb_create_ep_devs(&udev->dev, &udev->ep0, udev);
@@ -3100,10 +3103,9 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 	}
 
-	if (status == 0 && !udev->do_remote_wakeup && udev->persist_enabled) {
+	if (status == 0 && !udev->do_remote_wakeup && udev->persist_enabled
+			&& test_and_clear_bit(port1, hub->child_usage_bits))
 		pm_runtime_put_sync(&port_dev->dev);
-		port_dev->did_runtime_put = true;
-	}
 
 	usb_mark_last_busy(hub->hdev);
 	return status;
@@ -3245,9 +3247,8 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	int		status;
 	u16		portchange, portstatus;
 
-	if (port_dev->did_runtime_put) {
+	if (!test_and_set_bit(port1, hub->child_usage_bits)) {
 		status = pm_runtime_get_sync(&port_dev->dev);
-		port_dev->did_runtime_put = false;
 		if (status < 0) {
 			dev_dbg(&udev->dev, "can't resume usb port, status %d\n",
 					status);
