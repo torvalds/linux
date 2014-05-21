@@ -5458,20 +5458,17 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_
 
 	DBG_8723A("%s\n", __func__);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE)
-	{
-		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)/* adhoc master or sta_count>1 */
+	if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
+	/* adhoc master or sta_count>1 */
+		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
 		{
 			/* nothing to do */
-		}
-		else/* adhoc client */
-		{
+		} else { /* adhoc client */
 			/*  correcting TSF */
 			rtw_correct_TSF(padapter);
 
 			/* start beacon */
-			if (send_beacon23a(padapter) == _FAIL)
-			{
+			if (send_beacon23a(padapter) != _SUCCESS) {
 				pmlmeinfo->FW_sta_info[psta->mac_id].status = 0;
 
 				pmlmeinfo->state ^= WIFI_FW_ADHOC_STATE;
@@ -5480,9 +5477,7 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_
 			}
 
 			pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
-
 		}
-
 		hw_var_set_mlme_join(padapter, 2);
 	}
 
@@ -5497,25 +5492,27 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_
 
 void mlmeext_sta_del_event_callback23a(struct rtw_adapter *padapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	if (is_client_associated_to_ap23a(padapter) || is_IBSS_empty23a(padapter))
-	{
+	if (is_client_associated_to_ap23a(padapter) ||
+	    is_IBSS_empty23a(padapter)) {
 		/* set_opmode_cmd(padapter, infra_client_with_mlme); */
 
 		hw_var_set_mlme_disconnect(padapter);
 		hw_var_set_bssid(padapter, null_addr);
 
 		/* restore to initial setting. */
-		update_tx_basic_rate23a(padapter, padapter->registrypriv.wireless_mode);
+		update_tx_basic_rate23a(padapter,
+					padapter->registrypriv.wireless_mode);
 
 		/* switch to the 20M Hz mode after disconnect */
 		pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_20;
 		pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
-		/* SelectChannel23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset); */
-		set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
+		set_channel_bwmode23a(padapter, pmlmeext->cur_channel,
+				      pmlmeext->cur_ch_offset,
+				      pmlmeext->cur_bwmode);
 
 		flush_all_cam_entry23a(padapter);
 
@@ -5532,7 +5529,7 @@ static u8 chk_ap_is_alive(struct rtw_adapter *padapter, struct sta_info *psta)
 {
 	u8 ret = false;
 
-	if ((sta_rx_data_pkts(psta) == sta_last_rx_data_pkts(psta)) &&
+	if (sta_rx_data_pkts(psta) == sta_last_rx_data_pkts(psta) &&
 	    sta_rx_beacon_pkts(psta) == sta_last_rx_beacon_pkts(psta) &&
 	    sta_rx_probersp_pkts(psta) == sta_last_rx_probersp_pkts(psta))
 		ret = false;
@@ -5545,12 +5542,12 @@ static u8 chk_ap_is_alive(struct rtw_adapter *padapter, struct sta_info *psta)
 
 void linked_status_chk23a(struct rtw_adapter *padapter)
 {
-	u32	i;
-	struct sta_info		*psta;
+	u32 i;
+	struct sta_info *psta;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct sta_priv		*pstapriv = &padapter->stapriv;
+	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	rtl8723a_sreset_linked_status_check(padapter);
 
@@ -5562,8 +5559,9 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 
 		rx_chk_limit = 4;
 
-		if ((psta = rtw_get_stainfo23a(pstapriv, pmlmeinfo->network.MacAddress)) != NULL)
-		{
+		psta = rtw_get_stainfo23a(pstapriv,
+					  pmlmeinfo->network.MacAddress);
+		if (psta) {
 			bool is_p2p_enable = false;
 
 			if (chk_ap_is_alive(padapter, psta) == false)
@@ -5572,29 +5570,41 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 			if (pxmitpriv->last_tx_pkts == pxmitpriv->tx_pkts)
 				tx_chk = _FAIL;
 
-			if (pmlmeext->active_keep_alive_check && (rx_chk == _FAIL || tx_chk == _FAIL)) {
+			if (pmlmeext->active_keep_alive_check &&
+			    (rx_chk == _FAIL || tx_chk == _FAIL)) {
 				u8 backup_oper_channel = 0;
 
-				/* switch to correct channel of current network  before issue keep-alive frames */
-				if (rtw_get_oper_ch23a(padapter) != pmlmeext->cur_channel) {
-					backup_oper_channel = rtw_get_oper_ch23a(padapter);
-					SelectChannel23a(padapter, pmlmeext->cur_channel);
+				/* switch to correct channel of current
+				   network  before issue keep-alive frames */
+				if (rtw_get_oper_ch23a(padapter) !=
+				    pmlmeext->cur_channel) {
+					backup_oper_channel =
+						rtw_get_oper_ch23a(padapter);
+					SelectChannel23a(padapter,
+							 pmlmeext->cur_channel);
 				}
 
 				if (rx_chk != _SUCCESS)
 					issue_probereq_ex(padapter, &pmlmeinfo->network.Ssid, psta->hwaddr, 3, 1);
 
-				if ((tx_chk != _SUCCESS && pmlmeinfo->link_count++ == 0xf) || rx_chk != _SUCCESS) {
-					tx_chk = issue_nulldata23a(padapter, psta->hwaddr, 0, 3, 1);
-					/* if tx acked and p2p disabled, set rx_chk _SUCCESS to reset retry count */
-					if (tx_chk == _SUCCESS && !is_p2p_enable)
+				if ((tx_chk != _SUCCESS &&
+				     pmlmeinfo->link_count++ == 0xf) ||
+				    rx_chk != _SUCCESS) {
+					tx_chk = issue_nulldata23a(padapter,
+								   psta->hwaddr,
+								   0, 3, 1);
+					/* if tx acked and p2p disabled,
+					   set rx_chk _SUCCESS to reset retry
+					   count */
+					if (tx_chk == _SUCCESS &&
+					    !is_p2p_enable)
 						rx_chk = _SUCCESS;
 				}
 
 				/* back to the original operation channel */
 				if (backup_oper_channel>0)
-					SelectChannel23a(padapter, backup_oper_channel);
-
+					SelectChannel23a(padapter,
+							 backup_oper_channel);
 			} else {
 				if (rx_chk != _SUCCESS) {
 					if (pmlmeext->retry == 0) {
@@ -5604,8 +5614,11 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 					}
 				}
 
-				if (tx_chk != _SUCCESS && pmlmeinfo->link_count++ == 0xf)
-					tx_chk = issue_nulldata23a(padapter, NULL, 0, 1, 0);
+				if (tx_chk != _SUCCESS &&
+				    pmlmeinfo->link_count++ == 0xf)
+					tx_chk = issue_nulldata23a(padapter,
+								   NULL, 0, 1,
+								   0);
 			}
 
 			if (rx_chk == _FAIL) {
@@ -5619,57 +5632,46 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 						WLAN_REASON_EXPIRATION_CHK);
 					return;
 				}
-			} else {
+			} else
 				pmlmeext->retry = 0;
-			}
 
-			if (tx_chk == _FAIL) {
+			if (tx_chk == _FAIL)
 				pmlmeinfo->link_count &= 0xf;
-			} else {
+			else {
 				pxmitpriv->last_tx_pkts = pxmitpriv->tx_pkts;
 				pmlmeinfo->link_count = 0;
 			}
 
-		} /* end of if ((psta = rtw_get_stainfo23a(pstapriv, passoc_res->network.MacAddress)) != NULL) */
-	}
-	else if (is_client_associated_to_ibss23a(padapter))
-	{
+		}
+	} else if (is_client_associated_to_ibss23a(padapter)) {
 		/* linked IBSS mode */
 		/* for each assoc list entry to check the rx pkt counter */
-		for (i = IBSS_START_MAC_ID; i < NUM_STA; i++)
-		{
-			if (pmlmeinfo->FW_sta_info[i].status == 1)
-			{
+		for (i = IBSS_START_MAC_ID; i < NUM_STA; i++) {
+			if (pmlmeinfo->FW_sta_info[i].status == 1) {
 				psta = pmlmeinfo->FW_sta_info[i].psta;
 
-				if (NULL == psta) continue;
+				if (!psta)
+					continue;
 
-				if (pmlmeinfo->FW_sta_info[i].rx_pkt == sta_rx_pkts(psta))
-				{
+				if (pmlmeinfo->FW_sta_info[i].rx_pkt ==
+				    sta_rx_pkts(psta)) {
 
-					if (pmlmeinfo->FW_sta_info[i].retry<3)
-					{
+					if (pmlmeinfo->FW_sta_info[i].retry<3) {
 						pmlmeinfo->FW_sta_info[i].retry++;
-					}
-					else
-					{
+					} else {
 						pmlmeinfo->FW_sta_info[i].retry = 0;
 						pmlmeinfo->FW_sta_info[i].status = 0;
 						report_del_sta_event23a(padapter, psta->hwaddr,
 							65535/*  indicate disconnect caused by no rx */
 						);
 					}
-				}
-				else
-				{
+				} else {
 					pmlmeinfo->FW_sta_info[i].retry = 0;
 					pmlmeinfo->FW_sta_info[i].rx_pkt = (u32)sta_rx_pkts(psta);
 				}
 			}
 		}
-
 		/* set_link_timer(pmlmeext, DISCONNECT_TO); */
-
 	}
 }
 
@@ -5707,7 +5709,8 @@ static void survey_timer_hdl(unsigned long data)
 			goto exit_survey_timer_hdl;
 		}
 
-		init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara, GEN_CMD_CODE(_SiteSurvey));
+		init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara,
+					   GEN_CMD_CODE(_SiteSurvey));
 		rtw_enqueue_cmd23a(pcmdpriv, ph2c);
 	}
 
@@ -5725,17 +5728,13 @@ static void link_timer_hdl(unsigned long data)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	/* struct sta_priv		*pstapriv = &padapter->stapriv; */
 
-	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL)
-	{
+	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
 		DBG_8723A("link_timer_hdl:no beacon while connecting\n");
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 		report_join_res23a(padapter, -3);
-	}
-	else if (pmlmeinfo->state & WIFI_FW_AUTH_STATE)
-	{
+	} else if (pmlmeinfo->state & WIFI_FW_AUTH_STATE) {
 		/* re-auth timer */
-		if (++pmlmeinfo->reauth_count > REAUTH_LIMIT)
-		{
+		if (++pmlmeinfo->reauth_count > REAUTH_LIMIT) {
 			/* if (pmlmeinfo->auth_algo != dot11AuthAlgrthm_Auto) */
 			/*  */
 				pmlmeinfo->state = 0;
@@ -5744,8 +5743,8 @@ static void link_timer_hdl(unsigned long data)
 			/*  */
 			/* else */
 			/*  */
-			/*	pmlmeinfo->auth_algo = dot11AuthAlgrthm_Shared; */
-			/*	pmlmeinfo->reauth_count = 0; */
+			/* pmlmeinfo->auth_algo = dot11AuthAlgrthm_Shared; */
+			/* pmlmeinfo->reauth_count = 0; */
 			/*  */
 		}
 
@@ -5753,12 +5752,9 @@ static void link_timer_hdl(unsigned long data)
 		pmlmeinfo->auth_seq = 1;
 		issue_auth(padapter, NULL, 0);
 		set_link_timer(pmlmeext, REAUTH_TO);
-	}
-	else if (pmlmeinfo->state & WIFI_FW_ASSOC_STATE)
-	{
+	} else if (pmlmeinfo->state & WIFI_FW_ASSOC_STATE) {
 		/* re-assoc timer */
-		if (++pmlmeinfo->reassoc_count > REASSOC_LIMIT)
-		{
+		if (++pmlmeinfo->reassoc_count > REASSOC_LIMIT) {
 			pmlmeinfo->state = WIFI_FW_NULL_STATE;
 			report_join_res23a(padapter, -2);
 			return;
@@ -5782,11 +5778,9 @@ static void addba_timer_hdl(unsigned long data)
 
 	phtpriv = &psta->htpriv;
 
-	if ((phtpriv->ht_option == true) && (phtpriv->ampdu_enable == true))
-	{
+	if (phtpriv->ht_option == true && phtpriv->ampdu_enable == true) {
 		if (phtpriv->candidate_tid_bitmap)
 			phtpriv->candidate_tid_bitmap = 0x0;
-
 	}
 }
 
@@ -5902,8 +5896,8 @@ int createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct registry_priv	*pregpriv = &padapter->registrypriv;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct registry_priv *pregpriv = &padapter->registrypriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	const struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
@@ -5915,8 +5909,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	/* u32	acparm; */
 
 	/* check already connecting to AP or not */
-	if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
-	{
+	if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
 		if (pmlmeinfo->state & WIFI_FW_STATION_STATE)
 			issue_deauth_ex(padapter, pnetwork->MacAddress,
 					WLAN_REASON_DEAUTH_LEAVING, 5, 100);
@@ -6026,12 +6019,11 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	const struct disconnect_parm *param = (struct disconnect_parm *)pbuf;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 
-	if (is_client_associated_to_ap23a(padapter))
-	{
+	if (is_client_associated_to_ap23a(padapter)) {
 		issue_deauth_ex(padapter, pnetwork->MacAddress,
 				WLAN_REASON_DEAUTH_LEAVING,
 				param->deauth_timeout_ms/100, 100);
@@ -6047,8 +6039,8 @@ int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	/* restore to initial setting. */
 	update_tx_basic_rate23a(padapter, padapter->registrypriv.wireless_mode);
 
-	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
-	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE))
+	if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE ||
+	    (pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)
 		rtl8723a_set_bcn_func(padapter, 0);	/* Stop BCN */
 
 	/* set MSR to no link state -> infra. mode */
@@ -6060,7 +6052,8 @@ int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_20;
 	pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
-	set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
+	set_channel_bwmode23a(padapter, pmlmeext->cur_channel,
+			      pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
 	flush_all_cam_entry23a(padapter);
 
@@ -6087,13 +6080,15 @@ rtw_scan_ch_decision(struct rtw_adapter *padapter,
 	/* acquire channels from in */
 	j = 0;
 	for (i = 0;i<in_num;i++) {
-		if (in[i].hw_value && !(in[i].flags & IEEE80211_CHAN_DISABLED)
-			&& (set_idx = rtw_ch_set_search_ch23a(pmlmeext->channel_set, in[i].hw_value)) >= 0
-		)
-		{
-			memcpy(&out[j], &in[i], sizeof(struct rtw_ieee80211_channel));
+		if (in[i].hw_value &&
+		    !(in[i].flags & IEEE80211_CHAN_DISABLED) &&
+		    (set_idx = rtw_ch_set_search_ch23a(pmlmeext->channel_set,
+						       in[i].hw_value)) >= 0) {
+			memcpy(&out[j], &in[i],
+			       sizeof(struct rtw_ieee80211_channel));
 
-			if (pmlmeext->channel_set[set_idx].ScanType == SCAN_PASSIVE)
+			if (pmlmeext->channel_set[set_idx].ScanType ==
+			    SCAN_PASSIVE)
 				out[j].flags &= IEEE80211_CHAN_NO_IR;
 
 			j++;
@@ -6114,7 +6109,7 @@ rtw_scan_ch_decision(struct rtw_adapter *padapter,
 		}
 	}
 
-	if (padapter->setband == GHZ_24) {				/*  2.4G */
+	if (padapter->setband == GHZ_24) {			/*  2.4G */
 		for (i = 0; i < j ; i++) {
 			if (out[i].hw_value > 35)
 				memset(&out[i], 0,
@@ -6123,10 +6118,11 @@ rtw_scan_ch_decision(struct rtw_adapter *padapter,
 				scan_ch_num++;
 		}
 		j = scan_ch_num;
-	} else if  (padapter->setband == GHZ_50) {			/*  5G */
+	} else if  (padapter->setband == GHZ_50) {		/*  5G */
 		for (i = 0; i < j ; i++) {
 			if (out[i].hw_value > 35) {
-				memcpy(&out[scan_ch_num++], &out[i], sizeof(struct rtw_ieee80211_channel));
+				memcpy(&out[scan_ch_num++], &out[i],
+				       sizeof(struct rtw_ieee80211_channel));
 			}
 		}
 		j = scan_ch_num;
@@ -6174,8 +6170,10 @@ int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 			/* switch to correct channel of current network
 			   before issue keep-alive frames */
-			if (rtw_get_oper_ch23a(padapter) != pmlmeext->cur_channel)
-				SelectChannel23a(padapter, pmlmeext->cur_channel);
+			if (rtw_get_oper_ch23a(padapter) !=
+			    pmlmeext->cur_channel)
+				SelectChannel23a(padapter,
+						 pmlmeext->cur_channel);
 
 			issue_nulldata23a(padapter, NULL, 1, 3, 500);
 
@@ -6189,8 +6187,8 @@ int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		}
 	}
 
-	if ((pmlmeext->sitesurvey_res.state == SCAN_START) ||
-	    (pmlmeext->sitesurvey_res.state == SCAN_TXNULL)) {
+	if (pmlmeext->sitesurvey_res.state == SCAN_START ||
+	    pmlmeext->sitesurvey_res.state == SCAN_TXNULL) {
 		/* disable dynamic functions, such as high power, DIG */
 		rtl8723a_odm_support_ability_backup(padapter);
 		rtl8723a_odm_support_ability_clr(padapter,
@@ -6221,7 +6219,7 @@ int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 int setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	const struct setauth_parm *pparm = (struct setauth_parm *)pbuf;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (pparm->mode < 4)
@@ -6243,7 +6241,7 @@ int setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		pmlmeinfo->key_index = pparm->keyid;
 
 	/* write cam */
-	ctrl = BIT(15) | ((pparm->algorithm) << 2) | pparm->keyid;
+	ctrl = BIT(15) | (pparm->algorithm) << 2 | pparm->keyid;
 
 	DBG_8723A_LEVEL(_drv_always_, "set group key to hw: alg:%d(WEP40-1 "
 			"WEP104-5 TKIP-2 AES-4) keyid:%d\n",
