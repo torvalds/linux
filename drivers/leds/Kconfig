@@ -478,6 +478,16 @@ config LEDS_BLINKM
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
 
+config LEDS_SYSCON
+	bool "LED support for LEDs on system controllers"
+	depends on LEDS_CLASS=y
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  This option enabled support for the LEDs on syscon type
+	  devices. This will only work with device tree enabled
+	  devices.
+
 config LEDS_VERSATILE
 	tristate "LED support for the ARM Versatile and RealView"
 	depends on ARCH_REALVIEW || ARCH_VERSATILE
