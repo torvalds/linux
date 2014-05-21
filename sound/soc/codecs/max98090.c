@@ -255,6 +255,7 @@ static struct reg_default max98090_reg[] = {
 static bool max98090_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case M98090_REG_SOFTWARE_RESET:
 	case M98090_REG_DEVICE_STATUS:
 	case M98090_REG_JACK_STATUS:
 	case M98090_REG_REVISION_ID:
@@ -389,6 +390,7 @@ static const DECLARE_TLV_DB_SCALE(max98090_alc_tlv, -1500, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_alcmakeup_tlv, 0, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_alccomp_tlv, -3100, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_drcexp_tlv, -6600, 100, 0);
+static const DECLARE_TLV_DB_SCALE(max98090_sdg_tlv, 50, 200, 0);
 
 static const unsigned int max98090_mixout_tlv[] = {
 	TLV_DB_RANGE_HEAD(2),
@@ -665,7 +667,7 @@ static const struct snd_kcontrol_new max98090_snd_controls[] = {
 	SOC_SINGLE_EXT_TLV("Digital Sidetone Volume",
 		M98090_REG_ADC_SIDETONE, M98090_DVST_SHIFT,
 		M98090_DVST_NUM - 1, 1, max98090_get_enab_tlv,
-		max98090_put_enab_tlv, max98090_micboost_tlv),
+		max98090_put_enab_tlv, max98090_sdg_tlv),
 	SOC_SINGLE_TLV("Digital Coarse Volume", M98090_REG_DAI_PLAYBACK_LEVEL,
 		M98090_DVG_SHIFT, M98090_DVG_NUM - 1, 0,
 		max98090_dvg_tlv),
@@ -2373,6 +2375,8 @@ static int max98090_runtime_resume(struct device *dev)
 
 	regcache_cache_only(max98090->regmap, false);
 
+	max98090_reset(max98090);
+
 	regcache_sync(max98090->regmap);
 
 	return 0;
@@ -2388,9 +2392,34 @@ static int max98090_runtime_suspend(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM
+static int max98090_resume(struct device *dev)
+{
+	struct max98090_priv *max98090 = dev_get_drvdata(dev);
+	unsigned int status;
+
+	regcache_mark_dirty(max98090->regmap);
+
+	max98090_reset(max98090);
+
+	/* clear IRQ status */
+	regmap_read(max98090->regmap, M98090_REG_DEVICE_STATUS, &status);
+
+	regcache_sync(max98090->regmap);
+
+	return 0;
+}
+
+static int max98090_suspend(struct device *dev)
+{
+	return 0;
+}
+#endif
+
 static const struct dev_pm_ops max98090_pm = {
 	SET_RUNTIME_PM_OPS(max98090_runtime_suspend,
 		max98090_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(max98090_suspend, max98090_resume)
 };
 
 static const struct i2c_device_id max98090_i2c_id[] = {
