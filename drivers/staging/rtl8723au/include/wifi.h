@@ -84,15 +84,6 @@ enum WIFI_FRAME_SUBTYPE {
 		*(__le16 *)(pbuf) |= cpu_to_le16(type); \
 	} while (0)
 
-#define SetPriority(pbuf, tid)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16(tid & 0xf))
-
-#define SetEOSP(pbuf, eosp)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16((eosp & 1) << 4))
-
-#define SetAckpolicy(pbuf, ack)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16((ack & 3) << 5))
-
 #define _ASOCREQ_IE_OFFSET_		4	/*  excluding wlan_hdr */
 #define	_ASOCRSP_IE_OFFSET_		6
 #define _REASOCREQ_IE_OFFSET_		10
