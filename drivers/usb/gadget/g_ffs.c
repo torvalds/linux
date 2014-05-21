@@ -276,7 +276,7 @@ module_exit(gfs_exit);
 static void *functionfs_acquire_dev(struct ffs_dev *dev)
 {
 	if (!try_module_get(THIS_MODULE))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-ENOENT);
 	
 	return 0;
 }
