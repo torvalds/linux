@@ -711,10 +711,9 @@ static void pin_to_bits(int pin, unsigned char *d_val, unsigned char *c_val)
 /* sleeps that many milliseconds with a reschedule */
 static void long_sleep(int ms)
 {
-
-	if (in_interrupt())
+	if (in_interrupt()) {
 		mdelay(ms);
-	else {
+	} else {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule_timeout((ms * HZ + 999) / 1000);
 	}
@@ -1141,13 +1140,13 @@ static inline int handle_lcd_special_code(void)
 		value = 0;
 		while (*esc && cgoffset < 8) {
 			shift ^= 4;
-			if (*esc >= '0' && *esc <= '9')
+			if (*esc >= '0' && *esc <= '9') {
 				value |= (*esc - '0') << shift;
-			else if (*esc >= 'A' && *esc <= 'Z')
+			} else if (*esc >= 'A' && *esc <= 'Z') {
 				value |= (*esc - 'A' + 10) << shift;
-			else if (*esc >= 'a' && *esc <= 'z')
+			} else if (*esc >= 'a' && *esc <= 'z') {
 				value |= (*esc - 'a' + 10) << shift;
-			else {
+			} else {
 				esc++;
 				continue;
 			}
@@ -1183,8 +1182,9 @@ static inline int handle_lcd_special_code(void)
 				esc++;
 				if (kstrtoul(esc, 10, &lcd_addr_y) < 0)
 					break;
-			} else
+			} else {
 				break;
+			}
 		}
 
 		lcd_gotoxy();
@@ -1973,10 +1973,11 @@ static int input_name2mask(const char *name, pmask_t *mask, pmask_t *value,
 		if (isdigit(*name)) {
 			out = *name - '0';
 			om |= (1 << out);
-		} else if (*name == '-')
+		} else if (*name == '-') {
 			out = 8;
-		else
+		} else {
 			return 0;	/* unknown bit name */
+		}
 
 		bit = (out * 5) + in;
 
