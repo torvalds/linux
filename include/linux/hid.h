@@ -299,11 +299,19 @@ struct hid_item {
 
 /*
  * HID device groups
+ *
+ * Note: HID_GROUP_ANY is declared in linux/mod_devicetable.h
+ * and has a value of 0x0000
  */
 #define HID_GROUP_GENERIC			0x0001
 #define HID_GROUP_MULTITOUCH			0x0002
 #define HID_GROUP_SENSOR_HUB			0x0003
 #define HID_GROUP_MULTITOUCH_WIN_8		0x0004
+
+/*
+ * Vendor specific HID device groups
+ */
+#define HID_GROUP_RMI				0x0100
 
 /*
  * This is the global environment of the parser. This information is
