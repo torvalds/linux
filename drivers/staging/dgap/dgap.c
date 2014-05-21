@@ -1464,7 +1464,6 @@ static int dgap_tty_init(struct board_t *brd)
 		init_waitqueue_head(&ch->ch_flags_wait);
 		init_waitqueue_head(&ch->ch_tun.un_flags_wait);
 		init_waitqueue_head(&ch->ch_pun.un_flags_wait);
-		init_waitqueue_head(&ch->ch_sniff_wait);
 
 		/* Turn on all modem interrupts for now */
 		modem = (DM_CD | DM_DSR | DM_CTS | DM_RI);
@@ -1529,123 +1528,6 @@ static void dgap_tty_uninit(struct board_t *brd)
 		kfree(brd->printer_ports);
 		brd->dgap_major_transparent_print_registered = FALSE;
 	}
-}
-
-#define TMPBUFLEN (1024)
-/*
- * dgap_sniff - Dump data out to the "sniff" buffer if the
- * proc sniff file is opened...
- */
-static void dgap_sniff_nowait_nolock(struct channel_t *ch, u8 *text,
-				     u8 *buf, int len)
-{
-	struct timeval tv;
-	int n;
-	int r;
-	int nbuf;
-	int i;
-	int tmpbuflen;
-	char tmpbuf[TMPBUFLEN];
-	char *p = tmpbuf;
-	int too_much_data;
-
-	/* Leave if sniff not open */
-	if (!(ch->ch_sniff_flags & SNIFF_OPEN))
-		return;
-
-	do_gettimeofday(&tv);
-
-	/* Create our header for data dump */
-	p += sprintf(p, "<%ld %ld><%s><", tv.tv_sec, tv.tv_usec, text);
-	tmpbuflen = p - tmpbuf;
-
-	do {
-		too_much_data = 0;
-
-		for (i = 0; i < len && tmpbuflen < (TMPBUFLEN - 4); i++) {
-			p += sprintf(p, "%02x ", *buf);
-			buf++;
-			tmpbuflen = p - tmpbuf;
-		}
-
-		if (tmpbuflen < (TMPBUFLEN - 4)) {
-			if (i > 0)
-				p += sprintf(p - 1, "%s\n", ">");
-			else
-				p += sprintf(p, "%s\n", ">");
-		} else {
-			too_much_data = 1;
-			len -= i;
-		}
-
-		nbuf = strlen(tmpbuf);
-		p = tmpbuf;
-
-		/*
-		 *  Loop while data remains.
-		 */
-		while (nbuf > 0 && ch->ch_sniff_buf) {
-			/*
-			 *  Determine the amount of available space left in the
-			 *  buffer.  If there's none, wait until some appears.
-			 */
-			n = (ch->ch_sniff_out - ch->ch_sniff_in - 1) &
-			     SNIFF_MASK;
-
-			/*
-			 * If there is no space left to write to in our sniff
-			 * buffer, we have no choice but to drop the data.
-			 * We *cannot* sleep here waiting for space, because
-			 * this function was probably called by the
-			 * interrupt/timer routines!
-			 */
-			if (n == 0)
-				return;
-
-			/*
-			 * Copy as much data as will fit.
-			 */
-
-			if (n > nbuf)
-				n = nbuf;
-
-			r = SNIFF_MAX - ch->ch_sniff_in;
-
-			if (r <= n) {
-				memcpy(ch->ch_sniff_buf +
-				       ch->ch_sniff_in, p, r);
-
-				n -= r;
-				ch->ch_sniff_in = 0;
-				p += r;
-				nbuf -= r;
-			}
-
-			memcpy(ch->ch_sniff_buf + ch->ch_sniff_in, p, n);
-
-			ch->ch_sniff_in += n;
-			p += n;
-			nbuf -= n;
-
-			/*
-			 *  Wakeup any thread waiting for data
-			 */
-			if (ch->ch_sniff_flags & SNIFF_WAIT_DATA) {
-				ch->ch_sniff_flags &= ~SNIFF_WAIT_DATA;
-				wake_up_interruptible(&ch->ch_sniff_wait);
-			}
-		}
-
-		/*
-		 * If the user sent us too much data to push into our tmpbuf,
-		 * we need to keep looping around on all the data.
-		 */
-		if (too_much_data) {
-			p = tmpbuf;
-			tmpbuflen = 0;
-		}
-
-	} while (too_much_data);
 }
 
 /*=======================================================================
@@ -1811,7 +1693,6 @@ static void dgap_input(struct channel_t *ch)
 			break;
 
 		memcpy_fromio(buf, ch->ch_raddr + tail, s);
-		dgap_sniff_nowait_nolock(ch, "USER READ", buf, s);
 
 		tail += s;
 		buf += s;
@@ -2875,8 +2756,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 		vaddr = ch->ch_taddr + head;
 
 		memcpy_toio(vaddr, (u8 *) buf, remain);
-		dgap_sniff_nowait_nolock(ch, "USER WRITE", (u8 *) buf,
-					remain);
 
 		head = ch->ch_tstart;
 		buf += remain;
@@ -2891,9 +2770,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 		remain = n;
 
 		memcpy_toio(vaddr, (u8 *) buf, remain);
-		dgap_sniff_nowait_nolock(ch, "USER WRITE", (u8 *)buf,
-					remain);
-
 		head += remain;
 
 	}

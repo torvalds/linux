@@ -1041,12 +1041,6 @@ struct channel_t {
 	ulong	ch_err_frame;		/* Count of framing errors on channel */
 	ulong	ch_err_break;		/* Count of breaks on channel	*/
 	ulong	ch_err_overrun;		/* Count of overruns on channel	*/
-
-	uint ch_sniff_in;
-	uint ch_sniff_out;
-	char *ch_sniff_buf;		/* Sniff buffer for proc */
-	ulong ch_sniff_flags;		/* Channel flags                */
-	wait_queue_head_t ch_sniff_wait;
 };
 
 /************************************************************************
