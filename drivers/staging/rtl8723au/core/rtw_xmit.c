@@ -953,7 +953,9 @@ int rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
 			psta->sta_xmitpriv.txseq_tid[pattrib->priority]++;
 			psta->sta_xmitpriv.txseq_tid[pattrib->priority] &= 0xFFF;
 			pattrib->seqnum = psta->sta_xmitpriv.txseq_tid[pattrib->priority];
-			SetSeqNum(hdr, pattrib->seqnum);
+			/* We dont need to worry about frag bits here */
+			pwlanhdr->seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(
+							      pattrib->seqnum));
 			/* check if enable ampdu */
 			if (pattrib->ht_en && psta->htpriv.ampdu_enable) {
 				if (pattrib->priority >= 16)
