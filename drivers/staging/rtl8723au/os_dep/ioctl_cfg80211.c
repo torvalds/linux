@@ -262,8 +262,6 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	u8 buf[MAX_BSSINFO_LEN], *pbuf;
 	size_t len;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
-
 	struct wireless_dev *wdev = padapter->rtw_wdev;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -311,10 +309,9 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	pbuf = buf;
 
 	pwlanhdr = (struct ieee80211_hdr *)pbuf;
-	fctrl = &pwlanhdr->frame_control;
-	*(fctrl) = 0;
 
-	SetSeqNum(pwlanhdr, 0);
+	pwlanhdr->frame_control = 0;
+	pwlanhdr->seq_ctrl = 0;
 
 	if (pnetwork->network.reserved == 1) {	/*  WIFI_BEACON */
 		eth_broadcast_addr(pwlanhdr->addr1);
@@ -2464,13 +2461,14 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 	u8 *pmgmt_frame;
 	uint frame_len;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
-	u8 mgmt_buf[128] = { 0 };
+	u8 mgmt_buf[128];
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct net_device *ndev = padapter->pnetdev;
 
 	DBG_8723A("%s(padapter =%p,%s)\n", __func__, padapter, ndev->name);
+
+	memset(mgmt_buf, 0, 128);
 
 #if defined(RTW_USE_CFG80211_STA_EVENT)
 	cfg80211_del_sta(ndev, da, GFP_ATOMIC);
@@ -2486,14 +2484,14 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 	pmgmt_frame = mgmt_buf;
 	pwlanhdr = (struct ieee80211_hdr *)pmgmt_frame;
 
-	fctrl = &pwlanhdr->frame_control;
-	*(fctrl) = 0;
+	pwlanhdr->frame_control = 0;
 
 	memcpy(pwlanhdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN);
 	memcpy(pwlanhdr->addr2, da, ETH_ALEN);
 	memcpy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network), ETH_ALEN);
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pmgmt_frame, WIFI_DEAUTH);
 
