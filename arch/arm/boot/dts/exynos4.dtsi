@@ -20,6 +20,7 @@
  */
 
 #include <dt-bindings/clock/exynos4.h>
+#include <dt-bindings/clock/exynos-audss-clk.h>
 #include "skeleton.dtsi"
 
 / {
@@ -43,6 +44,23 @@
 		fimc1 = &fimc_1;
 		fimc2 = &fimc_2;
 		fimc3 = &fimc_3;
+	};
+
+	clock_audss: clock-controller@03810000 {
+		compatible = "samsung,exynos4210-audss-clock";
+		reg = <0x03810000 0x0C>;
+		#clock-cells = <1>;
+	};
+
+	i2s0: i2s@03830000 {
+		compatible = "samsung,s5pv210-i2s";
+		reg = <0x03830000 0x100>;
+		clocks = <&clock_audss EXYNOS_I2S_BUS>;
+		clock-names = "iis";
+		dmas = <&pdma0 12>, <&pdma0 11>, <&pdma0 10>;
+		dma-names = "tx", "rx", "tx-sec";
+		samsung,idma-addr = <0x03000000>;
+		status = "disabled";
 	};
 
 	chipid@10000000 {
@@ -286,6 +304,26 @@
 		interrupts = <0 70 0>;
 		clocks = <&clock CLK_USB_HOST>;
 		clock-names = "usbhost";
+		status = "disabled";
+	};
+
+	i2s1: i2s@13960000 {
+		compatible = "samsung,s5pv210-i2s";
+		reg = <0x13960000 0x100>;
+		clocks = <&clock CLK_I2S1>;
+		clock-names = "iis";
+		dmas = <&pdma1 12>, <&pdma1 11>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
+	i2s2: i2s@13970000 {
+		compatible = "samsung,s5pv210-i2s";
+		reg = <0x13970000 0x100>;
+		clocks = <&clock CLK_I2S2>;
+		clock-names = "iis";
+		dmas = <&pdma0 14>, <&pdma0 13>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
