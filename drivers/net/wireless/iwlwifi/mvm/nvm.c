@@ -221,7 +221,7 @@ static int iwl_nvm_write_section(struct iwl_mvm *mvm, u16 section,
  * without overflowing, so no check is needed.
  */
 static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
-				u8 *data)
+				u8 *data, u32 size_read)
 {
 	u16 length, offset = 0;
 	int ret;
@@ -233,6 +233,13 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 
 	/* Read the NVM until exhausted (reading less than requested) */
 	while (ret == length) {
+		/* Check no memory assumptions fail and cause an overflow */
+		if ((size_read + offset + length) >
+		    mvm->cfg->base_params->eeprom_size) {
+			IWL_ERR(mvm, "EEPROM size is too small for NVM\n");
+			return -ENOBUFS;
+		}
+
 		ret = iwl_nvm_read_chunk(mvm, section, offset, length, data);
 		if (ret < 0) {
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
@@ -470,6 +477,7 @@ int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 {
 	int ret, section;
+	u32 size_read = 0;
 	u8 *nvm_buffer, *temp;
 
 	if (WARN_ON_ONCE(mvm->cfg->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
@@ -486,9 +494,11 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 			return -ENOMEM;
 		for (section = 0; section < NVM_MAX_NUM_SECTIONS; section++) {
 			/* we override the constness for initial read */
-			ret = iwl_nvm_read_section(mvm, section, nvm_buffer);
+			ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
+						   size_read);
 			if (ret < 0)
 				continue;
+			size_read += ret;
 			temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
 			if (!temp) {
 				ret = -ENOMEM;
