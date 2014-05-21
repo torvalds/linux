@@ -6225,20 +6225,18 @@ int setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (pparm->mode < 4)
-	{
 		pmlmeinfo->auth_algo = pparm->mode;
-	}
 
 	return	H2C_SUCCESS;
 }
 
 int setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	unsigned short				ctrl;
+	unsigned short ctrl;
 	const struct setkey_parm *pparm = (struct setkey_parm *)pbuf;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	unsigned char					null_sta[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	unsigned char null_sta[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 	/* main tx key for wep. */
 	if (pparm->set_tx)
@@ -6247,8 +6245,9 @@ int setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	/* write cam */
 	ctrl = BIT(15) | ((pparm->algorithm) << 2) | pparm->keyid;
 
-	DBG_8723A_LEVEL(_drv_always_, "set group key to hw: alg:%d(WEP40-1 WEP104-5 TKIP-2 AES-4) "
-			"keyid:%d\n", pparm->algorithm, pparm->keyid);
+	DBG_8723A_LEVEL(_drv_always_, "set group key to hw: alg:%d(WEP40-1 "
+			"WEP104-5 TKIP-2 AES-4) keyid:%d\n",
+			pparm->algorithm, pparm->keyid);
 	rtl8723a_cam_write(padapter, pparm->keyid, ctrl, null_sta, pparm->key);
 
 	/* allow multicast packets to driver */
@@ -6261,7 +6260,7 @@ int set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	u16 ctrl = 0;
 	u8 cam_id;/* cam_entry */
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	const struct set_stakey_parm *pparm = (struct set_stakey_parm *)pbuf;
 
@@ -6280,51 +6279,51 @@ int set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	cam_id = 4;
 
-	DBG_8723A_LEVEL(_drv_always_, "set pairwise key to hw: alg:%d(WEP40-1 WEP104-5 TKIP-2 AES-4) camid:%d\n",
+	DBG_8723A_LEVEL(_drv_always_, "set pairwise key to hw: alg:%d(WEP40-1 "
+			"WEP104-5 TKIP-2 AES-4) camid:%d\n",
 			pparm->algorithm, cam_id);
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
-	{
-
+	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
-		if (pparm->algorithm == 0)	/*  clear cam entry */
-		{
+		if (pparm->algorithm == 0) {	/*  clear cam entry */
 			clear_cam_entry23a(padapter, pparm->id);
 			return H2C_SUCCESS_RSP;
 		}
 
 		psta = rtw_get_stainfo23a(pstapriv, pparm->addr);
-		if (psta)
-		{
-			ctrl = (BIT(15) | ((pparm->algorithm) << 2));
+		if (psta) {
+			ctrl = BIT(15) | (pparm->algorithm << 2);
 
-			DBG_8723A("r871x_set_stakey_hdl23a(): enc_algorithm =%d\n", pparm->algorithm);
+			DBG_8723A("r871x_set_stakey_hdl23a(): enc_algorithm "
+				  "=%d\n", pparm->algorithm);
 
-			if ((psta->mac_id<1) || (psta->mac_id>(NUM_STA-4)))
-			{
-				DBG_8723A("r871x_set_stakey_hdl23a():set_stakey failed, mac_id(aid) =%d\n", psta->mac_id);
+			if (psta->mac_id < 1 || psta->mac_id > (NUM_STA - 4)) {
+				DBG_8723A("r871x_set_stakey_hdl23a():set_stakey"
+					  " failed, mac_id(aid) =%d\n",
+					  psta->mac_id);
 				return H2C_REJECTED;
 			}
 
-			cam_id = (psta->mac_id + 3);/* 0~3 for default key, cmd_id = macid + 3, macid = aid+1; */
+			/* 0~3 for default key, cmd_id = macid + 3,
+			   macid = aid+1; */
+			cam_id = (psta->mac_id + 3);
 
-			DBG_8723A("Write CAM, mac_addr =%x:%x:%x:%x:%x:%x, cam_entry =%d\n", pparm->addr[0],
-						pparm->addr[1], pparm->addr[2], pparm->addr[3], pparm->addr[4],
-						pparm->addr[5], cam_id);
+			DBG_8723A("Write CAM, mac_addr =%x:%x:%x:%x:%x:%x, "
+				  "cam_entry =%d\n", pparm->addr[0],
+				  pparm->addr[1], pparm->addr[2],
+				  pparm->addr[3], pparm->addr[4],
+				  pparm->addr[5], cam_id);
 
 			rtl8723a_cam_write(padapter, cam_id, ctrl,
 					   pparm->addr, pparm->key);
 
 			return H2C_SUCCESS_RSP;
-
-		}
-		else
-		{
-			DBG_8723A("r871x_set_stakey_hdl23a(): sta has been free\n");
+		} else {
+			DBG_8723A("r871x_set_stakey_hdl23a(): sta has been "
+				  "free\n");
 			return H2C_REJECTED;
 		}
-
 	}
 
 	/* below for sta mode */
@@ -6334,7 +6333,7 @@ int set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		return H2C_SUCCESS;
 	}
 
-	ctrl = BIT(15) | ((pparm->algorithm) << 2);
+	ctrl = BIT(15) | (pparm->algorithm << 2);
 
 	rtl8723a_cam_write(padapter, cam_id, ctrl, pparm->addr, pparm->key);
 
@@ -6346,38 +6345,37 @@ int set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 int add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	const struct addBaReq_parm *pparm = (struct addBaReq_parm *)pbuf;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	struct sta_info *psta;
 
-	struct sta_info *psta = rtw_get_stainfo23a(&padapter->stapriv, pparm->addr);
+	psta = rtw_get_stainfo23a(&padapter->stapriv, pparm->addr);
 
 	if (!psta)
 		return	H2C_SUCCESS;
 
 	if (((pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) &&
-	     (pmlmeinfo->HT_enable)) ||
-	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
+	     pmlmeinfo->HT_enable) ||
+	    (pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
 		issue_action_BA23a(padapter, pparm->addr,
-				WLAN_ACTION_ADDBA_REQ, (u16)pparm->tid);
+				   WLAN_ACTION_ADDBA_REQ, (u16)pparm->tid);
 		mod_timer(&psta->addba_retry_timer,
 			  jiffies + msecs_to_jiffies(ADDBA_TO));
-	} else {
+	} else
 		psta->htpriv.candidate_tid_bitmap &= ~BIT(pparm->tid);
-	}
+
 	return	H2C_SUCCESS;
 }
 
 int set_tx_beacon_cmd23a(struct rtw_adapter* padapter)
 {
-	struct cmd_obj	*ph2c;
+	struct cmd_obj *ph2c;
 	struct Tx_Beacon_param	*ptxBeacon_parm;
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	u8	res = _SUCCESS;
+	u8 res = _SUCCESS;
 	int len_diff = 0;
-
-
 
 	ph2c = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!ph2c) {
@@ -6402,14 +6400,12 @@ int set_tx_beacon_cmd23a(struct rtw_adapter* padapter)
 		pmlmeinfo->hidden_ssid_mode);
 	ptxBeacon_parm->network.IELength += len_diff;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, ptxBeacon_parm, GEN_CMD_CODE(_TX_Beacon));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, ptxBeacon_parm,
+				   GEN_CMD_CODE(_TX_Beacon));
 
 	res = rtw_enqueue_cmd23a(pcmdpriv, ph2c);
 
 exit:
-
-
-
 	return res;
 }
 
@@ -6427,15 +6423,17 @@ int mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	/*  checking if event code is valid */
 	if (evt_code >= MAX_C2HEVT) {
-		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_, ("\nEvent Code(%d) mismatch!\n", evt_code));
+		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
+			 ("\nEvent Code(%d) mismatch!\n", evt_code));
 		goto _abort_event_;
 	}
 
 	/*  checking if event size match the event parm size */
-	if ((wlanevents[evt_code].parmsize != 0) &&
-	    (wlanevents[evt_code].parmsize != evt_sz)) {
-		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_, ("\nEvent(%d) Parm Size mismatch (%d vs %d)!\n",
-			evt_code, wlanevents[evt_code].parmsize, evt_sz));
+	if (wlanevents[evt_code].parmsize != 0 &&
+	    wlanevents[evt_code].parmsize != evt_sz) {
+		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
+			 ("\nEvent(%d) Parm Size mismatch (%d vs %d)!\n",
+			  evt_code, wlanevents[evt_code].parmsize, evt_sz));
 		goto _abort_event_;
 	}
 
@@ -6457,14 +6455,12 @@ int h2c_msg_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	if (send_beacon23a(padapter) == _FAIL)
-	{
+	if (send_beacon23a(padapter) == _FAIL) {
 		DBG_8723A("issue_beacon23a, fail!\n");
 		return H2C_PARAMETERS_ERROR;
 	}
 #ifdef CONFIG_8723AU_AP_MODE
-	else /* tx bc/mc frames after update TIM */
-	{
+	else { /* tx bc/mc frames after update TIM */
 		struct sta_info *psta_bmc;
 		struct list_head *plist, *phead, *ptmp;
 		struct xmit_frame *pxmitframe;
@@ -6476,8 +6472,7 @@ int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		if (!psta_bmc)
 			return H2C_SUCCESS;
 
-		if ((pstapriv->tim_bitmap&BIT(0)) && (psta_bmc->sleepq_len>0))
-		{
+		if (pstapriv->tim_bitmap & BIT(0) && psta_bmc->sleepq_len > 0) {
 			msleep(10);/*  10ms, ATIM(HIQ) Windows */
 			/* spin_lock_bh(&psta_bmc->sleep_q.lock); */
 			spin_lock_bh(&pxmitpriv->lock);
@@ -6508,7 +6503,6 @@ int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 			/* spin_unlock_bh(&psta_bmc->sleep_q.lock); */
 			spin_unlock_bh(&pxmitpriv->lock);
 		}
-
 	}
 #endif
 
@@ -6533,7 +6527,8 @@ int set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	pmlmeext->cur_ch_offset = set_ch_parm->ch_offset;
 	pmlmeext->cur_bwmode = set_ch_parm->bw;
 
-	set_channel_bwmode23a(padapter, set_ch_parm->ch, set_ch_parm->ch_offset, set_ch_parm->bw);
+	set_channel_bwmode23a(padapter, set_ch_parm->ch,
+			      set_ch_parm->ch_offset, set_ch_parm->bw);
 
 	return	H2C_SUCCESS;
 }
@@ -6548,8 +6543,11 @@ int set_chplan_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	setChannelPlan_param = (struct SetChannelPlan_param *)pbuf;
 
-	pmlmeext->max_chan_nums = init_channel_set(padapter, setChannelPlan_param->channel_plan, pmlmeext->channel_set);
-	init_channel_list(padapter, pmlmeext->channel_set, pmlmeext->max_chan_nums, &pmlmeext->channel_list);
+	pmlmeext->max_chan_nums =
+		init_channel_set(padapter, setChannelPlan_param->channel_plan,
+				 pmlmeext->channel_set);
+	init_channel_list(padapter, pmlmeext->channel_set,
+			  pmlmeext->max_chan_nums, &pmlmeext->channel_list);
 
 	return	H2C_SUCCESS;
 }
@@ -6573,11 +6571,14 @@ int set_csa_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 /*  TDLS_WRCR		: write RCR DATA BIT */
 /*  TDLS_SD_PTI		: issue peer traffic indication */
-/*  TDLS_CS_OFF		: go back to the channel linked with AP, terminating channel switch procedure */
-/*  TDLS_INIT_CH_SEN	: init channel sensing, receive all data and mgnt frame */
-/*  TDLS_DONE_CH_SEN: channel sensing and report candidate channel */
+/*  TDLS_CS_OFF		: go back to the channel linked with AP,
+			  terminating channel switch procedure */
+/*  TDLS_INIT_CH_SEN	: init channel sensing, receive all data and
+			  mgnt frame */
+/*  TDLS_DONE_CH_SEN	: channel sensing and report candidate channel */
 /*  TDLS_OFF_CH		: first time set channel to off channel */
-/*  TDLS_BASE_CH		: go back tp the channel linked with AP when set base channel as target channel */
+/*  TDLS_BASE_CH	: go back tp the channel linked with AP when set
+			  base channel as target channel */
 /*  TDLS_P_OFF_CH	: periodically go to off channel */
 /*  TDLS_P_BASE_CH	: periodically go back to base channel */
 /*  TDLS_RS_RCR		: restore RCR */
