@@ -30,11 +30,6 @@
 #include "exynos_ppmu.h"
 #include "exynos4_bus.h"
 
-/* Exynos4 ASV has been in the mailing list, but not upstreamed, yet. */
-#ifdef CONFIG_EXYNOS_ASV
-extern unsigned int exynos_result_of_asv;
-#endif
-
 #define MAX_SAFEVOLT	1200000 /* 1.2V */
 
 enum exynos4_busf_type {
@@ -723,11 +718,11 @@ static int exynos4210_init_tables(struct busfreq_data *data)
 		data->top_divtable[i] = tmp;
 	}
 
-#ifdef CONFIG_EXYNOS_ASV
-	tmp = exynos4_result_of_asv;
-#else
+	/*
+	 * TODO: init tmp based on busfreq_data
+	 * (device-tree or platform-data)
+	 */
 	tmp = 0; /* Max voltages for the reliability of the unknown */
-#endif
 
 	pr_debug("ASV Group of Exynos4 is %d\n", tmp);
 	/* Use merged grouping for voltage */
@@ -808,11 +803,7 @@ static int exynos4x12_init_tables(struct busfreq_data *data)
 		data->dmc_divtable[i] = tmp;
 	}
 
-#ifdef CONFIG_EXYNOS_ASV
-	tmp = exynos4_result_of_asv;
-#else
 	tmp = 0; /* Max voltages for the reliability of the unknown */
-#endif
 
 	if (tmp > 8)
 		tmp = 0;

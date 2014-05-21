@@ -76,8 +76,7 @@ config ARM_EXYNOS4_BUS_DEVFREQ
 	  and Exynos4212/4412 memory interface and bus (vdd_mif + vdd_int).
 	  It reads PPMU counters of memory controllers and adjusts
 	  the operating frequencies and voltages with OPP support.
-	  To operate with optimal voltages, ASV support is required
-	  (CONFIG_EXYNOS_ASV).
+	  This does not yet operate with optimal voltages.
 
 config ARM_EXYNOS5_BUS_DEVFREQ
 	bool "ARM Exynos5250 Bus DEVFREQ Driver"
