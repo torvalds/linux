@@ -159,18 +159,6 @@ inline u8 *rtw_set_ie23a_ch_switch (u8 *buf, u32 *buf_len, u8 ch_switch_mode,
 	return rtw_set_ie23a(buf, WLAN_EID_CHANNEL_SWITCH,  3, ie_data, buf_len);
 }
 
-inline u8 secondary_ch_offset_to_hal_ch_offset23a(u8 ch_offset)
-{
-	if (ch_offset == SCN)
-		return HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-	else if (ch_offset == SCA)
-		return HAL_PRIME_CHNL_OFFSET_UPPER;
-	else if (ch_offset == SCB)
-		return HAL_PRIME_CHNL_OFFSET_LOWER;
-
-	return HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-}
-
 inline u8 hal_ch_offset_to_secondary_ch_offset23a(u8 ch_offset)
 {
 	if (ch_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE)
@@ -188,19 +176,6 @@ inline u8 *rtw_set_ie23a_secondary_ch_offset(u8 *buf, u32 *buf_len,
 {
 	return rtw_set_ie23a(buf, WLAN_EID_SECONDARY_CHANNEL_OFFSET,
 			  1, &secondary_ch_offset, buf_len);
-}
-
-inline u8 *rtw_set_ie23a_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
-					  u8 flags, u16 reason, u16 precedence)
-{
-	u8 ie_data[6];
-
-	ie_data[0] = ttl;
-	ie_data[1] = flags;
-	put_unaligned_le16(reason, (u8*)&ie_data[2]);
-	put_unaligned_le16(precedence, (u8*)&ie_data[4]);
-
-	return rtw_set_ie23a(buf, 0x118,  6, ie_data, buf_len);
 }
 
 /*----------------------------------------------------------------------------
@@ -861,28 +836,6 @@ u8 *rtw_get_wps_attr_content23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
 	}
 
 	return NULL;
-}
-
-static u8 key_char2num(u8 ch)
-{
-	if (ch >= '0' && ch <= '9')
-		return ch - '0';
-	else if (ch >= 'a' && ch <= 'f')
-		return ch - 'a' + 10;
-	else if (ch >= 'A' && ch <= 'F')
-		return ch - 'A' + 10;
-	else
-		return 0xff;
-}
-
-u8 str_2char2num23a(u8 hch, u8 lch)
-{
-	return key_char2num(hch) * 10 + key_char2num(lch);
-}
-
-u8 key_2char2num23a(u8 hch, u8 lch)
-{
-	return key_char2num(hch) << 4 | key_char2num(lch);
 }
 
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
