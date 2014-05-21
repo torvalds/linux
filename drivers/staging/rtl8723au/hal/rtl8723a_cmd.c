@@ -383,13 +383,14 @@ ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
 	}
 
 	if (bQoS == true) {
-		struct ieee80211_qos_hdr *pwlanqoshdr;
+		struct ieee80211_qos_hdr *qoshdr;
+		qoshdr = (struct ieee80211_qos_hdr *)pframe;
 
 		SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
 
-		pwlanqoshdr = (struct ieee80211_qos_hdr *)pframe;
-		SetPriority(&pwlanqoshdr->qos_ctrl, AC);
-		SetEOSP(&pwlanqoshdr->qos_ctrl, bEosp);
+		qoshdr->qos_ctrl = cpu_to_le16(AC & IEEE80211_QOS_CTL_TID_MASK);
+		if (bEosp)
+			qoshdr->qos_ctrl |= cpu_to_le16(IEEE80211_QOS_CTL_EOSP);
 
 		pktlen = sizeof(struct ieee80211_qos_hdr);
 	} else {
