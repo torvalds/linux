@@ -51,11 +51,11 @@
  */
 bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength)
 {
-	u32 dwCRC;
+	u32 n_crc = ~ether_crc_le(cbFrameLength - 4, pbyBuffer);
 
-	dwCRC = CRCdwGetCrc32(pbyBuffer, cbFrameLength - 4);
-	if (cpu_to_le32(*((u32 *)(pbyBuffer + cbFrameLength - 4))) != dwCRC)
+	if (le32_to_cpu(*((__le32 *)(pbyBuffer + cbFrameLength - 4))) != n_crc)
 		return false;
+
 	return true;
 }
 
