@@ -72,8 +72,17 @@ static void setup_restart(void)
 
 void soft_restart(unsigned long addr)
 {
+	typedef void (*phys_reset_t)(unsigned long);
+	phys_reset_t phys_reset;
+
 	setup_restart();
-	cpu_reset(addr);
+
+	/* Switch to the identity mapping */
+	phys_reset = (phys_reset_t)virt_to_phys(cpu_reset);
+	phys_reset(addr);
+
+	/* Should never get here */
+	BUG();
 }
 
 /*
@@ -300,7 +309,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 * Complete any pending TLB or cache maintenance on this CPU in case
 	 * the thread migrates to a different CPU.
 	 */
-	dsb();
+	dsb(ish);
 
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
