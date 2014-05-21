@@ -580,8 +580,6 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms);
 void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 		    u8 is_valid_p2p_probereq);
 void issue_assocreq23a(struct rtw_adapter *padapter);
-void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
-		   struct sta_info *pstat, int pkt_type);
 void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
 		unsigned short status);
 void issue_probereq23a(struct rtw_adapter *padapter, struct cfg80211_ssid *pssid,

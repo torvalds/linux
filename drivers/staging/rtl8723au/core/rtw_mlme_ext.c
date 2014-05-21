@@ -46,6 +46,9 @@ static int OnAction23a_ht(struct rtw_adapter *padapter, struct recv_frame *precv
 static int OnAction23a_wmm(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnAction23a_p2p(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 
+static void issue_asocrsp(struct rtw_adapter *padapter, unsigned short status,
+			  struct sta_info *pstat, int pkt_type);
+
 static struct mlme_handler mlme_sta_tbl[]={
 	{"OnAssocReq23a",		&OnAssocReq23a},
 	{"OnAssocRsp23a",		&OnAssocRsp23a},
@@ -1693,11 +1696,11 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 		/* issue assoc rsp before notify station join event. */
 		if (ieee80211_is_assoc_req(mgmt->frame_control))
-			issue_asocrsp23a(padapter, status, pstat,
-					 WIFI_ASSOCRSP);
+			issue_asocrsp(padapter, status, pstat,
+				      WIFI_ASSOCRSP);
 		else
-			issue_asocrsp23a(padapter, status, pstat,
-					 WIFI_REASSOCRSP);
+			issue_asocrsp(padapter, status, pstat,
+				      WIFI_REASSOCRSP);
 
 		/* 2 - report to upper layer */
 		DBG_8723A("indicate_sta_join_event to upper layer - hostapd\n");
@@ -1722,9 +1725,9 @@ OnAssocReq23aFail:
 #ifdef CONFIG_8723AU_AP_MODE
 	pstat->aid = 0;
 	if (ieee80211_is_assoc_req(mgmt->frame_control))
-		issue_asocrsp23a(padapter, status, pstat, WIFI_ASSOCRSP);
+		issue_asocrsp(padapter, status, pstat, WIFI_ASSOCRSP);
 	else
-		issue_asocrsp23a(padapter, status, pstat, WIFI_REASSOCRSP);
+		issue_asocrsp(padapter, status, pstat, WIFI_REASSOCRSP);
 #endif
 
 #endif /* CONFIG_8723AU_AP_MODE */
@@ -3108,8 +3111,8 @@ void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
 	return;
 }
 
-void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
-		      struct sta_info *pstat, int pkt_type)
+static void issue_asocrsp(struct rtw_adapter *padapter, unsigned short status,
+			  struct sta_info *pstat, int pkt_type)
 {
 #ifdef CONFIG_8723AU_AP_MODE
 	struct xmit_frame *pmgntframe;
