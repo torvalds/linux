@@ -903,12 +903,12 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 
 void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 {
-	unsigned short cap = 0;
+	unsigned short cap;
 	u8 bencrypt = 0;
 	/* u8 wpa_ie[255], rsn_ie[255]; */
 	u16 wpa_len = 0, rsn_len = 0;
-	struct HT_info_element *pht_info = NULL;
-	struct ieee80211_ht_cap *pht_cap = NULL;
+	struct HT_info_element *pht_info;
+	struct ieee80211_ht_cap *pht_cap;
 	const u8 *p;
 
 	cap = get_unaligned_le16(
@@ -916,9 +916,9 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	if (cap & WLAN_CAPABILITY_PRIVACY) {
 		bencrypt = 1;
 		pnetwork->network.Privacy = 1;
-	} else {
+	} else
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
-	}
+
 	rtw_get_sec_ie23a(pnetwork->network.IEs, pnetwork->network.IELength,
 		       NULL, &rsn_len, NULL, &wpa_len);
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
@@ -932,11 +932,11 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 		 ("rtw_get_bcn_info23a: wpa_len =%d rsn_len =%d\n",
 		  wpa_len, rsn_len));
 
-	if (rsn_len > 0) {
+	if (rsn_len > 0)
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WPA2;
-	} else if (wpa_len > 0) {
+	else if (wpa_len > 0)
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WPA;
-	} else {
+	else {
 		if (bencrypt)
 			pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WEP;
 	}
@@ -956,9 +956,9 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	if (p && p[1] > 0) {
 		pht_cap = (struct ieee80211_ht_cap *)(p + 2);
 		pnetwork->BcnInfo.ht_cap_info = pht_cap->cap_info;
-	} else {
+	} else
 		pnetwork->BcnInfo.ht_cap_info = 0;
-	}
+
 	/* parsing HT_INFO_IE */
 	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
 			     pnetwork->network.IEs + _FIXED_IE_LENGTH_,
@@ -966,9 +966,8 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	if (p && p[1] > 0) {
 		pht_info = (struct HT_info_element *)(p + 2);
 		pnetwork->BcnInfo.ht_info_infos_0 = pht_info->infos[0];
-	} else {
+	} else
 		pnetwork->BcnInfo.ht_info_infos_0 = 0;
-	}
 }
 
 /* show MCS rate, unit: 100Kbps */
