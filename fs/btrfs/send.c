@@ -360,10 +360,13 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 	/*
 	 * First time the inline_buf does not suffice
 	 */
-	if (p->buf == p->inline_buf)
+	if (p->buf == p->inline_buf) {
 		tmp_buf = kmalloc(len, GFP_NOFS);
-	else
+		if (tmp_buf)
+			memcpy(tmp_buf, p->buf, old_buf_len);
+	} else {
 		tmp_buf = krealloc(p->buf, len, GFP_NOFS);
+	}
 	if (!tmp_buf)
 		return -ENOMEM;
 	p->buf = tmp_buf;
