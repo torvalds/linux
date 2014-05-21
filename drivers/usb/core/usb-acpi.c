@@ -85,19 +85,13 @@ int usb_acpi_set_power_state(struct usb_device *hdev, int index, bool enable)
 }
 EXPORT_SYMBOL_GPL(usb_acpi_set_power_state);
 
-static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
-	acpi_handle handle, int port1)
+static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
+		struct acpi_pld_info *pld)
 {
 	enum usb_port_connect_type connect_type = USB_PORT_CONNECT_TYPE_UNKNOWN;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
-	struct acpi_pld_info *pld;
 	union acpi_object *upc;
 	acpi_status status;
-	int ret = 0;
-
-	if (!hub)
-		return 0;
 
 	/*
 	 * According to ACPI Spec 9.13. PLD indicates whether usb port is
@@ -107,15 +101,10 @@ static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
 	 * a usb device is directly hard-wired to the port. If no visible and
 	 * no connectable, the port would be not used.
 	 */
-	status = acpi_get_physical_device_location(handle, &pld);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
 	status = acpi_evaluate_object(handle, "_UPC", NULL, &buffer);
 	upc = buffer.pointer;
 	if (!upc || (upc->type != ACPI_TYPE_PACKAGE)
 		|| upc->package.count != 4) {
-		ret = -EINVAL;
 		goto out;
 	}
 
@@ -126,13 +115,17 @@ static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
 			connect_type = USB_PORT_CONNECT_TYPE_HARD_WIRED;
 	else if (!pld->user_visible)
 		connect_type = USB_PORT_NOT_USED;
-	hub->ports[port1 - 1]->connect_type = connect_type;
-
 out:
-	ACPI_FREE(pld);
 	kfree(upc);
-	return ret;
+	return connect_type;
 }
+
+
+/*
+ * Private to usb-acpi, all the core needs to know is that
+ * port_dev->location is non-zero when it has been set by the firmware.
+ */
+#define USB_ACPI_LOCATION_VALID (1 << 31)
 
 static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 {
@@ -164,6 +157,9 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 	} else if (is_usb_port(dev)) {
 		struct usb_port *port_dev = to_usb_port(dev);
 		int port1 = port_dev->portnum;
+		struct acpi_pld_info *pld;
+		acpi_handle *handle;
+		acpi_status status;
 
 		/* Get the struct usb_device point of port's hub */
 		udev = to_usb_device(dev->parent->parent);
@@ -194,7 +190,16 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 			if (!adev)
 				return NULL;
 		}
-		usb_acpi_check_port_connect_type(udev, adev->handle, port1);
+		handle = adev->handle;
+		status = acpi_get_physical_device_location(handle, &pld);
+		if (ACPI_FAILURE(status) || !pld)
+			return adev;
+
+		port_dev->location = USB_ACPI_LOCATION_VALID
+			| pld->group_token << 8 | pld->group_position;
+		port_dev->connect_type = usb_acpi_get_connect_type(handle, pld);
+		ACPI_FREE(pld);
+
 		return adev;
 	}
 

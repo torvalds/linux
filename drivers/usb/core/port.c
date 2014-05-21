@@ -188,8 +188,42 @@ static void unlink_peers(struct usb_port *left, struct usb_port *right)
 }
 
 /*
- * Set the default peer port for root hubs, or via the upstream peer
- * relationship for all other hubs
+ * For each usb hub device in the system check to see if it is in the
+ * peer domain of the given port_dev, and if it is check to see if it
+ * has a port that matches the given port by location
+ */
+static int match_location(struct usb_device *peer_hdev, void *p)
+{
+	int port1;
+	struct usb_hcd *hcd, *peer_hcd;
+	struct usb_port *port_dev = p, *peer;
+	struct usb_hub *peer_hub = usb_hub_to_struct_hub(peer_hdev);
+	struct usb_device *hdev = to_usb_device(port_dev->dev.parent->parent);
+
+	if (!peer_hub)
+		return 0;
+
+	hcd = bus_to_hcd(hdev->bus);
+	peer_hcd = bus_to_hcd(peer_hdev->bus);
+	/* peer_hcd is provisional until we verify it against the known peer */
+	if (peer_hcd != hcd->shared_hcd)
+		return 0;
+
+	for (port1 = 1; port1 <= peer_hdev->maxchild; port1++) {
+		peer = peer_hub->ports[port1 - 1];
+		if (peer && peer->location == port_dev->location) {
+			link_peers(port_dev, peer);
+			return 1; /* done */
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Find the peer port either via explicit platform firmware "location"
+ * data, the peer hcd for root hubs, or the upstream peer relationship
+ * for all other hubs.
  */
 static void find_and_link_peer(struct usb_hub *hub, int port1)
 {
@@ -198,7 +232,17 @@ static void find_and_link_peer(struct usb_hub *hub, int port1)
 	struct usb_device *peer_hdev;
 	struct usb_hub *peer_hub;
 
-	if (!hdev->parent) {
+	/*
+	 * If location data is available then we can only peer this port
+	 * by a location match, not the default peer (lest we create a
+	 * situation where we need to go back and undo a default peering
+	 * when the port is later peered by location data)
+	 */
+	if (port_dev->location) {
+		/* we link the peer in match_location() if found */
+		usb_for_each_dev(port_dev, match_location);
+		return;
+	} else if (!hdev->parent) {
 		struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
 		struct usb_hcd *peer_hcd = hcd->shared_hcd;
 
@@ -225,8 +269,12 @@ static void find_and_link_peer(struct usb_hub *hub, int port1)
 	if (!peer_hub || port1 > peer_hdev->maxchild)
 		return;
 
+	/*
+	 * we found a valid default peer, last check is to make sure it
+	 * does not have location data
+	 */
 	peer = peer_hub->ports[port1 - 1];
-	if (peer)
+	if (peer && peer->location == 0)
 		link_peers(port_dev, peer);
 }
 

@@ -171,6 +171,12 @@ extern void usbfs_conn_disc_event(void);
 extern int usb_devio_init(void);
 extern void usb_devio_cleanup(void);
 
+/*
+ * Firmware specific cookie identifying a port's location. '0' == no location
+ * data available
+ */
+typedef u32 usb_port_location_t;
+
 /* internal notify stuff */
 extern void usb_notify_add_device(struct usb_device *udev);
 extern void usb_notify_remove_device(struct usb_device *udev);
