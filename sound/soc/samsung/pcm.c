@@ -588,7 +588,7 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = snd_soc_register_component(&pdev->dev, &s3c_pcm_component,
+	ret = devm_snd_soc_register_component(&pdev->dev, &s3c_pcm_component,
 					 &s3c_pcm_dai[pdev->id], 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to get register DAI: %d\n", ret);
@@ -598,13 +598,11 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 	ret = samsung_asoc_dma_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get register DMA: %d\n", ret);
-		goto err6;
+		goto err5;
 	}
 
 	return 0;
 
-err6:
-	snd_soc_unregister_component(&pdev->dev);
 err5:
 	clk_disable_unprepare(pcm->pclk);
 	clk_put(pcm->pclk);
@@ -623,8 +621,6 @@ static int s3c_pcm_dev_remove(struct platform_device *pdev)
 {
 	struct s3c_pcm_info *pcm = &s3c_pcm[pdev->id];
 	struct resource *mem_res;
-
-	snd_soc_unregister_component(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 
