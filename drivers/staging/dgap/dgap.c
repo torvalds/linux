@@ -150,7 +150,6 @@ static void dgap_firmware_reset_port(struct channel_t *ch);
  */
 static int dgap_gettok(char **in, struct cnode *p);
 static char *dgap_getword(char **in);
-static char *dgap_savestring(char *s);
 static struct cnode *dgap_newnode(int t);
 static int dgap_checknode(struct cnode *p);
 static void dgap_err(char *s);
@@ -6449,7 +6448,7 @@ static int	dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 
-			p->u.board.status = dgap_savestring("No");
+			p->u.board.status = kstrdup("No", GFP_KERNEL);
 			line = conc = NULL;
 			brd = p;
 			linecnt = -1;
@@ -6547,7 +6546,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.board.portstr = dgap_savestring(s);
+			p->u.board.portstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtol(s, 0, &p->u.board.port)) {
 				dgap_err("bad number for IO port");
 				return -1;
@@ -6565,7 +6564,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.board.addrstr = dgap_savestring(s);
+			p->u.board.addrstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.addr)) {
 				dgap_err("bad number for memory address");
 				return -1;
@@ -6583,7 +6582,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.board.pcibusstr = dgap_savestring(s);
+			p->u.board.pcibusstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.pcibus)) {
 				dgap_err("bad number for pci bus");
 				return -1;
@@ -6594,7 +6593,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.board.pcislotstr = dgap_savestring(s);
+			p->u.board.pcislotstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.pcislot)) {
 				dgap_err("bad number for pci slot");
 				return -1;
@@ -6612,7 +6611,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.board.method = dgap_savestring(s);
+			p->u.board.method = kstrdup(s, GFP_KERNEL);
 			p->u.board.v_method = 1;
 			break;
 
@@ -6626,7 +6625,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpected end of file");
 				return -1;
 			}
-			p->u.board.status = dgap_savestring(s);
+			p->u.board.status = kstrdup(s, GFP_KERNEL);
 			break;
 
 		case NPORTS:	/* number of ports */
@@ -6676,13 +6675,13 @@ static int	dgap_parsefile(char **in, int remove)
 				return -1;
 			}
 
-			p->u.board.status = dgap_savestring(s);
+			p->u.board.status = kstrdup(s, GFP_KERNEL);
 
 			if (p->type == CNODE) {
-				p->u.conc.id = dgap_savestring(s);
+				p->u.conc.id = kstrdup(s, GFP_KERNEL);
 				p->u.conc.v_id = 1;
 			} else if (p->type == MNODE) {
-				p->u.module.id = dgap_savestring(s);
+				p->u.module.id = kstrdup(s, GFP_KERNEL);
 				p->u.module.v_id = 1;
 			} else {
 				dgap_err("id only valid for concentrators or modules");
@@ -6744,7 +6743,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpeced end of file");
 				return -1;
 			}
-			p->u.ttyname = dgap_savestring(s);
+			p->u.ttyname = kstrdup(s, GFP_KERNEL);
 			if (!p->u.ttyname) {
 				dgap_err("out of memory");
 				return -1;
@@ -6765,7 +6764,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpeced end of file");
 				return -1;
 			}
-			p->u.cuname = dgap_savestring(s);
+			p->u.cuname = kstrdup(s, GFP_KERNEL);
 			if (!p->u.cuname) {
 				dgap_err("out of memory");
 				return -1;
@@ -6889,7 +6888,7 @@ static int	dgap_parsefile(char **in, int remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.line.cable = dgap_savestring(s);
+				p->u.line.cable = kstrdup(s, GFP_KERNEL);
 				p->u.line.v_cable = 1;
 			}
 			break;
@@ -6930,7 +6929,7 @@ static int	dgap_parsefile(char **in, int remove)
 					dgap_err("unexpected end of file");
 					return -1;
 				}
-				p->u.conc.connect = dgap_savestring(s);
+				p->u.conc.connect = kstrdup(s, GFP_KERNEL);
 				p->u.conc.v_connect = 1;
 			}
 			break;
@@ -6948,7 +6947,7 @@ static int	dgap_parsefile(char **in, int remove)
 				dgap_err("unexpeced end of file");
 				return -1;
 			}
-			p->u.printname = dgap_savestring(s);
+			p->u.printname = kstrdup(s, GFP_KERNEL);
 			if (!p->u.printname) {
 				dgap_err("out of memory");
 				return -1;
@@ -7311,19 +7310,6 @@ static int dgap_checknode(struct cnode *p)
 		return 0;
 	}
 	return 0;
-}
-
-/*
- * save a string somewhere
- */
-static char	*dgap_savestring(char *s)
-{
-	char	*p;
-
-	p = kmalloc(strlen(s) + 1, GFP_ATOMIC);
-	if (p)
-		strcpy(p, s);
-	return p;
 }
 
 /*
