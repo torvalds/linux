@@ -67,6 +67,7 @@ static const struct v4l2_ctrl_config sru_intensity_control = {
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.min = 1,
 	.max = 6,
+	.def = 1,
 	.step = 1,
 };
 
@@ -348,8 +349,17 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&sru->ctrls, 1);
 	v4l2_ctrl_new_custom(&sru->ctrls, &sru_intensity_control, NULL);
-	v4l2_ctrl_handler_setup(&sru->ctrls);
+
 	sru->entity.subdev.ctrl_handler = &sru->ctrls;
+
+	if (sru->ctrls.error) {
+		dev_err(vsp1->dev, "sru: failed to initialize controls\n");
+		ret = sru->ctrls.error;
+		vsp1_entity_destroy(&sru->entity);
+		return ERR_PTR(ret);
+	}
+
+	v4l2_ctrl_handler_setup(&sru->ctrls);
 
 	return sru;
 }
