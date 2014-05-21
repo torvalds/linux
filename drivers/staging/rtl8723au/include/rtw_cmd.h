@@ -816,11 +816,6 @@ enum rtw_h2c_cmd {
 	MAX_H2CCMD
 };
 
-#define _GetBBReg_CMD_		_Read_BBREG_CMD_
-#define _SetBBReg_CMD_		_Write_BBREG_CMD_
-#define _GetRFReg_CMD_		_Read_RFREG_CMD_
-#define _SetRFReg_CMD_		_Write_RFREG_CMD_
-
 extern struct _cmd_callback	rtw_cmd_callback[];
 
 #endif /*  _CMD_H_ */
