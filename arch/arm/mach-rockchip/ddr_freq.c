@@ -26,6 +26,7 @@
 #include <asm/io.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
+#include <linux/clk-private.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 
 extern int rockchip_cpufreq_reboot_limit_freq(void);
@@ -734,6 +735,20 @@ int of_init_ddr_freq_table(void)
 	return 0;
 }
 
+static int ddrfreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate)
+{
+	unsigned long real_rate;
+
+	real_rate = ddr_change_freq(rate/MHZ);
+	real_rate *= MHZ;
+	if (!real_rate)
+		return -EAGAIN;
+
+	clk->parent->rate = clk->rate = real_rate;
+
+	return 0;
+}
+
 #if defined(CONFIG_RK_PM_TESTS)
 static void ddrfreq_tst_init(void);
 #endif
@@ -758,6 +773,8 @@ static int ddrfreq_init(void)
 		return -EINVAL;
 	}
 	clk_enable_dvfs(ddr.clk_dvfs_node);
+
+	dvfs_clk_register_set_rate_callback(ddr.clk_dvfs_node, ddrfreq_scale_rate_for_dvfs);
 	
 	init_waitqueue_head(&ddr.wait);
 	INIT_LIST_HEAD(&ddr.video_info_list);

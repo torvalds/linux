@@ -341,7 +341,7 @@ static void dvfs_table_round_clk_rate(struct dvfs_node  *clk_dvfs_node)
 		//ddr rate = real rate+flags
 		flags = clk_dvfs_node->dvfs_table[i].frequency%1000;
 		rate = (clk_dvfs_node->dvfs_table[i].frequency/1000)*1000;
-		temp_rate = clk_round_rate(clk_dvfs_node->clk, rate*1000);
+		temp_rate = __clk_round_rate(clk_dvfs_node->clk, rate*1000);
 		if(temp_rate <= 0){	
 			DVFS_WARNING("%s: clk(%s) rate %d round return %d\n",
 				__func__, clk_dvfs_node->name, clk_dvfs_node->dvfs_table[i].frequency, temp_rate);
@@ -564,7 +564,7 @@ int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate
 		}
 
 		if (clk_dvfs_node->last_set_rate == 0)
-			rate = clk_get_rate(clk_dvfs_node->clk);
+			rate = __clk_get_rate(clk_dvfs_node->clk);
 		else
 			rate = clk_dvfs_node->last_set_rate;
 		ret = clk_dvfs_node->vd->vd_dvfs_target(clk_dvfs_node, rate);
@@ -865,8 +865,8 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 	}
 
 	rate = dvfs_get_limit_rate(clk_dvfs_node, rate);
-	new_rate = clk_round_rate(clk, rate);
-	old_rate = clk_get_rate(clk);
+	new_rate = __clk_round_rate(clk, rate);
+	old_rate = __clk_get_rate(clk);
 	if (new_rate == old_rate)
 		return 0;
 
@@ -908,7 +908,7 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 	clk_dvfs_node->set_freq = new_rate / 1000;
 
 	DVFS_DBG("%s:dvfs clk(%s) set rate %lu ok\n", 
-		__func__, clk_dvfs_node->name, clk_get_rate(clk));
+		__func__, clk_dvfs_node->name, __clk_get_rate(clk));
 
 	/* if down the rate */
 	if (new_rate < old_rate) {
@@ -926,7 +926,7 @@ out:
 
 unsigned long dvfs_clk_get_rate(struct dvfs_node *clk_dvfs_node)
 {
-	return clk_get_rate(clk_dvfs_node->clk);
+	return __clk_get_rate(clk_dvfs_node->clk);
 }
 EXPORT_SYMBOL_GPL(dvfs_clk_get_rate);
 
