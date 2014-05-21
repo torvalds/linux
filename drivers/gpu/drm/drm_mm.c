@@ -207,8 +207,6 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 		return 0;
 	}
 
-	WARN(1, "no hole found for node 0x%lx + 0x%lx\n",
-	     node->start, node->size);
 	return -ENOSPC;
 }
 EXPORT_SYMBOL(drm_mm_reserve_node);

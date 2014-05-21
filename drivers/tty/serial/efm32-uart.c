@@ -798,6 +798,9 @@ static int efm32_uart_remove(struct platform_device *pdev)
 
 static const struct of_device_id efm32_uart_dt_ids[] = {
 	{
+		.compatible = "energymicro,efm32-uart",
+	}, {
+		/* doesn't follow the "vendor,device" scheme, don't use */
 		.compatible = "efm32,uart",
 	}, {
 		/* sentinel */

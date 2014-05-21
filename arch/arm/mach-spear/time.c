@@ -2,7 +2,7 @@
  * arch/arm/plat-spear/time.c
  *
  * Copyright (C) 2010 ST Microelectronics
- * Shiraz Hashim<shiraz.hashim@st.com>
+ * Shiraz Hashim<shiraz.linux.kernel@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any

@@ -2033,11 +2033,13 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 	bool dummy_wrb;
 	int i, pending_txqs;
 
-	/* Wait for a max of 200ms for all the tx-completions to arrive. */
+	/* Stop polling for compls when HW has been silent for 10ms */
 	do {
 		pending_txqs = adapter->num_tx_qs;
 
 		for_all_tx_queues(adapter, txo, i) {
+			cmpl = 0;
+			num_wrbs = 0;
 			txq = &txo->q;
 			while ((txcp = be_tx_compl_get(&txo->cq))) {
 				end_idx =
@@ -2050,14 +2052,13 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 			if (cmpl) {
 				be_cq_notify(adapter, txo->cq.id, false, cmpl);
 				atomic_sub(num_wrbs, &txq->used);
-				cmpl = 0;
-				num_wrbs = 0;
+				timeo = 0;
 			}
 			if (atomic_read(&txq->used) == 0)
 				pending_txqs--;
 		}
 
-		if (pending_txqs == 0 || ++timeo > 200)
+		if (pending_txqs == 0 || ++timeo > 10 || be_hw_error(adapter))
 			break;
 
 		mdelay(1);
@@ -2725,6 +2726,12 @@ static int be_close(struct net_device *netdev)
 	struct be_eq_obj *eqo;
 	int i;
 
+	/* This protection is needed as be_close() may be called even when the
+	 * adapter is in cleared state (after eeh perm failure)
+	 */
+	if (!(adapter->flags & BE_FLAGS_SETUP_DONE))
+		return 0;
+
 	be_roce_dev_close(adapter);
 
 	if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
@@ -3055,6 +3062,7 @@ static int be_clear(struct be_adapter *adapter)
 	be_clear_queues(adapter);
 
 	be_msix_disable(adapter);
+	adapter->flags &= ~BE_FLAGS_SETUP_DONE;
 	return 0;
 }
 
@@ -3559,6 +3567,7 @@ static int be_setup(struct be_adapter *adapter)
 		adapter->phy.fc_autoneg = 1;
 
 	be_schedule_worker(adapter);
+	adapter->flags |= BE_FLAGS_SETUP_DONE;
 	return 0;
 err:
 	be_clear(adapter);

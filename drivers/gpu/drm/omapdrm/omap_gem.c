@@ -980,11 +980,8 @@ int omap_gem_resume(struct device *dev)
 #ifdef CONFIG_DEBUG_FS
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
-	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	uint64_t off;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	off = drm_vma_node_start(&obj->vma_node);
 
@@ -1050,10 +1047,10 @@ static inline bool is_waiting(struct omap_gem_sync_waiter *waiter)
 {
 	struct omap_gem_object *omap_obj = waiter->omap_obj;
 	if ((waiter->op & OMAP_GEM_READ) &&
-			(omap_obj->sync->read_complete < waiter->read_target))
+			(omap_obj->sync->write_complete < waiter->write_target))
 		return true;
 	if ((waiter->op & OMAP_GEM_WRITE) &&
-			(omap_obj->sync->write_complete < waiter->write_target))
+			(omap_obj->sync->read_complete < waiter->read_target))
 		return true;
 	return false;
 }
@@ -1229,6 +1226,8 @@ int omap_gem_op_async(struct drm_gem_object *obj, enum omap_gem_op op,
 		}
 
 		spin_unlock(&sync_lock);
+
+		kfree(waiter);
 	}
 
 	/* no waiting.. */

@@ -759,19 +759,18 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 
 	if (radeon_connector_encoder_get_dp_bridge_encoder_id(&radeon_connector->base) !=
 	    ENCODER_OBJECT_ID_NONE) {
-		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
-
-		if (dig->dp_i2c_bus)
+		if (radeon_connector->ddc_bus->has_aux)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
-							      &dig->dp_i2c_bus->adapter);
+							      &radeon_connector->ddc_bus->aux.ddc);
 	} else if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
 		   (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
 
 		if ((dig->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
-		     dig->dp_sink_type == CONNECTOR_OBJECT_ID_eDP) && dig->dp_i2c_bus)
+		     dig->dp_sink_type == CONNECTOR_OBJECT_ID_eDP) &&
+		    radeon_connector->ddc_bus->has_aux)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
-							      &dig->dp_i2c_bus->adapter);
+							      &radeon_connector->ddc_bus->aux.ddc);
 		else if (radeon_connector->ddc_bus && !radeon_connector->edid)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
 							      &radeon_connector->ddc_bus->adapter);
@@ -865,7 +864,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	unsigned post_div_min, post_div_max, post_div;
 	unsigned ref_div_min, ref_div_max, ref_div;
 	unsigned post_div_best, diff_best;
-	unsigned nom, den, tmp;
+	unsigned nom, den;
 
 	/* determine allowed feedback divider range */
 	fb_div_min = pll->min_feedback_div;
@@ -937,23 +936,27 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	}
 	post_div = post_div_best;
 
+	/* limit reference * post divider to a maximum */
+	ref_div_max = min(210 / post_div, ref_div_max);
+
 	/* get matching reference and feedback divider */
-	ref_div = max(den / post_div, 1u);
-	fb_div = nom;
+	ref_div = max(DIV_ROUND_CLOSEST(den, post_div), 1u);
+	fb_div = DIV_ROUND_CLOSEST(nom * ref_div * post_div, den);
 
 	/* we're almost done, but reference and feedback
 	   divider might be to large now */
 
-	tmp = ref_div;
+	nom = fb_div;
+	den = ref_div;
 
         if (fb_div > fb_div_max) {
-		ref_div = ref_div * fb_div_max / fb_div;
+		ref_div = DIV_ROUND_CLOSEST(den * fb_div_max, nom);
 		fb_div = fb_div_max;
 	}
 
 	if (ref_div > ref_div_max) {
 		ref_div = ref_div_max;
-		fb_div = nom * ref_div_max / tmp;
+		fb_div = DIV_ROUND_CLOSEST(nom * ref_div_max, den);
 	}
 
 	/* reduce the numbers to a simpler ratio once more */

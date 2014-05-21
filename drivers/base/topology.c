@@ -39,8 +39,7 @@
 static ssize_t show_##name(struct device *dev,			\
 		struct device_attribute *attr, char *buf)	\
 {								\
-	unsigned int cpu = dev->id;				\
-	return sprintf(buf, "%d\n", topology_##name(cpu));	\
+	return sprintf(buf, "%d\n", topology_##name(dev->id));	\
 }
 
 #if defined(topology_thread_cpumask) || defined(topology_core_cpumask) || \

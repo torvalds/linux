@@ -374,6 +374,11 @@ static inline struct device_node *of_find_matching_node_and_match(
 	return NULL;
 }
 
+static inline struct device_node *of_find_node_by_path(const char *path)
+{
+	return NULL;
+}
+
 static inline struct device_node *of_get_parent(const struct device_node *node)
 {
 	return NULL;

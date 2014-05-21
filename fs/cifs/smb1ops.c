@@ -372,6 +372,16 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 	return 0;
 }
 
+static void
+cifs_downgrade_oplock(struct TCP_Server_Info *server,
+			struct cifsInodeInfo *cinode, bool set_level2)
+{
+	if (set_level2)
+		cifs_set_oplock_level(cinode, OPLOCK_READ);
+	else
+		cifs_set_oplock_level(cinode, 0);
+}
+
 static bool
 cifs_check_trans2(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		  char *buf, int malformed)
@@ -1019,6 +1029,7 @@ struct smb_version_operations smb1_operations = {
 	.clear_stats = cifs_clear_stats,
 	.print_stats = cifs_print_stats,
 	.is_oplock_break = is_valid_oplock_break,
+	.downgrade_oplock = cifs_downgrade_oplock,
 	.check_trans2 = cifs_check_trans2,
 	.need_neg = cifs_need_neg,
 	.negotiate = cifs_negotiate,

@@ -69,7 +69,7 @@ const char *usb_state_string(enum usb_device_state state)
 		[USB_STATE_RECONNECTING] = "reconnecting",
 		[USB_STATE_UNAUTHENTICATED] = "unauthenticated",
 		[USB_STATE_DEFAULT] = "default",
-		[USB_STATE_ADDRESS] = "addresssed",
+		[USB_STATE_ADDRESS] = "addressed",
 		[USB_STATE_CONFIGURED] = "configured",
 		[USB_STATE_SUSPENDED] = "suspended",
 	};

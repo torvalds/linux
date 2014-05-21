@@ -148,6 +148,8 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (!rcu_access_pointer(sdata->vif.chanctx_conf))
 			continue;
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+			continue;
 		power = min(power, sdata->vif.bss_conf.txpower);
 	}
 	rcu_read_unlock();
@@ -199,7 +201,7 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 
-	if (!changed)
+	if (!changed || sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		return;
 
 	drv_bss_info_changed(local, sdata, &sdata->vif.bss_conf, changed);

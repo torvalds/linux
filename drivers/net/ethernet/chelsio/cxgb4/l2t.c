@@ -154,7 +154,7 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 	req->params = htons(L2T_W_PORT(e->lport) | L2T_W_NOREPLY(!sync));
 	req->l2t_idx = htons(e->idx);
 	req->vlan = htons(e->vlan);
-	if (e->neigh)
+	if (e->neigh && !(e->neigh->dev->flags & IFF_LOOPBACK))
 		memcpy(e->dmac, e->neigh->ha, sizeof(e->dmac));
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 
@@ -394,6 +394,8 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 	if (e) {
 		spin_lock(&e->lock);          /* avoid race with t4_l2t_free */
 		e->state = L2T_STATE_RESOLVING;
+		if (neigh->dev->flags & IFF_LOOPBACK)
+			memcpy(e->dmac, physdev->dev_addr, sizeof(e->dmac));
 		memcpy(e->addr, addr, addr_len);
 		e->ifindex = ifidx;
 		e->hash = hash;

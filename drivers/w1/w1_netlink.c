@@ -300,12 +300,6 @@ static int w1_process_command_root(struct cn_msg *msg,
 	struct w1_netlink_msg *w;
 	u32 *id;
 
-	if (mcmd->type != W1_LIST_MASTERS) {
-		printk(KERN_NOTICE "%s: msg: %x.%x, wrong type: %u, len: %u.\n",
-			__func__, msg->id.idx, msg->id.val, mcmd->type, mcmd->len);
-		return -EPROTO;
-	}
-
 	cn = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cn)
 		return -ENOMEM;
@@ -441,6 +435,9 @@ static void w1_process_cb(struct w1_master *dev, struct w1_async_cmd *async_cmd)
 		w1_netlink_send_error(&node->block->msg, node->m, cmd,
 			node->block->portid, err);
 
+	/* ref taken in w1_search_slave or w1_search_master_id when building
+	 * the block
+	 */
 	if (sl)
 		w1_unref_slave(sl);
 	else
@@ -503,30 +500,42 @@ static void w1_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 
 	msg_len = msg->len;
 	while (msg_len && !err) {
-		struct w1_reg_num id;
-		u16 mlen = m->len;
 
 		dev = NULL;
 		sl = NULL;
 
-		memcpy(&id, m->id.id, sizeof(id));
-#if 0
-		printk("%s: %02x.%012llx.%02x: type=%02x, len=%u.\n",
-				__func__, id.family, (unsigned long long)id.id, id.crc, m->type, m->len);
-#endif
 		if (m->len + sizeof(struct w1_netlink_msg) > msg_len) {
 			err = -E2BIG;
 			break;
 		}
 
+		/* execute on this thread, no need to process later */
+		if (m->type == W1_LIST_MASTERS) {
+			err = w1_process_command_root(msg, m, nsp->portid);
+			goto out_cont;
+		}
+
+		/* All following message types require additional data,
+		 * check here before references are taken.
+		 */
+		if (!m->len) {
+			err = -EPROTO;
+			goto out_cont;
+		}
+
+		/* both search calls take reference counts */
 		if (m->type == W1_MASTER_CMD) {
 			dev = w1_search_master_id(m->id.mst.id);
 		} else if (m->type == W1_SLAVE_CMD) {
-			sl = w1_search_slave(&id);
+			sl = w1_search_slave((struct w1_reg_num *)m->id.id);
 			if (sl)
 				dev = sl->master;
 		} else {
-			err = w1_process_command_root(msg, m, nsp->portid);
+			printk(KERN_NOTICE
+				"%s: msg: %x.%x, wrong type: %u, len: %u.\n",
+				__func__, msg->id.idx, msg->id.val,
+				m->type, m->len);
+			err = -EPROTO;
 			goto out_cont;
 		}
 
@@ -536,8 +545,6 @@ static void w1_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 		}
 
 		err = 0;
-		if (!mlen)
-			goto out_cont;
 
 		atomic_inc(&block->refcnt);
 		node->async.cb = w1_process_cb;
@@ -557,7 +564,8 @@ out_cont:
 		if (err)
 			w1_netlink_send_error(msg, m, NULL, nsp->portid, err);
 		msg_len -= sizeof(struct w1_netlink_msg) + m->len;
-		m = (struct w1_netlink_msg *)(((u8 *)m) + sizeof(struct w1_netlink_msg) + m->len);
+		m = (struct w1_netlink_msg *)(((u8 *)m) +
+			sizeof(struct w1_netlink_msg) + m->len);
 
 		/*
 		 * Let's allow requests for nonexisting devices.

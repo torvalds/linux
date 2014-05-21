@@ -2790,7 +2790,7 @@ int i915_gpu_idle(struct drm_device *dev)
 
 	/* Flush everything onto the inactive list. */
 	for_each_ring(ring, dev_priv, i) {
-		ret = i915_switch_context(ring, NULL, ring->default_context);
+		ret = i915_switch_context(ring, ring->default_context);
 		if (ret)
 			return ret;
 

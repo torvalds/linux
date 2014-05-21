@@ -1053,11 +1053,25 @@ xfs_vn_tmpfile(
 	struct dentry	*dentry,
 	umode_t		mode)
 {
-	int		error;
+	int			error;
+	struct xfs_inode	*ip;
+	struct inode		*inode;
 
-	error = xfs_create_tmpfile(XFS_I(dir), dentry, mode);
+	error = xfs_create_tmpfile(XFS_I(dir), dentry, mode, &ip);
+	if (unlikely(error))
+		return -error;
 
-	return -error;
+	inode = VFS_I(ip);
+
+	error = xfs_init_security(inode, dir, &dentry->d_name);
+	if (unlikely(error)) {
+		iput(inode);
+		return -error;
+	}
+
+	d_tmpfile(dentry, inode);
+
+	return 0;
 }
 
 static const struct inode_operations xfs_inode_operations = {

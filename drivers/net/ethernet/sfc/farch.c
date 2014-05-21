@@ -741,6 +741,28 @@ int efx_farch_fini_dmaq(struct efx_nic *efx)
 	return rc;
 }
 
+/* Reset queue and flush accounting after FLR
+ *
+ * One possible cause of FLR recovery is that DMA may be failing (eg. if bus
+ * mastering was disabled), in which case we don't receive (RXQ) flush
+ * completion events.  This means that efx->rxq_flush_outstanding remained at 4
+ * after the FLR; also, efx->active_queues was non-zero (as no flush completion
+ * events were received, and we didn't go through efx_check_tx_flush_complete())
+ * If we don't fix this up, on the next call to efx_realloc_channels() we won't
+ * flush any RX queues because efx->rxq_flush_outstanding is at the limit of 4
+ * for batched flush requests; and the efx->active_queues gets messed up because
+ * we keep incrementing for the newly initialised queues, but it never went to
+ * zero previously.  Then we get a timeout every time we try to restart the
+ * queues, as it doesn't go back to zero when we should be flushing the queues.
+ */
+void efx_farch_finish_flr(struct efx_nic *efx)
+{
+	atomic_set(&efx->rxq_flush_pending, 0);
+	atomic_set(&efx->rxq_flush_outstanding, 0);
+	atomic_set(&efx->active_queues, 0);
+}
+
+
 /**************************************************************************
  *
  * Event queue processing

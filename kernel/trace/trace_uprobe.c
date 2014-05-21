@@ -732,9 +732,15 @@ static int uprobe_buffer_enable(void)
 
 static void uprobe_buffer_disable(void)
 {
+	int cpu;
+
 	BUG_ON(!mutex_is_locked(&event_mutex));
 
 	if (--uprobe_buffer_refcnt == 0) {
+		for_each_possible_cpu(cpu)
+			free_page((unsigned long)per_cpu_ptr(uprobe_cpu_buffer,
+							     cpu)->buf);
+
 		free_percpu(uprobe_cpu_buffer);
 		uprobe_cpu_buffer = NULL;
 	}
