@@ -335,7 +335,7 @@ static void quirk_amd_mmconfig_area(struct pnp_dev *dev)
 }
 #endif
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_PCI
 /* Device IDs of parts that have 32KB MCH space */
 static const unsigned int mch_quirk_devices[] = {
 	0x0154,	/* Ivy Bridge */
@@ -440,7 +440,7 @@ static struct pnp_fixup pnp_fixups[] = {
 #ifdef CONFIG_AMD_NB
 	{"PNP0c01", quirk_amd_mmconfig_area},
 #endif
-#ifdef CONFIG_X86
+#ifdef CONFIG_PCI
 	{"PNP0c02", quirk_intel_mch},
 #endif
 	{""}

@@ -60,10 +60,12 @@ typedef struct xfs_da_args {
 	int		index;		/* index of attr of interest in blk */
 	xfs_dablk_t	rmtblkno;	/* remote attr value starting blkno */
 	int		rmtblkcnt;	/* remote attr value block count */
+	int		rmtvaluelen;	/* remote attr value length in bytes */
 	xfs_dablk_t	blkno2;		/* blkno of 2nd attr leaf of interest */
 	int		index2;		/* index of 2nd attr in blk */
 	xfs_dablk_t	rmtblkno2;	/* remote attr value starting blkno */
 	int		rmtblkcnt2;	/* remote attr value block count */
+	int		rmtvaluelen2;	/* remote attr value length in bytes */
 	int		op_flags;	/* operation flags */
 	enum xfs_dacmp	cmpresult;	/* name compare result for lookups */
 } xfs_da_args_t;
