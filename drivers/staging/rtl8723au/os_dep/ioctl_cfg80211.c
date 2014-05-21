@@ -1935,6 +1935,81 @@ exit:
 	return ret;
 }
 
+static int rtw_cfg80211_add_wep(struct rtw_adapter* padapter,
+				struct ndis_802_11_wep *wep)
+{
+	u8 bdefaultkey;
+	u8 btransmitkey;
+	int keyid, res;
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
+
+	bdefaultkey = (wep->KeyIndex & 0x40000000) > 0 ? false : true;
+	btransmitkey = (wep->KeyIndex & 0x80000000) > 0 ? true  : false;
+	keyid = wep->KeyIndex & 0x3fffffff;
+
+	if (keyid >= 4) {
+		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
+			 ("%s:keyid>4 =>fail\n", __func__));
+		res = _FAIL;
+		goto exit;
+	}
+
+	switch (wep->KeyLength)
+	{
+	case 5:
+		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
+		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
+			 ("%s:wep->KeyLength = 5\n", __func__));
+		break;
+	case 13:
+		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
+		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
+			 ("%s:wep->KeyLength = 13\n", __func__));
+		break;
+	default:
+		psecuritypriv->dot11PrivacyAlgrthm = 0;
+		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
+			 ("%s:wep->KeyLength!= 5 or 13\n", __func__));
+		res = _FAIL;
+		goto exit;
+	}
+
+	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
+		 ("%s:before memcpy, wep->KeyLength = 0x%x "
+		  "wep->KeyIndex = 0x%x  keyid =%x\n", __func__,
+		  wep->KeyLength, wep->KeyIndex, keyid));
+
+	memcpy(&psecuritypriv->wep_key[keyid].key, &wep->KeyMaterial,
+	       wep->KeyLength);
+
+	psecuritypriv->wep_key[keyid].keylen = wep->KeyLength;
+
+	psecuritypriv->dot11PrivacyKeyIndex = keyid;
+
+	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
+		 ("%s:security key material : "
+		  "%x %x %x %x %x %x %x %x %x %x %x %x %x\n", __func__,
+		  psecuritypriv->wep_key[keyid].key[0],
+		  psecuritypriv->wep_key[keyid].key[1],
+		  psecuritypriv->wep_key[keyid].key[2],
+		  psecuritypriv->wep_key[keyid].key[3],
+		  psecuritypriv->wep_key[keyid].key[4],
+		  psecuritypriv->wep_key[keyid].key[5],
+		  psecuritypriv->wep_key[keyid].key[6],
+		  psecuritypriv->wep_key[keyid].key[7],
+		  psecuritypriv->wep_key[keyid].key[8],
+		  psecuritypriv->wep_key[keyid].key[9],
+		  psecuritypriv->wep_key[keyid].key[10],
+		  psecuritypriv->wep_key[keyid].key[11],
+		  psecuritypriv->wep_key[keyid].key[12]));
+
+	res = rtw_set_key23a(padapter, psecuritypriv, keyid, 1);
+
+exit:
+
+	return res;
+}
+
 static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 				struct cfg80211_connect_params *sme)
 {
@@ -2152,7 +2227,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 		memcpy(pwep->KeyMaterial, (void *)sme->key, pwep->KeyLength);
 
-		if (rtw_set_802_11_add_wep23a(padapter, pwep) != _SUCCESS)
+		if (rtw_cfg80211_add_wep(padapter, pwep) != _SUCCESS)
 			ret = -EOPNOTSUPP;
 
 		kfree(pwep);
