@@ -87,9 +87,6 @@ enum WIFI_REG_DOMAIN {
 #define SetFrDs(pbuf)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_FROMDS))
 
-#define SetRetry(pbuf)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_RETRY))
-
 #define SetPwrMgt(pbuf)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_PM))
 
@@ -137,9 +134,6 @@ enum WIFI_REG_DOMAIN {
 
 #define SetAckpolicy(pbuf, ack)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16((ack & 3) << 5))
-
-#define SetAMsdu(pbuf, amsdu)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16((amsdu & 1) << 7))
 
 #define _ASOCREQ_IE_OFFSET_		4	/*  excluding wlan_hdr */
 #define	_ASOCRSP_IE_OFFSET_		6
