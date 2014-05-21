@@ -208,6 +208,14 @@ static struct ieee80211_channel b43_2ghz_chantable[] = {
 };
 #undef CHAN2G
 
+#define CHAN4G(_channel, _flags) {				\
+	.band			= IEEE80211_BAND_5GHZ,		\
+	.center_freq		= 4000 + (5 * (_channel)),	\
+	.hw_value		= (_channel),			\
+	.flags			= (_flags),			\
+	.max_antenna_gain	= 0,				\
+	.max_power		= 30,				\
+}
 #define CHAN5G(_channel, _flags) {				\
 	.band			= IEEE80211_BAND_5GHZ,		\
 	.center_freq		= 5000 + (5 * (_channel)),	\
@@ -217,6 +225,18 @@ static struct ieee80211_channel b43_2ghz_chantable[] = {
 	.max_power		= 30,				\
 }
 static struct ieee80211_channel b43_5ghz_nphy_chantable[] = {
+	CHAN4G(184, 0),		CHAN4G(186, 0),
+	CHAN4G(188, 0),		CHAN4G(190, 0),
+	CHAN4G(192, 0),		CHAN4G(194, 0),
+	CHAN4G(196, 0),		CHAN4G(198, 0),
+	CHAN4G(200, 0),		CHAN4G(202, 0),
+	CHAN4G(204, 0),		CHAN4G(206, 0),
+	CHAN4G(208, 0),		CHAN4G(210, 0),
+	CHAN4G(212, 0),		CHAN4G(214, 0),
+	CHAN4G(216, 0),		CHAN4G(218, 0),
+	CHAN4G(220, 0),		CHAN4G(222, 0),
+	CHAN4G(224, 0),		CHAN4G(226, 0),
+	CHAN4G(228, 0),
 	CHAN5G(32, 0),		CHAN5G(34, 0),
 	CHAN5G(36, 0),		CHAN5G(38, 0),
 	CHAN5G(40, 0),		CHAN5G(42, 0),
@@ -260,18 +280,7 @@ static struct ieee80211_channel b43_5ghz_nphy_chantable[] = {
 	CHAN5G(170, 0),		CHAN5G(172, 0),
 	CHAN5G(174, 0),		CHAN5G(176, 0),
 	CHAN5G(178, 0),		CHAN5G(180, 0),
-	CHAN5G(182, 0),		CHAN5G(184, 0),
-	CHAN5G(186, 0),		CHAN5G(188, 0),
-	CHAN5G(190, 0),		CHAN5G(192, 0),
-	CHAN5G(194, 0),		CHAN5G(196, 0),
-	CHAN5G(198, 0),		CHAN5G(200, 0),
-	CHAN5G(202, 0),		CHAN5G(204, 0),
-	CHAN5G(206, 0),		CHAN5G(208, 0),
-	CHAN5G(210, 0),		CHAN5G(212, 0),
-	CHAN5G(214, 0),		CHAN5G(216, 0),
-	CHAN5G(218, 0),		CHAN5G(220, 0),
-	CHAN5G(222, 0),		CHAN5G(224, 0),
-	CHAN5G(226, 0),		CHAN5G(228, 0),
+	CHAN5G(182, 0),
 };
 
 static struct ieee80211_channel b43_5ghz_aphy_chantable[] = {
@@ -295,6 +304,7 @@ static struct ieee80211_channel b43_5ghz_aphy_chantable[] = {
 	CHAN5G(208, 0),		CHAN5G(212, 0),
 	CHAN5G(216, 0),
 };
+#undef CHAN4G
 #undef CHAN5G
 
 static struct ieee80211_supported_band b43_band_5GHz_nphy = {
