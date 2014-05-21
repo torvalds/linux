@@ -338,9 +338,6 @@ void rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbu
 void rtw23a_joinbss_event_cb(struct rtw_adapter *adapter, const u8 *pbuf);
 void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
 void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
-void rtw_atimdone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
-void rtw_cpwm_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
-
 
 int event_thread(void *context);
 void rtw23a_join_to_handler(unsigned long);

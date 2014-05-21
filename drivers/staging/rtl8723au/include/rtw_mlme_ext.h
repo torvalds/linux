@@ -670,9 +670,6 @@ struct C2HEvent_Header {
 	unsigned int rsvd;
 };
 
-void rtw_dummy_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
-void rtw23a_fwdbg_event_callback(struct rtw_adapter *adapter, const u8 *pbuf);
-
 enum rtw_c2h_event {
 	GEN_EVT_CODE(_Read_MACREG) = 0, /*0*/
 	GEN_EVT_CODE(_Read_BBREG),

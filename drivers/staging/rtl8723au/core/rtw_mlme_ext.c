@@ -235,9 +235,13 @@ static struct rt_channel_plan_map	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
 
 static struct rt_channel_plan_map	RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02}; /* use the conbination for max channel numbers */
 
+static void dummy_event_callback(struct rtw_adapter *adapter, const u8 *pbuf)
+{
+}
+
 static struct fwevent wlanevents[] =
 {
-	{0, rtw_dummy_event_callback23a},	/*0*/
+	{0, &dummy_event_callback},	/*0*/
 	{0, NULL},
 	{0, NULL},
 	{0, NULL},
@@ -251,17 +255,17 @@ static struct fwevent wlanevents[] =
 	{0, &rtw23a_joinbss_event_cb},		/*10*/
 	{sizeof(struct stassoc_event), &rtw_stassoc_event_callback23a},
 	{sizeof(struct stadel_event), &rtw_stadel_event_callback23a},
-	{0, &rtw_atimdone_event_callback23a},
-	{0, rtw_dummy_event_callback23a},
+	{0, &dummy_event_callback},
+	{0, &dummy_event_callback},
 	{0, NULL},	/*15*/
 	{0, NULL},
 	{0, NULL},
 	{0, NULL},
-	{0, rtw23a_fwdbg_event_callback},
+	{0, &dummy_event_callback},
 	{0, NULL},	 /*20*/
 	{0, NULL},
 	{0, NULL},
-	{0, &rtw_cpwm_event_callback23a},
+	{0, &dummy_event_callback},
 	{0, NULL},
 };
 

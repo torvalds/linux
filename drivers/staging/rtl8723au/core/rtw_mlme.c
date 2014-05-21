@@ -818,14 +818,6 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	rtw_cfg80211_surveydone_event_callback(adapter);
 }
 
-void rtw_dummy_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
-{
-}
-
-void rtw23a_fwdbg_event_callback(struct rtw_adapter *adapter, const u8 *pbuf)
-{
-}
-
 static void free_scanqueue(struct mlme_priv *pmlmepriv)
 {
 	struct wlan_network *pnetwork;
@@ -1538,12 +1530,6 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	}
 
 	spin_unlock_bh(&pmlmepriv->lock);
-}
-
-void rtw_cpwm_event_callback23a(struct rtw_adapter *padapter, const u8 *pbuf)
-{
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-		 ("+rtw_cpwm_event_callback23a !!!\n"));
 }
 
 /*
