@@ -1018,21 +1018,12 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 }
 
 static inline struct snd_soc_dapm_widget *
-	rtd_get_cpu_widget(struct snd_soc_pcm_runtime *rtd, int stream)
+	dai_get_widget(struct snd_soc_dai *dai, int stream)
 {
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return rtd->cpu_dai->playback_widget;
+		return dai->playback_widget;
 	else
-		return rtd->cpu_dai->capture_widget;
-}
-
-static inline struct snd_soc_dapm_widget *
-	rtd_get_codec_widget(struct snd_soc_pcm_runtime *rtd, int stream)
-{
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return rtd->codec_dai->playback_widget;
-	else
-		return rtd->codec_dai->capture_widget;
+		return dai->capture_widget;
 }
 
 static int widget_in_list(struct snd_soc_dapm_widget_list *list,
@@ -1082,14 +1073,14 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	list_for_each_entry(dpcm, &fe->dpcm[stream].be_clients, list_be) {
 
 		/* is there a valid CPU DAI widget for this BE */
-		widget = rtd_get_cpu_widget(dpcm->be, stream);
+		widget = dai_get_widget(dpcm->be->cpu_dai, stream);
 
 		/* prune the BE if it's no longer in our active list */
 		if (widget && widget_in_list(list, widget))
 			continue;
 
 		/* is there a valid CODEC DAI widget for this BE */
-		widget = rtd_get_codec_widget(dpcm->be, stream);
+		widget = dai_get_widget(dpcm->be->codec_dai, stream);
 
 		/* prune the BE if it's no longer in our active list */
 		if (widget && widget_in_list(list, widget))

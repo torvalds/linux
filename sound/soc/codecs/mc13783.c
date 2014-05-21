@@ -22,6 +22,7 @@
  */
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/mfd/mc13xxx.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -748,6 +749,7 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 {
 	struct mc13783_priv *priv;
 	struct mc13xxx_codec_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *np;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -758,7 +760,17 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 		priv->adc_ssi_port = pdata->adc_ssi_port;
 		priv->dac_ssi_port = pdata->dac_ssi_port;
 	} else {
-		return -ENOSYS;
+		np = of_get_child_by_name(pdev->dev.parent->of_node, "codec");
+		if (!np)
+			return -ENOSYS;
+
+		ret = of_property_read_u32(np, "adc-port", &priv->adc_ssi_port);
+		if (ret)
+			return ret;
+
+		ret = of_property_read_u32(np, "dac-port", &priv->dac_ssi_port);
+		if (ret)
+			return ret;
 	}
 
 	dev_set_drvdata(&pdev->dev, priv);

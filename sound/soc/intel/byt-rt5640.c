@@ -111,27 +111,13 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 	{
 		.name = "Baytrail Audio",
 		.stream_name = "Audio",
-		.cpu_dai_name = "Front-cpu-dai",
+		.cpu_dai_name = "baytrail-pcm-audio",
 		.codec_dai_name = "rt5640-aif1",
 		.codec_name = "i2c-10EC5640:00",
 		.platform_name = "baytrail-pcm-audio",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			   SND_SOC_DAIFMT_CBS_CFS,
 		.init = byt_rt5640_init,
-		.ignore_suspend = 1,
-		.ops = &byt_rt5640_ops,
-	},
-	{
-		.name = "Baytrail Voice",
-		.stream_name = "Voice",
-		.cpu_dai_name = "Mic1-cpu-dai",
-		.codec_dai_name = "rt5640-aif1",
-		.codec_name = "i2c-10EC5640:00",
-		.platform_name = "baytrail-pcm-audio",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			   SND_SOC_DAIFMT_CBS_CFS,
-		.init = NULL,
-		.ignore_suspend = 1,
 		.ops = &byt_rt5640_ops,
 	},
 };
@@ -145,6 +131,17 @@ static struct snd_soc_card byt_rt5640_card = {
 	.dapm_routes = byt_rt5640_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(byt_rt5640_audio_map),
 };
+
+#ifdef CONFIG_PM_SLEEP
+static const struct dev_pm_ops byt_rt5640_pm_ops = {
+	.suspend = snd_soc_suspend,
+	.resume = snd_soc_resume,
+};
+
+#define BYT_RT5640_PM_OPS	(&byt_rt5640_pm_ops)
+#else
+#define BYT_RT5640_PM_OPS	NULL
+#endif
 
 static int byt_rt5640_probe(struct platform_device *pdev)
 {
@@ -171,6 +168,7 @@ static struct platform_driver byt_rt5640_audio = {
 	.driver = {
 		.name = "byt-rt5640",
 		.owner = THIS_MODULE,
+		.pm = BYT_RT5640_PM_OPS,
 	},
 };
 module_platform_driver(byt_rt5640_audio)

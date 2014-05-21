@@ -11,10 +11,12 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -1674,6 +1676,7 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 				M98090_REG_CLOCK_RATIO_NI_LSB, 0x00);
 			snd_soc_update_bits(codec, M98090_REG_CLOCK_MODE,
 				M98090_USE_M1_MASK, 0);
+			max98090->master = false;
 			break;
 		case SND_SOC_DAIFMT_CBM_CFM:
 			/* Set to master mode */
@@ -1690,6 +1693,7 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 				regval |= M98090_MAS_MASK |
 					M98090_BSEL_32;
 			}
+			max98090->master = true;
 			break;
 		case SND_SOC_DAIFMT_CBS_CFM:
 		case SND_SOC_DAIFMT_CBM_CFS:
@@ -1793,13 +1797,6 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		if (max98090->jack_state == M98090_JACK_STATE_HEADSET) {
-			/*
-			 * Set to normal bias level.
-			 */
-			snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
-				M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
-		}
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
@@ -1873,7 +1870,8 @@ static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	max98090_configure_bclk(codec);
+	if (max98090->master)
+		max98090_configure_bclk(codec);
 
 	cdata->rate = max98090->lrclk;
 
@@ -1951,8 +1949,6 @@ static int max98090_dai_set_sysclk(struct snd_soc_dai *dai,
 	}
 
 	max98090->sysclk = freq;
-
-	max98090_configure_bclk(codec);
 
 	return 0;
 }
@@ -2225,6 +2221,7 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	/* Initialize private data */
 
 	max98090->sysclk = (unsigned)-1;
+	max98090->master = false;
 
 	cdata = &max98090->dai[0];
 	cdata->rate = (unsigned)-1;
@@ -2294,6 +2291,9 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, M98090_REG_BIAS_CONTROL,
 		M98090_VCM_MODE_MASK);
 
+	snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
+		M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
+
 	max98090_handle_pdata(codec);
 
 	max98090_add_widgets(codec);
@@ -2330,9 +2330,11 @@ static const struct regmap_config max98090_regmap = {
 };
 
 static int max98090_i2c_probe(struct i2c_client *i2c,
-				 const struct i2c_device_id *id)
+				 const struct i2c_device_id *i2c_id)
 {
 	struct max98090_priv *max98090;
+	const struct acpi_device_id *acpi_id;
+	kernel_ulong_t driver_data = 0;
 	int ret;
 
 	pr_debug("max98090_i2c_probe\n");
@@ -2342,7 +2344,19 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	if (max98090 == NULL)
 		return -ENOMEM;
 
-	max98090->devtype = id->driver_data;
+	if (ACPI_HANDLE(&i2c->dev)) {
+		acpi_id = acpi_match_device(i2c->dev.driver->acpi_match_table,
+					    &i2c->dev);
+		if (!acpi_id) {
+			dev_err(&i2c->dev, "No driver data\n");
+			return -EINVAL;
+		}
+		driver_data = acpi_id->driver_data;
+	} else if (i2c_id) {
+		driver_data = i2c_id->driver_data;
+	}
+
+	max98090->devtype = driver_data;
 	i2c_set_clientdata(i2c, max98090);
 	max98090->pdata = i2c->dev.platform_data;
 	max98090->irq = i2c->irq;
@@ -2433,12 +2447,21 @@ static const struct of_device_id max98090_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, max98090_of_match);
 
+#ifdef CONFIG_ACPI
+static struct acpi_device_id max98090_acpi_match[] = {
+	{ "193C9890", MAX98090 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, max98090_acpi_match);
+#endif
+
 static struct i2c_driver max98090_i2c_driver = {
 	.driver = {
 		.name = "max98090",
 		.owner = THIS_MODULE,
 		.pm = &max98090_pm,
 		.of_match_table = of_match_ptr(max98090_of_match),
+		.acpi_match_table = ACPI_PTR(max98090_acpi_match),
 	},
 	.probe  = max98090_i2c_probe,
 	.remove = max98090_i2c_remove,
