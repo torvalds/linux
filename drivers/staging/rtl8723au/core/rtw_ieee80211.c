@@ -909,8 +909,7 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	u16 wpa_len = 0, rsn_len = 0;
 	struct HT_info_element *pht_info = NULL;
 	struct ieee80211_ht_cap *pht_cap = NULL;
-	unsigned int		len;
-	unsigned char		*p;
+	const u8 *p;
 
 	cap = get_unaligned_le16(
 		rtw_get_capability23a_from_ie(pnetwork->network.IEs));
@@ -951,20 +950,20 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 
 	/* get bwmode and ch_offset */
 	/* parsing HT_CAP_IE */
-	p = rtw_get_ie23a(pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-			  WLAN_EID_HT_CAPABILITY, &len,
-			  pnetwork->network.IELength - _FIXED_IE_LENGTH_);
-	if (p && len > 0) {
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+			     pnetwork->network.IEs + _FIXED_IE_LENGTH_,
+			     pnetwork->network.IELength - _FIXED_IE_LENGTH_);
+	if (p && p[1] > 0) {
 		pht_cap = (struct ieee80211_ht_cap *)(p + 2);
 		pnetwork->BcnInfo.ht_cap_info = pht_cap->cap_info;
 	} else {
 		pnetwork->BcnInfo.ht_cap_info = 0;
 	}
 	/* parsing HT_INFO_IE */
-	p = rtw_get_ie23a(pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-		       WLAN_EID_HT_OPERATION, &len,
+	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
+			     pnetwork->network.IEs + _FIXED_IE_LENGTH_,
 		       pnetwork->network.IELength - _FIXED_IE_LENGTH_);
-	if (p && len > 0) {
+	if (p && p[1] > 0) {
 		pht_info = (struct HT_info_element *)(p + 2);
 		pnetwork->BcnInfo.ht_info_infos_0 = pht_info->infos[0];
 	} else {
