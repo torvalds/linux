@@ -4784,6 +4784,10 @@ static void port_event(struct usb_hub *hub, int port1)
 				USB_PORT_FEAT_C_PORT_CONFIG_ERROR);
 	}
 
+	/* skip port actions that require the port to be powered on */
+	if (!pm_runtime_active(&port_dev->dev))
+		return;
+
 	if (hub_handle_remote_wakeup(hub, port1, portstatus, portchange))
 		connect_change = 1;
 
@@ -4910,11 +4914,26 @@ static void hub_events(void)
 
 		/* deal with port status changes */
 		for (i = 1; i <= hdev->maxchild; i++) {
+			struct usb_port *port_dev = hub->ports[i - 1];
+
 			if (!test_bit(i, hub->busy_bits)
 					&& (test_bit(i, hub->event_bits)
 						|| test_bit(i, hub->change_bits)
-						|| test_bit(i, hub->wakeup_bits)))
+						|| test_bit(i, hub->wakeup_bits))) {
+				/*
+				 * The get_noresume and barrier ensure that if
+				 * the port was in the process of resuming, we
+				 * flush that work and keep the port active for
+				 * the duration of the port_event().  However,
+				 * if the port is runtime pm suspended
+				 * (powered-off), we leave it in that state, run
+				 * an abbreviated port_event(), and move on.
+				 */
+				pm_runtime_get_noresume(&port_dev->dev);
+				pm_runtime_barrier(&port_dev->dev);
 				port_event(hub, i);
+				pm_runtime_put_sync(&port_dev->dev);
+			}
 		}
 
 		/* deal with hub status changes */
