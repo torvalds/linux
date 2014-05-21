@@ -516,16 +516,6 @@ enum odm_sec_chnl_offset {
 	ODM_ABOVE		= 2
 };
 
-/*  ODM_CMNINFO_SEC_MODE */
-enum odm_security {
-	ODM_SEC_OPEN		= 0,
-	ODM_SEC_WEP40		= 1,
-	ODM_SEC_TKIP		= 2,
-	ODM_SEC_RESERVE		= 3,
-	ODM_SEC_AESCCMP		= 4,
-	ODM_SEC_WEP104		= 5,
-};
-
 /*  ODM_CMNINFO_BW */
 enum odm_band_width {
 	ODM_BW20M		= 0,
