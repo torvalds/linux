@@ -187,15 +187,18 @@ static void unlink_peers(struct usb_port *left, struct usb_port *right)
 	left->peer = NULL;
 }
 
-/* set the default peer port for root hubs */
+/*
+ * Set the default peer port for root hubs, or via the upstream peer
+ * relationship for all other hubs
+ */
 static void find_and_link_peer(struct usb_hub *hub, int port1)
 {
 	struct usb_port *port_dev = hub->ports[port1 - 1], *peer;
 	struct usb_device *hdev = hub->hdev;
+	struct usb_device *peer_hdev;
+	struct usb_hub *peer_hub;
 
 	if (!hdev->parent) {
-		struct usb_hub *peer_hub;
-		struct usb_device *peer_hdev;
 		struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
 		struct usb_hcd *peer_hcd = hcd->shared_hcd;
 
@@ -203,15 +206,28 @@ static void find_and_link_peer(struct usb_hub *hub, int port1)
 			return;
 
 		peer_hdev = peer_hcd->self.root_hub;
-		peer_hub = usb_hub_to_struct_hub(peer_hdev);
-		if (!peer_hub || port1 > peer_hdev->maxchild)
+	} else {
+		struct usb_port *upstream;
+		struct usb_device *parent = hdev->parent;
+		struct usb_hub *parent_hub = usb_hub_to_struct_hub(parent);
+
+		if (!parent_hub)
 			return;
 
-		peer = peer_hub->ports[port1 - 1];
+		upstream = parent_hub->ports[hdev->portnum - 1];
+		if (!upstream || !upstream->peer)
+			return;
 
-		if (peer)
-			link_peers(port_dev, peer);
+		peer_hdev = upstream->peer->child;
 	}
+
+	peer_hub = usb_hub_to_struct_hub(peer_hdev);
+	if (!peer_hub || port1 > peer_hdev->maxchild)
+		return;
+
+	peer = peer_hub->ports[port1 - 1];
+	if (peer)
+		link_peers(port_dev, peer);
 }
 
 int usb_hub_create_port_device(struct usb_hub *hub, int port1)
