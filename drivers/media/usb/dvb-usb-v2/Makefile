@@ -41,4 +41,3 @@ ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
 ccflags-y += -I$(srctree)/drivers/media/tuners
 ccflags-y += -I$(srctree)/drivers/media/common
-ccflags-y += -I$(srctree)/drivers/staging/media/rtl2832u_sdr
