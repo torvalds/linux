@@ -52,18 +52,6 @@ static const struct snd_soc_dapm_route t5325_route[] = {
 	{ "MIC2",		NULL,	"Mic Jack" },
 };
 
-static int t5325_dai_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
-	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
-	snd_soc_dapm_enable_pin(dapm, "Speaker");
-
-	return 0;
-}
-
 static struct snd_soc_dai_link t5325_dai[] = {
 {
 	.name = "ALC5621",
@@ -74,7 +62,6 @@ static struct snd_soc_dai_link t5325_dai[] = {
 	.codec_name = "alc562x-codec.0-001a",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &t5325_ops,
-	.init = t5325_dai_init,
 },
 };
 
