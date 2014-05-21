@@ -276,7 +276,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 		goto exit;
 	}
 
-	channel = pnetwork->network.Configuration.DSConfig;
+	channel = pnetwork->network.DSConfig;
 	if (channel <= RTW_CH_MAX_2G_CHANNEL)
 		freq = ieee80211_channel_to_frequency(channel,
 						      IEEE80211_BAND_2GHZ);
@@ -367,7 +367,7 @@ void rtw_cfg80211_indicate_connect(struct rtw_adapter *padapter)
 		struct wiphy *wiphy = pwdev->wiphy;
 		struct ieee80211_channel *notify_channel;
 		u32 freq;
-		u16 channel = cur_network->network.Configuration.DSConfig;
+		u16 channel = cur_network->network.DSConfig;
 
 		if (channel <= RTW_CH_MAX_2G_CHANNEL)
 			freq =
@@ -1475,7 +1475,7 @@ void rtw_cfg80211_surveydone_event_callback(struct rtw_adapter *padapter)
 		   contains the channel to which this network belongs */
 		if (rtw_ch_set_search_ch23a
 		    (padapter->mlmeextpriv.channel_set,
-		     pnetwork->network.Configuration.DSConfig) >= 0)
+		     pnetwork->network.DSConfig) >= 0)
 			rtw_cfg80211_inform_bss(padapter, pnetwork);
 	}
 

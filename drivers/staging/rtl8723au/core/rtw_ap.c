@@ -391,7 +391,7 @@ void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_l
 		shortGIrate = psta_ht->sgi;
 	}
 
-	if (pcur_network->Configuration.DSConfig > 14) {
+	if (pcur_network->DSConfig > 14) {
 		/*  5G band */
 		if (tx_ra_bitmap & 0xffff000)
 			sta_band |= WIRELESS_11_5N | WIRELESS_11A;
@@ -484,7 +484,7 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 				tx_ra_bitmap |= rtw_get_bit_value_from_ieee_value23a(psta->bssrateset[i]&0x7f);
 		}
 
-		if (pcur_network->Configuration.DSConfig > 14) {
+		if (pcur_network->DSConfig > 14) {
 			/* force to A mode. 5G doesn't support CCK rates */
 			network_type = WIRELESS_11A;
 			tx_ra_bitmap = 0x150; /*  6, 12, 24 Mbps */
@@ -653,8 +653,8 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	struct wlan_bssid_ex *pnetwork_mlmeext = &pmlmeinfo->network;
 	struct HT_info_element *pht_info = NULL;
 
-	bcn_interval = (u16)pnetwork->Configuration.BeaconPeriod;
-	cur_channel = pnetwork->Configuration.DSConfig;
+	bcn_interval = (u16)pnetwork->BeaconPeriod;
+	cur_channel = pnetwork->DSConfig;
 	cur_bwmode = HT_CHANNEL_WIDTH_20;;
 	cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
@@ -838,7 +838,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	/* beacon interval */
 	/* ie + 8;  8: TimeStamp, 2: Beacon Interval 2:Capability */
 	pbeacon = rtw_get_beacon_interval23a_from_ie(ie);
-	pbss_network->Configuration.BeaconPeriod = get_unaligned_le16(pbeacon);
+	pbss_network->BeaconPeriod = get_unaligned_le16(pbeacon);
 
 	/* capability */
 	cap = get_unaligned_le16(ie);
@@ -854,13 +854,12 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 
 	/* chnnel */
 	channel = 0;
-	pbss_network->Configuration.Length = 0;
 	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_DS_PARAMS, &ie_len,
 			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
 	if (p && ie_len > 0)
 		channel = *(p + 2);
 
-	pbss_network->Configuration.DSConfig = channel;
+	pbss_network->DSConfig = channel;
 
 	memset(supportRate, 0, NDIS_802_11_LENGTH_RATES_EX);
 	/*  get supported rates */

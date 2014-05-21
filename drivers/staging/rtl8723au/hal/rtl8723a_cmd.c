@@ -267,15 +267,15 @@ static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 
 	/*  DS parameter set */
 	pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)
-			       &cur_network->Configuration.DSConfig, &pktlen);
+			       &cur_network->DSConfig, &pktlen);
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
 		u32 ATIMWindow;
 		/*  IBSS Parameter Set... */
-		/* ATIMWindow = cur->Configuration.ATIMWindow; */
+		/* ATIMWindow = cur->ATIMWindow; */
 		ATIMWindow = 0;
 		pframe = rtw_set_ie23a(pframe, WLAN_EID_IBSS_PARAMS, 2,
-				       (unsigned char *)(&ATIMWindow), &pktlen);
+				       (unsigned char *)&ATIMWindow, &pktlen);
 	}
 
 	/* todo: ERP IE */

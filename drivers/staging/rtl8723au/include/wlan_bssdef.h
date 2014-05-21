@@ -22,17 +22,6 @@
 #define NDIS_802_11_LENGTH_RATES        8
 #define NDIS_802_11_LENGTH_RATES_EX     16
 
-/*
-	FW will only save the channel number in DSConfig.
-	ODI Handler will convert the channel number to freq. number.
-*/
-struct ndis_802_11_config {
-	u32           Length;             /*  Length of structure */
-	u32           BeaconPeriod;       /*  units are Kusec */
-	u32           ATIMWindow;         /*  units are Kusec */
-	u32           DSConfig;           /*  Frequency, units are kHz */
-};
-
 struct ndis_802_11_fixed_ies {
 	u8  Timestamp[8];
 	u16  BeaconInterval;
@@ -134,7 +123,9 @@ struct wlan_bssid_ex {
 	struct cfg80211_ssid Ssid;
 	u32  Privacy;
 	long  Rssi;/* in dBM, raw data , get from PHY) */
-	struct ndis_802_11_config  Configuration;
+	u16 BeaconPeriod;       /*  units are Kusec */
+	u32 ATIMWindow;         /*  units are Kusec */
+	u32 DSConfig;           /*  Frequency, units are kHz */
 	enum nl80211_iftype ifmode;
 	unsigned char SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
 	struct wlan_phy_info	PhyInfo;

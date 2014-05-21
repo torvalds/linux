@@ -2536,15 +2536,14 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 
 	/*  DS parameter set */
 	pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)
-			       &cur_network->Configuration.DSConfig,
-			       &pattrib->pktlen);
+			       &cur_network->DSConfig, &pattrib->pktlen);
 
 	/* if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) */
 	{
 		u8 erpinfo = 0;
 		u32 ATIMWindow;
 		/*  IBSS Parameter Set... */
-		/* ATIMWindow = cur->Configuration.ATIMWindow; */
+		/* ATIMWindow = cur->ATIMWindow; */
 		ATIMWindow = 0;
 		pframe = rtw_set_ie23a(pframe, WLAN_EID_IBSS_PARAMS, 2,
 				       (unsigned char *)&ATIMWindow,
@@ -2766,15 +2765,14 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 
 		/*  DS parameter set */
 		pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1,
-				       (unsigned char *)
-				       &cur_network->Configuration.DSConfig,
+				       (unsigned char *)&cur_network->DSConfig,
 				       &pattrib->pktlen);
 
 		if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
 			u8 erpinfo = 0;
 			u32 ATIMWindow;
 			/*  IBSS Parameter Set... */
-			/* ATIMWindow = cur->Configuration.ATIMWindow; */
+			/* ATIMWindow = cur->ATIMWindow; */
 			ATIMWindow = 0;
 			pframe = rtw_set_ie23a(pframe, WLAN_EID_IBSS_PARAMS, 2,
 					       (unsigned char *)&ATIMWindow,
@@ -4231,11 +4229,11 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 				     pbss_network->IEs + _FIXED_IE_LENGTH_,
 				     pbss_network->IELength -_FIXED_IE_LENGTH_);
 		if (!p || !p[1]) { /* non-HT */
-			if (pbss_network->Configuration.DSConfig <= 0 ||
-			    pbss_network->Configuration.DSConfig > 14)
+			if (pbss_network->DSConfig <= 0 ||
+			    pbss_network->DSConfig > 14)
 				continue;
 
-			ICS[0][pbss_network->Configuration.DSConfig] = 1;
+			ICS[0][pbss_network->DSConfig] = 1;
 
 			if (ICS[0][0] == 0)
 				ICS[0][0] = 1;
@@ -4571,11 +4569,10 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 	p = cfg80211_find_ie(WLAN_EID_DS_PARAMS, bssid->IEs + ie_offset,
 			     bssid->IELength - ie_offset);
 
-	bssid->Configuration.DSConfig = 0;
-	bssid->Configuration.Length = 0;
+	bssid->DSConfig = 0;
 
 	if (p) {
-		bssid->Configuration.DSConfig = p[2];
+		bssid->DSConfig = p[2];
 	} else {/*  In 5G, some ap do not have DSSET IE */
 		/*  checking HT info for channel */
 		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
@@ -4584,12 +4581,9 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		if (p) {
 			struct HT_info_element *HT_info =
 				(struct HT_info_element *)(p + 2);
-			bssid->Configuration.DSConfig =
-				HT_info->primary_channel;
-		} else { /*  use current channel */
-			bssid->Configuration.DSConfig =
-				rtw_get_oper_ch23a(padapter);
-		}
+			bssid->DSConfig = HT_info->primary_channel;
+		} else /*  use current channel */
+			bssid->DSConfig = rtw_get_oper_ch23a(padapter);
 	}
 
 	if (ieee80211_is_probe_req(mgmt->frame_control)) {
@@ -4600,10 +4594,8 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		return _SUCCESS;
 	}
 
-	memcpy(&bssid->Configuration.BeaconPeriod,
-	       rtw_get_beacon_interval23a_from_ie(bssid->IEs), 2);
-	bssid->Configuration.BeaconPeriod =
-		le32_to_cpu(bssid->Configuration.BeaconPeriod);
+	bssid->BeaconPeriod = get_unaligned_le16(
+		rtw_get_beacon_interval23a_from_ie(bssid->IEs));
 
 	if (capab_info & BIT(0)) {
 		bssid->ifmode = NL80211_IFTYPE_STATION;
@@ -4618,7 +4610,7 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 	else
 		bssid->Privacy = 0;
 
-	bssid->Configuration.ATIMWindow = 0;
+	bssid->ATIMWindow = 0;
 
 	/* 20/40 BSS Coexistence check */
 	if (pregistrypriv->wifi_spec == 1 &&
@@ -4640,7 +4632,7 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 
 
 	/*  mark bss info receving from nearby channel as SignalQuality 101 */
-	if (bssid->Configuration.DSConfig != rtw_get_oper_ch23a(padapter))
+	if (bssid->DSConfig != rtw_get_oper_ch23a(padapter))
 		bssid->PhyInfo.SignalQuality = 101;
 
 	return _SUCCESS;
@@ -4652,7 +4644,7 @@ void start_create_ibss23a(struct rtw_adapter* padapter)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
-	pmlmeext->cur_channel = (u8)pnetwork->Configuration.DSConfig;
+	pmlmeext->cur_channel = (u8)pnetwork->DSConfig;
 	pmlmeinfo->bcn_interval = get_beacon_interval23a(pnetwork);
 
 	/* update wireless mode */
@@ -4707,7 +4699,7 @@ void start_clnt_join23a(struct rtw_adapter* padapter)
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	int beacon_timeout;
 
-	pmlmeext->cur_channel = (u8)pnetwork->Configuration.DSConfig;
+	pmlmeext->cur_channel = (u8)pnetwork->DSConfig;
 	pmlmeinfo->bcn_interval = get_beacon_interval23a(pnetwork);
 
 	/* update wireless mode */
@@ -5035,7 +5027,7 @@ static void process_80211d(struct rtw_adapter *padapter,
 	}
 
 	/*  If channel is used by AP, set channel scan type to active */
-	channel = bssid->Configuration.DSConfig;
+	channel = bssid->DSConfig;
 	chplan_new = pmlmeext->channel_set;
 	i = 0;
 	while (i < MAX_CHANNEL_NUM && chplan_new[i].ChannelNum != 0) {

@@ -367,7 +367,7 @@ int is_same_network23a(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 	d_cap = get_unaligned_le16(rtw_get_capability23a_from_ie(dst->IEs));
 
 	return ((src->Ssid.ssid_len == dst->Ssid.ssid_len) &&
-		/*	(src->Configuration.DSConfig == dst->Configuration.DSConfig) && */
+		/*	(src->DSConfig == dst->DSConfig) && */
 		ether_addr_equal(src->MacAddress, dst->MacAddress) &&
 		((!memcmp(src->Ssid.ssid, dst->Ssid.ssid, src->Ssid.ssid_len))) &&
 		((s_cap & WLAN_CAPABILITY_IBSS) ==
@@ -416,7 +416,7 @@ void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 	DBG_8723A("%s %s(%pM, ch%u) ss_ori:%3u, sq_ori:%3u, rssi_ori:%3ld, "
 		  "ss_smp:%3u, sq_smp:%3u, rssi_smp:%3ld\n",
 		  __func__, src->Ssid.ssid, src->MacAddress,
-		  src->Configuration.DSConfig, ss_ori, sq_ori, rssi_ori,
+		  src->DSConfig, ss_ori, sq_ori, rssi_ori,
 		  ss_smp, sq_smp, rssi_smp
 	);
 
@@ -1795,7 +1795,7 @@ int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
 		DBG_8723A("%s: candidate: %s("MAC_FMT", ch:%u)\n", __func__,
 			  candidate->network.Ssid.ssid,
 			  MAC_ARG(candidate->network.MacAddress),
-			  candidate->network.Configuration.DSConfig);
+			  candidate->network.DSConfig);
 	}
 
 	/*  check for situation of  _FW_LINKED */
@@ -2122,8 +2122,7 @@ void rtw_init_registrypriv_dev_network23a(struct rtw_adapter* adapter)
 	memcpy(&pdev_network->Ssid, &pregistrypriv->ssid,
 	       sizeof(struct cfg80211_ssid));
 
-	pdev_network->Configuration.Length=sizeof(struct ndis_802_11_config);
-	pdev_network->Configuration.BeaconPeriod = 100;
+	pdev_network->BeaconPeriod = 100;
 }
 
 void rtw_update_registrypriv_dev_network23a(struct rtw_adapter* adapter)
@@ -2140,14 +2139,13 @@ void rtw_update_registrypriv_dev_network23a(struct rtw_adapter* adapter)
 
 	pdev_network->Rssi = 0;
 
-	pdev_network->Configuration.DSConfig = pregistrypriv->channel;
+	pdev_network->DSConfig = pregistrypriv->channel;
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("pregistrypriv->channel =%d, pdev_network->Configuration."
-		  "DSConfig = 0x%x\n", pregistrypriv->channel,
-		  pdev_network->Configuration.DSConfig));
+		 ("pregistrypriv->channel =%d, pdev_network->DSConfig = 0x%x\n",
+		  pregistrypriv->channel, pdev_network->DSConfig));
 
 	if (cur_network->network.ifmode == NL80211_IFTYPE_ADHOC)
-		pdev_network->Configuration.ATIMWindow = 0;
+		pdev_network->ATIMWindow = 0;
 
 	pdev_network->ifmode = cur_network->network.ifmode;
 

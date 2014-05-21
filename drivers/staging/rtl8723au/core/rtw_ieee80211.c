@@ -395,7 +395,7 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 
 	/* beacon interval : 2bytes */
 	/* BCN_INTERVAL; */
-	*(u16*)ie = cpu_to_le16((u16)pdev_network->Configuration.BeaconPeriod);
+	*(u16*)ie = cpu_to_le16(pdev_network->BeaconPeriod);
 	sz += 2;
 	ie += 2;
 
@@ -419,7 +419,7 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 
 	/* supported rates */
 	if (pregistrypriv->wireless_mode == WIRELESS_11ABGN) {
-		if (pdev_network->Configuration.DSConfig > 14)
+		if (pdev_network->DSConfig > 14)
 			wireless_mode = WIRELESS_11A_5N;
 		else
 			wireless_mode = WIRELESS_11BG_24N;
@@ -442,12 +442,12 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 
 	/* DS parameter set */
 	ie = rtw_set_ie23a(ie, WLAN_EID_DS_PARAMS, 1,
-			   (u8 *)&pdev_network->Configuration.DSConfig, &sz);
+			   (u8 *)&pdev_network->DSConfig, &sz);
 
 	/* IBSS Parameter Set */
 
 	ie = rtw_set_ie23a(ie, WLAN_EID_IBSS_PARAMS, 2,
-			   (u8 *)&pdev_network->Configuration.ATIMWindow, &sz);
+			   (u8 *)&pdev_network->ATIMWindow, &sz);
 
 	if (rateLen > 8) {
 		ie = rtw_set_ie23a(ie, WLAN_EID_EXT_SUPP_RATES, (rateLen - 8),
