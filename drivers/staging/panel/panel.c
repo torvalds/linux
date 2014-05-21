@@ -462,7 +462,7 @@ MODULE_PARM_DESC(lcd_type,
 static int lcd_proto = -1;
 module_param(lcd_proto, int, 0000);
 MODULE_PARM_DESC(lcd_proto,
-		"LCD communication: 0=parallel (//), 1=serial, 2=TI LCD Interface");
+		 "LCD communication: 0=parallel (//), 1=serial, 2=TI LCD Interface");
 
 static int lcd_charset = -1;
 module_param(lcd_charset, int, 0000);
@@ -951,7 +951,6 @@ static void lcd_clear_display(void)
 
 static void lcd_init_display(void)
 {
-
 	lcd_flags = ((lcd_height > 1) ? LCD_FLAG_N : 0)
 	    | LCD_FLAG_D | LCD_FLAG_C | LCD_FLAG_B;
 
@@ -1313,7 +1312,7 @@ static void lcd_write_char(char c)
 }
 
 static ssize_t lcd_write(struct file *file,
-	const char __user *buf, size_t count, loff_t *ppos)
+			 const char __user *buf, size_t count, loff_t *ppos)
 {
 	const char __user *tmp = buf;
 	char c;
@@ -1590,7 +1589,6 @@ static void lcd_init(void)
 static ssize_t keypad_read(struct file *file,
 			   char __user *buf, size_t count, loff_t *ppos)
 {
-
 	unsigned i = *ppos;
 	char __user *tmp = buf;
 
@@ -1615,7 +1613,6 @@ static ssize_t keypad_read(struct file *file,
 
 static int keypad_open(struct inode *inode, struct file *file)
 {
-
 	if (keypad_open_cnt)
 		return -EBUSY;	/* open only once at a time */
 
@@ -1745,8 +1742,8 @@ static inline int input_state_high(struct logical_input *input)
 	 * release function.
 	 * eg: 0 -(press A)-> A -(press B)-> AB : don't match A's release.
 	 */
-	if (((phys_prev & input->mask) == input->value)
-	    && ((phys_curr & input->mask) > input->value)) {
+	if (((phys_prev & input->mask) == input->value) &&
+	    ((phys_curr & input->mask) >  input->value)) {
 		input->state = INPUT_ST_LOW; /* invalidate */
 		return 1;
 	}
@@ -1801,8 +1798,8 @@ static inline void input_state_falling(struct logical_input *input)
 {
 #if 0
 	/* FIXME !!! same comment as in input_state_high */
-	if (((phys_prev & input->mask) == input->value)
-	    && ((phys_curr & input->mask) > input->value)) {
+	if (((phys_prev & input->mask) == input->value) &&
+	    ((phys_curr & input->mask) >  input->value)) {
 		input->state = INPUT_ST_LOW;	/* invalidate */
 		return;
 	}
@@ -1960,9 +1957,10 @@ static int input_name2mask(const char *name, pmask_t *mask, pmask_t *value,
 	while (*name) {
 		int in, out, bit, neg;
 
-		for (in = 0; (in < sizeof(sigtab)) &&
-			     (sigtab[in] != *name); in++)
+		for (in = 0; (in < sizeof(sigtab)) && (sigtab[in] != *name);
+		     in++)
 			;
+
 		if (in >= sizeof(sigtab))
 			return 0;	/* input name not found */
 		neg = (in & 1);	/* odd (lower) names are negated */
@@ -2005,7 +2003,7 @@ static struct logical_input *panel_bind_key(const char *name, const char *press,
 {
 	struct logical_input *key;
 
-	key = kzalloc(sizeof(struct logical_input), GFP_KERNEL);
+	key = kzalloc(sizeof(*key), GFP_KERNEL);
 	if (!key)
 		return NULL;
 
@@ -2043,7 +2041,7 @@ static struct logical_input *panel_bind_callback(char *name,
 {
 	struct logical_input *callback;
 
-	callback = kmalloc(sizeof(struct logical_input), GFP_KERNEL);
+	callback = kmalloc(sizeof(*callback), GFP_KERNEL);
 	if (!callback)
 		return NULL;
 
