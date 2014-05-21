@@ -1957,7 +1957,6 @@ static int fsl_udc_start(struct usb_gadget *g,
 						    &udc_controller->gadget);
 			if (retval < 0) {
 				ERR("can't bind to transceiver\n");
-				driver->unbind(&udc_controller->gadget);
 				udc_controller->driver = 0;
 				return retval;
 			}
