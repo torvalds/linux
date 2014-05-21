@@ -30,10 +30,6 @@ EXPORT_SYMBOL(find_next_bit);
 EXPORT_SYMBOL(__udelay);
 EXPORT_SYMBOL(__const_udelay);
 
-	/* networking */
-EXPORT_SYMBOL(csum_partial);
-EXPORT_SYMBOL(csum_partial_copy_from_user);
-
 	/* string / mem functions */
 EXPORT_SYMBOL(strchr);
 EXPORT_SYMBOL(strrchr);
