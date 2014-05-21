@@ -1519,7 +1519,36 @@ static int do_test(int m)
 	case 157:
 		ret += tcrypt_test("authenc(hmac(sha1),ecb(cipher_null))");
 		break;
-
+	case 181:
+		ret += tcrypt_test("authenc(hmac(sha1),cbc(des))");
+		break;
+	case 182:
+		ret += tcrypt_test("authenc(hmac(sha1),cbc(des3_ede))");
+		break;
+	case 183:
+		ret += tcrypt_test("authenc(hmac(sha224),cbc(des))");
+		break;
+	case 184:
+		ret += tcrypt_test("authenc(hmac(sha224),cbc(des3_ede))");
+		break;
+	case 185:
+		ret += tcrypt_test("authenc(hmac(sha256),cbc(des))");
+		break;
+	case 186:
+		ret += tcrypt_test("authenc(hmac(sha256),cbc(des3_ede))");
+		break;
+	case 187:
+		ret += tcrypt_test("authenc(hmac(sha384),cbc(des))");
+		break;
+	case 188:
+		ret += tcrypt_test("authenc(hmac(sha384),cbc(des3_ede))");
+		break;
+	case 189:
+		ret += tcrypt_test("authenc(hmac(sha512),cbc(des))");
+		break;
+	case 190:
+		ret += tcrypt_test("authenc(hmac(sha512),cbc(des3_ede))");
+		break;
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
