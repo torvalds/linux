@@ -719,7 +719,6 @@ int rtw_set_ch_cmd23a(struct rtw_adapter*padapter, u8 ch, u8 bw, u8 ch_offset, u
 int rtw_set_chplan_cmd(struct rtw_adapter*padapter, u8 chplan, u8 enqueue);
 int rtw_led_blink_cmd(struct rtw_adapter*padapter, struct led_8723a *pLed);
 int rtw_set_csa_cmd(struct rtw_adapter*padapter, u8 new_ch_no);
-int rtw_tdls_cmd(struct rtw_adapter*padapter, u8 *addr, u8 option);
 
 int rtw_c2h_wk_cmd23a(struct rtw_adapter *padapter, u8 *c2h_evt);
 

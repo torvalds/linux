@@ -179,33 +179,6 @@ struct scan_limit_info {
 	u8	operation_ch[2];	/* Store the operation channel of invitation request frame */
 };
 
-struct tdls_ss_record {	/* signal strength record */
-	u8	macaddr[ETH_ALEN];
-	u8	RxPWDBAll;
-	u8	is_tdls_sta;	/*  true: direct link sta, false: else */
-};
-
-struct tdls_info {
-	u8	ap_prohibited;
-	uint	setup_state;
-	u8	sta_cnt;
-	/* 1:tdls sta == (NUM_STA-1), reach max direct link no; 0: else; */
-	u8	sta_maximum;
-	struct tdls_ss_record	ss_record;
-	u8	macid_index;	/* macid entry that is ready to write */
-	/* cam entry that is trying to clear, using it in direct link teardown*/
-	u8	clear_cam;
-	u8	ch_sensing;
-	u8	cur_channel;
-	u8	candidate_ch;
-	u8	collect_pkt_num[MAX_CHANNEL_NUM];
-	spinlock_t	cmd_lock;
-	spinlock_t	hdl_lock;
-	u8	watchdog_count;
-	u8	dev_discovered;		/* WFD_TDLS: for sigma test */
-	u8	enable;
-};
-
 struct mlme_priv {
 	spinlock_t	lock;
 	int	fw_state;
