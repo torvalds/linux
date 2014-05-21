@@ -182,7 +182,7 @@ static struct ieee80211_rate __b43_ratetable[] = {
 #define b43_g_ratetable		(__b43_ratetable + 0)
 #define b43_g_ratetable_size	12
 
-#define CHAN4G(_channel, _freq, _flags) {			\
+#define CHAN2G(_channel, _freq, _flags) {			\
 	.band			= IEEE80211_BAND_2GHZ,		\
 	.center_freq		= (_freq),			\
 	.hw_value		= (_channel),			\
@@ -191,22 +191,22 @@ static struct ieee80211_rate __b43_ratetable[] = {
 	.max_power		= 30,				\
 }
 static struct ieee80211_channel b43_2ghz_chantable[] = {
-	CHAN4G(1, 2412, 0),
-	CHAN4G(2, 2417, 0),
-	CHAN4G(3, 2422, 0),
-	CHAN4G(4, 2427, 0),
-	CHAN4G(5, 2432, 0),
-	CHAN4G(6, 2437, 0),
-	CHAN4G(7, 2442, 0),
-	CHAN4G(8, 2447, 0),
-	CHAN4G(9, 2452, 0),
-	CHAN4G(10, 2457, 0),
-	CHAN4G(11, 2462, 0),
-	CHAN4G(12, 2467, 0),
-	CHAN4G(13, 2472, 0),
-	CHAN4G(14, 2484, 0),
+	CHAN2G(1, 2412, 0),
+	CHAN2G(2, 2417, 0),
+	CHAN2G(3, 2422, 0),
+	CHAN2G(4, 2427, 0),
+	CHAN2G(5, 2432, 0),
+	CHAN2G(6, 2437, 0),
+	CHAN2G(7, 2442, 0),
+	CHAN2G(8, 2447, 0),
+	CHAN2G(9, 2452, 0),
+	CHAN2G(10, 2457, 0),
+	CHAN2G(11, 2462, 0),
+	CHAN2G(12, 2467, 0),
+	CHAN2G(13, 2472, 0),
+	CHAN2G(14, 2484, 0),
 };
-#undef CHAN4G
+#undef CHAN2G
 
 #define CHAN5G(_channel, _flags) {				\
 	.band			= IEEE80211_BAND_5GHZ,		\
