@@ -235,20 +235,6 @@ struct ADDBA_request {
 #define WPS_ATTR_VENDOR_EXT			0x1049
 #define WPS_ATTR_SELECTED_REGISTRAR		0x1041
 
-/*	P2P Public Action Frame ( Management Frame ) */
-#define	P2P_PUB_ACTION_ACTION			0x09
-
-/*	P2P Public Action Frame Type */
-#define	P2P_GO_NEGO_REQ				0
-#define	P2P_GO_NEGO_RESP			1
-#define	P2P_GO_NEGO_CONF			2
-#define	P2P_INVIT_REQ				3
-#define	P2P_INVIT_RESP				4
-#define	P2P_DEVDISC_REQ				5
-#define	P2P_DEVDISC_RESP			6
-#define	P2P_PROVISION_DISC_REQ			7
-#define	P2P_PROVISION_DISC_RESP			8
-
 /*	WPS Configuration Method */
 #define	WPS_CM_NONE					0x0000
 #define	WPS_CM_LABEL					0x0004

@@ -3198,14 +3198,12 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	struct rtw_adapter *padapter =
 		(struct rtw_adapter *)wiphy_to_adapter(wiphy);
-	struct rtw_wdev_priv *pwdev_priv = wdev_to_priv(padapter->rtw_wdev);
 	int ret = 0;
 	int tx_ret;
 	u32 dump_limit = RTW_MAX_MGMT_TX_CNT;
 	u32 dump_cnt = 0;
 	bool ack = true;
 	u8 category, action;
-	int type = (-1);
 	unsigned long start = jiffies;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
 	size_t len = params->len;
@@ -3250,23 +3248,6 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			  __func__, padapter->pnetdev->name,
 			  tx_ret == _SUCCESS ? "OK" : "FAIL", dump_cnt,
 			  dump_limit, jiffies_to_msecs(jiffies - start));
-	}
-
-	switch (type) {
-	case P2P_GO_NEGO_CONF:
-		rtw_clear_scan_deny(padapter);
-		break;
-	case P2P_INVIT_RESP:
-		if (pwdev_priv->invit_info.flags & BIT(0)
-		    && pwdev_priv->invit_info.status == 0) {
-			DBG_8723A("%s(%s): agree with invitation of "
-				  "persistent group\n",
-				  __func__, padapter->pnetdev->name);
-			rtw_set_scan_deny(padapter, 5000);
-			rtw_pwr_wakeup_ex(padapter, 5000);
-			rtw_clear_scan_deny(padapter);
-		}
-		break;
 	}
 
 exit:
