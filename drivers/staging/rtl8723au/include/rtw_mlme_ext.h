@@ -514,18 +514,14 @@ bool is_IBSS_empty23a(struct rtw_adapter *padapter);
 
 unsigned char check_assoc_AP23a(u8 *pframe, uint len);
 
-int WMM_param_handler23a(struct rtw_adapter *padapter,
-		      struct ndis_802_11_var_ies *pIE);
+int WMM_param_handler23a(struct rtw_adapter *padapter, u8 *p);
 void WMMOnAssocRsp23a(struct rtw_adapter *padapter);
 
-void HT_caps_handler23a(struct rtw_adapter *padapter,
-		     struct ndis_802_11_var_ies *pIE);
-void HT_info_handler23a(struct rtw_adapter *padapter,
-		     struct ndis_802_11_var_ies *pIE);
+void HT_caps_handler23a(struct rtw_adapter *padapter, u8 *p);
+void HT_info_handler23a(struct rtw_adapter *padapter, u8 *p);
 void HTOnAssocRsp23a(struct rtw_adapter *padapter);
 
-void ERP_IE_handler23a(struct rtw_adapter *padapter,
-		    struct ndis_802_11_var_ies *pIE);
+void ERP_IE_handler23a(struct rtw_adapter *padapter, u8 *p);
 void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta);
 
 void update_beacon23a_info(struct rtw_adapter *padapter, u8 *pframe, uint len,

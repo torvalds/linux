@@ -22,12 +22,6 @@
 #define NDIS_802_11_LENGTH_RATES        8
 #define NDIS_802_11_LENGTH_RATES_EX     16
 
-struct ndis_802_11_var_ies {
-	u8  ElementID;
-	u8  Length;
-	u8  data[1];
-};
-
 /* Length is the 4 bytes multiples of the sum of
  * sizeof(6 * sizeof(unsigned char)) + 2 + sizeof(struct ndis_802_11_ssid) +
  * sizeof(u32) + sizeof(long) + sizeof(enum ndis_802_11_net_type) +

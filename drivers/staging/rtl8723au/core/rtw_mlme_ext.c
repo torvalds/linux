@@ -1735,7 +1735,6 @@ OnAssocReq23aFail:
 static int
 OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 {
-	struct ndis_802_11_var_ies *pIE;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -1743,6 +1742,7 @@ OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct ieee80211_mgmt *pmgmt = (struct ieee80211_mgmt *) skb->data;
 	int res, i;
 	unsigned short status;
+	u8 *p;
 	u8 *pframe = skb->data;
 	int pkt_len = skb->len;
 
@@ -1783,31 +1783,31 @@ OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	/* for not to handle the synchronous IO in the tasklet */
 	for (i = offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
 	     i < pkt_len;) {
-		pIE = (struct ndis_802_11_var_ies *)(pframe + i);
+		p = pframe + i;
 
-		switch (pIE->ElementID)
+		switch (p[0])
 		{
 		case WLAN_EID_VENDOR_SPECIFIC:
-			if (!memcmp(pIE->data, WMM_PARA_OUI23A, 6))/* WMM */
-				WMM_param_handler23a(padapter, pIE);
+			if (!memcmp(p + 2, WMM_PARA_OUI23A, 6))/* WMM */
+				WMM_param_handler23a(padapter, p);
 			break;
 
 		case WLAN_EID_HT_CAPABILITY:	/* HT caps */
-			HT_caps_handler23a(padapter, pIE);
+			HT_caps_handler23a(padapter, p);
 			break;
 
 		case WLAN_EID_HT_OPERATION:	/* HT info */
-			HT_info_handler23a(padapter, pIE);
+			HT_info_handler23a(padapter, p);
 			break;
 
 		case WLAN_EID_ERP_INFO:
-			ERP_IE_handler23a(padapter, pIE);
+			ERP_IE_handler23a(padapter, p);
 
 		default:
 			break;
 		}
 
-		i += (pIE->Length + 2);
+		i += (p[1] + 2);
 	}
 
 	pmlmeinfo->state &= ~WIFI_FW_ASSOC_STATE;
@@ -3272,14 +3272,13 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	__le16 *fctrl;
 	unsigned int i, j, index = 0;
 	unsigned char rf_type, bssrate[NumRates], sta_bssrate[NumRates];
-	struct ndis_802_11_var_ies *pIE;
 	struct registry_priv *pregpriv = &padapter->registrypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	int bssrate_len = 0, sta_bssrate_len = 0, pie_len, bcn_fixed_size;
-	u8 * pie;
+	u8 *pie;
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)
@@ -3474,26 +3473,25 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 
 	/* vendor specific IE, such as WPA, WMM, WPS */
 	for (i = bcn_fixed_size;  i < pmlmeinfo->network.IELength;) {
-		pIE = (struct ndis_802_11_var_ies *)
-			(pmlmeinfo->network.IEs + i);
+		p = pmlmeinfo->network.IEs + i;
 
-		switch (pIE->ElementID)
-		{
+		switch (p[0]) {
 		case WLAN_EID_VENDOR_SPECIFIC:
-			if (!memcmp(pIE->data, RTW_WPA_OUI23A_TYPE, 4) ||
-			    !memcmp(pIE->data, WMM_OUI23A, 4) ||
-			    !memcmp(pIE->data, WPS_OUI23A, 4)) {
+			if (!memcmp(p + 2, RTW_WPA_OUI23A_TYPE, 4) ||
+			    !memcmp(p + 2, WMM_OUI23A, 4) ||
+			    !memcmp(p + 2, WPS_OUI23A, 4)) {
+				u8 plen = p[1];
 				if (!padapter->registrypriv.wifi_spec) {
 					/* Commented by Kurt 20110629 */
 					/* In some older APs, WPS handshake */
 					/* would be fail if we append vender
 					   extensions informations to AP */
-					if (!memcmp(pIE->data, WPS_OUI23A, 4))
-						pIE->Length = 14;
+					if (!memcmp(p + 2, WPS_OUI23A, 4))
+						plen = 14;
 				}
 				pframe = rtw_set_ie23a(pframe,
 						       WLAN_EID_VENDOR_SPECIFIC,
-						       pIE->Length, pIE->data,
+						       plen, p + 2,
 						       &pattrib->pktlen);
 			}
 			break;
@@ -3502,7 +3500,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 			break;
 		}
 
-		i += pIE->Length + 2;
+		i += p[1] + 2;
 	}
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK)
@@ -5893,7 +5891,6 @@ int createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct ndis_802_11_var_ies *	pIE;
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -5902,6 +5899,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	struct HT_info_element *pht_info;
 	u32 i;
 	int bcn_fixed_size;
+	u8 *p;
         /* u32	initialgain; */
 	/* u32	acparm; */
 
@@ -5951,12 +5949,11 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		offsetof(struct ieee80211_mgmt, u.beacon);
 
 	for (i = bcn_fixed_size; i < pnetwork->IELength;) {
-		pIE = (struct ndis_802_11_var_ies *)(pnetwork->IEs + i);
+		p = pnetwork->IEs + i;
 
-		switch (pIE->ElementID)
-		{
+		switch (p[0]) {
 		case WLAN_EID_VENDOR_SPECIFIC:/* Get WMM IE. */
-			if (!memcmp(pIE->data, WMM_OUI23A, 4))
+			if (!memcmp(p + 2, WMM_OUI23A, 4))
 				pmlmeinfo->WMM_enable = 1;
 			break;
 
@@ -5969,7 +5966,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 			/* spec case only for cisco's ap because cisco's ap
 			 * issue assoc rsp using mcs rate @40MHz or @20MHz */
-			pht_info = (struct HT_info_element *)(pIE->data);
+			pht_info = (struct HT_info_element *)(p + 2);
 
 			if ((pregpriv->cbw40_enable) &&
 			    (pht_info->infos[0] & BIT(2))) {
@@ -6001,7 +5998,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 			break;
 		}
 
-		i += (pIE->Length + 2);
+		i += (p[1] + 2);
 	}
 
 	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);

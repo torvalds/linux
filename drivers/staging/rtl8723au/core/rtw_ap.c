@@ -889,7 +889,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_ERP_INFO, &ie_len,
 			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
 	if (p && ie_len > 0)
-		ERP_IE_handler23a(padapter, (struct ndis_802_11_var_ies *)p);
+		ERP_IE_handler23a(padapter, p);
 
 	/* update privacy/security */
 	if (cap & BIT(4))
@@ -1024,9 +1024,9 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 		if (pregistrypriv->ampdu_enable == 1)
 			pmlmepriv->htpriv.ampdu_enable = true;
 
-		HT_caps_handler23a(padapter, (struct ndis_802_11_var_ies *)pHT_caps_ie);
+		HT_caps_handler23a(padapter, pHT_caps_ie);
 
-		HT_info_handler23a(padapter, (struct ndis_802_11_var_ies *)pHT_info_ie);
+		HT_info_handler23a(padapter, pHT_info_ie);
 	}
 
 	pbss_network->Length = get_wlan_bssid_ex_sz(pbss_network);
@@ -1182,23 +1182,20 @@ static void update_bcn_erpinfo_ie(struct rtw_adapter *padapter)
 
 	/* parsing ERP_IE */
 	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_ERP_INFO, &len, (pnetwork->IELength - _BEACON_IE_OFFSET_));
-	if (p && len>0)
-	{
-		struct ndis_802_11_var_ies * pIE = (struct ndis_802_11_var_ies *)p;
-
+	if (p && len > 0) {
 		if (pmlmepriv->num_sta_non_erp == 1)
-			pIE->data[0] |= WLAN_ERP_NON_ERP_PRESENT |
+			p[2] |= WLAN_ERP_NON_ERP_PRESENT |
 				WLAN_ERP_USE_PROTECTION;
 		else
-			pIE->data[0] &= ~(WLAN_ERP_NON_ERP_PRESENT |
-					  WLAN_ERP_USE_PROTECTION);
+			p[2] &= ~(WLAN_ERP_NON_ERP_PRESENT |
+				  WLAN_ERP_USE_PROTECTION);
 
 		if (pmlmepriv->num_sta_no_short_preamble > 0)
-			pIE->data[0] |= WLAN_ERP_BARKER_PREAMBLE;
+			p[2] |= WLAN_ERP_BARKER_PREAMBLE;
 		else
-			pIE->data[0] &= ~(WLAN_ERP_BARKER_PREAMBLE);
+			p[2] &= ~(WLAN_ERP_BARKER_PREAMBLE);
 
-		ERP_IE_handler23a(padapter, pIE);
+		ERP_IE_handler23a(padapter, p);
 	}
 }
 
