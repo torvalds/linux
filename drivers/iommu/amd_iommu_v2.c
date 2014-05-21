@@ -504,8 +504,10 @@ static void do_fault(struct work_struct *work)
 
 	write = !!(fault->flags & PPR_FAULT_WRITE);
 
+	down_read(&fault->state->mm->mmap_sem);
 	npages = get_user_pages(fault->state->task, fault->state->mm,
 				fault->address, 1, write, 0, &page, NULL);
+	up_read(&fault->state->mm->mmap_sem);
 
 	if (npages == 1) {
 		put_page(page);
