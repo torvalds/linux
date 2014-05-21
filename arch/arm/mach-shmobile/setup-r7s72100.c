@@ -62,24 +62,16 @@ R7S72100_SCIF(7, 0xe800a800, gic_iid(249));
 					  sizeof(scif##index##_platform_data))
 
 
-static struct sh_timer_config mtu2_0_platform_data __initdata = {
-	.name = "MTU2_0",
-	.timer_bit = 0,
-	.channel_offset = -0x80,
-	.clockevent_rating = 200,
+static struct resource mtu2_resources[] __initdata = {
+	DEFINE_RES_MEM(0xfcff0000, 0x400),
+	DEFINE_RES_IRQ_NAMED(gic_iid(139), "tgi0a"),
 };
 
-static struct resource mtu2_0_resources[] __initdata = {
-	DEFINE_RES_MEM(0xfcff0300, 0x27),
-	DEFINE_RES_IRQ(gic_iid(139)), /* MTU2 TGI0A */
-};
-
-#define r7s72100_register_mtu2(idx)					\
-	platform_device_register_resndata(&platform_bus, "sh_mtu2",	\
-					  idx, mtu2_##idx##_resources,	\
-					  ARRAY_SIZE(mtu2_##idx##_resources), \
-					  &mtu2_##idx##_platform_data,	\
-					  sizeof(struct sh_timer_config))
+#define r7s72100_register_mtu2()					\
+	platform_device_register_resndata(&platform_bus, "sh-mtu2",	\
+					  -1, mtu2_resources,		\
+					  ARRAY_SIZE(mtu2_resources),	\
+					  NULL, 0)
 
 void __init r7s72100_add_dt_devices(void)
 {
@@ -91,7 +83,7 @@ void __init r7s72100_add_dt_devices(void)
 	r7s72100_register_scif(5);
 	r7s72100_register_scif(6);
 	r7s72100_register_scif(7);
-	r7s72100_register_mtu2(0);
+	r7s72100_register_mtu2();
 }
 
 void __init r7s72100_init_early(void)
