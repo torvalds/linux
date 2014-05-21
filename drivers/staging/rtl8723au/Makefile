@@ -1,5 +1,4 @@
 r8723au-y :=				\
-		core/rtw_ap.o		\
 		core/rtw_cmd.o		\
 		core/rtw_efuse.o	\
 		core/rtw_ioctl_set.o	\
@@ -50,6 +49,7 @@ r8723au-y :=				\
 		os_dep/xmit_linux.o
 
 r8723au-$(CONFIG_8723AU_BT_COEXIST) += hal/rtl8723a_bt-coexist.o
+r8723au-$(CONFIG_8723AU_AP_MODE) += core/rtw_ap.o
 
 obj-$(CONFIG_R8723AU)	:= r8723au.o
 

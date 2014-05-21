@@ -21,8 +21,6 @@
 #include <rtl8723a_cmd.h>
 #include <rtl8723a_hal.h>
 
-#ifdef CONFIG_8723AU_AP_MODE
-
 extern unsigned char WMM_OUI23A[];
 extern unsigned char WPS_OUI23A[];
 extern unsigned char P2P_OUI23A[];
@@ -2028,5 +2026,3 @@ void stop_ap_mode23a(struct rtw_adapter *padapter)
 
 	rtw23a_free_mlme_priv_ie_data(pmlmepriv);
 }
-
-#endif /* CONFIG_8723AU_AP_MODE */
