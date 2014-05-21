@@ -1560,9 +1560,11 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
-	temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	if (temp & (AUDIO_OUTPUT_ENABLE_A << (intel_crtc->pipe * 4)))
-		pipe_config->has_audio = true;
+	if (intel_display_power_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
+		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+		if (temp & (AUDIO_OUTPUT_ENABLE_A << (intel_crtc->pipe * 4)))
+			pipe_config->has_audio = true;
+	}
 
 	if (encoder->type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp_bpp &&
 	    pipe_config->pipe_bpp > dev_priv->vbt.edp_bpp) {
