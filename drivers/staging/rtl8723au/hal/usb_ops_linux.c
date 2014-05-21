@@ -439,7 +439,7 @@ urb_submit:
 		case -EPROTO:
 			break;
 		case -EINPROGRESS:
-			DBG_8723A("ERROR: URB IS IN PROGRESS!/n");
+			DBG_8723A("ERROR: URB IS IN PROGRESS!\n");
 			break;
 		default:
 			break;
@@ -734,7 +734,7 @@ static void usb_read_port_complete(struct urb *purb)
 					    precvbuf);
 			break;
 		case -EINPROGRESS:
-			DBG_8723A("ERROR: URB IS IN PROGRESS!/n");
+			DBG_8723A("ERROR: URB IS IN PROGRESS!\n");
 			break;
 		default:
 			break;
