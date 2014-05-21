@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_mtd.h>
 
 #include <linux/mtd/nand_bch.h>
 #include <linux/platform_data/elm.h>
@@ -176,11 +177,11 @@ struct omap_nand_info {
 	/* Interface to GPMC */
 	struct gpmc_nand_regs		reg;
 	struct gpmc_nand_ops		*ops;
+	bool				flash_bbt;
 	/* generated at runtime depending on ECC algorithm and layout selected */
 	struct nand_ecclayout		oobinfo;
 	/* fields specific for BCHx_HW ECC scheme */
 	struct device			*elm_dev;
-	struct device_node		*of_node;
 };
 
 static inline struct omap_nand_info *mtd_to_omap(struct mtd_info *mtd)
@@ -1643,10 +1644,86 @@ static bool omap2_nand_ecc_check(struct omap_nand_info *info,
 	return true;
 }
 
+static const char * const nand_xfer_types[] = {
+	[NAND_OMAP_PREFETCH_POLLED] = "prefetch-polled",
+	[NAND_OMAP_POLLED] = "polled",
+	[NAND_OMAP_PREFETCH_DMA] = "prefetch-dma",
+	[NAND_OMAP_PREFETCH_IRQ] = "prefetch-irq",
+};
+
+static int omap_get_dt_info(struct device *dev, struct omap_nand_info *info)
+{
+	struct device_node *child = dev->of_node;
+	int i;
+	const char *s;
+	u32 cs;
+
+	if (of_property_read_u32(child, "reg", &cs) < 0) {
+		dev_err(dev, "reg not found in DT\n");
+		return -EINVAL;
+	}
+
+	info->gpmc_cs = cs;
+
+	/* detect availability of ELM module. Won't be present pre-OMAP4 */
+	info->elm_of_node = of_parse_phandle(child, "ti,elm-id", 0);
+	if (!info->elm_of_node)
+		dev_dbg(dev, "ti,elm-id not in DT\n");
+
+	/* select ecc-scheme for NAND */
+	if (of_property_read_string(child, "ti,nand-ecc-opt", &s)) {
+		dev_err(dev, "ti,nand-ecc-opt not found\n");
+		return -EINVAL;
+	}
+
+	if (!strcmp(s, "sw")) {
+		info->ecc_opt = OMAP_ECC_HAM1_CODE_SW;
+	} else if (!strcmp(s, "ham1") ||
+		   !strcmp(s, "hw") || !strcmp(s, "hw-romcode")) {
+		info->ecc_opt =	OMAP_ECC_HAM1_CODE_HW;
+	} else if (!strcmp(s, "bch4")) {
+		if (info->elm_of_node)
+			info->ecc_opt = OMAP_ECC_BCH4_CODE_HW;
+		else
+			info->ecc_opt = OMAP_ECC_BCH4_CODE_HW_DETECTION_SW;
+	} else if (!strcmp(s, "bch8")) {
+		if (info->elm_of_node)
+			info->ecc_opt = OMAP_ECC_BCH8_CODE_HW;
+		else
+			info->ecc_opt = OMAP_ECC_BCH8_CODE_HW_DETECTION_SW;
+	} else if (!strcmp(s, "bch16")) {
+		info->ecc_opt =	OMAP_ECC_BCH16_CODE_HW;
+	} else {
+		dev_err(dev, "unrecognized value for ti,nand-ecc-opt\n");
+		return -EINVAL;
+	}
+
+	/* select data transfer mode */
+	if (!of_property_read_string(child, "ti,nand-xfer-type", &s)) {
+		for (i = 0; i < ARRAY_SIZE(nand_xfer_types); i++) {
+			if (!strcasecmp(s, nand_xfer_types[i])) {
+				info->xfer_type = i;
+				goto next;
+			}
+		}
+
+		dev_err(dev, "unrecognized value for ti,nand-xfer-type\n");
+		return -EINVAL;
+	}
+
+next:
+	of_get_nand_on_flash_bbt(child);
+
+	if (of_get_nand_bus_width(child) == 16)
+		info->devsize = NAND_BUSWIDTH_16;
+
+	return 0;
+}
+
 static int omap_nand_probe(struct platform_device *pdev)
 {
 	struct omap_nand_info		*info;
-	struct omap_nand_platform_data	*pdata;
+	struct omap_nand_platform_data	*pdata = NULL;
 	struct mtd_info			*mtd;
 	struct nand_chip		*nand_chip;
 	struct nand_ecclayout		*ecclayout;
@@ -1656,39 +1733,47 @@ static int omap_nand_probe(struct platform_device *pdev)
 	unsigned			sig;
 	unsigned			oob_index;
 	struct resource			*res;
-
-	pdata = dev_get_platdata(&pdev->dev);
-	if (pdata == NULL) {
-		dev_err(&pdev->dev, "platform data missing\n");
-		return -ENODEV;
-	}
+	struct device			*dev = &pdev->dev;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct omap_nand_info),
 				GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, info);
+	info->pdev = pdev;
 
+	if (dev->of_node) {
+		if (omap_get_dt_info(dev, info))
+			return -EINVAL;
+	} else {
+		pdata = dev_get_platdata(&pdev->dev);
+		if (!pdata) {
+			dev_err(&pdev->dev, "platform data missing\n");
+			return -EINVAL;
+		}
+
+		info->gpmc_cs = pdata->cs;
+		info->reg = pdata->reg;
+		info->ecc_opt = pdata->ecc_opt;
+		info->dev_ready	= pdata->dev_ready;
+		info->xfer_type = pdata->xfer_type;
+		info->devsize = pdata->devsize;
+		info->elm_of_node = pdata->elm_of_node;
+		info->flash_bbt = pdata->flash_bbt;
+	}
+
+	platform_set_drvdata(pdev, info);
 	info->ops = gpmc_omap_get_nand_ops(&info->reg, info->gpmc_cs);
 	if (!info->ops) {
 		dev_err(&pdev->dev, "Failed to get GPMC->NAND interface\n");
 		return -ENODEV;
 	}
-	info->pdev		= pdev;
-	info->gpmc_cs		= pdata->cs;
-	info->of_node		= pdata->of_node;
-	info->ecc_opt		= pdata->ecc_opt;
-	info->dev_ready	= pdata->dev_ready;
-	info->xfer_type = pdata->xfer_type;
-	info->devsize = pdata->devsize;
-	info->elm_of_node = pdata->elm_of_node;
 
 	nand_chip		= &info->nand;
 	mtd			= nand_to_mtd(nand_chip);
 	mtd->dev.parent		= &pdev->dev;
 	nand_chip->ecc.priv	= NULL;
-	nand_set_flash_node(nand_chip, pdata->of_node);
+	nand_set_flash_node(nand_chip, dev->of_node);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	nand_chip->IO_ADDR_R = devm_ioremap_resource(&pdev->dev, res);
@@ -1717,7 +1802,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->chip_delay = 50;
 	}
 
-	if (pdata->flash_bbt)
+	if (info->flash_bbt)
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
 	else
 		nand_chip->options |= NAND_SKIP_BBTSCAN;
@@ -2035,7 +2120,10 @@ scan_tail:
 		goto return_error;
 	}
 
-	mtd_device_register(mtd, pdata->parts, pdata->nr_parts);
+	if (dev->of_node)
+		mtd_device_register(mtd, NULL, 0);
+	else
+		mtd_device_register(mtd, pdata->parts, pdata->nr_parts);
 
 	platform_set_drvdata(pdev, mtd);
 
@@ -2066,11 +2154,17 @@ static int omap_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id omap_nand_ids[] = {
+	{ .compatible = "ti,omap2-nand", },
+	{},
+};
+
 static struct platform_driver omap_nand_driver = {
 	.probe		= omap_nand_probe,
 	.remove		= omap_nand_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.of_match_table = of_match_ptr(omap_nand_ids),
 	},
 };
 
