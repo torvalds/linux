@@ -277,6 +277,7 @@
 		reg = <0x2e30>;
 		ti,index-starts-at-one;
 		ti,invert-autoidle-bit;
+		ti,set-rate-parent;
 	};
 
 	dpll_per_ck: dpll_per_ck {
@@ -559,6 +560,7 @@
 		compatible = "ti,mux-clock";
 		clocks = <&dpll_disp_m2_ck>, <&dpll_core_m5_ck>, <&dpll_per_m2_ck>;
 		reg = <0x4244>;
+		ti,set-rate-parent;
 	};
 
 	dpll_extdev_ck: dpll_extdev_ck {
