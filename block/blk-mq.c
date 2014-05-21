@@ -597,8 +597,16 @@ static void blk_mq_rq_timer(unsigned long data)
 	unsigned long next = 0;
 	int i, next_set = 0;
 
-	queue_for_each_hw_ctx(q, hctx, i)
+	queue_for_each_hw_ctx(q, hctx, i) {
+		/*
+		 * If not software queues are currently mapped to this
+		 * hardware queue, there's nothing to check
+		 */
+		if (!hctx->nr_ctx || !hctx->tags)
+			continue;
+
 		blk_mq_hw_ctx_check_timeout(hctx, &next, &next_set);
+	}
 
 	if (next_set) {
 		next = blk_rq_timeout(round_jiffies_up(next));
@@ -1196,53 +1204,6 @@ void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *hctx,
 }
 EXPORT_SYMBOL(blk_mq_free_single_hw_queue);
 
-static int blk_mq_hctx_notify(void *data, unsigned long action,
-			      unsigned int cpu)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-	struct request_queue *q = hctx->queue;
-	struct blk_mq_ctx *ctx;
-	LIST_HEAD(tmp);
-
-	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
-		return NOTIFY_OK;
-
-	/*
-	 * Move ctx entries to new CPU, if this one is going away.
-	 */
-	ctx = __blk_mq_get_ctx(q, cpu);
-
-	spin_lock(&ctx->lock);
-	if (!list_empty(&ctx->rq_list)) {
-		list_splice_init(&ctx->rq_list, &tmp);
-		blk_mq_hctx_clear_pending(hctx, ctx);
-	}
-	spin_unlock(&ctx->lock);
-
-	if (list_empty(&tmp))
-		return NOTIFY_OK;
-
-	ctx = blk_mq_get_ctx(q);
-	spin_lock(&ctx->lock);
-
-	while (!list_empty(&tmp)) {
-		struct request *rq;
-
-		rq = list_first_entry(&tmp, struct request, queuelist);
-		rq->mq_ctx = ctx;
-		list_move_tail(&rq->queuelist, &ctx->rq_list);
-	}
-
-	hctx = q->mq_ops->map_queue(q, ctx->cpu);
-	blk_mq_hctx_mark_pending(hctx, ctx);
-
-	spin_unlock(&ctx->lock);
-
-	blk_mq_run_hw_queue(hctx, true);
-	blk_mq_put_ctx(ctx);
-	return NOTIFY_OK;
-}
-
 static void blk_mq_free_rq_map(struct blk_mq_tag_set *set,
 		struct blk_mq_tags *tags, unsigned int hctx_idx)
 {
@@ -1384,6 +1345,77 @@ static int blk_mq_alloc_bitmap(struct blk_mq_ctxmap *bitmap, int node)
 	return 0;
 }
 
+static int blk_mq_hctx_cpu_offline(struct blk_mq_hw_ctx *hctx, int cpu)
+{
+	struct request_queue *q = hctx->queue;
+	struct blk_mq_ctx *ctx;
+	LIST_HEAD(tmp);
+
+	/*
+	 * Move ctx entries to new CPU, if this one is going away.
+	 */
+	ctx = __blk_mq_get_ctx(q, cpu);
+
+	spin_lock(&ctx->lock);
+	if (!list_empty(&ctx->rq_list)) {
+		list_splice_init(&ctx->rq_list, &tmp);
+		blk_mq_hctx_clear_pending(hctx, ctx);
+	}
+	spin_unlock(&ctx->lock);
+
+	if (list_empty(&tmp))
+		return NOTIFY_OK;
+
+	ctx = blk_mq_get_ctx(q);
+	spin_lock(&ctx->lock);
+
+	while (!list_empty(&tmp)) {
+		struct request *rq;
+
+		rq = list_first_entry(&tmp, struct request, queuelist);
+		rq->mq_ctx = ctx;
+		list_move_tail(&rq->queuelist, &ctx->rq_list);
+	}
+
+	hctx = q->mq_ops->map_queue(q, ctx->cpu);
+	blk_mq_hctx_mark_pending(hctx, ctx);
+
+	spin_unlock(&ctx->lock);
+
+	blk_mq_run_hw_queue(hctx, true);
+	blk_mq_put_ctx(ctx);
+	return NOTIFY_OK;
+}
+
+static int blk_mq_hctx_cpu_online(struct blk_mq_hw_ctx *hctx, int cpu)
+{
+	struct request_queue *q = hctx->queue;
+	struct blk_mq_tag_set *set = q->tag_set;
+
+	if (set->tags[hctx->queue_num])
+		return NOTIFY_OK;
+
+	set->tags[hctx->queue_num] = blk_mq_init_rq_map(set, hctx->queue_num);
+	if (!set->tags[hctx->queue_num])
+		return NOTIFY_STOP;
+
+	hctx->tags = set->tags[hctx->queue_num];
+	return NOTIFY_OK;
+}
+
+static int blk_mq_hctx_notify(void *data, unsigned long action,
+			      unsigned int cpu)
+{
+	struct blk_mq_hw_ctx *hctx = data;
+
+	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN)
+		return blk_mq_hctx_cpu_offline(hctx, cpu);
+	else if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN)
+		return blk_mq_hctx_cpu_online(hctx, cpu);
+
+	return NOTIFY_OK;
+}
+
 static int blk_mq_init_hw_queues(struct request_queue *q,
 		struct blk_mq_tag_set *set)
 {
@@ -1513,6 +1545,24 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	}
 
 	queue_for_each_hw_ctx(q, hctx, i) {
+		/*
+		 * If not software queues are mapped to this hardware queue,
+		 * disable it and free the request entries
+		 */
+		if (!hctx->nr_ctx) {
+			struct blk_mq_tag_set *set = q->tag_set;
+
+			if (set->tags[i]) {
+				blk_mq_free_rq_map(set, set->tags[i], i);
+				set->tags[i] = NULL;
+				hctx->tags = NULL;
+			}
+			continue;
+		}
+
+		/*
+		 * Initialize batch roundrobin counts
+		 */
 		hctx->next_cpu = cpumask_first(hctx->cpumask);
 		hctx->next_cpu_batch = BLK_MQ_CPU_WORK_BATCH;
 	}
@@ -1645,13 +1695,13 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	if (blk_mq_init_hw_queues(q, set))
 		goto err_flush_rq;
 
-	blk_mq_map_swqueue(q);
-
 	mutex_lock(&all_q_mutex);
 	list_add_tail(&q->all_q_node, &all_q_list);
 	mutex_unlock(&all_q_mutex);
 
 	blk_mq_add_queue_tag_set(set, q);
+
+	blk_mq_map_swqueue(q);
 
 	return q;
 
@@ -1790,8 +1840,11 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 {
 	int i;
 
-	for (i = 0; i < set->nr_hw_queues; i++)
-		blk_mq_free_rq_map(set, set->tags[i], i);
+	for (i = 0; i < set->nr_hw_queues; i++) {
+		if (set->tags[i])
+			blk_mq_free_rq_map(set, set->tags[i], i);
+	}
+
 	kfree(set->tags);
 }
 EXPORT_SYMBOL(blk_mq_free_tag_set);
