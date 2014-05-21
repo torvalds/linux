@@ -53,9 +53,7 @@ EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__divsi3);
 EXPORT_SYMBOL(__lshrdi3);
 EXPORT_SYMBOL(__modsi3);
-EXPORT_SYMBOL(__muldi3);
 EXPORT_SYMBOL(__ucmpdi2);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
-EXPORT_SYMBOL(__bswapsi2);
 
