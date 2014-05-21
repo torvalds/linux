@@ -995,7 +995,7 @@ static void rlb_clear_vlan(struct bonding *bond, unsigned short vlan_id)
 /*********************** tlb/rlb shared functions *********************/
 
 static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
-			    u16 vid)
+			    __be16 vlan_proto, u16 vid)
 {
 	struct learning_pkt pkt;
 	struct sk_buff *skb;
@@ -1021,7 +1021,7 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 	skb->dev = slave->dev;
 
 	if (vid) {
-		skb = vlan_put_tag(skb, htons(ETH_P_8021Q), vid);
+		skb = vlan_put_tag(skb, vlan_proto, vid);
 		if (!skb) {
 			pr_err("%s: Error: failed to insert VLAN tag\n",
 			       slave->bond->dev->name);
@@ -1040,13 +1040,14 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 	struct list_head *iter;
 
 	/* send untagged */
-	alb_send_lp_vid(slave, mac_addr, 0);
+	alb_send_lp_vid(slave, mac_addr, 0, 0);
 
 	/* loop through vlans and send one packet for each */
 	rcu_read_lock();
 	netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
 		if (is_vlan_dev(upper) && vlan_get_encap_level(upper) == 0)
 			alb_send_lp_vid(slave, mac_addr,
+					vlan_dev_vlan_proto(upper),
 					vlan_dev_vlan_id(upper));
 	}
 	rcu_read_unlock();
