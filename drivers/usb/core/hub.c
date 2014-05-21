@@ -1276,12 +1276,22 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 		flush_work(&hub->tt.clear_work);
 }
 
+static void hub_pm_barrier_for_all_ports(struct usb_hub *hub)
+{
+	int i;
+
+	for (i = 0; i < hub->hdev->maxchild; ++i)
+		pm_runtime_barrier(&hub->ports[i]->dev);
+}
+
 /* caller has locked the hub device */
 static int hub_pre_reset(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
 	hub_quiesce(hub, HUB_PRE_RESET);
+	hub->in_reset = 1;
+	hub_pm_barrier_for_all_ports(hub);
 	return 0;
 }
 
@@ -1290,6 +1300,8 @@ static int hub_post_reset(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
+	hub->in_reset = 0;
+	hub_pm_barrier_for_all_ports(hub);
 	hub_activate(hub, HUB_POST_RESET);
 	return 0;
 }

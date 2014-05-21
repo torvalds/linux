@@ -81,6 +81,10 @@ static int usb_port_runtime_resume(struct device *dev)
 
 	if (!hub)
 		return -EINVAL;
+	if (hub->in_reset) {
+		port_dev->power_is_on = 1;
+		return 0;
+	}
 
 	usb_autopm_get_interface(intf);
 	set_bit(port1, hub->busy_bits);
@@ -117,6 +121,8 @@ static int usb_port_runtime_suspend(struct device *dev)
 
 	if (!hub)
 		return -EINVAL;
+	if (hub->in_reset)
+		return -EBUSY;
 
 	if (dev_pm_qos_flags(&port_dev->dev, PM_QOS_FLAG_NO_POWER_OFF)
 			== PM_QOS_FLAGS_ALL)

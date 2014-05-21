@@ -66,6 +66,7 @@ struct usb_hub {
 	unsigned		limited_power:1;
 	unsigned		quiescing:1;
 	unsigned		disconnected:1;
+	unsigned		in_reset:1;
 
 	unsigned		quirk_check_port_auto_suspend:1;
 
