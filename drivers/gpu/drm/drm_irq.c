@@ -887,7 +887,8 @@ static int drm_vblank_enable(struct drm_device *dev, int crtc)
 	spin_lock(&dev->vblank_time_lock);
 
 	if (!dev->vblank[crtc].enabled) {
-		/* Enable vblank irqs under vblank_time_lock protection.
+		/*
+		 * Enable vblank irqs under vblank_time_lock protection.
 		 * All vblank count & timestamp updates are held off
 		 * until we are done reinitializing master counter and
 		 * timestamps. Filtercode in drm_handle_vblank() will
