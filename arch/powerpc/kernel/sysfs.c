@@ -404,7 +404,7 @@ void ppc_enable_pmcs(void)
 }
 EXPORT_SYMBOL(ppc_enable_pmcs);
 
-#define __SYSFS_SPRSETUP(NAME, ADDRESS, EXTRA) \
+#define __SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, EXTRA) \
 static void read_##NAME(void *val) \
 { \
 	*(unsigned long *)val = mfspr(ADDRESS);	\
@@ -413,7 +413,9 @@ static void write_##NAME(void *val) \
 { \
 	EXTRA; \
 	mtspr(ADDRESS, *(unsigned long *)val);	\
-} \
+}
+
+#define __SYSFS_SPRSETUP_SHOW_STORE(NAME) \
 static ssize_t show_##NAME(struct device *dev, \
 			struct device_attribute *attr, \
 			char *buf) \
@@ -436,10 +438,15 @@ static ssize_t __used \
 	return count; \
 }
 
-#define SYSFS_PMCSETUP(NAME, ADDRESS)	\
-	__SYSFS_SPRSETUP(NAME, ADDRESS, ppc_enable_pmcs())
-#define SYSFS_SPRSETUP(NAME, ADDRESS)	\
-	__SYSFS_SPRSETUP(NAME, ADDRESS, )
+#define SYSFS_PMCSETUP(NAME, ADDRESS) \
+	__SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, ppc_enable_pmcs()) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
+#define SYSFS_SPRSETUP(NAME, ADDRESS) \
+	__SYSFS_SPRSETUP_READ_WRITE(NAME, ADDRESS, ) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
+
+#define SYSFS_SPRSETUP_SHOW_STORE(NAME) \
+	__SYSFS_SPRSETUP_SHOW_STORE(NAME)
 
 /* Let's define all possible registers, we'll only hook up the ones
  * that are implemented on the current processor
