@@ -147,6 +147,18 @@ void mcfgpio_free(struct gpio_chip *chip, unsigned offset)
 	__mcfgpio_free(offset);
 }
 
+int mcfgpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+#if defined(MCFGPIO_IRQ_MIN)
+	if ((offset >= MCFGPIO_IRQ_MIN) && (offset < MCFGPIO_IRQ_MAX))
+#else
+	if (offset < MCFGPIO_IRQ_MAX)
+#endif
+		return MCFGPIO_IRQ_VECBASE + offset;
+	else
+		return -EINVAL;
+}
+
 struct bus_type mcfgpio_subsys = {
 	.name		= "gpio",
 	.dev_name	= "gpio",
@@ -160,6 +172,7 @@ static struct gpio_chip mcfgpio_chip = {
 	.direction_output	= mcfgpio_direction_output,
 	.get			= mcfgpio_get_value,
 	.set			= mcfgpio_set_value,
+	.to_irq			= mcfgpio_to_irq,
 	.base			= 0,
 	.ngpio			= MCFGPIO_PIN_MAX,
 };
