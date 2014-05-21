@@ -18,6 +18,7 @@
 #include <drv_types.h>
 #include <osdep_intf.h>
 #include <rtl8723a_cmd.h>
+#include <rtw_sreset.h>
 
 #ifdef CONFIG_8723AU_BT_COEXIST
 #include <rtl8723a_hal.h>

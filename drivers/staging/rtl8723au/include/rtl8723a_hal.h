@@ -29,8 +29,10 @@
 #include "rtl8723a_cmd.h"
 #include "rtl8723a_sreset.h"
 #include "rtw_efuse.h"
+#include "rtw_eeprom.h"
 
 #include "odm_precomp.h"
+#include "odm.h"
 
 
 /* 2TODO: We should define 8192S firmware related macro settings here!! */

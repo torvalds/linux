@@ -22,10 +22,7 @@
 #include <mlme_osdep.h>
 #include <recv_osdep.h>
 #include <linux/ieee80211.h>
-
-#ifdef CONFIG_8723AU_BT_COEXIST
 #include <rtl8723a_hal.h>
-#endif
 
 static int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);

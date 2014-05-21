@@ -24,7 +24,6 @@ r8723au-y :=				\
 		hal/HalHWImg8723A_RF.o	\
 		hal/HalPwrSeqCmd.o	\
 		hal/odm_RegConfig8723A.o \
-		hal/rtl8723a_bt-coexist.o \
 		hal/odm_debug.o		\
 		hal/odm_interface.o	\
 		hal/odm_HWConfig.o	\
@@ -49,6 +48,8 @@ r8723au-y :=				\
 		os_dep/usb_intf.o	\
 		os_dep/usb_ops_linux.o	\
 		os_dep/xmit_linux.o
+
+r8723au-$(CONFIG_8723AU_BT_COEXIST) += hal/rtl8723a_bt-coexist.o
 
 obj-$(CONFIG_R8723AU)	:= r8723au.o
 
