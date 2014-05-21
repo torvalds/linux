@@ -50,7 +50,8 @@ find_arch_sources()
 	for i in $archincludedir; do
 		prune="$prune -wholename $i -prune -o"
 	done
-	find ${tree}arch/$1 $ignore $subarchprune $prune -name "$2" -print;
+	find ${tree}arch/$1 $ignore $subarchprune $prune -name "$2" \
+		-not -type l -print;
 }
 
 # find sources in arch/$1/include
@@ -60,14 +61,15 @@ find_arch_include_sources()
 					-name include -type d -print);
 	if [ -n "$include" ]; then
 		archincludedir="$archincludedir $include"
-		find $include $ignore -name "$2" -print;
+		find $include $ignore -name "$2" -not -type l -print;
 	fi
 }
 
 # find sources in include/
 find_include_sources()
 {
-	find ${tree}include $ignore -name config -prune -o -name "$1" -print;
+	find ${tree}include $ignore -name config -prune -o -name "$1" \
+		-not -type l -print;
 }
 
 # find sources in rest of tree
@@ -76,7 +78,7 @@ find_other_sources()
 {
 	find ${tree}* $ignore \
 	     \( -name include -o -name arch -o -name '.tmp_*' \) -prune -o \
-	       -name "$1" -print;
+	       -name "$1" -not -type l -print;
 }
 
 find_sources()
