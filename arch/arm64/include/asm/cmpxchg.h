@@ -34,7 +34,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		"	cbnz	%w1, 1b\n"
 			: "=&r" (ret), "=&r" (tmp), "+Q" (*(u8 *)ptr)
 			: "r" (x)
-			: "cc", "memory");
+			: "memory");
 		break;
 	case 2:
 		asm volatile("//	__xchg2\n"
@@ -43,7 +43,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		"	cbnz	%w1, 1b\n"
 			: "=&r" (ret), "=&r" (tmp), "+Q" (*(u16 *)ptr)
 			: "r" (x)
-			: "cc", "memory");
+			: "memory");
 		break;
 	case 4:
 		asm volatile("//	__xchg4\n"
@@ -52,7 +52,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		"	cbnz	%w1, 1b\n"
 			: "=&r" (ret), "=&r" (tmp), "+Q" (*(u32 *)ptr)
 			: "r" (x)
-			: "cc", "memory");
+			: "memory");
 		break;
 	case 8:
 		asm volatile("//	__xchg8\n"
@@ -61,7 +61,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		"	cbnz	%w1, 1b\n"
 			: "=&r" (ret), "=&r" (tmp), "+Q" (*(u64 *)ptr)
 			: "r" (x)
-			: "cc", "memory");
+			: "memory");
 		break;
 	default:
 		BUILD_BUG();
