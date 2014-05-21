@@ -270,7 +270,7 @@ config SND_SOC_AK5386
 	tristate "AKM AK5638 CODEC"
 
 config SND_SOC_ALC5623
-       tristate
+       tristate "Realtek ALC5623 CODEC"
 
 config SND_SOC_ALC5632
 	tristate
