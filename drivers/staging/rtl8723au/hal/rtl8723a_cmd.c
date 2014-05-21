@@ -306,7 +306,8 @@ _ConstructBeacon:
 
 }
 
-static void ConstructPSPoll(struct rtw_adapter *padapter, u8 *pframe, u32 *pLength)
+static void ConstructPSPoll(struct rtw_adapter *padapter,
+			    u8 *pframe, u32 *pLength)
 {
 	struct ieee80211_hdr *pwlanhdr;
 	__le16 *fctrl;
@@ -322,7 +323,7 @@ static void ConstructPSPoll(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 	SetFrameSubType(pframe, WIFI_PSPOLL);
 
 	/*  AID. */
-	SetDuration(pframe, (pmlmeinfo->aid | 0xc000));
+	pwlanhdr->duration_id = cpu_to_le16(pmlmeinfo->aid | 0xc000);
 
 	/*  BSSID. */
 	memcpy(pwlanhdr->addr1, get_my_bssid23a(&pmlmeinfo->network), ETH_ALEN);
