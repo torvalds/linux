@@ -39,7 +39,7 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
  */
 struct blk_mq_cpu_notifier;
 void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
-			      void (*fn)(void *, unsigned long, unsigned int),
+			      int (*fn)(void *, unsigned long, unsigned int),
 			      void *data);
 void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
 void blk_mq_unregister_cpu_notifier(struct blk_mq_cpu_notifier *notifier);

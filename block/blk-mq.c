@@ -1196,8 +1196,8 @@ void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *hctx,
 }
 EXPORT_SYMBOL(blk_mq_free_single_hw_queue);
 
-static void blk_mq_hctx_notify(void *data, unsigned long action,
-			       unsigned int cpu)
+static int blk_mq_hctx_notify(void *data, unsigned long action,
+			      unsigned int cpu)
 {
 	struct blk_mq_hw_ctx *hctx = data;
 	struct request_queue *q = hctx->queue;
@@ -1205,7 +1205,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	LIST_HEAD(tmp);
 
 	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
-		return;
+		return NOTIFY_OK;
 
 	/*
 	 * Move ctx entries to new CPU, if this one is going away.
@@ -1220,7 +1220,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	spin_unlock(&ctx->lock);
 
 	if (list_empty(&tmp))
-		return;
+		return NOTIFY_OK;
 
 	ctx = blk_mq_get_ctx(q);
 	spin_lock(&ctx->lock);
@@ -1240,6 +1240,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 
 	blk_mq_run_hw_queue(hctx, true);
 	blk_mq_put_ctx(ctx);
+	return NOTIFY_OK;
 }
 
 static void blk_mq_free_rq_map(struct blk_mq_tag_set *set,
