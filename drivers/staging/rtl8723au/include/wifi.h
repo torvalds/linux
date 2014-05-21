@@ -66,21 +66,6 @@ enum WIFI_FRAME_SUBTYPE {
 };
 
 
-enum WIFI_REG_DOMAIN {
-	DOMAIN_FCC		= 1,
-	DOMAIN_IC		= 2,
-	DOMAIN_ETSI		= 3,
-	DOMAIN_SPAIN		= 4,
-	DOMAIN_FRANCE		= 5,
-	DOMAIN_MKK		= 6,
-	DOMAIN_ISRAEL		= 7,
-	DOMAIN_MKK1		= 8,
-	DOMAIN_MKK2		= 9,
-	DOMAIN_MKK3		= 10,
-	DOMAIN_MAX
-};
-
-
 #define SetToDs(pbuf)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_TODS))
 
