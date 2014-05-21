@@ -204,7 +204,6 @@ void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode)
 static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLength)
 {
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	u32 rate_len, pktlen;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -216,15 +215,15 @@ static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
-	*(fctrl) = 0;
+	pwlanhdr->frame_control = 0;
 
 	memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
 	memcpy(pwlanhdr->addr2, myid(&padapter->eeprompriv), ETH_ALEN);
 	memcpy(pwlanhdr->addr3, get_my_bssid23a(cur_network), ETH_ALEN);
 
-	SetSeqNum(pwlanhdr, 0/*pmlmeext->mgnt_seq*/);
-	/* pmlmeext->mgnt_seq++; */
+	/* A Beacon frame shouldn't have fragment bits set */
+	pwlanhdr->seq_ctrl = 0;
+
 	SetFrameSubType(pframe, WIFI_BEACON);
 
 	pframe += sizeof(struct ieee80211_hdr_3addr);
@@ -334,28 +333,26 @@ static void ConstructPSPoll(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 	*pLength = 16;
 }
 
-static void ConstructNullFunctionData(
-	struct rtw_adapter *padapter,
-	u8 *pframe,
-	u32 *pLength,
-	u8 *StaAddr,
-	u8 bQoS,
-	u8 AC,
-	u8 bEosp,
-	u8 bForcePowerSave)
+static void
+ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
+			  u32 *pLength, u8 *StaAddr, u8 bQoS, u8 AC,
+			  u8 bEosp, u8 bForcePowerSave)
 {
 	struct ieee80211_hdr *pwlanhdr;
 	__le16 *fctrl;
 	u32 pktlen;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct wlan_network		*cur_network = &pmlmepriv->cur_network;
+	struct wlan_network *cur_network = &pmlmepriv->cur_network;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
+	pwlanhdr->frame_control = 0;
+	pwlanhdr->seq_ctrl = 0;
+
 	fctrl = &pwlanhdr->frame_control;
-	*(fctrl) = 0;
+
 	if (bForcePowerSave)
 		SetPwrMgt(fctrl);
 
@@ -387,8 +384,6 @@ static void ConstructNullFunctionData(
 		break;
 	}
 
-	SetSeqNum(pwlanhdr, 0);
-
 	if (bQoS == true) {
 		struct ieee80211_qos_hdr *pwlanqoshdr;
 
@@ -408,10 +403,10 @@ static void ConstructNullFunctionData(
 	*pLength = pktlen;
 }
 
-static void ConstructProbeRsp(struct rtw_adapter *padapter, u8 *pframe, u32 *pLength, u8 *StaAddr, bool bHideSSID)
+static void ConstructProbeRsp(struct rtw_adapter *padapter, u8 *pframe,
+			      u32 *pLength, u8 *StaAddr, bool bHideSSID)
 {
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	u8 *mac, *bssid;
 	u32 pktlen;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -425,14 +420,14 @@ static void ConstructProbeRsp(struct rtw_adapter *padapter, u8 *pframe, u32 *pLe
 	mac = myid(&padapter->eeprompriv);
 	bssid = cur_network->MacAddress;
 
-	fctrl = &pwlanhdr->frame_control;
-	*(fctrl) = 0;
+	pwlanhdr->frame_control = 0;
+	pwlanhdr->seq_ctrl = 0;
+
 	memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
 	memcpy(pwlanhdr->addr2, mac, ETH_ALEN);
 	memcpy(pwlanhdr->addr3, bssid, ETH_ALEN);
 
-	SetSeqNum(pwlanhdr, 0);
-	SetFrameSubType(fctrl, WIFI_PROBERSP);
+	SetFrameSubType(&pwlanhdr->frame_control, WIFI_PROBERSP);
 
 	pktlen = sizeof(struct ieee80211_hdr_3addr);
 	pframe += pktlen;
@@ -521,13 +516,13 @@ static void SetFwRsvdPagePkt(struct rtw_adapter *padapter, bool bDLFinished)
 
 	/* 3 (3) null data */
 	RsvdPageLoc.LocNullData = PageNum;
-	ConstructNullFunctionData(
-		padapter,
-		&ReservedPagePacket[BufIndex],
-		&NullDataLength,
-		get_my_bssid23a(&pmlmeinfo->network),
-		false, 0, 0, false);
-	rtl8723a_fill_fake_txdesc(padapter, &ReservedPagePacket[BufIndex-TxDescLen], NullDataLength, false, false);
+	ConstructNullFunctionData(padapter, &ReservedPagePacket[BufIndex],
+				  &NullDataLength,
+				  get_my_bssid23a(&pmlmeinfo->network),
+				  false, 0, 0, false);
+	rtl8723a_fill_fake_txdesc(padapter,
+				  &ReservedPagePacket[BufIndex-TxDescLen],
+				  NullDataLength, false, false);
 
 	PageNeed = (u8)PageNum_128(TxDescLen + NullDataLength);
 	PageNum += PageNeed;
