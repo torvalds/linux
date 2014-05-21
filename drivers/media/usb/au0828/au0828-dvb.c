@@ -114,16 +114,20 @@ static void urb_completion(struct urb *purb)
 	int ptype = usb_pipetype(purb->pipe);
 	unsigned char *ptr;
 
-	dprintk(2, "%s()\n", __func__);
+	dprintk(2, "%s: %d\n", __func__, purb->actual_length);
 
-	if (!dev)
+	if (!dev) {
+		dprintk(2, "%s: no dev!\n", __func__);
 		return;
+	}
 
-	if (dev->urb_streaming == 0)
+	if (dev->urb_streaming == 0) {
+		dprintk(2, "%s: not streaming!\n", __func__);
 		return;
+	}
 
 	if (ptype != PIPE_BULK) {
-		printk(KERN_ERR "%s() Unsupported URB type %d\n",
+		printk(KERN_ERR "%s: Unsupported URB type %d\n",
 		       __func__, ptype);
 		return;
 	}
