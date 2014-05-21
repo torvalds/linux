@@ -1545,7 +1545,7 @@ asmlinkage void cache_parity_error(void)
 	       reg_val & (1<<30) ? "secondary" : "primary",
 	       reg_val & (1<<31) ? "data" : "insn");
 	if (cpu_has_mips_r2 &&
-	    ((current_cpu_data.processor_id && 0xff0000) == PRID_COMP_MIPS)) {
+	    ((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_MIPS)) {
 		pr_err("Error bits: %s%s%s%s%s%s%s%s\n",
 			reg_val & (1<<29) ? "ED " : "",
 			reg_val & (1<<28) ? "ET " : "",
@@ -1585,7 +1585,7 @@ asmlinkage void do_ftlb(void)
 
 	/* For the moment, report the problem and hang. */
 	if (cpu_has_mips_r2 &&
-	    ((current_cpu_data.processor_id && 0xff0000) == PRID_COMP_MIPS)) {
+	    ((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_MIPS)) {
 		pr_err("FTLB error exception, cp0_ecc=0x%08x:\n",
 		       read_c0_ecc());
 		pr_err("cp0_errorepc == %0*lx\n", field, read_c0_errorepc());
