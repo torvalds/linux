@@ -65,7 +65,7 @@ config CAN_LEDS
 
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
-	depends on ARM
+	depends on ARCH_AT91 || COMPILE_TEST
 	---help---
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
@@ -104,7 +104,7 @@ config CAN_FLEXCAN
 
 config PCH_CAN
 	tristate "Intel EG20T PCH CAN controller"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	---help---
 	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
 	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
@@ -118,6 +118,16 @@ config CAN_GRCAN
 	  Note that the driver supports little endian, even though little
 	  endian syntheses of the cores would need some modifications on
 	  the hardware level to work.
+
+config CAN_RCAR
+	tristate "Renesas R-Car CAN controller"
+	depends on ARM
+	---help---
+	  Say Y here if you want to use CAN controller found on Renesas R-Car
+	  SoCs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called rcar_can.
 
 source "drivers/net/can/mscan/Kconfig"
 
