@@ -824,7 +824,7 @@ static SOC_VALUE_ENUM_SINGLE_DECL(rt5640_dac_l2_enum,
 				  0x3, rt5640_dac_l2_src, rt5640_dac_l2_values);
 
 static const struct snd_kcontrol_new rt5640_dac_l2_mux =
-	SOC_DAPM_VALUE_ENUM("DAC2 left channel source", rt5640_dac_l2_enum);
+	SOC_DAPM_ENUM("DAC2 left channel source", rt5640_dac_l2_enum);
 
 static const char * const rt5640_dac_r2_src[] = {
 	"IF2",
@@ -859,7 +859,7 @@ static SOC_VALUE_ENUM_SINGLE_DECL(rt5640_dai_iis_map_enum,
 				  rt5640_dai_iis_map_values);
 
 static const struct snd_kcontrol_new rt5640_dai_mux =
-	SOC_DAPM_VALUE_ENUM("DAI select", rt5640_dai_iis_map_enum);
+	SOC_DAPM_ENUM("DAI select", rt5640_dai_iis_map_enum);
 
 /* SDI select */
 static const char * const rt5640_sdi_sel[] = {
