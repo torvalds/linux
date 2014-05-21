@@ -6228,6 +6228,16 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	for (i = 0; i < v_budget; i++)
 		pf->msix_entries[i].entry = i;
 	vec = i40e_reserve_msix_vectors(pf, v_budget);
+
+	if (vec != v_budget) {
+		/* If we have limited resources, we will start with no vectors
+		 * for the special features and then allocate vectors to some
+		 * of these features based on the policy and at the end disable
+		 * the features that did not get any vectors.
+		 */
+		pf->num_vmdq_msix = 0;
+	}
+
 	if (vec < I40E_MIN_MSIX) {
 		pf->flags &= ~I40E_FLAG_MSIX_ENABLED;
 		kfree(pf->msix_entries);
@@ -6236,27 +6246,25 @@ static int i40e_init_msix(struct i40e_pf *pf)
 
 	} else if (vec == I40E_MIN_MSIX) {
 		/* Adjust for minimal MSIX use */
-		dev_info(&pf->pdev->dev, "Features disabled, not enough MSI-X vectors\n");
-		pf->flags &= ~I40E_FLAG_VMDQ_ENABLED;
 		pf->num_vmdq_vsis = 0;
 		pf->num_vmdq_qps = 0;
-		pf->num_vmdq_msix = 0;
 		pf->num_lan_qps = 1;
 		pf->num_lan_msix = 1;
 
 	} else if (vec != v_budget) {
+		/* reserve the misc vector */
+		vec--;
+
 		/* Scale vector usage down */
 		pf->num_vmdq_msix = 1;    /* force VMDqs to only one vector */
-		vec--;                    /* reserve the misc vector */
+		pf->num_vmdq_vsis = 1;
 
 		/* partition out the remaining vectors */
 		switch (vec) {
 		case 2:
-			pf->num_vmdq_vsis = 1;
 			pf->num_lan_msix = 1;
 			break;
 		case 3:
-			pf->num_vmdq_vsis = 1;
 			pf->num_lan_msix = 2;
 			break;
 		default:
@@ -6268,6 +6276,11 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		}
 	}
 
+	if ((pf->flags & I40E_FLAG_VMDQ_ENABLED) &&
+	    (pf->num_vmdq_msix == 0)) {
+		dev_info(&pf->pdev->dev, "VMDq disabled, not enough MSI-X vectors\n");
+		pf->flags &= ~I40E_FLAG_VMDQ_ENABLED;
+	}
 	return err;
 }
 
