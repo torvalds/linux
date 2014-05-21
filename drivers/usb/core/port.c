@@ -177,12 +177,15 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 
 	pm_runtime_set_active(&port_dev->dev);
 
-	/* It would be dangerous if user space couldn't
-	 * prevent usb device from being powered off. So don't
-	 * enable port runtime pm if failed to expose port's pm qos.
+	/*
+	 * Do not enable port runtime pm if the hub does not support
+	 * power switching.  Also, userspace must have final say of
+	 * whether a port is permitted to power-off.  Do not enable
+	 * runtime pm if we fail to expose pm_qos_no_power_off.
 	 */
-	if (!dev_pm_qos_expose_flags(&port_dev->dev,
-			PM_QOS_FLAG_NO_POWER_OFF))
+	if (hub_is_port_power_switchable(hub)
+			&& dev_pm_qos_expose_flags(&port_dev->dev,
+			PM_QOS_FLAG_NO_POWER_OFF) == 0)
 		pm_runtime_enable(&port_dev->dev);
 
 	device_enable_async_suspend(&port_dev->dev);

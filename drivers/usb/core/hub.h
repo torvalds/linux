@@ -112,6 +112,16 @@ extern int hub_port_debounce(struct usb_hub *hub, int port1,
 extern int usb_clear_port_feature(struct usb_device *hdev,
 		int port1, int feature);
 
+static inline bool hub_is_port_power_switchable(struct usb_hub *hub)
+{
+	__le16 hcs;
+
+	if (!hub)
+		return false;
+	hcs = hub->descriptor->wHubCharacteristics;
+	return (le16_to_cpu(hcs) & HUB_CHAR_LPSM) < HUB_CHAR_NO_LPSM;
+}
+
 static inline int hub_port_debounce_be_connected(struct usb_hub *hub,
 		int port1)
 {

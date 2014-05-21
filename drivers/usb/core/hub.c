@@ -818,8 +818,6 @@ static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
 	int port1;
 	unsigned pgood_delay = hub->descriptor->bPwrOn2PwrGood * 2;
 	unsigned delay;
-	u16 wHubCharacteristics =
-			le16_to_cpu(hub->descriptor->wHubCharacteristics);
 
 	/* Enable power on each port.  Some hubs have reserved values
 	 * of LPSM (> 2) in their descriptors, even though they are
@@ -827,7 +825,7 @@ static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
 	 * but only emulate it.  In all cases, the ports won't work
 	 * unless we send these messages to the hub.
 	 */
-	if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2)
+	if (hub_is_port_power_switchable(hub))
 		dev_dbg(hub->intfdev, "enabling power on all ports\n");
 	else
 		dev_dbg(hub->intfdev, "trying to enable port power on "
@@ -4417,8 +4415,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 	struct usb_device *hdev = hub->hdev;
 	struct device *hub_dev = hub->intfdev;
 	struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
-	unsigned wHubCharacteristics =
-			le16_to_cpu(hub->descriptor->wHubCharacteristics);
 	struct usb_device *udev;
 	int status, i;
 	unsigned unit_load;
@@ -4503,7 +4499,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			test_bit(port1, hub->removed_bits)) {
 
 		/* maybe switch power back on (e.g. root hub was reset) */
-		if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2
+		if (hub_is_port_power_switchable(hub)
 				&& !port_is_power_on(hub, portstatus))
 			set_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
 
