@@ -25,7 +25,7 @@ static void afs_wake_up_call_waiter(struct afs_call *);
 static int afs_wait_for_call_to_complete(struct afs_call *);
 static void afs_wake_up_async_call(struct afs_call *);
 static int afs_dont_wait_for_call_to_complete(struct afs_call *);
-static void afs_process_async_call(struct work_struct *);
+static void afs_process_async_call(struct afs_call *);
 static void afs_rx_interceptor(struct sock *, unsigned long, struct sk_buff *);
 static int afs_deliver_cm_op_id(struct afs_call *, struct sk_buff *, bool);
 
@@ -62,7 +62,7 @@ static void afs_async_workfn(struct work_struct *work)
 {
 	struct afs_call *call = container_of(work, struct afs_call, async_work);
 
-	call->async_workfn(work);
+	call->async_workfn(call);
 }
 
 /*
@@ -623,11 +623,8 @@ static int afs_dont_wait_for_call_to_complete(struct afs_call *call)
 /*
  * delete an asynchronous call
  */
-static void afs_delete_async_call(struct work_struct *work)
+static void afs_delete_async_call(struct afs_call *call)
 {
-	struct afs_call *call =
-		container_of(work, struct afs_call, async_work);
-
 	_enter("");
 
 	afs_free_call(call);
@@ -640,11 +637,8 @@ static void afs_delete_async_call(struct work_struct *work)
  * - on a multiple-thread workqueue this work item may try to run on several
  *   CPUs at the same time
  */
-static void afs_process_async_call(struct work_struct *work)
+static void afs_process_async_call(struct afs_call *call)
 {
-	struct afs_call *call =
-		container_of(work, struct afs_call, async_work);
-
 	_enter("");
 
 	if (!skb_queue_empty(&call->rx_queue))
