@@ -818,6 +818,13 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (ret < 0)
 			return ret;
 	}
+
+	if (rtd->dai_link->ops && rtd->dai_link->ops->trigger) {
+		ret = rtd->dai_link->ops->trigger(substream, cmd);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 
