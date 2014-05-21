@@ -866,7 +866,6 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	u8 qos_option = false;
 	int res = _SUCCESS;
-	__le16 *fctrl = &pwlanhdr->frame_control;
 
 	struct sta_info *psta;
 
@@ -901,7 +900,8 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 		if ((check_fwstate(pmlmepriv,  WIFI_STATION_STATE) == true)) {
 			/* to_ds = 1, fr_ds = 0; */
 			/* Data transfer to AP */
-			SetToDs(fctrl);
+			pwlanhdr->frame_control |=
+				cpu_to_le16(IEEE80211_FCTL_TODS);
 			memcpy(pwlanhdr->addr1, get_bssid(pmlmepriv), ETH_ALEN);
 			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 			memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
@@ -912,7 +912,8 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 		}
 		else if ((check_fwstate(pmlmepriv,  WIFI_AP_STATE) == true)) {
 			/* to_ds = 0, fr_ds = 1; */
-			SetFrDs(fctrl);
+			pwlanhdr->frame_control |=
+				cpu_to_le16(IEEE80211_FCTL_FROMDS);
 			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
 			memcpy(pwlanhdr->addr2, get_bssid(pmlmepriv), ETH_ALEN);
 			memcpy(pwlanhdr->addr3, pattrib->src, ETH_ALEN);
