@@ -2151,10 +2151,6 @@ static int vb2_internal_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 		return -EINVAL;
 	}
 
-	if (!q->num_buffers) {
-		dprintk(1, "no buffers have been allocated\n");
-		return -EINVAL;
-	}
 	if (q->num_buffers < q->min_buffers_needed) {
 		dprintk(1, "need at least %u allocated buffers\n",
 				q->min_buffers_needed);
