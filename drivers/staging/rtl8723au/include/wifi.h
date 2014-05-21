@@ -93,13 +93,6 @@ enum WIFI_FRAME_SUBTYPE {
 		*(__le16 *)(pbuf) |= cpu_to_le16(type); \
 	} while (0)
 
-#define SetFragNum(pbuf, num) \
-	do {    \
-		*(unsigned short *)((unsigned long)(pbuf) + 22) = \
-			((*(unsigned short *)((unsigned long)(pbuf) + 22)) & le16_to_cpu(~(0x000f))) | \
-			cpu_to_le16(0x0f & (num));     \
-	} while (0)
-
 #define SetDuration(pbuf, dur) \
 	(*(__le16 *)((unsigned long)(pbuf) + 2) =		\
 	 cpu_to_le16(0xffff & (dur)))
