@@ -2425,7 +2425,6 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	unsigned int rate_len;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -2458,15 +2457,13 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
-	*fctrl = 0;
+	pwlanhdr->frame_control = 0;
+	pwlanhdr->seq_ctrl = 0;
 
 	ether_addr_copy(pwlanhdr->addr1, bc_addr);
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(cur_network));
 
-	SetSeqNum(pwlanhdr, 0 /*pmlmeext->mgnt_seq*/);
-	/* pmlmeext->mgnt_seq++; */
 	SetFrameSubType(pframe, WIFI_BEACON);
 
 	pframe += sizeof(struct ieee80211_hdr_3addr);
@@ -2592,7 +2589,6 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	unsigned char *mac, *bssid;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 #ifdef CONFIG_8723AU_AP_MODE
@@ -2630,15 +2626,16 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 	mac = myid(&padapter->eeprompriv);
 	bssid = cur_network->MacAddress;
 
-	fctrl = &pwlanhdr->frame_control;
-	*fctrl = 0;
+	pwlanhdr->frame_control = 0;
+
 	ether_addr_copy(pwlanhdr->addr1, da);
 	ether_addr_copy(pwlanhdr->addr2, mac);
 	ether_addr_copy(pwlanhdr->addr3, bssid);
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
-	SetFrameSubType(fctrl, WIFI_PROBERSP);
+	SetFrameSubType(&pwlanhdr->frame_control, WIFI_PROBERSP);
 
 	pattrib->hdrlen = sizeof(struct ieee80211_hdr_3addr);
 	pattrib->pktlen = pattrib->hdrlen;
@@ -2808,7 +2805,6 @@ static int _issue_probereq23a(struct rtw_adapter *padapter,
 	struct pkt_attrib		*pattrib;
 	unsigned char			*pframe;
 	struct ieee80211_hdr	*pwlanhdr;
-	__le16		*fctrl;
 	unsigned char			*mac;
 	unsigned char			bssrate[NumRates];
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -2834,8 +2830,7 @@ static int _issue_probereq23a(struct rtw_adapter *padapter,
 
 	mac = myid(&padapter->eeprompriv);
 
-		fctrl = &pwlanhdr->frame_control;
-	*fctrl = 0;
+	pwlanhdr->frame_control = 0;
 
 	if (da) {
 		/*	unicast probe request frame */
@@ -2849,7 +2844,9 @@ static int _issue_probereq23a(struct rtw_adapter *padapter,
 
 	ether_addr_copy(pwlanhdr->addr2, mac);
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_PROBEREQ);
 
@@ -2983,8 +2980,10 @@ void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
 	fctrl = &pwlanhdr->frame_control;
 	*fctrl = 0;
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
+
 	SetFrameSubType(pframe, WIFI_AUTH);
 
 	pframe += sizeof(struct ieee80211_hdr_3addr);
@@ -3151,7 +3150,9 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+
 	pmlmeext->mgnt_seq++;
 	if (pkt_type == WIFI_ASSOCRSP || pkt_type == WIFI_REASSOCRSP)
 		SetFrameSubType(pwlanhdr, pkt_type);
@@ -3269,7 +3270,6 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	unsigned char *pframe;
 	const u8 *p;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	unsigned int i, j, index = 0;
 	unsigned char rf_type, bssrate[NumRates], sta_bssrate[NumRates];
 	struct registry_priv *pregpriv = &padapter->registrypriv;
@@ -3293,13 +3293,14 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	pframe = (u8 *)pmgntframe->buf_addr + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
-	*fctrl = 0;
+	pwlanhdr->frame_control = 0;
+
 	ether_addr_copy(pwlanhdr->addr1, get_my_bssid23a(&pmlmeinfo->network));
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_ASSOCREQ);
 
@@ -3578,7 +3579,8 @@ static int _issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_DATA_NULL);
 
@@ -3709,7 +3711,8 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
 
@@ -3788,7 +3791,6 @@ static int _issue_deauth23a(struct rtw_adapter *padapter, unsigned char *da,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -3809,14 +3811,14 @@ static int _issue_deauth23a(struct rtw_adapter *padapter, unsigned char *da,
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
-	*fctrl = 0;
+	pwlanhdr->frame_control = 0;
 
 	ether_addr_copy(pwlanhdr->addr1, da);
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_DEAUTH);
 
@@ -3900,7 +3902,6 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	u8 category, action;
@@ -3920,14 +3921,14 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
-	*fctrl = 0;
+	pwlanhdr->frame_control = 0;
 
 	ether_addr_copy(pwlanhdr->addr1, ra); /* RA */
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv)); /* TA */
 	ether_addr_copy(pwlanhdr->addr3, ra); /* DA = RA */
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_ACTION);
 
@@ -3966,7 +3967,6 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib;
 	u8 *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -3992,15 +3992,15 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
-	*fctrl = 0;
+	pwlanhdr->frame_control = 0;
 
 	/* memcpy(pwlanhdr->addr1, get_my_bssid23a(&pmlmeinfo->network), ETH_ALEN); */
 	ether_addr_copy(pwlanhdr->addr1, raddr);
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_ACTION);
 
@@ -4146,7 +4146,6 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 	struct pkt_attrib *pattrib;
 	u8 *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	struct wlan_network *pnetwork;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -4182,14 +4181,14 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 	pframe = (u8 *)pmgntframe->buf_addr + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
-	*fctrl = 0;
+	pwlanhdr->frame_control = 0;
 
 	ether_addr_copy(pwlanhdr->addr1, get_my_bssid23a(&pmlmeinfo->network));
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
 
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
+	pwlanhdr->seq_ctrl =
+		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_ACTION);
 
