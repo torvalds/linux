@@ -1173,10 +1173,13 @@ bool is_ap_in_tkip23a(struct rtw_adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
+	int bcn_fixed_size;
+
+	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u.beacon);
 
 	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
-		for (i = sizeof(struct ndis_802_11_fixed_ies);
-		     i < pmlmeinfo->network.IELength;) {
+		for (i = bcn_fixed_size; i < pmlmeinfo->network.IELength;) {
 			pIE = (struct ndis_802_11_var_ies *)
 				(pmlmeinfo->network.IEs + i);
 
@@ -1207,10 +1210,13 @@ bool should_forbid_n_rate23a(struct rtw_adapter * padapter)
 	struct ndis_802_11_var_ies *pIE;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex  *cur_network = &pmlmepriv->cur_network.network;
+	int bcn_fixed_size;
+
+	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u.beacon);
 
 	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
-		for (i = sizeof(struct ndis_802_11_fixed_ies);
-		     i < cur_network->IELength;) {
+		for (i = bcn_fixed_size; i < cur_network->IELength;) {
 			pIE = (struct ndis_802_11_var_ies *)
 				(cur_network->IEs + i);
 
@@ -1248,10 +1254,13 @@ bool is_ap_in_wep23a(struct rtw_adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
+	int bcn_fixed_size;
+
+	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u.beacon);
 
 	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
-		for (i = sizeof(struct ndis_802_11_fixed_ies);
-		     i < pmlmeinfo->network.IELength;) {
+		for (i = bcn_fixed_size; i < pmlmeinfo->network.IELength;) {
 			pIE = (struct ndis_802_11_var_ies *)
 				(pmlmeinfo->network.IEs + i);
 
@@ -1432,14 +1441,17 @@ void update_tx_basic_rate23a(struct rtw_adapter *padapter, u8 wirelessmode)
 
 unsigned char check_assoc_AP23a(u8 *pframe, uint len)
 {
-	unsigned int i;
+	int i, bcn_fixed_size;
 	struct ndis_802_11_var_ies *pIE;
 	u8 epigram_vendor_flag;
 	u8 ralink_vendor_flag;
 	epigram_vendor_flag = 0;
 	ralink_vendor_flag = 0;
 
-	for (i = sizeof(struct ndis_802_11_fixed_ies); i < len;) {
+	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u.beacon);
+
+	for (i = bcn_fixed_size; i < len;) {
 		pIE = (struct ndis_802_11_var_ies *)(pframe + i);
 
 		switch (pIE->ElementID) {

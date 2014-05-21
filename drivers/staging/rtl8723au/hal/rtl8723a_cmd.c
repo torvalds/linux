@@ -210,6 +210,7 @@ static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	int bcn_fixed_size;
 
 	/* DBG_8723A("%s\n", __FUNCTION__); */
 
@@ -246,9 +247,13 @@ static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 	pktlen += 2;
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
+		bcn_fixed_size =
+			offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+			offsetof(struct ieee80211_mgmt, u.beacon);
+
 		/* DBG_8723A("ie len =%d\n", cur_network->IELength); */
-		pktlen += cur_network->IELength - sizeof(struct ndis_802_11_fixed_ies);
-		memcpy(pframe, cur_network->IEs+sizeof(struct ndis_802_11_fixed_ies), pktlen);
+		pktlen += cur_network->IELength - bcn_fixed_size;
+		memcpy(pframe, cur_network->IEs + bcn_fixed_size, pktlen);
 
 		goto _ConstructBeacon;
 	}

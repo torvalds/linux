@@ -3278,7 +3278,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	int bssrate_len = 0, sta_bssrate_len = 0, pie_len;
+	int bssrate_len = 0, sta_bssrate_len = 0, pie_len, bcn_fixed_size;
 	u8 * pie;
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
@@ -3393,9 +3393,11 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 				       bssrate_len, bssrate, &pattrib->pktlen);
 
 	/* RSN */
-	pie = pmlmeinfo->network.IEs + sizeof(struct ndis_802_11_fixed_ies);
-	pie_len = pmlmeinfo->network.IELength -
-		sizeof(struct ndis_802_11_fixed_ies);
+	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u.beacon);
+
+	pie = pmlmeinfo->network.IEs + bcn_fixed_size;
+	pie_len = pmlmeinfo->network.IELength - bcn_fixed_size;
 
 	p = cfg80211_find_ie(WLAN_EID_RSN, pie, pie_len);
 	if (p)
@@ -3471,8 +3473,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	}
 
 	/* vendor specific IE, such as WPA, WMM, WPS */
-	for (i = sizeof(struct ndis_802_11_fixed_ies);
-	     i < pmlmeinfo->network.IELength;) {
+	for (i = bcn_fixed_size;  i < pmlmeinfo->network.IELength;) {
 		pIE = (struct ndis_802_11_var_ies *)
 			(pmlmeinfo->network.IEs + i);
 
@@ -5900,6 +5901,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	const struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	struct HT_info_element *pht_info;
 	u32 i;
+	int bcn_fixed_size;
         /* u32	initialgain; */
 	/* u32	acparm; */
 
@@ -5945,8 +5947,10 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	/* pmlmeinfo->assoc_AP_vendor = check_assoc_AP23a(pnetwork->IEs,
 	   pnetwork->IELength); */
 
-	for (i = sizeof(struct ndis_802_11_fixed_ies); i < pnetwork->IELength;)
-	{
+	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u.beacon);
+
+	for (i = bcn_fixed_size; i < pnetwork->IELength;) {
 		pIE = (struct ndis_802_11_var_ies *)(pnetwork->IEs + i);
 
 		switch (pIE->ElementID)

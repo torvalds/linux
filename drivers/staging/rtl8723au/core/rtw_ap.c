@@ -652,6 +652,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork_mlmeext = &pmlmeinfo->network;
 	struct HT_info_element *pht_info = NULL;
+	int bcn_fixed_size;
 
 	bcn_interval = (u16)pnetwork->BeaconPeriod;
 	cur_channel = pnetwork->DSConfig;
@@ -723,11 +724,12 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 						 DYNAMIC_ALL_FUNC_ENABLE);
 	}
 	/* set channel, bwmode */
+	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u.beacon);
+
 	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
-			     pnetwork->IEs +
-			     sizeof(struct ndis_802_11_fixed_ies),
-			     pnetwork->IELength -
-			     sizeof(struct ndis_802_11_fixed_ies));
+			     pnetwork->IEs + bcn_fixed_size,
+			     pnetwork->IELength - bcn_fixed_size);
 	if (p && p[1]) {
 		pht_info = (struct HT_info_element *)(p + 2);
 

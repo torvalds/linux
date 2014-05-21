@@ -22,12 +22,6 @@
 #define NDIS_802_11_LENGTH_RATES        8
 #define NDIS_802_11_LENGTH_RATES_EX     16
 
-struct ndis_802_11_fixed_ies {
-	u8  Timestamp[8];
-	u16  BeaconInterval;
-	u16  Capabilities;
-};
-
 struct ndis_802_11_var_ies {
 	u8  ElementID;
 	u8  Length;
