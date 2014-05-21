@@ -1043,12 +1043,22 @@ int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 }
 EXPORT_SYMBOL_GPL(mtd_is_locked);
 
-int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
+int mtd_block_isreserved(struct mtd_info *mtd, loff_t ofs)
 {
-	if (!mtd->_block_isbad)
-		return 0;
 	if (ofs < 0 || ofs > mtd->size)
 		return -EINVAL;
+	if (!mtd->_block_isreserved)
+		return 0;
+	return mtd->_block_isreserved(mtd, ofs);
+}
+EXPORT_SYMBOL_GPL(mtd_block_isreserved);
+
+int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
+{
+	if (ofs < 0 || ofs > mtd->size)
+		return -EINVAL;
+	if (!mtd->_block_isbad)
+		return 0;
 	return mtd->_block_isbad(mtd, ofs);
 }
 EXPORT_SYMBOL_GPL(mtd_block_isbad);
