@@ -31,8 +31,9 @@
 #include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
+#include <linux/smiapp.h>
 #include <linux/v4l2-mediabus.h>
 #include <media/v4l2-device.h>
 
@@ -404,6 +405,14 @@ static void smiapp_update_mbus_formats(struct smiapp_sensor *sensor)
 		pixel_order_str[pixel_order]);
 }
 
+static const char * const smiapp_test_patterns[] = {
+	"Disabled",
+	"Solid Colour",
+	"Eight Vertical Colour Bars",
+	"Colour Bars With Fade to Grey",
+	"Pseudorandom Sequence (PN9)",
+};
+
 static int smiapp_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct smiapp_sensor *sensor =
@@ -477,6 +486,35 @@ static int smiapp_set_ctrl(struct v4l2_ctrl *ctrl)
 
 		return smiapp_pll_update(sensor);
 
+	case V4L2_CID_TEST_PATTERN: {
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(sensor->test_data); i++)
+			v4l2_ctrl_activate(
+				sensor->test_data[i],
+				ctrl->val ==
+				V4L2_SMIAPP_TEST_PATTERN_MODE_SOLID_COLOUR);
+
+		return smiapp_write(
+			sensor, SMIAPP_REG_U16_TEST_PATTERN_MODE, ctrl->val);
+	}
+
+	case V4L2_CID_TEST_PATTERN_RED:
+		return smiapp_write(
+			sensor, SMIAPP_REG_U16_TEST_DATA_RED, ctrl->val);
+
+	case V4L2_CID_TEST_PATTERN_GREENR:
+		return smiapp_write(
+			sensor, SMIAPP_REG_U16_TEST_DATA_GREENR, ctrl->val);
+
+	case V4L2_CID_TEST_PATTERN_BLUE:
+		return smiapp_write(
+			sensor, SMIAPP_REG_U16_TEST_DATA_BLUE, ctrl->val);
+
+	case V4L2_CID_TEST_PATTERN_GREENB:
+		return smiapp_write(
+			sensor, SMIAPP_REG_U16_TEST_DATA_GREENB, ctrl->val);
+
 	default:
 		return -EINVAL;
 	}
@@ -489,10 +527,10 @@ static const struct v4l2_ctrl_ops smiapp_ctrl_ops = {
 static int smiapp_init_controls(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	unsigned int max;
+	unsigned int max, i;
 	int rval;
 
-	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 7);
+	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 12);
 	if (rval)
 		return rval;
 	sensor->pixel_array->ctrl_handler.lock = &sensor->mutex;
@@ -534,6 +572,20 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 	sensor->pixel_rate_parray = v4l2_ctrl_new_std(
 		&sensor->pixel_array->ctrl_handler, &smiapp_ctrl_ops,
 		V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
+
+	v4l2_ctrl_new_std_menu_items(&sensor->pixel_array->ctrl_handler,
+				     &smiapp_ctrl_ops, V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(smiapp_test_patterns) - 1,
+				     0, 0, smiapp_test_patterns);
+
+	for (i = 0; i < ARRAY_SIZE(sensor->test_data); i++) {
+		int max_value = (1 << sensor->csi_format->width) - 1;
+		sensor->test_data[i] =
+			v4l2_ctrl_new_std(
+				&sensor->pixel_array->ctrl_handler,
+				&smiapp_ctrl_ops, V4L2_CID_TEST_PATTERN_RED + i,
+				0, max_value, 1, max_value);
+	}
 
 	if (sensor->pixel_array->ctrl_handler.error) {
 		dev_err(&client->dev,
@@ -1671,17 +1723,34 @@ static int smiapp_set_format(struct v4l2_subdev *subdev,
 	if (fmt->pad == ssd->source_pad) {
 		u32 code = fmt->format.code;
 		int rval = __smiapp_get_format(subdev, fh, fmt);
+		bool range_changed = false;
+		unsigned int i;
 
 		if (!rval && subdev == &sensor->src->sd) {
 			const struct smiapp_csi_data_format *csi_format =
 				smiapp_validate_csi_data_format(sensor, code);
-			if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+
+			if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+				if (csi_format->width !=
+				    sensor->csi_format->width)
+					range_changed = true;
+
 				sensor->csi_format = csi_format;
+			}
+
 			fmt->format.code = csi_format->code;
 		}
 
 		mutex_unlock(&sensor->mutex);
-		return rval;
+		if (rval || !range_changed)
+			return rval;
+
+		for (i = 0; i < ARRAY_SIZE(sensor->test_data); i++)
+			v4l2_ctrl_modify_range(
+				sensor->test_data[i],
+				0, (1 << sensor->csi_format->width) - 1, 1, 0);
+
+		return 0;
 	}
 
 	/* Sink pad. Width and height are changeable here. */
