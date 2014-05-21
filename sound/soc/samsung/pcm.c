@@ -542,7 +542,7 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 	/* Default is 128fs */
 	pcm->sclk_per_fs = 128;
 
-	pcm->cclk = clk_get(&pdev->dev, "audio-bus");
+	pcm->cclk = devm_clk_get(&pdev->dev, "audio-bus");
 	if (IS_ERR(pcm->cclk)) {
 		dev_err(&pdev->dev, "failed to get audio-bus\n");
 		ret = PTR_ERR(pcm->cclk);
@@ -567,7 +567,7 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	pcm->pclk = clk_get(&pdev->dev, "pcm");
+	pcm->pclk = devm_clk_get(&pdev->dev, "pcm");
 	if (IS_ERR(pcm->pclk)) {
 		dev_err(&pdev->dev, "failed to get pcm_clock\n");
 		ret = -ENOENT;
@@ -605,14 +605,12 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 
 err5:
 	clk_disable_unprepare(pcm->pclk);
-	clk_put(pcm->pclk);
 err4:
 	iounmap(pcm->regs);
 err3:
 	release_mem_region(mem_res->start, resource_size(mem_res));
 err2:
 	clk_disable_unprepare(pcm->cclk);
-	clk_put(pcm->cclk);
 err1:
 	return ret;
 }
@@ -631,8 +629,6 @@ static int s3c_pcm_dev_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(pcm->cclk);
 	clk_disable_unprepare(pcm->pclk);
-	clk_put(pcm->pclk);
-	clk_put(pcm->cclk);
 
 	return 0;
 }
