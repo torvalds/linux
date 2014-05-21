@@ -22,14 +22,6 @@
 #define NDIS_802_11_LENGTH_RATES        8
 #define NDIS_802_11_LENGTH_RATES_EX     16
 
-struct ndis_802_11_configuration_fh {
-	u32           Length;             /*  Length of structure */
-	u32           HopPattern;         /*  As defined by 802.11, MSB set */
-	u32           HopSet;             /*  to one if non-802.11 */
-	u32           DwellTime;          /*  units are Kusec */
-};
-
-
 /*
 	FW will only save the channel number in DSConfig.
 	ODI Handler will convert the channel number to freq. number.
@@ -39,7 +31,6 @@ struct ndis_802_11_config {
 	u32           BeaconPeriod;       /*  units are Kusec */
 	u32           ATIMWindow;         /*  units are Kusec */
 	u32           DSConfig;           /*  Frequency, units are kHz */
-	struct ndis_802_11_configuration_fh    FHConfig;
 };
 
 struct ndis_802_11_fixed_ies {
