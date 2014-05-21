@@ -1421,10 +1421,6 @@ static int validate_recv_data_frame(struct rtw_adapter *adapter,
 			pattrib->iv_len = 8;
 			pattrib->icv_len = 8;
 			break;
-		case _SMS4_:
-			pattrib->iv_len = 18;
-			pattrib->icv_len = 16;
-			break;
 		default:
 			pattrib->iv_len = 0;
 			pattrib->icv_len = 0;

@@ -524,8 +524,6 @@ enum odm_security {
 	ODM_SEC_RESERVE		= 3,
 	ODM_SEC_AESCCMP		= 4,
 	ODM_SEC_WEP104		= 5,
-	ODM_WEP_WPA_MIXED	= 6, /*  WEP + WPA */
-	ODM_SEC_SMS4		= 7,
 };
 
 /*  ODM_CMNINFO_BW */
