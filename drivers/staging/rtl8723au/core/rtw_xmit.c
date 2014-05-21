@@ -861,9 +861,8 @@ static int xmitframe_swencrypt(struct rtw_adapter *padapter,
 static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 			    struct pkt_attrib *pattrib)
 {
-	u16 *qc;
-
 	struct ieee80211_hdr *pwlanhdr = (struct ieee80211_hdr *)hdr;
+	struct ieee80211_qos_hdr *qoshdr;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	u8 qos_option = false;
 	int res = _SUCCESS;
@@ -942,11 +941,18 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 			pwlanhdr->frame_control |=
 				cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 		if (qos_option) {
-			qc = (unsigned short *)(hdr + pattrib->hdrlen - 2);
-			if (pattrib->priority)
-				SetPriority(qc, pattrib->priority);
-			SetEOSP(qc, pattrib->eosp);
-			SetAckpolicy(qc, pattrib->ack_policy);
+			qoshdr = (struct ieee80211_qos_hdr *)hdr;
+
+			qoshdr->qos_ctrl = cpu_to_le16(
+				pattrib->priority & IEEE80211_QOS_CTL_TID_MASK);
+
+			qoshdr->qos_ctrl |= cpu_to_le16(
+				(pattrib->ack_policy << 5) &
+				IEEE80211_QOS_CTL_ACK_POLICY_MASK);
+
+			if (pattrib->eosp)
+				qoshdr->qos_ctrl |=
+					cpu_to_le16(IEEE80211_QOS_CTL_EOSP);
 		}
 		/* TODO: fill HT Control Field */
 
