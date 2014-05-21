@@ -21,6 +21,7 @@
 
 	aliases {
 		i2c9 = &i2c_ak8975;
+		i2c10 = &i2c_cm36651;
 	};
 
 	memory {
@@ -97,6 +98,15 @@
 			gpio = <&gpm0 3 0>;
 			enable-active-high;
 			regulator-always-on;
+		};
+
+		ps_als_reg: voltage-regulator-5 {
+			compatible = "regulator-fixed";
+			regulator-name = "LED_A_3.0V";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			gpio = <&gpj0 5 0>;
+			enable-active-high;
 		};
 	};
 
@@ -555,6 +565,22 @@
 			compatible = "ak,ak8975";
 			reg = <0x0c>;
 			gpios = <&gpj0 7 0>;
+		};
+	};
+
+	i2c_cm36651: i2c-gpio-2 {
+		compatible = "i2c-gpio";
+		gpios = <&gpf0 0 1>, <&gpf0 1 1>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cm36651@18 {
+			compatible = "capella,cm36651";
+			reg = <0x18>;
+			interrupt-parent = <&gpx0>;
+			interrupts = <2 2>;
+			vled-supply = <&ps_als_reg>;
 		};
 	};
 
