@@ -745,8 +745,10 @@ void ubifs_dump_lprops(struct ubifs_info *c)
 
 	for (lnum = c->main_first; lnum < c->leb_cnt; lnum++) {
 		err = ubifs_read_one_lp(c, lnum, &lp);
-		if (err)
+		if (err) {
 			ubifs_err("cannot read lprops for LEB %d", lnum);
+			continue;
+		}
 
 		ubifs_dump_lprop(c, &lp);
 	}
