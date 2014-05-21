@@ -53,4 +53,4 @@ r8723au-$(CONFIG_8723AU_BT_COEXIST) += hal/rtl8723a_bt-coexist.o
 
 obj-$(CONFIG_R8723AU)	:= r8723au.o
 
-ccflags-y += -D__CHECK_ENDIAN__ -I$(src)/include
+ccflags-y += -Wtype-limits -D__CHECK_ENDIAN__ -I$(src)/include
