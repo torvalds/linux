@@ -1816,12 +1816,43 @@ EXPORT_SYMBOL(cpufreq_unregister_notifier);
  *                              GOVERNORS                            *
  *********************************************************************/
 
+static int __target_index(struct cpufreq_policy *policy,
+			  struct cpufreq_frequency_table *freq_table, int index)
+{
+	struct cpufreq_freqs freqs;
+	int retval = -EINVAL;
+	bool notify;
+
+	notify = !(cpufreq_driver->flags & CPUFREQ_ASYNC_NOTIFICATION);
+
+	if (notify) {
+		freqs.old = policy->cur;
+		freqs.new = freq_table[index].frequency;
+		freqs.flags = 0;
+
+		pr_debug("%s: cpu: %d, oldfreq: %u, new freq: %u\n",
+			 __func__, policy->cpu, freqs.old, freqs.new);
+
+		cpufreq_freq_transition_begin(policy, &freqs);
+	}
+
+	retval = cpufreq_driver->target_index(policy, index);
+	if (retval)
+		pr_err("%s: Failed to change cpu frequency: %d\n", __func__,
+		       retval);
+
+	if (notify)
+		cpufreq_freq_transition_end(policy, &freqs, retval);
+
+	return retval;
+}
+
 int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq,
 			    unsigned int relation)
 {
-	int retval = -EINVAL;
 	unsigned int old_target_freq = target_freq;
+	int retval = -EINVAL;
 
 	if (cpufreq_disabled())
 		return -ENODEV;
@@ -1848,8 +1879,6 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 		retval = cpufreq_driver->target(policy, target_freq, relation);
 	else if (cpufreq_driver->target_index) {
 		struct cpufreq_frequency_table *freq_table;
-		struct cpufreq_freqs freqs;
-		bool notify;
 		int index;
 
 		freq_table = cpufreq_frequency_get_table(policy->cpu);
@@ -1870,26 +1899,7 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			goto out;
 		}
 
-		notify = !(cpufreq_driver->flags & CPUFREQ_ASYNC_NOTIFICATION);
-
-		if (notify) {
-			freqs.old = policy->cur;
-			freqs.new = freq_table[index].frequency;
-			freqs.flags = 0;
-
-			pr_debug("%s: cpu: %d, oldfreq: %u, new freq: %u\n",
-				 __func__, policy->cpu, freqs.old, freqs.new);
-
-			cpufreq_freq_transition_begin(policy, &freqs);
-		}
-
-		retval = cpufreq_driver->target_index(policy, index);
-		if (retval)
-			pr_err("%s: Failed to change cpu frequency: %d\n",
-			       __func__, retval);
-
-		if (notify)
-			cpufreq_freq_transition_end(policy, &freqs, retval);
+		retval = __target_index(policy, freq_table, index);
 	}
 
 out:
