@@ -219,8 +219,6 @@ struct ADDBA_request {
 #define OP_MODE_MIXED                   3
 
 /*	===============WPS Section=============== */
-/*	For WPSv1.0 */
-#define WPSOUI					0x0050f204
 /*	WPS attribute ID */
 #define WPS_ATTR_VER1				0x104A
 #define WPS_ATTR_SIMPLE_CONF_STATE		0x1044
@@ -241,71 +239,6 @@ struct ADDBA_request {
 #define WPS_ATTR_CONFIG_ERROR			0x1009
 #define WPS_ATTR_VENDOR_EXT			0x1049
 #define WPS_ATTR_SELECTED_REGISTRAR		0x1041
-
-/*	Value of WPS attribute "WPS_ATTR_DEVICE_NAME */
-#define WPS_MAX_DEVICE_NAME_LEN			32
-
-/*	Value of WPS Request Type Attribute */
-#define WPS_REQ_TYPE_ENROLLEE_INFO_ONLY		0x00
-#define WPS_REQ_TYPE_ENROLLEE_OPEN_8021X	0x01
-#define WPS_REQ_TYPE_REGISTRAR			0x02
-#define WPS_REQ_TYPE_WLAN_MANAGER_REGISTRAR	0x03
-
-/*	Value of WPS Response Type Attribute */
-#define WPS_RESPONSE_TYPE_INFO_ONLY		0x00
-#define WPS_RESPONSE_TYPE_8021X			0x01
-#define WPS_RESPONSE_TYPE_REGISTRAR		0x02
-#define WPS_RESPONSE_TYPE_AP			0x03
-
-/*	Value of WPS WiFi Simple Configuration State Attribute */
-#define WPS_WSC_STATE_NOT_CONFIG		0x01
-#define WPS_WSC_STATE_CONFIG			0x02
-
-/*	Value of WPS Version Attribute */
-#define WPS_VERSION_1				0x10
-
-/*	Value of WPS Configuration Method Attribute */
-#define WPS_CONFIG_METHOD_FLASH			0x0001
-#define WPS_CONFIG_METHOD_ETHERNET		0x0002
-#define WPS_CONFIG_METHOD_LABEL			0x0004
-#define WPS_CONFIG_METHOD_DISPLAY		0x0008
-#define WPS_CONFIG_METHOD_E_NFC			0x0010
-#define WPS_CONFIG_METHOD_I_NFC			0x0020
-#define WPS_CONFIG_METHOD_NFC			0x0040
-#define WPS_CONFIG_METHOD_PBC			0x0080
-#define WPS_CONFIG_METHOD_KEYPAD		0x0100
-#define WPS_CONFIG_METHOD_VPBC			0x0280
-#define WPS_CONFIG_METHOD_PPBC			0x0480
-#define WPS_CONFIG_METHOD_VDISPLAY		0x2008
-#define WPS_CONFIG_METHOD_PDISPLAY		0x4008
-
-/*	Value of Category ID of WPS Primary Device Type Attribute */
-#define WPS_PDT_CID_DISPLAYS			0x0007
-#define WPS_PDT_CID_MULIT_MEDIA			0x0008
-#define WPS_PDT_CID_RTK_WIDI			WPS_PDT_CID_MULIT_MEDIA
-
-/*	Value of Sub Category ID of WPS Primary Device Type Attribute */
-#define WPS_PDT_SCID_MEDIA_SERVER		0x0005
-#define WPS_PDT_SCID_RTK_DMP			WPS_PDT_SCID_MEDIA_SERVER
-
-/*	Value of Device Password ID */
-#define WPS_DPID_PIN				0x0000
-#define WPS_DPID_USER_SPEC			0x0001
-#define WPS_DPID_MACHINE_SPEC			0x0002
-#define WPS_DPID_REKEY				0x0003
-#define WPS_DPID_PBC				0x0004
-#define WPS_DPID_REGISTRAR_SPEC			0x0005
-
-/*	Value of WPS RF Bands Attribute */
-#define WPS_RF_BANDS_2_4_GHZ			0x01
-#define WPS_RF_BANDS_5_GHZ			0x02
-
-/*	Value of WPS Association State Attribute */
-#define WPS_ASSOC_STATE_NOT_ASSOCIATED		0x00
-#define WPS_ASSOC_STATE_CONNECTION_SUCCESS	0x01
-#define WPS_ASSOC_STATE_CONFIGURATION_FAILURE	0x02
-#define WPS_ASSOC_STATE_ASSOCIATION_FAILURE	0x03
-#define WPS_ASSOC_STATE_IP_FAILURE		0x04
 
 /*	P2P Public Action Frame ( Management Frame ) */
 #define	P2P_PUB_ACTION_ACTION			0x09
