@@ -931,7 +931,12 @@ struct snd_soc_dai_link {
 };
 
 struct snd_soc_codec_conf {
+	/*
+	 * specify device either by device name, or by
+	 * DT/OF node, but not both.
+	 */
 	const char *dev_name;
+	const struct device_node *of_node;
 
 	/*
 	 * optional map of kcontrol, widget and path name prefixes that are
@@ -942,7 +947,13 @@ struct snd_soc_codec_conf {
 
 struct snd_soc_aux_dev {
 	const char *name;		/* Codec name */
-	const char *codec_name;		/* for multi-codec */
+
+	/*
+	 * specify multi-codec either by device name, or by
+	 * DT/OF node, but not both.
+	 */
+	const char *codec_name;
+	const struct device_node *codec_of_node;
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_dapm_context *dapm);
