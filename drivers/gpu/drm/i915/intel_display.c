@@ -3291,7 +3291,7 @@ bool intel_has_pending_fb_unpin(struct drm_device *dev)
 	return false;
 }
 
-static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
+void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;

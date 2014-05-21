@@ -1018,6 +1018,9 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 		intel_crtc->primary_enabled = primary_enabled;
 
+		if (primary_was_enabled != primary_enabled)
+			intel_crtc_wait_for_pending_flips(crtc);
+
 		if (primary_was_enabled && !primary_enabled)
 			intel_pre_disable_primary(crtc);
 
