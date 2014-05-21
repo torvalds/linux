@@ -496,7 +496,6 @@ err:
 
 static int s3c24xx_iis_dev_remove(struct platform_device *pdev)
 {
-	samsung_asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }

@@ -1295,8 +1295,6 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 	i2s->pri_dai = NULL;
 	i2s->sec_dai = NULL;
 
-	samsung_asoc_dma_platform_unregister(&pdev->dev);
-
 	return 0;
 }
 
