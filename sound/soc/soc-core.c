@@ -1017,7 +1017,6 @@ static void soc_remove_codec_dai(struct snd_soc_dai *codec_dai, int order)
 					codec_dai->name, err);
 		}
 		codec_dai->probed = 0;
-		list_del(&codec_dai->card_list);
 	}
 }
 
@@ -1049,7 +1048,6 @@ static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 					cpu_dai->name, err);
 		}
 		cpu_dai->probed = 0;
-		list_del(&cpu_dai->card_list);
 
 		if (!cpu_dai->codec) {
 			snd_soc_dapm_free(&cpu_dai->dapm);
@@ -1405,7 +1403,6 @@ static int soc_probe_codec_dai(struct snd_soc_card *card,
 
 		/* mark codec_dai as probed and add to card dai list */
 		codec_dai->probed = 1;
-		list_add(&codec_dai->card_list, &card->dai_dev_list);
 	}
 
 	return 0;
@@ -1490,8 +1487,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 			}
 		}
 		cpu_dai->probed = 1;
-		/* mark cpu_dai as probed and add to card dai list */
-		list_add(&cpu_dai->card_list, &card->dai_dev_list);
 	}
 
 	/* probe the CODEC DAI */
@@ -3205,6 +3200,18 @@ out:
 }
 EXPORT_SYMBOL_GPL(snd_soc_bytes_put);
 
+int snd_soc_bytes_info_ext(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_info *ucontrol)
+{
+	struct soc_bytes_ext *params = (void *)kcontrol->private_value;
+
+	ucontrol->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+	ucontrol->count = params->max;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_bytes_info_ext);
+
 /**
  * snd_soc_info_xr_sx - signed multi register info callback
  * @kcontrol: mreg control
@@ -3738,7 +3745,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	for (i = 0; i < card->num_links; i++)
 		card->rtd[i].dai_link = &card->dai_link[i];
 
-	INIT_LIST_HEAD(&card->list);
 	INIT_LIST_HEAD(&card->dapm_dirty);
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
@@ -4271,7 +4277,6 @@ int snd_soc_register_codec(struct device *dev,
 	codec->dapm.stream_event = codec_drv->stream_event;
 	codec->dev = dev;
 	codec->driver = codec_drv;
-	codec->num_dai = num_dai;
 	codec->component.val_bytes = codec_drv->reg_word_size;
 	mutex_init(&codec->mutex);
 
@@ -4697,7 +4702,7 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 
 			if (id < 0 || id >= pos->num_dai) {
 				ret = -EINVAL;
-				break;
+				continue;
 			}
 
 			ret = 0;

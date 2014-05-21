@@ -266,6 +266,13 @@
 		{.base = xbase, .num_regs = xregs,	      \
 		 .mask = xmask }) }
 
+#define SND_SOC_BYTES_EXT(xname, xcount, xhandler_get, xhandler_put) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_bytes_info_ext, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&(struct soc_bytes_ext) \
+		{.max = xcount} }
+
 #define SOC_SINGLE_XR_SX(xname, xregbase, xregcount, xnbits, \
 		xmin, xmax, xinvert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
@@ -532,6 +539,8 @@ int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
 int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
+int snd_soc_bytes_info_ext(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *ucontrol);
 int snd_soc_info_xr_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_get_xr_sx(struct snd_kcontrol *kcontrol,
@@ -692,7 +701,6 @@ struct snd_soc_codec {
 	struct snd_soc_card *card;
 	struct list_head list;
 	struct list_head card_list;
-	int num_dai;
 
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
@@ -949,7 +957,6 @@ struct snd_soc_card {
 	struct snd_card *snd_card;
 	struct module *owner;
 
-	struct list_head list;
 	struct mutex mutex;
 	struct mutex dapm_mutex;
 
@@ -1012,7 +1019,6 @@ struct snd_soc_card {
 	/* lists of probed devices belonging to this card */
 	struct list_head codec_dev_list;
 	struct list_head platform_dev_list;
-	struct list_head dai_dev_list;
 
 	struct list_head widgets;
 	struct list_head paths;
@@ -1080,6 +1086,10 @@ struct soc_bytes {
 	int base;
 	int num_regs;
 	u32 mask;
+};
+
+struct soc_bytes_ext {
+	int max;
 };
 
 /* multi register control */
@@ -1194,7 +1204,6 @@ static inline void *snd_soc_pcm_get_drvdata(struct snd_soc_pcm_runtime *rtd)
 
 static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 {
-	INIT_LIST_HEAD(&card->dai_dev_list);
 	INIT_LIST_HEAD(&card->codec_dev_list);
 	INIT_LIST_HEAD(&card->platform_dev_list);
 	INIT_LIST_HEAD(&card->widgets);
