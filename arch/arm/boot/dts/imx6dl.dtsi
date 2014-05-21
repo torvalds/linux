@@ -84,9 +84,10 @@
 			i2c4: i2c@021f8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx1-i2c";
+				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
 				reg = <0x021f8000 0x4000>;
 				interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks 116>;
 				status = "disabled";
 			};
 		};

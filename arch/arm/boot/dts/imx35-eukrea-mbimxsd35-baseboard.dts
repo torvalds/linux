@@ -46,6 +46,14 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
+
+	sound {
+		compatible = "eukrea,asoc-tlv320";
+		eukrea,model = "imx35-eukrea-tlv320aic23";
+		ssi-controller = <&ssi1>;
+		fsl,mux-int-port = <1>;
+		fsl,mux-ext-port = <4>;
+	};
 };
 
 &audmux {
@@ -124,6 +132,7 @@
 };
 
 &ssi1 {
+	codec-handle = <&tlv320aic23>;
 	fsl,mode = "i2s-slave";
 	status = "okay";
 };
@@ -139,5 +148,18 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
 	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&usbhost1 {
+	phy_type = "serial";
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbotg {
+	phy_type = "utmi";
+	dr_mode = "otg";
+	external-vbus-divider;
 	status = "okay";
 };

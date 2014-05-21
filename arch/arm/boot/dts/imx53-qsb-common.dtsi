@@ -13,6 +13,10 @@
 #include "imx53.dtsi"
 
 / {
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	memory {
 		reg = <0x70000000 0x20000000>,
 		      <0xb0000000 0x20000000>;
@@ -272,6 +276,14 @@
 			>;
 		};
 
+		pinctrl_vga_sync: vgasync-grp {
+			fsl,pins = <
+				/* VGA_HSYNC, VSYNC with max drive strength */
+				MX53_PAD_EIM_OE__IPU_DI1_PIN7 0xe6
+				MX53_PAD_EIM_RW__IPU_DI1_PIN8 0xe6
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX53_PAD_CSI0_DAT10__UART1_TXD_MUX	0x1e4
@@ -279,6 +291,15 @@
 			>;
 		};
 	};
+};
+
+&tve {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_vga_sync>;
+	fsl,tve-mode = "vga";
+	fsl,hsync-pin = <4>;
+	fsl,vsync-pin = <6>;
+	status = "okay";
 };
 
 &uart1 {
