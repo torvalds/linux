@@ -378,86 +378,24 @@ static void dapm_reset(struct snd_soc_card *card)
 static int soc_widget_read(struct snd_soc_dapm_widget *w, int reg,
 	unsigned int *value)
 {
-	if (w->codec) {
-		*value = snd_soc_read(w->codec, reg);
-		return 0;
-	} else if (w->platform) {
-		*value = snd_soc_platform_read(w->platform, reg);
-		return 0;
-	}
-
-	dev_err(w->dapm->dev, "ASoC: no valid widget read method\n");
-	return -1;
+	if (!w->dapm->component)
+		return -EIO;
+	return snd_soc_component_read(w->dapm->component, reg, value);
 }
 
-static int soc_widget_write(struct snd_soc_dapm_widget *w, int reg,
-	unsigned int val)
+static int soc_widget_update_bits(struct snd_soc_dapm_widget *w,
+	int reg, unsigned int mask, unsigned int value)
 {
-	if (w->codec)
-		return snd_soc_write(w->codec, reg, val);
-	else if (w->platform)
-		return snd_soc_platform_write(w->platform, reg, val);
-
-	dev_err(w->dapm->dev, "ASoC: no valid widget write method\n");
-	return -1;
-}
-
-static inline void soc_widget_lock(struct snd_soc_dapm_widget *w)
-{
-	if (w->codec && !w->codec->using_regmap)
-		mutex_lock(&w->codec->mutex);
-	else if (w->platform)
-		mutex_lock(&w->platform->mutex);
-}
-
-static inline void soc_widget_unlock(struct snd_soc_dapm_widget *w)
-{
-	if (w->codec && !w->codec->using_regmap)
-		mutex_unlock(&w->codec->mutex);
-	else if (w->platform)
-		mutex_unlock(&w->platform->mutex);
+	if (!w->dapm->component)
+		return -EIO;
+	return snd_soc_component_update_bits_async(w->dapm->component, reg,
+		mask, value);
 }
 
 static void soc_dapm_async_complete(struct snd_soc_dapm_context *dapm)
 {
-	if (dapm->codec && dapm->codec->using_regmap)
-		regmap_async_complete(dapm->codec->control_data);
-}
-
-static int soc_widget_update_bits_locked(struct snd_soc_dapm_widget *w,
-	unsigned short reg, unsigned int mask, unsigned int value)
-{
-	bool change;
-	unsigned int old, new;
-	int ret;
-
-	if (w->codec && w->codec->using_regmap) {
-		ret = regmap_update_bits_check_async(w->codec->control_data,
-						     reg, mask, value,
-						     &change);
-		if (ret != 0)
-			return ret;
-	} else {
-		soc_widget_lock(w);
-		ret = soc_widget_read(w, reg, &old);
-		if (ret < 0) {
-			soc_widget_unlock(w);
-			return ret;
-		}
-
-		new = (old & ~mask) | (value & mask);
-		change = old != new;
-		if (change) {
-			ret = soc_widget_write(w, reg, new);
-			if (ret < 0) {
-				soc_widget_unlock(w);
-				return ret;
-			}
-		}
-		soc_widget_unlock(w);
-	}
-
-	return change;
+	if (dapm->component)
+		snd_soc_component_async_complete(dapm->component);
 }
 
 /**
@@ -1132,7 +1070,7 @@ int dapm_reg_event(struct snd_soc_dapm_widget *w,
 	else
 		val = w->off_val;
 
-	soc_widget_update_bits_locked(w, -(w->reg + 1),
+	soc_widget_update_bits(w, -(w->reg + 1),
 			    w->mask << w->shift, val << w->shift);
 
 	return 0;
@@ -1428,7 +1366,7 @@ static void dapm_seq_run_coalesced(struct snd_soc_card *card,
 			"pop test : Applying 0x%x/0x%x to %x in %dms\n",
 			value, mask, reg, card->pop_time);
 		pop_wait(card->pop_time);
-		soc_widget_update_bits_locked(w, reg, mask, value);
+		soc_widget_update_bits(w, reg, mask, value);
 	}
 
 	list_for_each_entry(w, pending, power_list) {
@@ -1574,8 +1512,7 @@ static void dapm_widget_update(struct snd_soc_card *card)
 	if (!w)
 		return;
 
-	ret = soc_widget_update_bits_locked(w, update->reg, update->mask,
-				  update->val);
+	ret = soc_widget_update_bits(w, update->reg, update->mask, update->val);
 	if (ret < 0)
 		dev_err(w->dapm->dev, "ASoC: %s DAPM update failed: %d\n",
 			w->name, ret);
