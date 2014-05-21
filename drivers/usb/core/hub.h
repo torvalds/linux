@@ -82,6 +82,7 @@ struct usb_hub {
  * @child: usb device attached to the port
  * @dev: generic device interface
  * @port_owner: port's owner
+ * @peer: related usb2 and usb3 ports (share the same connector)
  * @connect_type: port's connect type
  * @portnum: port index num based one
  * @power_is_on: port's power state
@@ -91,6 +92,7 @@ struct usb_port {
 	struct usb_device *child;
 	struct device dev;
 	struct usb_dev_state *port_owner;
+	struct usb_port *peer;
 	enum usb_port_connect_type connect_type;
 	u8 portnum;
 	unsigned power_is_on:1;

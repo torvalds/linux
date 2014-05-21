@@ -119,6 +119,7 @@ static inline int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 #endif
 
 extern struct bus_type usb_bus_type;
+extern struct mutex usb_port_peer_mutex;
 extern struct device_type usb_device_type;
 extern struct device_type usb_if_device_type;
 extern struct device_type usb_ep_device_type;

@@ -55,6 +55,9 @@ static DECLARE_WAIT_QUEUE_HEAD(khubd_wait);
 
 static struct task_struct *khubd_task;
 
+/* synchronize hub-port add/remove and peering operations */
+DEFINE_MUTEX(usb_port_peer_mutex);
+
 /* cycle leds on hubs that aren't blinking for attention */
 static bool blinkenlights = 0;
 module_param (blinkenlights, bool, S_IRUGO);
@@ -1323,6 +1326,7 @@ static int hub_configure(struct usb_hub *hub,
 	char *message = "out of memory";
 	unsigned unit_load;
 	unsigned full_load;
+	unsigned maxchild;
 
 	hub->buffer = kmalloc(sizeof(*hub->buffer), GFP_KERNEL);
 	if (!hub->buffer) {
@@ -1361,12 +1365,11 @@ static int hub_configure(struct usb_hub *hub,
 		goto fail;
 	}
 
-	hdev->maxchild = hub->descriptor->bNbrPorts;
-	dev_info (hub_dev, "%d port%s detected\n", hdev->maxchild,
-		(hdev->maxchild == 1) ? "" : "s");
+	maxchild = hub->descriptor->bNbrPorts;
+	dev_info(hub_dev, "%d port%s detected\n", maxchild,
+			(maxchild == 1) ? "" : "s");
 
-	hub->ports = kzalloc(hdev->maxchild * sizeof(struct usb_port *),
-			     GFP_KERNEL);
+	hub->ports = kzalloc(maxchild * sizeof(struct usb_port *), GFP_KERNEL);
 	if (!hub->ports) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1387,11 +1390,11 @@ static int hub_configure(struct usb_hub *hub,
 		int	i;
 		char	portstr[USB_MAXCHILDREN + 1];
 
-		for (i = 0; i < hdev->maxchild; i++)
+		for (i = 0; i < maxchild; i++)
 			portstr[i] = hub->descriptor->u.hs.DeviceRemovable
 				    [((i + 1) / 8)] & (1 << ((i + 1) % 8))
 				? 'F' : 'R';
-		portstr[hdev->maxchild] = 0;
+		portstr[maxchild] = 0;
 		dev_dbg(hub_dev, "compound device; port removable status: %s\n", portstr);
 	} else
 		dev_dbg(hub_dev, "standalone hub\n");
@@ -1503,7 +1506,7 @@ static int hub_configure(struct usb_hub *hub,
 		if (hcd->power_budget > 0)
 			hdev->bus_mA = hcd->power_budget;
 		else
-			hdev->bus_mA = full_load * hdev->maxchild;
+			hdev->bus_mA = full_load * maxchild;
 		if (hdev->bus_mA >= full_load)
 			hub->mA_per_port = full_load;
 		else {
@@ -1518,7 +1521,7 @@ static int hub_configure(struct usb_hub *hub,
 			hub->descriptor->bHubContrCurrent);
 		hub->limited_power = 1;
 
-		if (remaining < hdev->maxchild * unit_load)
+		if (remaining < maxchild * unit_load)
 			dev_warn(hub_dev,
 					"insufficient power available "
 					"to use all downstream ports\n");
@@ -1586,15 +1589,19 @@ static int hub_configure(struct usb_hub *hub,
 	if (hub->has_indicators && blinkenlights)
 		hub->indicator[0] = INDICATOR_CYCLE;
 
-	for (i = 0; i < hdev->maxchild; i++) {
+	mutex_lock(&usb_port_peer_mutex);
+	for (i = 0; i < maxchild; i++) {
 		ret = usb_hub_create_port_device(hub, i + 1);
 		if (ret < 0) {
 			dev_err(hub->intfdev,
 				"couldn't create port%d device.\n", i + 1);
-			hdev->maxchild = i;
-			goto fail_keep_maxchild;
+			break;
 		}
 	}
+	hdev->maxchild = i;
+	mutex_unlock(&usb_port_peer_mutex);
+	if (ret < 0)
+		goto fail;
 
 	usb_hub_adjust_deviceremovable(hdev, hub->descriptor);
 
@@ -1602,8 +1609,6 @@ static int hub_configure(struct usb_hub *hub,
 	return 0;
 
 fail:
-	hdev->maxchild = 0;
-fail_keep_maxchild:
 	dev_err (hub_dev, "config failed, %s (err %d)\n",
 			message, ret);
 	/* hub_disconnect() frees urb and descriptor */
@@ -1639,6 +1644,8 @@ static void hub_disconnect(struct usb_interface *intf)
 	hub->error = 0;
 	hub_quiesce(hub, HUB_DISCONNECT);
 
+	mutex_lock(&usb_port_peer_mutex);
+
 	/* Avoid races with recursively_mark_NOTATTACHED() */
 	spin_lock_irq(&device_state_lock);
 	port1 = hdev->maxchild;
@@ -1648,6 +1655,8 @@ static void hub_disconnect(struct usb_interface *intf)
 
 	for (; port1 > 0; --port1)
 		usb_hub_remove_port_device(hub, port1);
+
+	mutex_unlock(&usb_port_peer_mutex);
 
 	if (hub->hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
@@ -4608,6 +4617,8 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		 */
 		status = 0;
 
+		mutex_lock(&usb_port_peer_mutex);
+
 		/* We mustn't add new devices if the parent hub has
 		 * been disconnected; we would race with the
 		 * recursively_mark_NOTATTACHED() routine.
@@ -4618,14 +4629,17 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		else
 			port_dev->child = udev;
 		spin_unlock_irq(&device_state_lock);
+		mutex_unlock(&usb_port_peer_mutex);
 
 		/* Run it through the hoops (find a driver, etc) */
 		if (!status) {
 			status = usb_new_device(udev);
 			if (status) {
+				mutex_lock(&usb_port_peer_mutex);
 				spin_lock_irq(&device_state_lock);
 				port_dev->child = NULL;
 				spin_unlock_irq(&device_state_lock);
+				mutex_unlock(&usb_port_peer_mutex);
 			}
 		}
 

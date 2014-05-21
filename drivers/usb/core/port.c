@@ -157,9 +157,66 @@ static struct device_driver usb_port_driver = {
 	.owner = THIS_MODULE,
 };
 
+static void link_peers(struct usb_port *left, struct usb_port *right)
+{
+	if (left->peer == right && right->peer == left)
+		return;
+
+	if (left->peer || right->peer) {
+		struct usb_port *lpeer = left->peer;
+		struct usb_port *rpeer = right->peer;
+
+		WARN(1, "failed to peer %s and %s (%s -> %p) (%s -> %p)\n",
+			dev_name(&left->dev), dev_name(&right->dev),
+			dev_name(&left->dev), lpeer,
+			dev_name(&right->dev), rpeer);
+		return;
+	}
+
+	left->peer = right;
+	right->peer = left;
+}
+
+static void unlink_peers(struct usb_port *left, struct usb_port *right)
+{
+	WARN(right->peer != left || left->peer != right,
+			"%s and %s are not peers?\n",
+			dev_name(&left->dev), dev_name(&right->dev));
+
+	right->peer = NULL;
+	left->peer = NULL;
+}
+
+/* set the default peer port for root hubs */
+static void find_and_link_peer(struct usb_hub *hub, int port1)
+{
+	struct usb_port *port_dev = hub->ports[port1 - 1], *peer;
+	struct usb_device *hdev = hub->hdev;
+
+	if (!hdev->parent) {
+		struct usb_hub *peer_hub;
+		struct usb_device *peer_hdev;
+		struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
+		struct usb_hcd *peer_hcd = hcd->shared_hcd;
+
+		if (!peer_hcd)
+			return;
+
+		peer_hdev = peer_hcd->self.root_hub;
+		peer_hub = usb_hub_to_struct_hub(peer_hdev);
+		if (!peer_hub || port1 > peer_hdev->maxchild)
+			return;
+
+		peer = peer_hub->ports[port1 - 1];
+
+		if (peer)
+			link_peers(port_dev, peer);
+	}
+}
+
 int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 {
-	struct usb_port *port_dev = NULL;
+	struct usb_port *port_dev;
 	int retval;
 
 	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
@@ -180,6 +237,8 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	retval = device_register(&port_dev->dev);
 	if (retval)
 		goto error_register;
+
+	find_and_link_peer(hub, port1);
 
 	pm_runtime_set_active(&port_dev->dev);
 
@@ -203,9 +262,13 @@ exit:
 	return retval;
 }
 
-void usb_hub_remove_port_device(struct usb_hub *hub,
-				       int port1)
+void usb_hub_remove_port_device(struct usb_hub *hub, int port1)
 {
-	device_unregister(&hub->ports[port1 - 1]->dev);
-}
+	struct usb_port *port_dev = hub->ports[port1 - 1];
+	struct usb_port *peer;
 
+	peer = port_dev->peer;
+	if (peer)
+		unlink_peers(port_dev, peer);
+	device_unregister(&port_dev->dev);
+}
