@@ -1935,16 +1935,12 @@ exit:
 	return ret;
 }
 
-static int rtw_cfg80211_add_wep(struct rtw_adapter* padapter,
+static int rtw_cfg80211_add_wep(struct rtw_adapter *padapter,
 				struct ndis_802_11_wep *wep)
 {
-	u8 bdefaultkey;
-	u8 btransmitkey;
 	int keyid, res;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 
-	bdefaultkey = (wep->KeyIndex & 0x40000000) > 0 ? false : true;
-	btransmitkey = (wep->KeyIndex & 0x80000000) > 0 ? true  : false;
 	keyid = wep->KeyIndex & 0x3fffffff;
 
 	if (keyid >= 4) {
@@ -2223,7 +2219,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		}
 
 		pwep->KeyIndex = wep_key_idx;
-		pwep->KeyIndex |= 0x80000000;
 
 		memcpy(pwep->KeyMaterial, (void *)sme->key, pwep->KeyLength);
 
