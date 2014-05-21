@@ -152,6 +152,11 @@ struct device_type usb_port_device_type = {
 	.pm =		&usb_port_pm_ops,
 };
 
+static struct device_driver usb_port_driver = {
+	.name = "usb",
+	.owner = THIS_MODULE,
+};
+
 int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 {
 	struct usb_port *port_dev = NULL;
@@ -169,8 +174,9 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	port_dev->dev.parent = hub->intfdev;
 	port_dev->dev.groups = port_dev_group;
 	port_dev->dev.type = &usb_port_device_type;
-	dev_set_name(&port_dev->dev, "port%d", port1);
-
+	port_dev->dev.driver = &usb_port_driver;
+	dev_set_name(&port_dev->dev, "%s-port%d", dev_name(&hub->hdev->dev),
+			port1);
 	retval = device_register(&port_dev->dev);
 	if (retval)
 		goto error_register;

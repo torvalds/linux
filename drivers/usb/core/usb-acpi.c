@@ -17,7 +17,7 @@
 #include <linux/pci.h>
 #include <linux/usb/hcd.h>
 
-#include "usb.h"
+#include "hub.h"
 
 /**
  * usb_acpi_power_manageable - check whether usb port has
@@ -55,13 +55,18 @@ EXPORT_SYMBOL_GPL(usb_acpi_power_manageable);
  */
 int usb_acpi_set_power_state(struct usb_device *hdev, int index, bool enable)
 {
+	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+	struct usb_port *port_dev;
 	acpi_handle port_handle;
 	unsigned char state;
 	int port1 = index + 1;
 	int error = -EINVAL;
 
-	port_handle = (acpi_handle)usb_get_hub_port_acpi_handle(hdev,
-		port1);
+	if (!hub)
+		return -ENODEV;
+	port_dev = hub->ports[port1 - 1];
+
+	port_handle = (acpi_handle) usb_get_hub_port_acpi_handle(hdev, port1);
 	if (!port_handle)
 		return error;
 
@@ -72,10 +77,9 @@ int usb_acpi_set_power_state(struct usb_device *hdev, int index, bool enable)
 
 	error = acpi_bus_set_power(port_handle, state);
 	if (!error)
-		dev_dbg(&hdev->dev, "The power of hub port %d was set to %d\n",
-			port1, enable);
+		dev_dbg(&port_dev->dev, "acpi: power was set to %d\n", enable);
 	else
-		dev_dbg(&hdev->dev, "The power of hub port failed to be set\n");
+		dev_dbg(&port_dev->dev, "acpi: power failed to be set\n");
 
 	return error;
 }
@@ -84,11 +88,16 @@ EXPORT_SYMBOL_GPL(usb_acpi_set_power_state);
 static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
 	acpi_handle handle, int port1)
 {
-	acpi_status status;
+	enum usb_port_connect_type connect_type = USB_PORT_CONNECT_TYPE_UNKNOWN;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *upc;
+	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
 	struct acpi_pld_info *pld;
+	union acpi_object *upc;
+	acpi_status status;
 	int ret = 0;
+
+	if (!hub)
+		return 0;
 
 	/*
 	 * According to ACPI Spec 9.13. PLD indicates whether usb port is
@@ -112,13 +121,12 @@ static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
 
 	if (upc->package.elements[0].integer.value)
 		if (pld->user_visible)
-			usb_set_hub_port_connect_type(hdev, port1,
-				USB_PORT_CONNECT_TYPE_HOT_PLUG);
+			connect_type = USB_PORT_CONNECT_TYPE_HOT_PLUG;
 		else
-			usb_set_hub_port_connect_type(hdev, port1,
-				USB_PORT_CONNECT_TYPE_HARD_WIRED);
+			connect_type = USB_PORT_CONNECT_TYPE_HARD_WIRED;
 	else if (!pld->user_visible)
-		usb_set_hub_port_connect_type(hdev, port1, USB_PORT_NOT_USED);
+		connect_type = USB_PORT_NOT_USED;
+	hub->ports[port1 - 1]->connect_type = connect_type;
 
 out:
 	ACPI_FREE(pld);
@@ -128,9 +136,9 @@ out:
 
 static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 {
+	int port1;
 	struct usb_device *udev;
 	acpi_handle *parent_handle;
-	int port_num;
 
 	/*
 	 * In the ACPI DSDT table, only usb root hub and usb ports are
@@ -147,16 +155,16 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 	 */
 	if (is_usb_device(dev)) {
 		udev = to_usb_device(dev);
+		port1 = udev->portnum;
 		if (udev->parent) {
-			enum usb_port_connect_type type;
+			struct usb_hub *hub;
 
+			hub = usb_hub_to_struct_hub(udev->parent);
 			/*
 			 * According usb port's connect type to set usb device's
 			 * removability.
 			 */
-			type = usb_get_hub_port_connect_type(udev->parent,
-				udev->portnum);
-			switch (type) {
+			switch (hub->ports[port1 - 1]->connect_type) {
 			case USB_PORT_CONNECT_TYPE_HOT_PLUG:
 				udev->removable = USB_DEVICE_REMOVABLE;
 				break;
@@ -173,13 +181,14 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 
 		/* root hub's parent is the usb hcd. */
 		return acpi_find_child_device(ACPI_COMPANION(dev->parent),
-					      udev->portnum, false);
+				port1, false);
 	} else if (is_usb_port(dev)) {
+		struct usb_port *port_dev = to_usb_port(dev);
 		struct acpi_device *adev = NULL;
 
-		sscanf(dev_name(dev), "port%d", &port_num);
 		/* Get the struct usb_device point of port's hub */
 		udev = to_usb_device(dev->parent->parent);
+		port1 = port_dev->portnum;
 
 		/*
 		 * The root hub ports' parent is the root hub. The non-root-hub
@@ -188,12 +197,11 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 		 */
 		if (!udev->parent) {
 			struct usb_hcd *hcd = bus_to_hcd(udev->bus);
-			int raw_port_num;
+			int raw;
 
-			raw_port_num = usb_hcd_find_raw_port_number(hcd,
-				port_num);
+			raw = usb_hcd_find_raw_port_number(hcd, port1);
 			adev = acpi_find_child_device(ACPI_COMPANION(&udev->dev),
-						      raw_port_num, false);
+					raw, false);
 			if (!adev)
 				return NULL;
 		} else {
@@ -204,11 +212,11 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 				return NULL;
 
 			acpi_bus_get_device(parent_handle, &adev);
-			adev = acpi_find_child_device(adev, port_num, false);
+			adev = acpi_find_child_device(adev, port1, false);
 			if (!adev)
 				return NULL;
 		}
-		usb_acpi_check_port_connect_type(udev, adev->handle, port_num);
+		usb_acpi_check_port_connect_type(udev, adev->handle, port1);
 		return adev;
 	}
 
