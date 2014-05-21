@@ -233,14 +233,6 @@ struct ADDBA_request {
 #define OP_MODE_20MHZ_HT_STA_ASSOCED    2
 #define OP_MODE_MIXED                   3
 
-#define HT_INFO_HT_PARAM_SECONDARY_CHNL_OFF_MASK	((u8) BIT(0) | BIT(1))
-#define HT_INFO_HT_PARAM_SECONDARY_CHNL_ABOVE		((u8) BIT(0))
-#define HT_INFO_HT_PARAM_SECONDARY_CHNL_BELOW		((u8) BIT(0) | BIT(1))
-#define HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH		((u8) BIT(2))
-#define HT_INFO_HT_PARAM_RIFS_MODE			((u8) BIT(3))
-#define HT_INFO_HT_PARAM_CTRL_ACCESS_ONLY		((u8) BIT(4))
-#define HT_INFO_HT_PARAM_SRV_INTERVAL_GRANULARITY	((u8) BIT(5))
-
 /*	===============WPS Section=============== */
 /*	For WPSv1.0 */
 #define WPSOUI					0x0050f204

@@ -399,7 +399,7 @@ u16 rtw_get_cur_max_rate23a(struct rtw_adapter *adapter)
 			/* cur_bwmod is updated by beacon, pmlmeinfo is
 			   updated by association response */
 			bw_40MHz = (pmlmeext->cur_bwmode &&
-				    (HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH &
+				    (IEEE80211_HT_PARAM_CHAN_WIDTH_ANY &
 				     pmlmeinfo->HT_info.infos[0])) ? 1:0;
 
 			/* short_GI = (pht_capie->cap_info & (IEEE80211_HT_CAP
