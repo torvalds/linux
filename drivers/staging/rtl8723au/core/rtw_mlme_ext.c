@@ -46,8 +46,8 @@ static int OnAction23a_ht(struct rtw_adapter *padapter, struct recv_frame *precv
 static int OnAction23a_wmm(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnAction23a_p2p(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 
-static void issue_asocrsp(struct rtw_adapter *padapter, unsigned short status,
-			  struct sta_info *pstat, int pkt_type);
+static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
+			   struct sta_info *pstat, u16 pkt_type);
 
 static struct mlme_handler mlme_sta_tbl[]={
 	{"OnAssocReq23a",		&OnAssocReq23a},
@@ -1696,11 +1696,11 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 		/* issue assoc rsp before notify station join event. */
 		if (ieee80211_is_assoc_req(mgmt->frame_control))
-			issue_asocrsp(padapter, status, pstat,
-				      WIFI_ASSOCRSP);
+			issue_assocrsp(padapter, status, pstat,
+				       IEEE80211_STYPE_ASSOC_RESP);
 		else
-			issue_asocrsp(padapter, status, pstat,
-				      WIFI_REASSOCRSP);
+			issue_assocrsp(padapter, status, pstat,
+				       IEEE80211_STYPE_REASSOC_RESP);
 
 		/* 2 - report to upper layer */
 		DBG_8723A("indicate_sta_join_event to upper layer - hostapd\n");
@@ -1725,9 +1725,11 @@ OnAssocReq23aFail:
 #ifdef CONFIG_8723AU_AP_MODE
 	pstat->aid = 0;
 	if (ieee80211_is_assoc_req(mgmt->frame_control))
-		issue_asocrsp(padapter, status, pstat, WIFI_ASSOCRSP);
+		issue_assocrsp(padapter, status, pstat,
+			       IEEE80211_STYPE_ASSOC_RESP);
 	else
-		issue_asocrsp(padapter, status, pstat, WIFI_REASSOCRSP);
+		issue_assocrsp(padapter, status, pstat,
+			       IEEE80211_STYPE_REASSOC_RESP);
 #endif
 
 #endif /* CONFIG_8723AU_AP_MODE */
@@ -3111,8 +3113,8 @@ void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
 	return;
 }
 
-static void issue_asocrsp(struct rtw_adapter *padapter, unsigned short status,
-			  struct sta_info *pstat, int pkt_type)
+static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
+			   struct sta_info *pstat, u16 pkt_type)
 {
 #ifdef CONFIG_8723AU_AP_MODE
 	struct xmit_frame *pmgntframe;
@@ -3143,7 +3145,7 @@ static void issue_asocrsp(struct rtw_adapter *padapter, unsigned short status,
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	pwlanhdr->frame_control = 0;
+	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | pkt_type);
 
 	ether_addr_copy(pwlanhdr->addr1, pstat->hwaddr);
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
@@ -3153,10 +3155,6 @@ static void issue_asocrsp(struct rtw_adapter *padapter, unsigned short status,
 		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 
 	pmlmeext->mgnt_seq++;
-	if (pkt_type == WIFI_ASSOCRSP || pkt_type == WIFI_REASSOCRSP)
-		SetFrameSubType(pwlanhdr, pkt_type);
-	else
-		return;
 
 	pattrib->hdrlen = sizeof(struct ieee80211_hdr_3addr);
 	pattrib->pktlen += pattrib->hdrlen;
