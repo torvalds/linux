@@ -19,7 +19,8 @@ config MTD_QINFO_PROBE
 	    Flash products
 
 config MTD_LPDDR2_NVM
-	depends on MTD
+	# ARM dependency is only for writel_relaxed()
+	depends on MTD && ARM
 	tristate "Support for LPDDR2-NVM flash chips"
 	help
 	  This option enables support of PCM memories with a LPDDR2-NVM
