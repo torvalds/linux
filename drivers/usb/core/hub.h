@@ -89,6 +89,7 @@ struct usb_hub {
  * @connect_type: port's connect type
  * @location: opaque representation of platform connector location
  * @portnum: port index num based one
+ * @is_superspeed cache super-speed status
  */
 struct usb_port {
 	struct usb_device *child;
@@ -98,6 +99,7 @@ struct usb_port {
 	enum usb_port_connect_type connect_type;
 	usb_port_location_t location;
 	u8 portnum;
+	unsigned int is_superspeed:1;
 };
 
 #define to_usb_port(_dev) \
@@ -123,6 +125,19 @@ static inline bool hub_is_port_power_switchable(struct usb_hub *hub)
 		return false;
 	hcs = hub->descriptor->wHubCharacteristics;
 	return (le16_to_cpu(hcs) & HUB_CHAR_LPSM) < HUB_CHAR_NO_LPSM;
+}
+
+static inline int hub_is_superspeed(struct usb_device *hdev)
+{
+	return hdev->descriptor.bDeviceProtocol == USB_HUB_PR_SS;
+}
+
+static inline unsigned hub_power_on_good_delay(struct usb_hub *hub)
+{
+	unsigned delay = hub->descriptor->bPwrOn2PwrGood * 2;
+
+	/* Wait at least 100 msec for power to become stable */
+	return max(delay, 100U);
 }
 
 static inline int hub_port_debounce_be_connected(struct usb_hub *hub,

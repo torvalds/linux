@@ -36,11 +36,6 @@
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define HUB_QUIRK_CHECK_PORT_AUTOSUSPEND	0x01
 
-static inline int hub_is_superspeed(struct usb_device *hdev)
-{
-	return (hdev->descriptor.bDeviceProtocol == USB_HUB_PR_SS);
-}
-
 /* Protect struct usb_device->state and ->children members
  * Note: Both are also protected by ->dev.sem, except that ->state can
  * change to USB_STATE_NOTATTACHED even when the semaphore isn't held. */
@@ -822,14 +817,9 @@ int usb_hub_clear_tt_buffer(struct urb *urb)
 }
 EXPORT_SYMBOL_GPL(usb_hub_clear_tt_buffer);
 
-/* If do_delay is false, return the number of milliseconds the caller
- * needs to delay.
- */
-static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
+static void hub_power_on(struct usb_hub *hub, bool do_delay)
 {
 	int port1;
-	unsigned pgood_delay = hub->descriptor->bPwrOn2PwrGood * 2;
-	unsigned delay;
 
 	/* Enable power on each port.  Some hubs have reserved values
 	 * of LPSM (> 2) in their descriptors, even though they are
@@ -848,12 +838,8 @@ static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
 		else
 			usb_clear_port_feature(hub->hdev, port1,
 						USB_PORT_FEAT_POWER);
-
-	/* Wait at least 100 msec for power to become stable */
-	delay = max(pgood_delay, (unsigned) 100);
 	if (do_delay)
-		msleep(delay);
-	return delay;
+		msleep(hub_power_on_good_delay(hub));
 }
 
 static int hub_hub_status(struct usb_hub *hub,
@@ -1057,7 +1043,9 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 		 * for HUB_POST_RESET, but it's easier not to.
 		 */
 		if (type == HUB_INIT) {
-			delay = hub_power_on(hub, false);
+			unsigned delay = hub_power_on_good_delay(hub);
+
+			hub_power_on(hub, false);
 			INIT_DELAYED_WORK(&hub->init_work, hub_init_func2);
 			queue_delayed_work(system_power_efficient_wq,
 					&hub->init_work,

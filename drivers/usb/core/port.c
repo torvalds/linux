@@ -76,6 +76,7 @@ static int usb_port_runtime_resume(struct device *dev)
 	struct usb_device *hdev = to_usb_device(dev->parent->parent);
 	struct usb_interface *intf = to_usb_interface(dev->parent);
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+	struct usb_port *peer = port_dev->peer;
 	int port1 = port_dev->portnum;
 	int retval;
 
@@ -86,10 +87,18 @@ static int usb_port_runtime_resume(struct device *dev)
 		return 0;
 	}
 
+	/*
+	 * Power on our usb3 peer before this usb2 port to prevent a usb3
+	 * device from degrading to its usb2 connection
+	 */
+	if (!port_dev->is_superspeed && peer)
+		pm_runtime_get_sync(&peer->dev);
+
 	usb_autopm_get_interface(intf);
 	set_bit(port1, hub->busy_bits);
 
 	retval = usb_hub_set_port_power(hdev, hub, port1, true);
+	msleep(hub_power_on_good_delay(hub));
 	if (port_dev->child && !retval) {
 		/*
 		 * Attempt to wait for usb hub port to be reconnected in order
@@ -107,6 +116,7 @@ static int usb_port_runtime_resume(struct device *dev)
 
 	clear_bit(port1, hub->busy_bits);
 	usb_autopm_put_interface(intf);
+
 	return retval;
 }
 
@@ -116,6 +126,7 @@ static int usb_port_runtime_suspend(struct device *dev)
 	struct usb_device *hdev = to_usb_device(dev->parent->parent);
 	struct usb_interface *intf = to_usb_interface(dev->parent);
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+	struct usb_port *peer = port_dev->peer;
 	int port1 = port_dev->portnum;
 	int retval;
 
@@ -135,6 +146,15 @@ static int usb_port_runtime_suspend(struct device *dev)
 	usb_clear_port_feature(hdev, port1,	USB_PORT_FEAT_C_ENABLE);
 	clear_bit(port1, hub->busy_bits);
 	usb_autopm_put_interface(intf);
+
+	/*
+	 * Our peer usb3 port may now be able to suspend, so
+	 * asynchronously queue a suspend request to observe that this
+	 * usb2 port is now off.
+	 */
+	if (!port_dev->is_superspeed && peer)
+		pm_runtime_put(&peer->dev);
+
 	return retval;
 }
 #endif
@@ -159,6 +179,7 @@ static struct device_driver usb_port_driver = {
 
 static int link_peers(struct usb_port *left, struct usb_port *right)
 {
+	struct usb_port *ss_port, *hs_port;
 	int rc;
 
 	if (left->peer == right && right->peer == left)
@@ -184,8 +205,35 @@ static int link_peers(struct usb_port *left, struct usb_port *right)
 		return rc;
 	}
 
+	/*
+	 * We need to wake the HiSpeed port to make sure we don't race
+	 * setting ->peer with usb_port_runtime_suspend().  Otherwise we
+	 * may miss a suspend event for the SuperSpeed port.
+	 */
+	if (left->is_superspeed) {
+		ss_port = left;
+		WARN_ON(right->is_superspeed);
+		hs_port = right;
+	} else {
+		ss_port = right;
+		WARN_ON(!right->is_superspeed);
+		hs_port = left;
+	}
+	pm_runtime_get_sync(&hs_port->dev);
+
 	left->peer = right;
 	right->peer = left;
+
+	/*
+	 * The SuperSpeed reference is dropped when the HiSpeed port in
+	 * this relationship suspends, i.e. when it is safe to allow a
+	 * SuperSpeed connection to drop since there is no risk of a
+	 * device degrading to its powered-off HiSpeed connection.
+	 *
+	 * Also, drop the HiSpeed ref taken above.
+	 */
+	pm_runtime_get_sync(&ss_port->dev);
+	pm_runtime_put(&hs_port->dev);
 
 	return 0;
 }
@@ -206,14 +254,37 @@ static void link_peers_report(struct usb_port *left, struct usb_port *right)
 
 static void unlink_peers(struct usb_port *left, struct usb_port *right)
 {
+	struct usb_port *ss_port, *hs_port;
+
 	WARN(right->peer != left || left->peer != right,
 			"%s and %s are not peers?\n",
 			dev_name(&left->dev), dev_name(&right->dev));
+
+	/*
+	 * We wake the HiSpeed port to make sure we don't race its
+	 * usb_port_runtime_resume() event which takes a SuperSpeed ref
+	 * when ->peer is !NULL.
+	 */
+	if (left->is_superspeed) {
+		ss_port = left;
+		hs_port = right;
+	} else {
+		ss_port = right;
+		hs_port = left;
+	}
+
+	pm_runtime_get_sync(&hs_port->dev);
 
 	sysfs_remove_link(&left->dev.kobj, "peer");
 	right->peer = NULL;
 	sysfs_remove_link(&right->dev.kobj, "peer");
 	left->peer = NULL;
+
+	/* Drop the SuperSpeed ref held on behalf of the active HiSpeed port */
+	pm_runtime_put(&ss_port->dev);
+
+	/* Drop the ref taken above */
+	pm_runtime_put(&hs_port->dev);
 }
 
 /*
@@ -325,6 +396,8 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	port_dev->dev.groups = port_dev_group;
 	port_dev->dev.type = &usb_port_device_type;
 	port_dev->dev.driver = &usb_port_driver;
+	if (hub_is_superspeed(hub->hdev))
+		port_dev->is_superspeed = 1;
 	dev_set_name(&port_dev->dev, "%s-port%d", dev_name(&hub->hdev->dev),
 			port1);
 	retval = device_register(&port_dev->dev);
