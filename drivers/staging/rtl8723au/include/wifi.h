@@ -23,12 +23,6 @@
  */
 #define	WiFiNavUpperUs		30000	/*  30 ms */
 
-#define SetToDs(pbuf)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_TODS))
-
-#define SetFrDs(pbuf)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_FROMDS))
-
 #define _ASOCREQ_IE_OFFSET_		4	/*  excluding wlan_hdr */
 #define	_ASOCRSP_IE_OFFSET_		6
 #define _REASOCREQ_IE_OFFSET_		10
