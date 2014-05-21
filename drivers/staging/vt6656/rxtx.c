@@ -304,7 +304,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
     if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) {
         //=======================================================================
         // Append ICV after payload
-        dwICV = CRCdwGetCrc32Ex(pbyPayloadHead, wPayloadSize, dwICV);//ICV(Payload)
+	dwICV = ether_crc_le(wPayloadSize, pbyPayloadHead);
         pdwICV = (u32 *)(pbyPayloadHead + wPayloadSize);
         // finally, we must invert dwCRC to get the correct answer
         *pdwICV = cpu_to_le32(~dwICV);
@@ -315,7 +315,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
     } else if (pTransmitKey->byCipherSuite == KEY_CTL_TKIP) {
         //=======================================================================
         //Append ICV after payload
-        dwICV = CRCdwGetCrc32Ex(pbyPayloadHead, wPayloadSize, dwICV);//ICV(Payload)
+	dwICV = ether_crc_le(wPayloadSize, pbyPayloadHead);
         pdwICV = (u32 *)(pbyPayloadHead + wPayloadSize);
         // finally, we must invert dwCRC to get the correct answer
         *pdwICV = cpu_to_le32(~dwICV);
