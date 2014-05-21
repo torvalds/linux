@@ -700,20 +700,20 @@ static int do_switch(struct intel_ring_buffer *ring,
 		/* obj is kept alive until the next request by its active ref */
 		i915_gem_object_ggtt_unpin(from->obj);
 		i915_gem_context_unreference(from);
-	} else {
-		if (to->is_initialized == false) {
-			ret = i915_gem_render_state_init(ring);
-			if (ret)
-				DRM_ERROR("init render state: %d\n", ret);
-		}
 	}
-
-	to->is_initialized = true;
 
 done:
 	i915_gem_context_reference(to);
 	ring->last_context = to;
 	to->last_ring = ring;
+
+	if (ring->id == RCS && !to->is_initialized && from == NULL) {
+		ret = i915_gem_render_state_init(ring);
+		if (ret)
+			DRM_ERROR("init render state: %d\n", ret);
+	}
+
+	to->is_initialized = true;
 
 	return 0;
 

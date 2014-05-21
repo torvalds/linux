@@ -164,8 +164,10 @@ int i915_gem_render_state_init(struct intel_ring_buffer *ring)
 	const int gen = INTEL_INFO(ring->dev)->gen;
 	struct i915_render_state *so;
 	const struct intel_renderstate_rodata *rodata;
-	u32 seqno;
 	int ret;
+
+	if (WARN_ON(ring->id != RCS))
+		return -ENOENT;
 
 	rodata = render_state_get_rodata(ring->dev, gen);
 	if (rodata == NULL)
@@ -186,8 +188,10 @@ int i915_gem_render_state_init(struct intel_ring_buffer *ring)
 	if (ret)
 		goto out;
 
-	ret = i915_add_request(ring, &seqno);
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so->obj), ring);
 
+	ret = __i915_add_request(ring, NULL, so->obj, NULL);
+	/* __i915_add_request moves object to inactive if it fails */
 out:
 	render_state_free(so);
 	return ret;
