@@ -306,7 +306,7 @@ static u8 PS_RDY_CHECK(struct rtw_adapter * padapter)
 	if (pwrpriv->bInSuspend)
 		return false;
 	if (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X &&
-	    padapter->securitypriv.binstallGrpkey == false) {
+	    !padapter->securitypriv.binstallGrpkey) {
 		DBG_8723A("Group handshake still in progress !!!\n");
 		return false;
 	}

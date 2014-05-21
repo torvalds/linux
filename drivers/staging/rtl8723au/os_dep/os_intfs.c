@@ -401,7 +401,7 @@ static int rtw_init_default_value(struct rtw_adapter *padapter)
 	pmlmepriv->htpriv.ampdu_enable = false;/* set to disabled */
 
 	/* security_priv */
-	psecuritypriv->binstallGrpkey = _FAIL;
+	psecuritypriv->binstallGrpkey = 0;
 
 	 /* open system */
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;

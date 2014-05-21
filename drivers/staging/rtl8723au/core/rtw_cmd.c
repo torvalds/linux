@@ -755,7 +755,7 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
         }
 
 	/* jeff: set this becasue at least sw key is ready */
-	padapter->securitypriv.busetkipkey = true;
+	padapter->securitypriv.busetkipkey = 1;
 
 	res = rtw_enqueue_cmd23a(pcmdpriv, ph2c);
 

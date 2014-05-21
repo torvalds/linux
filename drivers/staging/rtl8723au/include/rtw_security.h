@@ -139,11 +139,10 @@ struct security_priv {
 
 	u8 wps_ie[MAX_WPS_IE_LEN];/* added in assoc req */
 	int wps_ie_len;
-	u8	binstallGrpkey;
-	u8	busetkipkey;
-	u8	bcheck_grpkey;
-	u8	bgrpkey_handshake;
-	s32	hw_decrypted;
+	unsigned int binstallGrpkey:1;
+	unsigned int busetkipkey:1;
+	unsigned int bcheck_grpkey:1;
+	unsigned int hw_decrypted:1;
 	u32 ndisauthtype;	/*  enum ndis_802_11_auth_mode */
 	u32 ndisencryptstatus;	/*  NDIS_802_11_ENCRYPTION_STATUS */
 	struct wlan_bssid_ex sec_bss;  /* for joinbss (h2c buffer) usage */

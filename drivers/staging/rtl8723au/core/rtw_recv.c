@@ -313,7 +313,7 @@ int recvframe_chkmic(struct rtw_adapter *adapter,
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 					 ("\n recvframe_chkmic: bcmc key\n"));
 
-				if (psecuritypriv->binstallGrpkey == false) {
+				if (!psecuritypriv->binstallGrpkey) {
 					res = _FAIL;
 					RT_TRACE(_module_rtl871x_recv_c_,
 						 _drv_err_,
@@ -442,9 +442,9 @@ int recvframe_chkmic(struct rtw_adapter *adapter,
 				res = _FAIL;
 			} else {
 				/* mic checked ok */
-				if ((psecuritypriv->bcheck_grpkey == false) &&
-				    (is_multicast_ether_addr(prxattrib->ra))) {
-					psecuritypriv->bcheck_grpkey = true;
+				if (!psecuritypriv->bcheck_grpkey &&
+				    is_multicast_ether_addr(prxattrib->ra)) {
+					psecuritypriv->bcheck_grpkey = 1;
 					RT_TRACE(_module_rtl871x_recv_c_,
 						 _drv_err_,
 						 ("psecuritypriv->bcheck_grp"
@@ -507,7 +507,7 @@ struct recv_frame *decryptor(struct rtw_adapter *padapter,
 	}
 
 	if ((prxattrib->encrypt > 0) && ((prxattrib->bdecrypted == 0))) {
-		psecuritypriv->hw_decrypted = false;
+		psecuritypriv->hw_decrypted = 0;
 		switch (prxattrib->encrypt) {
 		case _WEP40_:
 		case _WEP104_:
@@ -525,7 +525,7 @@ struct recv_frame *decryptor(struct rtw_adapter *padapter,
 	} else if (prxattrib->bdecrypted == 1 && prxattrib->encrypt > 0 &&
 		   (psecuritypriv->busetkipkey == 1 ||
 		    prxattrib->encrypt != _TKIP_)) {
-			psecuritypriv->hw_decrypted = true;
+			psecuritypriv->hw_decrypted = 1;
 	}
 
 	if (res == _FAIL) {

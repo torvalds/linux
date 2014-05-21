@@ -1027,9 +1027,8 @@ rtw_joinbss_update_stainfo(struct rtw_adapter *padapter,
 		/* security related */
 		if (padapter->securitypriv.dot11AuthAlgrthm ==
 		    dot11AuthAlgrthm_8021X) {
-			padapter->securitypriv.binstallGrpkey = false;
-			padapter->securitypriv.busetkipkey = false;
-			padapter->securitypriv.bgrpkey_handshake = false;
+			padapter->securitypriv.binstallGrpkey = 0;
+			padapter->securitypriv.busetkipkey = 0;
 
 			psta->ieee8021x_blocked = true;
 			psta->dot118021XPrivacy =

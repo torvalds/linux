@@ -689,7 +689,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 							     idx].skey,
 				       &param->u.crypt.key[24], 8);
 
-				psecuritypriv->busetkipkey = true;
+				psecuritypriv->busetkipkey = 1;
 
 			} else if (strcmp(param->u.crypt.alg, "CCMP") == 0) {
 				DBG_8723A("%s, set group_key, CCMP\n",
@@ -712,7 +712,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 			psecuritypriv->dot118021XGrpKeyid = param->u.crypt.idx;
 
-			psecuritypriv->binstallGrpkey = true;
+			psecuritypriv->binstallGrpkey = 1;
 
 			psecuritypriv->dot11PrivacyAlgrthm =
 				psecuritypriv->dot118021XGrpPrivacy;
@@ -767,7 +767,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					memcpy(psta->dot11tkiprxmickey.skey,
 					       &param->u.crypt.key[24], 8);
 
-					psecuritypriv->busetkipkey = true;
+					psecuritypriv->busetkipkey = 1;
 
 				} else if (!strcmp(param->u.crypt.alg, "CCMP")) {
 
@@ -831,7 +831,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					       skey, &param->u.crypt.key[24],
 					       8);
 
-					psecuritypriv->busetkipkey = true;
+					psecuritypriv->busetkipkey = 1;
 
 				} else if (!strcmp(param->u.crypt.alg, "CCMP")) {
 					psecuritypriv->dot118021XGrpPrivacy =
@@ -852,7 +852,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				psecuritypriv->dot118021XGrpKeyid =
 					param->u.crypt.idx;
 
-				psecuritypriv->binstallGrpkey = true;
+				psecuritypriv->binstallGrpkey = 1;
 
 				psecuritypriv->dot11PrivacyAlgrthm =
 					psecuritypriv->dot118021XGrpPrivacy;
@@ -1003,7 +1003,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 						       8);
 
 						padapter->securitypriv.
-							busetkipkey = false;
+							busetkipkey = 0;
 					}
 					DBG_8723A(" ~~~~set sta key:unicastkey\n");
 
@@ -1029,7 +1029,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 					       skey, &param->u.crypt.key[24],
 					       8);
 					padapter->securitypriv.binstallGrpkey =
-					    true;
+						1;
 					/* DEBUG_ERR((" param->u.crypt.key_len"
 					   "=%d\n", param->u.crypt.key_len)); */
 					DBG_8723A

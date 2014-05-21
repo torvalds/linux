@@ -604,10 +604,10 @@ static int update_attrib(struct rtw_adapter *padapter,
 		pattrib->iv_len = 8;
 		pattrib->icv_len = 4;
 
-		if (padapter->securitypriv.busetkipkey == _FAIL) {
+		if (!padapter->securitypriv.busetkipkey) {
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
 				 ("\npadapter->securitypriv.busetkip"
-				  "key(%d) == _FAIL drop packet\n",
+				  "key(%d) == false drop packet\n",
 				  padapter->securitypriv.busetkipkey));
 			res = _FAIL;
 			goto exit;
@@ -630,7 +630,7 @@ static int update_attrib(struct rtw_adapter *padapter,
 	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
 		 ("update_attrib: encrypt =%d\n", pattrib->encrypt));
 
-	if (pattrib->encrypt && psecuritypriv->hw_decrypted == false) {
+	if (pattrib->encrypt && !psecuritypriv->hw_decrypted) {
 		pattrib->bswenc = true;
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
 			 ("update_attrib: encrypt =%d bswenc = true\n",

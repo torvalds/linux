@@ -744,7 +744,7 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 		if (stainfo!= NULL) {
 
 			if (is_multicast_ether_addr(prxattrib->ra)) {
-				if (psecuritypriv->binstallGrpkey == false) {
+				if (psecuritypriv->binstallGrpkey == 0) {
 					res = _FAIL;
 					DBG_8723A("%s:rx bc/mc packets, but didn't install group key!!!!!!!!!!\n", __func__);
 					goto exit;
@@ -1645,7 +1645,7 @@ void rtw_use_tkipkey_handler23a(void *FunctionContext)
 	struct rtw_adapter *padapter = (struct rtw_adapter *)FunctionContext;
 
 	RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("^^^rtw_use_tkipkey_handler23a ^^^\n"));
-	padapter->securitypriv.busetkipkey = true;
+	padapter->securitypriv.busetkipkey = 1;
 	RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
 		 ("^^^rtw_use_tkipkey_handler23a padapter->securitypriv.busetkipkey =%d^^^\n",
 		 padapter->securitypriv.busetkipkey));
