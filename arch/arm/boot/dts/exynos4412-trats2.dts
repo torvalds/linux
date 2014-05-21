@@ -114,30 +114,32 @@
 		compatible = "gpio-keys";
 
 		key-down {
-			interrupt-parent = <&gpj1>;
-			interrupts = <2 0>;
-			gpios = <&gpj1 2 1>;
+			gpios = <&gpx3 3 1>;
 			linux,code = <114>;
 			label = "volume down";
 			debounce-interval = <10>;
 		};
 
 		key-up {
-			interrupt-parent = <&gpj1>;
-			interrupts = <1 0>;
-			gpios = <&gpj1 1 1>;
+			gpios = <&gpx2 2 1>;
 			linux,code = <115>;
 			label = "volume up";
 			debounce-interval = <10>;
 		};
 
 		key-power {
-			interrupt-parent = <&gpx2>;
-			interrupts = <7 0>;
 			gpios = <&gpx2 7 1>;
 			linux,code = <116>;
 			label = "power";
 			debounce-interval = <10>;
+			gpio-key,wakeup;
+		};
+
+		key-ok {
+			gpios = <&gpx0 1 1>;
+			linux,code = <139>;
+			label = "ok";
+			debounce-inteval = <10>;
 			gpio-key,wakeup;
 		};
 	};
