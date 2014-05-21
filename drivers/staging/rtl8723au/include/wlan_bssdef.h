@@ -67,23 +67,6 @@ struct ndis_802_11_key {
 	u8 KeyMaterial[32]; /*  variable length depending on above field */
 };
 
-enum NDIS_802_11_STATUS_TYPE {
-	Ndis802_11StatusType_Authentication,
-	Ndis802_11StatusType_MediaStreamMode,
-	Ndis802_11StatusType_PMKID_CandidateList,
-	Ndis802_11StatusTypeMax    /*  not a real type, just an upper bound */
-};
-
-/*  mask for authentication/integrity fields */
-#define NDIS_802_11_AUTH_REQUEST_AUTH_FIELDS        0x0f
-#define NDIS_802_11_AUTH_REQUEST_REAUTH			0x01
-#define NDIS_802_11_AUTH_REQUEST_KEYUPDATE		0x02
-#define NDIS_802_11_AUTH_REQUEST_PAIRWISE_ERROR		0x06
-#define NDIS_802_11_AUTH_REQUEST_GROUP_ERROR		0x0E
-
-/*  MIC check time, 60 seconds. */
-#define MIC_CHECK_TIME	60000000
-
 struct wlan_phy_info {
 	u8	SignalStrength;/* in percentage) */
 	u8	SignalQuality;/* in percentage) */
