@@ -495,7 +495,6 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter);
 
 bool IsLegal5GChannel(struct rtw_adapter *Adapter, u8 channel);
 
-void site_survey23a(struct rtw_adapter *padapter);
 int collect_bss_info23a(struct rtw_adapter *padapter,
 			struct recv_frame *precv_frame,
 			struct wlan_bssid_ex *bssid);

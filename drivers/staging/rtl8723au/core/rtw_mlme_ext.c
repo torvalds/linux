@@ -4384,7 +4384,7 @@ bool IsLegal5GChannel(struct rtw_adapter *Adapter, u8 channel)
 	return false;
 }
 
-void site_survey23a(struct rtw_adapter *padapter)
+static void rtw_site_survey(struct rtw_adapter *padapter)
 {
 	unsigned char survey_channel = 0;
 	enum rt_scan_type ScanType = SCAN_PASSIVE;
@@ -4401,7 +4401,7 @@ void site_survey23a(struct rtw_adapter *padapter)
 	}
 
 	if (survey_channel != 0) {
-		/* PAUSE 4-AC Queue when site_survey23a */
+		/* PAUSE 4-AC Queue when site_survey */
 		if (pmlmeext->sitesurvey_res.channel_idx == 0)
 			set_channel_bwmode23a(padapter, survey_channel,
 					      HAL_PRIME_CHNL_OFFSET_DONT_CARE,
@@ -4440,7 +4440,7 @@ void site_survey23a(struct rtw_adapter *padapter)
 				      pmlmeext->cur_ch_offset,
 				      pmlmeext->cur_bwmode);
 
-		/* flush 4-AC Queue after site_survey23a */
+		/* flush 4-AC Queue after rtw_site_survey */
 		/* val8 = 0; */
 
 		/* config MSR */
@@ -6213,7 +6213,7 @@ int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		pmlmeext->sitesurvey_res.state = SCAN_PROCESS;
 	}
 
-	site_survey23a(padapter);
+	rtw_site_survey(padapter);
 
 	return H2C_SUCCESS;
 }
