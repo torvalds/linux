@@ -567,7 +567,6 @@ static int dgap_init_pci(void)
 	return pci_register_driver(&dgap_driver);
 }
 
-/* returns count (>= 0), or negative on error */
 static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
