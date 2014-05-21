@@ -107,11 +107,6 @@ static inline int usb_autoresume_device(struct usb_device *udev)
 	return 0;
 }
 
-static inline int usb_remote_wakeup(struct usb_device *udev)
-{
-	return 0;
-}
-
 static inline int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 {
 	return 0;
