@@ -78,12 +78,6 @@ _GLOBAL(tm_abort)
 	TABORT(R3)
 	blr
 
-	.section	".toc","aw"
-DSCR_DEFAULT:
-	.tc dscr_default[TC],dscr_default
-
-	.section	".text"
-
 /* void tm_reclaim(struct thread_struct *thread,
  *                 unsigned long orig_msr,
  *		   uint8_t cause)
@@ -298,9 +292,8 @@ dont_backup_fp:
 	mtlr	r0
 	ld	r2, STK_GOT(r1)
 
-	/* Load system default DSCR */
-	ld	r4, DSCR_DEFAULT@toc(r2)
-	ld	r0, 0(r4)
+	/* Load CPU's default DSCR */
+	ld	r0, PACA_DSCR(r13)
 	mtspr	SPRN_DSCR, r0
 
 	blr
@@ -479,9 +472,8 @@ restore_gprs:
 	mtlr	r0
 	ld	r2, STK_GOT(r1)
 
-	/* Load system default DSCR */
-	ld	r4, DSCR_DEFAULT@toc(r2)
-	ld	r0, 0(r4)
+	/* Load CPU's default DSCR */
+	ld	r0, PACA_DSCR(r13)
 	mtspr	SPRN_DSCR, r0
 
 	blr

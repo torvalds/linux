@@ -387,12 +387,6 @@ _GLOBAL(ret_from_kernel_thread)
 	li	r3,0
 	b	syscall_exit
 
-	.section	".toc","aw"
-DSCR_DEFAULT:
-	.tc dscr_default[TC],dscr_default
-
-	.section	".text"
-
 /*
  * This routine switches between two different tasks.  The process
  * state of one is saved on its kernel stack.  Then the state
@@ -577,11 +571,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #ifdef CONFIG_PPC64
 BEGIN_FTR_SECTION
 	lwz	r6,THREAD_DSCR_INHERIT(r4)
-	ld	r7,DSCR_DEFAULT@toc(2)
 	ld	r0,THREAD_DSCR(r4)
 	cmpwi	r6,0
 	bne	1f
-	ld	r0,0(r7)
+	ld	r0,PACA_DSCR(r13)
 1:
 BEGIN_FTR_SECTION_NESTED(70)
 	mfspr	r8, SPRN_FSCR
