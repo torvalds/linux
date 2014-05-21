@@ -3662,9 +3662,8 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_qos_hdr *pwlanhdr;
 	__le16 *fctrl;
-	u16 *qc;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -3687,7 +3686,7 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	pwlanhdr = (struct ieee80211_qos_hdr *)pframe;
 
 	fctrl = &pwlanhdr->frame_control;
 	*fctrl = 0;
@@ -3700,13 +3699,11 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 	if (pattrib->mdata)
 		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 
-	qc = (unsigned short *)(pframe + pattrib->hdrlen - 2);
-
-	SetPriority(qc, tid);
-
-	SetEOSP(qc, pattrib->eosp);
-
-	SetAckpolicy(qc, pattrib->ack_policy);
+	pwlanhdr->qos_ctrl = cpu_to_le16(tid & IEEE80211_QOS_CTL_TID_MASK);
+	pwlanhdr->qos_ctrl |= cpu_to_le16((pattrib->ack_policy << 5) &
+					  IEEE80211_QOS_CTL_ACK_POLICY_MASK);
+	if (pattrib->eosp)
+		pwlanhdr->qos_ctrl |= cpu_to_le16(IEEE80211_QOS_CTL_EOSP);
 
 	ether_addr_copy(pwlanhdr->addr1, da);
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
