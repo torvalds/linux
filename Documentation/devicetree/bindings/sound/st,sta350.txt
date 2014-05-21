@@ -25,6 +25,7 @@ Optional properties:
 	2: 2 Channel (Full-Bridge) Power, 1 Channel FFX
 	3: 1 Channel Mono-Parallel
 	If parameter is missing, mode 0 will be enabled.
+	This property has to be specified as '/bits/ 8' value.
 
   -  st,ch1-output-mapping: Channel 1 output mapping
   -  st,ch2-output-mapping: Channel 2 output mapping
@@ -33,6 +34,7 @@ Optional properties:
 	1: Channel 2
 	2: Channel 3
 	If parameter is missing, channel 1 is choosen.
+	This properties have to be specified as '/bits/ 8' values.
 
   -  st,thermal-warning-recover:
 	If present, thermal warning recovery is enabled.
@@ -82,9 +84,31 @@ Optional properties:
 	If not present, preset DC coefficient is used.
 
   -  st,invalid-input-detect-mute:
-	If not present, automatic invalid input detect mute is enabled.
+	If present, automatic invalid input detect mute is enabled.
 
+  -  st,activate-mute-output:
+	If present, a mute output will be activated in ase the volume will
+	reach a value lower than -76 dBFS.
 
+  -  st,bridge-immediate-off:
+	If present, the bridge will be switched off immediately after the
+	power-down-gpio goes low. Otherwise, the bridge will wait for 13
+	million clock cycles to pass before shutting down.
+
+  -  st,noise-shape-dc-cut:
+	If present, the noise-shaping technique on the DC cutoff filter are
+	enabled.
+
+  -  st,powerdown-master-volume:
+	If present, the power-down pin and I2C power-down functions will
+	act on the master volume. Otherwise, the functions will act on the
+	mute commands.
+
+  -  st,powerdown-delay-divider:
+	If present, the bridge power-down time will be divided by the provided
+	value. If not specified, a divider of 1 will be used. Allowed values
+	are 1, 2, 4, 8, 16, 32, 64 and 128.
+	This property has to be specified as '/bits/ 8' value.
 
 Example:
 
@@ -93,12 +117,12 @@ codec: sta350@38 {
 	reg = <0x1c>;
 	reset-gpios = <&gpio1 19 0>;
 	power-down-gpios = <&gpio1 16 0>;
-	st,output-conf = <0x3>;			// set output to 2-channel
+	st,output-conf = /bits/ 8  <0x3>;	// set output to 2-channel
 						// (full-bridge) power,
 						// 2-channel data-out
-	st,ch1-output-mapping = <0>;		// set channel 1 output ch 1
-	st,ch2-output-mapping = <0>;		// set channel 2 output ch 1
-	st,ch3-output-mapping = <0>;		// set channel 3 output ch 1
+	st,ch1-output-mapping = /bits/ 8 <0>;	// set channel 1 output ch 1
+	st,ch2-output-mapping = /bits/ 8 <0>;	// set channel 2 output ch 1
+	st,ch3-output-mapping = /bits/ 8 <0>;	// set channel 3 output ch 1
 	st,max-power-correction;		// enables power bridge
 						// correction for THD reduction
 						// near maximum power output

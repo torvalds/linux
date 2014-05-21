@@ -451,6 +451,10 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 	u32 mod = readl(i2s->addr + I2SMOD);
 
 	switch (clk_id) {
+	case SAMSUNG_I2S_OPCLK:
+		mod &= ~MOD_OPCLK_MASK;
+		mod |= dir;
+		break;
 	case SAMSUNG_I2S_CDCLK:
 		/* Shouldn't matter in GATING(CLOCK_IN) mode */
 		if (dir == SND_SOC_CLOCK_IN)
@@ -724,9 +728,6 @@ static int i2s_startup(struct snd_pcm_substream *substream,
 	else
 		i2s->mode |= DAI_MANAGER;
 
-	/* Enforce set_sysclk in Master mode */
-	i2s->rclk_srcrate = 0;
-
 	if (!any_active(i2s) && (i2s->quirks & QUIRK_NEED_RSTCLR))
 		writel(CON_RSTCLR, i2s->addr + I2SCON);
 
@@ -984,6 +985,7 @@ probe_exit:
 	/* Reset any constraint on RFS and BFS */
 	i2s->rfs = 0;
 	i2s->bfs = 0;
+	i2s->rclk_srcrate = 0;
 	i2s_txctrl(i2s, 0);
 	i2s_rxctrl(i2s, 0);
 	i2s_fifo(i2s, FIC_TXFLUSH);
@@ -1292,8 +1294,6 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 
 	i2s->pri_dai = NULL;
 	i2s->sec_dai = NULL;
-
-	samsung_asoc_dma_platform_unregister(&pdev->dev);
 
 	return 0;
 }

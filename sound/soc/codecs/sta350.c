@@ -1020,6 +1020,29 @@ static int sta350_probe(struct snd_soc_codec *codec)
 			   pdata->ch3_output_mapping
 				<< STA350_CxCFG_OM_SHIFT);
 
+	/* miscellaneous registers */
+	regmap_update_bits(sta350->regmap, STA350_MISC1,
+			   STA350_MISC1_CPWMEN,
+			   pdata->activate_mute_output ?
+				STA350_MISC1_CPWMEN : 0);
+	regmap_update_bits(sta350->regmap, STA350_MISC1,
+			   STA350_MISC1_BRIDGOFF,
+			   pdata->bridge_immediate_off ?
+				STA350_MISC1_BRIDGOFF : 0);
+	regmap_update_bits(sta350->regmap, STA350_MISC1,
+			   STA350_MISC1_NSHHPEN,
+			   pdata->noise_shape_dc_cut ?
+				STA350_MISC1_NSHHPEN : 0);
+	regmap_update_bits(sta350->regmap, STA350_MISC1,
+			   STA350_MISC1_RPDNEN,
+			   pdata->powerdown_master_vol ?
+				STA350_MISC1_RPDNEN: 0);
+
+	regmap_update_bits(sta350->regmap, STA350_MISC2,
+			   STA350_MISC2_PNDLSL_MASK,
+			   pdata->powerdown_delay_divider
+				<< STA350_MISC2_PNDLSL_SHIFT);
+
 	/* initialize coefficient shadow RAM with reset values */
 	for (i = 4; i <= 49; i += 5)
 		sta350->coef_shadow[i] = 0x400000;
@@ -1094,6 +1117,7 @@ static int sta350_probe_dt(struct device *dev, struct sta350_priv *sta350)
 	struct sta350_platform_data *pdata;
 	const char *ffx_power_mode;
 	u16 tmp;
+	u8 tmp8;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -1157,6 +1181,27 @@ static int sta350_probe_dt(struct device *dev, struct sta350_priv *sta350)
 	/* CONFF */
 	if (of_get_property(np, "st,invalid-input-detect-mute", NULL))
 		pdata->invalid_input_detect_mute = 1;
+
+	/* MISC */
+	if (of_get_property(np, "st,activate-mute-output", NULL))
+		pdata->activate_mute_output = 1;
+
+	if (of_get_property(np, "st,bridge-immediate-off", NULL))
+		pdata->bridge_immediate_off = 1;
+
+	if (of_get_property(np, "st,noise-shape-dc-cut", NULL))
+		pdata->noise_shape_dc_cut = 1;
+
+	if (of_get_property(np, "st,powerdown-master-volume", NULL))
+		pdata->powerdown_master_vol = 1;
+
+	if (!of_property_read_u8(np, "st,powerdown-delay-divider", &tmp8)) {
+		if (is_power_of_2(tmp8) && tmp8 >= 1 && tmp8 <= 128)
+			pdata->powerdown_delay_divider = ilog2(tmp8);
+		else
+			dev_warn(dev, "Unsupported powerdown delay divider %d\n",
+				 tmp8);
+	}
 
 	sta350->pdata = pdata;
 

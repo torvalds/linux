@@ -225,4 +225,14 @@
 #define STA350_C3_MIX1		60
 #define STA350_C3_MIX2		61
 
+/* miscellaneous register 1 */
+#define STA350_MISC1_CPWMEN	BIT(2)
+#define STA350_MISC1_BRIDGOFF	BIT(5)
+#define STA350_MISC1_NSHHPEN	BIT(6)
+#define STA350_MISC1_RPDNEN	BIT(7)
+
+/* miscellaneous register 2 */
+#define STA350_MISC2_PNDLSL_MASK	0x1c
+#define STA350_MISC2_PNDLSL_SHIFT	2
+
 #endif /* _ASOC_STA_350_H */
