@@ -94,13 +94,6 @@ unsigned int BBuGetFrameTime(u8 preamble_type, u8 pkt_type,
 void BBvCalculateParameter(struct vnt_private *, u32 frame_length,
 	u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
 
-/* timer for antenna diversity */
-
-void TimerSQ3CallBack(struct vnt_private *);
-void TimerSQ3Tmax3CallBack(struct vnt_private *);
-
-void BBvAntennaDiversity(struct vnt_private *, u8 byRxRate, u8 bySQ3);
-
 void BBvSetShortSlotTime(struct vnt_private *);
 void BBvSetVGAGainOffset(struct vnt_private *, u8 byData);
 void BBvSetAntennaMode(struct vnt_private *, u8 byAntennaMode);

@@ -214,7 +214,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
 static int device_init_registers(struct vnt_private *pDevice);
 static bool device_init_defrag_cb(struct vnt_private *pDevice);
-static void device_init_diversity_timer(struct vnt_private *pDevice);
 
 static int  ethtool_ioctl(struct net_device *dev, struct ifreq *);
 static void device_free_tx_bufs(struct vnt_private *pDevice);
@@ -261,28 +260,6 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->byAutoFBCtrl = AUTO_FB_0;
     pDevice->byPreambleType = 0;
     pDevice->bExistSWNetAddr = false;
-    /* pDevice->bDiversityRegCtlON = true; */
-    pDevice->bDiversityRegCtlON = false;
-}
-
-static void device_init_diversity_timer(struct vnt_private *pDevice)
-{
-    init_timer(&pDevice->TimerSQ3Tmax1);
-    pDevice->TimerSQ3Tmax1.data = (unsigned long)pDevice;
-    pDevice->TimerSQ3Tmax1.function = (TimerFunction)TimerSQ3CallBack;
-    pDevice->TimerSQ3Tmax1.expires = RUN_AT(HZ);
-
-    init_timer(&pDevice->TimerSQ3Tmax2);
-    pDevice->TimerSQ3Tmax2.data = (unsigned long)pDevice;
-    pDevice->TimerSQ3Tmax2.function = (TimerFunction)TimerSQ3CallBack;
-    pDevice->TimerSQ3Tmax2.expires = RUN_AT(HZ);
-
-    init_timer(&pDevice->TimerSQ3Tmax3);
-    pDevice->TimerSQ3Tmax3.data = (unsigned long)pDevice;
-    pDevice->TimerSQ3Tmax3.function = (TimerFunction)TimerSQ3Tmax3CallBack;
-    pDevice->TimerSQ3Tmax3.expires = RUN_AT(HZ);
-
-    return;
 }
 
 /*
@@ -444,13 +421,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 			pDevice->byRxAntennaMode = ANT_A;
 		else
 			pDevice->byRxAntennaMode = ANT_B;
-
-		if (pDevice->bDiversityRegCtlON)
-			pDevice->bDiversityEnable = true;
-		else
-			pDevice->bDiversityEnable = false;
 	} else  {
-		pDevice->bDiversityEnable = false;
 		pDevice->byAntennaCount = 1;
 		pDevice->dwTxAntennaSel = 0;
 		pDevice->dwRxAntennaSel = 0;
@@ -471,13 +442,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 			pDevice->byRxAntennaMode = ANT_B;
 		}
 	}
-
-	pDevice->ulDiversityNValue = 100 * 255;
-	pDevice->ulDiversityMValue = 100 * 16;
-	pDevice->byTMax = 1;
-	pDevice->byTMax2 = 4;
-	pDevice->ulSQ3TH = 0;
-	pDevice->byTMax3 = 64;
 
 	/* get Auto Fall Back type */
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
@@ -957,9 +921,6 @@ static int  device_open(struct net_device *dev)
     pDevice->bRoaming = false;
     pDevice->bIsRoaming = false;
     pDevice->bEnableRoaming = false;
-    if (pDevice->bDiversityRegCtlON) {
-        device_init_diversity_timer(pDevice);
-    }
 
     vMgrObjectInit(pDevice);
 
@@ -1052,12 +1013,6 @@ static int device_close(struct net_device *dev)
 
 	cancel_delayed_work_sync(&pDevice->run_command_work);
 	cancel_delayed_work_sync(&pDevice->second_callback_work);
-
-    if (pDevice->bDiversityRegCtlON) {
-        del_timer(&pDevice->TimerSQ3Tmax1);
-        del_timer(&pDevice->TimerSQ3Tmax2);
-        del_timer(&pDevice->TimerSQ3Tmax3);
-    }
 
 	cancel_work_sync(&pDevice->rx_mng_work_item);
 	cancel_work_sync(&pDevice->read_work_item);

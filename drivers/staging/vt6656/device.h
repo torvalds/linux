@@ -492,30 +492,6 @@ struct vnt_private {
 	u8 byRadioCtl;
 	u8 bHWRadioOff;
 
-	/* SQ3 functions for antenna diversity */
-	struct timer_list TimerSQ3Tmax1;
-	struct timer_list TimerSQ3Tmax2;
-	struct timer_list TimerSQ3Tmax3;
-
-	int bDiversityRegCtlON;
-	int bDiversityEnable;
-	unsigned long ulDiversityNValue;
-	unsigned long ulDiversityMValue;
-	u8 byTMax;
-	u8 byTMax2;
-	u8 byTMax3;
-	unsigned long ulSQ3TH;
-
-	unsigned long uDiversityCnt;
-	u8 byAntennaState;
-	unsigned long ulRatio_State0;
-	unsigned long ulRatio_State1;
-	unsigned long ulSQ3_State0;
-	unsigned long ulSQ3_State1;
-
-	unsigned long aulSQ3Val[MAX_RATE];
-	unsigned long aulPktNum[MAX_RATE];
-
 	/* IFS & Cw */
 	u32 uSIFS;  /* Current SIFS */
 	u32 uDIFS;  /* Current DIFS */
