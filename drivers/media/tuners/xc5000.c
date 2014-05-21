@@ -25,6 +25,7 @@
 #include <linux/moduleparam.h>
 #include <linux/videodev2.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
 
@@ -65,11 +66,17 @@ struct xc5000_priv {
 	u16 pll_register_no;
 	u8 init_status_supported;
 	u8 fw_checksum_supported;
+
+	struct dvb_frontend *fe;
+	struct delayed_work timer_sleep;
 };
 
 /* Misc Defines */
 #define MAX_TV_STANDARD			24
 #define XC_MAX_I2C_WRITE_LENGTH		64
+
+/* Time to suspend after the .sleep callback is called */
+#define XC5000_SLEEP_TIME		5000 /* ms */
 
 /* Signal Types */
 #define XC_RF_MODE_AIR			0
@@ -1096,6 +1103,8 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 	u16 pll_lock_status;
 	u16 fw_ck;
 
+	cancel_delayed_work(&priv->timer_sleep);
+
 	if (force || xc5000_is_firmware_loaded(fe) != 0) {
 
 fw_retry:
@@ -1164,9 +1173,28 @@ fw_retry:
 	return ret;
 }
 
+static void xc5000_do_timer_sleep(struct work_struct *timer_sleep)
+{
+	struct xc5000_priv *priv =container_of(timer_sleep, struct xc5000_priv,
+					       timer_sleep.work);
+	struct dvb_frontend *fe = priv->fe;
+	int ret;
+
+	dprintk(1, "%s()\n", __func__);
+
+	/* According to Xceive technical support, the "powerdown" register
+	   was removed in newer versions of the firmware.  The "supported"
+	   way to sleep the tuner is to pull the reset pin low for 10ms */
+	ret = xc5000_tuner_reset(fe);
+	if (ret != 0)
+		printk(KERN_ERR
+			"xc5000: %s() unable to shutdown tuner\n",
+			__func__);
+}
+
 static int xc5000_sleep(struct dvb_frontend *fe)
 {
-	int ret;
+	struct xc5000_priv *priv = fe->tuner_priv;
 
 	dprintk(1, "%s()\n", __func__);
 
@@ -1174,17 +1202,10 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 	if (no_poweroff)
 		return 0;
 
-	/* According to Xceive technical support, the "powerdown" register
-	   was removed in newer versions of the firmware.  The "supported"
-	   way to sleep the tuner is to pull the reset pin low for 10ms */
-	ret = xc5000_tuner_reset(fe);
-	if (ret != 0) {
-		printk(KERN_ERR
-			"xc5000: %s() unable to shutdown tuner\n",
-			__func__);
-		return -EREMOTEIO;
-	} else
-		return 0;
+	schedule_delayed_work(&priv->timer_sleep,
+			      msecs_to_jiffies(XC5000_SLEEP_TIME));
+
+	return 0;
 }
 
 static int xc5000_init(struct dvb_frontend *fe)
@@ -1211,8 +1232,10 @@ static int xc5000_release(struct dvb_frontend *fe)
 
 	mutex_lock(&xc5000_list_mutex);
 
-	if (priv)
+	if (priv) {
+		cancel_delayed_work(&priv->timer_sleep);
 		hybrid_tuner_release_state(priv);
+	}
 
 	mutex_unlock(&xc5000_list_mutex);
 
@@ -1284,6 +1307,8 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		/* new tuner instance */
 		priv->bandwidth = 6000000;
 		fe->tuner_priv = priv;
+		priv->fe = fe;
+		INIT_DELAYED_WORK(&priv->timer_sleep, xc5000_do_timer_sleep);
 		break;
 	default:
 		/* existing tuner instance */
