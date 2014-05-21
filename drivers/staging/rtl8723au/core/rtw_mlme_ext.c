@@ -32,7 +32,6 @@ static int DoReserved23a(struct rtw_adapter *padapter, struct recv_frame *precv_
 static int OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnAtim23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-static int OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnAuth23aClient23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnDeAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnAction23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
@@ -47,8 +46,6 @@ static int OnAction23a_wmm(struct rtw_adapter *padapter, struct recv_frame *prec
 static int OnAction23a_p2p(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 
 static void issue_assocreq(struct rtw_adapter *padapter);
-static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
-			   struct sta_info *pstat, u16 pkt_type);
 static void issue_probereq(struct rtw_adapter *padapter,
 			   struct cfg80211_ssid *pssid, u8 *da);
 static int issue_probereq_ex(struct rtw_adapter *padapter,
@@ -65,6 +62,11 @@ static void start_clnt_auth(struct rtw_adapter *padapter);
 static void start_clnt_join(struct rtw_adapter *padapter);
 static void start_create_ibss(struct rtw_adapter *padapter);
 
+#ifdef CONFIG_8723AU_AP_MODE
+static int OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
+static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
+			   struct sta_info *pstat, u16 pkt_type);
+#endif
 
 static struct mlme_handler mlme_sta_tbl[]={
 	{"OnAssocReq23a",		&OnAssocReq23a},
@@ -867,10 +869,10 @@ out:
 	return _SUCCESS;
 }
 
+#ifdef CONFIG_8723AU_AP_MODE
 static int
 OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 {
-#ifdef CONFIG_8723AU_AP_MODE
 	static struct sta_info stat;
 	struct sta_info *pstat = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -1051,9 +1053,9 @@ auth_fail:
 
 	issue_auth(padapter, pstat, (unsigned short)status);
 
-#endif
 	return _FAIL;
 }
+#endif
 
 static int
 OnAuth23aClient23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
@@ -3130,10 +3132,10 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 	return;
 }
 
+#ifdef CONFIG_8723AU_AP_MODE
 static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 			   struct sta_info *pstat, u16 pkt_type)
 {
-#ifdef CONFIG_8723AU_AP_MODE
 	struct xmit_frame *pmgntframe;
 	struct ieee80211_hdr *pwlanhdr;
 	struct pkt_attrib *pattrib;
@@ -3273,8 +3275,8 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe23a(padapter, pmgntframe);
-#endif
 }
+#endif
 
 static void issue_assocreq(struct rtw_adapter *padapter)
 {
