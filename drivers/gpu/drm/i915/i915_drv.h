@@ -1098,6 +1098,9 @@ struct i915_gem_mm {
 	 */
 	bool busy;
 
+	/* the indicator for dispatch video commands on two BSD rings */
+	int bsd_ring_dispatch_index;
+
 	/** Bit 6 swizzling required for X tiling */
 	uint32_t bit_6_swizzle_x;
 	/** Bit 6 swizzling required for Y tiling */
@@ -1553,8 +1556,11 @@ struct drm_i915_private {
 	struct i915_dri1_state dri1;
 	/* Old ums support infrastructure, same warning applies. */
 	struct i915_ums_state ums;
-	/* the indicator for dispatch video commands on two BSD rings */
-	int ring_index;
+
+	/*
+	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
+	 * will be rejected. Instead look for a better place.
+	 */
 };
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)

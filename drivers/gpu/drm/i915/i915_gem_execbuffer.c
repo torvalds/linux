@@ -1027,12 +1027,12 @@ static int gen8_dispatch_bsd_ring(struct drm_device *dev,
 		int ring_id;
 
 		mutex_lock(&dev->struct_mutex);
-		if (dev_priv->ring_index == 0) {
+		if (dev_priv->mm.bsd_ring_dispatch_index == 0) {
 			ring_id = VCS;
-			dev_priv->ring_index = 1;
+			dev_priv->mm.bsd_ring_dispatch_index = 1;
 		} else {
 			ring_id = VCS2;
-			dev_priv->ring_index = 0;
+			dev_priv->mm.bsd_ring_dispatch_index = 0;
 		}
 		file_priv->bsd_ring = &dev_priv->ring[ring_id];
 		mutex_unlock(&dev->struct_mutex);
