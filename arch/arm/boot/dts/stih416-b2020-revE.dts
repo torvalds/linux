@@ -14,6 +14,20 @@
 	compatible = "st,stih416-b2020", "st,stih416";
 
 	soc {
+		leds {
+			compatible = "gpio-leds";
+			red {
+				#gpio-cells		= <1>;
+				label			= "Front Panel LED";
+				gpios			= <&PIO4 1>;
+				linux,default-trigger	= "heartbeat";
+			};
+			green {
+				gpios			= <&PIO1 3>;
+				default-state 		= "off";
+			};
+		};
+
 		ethernet1: dwmac@fef08000 {
 			snps,reset-gpio = <&PIO0 7>;
 		};
