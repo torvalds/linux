@@ -87,12 +87,6 @@ enum WIFI_REG_DOMAIN {
 #define SetFrDs(pbuf)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_FROMDS))
 
-#define SetMFrag(pbuf)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_MOREFRAGS))
-
-#define ClearMFrag(pbuf)	\
-	(*(__le16 *)(pbuf) &= (~cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)))
-
 #define SetRetry(pbuf)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_RETRY))
 

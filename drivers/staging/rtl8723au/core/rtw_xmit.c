@@ -1078,6 +1078,7 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 	struct sta_info *psta;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
+	struct ieee80211_hdr *hdr;
 	s32 frg_inx, frg_len, mpdu_len, llc_sz, mem_sz;
 	u8 *pframe, *mem_start;
 	u8 hw_hdr_offset;
@@ -1136,8 +1137,7 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 		mpdu_len = frg_len;
 
 		pframe = mem_start;
-
-		SetMFrag(mem_start);
+		hdr = (struct ieee80211_hdr *)mem_start;
 
 		pframe += pattrib->hdrlen;
 		mpdu_len -= pattrib->hdrlen;
@@ -1220,8 +1220,8 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 						llc_sz : 0) +
 						((pattrib->bswenc) ?
 						pattrib->icv_len : 0) + mem_sz;
-
-			ClearMFrag(mem_start);
+			hdr->frame_control &=
+				~cpu_to_le16(IEEE80211_FCTL_MOREFRAGS);
 
 			break;
 		} else {
@@ -1229,6 +1229,7 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 				 ("%s: There're still something in packet!\n",
 				  __func__));
 		}
+		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREFRAGS);
 
 		mem_start = PTR_ALIGN(pframe, 4) + hw_hdr_offset;
 		memcpy(mem_start, pbuf_start + hw_hdr_offset, pattrib->hdrlen);
