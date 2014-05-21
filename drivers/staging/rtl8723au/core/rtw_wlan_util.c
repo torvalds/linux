@@ -340,7 +340,8 @@ void SelectChannel23a(struct rtw_adapter *padapter, unsigned char channel)
 	mutex_unlock(&adapter_to_dvobj(padapter)->setch_mutex);
 }
 
-void SetBWMode23a(struct rtw_adapter *padapter, unsigned short bwmode, unsigned char channel_offset)
+static void set_bwmode(struct rtw_adapter *padapter, unsigned short bwmode,
+		       unsigned char channel_offset)
 {
 	mutex_lock(&adapter_to_dvobj(padapter)->setbw_mutex);
 
@@ -390,7 +391,7 @@ void set_channel_bwmode23a(struct rtw_adapter *padapter, unsigned char channel,
 
 	mutex_unlock(&adapter_to_dvobj(padapter)->setch_mutex);
 
-	SetBWMode23a(padapter, bwmode, channel_offset);
+	set_bwmode(padapter, bwmode, channel_offset);
 }
 
 int get_bsstype23a(unsigned short capability)

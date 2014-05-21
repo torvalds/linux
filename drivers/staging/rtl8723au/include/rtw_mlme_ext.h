@@ -483,8 +483,6 @@ void rtw_set_oper_ch23aoffset23a(struct rtw_adapter *adapter, u8 offset);
 void set_channel_bwmode23a(struct rtw_adapter *padapter, unsigned char channel,
 			unsigned char channel_offset, unsigned short bwmode);
 void SelectChannel23a(struct rtw_adapter *padapter, unsigned char channel);
-void SetBWMode23a(struct rtw_adapter *padapter, unsigned short bwmode,
-	       unsigned char channel_offset);
 
 unsigned int decide_wait_for_beacon_timeout23a(unsigned int bcn_interval);
 
