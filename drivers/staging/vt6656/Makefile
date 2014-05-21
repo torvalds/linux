@@ -18,7 +18,6 @@ vt6656_stage-y +=	main_usb.o \
 			datarate.o \
 			rc4.o \
 			tether.o \
-			tcrc.o \
 			wpa.o \
 			key.o \
 			tkip.o \

@@ -57,7 +57,6 @@
 #include "power.h"
 #include "wcmd.h"
 #include "iocmd.h"
-#include "tcrc.h"
 #include "rxtx.h"
 #include "bssdb.h"
 #include "wpactl.h"

@@ -33,7 +33,6 @@
 
 #include "device.h"
 #include "tmacro.h"
-#include "tcrc.h"
 #include "tether.h"
 
 /*

@@ -54,7 +54,6 @@
 #include "mac.h"
 #include "michael.h"
 #include "tkip.h"
-#include "tcrc.h"
 #include "wctl.h"
 #include "rf.h"
 #include "datarate.h"
