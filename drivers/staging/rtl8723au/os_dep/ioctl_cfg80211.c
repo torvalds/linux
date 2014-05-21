@@ -3034,20 +3034,19 @@ static int cfg80211_rtw_change_bss(struct wiphy *wiphy, struct net_device *ndev,
 void rtw_cfg80211_rx_action(struct rtw_adapter *adapter, u8 *frame,
 			    uint frame_len, const char *msg)
 {
+	struct ieee80211_mgmt *hdr = (struct ieee80211_mgmt *)frame;
 	s32 freq;
 	int channel;
-	u8 category, action;
 
 	channel = rtw_get_oper_ch23a(adapter);
-
-	rtw_action_frame_parse23a(frame, frame_len, &category, &action);
 
 	DBG_8723A("RTW_Rx:cur_ch =%d\n", channel);
 	if (msg)
 		DBG_8723A("RTW_Rx:%s\n", msg);
 	else
-		DBG_8723A("RTW_Rx:category(%u), action(%u)\n", category,
-			  action);
+		DBG_8723A("RTW_Rx:category(%u), action(%u)\n",
+			  hdr->u.action.category,
+			  hdr->u.action.u.wme_action.action_code);
 
 	if (channel <= RTW_CH_MAX_2G_CHANNEL)
 		freq = ieee80211_channel_to_frequency(channel,
@@ -3149,8 +3148,11 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	size_t len = params->len;
 	struct ieee80211_channel *chan = params->chan;
 	const u8 *buf = params->buf;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)buf;
+	struct ieee80211_mgmt *hdr = (struct ieee80211_mgmt *)buf;
 	u8 tx_ch = (u8) ieee80211_frequency_to_channel(chan->center_freq);
+
+	if (!ieee80211_is_action(hdr->frame_control))
+		return -EINVAL;
 
 	/* cookie generation */
 	*cookie = (unsigned long)buf;
@@ -3162,15 +3164,10 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	rtw_cfg80211_mgmt_tx_status(padapter, *cookie, buf, len, ack,
 				    GFP_KERNEL);
 
-	if (rtw_action_frame_parse23a(buf, len, &category, &action) == false) {
-		DBG_8723A("%s(%s): frame_control:0x%x\n", __func__,
-			  padapter->pnetdev->name,
-			  le16_to_cpu(hdr->frame_control));
-		goto exit;
-	}
-
 	DBG_8723A("RTW_Tx:tx_ch =%d, da =" MAC_FMT "\n", tx_ch,
-		  MAC_ARG(hdr->addr1));
+		  MAC_ARG(hdr->da));
+	category = hdr->u.action.category;
+	action = hdr->u.action.u.wme_action.action_code;
 	if (category == WLAN_CATEGORY_PUBLIC)
 		DBG_8723A("RTW_Tx:%s\n", action_public_str23a(action));
 	else
@@ -3189,7 +3186,6 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			  dump_limit, jiffies_to_msecs(jiffies - start));
 	}
 
-exit:
 	return ret;
 }
 
