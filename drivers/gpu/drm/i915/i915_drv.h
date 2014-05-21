@@ -242,18 +242,6 @@ struct intel_ddi_plls {
 #define WATCH_LISTS	0
 #define WATCH_GTT	0
 
-#define I915_GEM_PHYS_CURSOR_0 1
-#define I915_GEM_PHYS_CURSOR_1 2
-#define I915_GEM_PHYS_OVERLAY_REGS 3
-#define I915_MAX_PHYS_OBJECT (I915_GEM_PHYS_OVERLAY_REGS)
-
-struct drm_i915_gem_phys_object {
-	int id;
-	struct page **page_list;
-	drm_dma_handle_t *handle;
-	struct drm_i915_gem_object *cur_obj;
-};
-
 struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
@@ -1187,9 +1175,6 @@ struct i915_gem_mm {
 	/** Bit 6 swizzling required for Y tiling */
 	uint32_t bit_6_swizzle_y;
 
-	/* storage for physical objects */
-	struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
-
 	/* accounting, useful for userland debugging */
 	spinlock_t object_stat_lock;
 	size_t object_memory;
@@ -1769,7 +1754,7 @@ struct drm_i915_gem_object {
 	struct drm_file *pin_filp;
 
 	/** for phy allocated objects */
-	struct drm_i915_gem_phys_object *phys_obj;
+	drm_dma_handle_t *phys_handle;
 };
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
@@ -2334,13 +2319,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     struct intel_ring_buffer *pipelined);
 void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj);
-int i915_gem_attach_phys_object(struct drm_device *dev,
-				struct drm_i915_gem_object *obj,
-				int id,
+int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 				int align);
-void i915_gem_detach_phys_object(struct drm_device *dev,
-				 struct drm_i915_gem_object *obj);
-void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
