@@ -213,11 +213,6 @@ struct ADDBA_request {
 }  __packed;
 
 
-#define OP_MODE_PURE                    0
-#define OP_MODE_MAY_BE_LEGACY_STAS      1
-#define OP_MODE_20MHZ_HT_STA_ASSOCED    2
-#define OP_MODE_MIXED                   3
-
 /*	===============WPS Section=============== */
 /*	WPS attribute ID */
 #define WPS_ATTR_VER1				0x104A
