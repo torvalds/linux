@@ -149,8 +149,21 @@ struct fsldma_chan {
 	char name[8];			/* Channel name */
 	struct fsldma_chan_regs __iomem *regs;
 	spinlock_t desc_lock;		/* Descriptor operation lock */
-	struct list_head ld_pending;	/* Link descriptors queue */
-	struct list_head ld_running;	/* Link descriptors queue */
+	/*
+	 * Descriptors which are queued to run, but have not yet been
+	 * submitted to the hardware for execution
+	 */
+	struct list_head ld_pending;
+	/*
+	 * Descriptors which are currently being executed by the hardware
+	 */
+	struct list_head ld_running;
+	/*
+	 * Descriptors which have finished execution by the hardware. These
+	 * descriptors have already had their cleanup actions run. They are
+	 * waiting for the ACK bit to be set by the async_tx API.
+	 */
+	struct list_head ld_completed;	/* Link descriptors queue */
 	struct dma_chan common;		/* DMA common channel */
 	struct dma_pool *desc_pool;	/* Descriptors pool */
 	struct device *dev;		/* Channel device */

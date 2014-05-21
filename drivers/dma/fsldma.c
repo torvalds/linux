@@ -466,6 +466,88 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(struct fsldma_chan *chan)
 }
 
 /**
+ * fsldma_clean_completed_descriptor - free all descriptors which
+ * has been completed and acked
+ * @chan: Freescale DMA channel
+ *
+ * This function is used on all completed and acked descriptors.
+ * All descriptors should only be freed in this function.
+ */
+static void fsldma_clean_completed_descriptor(struct fsldma_chan *chan)
+{
+	struct fsl_desc_sw *desc, *_desc;
+
+	/* Run the callback for each descriptor, in order */
+	list_for_each_entry_safe(desc, _desc, &chan->ld_completed, node)
+		if (async_tx_test_ack(&desc->async_tx))
+			fsl_dma_free_descriptor(chan, desc);
+}
+
+/**
+ * fsldma_run_tx_complete_actions - cleanup a single link descriptor
+ * @chan: Freescale DMA channel
+ * @desc: descriptor to cleanup and free
+ * @cookie: Freescale DMA transaction identifier
+ *
+ * This function is used on a descriptor which has been executed by the DMA
+ * controller. It will run any callbacks, submit any dependencies.
+ */
+static dma_cookie_t fsldma_run_tx_complete_actions(struct fsldma_chan *chan,
+		struct fsl_desc_sw *desc, dma_cookie_t cookie)
+{
+	struct dma_async_tx_descriptor *txd = &desc->async_tx;
+	dma_cookie_t ret = cookie;
+
+	BUG_ON(txd->cookie < 0);
+
+	if (txd->cookie > 0) {
+		ret = txd->cookie;
+
+		/* Run the link descriptor callback function */
+		if (txd->callback) {
+			chan_dbg(chan, "LD %p callback\n", desc);
+			txd->callback(txd->callback_param);
+		}
+	}
+
+	/* Run any dependencies */
+	dma_run_dependencies(txd);
+
+	return ret;
+}
+
+/**
+ * fsldma_clean_running_descriptor - move the completed descriptor from
+ * ld_running to ld_completed
+ * @chan: Freescale DMA channel
+ * @desc: the descriptor which is completed
+ *
+ * Free the descriptor directly if acked by async_tx api, or move it to
+ * queue ld_completed.
+ */
+static void fsldma_clean_running_descriptor(struct fsldma_chan *chan,
+		struct fsl_desc_sw *desc)
+{
+	/* Remove from the list of transactions */
+	list_del(&desc->node);
+
+	/*
+	 * the client is allowed to attach dependent operations
+	 * until 'ack' is set
+	 */
+	if (!async_tx_test_ack(&desc->async_tx)) {
+		/*
+		 * Move this descriptor to the list of descriptors which is
+		 * completed, but still awaiting the 'ack' bit to be set.
+		 */
+		list_add_tail(&desc->node, &chan->ld_completed);
+		return;
+	}
+
+	dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
+}
+
+/**
  * fsl_chan_xfer_ld_queue - transfer any pending transactions
  * @chan : Freescale DMA channel
  *
@@ -533,31 +615,58 @@ static void fsl_chan_xfer_ld_queue(struct fsldma_chan *chan)
 }
 
 /**
- * fsldma_cleanup_descriptor - cleanup and free a single link descriptor
+ * fsldma_cleanup_descriptors - cleanup link descriptors which are completed
+ * and move them to ld_completed to free until flag 'ack' is set
  * @chan: Freescale DMA channel
- * @desc: descriptor to cleanup and free
  *
- * This function is used on a descriptor which has been executed by the DMA
- * controller. It will run any callbacks, submit any dependencies, and then
- * free the descriptor.
+ * This function is used on descriptors which have been executed by the DMA
+ * controller. It will run any callbacks, submit any dependencies, then
+ * free these descriptors if flag 'ack' is set.
  */
-static void fsldma_cleanup_descriptor(struct fsldma_chan *chan,
-				      struct fsl_desc_sw *desc)
+static void fsldma_cleanup_descriptors(struct fsldma_chan *chan)
 {
-	struct dma_async_tx_descriptor *txd = &desc->async_tx;
+	struct fsl_desc_sw *desc, *_desc;
+	dma_cookie_t cookie = 0;
+	dma_addr_t curr_phys = get_cdar(chan);
+	int seen_current = 0;
 
-	/* Run the link descriptor callback function */
-	if (txd->callback) {
-		chan_dbg(chan, "LD %p callback\n", desc);
-		txd->callback(txd->callback_param);
+	fsldma_clean_completed_descriptor(chan);
+
+	/* Run the callback for each descriptor, in order */
+	list_for_each_entry_safe(desc, _desc, &chan->ld_running, node) {
+		/*
+		 * do not advance past the current descriptor loaded into the
+		 * hardware channel, subsequent descriptors are either in
+		 * process or have not been submitted
+		 */
+		if (seen_current)
+			break;
+
+		/*
+		 * stop the search if we reach the current descriptor and the
+		 * channel is busy
+		 */
+		if (desc->async_tx.phys == curr_phys) {
+			seen_current = 1;
+			if (!dma_is_idle(chan))
+				break;
+		}
+
+		cookie = fsldma_run_tx_complete_actions(chan, desc, cookie);
+
+		fsldma_clean_running_descriptor(chan, desc);
 	}
 
-	/* Run any dependencies */
-	dma_run_dependencies(txd);
+	/*
+	 * Start any pending transactions automatically
+	 *
+	 * In the ideal case, we keep the DMA controller busy while we go
+	 * ahead and free the descriptors below.
+	 */
+	fsl_chan_xfer_ld_queue(chan);
 
-	dma_descriptor_unmap(txd);
-	chan_dbg(chan, "LD %p free\n", desc);
-	dma_pool_free(chan->desc_pool, desc, txd->phys);
+	if (cookie > 0)
+		chan->common.completed_cookie = cookie;
 }
 
 /**
@@ -627,8 +736,10 @@ static void fsl_dma_free_chan_resources(struct dma_chan *dchan)
 
 	chan_dbg(chan, "free all channel resources\n");
 	spin_lock_bh(&chan->desc_lock);
+	fsldma_cleanup_descriptors(chan);
 	fsldma_free_desc_list(chan, &chan->ld_pending);
 	fsldma_free_desc_list(chan, &chan->ld_running);
+	fsldma_free_desc_list(chan, &chan->ld_completed);
 	spin_unlock_bh(&chan->desc_lock);
 
 	dma_pool_destroy(chan->desc_pool);
@@ -865,6 +976,7 @@ static int fsl_dma_device_control(struct dma_chan *dchan,
 		/* Remove and free all of the descriptors in the LD queue */
 		fsldma_free_desc_list(chan, &chan->ld_pending);
 		fsldma_free_desc_list(chan, &chan->ld_running);
+		fsldma_free_desc_list(chan, &chan->ld_completed);
 		chan->idle = true;
 
 		spin_unlock_bh(&chan->desc_lock);
@@ -923,6 +1035,17 @@ static enum dma_status fsl_tx_status(struct dma_chan *dchan,
 					dma_cookie_t cookie,
 					struct dma_tx_state *txstate)
 {
+	struct fsldma_chan *chan = to_fsl_chan(dchan);
+	enum dma_status ret;
+
+	ret = dma_cookie_status(dchan, cookie, txstate);
+	if (ret == DMA_COMPLETE)
+		return ret;
+
+	spin_lock_bh(&chan->desc_lock);
+	fsldma_cleanup_descriptors(chan);
+	spin_unlock_bh(&chan->desc_lock);
+
 	return dma_cookie_status(dchan, cookie, txstate);
 }
 
@@ -1000,51 +1123,18 @@ static irqreturn_t fsldma_chan_irq(int irq, void *data)
 static void dma_do_tasklet(unsigned long data)
 {
 	struct fsldma_chan *chan = (struct fsldma_chan *)data;
-	struct fsl_desc_sw *desc, *_desc;
-	LIST_HEAD(ld_cleanup);
 
 	chan_dbg(chan, "tasklet entry\n");
 
 	spin_lock_bh(&chan->desc_lock);
 
-	/* update the cookie if we have some descriptors to cleanup */
-	if (!list_empty(&chan->ld_running)) {
-		dma_cookie_t cookie;
-
-		desc = to_fsl_desc(chan->ld_running.prev);
-		cookie = desc->async_tx.cookie;
-		dma_cookie_complete(&desc->async_tx);
-
-		chan_dbg(chan, "completed_cookie=%d\n", cookie);
-	}
-
-	/*
-	 * move the descriptors to a temporary list so we can drop the lock
-	 * during the entire cleanup operation
-	 */
-	list_splice_tail_init(&chan->ld_running, &ld_cleanup);
-
 	/* the hardware is now idle and ready for more */
 	chan->idle = true;
 
-	/*
-	 * Start any pending transactions automatically
-	 *
-	 * In the ideal case, we keep the DMA controller busy while we go
-	 * ahead and free the descriptors below.
-	 */
-	fsl_chan_xfer_ld_queue(chan);
+	/* Run all cleanup for descriptors which have been completed */
+	fsldma_cleanup_descriptors(chan);
+
 	spin_unlock_bh(&chan->desc_lock);
-
-	/* Run the callback for each descriptor, in order */
-	list_for_each_entry_safe(desc, _desc, &ld_cleanup, node) {
-
-		/* Remove from the list of transactions */
-		list_del(&desc->node);
-
-		/* Run all cleanup for this descriptor */
-		fsldma_cleanup_descriptor(chan, desc);
-	}
 
 	chan_dbg(chan, "tasklet exit\n");
 }
@@ -1228,6 +1318,7 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	spin_lock_init(&chan->desc_lock);
 	INIT_LIST_HEAD(&chan->ld_pending);
 	INIT_LIST_HEAD(&chan->ld_running);
+	INIT_LIST_HEAD(&chan->ld_completed);
 	chan->idle = true;
 #ifdef CONFIG_PM
 	chan->pm_state = RUNNING;
