@@ -310,15 +310,17 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 
 	pwlanhdr = (struct ieee80211_hdr *)pbuf;
 
-	pwlanhdr->frame_control = 0;
 	pwlanhdr->seq_ctrl = 0;
 
 	if (pnetwork->network.reserved == 1) {	/*  WIFI_BEACON */
 		eth_broadcast_addr(pwlanhdr->addr1);
-		SetFrameSubType(pbuf, WIFI_BEACON);
+		pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+						      IEEE80211_STYPE_BEACON);
 	} else {
 		memcpy(pwlanhdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN);
-		SetFrameSubType(pbuf, WIFI_PROBERSP);
+		pwlanhdr->frame_control =
+			cpu_to_le16(IEEE80211_FTYPE_MGMT |
+				    IEEE80211_STYPE_PROBE_RESP);
 	}
 
 	memcpy(pwlanhdr->addr2, pnetwork->network.MacAddress, ETH_ALEN);
@@ -2484,7 +2486,8 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 	pmgmt_frame = mgmt_buf;
 	pwlanhdr = (struct ieee80211_hdr *)pmgmt_frame;
 
-	pwlanhdr->frame_control = 0;
+	pwlanhdr->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DEAUTH);
 
 	memcpy(pwlanhdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN);
 	memcpy(pwlanhdr->addr2, da, ETH_ALEN);
@@ -2493,7 +2496,6 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 	pwlanhdr->seq_ctrl =
 		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
-	SetFrameSubType(pmgmt_frame, WIFI_DEAUTH);
 
 	pmgmt_frame += sizeof(struct ieee80211_hdr_3addr);
 	frame_len = sizeof(struct ieee80211_hdr_3addr);
