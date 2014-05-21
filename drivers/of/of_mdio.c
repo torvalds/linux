@@ -23,27 +23,6 @@
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_LICENSE("GPL");
 
-static void of_set_phy_supported(struct phy_device *phydev, u32 max_speed)
-{
-	/* The default values for phydev->supported are provided by the PHY
-	 * driver "features" member, we want to reset to sane defaults fist
-	 * before supporting higher speeds.
-	 */
-	phydev->supported &= PHY_DEFAULT_FEATURES;
-
-	switch (max_speed) {
-	default:
-		return;
-
-	case SPEED_1000:
-		phydev->supported |= PHY_1000BT_FEATURES;
-	case SPEED_100:
-		phydev->supported |= PHY_100BT_FEATURES;
-	case SPEED_10:
-		phydev->supported |= PHY_10BT_FEATURES;
-	}
-}
-
 /* Extract the clause 22 phy ID from the compatible string of the form
  * ethernet-phy-idAAAA.BBBB */
 static int of_get_phy_id(struct device_node *device, u32 *phy_id)
@@ -103,11 +82,6 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 		of_node_put(child);
 		return 1;
 	}
-
-	/* Set phydev->supported based on the "max-speed" property
-	 * if present */
-	if (!of_property_read_u32(child, "max-speed", &max_speed))
-		of_set_phy_supported(phy, max_speed);
 
 	dev_dbg(&mdio->dev, "registered phy %s at address %i\n",
 		child->name, addr);
