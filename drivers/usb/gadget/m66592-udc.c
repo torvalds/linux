@@ -1492,8 +1492,6 @@ static int m66592_udc_stop(struct usb_gadget *g,
 
 	m66592_bclr(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 
-	driver->unbind(&m66592->gadget);
-
 	init_controller(m66592);
 	disable_controller(m66592);
 
