@@ -117,6 +117,13 @@
 		samsung,pin-pud = <1>;
 		samsung,pin-drv = <0>;
 	};
+
+	dp_hpd_gpio: dp_hpd_gpio {
+		samsung,pins = "gpx2-6";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <0>;
+	};
 };
 
 &pinctrl_3 {
@@ -131,13 +138,6 @@
 		samsung,pins = "gph0-1";
 		samsung,pin-function = <1>;
 		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
-	};
-
-	dp_hpd_gpio: dp_hpd_gpio {
-		samsung,pins = "gpx2-6";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <3>;
 		samsung,pin-drv = <0>;
 	};
 };
