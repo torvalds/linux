@@ -3524,6 +3524,7 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 		/* Direct Drive HP Amp control */
 		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8aa6);
 		break;
+	case 0x10ec0233:
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x1b, 0x0c0b);
 		alc_write_coef_idx(codec, 0x45, 0xc429);
@@ -3582,6 +3583,7 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 		alc_write_coef_idx(codec, 0x06, 0x6100);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
 		break;
+	case 0x10ec0233:
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xc429);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
@@ -3636,6 +3638,7 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
 		alc_write_coef_idx(codec, 0x49, 0x0049);
 		break;
+	case 0x10ec0233:
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x06, 0x2100);
 		alc_write_coef_idx(codec, 0x32, 0x4ea3);
@@ -3677,6 +3680,7 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
 		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
 		break;
+	case 0x10ec0233:
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xd429);
 		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
@@ -3715,6 +3719,7 @@ static void alc_headset_mode_omtp(struct hda_codec *codec)
 		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
 		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
 		break;
+	case 0x10ec0233:
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xe429);
 		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
@@ -3757,6 +3762,7 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		val = alc_read_coef_idx(codec, 0x46);
 		is_ctia = (val & 0x0070) == 0x0070;
 		break;
+	case 0x10ec0233:
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xd029);
 		msleep(300);
