@@ -1325,8 +1325,6 @@ static int fusb300_udc_stop(struct usb_gadget *g,
 {
 	struct fusb300 *fusb300 = to_fusb300(g);
 
-	driver->unbind(&fusb300->gadget);
-
 	init_controller(fusb300);
 	fusb300->driver = NULL;
 
