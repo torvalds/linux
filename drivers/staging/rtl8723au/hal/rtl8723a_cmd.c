@@ -310,16 +310,13 @@ static void ConstructPSPoll(struct rtw_adapter *padapter,
 			    u8 *pframe, u32 *pLength)
 {
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
 	/*  Frame control. */
-	fctrl = &pwlanhdr->frame_control;
-	*(fctrl) = 0;
-	SetPwrMgt(fctrl);
+	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FCTL_PM);
 	SetFrameSubType(pframe, WIFI_PSPOLL);
 
 	/*  AID. */
@@ -355,7 +352,7 @@ ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
 	fctrl = &pwlanhdr->frame_control;
 
 	if (bForcePowerSave)
-		SetPwrMgt(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
 	switch (cur_network->network.ifmode) {
 	case NL80211_IFTYPE_P2P_CLIENT:

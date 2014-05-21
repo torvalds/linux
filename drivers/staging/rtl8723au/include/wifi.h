@@ -72,15 +72,6 @@ enum WIFI_FRAME_SUBTYPE {
 #define SetFrDs(pbuf)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_FROMDS))
 
-#define SetPwrMgt(pbuf)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_PM))
-
-#define SetMData(pbuf)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_MOREDATA))
-
-#define SetPrivacy(pbuf)	\
-	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_PROTECTED))
-
 #define SetFrameType(pbuf, type)	\
 	do {	\
 		*(__le16 *)(pbuf) &= __constant_cpu_to_le16(~(BIT(3) | BIT(2))); \

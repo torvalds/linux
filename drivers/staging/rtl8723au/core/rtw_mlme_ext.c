@@ -3091,7 +3091,8 @@ void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
 					       pmlmeinfo->chg_txt,
 					       &pattrib->pktlen);
 
-			SetPrivacy(fctrl);
+			pwlanhdr->frame_control |=
+				cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
 			pattrib->hdrlen = sizeof(struct ieee80211_hdr_3addr);
 
@@ -3573,7 +3574,7 @@ static int _issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 		SetToDs(fctrl);
 
 	if (power_mode)
-		SetPwrMgt(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
 	ether_addr_copy(pwlanhdr->addr1, da);
 	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
@@ -3697,7 +3698,7 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 		SetToDs(fctrl);
 
 	if (pattrib->mdata)
-		SetMData(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 
 	qc = (unsigned short *)(pframe + pattrib->hdrlen - 2);
 

@@ -936,9 +936,11 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 			goto exit;
 		}
 		if (pattrib->mdata)
-			SetMData(fctrl);
+			pwlanhdr->frame_control |=
+				cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 		if (pattrib->encrypt)
-			SetPrivacy(fctrl);
+			pwlanhdr->frame_control |=
+				cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 		if (qos_option) {
 			qc = (unsigned short *)(hdr + pattrib->hdrlen - 2);
 			if (pattrib->priority)
