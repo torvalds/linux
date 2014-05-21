@@ -24,6 +24,16 @@
 	};
 
 	soc@01c00000 {
+		mmc0: mmc@01c0f000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_colombus>;
+			vmmc-supply = <&reg_vcc3v0>;
+			bus-width = <4>;
+			cd-gpios = <&pio 0 8 0>; /* PA8 */
+			cd-inverted;
+			status = "okay";
+		};
+
 		usbphy: phy@01c19400 {
 			usb2_vbus-supply = <&reg_usb2_vbus>;
 			status = "okay";
@@ -34,6 +44,17 @@
 		};
 
 		pio: pinctrl@01c20800 {
+			mmc0_pins_a: mmc0@0 {
+				allwinner,pull = <1>;
+			};
+
+			mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
+				allwinner,pins = "PA8";
+				allwinner,function = "gpio_in";
+				allwinner,drive = <0>;
+				allwinner,pull = <1>;
+			};
+
 			usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
 				allwinner,pins = "PH24";
 				allwinner,function = "gpio_out";
