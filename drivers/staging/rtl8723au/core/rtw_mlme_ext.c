@@ -46,8 +46,25 @@ static int OnAction23a_ht(struct rtw_adapter *padapter, struct recv_frame *precv
 static int OnAction23a_wmm(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 static int OnAction23a_p2p(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 
+static void issue_assocreq(struct rtw_adapter *padapter);
 static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 			   struct sta_info *pstat, u16 pkt_type);
+static void issue_probereq(struct rtw_adapter *padapter,
+			   struct cfg80211_ssid *pssid, u8 *da);
+static int issue_probereq_ex(struct rtw_adapter *padapter,
+			     struct cfg80211_ssid *pssid,
+			     u8 *da, int try_cnt, int wait_ms);
+static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
+			   u8 is_valid_p2p_probereq);
+static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
+		       unsigned short status);
+static int issue_deauth_ex(struct rtw_adapter *padapter, u8 *da,
+			   unsigned short reason, int try_cnt, int wait_ms);
+static void start_clnt_assoc(struct rtw_adapter *padapter);
+static void start_clnt_auth(struct rtw_adapter *padapter);
+static void start_clnt_join(struct rtw_adapter *padapter);
+static void start_create_ibss(struct rtw_adapter *padapter);
+
 
 static struct mlme_handler mlme_sta_tbl[]={
 	{"OnAssocReq23a",		&OnAssocReq23a},
@@ -698,7 +715,7 @@ OnProbeReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) &&
 	    pmlmepriv->cur_network.join_res)
-		issue_probersp23a(padapter, mgmt->sa, false);
+		issue_probersp(padapter, mgmt->sa, false);
 
 out:
 	return _SUCCESS;
@@ -787,7 +804,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		rtw_update_TSF(pmlmeext, mgmt);
 
 		/* start auth */
-		start_clnt_auth23a(padapter);
+		start_clnt_auth(padapter);
 
 		return _SUCCESS;
 	}
@@ -1012,10 +1029,10 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		}
 	}
 
-	/*  Now, we are going to issue_auth23a... */
+	/*  Now, we are going to issue_auth... */
 	pstat->auth_seq = seq + 1;
 
-	issue_auth23a(padapter, pstat, WLAN_STATUS_SUCCESS);
+	issue_auth(padapter, pstat, WLAN_STATUS_SUCCESS);
 
 	if (pstat->state & WIFI_FW_AUTH_SUCCESS)
 		pstat->auth_seq = 0;
@@ -1032,7 +1049,7 @@ auth_fail:
 	pstat->auth_seq = 2;
 	memcpy(pstat->hwaddr, sa, 6);
 
-	issue_auth23a(padapter, pstat, (unsigned short)status);
+	issue_auth(padapter, pstat, (unsigned short)status);
 
 #endif
 	return _FAIL;
@@ -1094,7 +1111,7 @@ OnAuth23aClient23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 			memcpy((void *)(pmlmeinfo->chg_txt), p + 2, p[1]);
 			pmlmeinfo->auth_seq = 3;
-			issue_auth23a(padapter, NULL, 0);
+			issue_auth(padapter, NULL, 0);
 			set_link_timer(pmlmeext, REAUTH_TO);
 
 			return _SUCCESS;
@@ -1116,7 +1133,7 @@ OnAuth23aClient23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	if (go2asoc) {
 		DBG_8723A_LEVEL(_drv_always_, "auth success, start assoc\n");
-		start_clnt_assoc23a(padapter);
+		start_clnt_assoc(padapter);
 		return _SUCCESS;
 	}
 
@@ -2586,8 +2603,8 @@ _issue_bcn:
 		dump_mgntframe23a(padapter, pmgntframe);
 }
 
-void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
-		       u8 is_valid_p2p_probereq)
+static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
+			   u8 is_valid_p2p_probereq)
 {
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
@@ -2801,8 +2818,8 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 	return;
 }
 
-static int _issue_probereq23a(struct rtw_adapter *padapter,
-			      struct cfg80211_ssid *pssid, u8 *da, int wait_ack)
+static int _issue_probereq(struct rtw_adapter *padapter,
+			   struct cfg80211_ssid *pssid, u8 *da, int wait_ack)
 {
 	int ret = _FAIL;
 	struct xmit_frame		*pmgntframe;
@@ -2818,7 +2835,7 @@ static int _issue_probereq23a(struct rtw_adapter *padapter,
 	u8	bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-		 ("+issue_probereq23a\n"));
+		 ("+%s\n", __func__));
 
 	if ((pmgntframe = alloc_mgtxmitframe23a(pxmitpriv)) == NULL)
 		goto exit;
@@ -2901,23 +2918,23 @@ exit:
 	return ret;
 }
 
-inline void issue_probereq23a(struct rtw_adapter *padapter,
-			      struct cfg80211_ssid *pssid, u8 *da)
+static inline void issue_probereq(struct rtw_adapter *padapter,
+				  struct cfg80211_ssid *pssid, u8 *da)
 {
-	_issue_probereq23a(padapter, pssid, da, false);
+	_issue_probereq(padapter, pssid, da, false);
 }
 
-int issue_probereq23a_ex23a(struct rtw_adapter *padapter,
-		      struct cfg80211_ssid *pssid, u8 *da,
-		      int try_cnt, int wait_ms)
+static int issue_probereq_ex(struct rtw_adapter *padapter,
+			     struct cfg80211_ssid *pssid, u8 *da,
+			     int try_cnt, int wait_ms)
 {
 	int ret;
 	int i = 0;
 	unsigned long start = jiffies;
 
 	do {
-		ret = _issue_probereq23a(padapter, pssid, da,
-					 wait_ms > 0 ? true : false);
+		ret = _issue_probereq(padapter, pssid, da,
+				      wait_ms > 0 ? true : false);
 
 		i++;
 
@@ -2954,8 +2971,8 @@ exit:
 }
 
 /*  if psta == NULL, indiate we are station(client) now... */
-void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
-		   unsigned short status)
+static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
+		       unsigned short status)
 {
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
@@ -3259,7 +3276,7 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 #endif
 }
 
-void issue_assocreq23a(struct rtw_adapter *padapter)
+static void issue_assocreq(struct rtw_adapter *padapter)
 {
 	int ret = _FAIL;
 	struct xmit_frame *pmgntframe;
@@ -3774,8 +3791,8 @@ exit:
 	return ret;
 }
 
-static int _issue_deauth23a(struct rtw_adapter *padapter, unsigned char *da,
-			    unsigned short reason, u8 wait_ack)
+static int _issue_deauth(struct rtw_adapter *padapter, unsigned char *da,
+			 unsigned short reason, u8 wait_ack)
 {
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
@@ -3837,19 +3854,19 @@ int issue_deauth23a(struct rtw_adapter *padapter, unsigned char *da,
 		    unsigned short reason)
 {
 	DBG_8723A("%s to "MAC_FMT"\n", __func__, MAC_ARG(da));
-	return _issue_deauth23a(padapter, da, reason, false);
+	return _issue_deauth(padapter, da, reason, false);
 }
 
-int issue_deauth23a_ex23a(struct rtw_adapter *padapter, u8 *da,
-			  unsigned short reason, int try_cnt, int wait_ms)
+static int issue_deauth_ex(struct rtw_adapter *padapter, u8 *da,
+			   unsigned short reason, int try_cnt, int wait_ms)
 {
 	int ret;
 	int i = 0;
 	unsigned long start = jiffies;
 
 	do {
-		ret = _issue_deauth23a(padapter, da, reason,
-				       wait_ms >0 ? true : false);
+		ret = _issue_deauth(padapter, da, reason,
+				    wait_ms >0 ? true : false);
 
 		i++;
 
@@ -4392,17 +4409,17 @@ void site_survey23a(struct rtw_adapter *padapter)
 			for (i = 0;i<RTW_SSID_SCAN_AMOUNT;i++) {
 				if (pmlmeext->sitesurvey_res.ssid[i].ssid_len) {
 					/* todo: to issue two probe req??? */
-					issue_probereq23a(padapter, &pmlmeext->sitesurvey_res.ssid[i], NULL);
+					issue_probereq(padapter, &pmlmeext->sitesurvey_res.ssid[i], NULL);
 					/* msleep(SURVEY_TO>>1); */
-					issue_probereq23a(padapter, &pmlmeext->sitesurvey_res.ssid[i], NULL);
+					issue_probereq(padapter, &pmlmeext->sitesurvey_res.ssid[i], NULL);
 				}
 			}
 
 			if (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE) {
 				/* todo: to issue two probe req??? */
-				issue_probereq23a(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL);
 				/* msleep(SURVEY_TO>>1); */
-				issue_probereq23a(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL);
 			}
 		}
 
@@ -4626,7 +4643,7 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 	return _SUCCESS;
 }
 
-void start_create_ibss23a(struct rtw_adapter* padapter)
+static void start_create_ibss(struct rtw_adapter* padapter)
 {
 	unsigned short	caps;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -4673,12 +4690,12 @@ void start_create_ibss23a(struct rtw_adapter* padapter)
 	}
 	else
 	{
-		DBG_8723A("start_create_ibss23a, invalid cap:%x\n", caps);
+		DBG_8723A("%s: invalid cap:%x\n", __func__, caps);
 		return;
 	}
 }
 
-void start_clnt_join23a(struct rtw_adapter* padapter)
+static void start_clnt_join(struct rtw_adapter* padapter)
 {
 	unsigned short	caps;
 	u8	val8;
@@ -4738,7 +4755,7 @@ void start_clnt_join23a(struct rtw_adapter* padapter)
 	}
 }
 
-void start_clnt_auth23a(struct rtw_adapter* padapter)
+static void start_clnt_auth(struct rtw_adapter* padapter)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -4762,12 +4779,12 @@ void start_clnt_auth23a(struct rtw_adapter* padapter)
 	issue_deauth23a(padapter, (&pmlmeinfo->network)->MacAddress, WLAN_REASON_DEAUTH_LEAVING);
 
 	DBG_8723A_LEVEL(_drv_always_, "start auth\n");
-	issue_auth23a(padapter, NULL, 0);
+	issue_auth(padapter, NULL, 0);
 
 	set_link_timer(pmlmeext, REAUTH_TO);
 }
 
-void start_clnt_assoc23a(struct rtw_adapter* padapter)
+static void start_clnt_assoc(struct rtw_adapter* padapter)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -4777,7 +4794,7 @@ void start_clnt_assoc23a(struct rtw_adapter* padapter)
 	pmlmeinfo->state &= (~(WIFI_FW_AUTH_NULL | WIFI_FW_AUTH_STATE));
 	pmlmeinfo->state |= (WIFI_FW_AUTH_SUCCESS | WIFI_FW_ASSOC_STATE);
 
-	issue_assocreq23a(padapter);
+	issue_assocreq(padapter);
 
 	set_link_timer(pmlmeext, REASSOC_TO);
 }
@@ -5559,7 +5576,7 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 				}
 
 				if (rx_chk != _SUCCESS)
-					issue_probereq23a_ex23a(padapter, &pmlmeinfo->network.Ssid, psta->hwaddr, 3, 1);
+					issue_probereq_ex(padapter, &pmlmeinfo->network.Ssid, psta->hwaddr, 3, 1);
 
 				if ((tx_chk != _SUCCESS && pmlmeinfo->link_count++ == 0xf) || rx_chk != _SUCCESS) {
 					tx_chk = issue_nulldata23a(padapter, psta->hwaddr, 0, 3, 1);
@@ -5575,9 +5592,9 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 			} else {
 				if (rx_chk != _SUCCESS) {
 					if (pmlmeext->retry == 0) {
-						issue_probereq23a(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
-						issue_probereq23a(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
-						issue_probereq23a(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
+						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
+						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
+						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
 					}
 				}
 
@@ -5728,7 +5745,7 @@ static void link_timer_hdl(unsigned long data)
 
 		DBG_8723A("link_timer_hdl: auth timeout and try again\n");
 		pmlmeinfo->auth_seq = 1;
-		issue_auth23a(padapter, NULL, 0);
+		issue_auth(padapter, NULL, 0);
 		set_link_timer(pmlmeext, REAUTH_TO);
 	}
 	else if (pmlmeinfo->state & WIFI_FW_ASSOC_STATE)
@@ -5742,7 +5759,7 @@ static void link_timer_hdl(unsigned long data)
 		}
 
 		DBG_8723A("link_timer_hdl: assoc timeout and try again\n");
-		issue_assocreq23a(padapter);
+		issue_assocreq(padapter);
 		set_link_timer(pmlmeext, REASSOC_TO);
 	}
 
@@ -5871,7 +5888,7 @@ int createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 		memcpy(pnetwork, pparm, sizeof(struct wlan_bssid_ex));
 
-		start_create_ibss23a(padapter);
+		start_create_ibss(padapter);
 	}
 
 	return H2C_SUCCESS;
@@ -5895,7 +5912,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
 	{
 		if (pmlmeinfo->state & WIFI_FW_STATION_STATE)
-			issue_deauth23a_ex23a(padapter, pnetwork->MacAddress,
+			issue_deauth_ex(padapter, pnetwork->MacAddress,
 					WLAN_REASON_DEAUTH_LEAVING, 5, 100);
 
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
@@ -5995,7 +6012,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	/* cancel link timer */
 	del_timer_sync(&pmlmeext->link_timer);
 
-	start_clnt_join23a(padapter);
+	start_clnt_join(padapter);
 
 	return H2C_SUCCESS;
 }
@@ -6009,7 +6026,9 @@ int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	if (is_client_associated_to_ap23a(padapter))
 	{
-		issue_deauth23a_ex23a(padapter, pnetwork->MacAddress, WLAN_REASON_DEAUTH_LEAVING, param->deauth_timeout_ms/100, 100);
+		issue_deauth_ex(padapter, pnetwork->MacAddress,
+				WLAN_REASON_DEAUTH_LEAVING,
+				param->deauth_timeout_ms/100, 100);
 	}
 
 	/* set_opmode_cmd(padapter, infra_client_with_mlme); */

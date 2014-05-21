@@ -577,23 +577,12 @@ s32 dump_mgntframe23a_and_wait_ack23a(struct rtw_adapter *padapter,
 				struct xmit_frame *pmgntframe);
 
 void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms);
-void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
-		    u8 is_valid_p2p_probereq);
-void issue_assocreq23a(struct rtw_adapter *padapter);
-void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
-		unsigned short status);
-void issue_probereq23a(struct rtw_adapter *padapter, struct cfg80211_ssid *pssid,
-		    u8 *da);
-s32 issue_probereq23a_ex23a(struct rtw_adapter *padapter, struct cfg80211_ssid *pssid,
-		      u8 *da, int try_cnt, int wait_ms);
 int issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 		   unsigned int power_mode, int try_cnt, int wait_ms);
 int issue_qos_nulldata23a(struct rtw_adapter *padapter, unsigned char *da, u16 tid,
 		       int try_cnt, int wait_ms);
 int issue_deauth23a(struct rtw_adapter *padapter, unsigned char *da,
 		 unsigned short reason);
-int issue_deauth23a_ex23a(struct rtw_adapter *padapter, u8 *da, unsigned short reason,
-		    int try_cnt, int wait_ms);
 void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter, u8 *ra,
 				 u8 new_ch, u8 ch_offset);
 void issue_action_BA23a(struct rtw_adapter *padapter,
@@ -601,12 +590,6 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 			unsigned char action, unsigned short status);
 int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr);
 int send_beacon23a(struct rtw_adapter *padapter);
-
-void start_clnt_assoc23a(struct rtw_adapter *padapter);
-void start_clnt_auth23a(struct rtw_adapter *padapter);
-void start_clnt_join23a(struct rtw_adapter *padapter);
-void start_create_ibss23a(struct rtw_adapter *padapter);
-
 
 void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_res);
 void mlmeext_sta_del_event_callback23a(struct rtw_adapter *padapter);
