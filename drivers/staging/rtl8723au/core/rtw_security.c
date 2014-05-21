@@ -175,12 +175,12 @@ void rtw_wep_encrypt23a(struct rtw_adapter *padapter,
 		return;
 
 	index = psecuritypriv->dot11PrivacyKeyIndex;
-	keylength = psecuritypriv->dot11DefKeylen[index];
+	keylength = psecuritypriv->wep_key[index].keylen;
 
 	for (curfragnum = 0; curfragnum < pattrib->nr_frags ; curfragnum++) {
 		iv = pframe + pattrib->hdrlen;
 		memcpy(&wepkey[0], iv, 3);
-		memcpy(&wepkey[3], &psecuritypriv->dot11DefKey[index].skey[0],
+		memcpy(&wepkey[3], &psecuritypriv->wep_key[index].key,
 		       keylength);
 		payload = pframe + pattrib->iv_len + pattrib->hdrlen;
 
@@ -233,11 +233,10 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 	iv = pframe + prxattrib->hdrlen;
 	/* keyindex = (iv[3]&0x3); */
 	keyindex = prxattrib->key_index;
-	keylength = psecuritypriv->dot11DefKeylen[keyindex];
+	keylength = psecuritypriv->wep_key[keyindex].keylen;
 	memcpy(&wepkey[0], iv, 3);
 	/* memcpy(&wepkey[3], &psecuritypriv->dot11DefKey[psecuritypriv->dot11PrivacyKeyIndex].skey[0], keylength); */
-	memcpy(&wepkey[3], &psecuritypriv->dot11DefKey[keyindex].skey[0],
-		   keylength);
+	memcpy(&wepkey[3], &psecuritypriv->wep_key[keyindex].key, keylength);
 	length = skb->len - prxattrib->hdrlen - prxattrib->iv_len;
 
 	payload = pframe + prxattrib->iv_len + prxattrib->hdrlen;
@@ -250,7 +249,7 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 	*((u32 *)crc) = le32_to_cpu(getcrc32(payload, length - 4));
 
 	if (crc[3] != payload[length - 1] || crc[2] != payload[length - 2] ||
-		crc[1] != payload[length - 3] || crc[0] != payload[length - 4]) {
+	    crc[1] != payload[length - 3] || crc[0] != payload[length - 4]) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
 			 ("rtw_wep_decrypt23a:icv error crc[3](%x)!= payload"
 			  "[length-1](%x) || crc[2](%x)!= payload[length-2](%x)"

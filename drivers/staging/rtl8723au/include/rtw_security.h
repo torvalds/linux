@@ -17,6 +17,7 @@
 
 #include <osdep_service.h>
 #include <drv_types.h>
+#include <net/lib80211.h>
 
 
 #define is_wep_enc(alg) (alg == WLAN_CIPHER_SUITE_WEP40 || \
@@ -84,6 +85,10 @@ union Keytype {
 	u32    lkey[4];
 };
 
+struct rtw_wep_key {
+	u8 key[WLAN_KEY_LEN_WEP104 + 1]; /* 14 */
+	u16 keylen;
+};
 
 struct rt_pmkid_list {
 	u8	bUsed;
@@ -104,8 +109,7 @@ struct security_priv {
 	u32	  dot11PrivacyKeyIndex;	/*  this is only valid for legendary
 					 * wep, 0~3 for key id. (tx key index)
 					 */
-	union Keytype dot11DefKey[4];	/*  this is only valid for def. key */
-	u32	dot11DefKeylen[4];
+	struct rtw_wep_key wep_key[NUM_WEP_KEYS];
 
 	u32 dot118021XGrpPrivacy;	/* specify the privacy algthm.
 					 * used for Grp key

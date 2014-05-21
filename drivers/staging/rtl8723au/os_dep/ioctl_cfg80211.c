@@ -532,7 +532,7 @@ exit:
 	return res;
 }
 
-static int set_wep_key(struct rtw_adapter *padapter, u8 *key, u8 keylen,
+static int set_wep_key(struct rtw_adapter *padapter, u8 *key, u16 keylen,
 		       u8 keyid)
 {
 	u32 alg;
@@ -556,7 +556,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					  u32 param_len)
 {
 	int ret = 0;
-	u32 wep_key_len;
+	u16 wep_key_len;
 	u8 wep_key_idx;
 	struct sta_info *psta = NULL, *pbcmc_sta = NULL;
 	struct rtw_adapter *padapter = netdev_priv(dev);
@@ -636,10 +636,10 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 			psecuritypriv->dot11PrivacyKeyIndex = wep_key_idx;
 		}
 
-		memcpy(&psecuritypriv->dot11DefKey[wep_key_idx].skey[0],
+		memcpy(&psecuritypriv->wep_key[wep_key_idx].key,
 		       param->u.crypt.key, wep_key_len);
 
-		psecuritypriv->dot11DefKeylen[wep_key_idx] = wep_key_len;
+		psecuritypriv->wep_key[wep_key_idx].keylen = wep_key_len;
 
 		set_wep_key(padapter, param->u.crypt.key, wep_key_len,
 			    wep_key_idx);
@@ -883,7 +883,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 				       struct ieee_param *param, u32 param_len)
 {
 	int ret = 0;
-	u32 wep_key_idx, wep_key_len;
+	u32 wep_key_idx;
+	u16 wep_key_len;
 	struct rtw_adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -942,10 +943,10 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 			psecuritypriv->dot11PrivacyKeyIndex = wep_key_idx;
 		}
 
-		memcpy(&psecuritypriv->dot11DefKey[wep_key_idx].skey[0],
+		memcpy(&psecuritypriv->wep_key[wep_key_idx].key,
 		       param->u.crypt.key, wep_key_len);
 
-		psecuritypriv->dot11DefKeylen[wep_key_idx] = wep_key_len;
+		psecuritypriv->wep_key[wep_key_idx].keylen = wep_key_len;
 
 		rtw_set_key23a(padapter, psecuritypriv, wep_key_idx, 0);
 
@@ -1201,9 +1202,9 @@ static int cfg80211_rtw_set_default_key(struct wiphy *wiphy,
 	DBG_8723A("%s(%s): key_index =%d, unicast =%d, multicast =%d.\n",
 		  __func__, ndev->name, key_index, unicast, multicast);
 
-	if ((key_index < WEP_KEYS) &&
-	    ((psecuritypriv->dot11PrivacyAlgrthm == WLAN_CIPHER_SUITE_WEP40) ||
-	     (psecuritypriv->dot11PrivacyAlgrthm == WLAN_CIPHER_SUITE_WEP104))) {
+	if (key_index < NUM_WEP_KEYS &&
+	    (psecuritypriv->dot11PrivacyAlgrthm == WLAN_CIPHER_SUITE_WEP40 ||
+	     psecuritypriv->dot11PrivacyAlgrthm == WLAN_CIPHER_SUITE_WEP104)) {
 		/* set wep default key */
 		psecuritypriv->ndisencryptstatus = Ndis802_11Encryption1Enabled;
 
@@ -1211,9 +1212,11 @@ static int cfg80211_rtw_set_default_key(struct wiphy *wiphy,
 
 		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
 		psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
-		if (psecuritypriv->dot11DefKeylen[key_index] == 13) {
-			psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
-			psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP104;
+		if (psecuritypriv->wep_key[key_index].keylen == 13) {
+			psecuritypriv->dot11PrivacyAlgrthm =
+				WLAN_CIPHER_SUITE_WEP104;
+			psecuritypriv->dot118021XGrpPrivacy =
+				WLAN_CIPHER_SUITE_WEP104;
 		}
 
 		/* set the flag to represent that wep default key

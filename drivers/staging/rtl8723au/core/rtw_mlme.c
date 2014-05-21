@@ -1914,12 +1914,12 @@ int rtw_set_key23a(struct rtw_adapter *adapter,
 	case WLAN_CIPHER_SUITE_WEP40:
 		keylen = 5;
 		memcpy(&psetkeyparm->key[0],
-		       &psecuritypriv->dot11DefKey[keyid].skey[0], keylen);
+		       &psecuritypriv->wep_key[keyid].key, keylen);
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		keylen = 13;
 		memcpy(&psetkeyparm->key[0],
-		       &psecuritypriv->dot11DefKey[keyid].skey[0], keylen);
+		       &psecuritypriv->wep_key[keyid].key, keylen);
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		keylen = 16;

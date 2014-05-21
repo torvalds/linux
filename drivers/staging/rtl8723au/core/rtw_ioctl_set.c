@@ -396,7 +396,8 @@ int rtw_set_802_11_add_wep23a(struct rtw_adapter* padapter,
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 			 ("MgntActrtw_set_802_11_add_wep23a:wep->KeyLength!= 5 "
 			  "or 13\n"));
-			break;
+		res = _FAIL;
+		goto exit;
 	}
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
@@ -404,29 +405,29 @@ int rtw_set_802_11_add_wep23a(struct rtw_adapter* padapter,
 		  "wep->KeyIndex = 0x%x  keyid =%x\n",
 		  wep->KeyLength, wep->KeyIndex, keyid));
 
-	memcpy(&psecuritypriv->dot11DefKey[keyid].skey[0],
-	       &wep->KeyMaterial, wep->KeyLength);
+	memcpy(&psecuritypriv->wep_key[keyid].key, &wep->KeyMaterial,
+	       wep->KeyLength);
 
-	psecuritypriv->dot11DefKeylen[keyid] = wep->KeyLength;
+	psecuritypriv->wep_key[keyid].keylen = wep->KeyLength;
 
 	psecuritypriv->dot11PrivacyKeyIndex = keyid;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("rtw_set_802_11_add_wep23a:security key material : %x %x %x %x "
-		  "%x %x %x %x %x %x %x %x %x\n",
-		  psecuritypriv->dot11DefKey[keyid].skey[0],
-		  psecuritypriv->dot11DefKey[keyid].skey[1],
-		  psecuritypriv->dot11DefKey[keyid].skey[2],
-		  psecuritypriv->dot11DefKey[keyid].skey[3],
-		  psecuritypriv->dot11DefKey[keyid].skey[4],
-		  psecuritypriv->dot11DefKey[keyid].skey[5],
-		  psecuritypriv->dot11DefKey[keyid].skey[6],
-		  psecuritypriv->dot11DefKey[keyid].skey[7],
-		  psecuritypriv->dot11DefKey[keyid].skey[8],
-		  psecuritypriv->dot11DefKey[keyid].skey[9],
-		  psecuritypriv->dot11DefKey[keyid].skey[10],
-		  psecuritypriv->dot11DefKey[keyid].skey[11],
-		  psecuritypriv->dot11DefKey[keyid].skey[12]));
+		 ("rtw_set_802_11_add_wep23a:security key material : "
+		  "%x %x %x %x %x %x %x %x %x %x %x %x %x\n",
+		  psecuritypriv->wep_key[keyid].key[0],
+		  psecuritypriv->wep_key[keyid].key[1],
+		  psecuritypriv->wep_key[keyid].key[2],
+		  psecuritypriv->wep_key[keyid].key[3],
+		  psecuritypriv->wep_key[keyid].key[4],
+		  psecuritypriv->wep_key[keyid].key[5],
+		  psecuritypriv->wep_key[keyid].key[6],
+		  psecuritypriv->wep_key[keyid].key[7],
+		  psecuritypriv->wep_key[keyid].key[8],
+		  psecuritypriv->wep_key[keyid].key[9],
+		  psecuritypriv->wep_key[keyid].key[10],
+		  psecuritypriv->wep_key[keyid].key[11],
+		  psecuritypriv->wep_key[keyid].key[12]));
 
 	res = rtw_set_key23a(padapter, psecuritypriv, keyid, 1);
 
