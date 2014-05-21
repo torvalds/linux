@@ -1161,15 +1161,6 @@ static int imx_startup(struct uart_port *port)
 		temp |= UCR2_IRTS;
 	writel(temp, sport->port.membase + UCR2);
 
-	if (USE_IRDA(sport)) {
-		/* clear RX-FIFO */
-		int i = 64;
-		while ((--i > 0) &&
-			(readl(sport->port.membase + URXD0) & URXD_CHARRDY)) {
-			barrier();
-		}
-	}
-
 	if (!is_imx1_uart(sport)) {
 		temp = readl(sport->port.membase + UCR3);
 		temp |= IMX21_UCR3_RXDMUXSEL | UCR3_ADNIMP;
