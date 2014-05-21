@@ -283,6 +283,7 @@
  */
 #define FIFO_ENABLE	BIT(16)
 #define NUMEVT_MASK	(0xFF << 8)
+#define NUMEVT(x)	(((x) & 0xFF) << 8)
 #define NUMDMA_MASK	(0xFF)
 
 #endif	/* DAVINCI_MCASP_H */
