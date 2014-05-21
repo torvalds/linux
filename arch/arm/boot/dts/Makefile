@@ -339,7 +339,8 @@ dtb-$(CONFIG_ARCH_STI)+= stih407-b2120.dtb \
 	stih415-b2000.dtb \
 	stih415-b2020.dtb \
 	stih416-b2000.dtb \
-	stih416-b2020.dtb
+	stih416-b2020.dtb \
+	stih416-b2020-revE.dtb
 dtb-$(CONFIG_ARCH_SUNXI) += \
 	sun4i-a10-a1000.dtb \
 	sun4i-a10-cubieboard.dtb \
