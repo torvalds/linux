@@ -826,8 +826,8 @@ static void gs_destroy_candev(struct gs_can *dev)
 {
 	unregister_candev(dev->netdev);
 	free_candev(dev->netdev);
-	kfree(dev);
 	usb_kill_anchored_urbs(&dev->tx_submitted);
+	kfree(dev);
 }
 
 static int gs_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
