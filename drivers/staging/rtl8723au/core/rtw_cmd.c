@@ -587,13 +587,14 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 
 	phtpriv->ht_option = false;
 	if (pregistrypriv->ht_enable) {
+		u32 algo = padapter->securitypriv.dot11PrivacyAlgrthm;
 		/*	Added by Albert 2010/06/23 */
 		/*	For the WEP mode, we will use the bg mode to do
 			the connection to avoid some IOT issue. */
 		/*	Especially for Realtek 8192u SoftAP. */
-		if ((padapter->securitypriv.dot11PrivacyAlgrthm != _WEP40_) &&
-		    (padapter->securitypriv.dot11PrivacyAlgrthm != _WEP104_) &&
-		    (padapter->securitypriv.dot11PrivacyAlgrthm != _TKIP_)) {
+		if (algo != WLAN_CIPHER_SUITE_WEP40 &&
+		    algo != WLAN_CIPHER_SUITE_WEP104 &&
+		    algo != WLAN_CIPHER_SUITE_TKIP) {
 			/* rtw_restructure_ht_ie23a */
 			rtw_restructure_ht_ie23a(padapter,
 						 &pnetwork->network.IEs[0],
@@ -807,7 +808,7 @@ int rtw_clearstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 entry,
 
 		ether_addr_copy(psetstakey_para->addr, sta->hwaddr);
 
-		psetstakey_para->algorithm = _NO_PRIVACY_;
+		psetstakey_para->algorithm = 0;
 
 		psetstakey_para->id = entry;
 

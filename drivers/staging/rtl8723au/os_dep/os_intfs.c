@@ -405,11 +405,11 @@ static int rtw_init_default_value(struct rtw_adapter *padapter)
 
 	 /* open system */
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
-	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
+	psecuritypriv->dot11PrivacyAlgrthm = 0;
 
 	psecuritypriv->dot11PrivacyKeyIndex = 0;
 
-	psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
+	psecuritypriv->dot118021XGrpPrivacy = 0;
 	psecuritypriv->dot118021XGrpKeyid = 1;
 
 	psecuritypriv->ndisauthtype = Ndis802_11AuthModeOpen;

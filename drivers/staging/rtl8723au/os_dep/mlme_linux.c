@@ -60,10 +60,10 @@ void rtw_reset_securitypriv23a(struct rtw_adapter *adapter)
 
 		/* open system */
 		psec_priv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
-		psec_priv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
+		psec_priv->dot11PrivacyAlgrthm = 0;
 		psec_priv->dot11PrivacyKeyIndex = 0;
 
-		psec_priv->dot118021XGrpPrivacy = _NO_PRIVACY_;
+		psec_priv->dot118021XGrpPrivacy = 0;
 		psec_priv->dot118021XGrpKeyid = 1;
 
 		psec_priv->ndisauthtype = Ndis802_11AuthModeOpen;

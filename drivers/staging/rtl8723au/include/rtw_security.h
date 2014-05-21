@@ -19,14 +19,8 @@
 #include <drv_types.h>
 
 
-#define _NO_PRIVACY_		0x0
-#define _WEP40_			0x1
-#define _TKIP_			0x2
-#define _TKIP_WTMIC_		0x3
-#define _AES_			0x4
-#define _WEP104_		0x5
-
-#define is_wep_enc(alg) (((alg) == _WEP40_) || ((alg) == _WEP104_))
+#define is_wep_enc(alg) (alg == WLAN_CIPHER_SUITE_WEP40 || \
+			 alg == WLAN_CIPHER_SUITE_WEP104)
 
 #define _WPA2_IE_ID_	0x30
 

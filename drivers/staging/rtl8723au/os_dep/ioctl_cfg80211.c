@@ -506,15 +506,14 @@ static int set_group_key(struct rtw_adapter *padapter, u8 *key, u32 alg,
 	psetkeyparm->set_tx = 1;
 
 	switch (alg) {
-	case _WEP40_:
+	case WLAN_CIPHER_SUITE_WEP40:
 		keylen = 5;
 		break;
-	case _WEP104_:
+	case WLAN_CIPHER_SUITE_WEP104:
 		keylen = 13;
 		break;
-	case _TKIP_:
-	case _TKIP_WTMIC_:
-	case _AES_:
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
 	default:
 		keylen = 16;
 	}
@@ -536,17 +535,17 @@ exit:
 static int set_wep_key(struct rtw_adapter *padapter, u8 *key, u8 keylen,
 		       u8 keyid)
 {
-	u8 alg;
+	u32 alg;
 
 	switch (keylen) {
 	case 5:
-		alg = _WEP40_;
+		alg = WLAN_CIPHER_SUITE_WEP40;
 		break;
 	case 13:
-		alg = _WEP104_;
+		alg = WLAN_CIPHER_SUITE_WEP104;
 		break;
 	default:
-		alg = _NO_PRIVACY_;
+		alg = 0;
 	}
 
 	return set_group_key(padapter, key, alg, keyid);
@@ -626,12 +625,12 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 			psecuritypriv->ndisencryptstatus =
 				Ndis802_11Encryption1Enabled;
-			psecuritypriv->dot11PrivacyAlgrthm = _WEP40_;
-			psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
+			psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
+			psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
 
 			if (wep_key_len == 13) {
-				psecuritypriv->dot11PrivacyAlgrthm = _WEP104_;
-				psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
+				psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
+				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP104;
 			}
 
 			psecuritypriv->dot11PrivacyKeyIndex = wep_key_idx;
@@ -660,17 +659,17 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				       (param->u.crypt.key_len >
 					16 ? 16 : param->u.crypt.key_len));
 
-				psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
+				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
 				if (param->u.crypt.key_len == 13) {
 					psecuritypriv->dot118021XGrpPrivacy =
-					    _WEP104_;
+					    WLAN_CIPHER_SUITE_WEP104;
 				}
 
 			} else if (strcmp(param->u.crypt.alg, "TKIP") == 0) {
 				DBG_8723A("%s, set group_key, TKIP\n",
 					  __func__);
 
-				psecuritypriv->dot118021XGrpPrivacy = _TKIP_;
+				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_TKIP;
 
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[param->u.crypt.idx].
@@ -695,7 +694,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				DBG_8723A("%s, set group_key, CCMP\n",
 					  __func__);
 
-				psecuritypriv->dot118021XGrpPrivacy = _AES_;
+				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_CCMP;
 
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[param->u.crypt.idx].
@@ -707,7 +706,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					  __func__);
 
 				psecuritypriv->dot118021XGrpPrivacy =
-				    _NO_PRIVACY_;
+				    0;
 			}
 
 			psecuritypriv->dot118021XGrpKeyid = param->u.crypt.idx;
@@ -749,16 +748,16 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					DBG_8723A("%s, set pairwise key, WEP\n",
 						  __func__);
 
-					psta->dot118021XPrivacy = _WEP40_;
+					psta->dot118021XPrivacy = WLAN_CIPHER_SUITE_WEP40;
 					if (param->u.crypt.key_len == 13) {
 						psta->dot118021XPrivacy =
-							_WEP104_;
+							WLAN_CIPHER_SUITE_WEP104;
 					}
 				} else if (!strcmp(param->u.crypt.alg, "TKIP")) {
 					DBG_8723A("%s, set pairwise key, "
 						  "TKIP\n", __func__);
 
-					psta->dot118021XPrivacy = _TKIP_;
+					psta->dot118021XPrivacy = WLAN_CIPHER_SUITE_TKIP;
 
 					/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 					/* set mic key */
@@ -774,12 +773,12 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					DBG_8723A("%s, set pairwise key, "
 						  "CCMP\n", __func__);
 
-					psta->dot118021XPrivacy = _AES_;
+					psta->dot118021XPrivacy = WLAN_CIPHER_SUITE_CCMP;
 				} else {
 					DBG_8723A("%s, set pairwise key, "
 						  "none\n", __func__);
 
-					psta->dot118021XPrivacy = _NO_PRIVACY_;
+					psta->dot118021XPrivacy = 0;
 				}
 
 				set_pairwise_key(padapter, psta);
@@ -798,15 +797,15 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 						key_len));
 
 					psecuritypriv->dot118021XGrpPrivacy =
-						_WEP40_;
+						WLAN_CIPHER_SUITE_WEP40;
 					if (param->u.crypt.key_len == 13) {
 						psecuritypriv->
 						    dot118021XGrpPrivacy =
-							_WEP104_;
+							WLAN_CIPHER_SUITE_WEP104;
 					}
 				} else if (!strcmp(param->u.crypt.alg, "TKIP")) {
 					psecuritypriv->dot118021XGrpPrivacy =
-					    _TKIP_;
+					    WLAN_CIPHER_SUITE_TKIP;
 
 					memcpy(psecuritypriv->
 					       dot118021XGrpKey[param->u.crypt.
@@ -835,7 +834,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 				} else if (!strcmp(param->u.crypt.alg, "CCMP")) {
 					psecuritypriv->dot118021XGrpPrivacy =
-						_AES_;
+						WLAN_CIPHER_SUITE_CCMP;
 
 					memcpy(psecuritypriv->
 					       dot118021XGrpKey[param->u.crypt.
@@ -846,7 +845,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 						key_len));
 				} else {
 					psecuritypriv->dot118021XGrpPrivacy =
-						_NO_PRIVACY_;
+						0;
 				}
 
 				psecuritypriv->dot118021XGrpKeyid =
@@ -932,12 +931,12 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 
 			psecuritypriv->ndisencryptstatus =
 				Ndis802_11Encryption1Enabled;
-			psecuritypriv->dot11PrivacyAlgrthm = _WEP40_;
-			psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
+			psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
+			psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
 
 			if (wep_key_len == 13) {
-				psecuritypriv->dot11PrivacyAlgrthm = _WEP104_;
-				psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
+				psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
+				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP104;
 			}
 
 			psecuritypriv->dot11PrivacyKeyIndex = wep_key_idx;
@@ -1203,18 +1202,18 @@ static int cfg80211_rtw_set_default_key(struct wiphy *wiphy,
 		  __func__, ndev->name, key_index, unicast, multicast);
 
 	if ((key_index < WEP_KEYS) &&
-	    ((psecuritypriv->dot11PrivacyAlgrthm == _WEP40_) ||
-	     (psecuritypriv->dot11PrivacyAlgrthm == _WEP104_))) {
+	    ((psecuritypriv->dot11PrivacyAlgrthm == WLAN_CIPHER_SUITE_WEP40) ||
+	     (psecuritypriv->dot11PrivacyAlgrthm == WLAN_CIPHER_SUITE_WEP104))) {
 		/* set wep default key */
 		psecuritypriv->ndisencryptstatus = Ndis802_11Encryption1Enabled;
 
 		psecuritypriv->dot11PrivacyKeyIndex = key_index;
 
-		psecuritypriv->dot11PrivacyAlgrthm = _WEP40_;
-		psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
+		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
+		psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
 		if (psecuritypriv->dot11DefKeylen[key_index] == 13) {
-			psecuritypriv->dot11PrivacyAlgrthm = _WEP104_;
-			psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
+			psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
+			psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP104;
 		}
 
 		/* set the flag to represent that wep default key
@@ -1705,30 +1704,30 @@ static int rtw_cfg80211_set_cipher(struct security_priv *psecuritypriv,
 	DBG_8723A("%s, ucast =%d, cipher = 0x%x\n", __func__, ucast, cipher);
 
 	if (!cipher) {
-		*profile_cipher = _NO_PRIVACY_;
+		*profile_cipher = 0;
 		psecuritypriv->ndisencryptstatus = ndisencryptstatus;
 		return 0;
 	}
 
 	switch (cipher) {
 	case IW_AUTH_CIPHER_NONE:
-		*profile_cipher = _NO_PRIVACY_;
+		*profile_cipher = 0;
 		ndisencryptstatus = Ndis802_11EncryptionDisabled;
 		break;
 	case WLAN_CIPHER_SUITE_WEP40:
-		*profile_cipher = _WEP40_;
+		*profile_cipher = WLAN_CIPHER_SUITE_WEP40;
 		ndisencryptstatus = Ndis802_11Encryption1Enabled;
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
-		*profile_cipher = _WEP104_;
+		*profile_cipher = WLAN_CIPHER_SUITE_WEP104;
 		ndisencryptstatus = Ndis802_11Encryption1Enabled;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		*profile_cipher = _TKIP_;
+		*profile_cipher = WLAN_CIPHER_SUITE_TKIP;
 		ndisencryptstatus = Ndis802_11Encryption2Enabled;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		*profile_cipher = _AES_;
+		*profile_cipher = WLAN_CIPHER_SUITE_CCMP;
 		ndisencryptstatus = Ndis802_11Encryption3Enabled;
 		break;
 	default:
@@ -1838,27 +1837,27 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 
 	switch (group_cipher) {
 	case WPA_CIPHER_NONE:
-		padapter->securitypriv.dot118021XGrpPrivacy = _NO_PRIVACY_;
+		padapter->securitypriv.dot118021XGrpPrivacy = 0;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11EncryptionDisabled;
 		break;
 	case WPA_CIPHER_WEP40:
-		padapter->securitypriv.dot118021XGrpPrivacy = _WEP40_;
+		padapter->securitypriv.dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11Encryption1Enabled;
 		break;
 	case WPA_CIPHER_TKIP:
-		padapter->securitypriv.dot118021XGrpPrivacy = _TKIP_;
+		padapter->securitypriv.dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_TKIP;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11Encryption2Enabled;
 		break;
 	case WPA_CIPHER_CCMP:
-		padapter->securitypriv.dot118021XGrpPrivacy = _AES_;
+		padapter->securitypriv.dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_CCMP;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11Encryption3Enabled;
 		break;
 	case WPA_CIPHER_WEP104:
-		padapter->securitypriv.dot118021XGrpPrivacy = _WEP104_;
+		padapter->securitypriv.dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP104;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11Encryption1Enabled;
 		break;
@@ -1866,27 +1865,27 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 
 	switch (pairwise_cipher) {
 	case WPA_CIPHER_NONE:
-		padapter->securitypriv.dot11PrivacyAlgrthm = _NO_PRIVACY_;
+		padapter->securitypriv.dot11PrivacyAlgrthm = 0;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11EncryptionDisabled;
 		break;
 	case WPA_CIPHER_WEP40:
-		padapter->securitypriv.dot11PrivacyAlgrthm = _WEP40_;
+		padapter->securitypriv.dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11Encryption1Enabled;
 		break;
 	case WPA_CIPHER_TKIP:
-		padapter->securitypriv.dot11PrivacyAlgrthm = _TKIP_;
+		padapter->securitypriv.dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_TKIP;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11Encryption2Enabled;
 		break;
 	case WPA_CIPHER_CCMP:
-		padapter->securitypriv.dot11PrivacyAlgrthm = _AES_;
+		padapter->securitypriv.dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_CCMP;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11Encryption3Enabled;
 		break;
 	case WPA_CIPHER_WEP104:
-		padapter->securitypriv.dot11PrivacyAlgrthm = _WEP104_;
+		padapter->securitypriv.dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
 		padapter->securitypriv.ndisencryptstatus =
 			Ndis802_11Encryption1Enabled;
 		break;
@@ -1911,9 +1910,10 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 	}
 
 	/* TKIP and AES disallow multicast packets until installing group key */
-	if (padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_ ||
-	    padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_WTMIC_ ||
-	    padapter->securitypriv.dot11PrivacyAlgrthm == _AES_)
+	if (padapter->securitypriv.dot11PrivacyAlgrthm ==
+	    WLAN_CIPHER_SUITE_TKIP ||
+	    padapter->securitypriv.dot11PrivacyAlgrthm ==
+	    WLAN_CIPHER_SUITE_CCMP)
 		/* WPS open need to enable multicast */
 		/* check_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS) == true)*/
 		rtl8723a_off_rcr_am(padapter);
@@ -2068,8 +2068,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	psecuritypriv->ndisencryptstatus = Ndis802_11EncryptionDisabled;
-	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
-	psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
+	psecuritypriv->dot11PrivacyAlgrthm = 0;
+	psecuritypriv->dot118021XGrpPrivacy = 0;
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 	psecuritypriv->ndisauthtype = Ndis802_11AuthModeOpen;
 
@@ -2135,9 +2135,9 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 			if (wep_key_len == 13) {
 				padapter->securitypriv.dot11PrivacyAlgrthm =
-				    _WEP104_;
+				    WLAN_CIPHER_SUITE_WEP104;
 				padapter->securitypriv.dot118021XGrpPrivacy =
-				    _WEP104_;
+				    WLAN_CIPHER_SUITE_WEP104;
 			}
 		} else {
 			ret = -EINVAL;

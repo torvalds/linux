@@ -170,7 +170,8 @@ void rtw_wep_encrypt23a(struct rtw_adapter *padapter,
 	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
 	/* start to encrypt each fragment */
-	if ((pattrib->encrypt != _WEP40_) && (pattrib->encrypt != _WEP104_))
+	if (pattrib->encrypt != WLAN_CIPHER_SUITE_WEP40 &&
+	    pattrib->encrypt != WLAN_CIPHER_SUITE_WEP104)
 		return;
 
 	index = psecuritypriv->dot11PrivacyKeyIndex;
@@ -225,7 +226,8 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 	pframe = skb->data;
 
 	/* start to decrypt recvframe */
-	if ((prxattrib->encrypt != _WEP40_) && (prxattrib->encrypt != _WEP104_))
+	if (prxattrib->encrypt != WLAN_CIPHER_SUITE_WEP40 &&
+	    prxattrib->encrypt != WLAN_CIPHER_SUITE_WEP104)
 		return;
 
 	iv = pframe + prxattrib->hdrlen;
@@ -637,14 +639,10 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 
 	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 	/* 4 start to encrypt each fragment */
-	if (pattrib->encrypt == _TKIP_) {
-
+	if (pattrib->encrypt == WLAN_CIPHER_SUITE_TKIP) {
 		if (pattrib->psta)
-		{
 			stainfo = pattrib->psta;
-		}
-		else
-		{
+		else {
 			DBG_8723A("%s, call rtw_get_stainfo()\n", __func__);
 			stainfo = rtw_get_stainfo23a(&padapter->stapriv,
 						     &pattrib->ra[0]);
@@ -737,7 +735,7 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 	pframe = skb->data;
 
 	/* 4 start to decrypt recvframe */
-	if (prxattrib->encrypt == _TKIP_) {
+	if (prxattrib->encrypt == WLAN_CIPHER_SUITE_TKIP) {
 
 		stainfo = rtw_get_stainfo23a(&padapter->stapriv,
 					     &prxattrib->ta[0]);
@@ -1323,7 +1321,7 @@ int rtw_aes_encrypt23a(struct rtw_adapter *padapter,
 	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
 	/* 4 start to encrypt each fragment */
-	if (pattrib->encrypt != _AES_)
+	if (pattrib->encrypt != WLAN_CIPHER_SUITE_CCMP)
 		return _FAIL;
 
 	if (pattrib->psta) {
@@ -1598,7 +1596,7 @@ int rtw_aes_decrypt23a(struct rtw_adapter *padapter,
 
 	pframe = skb->data;
 	/* 4 start to encrypt each fragment */
-	if (prxattrib->encrypt != _AES_)
+	if (prxattrib->encrypt != WLAN_CIPHER_SUITE_CCMP)
 		return _FAIL;
 
 	stainfo = rtw_get_stainfo23a(&padapter->stapriv, &prxattrib->ta[0]);

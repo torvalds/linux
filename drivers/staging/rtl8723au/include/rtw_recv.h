@@ -111,7 +111,7 @@ struct rx_pkt_attrib	{
 	u8	privacy; /* in frame_ctrl field */
 	u8	bdecrypted;
 	/* when 0 indicate no encrypt. when non-zero, indicate the algorith */
-	u8	encrypt;
+	u32	encrypt;
 	u8	iv_len;
 	u8	icv_len;
 	u8	crc_err;

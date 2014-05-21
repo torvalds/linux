@@ -340,10 +340,10 @@ int rtw_is_same_ibss23a(struct rtw_adapter *adapter,
 	int ret = true;
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 
-	if (psecuritypriv->dot11PrivacyAlgrthm != _NO_PRIVACY_ &&
+	if (psecuritypriv->dot11PrivacyAlgrthm != 0 &&
 	    pnetwork->network.Privacy == 0)
 		ret = false;
-	else if (psecuritypriv->dot11PrivacyAlgrthm == _NO_PRIVACY_ &&
+	else if (psecuritypriv->dot11PrivacyAlgrthm == 0 &&
 		 pnetwork->network.Privacy == 1)
 		ret = false;
 	else
@@ -1911,23 +1911,23 @@ int rtw_set_key23a(struct rtw_adapter *adapter,
 		  "keyid = (u8)keyid =%d\n", psetkeyparm->algorithm, keyid));
 
 	switch (psetkeyparm->algorithm) {
-	case _WEP40_:
+	case WLAN_CIPHER_SUITE_WEP40:
 		keylen = 5;
 		memcpy(&psetkeyparm->key[0],
 		       &psecuritypriv->dot11DefKey[keyid].skey[0], keylen);
 		break;
-	case _WEP104_:
+	case WLAN_CIPHER_SUITE_WEP104:
 		keylen = 13;
 		memcpy(&psetkeyparm->key[0],
 		       &psecuritypriv->dot11DefKey[keyid].skey[0], keylen);
 		break;
-	case _TKIP_:
+	case WLAN_CIPHER_SUITE_TKIP:
 		keylen = 16;
 		memcpy(&psetkeyparm->key,
 		       &psecuritypriv->dot118021XGrpKey[keyid], keylen);
 		psetkeyparm->grpkey = 1;
 		break;
-	case _AES_:
+	case WLAN_CIPHER_SUITE_CCMP:
 		keylen = 16;
 		memcpy(&psetkeyparm->key,
 		       &psecuritypriv->dot118021XGrpKey[keyid], keylen);
@@ -2250,7 +2250,8 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 				     &max_rx_ampdu_factor);
 		ht_capie.ampdu_params_info = max_rx_ampdu_factor & 0x03;
 
-		if (padapter->securitypriv.dot11PrivacyAlgrthm == _AES_)
+		if (padapter->securitypriv.dot11PrivacyAlgrthm ==
+		    WLAN_CIPHER_SUITE_CCMP)
 			ht_capie.ampdu_params_info |=
 				(IEEE80211_HT_AMPDU_PARM_DENSITY& (0x07 << 2));
 		else

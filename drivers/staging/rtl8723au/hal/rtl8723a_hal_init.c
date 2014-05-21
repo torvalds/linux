@@ -2081,18 +2081,17 @@ static void fill_txdesc_sectype(struct pkt_attrib *pattrib,
 	if ((pattrib->encrypt > 0) && !pattrib->bswenc) {
 		switch (pattrib->encrypt) {
 			/*  SEC_TYPE */
-		case _WEP40_:
-		case _WEP104_:
-		case _TKIP_:
-		case _TKIP_WTMIC_:
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+		case WLAN_CIPHER_SUITE_TKIP:
 			ptxdesc->sectype = 1;
 			break;
 
-		case _AES_:
+		case WLAN_CIPHER_SUITE_CCMP:
 			ptxdesc->sectype = 3;
 			break;
 
-		case _NO_PRIVACY_:
+		case 0:
 		default:
 			break;
 		}

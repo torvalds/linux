@@ -79,8 +79,10 @@ int ips_leave23a(struct rtw_adapter * padapter)
 
 		DBG_8723A_LEVEL(_drv_always_, "nolinked power save leave\n");
 
-		if (psecuritypriv->dot11PrivacyAlgrthm == _WEP40_ ||
-		    psecuritypriv->dot11PrivacyAlgrthm == _WEP104_) {
+		if (psecuritypriv->dot11PrivacyAlgrthm ==
+		    WLAN_CIPHER_SUITE_WEP40 ||
+		    psecuritypriv->dot11PrivacyAlgrthm ==
+		    WLAN_CIPHER_SUITE_WEP104) {
 			DBG_8723A("==>%s, channel(%d), processing(%x)\n",
 				  __func__, padapter->mlmeextpriv.cur_channel,
 				  pwrpriv->bips_processing);

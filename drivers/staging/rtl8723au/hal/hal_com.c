@@ -419,15 +419,14 @@ rtl8723a_set_ampdu_min_space(struct rtw_adapter *padapter, u8 MinSpacingToSet)
 
 	if (MinSpacingToSet <= 7) {
 		switch (padapter->securitypriv.dot11PrivacyAlgrthm) {
-		case _NO_PRIVACY_:
-		case _AES_:
+		case 0:
+		case WLAN_CIPHER_SUITE_CCMP:
 			SecMinSpace = 0;
 			break;
 
-		case _WEP40_:
-		case _WEP104_:
-		case _TKIP_:
-		case _TKIP_WTMIC_:
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+		case WLAN_CIPHER_SUITE_TKIP:
 			SecMinSpace = 6;
 			break;
 		default:

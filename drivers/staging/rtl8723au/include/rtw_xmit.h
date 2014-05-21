@@ -124,8 +124,8 @@ struct pkt_attrib {
 	u16	hdrlen;		/* the WLAN Header Len */
 	u32	pktlen;		/* the original 802.3 pkt raw_data len */
 	u32	last_txcmdsz;
+	u32	encrypt;	/* when 0 indicate no encrypt. */
 	u8	nr_frags;
-	u8	encrypt;	/* when 0 indicate no encrypt. */
 	u8	iv_len;
 	u8	icv_len;
 	u8	iv[18];

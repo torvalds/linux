@@ -382,17 +382,17 @@ int rtw_set_802_11_add_wep23a(struct rtw_adapter* padapter,
 	switch (wep->KeyLength)
 	{
 	case 5:
-		psecuritypriv->dot11PrivacyAlgrthm = _WEP40_;
+		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 			 ("MgntActrtw_set_802_11_add_wep23a:wep->KeyLength = 5\n"));
 		break;
 	case 13:
-		psecuritypriv->dot11PrivacyAlgrthm = _WEP104_;
+		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 			 ("MgntActrtw_set_802_11_add_wep23a:wep->KeyLength = 13\n"));
 		break;
 	default:
-		psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
+		psecuritypriv->dot11PrivacyAlgrthm = 0;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 			 ("MgntActrtw_set_802_11_add_wep23a:wep->KeyLength!= 5 "
 			  "or 13\n"));

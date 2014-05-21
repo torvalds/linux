@@ -679,7 +679,10 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	if (pmlmepriv->cur_network.join_res != true) {
 		/* setting only at  first time */
 		/* WEP Key will be set before this function, do not clear CAM. */
-		if ((psecuritypriv->dot11PrivacyAlgrthm != _WEP40_) && (psecuritypriv->dot11PrivacyAlgrthm != _WEP104_))
+		if (psecuritypriv->dot11PrivacyAlgrthm !=
+		    WLAN_CIPHER_SUITE_WEP40 &&
+		    psecuritypriv->dot11PrivacyAlgrthm !=
+		    WLAN_CIPHER_SUITE_WEP104)
 			flush_all_cam_entry23a(padapter);	/* clear CAM */
 	}
 
@@ -897,8 +900,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 
 	/* wpa2 */
 	group_cipher = 0; pairwise_cipher = 0;
-	psecuritypriv->wpa2_group_cipher = _NO_PRIVACY_;
-	psecuritypriv->wpa2_pairwise_cipher = _NO_PRIVACY_;
+	psecuritypriv->wpa2_group_cipher = 0;
+	psecuritypriv->wpa2_pairwise_cipher = 0;
 	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_RSN, &ie_len,
 			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
 	if (p && ie_len > 0) {
@@ -918,8 +921,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	ie_len = 0;
 	group_cipher = 0;
 	pairwise_cipher = 0;
-	psecuritypriv->wpa_group_cipher = _NO_PRIVACY_;
-	psecuritypriv->wpa_pairwise_cipher = _NO_PRIVACY_;
+	psecuritypriv->wpa_group_cipher = 0;
+	psecuritypriv->wpa_pairwise_cipher = 0;
 	for (p = ie + _BEACON_IE_OFFSET_; ;p += (ie_len + 2)) {
 		p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
 				  (pbss_network->IELength - _BEACON_IE_OFFSET_ -
@@ -1887,16 +1890,20 @@ void rtw_ap_restore_network(struct rtw_adapter *padapter)
 
 	start_bss_network(padapter, (u8*)&mlmepriv->cur_network.network);
 
-	if ((padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_) ||
-		(padapter->securitypriv.dot11PrivacyAlgrthm == _AES_))
-	{
+	if (padapter->securitypriv.dot11PrivacyAlgrthm ==
+	    WLAN_CIPHER_SUITE_TKIP ||
+	    padapter->securitypriv.dot11PrivacyAlgrthm ==
+	    WLAN_CIPHER_SUITE_CCMP) {
 		/* restore group key, WEP keys is restored in ips_leave23a() */
-		rtw_set_key23a(padapter, psecuritypriv, psecuritypriv->dot118021XGrpKeyid, 0);
+		rtw_set_key23a(padapter, psecuritypriv,
+			       psecuritypriv->dot118021XGrpKeyid, 0);
 	}
 
 	/* per sta pairwise key and settings */
-	if ((padapter->securitypriv.dot11PrivacyAlgrthm != _TKIP_) &&
-		(padapter->securitypriv.dot11PrivacyAlgrthm != _AES_)) {
+	if (padapter->securitypriv.dot11PrivacyAlgrthm !=
+	    WLAN_CIPHER_SUITE_TKIP &&
+	    padapter->securitypriv.dot11PrivacyAlgrthm !=
+	    WLAN_CIPHER_SUITE_CCMP) {
 		return;
 	}
 
