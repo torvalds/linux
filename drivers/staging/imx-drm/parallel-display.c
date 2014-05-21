@@ -148,7 +148,6 @@ static struct drm_connector_funcs imx_pd_connector_funcs = {
 static struct drm_connector_helper_funcs imx_pd_connector_helper_funcs = {
 	.get_modes = imx_pd_connector_get_modes,
 	.best_encoder = imx_pd_connector_best_encoder,
-	.mode_valid = imx_drm_connector_mode_valid,
 };
 
 static struct drm_encoder_funcs imx_pd_encoder_funcs = {

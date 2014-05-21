@@ -455,8 +455,8 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
  *
  * Returns the previous state of underrun reporting.
  */
-bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
-					     enum pipe pipe, bool enable)
+static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+						    enum pipe pipe, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];

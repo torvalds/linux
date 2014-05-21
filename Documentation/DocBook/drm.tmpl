@@ -1895,8 +1895,8 @@ void intel_crt_init(struct drm_device *dev)
           <para>
             The function filters out modes larger than
             <parameter>max_width</parameter> and <parameter>max_height</parameter>
-            if specified. It then calls the connector
-            <methodname>mode_valid</methodname> helper operation for  each mode in
+            if specified. It then calls the optional connector
+            <methodname>mode_valid</methodname> helper operation for each mode in
             the probed list to check whether the mode is valid for the connector.
           </para>
         </listitem>
@@ -2257,7 +2257,7 @@ void intel_crt_init(struct drm_device *dev)
           <para>
             Verify whether a mode is valid for the connector. Return MODE_OK for
             supported modes and one of the enum drm_mode_status values (MODE_*)
-            for unsupported modes. This operation is mandatory.
+            for unsupported modes. This operation is optional.
           </para>
           <para>
             As the mode rejection reason is currently not used beside for
@@ -2519,6 +2519,10 @@ void (*disable_vblank) (struct drm_device *dev, int crtc);</synopsis>
       with a call to <function>drm_vblank_cleanup</function> in the driver
       <methodname>unload</methodname> operation handler.
     </para>
+    <sect2>
+      <title>Vertical Blanking and Interrupt Handling Functions Reference</title>
+!Edrivers/gpu/drm/drm_irq.c
+    </sect2>
   </sect1>
 
   <!-- Internals: open/close, file operations and ioctls -->
@@ -2861,17 +2865,16 @@ int num_ioctls;</synopsis>
             <term>DRM_IOCTL_MODESET_CTL</term>
             <listitem>
               <para>
-                This should be called by application level drivers before and
-                after mode setting, since on many devices the vertical blank
-                counter is reset at that time.  Internally, the DRM snapshots
-                the last vblank count when the ioctl is called with the
-                _DRM_PRE_MODESET command, so that the counter won't go backwards
-                (which is dealt with when _DRM_POST_MODESET is used).
+		This was only used for user-mode-settind drivers around
+		modesetting changes to allow the kernel to update the vblank
+		interrupt after mode setting, since on many devices the vertical
+		blank counter is reset to 0 at some point during modeset. Modern
+		drivers should not call this any more since with kernel mode
+		setting it is a no-op.
               </para>
             </listitem>
           </varlistentry>
         </variablelist>
-<!--!Edrivers/char/drm/drm_irq.c-->
       </para>
     </sect1>
 

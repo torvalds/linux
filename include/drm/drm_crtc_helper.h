@@ -114,7 +114,7 @@ struct drm_encoder_helper_funcs {
 /**
  * drm_connector_helper_funcs - helper operations for connectors
  * @get_modes: get mode list for this connector
- * @mode_valid: is this mode valid on the given connector?
+ * @mode_valid (optional): is this mode valid on the given connector?
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */

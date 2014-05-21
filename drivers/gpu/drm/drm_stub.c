@@ -294,6 +294,7 @@ static void drm_minor_free(struct drm_device *dev, unsigned int type)
 
 	slot = drm_minor_get_slot(dev, type);
 	if (*slot) {
+		drm_mode_group_destroy(&(*slot)->mode_group);
 		kfree(*slot);
 		*slot = NULL;
 	}

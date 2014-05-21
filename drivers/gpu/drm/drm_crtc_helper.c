@@ -140,15 +140,9 @@ drm_encoder_disable(struct drm_encoder *encoder)
 static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
-	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 
 	drm_warn_on_modeset_not_all_locked(dev);
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (!connector->encoder)
-			continue;
-	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (!drm_helper_encoder_in_use(encoder)) {
@@ -387,8 +381,7 @@ done:
 }
 EXPORT_SYMBOL(drm_crtc_helper_set_mode);
 
-
-static int
+static void
 drm_crtc_helper_disable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -417,7 +410,6 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 	}
 
 	__drm_helper_disable_unused_functions(dev);
-	return 0;
 }
 
 /**
@@ -468,7 +460,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				(int)set->num_connectors, set->x, set->y);
 	} else {
 		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
-		return drm_crtc_helper_disable(set->crtc);
+		drm_crtc_helper_disable(set->crtc);
+		return 0;
 	}
 
 	dev = set->crtc->dev;

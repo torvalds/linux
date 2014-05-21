@@ -1145,16 +1145,19 @@ EXPORT_SYMBOL(drm_plane_cleanup);
  */
 void drm_plane_force_disable(struct drm_plane *plane)
 {
+	struct drm_framebuffer *old_fb = plane->fb;
 	int ret;
 
-	if (!plane->fb)
+	if (!old_fb)
 		return;
 
 	ret = plane->funcs->disable_plane(plane);
-	if (ret)
+	if (ret) {
 		DRM_ERROR("failed to disable plane with busy fb\n");
+		return;
+	}
 	/* disconnect the plane from the fb and crtc: */
-	__drm_framebuffer_unreference(plane->fb);
+	__drm_framebuffer_unreference(old_fb);
 	plane->fb = NULL;
 	plane->crtc = NULL;
 }
@@ -1376,6 +1379,12 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	group->num_encoders = 0;
 	group->num_bridges = 0;
 	return 0;
+}
+
+void drm_mode_group_destroy(struct drm_mode_group *group)
+{
+	kfree(group->id_list);
+	group->id_list = NULL;
 }
 
 /*
@@ -2116,9 +2125,13 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	if (!plane_req->fb_id) {
 		drm_modeset_lock_all(dev);
 		old_fb = plane->fb;
-		plane->funcs->disable_plane(plane);
-		plane->crtc = NULL;
-		plane->fb = NULL;
+		ret = plane->funcs->disable_plane(plane);
+		if (!ret) {
+			plane->crtc = NULL;
+			plane->fb = NULL;
+		} else {
+			old_fb = NULL;
+		}
 		drm_modeset_unlock_all(dev);
 		goto out;
 	}
@@ -2187,16 +2200,18 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	}
 
 	drm_modeset_lock_all(dev);
+	old_fb = plane->fb;
 	ret = plane->funcs->update_plane(plane, crtc, fb,
 					 plane_req->crtc_x, plane_req->crtc_y,
 					 plane_req->crtc_w, plane_req->crtc_h,
 					 plane_req->src_x, plane_req->src_y,
 					 plane_req->src_w, plane_req->src_h);
 	if (!ret) {
-		old_fb = plane->fb;
 		plane->crtc = crtc;
 		plane->fb = fb;
 		fb = NULL;
+	} else {
+		old_fb = NULL;
 	}
 	drm_modeset_unlock_all(dev);
 
@@ -2239,9 +2254,7 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 	ret = crtc->funcs->set_config(set);
 	if (ret == 0) {
 		crtc->primary->crtc = crtc;
-
-		/* crtc->fb must be updated by ->set_config, enforces this. */
-		WARN_ON(fb != crtc->primary->fb);
+		crtc->primary->fb = fb;
 	}
 
 	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head) {

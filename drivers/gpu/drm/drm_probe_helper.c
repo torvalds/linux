@@ -151,7 +151,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 	drm_mode_validate_flag(connector, mode_flags);
 
 	list_for_each_entry(mode, &connector->modes, head) {
-		if (mode->status == MODE_OK)
+		if (mode->status == MODE_OK && connector_funcs->mode_valid)
 			mode->status = connector_funcs->mode_valid(connector,
 								   mode);
 	}

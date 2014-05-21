@@ -3910,7 +3910,7 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	int plane = intel_crtc->plane;
 
 	intel_crtc_wait_for_pending_flips(crtc);
-	drm_vblank_off(dev, pipe);
+	drm_crtc_vblank_off(crtc);
 
 	if (dev_priv->fbc.plane == plane)
 		intel_disable_fbc(dev);
@@ -4000,6 +4000,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc_enable_planes(crtc);
 
+	drm_crtc_vblank_on(crtc);
 }
 
 /* IPS only exists on ULT machines and is tied to pipe A. */
@@ -4113,6 +4114,8 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	 * to change the workaround. */
 	haswell_mode_set_planes_workaround(intel_crtc);
 	intel_crtc_enable_planes(crtc);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static void ironlake_pfit_disable(struct intel_crtc *crtc)
@@ -4620,6 +4623,8 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 		encoder->enable(encoder);
 
 	intel_crtc_enable_planes(crtc);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static void i9xx_set_pll_dividers(struct intel_crtc *crtc)
@@ -4697,6 +4702,8 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 		encoder->enable(encoder);
 
 	intel_crtc_enable_planes(crtc);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static void i9xx_pfit_disable(struct intel_crtc *crtc)
@@ -8815,7 +8822,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	if (work->event)
 		drm_send_vblank_event(dev, intel_crtc->pipe, work->event);
 
-	drm_vblank_put(dev, intel_crtc->pipe);
+	drm_crtc_vblank_put(crtc);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
@@ -9197,7 +9204,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->old_fb_obj = to_intel_framebuffer(old_fb)->obj;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
-	ret = drm_vblank_get(dev, intel_crtc->pipe);
+	ret = drm_crtc_vblank_get(crtc);
 	if (ret)
 		goto free_work;
 
@@ -9206,7 +9213,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (intel_crtc->unpin_work) {
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		kfree(work);
-		drm_vblank_put(dev, intel_crtc->pipe);
+		drm_crtc_vblank_put(crtc);
 
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		return -EBUSY;
@@ -9280,7 +9287,7 @@ cleanup:
 	intel_crtc->unpin_work = NULL;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	drm_vblank_put(dev, intel_crtc->pipe);
+	drm_crtc_vblank_put(crtc);
 free_work:
 	kfree(work);
 
@@ -10901,6 +10908,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
+
+	WARN_ON(drm_crtc_index(&intel_crtc->base) != intel_crtc->pipe);
 }
 
 enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
@@ -11838,10 +11847,17 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			encoder->base.crtc = NULL;
 		}
 	}
-	if (crtc->active) {
+
+	if (crtc->active || IS_VALLEYVIEW(dev) || INTEL_INFO(dev)->gen < 5) {
 		/*
 		 * We start out with underrun reporting disabled to avoid races.
 		 * For correct bookkeeping mark this on active crtcs.
+		 *
+		 * Also on gmch platforms we dont have any hardware bits to
+		 * disable the underrun reporting. Which means we need to start
+		 * out with underrun reporting disabled also on inactive pipes,
+		 * since otherwise we'll complain about the garbage we read when
+		 * e.g. coming up after runtime pm.
 		 *
 		 * No protection against concurrent access is required - at
 		 * worst a fifo underrun happens which also sets this to false.
