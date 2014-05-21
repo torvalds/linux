@@ -687,7 +687,7 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 		f->os_desc_table = kzalloc(sizeof(*f->os_desc_table),
 					   GFP_KERNEL);
 		if (!f->os_desc_table)
-			return PTR_ERR(f->os_desc_table);
+			return -ENOMEM;
 		f->os_desc_n = 1;
 		f->os_desc_table[0].os_desc = &rndis_opts->rndis_os_desc;
 	}
