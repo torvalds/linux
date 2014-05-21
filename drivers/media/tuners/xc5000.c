@@ -77,7 +77,7 @@ struct xc5000_priv {
 
 /* Product id */
 #define XC_PRODUCT_ID_FW_NOT_LOADED	0x2000
-#define XC_PRODUCT_ID_FW_LOADED 	0x1388
+#define XC_PRODUCT_ID_FW_LOADED	0x1388
 
 /* Registers */
 #define XREG_INIT         0x00
@@ -164,16 +164,16 @@ struct XC_TV_STANDARD {
 #define DK_PAL_NICAM		10
 #define DK_PAL_MONO		11
 #define DK_SECAM_A2DK1		12
-#define DK_SECAM_A2LDK3 	13
-#define DK_SECAM_A2MONO 	14
+#define DK_SECAM_A2LDK3		13
+#define DK_SECAM_A2MONO		14
 #define L_SECAM_NICAM		15
 #define LC_SECAM_NICAM		16
 #define DTV6			17
 #define DTV8			18
 #define DTV7_8			19
 #define DTV7			20
-#define FM_RADIO_INPUT2 	21
-#define FM_RADIO_INPUT1 	22
+#define FM_RADIO_INPUT2		21
+#define FM_RADIO_INPUT1		22
 #define FM_RADIO_INPUT1_MONO	23
 
 static struct XC_TV_STANDARD xc5000_standard[MAX_TV_STANDARD] = {
