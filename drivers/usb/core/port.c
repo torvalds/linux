@@ -76,6 +76,7 @@ static int usb_port_runtime_resume(struct device *dev)
 	struct usb_device *hdev = to_usb_device(dev->parent->parent);
 	struct usb_interface *intf = to_usb_interface(dev->parent);
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+	struct usb_device *udev = port_dev->child;
 	struct usb_port *peer = port_dev->peer;
 	int port1 = port_dev->portnum;
 	int retval;
@@ -97,7 +98,7 @@ static int usb_port_runtime_resume(struct device *dev)
 	usb_autopm_get_interface(intf);
 	retval = usb_hub_set_port_power(hdev, hub, port1, true);
 	msleep(hub_power_on_good_delay(hub));
-	if (port_dev->child && !retval) {
+	if (udev && !retval) {
 		/*
 		 * Attempt to wait for usb hub port to be reconnected in order
 		 * to make the resume procedure successful.  The device may have
@@ -109,6 +110,12 @@ static int usb_port_runtime_resume(struct device *dev)
 			dev_dbg(&port_dev->dev, "can't get reconnection after setting port  power on, status %d\n",
 					retval);
 		retval = 0;
+
+		/* Force the child awake to revalidate after the power loss. */
+		if (!test_and_set_bit(port1, hub->child_usage_bits)) {
+			pm_runtime_get_noresume(&port_dev->dev);
+			pm_request_resume(&udev->dev);
+		}
 	}
 
 	usb_autopm_put_interface(intf);

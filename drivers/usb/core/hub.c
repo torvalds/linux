@@ -2039,6 +2039,18 @@ static void hub_free_dev(struct usb_device *udev)
 		hcd->driver->free_dev(hcd, udev);
 }
 
+static void hub_disconnect_children(struct usb_device *udev)
+{
+	struct usb_hub *hub = usb_hub_to_struct_hub(udev);
+	int i;
+
+	/* Free up all the children before we remove this device */
+	for (i = 0; i < udev->maxchild; i++) {
+		if (hub->ports[i]->child)
+			usb_disconnect(&hub->ports[i]->child);
+	}
+}
+
 /**
  * usb_disconnect - disconnect a device (usbcore-internal)
  * @pdev: pointer to device being disconnected
@@ -2057,9 +2069,10 @@ static void hub_free_dev(struct usb_device *udev)
  */
 void usb_disconnect(struct usb_device **pdev)
 {
-	struct usb_device	*udev = *pdev;
-	struct usb_hub		*hub = usb_hub_to_struct_hub(udev);
-	int			i;
+	struct usb_port *port_dev = NULL;
+	struct usb_device *udev = *pdev;
+	struct usb_hub *hub;
+	int port1;
 
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
@@ -2071,11 +2084,7 @@ void usb_disconnect(struct usb_device **pdev)
 
 	usb_lock_device(udev);
 
-	/* Free up all the children before we remove this device */
-	for (i = 0; i < udev->maxchild; i++) {
-		if (hub->ports[i]->child)
-			usb_disconnect(&hub->ports[i]->child);
-	}
+	hub_disconnect_children(udev);
 
 	/* deallocate hcd/hardware state ... nuking all pending urbs and
 	 * cleaning up all state associated with the current configuration
@@ -2086,15 +2095,19 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_hcd_synchronize_unlinks(udev);
 
 	if (udev->parent) {
-		int port1 = udev->portnum;
-		struct usb_hub *hub = usb_hub_to_struct_hub(udev->parent);
-		struct usb_port	*port_dev = hub->ports[port1 - 1];
+		port1 = udev->portnum;
+		hub = usb_hub_to_struct_hub(udev->parent);
+		port_dev = hub->ports[port1 - 1];
 
 		sysfs_remove_link(&udev->dev.kobj, "port");
 		sysfs_remove_link(&port_dev->dev.kobj, "device");
 
-		if (test_and_clear_bit(port1, hub->child_usage_bits))
-			pm_runtime_put(&port_dev->dev);
+		/*
+		 * As usb_port_runtime_resume() de-references udev, make
+		 * sure no resumes occur during removal
+		 */
+		if (!test_and_set_bit(port1, hub->child_usage_bits))
+			pm_runtime_get_sync(&port_dev->dev);
 	}
 
 	usb_remove_ep_devs(&udev->ep0);
@@ -2115,6 +2128,9 @@ void usb_disconnect(struct usb_device **pdev)
 	spin_lock_irq(&device_state_lock);
 	*pdev = NULL;
 	spin_unlock_irq(&device_state_lock);
+
+	if (port_dev && test_and_clear_bit(port1, hub->child_usage_bits))
+		pm_runtime_put(&port_dev->dev);
 
 	hub_free_dev(udev);
 
