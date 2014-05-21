@@ -30,8 +30,9 @@
 #include <linux/irqdomain.h>
 #include <linux/mfd/max77693.h>
 #include <linux/mfd/max77693-private.h>
+#include <linux/regmap.h>
 
-static const u8 max77693_mask_reg[] = {
+static const unsigned int max77693_mask_reg[] = {
 	[LED_INT] = MAX77693_LED_REG_FLASH_INT_MASK,
 	[TOPSYS_INT] = MAX77693_PMIC_REG_TOPSYS_INT_MASK,
 	[CHG_INT] = MAX77693_CHG_REG_CHG_INT_MASK,
@@ -118,7 +119,7 @@ static void max77693_irq_sync_unlock(struct irq_data *data)
 			continue;
 		max77693->irq_masks_cache[i] = max77693->irq_masks_cur[i];
 
-		max77693_write_reg(map, max77693_mask_reg[i],
+		regmap_write(map, max77693_mask_reg[i],
 				max77693->irq_masks_cur[i]);
 	}
 
@@ -178,11 +179,11 @@ static irqreturn_t max77693_irq_thread(int irq, void *data)
 {
 	struct max77693_dev *max77693 = data;
 	u8 irq_reg[MAX77693_IRQ_GROUP_NR] = {};
-	u8 irq_src;
+	unsigned int irq_src;
 	int ret;
 	int i, cur_irq;
 
-	ret = max77693_read_reg(max77693->regmap, MAX77693_PMIC_REG_INTSRC,
+	ret = regmap_read(max77693->regmap, MAX77693_PMIC_REG_INTSRC,
 				&irq_src);
 	if (ret < 0) {
 		dev_err(max77693->dev, "Failed to read interrupt source: %d\n",
@@ -190,25 +191,34 @@ static irqreturn_t max77693_irq_thread(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	if (irq_src & MAX77693_IRQSRC_CHG)
+	if (irq_src & MAX77693_IRQSRC_CHG) {
 		/* CHG_INT */
-		ret = max77693_read_reg(max77693->regmap, MAX77693_CHG_REG_CHG_INT,
-				&irq_reg[CHG_INT]);
+		unsigned int data;
+		ret = regmap_read(max77693->regmap,
+				MAX77693_CHG_REG_CHG_INT, &data);
+		irq_reg[CHG_INT] = data;
+	}
 
-	if (irq_src & MAX77693_IRQSRC_TOP)
+	if (irq_src & MAX77693_IRQSRC_TOP) {
 		/* TOPSYS_INT */
-		ret = max77693_read_reg(max77693->regmap,
-			MAX77693_PMIC_REG_TOPSYS_INT, &irq_reg[TOPSYS_INT]);
+		unsigned int data;
+		ret = regmap_read(max77693->regmap,
+			MAX77693_PMIC_REG_TOPSYS_INT, &data);
+		irq_reg[TOPSYS_INT] = data;
+	}
 
-	if (irq_src & MAX77693_IRQSRC_FLASH)
+	if (irq_src & MAX77693_IRQSRC_FLASH) {
 		/* LED_INT */
-		ret = max77693_read_reg(max77693->regmap,
-			MAX77693_LED_REG_FLASH_INT, &irq_reg[LED_INT]);
+		unsigned int data;
+		ret = regmap_read(max77693->regmap,
+			MAX77693_LED_REG_FLASH_INT, &data);
+		irq_reg[LED_INT] = data;
+	}
 
 	if (irq_src & MAX77693_IRQSRC_MUIC)
 		/* MUIC INT1 ~ INT3 */
-		max77693_bulk_read(max77693->regmap_muic, MAX77693_MUIC_REG_INT1,
-			MAX77693_NUM_IRQ_MUIC_REGS, &irq_reg[MUIC_INT1]);
+		regmap_bulk_read(max77693->regmap_muic, MAX77693_MUIC_REG_INT1,
+			&irq_reg[MUIC_INT1], MAX77693_NUM_IRQ_MUIC_REGS);
 
 	/* Apply masking */
 	for (i = 0; i < MAX77693_IRQ_GROUP_NR; i++) {
@@ -263,7 +273,7 @@ int max77693_irq_init(struct max77693_dev *max77693)
 	struct irq_domain *domain;
 	int i;
 	int ret = 0;
-	u8 intsrc_mask;
+	unsigned int intsrc_mask;
 
 	mutex_init(&max77693->irqlock);
 
@@ -286,9 +296,9 @@ int max77693_irq_init(struct max77693_dev *max77693)
 		if (max77693_mask_reg[i] == MAX77693_REG_INVALID)
 			continue;
 		if (i >= MUIC_INT1 && i <= MUIC_INT3)
-			max77693_write_reg(map, max77693_mask_reg[i], 0x00);
+			regmap_write(map, max77693_mask_reg[i], 0x00);
 		else
-			max77693_write_reg(map, max77693_mask_reg[i], 0xff);
+			regmap_write(map, max77693_mask_reg[i], 0xff);
 	}
 
 	domain = irq_domain_add_linear(NULL, MAX77693_IRQ_NR,
@@ -301,7 +311,7 @@ int max77693_irq_init(struct max77693_dev *max77693)
 	max77693->irq_domain = domain;
 
 	/* Unmask max77693 interrupt */
-	ret = max77693_read_reg(max77693->regmap,
+	ret = regmap_read(max77693->regmap,
 			MAX77693_PMIC_REG_INTSRC_MASK, &intsrc_mask);
 	if (ret < 0) {
 		dev_err(max77693->dev, "fail to read PMIC register\n");
@@ -311,7 +321,7 @@ int max77693_irq_init(struct max77693_dev *max77693)
 	intsrc_mask &= ~(MAX77693_IRQSRC_CHG);
 	intsrc_mask &= ~(MAX77693_IRQSRC_FLASH);
 	intsrc_mask &= ~(MAX77693_IRQSRC_MUIC);
-	ret = max77693_write_reg(max77693->regmap,
+	ret = regmap_write(max77693->regmap,
 			MAX77693_PMIC_REG_INTSRC_MASK, intsrc_mask);
 	if (ret < 0) {
 		dev_err(max77693->dev, "fail to write PMIC register\n");

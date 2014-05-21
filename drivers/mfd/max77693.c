@@ -49,58 +49,6 @@ static const struct mfd_cell max77693_devs[] = {
 	{ .name = "max77693-haptic", },
 };
 
-int max77693_read_reg(struct regmap *map, u8 reg, u8 *dest)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(map, reg, &val);
-	*dest = val;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(max77693_read_reg);
-
-int max77693_bulk_read(struct regmap *map, u8 reg, int count, u8 *buf)
-{
-	int ret;
-
-	ret = regmap_bulk_read(map, reg, buf, count);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(max77693_bulk_read);
-
-int max77693_write_reg(struct regmap *map, u8 reg, u8 value)
-{
-	int ret;
-
-	ret = regmap_write(map, reg, value);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(max77693_write_reg);
-
-int max77693_bulk_write(struct regmap *map, u8 reg, int count, u8 *buf)
-{
-	int ret;
-
-	ret = regmap_bulk_write(map, reg, buf, count);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(max77693_bulk_write);
-
-int max77693_update_reg(struct regmap *map, u8 reg, u8 val, u8 mask)
-{
-	int ret;
-
-	ret = regmap_update_bits(map, reg, mask, val);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(max77693_update_reg);
-
 static const struct regmap_config max77693_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -117,7 +65,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct max77693_dev *max77693;
-	u8 reg_data;
+	unsigned int reg_data;
 	int ret = 0;
 
 	max77693 = devm_kzalloc(&i2c->dev,
@@ -139,7 +87,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = max77693_read_reg(max77693->regmap, MAX77693_PMIC_REG_PMIC_ID2,
+	ret = regmap_read(max77693->regmap, MAX77693_PMIC_REG_PMIC_ID2,
 				&reg_data);
 	if (ret < 0) {
 		dev_err(max77693->dev, "device not found on this channel\n");
