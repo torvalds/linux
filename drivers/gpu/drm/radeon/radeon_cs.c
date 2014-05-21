@@ -342,10 +342,17 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			return -EINVAL;
 
 		/* we only support VM on some SI+ rings */
-		if ((p->rdev->asic->ring[p->ring]->cs_parse == NULL) &&
-		   ((p->cs_flags & RADEON_CS_USE_VM) == 0)) {
-			DRM_ERROR("Ring %d requires VM!\n", p->ring);
-			return -EINVAL;
+		if ((p->cs_flags & RADEON_CS_USE_VM) == 0) {
+			if (p->rdev->asic->ring[p->ring]->cs_parse == NULL) {
+				DRM_ERROR("Ring %d requires VM!\n", p->ring);
+				return -EINVAL;
+			}
+		} else {
+			if (p->rdev->asic->ring[p->ring]->ib_parse == NULL) {
+				DRM_ERROR("VM not supported on ring %d!\n",
+					  p->ring);
+				return -EINVAL;
+			}
 		}
 	}
 
