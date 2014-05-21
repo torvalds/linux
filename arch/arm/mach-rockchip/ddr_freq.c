@@ -344,6 +344,15 @@ void del_video_info(struct video_info *video_info)
 	}
 }
 
+void clear_video_info(void)
+{
+	struct video_info *video_info, *next;
+
+	list_for_each_entry_safe(video_info, next, &ddr.video_info_list, node) {
+		del_video_info(video_info);
+	}
+}
+
 struct video_info *find_video_info(struct video_info *match_video_info)
 {
 	struct video_info *video_info;
@@ -483,6 +492,8 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 static int video_state_release(struct inode *inode, struct file *file)
 {
 	dprintk(DEBUG_VIDEO_STATE, "video_state release\n");
+	clear_video_info();
+	update_video_info();
 	return 0;
 }
 
