@@ -2781,6 +2781,20 @@ static int port_is_power_on(struct usb_hub *hub, unsigned portstatus)
 	return ret;
 }
 
+static void usb_lock_port(struct usb_port *port_dev)
+		__acquires(&port_dev->status_lock)
+{
+	mutex_lock(&port_dev->status_lock);
+	__acquire(&port_dev->status_lock);
+}
+
+static void usb_unlock_port(struct usb_port *port_dev)
+		__releases(&port_dev->status_lock)
+{
+	mutex_unlock(&port_dev->status_lock);
+	__release(&port_dev->status_lock);
+}
+
 #ifdef	CONFIG_PM
 
 /* Check if a port is suspended(USB2.0 port) or in U3 state(USB3.0 port) */
@@ -3003,6 +3017,8 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	int		status;
 	bool		really_suspend = true;
 
+	usb_lock_port(port_dev);
+
 	/* enable remote wakeup when appropriate; this lets the device
 	 * wake up the upstream hub (including maybe the root hub).
 	 *
@@ -3096,6 +3112,8 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		pm_runtime_put_sync(&port_dev->dev);
 
 	usb_mark_last_busy(hub->hdev);
+
+	usb_unlock_port(port_dev);
 	return status;
 }
 
@@ -3244,12 +3262,12 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		}
 	}
 
+	usb_lock_port(port_dev);
+
 	/* Skip the initial Clear-Suspend step for a remote wakeup */
 	status = hub_port_status(hub, port1, &portstatus, &portchange);
 	if (status == 0 && !port_is_suspended(hub, portstatus))
 		goto SuspendCleared;
-
-	set_bit(port1, hub->busy_bits);
 
 	/* see 7.1.7.7; affects power usage, but not budgeting */
 	if (hub_is_superspeed(hub->hdev))
@@ -3289,8 +3307,6 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		}
 	}
 
-	clear_bit(port1, hub->busy_bits);
-
 	status = check_port_resume_type(udev,
 			hub, port1, status, portchange, portstatus);
 	if (status == 0)
@@ -3308,16 +3324,18 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		usb_unlocked_enable_lpm(udev);
 	}
 
+	usb_unlock_port(port_dev);
+
 	return status;
 }
 
 #ifdef	CONFIG_PM_RUNTIME
 
-/* caller has locked udev */
 int usb_remote_wakeup(struct usb_device *udev)
 {
 	int	status = 0;
 
+	usb_lock_device(udev);
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
 		status = usb_autoresume_device(udev);
@@ -3326,6 +3344,7 @@ int usb_remote_wakeup(struct usb_device *udev)
 			usb_autosuspend_device(udev);
 		}
 	}
+	usb_unlock_device(udev);
 	return status;
 }
 
@@ -4030,9 +4049,10 @@ static int hub_enable_device(struct usb_device *udev)
  * Returns device in USB_STATE_ADDRESS, except on error.
  *
  * If this is called for an already-existing device (as part of
- * usb_reset_and_verify_device), the caller must own the device lock.  For a
- * newly detected device that is not accessible through any global
- * pointers, it's not necessary to lock the device.
+ * usb_reset_and_verify_device), the caller must own the device lock and
+ * the port lock.  For a newly detected device that is not accessible
+ * through any global pointers, it's not necessary to lock the device,
+ * but it is still necessary to lock the port.
  */
 static int
 hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
@@ -4502,7 +4522,9 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 		}
 
 		/* reset (non-USB 3.0 devices) and get descriptor */
+		usb_lock_port(port_dev);
 		status = hub_port_init(hub, udev, port1, i);
+		usb_unlock_port(port_dev);
 		if (status < 0)
 			goto loop;
 
@@ -4624,6 +4646,7 @@ done:
  */
 static void hub_port_connect_change(struct usb_hub *hub, int port1,
 					u16 portstatus, u16 portchange)
+		__must_hold(&port_dev->status_lock)
 {
 	struct usb_port *port_dev = hub->ports[port1 - 1];
 	struct usb_device *udev = port_dev->child;
@@ -4655,26 +4678,29 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			/* For a suspended device, treat this as a
 			 * remote wakeup event.
 			 */
-			usb_lock_device(udev);
+			usb_unlock_port(port_dev);
 			status = usb_remote_wakeup(udev);
-			usb_unlock_device(udev);
+			usb_lock_port(port_dev);
 #endif
 		} else {
 			/* Don't resuscitate */;
 		}
-
 	}
 	clear_bit(port1, hub->change_bits);
 
+	/* successfully revalidated the connection */
 	if (status == 0)
 		return;
 
+	usb_unlock_port(port_dev);
 	hub_port_connect(hub, port1, portstatus, portchange);
+	usb_lock_port(port_dev);
 }
 
 /* Returns 1 if there was a remote wakeup and a connect status change. */
 static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
 		u16 portstatus, u16 portchange)
+		__must_hold(&port_dev->status_lock)
 {
 	struct usb_port *port_dev = hub->ports[port - 1];
 	struct usb_device *hdev;
@@ -4699,9 +4725,9 @@ static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
 		/* TRSMRCY = 10 msec */
 		msleep(10);
 
-		usb_lock_device(udev);
+		usb_unlock_port(port_dev);
 		ret = usb_remote_wakeup(udev);
-		usb_unlock_device(udev);
+		usb_lock_port(port_dev);
 		if (ret < 0)
 			connect_change = 1;
 	} else {
@@ -4713,6 +4739,7 @@ static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
 }
 
 static void port_event(struct usb_hub *hub, int port1)
+		__must_hold(&port_dev->status_lock)
 {
 	int connect_change, reset_device = 0;
 	struct usb_port *port_dev = hub->ports[port1 - 1];
@@ -4820,9 +4847,11 @@ static void port_event(struct usb_hub *hub, int port1)
 	if (reset_device || (udev && hub_is_superspeed(hub->hdev)
 				&& (portchange & USB_PORT_STAT_C_LINK_STATE)
 				&& (portstatus & USB_PORT_STAT_CONNECTION))) {
+		usb_unlock_port(port_dev);
 		usb_lock_device(udev);
 		usb_reset_device(udev);
 		usb_unlock_device(udev);
+		usb_lock_port(port_dev);
 		connect_change = 0;
 	}
 
@@ -4916,10 +4945,9 @@ static void hub_events(void)
 		for (i = 1; i <= hdev->maxchild; i++) {
 			struct usb_port *port_dev = hub->ports[i - 1];
 
-			if (!test_bit(i, hub->busy_bits)
-					&& (test_bit(i, hub->event_bits)
-						|| test_bit(i, hub->change_bits)
-						|| test_bit(i, hub->wakeup_bits))) {
+			if (test_bit(i, hub->event_bits)
+					|| test_bit(i, hub->change_bits)
+					|| test_bit(i, hub->wakeup_bits)) {
 				/*
 				 * The get_noresume and barrier ensure that if
 				 * the port was in the process of resuming, we
@@ -4931,7 +4959,9 @@ static void hub_events(void)
 				 */
 				pm_runtime_get_noresume(&port_dev->dev);
 				pm_runtime_barrier(&port_dev->dev);
+				usb_lock_port(port_dev);
 				port_event(hub, i);
+				usb_unlock_port(port_dev);
 				pm_runtime_put_sync(&port_dev->dev);
 			}
 		}
@@ -5169,15 +5199,18 @@ static int descriptors_changed(struct usb_device *udev,
  * if the reset wasn't even attempted.
  *
  * Note:
- * The caller must own the device lock.  For example, it's safe to use
- * this from a driver probe() routine after downloading new firmware.
- * For calls that might not occur during probe(), drivers should lock
- * the device using usb_lock_device_for_reset().
+ * The caller must own the device lock and the port lock, the latter is
+ * taken by usb_reset_device().  For example, it's safe to use
+ * usb_reset_device() from a driver probe() routine after downloading
+ * new firmware.  For calls that might not occur during probe(), drivers
+ * should lock the device using usb_lock_device_for_reset().
  *
  * Locking exception: This routine may also be called from within an
  * autoresume handler.  Such usage won't conflict with other tasks
  * holding the device lock because these tasks should always call
- * usb_autopm_resume_device(), thereby preventing any unwanted autoresume.
+ * usb_autopm_resume_device(), thereby preventing any unwanted
+ * autoresume.  The autoresume handler is expected to have already
+ * acquired the port lock before calling this routine.
  */
 static int usb_reset_and_verify_device(struct usb_device *udev)
 {
@@ -5196,11 +5229,9 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		return -EINVAL;
 	}
 
-	if (!parent_hdev) {
-		/* this requires hcd-specific logic; see ohci_restart() */
-		dev_dbg(&udev->dev, "%s for root hub!\n", __func__);
+	if (!parent_hdev)
 		return -EISDIR;
-	}
+
 	parent_hub = usb_hub_to_struct_hub(parent_hdev);
 
 	/* Disable USB2 hardware LPM.
@@ -5229,7 +5260,6 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		goto re_enumerate;
 	}
 
-	set_bit(port1, parent_hub->busy_bits);
 	for (i = 0; i < SET_CONFIG_TRIES; ++i) {
 
 		/* ep0 maxpacket size may change; let the HCD know about it.
@@ -5239,7 +5269,6 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		if (ret >= 0 || ret == -ENOTCONN || ret == -ENODEV)
 			break;
 	}
-	clear_bit(port1, parent_hub->busy_bits);
 
 	if (ret < 0)
 		goto re_enumerate;
@@ -5360,7 +5389,9 @@ int usb_reset_device(struct usb_device *udev)
 	int ret;
 	int i;
 	unsigned int noio_flag;
+	struct usb_port *port_dev;
 	struct usb_host_config *config = udev->actconfig;
+	struct usb_hub *hub = usb_hub_to_struct_hub(udev->parent);
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			udev->state == USB_STATE_SUSPENDED) {
@@ -5368,6 +5399,14 @@ int usb_reset_device(struct usb_device *udev)
 				udev->state);
 		return -EINVAL;
 	}
+
+	if (!udev->parent) {
+		/* this requires hcd-specific logic; see ohci_restart() */
+		dev_dbg(&udev->dev, "%s for root hub!\n", __func__);
+		return -EISDIR;
+	}
+
+	port_dev = hub->ports[udev->portnum - 1];
 
 	/*
 	 * Don't allocate memory with GFP_KERNEL in current
@@ -5402,7 +5441,9 @@ int usb_reset_device(struct usb_device *udev)
 		}
 	}
 
+	usb_lock_port(port_dev);
 	ret = usb_reset_and_verify_device(udev);
+	usb_unlock_port(port_dev);
 
 	if (config) {
 		for (i = config->desc.bNumInterfaces - 1; i >= 0; --i) {

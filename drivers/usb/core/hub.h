@@ -45,8 +45,6 @@ struct usb_hub {
 	unsigned long		event_bits[1];	/* status change bitmask */
 	unsigned long		change_bits[1];	/* ports with logical connect
 							status change */
-	unsigned long		busy_bits[1];	/* ports being reset or
-							resumed */
 	unsigned long		removed_bits[1]; /* ports with a "removed"
 							device present */
 	unsigned long		wakeup_bits[1];	/* ports that have signaled
@@ -88,6 +86,7 @@ struct usb_hub {
  * @peer: related usb2 and usb3 ports (share the same connector)
  * @connect_type: port's connect type
  * @location: opaque representation of platform connector location
+ * @status_lock: synchronize port_event() vs usb_port_{suspend|resume}
  * @portnum: port index num based one
  * @is_superspeed cache super-speed status
  */
@@ -98,6 +97,7 @@ struct usb_port {
 	struct usb_port *peer;
 	enum usb_port_connect_type connect_type;
 	usb_port_location_t location;
+	struct mutex status_lock;
 	u8 portnum;
 	unsigned int is_superspeed:1;
 };

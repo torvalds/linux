@@ -2267,9 +2267,7 @@ static void hcd_resume_work(struct work_struct *work)
 	struct usb_hcd *hcd = container_of(work, struct usb_hcd, wakeup_work);
 	struct usb_device *udev = hcd->self.root_hub;
 
-	usb_lock_device(udev);
 	usb_remote_wakeup(udev);
-	usb_unlock_device(udev);
 }
 
 /**
