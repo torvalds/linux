@@ -3534,7 +3534,6 @@ static int _issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv;
 	struct mlme_ext_priv *pmlmeext;
 	struct mlme_ext_info *pmlmeinfo;
@@ -3561,14 +3560,13 @@ static int _issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
 	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					      IEEE80211_STYPE_NULLFUNC);
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
-		SetFrDs(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 	else if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
-		SetToDs(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_TODS);
 
 	if (power_mode)
 		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
@@ -3659,7 +3657,6 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_qos_hdr *pwlanhdr;
-	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -3684,14 +3681,13 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_qos_hdr *)pframe;
 
-	fctrl = &pwlanhdr->frame_control;
 	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					      IEEE80211_STYPE_QOS_NULLFUNC);
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
-		SetFrDs(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 	else if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
-		SetToDs(fctrl);
+		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_TODS);
 
 	if (pattrib->mdata)
 		pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
