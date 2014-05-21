@@ -114,8 +114,7 @@ struct	hw_xmit	{
 
 /* reduce size */
 struct pkt_attrib {
-	u8	type;
-	u8	subtype;
+	u16	type;
 	u8	bswenc;
 	u8	dhcp_pkt;
 	u16	ether_type;

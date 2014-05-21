@@ -422,7 +422,7 @@ static void set_qos(struct sk_buff *skb, struct pkt_attrib *pattrib)
 
 	pattrib->priority = UserPriority;
 	pattrib->hdrlen = sizeof(struct ieee80211_qos_hdr);
-	pattrib->subtype = WIFI_QOS_DATA_TYPE;
+	pattrib->type = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_DATA;
 }
 
 static int update_attrib(struct rtw_adapter *padapter,
@@ -537,7 +537,7 @@ static int update_attrib(struct rtw_adapter *padapter,
 	pattrib->pkt_hdrlen = ETH_HLEN;
 
 	pattrib->hdrlen = sizeof(struct ieee80211_hdr_3addr);
-	pattrib->subtype = WIFI_DATA_TYPE;
+	pattrib->type = IEEE80211_FTYPE_DATA;
 	pattrib->priority = 0;
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE | WIFI_ADHOC_STATE |
@@ -895,9 +895,9 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 
 	memset(hdr, 0, WLANHDR_OFFSET);
 
-	SetFrameSubType(fctrl, pattrib->subtype);
+	pwlanhdr->frame_control = cpu_to_le16(pattrib->type);
 
-	if (pattrib->subtype & WIFI_DATA_TYPE) {
+	if (pattrib->type & IEEE80211_FTYPE_DATA) {
 		if ((check_fwstate(pmlmepriv,  WIFI_STATION_STATE) == true)) {
 			/* to_ds = 1, fr_ds = 0; */
 			/* Data transfer to AP */
