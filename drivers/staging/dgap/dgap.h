@@ -637,7 +637,7 @@ struct un_t {
 	struct	channel_t *un_ch;
 	u32	un_time;
 	u32	un_type;
-	u32	un_open_count;	/* Counter of opens to port		*/
+	int	un_open_count;	/* Counter of opens to port		*/
 	struct tty_struct *un_tty;/* Pointer to unit tty structure	*/
 	u32	un_flags;	/* Unit flags				*/
 	wait_queue_head_t un_flags_wait; /* Place to sleep to wait on unit */
