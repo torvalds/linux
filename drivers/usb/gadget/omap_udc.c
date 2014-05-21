@@ -2079,10 +2079,7 @@ static int omap_udc_start(struct usb_gadget *g,
 						&udc->gadget);
 		if (status < 0) {
 			ERR("can't bind to transceiver\n");
-			if (driver->unbind) {
-				driver->unbind(&udc->gadget);
-				udc->driver = NULL;
-			}
+			udc->driver = NULL;
 			goto done;
 		}
 	} else {
