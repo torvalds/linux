@@ -184,6 +184,19 @@ static void afs_free_call(struct afs_call *call)
 }
 
 /*
+ * End a call
+ */
+static void afs_end_call(struct afs_call *call)
+{
+	if (call->rxcall) {
+		rxrpc_kernel_end_call(call->rxcall);
+		call->rxcall = NULL;
+	}
+	call->type->destructor(call);
+	afs_free_call(call);
+}
+
+/*
  * allocate a call with flat request and reply buffers
  */
 struct afs_call *afs_alloc_flat_call(const struct afs_call_type *type,
@@ -383,11 +396,8 @@ error_do_abort:
 	rxrpc_kernel_abort_call(rxcall, RX_USER_ABORT);
 	while ((skb = skb_dequeue(&call->rx_queue)))
 		afs_free_skb(skb);
-	rxrpc_kernel_end_call(rxcall);
-	call->rxcall = NULL;
 error_kill_call:
-	call->type->destructor(call);
-	afs_free_call(call);
+	afs_end_call(call);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -509,12 +519,8 @@ static void afs_deliver_to_call(struct afs_call *call)
 	if (call->state >= AFS_CALL_COMPLETE) {
 		while ((skb = skb_dequeue(&call->rx_queue)))
 			afs_free_skb(skb);
-		if (call->incoming) {
-			rxrpc_kernel_end_call(call->rxcall);
-			call->rxcall = NULL;
-			call->type->destructor(call);
-			afs_free_call(call);
-		}
+		if (call->incoming)
+			afs_end_call(call);
 	}
 
 	_leave("");
@@ -564,10 +570,7 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 	}
 
 	_debug("call complete");
-	rxrpc_kernel_end_call(call->rxcall);
-	call->rxcall = NULL;
-	call->type->destructor(call);
-	afs_free_call(call);
+	afs_end_call(call);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -790,10 +793,7 @@ void afs_send_empty_reply(struct afs_call *call)
 		_debug("oom");
 		rxrpc_kernel_abort_call(call->rxcall, RX_USER_ABORT);
 	default:
-		rxrpc_kernel_end_call(call->rxcall);
-		call->rxcall = NULL;
-		call->type->destructor(call);
-		afs_free_call(call);
+		afs_end_call(call);
 		_leave(" [error]");
 		return;
 	}
@@ -823,17 +823,16 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	call->state = AFS_CALL_AWAIT_ACK;
 	n = rxrpc_kernel_send_data(call->rxcall, &msg, len);
 	if (n >= 0) {
+		/* Success */
 		_leave(" [replied]");
 		return;
 	}
+
 	if (n == -ENOMEM) {
 		_debug("oom");
 		rxrpc_kernel_abort_call(call->rxcall, RX_USER_ABORT);
 	}
-	rxrpc_kernel_end_call(call->rxcall);
-	call->rxcall = NULL;
-	call->type->destructor(call);
-	afs_free_call(call);
+	afs_end_call(call);
 	_leave(" [error]");
 }
 
