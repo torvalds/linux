@@ -34,6 +34,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmc3_pins_a>;
 			vmmc-supply = <&reg_vmmc3>;
+			bus-width = <4>;
 			non-removable;
 			status = "okay";
 		};
