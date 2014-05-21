@@ -2596,6 +2596,7 @@ static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb,
 		return ret;
 
 	} else if (ieee80211_is_action(dot11_hdr->frame_control)) {
+		struct ieee80211_mgmt *mgmt;
 		/* only for action frames */
 		struct xmit_frame *pmgntframe;
 		struct pkt_attrib *pattrib;
@@ -2607,17 +2608,13 @@ static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb,
 		u32 len = skb->len;
 		u8 category, action;
 
-		if (rtw_action_frame_parse23a(skb->data, len, &category,
-					   &action) == false) {
-			DBG_8723A("%s(%s): frame_control:0x%x\n",
-				  __func__, ndev->name,
-				  le16_to_cpu(dot11_hdr->frame_control));
-			goto fail;
-		}
+		mgmt = (struct ieee80211_mgmt *)dot11_hdr;
 
 		DBG_8723A("RTW_Tx:da =" MAC_FMT " via %s(%s)\n",
-			  MAC_ARG(dot11_hdr->addr1), __func__, ndev->name);
-		if (category == WLAN_CATEGORY_PUBLIC)
+			  MAC_ARG(mgmt->da), __func__, ndev->name);
+		category = mgmt->u.action.category;
+		action = mgmt->u.action.u.wme_action.action_code;
+		if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC)
 			DBG_8723A("RTW_Tx:%s\n", action_public_str23a(action));
 		else
 			DBG_8723A("RTW_Tx:category(%u), action(%u)\n", category,
@@ -3033,54 +3030,6 @@ static int cfg80211_rtw_change_bss(struct wiphy *wiphy, struct net_device *ndev,
 	return 0;
 }
 #endif /* CONFIG_8723AU_AP_MODE */
-
-void rtw_cfg80211_rx_action_p2p(struct rtw_adapter *padapter, u8 *pmgmt_frame,
-				uint frame_len)
-{
-	s32 freq;
-	int channel;
-	u8 category, action;
-
-	channel = rtw_get_oper_ch23a(padapter);
-
-	DBG_8723A("RTW_Rx:cur_ch =%d\n", channel);
-	rtw_action_frame_parse23a(pmgmt_frame, frame_len, &category, &action);
-	DBG_8723A("RTW_Rx:category(%u), action(%u)\n", category, action);
-
-	if (channel <= RTW_CH_MAX_2G_CHANNEL)
-		freq = ieee80211_channel_to_frequency(channel,
-						      IEEE80211_BAND_2GHZ);
-	else
-		freq = ieee80211_channel_to_frequency(channel,
-						      IEEE80211_BAND_5GHZ);
-
-	rtw_cfg80211_rx_mgmt(padapter, freq, 0, pmgmt_frame, frame_len,
-			     GFP_ATOMIC);
-}
-
-void rtw_cfg80211_rx_p2p_action_public(struct rtw_adapter *padapter,
-				       u8 *pmgmt_frame, uint frame_len)
-{
-	s32 freq;
-	int channel;
-	u8 category, action;
-
-	channel = rtw_get_oper_ch23a(padapter);
-
-	DBG_8723A("RTW_Rx:cur_ch =%d\n", channel);
-	rtw_action_frame_parse23a(pmgmt_frame, frame_len, &category, &action);
-	DBG_8723A("RTW_Rx:category(%u), action(%u)\n", category, action);
-
-	if (channel <= RTW_CH_MAX_2G_CHANNEL)
-		freq = ieee80211_channel_to_frequency(channel,
-						      IEEE80211_BAND_2GHZ);
-	else
-		freq = ieee80211_channel_to_frequency(channel,
-						      IEEE80211_BAND_5GHZ);
-
-	rtw_cfg80211_rx_mgmt(padapter, freq, 0, pmgmt_frame, frame_len,
-			     GFP_ATOMIC);
-}
 
 void rtw_cfg80211_rx_action(struct rtw_adapter *adapter, u8 *frame,
 			    uint frame_len, const char *msg)

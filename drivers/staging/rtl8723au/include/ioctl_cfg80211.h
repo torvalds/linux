@@ -85,10 +85,6 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 
 void rtw_cfg80211_issue_p2p_provision_request23a(struct rtw_adapter *padapter,
 					      const u8 *buf, size_t len);
-void rtw_cfg80211_rx_p2p_action_public(struct rtw_adapter *padapter,
-				       u8 *pmgmt_frame, uint frame_len);
-void rtw_cfg80211_rx_action_p2p(struct rtw_adapter *padapter,
-				u8 *pmgmt_frame, uint frame_len);
 void rtw_cfg80211_rx_action(struct rtw_adapter *adapter, u8 *frame,
 			    uint frame_len, const char*msg);
 
