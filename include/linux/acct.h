@@ -32,8 +32,6 @@ extern void acct_exit_ns(struct pid_namespace *);
 #define acct_process()		do { } while (0)
 #define acct_exit_ns(ns)	do { } while (0)
 #endif
-extern void acct_auto_close(struct hlist_head *);
-extern void acct_auto_close_mnt(struct hlist_head *);
 
 /*
  * ACCT_VERSION numbers as yet defined:

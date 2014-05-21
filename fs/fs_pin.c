@@ -1,6 +1,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/fs_pin.h>
+#include "internal.h"
 #include "mount.h"
 
 static void pin_free_rcu(struct rcu_head *head)
@@ -32,13 +33,13 @@ void pin_insert(struct fs_pin *pin, struct vfsmount *m)
 	spin_unlock(&pin_lock);
 }
 
-void acct_auto_close_mnt(struct hlist_head *list)
+void mnt_pin_kill(struct mount *m)
 {
 	while (1) {
 		struct hlist_node *p;
 		struct fs_pin *pin;
 		rcu_read_lock();
-		p = ACCESS_ONCE(list->first);
+		p = ACCESS_ONCE(m->mnt_pins.first);
 		if (!p) {
 			rcu_read_unlock();
 			break;
@@ -54,13 +55,13 @@ void acct_auto_close_mnt(struct hlist_head *list)
 	}
 }
 
-void acct_auto_close(struct hlist_head *list)
+void sb_pin_kill(struct super_block *sb)
 {
 	while (1) {
 		struct hlist_node *p;
 		struct fs_pin *pin;
 		rcu_read_lock();
-		p = ACCESS_ONCE(list->first);
+		p = ACCESS_ONCE(sb->s_pins.first);
 		if (!p) {
 			rcu_read_unlock();
 			break;

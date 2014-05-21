@@ -16,7 +16,6 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 #include <linux/idr.h>
-#include <linux/acct.h>		/* acct_auto_close_mnt */
 #include <linux/init.h>		/* init_rootfs */
 #include <linux/fs_struct.h>	/* get_fs_root et.al. */
 #include <linux/fsnotify.h>	/* fsnotify_vfsmount_delete */
@@ -956,7 +955,7 @@ put_again:
 		mnt->mnt_pinned = 0;
 		rcu_read_unlock();
 		unlock_mount_hash();
-		acct_auto_close_mnt(&mnt->mnt_pins);
+		mnt_pin_kill(mnt);
 		goto put_again;
 	}
 	if (unlikely(mnt->mnt.mnt_flags & MNT_DOOMED)) {

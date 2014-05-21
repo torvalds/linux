@@ -22,7 +22,6 @@
 
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <linux/acct.h>
 #include <linux/blkdev.h>
 #include <linux/mount.h>
 #include <linux/security.h>
@@ -707,7 +706,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	if (remount_ro) {
 		if (sb->s_pins.first) {
 			up_write(&sb->s_umount);
-			acct_auto_close(&sb->s_pins);
+			sb_pin_kill(sb);
 			down_write(&sb->s_umount);
 			if (!sb->s_root)
 				return 0;
