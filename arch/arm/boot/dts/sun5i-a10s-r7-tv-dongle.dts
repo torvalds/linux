@@ -1,7 +1,5 @@
 /*
- * Copyright 2012 Maxime Ripard
- *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Copyright 2014 Hans de Goede <hdegoede@redhat.com>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -12,21 +10,30 @@
  */
 
 /dts-v1/;
-/include/ "sun5i-a13.dtsi"
+/include/ "sun5i-a10s.dtsi"
 /include/ "sunxi-common-regulators.dtsi"
 
 / {
-	model = "Olimex A13-Olinuxino";
-	compatible = "olimex,a13-olinuxino", "allwinner,sun5i-a13";
+	model = "R7 A10s hdmi tv-stick";
+	compatible = "allwinner,r7-tv-dongle", "allwinner,sun5i-a10s";
 
 	soc@01c00000 {
 		mmc0: mmc@01c0f000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino>;
+			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_r7>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 6 0 0>; /* PG0 */
+			cd-gpios = <&pio 6 1 0>; /* PG1 */
 			cd-inverted;
+			status = "okay";
+		};
+
+		mmc1: mmc@01c10000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc1_pins_a>;
+			vmmc-supply = <&reg_vcc3v3>;
+			bus-width = <4>;
+			non-removable;
 			status = "okay";
 		};
 
@@ -44,49 +51,31 @@
 		};
 
 		pinctrl@01c20800 {
-			mmc0_cd_pin_olinuxino: mmc0_cd_pin@0 {
-				allwinner,pins = "PG0";
+			mmc0_cd_pin_r7: mmc0_cd_pin@0 {
+				allwinner,pins = "PG1";
 				allwinner,function = "gpio_in";
 				allwinner,drive = <0>;
 				allwinner,pull = <1>;
 			};
 
-			led_pins_olinuxino: led_pins@0 {
-				allwinner,pins = "PG9";
+			led_pins_r7: led_pins@0 {
+				allwinner,pins = "PB2";
 				allwinner,function = "gpio_out";
 				allwinner,drive = <1>;
 				allwinner,pull = <0>;
 			};
 
-			usb1_vbus_pin_olinuxino: usb1_vbus_pin@0 {
-				allwinner,pins = "PG11";
+			usb1_vbus_pin_r7: usb1_vbus_pin@0 {
+				allwinner,pins = "PG13";
 				allwinner,function = "gpio_out";
 				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
 		};
 
-		uart1: serial@01c28400 {
+		uart0: serial@01c28000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&uart1_pins_b>;
-			status = "okay";
-		};
-
-		i2c0: i2c@01c2ac00 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins_a>;
-			status = "okay";
-		};
-
-		i2c1: i2c@01c2b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c1_pins_a>;
-			status = "okay";
-		};
-
-		i2c2: i2c@01c2b400 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c2_pins_a>;
+			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
 		};
 	};
@@ -94,17 +83,18 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_olinuxino>;
+		pinctrl-0 = <&led_pins_r7>;
 
-		power {
-			gpios = <&pio 6 9 0>;
+		green {
+			label = "r7-tv-dongle:green:usr";
+			gpios = <&pio 1 2 0>;
 			default-state = "on";
 		};
 	};
 
 	reg_usb1_vbus: usb1-vbus {
-		pinctrl-0 = <&usb1_vbus_pin_olinuxino>;
-		gpio = <&pio 6 11 0>;
+		pinctrl-0 = <&usb1_vbus_pin_r7>;
+		gpio = <&pio 6 13 0>;
 		status = "okay";
 	};
 };
