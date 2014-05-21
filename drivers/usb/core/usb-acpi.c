@@ -136,8 +136,8 @@ out:
 
 static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 {
-	int port1;
 	struct usb_device *udev;
+	struct acpi_device *adev;
 	acpi_handle *parent_handle;
 
 	/*
@@ -155,40 +155,18 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 	 */
 	if (is_usb_device(dev)) {
 		udev = to_usb_device(dev);
-		port1 = udev->portnum;
-		if (udev->parent) {
-			struct usb_hub *hub;
-
-			hub = usb_hub_to_struct_hub(udev->parent);
-			/*
-			 * According usb port's connect type to set usb device's
-			 * removability.
-			 */
-			switch (hub->ports[port1 - 1]->connect_type) {
-			case USB_PORT_CONNECT_TYPE_HOT_PLUG:
-				udev->removable = USB_DEVICE_REMOVABLE;
-				break;
-			case USB_PORT_CONNECT_TYPE_HARD_WIRED:
-				udev->removable = USB_DEVICE_FIXED;
-				break;
-			default:
-				udev->removable = USB_DEVICE_REMOVABLE_UNKNOWN;
-				break;
-			}
-
+		if (udev->parent)
 			return NULL;
-		}
 
-		/* root hub's parent is the usb hcd. */
-		return acpi_find_child_device(ACPI_COMPANION(dev->parent),
-				port1, false);
+		/* root hub is only child (_ADR=0) under its parent, the HC */
+		adev = ACPI_COMPANION(dev->parent);
+		return acpi_find_child_device(adev, 0, false);
 	} else if (is_usb_port(dev)) {
 		struct usb_port *port_dev = to_usb_port(dev);
-		struct acpi_device *adev = NULL;
+		int port1 = port_dev->portnum;
 
 		/* Get the struct usb_device point of port's hub */
 		udev = to_usb_device(dev->parent->parent);
-		port1 = port_dev->portnum;
 
 		/*
 		 * The root hub ports' parent is the root hub. The non-root-hub

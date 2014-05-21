@@ -2305,6 +2305,22 @@ static void set_usb_port_removable(struct usb_device *udev)
 		udev->removable = USB_DEVICE_REMOVABLE;
 	else
 		udev->removable = USB_DEVICE_FIXED;
+
+	/*
+	 * Platform firmware may have populated an alternative value for
+	 * removable.  If the parent port has a known connect_type use
+	 * that instead.
+	 */
+	switch (hub->ports[udev->portnum - 1]->connect_type) {
+	case USB_PORT_CONNECT_TYPE_HOT_PLUG:
+		udev->removable = USB_DEVICE_REMOVABLE;
+		break;
+	case USB_PORT_CONNECT_TYPE_HARD_WIRED:
+		udev->removable = USB_DEVICE_FIXED;
+		break;
+	default: /* use what was set above */
+		break;
+	}
 }
 
 /**
@@ -2374,11 +2390,7 @@ int usb_new_device(struct usb_device *udev)
 
 	device_enable_async_suspend(&udev->dev);
 
-	/*
-	 * check whether the hub marks this port as non-removable. Do it
-	 * now so that platform-specific data can override it in
-	 * device_add()
-	 */
+	/* check whether the hub or firmware marks this port as non-removable */
 	if (udev->parent)
 		set_usb_port_removable(udev);
 
