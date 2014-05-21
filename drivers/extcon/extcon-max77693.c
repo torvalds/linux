@@ -1154,7 +1154,8 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		struct max77693_muic_irq *muic_irq = &muic_irqs[i];
 		unsigned int virq = 0;
 
-		virq = irq_create_mapping(max77693->irq_domain, muic_irq->irq);
+		virq = regmap_irq_get_virq(max77693->irq_data_muic,
+					muic_irq->irq);
 		if (!virq) {
 			ret = -EINVAL;
 			goto err_irq;
