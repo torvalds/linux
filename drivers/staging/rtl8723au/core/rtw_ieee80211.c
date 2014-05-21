@@ -402,13 +402,13 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	/* capability info */
 	*(u16*)ie = 0;
 
-	*(u16*)ie |= cpu_to_le16(cap_IBSS);
+	*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_IBSS);
 
 	if (pregistrypriv->preamble == PREAMBLE_SHORT)
-		*(u16*)ie |= cpu_to_le16(cap_ShortPremble);
+		*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
 
 	if (pdev_network->Privacy)
-		*(u16*)ie |= cpu_to_le16(cap_Privacy);
+		*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
 
 	sz += 2;
 	ie += 2;

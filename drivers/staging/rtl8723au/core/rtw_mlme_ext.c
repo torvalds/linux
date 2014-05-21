@@ -4652,7 +4652,7 @@ void start_create_ibss23a(struct rtw_adapter* padapter)
 	/* udpate capability */
 	caps = rtw_get_capability23a(pnetwork);
 	update_capinfo23a(padapter, caps);
-	if (caps&cap_IBSS) {	/* adhoc master */
+	if (caps & WLAN_CAPABILITY_IBSS) {	/* adhoc master */
 		rtl8723a_set_sec_cfg(padapter, 0xcf);
 
 		/* switch channel */
@@ -4707,7 +4707,7 @@ void start_clnt_join23a(struct rtw_adapter* padapter)
 	/* udpate capability */
 	caps = rtw_get_capability23a(pnetwork);
 	update_capinfo23a(padapter, caps);
-	if (caps&cap_ESS) {
+	if (caps & WLAN_CAPABILITY_ESS) {
 		/* switch channel */
 		set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
@@ -4728,8 +4728,7 @@ void start_clnt_join23a(struct rtw_adapter* padapter)
 		mod_timer(&padapter->mlmepriv.assoc_timer, jiffies +
 			  msecs_to_jiffies((REAUTH_TO * REAUTH_LIMIT) + (REASSOC_TO*REASSOC_LIMIT) + beacon_timeout));
 		pmlmeinfo->state = WIFI_FW_AUTH_NULL | WIFI_FW_STATION_STATE;
-	}
-	else if (caps&cap_IBSS) {	/* adhoc client */
+	} else if (caps & WLAN_CAPABILITY_IBSS) {	/* adhoc client */
 		Set_MSR23a(padapter, WIFI_FW_ADHOC_STATE);
 
 		rtl8723a_set_sec_cfg(padapter, 0xcf);
