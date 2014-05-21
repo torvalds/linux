@@ -215,7 +215,8 @@ static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	pwlanhdr->frame_control = 0;
+	pwlanhdr->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
 
 	memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
 	memcpy(pwlanhdr->addr2, myid(&padapter->eeprompriv), ETH_ALEN);
@@ -223,8 +224,6 @@ static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 
 	/* A Beacon frame shouldn't have fragment bits set */
 	pwlanhdr->seq_ctrl = 0;
-
-	SetFrameSubType(pframe, WIFI_BEACON);
 
 	pframe += sizeof(struct ieee80211_hdr_3addr);
 	pktlen = sizeof (struct ieee80211_hdr_3addr);
@@ -316,8 +315,9 @@ static void ConstructPSPoll(struct rtw_adapter *padapter,
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
 	/*  Frame control. */
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FCTL_PM);
-	SetFrameSubType(pframe, WIFI_PSPOLL);
+	pwlanhdr->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL);
+	pwlanhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
 	/*  AID. */
 	pwlanhdr->duration_id = cpu_to_le16(pmlmeinfo->aid | 0xc000);
@@ -386,7 +386,9 @@ ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
 		struct ieee80211_qos_hdr *qoshdr;
 		qoshdr = (struct ieee80211_qos_hdr *)pframe;
 
-		SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
+		qoshdr->frame_control |=
+			cpu_to_le16(IEEE80211_FTYPE_DATA |
+				    IEEE80211_STYPE_QOS_NULLFUNC);
 
 		qoshdr->qos_ctrl = cpu_to_le16(AC & IEEE80211_QOS_CTL_TID_MASK);
 		if (bEosp)
@@ -394,7 +396,9 @@ ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
 
 		pktlen = sizeof(struct ieee80211_qos_hdr);
 	} else {
-		SetFrameSubType(pframe, WIFI_DATA_NULL);
+		pwlanhdr->frame_control |=
+			cpu_to_le16(IEEE80211_FTYPE_DATA |
+				    IEEE80211_STYPE_NULLFUNC);
 
 		pktlen = sizeof(struct ieee80211_hdr_3addr);
 	}
@@ -419,14 +423,14 @@ static void ConstructProbeRsp(struct rtw_adapter *padapter, u8 *pframe,
 	mac = myid(&padapter->eeprompriv);
 	bssid = cur_network->MacAddress;
 
-	pwlanhdr->frame_control = 0;
+	pwlanhdr->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP);
+
 	pwlanhdr->seq_ctrl = 0;
 
 	memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
 	memcpy(pwlanhdr->addr2, mac, ETH_ALEN);
 	memcpy(pwlanhdr->addr3, bssid, ETH_ALEN);
-
-	SetFrameSubType(&pwlanhdr->frame_control, WIFI_PROBERSP);
 
 	pktlen = sizeof(struct ieee80211_hdr_3addr);
 	pframe += pktlen;
