@@ -184,15 +184,24 @@ static void afs_free_call(struct afs_call *call)
 }
 
 /*
- * End a call
+ * End a call but do not free it
  */
-static void afs_end_call(struct afs_call *call)
+static void afs_end_call_nofree(struct afs_call *call)
 {
 	if (call->rxcall) {
 		rxrpc_kernel_end_call(call->rxcall);
 		call->rxcall = NULL;
 	}
-	call->type->destructor(call);
+	if (call->type->destructor)
+		call->type->destructor(call);
+}
+
+/*
+ * End a call and free it
+ */
+static void afs_end_call(struct afs_call *call)
+{
+	afs_end_call_nofree(call);
 	afs_free_call(call);
 }
 
@@ -640,10 +649,7 @@ static void afs_process_async_call(struct work_struct *work)
 		call->reply = NULL;
 
 		/* kill the call */
-		rxrpc_kernel_end_call(call->rxcall);
-		call->rxcall = NULL;
-		if (call->type->destructor)
-			call->type->destructor(call);
+		afs_end_call_nofree(call);
 
 		/* we can't just delete the call because the work item may be
 		 * queued */
