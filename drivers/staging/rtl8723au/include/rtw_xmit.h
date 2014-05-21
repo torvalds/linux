@@ -350,8 +350,6 @@ s32 rtw_free_xmitbuf23a(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 void rtw_count_tx_stats23a(struct rtw_adapter *padapter,
 			struct xmit_frame *pxmitframe, int sz);
 void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len);
-s32 rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
-		     struct pkt_attrib *pattrib);
 s32 rtw_put_snap23a(u8 *data, u16 h_proto);
 struct xmit_frame *rtw_alloc_xmitframe23a_ext(struct xmit_priv *pxmitpriv);
 struct xmit_frame *rtw_alloc_xmitframe23a_once(struct xmit_priv *pxmitpriv);

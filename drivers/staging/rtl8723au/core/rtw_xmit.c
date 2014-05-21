@@ -858,8 +858,8 @@ static int xmitframe_swencrypt(struct rtw_adapter *padapter,
 	return _SUCCESS;
 }
 
-int rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
-		        struct pkt_attrib *pattrib)
+static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
+			    struct pkt_attrib *pattrib)
 {
 	u16 *qc;
 
@@ -1119,10 +1119,9 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 
 	mem_start = pbuf_start + hw_hdr_offset;
 
-	if (rtw_make_wlanhdr23a(padapter, mem_start, pattrib) == _FAIL) {
+	if (rtw_make_wlanhdr(padapter, mem_start, pattrib) == _FAIL) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
-			 ("rtw_xmitframe_coalesce23a: rtw_make_wlanhdr23a "
-			  "fail; drop pkt\n"));
+			 ("%s: rtw_make_wlanhdr fail; drop pkt\n", __func__));
 		res = _FAIL;
 		goto exit;
 	}
