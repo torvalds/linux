@@ -457,7 +457,7 @@ static int set_pairwise_key(struct rtw_adapter *padapter, struct sta_info *psta)
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetstakey_para, _SetStaKey_CMD_);
 
-	psetstakey_para->algorithm = (u8) psta->dot118021XPrivacy;
+	psetstakey_para->algorithm = psta->dot118021XPrivacy;
 
 	memcpy(psetstakey_para->addr, psta->hwaddr, ETH_ALEN);
 
@@ -469,7 +469,7 @@ exit:
 	return res;
 }
 
-static int set_group_key(struct rtw_adapter *padapter, u8 *key, u8 alg,
+static int set_group_key(struct rtw_adapter *padapter, u8 *key, u32 alg,
 			 u8 keyid)
 {
 	u8 keylen;

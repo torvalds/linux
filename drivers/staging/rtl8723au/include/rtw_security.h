@@ -177,13 +177,13 @@ do {\
 	case dot11AuthAlgrthm_Open:\
 	case dot11AuthAlgrthm_Shared:\
 	case dot11AuthAlgrthm_Auto:\
-		encry_algo = (u8)psecuritypriv->dot11PrivacyAlgrthm;\
+		encry_algo = psecuritypriv->dot11PrivacyAlgrthm;\
 		break;\
 	case dot11AuthAlgrthm_8021X:\
 		if (bmcst)\
-			encry_algo = (u8)psecuritypriv->dot118021XGrpPrivacy;\
+			encry_algo = psecuritypriv->dot118021XGrpPrivacy;\
 		else\
-			encry_algo = (u8)psta->dot118021XPrivacy;\
+			encry_algo = psta->dot118021XPrivacy;\
 		break;\
 	}	\
 } while (0)

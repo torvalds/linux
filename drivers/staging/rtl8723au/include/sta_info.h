@@ -97,7 +97,7 @@ struct sta_info {
 	u8	hwaddr[ETH_ALEN];
 
 	uint	ieee8021x_blocked;	/* 0: allowed, 1:blocked */
-	uint	dot118021XPrivacy; /* aes, tkip... */
+	u32	dot118021XPrivacy; /* aes, tkip... */
 	union Keytype	dot11tkiptxmickey;
 	union Keytype	dot11tkiprxmickey;
 	union Keytype	dot118021x_UncstKey;

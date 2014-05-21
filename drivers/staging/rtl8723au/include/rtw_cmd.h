@@ -219,7 +219,7 @@ when 802.1x ==> keyid > 2 ==> unicast key
 
 */
 struct setkey_parm {
-	u8	algorithm;	/*  encryption algorithm, could be none, wep40, TKIP, CCMP, wep104 */
+	u32	algorithm;	/*  encryption algorithm, could be none, wep40, TKIP, CCMP, wep104 */
 	u8	keyid;
 	u8	grpkey;		/*  1: this is the grpkey for 802.1x. 0: this is the unicast key for 802.1x */
 	u8	set_tx;		/*  1: main tx key for wep. 0: other key. */
@@ -237,8 +237,8 @@ when shared key ==> algorithm/keyid
 */
 struct set_stakey_parm {
 	u8	addr[ETH_ALEN];
-	u8	algorithm;
 	u8	id;/*  currently for erasing cam entry if algorithm == _NO_PRIVACY_ */
+	u32	algorithm;
 	u8	key[16];
 };
 
