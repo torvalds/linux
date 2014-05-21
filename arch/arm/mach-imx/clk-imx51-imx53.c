@@ -322,9 +322,8 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 
 static void __init mx50_clocks_init(struct device_node *np)
 {
-	void __iomem *base;
 	unsigned long r;
-	int i, irq;
+	int i;
 
 	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", MX53_DPLL1_BASE);
 	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", MX53_DPLL2_BASE);
@@ -372,11 +371,7 @@ static void __init mx50_clocks_init(struct device_node *np)
 	r = clk_round_rate(clk[IMX5_CLK_USBOH3_PER_GATE], 54000000);
 	clk_set_rate(clk[IMX5_CLK_USBOH3_PER_GATE], r);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx50-gpt");
-	base = of_iomap(np, 0);
-	WARN_ON(!base);
-	irq = irq_of_parse_and_map(np, 0);
-	mxc_timer_init(base, irq);
+	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx50-gpt"));
 }
 CLK_OF_DECLARE(imx50_ccm, "fsl,imx50-ccm", mx50_clocks_init);
 
@@ -436,7 +431,6 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 
 	clk_register_clkdev(clk[IMX5_CLK_HSI2C_GATE], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[IMX5_CLK_MX51_MIPI], "mipi_hsp", NULL);
-	clk_register_clkdev(clk[IMX5_CLK_VPU_GATE], NULL, "imx51-vpu.0");
 	clk_register_clkdev(clk[IMX5_CLK_FEC_GATE], NULL, "imx27-fec.0");
 	clk_register_clkdev(clk[IMX5_CLK_USB_PHY_GATE], "phy", "mxc-ehci.0");
 	clk_register_clkdev(clk[IMX5_CLK_ESDHC1_IPG_GATE], "ipg", "sdhci-esdhc-imx51.0");
@@ -492,9 +486,8 @@ CLK_OF_DECLARE(imx51_ccm, "fsl,imx51-ccm", mx51_clocks_init_dt);
 
 static void __init mx53_clocks_init(struct device_node *np)
 {
-	int i, irq;
+	int i;
 	unsigned long r;
-	void __iomem *base;
 
 	clk[IMX5_CLK_PLL1_SW]		= imx_clk_pllv2("pll1_sw", "osc", MX53_DPLL1_BASE);
 	clk[IMX5_CLK_PLL2_SW]		= imx_clk_pllv2("pll2_sw", "osc", MX53_DPLL2_BASE);
@@ -561,7 +554,6 @@ static void __init mx53_clocks_init(struct device_node *np)
 
 	mx5_clocks_common_init(0, 0, 0, 0);
 
-	clk_register_clkdev(clk[IMX5_CLK_VPU_GATE], NULL, "imx53-vpu.0");
 	clk_register_clkdev(clk[IMX5_CLK_I2C3_GATE], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[IMX5_CLK_FEC_GATE], NULL, "imx25-fec.0");
 	clk_register_clkdev(clk[IMX5_CLK_USB_PHY1_GATE], "usb_phy1", "mxc-ehci.0");
@@ -592,10 +584,6 @@ static void __init mx53_clocks_init(struct device_node *np)
 	r = clk_round_rate(clk[IMX5_CLK_USBOH3_PER_GATE], 54000000);
 	clk_set_rate(clk[IMX5_CLK_USBOH3_PER_GATE], r);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-gpt");
-	base = of_iomap(np, 0);
-	WARN_ON(!base);
-	irq = irq_of_parse_and_map(np, 0);
-	mxc_timer_init(base, irq);
+	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx53-gpt"));
 }
 CLK_OF_DECLARE(imx53_ccm, "fsl,imx53-ccm", mx53_clocks_init);

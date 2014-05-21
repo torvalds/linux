@@ -191,7 +191,6 @@ int __init mx31_clocks_init(unsigned long fref)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 int __init mx31_clocks_init_dt(void)
 {
 	struct device_node *np;
@@ -207,4 +206,3 @@ int __init mx31_clocks_init_dt(void)
 
 	return mx31_clocks_init(fref);
 }
-#endif

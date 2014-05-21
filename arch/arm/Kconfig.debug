@@ -317,6 +317,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6SL.
 
+	config DEBUG_IMX6SX_UART
+		bool "i.MX6SX Debug UART"
+		depends on SOC_IMX6SX
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6SX.
+
 	config DEBUG_KEYSTONE_UART0
 		bool "Kernel low-level debugging on KEYSTONE2 using UART0"
 		depends on ARCH_KEYSTONE
@@ -935,9 +942,19 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX51_UART || \
 						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART || \
-						DEBUG_IMX6SL_UART
+						DEBUG_IMX6SL_UART || \
+						DEBUG_IMX6SX_UART
 	default 1
 	depends on ARCH_MXC
+	help
+	  Choose UART port on which kernel low-level debug messages
+	  should be output.
+
+config DEBUG_VF_UART_PORT
+	int "Vybrid Debug UART Port Selection" if DEBUG_VF_UART
+	default 1
+	range 0 3
+	depends on SOC_VF610
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
@@ -970,7 +987,8 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART || \
-				 DEBUG_IMX6SL_UART
+				 DEBUG_IMX6SL_UART || \
+				 DEBUG_IMX6SX_UART
 	default "debug/msm.S" if DEBUG_MSM_UART
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
