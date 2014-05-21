@@ -3020,7 +3020,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 24;
 	int i, n_ext_target_devs, ndevs_to_allocate;
 	int raid_ctlr_position;
-	u8 rescan_hba_mode;
+	int rescan_hba_mode;
 	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
