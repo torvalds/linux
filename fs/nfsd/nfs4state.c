@@ -83,11 +83,11 @@ static DEFINE_MUTEX(client_mutex);
  */
 static DEFINE_SPINLOCK(recall_lock);
 
-static struct kmem_cache *openowner_slab = NULL;
-static struct kmem_cache *lockowner_slab = NULL;
-static struct kmem_cache *file_slab = NULL;
-static struct kmem_cache *stateid_slab = NULL;
-static struct kmem_cache *deleg_slab = NULL;
+static struct kmem_cache *openowner_slab;
+static struct kmem_cache *lockowner_slab;
+static struct kmem_cache *file_slab;
+static struct kmem_cache *stateid_slab;
+static struct kmem_cache *deleg_slab;
 
 void
 nfs4_lock_state(void)
@@ -2520,23 +2520,14 @@ static void nfsd4_init_file(struct nfs4_file *fp, struct inode *ino)
 	spin_unlock(&recall_lock);
 }
 
-static void
-nfsd4_free_slab(struct kmem_cache **slab)
-{
-	if (*slab == NULL)
-		return;
-	kmem_cache_destroy(*slab);
-	*slab = NULL;
-}
-
 void
 nfsd4_free_slabs(void)
 {
-	nfsd4_free_slab(&openowner_slab);
-	nfsd4_free_slab(&lockowner_slab);
-	nfsd4_free_slab(&file_slab);
-	nfsd4_free_slab(&stateid_slab);
-	nfsd4_free_slab(&deleg_slab);
+	kmem_cache_destroy(openowner_slab);
+	kmem_cache_destroy(lockowner_slab);
+	kmem_cache_destroy(file_slab);
+	kmem_cache_destroy(stateid_slab);
+	kmem_cache_destroy(deleg_slab);
 }
 
 int
@@ -2545,26 +2536,34 @@ nfsd4_init_slabs(void)
 	openowner_slab = kmem_cache_create("nfsd4_openowners",
 			sizeof(struct nfs4_openowner), 0, 0, NULL);
 	if (openowner_slab == NULL)
-		goto out_nomem;
+		goto out;
 	lockowner_slab = kmem_cache_create("nfsd4_lockowners",
 			sizeof(struct nfs4_lockowner), 0, 0, NULL);
 	if (lockowner_slab == NULL)
-		goto out_nomem;
+		goto out_free_openowner_slab;
 	file_slab = kmem_cache_create("nfsd4_files",
 			sizeof(struct nfs4_file), 0, 0, NULL);
 	if (file_slab == NULL)
-		goto out_nomem;
+		goto out_free_lockowner_slab;
 	stateid_slab = kmem_cache_create("nfsd4_stateids",
 			sizeof(struct nfs4_ol_stateid), 0, 0, NULL);
 	if (stateid_slab == NULL)
-		goto out_nomem;
+		goto out_free_file_slab;
 	deleg_slab = kmem_cache_create("nfsd4_delegations",
 			sizeof(struct nfs4_delegation), 0, 0, NULL);
 	if (deleg_slab == NULL)
-		goto out_nomem;
+		goto out_free_stateid_slab;
 	return 0;
-out_nomem:
-	nfsd4_free_slabs();
+
+out_free_stateid_slab:
+	kmem_cache_destroy(stateid_slab);
+out_free_file_slab:
+	kmem_cache_destroy(file_slab);
+out_free_lockowner_slab:
+	kmem_cache_destroy(lockowner_slab);
+out_free_openowner_slab:
+	kmem_cache_destroy(openowner_slab);
+out:
 	dprintk("nfsd4: out of memory while initializing nfsv4\n");
 	return -ENOMEM;
 }
