@@ -354,8 +354,9 @@ static void ConstructNullFunctionData(
 	if (bForcePowerSave)
 		SetPwrMgt(fctrl);
 
-	switch (cur_network->network.InfrastructureMode) {
-	case Ndis802_11Infrastructure:
+	switch (cur_network->network.ifmode) {
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_STATION:
 		SetToDs(fctrl);
 		memcpy(pwlanhdr->addr1,
 		       get_my_bssid23a(&pmlmeinfo->network), ETH_ALEN);
@@ -363,7 +364,8 @@ static void ConstructNullFunctionData(
 		       ETH_ALEN);
 		memcpy(pwlanhdr->addr3, StaAddr, ETH_ALEN);
 		break;
-	case Ndis802_11APMode:
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_AP:
 		SetFrDs(fctrl);
 		memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
 		memcpy(pwlanhdr->addr2,
@@ -371,7 +373,7 @@ static void ConstructNullFunctionData(
 		memcpy(pwlanhdr->addr3, myid(&padapter->eeprompriv),
 		       ETH_ALEN);
 		break;
-	case Ndis802_11IBSS:
+	case NL80211_IFTYPE_ADHOC:
 	default:
 		memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
 		memcpy(pwlanhdr->addr2, myid(&padapter->eeprompriv), ETH_ALEN);

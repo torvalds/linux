@@ -24,8 +24,6 @@ int rtw_set_802_11_add_wep23a(struct rtw_adapter * padapter,
 int rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
 				      struct cfg80211_ssid *pssid,
 				      int ssid_max_num);
-int rtw_set_802_11_infrastructure_mode23a(struct rtw_adapter *padapter,
-					  enum ndis_802_11_net_infra networktype);
 int rtw_set_802_11_ssid23a(struct rtw_adapter * padapter,
 			   struct cfg80211_ssid * ssid);
 

@@ -4596,7 +4596,7 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 
 	if (ieee80211_is_probe_req(mgmt->frame_control)) {
 		/*  FIXME */
-		bssid->InfrastructureMode = Ndis802_11Infrastructure;
+		bssid->ifmode = NL80211_IFTYPE_STATION;
 		ether_addr_copy(bssid->MacAddress, mgmt->sa);
 		bssid->Privacy = 1;
 		return _SUCCESS;
@@ -4608,10 +4608,10 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		le32_to_cpu(bssid->Configuration.BeaconPeriod);
 
 	if (capab_info & BIT(0)) {
-		bssid->InfrastructureMode = Ndis802_11Infrastructure;
+		bssid->ifmode = NL80211_IFTYPE_STATION;
 		ether_addr_copy(bssid->MacAddress, mgmt->sa);
 	} else {
-		bssid->InfrastructureMode = Ndis802_11IBSS;
+		bssid->ifmode = NL80211_IFTYPE_ADHOC;
 		ether_addr_copy(bssid->MacAddress, mgmt->bssid);
 	}
 
@@ -5814,22 +5814,32 @@ int NULL_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 int setopmode_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	u8	type;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	enum nl80211_iftype type;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	const struct setopmode_parm *psetop = (struct setopmode_parm *)pbuf;
 
-	if (psetop->mode == Ndis802_11APMode) {
+	switch (psetop->mode) {
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_AP:
 		pmlmeinfo->state = WIFI_FW_AP_STATE;
 		type = _HW_STATE_AP_;
-	} else if (psetop->mode == Ndis802_11Infrastructure) {
-		pmlmeinfo->state &= ~(BIT(0)|BIT(1));/*  clear state */
-		pmlmeinfo->state |= WIFI_FW_STATION_STATE;/* set to	STATION_STATE */
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_STATION:
+		/*  clear state */
+		pmlmeinfo->state &= ~(BIT(0)|BIT(1));
+		/* set to STATION_STATE */
+		pmlmeinfo->state |= WIFI_FW_STATION_STATE;
 		type = _HW_STATE_STATION_;
-	} else if (psetop->mode == Ndis802_11IBSS)
+		break;
+	case NL80211_IFTYPE_ADHOC:
 		type = _HW_STATE_ADHOC_;
-	else
+		break;
+	default:
 		type = _HW_STATE_NOLINK_;
+		break;
+	}
 
 	hw_var_set_opmode(padapter, type);
 	/* Set_NETYPE0_MSR(padapter, type); */
@@ -5845,11 +5855,10 @@ int createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	const struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	/* u32	initialgain; */
 
-	if (pparm->InfrastructureMode == Ndis802_11APMode) {
+	if (pparm->ifmode == NL80211_IFTYPE_AP ||
+	    pparm->ifmode == NL80211_IFTYPE_P2P_GO) {
 #ifdef CONFIG_8723AU_AP_MODE
-
-		if (pmlmeinfo->state == WIFI_FW_AP_STATE)
-		{
+		if (pmlmeinfo->state == WIFI_FW_AP_STATE) {
 			/* todo: */
 			return H2C_SUCCESS;
 		}
@@ -5857,7 +5866,7 @@ int createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	}
 
 	/* below is for ad-hoc master */
-	if (pparm->InfrastructureMode == Ndis802_11IBSS) {
+	if (pparm->ifmode == NL80211_IFTYPE_ADHOC) {
 		rtw_joinbss_reset23a(padapter);
 
 		pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_20;

@@ -170,8 +170,7 @@ struct disconnect_parm {
 };
 
 struct	setopmode_parm {
-	u8	mode;
-	u8	rsvd[3];
+	enum nl80211_iftype mode;
 };
 
 /*
@@ -689,7 +688,7 @@ int rtw_setstakey_cmd23a(struct rtw_adapter  *padapter, u8 *psta, u8 unicast_key
 int rtw_clearstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 entry, u8 enqueue);
 int rtw_joinbss_cmd23a(struct rtw_adapter  *padapter, struct wlan_network* pnetwork);
 int rtw_disassoc_cmd23a(struct rtw_adapter *padapter, u32 deauth_timeout_ms, bool enqueue);
-int rtw_setopmode_cmd23a(struct rtw_adapter  *padapter, enum ndis_802_11_net_infra networktype);
+int rtw_setopmode_cmd23a(struct rtw_adapter *padapter, enum nl80211_iftype ifmode);
 int rtw_setdatarate_cmd(struct rtw_adapter  *padapter, u8 *rateset);
 int rtw_setbasicrate_cmd(struct rtw_adapter  *padapter, u8 *rateset);
 int rtw_setbbreg_cmd(struct rtw_adapter * padapter, u8 offset, u8 val);

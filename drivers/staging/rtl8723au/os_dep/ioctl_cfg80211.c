@@ -1291,18 +1291,103 @@ exit:
 	return ret;
 }
 
+int cfg80211_infrastructure_mode(struct rtw_adapter* padapter,
+				 enum nl80211_iftype ifmode)
+{
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct wlan_network *cur_network = &pmlmepriv->cur_network;
+	enum nl80211_iftype old_mode;
+
+	old_mode = cur_network->network.ifmode;
+
+	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
+		 ("+%s: old =%d new =%d fw_state = 0x%08x\n", __func__,
+		  old_mode, ifmode, get_fwstate(pmlmepriv)));
+
+	if (old_mode != ifmode) {
+		spin_lock_bh(&pmlmepriv->lock);
+
+		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
+			 (" change mode!"));
+
+		if (old_mode == NL80211_IFTYPE_AP ||
+		    old_mode == NL80211_IFTYPE_P2P_GO) {
+			/* change to other mode from Ndis802_11APMode */
+			cur_network->join_res = -1;
+
+#ifdef CONFIG_8723AU_AP_MODE
+			stop_ap_mode23a(padapter);
+#endif
+		}
+
+		if (check_fwstate(pmlmepriv, _FW_LINKED) ||
+		    old_mode == NL80211_IFTYPE_ADHOC)
+			rtw_disassoc_cmd23a(padapter, 0, true);
+
+		if (check_fwstate(pmlmepriv, _FW_LINKED) ||
+		    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
+			rtw_free_assoc_resources23a(padapter, 1);
+
+		if (old_mode == NL80211_IFTYPE_STATION ||
+		    old_mode == NL80211_IFTYPE_P2P_CLIENT ||
+		    old_mode == NL80211_IFTYPE_ADHOC) {
+			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
+				/* will clr Linked_state; before this function,
+				   we must have chked whether issue
+				   dis-assoc_cmd or not */
+				rtw_indicate_disconnect23a(padapter);
+			}
+	       }
+
+		cur_network->network.ifmode = ifmode;
+
+		_clr_fwstate_(pmlmepriv, ~WIFI_NULL_STATE);
+
+		switch (ifmode) {
+		case NL80211_IFTYPE_ADHOC:
+			set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);
+			break;
+
+		case NL80211_IFTYPE_P2P_CLIENT:
+		case NL80211_IFTYPE_STATION:
+			set_fwstate(pmlmepriv, WIFI_STATION_STATE);
+			break;
+
+		case NL80211_IFTYPE_P2P_GO:
+		case NL80211_IFTYPE_AP:
+			set_fwstate(pmlmepriv, WIFI_AP_STATE);
+#ifdef CONFIG_8723AU_AP_MODE
+			start_ap_mode23a(padapter);
+			/* rtw_indicate_connect23a(padapter); */
+#endif
+			break;
+
+		default:
+			break;
+		}
+
+		/* SecClearAllKeys(adapter); */
+
+		/* RT_TRACE(COMP_OID_SET, DBG_LOUD,
+		   ("set_infrastructure: fw_state:%x after changing mode\n", */
+		/* get_fwstate(pmlmepriv))); */
+
+		spin_unlock_bh(&pmlmepriv->lock);
+	}
+
+	return _SUCCESS;
+}
+
 static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 				     struct net_device *ndev,
 				     enum nl80211_iftype type, u32 *flags,
 				     struct vif_params *params)
 {
 	enum nl80211_iftype old_type;
-	enum ndis_802_11_net_infra networkType;
 	struct rtw_adapter *padapter = wiphy_to_adapter(wiphy);
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct wireless_dev *rtw_wdev = wiphy_to_wdev(wiphy);
 	int ret = 0;
-	u8 change = false;
 
 	DBG_8723A("%s(%s): call netdev_open23a\n", __func__, ndev->name);
 	if (netdev_open23a(ndev) != 0) {
@@ -1320,22 +1405,17 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 		  __func__, ndev->name, old_type, type);
 
 	if (old_type != type) {
-		change = true;
 		pmlmeext->action_public_rxseq = 0xffff;
 		pmlmeext->action_public_dialog_token = 0xff;
 	}
 
 	switch (type) {
 	case NL80211_IFTYPE_ADHOC:
-		networkType = Ndis802_11IBSS;
-		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
-		networkType = Ndis802_11Infrastructure;
-		break;
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_AP:
-		networkType = Ndis802_11APMode;
+	case NL80211_IFTYPE_UNSPECIFIED:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1343,14 +1423,13 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 
 	rtw_wdev->iftype = type;
 
-	if (rtw_set_802_11_infrastructure_mode23a
-	    (padapter, networkType) != _SUCCESS) {
+	if (cfg80211_infrastructure_mode(padapter, type) != _SUCCESS) {
 		rtw_wdev->iftype = old_type;
 		ret = -EPERM;
 		goto exit;
 	}
 
-	rtw_setopmode_cmd23a(padapter, networkType);
+	rtw_setopmode_cmd23a(padapter, type);
 
 exit:
 	return ret;
@@ -1982,8 +2061,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		goto exit;
 	}
 
-	if (rtw_set_802_11_infrastructure_mode23a
-	    (padapter, pnetwork->network.InfrastructureMode) != _SUCCESS) {
+	if (cfg80211_infrastructure_mode(
+		    padapter, pnetwork->network.ifmode) != _SUCCESS) {
 		ret = -EPERM;
 		goto exit;
 	}

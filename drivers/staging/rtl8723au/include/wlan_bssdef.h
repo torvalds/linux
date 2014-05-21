@@ -50,14 +50,6 @@ struct ndis_802_11_config {
 	struct ndis_802_11_configuration_fh    FHConfig;
 };
 
-enum ndis_802_11_net_infra {
-	Ndis802_11IBSS,
-	Ndis802_11Infrastructure,
-	Ndis802_11AutoUnknown,
-	Ndis802_11InfrastructureMax,     /*  Not a real value, defined as upper bound */
-	Ndis802_11APMode
-};
-
 struct ndis_802_11_fixed_ies {
 	u8  Timestamp[8];
 	u16  BeaconInterval;
@@ -139,10 +131,6 @@ enum NDIS_802_11_STATUS_TYPE {
 /*  MIC check time, 60 seconds. */
 #define MIC_CHECK_TIME	60000000
 
-#ifndef Ndis802_11APMode
-#define Ndis802_11APMode (Ndis802_11InfrastructureMax+1)
-#endif
-
 struct wlan_phy_info {
 	u8	SignalStrength;/* in percentage) */
 	u8	SignalQuality;/* in percentage) */
@@ -172,7 +160,7 @@ struct wlan_bssid_ex {
 	long  Rssi;/* in dBM, raw data , get from PHY) */
 	enum ndis_802_11_net_type  NetworkTypeInUse;
 	struct ndis_802_11_config  Configuration;
-	enum ndis_802_11_net_infra  InfrastructureMode;
+	enum nl80211_iftype ifmode;
 	unsigned char SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
 	struct wlan_phy_info	PhyInfo;
 	u32  IELength;

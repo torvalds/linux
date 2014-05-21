@@ -52,8 +52,7 @@ int rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
 	pmlmepriv->nic_hdl = padapter;
 
 	pmlmepriv->fw_state = 0;
-	pmlmepriv->cur_network.network.InfrastructureMode =
-		Ndis802_11AutoUnknown;
+	pmlmepriv->cur_network.network.ifmode = NL80211_IFTYPE_UNSPECIFIED;
 	/*  1: active, 0: pasive. Maybe someday we should rename this
 	    varable to "active_mode" (Jeff) */
 	pmlmepriv->scan_mode = SCAN_ACTIVE;
@@ -616,8 +615,8 @@ static int rtw_is_desired_network(struct rtw_adapter *adapter,
 	}
 
 	if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-		if (pnetwork->network.InfrastructureMode !=
-		    pmlmepriv->cur_network.network.InfrastructureMode)
+		if (pnetwork->network.ifmode !=
+		    pmlmepriv->cur_network.network.ifmode)
 			bselected = false;
 	}
 
@@ -1137,14 +1136,15 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 
 	/* update fw_state will clr _FW_UNDER_LINKING here indirectly */
-	switch (pnetwork->network.InfrastructureMode) {
-	case Ndis802_11Infrastructure:
-		if (pmlmepriv->fw_state&WIFI_UNDER_WPS)
+	switch (pnetwork->network.ifmode) {
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_STATION:
+		if (pmlmepriv->fw_state & WIFI_UNDER_WPS)
 			pmlmepriv->fw_state = WIFI_STATION_STATE|WIFI_UNDER_WPS;
 		else
 			pmlmepriv->fw_state = WIFI_STATION_STATE;
 		break;
-	case Ndis802_11IBSS:
+	case NL80211_IFTYPE_ADHOC:
 		pmlmepriv->fw_state = WIFI_ADHOC_STATE;
 		break;
 	default:
@@ -2179,11 +2179,10 @@ void rtw_update_registrypriv_dev_network23a(struct rtw_adapter* adapter)
 		  "DSConfig = 0x%x\n", pregistrypriv->channel,
 		  pdev_network->Configuration.DSConfig));
 
-	if (cur_network->network.InfrastructureMode == Ndis802_11IBSS)
+	if (cur_network->network.ifmode == NL80211_IFTYPE_ADHOC)
 		pdev_network->Configuration.ATIMWindow = 0;
 
-	pdev_network->InfrastructureMode =
-		cur_network->network.InfrastructureMode;
+	pdev_network->ifmode = cur_network->network.ifmode;
 
 	/*  1. Supported rates */
 	/*  2. IE */

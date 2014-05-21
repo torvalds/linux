@@ -477,11 +477,11 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
-	enum ndis_802_11_net_infra ndis_network_mode;
+	enum nl80211_iftype ifmode;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	ndis_network_mode = pnetwork->network.InfrastructureMode;
+	ifmode = pnetwork->network.ifmode;
 
 	rtw_led_control(padapter, LED_CTL_START_TO_LINK);
 
@@ -505,16 +505,15 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 
 	/* for hidden ap to set fw_state here */
 	if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE)) {
-		switch (ndis_network_mode) {
-		case Ndis802_11IBSS:
+		switch (ifmode) {
+		case NL80211_IFTYPE_ADHOC:
 			set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);
 			break;
-		case Ndis802_11Infrastructure:
+		case NL80211_IFTYPE_P2P_CLIENT:
+		case NL80211_IFTYPE_STATION:
 			set_fwstate(pmlmepriv, WIFI_STATION_STATE);
 			break;
-		case Ndis802_11APMode:
-		case Ndis802_11AutoUnknown:
-		case Ndis802_11InfrastructureMax:
+		default:
 			break;
 		}
 	}
@@ -673,7 +672,7 @@ exit:
 }
 
 int rtw_setopmode_cmd23a(struct rtw_adapter *padapter,
-			 enum ndis_802_11_net_infra networktype)
+			 enum nl80211_iftype ifmode)
 {
 	struct	cmd_obj *ph2c;
 	struct	setopmode_parm *psetop;
@@ -694,7 +693,7 @@ int rtw_setopmode_cmd23a(struct rtw_adapter *padapter,
 	}
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetop, _SetOpMode_CMD_);
-	psetop->mode = (u8)networktype;
+	psetop->mode = ifmode;
 
 	res = rtw_enqueue_cmd23a(pcmdpriv, ph2c);
 exit:

@@ -126,7 +126,7 @@ static void sreset_restore_network_station(struct rtw_adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u8 threshold;
 
-	rtw_setopmode_cmd23a(padapter, Ndis802_11Infrastructure);
+	rtw_setopmode_cmd23a(padapter, NL80211_IFTYPE_STATION);
 
 	/*  TH = 1 => means that invalidate usb rx aggregation */
 	/*  TH = 0 => means that validate usb rx aggregation, use init value. */
