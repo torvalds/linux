@@ -91,7 +91,7 @@ static const struct x86_cpu_id unisys_spar_ids[] = {
 MODULE_DEVICE_TABLE(x86cpu, unisys_spar_ids);
 
 #ifdef DEF_SCSI_QCMD
-DEF_SCSI_QCMD(virthba_queue_command)
+static DEF_SCSI_QCMD(virthba_queue_command)
 #else
 #define virthba_queue_command virthba_queue_command_lck
 #endif
