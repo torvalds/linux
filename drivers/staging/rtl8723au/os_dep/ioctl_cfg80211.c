@@ -1506,14 +1506,14 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct rtw_adapter *padapter,
 				pmlmepriv->wps_probe_req_ie = NULL;
 			}
 
-			pmlmepriv->wps_probe_req_ie =
-				kmalloc(wps_ielen, GFP_KERNEL);
+			pmlmepriv->wps_probe_req_ie = kmemdup(wps_ie,
+							      wps_ielen,
+							      GFP_KERNEL);
 			if (pmlmepriv->wps_probe_req_ie == NULL) {
 				DBG_8723A("%s()-%d: kmalloc() ERROR!\n",
 					  __func__, __LINE__);
 				return -EINVAL;
 			}
-			memcpy(pmlmepriv->wps_probe_req_ie, wps_ie, wps_ielen);
 			pmlmepriv->wps_probe_req_ie_len = wps_ielen;
 		}
 	}
@@ -1777,12 +1777,11 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 		ret = -EINVAL;
 		goto exit;
 	}
-	buf = kzalloc(ielen, GFP_KERNEL);
+	buf = kmemdup(pie, ielen, GFP_KERNEL);
 	if (buf == NULL) {
 		ret = -ENOMEM;
 		goto exit;
 	}
-	memcpy(buf, pie, ielen);
 
 	/* dump */
 	DBG_8723A("set wpa_ie(length:%zu):\n", ielen);
@@ -3225,14 +3224,13 @@ static int rtw_cfg80211_set_beacon_wpsp2pie(struct net_device *ndev, char *buf,
 				pmlmepriv->wps_beacon_ie = NULL;
 			}
 
-			pmlmepriv->wps_beacon_ie =
-				kmalloc(wps_ielen, GFP_KERNEL);
+			pmlmepriv->wps_beacon_ie = kmemdup(wps_ie, wps_ielen,
+							   GFP_KERNEL);
 			if (pmlmepriv->wps_beacon_ie == NULL) {
 				DBG_8723A("%s()-%d: kmalloc() ERROR!\n",
 					  __func__, __LINE__);
 				return -EINVAL;
 			}
-			memcpy(pmlmepriv->wps_beacon_ie, wps_ie, wps_ielen);
 			pmlmepriv->wps_beacon_ie_len = wps_ielen;
 
 #ifdef CONFIG_8723AU_AP_MODE
@@ -3317,14 +3315,13 @@ static int rtw_cfg80211_set_assoc_resp_wpsp2pie(struct net_device *net,
 			pmlmepriv->wps_assoc_resp_ie = NULL;
 		}
 
-		pmlmepriv->wps_assoc_resp_ie = kmalloc(len, GFP_KERNEL);
+		pmlmepriv->wps_assoc_resp_ie = kmemdup(buf, len, GFP_KERNEL);
 		if (pmlmepriv->wps_assoc_resp_ie == NULL) {
 			DBG_8723A("%s()-%d: kmalloc() ERROR!\n",
 				  __func__, __LINE__);
 			return -EINVAL;
 
 		}
-		memcpy(pmlmepriv->wps_assoc_resp_ie, buf, len);
 		pmlmepriv->wps_assoc_resp_ie_len = len;
 	}
 

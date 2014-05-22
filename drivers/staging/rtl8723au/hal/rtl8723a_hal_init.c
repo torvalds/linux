@@ -339,12 +339,11 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 		rtStatus = _FAIL;
 		goto Exit;
 	}
-	firmware_buf = kzalloc(fw->size, GFP_KERNEL);
+	firmware_buf = kmemdup(fw->data, fw->size, GFP_KERNEL);
 	if (!firmware_buf) {
 		rtStatus = _FAIL;
 		goto Exit;
 	}
-	memcpy(firmware_buf, fw->data, fw->size);
 	buf = firmware_buf;
 	fw_size = fw->size;
 	release_firmware(fw);
