@@ -46,7 +46,7 @@ static u16 ccwreq_next_path(struct ccw_device *cdev)
 		goto out;
 	}
 	req->retries	= req->maxretries;
-	req->mask	= lpm_adjust(req->mask >>= 1, req->lpm);
+	req->mask	= lpm_adjust(req->mask >> 1, req->lpm);
 out:
 	return req->mask;
 }
