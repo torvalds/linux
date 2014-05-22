@@ -21,10 +21,43 @@
 #include <linux/slab.h>
 
 #ifdef CONFIG_PM_RUNTIME
+static int sh_pm_runtime_suspend(struct device *dev)
+{
+	int ret;
+
+	ret = pm_generic_runtime_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to suspend device\n");
+		return ret;
+	}
+
+	ret = pm_clk_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to suspend clock\n");
+		pm_generic_runtime_resume(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int sh_pm_runtime_resume(struct device *dev)
+{
+	int ret;
+
+	ret = pm_clk_resume(dev);
+	if (ret) {
+		dev_err(dev, "failed to resume clock\n");
+		return ret;
+	}
+
+	return pm_generic_runtime_resume(dev);
+}
+
 static struct dev_pm_domain default_pm_domain = {
 	.ops = {
-		.runtime_suspend = pm_clk_suspend,
-		.runtime_resume = pm_clk_resume,
+		.runtime_suspend = sh_pm_runtime_suspend,
+		.runtime_resume = sh_pm_runtime_resume,
 		USE_PLATFORM_PM_SLEEP_OPS
 	},
 };
