@@ -58,6 +58,27 @@ struct intel_ring_hangcheck {
 	bool deadlock;
 };
 
+struct intel_ringbuffer {
+	struct drm_i915_gem_object *obj;
+	void __iomem *virtual_start;
+
+	u32 head;
+	u32 tail;
+	int space;
+	int size;
+	int effective_size;
+
+	/** We track the position of the requests in the ring buffer, and
+	 * when each is retired we increment last_retired_head as the GPU
+	 * must have finished processing the request and so we know we
+	 * can advance the ringbuffer up to that position.
+	 *
+	 * last_retired_head is set to -1 after the value is consumed so
+	 * we can detect new retirements.
+	 */
+	u32 last_retired_head;
+};
+
 struct  intel_engine_cs {
 	const char	*name;
 	enum intel_ring_id {
@@ -73,6 +94,7 @@ struct  intel_engine_cs {
 	void		__iomem *virtual_start;
 	struct		drm_device *dev;
 	struct		drm_i915_gem_object *obj;
+	struct intel_ringbuffer *buffer;
 
 	u32		head;
 	u32		tail;
@@ -217,7 +239,7 @@ struct  intel_engine_cs {
 static inline bool
 intel_ring_initialized(struct intel_engine_cs *ring)
 {
-	return ring->obj != NULL;
+	return ring->buffer && ring->obj;
 }
 
 static inline unsigned

@@ -1422,7 +1422,15 @@ err_unref:
 static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_engine_cs *ring)
 {
+	struct intel_ringbuffer *ringbuf = ring->buffer;
 	int ret;
+
+	if (ringbuf == NULL) {
+		ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
+		if (!ringbuf)
+			return -ENOMEM;
+		ring->buffer = ringbuf;
+	}
 
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
@@ -1435,18 +1443,18 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(ring);
 		if (ret)
-			return ret;
+			goto error;
 	} else {
 		BUG_ON(ring->id != RCS);
 		ret = init_phys_status_page(ring);
 		if (ret)
-			return ret;
+			goto error;
 	}
 
 	ret = allocate_ring_buffer(ring);
 	if (ret) {
 		DRM_ERROR("Failed to allocate ringbuffer %s: %d\n", ring->name, ret);
-		return ret;
+		goto error;
 	}
 
 	/* Workaround an erratum on the i830 which causes a hang if
@@ -1459,9 +1467,18 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 
 	ret = i915_cmd_parser_init_ring(ring);
 	if (ret)
-		return ret;
+		goto error;
 
-	return ring->init(ring);
+	ret = ring->init(ring);
+	if (ret)
+		goto error;
+
+	return 0;
+
+error:
+	kfree(ringbuf);
+	ring->buffer = NULL;
+	return ret;
 }
 
 void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
@@ -1488,6 +1505,9 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 	cleanup_status_page(ring);
 
 	i915_cmd_parser_fini_ring(ring);
+
+	kfree(ring->buffer);
+	ring->buffer = NULL;
 }
 
 static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
@@ -2022,7 +2042,15 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
+	struct intel_ringbuffer *ringbuf = ring->buffer;
 	int ret;
+
+	if (ringbuf == NULL) {
+		ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
+		if (!ringbuf)
+			return -ENOMEM;
+		ring->buffer = ringbuf;
+	}
 
 	ring->name = "render ring";
 	ring->id = RCS;
@@ -2030,7 +2058,8 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		/* non-kms not supported on gen6+ */
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_ringbuf;
 	}
 
 	/* Note: gem is not supported on gen5/ilk without kms (the corresponding
@@ -2074,16 +2103,24 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	if (ring->virtual_start == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_ringbuf;
 	}
 
 	if (!I915_NEED_GFX_HWS(dev)) {
 		ret = init_phys_status_page(ring);
 		if (ret)
-			return ret;
+			goto err_vstart;
 	}
 
 	return 0;
+
+err_vstart:
+	iounmap(ring->virtual_start);
+err_ringbuf:
+	kfree(ringbuf);
+	ring->buffer = NULL;
+	return ret;
 }
 
 int intel_init_bsd_ring_buffer(struct drm_device *dev)
