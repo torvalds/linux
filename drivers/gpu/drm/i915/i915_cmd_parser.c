@@ -498,7 +498,7 @@ static u32 gen7_blt_get_cmd_length_mask(u32 cmd_header)
 	return 0;
 }
 
-static bool validate_cmds_sorted(struct intel_ring_buffer *ring,
+static bool validate_cmds_sorted(struct intel_engine_cs *ring,
 				 const struct drm_i915_cmd_table *cmd_tables,
 				 int cmd_table_count)
 {
@@ -552,7 +552,7 @@ static bool check_sorted(int ring_id, const u32 *reg_table, int reg_count)
 	return ret;
 }
 
-static bool validate_regs_sorted(struct intel_ring_buffer *ring)
+static bool validate_regs_sorted(struct intel_engine_cs *ring)
 {
 	return check_sorted(ring->id, ring->reg_table, ring->reg_count) &&
 		check_sorted(ring->id, ring->master_reg_table,
@@ -580,7 +580,7 @@ struct cmd_node {
  */
 #define CMD_HASH_MASK STD_MI_OPCODE_MASK
 
-static int init_hash_table(struct intel_ring_buffer *ring,
+static int init_hash_table(struct intel_engine_cs *ring,
 			   const struct drm_i915_cmd_table *cmd_tables,
 			   int cmd_table_count)
 {
@@ -609,7 +609,7 @@ static int init_hash_table(struct intel_ring_buffer *ring,
 	return 0;
 }
 
-static void fini_hash_table(struct intel_ring_buffer *ring)
+static void fini_hash_table(struct intel_engine_cs *ring)
 {
 	struct hlist_node *tmp;
 	struct cmd_node *desc_node;
@@ -626,12 +626,12 @@ static void fini_hash_table(struct intel_ring_buffer *ring)
  * @ring: the ringbuffer to initialize
  *
  * Optionally initializes fields related to batch buffer command parsing in the
- * struct intel_ring_buffer based on whether the platform requires software
+ * struct intel_engine_cs based on whether the platform requires software
  * command parsing.
  *
  * Return: non-zero if initialization fails
  */
-int i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
+int i915_cmd_parser_init_ring(struct intel_engine_cs *ring)
 {
 	const struct drm_i915_cmd_table *cmd_tables;
 	int cmd_table_count;
@@ -725,7 +725,7 @@ int i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
  * Releases any resources related to command parsing that may have been
  * initialized for the specified ring.
  */
-void i915_cmd_parser_fini_ring(struct intel_ring_buffer *ring)
+void i915_cmd_parser_fini_ring(struct intel_engine_cs *ring)
 {
 	if (!ring->needs_cmd_parser)
 		return;
@@ -734,7 +734,7 @@ void i915_cmd_parser_fini_ring(struct intel_ring_buffer *ring)
 }
 
 static const struct drm_i915_cmd_descriptor*
-find_cmd_in_table(struct intel_ring_buffer *ring,
+find_cmd_in_table(struct intel_engine_cs *ring,
 		  u32 cmd_header)
 {
 	struct cmd_node *desc_node;
@@ -761,7 +761,7 @@ find_cmd_in_table(struct intel_ring_buffer *ring,
  * ring's default length encoding and returns default_desc.
  */
 static const struct drm_i915_cmd_descriptor*
-find_cmd(struct intel_ring_buffer *ring,
+find_cmd(struct intel_engine_cs *ring,
 	 u32 cmd_header,
 	 struct drm_i915_cmd_descriptor *default_desc)
 {
@@ -837,7 +837,7 @@ finish:
  *
  * Return: true if the ring requires software command parsing
  */
-bool i915_needs_cmd_parser(struct intel_ring_buffer *ring)
+bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
@@ -855,7 +855,7 @@ bool i915_needs_cmd_parser(struct intel_ring_buffer *ring)
 	return (i915.enable_cmd_parser == 1);
 }
 
-static bool check_cmd(const struct intel_ring_buffer *ring,
+static bool check_cmd(const struct intel_engine_cs *ring,
 		      const struct drm_i915_cmd_descriptor *desc,
 		      const u32 *cmd,
 		      const bool is_master,
@@ -957,7 +957,7 @@ static bool check_cmd(const struct intel_ring_buffer *ring,
  *
  * Return: non-zero if the parser finds violations or otherwise fails
  */
-int i915_parse_cmds(struct intel_ring_buffer *ring,
+int i915_parse_cmds(struct intel_engine_cs *ring,
 		    struct drm_i915_gem_object *batch_obj,
 		    u32 batch_start_offset,
 		    bool is_master)

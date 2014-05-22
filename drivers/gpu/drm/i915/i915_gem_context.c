@@ -364,7 +364,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 	/* Prevent the hardware from restoring the last context (which hung) on
 	 * the next switch */
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+		struct intel_engine_cs *ring = &dev_priv->ring[i];
 		struct i915_hw_context *dctx = ring->default_context;
 
 		/* Do a fake switch to the default context */
@@ -454,7 +454,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 	}
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+		struct intel_engine_cs *ring = &dev_priv->ring[i];
 
 		if (ring->last_context)
 			i915_gem_context_unreference(ring->last_context);
@@ -468,7 +468,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 int i915_gem_context_enable(struct drm_i915_private *dev_priv)
 {
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int ret, i;
 
 	/* This is the only place the aliasing PPGTT gets enabled, which means
@@ -547,7 +547,7 @@ i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 }
 
 static inline int
-mi_set_context(struct intel_ring_buffer *ring,
+mi_set_context(struct intel_engine_cs *ring,
 	       struct i915_hw_context *new_context,
 	       u32 hw_flags)
 {
@@ -597,7 +597,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 	return ret;
 }
 
-static int do_switch(struct intel_ring_buffer *ring,
+static int do_switch(struct intel_engine_cs *ring,
 		     struct i915_hw_context *to)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
@@ -733,7 +733,7 @@ unpin_out:
  * it will have a refoucnt > 1. This allows us to destroy the context abstract
  * object while letting the normal object tracking destroy the backing BO.
  */
-int i915_switch_context(struct intel_ring_buffer *ring,
+int i915_switch_context(struct intel_engine_cs *ring,
 			struct i915_hw_context *to)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;

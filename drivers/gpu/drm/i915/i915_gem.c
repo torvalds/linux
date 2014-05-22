@@ -979,7 +979,7 @@ i915_gem_check_wedge(struct i915_gpu_error *error,
  * equal.
  */
 static int
-i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
+i915_gem_check_olr(struct intel_engine_cs *ring, u32 seqno)
 {
 	int ret;
 
@@ -998,7 +998,7 @@ static void fake_irq(unsigned long data)
 }
 
 static bool missed_irq(struct drm_i915_private *dev_priv,
-		       struct intel_ring_buffer *ring)
+		       struct intel_engine_cs *ring)
 {
 	return test_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings);
 }
@@ -1029,7 +1029,7 @@ static bool can_wait_boost(struct drm_i915_file_private *file_priv)
  * Returns 0 if the seqno was found within the alloted time. Else returns the
  * errno with remaining time filled in timeout argument.
  */
-static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
+static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 			unsigned reset_counter,
 			bool interruptible,
 			struct timespec *timeout,
@@ -1136,7 +1136,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
  * request and object lists appropriately for that event.
  */
 int
-i915_wait_seqno(struct intel_ring_buffer *ring, uint32_t seqno)
+i915_wait_seqno(struct intel_engine_cs *ring, uint32_t seqno)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1161,7 +1161,7 @@ i915_wait_seqno(struct intel_ring_buffer *ring, uint32_t seqno)
 
 static int
 i915_gem_object_wait_rendering__tail(struct drm_i915_gem_object *obj,
-				     struct intel_ring_buffer *ring)
+				     struct intel_engine_cs *ring)
 {
 	if (!obj->active)
 		return 0;
@@ -1186,7 +1186,7 @@ static __must_check int
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 			       bool readonly)
 {
-	struct intel_ring_buffer *ring = obj->ring;
+	struct intel_engine_cs *ring = obj->ring;
 	u32 seqno;
 	int ret;
 
@@ -1211,7 +1211,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = obj->ring;
+	struct intel_engine_cs *ring = obj->ring;
 	unsigned reset_counter;
 	u32 seqno;
 	int ret;
@@ -2040,7 +2040,7 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 
 static void
 i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
-			       struct intel_ring_buffer *ring)
+			       struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2078,7 +2078,7 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 }
 
 void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct intel_ring_buffer *ring)
+			     struct intel_engine_cs *ring)
 {
 	list_move_tail(&vma->mm_list, &vma->vm->active_list);
 	return i915_gem_object_move_to_active(vma->obj, ring);
@@ -2119,7 +2119,7 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 static void
 i915_gem_object_retire(struct drm_i915_gem_object *obj)
 {
-	struct intel_ring_buffer *ring = obj->ring;
+	struct intel_engine_cs *ring = obj->ring;
 
 	if (ring == NULL)
 		return;
@@ -2133,7 +2133,7 @@ static int
 i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int ret, i, j;
 
 	/* Carefully retire all requests without writing to the rings */
@@ -2199,7 +2199,7 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
 	return 0;
 }
 
-int __i915_add_request(struct intel_ring_buffer *ring,
+int __i915_add_request(struct intel_engine_cs *ring,
 		       struct drm_file *file,
 		       struct drm_i915_gem_object *obj,
 		       u32 *out_seqno)
@@ -2359,7 +2359,7 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 }
 
 struct drm_i915_gem_request *
-i915_gem_find_active_request(struct intel_ring_buffer *ring)
+i915_gem_find_active_request(struct intel_engine_cs *ring)
 {
 	struct drm_i915_gem_request *request;
 	u32 completed_seqno;
@@ -2377,7 +2377,7 @@ i915_gem_find_active_request(struct intel_ring_buffer *ring)
 }
 
 static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
-				       struct intel_ring_buffer *ring)
+				       struct intel_engine_cs *ring)
 {
 	struct drm_i915_gem_request *request;
 	bool ring_hung;
@@ -2396,7 +2396,7 @@ static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
 }
 
 static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
-					struct intel_ring_buffer *ring)
+					struct intel_engine_cs *ring)
 {
 	while (!list_empty(&ring->active_list)) {
 		struct drm_i915_gem_object *obj;
@@ -2455,7 +2455,7 @@ void i915_gem_restore_fences(struct drm_device *dev)
 void i915_gem_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int i;
 
 	/*
@@ -2478,7 +2478,7 @@ void i915_gem_reset(struct drm_device *dev)
  * This function clears the request list as sequence numbers are passed.
  */
 void
-i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
+i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 {
 	uint32_t seqno;
 
@@ -2541,7 +2541,7 @@ bool
 i915_gem_retire_requests(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	bool idle = true;
 	int i;
 
@@ -2635,7 +2635,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_wait *args = data;
 	struct drm_i915_gem_object *obj;
-	struct intel_ring_buffer *ring = NULL;
+	struct intel_engine_cs *ring = NULL;
 	struct timespec timeout_stack, *timeout = NULL;
 	unsigned reset_counter;
 	u32 seqno = 0;
@@ -2706,9 +2706,9 @@ out:
  */
 int
 i915_gem_object_sync(struct drm_i915_gem_object *obj,
-		     struct intel_ring_buffer *to)
+		     struct intel_engine_cs *to)
 {
-	struct intel_ring_buffer *from = obj->ring;
+	struct intel_engine_cs *from = obj->ring;
 	u32 seqno;
 	int ret, idx;
 
@@ -2831,7 +2831,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 int i915_gpu_idle(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int ret, i;
 
 	/* Flush everything onto the inactive list. */
@@ -3702,7 +3702,7 @@ static bool is_pin_display(struct drm_i915_gem_object *obj)
 int
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     struct intel_ring_buffer *pipelined)
+				     struct intel_engine_cs *pipelined)
 {
 	u32 old_read_domains, old_write_domain;
 	bool was_pin_display;
@@ -3858,7 +3858,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	unsigned long recent_enough = jiffies - msecs_to_jiffies(20);
 	struct drm_i915_gem_request *request;
-	struct intel_ring_buffer *ring = NULL;
+	struct intel_engine_cs *ring = NULL;
 	unsigned reset_counter;
 	u32 seqno = 0;
 	int ret;
@@ -4359,7 +4359,7 @@ static void
 i915_gem_stop_ringbuffers(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int i;
 
 	for_each_ring(ring, dev_priv, i)
@@ -4408,7 +4408,7 @@ err:
 	return ret;
 }
 
-int i915_gem_l3_remap(struct intel_ring_buffer *ring, int slice)
+int i915_gem_l3_remap(struct intel_engine_cs *ring, int slice)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4632,7 +4632,7 @@ void
 i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int i;
 
 	for_each_ring(ring, dev_priv, i)
@@ -4708,7 +4708,7 @@ i915_gem_lastclose(struct drm_device *dev)
 }
 
 static void
-init_ring_lists(struct intel_ring_buffer *ring)
+init_ring_lists(struct intel_engine_cs *ring)
 {
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);

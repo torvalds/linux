@@ -3412,7 +3412,7 @@ static void parse_rp_state_cap(struct drm_i915_private *dev_priv, u32 rp_state_c
 static void gen8_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	uint32_t rc6_mask = 0, rp_state_cap;
 	int unused;
 
@@ -3491,7 +3491,7 @@ static void gen8_enable_rps(struct drm_device *dev)
 static void gen6_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	u32 rp_state_cap;
 	u32 gt_perf_status;
 	u32 rc6vids, pcu_mbox = 0, rc6_mask = 0;
@@ -3820,7 +3820,7 @@ static void valleyview_cleanup_gt_powersave(struct drm_device *dev)
 static void valleyview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	u32 gtfifodbg, val, rc6_mode = 0;
 	int i;
 
@@ -3951,7 +3951,7 @@ static int ironlake_setup_rc6(struct drm_device *dev)
 static void ironlake_enable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	bool was_interruptible;
 	int ret;
 
@@ -4463,7 +4463,7 @@ EXPORT_SYMBOL_GPL(i915_gpu_lower);
 bool i915_gpu_busy(void)
 {
 	struct drm_i915_private *dev_priv;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	bool ret = false;
 	int i;
 

@@ -326,8 +326,8 @@ TRACE_EVENT(i915_gem_evict_vm,
 );
 
 TRACE_EVENT(i915_gem_ring_sync_to,
-	    TP_PROTO(struct intel_ring_buffer *from,
-		     struct intel_ring_buffer *to,
+	    TP_PROTO(struct intel_engine_cs *from,
+		     struct intel_engine_cs *to,
 		     u32 seqno),
 	    TP_ARGS(from, to, seqno),
 
@@ -352,7 +352,7 @@ TRACE_EVENT(i915_gem_ring_sync_to,
 );
 
 TRACE_EVENT(i915_gem_ring_dispatch,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno, u32 flags),
+	    TP_PROTO(struct intel_engine_cs *ring, u32 seqno, u32 flags),
 	    TP_ARGS(ring, seqno, flags),
 
 	    TP_STRUCT__entry(
@@ -375,7 +375,7 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 );
 
 TRACE_EVENT(i915_gem_ring_flush,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 invalidate, u32 flush),
+	    TP_PROTO(struct intel_engine_cs *ring, u32 invalidate, u32 flush),
 	    TP_ARGS(ring, invalidate, flush),
 
 	    TP_STRUCT__entry(
@@ -398,7 +398,7 @@ TRACE_EVENT(i915_gem_ring_flush,
 );
 
 DECLARE_EVENT_CLASS(i915_gem_request,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
+	    TP_PROTO(struct intel_engine_cs *ring, u32 seqno),
 	    TP_ARGS(ring, seqno),
 
 	    TP_STRUCT__entry(
@@ -418,12 +418,12 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 );
 
 DEFINE_EVENT(i915_gem_request, i915_gem_request_add,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
+	    TP_PROTO(struct intel_engine_cs *ring, u32 seqno),
 	    TP_ARGS(ring, seqno)
 );
 
 TRACE_EVENT(i915_gem_request_complete,
-	    TP_PROTO(struct intel_ring_buffer *ring),
+	    TP_PROTO(struct intel_engine_cs *ring),
 	    TP_ARGS(ring),
 
 	    TP_STRUCT__entry(
@@ -443,12 +443,12 @@ TRACE_EVENT(i915_gem_request_complete,
 );
 
 DEFINE_EVENT(i915_gem_request, i915_gem_request_retire,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
+	    TP_PROTO(struct intel_engine_cs *ring, u32 seqno),
 	    TP_ARGS(ring, seqno)
 );
 
 TRACE_EVENT(i915_gem_request_wait_begin,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
+	    TP_PROTO(struct intel_engine_cs *ring, u32 seqno),
 	    TP_ARGS(ring, seqno),
 
 	    TP_STRUCT__entry(
@@ -477,12 +477,12 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 );
 
 DEFINE_EVENT(i915_gem_request, i915_gem_request_wait_end,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
+	    TP_PROTO(struct intel_engine_cs *ring, u32 seqno),
 	    TP_ARGS(ring, seqno)
 );
 
 DECLARE_EVENT_CLASS(i915_ring,
-	    TP_PROTO(struct intel_ring_buffer *ring),
+	    TP_PROTO(struct intel_engine_cs *ring),
 	    TP_ARGS(ring),
 
 	    TP_STRUCT__entry(
@@ -499,12 +499,12 @@ DECLARE_EVENT_CLASS(i915_ring,
 );
 
 DEFINE_EVENT(i915_ring, i915_ring_wait_begin,
-	    TP_PROTO(struct intel_ring_buffer *ring),
+	    TP_PROTO(struct intel_engine_cs *ring),
 	    TP_ARGS(ring)
 );
 
 DEFINE_EVENT(i915_ring, i915_ring_wait_end,
-	    TP_PROTO(struct intel_ring_buffer *ring),
+	    TP_PROTO(struct intel_engine_cs *ring),
 	    TP_ARGS(ring)
 );
 

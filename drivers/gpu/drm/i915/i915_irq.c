@@ -1217,7 +1217,7 @@ static void ironlake_rps_change_irq_handler(struct drm_device *dev)
 }
 
 static void notify_ring(struct drm_device *dev,
-			struct intel_ring_buffer *ring)
+			struct intel_engine_cs *ring)
 {
 	if (ring->obj == NULL)
 		return;
@@ -2316,7 +2316,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 			       bool reset_completed)
 {
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int i;
 
 	/*
@@ -2749,14 +2749,14 @@ static void gen8_disable_vblank(struct drm_device *dev, int pipe)
 }
 
 static u32
-ring_last_seqno(struct intel_ring_buffer *ring)
+ring_last_seqno(struct intel_engine_cs *ring)
 {
 	return list_entry(ring->request_list.prev,
 			  struct drm_i915_gem_request, list)->seqno;
 }
 
 static bool
-ring_idle(struct intel_ring_buffer *ring, u32 seqno)
+ring_idle(struct intel_engine_cs *ring, u32 seqno)
 {
 	return (list_empty(&ring->request_list) ||
 		i915_seqno_passed(seqno, ring_last_seqno(ring)));
@@ -2779,11 +2779,11 @@ ipehr_is_semaphore_wait(struct drm_device *dev, u32 ipehr)
 	}
 }
 
-static struct intel_ring_buffer *
-semaphore_wait_to_signaller_ring(struct intel_ring_buffer *ring, u32 ipehr)
+static struct intel_engine_cs *
+semaphore_wait_to_signaller_ring(struct intel_engine_cs *ring, u32 ipehr)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	struct intel_ring_buffer *signaller;
+	struct intel_engine_cs *signaller;
 	int i;
 
 	if (INTEL_INFO(dev_priv->dev)->gen >= 8) {
@@ -2811,8 +2811,8 @@ semaphore_wait_to_signaller_ring(struct intel_ring_buffer *ring, u32 ipehr)
 	return NULL;
 }
 
-static struct intel_ring_buffer *
-semaphore_waits_for(struct intel_ring_buffer *ring, u32 *seqno)
+static struct intel_engine_cs *
+semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	u32 cmd, ipehr, head;
@@ -2854,10 +2854,10 @@ semaphore_waits_for(struct intel_ring_buffer *ring, u32 *seqno)
 	return semaphore_wait_to_signaller_ring(ring, ipehr);
 }
 
-static int semaphore_passed(struct intel_ring_buffer *ring)
+static int semaphore_passed(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	struct intel_ring_buffer *signaller;
+	struct intel_engine_cs *signaller;
 	u32 seqno, ctl;
 
 	ring->hangcheck.deadlock = true;
@@ -2876,7 +2876,7 @@ static int semaphore_passed(struct intel_ring_buffer *ring)
 
 static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
 {
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int i;
 
 	for_each_ring(ring, dev_priv, i)
@@ -2884,7 +2884,7 @@ static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
 }
 
 static enum intel_ring_hangcheck_action
-ring_stuck(struct intel_ring_buffer *ring, u64 acthd)
+ring_stuck(struct intel_engine_cs *ring, u64 acthd)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2940,7 +2940,7 @@ static void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	int i;
 	int busy_count = 0, rings_hung = 0;
 	bool stuck[I915_NUM_RINGS] = { 0 };

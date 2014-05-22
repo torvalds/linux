@@ -120,7 +120,7 @@ static void i915_write_hws_pga(struct drm_device *dev)
 static void i915_free_hws(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+	struct intel_engine_cs *ring = LP_RING(dev_priv);
 
 	if (dev_priv->status_page_dmah) {
 		drm_pci_free(dev, dev_priv->status_page_dmah);
@@ -140,7 +140,7 @@ void i915_kernel_lost_context(struct drm_device * dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+	struct intel_engine_cs *ring = LP_RING(dev_priv);
 
 	/*
 	 * We should never lose context on the ring with modesetting
@@ -235,7 +235,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 static int i915_dma_resume(struct drm_device * dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+	struct intel_engine_cs *ring = LP_RING(dev_priv);
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
@@ -783,7 +783,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	int ret = 0;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+	struct intel_engine_cs *ring = LP_RING(dev_priv);
 
 	DRM_DEBUG_DRIVER("irq_nr=%d breadcrumb=%d\n", irq_nr,
 		  READ_BREADCRUMB(dev_priv));
@@ -1074,7 +1074,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	drm_i915_hws_addr_t *hws = data;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;

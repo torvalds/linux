@@ -470,7 +470,7 @@ struct drm_i915_display_funcs {
 	int (*queue_flip)(struct drm_device *dev, struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
 			  struct drm_i915_gem_object *obj,
-			  struct intel_ring_buffer *ring,
+			  struct intel_engine_cs *ring,
 			  uint32_t flags);
 	void (*update_primary_plane)(struct drm_crtc *crtc,
 				     struct drm_framebuffer *fb,
@@ -605,7 +605,7 @@ struct i915_hw_context {
 	bool is_initialized;
 	uint8_t remap_slice;
 	struct drm_i915_file_private *file_priv;
-	struct intel_ring_buffer *last_ring;
+	struct intel_engine_cs *last_ring;
 	struct drm_i915_gem_object *obj;
 	struct i915_ctx_hang_stats hang_stats;
 	struct i915_address_space *vm;
@@ -1372,7 +1372,7 @@ struct drm_i915_private {
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
-	struct intel_ring_buffer ring[I915_NUM_RINGS];
+	struct intel_engine_cs ring[I915_NUM_RINGS];
 	uint32_t last_seqno, next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
@@ -1690,7 +1690,7 @@ struct drm_i915_gem_object {
 	void *dma_buf_vmapping;
 	int vmapping_count;
 
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 
 	/** Breadcrumb of last rendering to the buffer. */
 	uint32_t last_read_seqno;
@@ -1741,7 +1741,7 @@ struct drm_i915_gem_object {
  */
 struct drm_i915_gem_request {
 	/** On Which ring this request was generated */
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 
 	/** GEM sequence number associated with this request. */
 	uint32_t seqno;
@@ -1782,7 +1782,7 @@ struct drm_i915_file_private {
 
 	struct i915_hw_context *private_default_ctx;
 	atomic_t rps_wait_boost;
-	struct  intel_ring_buffer *bsd_ring;
+	struct  intel_engine_cs *bsd_ring;
 };
 
 /*
@@ -2209,9 +2209,9 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
-			 struct intel_ring_buffer *to);
+			 struct intel_engine_cs *to);
 void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct intel_ring_buffer *ring);
+			     struct intel_engine_cs *ring);
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
 			 struct drm_mode_create_dumb *args);
@@ -2235,10 +2235,10 @@ bool i915_gem_object_pin_fence(struct drm_i915_gem_object *obj);
 void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
 
 struct drm_i915_gem_request *
-i915_gem_find_active_request(struct intel_ring_buffer *ring);
+i915_gem_find_active_request(struct intel_engine_cs *ring);
 
 bool i915_gem_retire_requests(struct drm_device *dev);
-void i915_gem_retire_requests_ring(struct intel_ring_buffer *ring);
+void i915_gem_retire_requests_ring(struct intel_engine_cs *ring);
 int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,
 				      bool interruptible);
 static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
@@ -2274,18 +2274,18 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
-int i915_gem_l3_remap(struct intel_ring_buffer *ring, int slice);
+int i915_gem_l3_remap(struct intel_engine_cs *ring, int slice);
 void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_suspend(struct drm_device *dev);
-int __i915_add_request(struct intel_ring_buffer *ring,
+int __i915_add_request(struct intel_engine_cs *ring,
 		       struct drm_file *file,
 		       struct drm_i915_gem_object *batch_obj,
 		       u32 *seqno);
 #define i915_add_request(ring, seqno) \
 	__i915_add_request(ring, NULL, NULL, seqno)
-int __must_check i915_wait_seqno(struct intel_ring_buffer *ring,
+int __must_check i915_wait_seqno(struct intel_engine_cs *ring,
 				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int __must_check
@@ -2296,7 +2296,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
 int __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     struct intel_ring_buffer *pipelined);
+				     struct intel_engine_cs *pipelined);
 void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj);
 int i915_gem_attach_phys_object(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
@@ -2398,7 +2398,7 @@ void i915_gem_context_reset(struct drm_device *dev);
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 int i915_gem_context_enable(struct drm_i915_private *dev_priv);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
-int i915_switch_context(struct intel_ring_buffer *ring,
+int i915_switch_context(struct intel_engine_cs *ring,
 			struct i915_hw_context *to);
 struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
@@ -2424,7 +2424,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file);
 
 /* i915_gem_render_state.c */
-int i915_gem_render_state_init(struct intel_ring_buffer *ring);
+int i915_gem_render_state_init(struct intel_engine_cs *ring);
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  struct i915_address_space *vm,
@@ -2509,10 +2509,10 @@ const char *i915_cache_level_str(int type);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(void);
-int i915_cmd_parser_init_ring(struct intel_ring_buffer *ring);
-void i915_cmd_parser_fini_ring(struct intel_ring_buffer *ring);
-bool i915_needs_cmd_parser(struct intel_ring_buffer *ring);
-int i915_parse_cmds(struct intel_ring_buffer *ring,
+int i915_cmd_parser_init_ring(struct intel_engine_cs *ring);
+void i915_cmd_parser_fini_ring(struct intel_engine_cs *ring);
+bool i915_needs_cmd_parser(struct intel_engine_cs *ring);
+int i915_parse_cmds(struct intel_engine_cs *ring,
 		    struct drm_i915_gem_object *batch_obj,
 		    u32 batch_start_offset,
 		    bool is_master);

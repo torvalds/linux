@@ -541,7 +541,7 @@ need_reloc_mappable(struct i915_vma *vma)
 
 static int
 i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
-				struct intel_ring_buffer *ring,
+				struct intel_engine_cs *ring,
 				bool *need_reloc)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
@@ -596,7 +596,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 }
 
 static int
-i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
+i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			    struct list_head *vmas,
 			    bool *need_relocs)
 {
@@ -713,7 +713,7 @@ static int
 i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 				  struct drm_i915_gem_execbuffer2 *args,
 				  struct drm_file *file,
-				  struct intel_ring_buffer *ring,
+				  struct intel_engine_cs *ring,
 				  struct eb_vmas *eb,
 				  struct drm_i915_gem_exec_object2 *exec)
 {
@@ -829,7 +829,7 @@ err:
 }
 
 static int
-i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
+i915_gem_execbuffer_move_to_gpu(struct intel_engine_cs *ring,
 				struct list_head *vmas)
 {
 	struct i915_vma *vma;
@@ -914,7 +914,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 static struct i915_hw_context *
 i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
-			  struct intel_ring_buffer *ring, const u32 ctx_id)
+			  struct intel_engine_cs *ring, const u32 ctx_id)
 {
 	struct i915_hw_context *ctx = NULL;
 	struct i915_ctx_hang_stats *hs;
@@ -937,7 +937,7 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 
 static void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
-				   struct intel_ring_buffer *ring)
+				   struct intel_engine_cs *ring)
 {
 	struct i915_vma *vma;
 
@@ -972,7 +972,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 static void
 i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct drm_file *file,
-				    struct intel_ring_buffer *ring,
+				    struct intel_engine_cs *ring,
 				    struct drm_i915_gem_object *obj)
 {
 	/* Unconditionally force add_request to emit a full flush. */
@@ -984,7 +984,7 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 
 static int
 i915_reset_gen7_sol_offsets(struct drm_device *dev,
-			    struct intel_ring_buffer *ring)
+			    struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
@@ -1050,7 +1050,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
-	struct intel_ring_buffer *ring;
+	struct intel_engine_cs *ring;
 	struct i915_hw_context *ctx;
 	struct i915_address_space *vm;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);

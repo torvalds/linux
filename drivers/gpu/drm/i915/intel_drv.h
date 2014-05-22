@@ -721,7 +721,7 @@ int intel_pch_rawclk(struct drm_device *dev);
 int valleyview_cur_cdclk(struct drm_i915_private *dev_priv);
 void intel_mark_busy(struct drm_device *dev);
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
-			struct intel_ring_buffer *ring);
+			struct intel_engine_cs *ring);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 void intel_crtc_update_dpms(struct drm_crtc *crtc);
@@ -753,7 +753,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct intel_load_detect_pipe *old);
 int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			       struct drm_i915_gem_object *obj,
-			       struct intel_ring_buffer *pipelined);
+			       struct intel_engine_cs *pipelined);
 void intel_unpin_fb_obj(struct drm_i915_gem_object *obj);
 struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,

@@ -159,7 +159,7 @@ static int render_state_setup(const int gen,
 	return 0;
 }
 
-int i915_gem_render_state_init(struct intel_ring_buffer *ring)
+int i915_gem_render_state_init(struct intel_engine_cs *ring)
 {
 	const int gen = INTEL_INFO(ring->dev)->gen;
 	struct i915_render_state *so;

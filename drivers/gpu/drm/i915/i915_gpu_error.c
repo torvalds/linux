@@ -747,7 +747,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 }
 
 static void i915_record_ring_state(struct drm_device *dev,
-				   struct intel_ring_buffer *ring,
+				   struct intel_engine_cs *ring,
 				   struct drm_i915_error_ring *ering)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -859,7 +859,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 }
 
 
-static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
+static void i915_gem_record_active_context(struct intel_engine_cs *ring,
 					   struct drm_i915_error_state *error,
 					   struct drm_i915_error_ring *ering)
 {
@@ -886,7 +886,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 	int i, count;
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+		struct intel_engine_cs *ring = &dev_priv->ring[i];
 
 		if (ring->dev == NULL)
 			continue;
