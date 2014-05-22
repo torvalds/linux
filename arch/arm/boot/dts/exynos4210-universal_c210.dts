@@ -68,12 +68,36 @@
 		enable-active-high;
 	};
 
+	hsotg@12480000 {
+		vusb_d-supply = <&ldo3_reg>;
+		vusb_a-supply = <&ldo8_reg>;
+		status = "okay";
+	};
+
 	sdhci_emmc: sdhci@12510000 {
 		bus-width = <8>;
 		non-removable;
 		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
 		pinctrl-names = "default";
 		vmmc-supply = <&vemmc_reg>;
+		status = "okay";
+	};
+
+	ehci@12580000 {
+		status = "okay";
+		port@0 {
+			status = "okay";
+		};
+	};
+
+	ohci@12590000 {
+		status = "okay";
+		port@0 {
+			status = "okay";
+		};
+	};
+
+	exynos-usbphy@125B0000 {
 		status = "okay";
 	};
 
@@ -216,6 +240,7 @@
 					regulator-name = "VUSB+MIPI_1.1V";
 					regulator-min-microvolt = <1100000>;
 					regulator-max-microvolt = <1100000>;
+					regulator-always-on;
 				};
 
 				ldo4_reg: LDO4 {
@@ -246,6 +271,7 @@
 					regulator-name = "VUSB+VDAC_3.3V";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
 				};
 
 				ldo9_reg: LDO9 {
