@@ -3111,11 +3111,6 @@ static void ironlake_irq_reset(struct drm_device *dev)
 	ibx_irq_reset(dev);
 }
 
-static void ironlake_irq_preinstall(struct drm_device *dev)
-{
-	ironlake_irq_reset(dev);
-}
-
 static void valleyview_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3166,11 +3161,6 @@ static void gen8_irq_reset(struct drm_device *dev)
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
 	ibx_irq_reset(dev);
-}
-
-static void gen8_irq_preinstall(struct drm_device *dev)
-{
-	gen8_irq_reset(dev);
 }
 
 static void cherryview_irq_preinstall(struct drm_device *dev)
@@ -4381,7 +4371,7 @@ void intel_irq_init(struct drm_device *dev)
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else if (IS_GEN8(dev)) {
 		dev->driver->irq_handler = gen8_irq_handler;
-		dev->driver->irq_preinstall = gen8_irq_preinstall;
+		dev->driver->irq_preinstall = gen8_irq_reset;
 		dev->driver->irq_postinstall = gen8_irq_postinstall;
 		dev->driver->irq_uninstall = gen8_irq_uninstall;
 		dev->driver->enable_vblank = gen8_enable_vblank;
@@ -4389,7 +4379,7 @@ void intel_irq_init(struct drm_device *dev)
 		dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev->driver->irq_handler = ironlake_irq_handler;
-		dev->driver->irq_preinstall = ironlake_irq_preinstall;
+		dev->driver->irq_preinstall = ironlake_irq_reset;
 		dev->driver->irq_postinstall = ironlake_irq_postinstall;
 		dev->driver->irq_uninstall = ironlake_irq_uninstall;
 		dev->driver->enable_vblank = ironlake_enable_vblank;
