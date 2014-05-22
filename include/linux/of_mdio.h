@@ -22,9 +22,6 @@ extern struct phy_device *of_phy_connect(struct net_device *dev,
 struct phy_device *of_phy_attach(struct net_device *dev,
 				 struct device_node *phy_np, u32 flags,
 				 phy_interface_t iface);
-extern struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
-					 void (*hndlr)(struct net_device *),
-					 phy_interface_t iface);
 
 extern struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np);
 
@@ -55,13 +52,6 @@ static inline struct phy_device *of_phy_connect(struct net_device *dev,
 static inline struct phy_device *of_phy_attach(struct net_device *dev,
 					       struct device_node *phy_np,
 					       u32 flags, phy_interface_t iface)
-{
-	return NULL;
-}
-
-static inline struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
-							   void (*hndlr)(struct net_device *),
-							   phy_interface_t iface)
 {
 	return NULL;
 }
