@@ -70,4 +70,14 @@ config EXTCON_PALMAS
 	  Say Y here to enable support for USB peripheral and USB host
 	  detection by palmas usb.
 
+config EXTCON_SM5502
+	tristate "SM5502 EXTCON support"
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Silicon Mitus SM5502. The SM5502 is a USB port accessory
+	  detector and switch.
+
 endif # MULTISTATE_SWITCH
