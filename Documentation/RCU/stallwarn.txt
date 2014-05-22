@@ -24,7 +24,7 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	timing of the next warning for the current stall.
 
 	Stall-warning messages may be enabled and disabled completely via
-	/sys/module/rcutree/parameters/rcu_cpu_stall_suppress.
+	/sys/module/rcupdate/parameters/rcu_cpu_stall_suppress.
 
 CONFIG_RCU_CPU_STALL_VERBOSE
 
