@@ -451,7 +451,10 @@ struct mvneta_rx_queue {
 	int next_desc_to_proc;
 };
 
-static int rxq_number = 8;
+/* The hardware supports eight (8) rx queues, but we are only allowing
+ * the first one to be used. Therefore, let's just allocate one queue.
+ */
+static int rxq_number = 1;
 static int txq_number = 8;
 
 static int rxq_def;
