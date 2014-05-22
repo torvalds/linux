@@ -732,8 +732,8 @@ static void iser_connected_handler(struct rdma_cm_id *cma_id)
 	iser_info("remote qpn:%x my qpn:%x\n", attr.dest_qp_num, cma_id->qp->qp_num);
 
 	ib_conn = (struct iser_conn *)cma_id->context;
-	ib_conn->state = ISER_CONN_UP;
-	wake_up_interruptible(&ib_conn->wait);
+	if (iser_conn_state_comp_exch(ib_conn, ISER_CONN_PENDING, ISER_CONN_UP))
+		wake_up_interruptible(&ib_conn->wait);
 }
 
 static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
