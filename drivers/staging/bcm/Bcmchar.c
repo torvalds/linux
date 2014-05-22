@@ -39,6 +39,56 @@ static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *Adapter,
 	return STATUS_SUCCESS;
 }
 
+static int handle_flash2x_adapter(struct bcm_mini_adapter *Adapter,
+	PUCHAR pReadData, struct bcm_nvm_readwrite *stNVMReadWrite)
+{
+	/*
+	 * New Requirement:-
+	 * DSD section updation will be allowed in two case:-
+	 * 1.  if DSD sig is present in DSD header means dongle
+	 * is ok and updation is fruitfull
+	 * 2.  if point 1 failes then user buff should have
+	 * DSD sig. this point ensures that if dongle is
+	 * corrupted then user space program first modify
+	 * the DSD header with valid DSD sig so that this
+	 * as well as further write may be worthwhile.
+	 *
+	 * This restriction has been put assuming that
+	 * if DSD sig is corrupted, DSD data won't be
+	 * considered valid.
+	 */
+	INT Status;
+	ULONG ulDSDMagicNumInUsrBuff = 0;
+
+	Status = BcmFlash2xCorruptSig(Adapter, Adapter->eActiveDSD);
+	if (Status == STATUS_SUCCESS)
+		return STATUS_SUCCESS;
+
+	if (((stNVMReadWrite->uiOffset + stNVMReadWrite->uiNumBytes) !=
+			Adapter->uiNVMDSDSize) ||
+			(stNVMReadWrite->uiNumBytes < SIGNATURE_SIZE)) {
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+				"DSD Sig is present neither in Flash nor User provided Input..");
+		up(&Adapter->NVMRdmWrmLock);
+		kfree(pReadData);
+		return Status;
+	}
+
+	ulDSDMagicNumInUsrBuff =
+		ntohl(*(PUINT)(pReadData + stNVMReadWrite->uiNumBytes -
+		      SIGNATURE_SIZE));
+	if (ulDSDMagicNumInUsrBuff != DSD_IMAGE_MAGIC_NUMBER) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+				"DSD Sig is present neither in Flash nor User provided Input..");
+		up(&Adapter->NVMRdmWrmLock);
+		kfree(pReadData);
+		return Status;
+	}
+
+	return STATUS_SUCCESS;
+}
+
 /***************************************************************
 * Function	  - bcm_char_open()
 *
@@ -1437,7 +1487,6 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 	struct timeval tv0, tv1;
 	struct bcm_ioctl_buffer IoBuffer;
 	PUCHAR pReadData = NULL;
-	ULONG ulDSDMagicNumInUsrBuff = 0;
 	INT Status = STATUS_FAILURE;
 
 	memset(&tv0, 0, sizeof(struct timeval));
@@ -1508,48 +1557,11 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 
 		Adapter->bHeaderChangeAllowed = TRUE;
 		if (IsFlash2x(Adapter)) {
-			/*
-			 * New Requirement:-
-			 * DSD section updation will be allowed in two case:-
-			 * 1.  if DSD sig is present in DSD header means dongle
-			 * is ok and updation is fruitfull
-			 * 2.  if point 1 failes then user buff should have
-			 * DSD sig. this point ensures that if dongle is
-			 * corrupted then user space program first modify
-			 * the DSD header with valid DSD sig so that this
-			 * as well as further write may be worthwhile.
-			 *
-			 * This restriction has been put assuming that
-			 * if DSD sig is corrupted, DSD data won't be
-			 * considered valid.
-			 */
-
-			Status = BcmFlash2xCorruptSig(Adapter,
-				Adapter->eActiveDSD);
-			if (Status != STATUS_SUCCESS) {
-				if (((stNVMReadWrite.uiOffset + stNVMReadWrite.uiNumBytes) !=
-					Adapter->uiNVMDSDSize) ||
-					(stNVMReadWrite.uiNumBytes < SIGNATURE_SIZE)) {
-
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
-						OSAL_DBG, DBG_LVL_ALL,
-						"DSD Sig is present neither in Flash nor User provided Input..");
-					up(&Adapter->NVMRdmWrmLock);
-					kfree(pReadData);
-					return Status;
-				}
-
-				ulDSDMagicNumInUsrBuff = ntohl(*(PUINT)(pReadData + stNVMReadWrite.uiNumBytes - SIGNATURE_SIZE));
-				if (ulDSDMagicNumInUsrBuff !=
-					DSD_IMAGE_MAGIC_NUMBER) {
-					BCM_DEBUG_PRINT(Adapter,
-					DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-						"DSD Sig is present neither in Flash nor User provided Input..");
-					up(&Adapter->NVMRdmWrmLock);
-					kfree(pReadData);
-					return Status;
-				}
-			}
+			int ret = handle_flash2x_adapter(Adapter,
+							pReadData,
+							&stNVMReadWrite);
+			if (ret != STATUS_SUCCESS)
+				return ret;
 		}
 
 		Status = BeceemNVMWrite(Adapter, (PUINT)pReadData,
