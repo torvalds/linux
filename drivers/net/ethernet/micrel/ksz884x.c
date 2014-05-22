@@ -4930,7 +4930,7 @@ static void netdev_tx_timeout(struct net_device *dev)
 		 * Only reset the hardware if time between calls is long
 		 * enough.
 		 */
-		if (jiffies - last_reset <= dev->watchdog_timeo)
+		if (time_before_eq(jiffies, last_reset + dev->watchdog_timeo))
 			hw_priv = NULL;
 	}
 
