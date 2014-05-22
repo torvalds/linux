@@ -665,10 +665,9 @@ i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
  **/
 void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable)
 {
-	u32 reg_val = rd32(hw, I40E_PFLAN_QALLOC);
-	u32 first_queue = (reg_val & I40E_PFLAN_QALLOC_FIRSTQ_MASK);
-	u32 abs_queue_idx = first_queue + queue;
+	u32 abs_queue_idx = hw->func_caps.base_queue + queue;
 	u32 reg_block = 0;
+	u32 reg_val;
 
 	if (abs_queue_idx >= 128)
 		reg_block = abs_queue_idx / 128;
