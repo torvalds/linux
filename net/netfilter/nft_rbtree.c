@@ -201,6 +201,7 @@ static unsigned int nft_rbtree_privsize(const struct nlattr * const nla[])
 }
 
 static int nft_rbtree_init(const struct nft_set *set,
+			   const struct nft_set_desc *desc,
 			   const struct nlattr * const nla[])
 {
 	struct nft_rbtree *priv = nft_set_priv(set);
@@ -222,8 +223,28 @@ static void nft_rbtree_destroy(const struct nft_set *set)
 	}
 }
 
+static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
+				struct nft_set_estimate *est)
+{
+	unsigned int nsize;
+
+	nsize = sizeof(struct nft_rbtree_elem);
+	if (features & NFT_SET_MAP)
+		nsize += FIELD_SIZEOF(struct nft_rbtree_elem, data[0]);
+
+	if (desc->size)
+		est->size = sizeof(struct nft_rbtree) + desc->size * nsize;
+	else
+		est->size = nsize;
+
+	est->class = NFT_SET_CLASS_O_LOG_N;
+
+	return true;
+}
+
 static struct nft_set_ops nft_rbtree_ops __read_mostly = {
 	.privsize	= nft_rbtree_privsize,
+	.estimate	= nft_rbtree_estimate,
 	.init		= nft_rbtree_init,
 	.destroy	= nft_rbtree_destroy,
 	.insert		= nft_rbtree_insert,
