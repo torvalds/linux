@@ -708,7 +708,7 @@ static void prep_umr_unreg_wqe(struct mlx5_ib_dev *dev,
 
 void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context)
 {
-	struct mlx5_ib_mr *mr;
+	struct mlx5_ib_umr_context *context;
 	struct ib_wc wc;
 	int err;
 
@@ -721,9 +721,9 @@ void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context)
 		if (err == 0)
 			break;
 
-		mr = (struct mlx5_ib_mr *)(unsigned long)wc.wr_id;
-		mr->status = wc.status;
-		complete(&mr->done);
+		context = (struct mlx5_ib_umr_context *)wc.wr_id;
+		context->status = wc.status;
+		complete(&context->done);
 	}
 	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 }
@@ -735,6 +735,7 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct device *ddev = dev->ib_dev.dma_device;
 	struct umr_common *umrc = &dev->umrc;
+	struct mlx5_ib_umr_context umr_context;
 	struct ib_send_wr wr, *bad;
 	struct mlx5_ib_mr *mr;
 	struct ib_sge sg;
@@ -774,24 +775,21 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	}
 
 	memset(&wr, 0, sizeof(wr));
-	wr.wr_id = (u64)(unsigned long)mr;
+	wr.wr_id = (u64)(unsigned long)&umr_context;
 	prep_umr_reg_wqe(pd, &wr, &sg, mr->dma, npages, mr->mmr.key, page_shift, virt_addr, len, access_flags);
 
-	/* We serialize polls so one process does not kidnap another's
-	 * completion. This is not a problem since wr is completed in
-	 * around 1 usec
-	 */
+	mlx5_ib_init_umr_context(&umr_context);
 	down(&umrc->sem);
-	init_completion(&mr->done);
 	err = ib_post_send(umrc->qp, &wr, &bad);
 	if (err) {
 		mlx5_ib_warn(dev, "post send failed, err %d\n", err);
 		goto unmap_dma;
-	}
-	wait_for_completion(&mr->done);
-	if (mr->status != IB_WC_SUCCESS) {
-		mlx5_ib_warn(dev, "reg umr failed\n");
-		err = -EFAULT;
+	} else {
+		wait_for_completion(&umr_context.done);
+		if (umr_context.status != IB_WC_SUCCESS) {
+			mlx5_ib_warn(dev, "reg umr failed\n");
+			err = -EFAULT;
+		}
 	}
 
 	mr->mmr.iova = virt_addr;
@@ -940,24 +938,26 @@ error:
 static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
 	struct umr_common *umrc = &dev->umrc;
+	struct mlx5_ib_umr_context umr_context;
 	struct ib_send_wr wr, *bad;
 	int err;
 
 	memset(&wr, 0, sizeof(wr));
-	wr.wr_id = (u64)(unsigned long)mr;
+	wr.wr_id = (u64)(unsigned long)&umr_context;
 	prep_umr_unreg_wqe(dev, &wr, mr->mmr.key);
 
+	mlx5_ib_init_umr_context(&umr_context);
 	down(&umrc->sem);
-	init_completion(&mr->done);
 	err = ib_post_send(umrc->qp, &wr, &bad);
 	if (err) {
 		up(&umrc->sem);
 		mlx5_ib_dbg(dev, "err %d\n", err);
 		goto error;
+	} else {
+		wait_for_completion(&umr_context.done);
+		up(&umrc->sem);
 	}
-	wait_for_completion(&mr->done);
-	up(&umrc->sem);
-	if (mr->status != IB_WC_SUCCESS) {
+	if (umr_context.status != IB_WC_SUCCESS) {
 		mlx5_ib_warn(dev, "unreg umr failed\n");
 		err = -EFAULT;
 		goto error;
