@@ -257,7 +257,7 @@ struct i915_hw_ppgtt {
 		dma_addr_t *gen8_pt_dma_addr[4];
 	};
 
-	struct i915_hw_context *ctx;
+	struct intel_context *ctx;
 
 	int (*enable)(struct i915_hw_ppgtt *ppgtt);
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,

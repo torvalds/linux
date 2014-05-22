@@ -172,7 +172,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (%s)", obj->ring->name);
 }
 
-static void describe_ctx(struct seq_file *m, struct i915_hw_context *ctx)
+static void describe_ctx(struct seq_file *m, struct intel_context *ctx)
 {
 	seq_putc(m, ctx->is_initialized ? 'I' : 'i');
 	seq_putc(m, ctx->remap_slice ? 'R' : 'r');
@@ -1718,7 +1718,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	struct i915_hw_context *ctx;
+	struct intel_context *ctx;
 	int ret, i;
 
 	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
@@ -1854,7 +1854,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 
 static int per_file_ctx(int id, void *ptr, void *data)
 {
-	struct i915_hw_context *ctx = ptr;
+	struct intel_context *ctx = ptr;
 	struct seq_file *m = data;
 	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(ctx);
 

@@ -599,7 +599,7 @@ struct i915_ctx_hang_stats {
 
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_ID 0
-struct i915_hw_context {
+struct intel_context {
 	struct kref ref;
 	int id;
 	bool is_initialized;
@@ -1753,7 +1753,7 @@ struct drm_i915_gem_request {
 	u32 tail;
 
 	/** Context related to this request */
-	struct i915_hw_context *ctx;
+	struct intel_context *ctx;
 
 	/** Batch buffer related to this request if any */
 	struct drm_i915_gem_object *batch_obj;
@@ -1780,7 +1780,7 @@ struct drm_i915_file_private {
 	} mm;
 	struct idr context_idr;
 
-	struct i915_hw_context *private_default_ctx;
+	struct intel_context *private_default_ctx;
 	atomic_t rps_wait_boost;
 	struct  intel_engine_cs *bsd_ring;
 };
@@ -2399,21 +2399,21 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 int i915_gem_context_enable(struct drm_i915_private *dev_priv);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_engine_cs *ring,
-			struct i915_hw_context *to);
-struct i915_hw_context *
+			struct intel_context *to);
+struct intel_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 void i915_gem_context_free(struct kref *ctx_ref);
-static inline void i915_gem_context_reference(struct i915_hw_context *ctx)
+static inline void i915_gem_context_reference(struct intel_context *ctx)
 {
 	kref_get(&ctx->ref);
 }
 
-static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
+static inline void i915_gem_context_unreference(struct intel_context *ctx)
 {
 	kref_put(&ctx->ref, i915_gem_context_free);
 }
 
-static inline bool i915_gem_context_is_default(const struct i915_hw_context *c)
+static inline bool i915_gem_context_is_default(const struct intel_context *c)
 {
 	return c->id == DEFAULT_CONTEXT_ID;
 }

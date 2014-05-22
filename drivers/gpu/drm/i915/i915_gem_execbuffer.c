@@ -912,11 +912,11 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 	return 0;
 }
 
-static struct i915_hw_context *
+static struct intel_context *
 i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 			  struct intel_engine_cs *ring, const u32 ctx_id)
 {
-	struct i915_hw_context *ctx = NULL;
+	struct intel_context *ctx = NULL;
 	struct i915_ctx_hang_stats *hs;
 
 	if (ring->id != RCS && ctx_id != DEFAULT_CONTEXT_ID)
@@ -1051,7 +1051,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
 	struct intel_engine_cs *ring;
-	struct i915_hw_context *ctx;
+	struct intel_context *ctx;
 	struct i915_address_space *vm;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u64 exec_start = args->batch_start_offset, exec_len;

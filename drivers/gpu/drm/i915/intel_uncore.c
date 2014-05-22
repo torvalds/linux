@@ -921,7 +921,7 @@ int i915_get_reset_stats_ioctl(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_reset_stats *args = data;
 	struct i915_ctx_hang_stats *hs;
-	struct i915_hw_context *ctx;
+	struct intel_context *ctx;
 	int ret;
 
 	if (args->flags || args->pad)

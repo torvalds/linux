@@ -174,8 +174,8 @@ struct  intel_engine_cs {
 
 	wait_queue_head_t irq_queue;
 
-	struct i915_hw_context *default_context;
-	struct i915_hw_context *last_context;
+	struct intel_context *default_context;
+	struct intel_context *last_context;
 
 	struct intel_ring_hangcheck hangcheck;
 
