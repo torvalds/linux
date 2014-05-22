@@ -3077,7 +3077,7 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err4;
 
 	nft_trans_elem(trans) = elem;
-	list_add(&trans->list, &ctx->net->nft.commit_list);
+	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 	return 0;
 
 err4:
@@ -3161,7 +3161,7 @@ static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err2;
 
 	nft_trans_elem(trans) = elem;
-	list_add(&trans->list, &ctx->net->nft.commit_list);
+	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 
 	nft_data_uninit(&elem.key, NFT_DATA_VALUE);
 	if (set->flags & NFT_SET_MAP)
