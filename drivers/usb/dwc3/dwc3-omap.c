@@ -322,7 +322,7 @@ static int dwc3_omap_remove_core(struct device *dev, void *c)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
-	platform_device_unregister(pdev);
+	of_device_unregister(pdev);
 
 	return 0;
 }
