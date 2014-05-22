@@ -347,18 +347,7 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned int cpu = smp_processor_id();
 	unsigned int pending;
 
-#ifdef CONFIG_SIBYTE_BCM1480_PROF
-	/* Set compare to count to silence count/compare timer interrupts */
-	write_c0_compare(read_c0_count());
-#endif
-
 	pending = read_c0_cause() & read_c0_status();
-
-#ifdef CONFIG_SIBYTE_BCM1480_PROF
-	if (pending & CAUSEF_IP7)	/* Cpu performance counter interrupt */
-		sbprof_cpu_intr();
-	else
-#endif
 
 	if (pending & CAUSEF_IP4)
 		do_IRQ(K_BCM1480_INT_TIMER_0 + cpu);
