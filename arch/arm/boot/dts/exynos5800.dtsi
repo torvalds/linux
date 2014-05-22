@@ -22,3 +22,7 @@
 &clock {
 	compatible = "samsung,exynos5800-clock";
 };
+
+&mfc {
+	compatible = "samsung,mfc-v8";
+};
