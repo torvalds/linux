@@ -2045,9 +2045,6 @@ static void rtl8192_qos_activate(struct work_struct *work)
 	u32 u4bAcParam;
 	int i;
 
-	if (priv == NULL)
-		return;
-
 	mutex_lock(&priv->mutex);
 	if (priv->ieee80211->state != IEEE80211_LINKED)
 		goto success;
