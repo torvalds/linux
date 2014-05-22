@@ -83,7 +83,7 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 		return true;
 
 	/* no more parents..stop recursion */
-	if (net_dev->iflink == net_dev->ifindex)
+	if (net_dev->iflink == 0 || net_dev->iflink == net_dev->ifindex)
 		return false;
 
 	/* recurse over the parent device */
