@@ -273,7 +273,7 @@
 	sata_phy: sata-phy@12170000 {
 		compatible = "samsung,exynos5250-sata-phy";
 		reg = <0x12170000 0x1ff>;
-		clocks = <&clock 287>;
+		clocks = <&clock CLK_SATA_PHYCTRL>;
 		clock-names = "sata_phyctrl";
 		#phy-cells = <0>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
@@ -774,7 +774,7 @@
 		compatible = "samsung,exynos4210-secss";
 		reg = <0x10830000 0x10000>;
 		interrupts = <0 112 0>;
-		clocks = <&clock 348>;
+		clocks = <&clock CLK_SSS>;
 		clock-names = "secss";
 	};
 };
