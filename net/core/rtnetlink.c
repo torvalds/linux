@@ -767,8 +767,8 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev,
 		size += num_vfs *
 			(nla_total_size(sizeof(struct ifla_vf_mac)) +
 			 nla_total_size(sizeof(struct ifla_vf_vlan)) +
-			 nla_total_size(sizeof(struct ifla_vf_tx_rate)) +
-			 nla_total_size(sizeof(struct ifla_vf_spoofchk)));
+			 nla_total_size(sizeof(struct ifla_vf_spoofchk)) +
+			 nla_total_size(sizeof(struct ifla_vf_rate)));
 		return size;
 	} else
 		return 0;
@@ -1034,6 +1034,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			struct ifla_vf_info ivi;
 			struct ifla_vf_mac vf_mac;
 			struct ifla_vf_vlan vf_vlan;
+			struct ifla_vf_rate vf_rate;
 			struct ifla_vf_tx_rate vf_tx_rate;
 			struct ifla_vf_spoofchk vf_spoofchk;
 			struct ifla_vf_link_state vf_linkstate;
@@ -1054,6 +1055,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 				break;
 			vf_mac.vf =
 				vf_vlan.vf =
+				vf_rate.vf =
 				vf_tx_rate.vf =
 				vf_spoofchk.vf =
 				vf_linkstate.vf = ivi.vf;
@@ -1061,7 +1063,9 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			memcpy(vf_mac.mac, ivi.mac, sizeof(ivi.mac));
 			vf_vlan.vlan = ivi.vlan;
 			vf_vlan.qos = ivi.qos;
-			vf_tx_rate.rate = ivi.tx_rate;
+			vf_tx_rate.rate = ivi.max_tx_rate;
+			vf_rate.min_tx_rate = ivi.min_tx_rate;
+			vf_rate.max_tx_rate = ivi.max_tx_rate;
 			vf_spoofchk.setting = ivi.spoofchk;
 			vf_linkstate.link_state = ivi.linkstate;
 			vf = nla_nest_start(skb, IFLA_VF_INFO);
@@ -1071,6 +1075,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			}
 			if (nla_put(skb, IFLA_VF_MAC, sizeof(vf_mac), &vf_mac) ||
 			    nla_put(skb, IFLA_VF_VLAN, sizeof(vf_vlan), &vf_vlan) ||
+			    nla_put(skb, IFLA_VF_RATE, sizeof(vf_rate),
+				    &vf_rate) ||
 			    nla_put(skb, IFLA_VF_TX_RATE, sizeof(vf_tx_rate),
 				    &vf_tx_rate) ||
 			    nla_put(skb, IFLA_VF_SPOOFCHK, sizeof(vf_spoofchk),
@@ -1177,6 +1183,8 @@ static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
 				    .len = sizeof(struct ifla_vf_tx_rate) },
 	[IFLA_VF_SPOOFCHK]	= { .type = NLA_BINARY,
 				    .len = sizeof(struct ifla_vf_spoofchk) },
+	[IFLA_VF_RATE]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_rate) },
 };
 
 static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
@@ -1336,11 +1344,29 @@ static int do_setvfinfo(struct net_device *dev, struct nlattr *attr)
 		}
 		case IFLA_VF_TX_RATE: {
 			struct ifla_vf_tx_rate *ivt;
+			struct ifla_vf_info ivf;
 			ivt = nla_data(vf);
 			err = -EOPNOTSUPP;
-			if (ops->ndo_set_vf_tx_rate)
-				err = ops->ndo_set_vf_tx_rate(dev, ivt->vf,
-							      ivt->rate);
+			if (ops->ndo_get_vf_config)
+				err = ops->ndo_get_vf_config(dev, ivt->vf,
+							     &ivf);
+			if (err)
+				break;
+			err = -EOPNOTSUPP;
+			if (ops->ndo_set_vf_rate)
+				err = ops->ndo_set_vf_rate(dev, ivt->vf,
+							   ivf.min_tx_rate,
+							   ivt->rate);
+			break;
+		}
+		case IFLA_VF_RATE: {
+			struct ifla_vf_rate *ivt;
+			ivt = nla_data(vf);
+			err = -EOPNOTSUPP;
+			if (ops->ndo_set_vf_rate)
+				err = ops->ndo_set_vf_rate(dev, ivt->vf,
+							   ivt->min_tx_rate,
+							   ivt->max_tx_rate);
 			break;
 		}
 		case IFLA_VF_SPOOFCHK: {

@@ -1222,7 +1222,8 @@ void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter)
 	}
 }
 
-int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
+int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int min_tx_rate,
+			int max_tx_rate)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int link_speed;
@@ -1240,13 +1241,16 @@ int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
 	if (link_speed != 10000)
 		return -EINVAL;
 
+	if (min_tx_rate)
+		return -EINVAL;
+
 	/* rate limit cannot be less than 10Mbs or greater than link speed */
-	if (tx_rate && ((tx_rate <= 10) || (tx_rate > link_speed)))
+	if (max_tx_rate && ((max_tx_rate <= 10) || (max_tx_rate > link_speed)))
 		return -EINVAL;
 
 	/* store values */
 	adapter->vf_rate_link_speed = link_speed;
-	adapter->vfinfo[vf].tx_rate = tx_rate;
+	adapter->vfinfo[vf].tx_rate = max_tx_rate;
 
 	/* update hardware configuration */
 	ixgbe_set_vf_rate_limit(adapter, vf);
@@ -1288,7 +1292,8 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 		return -EINVAL;
 	ivi->vf = vf;
 	memcpy(&ivi->mac, adapter->vfinfo[vf].vf_mac_addresses, ETH_ALEN);
-	ivi->tx_rate = adapter->vfinfo[vf].tx_rate;
+	ivi->max_tx_rate = adapter->vfinfo[vf].tx_rate;
+	ivi->min_tx_rate = 0;
 	ivi->vlan = adapter->vfinfo[vf].pf_vlan;
 	ivi->qos = adapter->vfinfo[vf].pf_qos;
 	ivi->spoofchk = adapter->vfinfo[vf].spoofchk_enabled;

@@ -1302,7 +1302,8 @@ static int be_get_vf_config(struct net_device *netdev, int vf,
 		return -EINVAL;
 
 	vi->vf = vf;
-	vi->tx_rate = vf_cfg->tx_rate;
+	vi->max_tx_rate = vf_cfg->tx_rate;
+	vi->min_tx_rate = 0;
 	vi->vlan = vf_cfg->vlan_tag & VLAN_VID_MASK;
 	vi->qos = vf_cfg->vlan_tag >> VLAN_PRIO_SHIFT;
 	memcpy(&vi->mac, vf_cfg->mac_addr, ETH_ALEN);
@@ -1342,7 +1343,8 @@ static int be_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 	return status;
 }
 
-static int be_set_vf_tx_rate(struct net_device *netdev, int vf, int rate)
+static int be_set_vf_tx_rate(struct net_device *netdev, int vf,
+			     int min_tx_rate, int max_tx_rate)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
@@ -1353,18 +1355,21 @@ static int be_set_vf_tx_rate(struct net_device *netdev, int vf, int rate)
 	if (vf >= adapter->num_vfs)
 		return -EINVAL;
 
-	if (rate < 100 || rate > 10000) {
+	if (min_tx_rate)
+		return -EINVAL;
+
+	if (max_tx_rate < 100 || max_tx_rate > 10000) {
 		dev_err(&adapter->pdev->dev,
-			"tx rate must be between 100 and 10000 Mbps\n");
+			"max tx rate must be between 100 and 10000 Mbps\n");
 		return -EINVAL;
 	}
 
-	status = be_cmd_config_qos(adapter, rate / 10, vf + 1);
+	status = be_cmd_config_qos(adapter, max_tx_rate / 10, vf + 1);
 	if (status)
 		dev_err(&adapter->pdev->dev,
-			"tx rate %d on VF %d failed\n", rate, vf);
+			"max tx rate %d on VF %d failed\n", max_tx_rate, vf);
 	else
-		adapter->vf_cfg[vf].tx_rate = rate;
+		adapter->vf_cfg[vf].tx_rate = max_tx_rate;
 	return status;
 }
 static int be_set_vf_link_state(struct net_device *netdev, int vf,
@@ -4257,7 +4262,7 @@ static const struct net_device_ops be_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= be_vlan_rem_vid,
 	.ndo_set_vf_mac		= be_set_vf_mac,
 	.ndo_set_vf_vlan	= be_set_vf_vlan,
-	.ndo_set_vf_tx_rate	= be_set_vf_tx_rate,
+	.ndo_set_vf_rate	= be_set_vf_tx_rate,
 	.ndo_get_vf_config	= be_get_vf_config,
 	.ndo_set_vf_link_state  = be_set_vf_link_state,
 #ifdef CONFIG_NET_POLL_CONTROLLER

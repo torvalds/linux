@@ -525,7 +525,7 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 #endif
 #ifdef CONFIG_QLCNIC_SRIOV
 	.ndo_set_vf_mac		= qlcnic_sriov_set_vf_mac,
-	.ndo_set_vf_tx_rate	= qlcnic_sriov_set_vf_tx_rate,
+	.ndo_set_vf_rate	= qlcnic_sriov_set_vf_tx_rate,
 	.ndo_get_vf_config	= qlcnic_sriov_get_vf_config,
 	.ndo_set_vf_vlan	= qlcnic_sriov_set_vf_vlan,
 	.ndo_set_vf_spoofchk	= qlcnic_sriov_set_vf_spoofchk,

@@ -116,7 +116,8 @@ void i40e_vc_notify_vf_reset(struct i40e_vf *vf);
 int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac);
 int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 			      int vf_id, u16 vlan_id, u8 qos);
-int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int tx_rate);
+int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
+		       int max_tx_rate);
 int i40e_ndo_get_vf_config(struct net_device *netdev,
 			   int vf_id, struct ifla_vf_info *ivi);
 int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link);

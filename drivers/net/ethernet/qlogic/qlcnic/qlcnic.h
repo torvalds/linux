@@ -1319,6 +1319,7 @@ struct qlcnic_eswitch {
 #define QL_STATUS_INVALID_PARAM	-1
 
 #define MAX_BW			100	/* % of link speed */
+#define MIN_BW			1	/* % of link speed */
 #define MAX_VLAN_ID		4095
 #define MIN_VLAN_ID		2
 #define DEFAULT_MAC_LEARN	1

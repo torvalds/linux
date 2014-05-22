@@ -1848,7 +1848,8 @@ int qlcnic_sriov_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	return 0;
 }
 
-int qlcnic_sriov_set_vf_tx_rate(struct net_device *netdev, int vf, int tx_rate)
+int qlcnic_sriov_set_vf_tx_rate(struct net_device *netdev, int vf,
+				int min_tx_rate, int max_tx_rate)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
@@ -1863,35 +1864,52 @@ int qlcnic_sriov_set_vf_tx_rate(struct net_device *netdev, int vf, int tx_rate)
 	if (vf >= sriov->num_vfs)
 		return -EINVAL;
 
-	if (tx_rate >= 10000 || tx_rate < 100) {
-		netdev_err(netdev,
-			   "Invalid Tx rate, allowed range is [%d - %d]",
-			   QLC_VF_MIN_TX_RATE, QLC_VF_MAX_TX_RATE);
-		return -EINVAL;
-	}
-
-	if (tx_rate == 0)
-		tx_rate = 10000;
-
 	vf_info = &sriov->vf_info[vf];
 	vp = vf_info->vp;
 	vpid = vp->handle;
+
+	if (!min_tx_rate)
+		min_tx_rate = QLC_VF_MIN_TX_RATE;
+
+	if (max_tx_rate &&
+	    (max_tx_rate >= 10000 || max_tx_rate < min_tx_rate)) {
+		netdev_err(netdev,
+			   "Invalid max Tx rate, allowed range is [%d - %d]",
+			   min_tx_rate, QLC_VF_MAX_TX_RATE);
+		return -EINVAL;
+	}
+
+	if (!max_tx_rate)
+		max_tx_rate = 10000;
+
+	if (min_tx_rate &&
+	    (min_tx_rate > max_tx_rate || min_tx_rate < QLC_VF_MIN_TX_RATE)) {
+		netdev_err(netdev,
+			   "Invalid min Tx rate, allowed range is [%d - %d]",
+			   QLC_VF_MIN_TX_RATE, max_tx_rate);
+		return -EINVAL;
+	}
 
 	if (test_bit(QLC_BC_VF_STATE, &vf_info->state)) {
 		if (qlcnic_sriov_get_vf_vport_info(adapter, &nic_info, vpid))
 			return -EIO;
 
-		nic_info.max_tx_bw = tx_rate / 100;
+		nic_info.max_tx_bw = max_tx_rate / 100;
+		nic_info.min_tx_bw = min_tx_rate / 100;
 		nic_info.bit_offsets = BIT_0;
 
 		if (qlcnic_sriov_pf_set_vport_info(adapter, &nic_info, vpid))
 			return -EIO;
 	}
 
-	vp->max_tx_bw = tx_rate / 100;
+	vp->max_tx_bw = max_tx_rate / 100;
 	netdev_info(netdev,
-		    "Setting Tx rate %d (Mbps), %d %% of PF bandwidth, for VF %d\n",
-		    tx_rate, vp->max_tx_bw, vf);
+		    "Setting Max Tx rate %d (Mbps), %d %% of PF bandwidth, for VF %d\n",
+		    max_tx_rate, vp->max_tx_bw, vf);
+	vp->min_tx_bw = min_tx_rate / 100;
+	netdev_info(netdev,
+		    "Setting Min Tx rate %d (Mbps), %d %% of PF bandwidth, for VF %d\n",
+		    min_tx_rate, vp->min_tx_bw, vf);
 	return 0;
 }
 
@@ -1990,9 +2008,13 @@ int qlcnic_sriov_get_vf_config(struct net_device *netdev,
 	ivi->qos = vp->qos;
 	ivi->spoofchk = vp->spoofchk;
 	if (vp->max_tx_bw == MAX_BW)
-		ivi->tx_rate = 0;
+		ivi->max_tx_rate = 0;
 	else
-		ivi->tx_rate = vp->max_tx_bw * 100;
+		ivi->max_tx_rate = vp->max_tx_bw * 100;
+	if (vp->min_tx_bw == MIN_BW)
+		ivi->min_tx_rate = 0;
+	else
+		ivi->min_tx_rate = vp->min_tx_bw * 100;
 
 	ivi->vf = vf;
 	return 0;

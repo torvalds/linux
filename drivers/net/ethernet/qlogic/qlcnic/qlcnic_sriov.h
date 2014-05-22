@@ -233,7 +233,7 @@ bool qlcnic_sriov_soft_flr_check(struct qlcnic_adapter *,
 void qlcnic_sriov_pf_reset(struct qlcnic_adapter *);
 int qlcnic_sriov_pf_reinit(struct qlcnic_adapter *);
 int qlcnic_sriov_set_vf_mac(struct net_device *, int, u8 *);
-int qlcnic_sriov_set_vf_tx_rate(struct net_device *, int, int);
+int qlcnic_sriov_set_vf_tx_rate(struct net_device *, int, int, int);
 int qlcnic_sriov_get_vf_config(struct net_device *, int ,
 			       struct ifla_vf_info *);
 int qlcnic_sriov_set_vf_vlan(struct net_device *, int, u16, u8);

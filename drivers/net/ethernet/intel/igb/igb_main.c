@@ -169,7 +169,7 @@ static void igb_restore_vf_multicasts(struct igb_adapter *adapter);
 static int igb_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac);
 static int igb_ndo_set_vf_vlan(struct net_device *netdev,
 			       int vf, u16 vlan, u8 qos);
-static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate);
+static int igb_ndo_set_vf_bw(struct net_device *, int, int, int);
 static int igb_ndo_set_vf_spoofchk(struct net_device *netdev, int vf,
 				   bool setting);
 static int igb_ndo_get_vf_config(struct net_device *netdev, int vf,
@@ -2084,7 +2084,7 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= igb_vlan_rx_kill_vid,
 	.ndo_set_vf_mac		= igb_ndo_set_vf_mac,
 	.ndo_set_vf_vlan	= igb_ndo_set_vf_vlan,
-	.ndo_set_vf_tx_rate	= igb_ndo_set_vf_bw,
+	.ndo_set_vf_rate	= igb_ndo_set_vf_bw,
 	.ndo_set_vf_spoofchk	= igb_ndo_set_vf_spoofchk,
 	.ndo_get_vf_config	= igb_ndo_get_vf_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -7879,7 +7879,8 @@ static void igb_check_vf_rate_limit(struct igb_adapter *adapter)
 	}
 }
 
-static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
+static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf,
+			     int min_tx_rate, int max_tx_rate)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -7888,15 +7889,19 @@ static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
 	if (hw->mac.type != e1000_82576)
 		return -EOPNOTSUPP;
 
+	if (min_tx_rate)
+		return -EINVAL;
+
 	actual_link_speed = igb_link_mbps(adapter->link_speed);
 	if ((vf >= adapter->vfs_allocated_count) ||
 	    (!(rd32(E1000_STATUS) & E1000_STATUS_LU)) ||
-	    (tx_rate < 0) || (tx_rate > actual_link_speed))
+	    (max_tx_rate < 0) ||
+	    (max_tx_rate > actual_link_speed))
 		return -EINVAL;
 
 	adapter->vf_rate_link_speed = actual_link_speed;
-	adapter->vf_data[vf].tx_rate = (u16)tx_rate;
-	igb_set_vf_rate_limit(hw, vf, tx_rate, actual_link_speed);
+	adapter->vf_data[vf].tx_rate = (u16)max_tx_rate;
+	igb_set_vf_rate_limit(hw, vf, max_tx_rate, actual_link_speed);
 
 	return 0;
 }
@@ -7936,7 +7941,8 @@ static int igb_ndo_get_vf_config(struct net_device *netdev,
 		return -EINVAL;
 	ivi->vf = vf;
 	memcpy(&ivi->mac, adapter->vf_data[vf].vf_mac_addresses, ETH_ALEN);
-	ivi->tx_rate = adapter->vf_data[vf].tx_rate;
+	ivi->max_tx_rate = adapter->vf_data[vf].tx_rate;
+	ivi->min_tx_rate = 0;
 	ivi->vlan = adapter->vf_data[vf].pf_vlan;
 	ivi->qos = adapter->vf_data[vf].pf_qos;
 	ivi->spoofchk = adapter->vf_data[vf].spoofchk_enabled;
