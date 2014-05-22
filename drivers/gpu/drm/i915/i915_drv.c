@@ -811,17 +811,17 @@ int i915_reset(struct drm_device *dev)
 		}
 
 		/*
-		 * FIXME: This is horribly race against concurrent pageflip and
-		 * vblank wait ioctls since they can observe dev->irqs_disabled
-		 * being false when they shouldn't be able to.
+		 * FIXME: This races pretty badly against concurrent holders of
+		 * ring interrupts. This is possible since we've started to drop
+		 * dev->struct_mutex in select places when waiting for the gpu.
 		 */
-		drm_irq_uninstall(dev);
-		drm_irq_install(dev, dev->pdev->irq);
 
-		/* rps/rc6 re-init is necessary to restore state lost after the
-		 * reset and the re-install of drm irq. Skip for ironlake per
+		/*
+		 * rps/rc6 re-init is necessary to restore state lost after the
+		 * reset and the re-install of gt irqs. Skip for ironlake per
 		 * previous concerns that it doesn't respond well to some forms
-		 * of re-init after reset. */
+		 * of re-init after reset.
+		 */
 		if (INTEL_INFO(dev)->gen > 5)
 			intel_reset_gt_powersave(dev);
 
