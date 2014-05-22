@@ -280,6 +280,7 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct sunxi_pinctrl_group *g = &pctl->groups[group];
 	unsigned long flags;
+	unsigned pin = g->pin - pctl->desc->pin_base;
 	u32 val, mask;
 	u16 strength;
 	u8 dlevel;
@@ -303,23 +304,23 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 			 *   3: 40mA
 			 */
 			dlevel = strength / 10 - 1;
-			val = readl(pctl->membase + sunxi_dlevel_reg(g->pin));
-			mask = DLEVEL_PINS_MASK << sunxi_dlevel_offset(g->pin);
+			val = readl(pctl->membase + sunxi_dlevel_reg(pin));
+			mask = DLEVEL_PINS_MASK << sunxi_dlevel_offset(pin);
 			writel((val & ~mask)
-				| dlevel << sunxi_dlevel_offset(g->pin),
-				pctl->membase + sunxi_dlevel_reg(g->pin));
+				| dlevel << sunxi_dlevel_offset(pin),
+				pctl->membase + sunxi_dlevel_reg(pin));
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			val = readl(pctl->membase + sunxi_pull_reg(g->pin));
-			mask = PULL_PINS_MASK << sunxi_pull_offset(g->pin);
-			writel((val & ~mask) | 1 << sunxi_pull_offset(g->pin),
-				pctl->membase + sunxi_pull_reg(g->pin));
+			val = readl(pctl->membase + sunxi_pull_reg(pin));
+			mask = PULL_PINS_MASK << sunxi_pull_offset(pin);
+			writel((val & ~mask) | 1 << sunxi_pull_offset(pin),
+				pctl->membase + sunxi_pull_reg(pin));
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			val = readl(pctl->membase + sunxi_pull_reg(g->pin));
-			mask = PULL_PINS_MASK << sunxi_pull_offset(g->pin);
-			writel((val & ~mask) | 2 << sunxi_pull_offset(g->pin),
-				pctl->membase + sunxi_pull_reg(g->pin));
+			val = readl(pctl->membase + sunxi_pull_reg(pin));
+			mask = PULL_PINS_MASK << sunxi_pull_offset(pin);
+			writel((val & ~mask) | 2 << sunxi_pull_offset(pin),
+				pctl->membase + sunxi_pull_reg(pin));
 			break;
 		default:
 			break;
@@ -376,6 +377,7 @@ static void sunxi_pmx_set(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pctl->lock, flags);
 
+	pin -= pctl->desc->pin_base;
 	val = readl(pctl->membase + sunxi_mux_reg(pin));
 	mask = MUX_PINS_MASK << sunxi_mux_offset(pin);
 	writel((val & ~mask) | config << sunxi_mux_offset(pin),
