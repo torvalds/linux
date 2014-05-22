@@ -735,7 +735,8 @@ int ioat2_check_space_lock(struct ioat2_dma_chan *ioat, int num_descs)
 	 * called under bh_disabled so we need to trigger the timer
 	 * event directly
 	 */
-	if (jiffies > chan->timer.expires && timer_pending(&chan->timer)) {
+	if (time_is_before_jiffies(chan->timer.expires)
+	    && timer_pending(&chan->timer)) {
 		struct ioatdma_device *device = chan->device;
 
 		mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
