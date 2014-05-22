@@ -173,6 +173,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	local_irq_enable();
 	local_fiq_enable();
 
+	local_dbg_enable();
 	local_irq_enable();
 	local_fiq_enable();
 
