@@ -578,21 +578,21 @@ static const struct hdmiphy_config hdmiphy_5420_configs[] = {
 	},
 };
 
-struct hdmi_driver_data exynos5420_hdmi_driver_data = {
+static struct hdmi_driver_data exynos5420_hdmi_driver_data = {
 	.type		= HDMI_TYPE14,
 	.phy_confs	= hdmiphy_5420_configs,
 	.phy_conf_count	= ARRAY_SIZE(hdmiphy_5420_configs),
 	.is_apb_phy	= 1,
 };
 
-struct hdmi_driver_data exynos4212_hdmi_driver_data = {
+static struct hdmi_driver_data exynos4212_hdmi_driver_data = {
 	.type		= HDMI_TYPE14,
 	.phy_confs	= hdmiphy_v14_configs,
 	.phy_conf_count	= ARRAY_SIZE(hdmiphy_v14_configs),
 	.is_apb_phy	= 0,
 };
 
-struct hdmi_driver_data exynos5_hdmi_driver_data = {
+static struct hdmi_driver_data exynos5_hdmi_driver_data = {
 	.type		= HDMI_TYPE14,
 	.phy_confs	= hdmiphy_v13_configs,
 	.phy_conf_count	= ARRAY_SIZE(hdmiphy_v13_configs),
