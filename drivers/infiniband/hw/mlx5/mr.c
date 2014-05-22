@@ -730,7 +730,7 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	struct mlx5_ib_mr *mr;
 	struct ib_sge sg;
 	int size = sizeof(u64) * npages;
-	int err;
+	int err = 0;
 	int i;
 
 	for (i = 0; i < 1; i++) {
@@ -751,7 +751,7 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	mr->pas = kmalloc(size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
 	if (!mr->pas) {
 		err = -ENOMEM;
-		goto error;
+		goto free_mr;
 	}
 
 	mlx5_ib_populate_pas(dev, umem, page_shift,
@@ -760,9 +760,8 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	mr->dma = dma_map_single(ddev, mr_align(mr->pas, MLX5_UMR_ALIGN), size,
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(ddev, mr->dma)) {
-		kfree(mr->pas);
 		err = -ENOMEM;
-		goto error;
+		goto free_pas;
 	}
 
 	memset(&wr, 0, sizeof(wr));
@@ -778,26 +777,28 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	err = ib_post_send(umrc->qp, &wr, &bad);
 	if (err) {
 		mlx5_ib_warn(dev, "post send failed, err %d\n", err);
-		up(&umrc->sem);
-		goto error;
+		goto unmap_dma;
 	}
 	wait_for_completion(&mr->done);
-	up(&umrc->sem);
-
-	dma_unmap_single(ddev, mr->dma, size, DMA_TO_DEVICE);
-	kfree(mr->pas);
-
 	if (mr->status != IB_WC_SUCCESS) {
 		mlx5_ib_warn(dev, "reg umr failed\n");
 		err = -EFAULT;
-		goto error;
+	}
+
+unmap_dma:
+	up(&umrc->sem);
+	dma_unmap_single(ddev, mr->dma, size, DMA_TO_DEVICE);
+
+free_pas:
+	kfree(mr->pas);
+
+free_mr:
+	if (err) {
+		free_cached_mr(dev, mr);
+		return ERR_PTR(err);
 	}
 
 	return mr;
-
-error:
-	free_cached_mr(dev, mr);
-	return ERR_PTR(err);
 }
 
 static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
