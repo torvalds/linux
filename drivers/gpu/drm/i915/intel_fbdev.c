@@ -132,6 +132,16 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	mutex_lock(&dev->struct_mutex);
 
+	if (intel_fb &&
+	    (sizes->fb_width > intel_fb->base.width ||
+	     sizes->fb_height > intel_fb->base.height)) {
+		DRM_DEBUG_KMS("BIOS fb too small (%dx%d), we require (%dx%d),"
+			      " releasing it\n",
+			      intel_fb->base.width, intel_fb->base.height,
+			      sizes->fb_width, sizes->fb_height);
+		drm_framebuffer_unreference(&intel_fb->base);
+		intel_fb = ifbdev->fb = NULL;
+	}
 	if (!intel_fb || WARN_ON(!intel_fb->obj)) {
 		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);
@@ -375,6 +385,15 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 				      fb_conn->connector->base.id);
 			modes[i] = drm_has_preferred_mode(fb_conn, width,
 							  height);
+		}
+
+		/* No preferred mode marked by the EDID? Are there any modes? */
+		if (!modes[i] && !list_empty(&connector->modes)) {
+			DRM_DEBUG_KMS("using first mode listed on connector %s\n",
+				      drm_get_connector_name(connector));
+			modes[i] = list_first_entry(&connector->modes,
+						    struct drm_display_mode,
+						    head);
 		}
 
 		/* last resort: use current mode */

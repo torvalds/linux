@@ -145,6 +145,7 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 
 	plane->crtc = crtc;
 	plane->fb = crtc->primary->fb;
+	drm_framebuffer_reference(plane->fb);
 
 	return 0;
 }

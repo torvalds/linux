@@ -348,7 +348,7 @@ struct cgrp_cset_link {
  * reference-counted, to improve performance when child cgroups
  * haven't been created.
  */
-static struct css_set init_css_set = {
+struct css_set init_css_set = {
 	.refcount		= ATOMIC_INIT(1),
 	.cgrp_links		= LIST_HEAD_INIT(init_css_set.cgrp_links),
 	.tasks			= LIST_HEAD_INIT(init_css_set.tasks),
@@ -1495,7 +1495,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	 */
 	if (!use_task_css_set_links)
 		cgroup_enable_task_cg_lists();
-retry:
+
 	mutex_lock(&cgroup_tree_mutex);
 	mutex_lock(&cgroup_mutex);
 
@@ -1503,7 +1503,7 @@ retry:
 	ret = parse_cgroupfs_options(data, &opts);
 	if (ret)
 		goto out_unlock;
-
+retry:
 	/* look for a matching existing root */
 	if (!opts.subsys_mask && !opts.none && !opts.name) {
 		cgrp_dfl_root_visible = true;
@@ -1562,9 +1562,9 @@ retry:
 		if (!atomic_inc_not_zero(&root->cgrp.refcnt)) {
 			mutex_unlock(&cgroup_mutex);
 			mutex_unlock(&cgroup_tree_mutex);
-			kfree(opts.release_agent);
-			kfree(opts.name);
 			msleep(10);
+			mutex_lock(&cgroup_tree_mutex);
+			mutex_lock(&cgroup_mutex);
 			goto retry;
 		}
 

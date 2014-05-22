@@ -258,7 +258,7 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	clk_enable(src->clk);
+	clk_prepare_enable(src->clk);
 
 	return 0;
 }
@@ -269,7 +269,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	clk_disable(src->clk);
+	clk_disable_unprepare(src->clk);
 
 	return 0;
 }

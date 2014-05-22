@@ -155,7 +155,7 @@ xfs_dir_fsync(
 
 	if (!lsn)
 		return 0;
-	return _xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
+	return -_xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
 }
 
 STATIC int
@@ -295,7 +295,7 @@ xfs_file_aio_read(
 		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
 
 		if (inode->i_mapping->nrpages) {
-			ret = -filemap_write_and_wait_range(
+			ret = filemap_write_and_wait_range(
 							VFS_I(ip)->i_mapping,
 							pos, -1);
 			if (ret) {
@@ -837,7 +837,7 @@ xfs_file_fallocate(
 		unsigned blksize_mask = (1 << inode->i_blkbits) - 1;
 
 		if (offset & blksize_mask || len & blksize_mask) {
-			error = -EINVAL;
+			error = EINVAL;
 			goto out_unlock;
 		}
 
@@ -846,7 +846,7 @@ xfs_file_fallocate(
 		 * in which case it is effectively a truncate operation
 		 */
 		if (offset + len >= i_size_read(inode)) {
-			error = -EINVAL;
+			error = EINVAL;
 			goto out_unlock;
 		}
 
