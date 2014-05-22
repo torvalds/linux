@@ -1558,6 +1558,8 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	init_completion(&req->r_safe_completion);
 	INIT_LIST_HEAD(&req->r_unsafe_item);
 
+	req->r_stamp = CURRENT_TIME;
+
 	req->r_op = op;
 	req->r_direct_mode = mode;
 	return req;
@@ -1783,7 +1785,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	}
 
 	len = sizeof(*head) +
-		pathlen1 + pathlen2 + 2*(1 + sizeof(u32) + sizeof(u64));
+		pathlen1 + pathlen2 + 2*(1 + sizeof(u32) + sizeof(u64)) +
+		sizeof(struct timespec);
 
 	/* calculate (max) length for cap releases */
 	len += sizeof(struct ceph_mds_request_release) *
@@ -1800,6 +1803,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		goto out_free2;
 	}
 
+	msg->hdr.version = 2;
 	msg->hdr.tid = cpu_to_le64(req->r_tid);
 
 	head = msg->front.iov_base;
@@ -1835,6 +1839,9 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		      req->r_old_dentry->d_inode,
 		      mds, req->r_old_inode_drop, req->r_old_inode_unless, 0);
 	head->num_releases = cpu_to_le16(releases);
+
+	/* time stamp */
+	ceph_encode_copy(&p, &req->r_stamp, sizeof(req->r_stamp));
 
 	BUG_ON(p > end);
 	msg->front.iov_len = p - msg->front.iov_base;
