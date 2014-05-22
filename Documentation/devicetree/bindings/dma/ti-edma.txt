@@ -29,6 +29,6 @@ edma: edma@49000000 {
 	dma-channels = <64>;
 	ti,edma-regions = <4>;
 	ti,edma-slots = <256>;
-	ti,edma-xbar-event-map = <1 12
-				  2 13>;
+	ti,edma-xbar-event-map = /bits/ 16 <1 12
+					    2 13>;
 };

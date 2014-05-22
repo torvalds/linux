@@ -242,7 +242,7 @@ static void do_powersaver(int cx_address, unsigned int mults_index,
  * Sets a new clock ratio.
  */
 
-static void longhaul_setstate(struct cpufreq_policy *policy,
+static int longhaul_setstate(struct cpufreq_policy *policy,
 		unsigned int table_index)
 {
 	unsigned int mults_index;
@@ -258,18 +258,18 @@ static void longhaul_setstate(struct cpufreq_policy *policy,
 	/* Safety precautions */
 	mult = mults[mults_index & 0x1f];
 	if (mult == -1)
-		return;
+		return -EINVAL;
+
 	speed = calc_speed(mult);
 	if ((speed > highest_speed) || (speed < lowest_speed))
-		return;
+		return -EINVAL;
+
 	/* Voltage transition before frequency transition? */
 	if (can_scale_voltage && longhaul_index < table_index)
 		dir = 1;
 
 	freqs.old = calc_speed(longhaul_get_cpu_mult());
 	freqs.new = speed;
-
-	cpufreq_freq_transition_begin(policy, &freqs);
 
 	pr_debug("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
 			fsb, mult/10, mult%10, print_speed(speed/1000));
@@ -385,12 +385,14 @@ retry_loop:
 			goto retry_loop;
 		}
 	}
-	/* Report true CPU frequency */
-	cpufreq_freq_transition_end(policy, &freqs, 0);
 
-	if (!bm_timeout)
+	if (!bm_timeout) {
 		printk(KERN_INFO PFX "Warning: Timeout while waiting for "
 				"idle PCI bus.\n");
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 /*
@@ -631,9 +633,10 @@ static int longhaul_target(struct cpufreq_policy *policy,
 	unsigned int i;
 	unsigned int dir = 0;
 	u8 vid, current_vid;
+	int retval = 0;
 
 	if (!can_scale_voltage)
-		longhaul_setstate(policy, table_index);
+		retval = longhaul_setstate(policy, table_index);
 	else {
 		/* On test system voltage transitions exceeding single
 		 * step up or down were turning motherboard off. Both
@@ -648,7 +651,7 @@ static int longhaul_target(struct cpufreq_policy *policy,
 		while (i != table_index) {
 			vid = (longhaul_table[i].driver_data >> 8) & 0x1f;
 			if (vid != current_vid) {
-				longhaul_setstate(policy, i);
+				retval = longhaul_setstate(policy, i);
 				current_vid = vid;
 				msleep(200);
 			}
@@ -657,10 +660,11 @@ static int longhaul_target(struct cpufreq_policy *policy,
 			else
 				i--;
 		}
-		longhaul_setstate(policy, table_index);
+		retval = longhaul_setstate(policy, table_index);
 	}
+
 	longhaul_index = table_index;
-	return 0;
+	return retval;
 }
 
 
@@ -968,7 +972,15 @@ static void __exit longhaul_exit(void)
 
 	for (i = 0; i < numscales; i++) {
 		if (mults[i] == maxmult) {
+			struct cpufreq_freqs freqs;
+
+			freqs.old = policy->cur;
+			freqs.new = longhaul_table[i].frequency;
+			freqs.flags = 0;
+
+			cpufreq_freq_transition_begin(policy, &freqs);
 			longhaul_setstate(policy, i);
+			cpufreq_freq_transition_end(policy, &freqs, 0);
 			break;
 		}
 	}

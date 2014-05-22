@@ -72,7 +72,7 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is uses for IPs
+	 * The soc node represents the soc top level view. It is used for IPs
 	 * that are not memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
@@ -94,8 +94,8 @@
 
 	/*
 	 * XXX: Use a flat representation of the AM33XX interconnect.
-	 * The real AM33XX interconnect network is quite complex.Since
-	 * that will not bring real advantage to represent that in DT
+	 * The real AM33XX interconnect network is quite complex. Since
+	 * it will not bring real advantage to represent that in DT
 	 * for the moment, just use a fake OCP bus entry to represent
 	 * the whole bus hierarchy.
 	 */
@@ -144,7 +144,7 @@
 			compatible = "ti,edma3";
 			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
 			reg =	<0x49000000 0x10000>,
-				<0x44e10f90 0x10>;
+				<0x44e10f90 0x40>;
 			interrupts = <12 13 14>;
 			#dma-cells = <1>;
 			dma-channels = <64>;
@@ -802,7 +802,7 @@
 			      <0x46000000 0x400000>;
 			reg-names = "mpu", "dat";
 			interrupts = <80>, <81>;
-			interrupts-names = "tx", "rx";
+			interrupt-names = "tx", "rx";
 			status = "disabled";
 			dmas = <&edma 8>,
 				<&edma 9>;
@@ -816,7 +816,7 @@
 			      <0x46400000 0x400000>;
 			reg-names = "mpu", "dat";
 			interrupts = <82>, <83>;
-			interrupts-names = "tx", "rx";
+			interrupt-names = "tx", "rx";
 			status = "disabled";
 			dmas = <&edma 10>,
 				<&edma 11>;

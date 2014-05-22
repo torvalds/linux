@@ -182,7 +182,7 @@ struct isert_device {
 };
 
 struct isert_np {
-	wait_queue_head_t	np_accept_wq;
+	struct semaphore	np_sem;
 	struct rdma_cm_id	*np_cm_id;
 	struct mutex		np_accept_mutex;
 	struct list_head	np_accept_list;

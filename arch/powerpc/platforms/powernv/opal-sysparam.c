@@ -39,10 +39,11 @@ struct param_attr {
 	struct kobj_attribute kobj_attr;
 };
 
-static int opal_get_sys_param(u32 param_id, u32 length, void *buffer)
+static ssize_t opal_get_sys_param(u32 param_id, u32 length, void *buffer)
 {
 	struct opal_msg msg;
-	int ret, token;
+	ssize_t ret;
+	int token;
 
 	token = opal_async_get_token_interruptible();
 	if (token < 0) {
@@ -59,7 +60,7 @@ static int opal_get_sys_param(u32 param_id, u32 length, void *buffer)
 
 	ret = opal_async_wait_response(token, &msg);
 	if (ret) {
-		pr_err("%s: Failed to wait for the async response, %d\n",
+		pr_err("%s: Failed to wait for the async response, %zd\n",
 				__func__, ret);
 		goto out_token;
 	}
@@ -111,7 +112,7 @@ static ssize_t sys_param_show(struct kobject *kobj,
 {
 	struct param_attr *attr = container_of(kobj_attr, struct param_attr,
 			kobj_attr);
-	int ret;
+	ssize_t ret;
 
 	mutex_lock(&opal_sysparam_mutex);
 	ret = opal_get_sys_param(attr->param_id, attr->param_size,
@@ -121,9 +122,10 @@ static ssize_t sys_param_show(struct kobject *kobj,
 
 	memcpy(buf, param_data_buf, attr->param_size);
 
+	ret = attr->param_size;
 out:
 	mutex_unlock(&opal_sysparam_mutex);
-	return ret ? ret : attr->param_size;
+	return ret;
 }
 
 static ssize_t sys_param_store(struct kobject *kobj,
@@ -131,14 +133,20 @@ static ssize_t sys_param_store(struct kobject *kobj,
 {
 	struct param_attr *attr = container_of(kobj_attr, struct param_attr,
 			kobj_attr);
-	int ret;
+	ssize_t ret;
+
+        /* MAX_PARAM_DATA_LEN is sizeof(param_data_buf) */
+        if (count > MAX_PARAM_DATA_LEN)
+                count = MAX_PARAM_DATA_LEN;
 
 	mutex_lock(&opal_sysparam_mutex);
 	memcpy(param_data_buf, buf, count);
 	ret = opal_set_sys_param(attr->param_id, attr->param_size,
 			param_data_buf);
 	mutex_unlock(&opal_sysparam_mutex);
-	return ret ? ret : count;
+	if (!ret)
+		ret = count;
+	return ret;
 }
 
 void __init opal_sys_param_init(void)
@@ -214,13 +222,13 @@ void __init opal_sys_param_init(void)
 	}
 
 	if (of_property_read_u32_array(sysparam, "param-len", size, count)) {
-		pr_err("SYSPARAM: Missing propery param-len in the DT\n");
+		pr_err("SYSPARAM: Missing property param-len in the DT\n");
 		goto out_free_perm;
 	}
 
 
 	if (of_property_read_u8_array(sysparam, "param-perm", perm, count)) {
-		pr_err("SYSPARAM: Missing propery param-perm in the DT\n");
+		pr_err("SYSPARAM: Missing property param-perm in the DT\n");
 		goto out_free_perm;
 	}
 
@@ -233,6 +241,12 @@ void __init opal_sys_param_init(void)
 
 	/* For each of the parameters, populate the parameter attributes */
 	for (i = 0; i < count; i++) {
+		if (size[i] > MAX_PARAM_DATA_LEN) {
+			pr_warn("SYSPARAM: Not creating parameter %d as size "
+				"exceeds buffer length\n", i);
+			continue;
+		}
+
 		sysfs_attr_init(&attr[i].kobj_attr.attr);
 		attr[i].param_id = id[i];
 		attr[i].param_size = size[i];

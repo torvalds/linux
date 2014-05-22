@@ -6,7 +6,7 @@
  * Copyright (C) 1994 by Waldorf Electronics
  * Copyright (C) 1995 - 2000, 01, 03 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2007  Maciej W. Rozycki
+ * Copyright (C) 2007, 2014 Maciej W. Rozycki
  */
 #include <linux/module.h>
 #include <linux/param.h>
@@ -15,6 +15,12 @@
 #include <asm/compiler.h>
 #include <asm/war.h>
 
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
+#define GCC_DADDI_IMM_ASM() "I"
+#else
+#define GCC_DADDI_IMM_ASM() "r"
+#endif
+
 void __delay(unsigned long loops)
 {
 	__asm__ __volatile__ (
@@ -22,13 +28,13 @@ void __delay(unsigned long loops)
 	"	.align	3					\n"
 	"1:	bnez	%0, 1b					\n"
 #if BITS_PER_LONG == 32
-	"	subu	%0, 1					\n"
+	"	subu	%0, %1					\n"
 #else
-	"	dsubu	%0, 1					\n"
+	"	dsubu	%0, %1					\n"
 #endif
 	"	.set	reorder					\n"
 	: "=r" (loops)
-	: "0" (loops));
+	: GCC_DADDI_IMM_ASM() (1), "0" (loops));
 }
 EXPORT_SYMBOL(__delay);
 

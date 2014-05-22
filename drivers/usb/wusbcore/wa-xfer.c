@@ -2390,10 +2390,10 @@ error_complete:
 		done) {
 
 		dev_info(dev, "Control EP stall.  Queue delayed work.\n");
-		spin_lock_irq(&wa->xfer_list_lock);
+		spin_lock(&wa->xfer_list_lock);
 		/* move xfer from xfer_list to xfer_errored_list. */
 		list_move_tail(&xfer->list_node, &wa->xfer_errored_list);
-		spin_unlock_irq(&wa->xfer_list_lock);
+		spin_unlock(&wa->xfer_list_lock);
 		spin_unlock_irqrestore(&xfer->lock, flags);
 		queue_work(wusbd, &wa->xfer_error_work);
 	} else {

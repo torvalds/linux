@@ -3066,7 +3066,7 @@ process_slot:
 							 new_key.offset + datal,
 							 1);
 				if (ret) {
-					if (ret != -EINVAL)
+					if (ret != -EOPNOTSUPP)
 						btrfs_abort_transaction(trans,
 								root, ret);
 					btrfs_end_transaction(trans, root);
@@ -3120,6 +3120,8 @@ process_slot:
 			} else if (type == BTRFS_FILE_EXTENT_INLINE) {
 				u64 skip = 0;
 				u64 trim = 0;
+				u64 aligned_end = 0;
+
 				if (off > key.offset) {
 					skip = off - key.offset;
 					new_key.offset += skip;
@@ -3136,12 +3138,14 @@ process_slot:
 				size -= skip + trim;
 				datal -= skip + trim;
 
+				aligned_end = ALIGN(new_key.offset + datal,
+						    root->sectorsize);
 				ret = btrfs_drop_extents(trans, root, inode,
 							 new_key.offset,
-							 new_key.offset + datal,
+							 aligned_end,
 							 1);
 				if (ret) {
-					if (ret != -EINVAL)
+					if (ret != -EOPNOTSUPP)
 						btrfs_abort_transaction(trans,
 							root, ret);
 					btrfs_end_transaction(trans, root);

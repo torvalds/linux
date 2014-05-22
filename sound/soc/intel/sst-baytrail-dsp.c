@@ -324,7 +324,7 @@ static int sst_byt_init(struct sst_dsp *sst, struct sst_pdata *pdata)
 	memcpy_toio(sst->addr.lpe + SST_BYT_MAILBOX_OFFSET,
 	       &pdata->fw_base, sizeof(u32));
 
-	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	ret = dma_coerce_mask_and_coherent(sst->dma_dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 

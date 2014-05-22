@@ -305,6 +305,8 @@ static struct ichx_desc ich6_desc = {
 
 	.ngpio = 50,
 	.have_blink = true,
+	.regs = ichx_regs,
+	.reglen = ichx_reglen,
 };
 
 /* Intel 3100 */
@@ -324,6 +326,8 @@ static struct ichx_desc i3100_desc = {
 	.uses_gpe0 = true,
 
 	.ngpio = 50,
+	.regs = ichx_regs,
+	.reglen = ichx_reglen,
 };
 
 /* ICH7 and ICH8-based */
