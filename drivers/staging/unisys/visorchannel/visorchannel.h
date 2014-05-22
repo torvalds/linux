@@ -75,34 +75,4 @@ void visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 			       int off, int len, struct seq_file *seq);
 void __iomem *visorchannel_get_header(VISORCHANNEL *channel);
 
-#define	VISORCHANNEL_CHANGE_SERVER_STATE(chan, chanId, newstate)	\
-	do {								\
-		U8 *p = (U8 __iomem *)visorchannel_get_header(chan);	\
-		if (p) {						\
-			ULTRA_CHANNEL_SERVER_TRANSITION(p, chanId, SrvState, \
-							newstate, logCtx); \
-			visorchannel_write				\
-				(chan,					\
-				 offsetof(ULTRA_CHANNEL_PROTOCOL, SrvState), \
-				 p +					\
-				 offsetof(ULTRA_CHANNEL_PROTOCOL, SrvState), \
-				 sizeof(U32));				\
-		}							\
-	} while (0)
-
-#define	VISORCHANNEL_CHANGE_CLIENT_STATE(chan, chanId, newstate)	\
-	do {								\
-		U8 *p = (U8 __iomem *)visorchannel_get_header(chan);	\
-		if (p) {						\
-			ULTRA_CHANNEL_CLIENT_TRANSITION(p, chanId,	\
-							newstate, logCtx); \
-			visorchannel_write				\
-				(chan,					\
-				 offsetof(ULTRA_CHANNEL_PROTOCOL, CliStateOS), \
-				 p +					\
-				 offsetof(ULTRA_CHANNEL_PROTOCOL, CliStateOS), \
-				 sizeof(U32));				\
-		}							\
-	} while (0)
-
 #endif
