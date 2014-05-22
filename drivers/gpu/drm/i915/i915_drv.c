@@ -532,8 +532,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 		 * for _thaw.
 		 */
 		mutex_lock(&dev->mode_config.mutex);
-		for_each_crtc(dev, crtc)
+		for_each_crtc(dev, crtc) {
+			mutex_lock(&crtc->mutex);
 			dev_priv->display.crtc_disable(crtc);
+			mutex_unlock(&crtc->mutex);
+		}
 		mutex_unlock(&dev->mode_config.mutex);
 
 		intel_modeset_suspend_hw(dev);
