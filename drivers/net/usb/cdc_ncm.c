@@ -357,7 +357,8 @@ static int cdc_ncm_init(struct usbnet *dev)
 	 * "The host shall only send this command while the NCM Data
 	 *  Interface is in alternate setting 0."
 	 */
-	if (le16_to_cpu(ctx->ncm_parm.bmNtbFormatsSupported) & USB_CDC_NCM_NTH32_SIGN) {
+	if (le16_to_cpu(ctx->ncm_parm.bmNtbFormatsSupported) &
+						USB_CDC_NCM_NTB32_SUPPORTED) {
 		dev_dbg(&dev->intf->dev, "Setting NTB format to 16-bit\n");
 		err = usbnet_write_cmd(dev, USB_CDC_SET_NTB_FORMAT,
 				       USB_TYPE_CLASS | USB_DIR_OUT
