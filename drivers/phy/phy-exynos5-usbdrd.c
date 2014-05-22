@@ -506,7 +506,7 @@ static struct phy_ops exynos5_usbdrd_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
-const struct exynos5_usbdrd_phy_config phy_cfg_exynos5[] = {
+static const struct exynos5_usbdrd_phy_config phy_cfg_exynos5[] = {
 	{
 		.id		= EXYNOS5_DRDPHY_UTMI,
 		.phy_isol	= exynos5_usbdrd_phy_isol,
@@ -521,13 +521,13 @@ const struct exynos5_usbdrd_phy_config phy_cfg_exynos5[] = {
 	},
 };
 
-const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
+static const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 	.pmu_offset_usbdrd1_phy	= EXYNOS5420_USBDRD1_PHY_CONTROL,
 };
 
-const struct exynos5_usbdrd_phy_drvdata exynos5250_usbdrd_phy = {
+static const struct exynos5_usbdrd_phy_drvdata exynos5250_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 };
