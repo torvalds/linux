@@ -293,12 +293,14 @@ int __must_check intel_ring_cacheline_align(struct intel_engine_cs *ring);
 static inline void intel_ring_emit(struct intel_engine_cs *ring,
 				   u32 data)
 {
-	iowrite32(data, ring->buffer->virtual_start + ring->buffer->tail);
-	ring->buffer->tail += 4;
+	struct intel_ringbuffer *ringbuf = ring->buffer;
+	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
+	ringbuf->tail += 4;
 }
 static inline void intel_ring_advance(struct intel_engine_cs *ring)
 {
-	ring->buffer->tail &= ring->buffer->size - 1;
+	struct intel_ringbuffer *ringbuf = ring->buffer;
+	ringbuf->tail &= ringbuf->size - 1;
 }
 void __intel_ring_advance(struct intel_engine_cs *ring);
 

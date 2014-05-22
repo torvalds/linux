@@ -1219,7 +1219,7 @@ static void ironlake_rps_change_irq_handler(struct drm_device *dev)
 static void notify_ring(struct drm_device *dev,
 			struct intel_engine_cs *ring)
 {
-	if (ring->buffer->obj == NULL)
+	if (!intel_ring_initialized(ring))
 		return;
 
 	trace_i915_gem_request_complete(ring);

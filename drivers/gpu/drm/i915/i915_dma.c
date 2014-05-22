@@ -141,6 +141,7 @@ void i915_kernel_lost_context(struct drm_device * dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	struct intel_engine_cs *ring = LP_RING(dev_priv);
+	struct intel_ringbuffer *ringbuf = ring->buffer;
 
 	/*
 	 * We should never lose context on the ring with modesetting
@@ -149,17 +150,17 @@ void i915_kernel_lost_context(struct drm_device * dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	ring->buffer->head = I915_READ_HEAD(ring) & HEAD_ADDR;
-	ring->buffer->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-	ring->buffer->space = ring->buffer->head - (ring->buffer->tail + I915_RING_FREE_SPACE);
-	if (ring->buffer->space < 0)
-		ring->buffer->space += ring->buffer->size;
+	ringbuf->head = I915_READ_HEAD(ring) & HEAD_ADDR;
+	ringbuf->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
+	ringbuf->space = ringbuf->head - (ringbuf->tail + I915_RING_FREE_SPACE);
+	if (ringbuf->space < 0)
+		ringbuf->space += ringbuf->size;
 
 	if (!dev->primary->master)
 		return;
 
 	master_priv = dev->primary->master->driver_priv;
-	if (ring->buffer->head == ring->buffer->tail && master_priv->sarea_priv)
+	if (ringbuf->head == ringbuf->tail && master_priv->sarea_priv)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_RING_EMPTY;
 }
 

@@ -50,7 +50,8 @@ static inline int __ring_space(int head, int tail, int size)
 
 static inline int ring_space(struct intel_engine_cs *ring)
 {
-	return __ring_space(ring->buffer->head & HEAD_ADDR, ring->buffer->tail, ring->buffer->size);
+	struct intel_ringbuffer *ringbuf = ring->buffer;
+	return __ring_space(ringbuf->head & HEAD_ADDR, ringbuf->tail, ringbuf->size);
 }
 
 static bool intel_ring_stopped(struct intel_engine_cs *ring)
@@ -61,10 +62,11 @@ static bool intel_ring_stopped(struct intel_engine_cs *ring)
 
 void __intel_ring_advance(struct intel_engine_cs *ring)
 {
-	ring->buffer->tail &= ring->buffer->size - 1;
+	struct intel_ringbuffer *ringbuf = ring->buffer;
+	ringbuf->tail &= ringbuf->size - 1;
 	if (intel_ring_stopped(ring))
 		return;
-	ring->write_tail(ring, ring->buffer->tail);
+	ring->write_tail(ring, ringbuf->tail);
 }
 
 static int
@@ -481,7 +483,8 @@ static int init_ring_common(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj = ring->buffer->obj;
+	struct intel_ringbuffer *ringbuf = ring->buffer;
+	struct drm_i915_gem_object *obj = ringbuf->obj;
 	int ret = 0;
 
 	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
@@ -520,7 +523,7 @@ static int init_ring_common(struct intel_engine_cs *ring)
 	 * register values. */
 	I915_WRITE_START(ring, i915_gem_obj_ggtt_offset(obj));
 	I915_WRITE_CTL(ring,
-			((ring->buffer->size - PAGE_SIZE) & RING_NR_PAGES)
+			((ringbuf->size - PAGE_SIZE) & RING_NR_PAGES)
 			| RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
@@ -540,10 +543,10 @@ static int init_ring_common(struct intel_engine_cs *ring)
 	if (!drm_core_check_feature(ring->dev, DRIVER_MODESET))
 		i915_kernel_lost_context(ring->dev);
 	else {
-		ring->buffer->head = I915_READ_HEAD(ring);
-		ring->buffer->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-		ring->buffer->space = ring_space(ring);
-		ring->buffer->last_retired_head = -1;
+		ringbuf->head = I915_READ_HEAD(ring);
+		ringbuf->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
+		ringbuf->space = ring_space(ring);
+		ringbuf->last_retired_head = -1;
 	}
 
 	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));
@@ -1379,17 +1382,18 @@ static int allocate_ring_buffer(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_ringbuffer *ringbuf = ring->buffer;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	if (ring->buffer->obj)
+	if (intel_ring_initialized(ring))
 		return 0;
 
 	obj = NULL;
 	if (!HAS_LLC(dev))
-		obj = i915_gem_object_create_stolen(dev, ring->buffer->size);
+		obj = i915_gem_object_create_stolen(dev, ringbuf->size);
 	if (obj == NULL)
-		obj = i915_gem_alloc_object(dev, ring->buffer->size);
+		obj = i915_gem_alloc_object(dev, ringbuf->size);
 	if (obj == NULL)
 		return -ENOMEM;
 
@@ -1401,15 +1405,15 @@ static int allocate_ring_buffer(struct intel_engine_cs *ring)
 	if (ret)
 		goto err_unpin;
 
-	ring->buffer->virtual_start =
+	ringbuf->virtual_start =
 		ioremap_wc(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
-			   ring->buffer->size);
-	if (ring->buffer->virtual_start == NULL) {
+				ringbuf->size);
+	if (ringbuf->virtual_start == NULL) {
 		ret = -EINVAL;
 		goto err_unpin;
 	}
 
-	ring->buffer->obj = obj;
+	ringbuf->obj = obj;
 	return 0;
 
 err_unpin:
@@ -1435,7 +1439,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
-	ring->buffer->size = 32 * PAGE_SIZE;
+	ringbuf->size = 32 * PAGE_SIZE;
 	memset(ring->semaphore.sync_seqno, 0, sizeof(ring->semaphore.sync_seqno));
 
 	init_waitqueue_head(&ring->irq_queue);
@@ -1461,9 +1465,9 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	 * the TAIL pointer points to within the last 2 cachelines
 	 * of the buffer.
 	 */
-	ring->buffer->effective_size = ring->buffer->size;
+	ringbuf->effective_size = ringbuf->size;
 	if (IS_I830(dev) || IS_845G(dev))
-		ring->buffer->effective_size -= 2 * CACHELINE_BYTES;
+		ringbuf->effective_size -= 2 * CACHELINE_BYTES;
 
 	ret = i915_cmd_parser_init_ring(ring);
 	if (ret)
@@ -1484,18 +1488,19 @@ error:
 void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = to_i915(ring->dev);
+	struct intel_ringbuffer *ringbuf = ring->buffer;
 
-	if (ring->buffer->obj == NULL)
+	if (!intel_ring_initialized(ring))
 		return;
 
 	intel_stop_ring_buffer(ring);
 	WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
 
-	iounmap(ring->buffer->virtual_start);
+	iounmap(ringbuf->virtual_start);
 
-	i915_gem_object_ggtt_unpin(ring->buffer->obj);
-	drm_gem_object_unreference(&ring->buffer->obj->base);
-	ring->buffer->obj = NULL;
+	i915_gem_object_ggtt_unpin(ringbuf->obj);
+	drm_gem_object_unreference(&ringbuf->obj->base);
+	ringbuf->obj = NULL;
 	ring->preallocated_lazy_request = NULL;
 	ring->outstanding_lazy_seqno = 0;
 
@@ -1506,27 +1511,28 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 
 	i915_cmd_parser_fini_ring(ring);
 
-	kfree(ring->buffer);
+	kfree(ringbuf);
 	ring->buffer = NULL;
 }
 
 static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 {
+	struct intel_ringbuffer *ringbuf = ring->buffer;
 	struct drm_i915_gem_request *request;
 	u32 seqno = 0;
 	int ret;
 
-	if (ring->buffer->last_retired_head != -1) {
-		ring->buffer->head = ring->buffer->last_retired_head;
-		ring->buffer->last_retired_head = -1;
+	if (ringbuf->last_retired_head != -1) {
+		ringbuf->head = ringbuf->last_retired_head;
+		ringbuf->last_retired_head = -1;
 
-		ring->buffer->space = ring_space(ring);
-		if (ring->buffer->space >= n)
+		ringbuf->space = ring_space(ring);
+		if (ringbuf->space >= n)
 			return 0;
 	}
 
 	list_for_each_entry(request, &ring->request_list, list) {
-		if (__ring_space(request->tail, ring->buffer->tail, ring->buffer->size) >= n) {
+		if (__ring_space(request->tail, ringbuf->tail, ringbuf->size) >= n) {
 			seqno = request->seqno;
 			break;
 		}
@@ -1540,10 +1546,10 @@ static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 		return ret;
 
 	i915_gem_retire_requests_ring(ring);
-	ring->buffer->head = ring->buffer->last_retired_head;
-	ring->buffer->last_retired_head = -1;
+	ringbuf->head = ringbuf->last_retired_head;
+	ringbuf->last_retired_head = -1;
 
-	ring->buffer->space = ring_space(ring);
+	ringbuf->space = ring_space(ring);
 	return 0;
 }
 
@@ -1551,6 +1557,7 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ringbuffer *ringbuf = ring->buffer;
 	unsigned long end;
 	int ret;
 
@@ -1570,9 +1577,9 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 
 	trace_i915_ring_wait_begin(ring);
 	do {
-		ring->buffer->head = I915_READ_HEAD(ring);
-		ring->buffer->space = ring_space(ring);
-		if (ring->buffer->space >= n) {
+		ringbuf->head = I915_READ_HEAD(ring);
+		ringbuf->space = ring_space(ring);
+		if (ringbuf->space >= n) {
 			ret = 0;
 			break;
 		}
@@ -1608,21 +1615,22 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 static int intel_wrap_ring_buffer(struct intel_engine_cs *ring)
 {
 	uint32_t __iomem *virt;
-	int rem = ring->buffer->size - ring->buffer->tail;
+	struct intel_ringbuffer *ringbuf = ring->buffer;
+	int rem = ringbuf->size - ringbuf->tail;
 
-	if (ring->buffer->space < rem) {
+	if (ringbuf->space < rem) {
 		int ret = ring_wait_for_space(ring, rem);
 		if (ret)
 			return ret;
 	}
 
-	virt = ring->buffer->virtual_start + ring->buffer->tail;
+	virt = ringbuf->virtual_start + ringbuf->tail;
 	rem /= 4;
 	while (rem--)
 		iowrite32(MI_NOOP, virt++);
 
-	ring->buffer->tail = 0;
-	ring->buffer->space = ring_space(ring);
+	ringbuf->tail = 0;
+	ringbuf->space = ring_space(ring);
 
 	return 0;
 }
@@ -1672,15 +1680,16 @@ intel_ring_alloc_seqno(struct intel_engine_cs *ring)
 static int __intel_ring_prepare(struct intel_engine_cs *ring,
 				int bytes)
 {
+	struct intel_ringbuffer *ringbuf = ring->buffer;
 	int ret;
 
-	if (unlikely(ring->buffer->tail + bytes > ring->buffer->effective_size)) {
+	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
 		ret = intel_wrap_ring_buffer(ring);
 		if (unlikely(ret))
 			return ret;
 	}
 
-	if (unlikely(ring->buffer->space < bytes)) {
+	if (unlikely(ringbuf->space < bytes)) {
 		ret = ring_wait_for_space(ring, bytes);
 		if (unlikely(ret))
 			return ret;
@@ -2094,13 +2103,13 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 
-	ring->buffer->size = size;
-	ring->buffer->effective_size = ring->buffer->size;
+	ringbuf->size = size;
+	ringbuf->effective_size = ringbuf->size;
 	if (IS_I830(ring->dev) || IS_845G(ring->dev))
-		ring->buffer->effective_size -= 2 * CACHELINE_BYTES;
+		ringbuf->effective_size -= 2 * CACHELINE_BYTES;
 
-	ring->buffer->virtual_start = ioremap_wc(start, size);
-	if (ring->buffer->virtual_start == NULL) {
+	ringbuf->virtual_start = ioremap_wc(start, size);
+	if (ringbuf->virtual_start == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		ret = -ENOMEM;
@@ -2116,7 +2125,7 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	return 0;
 
 err_vstart:
-	iounmap(ring->buffer->virtual_start);
+	iounmap(ringbuf->virtual_start);
 err_ringbuf:
 	kfree(ringbuf);
 	ring->buffer = NULL;
