@@ -19,6 +19,19 @@
 		reg =  <0x30000000 0x4000000>;
 	};
 
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		xti: xti {
+			compatible = "fixed-clock";
+			clock-frequency = <12000000>;
+			clock-output-names = "xti";
+			#clock-cells = <0>;
+		};
+	};
+
 	serial@50000000 {
 		status = "okay";
 		pinctrl-names = "default";
