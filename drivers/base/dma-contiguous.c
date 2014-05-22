@@ -278,7 +278,7 @@ static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
  *
  * This function allocates memory buffer for specified device. It uses
  * device specific contiguous memory area if available or the default
- * global one. Requires architecture specific get_dev_cma_area() helper
+ * global one. Requires architecture specific dev_get_cma_area() helper
  * function.
  */
 struct page *dma_alloc_from_contiguous(struct device *dev, int count,
