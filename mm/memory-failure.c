@@ -1122,6 +1122,8 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 	 */
 	if (!PageHWPoison(p)) {
 		printk(KERN_ERR "MCE %#lx: just unpoisoned\n", pfn);
+		atomic_long_sub(nr_pages, &mce_bad_pages);
+		put_page(hpage);
 		res = 0;
 		goto out;
 	}
