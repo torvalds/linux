@@ -404,7 +404,8 @@ static int _rtl_init_deferred_work(struct ieee80211_hw *hw)
 /*<delete in kernel start>*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 /*<delete in kernel end>*/
-	rtlpriv->works.rtl_wq = alloc_workqueue(rtlpriv->cfg->name, 0, 0);
+	rtlpriv->works.rtl_wq = alloc_workqueue("%s", 0, 0,
+						rtlpriv->cfg->name);
 /*<delete in kernel start>*/
 #else
 	rtlpriv->works.rtl_wq = create_workqueue(rtlpriv->cfg->name);
