@@ -163,8 +163,7 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 	 * between the two antennas is sufficiently different to impact
 	 * performance.
 	 */
-	if (active_cnt == 1 && num_of_ant(mvm->fw->valid_rx_ant) > 1 &&
-	    !mvm->cfg->rx_with_siso_diversity) {
+	if (active_cnt == 1 && iwl_mvm_rx_diversity_allowed(mvm)) {
 		idle_cnt = 2;
 		active_cnt = 2;
 	}

@@ -715,7 +715,8 @@ static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id, bool enable)
+static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
+				       bool enable)
 {
 	struct iwl_bt_coex_cmd *bt_cmd;
 	/* Send ASYNC since this can be sent from an atomic context */
@@ -733,8 +734,7 @@ int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id, bool enable)
 		return 0;
 
 	/* nothing to do */
-	if (mvmsta->bt_reduced_txpower_dbg ||
-	    mvmsta->bt_reduced_txpower == enable)
+	if (mvmsta->bt_reduced_txpower == enable)
 		return 0;
 
 	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_ATOMIC);
@@ -831,8 +831,11 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
 				    smps_mode);
 		data->reduced_tx_power = false;
-		if (vif->type == NL80211_IFTYPE_STATION)
+		if (vif->type == NL80211_IFTYPE_STATION) {
+			iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
+						    false);
 			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
+		}
 		return;
 	}
 
@@ -905,6 +908,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	    mvm->cfg->bt_shared_single_ant || !vif->bss_conf.assoc ||
 	    !data->notif->bt_status) {
 		data->reduced_tx_power = false;
+		iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false);
 		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}

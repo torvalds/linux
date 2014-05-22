@@ -832,7 +832,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_release;
 
-	ret = iwl_mvm_power_update_mac(mvm, vif);
+	ret = iwl_mvm_power_update_mac(mvm);
 	if (ret)
 		goto out_release;
 
@@ -983,7 +983,7 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	if (mvm->vif_count && vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
 
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
 out_release:
@@ -1271,7 +1271,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc)
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
 
-	ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
+	ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false);
 	if (ret)
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
@@ -1354,7 +1354,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 	} else if (changes & (BSS_CHANGED_PS | BSS_CHANGED_P2P_PS |
 			      BSS_CHANGED_QOS)) {
-		ret = iwl_mvm_power_update_mac(mvm, vif);
+		ret = iwl_mvm_power_update_mac(mvm);
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
 	}
@@ -1368,9 +1368,12 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_MAC80211(mvm, "cqm info_changed\n");
 		/* reset cqm events tracking */
 		mvmvif->bf_data.last_cqm_event = 0;
-		ret = iwl_mvm_update_beacon_filter(mvm, vif, false, 0);
-		if (ret)
-			IWL_ERR(mvm, "failed to update CQM thresholds\n");
+		if (mvmvif->bf_data.bf_enabled) {
+			ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
+			if (ret)
+				IWL_ERR(mvm,
+					"failed to update CQM thresholds\n");
+		}
 	}
 
 	if (changes & BSS_CHANGED_ARP_FILTER) {
@@ -1420,7 +1423,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	mvmvif->ap_ibss_active = true;
 
 	/* power updated needs to be done before quotas */
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 
 	ret = iwl_mvm_update_quotas(mvm, vif);
 	if (ret)
@@ -1428,7 +1431,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 
 	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
-		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif);
+		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false);
 
 	iwl_mvm_ref(mvm, IWL_MVM_REF_AP_IBSS);
 
@@ -1438,7 +1441,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	return 0;
 
 out_quota_failed:
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 	mvmvif->ap_ibss_active = false;
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 out_unbind:
@@ -1468,13 +1471,13 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 
 	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
-		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif);
+		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false);
 
 	iwl_mvm_update_quotas(mvm, NULL);
 	iwl_mvm_send_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
@@ -1495,7 +1498,7 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 
 	if (changes & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_HT |
 		       BSS_CHANGED_BANDWIDTH) &&
-	    iwl_mvm_mac_ctxt_changed(mvm, vif))
+	    iwl_mvm_mac_ctxt_changed(mvm, vif, false))
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
 	/* Need to send a new beacon template to the FW */
@@ -1734,8 +1737,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		/* enable beacon filtering */
-		if (vif->bss_conf.dtim_period)
-			WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
+		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
@@ -1797,7 +1799,7 @@ static int iwl_mvm_mac_conf_tx(struct ieee80211_hw *hw,
 		int ret;
 
 		mutex_lock(&mvm->mutex);
-		ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
+		ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false);
 		mutex_unlock(&mvm->mutex);
 		return ret;
 	}
@@ -2237,7 +2239,7 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 	 * Power state must be updated before quotas,
 	 * otherwise fw will complain.
 	 */
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
 
 	/* Setting the quota at this stage is only required for monitor
 	 * interfaces. For the other types, the bss_info changed flow
@@ -2253,14 +2255,14 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 	/* Handle binding during CSA */
 	if (vif->type == NL80211_IFTYPE_AP) {
 		iwl_mvm_update_quotas(mvm, vif);
-		iwl_mvm_mac_ctxt_changed(mvm, vif);
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false);
 	}
 
 	goto out_unlock;
 
  out_remove_binding:
 	iwl_mvm_binding_remove_vif(mvm, vif);
-	iwl_mvm_power_update_mac(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
 	if (ret)
@@ -2299,10 +2301,10 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	}
 
 	iwl_mvm_binding_remove_vif(mvm, vif);
-	iwl_mvm_power_update_mac(mvm, vif);
 
 out_unlock:
 	mvmvif->phy_ctxt = NULL;
+	iwl_mvm_power_update_mac(mvm);
 	mutex_unlock(&mvm->mutex);
 }
 

@@ -663,10 +663,8 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (WARN_ON(!vif->bss_conf.assoc))
 		return -EINVAL;
-	/* hack */
-	vif->bss_conf.assoc = false;
+
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
-	vif->bss_conf.assoc = true;
 	if (ret)
 		return ret;
 
@@ -702,7 +700,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return ret;
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id], ap_sta);
 
-	ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
+	ret = iwl_mvm_mac_ctxt_changed(mvm, vif, false);
 	if (ret)
 		return ret;
 
@@ -1030,7 +1028,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	ret = iwl_mvm_power_update_mac(mvm, vif);
+	ret = iwl_mvm_power_update_mac(mvm);
 	if (ret)
 		goto out;
 

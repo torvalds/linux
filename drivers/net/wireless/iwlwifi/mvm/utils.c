@@ -650,6 +650,39 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ieee80211_request_smps(vif, smps_mode);
 }
 
+static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
+				   struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	bool *result = _data;
+	int i;
+
+	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
+		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_STATIC ||
+		    mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC)
+			*result = false;
+	}
+}
+
+bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
+{
+	bool result = true;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (num_of_ant(mvm->fw->valid_rx_ant) == 1)
+		return false;
+
+	if (!mvm->cfg->rx_with_siso_diversity)
+		return false;
+
+	ieee80211_iterate_active_interfaces_atomic(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_diversity_iter, &result);
+
+	return result;
+}
+
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       bool value)
 {
@@ -669,7 +702,7 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_bt_coex_vif_change(mvm);
 
-	return iwl_mvm_power_update_mac(mvm, vif);
+	return iwl_mvm_power_update_mac(mvm);
 }
 
 static void iwl_mvm_ll_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
