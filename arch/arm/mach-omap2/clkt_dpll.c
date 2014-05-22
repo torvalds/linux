@@ -209,7 +209,7 @@ u8 omap2_init_dpll_parent(struct clk_hw *hw)
 		if (v == OMAP3XXX_EN_DPLL_LPBYPASS ||
 		    v == OMAP3XXX_EN_DPLL_FRBYPASS)
 			return 1;
-	} else if (soc_is_am33xx() || cpu_is_omap44xx()) {
+	} else if (soc_is_am33xx() || cpu_is_omap44xx() || soc_is_am43xx()) {
 		if (v == OMAP4XXX_EN_DPLL_LPBYPASS ||
 		    v == OMAP4XXX_EN_DPLL_FRBYPASS ||
 		    v == OMAP4XXX_EN_DPLL_MNBYPASS)
@@ -255,7 +255,7 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
 		if (v == OMAP3XXX_EN_DPLL_LPBYPASS ||
 		    v == OMAP3XXX_EN_DPLL_FRBYPASS)
 			return __clk_get_rate(dd->clk_bypass);
-	} else if (soc_is_am33xx() || cpu_is_omap44xx()) {
+	} else if (soc_is_am33xx() || cpu_is_omap44xx() || soc_is_am43xx()) {
 		if (v == OMAP4XXX_EN_DPLL_LPBYPASS ||
 		    v == OMAP4XXX_EN_DPLL_FRBYPASS ||
 		    v == OMAP4XXX_EN_DPLL_MNBYPASS)

@@ -745,7 +745,7 @@ int s3c_i2sv2_register_component(struct device *dev, int id,
 	dai_drv->suspend = s3c2412_i2s_suspend;
 	dai_drv->resume = s3c2412_i2s_resume;
 
-	return snd_soc_register_component(dev, cmp_drv, dai_drv, 1);
+	return devm_snd_soc_register_component(dev, cmp_drv, dai_drv, 1);
 }
 EXPORT_SYMBOL_GPL(s3c_i2sv2_register_component);
 

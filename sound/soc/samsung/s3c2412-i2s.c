@@ -179,27 +179,14 @@ static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 	}
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev);
-	if (ret) {
+	if (ret)
 		pr_err("failed to register the DMA: %d\n", ret);
-		goto err;
-	}
 
-	return 0;
-err:
-	snd_soc_unregister_component(&pdev->dev);
 	return ret;
-}
-
-static int s3c2412_iis_dev_remove(struct platform_device *pdev)
-{
-	samsung_asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
-	return 0;
 }
 
 static struct platform_driver s3c2412_iis_driver = {
 	.probe  = s3c2412_iis_dev_probe,
-	.remove = s3c2412_iis_dev_remove,
 	.driver = {
 		.name = "s3c2412-iis",
 		.owner = THIS_MODULE,

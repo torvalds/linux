@@ -1426,9 +1426,9 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!dsi->reg_base) {
+	if (IS_ERR(dsi->reg_base)) {
 		dev_err(&pdev->dev, "failed to remap io region\n");
-		return -EADDRNOTAVAIL;
+		return PTR_ERR(dsi->reg_base);
 	}
 
 	dsi->phy = devm_phy_get(&pdev->dev, "dsim");

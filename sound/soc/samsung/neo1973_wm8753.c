@@ -271,14 +271,7 @@ static const struct snd_kcontrol_new neo1973_wm8753_controls[] = {
 
 static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = rtd->card;
-
-	/* set up NC codec pins */
-	snd_soc_dapm_nc_pin(&codec->dapm, "OUT3");
-	snd_soc_dapm_nc_pin(&codec->dapm, "OUT4");
-	snd_soc_dapm_nc_pin(&codec->dapm, "LINE1");
-	snd_soc_dapm_nc_pin(&codec->dapm, "LINE2");
 
 	/* set endpoints to default off mode */
 	snd_soc_dapm_disable_pin(&card->dapm, "GSM Line Out");
@@ -355,6 +348,7 @@ static struct snd_soc_card neo1973 = {
 	.num_dapm_widgets = ARRAY_SIZE(neo1973_wm8753_dapm_widgets),
 	.dapm_routes = neo1973_wm8753_routes,
 	.num_dapm_routes = ARRAY_SIZE(neo1973_wm8753_routes),
+	.fully_routed = true,
 };
 
 static struct platform_device *neo1973_snd_device;

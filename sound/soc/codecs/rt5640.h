@@ -192,6 +192,13 @@
 #define RT5640_R_VOL_MASK			(0x3f)
 #define RT5640_R_VOL_SFT			0
 
+/* SW Reset & Device ID (0x00) */
+#define RT5640_ID_MASK				(0x3 << 1)
+#define RT5640_ID_5639				(0x0 << 1)
+#define RT5640_ID_5640				(0x2 << 1)
+#define RT5640_ID_5642				(0x3 << 1)
+
+
 /* IN1 and IN2 Control (0x0d) */
 /* IN3 and IN4 Control (0x0e) */
 #define RT5640_BST_SFT1				12
@@ -976,8 +983,6 @@
 #define RT5640_SCLK_SRC_SFT			14
 #define RT5640_SCLK_SRC_MCLK			(0x0 << 14)
 #define RT5640_SCLK_SRC_PLL1			(0x1 << 14)
-#define RT5640_SCLK_SRC_PLL1T			(0x2 << 14)
-#define RT5640_SCLK_SRC_RCCLK			(0x3 << 14) /* 15MHz */
 #define RT5640_PLL1_SRC_MASK			(0x3 << 12)
 #define RT5640_PLL1_SRC_SFT			12
 #define RT5640_PLL1_SRC_MCLK			(0x0 << 12)
@@ -2097,7 +2102,6 @@ struct rt5640_priv {
 	int pll_in;
 	int pll_out;
 
-	int dmic_en;
 	bool hp_mute;
 };
 

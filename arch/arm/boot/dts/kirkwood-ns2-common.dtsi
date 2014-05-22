@@ -32,7 +32,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mx25l4005a";
+				compatible = "mxicy,mx25l4005a";
 				reg = <0>;
 				spi-max-frequency = <20000000>;
 				mode = <0>;
@@ -50,7 +50,7 @@
 			status = "okay";
 
 			eeprom@50 {
-				compatible = "at,24c04";
+				compatible = "atmel,24c04";
 				pagesize = <16>;
 				reg = <0x50>;
 			};

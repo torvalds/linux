@@ -337,6 +337,7 @@ struct sst_dsp *sst_dsp_new(struct device *dev,
 	spin_lock_init(&sst->spinlock);
 	mutex_init(&sst->mutex);
 	sst->dev = dev;
+	sst->dma_dev = pdata->dma_dev;
 	sst->thread_context = sst_dev->thread_context;
 	sst->sst_dev = sst_dev;
 	sst->id = pdata->id;

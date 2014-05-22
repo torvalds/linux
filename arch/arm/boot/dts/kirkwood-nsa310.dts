@@ -104,7 +104,7 @@
 			status = "okay";
 
 			adt7476: adt7476a@2e {
-				compatible = "adt7476";
+				compatible = "adi,adt7476";
 				reg = <0x2e>;
 			};
 		};

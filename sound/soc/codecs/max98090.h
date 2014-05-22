@@ -1540,6 +1540,7 @@ struct max98090_priv {
 	unsigned int pa2en;
 	unsigned int extmic_mux;
 	unsigned int sidetone;
+	bool master;
 };
 
 int max98090_mic_detect(struct snd_soc_codec *codec,

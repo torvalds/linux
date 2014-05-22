@@ -181,6 +181,8 @@ static int rsnd_gen2_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 		RSND_GEN2_M_REG(gen, SCU,	SRC_BUSIF_MODE,	0x0,	0x20),
 		RSND_GEN2_M_REG(gen, SCU,	SRC_ROUTE_MODE0,0xc,	0x20),
 		RSND_GEN2_M_REG(gen, SCU,	SRC_CTRL,	0x10,	0x20),
+		RSND_GEN2_M_REG(gen, SCU,	CMD_ROUTE_SLCT,	0x18c,	0x20),
+		RSND_GEN2_M_REG(gen, SCU,	CMD_CTRL,	0x190,	0x20),
 		RSND_GEN2_M_REG(gen, SCU,	SRC_SWRSR,	0x200,	0x40),
 		RSND_GEN2_M_REG(gen, SCU,	SRC_SRCIR,	0x204,	0x40),
 		RSND_GEN2_M_REG(gen, SCU,	SRC_ADINR,	0x214,	0x40),
@@ -189,6 +191,14 @@ static int rsnd_gen2_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 		RSND_GEN2_M_REG(gen, SCU,	SRC_SRCCR,	0x224,	0x40),
 		RSND_GEN2_M_REG(gen, SCU,	SRC_BSDSR,	0x22c,	0x40),
 		RSND_GEN2_M_REG(gen, SCU,	SRC_BSISR,	0x238,	0x40),
+		RSND_GEN2_M_REG(gen, SCU,	DVC_SWRSR,	0xe00,	0x100),
+		RSND_GEN2_M_REG(gen, SCU,	DVC_DVUIR,	0xe04,	0x100),
+		RSND_GEN2_M_REG(gen, SCU,	DVC_ADINR,	0xe08,	0x100),
+		RSND_GEN2_M_REG(gen, SCU,	DVC_DVUCR,	0xe10,	0x100),
+		RSND_GEN2_M_REG(gen, SCU,	DVC_ZCMCR,	0xe14,	0x100),
+		RSND_GEN2_M_REG(gen, SCU,	DVC_VOL0R,	0xe28,	0x100),
+		RSND_GEN2_M_REG(gen, SCU,	DVC_VOL1R,	0xe2c,	0x100),
+		RSND_GEN2_M_REG(gen, SCU,	DVC_DVUER,	0xe48,	0x100),
 
 		RSND_GEN2_S_REG(gen, ADG,	BRRA,		0x00),
 		RSND_GEN2_S_REG(gen, ADG,	BRRB,		0x04),
@@ -207,6 +217,7 @@ static int rsnd_gen2_regmap_init(struct rsnd_priv *priv, struct rsnd_gen *gen)
 		RSND_GEN2_S_REG(gen, ADG,	SRCOUT_TIMSEL2,	0x50),
 		RSND_GEN2_S_REG(gen, ADG,	SRCOUT_TIMSEL3,	0x54),
 		RSND_GEN2_S_REG(gen, ADG,	SRCOUT_TIMSEL4,	0x58),
+		RSND_GEN2_S_REG(gen, ADG,	CMDOUT_TIMSEL,	0x5c),
 
 		RSND_GEN2_M_REG(gen, SSI,	SSICR,		0x00,	0x40),
 		RSND_GEN2_M_REG(gen, SSI,	SSISR,		0x04,	0x40),
@@ -252,13 +263,13 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		return ret;
 
 	dev_dbg(dev, "Gen2 device probed\n");
-	dev_dbg(dev, "SCU  : %08x => %p\n", scu_res->start,
+	dev_dbg(dev, "SCU  : %pap => %p\n", &scu_res->start,
 		gen->base[RSND_GEN2_SCU]);
-	dev_dbg(dev, "ADG  : %08x => %p\n", adg_res->start,
+	dev_dbg(dev, "ADG  : %pap => %p\n", &adg_res->start,
 		gen->base[RSND_GEN2_ADG]);
-	dev_dbg(dev, "SSIU : %08x => %p\n", ssiu_res->start,
+	dev_dbg(dev, "SSIU : %pap => %p\n", &ssiu_res->start,
 		gen->base[RSND_GEN2_SSIU]);
-	dev_dbg(dev, "SSI  : %08x => %p\n", ssi_res->start,
+	dev_dbg(dev, "SSI  : %pap => %p\n", &ssi_res->start,
 		gen->base[RSND_GEN2_SSI]);
 
 	return 0;
@@ -345,11 +356,11 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 		return ret;
 
 	dev_dbg(dev, "Gen1 device probed\n");
-	dev_dbg(dev, "SRU : %08x => %p\n",	sru_res->start,
+	dev_dbg(dev, "SRU : %pap => %p\n",	&sru_res->start,
 						gen->base[RSND_GEN1_SRU]);
-	dev_dbg(dev, "ADG : %08x => %p\n",	adg_res->start,
+	dev_dbg(dev, "ADG : %pap => %p\n",	&adg_res->start,
 						gen->base[RSND_GEN1_ADG]);
-	dev_dbg(dev, "SSI : %08x => %p\n",	ssi_res->start,
+	dev_dbg(dev, "SSI : %pap => %p\n",	&ssi_res->start,
 						gen->base[RSND_GEN1_SSI]);
 
 	return 0;
