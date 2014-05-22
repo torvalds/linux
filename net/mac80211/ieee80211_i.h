@@ -753,9 +753,10 @@ struct ieee80211_sub_if_data {
 	struct mac80211_qos_map __rcu *qos_map;
 
 	struct work_struct csa_finalize_work;
-	int csa_counter_offset_beacon;
-	int csa_counter_offset_presp;
+	u16 csa_counter_offset_beacon[IEEE80211_MAX_CSA_COUNTERS_NUM];
+	u16 csa_counter_offset_presp[IEEE80211_MAX_CSA_COUNTERS_NUM];
 	bool csa_radar_required;
+	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
 	struct cfg80211_chan_def csa_chandef;
 
 	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
@@ -765,6 +766,7 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_chanctx *reserved_chanctx;
 	struct cfg80211_chan_def reserved_chandef;
 	bool reserved_radar_required;
+	u8 csa_current_counter;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -1458,6 +1460,7 @@ __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 				       struct cfg80211_sched_scan_request *req);
 int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata);
+void ieee80211_sched_scan_end(struct ieee80211_local *local);
 void ieee80211_sched_scan_stopped_work(struct work_struct *work);
 
 /* off-channel helpers */
@@ -1472,6 +1475,7 @@ void ieee80211_sw_roc_work(struct work_struct *work);
 void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc);
 
 /* channel switch handling */
+bool ieee80211_csa_needs_block_tx(struct ieee80211_local *local);
 void ieee80211_csa_finalize_work(struct work_struct *work);
 int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 			     struct cfg80211_csa_settings *params);
@@ -1832,6 +1836,15 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 				 enum ieee80211_chanctx_mode chanmode,
 				 u8 radar_detect);
 int ieee80211_max_num_channels(struct ieee80211_local *local);
+
+/* TDLS */
+int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
+			const u8 *peer, u8 action_code, u8 dialog_token,
+			u16 status_code, u32 peer_capability,
+			const u8 *extra_ies, size_t extra_ies_len);
+int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
+			const u8 *peer, enum nl80211_tdls_operation oper);
+
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

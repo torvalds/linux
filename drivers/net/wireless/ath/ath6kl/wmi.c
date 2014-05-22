@@ -2320,7 +2320,7 @@ int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 	return ret;
 }
 
-int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, u8 *krk)
+int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, const u8 *krk)
 {
 	struct sk_buff *skb;
 	struct wmi_add_krk_cmd *cmd;

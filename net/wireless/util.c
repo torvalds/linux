@@ -476,7 +476,8 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 EXPORT_SYMBOL(ieee80211_data_to_8023);
 
 int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
-			     enum nl80211_iftype iftype, u8 *bssid, bool qos)
+			     enum nl80211_iftype iftype,
+			     const u8 *bssid, bool qos)
 {
 	struct ieee80211_hdr hdr;
 	u16 hdrlen, ethertype;
@@ -838,6 +839,9 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 		case EVENT_IBSS_JOINED:
 			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid,
 					       ev->ij.channel);
+			break;
+		case EVENT_STOPPED:
+			__cfg80211_leave(wiphy_to_rdev(wdev->wiphy), wdev);
 			break;
 		}
 		wdev_unlock(wdev);
@@ -1271,9 +1275,19 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 					    void *data),
 			       void *data)
 {
+	const struct ieee80211_regdomain *regdom;
+	enum nl80211_dfs_regions region = 0;
 	int i, j, iftype;
 	int num_interfaces = 0;
 	u32 used_iftypes = 0;
+
+	if (radar_detect) {
+		rcu_read_lock();
+		regdom = rcu_dereference(cfg80211_regdomain);
+		if (regdom)
+			region = regdom->dfs_region;
+		rcu_read_unlock();
+	}
 
 	for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
 		num_interfaces += iftype_num[iftype];
@@ -1313,6 +1327,10 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 		}
 
 		if (radar_detect != (c->radar_detect_widths & radar_detect))
+			goto cont;
+
+		if (radar_detect && c->radar_detect_regions &&
+		    !(c->radar_detect_regions & BIT(region)))
 			goto cont;
 
 		/* Finally check that all iftypes that we're currently
@@ -1527,6 +1545,24 @@ unsigned int ieee80211_get_num_supported_channels(struct wiphy *wiphy)
 	return n_channels;
 }
 EXPORT_SYMBOL(ieee80211_get_num_supported_channels);
+
+int cfg80211_get_station(struct net_device *dev, const u8 *mac_addr,
+			 struct station_info *sinfo)
+{
+	struct cfg80211_registered_device *rdev;
+	struct wireless_dev *wdev;
+
+	wdev = dev->ieee80211_ptr;
+	if (!wdev)
+		return -EOPNOTSUPP;
+
+	rdev = wiphy_to_rdev(wdev->wiphy);
+	if (!rdev->ops->get_station)
+		return -EOPNOTSUPP;
+
+	return rdev_get_station(rdev, dev, mac_addr, sinfo);
+}
+EXPORT_SYMBOL(cfg80211_get_station);
 
 /* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
 /* Ethernet-II snap header (RFC1042 for most EtherTypes) */

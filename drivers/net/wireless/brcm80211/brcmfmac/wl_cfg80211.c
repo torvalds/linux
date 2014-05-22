@@ -2236,7 +2236,7 @@ brcmf_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 
 static s32
 brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
-			   u8 *mac, struct station_info *sinfo)
+			   const u8 *mac, struct station_info *sinfo)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
@@ -4014,7 +4014,7 @@ brcmf_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 brcmf_cfg80211_del_station(struct wiphy *wiphy, struct net_device *ndev,
-			   u8 *mac)
+			   const u8 *mac)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_scb_val_le scbval;
@@ -4242,7 +4242,7 @@ static int brcmf_convert_nl80211_tdls_oper(enum nl80211_tdls_operation oper)
 }
 
 static int brcmf_cfg80211_tdls_oper(struct wiphy *wiphy,
-				    struct net_device *ndev, u8 *peer,
+				    struct net_device *ndev, const u8 *peer,
 				    enum nl80211_tdls_operation oper)
 {
 	struct brcmf_if *ifp;

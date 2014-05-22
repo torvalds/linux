@@ -1457,6 +1457,44 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 	drv_stop(local);
 }
 
+static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_chanctx *ctx;
+
+	/*
+	 * We get here if during resume the device can't be restarted properly.
+	 * We might also get here if this happens during HW reset, which is a
+	 * slightly different situation and we need to drop all connections in
+	 * the latter case.
+	 *
+	 * Ask cfg80211 to turn off all interfaces, this will result in more
+	 * warnings but at least we'll then get into a clean stopped state.
+	 */
+
+	local->resuming = false;
+	local->suspended = false;
+	local->started = false;
+
+	/* scheduled scan clearly can't be running any more, but tell
+	 * cfg80211 and clear local state
+	 */
+	ieee80211_sched_scan_end(local);
+
+	list_for_each_entry(sdata, &local->interfaces, list)
+		sdata->flags &= ~IEEE80211_SDATA_IN_DRIVER;
+
+	/* Mark channel contexts as not being in the driver any more to avoid
+	 * removing them from the driver during the shutdown process...
+	 */
+	mutex_lock(&local->chanctx_mtx);
+	list_for_each_entry(ctx, &local->chanctx_list, list)
+		ctx->driver_present = false;
+	mutex_unlock(&local->chanctx_mtx);
+
+	cfg80211_shutdown_all_interfaces(local->hw.wiphy);
+}
+
 static void ieee80211_assign_chanctx(struct ieee80211_local *local,
 				     struct ieee80211_sub_if_data *sdata)
 {
@@ -1520,9 +1558,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 */
 	res = drv_start(local);
 	if (res) {
-		WARN(local->suspended, "Hardware became unavailable "
-		     "upon resume. This could be a software issue "
-		     "prior to suspend or a hardware issue.\n");
+		if (local->suspended)
+			WARN(1, "Hardware became unavailable upon resume. This could be a software issue prior to suspend or a hardware issue.\n");
+		else
+			WARN(1, "Hardware became unavailable during restart.\n");
+		ieee80211_handle_reconfig_failure(local);
 		return res;
 	}
 

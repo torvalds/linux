@@ -149,7 +149,8 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 	case CFG80211_CONN_SCAN_AGAIN:
 		return cfg80211_conn_scan(wdev);
 	case CFG80211_CONN_AUTHENTICATE_NEXT:
-		BUG_ON(!rdev->ops->auth);
+		if (WARN_ON(!rdev->ops->auth))
+			return -EOPNOTSUPP;
 		wdev->conn->state = CFG80211_CONN_AUTHENTICATING;
 		return cfg80211_mlme_auth(rdev, wdev->netdev,
 					  params->channel, params->auth_type,
@@ -161,7 +162,8 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 	case CFG80211_CONN_AUTH_FAILED:
 		return -ENOTCONN;
 	case CFG80211_CONN_ASSOCIATE_NEXT:
-		BUG_ON(!rdev->ops->assoc);
+		if (WARN_ON(!rdev->ops->assoc))
+			return -EOPNOTSUPP;
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
 		if (wdev->conn->prev_bssid_valid)
 			req.prev_bssid = wdev->conn->prev_bssid;
@@ -877,7 +879,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 }
 
 void cfg80211_disconnected(struct net_device *dev, u16 reason,
-			   u8 *ie, size_t ie_len, gfp_t gfp)
+			   const u8 *ie, size_t ie_len, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
