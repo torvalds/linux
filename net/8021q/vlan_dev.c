@@ -678,9 +678,9 @@ static netdev_features_t vlan_dev_fix_features(struct net_device *dev,
 	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
 	netdev_features_t old_features = features;
 
-	features &= real_dev->vlan_features;
+	features = netdev_intersect_features(features, real_dev->vlan_features);
 	features |= NETIF_F_RXCSUM;
-	features &= real_dev->features;
+	features = netdev_intersect_features(features, real_dev->features);
 
 	features |= old_features & NETIF_F_SOFT_FEATURES;
 	features |= NETIF_F_LLTX;
