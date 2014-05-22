@@ -773,8 +773,8 @@ static bool too_many_workers(struct worker_pool *pool)
  * Wake up functions.
  */
 
-/* Return the first worker.  Safe with preemption disabled */
-static struct worker *first_worker(struct worker_pool *pool)
+/* Return the first idle worker.  Safe with preemption disabled */
+static struct worker *first_idle_worker(struct worker_pool *pool)
 {
 	if (unlikely(list_empty(&pool->idle_list)))
 		return NULL;
@@ -793,7 +793,7 @@ static struct worker *first_worker(struct worker_pool *pool)
  */
 static void wake_up_worker(struct worker_pool *pool)
 {
-	struct worker *worker = first_worker(pool);
+	struct worker *worker = first_idle_worker(pool);
 
 	if (likely(worker))
 		wake_up_process(worker->task);
@@ -867,7 +867,7 @@ struct task_struct *wq_worker_sleeping(struct task_struct *task, int cpu)
 	 */
 	if (atomic_dec_and_test(&pool->nr_running) &&
 	    !list_empty(&pool->worklist))
-		to_wakeup = first_worker(pool);
+		to_wakeup = first_idle_worker(pool);
 	return to_wakeup ? to_wakeup->task : NULL;
 }
 
@@ -3475,7 +3475,7 @@ static void put_unbound_pool(struct worker_pool *pool)
 	mutex_lock(&pool->manager_arb);
 
 	spin_lock_irq(&pool->lock);
-	while ((worker = first_worker(pool)))
+	while ((worker = first_idle_worker(pool)))
 		destroy_worker(worker);
 	WARN_ON(pool->nr_workers || pool->nr_idle);
 	spin_unlock_irq(&pool->lock);
