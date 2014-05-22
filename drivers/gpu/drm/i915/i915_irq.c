@@ -335,7 +335,8 @@ void i9xx_check_fifo_underruns(struct drm_device *dev)
 }
 
 static void i9xx_set_fifo_underrun_reporting(struct drm_device *dev,
-					     enum pipe pipe, bool enable)
+					     enum pipe pipe,
+					     bool enable, bool old)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg = PIPESTAT(pipe);
@@ -347,7 +348,7 @@ static void i9xx_set_fifo_underrun_reporting(struct drm_device *dev,
 		I915_WRITE(reg, pipestat | PIPE_FIFO_UNDERRUN_STATUS);
 		POSTING_READ(reg);
 	} else {
-		if (pipestat & PIPE_FIFO_UNDERRUN_STATUS)
+		if (old && pipestat & PIPE_FIFO_UNDERRUN_STATUS)
 			DRM_ERROR("pipe %c underrun\n", pipe_name(pipe));
 	}
 }
@@ -366,7 +367,8 @@ static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
 }
 
 static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
-						  enum pipe pipe, bool enable)
+						  enum pipe pipe,
+						  bool enable, bool old)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	if (enable) {
@@ -379,7 +381,8 @@ static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
 	} else {
 		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
 
-		if (I915_READ(GEN7_ERR_INT) & ERR_INT_FIFO_UNDERRUN(pipe)) {
+		if (old &&
+		    I915_READ(GEN7_ERR_INT) & ERR_INT_FIFO_UNDERRUN(pipe)) {
 			DRM_ERROR("uncleared fifo underrun on pipe %c\n",
 				  pipe_name(pipe));
 		}
@@ -444,7 +447,7 @@ static void ibx_set_fifo_underrun_reporting(struct drm_device *dev,
 
 static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
 					    enum transcoder pch_transcoder,
-					    bool enable)
+					    bool enable, bool old)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -459,7 +462,8 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
 	} else {
 		ibx_disable_display_interrupt(dev_priv, SDE_ERROR_CPT);
 
-		if (I915_READ(SERR_INT) & SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder)) {
+		if (old && I915_READ(SERR_INT) &
+		    SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder)) {
 			DRM_ERROR("uncleared pch fifo underrun on pch transcoder %c\n",
 				  transcoder_name(pch_transcoder));
 		}
@@ -486,28 +490,23 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	bool ret;
+	bool old;
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	ret = !intel_crtc->cpu_fifo_underrun_disabled;
-
-	if (enable == ret)
-		goto done;
-
+	old = !intel_crtc->cpu_fifo_underrun_disabled;
 	intel_crtc->cpu_fifo_underrun_disabled = !enable;
 
 	if (INTEL_INFO(dev)->gen < 5 || IS_VALLEYVIEW(dev))
-		i9xx_set_fifo_underrun_reporting(dev, pipe, enable);
+		i9xx_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN7(dev))
-		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable);
+		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (IS_GEN8(dev))
 		broadwell_set_fifo_underrun_reporting(dev, pipe, enable);
 
-done:
-	return ret;
+	return old;
 }
 
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
@@ -556,7 +555,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pch_transcoder];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	unsigned long flags;
-	bool ret;
+	bool old;
 
 	/*
 	 * NOTE: Pre-LPT has a fixed cpu pipe -> pch transcoder mapping, but LPT
@@ -569,21 +568,16 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 
-	ret = !intel_crtc->pch_fifo_underrun_disabled;
-
-	if (enable == ret)
-		goto done;
-
+	old = !intel_crtc->pch_fifo_underrun_disabled;
 	intel_crtc->pch_fifo_underrun_disabled = !enable;
 
 	if (HAS_PCH_IBX(dev))
 		ibx_set_fifo_underrun_reporting(dev, pch_transcoder, enable);
 	else
-		cpt_set_fifo_underrun_reporting(dev, pch_transcoder, enable);
+		cpt_set_fifo_underrun_reporting(dev, pch_transcoder, enable, old);
 
-done:
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-	return ret;
+	return old;
 }
 
 
