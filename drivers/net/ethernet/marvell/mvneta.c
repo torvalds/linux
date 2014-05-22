@@ -283,9 +283,6 @@ struct mvneta_port {
 	u32 cause_rx_tx;
 	struct napi_struct napi;
 
-	/* Napi weight */
-	int weight;
-
 	/* Core clock */
 	struct clk *clk;
 	u8 mcast_count[256];
@@ -2968,8 +2965,6 @@ static int mvneta_probe(struct platform_device *pdev)
 	dev->ethtool_ops = &mvneta_eth_tool_ops;
 
 	pp = netdev_priv(dev);
-
-	pp->weight = MVNETA_RX_POLL_WEIGHT;
 	pp->phy_node = phy_node;
 	pp->phy_interface = phy_mode;
 
@@ -3030,7 +3025,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (dram_target_info)
 		mvneta_conf_mbus_windows(pp, dram_target_info);
 
-	netif_napi_add(dev, &pp->napi, mvneta_poll, pp->weight);
+	netif_napi_add(dev, &pp->napi, mvneta_poll, MVNETA_RX_POLL_WEIGHT);
 
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 	dev->hw_features |= dev->features;
