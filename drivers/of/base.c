@@ -1884,6 +1884,35 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
 		 ap->alias, ap->stem, ap->id, of_node_full_name(np));
 }
 
+/*
+ * of_alias_max_index() - get the maximum index for a given alias stem
+ * @stem:   The alias stem for which the maximum index is searched for
+ *
+ * Given an alias stem (the alias without the number) this function
+ * returns the maximum number for which an alias exists.
+ *
+ * Return: The maximum existing alias index or -ENODEV if no alias
+ *         exists for this stem.
+ */
+int of_alias_max_index(const char *stem)
+{
+	struct alias_prop *app;
+	int max = -ENODEV;
+
+	mutex_lock(&of_mutex);
+
+	list_for_each_entry(app, &aliases_lookup, link) {
+		if (strcmp(app->stem, stem))
+			continue;
+		if (app->id > max)
+			max = app->id;
+	}
+
+	mutex_unlock(&of_mutex);
+
+	return max;
+}
+
 /**
  * of_alias_scan - Scan all properties of the 'aliases' node
  *
