@@ -3385,6 +3385,29 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_JMICRON,
 			 PCI_DEVICE_ID_JMICRON_JMB388_ESD,
 			 quirk_dma_func1_alias);
 
+/*
+ * A few PCIe-to-PCI bridges fail to expose a PCIe capability, resulting in
+ * using the wrong DMA alias for the device.  Some of these devices can be
+ * used as either forward or reverse bridges, so we need to test whether the
+ * device is operating in the correct mode.  We could probably apply this
+ * quirk to PCI_ANY_ID, but for now we'll just use known offenders.  The test
+ * is for a non-root, non-PCIe bridge where the upstream device is PCIe and
+ * is not a PCIe-to-PCI bridge, then @pdev is actually a PCIe-to-PCI bridge.
+ */
+static void quirk_use_pcie_bridge_dma_alias(struct pci_dev *pdev)
+{
+	if (!pci_is_root_bus(pdev->bus) &&
+	    pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
+	    !pci_is_pcie(pdev) && pci_is_pcie(pdev->bus->self) &&
+	    pci_pcie_type(pdev->bus->self) != PCI_EXP_TYPE_PCI_BRIDGE)
+		pdev->dev_flags |= PCI_DEV_FLAG_PCIE_BRIDGE_ALIAS;
+}
+/* ASM1083/1085, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c46 */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ASMEDIA, 0x1080,
+			 quirk_use_pcie_bridge_dma_alias);
+/* Tundra 8113, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c43 */
+DECLARE_PCI_FIXUP_HEADER(0x10e3, 0x8113, quirk_use_pcie_bridge_dma_alias);
+
 static struct pci_dev *pci_func_0_dma_source(struct pci_dev *dev)
 {
 	if (!PCI_FUNC(dev->devfn))
