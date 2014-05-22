@@ -965,6 +965,9 @@ static int i965_do_reset(struct drm_device *dev)
 {
 	int ret;
 
+	/* FIXME: i965g/gm need a display save/restore for gpu reset. */
+	return -ENODEV;
+
 	/*
 	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
 	 * well as the reset bit (GR/bit 0).  Setting the GR bit
