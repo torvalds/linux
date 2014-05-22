@@ -70,6 +70,8 @@ struct dss_features {
 	u8 fck_div_max;
 	u8 dss_fck_multiplier;
 	const char *parent_clk_name;
+	enum omap_display_type *ports;
+	int num_ports;
 	int (*dpi_select_source)(enum omap_channel channel);
 };
 
@@ -689,6 +691,16 @@ void dss_debug_dump_clocks(struct seq_file *s)
 }
 #endif
 
+
+static enum omap_display_type omap2plus_ports[] = {
+	OMAP_DISPLAY_TYPE_DPI,
+};
+
+static enum omap_display_type omap34xx_ports[] = {
+	OMAP_DISPLAY_TYPE_DPI,
+	OMAP_DISPLAY_TYPE_SDI,
+};
+
 static const struct dss_features omap24xx_dss_feats __initconst = {
 	/*
 	 * fck div max is really 16, but the divider range has gaps. The range
@@ -698,6 +710,8 @@ static const struct dss_features omap24xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"core_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+	.ports			=	omap2plus_ports,
+	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
 static const struct dss_features omap34xx_dss_feats __initconst = {
@@ -705,6 +719,8 @@ static const struct dss_features omap34xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"dpll4_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+	.ports			=	omap34xx_ports,
+	.num_ports		=	ARRAY_SIZE(omap34xx_ports),
 };
 
 static const struct dss_features omap3630_dss_feats __initconst = {
@@ -712,6 +728,8 @@ static const struct dss_features omap3630_dss_feats __initconst = {
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll4_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+	.ports			=	omap2plus_ports,
+	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
 static const struct dss_features omap44xx_dss_feats __initconst = {
@@ -719,6 +737,8 @@ static const struct dss_features omap44xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap4,
+	.ports			=	omap2plus_ports,
+	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
 static const struct dss_features omap54xx_dss_feats __initconst = {
@@ -726,6 +746,8 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap5,
+	.ports			=	omap2plus_ports,
+	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
 static const struct dss_features am43xx_dss_feats __initconst = {
@@ -733,6 +755,8 @@ static const struct dss_features am43xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	0,
 	.parent_clk_name	=	NULL,
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+	.ports			=	omap2plus_ports,
+	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
 static int __init dss_init_features(struct platform_device *pdev)
@@ -798,23 +822,32 @@ static int __init dss_init_ports(struct platform_device *pdev)
 	if (!port)
 		return 0;
 
+	if (dss.feat->num_ports == 0)
+		return 0;
+
 	do {
+		enum omap_display_type port_type;
 		u32 reg;
 
 		r = of_property_read_u32(port, "reg", &reg);
 		if (r)
 			reg = 0;
 
-#ifdef CONFIG_OMAP2_DSS_DPI
-		if (reg == 0)
+		if (reg >= dss.feat->num_ports)
+			continue;
+
+		port_type = dss.feat->ports[reg];
+
+		switch (port_type) {
+		case OMAP_DISPLAY_TYPE_DPI:
 			dpi_init_port(pdev, port);
-#endif
-
-#ifdef CONFIG_OMAP2_DSS_SDI
-		if (reg == 1)
+			break;
+		case OMAP_DISPLAY_TYPE_SDI:
 			sdi_init_port(pdev, port);
-#endif
-
+			break;
+		default:
+			break;
+		}
 	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
 
 	return 0;
@@ -832,13 +865,34 @@ static void __exit dss_uninit_ports(struct platform_device *pdev)
 	if (!port)
 		return;
 
-#ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_uninit_port(port);
-#endif
+	if (dss.feat->num_ports == 0)
+		return;
 
-#ifdef CONFIG_OMAP2_DSS_SDI
-	sdi_uninit_port();
-#endif
+	do {
+		enum omap_display_type port_type;
+		u32 reg;
+		int r;
+
+		r = of_property_read_u32(port, "reg", &reg);
+		if (r)
+			reg = 0;
+
+		if (reg >= dss.feat->num_ports)
+			continue;
+
+		port_type = dss.feat->ports[reg];
+
+		switch (port_type) {
+		case OMAP_DISPLAY_TYPE_DPI:
+			dpi_uninit_port(port);
+			break;
+		case OMAP_DISPLAY_TYPE_SDI:
+			sdi_uninit_port(port);
+			break;
+		default:
+			break;
+		}
+	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
 }
 
 /* DSS HW IP initialisation */

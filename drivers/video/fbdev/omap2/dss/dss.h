@@ -244,8 +244,19 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void) __exit;
 
+#ifdef CONFIG_OMAP2_DSS_SDI
 int sdi_init_port(struct platform_device *pdev, struct device_node *port) __init;
-void sdi_uninit_port(void) __exit;
+void sdi_uninit_port(struct device_node *port) __exit;
+#else
+static inline int __init sdi_init_port(struct platform_device *pdev,
+		struct device_node *port)
+{
+	return 0;
+}
+static inline void __exit sdi_uninit_port(struct device_node *port)
+{
+}
+#endif
 
 /* DSI */
 
@@ -358,8 +369,19 @@ static inline bool dsi_pll_calc(struct platform_device *dsidev,
 int dpi_init_platform_driver(void) __init;
 void dpi_uninit_platform_driver(void) __exit;
 
+#ifdef CONFIG_OMAP2_DSS_DPI
 int dpi_init_port(struct platform_device *pdev, struct device_node *port) __init;
 void dpi_uninit_port(struct device_node *port) __exit;
+#else
+static inline int __init dpi_init_port(struct platform_device *pdev,
+		struct device_node *port)
+{
+	return 0;
+}
+static inline void __exit dpi_uninit_port(struct device_node *port)
+{
+}
+#endif
 
 /* DISPC */
 int dispc_init_platform_driver(void) __init;
