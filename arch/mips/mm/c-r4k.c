@@ -105,7 +105,6 @@ static inline void r4k_blast_dcache_page_dc32(unsigned long addr)
 
 static inline void r4k_blast_dcache_page_dc64(unsigned long addr)
 {
-	R4600_HIT_CACHEOP_WAR_IMPL;
 	blast_dcache64_page(addr);
 }
 
