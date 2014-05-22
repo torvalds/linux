@@ -273,13 +273,6 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 #define delayed_work_pending(w) \
 	work_pending(&(w)->work)
 
-/**
- * work_clear_pending - for internal use only, mark a work item as not pending
- * @work: The work item in question
- */
-#define work_clear_pending(work) \
-	clear_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))
-
 /*
  * Workqueue flags and constants.  For details, please refer to
  * Documentation/workqueue.txt.
