@@ -447,7 +447,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 				struct guest_msgs cmd;
 				if (!uuid_le_cmp(dev->channelTypeGuid,
 				     UltraVhbaChannelProtocolGuid)) {
-					WAIT_FOR_VALID_GUID(((CHANNEL_HEADER
+					wait_for_valid_guid(&((CHANNEL_HEADER
 							      __iomem *) (dev->
 								  chanptr))->
 							    Type);
@@ -472,7 +472,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 				} else
 				    if (!uuid_le_cmp(dev->channelTypeGuid,
 					 UltraVnicChannelProtocolGuid)) {
-					WAIT_FOR_VALID_GUID(((CHANNEL_HEADER
+					wait_for_valid_guid(&((CHANNEL_HEADER
 							      __iomem *) (dev->
 								  chanptr))->
 							    Type);

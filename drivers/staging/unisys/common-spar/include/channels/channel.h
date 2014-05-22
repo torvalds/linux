@@ -333,8 +333,9 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 			   (pChannel))->Size) < expectedMinBytes) {
 			CHANNEL_U64_MISMATCH(expectedTypeGuid, channelName,
 					     "size", expectedMinBytes,
-					     ((CHANNEL_HEADER __iomem *)
-					      (pChannel))->Size, fileName,
+					     readq(&((CHANNEL_HEADER __iomem *)
+						     (pChannel))->Size),
+					     fileName,
 					     lineNumber, logCtx);
 			return 0;
 		}
@@ -344,9 +345,9 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 		    != expectedVersionId) {
 			CHANNEL_U32_MISMATCH(expectedTypeGuid, channelName,
 					     "version", expectedVersionId,
-					     ((CHANNEL_HEADER __iomem *)
-					      (pChannel))->VersionId, fileName,
-					     lineNumber, logCtx);
+					     readl(&((CHANNEL_HEADER __iomem *)
+						     (pChannel))->VersionId),
+					     fileName, lineNumber, logCtx);
 			return 0;
 		}
 	if (expectedSignature > 0)	/* caller wants us to verify
@@ -355,8 +356,9 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 		    != expectedSignature) {
 			CHANNEL_U64_MISMATCH(expectedTypeGuid, channelName,
 					     "signature", expectedSignature,
-					     ((CHANNEL_HEADER __iomem *)
-					      (pChannel))->Signature, fileName,
+					     readq(&((CHANNEL_HEADER __iomem *)
+						     (pChannel))->Signature),
+					     fileName,
 					     lineNumber, logCtx);
 			return 0;
 		}

@@ -194,14 +194,21 @@ struct chaninfo {
  * correctly at DEVICE_CREATE time, INSTEAD OF waiting until
  * DEVICE_CONFIGURE time.
  */
-#define WAIT_FOR_VALID_GUID(guid) \
-	do {						   \
-		while (uuid_le_cmp(guid, NULL_UUID_LE) == 0) {	\
-			LOGERR("Waiting for non-0 GUID (why???)...\n"); \
-			UIS_THREAD_WAIT_SEC(5);				\
-		}							\
-		LOGERR("OK... GUID is non-0 now\n");			\
-	} while (0)
+static inline void
+wait_for_valid_guid(uuid_le __iomem *guid)
+{
+	uuid_le tmpguid;
+
+	while (1) {
+		memcpy_fromio((void *)&tmpguid,
+			      (void __iomem *)guid, sizeof(uuid_le));
+		if (uuid_le_cmp(tmpguid, NULL_UUID_LE) != 0)
+			break;
+		LOGERR("Waiting for non-0 GUID (why???)...\n");
+		UIS_THREAD_WAIT_SEC(5);
+	}
+	LOGERR("OK... GUID is non-0 now\n");
+}
 
 /* CopyFragsInfoFromSkb returns the number of entries added to frags array
  * Returns -1 on failure.
