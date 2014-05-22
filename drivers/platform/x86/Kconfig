@@ -127,6 +127,16 @@ config DELL_WMI_AIO
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi-aio.
 
+config DELL_SMO8800
+	tristate "Dell Latitude freefall driver (ACPI SMO8800/SMO8810)"
+	depends on ACPI
+	---help---
+	  Say Y here if you want to support SMO8800/SMO8810 freefall device
+	  on Dell Latitude laptops.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-smo8800.
+
 
 config FUJITSU_LAPTOP
 	tristate "Fujitsu Laptop Extras"
