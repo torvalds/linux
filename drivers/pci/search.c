@@ -18,6 +18,76 @@ DECLARE_RWSEM(pci_bus_sem);
 EXPORT_SYMBOL_GPL(pci_bus_sem);
 
 /*
+ * pci_for_each_dma_alias - Iterate over DMA aliases for a device
+ * @pdev: starting downstream device
+ * @fn: function to call for each alias
+ * @data: opaque data to pass to @fn
+ *
+ * Starting @pdev, walk up the bus calling @fn for each possible alias
+ * of @pdev at the root bus.
+ */
+int pci_for_each_dma_alias(struct pci_dev *pdev,
+			   int (*fn)(struct pci_dev *pdev,
+				     u16 alias, void *data), void *data)
+{
+	struct pci_bus *bus;
+	int ret;
+
+	ret = fn(pdev, PCI_DEVID(pdev->bus->number, pdev->devfn), data);
+	if (ret)
+		return ret;
+
+	for (bus = pdev->bus; !pci_is_root_bus(bus); bus = bus->parent) {
+		struct pci_dev *tmp;
+
+		/* Skip virtual buses */
+		if (!bus->self)
+			continue;
+
+		tmp = bus->self;
+
+		/*
+		 * PCIe-to-PCI/X bridges alias transactions from downstream
+		 * devices using the subordinate bus number (PCI Express to
+		 * PCI/PCI-X Bridge Spec, rev 1.0, sec 2.3).  For all cases
+		 * where the upstream bus is PCI/X we alias to the bridge
+		 * (there are various conditions in the previous reference
+		 * where the bridge may take ownership of transactions, even
+		 * when the secondary interface is PCI-X).
+		 */
+		if (pci_is_pcie(tmp)) {
+			switch (pci_pcie_type(tmp)) {
+			case PCI_EXP_TYPE_ROOT_PORT:
+			case PCI_EXP_TYPE_UPSTREAM:
+			case PCI_EXP_TYPE_DOWNSTREAM:
+				continue;
+			case PCI_EXP_TYPE_PCI_BRIDGE:
+				ret = fn(tmp,
+					 PCI_DEVID(tmp->subordinate->number,
+						   PCI_DEVFN(0, 0)), data);
+				if (ret)
+					return ret;
+				continue;
+			case PCI_EXP_TYPE_PCIE_BRIDGE:
+				ret = fn(tmp,
+					 PCI_DEVID(tmp->bus->number,
+						   tmp->devfn), data);
+				if (ret)
+					return ret;
+				continue;
+			}
+		} else {
+			ret = fn(tmp, PCI_DEVID(tmp->bus->number, tmp->devfn),
+				 data);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return ret;
+}
+
+/*
  * find the upstream PCIe-to-PCI bridge of a PCI device
  * if the device is PCIE, return NULL
  * if the device isn't connected to a PCIe bridge (that is its parent is a
