@@ -48,7 +48,6 @@
 					I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (0x2 << \
 					I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
-#define I40E_PTP_TX_TIMEOUT  (HZ * 15)
 
 /**
  * i40e_ptp_read - Read the PHC time from the device

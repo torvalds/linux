@@ -12,6 +12,9 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  *
@@ -56,10 +59,12 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 };
 
 #define I40EVF_GLOBAL_STATS_LEN ARRAY_SIZE(i40evf_gstrings_stats)
-#define I40EVF_QUEUE_STATS_LEN \
+#define I40EVF_QUEUE_STATS_LEN(_dev) \
 	(((struct i40evf_adapter *) \
-		netdev_priv(netdev))->vsi_res->num_queue_pairs * 4)
-#define I40EVF_STATS_LEN (I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN)
+		netdev_priv(_dev))->vsi_res->num_queue_pairs \
+		  * 2 * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
+#define I40EVF_STATS_LEN(_dev) \
+	(I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN(_dev))
 
 /**
  * i40evf_get_settings - Get Link Speed and Duplex settings
@@ -75,7 +80,7 @@ static int i40evf_get_settings(struct net_device *netdev,
 	/* In the future the VF will be able to query the PF for
 	 * some information - for now use a dummy value
 	 */
-	ecmd->supported = SUPPORTED_10000baseT_Full;
+	ecmd->supported = 0;
 	ecmd->autoneg = AUTONEG_DISABLE;
 	ecmd->transceiver = XCVR_DUMMY1;
 	ecmd->port = PORT_NONE;
@@ -94,9 +99,9 @@ static int i40evf_get_settings(struct net_device *netdev,
 static int i40evf_get_sset_count(struct net_device *netdev, int sset)
 {
 	if (sset == ETH_SS_STATS)
-		return I40EVF_STATS_LEN;
+		return I40EVF_STATS_LEN(netdev);
 	else
-		return -ENOTSUPP;
+		return -EINVAL;
 }
 
 /**
@@ -290,14 +295,13 @@ static int i40evf_get_coalesce(struct net_device *netdev,
 	ec->rx_max_coalesced_frames = vsi->work_limit;
 
 	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting))
-		ec->rx_coalesce_usecs = 1;
-	else
-		ec->rx_coalesce_usecs = vsi->rx_itr_setting;
+		ec->use_adaptive_rx_coalesce = 1;
 
 	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting))
-		ec->tx_coalesce_usecs = 1;
-	else
-		ec->tx_coalesce_usecs = vsi->tx_itr_setting;
+		ec->use_adaptive_tx_coalesce = 1;
+
+	ec->rx_coalesce_usecs = vsi->rx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->tx_coalesce_usecs = vsi->tx_itr_setting & ~I40E_ITR_DYNAMIC;
 
 	return 0;
 }
@@ -318,40 +322,34 @@ static int i40evf_set_coalesce(struct net_device *netdev,
 	struct i40e_q_vector *q_vector;
 	int i;
 
-	if (ec->tx_max_coalesced_frames || ec->rx_max_coalesced_frames)
-		vsi->work_limit = ec->tx_max_coalesced_frames;
+	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
+		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
-	switch (ec->rx_coalesce_usecs) {
-	case 0:
-		vsi->rx_itr_setting = 0;
-		break;
-	case 1:
-		vsi->rx_itr_setting = (I40E_ITR_DYNAMIC
-				       | ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
-		break;
-	default:
-		if ((ec->rx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		    (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1)))
-			return -EINVAL;
+	if ((ec->rx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
+	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
 		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
-		break;
-	}
 
-	switch (ec->tx_coalesce_usecs) {
-	case 0:
-		vsi->tx_itr_setting = 0;
-		break;
-	case 1:
-		vsi->tx_itr_setting = (I40E_ITR_DYNAMIC
-				       | ITR_REG_TO_USEC(I40E_ITR_TX_DEF));
-		break;
-	default:
-		if ((ec->tx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		    (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1)))
-			return -EINVAL;
+	else
+		return -EINVAL;
+
+	if ((ec->tx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
+	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
 		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
-		break;
-	}
+	else if (ec->use_adaptive_tx_coalesce)
+		vsi->tx_itr_setting = (I40E_ITR_DYNAMIC |
+				       ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
+	else
+		return -EINVAL;
+
+	if (ec->use_adaptive_rx_coalesce)
+		vsi->rx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		vsi->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+
+	if (ec->use_adaptive_tx_coalesce)
+		vsi->tx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	for (i = 0; i < adapter->num_msix_vectors - NONQ_VECS; i++) {
 		q_vector = adapter->q_vector[i];
@@ -675,7 +673,7 @@ static int i40evf_set_rxfh_indir(struct net_device *netdev, const u32 *indir)
 	return 0;
 }
 
-static struct ethtool_ops i40evf_ethtool_ops = {
+static const struct ethtool_ops i40evf_ethtool_ops = {
 	.get_settings		= i40evf_get_settings,
 	.get_drvinfo		= i40evf_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
