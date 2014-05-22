@@ -416,6 +416,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_SPAPR_TCE:
 	case KVM_CAP_PPC_ALLOC_HTAB:
 	case KVM_CAP_PPC_RTAS:
+	case KVM_CAP_PPC_FIXUP_HCALL:
 #ifdef CONFIG_KVM_XICS
 	case KVM_CAP_IRQ_XICS:
 #endif
