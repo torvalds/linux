@@ -268,6 +268,7 @@ static void __sysmmu_tlb_invalidate_entry(void __iomem *sfrbase,
 				sysmmu_iova_t iova, unsigned int num_inv)
 {
 	unsigned int i;
+
 	for (i = 0; i < num_inv; i++) {
 		__raw_writel((iova & SPAGE_MASK) | 1,
 				sfrbase + REG_MMU_FLUSH_ENTRY);
@@ -878,6 +879,7 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *priv,
 		 */
 		if (need_flush_flpd_cache) {
 			struct exynos_iommu_owner *owner;
+
 			spin_lock(&priv->lock);
 			list_for_each_entry(owner, &priv->clients, client)
 				sysmmu_tlb_invalidate_flpdcache(
@@ -941,6 +943,7 @@ static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
 		*pgcnt -= 1;
 	} else { /* size == LPAGE_SIZE */
 		int i;
+
 		for (i = 0; i < SPAGES_PER_LPAGE; i++, pent++) {
 			if (WARN_ON(!lv2ent_fault(pent))) {
 				if (i > 0)
