@@ -279,18 +279,13 @@ static int verify_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t
  * supported by that architecture then we need to modify is_trap_at_addr and
  * uprobe_write_opcode accordingly. This would never be a problem for archs
  * that have fixed length instructions.
- */
-
-/*
+ *
  * uprobe_write_opcode - write the opcode at a given virtual address.
  * @mm: the probed process address space.
  * @vaddr: the virtual address to store the opcode.
  * @opcode: opcode to be written at @vaddr.
  *
- * Called with mm->mmap_sem held (for read and with a reference to
- * mm).
- *
- * For mm @mm, write the opcode at @vaddr.
+ * Called with mm->mmap_sem held for write.
  * Return 0 (success) or a negative errno.
  */
 int uprobe_write_opcode(struct mm_struct *mm, unsigned long vaddr,
@@ -310,21 +305,25 @@ retry:
 	if (ret <= 0)
 		goto put_old;
 
+	ret = anon_vma_prepare(vma);
+	if (ret)
+		goto put_old;
+
 	ret = -ENOMEM;
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
 	if (!new_page)
 		goto put_old;
 
-	__SetPageUptodate(new_page);
+	if (mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL))
+		goto put_new;
 
+	__SetPageUptodate(new_page);
 	copy_highpage(new_page, old_page);
 	copy_to_page(new_page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
 
-	ret = anon_vma_prepare(vma);
-	if (ret)
-		goto put_new;
-
 	ret = __replace_page(vma, vaddr, old_page, new_page);
+	if (ret)
+		mem_cgroup_uncharge_page(new_page);
 
 put_new:
 	page_cache_release(new_page);
@@ -1350,6 +1349,16 @@ static void xol_free_insn_slot(struct task_struct *tsk)
 unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs)
 {
 	return instruction_pointer(regs) - UPROBE_SWBP_INSN_SIZE;
+}
+
+unsigned long uprobe_get_trap_addr(struct pt_regs *regs)
+{
+	struct uprobe_task *utask = current->utask;
+
+	if (unlikely(utask && utask->active_uprobe))
+		return utask->vaddr;
+
+	return instruction_pointer(regs);
 }
 
 /*
