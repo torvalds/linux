@@ -73,6 +73,8 @@ static void reg_mr_callback(int status, void *context)
 	struct mlx5_cache_ent *ent = &cache->ent[c];
 	u8 key;
 	unsigned long flags;
+	struct mlx5_mr_table *table = &dev->mdev.priv.mr_table;
+	int err;
 
 	spin_lock_irqsave(&ent->lock, flags);
 	ent->pending--;
@@ -107,6 +109,13 @@ static void reg_mr_callback(int status, void *context)
 	ent->cur++;
 	ent->size++;
 	spin_unlock_irqrestore(&ent->lock, flags);
+
+	write_lock_irqsave(&table->lock, flags);
+	err = radix_tree_insert(&table->tree, mlx5_base_mkey(mr->mmr.key),
+				&mr->mmr);
+	if (err)
+		pr_err("Error inserting to mr tree. 0x%x\n", -err);
+	write_unlock_irqrestore(&table->lock, flags);
 }
 
 static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
