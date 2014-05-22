@@ -1023,6 +1023,9 @@ struct i40e_hw_port_stats {
 	u64 tx_size_big;		/* ptc9522 */
 	u64 mac_short_packet_dropped;	/* mspdc */
 	u64 checksum_error;		/* xec */
+	/* flow director stats */
+	u64 fd_atr_match;
+	u64 fd_sb_match;
 	/* EEE LPI */
 	u32 tx_lpi_status;
 	u32 rx_lpi_status;

@@ -154,6 +154,17 @@ struct i40e_lump_tracking {
 #define I40E_FDIR_BUFFER_FULL_MARGIN	10
 #define I40E_FDIR_BUFFER_HEAD_ROOM	200
 
+enum i40e_fd_stat_idx {
+	I40E_FD_STAT_ATR,
+	I40E_FD_STAT_SB,
+	I40E_FD_STAT_PF_COUNT
+};
+#define I40E_FD_STAT_PF_IDX(pf_id) ((pf_id) * I40E_FD_STAT_PF_COUNT)
+#define I40E_FD_ATR_STAT_IDX(pf_id) \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_ATR)
+#define I40E_FD_SB_STAT_IDX(pf_id)  \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_SB)
+
 struct i40e_fdir_filter {
 	struct hlist_node fdir_node;
 	/* filter ipnut set */
@@ -223,6 +234,8 @@ struct i40e_pf {
 
 	struct hlist_head fdir_filter_list;
 	u16 fdir_pf_active_filters;
+	u16 fd_sb_cnt_idx;
+	u16 fd_atr_cnt_idx;
 
 #ifdef CONFIG_I40E_VXLAN
 	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];

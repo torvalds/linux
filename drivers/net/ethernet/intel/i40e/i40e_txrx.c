@@ -121,7 +121,7 @@ int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
 		dcc |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
 		dcc |= ((u32)fdir_data->cnt_index <<
 			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
-		       I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
 	}
 
 	fdir_desc->dtype_cmd_cntindex = cpu_to_le32(dcc);
@@ -1694,6 +1694,11 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	dtype_cmd |= I40E_FILTER_PROGRAM_DESC_FD_STATUS_FD_ID <<
 		     I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT;
+
+	dtype_cmd |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
+	dtype_cmd |=
+		((u32)pf->fd_atr_cnt_idx << I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
+		I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
 	fdir_desc->dtype_cmd_cntindex = cpu_to_le32(dtype_cmd);
