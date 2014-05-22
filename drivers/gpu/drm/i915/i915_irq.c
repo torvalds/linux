@@ -3140,6 +3140,14 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	POSTING_READ(VLV_IER);
 }
 
+static void gen8_gt_irq_reset(struct drm_i915_private *dev_priv)
+{
+	GEN8_IRQ_RESET_NDX(GT, 0);
+	GEN8_IRQ_RESET_NDX(GT, 1);
+	GEN8_IRQ_RESET_NDX(GT, 2);
+	GEN8_IRQ_RESET_NDX(GT, 3);
+}
+
 static void gen8_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3148,10 +3156,7 @@ static void gen8_irq_reset(struct drm_device *dev)
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
-	GEN8_IRQ_RESET_NDX(GT, 0);
-	GEN8_IRQ_RESET_NDX(GT, 1);
-	GEN8_IRQ_RESET_NDX(GT, 2);
-	GEN8_IRQ_RESET_NDX(GT, 3);
+	gen8_gt_irq_reset(dev_priv);
 
 	for_each_pipe(pipe)
 		GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
@@ -3171,10 +3176,7 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
-	GEN8_IRQ_RESET_NDX(GT, 0);
-	GEN8_IRQ_RESET_NDX(GT, 1);
-	GEN8_IRQ_RESET_NDX(GT, 2);
-	GEN8_IRQ_RESET_NDX(GT, 3);
+	gen8_gt_irq_reset(dev_priv);
 
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
