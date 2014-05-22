@@ -42,6 +42,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <net/tso.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/etherdevice.h>
@@ -179,9 +180,10 @@ static char mv643xx_eth_driver_version[] = "1.4";
  * Misc definitions.
  */
 #define DEFAULT_RX_QUEUE_SIZE	128
-#define DEFAULT_TX_QUEUE_SIZE	256
+#define DEFAULT_TX_QUEUE_SIZE	512
 #define SKB_DMA_REALIGN		((PAGE_SIZE - NET_SKB_PAD) % SMP_CACHE_BYTES)
 
+#define TSO_HEADER_SIZE		128
 
 /*
  * RX/TX descriptors.
@@ -250,6 +252,7 @@ struct tx_desc {
 #define GEN_TCP_UDP_CHECKSUM		0x00020000
 #define UDP_FRAME			0x00010000
 #define MAC_HDR_EXTRA_4_BYTES		0x00008000
+#define GEN_TCP_UDP_CHK_FULL		0x00000400
 #define MAC_HDR_EXTRA_8_BYTES		0x00000200
 
 #define TX_IHL_SHIFT			11
@@ -344,6 +347,9 @@ struct tx_queue {
 	int tx_desc_count;
 	int tx_curr_desc;
 	int tx_used_desc;
+
+	char *tso_hdrs;
+	dma_addr_t tso_hdrs_dma;
 
 	struct tx_desc *tx_desc_area;
 	dma_addr_t tx_desc_dma;
@@ -661,6 +667,198 @@ static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 	return 0;
 }
 
+static inline __be16 sum16_as_be(__sum16 sum)
+{
+	return (__force __be16)sum;
+}
+
+static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
+		       u16 *l4i_chk, u32 *command, int length)
+{
+	int ret;
+	u32 cmd = 0;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		int hdr_len;
+		int tag_bytes;
+
+		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
+		       skb->protocol != htons(ETH_P_8021Q));
+
+		hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
+		tag_bytes = hdr_len - ETH_HLEN;
+
+		if (length - hdr_len > mp->shared->tx_csum_limit ||
+		    unlikely(tag_bytes & ~12)) {
+			ret = skb_checksum_help(skb);
+			if (!ret)
+				goto no_csum;
+			return ret;
+		}
+
+		if (tag_bytes & 4)
+			cmd |= MAC_HDR_EXTRA_4_BYTES;
+		if (tag_bytes & 8)
+			cmd |= MAC_HDR_EXTRA_8_BYTES;
+
+		cmd |= GEN_TCP_UDP_CHECKSUM | GEN_TCP_UDP_CHK_FULL |
+			   GEN_IP_V4_CHECKSUM   |
+			   ip_hdr(skb)->ihl << TX_IHL_SHIFT;
+
+		/* TODO: Revisit this. With the usage of GEN_TCP_UDP_CHK_FULL
+		 * it seems we don't need to pass the initial checksum. */
+		switch (ip_hdr(skb)->protocol) {
+		case IPPROTO_UDP:
+			cmd |= UDP_FRAME;
+			*l4i_chk = 0;
+			break;
+		case IPPROTO_TCP:
+			*l4i_chk = 0;
+			break;
+		default:
+			WARN(1, "protocol not supported");
+		}
+	} else {
+no_csum:
+		/* Errata BTS #50, IHL must be 5 if no HW checksum */
+		cmd |= 5 << TX_IHL_SHIFT;
+	}
+	*command = cmd;
+	return 0;
+}
+
+static inline int
+txq_put_data_tso(struct net_device *dev, struct tx_queue *txq,
+		 struct sk_buff *skb, char *data, int length,
+		 bool last_tcp, bool is_last)
+{
+	int tx_index;
+	u32 cmd_sts;
+	struct tx_desc *desc;
+
+	tx_index = txq->tx_curr_desc++;
+	if (txq->tx_curr_desc == txq->tx_ring_size)
+		txq->tx_curr_desc = 0;
+	desc = &txq->tx_desc_area[tx_index];
+
+	desc->l4i_chk = 0;
+	desc->byte_cnt = length;
+	desc->buf_ptr = dma_map_single(dev->dev.parent, data,
+				       length, DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev->dev.parent, desc->buf_ptr))) {
+		WARN(1, "dma_map_single failed!\n");
+		return -ENOMEM;
+	}
+
+	cmd_sts = BUFFER_OWNED_BY_DMA;
+	if (last_tcp) {
+		/* last descriptor in the TCP packet */
+		cmd_sts |= ZERO_PADDING | TX_LAST_DESC;
+		/* last descriptor in SKB */
+		if (is_last)
+			cmd_sts |= TX_ENABLE_INTERRUPT;
+	}
+	desc->cmd_sts = cmd_sts;
+	return 0;
+}
+
+static inline void
+txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length)
+{
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
+	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	int tx_index;
+	struct tx_desc *desc;
+	int ret;
+	u32 cmd_csum = 0;
+	u16 l4i_chk = 0;
+
+	tx_index = txq->tx_curr_desc;
+	desc = &txq->tx_desc_area[tx_index];
+
+	ret = skb_tx_csum(mp, skb, &l4i_chk, &cmd_csum, length);
+	if (ret)
+		WARN(1, "failed to prepare checksum!");
+
+	/* Should we set this? Can't use the value from skb_tx_csum()
+	 * as it's not the correct initial L4 checksum to use. */
+	desc->l4i_chk = 0;
+
+	desc->byte_cnt = hdr_len;
+	desc->buf_ptr = txq->tso_hdrs_dma +
+			txq->tx_curr_desc * TSO_HEADER_SIZE;
+	desc->cmd_sts = cmd_csum | BUFFER_OWNED_BY_DMA  | TX_FIRST_DESC |
+				   GEN_CRC;
+
+	txq->tx_curr_desc++;
+	if (txq->tx_curr_desc == txq->tx_ring_size)
+		txq->tx_curr_desc = 0;
+}
+
+static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
+			  struct net_device *dev)
+{
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
+	int total_len, data_left, ret;
+	int desc_count = 0;
+	struct tso_t tso;
+	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+
+	/* Count needed descriptors */
+	if ((txq->tx_desc_count + tso_count_descs(skb)) >= txq->tx_ring_size) {
+		netdev_dbg(dev, "not enough descriptors for TSO!\n");
+		return -EBUSY;
+	}
+
+	/* Initialize the TSO handler, and prepare the first payload */
+	tso_start(skb, &tso);
+
+	total_len = skb->len - hdr_len;
+	while (total_len > 0) {
+		char *hdr;
+
+		data_left = min_t(int, skb_shinfo(skb)->gso_size, total_len);
+		total_len -= data_left;
+		desc_count++;
+
+		/* prepare packet headers: MAC + IP + TCP */
+		hdr = txq->tso_hdrs + txq->tx_curr_desc * TSO_HEADER_SIZE;
+		tso_build_hdr(skb, hdr, &tso, data_left, total_len == 0);
+		txq_put_hdr_tso(skb, txq, data_left);
+
+		while (data_left > 0) {
+			int size;
+			desc_count++;
+
+			size = min_t(int, tso.size, data_left);
+			ret = txq_put_data_tso(dev, txq, skb, tso.data, size,
+					       size == data_left,
+					       total_len == 0);
+			if (ret)
+				goto err_release;
+			data_left -= size;
+			tso_build_data(skb, &tso, size);
+		}
+	}
+
+	__skb_queue_tail(&txq->tx_skb, skb);
+	skb_tx_timestamp(skb);
+
+	/* clear TX_END status */
+	mp->work_tx_end &= ~(1 << txq->index);
+
+	/* ensure all descriptors are written before poking hardware */
+	wmb();
+	txq_enable(txq);
+	txq->tx_desc_count += desc_count;
+	return 0;
+err_release:
+	/* TODO: Release all used data descriptors; header descriptors must not
+	 * be DMA-unmapped.
+	 */
+	return ret;
+}
+
 static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 {
 	struct mv643xx_eth_private *mp = txq_to_mp(txq);
@@ -671,8 +869,10 @@ static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 		skb_frag_t *this_frag;
 		int tx_index;
 		struct tx_desc *desc;
+		void *addr;
 
 		this_frag = &skb_shinfo(skb)->frags[frag];
+		addr = page_address(this_frag->page.p) + this_frag->page_offset;
 		tx_index = txq->tx_curr_desc++;
 		if (txq->tx_curr_desc == txq->tx_ring_size)
 			txq->tx_curr_desc = 0;
@@ -692,16 +892,9 @@ static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 
 		desc->l4i_chk = 0;
 		desc->byte_cnt = skb_frag_size(this_frag);
-		desc->buf_ptr = skb_frag_dma_map(mp->dev->dev.parent,
-						 this_frag, 0,
-						 skb_frag_size(this_frag),
-						 DMA_TO_DEVICE);
+		desc->buf_ptr = dma_map_single(mp->dev->dev.parent, addr,
+					       desc->byte_cnt, DMA_TO_DEVICE);
 	}
-}
-
-static inline __be16 sum16_as_be(__sum16 sum)
-{
-	return (__force __be16)sum;
 }
 
 static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
@@ -712,53 +905,17 @@ static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	struct tx_desc *desc;
 	u32 cmd_sts;
 	u16 l4i_chk;
-	int length;
+	int length, ret;
 
-	cmd_sts = TX_FIRST_DESC | GEN_CRC | BUFFER_OWNED_BY_DMA;
+	cmd_sts = 0;
 	l4i_chk = 0;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		int hdr_len;
-		int tag_bytes;
-
-		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
-		       skb->protocol != htons(ETH_P_8021Q));
-
-		hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
-		tag_bytes = hdr_len - ETH_HLEN;
-		if (skb->len - hdr_len > mp->shared->tx_csum_limit ||
-		    unlikely(tag_bytes & ~12)) {
-			if (skb_checksum_help(skb) == 0)
-				goto no_csum;
-			dev_kfree_skb_any(skb);
-			return 1;
-		}
-
-		if (tag_bytes & 4)
-			cmd_sts |= MAC_HDR_EXTRA_4_BYTES;
-		if (tag_bytes & 8)
-			cmd_sts |= MAC_HDR_EXTRA_8_BYTES;
-
-		cmd_sts |= GEN_TCP_UDP_CHECKSUM |
-			   GEN_IP_V4_CHECKSUM   |
-			   ip_hdr(skb)->ihl << TX_IHL_SHIFT;
-
-		switch (ip_hdr(skb)->protocol) {
-		case IPPROTO_UDP:
-			cmd_sts |= UDP_FRAME;
-			l4i_chk = ntohs(sum16_as_be(udp_hdr(skb)->check));
-			break;
-		case IPPROTO_TCP:
-			l4i_chk = ntohs(sum16_as_be(tcp_hdr(skb)->check));
-			break;
-		default:
-			BUG();
-		}
-	} else {
-no_csum:
-		/* Errata BTS #50, IHL must be 5 if no HW checksum */
-		cmd_sts |= 5 << TX_IHL_SHIFT;
+	ret = skb_tx_csum(mp, skb, &l4i_chk, &cmd_sts, skb->len);
+	if (ret) {
+		dev_kfree_skb_any(skb);
+		return ret;
 	}
+	cmd_sts |= TX_FIRST_DESC | GEN_CRC | BUFFER_OWNED_BY_DMA;
 
 	tx_index = txq->tx_curr_desc++;
 	if (txq->tx_curr_desc == txq->tx_ring_size)
@@ -801,7 +958,7 @@ no_csum:
 static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	int length, queue;
+	int length, queue, ret;
 	struct tx_queue *txq;
 	struct netdev_queue *nq;
 
@@ -825,7 +982,11 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	length = skb->len;
 
-	if (!txq_submit_skb(txq, skb)) {
+	if (skb_is_gso(skb))
+		ret = txq_submit_tso(txq, skb, dev);
+	else
+		ret = txq_submit_skb(txq, skb);
+	if (!ret) {
 		int entries_left;
 
 		txq->tx_bytes += length;
@@ -834,6 +995,8 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		entries_left = txq->tx_ring_size - txq->tx_desc_count;
 		if (entries_left < MAX_SKB_FRAGS + 1)
 			netif_tx_stop_queue(nq);
+	} else if (ret == -EBUSY) {
+		return NETDEV_TX_BUSY;
 	}
 
 	return NETDEV_TX_OK;
@@ -907,14 +1070,8 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 			mp->dev->stats.tx_errors++;
 		}
 
-		if (cmd_sts & TX_FIRST_DESC) {
-			dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
-					 desc->byte_cnt, DMA_TO_DEVICE);
-		} else {
-			dma_unmap_page(mp->dev->dev.parent, desc->buf_ptr,
-				       desc->byte_cnt, DMA_TO_DEVICE);
-		}
-
+		dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
+				 desc->byte_cnt, DMA_TO_DEVICE);
 		dev_kfree_skb(skb);
 	}
 
@@ -1871,6 +2028,15 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 					nexti * sizeof(struct tx_desc);
 	}
 
+	/* Allocate DMA buffers for TSO MAC/IP/TCP headers */
+	txq->tso_hdrs = dma_alloc_coherent(mp->dev->dev.parent,
+					   txq->tx_ring_size * TSO_HEADER_SIZE,
+					   &txq->tso_hdrs_dma, GFP_KERNEL);
+	if (txq->tso_hdrs == NULL) {
+		dma_free_coherent(mp->dev->dev.parent, txq->tx_desc_area_size,
+				  txq->tx_desc_area, txq->tx_desc_dma);
+		return -ENOMEM;
+	}
 	skb_queue_head_init(&txq->tx_skb);
 
 	return 0;
@@ -1891,6 +2057,10 @@ static void txq_deinit(struct tx_queue *txq)
 	else
 		dma_free_coherent(mp->dev->dev.parent, txq->tx_desc_area_size,
 				  txq->tx_desc_area, txq->tx_desc_dma);
+	if (txq->tso_hdrs)
+		dma_free_coherent(mp->dev->dev.parent,
+				  txq->tx_ring_size * TSO_HEADER_SIZE,
+				  txq->tso_hdrs, txq->tso_hdrs_dma);
 }
 
 
@@ -2921,9 +3091,11 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 
-	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
+	dev->vlan_features = dev->features;
+
+	dev->features |= NETIF_F_RXCSUM;
+	dev->hw_features = dev->features;
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
