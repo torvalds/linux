@@ -387,6 +387,11 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq)
 	if (hsotg->core_params->ts_dline > 0)
 		usbcfg |= GUSBCFG_TERMSELDLPULSE;
 
+	/* Set external VBUS indicator as needed. */
+	if (hsotg->core_params->phy_type == DWC2_PHY_TYPE_PARAM_ULPI)
+		usbcfg |= (GUSBCFG_ULPI_INT_VBUS_IND |
+				GUSBCFG_INDICATORPASSTHROUGH);
+
 	writel(usbcfg, hsotg->regs + GUSBCFG);
 
 	/* Reset the Controller */
