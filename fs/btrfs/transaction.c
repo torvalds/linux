@@ -697,6 +697,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	unsigned long cur = trans->delayed_ref_updates;
 	int lock = (trans->type != TRANS_JOIN_NOLOCK);
 	int err = 0;
+	int must_run_delayed_refs = 0;
 
 	if (trans->use_count > 1) {
 		trans->use_count--;
@@ -711,10 +712,18 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		btrfs_create_pending_block_groups(trans, root);
 
 	trans->delayed_ref_updates = 0;
-	if (!trans->sync && btrfs_should_throttle_delayed_refs(trans, root)) {
+	if (!trans->sync) {
+		must_run_delayed_refs =
+			btrfs_should_throttle_delayed_refs(trans, root);
 		cur = max_t(unsigned long, cur, 32);
-		trans->delayed_ref_updates = 0;
-		btrfs_run_delayed_refs(trans, root, cur);
+
+		/*
+		 * don't make the caller wait if they are from a NOLOCK
+		 * or ATTACH transaction, it will deadlock with commit
+		 */
+		if (must_run_delayed_refs == 1 &&
+		    (trans->type & (__TRANS_JOIN_NOLOCK | __TRANS_ATTACH)))
+			must_run_delayed_refs = 2;
 	}
 
 	if (trans->qgroup_reserved) {
@@ -775,6 +784,10 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	assert_qgroups_uptodate(trans);
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
+	if (must_run_delayed_refs) {
+		btrfs_async_run_delayed_refs(root, cur,
+					     must_run_delayed_refs == 1);
+	}
 	return err;
 }
 

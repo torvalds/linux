@@ -2674,13 +2674,92 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
 	u64 num_entries =
 		atomic_read(&trans->transaction->delayed_refs.num_entries);
 	u64 avg_runtime;
+	u64 val;
 
 	smp_mb();
 	avg_runtime = fs_info->avg_delayed_ref_runtime;
+	val = num_entries * avg_runtime;
 	if (num_entries * avg_runtime >= NSEC_PER_SEC)
 		return 1;
+	if (val >= NSEC_PER_SEC / 2)
+		return 2;
 
 	return btrfs_check_space_for_delayed_refs(trans, root);
+}
+
+struct async_delayed_refs {
+	struct btrfs_root *root;
+	int count;
+	int error;
+	int sync;
+	struct completion wait;
+	struct btrfs_work work;
+};
+
+static void delayed_ref_async_start(struct btrfs_work *work)
+{
+	struct async_delayed_refs *async;
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	async = container_of(work, struct async_delayed_refs, work);
+
+	trans = btrfs_join_transaction(async->root);
+	if (IS_ERR(trans)) {
+		async->error = PTR_ERR(trans);
+		goto done;
+	}
+
+	/*
+	 * trans->sync means that when we call end_transaciton, we won't
+	 * wait on delayed refs
+	 */
+	trans->sync = true;
+	ret = btrfs_run_delayed_refs(trans, async->root, async->count);
+	if (ret)
+		async->error = ret;
+
+	ret = btrfs_end_transaction(trans, async->root);
+	if (ret && !async->error)
+		async->error = ret;
+done:
+	if (async->sync)
+		complete(&async->wait);
+	else
+		kfree(async);
+}
+
+int btrfs_async_run_delayed_refs(struct btrfs_root *root,
+				 unsigned long count, int wait)
+{
+	struct async_delayed_refs *async;
+	int ret;
+
+	async = kmalloc(sizeof(*async), GFP_NOFS);
+	if (!async)
+		return -ENOMEM;
+
+	async->root = root->fs_info->tree_root;
+	async->count = count;
+	async->error = 0;
+	if (wait)
+		async->sync = 1;
+	else
+		async->sync = 0;
+	init_completion(&async->wait);
+
+	btrfs_init_work(&async->work, delayed_ref_async_start,
+			NULL, NULL);
+
+	btrfs_queue_work(root->fs_info->extent_workers, &async->work);
+
+	if (wait) {
+		wait_for_completion(&async->wait);
+		ret = async->error;
+		kfree(async);
+		return ret;
+	}
+	return 0;
 }
 
 /*

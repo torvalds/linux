@@ -2069,6 +2069,7 @@ static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 	btrfs_destroy_workqueue(fs_info->readahead_workers);
 	btrfs_destroy_workqueue(fs_info->flush_workers);
 	btrfs_destroy_workqueue(fs_info->qgroup_rescan_workers);
+	btrfs_destroy_workqueue(fs_info->extent_workers);
 }
 
 static void free_root_extent_buffers(struct btrfs_root *root)
@@ -2586,6 +2587,10 @@ int open_ctree(struct super_block *sb,
 		btrfs_alloc_workqueue("readahead", flags, max_active, 2);
 	fs_info->qgroup_rescan_workers =
 		btrfs_alloc_workqueue("qgroup-rescan", flags, 1, 0);
+	fs_info->extent_workers =
+		btrfs_alloc_workqueue("extent-refs", flags,
+				      min_t(u64, fs_devices->num_devices,
+					    max_active), 8);
 
 	if (!(fs_info->workers && fs_info->delalloc_workers &&
 	      fs_info->submit_workers && fs_info->flush_workers &&
@@ -2595,6 +2600,7 @@ int open_ctree(struct super_block *sb,
 	      fs_info->endio_freespace_worker && fs_info->rmw_workers &&
 	      fs_info->caching_workers && fs_info->readahead_workers &&
 	      fs_info->fixup_workers && fs_info->delayed_workers &&
+	      fs_info->fixup_workers && fs_info->extent_workers &&
 	      fs_info->qgroup_rescan_workers)) {
 		err = -ENOMEM;
 		goto fail_sb_buffer;
