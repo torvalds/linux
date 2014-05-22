@@ -570,6 +570,43 @@ static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv,
 static DRIVER_ATTR(dwc_otg_conn_en, S_IRUGO | S_IWUSR, dwc_otg_conn_en_show,
 		   dwc_otg_conn_en_store);
 
+/* used for product vbus power control, SDK not need.
+ * If dwc_otg is host mode, enable vbus power.
+ * If dwc_otg is device mode, disable vbus power.
+ * return 1 - host mode, 0 - device mode.
+ */
+int dwc_otg_usb_state(void)
+{
+	dwc_otg_device_t *otg_dev = g_otgdev;
+
+	if (otg_dev) {
+		/* op_state is A_HOST */
+		if (1 == otg_dev->core_if->op_state)
+			return 1;
+		/* op_state is B_PERIPHERAL */
+		else if (4 == otg_dev->core_if->op_state)
+			return 0;
+		else
+			return 0;
+	} else {
+		DWC_WARN("g_otgdev is NULL, maybe otg probe is failed!\n");
+		return 0;
+	}
+}
+EXPORT_SYMBOL(dwc_otg_usb_state);
+
+static ssize_t dwc_otg_op_state_show(struct device_driver *_drv, char *_buf)
+{
+	dwc_otg_device_t *otg_dev = g_otgdev;
+
+	if (otg_dev) {
+		return sprintf(_buf, "%d\n", otg_dev->core_if->op_state);
+	} else {
+		return sprintf(_buf, "%d\n", 0);
+	}
+}
+static DRIVER_ATTR(op_state, S_IRUGO, dwc_otg_op_state_show, NULL);
+
 static ssize_t vbus_status_show(struct device_driver *_drv, char *_buf)
 {
 	dwc_otg_device_t *otg_dev = g_otgdev;
@@ -1678,6 +1715,9 @@ static int __init dwc_otg_driver_init(void)
 	error =
 	    driver_create_file(&dwc_otg_driver.driver,
 			       &driver_attr_force_usb_mode);
+	error =
+	    driver_create_file(&dwc_otg_driver.driver,
+			       &driver_attr_op_state);
 
 #endif
 
@@ -1729,6 +1769,7 @@ static void __exit dwc_otg_driver_cleanup(void)
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_version);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_force_usb_mode);
+	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_op_state);
 	platform_driver_unregister(&dwc_otg_driver);
 	printk(KERN_INFO "%s module removed\n", dwc_otg20_driver_name);
 #endif
