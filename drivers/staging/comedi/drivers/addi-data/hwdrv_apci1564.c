@@ -170,23 +170,6 @@ static int apci1564_do_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int apci1564_do_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-
-	s->state = inl(devpriv->i_IobaseAmcc + APCI1564_DO_REG);
-
-	if (comedi_dio_update_state(s, data))
-		outl(s->state, devpriv->i_IobaseAmcc + APCI1564_DO_REG);
-
-	data[1] = s->state;
-
-	return insn->n;
-}
-
 /*
  * Configures The Timer, Counter or Watchdog
  *
