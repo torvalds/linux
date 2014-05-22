@@ -597,9 +597,6 @@ static int xfrm_add_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_state *x;
 	int err;
 	struct km_event c;
-	kuid_t loginuid = audit_get_loginuid(current);
-	unsigned int sessionid = audit_get_sessionid(current);
-	u32 sid;
 
 	err = verify_newsa_info(p, attrs);
 	if (err)
@@ -615,8 +612,7 @@ static int xfrm_add_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	else
 		err = xfrm_state_update(x);
 
-	security_task_getsecid(current, &sid);
-	xfrm_audit_state_add(x, err ? 0 : 1, loginuid, sessionid, sid);
+	xfrm_audit_state_add(x, err ? 0 : 1, true);
 
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
@@ -676,9 +672,6 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err = -ESRCH;
 	struct km_event c;
 	struct xfrm_usersa_id *p = nlmsg_data(nlh);
-	kuid_t loginuid = audit_get_loginuid(current);
-	unsigned int sessionid = audit_get_sessionid(current);
-	u32 sid;
 
 	x = xfrm_user_state_lookup(net, p, attrs, &err);
 	if (x == NULL)
@@ -703,8 +696,7 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	km_state_notify(x, &c);
 
 out:
-	security_task_getsecid(current, &sid);
-	xfrm_audit_state_delete(x, err ? 0 : 1, loginuid, sessionid, sid);
+	xfrm_audit_state_delete(x, err ? 0 : 1, true);
 	xfrm_state_put(x);
 	return err;
 }
@@ -1414,9 +1406,6 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct km_event c;
 	int err;
 	int excl;
-	kuid_t loginuid = audit_get_loginuid(current);
-	unsigned int sessionid = audit_get_sessionid(current);
-	u32 sid;
 
 	err = verify_newpolicy_info(p);
 	if (err)
@@ -1435,8 +1424,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	 * a type XFRM_MSG_UPDPOLICY - JHS */
 	excl = nlh->nlmsg_type == XFRM_MSG_NEWPOLICY;
 	err = xfrm_policy_insert(p->dir, xp, excl);
-	security_task_getsecid(current, &sid);
-	xfrm_audit_policy_add(xp, err ? 0 : 1, loginuid, sessionid, sid);
+	xfrm_audit_policy_add(xp, err ? 0 : 1, true);
 
 	if (err) {
 		security_xfrm_policy_free(xp->security);
@@ -1673,13 +1661,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 					    NETLINK_CB(skb).portid);
 		}
 	} else {
-		kuid_t loginuid = audit_get_loginuid(current);
-		unsigned int sessionid = audit_get_sessionid(current);
-		u32 sid;
-
-		security_task_getsecid(current, &sid);
-		xfrm_audit_policy_delete(xp, err ? 0 : 1, loginuid, sessionid,
-					 sid);
+		xfrm_audit_policy_delete(xp, err ? 0 : 1, true);
 
 		if (err != 0)
 			goto out;
@@ -1704,13 +1686,9 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct km_event c;
 	struct xfrm_usersa_flush *p = nlmsg_data(nlh);
-	struct xfrm_audit audit_info;
 	int err;
 
-	audit_info.loginuid = audit_get_loginuid(current);
-	audit_info.sessionid = audit_get_sessionid(current);
-	security_task_getsecid(current, &audit_info.secid);
-	err = xfrm_state_flush(net, p->proto, &audit_info);
+	err = xfrm_state_flush(net, p->proto, true);
 	if (err) {
 		if (err == -ESRCH) /* empty table */
 			return 0;
@@ -1894,16 +1872,12 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct km_event c;
 	u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err;
-	struct xfrm_audit audit_info;
 
 	err = copy_from_user_policy_type(&type, attrs);
 	if (err)
 		return err;
 
-	audit_info.loginuid = audit_get_loginuid(current);
-	audit_info.sessionid = audit_get_sessionid(current);
-	security_task_getsecid(current, &audit_info.secid);
-	err = xfrm_policy_flush(net, type, &audit_info);
+	err = xfrm_policy_flush(net, type, true);
 	if (err) {
 		if (err == -ESRCH) /* empty table */
 			return 0;
@@ -1969,14 +1943,8 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	err = 0;
 	if (up->hard) {
-		kuid_t loginuid = audit_get_loginuid(current);
-		unsigned int sessionid = audit_get_sessionid(current);
-		u32 sid;
-
-		security_task_getsecid(current, &sid);
 		xfrm_policy_delete(xp, p->dir);
-		xfrm_audit_policy_delete(xp, 1, loginuid, sessionid, sid);
-
+		xfrm_audit_policy_delete(xp, 1, true);
 	} else {
 		// reset the timers here?
 		WARN(1, "Dont know what to do with soft policy expire\n");
@@ -2012,13 +1980,8 @@ static int xfrm_add_sa_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	km_state_expired(x, ue->hard, nlh->nlmsg_pid);
 
 	if (ue->hard) {
-		kuid_t loginuid = audit_get_loginuid(current);
-		unsigned int sessionid = audit_get_sessionid(current);
-		u32 sid;
-
-		security_task_getsecid(current, &sid);
 		__xfrm_state_delete(x);
-		xfrm_audit_state_delete(x, 1, loginuid, sessionid, sid);
+		xfrm_audit_state_delete(x, 1, true);
 	}
 	err = 0;
 out:
