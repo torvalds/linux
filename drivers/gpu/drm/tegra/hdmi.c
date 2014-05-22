@@ -1347,7 +1347,7 @@ static int tegra_hdmi_debugfs_exit(struct tegra_hdmi *hdmi)
 
 static int tegra_hdmi_init(struct host1x_client *client)
 {
-	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_hdmi *hdmi = host1x_client_to_hdmi(client);
 	int err;
 
@@ -1355,14 +1355,14 @@ static int tegra_hdmi_init(struct host1x_client *client)
 	hdmi->output.dev = client->dev;
 	hdmi->output.ops = &hdmi_ops;
 
-	err = tegra_output_init(tegra->drm, &hdmi->output);
+	err = tegra_output_init(drm, &hdmi->output);
 	if (err < 0) {
 		dev_err(client->dev, "output setup failed: %d\n", err);
 		return err;
 	}
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_hdmi_debugfs_init(hdmi, tegra->drm->primary);
+		err = tegra_hdmi_debugfs_init(hdmi, drm->primary);
 		if (err < 0)
 			dev_err(client->dev, "debugfs setup failed: %d\n", err);
 	}

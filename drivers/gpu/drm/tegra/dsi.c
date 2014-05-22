@@ -715,7 +715,7 @@ static int tegra_dsi_pad_calibrate(struct tegra_dsi *dsi)
 
 static int tegra_dsi_init(struct host1x_client *client)
 {
-	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
 	int err;
 
@@ -723,14 +723,14 @@ static int tegra_dsi_init(struct host1x_client *client)
 	dsi->output.dev = client->dev;
 	dsi->output.ops = &dsi_ops;
 
-	err = tegra_output_init(tegra->drm, &dsi->output);
+	err = tegra_output_init(drm, &dsi->output);
 	if (err < 0) {
 		dev_err(client->dev, "output setup failed: %d\n", err);
 		return err;
 	}
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_dsi_debugfs_init(dsi, tegra->drm->primary);
+		err = tegra_dsi_debugfs_init(dsi, drm->primary);
 		if (err < 0)
 			dev_err(dsi->dev, "debugfs setup failed: %d\n", err);
 	}

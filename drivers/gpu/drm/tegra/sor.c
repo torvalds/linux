@@ -1044,7 +1044,7 @@ static int tegra_sor_debugfs_exit(struct tegra_sor *sor)
 
 static int tegra_sor_init(struct host1x_client *client)
 {
-	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_sor *sor = host1x_client_to_sor(client);
 	int err;
 
@@ -1056,14 +1056,14 @@ static int tegra_sor_init(struct host1x_client *client)
 	sor->output.dev = sor->dev;
 	sor->output.ops = &sor_ops;
 
-	err = tegra_output_init(tegra->drm, &sor->output);
+	err = tegra_output_init(drm, &sor->output);
 	if (err < 0) {
 		dev_err(sor->dev, "output setup failed: %d\n", err);
 		return err;
 	}
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		struct dentry *root = tegra->drm->primary->debugfs_root;
+		struct dentry *root = drm->primary->debugfs_root;
 
 		err = tegra_sor_debugfs_init(sor, root);
 		if (err < 0)
