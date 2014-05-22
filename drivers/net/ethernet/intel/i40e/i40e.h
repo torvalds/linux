@@ -159,6 +159,7 @@ struct i40e_fdir_filter {
 	/* filter ipnut set */
 	u8 flow_type;
 	u8 ip4_proto;
+	/* TX packet view of src and dst */
 	__be32 dst_ip[4];
 	__be32 src_ip[4];
 	__be16 src_port;

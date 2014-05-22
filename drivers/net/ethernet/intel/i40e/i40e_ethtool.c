@@ -1249,10 +1249,13 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 		fsp->m_u.usr_ip4_spec.proto = 0;
 	}
 
-	fsp->h_u.tcp_ip4_spec.psrc = rule->src_port;
-	fsp->h_u.tcp_ip4_spec.pdst = rule->dst_port;
-	fsp->h_u.tcp_ip4_spec.ip4src = rule->src_ip[0];
-	fsp->h_u.tcp_ip4_spec.ip4dst = rule->dst_ip[0];
+	/* Reverse the src and dest notion, since the HW views them from
+	 * Tx perspective where as the user expects it from Rx filter view.
+	 */
+	fsp->h_u.tcp_ip4_spec.psrc = rule->dst_port;
+	fsp->h_u.tcp_ip4_spec.pdst = rule->src_port;
+	fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip[0];
+	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip[0];
 	fsp->ring_cookie = rule->q_index;
 
 	return 0;
@@ -1581,10 +1584,14 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	input->cnt_index = 0;
 	input->flow_type = fsp->flow_type;
 	input->ip4_proto = fsp->h_u.usr_ip4_spec.proto;
-	input->src_port = fsp->h_u.tcp_ip4_spec.psrc;
-	input->dst_port = fsp->h_u.tcp_ip4_spec.pdst;
-	input->src_ip[0] = fsp->h_u.tcp_ip4_spec.ip4src;
-	input->dst_ip[0] = fsp->h_u.tcp_ip4_spec.ip4dst;
+
+	/* Reverse the src and dest notion, since the HW expects them to be from
+	 * Tx perspective where as the input from user is from Rx filter view.
+	 */
+	input->dst_port = fsp->h_u.tcp_ip4_spec.psrc;
+	input->src_port = fsp->h_u.tcp_ip4_spec.pdst;
+	input->dst_ip[0] = fsp->h_u.tcp_ip4_spec.ip4src;
+	input->src_ip[0] = fsp->h_u.tcp_ip4_spec.ip4dst;
 
 	ret = i40e_add_del_fdir(vsi, input, true);
 	if (ret)
