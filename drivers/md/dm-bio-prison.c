@@ -238,7 +238,7 @@ void dm_cell_release_no_holder(struct dm_bio_prison *prison,
 EXPORT_SYMBOL_GPL(dm_cell_release_no_holder);
 
 void dm_cell_error(struct dm_bio_prison *prison,
-		   struct dm_bio_prison_cell *cell)
+		   struct dm_bio_prison_cell *cell, int error)
 {
 	struct bio_list bios;
 	struct bio *bio;
@@ -251,7 +251,7 @@ void dm_cell_error(struct dm_bio_prison *prison,
 	spin_unlock_irqrestore(&prison->lock, flags);
 
 	while ((bio = bio_list_pop(&bios)))
-		bio_io_error(bio);
+		bio_endio(bio, error);
 }
 EXPORT_SYMBOL_GPL(dm_cell_error);
 

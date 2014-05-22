@@ -310,11 +310,16 @@ static void cell_defer_no_holder_no_free(struct thin_c *tc,
 	wake_worker(pool);
 }
 
-static void cell_error(struct pool *pool,
-		       struct dm_bio_prison_cell *cell)
+static void cell_error_with_code(struct pool *pool,
+				 struct dm_bio_prison_cell *cell, int error_code)
 {
-	dm_cell_error(pool->prison, cell);
+	dm_cell_error(pool->prison, cell, error_code);
 	dm_bio_prison_free_cell(pool->prison, cell);
+}
+
+static void cell_error(struct pool *pool, struct dm_bio_prison_cell *cell)
+{
+	cell_error_with_code(pool, cell, -EIO);
 }
 
 /*----------------------------------------------------------------*/
@@ -1027,7 +1032,7 @@ static void retry_on_resume(struct bio *bio)
 	spin_unlock_irqrestore(&tc->lock, flags);
 }
 
-static bool should_error_unserviceable_bio(struct pool *pool)
+static int should_error_unserviceable_bio(struct pool *pool)
 {
 	enum pool_mode m = get_pool_mode(pool);
 
@@ -1035,25 +1040,27 @@ static bool should_error_unserviceable_bio(struct pool *pool)
 	case PM_WRITE:
 		/* Shouldn't get here */
 		DMERR_LIMIT("bio unserviceable, yet pool is in PM_WRITE mode");
-		return true;
+		return -EIO;
 
 	case PM_OUT_OF_DATA_SPACE:
-		return pool->pf.error_if_no_space;
+		return pool->pf.error_if_no_space ? -ENOSPC : 0;
 
 	case PM_READ_ONLY:
 	case PM_FAIL:
-		return true;
+		return -EIO;
 	default:
 		/* Shouldn't get here */
 		DMERR_LIMIT("bio unserviceable, yet pool has an unknown mode");
-		return true;
+		return -EIO;
 	}
 }
 
 static void handle_unserviceable_bio(struct pool *pool, struct bio *bio)
 {
-	if (should_error_unserviceable_bio(pool))
-		bio_io_error(bio);
+	int error = should_error_unserviceable_bio(pool);
+
+	if (error)
+		bio_endio(bio, error);
 	else
 		retry_on_resume(bio);
 }
@@ -1062,18 +1069,21 @@ static void retry_bios_on_resume(struct pool *pool, struct dm_bio_prison_cell *c
 {
 	struct bio *bio;
 	struct bio_list bios;
+	int error;
 
-	if (should_error_unserviceable_bio(pool)) {
-		cell_error(pool, cell);
+	error = should_error_unserviceable_bio(pool);
+	if (error) {
+		cell_error_with_code(pool, cell, error);
 		return;
 	}
 
 	bio_list_init(&bios);
 	cell_release(pool, cell, &bios);
 
-	if (should_error_unserviceable_bio(pool))
+	error = should_error_unserviceable_bio(pool);
+	if (error)
 		while ((bio = bio_list_pop(&bios)))
-			bio_io_error(bio);
+			bio_endio(bio, error);
 	else
 		while ((bio = bio_list_pop(&bios)))
 			retry_on_resume(bio);
