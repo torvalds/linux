@@ -73,11 +73,11 @@ void visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 			struct seq_file *seq, U32 off);
 void visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 			       int off, int len, struct seq_file *seq);
-void *visorchannel_get_header(VISORCHANNEL *channel);
+void __iomem *visorchannel_get_header(VISORCHANNEL *channel);
 
 #define	VISORCHANNEL_CHANGE_SERVER_STATE(chan, chanId, newstate)	\
 	do {								\
-		U8 *p = (U8 *)visorchannel_get_header(chan);		\
+		U8 *p = (U8 __iomem *)visorchannel_get_header(chan);	\
 		if (p) {						\
 			ULTRA_CHANNEL_SERVER_TRANSITION(p, chanId, SrvState, \
 							newstate, logCtx); \
@@ -92,7 +92,7 @@ void *visorchannel_get_header(VISORCHANNEL *channel);
 
 #define	VISORCHANNEL_CHANGE_CLIENT_STATE(chan, chanId, newstate)	\
 	do {								\
-		U8 *p = (U8 *)visorchannel_get_header(chan);		\
+		U8 *p = (U8 __iomem *)visorchannel_get_header(chan);	\
 		if (p) {						\
 			ULTRA_CHANNEL_CLIENT_TRANSITION(p, chanId,	\
 							newstate, logCtx); \

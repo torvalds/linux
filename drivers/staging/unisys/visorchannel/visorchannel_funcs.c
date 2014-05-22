@@ -279,10 +279,10 @@ Away:
 }
 EXPORT_SYMBOL_GPL(visorchannel_clear);
 
-void *
+void __iomem  *
 visorchannel_get_header(VISORCHANNEL *channel)
 {
-	return (void *) &(channel->chan_hdr);
+	return (void __iomem *) &(channel->chan_hdr);
 }
 EXPORT_SYMBOL_GPL(visorchannel_get_header);
 
