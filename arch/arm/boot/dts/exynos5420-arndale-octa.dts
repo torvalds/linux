@@ -364,16 +364,4 @@
 			gpio-key,wakeup;
 		};
 	};
-
-	amba {
-		mdma1: mdma@11C10000 {
-			/*
-			 * MDMA1 can support both secure and non-secure
-			 * AXI transactions. When this is enabled in the kernel
-			 * for boards that run in secure mode, we are getting
-			 * imprecise external aborts causing the kernel to oops.
-			 */
-			status = "disabled";
-		};
-	};
 };
