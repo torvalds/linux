@@ -1154,6 +1154,30 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 }
 
 /**
+ * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
+ * @vsi: the PF Main VSI - inappropriate for any other VSI
+ * @macaddr: the MAC address
+ **/
+static void i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
+{
+	struct i40e_aqc_remove_macvlan_element_data element;
+	struct i40e_pf *pf = vsi->back;
+	i40e_status aq_ret;
+
+	/* Only appropriate for the PF main VSI */
+	if (vsi->type != I40E_VSI_MAIN)
+		return;
+
+	ether_addr_copy(element.mac_addr, macaddr);
+	element.vlan_tag = 0;
+	element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH |
+			I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
+	aq_ret = i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
+	if (aq_ret)
+		dev_err(&pf->pdev->dev, "Could not remove default MAC-VLAN\n");
+}
+
+/**
  * i40e_add_filter - Add a mac/vlan filter to the VSI
  * @vsi: the VSI to be searched
  * @macaddr: the MAC address
@@ -6980,6 +7004,14 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	if (vsi->type == I40E_VSI_MAIN) {
 		SET_NETDEV_DEV(netdev, &pf->pdev->dev);
 		memcpy(mac_addr, hw->mac.perm_addr, ETH_ALEN);
+		/* The following two steps are necessary to prevent reception
+		 * of tagged packets - by default the NVM loads a MAC-VLAN
+		 * filter that will accept any tagged packet.  This is to
+		 * prevent that during normal operations until a specific
+		 * VLAN tag filter has been set.
+		 */
+		i40e_rm_default_mac_filter(vsi, mac_addr);
+		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, true);
 	} else {
 		/* relate the VSI_VMDQ name to the VSI_MAIN name */
 		snprintf(netdev->name, IFNAMSIZ, "%sv%%d",
