@@ -92,6 +92,10 @@ enum int_type {
 #define RICOH619_OCV_OFFSET_BOUND	3
 #define RICOH619_OCV_OFFSET_RATIO	2
 
+#define RICOH619_VADP_DROP_WORK 1
+#define RICOH619_TIME_CHG_STEP	(1*HZ)// unit:secound
+#define RICOH619_TIME_CHG_COUNT	15*60//only for test //15*60 
+
 /* define for FG status */
 enum {
 	RICOH619_SOCA_START,
@@ -173,10 +177,13 @@ struct ricoh619_battery_info {
 	struct delayed_work	charge_monitor_work;
 	struct delayed_work	get_charge_work;
 	struct delayed_work	jeita_work;
+	struct delayed_work	charge_complete_ready;
 
 	struct work_struct	irq_work;	/* for Charging & VUSB/VADP */
 	struct work_struct	usb_irq_work;	/* for ADC_VUSB */
-
+	#ifdef RICOH619_VADP_DROP_WORK
+	struct delayed_work	vadp_drop_work;
+	#endif
 	struct workqueue_struct *monitor_wqueue;
 	struct workqueue_struct *workqueue;	/* for Charging & VUSB/VADP */
 	struct workqueue_struct *usb_workqueue;	/* for ADC_VUSB */
@@ -224,6 +231,12 @@ struct ricoh619_battery_info {
 	int		jt_vfchg_l;
 	int		jt_ichg_h;
 	int		jt_ichg_l;
+
+	int 	chg_complete_rd_flag;
+	int 	chg_complete_rd_cnt;
+	int		chg_complete_tm_ov_flag;
+	int		chg_complete_sleep_flag;
+	int		chg_old_dsoc;
 
 	int 		num;
 	};
@@ -1568,6 +1581,28 @@ end_flow:
 
 	info->soca->last_displayed_soc = info->soca->displayed_soc+50;
 
+	if((info->soca->displayed_soc >= 9850) && (info->soca->Ibat_ave > -20) && (info->capacity < 100))
+	{
+		if(info->chg_complete_rd_flag == 0)
+		{
+			info->chg_complete_rd_flag = 1;
+			info->chg_complete_rd_cnt = 0;
+			queue_delayed_work(info->monitor_wqueue, &info->charge_complete_ready, 0);
+		}
+	}
+	else
+	{
+		info->chg_complete_rd_flag = 0;
+	}
+
+	if(info->chg_complete_tm_ov_flag == 1)
+	{
+		if(info->soca->displayed_soc < 9850 || info->soca->Ibat_ave < -20)
+		{
+			info->chg_complete_tm_ov_flag = 0;
+			power_supply_changed(&info->battery);
+		}
+	}
 	return;
 }
 
@@ -1946,6 +1981,68 @@ static int ricoh619_init_fgsoca(struct ricoh619_battery_info *info)
 }
 #endif
 
+static void ricoh619_charging_complete_work(struct work_struct *work)
+{
+	struct ricoh619_battery_info *info = container_of(work,
+		struct ricoh619_battery_info, charge_complete_ready.work);
+
+	uint8_t time_ov_flag;
+	RICOH_FG_DBG("PMU: %s\n", __func__);
+	RICOH_FG_DBG("info->chg_complete_rd_cnt = %d\n", info->chg_complete_rd_cnt);
+	RICOH_FG_DBG("info->chg_complete_rd_flag = %d\n", info->chg_complete_rd_flag);
+	RICOH_FG_DBG("info->chg_complete_tm_ov_flag = %d\n", info->chg_complete_tm_ov_flag);
+	RICOH_FG_DBG("time_ov_flag = %d\n", time_ov_flag);
+	
+	if(info->chg_complete_rd_flag == 1)
+	{
+		// start chg 99per to 100per timer
+		time_ov_flag = 0;
+		info->chg_complete_rd_flag = 2;
+		info->chg_complete_tm_ov_flag = 0;
+	}
+	else
+	{
+		if(info->capacity == 100)
+		{
+			// battery arriver to 100% earlier than time ov
+			time_ov_flag = 1;
+			info->chg_complete_rd_cnt = 0;
+			info->chg_complete_tm_ov_flag = 1;
+		}
+		else if(info->chg_complete_rd_cnt > RICOH619_TIME_CHG_COUNT)
+		{
+			// chg timer ov before cap arrive to 100%
+			time_ov_flag = 1;
+			info->chg_complete_tm_ov_flag = 1;
+			info->chg_complete_rd_cnt = 0;
+			info->soca->status = RICOH619_SOCA_FULL;
+			power_supply_changed(&info->battery);
+		}
+		else
+		{
+			time_ov_flag = 0;
+			info->chg_complete_tm_ov_flag = 0;
+		}
+	}
+
+	if(time_ov_flag == 0)
+	{
+		info->chg_complete_rd_cnt++;
+		queue_delayed_work(info->monitor_wqueue, &info->charge_complete_ready, 
+			RICOH619_TIME_CHG_STEP);
+	}
+	else
+	{
+		time_ov_flag = 0;
+	}
+
+	RICOH_FG_DBG("PMU2: %s return\n", __func__);
+	RICOH_FG_DBG("info->chg_complete_rd_cnt = %d\n", info->chg_complete_rd_cnt);
+	RICOH_FG_DBG("info->chg_complete_rd_flag = %d\n", info->chg_complete_rd_flag);
+	RICOH_FG_DBG("info->chg_complete_tm_ov_flag = %d\n", info->chg_complete_tm_ov_flag);
+	RICOH_FG_DBG("time_ov_flag = %d\n", time_ov_flag);
+
+}
 static void ricoh619_changed_work(struct work_struct *work)
 {
 	struct ricoh619_battery_info *info = container_of(work,
@@ -2922,7 +3019,8 @@ static int ricoh619_init_charger(struct ricoh619_battery_info *info)
 	/* Set ADC auto conversion interval 250ms */
 	ricoh619_write(info->dev->parent, RICOH619_ADC_CNT2, 0x0);
 	/* Enable VSYS pin conversion in auto-ADC */
-	ricoh619_write(info->dev->parent, RICOH619_ADC_CNT1, 0x10);
+//	ricoh619_write(info->dev->parent, RICOH619_ADC_CNT1, 0x10);
+	ricoh619_write(info->dev->parent, RICOH619_ADC_CNT1, 0x16);
 	/* Set VSYS threshold low voltage value = (voltage(V)*255)/(3*2.5) */
 	val = info->alarm_vol_mv * 255 / 7500;
 	ricoh619_write(info->dev->parent, RICOH619_ADC_VSYS_THL, val);
@@ -3084,7 +3182,7 @@ static void charger_irq_work(struct work_struct *work)
 	power_supply_changed(&powerac);
 	power_supply_changed(&powerusb);
 
-	mutex_lock(&info->lock);
+//	mutex_lock(&info->lock);
 	
 	if (info->chg_stat1 & 0x01) {
 		ricoh619_read(info->dev->parent, CHGSTATE_REG, &reg_val);
@@ -3104,9 +3202,11 @@ static void charger_irq_work(struct work_struct *work)
 				/* set charge current 500ma */
 				ricoh619_write(info->dev->parent, CHGISET_REG, 0xc4); 
 				}
-				mdelay(10);
+				
+				power_supply_changed(&info->battery);
 				power_supply_changed(&powerac);
 				power_supply_changed(&powerusb);
+				mdelay(100);
 				}
 			#else //support adp and usb chag
 			if (gpio_is_valid(g_ricoh619->dc_det)){
@@ -3160,7 +3260,7 @@ static void charger_irq_work(struct work_struct *work)
 			 "%s(): Error in enable charger mask INT %d\n",
 			 __func__, ret);
 
-	mutex_unlock(&info->lock);
+//	mutex_unlock(&info->lock);
 	RICOH_FG_DBG("PMU:%s Out\n", __func__);
 }
 
@@ -3338,7 +3438,48 @@ static irqreturn_t adc_vsysl_isr(int irq, void *battery_info)
 	return IRQ_HANDLED;
 }
 #endif
+#ifdef RICOH619_VADP_DROP_WORK
+static void vadp_drop_irq_work(struct work_struct *work)
+{
+	struct ricoh619_battery_info *info = container_of(work,
+		 struct ricoh619_battery_info, vadp_drop_work.work);
 
+	int ret = 0;
+	uint8_t data[5];
+	u16 reg[2];
+
+	RICOH_FG_DBG("PMU vadp_drop_work:%s In\n", __func__);
+	mutex_lock(&info->lock);	
+	ret = ricoh619_read(info->dev->parent, 0x6a, &data[0]);
+	ret = ricoh619_read(info->dev->parent, 0x6b, &data[1]);
+	ret = ricoh619_read(info->dev->parent, 0x6c, &data[2]);
+	ret = ricoh619_read(info->dev->parent, 0x6d, &data[3]);
+	ret = ricoh619_read(info->dev->parent, CHGSTATE_REG,&data[4]);
+	reg[0]= (data[0]<<4) |data[1];
+	reg[1]= (data[2]<<4) |data[3];
+
+//	printk("PMU vadp_drop:%s In %08x %08x %08x %08x %08x %08x %d\n", __func__,data[0],data[1],data[2],data[3],reg[0],reg[1],ret);	
+	if ((2*(reg[0] +82)) > 3*reg[1]){
+		ricoh619_write(info->dev->parent, 0xb3, 0x28);
+//		printk("PMU vadp_drop charger disable:%s In  %08x %08x\n", __func__,reg[0],reg[1]); 
+	}
+	else if(data[4] & 0xc0){
+		ret = ricoh619_read(info->dev->parent, 0xb3, &data[5]);
+//		 printk("PMU charger is disabled:%s data[4]= %08x data[5]=%08x\n", __func__,data[4],data[5]);
+		if(((data[5] & 0x03) ==0)|| ((data[5] & 0x08)==0)){
+			ricoh619_write(info->dev->parent, 0xb3, 0x23);
+			 ret = ricoh619_read(info->dev->parent, 0xb3, &data[5]);
+//			printk("PMU charger enable:%s data[4]= %08x data[5]=%08x\n", __func__,data[4],data[5]);
+		}
+	}
+	power_supply_changed(&info->battery);
+	power_supply_changed(&powerac);
+	power_supply_changed(&powerusb);
+	mutex_unlock(&info->lock);
+	queue_delayed_work(info->monitor_wqueue, &info->vadp_drop_work,3*HZ);
+
+}
+#endif
 /*
  * Get Charger Priority
  * - get higher-priority between VADP and VUSB
@@ -3901,11 +4042,18 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 		break;
 	/* this setting is same as battery driver of 584 */
 	case POWER_SUPPLY_PROP_STATUS:
-		ret = get_power_supply_Android_status(info);
-		val->intval = ret;
-		info->status = ret;
-		/* RICOH_FG_DBG("Power Supply Status is %d\n",
+		if(info->chg_complete_tm_ov_flag == 0)
+		{
+			ret = get_power_supply_Android_status(info);
+			val->intval = ret;
+			info->status = ret;
+			/* RICOH_FG_DBG("Power Supply Status is %d\n",
 							info->status); */
+		}
+		else
+		{
+			val->intval = POWER_SUPPLY_STATUS_FULL;
+		}
 		break;
 
 	/* this setting is same as battery driver of 584 */
@@ -3941,15 +4089,22 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 		if (info->entry_factory_mode){
 			val->intval = 100;
 			info->capacity = 100;
-		} else if (info->soca->displayed_soc <= 0) {
+		} else if (info->soca->displayed_soc < 0) {
 			val->intval = 10;
 			info->capacity = 10;
 		} else {
-			val->intval = (info->soca->displayed_soc + 50)/100;
-			info->capacity = (info->soca->displayed_soc + 50)/100;
+			if(info->chg_complete_tm_ov_flag == 1)
+			{
+				info->capacity = 100;
+				val->intval = info->capacity;
+			}
+			else
+			{
+				info->capacity = (info->soca->displayed_soc + 50)/100;
+				val->intval = info->capacity;
+			}
 		}
-		 RICOH_FG_DBG("battery capacity is %d%%\n",
-							info->capacity); 
+		RICOH_FG_DBG("battery capacity is %d%%\n", info->capacity); 
 		break;
 
 	/* current temperature of battery */
@@ -3965,6 +4120,7 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 		}
 		break;
 
+	#if 0
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
 		if (info->soca->ready_fg) {
 			ret = get_time_to_empty(info);
@@ -3992,6 +4148,8 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 			/* RICOH_FG_DBG("time of full battery is not ready\n"); */
 		}
 		break;
+
+	#endif
 #endif
 	 case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
@@ -4025,8 +4183,8 @@ static enum power_supply_property ricoh619_batt_props[] = {
 #ifdef	ENABLE_FUEL_GAUGE_FUNCTION
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
+	//POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	//POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 #endif
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -4204,6 +4362,11 @@ static int ricoh619_battery_probe(struct platform_device *pdev)
 	info->delay = 500;
 	info->entry_factory_mode = false;
 
+	info->chg_complete_rd_flag = 0;
+	info->chg_complete_rd_cnt = 0;
+	info->chg_complete_tm_ov_flag = 0;
+	info->chg_complete_sleep_flag = 0;
+
 	mutex_init(&info->lock);
 	platform_set_drvdata(pdev, info);
 
@@ -4269,6 +4432,8 @@ static int ricoh619_battery_probe(struct platform_device *pdev)
 	INIT_DEFERRABLE_WORK(&info->jeita_work, ricoh619_jeita_work);
 	INIT_DELAYED_WORK(&info->changed_work, ricoh619_changed_work);
 
+	INIT_DELAYED_WORK(&info->charge_complete_ready, ricoh619_charging_complete_work);
+
 	/* Charger IRQ workqueue settings */
 
 	ret = request_threaded_irq( irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FONCHGINT),NULL, charger_in_isr, IRQF_ONESHOT,
@@ -4311,7 +4476,10 @@ static int ricoh619_battery_probe(struct platform_device *pdev)
 	INIT_DEFERRABLE_WORK(&info->low_battery_work,
 					 low_battery_irq_work);
 #endif
-
+#ifdef RICOH619_VADP_DROP_WORK
+	INIT_DEFERRABLE_WORK(&info->vadp_drop_work,vadp_drop_irq_work);
+	queue_delayed_work(info->monitor_wqueue, &info->vadp_drop_work,0);
+#endif
 	/* Charger init and IRQ setting */
 	ret = ricoh619_init_charger(info);
 	if (ret<0)
@@ -4381,6 +4549,13 @@ static int ricoh619_battery_remove(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(info->dev, "Error in writing the control register\n");
 	}
+
+	if(info->capacity == 100)
+	{
+		ret = ricoh619_write(info->dev->parent, PSWR_REG, 100);
+		if (ret < 0)
+			dev_err(info->dev, "Error in writing PSWR_REG\n");
+	}
 	
 	free_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FONCHGINT), &info);
 	free_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FCHGCMPINT), &info);
@@ -4400,8 +4575,12 @@ static int ricoh619_battery_remove(struct platform_device *pdev)
 #ifdef ENABLE_LOW_BATTERY_DETECTION
 	cancel_delayed_work(&info->low_battery_work);
 #endif
+#ifdef RICOH619_VADP_DROP_WORK
+	cancel_delayed_work(&info->vadp_drop_work);
+#endif
 	cancel_delayed_work(&info->factory_mode_work);
 	cancel_delayed_work(&info->jeita_work);
+	cancel_delayed_work(&info->charge_complete_ready);
 	
 	cancel_work_sync(&info->irq_work);
 	cancel_work_sync(&info->usb_irq_work);
@@ -4526,6 +4705,9 @@ static int ricoh619_battery_suspend(struct device *dev)
 #endif
 	flush_delayed_work(&info->factory_mode_work);
 	flush_delayed_work(&info->jeita_work);
+#ifdef RICOH619_VADP_DROP_WORK
+	flush_delayed_work(&info->vadp_drop_work);
+#endif
 	
 //	flush_work(&info->irq_work);
 //	flush_work(&info->usb_irq_work);
@@ -4539,9 +4721,26 @@ static int ricoh619_battery_suspend(struct device *dev)
 #ifdef ENABLE_LOW_BATTERY_DETECTION
 	cancel_delayed_work(&info->low_battery_work);
 #endif
+	cancel_delayed_work(&info->charge_complete_ready);
 	cancel_delayed_work(&info->factory_mode_work);
 	cancel_delayed_work(&info->jeita_work);
-	
+#ifdef RICOH619_VADP_DROP_WORK
+	cancel_delayed_work(&info->vadp_drop_work);
+#endif
+	info->chg_complete_rd_cnt = 0;
+	info->chg_complete_rd_flag = 0;
+
+	if(info->capacity == 100)
+	{
+		ret = ricoh619_write(info->dev->parent, PSWR_REG, 100);
+		if (ret < 0)
+			dev_err(info->dev, "Error in writing PSWR_REG\n");
+		if(info->chg_complete_tm_ov_flag != 1)
+		{
+			info->chg_complete_tm_ov_flag = 0;
+			info->chg_complete_sleep_flag = 1;
+		}
+	}
 //	flush_work(&info->irq_work);
 //	flush_work(&info->usb_irq_work);
 #endif
@@ -4661,6 +4860,12 @@ static int ricoh619_battery_resume(struct device *dev)
 	ret = measure_vsys_ADC(info, &info->soca->Vsys_ave);
 	ret = measure_Ibatt_FG(info, &info->soca->Ibat_ave);
 
+	if(info->chg_complete_sleep_flag == 1)
+	{
+		info->chg_complete_tm_ov_flag == 1;
+		info->chg_complete_sleep_flag = 0;
+	}
+
 	power_supply_changed(&info->battery);
 	queue_delayed_work(info->monitor_wqueue, &info->displayed_work, HZ);
 
@@ -4690,6 +4895,9 @@ static int ricoh619_battery_resume(struct device *dev)
 	info->soca->chg_count = 0;
 	queue_delayed_work(info->monitor_wqueue, &info->get_charge_work,
 					 RICOH619_CHARGE_RESUME_TIME * HZ);
+	#ifdef RICOH619_VADP_DROP_WORK
+	queue_delayed_work(info->monitor_wqueue, &info->vadp_drop_work,1 * HZ);
+	#endif
 	if (info->jt_en) {
 		if (!info->jt_hw_sw) {
 			queue_delayed_work(info->monitor_wqueue, &info->jeita_work,

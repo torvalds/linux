@@ -36,6 +36,7 @@
 #include <linux/workqueue.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
+#include <linux/delay.h>
 
 #include <linux/mfd/ricoh619.h>
 #include <linux/irq.h>
@@ -67,23 +68,29 @@ void ricoh619_pwrkey_timer(unsigned long t)
 	queue_work(g_pwrkey->workqueue, &g_pwrkey->work);
 }
 #endif
-
+//extern void rk_send_wakeup_key(void);
+extern u8 ricoh619_pwr_key_reg;
 static void ricoh619_irq_work(struct work_struct *work)
 {
 	/* unsigned long flags; */
 	uint8_t val;
+	int i=0;
 
 //	printk("PMU: %s: \n",__func__);
 	//spin_lock_irqsave(&g_pwrkey->lock, flags);
-
-	if(pwrkey_wakeup){
-//		printk("PMU: %s: pwrkey_wakeup\n",__func__);
-		pwrkey_wakeup = 0;
+	if((ricoh619_pwr_key_reg & 0x01) && ricoh619_pwrkey_wakeup){
+		printk("PMU: %s: pwrkey_wakeup\n",__func__);
+		ricoh619_pwrkey_wakeup = 0;
 		input_event(g_pwrkey->pwr, EV_KEY, KEY_POWER, 1);
 		input_event(g_pwrkey->pwr, EV_SYN, 0, 0);
 		input_event(g_pwrkey->pwr, EV_KEY, KEY_POWER, 0);
 		input_event(g_pwrkey->pwr, EV_SYN, 0, 0);
-		
+		do{
+			ricoh619_read(g_pwrkey->dev->parent, RICOH619_INT_MON_SYS, &val);
+       		val &= 0x01;
+			i += 1;
+			msleep(100);
+		}while(val && (i < 15));
 		return;
 	}
 	ricoh619_read(g_pwrkey->dev->parent, RICOH619_INT_MON_SYS, &val);
@@ -94,7 +101,7 @@ static void ricoh619_irq_work(struct work_struct *work)
 	if(val){
 		#if (RICOH619_ONKEY_TRIGGER_LEVEL)
 		g_pwrkey->timer.expires = jiffies + g_pwrkey->delay;
-		dd_timer(&g_pwrkey->timer);
+		add_timer(&g_pwrkey->timer);
 		#endif
 		if (!g_pwrkey->pressed_first){
 			g_pwrkey->pressed_first = true;
@@ -117,7 +124,7 @@ static void ricoh619_irq_work(struct work_struct *work)
 
 	/* spin_unlock_irqrestore(&g_pwrkey->lock, flags); */
 }
-extern void rk_send_wakeup_key(void);
+
 static irqreturn_t pwrkey_irq(int irq, void *_pwrkey)
 {
 //	printk(KERN_INFO "PMU: %s:\n", __func__);

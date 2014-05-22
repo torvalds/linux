@@ -317,7 +317,7 @@ static int ricoh619_irq_set_wake(struct irq_data *irq_data, unsigned int on)
 #else
 #define ricoh619_irq_set_wake NULL
 #endif
-
+u8 ricoh619_pwr_key_reg;
 static irqreturn_t ricoh619_irq(int irq, void *data)
 {
 	struct ricoh619 *ricoh619 = data;
@@ -327,7 +327,9 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 	int ret;
 	unsigned int rtc_int_sts = 0;
 	int cur_irq;
-	
+
+	ret = ricoh619_read(ricoh619->dev, RICOH619_INT_IR_SYS, &ricoh619_pwr_key_reg);
+
 	/* Clear the status */
 	for (i = 0; i < MAX_INTERRUPT_MASKS; i++)
 		int_sts[i] = 0;

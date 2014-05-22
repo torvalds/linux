@@ -436,26 +436,27 @@ static int ricoh619_power_off(void)
 #ifdef CONFIG_BATTERY_RICOH619
 	ret = __ricoh619_read(client, 0xBD, &val);
 	if(ret < 0)
-		return ret;
+		goto erro;
 	charge_state = (val & 0x1F);
 	if(( charge_state == CHG_STATE_CHG_TRICKLE)||( charge_state == CHG_STATE_CHG_RAPID) ||(charge_state == CHG_STATE_CHG_COMPLETE)){
 		 ret = __ricoh619_read(client, RICOH619_PWR_REP_CNT,&val);//Power OFF
 		 if(ret < 0)
-			return ret;
+			goto erro;
 		 ret = __ricoh619_write(client, RICOH619_PWR_REP_CNT,(val |(0x1<<0)));//Power OFF
 		 if(ret < 0)
-			return ret;
+			goto erro;
 	}
 #endif  
 	ret = __ricoh619_read(client, RICOH619_PWR_SLP_CNT,&val);//Power OFF
 	 if(ret < 0)
-		return ret;
+		goto erro;
 	ret = __ricoh619_write(client, RICOH619_PWR_SLP_CNT,(val |(0x1<<0)));//Power OFF
 	if (ret < 0) {
 		printk("ricoh619 power off error!\n");
-		return ret;
+		goto erro;
 	}
-	return 0;
+erro:
+	while(1)wfi();
 }
 EXPORT_SYMBOL_GPL(ricoh619_power_off);
 
@@ -801,6 +802,8 @@ static int ricoh619_pre_init(struct ricoh619 *ricoh619)
  	/**********************************************/
 	ret = ricoh619_set_bits(ricoh619->dev,BATSET2_REG,(3 << 0)); 
 	ret = ricoh619_clr_bits(ricoh619->dev,BATSET2_REG,(1 << 2)); //set vrchg 4v
+
+	
 	return ret;
 }
 
@@ -900,25 +903,30 @@ static int ricoh619_i2c_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
+extern u8 ricoh619_pwr_key_reg;
+int ricoh619_pwrkey_wakeup = 0;
 static int ricoh619_i2c_suspend(struct i2c_client *client, pm_message_t state)
 {
 //	if (g_ricoh619->chip_irq)
 //		disable_irq(g_ricoh619->chip_irq);
 //	printk("PMU: %s: \n",__func__);
+	ricoh619_pwrkey_wakeup = 1;
+	__ricoh619_write(client, RICOH619_INT_IR_SYS, 0x0); //Clear PWR_KEY IRQ
+	 __ricoh619_read(client, RICOH619_INT_IR_SYS, &ricoh619_pwr_key_reg);
 	return 0;
 }
-
-int pwrkey_wakeup;
 static int ricoh619_i2c_resume(struct i2c_client *client)
 {
 	uint8_t reg_val;
 	int ret;
+	/*
 	ret = __ricoh619_read(client, RICOH619_INT_IR_SYS, &reg_val);
-	if(reg_val & 0x01) { //If PWR_KEY wakeup
-//		printk("PMU: %s: PWR_KEY Wakeup\n",__func__);
-		pwrkey_wakeup = 1;
+	if(ricoh619_pwr_key_reg & 0x01) { //If PWR_KEY wakeup
+		//printk("PMU: %s: PWR_KEY Wakeup %08x\n",__func__,ricoh619_pwr_key_reg);
+		rcoh619_pwrkey_wakeup = 1;
 		__ricoh619_write(client, RICOH619_INT_IR_SYS, 0x0); //Clear PWR_KEY IRQ
 	}
+	*/
 //	enable_irq(g_ricoh619->chip_irq);
 	return 0;
 }
