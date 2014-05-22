@@ -249,8 +249,6 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond,
 
 static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 {
-	if (!slave || !slave->bond)
-		return NULL;
 	return slave->bond;
 }
 

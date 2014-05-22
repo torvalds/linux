@@ -1326,6 +1326,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_undo_flags;
 	}
 
+	new_slave->bond = bond;
+	new_slave->dev = slave_dev;
 	/*
 	 * Set the new_slave's queue_id to be zero.  Queue ID mapping
 	 * is set via sysfs or module option if desired.
@@ -1369,8 +1371,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_restore_mac;
 	}
 
-	new_slave->bond = bond;
-	new_slave->dev = slave_dev;
 	slave_dev->priv_flags |= IFF_BONDING;
 
 	if (bond_is_lb(bond)) {
