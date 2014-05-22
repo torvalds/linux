@@ -241,6 +241,9 @@ static struct of_device_id cpu_pmu_of_device_ids[] = {
 
 static struct platform_device_id cpu_pmu_plat_device_ids[] = {
 	{.name = "arm-pmu"},
+	{.name = "armv6-pmu"},
+	{.name = "armv7-pmu"},
+	{.name = "xscale-pmu"},
 	{},
 };
 
