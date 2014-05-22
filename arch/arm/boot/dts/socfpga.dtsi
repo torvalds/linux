@@ -715,6 +715,22 @@
 			status = "disabled";
 		};
 
+		watchdog0: watchdog@ffd02000 {
+			compatible = "snps,dw-wdt";
+			reg = <0xffd02000 0x1000>;
+			interrupts = <0 171 4>;
+			clocks = <&osc1>;
+			status = "disabled";
+		};
+
+		watchdog1: watchdog@ffd03000 {
+			compatible = "snps,dw-wdt";
+			reg = <0xffd03000 0x1000>;
+			interrupts = <0 172 4>;
+			clocks = <&osc1>;
+			status = "disabled";
+		};
+
 		sysmgr: sysmgr@ffd08000 {
 			compatible = "altr,sys-mgr", "syscon";
 			reg = <0xffd08000 0x4000>;
