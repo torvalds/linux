@@ -4130,7 +4130,11 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 			/* When status is not DISABLED then DCBX in FW */
 			pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED |
 				       DCB_CAP_DCBX_VER_IEEE;
-			pf->flags |= I40E_FLAG_DCB_ENABLED;
+
+			pf->flags |= I40E_FLAG_DCB_CAPABLE;
+			/* Enable DCB tagging only when more than one TC */
+			if (i40e_dcb_get_num_tc(&hw->local_dcbx_config) > 1)
+				pf->flags |= I40E_FLAG_DCB_ENABLED;
 		}
 	} else {
 		dev_info(&pf->pdev->dev, "AQ Querying DCB configuration failed: %d\n",
@@ -4685,6 +4689,10 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	int ret = 0;
 	u8 type;
 
+	/* Not DCB capable or capability disabled */
+	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
+		return ret;
+
 	/* Ignore if event is not for Nearest Bridge */
 	type = ((mib->type >> I40E_AQ_LLDP_BRIDGE_TYPE_SHIFT)
 		& I40E_AQ_LLDP_BRIDGE_TYPE_MASK);
@@ -4725,6 +4733,12 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 
 	if (!need_reconfig)
 		goto exit;
+
+	/* Enable DCB tagging only when more than one TC */
+	if (i40e_dcb_get_num_tc(dcbx_cfg) > 1)
+		pf->flags |= I40E_FLAG_DCB_ENABLED;
+	else
+		pf->flags &= ~I40E_FLAG_DCB_ENABLED;
 
 	/* Reconfiguration needed quiesce all VSIs */
 	i40e_pf_quiesce_all_vsi(pf);
@@ -6365,7 +6379,7 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 		if (err) {
 			pf->flags &= ~(I40E_FLAG_MSIX_ENABLED	|
 				       I40E_FLAG_RSS_ENABLED	|
-				       I40E_FLAG_DCB_ENABLED	|
+				       I40E_FLAG_DCB_CAPABLE	|
 				       I40E_FLAG_SRIOV_ENABLED	|
 				       I40E_FLAG_FD_SB_ENABLED	|
 				       I40E_FLAG_FD_ATR_ENABLED	|
@@ -8187,13 +8201,13 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 		pf->flags &= ~(I40E_FLAG_RSS_ENABLED	|
 			       I40E_FLAG_FD_SB_ENABLED	|
 			       I40E_FLAG_FD_ATR_ENABLED	|
-			       I40E_FLAG_DCB_ENABLED	|
+			       I40E_FLAG_DCB_CAPABLE	|
 			       I40E_FLAG_SRIOV_ENABLED	|
 			       I40E_FLAG_VMDQ_ENABLED);
 	} else if (!(pf->flags & (I40E_FLAG_RSS_ENABLED |
 				  I40E_FLAG_FD_SB_ENABLED |
 				  I40E_FLAG_FD_ATR_ENABLED |
-				  I40E_FLAG_DCB_ENABLED))) {
+				  I40E_FLAG_DCB_CAPABLE))) {
 		/* one qp for PF */
 		pf->rss_size = pf->num_lan_qps = 1;
 		queues_left -= pf->num_lan_qps;
@@ -8205,9 +8219,9 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 			       I40E_FLAG_VMDQ_ENABLED);
 	} else {
 		/* Not enough queues for all TCs */
-		if ((pf->flags & I40E_FLAG_DCB_ENABLED) &&
+		if ((pf->flags & I40E_FLAG_DCB_CAPABLE) &&
 		    (queues_left < I40E_MAX_TRAFFIC_CLASS)) {
-			pf->flags &= ~I40E_FLAG_DCB_ENABLED;
+			pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
 			dev_info(&pf->pdev->dev, "not enough queues for DCB. DCB is disabled.\n");
 		}
 		pf->num_lan_qps = pf->rss_size_max;
@@ -8300,7 +8314,7 @@ static void i40e_print_features(struct i40e_pf *pf)
 		buf += sprintf(buf, "FD_SB ");
 		buf += sprintf(buf, "NTUPLE ");
 	}
-	if (pf->flags & I40E_FLAG_DCB_ENABLED)
+	if (pf->flags & I40E_FLAG_DCB_CAPABLE)
 		buf += sprintf(buf, "DCB ");
 	if (pf->flags & I40E_FLAG_PTP)
 		buf += sprintf(buf, "PTP ");
@@ -8486,7 +8500,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = i40e_init_pf_dcb(pf);
 	if (err) {
 		dev_info(&pdev->dev, "init_pf_dcb failed: %d\n", err);
-		pf->flags &= ~I40E_FLAG_DCB_ENABLED;
+		pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
 		/* Continue without DCB enabled */
 	}
 #endif /* CONFIG_I40E_DCB */
