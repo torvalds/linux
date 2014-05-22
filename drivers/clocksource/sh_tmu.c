@@ -644,10 +644,8 @@ static int sh_tmu_probe(struct platform_device *pdev)
 	}
 
 	tmu = kzalloc(sizeof(*tmu), GFP_KERNEL);
-	if (tmu == NULL) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	if (tmu == NULL)
 		return -ENOMEM;
-	}
 
 	ret = sh_tmu_setup(tmu, pdev);
 	if (ret) {
