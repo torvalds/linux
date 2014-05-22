@@ -1219,7 +1219,7 @@ static void ironlake_rps_change_irq_handler(struct drm_device *dev)
 static void notify_ring(struct drm_device *dev,
 			struct intel_engine_cs *ring)
 {
-	if (ring->obj == NULL)
+	if (ring->buffer->obj == NULL)
 		return;
 
 	trace_i915_gem_request_complete(ring);
@@ -2837,10 +2837,10 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 		 * our ring is smaller than what the hardware (and hence
 		 * HEAD_ADDR) allows. Also handles wrap-around.
 		 */
-		head &= ring->size - 1;
+		head &= ring->buffer->size - 1;
 
 		/* This here seems to blow up */
-		cmd = ioread32(ring->virtual_start + head);
+		cmd = ioread32(ring->buffer->virtual_start + head);
 		if (cmd == ipehr)
 			break;
 
@@ -2850,7 +2850,7 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 	if (!i)
 		return NULL;
 
-	*seqno = ioread32(ring->virtual_start + head + 4) + 1;
+	*seqno = ioread32(ring->buffer->virtual_start + head + 4) + 1;
 	return semaphore_wait_to_signaller_ring(ring, ipehr);
 }
 

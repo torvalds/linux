@@ -825,8 +825,8 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->hws = I915_READ(mmio);
 	}
 
-	ering->cpu_ring_head = ring->head;
-	ering->cpu_ring_tail = ring->tail;
+	ering->cpu_ring_head = ring->buffer->head;
+	ering->cpu_ring_tail = ring->buffer->tail;
 
 	ering->hangcheck_score = ring->hangcheck.score;
 	ering->hangcheck_action = ring->hangcheck.action;
@@ -930,7 +930,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		}
 
 		error->ring[i].ringbuffer =
-			i915_error_ggtt_object_create(dev_priv, ring->obj);
+			i915_error_ggtt_object_create(dev_priv, ring->buffer->obj);
 
 		if (ring->status_page.obj)
 			error->ring[i].hws_page =

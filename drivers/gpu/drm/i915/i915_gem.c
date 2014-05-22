@@ -2523,7 +2523,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 		 * of tail of the request to update the last known position
 		 * of the GPU head.
 		 */
-		ring->last_retired_head = request->tail;
+		ring->buffer->last_retired_head = request->tail;
 
 		i915_gem_free_request(request);
 	}

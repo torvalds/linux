@@ -91,27 +91,10 @@ struct  intel_engine_cs {
 #define I915_NUM_RINGS 5
 #define LAST_USER_RING (VECS + 1)
 	u32		mmio_base;
-	void		__iomem *virtual_start;
 	struct		drm_device *dev;
-	struct		drm_i915_gem_object *obj;
 	struct intel_ringbuffer *buffer;
 
-	u32		head;
-	u32		tail;
-	int		space;
-	int		size;
-	int		effective_size;
 	struct intel_hw_status_page status_page;
-
-	/** We track the position of the requests in the ring buffer, and
-	 * when each is retired we increment last_retired_head as the GPU
-	 * must have finished processing the request and so we know we
-	 * can advance the ringbuffer up to that position.
-	 *
-	 * last_retired_head is set to -1 after the value is consumed so
-	 * we can detect new retirements.
-	 */
-	u32		last_retired_head;
 
 	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
@@ -239,7 +222,7 @@ struct  intel_engine_cs {
 static inline bool
 intel_ring_initialized(struct intel_engine_cs *ring)
 {
-	return ring->buffer && ring->obj;
+	return ring->buffer && ring->buffer->obj;
 }
 
 static inline unsigned
@@ -310,12 +293,12 @@ int __must_check intel_ring_cacheline_align(struct intel_engine_cs *ring);
 static inline void intel_ring_emit(struct intel_engine_cs *ring,
 				   u32 data)
 {
-	iowrite32(data, ring->virtual_start + ring->tail);
-	ring->tail += 4;
+	iowrite32(data, ring->buffer->virtual_start + ring->buffer->tail);
+	ring->buffer->tail += 4;
 }
 static inline void intel_ring_advance(struct intel_engine_cs *ring)
 {
-	ring->tail &= ring->size - 1;
+	ring->buffer->tail &= ring->buffer->size - 1;
 }
 void __intel_ring_advance(struct intel_engine_cs *ring);
 
@@ -335,7 +318,7 @@ void intel_ring_setup_status_page(struct intel_engine_cs *ring);
 
 static inline u32 intel_ring_get_tail(struct intel_engine_cs *ring)
 {
-	return ring->tail;
+	return ring->buffer->tail;
 }
 
 static inline u32 intel_ring_get_seqno(struct intel_engine_cs *ring)

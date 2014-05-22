@@ -64,7 +64,7 @@
  * has access to the ring.
  */
 #define RING_LOCK_TEST_WITH_RETURN(dev, file) do {			\
-	if (LP_RING(dev->dev_private)->obj == NULL)			\
+	if (LP_RING(dev->dev_private)->buffer->obj == NULL)			\
 		LOCK_TEST_WITH_RETURN(dev, file);			\
 } while (0)
 
@@ -149,17 +149,17 @@ void i915_kernel_lost_context(struct drm_device * dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
-	ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-	ring->space = ring->head - (ring->tail + I915_RING_FREE_SPACE);
-	if (ring->space < 0)
-		ring->space += ring->size;
+	ring->buffer->head = I915_READ_HEAD(ring) & HEAD_ADDR;
+	ring->buffer->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
+	ring->buffer->space = ring->buffer->head - (ring->buffer->tail + I915_RING_FREE_SPACE);
+	if (ring->buffer->space < 0)
+		ring->buffer->space += ring->buffer->size;
 
 	if (!dev->primary->master)
 		return;
 
 	master_priv = dev->primary->master->driver_priv;
-	if (ring->head == ring->tail && master_priv->sarea_priv)
+	if (ring->buffer->head == ring->buffer->tail && master_priv->sarea_priv)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_RING_EMPTY;
 }
 
@@ -202,7 +202,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	}
 
 	if (init->ring_size != 0) {
-		if (LP_RING(dev_priv)->obj != NULL) {
+		if (LP_RING(dev_priv)->buffer->obj != NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("Client tried to initialize ringbuffer in "
 				  "GEM mode\n");
@@ -239,7 +239,7 @@ static int i915_dma_resume(struct drm_device * dev)
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
-	if (ring->virtual_start == NULL) {
+	if (ring->buffer->virtual_start == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
@@ -361,7 +361,7 @@ static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i, ret;
 
-	if ((dwords+1) * sizeof(int) >= LP_RING(dev_priv)->size - 8)
+	if ((dwords+1) * sizeof(int) >= LP_RING(dev_priv)->buffer->size - 8)
 		return -EINVAL;
 
 	for (i = 0; i < dwords;) {
@@ -824,7 +824,7 @@ static int i915_irq_emit(struct drm_device *dev, void *data,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
-	if (!dev_priv || !LP_RING(dev_priv)->virtual_start) {
+	if (!dev_priv || !LP_RING(dev_priv)->buffer->virtual_start) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
