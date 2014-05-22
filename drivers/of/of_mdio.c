@@ -246,44 +246,6 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 EXPORT_SYMBOL(of_phy_connect);
 
 /**
- * of_phy_connect_fixed_link - Parse fixed-link property and return a dummy phy
- * @dev: pointer to net_device claiming the phy
- * @hndlr: Link state callback for the network device
- * @iface: PHY data interface type
- *
- * This function is a temporary stop-gap and will be removed soon.  It is
- * only to support the fs_enet, ucc_geth and gianfar Ethernet drivers.  Do
- * not call this function from new drivers.
- */
-struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
-					     void (*hndlr)(struct net_device *),
-					     phy_interface_t iface)
-{
-	struct device_node *net_np;
-	char bus_id[MII_BUS_ID_SIZE + 3];
-	struct phy_device *phy;
-	const __be32 *phy_id;
-	int sz;
-
-	if (!dev->dev.parent)
-		return NULL;
-
-	net_np = dev->dev.parent->of_node;
-	if (!net_np)
-		return NULL;
-
-	phy_id = of_get_property(net_np, "fixed-link", &sz);
-	if (!phy_id || sz < sizeof(*phy_id))
-		return NULL;
-
-	sprintf(bus_id, PHY_ID_FMT, "fixed-0", be32_to_cpu(phy_id[0]));
-
-	phy = phy_connect(dev, bus_id, hndlr, iface);
-	return IS_ERR(phy) ? NULL : phy;
-}
-EXPORT_SYMBOL(of_phy_connect_fixed_link);
-
-/**
  * of_phy_attach - Attach to a PHY without starting the state machine
  * @dev: pointer to net_device claiming the phy
  * @phy_np: Node pointer for the PHY
