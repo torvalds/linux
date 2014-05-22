@@ -12,6 +12,7 @@
 #include <linux/input.h>
 #include <linux/mfd/adp5520.h>
 #include <linux/slab.h>
+#include <linux/device.h>
 
 struct adp5520_keys {
 	struct input_dev *input;
@@ -81,7 +82,7 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdata == NULL) {
+	if (!pdata) {
 		dev_err(&pdev->dev, "missing platform data\n");
 		return -EINVAL;
 	}
@@ -89,17 +90,15 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 	if (!(pdata->rows_en_mask && pdata->cols_en_mask))
 		return -EINVAL;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
 		dev_err(&pdev->dev, "failed to alloc memory\n");
 		return -ENOMEM;
 	}
 
-	input = input_allocate_device();
-	if (!input) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input)
+		return -ENOMEM;
 
 	dev->master = pdev->dev.parent;
 	dev->input = input;
@@ -135,7 +134,7 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 	ret = input_register_device(input);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to register input device\n");
-		goto err;
+		return ret;
 	}
 
 	en_mask = pdata->rows_en_mask | pdata->cols_en_mask;
@@ -157,8 +156,7 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 
 	if (ret) {
 		dev_err(&pdev->dev, "failed to write\n");
-		ret = -EIO;
-		goto err1;
+		return -EIO;
 	}
 
 	dev->notifier.notifier_call = adp5520_keys_notifier;
@@ -166,19 +164,11 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 			ADP5520_KP_IEN | ADP5520_KR_IEN);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register notifier\n");
-		goto err1;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, dev);
 	return 0;
-
-err1:
-	input_unregister_device(input);
-	input = NULL;
-err:
-	input_free_device(input);
-	kfree(dev);
-	return ret;
 }
 
 static int adp5520_keys_remove(struct platform_device *pdev)
@@ -188,8 +178,6 @@ static int adp5520_keys_remove(struct platform_device *pdev)
 	adp5520_unregister_notifier(dev->master, &dev->notifier,
 				ADP5520_KP_IEN | ADP5520_KR_IEN);
 
-	input_unregister_device(dev->input);
-	kfree(dev);
 	return 0;
 }
 
