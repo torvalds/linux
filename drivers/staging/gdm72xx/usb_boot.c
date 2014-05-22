@@ -332,11 +332,8 @@ out:
 
 static int em_fw_reset(struct usb_device *usbdev)
 {
-	int ret;
-
 	/*Send ZLP*/
-	ret = gdm_wibro_send(usbdev, NULL, 0);
-	return ret;
+	return gdm_wibro_send(usbdev, NULL, 0);
 }
 
 int usb_emergency(struct usb_device *usbdev)

@@ -167,7 +167,6 @@ static inline int gdm_wimax_header(struct sk_buff **pskb)
 {
 	u16 buf[HCI_HEADER_SIZE / sizeof(u16)];
 	struct sk_buff *skb = *pskb;
-	int ret = 0;
 
 	if (unlikely(skb_headroom(skb) < HCI_HEADER_SIZE)) {
 		struct sk_buff *skb2;
@@ -187,7 +186,7 @@ static inline int gdm_wimax_header(struct sk_buff **pskb)
 	memcpy(skb->data, buf, HCI_HEADER_SIZE);
 
 	*pskb = skb;
-	return ret;
+	return 0;
 }
 
 static void gdm_wimax_event_rcv(struct net_device *dev, u16 type, void *msg,
