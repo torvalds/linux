@@ -8,7 +8,7 @@ Required properties:
 - local-mac-address: Ethernet MAC address (48 bits) of this adapter
 - phy-mode: Should be a string describing the PHY interface to the
   Ethernet switch/PHY, see Documentation/devicetree/bindings/net/ethernet.txt
-- fixed-link: see Documentation/devicetree/bindings/net/fsl-tsec-phy.txt for
+- fixed-link: see Documentation/devicetree/bindings/net/fixed-link.txt for
   the property specific details
 
 Optional properties:
