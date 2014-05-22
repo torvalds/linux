@@ -1145,6 +1145,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 	win->area[0].cbr_start = fix->mmio_start;//fix->smem_start + xvir * yvir;
 	win->area[0].state=1;
 	win->area_num = 1;
+	win->state = 1;
 	
 	dev_drv->ops->pan_display(dev_drv, win_id);
 	if (rk_fb->disp_mode == DUAL) {
@@ -2503,6 +2504,7 @@ if (rk_fb->disp_mode != DUAL) {
 	win->area[0].yvir =  var->yres_virtual;
 	win->area[0].state=1;
 	win->area_num = 1;
+	win->state = 1;
 	win->alpha_mode = 4;//AB_SRC_OVER;
 	win->alpha_en = ((win->format == ARGB888)||(win->format == ABGR888)) ? 1 : 0;
 	win->g_alpha_val = 0;
