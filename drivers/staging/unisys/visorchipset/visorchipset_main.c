@@ -28,7 +28,6 @@
 #include "uisutils.h"
 #include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"
-#include "filexfer.h"
 
 #include <linux/nls.h>
 #include <linux/netdevice.h>
@@ -2773,12 +2772,6 @@ visorchipset_init(void)
 			ProcDir, &parahotplug_proc_fops);
 	memset(&g_DelDumpMsgHdr, 0, sizeof(CONTROLVM_MESSAGE_HEADER));
 
-	if (filexfer_constructor(sizeof(struct putfile_request)) < 0) {
-		ERRDRV("filexfer_constructor failed: (status=-1)\n");
-		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
-		rc = -1;
-		goto Away;
-	}
 	Putfile_buffer_list_pool =
 	    kmem_cache_create(Putfile_buffer_list_pool_name,
 			      sizeof(struct putfile_buffer_entry),
@@ -2862,7 +2855,6 @@ visorchipset_exit(void)
 		kmem_cache_destroy(Putfile_buffer_list_pool);
 		Putfile_buffer_list_pool = NULL;
 	}
-	filexfer_destructor();
 	if (ControlVmObject) {
 		visor_proc_DestroyObject(ControlVmObject);
 		ControlVmObject = NULL;
