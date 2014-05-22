@@ -794,6 +794,10 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 		err = -EFAULT;
 	}
 
+	mr->mmr.iova = virt_addr;
+	mr->mmr.size = len;
+	mr->mmr.pd = to_mpd(pd)->pdn;
+
 unmap_dma:
 	up(&umrc->sem);
 	dma_unmap_single(ddev, mr->dma, size, DMA_TO_DEVICE);

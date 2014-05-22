@@ -82,7 +82,11 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 		return mlx5_cmd_status_to_err(&lout.hdr);
 	}
 
+	mr->iova = be64_to_cpu(in->seg.start_addr);
+	mr->size = be64_to_cpu(in->seg.len);
 	mr->key = mlx5_idx_to_mkey(be32_to_cpu(lout.mkey) & 0xffffff) | key;
+	mr->pd = be32_to_cpu(in->seg.flags_pd) & 0xffffff;
+
 	mlx5_core_dbg(dev, "out 0x%x, key 0x%x, mkey 0x%x\n",
 		      be32_to_cpu(lout.mkey), key, mr->key);
 
