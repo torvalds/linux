@@ -941,6 +941,12 @@
 			};
 		};
 
+		gpio0_tsadc: gpio0-tsadc {
+			tsadc_int: tsadc-int {
+				rockchip,pins = <TSADC_INT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+			};
+		};
 		//to add
 
 

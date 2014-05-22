@@ -31,17 +31,30 @@
 #define GPIO0_A3 0x0a30
 #define DDR1_RETENTION 0x0a31
 
+#define GPIO0_A4 0x0a40
+
+#define GPIO0_A5 0x0a50
+
+#define GPIO0_A6 0x0a60
+
+#define GPIO0_A7 0x0a70
 
 /* GPIO0_B */
 #define GPIO0_B0 0x0b00
-#define TSADC_INT 0x0b01
+
+#define GPIO0_B1 0x0b10
 
 #define GPIO0_B2 0x0b20
-#define OTP_OUT 0x0b21
+#define TSADC_INT 0x0b21
 
+#define GPIO0_B3 0x0b30
+
+#define GPIO0_B4 0x0b40
 
 #define GPIO0_B5 0x0b50
 #define CLK_27M 0x0b51
+
+#define GPIO0_B6 0x0b60
 
 #define GPIO0_B7 0x0b70
 #define I2C0PMU_SDA 0x0b71
