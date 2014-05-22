@@ -684,21 +684,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		 */
 		c->tlbsize = (read_c0_info() & (1 << 29)) ? 64 : 48;
 		break;
-	case PRID_IMP_RM9000:
-		c->cputype = CPU_RM9000;
-		__cpu_name[cpu] = "RM9000";
-		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
-		/*
-		 * Bit 29 in the info register of the RM9000
-		 * indicates if the TLB has 48 or 64 entries.
-		 *
-		 * 29	   1 =>	   64 entry JTLB
-		 *	   0 =>	   48 entry JTLB
-		 */
-		c->tlbsize = (read_c0_info() & (1 << 29)) ? 64 : 48;
-		break;
 	case PRID_IMP_R8000:
 		c->cputype = CPU_R8000;
 		__cpu_name[cpu] = "RM8000";
