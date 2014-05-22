@@ -646,7 +646,7 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 		}
 		/* Lower 4 bytes of reg_value contains logical cpu id */
 		cpu = reg_entry->reg_value & FADUMP_CPU_ID_MASK;
-		if (!cpumask_test_cpu(cpu, &fdh->cpu_online_mask)) {
+		if (fdh && !cpumask_test_cpu(cpu, &fdh->cpu_online_mask)) {
 			SKIP_TO_NEXT_CPU(reg_entry);
 			continue;
 		}
@@ -663,9 +663,11 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 	}
 	fadump_final_note(note_buf);
 
-	pr_debug("Updating elfcore header (%llx) with cpu notes\n",
+	if (fdh) {
+		pr_debug("Updating elfcore header (%llx) with cpu notes\n",
 							fdh->elfcorehdr_addr);
-	fadump_update_elfcore_header((char *)__va(fdh->elfcorehdr_addr));
+		fadump_update_elfcore_header((char *)__va(fdh->elfcorehdr_addr));
+	}
 	return 0;
 
 error_out:
