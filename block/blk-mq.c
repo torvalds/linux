@@ -1072,43 +1072,57 @@ static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 	blk_account_io_start(rq, 1);
 }
 
-static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
+static inline bool blk_mq_merge_queue_io(struct blk_mq_hw_ctx *hctx,
+					 struct blk_mq_ctx *ctx,
+					 struct request *rq, struct bio *bio)
+{
+	struct request_queue *q = hctx->queue;
+
+	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE)) {
+		blk_mq_bio_to_request(rq, bio);
+		spin_lock(&ctx->lock);
+insert_rq:
+		__blk_mq_insert_request(hctx, rq, false);
+		spin_unlock(&ctx->lock);
+		return false;
+	} else {
+		spin_lock(&ctx->lock);
+		if (!blk_mq_attempt_merge(q, ctx, bio)) {
+			blk_mq_bio_to_request(rq, bio);
+			goto insert_rq;
+		}
+
+		spin_unlock(&ctx->lock);
+		__blk_mq_free_request(hctx, ctx, rq);
+		return true;
+	}
+}
+
+struct blk_map_ctx {
+	struct blk_mq_hw_ctx *hctx;
+	struct blk_mq_ctx *ctx;
+};
+
+static struct request *blk_mq_map_request(struct request_queue *q,
+					  struct bio *bio,
+					  struct blk_map_ctx *data)
 {
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
-	const int is_sync = rw_is_sync(bio->bi_rw);
-	const int is_flush_fua = bio->bi_rw & (REQ_FLUSH | REQ_FUA);
-	int rw = bio_data_dir(bio);
 	struct request *rq;
-	unsigned int use_plug, request_count = 0;
+	int rw = bio_data_dir(bio);
 
-	/*
-	 * If we have multiple hardware queues, just go directly to
-	 * one of those for sync IO.
-	 */
-	use_plug = !is_flush_fua && ((q->nr_hw_queues == 1) || !is_sync);
-
-	blk_queue_bounce(q, &bio);
-
-	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
+	if (unlikely(blk_mq_queue_enter(q))) {
 		bio_endio(bio, -EIO);
-		return;
-	}
-
-	if (use_plug && !blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count))
-		return;
-
-	if (blk_mq_queue_enter(q)) {
-		bio_endio(bio, -EIO);
-		return;
+		return NULL;
 	}
 
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
-	if (is_sync)
+	if (rw_is_sync(bio->bi_rw))
 		rw |= REQ_SYNC;
+
 	trace_block_getrq(q, bio, rw);
 	rq = __blk_mq_alloc_request(hctx, ctx, GFP_ATOMIC, false);
 	if (likely(rq))
@@ -1123,6 +1137,109 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	hctx->queued++;
+	data->hctx = hctx;
+	data->ctx = ctx;
+	return rq;
+}
+
+/*
+ * Multiple hardware queue variant. This will not use per-process plugs,
+ * but will attempt to bypass the hctx queueing if we can go straight to
+ * hardware for SYNC IO.
+ */
+static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
+{
+	const int is_sync = rw_is_sync(bio->bi_rw);
+	const int is_flush_fua = bio->bi_rw & (REQ_FLUSH | REQ_FUA);
+	struct blk_map_ctx data;
+	struct request *rq;
+
+	blk_queue_bounce(q, &bio);
+
+	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
+		bio_endio(bio, -EIO);
+		return;
+	}
+
+	rq = blk_mq_map_request(q, bio, &data);
+	if (unlikely(!rq))
+		return;
+
+	if (unlikely(is_flush_fua)) {
+		blk_mq_bio_to_request(rq, bio);
+		blk_insert_flush(rq);
+		goto run_queue;
+	}
+
+	if (is_sync) {
+		int ret;
+
+		blk_mq_bio_to_request(rq, bio);
+		blk_mq_start_request(rq, true);
+
+		/*
+		 * For OK queue, we are done. For error, kill it. Any other
+		 * error (busy), just add it to our list as we previously
+		 * would have done
+		 */
+		ret = q->mq_ops->queue_rq(data.hctx, rq);
+		if (ret == BLK_MQ_RQ_QUEUE_OK)
+			goto done;
+		else {
+			__blk_mq_requeue_request(rq);
+
+			if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
+				rq->errors = -EIO;
+				blk_mq_end_io(rq, rq->errors);
+				goto done;
+			}
+		}
+	}
+
+	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
+		/*
+		 * For a SYNC request, send it to the hardware immediately. For
+		 * an ASYNC request, just ensure that we run it later on. The
+		 * latter allows for merging opportunities and more efficient
+		 * dispatching.
+		 */
+run_queue:
+		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
+	}
+done:
+	blk_mq_put_ctx(data.ctx);
+}
+
+/*
+ * Single hardware queue variant. This will attempt to use any per-process
+ * plug for merging and IO deferral.
+ */
+static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
+{
+	const int is_sync = rw_is_sync(bio->bi_rw);
+	const int is_flush_fua = bio->bi_rw & (REQ_FLUSH | REQ_FUA);
+	unsigned int use_plug, request_count = 0;
+	struct blk_map_ctx data;
+	struct request *rq;
+
+	/*
+	 * If we have multiple hardware queues, just go directly to
+	 * one of those for sync IO.
+	 */
+	use_plug = !is_flush_fua && !is_sync;
+
+	blk_queue_bounce(q, &bio);
+
+	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
+		bio_endio(bio, -EIO);
+		return;
+	}
+
+	if (use_plug && !blk_queue_nomerges(q) &&
+	    blk_attempt_plug_merge(q, bio, &request_count))
+		return;
+
+	rq = blk_mq_map_request(q, bio, &data);
 
 	if (unlikely(is_flush_fua)) {
 		blk_mq_bio_to_request(rq, bio);
@@ -1147,37 +1264,23 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 				trace_block_plug(q);
 			}
 			list_add_tail(&rq->queuelist, &plug->mq_list);
-			blk_mq_put_ctx(ctx);
+			blk_mq_put_ctx(data.ctx);
 			return;
 		}
 	}
 
-	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE)) {
-		blk_mq_bio_to_request(rq, bio);
-		spin_lock(&ctx->lock);
-insert_rq:
-		__blk_mq_insert_request(hctx, rq, false);
-		spin_unlock(&ctx->lock);
-	} else {
-		spin_lock(&ctx->lock);
-		if (!blk_mq_attempt_merge(q, ctx, bio)) {
-			blk_mq_bio_to_request(rq, bio);
-			goto insert_rq;
-		}
-
-		spin_unlock(&ctx->lock);
-		__blk_mq_free_request(hctx, ctx, rq);
+	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
+		/*
+		 * For a SYNC request, send it to the hardware immediately. For
+		 * an ASYNC request, just ensure that we run it later on. The
+		 * latter allows for merging opportunities and more efficient
+		 * dispatching.
+		 */
+run_queue:
+		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
 	}
 
-
-	/*
-	 * For a SYNC request, send it to the hardware immediately. For an
-	 * ASYNC request, just ensure that we run it later on. The latter
-	 * allows for merging opportunities and more efficient dispatching.
-	 */
-run_queue:
-	blk_mq_run_hw_queue(hctx, !is_sync || is_flush_fua);
-	blk_mq_put_ctx(ctx);
+	blk_mq_put_ctx(data.ctx);
 }
 
 /*
@@ -1670,7 +1773,11 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 
 	q->sg_reserved_size = INT_MAX;
 
-	blk_queue_make_request(q, blk_mq_make_request);
+	if (q->nr_hw_queues > 1)
+		blk_queue_make_request(q, blk_mq_make_request);
+	else
+		blk_queue_make_request(q, blk_sq_make_request);
+
 	blk_queue_rq_timed_out(q, blk_mq_rq_timed_out);
 	if (set->timeout)
 		blk_queue_rq_timeout(q, set->timeout);
