@@ -15,6 +15,9 @@ Optional properties:
 					  Each entry is a pair of strings, the first being the
 					  connection's sink, the second being the connection's
 					  source.
+- simple-audio-card,mclk-fs             : Multiplication factor between stream rate and codec
+  					  mclk.
+
 Optional subnodes:
 
 - simple-audio-card,dai-link		: Container for dai-link level
