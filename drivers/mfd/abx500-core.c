@@ -151,26 +151,6 @@ int abx500_startup_irq_enabled(struct device *dev, unsigned int irq)
 }
 EXPORT_SYMBOL(abx500_startup_irq_enabled);
 
-int abx500_dump_all_banks(void)
-{
-	struct abx500_ops *ops;
-	struct device *dummy_child;
-	struct abx500_device_entry *dev_entry;
-
-	dummy_child = kzalloc(sizeof(struct device), GFP_KERNEL);
-	if (!dummy_child)
-		return -ENOMEM;
-	list_for_each_entry(dev_entry, &abx500_list, list) {
-		dummy_child->parent = dev_entry->dev;
-		ops = &dev_entry->ops;
-
-		if ((ops != NULL) && (ops->dump_all_banks != NULL))
-			ops->dump_all_banks(dummy_child);
-	}
-	kfree(dummy_child);
-}
-EXPORT_SYMBOL(abx500_dump_all_banks);
-
 MODULE_AUTHOR("Mattias Wallin <mattias.wallin@stericsson.com>");
 MODULE_DESCRIPTION("ABX500 core driver");
 MODULE_LICENSE("GPL");
