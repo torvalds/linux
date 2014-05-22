@@ -92,6 +92,15 @@ config POWER_RESET_SUN6I
 	help
 	  Reboot support for the Allwinner A31 SoCs.
 
+config POWER_RESET_VERSATILE
+	bool "ARM Versatile family reboot driver"
+	depends on ARM
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Power off and restart support for ARM Versatile family of
+	  reference boards.
+
 config POWER_RESET_VEXPRESS
 	bool "ARM Versatile Express power-off and reset driver"
 	depends on ARM || ARM64
