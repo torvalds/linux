@@ -156,12 +156,13 @@ static int power_saving_thread(void *data)
 
 	while (!kthread_should_stop()) {
 		int cpu;
-		u64 expire_time;
+		unsigned long expire_time;
 
 		try_to_freeze();
 
 		/* round robin to cpus */
-		if (last_jiffies + round_robin_time * HZ < jiffies) {
+		expire_time = last_jiffies + round_robin_time * HZ;
+		if (time_before(expire_time, jiffies)) {
 			last_jiffies = jiffies;
 			round_robin_cpu(tsk_index);
 		}
@@ -200,7 +201,7 @@ static int power_saving_thread(void *data)
 					CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
 			local_irq_enable();
 
-			if (jiffies > expire_time) {
+			if (time_before(expire_time, jiffies)) {
 				do_sleep = 1;
 				break;
 			}
