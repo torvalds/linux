@@ -401,7 +401,7 @@ void exynos_dp_init_aux(struct exynos_dp_device *dp)
 	/* Disable AUX transaction H/W retry */
 	reg = AUX_BIT_PERIOD_EXPECTED_DELAY(3) | AUX_HW_RETRY_COUNT_SEL(0)|
 		AUX_HW_RETRY_INTERVAL_600_MICROSECONDS;
-	writel(reg, dp->reg_base + EXYNOS_DP_AUX_HW_RETRY_CTL) ;
+	writel(reg, dp->reg_base + EXYNOS_DP_AUX_HW_RETRY_CTL);
 
 	/* Receive AUX Channel DEFER commands equal to DEFFER_COUNT*64 */
 	reg = DEFER_CTRL_EN | DEFER_COUNT(1);
