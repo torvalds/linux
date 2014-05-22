@@ -2300,9 +2300,6 @@ int prcmu_ac_wake_req(void)
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 			msecs_to_jiffies(5000))) {
-#if defined(CONFIG_DBX500_PRCMU_DEBUG)
-		db8500_prcmu_debug_dump(__func__, true, true);
-#endif
 		pr_crit("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
 		ret = -EFAULT;
