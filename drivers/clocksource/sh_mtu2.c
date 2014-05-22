@@ -533,10 +533,8 @@ static int sh_mtu2_probe(struct platform_device *pdev)
 	}
 
 	mtu = kzalloc(sizeof(*mtu), GFP_KERNEL);
-	if (mtu == NULL) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	if (mtu == NULL)
 		return -ENOMEM;
-	}
 
 	ret = sh_mtu2_setup(mtu, pdev);
 	if (ret) {
