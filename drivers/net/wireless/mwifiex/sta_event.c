@@ -137,6 +137,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 				    struct sk_buff *event_skb)
 {
+	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_sta_node *sta_ptr;
 	struct mwifiex_tdls_generic_event *tdls_evt =
@@ -162,12 +163,15 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 					   NL80211_TDLS_TEARDOWN,
 					   le16_to_cpu(tdls_evt->u.reason_code),
 					   GFP_KERNEL);
+		ret = mwifiex_tdls_oper(priv, tdls_evt->peer_mac,
+					MWIFIEX_TDLS_DISABLE_LINK);
+		queue_work(adapter->workqueue, &adapter->main_work);
 		break;
 	default:
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 /*
