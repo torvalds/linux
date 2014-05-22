@@ -2425,24 +2425,28 @@ static int mvneta_change_mtu(struct net_device *dev, int mtu)
 		return 0;
 
 	/* The interface is running, so we have to force a
-	 * reallocation of the RXQs
+	 * reallocation of the queues
 	 */
 	mvneta_stop_dev(pp);
 
 	mvneta_cleanup_txqs(pp);
 	mvneta_cleanup_rxqs(pp);
 
-	pp->pkt_size = MVNETA_RX_PKT_SIZE(pp->dev->mtu);
+	pp->pkt_size = MVNETA_RX_PKT_SIZE(dev->mtu);
 	pp->frag_size = SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(pp->pkt_size)) +
 	                SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	ret = mvneta_setup_rxqs(pp);
 	if (ret) {
-		netdev_err(pp->dev, "unable to setup rxqs after MTU change\n");
+		netdev_err(dev, "unable to setup rxqs after MTU change\n");
 		return ret;
 	}
 
-	mvneta_setup_txqs(pp);
+	ret = mvneta_setup_txqs(pp);
+	if (ret) {
+		netdev_err(dev, "unable to setup txqs after MTU change\n");
+		return ret;
+	}
 
 	mvneta_start_dev(pp);
 	mvneta_port_up(pp);
