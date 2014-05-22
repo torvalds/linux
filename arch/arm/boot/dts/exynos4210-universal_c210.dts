@@ -83,6 +83,16 @@
 		status = "okay";
 	};
 
+	sdhci_sd: sdhci@12530000 {
+		bus-width = <4>;
+		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
+		pinctrl-names = "default";
+		vmmc-supply = <&ldo5_reg>;
+		cd-gpios = <&gpx3 4 0>;
+		cd-inverted;
+		status = "okay";
+	};
+
 	ehci@12580000 {
 		status = "okay";
 		port@0 {
