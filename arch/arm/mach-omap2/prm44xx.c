@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/of_irq.h>
 
 
 #include "soc.h"
@@ -699,10 +700,49 @@ int __init omap44xx_prm_init(void)
 	return prm_register(&omap44xx_prm_ll_data);
 }
 
+static struct of_device_id omap_prm_dt_match_table[] = {
+	{ .compatible = "ti,omap4-prm" },
+	{ .compatible = "ti,omap5-prm" },
+	{ .compatible = "ti,dra7-prm" },
+	{ }
+};
+
 static int omap44xx_prm_late_init(void)
 {
+	struct device_node *np;
+	int irq_num;
+
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
+
+	/* OMAP4+ is DT only now */
+	if (!of_have_populated_dt())
+		return 0;
+
+	np = of_find_matching_node(NULL, omap_prm_dt_match_table);
+
+	if (!np) {
+		/* Default loaded up with OMAP4 values */
+		if (!cpu_is_omap44xx())
+			return 0;
+	} else {
+		irq_num = of_irq_get(np, 0);
+		/*
+		 * Already have OMAP4 IRQ num. For all other platforms, we need
+		 * IRQ numbers from DT
+		 */
+		if (irq_num < 0 && !cpu_is_omap44xx()) {
+			if (irq_num == -EPROBE_DEFER)
+				return irq_num;
+
+			/* Have nothing to do */
+			return 0;
+		}
+
+		/* Once OMAP4 DT is filled as well */
+		if (irq_num >= 0)
+			omap4_prcm_irq_setup.irq = irq_num;
+	}
 
 	omap44xx_prm_enable_io_wakeup();
 
