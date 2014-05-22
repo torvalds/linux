@@ -4066,7 +4066,7 @@ static void record_wakee(struct task_struct *p)
 	 * about the boundary, really active task won't care
 	 * about the loss.
 	 */
-	if (jiffies > current->wakee_flip_decay_ts + HZ) {
+	if (time_after(jiffies, current->wakee_flip_decay_ts + HZ)) {
 		current->wakee_flips >>= 1;
 		current->wakee_flip_decay_ts = jiffies;
 	}
