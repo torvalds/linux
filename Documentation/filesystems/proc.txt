@@ -854,7 +854,8 @@ WritebackTmp: Memory used by FUSE for temporary writeback buffers
               if strict overcommit accounting is enabled (mode 2 in
               'vm.overcommit_memory').
               The CommitLimit is calculated with the following formula:
-              CommitLimit = ('vm.overcommit_ratio' * Physical RAM) + Swap
+              CommitLimit = ([total RAM pages] - [total huge TLB pages]) *
+                             overcommit_ratio / 100 + [total swap pages]
               For example, on a system with 1G of physical RAM and 7G
               of swap with a `vm.overcommit_ratio` of 30 it would
               yield a CommitLimit of 7.3G.
