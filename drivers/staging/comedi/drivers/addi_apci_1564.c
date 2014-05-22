@@ -14,6 +14,18 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
+static int apci1564_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+
+	data[1] = inl(devpriv->i_IobaseAmcc + APCI1564_DI_REG);
+
+	return insn->n;
+}
+
 static int apci1564_reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;

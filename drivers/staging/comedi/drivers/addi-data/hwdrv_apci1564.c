@@ -129,18 +129,6 @@ static int apci1564_di_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int apci1564_di_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-
-	data[1] = inl(devpriv->i_IobaseAmcc + APCI1564_DI_REG);
-
-	return insn->n;
-}
-
 /*
  * Configures The Digital Output Subdevice.
  *
