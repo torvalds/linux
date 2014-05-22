@@ -290,6 +290,13 @@ config FB_ARMCLCD
 	  here and read <file:Documentation/kbuild/modules.txt>.  The module
 	  will be called amba-clcd.
 
+# Helper logic selected only by the ARM Versatile platform family.
+config PLAT_VERSATILE_CLCD
+	depends on FB_ARMCLCD
+	depends on (PLAT_VERSATILE || ARCH_INTEGRATOR)
+	default y
+	bool
+
 config FB_ACORN
 	bool "Acorn VIDC support"
 	depends on (FB = y) && ARM && ARCH_ACORN
