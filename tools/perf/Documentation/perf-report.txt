@@ -79,6 +79,15 @@ OPTIONS
 	abort cost. This is the global weight.
 	- local_weight: Local weight version of the weight above.
 	- transaction: Transaction abort flags.
+	- overhead: Overhead percentage of sample
+	- overhead_sys: Overhead percentage of sample running in system mode
+	- overhead_us: Overhead percentage of sample running in user mode
+	- overhead_guest_sys: Overhead percentage of sample running in system mode
+	on guest machine
+	- overhead_guest_us: Overhead percentage of sample running in user mode on
+	guest machine
+	- sample: Number of sample
+	- period: Raw number of event count of sample
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -97,6 +106,16 @@ OPTIONS
 
 	And default sort keys are changed to comm, dso_from, symbol_from, dso_to
 	and symbol_to, see '--branch-stack'.
+
+-F::
+--fields=::
+	Specify output field - multiple keys can be specified in CSV format.
+	Following fields are available:
+	overhead, overhead_sys, overhead_us, sample and period.
+	Also it can contain any sort key(s).
+
+	By default, every sort keys not specified in -F will be appended
+	automatically.
 
 -p::
 --parent=<regex>::

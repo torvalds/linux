@@ -136,6 +136,10 @@ static struct test {
 		.func = test__thread_mg_share,
 	},
 	{
+		.desc = "Test output sorting of hist entries",
+		.func = test__hists_output,
+	},
+	{
 		.func = NULL,
 	},
 };

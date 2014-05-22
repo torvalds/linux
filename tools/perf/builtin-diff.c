@@ -60,7 +60,6 @@ static int data__files_cnt;
 #define data__for_each_file(i, d) data__for_each_file_start(i, d, 0)
 #define data__for_each_file_new(i, d) data__for_each_file_start(i, d, 1)
 
-static char diff__default_sort_order[] = "dso,symbol";
 static bool force;
 static bool show_period;
 static bool show_formula;
@@ -741,7 +740,8 @@ static const struct option options[] = {
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
-		   "sort by key(s): pid, comm, dso, symbol, parent"),
+		   "sort by key(s): pid, comm, dso, symbol, parent, cpu, srcline, ..."
+		   " Please refer the man page for the complete list."),
 	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
@@ -1141,7 +1141,6 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	perf_config(perf_default_config, NULL);
 
-	sort_order = diff__default_sort_order;
 	argc = parse_options(argc, argv, options, diff_usage, 0);
 
 	if (symbol__init() < 0)
@@ -1151,6 +1150,8 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -1;
 
 	ui_init();
+
+	sort__mode = SORT_MODE__DIFF;
 
 	if (setup_sorting() < 0)
 		usage_with_options(diff_usage, options);

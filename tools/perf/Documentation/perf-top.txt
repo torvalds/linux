@@ -113,7 +113,17 @@ Default is to monitor all CPUS.
 -s::
 --sort::
 	Sort by key(s): pid, comm, dso, symbol, parent, srcline, weight,
-	local_weight, abort, in_tx, transaction
+	local_weight, abort, in_tx, transaction, overhead, sample, period.
+	Please see description of --sort in the perf-report man page.
+
+--fields=::
+	Specify output field - multiple keys can be specified in CSV format.
+	Following fields are available:
+	overhead, overhead_sys, overhead_us, sample and period.
+	Also it can contain any sort key(s).
+
+	By default, every sort keys not specified in --field will be appended
+	automatically.
 
 -n::
 --show-nr-samples::
@@ -212,4 +222,4 @@ Pressing any unmapped key displays a menu, and prompts for input.
 
 SEE ALSO
 --------
-linkperf:perf-stat[1], linkperf:perf-list[1]
+linkperf:perf-stat[1], linkperf:perf-list[1], linkperf:perf-report[1]
