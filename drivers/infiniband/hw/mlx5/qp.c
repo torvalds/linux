@@ -574,6 +574,10 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	uar_index = uuarn_to_uar_index(&context->uuari, uuarn);
 	mlx5_ib_dbg(dev, "uuarn 0x%x, uar_index 0x%x\n", uuarn, uar_index);
 
+	qp->rq.offset = 0;
+	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
+	qp->sq.offset = qp->rq.wqe_cnt << qp->rq.wqe_shift;
+
 	err = set_user_buf_size(dev, qp, &ucmd);
 	if (err)
 		goto err_uuar;
