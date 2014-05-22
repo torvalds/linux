@@ -296,7 +296,7 @@ itlb_miss_fault_bolted:
  * r14 = page table base
  * r13 = PACA
  * r11 = tlb_per_core ptr
- * r10 = cpu number
+ * r10 = crap (free to use)
  */
 tlb_miss_common_e6500:
 	/*
@@ -309,6 +309,7 @@ tlb_miss_common_e6500:
 	lhz	r10,PACAPACAINDEX(r13)
 	cmpdi	r15,0
 	cmpdi	cr1,r15,1	/* set cr1.eq = 0 for non-recursive */
+	addi	r10,r10,1
 	bne	2f
 	stbcx.	r10,0,r11
 	bne	1b
