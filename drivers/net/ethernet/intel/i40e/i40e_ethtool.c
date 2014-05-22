@@ -1259,7 +1259,11 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 	fsp->h_u.tcp_ip4_spec.pdst = rule->src_port;
 	fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip[0];
 	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip[0];
-	fsp->ring_cookie = rule->q_index;
+
+	if (rule->dest_ctl == I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET)
+		fsp->ring_cookie = RX_CLS_FLOW_DISC;
+	else
+		fsp->ring_cookie = rule->q_index;
 
 	return 0;
 }
@@ -1563,7 +1567,8 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		return -EINVAL;
 	}
 
-	if (fsp->ring_cookie >= vsi->num_queue_pairs)
+	if ((fsp->ring_cookie != RX_CLS_FLOW_DISC) &&
+	    (fsp->ring_cookie >= vsi->num_queue_pairs))
 		return -EINVAL;
 
 	input = kzalloc(sizeof(*input), GFP_KERNEL);
