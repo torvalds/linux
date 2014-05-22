@@ -153,6 +153,11 @@ static struct clk ac97_clk = {
 	.pmc_mask	= 1 << AT91SAM9RL_ID_AC97C,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
+static struct clk adc_op_clk = {
+	.name		= "adc_op_clk",
+	.type		= CLK_TYPE_PERIPHERAL,
+	.rate_hz	= 1000000,
+};
 
 static struct clk *periph_clocks[] __initdata = {
 	&pioA_clk,
@@ -178,6 +183,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&udphs_clk,
 	&lcdc_clk,
 	&ac97_clk,
+	&adc_op_clk,
 	// irq0
 };
 
@@ -216,6 +222,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioB_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioC_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioD_clk),
+	CLKDEV_CON_ID("adc_clk", &tsc_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {

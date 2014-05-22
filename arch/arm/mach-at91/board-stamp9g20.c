@@ -32,6 +32,7 @@
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "gpio.h"
 
 
 void __init stamp9g20_init_early(void)
