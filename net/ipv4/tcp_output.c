@@ -1402,11 +1402,19 @@ static void tcp_cwnd_application_limited(struct sock *sk)
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
-static void tcp_cwnd_validate(struct sock *sk, u32 unsent_segs)
+static void tcp_cwnd_validate(struct sock *sk, bool is_cwnd_limited)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	tp->lsnd_pending = tp->packets_out + unsent_segs;
+	/* Track the maximum number of outstanding packets in each
+	 * window, and remember whether we were cwnd-limited then.
+	 */
+	if (!before(tp->snd_una, tp->max_packets_seq) ||
+	    tp->packets_out > tp->max_packets_out) {
+		tp->max_packets_out = tp->packets_out;
+		tp->max_packets_seq = tp->snd_nxt;
+		tp->is_cwnd_limited = is_cwnd_limited;
+	}
 
 	if (tcp_is_cwnd_limited(sk)) {
 		/* Network is feed fully. */
@@ -1660,7 +1668,8 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
  *
  * This algorithm is from John Heffner.
  */
-static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb)
+static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
+				 bool *is_cwnd_limited)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
@@ -1723,6 +1732,9 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb)
 	 */
 	if (!tp->tso_deferred)
 		tp->tso_deferred = 1 | (jiffies << 1);
+
+	if (cong_win < send_win && cong_win < skb->len)
+		*is_cwnd_limited = true;
 
 	return true;
 
@@ -1881,9 +1893,10 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	unsigned int tso_segs, sent_pkts, unsent_segs = 0;
+	unsigned int tso_segs, sent_pkts;
 	int cwnd_quota;
 	int result;
+	bool is_cwnd_limited = false;
 
 	sent_pkts = 0;
 
@@ -1908,6 +1921,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 
 		cwnd_quota = tcp_cwnd_test(tp, skb);
 		if (!cwnd_quota) {
+			is_cwnd_limited = true;
 			if (push_one == 2)
 				/* Force out a loss probe pkt. */
 				cwnd_quota = 1;
@@ -1924,8 +1938,9 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 						      nonagle : TCP_NAGLE_PUSH))))
 				break;
 		} else {
-			if (!push_one && tcp_tso_should_defer(sk, skb))
-				goto compute_unsent_segs;
+			if (!push_one &&
+			    tcp_tso_should_defer(sk, skb, &is_cwnd_limited))
+				break;
 		}
 
 		/* TCP Small Queues :
@@ -1950,14 +1965,8 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			 * there is no smp_mb__after_set_bit() yet
 			 */
 			smp_mb__after_clear_bit();
-			if (atomic_read(&sk->sk_wmem_alloc) > limit) {
-				u32 unsent_bytes;
-
-compute_unsent_segs:
-				unsent_bytes = tp->write_seq - tp->snd_nxt;
-				unsent_segs = DIV_ROUND_UP(unsent_bytes, mss_now);
+			if (atomic_read(&sk->sk_wmem_alloc) > limit)
 				break;
-			}
 		}
 
 		limit = mss_now;
@@ -1997,7 +2006,7 @@ repair:
 		/* Send one loss probe per tail loss episode. */
 		if (push_one != 2)
 			tcp_schedule_loss_probe(sk);
-		tcp_cwnd_validate(sk, unsent_segs);
+		tcp_cwnd_validate(sk, is_cwnd_limited);
 		return false;
 	}
 	return (push_one == 2) || (!tp->packets_out && tcp_send_head(sk));
