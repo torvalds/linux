@@ -497,10 +497,6 @@ static int context_idr_cleanup(int id, void *p, void *data)
 {
 	struct intel_context *ctx = p;
 
-	/* Ignore the default context because close will handle it */
-	if (i915_gem_context_is_default(ctx))
-		return 0;
-
 	i915_gem_context_unreference(ctx);
 	return 0;
 }
@@ -508,17 +504,17 @@ static int context_idr_cleanup(int id, void *p, void *data)
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct intel_context *ctx;
 
 	idr_init(&file_priv->context_idr);
 
 	mutex_lock(&dev->struct_mutex);
-	file_priv->private_default_ctx =
-		i915_gem_create_context(dev, file_priv, USES_FULL_PPGTT(dev));
+	ctx = i915_gem_create_context(dev, file_priv, USES_FULL_PPGTT(dev));
 	mutex_unlock(&dev->struct_mutex);
 
-	if (IS_ERR(file_priv->private_default_ctx)) {
+	if (IS_ERR(ctx)) {
 		idr_destroy(&file_priv->context_idr);
-		return PTR_ERR(file_priv->private_default_ctx);
+		return PTR_ERR(ctx);
 	}
 
 	return 0;
@@ -530,8 +526,6 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
 	idr_destroy(&file_priv->context_idr);
-
-	i915_gem_context_unreference(file_priv->private_default_ctx);
 }
 
 struct intel_context *

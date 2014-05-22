@@ -1780,7 +1780,6 @@ struct drm_i915_file_private {
 	} mm;
 	struct idr context_idr;
 
-	struct intel_context *private_default_ctx;
 	atomic_t rps_wait_boost;
 	struct  intel_engine_cs *bsd_ring;
 };

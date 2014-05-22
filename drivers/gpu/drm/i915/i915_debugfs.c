@@ -1858,6 +1858,10 @@ static int per_file_ctx(int id, void *ptr, void *data)
 	struct seq_file *m = data;
 	struct i915_hw_ppgtt *ppgtt = ctx_to_ppgtt(ctx);
 
+	if (i915_gem_context_is_default(ctx))
+		seq_puts(m, "  default context:\n");
+	else
+		seq_printf(m, "  context %d:\n", ctx->id);
 	ppgtt->debug_dump(ppgtt, m);
 
 	return 0;
@@ -1917,12 +1921,9 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
-		struct i915_hw_ppgtt *pvt_ppgtt;
 
-		pvt_ppgtt = ctx_to_ppgtt(file_priv->private_default_ctx);
 		seq_printf(m, "proc: %s\n",
 			   get_pid_task(file->pid, PIDTYPE_PID)->comm);
-		seq_puts(m, "  default context:\n");
 		idr_for_each(&file_priv->context_idr, per_file_ctx, m);
 	}
 	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
