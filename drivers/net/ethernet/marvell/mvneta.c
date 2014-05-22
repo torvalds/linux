@@ -1654,9 +1654,9 @@ static int mvneta_tx_frag_process(struct mvneta_port *pp, struct sk_buff *skb,
 				  struct mvneta_tx_queue *txq)
 {
 	struct mvneta_tx_desc *tx_desc;
-	int i;
+	int i, nr_frags = skb_shinfo(skb)->nr_frags;
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+	for (i = 0; i < nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		void *addr = page_address(frag->page.p) + frag->page_offset;
 
@@ -1673,20 +1673,16 @@ static int mvneta_tx_frag_process(struct mvneta_port *pp, struct sk_buff *skb,
 			goto error;
 		}
 
-		if (i == (skb_shinfo(skb)->nr_frags - 1)) {
+		if (i == nr_frags - 1) {
 			/* Last descriptor */
 			tx_desc->command = MVNETA_TXD_L_DESC | MVNETA_TXD_Z_PAD;
-
 			txq->tx_skb[txq->txq_put_index] = skb;
-
-			mvneta_txq_inc_put(txq);
 		} else {
 			/* Descriptor in the middle: Not First, Not Last */
 			tx_desc->command = 0;
-
 			txq->tx_skb[txq->txq_put_index] = NULL;
-			mvneta_txq_inc_put(txq);
 		}
+		mvneta_txq_inc_put(txq);
 	}
 
 	return 0;
