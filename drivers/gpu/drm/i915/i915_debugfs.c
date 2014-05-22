@@ -2357,6 +2357,10 @@ static int i915_display_info(struct seq_file *m, void *unused)
 				   x, y, crtc->cursor_addr,
 				   yesno(active));
 		}
+
+		seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s \n",
+			   yesno(!crtc->cpu_fifo_underrun_disabled),
+			   yesno(!crtc->pch_fifo_underrun_disabled));
 	}
 
 	seq_printf(m, "\n");
