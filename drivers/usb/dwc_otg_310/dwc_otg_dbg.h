@@ -3,7 +3,7 @@
  * Synopsys HS OTG Linux Software Driver and documentation (hereinafter,
  * "Software") is an Unsupported proprietary work of Synopsys, Inc. unless
  * otherwise expressly agreed to in writing between Synopsys and you.
- * 
+ *
  * The Software IS NOT an item of Licensed Software or Licensed Product under
  * any End User Software License Agreement or Agreement for Licensed Product
  * with Synopsys or any supplement thereto. You are permitted to use and
@@ -13,7 +13,7 @@
  * any information contained herein except pursuant to this license grant from
  * Synopsys. If you do not agree with this notice, including the disclaimer
  * below, then you are not authorized to use the Software.
- * 
+ *
  * THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS" BASIS
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -32,7 +32,7 @@
 
 /** @file
  * This file defines debug levels.
- * Debugging support vanishes in non-debug builds.  
+ * Debugging support vanishes in non-debug builds.
  */
 
 /**
@@ -78,7 +78,7 @@ static inline uint32_t SET_DEBUG_LEVEL(const uint32_t new)
 /** Prefix string for DWC_DEBUG print macros. */
 #define USB_DWC "DWC_otg: "
 
-/** 
+/**
  * Print a debug message when the Global debug level variable contains
  * the bit defined in <code>lvl</code>.
  *
@@ -90,21 +90,21 @@ static inline uint32_t SET_DEBUG_LEVEL(const uint32_t new)
  *      DWC_DEBUGPL( DBG_ANY, "%s(%p)\n", __func__, _reg_base_addr);
  * </code>
  * <br>
- * results in:<br> 
+ * results in:<br>
  * <code>
  * usb-DWC_otg: dwc_otg_cil_init(ca867000)
  * </code>
  */
 #ifdef DEBUG
 
-# define DWC_DEBUGPL(lvl, x...) do{ if ((lvl)&g_dbg_lvl)__DWC_DEBUG(USB_DWC x ); }while(0)
-# define DWC_DEBUGP(x...)	DWC_DEBUGPL(DBG_ANY, x )
+# define DWC_DEBUGPL(lvl, x...) do { if ((lvl)&g_dbg_lvl)__DWC_DEBUG(USB_DWC x); } while (0)
+# define DWC_DEBUGP(x...)	DWC_DEBUGPL(DBG_ANY, x)
 
 # define CHK_DEBUG_LEVEL(level) ((level) & g_dbg_lvl)
 
 #else
 
-# define DWC_DEBUGPL(lvl, x...) do{}while(0)
+# define DWC_DEBUGPL(lvl, x...) do {} while (0)
 # define DWC_DEBUGP(x...)
 
 # define CHK_DEBUG_LEVEL(level) (0)

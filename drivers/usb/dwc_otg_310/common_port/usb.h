@@ -55,16 +55,16 @@ typedef u_int8_t uByte;
 typedef u_int8_t uWord[2];
 typedef u_int8_t uDWord[4];
 
-#define USETW2(w,h,l) ((w)[0] = (u_int8_t)(l), (w)[1] = (u_int8_t)(h))
+#define USETW2(w, h, l) ((w)[0] = (u_int8_t)(l), (w)[1] = (u_int8_t)(h))
 #define UCONSTW(x)	{ (x) & 0xff, ((x) >> 8) & 0xff }
 #define UCONSTDW(x)	{ (x) & 0xff, ((x) >> 8) & 0xff, \
 			  ((x) >> 16) & 0xff, ((x) >> 24) & 0xff }
 
 #if 1
 #define UGETW(w) ((w)[0] | ((w)[1] << 8))
-#define USETW(w,v) ((w)[0] = (u_int8_t)(v), (w)[1] = (u_int8_t)((v) >> 8))
+#define USETW(w, v) ((w)[0] = (u_int8_t)(v), (w)[1] = (u_int8_t)((v) >> 8))
 #define UGETDW(w) ((w)[0] | ((w)[1] << 8) | ((w)[2] << 16) | ((w)[3] << 24))
-#define USETDW(w,v) ((w)[0] = (u_int8_t)(v), \
+#define USETDW(w, v) ((w)[0] = (u_int8_t)(v), \
 		     (w)[1] = (u_int8_t)((v) >> 8), \
 		     (w)[2] = (u_int8_t)((v) >> 16), \
 		     (w)[3] = (u_int8_t)((v) >> 24))
@@ -74,22 +74,22 @@ typedef u_int8_t uDWord[4];
  * (e.g. i386) these macros can be replaced by the following.
  */
 #define UGETW(w) (*(u_int16_t *)(w))
-#define USETW(w,v) (*(u_int16_t *)(w) = (v))
+#define USETW(w, v) (*(u_int16_t *)(w) = (v))
 #define UGETDW(w) (*(u_int32_t *)(w))
-#define USETDW(w,v) (*(u_int32_t *)(w) = (v))
+#define USETDW(w, v) (*(u_int32_t *)(w) = (v))
 #endif
 
 /*
  * Macros for accessing UAS IU fields, which are big-endian
  */
-#define IUSETW2(w,h,l) ((w)[0] = (u_int8_t)(h), (w)[1] = (u_int8_t)(l))
+#define IUSETW2(w, h, l) ((w)[0] = (u_int8_t)(h), (w)[1] = (u_int8_t)(l))
 #define IUCONSTW(x)	{ ((x) >> 8) & 0xff, (x) & 0xff }
 #define IUCONSTDW(x)	{ ((x) >> 24) & 0xff, ((x) >> 16) & 0xff, \
 			((x) >> 8) & 0xff, (x) & 0xff }
 #define IUGETW(w) (((w)[0] << 8) | (w)[1])
-#define IUSETW(w,v) ((w)[0] = (u_int8_t)((v) >> 8), (w)[1] = (u_int8_t)(v))
+#define IUSETW(w, v) ((w)[0] = (u_int8_t)((v) >> 8), (w)[1] = (u_int8_t)(v))
 #define IUGETDW(w) (((w)[0] << 24) | ((w)[1] << 16) | ((w)[2] << 8) | (w)[3])
-#define IUSETDW(w,v) ((w)[0] = (u_int8_t)((v) >> 24), \
+#define IUSETDW(w, v) ((w)[0] = (u_int8_t)((v) >> 24), \
 		      (w)[1] = (u_int8_t)((v) >> 16), \
 		      (w)[2] = (u_int8_t)((v) >> 8), \
 		      (w)[3] = (u_int8_t)(v))
@@ -310,7 +310,7 @@ typedef struct {
 	uByte		bDescriptorType;
 	uByte		bEndpointAddress;
 #define UE_GET_DIR(a)	((a) & 0x80)
-#define UE_SET_DIR(a,d)	((a) | (((d)&1) << 7))
+#define UE_SET_DIR(a, d) ((a) | (((d)&1) << 7))
 #define UE_DIR_IN	0x80
 #define UE_DIR_OUT	0x00
 #define UE_ADDR		0x0f
@@ -774,9 +774,9 @@ typedef struct wusb_hndshk_data {
 
 /* WUSB Connection Context */
 typedef struct wusb_conn_context {
-	uByte CHID [16];
-	uByte CDID [16];
-	uByte CK [16];
+	uByte CHID[16];
+	uByte CDID[16];
+	uByte CK[16];
 } UPACKED wusb_conn_context_t;
 
 /* WUSB Security Descriptor */

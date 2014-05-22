@@ -18,14 +18,14 @@
 
 static struct rkehci_pdata_id rkohci_pdata[] = {
 	{
-		.name = "rk3188-reserved",
-		.pdata = NULL,
-	},
-	{	
-		.name = "rk3288-ohci",
-		.pdata = &rkohci_pdata_rk3288,
-	},
-	{ },
+	 .name = "rk3188-reserved",
+	 .pdata = NULL,
+	 },
+	{
+	 .name = "rk3288-ohci",
+	 .pdata = &rkohci_pdata_rk3288,
+	 },
+	{},
 };
 
 static int ohci_rk_init(struct usb_hcd *hcd)
@@ -58,55 +58,56 @@ static int ohci_rk_start(struct usb_hcd *hcd)
 }
 
 static const struct hc_driver ohci_rk_hc_driver = {
-	.description =		hcd_name,
-	.product_desc =		"RK OHCI Host Controller",
-	.hcd_priv_size =	sizeof(struct ohci_hcd),
+	.description = hcd_name,
+	.product_desc = "RK OHCI Host Controller",
+	.hcd_priv_size = sizeof(struct ohci_hcd),
 
 	/*
 	 * generic hardware linkage
 	 */
-	.irq =			ohci_irq,
-	.flags =		HCD_USB11 | HCD_MEMORY,
+	.irq = ohci_irq,
+	.flags = HCD_USB11 | HCD_MEMORY,
 
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset =		ohci_rk_init,
-	.start =		ohci_rk_start,
-	.stop =			ohci_stop,
-	.shutdown =		ohci_shutdown,
+	.reset = ohci_rk_init,
+	.start = ohci_rk_start,
+	.stop = ohci_stop,
+	.shutdown = ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
 	 */
-	.urb_enqueue =		ohci_urb_enqueue,
-	.urb_dequeue =		ohci_urb_dequeue,
-	.endpoint_disable =	ohci_endpoint_disable,
+	.urb_enqueue = ohci_urb_enqueue,
+	.urb_dequeue = ohci_urb_dequeue,
+	.endpoint_disable = ohci_endpoint_disable,
 
 	/*
 	 * scheduling support
 	 */
-	.get_frame_number =	ohci_get_frame,
+	.get_frame_number = ohci_get_frame,
 
 	/*
 	 * root hub support
 	 */
-	.hub_status_data =	ohci_hub_status_data,
-	.hub_control =		ohci_hub_control,
+	.hub_status_data = ohci_hub_status_data,
+	.hub_control = ohci_hub_control,
 #ifdef	CONFIG_PM
-	.bus_suspend =		ohci_bus_suspend,
-	.bus_resume =		ohci_bus_resume,
+	.bus_suspend = ohci_bus_suspend,
+	.bus_resume = ohci_bus_resume,
 #endif
-	.start_port_reset =	ohci_start_port_reset,
+	.start_port_reset = ohci_start_port_reset,
 };
 
 static struct of_device_id rk_ohci_of_match[] = {
 	{
-		.compatible = "rockchip,rk3288_rk_ohci_host",
-		.data = &rkohci_pdata[RK3288_USB_CTLR],
-	},
-	{ },
+	 .compatible = "rockchip,rk3288_rk_ohci_host",
+	 .data = &rkohci_pdata[RK3288_USB_CTLR],
+	 },
+	{},
 };
+
 MODULE_DEVICE_TABLE(of, rk_ohci_of_match);
 
 /* ohci_hcd_rk_probe - initialize RK-based HCDs
@@ -116,26 +117,26 @@ MODULE_DEVICE_TABLE(of, rk_ohci_of_match);
  */
 static int ohci_hcd_rk_probe(struct platform_device *pdev)
 {
-	struct device		*dev = &pdev->dev;
-	struct usb_hcd		*hcd = NULL;
-	void __iomem		*regs = NULL;
-	struct resource		*res;
-	int			ret = -ENODEV;
-	int			irq;
+	struct device *dev = &pdev->dev;
+	struct usb_hcd *hcd = NULL;
+	void __iomem *regs = NULL;
+	struct resource *res;
+	int ret = -ENODEV;
+	int irq;
 	struct rkehci_platform_data *pldata;
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_node *node = pdev->dev.of_node;
 	struct rkehci_pdata_id *p;
 	const struct of_device_id *match =
-		of_match_device(of_match_ptr( rk_ohci_of_match ), &pdev->dev);
+	    of_match_device(of_match_ptr(rk_ohci_of_match), &pdev->dev);
 
 	dev_dbg(&pdev->dev, "ohci_hcd_rk_probe\n");
 
 	if (usb_disabled())
 		return -ENODEV;
 
-	if (match){
+	if (match) {
 		p = (struct rkehci_pdata_id *)match->data;
-	}else{
+	} else {
 		dev_err(dev, "ohci_rk match failed\n");
 		return -EINVAL;
 	}
@@ -148,16 +149,16 @@ static int ohci_hcd_rk_probe(struct platform_device *pdev)
 		dev_err(dev, "device node not found\n");
 		return -EINVAL;
 	}
-	
-	if(pldata->hw_init)
+
+	if (pldata->hw_init)
 		pldata->hw_init();
 
-	if(pldata->clock_init){
+	if (pldata->clock_init) {
 		pldata->clock_init(pldata);
 		pldata->clock_enable(pldata, 1);
 	}
 
-	if(pldata->soft_reset)
+	if (pldata->soft_reset)
 		pldata->soft_reset();
 
 	irq = platform_get_irq(pdev, 0);
@@ -191,8 +192,7 @@ static int ohci_hcd_rk_probe(struct platform_device *pdev)
 	if (!dev->coherent_dma_mask)
 		dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
-	hcd = usb_create_hcd(&ohci_rk_hc_driver, dev,
-			dev_name(dev));
+	hcd = usb_create_hcd(&ohci_rk_hc_driver, dev, dev_name(dev));
 	if (!hcd) {
 		dev_err(dev, "usb_create_hcd failed\n");
 		ret = -ENOMEM;
@@ -201,7 +201,7 @@ static int ohci_hcd_rk_probe(struct platform_device *pdev)
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->regs =  regs;
+	hcd->regs = regs;
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
@@ -217,7 +217,7 @@ err_add_hcd:
 	usb_put_hcd(hcd);
 
 clk_disable:
-	if(pldata->clock_enable)
+	if (pldata->clock_enable)
 		pldata->clock_enable(pldata, 0);
 
 	return ret;
@@ -225,8 +225,8 @@ clk_disable:
 
 static int ohci_hcd_rk_remove(struct platform_device *pdev)
 {
-	struct device *dev	= &pdev->dev;
-	struct usb_hcd *hcd	= dev_get_drvdata(dev);
+	struct device *dev = &pdev->dev;
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
@@ -242,12 +242,13 @@ static void ohci_hcd_rk_shutdown(struct platform_device *pdev)
 }
 
 static struct platform_driver ohci_hcd_rk_driver = {
-	.probe		= ohci_hcd_rk_probe,
-	.remove		= ohci_hcd_rk_remove,
-	.shutdown	= ohci_hcd_rk_shutdown,
-	.driver		= {
-		.name	= "ohci-rockchip",
-		.of_match_table = of_match_ptr(rk_ohci_of_match),
-	},
+	.probe = ohci_hcd_rk_probe,
+	.remove = ohci_hcd_rk_remove,
+	.shutdown = ohci_hcd_rk_shutdown,
+	.driver = {
+		   .name = "ohci-rockchip",
+		   .of_match_table = of_match_ptr(rk_ohci_of_match),
+		   },
 };
+
 MODULE_ALIAS("platform:rockchip-ohci");

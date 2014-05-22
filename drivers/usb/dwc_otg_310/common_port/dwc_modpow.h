@@ -22,7 +22,7 @@ extern "C" {
 
 typedef uint32_t BignumInt;
 typedef uint64_t BignumDblInt;
-typedef BignumInt *Bignum;
+typedef uint32_t *Bignum;
 
 /* Compute modular exponentiaion */
 extern Bignum dwc_modpow(void *mem_ctx, Bignum base_in, Bignum exp, Bignum mod);

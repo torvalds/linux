@@ -31,23 +31,23 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
 # include <linux/irq.h>
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 21)
 # include <linux/usb/ch9.h>
 #else
 # include <linux/usb_ch9.h>
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
 # include <linux/usb/gadget.h>
 #else
 # include <linux/usb_gadget.h>
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
 # include <asm/irq.h>
 #endif
 
@@ -59,18 +59,18 @@
 # include <linux/of.h>
 # include <linux/of_platform.h>
 
-//# include <asm/arch/lm.h>
-//# include <asm/arch/irqs.h>
-//# include <asm/arch/regs-irq.h>
+/* # include <asm/arch/lm.h> */
+/* # include <asm/arch/irqs.h> */
+/* # include <asm/arch/regs-irq.h> */
 
 /** The OS page size */
 #define DWC_OS_PAGE_SIZE	PAGE_SIZE
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,14)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 14)
 typedef int gfp_t;
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18)
 # define IRQF_SHARED SA_SHIRQ
 #endif
 

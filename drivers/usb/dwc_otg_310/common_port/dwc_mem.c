@@ -29,7 +29,7 @@ struct allocation_manager {
 	uint32_t max;
 };
 
-static struct allocation_manager *manager = NULL;
+static struct allocation_manager *manager;
 
 static int add_allocation(void *ctx, uint32_t size, char const *func, int line, void *addr,
 			  int dma)

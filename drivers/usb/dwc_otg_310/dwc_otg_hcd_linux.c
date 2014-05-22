@@ -51,7 +51,7 @@
 #include <linux/version.h>
 #include <asm/io.h>
 #include <linux/usb.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
 #include <../drivers/usb/core/hcd.h>
 #else
 #include <linux/usb/hcd.h>
@@ -76,18 +76,18 @@ static const char dwc_otg_hcd_name[] = "dwc_otg_hcd";
 /** @name Linux HC Driver API Functions */
 /** @{ */
 static int urb_enqueue(struct usb_hcd *hcd,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 		       struct usb_host_endpoint *ep,
 #endif
 		       struct urb *urb, gfp_t mem_flags);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb);
 #else
 static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status);
 #endif
 
 static void endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *ep);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30)
 static void endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep);
 #endif
 static irqreturn_t dwc_otg_hcd_irq(struct usb_hcd *hcd);
@@ -117,24 +117,24 @@ static struct hc_driver dwc_otg_hc_driver = {
 
 	.flags = HCD_MEMORY | HCD_USB2,
 
-	//.reset =              
+	/* .reset = */
 	.start = hcd_start,
-	//.suspend =            
-	//.resume =             
+	/* .suspend = */
+	/* .resume = */
 	.stop = hcd_stop,
 
 	.urb_enqueue = urb_enqueue,
 	.urb_dequeue = urb_dequeue,
 	.endpoint_disable = endpoint_disable,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30)
 	.endpoint_reset = endpoint_reset,
 #endif
 	.get_frame_number = get_frame_number,
 
 	.hub_status_data = hub_status_data,
 	.hub_control = hub_control,
-	.bus_suspend = hcd_suspend ,              
-	.bus_resume = hcd_resume,       
+	.bus_suspend = hcd_suspend,
+	.bus_resume = hcd_resume,
 };
 
 /** Gets the dwc_otg_hcd from a struct usb_hcd */
@@ -146,10 +146,11 @@ static inline dwc_otg_hcd_t *hcd_to_dwc_otg_hcd(struct usb_hcd *hcd)
 }
 
 /** Gets the struct usb_hcd that contains a dwc_otg_hcd_t. */
-inline struct usb_hcd *dwc_otg_hcd_to_hcd(dwc_otg_hcd_t * dwc_otg_hcd)
+inline struct usb_hcd *dwc_otg_hcd_to_hcd(dwc_otg_hcd_t *dwc_otg_hcd)
 {
 	return dwc_otg_hcd_get_priv_data(dwc_otg_hcd);
 }
+
 EXPORT_SYMBOL(dwc_otg_hcd_to_hcd);
 
 /** Gets the usb_host_endpoint associated with an URB. */
@@ -167,7 +168,7 @@ inline struct usb_host_endpoint *dwc_urb_to_endpoint(struct urb *urb)
 		return dev->ep_out[ep_num];
 }
 
-static int _disconnect(dwc_otg_hcd_t * hcd)
+static int _disconnect(dwc_otg_hcd_t *hcd)
 {
 	struct usb_hcd *usb_hcd = dwc_otg_hcd_to_hcd(hcd);
 
@@ -175,7 +176,7 @@ static int _disconnect(dwc_otg_hcd_t * hcd)
 	return 0;
 }
 
-static int _start(dwc_otg_hcd_t * hcd)
+static int _start(dwc_otg_hcd_t *hcd)
 {
 	struct usb_hcd *usb_hcd = dwc_otg_hcd_to_hcd(hcd);
 
@@ -185,8 +186,8 @@ static int _start(dwc_otg_hcd_t * hcd)
 	return 0;
 }
 
-static int _hub_info(dwc_otg_hcd_t * hcd, void *urb_handle, uint32_t * hub_addr,
-		     uint32_t * port_addr)
+static int _hub_info(dwc_otg_hcd_t *hcd, void *urb_handle, uint32_t *hub_addr,
+		     uint32_t *port_addr)
 {
 	struct urb *urb = (struct urb *)urb_handle;
 	if (urb->dev->tt) {
@@ -198,13 +199,13 @@ static int _hub_info(dwc_otg_hcd_t * hcd, void *urb_handle, uint32_t * hub_addr,
 	return 0;
 }
 
-static int _speed(dwc_otg_hcd_t * hcd, void *urb_handle)
+static int _speed(dwc_otg_hcd_t *hcd, void *urb_handle)
 {
 	struct urb *urb = (struct urb *)urb_handle;
 	return urb->dev->speed;
 }
 
-static int _get_b_hnp_enable(dwc_otg_hcd_t * hcd)
+static int _get_b_hnp_enable(dwc_otg_hcd_t *hcd)
 {
 	struct usb_hcd *usb_hcd = dwc_otg_hcd_to_hcd(hcd);
 	return usb_hcd->self.b_hnp_enable;
@@ -236,8 +237,8 @@ static void free_bus_bandwidth(struct usb_hcd *hcd, uint32_t bw,
  * Sets the final status of an URB and returns it to the device driver. Any
  * required cleanup of the URB is performed.
  */
-static int _complete(dwc_otg_hcd_t * hcd, void *urb_handle,
-		     dwc_otg_hcd_urb_t * dwc_otg_urb, int32_t status)
+static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
+		     dwc_otg_hcd_urb_t *dwc_otg_urb, int32_t status)
 {
 	struct urb *urb = (struct urb *)urb_handle;
 #ifdef DEBUG
@@ -312,7 +313,8 @@ static int _complete(dwc_otg_hcd_t * hcd, void *urb_handle,
 		if (ep) {
 			free_bus_bandwidth(dwc_otg_hcd_to_hcd(hcd),
 					   dwc_otg_hcd_get_ep_bandwidth(hcd,
-									ep->hcpriv),
+									ep->
+									hcpriv),
 					   urb);
 		}
 	}
@@ -320,7 +322,7 @@ static int _complete(dwc_otg_hcd_t * hcd, void *urb_handle,
 	DWC_FREE(dwc_otg_urb);
 
 	DWC_SPINUNLOCK(hcd->lock);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb);
 #else
 	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb, status);
@@ -334,9 +336,8 @@ void dwc_otg_clear_halt(struct urb *_urb)
 {
 	struct dwc_otg_qh *_qh;
 	struct usb_host_endpoint *ep = dwc_urb_to_endpoint(_urb);
-	if((ep)&&(ep->hcpriv))
-	{
-		_qh =  (dwc_otg_qh_t *) ep->hcpriv;
+	if ((ep) && (ep->hcpriv)) {
+		_qh = (dwc_otg_qh_t *) ep->hcpriv;
 		_qh->data_toggle = 0;
 	}
 }
@@ -349,6 +350,7 @@ static struct dwc_otg_hcd_function_ops hcd_fops = {
 	.complete = _complete,
 	.get_b_hnp_enable = _get_b_hnp_enable,
 };
+
 static void dwc_otg_hcd_enable(struct work_struct *work)
 {
 	dwc_otg_hcd_t *dwc_otg_hcd;
@@ -357,33 +359,34 @@ static void dwc_otg_hcd_enable(struct work_struct *work)
 	dwc_otg_hcd = container_of(work, dwc_otg_hcd_t, host_enable_work.work);
 	core_if = dwc_otg_hcd->core_if;
 	pldata = core_if->otg_dev->pldata;
-	if(dwc_otg_hcd->host_enabled == dwc_otg_hcd->host_setenable){
-//	DWC_PRINT("%s, enable flag %d\n", __func__, dwc_otg_hcd->host_setenable);
+	if (dwc_otg_hcd->host_enabled == dwc_otg_hcd->host_setenable) {
+	/* DWC_PRINT("%s, enable flag %d\n",
+	 * 	     __func__, dwc_otg_hcd->host_setenable); */
 		goto out;
 	}
-	    
-	if(dwc_otg_hcd->host_setenable == 2){// enable -> disable
-		if(pldata->get_status(USB_STATUS_DPDM)){// usb device connected
+
+	if (dwc_otg_hcd->host_setenable == 2) {/* enable -> disable */
+		if (pldata->get_status(USB_STATUS_DPDM)) {/* usb device connected */
 			dwc_otg_hcd->host_setenable = 1;
 			goto out;
 		}
 		DWC_PRINTF("%s, disable host controller\n", __func__);
 #if 0
 		if (_core_if->hcd_cb && _core_if->hcd_cb->disconnect) {
-		_core_if->hcd_cb->disconnect( _core_if->hcd_cb->p );
+			_core_if->hcd_cb->disconnect(_core_if->hcd_cb->p);
 		}
 #endif
 		pldata->soft_reset();
-		dwc_otg_disable_host_interrupts( core_if );
-		if(pldata->phy_suspend) 
-			pldata->phy_suspend( pldata, USB_PHY_SUSPEND);
+		dwc_otg_disable_host_interrupts(core_if);
+		if (pldata->phy_suspend)
+			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 		udelay(3);
-		pldata->clock_enable( pldata, 0);
-	}else if(dwc_otg_hcd->host_setenable == 1){
+		pldata->clock_enable(pldata, 0);
+	} else if (dwc_otg_hcd->host_setenable == 1) {
 		DWC_PRINTF("%s, enable host controller\n", __func__);
-		pldata->clock_enable( pldata, 1);
-		if(pldata->phy_suspend) 
-			pldata->phy_suspend( pldata, USB_PHY_ENABLED);
+		pldata->clock_enable(pldata, 1);
+		if (pldata->phy_suspend)
+			pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 		mdelay(5);
 		dwc_otg_core_init(core_if);
 		dwc_otg_enable_global_interrupts(core_if);
@@ -393,39 +396,41 @@ static void dwc_otg_hcd_enable(struct work_struct *work)
 out:
 	return;
 }
+
 static void dwc_otg_hcd_connect_detect(unsigned long pdata)
 {
-	dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *)pdata;
+	dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *) pdata;
 	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	unsigned long flags;
 	struct dwc_otg_platform_data *pldata;
 	pldata = core_if->otg_dev->pldata;
 	local_irq_save(flags);
-	if(pldata->get_status(USB_STATUS_DPDM)) // usb device connected   
-	{
+	if (pldata->get_status(USB_STATUS_DPDM)) {
+		/* usb device connected */
 		dwc_otg_hcd->host_setenable = 1;
+	} else {
+		/* no device, suspend host */
+		if ((dwc_otg_read_hprt0(core_if) & 1) == 0)
+			dwc_otg_hcd->host_setenable = 2;
 	}
-	else
-	{                                   // no device, suspend host    
-	if((dwc_otg_read_hprt0(core_if) & 1) == 0)
-		dwc_otg_hcd->host_setenable = 2;
-	}
-	if((dwc_otg_hcd->host_enabled) && (dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled)){
+	if ((dwc_otg_hcd->host_enabled)
+	    && (dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled)) {
 		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 1);
 	}
-	mod_timer(&dwc_otg_hcd->connect_detect_timer,jiffies + (HZ<<1)); 
+	mod_timer(&dwc_otg_hcd->connect_detect_timer, jiffies + (HZ << 1));
 	local_irq_restore(flags);
 	return;
 }
 
 static void otg20_hcd_connect_detect(struct work_struct *work)
 {
-	dwc_otg_hcd_t *dwc_otg_hcd = container_of(work, dwc_otg_hcd_t, host_enable_work.work);
+	dwc_otg_hcd_t *dwc_otg_hcd =
+	    container_of(work, dwc_otg_hcd_t, host_enable_work.work);
 	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	struct dwc_otg_platform_data *pldata;
 	pldata = core_if->otg_dev->pldata;
 
-	if( pldata->phy_status == USB_PHY_SUSPEND){
+	if (pldata->phy_status == USB_PHY_SUSPEND) {
 		pldata->clock_enable(pldata, 1);
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	}
@@ -440,7 +445,7 @@ static void otg20_hcd_connect_detect(struct work_struct *work)
  * USB bus with the core and calls the hc_driver->start() function. It returns
  * a negative error on failure.
  */
-int otg20_hcd_init( struct platform_device *_dev )
+int otg20_hcd_init(struct platform_device *_dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
@@ -467,13 +472,15 @@ int otg20_hcd_init( struct platform_device *_dev )
 	 * Allocate memory for the base HCD plus the DWC OTG HCD.
 	 * Initialize the base HCD.
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 30)
 	hcd = usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev, _dev->dev.bus_id);
 #else
-	hcd = usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev, dev_name(&_dev->dev));
+	hcd =
+	    usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev,
+			   dev_name(&_dev->dev));
 	hcd->has_tt = 1;
-//      hcd->uses_new_polling = 1;
-//      hcd->poll_rh = 0;
+	/* hcd->uses_new_polling = 1; */
+	/* hcd->poll_rh = 0; */
 #endif
 	if (!hcd) {
 		retval = -ENOMEM;
@@ -497,22 +504,25 @@ int otg20_hcd_init( struct platform_device *_dev )
 
 	otg_dev->hcd->otg_dev = otg_dev;
 	hcd->self.otg_port = dwc_otg_hcd_otg_port(dwc_otg_hcd);
-#if 0//#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33) //don't support for LM(with 2.6.20.1 kernel)
+#if 0
+	/* #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33) */
+	/* don't support for LM(with 2.6.20.1 kernel) */
 	hcd->self.otg_version = dwc_otg_get_otg_version(otg_dev->core_if);
 	/* Don't support SG list at this point */
 	hcd->self.sg_tablesize = 0;
 #endif
-#if 0//LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+#if 0
+	/* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0) */
 	/* Do not to do HNP polling if not capable */
-	//if (otg_dev->core_if->otg_ver)
-	//	hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
+	/* if (otg_dev->core_if->otg_ver) */
+	/*      hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if); */
 #endif
 	/*
 	 * Finish generic HCD initialization and start the HCD. This function
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
 	 * IRQ line, and calls hcd_start method.
 	 */
-	irq = platform_get_irq(_dev,0);
+	irq = platform_get_irq(_dev, 0);
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
 	if (retval < 0) {
 		goto error2;
@@ -520,10 +530,11 @@ int otg20_hcd_init( struct platform_device *_dev )
 
 	dwc_otg_hcd_set_priv_data(dwc_otg_hcd, hcd);
 	dwc_otg_hcd->host_enabled = 1;
-	if(dwc_otg_is_host_mode(otg_dev->core_if) ||
-	  (otg_dev->core_if->usb_mode == USB_MODE_FORCE_HOST)){
-		INIT_DELAYED_WORK(&dwc_otg_hcd->host_enable_work, otg20_hcd_connect_detect);
-		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, HZ>>2);
+	if (dwc_otg_is_host_mode(otg_dev->core_if) ||
+	    (otg_dev->core_if->usb_mode == USB_MODE_FORCE_HOST)) {
+		INIT_DELAYED_WORK(&dwc_otg_hcd->host_enable_work,
+				  otg20_hcd_connect_detect);
+		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, HZ >> 2);
 	}
 	return 0;
 
@@ -533,14 +544,13 @@ error1:
 	return retval;
 }
 
-
 /**
  * Initializes the HCD. This function allocates memory for and initializes the
  * static parts of the usb_hcd and dwc_otg_hcd structures. It also registers the
  * USB bus with the core and calls the hc_driver->start() function. It returns
  * a negative error on failure.
  */
-int host20_hcd_init( struct platform_device *_dev )
+int host20_hcd_init(struct platform_device *_dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
@@ -548,7 +558,7 @@ int host20_hcd_init( struct platform_device *_dev )
 	dwc_otg_device_t *otg_dev = dwc_get_device_platform_data(_dev);
 	int retval = 0;
 	int irq;
-	static u64 usb_dmamask = 0xffffffffUL; 
+	static u64 usb_dmamask = 0xffffffffUL;
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
 
 	/* Set device flags indicating whether the HCD supports DMA. */
@@ -566,13 +576,15 @@ int host20_hcd_init( struct platform_device *_dev )
 	 * Allocate memory for the base HCD plus the DWC OTG HCD.
 	 * Initialize the base HCD.
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 30)
 	hcd = usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev, _dev->dev.bus_id);
 #else
-	hcd = usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev, dev_name(&_dev->dev));
+	hcd =
+	    usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev,
+			   dev_name(&_dev->dev));
 	hcd->has_tt = 1;
-//      hcd->uses_new_polling = 1;
-//      hcd->poll_rh = 0;
+	/* hcd->uses_new_polling = 1; */
+	/* hcd->poll_rh = 0; */
 #endif
 	if (!hcd) {
 		retval = -ENOMEM;
@@ -596,22 +608,25 @@ int host20_hcd_init( struct platform_device *_dev )
 
 	otg_dev->hcd->otg_dev = otg_dev;
 	hcd->self.otg_port = dwc_otg_hcd_otg_port(dwc_otg_hcd);
-#if 0//#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33) //don't support for LM(with 2.6.20.1 kernel)
+#if 0
+	/* #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33) */
+	/* don't support for LM(with 2.6.20.1 kernel) */
 	hcd->self.otg_version = dwc_otg_get_otg_version(otg_dev->core_if);
 	/* Don't support SG list at this point */
 	hcd->self.sg_tablesize = 0;
 #endif
-#if 0//LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+#if 0
+	/* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0) */
 	/* Do not to do HNP polling if not capable */
-	//if (otg_dev->core_if->otg_ver)
-	//	hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
+	/* if (otg_dev->core_if->otg_ver) */
+	/*      hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);*/
 #endif
 	/*
 	 * Finish generic HCD initialization and start the HCD. This function
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
 	 * IRQ line, and calls hcd_start method.
 	 */
-	irq = platform_get_irq(_dev,0);
+	irq = platform_get_irq(_dev, 0);
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
 	if (retval < 0) {
 		goto error2;
@@ -623,9 +638,9 @@ int host20_hcd_init( struct platform_device *_dev )
 	dwc_otg_hcd->host_setenable = 2;
 	dwc_otg_hcd->connect_detect_timer.function = dwc_otg_hcd_connect_detect;
 	dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
-	init_timer( &dwc_otg_hcd->connect_detect_timer);
-	mod_timer(&dwc_otg_hcd->connect_detect_timer, jiffies+(HZ<<3)); 
-    
+	init_timer(&dwc_otg_hcd->connect_detect_timer);
+	mod_timer(&dwc_otg_hcd->connect_detect_timer, jiffies + (HZ << 3));
+
 	INIT_DELAYED_WORK(&dwc_otg_hcd->host_enable_work, dwc_otg_hcd_enable);
 	return 0;
 
@@ -639,10 +654,7 @@ error1:
  * Removes the HCD.
  * Frees memory and resources associated with the HCD and deregisters the bus.
  */
-void hcd_remove(
-
-		       struct platform_device *_dev
-    )
+void hcd_remove(struct platform_device *_dev)
 {
 
 	dwc_otg_device_t *otg_dev = dwc_get_device_platform_data(_dev);
@@ -720,34 +732,32 @@ void hcd_stop(struct usb_hcd *hcd)
 	dwc_otg_hcd_stop(dwc_otg_hcd);
 }
 
-
 static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
 {
-	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (hcd);
+	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
 	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	hprt0_data_t hprt0;
 	pcgcctl_data_t pcgcctl;
 	struct dwc_otg_platform_data *pldata;
 	pldata = core_if->otg_dev->pldata;
 
-	if(core_if->op_state == B_PERIPHERAL){
+	if (core_if->op_state == B_PERIPHERAL) {
 		DWC_PRINTF("%s, usb device mode\n", __func__);
 		return 0;
 	}
 
-	if(!(dwc_otg_hcd->host_enabled&1))
+	if (!(dwc_otg_hcd->host_enabled & 1))
 		return 0;
 
 	hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0);
-#ifdef CONFIG_PM_RUNTIME    
-	if((!hprt0.b.prtena) && (!hprt0.b.prtpwr))
+#ifdef CONFIG_PM_RUNTIME
+	if ((!hprt0.b.prtena) && (!hprt0.b.prtpwr))
 		return 0;
-#endif        
-	DWC_PRINTF("%s suspend, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
+#endif
+	DWC_PRINTF("%s suspend, HPRT0:0x%x\n", hcd->self.bus_name, hprt0.d32);
 
-	if(hprt0.b.prtconnsts){ // usb device connected
-		if(!hprt0.b.prtsusp)
-		{
+	if (hprt0.b.prtconnsts) { /* usb device connected */
+		if (!hprt0.b.prtsusp) {
 			hprt0.b.prtsusp = 1;
 			hprt0.b.prtena = 0;
 			DWC_WRITE_REG32(core_if->host_if->hprt0, hprt0.d32);
@@ -755,8 +765,7 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
 		udelay(10);
 		hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0);
 
-		if(!hprt0.b.prtsusp)
-		{
+		if (!hprt0.b.prtsusp) {
 			hprt0.b.prtsusp = 1;
 			hprt0.b.prtena = 0;
 			DWC_WRITE_REG32(core_if->host_if->hprt0, hprt0.d32);
@@ -764,94 +773,91 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
 		mdelay(5);
 
 		pcgcctl.d32 = DWC_READ_REG32(core_if->pcgcctl);
-		//Partial Power-Down mode not enable
+		/* Partial Power-Down mode not enable */
 		pcgcctl.b.pwrclmp = 0;
 		DWC_WRITE_REG32(core_if->pcgcctl, pcgcctl.d32);
 		udelay(1);
-		//pcgcctl.b.rstpdwnmodule = 1;//reset PDM
-		pcgcctl.b.stoppclk = 1;//stop phy clk
+		/* reset PDM  */
+		/* pcgcctl.b.rstpdwnmodule = 1; */
+		pcgcctl.b.stoppclk = 1;	/* stop phy clk */
 		DWC_WRITE_REG32(core_if->pcgcctl, pcgcctl.d32);
-	}
-	else{ //no device connect
-		if(!pldata->get_status(USB_REMOTE_WAKEUP)){
-			if(pldata->phy_suspend)
+	} else {/* no device connect */
+		if (!pldata->get_status(USB_REMOTE_WAKEUP)) {
+			if (pldata->phy_suspend)
 				pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 			udelay(3);
 			if (pldata->clock_enable)
-					pldata->clock_enable(pldata, 0);
+				pldata->clock_enable(pldata, 0);
 		}
 	}
-
 
 	return 0;
 }
 
-
 static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 {
-	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (hcd);
+	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
 	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	hprt0_data_t hprt0;
 	pcgcctl_data_t pcgcctl;
 	gintmsk_data_t gintmsk;
 	struct dwc_otg_platform_data *pldata;
 	pldata = core_if->otg_dev->pldata;
-	
-	if(core_if->op_state == B_PERIPHERAL){
-    		DWC_PRINTF("%s, usb device mode\n", __func__);
+
+	if (core_if->op_state == B_PERIPHERAL) {
+		DWC_PRINTF("%s, usb device mode\n", __func__);
 		return 0;
 	}
-
-//#ifdef CONFIG_PM_RUNTIME    
-	if(!(dwc_otg_hcd->host_enabled&1))
+/* #ifdef CONFIG_PM_RUNTIME */
+	if (!(dwc_otg_hcd->host_enabled & 1))
 		return 0;
-//#endif
+/* #endif */
 
-	if(!pldata->get_status(USB_REMOTE_WAKEUP)){
+	if (!pldata->get_status(USB_REMOTE_WAKEUP)) {
 		if (pldata->clock_enable)
-			pldata->clock_enable( pldata, 1);
+			pldata->clock_enable(pldata, 1);
 	}
 
-	hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0); 
+	hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0);
 #ifdef CONFIG_PM_RUNTIME
-	//USB HCD already resumed by remote wakeup, return now
-	if((!hprt0.b.prtsusp) && (hprt0.b.prtena))
+	/* USB HCD already resumed by remote wakeup, return now */
+	if ((!hprt0.b.prtsusp) && (hprt0.b.prtena))
 		return 0;
 #endif
 
-	//power on
+	/* power on */
 	pcgcctl.d32 = DWC_READ_REG32(core_if->pcgcctl);;
-	pcgcctl.b.stoppclk = 0;//restart phy clk
+	pcgcctl.b.stoppclk = 0;	/* restart phy clk */
 	DWC_WRITE_REG32(core_if->pcgcctl, pcgcctl.d32);
 	udelay(1);
-	pcgcctl.b.pwrclmp = 0;//power clamp
+	pcgcctl.b.pwrclmp = 0;	/* power clamp */
 	DWC_WRITE_REG32(core_if->pcgcctl, pcgcctl.d32);
 	udelay(2);
 
 	gintmsk.d32 = DWC_READ_REG32(&core_if->core_global_regs->gintmsk);
 	gintmsk.b.portintr = 0;
 	DWC_WRITE_REG32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
-        
+
 	hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0);
 
 #ifdef CONFIG_PM_RUNTIME
-	if((!hprt0.b.prtena) && (!hprt0.b.prtpwr))
+	if ((!hprt0.b.prtena) && (!hprt0.b.prtpwr))
 		return 0;
 #endif
-	DWC_PRINTF("%s resume, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
-	
-	if(hprt0.b.prtconnsts){
-		//hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
-		//DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
-		hprt0.b.prtpwr = 1;    
+	DWC_PRINTF("%s resume, HPRT0:0x%x\n", hcd->self.bus_name, hprt0.d32);
+
+	if (hprt0.b.prtconnsts) {
+		/* hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0); */
+		/* DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32); */
+		hprt0.b.prtpwr = 1;
 		hprt0.b.prtres = 1;
 		hprt0.b.prtena = 0;
 		DWC_WRITE_REG32(core_if->host_if->hprt0, hprt0.d32);
 		mdelay(20);
-		hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0);	
-		//DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
-		//hprt0.d32 = 0;
-		hprt0.b.prtpwr = 1;    
+		hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0);
+		/* DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32); */
+		/* hprt0.d32 = 0; */
+		hprt0.b.prtpwr = 1;
 		hprt0.b.prtres = 0;
 		hprt0.b.prtena = 0;
 		DWC_WRITE_REG32(core_if->host_if->hprt0, hprt0.d32);
@@ -861,15 +867,14 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 		hprt0.b.prtconndet = 1;
 		DWC_WRITE_REG32(core_if->host_if->hprt0, hprt0.d32);
 
-		//hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
-		//DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
-    	
+		/* hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0); */
+		/* DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32); */
+
 		mdelay(10);
-	}
-	else{
-		if(!pldata->get_status(USB_REMOTE_WAKEUP)){
-			if(pldata->phy_suspend)
-				pldata->phy_suspend( pldata, USB_PHY_ENABLED);
+	} else {
+		if (!pldata->get_status(USB_REMOTE_WAKEUP)) {
+			if (pldata->phy_suspend)
+				pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 		}
 	}
 	gintmsk.b.portintr = 1;
@@ -881,7 +886,7 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 /** HCD Suspend */
 int hcd_suspend(struct usb_hcd *hcd)
 {
-	//dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
+	/* dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd); */
 
 	DWC_DEBUGPL(DBG_HCD, "HCD SUSPEND\n");
 
@@ -893,15 +898,14 @@ int hcd_suspend(struct usb_hcd *hcd)
 /** HCD resume */
 int hcd_resume(struct usb_hcd *hcd)
 {
-	//dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
+	/* dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd); */
 
 	DWC_DEBUGPL(DBG_HCD, "HCD RESUME\n");
-	
+
 	dwc_otg_hcd_resume(hcd);
 
 	return 0;
 }
-
 
 /** Returns the current frame number. */
 static int get_frame_number(struct usb_hcd *hcd)
@@ -918,26 +922,43 @@ static void dump_urb_info(struct urb *urb, char *fn_name)
 	DWC_PRINTF("  Device address: %d\n", usb_pipedevice(urb->pipe));
 	DWC_PRINTF("  Endpoint: %d, %s\n", usb_pipeendpoint(urb->pipe),
 		   (usb_pipein(urb->pipe) ? "IN" : "OUT"));
-	DWC_PRINTF("  Endpoint type: %s\n", ( {
+	DWC_PRINTF("  Endpoint type: %s\n", ({
 					     char *pipetype;
 					     switch (usb_pipetype(urb->pipe)) {
-case PIPE_CONTROL:
-pipetype = "CONTROL"; break; case PIPE_BULK:
-pipetype = "BULK"; break; case PIPE_INTERRUPT:
-pipetype = "INTERRUPT"; break; case PIPE_ISOCHRONOUS:
-pipetype = "ISOCHRONOUS"; break; default:
-					     pipetype = "UNKNOWN"; break;};
-					     pipetype;}
-		   )) ;
-	DWC_PRINTF("  Speed: %s\n", ( {
-				     char *speed; switch (urb->dev->speed) {
-case USB_SPEED_HIGH:
-speed = "HIGH"; break; case USB_SPEED_FULL:
-speed = "FULL"; break; case USB_SPEED_LOW:
-speed = "LOW"; break; default:
-				     speed = "UNKNOWN"; break;};
-				     speed;}
-		   )) ;
+					     case PIPE_CONTROL:
+						  pipetype = "CONTROL";
+					     break;
+					     case PIPE_BULK:
+						  pipetype = "BULK";
+					     break;
+					     case PIPE_INTERRUPT:
+						  pipetype = "INTERRUPT";
+					     break;
+					     case PIPE_ISOCHRONOUS:
+						  pipetype = "ISOCHRONOUS";
+					     break;
+					     default:
+						  pipetype = "UNKNOWN";
+					     break; };
+					     pipetype; }
+					     )) ;
+	DWC_PRINTF("  Speed: %s\n", ({
+				     char *speed;
+				     switch (urb->dev->speed) {
+				     case USB_SPEED_HIGH:
+					  speed = "HIGH";
+				     break;
+				     case USB_SPEED_FULL:
+					  speed = "FULL";
+				     break;
+				     case USB_SPEED_LOW:
+					  speed = "LOW";
+				     break;
+				     default:
+					  speed = "UNKNOWN";
+				     break; };
+				     speed; }
+				     )) ;
 	DWC_PRINTF("  Max packet size: %d\n",
 		   usb_maxpacket(urb->dev, urb->pipe, usb_pipeout(urb->pipe)));
 	DWC_PRINTF("  Data buffer length: %d\n", urb->transfer_buffer_length);
@@ -963,13 +984,13 @@ speed = "LOW"; break; default:
  * (URB). mem_flags indicates the type of memory allocation to use while
  * processing this URB. */
 static int urb_enqueue(struct usb_hcd *hcd,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 		       struct usb_host_endpoint *ep,
 #endif
 		       struct urb *urb, gfp_t mem_flags)
 {
 	int retval = 0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
 	struct usb_host_endpoint *ep = urb->ep;
 #endif
 	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
@@ -989,14 +1010,17 @@ static int urb_enqueue(struct usb_hcd *hcd,
 	if (unlikely(atomic_read(&urb->use_count) > 1)) {
 		retval = -EPERM;
 		printk("%s urb %p already in queue, qtd %p, use_count %d\n",
-			__func__, urb, urb->hcpriv, atomic_read(&urb->use_count));
+		       __func__, urb, urb->hcpriv,
+		       atomic_read(&urb->use_count));
 		return retval;
 	}
 
 	if (unlikely(atomic_read(&urb->reject))) {
 		retval = -EPERM;
-		printk("%s urb %p submissions will fail, urb->reject %d, use_count %d\n",
-		        __func__, urb, atomic_read(&urb->reject), atomic_read(&urb->use_count));
+		printk
+		    ("%s urb %p submissions will fail, urb->reject %d, use_count %d\n",
+		     __func__, urb, atomic_read(&urb->reject),
+		     atomic_read(&urb->use_count));
 		return retval;
 
 	}
@@ -1037,9 +1061,10 @@ static int urb_enqueue(struct usb_hcd *hcd,
 						   !(usb_pipein(urb->pipe))));
 
 #ifdef DEBUG
-	if((uint32_t)urb->transfer_buffer & 3){
-		DWC_PRINTF("%s urb->transfer_buffer address not align to 4-byte 0x%x\n", 
-			    __func__, (uint32_t)urb->transfer_buffer);
+	if ((uint32_t) urb->transfer_buffer & 3) {
+		DWC_PRINTF
+		    ("%s urb->transfer_buffer address not align to 4-byte 0x%x\n",
+		     __func__, (uint32_t) urb->transfer_buffer);
 	}
 #endif
 
@@ -1068,10 +1093,10 @@ static int urb_enqueue(struct usb_hcd *hcd,
 
 	for (i = 0; i < urb->number_of_packets; ++i) {
 		dwc_otg_hcd_urb_set_iso_desc_params(dwc_otg_urb, i,
-						    urb->
-						    iso_frame_desc[i].offset,
-						    urb->
-						    iso_frame_desc[i].length);
+						    urb->iso_frame_desc[i].
+						    offset,
+						    urb->iso_frame_desc[i].
+						    length);
 	}
 
 	urb->hcpriv = dwc_otg_urb;
@@ -1094,7 +1119,7 @@ static int urb_enqueue(struct usb_hcd *hcd,
 
 /** Aborts/cancels a USB transfer request. Always returns 0 to indicate
  * success.  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 #else
 static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
@@ -1114,22 +1139,23 @@ static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
 
-	if(((uint32_t)urb&0xf0000000)==0){
+	if (((uint32_t) urb & 0xf0000000) == 0) {
 		DWC_PRINTF("%s error: urb is %p!!!\n", __func__, urb);
 		goto out1;
 	}
-	
-	if(((uint32_t)urb->hcpriv&0xf0000000) == 0){
-		DWC_PRINTF("%s error: urb->hcpriv %p urb %p, count %d!!!\n",__func__, 
-			   urb->hcpriv, urb, atomic_read(&urb->use_count));
-		if((atomic_read(&urb->use_count)) == 1)
+
+	if (((uint32_t) urb->hcpriv & 0xf0000000) == 0) {
+		DWC_PRINTF("%s error: urb->hcpriv %p urb %p, count %d!!!\n",
+			   __func__, urb->hcpriv, urb,
+			   atomic_read(&urb->use_count));
+		if ((atomic_read(&urb->use_count)) == 1)
 			goto out2;
-		else{
+		else {
 			DWC_SPINUNLOCK_IRQRESTORE(dwc_otg_hcd->lock, flags);
 			return 0;
 		}
 	}
-	
+
 	dwc_otg_hcd_urb_dequeue(dwc_otg_hcd, urb->hcpriv);
 
 out2:
@@ -1138,7 +1164,7 @@ out2:
 	DWC_SPINUNLOCK_IRQRESTORE(dwc_otg_hcd->lock, flags);
 
 	/* Higher layer software sets URB status. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 	usb_hcd_giveback_urb(hcd, urb);
 #else
 	usb_hcd_giveback_urb(hcd, urb, status);
@@ -1166,8 +1192,8 @@ static void endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 	ep->hcpriv = NULL;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-/* Resets endpoint specific parameter values, in current version used to reset 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30)
+/* Resets endpoint specific parameter values, in current version used to reset
  * the data toggle(as a WA). This function can be called from usb_clear_halt routine */
 static void endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 {
@@ -1184,7 +1210,8 @@ static void endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 	else
 		return;
 
-	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD EP RESET: Endpoint Num=0x%02d\n", epnum);
+	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD EP RESET: Endpoint Num=0x%02d\n",
+		    epnum);
 
 	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
 	usb_settoggle(udev, epnum, is_out, 0);
@@ -1208,7 +1235,7 @@ static irqreturn_t dwc_otg_hcd_irq(struct usb_hcd *hcd)
 	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
 	int32_t retval = dwc_otg_hcd_handle_intr(dwc_otg_hcd);
 	if (retval != 0) {
-		//S3C2410X_CLEAR_EINTPEND();
+		/* S3C2410X_CLEAR_EINTPEND(); */
 	}
 	return IRQ_RETVAL(retval);
 }

@@ -50,28 +50,28 @@ typedef struct dwc_otg_hcd_urb dwc_otg_hcd_urb_t;
 /** @{ */
 
 /** This function is called whenever core switches to host mode. */
-typedef int (*dwc_otg_hcd_start_cb_t) (dwc_otg_hcd_t * hcd);
+typedef int (*dwc_otg_hcd_start_cb_t) (dwc_otg_hcd_t *hcd);
 
 /** This function is called when device has been disconnected */
-typedef int (*dwc_otg_hcd_disconnect_cb_t) (dwc_otg_hcd_t * hcd);
+typedef int (*dwc_otg_hcd_disconnect_cb_t) (dwc_otg_hcd_t *hcd);
 
 /** Wrapper provides this function to HCD to core, so it can get hub information to which device is connected */
-typedef int (*dwc_otg_hcd_hub_info_from_urb_cb_t) (dwc_otg_hcd_t * hcd,
+typedef int (*dwc_otg_hcd_hub_info_from_urb_cb_t) (dwc_otg_hcd_t *hcd,
 						   void *urb_handle,
-						   uint32_t * hub_addr,
-						   uint32_t * port_addr);
+						   uint32_t *hub_addr,
+						   uint32_t *port_addr);
 /** Via this function HCD core gets device speed */
-typedef int (*dwc_otg_hcd_speed_from_urb_cb_t) (dwc_otg_hcd_t * hcd,
+typedef int (*dwc_otg_hcd_speed_from_urb_cb_t) (dwc_otg_hcd_t *hcd,
 						void *urb_handle);
 
 /** This function is called when urb is completed */
-typedef int (*dwc_otg_hcd_complete_urb_cb_t) (dwc_otg_hcd_t * hcd,
+typedef int (*dwc_otg_hcd_complete_urb_cb_t) (dwc_otg_hcd_t *hcd,
 					      void *urb_handle,
-					      dwc_otg_hcd_urb_t * dwc_otg_urb,
+					      dwc_otg_hcd_urb_t *dwc_otg_urb,
 					      int32_t status);
 
 /** Via this function HCD core gets b_hnp_enable parameter */
-typedef int (*dwc_otg_hcd_get_b_hnp_enable) (dwc_otg_hcd_t * hcd);
+typedef int (*dwc_otg_hcd_get_b_hnp_enable) (dwc_otg_hcd_t *hcd);
 
 struct dwc_otg_hcd_function_ops {
 	dwc_otg_hcd_start_cb_t start;
@@ -94,15 +94,15 @@ extern dwc_otg_hcd_t *dwc_otg_hcd_alloc_hcd(void);
  * @param core_if The DWC_OTG Core
  *
  * Returns -DWC_E_NO_MEMORY if no enough memory.
- * Returns 0 on success  
+ * Returns 0 on success
  */
-extern int dwc_otg_hcd_init(dwc_otg_hcd_t * hcd, dwc_otg_core_if_t * core_if);
+extern int dwc_otg_hcd_init(dwc_otg_hcd_t *hcd, dwc_otg_core_if_t *core_if);
 
 /** Frees HCD
  *
  * @param hcd The HCD
  */
-extern void dwc_otg_hcd_remove(dwc_otg_hcd_t * hcd);
+extern void dwc_otg_hcd_remove(dwc_otg_hcd_t *hcd);
 
 /** This function should be called on every hardware interrupt.
  *
@@ -111,15 +111,15 @@ extern void dwc_otg_hcd_remove(dwc_otg_hcd_t * hcd);
  * Returns non zero if interrupt is handled
  * Return 0 if interrupt is not handled
  */
-extern int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t * dwc_otg_hcd);
+extern int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t *dwc_otg_hcd);
 
 /**
  * Returns private data set by
- * dwc_otg_hcd_set_priv_data function.
+ *dwc_otg_hcd_set_priv_data function.
  *
  * @param hcd The HCD
  */
-extern void *dwc_otg_hcd_get_priv_data(dwc_otg_hcd_t * hcd);
+extern void *dwc_otg_hcd_get_priv_data(dwc_otg_hcd_t *hcd);
 
 /**
  * Set private data.
@@ -127,7 +127,7 @@ extern void *dwc_otg_hcd_get_priv_data(dwc_otg_hcd_t * hcd);
  * @param hcd The HCD
  * @param priv_data pointer to be stored in private data
  */
-extern void dwc_otg_hcd_set_priv_data(dwc_otg_hcd_t * hcd, void *priv_data);
+extern void dwc_otg_hcd_set_priv_data(dwc_otg_hcd_t *hcd, void *priv_data);
 
 /**
  * This function initializes the HCD Core.
@@ -138,16 +138,16 @@ extern void dwc_otg_hcd_set_priv_data(dwc_otg_hcd_t * hcd, void *priv_data);
  * Returns -DWC_E_NO_DEVICE if Core is currently is in device mode.
  * Returns 0 on success
  */
-extern int dwc_otg_hcd_start(dwc_otg_hcd_t * hcd,
+extern int dwc_otg_hcd_start(dwc_otg_hcd_t *hcd,
 			     struct dwc_otg_hcd_function_ops *fops);
 
 /**
  * Halts the DWC_otg host mode operations in a clean manner. USB transfers are
- * stopped. 
+ * stopped.
  *
  * @param hcd The HCD
  */
-extern void dwc_otg_hcd_stop(dwc_otg_hcd_t * hcd);
+extern void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd);
 
 /**
  * Handles hub class-specific requests.
@@ -156,15 +156,15 @@ extern void dwc_otg_hcd_stop(dwc_otg_hcd_t * hcd);
  * @param typeReq Request Type
  * @param wValue wValue from control request
  * @param wIndex wIndex from control request
- * @param buf data buffer 
+ * @param buf data buffer
  * @param wLength data buffer length
  *
  * Returns -DWC_E_INVALID if invalid argument is passed
  * Returns 0 on success
  */
-extern int dwc_otg_hcd_hub_control(dwc_otg_hcd_t * dwc_otg_hcd,
+extern int dwc_otg_hcd_hub_control(dwc_otg_hcd_t *dwc_otg_hcd,
 				   uint16_t typeReq, uint16_t wValue,
-				   uint16_t wIndex, uint8_t * buf,
+				   uint16_t wIndex, uint8_t *buf,
 				   uint16_t wLength);
 
 /**
@@ -172,35 +172,35 @@ extern int dwc_otg_hcd_hub_control(dwc_otg_hcd_t * dwc_otg_hcd,
  *
  * @param hcd The HCD
  */
-extern uint32_t dwc_otg_hcd_otg_port(dwc_otg_hcd_t * hcd);
+extern uint32_t dwc_otg_hcd_otg_port(dwc_otg_hcd_t *hcd);
 
 /**
  * Returns OTG version - either 1.3 or 2.0.
  *
  * @param core_if The core_if structure pointer
  */
-extern uint16_t dwc_otg_get_otg_version(dwc_otg_core_if_t * core_if);
+extern uint16_t dwc_otg_get_otg_version(dwc_otg_core_if_t *core_if);
 
 /**
  * Returns 1 if currently core is acting as B host, and 0 otherwise.
  *
  * @param hcd The HCD
  */
-extern uint32_t dwc_otg_hcd_is_b_host(dwc_otg_hcd_t * hcd);
+extern uint32_t dwc_otg_hcd_is_b_host(dwc_otg_hcd_t *hcd);
 
 /**
  * Returns current frame number.
  *
  * @param hcd The HCD
  */
-extern int dwc_otg_hcd_get_frame_number(dwc_otg_hcd_t * hcd);
+extern int dwc_otg_hcd_get_frame_number(dwc_otg_hcd_t *hcd);
 
 /**
  * Dumps hcd state.
  *
  * @param hcd The HCD
  */
-extern void dwc_otg_hcd_dump_state(dwc_otg_hcd_t * hcd);
+extern void dwc_otg_hcd_dump_state(dwc_otg_hcd_t *hcd);
 
 /**
  * Dump the average frame remaining at SOF. This can be used to
@@ -210,7 +210,7 @@ extern void dwc_otg_hcd_dump_state(dwc_otg_hcd_t * hcd);
  *
  * @param hcd The HCD
  */
-extern void dwc_otg_hcd_dump_frrem(dwc_otg_hcd_t * hcd);
+extern void dwc_otg_hcd_dump_frrem(dwc_otg_hcd_t *hcd);
 
 /**
  * Sends LPM transaction to the local device.
@@ -223,7 +223,7 @@ extern void dwc_otg_hcd_dump_frrem(dwc_otg_hcd_t * hcd);
  * Returns negative value if sending LPM transaction was not succeeded.
  * Returns 0 on success.
  */
-extern int dwc_otg_hcd_send_lpm(dwc_otg_hcd_t * hcd, uint8_t devaddr,
+extern int dwc_otg_hcd_send_lpm(dwc_otg_hcd_t *hcd, uint8_t devaddr,
 				uint8_t hird, uint8_t bRemoteWake);
 
 /* URB interface */
@@ -236,7 +236,7 @@ extern int dwc_otg_hcd_send_lpm(dwc_otg_hcd_t * hcd, uint8_t devaddr,
  * @param iso_desc_count Count of ISOC descriptors
  * @param atomic_alloc Specefies whether to perform atomic allocation.
  */
-extern dwc_otg_hcd_urb_t *dwc_otg_hcd_urb_alloc(dwc_otg_hcd_t * hcd,
+extern dwc_otg_hcd_urb_t *dwc_otg_hcd_urb_alloc(dwc_otg_hcd_t *hcd,
 						int iso_desc_count,
 						int atomic_alloc);
 
@@ -250,7 +250,7 @@ extern dwc_otg_hcd_urb_t *dwc_otg_hcd_urb_alloc(dwc_otg_hcd_t * hcd,
  * @param ep_dir Endpoint Direction
  * @param mps Max Packet Size
  */
-extern void dwc_otg_hcd_urb_set_pipeinfo(dwc_otg_hcd_urb_t * hcd_urb,
+extern void dwc_otg_hcd_urb_set_pipeinfo(dwc_otg_hcd_urb_t *hcd_urb,
 					 uint8_t devaddr, uint8_t ep_num,
 					 uint8_t ep_type, uint8_t ep_dir,
 					 uint16_t mps);
@@ -273,7 +273,7 @@ extern void dwc_otg_hcd_urb_set_pipeinfo(dwc_otg_hcd_urb_t * hcd_urb,
  * @param flags Transfer flags
  * @param interval Polling interval for interrupt or isochronous transfers.
  */
-extern void dwc_otg_hcd_urb_set_params(dwc_otg_hcd_urb_t * urb,
+extern void dwc_otg_hcd_urb_set_params(dwc_otg_hcd_urb_t *urb,
 				       void *urb_handle, void *buf,
 				       dwc_dma_t dma, uint32_t buflen, void *sp,
 				       dwc_dma_t sp_dma, uint32_t flags,
@@ -283,7 +283,7 @@ extern void dwc_otg_hcd_urb_set_params(dwc_otg_hcd_urb_t * urb,
  *
  * @param dwc_otg_urb DWC_OTG URB
  */
-extern uint32_t dwc_otg_hcd_urb_get_status(dwc_otg_hcd_urb_t * dwc_otg_urb);
+extern uint32_t dwc_otg_hcd_urb_get_status(dwc_otg_hcd_urb_t *dwc_otg_urb);
 
 /** Gets actual length from dwc_otg_hcd_urb
  *
@@ -306,14 +306,14 @@ extern uint32_t dwc_otg_hcd_urb_get_error_count(dwc_otg_hcd_urb_t *
  * @param offset Offset from beginig of buffer.
  * @param length Transaction length
  */
-extern void dwc_otg_hcd_urb_set_iso_desc_params(dwc_otg_hcd_urb_t * dwc_otg_urb,
+extern void dwc_otg_hcd_urb_set_iso_desc_params(dwc_otg_hcd_urb_t *dwc_otg_urb,
 						int desc_num, uint32_t offset,
 						uint32_t length);
 
 /** Get status of ISOC descriptor, specified by desc_num
  *
  * @param dwc_otg_urb DWC_OTG URB
- * @param desc_num ISOC descriptor number 
+ * @param desc_num ISOC descriptor number
  */
 extern uint32_t dwc_otg_hcd_urb_get_iso_desc_status(dwc_otg_hcd_urb_t *
 						    dwc_otg_urb, int desc_num);
@@ -338,8 +338,8 @@ extern uint32_t dwc_otg_hcd_urb_get_iso_desc_actual_length(dwc_otg_hcd_urb_t *
  * Returns -DWC_E_NO_MEMORY if there is no enough memory.
  * Returns 0 on success.
  */
-extern int dwc_otg_hcd_urb_enqueue(dwc_otg_hcd_t * dwc_otg_hcd,
-				   dwc_otg_hcd_urb_t * dwc_otg_urb,
+extern int dwc_otg_hcd_urb_enqueue(dwc_otg_hcd_t *dwc_otg_hcd,
+				   dwc_otg_hcd_urb_t *dwc_otg_urb,
 				   void **ep_handle, int atomic_alloc);
 
 /** De-queue the specified URB
@@ -347,8 +347,8 @@ extern int dwc_otg_hcd_urb_enqueue(dwc_otg_hcd_t * dwc_otg_hcd,
  * @param dwc_otg_hcd The HCD
  * @param dwc_otg_urb DWC_OTG URB
  */
-extern int dwc_otg_hcd_urb_dequeue(dwc_otg_hcd_t * dwc_otg_hcd,
-				   dwc_otg_hcd_urb_t * dwc_otg_urb);
+extern int dwc_otg_hcd_urb_dequeue(dwc_otg_hcd_t *dwc_otg_hcd,
+				   dwc_otg_hcd_urb_t *dwc_otg_urb);
 
 /** Frees resources in the DWC_otg controller related to a given endpoint.
  * Any URBs for the endpoint must already be dequeued.
@@ -360,7 +360,7 @@ extern int dwc_otg_hcd_urb_dequeue(dwc_otg_hcd_t * dwc_otg_hcd,
  * Returns -DWC_E_INVALID if invalid arguments are passed.
  * Returns 0 on success
  */
-extern int dwc_otg_hcd_endpoint_disable(dwc_otg_hcd_t * hcd, void *ep_handle,
+extern int dwc_otg_hcd_endpoint_disable(dwc_otg_hcd_t *hcd, void *ep_handle,
 					int retry);
 
 /* Resets the data toggle in qh structure. This function can be called from
@@ -372,14 +372,14 @@ extern int dwc_otg_hcd_endpoint_disable(dwc_otg_hcd_t * hcd, void *ep_handle,
  * Returns -DWC_E_INVALID if invalid arguments are passed.
  * Returns 0 on success
  */
-extern int dwc_otg_hcd_endpoint_reset(dwc_otg_hcd_t * hcd, void *ep_handle);
+extern int dwc_otg_hcd_endpoint_reset(dwc_otg_hcd_t *hcd, void *ep_handle);
 
 /** Returns 1 if status of specified port is changed and 0 otherwise.
  *
  * @param hcd The HCD
  * @param port Port number
  */
-extern int dwc_otg_hcd_is_status_changed(dwc_otg_hcd_t * hcd, int port);
+extern int dwc_otg_hcd_is_status_changed(dwc_otg_hcd_t *hcd, int port);
 
 /** Call this function to check if bandwidth was allocated for specified endpoint.
  * Only for ISOC and INTERRUPT endpoints.
@@ -387,7 +387,7 @@ extern int dwc_otg_hcd_is_status_changed(dwc_otg_hcd_t * hcd, int port);
  * @param hcd The HCD
  * @param ep_handle Endpoint handle
  */
-extern int dwc_otg_hcd_is_bandwidth_allocated(dwc_otg_hcd_t * hcd,
+extern int dwc_otg_hcd_is_bandwidth_allocated(dwc_otg_hcd_t *hcd,
 					      void *ep_handle);
 
 /** Call this function to check if bandwidth was freed for specified endpoint.
@@ -395,7 +395,7 @@ extern int dwc_otg_hcd_is_bandwidth_allocated(dwc_otg_hcd_t * hcd,
  * @param hcd The HCD
  * @param ep_handle Endpoint handle
  */
-extern int dwc_otg_hcd_is_bandwidth_freed(dwc_otg_hcd_t * hcd, void *ep_handle);
+extern int dwc_otg_hcd_is_bandwidth_freed(dwc_otg_hcd_t *hcd, void *ep_handle);
 
 /** Returns bandwidth allocated for specified endpoint in microseconds.
  * Only for ISOC and INTERRUPT endpoints.
@@ -403,7 +403,7 @@ extern int dwc_otg_hcd_is_bandwidth_freed(dwc_otg_hcd_t * hcd, void *ep_handle);
  * @param hcd The HCD
  * @param ep_handle Endpoint handle
  */
-extern uint8_t dwc_otg_hcd_get_ep_bandwidth(dwc_otg_hcd_t * hcd,
+extern uint8_t dwc_otg_hcd_get_ep_bandwidth(dwc_otg_hcd_t *hcd,
 					    void *ep_handle);
 
 /** @} */

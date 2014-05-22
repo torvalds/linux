@@ -26,11 +26,11 @@ typedef struct manager {
 	void *mem_ctx;
 	void *wkq_ctx;
 	dwc_workq_t *wq;
-//	dwc_mutex_t *mutex;
+	/* dwc_mutex_t *mutex; */
 	struct notifier_queue notifiers;
 } manager_t;
 
-static manager_t *manager = NULL;
+static manager_t *manager;
 
 static int create_manager(void *mem_ctx, void *wkq_ctx)
 {

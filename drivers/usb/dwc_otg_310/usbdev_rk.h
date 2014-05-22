@@ -33,7 +33,7 @@
 #define PHY_UART_MODE   (1)
 
 #define USB_STATUS_BVABLID    (1)
-#define USB_STATUS_DPDM	 	  (2)
+#define USB_STATUS_DPDM       (2)
 #define USB_STATUS_ID         (3)
 #define USB_STATUS_UARTMODE   (4)
 #define USB_CHIP_ID           (5)
@@ -54,37 +54,37 @@ extern struct rkehci_platform_data rkehci_pdata_rk3288;
 extern struct rkehci_platform_data rkohci_pdata_rk3288;
 
 struct dwc_otg_platform_data {
-    void *privdata;
-    struct device *dev;
-    struct clk* phyclk;
-    struct clk* ahbclk;
-    struct clk* busclk;
-    struct clk* phyclk_480m;
-    int phy_status;
-    void (*hw_init)(void);
-    void (*phy_suspend)(void* pdata, int suspend);
-    void (*soft_reset)(void);
-    void (*clock_init)(void* pdata);
-    void (*clock_enable)(void* pdata, int enable);
-    void (*power_enable)(int enable);
-    void (*dwc_otg_uart_mode)(void* pdata, int enter_usb_uart_mode);
-    void (*bc_detect_cb)(int bc_type);
-    int (*get_status)(int id);
+	void *privdata;
+	struct device *dev;
+	struct clk *phyclk;
+	struct clk *ahbclk;
+	struct clk *busclk;
+	struct clk *phyclk_480m;
+	int phy_status;
+	void (*hw_init) (void);
+	void (*phy_suspend) (void *pdata, int suspend);
+	void (*soft_reset) (void);
+	void (*clock_init) (void *pdata);
+	void (*clock_enable) (void *pdata, int enable);
+	void (*power_enable) (int enable);
+	void (*dwc_otg_uart_mode) (void *pdata, int enter_usb_uart_mode);
+	void (*bc_detect_cb) (int bc_type);
+	int (*get_status) (int id);
 };
 
-struct rkehci_platform_data{
+struct rkehci_platform_data {
 	struct device *dev;
-	struct clk* hclk_hsic;
-	struct clk* hsic_phy_480m;
-	struct clk* hsic_phy_12m;
-	struct clk* phyclk;
-	struct clk* ahbclk;
-	void (*hw_init)(void);
-	void (*clock_init)(void* pdata);
-	void (*clock_enable)(void *pdata, int enable);
-	void (*phy_suspend)(void* pdata, int suspend);
-	void (*soft_reset)(void);
-	int (*get_status)(int id);
+	struct clk *hclk_hsic;
+	struct clk *hsic_phy_480m;
+	struct clk *hsic_phy_12m;
+	struct clk *phyclk;
+	struct clk *ahbclk;
+	void (*hw_init) (void);
+	void (*clock_init) (void *pdata);
+	void (*clock_enable) (void *pdata, int enable);
+	void (*phy_suspend) (void *pdata, int suspend);
+	void (*soft_reset) (void);
+	int (*get_status) (int id);
 	int clk_status;
 	int phy_status;
 };
@@ -102,7 +102,7 @@ struct dwc_otg_control_usb {
 	pGRF_SOC_STATUS21_RK3288 grf_soc_status21_rk3288;
 	struct gpio *host_gpios;
 	struct gpio *otg_gpios;
-	struct clk* hclk_usb_peri;
+	struct clk *hclk_usb_peri;
 	struct delayed_work usb_det_wakeup_work;
 	struct delayed_work usb_charger_det_work;
 	struct wake_lock usb_wakelock;

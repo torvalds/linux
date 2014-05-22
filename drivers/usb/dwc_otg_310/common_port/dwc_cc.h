@@ -184,33 +184,36 @@ extern uint8_t *dwc_cc_cdid(dwc_cc_if_t *cc_if, int32_t id);
 extern uint8_t *dwc_cc_name(dwc_cc_if_t *cc_if, int32_t id, uint8_t *length);
 
 /** Checks a buffer for non-zero.
- * @param id A pointer to a 16 byte buffer. 
+ * @param id A pointer to a 16 byte buffer.
  * @return true if the 16 byte value is non-zero. */
-static inline unsigned dwc_assoc_is_not_zero_id(uint8_t *id) {
+static inline unsigned dwc_assoc_is_not_zero_id(uint8_t *id)
+{
 	int i;
-	for (i=0; i<16; i++) {
-		if (id[i]) return 1;
+	for (i = 0; i < 16; i++) {
+		if (id[i])
+			return 1;
 	}
 	return 0;
 }
 
 /** Checks a buffer for zero.
- * @param id A pointer to a 16 byte buffer. 
+ * @param id A pointer to a 16 byte buffer.
  * @return true if the 16 byte value is zero. */
-static inline unsigned dwc_assoc_is_zero_id(uint8_t *id) {
+static inline unsigned dwc_assoc_is_zero_id(uint8_t *id)
+{
 	return !dwc_assoc_is_not_zero_id(id);
 }
 
 /** Prints an ASCII representation for the 16-byte chid, cdid, or ck, into
  * buffer. */
-static inline int dwc_print_id_string(char *buffer, uint8_t *id) {
+static inline int dwc_print_id_string(char *buffer, uint8_t *id)
+{
 	char *ptr = buffer;
 	int i;
-	for (i=0; i<16; i++) {
+	for (i = 0; i < 16; i++) {
 		ptr += DWC_SPRINTF(ptr, "%02x", id[i]);
-		if (i < 15) {
+		if (i < 15)
 			ptr += DWC_SPRINTF(ptr, " ");
-		}
 	}
 	return ptr - buffer;
 }

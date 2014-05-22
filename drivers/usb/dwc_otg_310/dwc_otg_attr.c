@@ -214,28 +214,28 @@
 
  <tr>
  <td> rem_wakeup_pwrdn </td>
- <td> On read, shows the status core - hibernated or not. On write, initiates 
+ <td> On read, shows the status core - hibernated or not. On write, initiates
  a remote wakeup of the device from Hibernation. </td>
  <td> Read/Write</td>
  </tr>
 
  <tr>
  <td> mode_ch_tim_en </td>
- <td> This bit is used to enable or disable the host core to wait for 200 PHY 
+ <td> This bit is used to enable or disable the host core to wait for 200 PHY
  clock cycles at the end of Resume to change the opmode signal to the PHY to 00
  after Suspend or LPM. </td>
  <td> Read/Write</td>
  </tr>
- 
+
  <tr>
  <td> fr_interval </td>
- <td> On read, shows the value of HFIR Frame Interval. On write, dynamically 
+ <td> On read, shows the value of HFIR Frame Interval. On write, dynamically
  reload HFIR register during runtime. The application can write a value to this
- register only after the Port Enable bit of the Host Port Control and Status 
+ register only after the Port Enable bit of the Host Port Control and Status
  register (HPRT.PrtEnaPort) has been set </td>
  <td> Read/Write</td>
  </tr>
- 
+
  <tr>
  <td> disconnect_us </td>
  <td> On read, shows the status of disconnect_device_us. On write, sets disconnect_us
@@ -297,13 +297,13 @@
  <td> Shows sleep status of device.
  <td> Read</td>
  </tr>
- 
+
  <tr>
  <td> hird_thres </td>
  <td> Gets or sets the "HIRD_Thres[3:0]" bits in the Core LPM Configuration Register.
  <td> Read/Write</td>
  </tr>
- 
+
  <tr>
  <td> besl_reject </td>
  <td> Gets or sets the "besl_reject" bit in the Device Control Register.
@@ -332,18 +332,17 @@
  * MACROs for defining sysfs attribute
  */
 
-
-#define DWC_OTG_DEVICE_ATTR_BITFIELD_SHOW(_otg_attr_name_,_string_) \
-static ssize_t _otg_attr_name_##_show (struct device *_dev, struct device_attribute *attr, char *buf) \
+#define DWC_OTG_DEVICE_ATTR_BITFIELD_SHOW(_otg_attr_name_, _string_) \
+static ssize_t _otg_attr_name_##_show(struct device *_dev, struct device_attribute *attr, char *buf) \
 { \
 	 \
 	dwc_otg_device_t *otg_dev = _dev->platform_data;		\
 	uint32_t val; \
-	val = dwc_otg_get_##_otg_attr_name_ (otg_dev->core_if); \
-	return sprintf (buf, "%s = 0x%x\n", _string_, val); \
+	val = dwc_otg_get_##_otg_attr_name_(otg_dev->core_if); \
+	return sprintf(buf, "%s = 0x%x\n", _string_, val); \
 }
-#define DWC_OTG_DEVICE_ATTR_BITFIELD_STORE(_otg_attr_name_,_string_) \
-static ssize_t _otg_attr_name_##_store (struct device *_dev, struct device_attribute *attr, \
+#define DWC_OTG_DEVICE_ATTR_BITFIELD_STORE(_otg_attr_name_, _string_) \
+static ssize_t _otg_attr_name_##_store(struct device *_dev, struct device_attribute *attr, \
 					const char *buf, size_t count) \
 { \
 	 \
@@ -357,56 +356,58 @@ static ssize_t _otg_attr_name_##_store (struct device *_dev, struct device_attri
  * MACROs for defining sysfs attribute for 32-bit registers
  */
 
-#define DWC_OTG_DEVICE_ATTR_REG_SHOW(_otg_attr_name_,_string_) \
-static ssize_t _otg_attr_name_##_show (struct device *_dev, struct device_attribute *attr, char *buf) \
+#define DWC_OTG_DEVICE_ATTR_REG_SHOW(_otg_attr_name_, _string_) \
+static ssize_t _otg_attr_name_##_show(struct device *_dev, struct device_attribute *attr, char *buf) \
 { \
 	 \
 	dwc_otg_device_t *otg_dev = _dev->platform_data; \
 	uint32_t val; \
-	val = dwc_otg_get_##_otg_attr_name_ (otg_dev->core_if); \
-	return sprintf (buf, "%s = 0x%08x\n", _string_, val); \
+	val = dwc_otg_get_##_otg_attr_name_(otg_dev->core_if); \
+	return sprintf(buf, "%s = 0x%08x\n", _string_, val); \
 }
-#define DWC_OTG_DEVICE_ATTR_REG_STORE(_otg_attr_name_,_string_) \
-static ssize_t _otg_attr_name_##_store (struct device *_dev, struct device_attribute *attr, \
+#define DWC_OTG_DEVICE_ATTR_REG_STORE(_otg_attr_name_, _string_) \
+static ssize_t _otg_attr_name_##_store(struct device *_dev, struct device_attribute *attr, \
 					const char *buf, size_t count) \
 { \
 	 \
 	dwc_otg_device_t *otg_dev = _dev->platform_data; \
 	uint32_t val = simple_strtoul(buf, NULL, 16); \
-	dwc_otg_set_##_otg_attr_name_ (otg_dev->core_if, val); \
+	dwc_otg_set_##_otg_attr_name_(otg_dev->core_if, val); \
 	return count; \
 }
 
-#define DWC_OTG_DEVICE_ATTR_BITFIELD_RW(_otg_attr_name_,_string_) \
-DWC_OTG_DEVICE_ATTR_BITFIELD_SHOW(_otg_attr_name_,_string_) \
-DWC_OTG_DEVICE_ATTR_BITFIELD_STORE(_otg_attr_name_,_string_) \
-DEVICE_ATTR(_otg_attr_name_,0644,_otg_attr_name_##_show,_otg_attr_name_##_store);
+#define DWC_OTG_DEVICE_ATTR_BITFIELD_RW(_otg_attr_name_, _string_) \
+DWC_OTG_DEVICE_ATTR_BITFIELD_SHOW(_otg_attr_name_, _string_) \
+DWC_OTG_DEVICE_ATTR_BITFIELD_STORE(_otg_attr_name_, _string_) \
+DEVICE_ATTR(_otg_attr_name_, 0644, _otg_attr_name_##_show, \
+	    _otg_attr_name_##_store);
 
-#define DWC_OTG_DEVICE_ATTR_BITFIELD_RO(_otg_attr_name_,_string_) \
-DWC_OTG_DEVICE_ATTR_BITFIELD_SHOW(_otg_attr_name_,_string_) \
-DEVICE_ATTR(_otg_attr_name_,0444,_otg_attr_name_##_show,NULL);
+#define DWC_OTG_DEVICE_ATTR_BITFIELD_RO(_otg_attr_name_, _string_) \
+DWC_OTG_DEVICE_ATTR_BITFIELD_SHOW(_otg_attr_name_, _string_) \
+DEVICE_ATTR(_otg_attr_name_, 0444, _otg_attr_name_##_show, NULL);
 
-#define DWC_OTG_DEVICE_ATTR_REG32_RW(_otg_attr_name_,_addr_,_string_) \
-DWC_OTG_DEVICE_ATTR_REG_SHOW(_otg_attr_name_,_string_) \
-DWC_OTG_DEVICE_ATTR_REG_STORE(_otg_attr_name_,_string_) \
-DEVICE_ATTR(_otg_attr_name_,0644,_otg_attr_name_##_show,_otg_attr_name_##_store);
+#define DWC_OTG_DEVICE_ATTR_REG32_RW(_otg_attr_name_, _addr_, _string_) \
+DWC_OTG_DEVICE_ATTR_REG_SHOW(_otg_attr_name_, _string_) \
+DWC_OTG_DEVICE_ATTR_REG_STORE(_otg_attr_name_, _string_) \
+DEVICE_ATTR(_otg_attr_name_, 0644, _otg_attr_name_##_show, \
+	    _otg_attr_name_##_store);
 
-#define DWC_OTG_DEVICE_ATTR_REG32_RO(_otg_attr_name_,_addr_,_string_) \
-DWC_OTG_DEVICE_ATTR_REG_SHOW(_otg_attr_name_,_string_) \
-DEVICE_ATTR(_otg_attr_name_,0444,_otg_attr_name_##_show,NULL);
+#define DWC_OTG_DEVICE_ATTR_REG32_RO(_otg_attr_name_, _addr_, _string_) \
+DWC_OTG_DEVICE_ATTR_REG_SHOW(_otg_attr_name_, _string_) \
+DEVICE_ATTR(_otg_attr_name_, 0444, _otg_attr_name_##_show, NULL);
 
 void dwc_set_device_platform_data(struct platform_device *pdev, void *data)
 {
-	if(NULL == pdev || NULL == &pdev->dev)
-        DWC_ERROR("NULL Pointer in func %s \n", __func__);
+	if (NULL == pdev || NULL == &pdev->dev)
+		DWC_ERROR("NULL Pointer in func %s \n", __func__);
 
 	pdev->dev.platform_data = data;
 }
 
 void *dwc_get_device_platform_data(const struct platform_device *pdev)
 {
-	if(NULL == pdev || NULL == &pdev->dev)
-       DWC_ERROR("NULL Pointer in func %s \n", __func__);
+	if (NULL == pdev || NULL == &pdev->dev)
+		DWC_ERROR("NULL Pointer in func %s \n", __func__);
 
 	return pdev->dev.platform_data;
 }
@@ -421,7 +422,6 @@ static ssize_t regoffset_show(struct device *_dev,
 			      struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 
 	return snprintf(buf, sizeof("0xFFFFFFFF\n") + 1, "0x%08x\n",
@@ -429,22 +429,20 @@ static ssize_t regoffset_show(struct device *_dev,
 }
 
 /**
- * Set the register offset for the next Register Access 	Read/Write
+ * Set the register offset for the next Register Access Read/Write
  */
 static ssize_t regoffset_store(struct device *_dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t offset = simple_strtoul(buf, NULL, 16);
 
-	if (offset < SZ_256K) {
+	if (offset < SZ_256K)
 		otg_dev->os_dep.reg_offset = offset;
-	} else {
+	else
 		dev_err(_dev, "invalid offset\n");
-	}
 
 	return count;
 }
@@ -459,22 +457,23 @@ static ssize_t regvalue_show(struct device *_dev,
 			     struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t val;
 	volatile uint32_t *addr;
 
-	if (otg_dev->os_dep.reg_offset != 0xFFFFFFFF && 0 != otg_dev->os_dep.base) {
+	if (otg_dev->os_dep.reg_offset != 0xFFFFFFFF
+	    && 0 != otg_dev->os_dep.base) {
 		/* Calculate the address */
 		addr = (uint32_t *) (otg_dev->os_dep.reg_offset +
 				     (uint8_t *) otg_dev->os_dep.base);
 		val = DWC_READ_REG32(addr);
 		return snprintf(buf,
 				sizeof("Reg@0xFFFFFFFF = 0xFFFFFFFF\n") + 1,
-				"Reg@0x%06x = 0x%08x\n", otg_dev->os_dep.reg_offset,
-				val);
+				"Reg@0x%06x = 0x%08x\n",
+				otg_dev->os_dep.reg_offset, val);
 	} else {
-		dev_err(_dev, "Invalid offset (0x%0x)\n", otg_dev->os_dep.reg_offset);
+		dev_err(_dev, "Invalid offset (0x%0x)\n",
+			otg_dev->os_dep.reg_offset);
 		return sprintf(buf, "invalid offset\n");
 	}
 }
@@ -489,12 +488,14 @@ static ssize_t regvalue_store(struct device *_dev,
 			      const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	volatile uint32_t *addr;
 	uint32_t val = simple_strtoul(buf, NULL, 16);
-	//dev_dbg(_dev, "Offset=0x%08x Val=0x%08x\n", otg_dev->reg_offset, val);
-	if (otg_dev->os_dep.reg_offset != 0xFFFFFFFF && 0 != otg_dev->os_dep.base) {
+	/* dev_dbg(_dev, "Offset=0x%08x Val=0x%08x\n",
+	 * otg_dev->reg_offset, val);
+	 */
+	if (otg_dev->os_dep.reg_offset != 0xFFFFFFFF
+	    && 0 != otg_dev->os_dep.base) {
 		/* Calculate the address */
 		addr = (uint32_t *) (otg_dev->os_dep.reg_offset +
 				     (uint8_t *) otg_dev->os_dep.base);
@@ -517,8 +518,12 @@ DWC_OTG_DEVICE_ATTR_BITFIELD_RW(srpcapable, "SRPCapable");
 DWC_OTG_DEVICE_ATTR_BITFIELD_RW(hsic_connect, "HSIC Connect");
 DWC_OTG_DEVICE_ATTR_BITFIELD_RW(inv_sel_hsic, "Invert Select HSIC");
 
-//DWC_OTG_DEVICE_ATTR_BITFIELD_RW(buspower,&(otg_dev->core_if->core_global_regs->gotgctl),(1<<8),8,"Mode");
-//DWC_OTG_DEVICE_ATTR_BITFIELD_RW(bussuspend,&(otg_dev->core_if->core_global_regs->gotgctl),(1<<8),8,"Mode");
+/* DWC_OTG_DEVICE_ATTR_BITFIELD_RW(buspower,
+ * &(otg_dev->core_if->core_global_regs->gotgctl), (1<<8), 8, "Mode");
+ */
+/* DWC_OTG_DEVICE_ATTR_BITFIELD_RW(bussuspend,
+ * &(otg_dev->core_if->core_global_regs->gotgctl), (1<<8), 8, "Mode");
+ */
 DWC_OTG_DEVICE_ATTR_BITFIELD_RO(busconnected, "Bus Connected");
 
 DWC_OTG_DEVICE_ATTR_REG32_RW(gotgctl, 0, "GOTGCTL");
@@ -560,7 +565,6 @@ static ssize_t hnp_show(struct device *_dev,
 			struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf, "HstNegScs = 0x%x\n",
 		       dwc_otg_get_hnpstatus(otg_dev->core_if));
@@ -574,7 +578,6 @@ static ssize_t hnp_store(struct device *_dev,
 			 const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t in = simple_strtoul(buf, NULL, 16);
 	dwc_otg_set_hnpreq(otg_dev->core_if, in);
@@ -594,7 +597,6 @@ static ssize_t srp_show(struct device *_dev,
 {
 #ifndef DWC_HOST_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf, "SesReqScs = 0x%x\n",
 		       dwc_otg_get_srpstatus(otg_dev->core_if));
@@ -612,7 +614,6 @@ static ssize_t srp_store(struct device *_dev,
 {
 #ifndef DWC_HOST_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_pcd_initiate_srp(otg_dev->pcd);
 #endif
@@ -631,7 +632,6 @@ static ssize_t buspower_show(struct device *_dev,
 			     struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf, "Bus Power = 0x%x\n",
 		       dwc_otg_get_prtpower(otg_dev->core_if));
@@ -645,7 +645,6 @@ static ssize_t buspower_store(struct device *_dev,
 			      const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t on = simple_strtoul(buf, NULL, 16);
 	dwc_otg_set_prtpower(otg_dev->core_if, on);
@@ -664,7 +663,6 @@ static ssize_t bussuspend_show(struct device *_dev,
 			       struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf, "Bus Suspend = 0x%x\n",
 		       dwc_otg_get_prtsuspend(otg_dev->core_if));
@@ -678,7 +676,6 @@ static ssize_t bussuspend_store(struct device *_dev,
 				const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t in = simple_strtoul(buf, NULL, 16);
 	dwc_otg_set_prtsuspend(otg_dev->core_if, in);
@@ -694,7 +691,6 @@ static ssize_t mode_ch_tim_en_show(struct device *_dev,
 				   struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf, "Mode Change Ready Timer Enable = 0x%x\n",
 		       dwc_otg_get_mode_ch_tim(otg_dev->core_if));
@@ -708,7 +704,6 @@ static ssize_t mode_ch_tim_en_store(struct device *_dev,
 				    const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t in = simple_strtoul(buf, NULL, 16);
 	dwc_otg_set_mode_ch_tim(otg_dev->core_if, in);
@@ -724,7 +719,6 @@ static ssize_t fr_interval_show(struct device *_dev,
 				struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf, "Frame Interval = 0x%x\n",
 		       dwc_otg_get_fr_interval(otg_dev->core_if));
@@ -738,7 +732,6 @@ static ssize_t fr_interval_store(struct device *_dev,
 				 const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t in = simple_strtoul(buf, NULL, 10);
 	dwc_otg_set_fr_interval(otg_dev->core_if, in);
@@ -755,7 +748,6 @@ static ssize_t remote_wakeup_show(struct device *_dev,
 {
 #ifndef DWC_HOST_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf,
 		       "Remote Wakeup Sig = %d Enabled = %d LPM Remote Wakeup = %d\n",
@@ -779,15 +771,14 @@ static ssize_t remote_wakeup_store(struct device *_dev,
 {
 #ifndef DWC_HOST_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t val = simple_strtoul(buf, NULL, 16);
 
-	if (val & 1) {
+	if (val & 1)
 		dwc_otg_pcd_remote_wakeup(otg_dev->pcd, 1);
-	} else {
+	else
 		dwc_otg_pcd_remote_wakeup(otg_dev->pcd, 0);
-	}
+
 #endif /* DWC_HOST_ONLY */
 	return count;
 }
@@ -796,25 +787,24 @@ DEVICE_ATTR(remote_wakeup, S_IRUGO | S_IWUSR, remote_wakeup_show,
 	    remote_wakeup_store);
 
 /**
- * Show the whether core is hibernated or not. 					
+ * Show the whether core is hibernated or not.
  */
 static ssize_t rem_wakeup_pwrdn_show(struct device *_dev,
 				     struct device_attribute *attr, char *buf)
 {
 #ifndef DWC_HOST_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
-	if (dwc_otg_get_core_state(otg_dev->core_if)) {
+	if (dwc_otg_get_core_state(otg_dev->core_if))
 		DWC_PRINTF("Core is in hibernation\n");
-	} else {
+	else
 		DWC_PRINTF("Core is not in hibernation\n");
-	}
+
 #endif /* DWC_HOST_ONLY */
 	return 0;
 }
 
-extern int dwc_otg_device_hibernation_restore(dwc_otg_core_if_t * core_if,
+extern int dwc_otg_device_hibernation_restore(dwc_otg_core_if_t *core_if,
 					      int rem_wakeup, int reset);
 
 /**
@@ -826,7 +816,6 @@ static ssize_t rem_wakeup_pwrdn_store(struct device *_dev,
 {
 #ifndef DWC_HOST_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_device_hibernation_restore(otg_dev->core_if, 1, 0);
 #endif
@@ -843,7 +832,6 @@ static ssize_t disconnect_us(struct device *_dev,
 
 #ifndef DWC_HOST_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t val = simple_strtoul(buf, NULL, 16);
 	DWC_PRINTF("The Passed value is %04x\n", val);
@@ -864,15 +852,13 @@ static ssize_t regdump_show(struct device *_dev,
 			    struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_dump_global_registers(otg_dev->core_if);
-	if (dwc_otg_is_host_mode(otg_dev->core_if)) {
+	if (dwc_otg_is_host_mode(otg_dev->core_if))
 		dwc_otg_dump_host_registers(otg_dev->core_if);
-	} else {
+	else
 		dwc_otg_dump_dev_registers(otg_dev->core_if);
 
-	}
 	return sprintf(buf, "Register Dump\n");
 }
 
@@ -886,7 +872,6 @@ static ssize_t spramdump_show(struct device *_dev,
 			      struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_dump_spram(otg_dev->core_if);
 
@@ -903,7 +888,6 @@ static ssize_t hcddump_show(struct device *_dev,
 {
 #ifndef DWC_DEVICE_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_hcd_dump_state(otg_dev->hcd);
 #endif /* DWC_DEVICE_ONLY */
@@ -922,7 +906,6 @@ static ssize_t hcd_frrem_show(struct device *_dev,
 {
 #ifndef DWC_DEVICE_ONLY
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_hcd_dump_frrem(otg_dev->hcd);
 #endif /* DWC_DEVICE_ONLY */
@@ -936,12 +919,11 @@ DEVICE_ATTR(hcd_frrem, S_IRUGO, hcd_frrem_show, 0);
  * output shows the number of times the register is read).
  */
 #define RW_REG_COUNT 10000000
-#define MSEC_PER_JIFFIE 1000/HZ
+#define MSEC_PER_JIFFIE (1000/HZ)
 static ssize_t rd_reg_test_show(struct device *_dev,
 				struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	int i;
 	int time;
@@ -950,9 +932,8 @@ static ssize_t rd_reg_test_show(struct device *_dev,
 	printk("HZ %d, MSEC_PER_JIFFIE %d, loops_per_jiffy %lu\n",
 	       HZ, MSEC_PER_JIFFIE, loops_per_jiffy);
 	start_jiffies = jiffies;
-	for (i = 0; i < RW_REG_COUNT; i++) {
+	for (i = 0; i < RW_REG_COUNT; i++)
 		dwc_otg_get_gnptxfsiz(otg_dev->core_if);
-	}
 	time = jiffies - start_jiffies;
 	return sprintf(buf,
 		       "Time to read GNPTXFSIZ reg %d times: %d msecs (%d jiffies)\n",
@@ -969,7 +950,6 @@ static ssize_t wr_reg_test_show(struct device *_dev,
 				struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t reg_val;
 	int i;
@@ -980,9 +960,8 @@ static ssize_t wr_reg_test_show(struct device *_dev,
 	       HZ, MSEC_PER_JIFFIE, loops_per_jiffy);
 	reg_val = dwc_otg_get_gnptxfsiz(otg_dev->core_if);
 	start_jiffies = jiffies;
-	for (i = 0; i < RW_REG_COUNT; i++) {
+	for (i = 0; i < RW_REG_COUNT; i++)
 		dwc_otg_set_gnptxfsiz(otg_dev->core_if, reg_val);
-	}
 	time = jiffies - start_jiffies;
 	return sprintf(buf,
 		       "Time to write GNPTXFSIZ reg %d times: %d msecs (%d jiffies)\n",
@@ -1000,14 +979,13 @@ static ssize_t lpmresp_show(struct device *_dev,
 			    struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if))
 		return sprintf(buf, "** LPM is DISABLED **\n");
 
-	if (!dwc_otg_is_device_mode(otg_dev->core_if)) {
+	if (!dwc_otg_is_device_mode(otg_dev->core_if))
 		return sprintf(buf, "** Current mode is not device mode\n");
-	}
+
 	return sprintf(buf, "lpm_response = %d\n",
 		       dwc_otg_get_lpmresponse(otg_dev->core_if));
 }
@@ -1020,17 +998,14 @@ static ssize_t lpmresp_store(struct device *_dev,
 			     const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t val = simple_strtoul(buf, NULL, 16);
 
-	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if)) {
+	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if))
 		return 0;
-	}
 
-	if (!dwc_otg_is_device_mode(otg_dev->core_if)) {
+	if (!dwc_otg_is_device_mode(otg_dev->core_if))
 		return 0;
-	}
 
 	dwc_otg_set_lpmresponse(otg_dev->core_if, val);
 	return count;
@@ -1042,51 +1017,45 @@ DEVICE_ATTR(lpm_response, S_IRUGO | S_IWUSR, lpmresp_show, lpmresp_store);
 * Show the besl_reject attribute.
 */
 static ssize_t beslreject_show(struct device *_dev,
-			    struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
- 	
+
 	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if))
 		return sprintf(buf, "** LPM is DISABLED **\n");
 	if (!dwc_otg_get_param_besl_enable(otg_dev->core_if))
-		return sprintf(buf, "** EnBesl is DISABLED **\n");	
+		return sprintf(buf, "** EnBesl is DISABLED **\n");
 
-	if (!dwc_otg_is_device_mode(otg_dev->core_if)) {
+	if (!dwc_otg_is_device_mode(otg_dev->core_if))
 		return sprintf(buf, "** Current mode is not device mode\n");
-	}
-			
+
 	return sprintf(buf, "besl_reject = %d\n",
-		        dwc_otg_get_beslreject(otg_dev->core_if));
+		       dwc_otg_get_beslreject(otg_dev->core_if));
 }
 
 /**
 * Store the besl_reject attribute.
 */
 static ssize_t beslreject_store(struct device *_dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t val = simple_strtoul(buf, NULL, 16);
 
-	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if)) {
+	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if))
 		return 0;
-	}
-	
-	if (!dwc_otg_get_param_besl_enable(otg_dev->core_if)) {
-		return 0;
-	}
 
-	if (!dwc_otg_is_device_mode(otg_dev->core_if)) {
+	if (!dwc_otg_get_param_besl_enable(otg_dev->core_if))
 		return 0;
-	}
-	
-	 dwc_otg_set_beslreject(otg_dev->core_if,val);
-			
+
+	if (!dwc_otg_is_device_mode(otg_dev->core_if))
+		return 0;
+
+	dwc_otg_set_beslreject(otg_dev->core_if, val);
+
 	return count;
 }
 
@@ -1096,46 +1065,41 @@ DEVICE_ATTR(besl_reject, S_IRUGO | S_IWUSR, beslreject_show, beslreject_store);
 * Show the hird_thresh attribute.
 */
 static ssize_t hirdthresh_show(struct device *_dev,
-			    struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
-  		
+
 	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if))
 		return sprintf(buf, "** LPM is DISABLED **\n");
-	
-	if (!dwc_otg_is_device_mode(otg_dev->core_if)) {
+
+	if (!dwc_otg_is_device_mode(otg_dev->core_if))
 		return sprintf(buf, "** Current mode is not device mode\n");
-	}
-			
+
 	return sprintf(buf, "hirdthresh = 0x%x\n",
-		        dwc_otg_get_hirdthresh(otg_dev->core_if));
+		       dwc_otg_get_hirdthresh(otg_dev->core_if));
 }
 
 /**
 * Store the hird_thresh attribute.
 */
 static ssize_t hirdthresh_store(struct device *_dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 
 	uint32_t val = simple_strtoul(buf, NULL, 16);
 
-	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if)) {
+	if (!dwc_otg_get_param_lpm_enable(otg_dev->core_if))
 		return 0;
-	}
-	
-	if (!dwc_otg_is_device_mode(otg_dev->core_if)) {
+
+	if (!dwc_otg_is_device_mode(otg_dev->core_if))
 		return 0;
-	}
-	
-	 dwc_otg_set_hirdthresh(otg_dev->core_if,val);
-			
+
+	dwc_otg_set_hirdthresh(otg_dev->core_if, val);
+
 	return count;
 }
 
@@ -1148,7 +1112,6 @@ static ssize_t sleepstatus_show(struct device *_dev,
 				struct device_attribute *attr, char *buf)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf, "Sleep Status = %d\n",
 		       dwc_otg_get_lpm_portsleepstatus(otg_dev->core_if));
@@ -1162,7 +1125,6 @@ static ssize_t sleepstatus_store(struct device *_dev,
 				 const char *buf, size_t count)
 {
 
-	
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_core_if_t *core_if = otg_dev->core_if;
 
@@ -1187,10 +1149,7 @@ DEVICE_ATTR(sleep_status, S_IRUGO | S_IWUSR, sleepstatus_show,
 /**
  * Create the device files
  */
-void dwc_otg_attr_create(
-
-				struct platform_device *dev
-    )
+void dwc_otg_attr_create(struct platform_device *dev)
 {
 	int error;
 
@@ -1240,10 +1199,7 @@ void dwc_otg_attr_create(
 /**
  * Remove the device files
  */
-void dwc_otg_attr_remove(
-
-				struct platform_device *dev
-    )
+void dwc_otg_attr_remove(struct platform_device *dev)
 {
 	device_remove_file(&dev->dev, &dev_attr_regoffset);
 	device_remove_file(&dev->dev, &dev_attr_regvalue);

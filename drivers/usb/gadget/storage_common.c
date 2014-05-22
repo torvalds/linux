@@ -53,8 +53,8 @@
 #define VLDBG(lun, fmt, args...) do { } while (0)
 #endif /* VERBOSE_DEBUG */
 
-#define LDBG(lun, fmt, args...)   dev_dbg (&(lun)->dev, fmt, ## args)
-#define LERROR(lun, fmt, args...) dev_err (&(lun)->dev, fmt, ## args)
+#define LDBG(lun, fmt, args...)   dev_dbg(&(lun)->dev, fmt, ## args)
+#define LERROR(lun, fmt, args...) dev_err(&(lun)->dev, fmt, ## args)
 #define LWARN(lun, fmt, args...)  dev_warn(&(lun)->dev, fmt, ## args)
 #define LINFO(lun, fmt, args...)  dev_info(&(lun)->dev, fmt, ## args)
 
@@ -195,7 +195,7 @@ static inline int fsg_num_buffers_validate(void)
 	if (fsg_num_buffers >= 2 && fsg_num_buffers <= 4)
 		return 0;
 	pr_err("fsg_num_buffers %u is out of range (%d to %d)\n",
-	       fsg_num_buffers, 2 ,4);
+	       fsg_num_buffers, 2 , 4);
 	return -EINVAL;
 }
 

@@ -65,42 +65,42 @@
 #define DWC_DRIVER_DESC		"HS OTG USB Controller driver"
 
 static const char dwc_host20_driver_name[] = "usb20_host";
-static const char dwc_otg20_driver_name[]  = "usb20_otg";
+static const char dwc_otg20_driver_name[] = "usb20_otg";
 
-dwc_otg_device_t* g_otgdev = NULL;
+dwc_otg_device_t *g_otgdev;
 
-extern int pcd_init( struct platform_device *_dev );
-extern int otg20_hcd_init( struct platform_device *_dev );
-extern int host20_hcd_init( struct platform_device *_dev );
-extern int pcd_remove(     struct platform_device *_dev );
-extern void hcd_remove(     struct platform_device *_dev);
-extern void dwc_otg_adp_start( dwc_otg_core_if_t * core_if, uint8_t is_host);
+extern int pcd_init(struct platform_device *_dev);
+extern int otg20_hcd_init(struct platform_device *_dev);
+extern int host20_hcd_init(struct platform_device *_dev);
+extern int pcd_remove(struct platform_device *_dev);
+extern void hcd_remove(struct platform_device *_dev);
+extern void dwc_otg_adp_start(dwc_otg_core_if_t *core_if, uint8_t is_host);
 
 #ifdef CONFIG_USB20_OTG
 static struct usb20otg_pdata_id usb20otg_pdata[] = {
 	{
-		.name = "rk3188-usb20otg",
-		.pdata = &usb20otg_pdata_rk3188,
-	},
+	 .name = "rk3188-usb20otg",
+	 .pdata = &usb20otg_pdata_rk3188,
+	 },
 	{
-		.name = "rk3288-usb20otg",
-		.pdata = &usb20otg_pdata_rk3288,
-	},
-	{ },
+	 .name = "rk3288-usb20otg",
+	 .pdata = &usb20otg_pdata_rk3288,
+	 },
+	{},
 };
 #endif
 
 #ifdef CONFIG_USB20_HOST
 static struct usb20host_pdata_id usb20host_pdata[] = {
 	{
-		.name = "rk3188-usb20host",
-		.pdata = &usb20host_pdata_rk3188,
-	},
+	 .name = "rk3188-usb20host",
+	 .pdata = &usb20host_pdata_rk3188,
+	 },
 	{
-		.name = "rk3288-usb20host",
-		.pdata = &usb20host_pdata_rk3288,
-	},
-	{ },
+	 .name = "rk3288-usb20host",
+	 .pdata = &usb20host_pdata_rk3288,
+	 },
+	{},
 };
 #endif
 
@@ -348,7 +348,7 @@ static DRIVER_ATTR(version, S_IRUGO, version_show, NULL);
 /**
  * Global Debug Level Mask.
  */
-uint32_t g_dbg_lvl = DBG_OFF;		/* OFF */
+uint32_t g_dbg_lvl = DBG_OFF;	/* OFF */
 
 /**
  * This function shows the driver Debug Level.
@@ -378,21 +378,20 @@ extern void dwc_otg_hub_disconnect_device(struct usb_hub *hub);
 void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
 {
 	dwc_otg_device_t *otg_dev = core_if->otg_dev;
-	dctl_data_t dctl = {.d32=0};
+	dctl_data_t dctl = {.d32 = 0 };
 	unsigned long flags;
 
-	if(core_if->op_state == A_HOST)
-    {
-    	printk("dwc_otg_force_host,already in A_HOST mode,everest\n");
-    	return;
-    }
+	if (core_if->op_state == A_HOST) {
+		printk("dwc_otg_force_host,already in A_HOST mode,everest\n");
+		return;
+	}
 	core_if->op_state = A_HOST;
 
 	cancel_delayed_work(&otg_dev->pcd->check_vbus_work);
 	dctl.d32 = DWC_READ_REG32(&core_if->dev_if->dev_global_regs->dctl);
 	dctl.b.sftdiscon = 1;
 	DWC_WRITE_REG32(&core_if->dev_if->dev_global_regs->dctl, dctl.d32);
-	
+
 	local_irq_save(flags);
 	cil_pcd_stop(core_if);
 	/*
@@ -404,6 +403,7 @@ void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
 	cil_hcd_start(core_if);
 	local_irq_restore(flags);
 }
+
 void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
 {
 	dwc_otg_device_t *otg_dev = core_if->otg_dev;
@@ -411,46 +411,48 @@ void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
 
 	local_irq_save(flags);
 
-	if(core_if->op_state == B_PERIPHERAL) {
-		printk("dwc_otg_force_device,already in B_PERIPHERAL,everest\n");
+	if (core_if->op_state == B_PERIPHERAL) {
+		printk
+		    ("dwc_otg_force_device,already in B_PERIPHERAL,everest\n");
 		return;
 	}
 	core_if->op_state = B_PERIPHERAL;
 	cil_hcd_stop(core_if);
-	//dwc_otg_hub_disconnect_device(g_dwc_otg_root_hub20);
+	/* dwc_otg_hub_disconnect_device(g_dwc_otg_root_hub20); */
 	otg_dev->pcd->phy_suspend = 1;
 	otg_dev->pcd->vbus_status = 0;
 	dwc_otg_pcd_start_check_vbus_work(otg_dev->pcd);
-	
+
 	/* Reset the Controller */
-	dwc_otg_core_reset( core_if );
-	
+	dwc_otg_core_reset(core_if);
+
 	dwc_otg_core_init(core_if);
 	dwc_otg_disable_global_interrupts(core_if);
 	cil_pcd_start(core_if);
 
 	local_irq_restore(flags);
 }
+
 static void dwc_otg_set_force_mode(dwc_otg_core_if_t *core_if, int mode)
 {
-	gusbcfg_data_t usbcfg = { .d32 = 0 };
+	gusbcfg_data_t usbcfg = {.d32 = 0 };
 	printk("!!!dwc_otg_set_force_mode\n");
-	usbcfg.d32 = DWC_READ_REG32( &core_if->core_global_regs->gusbcfg);
-	switch(mode) {
-		case USB_MODE_FORCE_HOST:
-			usbcfg.b.force_host_mode = 1;
-			usbcfg.b.force_dev_mode = 0;
-			break;
-		case USB_MODE_FORCE_DEVICE:
-			usbcfg.b.force_host_mode = 0;
-			usbcfg.b.force_dev_mode = 1;
-			break;
-		case USB_MODE_NORMAL:
-			usbcfg.b.force_host_mode = 0;
-			usbcfg.b.force_dev_mode = 0;
-			break;
+	usbcfg.d32 = DWC_READ_REG32(&core_if->core_global_regs->gusbcfg);
+	switch (mode) {
+	case USB_MODE_FORCE_HOST:
+		usbcfg.b.force_host_mode = 1;
+		usbcfg.b.force_dev_mode = 0;
+		break;
+	case USB_MODE_FORCE_DEVICE:
+		usbcfg.b.force_host_mode = 0;
+		usbcfg.b.force_dev_mode = 1;
+		break;
+	case USB_MODE_NORMAL:
+		usbcfg.b.force_host_mode = 0;
+		usbcfg.b.force_dev_mode = 0;
+		break;
 	}
-	DWC_WRITE_REG32( &core_if->core_global_regs->gusbcfg, usbcfg.d32 );
+	DWC_WRITE_REG32(&core_if->core_global_regs->gusbcfg, usbcfg.d32);
 }
 
 static ssize_t force_usb_mode_show(struct device_driver *drv, char *buf)
@@ -462,260 +464,240 @@ static ssize_t force_usb_mode_show(struct device_driver *drv, char *buf)
 }
 
 static ssize_t force_usb_mode_store(struct device_driver *drv, const char *buf,
-                                    size_t count )
+				    size_t count)
 {
 	int new_mode = simple_strtoul(buf, NULL, 16);
 	dwc_otg_device_t *otg_dev = g_otgdev;
 	dwc_otg_core_if_t *core_if;
 	struct dwc_otg_platform_data *pldata;
 
-	if(!otg_dev)
+	if (!otg_dev)
 		return -EINVAL;
 
 	core_if = otg_dev->core_if;
 	pldata = otg_dev->pldata;
 
-	DWC_PRINTF("%s %d->%d\n",__func__, core_if->usb_mode, new_mode);
+	DWC_PRINTF("%s %d->%d\n", __func__, core_if->usb_mode, new_mode);
 
-	if(core_if->usb_mode == new_mode) {
+	if (core_if->usb_mode == new_mode) {
 		return count;
 	}
 
-	if(pldata->phy_status == USB_PHY_SUSPEND) {
+	if (pldata->phy_status == USB_PHY_SUSPEND) {
 		pldata->clock_enable(pldata, 1);
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	}
 
-	switch(new_mode) {
-		case USB_MODE_FORCE_HOST:
-			if(USB_MODE_FORCE_DEVICE == core_if->usb_mode) {
-				/* device-->host */
-				core_if->usb_mode = new_mode;
+	switch (new_mode) {
+	case USB_MODE_FORCE_HOST:
+		if (USB_MODE_FORCE_DEVICE == core_if->usb_mode) {
+			/* device-->host */
+			core_if->usb_mode = new_mode;
+			dwc_otg_force_host(core_if);
+		} else if (USB_MODE_NORMAL == core_if->usb_mode) {
+			core_if->usb_mode = new_mode;
+			if (dwc_otg_is_host_mode(core_if))
+				dwc_otg_set_force_mode(core_if, new_mode);
+			else
 				dwc_otg_force_host(core_if);
-			} else if(USB_MODE_NORMAL == core_if->usb_mode) {
-				core_if->usb_mode = new_mode;
-				if(dwc_otg_is_host_mode(core_if)) {
-					dwc_otg_set_force_mode(core_if, new_mode);
-				} else {
-					dwc_otg_force_host(core_if);
-				}
-			}
-			break;
+		}
+		break;
 
-		case USB_MODE_FORCE_DEVICE:
-			if(USB_MODE_FORCE_HOST == core_if->usb_mode) {
-				core_if->usb_mode = new_mode;
+	case USB_MODE_FORCE_DEVICE:
+		if (USB_MODE_FORCE_HOST == core_if->usb_mode) {
+			core_if->usb_mode = new_mode;
+			dwc_otg_force_device(core_if);
+		} else if (USB_MODE_NORMAL == core_if->usb_mode) {
+			core_if->usb_mode = new_mode;
+			if (dwc_otg_is_device_mode(core_if))
+				dwc_otg_set_force_mode(core_if, new_mode);
+			else
 				dwc_otg_force_device(core_if);
-			} else if(USB_MODE_NORMAL == core_if->usb_mode) {
-				core_if->usb_mode = new_mode;
-				if(dwc_otg_is_device_mode(core_if)) {
-					dwc_otg_set_force_mode(core_if, new_mode);
-				} else {
-					dwc_otg_force_device(core_if);
-				}
-			}
-			break;
+		}
+		break;
 
-		case USB_MODE_NORMAL:
-			if(USB_MODE_FORCE_DEVICE == core_if->usb_mode) {
-				core_if->usb_mode = new_mode;
-				cancel_delayed_work(&otg_dev->pcd->check_vbus_work);
-				dwc_otg_set_force_mode(core_if, new_mode);
-				//msleep(100);
-				if(dwc_otg_is_host_mode(core_if)) {
-					dwc_otg_force_host(core_if);
-				} else {
-					dwc_otg_pcd_start_check_vbus_work(otg_dev->pcd);
-				}
-			} else if(USB_MODE_FORCE_HOST == core_if->usb_mode) {
-				core_if->usb_mode = new_mode;
-				dwc_otg_set_force_mode(core_if, new_mode);
-				//msleep(100);
-				if(dwc_otg_is_device_mode(core_if)) {
-					dwc_otg_force_device(core_if);
-				}
+	case USB_MODE_NORMAL:
+		if (USB_MODE_FORCE_DEVICE == core_if->usb_mode) {
+			core_if->usb_mode = new_mode;
+			cancel_delayed_work(&otg_dev->pcd->check_vbus_work);
+			dwc_otg_set_force_mode(core_if, new_mode);
+			/* msleep(100); */
+			if (dwc_otg_is_host_mode(core_if)) {
+				dwc_otg_force_host(core_if);
+			} else {
+				dwc_otg_pcd_start_check_vbus_work(otg_dev->pcd);
 			}
-			break;
+		} else if (USB_MODE_FORCE_HOST == core_if->usb_mode) {
+			core_if->usb_mode = new_mode;
+			dwc_otg_set_force_mode(core_if, new_mode);
+			/* msleep(100); */
+			if (dwc_otg_is_device_mode(core_if)) {
+				dwc_otg_force_device(core_if);
+			}
+		}
+		break;
 
-		default:
-			break;
+	default:
+		break;
 	}
 	return count;
 }
 
-static DRIVER_ATTR(force_usb_mode, S_IRUGO | S_IWUSR, force_usb_mode_show, force_usb_mode_store);
-
+static DRIVER_ATTR(force_usb_mode, S_IRUGO | S_IWUSR, force_usb_mode_show,
+		   force_usb_mode_store);
 
 static ssize_t dwc_otg_conn_en_show(struct device_driver *_drv, char *_buf)
 {
 
-    dwc_otg_device_t *otg_dev = g_otgdev;
-    dwc_otg_pcd_t *_pcd = otg_dev->pcd;
-    return sprintf (_buf, "%d\n", _pcd->conn_en);
+	dwc_otg_device_t *otg_dev = g_otgdev;
+	dwc_otg_pcd_t *_pcd = otg_dev->pcd;
+	return sprintf(_buf, "%d\n", _pcd->conn_en);
 
 }
 
-static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv, const char *_buf,
-				     size_t _count)
+static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv,
+				     const char *_buf, size_t _count)
 {
-    int enable = simple_strtoul(_buf, NULL, 10);
-    dwc_otg_device_t *otg_dev = g_otgdev;
-    dwc_otg_pcd_t *_pcd = otg_dev->pcd;
-    DWC_PRINTF("%s %d->%d\n",__func__, _pcd->conn_en, enable);
-    
-    _pcd->conn_en = enable;
-    return _count;
+	int enable = simple_strtoul(_buf, NULL, 10);
+	dwc_otg_device_t *otg_dev = g_otgdev;
+	dwc_otg_pcd_t *_pcd = otg_dev->pcd;
+	DWC_PRINTF("%s %d->%d\n", __func__, _pcd->conn_en, enable);
+
+	_pcd->conn_en = enable;
+	return _count;
 }
-static DRIVER_ATTR(dwc_otg_conn_en, S_IRUGO|S_IWUSR, dwc_otg_conn_en_show, dwc_otg_conn_en_store);
+
+static DRIVER_ATTR(dwc_otg_conn_en, S_IRUGO | S_IWUSR, dwc_otg_conn_en_show,
+		   dwc_otg_conn_en_store);
 
 static ssize_t vbus_status_show(struct device_driver *_drv, char *_buf)
 {
 	dwc_otg_device_t *otg_dev = g_otgdev;
 	dwc_otg_pcd_t *_pcd = otg_dev->pcd;
-	return sprintf (_buf, "%d\n", _pcd->vbus_status);
+	return sprintf(_buf, "%d\n", _pcd->vbus_status);
 }
+
 static DRIVER_ATTR(vbus_status, S_IRUGO, vbus_status_show, NULL);
 
 /**
  * This function is called during module intialization
  * to pass module parameters to the DWC_OTG CORE.
  */
-static int set_parameters(dwc_otg_core_if_t * core_if, struct dwc_otg_driver_module_params module_params)
+static int set_parameters(dwc_otg_core_if_t *core_if,
+			  struct dwc_otg_driver_module_params module_params)
 {
 	int retval = 0;
 	int i;
 
 	if (module_params.otg_cap != -1) {
 		retval +=
-		    dwc_otg_set_param_otg_cap(core_if,
-					      module_params.otg_cap);
+		    dwc_otg_set_param_otg_cap(core_if, module_params.otg_cap);
 	}
 	if (module_params.dma_enable != -1) {
 		retval +=
 		    dwc_otg_set_param_dma_enable(core_if,
-						 module_params.
-						 dma_enable);
+						 module_params.dma_enable);
 	}
 	if (module_params.dma_desc_enable != -1) {
 		retval +=
 		    dwc_otg_set_param_dma_desc_enable(core_if,
-						      module_params.
-						      dma_desc_enable);
+						      module_params.dma_desc_enable);
 	}
 	if (module_params.opt != -1) {
-		retval +=
-		    dwc_otg_set_param_opt(core_if, module_params.opt);
+		retval += dwc_otg_set_param_opt(core_if, module_params.opt);
 	}
 	if (module_params.dma_burst_size != -1) {
 		retval +=
 		    dwc_otg_set_param_dma_burst_size(core_if,
-						     module_params.
-						     dma_burst_size);
+						     module_params.dma_burst_size);
 	}
 	if (module_params.host_support_fs_ls_low_power != -1) {
 		retval +=
 		    dwc_otg_set_param_host_support_fs_ls_low_power(core_if,
-								   module_params.
-								   host_support_fs_ls_low_power);
+								   module_params.host_support_fs_ls_low_power);
 	}
 	if (module_params.enable_dynamic_fifo != -1) {
 		retval +=
 		    dwc_otg_set_param_enable_dynamic_fifo(core_if,
-							  module_params.
-							  enable_dynamic_fifo);
+							  module_params.enable_dynamic_fifo);
 	}
 	if (module_params.data_fifo_size != -1) {
 		retval +=
 		    dwc_otg_set_param_data_fifo_size(core_if,
-						     module_params.
-						     data_fifo_size);
+						     module_params.data_fifo_size);
 	}
 	if (module_params.dev_rx_fifo_size != -1) {
 		retval +=
 		    dwc_otg_set_param_dev_rx_fifo_size(core_if,
-						       module_params.
-						       dev_rx_fifo_size);
+						       module_params.dev_rx_fifo_size);
 	}
 	if (module_params.dev_nperio_tx_fifo_size != -1) {
 		retval +=
 		    dwc_otg_set_param_dev_nperio_tx_fifo_size(core_if,
-							      module_params.
-							      dev_nperio_tx_fifo_size);
+							      module_params.dev_nperio_tx_fifo_size);
 	}
 	if (module_params.host_rx_fifo_size != -1) {
 		retval +=
 		    dwc_otg_set_param_host_rx_fifo_size(core_if,
-							module_params.host_rx_fifo_size);
+							module_params.
+							host_rx_fifo_size);
 	}
 	if (module_params.host_nperio_tx_fifo_size != -1) {
 		retval +=
 		    dwc_otg_set_param_host_nperio_tx_fifo_size(core_if,
-							       module_params.
-							       host_nperio_tx_fifo_size);
+							       module_params.host_nperio_tx_fifo_size);
 	}
 	if (module_params.host_perio_tx_fifo_size != -1) {
 		retval +=
 		    dwc_otg_set_param_host_perio_tx_fifo_size(core_if,
-							      module_params.
-							      host_perio_tx_fifo_size);
+							      module_params.host_perio_tx_fifo_size);
 	}
 	if (module_params.max_transfer_size != -1) {
 		retval +=
 		    dwc_otg_set_param_max_transfer_size(core_if,
-							module_params.
-							max_transfer_size);
+							module_params.max_transfer_size);
 	}
 	if (module_params.max_packet_count != -1) {
 		retval +=
 		    dwc_otg_set_param_max_packet_count(core_if,
-						       module_params.
-						       max_packet_count);
+						       module_params.max_packet_count);
 	}
 	if (module_params.host_channels != -1) {
 		retval +=
 		    dwc_otg_set_param_host_channels(core_if,
-						    module_params.
-						    host_channels);
+						    module_params.host_channels);
 	}
 	if (module_params.dev_endpoints != -1) {
 		retval +=
 		    dwc_otg_set_param_dev_endpoints(core_if,
-						    module_params.
-						    dev_endpoints);
+						    module_params.dev_endpoints);
 	}
 	if (module_params.phy_type != -1) {
 		retval +=
-		    dwc_otg_set_param_phy_type(core_if,
-					       module_params.phy_type);
+		    dwc_otg_set_param_phy_type(core_if, module_params.phy_type);
 	}
 	if (module_params.speed != -1) {
-		retval +=
-		    dwc_otg_set_param_speed(core_if,
-					    module_params.speed);
+		retval += dwc_otg_set_param_speed(core_if, module_params.speed);
 	}
 	if (module_params.host_ls_low_power_phy_clk != -1) {
 		retval +=
 		    dwc_otg_set_param_host_ls_low_power_phy_clk(core_if,
-								module_params.
-								host_ls_low_power_phy_clk);
+								module_params.host_ls_low_power_phy_clk);
 	}
 	if (module_params.phy_ulpi_ddr != -1) {
 		retval +=
 		    dwc_otg_set_param_phy_ulpi_ddr(core_if,
-						   module_params.
-						   phy_ulpi_ddr);
+						   module_params.phy_ulpi_ddr);
 	}
 	if (module_params.phy_ulpi_ext_vbus != -1) {
 		retval +=
 		    dwc_otg_set_param_phy_ulpi_ext_vbus(core_if,
-							module_params.
-							phy_ulpi_ext_vbus);
+							module_params.phy_ulpi_ext_vbus);
 	}
 	if (module_params.phy_utmi_width != -1) {
 		retval +=
 		    dwc_otg_set_param_phy_utmi_width(core_if,
-						     module_params.
-						     phy_utmi_width);
+						     module_params.phy_utmi_width);
 	}
 	if (module_params.ulpi_fs_ls != -1) {
 		retval +=
@@ -724,27 +706,23 @@ static int set_parameters(dwc_otg_core_if_t * core_if, struct dwc_otg_driver_mod
 	}
 	if (module_params.ts_dline != -1) {
 		retval +=
-		    dwc_otg_set_param_ts_dline(core_if,
-					       module_params.ts_dline);
+		    dwc_otg_set_param_ts_dline(core_if, module_params.ts_dline);
 	}
 	if (module_params.i2c_enable != -1) {
 		retval +=
 		    dwc_otg_set_param_i2c_enable(core_if,
-						 module_params.
-						 i2c_enable);
+						 module_params.i2c_enable);
 	}
 	if (module_params.en_multiple_tx_fifo != -1) {
 		retval +=
 		    dwc_otg_set_param_en_multiple_tx_fifo(core_if,
-							  module_params.
-							  en_multiple_tx_fifo);
+							  module_params.en_multiple_tx_fifo);
 	}
 	for (i = 0; i < 15; i++) {
 		if (module_params.dev_perio_tx_fifo_size[i] != -1) {
 			retval +=
 			    dwc_otg_set_param_dev_perio_tx_fifo_size(core_if,
-								     module_params.
-								     dev_perio_tx_fifo_size
+								     module_params.dev_perio_tx_fifo_size
 								     [i], i);
 		}
 	}
@@ -752,73 +730,65 @@ static int set_parameters(dwc_otg_core_if_t * core_if, struct dwc_otg_driver_mod
 	for (i = 0; i < 15; i++) {
 		if (module_params.dev_tx_fifo_size[i] != -1) {
 			retval += dwc_otg_set_param_dev_tx_fifo_size(core_if,
-								     module_params.
-								     dev_tx_fifo_size
+								     module_params.dev_tx_fifo_size
 								     [i], i);
 		}
 	}
 	if (module_params.thr_ctl != -1) {
 		retval +=
-		    dwc_otg_set_param_thr_ctl(core_if,
-					      module_params.thr_ctl);
+		    dwc_otg_set_param_thr_ctl(core_if, module_params.thr_ctl);
 	}
 	if (module_params.mpi_enable != -1) {
 		retval +=
 		    dwc_otg_set_param_mpi_enable(core_if,
-						 module_params.
-						 mpi_enable);
+						 module_params.mpi_enable);
 	}
 	if (module_params.pti_enable != -1) {
 		retval +=
 		    dwc_otg_set_param_pti_enable(core_if,
-						 module_params.
-						 pti_enable);
+						 module_params.pti_enable);
 	}
 	if (module_params.lpm_enable != -1) {
 		retval +=
 		    dwc_otg_set_param_lpm_enable(core_if,
-						 module_params.
-						 lpm_enable);
-	}	
+						 module_params.lpm_enable);
+	}
 	if (module_params.besl_enable != -1) {
 		retval +=
 		    dwc_otg_set_param_besl_enable(core_if,
-						 module_params.
-						 besl_enable);
+						  module_params.besl_enable);
 	}
 	if (module_params.baseline_besl != -1) {
 		retval +=
 		    dwc_otg_set_param_baseline_besl(core_if,
-						 module_params.
-						 baseline_besl);
+						    module_params.baseline_besl);
 	}
 	if (module_params.deep_besl != -1) {
 		retval +=
 		    dwc_otg_set_param_deep_besl(core_if,
-						 module_params.
-						 deep_besl);
-	}		
+						module_params.deep_besl);
+	}
 	if (module_params.ic_usb_cap != -1) {
 		retval +=
 		    dwc_otg_set_param_ic_usb_cap(core_if,
-						 module_params.
-						 ic_usb_cap);
+						 module_params.ic_usb_cap);
 	}
 	if (module_params.tx_thr_length != -1) {
 		retval +=
 		    dwc_otg_set_param_tx_thr_length(core_if,
-						    module_params.tx_thr_length);
+						    module_params.
+						    tx_thr_length);
 	}
 	if (module_params.rx_thr_length != -1) {
 		retval +=
 		    dwc_otg_set_param_rx_thr_length(core_if,
-						    module_params.
-						    rx_thr_length);
+						    module_params.rx_thr_length);
 	}
 	if (module_params.ahb_thr_ratio != -1) {
 		retval +=
 		    dwc_otg_set_param_ahb_thr_ratio(core_if,
-						    module_params.ahb_thr_ratio);
+						    module_params.
+						    ahb_thr_ratio);
 	}
 	if (module_params.power_down != -1) {
 		retval +=
@@ -833,32 +803,30 @@ static int set_parameters(dwc_otg_core_if_t * core_if, struct dwc_otg_driver_mod
 
 	if (module_params.dev_out_nak != -1) {
 		retval +=
-			dwc_otg_set_param_dev_out_nak(core_if,
-			module_params.dev_out_nak);
+		    dwc_otg_set_param_dev_out_nak(core_if,
+						  module_params.dev_out_nak);
 	}
 
 	if (module_params.cont_on_bna != -1) {
 		retval +=
-			dwc_otg_set_param_cont_on_bna(core_if,
-			module_params.cont_on_bna);
+		    dwc_otg_set_param_cont_on_bna(core_if,
+						  module_params.cont_on_bna);
 	}
 
 	if (module_params.ahb_single != -1) {
 		retval +=
-			dwc_otg_set_param_ahb_single(core_if,
-			module_params.ahb_single);
+		    dwc_otg_set_param_ahb_single(core_if,
+						 module_params.ahb_single);
 	}
 
 	if (module_params.otg_ver != -1) {
 		retval +=
-		    dwc_otg_set_param_otg_ver(core_if,
-					      module_params.otg_ver);
+		    dwc_otg_set_param_otg_ver(core_if, module_params.otg_ver);
 	}
 	if (module_params.adp_enable != -1) {
 		retval +=
 		    dwc_otg_set_param_adp_enable(core_if,
-						 module_params.
-						 adp_enable);
+						 module_params.adp_enable);
 	}
 	return retval;
 }
@@ -873,7 +841,7 @@ static irqreturn_t dwc_otg_common_irq(int irq, void *dev)
 
 	retval = dwc_otg_handle_common_intr(dev);
 	if (retval != 0) {
-		//S3C2410X_CLEAR_EINTPEND();
+		/* S3C2410X_CLEAR_EINTPEND(); */
 	}
 	return IRQ_RETVAL(retval);
 }
@@ -888,7 +856,7 @@ static irqreturn_t dwc_otg_common_irq(int irq, void *dev)
  *
  * @param _dev
  */
-static int host20_driver_remove( struct platform_device *_dev )
+static int host20_driver_remove(struct platform_device *_dev)
 {
 
 	dwc_otg_device_t *otg_dev = dwc_get_device_platform_data(_dev);
@@ -899,7 +867,6 @@ static int host20_driver_remove( struct platform_device *_dev )
 		DWC_DEBUGPL(DBG_ANY, "%s: otg_dev NULL!\n", __func__);
 		return 0;
 	}
-
 #ifndef DWC_DEVICE_ONLY
 	if (otg_dev->hcd) {
 		hcd_remove(_dev);
@@ -922,10 +889,11 @@ static int host20_driver_remove( struct platform_device *_dev )
 	 * Free the IRQ
 	 */
 	if (otg_dev->common_irq_installed) {
-		//free_irq(_dev->irq, otg_dev);
-		free_irq(platform_get_irq(_dev,0), otg_dev );
+		/* free_irq(_dev->irq, otg_dev); */
+		free_irq(platform_get_irq(_dev, 0), otg_dev);
 	} else {
-		DWC_DEBUGPL(DBG_ANY, "%s: There is no installed irq!\n", __func__);
+		DWC_DEBUGPL(DBG_ANY, "%s: There is no installed irq!\n",
+			    __func__);
 		return 0;
 	}
 
@@ -960,15 +928,16 @@ static int host20_driver_remove( struct platform_device *_dev )
 
 static const struct of_device_id usb20_host_of_match[] = {
 	{
-		.compatible = "rockchip,rk3188_usb20_host", 
-		.data = &usb20host_pdata[RK3188_USB_CTLR],
-	},
+	 .compatible = "rockchip,rk3188_usb20_host",
+	 .data = &usb20host_pdata[RK3188_USB_CTLR],
+	 },
 	{
-		.compatible = "rockchip,rk3288_usb20_host",
-		.data = &usb20host_pdata[RK3288_USB_CTLR],
-	},
-	{ },
+	 .compatible = "rockchip,rk3288_usb20_host",
+	 .data = &usb20host_pdata[RK3288_USB_CTLR],
+	 },
+	{},
 };
+
 MODULE_DEVICE_TABLE(of, usb20_host_of_match);
 
 /**
@@ -988,16 +957,16 @@ static int host20_driver_probe(struct platform_device *_dev)
 	int irq;
 	struct resource *res_base;
 	dwc_otg_device_t *dwc_otg_device;
-	struct device           *dev = &_dev->dev;
-	struct device_node      *node = _dev->dev.of_node;
+	struct device *dev = &_dev->dev;
+	struct device_node *node = _dev->dev.of_node;
 	struct dwc_otg_platform_data *pldata;
 	struct usb20host_pdata_id *p;
 	const struct of_device_id *match =
-		of_match_device(of_match_ptr( usb20_host_of_match ), &_dev->dev);
+	    of_match_device(of_match_ptr(usb20_host_of_match), &_dev->dev);
 
-	if (match){
+	if (match) {
 		p = (struct usb20host_pdata_id *)match->data;
-	}else{
+	} else {
 		dev_err(dev, "usb20host match failed\n");
 		return -EINVAL;
 	}
@@ -1011,21 +980,21 @@ static int host20_driver_probe(struct platform_device *_dev)
 		return -EINVAL;
 	}
 
-	if(pldata->hw_init)
+	if (pldata->hw_init)
 		pldata->hw_init();
 
-	if(pldata->clock_init){
+	if (pldata->clock_init) {
 		pldata->clock_init(pldata);
 		pldata->clock_enable(pldata, 1);
 	}
 
-	if(pldata->phy_suspend)
+	if (pldata->phy_suspend)
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 
-	if(pldata->soft_reset)
+	if (pldata->soft_reset)
 		pldata->soft_reset();
 
-	res_base=platform_get_resource(_dev, IORESOURCE_MEM, 0);
+	res_base = platform_get_resource(_dev, IORESOURCE_MEM, 0);
 
 	dwc_otg_device = DWC_ALLOC(sizeof(dwc_otg_device_t));
 
@@ -1043,7 +1012,7 @@ static int host20_driver_probe(struct platform_device *_dev)
 	 */
 
 	dwc_otg_device->os_dep.base = devm_ioremap_resource(dev, res_base);
-    
+
 	if (!dwc_otg_device->os_dep.base) {
 		dev_err(&_dev->dev, "ioremap() failed\n");
 		DWC_FREE(dwc_otg_device);
@@ -1066,14 +1035,13 @@ static int host20_driver_probe(struct platform_device *_dev)
 
 	dwc_otg_device->core_if = dwc_otg_cil_init(dwc_otg_device->os_dep.base);
 
-	
 	if (!dwc_otg_device->core_if) {
 		dev_err(&_dev->dev, "CIL initialization failed!\n");
 		retval = -ENOMEM;
 		goto fail;
 	}
 
-	dwc_otg_device->core_if->otg_dev= dwc_otg_device;
+	dwc_otg_device->core_if->otg_dev = dwc_otg_device;
 
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
@@ -1082,8 +1050,10 @@ static int host20_driver_probe(struct platform_device *_dev)
 	 * as in "OTG version 2.XX" or "OTG version 3.XX".
 	 */
 
-	if (((dwc_otg_get_gsnpsid(dwc_otg_device->core_if) & 0xFFFFF000) !=	0x4F542000) &&
-		((dwc_otg_get_gsnpsid(dwc_otg_device->core_if) & 0xFFFFF000) != 0x4F543000)) {
+	if (((dwc_otg_get_gsnpsid(dwc_otg_device->core_if) & 0xFFFFF000) !=
+	     0x4F542000)
+	    && ((dwc_otg_get_gsnpsid(dwc_otg_device->core_if) & 0xFFFFF000) !=
+		0x4F543000)) {
 		dev_err(&_dev->dev, "Bad value for SNPSID: 0x%08x\n",
 			dwc_otg_get_gsnpsid(dwc_otg_device->core_if));
 		retval = -EINVAL;
@@ -1093,11 +1063,11 @@ static int host20_driver_probe(struct platform_device *_dev)
 	/*
 	 * Validate parameter values.
 	 */
-	if (set_parameters(dwc_otg_device->core_if ,dwc_host_module_params )) {
+	if (set_parameters(dwc_otg_device->core_if, dwc_host_module_params)) {
 		retval = -EINVAL;
 		goto fail;
 	}
-	
+
 	/*
 	 * Create Device Attributes in sysfs
 	 */
@@ -1113,12 +1083,10 @@ static int host20_driver_probe(struct platform_device *_dev)
 	 * Install the interrupt handler for the common interrupts before
 	 * enabling common interrupts in core_init below.
 	 */
-	irq = platform_get_irq(_dev,0);
-	DWC_DEBUGPL(DBG_CIL, "registering (common) handler for irq%d\n",
-		    irq);
+	irq = platform_get_irq(_dev, 0);
+	DWC_DEBUGPL(DBG_CIL, "registering (common) handler for irq%d\n", irq);
 	retval = request_irq(irq, dwc_otg_common_irq,
-			     IRQF_SHARED , "dwc_otg",
-			     dwc_otg_device);
+			     IRQF_SHARED, "dwc_otg", dwc_otg_device);
 	if (retval) {
 		DWC_ERROR("request of irq%d failed\n", irq);
 		retval = -EBUSY;
@@ -1133,7 +1101,7 @@ static int host20_driver_probe(struct platform_device *_dev)
 	 * we do core soft reset after connection detected.
 	 */
 	dwc_otg_core_init_no_reset(dwc_otg_device->core_if);
-		
+
 	/*
 	 * Initialize the HCD
 	 */
@@ -1147,71 +1115,68 @@ static int host20_driver_probe(struct platform_device *_dev)
 	clk_set_rate(pldata->phyclk_480m, 480000000);
 	/*
 	 * Enable the global interrupt after all the interrupt
-	 * handlers are installed if there is no ADP support else 
+	 * handlers are installed if there is no ADP support else
 	 * perform initial actions required for Internal ADP logic.
 	 */
-	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if))	{
-		if( pldata->phy_status == USB_PHY_ENABLED ){
+	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if)) {
+		if (pldata->phy_status == USB_PHY_ENABLED) {
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 			udelay(3);
-			pldata->clock_enable( pldata, 0);
+			pldata->clock_enable(pldata, 0);
 		}
-//		dwc_otg_enable_global_interrupts(dwc_otg_device->core_if);
-	}
-	else
-		dwc_otg_adp_start(dwc_otg_device->core_if, 
-							dwc_otg_is_host_mode(dwc_otg_device->core_if));
+		/* dwc_otg_enable_global_interrupts(dwc_otg_device->core_if); */
+	} else
+		dwc_otg_adp_start(dwc_otg_device->core_if,
+				  dwc_otg_is_host_mode(dwc_otg_device->
+						       core_if));
 
 	return 0;
 
 fail:
 	host20_driver_remove(_dev);
 clk_disable:
-	if(pldata->clock_enable)
+	if (pldata->clock_enable)
 		pldata->clock_enable(pldata, 0);
 
 	return retval;
 }
 #endif
 
-static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t state )
+static int dwc_otg_driver_suspend(struct platform_device *_dev,
+				  pm_message_t state)
 {
-    return 0;
+	return 0;
 }
 
-static int dwc_otg_driver_resume(struct platform_device *_dev )
+static int dwc_otg_driver_resume(struct platform_device *_dev)
 {
-    return 0;
+	return 0;
 }
 
-static void dwc_otg_driver_shutdown(struct platform_device *_dev )
+static void dwc_otg_driver_shutdown(struct platform_device *_dev)
 {
 	struct device *dev = &_dev->dev;
 	dwc_otg_device_t *otg_dev = dev->platform_data;
-    dwc_otg_core_if_t *core_if = otg_dev->core_if;
-    dctl_data_t dctl = {.d32=0};
+	dwc_otg_core_if_t *core_if = otg_dev->core_if;
+	dctl_data_t dctl = {.d32 = 0 };
 
-    DWC_PRINTF("%s: disconnect USB %s mode\n" , __func__ ,
-        dwc_otg_is_host_mode(core_if) ? "host" : "device");
-    if(dwc_otg_is_host_mode(core_if))
-    {
-        if (core_if->hcd_cb && core_if->hcd_cb->stop)
-        {
-        	core_if->hcd_cb->stop( core_if->hcd_cb_p);
-        }
-    }
-    else
-    {
-        /* soft disconnect */
-        dctl.d32 = DWC_READ_REG32( &core_if->dev_if->dev_global_regs->dctl );
-        dctl.b.sftdiscon = 1;
-        DWC_WRITE_REG32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-    }
-    /* Clear any pending interrupts */
-    DWC_WRITE_REG32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
+	DWC_PRINTF("%s: disconnect USB %s mode\n", __func__,
+		   dwc_otg_is_host_mode(core_if) ? "host" : "device");
+	if (dwc_otg_is_host_mode(core_if)) {
+		if (core_if->hcd_cb && core_if->hcd_cb->stop)
+			core_if->hcd_cb->stop(core_if->hcd_cb_p);
+	} else {
+		/* soft disconnect */
+		dctl.d32 =
+		    DWC_READ_REG32(&core_if->dev_if->dev_global_regs->dctl);
+		dctl.b.sftdiscon = 1;
+		DWC_WRITE_REG32(&core_if->dev_if->dev_global_regs->dctl,
+				dctl.d32);
+	}
+	/* Clear any pending interrupts */
+	DWC_WRITE_REG32(&core_if->core_global_regs->gintsts, 0xFFFFFFFF);
 
 }
-
 
 /**
  * This structure defines the methods to be called by a bus driver
@@ -1227,9 +1192,9 @@ static void dwc_otg_driver_shutdown(struct platform_device *_dev )
 #ifdef CONFIG_USB20_HOST
 static struct platform_driver dwc_host_driver = {
 	.driver = {
-		.name = (char *)dwc_host20_driver_name,
-		.of_match_table = of_match_ptr(usb20_host_of_match),
-	},
+		   .name = (char *)dwc_host20_driver_name,
+		   .of_match_table = of_match_ptr(usb20_host_of_match),
+		   },
 	.probe = host20_driver_probe,
 	.remove = host20_driver_remove,
 	.suspend = dwc_otg_driver_suspend,
@@ -1247,7 +1212,7 @@ static struct platform_driver dwc_host_driver = {
  *
  * @param _dev
  */
-static int otg20_driver_remove( struct platform_device *_dev )
+static int otg20_driver_remove(struct platform_device *_dev)
 {
 
 	dwc_otg_device_t *otg_dev = dwc_get_device_platform_data(_dev);
@@ -1279,10 +1244,11 @@ static int otg20_driver_remove( struct platform_device *_dev )
 	 * Free the IRQ
 	 */
 	if (otg_dev->common_irq_installed) {
-		//free_irq(_dev->irq, otg_dev);
-		free_irq(platform_get_irq(_dev,0), otg_dev );
+		/* free_irq(_dev->irq, otg_dev); */
+		free_irq(platform_get_irq(_dev, 0), otg_dev);
 	} else {
-		DWC_DEBUGPL(DBG_ANY, "%s: There is no installed irq!\n", __func__);
+		DWC_DEBUGPL(DBG_ANY, "%s: There is no installed irq!\n",
+			    __func__);
 		return 0;
 	}
 
@@ -1301,9 +1267,8 @@ static int otg20_driver_remove( struct platform_device *_dev )
 	/*
 	 * Return the memory.
 	 */
-	if (otg_dev->os_dep.base) {
+	if (otg_dev->os_dep.base)
 		iounmap(otg_dev->os_dep.base);
-	}
 	DWC_FREE(otg_dev);
 
 	/*
@@ -1317,16 +1282,17 @@ static int otg20_driver_remove( struct platform_device *_dev )
 
 static const struct of_device_id usb20_otg_of_match[] = {
 	{
-		.compatible = "rockchip,rk3188_usb20_otg",
-		.data = &usb20otg_pdata[RK3188_USB_CTLR],
-	},
+	 .compatible = "rockchip,rk3188_usb20_otg",
+	 .data = &usb20otg_pdata[RK3188_USB_CTLR],
+	 },
 	{
-		.compatible = "rockchip,rk3288_usb20_otg",
-		.data = &usb20otg_pdata[RK3288_USB_CTLR],
-	},
+	 .compatible = "rockchip,rk3288_usb20_otg",
+	 .data = &usb20otg_pdata[RK3288_USB_CTLR],
+	 },
 	{
-	},
+	 },
 };
+
 MODULE_DEVICE_TABLE(of, usb20_otg_of_match);
 
 /**
@@ -1347,60 +1313,60 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	uint32_t val;
 	struct resource *res_base;
 	dwc_otg_device_t *dwc_otg_device;
-	struct device 		*dev = &_dev->dev;
-	struct device_node      *node = _dev->dev.of_node;
+	struct device *dev = &_dev->dev;
+	struct device_node *node = _dev->dev.of_node;
 	struct dwc_otg_platform_data *pldata;
 	struct usb20otg_pdata_id *p;
 	const struct of_device_id *match =
-		of_match_device(of_match_ptr( usb20_otg_of_match ), &_dev->dev);
+	    of_match_device(of_match_ptr(usb20_otg_of_match), &_dev->dev);
 
-	if (match){
+	if (match) {
 		p = (struct usb20otg_pdata_id *)match->data;
-	}else{
+	} else {
 		dev_err(dev, "usb20otg match failed\n");
 		return -EINVAL;
 	}
 
 	dev->platform_data = p->pdata;
-//	dev->platform_data = &usb20otg_pdata;
-	pldata =  dev->platform_data;
+	/* dev->platform_data = &usb20otg_pdata; */
+	pldata = dev->platform_data;
 	pldata->dev = dev;
 
 	if (!node) {
 		dev_err(dev, "device node not found\n");
 		return -EINVAL;
 	}
-	/*todo : move to usbdev_rk-XX.c*/
-	if(pldata->hw_init)
+	/*todo : move to usbdev_rk-XX.c */
+	if (pldata->hw_init)
 		pldata->hw_init();
-        
-	if(pldata->clock_init){
+
+	if (pldata->clock_init) {
 		pldata->clock_init(pldata);
 		pldata->clock_enable(pldata, 1);
 	}
 
-	if(pldata->phy_suspend)
+	if (pldata->phy_suspend)
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 
-	if(pldata->dwc_otg_uart_mode)
+	if (pldata->dwc_otg_uart_mode)
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
 
 	/* do reset later, because reset need about
 	 * 100ms to ensure otg id state change.
 	 */
 	/*
-	if(pldata->soft_reset)
-		pldata->soft_reset();
-	*/
-	/*end todo*/
+	   if(pldata->soft_reset)
+	   pldata->soft_reset();
+	 */
+	/*end todo */
 
-	res_base=platform_get_resource(_dev, IORESOURCE_MEM, 0);
+	res_base = platform_get_resource(_dev, IORESOURCE_MEM, 0);
 
 	dwc_otg_device = DWC_ALLOC(sizeof(dwc_otg_device_t));
 
 	if (!dwc_otg_device) {
 		dev_err(&_dev->dev, "kmalloc of dwc_otg_device failed\n");
-		retval = -ENOMEM;	
+		retval = -ENOMEM;
 		goto clk_disable;
 	}
 
@@ -1428,7 +1394,7 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 */
 
 	g_otgdev = dwc_otg_device;
-	pldata->privdata =  dwc_otg_device;
+	pldata->privdata = dwc_otg_device;
 	dwc_otg_device->pldata = pldata;
 
 	dwc_set_device_platform_data(_dev, dwc_otg_device);
@@ -1441,7 +1407,7 @@ static int otg20_driver_probe(struct platform_device *_dev)
 		retval = -ENOMEM;
 		goto fail;
 	}
-	
+
 	dwc_otg_device->core_if->otg_dev = dwc_otg_device;
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
@@ -1450,8 +1416,10 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 * as in "OTG version 2.XX" or "OTG version 3.XX".
 	 */
 
-	if (((dwc_otg_get_gsnpsid(dwc_otg_device->core_if) & 0xFFFFF000) !=	0x4F542000) &&
-		((dwc_otg_get_gsnpsid(dwc_otg_device->core_if) & 0xFFFFF000) != 0x4F543000)) {
+	if (((dwc_otg_get_gsnpsid(dwc_otg_device->core_if) & 0xFFFFF000) !=
+	     0x4F542000)
+	    && ((dwc_otg_get_gsnpsid(dwc_otg_device->core_if) & 0xFFFFF000) !=
+		0x4F543000)) {
 		dev_err(&_dev->dev, "Bad value for SNPSID: 0x%08x\n",
 			dwc_otg_get_gsnpsid(dwc_otg_device->core_if));
 		retval = -EINVAL;
@@ -1461,11 +1429,11 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	/*
 	 * Validate parameter values.
 	 */
-	if (set_parameters(dwc_otg_device->core_if ,dwc_otg_module_params)) {
+	if (set_parameters(dwc_otg_device->core_if, dwc_otg_module_params)) {
 		retval = -EINVAL;
 		goto fail;
 	}
-	
+
 	/*
 	 * Create Device Attributes in sysfs
 	 */
@@ -1481,12 +1449,10 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 * Install the interrupt handler for the common interrupts before
 	 * enabling common interrupts in core_init below.
 	 */
-	irq = platform_get_irq(_dev,0);
-	DWC_DEBUGPL(DBG_CIL, "registering (common) handler for irq%d\n",
-		    irq);
+	irq = platform_get_irq(_dev, 0);
+	DWC_DEBUGPL(DBG_CIL, "registering (common) handler for irq%d\n", irq);
 	retval = request_irq(irq, dwc_otg_common_irq,
-			     IRQF_SHARED , "dwc_otg",
-			     dwc_otg_device);
+			     IRQF_SHARED, "dwc_otg", dwc_otg_device);
 	if (retval) {
 		DWC_ERROR("request of irq%d failed\n", irq);
 		retval = -EBUSY;
@@ -1519,7 +1485,7 @@ static int otg20_driver_probe(struct platform_device *_dev)
 		DWC_ERROR("pcd_init failed\n");
 		dwc_otg_device->pcd = NULL;
 		goto fail;
-	}	
+	}
 #endif
 #ifndef DWC_DEVICE_ONLY
 	/*
@@ -1534,20 +1500,20 @@ static int otg20_driver_probe(struct platform_device *_dev)
 #endif
 	/*
 	 * Enable the global interrupt after all the interrupt
-	 * handlers are installed if there is no ADP support else 
+	 * handlers are installed if there is no ADP support else
 	 * perform initial actions required for Internal ADP logic.
 	 */
-	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if)){
-		if( pldata->phy_status == USB_PHY_ENABLED ){
+	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if)) {
+		if (pldata->phy_status == USB_PHY_ENABLED) {
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 			udelay(3);
-			pldata->clock_enable( pldata, 0);
+			pldata->clock_enable(pldata, 0);
 		}
-//		dwc_otg_enable_global_interrupts(dwc_otg_device->core_if);
-	}
-	else
-		dwc_otg_adp_start(dwc_otg_device->core_if, 
-							dwc_otg_is_host_mode(dwc_otg_device->core_if));
+		/* dwc_otg_enable_global_interrupts(dwc_otg_device->core_if); */
+	} else
+		dwc_otg_adp_start(dwc_otg_device->core_if,
+				  dwc_otg_is_host_mode(dwc_otg_device->
+						       core_if));
 
 	return 0;
 
@@ -1555,7 +1521,7 @@ fail:
 	otg20_driver_remove(_dev);
 
 clk_disable:
-	if(pldata->clock_enable)
+	if (pldata->clock_enable)
 		pldata->clock_enable(pldata, 0);
 
 	return retval;
@@ -1563,9 +1529,9 @@ clk_disable:
 
 static struct platform_driver dwc_otg_driver = {
 	.driver = {
-		.name = (char *)dwc_otg20_driver_name,
-		.of_match_table = of_match_ptr(usb20_otg_of_match),
-	},
+		   .name = (char *)dwc_otg20_driver_name,
+		   .of_match_table = of_match_ptr(usb20_otg_of_match),
+		   },
 	.probe = otg20_driver_probe,
 	.remove = otg20_driver_remove,
 	.suspend = dwc_otg_driver_suspend,
@@ -1580,29 +1546,39 @@ void rk_usb_power_up(void)
 	struct dwc_otg_platform_data *pldata_host;
 	struct rkehci_platform_data *pldata_ehci;
 
-	if(cpu_is_rk3288()){
+	if (cpu_is_rk3288()) {
 #ifdef CONFIG_RK_USB_UART
 		/* enable USB bypass UART function  */
-		writel_relaxed(0x00c00000 | usb_to_uart_status, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
+		writel_relaxed(0x00c00000 | usb_to_uart_status,
+			       RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
 
 #endif
 		/* unset siddq,the analog blocks are powered up */
 #ifdef CONFIG_USB20_OTG
-		if((pldata_otg = &usb20otg_pdata_rk3288)){
-			if(pldata_otg->phy_status == USB_PHY_SUSPEND)
-				writel_relaxed((0x01<<13)<<16, RK_GRF_VIRT + RK3288_GRF_UOC0_CON0);
+		pldata_otg = &usb20otg_pdata_rk3288;
+		if (pldata_otg) {
+			if (pldata_otg->phy_status == USB_PHY_SUSPEND)
+				writel_relaxed((0x01 << 13) << 16,
+					       RK_GRF_VIRT +
+					       RK3288_GRF_UOC0_CON0);
 		}
 #endif
 #ifdef CONFIG_USB20_HOST
-		if((pldata_host = &usb20host_pdata_rk3288)){
-			if(pldata_host->phy_status == USB_PHY_SUSPEND)
-				writel_relaxed((0x01<<13)<<16, RK_GRF_VIRT + RK3288_GRF_UOC2_CON0);
+		pldata_host = &usb20host_pdata_rk3288;
+		if (pldata_host) {
+			if (pldata_host->phy_status == USB_PHY_SUSPEND)
+				writel_relaxed((0x01 << 13) << 16,
+					       RK_GRF_VIRT +
+					       RK3288_GRF_UOC2_CON0);
 		}
 #endif
 #ifdef CONFIG_USB_EHCI_RK
-		if((pldata_ehci = &rkehci_pdata_rk3288)){
-			if(pldata_ehci->phy_status == USB_PHY_SUSPEND)
-				writel_relaxed((0x01<<13)<<16, RK_GRF_VIRT + RK3288_GRF_UOC1_CON0);
+		pldata_ehci = &rkehci_pdata_rk3288;
+		if (pldata_ehci) {
+			if (pldata_ehci->phy_status == USB_PHY_SUSPEND)
+				writel_relaxed((0x01 << 13) << 16,
+					       RK_GRF_VIRT +
+					       RK3288_GRF_UOC1_CON0);
 		}
 #endif
 
@@ -1615,10 +1591,11 @@ void rk_usb_power_down(void)
 	struct dwc_otg_platform_data *pldata_host;
 	struct rkehci_platform_data *pldata_ehci;
 
-	if(cpu_is_rk3288()){
+	if (cpu_is_rk3288()) {
 #ifdef CONFIG_RK_USB_UART
 		/* disable USB bypass UART function */
-		usb_to_uart_status = readl_relaxed(RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
+		usb_to_uart_status =
+		    readl_relaxed(RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
 		writel_relaxed(0x00c00000, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
 #endif
 		/* set siddq,the analog blocks are powered down
@@ -1628,21 +1605,33 @@ void rk_usb_power_down(void)
 		 * and TESTBURNIN are set to 1'b0.
 		 * 2. Before asserting SIDDQ, ensure that phy enter suspend.*/
 #ifdef CONFIG_USB20_OTG
-		if((pldata_otg = &usb20otg_pdata_rk3288)){
-			if(pldata_otg->phy_status == USB_PHY_SUSPEND)
-				writel_relaxed((0x01<<13)|((0x01<<13)<<16), RK_GRF_VIRT + RK3288_GRF_UOC0_CON0);
+		pldata_otg = &usb20otg_pdata_rk3288;
+		if (pldata_otg) {
+			if (pldata_otg->phy_status == USB_PHY_SUSPEND)
+				writel_relaxed((0x01 << 13) |
+					       ((0x01 << 13) << 16),
+					       RK_GRF_VIRT +
+					       RK3288_GRF_UOC0_CON0);
 		}
 #endif
 #ifdef CONFIG_USB20_HOST
-		if((pldata_host = &usb20host_pdata_rk3288)){
-			if(pldata_host->phy_status == USB_PHY_SUSPEND)
-				writel_relaxed((0x01<<13)|((0x01<<13)<<16), RK_GRF_VIRT + RK3288_GRF_UOC2_CON0);
+		pldata_host = &usb20host_pdata_rk3288;
+		if (pldata_host) {
+			if (pldata_host->phy_status == USB_PHY_SUSPEND)
+				writel_relaxed((0x01 << 13) |
+					       ((0x01 << 13) << 16),
+					       RK_GRF_VIRT +
+					       RK3288_GRF_UOC2_CON0);
 		}
 #endif
 #ifdef CONFIG_USB_EHCI_RK
-		if((pldata_ehci = &rkehci_pdata_rk3288)){
-			if(pldata_ehci->phy_status == USB_PHY_SUSPEND)
-				writel_relaxed((0x01<<13)|((0x01<<13)<<16), RK_GRF_VIRT + RK3288_GRF_UOC1_CON0);
+		pldata_ehci = &rkehci_pdata_rk3288;
+		if (pldata_ehci) {
+			if (pldata_ehci->phy_status == USB_PHY_SUSPEND)
+				writel_relaxed((0x01 << 13) |
+					       ((0x01 << 13) << 16),
+					       RK_GRF_VIRT +
+					       RK3288_GRF_UOC1_CON0);
 		}
 #endif
 	}
@@ -1664,11 +1653,11 @@ static int __init dwc_otg_driver_init(void)
 {
 	int retval = 0;
 	int error;
-	
+
 #ifdef CONFIG_USB20_OTG
-	//register otg20
+	/* register otg20 */
 	printk(KERN_INFO "%s: version %s\n", dwc_otg20_driver_name,
-		   DWC_DRIVER_VERSION);
+	       DWC_DRIVER_VERSION);
 
 	retval = platform_driver_register(&dwc_otg_driver);
 	if (retval < 0) {
@@ -1676,15 +1665,23 @@ static int __init dwc_otg_driver_init(void)
 		return retval;
 	}
 
-	error = driver_create_file(&dwc_otg_driver.driver, &driver_attr_version);
-	error = driver_create_file(&dwc_otg_driver.driver, &driver_attr_debuglevel);
-	error = driver_create_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
-	error = driver_create_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
-	error = driver_create_file(&dwc_otg_driver.driver, &driver_attr_force_usb_mode);
-		
+	error =
+	    driver_create_file(&dwc_otg_driver.driver, &driver_attr_version);
+	error =
+	    driver_create_file(&dwc_otg_driver.driver, &driver_attr_debuglevel);
+	error =
+	    driver_create_file(&dwc_otg_driver.driver,
+			       &driver_attr_dwc_otg_conn_en);
+	error =
+	    driver_create_file(&dwc_otg_driver.driver,
+			       &driver_attr_vbus_status);
+	error =
+	    driver_create_file(&dwc_otg_driver.driver,
+			       &driver_attr_force_usb_mode);
+
 #endif
-	
-	//register host20
+
+	/* register host20 */
 #ifdef CONFIG_USB20_HOST
 	printk(KERN_INFO "%s: version %s\n", dwc_host20_driver_name,
 	       DWC_DRIVER_VERSION);
@@ -1695,8 +1692,11 @@ static int __init dwc_otg_driver_init(void)
 		return retval;
 	}
 
-	error = driver_create_file(&dwc_host_driver.driver, &driver_attr_version);
-	error = driver_create_file(&dwc_host_driver.driver, &driver_attr_debuglevel);
+	error =
+	    driver_create_file(&dwc_host_driver.driver, &driver_attr_version);
+	error =
+	    driver_create_file(&dwc_host_driver.driver,
+			       &driver_attr_debuglevel);
 #endif
 	return retval;
 }
@@ -1714,7 +1714,7 @@ static void __exit dwc_otg_driver_cleanup(void)
 	printk(KERN_DEBUG "dwc_otg_driver_cleanup()\n");
 
 #ifdef CONFIG_USB20_HOST
-	/*for host20*/
+	/*for host20 */
 	driver_remove_file(&dwc_host_driver.driver, &driver_attr_debuglevel);
 	driver_remove_file(&dwc_host_driver.driver, &driver_attr_version);
 	platform_driver_unregister(&dwc_host_driver);
@@ -1722,8 +1722,9 @@ static void __exit dwc_otg_driver_cleanup(void)
 #endif
 
 #ifdef CONFIG_USB20_OTG
-	/*for otg*/
-	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
+	/*for otg */
+	driver_remove_file(&dwc_otg_driver.driver,
+			   &driver_attr_dwc_otg_conn_en);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_debuglevel);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_version);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
@@ -1956,7 +1957,8 @@ MODULE_PARM_DESC(lpm_enable, "LPM Enable 0=LPM Disabled 1=LPM Enabled");
 
 module_param_named(besl_enable, dwc_otg_module_params.besl_enable, int, 0444);
 MODULE_PARM_DESC(besl_enable, "BESL Enable 0=BESL Disabled 1=BESL Enabled");
-module_param_named(baseline_besl, dwc_otg_module_params.baseline_besl, int, 0444);
+module_param_named(baseline_besl, dwc_otg_module_params.baseline_besl, int,
+		   0444);
 MODULE_PARM_DESC(baseline_besl, "Set the baseline besl value");
 module_param_named(deep_besl, dwc_otg_module_params.deep_besl, int, 0444);
 MODULE_PARM_DESC(deep_besl, "Set the deep besl value");
@@ -2180,7 +2182,7 @@ MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
  - 0: Disabled (default)
  - 1: Enabled
  </td></tr>
- 
+
  <tr>
  <td>en_multiple_tx_fifo</td>
  <td>Specifies whether dedicatedto tx fifos are enabled for non periodic IN EPs.
@@ -2211,7 +2213,7 @@ MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
 
 <tr>
  <td>thr_ctl</td>
- <td>Specifies whether to enable Thresholding for Device mode. Bits 0, 1, 2 of 
+ <td>Specifies whether to enable Thresholding for Device mode. Bits 0, 1, 2 of
  this parmater specifies if thresholding is enabled for non-Iso Tx, Iso Tx and
  Rx transfers accordingly.
  The driver will automatically detect the value for this parameter if none is
@@ -2257,22 +2259,22 @@ MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
  - 0: LPM disabled
  - 1: LPM enable (default, if available)
  </td></tr>
-  
+
  <tr>
  <td>besl_enable</td>
  <td>Specifies whether to enable LPM Errata support.
  The driver will automatically detect the value for this parameter if none is
  specified.
  - 0: LPM Errata disabled (default)
- - 1: LPM Errata enable 
+ - 1: LPM Errata enable
  </td></tr>
- 
+
   <tr>
  <td>baseline_besl</td>
  <td>Specifies the baseline besl value.
  - Values: 0 to 15 (default 0)
  </td></tr>
- 
+
   <tr>
  <td>deep_besl</td>
  <td>Specifies the deep besl value.
@@ -2285,7 +2287,7 @@ MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
  The driver will automatically detect the value for this parameter if none is
  specified.
  - 0: IC_USB disabled (default, if available)
- - 1: IC_USB enable 
+ - 1: IC_USB enable
  </td></tr>
 
 <tr>
@@ -2302,7 +2304,7 @@ MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
  - 0: Power Down disabled (default)
  - 2: Power Down enabled
  </td></tr>
- 
+
  <tr>
  <td>reload_ctl</td>
  <td>Specifies whether dynamic reloading of the HFIR register is allowed during
@@ -2324,9 +2326,9 @@ MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
 
  <tr>
  <td>cont_on_bna</td>
- <td>Specifies whether Enable Continue on BNA enabled or no. 
+ <td>Specifies whether Enable Continue on BNA enabled or no.
  After receiving BNA interrupt the core disables the endpoint,when the
- endpoint is re-enabled by the application the  
+ endpoint is re-enabled by the application the
  - 0: Core starts processing from the DOEPDMA descriptor (default)
  - 1: Core starts processing from the descriptor which received the BNA.
  This parameter is valid only when OTG_EN_DESC_DMA == 1’b1.
@@ -2335,7 +2337,7 @@ MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
  <tr>
  <td>ahb_single</td>
  <td>This bit when programmed supports SINGLE transfers for remainder data
- in a transfer for DMA mode of operation. 
+ in a transfer for DMA mode of operation.
  - 0: The remainder data will be sent using INCR burst size (default)
  - 1: The remainder data will be sent using SINGLE burst size.
  </td></tr>
@@ -2354,7 +2356,7 @@ MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
  <td>Specifies whether OTG is performing as USB OTG Revision 2.0 or Revision 1.3
  USB OTG device.
  - 0: OTG 2.0 support disabled (default)
- - 1: OTG 2.0 support enabled 
+ - 1: OTG 2.0 support enabled
  </td></tr>
 
 */

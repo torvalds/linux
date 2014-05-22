@@ -48,7 +48,7 @@ static inline void dump_bytes(char *name, uint8_t *bytes, int len)
 {
 	int i;
 	DWC_PRINTF("%s: ", name);
-	for (i=0; i<len; i++) {
+	for (i = 0; i < len; i++) {
 		DWC_PRINTF("%02x ", bytes[i]);
 	}
 	DWC_PRINTF("\n");
@@ -113,7 +113,7 @@ void dwc_wusb_cmf(u8 *key, u8 *nonce,
 	u16 la = (u16)(len + 14);
 
 	/* Set the AES-128 key */
-	//dwc_aes_setkey(tfm, key, 16);
+	/* dwc_aes_setkey(tfm, key, 16); */
 
 	/* Fill block B0 from flags = 0x59, N, and l(m) = 0 */
 	block_m[0] = 0x59;

@@ -42,7 +42,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
 # include <linux/usb/gadget.h>
 #else
 # include <linux/usb_gadget.h>
@@ -154,8 +154,8 @@ int DWC_UTF8_TO_UTF16LE(uint8_t const *s, uint16_t *cp, unsigned len)
 	 */
 	while (len != 0 && (c = (u8) *s++) != 0) {
 		if (unlikely(c & 0x80)) {
-			// 2-byte sequence:
-			// 00000yyyyyxxxxxx = 110yyyyy 10xxxxxx
+			/* 2-byte sequence: */
+			/* 00000yyyyyxxxxxx = 110yyyyy 10xxxxxx */
 			if ((c & 0xe0) == 0xc0) {
 				uchar = (c & 0x1f) << 6;
 
@@ -165,8 +165,8 @@ int DWC_UTF8_TO_UTF16LE(uint8_t const *s, uint16_t *cp, unsigned len)
 				c &= 0x3f;
 				uchar |= c;
 
-			// 3-byte sequence (most CJKV characters):
-			// zzzzyyyyyyxxxxxx = 1110zzzz 10yyyyyy 10xxxxxx
+			/* 3-byte sequence (most CJKV characters): */
+			/* zzzzyyyyyyxxxxxx = 1110zzzz 10yyyyyy 10xxxxxx */
 			} else if ((c & 0xf0) == 0xe0) {
 				uchar = (c & 0x0f) << 12;
 
@@ -186,11 +186,11 @@ int DWC_UTF8_TO_UTF16LE(uint8_t const *s, uint16_t *cp, unsigned len)
 				if (0xd800 <= uchar && uchar <= 0xdfff)
 					goto fail;
 
-			// 4-byte sequence (surrogate pairs, currently rare):
-			// 11101110wwwwzzzzyy + 110111yyyyxxxxxx
-			//     = 11110uuu 10uuzzzz 10yyyyyy 10xxxxxx
-			// (uuuuu = wwww + 1)
-			// FIXME accept the surrogate code points (only)
+			/* 4-byte sequence (surrogate pairs, currently rare): */
+			/* 11101110wwwwzzzzyy + 110111yyyyxxxxxx */
+			/*     = 11110uuu 10uuzzzz 10yyyyyy 10xxxxxx */
+			/* (uuuuu = wwww + 1) */
+			/*  FIXME accept the surrogate code points (only) */
 			} else
 				goto fail;
 		} else
@@ -345,7 +345,7 @@ void DWC_DMA_POOL_FREE(dwc_pool_t *pool, void *vaddr, void *daddr)
 
 void *__DWC_DMA_ALLOC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
 {
-#if 1 //def xxCOSIM /* Only works for 32-bit cosim */
+#if 1 /* def xxCOSIM  Only works for 32-bit cosim */
 	void *buf = dma_alloc_coherent(dma_ctx, (size_t)size, dma_addr, GFP_KERNEL);
 #else
 	void *buf = dma_alloc_coherent(dma_ctx, (size_t)size, dma_addr, GFP_KERNEL | GFP_DMA32);
@@ -483,8 +483,10 @@ uint32_t DWC_CPU_TO_LE32(uint32_t *p)
 	return *p;
 #else
 	uint8_t *u_p = (uint8_t *)p;
+	uint32_t ret;
+	ret = u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24);
 
-	return (u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24));
+	return ret;
 #endif
 }
 
@@ -494,8 +496,10 @@ uint32_t DWC_CPU_TO_BE32(uint32_t *p)
 	return *p;
 #else
 	uint8_t *u_p = (uint8_t *)p;
+	uint32_t ret;
+	ret = u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24);
 
-	return (u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24));
+	return ret;
 #endif
 }
 
@@ -505,8 +509,10 @@ uint32_t DWC_LE32_TO_CPU(uint32_t *p)
 	return *p;
 #else
 	uint8_t *u_p = (uint8_t *)p;
+	uint32_t ret;
+	ret = u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24);
 
-	return (u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24));
+	return ret;
 #endif
 }
 
@@ -516,8 +522,10 @@ uint32_t DWC_BE32_TO_CPU(uint32_t *p)
 	return *p;
 #else
 	uint8_t *u_p = (uint8_t *)p;
+	uint32_t ret;
+	ret = u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24);
 
-	return (u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24));
+	return ret;
 #endif
 }
 
@@ -527,7 +535,9 @@ uint16_t DWC_CPU_TO_LE16(uint16_t *p)
 	return *p;
 #else
 	uint8_t *u_p = (uint8_t *)p;
-	return (u_p[1] | (u_p[0] << 8));
+	uint16_t ret;
+	ret = u_p[1] | (u_p[0] << 8);
+	return ret;
 #endif
 }
 
@@ -537,7 +547,9 @@ uint16_t DWC_CPU_TO_BE16(uint16_t *p)
 	return *p;
 #else
 	uint8_t *u_p = (uint8_t *)p;
-	return (u_p[1] | (u_p[0] << 8));
+	uint16_t ret;
+	ret = u_p[1] | (u_p[0] << 8);
+	return ret;
 #endif
 }
 
@@ -547,7 +559,9 @@ uint16_t DWC_LE16_TO_CPU(uint16_t *p)
 	return *p;
 #else
 	uint8_t *u_p = (uint8_t *)p;
-	return (u_p[1] | (u_p[0] << 8));
+	uint16_t ret;
+	ret = u_p[1] | (u_p[0] << 8);
+	return ret;
 #endif
 }
 
@@ -557,44 +571,46 @@ uint16_t DWC_BE16_TO_CPU(uint16_t *p)
 	return *p;
 #else
 	uint8_t *u_p = (uint8_t *)p;
-	return (u_p[1] | (u_p[0] << 8));
+	uint16_t ret;
+	ret = u_p[1] | (u_p[0] << 8);
+	return ret;
 #endif
 }
 
 
 /* Registers */
 
-uint32_t DWC_READ_REG32(uint32_t volatile *reg)
+uint32_t DWC_READ_REG32(volatile uint32_t *reg)
 {
 	return readl_relaxed(reg);
 }
 
 #if 0
-uint64_t DWC_READ_REG64(uint64_t volatile *reg)
+uint64_t DWC_READ_REG64(volatile uint64_t *reg)
 {
 }
 #endif
 
-void DWC_WRITE_REG32(uint32_t volatile *reg, uint32_t value)
+void DWC_WRITE_REG32(volatile uint32_t *reg, uint32_t value)
 {
 	writel_relaxed(value, reg);
 	dsb();
 }
 
 #if 0
-void DWC_WRITE_REG64(uint64_t volatile *reg, uint64_t value)
+void DWC_WRITE_REG64(volatile uint64_t *reg, uint64_t value)
 {
 }
 #endif
 
-void DWC_MODIFY_REG32(uint32_t volatile *reg, uint32_t clear_mask, uint32_t set_mask)
+void DWC_MODIFY_REG32(volatile uint32_t *reg, uint32_t clear_mask, uint32_t set_mask)
 {
 	writel_relaxed((readl_relaxed(reg) & ~clear_mask) | set_mask, reg);
 	dsb();
 }
 
 #if 0
-void DWC_MODIFY_REG64(uint64_t volatile *reg, uint64_t clear_mask, uint64_t set_mask)
+void DWC_MODIFY_REG64(volatile uint64_t *reg, uint64_t clear_mask, uint64_t set_mask)
 {
 }
 #endif
@@ -745,7 +761,7 @@ static void timer_callback(unsigned long data)
 	DWC_SPINLOCK_IRQSAVE(timer->lock, &flags);
 	timer->scheduled = 0;
 	DWC_SPINUNLOCK_IRQRESTORE(timer->lock, flags);
-	//DWC_DEBUG("Timer %s callback", timer->name);
+	/* DWC_DEBUG("Timer %s callback", timer->name); */
 	timer->cb(timer->data);
 }
 
@@ -821,11 +837,13 @@ void DWC_TIMER_SCHEDULE(dwc_timer_t *timer, uint32_t time)
 
 	if (!timer->scheduled) {
 		timer->scheduled = 1;
-		//DWC_DEBUG("Scheduling timer %s to expire in +%d msec", timer->name, time);
+		/* DWC_DEBUG("Scheduling timer %s to expire in +%d msec",
+		 * 	     timer->name, time);*/
 		timer->t->expires = jiffies + msecs_to_jiffies(time);
 		add_timer(timer->t);
 	} else {
-		//DWC_DEBUG("Modifying timer %s to expire in +%d msec", timer->name, time);
+		/* DWC_DEBUG("Modifying timer %s to expire in +%d msec",
+		 * 	     timer->name, time);*/
 		mod_timer(timer->t, jiffies + msecs_to_jiffies(time));
 	}
 
@@ -1044,7 +1062,8 @@ static void do_work(struct work_struct *work)
 #ifdef DEBUG
 	DWC_CIRCLEQ_REMOVE(&wq->entries, container, entry);
 #endif
-	//DWC_DEBUG("Work done: %s, container=%p", container->name, container);
+	/* DWC_DEBUG("Work done: %s, container=%p",
+	 * 	     container->name, container); */
 	if (container->name) {
 		DWC_FREE(container->name);
 	}
@@ -1157,7 +1176,8 @@ void DWC_WORKQ_SCHEDULE(dwc_workq_t *wq, dwc_work_callback_t cb, void *data,
 	container->cb = cb;
 	container->data = data;
 	container->wq = wq;
-	//DWC_DEBUG("Queueing work: %s, container=%p", container->name, container);
+	/* DWC_DEBUG("Queueing work: %s, container=%p",
+	 * 	     container->name, container);*/
 	INIT_WORK(&container->work.work, do_work);
 
 #ifdef DEBUG
@@ -1199,7 +1219,8 @@ void DWC_WORKQ_SCHEDULE_DELAYED(dwc_workq_t *wq, dwc_work_callback_t cb,
 	container->cb = cb;
 	container->data = data;
 	container->wq = wq;
-	//DWC_DEBUG("Queueing work: %s, container=%p", container->name, container);
+	/* DWC_DEBUG("Queueing work: %s, container=%p",
+	 * 	     container->name, container);*/
 	INIT_DELAYED_WORK(&container->work, do_work);
 
 #ifdef DEBUG
@@ -1384,7 +1405,7 @@ static int dwc_common_port_init_module(void)
 {
 	int result = 0;
 
-	printk(KERN_DEBUG "Module dwc_common_port init\n" );
+	printk(KERN_DEBUG "Module dwc_common_port init\n");
 
 #ifdef DWC_DEBUG_MEMORY
 	result = dwc_memory_debug_start(NULL);
@@ -1410,7 +1431,7 @@ static int dwc_common_port_init_module(void)
 
 static void dwc_common_port_exit_module(void)
 {
-	printk(KERN_DEBUG "Module dwc_common_port exit\n" );
+	printk(KERN_DEBUG "Module dwc_common_port exit\n");
 
 #ifdef DWC_NOTIFYLIB
 	dwc_free_notification_manager();

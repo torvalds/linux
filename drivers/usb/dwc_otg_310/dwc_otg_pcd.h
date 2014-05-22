@@ -64,7 +64,7 @@ struct cfiobject;
 /**
  * Get the pointer to the core_if from the pcd pointer.
  */
-#define GET_CORE_IF( _pcd ) (_pcd->core_if)
+#define GET_CORE_IF(_pcd) (_pcd->core_if)
 
 /**
  * States of EP0.
@@ -143,7 +143,7 @@ typedef struct dwc_otg_pcd_request {
 	 DWC_CIRCLEQ_ENTRY(dwc_otg_pcd_request) queue_entry;
 #ifdef DWC_UTE_PER_IO
 	struct dwc_iso_xreq_port ext_req;
-	//void *priv_ereq_nport; /*  */
+	/* void *priv_ereq_nport; */
 #endif
 } dwc_otg_pcd_request_t;
 
@@ -167,7 +167,7 @@ typedef struct dwc_otg_pcd_ep {
 #ifdef DWC_EN_ISOC
 	/** ISOC req handle passed */
 	void *iso_req_handle;
-#endif				//_EN_ISOC_
+#endif /* _EN_ISOC_ */
 
 	/** DWC_otg ep data. */
 	dwc_ep_t dwc_ep;
@@ -231,7 +231,7 @@ struct dwc_otg_pcd {
 	/** Array of OUT EPs. */
 	dwc_otg_pcd_ep_t out_ep[MAX_EPS_CHANNELS - 1];
 	/** number of valid EPs in the above array. */
-//        unsigned      num_eps : 4;
+	/** unsigned      num_eps : 4; */
 	dwc_spinlock_t *lock;
 
 	/** Tasklet to defer starting of TEST mode transmissions until
@@ -260,23 +260,24 @@ struct dwc_otg_pcd {
 	/** connect status used during enumeration */
 	int8_t conn_status;
 	/* otg check vbus work and connect work,used for power management */
-	struct delayed_work	reconnect;
-	struct delayed_work	check_vbus_work;
+	struct delayed_work reconnect;
+	struct delayed_work check_vbus_work;
 	/** pervent device suspend while usb connected */
 	struct wake_lock wake_lock;
 
 };
 
-//FIXME this functions should be static, and this prototypes should be removed
-extern void dwc_otg_request_nuke(dwc_otg_pcd_ep_t * ep);
-extern void dwc_otg_request_done(dwc_otg_pcd_ep_t * ep,
-				 dwc_otg_pcd_request_t * req, int32_t status);
+/* FIXME this functions should be static,
+ * and this prototypes should be removed */
+extern void dwc_otg_request_nuke(dwc_otg_pcd_ep_t *ep);
+extern void dwc_otg_request_done(dwc_otg_pcd_ep_t *ep,
+				 dwc_otg_pcd_request_t *req, int32_t status);
 
-void dwc_otg_iso_buffer_done(dwc_otg_pcd_t * pcd, dwc_otg_pcd_ep_t * ep,
+void dwc_otg_iso_buffer_done(dwc_otg_pcd_t *pcd, dwc_otg_pcd_ep_t *ep,
 			     void *req_handle);
 
 extern void do_test_mode(void *data);
 extern void dwc_pcd_reset(dwc_otg_pcd_t *pcd);
-extern void dwc_otg_pcd_start_check_vbus_work(dwc_otg_pcd_t * pcd);
+extern void dwc_otg_pcd_start_check_vbus_work(dwc_otg_pcd_t *pcd);
 #endif
 #endif /* DWC_HOST_ONLY */

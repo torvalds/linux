@@ -2,7 +2,7 @@
  * Synopsys HS OTG Linux Software Driver and documentation (hereinafter,
  * "Software") is an Unsupported proprietary work of Synopsys, Inc. unless
  * otherwise expressly agreed to in writing between Synopsys and you.
- * 
+ *
  * The Software IS NOT an item of Licensed Software or Licensed Product under
  * any End User Software License Agreement or Agreement for Licensed Product
  * with Synopsys or any supplement thereto. You are permitted to use and
@@ -12,7 +12,7 @@
  * any information contained herein except pursuant to this license grant from
  * Synopsys. If you do not agree with this notice, including the disclaimer
  * below, then you are not authorized to use the Software.
- * 
+ *
  * THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS" BASIS
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,10 +29,10 @@
 #if !defined(__DWC_CFI_COMMON_H__)
 #define __DWC_CFI_COMMON_H__
 
-//#include <linux/types.h>
+/* #include <linux/types.h> */
 
 /**
- * @file 
+ * @file
  *
  * This file contains the CFI specific common constants, interfaces
  * (functions and macros) and structures for Linux. No PCD specific
@@ -49,8 +49,8 @@
 /** This command allows the host to set the value of a specific Core Feature */
 #define VEN_CORE_SET_FEATURE		0xB3
 
-/** This command allows the host to set the default values of 
- * either all or any specific Core Feature 
+/** This command allows the host to set the default values of
+ * either all or any specific Core Feature
  */
 #define VEN_CORE_RESET_FEATURES		0xB4
 
@@ -63,20 +63,20 @@
 /** This request writes a DWORD value into a register at the specified offset */
 #define VEN_CORE_WRITE_REGISTER		0xB7
 
-/** This structure is the header of the Core Features dataset returned to 
+/** This structure is the header of the Core Features dataset returned to
  *  the Host
  */
 struct cfi_all_features_header {
 /** The features header structure length is */
 #define CFI_ALL_FEATURES_HDR_LEN		8
 	/**
-	 * The total length of the features dataset returned to the Host 
+	 * The total length of the features dataset returned to the Host
 	 */
 	uint16_t wTotalLen;
 
 	/**
 	 * CFI version number inBinary-Coded Decimal (i.e., 1.00 is 100H).
-	 * This field identifies the version of the CFI Specification with which 
+	 * This field identifies the version of the CFI Specification with which
 	 * the device is compliant.
 	 */
 	uint16_t wVersion;
@@ -93,7 +93,7 @@ struct cfi_all_features_header {
 
 typedef struct cfi_all_features_header cfi_all_features_header_t;
 
-/** This structure is a header of the Core Feature descriptor dataset returned to 
+/** This structure is a header of the Core Feature descriptor dataset returned to
  *  the Host after the VEN_CORE_GET_FEATURES request
  */
 struct cfi_feature_desc_header {
@@ -110,8 +110,8 @@ struct cfi_feature_desc_header {
 	/** The data length of this feature in bytes */
 	uint16_t wDataLength;
 
-	/** 
-	 * Attributes of this features 
+	/**
+	 * Attributes of this features
 	 * D0: Access rights
 	 * 0 - Read/Write
 	 * 1 - Read only
@@ -124,7 +124,7 @@ struct cfi_feature_desc_header {
 	uint8_t bNameLen;
 
 	/** The feature name buffer */
-	//uint8_t *name;
+	/* uint8_t *name; */
 } UPACKED;
 
 typedef struct cfi_feature_desc_header cfi_feature_desc_header_t;

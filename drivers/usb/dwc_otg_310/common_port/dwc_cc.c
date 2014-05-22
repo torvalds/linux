@@ -37,22 +37,20 @@ _otg_/* ========================================================================
 
 #include "dwc_cc.h"
 
-typedef struct dwc_cc
-{
+typedef struct dwc_cc {
 	uint32_t uid;
 	uint8_t chid[16];
 	uint8_t cdid[16];
 	uint8_t ck[16];
 	uint8_t *name;
 	uint8_t length;
-        DWC_CIRCLEQ_ENTRY(dwc_cc) list_entry;
+	DWC_CIRCLEQ_ENTRY(dwc_cc) list_entry;
 } dwc_cc_t;
 
 DWC_CIRCLEQ_HEAD(context_list, dwc_cc);
 
 /** The main structure for CC management.  */
-struct dwc_cc_if
-{
+struct dwc_cc_if {
 	dwc_mutex_t *mutex;
 	char *filename;
 
@@ -68,7 +66,7 @@ static inline void dump_bytes(char *name, uint8_t *bytes, int len)
 {
 	int i;
 	DWC_PRINTF("%s: ", name);
-	for (i=0; i<len; i++) {
+	for (i = 0; i < len; i++) {
 		DWC_PRINTF("%02x ", bytes[i]);
 	}
 	DWC_PRINTF("\n");
@@ -184,16 +182,14 @@ static int32_t cc_add(void *mem_ctx, dwc_cc_if_t *cc_if, uint8_t *chid,
 
 	if (cc_if->is_host) {
 		uid = cc_match_cdid(cc_if, cdid);
-	}
-	else {
+	} else {
 		uid = cc_match_chid(cc_if, chid);
 	}
 
 	if (uid) {
 		DWC_DEBUG("Replacing previous connection context id=%d name=%p name_len=%d", uid, name, length);
 		cc = cc_find(cc_if, uid);
-	}
-	else {
+	} else {
 		cc = alloc_cc(mem_ctx, name, length);
 		cc->uid = next_uid(cc_if);
 		DWC_CIRCLEQ_INSERT_TAIL(&cc_if->list, cc, list_entry);
@@ -220,7 +216,7 @@ static void cc_clear(void *mem_ctx, dwc_cc_if_t *cc_if)
 	}
 }
 
-dwc_cc_if_t *dwc_cc_if_alloc(void *mem_ctx, void *mtx_ctx, 
+dwc_cc_if_t *dwc_cc_if_alloc(void *mem_ctx, void *mtx_ctx,
 			     dwc_notifier_t *notifier, unsigned is_host)
 {
 	dwc_cc_if_t *cc_if = NULL;
@@ -289,7 +285,7 @@ int32_t dwc_cc_add(void *mem_ctx, dwc_cc_if_t *cc_if, uint8_t *chid,
 void dwc_cc_change(void *mem_ctx, dwc_cc_if_t *cc_if, int32_t id, uint8_t *chid,
 		   uint8_t *cdid, uint8_t *ck, uint8_t *name, uint8_t length)
 {
-	dwc_cc_t* cc;
+	dwc_cc_t *cc;
 
 	DWC_DEBUG("Change connection context %d", id);
 
@@ -391,8 +387,7 @@ uint8_t *dwc_cc_data_for_save(void *mem_ctx, dwc_cc_if_t *cc_if, unsigned int *l
 			x += 1;
 			DWC_MEMCPY(x, cc->name, cc->length);
 			x += cc->length;
-		}
-		else {
+		} else {
 			DWC_MEMCPY(x, &zero, 1);
 			x += 1;
 		}
@@ -423,13 +418,12 @@ void dwc_cc_restore_from_data(void *mem_ctx, dwc_cc_if_t *cc_if, uint8_t *data, 
 		i += 16;
 
 		name_length = data[i];
-		i ++;
+		i++;
 
 		if (name_length) {
 			name = &data[i];
 			i += name_length;
-		}
-		else {
+		} else {
 			name = NULL;
 		}
 

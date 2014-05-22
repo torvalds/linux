@@ -99,10 +99,10 @@ extern "C" {
  * Double-linked List.
  */
 
-typedef struct dwc_list_link {
-	struct dwc_list_link *next;
-	struct dwc_list_link *prev;
-} dwc_list_link_t;
+	typedef struct dwc_list_link {
+		struct dwc_list_link *next;
+		struct dwc_list_link *prev;
+	} dwc_list_link_t;
 
 #define DWC_LIST_INIT(link) do {	\
 	(link)->next = (link);		\
@@ -152,38 +152,41 @@ typedef struct dwc_list_link {
 #endif
 
 #if 0
-static inline void __list_add(struct list_head *new,
-                              struct list_head *prev,
-                              struct list_head *next)
-{
-        next->prev = new;
-        new->next = next;
-        new->prev = prev;
-        prev->next = new;
-}
+	static inline void __list_add(struct list_head *new,
+				      struct list_head *prev,
+				      struct list_head *next)
+	{
+		next->prev = new;
+		new->next = next;
+		new->prev = prev;
+		prev->next = new;
+	}
 
-static inline void list_add(struct list_head *new, struct list_head *head)
-{
-        __list_add(new, head, head->next);
-}
+	static inline void list_add(struct list_head *new,
+				      struct list_head *head)
+	{
+		__list_add(new, head, head->next);
+	}
 
-static inline void list_add_tail(struct list_head *new, struct list_head *head)
-{
-        __list_add(new, head->prev, head);
-}
+	static inline void list_add_tail(struct list_head *new,
+					 struct list_head *head)
+	{
+		__list_add(new, head->prev, head);
+	}
 
-static inline void __list_del(struct list_head * prev, struct list_head * next)
-{
-        next->prev = prev;
-        prev->next = next;
-}
+	static inline void __list_del(struct list_head *prev,
+				      struct list_head *next)
+	{
+		next->prev = prev;
+		prev->next = next;
+	}
 
-static inline void list_del(struct list_head *entry)
-{
-        __list_del(entry->prev, entry->next);
-        entry->next = LIST_POISON1;
-        entry->prev = LIST_POISON2;
-}
+	static inline void list_del(struct list_head *entry)
+	{
+		__list_del(entry->prev, entry->next);
+		entry->next = LIST_POISON1;
+		entry->prev = LIST_POISON2;
+	}
 #endif
 
 #define DWC_LIST_REMOVE(link) do {				\
@@ -207,17 +210,17 @@ static inline void list_del(struct list_head *entry)
 } while (0)
 
 #define DWC_LIST_FOREACH(var, list)				\
-	for((var) = DWC_LIST_FIRST(list);			\
+	for ((var) = DWC_LIST_FIRST(list);			\
 	    (var) != DWC_LIST_END(list);			\
 	    (var) = DWC_LIST_NEXT(var))
 
 #define DWC_LIST_FOREACH_SAFE(var, var2, list)			\
-	for((var) = DWC_LIST_FIRST(list), (var2) = DWC_LIST_NEXT(var);	\
+	for ((var) = DWC_LIST_FIRST(list), (var2) = DWC_LIST_NEXT(var);	\
 	    (var) != DWC_LIST_END(list);			\
 	    (var) = (var2), (var2) = DWC_LIST_NEXT(var2))
 
 #define DWC_LIST_FOREACH_REVERSE(var, list)			\
-	for((var) = DWC_LIST_LAST(list);			\
+	for ((var) = DWC_LIST_LAST(list);			\
 	    (var) != DWC_LIST_END(list);			\
 	    (var) = DWC_LIST_PREV(var))
 
@@ -246,12 +249,12 @@ struct {								\
 #define DWC_SLIST_NEXT(elm, field)	((elm)->field.sle_next)
 
 #define DWC_SLIST_FOREACH(var, head, field)				\
-	for((var) = SLIST_FIRST(head);					\
+	for ((var) = SLIST_FIRST(head);					\
 	    (var) != SLIST_END(head);					\
 	    (var) = SLIST_NEXT(var, field))
 
 #define DWC_SLIST_FOREACH_PREVPTR(var, varp, head, field)		\
-	for((varp) = &SLIST_FIRST((head));				\
+	for ((varp) = &SLIST_FIRST((head));				\
 	    ((var) = *(varp)) != SLIST_END(head);			\
 	    (varp) = &SLIST_NEXT((var), field))
 
@@ -286,7 +289,7 @@ struct {								\
 	}								\
 	else {								\
 		struct type *curelm = (head)->slh_first;		\
-		while( curelm->field.sle_next != (elm) )		\
+		while (curelm->field.sle_next != (elm))			\
 			curelm = curelm->field.sle_next;		\
 		curelm->field.sle_next =				\
 		    curelm->field.sle_next->field.sle_next;		\
@@ -319,7 +322,7 @@ struct {								\
 #define DWC_SIMPLEQ_NEXT(elm, field)    ((elm)->field.sqe_next)
 
 #define DWC_SIMPLEQ_FOREACH(var, head, field)				\
-	for((var) = SIMPLEQ_FIRST(head);				\
+	for ((var) = SIMPLEQ_FIRST(head);				\
 	    (var) != SIMPLEQ_END(head);					\
 	    (var) = SIMPLEQ_NEXT(var, field))
 
@@ -332,7 +335,8 @@ struct {								\
 } while (0)
 
 #define DWC_SIMPLEQ_INSERT_HEAD(head, elm, field) do {			\
-	if (((elm)->field.sqe_next = (head)->sqh_first) == NULL)	\
+	(elm)->field.sqe_next = (head)->sqh_first;			\
+	if ((elm)->field.sqe_next == NULL)				\
 		(head)->sqh_last = &(elm)->field.sqe_next;		\
 	(head)->sqh_first = (elm);					\
 } while (0)
@@ -344,13 +348,15 @@ struct {								\
 } while (0)
 
 #define DWC_SIMPLEQ_INSERT_AFTER(head, listelm, elm, field) do {	\
-	if (((elm)->field.sqe_next = (listelm)->field.sqe_next) == NULL)\
+	(elm)->field.sqe_next = (listelm)->field.sqe_next;		\
+	if ((elm)->field.sqe_next == NULL)				\
 		(head)->sqh_last = &(elm)->field.sqe_next;		\
 	(listelm)->field.sqe_next = (elm);				\
 } while (0)
 
 #define DWC_SIMPLEQ_REMOVE_HEAD(head, field) do {			\
-	if (((head)->sqh_first = (head)->sqh_first->field.sqe_next) == NULL) \
+	(head)->sqh_first = (head)->sqh_first->field.sqe_next;		\
+	if ((head)->sqh_first == NULL)					\
 		(head)->sqh_last = &(head)->sqh_first;			\
 } while (0)
 
@@ -387,12 +393,12 @@ struct {								\
 	(TAILQ_FIRST(head) == TAILQ_END(head))
 
 #define DWC_TAILQ_FOREACH(var, head, field)				\
-	for((var) = TAILQ_FIRST(head);					\
+	for ((var) = TAILQ_FIRST(head);					\
 	    (var) != TAILQ_END(head);					\
 	    (var) = TAILQ_NEXT(var, field))
 
 #define DWC_TAILQ_FOREACH_REVERSE(var, head, headname, field)		\
-	for((var) = TAILQ_LAST(head, headname);				\
+	for ((var) = TAILQ_LAST(head, headname);				\
 	    (var) != TAILQ_END(head);					\
 	    (var) = TAILQ_PREV(var, headname, field))
 
@@ -405,7 +411,8 @@ struct {								\
 } while (0)
 
 #define DWC_TAILQ_INSERT_HEAD(head, elm, field) do {			\
-	if (((elm)->field.tqe_next = (head)->tqh_first) != NULL)	\
+	(elm)->field.tqe_next = (head)->tqh_first;			\
+	if ((elm)->field.tqe_next != NULL)	\
 		(head)->tqh_first->field.tqe_prev =			\
 		    &(elm)->field.tqe_next;				\
 	else								\
@@ -422,7 +429,8 @@ struct {								\
 } while (0)
 
 #define DWC_TAILQ_INSERT_AFTER(head, listelm, elm, field) do {		\
-	if (((elm)->field.tqe_next = (listelm)->field.tqe_next) != NULL)\
+	(elm)->field.tqe_next = (listelm)->field.tqe_next;		\
+	if ((elm)->field.tqe_next != NULL)				\
 		(elm)->field.tqe_next->field.tqe_prev =			\
 		    &(elm)->field.tqe_next;				\
 	else								\
@@ -448,7 +456,8 @@ struct {								\
 } while (0)
 
 #define DWC_TAILQ_REPLACE(head, elm, elm2, field) do {			\
-	if (((elm2)->field.tqe_next = (elm)->field.tqe_next) != NULL)	\
+	(elm2)->field.tqe_next = (elm)->field.tqe_next;			\
+	if ((elm2)->field.tqe_next != NULL)	\
 		(elm2)->field.tqe_next->field.tqe_prev =		\
 		    &(elm2)->field.tqe_next;				\
 	else								\
@@ -489,17 +498,17 @@ struct {								\
 #define DWC_CIRCLEQ_EMPTY_ENTRY(elm, field) (((elm)->field.cqe_next == NULL) && ((elm)->field.cqe_prev == NULL))
 
 #define DWC_CIRCLEQ_FOREACH(var, head, field)				\
-	for((var) = DWC_CIRCLEQ_FIRST(head);				\
+	for ((var) = DWC_CIRCLEQ_FIRST(head);				\
 	    (var) != DWC_CIRCLEQ_END(head);				\
 	    (var) = DWC_CIRCLEQ_NEXT(var, field))
 
 #define DWC_CIRCLEQ_FOREACH_SAFE(var, var2, head, field)			\
-	for((var) = DWC_CIRCLEQ_FIRST(head), var2 = DWC_CIRCLEQ_NEXT(var, field); \
+	for ((var) = DWC_CIRCLEQ_FIRST(head), var2 = DWC_CIRCLEQ_NEXT(var, field); \
 	    (var) != DWC_CIRCLEQ_END(head);					\
 	    (var) = var2, var2 = DWC_CIRCLEQ_NEXT(var, field))
 
 #define DWC_CIRCLEQ_FOREACH_REVERSE(var, head, field)			\
-	for((var) = DWC_CIRCLEQ_LAST(head);				\
+	for ((var) = DWC_CIRCLEQ_LAST(head);				\
 	    (var) != DWC_CIRCLEQ_END(head);				\
 	    (var) = DWC_CIRCLEQ_PREV(var, field))
 
@@ -575,12 +584,14 @@ struct {								\
 } while (0)
 
 #define DWC_CIRCLEQ_REPLACE(head, elm, elm2, field) do {		\
-	if (((elm2)->field.cqe_next = (elm)->field.cqe_next) ==		\
+	(elm2)->field.cqe_next = (elm)->field.cqe_next;			\
+	if ((elm2)->field.cqe_next ==					\
 	    DWC_CIRCLEQ_END(head))					\
 		(head).cqh_last = (elm2);				\
 	else								\
 		(elm2)->field.cqe_next->field.cqe_prev = (elm2);	\
-	if (((elm2)->field.cqe_prev = (elm)->field.cqe_prev) ==		\
+	(elm2)->field.cqe_prev = (elm)->field.cqe_prev;			\
+	if ((elm2)->field.cqe_prev ==					\
 	    DWC_CIRCLEQ_END(head))					\
 		(head).cqh_first = (elm2);				\
 	else								\

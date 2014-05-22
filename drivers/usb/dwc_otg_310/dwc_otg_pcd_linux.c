@@ -74,13 +74,13 @@ static struct gadget_wrapper {
 } *gadget_wrapper;
 
 /* Display the contents of the buffer */
-extern void dump_msg(const u8 * buf, unsigned int length);
+extern void dump_msg(const u8 *buf, unsigned int length);
 
 /**
  * Get the dwc_otg_pcd_ep_t* from usb_ep* pointer - NULL in case
  * if the endpoint is not found
  */
-static struct dwc_otg_pcd_ep *ep_from_handle(dwc_otg_pcd_t * pcd, void *handle)
+static struct dwc_otg_pcd_ep *ep_from_handle(dwc_otg_pcd_t *pcd, void *handle)
 {
 	int i;
 	if (pcd->ep0.priv == handle) {
@@ -243,7 +243,7 @@ static void dwc_otg_pcd_free_request(struct usb_ep *ep, struct usb_request *req)
 	kfree(req);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 /**
  * This function allocates an I/O buffer to be used for a transfer
  * to/from the specified endpoint.
@@ -255,7 +255,7 @@ static void dwc_otg_pcd_free_request(struct usb_ep *ep, struct usb_request *req)
  * @return address of a new buffer or null is buffer could not be allocated.
  */
 static void *dwc_otg_pcd_alloc_buffer(struct usb_ep *usb_ep, unsigned bytes,
-				      dma_addr_t * dma, gfp_t gfp_flags)
+				      dma_addr_t *dma, gfp_t gfp_flags)
 {
 	void *buf;
 	dwc_otg_pcd_t *pcd = 0;
@@ -358,17 +358,18 @@ static int ep_queue(struct usb_ep *usb_ep, struct usb_request *usb_req,
 		is_isoc_ep = 0;
 	else
 		is_isoc_ep = (ep->dwc_ep.type == DWC_OTG_EP_TYPE_ISOC) ? 1 : 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 	dma_addr = usb_req->dma;
 #else
 	if (GET_CORE_IF(pcd)->dma_enable) {
-//		if (usb_req->length != 0/* && usb_req->dma == DWC_DMA_ADDR_INVALID*/) {
-		if(usb_req->dma == DWC_DMA_ADDR_INVALID){
-			dma_addr = dma_map_single(gadget_wrapper->gadget.dev.parent,
-				 		  usb_req->buf, usb_req->length,
-						  ep->dwc_ep.is_in 
-						  ? DMA_TO_DEVICE 
-						  : DMA_FROM_DEVICE);
+		/* if (usb_req->length != 0) {*/
+		if (usb_req->dma == DWC_DMA_ADDR_INVALID) {
+			dma_addr =
+			    dma_map_single(gadget_wrapper->gadget.dev.parent,
+					   usb_req->buf, usb_req->length,
+					   ep->dwc_ep.
+					   is_in ? DMA_TO_DEVICE :
+					   DMA_FROM_DEVICE);
 			usb_req->dma = dma_addr;
 		}
 
@@ -459,7 +460,7 @@ static int ep_halt(struct usb_ep *usb_ep, int value)
 	return retval;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
 static int ep_wedge(struct usb_ep *usb_ep)
 {
 	DWC_DEBUGPL(DBG_PCD, "WEDGE %s\n", usb_ep->name);
@@ -500,8 +501,7 @@ static int iso_ep_start(struct usb_ep *usb_ep, struct usb_iso_request *req,
 				     req->buf1, req->dma0, req->dma1,
 				     req->sync_frame, req->data_pattern_frame,
 				     req->data_per_frame,
-				     req->
-				     flags & USB_REQ_ISO_ASAP ? -1 :
+				     req->flags & USB_REQ_ISO_ASAP ? -1 :
 				     req->start_frame, req->buf_proc_intrvl,
 				     req, gfp_flags == GFP_ATOMIC ? 1 : 0);
 
@@ -566,28 +566,28 @@ static void free_iso_request(struct usb_ep *ep, struct usb_iso_request *req)
 
 static struct usb_isoc_ep_ops dwc_otg_pcd_ep_ops = {
 	.ep_ops = {
-		.enable = ep_enable,
-		.disable = ep_disable,
+		   .enable = ep_enable,
+		   .disable = ep_disable,
 
-		.alloc_request = dwc_otg_pcd_alloc_request,
-		.free_request = dwc_otg_pcd_free_request,
+		   .alloc_request = dwc_otg_pcd_alloc_request,
+		   .free_request = dwc_otg_pcd_free_request,
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-		.alloc_buffer = dwc_otg_pcd_alloc_buffer,
-		.free_buffer = dwc_otg_pcd_free_buffer,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
+		   .alloc_buffer = dwc_otg_pcd_alloc_buffer,
+		   .free_buffer = dwc_otg_pcd_free_buffer,
 #endif
 
-		.queue = ep_queue,
-		.dequeue = ep_dequeue,
+		   .queue = ep_queue,
+		   .dequeue = ep_dequeue,
 
-		.set_halt = ep_halt,
-		 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-		.set_wedge = ep_wedge,
+		   .set_halt = ep_halt,
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
+		   .set_wedge = ep_wedge,
 #endif
-		.fifo_status = 0,
-		.fifo_flush = 0,
-	},
+		   .fifo_status = 0,
+		   .fifo_flush = 0,
+		   },
 
 	.iso_ep_start = iso_ep_start,
 	.iso_ep_stop = iso_ep_stop,
@@ -604,7 +604,7 @@ static struct usb_ep_ops dwc_otg_pcd_ep_ops = {
 	.alloc_request = dwc_otg_pcd_alloc_request,
 	.free_request = dwc_otg_pcd_free_request,
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 	.alloc_buffer = dwc_otg_pcd_alloc_buffer,
 	.free_buffer = dwc_otg_pcd_free_buffer,
 #endif
@@ -613,10 +613,10 @@ static struct usb_ep_ops dwc_otg_pcd_ep_ops = {
 	.dequeue = ep_dequeue,
 
 	.set_halt = ep_halt,
-	
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-		.set_wedge = ep_wedge,
-    #endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
+	.set_wedge = ep_wedge,
+#endif
 
 	.fifo_status = 0,
 	.fifo_flush = 0,
@@ -666,7 +666,8 @@ static int test_lpm_enabled(struct usb_gadget *gadget)
 
 	return dwc_otg_pcd_is_lpm_enabled(d->pcd);
 }
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 static int test_besl_enabled(struct usb_gadget *gadget)
 {
 	struct gadget_wrapper *d;
@@ -675,6 +676,7 @@ static int test_besl_enabled(struct usb_gadget *gadget)
 
 	return dwc_otg_pcd_is_besl_enabled(d->pcd);
 }
+
 static int get_param_baseline_besl(struct usb_gadget *gadget)
 {
 	struct gadget_wrapper *d;
@@ -683,6 +685,7 @@ static int get_param_baseline_besl(struct usb_gadget *gadget)
 
 	return dwc_otg_pcd_get_param_baseline_besl(d->pcd);
 }
+
 static int get_param_deep_besl(struct usb_gadget *gadget)
 {
 	struct gadget_wrapper *d;
@@ -714,26 +717,27 @@ static int wakeup(struct usb_gadget *gadget)
 	dwc_otg_pcd_wakeup(d->pcd);
 	return 0;
 }
+
 static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
 {
 	struct gadget_wrapper *d;
 	dwc_otg_pcd_t *pcd;
 	dwc_otg_core_if_t *core_if;
-	
-	printk( "pcd_pullup, is_on %d\n",is_on);
+
+	printk("pcd_pullup, is_on %d\n", is_on);
 	if (_gadget == NULL)
 		return -ENODEV;
-	else{
+	else {
 		d = container_of(_gadget, struct gadget_wrapper, gadget);
 		pcd = d->pcd;
 		core_if = GET_CORE_IF(d->pcd);
 	}
 
-	if(is_on){
-		//dwc_otg_pcd_pullup_enable(pcd);
+	if (is_on) {
+		/* dwc_otg_pcd_pullup_enable(pcd); */
 		pcd->conn_en = 1;
 		pcd->conn_status = 0;
-	}else{
+	} else {
 		dwc_otg_pcd_pullup_disable(pcd);
 		pcd->conn_status = 2;
 	}
@@ -745,12 +749,13 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
 static int dwc_otg_gadget_start(struct usb_gadget *g,
 				struct usb_gadget_driver *driver)
 {
-	DWC_DEBUGPL(DBG_PCD, "registering gadget driver '%s'\n", driver->driver.name);
-	if (gadget_wrapper == 0){
+	DWC_DEBUGPL(DBG_PCD, "registering gadget driver '%s'\n",
+		    driver->driver.name);
+	if (gadget_wrapper == 0) {
 		DWC_ERROR("ENODEV\n");
 		return -ENODEV;
 	}
-	if (gadget_wrapper->driver != 0){
+	if (gadget_wrapper->driver != 0) {
 		DWC_ERROR("EBUSY (%p)\n", gadget_wrapper->driver);
 		return -EBUSY;
 	}
@@ -775,21 +780,19 @@ static const struct usb_gadget_ops dwc_otg_pcd_ops = {
 	.pullup = dwc_otg_pcd_pullup,
 #ifdef CONFIG_USB_DWC_OTG_LPM
 	.lpm_support = test_lpm_enabled,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)	
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 	.besl_support = test_besl_enabled,
 	.get_baseline_besl = get_param_baseline_besl,
 	.get_deep_besl = get_param_deep_besl,
-#endif	
+#endif
 #endif
 	.udc_start = dwc_otg_gadget_start,
 	.udc_stop = dwc_otg_gadget_stop,
 
-	// current versions must always be self-powered
+	/* current versions must always be self-powered */
 };
 
-
-
-static int _setup(dwc_otg_pcd_t * pcd, uint8_t * bytes)
+static int _setup(dwc_otg_pcd_t *pcd, uint8_t *bytes)
 {
 	int retval = -DWC_E_NOT_SUPPORTED;
 	if (gadget_wrapper->driver && gadget_wrapper->driver->setup) {
@@ -808,7 +811,7 @@ static int _setup(dwc_otg_pcd_t * pcd, uint8_t * bytes)
 }
 
 #ifdef DWC_EN_ISOC
-static int _isoc_complete(dwc_otg_pcd_t * pcd, void *ep_handle,
+static int _isoc_complete(dwc_otg_pcd_t *pcd, void *ep_handle,
 			  void *req_handle, int proc_buf_num)
 {
 	int i, packet_count;
@@ -863,7 +866,7 @@ static int _isoc_complete(dwc_otg_pcd_t * pcd, void *ep_handle,
  *						created in the the portable part that contains the
  *						results of the processed iso packets.
  */
-static int _xisoc_complete(dwc_otg_pcd_t * pcd, void *ep_handle,
+static int _xisoc_complete(dwc_otg_pcd_t *pcd, void *ep_handle,
 			   void *req_handle, int32_t status, void *ereq_port)
 {
 	struct dwc_ute_iso_req_ext *ereqorg = NULL;
@@ -871,8 +874,8 @@ static int _xisoc_complete(dwc_otg_pcd_t * pcd, void *ep_handle,
 	struct dwc_ute_iso_packet_descriptor *desc_org = NULL;
 	int i;
 	struct usb_request *req;
-	//struct dwc_ute_iso_packet_descriptor *
-	//int status = 0;
+	/* struct dwc_ute_iso_packet_descriptor * */
+	/* int status = 0; */
 
 	req = (struct usb_request *)req_handle;
 	ereqorg = &req->ext_req;
@@ -913,12 +916,12 @@ static int _xisoc_complete(dwc_otg_pcd_t * pcd, void *ep_handle,
 }
 #endif /* DWC_UTE_PER_IO */
 
-static int _complete(dwc_otg_pcd_t * pcd, void *ep_handle,
+static int _complete(dwc_otg_pcd_t *pcd, void *ep_handle,
 		     void *req_handle, int32_t status, uint32_t actual)
 {
 	struct usb_request *req = (struct usb_request *)req_handle;
-	struct device * dev = NULL;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,27)
+	struct device *dev = NULL;
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 27)
 	struct dwc_otg_pcd_ep *ep = NULL;
 #endif
 
@@ -946,31 +949,30 @@ static int _complete(dwc_otg_pcd_t * pcd, void *ep_handle,
 		req->complete(ep_handle, req);
 		DWC_SPINLOCK(pcd->lock);
 	}
-	
+
 	dev = &gadget_wrapper->pcd->otg_dev->os_dep.pdev->dev;
 	ep = ep_from_handle(pcd, ep_handle);
 
 	if (GET_CORE_IF(pcd)->dma_enable) {
-//		if (req->length != 0)
-		if(req->dma != DWC_DMA_ADDR_INVALID){
+		/* if (req->length != 0) */
+		if (req->dma != DWC_DMA_ADDR_INVALID) {
 			dma_unmap_single(gadget_wrapper->gadget.dev.parent,
 					 req->dma, req->length,
 					 ep->dwc_ep.is_in
-					 ? DMA_TO_DEVICE
-					 : DMA_FROM_DEVICE);
+					 ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 			req->dma = DWC_DMA_ADDR_INVALID;
 		}
 	}
 	return 0;
 }
 
-static int _connect(dwc_otg_pcd_t * pcd, int speed)
+static int _connect(dwc_otg_pcd_t *pcd, int speed)
 {
 	gadget_wrapper->gadget.speed = speed;
 	return 0;
 }
 
-static int _disconnect(dwc_otg_pcd_t * pcd)
+static int _disconnect(dwc_otg_pcd_t *pcd)
 {
 	if (gadget_wrapper->driver && gadget_wrapper->driver->disconnect) {
 		gadget_wrapper->driver->disconnect(&gadget_wrapper->gadget);
@@ -978,7 +980,7 @@ static int _disconnect(dwc_otg_pcd_t * pcd)
 	return 0;
 }
 
-static int _resume(dwc_otg_pcd_t * pcd)
+static int _resume(dwc_otg_pcd_t *pcd)
 {
 	if (gadget_wrapper->driver && gadget_wrapper->driver->resume) {
 		gadget_wrapper->driver->resume(&gadget_wrapper->gadget);
@@ -987,7 +989,7 @@ static int _resume(dwc_otg_pcd_t * pcd)
 	return 0;
 }
 
-static int _suspend(dwc_otg_pcd_t * pcd)
+static int _suspend(dwc_otg_pcd_t *pcd)
 {
 	if (gadget_wrapper->driver && gadget_wrapper->driver->suspend) {
 		gadget_wrapper->driver->suspend(&gadget_wrapper->gadget);
@@ -998,7 +1000,7 @@ static int _suspend(dwc_otg_pcd_t * pcd)
 /**
  * This function updates the otg values in the gadget structure.
  */
-static int _hnp_changed(dwc_otg_pcd_t * pcd)
+static int _hnp_changed(dwc_otg_pcd_t *pcd)
 {
 
 	if (!gadget_wrapper->gadget.is_otg)
@@ -1010,20 +1012,22 @@ static int _hnp_changed(dwc_otg_pcd_t * pcd)
 	return 0;
 }
 
-static int _reset(dwc_otg_pcd_t * pcd)
+static int _reset(dwc_otg_pcd_t *pcd)
 {
 	return 0;
 }
 
 #ifdef DWC_UTE_CFI
-static int _cfi_setup(dwc_otg_pcd_t * pcd, void *cfi_req)
+static int _cfi_setup(dwc_otg_pcd_t *pcd, void *cfi_req)
 {
 	int retval = -DWC_E_INVALID;
 	if (gadget_wrapper->driver->cfi_feature_setup) {
 		retval =
-		    gadget_wrapper->driver->
-		    cfi_feature_setup(&gadget_wrapper->gadget,
-				      (struct cfi_usb_ctrlrequest *)cfi_req);
+		    gadget_wrapper->driver->cfi_feature_setup(&gadget_wrapper->
+							      gadget,
+							      (struct
+							       cfi_usb_ctrlrequest
+							       *)cfi_req);
 	}
 
 	return retval;
@@ -1060,7 +1064,7 @@ static irqreturn_t dwc_otg_pcd_irq(int irq, void *dev)
 
 	retval = dwc_otg_pcd_handle_intr(pcd);
 	if (retval != 0) {
-		//S3C2410X_CLEAR_EINTPEND();
+		/* S3C2410X_CLEAR_EINTPEND();*/
 	}
 	return IRQ_RETVAL(retval);
 }
@@ -1117,7 +1121,7 @@ void gadget_add_eps(struct gadget_wrapper *d)
 	INIT_LIST_HEAD(&d->gadget.ep_list);
 	d->gadget.ep0 = &d->ep0;
 	d->gadget.speed = USB_SPEED_UNKNOWN;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0)
 	d->gadget.max_speed = USB_SPEED_HIGH;
 #endif
 
@@ -1196,10 +1200,7 @@ static void dwc_otg_pcd_gadget_release(struct device *dev)
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, dev);
 }
 
-static struct gadget_wrapper *alloc_wrapper(
-
-	struct platform_device *_dev
-    )
+static struct gadget_wrapper *alloc_wrapper(struct platform_device *_dev)
 {
 	static char pcd_name[] = "dwc_otg_pcd";
 
@@ -1217,7 +1218,7 @@ static struct gadget_wrapper *alloc_wrapper(
 	d->gadget.name = pcd_name;
 	d->pcd = otg_dev->pcd;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 30)
 	strcpy(d->gadget.dev.bus_id, "gadget");
 #else
 	dev_set_name(&d->gadget.dev, "%s", "gadget");
@@ -1226,7 +1227,7 @@ static struct gadget_wrapper *alloc_wrapper(
 	d->gadget.dev.parent = &_dev->dev;
 	d->gadget.dev.release = dwc_otg_pcd_gadget_release;
 	d->gadget.ops = &dwc_otg_pcd_ops;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
 	d->gadget.is_dualspeed = dwc_otg_pcd_is_dualspeed(otg_dev->pcd);
 #endif
 	d->gadget.is_otg = dwc_otg_pcd_is_otg(otg_dev->pcd);
@@ -1258,7 +1259,8 @@ static void free_wrapper(struct gadget_wrapper *d)
 	DWC_FREE(d);
 }
 
-static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd, struct platform_device *dev);
+static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
+				  struct platform_device *dev);
 
 /**
  * This function initialized the PCD portion of the driver.
@@ -1274,7 +1276,7 @@ int pcd_init(struct platform_device *_dev)
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, _dev);
 
 	otg_dev->pcd = dwc_otg_pcd_init(otg_dev->core_if);
-	printk("pcd_init otg_dev = %p\n",otg_dev);
+	printk("pcd_init otg_dev = %p\n", otg_dev);
 
 	if (!otg_dev->pcd) {
 		DWC_ERROR("dwc_otg_pcd_init failed\n");
@@ -1291,10 +1293,10 @@ int pcd_init(struct platform_device *_dev)
 	/*
 	 * Setup interupt handler
 	 */
-	irq = platform_get_irq(_dev,0);
+	irq = platform_get_irq(_dev, 0);
 	DWC_DEBUGPL(DBG_ANY, "registering handler for irq%d\n", irq);
 	retval = request_irq(irq, dwc_otg_pcd_irq,
-			     IRQF_SHARED ,
+			     IRQF_SHARED,
 			     gadget_wrapper->gadget.name, otg_dev->pcd);
 	if (retval != 0) {
 		DWC_ERROR("request of irq%d failed\n", irq);
@@ -1312,10 +1314,7 @@ int pcd_init(struct platform_device *_dev)
 /**
  * Cleanup the PCD.
  */
-void pcd_remove(
-
-	struct platform_device *_dev
-    )
+void pcd_remove(struct platform_device *_dev)
 {
 
 	dwc_otg_device_t *otg_dev = dwc_get_device_platform_data(_dev);
@@ -1327,10 +1326,10 @@ void pcd_remove(
 	/*
 	 * Free the IRQ
 	 */
-	irq = platform_get_irq(_dev,0);
+	irq = platform_get_irq(_dev, 0);
 	free_irq(irq, pcd);
 	free_wrapper(gadget_wrapper);
-	dwc_otg_pcd_remove(otg_dev->pcd);	
+	dwc_otg_pcd_remove(otg_dev->pcd);
 	otg_dev->pcd = 0;
 }
 
@@ -1346,11 +1345,11 @@ void pcd_remove(
  * @param bind The bind function of gadget driver
  */
 #if 0
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37)
 int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 #else
 int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+			    int (*bind) (struct usb_gadget *))
 #endif
 {
 	int retval;
@@ -1358,16 +1357,16 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	DWC_DEBUGPL(DBG_PCD, "registering gadget driver '%s'\n",
 		    driver->driver.name);
 
-	if (!driver || 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
-		driver->speed == USB_SPEED_UNKNOWN ||
+	if (!driver ||
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
+	    driver->speed == USB_SPEED_UNKNOWN ||
 #else
-		driver->max_speed == USB_SPEED_UNKNOWN ||
+	    driver->max_speed == USB_SPEED_UNKNOWN ||
 #endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37)
 	    !driver->bind ||
 #else
-		!bind ||
+	    !bind ||
 #endif
 	    !driver->unbind || !driver->disconnect || !driver->setup) {
 		DWC_DEBUGPL(DBG_PCDV, "EINVAL\n");
@@ -1387,7 +1386,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	gadget_wrapper->gadget.dev.driver = &driver->driver;
 
 	DWC_DEBUGPL(DBG_PCD, "bind to driver %s\n", driver->driver.name);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37)
 	retval = driver->bind(&gadget_wrapper->gadget);
 #else
 	retval = bind(&gadget_wrapper->gadget);
@@ -1403,7 +1402,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		    driver->driver.name);
 	return 0;
 }
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37)
 EXPORT_SYMBOL(usb_gadget_register_driver);
 #else
 EXPORT_SYMBOL(usb_gadget_probe_driver);
@@ -1416,7 +1416,7 @@ EXPORT_SYMBOL(usb_gadget_probe_driver);
  */
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
-	//DWC_DEBUGPL(DBG_PCDV,"%s(%p)\n", __func__, _driver);
+	/* DWC_DEBUGPL(DBG_PCDV,"%s(%p)\n", __func__, _driver); */
 
 	if (gadget_wrapper == 0) {
 		DWC_DEBUGPL(DBG_ANY, "%s Return(%d): s_pcd==0\n", __func__,
@@ -1460,24 +1460,24 @@ void dwc_otg_msc_unlock(dwc_otg_pcd_t *pcd)
 
 unsigned int dwc_otg_battery_detect(bool det_type)
 {
-    printk("%s\n",__func__);
-    return 0;
+	printk("%s\n", __func__);
+	return 0;
 }
 
 static void dwc_phy_reconnect(struct work_struct *work)
 {
 	dwc_otg_pcd_t *pcd;
 	dwc_otg_core_if_t *core_if;
-	gotgctl_data_t    gctrl;
-	dctl_data_t dctl = {.d32=0};
+	gotgctl_data_t gctrl;
+	dctl_data_t dctl = {.d32 = 0 };
 	struct dwc_otg_platform_data *pldata;
 
 	pcd = container_of(work, dwc_otg_pcd_t, reconnect.work);
 	pldata = pcd->otg_dev->pldata;
 	core_if = GET_CORE_IF(pcd);
-	gctrl.d32 = DWC_READ_REG32( &core_if->core_global_regs->gotgctl );
+	gctrl.d32 = DWC_READ_REG32(&core_if->core_global_regs->gotgctl);
 
-	if(gctrl.b.bsesvld){
+	if (gctrl.b.bsesvld) {
 		pcd->conn_status++;
 		pldata->soft_reset();
 		dwc_pcd_reset(pcd);
@@ -1485,183 +1485,192 @@ static void dwc_phy_reconnect(struct work_struct *work)
 		 * Enable the global interrupt after all the interrupt
 		 * handlers are installed.
 		 */
-		dctl.d32 = DWC_READ_REG32( &core_if->dev_if->dev_global_regs->dctl );
+		dctl.d32 =
+		    DWC_READ_REG32(&core_if->dev_if->dev_global_regs->dctl);
 		dctl.b.sftdiscon = 0;
-		DWC_WRITE_REG32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-		printk("*******************soft connect!!!*******************\n");
+		DWC_WRITE_REG32(&core_if->dev_if->dev_global_regs->dctl,
+				dctl.d32);
+		printk
+		    ("*******************soft connect!!!*******************\n");
 	}
 }
 
-static void dwc_otg_pcd_check_vbus_work( struct work_struct *work )
+static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 {
-	dwc_otg_pcd_t * _pcd = container_of(work, dwc_otg_pcd_t, check_vbus_work.work);
-	struct dwc_otg_device* otg_dev = _pcd->otg_dev;
+	dwc_otg_pcd_t *_pcd =
+	    container_of(work, dwc_otg_pcd_t, check_vbus_work.work);
+	struct dwc_otg_device *otg_dev = _pcd->otg_dev;
 	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 	unsigned long flags;
 
 	local_irq_save(flags);
 
-	if(!pldata->get_status(USB_STATUS_ID)){
-		// id low, host mode
-		if( pldata->dwc_otg_uart_mode != NULL ){
-			//exit phy bypass to uart & enable usb phy
-			pldata->dwc_otg_uart_mode( pldata, PHY_USB_MODE);
+	if (!pldata->get_status(USB_STATUS_ID)) {
+		/* id low, host mode */
+		if (pldata->dwc_otg_uart_mode != NULL) {
+			/* exit phy bypass to uart & enable usb phy */
+			pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
 		}
-		if( pldata->phy_status){
-			pldata->clock_enable( pldata, 1);
+		if (pldata->phy_status) {
+			pldata->clock_enable(pldata, 1);
 			pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 		}
-		if( pldata->bc_detect_cb != NULL )
-            pldata->bc_detect_cb( _pcd->vbus_status = USB_BC_TYPE_DISCNT );
-        else
-            _pcd->vbus_status = USB_BC_TYPE_DISCNT;
-	    dwc_otg_enable_global_interrupts(otg_dev->core_if);
+		if (pldata->bc_detect_cb != NULL)
+			pldata->bc_detect_cb(_pcd->vbus_status =
+					     USB_BC_TYPE_DISCNT);
+		else
+			_pcd->vbus_status = USB_BC_TYPE_DISCNT;
+		dwc_otg_enable_global_interrupts(otg_dev->core_if);
 
-	}else if(pldata->get_status(USB_STATUS_BVABLID)){
+	} else if (pldata->get_status(USB_STATUS_BVABLID)) {
 		/* if usb not connect before ,then start connect */
-		if( _pcd->vbus_status == USB_BC_TYPE_DISCNT ) {
-			printk("*******************vbus detect*********************\n");
-//            if( pldata->bc_detect_cb != NULL )
-//                pldata->bc_detect_cb( _pcd->vbus_status = usb_battery_charger_detect(1) );
-//            else
-                _pcd->vbus_status = USB_BC_TYPE_SDP;
-			if(_pcd->conn_en){
+		if (_pcd->vbus_status == USB_BC_TYPE_DISCNT) {
+			printk("*****************vbus detect*******************\n");
+			/* if( pldata->bc_detect_cb != NULL ) */
+			/* 	pldata->bc_detect_cb(_pcd->vbus_status */
+			/*			     = usb_battery_charger_detect(1)); */
+			/* else */
+			_pcd->vbus_status = USB_BC_TYPE_SDP;
+			if (_pcd->conn_en) {
 				goto connect;
-			}
-			else if( pldata->phy_status == USB_PHY_ENABLED ){
-				// do not allow to connect, suspend phy
+			} else if (pldata->phy_status == USB_PHY_ENABLED) {
+				/* do not allow to connect, suspend phy */
 				pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 				udelay(3);
-				pldata->clock_enable( pldata, 0);
+				pldata->clock_enable(pldata, 0);
 			}
-		}else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <2)){
-			printk("******************soft reconnect********************\n");
+		} else if ((_pcd->conn_en) && (_pcd->conn_status >= 0)
+			   && (_pcd->conn_status < 2)) {
+			printk("****************soft reconnect******************\n");
 			goto connect;
-		}else if(_pcd->conn_status == 2){
+		} else if (_pcd->conn_status == 2) {
 			/* release pcd->wake_lock if fail to connect,
 			 * allow system to enter second sleep.
 			 */
 			dwc_otg_msc_unlock(_pcd);
 			_pcd->conn_status++;
-            if( pldata->bc_detect_cb != NULL ){
-                rk_usb_charger_status = USB_BC_TYPE_DCP;
-                pldata->bc_detect_cb( _pcd->vbus_status = USB_BC_TYPE_DCP ); 
-            }else{
-                _pcd->vbus_status = USB_BC_TYPE_DCP;
-                rk_usb_charger_status = USB_BC_TYPE_DCP;
+			if (pldata->bc_detect_cb != NULL) {
+				rk_usb_charger_status = USB_BC_TYPE_DCP;
+				pldata->bc_detect_cb(_pcd->vbus_status =
+						     USB_BC_TYPE_DCP);
+			} else {
+				_pcd->vbus_status = USB_BC_TYPE_DCP;
+				rk_usb_charger_status = USB_BC_TYPE_DCP;
 			}
 			/* fail to connect, suspend usb phy and disable clk */
-			if( pldata->phy_status == USB_PHY_ENABLED ){
+			if (pldata->phy_status == USB_PHY_ENABLED) {
 				pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 				udelay(3);
-				pldata->clock_enable( pldata, 0);
+				pldata->clock_enable(pldata, 0);
 			}
 		}
-	}else {
-        if( pldata->bc_detect_cb != NULL )
-            pldata->bc_detect_cb( _pcd->vbus_status = USB_BC_TYPE_DISCNT );
-        else
-		    _pcd->vbus_status = USB_BC_TYPE_DISCNT;
+	} else {
+		if (pldata->bc_detect_cb != NULL)
+			pldata->bc_detect_cb(_pcd->vbus_status =
+					     USB_BC_TYPE_DISCNT);
+		else
+			_pcd->vbus_status = USB_BC_TYPE_DISCNT;
 
-		if(_pcd->conn_status){
+		if (_pcd->conn_status) {
 			_pcd->conn_status = 0;
 		}
 
-		if( pldata->phy_status == USB_PHY_ENABLED ){
+		if (pldata->phy_status == USB_PHY_ENABLED) {
 			/* release wake lock */
 			dwc_otg_msc_unlock(_pcd);
 			/* no vbus detect here , close usb phy  */
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 			udelay(3);
-			pldata->clock_enable( pldata, 0);
+			pldata->clock_enable(pldata, 0);
 		}
 
 		/* usb phy bypass to uart mode  */
-		if( pldata->dwc_otg_uart_mode != NULL )
-			pldata->dwc_otg_uart_mode( pldata, PHY_UART_MODE);
+		if (pldata->dwc_otg_uart_mode != NULL)
+			pldata->dwc_otg_uart_mode(pldata, PHY_UART_MODE);
 	}
 
 	schedule_delayed_work(&_pcd->check_vbus_work, HZ);
 	local_irq_restore(flags);
 
 	return;
-    
+
 connect:
-	if( pldata->phy_status)
-	{
+	if (pldata->phy_status) {
 		pldata->clock_enable(pldata, 1);
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	}
 
-	if(_pcd->conn_status==0)
+	if (_pcd->conn_status == 0)
 		dwc_otg_msc_lock(_pcd);
 
-	schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 8 jiffies */
-	schedule_delayed_work(&_pcd->check_vbus_work, (HZ<<2));
+	schedule_delayed_work(&_pcd->reconnect, 8);	/* delay 8 jiffies */
+	schedule_delayed_work(&_pcd->check_vbus_work, (HZ << 2));
 	local_irq_restore(flags);
 
 	return;
 }
 
-void dwc_otg_pcd_start_check_vbus_work(dwc_otg_pcd_t * pcd)
+void dwc_otg_pcd_start_check_vbus_work(dwc_otg_pcd_t *pcd)
 {
-        /* 
-         * when receive reset int,the vbus state may not be update,so 
-         * always start vbus work here.
-         */
-	schedule_delayed_work(&pcd->check_vbus_work, (HZ*2));
+	/*
+	 * when receive reset int,the vbus state may not be update,so
+	 * always start vbus work here.
+	 */
+	schedule_delayed_work(&pcd->check_vbus_work, (HZ * 2));
 }
 
 /*
 * 20091228,HSL@RK,to get the current vbus status.
 */
-int dwc_vbus_status( void )
+int dwc_vbus_status(void)
 {
 #ifdef CONFIG_USB20_OTG
 	dwc_otg_pcd_t *pcd = 0;
-	if(gadget_wrapper){
+	if (gadget_wrapper) {
 		pcd = gadget_wrapper->pcd;
 	}
 
-	if(!pcd)
+	if (!pcd)
 		return 0;
 	else
-		return pcd->vbus_status ;
+		return pcd->vbus_status;
 #else
 	return 0;
 #endif
 }
+
 EXPORT_SYMBOL(dwc_vbus_status);
 
-static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd, struct platform_device *dev)
+static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
+				  struct platform_device *dev)
 {
 
-	struct dwc_otg_device* otg_dev = pcd->otg_dev;
+	struct dwc_otg_device *otg_dev = pcd->otg_dev;
 	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
-	pcd->vbus_status  = USB_BC_TYPE_DISCNT;
-	pcd->phy_suspend  = USB_PHY_ENABLED;
+	pcd->vbus_status = USB_BC_TYPE_DISCNT;
+	pcd->phy_suspend = USB_PHY_ENABLED;
 
-	INIT_DELAYED_WORK(&pcd->reconnect , dwc_phy_reconnect);
-	INIT_DELAYED_WORK(&pcd->check_vbus_work , dwc_otg_pcd_check_vbus_work);
+	INIT_DELAYED_WORK(&pcd->reconnect, dwc_phy_reconnect);
+	INIT_DELAYED_WORK(&pcd->check_vbus_work, dwc_otg_pcd_check_vbus_work);
 
 	wake_lock_init(&pcd->wake_lock, WAKE_LOCK_SUSPEND, "usb_pcd");
-    
-	if(dwc_otg_is_device_mode(pcd->core_if) &&
-	  (otg_dev->core_if->usb_mode != USB_MODE_FORCE_HOST)){
-#ifdef CONFIG_RK_USB_UART        
-		if(pldata->get_status(USB_STATUS_BVABLID)){
-			//enter usb phy mode
+
+	if (dwc_otg_is_device_mode(pcd->core_if) &&
+	    (otg_dev->core_if->usb_mode != USB_MODE_FORCE_HOST)) {
+#ifdef CONFIG_RK_USB_UART
+		if (pldata->get_status(USB_STATUS_BVABLID)) {
+			/* enter usb phy mode */
 			pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
-		}else{
-			//usb phy bypass to uart mode
+		} else {
+			/* usb phy bypass to uart mode */
 			pldata->dwc_otg_uart_mode(pldata, PHY_UART_MODE);
 		}
 #endif
-		schedule_delayed_work(&pcd->check_vbus_work, (HZ<<4));
+		schedule_delayed_work(&pcd->check_vbus_work, (HZ << 4));
 	}
 #ifdef CONFIG_RK_USB_UART
-	else if(pldata->dwc_otg_uart_mode != NULL)
-		//host mode,enter usb phy mode
+	else if (pldata->dwc_otg_uart_mode != NULL)
+		/* host mode,enter usb phy mode */
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
 #endif
 
