@@ -235,7 +235,7 @@ enum {
 	FIMD_PORT_WRB,
 };
 
-struct device_node *exynos_dpi_of_find_panel_node(struct device *dev)
+static struct device_node *exynos_dpi_of_find_panel_node(struct device *dev)
 {
 	struct device_node *np, *ep;
 
