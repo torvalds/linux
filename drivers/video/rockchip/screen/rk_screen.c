@@ -27,8 +27,11 @@ int rk_fb_set_prmry_screen(struct rk_screen *screen)
 size_t get_fb_size(void)
 {
 	size_t size = 0;
-	int xres = (rk_screen->mode.xres + 31) & (~31);
+	int xres = rk_screen->mode.xres;
 	int yres = rk_screen->mode.yres;
+
+	/*align as 64 bytes(16*4) in an odd number of times*/
+	xres = ALIGN_64BYTE_ODD_TIMES(xres, ALIGN_PIXEL_64BYTE_RGB8888);
 
 	#if defined(CONFIG_THREE_FB_BUFFER)
 		size = (xres * yres << 2) * 3; //three buffer

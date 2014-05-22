@@ -70,6 +70,7 @@
 #define RK_FBIOGET_DSP_ADDR     			0x4630
 #define RK_FBIOGET_LIST_STA  				0X4631
 #define RK_FBIOGET_IOMMU_STA				0x4632
+#define RK_FBIOSET_CLEAR_FB				0x4633
 
 
 /**rk fb events**/
@@ -84,6 +85,17 @@
 #define X_MIRROR    	1
 #define Y_MIRROR    	2
 #define X_Y_MIRROR    	3
+
+
+/**
+* pixel align value for gpu,align as 64 bytes in an odd number of times
+*/
+#define ALIGN_PIXEL_64BYTE_RGB565		32	/* 64/2*/
+#define ALIGN_PIXEL_64BYTE_RGB8888		16	/* 64/4*/
+#define ALIGN_N_TIMES(x, align)			(((x) % (align) == 0) ? (x) : (((x) + ((align) - 1)) & (~((align) - 1))))
+#define ALIGN_ODD_TIMES(x, align)		(((x) % ((align) * 2) == 0) ? ((x) + (align)) : (x))
+#define ALIGN_64BYTE_ODD_TIMES(x, align)	ALIGN_ODD_TIMES(ALIGN_N_TIMES(x, align), align)
+
 
 //#define USE_ION_MMU 1
 #if defined(CONFIG_ION_ROCKCHIP)

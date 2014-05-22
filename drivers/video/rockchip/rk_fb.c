@@ -635,14 +635,17 @@ static int rk_fb_close(struct fb_info *info, int user)
 		info->var.xres = dev_drv->screen0->mode.xres;
 		info->var.yres = dev_drv->screen0->mode.yres;
 		info->var.grayscale |= (info->var.xres<<8) + (info->var.yres<<20);
-#if defined(CONFIG_LOGO_LINUX_BMP)
-		info->var.bits_per_pixel = 32;
-#else
-		info->var.bits_per_pixel = 16;
-#endif
-		info->fix.line_length  = (info->var.xres)*(info->var.bits_per_pixel>>3);
 		info->var.xres_virtual = info->var.xres;
 		info->var.yres_virtual = info->var.yres;
+#if defined(CONFIG_LOGO_LINUX_BMP)
+		info->var.bits_per_pixel = 32;
+		info->var.xres_virtual = ALIGN_64BYTE_ODD_TIMES(info->var.xres, ALIGN_PIXEL_64BYTE_RGB8888);
+#else
+		info->var.bits_per_pixel = 16;
+		info->var.xres_virtual = ALIGN_64BYTE_ODD_TIMES(info->var.xres, ALIGN_PIXEL_64BYTE_RGB565);
+#endif
+
+		info->fix.line_length  = (info->var.xres_virtual) * (info->var.bits_per_pixel>>3);
 		info->var.width =  dev_drv->screen0->width;
 		info->var.height = dev_drv->screen0->height;
 		info->var.pixclock = dev_drv->pixclock;
@@ -1047,20 +1050,20 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 		extend_win = extend_dev_drv->win[extend_win_id];
 	}
 	pixel_width = rk_fb_pixel_width(win->format);
-	vir_width_bit = pixel_width * xvir;
-	if((win->format == YUV420_A)||(win->format == YUV422_A)||(win->format == YUV444_A)){
-		vir_width_bit = xvir * 8;
-		stride_32bit_1 = xvir;
-		stride_32bit_2 = xvir*2;
-	}else{
-		vir_width_bit = pixel_width * xvir;
-		stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
-		stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
+	/*align as 64 bytes(16*4) in an odd number of times*/
+	if ((win->format == ARGB888) || (win->format == ABGR888)
+					|| (win->format == XBGR888)) {
+		var->xres_virtual = ALIGN_64BYTE_ODD_TIMES(var->xres, ALIGN_PIXEL_64BYTE_RGB8888);
+		xvir = var->xres_virtual;
+	} else if(win->format == RGB565) {
+		var->xres_virtual = ALIGN_64BYTE_ODD_TIMES(var->xres, ALIGN_PIXEL_64BYTE_RGB565);
+		xvir = var->xres_virtual;
+	} else {
+		xvir = var->xres_virtual;
 	}
-
-
-	stride	  = stride_32bit_1;//default rgb
-	fix->line_length = stride;
+	vir_width_bit = pixel_width * xvir;
+	stride_32bit_1	= ALIGN_N_TIMES(vir_width_bit, 32) / 8; 	/* pixel_width = byte_num * 8 */
+	stride_32bit_2	= ALIGN_N_TIMES(vir_width_bit * 2, 32) / 8;	/* pixel_width = byte_num * 8 */
 
 	switch (win->format){
 	case YUV422:
@@ -1094,6 +1097,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 		uv_y_act = win->area[0].yact;
 		break;
 	default:
+		stride	  = stride_32bit_1;//default rgb
+		fix->line_length = stride;
 		break;
 	}
 
@@ -2081,6 +2086,9 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 		break;
 	}
 #endif
+	case RK_FBIOSET_CLEAR_FB:
+		memset(info->screen_base, 0 , get_fb_size());
+		break;
 	case RK_FBIOSET_CONFIG_DONE:
 		{
             int curr = 0;
@@ -2386,17 +2394,21 @@ if (rk_fb->disp_mode != DUAL) {
 
 	fb_data_fmt = rk_fb_data_fmt(data_format,var->bits_per_pixel);
 	pixel_width = rk_fb_pixel_width(fb_data_fmt);
-	if((fb_data_fmt == YUV420_A)||(fb_data_fmt == YUV422_A)||(fb_data_fmt == YUV444_A)){
-		vir_width_bit = xvir * 8;
-		stride_32bit_1 = xvir;
-		stride_32bit_2 = xvir*2;
-	}else{
-		vir_width_bit = pixel_width * xvir;
-		stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
-		stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
+	/*align as 64 bytes(16*4) in an odd number of times*/
+	if ((fb_data_fmt == ARGB888) || (fb_data_fmt == ABGR888)
+					|| (fb_data_fmt == XBGR888)) {
+		var->xres_virtual = ALIGN_64BYTE_ODD_TIMES(var->xres, ALIGN_PIXEL_64BYTE_RGB8888);
+		xvir = var->xres_virtual;
+	} else if(fb_data_fmt == RGB565) {
+		var->xres_virtual = ALIGN_64BYTE_ODD_TIMES(var->xres, ALIGN_PIXEL_64BYTE_RGB565);
+		xvir = var->xres_virtual;
+	} else {
+		xvir = var->xres_virtual;
 	}
-	stride	  = stride_32bit_1;//default rgb
-	fix->line_length = stride;
+	vir_width_bit = pixel_width * xvir;
+	stride_32bit_1	= ALIGN_N_TIMES(vir_width_bit, 32) / 8;		/* pixel_width = byte_num * 8 */
+	stride_32bit_2	= ALIGN_N_TIMES(vir_width_bit * 2, 32) / 8;	/* pixel_width = byte_num * 8 */
+
 	switch (fb_data_fmt){
 	case YUV422:
 	case YUV422_A:	
@@ -2432,6 +2444,8 @@ if (rk_fb->disp_mode != DUAL) {
 		uv_y_act = win->area[0].yact;
 		break;
 	default:
+		stride	  = stride_32bit_1;//default rgb
+		fix->line_length = stride;
 		break;
 	}
 
@@ -3255,10 +3269,12 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fbi->var.grayscale |= (fbi->var.xres<<8) + (fbi->var.yres<<20);
 #if defined(CONFIG_LOGO_LINUX_BMP)
 		fbi->var.bits_per_pixel = 32;
+		fbi->var.xres_virtual = ALIGN_64BYTE_ODD_TIMES(fbi->var.xres, ALIGN_PIXEL_64BYTE_RGB8888);
 #else
 		fbi->var.bits_per_pixel = 16;
+		fbi->var.xres_virtual = ALIGN_64BYTE_ODD_TIMES(fbi->var.xres, ALIGN_PIXEL_64BYTE_RGB565);
 #endif
-		fbi->fix.line_length  = (fbi->var.xres)*(fbi->var.bits_per_pixel>>3);
+		fbi->fix.line_length  = (fbi->var.xres_virtual) * (fbi->var.bits_per_pixel>>3);
 		fbi->var.width = dev_drv->cur_screen->width;
 		fbi->var.height = dev_drv->cur_screen->height;
 		fbi->var.pixclock = dev_drv->pixclock;
