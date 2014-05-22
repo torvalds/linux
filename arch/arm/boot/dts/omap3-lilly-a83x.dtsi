@@ -176,9 +176,6 @@
 
 &omap3_pmx_core2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-			&hsusb1_2_pins
-	>;
 
 	hsusb1_2_pins: pinmux_hsusb1_2_pins {
 		pinctrl-single,pins = <
