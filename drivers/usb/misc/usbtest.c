@@ -1345,6 +1345,9 @@ static int unlink1(struct usbtest_dev *dev, int pipe, int size, int async)
 		while (!completion_done(&completion)) {
 			retval = usb_unlink_urb(urb);
 
+			if (retval == 0 && usb_pipein(urb->pipe))
+				retval = simple_check_buf(dev, urb);
+
 			switch (retval) {
 			case -EBUSY:
 			case -EIDRM:
