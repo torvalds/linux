@@ -648,7 +648,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 		if (ntohs(eth_hdr->h_proto) == ETH_P_TDLS)
 			dev_dbg(adapter->dev,
 				"TDLS setup packet for %pM. Don't block\n", ra);
-		else
+		else if (memcmp(priv->cfg_bssid, ra, ETH_ALEN))
 			tdls_status = mwifiex_get_tdls_link_status(priv, ra);
 	}
 
