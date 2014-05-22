@@ -81,7 +81,7 @@ static inline u32 rk_timer_read_current_value(void __iomem *base)
 	return readl_relaxed(base + TIMER_CURRENT_VALUE0);
 }
 
-static inline u32 rk_timer_read_current_value64(void __iomem *base)
+static inline u64 rk_timer_read_current_value64(void __iomem *base)
 {
 	u32 upper, lower;
 
