@@ -33,6 +33,7 @@ config PHY_MVEBU_SATA
 
 config OMAP_CONTROL_PHY
 	tristate "OMAP CONTROL PHY Driver"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  Enable this to add support for the PHY part present in the control
 	  module. This driver has API to power on the USB2 PHY and to write to

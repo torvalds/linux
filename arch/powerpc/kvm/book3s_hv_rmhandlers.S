@@ -242,6 +242,12 @@ kvm_novcpu_exit:
  */
 	.globl	kvm_start_guest
 kvm_start_guest:
+
+	/* Set runlatch bit the minute you wake up from nap */
+	mfspr	r1, SPRN_CTRLF
+	ori 	r1, r1, 1
+	mtspr	SPRN_CTRLT, r1
+
 	ld	r2,PACATOC(r13)
 
 	li	r0,KVM_HWTHREAD_IN_KVM
@@ -309,6 +315,11 @@ kvm_no_guest:
 	li	r0, KVM_HWTHREAD_IN_NAP
 	stb	r0, HSTATE_HWTHREAD_STATE(r13)
 kvm_do_nap:
+	/* Clear the runlatch bit before napping */
+	mfspr	r2, SPRN_CTRLF
+	clrrdi	r2, r2, 1
+	mtspr	SPRN_CTRLT, r2
+
 	li	r3, LPCR_PECE0
 	mfspr	r4, SPRN_LPCR
 	rlwimi	r4, r3, 0, LPCR_PECE0 | LPCR_PECE1
@@ -1999,8 +2010,13 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 
 	/*
 	 * Take a nap until a decrementer or external or doobell interrupt
-	 * occurs, with PECE1, PECE0 and PECEDP set in LPCR
+	 * occurs, with PECE1, PECE0 and PECEDP set in LPCR. Also clear the
+	 * runlatch bit before napping.
 	 */
+	mfspr	r2, SPRN_CTRLF
+	clrrdi	r2, r2, 1
+	mtspr	SPRN_CTRLT, r2
+
 	li	r0,1
 	stb	r0,HSTATE_HWTHREAD_REQ(r13)
 	mfspr	r5,SPRN_LPCR

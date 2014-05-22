@@ -395,7 +395,8 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 	if (dev->entries_nr == 0)
 		return r;
 
-	r = pci_enable_msix(dev->dev, dev->host_msix_entries, dev->entries_nr);
+	r = pci_enable_msix_exact(dev->dev,
+				  dev->host_msix_entries, dev->entries_nr);
 	if (r)
 		return r;
 

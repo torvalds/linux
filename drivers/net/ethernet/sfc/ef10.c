@@ -738,8 +738,11 @@ static int efx_ef10_reset(struct efx_nic *efx, enum reset_type reset_type)
 	/* If it was a port reset, trigger reallocation of MC resources.
 	 * Note that on an MC reset nothing needs to be done now because we'll
 	 * detect the MC reset later and handle it then.
+	 * For an FLR, we never get an MC reset event, but the MC has reset all
+	 * resources assigned to us, so we have to trigger reallocation now.
 	 */
-	if (reset_type == RESET_TYPE_ALL && !rc)
+	if ((reset_type == RESET_TYPE_ALL ||
+	     reset_type == RESET_TYPE_MCDI_TIMEOUT) && !rc)
 		efx_ef10_reset_mc_allocations(efx);
 	return rc;
 }
@@ -2139,6 +2142,11 @@ static int efx_ef10_fini_dmaq(struct efx_nic *efx)
 	}
 
 	return 0;
+}
+
+static void efx_ef10_prepare_flr(struct efx_nic *efx)
+{
+	atomic_set(&efx->active_queues, 0);
 }
 
 static bool efx_ef10_filter_equal(const struct efx_filter_spec *left,
@@ -3603,6 +3611,8 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
 	.fini_dmaq = efx_ef10_fini_dmaq,
+	.prepare_flr = efx_ef10_prepare_flr,
+	.finish_flr = efx_port_dummy_op_void,
 	.describe_stats = efx_ef10_describe_stats,
 	.update_stats = efx_ef10_update_stats,
 	.start_stats = efx_mcdi_mac_start_stats,

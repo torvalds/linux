@@ -146,6 +146,7 @@ enum {
 
 enum {
 	MLX5_QP_LAT_SENSITIVE	= 1 << 28,
+	MLX5_QP_BLOCK_MCAST	= 1 << 30,
 	MLX5_QP_ENABLE_SIG	= 1 << 31,
 };
 

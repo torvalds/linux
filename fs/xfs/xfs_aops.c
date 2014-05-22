@@ -1344,6 +1344,14 @@ __xfs_get_blocks(
 	/*
 	 * If this is O_DIRECT or the mpage code calling tell them how large
 	 * the mapping is, so that we can avoid repeated get_blocks calls.
+	 *
+	 * If the mapping spans EOF, then we have to break the mapping up as the
+	 * mapping for blocks beyond EOF must be marked new so that sub block
+	 * regions can be correctly zeroed. We can't do this for mappings within
+	 * EOF unless the mapping was just allocated or is unwritten, otherwise
+	 * the callers would overwrite existing data with zeros. Hence we have
+	 * to split the mapping into a range up to and including EOF, and a
+	 * second mapping for beyond EOF.
 	 */
 	if (direct || size > (1 << inode->i_blkbits)) {
 		xfs_off_t		mapping_size;
@@ -1354,6 +1362,12 @@ __xfs_get_blocks(
 		ASSERT(mapping_size > 0);
 		if (mapping_size > size)
 			mapping_size = size;
+		if (offset < i_size_read(inode) &&
+		    offset + mapping_size >= i_size_read(inode)) {
+			/* limit mapping to block that spans EOF */
+			mapping_size = roundup_64(i_size_read(inode) - offset,
+						  1 << inode->i_blkbits);
+		}
 		if (mapping_size > LONG_MAX)
 			mapping_size = LONG_MAX;
 
@@ -1566,6 +1580,16 @@ xfs_vm_write_failed(
 
 		xfs_vm_kill_delalloc_range(inode, block_offset,
 					   block_offset + bh->b_size);
+
+		/*
+		 * This buffer does not contain data anymore. make sure anyone
+		 * who finds it knows that for certain.
+		 */
+		clear_buffer_delay(bh);
+		clear_buffer_uptodate(bh);
+		clear_buffer_mapped(bh);
+		clear_buffer_new(bh);
+		clear_buffer_dirty(bh);
 	}
 
 }
@@ -1599,12 +1623,21 @@ xfs_vm_write_begin(
 	status = __block_write_begin(page, pos, len, xfs_get_blocks);
 	if (unlikely(status)) {
 		struct inode	*inode = mapping->host;
+		size_t		isize = i_size_read(inode);
 
 		xfs_vm_write_failed(inode, page, pos, len);
 		unlock_page(page);
 
-		if (pos + len > i_size_read(inode))
-			truncate_pagecache(inode, i_size_read(inode));
+		/*
+		 * If the write is beyond EOF, we only want to kill blocks
+		 * allocated in this write, not blocks that were previously
+		 * written successfully.
+		 */
+		if (pos + len > isize) {
+			ssize_t start = max_t(ssize_t, pos, isize);
+
+			truncate_pagecache_range(inode, start, pos + len);
+		}
 
 		page_cache_release(page);
 		page = NULL;
@@ -1615,9 +1648,12 @@ xfs_vm_write_begin(
 }
 
 /*
- * On failure, we only need to kill delalloc blocks beyond EOF because they
- * will never be written. For blocks within EOF, generic_write_end() zeros them
- * so they are safe to leave alone and be written with all the other valid data.
+ * On failure, we only need to kill delalloc blocks beyond EOF in the range of
+ * this specific write because they will never be written. Previous writes
+ * beyond EOF where block allocation succeeded do not need to be trashed, so
+ * only new blocks from this write should be trashed. For blocks within
+ * EOF, generic_write_end() zeros them so they are safe to leave alone and be
+ * written with all the other valid data.
  */
 STATIC int
 xfs_vm_write_end(
@@ -1640,8 +1676,11 @@ xfs_vm_write_end(
 		loff_t		to = pos + len;
 
 		if (to > isize) {
-			truncate_pagecache(inode, isize);
+			/* only kill blocks in this write beyond EOF */
+			if (pos > isize)
+				isize = pos;
 			xfs_vm_kill_delalloc_range(inode, isize, to);
+			truncate_pagecache_range(inode, isize, to);
 		}
 	}
 	return ret;

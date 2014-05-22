@@ -691,7 +691,7 @@
 			      <0x46000000 0x400000>;
 			reg-names = "mpu", "dat";
 			interrupts = <80>, <81>;
-			interrupts-names = "tx", "rx";
+			interrupt-names = "tx", "rx";
 			status = "disabled";
 			dmas = <&edma 8>,
 			       <&edma 9>;
@@ -705,7 +705,7 @@
 			      <0x46400000 0x400000>;
 			reg-names = "mpu", "dat";
 			interrupts = <82>, <83>;
-			interrupts-names = "tx", "rx";
+			interrupt-names = "tx", "rx";
 			status = "disabled";
 			dmas = <&edma 10>,
 			       <&edma 11>;

@@ -141,6 +141,7 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 		default:
 			pr_err("Invalid chameleon descriptor type 0x%x\n",
 				dtype);
+			kfree(header);
 			return -EINVAL;
 		}
 		num_cells++;

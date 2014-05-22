@@ -1566,8 +1566,8 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 		}
 		if (m->pg_init_required)
 			__pg_init_all_paths(m);
-		spin_unlock_irqrestore(&m->lock, flags);
 		dm_table_run_md_queue_async(m->ti->table);
+		spin_unlock_irqrestore(&m->lock, flags);
 	}
 
 	return r ? : __blkdev_driver_ioctl(bdev, mode, cmd, arg);

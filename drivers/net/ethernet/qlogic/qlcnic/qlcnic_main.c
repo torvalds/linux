@@ -670,7 +670,7 @@ int qlcnic_setup_tss_rss_intr(struct qlcnic_adapter *adapter)
 	else
 		num_msix += adapter->drv_tx_rings;
 
-	if (adapter->drv_rss_rings  > 0)
+	if (adapter->drv_rss_rings > 0)
 		num_msix += adapter->drv_rss_rings;
 	else
 		num_msix += adapter->drv_sds_rings;
@@ -686,19 +686,15 @@ int qlcnic_setup_tss_rss_intr(struct qlcnic_adapter *adapter)
 			return -ENOMEM;
 	}
 
-restore:
 	for (vector = 0; vector < num_msix; vector++)
 		adapter->msix_entries[vector].entry = vector;
 
+restore:
 	err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
-	if (err == 0) {
-		adapter->ahw->num_msix = num_msix;
-		if (adapter->drv_tss_rings > 0)
-			adapter->drv_tx_rings = adapter->drv_tss_rings;
+	if (err > 0) {
+		if (!adapter->drv_tss_rings && !adapter->drv_rss_rings)
+			return -ENOSPC;
 
-		if (adapter->drv_rss_rings > 0)
-			adapter->drv_sds_rings = adapter->drv_rss_rings;
-	} else {
 		netdev_info(adapter->netdev,
 			    "Unable to allocate %d MSI-X vectors, Available vectors %d\n",
 			    num_msix, err);
@@ -716,12 +712,20 @@ restore:
 			    "Restoring %d Tx, %d SDS rings for total %d vectors.\n",
 			    adapter->drv_tx_rings, adapter->drv_sds_rings,
 			    num_msix);
-		goto restore;
 
-		err = -EIO;
+		goto restore;
+	} else if (err < 0) {
+		return err;
 	}
 
-	return err;
+	adapter->ahw->num_msix = num_msix;
+	if (adapter->drv_tss_rings > 0)
+		adapter->drv_tx_rings = adapter->drv_tss_rings;
+
+	if (adapter->drv_rss_rings > 0)
+		adapter->drv_sds_rings = adapter->drv_rss_rings;
+
+	return 0;
 }
 
 int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
@@ -2370,6 +2374,14 @@ void qlcnic_set_drv_version(struct qlcnic_adapter *adapter)
 		qlcnic_fw_cmd_set_drv_version(adapter, fw_cmd);
 }
 
+/* Reset firmware API lock */
+static void qlcnic_reset_api_lock(struct qlcnic_adapter *adapter)
+{
+	qlcnic_api_lock(adapter);
+	qlcnic_api_unlock(adapter);
+}
+
+
 static int
 qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -2472,6 +2484,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (qlcnic_82xx_check(adapter)) {
 		qlcnic_check_vf(adapter, ent);
 		adapter->portnum = adapter->ahw->pci_func;
+		qlcnic_reset_api_lock(adapter);
 		err = qlcnic_start_firmware(adapter);
 		if (err) {
 			dev_err(&pdev->dev, "Loading fw failed.Please Reboot\n"
@@ -2528,8 +2541,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_hw;
 	}
 
-	qlcnic_dcb_enable(adapter->dcb);
-
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&pdev->dev, "failed to read mac addr\n");
 
@@ -2549,7 +2560,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 "Device does not support MSI interrupts\n");
 
 	if (qlcnic_82xx_check(adapter)) {
+		qlcnic_dcb_enable(adapter->dcb);
+		qlcnic_dcb_get_info(adapter->dcb);
 		err = qlcnic_setup_intr(adapter);
+
 		if (err) {
 			dev_err(&pdev->dev, "Failed to setup interrupt\n");
 			goto err_out_disable_msi;

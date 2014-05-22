@@ -374,6 +374,7 @@ enum vf_state {
 #define BE_FLAGS_NAPI_ENABLED			(1 << 9)
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
 #define BE_FLAGS_VXLAN_OFFLOADS			(1 << 12)
+#define BE_FLAGS_SETUP_DONE			(1 << 13)
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2

@@ -374,6 +374,9 @@ int kern_addr_valid(unsigned long addr)
 	if (pmd_none(*pmd))
 		return 0;
 
+	if (pmd_sect(*pmd))
+		return pfn_valid(pmd_pfn(*pmd));
+
 	pte = pte_offset_kernel(pmd, addr);
 	if (pte_none(*pte))
 		return 0;

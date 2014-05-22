@@ -666,7 +666,7 @@ static struct dma_chan *of_dma_sirfsoc_xlate(struct of_phandle_args *dma_spec,
 	struct sirfsoc_dma *sdma = ofdma->of_dma_data;
 	unsigned int request = dma_spec->args[0];
 
-	if (request > SIRFSOC_DMA_CHANNELS)
+	if (request >= SIRFSOC_DMA_CHANNELS)
 		return NULL;
 
 	return dma_get_slave_channel(&sdma->channels[request].chan);

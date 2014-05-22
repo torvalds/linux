@@ -338,9 +338,6 @@ static inline unsigned long strnlen_user_srst(const char __user *src,
 	register unsigned long reg0 asm("0") = 0;
 	unsigned long tmp1, tmp2;
 
-	if (unlikely(!size))
-		return 0;
-	update_primary_asce(current);
 	asm volatile(
 		"   la    %2,0(%1)\n"
 		"   la    %3,0(%0,%1)\n"
@@ -359,6 +356,8 @@ static inline unsigned long strnlen_user_srst(const char __user *src,
 
 unsigned long __strnlen_user(const char __user *src, unsigned long size)
 {
+	if (unlikely(!size))
+		return 0;
 	update_primary_asce(current);
 	return strnlen_user_srst(src, size);
 }

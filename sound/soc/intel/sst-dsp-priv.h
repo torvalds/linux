@@ -136,7 +136,7 @@ struct sst_module_data {
 	enum sst_data_type data_type;	/* type of module data */
 
 	u32 size;		/* size in bytes */
-	u32 offset;		/* offset in FW file */
+	int32_t offset;		/* offset in FW file */
 	u32 data_offset;	/* offset in ADSP memory space */
 	void *data;		/* module data */
 };
@@ -228,6 +228,7 @@ struct sst_dsp {
 	spinlock_t spinlock;	/* IPC locking */
 	struct mutex mutex;	/* DSP FW lock */
 	struct device *dev;
+	struct device *dma_dev;
 	void *thread_context;
 	int irq;
 	u32 id;

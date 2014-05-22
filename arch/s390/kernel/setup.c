@@ -1027,3 +1027,35 @@ void __init setup_arch(char **cmdline_p)
 	/* Setup zfcpdump support */
 	setup_zfcpdump();
 }
+
+#ifdef CONFIG_32BIT
+static int no_removal_warning __initdata;
+
+static int __init parse_no_removal_warning(char *str)
+{
+	no_removal_warning = 1;
+	return 0;
+}
+__setup("no_removal_warning", parse_no_removal_warning);
+
+static int __init removal_warning(void)
+{
+	if (no_removal_warning)
+		return 0;
+	printk(KERN_ALERT "\n\n");
+	printk(KERN_CONT "Warning - you are using a 31 bit kernel!\n\n");
+	printk(KERN_CONT "We plan to remove 31 bit kernel support from the kernel sources in March 2015.\n");
+	printk(KERN_CONT "Currently we assume that nobody is using the 31 bit kernel on old 31 bit\n");
+	printk(KERN_CONT "hardware anymore. If you think that the code should not be removed and also\n");
+	printk(KERN_CONT "future versions of the Linux kernel should be able to run in 31 bit mode\n");
+	printk(KERN_CONT "please let us know. Please write to:\n");
+	printk(KERN_CONT "linux390@de.ibm.com (mail address) and/or\n");
+	printk(KERN_CONT "linux-s390@vger.kernel.org (mailing list).\n\n");
+	printk(KERN_CONT "Thank you!\n\n");
+	printk(KERN_CONT "If this kernel runs on a 64 bit machine you may consider using a 64 bit kernel.\n");
+	printk(KERN_CONT "This message can be disabled with the \"no_removal_warning\" kernel parameter.\n");
+	schedule_timeout_uninterruptible(300 * HZ);
+	return 0;
+}
+early_initcall(removal_warning);
+#endif

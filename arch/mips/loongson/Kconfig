@@ -64,7 +64,6 @@ config LEMOTE_MACH3A
 	bool "Lemote Loongson 3A family machines"
 	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select BOOT_ELF32
 	select BOARD_SCACHE
 	select CSRC_R4K

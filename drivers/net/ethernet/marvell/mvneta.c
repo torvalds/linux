@@ -91,7 +91,7 @@
 #define MVNETA_RX_MIN_FRAME_SIZE                 0x247c
 #define MVNETA_SERDES_CFG			 0x24A0
 #define      MVNETA_SGMII_SERDES_PROTO		 0x0cc7
-#define      MVNETA_RGMII_SERDES_PROTO		 0x0667
+#define      MVNETA_QSGMII_SERDES_PROTO		 0x0667
 #define MVNETA_TYPE_PRIO                         0x24bc
 #define      MVNETA_FORCE_UNI                    BIT(21)
 #define MVNETA_TXQ_CMD_1                         0x24e4
@@ -2721,29 +2721,44 @@ static void mvneta_conf_mbus_windows(struct mvneta_port *pp,
 }
 
 /* Power up the port */
-static void mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
+static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 {
-	u32 val;
+	u32 ctrl;
 
 	/* MAC Cause register should be cleared */
 	mvreg_write(pp, MVNETA_UNIT_INTR_CAUSE, 0);
 
-	if (phy_mode == PHY_INTERFACE_MODE_SGMII)
+	ctrl = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+
+	/* Even though it might look weird, when we're configured in
+	 * SGMII or QSGMII mode, the RGMII bit needs to be set.
+	 */
+	switch(phy_mode) {
+	case PHY_INTERFACE_MODE_QSGMII:
+		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_QSGMII_SERDES_PROTO);
+		ctrl |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
 		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
-	else
-		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_RGMII_SERDES_PROTO);
-
-	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-
-	val |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
+		ctrl |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		ctrl |= MVNETA_GMAC2_PORT_RGMII;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* Cancel Port Reset */
-	val &= ~MVNETA_GMAC2_PORT_RESET;
-	mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
+	ctrl &= ~MVNETA_GMAC2_PORT_RESET;
+	mvreg_write(pp, MVNETA_GMAC_CTRL_2, ctrl);
 
 	while ((mvreg_read(pp, MVNETA_GMAC_CTRL_2) &
 		MVNETA_GMAC2_PORT_RESET) != 0)
 		continue;
+
+	return 0;
 }
 
 /* Device initialization routine */
@@ -2854,7 +2869,12 @@ static int mvneta_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't init eth hal\n");
 		goto err_free_stats;
 	}
-	mvneta_port_power_up(pp, phy_mode);
+
+	err = mvneta_port_power_up(pp, phy_mode);
+	if (err < 0) {
+		dev_err(&pdev->dev, "can't power up port\n");
+		goto err_deinit;
+	}
 
 	dram_target_info = mv_mbus_dram_info();
 	if (dram_target_info)

@@ -752,7 +752,7 @@ static int dn_to_neigh_output(struct sk_buff *skb)
 	return n->output(n, skb);
 }
 
-static int dn_output(struct sk_buff *skb)
+static int dn_output(struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct dn_route *rt = (struct dn_route *)dst;
@@ -838,6 +838,18 @@ drop:
  * Used to catch bugs. This should never normally get
  * called.
  */
+static int dn_rt_bug_sk(struct sock *sk, struct sk_buff *skb)
+{
+	struct dn_skb_cb *cb = DN_SKB_CB(skb);
+
+	net_dbg_ratelimited("dn_rt_bug: skb from:%04x to:%04x\n",
+			    le16_to_cpu(cb->src), le16_to_cpu(cb->dst));
+
+	kfree_skb(skb);
+
+	return NET_RX_DROP;
+}
+
 static int dn_rt_bug(struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
@@ -1463,7 +1475,7 @@ make_route:
 
 	rt->n = neigh;
 	rt->dst.lastuse = jiffies;
-	rt->dst.output = dn_rt_bug;
+	rt->dst.output = dn_rt_bug_sk;
 	switch (res.type) {
 	case RTN_UNICAST:
 		rt->dst.input = dn_forward;

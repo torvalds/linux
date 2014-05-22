@@ -1308,6 +1308,7 @@ struct intel_vbt_data {
 
 	struct {
 		u16 pwm_freq_hz;
+		bool present;
 		bool active_low_pwm;
 	} backlight;
 
@@ -1953,6 +1954,9 @@ struct drm_i915_cmd_table {
 #define IS_ULT(dev)		(IS_HSW_ULT(dev) || IS_BDW_ULT(dev))
 #define IS_HSW_GT3(dev)		(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0x00F0) == 0x0020)
+/* ULX machines are also considered ULT. */
+#define IS_HSW_ULX(dev)		((dev)->pdev->device == 0x0A0E || \
+				 (dev)->pdev->device == 0x0A1E)
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
 
 /*
@@ -2431,20 +2435,18 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 int i915_gem_context_enable(struct drm_i915_private *dev_priv);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_ring_buffer *ring,
-			struct drm_file *file, struct i915_hw_context *to);
+			struct i915_hw_context *to);
 struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 void i915_gem_context_free(struct kref *ctx_ref);
 static inline void i915_gem_context_reference(struct i915_hw_context *ctx)
 {
-	if (ctx->obj && HAS_HW_CONTEXTS(ctx->obj->base.dev))
-		kref_get(&ctx->ref);
+	kref_get(&ctx->ref);
 }
 
 static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
 {
-	if (ctx->obj && HAS_HW_CONTEXTS(ctx->obj->base.dev))
-		kref_put(&ctx->ref, i915_gem_context_free);
+	kref_put(&ctx->ref, i915_gem_context_free);
 }
 
 static inline bool i915_gem_context_is_default(const struct i915_hw_context *c)
