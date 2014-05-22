@@ -20,6 +20,7 @@
 
 #include <plat/cpu.h>
 
+#include "common.h"
 #include "smc.h"
 
 static int exynos_do_idle(void)
@@ -44,7 +45,12 @@ static int exynos_cpu_boot(int cpu)
 
 static int exynos_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 {
-	void __iomem *boot_reg = S5P_VA_SYSRAM_NS + 0x1c;
+	void __iomem *boot_reg;
+
+	if (!sysram_ns_base_addr)
+		return -ENODEV;
+
+	boot_reg = sysram_ns_base_addr + 0x1c;
 
 	if (!soc_is_exynos4212())
 		boot_reg += 4*cpu;
