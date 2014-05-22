@@ -1,6 +1,44 @@
 #include <linux/fs.h>
 
 #include "headers.h"
+
+static int bcm_handle_nvm_read_cmd(struct bcm_mini_adapter *Adapter,
+	PUCHAR pReadData, struct bcm_nvm_readwrite *stNVMReadWrite)
+{
+	INT Status = STATUS_FAILURE;
+
+	down(&Adapter->NVMRdmWrmLock);
+
+	if ((Adapter->IdleMode == TRUE) || (Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+		BCM_DEBUG_PRINT(Adapter,
+			DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+			"Device is in Idle/Shutdown Mode\n");
+		up(&Adapter->NVMRdmWrmLock);
+		kfree(pReadData);
+		return -EACCES;
+	}
+
+	Status = BeceemNVMRead(Adapter, (PUINT)pReadData,
+			       stNVMReadWrite->uiOffset,
+			       stNVMReadWrite->uiNumBytes);
+	up(&Adapter->NVMRdmWrmLock);
+
+	if (Status != STATUS_SUCCESS) {
+		kfree(pReadData);
+		return Status;
+	}
+
+	if (copy_to_user(stNVMReadWrite->pBuffer, pReadData,
+			stNVMReadWrite->uiNumBytes)) {
+		kfree(pReadData);
+		return -EFAULT;
+	}
+
+	return STATUS_SUCCESS;
+}
+
 /***************************************************************
 * Function	  - bcm_char_open()
 *
@@ -1449,34 +1487,10 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 
 	do_gettimeofday(&tv0);
 	if (IOCTL_BCM_NVM_READ == cmd) {
-		down(&Adapter->NVMRdmWrmLock);
-
-		if ((Adapter->IdleMode == TRUE) ||
-			(Adapter->bShutStatus == TRUE) ||
-			(Adapter->bPreparingForLowPowerMode == TRUE)) {
-
-			BCM_DEBUG_PRINT(Adapter,
-				DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
-				"Device is in Idle/Shutdown Mode\n");
-			up(&Adapter->NVMRdmWrmLock);
-			kfree(pReadData);
-			return -EACCES;
-		}
-
-		Status = BeceemNVMRead(Adapter, (PUINT)pReadData,
-			stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes);
-		up(&Adapter->NVMRdmWrmLock);
-
-		if (Status != STATUS_SUCCESS) {
-			kfree(pReadData);
-			return Status;
-		}
-
-		if (copy_to_user(stNVMReadWrite.pBuffer, pReadData,
-			stNVMReadWrite.uiNumBytes)) {
-			kfree(pReadData);
-			return -EFAULT;
-		}
+		int ret = bcm_handle_nvm_read_cmd(Adapter, pReadData,
+				&stNVMReadWrite);
+		if (ret != STATUS_SUCCESS)
+			return ret;
 	} else {
 		down(&Adapter->NVMRdmWrmLock);
 
