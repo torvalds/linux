@@ -187,7 +187,7 @@ static int mwifiex_tdls_add_vht_capab(struct mwifiex_private *priv,
 }
 
 static int
-mwifiex_tdls_add_ht_oper(struct mwifiex_private *priv, u8 *mac,
+mwifiex_tdls_add_ht_oper(struct mwifiex_private *priv, const u8 *mac,
 			 u8 vht_enabled, struct sk_buff *skb)
 {
 	struct ieee80211_ht_operation *ht_oper;
