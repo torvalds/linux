@@ -135,7 +135,7 @@
 		samsung,power-domain = <&pd_lcd0>;
 		phys = <&mipi_phy 1>;
 		phy-names = "dsim";
-		clocks = <&clock 286>, <&clock 143>;
+		clocks = <&clock CLK_DSIM0>, <&clock CLK_SCLK_MIPI0>;
 		clock-names = "bus_clk", "pll_clk";
 		status = "disabled";
 		#address-cells = <1>;
