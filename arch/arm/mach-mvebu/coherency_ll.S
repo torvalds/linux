@@ -66,10 +66,10 @@ ENTRY(ll_add_cpu_to_smp_group)
 	 * ll_get_cpuid, we can use it to save lr modifing it with the
 	 * following bl
 	 */
-	mov r0, lr
+	mov 	r0, lr
 	bl	ll_get_coherency_base
 	bl	ll_get_cpuid
-	mov lr, r0
+	mov 	lr, r0
 	add	r0, r1, #ARMADA_XP_CFB_CFG_REG_OFFSET
 1:
 	ldrex	r2, [r0]
@@ -108,10 +108,10 @@ ENTRY(ll_disable_coherency)
 	 * ll_get_cpuid, we can use it to save lr modifing it with the
 	 * following bl
 	 */
-	mov r0, lr
+	mov 	r0, lr
 	bl	ll_get_coherency_base
 	bl	ll_get_cpuid
-	mov lr, r0
+	mov 	lr, r0
 	add	r0, r1, #ARMADA_XP_CFB_CTL_REG_OFFSET
 1:
 	ldrex	r2, [r0]
