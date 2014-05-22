@@ -2456,7 +2456,6 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 		if (pending & SDMMC_INT_CD) {
 			mci_writel(host, RINTSTS, SDMMC_INT_CD);
-			rk_send_wakeup_key();//wake up system
 			queue_work(host->card_workqueue, &host->card_work);
 		}
 		
@@ -2470,10 +2469,10 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		for (i = 0; i < host->num_slots; i++) {
 			struct dw_mci_slot *slot = host->slot[i];
 
-            if (host->verid < DW_MMC_240A)
-    		    sdio_int = SDMMC_INT_SDIO(i);
-    	    else
-    		    sdio_int = SDMMC_INT_SDIO(i + 8);
+			if (host->verid < DW_MMC_240A)
+				sdio_int = SDMMC_INT_SDIO(i);
+			else
+				sdio_int = SDMMC_INT_SDIO(i + 8);
     			
 			if (pending & sdio_int) {
 				mci_writel(host, RINTSTS, sdio_int);
@@ -2512,9 +2511,10 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 		while (present != slot->last_detect_state) {
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
-            MMC_DBG_BOOT_FUNC(mmc, "  The card is %s.  ===!!!!!!==[%s]\n",
+			MMC_DBG_BOOT_FUNC(mmc, "  The card is %s.  ===!!!!!!==[%s]\n",
 				present ? "inserted" : "removed.", mmc_hostname(mmc));
-
+	
+			rk_send_wakeup_key();//wake up system
 			spin_lock_bh(&host->lock);
 
 			/* Card change detected */
