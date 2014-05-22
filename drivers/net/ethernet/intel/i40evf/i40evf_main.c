@@ -772,7 +772,7 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 			return NULL;
 		}
 
-		memcpy(f->macaddr, macaddr, ETH_ALEN);
+		ether_addr_copy(f->macaddr, macaddr);
 
 		list_add(&f->list, &adapter->mac_filter_list);
 		f->add = true;
@@ -805,9 +805,8 @@ static int i40evf_set_mac(struct net_device *netdev, void *p)
 
 	f = i40evf_add_filter(adapter, addr->sa_data);
 	if (f) {
-		memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
-		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
-		       netdev->addr_len);
+		ether_addr_copy(hw->mac.addr, addr->sa_data);
+		ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
 	}
 
 	return (f == NULL) ? -ENOMEM : 0;
@@ -2059,8 +2058,8 @@ static void i40evf_init_task(struct work_struct *work)
 			 adapter->hw.mac.addr);
 		random_ether_addr(adapter->hw.mac.addr);
 	}
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
+	ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
+	ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 
 	INIT_LIST_HEAD(&adapter->mac_filter_list);
 	INIT_LIST_HEAD(&adapter->vlan_filter_list);
@@ -2068,7 +2067,7 @@ static void i40evf_init_task(struct work_struct *work)
 	if (NULL == f)
 		goto err_sw_init;
 
-	memcpy(f->macaddr, adapter->hw.mac.addr, ETH_ALEN);
+	ether_addr_copy(f->macaddr, adapter->hw.mac.addr);
 	f->add = true;
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 
