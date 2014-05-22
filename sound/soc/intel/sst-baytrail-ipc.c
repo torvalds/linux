@@ -892,7 +892,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	/* start the IPC message thread */
 	init_kthread_worker(&byt->kworker);
 	byt->tx_thread = kthread_run(kthread_worker_fn,
-				     &byt->kworker,
+				     &byt->kworker, "%s",
 				     dev_name(byt->dev));
 	if (IS_ERR(byt->tx_thread)) {
 		err = PTR_ERR(byt->tx_thread);

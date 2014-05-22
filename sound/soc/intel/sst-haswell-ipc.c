@@ -1735,7 +1735,7 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	/* start the IPC message thread */
 	init_kthread_worker(&hsw->kworker);
 	hsw->tx_thread = kthread_run(kthread_worker_fn,
-					   &hsw->kworker,
+					   &hsw->kworker, "%s",
 					   dev_name(hsw->dev));
 	if (IS_ERR(hsw->tx_thread)) {
 		ret = PTR_ERR(hsw->tx_thread);
