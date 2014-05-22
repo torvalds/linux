@@ -832,8 +832,10 @@ int ieee802154_llsec_getparams(struct sk_buff *skb, struct genl_info *info)
 		return -ENODEV;
 
 	ops = ieee802154_mlme_ops(dev);
-	if (!ops->llsec)
-		return -EOPNOTSUPP;
+	if (!ops->llsec) {
+		rc = -EOPNOTSUPP;
+		goto out_dev;
+	}
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
