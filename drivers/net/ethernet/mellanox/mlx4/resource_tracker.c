@@ -962,7 +962,7 @@ static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 		ret = alloc_srq_tr(id);
 		break;
 	case RES_MAC:
-		printk(KERN_ERR "implementation missing\n");
+		pr_err("implementation missing\n");
 		return NULL;
 	case RES_COUNTER:
 		ret = alloc_counter_tr(id);
@@ -1056,10 +1056,10 @@ static int remove_mtt_ok(struct res_mtt *res, int order)
 {
 	if (res->com.state == RES_MTT_BUSY ||
 	    atomic_read(&res->ref_count)) {
-		printk(KERN_DEBUG "%s-%d: state %s, ref_count %d\n",
-		       __func__, __LINE__,
-		       mtt_states_str(res->com.state),
-		       atomic_read(&res->ref_count));
+		pr_devel("%s-%d: state %s, ref_count %d\n",
+			 __func__, __LINE__,
+			 mtt_states_str(res->com.state),
+			 atomic_read(&res->ref_count));
 		return -EBUSY;
 	} else if (res->com.state != RES_MTT_ALLOCATED)
 		return -EPERM;

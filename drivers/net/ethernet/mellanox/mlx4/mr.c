@@ -954,8 +954,7 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
 		err = PTR_ERR(mailbox);
-		printk(KERN_WARNING "mlx4_ib: mlx4_alloc_cmd_mailbox failed (%d)\n",
-		       err);
+		pr_warn("mlx4_ib: mlx4_alloc_cmd_mailbox failed (%d)\n", err);
 		return;
 	}
 
@@ -964,8 +963,7 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 			     (dev->caps.num_mpts - 1));
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	if (err) {
-		printk(KERN_WARNING "mlx4_ib: mlx4_HW2SW_MPT failed (%d)\n",
-		       err);
+		pr_warn("mlx4_ib: mlx4_HW2SW_MPT failed (%d)\n", err);
 		return;
 	}
 	fmr->mr.enabled = MLX4_MPT_EN_SW;
