@@ -31,6 +31,8 @@
 
 static void __iomem *_prm_bases[OMAP4_MAX_PRCM_PARTITIONS];
 
+static s32 prm_dev_inst = PRM_INSTANCE_UNKNOWN;
+
 /**
  * omap_prm_base_init - Populates the prm partitions
  *
@@ -41,6 +43,24 @@ void omap_prm_base_init(void)
 {
 	_prm_bases[OMAP4430_PRM_PARTITION] = prm_base;
 	_prm_bases[OMAP4430_PRCM_MPU_PARTITION] = prcm_mpu_base;
+}
+
+s32 omap4_prmst_get_prm_dev_inst(void)
+{
+	if (prm_dev_inst != PRM_INSTANCE_UNKNOWN)
+		return prm_dev_inst;
+
+	/* This cannot be done way early at boot.. as things are not setup */
+	if (cpu_is_omap44xx())
+		prm_dev_inst = OMAP4430_PRM_DEVICE_INST;
+	else if (soc_is_omap54xx())
+		prm_dev_inst = OMAP54XX_PRM_DEVICE_INST;
+	else if (soc_is_dra7xx())
+		prm_dev_inst = DRA7XX_PRM_DEVICE_INST;
+	else if (soc_is_am43xx())
+		prm_dev_inst = AM43XX_PRM_DEVICE_INST;
+
+	return prm_dev_inst;
 }
 
 /* Read a register in a PRM instance */
@@ -169,28 +189,18 @@ int omap4_prminst_deassert_hardreset(u8 shift, u8 part, s16 inst,
 void omap4_prminst_global_warm_sw_reset(void)
 {
 	u32 v;
-	s16 dev_inst;
+	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (cpu_is_omap44xx())
-		dev_inst = OMAP4430_PRM_DEVICE_INST;
-	else if (soc_is_omap54xx())
-		dev_inst = OMAP54XX_PRM_DEVICE_INST;
-	else if (soc_is_dra7xx())
-		dev_inst = DRA7XX_PRM_DEVICE_INST;
-	else if (soc_is_am43xx())
-		dev_inst = AM43XX_PRM_DEVICE_INST;
-	else
+	if (inst == PRM_INSTANCE_UNKNOWN)
 		return;
 
-	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION, dev_inst,
+	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION, inst,
 					OMAP4_PRM_RSTCTRL_OFFSET);
 	v |= OMAP4430_RST_GLOBAL_WARM_SW_MASK;
 	omap4_prminst_write_inst_reg(v, OMAP4430_PRM_PARTITION,
-				 dev_inst,
-				 OMAP4_PRM_RSTCTRL_OFFSET);
+				 inst, OMAP4_PRM_RSTCTRL_OFFSET);
 
 	/* OCP barrier */
 	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
-				    dev_inst,
-				    OMAP4_PRM_RSTCTRL_OFFSET);
+				    inst, OMAP4_PRM_RSTCTRL_OFFSET);
 }
