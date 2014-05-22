@@ -101,9 +101,11 @@ static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size,
 	int wait_ret_val = 0;
 	unsigned long ret = 0;
 
-	wait_ret_val = wait_event_interruptible(Adapter->process_read_wait_queue,
-						(pTarang->RxAppControlHead ||
-						 Adapter->device_removed));
+	wait_ret_val = wait_event_interruptible(
+				Adapter->process_read_wait_queue,
+				(pTarang->RxAppControlHead ||
+				Adapter->device_removed));
+
 	if ((wait_ret_val == -ERESTARTSYS)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"Exiting as i've been asked to exit!!!\n");
@@ -410,7 +412,8 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 	if (IoBuffer.InputLength > sizeof(gpio_info))
 		return -EINVAL;
 
-	if (copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
+	if (copy_from_user(&gpio_info, IoBuffer.InputBuffer,
+				IoBuffer.InputLength))
 		return -EFAULT;
 
 	uiBit  = gpio_info.uiGpioNumber;
@@ -516,7 +519,8 @@ static int bcm_char_ioctl_led_thread_state_change_req(void __user *argp,
 	if (IoBuffer.InputLength > sizeof(threadReq))
 		return -EINVAL;
 
-	if (copy_from_user(&threadReq, IoBuffer.InputBuffer, IoBuffer.InputLength))
+	if (copy_from_user(&threadReq, IoBuffer.InputBuffer,
+				IoBuffer.InputLength))
 		return -EFAULT;
 
 	/* if LED thread is running(Actively or Inactively)
@@ -594,7 +598,8 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 	INT Status = STATUS_FAILURE;
 	int bytes;
 
-	memset(pgpio_multi_info, 0, MAX_IDX * sizeof(struct bcm_gpio_multi_info));
+	memset(pgpio_multi_info, 0,
+			MAX_IDX * sizeof(struct bcm_gpio_multi_info));
 
 	if ((Adapter->IdleMode == TRUE) ||
 		(Adapter->bShutStatus == TRUE) ||
@@ -627,7 +632,7 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 	if ((pgpio_multi_info[WIMAX_IDX].uiGPIOMask) &
 		(pgpio_multi_info[WIMAX_IDX].uiGPIOCommand)) {
 		/* Set 1's in GPIO OUTPUT REGISTER */
-		*(UINT *)ucResetValue =  pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
+		*(UINT *)ucResetValue = pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
 			pgpio_multi_info[WIMAX_IDX].uiGPIOCommand &
 			pgpio_multi_info[WIMAX_IDX].uiGPIOValue;
 
@@ -643,7 +648,8 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 		}
 
 		/* Clear to 0's in GPIO OUTPUT REGISTER */
-		*(UINT *)ucResetValue = (pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
+		*(UINT *)ucResetValue =
+			(pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
 			pgpio_multi_info[WIMAX_IDX].uiGPIOCommand &
 			(~(pgpio_multi_info[WIMAX_IDX].uiGPIOValue)));
 
@@ -672,7 +678,8 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 			Status = STATUS_SUCCESS;
 		}
 
-		pgpio_multi_info[WIMAX_IDX].uiGPIOValue = (*(UINT *)ucResetValue &
+		pgpio_multi_info[WIMAX_IDX].uiGPIOValue =
+			(*(UINT *)ucResetValue &
 			pgpio_multi_info[WIMAX_IDX].uiGPIOMask);
 	}
 
@@ -739,11 +746,13 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 
 	if (pgpio_multi_mode[WIMAX_IDX].uiGPIOMask) {
 		/* write all OUT's (1's) */
-		*(UINT *) ucResetValue |= (pgpio_multi_mode[WIMAX_IDX].uiGPIOMode &
+		*(UINT *) ucResetValue |=
+			(pgpio_multi_mode[WIMAX_IDX].uiGPIOMode &
 					pgpio_multi_mode[WIMAX_IDX].uiGPIOMask);
 
 		/* write all IN's (0's) */
-		*(UINT *) ucResetValue &= ~((~pgpio_multi_mode[WIMAX_IDX].uiGPIOMode) &
+		*(UINT *) ucResetValue &=
+			~((~pgpio_multi_mode[WIMAX_IDX].uiGPIOMode) &
 					pgpio_multi_mode[WIMAX_IDX].uiGPIOMask);
 
 		/* Currently implemented return the modes of all GPIO's
@@ -801,9 +810,11 @@ static int bcm_char_ioctl_misc_request(void __user *argp,
 		return PTR_ERR(pvBuffer);
 
 	down(&Adapter->LowPowerModeSync);
-	Status = wait_event_interruptible_timeout(Adapter->lowpower_mode_wait_queue,
-		!Adapter->bPreparingForLowPowerMode,
-		(1 * HZ));
+	Status = wait_event_interruptible_timeout(
+			Adapter->lowpower_mode_wait_queue,
+			!Adapter->bPreparingForLowPowerMode,
+			(1 * HZ));
+
 	if (Status == -ERESTARTSYS)
 		goto cntrlEnd;
 
@@ -1546,7 +1557,8 @@ static int bcm_char_ioctl_nvm_rw(void __user *argp,
 	do_gettimeofday(&tv1);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 		" timetaken by Write/read :%ld msec\n",
-		(tv1.tv_sec - tv0.tv_sec)*1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
+		(tv1.tv_sec - tv0.tv_sec)*1000 +
+		(tv1.tv_usec - tv0.tv_usec)/1000);
 
 	kfree(pReadData);
 	return STATUS_SUCCESS;
@@ -1735,8 +1747,10 @@ static int bcm_char_ioctl_flash2x_section_write(void __user *argp,
 
 	/* extracting the remainder of the given offset. */
 	WriteBytes = Adapter->uiSectorSize;
-	if (WriteOffset % Adapter->uiSectorSize)
-		WriteBytes = Adapter->uiSectorSize - (WriteOffset % Adapter->uiSectorSize);
+	if (WriteOffset % Adapter->uiSectorSize) {
+		WriteBytes = Adapter->uiSectorSize -
+			(WriteOffset % Adapter->uiSectorSize);
+	}
 
 	if (NOB < WriteBytes)
 		WriteBytes = NOB;
@@ -1811,7 +1825,9 @@ BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 	if (IoBuffer.OutputLength != sizeof(struct bcm_flash2x_bitmap))
 		return -EINVAL;
 
-	psFlash2xBitMap = kzalloc(sizeof(struct bcm_flash2x_bitmap), GFP_KERNEL);
+	psFlash2xBitMap = kzalloc(sizeof(struct bcm_flash2x_bitmap),
+			GFP_KERNEL);
+
 	if (psFlash2xBitMap == NULL) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 			"Memory is not available");
@@ -1860,7 +1876,8 @@ static int bcm_char_ioctl_set_active_section(void __user *argp,
 		return -EINVAL;
 	}
 
-	Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
+	Status = copy_from_user(&IoBuffer, argp,
+			sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 			"Copy of IOCTL BUFFER failed");
@@ -1915,7 +1932,8 @@ static int bcm_char_ioctl_copy_section(void __user *argp,
 		return -EINVAL;
 	}
 
-	Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
+	Status = copy_from_user(&IoBuffer, argp,
+			sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 			"Copy of IOCTL BUFFER failed Status :%d", Status);
@@ -2006,7 +2024,8 @@ static int bcm_char_ioctl_get_flash_cs_info(void __user *argp,
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 		" IOCTL_BCM_GET_FLASH_CS_INFO Called");
 
-	Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
+	Status = copy_from_user(&IoBuffer, argp,
+			sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 			"Copy of IOCTL BUFFER failed");
@@ -2056,7 +2075,8 @@ static int bcm_char_ioctl_select_dsd(void __user *argp,
 		return -EINVAL;
 	}
 
-	Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
+	Status = copy_from_user(&IoBuffer, argp,
+			sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 			"Copy of IOCTL BUFFER failed");
@@ -2205,7 +2225,8 @@ static int bcm_char_ioctl_cntrlmsg_mask(void __user *argp,
 	ULONG RxCntrlMsgBitMask = 0;
 
 	/* Copy Ioctl Buffer structure */
-	Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
+	Status = copy_from_user(&IoBuffer, argp,
+			sizeof(struct bcm_ioctl_buffer));
 	if (Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 			"copy of Ioctl buffer is failed from user space");
@@ -2355,7 +2376,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		return Status;
 
 	case BCM_LED_THREAD_STATE_CHANGE_REQ:
-		Status = bcm_char_ioctl_led_thread_state_change_req(argp, Adapter);
+		Status = bcm_char_ioctl_led_thread_state_change_req(argp,
+				Adapter);
 		return Status;
 
 	case IOCTL_BCM_GPIO_STATUS_REQUEST:
@@ -2394,13 +2416,15 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 	case IOCTL_BE_BUCKET_SIZE:
 		Status = 0;
-		if (get_user(Adapter->BEBucketSize, (unsigned long __user *)arg))
+		if (get_user(Adapter->BEBucketSize,
+					(unsigned long __user *)arg))
 			Status = -EFAULT;
 		break;
 
 	case IOCTL_RTPS_BUCKET_SIZE:
 		Status = 0;
-		if (get_user(Adapter->rtPSBucketSize, (unsigned long __user *)arg))
+		if (get_user(Adapter->rtPSBucketSize,
+					(unsigned long __user *)arg))
 			Status = -EFAULT;
 		break;
 
