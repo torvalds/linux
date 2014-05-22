@@ -425,8 +425,6 @@ struct intel_crtc {
 		struct intel_pipe_wm active;
 	} wm;
 
-	wait_queue_head_t vbl_wait;
-
 	int scanline_offset;
 	struct intel_mmio_flip mmio_flip;
 };
