@@ -20,6 +20,7 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "clk.h"
 
@@ -42,6 +43,8 @@
 #define CLK_MGR_PLL_CLK_SRC_MASK	0x3
 
 #define to_socfpga_clk(p) container_of(p, struct socfpga_pll, hw.hw)
+
+void __iomem *clk_mgr_base_addr;
 
 static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 					 unsigned long parent_rate)
@@ -87,6 +90,7 @@ static __init struct clk *__socfpga_pll_init(struct device_node *node,
 	const char *clk_name = node->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
+	struct device_node *clkmgr_np;
 	int rc;
 	int i = 0;
 
@@ -96,6 +100,9 @@ static __init struct clk *__socfpga_pll_init(struct device_node *node,
 	if (WARN_ON(!pll_clk))
 		return NULL;
 
+	clkmgr_np = of_find_compatible_node(NULL, NULL, "altr,clk-mgr");
+	clk_mgr_base_addr = of_iomap(clkmgr_np, 0);
+	BUG_ON(!clk_mgr_base_addr);
 	pll_clk->hw.reg = clk_mgr_base_addr + reg;
 
 	of_property_read_string(node, "clock-output-names", &clk_name);
