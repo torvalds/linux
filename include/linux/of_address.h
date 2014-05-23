@@ -63,6 +63,9 @@ extern int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 extern struct of_pci_range *of_pci_range_parser_one(
 					struct of_pci_range_parser *parser,
 					struct of_pci_range *range);
+extern int of_dma_get_range(struct device_node *np, u64 *dma_addr,
+				u64 *paddr, u64 *size);
+extern bool of_dma_is_coherent(struct device_node *np);
 #else /* CONFIG_OF_ADDRESS */
 static inline struct device_node *of_find_matching_node_by_address(
 					struct device_node *from,
@@ -89,6 +92,17 @@ static inline struct of_pci_range *of_pci_range_parser_one(
 					struct of_pci_range *range)
 {
 	return NULL;
+}
+
+static inline int of_dma_get_range(struct device_node *np, u64 *dma_addr,
+				u64 *paddr, u64 *size)
+{
+	return -ENODEV;
+}
+
+static inline bool of_dma_is_coherent(struct device_node *np)
+{
+	return false;
 }
 #endif /* CONFIG_OF_ADDRESS */
 
