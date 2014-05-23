@@ -77,20 +77,15 @@ void MACbShutdown(struct vnt_private *priv)
 	CONTROLnsRequestOut(priv, MESSAGE_TYPE_MACSHUTDOWN, 0, 0, 0, NULL);
 }
 
-void MACvSetBBType(struct vnt_private *pDevice, u8 byType)
+void MACvSetBBType(struct vnt_private *priv, u8 type)
 {
-	u8 pbyData[2];
+	u8 data[2];
 
-    pbyData[0] = byType;
-    pbyData[1] = EnCFG_BBType_MASK;
+	data[0] = type;
+	data[1] = EnCFG_BBType_MASK;
 
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE_MASK,
-                        MAC_REG_ENCFG0,
-                        MESSAGE_REQUEST_MACREG,
-			ARRAY_SIZE(pbyData),
-                        pbyData
-                        );
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_ENCFG0,
+		MESSAGE_REQUEST_MACREG,	ARRAY_SIZE(data), data);
 }
 
 /*
