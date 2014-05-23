@@ -27,6 +27,7 @@
 
 
 	cpus {
+		enable-method = "allwinner,sun6i-a31";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -409,7 +410,7 @@
 			status = "disabled";
 		};
 
-		ohci2: usb@01c1c000 {
+		ohci2: usb@01c1c400 {
 			compatible = "allwinner,sun6i-a31-ohci", "generic-ohci";
 			reg = <0x01c1c400 0x100>;
 			interrupts = <0 77 4>;
