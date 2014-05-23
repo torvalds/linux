@@ -1571,7 +1571,8 @@ int AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter)
 	 * Need to Allocate memory to contain the SUPER Large structures
 	 * Our driver can't create these structures on Stack
 	 */
-	Adapter->caDsxReqResp = kmalloc(sizeof(struct bcm_add_indication_alt)+LEADER_SIZE, GFP_KERNEL);
+	Adapter->caDsxReqResp = kmalloc(sizeof(struct bcm_add_indication_alt)
+			+ LEADER_SIZE, GFP_KERNEL);
 	if (!Adapter->caDsxReqResp)
 		return -ENOMEM;
 
