@@ -2189,10 +2189,12 @@ void i915_gem_vma_destroy(struct i915_vma *vma);
 #define PIN_MAPPABLE 0x1
 #define PIN_NONBLOCK 0x2
 #define PIN_GLOBAL 0x4
+#define PIN_OFFSET_BIAS 0x8
+#define PIN_OFFSET_MASK (~4095)
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     struct i915_address_space *vm,
 				     uint32_t alignment,
-				     unsigned flags);
+				     uint64_t flags);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
@@ -2445,6 +2447,8 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  int min_size,
 					  unsigned alignment,
 					  unsigned cache_level,
+					  unsigned long start,
+					  unsigned long end,
 					  unsigned flags);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 int i915_gem_evict_everything(struct drm_device *dev);

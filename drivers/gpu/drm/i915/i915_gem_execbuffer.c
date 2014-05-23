@@ -35,6 +35,9 @@
 
 #define  __EXEC_OBJECT_HAS_PIN (1<<31)
 #define  __EXEC_OBJECT_HAS_FENCE (1<<30)
+#define  __EXEC_OBJECT_NEEDS_BIAS (1<<28)
+
+#define BATCH_OFFSET_BIAS (256*1024)
 
 struct eb_vmas {
 	struct list_head vmas;
@@ -545,7 +548,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	bool need_fence;
-	unsigned flags;
+	uint64_t flags;
 	int ret;
 
 	flags = 0;
@@ -559,6 +562,8 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 
 	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
 		flags |= PIN_GLOBAL;
+	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
+		flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
 
 	ret = i915_gem_object_pin(obj, vma->vm, entry->alignment, flags);
 	if (ret)
@@ -590,6 +595,36 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	}
 
 	return 0;
+}
+
+static bool
+eb_vma_misplaced(struct i915_vma *vma, bool has_fenced_gpu_access)
+{
+	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
+	struct drm_i915_gem_object *obj = vma->obj;
+	bool need_fence, need_mappable;
+
+	need_fence =
+		has_fenced_gpu_access &&
+		entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
+		obj->tiling_mode != I915_TILING_NONE;
+	need_mappable = need_fence || need_reloc_mappable(vma);
+
+	WARN_ON((need_mappable || need_fence) &&
+	       !i915_is_ggtt(vma->vm));
+
+	if (entry->alignment &&
+	    vma->node.start & (entry->alignment - 1))
+		return true;
+
+	if (need_mappable && !obj->map_and_fenceable)
+		return true;
+
+	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS &&
+	    vma->node.start < BATCH_OFFSET_BIAS)
+		return true;
+
+	return false;
 }
 
 static int
@@ -653,26 +688,10 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 
 		/* Unbind any ill-fitting objects or pin. */
 		list_for_each_entry(vma, vmas, exec_list) {
-			struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-			bool need_fence, need_mappable;
-
-			obj = vma->obj;
-
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
-			need_fence =
-				has_fenced_gpu_access &&
-				entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
-				obj->tiling_mode != I915_TILING_NONE;
-			need_mappable = need_fence || need_reloc_mappable(vma);
-
-			WARN_ON((need_mappable || need_fence) &&
-			       !i915_is_ggtt(vma->vm));
-
-			if ((entry->alignment &&
-			     vma->node.start & (entry->alignment - 1)) ||
-			    (need_mappable && !obj->map_and_fenceable))
+			if (eb_vma_misplaced(vma, has_fenced_gpu_access))
 				ret = i915_vma_unbind(vma);
 			else
 				ret = i915_gem_execbuffer_reserve_vma(vma, ring, need_relocs);
@@ -999,6 +1018,25 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 	return 0;
 }
 
+static struct drm_i915_gem_object *
+eb_get_batch(struct eb_vmas *eb)
+{
+	struct i915_vma *vma = list_entry(eb->vmas.prev, typeof(*vma), exec_list);
+
+	/*
+	 * SNA is doing fancy tricks with compressing batch buffers, which leads
+	 * to negative relocation deltas. Usually that works out ok since the
+	 * relocate address is still positive, except when the batch is placed
+	 * very low in the GTT. Ensure this doesn't happen.
+	 *
+	 * Note that actual hangs have only been observed on gen7, but for
+	 * paranoia do it everywhere.
+	 */
+	vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
+
+	return vma->obj;
+}
+
 static int
 i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_file *file,
@@ -1153,7 +1191,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err;
 
 	/* take note of the batch buffer before we might reorder the lists */
-	batch_obj = list_entry(eb->vmas.prev, struct i915_vma, exec_list)->obj;
+	batch_obj = eb_get_batch(eb);
 
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
 	need_relocs = (args->flags & I915_EXEC_NO_RELOC) == 0;
