@@ -47,7 +47,7 @@ struct vnt_private;
 
 void CARDbSetMediaChannel(struct vnt_private *pDevice, u32 uConnectionChannel);
 void CARDvSetRSPINF(struct vnt_private *, u8);
-void vUpdateIFS(struct vnt_private *pDevice);
+void vUpdateIFS(struct vnt_private *);
 void CARDvUpdateBasicTopRate(struct vnt_private *pDevice);
 void CARDbAddBasicRate(struct vnt_private *pDevice, u16 wRateIdx);
 int CARDbIsOFDMinBasicRate(struct vnt_private *pDevice);

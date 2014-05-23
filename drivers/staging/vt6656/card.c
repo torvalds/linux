@@ -385,95 +385,92 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
  *
  * Parameters:
  *  In:
- *      pDevice             - The adapter to be set
- *  Out:
- *      none
+ *	priv - The adapter to be set
+ * Out:
+ *	none
  *
  * Return Value: None.
  *
  */
-void vUpdateIFS(struct vnt_private *pDevice)
+void vUpdateIFS(struct vnt_private *priv)
 {
-	u8 byMaxMin = 0;
-	u8 byData[4];
+	u8 max_min = 0;
+	u8 data[4];
 
-    if (pDevice->byPacketType==PK_TYPE_11A) {//0000 0000 0000 0000,11a
-        pDevice->uSlot = C_SLOT_SHORT;
-        pDevice->uSIFS = C_SIFS_A;
-        pDevice->uDIFS = C_SIFS_A + 2*C_SLOT_SHORT;
-        pDevice->uCwMin = C_CWMIN_A;
-        byMaxMin = 4;
-    }
-    else if (pDevice->byPacketType==PK_TYPE_11B) {//0000 0001 0000 0000,11b
-        pDevice->uSlot = C_SLOT_LONG;
-        pDevice->uSIFS = C_SIFS_BG;
-        pDevice->uDIFS = C_SIFS_BG + 2*C_SLOT_LONG;
-          pDevice->uCwMin = C_CWMIN_B;
-        byMaxMin = 5;
-    }
-    else {// PK_TYPE_11GA & PK_TYPE_11GB
-        u8 byRate = 0;
-        bool bOFDMRate = false;
-	unsigned int ii = 0;
-        PWLAN_IE_SUPP_RATES pItemRates = NULL;
+	if (priv->byPacketType == PK_TYPE_11A) {
+		priv->uSlot = C_SLOT_SHORT;
+		priv->uSIFS = C_SIFS_A;
+		priv->uDIFS = C_SIFS_A + 2 * C_SLOT_SHORT;
+		priv->uCwMin = C_CWMIN_A;
+		max_min = 4;
+	} else if (priv->byPacketType == PK_TYPE_11B) {
+		priv->uSlot = C_SLOT_LONG;
+		priv->uSIFS = C_SIFS_BG;
+		priv->uDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
+		priv->uCwMin = C_CWMIN_B;
+		max_min = 5;
+	} else {/* PK_TYPE_11GA & PK_TYPE_11GB */
+		u8 rate = 0;
+		bool ofdm_rate = false;
+		unsigned int ii = 0;
+		PWLAN_IE_SUPP_RATES item_rates = NULL;
 
-        pDevice->uSIFS = C_SIFS_BG;
-        if (pDevice->bShortSlotTime) {
-            pDevice->uSlot = C_SLOT_SHORT;
-        } else {
-            pDevice->uSlot = C_SLOT_LONG;
-        }
-        pDevice->uDIFS = C_SIFS_BG + 2*pDevice->uSlot;
+		priv->uSIFS = C_SIFS_BG;
 
-	pItemRates = (PWLAN_IE_SUPP_RATES)pDevice->vnt_mgmt.abyCurrSuppRates;
-        for (ii = 0; ii < pItemRates->len; ii++) {
-            byRate = (u8)(pItemRates->abyRates[ii]&0x7F);
-            if (RATEwGetRateIdx(byRate) > RATE_11M) {
-                bOFDMRate = true;
-                break;
-            }
-        }
-        if (bOFDMRate == false) {
-		pItemRates = (PWLAN_IE_SUPP_RATES)pDevice->vnt_mgmt
-			.abyCurrExtSuppRates;
-            for (ii = 0; ii < pItemRates->len; ii++) {
-                byRate = (u8)(pItemRates->abyRates[ii]&0x7F);
-                if (RATEwGetRateIdx(byRate) > RATE_11M) {
-                    bOFDMRate = true;
-                    break;
-                }
-            }
-        }
-        if (bOFDMRate == true) {
-            pDevice->uCwMin = C_CWMIN_A;
-            byMaxMin = 4;
-        } else {
-            pDevice->uCwMin = C_CWMIN_B;
-            byMaxMin = 5;
-        }
-    }
+		if (priv->bShortSlotTime)
+			priv->uSlot = C_SLOT_SHORT;
+		else
+			priv->uSlot = C_SLOT_LONG;
 
-    pDevice->uCwMax = C_CWMAX;
-    pDevice->uEIFS = C_EIFS;
+		priv->uDIFS = C_SIFS_BG + 2 * priv->uSlot;
 
-    byData[0] = (u8)pDevice->uSIFS;
-    byData[1] = (u8)pDevice->uDIFS;
-    byData[2] = (u8)pDevice->uEIFS;
-    byData[3] = (u8)pDevice->uSlot;
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE,
-                        MAC_REG_SIFS,
-                        MESSAGE_REQUEST_MACREG,
-                        4,
-                        &byData[0]);
+		item_rates =
+			(PWLAN_IE_SUPP_RATES)priv->vnt_mgmt.abyCurrSuppRates;
 
-    byMaxMin |= 0xA0;//1010 1111,C_CWMAX = 1023
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE,
-                        MAC_REG_CWMAXMIN0,
-                        MESSAGE_REQUEST_MACREG,
-                        1,
-                        &byMaxMin);
+		for (ii = 0; ii < item_rates->len; ii++) {
+			rate = (u8)(item_rates->abyRates[ii] & 0x7f);
+			if (RATEwGetRateIdx(rate) > RATE_11M) {
+				ofdm_rate = true;
+				break;
+			}
+		}
+
+		if (ofdm_rate == false) {
+			item_rates = (PWLAN_IE_SUPP_RATES)priv->vnt_mgmt
+				.abyCurrExtSuppRates;
+			for (ii = 0; ii < item_rates->len; ii++) {
+				rate = (u8)(item_rates->abyRates[ii] & 0x7f);
+				if (RATEwGetRateIdx(rate) > RATE_11M) {
+					ofdm_rate = true;
+					break;
+				}
+			}
+		}
+
+		if (ofdm_rate == true) {
+			priv->uCwMin = C_CWMIN_A;
+			max_min = 4;
+		} else {
+			priv->uCwMin = C_CWMIN_B;
+			max_min = 5;
+			}
+	}
+
+	priv->uCwMax = C_CWMAX;
+	priv->uEIFS = C_EIFS;
+
+	data[0] = (u8)priv->uSIFS;
+	data[1] = (u8)priv->uDIFS;
+	data[2] = (u8)priv->uEIFS;
+	data[3] = (u8)priv->uSlot;
+
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, MAC_REG_SIFS,
+		MESSAGE_REQUEST_MACREG, 4, &data[0]);
+
+	max_min |= 0xa0;
+
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, MAC_REG_CWMAXMIN0,
+		MESSAGE_REQUEST_MACREG, 1, &max_min);
 }
 
 void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)
