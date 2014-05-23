@@ -6395,7 +6395,7 @@ static int dgap_parsefile(char **in, int remove)
 	brd = line = conc = NULL;
 
 	/* perhaps we are adding to an existing list? */
-	while (p->next != NULL)
+	while (p->next)
 		p = p->next;
 
 	/* file must start with a BEGIN */
@@ -7233,7 +7233,7 @@ static struct cnode *dgap_newnode(int t)
 	struct cnode *n;
 
 	n = kmalloc(sizeof(struct cnode), GFP_ATOMIC);
-	if (n != NULL) {
+	if (n) {
 		memset((char *)n, 0, sizeof(struct cnode));
 		n->type = t;
 	}
@@ -7361,7 +7361,7 @@ static struct cnode *dgap_find_config(int type, int bus, int slot)
 
 	p = &dgap_head;
 
-	while (p->next != NULL) {
+	while (p->next) {
 		prev = p;
 		p = p->next;
 
@@ -7381,7 +7381,7 @@ static struct cnode *dgap_find_config(int type, int bus, int slot)
 				 * Keep walking thru the list till we
 				 * find the next board.
 				 */
-				while (p->next != NULL) {
+				while (p->next) {
 					prev2 = p;
 					p = p->next;
 					if (p->type == BNODE) {
@@ -7478,13 +7478,11 @@ static char *dgap_create_config_string(struct board_t *bd, char *string)
 			 */
 			speed = p->u.conc.speed;
 			q = p->next;
-			if ((q != NULL) && (q->type == MNODE)) {
+			if (q && (q->type == MNODE)) {
 				*ptr = (p->u.conc.nport + 0x80);
 				ptr++;
 				p = q;
-				while ((q->next != NULL) &&
-				       (q->next->type) == MNODE) {
-
+				while (q->next && (q->next->type) == MNODE) {
 					*ptr = (q->u.module.nport + 0x80);
 					ptr++;
 					p = q;
