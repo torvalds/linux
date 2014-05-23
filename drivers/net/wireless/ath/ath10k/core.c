@@ -671,70 +671,6 @@ static void ath10k_core_restart(struct work_struct *work)
 	mutex_unlock(&ar->conf_mutex);
 }
 
-struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
-				  const struct ath10k_hif_ops *hif_ops)
-{
-	struct ath10k *ar;
-
-	ar = ath10k_mac_create();
-	if (!ar)
-		return NULL;
-
-	ar->ath_common.priv = ar;
-	ar->ath_common.hw = ar->hw;
-
-	ar->p2p = !!ath10k_p2p;
-	ar->dev = dev;
-
-	ar->hif.priv = hif_priv;
-	ar->hif.ops = hif_ops;
-
-	init_completion(&ar->scan.started);
-	init_completion(&ar->scan.completed);
-	init_completion(&ar->scan.on_channel);
-	init_completion(&ar->target_suspend);
-
-	init_completion(&ar->install_key_done);
-	init_completion(&ar->vdev_setup_done);
-
-	setup_timer(&ar->scan.timeout, ath10k_reset_scan, (unsigned long)ar);
-
-	ar->workqueue = create_singlethread_workqueue("ath10k_wq");
-	if (!ar->workqueue)
-		goto err_wq;
-
-	mutex_init(&ar->conf_mutex);
-	spin_lock_init(&ar->data_lock);
-
-	INIT_LIST_HEAD(&ar->peers);
-	init_waitqueue_head(&ar->peer_mapping_wq);
-
-	init_completion(&ar->offchan_tx_completed);
-	INIT_WORK(&ar->offchan_tx_work, ath10k_offchan_tx_work);
-	skb_queue_head_init(&ar->offchan_tx_queue);
-
-	INIT_WORK(&ar->wmi_mgmt_tx_work, ath10k_mgmt_over_wmi_tx_work);
-	skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
-
-	INIT_WORK(&ar->restart_work, ath10k_core_restart);
-
-	return ar;
-
-err_wq:
-	ath10k_mac_destroy(ar);
-	return NULL;
-}
-EXPORT_SYMBOL(ath10k_core_create);
-
-void ath10k_core_destroy(struct ath10k *ar)
-{
-	flush_workqueue(ar->workqueue);
-	destroy_workqueue(ar->workqueue);
-
-	ath10k_mac_destroy(ar);
-}
-EXPORT_SYMBOL(ath10k_core_destroy);
-
 int ath10k_core_start(struct ath10k *ar)
 {
 	int status;
@@ -1066,6 +1002,70 @@ void ath10k_core_unregister(struct ath10k *ar)
 	ath10k_debug_destroy(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
+
+struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
+				  const struct ath10k_hif_ops *hif_ops)
+{
+	struct ath10k *ar;
+
+	ar = ath10k_mac_create();
+	if (!ar)
+		return NULL;
+
+	ar->ath_common.priv = ar;
+	ar->ath_common.hw = ar->hw;
+
+	ar->p2p = !!ath10k_p2p;
+	ar->dev = dev;
+
+	ar->hif.priv = hif_priv;
+	ar->hif.ops = hif_ops;
+
+	init_completion(&ar->scan.started);
+	init_completion(&ar->scan.completed);
+	init_completion(&ar->scan.on_channel);
+	init_completion(&ar->target_suspend);
+
+	init_completion(&ar->install_key_done);
+	init_completion(&ar->vdev_setup_done);
+
+	setup_timer(&ar->scan.timeout, ath10k_reset_scan, (unsigned long)ar);
+
+	ar->workqueue = create_singlethread_workqueue("ath10k_wq");
+	if (!ar->workqueue)
+		goto err_wq;
+
+	mutex_init(&ar->conf_mutex);
+	spin_lock_init(&ar->data_lock);
+
+	INIT_LIST_HEAD(&ar->peers);
+	init_waitqueue_head(&ar->peer_mapping_wq);
+
+	init_completion(&ar->offchan_tx_completed);
+	INIT_WORK(&ar->offchan_tx_work, ath10k_offchan_tx_work);
+	skb_queue_head_init(&ar->offchan_tx_queue);
+
+	INIT_WORK(&ar->wmi_mgmt_tx_work, ath10k_mgmt_over_wmi_tx_work);
+	skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
+
+	INIT_WORK(&ar->restart_work, ath10k_core_restart);
+
+	return ar;
+
+err_wq:
+	ath10k_mac_destroy(ar);
+	return NULL;
+}
+EXPORT_SYMBOL(ath10k_core_create);
+
+void ath10k_core_destroy(struct ath10k *ar)
+{
+	flush_workqueue(ar->workqueue);
+	destroy_workqueue(ar->workqueue);
+
+	ath10k_mac_destroy(ar);
+}
+EXPORT_SYMBOL(ath10k_core_destroy);
 
 MODULE_AUTHOR("Qualcomm Atheros");
 MODULE_DESCRIPTION("Core module for QCA988X PCIe devices.");
