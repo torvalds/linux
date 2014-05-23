@@ -201,7 +201,8 @@ int ath10k_bmi_write_memory(struct ath10k *ar, u32 address,
 									\
 		addr = host_interest_item_address(HI_ITEM(item));	\
 		ret = ath10k_bmi_read_memory(ar, addr, (u8 *)&tmp, 4); \
-		*val = __le32_to_cpu(tmp);				\
+		if (!ret)						\
+			*val = __le32_to_cpu(tmp);			\
 		ret;							\
 	 })
 
