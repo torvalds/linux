@@ -184,6 +184,9 @@ struct mgmt_cp_load_link_keys {
 
 #define MGMT_LTK_UNAUTHENTICATED	0x00
 #define MGMT_LTK_AUTHENTICATED		0x01
+#define MGMT_LTK_P256_UNAUTH		0x02
+#define MGMT_LTK_P256_AUTH		0x03
+#define MGMT_LTK_P256_DEBUG		0x04
 
 struct mgmt_ltk_info {
 	struct mgmt_addr_info addr;

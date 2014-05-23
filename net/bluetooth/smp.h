@@ -146,7 +146,20 @@ enum {
 	SMP_STK,
 	SMP_LTK,
 	SMP_LTK_SLAVE,
+	SMP_LTK_P256,
+	SMP_LTK_P256_DEBUG,
 };
+
+static inline bool smp_ltk_is_sc(struct smp_ltk *key)
+{
+	switch (key->type) {
+	case SMP_LTK_P256:
+	case SMP_LTK_P256_DEBUG:
+		return true;
+	}
+
+	return false;
+}
 
 static inline u8 smp_ltk_sec_level(struct smp_ltk *key)
 {

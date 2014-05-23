@@ -4910,18 +4910,26 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 		else
 			addr_type = ADDR_LE_DEV_RANDOM;
 
-		if (key->master)
-			type = SMP_LTK;
-		else
-			type = SMP_LTK_SLAVE;
-
 		switch (key->type) {
 		case MGMT_LTK_UNAUTHENTICATED:
 			authenticated = 0x00;
+			type = key->master ? SMP_LTK : SMP_LTK_SLAVE;
 			break;
 		case MGMT_LTK_AUTHENTICATED:
 			authenticated = 0x01;
+			type = key->master ? SMP_LTK : SMP_LTK_SLAVE;
 			break;
+		case MGMT_LTK_P256_UNAUTH:
+			authenticated = 0x00;
+			type = SMP_LTK_P256;
+			break;
+		case MGMT_LTK_P256_AUTH:
+			authenticated = 0x01;
+			type = SMP_LTK_P256;
+			break;
+		case MGMT_LTK_P256_DEBUG:
+			authenticated = 0x00;
+			type = SMP_LTK_P256_DEBUG;
 		default:
 			continue;
 		}
@@ -6101,8 +6109,19 @@ void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 
 static u8 mgmt_ltk_type(struct smp_ltk *ltk)
 {
-	if (ltk->authenticated)
-		return MGMT_LTK_AUTHENTICATED;
+	switch (ltk->type) {
+	case SMP_LTK:
+	case SMP_LTK_SLAVE:
+		if (ltk->authenticated)
+			return MGMT_LTK_AUTHENTICATED;
+		return MGMT_LTK_UNAUTHENTICATED;
+	case SMP_LTK_P256:
+		if (ltk->authenticated)
+			return MGMT_LTK_P256_AUTH;
+		return MGMT_LTK_P256_UNAUTH;
+	case SMP_LTK_P256_DEBUG:
+		return MGMT_LTK_P256_DEBUG;
+	}
 
 	return MGMT_LTK_UNAUTHENTICATED;
 }
