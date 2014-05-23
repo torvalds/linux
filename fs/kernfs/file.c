@@ -611,6 +611,7 @@ static void kernfs_put_open_node(struct kernfs_node *kn,
 static int kernfs_fop_open(struct inode *inode, struct file *file)
 {
 	struct kernfs_node *kn = file->f_path.dentry->d_fsdata;
+	struct kernfs_root *root = kernfs_root(kn);
 	const struct kernfs_ops *ops;
 	struct kernfs_open_file *of;
 	bool has_read, has_write, has_mmap;
@@ -625,14 +626,16 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	has_write = ops->write || ops->mmap;
 	has_mmap = ops->mmap;
 
-	/* check perms and supported operations */
-	if ((file->f_mode & FMODE_WRITE) &&
-	    (!(inode->i_mode & S_IWUGO) || !has_write))
-		goto err_out;
+	/* see the flag definition for details */
+	if (root->flags & KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK) {
+		if ((file->f_mode & FMODE_WRITE) &&
+		    (!(inode->i_mode & S_IWUGO) || !has_write))
+			goto err_out;
 
-	if ((file->f_mode & FMODE_READ) &&
-	    (!(inode->i_mode & S_IRUGO) || !has_read))
-		goto err_out;
+		if ((file->f_mode & FMODE_READ) &&
+		    (!(inode->i_mode & S_IRUGO) || !has_read))
+			goto err_out;
+	}
 
 	/* allocate a kernfs_open_file for the file */
 	error = -ENOMEM;

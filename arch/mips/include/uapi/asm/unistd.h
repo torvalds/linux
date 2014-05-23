@@ -371,11 +371,12 @@
 #define __NR_finit_module		(__NR_Linux + 348)
 #define __NR_sched_setattr		(__NR_Linux + 349)
 #define __NR_sched_getattr		(__NR_Linux + 350)
+#define __NR_renameat2			(__NR_Linux + 351)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		350
+#define __NR_Linux_syscalls		351
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
@@ -699,11 +700,12 @@
 #define __NR_getdents64			(__NR_Linux + 308)
 #define __NR_sched_setattr		(__NR_Linux + 309)
 #define __NR_sched_getattr		(__NR_Linux + 310)
+#define __NR_renameat2			(__NR_Linux + 311)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		310
+#define __NR_Linux_syscalls		311
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
@@ -1031,11 +1033,12 @@
 #define __NR_finit_module		(__NR_Linux + 312)
 #define __NR_sched_setattr		(__NR_Linux + 313)
 #define __NR_sched_getattr		(__NR_Linux + 314)
+#define __NR_renameat2			(__NR_Linux + 315)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		314
+#define __NR_Linux_syscalls		315
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 

@@ -50,7 +50,24 @@ enum kernfs_node_flag {
 
 /* @flags for kernfs_create_root() */
 enum kernfs_root_flag {
-	KERNFS_ROOT_CREATE_DEACTIVATED = 0x0001,
+	/*
+	 * kernfs_nodes are created in the deactivated state and invisible.
+	 * They require explicit kernfs_activate() to become visible.  This
+	 * can be used to make related nodes become visible atomically
+	 * after all nodes are created successfully.
+	 */
+	KERNFS_ROOT_CREATE_DEACTIVATED		= 0x0001,
+
+	/*
+	 * For regular flies, if the opener has CAP_DAC_OVERRIDE, open(2)
+	 * succeeds regardless of the RW permissions.  sysfs had an extra
+	 * layer of enforcement where open(2) fails with -EACCES regardless
+	 * of CAP_DAC_OVERRIDE if the permission doesn't have the
+	 * respective read or write access at all (none of S_IRUGO or
+	 * S_IWUGO) or the respective operation isn't implemented.  The
+	 * following flag enables that behavior.
+	 */
+	KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK	= 0x0002,
 };
 
 /* type-specific structures for kernfs_node union members */

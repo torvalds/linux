@@ -41,14 +41,14 @@ struct opal_takeover_args {
  * size except the last one in the list to be as well.
  */
 struct opal_sg_entry {
-	void    *data;
-	long    length;
+	__be64 data;
+	__be64 length;
 };
 
-/* sg list */
+/* SG list */
 struct opal_sg_list {
-	unsigned long num_entries;
-	struct opal_sg_list *next;
+	__be64 length;
+	__be64 next;
 	struct opal_sg_entry entry[];
 };
 
@@ -858,8 +858,8 @@ int64_t opal_lpc_write(uint32_t chip_id, enum OpalLPCAddressType addr_type,
 int64_t opal_lpc_read(uint32_t chip_id, enum OpalLPCAddressType addr_type,
 		      uint32_t addr, __be32 *data, uint32_t sz);
 
-int64_t opal_read_elog(uint64_t buffer, size_t size, uint64_t log_id);
-int64_t opal_get_elog_size(uint64_t *log_id, size_t *size, uint64_t *elog_type);
+int64_t opal_read_elog(uint64_t buffer, uint64_t size, uint64_t log_id);
+int64_t opal_get_elog_size(__be64 *log_id, __be64 *size, __be64 *elog_type);
 int64_t opal_write_elog(uint64_t buffer, uint64_t size, uint64_t offset);
 int64_t opal_send_ack_elog(uint64_t log_id);
 void opal_resend_pending_logs(void);
@@ -868,23 +868,24 @@ int64_t opal_validate_flash(uint64_t buffer, uint32_t *size, uint32_t *result);
 int64_t opal_manage_flash(uint8_t op);
 int64_t opal_update_flash(uint64_t blk_list);
 int64_t opal_dump_init(uint8_t dump_type);
-int64_t opal_dump_info(uint32_t *dump_id, uint32_t *dump_size);
-int64_t opal_dump_info2(uint32_t *dump_id, uint32_t *dump_size, uint32_t *dump_type);
+int64_t opal_dump_info(__be32 *dump_id, __be32 *dump_size);
+int64_t opal_dump_info2(__be32 *dump_id, __be32 *dump_size, __be32 *dump_type);
 int64_t opal_dump_read(uint32_t dump_id, uint64_t buffer);
 int64_t opal_dump_ack(uint32_t dump_id);
 int64_t opal_dump_resend_notification(void);
 
-int64_t opal_get_msg(uint64_t buffer, size_t size);
-int64_t opal_check_completion(uint64_t buffer, size_t size, uint64_t token);
+int64_t opal_get_msg(uint64_t buffer, uint64_t size);
+int64_t opal_check_completion(uint64_t buffer, uint64_t size, uint64_t token);
 int64_t opal_sync_host_reboot(void);
 int64_t opal_get_param(uint64_t token, uint32_t param_id, uint64_t buffer,
-		size_t length);
+		uint64_t length);
 int64_t opal_set_param(uint64_t token, uint32_t param_id, uint64_t buffer,
-		size_t length);
+		uint64_t length);
 int64_t opal_sensor_read(uint32_t sensor_hndl, int token, __be32 *sensor_data);
 
 /* Internal functions */
-extern int early_init_dt_scan_opal(unsigned long node, const char *uname, int depth, void *data);
+extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
+				   int depth, void *data);
 extern int early_init_dt_scan_recoverable_ranges(unsigned long node,
 				 const char *uname, int depth, void *data);
 
@@ -892,10 +893,6 @@ extern int opal_get_chars(uint32_t vtermno, char *buf, int count);
 extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
 
 extern void hvc_opal_init_early(void);
-
-/* Internal functions */
-extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
-				   int depth, void *data);
 
 extern int opal_notifier_register(struct notifier_block *nb);
 extern int opal_notifier_unregister(struct notifier_block *nb);
@@ -906,17 +903,12 @@ extern void opal_notifier_enable(void);
 extern void opal_notifier_disable(void);
 extern void opal_notifier_update_evt(uint64_t evt_mask, uint64_t evt_val);
 
-extern int opal_get_chars(uint32_t vtermno, char *buf, int count);
-extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
-
 extern int __opal_async_get_token(void);
 extern int opal_async_get_token_interruptible(void);
 extern int __opal_async_release_token(int token);
 extern int opal_async_release_token(int token);
 extern int opal_async_wait_response(uint64_t token, struct opal_msg *msg);
 extern int opal_get_sensor_data(u32 sensor_hndl, u32 *sensor_data);
-
-extern void hvc_opal_init_early(void);
 
 struct rtc_time;
 extern int opal_set_rtc_time(struct rtc_time *tm);
@@ -936,6 +928,10 @@ extern void opal_shutdown(void);
 extern int opal_resync_timebase(void);
 
 extern void opal_lpc_init(void);
+
+struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,
+					     unsigned long vmalloc_size);
+void opal_free_sg_list(struct opal_sg_list *sg);
 
 #endif /* __ASSEMBLY__ */
 

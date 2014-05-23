@@ -1059,24 +1059,26 @@ static void azx_init_cmd_io(struct azx *chip)
 
 	/* reset the corb hw read pointer */
 	azx_writew(chip, CORBRP, ICH6_CORBRP_RST);
-	for (timeout = 1000; timeout > 0; timeout--) {
-		if ((azx_readw(chip, CORBRP) & ICH6_CORBRP_RST) == ICH6_CORBRP_RST)
-			break;
-		udelay(1);
-	}
-	if (timeout <= 0)
-		dev_err(chip->card->dev, "CORB reset timeout#1, CORBRP = %d\n",
-			azx_readw(chip, CORBRP));
+	if (!(chip->driver_caps & AZX_DCAPS_CORBRP_SELF_CLEAR)) {
+		for (timeout = 1000; timeout > 0; timeout--) {
+			if ((azx_readw(chip, CORBRP) & ICH6_CORBRP_RST) == ICH6_CORBRP_RST)
+				break;
+			udelay(1);
+		}
+		if (timeout <= 0)
+			dev_err(chip->card->dev, "CORB reset timeout#1, CORBRP = %d\n",
+				azx_readw(chip, CORBRP));
 
-	azx_writew(chip, CORBRP, 0);
-	for (timeout = 1000; timeout > 0; timeout--) {
-		if (azx_readw(chip, CORBRP) == 0)
-			break;
-		udelay(1);
+		azx_writew(chip, CORBRP, 0);
+		for (timeout = 1000; timeout > 0; timeout--) {
+			if (azx_readw(chip, CORBRP) == 0)
+				break;
+			udelay(1);
+		}
+		if (timeout <= 0)
+			dev_err(chip->card->dev, "CORB reset timeout#2, CORBRP = %d\n",
+				azx_readw(chip, CORBRP));
 	}
-	if (timeout <= 0)
-		dev_err(chip->card->dev, "CORB reset timeout#2, CORBRP = %d\n",
-			azx_readw(chip, CORBRP));
 
 	/* enable corb dma */
 	azx_writeb(chip, CORBCTL, ICH6_CORBCTL_RUN);
