@@ -29,8 +29,10 @@
 #include <linux/slab.h>
 #include <linux/mbus.h>
 #include <linux/clk.h>
+#include <linux/pci.h>
 #include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
+#include <asm/mach/map.h>
 #include "armada-370-xp.h"
 #include "coherency.h"
 #include "mvebu-soc-id.h"
@@ -274,8 +276,8 @@ static struct dma_map_ops mvebu_hwcc_dma_ops = {
 	.set_dma_mask		= arm_dma_set_mask,
 };
 
-static int mvebu_hwcc_platform_notifier(struct notifier_block *nb,
-				       unsigned long event, void *__dev)
+static int mvebu_hwcc_notifier(struct notifier_block *nb,
+			       unsigned long event, void *__dev)
 {
 	struct device *dev = __dev;
 
@@ -286,8 +288,8 @@ static int mvebu_hwcc_platform_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mvebu_hwcc_platform_nb = {
-	.notifier_call = mvebu_hwcc_platform_notifier,
+static struct notifier_block mvebu_hwcc_nb = {
+	.notifier_call = mvebu_hwcc_notifier,
 };
 
 static void __init armada_370_coherency_init(struct device_node *np)
@@ -308,9 +310,47 @@ static void __init armada_370_coherency_init(struct device_node *np)
 	set_cpu_coherent();
 }
 
+/*
+ * This ioremap hook is used on Armada 375/38x to ensure that PCIe
+ * memory areas are mapped as MT_UNCACHED instead of MT_DEVICE. This
+ * is needed as a workaround for a deadlock issue between the PCIe
+ * interface and the cache controller.
+ */
+static void __iomem *
+armada_pcie_wa_ioremap_caller(phys_addr_t phys_addr, size_t size,
+			      unsigned int mtype, void *caller)
+{
+	struct resource pcie_mem;
+
+	mvebu_mbus_get_pcie_mem_aperture(&pcie_mem);
+
+	if (pcie_mem.start <= phys_addr && (phys_addr + size) <= pcie_mem.end)
+		mtype = MT_UNCACHED;
+
+	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
+}
+
 static void __init armada_375_380_coherency_init(struct device_node *np)
 {
+	struct device_node *cache_dn;
+
 	coherency_cpu_base = of_iomap(np, 0);
+	arch_ioremap_caller = armada_pcie_wa_ioremap_caller;
+
+	/*
+	 * Add the PL310 property "arm,io-coherent". This makes sure the
+	 * outer sync operation is not used, which allows to
+	 * workaround the system erratum that causes deadlocks when
+	 * doing PCIe in an SMP situation on Armada 375 and Armada
+	 * 38x.
+	 */
+	for_each_compatible_node(cache_dn, NULL, "arm,pl310-cache") {
+		struct property *p;
+
+		p = kzalloc(sizeof(*p), GFP_KERNEL);
+		p->name = kstrdup("arm,io-coherent", GFP_KERNEL);
+		of_add_property(cache_dn, p);
+	}
 }
 
 static int coherency_type(void)
@@ -375,9 +415,21 @@ static int __init coherency_late_init(void)
 	}
 
 	bus_register_notifier(&platform_bus_type,
-			      &mvebu_hwcc_platform_nb);
+			      &mvebu_hwcc_nb);
 
 	return 0;
 }
 
 postcore_initcall(coherency_late_init);
+
+#if IS_ENABLED(CONFIG_PCI)
+static int __init coherency_pci_init(void)
+{
+	if (coherency_available())
+		bus_register_notifier(&pci_bus_type,
+				       &mvebu_hwcc_nb);
+	return 0;
+}
+
+arch_initcall(coherency_pci_init);
+#endif
