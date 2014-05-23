@@ -1129,9 +1129,9 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 			adapter->vfinfo[vf].vlan_count--;
 		adapter->vfinfo[vf].pf_vlan = 0;
 		adapter->vfinfo[vf].pf_qos = 0;
-       }
+	}
 out:
-       return err;
+	return err;
 }
 
 static int ixgbe_link_mbps(struct ixgbe_adapter *adapter)

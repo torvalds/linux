@@ -6836,7 +6836,6 @@ static void i40e_vsi_delete(struct i40e_vsi *vsi)
 		return;
 
 	i40e_aq_delete_element(&vsi->back->hw, vsi->seid, NULL);
-	return;
 }
 
 /**
@@ -7576,8 +7575,6 @@ void i40e_veb_release(struct i40e_veb *veb)
 
 	i40e_aq_delete_element(&pf->hw, veb->seid, NULL);
 	i40e_veb_clear(veb);
-
-	return;
 }
 
 /**
@@ -8058,7 +8055,6 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 	}
 
 	pf->queues_left = queues_left;
-	return;
 }
 
 /**
