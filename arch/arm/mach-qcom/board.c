@@ -17,6 +17,7 @@
 static const char * const qcom_dt_match[] __initconst = {
 	"qcom,apq8064",
 	"qcom,apq8074-dragonboard",
+	"qcom,apq8084",
 	"qcom,msm8660-surf",
 	"qcom,msm8960-cdp",
 	NULL
