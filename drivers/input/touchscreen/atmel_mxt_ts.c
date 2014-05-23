@@ -1471,7 +1471,7 @@ static int mxt_check_retrigen(struct mxt_data *data)
 static int mxt_init_t7_power_cfg(struct mxt_data *data);
 
 /*
- * mxt_check_reg_init - download configuration to chip
+ * mxt_update_cfg - download configuration to chip
  *
  * Atmel Raw Config File Format
  *
@@ -1489,7 +1489,7 @@ static int mxt_init_t7_power_cfg(struct mxt_data *data);
  *   <SIZE> - 2-byte object size as hex
  *   <CONTENTS> - array of <SIZE> 1-byte hex values
  */
-static int mxt_check_reg_init(struct mxt_data *data)
+static int mxt_update_cfg(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
 	struct mxt_info cfg_info;
@@ -2435,8 +2435,7 @@ static int mxt_configure_objects(struct mxt_data *data)
 		return error;
 	}
 
-	/* Check register init values */
-	error = mxt_check_reg_init(data);
+	error = mxt_update_cfg(data);
 	if (error) {
 		dev_err(&client->dev, "Error %d initialising configuration\n",
 			error);
