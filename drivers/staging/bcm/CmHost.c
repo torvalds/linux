@@ -1159,99 +1159,102 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 
 	for (nIndex = 0; nIndex < nCurClassifierCnt; nIndex++)	{
 		struct bcm_convergence_types *psfCSType = NULL;
+		struct bcm_packet_class_rules *clsRule = NULL;
 
-		psfCSType =  &pstAddIndication->sfActiveSet.cConvergenceSLTypes[nIndex];
+		psfCSType = &pstAddIndication->sfActiveSet.cConvergenceSLTypes[nIndex];
+		clsRule	= &psfCSType->cCPacketClassificationRule;
+
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " CCPacketClassificationRuleSI====>");
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8ClassifierRulePriority: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8ClassifierRulePriority);
+				clsRule->u8ClassifierRulePriority);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8IPTypeOfServiceLength: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8IPTypeOfServiceLength);
+				clsRule->u8IPTypeOfServiceLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8IPTypeOfService[3]: 0x%X ,0x%X ,0x%X ",
-				psfCSType->cCPacketClassificationRule.u8IPTypeOfService[0],
-				psfCSType->cCPacketClassificationRule.u8IPTypeOfService[1],
-				psfCSType->cCPacketClassificationRule.u8IPTypeOfService[2]);
+				clsRule->u8IPTypeOfService[0],
+				clsRule->u8IPTypeOfService[1],
+				clsRule->u8IPTypeOfService[2]);
 
 		for (uiLoopIndex = 0; uiLoopIndex < 1; uiLoopIndex++)
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8Protocol: 0x%X ", psfCSType->cCPacketClassificationRule.u8Protocol);
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8Protocol: 0x%X ", clsRule->u8Protocol);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPMaskedSourceAddressLength: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8IPMaskedSourceAddressLength);
+				clsRule->u8IPMaskedSourceAddressLength);
 
 		for (uiLoopIndex = 0; uiLoopIndex < 32; uiLoopIndex++)
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPMaskedSourceAddress[32]: 0x%X ",
-					psfCSType->cCPacketClassificationRule.u8IPMaskedSourceAddress[uiLoopIndex]);
+					clsRule->u8IPMaskedSourceAddress[uiLoopIndex]);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPDestinationAddressLength: 0x%02X ",
-				psfCSType->cCPacketClassificationRule.u8IPDestinationAddressLength);
+				clsRule->u8IPDestinationAddressLength);
 
 		for (uiLoopIndex = 0; uiLoopIndex < 32; uiLoopIndex++)
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8IPDestinationAddress[32]:0x%X ",
-					psfCSType->cCPacketClassificationRule.u8IPDestinationAddress[uiLoopIndex]);
+					clsRule->u8IPDestinationAddress[uiLoopIndex]);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8ProtocolSourcePortRangeLength: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength);
+				clsRule->u8ProtocolSourcePortRangeLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8ProtocolSourcePortRange[4]: 0x%X ,0x%X ,0x%X ,0x%X ",
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRange[0],
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRange[1],
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRange[2],
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRange[3]);
+				clsRule->u8ProtocolSourcePortRange[0],
+				clsRule->u8ProtocolSourcePortRange[1],
+				clsRule->u8ProtocolSourcePortRange[2],
+				clsRule->u8ProtocolSourcePortRange[3]);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8ProtocolDestPortRangeLength: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength);
+				clsRule->u8ProtocolDestPortRangeLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8ProtocolDestPortRange[4]: 0x%X ,0x%X ,0x%X ,0x%X ",
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange[0],
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange[1],
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange[2],
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange[3]);
+				clsRule->u8ProtocolDestPortRange[0],
+				clsRule->u8ProtocolDestPortRange[1],
+				clsRule->u8ProtocolDestPortRange[2],
+				clsRule->u8ProtocolDestPortRange[3]);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8EthernetDestMacAddressLength: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
+				clsRule->u8EthernetDestMacAddressLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8EthernetDestMacAddress[6]: 0x%X ,0x%X ,0x%X ,0x%X ,0x%X ,0x%X",
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[0],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[1],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[2],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[3],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[4],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[5]);
+				clsRule->u8EthernetDestMacAddress[0],
+				clsRule->u8EthernetDestMacAddress[1],
+				clsRule->u8EthernetDestMacAddress[2],
+				clsRule->u8EthernetDestMacAddress[3],
+				clsRule->u8EthernetDestMacAddress[4],
+				clsRule->u8EthernetDestMacAddress[5]);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8EthernetSourceMACAddressLength: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
+				clsRule->u8EthernetDestMacAddressLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: 0x%X ,0x%X ,0x%X ,0x%X ,0x%X ,0x%X",
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[0],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[1],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[2],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[3],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[4],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[5]);
+				clsRule->u8EthernetSourceMACAddress[0],
+				clsRule->u8EthernetSourceMACAddress[1],
+				clsRule->u8EthernetSourceMACAddress[2],
+				clsRule->u8EthernetSourceMACAddress[3],
+				clsRule->u8EthernetSourceMACAddress[4],
+				clsRule->u8EthernetSourceMACAddress[5]);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8EthertypeLength: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8EthertypeLength);
+				clsRule->u8EthertypeLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8Ethertype[3]: 0x%X ,0x%X ,0x%X ",
-				psfCSType->cCPacketClassificationRule.u8Ethertype[0],
-				psfCSType->cCPacketClassificationRule.u8Ethertype[1],
-				psfCSType->cCPacketClassificationRule.u8Ethertype[2]);
+				clsRule->u8Ethertype[0],
+				clsRule->u8Ethertype[1],
+				clsRule->u8Ethertype[2]);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u16UserPriority: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u16UserPriority);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u16VLANID: 0x%X ", psfCSType->cCPacketClassificationRule.u16VLANID);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8AssociatedPHSI: 0x%X ", psfCSType->cCPacketClassificationRule.u8AssociatedPHSI);
+				clsRule->u16UserPriority);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u16VLANID: 0x%X ", clsRule->u16VLANID);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8AssociatedPHSI: 0x%X ", clsRule->u8AssociatedPHSI);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u16PacketClassificationRuleIndex:0x%X ",
-				psfCSType->cCPacketClassificationRule.u16PacketClassificationRuleIndex);
+				clsRule->u16PacketClassificationRuleIndex);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8VendorSpecificClassifierParamLength:0x%X ",
-				psfCSType->cCPacketClassificationRule.u8VendorSpecificClassifierParamLength);
+				clsRule->u8VendorSpecificClassifierParamLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8VendorSpecificClassifierParam[1]:0x%X ",
-				psfCSType->cCPacketClassificationRule.u8VendorSpecificClassifierParam[0]);
+				clsRule->u8VendorSpecificClassifierParam[0]);
 #ifdef VERSION_D5
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8IPv6FlowLableLength: 0x%X ",
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLableLength);
+				clsRule->u8IPv6FlowLableLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " u8IPv6FlowLable[6]: 0x%X ,0x%X ,0x%X ,0x%X ,0x%X ,0x%X ",
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[0],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[1],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[2],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[3],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[4],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[5]);
+				clsRule->u8IPv6FlowLable[0],
+				clsRule->u8IPv6FlowLable[1],
+				clsRule->u8IPv6FlowLable[2],
+				clsRule->u8IPv6FlowLable[3],
+				clsRule->u8IPv6FlowLable[4],
+				clsRule->u8IPv6FlowLable[5]);
 #endif
 	}
 
