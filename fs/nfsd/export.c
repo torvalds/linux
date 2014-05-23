@@ -17,8 +17,6 @@
 #include <linux/exportfs.h>
 #include <linux/sunrpc/svc_xprt.h>
 
-#include <net/ipv6.h>
-
 #include "nfsd.h"
 #include "nfsfh.h"
 #include "netns.h"
