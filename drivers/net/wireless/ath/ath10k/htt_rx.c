@@ -778,17 +778,30 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 static void ath10k_htt_rx_h_protected(struct ath10k_htt *htt,
 				      struct ieee80211_rx_status *rx_status,
 				      struct sk_buff *skb,
-				      enum htt_rx_mpdu_encrypt_type enctype)
+				      enum htt_rx_mpdu_encrypt_type enctype,
+				      enum rx_msdu_decap_format fmt,
+				      bool dot11frag)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
+	rx_status->flag &= ~(RX_FLAG_DECRYPTED |
+			     RX_FLAG_IV_STRIPPED |
+			     RX_FLAG_MMIC_STRIPPED);
 
-	if (enctype == HTT_RX_MPDU_ENCRYPT_NONE) {
-		rx_status->flag &= ~(RX_FLAG_DECRYPTED |
-				     RX_FLAG_IV_STRIPPED |
-				     RX_FLAG_MMIC_STRIPPED);
+	if (enctype == HTT_RX_MPDU_ENCRYPT_NONE)
 		return;
-	}
+
+	/*
+	 * There's no explicit rx descriptor flag to indicate whether a given
+	 * frame has been decrypted or not. We're forced to use the decap
+	 * format as an implicit indication. However fragmentation rx is always
+	 * raw and it probably never reports undecrypted raws.
+	 *
+	 * This makes sure sniffed frames are reported as-is without stripping
+	 * the protected flag.
+	 */
+	if (fmt == RX_MSDU_DECAP_RAW && !dot11frag)
+		return;
 
 	rx_status->flag |= RX_FLAG_DECRYPTED |
 			   RX_FLAG_IV_STRIPPED |
@@ -942,7 +955,8 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 		}
 
 		skb_in = skb;
-		ath10k_htt_rx_h_protected(htt, rx_status, skb_in, enctype);
+		ath10k_htt_rx_h_protected(htt, rx_status, skb_in, enctype, fmt,
+					  false);
 		skb = skb->next;
 		skb_in->next = NULL;
 
@@ -1024,7 +1038,7 @@ static void ath10k_htt_rx_msdu(struct ath10k_htt *htt,
 		break;
 	}
 
-	ath10k_htt_rx_h_protected(htt, rx_status, skb, enctype);
+	ath10k_htt_rx_h_protected(htt, rx_status, skb, enctype, fmt, false);
 
 	ath10k_process_rx(htt->ar, rx_status, skb);
 }
@@ -1330,7 +1344,8 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 
 	enctype = MS(__le32_to_cpu(rxd->mpdu_start.info0),
 		     RX_MPDU_START_INFO0_ENCRYPT_TYPE);
-	ath10k_htt_rx_h_protected(htt, rx_status, msdu_head, enctype);
+	ath10k_htt_rx_h_protected(htt, rx_status, msdu_head, enctype, fmt,
+				  true);
 	msdu_head->ip_summed = ath10k_htt_rx_get_csum_state(msdu_head);
 
 	if (tkip_mic_err)
