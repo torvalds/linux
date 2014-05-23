@@ -1582,6 +1582,9 @@ void reset_output_field(void)
 	sort__has_sym = 0;
 	sort__has_dso = 0;
 
+	field_order = NULL;
+	sort_order = NULL;
+
 	reset_dimensions();
 	perf_hpp__reset_output_field();
 }
