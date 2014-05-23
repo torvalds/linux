@@ -306,7 +306,7 @@ static int esdhc_of_suspend(struct device *dev)
 	return sdhci_suspend_host(host);
 }
 
-static void esdhc_of_resume(device *dev)
+static int esdhc_of_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	int ret = sdhci_resume_host(host);
@@ -321,8 +321,8 @@ static void esdhc_of_resume(device *dev)
 }
 
 static const struct dev_pm_ops esdhc_pmops = {
-	.suspend	= esdhci_of_suspend,
-	.resume		= esdhci_of_resume,
+	.suspend	= esdhc_of_suspend,
+	.resume		= esdhc_of_resume,
 };
 #define ESDHC_PMOPS (&esdhc_pmops)
 #else
