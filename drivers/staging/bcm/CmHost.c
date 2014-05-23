@@ -1923,13 +1923,16 @@ static void restore_endianess_of_pstClassifierEntry(
 		enum bcm_ipaddr_context eIpAddrContext)
 {
 	int i;
+	union u_ip_address *stSrc  = &pstClassifierEntry->stSrcIpAddress;
+	union u_ip_address *stDest = &pstClassifierEntry->stDestIpAddress;
+
 	for (i = 0; i < MAX_IP_RANGE_LENGTH * 4; i++) {
 		if (eIpAddrContext == eSrcIpAddress) {
-			pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[i]);
-			pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[i]);
+			stSrc->ulIpv6Addr[i] = ntohl(stSrc->ulIpv6Addr[i]);
+			stSrc->ulIpv6Mask[i] = ntohl(stSrc->ulIpv6Mask[i]);
 		} else if (eIpAddrContext == eDestIpAddress) {
-			pstClassifierEntry->stDestIpAddress.ulIpv6Addr[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Addr[i]);
-			pstClassifierEntry->stDestIpAddress.ulIpv6Mask[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Mask[i]);
+			stDest->ulIpv6Addr[i] = ntohl(stDest->ulIpv6Addr[i]);
+			stDest->ulIpv6Mask[i] = ntohl(stDest->ulIpv6Mask[i]);
 		}
 	}
 }
