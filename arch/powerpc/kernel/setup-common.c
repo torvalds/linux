@@ -390,9 +390,10 @@ void __init check_for_initrd(void)
 
 #ifdef CONFIG_SMP
 
-int threads_per_core, threads_shift;
+int threads_per_core, threads_per_subcore, threads_shift;
 cpumask_t threads_core_mask;
 EXPORT_SYMBOL_GPL(threads_per_core);
+EXPORT_SYMBOL_GPL(threads_per_subcore);
 EXPORT_SYMBOL_GPL(threads_shift);
 EXPORT_SYMBOL_GPL(threads_core_mask);
 
@@ -401,6 +402,7 @@ static void __init cpu_init_thread_core_maps(int tpc)
 	int i;
 
 	threads_per_core = tpc;
+	threads_per_subcore = tpc;
 	cpumask_clear(&threads_core_mask);
 
 	/* This implementation only supports power of 2 number of threads
