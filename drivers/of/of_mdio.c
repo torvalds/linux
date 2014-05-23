@@ -46,7 +46,6 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	struct phy_device *phy;
 	bool is_c45;
 	int rc;
-	u32 max_speed = 0;
 	u32 phy_id;
 
 	is_c45 = of_device_is_compatible(child,
