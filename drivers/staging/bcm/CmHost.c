@@ -241,7 +241,10 @@ void ClearTargetDSXBuffer(struct bcm_mini_adapter *Adapter, B_UINT16 TID, bool b
  * @ingroup ctrl_pkt_functions
  * copy classifier rule into the specified SF index
  */
-static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, struct bcm_convergence_types *psfCSType, UINT uiSearchRuleIndex, UINT nClassifierIndex)
+static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter,
+		struct bcm_convergence_types *psfCSType,
+		UINT uiSearchRuleIndex,
+		UINT nClassifierIndex)
 {
 	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 	/* VOID *pvPhsContext = NULL; */
@@ -256,7 +259,8 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 		nClassifierIndex > (MAX_CLASSIFIERS-1))
 		return;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Storing Classifier Rule Index : %X",
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Storing Classifier Rule Index : %X",
 			ntohs(pack_class_rule->u16PacketClassificationRuleIndex));
 
 	if (nClassifierIndex > MAX_CLASSIFIERS-1)
@@ -265,31 +269,42 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 	pstClassifierEntry = &Adapter->astClassifierTable[nClassifierIndex];
 	if (pstClassifierEntry) {
 		/* Store if Ipv6 */
-		pstClassifierEntry->bIpv6Protocol = (Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion == IPV6) ? TRUE : false;
+		pstClassifierEntry->bIpv6Protocol =
+			(Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion == IPV6) ? TRUE : false;
 
 		/* Destinaiton Port */
-		pstClassifierEntry->ucDestPortRangeLength = pack_class_rule->u8ProtocolDestPortRangeLength / 4;
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Destination Port Range Length:0x%X ", pstClassifierEntry->ucDestPortRangeLength);
+		pstClassifierEntry->ucDestPortRangeLength =
+			pack_class_rule->u8ProtocolDestPortRangeLength / 4;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Destination Port Range Length:0x%X ",
+				pstClassifierEntry->ucDestPortRangeLength);
 
 		if (pack_class_rule->u8ProtocolDestPortRangeLength <= MAX_PORT_RANGE) {
 			for (i = 0; i < (pstClassifierEntry->ucDestPortRangeLength); i++) {
-				pstClassifierEntry->usDestPortRangeLo[i] = *((PUSHORT)(pack_class_rule->u8ProtocolDestPortRange+i));
+				pstClassifierEntry->usDestPortRangeLo[i] =
+					*((PUSHORT)(pack_class_rule->u8ProtocolDestPortRange+i));
 				pstClassifierEntry->usDestPortRangeHi[i] =
 					*((PUSHORT)(pack_class_rule->u8ProtocolDestPortRange+2+i));
-				pstClassifierEntry->usDestPortRangeLo[i] = ntohs(pstClassifierEntry->usDestPortRangeLo[i]);
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Destination Port Range Lo:0x%X ",
+				pstClassifierEntry->usDestPortRangeLo[i] =
+					ntohs(pstClassifierEntry->usDestPortRangeLo[i]);
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+						CONN_MSG, DBG_LVL_ALL,
+						"Destination Port Range Lo:0x%X ",
 						pstClassifierEntry->usDestPortRangeLo[i]);
-				pstClassifierEntry->usDestPortRangeHi[i] = ntohs(pstClassifierEntry->usDestPortRangeHi[i]);
+				pstClassifierEntry->usDestPortRangeHi[i] =
+					ntohs(pstClassifierEntry->usDestPortRangeHi[i]);
 			}
 		} else {
 			pstClassifierEntry->ucDestPortRangeLength = 0;
 		}
 
 		/* Source Port */
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Source Port Range Length:0x%X ",
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Source Port Range Length:0x%X ",
 				pack_class_rule->u8ProtocolSourcePortRangeLength);
 		if (pack_class_rule->u8ProtocolSourcePortRangeLength <= MAX_PORT_RANGE) {
-			pstClassifierEntry->ucSrcPortRangeLength = pack_class_rule->u8ProtocolSourcePortRangeLength/4;
+			pstClassifierEntry->ucSrcPortRangeLength =
+				pack_class_rule->u8ProtocolSourcePortRangeLength/4;
 			for (i = 0; i < (pstClassifierEntry->ucSrcPortRangeLength); i++) {
 				pstClassifierEntry->usSrcPortRangeLo[i] =
 					*((PUSHORT)(pack_class_rule->
@@ -299,13 +314,17 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 							u8ProtocolSourcePortRange+2+i));
 				pstClassifierEntry->usSrcPortRangeLo[i] =
 					ntohs(pstClassifierEntry->usSrcPortRangeLo[i]);
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Source Port Range Lo:0x%X ",
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+						CONN_MSG, DBG_LVL_ALL,
+						"Source Port Range Lo:0x%X ",
 						pstClassifierEntry->usSrcPortRangeLo[i]);
-				pstClassifierEntry->usSrcPortRangeHi[i] = ntohs(pstClassifierEntry->usSrcPortRangeHi[i]);
+				pstClassifierEntry->usSrcPortRangeHi[i] =
+					ntohs(pstClassifierEntry->usSrcPortRangeHi[i]);
 			}
 		}
 		/* Destination Ip Address and Mask */
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Ip Destination Parameters : ");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Ip Destination Parameters : ");
 		CopyIpAddrToClassifier(pstClassifierEntry,
 				pack_class_rule->u8IPDestinationAddressLength,
 				pack_class_rule->u8IPDestinationAddress,
@@ -313,7 +332,8 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 			TRUE : false, eDestIpAddress);
 
 		/* Source Ip Address and Mask */
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Ip Source Parameters : ");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Ip Source Parameters : ");
 
 		CopyIpAddrToClassifier(pstClassifierEntry,
 				pack_class_rule->u8IPMaskedSourceAddressLength,
@@ -322,12 +342,18 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 				eSrcIpAddress);
 
 		/* TOS */
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "TOS Length:0x%X ", pack_class_rule->u8IPTypeOfServiceLength);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"TOS Length:0x%X ",
+				pack_class_rule->u8IPTypeOfServiceLength);
 		if (pack_class_rule->u8IPTypeOfServiceLength == 3) {
-			pstClassifierEntry->ucIPTypeOfServiceLength = pack_class_rule->u8IPTypeOfServiceLength;
-			pstClassifierEntry->ucTosLow = pack_class_rule->u8IPTypeOfService[0];
-			pstClassifierEntry->ucTosHigh = pack_class_rule->u8IPTypeOfService[1];
-			pstClassifierEntry->ucTosMask = pack_class_rule->u8IPTypeOfService[2];
+			pstClassifierEntry->ucIPTypeOfServiceLength =
+				pack_class_rule->u8IPTypeOfServiceLength;
+			pstClassifierEntry->ucTosLow =
+				pack_class_rule->u8IPTypeOfService[0];
+			pstClassifierEntry->ucTosHigh =
+				pack_class_rule->u8IPTypeOfService[1];
+			pstClassifierEntry->ucTosMask =
+				pack_class_rule->u8IPTypeOfService[2];
 			pstClassifierEntry->bTOSValid = TRUE;
 		}
 		if (pack_class_rule->u8Protocol == 0) {
@@ -338,33 +364,57 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 		}
 
 		pstClassifierEntry->ucProtocol[0] = pack_class_rule->u8Protocol;
-		pstClassifierEntry->u8ClassifierRulePriority = pack_class_rule->u8ClassifierRulePriority;
+		pstClassifierEntry->u8ClassifierRulePriority =
+			pack_class_rule->u8ClassifierRulePriority;
 
 		/* store the classifier rule ID and set this classifier entry as valid */
-		pstClassifierEntry->ucDirection = Adapter->PackInfo[uiSearchRuleIndex].ucDirection;
-		pstClassifierEntry->uiClassifierRuleIndex = ntohs(pack_class_rule->u16PacketClassificationRuleIndex);
-		pstClassifierEntry->usVCID_Value = Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value;
-		pstClassifierEntry->ulSFID = Adapter->PackInfo[uiSearchRuleIndex].ulSFID;
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Search Index %d Dir: %d, Index: %d, Vcid: %d\n",
-				uiSearchRuleIndex, pstClassifierEntry->ucDirection,
+		pstClassifierEntry->ucDirection =
+			Adapter->PackInfo[uiSearchRuleIndex].ucDirection;
+		pstClassifierEntry->uiClassifierRuleIndex =
+			ntohs(pack_class_rule->u16PacketClassificationRuleIndex);
+		pstClassifierEntry->usVCID_Value =
+			Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value;
+		pstClassifierEntry->ulSFID =
+			Adapter->PackInfo[uiSearchRuleIndex].ulSFID;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Search Index %d Dir: %d, Index: %d, Vcid: %d\n",
+				uiSearchRuleIndex,
+				pstClassifierEntry->ucDirection,
 				pstClassifierEntry->uiClassifierRuleIndex,
 				pstClassifierEntry->usVCID_Value);
 
 		if (pack_class_rule->u8AssociatedPHSI)
-			pstClassifierEntry->u8AssociatedPHSI = pack_class_rule->u8AssociatedPHSI;
+			pstClassifierEntry->u8AssociatedPHSI =
+				pack_class_rule->u8AssociatedPHSI;
 
 		/* Copy ETH CS Parameters */
-		pstClassifierEntry->ucEthCSSrcMACLen = (pack_class_rule->u8EthernetSourceMACAddressLength);
-		memcpy(pstClassifierEntry->au8EThCSSrcMAC, pack_class_rule->u8EthernetSourceMACAddress, MAC_ADDRESS_SIZE);
-		memcpy(pstClassifierEntry->au8EThCSSrcMACMask, pack_class_rule->u8EthernetSourceMACAddress + MAC_ADDRESS_SIZE, MAC_ADDRESS_SIZE);
-		pstClassifierEntry->ucEthCSDestMACLen = (pack_class_rule->u8EthernetDestMacAddressLength);
-		memcpy(pstClassifierEntry->au8EThCSDestMAC, pack_class_rule->u8EthernetDestMacAddress, MAC_ADDRESS_SIZE);
-		memcpy(pstClassifierEntry->au8EThCSDestMACMask, pack_class_rule->u8EthernetDestMacAddress + MAC_ADDRESS_SIZE, MAC_ADDRESS_SIZE);
-		pstClassifierEntry->ucEtherTypeLen = (pack_class_rule->u8EthertypeLength);
-		memcpy(pstClassifierEntry->au8EthCSEtherType, pack_class_rule->u8Ethertype, NUM_ETHERTYPE_BYTES);
-		memcpy(pstClassifierEntry->usUserPriority, &pack_class_rule->u16UserPriority, 2);
-		pstClassifierEntry->usVLANID = ntohs(pack_class_rule->u16VLANID);
-		pstClassifierEntry->usValidityBitMap = ntohs(pack_class_rule->u16ValidityBitMap);
+		pstClassifierEntry->ucEthCSSrcMACLen =
+			(pack_class_rule->u8EthernetSourceMACAddressLength);
+		memcpy(pstClassifierEntry->au8EThCSSrcMAC,
+				pack_class_rule->u8EthernetSourceMACAddress,
+				MAC_ADDRESS_SIZE);
+		memcpy(pstClassifierEntry->au8EThCSSrcMACMask,
+				pack_class_rule->u8EthernetSourceMACAddress
+				+ MAC_ADDRESS_SIZE, MAC_ADDRESS_SIZE);
+		pstClassifierEntry->ucEthCSDestMACLen =
+			(pack_class_rule->u8EthernetDestMacAddressLength);
+		memcpy(pstClassifierEntry->au8EThCSDestMAC,
+				pack_class_rule->u8EthernetDestMacAddress,
+				MAC_ADDRESS_SIZE);
+		memcpy(pstClassifierEntry->au8EThCSDestMACMask,
+				pack_class_rule->u8EthernetDestMacAddress
+				+ MAC_ADDRESS_SIZE, MAC_ADDRESS_SIZE);
+		pstClassifierEntry->ucEtherTypeLen =
+			(pack_class_rule->u8EthertypeLength);
+		memcpy(pstClassifierEntry->au8EthCSEtherType,
+				pack_class_rule->u8Ethertype,
+				NUM_ETHERTYPE_BYTES);
+		memcpy(pstClassifierEntry->usUserPriority,
+				&pack_class_rule->u16UserPriority, 2);
+		pstClassifierEntry->usVLANID =
+			ntohs(pack_class_rule->u16VLANID);
+		pstClassifierEntry->usValidityBitMap =
+			ntohs(pack_class_rule->u16ValidityBitMap);
 
 		pstClassifierEntry->bUsed = TRUE;
 	}
