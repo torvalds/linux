@@ -222,16 +222,20 @@ CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 void ClearTargetDSXBuffer(struct bcm_mini_adapter *Adapter, B_UINT16 TID, bool bFreeAll)
 {
 	int i;
+	struct bcm_targetdsx_buffer *curr_buf;
 
 	for (i = 0; i < Adapter->ulTotalTargetBuffersAvailable; i++) {
-		if (Adapter->astTargetDsxBuffer[i].valid)
+		curr_buf = &Adapter->astTargetDsxBuffer[i];
+
+		if (curr_buf->valid)
 			continue;
 
-		if ((bFreeAll) || (Adapter->astTargetDsxBuffer[i].tid == TID)) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "ClearTargetDSXBuffer: found tid %d buffer cleared %lx\n",
-					TID, Adapter->astTargetDsxBuffer[i].ulTargetDsxBuffer);
-			Adapter->astTargetDsxBuffer[i].valid = 1;
-			Adapter->astTargetDsxBuffer[i].tid = 0;
+		if ((bFreeAll) || (curr_buf->tid == TID)) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"ClearTargetDSXBuffer: found tid %d buffer cleared %lx\n",
+					TID, curr_buf->ulTargetDsxBuffer);
+			curr_buf->valid = 1;
+			curr_buf->tid = 0;
 			Adapter->ulFreeTargetBufferCnt++;
 		}
 	}
