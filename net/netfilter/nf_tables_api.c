@@ -3527,7 +3527,8 @@ static int nf_tables_abort(struct sk_buff *skb)
 		}
 	}
 
-	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+	list_for_each_entry_safe_reverse(trans, next,
+					 &net->nft.commit_list, list) {
 		list_del(&trans->list);
 		trans->ctx.nla = NULL;
 		call_rcu(&trans->rcu_head, nf_tables_abort_release_rcu);
