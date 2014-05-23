@@ -23,9 +23,6 @@
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 
-typedef struct auth_domain	svc_client;
-typedef struct svc_export	svc_export;
-
 /*
  * We have two caches.
  * One maps client+vfsmnt+dentry to export options - the export map
@@ -783,7 +780,7 @@ svc_export_update(struct svc_export *new, struct svc_export *old)
 
 
 static struct svc_expkey *
-exp_find_key(struct cache_detail *cd, svc_client *clp, int fsid_type,
+exp_find_key(struct cache_detail *cd, struct auth_domain *clp, int fsid_type,
 	     u32 *fsidv, struct cache_req *reqp)
 {
 	struct svc_expkey key, *ek;
@@ -805,9 +802,9 @@ exp_find_key(struct cache_detail *cd, svc_client *clp, int fsid_type,
 	return ek;
 }
 
-
-static svc_export *exp_get_by_name(struct cache_detail *cd, svc_client *clp,
-				   const struct path *path, struct cache_req *reqp)
+static struct svc_export *
+exp_get_by_name(struct cache_detail *cd, struct auth_domain *clp,
+		const struct path *path, struct cache_req *reqp)
 {
 	struct svc_export *exp, key;
 	int err;
@@ -831,11 +828,11 @@ static svc_export *exp_get_by_name(struct cache_detail *cd, svc_client *clp,
 /*
  * Find the export entry for a given dentry.
  */
-static struct svc_export *exp_parent(struct cache_detail *cd, svc_client *clp,
-				     struct path *path)
+static struct svc_export *
+exp_parent(struct cache_detail *cd, struct auth_domain *clp, struct path *path)
 {
 	struct dentry *saved = dget(path->dentry);
-	svc_export *exp = exp_get_by_name(cd, clp, path, NULL);
+	struct svc_export *exp = exp_get_by_name(cd, clp, path, NULL);
 
 	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(path->dentry)) {
 		struct dentry *parent = dget_parent(path->dentry);
@@ -856,7 +853,7 @@ static struct svc_export *exp_parent(struct cache_detail *cd, svc_client *clp,
  * since its harder to fool a kernel module than a user space program.
  */
 int
-exp_rootfh(struct net *net, svc_client *clp, char *name,
+exp_rootfh(struct net *net, struct auth_domain *clp, char *name,
 	   struct knfsd_fh *f, int maxsize)
 {
 	struct svc_export	*exp;
