@@ -157,12 +157,12 @@ EXPORT_SYMBOL(devm_ioremap_resource);
  *	if (!base)
  *		return -EADDRNOTAVAIL;
  */
-void __iomem *devm_request_and_ioremap(struct device *device,
+void __iomem *devm_request_and_ioremap(struct device *dev,
 				       struct resource *res)
 {
 	void __iomem *dest_ptr;
 
-	dest_ptr = devm_ioremap_resource(device, res);
+	dest_ptr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dest_ptr))
 		return NULL;
 
