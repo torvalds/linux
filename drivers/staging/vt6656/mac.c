@@ -214,15 +214,10 @@ void MACvWriteWord(struct vnt_private *priv, u8 reg_ofs, u16 word)
 		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
-void MACvWriteBSSIDAddress(struct vnt_private *pDevice, u8 *pbyEtherAddr)
+void MACvWriteBSSIDAddress(struct vnt_private *priv, u8 *addr)
 {
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE,
-                        MAC_REG_BSSID0,
-                        MESSAGE_REQUEST_MACREG,
-			ETH_ALEN,
-			pbyEtherAddr
-                        );
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, MAC_REG_BSSID0,
+		MESSAGE_REQUEST_MACREG, ETH_ALEN, addr);
 }
 
 void MACvEnableProtectMD(struct vnt_private *pDevice)
