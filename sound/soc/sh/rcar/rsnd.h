@@ -317,7 +317,7 @@ struct rsnd_of_data {
 
 struct rsnd_priv {
 
-	struct device *dev;
+	struct platform_device *pdev;
 	struct rcar_snd_info *info;
 	spinlock_t lock;
 
@@ -357,7 +357,8 @@ struct rsnd_priv {
 	int rdai_nr;
 };
 
-#define rsnd_priv_to_dev(priv)	((priv)->dev)
+#define rsnd_priv_to_pdev(priv)	((priv)->pdev)
+#define rsnd_priv_to_dev(priv)	(&(rsnd_priv_to_pdev(priv)->dev))
 #define rsnd_priv_to_info(priv)	((priv)->info)
 #define rsnd_lock(priv, flags) spin_lock_irqsave(&priv->lock, flags)
 #define rsnd_unlock(priv, flags) spin_unlock_irqrestore(&priv->lock, flags)
