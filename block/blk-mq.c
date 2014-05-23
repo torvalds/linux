@@ -454,9 +454,13 @@ static void blk_mq_start_request(struct request *rq, bool last)
 	/*
 	 * Just mark start time and set the started bit. Due to memory
 	 * ordering, we know we'll see the correct deadline as long as
-	 * REQ_ATOMIC_STARTED is seen.
+	 * REQ_ATOMIC_STARTED is seen. Use the default queue timeout,
+	 * unless one has been set in the request.
 	 */
-	rq->deadline = jiffies + q->rq_timeout;
+	if (!rq->timeout)
+		rq->deadline = jiffies + q->rq_timeout;
+	else
+		rq->deadline = jiffies + rq->timeout;
 
 	/*
 	 * Mark us as started and clear complete. Complete might have been
