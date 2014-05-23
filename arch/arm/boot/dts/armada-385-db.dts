@@ -64,6 +64,10 @@
 				phy-mode = "rgmii-id";
 			};
 
+			usb@50000 {
+				status = "ok";
+			};
+
 			ethernet@70000 {
 				status = "okay";
 				phy = <&phy0>;
@@ -114,6 +118,14 @@
 				broken-cd;
 				wp-inverted;
 				bus-width = <8>;
+				status = "okay";
+			};
+
+			usb3@f0000 {
+				status = "okay";
+			};
+
+			usb3@f8000 {
 				status = "okay";
 			};
 		};

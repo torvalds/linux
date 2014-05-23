@@ -101,6 +101,14 @@
 				};
 			};
 
+			usb@54000 {
+				status = "okay";
+			};
+
+			usb3@58000 {
+				status = "okay";
+			};
+
 			mvsdio@d4000 {
 				pinctrl-0 = <&sdio_pins &sdio_st_pins>;
 				pinctrl-names = "default";
