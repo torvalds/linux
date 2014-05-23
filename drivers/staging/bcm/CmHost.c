@@ -1258,18 +1258,20 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " bValid: 0x%X", pstAddIndication->sfActiveSet.bValid);
 }
 
-static inline ULONG RestoreSFParam(struct bcm_mini_adapter *Adapter, ULONG ulAddrSFParamSet, PUCHAR pucDestBuffer)
+static inline ULONG RestoreSFParam(struct bcm_mini_adapter *Adapter,
+		ULONG ulAddrSFParamSet, PUCHAR pucDestBuffer)
 {
 	UINT  nBytesToRead = sizeof(struct bcm_connect_mgr_params);
 
 	if (ulAddrSFParamSet == 0 || NULL == pucDestBuffer) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Got Param address as 0!!");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Got Param address as 0!!");
 		return 0;
 	}
 	ulAddrSFParamSet = ntohl(ulAddrSFParamSet);
 
 	/* Read out the SF Param Set At the indicated Location */
-	if (rdm(Adapter, ulAddrSFParamSet, (PUCHAR)pucDestBuffer, nBytesToRead) < 0)
+	if (rdm(Adapter, ulAddrSFParamSet,(PUCHAR)pucDestBuffer, nBytesToRead) < 0)
 		return STATUS_FAILURE;
 
 	return 1;
