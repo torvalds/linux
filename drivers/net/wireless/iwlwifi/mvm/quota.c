@@ -105,11 +105,6 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	if (WARN_ON_ONCE(id >= MAX_BINDINGS))
 		return;
 
-	if (data->colors[id] < 0)
-		data->colors[id] = mvmvif->phy_ctxt->color;
-	else
-		WARN_ON_ONCE(data->colors[id] != mvmvif->phy_ctxt->color);
-
 	if (data->type == IWL_MVM_QUOTA_UPDATE_TYPE_DISABLED &&
 	    vif == data->vif)
 		return;
@@ -134,6 +129,11 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 		WARN_ON_ONCE(1);
 		return;
 	}
+
+	if (data->colors[id] < 0)
+		data->colors[id] = mvmvif->phy_ctxt->color;
+	else
+		WARN_ON_ONCE(data->colors[id] != mvmvif->phy_ctxt->color);
 
 	data->n_interfaces[id]++;
 
