@@ -1492,31 +1492,44 @@ ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter)
 	int Status;
 
 	if (!Adapter) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Adapter was NULL!!!");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Adapter was NULL!!!");
 		return 0;
 	}
 
 	if (Adapter->astTargetDsxBuffer[0].ulTargetDsxBuffer)
 		return 1;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Size of Each DSX Buffer(Also size of connection manager parameters): %zx ", sizeof(struct bcm_connect_mgr_params));
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Reading DSX buffer From Target location %x ", DSX_MESSAGE_EXCHANGE_BUFFER);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Size of Each DSX Buffer(Also size of connection manager parameters): %zx ",
+			sizeof(struct bcm_connect_mgr_params));
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Reading DSX buffer From Target location %x ",
+			DSX_MESSAGE_EXCHANGE_BUFFER);
 
-	Status = rdmalt(Adapter, DSX_MESSAGE_EXCHANGE_BUFFER, (PUINT)&ulTargetDsxBuffersBase, sizeof(UINT));
+	Status = rdmalt(Adapter, DSX_MESSAGE_EXCHANGE_BUFFER,
+			(PUINT)&ulTargetDsxBuffersBase, sizeof(UINT));
 	if (Status < 0) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "RDM failed!!");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"RDM failed!!");
 		return 0;
 	}
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Base Address Of DSX  Target Buffer : 0x%lx", ulTargetDsxBuffersBase);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "Tgt Buffer is Now %lx :", ulTargetDsxBuffersBase);
-	ulCntTargetBuffers = DSX_MESSAGE_EXCHANGE_BUFFER_SIZE / sizeof(struct bcm_connect_mgr_params);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Base Address Of DSX  Target Buffer : 0x%lx",
+			ulTargetDsxBuffersBase);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Tgt Buffer is Now %lx :", ulTargetDsxBuffersBase);
+	ulCntTargetBuffers = DSX_MESSAGE_EXCHANGE_BUFFER_SIZE /
+		sizeof(struct bcm_connect_mgr_params);
 
 	Adapter->ulTotalTargetBuffersAvailable =
 		ulCntTargetBuffers > MAX_TARGET_DSX_BUFFERS ?
 		MAX_TARGET_DSX_BUFFERS : ulCntTargetBuffers;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, " Total Target DSX Buffer setup %lx ", Adapter->ulTotalTargetBuffersAvailable);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			" Total Target DSX Buffer setup %lx ",
+			Adapter->ulTotalTargetBuffersAvailable);
 
 	for (i = 0; i < Adapter->ulTotalTargetBuffersAvailable; i++) {
 		Adapter->astTargetDsxBuffer[i].ulTargetDsxBuffer = ulTargetDsxBuffersBase;
