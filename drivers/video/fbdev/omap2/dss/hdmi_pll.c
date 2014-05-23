@@ -282,9 +282,9 @@ int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll)
 	}
 
 	pll->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!pll->base) {
+	if (IS_ERR(pll->base)) {
 		DSSERR("can't ioremap PLLCTRL\n");
-		return -ENOMEM;
+		return PTR_ERR(pll->base);
 	}
 
 	return 0;

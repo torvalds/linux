@@ -249,9 +249,9 @@ int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
 	}
 
 	wp->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!wp->base) {
+	if (IS_ERR(wp->base)) {
 		DSSERR("can't ioremap HDMI WP\n");
-		return -ENOMEM;
+		return PTR_ERR(wp->base);
 	}
 
 	return 0;

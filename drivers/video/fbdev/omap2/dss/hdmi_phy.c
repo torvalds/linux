@@ -246,9 +246,9 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
 	}
 
 	phy->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!phy->base) {
+	if (IS_ERR(phy->base)) {
 		DSSERR("can't ioremap TX PHY\n");
-		return -ENOMEM;
+		return PTR_ERR(phy->base);
 	}
 
 	return 0;
