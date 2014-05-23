@@ -1872,7 +1872,7 @@ static int radio_s_tuner(struct file *file, void *priv,
  *
  * Called when all users of struct em28xx_v4l2 are gone
  */
-void em28xx_free_v4l2(struct kref *ref)
+static void em28xx_free_v4l2(struct kref *ref)
 {
 	struct em28xx_v4l2 *v4l2 = container_of(ref, struct em28xx_v4l2, ref);
 
