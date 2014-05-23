@@ -630,7 +630,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	tegra_sor_writel(sor, 0x00000001, SOR_HEAD_STATE_5(0));
 
 	/* CSTM (LVDS, link A/B, upper) */
-	value = SOR_CSTM_LVDS | SOR_CSTM_LINK_ACT_B | SOR_CSTM_LINK_ACT_B |
+	value = SOR_CSTM_LVDS | SOR_CSTM_LINK_ACT_A | SOR_CSTM_LINK_ACT_B |
 		SOR_CSTM_UPPER;
 	tegra_sor_writel(sor, value, SOR_CSTM);
 
