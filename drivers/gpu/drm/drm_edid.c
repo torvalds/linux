@@ -70,6 +70,8 @@
 #define EDID_QUIRK_FORCE_REDUCED_BLANKING	(1 << 7)
 /* Force 8bpc */
 #define EDID_QUIRK_FORCE_8BPC			(1 << 8)
+/* Force 12bpc */
+#define EDID_QUIRK_FORCE_12BPC			(1 << 9)
 
 struct detailed_mode_closure {
 	struct drm_connector *connector;
@@ -124,6 +126,9 @@ static struct edid_quirk {
 	/* Samsung SyncMaster 22[5-6]BW */
 	{ "SAM", 596, EDID_QUIRK_PREFER_LARGE_60 },
 	{ "SAM", 638, EDID_QUIRK_PREFER_LARGE_60 },
+
+	/* Sony PVM-2541A does up to 12 bpc, but only reports max 8 bpc */
+	{ "SNY", 0x2541, EDID_QUIRK_FORCE_12BPC },
 
 	/* ViewSonic VA2026w */
 	{ "VSC", 5020, EDID_QUIRK_FORCE_REDUCED_BLANKING },
@@ -3659,6 +3664,9 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 
 	if (quirks & EDID_QUIRK_FORCE_8BPC)
 		connector->display_info.bpc = 8;
+
+	if (quirks & EDID_QUIRK_FORCE_12BPC)
+		connector->display_info.bpc = 12;
 
 	return num_modes;
 }
