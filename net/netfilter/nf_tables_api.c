@@ -538,8 +538,7 @@ static int nf_tables_deltable(struct sock *nlsk, struct sk_buff *skb,
 		return PTR_ERR(table);
 	if (table->flags & NFT_TABLE_INACTIVE)
 		return -ENOENT;
-
-	if (!list_empty(&table->chains) || !list_empty(&table->sets))
+	if (table->use > 0)
 		return -EBUSY;
 
 	nft_ctx_init(&ctx, skb, nlh, afi, table, NULL, nla);
@@ -553,6 +552,8 @@ static int nf_tables_deltable(struct sock *nlsk, struct sk_buff *skb,
 
 static void nf_tables_table_destroy(struct nft_ctx *ctx)
 {
+	BUG_ON(ctx->table->use > 0);
+
 	kfree(ctx->table);
 	module_put(ctx->afi->owner);
 }
@@ -1128,6 +1129,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 	if (err < 0)
 		goto err2;
 
+	table->use++;
 	list_add_tail(&chain->list, &table->chains);
 	return 0;
 err2:
@@ -1169,7 +1171,7 @@ static int nf_tables_delchain(struct sock *nlsk, struct sk_buff *skb,
 		return PTR_ERR(chain);
 	if (chain->flags & NFT_CHAIN_INACTIVE)
 		return -ENOENT;
-	if (!list_empty(&chain->rules) || chain->use > 0)
+	if (chain->use > 0)
 		return -EBUSY;
 
 	nft_ctx_init(&ctx, skb, nlh, afi, table, chain, nla);
@@ -1177,6 +1179,7 @@ static int nf_tables_delchain(struct sock *nlsk, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
+	table->use--;
 	list_del(&chain->list);
 	return 0;
 }
@@ -1814,6 +1817,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 		err = -ENOMEM;
 		goto err3;
 	}
+	chain->use++;
 	return 0;
 
 err3:
@@ -1841,6 +1845,7 @@ nf_tables_delrule_one(struct nft_ctx *ctx, struct nft_rule *rule)
 		if (nft_trans_rule_add(ctx, NFT_MSG_DELRULE, rule) == NULL)
 			return -ENOMEM;
 		nft_rule_disactivate_next(ctx->net, rule);
+		ctx->chain->use--;
 		return 0;
 	}
 	return -ENOENT;
@@ -2588,6 +2593,7 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 		goto err2;
 
 	list_add_tail(&set->list, &table->sets);
+	table->use++;
 	return 0;
 
 err2:
@@ -2642,6 +2648,7 @@ static int nf_tables_delset(struct sock *nlsk, struct sk_buff *skb,
 		return err;
 
 	list_del(&set->list);
+	ctx.table->use--;
 	return 0;
 }
 
@@ -3122,6 +3129,8 @@ static int nf_tables_newsetelem(struct sock *nlsk, struct sk_buff *skb,
 		err = nft_add_set_elem(&ctx, set, attr);
 		if (err < 0)
 			break;
+
+		set->nelems++;
 	}
 	return err;
 }
@@ -3196,6 +3205,8 @@ static int nf_tables_delsetelem(struct sock *nlsk, struct sk_buff *skb,
 		err = nft_del_setelem(&ctx, set, attr);
 		if (err < 0)
 			break;
+
+		set->nelems--;
 	}
 	return err;
 }
@@ -3361,15 +3372,13 @@ static int nf_tables_commit(struct sk_buff *skb)
 		case NFT_MSG_NEWCHAIN:
 			if (nft_trans_chain_update(trans))
 				nft_chain_commit_update(trans);
-			else {
+			else
 				trans->ctx.chain->flags &= ~NFT_CHAIN_INACTIVE;
-				trans->ctx.table->use++;
-			}
+
 			nf_tables_chain_notify(&trans->ctx, NFT_MSG_NEWCHAIN);
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_DELCHAIN:
-			trans->ctx.table->use--;
 			nf_tables_chain_notify(&trans->ctx, NFT_MSG_DELCHAIN);
 			if (!(trans->ctx.table->flags & NFT_TABLE_F_DORMANT) &&
 			    trans->ctx.chain->flags & NFT_BASE_CHAIN) {
@@ -3392,6 +3401,13 @@ static int nf_tables_commit(struct sk_buff *skb)
 			break;
 		case NFT_MSG_NEWSET:
 			nft_trans_set(trans)->flags &= ~NFT_SET_INACTIVE;
+			/* This avoids hitting -EBUSY when deleting the table
+			 * from the transaction.
+			 */
+			if (nft_trans_set(trans)->flags & NFT_SET_ANONYMOUS &&
+			    !list_empty(&nft_trans_set(trans)->bindings))
+				trans->ctx.table->use--;
+
 			nf_tables_set_notify(&trans->ctx, nft_trans_set(trans),
 					     NFT_MSG_NEWSET);
 			nft_trans_destroy(trans);
@@ -3401,7 +3417,6 @@ static int nf_tables_commit(struct sk_buff *skb)
 					     NFT_MSG_DELSET);
 			break;
 		case NFT_MSG_NEWSETELEM:
-			nft_trans_elem_set(trans)->nelems++;
 			nf_tables_setelem_notify(&trans->ctx,
 						 nft_trans_elem_set(trans),
 						 &nft_trans_elem(trans),
@@ -3409,7 +3424,6 @@ static int nf_tables_commit(struct sk_buff *skb)
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_DELSETELEM:
-			nft_trans_elem_set(trans)->nelems--;
 			nf_tables_setelem_notify(&trans->ctx,
 						 nft_trans_elem_set(trans),
 						 &nft_trans_elem(trans),
@@ -3487,6 +3501,7 @@ static int nf_tables_abort(struct sk_buff *skb)
 
 				nft_trans_destroy(trans);
 			} else {
+				trans->ctx.table->use--;
 				list_del(&trans->ctx.chain->list);
 				if (!(trans->ctx.table->flags & NFT_TABLE_F_DORMANT) &&
 				    trans->ctx.chain->flags & NFT_BASE_CHAIN) {
@@ -3496,32 +3511,39 @@ static int nf_tables_abort(struct sk_buff *skb)
 			}
 			break;
 		case NFT_MSG_DELCHAIN:
+			trans->ctx.table->use++;
 			list_add_tail(&trans->ctx.chain->list,
 				      &trans->ctx.table->chains);
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_NEWRULE:
+			trans->ctx.chain->use--;
 			list_del_rcu(&nft_trans_rule(trans)->list);
 			break;
 		case NFT_MSG_DELRULE:
+			trans->ctx.chain->use++;
 			nft_rule_clear(trans->ctx.net, nft_trans_rule(trans));
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_NEWSET:
+			trans->ctx.table->use--;
 			list_del(&nft_trans_set(trans)->list);
 			break;
 		case NFT_MSG_DELSET:
+			trans->ctx.table->use++;
 			list_add_tail(&nft_trans_set(trans)->list,
 				      &trans->ctx.table->sets);
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_NEWSETELEM:
+			nft_trans_elem_set(trans)->nelems--;
 			set = nft_trans_elem_set(trans);
 			set->ops->get(set, &nft_trans_elem(trans));
 			set->ops->remove(set, &nft_trans_elem(trans));
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_DELSETELEM:
+			nft_trans_elem_set(trans)->nelems++;
 			nft_trans_destroy(trans);
 			break;
 		}
