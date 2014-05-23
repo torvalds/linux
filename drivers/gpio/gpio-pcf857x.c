@@ -319,7 +319,7 @@ static int pcf857x_probe(struct i2c_client *client,
 		status = pcf857x_irq_domain_init(gpio, client);
 		if (status < 0) {
 			dev_err(&client->dev, "irq_domain init failed\n");
-			goto fail;
+			goto fail_irq_domain;
 		}
 	}
 
@@ -414,11 +414,12 @@ static int pcf857x_probe(struct i2c_client *client,
 	return 0;
 
 fail:
-	dev_dbg(&client->dev, "probe error %d for '%s'\n",
-			status, client->name);
-
 	if (client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
+
+fail_irq_domain:
+	dev_dbg(&client->dev, "probe error %d for '%s'\n",
+		status, client->name);
 
 	return status;
 }
