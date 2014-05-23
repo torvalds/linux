@@ -140,6 +140,10 @@ static struct test {
 		.func = test__hists_output,
 	},
 	{
+		.desc = "Test cumulation of child hist entries",
+		.func = test__hists_cumulate,
+	},
+	{
 		.func = NULL,
 	},
 };
