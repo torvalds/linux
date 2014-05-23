@@ -78,13 +78,16 @@ static int SearchFreeSfid(struct bcm_mini_adapter *Adapter)
  *  B_UINT16  uiClassifierID - The classifier ID to be searched
  * Return: int :Classifier table index of matching entry
  */
-static int SearchClsid(struct bcm_mini_adapter *Adapter, ULONG ulSFID, B_UINT16  uiClassifierID)
+static int SearchClsid(struct bcm_mini_adapter *Adapter,
+		ULONG ulSFID,
+		B_UINT16 uiClassifierID)
 {
 	int i;
 
 	for (i = 0; i < MAX_CLASSIFIERS; i++) {
 		if ((Adapter->astClassifierTable[i].bUsed) &&
-			(Adapter->astClassifierTable[i].uiClassifierRuleIndex == uiClassifierID) &&
+			(Adapter->astClassifierTable[i].uiClassifierRuleIndex
+				== uiClassifierID) &&
 			(Adapter->astClassifierTable[i].ulSFID == ulSFID))
 			return i;
 	}
