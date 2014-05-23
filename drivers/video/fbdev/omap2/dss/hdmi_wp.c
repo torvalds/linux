@@ -243,29 +243,14 @@ int hdmi_wp_audio_core_req_enable(struct hdmi_wp_data *wp, bool enable)
 int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
 {
 	struct resource *res;
-	struct resource temp_res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "wp");
 	if (!res) {
-		DSSDBG("can't get WP mem resource by name\n");
-		/*
-		 * if hwmod/DT doesn't have the memory resource information
-		 * split into HDMI sub blocks by name, we try again by getting
-		 * the platform's first resource. this code will be removed when
-		 * the driver can get the mem resources by name
-		 */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get WP mem resource\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start;
-		temp_res.end = temp_res.start + WP_SIZE - 1;
-		res = &temp_res;
+		DSSERR("can't get WP mem resource\n");
+		return -EINVAL;
 	}
 
-	wp->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	wp->base = devm_ioremap_resource(&pdev->dev, res);
 	if (!wp->base) {
 		DSSERR("can't ioremap HDMI WP\n");
 		return -ENOMEM;
