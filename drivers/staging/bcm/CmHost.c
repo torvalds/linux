@@ -453,9 +453,12 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	UINT UGIValue = 0;
 
 	curr_packinfo->bValid = TRUE;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Search Rule Index = %d\n", uiSearchRuleIndex);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s: SFID= %x ", __func__, ntohl(psfLocalSet->u32SFID));
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Updating Queue %d", uiSearchRuleIndex);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Search Rule Index = %d\n", uiSearchRuleIndex);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"%s: SFID= %x ", __func__, ntohl(psfLocalSet->u32SFID));
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Updating Queue %d", uiSearchRuleIndex);
 
 	ulSFID = ntohl(psfLocalSet->u32SFID);
 	/* Store IP Version used */
@@ -465,7 +468,9 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	curr_packinfo->bEthCSSupport = 0;
 
 	/* Enable IP/ETh CS Support As Required */
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "CopyToAdapter : u8CSSpecification : %X\n", psfLocalSet->u8CSSpecification);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"CopyToAdapter : u8CSSpecification : %X\n",
+			psfLocalSet->u8CSSpecification);
 	switch (psfLocalSet->u8CSSpecification) {
 	case eCSPacketIPV4:
 		curr_packinfo->bIPCSSupport = IPV4_CS;
@@ -488,12 +493,14 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 		curr_packinfo->bEthCSSupport = ETH_CS_802_3;
 		break;
 	default:
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Error in value of CS Classification.. setting default to IP CS\n");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Error in value of CS Classification.. setting default to IP CS\n");
 		curr_packinfo->bIPCSSupport = IPV4_CS;
 		break;
 	}
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "CopyToAdapter : Queue No : %X ETH CS Support :  %X  , IP CS Support : %X\n",
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"CopyToAdapter : Queue No : %X ETH CS Support :  %X  , IP CS Support : %X\n",
 			uiSearchRuleIndex,
 			curr_packinfo->bEthCSSupport,
 			curr_packinfo->bIPCSSupport);
@@ -510,7 +517,9 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 		curr_packinfo->bEthCSSupport = 0;
 
 	if (psfLocalSet->u8ServiceClassNameLength > 0 && psfLocalSet->u8ServiceClassNameLength < 32)
-		memcpy(curr_packinfo->ucServiceClassName,	psfLocalSet->u8ServiceClassName, psfLocalSet->u8ServiceClassNameLength);
+		memcpy(curr_packinfo->ucServiceClassName,
+				psfLocalSet->u8ServiceClassName,
+				psfLocalSet->u8ServiceClassNameLength);
 
 	curr_packinfo->u8QueueType = psfLocalSet->u8ServiceFlowSchedulingType;
 
@@ -523,9 +532,11 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 
 	/* copy all the classifier in the Service Flow param  structure */
 	for (i = 0; i < psfLocalSet->u8TotalClassifiers; i++) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Classifier index =%d", i);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Classifier index =%d", i);
 		psfCSType = &psfLocalSet->cConvergenceSLTypes[i];
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Classifier index =%d", i);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"Classifier index =%d", i);
 
 		if (psfCSType->cCPacketClassificationRule.u8ClassifierRulePriority)
 			curr_packinfo->bClassifierPriority = TRUE;
@@ -557,20 +568,30 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 		case eAddClassifier:
 			/* Get a Free Classifier Index From Classifier table for this SF to add the Classifier */
 			/* Contained in this message */
-			nClassifierIndex = SearchClsid(Adapter, ulSFID, u16PacketClassificationRuleIndex);
+			nClassifierIndex = SearchClsid(Adapter,
+					ulSFID,
+					u16PacketClassificationRuleIndex);
 
 			if (nClassifierIndex > MAX_CLASSIFIERS) {
 				nClassifierIndex = SearchFreeClsid(Adapter);
 				if (nClassifierIndex > MAX_CLASSIFIERS) {
 					/* Failed To get a free Entry */
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Error Failed To get a free Classifier Entry");
+					BCM_DEBUG_PRINT(Adapter,
+							DBG_TYPE_OTHERS,
+							CONN_MSG,
+							DBG_LVL_ALL,
+							"Error Failed To get a free Classifier Entry");
 					break;
 				}
 				/* Copy the Classifier Rule for this service flow into our Classifier table maintained per SF. */
-				CopyClassifierRuleToSF(Adapter, psfCSType, uiSearchRuleIndex, nClassifierIndex);
+				CopyClassifierRuleToSF(Adapter, psfCSType,
+						uiSearchRuleIndex,
+						nClassifierIndex);
 			} else {
 				/* This Classifier Already Exists and it is invalid to Add Classifier with existing PCRI */
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+						CONN_MSG,
+						DBG_LVL_ALL,
 						"CopyToAdapter: Error The Specified Classifier Already Exists and attempted To Add Classifier with Same PCRI : 0x%x\n",
 						u16PacketClassificationRuleIndex);
 			}
@@ -578,27 +599,35 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 		case eReplaceClassifier:
 			/* Get the Classifier Index From Classifier table for this SF and replace existing  Classifier */
 			/* with the new classifier Contained in this message */
-			nClassifierIndex = SearchClsid(Adapter, ulSFID, u16PacketClassificationRuleIndex);
+			nClassifierIndex = SearchClsid(Adapter, ulSFID,
+					u16PacketClassificationRuleIndex);
 			if (nClassifierIndex > MAX_CLASSIFIERS) {
 				/* Failed To search the classifier */
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Error Search for Classifier To be replaced failed");
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+						CONN_MSG, DBG_LVL_ALL,
+						"Error Search for Classifier To be replaced failed");
 				break;
 			}
 			/* Copy the Classifier Rule for this service flow into our Classifier table maintained per SF. */
-			CopyClassifierRuleToSF(Adapter, psfCSType, uiSearchRuleIndex, nClassifierIndex);
+			CopyClassifierRuleToSF(Adapter, psfCSType,
+					uiSearchRuleIndex, nClassifierIndex);
 			break;
 		case eDeleteClassifier:
 			/* Get the Classifier Index From Classifier table for this SF and replace existing  Classifier */
 			/* with the new classifier Contained in this message */
-			nClassifierIndex = SearchClsid(Adapter, ulSFID, u16PacketClassificationRuleIndex);
+			nClassifierIndex = SearchClsid(Adapter, ulSFID,
+					u16PacketClassificationRuleIndex);
 			if (nClassifierIndex > MAX_CLASSIFIERS)	{
 				/* Failed To search the classifier */
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Error Search for Classifier To be deleted failed");
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+						CONN_MSG, DBG_LVL_ALL,
+						"Error Search for Classifier To be deleted failed");
 				break;
 			}
 
 			/* Delete This classifier */
-			DeleteClassifierRuleFromSF(Adapter, uiSearchRuleIndex, nClassifierIndex);
+			DeleteClassifierRuleFromSF(Adapter, uiSearchRuleIndex,
+					nClassifierIndex);
 			break;
 		default:
 			/* Invalid Action for classifier */
@@ -609,20 +638,29 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	/* Repeat parsing Classification Entries to process PHS Rules */
 	for (i = 0; i < psfLocalSet->u8TotalClassifiers; i++) {
 		psfCSType = &psfLocalSet->cConvergenceSLTypes[i];
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "psfCSType->u8PhsDSCAction : 0x%x\n", psfCSType->u8PhsDSCAction);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"psfCSType->u8PhsDSCAction : 0x%x\n",
+				psfCSType->u8PhsDSCAction);
 
 		switch (psfCSType->u8PhsDSCAction) {
 		case eDeleteAllPHSRules:
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Deleting All PHS Rules For VCID: 0x%X\n", uVCID);
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
+					DBG_LVL_ALL,
+					"Deleting All PHS Rules For VCID: 0x%X\n",
+					uVCID);
 
 			/* Delete All the PHS rules for this Service flow */
 			PhsDeleteSFRules(&Adapter->stBCMPhsContext, uVCID);
 			break;
 		case eDeletePHSRule:
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "PHS DSC Action = Delete PHS Rule\n");
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
+					DBG_LVL_ALL,
+					"PHS DSC Action = Delete PHS Rule\n");
 
 			if (psfCSType->cPhsRule.u8PHSI)
-				PhsDeletePHSRule(&Adapter->stBCMPhsContext, uVCID, psfCSType->cCPacketClassificationRule.u8AssociatedPHSI);
+				PhsDeletePHSRule(&Adapter->stBCMPhsContext,
+						uVCID,
+						psfCSType->cCPacketClassificationRule.u8AssociatedPHSI);
 
 			break;
 		default:
@@ -655,7 +693,8 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 		/* Too large Allowed Rate specified. Limiting to Wi Max  Allowed rate */
 		curr_packinfo->uiMaxAllowedRate = WIMAX_MAX_ALLOWED_RATE;
 	} else {
-		curr_packinfo->uiMaxAllowedRate =  ntohl(psfLocalSet->u32MaxSustainedTrafficRate);
+		curr_packinfo->uiMaxAllowedRate =
+			ntohl(psfLocalSet->u32MaxSustainedTrafficRate);
 	}
 
 	curr_packinfo->uiMaxLatency = ntohl(psfLocalSet->u32MaximumLatency);
@@ -695,8 +734,11 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 			curr_packinfo->uiMaxBucketSize = WIMAX_MAX_MTU*8;
 	}
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "LAT: %d, UGI: %d\n", curr_packinfo->uiMaxLatency, UGIValue);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "uiMaxAllowedRate: 0x%x, u32MaxSustainedTrafficRate: 0x%x ,uiMaxBucketSize: 0x%x",
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"LAT: %d, UGI: %d\n", curr_packinfo->uiMaxLatency,
+			UGIValue);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"uiMaxAllowedRate: 0x%x, u32MaxSustainedTrafficRate: 0x%x ,uiMaxBucketSize: 0x%x",
 			curr_packinfo->uiMaxAllowedRate,
 			ntohl(psfLocalSet->u32MaxSustainedTrafficRate),
 			curr_packinfo->uiMaxBucketSize);
@@ -720,7 +762,8 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	 */
 	SortClassifiers(Adapter);
 	DumpPhsRules(&Adapter->stBCMPhsContext);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s <=====", __func__);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"%s <=====", __func__);
 }
 
 /***********************************************************************
