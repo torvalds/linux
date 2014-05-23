@@ -554,14 +554,14 @@ static void rsnd_of_parse_ssi(struct platform_device *pdev,
 
 	nr = of_get_child_count(node);
 	if (!nr)
-		return;
+		goto rsnd_of_parse_ssi_end;
 
 	ssi_info = devm_kzalloc(dev,
 				sizeof(struct rsnd_ssi_platform_info) * nr,
 				GFP_KERNEL);
 	if (!ssi_info) {
 		dev_err(dev, "ssi info allocation error\n");
-		return;
+		goto rsnd_of_parse_ssi_end;
 	}
 
 	info->ssi_info		= ssi_info;
@@ -584,6 +584,9 @@ static void rsnd_of_parse_ssi(struct platform_device *pdev,
 		 */
 		ssi_info->pio_irq = irq_of_parse_and_map(np, 0);
 	}
+
+rsnd_of_parse_ssi_end:
+	of_node_put(node);
 }
 
 int rsnd_ssi_probe(struct platform_device *pdev,

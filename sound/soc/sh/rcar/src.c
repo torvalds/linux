@@ -598,18 +598,21 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 
 	nr = of_get_child_count(src_node);
 	if (!nr)
-		return;
+		goto rsnd_of_parse_src_end;
 
 	src_info = devm_kzalloc(dev,
 				sizeof(struct rsnd_src_platform_info) * nr,
 				GFP_KERNEL);
 	if (!src_info) {
 		dev_err(dev, "src info allocation error\n");
-		return;
+		goto rsnd_of_parse_src_end;
 	}
 
 	info->src_info		= src_info;
 	info->src_info_nr	= nr;
+
+rsnd_of_parse_src_end:
+	of_node_put(src_node);
 }
 
 int rsnd_src_probe(struct platform_device *pdev,
