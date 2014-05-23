@@ -607,7 +607,7 @@ static u8 mxt_get_bootloader_version(struct mxt_data *data, u8 val)
 	if (val & MXT_BOOT_EXTENDED_ID) {
 		if (mxt_bootloader_read(data, &buf[0], 3) != 0) {
 			dev_err(dev, "%s: i2c failure\n", __func__);
-			return -EIO;
+			return val;
 		}
 
 		dev_dbg(dev, "Bootloader ID:%d Version:%d\n", buf[1], buf[2]);
