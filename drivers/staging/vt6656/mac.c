@@ -203,21 +203,15 @@ void MACvRegBitsOn(struct vnt_private *priv, u8 reg_ofs, u8 bits)
 		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
-void MACvWriteWord(struct vnt_private *pDevice, u8 byRegOfs, u16 wData)
+void MACvWriteWord(struct vnt_private *priv, u8 reg_ofs, u16 word)
 {
-	u8 pbyData[2];
+	u8 data[2];
 
-    pbyData[0] = (u8)(wData & 0xff);
-    pbyData[1] = (u8)(wData >> 8);
+	data[0] = (u8)(word & 0xff);
+	data[1] = (u8)(word >> 8);
 
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE,
-                        byRegOfs,
-                        MESSAGE_REQUEST_MACREG,
-			ARRAY_SIZE(pbyData),
-                        pbyData
-                        );
-
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
 void MACvWriteBSSIDAddress(struct vnt_private *pDevice, u8 *pbyEtherAddr)
