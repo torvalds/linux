@@ -62,6 +62,7 @@ i915-y += dvo_ch7017.o \
 	  intel_dsi_cmd.o \
 	  intel_dsi.o \
 	  intel_dsi_pll.o \
+	  intel_dsi_panel_vbt.o \
 	  intel_dvo.o \
 	  intel_hdmi.o \
 	  intel_i2c.o \

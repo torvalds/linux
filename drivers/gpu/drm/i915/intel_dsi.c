@@ -35,6 +35,11 @@
 
 /* the sub-encoders aka panel drivers */
 static const struct intel_dsi_device intel_dsi_devices[] = {
+	{
+		.panel_id = MIPI_DSI_GENERIC_PANEL_ID,
+		.name = "vbt-generic-dsi-vid-mode-display",
+		.dev_ops = &vbt_generic_dsi_display_ops,
+	},
 };
 
 static void band_gap_reset(struct drm_i915_private *dev_priv)
