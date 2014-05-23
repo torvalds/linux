@@ -823,7 +823,6 @@ __acquires(hwep->lock)
 	if ((setup->bRequestType & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
 		/* Assume that device is bus powered for now. */
 		*(u16 *)req->buf = ci->remote_wakeup << 1;
-		retval = 0;
 	} else if ((setup->bRequestType & USB_RECIP_MASK) \
 		   == USB_RECIP_ENDPOINT) {
 		dir = (le16_to_cpu(setup->wIndex) & USB_ENDPOINT_DIR_MASK) ?
