@@ -306,11 +306,11 @@ static struct pci_driver dgap_driver = {
 };
 
 struct firmware_info {
-	u8 *conf_name;       /* dgap.conf */
+	u8 *conf_name;  /* dgap.conf */
 	u8 *bios_name;	/* BIOS filename */
 	u8 *fep_name;	/* FEP  filename */
 	u8 *con_name;	/* Concentrator filename  FIXME*/
-	int num;                /* sequence number */
+	int num;        /* sequence number */
 };
 
 /*
@@ -398,8 +398,8 @@ static struct cnode dgap_head;
 static char dgap_cword[MAXCWORD];
 
 struct toklist {
-	int	token;
-	char	*string;
+	int token;
+	char *string;
 };
 
 static struct toklist dgap_tlist[] = {
@@ -1542,12 +1542,12 @@ static void dgap_input(struct channel_t *ch)
 	struct bs_t __iomem *bs;
 	struct tty_struct *tp;
 	struct tty_ldisc *ld;
-	uint	rmask;
-	uint	head;
-	uint	tail;
-	int	data_len;
-	ulong	lock_flags;
-	ulong   lock_flags2;
+	uint rmask;
+	uint head;
+	uint tail;
+	int data_len;
+	ulong lock_flags;
+	ulong lock_flags2;
 	int flip_len;
 	int len;
 	int n;
@@ -1862,16 +1862,16 @@ static void dgap_carrier(struct channel_t *ch)
  */
 static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 {
-	struct board_t	*brd;
+	struct board_t *brd;
 	struct channel_t *ch;
-	struct un_t	*un;
+	struct un_t *un;
 	struct bs_t __iomem *bs;
-	uint		major;
-	uint		minor;
-	int		rc;
-	ulong		lock_flags;
-	ulong		lock_flags2;
-	u16		head;
+	uint major;
+	uint minor;
+	int rc;
+	ulong lock_flags;
+	ulong lock_flags2;
+	u16 head;
 
 	major = MAJOR(tty_devnum(tty));
 	minor = MINOR(tty_devnum(tty));
@@ -2019,8 +2019,8 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 {
 	int retval = 0;
 	struct un_t *un;
-	ulong   lock_flags;
-	uint	old_flags;
+	ulong lock_flags;
+	uint old_flags;
 	int sleep_on_un_flags;
 
 	if (!tty || tty->magic != TTY_MAGIC || !file || !ch ||
@@ -2150,9 +2150,9 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
  */
 static void dgap_tty_hangup(struct tty_struct *tty)
 {
-	struct board_t	*bd;
+	struct board_t *bd;
 	struct channel_t *ch;
-	struct un_t	*un;
+	struct un_t *un;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -2171,7 +2171,6 @@ static void dgap_tty_hangup(struct tty_struct *tty)
 
 	/* flush the transmit queues */
 	dgap_tty_flush_buffer(tty);
-
 }
 
 /*
@@ -2320,8 +2319,8 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 	u8 tbusy;
 	uint chars;
 	u16 thead, ttail, tmask, chead, ctail;
-	ulong   lock_flags = 0;
-	ulong   lock_flags2 = 0;
+	ulong lock_flags = 0;
+	ulong lock_flags2 = 0;
 
 	if (tty == NULL)
 		return 0;
@@ -2410,7 +2409,7 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 	struct bs_t __iomem *bs;
 	int ret = 0;
 	uint count = 1;
-	ulong   lock_flags = 0;
+	ulong lock_flags = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return -EIO;
@@ -2553,7 +2552,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 	struct bs_t __iomem *bs;
 	u16 head, tail, tmask;
 	int ret;
-	ulong   lock_flags = 0;
+	ulong lock_flags = 0;
 
 	if (!tty)
 		return 0;
@@ -3213,7 +3212,7 @@ static int dgap_tty_digiseta(struct tty_struct *tty,
 	struct channel_t *ch;
 	struct un_t *un;
 	struct digi_t new_digi;
-	ulong   lock_flags = 0;
+	ulong lock_flags = 0;
 	unsigned long lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
@@ -3493,8 +3492,8 @@ static void dgap_tty_throttle(struct tty_struct *tty)
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	ulong   lock_flags;
-	ulong   lock_flags2;
+	ulong lock_flags;
+	ulong lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -3529,8 +3528,8 @@ static void dgap_tty_unthrottle(struct tty_struct *tty)
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	ulong   lock_flags;
-	ulong   lock_flags2;
+	ulong lock_flags;
+	ulong lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -3565,8 +3564,8 @@ static void dgap_tty_start(struct tty_struct *tty)
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	ulong   lock_flags;
-	ulong   lock_flags2;
+	ulong lock_flags;
+	ulong lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -3590,7 +3589,6 @@ static void dgap_tty_start(struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-
 }
 
 static void dgap_tty_stop(struct tty_struct *tty)
@@ -3598,8 +3596,8 @@ static void dgap_tty_stop(struct tty_struct *tty)
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	ulong   lock_flags;
-	ulong   lock_flags2;
+	ulong lock_flags;
+	ulong lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -3623,7 +3621,6 @@ static void dgap_tty_stop(struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 	spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-
 }
 
 /*
@@ -3644,8 +3641,8 @@ static void dgap_tty_flush_chars(struct tty_struct *tty)
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	ulong   lock_flags;
-	ulong   lock_flags2;
+	ulong lock_flags;
+	ulong lock_flags2;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -3681,9 +3678,9 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	ulong   lock_flags;
-	ulong   lock_flags2;
-	u16	head;
+	ulong lock_flags;
+	ulong lock_flags2;
+	u16 head;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -3741,9 +3738,9 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	struct channel_t *ch;
 	struct un_t *un;
 	int rc;
-	u16	head;
-	ulong   lock_flags = 0;
-	ulong   lock_flags2 = 0;
+	u16 head;
+	ulong lock_flags = 0;
+	ulong lock_flags2 = 0;
 	void __user *uarg = (void __user *) arg;
 
 	if (!tty || tty->magic != TTY_MAGIC)
@@ -4402,7 +4399,6 @@ static void dgap_do_reset_board(struct board_t *brd)
 		brd->dpastatus = BD_NOFEP;
 		return;
 	}
-
 }
 
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
@@ -4548,7 +4544,7 @@ static void dgap_get_vpd(struct board_t *brd)
 static void dgap_poll_tasklet(unsigned long data)
 {
 	struct board_t *bd = (struct board_t *) data;
-	ulong  lock_flags;
+	ulong lock_flags;
 	char __iomem *vaddr;
 	u16 head, tail;
 
@@ -4625,12 +4621,12 @@ out:
 static void dgap_cmdb(struct channel_t *ch, u8 cmd, u8 byte1,
 			u8 byte2, uint ncmds)
 {
-	char __iomem	*vaddr;
+	char __iomem *vaddr;
 	struct __iomem cm_t *cm_addr;
-	uint		count;
-	uint		n;
-	u16		head;
-	u16		tail;
+	uint count;
+	uint n;
+	u16 head;
+	u16 tail;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
@@ -4710,12 +4706,12 @@ static void dgap_cmdb(struct channel_t *ch, u8 cmd, u8 byte1,
  *=======================================================================*/
 static void dgap_cmdw(struct channel_t *ch, u8 cmd, u16 word, uint ncmds)
 {
-	char __iomem	*vaddr;
+	char __iomem *vaddr;
 	struct __iomem cm_t *cm_addr;
-	uint		count;
-	uint		n;
-	u16		head;
-	u16		tail;
+	uint count;
+	uint n;
+	u16 head;
+	u16 tail;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
@@ -4793,12 +4789,12 @@ static void dgap_cmdw(struct channel_t *ch, u8 cmd, u16 word, uint ncmds)
  *=======================================================================*/
 static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 {
-	char __iomem	*vaddr;
+	char __iomem *vaddr;
 	struct __iomem cm_t *cm_addr;
-	uint		count;
-	uint		n;
-	u16		head;
-	u16		tail;
+	uint count;
+	uint n;
+	u16 head;
+	u16 tail;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
@@ -4886,10 +4882,10 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
  *=======================================================================*/
 static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
 {
-	int    n;
-	char   __iomem *taddr;
+	int n;
+	char __iomem *taddr;
 	struct bs_t __iomem *bs;
-	u16    head;
+	u16 head;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return;
@@ -5008,12 +5004,12 @@ static int dgap_param(struct tty_struct *tty)
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct bs_t __iomem *bs;
-	struct un_t   *un;
-	u16	head;
-	u16	cflag;
-	u16	iflag;
-	u8	mval;
-	u8	hflow;
+	struct un_t *un;
+	u16 head;
+	u16 cflag;
+	u16 iflag;
+	u8 mval;
+	u8 hflow;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return -ENXIO;
@@ -5282,7 +5278,6 @@ static int dgap_param(struct tty_struct *tty)
 		dgap_cmdb(ch, SHFLOW, (u8) hflow, 0xff, 0);
 	}
 
-
 	/*
 	 * Set RTS and/or DTR Toggle if needed,
 	 * but only if product is FEP5+ based.
@@ -5458,18 +5453,18 @@ static void dgap_write_wakeup(struct board_t *bd, struct channel_t *ch,
 static int dgap_event(struct board_t *bd)
 {
 	struct channel_t *ch;
-	ulong		lock_flags;
-	ulong		lock_flags2;
+	ulong lock_flags;
+	ulong lock_flags2;
 	struct bs_t __iomem *bs;
-	u8 __iomem	*event;
-	u8 __iomem	*vaddr;
+	u8 __iomem *event;
+	u8 __iomem *vaddr;
 	struct ev_t __iomem *eaddr;
-	uint		head;
-	uint		tail;
-	int		port;
-	int		reason;
-	int		modem;
-	int		b1;
+	uint head;
+	uint tail;
+	int port;
+	int reason;
+	int modem;
+	int b1;
 
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return -ENXIO;
@@ -6248,8 +6243,8 @@ static ssize_t dgap_tty_name_show(struct device *d,
 	struct board_t *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	int	cn;
-	int	bn;
+	int cn;
+	int bn;
 	struct cnode *cptr;
 	int found = FALSE;
 	int ncount = 0;
@@ -6346,7 +6341,6 @@ static ssize_t dgap_tty_name_show(struct device *d,
 
 	return snprintf(buf, PAGE_SIZE, "%s_dgap_%d_%d\n",
 		(un->un_type == DGAP_PRINT) ? "pr" : "tty", bn, cn);
-
 }
 static DEVICE_ATTR(custom_name, S_IRUSR, dgap_tty_name_show, NULL);
 
@@ -6390,12 +6384,12 @@ static void dgap_remove_tty_sysfs(struct device *c)
 /*
  * Parse a configuration file read into memory as a string.
  */
-static int	dgap_parsefile(char **in, int remove)
+static int dgap_parsefile(char **in, int remove)
 {
 	struct cnode *p, *brd, *line, *conc;
-	int	rc;
-	char	*s;
-	int	linecnt = 0;
+	int rc;
+	char *s;
+	int linecnt = 0;
 
 	p = &dgap_head;
 	brd = line = conc = NULL;
@@ -7137,7 +7131,7 @@ static int	dgap_parsefile(char **in, int remove)
  */
 static char *dgap_sindex(char *string, char *group)
 {
-	char    *ptr;
+	char *ptr;
 
 	if (!string || !group)
 		return (char *) NULL;
@@ -7169,7 +7163,7 @@ static char *dgap_sindex(char *string, char *group)
  */
 static int dgap_gettok(char **in, struct cnode *p)
 {
-	char	*w;
+	char *w;
 	struct toklist *t;
 
 	if (strstr(dgap_cword, "boar")) {
