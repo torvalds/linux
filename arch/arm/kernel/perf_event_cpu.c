@@ -241,48 +241,34 @@ static struct platform_device_id cpu_pmu_plat_device_ids[] = {
 	{},
 };
 
+static const struct pmu_probe_info pmu_probe_table[] = {
+	ARM_PMU_PROBE(ARM_CPU_PART_ARM1136, armv6_1136_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_ARM1156, armv6_1156_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_ARM1176, armv6_1176_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_ARM11MPCORE, armv6mpcore_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A8, armv7_a8_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A9, armv7_a9_pmu_init),
+	XSCALE_PMU_PROBE(ARM_CPU_XSCALE_ARCH_V1, xscale1pmu_init),
+	XSCALE_PMU_PROBE(ARM_CPU_XSCALE_ARCH_V2, xscale2pmu_init),
+	{ /* sentinel value */ }
+};
+
 /*
  * CPU PMU identification and probing.
  */
 static int probe_current_pmu(struct arm_pmu *pmu)
 {
 	int cpu = get_cpu();
+	unsigned int cpuid = read_cpuid_id();
 	int ret = -ENODEV;
+	const struct pmu_probe_info *info;
 
 	pr_info("probing PMU on CPU %d\n", cpu);
 
-	switch (read_cpuid_part()) {
-	/* ARM Ltd CPUs. */
-	case ARM_CPU_PART_ARM1136:
-		ret = armv6_1136_pmu_init(pmu);
-		break;
-	case ARM_CPU_PART_ARM1156:
-		ret = armv6_1156_pmu_init(pmu);
-		break;
-	case ARM_CPU_PART_ARM1176:
-		ret = armv6_1176_pmu_init(pmu);
-		break;
-	case ARM_CPU_PART_ARM11MPCORE:
-		ret = armv6mpcore_pmu_init(pmu);
-		break;
-	case ARM_CPU_PART_CORTEX_A8:
-		ret = armv7_a8_pmu_init(pmu);
-		break;
-	case ARM_CPU_PART_CORTEX_A9:
-		ret = armv7_a9_pmu_init(pmu);
-		break;
-
-	default:
-		if (read_cpuid_implementor() == ARM_CPU_IMP_INTEL) {
-			switch (xscale_cpu_arch_version()) {
-			case ARM_CPU_XSCALE_ARCH_V1:
-				ret = xscale1pmu_init(pmu);
-				break;
-			case ARM_CPU_XSCALE_ARCH_V2:
-				ret = xscale2pmu_init(pmu);
-				break;
-			}
-		}
+	for (info = pmu_probe_table; info->init != NULL; info++) {
+		if ((cpuid & info->mask) != info->cpuid)
+			continue;
+		ret = info->init(pmu);
 		break;
 	}
 
