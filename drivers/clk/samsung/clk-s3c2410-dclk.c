@@ -135,26 +135,26 @@ struct s3c24xx_dclk {
 #define to_s3c24xx_dclk1(x) \
 		container_of(x, struct s3c24xx_dclk, dclk1_div_change_nb)
 
-PNAME(dclk_s3c2410_p) = { "pclk", "uclk" };
-PNAME(clkout0_s3c2410_p) = { "mpll", "upll", "fclk", "hclk", "pclk",
+static const char *dclk_s3c2410_p[] = { "pclk", "uclk" };
+static const char *clkout0_s3c2410_p[] = { "mpll", "upll", "fclk", "hclk", "pclk",
 			     "gate_dclk0" };
-PNAME(clkout1_s3c2410_p) = { "mpll", "upll", "fclk", "hclk", "pclk",
+static const char *clkout1_s3c2410_p[] = { "mpll", "upll", "fclk", "hclk", "pclk",
 			     "gate_dclk1" };
 
-PNAME(clkout0_s3c2412_p) = { "mpll", "upll", "rtc_clkout",
+static const char *clkout0_s3c2412_p[] = { "mpll", "upll", "rtc_clkout",
 			     "hclk", "pclk", "gate_dclk0" };
-PNAME(clkout1_s3c2412_p) = { "xti", "upll", "fclk", "hclk", "pclk",
+static const char *clkout1_s3c2412_p) = { "xti", "upll", "fclk", "hclk", "pclk",
 			     "gate_dclk1" };
 
-PNAME(clkout0_s3c2440_p) = { "xti", "upll", "fclk", "hclk", "pclk",
+static const char *clkout0_s3c2440_p[] = { "xti", "upll", "fclk", "hclk", "pclk",
 			     "gate_dclk0" };
-PNAME(clkout1_s3c2440_p) = { "mpll", "upll", "rtc_clkout",
+static const char *clkout1_s3c2440_p[] = { "mpll", "upll", "rtc_clkout",
 			     "hclk", "pclk", "gate_dclk1" };
 
-PNAME(dclk_s3c2443_p) = { "pclk", "epll" };
-PNAME(clkout0_s3c2443_p) = { "xti", "epll", "armclk", "hclk", "pclk",
+static const char *dclk_s3c2443_p[] = { "pclk", "epll" };
+static const char *clkout0_s3c2443_p[] = { "xti", "epll", "armclk", "hclk", "pclk",
 			     "gate_dclk0" };
-PNAME(clkout1_s3c2443_p) = { "dummy", "epll", "rtc_clkout",
+static const char *clkout1_s3c2443_p[] = { "dummy", "epll", "rtc_clkout",
 			     "hclk", "pclk", "gate_dclk1" };
 
 #define DCLKCON_DCLK_DIV_MASK		0xf
