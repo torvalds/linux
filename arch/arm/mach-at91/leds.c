@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 
 #include "board.h"
+#include "gpio.h"
 
 
 /* ------------------------------------------------------------------------- */

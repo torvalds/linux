@@ -29,7 +29,7 @@
 
 #include "board.h"
 #include "generic.h"
-
+#include "gpio.h"
 
 /* --------------------------------------------------------------------
  *  USB Host
