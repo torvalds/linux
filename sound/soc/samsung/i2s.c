@@ -676,8 +676,8 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 	if (is_manager(i2s))
 		mod &= ~MOD_BLC_MASK;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
+	switch (params_width(params)) {
+	case 8:
 		if (is_secondary(i2s))
 			mod |= MOD_BLCS_8BIT;
 		else
@@ -685,7 +685,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 		if (is_manager(i2s))
 			mod |= MOD_BLC_8BIT;
 		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
+	case 16:
 		if (is_secondary(i2s))
 			mod |= MOD_BLCS_16BIT;
 		else
@@ -693,7 +693,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 		if (is_manager(i2s))
 			mod |= MOD_BLC_16BIT;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		if (is_secondary(i2s))
 			mod |= MOD_BLCS_24BIT;
 		else
