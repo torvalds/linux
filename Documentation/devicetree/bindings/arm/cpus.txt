@@ -182,6 +182,8 @@ nodes to be present and contain the properties described below.
 			     "psci"
 			# On ARM 32-bit systems this property is optional and
 			  can be one of:
+			    "arm,psci"
+			    "allwinner,sun6i-a31"
 			    "qcom,gcc-msm8660"
 			    "qcom,kpss-acc-v1"
 			    "qcom,kpss-acc-v2"
