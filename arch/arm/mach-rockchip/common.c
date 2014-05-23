@@ -214,6 +214,7 @@ static inline const char *boot_flag_name(u32 flag)
 	case BOOT_WIPEALL: return "WIPEALL";
 	case BOOT_CHECKIMG: return "CHECKIMG";
 	case BOOT_FASTBOOT: return "FASTBOOT";
+	case BOOT_CHARGING: return "CHARGING";
 	default: return "";
 	}
 }
@@ -253,8 +254,10 @@ void rockchip_restart_get_boot_mode(const char *cmd, u32 *flag, u32 *mode)
 			*flag = SYS_LOADER_REBOOT_FLAG + BOOT_LOADER;
 		else if(!strcmp(cmd, "recovery"))
 			*flag = SYS_LOADER_REBOOT_FLAG + BOOT_RECOVER;
-		else if (!strcmp(cmd, "charge"))
+		else if (!strcmp(cmd, "charge")) {
+			*flag = SYS_LOADER_REBOOT_FLAG + BOOT_CHARGING;
 			*mode = BOOT_MODE_CHARGE;
+		}
 	} else {
 		if (is_panic)
 			*mode = BOOT_MODE_PANIC;

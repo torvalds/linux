@@ -14,7 +14,9 @@ enum {
     BOOT_WIPEDATA,   /* enter recover and wipe data. */
     BOOT_WIPEALL,    /* enter recover and wipe all data. */
     BOOT_CHECKIMG,   /* check firmware img with backup part(in loader mode)*/
-    BOOT_FASTBOOT,   /* enter fast boot mode (not support now) */
+    BOOT_FASTBOOT,   /* enter fast boot mode */
+    BOOT_SECUREBOOT_DISABLE,
+    BOOT_CHARGING,   /* enter charge mode */
     BOOT_MAX         /* MAX VALID BOOT TYPE.*/
 };
 
