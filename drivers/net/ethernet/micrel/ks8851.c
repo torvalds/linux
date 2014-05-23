@@ -1417,7 +1417,7 @@ static int ks8851_probe(struct spi_device *spi)
 	ks->spidev = spi;
 	ks->tx_space = 6144;
 
-	ks->vdd_reg = regulator_get_optional(&spi->dev, "vdd");
+	ks->vdd_reg = devm_regulator_get_optional(&spi->dev, "vdd");
 	if (IS_ERR(ks->vdd_reg)) {
 		ret = PTR_ERR(ks->vdd_reg);
 		if (ret == -EPROBE_DEFER)
@@ -1427,7 +1427,7 @@ static int ks8851_probe(struct spi_device *spi)
 		if (ret) {
 			dev_err(&spi->dev, "regulator enable fail: %d\n",
 				ret);
-			goto err_reg_en;
+			goto err_reg;
 		}
 	}
 
@@ -1530,9 +1530,6 @@ err_irq:
 err_id:
 	if (!IS_ERR(ks->vdd_reg))
 		regulator_disable(ks->vdd_reg);
-err_reg_en:
-	if (!IS_ERR(ks->vdd_reg))
-		regulator_put(ks->vdd_reg);
 err_reg:
 	free_netdev(ndev);
 	return ret;
@@ -1547,10 +1544,8 @@ static int ks8851_remove(struct spi_device *spi)
 
 	unregister_netdev(priv->netdev);
 	free_irq(spi->irq, priv);
-	if (!IS_ERR(priv->vdd_reg)) {
+	if (!IS_ERR(priv->vdd_reg))
 		regulator_disable(priv->vdd_reg);
-		regulator_put(priv->vdd_reg);
-	}
 	free_netdev(priv->netdev);
 
 	return 0;
