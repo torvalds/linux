@@ -1378,7 +1378,7 @@ static int dgap_tty_init(struct board_t *brd)
 	for (i = 0; i < brd->nasync; i++) {
 		if (!brd->channels[i]) {
 			brd->channels[i] =
-				kzalloc(sizeof(struct channel_t), GFP_ATOMIC);
+				kzalloc(sizeof(struct channel_t), GFP_KERNEL);
 			if (!brd->channels[i])
 				return -ENOMEM;
 		}
@@ -4121,11 +4121,11 @@ static int dgap_after_config_loaded(int board)
 	/*
 	 * allocate flip buffer for board.
 	 */
-	dgap_board[board]->flipbuf = kmalloc(MYFLIPLEN, GFP_ATOMIC);
+	dgap_board[board]->flipbuf = kmalloc(MYFLIPLEN, GFP_KERNEL);
 	if (!dgap_board[board]->flipbuf)
 		return -ENOMEM;
 
-	dgap_board[board]->flipflagbuf = kmalloc(MYFLIPLEN, GFP_ATOMIC);
+	dgap_board[board]->flipflagbuf = kmalloc(MYFLIPLEN, GFP_KERNEL);
 	if (!dgap_board[board]->flipflagbuf) {
 		kfree(dgap_board[board]->flipbuf);
 		return -ENOMEM;
@@ -7232,7 +7232,7 @@ static struct cnode *dgap_newnode(int t)
 {
 	struct cnode *n;
 
-	n = kmalloc(sizeof(struct cnode), GFP_ATOMIC);
+	n = kmalloc(sizeof(struct cnode), GFP_KERNEL);
 	if (n) {
 		memset((char *)n, 0, sizeof(struct cnode));
 		n->type = t;
