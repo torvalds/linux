@@ -468,16 +468,43 @@ void assert_force_wake_inactive(struct drm_i915_private *dev_priv)
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
 	 ((reg) < 0x40000 && (reg) != FORCEWAKE)
 
-#define FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg) \
-	(((reg) >= 0x2000 && (reg) < 0x4000) ||\
-	((reg) >= 0x5000 && (reg) < 0x8000) ||\
-	((reg) >= 0xB000 && (reg) < 0x12000) ||\
-	((reg) >= 0x2E000 && (reg) < 0x30000))
+#define REG_RANGE(reg, start, end) ((reg) >= (start) && (reg) < (end))
 
-#define FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)\
-	(((reg) >= 0x12000 && (reg) < 0x14000) ||\
-	((reg) >= 0x22000 && (reg) < 0x24000) ||\
-	((reg) >= 0x30000 && (reg) < 0x40000))
+#define FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg) \
+	(REG_RANGE((reg), 0x2000, 0x4000) || \
+	 REG_RANGE((reg), 0x5000, 0x8000) || \
+	 REG_RANGE((reg), 0xB000, 0x12000) || \
+	 REG_RANGE((reg), 0x2E000, 0x30000))
+
+#define FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg) \
+	(REG_RANGE((reg), 0x12000, 0x14000) || \
+	 REG_RANGE((reg), 0x22000, 0x24000) || \
+	 REG_RANGE((reg), 0x30000, 0x40000))
+
+#define FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg) \
+	(REG_RANGE((reg), 0x2000, 0x4000) || \
+	 REG_RANGE((reg), 0x5000, 0x8000) || \
+	 REG_RANGE((reg), 0x8300, 0x8500) || \
+	 REG_RANGE((reg), 0xB000, 0xC000) || \
+	 REG_RANGE((reg), 0xE000, 0xE800))
+
+#define FORCEWAKE_CHV_MEDIA_RANGE_OFFSET(reg) \
+	(REG_RANGE((reg), 0x8800, 0x8900) || \
+	 REG_RANGE((reg), 0xD000, 0xD800) || \
+	 REG_RANGE((reg), 0x12000, 0x14000) || \
+	 REG_RANGE((reg), 0x1A000, 0x1C000) || \
+	 REG_RANGE((reg), 0x1E800, 0x1EA00) || \
+	 REG_RANGE((reg), 0x30000, 0x40000))
+
+#define FORCEWAKE_CHV_COMMON_RANGE_OFFSET(reg) \
+	(REG_RANGE((reg), 0x4000, 0x5000) || \
+	 REG_RANGE((reg), 0x8000, 0x8300) || \
+	 REG_RANGE((reg), 0x8500, 0x8600) || \
+	 REG_RANGE((reg), 0x9000, 0xB000) || \
+	 REG_RANGE((reg), 0xC000, 0xC800) || \
+	 REG_RANGE((reg), 0xF000, 0x10000) || \
+	 REG_RANGE((reg), 0x14000, 0x14400) || \
+	 REG_RANGE((reg), 0x22000, 0x24000))
 
 static void
 ilk_dummy_write(struct drm_i915_private *dev_priv)
@@ -572,7 +599,35 @@ vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	REG_READ_FOOTER; \
 }
 
+#define __chv_read(x) \
+static u##x \
+chv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
+	unsigned fwengine = 0; \
+	REG_READ_HEADER(x); \
+	if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg)) { \
+		if (dev_priv->uncore.fw_rendercount == 0) \
+			fwengine = FORCEWAKE_RENDER; \
+	} else if (FORCEWAKE_CHV_MEDIA_RANGE_OFFSET(reg)) { \
+		if (dev_priv->uncore.fw_mediacount == 0) \
+			fwengine = FORCEWAKE_MEDIA; \
+	} else if (FORCEWAKE_CHV_COMMON_RANGE_OFFSET(reg)) { \
+		if (dev_priv->uncore.fw_rendercount == 0) \
+			fwengine |= FORCEWAKE_RENDER; \
+		if (dev_priv->uncore.fw_mediacount == 0) \
+			fwengine |= FORCEWAKE_MEDIA; \
+	} \
+	if (fwengine) \
+		dev_priv->uncore.funcs.force_wake_get(dev_priv, fwengine); \
+	val = __raw_i915_read##x(dev_priv, reg); \
+	if (fwengine) \
+		dev_priv->uncore.funcs.force_wake_put(dev_priv, fwengine); \
+	REG_READ_FOOTER; \
+}
 
+__chv_read(8)
+__chv_read(16)
+__chv_read(32)
+__chv_read(64)
 __vlv_read(8)
 __vlv_read(16)
 __vlv_read(32)
@@ -590,6 +645,7 @@ __gen4_read(16)
 __gen4_read(32)
 __gen4_read(64)
 
+#undef __chv_read
 #undef __vlv_read
 #undef __gen6_read
 #undef __gen5_read
@@ -694,6 +750,38 @@ gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	REG_WRITE_FOOTER; \
 }
 
+#define __chv_write(x) \
+static void \
+chv_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
+	unsigned fwengine = 0; \
+	bool shadowed = is_gen8_shadowed(dev_priv, reg); \
+	REG_WRITE_HEADER; \
+	if (!shadowed) { \
+		if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg)) { \
+			if (dev_priv->uncore.fw_rendercount == 0) \
+				fwengine = FORCEWAKE_RENDER; \
+		} else if (FORCEWAKE_CHV_MEDIA_RANGE_OFFSET(reg)) { \
+			if (dev_priv->uncore.fw_mediacount == 0) \
+				fwengine = FORCEWAKE_MEDIA; \
+		} else if (FORCEWAKE_CHV_COMMON_RANGE_OFFSET(reg)) { \
+			if (dev_priv->uncore.fw_rendercount == 0) \
+				fwengine |= FORCEWAKE_RENDER; \
+			if (dev_priv->uncore.fw_mediacount == 0) \
+				fwengine |= FORCEWAKE_MEDIA; \
+		} \
+	} \
+	if (fwengine) \
+		dev_priv->uncore.funcs.force_wake_get(dev_priv, fwengine); \
+	__raw_i915_write##x(dev_priv, reg, val); \
+	if (fwengine) \
+		dev_priv->uncore.funcs.force_wake_put(dev_priv, fwengine); \
+	REG_WRITE_FOOTER; \
+}
+
+__chv_write(8)
+__chv_write(16)
+__chv_write(32)
+__chv_write(64)
 __gen8_write(8)
 __gen8_write(16)
 __gen8_write(32)
@@ -715,6 +803,7 @@ __gen4_write(16)
 __gen4_write(32)
 __gen4_write(64)
 
+#undef __chv_write
 #undef __gen8_write
 #undef __hsw_write
 #undef __gen6_write
@@ -778,14 +867,26 @@ void intel_uncore_init(struct drm_device *dev)
 
 	switch (INTEL_INFO(dev)->gen) {
 	default:
-		dev_priv->uncore.funcs.mmio_writeb  = gen8_write8;
-		dev_priv->uncore.funcs.mmio_writew  = gen8_write16;
-		dev_priv->uncore.funcs.mmio_writel  = gen8_write32;
-		dev_priv->uncore.funcs.mmio_writeq  = gen8_write64;
-		dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
-		dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
-		dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
-		dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
+		if (IS_CHERRYVIEW(dev)) {
+			dev_priv->uncore.funcs.mmio_writeb  = chv_write8;
+			dev_priv->uncore.funcs.mmio_writew  = chv_write16;
+			dev_priv->uncore.funcs.mmio_writel  = chv_write32;
+			dev_priv->uncore.funcs.mmio_writeq  = chv_write64;
+			dev_priv->uncore.funcs.mmio_readb  = chv_read8;
+			dev_priv->uncore.funcs.mmio_readw  = chv_read16;
+			dev_priv->uncore.funcs.mmio_readl  = chv_read32;
+			dev_priv->uncore.funcs.mmio_readq  = chv_read64;
+
+		} else {
+			dev_priv->uncore.funcs.mmio_writeb  = gen8_write8;
+			dev_priv->uncore.funcs.mmio_writew  = gen8_write16;
+			dev_priv->uncore.funcs.mmio_writel  = gen8_write32;
+			dev_priv->uncore.funcs.mmio_writeq  = gen8_write64;
+			dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
+			dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
+			dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
+			dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
+		}
 		break;
 	case 7:
 	case 6:
