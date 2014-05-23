@@ -192,20 +192,15 @@ void MACvRegBitsOff(struct vnt_private *priv, u8 reg_ofs, u8 bits)
 		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
-void MACvRegBitsOn(struct vnt_private *pDevice, u8 byRegOfs, u8 byBits)
+void MACvRegBitsOn(struct vnt_private *priv, u8 reg_ofs, u8 bits)
 {
-	u8 pbyData[2];
+	u8 data[2];
 
-    pbyData[0] = byBits;
-    pbyData[1] = byBits;
+	data[0] = bits;
+	data[1] = bits;
 
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE_MASK,
-                        byRegOfs,
-                        MESSAGE_REQUEST_MACREG,
-			ARRAY_SIZE(pbyData),
-                        pbyData
-                        );
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK,
+		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
 void MACvWriteWord(struct vnt_private *pDevice, u8 byRegOfs, u16 wData)
