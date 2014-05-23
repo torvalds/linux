@@ -57,7 +57,7 @@ static int camsys_i2c_write(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev
             buf[i] = (i2cinfo->reg_addr>>((i2cinfo->reg_size-1-i)*8))&0xff;
         }
         for (j=0; j<i2cinfo->val_size; j++) {
-            buf[i+j] = (i2cinfo->val>>(i2cinfo->val_size-1-j))&0xff;
+            buf[i+j] = (i2cinfo->val>>((i2cinfo->val_size-1-j)*8))&0xff;  /* ddl@rock-chips.com: v0.a.0 */
         }
         bufp = buf;
         onelen = i2cinfo->val_size + i2cinfo->reg_size;
@@ -85,7 +85,7 @@ end:
 
 static int camsys_i2c_read(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev)
 {
-    int err = 0,i,retry=2,tmp;
+    int err = 0,i,retry=2,tmp, num_msg;
     unsigned char buf[8];
     struct i2c_msg msg[2];
     struct i2c_adapter *adapter;
@@ -95,18 +95,22 @@ static int camsys_i2c_read(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev)
         camsys_err("Get %d i2c adapter is failed!",i2cinfo->bus_num);
         err = -EINVAL;
         goto end;
-    }
-    
-    for (i=0; i<i2cinfo->reg_size; i++) {
-        buf[i] = (i2cinfo->reg_addr>>((i2cinfo->reg_size-1-i)*8))&0xff;
-    }
+    } 
 
-    msg[0].addr = (i2cinfo->slave_addr>>1);
-	msg[0].flags = 0;
-	msg[0].scl_rate = i2cinfo->speed;
-	//msg[0].read_type = 0;
-    msg[0].buf = buf;
-    msg[0].len = i2cinfo->reg_size;
+	num_msg = 0;
+	if (i2cinfo->reg_size) {                /* ddl@rock-chips.com: v0.a.0 */
+	    for (i=0; i<i2cinfo->reg_size; i++) {
+	        buf[i] = (i2cinfo->reg_addr>>((i2cinfo->reg_size-1-i)*8))&0xff;
+	    }
+		
+	    msg[0].addr = (i2cinfo->slave_addr>>1);
+		msg[0].flags = 0;
+		msg[0].scl_rate = i2cinfo->speed;
+		//msg[0].read_type = 0;
+	    msg[0].buf = buf;
+	    msg[0].len = i2cinfo->reg_size;
+		num_msg++;
+	}
     
     msg[1].addr = (i2cinfo->slave_addr>>1);
 	msg[1].flags = I2C_M_RD;
@@ -115,9 +119,14 @@ static int camsys_i2c_read(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev)
     msg[1].buf = buf;
     msg[1].len = (unsigned short)i2cinfo->val_size;
 	err = -EAGAIN;    
+	num_msg++;
 
 	while ((retry-- > 0) && (err < 0)) {						 /* ddl@rock-chips.com :  Transfer again if transent is failed	 */
-		err = i2c_transfer(adapter, msg, 2);
+		if (num_msg==1) {			
+			err = i2c_transfer(adapter, &msg[1], num_msg);
+		} else {
+			err = i2c_transfer(adapter, msg, num_msg);
+		}
 	
 		if (err >= 0) {
             err = 0;
@@ -127,7 +136,8 @@ static int camsys_i2c_read(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev)
 		}
 	}
 
-    if (err==0) {        
+
+    if (err==0) { 
         i2cinfo->val = 0x00;
         for(i=0; i<i2cinfo->val_size; i++) {
             tmp = buf[i];
