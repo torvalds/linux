@@ -64,17 +64,11 @@ u64 ovs_flow_used_time(unsigned long flow_jiffies)
 void ovs_flow_stats_update(struct sw_flow *flow, struct sk_buff *skb)
 {
 	struct flow_stats *stats;
-	__be16 tcp_flags = 0;
+	__be16 tcp_flags = flow->key.tp.flags;
 	int node = numa_node_id();
 
 	stats = rcu_dereference(flow->stats[node]);
 
-	if (likely(flow->key.ip.proto == IPPROTO_TCP)) {
-		if (likely(flow->key.eth.type == htons(ETH_P_IP)))
-			tcp_flags = flow->key.ipv4.tp.flags;
-		else if (likely(flow->key.eth.type == htons(ETH_P_IPV6)))
-			tcp_flags = flow->key.ipv6.tp.flags;
-	}
 	/* Check if already have node-specific stats. */
 	if (likely(stats)) {
 		spin_lock(&stats->lock);
@@ -128,7 +122,9 @@ unlock:
 	spin_unlock(&stats->lock);
 }
 
-void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *ovs_stats,
+/* Must be called with rcu_read_lock or ovs_mutex. */
+void ovs_flow_stats_get(const struct sw_flow *flow,
+			struct ovs_flow_stats *ovs_stats,
 			unsigned long *used, __be16 *tcp_flags)
 {
 	int node;
@@ -138,7 +134,7 @@ void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *ovs_stats,
 	memset(ovs_stats, 0, sizeof(*ovs_stats));
 
 	for_each_node(node) {
-		struct flow_stats *stats = rcu_dereference(flow->stats[node]);
+		struct flow_stats *stats = rcu_dereference_ovsl(flow->stats[node]);
 
 		if (stats) {
 			/* Local CPU may write on non-local stats, so we must
@@ -155,12 +151,13 @@ void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *ovs_stats,
 	}
 }
 
+/* Called with ovs_mutex. */
 void ovs_flow_stats_clear(struct sw_flow *flow)
 {
 	int node;
 
 	for_each_node(node) {
-		struct flow_stats *stats = rcu_dereference(flow->stats[node]);
+		struct flow_stats *stats = ovsl_dereference(flow->stats[node]);
 
 		if (stats) {
 			spin_lock_bh(&stats->lock);
@@ -357,8 +354,8 @@ static int parse_icmpv6(struct sk_buff *skb, struct sw_flow_key *key,
 	/* The ICMPv6 type and code fields use the 16-bit transport port
 	 * fields, so we need to store them in 16-bit network byte order.
 	 */
-	key->ipv6.tp.src = htons(icmp->icmp6_type);
-	key->ipv6.tp.dst = htons(icmp->icmp6_code);
+	key->tp.src = htons(icmp->icmp6_type);
+	key->tp.dst = htons(icmp->icmp6_code);
 
 	if (icmp->icmp6_code == 0 &&
 	    (icmp->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION ||
@@ -520,21 +517,21 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 		if (key->ip.proto == IPPROTO_TCP) {
 			if (tcphdr_ok(skb)) {
 				struct tcphdr *tcp = tcp_hdr(skb);
-				key->ipv4.tp.src = tcp->source;
-				key->ipv4.tp.dst = tcp->dest;
-				key->ipv4.tp.flags = TCP_FLAGS_BE16(tcp);
+				key->tp.src = tcp->source;
+				key->tp.dst = tcp->dest;
+				key->tp.flags = TCP_FLAGS_BE16(tcp);
 			}
 		} else if (key->ip.proto == IPPROTO_UDP) {
 			if (udphdr_ok(skb)) {
 				struct udphdr *udp = udp_hdr(skb);
-				key->ipv4.tp.src = udp->source;
-				key->ipv4.tp.dst = udp->dest;
+				key->tp.src = udp->source;
+				key->tp.dst = udp->dest;
 			}
 		} else if (key->ip.proto == IPPROTO_SCTP) {
 			if (sctphdr_ok(skb)) {
 				struct sctphdr *sctp = sctp_hdr(skb);
-				key->ipv4.tp.src = sctp->source;
-				key->ipv4.tp.dst = sctp->dest;
+				key->tp.src = sctp->source;
+				key->tp.dst = sctp->dest;
 			}
 		} else if (key->ip.proto == IPPROTO_ICMP) {
 			if (icmphdr_ok(skb)) {
@@ -542,8 +539,8 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				/* The ICMP type and code fields use the 16-bit
 				 * transport port fields, so we need to store
 				 * them in 16-bit network byte order. */
-				key->ipv4.tp.src = htons(icmp->type);
-				key->ipv4.tp.dst = htons(icmp->code);
+				key->tp.src = htons(icmp->type);
+				key->tp.dst = htons(icmp->code);
 			}
 		}
 
@@ -589,21 +586,21 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 		if (key->ip.proto == NEXTHDR_TCP) {
 			if (tcphdr_ok(skb)) {
 				struct tcphdr *tcp = tcp_hdr(skb);
-				key->ipv6.tp.src = tcp->source;
-				key->ipv6.tp.dst = tcp->dest;
-				key->ipv6.tp.flags = TCP_FLAGS_BE16(tcp);
+				key->tp.src = tcp->source;
+				key->tp.dst = tcp->dest;
+				key->tp.flags = TCP_FLAGS_BE16(tcp);
 			}
 		} else if (key->ip.proto == NEXTHDR_UDP) {
 			if (udphdr_ok(skb)) {
 				struct udphdr *udp = udp_hdr(skb);
-				key->ipv6.tp.src = udp->source;
-				key->ipv6.tp.dst = udp->dest;
+				key->tp.src = udp->source;
+				key->tp.dst = udp->dest;
 			}
 		} else if (key->ip.proto == NEXTHDR_SCTP) {
 			if (sctphdr_ok(skb)) {
 				struct sctphdr *sctp = sctp_hdr(skb);
-				key->ipv6.tp.src = sctp->source;
-				key->ipv6.tp.dst = sctp->dest;
+				key->tp.src = sctp->source;
+				key->tp.dst = sctp->dest;
 			}
 		} else if (key->ip.proto == NEXTHDR_ICMP) {
 			if (icmp6hdr_ok(skb)) {

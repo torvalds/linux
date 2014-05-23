@@ -139,7 +139,7 @@ static void flow_free(struct sw_flow *flow)
 {
 	int node;
 
-	kfree((struct sf_flow_acts __force *)flow->sf_acts);
+	kfree((struct sw_flow_actions __force *)flow->sf_acts);
 	for_each_node(node)
 		if (flow->stats[node])
 			kmem_cache_free(flow_stats_cache,
@@ -158,25 +158,6 @@ void ovs_flow_free(struct sw_flow *flow, bool deferred)
 {
 	if (!flow)
 		return;
-
-	if (flow->mask) {
-		struct sw_flow_mask *mask = flow->mask;
-
-		/* ovs-lock is required to protect mask-refcount and
-		 * mask list.
-		 */
-		ASSERT_OVSL();
-		BUG_ON(!mask->ref_count);
-		mask->ref_count--;
-
-		if (!mask->ref_count) {
-			list_del_rcu(&mask->list);
-			if (deferred)
-				kfree_rcu(mask, rcu);
-			else
-				kfree(mask);
-		}
-	}
 
 	if (deferred)
 		call_rcu(&flow->rcu, rcu_free_flow_callback);
@@ -491,6 +472,25 @@ static struct table_instance *table_instance_expand(struct table_instance *ti)
 	return table_instance_rehash(ti, ti->n_buckets * 2);
 }
 
+/* Remove 'mask' from the mask list, if it is not needed any more. */
+static void flow_mask_remove(struct flow_table *tbl, struct sw_flow_mask *mask)
+{
+	if (mask) {
+		/* ovs-lock is required to protect mask-refcount and
+		 * mask list.
+		 */
+		ASSERT_OVSL();
+		BUG_ON(!mask->ref_count);
+		mask->ref_count--;
+
+		if (!mask->ref_count) {
+			list_del_rcu(&mask->list);
+			kfree_rcu(mask, rcu);
+		}
+	}
+}
+
+/* Must be called with OVS mutex held. */
 void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow)
 {
 	struct table_instance *ti = ovsl_dereference(table->ti);
@@ -498,6 +498,11 @@ void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow)
 	BUG_ON(table->count == 0);
 	hlist_del_rcu(&flow->hash_node[ti->node_ver]);
 	table->count--;
+
+	/* RCU delete the mask. 'flow->mask' is not NULLed, as it should be
+	 * accessible as long as the RCU read lock is held.
+	 */
+	flow_mask_remove(table, flow->mask);
 }
 
 static struct sw_flow_mask *mask_alloc(void)
@@ -560,6 +565,7 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 	return 0;
 }
 
+/* Must be called with OVS mutex held. */
 int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
 			struct sw_flow_mask *mask)
 {
