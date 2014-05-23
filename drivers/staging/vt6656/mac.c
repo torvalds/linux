@@ -216,21 +216,12 @@ void MACvWriteWord(struct vnt_private *priv, u8 reg_ofs, u16 word)
 
 void MACvWriteBSSIDAddress(struct vnt_private *pDevice, u8 *pbyEtherAddr)
 {
-	u8 pbyData[6];
-
-    pbyData[0] = *((u8 *)pbyEtherAddr);
-    pbyData[1] = *((u8 *)pbyEtherAddr+1);
-    pbyData[2] = *((u8 *)pbyEtherAddr+2);
-    pbyData[3] = *((u8 *)pbyEtherAddr+3);
-    pbyData[4] = *((u8 *)pbyEtherAddr+4);
-    pbyData[5] = *((u8 *)pbyEtherAddr+5);
-
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_WRITE,
                         MAC_REG_BSSID0,
                         MESSAGE_REQUEST_MACREG,
-			ARRAY_SIZE(pbyData),
-                        pbyData
+			ETH_ALEN,
+			pbyEtherAddr
                         );
 }
 
