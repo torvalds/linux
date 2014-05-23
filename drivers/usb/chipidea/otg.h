@@ -17,5 +17,10 @@ int ci_hdrc_otg_init(struct ci_hdrc *ci);
 void ci_hdrc_otg_destroy(struct ci_hdrc *ci);
 enum ci_role ci_otg_role(struct ci_hdrc *ci);
 void ci_handle_vbus_change(struct ci_hdrc *ci);
+static inline void ci_otg_queue_work(struct ci_hdrc *ci)
+{
+	disable_irq_nosync(ci->irq);
+	queue_work(ci->wq, &ci->work);
+}
 
 #endif /* __DRIVERS_USB_CHIPIDEA_OTG_H */

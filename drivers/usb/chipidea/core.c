@@ -425,8 +425,7 @@ static irqreturn_t ci_irq(int irq, void *data)
 		ci->id_event = true;
 		/* Clear ID change irq status */
 		hw_write_otgsc(ci, OTGSC_IDIS, OTGSC_IDIS);
-		disable_irq_nosync(ci->irq);
-		queue_work(ci->wq, &ci->work);
+		ci_otg_queue_work(ci);
 		return IRQ_HANDLED;
 	}
 
@@ -438,8 +437,7 @@ static irqreturn_t ci_irq(int irq, void *data)
 		ci->b_sess_valid_event = true;
 		/* Clear BSV irq */
 		hw_write_otgsc(ci, OTGSC_BSVIS, OTGSC_BSVIS);
-		disable_irq_nosync(ci->irq);
-		queue_work(ci->wq, &ci->work);
+		ci_otg_queue_work(ci);
 		return IRQ_HANDLED;
 	}
 
