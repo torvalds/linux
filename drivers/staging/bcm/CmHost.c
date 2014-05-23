@@ -1853,7 +1853,8 @@ int get_dsx_sf_data_to_application(struct bcm_mini_adapter *Adapter, UINT uiSFId
 	return STATUS_SUCCESS;
 }
 
-VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter, PUINT puiBuffer)
+VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter,
+		PUINT puiBuffer)
 {
 	B_UINT32 u32NumofSFsinMsg = ntohl(*(puiBuffer + 1));
 	struct bcm_stim_sfhostnotify *pHostInfo = NULL;
@@ -1861,7 +1862,8 @@ VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter, PUINT puiBuffer
 	ULONG ulSFID = 0;
 
 	puiBuffer += 2;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "u32NumofSFsinMsg: 0x%x\n", u32NumofSFsinMsg);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"u32NumofSFsinMsg: 0x%x\n", u32NumofSFsinMsg);
 
 	while (u32NumofSFsinMsg != 0 && u32NumofSFsinMsg < NO_OF_QUEUES) {
 		u32NumofSFsinMsg--;
@@ -1870,15 +1872,21 @@ VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter, PUINT puiBuffer
 
 		ulSFID = ntohl(pHostInfo->SFID);
 		uiSearchRuleIndex = SearchSfid(Adapter, ulSFID);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SFID: 0x%lx\n", ulSFID);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"SFID: 0x%lx\n", ulSFID);
 
-		if (uiSearchRuleIndex >= NO_OF_QUEUES || uiSearchRuleIndex == HiPriority) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "The SFID <%lx> doesn't exist in host entry or is Invalid\n", ulSFID);
+		if (uiSearchRuleIndex >= NO_OF_QUEUES
+				|| uiSearchRuleIndex == HiPriority) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
+					DBG_LVL_ALL,
+					"The SFID <%lx> doesn't exist in host entry or is Invalid\n",
+					ulSFID);
 			continue;
 		}
 
 		if (pHostInfo->RetainSF == false) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Going to Delete SF");
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
+					DBG_LVL_ALL, "Going to Delete SF");
 			deleteSFBySfid(Adapter, uiSearchRuleIndex);
 		} else {
 			struct bcm_packet_info *packinfo =
@@ -1888,7 +1896,10 @@ VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter, PUINT puiBuffer
 			packinfo->usCID = ntohs(pHostInfo->newCID);
 			packinfo->bActive = false;
 
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "pHostInfo->QoSParamSet: 0x%x\n", pHostInfo->QoSParamSet);
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
+					DBG_LVL_ALL,
+					"pHostInfo->QoSParamSet: 0x%x\n",
+					pHostInfo->QoSParamSet);
 
 			if (pHostInfo->QoSParamSet & 0x1)
 				packinfo->bAuthorizedSet = TRUE;
