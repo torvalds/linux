@@ -181,6 +181,9 @@ struct mgmt_cp_load_link_keys {
 } __packed;
 #define MGMT_LOAD_LINK_KEYS_SIZE	3
 
+#define MGMT_LTK_UNAUTHENTICATED	0x00
+#define MGMT_LTK_AUTHENTICATED		0x01
+
 struct mgmt_ltk_info {
 	struct mgmt_addr_info addr;
 	__u8	type;

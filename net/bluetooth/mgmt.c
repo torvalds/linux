@@ -4534,7 +4534,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_ltk_info *key = &cp->keys[i];
-		u8 type, addr_type;
+		u8 type, addr_type, authenticated;
 
 		if (key->addr.type == BDADDR_LE_PUBLIC)
 			addr_type = ADDR_LE_DEV_PUBLIC;
@@ -4546,8 +4546,13 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 		else
 			type = HCI_SMP_LTK_SLAVE;
 
+		if (key->type == MGMT_LTK_UNAUTHENTICATED)
+			authenticated = 0x00;
+		else
+			authenticated = 0x01;
+
 		hci_add_ltk(hdev, &key->addr.bdaddr, addr_type, type,
-			    key->type, key->val, key->enc_size, key->ediv,
+			    authenticated, key->val, key->enc_size, key->ediv,
 			    key->rand);
 	}
 
@@ -5222,6 +5227,14 @@ void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 	mgmt_event(MGMT_EV_NEW_LINK_KEY, hdev, &ev, sizeof(ev), NULL);
 }
 
+static u8 mgmt_ltk_type(struct smp_ltk *ltk)
+{
+	if (ltk->authenticated)
+		return MGMT_LTK_AUTHENTICATED;
+
+	return MGMT_LTK_UNAUTHENTICATED;
+}
+
 void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 {
 	struct mgmt_ev_new_long_term_key ev;
@@ -5247,7 +5260,7 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 
 	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
 	ev.key.addr.type = link_to_bdaddr(LE_LINK, key->bdaddr_type);
-	ev.key.type = key->authenticated;
+	ev.key.type = mgmt_ltk_type(key);
 	ev.key.enc_size = key->enc_size;
 	ev.key.ediv = key->ediv;
 	ev.key.rand = key->rand;
