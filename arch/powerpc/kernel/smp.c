@@ -490,7 +490,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 * Don't allow secondary threads to come online if inhibited
 	 */
 	if (threads_per_core > 1 && secondaries_inhibited() &&
-	    cpu % threads_per_core != 0)
+	    cpu_thread_in_subcore(cpu))
 		return -EBUSY;
 
 	if (smp_ops == NULL ||
