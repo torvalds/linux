@@ -1881,19 +1881,22 @@ VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter, PUINT puiBuffer
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Going to Delete SF");
 			deleteSFBySfid(Adapter, uiSearchRuleIndex);
 		} else {
-			Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = ntohs(pHostInfo->VCID);
-			Adapter->PackInfo[uiSearchRuleIndex].usCID = ntohs(pHostInfo->newCID);
-			Adapter->PackInfo[uiSearchRuleIndex].bActive = false;
+			struct bcm_packet_info *packinfo =
+				&Adapter->PackInfo[uiSearchRuleIndex];
+
+			packinfo->usVCID_Value = ntohs(pHostInfo->VCID);
+			packinfo->usCID = ntohs(pHostInfo->newCID);
+			packinfo->bActive = false;
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "pHostInfo->QoSParamSet: 0x%x\n", pHostInfo->QoSParamSet);
 
 			if (pHostInfo->QoSParamSet & 0x1)
-				Adapter->PackInfo[uiSearchRuleIndex].bAuthorizedSet = TRUE;
+				packinfo->bAuthorizedSet = TRUE;
 			if (pHostInfo->QoSParamSet & 0x2)
-				Adapter->PackInfo[uiSearchRuleIndex].bAdmittedSet = TRUE;
+				packinfo->bAdmittedSet = TRUE;
 			if (pHostInfo->QoSParamSet & 0x4) {
-				Adapter->PackInfo[uiSearchRuleIndex].bActiveSet = TRUE;
-				Adapter->PackInfo[uiSearchRuleIndex].bActive = TRUE;
+				packinfo->bActiveSet = TRUE;
+				packinfo->bActive = TRUE;
 			}
 		}
 	}
