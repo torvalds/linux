@@ -23,6 +23,7 @@
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
@@ -2989,33 +2990,6 @@ static void mxt_input_close(struct input_dev *dev)
 	mxt_stop(data);
 }
 
-static int mxt_handle_pdata(struct mxt_data *data)
-{
-	data->pdata = dev_get_platdata(&data->client->dev);
-
-	/* Use provided platform data if present */
-	if (data->pdata) {
-		if (data->pdata->cfg_name)
-			mxt_update_file_name(&data->client->dev,
-					     &data->cfg_name,
-					     data->pdata->cfg_name,
-					     strlen(data->pdata->cfg_name));
-
-		return 0;
-	}
-
-	data->pdata = kzalloc(sizeof(*data->pdata), GFP_KERNEL);
-	if (!data->pdata) {
-		dev_err(&data->client->dev, "Failed to allocate pdata\n");
-		return -ENOMEM;
-	}
-
-	/* Set default parameters */
-	data->pdata->irqflags = IRQF_TRIGGER_FALLING;
-
-	return 0;
-}
-
 static int mxt_initialize_t9_input_device(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
@@ -3128,6 +3102,45 @@ err_free_mem:
 	return error;
 }
 
+#ifdef CONFIG_OF
+static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
+{
+	struct mxt_platform_data *pdata;
+	struct property *prop;
+	unsigned int *keymap;
+	int proplen, i, ret;
+	u32 keycode;
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+
+	/* Default to this. Properties can be added to configure it later */
+	pdata->irqflags = IRQF_TRIGGER_FALLING;
+
+	prop = of_find_property(client->dev.of_node, "linux,gpio-keymap",
+				&proplen);
+	if (prop) {
+		pdata->t19_num_keys = proplen / sizeof(u32);
+
+		keymap = devm_kzalloc(&client->dev,
+			pdata->t19_num_keys * sizeof(u32), GFP_KERNEL);
+		if (!keymap)
+			return NULL;
+		pdata->t19_keymap = keymap;
+		for (i = 0; i < pdata->t19_num_keys; i++) {
+			ret = of_property_read_u32_index(client->dev.of_node,
+					"linux,gpio-keymap", i, &keycode);
+			if (ret)
+				keycode = 0;
+			keymap[i] = keycode;
+		}
+	}
+
+	return pdata;
+}
+#endif
+
 static int mxt_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -3145,18 +3158,38 @@ static int mxt_probe(struct i2c_client *client,
 
 	data->client = client;
 	data->irq = client->irq;
+	data->pdata = dev_get_platdata(&client->dev);
 	i2c_set_clientdata(client, data);
 
-	error = mxt_handle_pdata(data);
-	if (error)
-		goto err_free_mem;
+#ifdef CONFIG_OF
+	if (!data->pdata && client->dev.of_node)
+		data->pdata = mxt_parse_dt(client);
+#endif
+
+	if (!data->pdata) {
+		data->pdata = kzalloc(sizeof(*data->pdata), GFP_KERNEL);
+		if (!data->pdata) {
+			dev_err(&data->client->dev, "Failed to allocate pdata\n");
+			error = -ENOMEM;
+			goto err_free_mem;
+		}
+
+		/* Set default parameters */
+		data->pdata->irqflags = IRQF_TRIGGER_FALLING;
+	}
+
+	if (data->pdata->cfg_name)
+		mxt_update_file_name(&data->client->dev,
+				     &data->cfg_name,
+				     data->pdata->cfg_name,
+				     strlen(data->pdata->cfg_name));
 
 	init_completion(&data->bl_completion);
 	init_completion(&data->reset_completion);
 	init_completion(&data->crc_completion);
 	mutex_init(&data->debug_msg_lock);
 
-	error = request_threaded_irq(data->irq, NULL, mxt_interrupt,
+	error = request_threaded_irq(client->irq, NULL, mxt_interrupt,
 				     data->pdata->irqflags | IRQF_ONESHOT,
 				     client->name, data);
 	if (error) {
@@ -3200,7 +3233,7 @@ err_remove_sysfs_group:
 err_free_object:
 	mxt_free_object_table(data);
 err_free_irq:
-	free_irq(data->irq, data);
+	free_irq(client->irq, data);
 err_free_pdata:
 	if (!dev_get_platdata(&data->client->dev))
 		kfree(data->pdata);
@@ -3265,6 +3298,16 @@ static int mxt_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(mxt_pm_ops, mxt_suspend, mxt_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id mxt_of_match[] = {
+	{ .compatible = "atmel,maxtouch", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, mxt_of_match);
+#else
+#define mxt_of_match NULL
+#endif
+
 static const struct i2c_device_id mxt_id[] = {
 	{ "qt602240_ts", 0 },
 	{ "atmel_mxt_ts", 0 },
@@ -3278,6 +3321,7 @@ static struct i2c_driver mxt_driver = {
 	.driver = {
 		.name	= "atmel_mxt_ts",
 		.owner	= THIS_MODULE,
+		.of_match_table = mxt_of_match,
 		.pm	= &mxt_pm_ops,
 	},
 	.probe		= mxt_probe,
