@@ -1406,40 +1406,63 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 }
 
 static inline struct bcm_add_indication_alt
-*RestoreCmControlResponseMessage(register struct bcm_mini_adapter *Adapter, register PVOID pvBuffer)
+*RestoreCmControlResponseMessage(register struct bcm_mini_adapter *Adapter,
+		register PVOID pvBuffer)
 {
 	ULONG ulStatus = 0;
 	struct bcm_add_indication *pstAddIndication = NULL;
 	struct bcm_add_indication_alt *pstAddIndicationDest = NULL;
 
 	pstAddIndication = pvBuffer;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "=====>");
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"=====>");
 	if ((pstAddIndication->u8Type == DSD_REQ) ||
 		(pstAddIndication->u8Type == DSD_RSP) ||
 		(pstAddIndication->u8Type == DSD_ACK))
 		return pvBuffer;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Inside RestoreCmControlResponseMessage ");
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Inside RestoreCmControlResponseMessage ");
 	/*
 	 * Need to Allocate memory to contain the SUPER Large structures
 	 * Our driver can't create these structures on Stack :(
 	 */
-	pstAddIndicationDest = kmalloc(sizeof(struct bcm_add_indication_alt), GFP_KERNEL);
+	pstAddIndicationDest = kmalloc(sizeof(struct bcm_add_indication_alt),
+			GFP_KERNEL);
 
 	if (pstAddIndicationDest) {
-		memset(pstAddIndicationDest, 0, sizeof(struct bcm_add_indication_alt));
+		memset(pstAddIndicationDest, 0,
+				sizeof(struct bcm_add_indication_alt));
 	} else {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Failed to allocate memory for SF Add Indication Structure ");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
+				DBG_LVL_ALL,
+				"Failed to allocate memory for SF Add Indication Structure ");
 		return NULL;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "AddIndication-u8Type : 0x%X", pstAddIndication->u8Type);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "AddIndication-u8Direction : 0x%X", pstAddIndication->eConnectionDir);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "AddIndication-u8TID : 0x%X", ntohs(pstAddIndication->u16TID));
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "AddIndication-u8CID : 0x%X", ntohs(pstAddIndication->u16CID));
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "AddIndication-u16VCID : 0x%X", ntohs(pstAddIndication->u16VCID));
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "AddIndication-autorized set loc : %p", pstAddIndication->psfAuthorizedSet);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "AddIndication-admitted set loc : %p", pstAddIndication->psfAdmittedSet);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "AddIndication-Active set loc : %p", pstAddIndication->psfActiveSet);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"AddIndication-u8Type : 0x%X",
+			pstAddIndication->u8Type);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"AddIndication-u8Direction : 0x%X",
+			pstAddIndication->eConnectionDir);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"AddIndication-u8TID : 0x%X",
+			ntohs(pstAddIndication->u16TID));
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"AddIndication-u8CID : 0x%X",
+			ntohs(pstAddIndication->u16CID));
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"AddIndication-u16VCID : 0x%X",
+			ntohs(pstAddIndication->u16VCID));
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"AddIndication-autorized set loc : %p",
+			pstAddIndication->psfAuthorizedSet);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"AddIndication-admitted set loc : %p",
+			pstAddIndication->psfAdmittedSet);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"AddIndication-Active set loc : %p",
+			pstAddIndication->psfActiveSet);
 
 	pstAddIndicationDest->u8Type = pstAddIndication->u8Type;
 	pstAddIndicationDest->u8Direction = pstAddIndication->eConnectionDir;
@@ -1448,39 +1471,60 @@ static inline struct bcm_add_indication_alt
 	pstAddIndicationDest->u16VCID = pstAddIndication->u16VCID;
 	pstAddIndicationDest->u8CC = pstAddIndication->u8CC;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "Restoring Active Set ");
-	ulStatus = RestoreSFParam(Adapter, (ULONG)pstAddIndication->psfActiveSet, (PUCHAR)&pstAddIndicationDest->sfActiveSet);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Restoring Active Set ");
+	ulStatus = RestoreSFParam(Adapter,
+			(ULONG)pstAddIndication->psfActiveSet,
+			(PUCHAR)&pstAddIndicationDest->sfActiveSet);
 	if (ulStatus != 1)
 		goto failed_restore_sf_param;
 
 	if (pstAddIndicationDest->sfActiveSet.u8TotalClassifiers > MAX_CLASSIFIERS_IN_SF)
-		pstAddIndicationDest->sfActiveSet.u8TotalClassifiers = MAX_CLASSIFIERS_IN_SF;
+		pstAddIndicationDest->sfActiveSet.u8TotalClassifiers =
+			MAX_CLASSIFIERS_IN_SF;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "Restoring Admitted Set ");
-	ulStatus = RestoreSFParam(Adapter, (ULONG)pstAddIndication->psfAdmittedSet, (PUCHAR)&pstAddIndicationDest->sfAdmittedSet);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Restoring Admitted Set ");
+	ulStatus = RestoreSFParam(Adapter,
+			(ULONG)pstAddIndication->psfAdmittedSet,
+			(PUCHAR)&pstAddIndicationDest->sfAdmittedSet);
 	if (ulStatus != 1)
 		goto failed_restore_sf_param;
 
 	if (pstAddIndicationDest->sfAdmittedSet.u8TotalClassifiers > MAX_CLASSIFIERS_IN_SF)
-		pstAddIndicationDest->sfAdmittedSet.u8TotalClassifiers = MAX_CLASSIFIERS_IN_SF;
+		pstAddIndicationDest->sfAdmittedSet.u8TotalClassifiers =
+			MAX_CLASSIFIERS_IN_SF;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "Restoring Authorized Set ");
-	ulStatus = RestoreSFParam(Adapter, (ULONG)pstAddIndication->psfAuthorizedSet, (PUCHAR)&pstAddIndicationDest->sfAuthorizedSet);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Restoring Authorized Set ");
+	ulStatus = RestoreSFParam(Adapter,
+			(ULONG)pstAddIndication->psfAuthorizedSet,
+			(PUCHAR)&pstAddIndicationDest->sfAuthorizedSet);
 	if (ulStatus != 1)
 		goto failed_restore_sf_param;
 
 	if (pstAddIndicationDest->sfAuthorizedSet.u8TotalClassifiers > MAX_CLASSIFIERS_IN_SF)
-		pstAddIndicationDest->sfAuthorizedSet.u8TotalClassifiers = MAX_CLASSIFIERS_IN_SF;
+		pstAddIndicationDest->sfAuthorizedSet.u8TotalClassifiers =
+			MAX_CLASSIFIERS_IN_SF;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Dumping the whole raw packet");
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "============================================================");
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, " pstAddIndicationDest->sfActiveSet size  %zx %p", sizeof(*pstAddIndicationDest), pstAddIndicationDest);
-	/* BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, (unsigned char *)pstAddIndicationDest, sizeof(*pstAddIndicationDest)); */
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "============================================================");
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"Dumping the whole raw packet");
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+		"============================================================");
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			" pstAddIndicationDest->sfActiveSet size  %zx %p",
+			sizeof(*pstAddIndicationDest), pstAddIndicationDest);
+	/* BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_OTHERS, CONN_MSG,
+	 *		DBG_LVL_ALL, (unsigned char *)pstAddIndicationDest,
+	 *		sizeof(*pstAddIndicationDest));
+	 */
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"============================================================");
 	return pstAddIndicationDest;
 failed_restore_sf_param:
 	kfree(pstAddIndicationDest);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "<=====");
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"<=====");
 	return NULL;
 }
 
