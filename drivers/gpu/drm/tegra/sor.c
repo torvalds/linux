@@ -748,7 +748,7 @@ static int tegra_sor_power_down(struct tegra_sor *sor)
 	tegra_sor_writel(sor, value, SOR_DP_PADCTL_0);
 
 	/* stop lane sequencer */
-	value = SOR_LANE_SEQ_CTL_TRIGGER | SOR_LANE_SEQ_CTL_SEQUENCE_DOWN |
+	value = SOR_LANE_SEQ_CTL_TRIGGER | SOR_LANE_SEQ_CTL_SEQUENCE_UP |
 		SOR_LANE_SEQ_CTL_POWER_STATE_DOWN;
 	tegra_sor_writel(sor, value, SOR_LANE_SEQ_CTL);
 
