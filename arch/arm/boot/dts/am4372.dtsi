@@ -58,10 +58,12 @@
 	};
 
 	am43xx_pinmux: pinmux@44e10800 {
-		compatible = "pinctrl-single";
+		compatible = "ti,am437-padconf", "pinctrl-single";
 		reg = <0x44e10800 0x31c>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0xffffffff>;
 	};
