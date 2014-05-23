@@ -37,9 +37,6 @@
 #define BPF_CALL	0x80	/* function call */
 #define BPF_EXIT	0x90	/* function return */
 
-/* Placeholder/dummy for 0 */
-#define BPF_0		0
-
 /* Register numbers */
 enum {
 	BPF_REG_0 = 0,
