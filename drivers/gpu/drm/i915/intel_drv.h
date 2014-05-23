@@ -537,7 +537,6 @@ struct intel_dp {
 	unsigned long last_power_cycle;
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
-	bool psr_setup_done;
 	bool use_tps3;
 	struct intel_connector *attached_connector;
 

@@ -1665,7 +1665,7 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edp_vsc_psr psr_vsc;
 
-	if (intel_dp->psr_setup_done)
+	if (dev_priv->psr.setup_done)
 		return;
 
 	/* Prepare VSC packet as per EDP 1.3 spec, Table 3.10 */
@@ -1680,7 +1680,7 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
 		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 
-	intel_dp->psr_setup_done = true;
+	dev_priv->psr.setup_done = true;
 }
 
 static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
@@ -4278,8 +4278,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	}
 
 	intel_dp_aux_init(intel_dp, intel_connector);
-
-	intel_dp->psr_setup_done = false;
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector, &power_seq)) {
 		drm_dp_aux_unregister(&intel_dp->aux);
