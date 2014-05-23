@@ -447,10 +447,12 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	int i;
 	struct bcm_convergence_types *psfCSType = NULL;
 	struct bcm_phs_rule sPhsRule;
-	USHORT uVCID = Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value;
+	struct bcm_packet_info *curr_packinfo =
+		&Adapter->PackInfo[uiSearchRuleIndex];
+	USHORT uVCID = curr_packinfo->usVCID_Value;
 	UINT UGIValue = 0;
 
-	Adapter->PackInfo[uiSearchRuleIndex].bValid = TRUE;
+	curr_packinfo->bValid = TRUE;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Search Rule Index = %d\n", uiSearchRuleIndex);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s: SFID= %x ", __func__, ntohl(psfLocalSet->u32SFID));
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Updating Queue %d", uiSearchRuleIndex);
@@ -459,65 +461,65 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	/* Store IP Version used */
 	/* Get The Version Of IP used (IPv6 or IPv4) from CSSpecification field of SF */
 
-	Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = 0;
-	Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport = 0;
+	curr_packinfo->bIPCSSupport = 0;
+	curr_packinfo->bEthCSSupport = 0;
 
 	/* Enable IP/ETh CS Support As Required */
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "CopyToAdapter : u8CSSpecification : %X\n", psfLocalSet->u8CSSpecification);
 	switch (psfLocalSet->u8CSSpecification) {
 	case eCSPacketIPV4:
-		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV4_CS;
+		curr_packinfo->bIPCSSupport = IPV4_CS;
 		break;
 	case eCSPacketIPV6:
-		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV6_CS;
+		curr_packinfo->bIPCSSupport = IPV6_CS;
 		break;
 	case eCS802_3PacketEthernet:
 	case eCS802_1QPacketVLAN:
-		Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport = ETH_CS_802_3;
+		curr_packinfo->bEthCSSupport = ETH_CS_802_3;
 		break;
 	case eCSPacketIPV4Over802_1QVLAN:
 	case eCSPacketIPV4Over802_3Ethernet:
-		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV4_CS;
-		Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport = ETH_CS_802_3;
+		curr_packinfo->bIPCSSupport = IPV4_CS;
+		curr_packinfo->bEthCSSupport = ETH_CS_802_3;
 		break;
 	case eCSPacketIPV6Over802_1QVLAN:
 	case eCSPacketIPV6Over802_3Ethernet:
-		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV6_CS;
-		Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport = ETH_CS_802_3;
+		curr_packinfo->bIPCSSupport = IPV6_CS;
+		curr_packinfo->bEthCSSupport = ETH_CS_802_3;
 		break;
 	default:
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Error in value of CS Classification.. setting default to IP CS\n");
-		Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport = IPV4_CS;
+		curr_packinfo->bIPCSSupport = IPV4_CS;
 		break;
 	}
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "CopyToAdapter : Queue No : %X ETH CS Support :  %X  , IP CS Support : %X\n",
 			uiSearchRuleIndex,
-			Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport,
-			Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport);
+			curr_packinfo->bEthCSSupport,
+			curr_packinfo->bIPCSSupport);
 
 	/* Store IP Version used */
 	/* Get The Version Of IP used (IPv6 or IPv4) from CSSpecification field of SF */
-	if (Adapter->PackInfo[uiSearchRuleIndex].bIPCSSupport == IPV6_CS)
-		Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion = IPV6;
+	if (curr_packinfo->bIPCSSupport == IPV6_CS)
+		curr_packinfo->ucIpVersion = IPV6;
 	else
-		Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion = IPV4;
+		curr_packinfo->ucIpVersion = IPV4;
 
 	/* To ensure that the ETH CS code doesn't gets executed if the BS doesn't supports ETH CS */
 	if (!Adapter->bETHCSEnabled)
-		Adapter->PackInfo[uiSearchRuleIndex].bEthCSSupport = 0;
+		curr_packinfo->bEthCSSupport = 0;
 
 	if (psfLocalSet->u8ServiceClassNameLength > 0 && psfLocalSet->u8ServiceClassNameLength < 32)
-		memcpy(Adapter->PackInfo[uiSearchRuleIndex].ucServiceClassName,	psfLocalSet->u8ServiceClassName, psfLocalSet->u8ServiceClassNameLength);
+		memcpy(curr_packinfo->ucServiceClassName,	psfLocalSet->u8ServiceClassName, psfLocalSet->u8ServiceClassNameLength);
 
-	Adapter->PackInfo[uiSearchRuleIndex].u8QueueType = psfLocalSet->u8ServiceFlowSchedulingType;
+	curr_packinfo->u8QueueType = psfLocalSet->u8ServiceFlowSchedulingType;
 
-	if (Adapter->PackInfo[uiSearchRuleIndex].u8QueueType == BE && Adapter->PackInfo[uiSearchRuleIndex].ucDirection)
+	if (curr_packinfo->u8QueueType == BE && curr_packinfo->ucDirection)
 		Adapter->usBestEffortQueueIndex = uiSearchRuleIndex;
 
-	Adapter->PackInfo[uiSearchRuleIndex].ulSFID = ntohl(psfLocalSet->u32SFID);
+	curr_packinfo->ulSFID = ntohl(psfLocalSet->u32SFID);
 
-	Adapter->PackInfo[uiSearchRuleIndex].u8TrafficPriority = psfLocalSet->u8TrafficPriority;
+	curr_packinfo->u8TrafficPriority = psfLocalSet->u8TrafficPriority;
 
 	/* copy all the classifier in the Service Flow param  structure */
 	for (i = 0; i < psfLocalSet->u8TotalClassifiers; i++) {
@@ -526,10 +528,10 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Classifier index =%d", i);
 
 		if (psfCSType->cCPacketClassificationRule.u8ClassifierRulePriority)
-			Adapter->PackInfo[uiSearchRuleIndex].bClassifierPriority = TRUE;
+			curr_packinfo->bClassifierPriority = TRUE;
 
 		if (psfCSType->cCPacketClassificationRule.u8ClassifierRulePriority)
-			Adapter->PackInfo[uiSearchRuleIndex].bClassifierPriority = TRUE;
+			curr_packinfo->bClassifierPriority = TRUE;
 
 		if (ucDsxType == DSA_ACK) {
 			eClassifierAction = eAddClassifier;
@@ -648,20 +650,20 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 
 	if (psfLocalSet->u32MaxSustainedTrafficRate == 0) {
 		/* No Rate Limit . Set Max Sustained Traffic Rate to Maximum */
-		Adapter->PackInfo[uiSearchRuleIndex].uiMaxAllowedRate = WIMAX_MAX_ALLOWED_RATE;
+		curr_packinfo->uiMaxAllowedRate = WIMAX_MAX_ALLOWED_RATE;
 	} else if (ntohl(psfLocalSet->u32MaxSustainedTrafficRate) > WIMAX_MAX_ALLOWED_RATE) {
 		/* Too large Allowed Rate specified. Limiting to Wi Max  Allowed rate */
-		Adapter->PackInfo[uiSearchRuleIndex].uiMaxAllowedRate = WIMAX_MAX_ALLOWED_RATE;
+		curr_packinfo->uiMaxAllowedRate = WIMAX_MAX_ALLOWED_RATE;
 	} else {
-		Adapter->PackInfo[uiSearchRuleIndex].uiMaxAllowedRate =  ntohl(psfLocalSet->u32MaxSustainedTrafficRate);
+		curr_packinfo->uiMaxAllowedRate =  ntohl(psfLocalSet->u32MaxSustainedTrafficRate);
 	}
 
-	Adapter->PackInfo[uiSearchRuleIndex].uiMaxLatency = ntohl(psfLocalSet->u32MaximumLatency);
-	if (Adapter->PackInfo[uiSearchRuleIndex].uiMaxLatency == 0) /* 0 should be treated as infinite */
-		Adapter->PackInfo[uiSearchRuleIndex].uiMaxLatency = MAX_LATENCY_ALLOWED;
+	curr_packinfo->uiMaxLatency = ntohl(psfLocalSet->u32MaximumLatency);
+	if (curr_packinfo->uiMaxLatency == 0) /* 0 should be treated as infinite */
+		curr_packinfo->uiMaxLatency = MAX_LATENCY_ALLOWED;
 
-	if ((Adapter->PackInfo[uiSearchRuleIndex].u8QueueType == ERTPS ||
-			Adapter->PackInfo[uiSearchRuleIndex].u8QueueType == UGS))
+	if ((curr_packinfo->u8QueueType == ERTPS ||
+			curr_packinfo->u8QueueType == UGS))
 		UGIValue = ntohs(psfLocalSet->u16UnsolicitedGrantInterval);
 
 	if (UGIValue == 0)
@@ -673,42 +675,42 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	 * The extra amount of token is to ensure that a large amount of jitter won't have loss in throughput...
 	 * In case of non-UGI based connection, 200 frames worth of data is the max token count at host...
 	 */
-	Adapter->PackInfo[uiSearchRuleIndex].uiMaxBucketSize =
-		(DEFAULT_UGI_FACTOR*Adapter->PackInfo[uiSearchRuleIndex].uiMaxAllowedRate*UGIValue)/1000;
+	curr_packinfo->uiMaxBucketSize =
+		(DEFAULT_UGI_FACTOR*curr_packinfo->uiMaxAllowedRate*UGIValue)/1000;
 
-	if (Adapter->PackInfo[uiSearchRuleIndex].uiMaxBucketSize < WIMAX_MAX_MTU*8) {
+	if (curr_packinfo->uiMaxBucketSize < WIMAX_MAX_MTU*8) {
 		UINT UGIFactor = 0;
 		/* Special Handling to ensure the biggest size of packet can go out from host to FW as follows:
 		 * 1. Any packet from Host to FW can go out in different packet size.
 		 * 2. So in case the Bucket count is smaller than MTU, the packets of size (Size > TokenCount), will get dropped.
 		 * 3. We can allow packets of MaxSize from Host->FW that can go out from FW in multiple SDUs by fragmentation at Wimax Layer
 		 */
-		UGIFactor = (Adapter->PackInfo[uiSearchRuleIndex].uiMaxLatency/UGIValue + 1);
+		UGIFactor = (curr_packinfo->uiMaxLatency/UGIValue + 1);
 
 		if (UGIFactor > DEFAULT_UGI_FACTOR)
-			Adapter->PackInfo[uiSearchRuleIndex].uiMaxBucketSize =
-				(UGIFactor*Adapter->PackInfo[uiSearchRuleIndex].uiMaxAllowedRate*UGIValue)/1000;
+			curr_packinfo->uiMaxBucketSize =
+				(UGIFactor*curr_packinfo->uiMaxAllowedRate*UGIValue)/1000;
 
-		if (Adapter->PackInfo[uiSearchRuleIndex].uiMaxBucketSize > WIMAX_MAX_MTU*8)
-			Adapter->PackInfo[uiSearchRuleIndex].uiMaxBucketSize = WIMAX_MAX_MTU*8;
+		if (curr_packinfo->uiMaxBucketSize > WIMAX_MAX_MTU*8)
+			curr_packinfo->uiMaxBucketSize = WIMAX_MAX_MTU*8;
 	}
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "LAT: %d, UGI: %d\n", Adapter->PackInfo[uiSearchRuleIndex].uiMaxLatency, UGIValue);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "LAT: %d, UGI: %d\n", curr_packinfo->uiMaxLatency, UGIValue);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "uiMaxAllowedRate: 0x%x, u32MaxSustainedTrafficRate: 0x%x ,uiMaxBucketSize: 0x%x",
-			Adapter->PackInfo[uiSearchRuleIndex].uiMaxAllowedRate,
+			curr_packinfo->uiMaxAllowedRate,
 			ntohl(psfLocalSet->u32MaxSustainedTrafficRate),
-			Adapter->PackInfo[uiSearchRuleIndex].uiMaxBucketSize);
+			curr_packinfo->uiMaxBucketSize);
 
 	/* copy the extended SF Parameters to Support MIBS */
 	CopyMIBSExtendedSFParameters(Adapter, psfLocalSet, uiSearchRuleIndex);
 
 	/* store header suppression enabled flag per SF */
-	Adapter->PackInfo[uiSearchRuleIndex].bHeaderSuppressionEnabled =
+	curr_packinfo->bHeaderSuppressionEnabled =
 		!(psfLocalSet->u8RequesttransmissionPolicy &
 			MASK_DISABLE_HEADER_SUPPRESSION);
 
-	kfree(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication);
-	Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication = pstAddIndication;
+	kfree(curr_packinfo->pstSFIndication);
+	curr_packinfo->pstSFIndication = pstAddIndication;
 
 	/* Re Sort the SF list in PackInfo according to Traffic Priority */
 	SortPackInfo(Adapter);
