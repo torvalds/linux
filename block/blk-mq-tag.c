@@ -400,6 +400,7 @@ void blk_mq_tag_busy_iter(struct blk_mq_tags *tags,
 	fn(data, tag_map);
 	kfree(tag_map);
 }
+EXPORT_SYMBOL(blk_mq_tag_busy_iter);
 
 static unsigned int bt_unused_tags(struct blk_mq_bitmap_tags *bt)
 {
