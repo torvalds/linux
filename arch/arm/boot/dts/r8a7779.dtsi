@@ -298,7 +298,7 @@
 		};
 
 		/* Special CPG clocks */
-		cpg_clocks: cpg_clocks@0xe6150000 {
+		cpg_clocks: clocks@ffc80000 {
 			compatible = "renesas,r8a7779-cpg-clocks";
 			reg = <0 0xffc80000 0 0x30>;
 			clocks = <&extal_clk>;
@@ -342,7 +342,7 @@
 		};
 
 		/* Gate clocks */
-		mstp0_clks: mstp0_clks {
+		mstp0_clks: clocks@ffc80030 {
 			compatible = "renesas,r8a7779-mstp-clocks",
 			             "renesas,cpg-mstp-clocks";
 			reg = <0 0xffc80030 0 4>;
@@ -379,7 +379,7 @@
 				"scif1", "scif0", "i2c3", "i2c2", "i2c1",
 				"i2c0";
 		};
-		mstp1_clks: mstp1_clks {
+		mstp1_clks: clocks@ffc80034 {
 			compatible = "renesas,r8a7779-mstp-clocks",
 			             "renesas,cpg-mstp-clocks";
 			reg = <0 0xffc80034 0 4>, <0 0xffc80044 0 4>;
@@ -408,7 +408,7 @@
 				"ether", "sata",
 				"pcie", "vin3";
 		};
-		mstp3_clks: mstp3_clks {
+		mstp3_clks: clocks@ffc8003c {
 			compatible = "renesas,r8a7779-mstp-clocks",
 			             "renesas,cpg-mstp-clocks";
 			reg = <0 0xffc8003c 0 4>;
