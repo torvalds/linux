@@ -2761,8 +2761,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	if (!ar_pci)
 		return;
 
-	tasklet_kill(&ar_pci->msi_fw_err);
-
 	ath10k_core_unregister(ar);
 	ath10k_pci_free_ce(ar);
 
