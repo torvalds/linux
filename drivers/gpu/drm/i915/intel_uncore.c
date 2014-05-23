@@ -250,9 +250,10 @@ static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
 		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
 				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
 
-	/* The below doubles as a POSTING_READ */
-	gen6_gt_check_fifodbg(dev_priv);
-
+	/* something from same cacheline, but !FORCEWAKE_VLV */
+	__raw_posting_read(dev_priv, FORCEWAKE_ACK_VLV);
+	if (!IS_CHERRYVIEW(dev_priv->dev))
+		gen6_gt_check_fifodbg(dev_priv);
 }
 
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
