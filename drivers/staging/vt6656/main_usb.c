@@ -984,7 +984,7 @@ static int device_close(struct net_device *dev)
 {
 	struct vnt_private *pDevice = netdev_priv(dev);
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	int uu;
+	u8 uu;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close1\n");
     if (pDevice == NULL)

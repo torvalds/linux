@@ -102,19 +102,15 @@ void MACvSetBBType(struct vnt_private *priv, u8 type)
  * Return Value: none
  *
  */
-void MACvDisableKeyEntry(struct vnt_private *pDevice, u32 uEntryIdx)
+void MACvDisableKeyEntry(struct vnt_private *pDevice, u8 uEntryIdx)
 {
-	u8 byData;
-
-    byData = (u8) uEntryIdx;
-
     //issue write misc fifo command to device
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_CLRKEYENTRY,
                         0,
                         0,
-                        1,
-                        &byData
+			sizeof(uEntryIdx),
+			&uEntryIdx
                         );
 }
 

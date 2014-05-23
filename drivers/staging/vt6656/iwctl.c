@@ -1150,7 +1150,7 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 	struct iw_point *wrq = &wrqu->encoding;
 	u32 dwKeyIndex = (u32)(wrq->flags & IW_ENCODE_INDEX);
 	int ii;
-	int uu;
+	u8 uu;
 	int rc = 0;
 	int index = (wrq->flags & IW_ENCODE_INDEX);
 
