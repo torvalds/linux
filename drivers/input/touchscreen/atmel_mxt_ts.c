@@ -2921,6 +2921,9 @@ static void mxt_reset_slots(struct mxt_data *data)
 	unsigned int num_mt_slots;
 	int id;
 
+	if (!input_dev)
+		return;
+
 	num_mt_slots = data->num_touchids + data->num_stylusids;
 
 	for (id = 0; id < num_mt_slots; id++) {
