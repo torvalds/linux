@@ -589,6 +589,12 @@ static void rsnd_of_parse_ssi(struct platform_device *pdev,
 		 * irq
 		 */
 		ssi_info->pio_irq = irq_of_parse_and_map(np, 0);
+
+		/*
+		 * DMA
+		 */
+		ssi_info->dma_id = of_get_property(np, "pio-transfer", NULL) ?
+			0 : 1;
 	}
 
 rsnd_of_parse_ssi_end:
