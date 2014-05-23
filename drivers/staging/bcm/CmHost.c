@@ -1291,7 +1291,8 @@ static ULONG StoreSFParam(struct bcm_mini_adapter *Adapter, PUCHAR pucSrcBuffer,
 	return 1;
 }
 
-ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer, UINT *puBufferLength)
+ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter,
+		PVOID pvBuffer, UINT *puBufferLength)
 {
 	struct bcm_add_indication_alt *pstAddIndicationAlt = NULL;
 	struct bcm_add_indication *pstAddIndication = NULL;
@@ -1325,13 +1326,15 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	}
 	/* For DSA_REQ, only up to "psfAuthorizedSet" parameter should be accessed by driver! */
 
-	pstAddIndication = kmalloc(sizeof(struct bcm_add_indication), GFP_KERNEL);
+	pstAddIndication = kmalloc(sizeof(struct bcm_add_indication),
+			GFP_KERNEL);
 	if (pstAddIndication == NULL)
 		return 0;
 
 	/* AUTHORIZED SET */
 	pstAddIndication->psfAuthorizedSet = (struct bcm_connect_mgr_params *)
-			GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
+			GetNextTargetBufferLocation(Adapter,
+					pstAddIndicationAlt->u16TID);
 	if (!pstAddIndication->psfAuthorizedSet) {
 		kfree(pstAddIndication);
 		return 0;
@@ -1344,7 +1347,9 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	}
 
 	/* this can't possibly be right */
-	pstAddIndication->psfAuthorizedSet = (struct bcm_connect_mgr_params *)ntohl((ULONG)pstAddIndication->psfAuthorizedSet);
+	pstAddIndication->psfAuthorizedSet =
+		(struct bcm_connect_mgr_params *) ntohl(
+				(ULONG)pstAddIndication->psfAuthorizedSet);
 
 	if (pstAddIndicationAlt->u8Type == DSA_REQ) {
 		struct bcm_add_request AddRequest;
@@ -1373,31 +1378,39 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 
 	/* ADMITTED SET */
 	pstAddIndication->psfAdmittedSet = (struct bcm_connect_mgr_params *)
-		GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
+		GetNextTargetBufferLocation(Adapter,
+				pstAddIndicationAlt->u16TID);
 	if (!pstAddIndication->psfAdmittedSet) {
 		kfree(pstAddIndication);
 		return 0;
 	}
-	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfAdmittedSet, (ULONG)pstAddIndication->psfAdmittedSet) != 1) {
+	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfAdmittedSet,
+				(ULONG)pstAddIndication->psfAdmittedSet) != 1) {
 		kfree(pstAddIndication);
 		return 0;
 	}
 
-	pstAddIndication->psfAdmittedSet = (struct bcm_connect_mgr_params *)ntohl((ULONG)pstAddIndication->psfAdmittedSet);
+	pstAddIndication->psfAdmittedSet =
+		(struct bcm_connect_mgr_params *) ntohl(
+				(ULONG) pstAddIndication->psfAdmittedSet);
 
 	/* ACTIVE SET */
 	pstAddIndication->psfActiveSet = (struct bcm_connect_mgr_params *)
-		GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
+		GetNextTargetBufferLocation(Adapter,
+				pstAddIndicationAlt->u16TID);
 	if (!pstAddIndication->psfActiveSet) {
 		kfree(pstAddIndication);
 		return 0;
 	}
-	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfActiveSet, (ULONG)pstAddIndication->psfActiveSet) != 1) {
+	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfActiveSet,
+				(ULONG)pstAddIndication->psfActiveSet) != 1) {
 		kfree(pstAddIndication);
 		return 0;
 	}
 
-	pstAddIndication->psfActiveSet = (struct bcm_connect_mgr_params *)ntohl((ULONG)pstAddIndication->psfActiveSet);
+	pstAddIndication->psfActiveSet =
+		(struct bcm_connect_mgr_params *) ntohl(
+				(ULONG)pstAddIndication->psfActiveSet);
 
 	(*puBufferLength) = sizeof(struct bcm_add_indication);
 	*(struct bcm_add_indication *)pvBuffer = *pstAddIndication;
