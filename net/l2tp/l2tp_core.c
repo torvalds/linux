@@ -1102,7 +1102,9 @@ static void l2tp_xmit_ipv6_csum(struct sock *sk, struct sk_buff *skb,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct udphdr *uh = udp_hdr(skb);
 
-	if (!skb_dst(skb) || !skb_dst(skb)->dev ||
+	if (udp_get_no_check6_tx(sk))
+		skb->ip_summed = CHECKSUM_NONE;
+	else if (!skb_dst(skb) || !skb_dst(skb)->dev ||
 	    !(skb_dst(skb)->dev->features & NETIF_F_IPV6_CSUM)) {
 		__wsum csum = skb_checksum(skb, 0, udp_len, 0);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1435,6 +1437,11 @@ static int l2tp_tunnel_sock_create(struct net *net,
 					     sizeof(udp6_addr), 0);
 			if (err < 0)
 				goto out;
+
+			if (cfg->udp6_zero_tx_checksums)
+				udp_set_no_check6_tx(sock->sk, true);
+			if (cfg->udp6_zero_rx_checksums)
+				udp_set_no_check6_rx(sock->sk, true);
 		} else
 #endif
 		{
