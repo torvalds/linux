@@ -1412,19 +1412,6 @@ void sort__setup_elide(FILE *output)
 		sort_entry__setup_elide(&sort_sym_to,
 					symbol_conf.sym_to_list,
 					"sym_to", output);
-	} else if (sort__mode == SORT_MODE__MEMORY) {
-		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
-					"symbol_daddr", output);
-		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
-					"dso_daddr", output);
-		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
-					"mem", output);
-		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
-					"local_weight", output);
-		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
-					"tlb", output);
-		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
-					"snoop", output);
 	}
 
 	/*
