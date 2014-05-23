@@ -4978,12 +4978,8 @@ static int rtl8192_usb_probe(struct usb_interface *intf,
 
 	dev->netdev_ops = &rtl8192_netdev_ops;
 
-#if WIRELESS_EXT >= 12
-#if WIRELESS_EXT < 17
-	dev->get_wireless_stats = r8192_get_wireless_stats;
-#endif
 	dev->wireless_handlers = (struct iw_handler_def *) &r8192_wx_handlers_def;
-#endif
+
 	dev->type = ARPHRD_ETHER;
 
 	dev->watchdog_timeo = HZ*3;	//modified by john, 0805

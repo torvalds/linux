@@ -194,7 +194,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 	    start = iwe_stream_add_point(info, start, stop, &iwe, custom);
-#if (WIRELESS_EXT < 18)
+
 	if (ieee->wpa_enabled && network->wpa_ie_len){
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 	//	printk("WPA IE\n");
@@ -224,26 +224,6 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.data.length = strlen(buf);
 		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 	}
-#else
-	memset(&iwe, 0, sizeof(iwe));
-	if (network->wpa_ie_len)
-	{
-		char buf[MAX_WPA_IE_LEN];
-		memcpy(buf, network->wpa_ie, network->wpa_ie_len);
-		iwe.cmd = IWEVGENIE;
-		iwe.u.data.length = network->wpa_ie_len;
-		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
-	}
-	memset(&iwe, 0, sizeof(iwe));
-	if (network->rsn_ie_len)
-	{
-		char buf[MAX_WPA_IE_LEN];
-		memcpy(buf, network->rsn_ie, network->rsn_ie_len);
-		iwe.cmd = IWEVGENIE;
-		iwe.u.data.length = network->rsn_ie_len;
-		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
-	}
-#endif
 
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
@@ -525,7 +505,6 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 }
 EXPORT_SYMBOL(ieee80211_wx_get_encode);
 
-#if (WIRELESS_EXT >= 18)
 int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -836,7 +815,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 	return 0;
 }
 EXPORT_SYMBOL(ieee80211_wx_set_auth);
-#endif
 
 int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
