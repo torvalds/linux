@@ -1831,22 +1831,29 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 	return TRUE;
 }
 
-int get_dsx_sf_data_to_application(struct bcm_mini_adapter *Adapter, UINT uiSFId, void __user *user_buffer)
+int get_dsx_sf_data_to_application(struct bcm_mini_adapter *Adapter,
+		UINT uiSFId, void __user *user_buffer)
 {
 	int status = 0;
 	struct bcm_packet_info *psSfInfo = NULL;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "status =%d", status);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"status =%d", status);
 	status = SearchSfid(Adapter, uiSFId);
 	if (status >= NO_OF_QUEUES) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SFID %d not present in queue !!!", uiSFId);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+				"SFID %d not present in queue !!!", uiSFId);
 		return -EINVAL;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "status =%d", status);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+			"status =%d", status);
 	psSfInfo = &Adapter->PackInfo[status];
-	if (psSfInfo->pstSFIndication && copy_to_user(user_buffer,
-							psSfInfo->pstSFIndication, sizeof(struct bcm_add_indication_alt))) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy to user failed SFID %d, present in queue !!!", uiSFId);
+	if (psSfInfo->pstSFIndication
+			&& copy_to_user(user_buffer, psSfInfo->pstSFIndication,
+				sizeof(struct bcm_add_indication_alt))) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"copy to user failed SFID %d, present in queue !!!",
+				uiSFId);
 		status = -EFAULT;
 		return status;
 	}
