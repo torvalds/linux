@@ -26,7 +26,6 @@
 
 *******************************************************************************/
 #include "ixgbe.h"
-#include <linux/export.h>
 #include <linux/ptp_classify.h>
 
 /*
