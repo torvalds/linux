@@ -14,7 +14,7 @@ Required property:
 
 Optional properties:
 - dma-channels: 	Number of DMA channels supported by the controller.
-- dma-requests: 	Number of DMA requests signals supported by the
+- dma-requests: 	Number of DMA request signals supported by the
 			controller.
 
 Example:
@@ -44,7 +44,7 @@ Required property:
 			  #dma-cells property in the node referenced by phandle
 			  containing DMA controller specific information. This
 			  typically contains a DMA request line number or a
-			  channel number, but can contain any data that is used
+			  channel number, but can contain any data that is
 			  required for configuring a channel.
 - dma-names: 		Contains one identifier string for each DMA specifier in
 			the dmas property. The specific strings that can be used
