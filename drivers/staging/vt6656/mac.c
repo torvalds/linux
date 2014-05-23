@@ -53,11 +53,11 @@ static int          msglevel                =MSG_LEVEL_INFO;
  * Return Value: none
  *
  */
-void MACvWriteMultiAddr(struct vnt_private *pDevice, u64 mc_filter)
+void MACvWriteMultiAddr(struct vnt_private *priv, u64 mc_filter)
 {
 	__le64 le_mc = cpu_to_le64(mc_filter);
 
-	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_WRITE, MAC_REG_MAR0,
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, MAC_REG_MAR0,
 		MESSAGE_REQUEST_MACREG, sizeof(le_mc), (u8 *)&le_mc);
 }
 
