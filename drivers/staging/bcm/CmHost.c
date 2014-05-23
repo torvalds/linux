@@ -18,6 +18,14 @@ static void restore_endianess_of_pstClassifierEntry(
 		struct bcm_classifier_rule *pstClassifierEntry,
 		enum bcm_ipaddr_context eIpAddrContext);
 
+static void apply_phs_rule_to_all_classifiers(
+		register struct bcm_mini_adapter *Adapter,
+		register UINT uiSearchRuleIndex,
+		USHORT uVCID,
+		struct bcm_phs_rule *sPhsRule,
+		struct bcm_phs_rules *cPhsRule,
+		struct bcm_add_indication_alt *pstAddIndication);
+
 /************************************************************
  * Function - SearchSfid
  *
@@ -627,79 +635,12 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 		case eSetPHSRule:
 			if (psfCSType->cPhsRule.u8PHSI)	{
 				/* Apply This PHS Rule to all classifiers whose Associated PHSI Match */
-				unsigned int uiClassifierIndex = 0;
-				if (pstAddIndication->u8Direction == UPLINK_DIR) {
-					for (uiClassifierIndex = 0; uiClassifierIndex < MAX_CLASSIFIERS; uiClassifierIndex++) {
-						if ((Adapter->astClassifierTable[uiClassifierIndex].bUsed) &&
-							(Adapter->astClassifierTable[uiClassifierIndex].ulSFID == Adapter->PackInfo[uiSearchRuleIndex].ulSFID) &&
-							(Adapter->astClassifierTable[uiClassifierIndex].u8AssociatedPHSI == psfCSType->cPhsRule.u8PHSI)) {
-							BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
-									"Adding PHS Rule For Classifier: 0x%x cPhsRule.u8PHSI: 0x%x\n",
-									Adapter->astClassifierTable[uiClassifierIndex].uiClassifierRuleIndex,
-									psfCSType->cPhsRule.u8PHSI);
-							/* Update The PHS Rule for this classifier as Associated PHSI id defined */
-
-							/* Copy the PHS Rule */
-							sPhsRule.u8PHSI = psfCSType->cPhsRule.u8PHSI;
-							sPhsRule.u8PHSFLength = psfCSType->cPhsRule.u8PHSFLength;
-							sPhsRule.u8PHSMLength = psfCSType->cPhsRule.u8PHSMLength;
-							sPhsRule.u8PHSS = psfCSType->cPhsRule.u8PHSS;
-							sPhsRule.u8PHSV = psfCSType->cPhsRule.u8PHSV;
-							memcpy(sPhsRule.u8PHSF, psfCSType->cPhsRule.u8PHSF, MAX_PHS_LENGTHS);
-							memcpy(sPhsRule.u8PHSM, psfCSType->cPhsRule.u8PHSM, MAX_PHS_LENGTHS);
-							sPhsRule.u8RefCnt = 0;
-							sPhsRule.bUnclassifiedPHSRule = false;
-							sPhsRule.PHSModifiedBytes = 0;
-							sPhsRule.PHSModifiedNumPackets = 0;
-							sPhsRule.PHSErrorNumPackets = 0;
-
-							/* bPHSRuleAssociated = TRUE; */
-							/* Store The PHS Rule for this classifier */
-
-							PhsUpdateClassifierRule(
-								&Adapter->stBCMPhsContext,
-								uVCID,
-								Adapter->astClassifierTable[uiClassifierIndex].uiClassifierRuleIndex,
-								&sPhsRule,
-								Adapter->astClassifierTable[uiClassifierIndex].u8AssociatedPHSI);
-
-							/* Update PHS Rule For the Classifier */
-							if (sPhsRule.u8PHSI) {
-								Adapter->astClassifierTable[uiClassifierIndex].u32PHSRuleID = sPhsRule.u8PHSI;
-								memcpy(&Adapter->astClassifierTable[uiClassifierIndex].sPhsRule, &sPhsRule, sizeof(struct bcm_phs_rule));
-							}
-						}
-					}
-				} else {
-					/* Error PHS Rule specified in signaling could not be applied to any classifier */
-
-					/* Copy the PHS Rule */
-					sPhsRule.u8PHSI = psfCSType->cPhsRule.u8PHSI;
-					sPhsRule.u8PHSFLength = psfCSType->cPhsRule.u8PHSFLength;
-					sPhsRule.u8PHSMLength = psfCSType->cPhsRule.u8PHSMLength;
-					sPhsRule.u8PHSS = psfCSType->cPhsRule.u8PHSS;
-					sPhsRule.u8PHSV = psfCSType->cPhsRule.u8PHSV;
-					memcpy(sPhsRule.u8PHSF, psfCSType->cPhsRule.u8PHSF, MAX_PHS_LENGTHS);
-					memcpy(sPhsRule.u8PHSM, psfCSType->cPhsRule.u8PHSM, MAX_PHS_LENGTHS);
-					sPhsRule.u8RefCnt = 0;
-					sPhsRule.bUnclassifiedPHSRule = TRUE;
-					sPhsRule.PHSModifiedBytes = 0;
-					sPhsRule.PHSModifiedNumPackets = 0;
-					sPhsRule.PHSErrorNumPackets = 0;
-					/* Store The PHS Rule for this classifier */
-
-					/*
-					 * Passing the argument u8PHSI instead of clsid. Because for DL with no classifier rule,
-					 * clsid will be zero hence we can't have multiple PHS rules for the same SF.
-					 * To support multiple PHS rule, passing u8PHSI.
-					 */
-					PhsUpdateClassifierRule(
-						&Adapter->stBCMPhsContext,
+				apply_phs_rule_to_all_classifiers(Adapter,
+						uiSearchRuleIndex,
 						uVCID,
-						sPhsRule.u8PHSI,
 						&sPhsRule,
-						sPhsRule.u8PHSI);
-				}
+						&psfCSType->cPhsRule,
+						pstAddIndication);
 			}
 			break;
 		}
@@ -2068,5 +2009,92 @@ static void restore_endianess_of_pstClassifierEntry(
 			stDest->ulIpv6Addr[i] = ntohl(stDest->ulIpv6Addr[i]);
 			stDest->ulIpv6Mask[i] = ntohl(stDest->ulIpv6Mask[i]);
 		}
+	}
+}
+
+static void apply_phs_rule_to_all_classifiers(
+		register struct bcm_mini_adapter *Adapter,		/* <Pointer to the Adapter structure */
+		register UINT uiSearchRuleIndex,			/* <Index of Queue, to which this data belongs */
+		USHORT uVCID,
+		struct bcm_phs_rule *sPhsRule,
+		struct bcm_phs_rules *cPhsRule,
+		struct bcm_add_indication_alt *pstAddIndication)
+{
+	unsigned int uiClassifierIndex = 0;
+	struct bcm_classifier_rule *curr_classifier = NULL;
+
+	if (pstAddIndication->u8Direction == UPLINK_DIR) {
+		for (uiClassifierIndex = 0; uiClassifierIndex < MAX_CLASSIFIERS; uiClassifierIndex++) {
+			curr_classifier =
+				&Adapter->astClassifierTable[uiClassifierIndex];
+			if ((curr_classifier->bUsed) &&
+				(curr_classifier->ulSFID == Adapter->PackInfo[uiSearchRuleIndex].ulSFID) &&
+				(curr_classifier->u8AssociatedPHSI == cPhsRule->u8PHSI)) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,
+						"Adding PHS Rule For Classifier: 0x%x cPhsRule.u8PHSI: 0x%x\n",
+						curr_classifier->uiClassifierRuleIndex,
+						cPhsRule->u8PHSI);
+				/* Update The PHS Rule for this classifier as Associated PHSI id defined */
+
+				/* Copy the PHS Rule */
+				sPhsRule->u8PHSI = cPhsRule->u8PHSI;
+				sPhsRule->u8PHSFLength = cPhsRule->u8PHSFLength;
+				sPhsRule->u8PHSMLength = cPhsRule->u8PHSMLength;
+				sPhsRule->u8PHSS = cPhsRule->u8PHSS;
+				sPhsRule->u8PHSV = cPhsRule->u8PHSV;
+				memcpy(sPhsRule->u8PHSF, cPhsRule->u8PHSF, MAX_PHS_LENGTHS);
+				memcpy(sPhsRule->u8PHSM, cPhsRule->u8PHSM, MAX_PHS_LENGTHS);
+				sPhsRule->u8RefCnt = 0;
+				sPhsRule->bUnclassifiedPHSRule = false;
+				sPhsRule->PHSModifiedBytes = 0;
+				sPhsRule->PHSModifiedNumPackets = 0;
+				sPhsRule->PHSErrorNumPackets = 0;
+
+				/* bPHSRuleAssociated = TRUE; */
+				/* Store The PHS Rule for this classifier */
+
+				PhsUpdateClassifierRule(
+					&Adapter->stBCMPhsContext,
+					uVCID,
+					curr_classifier->uiClassifierRuleIndex,
+					sPhsRule,
+					curr_classifier->u8AssociatedPHSI);
+
+				/* Update PHS Rule For the Classifier */
+				if (sPhsRule->u8PHSI) {
+					curr_classifier->u32PHSRuleID = sPhsRule->u8PHSI;
+					memcpy(&curr_classifier->sPhsRule, sPhsRule, sizeof(struct bcm_phs_rule));
+				}
+			}
+		}
+	} else {
+		/* Error PHS Rule specified in signaling could not be applied to any classifier */
+
+		/* Copy the PHS Rule */
+		sPhsRule->u8PHSI = cPhsRule->u8PHSI;
+		sPhsRule->u8PHSFLength = cPhsRule->u8PHSFLength;
+		sPhsRule->u8PHSMLength = cPhsRule->u8PHSMLength;
+		sPhsRule->u8PHSS = cPhsRule->u8PHSS;
+		sPhsRule->u8PHSV = cPhsRule->u8PHSV;
+		memcpy(sPhsRule->u8PHSF, cPhsRule->u8PHSF, MAX_PHS_LENGTHS);
+		memcpy(sPhsRule->u8PHSM, cPhsRule->u8PHSM, MAX_PHS_LENGTHS);
+		sPhsRule->u8RefCnt = 0;
+		sPhsRule->bUnclassifiedPHSRule = TRUE;
+		sPhsRule->PHSModifiedBytes = 0;
+		sPhsRule->PHSModifiedNumPackets = 0;
+		sPhsRule->PHSErrorNumPackets = 0;
+		/* Store The PHS Rule for this classifier */
+
+		/*
+		 * Passing the argument u8PHSI instead of clsid. Because for DL with no classifier rule,
+		 * clsid will be zero hence we can't have multiple PHS rules for the same SF.
+		 * To support multiple PHS rule, passing u8PHSI.
+		 */
+		PhsUpdateClassifierRule(
+			&Adapter->stBCMPhsContext,
+			uVCID,
+			sPhsRule->u8PHSI,
+			sPhsRule,
+			sPhsRule->u8PHSI);
 	}
 }
