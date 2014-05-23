@@ -100,29 +100,30 @@ static inline u32 tse_tx_avail(struct altera_tse_private *priv)
  */
 static int altera_tse_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
-	struct altera_tse_mac *mac = (struct altera_tse_mac *)bus->priv;
-	unsigned int *mdio_regs = (unsigned int *)&mac->mdio_phy0;
-	u32 data;
+	struct net_device *ndev = bus->priv;
+	struct altera_tse_private *priv = netdev_priv(ndev);
 
 	/* set MDIO address */
-	iowrite32((mii_id & 0x1f), &mac->mdio_phy0_addr);
+	csrwr32((mii_id & 0x1f), priv->mac_dev,
+		tse_csroffs(mdio_phy0_addr));
 
 	/* get the data */
-	data = ioread32(&mdio_regs[regnum]) & 0xffff;
-	return data;
+	return csrrd32(priv->mac_dev,
+		       tse_csroffs(mdio_phy0) + regnum * 4) & 0xffff;
 }
 
 static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 				 u16 value)
 {
-	struct altera_tse_mac *mac = (struct altera_tse_mac *)bus->priv;
-	unsigned int *mdio_regs = (unsigned int *)&mac->mdio_phy0;
+	struct net_device *ndev = bus->priv;
+	struct altera_tse_private *priv = netdev_priv(ndev);
 
 	/* set MDIO address */
-	iowrite32((mii_id & 0x1f), &mac->mdio_phy0_addr);
+	csrwr32((mii_id & 0x1f), priv->mac_dev,
+		tse_csroffs(mdio_phy0_addr));
 
 	/* write the data */
-	iowrite32((u32) value, &mdio_regs[regnum]);
+	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy0) + regnum * 4);
 	return 0;
 }
 
@@ -168,7 +169,7 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		mdio->irq[i] = PHY_POLL;
 
-	mdio->priv = priv->mac_dev;
+	mdio->priv = dev;
 	mdio->parent = priv->device;
 
 	ret = of_mdiobus_register(mdio, mdio_node);
@@ -563,7 +564,6 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int nopaged_len = skb_headlen(skb);
 	enum netdev_tx ret = NETDEV_TX_OK;
 	dma_addr_t dma_addr;
-	int txcomplete = 0;
 
 	spin_lock_bh(&priv->tx_lock);
 
@@ -599,7 +599,7 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_sync_single_for_device(priv->device, buffer->dma_addr,
 				   buffer->len, DMA_TO_DEVICE);
 
-	txcomplete = priv->dmaops->tx_buffer(priv, buffer);
+	priv->dmaops->tx_buffer(priv, buffer);
 
 	skb_tx_timestamp(skb);
 
@@ -698,7 +698,6 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev = NULL;
 	char phy_id_fmt[MII_BUS_ID_SIZE + 3];
-	int ret;
 
 	if (priv->phy_addr != POLL_PHY) {
 		snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
@@ -712,6 +711,7 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 			netdev_err(dev, "Could not attach to PHY\n");
 
 	} else {
+		int ret;
 		phydev = phy_find_first(priv->mdio);
 		if (phydev == NULL) {
 			netdev_err(dev, "No PHY found\n");
@@ -791,7 +791,6 @@ static int init_phy(struct net_device *dev)
 
 static void tse_update_mac_addr(struct altera_tse_private *priv, u8 *addr)
 {
-	struct altera_tse_mac *mac = priv->mac_dev;
 	u32 msb;
 	u32 lsb;
 
@@ -799,8 +798,8 @@ static void tse_update_mac_addr(struct altera_tse_private *priv, u8 *addr)
 	lsb = ((addr[5] << 8) | addr[4]) & 0xffff;
 
 	/* Set primary MAC address */
-	iowrite32(msb, &mac->mac_addr_0);
-	iowrite32(lsb, &mac->mac_addr_1);
+	csrwr32(msb, priv->mac_dev, tse_csroffs(mac_addr_0));
+	csrwr32(lsb, priv->mac_dev, tse_csroffs(mac_addr_1));
 }
 
 /* MAC software reset.
@@ -811,26 +810,26 @@ static void tse_update_mac_addr(struct altera_tse_private *priv, u8 *addr)
  */
 static int reset_mac(struct altera_tse_private *priv)
 {
-	void __iomem *cmd_cfg_reg = &priv->mac_dev->command_config;
 	int counter;
 	u32 dat;
 
-	dat = ioread32(cmd_cfg_reg);
+	dat = csrrd32(priv->mac_dev, tse_csroffs(command_config));
 	dat &= ~(MAC_CMDCFG_TX_ENA | MAC_CMDCFG_RX_ENA);
 	dat |= MAC_CMDCFG_SW_RESET | MAC_CMDCFG_CNT_RESET;
-	iowrite32(dat, cmd_cfg_reg);
+	csrwr32(dat, priv->mac_dev, tse_csroffs(command_config));
 
 	counter = 0;
 	while (counter++ < ALTERA_TSE_SW_RESET_WATCHDOG_CNTR) {
-		if (tse_bit_is_clear(cmd_cfg_reg, MAC_CMDCFG_SW_RESET))
+		if (tse_bit_is_clear(priv->mac_dev, tse_csroffs(command_config),
+				     MAC_CMDCFG_SW_RESET))
 			break;
 		udelay(1);
 	}
 
 	if (counter >= ALTERA_TSE_SW_RESET_WATCHDOG_CNTR) {
-		dat = ioread32(cmd_cfg_reg);
+		dat = csrrd32(priv->mac_dev, tse_csroffs(command_config));
 		dat &= ~MAC_CMDCFG_SW_RESET;
-		iowrite32(dat, cmd_cfg_reg);
+		csrwr32(dat, priv->mac_dev, tse_csroffs(command_config));
 		return -1;
 	}
 	return 0;
@@ -840,41 +839,57 @@ static int reset_mac(struct altera_tse_private *priv)
 */
 static int init_mac(struct altera_tse_private *priv)
 {
-	struct altera_tse_mac *mac = priv->mac_dev;
 	unsigned int cmd = 0;
 	u32 frm_length;
 
 	/* Setup Rx FIFO */
-	iowrite32(priv->rx_fifo_depth - ALTERA_TSE_RX_SECTION_EMPTY,
-		  &mac->rx_section_empty);
-	iowrite32(ALTERA_TSE_RX_SECTION_FULL, &mac->rx_section_full);
-	iowrite32(ALTERA_TSE_RX_ALMOST_EMPTY, &mac->rx_almost_empty);
-	iowrite32(ALTERA_TSE_RX_ALMOST_FULL, &mac->rx_almost_full);
+	csrwr32(priv->rx_fifo_depth - ALTERA_TSE_RX_SECTION_EMPTY,
+		priv->mac_dev, tse_csroffs(rx_section_empty));
+
+	csrwr32(ALTERA_TSE_RX_SECTION_FULL, priv->mac_dev,
+		tse_csroffs(rx_section_full));
+
+	csrwr32(ALTERA_TSE_RX_ALMOST_EMPTY, priv->mac_dev,
+		tse_csroffs(rx_almost_empty));
+
+	csrwr32(ALTERA_TSE_RX_ALMOST_FULL, priv->mac_dev,
+		tse_csroffs(rx_almost_full));
 
 	/* Setup Tx FIFO */
-	iowrite32(priv->tx_fifo_depth - ALTERA_TSE_TX_SECTION_EMPTY,
-		  &mac->tx_section_empty);
-	iowrite32(ALTERA_TSE_TX_SECTION_FULL, &mac->tx_section_full);
-	iowrite32(ALTERA_TSE_TX_ALMOST_EMPTY, &mac->tx_almost_empty);
-	iowrite32(ALTERA_TSE_TX_ALMOST_FULL, &mac->tx_almost_full);
+	csrwr32(priv->tx_fifo_depth - ALTERA_TSE_TX_SECTION_EMPTY,
+		priv->mac_dev, tse_csroffs(tx_section_empty));
+
+	csrwr32(ALTERA_TSE_TX_SECTION_FULL, priv->mac_dev,
+		tse_csroffs(tx_section_full));
+
+	csrwr32(ALTERA_TSE_TX_ALMOST_EMPTY, priv->mac_dev,
+		tse_csroffs(tx_almost_empty));
+
+	csrwr32(ALTERA_TSE_TX_ALMOST_FULL, priv->mac_dev,
+		tse_csroffs(tx_almost_full));
 
 	/* MAC Address Configuration */
 	tse_update_mac_addr(priv, priv->dev->dev_addr);
 
 	/* MAC Function Configuration */
 	frm_length = ETH_HLEN + priv->dev->mtu + ETH_FCS_LEN;
-	iowrite32(frm_length, &mac->frm_length);
-	iowrite32(ALTERA_TSE_TX_IPG_LENGTH, &mac->tx_ipg_length);
+	csrwr32(frm_length, priv->mac_dev, tse_csroffs(frm_length));
+
+	csrwr32(ALTERA_TSE_TX_IPG_LENGTH, priv->mac_dev,
+		tse_csroffs(tx_ipg_length));
 
 	/* Disable RX/TX shift 16 for alignment of all received frames on 16-bit
 	 * start address
 	 */
-	tse_set_bit(&mac->rx_cmd_stat, ALTERA_TSE_RX_CMD_STAT_RX_SHIFT16);
-	tse_clear_bit(&mac->tx_cmd_stat, ALTERA_TSE_TX_CMD_STAT_TX_SHIFT16 |
-					 ALTERA_TSE_TX_CMD_STAT_OMIT_CRC);
+	tse_set_bit(priv->mac_dev, tse_csroffs(rx_cmd_stat),
+		    ALTERA_TSE_RX_CMD_STAT_RX_SHIFT16);
+
+	tse_clear_bit(priv->mac_dev, tse_csroffs(tx_cmd_stat),
+		      ALTERA_TSE_TX_CMD_STAT_TX_SHIFT16 |
+		      ALTERA_TSE_TX_CMD_STAT_OMIT_CRC);
 
 	/* Set the MAC options */
-	cmd = ioread32(&mac->command_config);
+	cmd = csrrd32(priv->mac_dev, tse_csroffs(command_config));
 	cmd &= ~MAC_CMDCFG_PAD_EN;	/* No padding Removal on Receive */
 	cmd &= ~MAC_CMDCFG_CRC_FWD;	/* CRC Removal */
 	cmd |= MAC_CMDCFG_RX_ERR_DISC;	/* Automatically discard frames
@@ -889,9 +904,10 @@ static int init_mac(struct altera_tse_private *priv)
 	cmd &= ~MAC_CMDCFG_ETH_SPEED;
 	cmd &= ~MAC_CMDCFG_ENA_10;
 
-	iowrite32(cmd, &mac->command_config);
+	csrwr32(cmd, priv->mac_dev, tse_csroffs(command_config));
 
-	iowrite32(ALTERA_TSE_PAUSE_QUANTA, &mac->pause_quanta);
+	csrwr32(ALTERA_TSE_PAUSE_QUANTA, priv->mac_dev,
+		tse_csroffs(pause_quanta));
 
 	if (netif_msg_hw(priv))
 		dev_dbg(priv->device,
@@ -904,15 +920,14 @@ static int init_mac(struct altera_tse_private *priv)
  */
 static void tse_set_mac(struct altera_tse_private *priv, bool enable)
 {
-	struct altera_tse_mac *mac = priv->mac_dev;
-	u32 value = ioread32(&mac->command_config);
+	u32 value = csrrd32(priv->mac_dev, tse_csroffs(command_config));
 
 	if (enable)
 		value |= MAC_CMDCFG_TX_ENA | MAC_CMDCFG_RX_ENA;
 	else
 		value &= ~(MAC_CMDCFG_TX_ENA | MAC_CMDCFG_RX_ENA);
 
-	iowrite32(value, &mac->command_config);
+	csrwr32(value, priv->mac_dev, tse_csroffs(command_config));
 }
 
 /* Change the MTU
@@ -942,13 +957,12 @@ static int tse_change_mtu(struct net_device *dev, int new_mtu)
 static void altera_tse_set_mcfilter(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct altera_tse_mac *mac = priv->mac_dev;
 	int i;
 	struct netdev_hw_addr *ha;
 
 	/* clear the hash filter */
 	for (i = 0; i < 64; i++)
-		iowrite32(0, &(mac->hash_table[i]));
+		csrwr32(0, priv->mac_dev, tse_csroffs(hash_table) + i * 4);
 
 	netdev_for_each_mc_addr(ha, dev) {
 		unsigned int hash = 0;
@@ -964,7 +978,7 @@ static void altera_tse_set_mcfilter(struct net_device *dev)
 
 			hash = (hash << 1) | xor_bit;
 		}
-		iowrite32(1, &(mac->hash_table[hash]));
+		csrwr32(1, priv->mac_dev, tse_csroffs(hash_table) + hash * 4);
 	}
 }
 
@@ -972,12 +986,11 @@ static void altera_tse_set_mcfilter(struct net_device *dev)
 static void altera_tse_set_mcfilterall(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct altera_tse_mac *mac = priv->mac_dev;
 	int i;
 
 	/* set the hash filter */
 	for (i = 0; i < 64; i++)
-		iowrite32(1, &(mac->hash_table[i]));
+		csrwr32(1, priv->mac_dev, tse_csroffs(hash_table) + i * 4);
 }
 
 /* Set or clear the multicast filter for this adaptor
@@ -985,12 +998,12 @@ static void altera_tse_set_mcfilterall(struct net_device *dev)
 static void tse_set_rx_mode_hashfilter(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct altera_tse_mac *mac = priv->mac_dev;
 
 	spin_lock(&priv->mac_cfg_lock);
 
 	if (dev->flags & IFF_PROMISC)
-		tse_set_bit(&mac->command_config, MAC_CMDCFG_PROMIS_EN);
+		tse_set_bit(priv->mac_dev, tse_csroffs(command_config),
+			    MAC_CMDCFG_PROMIS_EN);
 
 	if (dev->flags & IFF_ALLMULTI)
 		altera_tse_set_mcfilterall(dev);
@@ -1005,15 +1018,16 @@ static void tse_set_rx_mode_hashfilter(struct net_device *dev)
 static void tse_set_rx_mode(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct altera_tse_mac *mac = priv->mac_dev;
 
 	spin_lock(&priv->mac_cfg_lock);
 
 	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI) ||
 	    !netdev_mc_empty(dev) || !netdev_uc_empty(dev))
-		tse_set_bit(&mac->command_config, MAC_CMDCFG_PROMIS_EN);
+		tse_set_bit(priv->mac_dev, tse_csroffs(command_config),
+			    MAC_CMDCFG_PROMIS_EN);
 	else
-		tse_clear_bit(&mac->command_config, MAC_CMDCFG_PROMIS_EN);
+		tse_clear_bit(priv->mac_dev, tse_csroffs(command_config),
+			      MAC_CMDCFG_PROMIS_EN);
 
 	spin_unlock(&priv->mac_cfg_lock);
 }
@@ -1362,6 +1376,11 @@ static int altera_tse_probe(struct platform_device *pdev)
 		of_property_read_bool(pdev->dev.of_node,
 				      "altr,has-hash-multicast-filter");
 
+	/* Set hash filter to not set for now until the
+	 * multicast filter receive issue is debugged
+	 */
+	priv->hash_filter = 0;
+
 	/* get supplemental address settings for this instance */
 	priv->added_unicast =
 		of_property_read_bool(pdev->dev.of_node,
@@ -1493,7 +1512,7 @@ static int altera_tse_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct altera_dmaops altera_dtype_sgdma = {
+static const struct altera_dmaops altera_dtype_sgdma = {
 	.altera_dtype = ALTERA_DTYPE_SGDMA,
 	.dmamask = 32,
 	.reset_dma = sgdma_reset,
@@ -1512,7 +1531,7 @@ struct altera_dmaops altera_dtype_sgdma = {
 	.start_rxdma = sgdma_start_rxdma,
 };
 
-struct altera_dmaops altera_dtype_msgdma = {
+static const struct altera_dmaops altera_dtype_msgdma = {
 	.altera_dtype = ALTERA_DTYPE_MSGDMA,
 	.dmamask = 64,
 	.reset_dma = msgdma_reset,

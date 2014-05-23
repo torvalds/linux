@@ -35,6 +35,18 @@ source "drivers/net/ethernet/calxeda/Kconfig"
 source "drivers/net/ethernet/chelsio/Kconfig"
 source "drivers/net/ethernet/cirrus/Kconfig"
 source "drivers/net/ethernet/cisco/Kconfig"
+
+config CX_ECAT
+	tristate "Beckhoff CX5020 EtherCAT master support"
+	depends on PCI
+	---help---
+	  Driver for EtherCAT master module located on CCAT FPGA
+	  that can be found on Beckhoff CX5020, and possibly other of CX
+	  Beckhoff CX series industrial PCs.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ec_bhf.
+
 source "drivers/net/ethernet/davicom/Kconfig"
 
 config DNET

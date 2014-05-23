@@ -389,6 +389,41 @@ err_icm:
 
 EXPORT_SYMBOL_GPL(mlx4_qp_alloc);
 
+#define MLX4_UPDATE_QP_SUPPORTED_ATTRS MLX4_UPDATE_QP_SMAC
+int mlx4_update_qp(struct mlx4_dev *dev, struct mlx4_qp *qp,
+		   enum mlx4_update_qp_attr attr,
+		   struct mlx4_update_qp_params *params)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_update_qp_context *cmd;
+	u64 pri_addr_path_mask = 0;
+	int err = 0;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	cmd = (struct mlx4_update_qp_context *)mailbox->buf;
+
+	if (!attr || (attr & ~MLX4_UPDATE_QP_SUPPORTED_ATTRS))
+		return -EINVAL;
+
+	if (attr & MLX4_UPDATE_QP_SMAC) {
+		pri_addr_path_mask |= 1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX;
+		cmd->qp_context.pri_path.grh_mylmc = params->smac_index;
+	}
+
+	cmd->primary_addr_path_mask = cpu_to_be64(pri_addr_path_mask);
+
+	err = mlx4_cmd(dev, mailbox->dma, qp->qpn & 0xffffff, 0,
+		       MLX4_CMD_UPDATE_QP, MLX4_CMD_TIME_CLASS_A,
+		       MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_update_qp);
+
 void mlx4_qp_remove(struct mlx4_dev *dev, struct mlx4_qp *qp)
 {
 	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;

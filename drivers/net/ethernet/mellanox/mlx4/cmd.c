@@ -1253,12 +1253,12 @@ static struct mlx4_cmd_info cmd_info[] = {
 	},
 	{
 		.opcode = MLX4_CMD_UPDATE_QP,
-		.has_inbox = false,
+		.has_inbox = true,
 		.has_outbox = false,
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_CMD_EPERM_wrapper
+		.wrapper = mlx4_UPDATE_QP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_GET_OP_REQ,
