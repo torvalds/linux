@@ -68,7 +68,7 @@ static struct svc_expkey *svc_expkey_lookup(struct cache_detail *cd, struct svc_
 
 static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 {
-	/* client fsidtype fsid [path] */
+	/* client fsidtype fsid expiry [path] */
 	char *buf;
 	int len;
 	struct auth_domain *dom = NULL;
