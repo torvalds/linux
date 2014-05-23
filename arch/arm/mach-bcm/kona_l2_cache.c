@@ -11,18 +11,17 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/of_platform.h>
+
+#include <linux/init.h>
+#include <linux/printk.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include "bcm_kona_smc.h"
-#include "kona.h"
 
 void __init kona_l2_cache_init(void)
 {
+	unsigned int result;
 	int ret;
-
-	if (!IS_ENABLED(CONFIG_CACHE_L2X0))
-		return;
 
 	ret = bcm_kona_smc_init();
 	if (ret) {
@@ -31,7 +30,12 @@ void __init kona_l2_cache_init(void)
 		return;
 	}
 
-	bcm_kona_smc(SSAPI_ENABLE_L2_CACHE, 0, 0, 0, 0);
+	result = bcm_kona_smc(SSAPI_ENABLE_L2_CACHE, 0, 0, 0, 0);
+	if (result != SEC_ROM_RET_OK) {
+		pr_err("Secure Monitor call failed (%u)! Skipping L2 init.\n",
+			result);
+		return;
+	}
 
 	/*
 	 * The aux_val and aux_mask have no effect since L2 cache is already
