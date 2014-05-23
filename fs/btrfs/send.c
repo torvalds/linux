@@ -975,7 +975,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 	struct btrfs_dir_item *di;
 	struct btrfs_key di_key;
 	char *buf = NULL;
-	const int buf_len = PATH_MAX;
+	int buf_len;
 	u32 name_len;
 	u32 data_len;
 	u32 cur;
@@ -984,6 +984,11 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 	int slot;
 	int num;
 	u8 type;
+
+	if (found_key->type == BTRFS_XATTR_ITEM_KEY)
+		buf_len = BTRFS_MAX_XATTR_SIZE(root);
+	else
+		buf_len = PATH_MAX;
 
 	buf = kmalloc(buf_len, GFP_NOFS);
 	if (!buf) {
@@ -1006,12 +1011,23 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 		type = btrfs_dir_type(eb, di);
 		btrfs_dir_item_key_to_cpu(eb, di, &di_key);
 
-		/*
-		 * Path too long
-		 */
-		if (name_len + data_len > buf_len) {
-			ret = -ENAMETOOLONG;
-			goto out;
+		if (type == BTRFS_FT_XATTR) {
+			if (name_len > XATTR_NAME_MAX) {
+				ret = -ENAMETOOLONG;
+				goto out;
+			}
+			if (name_len + data_len > buf_len) {
+				ret = -E2BIG;
+				goto out;
+			}
+		} else {
+			/*
+			 * Path too long
+			 */
+			if (name_len + data_len > buf_len) {
+				ret = -ENAMETOOLONG;
+				goto out;
+			}
 		}
 
 		read_extent_buffer(eb, buf, (unsigned long)(di + 1),
