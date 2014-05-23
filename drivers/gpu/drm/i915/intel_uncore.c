@@ -231,8 +231,8 @@ static void __vlv_force_wake_get(struct drm_i915_private *dev_priv,
 	}
 
 	/* WaRsForcewakeWaitTC0:vlv */
-	__gen6_gt_wait_for_thread_c0(dev_priv);
-
+	if (!IS_CHERRYVIEW(dev_priv->dev))
+		__gen6_gt_wait_for_thread_c0(dev_priv);
 }
 
 static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
