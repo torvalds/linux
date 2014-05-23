@@ -76,7 +76,7 @@ config USB_MUSB_TUSB6010
 
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS && USB
 	select GENERIC_PHY
 
 config USB_MUSB_AM35X
@@ -141,10 +141,11 @@ config USB_TI_CPPI_DMA
 config USB_TI_CPPI41_DMA
 	bool 'TI CPPI 4.1 (AM335x)'
 	depends on ARCH_OMAP
+	select TI_CPPI41
 
 config USB_TUSB_OMAP_DMA
 	bool 'TUSB 6010'
-	depends on USB_MUSB_TUSB6010
+	depends on USB_MUSB_TUSB6010 = USB_MUSB_HDRC # both built-in or both modules
 	depends on ARCH_OMAP
 	help
 	  Enable DMA transfers on TUSB 6010 when OMAP DMA is available.

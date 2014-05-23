@@ -30,7 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
@@ -41,34 +41,25 @@
 
 #include "phy-generic.h"
 
-static struct platform_device *pd;
-
-void usb_nop_xceiv_register(void)
+struct platform_device *usb_phy_generic_register(void)
 {
-	if (pd)
-		return;
-	pd = platform_device_register_simple("usb_phy_gen_xceiv", -1, NULL, 0);
-	if (IS_ERR(pd)) {
-		pr_err("Unable to register generic usb transceiver\n");
-		pd = NULL;
-		return;
-	}
+	return platform_device_register_simple("usb_phy_generic",
+			PLATFORM_DEVID_AUTO, NULL, 0);
 }
-EXPORT_SYMBOL(usb_nop_xceiv_register);
+EXPORT_SYMBOL_GPL(usb_phy_generic_register);
 
-void usb_nop_xceiv_unregister(void)
+void usb_phy_generic_unregister(struct platform_device *pdev)
 {
-	platform_device_unregister(pd);
-	pd = NULL;
+	platform_device_unregister(pdev);
 }
-EXPORT_SYMBOL(usb_nop_xceiv_unregister);
+EXPORT_SYMBOL_GPL(usb_phy_generic_unregister);
 
 static int nop_set_suspend(struct usb_phy *x, int suspend)
 {
 	return 0;
 }
 
-static void nop_reset_set(struct usb_phy_gen_xceiv *nop, int asserted)
+static void nop_reset_set(struct usb_phy_generic *nop, int asserted)
 {
 	int value;
 
@@ -87,7 +78,7 @@ static void nop_reset_set(struct usb_phy_gen_xceiv *nop, int asserted)
 
 int usb_gen_phy_init(struct usb_phy *phy)
 {
-	struct usb_phy_gen_xceiv *nop = dev_get_drvdata(phy->dev);
+	struct usb_phy_generic *nop = dev_get_drvdata(phy->dev);
 
 	if (!IS_ERR(nop->vcc)) {
 		if (regulator_enable(nop->vcc))
@@ -106,7 +97,7 @@ EXPORT_SYMBOL_GPL(usb_gen_phy_init);
 
 void usb_gen_phy_shutdown(struct usb_phy *phy)
 {
-	struct usb_phy_gen_xceiv *nop = dev_get_drvdata(phy->dev);
+	struct usb_phy_generic *nop = dev_get_drvdata(phy->dev);
 
 	/* Assert RESET */
 	nop_reset_set(nop, 1);
@@ -150,8 +141,8 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
-int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
-		struct usb_phy_gen_xceiv_platform_data *pdata)
+int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
+		struct usb_phy_generic_platform_data *pdata)
 {
 	enum usb_phy_type type = USB_PHY_TYPE_USB2;
 	int err;
@@ -245,10 +236,10 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
 }
 EXPORT_SYMBOL_GPL(usb_phy_gen_create_phy);
 
-static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
+static int usb_phy_generic_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct usb_phy_gen_xceiv	*nop;
+	struct usb_phy_generic	*nop;
 	int err;
 
 	nop = devm_kzalloc(dev, sizeof(*nop), GFP_KERNEL);
@@ -274,9 +265,9 @@ static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int usb_phy_gen_xceiv_remove(struct platform_device *pdev)
+static int usb_phy_generic_remove(struct platform_device *pdev)
 {
-	struct usb_phy_gen_xceiv *nop = platform_get_drvdata(pdev);
+	struct usb_phy_generic *nop = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&nop->phy);
 
@@ -290,29 +281,29 @@ static const struct of_device_id nop_xceiv_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, nop_xceiv_dt_ids);
 
-static struct platform_driver usb_phy_gen_xceiv_driver = {
-	.probe		= usb_phy_gen_xceiv_probe,
-	.remove		= usb_phy_gen_xceiv_remove,
+static struct platform_driver usb_phy_generic_driver = {
+	.probe		= usb_phy_generic_probe,
+	.remove		= usb_phy_generic_remove,
 	.driver		= {
-		.name	= "usb_phy_gen_xceiv",
+		.name	= "usb_phy_generic",
 		.owner	= THIS_MODULE,
 		.of_match_table = nop_xceiv_dt_ids,
 	},
 };
 
-static int __init usb_phy_gen_xceiv_init(void)
+static int __init usb_phy_generic_init(void)
 {
-	return platform_driver_register(&usb_phy_gen_xceiv_driver);
+	return platform_driver_register(&usb_phy_generic_driver);
 }
-subsys_initcall(usb_phy_gen_xceiv_init);
+subsys_initcall(usb_phy_generic_init);
 
-static void __exit usb_phy_gen_xceiv_exit(void)
+static void __exit usb_phy_generic_exit(void)
 {
-	platform_driver_unregister(&usb_phy_gen_xceiv_driver);
+	platform_driver_unregister(&usb_phy_generic_driver);
 }
-module_exit(usb_phy_gen_xceiv_exit);
+module_exit(usb_phy_generic_exit);
 
-MODULE_ALIAS("platform:usb_phy_gen_xceiv");
+MODULE_ALIAS("platform:usb_phy_generic");
 MODULE_AUTHOR("Texas Instruments Inc");
 MODULE_DESCRIPTION("NOP USB Transceiver driver");
 MODULE_LICENSE("GPL");

@@ -298,10 +298,75 @@ static const char *dwc3_gadget_ep_cmd_string(u8 cmd)
 	}
 }
 
+static const char *dwc3_gadget_generic_cmd_string(u8 cmd)
+{
+	switch (cmd) {
+	case DWC3_DGCMD_SET_LMP:
+		return "Set LMP";
+	case DWC3_DGCMD_SET_PERIODIC_PAR:
+		return "Set Periodic Parameters";
+	case DWC3_DGCMD_XMIT_FUNCTION:
+		return "Transmit Function Wake Device Notification";
+	case DWC3_DGCMD_SET_SCRATCHPAD_ADDR_LO:
+		return "Set Scratchpad Buffer Array Address Lo";
+	case DWC3_DGCMD_SET_SCRATCHPAD_ADDR_HI:
+		return "Set Scratchpad Buffer Array Address Hi";
+	case DWC3_DGCMD_SELECTED_FIFO_FLUSH:
+		return "Selected FIFO Flush";
+	case DWC3_DGCMD_ALL_FIFO_FLUSH:
+		return "All FIFO Flush";
+	case DWC3_DGCMD_SET_ENDPOINT_NRDY:
+		return "Set Endpoint NRDY";
+	case DWC3_DGCMD_RUN_SOC_BUS_LOOPBACK:
+		return "Run SoC Bus Loopback Test";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static const char *dwc3_gadget_link_string(enum dwc3_link_state link_state)
+{
+	switch (link_state) {
+	case DWC3_LINK_STATE_U0:
+		return "U0";
+	case DWC3_LINK_STATE_U1:
+		return "U1";
+	case DWC3_LINK_STATE_U2:
+		return "U2";
+	case DWC3_LINK_STATE_U3:
+		return "U3";
+	case DWC3_LINK_STATE_SS_DIS:
+		return "SS.Disabled";
+	case DWC3_LINK_STATE_RX_DET:
+		return "RX.Detect";
+	case DWC3_LINK_STATE_SS_INACT:
+		return "SS.Inactive";
+	case DWC3_LINK_STATE_POLL:
+		return "Polling";
+	case DWC3_LINK_STATE_RECOV:
+		return "Recovery";
+	case DWC3_LINK_STATE_HRESET:
+		return "Hot Reset";
+	case DWC3_LINK_STATE_CMPLY:
+		return "Compliance";
+	case DWC3_LINK_STATE_LPBK:
+		return "Loopback";
+	case DWC3_LINK_STATE_RESET:
+		return "Reset";
+	case DWC3_LINK_STATE_RESUME:
+		return "Resume";
+	default:
+		return "UNKNOWN link state\n";
+	}
+}
+
 int dwc3_send_gadget_generic_command(struct dwc3 *dwc, int cmd, u32 param)
 {
 	u32		timeout = 500;
 	u32		reg;
+
+	dev_vdbg(dwc->dev, "generic cmd '%s' [%d] param %08x\n",
+			dwc3_gadget_generic_cmd_string(cmd), cmd, param);
 
 	dwc3_writel(dwc->regs, DWC3_DGCMDPAR, param);
 	dwc3_writel(dwc->regs, DWC3_DGCMD, cmd | DWC3_DGCMD_CMDACT);
@@ -332,9 +397,9 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 	u32			timeout = 500;
 	u32			reg;
 
-	dev_vdbg(dwc->dev, "%s: cmd '%s' params %08x %08x %08x\n",
+	dev_vdbg(dwc->dev, "%s: cmd '%s' [%d] params %08x %08x %08x\n",
 			dep->name,
-			dwc3_gadget_ep_cmd_string(cmd), params->param0,
+			dwc3_gadget_ep_cmd_string(cmd), cmd, params->param0,
 			params->param1, params->param2);
 
 	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR0(ep), params->param0);
@@ -515,7 +580,7 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 {
 	struct dwc3		*dwc = dep->dwc;
 	u32			reg;
-	int			ret = -ENOMEM;
+	int			ret;
 
 	dev_vdbg(dwc->dev, "Enabling %s\n", dep->name);
 
@@ -603,6 +668,10 @@ static int __dwc3_gadget_ep_disable(struct dwc3_ep *dep)
 	u32			reg;
 
 	dwc3_remove_requests(dwc, dep);
+
+	/* make sure HW endpoint isn't stalled */
+	if (dep->flags & DWC3_EP_STALL)
+		__dwc3_gadget_ep_set_halt(dep, 0);
 
 	reg = dwc3_readl(dwc->regs, DWC3_DALEPENA);
 	reg &= ~DWC3_DALEPENA_EP(dep->number);
@@ -2441,8 +2510,6 @@ static void dwc3_gadget_linksts_change_interrupt(struct dwc3 *dwc,
 		}
 	}
 
-	dwc->link_state = next;
-
 	switch (next) {
 	case DWC3_LINK_STATE_U1:
 		if (dwc->speed == USB_SPEED_SUPER)
@@ -2460,7 +2527,11 @@ static void dwc3_gadget_linksts_change_interrupt(struct dwc3 *dwc,
 		break;
 	}
 
-	dev_vdbg(dwc->dev, "%s link %d\n", __func__, dwc->link_state);
+	dev_vdbg(dwc->dev, "link change: %s [%d] -> %s [%d]\n",
+			dwc3_gadget_link_string(dwc->link_state),
+			dwc->link_state, dwc3_gadget_link_string(next), next);
+
+	dwc->link_state = next;
 }
 
 static void dwc3_gadget_hibernation_interrupt(struct dwc3 *dwc,
