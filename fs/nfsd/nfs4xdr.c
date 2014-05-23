@@ -2223,7 +2223,8 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			*p++ = cpu_to_be32(MINOR(stat.dev));
 			break;
 		case FSIDSOURCE_UUID:
-			p = xdr_encode_opaque_fixed(p, exp->ex_uuid, 16);
+			p = xdr_encode_opaque_fixed(p, exp->ex_uuid,
+								EX_UUID_LEN);
 			break;
 		}
 	}

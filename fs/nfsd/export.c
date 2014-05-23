@@ -487,10 +487,10 @@ uuid_parse(char **mesg, char *buf, unsigned char **puuid)
 
 	/* expect a 16 byte uuid encoded as \xXXXX... */
 	len = qword_get(mesg, buf, PAGE_SIZE);
-	if (len != 16)
+	if (len != EX_UUID_LEN)
 		return -EINVAL;
 
-	*puuid = kmemdup(buf, 16, GFP_KERNEL);
+	*puuid = kmemdup(buf, EX_UUID_LEN, GFP_KERNEL);
 	if (*puuid == NULL)
 		return -ENOMEM;
 
@@ -663,7 +663,7 @@ static int svc_export_show(struct seq_file *m,
 		if (exp->ex_uuid) {
 			int i;
 			seq_puts(m, ",uuid=");
-			for (i=0; i<16; i++) {
+			for (i = 0; i < EX_UUID_LEN; i++) {
 				if ((i&3) == 0 && i)
 					seq_putc(m, ':');
 				seq_printf(m, "%02x", exp->ex_uuid[i]);

@@ -37,6 +37,7 @@ struct nfsd4_fs_locations {
  * spkm3i, and spkm3p (and using all 8 at once should be rare).
  */
 #define MAX_SECINFO_LIST	8
+#define EX_UUID_LEN		16
 
 struct exp_flavor_info {
 	u32	pseudoflavor;
