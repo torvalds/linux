@@ -34,3 +34,7 @@ config DOVE_CLK
 config KIRKWOOD_CLK
 	bool
 	select MVEBU_CLK_COMMON
+
+config ORION_CLK
+	bool
+	select MVEBU_CLK_COMMON

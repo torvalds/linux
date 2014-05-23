@@ -10,6 +10,7 @@
  */
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
+struct clk *of_clk_get_by_clkspec(struct of_phandle_args *clkspec);
 struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec);
 void of_clk_lock(void);
 void of_clk_unlock(void);

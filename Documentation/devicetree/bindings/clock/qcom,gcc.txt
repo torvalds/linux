@@ -4,6 +4,7 @@ Qualcomm Global Clock & Reset Controller Binding
 Required properties :
 - compatible : shall contain only one of the following:
 
+			"qcom,gcc-apq8064"
 			"qcom,gcc-msm8660"
 			"qcom,gcc-msm8960"
 			"qcom,gcc-msm8974"

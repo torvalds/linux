@@ -160,3 +160,4 @@ struct clk *icst_clk_register(struct device *dev,
 
 	return clk;
 }
+EXPORT_SYMBOL_GPL(icst_clk_register);
