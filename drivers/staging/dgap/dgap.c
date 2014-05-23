@@ -7310,14 +7310,11 @@ static uint dgap_config_get_useintr(struct board_t *bd)
 		return 0;
 
 	for (p = bd->bd_config; p; p = p->next) {
-		switch (p->type) {
-		case INTRNODE:
+		if (p->type == INTRNODE) {
 			/*
 			 * check for pcxr types.
 			 */
 			return p->u.useintr;
-		default:
-			break;
 		}
 	}
 
@@ -7336,14 +7333,11 @@ static uint dgap_config_get_altpin(struct board_t *bd)
 		return 0;
 
 	for (p = bd->bd_config; p; p = p->next) {
-		switch (p->type) {
-		case ANODE:
+		if (p->type == ANODE) {
 			/*
 			 * check for pcxr types.
 			 */
 			return p->u.altpin;
-		default:
-			break;
 		}
 	}
 
