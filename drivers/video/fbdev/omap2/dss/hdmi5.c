@@ -38,6 +38,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <video/omapdss.h>
+#include <sound/omap-hdmi-audio.h>
 
 #include "hdmi5_core.h"
 #include "dss.h"
@@ -368,6 +369,8 @@ static int hdmi_display_enable(struct omap_dss_device *dssdev)
 		goto err0;
 	}
 
+	hdmi.display_enabled = true;
+
 	mutex_unlock(&hdmi.lock);
 	return 0;
 
@@ -382,7 +385,12 @@ static void hdmi_display_disable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&hdmi.lock);
 
+	if (hdmi.audio_pdev && hdmi.audio_abort_cb)
+		hdmi.audio_abort_cb(&hdmi.audio_pdev->dev);
+
 	hdmi_power_off_full(dssdev);
+
+	hdmi.display_enabled = false;
 
 	mutex_unlock(&hdmi.lock);
 }
@@ -559,6 +567,112 @@ err:
 	return r;
 }
 
+/* Audio callbacks */
+static int hdmi_audio_startup(struct device *dev,
+			      void (*abort_cb)(struct device *dev))
+{
+	struct omap_hdmi *hd = dev_get_drvdata(dev);
+	int ret = 0;
+
+	mutex_lock(&hd->lock);
+
+	if (!hdmi_mode_has_audio(&hd->cfg) || !hd->display_enabled) {
+		ret = -EPERM;
+		goto out;
+	}
+
+	hd->audio_abort_cb = abort_cb;
+
+out:
+	mutex_unlock(&hd->lock);
+
+	return ret;
+}
+
+static int hdmi_audio_shutdown(struct device *dev)
+{
+	struct omap_hdmi *hd = dev_get_drvdata(dev);
+
+	mutex_lock(&hd->lock);
+	hd->audio_abort_cb = NULL;
+	mutex_unlock(&hd->lock);
+
+	return 0;
+}
+
+static int hdmi_audio_start(struct device *dev)
+{
+	struct omap_hdmi *hd = dev_get_drvdata(dev);
+
+	WARN_ON(!hdmi_mode_has_audio(&hd->cfg));
+	WARN_ON(!hd->display_enabled);
+
+	hdmi_wp_audio_enable(&hd->wp, true);
+	hdmi_wp_audio_core_req_enable(&hd->wp, true);
+
+	return 0;
+}
+
+static void hdmi_audio_stop(struct device *dev)
+{
+	struct omap_hdmi *hd = dev_get_drvdata(dev);
+
+	WARN_ON(!hdmi_mode_has_audio(&hd->cfg));
+	WARN_ON(!hd->display_enabled);
+
+	hdmi_wp_audio_core_req_enable(&hd->wp, false);
+	hdmi_wp_audio_enable(&hd->wp, false);
+}
+
+static int hdmi_audio_config(struct device *dev,
+			     struct omap_dss_audio *dss_audio)
+{
+	struct omap_hdmi *hd = dev_get_drvdata(dev);
+	int ret;
+
+	mutex_lock(&hd->lock);
+
+	if (!hdmi_mode_has_audio(&hd->cfg) || !hd->display_enabled) {
+		ret = -EPERM;
+		goto out;
+	}
+
+	ret = hdmi5_audio_config(&hd->core, &hd->wp, dss_audio,
+				 hd->cfg.timings.pixelclock);
+
+out:
+	mutex_unlock(&hd->lock);
+
+	return ret;
+}
+
+static const struct omap_hdmi_audio_ops hdmi_audio_ops = {
+	.audio_startup = hdmi_audio_startup,
+	.audio_shutdown = hdmi_audio_shutdown,
+	.audio_start = hdmi_audio_start,
+	.audio_stop = hdmi_audio_stop,
+	.audio_config = hdmi_audio_config,
+};
+
+static int hdmi_audio_register(struct device *dev)
+{
+	struct omap_hdmi_audio_pdata pdata = {
+		.dev = dev,
+		.dss_version = omapdss_get_version(),
+		.audio_dma_addr = hdmi_wp_get_audio_dma_addr(&hdmi.wp),
+		.ops = &hdmi_audio_ops,
+	};
+
+	hdmi.audio_pdev = platform_device_register_data(
+		dev, "omap-hdmi-audio", PLATFORM_DEVID_AUTO,
+		&pdata, sizeof(pdata));
+
+	if (IS_ERR(hdmi.audio_pdev))
+		return PTR_ERR(hdmi.audio_pdev);
+
+	return 0;
+}
+
 /* HDMI HW IP initialisation */
 static int omapdss_hdmihw_probe(struct platform_device *pdev)
 {
@@ -611,6 +725,14 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	hdmi_init_output(pdev);
 
+	r = hdmi_audio_register(&pdev->dev);
+	if (r) {
+		DSSERR("Registering HDMI audio failed %d\n", r);
+		hdmi_uninit_output(pdev);
+		pm_runtime_disable(&pdev->dev);
+		return r;
+	}
+
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
 	return 0;
@@ -621,6 +743,9 @@ err:
 
 static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 {
+	if (hdmi.audio_pdev)
+		platform_device_unregister(hdmi.audio_pdev);
+
 	hdmi_uninit_output(pdev);
 
 	hdmi_pll_uninit(&hdmi.pll);
