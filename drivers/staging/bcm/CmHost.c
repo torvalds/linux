@@ -13,7 +13,8 @@ enum E_CLASSIFIER_ACTION {
 	eDeleteClassifier
 };
 
-static ULONG GetNextTargetBufferLocation(struct bcm_mini_adapter *Adapter, B_UINT16 tid);
+static ULONG GetNextTargetBufferLocation(struct bcm_mini_adapter *Adapter,
+		B_UINT16 tid);
 static void restore_endianess_of_pstClassifierEntry(
 		struct bcm_classifier_rule *pstClassifierEntry,
 		enum bcm_ipaddr_context eIpAddrContext);
