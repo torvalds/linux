@@ -370,7 +370,8 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 /*
  * @ingroup ctrl_pkt_functions
  */
-static inline VOID DeleteClassifierRuleFromSF(struct bcm_mini_adapter *Adapter, UINT uiSearchRuleIndex, UINT nClassifierIndex)
+static inline VOID DeleteClassifierRuleFromSF(struct bcm_mini_adapter *Adapter,
+		UINT uiSearchRuleIndex, UINT nClassifierIndex)
 {
 	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 	B_UINT16 u16PacketClassificationRuleIndex;
@@ -386,15 +387,18 @@ static inline VOID DeleteClassifierRuleFromSF(struct bcm_mini_adapter *Adapter, 
 	if (usVCID == 0)
 		return;
 
-	u16PacketClassificationRuleIndex = Adapter->astClassifierTable[nClassifierIndex].uiClassifierRuleIndex;
+	u16PacketClassificationRuleIndex =
+		Adapter->astClassifierTable[nClassifierIndex].uiClassifierRuleIndex;
 	pstClassifierEntry = &Adapter->astClassifierTable[nClassifierIndex];
 	if (pstClassifierEntry) {
 		pstClassifierEntry->bUsed = false;
 		pstClassifierEntry->uiClassifierRuleIndex = 0;
-		memset(pstClassifierEntry, 0, sizeof(struct bcm_classifier_rule));
+		memset(pstClassifierEntry, 0,
+				sizeof(struct bcm_classifier_rule));
 
 		/* Delete the PHS Rule for this classifier */
-		PhsDeleteClassifierRule(&Adapter->stBCMPhsContext, usVCID, u16PacketClassificationRuleIndex);
+		PhsDeleteClassifierRule(&Adapter->stBCMPhsContext, usVCID,
+				u16PacketClassificationRuleIndex);
 	}
 }
 
