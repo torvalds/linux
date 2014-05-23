@@ -852,10 +852,11 @@ static void mxt_input_button(struct mxt_data *data, u8 *message)
 	}
 }
 
-static void mxt_input_sync(struct input_dev *input_dev)
+static void mxt_input_sync(struct mxt_data *data)
 {
-	input_mt_report_pointer_emulation(input_dev, false);
-	input_sync(input_dev);
+	input_mt_report_pointer_emulation(data->input_dev,
+					  data->pdata->t19_num_keys);
+	input_sync(data->input_dev);
 }
 
 static void mxt_proc_t9_message(struct mxt_data *data, u8 *message)
@@ -911,7 +912,7 @@ static void mxt_proc_t9_message(struct mxt_data *data, u8 *message)
 		if (status & MXT_T9_RELEASE) {
 			input_mt_report_slot_state(input_dev,
 						   MT_TOOL_FINGER, 0);
-			mxt_input_sync(input_dev);
+			mxt_input_sync(data);
 		}
 
 		/* A size of zero indicates touch is from a linked T47 Stylus */
@@ -1115,7 +1116,7 @@ static void mxt_proc_t63_messages(struct mxt_data *data, u8 *msg)
 	input_report_key(input_dev, BTN_STYLUS2,
 			 (msg[2] & MXT_T63_STYLUS_BARREL));
 
-	mxt_input_sync(input_dev);
+	mxt_input_sync(data);
 }
 
 static int mxt_proc_message(struct mxt_data *data, u8 *message)
@@ -1242,7 +1243,7 @@ static irqreturn_t mxt_process_messages_t44(struct mxt_data *data)
 
 end:
 	if (data->update_input) {
-		mxt_input_sync(data->input_dev);
+		mxt_input_sync(data);
 		data->update_input = false;
 	}
 
@@ -1265,7 +1266,7 @@ static int mxt_process_messages_until_invalid(struct mxt_data *data)
 	} while (--tries);
 
 	if (data->update_input) {
-		mxt_input_sync(data->input_dev);
+		mxt_input_sync(data);
 		data->update_input = false;
 	}
 
@@ -1305,7 +1306,7 @@ update_count:
 	data->last_message_count = total_handled;
 
 	if (data->update_input) {
-		mxt_input_sync(data->input_dev);
+		mxt_input_sync(data);
 		data->update_input = false;
 	}
 
@@ -2928,7 +2929,7 @@ static void mxt_reset_slots(struct mxt_data *data)
 		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, 0);
 	}
 
-	mxt_input_sync(input_dev);
+	mxt_input_sync(data);
 }
 
 static void mxt_start(struct mxt_data *data)
