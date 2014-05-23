@@ -51,7 +51,6 @@ static struct inet_protosw pingv6_protosw = {
 	.protocol =  IPPROTO_ICMPV6,
 	.prot =      &pingv6_prot,
 	.ops =       &inet6_dgram_ops,
-	.no_check =  UDP_CSUM_DEFAULT,
 	.flags =     INET_PROTOSW_REUSE,
 };
 

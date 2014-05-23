@@ -95,15 +95,6 @@ static inline struct udp_hslot *udp_hashslot2(struct udp_table *table,
 	return &table->hash2[hash & table->mask];
 }
 
-/* Note: this must match 'valbool' in sock_setsockopt */
-#define UDP_CSUM_NOXMIT		1
-
-/* Used by SunRPC/xprt layer. */
-#define UDP_CSUM_NORCV		2
-
-/* Default, as per the RFC, is to always do csums. */
-#define UDP_CSUM_DEFAULT	0
-
 extern struct proto udp_prot;
 
 extern atomic_long_t udp_memory_allocated;
