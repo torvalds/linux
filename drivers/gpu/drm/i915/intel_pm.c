@@ -5711,9 +5711,11 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 void __vlv_set_power_well(struct drm_i915_private *dev_priv,
 			  enum punit_power_well power_well_id, bool enable)
 {
+	struct drm_device *dev = dev_priv->dev;
 	u32 mask;
 	u32 state;
 	u32 ctrl;
+	enum pipe pipe;
 
 	if (power_well_id == PUNIT_POWER_WELL_DPIO_CMN_BC) {
 		if (enable) {
@@ -5727,6 +5729,8 @@ void __vlv_set_power_well(struct drm_i915_private *dev_priv,
 				   DPLL_INTEGRATED_CRI_CLK_VLV);
 			udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
 		} else {
+			for_each_pipe(pipe)
+				assert_pll_disabled(dev_priv, pipe);
 			/* Assert common reset */
 			I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) &
 				   ~DPIO_CMNRST);
