@@ -21,25 +21,25 @@ struct sample {
 /* For the numbers, see hists_common.c */
 static struct sample fake_samples[] = {
 	/* perf [kernel] schedule() */
-	{ .pid = 100, .ip = 0xf0000 + 700, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_KERNEL_SCHEDULE, },
 	/* perf [perf]   main() */
-	{ .pid = 100, .ip = 0x40000 + 700, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_PERF_MAIN, },
 	/* perf [libc]   malloc() */
-	{ .pid = 100, .ip = 0x50000 + 700, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_LIBC_MALLOC, },
 	/* perf [perf]   main() */
-	{ .pid = 200, .ip = 0x40000 + 700, }, /* will be merged */
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_MAIN, }, /* will be merged */
 	/* perf [perf]   cmd_record() */
-	{ .pid = 200, .ip = 0x40000 + 900, },
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_CMD_RECORD, },
 	/* perf [kernel] page_fault() */
-	{ .pid = 200, .ip = 0xf0000 + 800, },
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
 	/* bash [bash]   main() */
-	{ .pid = 300, .ip = 0x40000 + 700, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_MAIN, },
 	/* bash [bash]   xmalloc() */
-	{ .pid = 300, .ip = 0x40000 + 800, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_XMALLOC, },
 	/* bash [libc]   malloc() */
-	{ .pid = 300, .ip = 0x50000 + 700, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_LIBC_MALLOC, },
 	/* bash [kernel] page_fault() */
-	{ .pid = 300, .ip = 0xf0000 + 800, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
 };
 
 static int add_hist_entries(struct perf_evlist *evlist,
@@ -47,7 +47,7 @@ static int add_hist_entries(struct perf_evlist *evlist,
 {
 	struct perf_evsel *evsel;
 	struct addr_location al;
-	struct perf_sample sample = { .cpu = 0, };
+	struct perf_sample sample = { .period = 100, };
 	size_t i;
 
 	/*
@@ -75,7 +75,6 @@ static int add_hist_entries(struct perf_evlist *evlist,
 			sample.pid = fake_samples[i].pid;
 			sample.tid = fake_samples[i].pid;
 			sample.ip = fake_samples[i].ip;
-			sample.period = 100;
 
 			if (perf_event__preprocess_sample(&event, machine, &al,
 							  &sample) < 0)

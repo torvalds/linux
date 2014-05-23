@@ -22,25 +22,25 @@ struct sample {
 /* For the numbers, see hists_common.c */
 static struct sample fake_samples[] = {
 	/* perf [kernel] schedule() */
-	{ .cpu = 0, .pid = 100, .ip = 0xf0000 + 700, },
+	{ .cpu = 0, .pid = FAKE_PID_PERF1, .ip = FAKE_IP_KERNEL_SCHEDULE, },
 	/* perf [perf]   main() */
-	{ .cpu = 1, .pid = 100, .ip = 0x40000 + 700, },
+	{ .cpu = 1, .pid = FAKE_PID_PERF1, .ip = FAKE_IP_PERF_MAIN, },
 	/* perf [perf]   cmd_record() */
-	{ .cpu = 1, .pid = 100, .ip = 0x40000 + 900, },
+	{ .cpu = 1, .pid = FAKE_PID_PERF1, .ip = FAKE_IP_PERF_CMD_RECORD, },
 	/* perf [libc]   malloc() */
-	{ .cpu = 1, .pid = 100, .ip = 0x50000 + 700, },
+	{ .cpu = 1, .pid = FAKE_PID_PERF1, .ip = FAKE_IP_LIBC_MALLOC, },
 	/* perf [libc]   free() */
-	{ .cpu = 2, .pid = 100, .ip = 0x50000 + 800, },
+	{ .cpu = 2, .pid = FAKE_PID_PERF1, .ip = FAKE_IP_LIBC_FREE, },
 	/* perf [perf]   main() */
-	{ .cpu = 2, .pid = 200, .ip = 0x40000 + 700, },
+	{ .cpu = 2, .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_MAIN, },
 	/* perf [kernel] page_fault() */
-	{ .cpu = 2, .pid = 200, .ip = 0xf0000 + 800, },
+	{ .cpu = 2, .pid = FAKE_PID_PERF2, .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
 	/* bash [bash]   main() */
-	{ .cpu = 3, .pid = 300, .ip = 0x40000 + 700, },
+	{ .cpu = 3, .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_MAIN, },
 	/* bash [bash]   xmalloc() */
-	{ .cpu = 0, .pid = 300, .ip = 0x40000 + 800, },
+	{ .cpu = 0, .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_XMALLOC, },
 	/* bash [kernel] page_fault() */
-	{ .cpu = 1, .pid = 300, .ip = 0xf0000 + 800, },
+	{ .cpu = 1, .pid = FAKE_PID_BASH,  .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
 };
 
 static int add_hist_entries(struct hists *hists, struct machine *machine)
