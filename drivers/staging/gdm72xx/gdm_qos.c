@@ -47,7 +47,8 @@ static void *alloc_qos_entry(void)
 
 	spin_lock_irqsave(&qos_free_list.lock, flags);
 	if (qos_free_list.cnt) {
-		entry = list_entry(qos_free_list.head.prev, struct qos_entry_s, list);
+		entry = list_entry(qos_free_list.head.prev, struct qos_entry_s,
+				   list);
 		list_del(&entry->list);
 		qos_free_list.cnt--;
 		spin_unlock_irqrestore(&qos_free_list.lock, flags);
@@ -228,7 +229,8 @@ static u32 extract_qos_list(struct nic *nic, struct list_head *head)
 		if (list_empty(&qcb->qos_list[i]))
 			continue;
 
-		entry = list_entry(qcb->qos_list[i].prev, struct qos_entry_s, list);
+		entry = list_entry(qcb->qos_list[i].prev, struct qos_entry_s,
+				   list);
 
 		list_move_tail(&entry->list, head);
 		qcb->csr[i].qos_buf_count++;
@@ -430,7 +432,8 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		qcb->qos_list_cnt--;
 		qcb->qos_limit_size = 254/qcb->qos_list_cnt;
 
-		list_for_each_entry_safe(entry, n, &qcb->qos_list[index], list) {
+		list_for_each_entry_safe(entry, n, &qcb->qos_list[index],
+					 list) {
 			list_move_tail(&entry->list, &free_list);
 		}
 		spin_unlock_irqrestore(&qcb->qos_lock, flags);

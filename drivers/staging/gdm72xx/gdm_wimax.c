@@ -346,7 +346,8 @@ int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev)
 	int ret = 0;
 	struct nic *nic = netdev_priv(dev);
 
-	ret = gdm_wimax_send_with_cb(nic, skb->data, skb->len, tx_complete, nic);
+	ret = gdm_wimax_send_with_cb(nic, skb->data, skb->len, tx_complete,
+				     nic);
 	if (ret == -ENOSPC) {
 		netif_stop_queue(dev);
 		ret = 0;
@@ -535,7 +536,8 @@ static void gdm_wimax_cleanup_ioctl(struct net_device *dev)
 static void gdm_update_fsm(struct net_device *dev, struct fsm_s *new_fsm)
 {
 	struct nic *nic = netdev_priv(dev);
-	struct fsm_s *cur_fsm = (struct fsm_s *)nic->sdk_data[SIOC_DATA_FSM].buf;
+	struct fsm_s *cur_fsm = (struct fsm_s *)
+					nic->sdk_data[SIOC_DATA_FSM].buf;
 
 	if (!cur_fsm)
 		return;
@@ -572,15 +574,16 @@ static int gdm_wimax_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EOPNOTSUPP;
 		}
 		if (req->cmd == SIOCG_DATA) {
-			ret = gdm_wimax_ioctl_get_data(&req->data,
-						       &nic->sdk_data[req->data_id]);
+			ret = gdm_wimax_ioctl_get_data(
+				&req->data, &nic->sdk_data[req->data_id]);
 			if (ret < 0)
 				return ret;
 		} else if (req->cmd == SIOCS_DATA) {
 			if (req->data_id == SIOC_DATA_FSM) {
 				/*NOTE: gdm_update_fsm should be called
 				before gdm_wimax_ioctl_set_data is called*/
-				gdm_update_fsm(dev, (struct fsm_s *)req->data.buf);
+				gdm_update_fsm(dev,
+					       (struct fsm_s *)req->data.buf);
 			}
 			ret = gdm_wimax_ioctl_set_data(
 				&nic->sdk_data[req->data_id], &req->data);
@@ -657,7 +660,8 @@ static int gdm_wimax_hci_get_tlv(u8 *buf, u8 *T, u16 *L, u8 **V)
 	return next_pos;
 }
 
-static int gdm_wimax_get_prepared_info(struct net_device *dev, char *buf, int len)
+static int gdm_wimax_get_prepared_info(struct net_device *dev, char *buf,
+				       int len)
 {
 	u8 T, *V;
 	u16 L;
@@ -781,7 +785,8 @@ static void gdm_wimax_transmit_pkt(struct net_device *dev, char *buf, int len)
 
 	switch (cmd_evt) {
 	case WIMAX_RX_SDU_AGGR:
-		gdm_wimax_transmit_aggr_pkt(dev, &buf[HCI_HEADER_SIZE], cmd_len);
+		gdm_wimax_transmit_aggr_pkt(dev, &buf[HCI_HEADER_SIZE],
+					    cmd_len);
 		break;
 	case WIMAX_RX_SDU:
 		gdm_wimax_netif_rx(dev, &buf[HCI_HEADER_SIZE], cmd_len);

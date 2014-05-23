@@ -312,7 +312,8 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 	spin_unlock_irqrestore(&tx->lock, flags);
 }
 
-static void send_hci(struct sdio_func *func, struct tx_cxt *tx, struct sdio_tx *t)
+static void send_hci(struct sdio_func *func, struct tx_cxt *tx,
+		     struct sdio_tx *t)
 {
 	unsigned long flags;
 
@@ -601,7 +602,8 @@ static int gdm_sdio_receive(void *priv_dev,
 	return 0;
 }
 
-static int sdio_wimax_probe(struct sdio_func *func, const struct sdio_device_id *id)
+static int sdio_wimax_probe(struct sdio_func *func,
+			    const struct sdio_device_id *id)
 {
 	int ret;
 	struct phy_dev *phy_dev = NULL;

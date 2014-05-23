@@ -527,7 +527,8 @@ static void do_pm_control(struct work_struct *work)
 }
 #endif /* CONFIG_WIMAX_GDM72XX_USB_PM */
 
-static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int gdm_usb_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
 {
 	int ret = 0;
 	u8 bConfigurationValue;
@@ -556,7 +557,8 @@ static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	}
 
 	/* Support for EEPROM bootloader */
-	if (bConfigurationValue == DOWNLOAD_CONF_VALUE || idProduct & B_DOWNLOAD) {
+	if (bConfigurationValue == DOWNLOAD_CONF_VALUE ||
+	    idProduct & B_DOWNLOAD) {
 		ret = usb_boot(usbdev, bcdDevice);
 		goto out;
 	}
@@ -628,7 +630,8 @@ static void gdm_usb_disconnect(struct usb_interface *intf)
 	idProduct = L2H(usbdev->descriptor.idProduct);
 
 	if (idProduct != EMERGENCY_PID &&
-	    bConfigurationValue != DOWNLOAD_CONF_VALUE && (idProduct & B_DOWNLOAD) == 0) {
+	    bConfigurationValue != DOWNLOAD_CONF_VALUE &&
+	    (idProduct & B_DOWNLOAD) == 0) {
 
 		udev = phy_dev->priv_dev;
 		udev->usbdev = NULL;
@@ -731,7 +734,8 @@ static int k_mode_thread(void *arg)
 
 			spin_lock_irqsave(&tx->lock, flags);
 
-			list_for_each_entry_safe(t, temp, &tx->pending_list, p_list) {
+			list_for_each_entry_safe(t, temp, &tx->pending_list,
+						 p_list) {
 				list_del(&t->p_list);
 				ret = usb_submit_urb(t->urb, GFP_ATOMIC);
 
@@ -747,8 +751,8 @@ static int k_mode_thread(void *arg)
 			spin_lock_irqsave(&k_lock, flags2);
 		}
 		wait_event_interruptible_lock_irq(k_wait,
-						  !list_empty(&k_list) || k_mode_stop,
-						  k_lock);
+						  !list_empty(&k_list) ||
+						  k_mode_stop, k_lock);
 		spin_unlock_irqrestore(&k_lock, flags2);
 	}
 	return 0;

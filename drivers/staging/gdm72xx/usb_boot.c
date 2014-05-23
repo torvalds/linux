@@ -106,7 +106,8 @@ static int gdm_wibro_recv(struct usb_device *usbdev, void *data, int len)
 	return 0;
 }
 
-static int download_image(struct usb_device *usbdev, const struct firmware *firm,
+static int download_image(struct usb_device *usbdev,
+			  const struct firmware *firm,
 			  loff_t pos, u32 img_len, u32 magic_num)
 {
 	struct dn_header h;
