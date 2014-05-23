@@ -1133,14 +1133,10 @@ static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
 				adapter->upr_lock.flags);
 }
 
-static void slic_config_get(struct adapter *adapter, u32 config,
-							u32 config_h)
+static int slic_config_get(struct adapter *adapter, u32 config, u32 config_h)
 {
-	int status;
-
-	status = slic_upr_request(adapter,
-				  SLIC_UPR_RCONFIG,
-				  (u32) config, (u32) config_h, 0, 0);
+	return slic_upr_request(adapter, SLIC_UPR_RCONFIG, config, config_h,
+				0, 0);
 }
 
 /*
@@ -2743,7 +2739,12 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 		spin_unlock_irqrestore(&adapter->bit64reglock.lock,
 					adapter->bit64reglock.flags);
 
-		slic_config_get(adapter, phys_configl, phys_configh);
+		status = slic_config_get(adapter, phys_configl, phys_configh);
+		if (status) {
+			dev_err(&adapter->pcidev->dev,
+				"Failed to fetch config data from device.\n");
+			goto card_init_err;
+		}
 
 		for (;;) {
 			if (adapter->pshmem->isr) {
@@ -2774,10 +2775,8 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 						&slic_regs->slic_isp, 0,
 						&slic_regs->slic_addr_upper,
 						0, FLUSH);
-					pci_free_consistent(adapter->pcidev,
-						sizeof(struct slic_eeprom),
-						peeprom, phys_config);
-					return -EINVAL;
+					status = -EINVAL;
+					goto card_init_err;
 				}
 			}
 		}
@@ -2885,6 +2884,11 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	card->reset_in_progress = 0;
 
 	return 0;
+
+card_init_err:
+	pci_free_consistent(adapter->pcidev, sizeof(struct slic_eeprom),
+			    peeprom, phys_config);
+	return status;
 }
 
 static void slic_init_driver(void)
