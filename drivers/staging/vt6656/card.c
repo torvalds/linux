@@ -473,29 +473,31 @@ void vUpdateIFS(struct vnt_private *priv)
 		MESSAGE_REQUEST_MACREG, 1, &max_min);
 }
 
-void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)
+void CARDvUpdateBasicTopRate(struct vnt_private *priv)
 {
-	u8 byTopOFDM = RATE_24M, byTopCCK = RATE_1M;
-	u8 ii;
+	u8 top_ofdm = RATE_24M, top_cck = RATE_1M;
+	u8 i;
 
-     //Determines the highest basic rate.
-     for (ii = RATE_54M; ii >= RATE_6M; ii --) {
-         if ( (pDevice->wBasicRate) & ((u16)(1<<ii)) ) {
-             byTopOFDM = ii;
-             break;
-         }
-     }
-     pDevice->byTopOFDMBasicRate = byTopOFDM;
+	/*Determines the highest basic rate.*/
+	for (i = RATE_54M; i >= RATE_6M; i--) {
+		if (priv->wBasicRate & (u16)(1 << i)) {
+			top_ofdm = i;
+			break;
+		}
+	}
 
-     for (ii = RATE_11M;; ii --) {
-         if ( (pDevice->wBasicRate) & ((u16)(1<<ii)) ) {
-             byTopCCK = ii;
-             break;
-         }
-         if (ii == RATE_1M)
-            break;
-     }
-     pDevice->byTopCCKBasicRate = byTopCCK;
+	priv->byTopOFDMBasicRate = top_ofdm;
+
+	for (i = RATE_11M;; i--) {
+		if (priv->wBasicRate & (u16)(1 << i)) {
+			top_cck = i;
+			break;
+		}
+		if (i == RATE_1M)
+			break;
+	}
+
+	priv->byTopCCKBasicRate = top_cck;
  }
 
 /*
