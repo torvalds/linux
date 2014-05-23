@@ -513,14 +513,13 @@ void CARDvUpdateBasicTopRate(struct vnt_private *priv)
  * Return Value: true if succeeded; false if failed.
  *
  */
-void CARDbAddBasicRate(struct vnt_private *pDevice, u16 wRateIdx)
+void CARDbAddBasicRate(struct vnt_private *priv, u16 rate_idx)
 {
-	u16 wRate = (1 << wRateIdx);
 
-    pDevice->wBasicRate |= wRate;
+	priv->wBasicRate |= (1 << rate_idx);
 
-    //Determines the highest basic rate.
-    CARDvUpdateBasicTopRate(pDevice);
+	/*Determines the highest basic rate.*/
+	CARDvUpdateBasicTopRate(priv);
 }
 
 int CARDbIsOFDMinBasicRate(struct vnt_private *pDevice)
