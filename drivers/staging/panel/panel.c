@@ -664,8 +664,12 @@ static void pin_to_bits(int pin, unsigned char *d_val, unsigned char *c_val)
 {
 	int d_bit, c_bit, inv;
 
-	d_val[0] = c_val[0] = d_val[1] = c_val[1] = 0;
-	d_val[2] = c_val[2] = 0xFF;
+	d_val[0] = 0;
+	c_val[0] = 0;
+	d_val[1] = 0;
+	c_val[1] = 0;
+	d_val[2] = 0xFF;
+	c_val[2] = 0xFF;
 
 	if (pin == 0)
 		return;
@@ -674,7 +678,8 @@ static void pin_to_bits(int pin, unsigned char *d_val, unsigned char *c_val)
 	if (inv)
 		pin = -pin;
 
-	d_bit = c_bit = 0;
+	d_bit = 0;
+	c_bit = 0;
 
 	switch (pin) {
 	case PIN_STROBE:	/* strobe, inverted */
@@ -867,7 +872,8 @@ static void lcd_clear_fast_s(void)
 {
 	int pos;
 
-	lcd_addr_x = lcd_addr_y = 0;
+	lcd_addr_x = 0;
+	lcd_addr_y = 0;
 	lcd_gotoxy();
 
 	spin_lock_irq(&pprt_lock);
@@ -879,7 +885,8 @@ static void lcd_clear_fast_s(void)
 	}
 	spin_unlock_irq(&pprt_lock);
 
-	lcd_addr_x = lcd_addr_y = 0;
+	lcd_addr_x = 0;
+	lcd_addr_y = 0;
 	lcd_gotoxy();
 }
 
@@ -888,7 +895,8 @@ static void lcd_clear_fast_p8(void)
 {
 	int pos;
 
-	lcd_addr_x = lcd_addr_y = 0;
+	lcd_addr_x = 0;
+	lcd_addr_y = 0;
 	lcd_gotoxy();
 
 	spin_lock_irq(&pprt_lock);
@@ -915,7 +923,8 @@ static void lcd_clear_fast_p8(void)
 	}
 	spin_unlock_irq(&pprt_lock);
 
-	lcd_addr_x = lcd_addr_y = 0;
+	lcd_addr_x = 0;
+	lcd_addr_y = 0;
 	lcd_gotoxy();
 }
 
@@ -924,7 +933,8 @@ static void lcd_clear_fast_tilcd(void)
 {
 	int pos;
 
-	lcd_addr_x = lcd_addr_y = 0;
+	lcd_addr_x = 0;
+	lcd_addr_y = 0;
 	lcd_gotoxy();
 
 	spin_lock_irq(&pprt_lock);
@@ -936,7 +946,8 @@ static void lcd_clear_fast_tilcd(void)
 
 	spin_unlock_irq(&pprt_lock);
 
-	lcd_addr_x = lcd_addr_y = 0;
+	lcd_addr_x = 0;
+	lcd_addr_y = 0;
 	lcd_gotoxy();
 }
 
@@ -944,7 +955,8 @@ static void lcd_clear_fast_tilcd(void)
 static void lcd_clear_display(void)
 {
 	lcd_write_cmd(0x01);	/* clear display */
-	lcd_addr_x = lcd_addr_y = 0;
+	lcd_addr_x = 0;
+	lcd_addr_y = 0;
 	/* we must wait a few milliseconds (15) */
 	long_sleep(15);
 }
@@ -1292,7 +1304,8 @@ static void lcd_write_char(char c)
 			processed = 1;
 		} else if (!strcmp(lcd_escape, "[H")) {
 			/* cursor to home */
-			lcd_addr_x = lcd_addr_y = 0;
+			lcd_addr_x = 0;
+			lcd_addr_y = 0;
 			lcd_gotoxy();
 			processed = 1;
 		}
@@ -1576,7 +1589,8 @@ static void lcd_init(void)
 	panel_lcd_print("\x1b[Lc\x1b[Lb\x1b[L*Linux-" UTS_RELEASE "\nPanel-"
 			PANEL_VERSION);
 #endif
-	lcd_addr_x = lcd_addr_y = 0;
+	lcd_addr_x = 0;
+	lcd_addr_y = 0;
 	/* clear the display on the next device opening */
 	lcd_must_clear = 1;
 	lcd_gotoxy();
@@ -1953,7 +1967,10 @@ static int input_name2mask(const char *name, pmask_t *mask, pmask_t *value,
 	char im, om;
 	pmask_t m, v;
 
-	om = im = m = v = 0ULL;
+	om = 0ULL;
+	im = 0ULL;
+	m = 0ULL;
+	v = 0ULL;
 	while (*name) {
 		int in, out, bit, neg;
 
