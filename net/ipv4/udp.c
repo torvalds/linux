@@ -1968,7 +1968,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 		       int (*push_pending_frames)(struct sock *))
 {
 	struct udp_sock *up = udp_sk(sk);
-	int val;
+	int val, valbool;
 	int err = 0;
 	int is_udplite = IS_UDPLITE(sk);
 
@@ -1977,6 +1977,8 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 
 	if (get_user(val, (int __user *)optval))
 		return -EFAULT;
+
+	valbool = val ? 1 : 0;
 
 	switch (optname) {
 	case UDP_CORK:
@@ -2005,6 +2007,14 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 			err = -ENOPROTOOPT;
 			break;
 		}
+		break;
+
+	case UDP_NO_CHECK6_TX:
+		up->no_check6_tx = valbool;
+		break;
+
+	case UDP_NO_CHECK6_RX:
+		up->no_check6_rx = valbool;
 		break;
 
 	/*
@@ -2087,6 +2097,14 @@ int udp_lib_getsockopt(struct sock *sk, int level, int optname,
 
 	case UDP_ENCAP:
 		val = up->encap_type;
+		break;
+
+	case UDP_NO_CHECK6_TX:
+		val = up->no_check6_tx;
+		break;
+
+	case UDP_NO_CHECK6_RX:
+		val = up->no_check6_rx;
 		break;
 
 	/* The following two cannot be changed on UDP sockets, the return is
