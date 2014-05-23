@@ -1472,7 +1472,7 @@ static int run_one(struct sk_filter *fp, struct bpf_test *t)
 static __init int test_bpf(void)
 {
 	struct sk_filter *fp, *fp_ext = NULL;
-	struct sock_fprog fprog;
+	struct sock_fprog_kern fprog;
 	int err, i, err_cnt = 0;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {

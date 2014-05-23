@@ -133,7 +133,7 @@ void __init ptp_classifier_init(void)
 		{ 0x16,  0,  0, 0x00000000 },
 		{ 0x06,  0,  0, 0x00000000 },
 	};
-	struct sock_fprog ptp_prog = {
+	struct sock_fprog_kern ptp_prog = {
 		.len = ARRAY_SIZE(ptp_filter), .filter = ptp_filter,
 	};
 

@@ -1585,7 +1585,7 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
  * a negative errno code is returned. On success the return is zero.
  */
 int sk_unattached_filter_create(struct sk_filter **pfp,
-				struct sock_fprog *fprog)
+				struct sock_fprog_kern *fprog)
 {
 	unsigned int fsize = sk_filter_proglen(fprog);
 	struct sk_filter *fp;
