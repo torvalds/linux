@@ -109,7 +109,8 @@ static int SearchFreeClsid(struct bcm_mini_adapter *Adapter /**Adapter Context*/
 	return MAX_CLASSIFIERS+1;
 }
 
-static VOID deleteSFBySfid(struct bcm_mini_adapter *Adapter, UINT uiSearchRuleIndex)
+static VOID deleteSFBySfid(struct bcm_mini_adapter *Adapter,
+		UINT uiSearchRuleIndex)
 {
 	/* deleting all the packet held in the SF */
 	flush_queue(Adapter, uiSearchRuleIndex);
@@ -118,7 +119,8 @@ static VOID deleteSFBySfid(struct bcm_mini_adapter *Adapter, UINT uiSearchRuleIn
 	DeleteAllClassifiersForSF(Adapter, uiSearchRuleIndex);
 
 	/* Resetting only MIBS related entries in the SF */
-	memset((PVOID)&Adapter->PackInfo[uiSearchRuleIndex], 0, sizeof(struct bcm_mibs_table));
+	memset((PVOID)&Adapter->PackInfo[uiSearchRuleIndex], 0,
+			sizeof(struct bcm_mibs_table));
 }
 
 static inline VOID
