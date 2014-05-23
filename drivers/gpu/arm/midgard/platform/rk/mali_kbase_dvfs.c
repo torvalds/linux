@@ -50,7 +50,9 @@
 /***********************************************************/
 /*  This table and variable are using the check time share of GPU Clock  */
 /***********************************************************/
-
+extern int rockchip_tsadc_get_temp(int chn);
+#define gpu_temp_limit 110
+#define gpu_temp_statis_time 1
 #define level0_min 0
 #define level0_max 70
 #define levelf_max 100
@@ -74,6 +76,8 @@ typedef struct _mali_dvfs_status_type {
 	kbase_device *kbdev;
 	int step;
 	int utilisation;
+	u32 temperature;
+	u32 temperature_time;
 #ifdef CONFIG_MALI_MIDGARD_FREQ_LOCK
 	int upper_lock;
 	int under_lock;
@@ -100,6 +104,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	mali_dvfs_status *dvfs_status;
 	static int level_down_time = 0;
 	static int level_up_time = 0;
+	static u32 temp_tmp;
 	struct rk_context *platform;
 	u32 fps=0;
 	u32 fps_limit;
@@ -115,25 +120,44 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	
 	fps = rk_get_real_fps(0);
 
+	dvfs_status->temperature_time++;
+	temp_tmp += rockchip_tsadc_get_temp(2);
+
+	if(dvfs_status->temperature_time >= gpu_temp_statis_time)
+	{
+		dvfs_status->temperature_time = 0;
+		dvfs_status->temperature = temp_tmp / gpu_temp_statis_time;
+		temp_tmp = 0;
+		/*pr_info("dvfs_status->temperature = %d\n",dvfs_status->temperature);*/
+	}
+
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
 	/*
 	policy = rockchip_pm_get_policy();
 	*/
 	policy = ROCKCHIP_PM_POLICY_NORMAL;
+	
 	if(ROCKCHIP_PM_POLICY_PERFORMANCE == policy)
 	{
-		/*
-		printk("policy : %d\n",policy);
-		*/
 		dvfs_status->step = MALI_DVFS_STEP - 1;	/*Highest level when performance mode*/
 	}
-	else 
+	else
 	{
 		fps_limit = (ROCKCHIP_PM_POLICY_NORMAL == policy)?LIMIT_FPS : LIMIT_FPS_POWER_SAVE;
 		/*
 		printk("policy : %d , fps_limit = %d\n",policy,fps_limit);
 		*/
-		if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) && (dvfs_status->step < MALI_DVFS_STEP-1) && fps < fps_limit) 
+		
+		/*give priority to temperature unless in performance mode */
+		if(dvfs_status->temperature > gpu_temp_limit)
+		{
+			if(dvfs_status->step > 0)
+				dvfs_status->step--;
+			
+			if(gpu_temp_statis_time > 1)
+				dvfs_status->temperature = 0;
+		}
+		else if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) && (dvfs_status->step < MALI_DVFS_STEP-1) && fps < fps_limit) 
 		{
 			level_up_time++;
 			if(level_up_time == MALI_DVFS_TIME_INTERVAL)
@@ -307,8 +331,16 @@ static bool calculate_dvfs_max_min_threshold(u32 level)
 	u32	tmp ;
 	if(0 == level)
 	{
-		mali_dvfs_infotbl[level].min_threshold = level0_min;
-		mali_dvfs_infotbl[level].max_threshold = level0_max;
+		if((MALI_DVFS_STEP-1) == level)
+		{
+			mali_dvfs_infotbl[level].min_threshold = level0_min;
+			mali_dvfs_infotbl[level].max_threshold = levelf_max;
+		}
+		else 
+		{
+			mali_dvfs_infotbl[level].min_threshold = level0_min;
+			mali_dvfs_infotbl[level].max_threshold = level0_max;
+		}
 	}
 	else
 	{
@@ -367,7 +399,8 @@ int kbase_platform_dvfs_init(struct kbase_device *kbdev)
 			mali_dvfs_infotbl[i].clock = mali_freq_table[i].frequency;
 			MALI_DVFS_STEP++;
 		}
-		div_dvfs = round_up(((levelf_max - level0_max)/(MALI_DVFS_STEP-1)),1);
+		if(MALI_DVFS_STEP > 1)
+			div_dvfs = round_up(((levelf_max - level0_max)/(MALI_DVFS_STEP-1)),1);
 		printk("MALI_DVFS_STEP=%d,div_dvfs=%d\n",MALI_DVFS_STEP,div_dvfs);
 		
 		for(i=0;i<MALI_DVFS_STEP;i++)
