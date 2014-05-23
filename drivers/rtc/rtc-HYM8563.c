@@ -30,10 +30,8 @@
 struct hym8563 {
 	int irq;
 	struct i2c_client *client;
-	struct work_struct work;
 	struct mutex mutex;
 	struct rtc_device *rtc;
-	int exiting;
 	struct rtc_wkalrm alarm;
 	struct wake_lock wake_lock;
 };
@@ -615,11 +613,8 @@ static int  hym8563_probe(struct i2c_client *client, const struct i2c_device_id 
 	return 0;
 
 exit:
-	if (rtc)
-		rtc_device_unregister(rtc);
 	if (hym8563) {
 		wake_lock_destroy(&hym8563->wake_lock);
-		kfree(hym8563);
 	}
 	return rc;
 }
@@ -628,19 +623,7 @@ static int  hym8563_remove(struct i2c_client *client)
 {
 	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 
-	if (hym8563->irq > 0) {
-		mutex_lock(&hym8563->mutex);
-		hym8563->exiting = 1;
-		mutex_unlock(&hym8563->mutex);
-
-		free_irq(hym8563->irq, hym8563);
-		cancel_work_sync(&hym8563->work);
-	}
-
-	rtc_device_unregister(hym8563->rtc);
 	wake_lock_destroy(&hym8563->wake_lock);
-	kfree(hym8563);
-	hym8563 = NULL;
 
 	return 0;
 }
