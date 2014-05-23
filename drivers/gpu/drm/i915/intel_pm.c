@@ -6095,12 +6095,6 @@ static struct i915_power_well vlv_power_wells[] = {
 		.ops = &vlv_display_power_well_ops,
 	},
 	{
-		.name = "dpio-common",
-		.domains = VLV_DPIO_CMN_BC_POWER_DOMAINS,
-		.data = PUNIT_POWER_WELL_DPIO_CMN_BC,
-		.ops = &vlv_dpio_power_well_ops,
-	},
-	{
 		.name = "dpio-tx-b-01",
 		.domains = VLV_DPIO_TX_B_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_B_LANES_23_POWER_DOMAINS |
@@ -6135,6 +6129,12 @@ static struct i915_power_well vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
 		.data = PUNIT_POWER_WELL_DPIO_TX_C_LANES_23,
+	},
+	{
+		.name = "dpio-common",
+		.domains = VLV_DPIO_CMN_BC_POWER_DOMAINS,
+		.data = PUNIT_POWER_WELL_DPIO_CMN_BC,
+		.ops = &vlv_dpio_power_well_ops,
 	},
 };
 
