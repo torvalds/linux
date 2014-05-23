@@ -220,7 +220,7 @@ static void vidi_win_commit(struct exynos_drm_manager *mgr, int zpos)
 
 	win_data->enabled = true;
 
-	DRM_DEBUG_KMS("dma_addr = 0x%x\n", win_data->dma_addr);
+	DRM_DEBUG_KMS("dma_addr = %pad\n", &win_data->dma_addr);
 
 	if (ctx->vblank_on)
 		schedule_work(&ctx->work);

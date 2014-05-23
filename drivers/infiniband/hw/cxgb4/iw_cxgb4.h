@@ -435,6 +435,7 @@ struct c4iw_qp_attributes {
 	u8 ecode;
 	u16 sq_db_inc;
 	u16 rq_db_inc;
+	u8 send_term;
 };
 
 struct c4iw_qp {

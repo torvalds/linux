@@ -487,9 +487,6 @@
 
 &ldb {
 	status = "okay";
-	lvds-channel@0 {
-		crtcs = <&ipu1 0>, <&ipu1 1>, <&ipu2 0>, <&ipu2 1>;
-	};
 };
 
 &pcie {

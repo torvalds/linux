@@ -307,6 +307,7 @@
 			      <0x0 0x1f21e000 0x0 0x1000>,
 			      <0x0 0x1f217000 0x0 0x1000>;
 			interrupts = <0x0 0x86 0x4>;
+			dma-coherent;
 			status = "disabled";
 			clocks = <&sata01clk 0>;
 			phys = <&phy1 0>;
@@ -321,6 +322,7 @@
 			      <0x0 0x1f22e000 0x0 0x1000>,
 			      <0x0 0x1f227000 0x0 0x1000>;
 			interrupts = <0x0 0x87 0x4>;
+			dma-coherent;
 			status = "ok";
 			clocks = <&sata23clk 0>;
 			phys = <&phy2 0>;
@@ -334,6 +336,7 @@
 			      <0x0 0x1f23d000 0x0 0x1000>,
 			      <0x0 0x1f23e000 0x0 0x1000>;
 			interrupts = <0x0 0x88 0x4>;
+			dma-coherent;
 			status = "ok";
 			clocks = <&sata45clk 0>;
 			phys = <&phy3 0>;

@@ -3619,7 +3619,8 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 {
 	struct drm_connector *connector = &intel_connector->base;
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *fixed_mode = NULL;
 	bool has_dpcd;
@@ -3628,6 +3629,14 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 
 	if (!is_edp(intel_dp))
 		return true;
+
+	/* The VDD bit needs a power domain reference, so if the bit is already
+	 * enabled when we boot, grab this reference. */
+	if (edp_have_panel_vdd(intel_dp)) {
+		enum intel_display_power_domain power_domain;
+		power_domain = intel_display_port_power_domain(intel_encoder);
+		intel_display_power_get(dev_priv, power_domain);
+	}
 
 	/* Cache DPCD and EDID for edp. */
 	intel_edp_panel_vdd_on(intel_dp);

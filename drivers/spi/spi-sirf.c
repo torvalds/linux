@@ -287,8 +287,8 @@ static irqreturn_t spi_sirfsoc_irq(int irq, void *dev_id)
 				sspi->left_rx_word)
 			sspi->rx_word(sspi);
 
-	if (spi_stat & (SIRFSOC_SPI_FIFO_EMPTY
-			| SIRFSOC_SPI_TXFIFO_THD_REACH))
+	if (spi_stat & (SIRFSOC_SPI_TXFIFO_EMPTY |
+			SIRFSOC_SPI_TXFIFO_THD_REACH))
 		while (!((readl(sspi->base + SIRFSOC_SPI_TXFIFO_STATUS)
 				& SIRFSOC_SPI_FIFO_FULL)) &&
 				sspi->left_tx_word)
@@ -470,7 +470,16 @@ static void spi_sirfsoc_chipselect(struct spi_device *spi, int value)
 		writel(regval, sspi->base + SIRFSOC_SPI_CTRL);
 	} else {
 		int gpio = sspi->chipselect[spi->chip_select];
-		gpio_direction_output(gpio, spi->mode & SPI_CS_HIGH ? 0 : 1);
+		switch (value) {
+		case BITBANG_CS_ACTIVE:
+			gpio_direction_output(gpio,
+					spi->mode & SPI_CS_HIGH ? 1 : 0);
+			break;
+		case BITBANG_CS_INACTIVE:
+			gpio_direction_output(gpio,
+					spi->mode & SPI_CS_HIGH ? 0 : 1);
+			break;
+		}
 	}
 }
 
@@ -559,6 +568,11 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		regval &= ~SIRFSOC_SPI_CMD_MODE;
 		sspi->tx_by_cmd = false;
 	}
+	/*
+	 * set spi controller in RISC chipselect mode, we are controlling CS by
+	 * software BITBANG_CS_ACTIVE and BITBANG_CS_INACTIVE.
+	 */
+	regval |= SIRFSOC_SPI_CS_IO_MODE;
 	writel(regval, sspi->base + SIRFSOC_SPI_CTRL);
 
 	if (IS_DMA_VALID(t)) {

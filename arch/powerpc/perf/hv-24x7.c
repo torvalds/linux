@@ -155,14 +155,26 @@ static ssize_t read_offset_data(void *dest, size_t dest_len,
 	return copy_len;
 }
 
-static unsigned long h_get_24x7_catalog_page(char page[static 4096],
-					     u32 version, u32 index)
+static unsigned long h_get_24x7_catalog_page_(unsigned long phys_4096,
+					      unsigned long version,
+					      unsigned long index)
 {
-	WARN_ON(!IS_ALIGNED((unsigned long)page, 4096));
-	return plpar_hcall_norets(H_GET_24X7_CATALOG_PAGE,
-			virt_to_phys(page),
+	pr_devel("h_get_24x7_catalog_page(0x%lx, %lu, %lu)",
+			phys_4096,
 			version,
 			index);
+	WARN_ON(!IS_ALIGNED(phys_4096, 4096));
+	return plpar_hcall_norets(H_GET_24X7_CATALOG_PAGE,
+			phys_4096,
+			version,
+			index);
+}
+
+static unsigned long h_get_24x7_catalog_page(char page[],
+					     u64 version, u32 index)
+{
+	return h_get_24x7_catalog_page_(virt_to_phys(page),
+					version, index);
 }
 
 static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
@@ -173,7 +185,7 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 	ssize_t ret = 0;
 	size_t catalog_len = 0, catalog_page_len = 0, page_count = 0;
 	loff_t page_offset = 0;
-	uint32_t catalog_version_num = 0;
+	uint64_t catalog_version_num = 0;
 	void *page = kmem_cache_alloc(hv_page_cache, GFP_USER);
 	struct hv_24x7_catalog_page_0 *page_0 = page;
 	if (!page)
@@ -185,7 +197,7 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 		goto e_free;
 	}
 
-	catalog_version_num = be32_to_cpu(page_0->version);
+	catalog_version_num = be64_to_cpu(page_0->version);
 	catalog_page_len = be32_to_cpu(page_0->length);
 	catalog_len = catalog_page_len * 4096;
 
@@ -208,8 +220,9 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 				page, 4096, page_offset * 4096);
 e_free:
 	if (hret)
-		pr_err("h_get_24x7_catalog_page(ver=%d, page=%lld) failed: rc=%ld\n",
-				catalog_version_num, page_offset, hret);
+		pr_err("h_get_24x7_catalog_page(ver=%lld, page=%lld) failed:"
+		       " rc=%ld\n",
+		       catalog_version_num, page_offset, hret);
 	kfree(page);
 
 	pr_devel("catalog_read: offset=%lld(%lld) count=%zu(%zu) catalog_len=%zu(%zu) => %zd\n",
@@ -243,7 +256,7 @@ e_free:								\
 static DEVICE_ATTR_RO(_name)
 
 PAGE_0_ATTR(catalog_version, "%lld\n",
-		(unsigned long long)be32_to_cpu(page_0->version));
+		(unsigned long long)be64_to_cpu(page_0->version));
 PAGE_0_ATTR(catalog_len, "%lld\n",
 		(unsigned long long)be32_to_cpu(page_0->length) * 4096);
 static BIN_ATTR_RO(catalog, 0/* real length varies */);
@@ -485,13 +498,13 @@ static int hv_24x7_init(void)
 	struct hv_perf_caps caps;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		pr_info("not a virtualized system, not enabling\n");
+		pr_debug("not a virtualized system, not enabling\n");
 		return -ENODEV;
 	}
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_info("could not obtain capabilities, error 0x%80lx, not enabling\n",
+		pr_debug("could not obtain capabilities, not enabling, rc=%ld\n",
 				hret);
 		return -ENODEV;
 	}
