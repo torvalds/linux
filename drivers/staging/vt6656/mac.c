@@ -264,18 +264,13 @@ void MACvDisableBarkerPreambleMd(struct vnt_private *priv)
 		MAC_REG_ENCFG2, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
-void MACvWriteBeaconInterval(struct vnt_private *pDevice, u16 wInterval)
+void MACvWriteBeaconInterval(struct vnt_private *priv, u16 interval)
 {
-	u8 pbyData[2];
+	u8 data[2];
 
-	pbyData[0] = (u8)(wInterval & 0xff);
-	pbyData[1] = (u8)(wInterval >> 8);
+	data[0] = (u8)(interval & 0xff);
+	data[1] = (u8)(interval >> 8);
 
-    CONTROLnsRequestOut(pDevice,
-			MESSAGE_TYPE_WRITE,
-			MAC_REG_BI,
-			MESSAGE_REQUEST_MACREG,
-			ARRAY_SIZE(pbyData),
-			pbyData
-			);
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+		MAC_REG_BI, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
