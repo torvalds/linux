@@ -1096,7 +1096,7 @@ err_free:
 err:
 	mutex_unlock(&c->bucket_lock);
 
-	trace_bcache_btree_node_alloc_fail(b);
+	trace_bcache_btree_node_alloc_fail(c);
 	return b;
 }
 

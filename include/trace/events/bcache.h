@@ -261,9 +261,9 @@ DEFINE_EVENT(btree_node, bcache_btree_node_alloc,
 	TP_ARGS(b)
 );
 
-DEFINE_EVENT(btree_node, bcache_btree_node_alloc_fail,
-	TP_PROTO(struct btree *b),
-	TP_ARGS(b)
+DEFINE_EVENT(cache_set, bcache_btree_node_alloc_fail,
+	TP_PROTO(struct cache_set *c),
+	TP_ARGS(c)
 );
 
 DEFINE_EVENT(btree_node, bcache_btree_node_free,
