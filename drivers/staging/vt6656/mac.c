@@ -72,15 +72,9 @@ void MACvWriteMultiAddr(struct vnt_private *priv, u64 mc_filter)
  *
  *
  */
-void MACbShutdown(struct vnt_private *pDevice)
+void MACbShutdown(struct vnt_private *priv)
 {
-	CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_MACSHUTDOWN,
-                        0,
-                        0,
-                        0,
-                        NULL
-                        );
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_MACSHUTDOWN, 0, 0, 0, NULL);
 }
 
 void MACvSetBBType(struct vnt_private *pDevice, u8 byType)
