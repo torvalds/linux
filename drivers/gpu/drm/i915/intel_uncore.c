@@ -391,26 +391,8 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 
 void intel_uncore_sanitize(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg_val;
-
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_disable_gt_powersave(dev);
-
-	/* Turn off power gate, require especially for the BIOS less system */
-	if (IS_VALLEYVIEW(dev)) {
-
-		mutex_lock(&dev_priv->rps.hw_lock);
-		reg_val = vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_STATUS);
-
-		if (reg_val & (PUNIT_PWRGT_PWR_GATE(PUNIT_POWER_WELL_RENDER) |
-			       PUNIT_PWRGT_PWR_GATE(PUNIT_POWER_WELL_MEDIA) |
-			       PUNIT_PWRGT_PWR_GATE(PUNIT_POWER_WELL_DISP2D)))
-			vlv_punit_write(dev_priv, PUNIT_REG_PWRGT_CTRL, 0x0);
-
-		mutex_unlock(&dev_priv->rps.hw_lock);
-
-	}
 }
 
 /*
