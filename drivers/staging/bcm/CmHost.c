@@ -14,6 +14,9 @@ enum E_CLASSIFIER_ACTION {
 };
 
 static ULONG GetNextTargetBufferLocation(struct bcm_mini_adapter *Adapter, B_UINT16 tid);
+static void restore_endianess_of_pstClassifierEntry(
+		struct bcm_classifier_rule *pstClassifierEntry,
+		enum bcm_ipaddr_context eIpAddrContext);
 
 /************************************************************
  * Function - SearchSfid
@@ -200,15 +203,10 @@ CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 		}
 		if (bIpVersion6) {
 			/* Restore EndianNess of Struct */
-			for (i = 0; i < MAX_IP_RANGE_LENGTH * 4; i++) {
-				if (eIpAddrContext == eSrcIpAddress) {
-					pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[i]);
-					pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[i]);
-				} else if (eIpAddrContext == eDestIpAddress) {
-					pstClassifierEntry->stDestIpAddress.ulIpv6Addr[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Addr[i]);
-					pstClassifierEntry->stDestIpAddress.ulIpv6Mask[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Mask[i]);
-				}
-			}
+			restore_endianess_of_pstClassifierEntry(
+					pstClassifierEntry,
+					eIpAddrContext
+					);
 		}
 	}
 }
@@ -1916,6 +1914,22 @@ VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter,
 				packinfo->bActiveSet = TRUE;
 				packinfo->bActive = TRUE;
 			}
+		}
+	}
+}
+
+static void restore_endianess_of_pstClassifierEntry(
+		struct bcm_classifier_rule *pstClassifierEntry,
+		enum bcm_ipaddr_context eIpAddrContext)
+{
+	int i;
+	for (i = 0; i < MAX_IP_RANGE_LENGTH * 4; i++) {
+		if (eIpAddrContext == eSrcIpAddress) {
+			pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[i]);
+			pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[i]);
+		} else if (eIpAddrContext == eDestIpAddress) {
+			pstClassifierEntry->stDestIpAddress.ulIpv6Addr[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Addr[i]);
+			pstClassifierEntry->stDestIpAddress.ulIpv6Mask[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Mask[i]);
 		}
 	}
 }
