@@ -1252,8 +1252,10 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
 		if (adj > 0)
 			adj *= 2;
-		else
-			adj = 1;
+		else {
+			/* CHV needs even encode values */
+			adj = IS_CHERRYVIEW(dev_priv->dev) ? 2 : 1;
+		}
 		new_delay = dev_priv->rps.cur_freq + adj;
 
 		/*
@@ -1271,8 +1273,10 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
 		if (adj < 0)
 			adj *= 2;
-		else
-			adj = -1;
+		else {
+			/* CHV needs even encode values */
+			adj = IS_CHERRYVIEW(dev_priv->dev) ? -2 : -1;
+		}
 		new_delay = dev_priv->rps.cur_freq + adj;
 	} else { /* unknown event */
 		new_delay = dev_priv->rps.cur_freq;
