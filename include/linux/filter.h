@@ -37,9 +37,6 @@
 #define BPF_CALL	0x80	/* function call */
 #define BPF_EXIT	0x90	/* function return */
 
-/* Placeholder/dummy for 0 */
-#define BPF_0		0
-
 /* Register numbers */
 enum {
 	BPF_REG_0 = 0,
@@ -191,7 +188,7 @@ int sk_convert_filter(struct sock_filter *prog, int len,
 		      struct sock_filter_int *new_prog, int *new_len);
 
 int sk_unattached_filter_create(struct sk_filter **pfp,
-				struct sock_fprog *fprog);
+				struct sock_fprog_kern *fprog);
 void sk_unattached_filter_destroy(struct sk_filter *fp);
 
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);

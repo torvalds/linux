@@ -160,7 +160,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 {
 	struct sock_filter *bpf_ops, *bpf_old;
 	struct tcf_exts exts;
-	struct sock_fprog tmp;
+	struct sock_fprog_kern tmp;
 	struct sk_filter *fp, *fp_old;
 	u16 bpf_size, bpf_len;
 	u32 classid;
@@ -191,7 +191,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 	memcpy(bpf_ops, nla_data(tb[TCA_BPF_OPS]), bpf_size);
 
 	tmp.len = bpf_len;
-	tmp.filter = (struct sock_filter __user *) bpf_ops;
+	tmp.filter = bpf_ops;
 
 	ret = sk_unattached_filter_create(&fp, &tmp);
 	if (ret)
