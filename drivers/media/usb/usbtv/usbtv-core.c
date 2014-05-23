@@ -91,6 +91,8 @@ static int usbtv_probe(struct usb_interface *intf,
 	return 0;
 
 usbtv_video_fail:
+	usb_set_intfdata(intf, NULL);
+	usb_put_dev(usbtv->udev);
 	kfree(usbtv);
 
 	return ret;
