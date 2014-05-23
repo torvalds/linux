@@ -210,9 +210,6 @@ void hdmi_pll_disable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
 	hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
 }
 
-#define PLL_OFFSET	0x200
-#define PLL_SIZE	0x100
-
 static const struct hdmi_pll_features omap44xx_pll_feats = {
 	.sys_reset		=	false,
 	.bound_dcofreq		=	false,

@@ -998,9 +998,6 @@ int hdmi4_audio_get_dma_port(u32 *offset, u32 *size)
 
 #endif
 
-#define CORE_OFFSET		0x400
-#define CORE_SIZE		0xc00
-
 int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
 	struct resource *res;

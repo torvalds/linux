@@ -182,9 +182,6 @@ int hdmi_phy_configure(struct hdmi_phy_data *phy, struct hdmi_config *cfg)
 	return 0;
 }
 
-#define PHY_OFFSET	0x300
-#define PHY_SIZE	0x100
-
 static const struct hdmi_phy_features omap44xx_phy_feats = {
 	.bist_ctrl	=	false,
 	.calc_freqout	=	false,

@@ -238,8 +238,6 @@ int hdmi_wp_audio_core_req_enable(struct hdmi_wp_data *wp, bool enable)
 }
 #endif
 
-#define WP_SIZE	0x200
-
 int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
 {
 	struct resource *res;
