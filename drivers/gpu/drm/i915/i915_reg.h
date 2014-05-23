@@ -1167,6 +1167,8 @@ enum punit_power_well {
 #define VLV_IMR		(VLV_DISPLAY_BASE + 0x20a8)
 #define VLV_ISR		(VLV_DISPLAY_BASE + 0x20ac)
 #define VLV_PCBR	(VLV_DISPLAY_BASE + 0x2120)
+#define VLV_PCBR_ADDR_SHIFT	12
+
 #define   DISPLAY_PLANE_FLIP_PENDING(plane) (1<<(11-(plane))) /* A and B only */
 #define EIR		0x020b0
 #define EMR		0x020b4
