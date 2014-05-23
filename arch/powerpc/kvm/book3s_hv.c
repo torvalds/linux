@@ -2317,10 +2317,10 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	spin_lock_init(&kvm->arch.slot_phys_lock);
 
 	/*
-	 * Don't allow secondary CPU threads to come online
-	 * while any KVM VMs exist.
+	 * Track that we now have a HV mode VM active. This blocks secondary
+	 * CPU threads from coming online.
 	 */
-	inhibit_secondary_onlining();
+	kvm_hv_vm_activated();
 
 	return 0;
 }
@@ -2336,7 +2336,7 @@ static void kvmppc_free_vcores(struct kvm *kvm)
 
 static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 {
-	uninhibit_secondary_onlining();
+	kvm_hv_vm_deactivated();
 
 	kvmppc_free_vcores(kvm);
 	if (kvm->arch.rma) {
