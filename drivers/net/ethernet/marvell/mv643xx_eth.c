@@ -1167,8 +1167,9 @@ static void txq_set_fixed_prio_mode(struct tx_queue *txq)
 
 
 /* mii management interface *************************************************/
-static void mv643xx_adjust_pscr(struct mv643xx_eth_private *mp)
+static void mv643xx_eth_adjust_link(struct net_device *dev)
 {
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 pscr = rdlp(mp, PORT_SERIAL_CONTROL);
 	u32 autoneg_disable = FORCE_LINK_PASS |
 	             DISABLE_AUTO_NEG_SPEED_GMII |
@@ -1544,7 +1545,7 @@ mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	ret = phy_ethtool_sset(mp->phy, cmd);
 	if (!ret)
-		mv643xx_adjust_pscr(mp);
+		mv643xx_eth_adjust_link(dev);
 	return ret;
 }
 
@@ -2473,7 +2474,7 @@ static int mv643xx_eth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	ret = phy_mii_ioctl(mp->phy, ifr, cmd);
 	if (!ret)
-		mv643xx_adjust_pscr(mp);
+		mv643xx_eth_adjust_link(dev);
 	return ret;
 }
 
@@ -2869,13 +2870,6 @@ static void set_params(struct mv643xx_eth_private *mp,
 	mp->tx_desc_sram_size = pd->tx_sram_size;
 
 	mp->txq_count = pd->tx_queue_count ? : 1;
-}
-
-static void mv643xx_eth_adjust_link(struct net_device *dev)
-{
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-
-	mv643xx_adjust_pscr(mp);
 }
 
 static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
