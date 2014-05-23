@@ -4211,14 +4211,6 @@ static int ath10k_set_bitrate_mask(struct ieee80211_hw *hw,
 					   fixed_nss, force_sgi);
 }
 
-static void ath10k_channel_switch_beacon(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif,
-					 struct cfg80211_chan_def *chandef)
-{
-	/* there's no need to do anything here. vif->csa_active is enough */
-	return;
-}
-
 static void ath10k_sta_rc_update(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -4327,7 +4319,6 @@ static const struct ieee80211_ops ath10k_ops = {
 	.restart_complete		= ath10k_restart_complete,
 	.get_survey			= ath10k_get_survey,
 	.set_bitrate_mask		= ath10k_set_bitrate_mask,
-	.channel_switch_beacon		= ath10k_channel_switch_beacon,
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.get_tsf			= ath10k_get_tsf,
 #ifdef CONFIG_PM
