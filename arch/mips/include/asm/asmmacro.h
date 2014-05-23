@@ -17,26 +17,8 @@
 #ifdef CONFIG_64BIT
 #include <asm/asmmacro-64.h>
 #endif
-#ifdef CONFIG_MIPS_MT_SMTC
-#include <asm/mipsmtregs.h>
-#endif
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	.macro	local_irq_enable reg=t0
-	mfc0	\reg, CP0_TCSTATUS
-	ori	\reg, \reg, TCSTATUS_IXMT
-	xori	\reg, \reg, TCSTATUS_IXMT
-	mtc0	\reg, CP0_TCSTATUS
-	_ehb
-	.endm
-
-	.macro	local_irq_disable reg=t0
-	mfc0	\reg, CP0_TCSTATUS
-	ori	\reg, \reg, TCSTATUS_IXMT
-	mtc0	\reg, CP0_TCSTATUS
-	_ehb
-	.endm
-#elif defined(CONFIG_CPU_MIPSR2)
+#ifdef CONFIG_CPU_MIPSR2
 	.macro	local_irq_enable reg=t0
 	ei
 	irq_enable_hazard
@@ -71,7 +53,7 @@
 	sw      \reg, TI_PRE_COUNT($28)
 #endif
 	.endm
-#endif /* CONFIG_MIPS_MT_SMTC */
+#endif /* CONFIG_CPU_MIPSR2 */
 
 	.macro	fpu_save_16even thread tmp=t0
 	cfc1	\tmp, fcr31

@@ -77,11 +77,7 @@ const char *get_system_type(void)
 	return "MIPS Malta";
 }
 
-#if defined(CONFIG_MIPS_MT_SMTC)
-const char display_string[] = "	      SMTC LINUX ON MALTA	";
-#else
 const char display_string[] = "	       LINUX ON MALTA	    ";
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 #ifdef CONFIG_BLK_DEV_FD
 static void __init fd_activate(void)

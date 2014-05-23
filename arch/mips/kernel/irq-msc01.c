@@ -53,13 +53,9 @@ static inline void unmask_msc_irq(struct irq_data *d)
  */
 static void level_mask_and_ack_msc_irq(struct irq_data *d)
 {
-	unsigned int irq = d->irq;
-
 	mask_msc_irq(d);
 	if (!cpu_has_veic)
 		MSCIC_WRITE(MSC01_IC_EOI, 0);
-	/* This actually needs to be a call into platform code */
-	smtc_im_ack_irq(irq);
 }
 
 /*
@@ -78,7 +74,6 @@ static void edge_mask_and_ack_msc_irq(struct irq_data *d)
 		MSCIC_WRITE(MSC01_IC_SUP+irq*8, r | ~MSC01_IC_SUP_EDGE_BIT);
 		MSCIC_WRITE(MSC01_IC_SUP+irq*8, r);
 	}
-	smtc_im_ack_irq(irq);
 }
 
 /*

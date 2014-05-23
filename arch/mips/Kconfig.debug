@@ -79,15 +79,6 @@ config CMDLINE_OVERRIDE
 
 	  Normally, you will choose 'N' here.
 
-config SMTC_IDLE_HOOK_DEBUG
-	bool "Enable additional debug checks before going into CPU idle loop"
-	depends on DEBUG_KERNEL && MIPS_MT_SMTC
-	help
-	  This option enables Enable additional debug checks before going into
-	  CPU idle loop.  For details on these checks, see
-	  arch/mips/kernel/smtc.c.  This debugging option result in significant
-	  overhead so should be disabled in production kernels.
-
 config SB1XXX_CORELIS
 	bool "Corelis Debugger"
 	depends on SIBYTE_SB1xxx_SOC

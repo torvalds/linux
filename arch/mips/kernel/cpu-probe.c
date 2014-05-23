@@ -62,7 +62,7 @@ static inline void check_errata(void)
 	case CPU_34K:
 		/*
 		 * Erratum "RPS May Cause Incorrect Instruction Execution"
-		 * This code only handles VPE0, any SMP/SMTC/RTOS code
+		 * This code only handles VPE0, any SMP/RTOS code
 		 * making use of VPE1 will be responsable for that VPE.
 		 */
 		if ((c->processor_id & PRID_REV_MASK) <= PRID_REV_34K_V1_0_2)

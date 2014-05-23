@@ -43,10 +43,6 @@
 #include <asm/time.h>
 #include <asm/setup.h>
 
-#ifdef CONFIG_MIPS_MT_SMTC
-#include <asm/mipsmtregs.h>
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 volatile cpumask_t cpu_callin_map;	/* Bitmask of started secondaries */
 
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
@@ -102,12 +98,6 @@ asmlinkage void start_secondary(void)
 {
 	unsigned int cpu;
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	/* Only do cpu_probe for first TC of CPU */
-	if ((read_c0_tcbind() & TCBIND_CURTC) != 0)
-		__cpu_name[smp_processor_id()] = __cpu_name[0];
-	else
-#endif /* CONFIG_MIPS_MT_SMTC */
 	cpu_probe();
 	cpu_report();
 	per_cpu_trap_init(false);
@@ -238,13 +228,10 @@ static void flush_tlb_mm_ipi(void *mm)
  *  o collapses to normal function call on UP kernels
  *  o collapses to normal function call on systems with a single shared
  *    primary cache.
- *  o CONFIG_MIPS_MT_SMTC currently implies there is only one physical core.
  */
 static inline void smp_on_other_tlbs(void (*func) (void *info), void *info)
 {
-#ifndef CONFIG_MIPS_MT_SMTC
 	smp_call_function(func, info, 1);
-#endif
 }
 
 static inline void smp_on_each_tlb(void (*func) (void *info), void *info)

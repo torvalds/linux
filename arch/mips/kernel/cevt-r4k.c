@@ -12,17 +12,10 @@
 #include <linux/smp.h>
 #include <linux/irq.h>
 
-#include <asm/smtc_ipi.h>
 #include <asm/time.h>
 #include <asm/cevt-r4k.h>
 #include <asm/gic.h>
 
-/*
- * The SMTC Kernel for the 34K, 1004K, et. al. replaces several
- * of these routines with SMTC-specific variants.
- */
-
-#ifndef CONFIG_MIPS_MT_SMTC
 static int mips_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
@@ -36,8 +29,6 @@ static int mips_next_event(unsigned long delta,
 	return res;
 }
 
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 void mips_set_clock_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
@@ -47,7 +38,6 @@ void mips_set_clock_mode(enum clock_event_mode mode,
 DEFINE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 int cp0_timer_irq_installed;
 
-#ifndef CONFIG_MIPS_MT_SMTC
 irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 {
 	const int r2 = cpu_has_mips_r2;
@@ -81,8 +71,6 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 out:
 	return IRQ_HANDLED;
 }
-
-#endif /* Not CONFIG_MIPS_MT_SMTC */
 
 struct irqaction c0_compare_irqaction = {
 	.handler = c0_compare_interrupt,
@@ -170,7 +158,6 @@ int c0_compare_int_usable(void)
 	return 1;
 }
 
-#ifndef CONFIG_MIPS_MT_SMTC
 int r4k_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -225,4 +212,3 @@ int r4k_clockevent_init(void)
 	return 0;
 }
 
-#endif /* Not CONFIG_MIPS_MT_SMTC */

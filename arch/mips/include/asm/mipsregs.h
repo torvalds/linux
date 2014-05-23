@@ -1014,19 +1014,8 @@ do {									\
 #define write_c0_compare3(val)	__write_32bit_c0_register($11, 7, val)
 
 #define read_c0_status()	__read_32bit_c0_register($12, 0)
-#ifdef CONFIG_MIPS_MT_SMTC
-#define write_c0_status(val)						\
-do {									\
-	__write_32bit_c0_register($12, 0, val);				\
-	__ehb();							\
-} while (0)
-#else
-/*
- * Legacy non-SMTC code, which may be hazardous
- * but which might not support EHB
- */
+
 #define write_c0_status(val)	__write_32bit_c0_register($12, 0, val)
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 #define read_c0_cause()		__read_32bit_c0_register($13, 0)
 #define write_c0_cause(val)	__write_32bit_c0_register($13, 0, val)
@@ -1750,11 +1739,6 @@ static inline void tlb_write_random(void)
 /*
  * Manipulate bits in a c0 register.
  */
-#ifndef CONFIG_MIPS_MT_SMTC
-/*
- * SMTC Linux requires shutting-down microthread scheduling
- * during CP0 register read-modify-write sequences.
- */
 #define __BUILD_SET_C0(name)					\
 static inline unsigned int					\
 set_c0_##name(unsigned int set)					\
@@ -1792,121 +1776,6 @@ change_c0_##name(unsigned int change, unsigned int val)		\
 								\
 	return res;						\
 }
-
-#else /* SMTC versions that manage MT scheduling */
-
-#include <linux/irqflags.h>
-
-/*
- * This is a duplicate of dmt() in mipsmtregs.h to avoid problems with
- * header file recursion.
- */
-static inline unsigned int __dmt(void)
-{
-	int res;
-
-	__asm__ __volatile__(
-	"	.set	push						\n"
-	"	.set	mips32r2					\n"
-	"	.set	noat						\n"
-	"	.word	0x41610BC1			# dmt $1	\n"
-	"	ehb							\n"
-	"	move	%0, $1						\n"
-	"	.set	pop						\n"
-	: "=r" (res));
-
-	instruction_hazard();
-
-	return res;
-}
-
-#define __VPECONTROL_TE_SHIFT	15
-#define __VPECONTROL_TE		(1UL << __VPECONTROL_TE_SHIFT)
-
-#define __EMT_ENABLE		__VPECONTROL_TE
-
-static inline void __emt(unsigned int previous)
-{
-	if ((previous & __EMT_ENABLE))
-		__asm__ __volatile__(
-		"	.set	mips32r2				\n"
-		"	.word	0x41600be1		# emt		\n"
-		"	ehb						\n"
-		"	.set	mips0					\n");
-}
-
-static inline void __ehb(void)
-{
-	__asm__ __volatile__(
-	"	.set	mips32r2					\n"
-	"	ehb							\n"		"	.set	mips0						\n");
-}
-
-/*
- * Note that local_irq_save/restore affect TC-specific IXMT state,
- * not Status.IE as in non-SMTC kernel.
- */
-
-#define __BUILD_SET_C0(name)					\
-static inline unsigned int					\
-set_c0_##name(unsigned int set)					\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res | set;					\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}								\
-								\
-static inline unsigned int					\
-clear_c0_##name(unsigned int clear)				\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res & ~clear;					\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}								\
-								\
-static inline unsigned int					\
-change_c0_##name(unsigned int change, unsigned int newbits)	\
-{								\
-	unsigned int res;					\
-	unsigned int new;					\
-	unsigned int omt;					\
-	unsigned long flags;					\
-								\
-	local_irq_save(flags);					\
-								\
-	omt = __dmt();						\
-	res = read_c0_##name();					\
-	new = res & ~change;					\
-	new |= (newbits & change);				\
-	write_c0_##name(new);					\
-	__emt(omt);						\
-	local_irq_restore(flags);				\
-								\
-	return res;						\
-}
-#endif
 
 __BUILD_SET_C0(status)
 __BUILD_SET_C0(cause)
