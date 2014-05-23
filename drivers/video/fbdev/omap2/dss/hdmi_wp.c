@@ -249,6 +249,7 @@ int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
 		DSSERR("can't get WP mem resource\n");
 		return -EINVAL;
 	}
+	wp->phys_base = res->start;
 
 	wp->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(wp->base)) {
@@ -257,4 +258,9 @@ int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
 	}
 
 	return 0;
+}
+
+phys_addr_t hdmi_wp_get_audio_dma_addr(struct hdmi_wp_data *wp)
+{
+	return wp->phys_base + HDMI_WP_AUDIO_DATA;
 }
