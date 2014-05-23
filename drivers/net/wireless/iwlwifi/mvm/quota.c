@@ -297,6 +297,14 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
 
+	/* check that we have non-zero quota for all valid bindings */
+	for (i = 0; i < MAX_BINDINGS; i++) {
+		if (cmd.quotas[i].id_and_color == cpu_to_le32(FW_CTXT_INVALID))
+			continue;
+		WARN_ONCE(cmd.quotas[i].quota == 0,
+			  "zero quota on binding %d\n", i);
+	}
+
 	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0,
 				   sizeof(cmd), &cmd);
 	if (ret)
