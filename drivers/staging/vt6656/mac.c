@@ -181,20 +181,15 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
 
 }
 
-void MACvRegBitsOff(struct vnt_private *pDevice, u8 byRegOfs, u8 byBits)
+void MACvRegBitsOff(struct vnt_private *priv, u8 reg_ofs, u8 bits)
 {
-	u8 pbyData[2];
+	u8 data[2];
 
-    pbyData[0] = 0;
-    pbyData[1] = byBits;
+	data[0] = 0;
+	data[1] = bits;
 
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE_MASK,
-                        byRegOfs,
-                        MESSAGE_REQUEST_MACREG,
-			ARRAY_SIZE(pbyData),
-                        pbyData
-                        );
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK,
+		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
 void MACvRegBitsOn(struct vnt_private *pDevice, u8 byRegOfs, u8 byBits)
