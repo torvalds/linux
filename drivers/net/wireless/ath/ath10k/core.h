@@ -335,6 +335,7 @@ enum ath10k_dev_flags {
 	/* Indicates that ath10k device is during CAC phase of DFS */
 	ATH10K_CAC_RUNNING,
 	ATH10K_FLAG_FIRST_BOOT_DONE,
+	ATH10K_FLAG_CORE_REGISTERED,
 };
 
 struct ath10k {
@@ -476,6 +477,7 @@ struct ath10k {
 
 	enum ath10k_state state;
 
+	struct work_struct register_work;
 	struct work_struct restart_work;
 
 	/* cycle count is reported twice for each visited channel during scan.

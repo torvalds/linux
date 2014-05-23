@@ -950,22 +950,15 @@ static int ath10k_core_check_chip_id(struct ath10k *ar)
 	return 0;
 }
 
-int ath10k_core_register(struct ath10k *ar, u32 chip_id)
+static void ath10k_core_register_work(struct work_struct *work)
 {
+	struct ath10k *ar = container_of(work, struct ath10k, register_work);
 	int status;
-
-	ar->chip_id = chip_id;
-
-	status = ath10k_core_check_chip_id(ar);
-	if (status) {
-		ath10k_err("Unsupported chip id 0x%08x\n", ar->chip_id);
-		return status;
-	}
 
 	status = ath10k_core_probe_fw(ar);
 	if (status) {
 		ath10k_err("could not probe fw (%d)\n", status);
-		return status;
+		goto err;
 	}
 
 	status = ath10k_mac_register(ar);
@@ -980,18 +973,43 @@ int ath10k_core_register(struct ath10k *ar, u32 chip_id)
 		goto err_unregister_mac;
 	}
 
-	return 0;
+	set_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags);
+	return;
 
 err_unregister_mac:
 	ath10k_mac_unregister(ar);
 err_release_fw:
 	ath10k_core_free_firmware_files(ar);
-	return status;
+err:
+	device_release_driver(ar->dev);
+	return;
+}
+
+int ath10k_core_register(struct ath10k *ar, u32 chip_id)
+{
+	int status;
+
+	ar->chip_id = chip_id;
+
+	status = ath10k_core_check_chip_id(ar);
+	if (status) {
+		ath10k_err("Unsupported chip id 0x%08x\n", ar->chip_id);
+		return status;
+	}
+
+	queue_work(ar->workqueue, &ar->register_work);
+
+	return 0;
 }
 EXPORT_SYMBOL(ath10k_core_register);
 
 void ath10k_core_unregister(struct ath10k *ar)
 {
+	cancel_work_sync(&ar->register_work);
+
+	if (!test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags))
+		return;
+
 	/* We must unregister from mac80211 before we stop HTC and HIF.
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
 	 * unhappy about callback failures. */
@@ -1048,6 +1066,7 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	INIT_WORK(&ar->wmi_mgmt_tx_work, ath10k_mgmt_over_wmi_tx_work);
 	skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
 
+	INIT_WORK(&ar->register_work, ath10k_core_register_work);
 	INIT_WORK(&ar->restart_work, ath10k_core_restart);
 
 	return ar;
