@@ -939,8 +939,8 @@
 				aclk_vio1_dvfs_table: aclk_vio1 {
 					operating-points = <
 						/* KHz    uV */
-						100000 1000000
-						500000 1000000
+						100000 1100000
+						500000 1100000
 						>;
 					status = "okay";
 				};
