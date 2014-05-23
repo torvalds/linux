@@ -262,7 +262,7 @@ static int pcf857x_irq_domain_init(struct pcf857x *gpio,
 	/* enable real irq */
 	status = devm_request_threaded_irq(&client->dev, client->irq,
 				NULL, pcf857x_irq, IRQF_ONESHOT |
-				IRQF_TRIGGER_FALLING,
+				IRQF_TRIGGER_FALLING | IRQF_SHARED,
 				dev_name(&client->dev), gpio);
 
 	if (status)
