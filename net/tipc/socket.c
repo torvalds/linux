@@ -985,10 +985,11 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 	return 0;
 }
 
-static int tipc_wait_for_rcvmsg(struct socket *sock, long timeo)
+static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 {
 	struct sock *sk = sock->sk;
 	DEFINE_WAIT(wait);
+	long timeo = *timeop;
 	int err;
 
 	for (;;) {
@@ -1013,6 +1014,7 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long timeo)
 			break;
 	}
 	finish_wait(sk_sleep(sk), &wait);
+	*timeop = timeo;
 	return err;
 }
 
@@ -1056,7 +1058,7 @@ static int tipc_recvmsg(struct kiocb *iocb, struct socket *sock,
 restart:
 
 	/* Look for a message in receive queue; wait if necessary */
-	res = tipc_wait_for_rcvmsg(sock, timeo);
+	res = tipc_wait_for_rcvmsg(sock, &timeo);
 	if (res)
 		goto exit;
 
@@ -1154,7 +1156,7 @@ static int tipc_recv_stream(struct kiocb *iocb, struct socket *sock,
 
 restart:
 	/* Look for a message in receive queue; wait if necessary */
-	res = tipc_wait_for_rcvmsg(sock, timeo);
+	res = tipc_wait_for_rcvmsg(sock, &timeo);
 	if (res)
 		goto exit;
 
