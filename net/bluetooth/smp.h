@@ -163,8 +163,12 @@ static inline bool smp_ltk_is_sc(struct smp_ltk *key)
 
 static inline u8 smp_ltk_sec_level(struct smp_ltk *key)
 {
-	if (key->authenticated)
-		return BT_SECURITY_HIGH;
+	if (key->authenticated) {
+		if (smp_ltk_is_sc(key))
+			return BT_SECURITY_FIPS;
+		else
+			return BT_SECURITY_HIGH;
+	}
 
 	return BT_SECURITY_MEDIUM;
 }
