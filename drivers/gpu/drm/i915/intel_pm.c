@@ -5708,10 +5708,9 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 	return true;
 }
 
-static void vlv_set_power_well(struct drm_i915_private *dev_priv,
-			       struct i915_power_well *power_well, bool enable)
+void __vlv_set_power_well(struct drm_i915_private *dev_priv,
+			  enum punit_power_well power_well_id, bool enable)
 {
-	enum punit_power_well power_well_id = power_well->data;
 	u32 mask;
 	u32 state;
 	u32 ctrl;
@@ -5742,6 +5741,14 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 
 out:
 	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
+static void vlv_set_power_well(struct drm_i915_private *dev_priv,
+			       struct i915_power_well *power_well, bool enable)
+{
+	enum punit_power_well power_well_id = power_well->data;
+
+	__vlv_set_power_well(dev_priv, power_well_id, enable);
 }
 
 static void vlv_power_well_sync_hw(struct drm_i915_private *dev_priv,

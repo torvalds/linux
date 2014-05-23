@@ -1516,6 +1516,25 @@ static void intel_reset_dpio(struct drm_device *dev)
 
 	} else {
 		/*
+		 * If DPIO has already been reset, e.g. by BIOS, just skip all
+		 * this.
+		 */
+		if (I915_READ(DPIO_CTL) & DPIO_CMNRST)
+			return;
+
+		/*
+		 * From VLV2A0_DP_eDP_HDMI_DPIO_driver_vbios_notes_11.docx:
+		 * Need to assert and de-assert PHY SB reset by gating the
+		 * common lane power, then un-gating it.
+		 * Simply ungating isn't enough to reset the PHY enough to get
+		 * ports and lanes running.
+		 */
+		__vlv_set_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC,
+				     false);
+		__vlv_set_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC,
+				     true);
+
+		/*
 		 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
 		 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
 		 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
