@@ -1484,14 +1484,6 @@ static void intel_reset_dpio(struct drm_device *dev)
 	if (!IS_VALLEYVIEW(dev))
 		return;
 
-	/*
-	 * Enable the CRI clock source so we can get at the display and the
-	 * reference clock for VGA hotplug / manual detection.
-	 */
-	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
-		   DPLL_REFA_CLK_ENABLE_VLV |
-		   DPLL_INTEGRATED_CRI_CLK_VLV);
-
 	if (IS_CHERRYVIEW(dev)) {
 		enum dpio_phy phy;
 		u32 val;

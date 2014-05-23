@@ -5715,6 +5715,17 @@ void __vlv_set_power_well(struct drm_i915_private *dev_priv,
 	u32 state;
 	u32 ctrl;
 
+	if (power_well_id == PUNIT_POWER_WELL_DPIO_CMN_BC && enable) {
+		/*
+		 * Enable the CRI clock source so we can get at the display
+		 * and the reference clock for VGA hotplug / manual detection.
+		 */
+		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+			   DPLL_REFA_CLK_ENABLE_VLV |
+			   DPLL_INTEGRATED_CRI_CLK_VLV);
+		udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
+	}
+
 	mask = PUNIT_PWRGT_MASK(power_well_id);
 	state = enable ? PUNIT_PWRGT_PWR_ON(power_well_id) :
 			 PUNIT_PWRGT_PWR_GATE(power_well_id);
