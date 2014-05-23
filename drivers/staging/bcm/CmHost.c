@@ -401,7 +401,8 @@ static inline VOID DeleteClassifierRuleFromSF(struct bcm_mini_adapter *Adapter, 
 /*
  * @ingroup ctrl_pkt_functions
  */
-VOID DeleteAllClassifiersForSF(struct bcm_mini_adapter *Adapter, UINT uiSearchRuleIndex)
+VOID DeleteAllClassifiersForSF(struct bcm_mini_adapter *Adapter,
+		UINT uiSearchRuleIndex)
 {
 	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 	int i;
@@ -420,7 +421,8 @@ VOID DeleteAllClassifiersForSF(struct bcm_mini_adapter *Adapter, UINT uiSearchRu
 			pstClassifierEntry = &Adapter->astClassifierTable[i];
 
 			if (pstClassifierEntry->bUsed)
-				DeleteClassifierRuleFromSF(Adapter, uiSearchRuleIndex, i);
+				DeleteClassifierRuleFromSF(Adapter,
+						uiSearchRuleIndex, i);
 		}
 	}
 
