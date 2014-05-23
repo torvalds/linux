@@ -156,6 +156,101 @@ static int rsnd_gen_regmap_init(struct rsnd_priv *priv,
 }
 
 /*
+ *	DMA read/write register offset
+ *
+ *	RSND_xxx_I_N	for Audio DMAC input
+ *	RSND_xxx_O_N	for Audio DMAC output
+ *	RSND_xxx_I_P	for Audio DMAC peri peri input
+ *	RSND_xxx_O_P	for Audio DMAC peri peri output
+ *
+ *	ex) R-Car H2 case
+ *	      mod        / DMAC in    / DMAC out   / DMAC PP in / DMAC pp out
+ *	SSI : 0xec541000 / 0xec241008 / 0xec24100c / 0xec400000 / 0xec400000
+ *	SCU : 0xec500000 / 0xec000000 / 0xec004000 / 0xec300000 / 0xec304000
+ *	CMD : 0xec500000 / 0xec008000                             0xec308000
+ */
+#define RDMA_SSI_I_N(addr, i)	(addr ##_reg - 0x00300000 + (0x40 * i) + 0x8)
+#define RDMA_SSI_O_N(addr, i)	(addr ##_reg - 0x00300000 + (0x40 * i) + 0xc)
+
+#define RDMA_SSI_I_P(addr, i)	(addr ##_reg - 0x00141000 + (0x1000 * i))
+#define RDMA_SSI_O_P(addr, i)	(addr ##_reg - 0x00141000 + (0x1000 * i))
+
+#define RDMA_SRC_I_N(addr, i)	(addr ##_reg - 0x00500000 + (0x400 * i))
+#define RDMA_SRC_O_N(addr, i)	(addr ##_reg - 0x004fc000 + (0x400 * i))
+
+#define RDMA_SRC_I_P(addr, i)	(addr ##_reg - 0x00200000 + (0x400 * i))
+#define RDMA_SRC_O_P(addr, i)	(addr ##_reg - 0x001fc000 + (0x400 * i))
+
+#define RDMA_CMD_O_N(addr, i)	(addr ##_reg - 0x004f8000 + (0x400 * i))
+#define RDMA_CMD_O_P(addr, i)	(addr ##_reg - 0x001f8000 + (0x400 * i))
+
+void rsnd_gen_dma_addr(struct rsnd_priv *priv,
+		       struct rsnd_dma *dma,
+		       struct dma_slave_config *cfg,
+		       int is_play, int slave_id)
+{
+	struct platform_device *pdev = rsnd_priv_to_pdev(priv);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	dma_addr_t ssi_reg = platform_get_resource(pdev,
+				IORESOURCE_MEM, RSND_GEN2_SSI)->start;
+	dma_addr_t src_reg = platform_get_resource(pdev,
+				IORESOURCE_MEM, RSND_GEN2_SCU)->start;
+	int is_ssi = !!(rsnd_io_to_mod_ssi(io) == mod);
+	int use_src = !!rsnd_io_to_mod_src(io);
+	int use_dvc = !!rsnd_io_to_mod_dvc(io);
+	int id = rsnd_mod_id(mod);
+	struct dma_addr {
+		dma_addr_t src_addr;
+		dma_addr_t dst_addr;
+	} dma_addrs[2][2][3] = {
+		{ /* SRC */
+			/* Capture */
+			{{ 0,				0 },
+			 { RDMA_SRC_O_N(src, id),	0 },
+			 { RDMA_CMD_O_N(src, id),	0 }},
+			/* Playback */
+			{{ 0,				0, },
+			 { 0,				RDMA_SRC_I_N(src, id) },
+			 { 0,				RDMA_SRC_I_N(src, id) }}
+		}, { /* SSI */
+			/* Capture */
+			{{ RDMA_SSI_O_N(ssi, id),	0 },
+			 { RDMA_SSI_O_P(ssi, id),	RDMA_SRC_I_P(src, id) },
+			 { RDMA_SSI_O_P(ssi, id),	RDMA_SRC_I_P(src, id) }},
+			/* Playback */
+			{{ 0,				RDMA_SSI_I_N(ssi, id) },
+			 { RDMA_SRC_O_P(src, id),	RDMA_SSI_I_P(ssi, id) },
+			 { RDMA_CMD_O_P(src, id),	RDMA_SSI_I_P(ssi, id) }}
+		}
+	};
+
+	cfg->slave_id	= slave_id;
+	cfg->src_addr	= 0;
+	cfg->dst_addr	= 0;
+	cfg->direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+
+	/*
+	 * gen1 uses default DMA addr
+	 */
+	if (rsnd_is_gen1(priv))
+		return;
+
+	/* it shouldn't happen */
+	if (use_dvc & !use_src) {
+		dev_err(dev, "DVC is selected without SRC\n");
+		return;
+	}
+
+	cfg->src_addr = dma_addrs[is_ssi][is_play][use_src + use_dvc].src_addr;
+	cfg->dst_addr = dma_addrs[is_ssi][is_play][use_src + use_dvc].dst_addr;
+
+	dev_dbg(dev, "dma%d addr - src : %x / dst : %x\n",
+		id, cfg->src_addr, cfg->dst_addr);
+}
+
+/*
  *		Gen2
  */
 

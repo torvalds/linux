@@ -358,10 +358,7 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 		return -EIO;
 	}
 
-	cfg.slave_id	= id;
-	cfg.dst_addr	= 0; /* use default addr when playback */
-	cfg.src_addr	= 0; /* use default addr when capture */
-	cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+	rsnd_gen_dma_addr(priv, dma, &cfg, is_play, id);
 
 	ret = dmaengine_slave_config(dma->chan, &cfg);
 	if (ret < 0)
