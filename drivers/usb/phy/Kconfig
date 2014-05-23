@@ -201,6 +201,7 @@ config USB_MXS_PHY
 config USB_RCAR_PHY
 	tristate "Renesas R-Car USB PHY support"
 	depends on USB || USB_GADGET
+	depends on ARCH_R8A7778 || ARCH_R8A7779 || COMPILE_TEST
 	select USB_PHY
 	help
 	  Say Y here to add support for the Renesas R-Car USB common PHY driver.
