@@ -1525,19 +1525,6 @@ static void intel_reset_dpio(struct drm_device *dev)
 				     false);
 		__vlv_set_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC,
 				     true);
-
-		/*
-		 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
-		 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
-		 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
-		 *   b.	The other bits such as sfr settings / modesel may all
-		 *	be set to 0.
-		 *
-		 * This should only be done on init and resume from S3 with
-		 * both PLLs disabled, or we risk losing DPIO and PLL
-		 * synchronization.
-		 */
-		I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
 	}
 }
 

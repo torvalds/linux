@@ -5715,15 +5715,22 @@ void __vlv_set_power_well(struct drm_i915_private *dev_priv,
 	u32 state;
 	u32 ctrl;
 
-	if (power_well_id == PUNIT_POWER_WELL_DPIO_CMN_BC && enable) {
-		/*
-		 * Enable the CRI clock source so we can get at the display
-		 * and the reference clock for VGA hotplug / manual detection.
-		 */
-		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
-			   DPLL_REFA_CLK_ENABLE_VLV |
-			   DPLL_INTEGRATED_CRI_CLK_VLV);
-		udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
+	if (power_well_id == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+		if (enable) {
+			/*
+			 * Enable the CRI clock source so we can get at the
+			 * display and the reference clock for VGA
+			 * hotplug / manual detection.
+			 */
+			I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+				   DPLL_REFA_CLK_ENABLE_VLV |
+				   DPLL_INTEGRATED_CRI_CLK_VLV);
+			udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
+		} else {
+			/* Assert common reset */
+			I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) &
+				   ~DPIO_CMNRST);
+		}
 	}
 
 	mask = PUNIT_PWRGT_MASK(power_well_id);
@@ -5752,6 +5759,20 @@ void __vlv_set_power_well(struct drm_i915_private *dev_priv,
 
 out:
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	/*
+	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
+	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
+	 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
+	 *   b.	The other bits such as sfr settings / modesel may all
+	 *	be set to 0.
+	 *
+	 * This should only be done on init and resume from S3 with
+	 * both PLLs disabled, or we risk losing DPIO and PLL
+	 * synchronization.
+	 */
+	if (power_well_id == PUNIT_POWER_WELL_DPIO_CMN_BC && enable)
+		I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
 }
 
 static void vlv_set_power_well(struct drm_i915_private *dev_priv,
