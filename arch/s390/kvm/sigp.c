@@ -284,11 +284,12 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 	return rc;
 }
 
-/* Test whether the destination CPU is available and not busy */
-static int sigp_check_callable(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu)
+static int __prepare_sigp_re_start(struct kvm_vcpu *vcpu,
+				   struct kvm_vcpu *dst_vcpu, u8 order_code)
 {
 	struct kvm_s390_local_interrupt *li = &dst_vcpu->arch.local_int;
-	int rc = SIGP_CC_ORDER_CODE_ACCEPTED;
+	/* handle (RE)START in user space */
+	int rc = -EOPNOTSUPP;
 
 	spin_lock(&li->lock);
 	if (li->action_bits & ACTION_STOP_ON_STOP)
@@ -296,6 +297,20 @@ static int sigp_check_callable(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu)
 	spin_unlock(&li->lock);
 
 	return rc;
+}
+
+static int __prepare_sigp_cpu_reset(struct kvm_vcpu *vcpu,
+				    struct kvm_vcpu *dst_vcpu, u8 order_code)
+{
+	/* handle (INITIAL) CPU RESET in user space */
+	return -EOPNOTSUPP;
+}
+
+static int __prepare_sigp_unknown(struct kvm_vcpu *vcpu,
+				  struct kvm_vcpu *dst_vcpu)
+{
+	/* handle unknown orders in user space */
+	return -EOPNOTSUPP;
 }
 
 static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
@@ -350,24 +365,26 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 		rc = __sigp_sense_running(vcpu, dst_vcpu, status_reg);
 		break;
 	case SIGP_START:
-		rc = sigp_check_callable(vcpu, dst_vcpu);
-		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED)
-			rc = -EOPNOTSUPP;    /* Handle START in user space */
+		rc = __prepare_sigp_re_start(vcpu, dst_vcpu, order_code);
 		break;
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;
-		rc = sigp_check_callable(vcpu, dst_vcpu);
-		if (rc == SIGP_CC_ORDER_CODE_ACCEPTED) {
-			VCPU_EVENT(vcpu, 4,
-				   "sigp restart %x to handle userspace",
-				   cpu_addr);
-			/* user space must know about restart */
-			rc = -EOPNOTSUPP;
-		}
+		rc = __prepare_sigp_re_start(vcpu, dst_vcpu, order_code);
+		break;
+	case SIGP_INITIAL_CPU_RESET:
+		rc = __prepare_sigp_cpu_reset(vcpu, dst_vcpu, order_code);
+		break;
+	case SIGP_CPU_RESET:
+		rc = __prepare_sigp_cpu_reset(vcpu, dst_vcpu, order_code);
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = __prepare_sigp_unknown(vcpu, dst_vcpu);
 	}
+
+	if (rc == -EOPNOTSUPP)
+		VCPU_EVENT(vcpu, 4,
+			   "sigp order %u -> cpu %x: handled in user space",
+			   order_code, dst_vcpu->vcpu_id);
 
 	return rc;
 }
