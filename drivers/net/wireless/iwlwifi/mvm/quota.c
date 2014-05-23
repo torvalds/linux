@@ -73,8 +73,7 @@ struct iwl_mvm_quota_iterator_data {
 	int colors[MAX_BINDINGS];
 	int low_latency[MAX_BINDINGS];
 	int n_low_latency_bindings;
-	struct ieee80211_vif *vif;
-	enum iwl_mvm_quota_update_type type;
+	struct ieee80211_vif *skip_vif;
 };
 
 static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
@@ -89,8 +88,9 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	 * skip it here in case we're not called from within
 	 * the add_interface callback (otherwise it won't show
 	 * up in iteration)
+	 * Also skip disabled interfaces here immediately.
 	 */
-	if (data->type == IWL_MVM_QUOTA_UPDATE_TYPE_NEW && vif == data->vif)
+	if (vif == data->skip_vif)
 		return;
 
 	if (!mvmvif->phy_ctxt)
@@ -103,10 +103,6 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	BUILD_BUG_ON(NUM_PHY_CTX > MAX_BINDINGS);
 
 	if (WARN_ON_ONCE(id >= MAX_BINDINGS))
-		return;
-
-	if (data->type == IWL_MVM_QUOTA_UPDATE_TYPE_DISABLED &&
-	    vif == data->vif)
 		return;
 
 	switch (vif->type) {
@@ -184,8 +180,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
-		.vif = vif,
-		.type = type,
+		.skip_vif = vif,
 	};
 
 	lockdep_assert_held(&mvm->mutex);
@@ -205,8 +200,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_quota_iterator, &data);
 	if (type == IWL_MVM_QUOTA_UPDATE_TYPE_NEW) {
-		data.vif = NULL;
-		data.type = IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR;
+		data.skip_vif = NULL;
 		iwl_mvm_quota_iterator(&data, vif->addr, vif);
 	}
 
