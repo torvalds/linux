@@ -139,6 +139,13 @@ CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Ip Address Range Length:0x%X ", u8IpAddressLen);
 	if ((bIpVersion6 ? (IPV6_ADDRESS_SIZEINBYTES * MAX_IP_RANGE_LENGTH * 2) :
 			(TOTAL_MASKED_ADDRESS_IN_BYTES)) >= u8IpAddressLen) {
+
+		union u_ip_address *st_dest_ip =
+			&pstClassifierEntry->stDestIpAddress;
+
+		union u_ip_address *st_src_ip =
+			&pstClassifierEntry->stSrcIpAddress;
+
 		/*
 		 * checking both the mask and address togethor in Classification.
 		 * So length will be : TotalLengthInBytes/nSizeOfIPAddressInBytes * 2
@@ -147,20 +154,20 @@ CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 		if (eIpAddrContext == eDestIpAddress) {
 			pstClassifierEntry->ucIPDestinationAddressLength = u8IpAddressLen/(nSizeOfIPAddressInBytes * 2);
 			if (bIpVersion6) {
-				ptrClassifierIpAddress = pstClassifierEntry->stDestIpAddress.ucIpv6Address;
-				ptrClassifierIpMask = pstClassifierEntry->stDestIpAddress.ucIpv6Mask;
+				ptrClassifierIpAddress = st_dest_ip->ucIpv6Address;
+				ptrClassifierIpMask = st_dest_ip->ucIpv6Mask;
 			} else {
-				ptrClassifierIpAddress = pstClassifierEntry->stDestIpAddress.ucIpv4Address;
-				ptrClassifierIpMask = pstClassifierEntry->stDestIpAddress.ucIpv4Mask;
+				ptrClassifierIpAddress = st_dest_ip->ucIpv4Address;
+				ptrClassifierIpMask = st_dest_ip->ucIpv4Mask;
 			}
 		} else if (eIpAddrContext == eSrcIpAddress) {
 			pstClassifierEntry->ucIPSourceAddressLength = u8IpAddressLen/(nSizeOfIPAddressInBytes * 2);
 			if (bIpVersion6) {
-				ptrClassifierIpAddress = pstClassifierEntry->stSrcIpAddress.ucIpv6Address;
-				ptrClassifierIpMask = pstClassifierEntry->stSrcIpAddress.ucIpv6Mask;
+				ptrClassifierIpAddress = st_src_ip->ucIpv6Address;
+				ptrClassifierIpMask = st_src_ip->ucIpv6Mask;
 			} else {
-				ptrClassifierIpAddress = pstClassifierEntry->stSrcIpAddress.ucIpv4Address;
-				ptrClassifierIpMask = pstClassifierEntry->stSrcIpAddress.ucIpv4Mask;
+				ptrClassifierIpAddress = st_src_ip->ucIpv4Address;
+				ptrClassifierIpMask = st_src_ip->ucIpv4Mask;
 			}
 		}
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Address Length:0x%X\n", pstClassifierEntry->ucIPDestinationAddressLength);
@@ -172,13 +179,13 @@ CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 
 			if (!bIpVersion6) {
 				if (eIpAddrContext == eSrcIpAddress) {
-					pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[i]);
+					st_src_ip->ulIpv4Addr[i] = ntohl(st_src_ip->ulIpv4Addr[i]);
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Src Ip Address:0x%luX ",
-							pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[i]);
+							st_src_ip->ulIpv4Addr[i]);
 				} else if (eIpAddrContext == eDestIpAddress) {
-					pstClassifierEntry->stDestIpAddress.ulIpv4Addr[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv4Addr[i]);
+					st_dest_ip->ulIpv4Addr[i] = ntohl(st_dest_ip->ulIpv4Addr[i]);
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Dest Ip Address:0x%luX ",
-							pstClassifierEntry->stDestIpAddress.ulIpv4Addr[i]);
+							st_dest_ip->ulIpv4Addr[i]);
 				}
 			}
 			u8IpAddressLen -= nSizeOfIPAddressInBytes;
@@ -191,15 +198,15 @@ CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 
 				if (!bIpVersion6) {
 					if (eIpAddrContext == eSrcIpAddress) {
-						pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[i] =
-							ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[i]);
+						st_src_ip->ulIpv4Mask[i] =
+							ntohl(st_src_ip->ulIpv4Mask[i]);
 						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Src Ip Mask Address:0x%luX ",
-								pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[i]);
+								st_src_ip->ulIpv4Mask[i]);
 					} else if (eIpAddrContext == eDestIpAddress) {
-						pstClassifierEntry->stDestIpAddress.ulIpv4Mask[i] =
-							ntohl(pstClassifierEntry->stDestIpAddress.ulIpv4Mask[i]);
+						st_dest_ip->ulIpv4Mask[i] =
+							ntohl(st_dest_ip->ulIpv4Mask[i]);
 						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Dest Ip Mask Address:0x%luX ",
-								pstClassifierEntry->stDestIpAddress.ulIpv4Mask[i]);
+								st_dest_ip->ulIpv4Mask[i]);
 					}
 				}
 				u8IpAddressLen -= nSizeOfIPAddressInBytes;
