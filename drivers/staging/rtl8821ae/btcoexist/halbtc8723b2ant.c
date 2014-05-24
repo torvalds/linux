@@ -247,6 +247,7 @@ static u8 halbtc8723b2ant_wifi_rssi_state(struct btc_coexist *btcoexist,
 	return wifi_rssi_state;
 }
 
+#if (BT_AUTO_REPORT_ONLY_8723B_2ANT == 0)
 static void halbtc8723b2ant_monitor_bt_enable_disable(
 						struct btc_coexist *btcoexist)
 {
@@ -300,6 +301,7 @@ static void halbtc8723b2ant_monitor_bt_enable_disable(
 		}
 	}
 }
+#endif
 
 static void halbtc8723b2ant_monitor_bt_ctr(struct btc_coexist *btcoexist)
 {
@@ -734,6 +736,7 @@ static void halbtc8723b2ant_dec_bt_pwr(struct btc_coexist *btcoexist,
 	coex_dm->pre_dec_bt_pwr = coex_dm->cur_dec_bt_pwr;
 }
 
+#if (BT_AUTO_REPORT_ONLY_8723B_2ANT == 0)
 static void halbtc8723b2ant_set_bt_auto_report(struct btc_coexist *btcoexist,
 					bool enable_auto_report)
 {
@@ -775,6 +778,7 @@ static void halbtc8723b2ant_bt_auto_report(struct btc_coexist *btcoexist,
 
 	coex_dm->pre_bt_auto_report = coex_dm->cur_bt_auto_report;
 }
+#endif
 
 static void halbtc8723b2ant_fw_dac_swing_lvl(struct btc_coexist *btcoexist,
 				      bool force_exec, u8 fw_dac_swing_lvl)
@@ -950,6 +954,7 @@ static void halbtc8723b2ant_dac_swing(struct btc_coexist *btcoexist,
 	coex_dm->pre_dac_swing_lvl = coex_dm->cur_dac_swing_lvl;
 }
 
+#if 0
 static void halbtc8723b2ant_set_adc_backoff(struct btc_coexist *btcoexist,
 				     bool adc_backoff)
 {
@@ -985,6 +990,7 @@ static void halbtc8723b2ant_adc_backoff(struct btc_coexist *btcoexist,
 
 	coex_dm->pre_adc_back_off = coex_dm->cur_adc_back_off;
 }
+#endif
 
 static void halbtc8723b2ant_set_agc_table(struct btc_coexist *btcoexist,
 				   bool agc_table_en)
