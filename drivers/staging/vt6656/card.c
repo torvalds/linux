@@ -838,46 +838,44 @@ int CARDbRadioPowerOn(struct vnt_private *priv)
 	return ret;
 }
 
-void CARDvSetBSSMode(struct vnt_private *pDevice)
+void CARDvSetBSSMode(struct vnt_private *priv)
 {
-    // Set BB and packet type at the same time.//{{RobertYu:20050222, AL7230 have two TX PA output, only connet to b/g now
-    // so in 11a mode need to set the MAC Reg0x4C to 11b/g mode to turn on PA
-    if( (pDevice->byRFType == RF_AIROHA7230 ) && (pDevice->byBBType == BB_TYPE_11A) )
-    {
-        MACvSetBBType(pDevice, BB_TYPE_11G);
-    }
-    else
-    {
-        MACvSetBBType(pDevice, pDevice->byBBType);
-    }
-    pDevice->byPacketType = CARDbyGetPktType(pDevice);
+	if (priv->byRFType == RF_AIROHA7230 && priv->byBBType == BB_TYPE_11A)
+		MACvSetBBType(priv, BB_TYPE_11G);
+	else
+		MACvSetBBType(priv, priv->byBBType);
 
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, 0x03);
-    } else if (pDevice->byBBType == BB_TYPE_11B) {
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, 0x02);
-    } else if (pDevice->byBBType == BB_TYPE_11G) {
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, 0x08);
-    }
+	priv->byPacketType = CARDbyGetPktType(priv);
 
-    vUpdateIFS(pDevice);
-    CARDvSetRSPINF(pDevice, (u8)pDevice->byBBType);
+	if (priv->byBBType == BB_TYPE_11A)
+		ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x03);
+	else if (priv->byBBType == BB_TYPE_11B)
+		ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x02);
+	else if (priv->byBBType == BB_TYPE_11G)
+		ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x08);
 
-    if ( pDevice->byBBType == BB_TYPE_11A ) {
-        //request by Jack 2005-04-26
-        if (pDevice->byRFType == RF_AIROHA7230) {
-            pDevice->abyBBVGA[0] = 0x20;
-            ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xE7, pDevice->abyBBVGA[0]);
-        }
-        pDevice->abyBBVGA[2] = 0x10;
-        pDevice->abyBBVGA[3] = 0x10;
-    } else {
-        //request by Jack 2005-04-26
-        if (pDevice->byRFType == RF_AIROHA7230) {
-            pDevice->abyBBVGA[0] = 0x1C;
-            ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xE7, pDevice->abyBBVGA[0]);
-        }
-        pDevice->abyBBVGA[2] = 0x0;
-        pDevice->abyBBVGA[3] = 0x0;
-    }
+	vUpdateIFS(priv);
+	CARDvSetRSPINF(priv, (u8)priv->byBBType);
+
+	if (priv->byBBType == BB_TYPE_11A) {
+		if (priv->byRFType == RF_AIROHA7230) {
+			priv->abyBBVGA[0] = 0x20;
+
+			ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG,
+						0xe7, priv->abyBBVGA[0]);
+		}
+
+		priv->abyBBVGA[2] = 0x10;
+		priv->abyBBVGA[3] = 0x10;
+	} else {
+		if (priv->byRFType == RF_AIROHA7230) {
+			priv->abyBBVGA[0] = 0x1c;
+
+			ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG,
+						0xe7, priv->abyBBVGA[0]);
+		}
+
+		priv->abyBBVGA[2] = 0x0;
+		priv->abyBBVGA[3] = 0x0;
+	}
 }
