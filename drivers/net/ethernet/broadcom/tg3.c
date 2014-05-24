@@ -3224,7 +3224,7 @@ static int tg3_nvram_read_using_eeprom(struct tg3 *tp,
 	return 0;
 }
 
-#define NVRAM_CMD_TIMEOUT 10000
+#define NVRAM_CMD_TIMEOUT 100
 
 static int tg3_nvram_exec_cmd(struct tg3 *tp, u32 nvram_cmd)
 {
@@ -11893,9 +11893,9 @@ static int tg3_get_eeprom_len(struct net_device *dev)
 static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
 {
 	struct tg3 *tp = netdev_priv(dev);
-	int ret;
+	int ret, cpmu_restore = 0;
 	u8  *pd;
-	u32 i, offset, len, b_offset, b_count;
+	u32 i, offset, len, b_offset, b_count, cpmu_val = 0;
 	__be32 val;
 
 	if (tg3_flag(tp, NO_NVRAM))
@@ -11907,6 +11907,19 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 	eeprom->magic = TG3_EEPROM_MAGIC;
 
+	/* Override clock, link aware and link idle modes */
+	if (tg3_flag(tp, CPMU_PRESENT)) {
+		cpmu_val = tr32(TG3_CPMU_CTRL);
+		if (cpmu_val & (CPMU_CTRL_LINK_AWARE_MODE |
+				CPMU_CTRL_LINK_IDLE_MODE)) {
+			tw32(TG3_CPMU_CTRL, cpmu_val &
+					    ~(CPMU_CTRL_LINK_AWARE_MODE |
+					     CPMU_CTRL_LINK_IDLE_MODE));
+			cpmu_restore = 1;
+		}
+	}
+	tg3_override_clk(tp);
+
 	if (offset & 3) {
 		/* adjustments to start on required 4 byte boundary */
 		b_offset = offset & 3;
@@ -11917,7 +11930,7 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		}
 		ret = tg3_nvram_read_be32(tp, offset-b_offset, &val);
 		if (ret)
-			return ret;
+			goto eeprom_done;
 		memcpy(data, ((char *)&val) + b_offset, b_count);
 		len -= b_count;
 		offset += b_count;
@@ -11929,10 +11942,20 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	for (i = 0; i < (len - (len & 3)); i += 4) {
 		ret = tg3_nvram_read_be32(tp, offset + i, &val);
 		if (ret) {
+			if (i)
+				i -= 4;
 			eeprom->len += i;
-			return ret;
+			goto eeprom_done;
 		}
 		memcpy(pd + i, &val, 4);
+		if (need_resched()) {
+			if (signal_pending(current)) {
+				eeprom->len += i;
+				ret = -EINTR;
+				goto eeprom_done;
+			}
+			cond_resched();
+		}
 	}
 	eeprom->len += i;
 
@@ -11943,11 +11966,19 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		b_offset = offset + len - b_count;
 		ret = tg3_nvram_read_be32(tp, b_offset, &val);
 		if (ret)
-			return ret;
+			goto eeprom_done;
 		memcpy(pd, &val, b_count);
 		eeprom->len += b_count;
 	}
-	return 0;
+	ret = 0;
+
+eeprom_done:
+	/* Restore clock, link aware and link idle modes */
+	tg3_restore_clk(tp);
+	if (cpmu_restore)
+		tw32(TG3_CPMU_CTRL, cpmu_val);
+
+	return ret;
 }
 
 static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
