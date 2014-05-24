@@ -72,9 +72,9 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 	_init_queue(&precvpriv->recv_pending_queue);
 	precvpriv->adapter = padapter;
 	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
-	precvpriv->pallocated_frame_buf = _malloc(NR_RECVFRAME *
-					   sizeof(union recv_frame) +
-					   RXFRAME_ALIGN_SZ);
+	precvpriv->pallocated_frame_buf = kmalloc(NR_RECVFRAME *
+						  sizeof(union recv_frame) + RXFRAME_ALIGN_SZ,
+						  GFP_ATOMIC);
 	if (precvpriv->pallocated_frame_buf == NULL)
 		return _FAIL;
 	kmemleak_not_leak(precvpriv->pallocated_frame_buf);

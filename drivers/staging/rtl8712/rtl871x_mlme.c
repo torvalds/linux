@@ -62,7 +62,8 @@ static sint _init_mlme_priv(struct _adapter *padapter)
 	_init_queue(&(pmlmepriv->scanned_queue));
 	set_scanned_network_val(pmlmepriv, 0);
 	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct ndis_802_11_ssid));
-	pbuf = _malloc(MAX_BSS_CNT * (sizeof(struct wlan_network)));
+	pbuf = kmalloc(MAX_BSS_CNT * (sizeof(struct wlan_network)),
+		       GFP_ATOMIC);
 	if (pbuf == NULL)
 		return _FAIL;
 	pmlmepriv->free_bss_buf = pbuf;
@@ -725,8 +726,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 	struct wlan_network *pnetwork;
 
 	if (sizeof(struct list_head) == 4 * sizeof(u32)) {
-		pnetwork = (struct wlan_network *)
-			_malloc(sizeof(struct wlan_network));
+		pnetwork = kmalloc(sizeof(struct wlan_network), GFP_ATOMIC);
 		memcpy((u8 *)pnetwork+16, (u8 *)pbuf + 8,
 			sizeof(struct wlan_network) - 16);
 	} else
@@ -1212,17 +1212,15 @@ sint r8712_set_auth(struct _adapter *adapter,
 	struct cmd_obj *pcmd;
 	struct setauth_parm *psetauthparm;
 
-	pcmd = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
+	pcmd = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return _FAIL;
 
-	psetauthparm = (struct setauth_parm *)_malloc(
-			sizeof(struct setauth_parm));
+	psetauthparm = kzalloc(sizeof(struct setauth_parm), GFP_ATOMIC);
 	if (psetauthparm == NULL) {
 		kfree((unsigned char *)pcmd);
 		return _FAIL;
 	}
-	memset(psetauthparm, 0, sizeof(struct setauth_parm));
 	psetauthparm->mode = (u8)psecuritypriv->AuthAlgrthm;
 	pcmd->cmdcode = _SetAuth_CMD_;
 	pcmd->parmbuf = (unsigned char *)psetauthparm;
@@ -1244,15 +1242,14 @@ sint r8712_set_key(struct _adapter *adapter,
 	u8 keylen;
 	sint ret = _SUCCESS;
 
-	pcmd = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
+	pcmd = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return _FAIL;
-	psetkeyparm = (struct setkey_parm *)_malloc(sizeof(struct setkey_parm));
+	psetkeyparm = kzalloc(sizeof(struct setkey_parm), GFP_ATOMIC);
 	if (psetkeyparm == NULL) {
 		ret = _FAIL;
 		goto err_free_cmd;
 	}
-	memset(psetkeyparm, 0, sizeof(struct setkey_parm));
 	if (psecuritypriv->AuthAlgrthm == 2) { /* 802.1X */
 		psetkeyparm->algorithm =
 			 (u8)psecuritypriv->XGrpPrivacy;

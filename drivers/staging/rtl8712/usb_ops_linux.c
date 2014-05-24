@@ -495,7 +495,7 @@ int r8712_usbctrl_vendorreq(struct intf_priv *pintfpriv, u8 request, u16 value,
 	 */
 	u8 *palloc_buf, *pIo_buf;
 
-	palloc_buf = _malloc((u32) len + 16);
+	palloc_buf = kmalloc((u32)len + 16, GFP_ATOMIC);
 	if (palloc_buf == NULL) {
 		dev_err(&udev->dev, "%s: Can't alloc memory for vendor request\n",
 			__func__);
