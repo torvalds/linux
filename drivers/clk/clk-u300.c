@@ -1168,6 +1168,7 @@ static const struct of_device_id u300_clk_match[] __initconst = {
 		.compatible = "stericsson,u300-syscon-mclk",
 		.data = of_u300_syscon_mclk_init,
 	},
+	{}
 };
 
 
