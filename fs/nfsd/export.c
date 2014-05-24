@@ -438,13 +438,14 @@ out_free_all:
 
 static int secinfo_parse(char **mesg, char *buf, struct svc_export *exp)
 {
-	int listsize, err;
 	struct exp_flavor_info *f;
+	u32 listsize;
+	int err;
 
-	err = get_int(mesg, &listsize);
+	err = get_uint(mesg, &listsize);
 	if (err)
 		return err;
-	if (listsize < 0 || listsize > MAX_SECINFO_LIST)
+	if (listsize > MAX_SECINFO_LIST)
 		return -EINVAL;
 
 	for (f = exp->ex_flavors; f < exp->ex_flavors + listsize; f++) {
