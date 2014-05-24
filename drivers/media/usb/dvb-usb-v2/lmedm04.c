@@ -125,14 +125,13 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define TUNER_RS2000	0x4
 
 struct lme2510_state {
+	unsigned long int_urb_due;
 	u8 id;
 	u8 tuner_config;
 	u8 signal_lock;
 	u8 signal_level;
 	u8 signal_sn;
 	u8 time_key;
-	u8 last_key;
-	u8 key_timeout;
 	u8 i2c_talk_onoff;
 	u8 i2c_gate;
 	u8 i2c_tuner_gate_w;
@@ -323,7 +322,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 				}
 				break;
 			case TUNER_RS2000:
-				if (ibuf[1] == 0x3 &&  ibuf[6] == 0xff)
+				if (ibuf[2] & 0x1)
 					st->signal_lock = 0xff;
 				else
 					st->signal_lock = 0x00;
@@ -343,7 +342,12 @@ static void lme2510_int_response(struct urb *lme_urb)
 		break;
 		}
 	}
+
 	usb_submit_urb(lme_urb, GFP_ATOMIC);
+
+	/* interrupt urb is due every 48 msecs while streaming
+	 *	add 12msecs for system lag */
+	st->int_urb_due = jiffies + msecs_to_jiffies(60);
 }
 
 static int lme2510_int_read(struct dvb_usb_adapter *adap)
@@ -584,14 +588,13 @@ static int lme2510_msg(struct dvb_usb_device *d,
 			switch (wbuf[3]) {
 			case 0x8c:
 				rbuf[0] = 0x55;
-				rbuf[1] = 0xff;
-				if (st->last_key == st->time_key) {
-					st->key_timeout++;
-					if (st->key_timeout > 5)
-						rbuf[1] = 0;
-				} else
-					st->key_timeout = 0;
-				st->last_key = st->time_key;
+				rbuf[1] = st->signal_lock;
+
+				/* If int_urb_due overdue
+				 *  set rbuf[1] to 0 to clear lock */
+				if (time_after(jiffies,	st->int_urb_due))
+					rbuf[1] = 0;
+
 				break;
 			default:
 				lme2510_usb_talk(d, wbuf, wlen, rbuf, rlen);
