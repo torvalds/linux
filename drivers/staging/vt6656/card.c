@@ -766,38 +766,36 @@ void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 tsf,
  *
  * Parameters:
  *  In:
- *      pDevice         - The adapter to be turned off
+ *      priv         - The adapter to be turned off
  *  Out:
  *      none
  *
  * Return Value: true if success; otherwise false
  *
  */
-int CARDbRadioPowerOff(struct vnt_private *pDevice)
+int CARDbRadioPowerOff(struct vnt_private *priv)
 {
-	int bResult = true;
+	int ret = true;
 
-    //if (pDevice->bRadioOff == true)
-    //    return true;
+	priv->bRadioOff = true;
 
-    pDevice->bRadioOff = true;
+	switch (priv->byRFType) {
+	case RF_AL2230:
+	case RF_AL2230S:
+	case RF_AIROHA7230:
+	case RF_VT3226:
+	case RF_VT3226D0:
+	case RF_VT3342A0:
+		MACvRegBitsOff(priv, MAC_REG_SOFTPWRCTL,
+				(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
+		break;
+	}
 
-    switch (pDevice->byRFType) {
-        case RF_AL2230:
-        case RF_AL2230S:
-        case RF_AIROHA7230:
-        case RF_VT3226:     //RobertYu:20051111
-        case RF_VT3226D0:
-        case RF_VT3342A0:   //RobertYu:20060609
-            MACvRegBitsOff(pDevice, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
-            break;
-    }
+	MACvRegBitsOff(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
 
-    MACvRegBitsOff(pDevice, MAC_REG_HOSTCR, HOSTCR_RXON);
+	BBvSetDeepSleep(priv);
 
-    BBvSetDeepSleep(pDevice);
-
-    return bResult;
+	return ret;
 }
 
 /*
