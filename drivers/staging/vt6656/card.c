@@ -803,42 +803,39 @@ int CARDbRadioPowerOff(struct vnt_private *priv)
  *
  * Parameters:
  *  In:
- *      pDevice         - The adapter to be turned on
+ *      priv         - The adapter to be turned on
  *  Out:
  *      none
  *
  * Return Value: true if success; otherwise false
  *
  */
-int CARDbRadioPowerOn(struct vnt_private *pDevice)
+int CARDbRadioPowerOn(struct vnt_private *priv)
 {
-	int bResult = true;
+	int ret = true;
 
-    if ((pDevice->bHWRadioOff == true) || (pDevice->bRadioControlOff == true)) {
-        return false;
-    }
+	if (priv->bHWRadioOff == true || priv->bRadioControlOff == true)
+		return false;
 
-    //if (pDevice->bRadioOff == false)
-    //    return true;
+	priv->bRadioOff = false;
 
-    pDevice->bRadioOff = false;
+	BBvExitDeepSleep(priv);
 
-    BBvExitDeepSleep(pDevice);
+	MACvRegBitsOn(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
 
-    MACvRegBitsOn(pDevice, MAC_REG_HOSTCR, HOSTCR_RXON);
+	switch (priv->byRFType) {
+	case RF_AL2230:
+	case RF_AL2230S:
+	case RF_AIROHA7230:
+	case RF_VT3226:
+	case RF_VT3226D0:
+	case RF_VT3342A0:
+		MACvRegBitsOn(priv, MAC_REG_SOFTPWRCTL,
+			(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
+		break;
+	}
 
-    switch (pDevice->byRFType) {
-        case RF_AL2230:
-        case RF_AL2230S:
-        case RF_AIROHA7230:
-        case RF_VT3226:     //RobertYu:20051111
-        case RF_VT3226D0:
-        case RF_VT3342A0:   //RobertYu:20060609
-            MACvRegBitsOn(pDevice, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
-            break;
-    }
-
-    return bResult;
+	return ret;
 }
 
 void CARDvSetBSSMode(struct vnt_private *pDevice)
