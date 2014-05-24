@@ -657,30 +657,30 @@ bool CARDbClearCurrentTSF(struct vnt_private *priv)
  *
  * Parameters:
  *  In:
- *      qwTSF           - Current TSF counter
- *      wbeaconInterval - Beacon Interval
+ *      tsf		- Current TSF counter
+ *      beacon_interval - Beacon Interval
  *  Out:
- *      qwCurrTSF       - Current TSF counter
+ *      tsf		- Current TSF counter
  *
  * Return Value: TSF value of next Beacon
  *
  */
-u64 CARDqGetNextTBTT(u64 qwTSF, u16 wBeaconInterval)
+u64 CARDqGetNextTBTT(u64 tsf, u16 beacon_interval)
 {
-	u32 uBeaconInterval;
+	u32 beacon_int;
 
-	uBeaconInterval = wBeaconInterval * 1024;
+	beacon_int = beacon_interval * 1024;
 
 	/* Next TBTT =
 	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
 	*/
-	if (uBeaconInterval) {
-		do_div(qwTSF, uBeaconInterval);
-		qwTSF += 1;
-		qwTSF *= uBeaconInterval;
+	if (beacon_int) {
+		do_div(tsf, beacon_int);
+		tsf += 1;
+		tsf *= beacon_int;
 	}
 
-	return qwTSF;
+	return tsf;
 }
 
 /*
