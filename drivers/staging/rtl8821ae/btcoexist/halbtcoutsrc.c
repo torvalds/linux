@@ -121,11 +121,6 @@ static void halbtc_dbg_init(void)
 			0;
 }
 
-static bool halbtc_is_hw_mailbox_exist(struct btc_coexist *btcoexist)
-{
-	return true;
-}
-
 static bool halbtc_is_bt40(struct rtl_priv *adapter)
 {
 	struct rtl_priv *rtlpriv = adapter;
@@ -610,26 +605,6 @@ static void halbtc_write_4byte(void *bt_context, u32 reg_addr, u32 data)
 	rtl_write_dword(rtlpriv, reg_addr, data);
 }
 
-
-static void halbtc_set_macreg(void *bt_context, u32 reg_addr,
-				u32 bit_mask, u32 data)
-{
-	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-
-	rtl_set_bbreg(rtlpriv->mac80211.hw, reg_addr, bit_mask, data);
-}
-
-
-static u32 halbtc_get_macreg(void *bt_context, u32 reg_addr, u32 bit_mask)
-{
-	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-
-	return rtl_get_bbreg(rtlpriv->mac80211.hw, reg_addr, bit_mask);
-}
-
-
 static void halbtc_set_bbreg(void *bt_context, u32 reg_addr,
 				u32 bit_mask, u32 data)
 {
@@ -698,25 +673,6 @@ static void halbtc_display_dbg_msg(void *bt_context, u8 disp_type)
 	default:
 		break;
 	}
-}
-
-static bool halbtc_under_ips(struct btc_coexist *btcoexist)
-{
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	struct rtl_ps_ctl *ppsc = rtl_psc(rtlpriv);
-	enum rf_pwrstate rtstate;
-	
-	if (ppsc->b_inactiveps) {
-		rtstate = ppsc->rfpwr_state;
-
-		if (rtstate != ERFON &&
-		    ppsc->rfoff_reason == RF_CHANGE_BY_IPS) {
-
-			return true;
-		}
-	}
-
-	return false;
 }
 
 /*****************************************************************
