@@ -615,17 +615,17 @@ void CARDvAdjustTSF(struct vnt_private *priv, u8 rx_rate,
  *
  * Parameters:
  *  In:
- *      pDevice         - The adapter to be read
+ *	priv		- The adapter to be read
  *  Out:
- *      qwCurrTSF       - Current TSF counter
+ *	current_tsf	- Current TSF counter
  *
  * Return Value: true if success; otherwise false
  *
  */
-bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
+bool CARDbGetCurrentTSF(struct vnt_private *priv, u64 *current_tsf)
 {
 
-	*pqwCurrTSF = pDevice->qwCurrTSF;
+	*current_tsf = priv->qwCurrTSF;
 
 	return true;
 }
