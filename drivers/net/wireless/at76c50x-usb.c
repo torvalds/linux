@@ -2039,6 +2039,44 @@ static void at76_configure_filter(struct ieee80211_hw *hw,
 	ieee80211_queue_work(hw, &priv->work_set_promisc);
 }
 
+static int at76_set_wep(struct at76_priv *priv)
+{
+	int ret = 0;
+	struct mib_mac_wep *mib_data = &priv->mib_buf.data.wep_mib;
+
+	priv->mib_buf.type = MIB_MAC_WEP;
+	priv->mib_buf.size = sizeof(struct mib_mac_wep);
+	priv->mib_buf.index = 0;
+
+	memset(mib_data, 0, sizeof(*mib_data));
+
+	if (priv->wep_enabled) {
+		if (priv->wep_keys_len[priv->wep_key_id] > WEP_SMALL_KEY_LEN)
+			mib_data->encryption_level = 2;
+		else
+			mib_data->encryption_level = 1;
+
+		/* always exclude unencrypted if WEP is active */
+		mib_data->exclude_unencrypted = 1;
+	} else {
+		mib_data->exclude_unencrypted = 0;
+		mib_data->encryption_level = 0;
+	}
+
+	mib_data->privacy_invoked = priv->wep_enabled;
+	mib_data->wep_default_key_id = priv->wep_key_id;
+	memcpy(mib_data->wep_default_keyvalue, priv->wep_keys,
+	       sizeof(priv->wep_keys));
+
+	ret = at76_set_mib(priv, &priv->mib_buf);
+
+	if (ret < 0)
+		wiphy_err(priv->hw->wiphy,
+			  "set_mib (wep) failed: %d\n", ret);
+
+	return ret;
+}
+
 static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			struct ieee80211_key_conf *key)
@@ -2081,7 +2119,7 @@ static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			priv->wep_enabled = 1;
 	}
 
-	at76_startup_device(priv);
+	at76_set_wep(priv);
 
 	mutex_unlock(&priv->mtx);
 

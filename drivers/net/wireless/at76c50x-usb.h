@@ -219,18 +219,6 @@ struct at76_req_join {
 	u8 reserved;
 } __packed;
 
-struct set_mib_buffer {
-	u8 type;
-	u8 size;
-	u8 index;
-	u8 reserved;
-	union {
-		u8 byte;
-		__le16 word;
-		u8 addr[ETH_ALEN];
-	} data;
-} __packed;
-
 struct mib_local {
 	u16 reserved0;
 	u8 beacon_enable;
@@ -332,6 +320,19 @@ struct mib_fw_version {
 struct mib_mdomain {
 	u8 tx_powerlevel[14];
 	u8 channel_list[14];	/* 0 for invalid channels */
+} __packed;
+
+struct set_mib_buffer {
+	u8 type;
+	u8 size;
+	u8 index;
+	u8 reserved;
+	union {
+		u8 byte;
+		__le16 word;
+		u8 addr[ETH_ALEN];
+		struct mib_mac_wep wep_mib;
+	} data;
 } __packed;
 
 struct at76_fw_header {
