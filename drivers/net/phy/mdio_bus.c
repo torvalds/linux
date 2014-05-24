@@ -300,6 +300,12 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 	if (IS_ERR(phydev) || phydev == NULL)
 		return phydev;
 
+	/*
+	 * For DT, see if the auto-probed phy has a correspoding child
+	 * in the bus node, and set the of_node pointer in this case.
+	 */
+	of_mdiobus_link_phydev(bus, phydev);
+
 	err = phy_device_register(phydev);
 	if (err) {
 		phy_device_free(phydev);
