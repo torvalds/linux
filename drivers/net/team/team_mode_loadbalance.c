@@ -249,7 +249,7 @@ static int __fprog_create(struct sock_fprog_kern **pfprog, u32 data_len,
 
 	if (data_len % sizeof(struct sock_filter))
 		return -EINVAL;
-	fprog = kmalloc(sizeof(struct sock_fprog), GFP_KERNEL);
+	fprog = kmalloc(sizeof(*fprog), GFP_KERNEL);
 	if (!fprog)
 		return -ENOMEM;
 	fprog->filter = kmemdup(filter, data_len, GFP_KERNEL);
