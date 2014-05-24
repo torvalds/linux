@@ -68,7 +68,7 @@ MODULE_AUTHOR("Bruno Ducrot");
 MODULE_DESCRIPTION("ACPI Video Driver");
 MODULE_LICENSE("GPL");
 
-static bool brightness_switch_enabled = 1;
+static bool brightness_switch_enabled;
 module_param(brightness_switch_enabled, bool, 0644);
 
 /*
@@ -150,6 +150,7 @@ struct acpi_video_enumerated_device {
 
 struct acpi_video_bus {
 	struct acpi_device *device;
+	bool backlight_registered;
 	u8 dos_setting;
 	struct acpi_video_enumerated_device *attached_array;
 	u8 attached_count;
@@ -1658,87 +1659,88 @@ acpi_video_bus_match(acpi_handle handle, u32 level, void *context,
 
 static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 {
-	if (acpi_video_verify_backlight_support()) {
-		struct backlight_properties props;
-		struct pci_dev *pdev;
-		acpi_handle acpi_parent;
-		struct device *parent = NULL;
-		int result;
-		static int count;
-		char *name;
+	struct backlight_properties props;
+	struct pci_dev *pdev;
+	acpi_handle acpi_parent;
+	struct device *parent = NULL;
+	int result;
+	static int count;
+	char *name;
 
-		result = acpi_video_init_brightness(device);
-		if (result)
-			return;
-		name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
-		if (!name)
-			return;
-		count++;
+	result = acpi_video_init_brightness(device);
+	if (result)
+		return;
+	name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
+	if (!name)
+		return;
+	count++;
 
-		acpi_get_parent(device->dev->handle, &acpi_parent);
+	acpi_get_parent(device->dev->handle, &acpi_parent);
 
-		pdev = acpi_get_pci_dev(acpi_parent);
-		if (pdev) {
-			parent = &pdev->dev;
-			pci_dev_put(pdev);
-		}
-
-		memset(&props, 0, sizeof(struct backlight_properties));
-		props.type = BACKLIGHT_FIRMWARE;
-		props.max_brightness = device->brightness->count - 3;
-		device->backlight = backlight_device_register(name,
-							      parent,
-							      device,
-							      &acpi_backlight_ops,
-							      &props);
-		kfree(name);
-		if (IS_ERR(device->backlight))
-			return;
-
-		/*
-		 * Save current brightness level in case we have to restore it
-		 * before acpi_video_device_lcd_set_level() is called next time.
-		 */
-		device->backlight->props.brightness =
-				acpi_video_get_brightness(device->backlight);
-
-		device->cooling_dev = thermal_cooling_device_register("LCD",
-					device->dev, &video_cooling_ops);
-		if (IS_ERR(device->cooling_dev)) {
-			/*
-			 * Set cooling_dev to NULL so we don't crash trying to
-			 * free it.
-			 * Also, why the hell we are returning early and
-			 * not attempt to register video output if cooling
-			 * device registration failed?
-			 * -- dtor
-			 */
-			device->cooling_dev = NULL;
-			return;
-		}
-
-		dev_info(&device->dev->dev, "registered as cooling_device%d\n",
-			 device->cooling_dev->id);
-		result = sysfs_create_link(&device->dev->dev.kobj,
-				&device->cooling_dev->device.kobj,
-				"thermal_cooling");
-		if (result)
-			printk(KERN_ERR PREFIX "Create sysfs link\n");
-		result = sysfs_create_link(&device->cooling_dev->device.kobj,
-				&device->dev->dev.kobj, "device");
-		if (result)
-			printk(KERN_ERR PREFIX "Create sysfs link\n");
+	pdev = acpi_get_pci_dev(acpi_parent);
+	if (pdev) {
+		parent = &pdev->dev;
+		pci_dev_put(pdev);
 	}
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_FIRMWARE;
+	props.max_brightness = device->brightness->count - 3;
+	device->backlight = backlight_device_register(name,
+						      parent,
+						      device,
+						      &acpi_backlight_ops,
+						      &props);
+	kfree(name);
+	if (IS_ERR(device->backlight))
+		return;
+
+	/*
+	 * Save current brightness level in case we have to restore it
+	 * before acpi_video_device_lcd_set_level() is called next time.
+	 */
+	device->backlight->props.brightness =
+			acpi_video_get_brightness(device->backlight);
+
+	device->cooling_dev = thermal_cooling_device_register("LCD",
+				device->dev, &video_cooling_ops);
+	if (IS_ERR(device->cooling_dev)) {
+		/*
+		 * Set cooling_dev to NULL so we don't crash trying to free it.
+		 * Also, why the hell we are returning early and not attempt to
+		 * register video output if cooling device registration failed?
+		 * -- dtor
+		 */
+		device->cooling_dev = NULL;
+		return;
+	}
+
+	dev_info(&device->dev->dev, "registered as cooling_device%d\n",
+		 device->cooling_dev->id);
+	result = sysfs_create_link(&device->dev->dev.kobj,
+			&device->cooling_dev->device.kobj,
+			"thermal_cooling");
+	if (result)
+		printk(KERN_ERR PREFIX "Create sysfs link\n");
+	result = sysfs_create_link(&device->cooling_dev->device.kobj,
+			&device->dev->dev.kobj, "device");
+	if (result)
+		printk(KERN_ERR PREFIX "Create sysfs link\n");
 }
 
 static int acpi_video_bus_register_backlight(struct acpi_video_bus *video)
 {
 	struct acpi_video_device *dev;
 
+	if (!acpi_video_verify_backlight_support())
+		return 0;
+
 	mutex_lock(&video->device_list_lock);
 	list_for_each_entry(dev, &video->video_device_list, entry)
 		acpi_video_dev_register_backlight(dev);
 	mutex_unlock(&video->device_list_lock);
+
+	video->backlight_registered = true;
 
 	video->pm_nb.notifier_call = acpi_video_resume;
 	video->pm_nb.priority = 0;
@@ -1767,12 +1769,19 @@ static void acpi_video_dev_unregister_backlight(struct acpi_video_device *device
 static int acpi_video_bus_unregister_backlight(struct acpi_video_bus *video)
 {
 	struct acpi_video_device *dev;
-	int error = unregister_pm_notifier(&video->pm_nb);
+	int error;
+
+	if (!video->backlight_registered)
+		return 0;
+
+	error = unregister_pm_notifier(&video->pm_nb);
 
 	mutex_lock(&video->device_list_lock);
 	list_for_each_entry(dev, &video->video_device_list, entry)
 		acpi_video_dev_unregister_backlight(dev);
 	mutex_unlock(&video->device_list_lock);
+
+	video->backlight_registered = false;
 
 	return error;
 }
@@ -2060,6 +2069,20 @@ void acpi_video_unregister(void)
 	return;
 }
 EXPORT_SYMBOL(acpi_video_unregister);
+
+void acpi_video_unregister_backlight(void)
+{
+	struct acpi_video_bus *video;
+
+	if (!register_count)
+		return;
+
+	mutex_lock(&video_list_lock);
+	list_for_each_entry(video, &video_bus_head, entry)
+		acpi_video_bus_unregister_backlight(video);
+	mutex_unlock(&video_list_lock);
+}
+EXPORT_SYMBOL(acpi_video_unregister_backlight);
 
 /*
  * This is kind of nasty. Hardware using Intel chipsets may require
