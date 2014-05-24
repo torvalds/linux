@@ -638,6 +638,9 @@ static int tracepoint_module_coming(struct module *mod)
 	struct tp_module *tp_mod, *iter;
 	int ret = 0;
 
+	if (!mod->num_tracepoints)
+		return 0;
+
 	/*
 	 * We skip modules that taint the kernel, especially those with different
 	 * module headers (for forced load), to make sure we don't cause a crash.
@@ -680,6 +683,9 @@ end:
 static int tracepoint_module_going(struct module *mod)
 {
 	struct tp_module *pos;
+
+	if (!mod->num_tracepoints)
+		return 0;
 
 	mutex_lock(&tracepoints_mutex);
 	tracepoint_update_probe_range(mod->tracepoints_ptrs,
