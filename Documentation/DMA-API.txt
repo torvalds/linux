@@ -142,6 +142,14 @@ internal API for use by the platform than an external API for use by
 driver writers.
 
 int
+dma_set_mask_and_coherent(struct device *dev, u64 mask)
+
+Checks to see if the mask is possible and updates the device
+streaming and coherent DMA mask parameters if it is.
+
+Returns: 0 if successful and a negative error if not.
+
+int
 dma_set_mask(struct device *dev, u64 mask)
 
 Checks to see if the mask is possible and updates the device
