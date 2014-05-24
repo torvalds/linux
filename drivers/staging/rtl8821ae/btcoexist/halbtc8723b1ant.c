@@ -810,6 +810,7 @@ static void halbtc8723b1ant_dec_bt_pwr(struct btc_coexist *btcoexist,
 	coex_dm->pre_dec_bt_pwr = coex_dm->cur_dec_bt_pwr;
 }
 
+#if (BT_AUTO_REPORT_ONLY_8723B_1ANT == 0)
 static void halbtc8723b1ant_set_bt_auto_report(struct btc_coexist *btcoexist,
 					bool enable_auto_report)
 {
@@ -852,6 +853,7 @@ static void halbtc8723b1ant_bt_auto_report(struct btc_coexist *btcoexist,
 
 	coex_dm->pre_bt_auto_report = coex_dm->cur_bt_auto_report;
 }
+#endif
 
 static void halbtc8723b1ant_fw_dac_swing_lvl(struct btc_coexist *btcoexist,
 				      bool force_exec, u8 fw_dac_swing_lvl)
@@ -878,55 +880,6 @@ static void halbtc8723b1ant_fw_dac_swing_lvl(struct btc_coexist *btcoexist,
 					       coex_dm->cur_fw_dac_swing_lvl);
 
 	coex_dm->pre_fw_dac_swing_lvl = coex_dm->cur_fw_dac_swing_lvl;
-}
-
-static void halbtc8723b1ant_set_sw_rf_rx_lpf_corner(
-						struct btc_coexist *btcoexist,
-						bool rx_rf_shrink_on)
-{
-	if (rx_rf_shrink_on) {
-		/*Shrink RF Rx LPF corner */
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-			  "[BTCoex], Shrink RF Rx LPF corner!!\n");
-		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x1e,
-					  0xfffff, 0xffff7);
-	} else {
-		/*Resume RF Rx LPF corner
-		 * After initialized, we can use coex_dm->btRf0x1eBackup */
-		if (btcoexist->initilized) {
-			BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-				  "[BTCoex], Resume RF Rx LPF corner!!\n");
-			btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A,
-						  0x1e, 0xfffff,
-						  coex_dm->bt_rf0x1e_backup);
-		}
-	}
-}
-
-static void halbtc8723b1ant_rf_shrink(struct btc_coexist *btcoexist,
-			       bool force_exec, bool rx_rf_shrink_on)
-{
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW,
-		  "[BTCoex], %s turn Rx RF Shrink = %s\n",
-		  (force_exec? "force to":""),
-		  ((rx_rf_shrink_on)? "ON":"OFF"));
-	coex_dm->cur_rf_rx_lpf_shrink = rx_rf_shrink_on;
-
-	if (!force_exec) {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_DETAIL,
-			  "[BTCoex], bPreRfRxLpfShrink=%d, "
-			  "bCurRfRxLpfShrink=%d\n",
-			  coex_dm->pre_rf_rx_lpf_shrink,
-			  coex_dm->cur_rf_rx_lpf_shrink);
-
-		if (coex_dm->pre_rf_rx_lpf_shrink ==
-		    coex_dm->cur_rf_rx_lpf_shrink)
-			return;
-	}
-	halbtc8723b1ant_set_sw_rf_rx_lpf_corner(btcoexist,
-						coex_dm->cur_rf_rx_lpf_shrink);
-
-	coex_dm->pre_rf_rx_lpf_shrink = coex_dm->cur_rf_rx_lpf_shrink;
 }
 
 static void halbtc8723b1ant_set_sw_penalty_tx_rate_adaptive(
@@ -966,153 +919,6 @@ static void halbtc8723b1ant_low_penalty_ra(struct btc_coexist *btcoexist,
 						coex_dm->cur_low_penalty_ra);
 
 	coex_dm->pre_low_penalty_ra = coex_dm->cur_low_penalty_ra;
-}
-
-static void halbtc8723b1ant_set_dac_swing_reg(struct btc_coexist *btcoexist,
-						u32 level)
-{
-	u8 val = (u8) level;
-
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-		  "[BTCoex], Write SwDacSwing = 0x%x\n", level);
-	btcoexist->btc_write_1byte_bitmask(btcoexist, 0x883, 0x3e, val);
-}
-
-static void halbtc8723b1ant_set_sw_full_time_dac_swing(
-						struct btc_coexist *btcoexist,
-						bool sw_dac_swing_on,
-						u32 sw_dac_swing_lvl)
-{
-	if (sw_dac_swing_on)
-		halbtc8723b1ant_set_dac_swing_reg(btcoexist, sw_dac_swing_lvl);
-	else
-		halbtc8723b1ant_set_dac_swing_reg(btcoexist, 0x18);
-}
-
-
-static void halbtc8723b1ant_dac_swing(struct btc_coexist *btcoexist,
-			bool force_exec, bool dac_swing_on, u32 dac_swing_lvl)
-{
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW,
-		  "[BTCoex], %s turn DacSwing=%s, dac_swing_lvl=0x%x\n",
-		  (force_exec ? "force to" : ""), (dac_swing_on ? "ON" : "OFF"),
-		  dac_swing_lvl);
-
-	coex_dm->cur_dac_swing_on = dac_swing_on;
-	coex_dm->cur_dac_swing_lvl = dac_swing_lvl;
-
-	if (!force_exec) {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_DETAIL,
-			  "[BTCoex], bPreDacSwingOn=%d, preDacSwingLvl=0x%x, "
-			  "bCurDacSwingOn=%d, curDacSwingLvl=0x%x\n",
-			  coex_dm->pre_dac_swing_on, coex_dm->pre_dac_swing_lvl,
-			  coex_dm->cur_dac_swing_on,
-			  coex_dm->cur_dac_swing_lvl);
-
-		if ((coex_dm->pre_dac_swing_on == coex_dm->cur_dac_swing_on) &&
-		    (coex_dm->pre_dac_swing_lvl == coex_dm->cur_dac_swing_lvl))
-			return;
-	}
-	mdelay(30);
-	halbtc8723b1ant_set_sw_full_time_dac_swing(btcoexist, dac_swing_on,
-						   dac_swing_lvl);
-
-	coex_dm->pre_dac_swing_on = coex_dm->cur_dac_swing_on;
-	coex_dm->pre_dac_swing_lvl = coex_dm->cur_dac_swing_lvl;
-}
-
-static void halbtc8723b1ant_set_adc_backoff(struct btc_coexist *btcoexist,
-					bool adc_backoff)
-{
-	if (adc_backoff) {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-			  "[BTCoex], BB BackOff Level On!\n");
-		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x8db, 0x60, 0x3);
-	} else {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-			  "[BTCoex], BB BackOff Level Off!\n");
-		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x8db, 0x60, 0x1);
-	}
-}
-
-static void halbtc8723b1ant_adc_backoff(struct btc_coexist *btcoexist,
-				 bool force_exec, bool adc_backoff)
-{
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW,
-		  "[BTCoex], %s turn AdcBackOff = %s\n",
-		  (force_exec ? "force to" : ""), (adc_backoff ? "ON" : "OFF"));
-	coex_dm->cur_adc_backoff = adc_backoff;
-
-	if (!force_exec) {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_DETAIL,
-			  "[BTCoex], bPreAdcBackOff=%d, bCurAdcBackOff=%d\n",
-			  coex_dm->pre_adc_backoff, coex_dm->cur_adc_backoff);
-
-		if(coex_dm->pre_adc_backoff == coex_dm->cur_adc_backoff)
-			return;
-	}
-	halbtc8723b1ant_set_adc_backoff(btcoexist, coex_dm->cur_adc_backoff);
-
-	coex_dm->pre_adc_backoff =
-		coex_dm->cur_adc_backoff;
-}
-
-static void halbtc8723b1ant_set_agc_table(struct btc_coexist *btcoexist,
-				   bool adc_table_en)
-{
-	u8 rssi_adjust_val = 0;
-
-	btcoexist->btc_set_rf_reg(btcoexist,
-		BTC_RF_A, 0xef, 0xfffff, 0x02000);
-	if (adc_table_en) {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-			  "[BTCoex], Agc Table On!\n");
-		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x3b,
-					  0xfffff, 0x3fa58);
-		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x3b,
-					  0xfffff, 0x37a58);
-		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x3b,
-					  0xfffff, 0x2fa58);
-		rssi_adjust_val = 8;
-	} else {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-			  "[BTCoex], Agc Table Off!\n");
-		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x3b,
-					  0xfffff, 0x39258);
-		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x3b,
-					  0xfffff, 0x31258);
-		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x3b,
-					  0xfffff, 0x29258);
-	}
-	btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0xef, 0xfffff, 0x0);
-
-	/* set rssi_adjust_val for wifi module. */
-	btcoexist->btc_set(btcoexist, BTC_SET_U1_RSSI_ADJ_VAL_FOR_AGC_TABLE_ON,
-			   &rssi_adjust_val);
-}
-
-
-static void halbtc8723b1ant_agc_table(struct btc_coexist *btcoexist,
-			       bool force_exec, bool adc_table_en)
-{
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW,
-		  "[BTCoex], %s %s Agc Table\n",
-		  (force_exec ? "force to" : ""),
-		  (adc_table_en ? "Enable" : "Disable"));
-	coex_dm->cur_agc_table_en = adc_table_en;
-
-	if (!force_exec) {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_DETAIL,
-			  "[BTCoex], bPreAgcTableEn=%d, bCurAgcTableEn=%d\n",
-			  coex_dm->pre_agc_table_en,
-			  coex_dm->cur_agc_table_en);
-
-		if(coex_dm->pre_agc_table_en == coex_dm->cur_agc_table_en)
-			return;
-	}
-	halbtc8723b1ant_set_agc_table(btcoexist, adc_table_en);
-
-	coex_dm->pre_agc_table_en = coex_dm->cur_agc_table_en;
 }
 
 static void halbtc8723b1ant_set_coex_table(struct btc_coexist *btcoexist,
@@ -1790,21 +1596,6 @@ static void halbtc8723b1ant_ps_tdma(struct btc_coexist *btcoexist,
 	coex_dm->pre_ps_tdma = coex_dm->cur_ps_tdma;
 }
 
-static void halbtc8723b1ant_coex_alloff(struct btc_coexist *btcoexist)
-{
-	/* fw all off */
-	halbtc8723b1ant_fw_dac_swing_lvl(btcoexist, NORMAL_EXEC, 6);
-	halbtc8723b1ant_dec_bt_pwr(btcoexist, NORMAL_EXEC, false);
-
-	/* sw all off */
-	halbtc8723b1ant_sw_mechanism1(btcoexist, false, false, false, false);
-	halbtc8723b1ant_sw_mechanism2(btcoexist, false, false, false, 0x18);
-
-
-	/* hw all off */
-	halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
-}
-
 static bool halbtc8723b1ant_is_common_action(struct btc_coexist *btcoexist)
 {
 	bool commom = false, wifi_connected = false;
@@ -2090,26 +1881,6 @@ static void halbtc8723b1ant_tdma_duration_adjust_for_acl(
 	}
 }
 
-static u8 halbtc8723b1ant_ps_tdma_type_by_wifi_rssi(s32 wifi_rssi,
-					s32 pre_wifi_rssi, u8 wifi_rssi_thresh)
-{
-	u8 ps_tdma_type=0;
-
-	if (wifi_rssi > pre_wifi_rssi) {
-		if (wifi_rssi > (wifi_rssi_thresh + 5))
-			ps_tdma_type = 26;
-		else
-			ps_tdma_type = 25;
-	} else  {
-		if (wifi_rssi > wifi_rssi_thresh)
- 			ps_tdma_type = 26;
- 		else
- 			ps_tdma_type = 25;
- 	}
-
-	return ps_tdma_type;
-}
-
 static void halbtc8723b1ant_PsTdmaCheckForPowerSaveState(
 			struct btc_coexist *btcoexist, bool new_ps_state)
 {
@@ -2170,6 +1941,7 @@ static void halbtc8723b1ant_power_save_state(struct btc_coexist *btcoexist,
 	}
 }
 
+#if (BT_AUTO_REPORT_ONLY_8723B_1ANT == 0)
 static void halbtc8723b1ant_action_wifi_only(struct btc_coexist *btcoexist)
 {
 	halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
@@ -2233,6 +2005,7 @@ static void halbtc8723b1ant_monitor_bt_enable_disable(
 		}
 	}
 }
+#endif
 
 /***************************************************
  *
