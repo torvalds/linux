@@ -67,6 +67,7 @@
 			i2c@11000 {
 				pinctrl-0 = <&i2c0_pins>;
 				pinctrl-names = "default";
+				clock-frequency = <100000>;
 				status = "okay";
 				audio_codec: audio-codec@4a {
 					compatible = "cirrus,cs42l51";

@@ -357,6 +357,8 @@ struct altera_tse_mac {
 	u32 reserved5[42];
 };
 
+#define tse_csroffs(a) (offsetof(struct altera_tse_mac, a))
+
 /* Transmit and Receive Command Registers Bit Definitions
  */
 #define ALTERA_TSE_TX_CMD_STAT_OMIT_CRC		BIT(17)
@@ -486,5 +488,50 @@ struct altera_tse_private {
 /* Function prototypes
  */
 void altera_tse_set_ethtool_ops(struct net_device *);
+
+static inline
+u32 csrrd32(void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+	return readl(paddr);
+}
+
+static inline
+u16 csrrd16(void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+	return readw(paddr);
+}
+
+static inline
+u8 csrrd8(void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+	return readb(paddr);
+}
+
+static inline
+void csrwr32(u32 val, void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+
+	writel(val, paddr);
+}
+
+static inline
+void csrwr16(u16 val, void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+
+	writew(val, paddr);
+}
+
+static inline
+void csrwr8(u8 val, void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+
+	writeb(val, paddr);
+}
 
 #endif /* __ALTERA_TSE_H__ */

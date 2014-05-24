@@ -151,7 +151,7 @@ static ssize_t store_mmustat_enable(struct device *s,
 			size_t count)
 {
 	unsigned long val, err;
-	int ret = sscanf(buf, "%ld", &val);
+	int ret = sscanf(buf, "%lu", &val);
 
 	if (ret != 1)
 		return -EINVAL;

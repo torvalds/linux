@@ -213,7 +213,7 @@ xfs_attr_calc_size(
 		 * Out of line attribute, cannot double split, but
 		 * make room for the attribute value itself.
 		 */
-		uint	dblocks = XFS_B_TO_FSB(mp, valuelen);
+		uint	dblocks = xfs_attr3_rmt_blocks(mp, valuelen);
 		nblks += dblocks;
 		nblks += XFS_NEXTENTADD_SPACE_RES(mp, dblocks, XFS_ATTR_FORK);
 	}
@@ -698,11 +698,22 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 
 		trace_xfs_attr_leaf_replace(args);
 
+		/* save the attribute state for later removal*/
 		args->op_flags |= XFS_DA_OP_RENAME;	/* an atomic rename */
 		args->blkno2 = args->blkno;		/* set 2nd entry info*/
 		args->index2 = args->index;
 		args->rmtblkno2 = args->rmtblkno;
 		args->rmtblkcnt2 = args->rmtblkcnt;
+		args->rmtvaluelen2 = args->rmtvaluelen;
+
+		/*
+		 * clear the remote attr state now that it is saved so that the
+		 * values reflect the state of the attribute we are about to
+		 * add, not the attribute we just found and will remove later.
+		 */
+		args->rmtblkno = 0;
+		args->rmtblkcnt = 0;
+		args->rmtvaluelen = 0;
 	}
 
 	/*
@@ -794,6 +805,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		args->blkno = args->blkno2;
 		args->rmtblkno = args->rmtblkno2;
 		args->rmtblkcnt = args->rmtblkcnt2;
+		args->rmtvaluelen = args->rmtvaluelen2;
 		if (args->rmtblkno) {
 			error = xfs_attr_rmtval_remove(args);
 			if (error)
@@ -999,13 +1011,22 @@ restart:
 
 		trace_xfs_attr_node_replace(args);
 
+		/* save the attribute state for later removal*/
 		args->op_flags |= XFS_DA_OP_RENAME;	/* atomic rename op */
 		args->blkno2 = args->blkno;		/* set 2nd entry info*/
 		args->index2 = args->index;
 		args->rmtblkno2 = args->rmtblkno;
 		args->rmtblkcnt2 = args->rmtblkcnt;
+		args->rmtvaluelen2 = args->rmtvaluelen;
+
+		/*
+		 * clear the remote attr state now that it is saved so that the
+		 * values reflect the state of the attribute we are about to
+		 * add, not the attribute we just found and will remove later.
+		 */
 		args->rmtblkno = 0;
 		args->rmtblkcnt = 0;
+		args->rmtvaluelen = 0;
 	}
 
 	retval = xfs_attr3_leaf_add(blk->bp, state->args);
@@ -1133,6 +1154,7 @@ restart:
 		args->blkno = args->blkno2;
 		args->rmtblkno = args->rmtblkno2;
 		args->rmtblkcnt = args->rmtblkcnt2;
+		args->rmtvaluelen = args->rmtvaluelen2;
 		if (args->rmtblkno) {
 			error = xfs_attr_rmtval_remove(args);
 			if (error)

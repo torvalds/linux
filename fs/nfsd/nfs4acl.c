@@ -402,8 +402,10 @@ sort_pacl(struct posix_acl *pacl)
 	 * by uid/gid. */
 	int i, j;
 
-	if (pacl->a_count <= 4)
-		return; /* no users or groups */
+	/* no users or groups */
+	if (!pacl || pacl->a_count <= 4)
+		return;
+
 	i = 1;
 	while (pacl->a_entries[i].e_tag == ACL_USER)
 		i++;
@@ -530,13 +532,12 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 
 	/*
 	 * ACLs with no ACEs are treated differently in the inheritable
-	 * and effective cases: when there are no inheritable ACEs, we
-	 * set a zero-length default posix acl:
+	 * and effective cases: when there are no inheritable ACEs,
+	 * calls ->set_acl with a NULL ACL structure.
 	 */
-	if (state->empty && (flags & NFS4_ACL_TYPE_DEFAULT)) {
-		pacl = posix_acl_alloc(0, GFP_KERNEL);
-		return pacl ? pacl : ERR_PTR(-ENOMEM);
-	}
+	if (state->empty && (flags & NFS4_ACL_TYPE_DEFAULT))
+		return NULL;
+
 	/*
 	 * When there are no effective ACEs, the following will end
 	 * up setting a 3-element effective posix ACL with all

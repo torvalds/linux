@@ -75,32 +75,8 @@ static int xenvif_poll(struct napi_struct *napi, int budget)
 	work_done = xenvif_tx_action(vif, budget);
 
 	if (work_done < budget) {
-		int more_to_do = 0;
-		unsigned long flags;
-
-		/* It is necessary to disable IRQ before calling
-		 * RING_HAS_UNCONSUMED_REQUESTS. Otherwise we might
-		 * lose event from the frontend.
-		 *
-		 * Consider:
-		 *   RING_HAS_UNCONSUMED_REQUESTS
-		 *   <frontend generates event to trigger napi_schedule>
-		 *   __napi_complete
-		 *
-		 * This handler is still in scheduled state so the
-		 * event has no effect at all. After __napi_complete
-		 * this handler is descheduled and cannot get
-		 * scheduled again. We lose event in this case and the ring
-		 * will be completely stalled.
-		 */
-
-		local_irq_save(flags);
-
-		RING_FINAL_CHECK_FOR_REQUESTS(&vif->tx, more_to_do);
-		if (!more_to_do)
-			__napi_complete(napi);
-
-		local_irq_restore(flags);
+		napi_complete(napi);
+		xenvif_napi_schedule_or_enable_events(vif);
 	}
 
 	return work_done;
@@ -194,7 +170,7 @@ static void xenvif_up(struct xenvif *vif)
 	enable_irq(vif->tx_irq);
 	if (vif->tx_irq != vif->rx_irq)
 		enable_irq(vif->rx_irq);
-	xenvif_check_rx_xenvif(vif);
+	xenvif_napi_schedule_or_enable_events(vif);
 }
 
 static void xenvif_down(struct xenvif *vif)

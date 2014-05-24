@@ -479,7 +479,7 @@ static int qup_i2c_xfer(struct i2c_adapter *adap,
 	int ret, idx;
 
 	ret = pm_runtime_get_sync(qup->dev);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	writel(1, qup->base + QUP_SW_RESET);

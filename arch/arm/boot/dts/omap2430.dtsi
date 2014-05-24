@@ -216,6 +216,13 @@
 			dma-names = "tx", "rx";
 		};
 
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap2-mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>;
+			ti,hwmods = "mailbox";
+		};
+
 		timer1: timer@49018000 {
 			compatible = "ti,omap2420-timer";
 			reg = <0x49018000 0x400>;
