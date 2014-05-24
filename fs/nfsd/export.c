@@ -389,6 +389,10 @@ fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc)
 	int len;
 	int migrated, i, err;
 
+	/* more than one fsloc */
+	if (fsloc->locations)
+		return -EINVAL;
+
 	/* listsize */
 	err = get_uint(mesg, &fsloc->locations_count);
 	if (err)
@@ -442,6 +446,10 @@ static int secinfo_parse(char **mesg, char *buf, struct svc_export *exp)
 	u32 listsize;
 	int err;
 
+	/* more than one secinfo */
+	if (exp->ex_nflavors)
+		return -EINVAL;
+
 	err = get_uint(mesg, &listsize);
 	if (err)
 		return err;
@@ -480,6 +488,10 @@ static inline int
 uuid_parse(char **mesg, char *buf, unsigned char **puuid)
 {
 	int len;
+
+	/* more than one uuid */
+	if (*puuid)
+		return -EINVAL;
 
 	/* expect a 16 byte uuid encoded as \xXXXX... */
 	len = qword_get(mesg, buf, PAGE_SIZE);
