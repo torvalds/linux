@@ -672,6 +672,8 @@ static void sccnxp_set_termios(struct uart_port *port,
 	port->ignore_status_mask = 0;
 	if (termios->c_iflag & IGNBRK)
 		port->ignore_status_mask |= SR_BRK;
+	if (termios->c_iflag & IGNPAR)
+		port->ignore_status_mask |= SR_PE;
 	if (!(termios->c_cflag & CREAD))
 		port->ignore_status_mask |= SR_PE | SR_OVR | SR_FE | SR_BRK;
 
