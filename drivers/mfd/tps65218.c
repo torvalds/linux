@@ -197,6 +197,7 @@ static struct regmap_irq_chip tps65218_irq_chip = {
 
 static const struct of_device_id of_tps65218_match_table[] = {
 	{ .compatible = "ti,tps65218", },
+	{}
 };
 
 static int tps65218_probe(struct i2c_client *client,
