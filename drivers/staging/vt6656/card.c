@@ -551,27 +551,27 @@ u8 CARDbyGetPktType(struct vnt_private *priv)
  *
  * Parameters:
  *  In:
- *      pDevice         - The adapter to be sync.
- *      qwTSF1          - Rx BCN's TSF
- *      qwTSF2          - Local TSF
+ *      rx_rate	- rx rate.
+ *      tsf1	- Rx BCN's TSF
+ *      tsf2	- Local TSF
  *  Out:
  *      none
  *
  * Return Value: TSF Offset value
  *
  */
-u64 CARDqGetTSFOffset(u8 byRxRate, u64 qwTSF1, u64 qwTSF2)
+u64 CARDqGetTSFOffset(u8 rx_rate, u64 tsf1, u64 tsf2)
 {
-	u64 qwTSFOffset = 0;
-	u16 wRxBcnTSFOffst = 0;
+	u64 tsf_offset = 0;
+	u16 rx_bcn_offset = 0;
 
-	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate % MAX_RATE];
+	rx_bcn_offset = cwRXBCNTSFOff[rx_rate % MAX_RATE];
 
-	qwTSF2 += (u64)wRxBcnTSFOffst;
+	tsf2 += (u64)rx_bcn_offset;
 
-	qwTSFOffset = qwTSF1 - qwTSF2;
+	tsf_offset = tsf1 - tsf2;
 
-	return qwTSFOffset;
+	return tsf_offset;
 }
 
 /*
