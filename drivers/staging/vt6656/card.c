@@ -580,42 +580,34 @@ u64 CARDqGetTSFOffset(u8 rx_rate, u64 tsf1, u64 tsf2)
  *
  * Parameters:
  *  In:
- *      pDevice         - The adapter to be sync.
- *      qwBSSTimestamp  - Rx BCN's TSF
- *      qwLocalTSF      - Local TSF
+ *      priv		- The adapter to be sync.
+ *      time_stamp	- Rx BCN's TSF
+ *      local_tsf	- Local TSF
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
-		u64 qwBSSTimestamp, u64 qwLocalTSF)
+void CARDvAdjustTSF(struct vnt_private *priv, u8 rx_rate,
+		u64 time_stamp, u64 local_tsf)
 {
-	u64 qwTSFOffset = 0;
-	u8 pbyData[8];
+	u64 tsf_offset = 0;
+	u8 data[8];
 
-    qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp, qwLocalTSF);
-    // adjust TSF
-    // HW's TSF add TSF Offset reg
+	tsf_offset = CARDqGetTSFOffset(rx_rate, time_stamp, local_tsf);
 
-	pbyData[0] = (u8)qwTSFOffset;
-	pbyData[1] = (u8)(qwTSFOffset >> 8);
-	pbyData[2] = (u8)(qwTSFOffset >> 16);
-	pbyData[3] = (u8)(qwTSFOffset >> 24);
-	pbyData[4] = (u8)(qwTSFOffset >> 32);
-	pbyData[5] = (u8)(qwTSFOffset >> 40);
-	pbyData[6] = (u8)(qwTSFOffset >> 48);
-	pbyData[7] = (u8)(qwTSFOffset >> 56);
+	data[0] = (u8)tsf_offset;
+	data[1] = (u8)(tsf_offset >> 8);
+	data[2] = (u8)(tsf_offset >> 16);
+	data[3] = (u8)(tsf_offset >> 24);
+	data[4] = (u8)(tsf_offset >> 32);
+	data[5] = (u8)(tsf_offset >> 40);
+	data[6] = (u8)(tsf_offset >> 48);
+	data[7] = (u8)(tsf_offset >> 56);
 
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_SET_TSFTBTT,
-                        MESSAGE_REQUEST_TSF,
-                        0,
-                        8,
-                        pbyData
-                        );
-
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SET_TSFTBTT,
+		MESSAGE_REQUEST_TSF, 0, 8, data);
 }
 /*
  * Description: Read NIC TSF counter
