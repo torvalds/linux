@@ -534,18 +534,15 @@ int CARDbIsOFDMinBasicRate(struct vnt_private *priv)
 	return false;
 }
 
-u8 CARDbyGetPktType(struct vnt_private *pDevice)
+u8 CARDbyGetPktType(struct vnt_private *priv)
 {
 
-    if (pDevice->byBBType == BB_TYPE_11A || pDevice->byBBType == BB_TYPE_11B) {
-        return (u8)pDevice->byBBType;
-    }
-    else if (CARDbIsOFDMinBasicRate(pDevice)) {
-        return PK_TYPE_11GA;
-    }
-    else {
-        return PK_TYPE_11GB;
-    }
+	if (priv->byBBType == BB_TYPE_11A || priv->byBBType == BB_TYPE_11B)
+		return (u8)priv->byBBType;
+	else if (CARDbIsOFDMinBasicRate(priv))
+		return PK_TYPE_11GA;
+	else
+		return PK_TYPE_11GB;
 }
 
 /*
