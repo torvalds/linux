@@ -123,7 +123,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	const __be32 *paddr;
 	u32 addr;
 	bool scanphys = false;
-	int rc, i, len;
+	int rc, i;
 
 	/* Mask out all PHYs from auto probing.  Instead the PHYs listed in
 	 * the device tree are populated after the bus has been registered */
@@ -160,7 +160,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	/* auto scan for PHYs with empty reg property */
 	for_each_available_child_of_node(np, child) {
 		/* Skip PHYs with reg property set */
-		paddr = of_get_property(child, "reg", &len);
+		paddr = of_get_property(child, "reg", NULL);
 		if (paddr)
 			continue;
 
