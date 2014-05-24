@@ -88,6 +88,27 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	return 0;
 }
 
+static int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
+{
+	u32 addr;
+	int ret;
+
+	ret = of_property_read_u32(np, "reg", &addr);
+	if (ret < 0) {
+		dev_err(dev, "%s has invalid PHY address\n", np->full_name);
+		return ret;
+	}
+
+	/* A PHY must have a reg property in the range [0-31] */
+	if (addr >= PHY_MAX_ADDR) {
+		dev_err(dev, "%s PHY address %i is too large\n",
+			np->full_name, addr);
+		return -EINVAL;
+	}
+
+	return addr;
+}
+
 /**
  * of_mdiobus_register - Register mii_bus and create PHYs from the device tree
  * @mdio: pointer to mii_bus structure
@@ -122,19 +143,9 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 
 	/* Loop over the child nodes and register a phy_device for each one */
 	for_each_available_child_of_node(np, child) {
-		/* A PHY must have a reg property in the range [0-31] */
-		paddr = of_get_property(child, "reg", &len);
-		if (!paddr || len < sizeof(*paddr)) {
+		addr = of_mdio_parse_addr(&mdio->dev, child);
+		if (addr < 0) {
 			scanphys = true;
-			dev_err(&mdio->dev, "%s has invalid PHY address\n",
-				child->full_name);
-			continue;
-		}
-
-		addr = be32_to_cpup(paddr);
-		if (addr >= PHY_MAX_ADDR) {
-			dev_err(&mdio->dev, "%s PHY address %i is too large\n",
-				child->full_name, addr);
 			continue;
 		}
 
