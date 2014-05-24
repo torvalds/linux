@@ -256,7 +256,7 @@ void CARDvCalculateOFDMRParameter(u16 rate, u8 bb_type,
 			*rsv_time = 4;
 		} else {
 			*tx_rate = 0x88;
-		*rsv_time = 10;
+			*rsv_time = 10;
 		}
 		break;
 	case RATE_54M:
