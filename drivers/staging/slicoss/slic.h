@@ -401,7 +401,6 @@ struct adapter {
 	uint                card_size;
 	uint                chipid;
 	struct net_device  *netdev;
-	struct net_device  *next_netdevice;
 	struct slic_spinlock     adapter_lock;
 	struct slic_spinlock     reset_lock;
 	struct pci_dev     *pcidev;

@@ -104,8 +104,6 @@ static char *slic_banner = "Alacritech SLIC Technology(tm) Server "
 
 static char *slic_proc_version = "2.0.351  2006/07/14 12:26:00";
 
-static struct net_device *head_netdevice;
-
 static struct base_driver slic_global = { {}, 0, 0, 0, 1, NULL, NULL };
 static int intagg_delay = 100;
 static u32 dynamic_intagg;
@@ -2918,8 +2916,6 @@ static void slic_init_adapter(struct net_device *netdev,
 	adapter->slic_regs = (__iomem struct slic_regs *)memaddr;
 	adapter->irq = pcidev->irq;
 /*	adapter->netdev = netdev;*/
-	adapter->next_netdevice = head_netdevice;
-	head_netdevice = netdev;
 	adapter->chipid = chip_idx;
 	adapter->port = 0;	/*adapter->functionnumber;*/
 	adapter->cardindex = adapter->port;
