@@ -1229,10 +1229,8 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		return;
 
 	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
-	if (!cval) {
-		usb_audio_err(state->chip, "cannot malloc kcontrol\n");
+	if (!cval)
 		return;
-	}
 	cval->mixer = state->mixer;
 	cval->id = unitid;
 	cval->control = control;
@@ -1815,10 +1813,8 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 		if (check_ignored_ctl(map))
 			continue;
 		cval = kzalloc(sizeof(*cval), GFP_KERNEL);
-		if (!cval) {
-			usb_audio_err(state->chip, "cannot malloc kcontrol\n");
+		if (!cval)
 			return -ENOMEM;
-		}
 		cval->mixer = state->mixer;
 		cval->id = unitid;
 		cval->control = valinfo->control;
@@ -1849,7 +1845,6 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 
 		kctl = snd_ctl_new1(&mixer_procunit_ctl, cval);
 		if (!kctl) {
-			usb_audio_err(state->chip, "cannot malloc kcontrol\n");
 			kfree(cval);
 			return -ENOMEM;
 		}
@@ -2028,10 +2023,8 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 		return 0;
 
 	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
-	if (!cval) {
-		usb_audio_err(state->chip, "cannot malloc kcontrol\n");
+	if (!cval)
 		return -ENOMEM;
-	}
 	cval->mixer = state->mixer;
 	cval->id = unitid;
 	cval->val_type = USB_MIXER_U8;
@@ -2048,7 +2041,6 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 
 	namelist = kmalloc(sizeof(char *) * desc->bNrInPins, GFP_KERNEL);
 	if (!namelist) {
-		usb_audio_err(state->chip, "cannot malloc\n");
 		kfree(cval);
 		return -ENOMEM;
 	}
@@ -2058,7 +2050,6 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 		len = 0;
 		namelist[i] = kmalloc(MAX_ITEM_NAME_LEN, GFP_KERNEL);
 		if (!namelist[i]) {
-			usb_audio_err(state->chip, "cannot malloc\n");
 			while (i--)
 				kfree(namelist[i]);
 			kfree(namelist);
