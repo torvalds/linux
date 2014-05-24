@@ -636,17 +636,17 @@ bool CARDbGetCurrentTSF(struct vnt_private *priv, u64 *current_tsf)
  *
  * Parameters:
  *  In:
- *      pDevice         - The adapter to be read
+ *      priv	- The adapter to be read
  *
  * Return Value: true if success; otherwise false
  *
  */
-bool CARDbClearCurrentTSF(struct vnt_private *pDevice)
+bool CARDbClearCurrentTSF(struct vnt_private *priv)
 {
 
-	MACvRegBitsOn(pDevice, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
+	MACvRegBitsOn(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
 
-	pDevice->qwCurrTSF = 0;
+	priv->qwCurrTSF = 0;
 
 	return true;
 }
