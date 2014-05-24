@@ -522,15 +522,16 @@ void CARDbAddBasicRate(struct vnt_private *priv, u16 rate_idx)
 	CARDvUpdateBasicTopRate(priv);
 }
 
-int CARDbIsOFDMinBasicRate(struct vnt_private *pDevice)
+int CARDbIsOFDMinBasicRate(struct vnt_private *priv)
 {
 	int ii;
 
-    for (ii = RATE_54M; ii >= RATE_6M; ii --) {
-        if ((pDevice->wBasicRate) & ((u16)(1<<ii)))
-            return true;
-    }
-    return false;
+	for (ii = RATE_54M; ii >= RATE_6M; ii--) {
+		if ((priv->wBasicRate) & ((u16)(1 << ii)))
+			return true;
+	}
+
+	return false;
 }
 
 u8 CARDbyGetPktType(struct vnt_private *pDevice)
