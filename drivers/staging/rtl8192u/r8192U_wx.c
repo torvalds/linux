@@ -135,7 +135,7 @@ static int r8192_wx_force_reset(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	printk("%s(): force reset ! extra is %d\n",__FUNCTION__, *extra);
+	printk("%s(): force reset ! extra is %d\n",__func__, *extra);
 	priv->force_reset = *extra;
 	up(&priv->wx_sem);
 	return 0;
@@ -738,7 +738,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 	int ret=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
-	//printk("===>%s()\n", __FUNCTION__);
+	//printk("===>%s()\n", __func__);
 
 
 	down(&priv->wx_sem);
@@ -817,7 +817,7 @@ static int r8192_wx_set_auth(struct net_device *dev,
 					union iwreq_data *data, char *extra)
 {
 	int ret=0;
-	//printk("====>%s()\n", __FUNCTION__);
+	//printk("====>%s()\n", __func__);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_auth(priv->ieee80211, info, &(data->param), extra);
@@ -829,7 +829,7 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 					struct iw_request_info *info,
 					union iwreq_data *wrqu, char *extra)
 {
-	//printk("====>%s()\n", __FUNCTION__);
+	//printk("====>%s()\n", __func__);
 
 	int ret=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -844,13 +844,13 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 					struct iw_request_info *info,
 					union iwreq_data *data, char *extra)
 {
-	   //printk("====>%s(), len:%d\n", __FUNCTION__, data->length);
+	   //printk("====>%s(), len:%d\n", __func__, data->length);
 	int ret=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, data->data.length);
 	up(&priv->wx_sem);
-	//printk("<======%s(), ret:%d\n", __FUNCTION__, ret);
+	//printk("<======%s(), ret:%d\n", __func__, ret);
 	return ret;
 
 

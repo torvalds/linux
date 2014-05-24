@@ -594,11 +594,11 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_
 void linked_status_chk23a(struct rtw_adapter *padapter);
 
 #define set_survey_timer(mlmeext, ms) \
-	/*DBG_8723A("%s set_survey_timer(%p, %d)\n", __FUNCTION__, (mlmeext), (ms));*/ \
+	/*DBG_8723A("%s set_survey_timer(%p, %d)\n", __func__, (mlmeext), (ms));*/ \
 	mod_timer(&mlmeext->survey_timer, jiffies + msecs_to_jiffies(ms));
 
 #define set_link_timer(mlmeext, ms) \
-	/*DBG_8723A("%s set_link_timer(%p, %d)\n", __FUNCTION__, (mlmeext), (ms));*/ \
+	/*DBG_8723A("%s set_link_timer(%p, %d)\n", __func__, (mlmeext), (ms));*/ \
 	mod_timer(&mlmeext->link_timer, jiffies + msecs_to_jiffies(ms));
 
 int cckrates_included23a(unsigned char *rate, int ratelen);

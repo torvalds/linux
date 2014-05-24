@@ -527,7 +527,7 @@ do { if (ieee80211_debug_level & (level)) \
 		{	\
 			int i;					\
 			u8 *pdata = (u8 *) data;			\
-			printk(KERN_DEBUG "ieee80211: %s()\n", __FUNCTION__);	\
+			printk(KERN_DEBUG "ieee80211: %s()\n", __func__);	\
 			for(i=0; i<(int)(datalen); i++)			\
 			{						\
 				printk("%2x ", pdata[i]);		\

@@ -242,7 +242,7 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	psta = rtw_get_stainfo23a(pstapriv, sa);
 	if (psta) {
 		pkt_info.StationID = psta->mac_id;
-		/* printk("%s ==> StationID(%d)\n", __FUNCTION__, pkt_info.StationID); */
+		/* printk("%s ==> StationID(%d)\n", __func__, pkt_info.StationID); */
 	}
 	pkt_info.Rate = pattrib->mcs_rate;
 

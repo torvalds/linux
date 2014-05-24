@@ -179,7 +179,7 @@ void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode)
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
-	DBG_8723A("%s: Mode =%d SmartPS =%d UAPSD =%d BcnMode = 0x%02x\n", __FUNCTION__,
+	DBG_8723A("%s: Mode =%d SmartPS =%d UAPSD =%d BcnMode = 0x%02x\n", __func__,
 			Mode, pwrpriv->smart_ps, padapter->registrypriv.uapsd_enable, pwrpriv->bcn_ant_mode);
 
 	/*  Forece leave RF low power mode for 1T1R to
@@ -211,7 +211,7 @@ static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	int bcn_fixed_size;
 
-	/* DBG_8723A("%s\n", __FUNCTION__); */
+	/* DBG_8723A("%s\n", __func__); */
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
@@ -301,7 +301,7 @@ _ConstructBeacon:
 
 	*pLength = pktlen;
 
-	/* DBG_8723A("%s bcn_sz =%d\n", __FUNCTION__, pktlen); */
+	/* DBG_8723A("%s bcn_sz =%d\n", __func__, pktlen); */
 
 }
 
@@ -413,7 +413,7 @@ static void ConstructProbeRsp(struct rtw_adapter *padapter, u8 *pframe,
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 
-	/* DBG_8723A("%s\n", __FUNCTION__); */
+	/* DBG_8723A("%s\n", __func__); */
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
@@ -473,11 +473,11 @@ static void SetFwRsvdPagePkt(struct rtw_adapter *padapter, bool bDLFinished)
 	u32 TotalPacketLen;
 	struct rsvdpage_loc	RsvdPageLoc;
 
-	DBG_8723A("%s\n", __FUNCTION__);
+	DBG_8723A("%s\n", __func__);
 
 	ReservedPagePacket = kzalloc(1000, GFP_KERNEL);
 	if (ReservedPagePacket == NULL) {
-		DBG_8723A("%s: alloc ReservedPagePacket fail!\n", __FUNCTION__);
+		DBG_8723A("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
 	}
 
@@ -584,7 +584,7 @@ static void SetFwRsvdPagePkt(struct rtw_adapter *padapter, bool bDLFinished)
 
 	rtl8723au_mgnt_xmit(padapter, pmgntframe);
 
-	DBG_8723A("%s: Set RSVD page location to Fw\n", __FUNCTION__);
+	DBG_8723A("%s: Set RSVD page location to Fw\n", __func__);
 	FillH2CCmd(padapter, RSVD_PAGE_EID, sizeof(RsvdPageLoc), (u8 *)&RsvdPageLoc);
 
 exit:
@@ -598,7 +598,7 @@ void rtl8723a_set_FwJoinBssReport_cmd(struct rtw_adapter *padapter, u8 mstatus)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	DBG_8723A("%s mstatus(%x)\n", __FUNCTION__, mstatus);
+	DBG_8723A("%s mstatus(%x)\n", __func__, mstatus);
 
 	if (mstatus == 1) {
 		bool bRecover = false;
@@ -680,11 +680,11 @@ static void SetFwRsvdPagePkt_BTCoex(struct rtw_adapter *padapter)
 	u32 TotalPacketLen;
 	struct rsvdpage_loc	RsvdPageLoc;
 
-	DBG_8723A("+%s\n", __FUNCTION__);
+	DBG_8723A("+%s\n", __func__);
 
 	ReservedPagePacket = kzalloc(1024, GFP_KERNEL);
 	if (ReservedPagePacket == NULL) {
-		DBG_8723A("%s: alloc ReservedPagePacket fail!\n", __FUNCTION__);
+		DBG_8723A("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
 	}
 
@@ -746,7 +746,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct rtw_adapter *padapter)
 
 	rtl8723au_mgnt_xmit(padapter, pmgntframe);
 
-	DBG_8723A("%s: Set RSVD page location to Fw\n", __FUNCTION__);
+	DBG_8723A("%s: Set RSVD page location to Fw\n", __func__);
 	FillH2CCmd(padapter, RSVD_PAGE_EID, sizeof(RsvdPageLoc), (u8 *)&RsvdPageLoc);
 
 exit:
@@ -758,7 +758,7 @@ void rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(struct rtw_adapter *padapter)
 	struct hal_data_8723a *pHalData;
 	u8 bRecover = false;
 
-	DBG_8723A("+%s\n", __FUNCTION__);
+	DBG_8723A("+%s\n", __func__);
 
 	pHalData = GET_HAL_DATA(padapter);
 
