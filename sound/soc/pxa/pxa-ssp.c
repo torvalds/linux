@@ -810,6 +810,7 @@ static const struct snd_soc_component_driver pxa_ssp_component = {
 #ifdef CONFIG_OF
 static const struct of_device_id pxa_ssp_of_ids[] = {
 	{ .compatible = "mrvl,pxa-ssp-dai" },
+	{}
 };
 #endif
 
