@@ -2763,8 +2763,6 @@ int rk_fb_switch_screen(struct rk_screen *screen , int enable, int lcdc_id)
 	struct rk_lcdc_driver *dev_drv = NULL;
 	struct fb_var_screeninfo *hdmi_var    = NULL;
 	struct fb_var_screeninfo *pmy_var = NULL;      /*var for primary screen*/
-	struct fb_info *pmy_info = NULL;
-	struct fb_fix_screeninfo *pmy_fix = NULL;
 	int i;
 	struct fb_fix_screeninfo *hdmi_fix    = NULL;
 	char name[6];
@@ -2841,7 +2839,6 @@ int rk_fb_switch_screen(struct rk_screen *screen , int enable, int lcdc_id)
 	if (rk_fb->disp_mode  == DUAL) {
 		if (likely(rk_fb->num_lcdc == 2)) {
 			pmy_var = &rk_fb->fb[0]->var;
-			pmy_fix = &rk_fb->fb[0]->fix;
 			set_xact_yact_for_hdmi(pmy_var, hdmi_var);
 			hdmi_var->nonstd &= 0xffffff00;
 			hdmi_var->nonstd |= (pmy_var->nonstd & 0xff); /*use the same format as primary screen*/
@@ -2869,17 +2866,8 @@ int rk_fb_switch_screen(struct rk_screen *screen , int enable, int lcdc_id)
 		dev_drv->ops->lcdc_hdmi_process(dev_drv, enable);
 
 	hdmi_switch_complete = enable;
+	info->fbops->fb_pan_display(hdmi_var, info);
 
-	if (rk_fb->disp_mode == DUAL) {
-		if (likely(rk_fb->num_lcdc == 2)) {
-			pmy_info = rk_fb->fb[0];
-			pmy_info->fbops->fb_pan_display(pmy_var, pmy_info);
-		} else {
-			printk(KERN_WARNING "%s>>only one lcdc,dual display no supported!", __func__);
-		}
-	} else {
-		info->fbops->fb_pan_display(hdmi_var, info);
-	}
 	//info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0);
 	if (dev_drv->screen1) {
 		if (dev_drv->screen0->sscreen_set) {
