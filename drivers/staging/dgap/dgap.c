@@ -1431,8 +1431,8 @@ static int dgap_tty_init(struct board_t *brd)
 			ch->ch_dsr	= DM_DSR;
 		}
 
-		ch->ch_taddr = vaddr + ((ch->ch_bs->tx_seg) << 4);
-		ch->ch_raddr = vaddr + ((ch->ch_bs->rx_seg) << 4);
+		ch->ch_taddr = vaddr + (ioread16(&(ch->ch_bs->tx_seg)) << 4);
+		ch->ch_raddr = vaddr + (ioread16(&(ch->ch_bs->rx_seg)) << 4);
 		ch->ch_tx_win = 0;
 		ch->ch_rx_win = 0;
 		ch->ch_tsize = readw(&(ch->ch_bs->tx_max)) + 1;
@@ -4958,8 +4958,8 @@ static uint dgap_get_custom_baud(struct channel_t *ch)
 	 * Go get from fep mem, what the fep
 	 * believes the custom baud rate is.
 	 */
-	offset = ((((*(unsigned short __iomem *)(vaddr + ECS_SEG)) << 4) +
-		(ch->ch_portnum * 0x28) + LINE_SPEED));
+	offset = (ioread16(vaddr + ECS_SEG) << 4) + (ch->ch_portnum * 0x28)
+	       + LINE_SPEED;
 
 	value = readw(vaddr + offset);
 	return value;
@@ -5506,10 +5506,10 @@ static int dgap_event(struct board_t *bd)
 
 		event = bd->re_map_membase + tail + EVSTART;
 
-		port   = event[0];
-		reason = event[1];
-		modem  = event[2];
-		b1     = event[3];
+		port   = ioread8(event);
+		reason = ioread8(event + 1);
+		modem  = ioread8(event + 2);
+		b1     = ioread8(event + 3);
 
 		/*
 		 * Make sure the interrupt is valid.
