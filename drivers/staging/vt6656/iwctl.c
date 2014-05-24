@@ -91,6 +91,7 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 	struct iw_scan_req *req = (struct iw_scan_req *)extra;
 	u8 abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 	PWLAN_IE_SSID pItemSSID = NULL;
+	unsigned long flags;
 
 	if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
 		return -EINVAL;
@@ -115,7 +116,7 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 		return 0;
 	}
 
-	spin_lock_irq(&pDevice->lock);
+	spin_lock_irqsave(&pDevice->lock, flags);
 
 	BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 
@@ -136,7 +137,8 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 			PRINT_K("SIOCSIWSCAN:[desired_ssid=%s,len=%d]\n", ((PWLAN_IE_SSID)abyScanSSID)->abySSID,
 				((PWLAN_IE_SSID)abyScanSSID)->len);
 			bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
-			spin_unlock_irq(&pDevice->lock);
+
+			spin_unlock_irqrestore(&pDevice->lock, flags);
 
 			return 0;
 		} else if (req->scan_type == IW_SCAN_TYPE_PASSIVE) { // passive scan
@@ -148,7 +150,8 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 
 	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
 	bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-	spin_unlock_irq(&pDevice->lock);
+
+	spin_unlock_irqrestore(&pDevice->lock, flags);
 
 	return 0;
 }
@@ -375,6 +378,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 	struct vnt_private *pDevice = netdev_priv(dev);
 	__u32 *wmode = &wrqu->mode;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	unsigned long flags;
 	int rc = 0;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWMODE\n");
@@ -415,10 +419,13 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 	if (pDevice->bCommit) {
 		if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
 			netif_stop_queue(pDevice->dev);
-			spin_lock_irq(&pDevice->lock);
+
+			spin_lock_irqsave(&pDevice->lock, flags);
+
 			bScheduleCommand((void *) pDevice,
 				WLAN_CMD_RUN_AP, NULL);
-			spin_unlock_irq(&pDevice->lock);
+
+			spin_unlock_irqrestore(&pDevice->lock, flags);
 		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"Commit the settings\n");
