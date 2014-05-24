@@ -145,16 +145,6 @@ static struct scsi_transport_template *ahc_linux_transport_template = NULL;
 #endif
 
 /*
- * Control collection of SCSI transfer statistics for the /proc filesystem.
- *
- * NOTE: Do NOT enable this when running on kernels version 1.2.x and below.
- * NOTE: This does affect performance since it has to maintain statistics.
- */
-#ifdef CONFIG_AIC7XXX_PROC_STATS
-#define AIC7XXX_PROC_STATS
-#endif
-
-/*
  * To change the default number of tagged transactions allowed per-device,
  * add a line to the lilo.conf file like:
  * append="aic7xxx=verbose,tag_info:{{32,32,32,32},{32,32,32,32}}"
