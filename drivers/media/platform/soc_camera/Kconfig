@@ -17,19 +17,6 @@ config SOC_CAMERA_PLATFORM
 	help
 	  This is a generic SoC camera platform driver, useful for testing
 
-config MX1_VIDEO
-	bool
-
-config VIDEO_MX1
-	tristate "i.MX1/i.MXL CMOS Sensor Interface driver"
-	depends on BROKEN
-	depends on VIDEO_DEV && ARCH_MX1 && SOC_CAMERA
-	select FIQ
-	select VIDEOBUF_DMA_CONTIG
-	select MX1_VIDEO
-	---help---
-	  This is a v4l2 driver for the i.MX1/i.MXL CMOS Sensor Interface
-
 config VIDEO_MX3
 	tristate "i.MX3x Camera Sensor Interface driver"
 	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
