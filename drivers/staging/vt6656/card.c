@@ -727,45 +727,38 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv, u16 beacon_interval)
  *
  * Parameters:
  *  In:
- *      pDevice         - The adapter to be set
- *      qwTSF           - Current TSF counter
- *      wBeaconInterval - Beacon Interval
+ *	priv		- The adapter to be set
+ *      tsf		- Current TSF counter
+ *      beacon_interval - Beacon Interval
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,
-			u16 wBeaconInterval)
+void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 tsf,
+			u16 beacon_interval)
 {
-	u8 pbyData[8];
+	u8 data[8];
 
-    qwTSF = CARDqGetNextTBTT(qwTSF, wBeaconInterval);
+	tsf = CARDqGetNextTBTT(tsf, beacon_interval);
 
-    // Set NextTBTT
+	data[0] = (u8)tsf;
+	data[1] = (u8)(tsf >> 8);
+	data[2] = (u8)(tsf >> 16);
+	data[3] = (u8)(tsf >> 24);
+	data[4] = (u8)(tsf >> 32);
+	data[5] = (u8)(tsf >> 40);
+	data[6] = (u8)(tsf >> 48);
+	data[7] = (u8)(tsf >> 56);
 
-	pbyData[0] = (u8)qwTSF;
-	pbyData[1] = (u8)(qwTSF >> 8);
-	pbyData[2] = (u8)(qwTSF >> 16);
-	pbyData[3] = (u8)(qwTSF >> 24);
-	pbyData[4] = (u8)(qwTSF >> 32);
-	pbyData[5] = (u8)(qwTSF >> 40);
-	pbyData[6] = (u8)(qwTSF >> 48);
-	pbyData[7] = (u8)(qwTSF >> 56);
-
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_SET_TSFTBTT,
-                        MESSAGE_REQUEST_TBTT,
-                        0,
-                        8,
-                        pbyData
-                        );
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SET_TSFTBTT,
+		MESSAGE_REQUEST_TBTT, 0, 8, data);
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-		"Card:Update Next TBTT[%8lx]\n", (unsigned long)qwTSF);
+		"Card:Update Next TBTT[%8lx]\n", (unsigned long)tsf);
 
-    return;
+	return;
 }
 
 /*
