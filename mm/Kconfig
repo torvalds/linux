@@ -478,6 +478,9 @@ config FRONTSWAP
 
 	  If unsure, say Y to enable frontswap.
 
+config GENERIC_EARLY_IOREMAP
+	bool
+
 config CMA
 	bool "Contiguous Memory Allocator"
 	depends on HAVE_MEMBLOCK

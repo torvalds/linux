@@ -10,6 +10,7 @@ generic-y += delay.h
 generic-y += div64.h
 generic-y += dma.h
 generic-y += emergency-restart.h
+generic-y += early_ioremap.h
 generic-y += errno.h
 generic-y += ftrace.h
 generic-y += hw_irq.h
