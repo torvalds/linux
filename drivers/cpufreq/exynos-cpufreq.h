@@ -49,6 +49,7 @@ struct exynos_dvfs_info {
 	struct cpufreq_frequency_table	*freq_table;
 	void (*set_freq)(unsigned int, unsigned int);
 	bool (*need_apll_change)(unsigned int, unsigned int);
+	void __iomem	*cmu_regs;
 };
 
 #ifdef CONFIG_ARM_EXYNOS4210_CPUFREQ
@@ -76,24 +77,21 @@ static inline int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
 }
 #endif
 
-#include <plat/cpu.h>
-#include <mach/map.h>
+#define EXYNOS4_CLKSRC_CPU			0x14200
+#define EXYNOS4_CLKMUX_STATCPU			0x14400
 
-#define EXYNOS4_CLKSRC_CPU			(S5P_VA_CMU + 0x14200)
-#define EXYNOS4_CLKMUX_STATCPU			(S5P_VA_CMU + 0x14400)
-
-#define EXYNOS4_CLKDIV_CPU			(S5P_VA_CMU + 0x14500)
-#define EXYNOS4_CLKDIV_CPU1			(S5P_VA_CMU + 0x14504)
-#define EXYNOS4_CLKDIV_STATCPU			(S5P_VA_CMU + 0x14600)
-#define EXYNOS4_CLKDIV_STATCPU1			(S5P_VA_CMU + 0x14604)
+#define EXYNOS4_CLKDIV_CPU			0x14500
+#define EXYNOS4_CLKDIV_CPU1			0x14504
+#define EXYNOS4_CLKDIV_STATCPU			0x14600
+#define EXYNOS4_CLKDIV_STATCPU1			0x14604
 
 #define EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT	(16)
 #define EXYNOS4_CLKMUX_STATCPU_MUXCORE_MASK	(0x7 << EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT)
 
-#define EXYNOS5_APLL_LOCK			(S5P_VA_CMU + 0x00000)
-#define EXYNOS5_APLL_CON0			(S5P_VA_CMU + 0x00100)
-#define EXYNOS5_CLKMUX_STATCPU			(S5P_VA_CMU + 0x00400)
-#define EXYNOS5_CLKDIV_CPU0			(S5P_VA_CMU + 0x00500)
-#define EXYNOS5_CLKDIV_CPU1			(S5P_VA_CMU + 0x00504)
-#define EXYNOS5_CLKDIV_STATCPU0			(S5P_VA_CMU + 0x00600)
-#define EXYNOS5_CLKDIV_STATCPU1			(S5P_VA_CMU + 0x00604)
+#define EXYNOS5_APLL_LOCK			0x00000
+#define EXYNOS5_APLL_CON0			0x00100
+#define EXYNOS5_CLKMUX_STATCPU			0x00400
+#define EXYNOS5_CLKDIV_CPU0			0x00500
+#define EXYNOS5_CLKDIV_CPU1			0x00504
+#define EXYNOS5_CLKDIV_STATCPU0			0x00600
+#define EXYNOS5_CLKDIV_STATCPU1			0x00604
