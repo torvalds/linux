@@ -33,6 +33,7 @@ void rtl8723a_BT_disable_coexist(struct rtw_adapter *padapter);
 bool rtl8723a_BT_disable_EDCA_turbo(struct rtw_adapter *padapter);
 void rtl8723a_dual_antenna_detection(struct rtw_adapter *padapter);
 void rtl8723a_BT_init_hwconfig(struct rtw_adapter *padapter);
+void rtl8723a_BT_wifiassociate_notify(struct rtw_adapter *padapter, u8 action);
 #else
 static inline bool rtl8723a_BT_using_antenna_1(struct rtw_adapter *padapter)
 {
@@ -58,6 +59,7 @@ static inline bool rtl8723a_BT_disable_EDCA_turbo(struct rtw_adapter *padapter)
 }
 #define rtl8723a_dual_antenna_detection(padapter)		do {} while(0)
 #define rtl8723a_BT_init_hwconfig(padapter)			do {} while(0)
+#define rtl8723a_BT_wifiassociate_notify(padapter, action)	do {} while(0)
 #endif
 
 #endif

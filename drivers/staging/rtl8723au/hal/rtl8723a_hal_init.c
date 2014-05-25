@@ -2558,20 +2558,18 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 			  RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit <<
 			  RETRY_LIMIT_LONG_SHIFT);
 
-#ifdef CONFIG_8723AU_BT_COEXIST
 	switch (type) {
 	case 0:
 		/*  prepare to join */
-		BT_WifiAssociateNotify(padapter, true);
+		rtl8723a_BT_wifiassociate_notify(padapter, true);
 		break;
 	case 1:
 		/*  joinbss_event callback when join res < 0 */
-		BT_WifiAssociateNotify(padapter, false);
+		rtl8723a_BT_wifiassociate_notify(padapter, false);
 		break;
 	case 2:
 		/*  sta add event callback */
 /*		BT_WifiMediaStatusNotify(padapter, RT_MEDIA_CONNECT); */
 		break;
 	}
-#endif
 }

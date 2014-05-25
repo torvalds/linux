@@ -145,7 +145,7 @@ void rtl8723a_BT_wifiscan_notify(struct rtw_adapter *padapter, u8 scanType)
 	BTDM_WifiScanNotify(padapter, scanType);
 }
 
-void BT_WifiAssociateNotify(struct rtw_adapter *padapter, u8 action)
+void rtl8723a_BT_wifiassociate_notify(struct rtw_adapter *padapter, u8 action)
 {
 	/*  action : */
 	/*  true = associate start */
