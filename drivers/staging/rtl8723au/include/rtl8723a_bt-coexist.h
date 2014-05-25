@@ -1571,8 +1571,6 @@ void BTDM_HWCoexAllOff(struct rtw_adapter * padapter);
 void BTDM_CoexAllOff(struct rtw_adapter * padapter);
 void BTDM_TurnOffBtCoexistBeforeEnterIPS(struct rtw_adapter * padapter);
 void BTDM_SignalCompensation(struct rtw_adapter * padapter, u8 *rssi_wifi, u8 *rssi_bt);
-void BTDM_Coexist(struct rtw_adapter * padapter);
-#define BT_CoexistMechanism BTDM_Coexist
 void BTDM_UpdateCoexState(struct rtw_adapter * padapter);
 u8 BTDM_IsSameCoexistState(struct rtw_adapter * padapter);
 void BTDM_PWDBMonitor(struct rtw_adapter * padapter);

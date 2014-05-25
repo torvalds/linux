@@ -1039,12 +1039,10 @@ static void dynamic_chk_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
 
 	rtl8723a_HalDmWatchDog(padapter);
 
-#ifdef CONFIG_8723AU_BT_COEXIST
 	/*  */
 	/*  BT-Coexist */
 	/*  */
-	BT_CoexistMechanism(padapter);
-#endif
+	rtl8723a_BT_do_coexist(padapter);
 }
 
 static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)

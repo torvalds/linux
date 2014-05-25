@@ -10766,7 +10766,7 @@ void BTDM_SignalCompensation(struct rtw_adapter *padapter, u8 *rssi_wifi, u8 *rs
 	BTDM_8723ASignalCompensation(padapter, rssi_wifi, rssi_bt);
 }
 
-void BTDM_Coexist(struct rtw_adapter *padapter)
+void rtl8723a_BT_do_coexist(struct rtw_adapter *padapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
@@ -11347,7 +11347,7 @@ u8 HALBT_BTChipType(struct rtw_adapter *padapter)
 void HALBT_InitHwConfig(struct rtw_adapter *padapter)
 {
 	halbt_InitHwConfig8723A(padapter);
-	BTDM_Coexist(padapter);
+	rtl8723a_BT_do_coexist(padapter);
 }
 
 void HALBT_SetRtsCtsNoLenLimit(struct rtw_adapter *padapter)
