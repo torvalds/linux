@@ -204,7 +204,7 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 						pTransmitKey->uKeyLength);
 			if (pTransmitKey->uKeyLength == WLAN_WEP40_KEYLEN) {
 				memcpy(pbyBuf+8, (u8 *)&rev_iv_counter, 3);
-			memcpy(pbyBuf+11, pTransmitKey->abyKey,
+				memcpy(pbyBuf+11, pTransmitKey->abyKey,
 						pTransmitKey->uKeyLength);
 			}
 
