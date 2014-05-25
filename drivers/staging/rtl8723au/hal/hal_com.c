@@ -581,9 +581,7 @@ void rtl8723a_mlme_sitesurvey(struct rtw_adapter *padapter, u8 flag)
 		rtl8723au_write32(padapter, REG_RCR, v32);
 	}
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-	BT_WifiScanNotify(padapter, flag ? true : false);
-#endif
+	rtl8723a_BT_wifiscan_notify(padapter, flag ? true : false);
 }
 
 void rtl8723a_on_rcr_am(struct rtw_adapter *padapter)

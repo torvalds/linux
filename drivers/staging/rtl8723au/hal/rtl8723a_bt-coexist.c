@@ -138,7 +138,7 @@ void BT_SignalCompensation(struct rtw_adapter *padapter, u8 *rssi_wifi, u8 *rssi
 	BTDM_SignalCompensation(padapter, rssi_wifi, rssi_bt);
 }
 
-void BT_WifiScanNotify(struct rtw_adapter *padapter, u8 scanType)
+void rtl8723a_BT_wifiscan_notify(struct rtw_adapter *padapter, u8 scanType)
 {
 	BTHCI_WifiScanNotify(padapter, scanType);
 	BTDM_CheckAntSelMode(padapter);

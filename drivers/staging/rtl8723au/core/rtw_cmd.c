@@ -1058,11 +1058,8 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 	switch (lps_ctrl_type)
 	{
 		case LPS_CTRL_SCAN:
-#ifdef CONFIG_8723AU_BT_COEXIST
-			BT_WifiScanNotify(padapter, true);
-			if (rtl8723a_BT_using_antenna_1(padapter) == false)
-#endif
-			{
+			rtl8723a_BT_wifiscan_notify(padapter, true);
+			if (!rtl8723a_BT_using_antenna_1(padapter)) {
 				if (check_fwstate(pmlmepriv, _FW_LINKED))
 					LPS_Leave23a(padapter);
 			}

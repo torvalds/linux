@@ -31,7 +31,6 @@ enum rt_media_status {
 
 void BT_SignalCompensation(struct rtw_adapter *padapter,
 			   u8 *rssi_wifi, u8 *rssi_bt);
-void BT_WifiScanNotify(struct rtw_adapter *padapter, u8 scanType);
 void BT_WifiAssociateNotify(struct rtw_adapter *padapter, u8 action);
 void BT_WifiMediaStatusNotify(struct rtw_adapter *padapter,
 			      enum rt_media_status mstatus);
