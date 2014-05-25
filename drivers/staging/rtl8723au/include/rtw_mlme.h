@@ -97,16 +97,6 @@ To avoid possible dead lock, any thread trying to modifiying mlme_priv
 SHALL not lock up more than one locks at a time!
 */
 
-#define traffic_threshold	10
-#define	traffic_scan_period	500
-
-struct sitesurvey_ctrl {
-	u64	last_tx_pkts;
-	uint	last_rx_pkts;
-	int	traffic_busy;
-	struct timer_list	sitesurvey_ctrl_timer;
-};
-
 struct rt_link_detect {
 	u32	NumTxOkInPeriod;
 	u32	NumRxOkInPeriod;
@@ -117,59 +107,6 @@ struct rt_link_detect {
 	bool	bHigherBusyTraffic; /*  For interrupt migration purpose. */
 	bool	bHigherBusyRxTraffic; /*  We may disable Tx interrupt according as Rx traffic. */
 	bool	bHigherBusyTxTraffic; /*  We may disable Tx interrupt according as Tx traffic. */
-};
-
-struct profile_info {
-	u8	ssidlen;
-	u8	ssid[IEEE80211_MAX_SSID_LEN];
-	u8	peermac[ETH_ALEN];
-};
-
-struct tx_invite_req_info {
-	u8	token;
-	u8	benable;
-	u8	go_ssid[IEEE80211_MAX_SSID_LEN];
-	u8	ssidlen;
-	u8	go_bssid[ETH_ALEN];
-	u8	peer_macaddr[ETH_ALEN];
-	u8	operating_ch;	/* This information will be set by using the p2p_set op_ch = x */
-	u8	peer_ch;	/* The listen channel for peer P2P device */
-
-};
-
-struct tx_invite_resp_info {
-	u8	token;	/*	Used to record the dialog token of p2p invitation request frame. */
-};
-
-struct tx_provdisc_req_info {
-	u16	wps_config_method_request;	/* Used when sending the provisioning request frame */
-	u16	peer_channel_num[2];		/* The channel number which the receiver stands. */
-	struct	cfg80211_ssid ssid;
-	u8	peerDevAddr[ETH_ALEN];	/* Peer device address */
-	u8	peerIFAddr[ETH_ALEN];		/* Peer interface address */
-	u8	benable;			/* This provision discovery request frame is trigger to send or not */
-};
-
-struct rx_provdisc_req_info {	/* When peer device issue prov_disc_req first, we should store the following informations */
-	u8	peerDevAddr[ETH_ALEN];		/*	Peer device address */
-	u8	strconfig_method_desc_of_prov_disc_req[4];	/*	description for the config method located in the provisioning discovery request frame. */
-																	/*	The UI must know this information to know which config method the remote p2p device is requiring. */
-};
-
-struct tx_nego_req_info {
-	u16	peer_channel_num[2];	/* The channel number which the receiver stands. */
-	u8	peerDevAddr[ETH_ALEN];/* Peer device address */
-	u8	benable;		/* This negoitation request frame is trigger to send or not */
-};
-
-struct group_id_info {
-	u8 go_device_addr[ETH_ALEN]; /*The GO's device address of P2P group */
-	u8 ssid[IEEE80211_MAX_SSID_LEN]; /* The SSID of this P2P group */
-};
-
-struct scan_limit_info {
-	u8	scan_op_ch_only;	/* When this flag is set, the driver should just scan the operation channel */
-	u8	operation_ch[2];	/* Store the operation channel of invitation request frame */
 };
 
 struct mlme_priv {
