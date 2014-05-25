@@ -141,6 +141,7 @@ static int s3c_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
 
 static void s3c_cpufreq_setfvco(struct s3c_cpufreq_config *cfg)
 {
+	cfg->mpll = _clk_mpll;
 	(cfg->info->set_fvco)(cfg);
 }
 
