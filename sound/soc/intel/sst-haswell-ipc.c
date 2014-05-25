@@ -1159,11 +1159,14 @@ struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
 	void *data)
 {
 	struct sst_hsw_stream *stream;
+	struct sst_dsp *sst = hsw->dsp;
+	unsigned long flags;
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (stream == NULL)
 		return NULL;
 
+	spin_lock_irqsave(&sst->spinlock, flags);
 	list_add(&stream->node, &hsw->stream_list);
 	stream->notify_position = notify_position;
 	stream->pdata = data;
@@ -1172,6 +1175,7 @@ struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
 
 	/* work to process notification messages */
 	INIT_WORK(&stream->notify_work, hsw_notification_work);
+	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	return stream;
 }
@@ -1180,6 +1184,8 @@ int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 {
 	u32 header;
 	int ret = 0;
+	struct sst_dsp *sst = hsw->dsp;
+	unsigned long flags;
 
 	/* dont free DSP streams that are not commited */
 	if (!stream->commited)
@@ -1201,8 +1207,11 @@ int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	trace_hsw_stream_free_req(stream, &stream->free_req);
 
 out:
+	cancel_work_sync(&stream->notify_work);
+	spin_lock_irqsave(&sst->spinlock, flags);
 	list_del(&stream->node);
 	kfree(stream);
+	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	return ret;
 }
@@ -1538,10 +1547,28 @@ int sst_hsw_stream_reset(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 }
 
 /* Stream pointer positions */
-int sst_hsw_get_dsp_position(struct sst_hsw *hsw,
+u32 sst_hsw_get_dsp_position(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream)
 {
-	return stream->rpos.position;
+	u32 rpos;
+
+	sst_dsp_read(hsw->dsp, &rpos,
+		stream->reply.read_position_register_address, sizeof(rpos));
+
+	return rpos;
+}
+
+/* Stream presentation (monotonic) positions */
+u64 sst_hsw_get_dsp_presentation_position(struct sst_hsw *hsw,
+	struct sst_hsw_stream *stream)
+{
+	u64 ppos;
+
+	sst_dsp_read(hsw->dsp, &ppos,
+		stream->reply.presentation_position_register_address,
+		sizeof(ppos));
+
+	return ppos;
 }
 
 int sst_hsw_stream_set_write_position(struct sst_hsw *hsw,

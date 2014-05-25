@@ -117,7 +117,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../vpd
 Date:		February 2008
-Contact:	Ben Hutchings <bhutchings@solarflare.com>
+Contact:	Ben Hutchings <bwh@kernel.org>
 Description:
 		A file named vpd in a device directory will be a
 		binary file containing the Vital Product Data for the

@@ -999,7 +999,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 
 	dev->virtbase = devm_ioremap(&adev->dev, adev->res.start,
 				resource_size(&adev->res));
-	if (IS_ERR(dev->virtbase)) {
+	if (!dev->virtbase) {
 		ret = -ENOMEM;
 		goto err_no_mem;
 	}

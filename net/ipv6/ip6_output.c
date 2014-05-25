@@ -344,11 +344,15 @@ static unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
 
 static bool ip6_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 {
-	if (skb->len <= mtu || skb->local_df)
+	if (skb->len <= mtu)
 		return false;
 
+	/* ipv6 conntrack defrag sets max_frag_size + local_df */
 	if (IP6CB(skb)->frag_max_size && IP6CB(skb)->frag_max_size > mtu)
 		return true;
+
+	if (skb->local_df)
+		return false;
 
 	if (skb_is_gso(skb) && skb_gso_network_seglen(skb) <= mtu)
 		return false;
@@ -1225,7 +1229,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		unsigned int maxnonfragsize, headersize;
 
 		headersize = sizeof(struct ipv6hdr) +
-			     (opt ? opt->tot_len : 0) +
+			     (opt ? opt->opt_flen + opt->opt_nflen : 0) +
 			     (dst_allfrag(&rt->dst) ?
 			      sizeof(struct frag_hdr) : 0) +
 			     rt->rt6i_nfheader_len;

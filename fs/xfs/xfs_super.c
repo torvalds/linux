@@ -1433,11 +1433,11 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_fsname;
 
-	error = xfs_init_mount_workqueues(mp);
+	error = -xfs_init_mount_workqueues(mp);
 	if (error)
 		goto out_close_devices;
 
-	error = xfs_icsb_init_counters(mp);
+	error = -xfs_icsb_init_counters(mp);
 	if (error)
 		goto out_destroy_workqueues;
 

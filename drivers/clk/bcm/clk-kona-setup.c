@@ -27,7 +27,7 @@ LIST_HEAD(ccu_list);	/* The list of set up CCUs */
 
 static bool clk_requires_trigger(struct kona_clk *bcm_clk)
 {
-	struct peri_clk_data *peri = bcm_clk->peri;
+	struct peri_clk_data *peri = bcm_clk->u.peri;
 	struct bcm_clk_sel *sel;
 	struct bcm_clk_div *div;
 
@@ -63,7 +63,7 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 	u32 limit;
 
 	BUG_ON(bcm_clk->type != bcm_clk_peri);
-	peri = bcm_clk->peri;
+	peri = bcm_clk->u.peri;
 	name = bcm_clk->name;
 	range = bcm_clk->ccu->range;
 
@@ -81,19 +81,19 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 
 	div = &peri->div;
 	if (divider_exists(div)) {
-		if (div->offset > limit) {
+		if (div->u.s.offset > limit) {
 			pr_err("%s: bad divider offset for %s (%u > %u)\n",
-				__func__, name, div->offset, limit);
+				__func__, name, div->u.s.offset, limit);
 			return false;
 		}
 	}
 
 	div = &peri->pre_div;
 	if (divider_exists(div)) {
-		if (div->offset > limit) {
+		if (div->u.s.offset > limit) {
 			pr_err("%s: bad pre-divider offset for %s "
 					"(%u > %u)\n",
-				__func__, name, div->offset, limit);
+				__func__, name, div->u.s.offset, limit);
 			return false;
 		}
 	}
@@ -249,21 +249,22 @@ static bool div_valid(struct bcm_clk_div *div, const char *field_name,
 {
 	if (divider_is_fixed(div)) {
 		/* Any fixed divider value but 0 is OK */
-		if (div->fixed == 0) {
+		if (div->u.fixed == 0) {
 			pr_err("%s: bad %s fixed value 0 for %s\n", __func__,
 				field_name, clock_name);
 			return false;
 		}
 		return true;
 	}
-	if (!bitfield_valid(div->shift, div->width, field_name, clock_name))
+	if (!bitfield_valid(div->u.s.shift, div->u.s.width,
+				field_name, clock_name))
 		return false;
 
 	if (divider_has_fraction(div))
-		if (div->frac_width > div->width) {
+		if (div->u.s.frac_width > div->u.s.width) {
 			pr_warn("%s: bad %s fraction width for %s (%u > %u)\n",
 				__func__, field_name, clock_name,
-				div->frac_width, div->width);
+				div->u.s.frac_width, div->u.s.width);
 			return false;
 		}
 
@@ -278,7 +279,7 @@ static bool div_valid(struct bcm_clk_div *div, const char *field_name,
  */
 static bool kona_dividers_valid(struct kona_clk *bcm_clk)
 {
-	struct peri_clk_data *peri = bcm_clk->peri;
+	struct peri_clk_data *peri = bcm_clk->u.peri;
 	struct bcm_clk_div *div;
 	struct bcm_clk_div *pre_div;
 	u32 limit;
@@ -295,7 +296,7 @@ static bool kona_dividers_valid(struct kona_clk *bcm_clk)
 
 	limit = BITS_PER_BYTE * sizeof(u32);
 
-	return div->frac_width + pre_div->frac_width <= limit;
+	return div->u.s.frac_width + pre_div->u.s.frac_width <= limit;
 }
 
 
@@ -328,7 +329,7 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 	if (!peri_clk_data_offsets_valid(bcm_clk))
 		return false;
 
-	peri = bcm_clk->peri;
+	peri = bcm_clk->u.peri;
 	name = bcm_clk->name;
 	gate = &peri->gate;
 	if (gate_exists(gate) && !gate_valid(gate, "gate", name))
@@ -588,12 +589,12 @@ static void bcm_clk_teardown(struct kona_clk *bcm_clk)
 {
 	switch (bcm_clk->type) {
 	case bcm_clk_peri:
-		peri_clk_teardown(bcm_clk->data, &bcm_clk->init_data);
+		peri_clk_teardown(bcm_clk->u.data, &bcm_clk->init_data);
 		break;
 	default:
 		break;
 	}
-	bcm_clk->data = NULL;
+	bcm_clk->u.data = NULL;
 	bcm_clk->type = bcm_clk_none;
 }
 
@@ -644,7 +645,7 @@ struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
 		break;
 	}
 	bcm_clk->type = type;
-	bcm_clk->data = data;
+	bcm_clk->u.data = data;
 
 	/* Make sure everything makes sense before we set it up */
 	if (!kona_clk_valid(bcm_clk)) {

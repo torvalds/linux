@@ -4949,6 +4949,12 @@ static void be_eeh_resume(struct pci_dev *pdev)
 	if (status)
 		goto err;
 
+	/* On some BE3 FW versions, after a HW reset,
+	 * interrupts will remain disabled for each function.
+	 * So, explicitly enable interrupts
+	 */
+	be_intr_set(adapter, true);
+
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);
 	if (status)

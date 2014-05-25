@@ -3895,6 +3895,60 @@ static int add_eth_header(struct mlx4_dev *dev, int slave,
 
 }
 
+#define MLX4_UPD_QP_PATH_MASK_SUPPORTED (1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX)
+int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd_info)
+{
+	int err;
+	u32 qpn = vhcr->in_modifier & 0xffffff;
+	struct res_qp *rqp;
+	u64 mac;
+	unsigned port;
+	u64 pri_addr_path_mask;
+	struct mlx4_update_qp_context *cmd;
+	int smac_index;
+
+	cmd = (struct mlx4_update_qp_context *)inbox->buf;
+
+	pri_addr_path_mask = be64_to_cpu(cmd->primary_addr_path_mask);
+	if (cmd->qp_mask || cmd->secondary_addr_path_mask ||
+	    (pri_addr_path_mask & ~MLX4_UPD_QP_PATH_MASK_SUPPORTED))
+		return -EPERM;
+
+	/* Just change the smac for the QP */
+	err = get_res(dev, slave, qpn, RES_QP, &rqp);
+	if (err) {
+		mlx4_err(dev, "Updating qpn 0x%x for slave %d rejected\n", qpn, slave);
+		return err;
+	}
+
+	port = (rqp->sched_queue >> 6 & 1) + 1;
+	smac_index = cmd->qp_context.pri_path.grh_mylmc;
+	err = mac_find_smac_ix_in_slave(dev, slave, port,
+					smac_index, &mac);
+	if (err) {
+		mlx4_err(dev, "Failed to update qpn 0x%x, MAC is invalid. smac_ix: %d\n",
+			 qpn, smac_index);
+		goto err_mac;
+	}
+
+	err = mlx4_cmd(dev, inbox->dma,
+		       vhcr->in_modifier, 0,
+		       MLX4_CMD_UPDATE_QP, MLX4_CMD_TIME_CLASS_A,
+		       MLX4_CMD_NATIVE);
+	if (err) {
+		mlx4_err(dev, "Failed to update qpn on qpn 0x%x, command failed\n", qpn);
+		goto err_mac;
+	}
+
+err_mac:
+	put_res(dev, slave, qpn, RES_QP);
+	return err;
+}
+
 int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 					 struct mlx4_vhcr *vhcr,
 					 struct mlx4_cmd_mailbox *inbox,

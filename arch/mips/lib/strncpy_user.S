@@ -35,7 +35,6 @@ LEAF(__strncpy_from_\func\()_asm)
 	bnez		v0, .Lfault\@
 
 FEXPORT(__strncpy_from_\func\()_nocheck_asm)
-	.set		noreorder
 	move		t0, zero
 	move		v1, a1
 .ifeqs "\func","kernel"
@@ -45,21 +44,21 @@ FEXPORT(__strncpy_from_\func\()_nocheck_asm)
 .endif
 	PTR_ADDIU	v1, 1
 	R10KCBARRIER(0(ra))
+	sb		v0, (a0)
 	beqz		v0, 2f
-	 sb		v0, (a0)
 	PTR_ADDIU	t0, 1
+	PTR_ADDIU	a0, 1
 	bne		t0, a2, 1b
-	 PTR_ADDIU	a0, 1
 2:	PTR_ADDU	v0, a1, t0
 	xor		v0, a1
 	bltz		v0, .Lfault\@
-	 nop
+	move		v0, t0
 	jr		ra			# return n
-	 move		v0, t0
 	END(__strncpy_from_\func\()_asm)
 
-.Lfault\@: jr		ra
-	  li		v0, -EFAULT
+.Lfault\@:
+	li		v0, -EFAULT
+	jr		ra
 
 	.section	__ex_table,"a"
 	PTR		1b, .Lfault\@

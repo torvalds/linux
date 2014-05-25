@@ -72,8 +72,8 @@ xfs_initxattrs(
 	int			error = 0;
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
-		error = xfs_attr_set(ip, xattr->name, xattr->value,
-				     xattr->value_len, ATTR_SECURE);
+		error = -xfs_attr_set(ip, xattr->name, xattr->value,
+				      xattr->value_len, ATTR_SECURE);
 		if (error < 0)
 			break;
 	}
@@ -93,8 +93,8 @@ xfs_init_security(
 	struct inode	*dir,
 	const struct qstr *qstr)
 {
-	return security_inode_init_security(inode, dir, qstr,
-					    &xfs_initxattrs, NULL);
+	return -security_inode_init_security(inode, dir, qstr,
+					     &xfs_initxattrs, NULL);
 }
 
 static void
@@ -173,12 +173,12 @@ xfs_generic_create(
 
 #ifdef CONFIG_XFS_POSIX_ACL
 	if (default_acl) {
-		error = xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = -xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		if (error)
 			goto out_cleanup_inode;
 	}
 	if (acl) {
-		error = xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		error = -xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		if (error)
 			goto out_cleanup_inode;
 	}

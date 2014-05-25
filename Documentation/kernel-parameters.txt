@@ -2218,10 +2218,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
 			with UP alternatives
 
-	nordrand	[X86] Disable the direct use of the RDRAND
-			instruction even if it is supported by the
-			processor.  RDRAND is still available to user
-			space applications.
+	nordrand	[X86] Disable kernel use of the RDRAND and
+			RDSEED instructions even if they are supported
+			by the processor.  RDRAND and RDSEED are still
+			available to user space applications.
 
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.

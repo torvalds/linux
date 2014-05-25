@@ -522,6 +522,9 @@ struct mlx4_ib_dev {
 	int steer_qpn_count;
 	int steer_qpn_base;
 	int steering_support;
+	struct mlx4_ib_qp      *qp1_proxy[MLX4_MAX_PORTS];
+	/* lock when destroying qp1_proxy and getting netdev events */
+	struct mutex		qp1_proxy_lock[MLX4_MAX_PORTS];
 };
 
 struct ib_event_work {

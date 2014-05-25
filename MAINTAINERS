@@ -537,7 +537,7 @@ L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Vince Bridgers <vbridgers2013@gmail.com
+M:	Vince Bridgers <vbridgers2013@gmail.com>
 L:	netdev@vger.kernel.org
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
@@ -2245,12 +2245,6 @@ M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/host/ohci-ep93xx.c
-
-CIRRUS LOGIC CS4270 SOUND DRIVER
-M:	Timur Tabi <timur@tabi.org>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
-S:	Odd Fixes
-F:	sound/soc/codecs/cs4270*
 
 CIRRUS LOGIC AUDIO CODEC DRIVERS
 M:	Brian Austin <brian.austin@cirrus.com>
@@ -4819,6 +4813,14 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
 F:	kernel/irq/
+
+IRQCHIP DRIVERS
+M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Jason Cooper <jason@lakedaemon.net>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
+T:	git git://git.infradead.org/users/jcooper/linux.git irqchip/core
 F:	drivers/irqchip/
 
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
@@ -6512,10 +6514,10 @@ T:	git git://openrisc.net/~jonas/linux
 F:	arch/openrisc/
 
 OPENVSWITCH
-M:	Jesse Gross <jesse@nicira.com>
+M:	Pravin Shelar <pshelar@nicira.com>
 L:	dev@openvswitch.org
 W:	http://openvswitch.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jesse/openvswitch.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pshelar/openvswitch.git
 S:	Maintained
 F:	net/openvswitch/
 
@@ -9108,6 +9110,9 @@ F:	arch/um/os-Linux/drivers/
 
 TURBOCHANNEL SUBSYSTEM
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
+M:	Ralf Baechle <ralf@linux-mips.org>
+L:	linux-mips@linux-mips.org
+Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
 S:	Maintained
 F:	drivers/tc/
 F:	include/linux/tc.h
