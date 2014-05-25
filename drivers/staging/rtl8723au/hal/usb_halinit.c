@@ -150,33 +150,29 @@ static void _InitQueueReservedPage(struct rtw_adapter *Adapter)
 	u32 value32;
 	u8 value8;
 	bool bWiFiConfig = pregistrypriv->wifi_spec;
-	/* u32			txQPageNum, txQPageUnit, txQRemainPage; */
 
-	{ /* for WMM */
-		/* RT_ASSERT((outEPNum>= 2), ("for WMM , number of out-ep "
-		   "must more than or equal to 2!\n")); */
+	/* RT_ASSERT((outEPNum>= 2), ("for WMM , number of out-ep "
+	   "must more than or equal to 2!\n")); */
 
-		numPubQ = bWiFiConfig ?
-			WMM_NORMAL_PAGE_NUM_PUBQ : NORMAL_PAGE_NUM_PUBQ;
+	numPubQ = bWiFiConfig ? WMM_NORMAL_PAGE_NUM_PUBQ : NORMAL_PAGE_NUM_PUBQ;
 
-		if (pHalData->OutEpQueueSel & TX_SELE_HQ) {
-			numHQ = bWiFiConfig ?
-				WMM_NORMAL_PAGE_NUM_HPQ : NORMAL_PAGE_NUM_HPQ;
-		}
-
-		if (pHalData->OutEpQueueSel & TX_SELE_LQ) {
-			numLQ = bWiFiConfig ?
-				WMM_NORMAL_PAGE_NUM_LPQ : NORMAL_PAGE_NUM_LPQ;
-		}
-		/*  NOTE: This step shall be proceed before
-		    writting REG_RQPN. */
-		if (pHalData->OutEpQueueSel & TX_SELE_NQ) {
-			numNQ = bWiFiConfig ?
-				WMM_NORMAL_PAGE_NUM_NPQ : NORMAL_PAGE_NUM_NPQ;
-		}
-		value8 = (u8)_NPQ(numNQ);
-		rtl8723au_write8(Adapter, REG_RQPN_NPQ, value8);
+	if (pHalData->OutEpQueueSel & TX_SELE_HQ) {
+		numHQ = bWiFiConfig ?
+			WMM_NORMAL_PAGE_NUM_HPQ : NORMAL_PAGE_NUM_HPQ;
 	}
+
+	if (pHalData->OutEpQueueSel & TX_SELE_LQ) {
+		numLQ = bWiFiConfig ?
+			WMM_NORMAL_PAGE_NUM_LPQ : NORMAL_PAGE_NUM_LPQ;
+	}
+	/*  NOTE: This step shall be proceed before
+	    writting REG_RQPN. */
+	if (pHalData->OutEpQueueSel & TX_SELE_NQ) {
+		numNQ = bWiFiConfig ?
+			WMM_NORMAL_PAGE_NUM_NPQ : NORMAL_PAGE_NUM_NPQ;
+	}
+	value8 = (u8)_NPQ(numNQ);
+	rtl8723au_write8(Adapter, REG_RQPN_NPQ, value8);
 
 	/*  TX DMA */
 	value32 = _HPQ(numHQ) | _LPQ(numLQ) | _PUBQ(numPubQ) | LD_RQPN;
