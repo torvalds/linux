@@ -19,8 +19,6 @@
 
 #define DIS_PS_RX_BCN
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-
 u32 BTCoexDbgLevel = _bt_dbg_off_;
 
 #define RTPRINT(_Comp, _Level, Fmt)\
@@ -71,7 +69,6 @@ if ((BTCoexDbgLevel == _bt_dbg_on_)) {\
 		printk(_TitleString);					\
 		printk(": %d, <%s>\n", _Len, buffer);			\
 	}
-#endif
 
 #define DCMD_Printf(...)
 #define RT_ASSERT(...)
