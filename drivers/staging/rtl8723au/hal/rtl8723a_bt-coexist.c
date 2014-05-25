@@ -156,11 +156,6 @@ void BT_WifiAssociateNotify(struct rtw_adapter *padapter, u8 action)
 	BTDM_WifiAssociateNotify(padapter, action);
 }
 
-void BT_WifiMediaStatusNotify(struct rtw_adapter *padapter, enum rt_media_status mstatus)
-{
-	BTDM_MediaStatusNotify(padapter, mstatus);
-}
-
 void BT_SpecialPacketNotify(struct rtw_adapter *padapter)
 {
 	BTDM_ForDhcp(padapter);
@@ -11003,7 +10998,8 @@ void BTDM_WifiAssociateNotify(struct rtw_adapter *padapter, u8 action)
 	BTDM_WifiAssociateNotify8723A(padapter, action);
 }
 
-void BTDM_MediaStatusNotify(struct rtw_adapter *padapter, enum rt_media_status mstatus)
+void rtl8723a_BT_mediastatus_notify(struct rtw_adapter *padapter,
+				    enum rt_media_status mstatus)
 {
 	if (!rtl8723a_BT_coexist(padapter))
 		return;

@@ -1072,19 +1072,13 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 			/*  Reset LPS Setting */
 			padapter->pwrctrlpriv.LpsIdleCount = 0;
 			rtl8723a_set_FwJoinBssReport_cmd(padapter, 1);
-#ifdef CONFIG_8723AU_BT_COEXIST
-			BT_WifiMediaStatusNotify(padapter, mstatus);
-#endif
+			rtl8723a_BT_mediastatus_notify(padapter, mstatus);
 			break;
 		case LPS_CTRL_DISCONNECT:
 			mstatus = 0;/* disconnect */
-#ifdef CONFIG_8723AU_BT_COEXIST
-			BT_WifiMediaStatusNotify(padapter, mstatus);
-			if (rtl8723a_BT_using_antenna_1(padapter) == false)
-#endif
-			{
+			rtl8723a_BT_mediastatus_notify(padapter, mstatus);
+			if (!rtl8723a_BT_using_antenna_1(padapter))
 				LPS_Leave23a(padapter);
-			}
 			rtl8723a_set_FwJoinBssReport_cmd(padapter, 0);
 			break;
 		case LPS_CTRL_SPECIAL_PACKET:

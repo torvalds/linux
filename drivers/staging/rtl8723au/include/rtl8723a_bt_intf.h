@@ -19,11 +19,14 @@
 #include <drv_types.h>
 
 #ifdef CONFIG_8723AU_BT_COEXIST
+enum rt_media_status;
 bool rtl8723a_BT_using_antenna_1(struct rtw_adapter *padapter);
 bool rtl8723a_BT_enabled(struct rtw_adapter *padapter);
 bool rtl8723a_BT_coexist(struct rtw_adapter *padapter);
 void rtl8723a_BT_do_coexist(struct rtw_adapter *padapter);
 void rtl8723a_BT_wifiscan_notify(struct rtw_adapter *padapter, u8 scanType);
+void rtl8723a_BT_mediastatus_notify(struct rtw_adapter *padapter,
+				    enum rt_media_status mstatus);
 #else
 static inline bool rtl8723a_BT_using_antenna_1(struct rtw_adapter *padapter)
 {
@@ -39,6 +42,7 @@ static inline bool rtl8723a_BT_coexist(struct rtw_adapter *padapter)
 }
 #define rtl8723a_BT_do_coexist(padapter)	do {} while(0)
 #define rtl8723a_BT_wifiscan_notify(padapter, scanType)		do {} while(0)
+#define rtl8723a_BT_mediastatus_notify(padapter, mstatus)	do {} while(0)
 #endif
 
 #endif
