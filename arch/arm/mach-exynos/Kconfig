@@ -113,6 +113,11 @@ config SOC_EXYNOS5440
 	help
 	  Enable EXYNOS5440 SoC support
 
+config SOC_EXYNOS5800
+	bool "SAMSUNG EXYNOS5800"
+	default y
+	depends on SOC_EXYNOS5420
+
 endmenu
 
 endif

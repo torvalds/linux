@@ -45,7 +45,7 @@ static inline void __iomem *cpu_boot_reg(int cpu)
 	boot_reg = cpu_boot_reg_base();
 	if (soc_is_exynos4412())
 		boot_reg += 4*cpu;
-	else if (soc_is_exynos5420())
+	else if (soc_is_exynos5420() || soc_is_exynos5800())
 		boot_reg += 4;
 	return boot_reg;
 }
