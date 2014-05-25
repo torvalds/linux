@@ -3367,22 +3367,24 @@ int rtw_wdev_alloc(struct rtw_adapter *padapter, struct device *dev)
 		ret = -ENOMEM;
 		goto exit;
 	}
-	set_wiphy_dev(wiphy, dev);
-	rtw_cfg80211_preinit_wiphy(padapter, wiphy);
-
-	ret = wiphy_register(wiphy);
-	if (ret < 0) {
-		DBG_8723A("Couldn't register wiphy device\n");
-		goto free_wiphy;
-	}
 
 	/*  wdev */
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!wdev) {
 		DBG_8723A("Couldn't allocate wireless device\n");
 		ret = -ENOMEM;
-		goto unregister_wiphy;
+		goto free_wiphy;
 	}
+
+	set_wiphy_dev(wiphy, dev);
+	rtw_cfg80211_preinit_wiphy(padapter, wiphy);
+
+	ret = wiphy_register(wiphy);
+	if (ret < 0) {
+		DBG_8723A("Couldn't register wiphy device\n");
+		goto free_wdev;
+	}
+
 	wdev->wiphy = wiphy;
 	wdev->netdev = pnetdev;
 	/* wdev->iftype = NL80211_IFTYPE_STATION; */
@@ -3408,8 +3410,8 @@ int rtw_wdev_alloc(struct rtw_adapter *padapter, struct device *dev)
 		pwdev_priv->power_mgmt = false;
 
 	return ret;
-unregister_wiphy:
-	wiphy_unregister(wiphy);
+free_wdev:
+	kfree(wdev);
 free_wiphy:
 	wiphy_free(wiphy);
 exit:
