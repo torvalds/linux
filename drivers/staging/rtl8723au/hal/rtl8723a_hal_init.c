@@ -1943,9 +1943,8 @@ Hal_EfuseParseBTCoexistInfo_8723A(struct rtw_adapter *padapter,
 		pHalData->EEPROMBluetoothAntIsolation = 0;
 		pHalData->EEPROMBluetoothRadioShared = BT_Radio_Shared;
 	}
-#ifdef CONFIG_8723AU_BT_COEXIST
-	BT_InitHalVars(padapter);
-#endif
+
+	rtl8723a_BT_init_hal_vars(padapter);
 }
 
 void

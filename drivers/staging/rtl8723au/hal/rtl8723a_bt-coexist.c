@@ -11278,7 +11278,7 @@ void HALBT_RemoveKey(struct rtw_adapter *padapter, u8 EntryNum)
 	}
 }
 
-void HALBT_InitBTVars8723A(struct rtw_adapter *padapter)
+void rtl8723a_BT_init_hal_vars(struct rtw_adapter *padapter)
 {
 	struct hal_data_8723a *pHalData;
 

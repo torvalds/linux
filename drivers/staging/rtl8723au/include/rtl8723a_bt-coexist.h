@@ -1605,9 +1605,6 @@ u8 HALBT_GetPGAntNum(struct rtw_adapter * padapter);
 #define BT_GetPGAntNum HALBT_GetPGAntNum
 void HALBT_SetKey(struct rtw_adapter * padapter, u8 EntryNum);
 void HALBT_RemoveKey(struct rtw_adapter * padapter, u8 EntryNum);
-void HALBT_InitBTVars8723A(struct rtw_adapter * padapter);
-#define HALBT_InitHalVars HALBT_InitBTVars8723A
-#define BT_InitHalVars HALBT_InitHalVars
 u8 HALBT_IsBTExist(struct rtw_adapter * padapter);
 #define BT_IsBtExist HALBT_IsBTExist
 u8 HALBT_BTChipType(struct rtw_adapter * padapter);
