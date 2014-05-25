@@ -3478,13 +3478,12 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 			pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info =
 				cpu_to_le16(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info);
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-			if (rtl8723a_BT_using_antenna_1(padapter)) {
+			if (rtl8723a_BT_coexist(padapter) &&
+			    rtl8723a_BT_using_antenna_1(padapter)) {
 				/*  set to 8K */
 				pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para &= (u8)~IEEE80211_HT_AMPDU_PARM_FACTOR;
 /*				pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para |= MAX_AMPDU_FACTOR_8K */
 			}
-#endif
 
 			pframe = rtw_set_ie23a(pframe, WLAN_EID_HT_CAPABILITY,
 					       p[1], (u8 *)&pmlmeinfo->HT_caps,
@@ -3986,9 +3985,7 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 	struct sta_info *psta;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct registry_priv *pregpriv = &padapter->registrypriv;
-#ifdef CONFIG_8723AU_BT_COEXIST
 	u8 tendaAPMac[] = {0xC8, 0x3A, 0x35};
-#endif
 
 	DBG_8723A("%s, category =%d, action =%d, status =%d\n",
 		  __func__, category, action, status);
@@ -4037,9 +4034,9 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 		pframe = rtw_set_fixed_ie23a(pframe, 1, &pmlmeinfo->dialogToken,
 					     &pattrib->pktlen);
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-		if (rtl8723a_BT_using_antenna_1(padapter) &&
-		    ((pmlmeinfo->assoc_AP_vendor != broadcomAP) ||
+		if (rtl8723a_BT_coexist(padapter) &&
+		    rtl8723a_BT_using_antenna_1(padapter) &&
+		    (pmlmeinfo->assoc_AP_vendor != broadcomAP ||
 		     memcmp(raddr, tendaAPMac, 3))) {
 			/*  A-MSDU NOT Supported */
 			BA_para_set = 0;
@@ -4052,9 +4049,7 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 			/*  max buffer size is 8 MSDU */
 			BA_para_set |= (8 << 6) &
 				IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK;
-		} else
-#endif
-		{
+		} else {
 			/* immediate ack & 64 buffer size */
 			BA_para_set = (0x1002 | ((status & 0xf) << 2));
 		}
@@ -4104,16 +4099,15 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 		else
 			BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-		if (rtl8723a_BT_using_antenna_1(padapter) &&
-		    ((pmlmeinfo->assoc_AP_vendor != broadcomAP) ||
+		if (rtl8723a_BT_coexist(padapter) &&
+		    rtl8723a_BT_using_antenna_1(padapter) &&
+		    (pmlmeinfo->assoc_AP_vendor != broadcomAP ||
 		     memcmp(raddr, tendaAPMac, 3))) {
 			/*  max buffer size is 8 MSDU */
 			BA_para_set &= ~IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK;
 			BA_para_set |= (8 << 6) &
 				IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK;
 		}
-#endif
 
 		if (pregpriv->ampdu_amsdu == 0)/* disabled */
 			BA_para_set = cpu_to_le16(BA_para_set & ~BIT(0));
