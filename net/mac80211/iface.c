@@ -399,6 +399,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	sdata->vif.type = NL80211_IFTYPE_MONITOR;
 	snprintf(sdata->name, IFNAMSIZ, "%s-monitor",
 		 wiphy_name(local->hw.wiphy));
+	sdata->wdev.iftype = NL80211_IFTYPE_MONITOR;
 
 	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
 
