@@ -20,9 +20,7 @@
 #include <rtl8723a_cmd.h>
 #include <rtw_sreset.h>
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-#include <rtl8723a_hal.h>
-#endif
+#include <rtl8723a_bt_intf.h>
 #include <usb_ops_linux.h>
 
 void ips_enter23a(struct rtw_adapter * padapter)
@@ -38,9 +36,8 @@ void ips_enter23a(struct rtw_adapter * padapter)
 
 	pwrpriv->ips_enter23a_cnts++;
 	DBG_8723A("==>ips_enter23a cnts:%d\n", pwrpriv->ips_enter23a_cnts);
-#ifdef CONFIG_8723AU_BT_COEXIST
-	BTDM_TurnOffBtCoexistBeforeEnterIPS(padapter);
-#endif
+	rtl8723a_BT_disable_coexist(padapter);
+
 	if (pwrpriv->change_rfpwrstate == rf_off) {
 		pwrpriv->bpower_saving = true;
 		DBG_8723A_LEVEL(_drv_always_, "nolinked power save enter\n");

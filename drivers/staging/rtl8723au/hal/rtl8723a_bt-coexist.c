@@ -10726,7 +10726,7 @@ void BTDM_CoexAllOff(struct rtw_adapter *padapter)
 	BTDM_HWCoexAllOff(padapter);
 }
 
-void BTDM_TurnOffBtCoexistBeforeEnterIPS(struct rtw_adapter *padapter)
+void rtl8723a_BT_disable_coexist(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *ppwrctrl = &padapter->pwrctrlpriv;
 
