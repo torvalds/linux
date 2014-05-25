@@ -11330,7 +11330,7 @@ u8 HALBT_BTChipType(struct rtw_adapter *padapter)
 	return pHalData->bt_coexist.BT_CoexistType;
 }
 
-void HALBT_InitHwConfig(struct rtw_adapter *padapter)
+void rtl8723a_BT_init_hwconfig(struct rtw_adapter *padapter)
 {
 	halbt_InitHwConfig8723A(padapter);
 	rtl8723a_BT_do_coexist(padapter);

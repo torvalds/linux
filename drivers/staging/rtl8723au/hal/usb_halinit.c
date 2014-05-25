@@ -869,9 +869,9 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 #ifdef CONFIG_8723AU_BT_COEXIST
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BT_COEXIST);
-	/*  Init BT hw config. */
-	BT_InitHwConfig(Adapter);
 #endif
+	/*  Init BT hw config. */
+	rtl8723a_BT_init_hwconfig(Adapter);
 
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 	rtl8723a_InitHalDm(Adapter);

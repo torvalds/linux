@@ -1613,8 +1613,6 @@ void HALBT_InitBTVars8723A(struct rtw_adapter * padapter);
 u8 HALBT_IsBTExist(struct rtw_adapter * padapter);
 #define BT_IsBtExist HALBT_IsBTExist
 u8 HALBT_BTChipType(struct rtw_adapter * padapter);
-void HALBT_InitHwConfig(struct rtw_adapter * padapter);
-#define BT_InitHwConfig HALBT_InitHwConfig
 void HALBT_SetRtsCtsNoLenLimit(struct rtw_adapter * padapter);
 
 /*  ===== End of sync from SD7 driver HAL/HalBT.c ===== */
