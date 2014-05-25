@@ -616,9 +616,6 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	unsigned long init_start_time = jiffies;
 
-#define HAL_INIT_PROFILE_TAG(stage) do {} while (0)
-
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BEGIN);
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
 		_ps_open_RF23a(Adapter);
 
@@ -650,7 +647,6 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 			 ("%s: MAC has already power on\n", __func__));
 	}
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PW_ON);
 	status = _InitPowerOn(Adapter);
 	if (status == _FAIL) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
@@ -658,7 +654,6 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 		goto exit;
 	}
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_LLTT);
 	if (!pregistrypriv->wifi_spec) {
 		boundary = TX_PAGE_BOUNDARY;
 	} else {
@@ -675,11 +670,9 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 		}
 	}
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC01);
 	if (pHalData->bRDGEnable)
 		_InitRDGSetting(Adapter);
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_DOWNLOAD_FW);
 	status = rtl8723a_FirmwareDownload(Adapter);
 	if (status != _SUCCESS) {
 		Adapter->bFWReady = false;
@@ -711,14 +704,12 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/*  <Roger_Notes> Current Channel will be updated again later. */
 	pHalData->CurrentChannel = 6;/* default set to 6 */
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MAC);
 	status = PHY_MACConfig8723A(Adapter);
 	if (status == _FAIL) {
 		DBG_8723A("PHY_MACConfig8723A fault !!\n");
 		goto exit;
 	}
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BB);
 	/*  */
 	/* d. Initialize BB related configurations. */
 	/*  */
@@ -731,7 +722,6 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/*  Add for tx power by rate fine tune. We need to call the function after BB config. */
 	/*  Because the tx power by rate table is inited in BB config. */
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_RF);
 	status = PHY_RFConfig8723A(Adapter);
 	if (status == _FAIL) {
 		DBG_8723A("PHY_RFConfig8723A fault !!\n");
@@ -757,7 +747,6 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)0, RF_CHNLBW, bRFRegOffsetMask);
 	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)1, RF_CHNLBW, bRFRegOffsetMask);
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC02);
 	if (!pHalData->bMACFuncEnable) {
 		_InitQueueReservedPage(Adapter);
 		_InitTxBufferBoundary(Adapter);
@@ -783,14 +772,11 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	_InitHWLed(Adapter);
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_TURN_ON_BLOCK);
 	_BBTurnOnBlock(Adapter);
 	/* NicIFSetMacAddress(padapter, padapter->PermanentAddress); */
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_SECURITY);
 	invalidate_cam_all23a(Adapter);
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 	/*  2010/12/17 MH We need to set TX power according to EFUSE content at first. */
 	PHY_SetTxPowerLevel8723A(Adapter, pHalData->CurrentChannel);
 
@@ -812,30 +798,26 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/*  Move by Neo for USB SS from above setp */
 	_RfPowerSave(Adapter);
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
-		/*  2010/08/26 MH Merge from 8192CE. */
-		/* sherry masked that it has been done in _RfPowerSave */
-		/* 20110927 */
-		/* recovery for 8192cu and 9723Au 20111017 */
-		if (pwrctrlpriv->rf_pwrstate == rf_on) {
-			if (pHalData->bIQKInitialized) {
-				rtl8723a_phy_iq_calibrate(Adapter, true);
-			} else {
-				rtl8723a_phy_iq_calibrate(Adapter, false);
-				pHalData->bIQKInitialized = true;
-			}
-
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_PW_TRACK);
-			rtl8723a_odm_check_tx_power_tracking(Adapter);
-
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
-			rtl8723a_phy_lc_calibrate(Adapter);
-
-			rtl8723a_dual_antenna_detection(Adapter);
+	/*  2010/08/26 MH Merge from 8192CE. */
+	/* sherry masked that it has been done in _RfPowerSave */
+	/* 20110927 */
+	/* recovery for 8192cu and 9723Au 20111017 */
+	if (pwrctrlpriv->rf_pwrstate == rf_on) {
+		if (pHalData->bIQKInitialized) {
+			rtl8723a_phy_iq_calibrate(Adapter, true);
+		} else {
+			rtl8723a_phy_iq_calibrate(Adapter, false);
+			pHalData->bIQKInitialized = true;
 		}
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC21);
- /* fixed USB interface interference issue */
+		rtl8723a_odm_check_tx_power_tracking(Adapter);
+
+		rtl8723a_phy_lc_calibrate(Adapter);
+
+		rtl8723a_dual_antenna_detection(Adapter);
+	}
+
+	/* fixed USB interface interference issue */
 	rtl8723au_write8(Adapter, 0xfe40, 0xe0);
 	rtl8723au_write8(Adapter, 0xfe41, 0x8d);
 	rtl8723au_write8(Adapter, 0xfe42, 0x80);
@@ -864,19 +846,13 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	}
 
-/* HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PABIAS); */
 /*	_InitPABias(Adapter); */
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BT_COEXIST);
-#endif
 	/*  Init BT hw config. */
 	rtl8723a_BT_init_hwconfig(Adapter);
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 	rtl8723a_InitHalDm(Adapter);
 
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC31);
 	rtl8723a_set_nav_upper(Adapter, WiFiNavUpperUs);
 
 	/*  2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test, but we need to fin root cause. */
@@ -891,8 +867,6 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 			  rtl8723au_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
 
 exit:
-	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
-
 	DBG_8723A("%s in %dms\n", __func__,
 		  jiffies_to_msecs(jiffies - init_start_time));
 	return status;
