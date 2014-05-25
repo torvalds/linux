@@ -1614,6 +1614,11 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 		RCU_INIT_POINTER(mvm->csa_vif, NULL);
 	}
 
+	if (rcu_access_pointer(mvm->csa_tx_blocked_vif) == vif) {
+		RCU_INIT_POINTER(mvm->csa_tx_blocked_vif, NULL);
+		mvm->csa_tx_block_bcn_timeout = 0;
+	}
+
 	mvmvif->ap_ibss_active = false;
 	mvm->ap_last_beacon_gp2 = 0;
 
@@ -2490,6 +2495,12 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		/* This part is triggered only during CSA */
 		if (!vif->csa_active || !mvmvif->ap_ibss_active)
 			goto out;
+
+		/* Set CS bit on all the stations */
+		iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, true);
+
+		/* Save blocked iface, the timeout is set on the next beacon */
+		rcu_assign_pointer(mvm->csa_tx_blocked_vif, vif);
 
 		mvmvif->ap_ibss_active = false;
 		break;

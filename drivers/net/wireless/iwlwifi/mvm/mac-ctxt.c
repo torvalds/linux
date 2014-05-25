@@ -1237,6 +1237,7 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_tx_resp *beacon_notify_hdr;
 	struct ieee80211_vif *csa_vif;
+	struct ieee80211_vif *tx_blocked_vif;
 	u64 tsf;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1266,6 +1267,30 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 					    lockdep_is_held(&mvm->mutex));
 	if (unlikely(csa_vif && csa_vif->csa_active))
 		iwl_mvm_csa_count_down(mvm, csa_vif, mvm->ap_last_beacon_gp2);
+
+	tx_blocked_vif = rcu_dereference_protected(mvm->csa_tx_blocked_vif,
+						lockdep_is_held(&mvm->mutex));
+	if (unlikely(tx_blocked_vif)) {
+		struct iwl_mvm_vif *mvmvif =
+			iwl_mvm_vif_from_mac80211(tx_blocked_vif);
+
+		/*
+		 * The channel switch is started and we have blocked the
+		 * stations. If this is the first beacon (the timeout wasn't
+		 * set), set the unblock timeout, otherwise countdown
+		 */
+		if (!mvm->csa_tx_block_bcn_timeout)
+			mvm->csa_tx_block_bcn_timeout =
+				IWL_MVM_CS_UNBLOCK_TX_TIMEOUT;
+		else
+			mvm->csa_tx_block_bcn_timeout--;
+
+		/* Check if the timeout is expired, and unblock tx */
+		if (mvm->csa_tx_block_bcn_timeout == 0) {
+			iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, false);
+			RCU_INIT_POINTER(mvm->csa_tx_blocked_vif, NULL);
+		}
+	}
 
 	return 0;
 }

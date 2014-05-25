@@ -727,13 +727,21 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		goto out;
 
 	if (mvmsta && mvmsta->vif->type == NL80211_IFTYPE_AP) {
+
 		/*
-		 * If there are no pending frames for this STA, notify
-		 * mac80211 that this station can go to sleep in its
+		 * If there are no pending frames for this STA and
+		 * the tx to this station is not disabled, notify
+		 * mac80211 that this station can now wake up in its
 		 * STA table.
 		 * If mvmsta is not NULL, sta is valid.
 		 */
-		ieee80211_sta_block_awake(mvm->hw, sta, false);
+
+		spin_lock_bh(&mvmsta->lock);
+
+		if (!mvmsta->disable_tx)
+			ieee80211_sta_block_awake(mvm->hw, sta, false);
+
+		spin_unlock_bh(&mvmsta->lock);
 	}
 
 	if (PTR_ERR(sta) == -EBUSY || PTR_ERR(sta) == -ENOENT) {
