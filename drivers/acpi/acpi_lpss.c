@@ -267,12 +267,14 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	struct lpss_private_data *pdata;
 	struct resource_list_entry *rentry;
 	struct list_head resource_list;
+	struct platform_device *pdev;
 	int ret;
 
 	dev_desc = (struct lpss_device_desc *)id->driver_data;
-	if (!dev_desc)
-		return acpi_create_platform_device(adev, id);
-
+	if (!dev_desc) {
+		pdev = acpi_create_platform_device(adev);
+		return IS_ERR_OR_NULL(pdev) ? PTR_ERR(pdev) : 1;
+	}
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
@@ -322,10 +324,13 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 		dev_desc->setup(pdata);
 
 	adev->driver_data = pdata;
-	ret = acpi_create_platform_device(adev, id);
-	if (ret > 0)
-		return ret;
+	pdev = acpi_create_platform_device(adev);
+	if (!IS_ERR_OR_NULL(pdev)) {
+		device_enable_async_suspend(&pdev->dev);
+		return 1;
+	}
 
+	ret = PTR_ERR(pdev);
 	adev->driver_data = NULL;
 
  err_out:
