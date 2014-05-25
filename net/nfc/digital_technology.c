@@ -613,7 +613,7 @@ exit:
 		digital_poll_next_tech(ddev);
 }
 
-int digital_in_send_attrib_req(struct nfc_digital_dev *ddev,
+static int digital_in_send_attrib_req(struct nfc_digital_dev *ddev,
 			       struct nfc_target *target,
 			       struct digital_sensb_res *sensb_res)
 {
