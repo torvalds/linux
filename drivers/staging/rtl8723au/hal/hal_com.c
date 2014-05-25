@@ -457,7 +457,7 @@ void rtl8723a_set_ampdu_factor(struct rtw_adapter *padapter, u8 FactorToSet)
 	pRegToSet = RegToSet_Normal;	/*  0xb972a841; */
 #ifdef CONFIG_8723AU_BT_COEXIST
 	if ((BT_IsBtDisabled(padapter) == false) &&
-	    (BT_1Ant(padapter) == true)) {
+	    rtl8723a_BT_using_antenna_1(padapter)) {
 		MaxAggNum = 0x8;
 	} else
 #endif /*  CONFIG_8723AU_BT_COEXIST */

@@ -991,7 +991,7 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 		}
 
 #ifdef CONFIG_8723AU_BT_COEXIST
-		if (BT_1Ant(padapter) == false)
+		if (rtl8723a_BT_using_antenna_1(padapter) == false)
 #endif
 		{
 		/*  check traffic for  powersaving. */
@@ -1064,7 +1064,7 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 		case LPS_CTRL_SCAN:
 #ifdef CONFIG_8723AU_BT_COEXIST
 			BT_WifiScanNotify(padapter, true);
-			if (BT_1Ant(padapter) == false)
+			if (rtl8723a_BT_using_antenna_1(padapter) == false)
 #endif
 			{
 				if (check_fwstate(pmlmepriv, _FW_LINKED))
@@ -1087,7 +1087,7 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 			mstatus = 0;/* disconnect */
 #ifdef CONFIG_8723AU_BT_COEXIST
 			BT_WifiMediaStatusNotify(padapter, mstatus);
-			if (BT_1Ant(padapter) == false)
+			if (rtl8723a_BT_using_antenna_1(padapter) == false)
 #endif
 			{
 				LPS_Leave23a(padapter);
@@ -1098,7 +1098,7 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 			pwrpriv->DelayLPSLastTimeStamp = jiffies;
 #ifdef CONFIG_8723AU_BT_COEXIST
 			BT_SpecialPacketNotify(padapter);
-			if (BT_1Ant(padapter) == false)
+			if (rtl8723a_BT_using_antenna_1(padapter) == false)
 #endif
 			{
 				LPS_Leave23a(padapter);
@@ -1107,7 +1107,7 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 		case LPS_CTRL_LEAVE:
 #ifdef CONFIG_8723AU_BT_COEXIST
 			BT_LpsLeave(padapter);
-			if (BT_1Ant(padapter) == false)
+			if (rtl8723a_BT_using_antenna_1(padapter) == false)
 #endif
 			{
 				LPS_Leave23a(padapter);

@@ -9262,7 +9262,7 @@ void BTDM_SetFw3a(
 {
 	u8 H2C_Parameter[5] = {0};
 
-	if (BTDM_1Ant8723A(padapter)) {
+	if (rtl8723a_BT_using_antenna_1(padapter)) {
 		if ((!check_fwstate(&padapter->mlmepriv, WIFI_STATION_STATE)) &&
 		    (get_fwstate(&padapter->mlmepriv) != WIFI_NULL_STATE)) {
 			/*  for softap mode */
@@ -9818,7 +9818,7 @@ static void BTDM_ForDhcp8723A(struct rtw_adapter *padapter)
 		BTDM_1AntForDhcp(padapter);
 }
 
-u8 BTDM_1Ant8723A(struct rtw_adapter *padapter)
+bool rtl8723a_BT_using_antenna_1(struct rtw_adapter *padapter)
 {
 	if (btdm_BtWifiAntNum(padapter) == Ant_x1)
 		return true;
@@ -10572,7 +10572,7 @@ u8 BTDM_DisableEDCATurbo(struct rtw_adapter *padapter)
 		return bRet;
 	}
 
-	if (BT_1Ant(padapter)) {
+	if (rtl8723a_BT_using_antenna_1(padapter)) {
 		bRet = false;
 		pHalData->bt_coexist.lastBtEdca = 0;
 		return bRet;
@@ -10750,7 +10750,7 @@ void BTDM_TurnOffBtCoexistBeforeEnterIPS(struct rtw_adapter *padapter)
 		return;
 
 	/*  8723 1Ant doesn't need to turn off bt coexist mechanism. */
-	if (BTDM_1Ant8723A(padapter))
+	if (rtl8723a_BT_using_antenna_1(padapter))
 		return;
 
 	/*  Before enter IPS, turn off FW BT Co-exist mechanism */

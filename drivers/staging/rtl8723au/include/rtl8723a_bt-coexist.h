@@ -1330,8 +1330,6 @@ void BTDM_SetSwPenaltyTxRateAdaptive(struct rtw_adapter * padapter, u8 raType);
 void BTDM_SetFwDecBtPwr(struct rtw_adapter * padapter, u8 bDecBtPwr);
 u8 BTDM_BtProfileSupport(struct rtw_adapter * padapter);
 void BTDM_LpsLeave(struct rtw_adapter * padapter);
-u8 BTDM_1Ant8723A(struct rtw_adapter * padapter);
-#define BT_1Ant BTDM_1Ant8723A
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc8723.h ===== */
 

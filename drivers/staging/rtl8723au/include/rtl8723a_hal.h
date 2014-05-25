@@ -20,6 +20,7 @@
 #include "Hal8723APhyReg.h"
 #include "Hal8723APhyCfg.h"
 #include "rtl8723a_rf.h"
+#include "rtl8723a_bt_intf.h"
 #ifdef CONFIG_8723AU_BT_COEXIST
 #include "rtl8723a_bt-coexist.h"
 #endif
