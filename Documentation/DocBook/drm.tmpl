@@ -79,7 +79,7 @@
   <partintro>
     <para>
       This first part of the DRM Developer's Guide documents core DRM code,
-      helper libraries for writting drivers and generic userspace interfaces
+      helper libraries for writing drivers and generic userspace interfaces
       exposed by DRM drivers.
     </para>
   </partintro>
@@ -459,7 +459,7 @@ char *date;</synopsis>
       providing a solution to every graphics memory-related problems, GEM
       identified common code between drivers and created a support library to
       share it. GEM has simpler initialization and execution requirements than
-      TTM, but has no video RAM management capabitilies and is thus limited to
+      TTM, but has no video RAM management capabilities and is thus limited to
       UMA devices.
     </para>
     <sect2>
@@ -889,7 +889,7 @@ int (*prime_fd_to_handle)(struct drm_device *dev,
 	    vice versa. Drivers must use the kernel dma-buf buffer sharing framework
 	    to manage the PRIME file descriptors. Similar to the mode setting
 	    API PRIME is agnostic to the underlying buffer object manager, as
-	    long as handles are 32bit unsinged integers.
+	    long as handles are 32bit unsigned integers.
 	  </para>
 	  <para>
 	    While non-GEM drivers must implement the operations themselves, GEM
@@ -2356,7 +2356,7 @@ void intel_crt_init(struct drm_device *dev)
       first create properties and then create and associate individual instances
       of those properties to objects. A property can be instantiated multiple
       times and associated with different objects. Values are stored in property
-      instances, and all other property information are stored in the propery
+      instances, and all other property information are stored in the property
       and shared between all instances of the property.
     </para>
     <para>
@@ -2697,10 +2697,10 @@ int num_ioctls;</synopsis>
   <sect1>
     <title>Legacy Support Code</title>
     <para>
-      The section very brievely covers some of the old legacy support code which
+      The section very briefly covers some of the old legacy support code which
       is only used by old DRM drivers which have done a so-called shadow-attach
       to the underlying device instead of registering as a real driver. This
-      also includes some of the old generic buffer mangement and command
+      also includes some of the old generic buffer management and command
       submission code. Do not use any of this in new and modern drivers.
     </para>
 
