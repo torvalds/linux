@@ -9396,8 +9396,8 @@ static void BTDM_FwC2hBtRssi8723A(struct rtw_adapter *padapter, u8 *tmpBuf)
 /*RTPRINT(FBT, BT_TRACE, ("[BTC2H], BT RSSI =%d\n", percent)); */
 }
 
-static void
-BTDM_FwC2hBtInfo8723A(struct rtw_adapter *padapter, u8 *tmpBuf, u8 length)
+void
+rtl8723a_fw_c2h_BT_info(struct rtw_adapter *padapter, u8 *tmpBuf, u8 length)
 {
 	struct hal_data_8723a *pHalData;
 	struct bt_30info *pBTInfo;
@@ -10129,11 +10129,6 @@ void BTDM_CheckAntSelMode(struct rtw_adapter *padapter)
 void BTDM_FwC2hBtRssi(struct rtw_adapter *padapter, u8 *tmpBuf)
 {
 	BTDM_FwC2hBtRssi8723A(padapter, tmpBuf);
-}
-
-void BTDM_FwC2hBtInfo(struct rtw_adapter *padapter, u8 *tmpBuf, u8 length)
-{
-	BTDM_FwC2hBtInfo8723A(padapter, tmpBuf, length);
 }
 
 void BTDM_DisplayBtCoexInfo(struct rtw_adapter *padapter)

@@ -1543,8 +1543,6 @@ struct bt_coexist_str {
 void BTDM_CheckAntSelMode(struct rtw_adapter * padapter);
 void BTDM_FwC2hBtRssi(struct rtw_adapter * padapter, u8 *tmpBuf);
 #define BT_FwC2hBtRssi BTDM_FwC2hBtRssi
-void BTDM_FwC2hBtInfo(struct rtw_adapter * padapter, u8 *tmpBuf, u8 length);
-#define BT_FwC2hBtInfo BTDM_FwC2hBtInfo
 void BTDM_DisplayBtCoexInfo(struct rtw_adapter * padapter);
 #define BT_DisplayBtCoexInfo BTDM_DisplayBtCoexInfo
 void BTDM_RejectAPAggregatedPacket(struct rtw_adapter * padapter, u8 bReject);

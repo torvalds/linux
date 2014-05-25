@@ -1202,12 +1202,11 @@ int c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
 			  c2h_evt->payload[3], c2h_evt->payload[4]));
 		break;
 
-#ifdef CONFIG_8723AU_BT_COEXIST
 	case C2H_BT_INFO:
 		DBG_8723A("%s ,  Got  C2H_BT_INFO \n", __func__);
-		BT_FwC2hBtInfo(padapter, c2h_evt->payload, c2h_evt->plen);
+		rtl8723a_fw_c2h_BT_info(padapter,
+					c2h_evt->payload, c2h_evt->plen);
 		break;
-#endif
 
 	default:
 		ret = _FAIL;
