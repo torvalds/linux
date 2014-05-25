@@ -317,14 +317,14 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 		pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						      IEEE80211_STYPE_BEACON);
 	} else {
-		memcpy(pwlanhdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN);
+		ether_addr_copy(pwlanhdr->addr1, myid(&padapter->eeprompriv));
 		pwlanhdr->frame_control =
 			cpu_to_le16(IEEE80211_FTYPE_MGMT |
 				    IEEE80211_STYPE_PROBE_RESP);
 	}
 
-	memcpy(pwlanhdr->addr2, pnetwork->network.MacAddress, ETH_ALEN);
-	memcpy(pwlanhdr->addr3, pnetwork->network.MacAddress, ETH_ALEN);
+	ether_addr_copy(pwlanhdr->addr2, pnetwork->network.MacAddress);
+	ether_addr_copy(pwlanhdr->addr3, pnetwork->network.MacAddress);
 
 	pbuf += sizeof(struct ieee80211_hdr_3addr);
 	len = sizeof(struct ieee80211_hdr_3addr);
@@ -458,7 +458,7 @@ static int set_pairwise_key(struct rtw_adapter *padapter, struct sta_info *psta)
 
 	psetstakey_para->algorithm = psta->dot118021XPrivacy;
 
-	memcpy(psetstakey_para->addr, psta->hwaddr, ETH_ALEN);
+	ether_addr_copy(psetstakey_para->addr, psta->hwaddr);
 
 	memcpy(psetstakey_para->key, &psta->dot118021x_UncstKey, 16);
 
@@ -1148,7 +1148,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 #ifdef CONFIG_8723AU_AP_MODE
 		if (mac_addr)
-			memcpy(param->sta_addr, (void *)mac_addr, ETH_ALEN);
+			ether_addr_copy(param->sta_addr, mac_addr);
 
 		ret = rtw_cfg80211_ap_set_encryption(ndev, param, param_len);
 #endif
@@ -2340,8 +2340,9 @@ static int cfg80211_rtw_set_pmksa(struct wiphy *wiphy,
 		DBG_8723A("%s(%s): Use new entry index = %d for this PMKID\n",
 			  __func__, netdev->name, psecuritypriv->PMKIDIndex);
 
-		memcpy(psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].
-		       Bssid, pmksa->bssid, ETH_ALEN);
+		ether_addr_copy(
+			psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].
+			Bssid, pmksa->bssid);
 		memcpy(psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].
 		       PMKID, pmksa->pmkid, WLAN_PMKID_LEN);
 
@@ -2479,9 +2480,9 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 	pwlanhdr->frame_control =
 		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DEAUTH);
 
-	memcpy(pwlanhdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN);
-	memcpy(pwlanhdr->addr2, da, ETH_ALEN);
-	memcpy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network), ETH_ALEN);
+	ether_addr_copy(pwlanhdr->addr1, myid(&padapter->eeprompriv));
+	ether_addr_copy(pwlanhdr->addr2, da);
+	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
 
 	pwlanhdr->seq_ctrl =
 		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
@@ -2575,8 +2576,8 @@ static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb,
 		skb_pull(skb, dot11_hdr_len + qos_len + snap_len -
 			 ETH_ALEN * 2);
 		pdata = (unsigned char *)skb->data;
-		memcpy(pdata, dst_mac_addr, ETH_ALEN);
-		memcpy(pdata + ETH_ALEN, src_mac_addr, ETH_ALEN);
+		ether_addr_copy(pdata, dst_mac_addr);
+		ether_addr_copy(pdata + ETH_ALEN, src_mac_addr);
 
 		DBG_8723A("should be eapol packet\n");
 
