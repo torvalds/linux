@@ -10534,13 +10534,13 @@ u8 BTDM_CheckCoexRSSIState(struct rtw_adapter *padapter, u8 levelNum,
 	return btRssiState;
 }
 
-u8 BTDM_DisableEDCATurbo(struct rtw_adapter *padapter)
+bool rtl8723a_BT_disable_EDCA_turbo(struct rtw_adapter *padapter)
 {
 	struct bt_mgnt *pBtMgnt;
 	struct hal_data_8723a *pHalData;
 	u8 bBtChangeEDCA = false;
 	u32 EDCA_BT_BE = 0x5ea42b, cur_EDCA_reg;
-	u8 bRet = false;
+	bool bRet = false;
 
 	pHalData = GET_HAL_DATA(padapter);
 	pBtMgnt = &pHalData->BtInfo.BtMgnt;

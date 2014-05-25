@@ -1557,8 +1557,6 @@ s32 BTDM_GetRxSS(struct rtw_adapter * padapter);
 u8 BTDM_CheckCoexBcnRssiState(struct rtw_adapter * padapter, u8 levelNum, u8 RssiThresh, u8 RssiThresh1);
 u8 BTDM_CheckCoexRSSIState1(struct rtw_adapter * padapter, u8 levelNum, u8 RssiThresh, u8 RssiThresh1);
 u8 BTDM_CheckCoexRSSIState(struct rtw_adapter * padapter, u8 levelNum, u8 RssiThresh, u8 RssiThresh1);
-u8 BTDM_DisableEDCATurbo(struct rtw_adapter * padapter);
-#define BT_DisableEDCATurbo BTDM_DisableEDCATurbo
 void BTDM_Balance(struct rtw_adapter * padapter, u8 bBalanceOn, u8 ms0, u8 ms1);
 void BTDM_AGCTable(struct rtw_adapter * padapter, u8 type);
 void BTDM_BBBackOffLevel(struct rtw_adapter * padapter, u8 type);

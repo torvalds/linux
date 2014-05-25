@@ -30,6 +30,7 @@ void rtl8723a_BT_mediastatus_notify(struct rtw_adapter *padapter,
 void rtl8723a_BT_specialpacket_notify(struct rtw_adapter *padapter);
 void rtl8723a_BT_lps_leave(struct rtw_adapter *padapter);
 void rtl8723a_BT_disable_coexist(struct rtw_adapter *padapter);
+bool rtl8723a_BT_disable_EDCA_turbo(struct rtw_adapter *padapter);
 #else
 static inline bool rtl8723a_BT_using_antenna_1(struct rtw_adapter *padapter)
 {
@@ -49,6 +50,10 @@ static inline bool rtl8723a_BT_coexist(struct rtw_adapter *padapter)
 #define rtl8723a_BT_specialpacket_notify(padapter)		do {} while(0)
 #define rtl8723a_BT_lps_leave(padapter)				do {} while(0)
 #define rtl8723a_BT_disable_coexist(padapter)			do {} while(0)
+static inline bool rtl8723a_BT_disable_EDCA_turbo(struct rtw_adapter *padapter)
+{
+	return false;
+}
 #endif
 
 #endif

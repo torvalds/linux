@@ -1668,10 +1668,8 @@ void odm_EdcaTurboCheck23aCE23a(struct dm_odm_t *pDM_Odm)
 	if (pmlmeinfo->assoc_AP_vendor >=  HT_IOT_PEER_MAX)
 		goto dm_CheckEdcaTurbo_EXIT;
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-	if (BT_DisableEDCATurbo(Adapter))
+	if (rtl8723a_BT_disable_EDCA_turbo(Adapter))
 		goto dm_CheckEdcaTurbo_EXIT;
-#endif
 
 	/*  Check if the status needs to be changed. */
 	if ((bbtchange) || (!precvpriv->bIsAnyNonBEPkts)) {
