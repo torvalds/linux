@@ -16,8 +16,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ST21NFCA_HCI_H_
-#define _ST21NFCA_HCI_H_
+#ifndef _ST21NFCB_NCI_H_
+#define _ST21NFCB_NCI_H_
 
 #include <linux/i2c.h>
 

@@ -164,11 +164,11 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
 	u8 buf[ST21NFCB_NCI_I2C_MAX_SIZE];
 	struct i2c_client *client = phy->i2c_dev;
 
-	r = i2c_master_recv(client, buf, 4);
+	r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
 	if (r == -EREMOTEIO) {  /* Retry, chip was in standby */
 		usleep_range(1000, 4000);
-		r = i2c_master_recv(client, buf, 4);
-	} else if (r != 4) {
+		r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
+	} else if (r != ST21NFCB_NCI_I2C_MIN_SIZE) {
 		nfc_err(&client->dev, "cannot read ndlc & nci header\n");
 		return -EREMOTEIO;
 	}
@@ -179,13 +179,13 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
 		return -EBADMSG;
 	}
 
-	*skb = alloc_skb(4 + len, GFP_KERNEL);
+	*skb = alloc_skb(ST21NFCB_NCI_I2C_MIN_SIZE + len, GFP_KERNEL);
 	if (*skb == NULL)
 		return -ENOMEM;
 
-	skb_reserve(*skb, 4);
-	skb_put(*skb, 4);
-	memcpy((*skb)->data, buf, 4);
+	skb_reserve(*skb, ST21NFCB_NCI_I2C_MIN_SIZE);
+	skb_put(*skb, ST21NFCB_NCI_I2C_MIN_SIZE);
+	memcpy((*skb)->data, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
 
 	if (!len)
 		return 0;
@@ -197,7 +197,7 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
 	}
 
 	skb_put(*skb, len);
-	memcpy((*skb)->data + 4, buf, len);
+	memcpy((*skb)->data + ST21NFCB_NCI_I2C_MIN_SIZE, buf, len);
 
 	I2C_DUMP_SKB("i2c frame read", *skb);
 
