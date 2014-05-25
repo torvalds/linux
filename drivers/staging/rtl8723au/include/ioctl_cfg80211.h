@@ -15,23 +15,6 @@
 #ifndef __IOCTL_CFG80211_H__
 #define __IOCTL_CFG80211_H__
 
-struct rtw_wdev_invit_info {
-	u8 token;
-	u8 flags;
-	u8 status;
-	u8 req_op_ch;
-	u8 rsp_op_ch;
-};
-
-#define rtw_wdev_invit_info_init(invit_info) \
-	do { \
-		(invit_info)->token = 0; \
-		(invit_info)->flags = 0x00; \
-		(invit_info)->status = 0xff; \
-		(invit_info)->req_op_ch = 0; \
-		(invit_info)->rsp_op_ch = 0; \
-	} while (0)
-
 struct rtw_wdev_priv {
 	struct wireless_dev *rtw_wdev;
 
@@ -46,8 +29,6 @@ struct rtw_wdev_priv {
 	u8 p2p_enabled;
 
 	u8 provdisc_req_issued;
-
-	struct rtw_wdev_invit_info invit_info;
 
 	bool block;
 	bool power_mgmt;
