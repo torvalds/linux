@@ -594,7 +594,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c4_hs_bus>;
-		clocks = <&clock CLK_I2C4>;
+		clocks = <&clock CLK_USI0>;
 		clock-names = "hsi2c";
 		status = "disabled";
 	};
@@ -607,7 +607,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c5_hs_bus>;
-		clocks = <&clock CLK_I2C5>;
+		clocks = <&clock CLK_USI1>;
 		clock-names = "hsi2c";
 		status = "disabled";
 	};
@@ -620,7 +620,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c6_hs_bus>;
-		clocks = <&clock CLK_I2C6>;
+		clocks = <&clock CLK_USI2>;
 		clock-names = "hsi2c";
 		status = "disabled";
 	};
@@ -633,7 +633,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c7_hs_bus>;
-		clocks = <&clock CLK_I2C7>;
+		clocks = <&clock CLK_USI3>;
 		clock-names = "hsi2c";
 		status = "disabled";
 	};
@@ -646,7 +646,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c8_hs_bus>;
-		clocks = <&clock CLK_I2C8>;
+		clocks = <&clock CLK_USI4>;
 		clock-names = "hsi2c";
 		status = "disabled";
 	};
@@ -659,7 +659,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c9_hs_bus>;
-		clocks = <&clock CLK_I2C9>;
+		clocks = <&clock CLK_USI5>;
 		clock-names = "hsi2c";
 		status = "disabled";
 	};
@@ -672,7 +672,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c10_hs_bus>;
-		clocks = <&clock CLK_I2C10>;
+		clocks = <&clock CLK_USI6>;
 		clock-names = "hsi2c";
 		status = "disabled";
 	};
