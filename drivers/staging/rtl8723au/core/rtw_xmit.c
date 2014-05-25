@@ -902,9 +902,9 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 			/* Data transfer to AP */
 			pwlanhdr->frame_control |=
 				cpu_to_le16(IEEE80211_FCTL_TODS);
-			memcpy(pwlanhdr->addr1, get_bssid(pmlmepriv), ETH_ALEN);
-			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
-			memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
+			ether_addr_copy(pwlanhdr->addr1, get_bssid(pmlmepriv));
+			ether_addr_copy(pwlanhdr->addr2, pattrib->src);
+			ether_addr_copy(pwlanhdr->addr3, pattrib->dst);
 
 			if (pmlmepriv->qos_option)
 				qos_option = true;
@@ -914,18 +914,18 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 			/* to_ds = 0, fr_ds = 1; */
 			pwlanhdr->frame_control |=
 				cpu_to_le16(IEEE80211_FCTL_FROMDS);
-			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
-			memcpy(pwlanhdr->addr2, get_bssid(pmlmepriv), ETH_ALEN);
-			memcpy(pwlanhdr->addr3, pattrib->src, ETH_ALEN);
+			ether_addr_copy(pwlanhdr->addr1, pattrib->dst);
+			ether_addr_copy(pwlanhdr->addr2, get_bssid(pmlmepriv));
+			ether_addr_copy(pwlanhdr->addr3, pattrib->src);
 
 			if (psta->qos_option)
 				qos_option = true;
 		}
 		else if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) ||
 		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
-			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
-			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
-			memcpy(pwlanhdr->addr3, get_bssid(pmlmepriv), ETH_ALEN);
+			ether_addr_copy(pwlanhdr->addr1, pattrib->dst);
+			ether_addr_copy(pwlanhdr->addr2, pattrib->src);
+			ether_addr_copy(pwlanhdr->addr3, get_bssid(pmlmepriv));
 
 			if (psta->qos_option)
 				qos_option = true;
