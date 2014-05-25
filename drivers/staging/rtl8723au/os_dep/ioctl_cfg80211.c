@@ -2012,12 +2012,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	DBG_8723A("privacy =%d, key =%p, key_len =%d, key_idx =%d\n",
 		  sme->privacy, sme->key, sme->key_len, sme->key_idx);
 
-	if (wdev_to_priv(padapter->rtw_wdev)->block) {
-		ret = -EBUSY;
-		DBG_8723A("%s wdev_priv.block is set\n", __func__);
-		goto exit;
-	}
-
 	if (_FAIL == rtw_pwr_wakeup(padapter)) {
 		ret = -EPERM;
 		goto exit;
@@ -3406,7 +3400,6 @@ int rtw_wdev_alloc(struct rtw_adapter *padapter, struct device *dev)
 	spin_lock_init(&pwdev_priv->scan_req_lock);
 
 	pwdev_priv->p2p_enabled = false;
-	pwdev_priv->provdisc_req_issued = false;
 
 	if (padapter->registrypriv.power_mgnt != PS_MODE_ACTIVE)
 		pwdev_priv->power_mgmt = true;

@@ -28,9 +28,6 @@ struct rtw_wdev_priv {
 
 	u8 p2p_enabled;
 
-	u8 provdisc_req_issued;
-
-	bool block;
 	bool power_mgmt;
 };
 
