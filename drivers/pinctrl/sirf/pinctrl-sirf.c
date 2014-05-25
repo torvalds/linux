@@ -574,12 +574,12 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	struct irq_chip *chip = irq_get_chip(irq);
 	int i;
 
-	for (i = 0; i < SIRFSOC_GPIO_BANK_SIZE; i++) {
+	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
 		bank = &sgpio_chip.sgpio_bank[i];
 		if (bank->parent_irq == irq)
 			break;
 	}
-	BUG_ON (i == SIRFSOC_GPIO_BANK_SIZE);
+	BUG_ON(i == SIRFSOC_GPIO_NO_OF_BANKS);
 
 	chained_irq_enter(chip, desc);
 
