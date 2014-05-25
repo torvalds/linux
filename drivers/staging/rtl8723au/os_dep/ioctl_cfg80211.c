@@ -3055,7 +3055,6 @@ static int _cfg80211_rtw_mgmt_tx(struct rtw_adapter *padapter, u8 tx_ch,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	int ret = _FAIL;
-	bool ack = true;
 	struct ieee80211_hdr *pwlanhdr;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -3079,7 +3078,7 @@ static int _cfg80211_rtw_mgmt_tx(struct rtw_adapter *padapter, u8 tx_ch,
 
 	/* starting alloc mgmt frame to dump it */
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
-	if (pmgntframe == NULL) {
+	if (!pmgntframe) {
 		/* ret = -ENOMEM; */
 		ret = _FAIL;
 		goto exit;
@@ -3105,15 +3104,12 @@ static int _cfg80211_rtw_mgmt_tx(struct rtw_adapter *padapter, u8 tx_ch,
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
-	if (dump_mgntframe23a_and_wait_ack23a(padapter, pmgntframe) != _SUCCESS) {
-		ack = false;
-		ret = _FAIL;
+	ret = dump_mgntframe23a_and_wait_ack23a(padapter, pmgntframe);
 
-		DBG_8723A("%s, ack == _FAIL\n", __func__);
-	} else {
-		DBG_8723A("%s, ack =%d, ok!\n", __func__, ack);
-		ret = _SUCCESS;
-	}
+	if (ret  != _SUCCESS)
+		DBG_8723A("%s, ack == false\n", __func__);
+	else
+		DBG_8723A("%s, ack == true\n", __func__);
 
 exit:
 
