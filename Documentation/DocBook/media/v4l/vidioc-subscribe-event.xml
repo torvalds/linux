@@ -167,7 +167,7 @@
 	       or the pad index (when used with a subdevice node) from which
 	       you want to receive events.</para>
 
-              <para>This event has a &v4l2-event-source-change; associated
+              <para>This event has a &v4l2-event-src-change; associated
 	      with it. The <structfield>changes</structfield> bitfield denotes
 	      what has changed for the subscribed pad. If multiple events
 	      occurred before application could dequeue them, then the changes
