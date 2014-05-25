@@ -146,6 +146,8 @@ void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode);
 void rtl8723a_set_FwJoinBssReport_cmd(struct rtw_adapter *padapter, u8 mstatus);
 #ifdef CONFIG_8723AU_BT_COEXIST
 void rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(struct rtw_adapter *padapter);
+#else
+#define rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(padapter) do {} while(0)
 #endif
 int rtl8723a_set_rssi_cmd(struct rtw_adapter *padapter, u8 *param);
 int rtl8723a_set_raid_cmd(struct rtw_adapter *padapter, u32 mask, u8 arg);

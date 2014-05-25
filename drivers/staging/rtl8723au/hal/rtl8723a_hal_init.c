@@ -2395,10 +2395,8 @@ void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode)
 		val8 = DIS_TSF_UDT | EN_BCN_FUNCTION | DIS_BCNQ_SUB;
 		SetBcnCtrlReg23a(padapter, val8, ~val8);
 	} else if (mode == _HW_STATE_AP_) {
-#ifdef CONFIG_8723AU_BT_COEXIST
 		/*  add NULL Data and BT NULL Data Packets to FW RSVD Page */
 		rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(padapter);
-#endif
 
 		ResumeTxBeacon(padapter);
 
