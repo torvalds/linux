@@ -831,9 +831,7 @@ static int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
 			rtl8723a_phy_lc_calibrate(Adapter);
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-			rtl8723a_SingleDualAntennaDetection(Adapter);
-#endif
+			rtl8723a_dual_antenna_detection(Adapter);
 		}
 
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC21);
