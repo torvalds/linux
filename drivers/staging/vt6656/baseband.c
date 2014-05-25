@@ -43,9 +43,6 @@
 #include "control.h"
 #include "datarate.h"
 
-static int          msglevel                =MSG_LEVEL_INFO;
-//static int          msglevel                =MSG_LEVEL_DEBUG;
-
 static u8 abyVT3184_AGC[] = {
     0x00,   //0
     0x00,   //1
@@ -910,20 +907,20 @@ int BBbVT3184Init(struct vnt_private *priv)
 			(priv->abyEEPROM[EEP_OFS_ZONETYPE] != 0x00)) {
 			priv->abyEEPROM[EEP_OFS_ZONETYPE] = 0;
 			priv->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0B;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-						"Init Zone Type :USA\n");
+
+			dev_dbg(&priv->usb->dev, "Init Zone Type :USA\n");
 		} else if ((priv->config_file.ZoneType == 1) &&
 			(priv->abyEEPROM[EEP_OFS_ZONETYPE] != 0x01)) {
 			priv->abyEEPROM[EEP_OFS_ZONETYPE] = 0x01;
 			priv->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0D;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-						"Init Zone Type :Japan\n");
+
+			dev_dbg(&priv->usb->dev, "Init Zone Type :Japan\n");
 		} else if ((priv->config_file.ZoneType == 2) &&
 			(priv->abyEEPROM[EEP_OFS_ZONETYPE] != 0x02)) {
 			priv->abyEEPROM[EEP_OFS_ZONETYPE] = 0x02;
 			priv->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0D;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-						"Init Zone Type :Europe\n");
+
+			dev_dbg(&priv->usb->dev, "Init Zone Type :Europe\n");
 		} else {
 			if (priv->config_file.ZoneType !=
 					priv->abyEEPROM[EEP_OFS_ZONETYPE])
@@ -943,10 +940,9 @@ int BBbVT3184Init(struct vnt_private *priv)
 
 	priv->byRFType = priv->abyEEPROM[EEP_OFS_RFTYPE];
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Zone Type %x\n",
-							priv->byZoneType);
+	dev_dbg(&priv->usb->dev, "Zone Type %x\n", priv->byZoneType);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RF Type %d\n", priv->byRFType);
+	dev_dbg(&priv->usb->dev, "RF Type %d\n", priv->byRFType);
 
 	if ((priv->byRFType == RF_AL2230) ||
 				(priv->byRFType == RF_AL2230S)) {
