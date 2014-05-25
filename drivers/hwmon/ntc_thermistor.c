@@ -141,7 +141,7 @@ struct ntc_data {
 	char name[PLATFORM_NAME_SIZE];
 };
 
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && IS_ENABLED(CONFIG_IIO)
 static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 {
 	struct iio_channel *channel = pdata->chan;
@@ -222,6 +222,8 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 {
 	return NULL;
 }
+
+#define ntc_match	NULL
 
 static void ntc_iio_channel_release(struct ntc_thermistor_platform_data *pdata)
 { }
