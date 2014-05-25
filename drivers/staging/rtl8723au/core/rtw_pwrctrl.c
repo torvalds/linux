@@ -299,7 +299,7 @@ static u8 PS_RDY_CHECK(struct rtw_adapter * padapter)
 	if (delta_time < LPS_DELAY_TIME)
 		return false;
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == false ||
+	if (!check_fwstate(pmlmepriv, _FW_LINKED) ||
 	    check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) ||
 	    check_fwstate(pmlmepriv, WIFI_AP_STATE) ||
 	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) ||

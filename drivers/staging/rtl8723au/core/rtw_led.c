@@ -234,7 +234,7 @@ static void SwLedBlink1(struct led_8723a *pLed)
 					pLed->BlinkingLedState = RTW_LED_ON;
 				delay = LED_BLINK_LINK_INTERVAL_ALPHA;
 				RT_TRACE(_module_rtl8712_led_c_, _drv_info_, ("CurrLedState %d\n", pLed->CurrLedState));
-			} else if (check_fwstate(pmlmepriv, _FW_LINKED) == false) {
+			} else {
 				pLed->bLedNoLinkBlinkInProgress = true;
 				pLed->CurrLedState = LED_BLINK_SLOWLY;
 				if (pLed->bLedOn)
@@ -267,8 +267,7 @@ static void SwLedBlink1(struct led_8723a *pLed)
 					pLed->BlinkingLedState = RTW_LED_ON;
 				delay = LED_BLINK_LINK_INTERVAL_ALPHA;
 				RT_TRACE(_module_rtl8712_led_c_, _drv_info_, ("CurrLedState %d\n", pLed->CurrLedState));
-			} else if (check_fwstate(pmlmepriv,
-						 _FW_LINKED) == false) {
+			} else {
 				pLed->bLedNoLinkBlinkInProgress = true;
 				pLed->CurrLedState = LED_BLINK_SLOWLY;
 				if (pLed->bLedOn)
@@ -354,7 +353,7 @@ static void SwLedBlink2(struct led_8723a *pLed)
 				RT_TRACE(_module_rtl8712_led_c_, _drv_info_,
 					 ("stop scan blink CurrLedState %d\n",
 					 pLed->CurrLedState));
-			} else if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
+			} else {
 				pLed->CurrLedState = RTW_LED_OFF;
 				pLed->BlinkingLedState = RTW_LED_OFF;
 				SwLedOff23a(padapter, pLed);
@@ -390,7 +389,7 @@ static void SwLedBlink2(struct led_8723a *pLed)
 				RT_TRACE(_module_rtl8712_led_c_, _drv_info_,
 					 ("stop CurrLedState %d\n", pLed->CurrLedState));
 
-			} else if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
+			} else {
 				pLed->CurrLedState = RTW_LED_OFF;
 				pLed->BlinkingLedState = RTW_LED_OFF;
 				SwLedOff23a(padapter, pLed);
@@ -457,9 +456,7 @@ static void SwLedBlink3(struct led_8723a *pLed)
 						SwLedOn23a(padapter, pLed);
 
 					RT_TRACE(_module_rtl8712_led_c_, _drv_info_, ("CurrLedState %d\n", pLed->CurrLedState));
-				}
-				else if (check_fwstate(pmlmepriv, _FW_LINKED) == false)
-				{
+				} else {
 					pLed->CurrLedState = RTW_LED_OFF;
 					pLed->BlinkingLedState = RTW_LED_OFF;
 					if (pLed->bLedOn)
@@ -507,9 +504,7 @@ static void SwLedBlink3(struct led_8723a *pLed)
 						SwLedOn23a(padapter, pLed);
 
 					RT_TRACE(_module_rtl8712_led_c_, _drv_info_, ("CurrLedState %d\n", pLed->CurrLedState));
-				}
-				else if (check_fwstate(pmlmepriv, _FW_LINKED) == false)
-				{
+				} else {
 					pLed->CurrLedState = RTW_LED_OFF;
 					pLed->BlinkingLedState = RTW_LED_OFF;
 

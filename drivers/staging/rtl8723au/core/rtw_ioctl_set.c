@@ -187,8 +187,7 @@ int rtw_set_802_11_ssid23a(struct rtw_adapter* padapter,
 		if ((pmlmepriv->assoc_ssid.ssid_len == ssid->ssid_len) &&
 		    !memcmp(&pmlmepriv->assoc_ssid.ssid, ssid->ssid,
 			    ssid->ssid_len)) {
-			if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == false))
-			{
+			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 				RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
 					 ("Set SSID is the same ssid, fw_state = 0x%08x\n",
 					  get_fwstate(pmlmepriv)));

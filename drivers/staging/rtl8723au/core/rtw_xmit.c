@@ -560,7 +560,7 @@ static int update_attrib(struct rtw_adapter *padapter,
 		pattrib->encrypt = 0;
 
 		if ((pattrib->ether_type != ETH_P_PAE) &&
-		    (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)) {
+		    !check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
 				 ("\npsta->ieee8021x_blocked == true,  "
 				  "pattrib->ether_type(%.4x) != 0x888e\n",
@@ -1968,7 +1968,7 @@ int xmitframe_enqueue_for_sleeping_sta23a(struct rtw_adapter *padapter, struct x
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	int bmcst = is_multicast_ether_addr(pattrib->ra);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false)
+	if (!check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		return ret;
 
 	if (pattrib->psta) {

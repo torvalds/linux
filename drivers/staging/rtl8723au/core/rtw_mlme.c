@@ -221,7 +221,7 @@ int rtw_if_up23a(struct rtw_adapter *padapter)
 	int res;
 
 	if (padapter->bDriverStopped || padapter->bSurpriseRemoved ||
-	    check_fwstate(&padapter->mlmepriv, _FW_LINKED) == false) {
+	    !check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 			 ("rtw_if_up23a:bDriverStopped(%d) OR "
 			  "bSurpriseRemoved(%d)", padapter->bDriverStopped,
@@ -682,7 +682,7 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	}
 
 	/*  lock pmlmepriv->lock when you accessing network_q */
-	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == false) {
+	if (!check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
 	        if (pnetwork->Ssid.ssid[0] == 0)
 			pnetwork->Ssid.ssid_len = 0;
 
@@ -730,7 +730,7 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 
 	if (pmlmepriv->to_join == true) {
 		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-			if (check_fwstate(pmlmepriv, _FW_LINKED) == false) {
+			if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
 				set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
 				if (rtw_select_and_join_from_scanned_queue23a(
