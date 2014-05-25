@@ -20,8 +20,13 @@
 
 #ifdef CONFIG_8723AU_BT_COEXIST
 bool rtl8723a_BT_using_antenna_1(struct rtw_adapter *padapter);
+bool rtl8723a_BT_enabled(struct rtw_adapter *padapter);
 #else
 static inline bool rtl8723a_BT_using_antenna_1(struct rtw_adapter *padapter)
+{
+	return false;
+}
+static inline bool rtl8723a_BT_enabled(struct rtw_adapter *padapter)
 {
 	return false;
 }

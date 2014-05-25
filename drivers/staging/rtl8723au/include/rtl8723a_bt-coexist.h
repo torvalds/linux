@@ -1601,8 +1601,6 @@ u8 BTDM_IsActionPAN(struct rtw_adapter * padapter);
 u8 BTDM_IsActionHIDA2DP(struct rtw_adapter * padapter);
 u8 BTDM_IsActionHIDPAN(struct rtw_adapter * padapter);
 u8 BTDM_IsActionPANA2DP(struct rtw_adapter * padapter);
-u8 BTDM_IsBtDisabled(struct rtw_adapter * padapter);
-#define BT_IsBtDisabled BTDM_IsBtDisabled
 u32 BTDM_BtTxRxCounterH(struct rtw_adapter * padapter);
 u32 BTDM_BtTxRxCounterL(struct rtw_adapter * padapter);
 

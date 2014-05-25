@@ -5519,7 +5519,7 @@ _btdm_1AntSetPSTDMA(struct rtw_adapter *padapter, u8 bPSEn, u8 smartps,
 			if (!bTDMAOn) {
 				btdm_1AntPsTdma(padapter, false, tdmaType);
 			} else {
-				if ((BT_IsBtDisabled(padapter)) ||
+				if (!rtl8723a_BT_enabled(padapter) ||
 				    (pHalData->bt_coexist.halCoex8723.c2hBtInfo == BT_INFO_STATE_NO_CONNECTION) ||
 				    (pHalData->bt_coexist.halCoex8723.c2hBtInfo == BT_INFO_STATE_CONNECT_IDLE) ||
 				    (tdmaType == 29))
@@ -6064,7 +6064,7 @@ static void btdm_1AntBtCoexistHandler(struct rtw_adapter *padapter)
 	pBtCoex8723 = &pHalData->bt_coexist.halCoex8723;
 	pBtdm8723 = &pBtCoex8723->btdm1Ant;
 	padapter->pwrctrlpriv.btcoex_rfon = false;
-	if (BT_IsBtDisabled(padapter)) {
+	if (!rtl8723a_BT_enabled(padapter)) {
 		RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT is disabled\n"));
 
 		if (BTDM_IsWifiConnectionExist(padapter)) {
@@ -6243,7 +6243,7 @@ static void BTDM_1AntWifiAssociateNotify(struct rtw_adapter *padapter, u8 type)
 
 	if (type) {
 		rtl8723a_CheckAntenna_Selection(padapter);
-		if (BT_IsBtDisabled(padapter))
+		if (!rtl8723a_BT_enabled(padapter))
 			btdm_1AntSetPSTDMA(padapter, false, 0, false, 9);
 		else {
 			struct bt_coexist_8723a *pBtCoex;
@@ -6275,7 +6275,7 @@ static void BTDM_1AntWifiAssociateNotify(struct rtw_adapter *padapter, u8 type)
 			}
 		}
 	} else {
-		if (BT_IsBtDisabled(padapter)) {
+		if (!rtl8723a_BT_enabled(padapter)) {
 			if (!BTDM_IsWifiConnectionExist(padapter)) {
 				btdm_1AntPsTdma(padapter, false, 0);
 				btdm_1AntTSFSwitch(padapter, false);
@@ -6360,7 +6360,7 @@ static void BTDM_1AntWifiScanNotify(struct rtw_adapter *padapter, u8 scanType)
 
 	if (scanType) {
 		rtl8723a_CheckAntenna_Selection(padapter);
-		if (BT_IsBtDisabled(padapter)) {
+		if (!rtl8723a_BT_enabled(padapter)) {
 			btdm_1AntSetPSTDMA(padapter, false, 0, false, 9);
 		} else if (BTDM_IsWifiConnectionExist(padapter) == false) {
 			BTDM_1AntWifiAssociateNotify(padapter, true);
@@ -9306,7 +9306,7 @@ void BTDM_QueryBtInformation(struct rtw_adapter *padapter)
 	pHalData = GET_HAL_DATA(padapter);
 	pBtCoex = &pHalData->bt_coexist.halCoex8723;
 
-	if (BT_IsBtDisabled(padapter)) {
+	if (!rtl8723a_BT_enabled(padapter)) {
 		pBtCoex->c2hBtInfo = BT_INFO_STATE_DISABLED;
 		pBtCoex->bC2hBtInfoReqSent = false;
 		return;
@@ -9851,7 +9851,7 @@ static void BTDM_BTCoexist8723A(struct rtw_adapter *padapter)
 	}
 
 	if (pBtCoex->bC2hBtInfoReqSent) {
-		if (BT_IsBtDisabled(padapter)) {
+		if (!rtl8723a_BT_enabled(padapter)) {
 			pBtCoex->c2hBtInfo = BT_INFO_STATE_DISABLED;
 		} else {
 			if (pBtCoex->c2hBtInfo == BT_INFO_STATE_DISABLED)
@@ -9859,7 +9859,7 @@ static void BTDM_BTCoexist8723A(struct rtw_adapter *padapter)
 		}
 
 		btdm_BTCoexist8723AHandler(padapter);
-	} else if (BT_IsBtDisabled(padapter) == true) {
+	} else if (!rtl8723a_BT_enabled(padapter)) {
 		pBtCoex->c2hBtInfo = BT_INFO_STATE_DISABLED;
 		btdm_BTCoexist8723AHandler(padapter);
 	}
@@ -11236,14 +11236,14 @@ u8 BTDM_IsActionPANA2DP(struct rtw_adapter *padapter)
 	return bRet;
 }
 
-u8 BTDM_IsBtDisabled(struct rtw_adapter *padapter)
+bool rtl8723a_BT_enabled(struct rtw_adapter *padapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	if (pHalData->bt_coexist.bCurBtDisabled)
-		return true;
-	else
 		return false;
+	else
+		return true;
 }
 
 /*  ===== End of sync from SD7 driver HAL/BTCoexist/HalBtCoexist.c ===== */
