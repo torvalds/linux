@@ -2433,8 +2433,8 @@ void rtw_cfg80211_indicate_sta_assoc(struct rtw_adapter *padapter,
 		freq = ieee80211_channel_to_frequency(channel,
 						      IEEE80211_BAND_5GHZ);
 
-	rtw_cfg80211_rx_mgmt(padapter, freq, 0, pmgmt_frame, frame_len,
-			     GFP_ATOMIC);
+	cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, pmgmt_frame, frame_len,
+			 0, GFP_ATOMIC);
 #endif /* defined(RTW_USE_CFG80211_STA_EVENT) */
 }
 
@@ -2489,8 +2489,8 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 				       WLAN_REASON_PREV_AUTH_NOT_VALID,
 				       (unsigned char *)&reason, &frame_len);
 
-	rtw_cfg80211_rx_mgmt(padapter, freq, 0, mgmt_buf, frame_len,
-			     GFP_ATOMIC);
+	cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, mgmt_buf, frame_len,
+			 0, GFP_ATOMIC);
 #endif /* defined(RTW_USE_CFG80211_STA_EVENT) */
 }
 
@@ -3039,7 +3039,8 @@ void rtw_cfg80211_rx_action(struct rtw_adapter *adapter, u8 *frame,
 		freq = ieee80211_channel_to_frequency(channel,
 						      IEEE80211_BAND_5GHZ);
 
-	rtw_cfg80211_rx_mgmt(adapter, freq, 0, frame, frame_len, GFP_ATOMIC);
+	cfg80211_rx_mgmt(adapter->rtw_wdev, freq, 0, frame, frame_len,
+			 0, GFP_ATOMIC);
 }
 
 static int _cfg80211_rtw_mgmt_tx(struct rtw_adapter *padapter, u8 tx_ch,
@@ -3141,8 +3142,8 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		  padapter->pnetdev->name, len, tx_ch);
 
 	/* indicate ack before issue frame to avoid racing with rsp frame */
-	rtw_cfg80211_mgmt_tx_status(padapter, *cookie, buf, len, ack,
-				    GFP_KERNEL);
+	cfg80211_mgmt_tx_status(padapter->rtw_wdev, *cookie, buf, len, ack,
+				GFP_KERNEL);
 
 	DBG_8723A("RTW_Tx:tx_ch =%d, da =" MAC_FMT "\n", tx_ch,
 		  MAC_ARG(hdr->da));
