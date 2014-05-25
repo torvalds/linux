@@ -229,10 +229,6 @@ struct rtw_adapter {
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
 
-#ifdef CONFIG_8723AU_AP_MODE
-	struct	hostapd_priv	*phostapdpriv;
-#endif
-
 	u32	setband;
 
 	void *HalData;

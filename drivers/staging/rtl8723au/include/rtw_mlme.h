@@ -225,16 +225,6 @@ struct mlme_priv {
 	u32 wfd_go_probe_resp_ie_len; /* for GO */
 };
 
-#ifdef CONFIG_8723AU_AP_MODE
-
-struct hostapd_priv {
-	struct rtw_adapter *padapter;
-};
-
-int hostapd_mode_init(struct rtw_adapter *padapter);
-void hostapd_mode_unload(struct rtw_adapter *padapter);
-#endif
-
 void rtw_joinbss_event_prehandle23a(struct rtw_adapter *adapter, u8 *pbuf);
 void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf);
 void rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf);
