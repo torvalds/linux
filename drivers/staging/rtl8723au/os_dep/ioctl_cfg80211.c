@@ -1391,15 +1391,6 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 	int ret = 0;
 
 	DBG_8723A("%s(%s): call netdev_open23a\n", __func__, ndev->name);
-	if (netdev_open23a(ndev) != 0) {
-		ret = -EPERM;
-		goto exit;
-	}
-
-	if (_FAIL == rtw_pwr_wakeup(padapter)) {
-		ret = -EPERM;
-		goto exit;
-	}
 
 	old_type = rtw_wdev->iftype;
 	DBG_8723A("%s(%s): old_iftype =%d, new_iftype =%d\n",
