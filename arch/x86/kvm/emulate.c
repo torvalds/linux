@@ -161,6 +161,7 @@
 #define Fastop      ((u64)1 << 44)  /* Use opcode::u.fastop */
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
 #define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
+#define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -1077,7 +1078,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	ctxt->modrm_rm |= (ctxt->modrm & 0x07);
 	ctxt->modrm_seg = VCPU_SREG_DS;
 
-	if (ctxt->modrm_mod == 3) {
+	if (ctxt->modrm_mod == 3 || (ctxt->d & NoMod)) {
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm,
@@ -3877,10 +3878,12 @@ static const struct opcode twobyte_table[256] = {
 	N, N, N, N, N, N, N, N,
 	D(ImplicitOps | ModRM), N, N, N, N, N, N, D(ImplicitOps | ModRM),
 	/* 0x20 - 0x2F */
-	DIP(ModRM | DstMem | Priv | Op3264, cr_read, check_cr_read),
-	DIP(ModRM | DstMem | Priv | Op3264, dr_read, check_dr_read),
-	IIP(ModRM | SrcMem | Priv | Op3264, em_cr_write, cr_write, check_cr_write),
-	IIP(ModRM | SrcMem | Priv | Op3264, em_dr_write, dr_write, check_dr_write),
+	DIP(ModRM | DstMem | Priv | Op3264 | NoMod, cr_read, check_cr_read),
+	DIP(ModRM | DstMem | Priv | Op3264 | NoMod, dr_read, check_dr_read),
+	IIP(ModRM | SrcMem | Priv | Op3264 | NoMod, em_cr_write, cr_write,
+						check_cr_write),
+	IIP(ModRM | SrcMem | Priv | Op3264 | NoMod, em_dr_write, dr_write,
+						check_dr_write),
 	N, N, N, N,
 	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_28_0f_29),
 	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_28_0f_29),
