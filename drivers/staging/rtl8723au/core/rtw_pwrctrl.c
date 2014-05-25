@@ -481,7 +481,6 @@ void rtw_init_pwrctrl_priv23a(struct rtw_adapter *padapter)
 
 	pwrctrlpriv->pwr_state_check_interval = RTW_PWR_STATE_CHK_INTERVAL;
 	pwrctrlpriv->pwr_state_check_cnts = 0;
-	pwrctrlpriv->bInternalAutoSuspend = false;
 	pwrctrlpriv->bInSuspend = false;
 	pwrctrlpriv->bkeepfwalive = false;
 
@@ -562,7 +561,7 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 			DBG_8723A("%s wait sreset_inprogress done\n", __func__);
 	}
 
-	if (pwrpriv->bInternalAutoSuspend == false && pwrpriv->bInSuspend) {
+	if (pwrpriv->bInSuspend) {
 		DBG_8723A("%s wait bInSuspend...\n", __func__);
 		while (pwrpriv->bInSuspend &&
 		       (jiffies_to_msecs(jiffies - start) <= 3000)) {
@@ -575,15 +574,7 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 	}
 
 	/* System suspend is not allowed to wakeup */
-	if (pwrpriv->bInternalAutoSuspend == false &&
-	    pwrpriv->bInSuspend == true) {
-		ret = _FAIL;
-		goto exit;
-	}
-
-	/* block??? */
-	if (pwrpriv->bInternalAutoSuspend == true &&
-	    padapter->net_closed == true) {
+	if (pwrpriv->bInSuspend) {
 		ret = _FAIL;
 		goto exit;
 	}

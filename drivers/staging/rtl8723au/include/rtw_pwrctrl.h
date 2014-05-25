@@ -191,7 +191,6 @@ struct pwrctrl_priv {
 	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
 
-	u8		bInternalAutoSuspend;
 	u8		bInSuspend;
 #ifdef	CONFIG_8723AU_BT_COEXIST
 	u8		bAutoResume;

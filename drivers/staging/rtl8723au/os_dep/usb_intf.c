@@ -314,8 +314,7 @@ static void rtw_dev_unload(struct rtw_adapter *padapter)
 		rtl8723a_usb_intf_stop(padapter);
 
 		/* s4. */
-		if (!padapter->pwrctrlpriv.bInternalAutoSuspend)
-			flush_workqueue(padapter->cmdpriv.wq);
+		flush_workqueue(padapter->cmdpriv.wq);
 
 		/* s5. */
 		if (!padapter->bSurpriseRemoved) {
@@ -505,13 +504,9 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
 	struct rtw_adapter *padapter = dvobj->if1;
-	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	int ret = 0;
+	int ret;
 
-	if (pwrpriv->bInternalAutoSuspend)
-		ret = rtw_resume_process23a(padapter);
-	else
-		ret = rtw_resume_process23a(padapter);
+	ret = rtw_resume_process23a(padapter);
 
 	return ret;
 }
