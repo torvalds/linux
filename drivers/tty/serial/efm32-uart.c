@@ -842,6 +842,7 @@ static void __exit efm32_uart_exit(void)
 	platform_driver_unregister(&efm32_uart_driver);
 	uart_unregister_driver(&efm32_uart_reg);
 }
+module_exit(efm32_uart_exit);
 
 MODULE_AUTHOR("Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>");
 MODULE_DESCRIPTION("EFM32 UART/USART driver");
