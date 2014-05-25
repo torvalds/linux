@@ -149,31 +149,31 @@ static u16 swGetCCKControlRate(struct vnt_private *pDevice, u16 wRateIdx)
  *
  * Parameters:
  *  In:
- *      pDevice             - The adapter to be set
- *      wRateIdx            - Receiving data rate
+ *      priv		- The adapter to be set
+ *      rate_idx	- Receiving data rate
  *  Out:
  *      none
  *
  * Return Value: response Control frame rate
  *
  */
-static u16 swGetOFDMControlRate(struct vnt_private *pDevice, u16 wRateIdx)
+static u16 swGetOFDMControlRate(struct vnt_private *priv, u16 rate_idx)
 {
-	u16 ui = wRateIdx;
+	u16 ui = rate_idx;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BASIC RATE: %X\n",
-		pDevice->wBasicRate);
+		priv->wBasicRate);
 
-	if (!CARDbIsOFDMinBasicRate(pDevice)) {
+	if (!CARDbIsOFDMinBasicRate(priv)) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-			"swGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
-		if (wRateIdx > RATE_24M)
-			wRateIdx = RATE_24M;
-		return wRateIdx;
+			"swGetOFDMControlRate:(NO OFDM) %d\n", rate_idx);
+		if (rate_idx > RATE_24M)
+			rate_idx = RATE_24M;
+		return rate_idx;
 	}
 
 	while (ui > RATE_11M) {
-		if (pDevice->wBasicRate & (1 << ui)) {
+		if (priv->wBasicRate & (1 << ui)) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 				"swGetOFDMControlRate: %d\n", ui);
 			return ui;
