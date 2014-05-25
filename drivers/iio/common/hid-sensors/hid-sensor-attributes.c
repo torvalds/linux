@@ -327,7 +327,7 @@ int hid_sensor_format_scale(u32 usage_id,
 	*val0 = 1;
 	*val1 = 0;
 
-	for (i = 0; ARRAY_SIZE(unit_conversion); ++i) {
+	for (i = 0; i < ARRAY_SIZE(unit_conversion); ++i) {
 		if (unit_conversion[i].usage_id == usage_id &&
 			unit_conversion[i].unit == attr_info->units) {
 			exp  = hid_sensor_convert_exponent(
@@ -343,15 +343,28 @@ int hid_sensor_format_scale(u32 usage_id,
 }
 EXPORT_SYMBOL(hid_sensor_format_scale);
 
+int hid_sensor_get_reporting_interval(struct hid_sensor_hub_device *hsdev,
+					u32 usage_id,
+					struct hid_sensor_common *st)
+{
+	sensor_hub_input_get_attribute_info(hsdev,
+					HID_FEATURE_REPORT, usage_id,
+					HID_USAGE_SENSOR_PROP_REPORT_INTERVAL,
+					&st->poll);
+	/* Default unit of measure is milliseconds */
+	if (st->poll.units == 0)
+		st->poll.units = HID_USAGE_SENSOR_UNITS_MILLISECOND;
+	return 0;
+
+}
+
 int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
 					struct hid_sensor_common *st)
 {
 
-	sensor_hub_input_get_attribute_info(hsdev,
-					HID_FEATURE_REPORT, usage_id,
-					HID_USAGE_SENSOR_PROP_REPORT_INTERVAL,
-					&st->poll);
+
+	hid_sensor_get_reporting_interval(hsdev, usage_id, st);
 
 	sensor_hub_input_get_attribute_info(hsdev,
 					HID_FEATURE_REPORT, usage_id,
