@@ -538,7 +538,7 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 	if (!chanctx_conf ||
 	     chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ) {
 		rcu_read_unlock();
-		return BT_COEX_LOOSE_LUT;
+		return BT_COEX_INVALID_LUT;
 	}
 
 	ret = BT_COEX_TX_DIS_LUT;
@@ -1214,7 +1214,7 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 
 	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
 
-	if (lut_type == BT_COEX_LOOSE_LUT)
+	if (lut_type == BT_COEX_LOOSE_LUT || lut_type == BT_COEX_INVALID_LUT)
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
 	/* tight coex, high bt traffic, reduce AGG time limit */
@@ -1225,18 +1225,21 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	enum iwl_bt_coex_lut_type lut_type;
 
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
 		return true;
 
 	/*
-	 * In Tight, BT can't Rx while we Tx, so use both antennas since BT is
-	 * already killed.
-	 * In Loose, BT can Rx while we Tx, so forbid MIMO to let BT Rx while we
-	 * Tx.
+	 * In Tight / TxTxDis, BT can't Rx while we Tx, so use both antennas
+	 * since BT is already killed.
+	 * In Loose, BT can Rx while we Tx, so forbid MIMO to let BT Rx while
+	 * we Tx.
+	 * When we are in 5GHz, we'll get BT_COEX_INVALID_LUT allowing MIMO.
 	 */
-	return iwl_get_coex_type(mvm, mvmsta->vif) == BT_COEX_TIGHT_LUT;
+	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
+	return lut_type != BT_COEX_LOOSE_LUT;
 }
 
 bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
