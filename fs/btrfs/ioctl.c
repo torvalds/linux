@@ -2312,16 +2312,16 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	 * again is not run concurrently.
 	 */
 	spin_lock(&dest->root_item_lock);
-	root_flags = btrfs_root_flags(&root->root_item);
-	if (root->send_in_progress == 0) {
-		btrfs_set_root_flags(&root->root_item,
+	root_flags = btrfs_root_flags(&dest->root_item);
+	if (dest->send_in_progress == 0) {
+		btrfs_set_root_flags(&dest->root_item,
 				root_flags | BTRFS_ROOT_SUBVOL_DEAD);
 		spin_unlock(&dest->root_item_lock);
 	} else {
 		spin_unlock(&dest->root_item_lock);
 		btrfs_warn(root->fs_info,
 			"Attempt to delete subvolume %llu during send",
-			root->root_key.objectid);
+			dest->root_key.objectid);
 		err = -EPERM;
 		goto out_dput;
 	}
@@ -2416,8 +2416,8 @@ out_up_write:
 out_unlock:
 	if (err) {
 		spin_lock(&dest->root_item_lock);
-		root_flags = btrfs_root_flags(&root->root_item);
-		btrfs_set_root_flags(&root->root_item,
+		root_flags = btrfs_root_flags(&dest->root_item);
+		btrfs_set_root_flags(&dest->root_item,
 				root_flags & ~BTRFS_ROOT_SUBVOL_DEAD);
 		spin_unlock(&dest->root_item_lock);
 	}
