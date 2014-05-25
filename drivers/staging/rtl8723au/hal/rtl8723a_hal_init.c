@@ -309,15 +309,15 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 			DBG_8723A(" Rtl8723_FwUMCBCutImageArrayWithoutBT for "
 				  "RTL8723A B CUT\n");
 		} else {
-#ifdef CONFIG_8723AU_BT_COEXIST
-			fw_name = "rtlwifi/rtl8723aufw_B.bin";
-			DBG_8723A(" Rtl8723_FwUMCBCutImageArrayWithBT for "
-				  "RTL8723A B CUT\n");
-#else
-			fw_name = "rtlwifi/rtl8723aufw_B_NoBT.bin";
-			DBG_8723A(" Rtl8723_FwUMCBCutImageArrayWithoutBT for "
-				  "RTL8723A B CUT\n");
-#endif
+			if (rtl8723a_BT_coexist(padapter)) {
+				fw_name = "rtlwifi/rtl8723aufw_B.bin";
+				DBG_8723A(" Rtl8723_FwUMCBCutImageArrayWithBT "
+					  "for RTL8723A B CUT\n");
+			} else {
+				fw_name = "rtlwifi/rtl8723aufw_B_NoBT.bin";
+				DBG_8723A(" Rtl8723_FwUMCBCutImageArrayWithout "
+					  "BT for RTL8723A B CUT\n");
+			}
 		}
 	} else {
 		/*  <Roger_TODO> We should download proper RAM Code here
