@@ -88,9 +88,6 @@ void rtw_cfg80211_issue_p2p_provision_request23a(struct rtw_adapter *padapter,
 void rtw_cfg80211_rx_action(struct rtw_adapter *adapter, u8 *frame,
 			    uint frame_len, const char*msg);
 
-int rtw_cfg80211_set_mgnt_wpsp2pie(struct net_device *net, char *buf, int len,
-				   int type);
-
 bool rtw_cfg80211_pwr_mgmt(struct rtw_adapter *adapter);
 
 #define rtw_cfg80211_rx_mgmt(adapter, freq, sig_dbm, buf, len, gfp)	\
