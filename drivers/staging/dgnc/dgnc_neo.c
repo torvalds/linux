@@ -395,7 +395,8 @@ static inline void neo_clear_break(struct channel_t *ch, int force)
 
 	/* Turn break off, and unset some variables */
 	if (ch->ch_flags & CH_BREAK_SENDING) {
-		if ((jiffies >= ch->ch_stop_sending_break) || force) {
+		if (time_after_eq(jiffies, ch->ch_stop_sending_break)
+		    || force) {
 			uchar temp = readb(&ch->ch_neo_uart->lcr);
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 			neo_pci_posting_flush(ch->ch_bd);
