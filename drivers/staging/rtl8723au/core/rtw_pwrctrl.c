@@ -350,11 +350,8 @@ void rtw_set_ps_mode23a(struct rtw_adapter *padapter, u8 ps_mode,
 		rtl8723a_set_FwPwrMode_cmd(padapter, ps_mode);
 		pwrpriv->bFwCurrentInPSMode = false;
 	} else {
-		if (PS_RDY_CHECK(padapter)
-#ifdef CONFIG_8723AU_BT_COEXIST
-			|| (rtl8723a_BT_using_antenna_1(padapter))
-#endif
-			) {
+		if (PS_RDY_CHECK(padapter) ||
+		    rtl8723a_BT_using_antenna_1(padapter)) {
 			DBG_8723A("%s: Enter 802.11 power save\n", __func__);
 
 			pwrpriv->bFwCurrentInPSMode = true;
