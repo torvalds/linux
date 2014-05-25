@@ -1258,7 +1258,7 @@ static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 	    check_fwstate(pmlmepriv, _FW_LINKED)) {
 		struct wlan_network *cur_network = &pmlmepriv->cur_network;
 
-		if (memcmp(mac, cur_network->network.MacAddress, ETH_ALEN)) {
+		if (!ether_addr_equal(mac, cur_network->network.MacAddress)) {
 			DBG_8723A("%s, mismatch bssid =" MAC_FMT "\n", __func__,
 				  MAC_ARG(cur_network->network.MacAddress));
 			ret = -ENOENT;
@@ -2068,8 +2068,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		dst_bssid = pnetwork->network.MacAddress;
 
 		if (sme->bssid) {
-			if (memcmp(pnetwork->network.MacAddress,
-				   sme->bssid, ETH_ALEN))
+			if (!ether_addr_equal(pnetwork->network.MacAddress,
+					      sme->bssid))
 				continue;
 		}
 
@@ -2083,7 +2083,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		if (sme->bssid) {
 			src_bssid = sme->bssid;
 
-			if ((!memcmp(dst_bssid, src_bssid, ETH_ALEN))) {
+			if (ether_addr_equal(dst_bssid, src_bssid)) {
 				DBG_8723A("matched by bssid\n");
 
 				ndis_ssid.ssid_len =
@@ -2307,20 +2307,18 @@ static int cfg80211_rtw_set_pmksa(struct wiphy *wiphy,
 	u8 index, blInserted = false;
 	struct rtw_adapter *padapter = wiphy_to_adapter(wiphy);
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	u8 strZeroMacAddress[ETH_ALEN] = { 0x00 };
 
 	DBG_8723A("%s(%s)\n", __func__, netdev->name);
 
-	if (!memcmp(pmksa->bssid, strZeroMacAddress, ETH_ALEN)) {
+	if (is_zero_ether_addr(pmksa->bssid))
 		return -EINVAL;
-	}
 
 	blInserted = false;
 
 	/* overwrite PMKID */
 	for (index = 0; index < NUM_PMKID_CACHE; index++) {
-		if (!memcmp(psecuritypriv->PMKIDList[index].Bssid,
-			    pmksa->bssid, ETH_ALEN)) {
+		if (ether_addr_equal(psecuritypriv->PMKIDList[index].Bssid,
+				     pmksa->bssid)) {
 			/* BSSID is matched, the same AP => rewrite with
 			   new PMKID. */
 			DBG_8723A("%s(%s):  BSSID exists in the PMKList.\n",
@@ -2368,9 +2366,10 @@ static int cfg80211_rtw_del_pmksa(struct wiphy *wiphy,
 	DBG_8723A("%s(%s)\n", __func__, netdev->name);
 
 	for (index = 0; index < NUM_PMKID_CACHE; index++) {
-		if (!memcmp(psecuritypriv->PMKIDList[index].Bssid,
-			    pmksa->bssid, ETH_ALEN)) {
-			/* BSSID is matched, the same AP => Remove this PMKID information and reset it. */
+		if (ether_addr_equal(psecuritypriv->PMKIDList[index].Bssid,
+				     pmksa->bssid)) {
+			/* BSSID is matched, the same AP => Remove this PMKID
+			   information and reset it. */
 			eth_zero_addr(psecuritypriv->PMKIDList[index].Bssid);
 			memset(psecuritypriv->PMKIDList[index].PMKID, 0x00,
 			       WLAN_PMKID_LEN);
@@ -2961,7 +2960,7 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy,
 	list_for_each_safe(plist, ptmp, phead) {
 		psta = container_of(plist, struct sta_info, asoc_list);
 
-		if (!memcmp(mac, psta->hwaddr, ETH_ALEN)) {
+		if (ether_addr_equal(mac, psta->hwaddr)) {
 			if (psta->dot8021xalg == 1 &&
 			    psta->bpairwise_key_installed == false) {
 				DBG_8723A("%s, sta's dot8021xalg = 1 and "
