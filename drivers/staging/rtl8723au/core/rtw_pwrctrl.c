@@ -288,7 +288,7 @@ void rtw_set_rpwm23a(struct rtw_adapter *padapter, u8 pslv)
 	pwrpriv->cpwm = pslv;
 }
 
-static u8 PS_RDY_CHECK(struct rtw_adapter * padapter)
+static bool PS_RDY_CHECK(struct rtw_adapter * padapter)
 {
 	unsigned long delta_time;
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
