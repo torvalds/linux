@@ -1410,16 +1410,16 @@ static int validate_recv_data_frame(struct rtw_adapter *adapter,
 		{
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
-			pattrib->iv_len = 4;
-			pattrib->icv_len = 4;
+			pattrib->iv_len = IEEE80211_WEP_IV_LEN;
+			pattrib->icv_len = IEEE80211_WEP_ICV_LEN;
 			break;
 		case WLAN_CIPHER_SUITE_TKIP:
-			pattrib->iv_len = 8;
-			pattrib->icv_len = 4;
+			pattrib->iv_len = IEEE80211_TKIP_IV_LEN;
+			pattrib->icv_len = IEEE80211_TKIP_ICV_LEN;
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
-			pattrib->iv_len = 8;
-			pattrib->icv_len = 8;
+			pattrib->iv_len = IEEE80211_CCMP_HDR_LEN;
+			pattrib->icv_len = IEEE80211_CCMP_MIC_LEN;
 			break;
 		default:
 			pattrib->iv_len = 0;

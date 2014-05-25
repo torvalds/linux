@@ -3085,7 +3085,7 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 						     (unsigned char *)&val32,
 						     &pattrib->pktlen);
 
-			pattrib->iv_len = 4;
+			pattrib->iv_len = IEEE80211_WEP_IV_LEN;
 		}
 
 		pframe = rtw_set_fixed_ie23a(pframe, _AUTH_ALGM_NUM_,
@@ -3121,7 +3121,7 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 
 			pattrib->encrypt = WLAN_CIPHER_SUITE_WEP40;
 
-			pattrib->icv_len = 4;
+			pattrib->icv_len = IEEE80211_WEP_ICV_LEN;
 
 			pattrib->pktlen += pattrib->icv_len;
 		}
