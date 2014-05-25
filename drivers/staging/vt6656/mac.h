@@ -403,6 +403,17 @@
 #define MAC_REVISION_A0     0x00
 #define MAC_REVISION_A1     0x01
 
+struct vnt_mac_set_key {
+	union {
+		struct {
+			u8 addr[ETH_ALEN];
+			__le16 key_ctl;
+		} write __packed;
+		u32 swap[2];
+	} u;
+	u8 key[WLAN_KEY_LEN_CCMP];
+} __packed;
+
 void MACvWriteMultiAddr(struct vnt_private *, u64);
 void MACbShutdown(struct vnt_private *);
 void MACvSetBBType(struct vnt_private *, u8);

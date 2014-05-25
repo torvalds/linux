@@ -125,60 +125,31 @@ void MACvDisableKeyEntry(struct vnt_private *priv, u8 entry_idx)
 void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
 	u32 uKeyIdx, u8 *pbyAddr, u32 *pdwKey)
 {
-	u8 *pbyKey;
+	struct vnt_mac_set_key set_key;
+	u8 *pbyKey = (u8 *)pdwKey;
 	u16 wOffset;
-	u32 dwData1, dwData2;
-	int ii;
-	u8 pbyData[24];
 
 	if (pDevice->byLocalID <= MAC_REVISION_A1)
 		if (pDevice->vnt_mgmt.byCSSPK == KEY_CTL_CCMP)
 			return;
 
-    wOffset = MISCFIFO_KEYETRY0;
-    wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
+	wOffset = MISCFIFO_KEYETRY0;
+	wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
-    dwData1 = 0;
-    dwData1 |= wKeyCtl;
-    dwData1 <<= 16;
-    dwData1 |= MAKEWORD(*(pbyAddr+4), *(pbyAddr+5));
+	set_key.u.write.key_ctl = cpu_to_le16(wKeyCtl);
+	memcpy(set_key.u.write.addr, pbyAddr, ETH_ALEN);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %X,"\
-		" KeyCtl:%X\n", wOffset, dwData1, wKeyCtl);
+	/* swap over swap[0] and swap[1] to get correct write order */
+	swap(set_key.u.swap[0], set_key.u.swap[1]);
 
-    dwData2 = 0;
-    dwData2 |= *(pbyAddr+3);
-    dwData2 <<= 8;
-    dwData2 |= *(pbyAddr+2);
-    dwData2 <<= 8;
-    dwData2 |= *(pbyAddr+1);
-    dwData2 <<= 8;
-    dwData2 |= *(pbyAddr+0);
+	memcpy(set_key.key, pbyKey, WLAN_KEY_LEN_CCMP);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2. wOffset: %d, Data: %X\n",
-		wOffset, dwData2);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+		"offset %d key ctl %d set key %24ph\n",
+				wOffset, wKeyCtl, (u8 *)&set_key);
 
-    pbyKey = (u8 *)pdwKey;
-
-    pbyData[0] = (u8)dwData1;
-    pbyData[1] = (u8)(dwData1>>8);
-    pbyData[2] = (u8)(dwData1>>16);
-    pbyData[3] = (u8)(dwData1>>24);
-    pbyData[4] = (u8)dwData2;
-    pbyData[5] = (u8)(dwData2>>8);
-    pbyData[6] = (u8)(dwData2>>16);
-    pbyData[7] = (u8)(dwData2>>24);
-    for (ii = 8; ii < 24; ii++)
-	pbyData[ii] = *pbyKey++;
-
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_SETKEY,
-                        wOffset,
-                        (u16)uKeyIdx,
-			ARRAY_SIZE(pbyData),
-                        pbyData
-                        );
-
+	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_SETKEY, wOffset,
+		(u16)uKeyIdx, sizeof(struct vnt_mac_set_key), (u8 *)&set_key);
 }
 
 void MACvRegBitsOff(struct vnt_private *priv, u8 reg_ofs, u8 bits)
