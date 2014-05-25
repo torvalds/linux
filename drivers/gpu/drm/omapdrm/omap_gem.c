@@ -233,10 +233,6 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 
 	WARN_ON(omap_obj->pages);
 
-	/* TODO: __GFP_DMA32 .. but somehow GFP_HIGHMEM is coming from the
-	 * mapping_gfp_mask(mapping) which conflicts w/ GFP_DMA32.. probably
-	 * we actually want CMA memory for it all anyways..
-	 */
 	pages = drm_gem_get_pages(obj, GFP_KERNEL);
 	if (IS_ERR(pages)) {
 		dev_err(obj->dev->dev, "could not get pages: %ld\n", PTR_ERR(pages));
@@ -1347,6 +1343,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj;
 	struct drm_gem_object *obj = NULL;
+	struct address_space *mapping;
 	size_t size;
 	int ret;
 
@@ -1404,14 +1401,16 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		omap_obj->height = gsize.tiled.height;
 	}
 
-	ret = 0;
-	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM))
+	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM)) {
 		drm_gem_private_object_init(dev, obj, size);
-	else
+	} else {
 		ret = drm_gem_object_init(dev, obj, size);
+		if (ret)
+			goto fail;
 
-	if (ret)
-		goto fail;
+		mapping = file_inode(obj->filp)->i_mapping;
+		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
+	}
 
 	return obj;
 
