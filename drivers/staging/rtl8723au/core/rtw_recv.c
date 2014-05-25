@@ -800,8 +800,8 @@ static int sta2sta_data_frame(struct rtw_adapter *adapter,
 
 
 
-	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) ||
-		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 
 		/*  filter packets that SA is myself or multicast or broadcast */
 		if (ether_addr_equal(myhwaddr, pattrib->src)) {
@@ -824,7 +824,7 @@ static int sta2sta_data_frame(struct rtw_adapter *adapter,
 		}
 
 		sta_addr = pattrib->src;
-	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
+	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		/*  For Station mode, sa and bssid should always be BSSID,
 		    and DA is my mac-address */
 		if (!ether_addr_equal(pattrib->bssid, pattrib->src)) {
@@ -837,7 +837,7 @@ static int sta2sta_data_frame(struct rtw_adapter *adapter,
 
 		sta_addr = pattrib->bssid;
 
-	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		if (bmcast) {
 			/*  For AP mode, if DA == MCAST, then BSSID should be also MCAST */
 			if (!is_multicast_ether_addr(pattrib->bssid)) {
@@ -854,7 +854,7 @@ static int sta2sta_data_frame(struct rtw_adapter *adapter,
 
 			sta_addr = pattrib->src;
 		}
-	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		ether_addr_copy(pattrib->dst, hdr->addr1);
 		ether_addr_copy(pattrib->src, hdr->addr2);
 		ether_addr_copy(pattrib->bssid, hdr->addr3);
@@ -901,9 +901,9 @@ int ap2sta_data_frame(struct rtw_adapter *adapter,
 
 
 
-	if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) &&
-	    (check_fwstate(pmlmepriv, _FW_LINKED) == true ||
-	     check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) &&
+	    (check_fwstate(pmlmepriv, _FW_LINKED) ||
+	     check_fwstate(pmlmepriv, _FW_UNDER_LINKING))) {
 
 		/* filter packets that SA is myself or multicast or broadcast */
 		if (ether_addr_equal(myhwaddr, pattrib->src)) {
@@ -966,8 +966,8 @@ int ap2sta_data_frame(struct rtw_adapter *adapter,
 			goto exit;
 		}
 
-	} else if ((check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) &&
-		   (check_fwstate(pmlmepriv, _FW_LINKED) == true)) {
+	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE) &&
+		   check_fwstate(pmlmepriv, _FW_LINKED)) {
 		ether_addr_copy(pattrib->dst, hdr->addr1);
 		ether_addr_copy(pattrib->src, hdr->addr2);
 		ether_addr_copy(pattrib->bssid, hdr->addr3);
@@ -985,7 +985,7 @@ int ap2sta_data_frame(struct rtw_adapter *adapter,
 			ret = _FAIL;
 			goto exit;
 		}
-	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		/* Special case */
 		ret = RTW_RX_HANDLED;
 		goto exit;
@@ -1029,7 +1029,7 @@ int sta2ap_data_frame(struct rtw_adapter *adapter,
 
 
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		/* For AP mode, RA = BSSID, TX = STA(SRC_ADDR), A3 = DST_ADDR */
 		if (!ether_addr_equal(pattrib->bssid, mybssid)) {
 			ret = _FAIL;
@@ -1589,7 +1589,7 @@ static int wlanhdr_to_ethhdr (struct recv_frame *precvframe)
 		  pattrib->hdrlen,  pattrib->iv_len));
 
 	pattrib->eth_type = eth_type;
-	if ((check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		ptr += hdrlen;
 		*ptr = 0x87;
 		*(ptr + 1) = 0x12;

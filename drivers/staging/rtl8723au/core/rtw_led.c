@@ -225,7 +225,7 @@ static void SwLedBlink1(struct led_8723a *pLed)
 		if (pLed->BlinkTimes == 0)
 			bStopBlinking = true;
 		if (bStopBlinking) {
-			if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 				pLed->bLedLinkBlinkInProgress = true;
 				pLed->CurrLedState = LED_BLINK_NORMAL;
 				if (pLed->bLedOn)
@@ -258,7 +258,7 @@ static void SwLedBlink1(struct led_8723a *pLed)
 		if (pLed->BlinkTimes == 0)
 			bStopBlinking = true;
 		if (bStopBlinking) {
-			if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 				pLed->bLedLinkBlinkInProgress = true;
 				pLed->CurrLedState = LED_BLINK_NORMAL;
 				if (pLed->bLedOn)
@@ -450,8 +450,7 @@ static void SwLedBlink3(struct led_8723a *pLed)
 				{
 					SwLedOff23a(padapter, pLed);
 				}
-				else if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
-				{
+				else if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 					pLed->CurrLedState = RTW_LED_ON;
 					pLed->BlinkingLedState = RTW_LED_ON;
 					if (!pLed->bLedOn)
@@ -499,9 +498,8 @@ static void SwLedBlink3(struct led_8723a *pLed)
 				if (padapter->pwrctrlpriv.rf_pwrstate != rf_on)
 				{
 					SwLedOff23a(padapter, pLed);
-				}
-				else if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
-				{
+				} else if (check_fwstate(pmlmepriv,
+							 _FW_LINKED)) {
 					pLed->CurrLedState = RTW_LED_ON;
 					pLed->BlinkingLedState = RTW_LED_ON;
 
@@ -914,8 +912,8 @@ SwLedControlMode1(struct rtw_adapter *padapter, enum led_ctl_mode LedAction)
 			break;
 
 		case LED_CTL_SITE_SURVEY:
-			 if ((pmlmepriv->LinkDetectInfo.bBusyTraffic) &&
-			     (check_fwstate(pmlmepriv, _FW_LINKED) == true))
+			 if (pmlmepriv->LinkDetectInfo.bBusyTraffic &&
+			     check_fwstate(pmlmepriv, _FW_LINKED))
 				;
 			 else if (pLed->bLedScanBlinkInProgress == false) {
 				if (IS_LED_WPS_BLINKING(pLed))
@@ -1118,8 +1116,8 @@ SwLedControlMode2(struct rtw_adapter *padapter, enum led_ctl_mode LedAction)
 		 break;
 	case LED_CTL_TX:
 	case LED_CTL_RX:
-		if ((pLed->bLedBlinkInProgress == false) &&
-		    (check_fwstate(pmlmepriv, _FW_LINKED) == true)) {
+		if (pLed->bLedBlinkInProgress == false &&
+		    check_fwstate(pmlmepriv, _FW_LINKED)) {
 			if (pLed->CurrLedState == LED_BLINK_SCAN ||
 			    IS_LED_WPS_BLINKING(pLed)) {
 				return;
@@ -1261,8 +1259,8 @@ SwLedControlMode3(struct rtw_adapter *padapter, enum led_ctl_mode LedAction)
 
 		case LED_CTL_TX:
 		case LED_CTL_RX:
-			if ((pLed->bLedBlinkInProgress == false) &&
-			    (check_fwstate(pmlmepriv, _FW_LINKED) == true)) {
+			if (pLed->bLedBlinkInProgress == false &&
+			    check_fwstate(pmlmepriv, _FW_LINKED)) {
 				if (pLed->CurrLedState == LED_BLINK_SCAN ||
 				    IS_LED_WPS_BLINKING(pLed)) {
 					return;
@@ -1477,8 +1475,8 @@ SwLedControlMode4(struct rtw_adapter *padapter, enum led_ctl_mode LedAction)
 			break;
 
 		case LED_CTL_SITE_SURVEY:
-			if ((pmlmepriv->LinkDetectInfo.bBusyTraffic) &&
-			    (check_fwstate(pmlmepriv, _FW_LINKED) == true))
+			if (pmlmepriv->LinkDetectInfo.bBusyTraffic &&
+			    check_fwstate(pmlmepriv, _FW_LINKED))
 				;
 			else if (pLed->bLedScanBlinkInProgress == false) {
 				if (IS_LED_WPS_BLINKING(pLed))
@@ -1714,7 +1712,8 @@ SwLedControlMode5(struct rtw_adapter *padapter, enum led_ctl_mode LedAction)
 			break;
 
 		case LED_CTL_SITE_SURVEY:
-			if ((pmlmepriv->LinkDetectInfo.bBusyTraffic) && (check_fwstate(pmlmepriv, _FW_LINKED) == true))
+			if (pmlmepriv->LinkDetectInfo.bBusyTraffic &&
+			    check_fwstate(pmlmepriv, _FW_LINKED))
 				;
 			else if (pLed->bLedScanBlinkInProgress == false)
 			{

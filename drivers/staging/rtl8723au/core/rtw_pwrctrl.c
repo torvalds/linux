@@ -300,10 +300,10 @@ static u8 PS_RDY_CHECK(struct rtw_adapter * padapter)
 		return false;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == false ||
-	    check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true ||
-	    check_fwstate(pmlmepriv, WIFI_AP_STATE) == true ||
-	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true ||
-	    check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true)
+	    check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) ||
+	    check_fwstate(pmlmepriv, WIFI_AP_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_STATE))
 		return false;
 	if (pwrpriv->bInSuspend)
 		return false;
@@ -462,7 +462,7 @@ void LeaveAllPowerSaveMode23a(struct rtw_adapter *Adapter)
 	u8 enqueue = 0;
 
 	/* DBG_8723A("%s.....\n", __func__); */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
+	if (check_fwstate(pmlmepriv, _FW_LINKED))
 		rtw_lps_ctrl_wk_cmd23a(Adapter, LPS_CTRL_LEAVE, enqueue);
 }
 
@@ -589,7 +589,7 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 	}
 
 	/* I think this should be check in IPS, LPS, autosuspend functions... */
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		ret = _SUCCESS;
 		goto exit;
 	}

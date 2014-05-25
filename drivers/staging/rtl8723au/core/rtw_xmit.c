@@ -443,16 +443,14 @@ static int update_attrib(struct rtw_adapter *padapter,
 
 	pattrib->pctrl = 0;
 
-	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) ||
-		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 		ether_addr_copy(pattrib->ra, pattrib->dst);
 		ether_addr_copy(pattrib->ta, pattrib->src);
-	}
-	else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		ether_addr_copy(pattrib->ra, get_bssid(pmlmepriv));
 		ether_addr_copy(pattrib->ta, pattrib->src);
-	}
-	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
+	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		ether_addr_copy(pattrib->ra, pattrib->dst);
 		ether_addr_copy(pattrib->ta, get_bssid(pmlmepriv));
 	}
@@ -510,7 +508,7 @@ static int update_attrib(struct rtw_adapter *padapter,
 				  MAC_FMT"\n", MAC_ARG(pattrib->ra)));
 			res = _FAIL;
 			goto exit;
-		} else if ((check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) &&
+		} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) &&
 			   (!(psta->state & _FW_LINKED))) {
 			res = _FAIL;
 			goto exit;
@@ -897,7 +895,7 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 	pwlanhdr->frame_control = cpu_to_le16(pattrib->type);
 
 	if (pattrib->type & IEEE80211_FTYPE_DATA) {
-		if ((check_fwstate(pmlmepriv,  WIFI_STATION_STATE) == true)) {
+		if (check_fwstate(pmlmepriv,  WIFI_STATION_STATE)) {
 			/* to_ds = 1, fr_ds = 0; */
 			/* Data transfer to AP */
 			pwlanhdr->frame_control |=
@@ -909,8 +907,7 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 			if (pmlmepriv->qos_option)
 				qos_option = true;
 
-		}
-		else if ((check_fwstate(pmlmepriv,  WIFI_AP_STATE) == true)) {
+		} else if (check_fwstate(pmlmepriv,  WIFI_AP_STATE)) {
 			/* to_ds = 0, fr_ds = 1; */
 			pwlanhdr->frame_control |=
 				cpu_to_le16(IEEE80211_FCTL_FROMDS);
@@ -920,9 +917,8 @@ static int rtw_make_wlanhdr(struct rtw_adapter *padapter, u8 *hdr,
 
 			if (psta->qos_option)
 				qos_option = true;
-		}
-		else if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) ||
-		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
+		} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
+			   check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 			ether_addr_copy(pwlanhdr->addr1, pattrib->dst);
 			ether_addr_copy(pwlanhdr->addr2, pattrib->src);
 			ether_addr_copy(pwlanhdr->addr3, get_bssid(pmlmepriv));

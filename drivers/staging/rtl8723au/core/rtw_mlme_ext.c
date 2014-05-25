@@ -643,7 +643,7 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 	switch (stype)
 	{
 	case IEEE80211_STYPE_AUTH:
-		if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
+		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 			ptable->func = &OnAuth23a;
 		else
 			ptable->func = &OnAuth23aClient23a;
@@ -653,7 +653,7 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 		_mgt_dispatcher23a(padapter, ptable, precv_frame);
 		break;
 	case IEEE80211_STYPE_PROBE_REQ:
-		if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
+		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 			_mgt_dispatcher23a(padapter, ptable, precv_frame);
 		else
 			_mgt_dispatcher23a(padapter, ptable, precv_frame);
@@ -662,7 +662,7 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 		_mgt_dispatcher23a(padapter, ptable, precv_frame);
 		break;
 	case IEEE80211_STYPE_ACTION:
-		/* if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) */
+		/* if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) */
 		_mgt_dispatcher23a(padapter, ptable, precv_frame);
 		break;
 	default:
@@ -1880,7 +1880,7 @@ OnDeAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	DBG_8723A("%s Reason code(%d)\n", __func__, reason);
 
 #ifdef CONFIG_8723AU_AP_MODE
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
