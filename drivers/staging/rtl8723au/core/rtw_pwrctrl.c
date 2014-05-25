@@ -600,7 +600,7 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 		DBG_8723A("%s: bDriverStopped =%d, bup =%d, hw_init_completed "
 			  "=%u\n", caller, padapter->bDriverStopped,
 			  padapter->bup, padapter->hw_init_completed);
-		ret = false;
+		ret = _FAIL;
 		goto exit;
 	}
 
