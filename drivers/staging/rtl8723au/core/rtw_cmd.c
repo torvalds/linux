@@ -21,10 +21,6 @@
 #include <rtl8723a_cmd.h>
 #include <rtw_sreset.h>
 
-#ifdef CONFIG_8723AU_BT_COEXIST
-#include <rtl8723a_hal.h>
-#endif /*  CONFIG_8723AU_BT_COEXIST */
-
 static struct cmd_hdl wlancmds[] = {
 	GEN_DRV_CMD_HANDLER(0, NULL) /*0*/
 	GEN_DRV_CMD_HANDLER(0, NULL)
@@ -950,25 +946,19 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 	u8 bHigherBusyTraffic = false, bHigherBusyRxTraffic = false;
 	u8 bHigherBusyTxTraffic = false;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-#ifndef CONFIG_8723AU_BT_COEXIST
 	int BusyThreshold = 100;
-#endif
 	/*  */
 	/*  Determine if our traffic is busy now */
 	/*  */
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-#ifdef CONFIG_8723AU_BT_COEXIST
-		if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 50 ||
-		    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 50)
-#else /*  !CONFIG_8723AU_BT_COEXIST */
+		if (rtl8723a_BT_coexist(padapter))
+			BusyThreshold = 50;
+		else if (pmlmepriv->LinkDetectInfo.bBusyTraffic)
+			BusyThreshold = 75;
 		/*  if we raise bBusyTraffic in last watchdog, using
 		    lower threshold. */
-		if (pmlmepriv->LinkDetectInfo.bBusyTraffic)
-			BusyThreshold = 75;
 		if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > BusyThreshold ||
-		    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > BusyThreshold)
-#endif /*  !CONFIG_8723AU_BT_COEXIST */
-		{
+		    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > BusyThreshold) {
 			bBusyTraffic = true;
 
 			if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod >
