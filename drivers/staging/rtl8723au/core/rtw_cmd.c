@@ -1083,13 +1083,9 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 			break;
 		case LPS_CTRL_SPECIAL_PACKET:
 			pwrpriv->DelayLPSLastTimeStamp = jiffies;
-#ifdef CONFIG_8723AU_BT_COEXIST
-			BT_SpecialPacketNotify(padapter);
-			if (rtl8723a_BT_using_antenna_1(padapter) == false)
-#endif
-			{
+			rtl8723a_BT_specialpacket_notify(padapter);
+			if (!rtl8723a_BT_using_antenna_1(padapter))
 				LPS_Leave23a(padapter);
-			}
 			break;
 		case LPS_CTRL_LEAVE:
 #ifdef CONFIG_8723AU_BT_COEXIST
