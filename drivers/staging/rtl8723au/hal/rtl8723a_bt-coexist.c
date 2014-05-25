@@ -161,11 +161,6 @@ void BT_HaltProcess(struct rtw_adapter *padapter)
 	BTDM_ForHalt(padapter);
 }
 
-void BT_LpsLeave(struct rtw_adapter *padapter)
-{
-	BTDM_LpsLeave(padapter);
-}
-
 /*  ===== End of sync from SD7 driver COMMOM/BT.c ===== */
 
 #define i64fmt		"ll"
@@ -9728,7 +9723,7 @@ BTDM_Set8723ABtCoexCurrAntNum(struct rtw_adapter *padapter, u8 antNum)
 		pBtCoex->TotalAntNum = Ant_x2;
 }
 
-void BTDM_LpsLeave(struct rtw_adapter *padapter)
+void rtl8723a_BT_lps_leave(struct rtw_adapter *padapter)
 {
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_mgnt *pBtMgnt = &pBTInfo->BtMgnt;

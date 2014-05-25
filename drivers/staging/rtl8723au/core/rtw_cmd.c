@@ -1088,13 +1088,9 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 				LPS_Leave23a(padapter);
 			break;
 		case LPS_CTRL_LEAVE:
-#ifdef CONFIG_8723AU_BT_COEXIST
-			BT_LpsLeave(padapter);
-			if (rtl8723a_BT_using_antenna_1(padapter) == false)
-#endif
-			{
+			rtl8723a_BT_lps_leave(padapter);
+			if (!rtl8723a_BT_using_antenna_1(padapter))
 				LPS_Leave23a(padapter);
-			}
 			break;
 
 		default:
