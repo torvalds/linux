@@ -123,20 +123,20 @@ void CARDbSetMediaChannel(struct vnt_private *priv, u32 connection_channel)
  *
  * Parameters:
  *  In:
- *      pDevice             - The adapter to be set
- *      wRateIdx            - Receiving data rate
+ *      priv		- The adapter to be set
+ *      rate_idx	- Receiving data rate
  *  Out:
  *      none
  *
  * Return Value: response Control frame rate
  *
  */
-static u16 swGetCCKControlRate(struct vnt_private *pDevice, u16 wRateIdx)
+static u16 swGetCCKControlRate(struct vnt_private *priv, u16 rate_idx)
 {
-	u16 ui = wRateIdx;
+	u16 ui = rate_idx;
 
 	while (ui > RATE_1M) {
-		if (pDevice->wBasicRate & (1 << ui))
+		if (priv->wBasicRate & (1 << ui))
 			return ui;
 		ui--;
 	}
