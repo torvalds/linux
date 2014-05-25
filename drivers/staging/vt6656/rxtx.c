@@ -117,7 +117,7 @@ static unsigned int s_uGetTxRsvTime(struct vnt_private *pDevice, u8 byPktType,
 	u32 cbFrameLength, u16 wRate, int bNeedAck);
 
 static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
-	u8 rsv_type, u8 pkt_type, u32 frame_lenght, u16 current_rate);
+	u8 rsv_type, u8 pkt_type, u32 frame_length, u16 current_rate);
 
 static u16 s_vFillCTSHead(struct vnt_private *pDevice,
 	u8 byPktType, union vnt_tx_data_head *head, u32 cbFrameLength,
@@ -366,14 +366,14 @@ static __le16 vnt_rxtx_rsvtime_le16(struct vnt_private *priv, u8 pkt_type,
 
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
 static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
-	u8 rsv_type, u8 pkt_type, u32 frame_lenght, u16 current_rate)
+	u8 rsv_type, u8 pkt_type, u32 frame_length, u16 current_rate)
 {
 	u32 rrv_time, rts_time, cts_time, ack_time, data_time;
 
 	rrv_time = rts_time = cts_time = ack_time = data_time = 0;
 
 	data_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
-						frame_lenght, current_rate);
+						frame_length, current_rate);
 
 	if (rsv_type == 0) {
 		rts_time = BBuGetFrameTime(priv->byPreambleType,
