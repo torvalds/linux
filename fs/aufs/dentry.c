@@ -843,9 +843,7 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 			     && !is_root
 			     && ((!h_nfs
 				  && (unhashed != !!d_unhashed(h_dentry)
-				      || name->len != h_name->len
-				      || memcmp(name->name, h_name->name,
-						name->len)))
+				      || !au_qstreq(name, h_name)))
 				 || (h_nfs
 				     && !(flags & LOOKUP_OPEN)
 				     && (h_dentry->d_flags
