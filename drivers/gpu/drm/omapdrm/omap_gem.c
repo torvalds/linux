@@ -233,7 +233,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 
 	WARN_ON(omap_obj->pages);
 
-	pages = drm_gem_get_pages(obj, GFP_KERNEL);
+	pages = drm_gem_get_pages(obj);
 	if (IS_ERR(pages)) {
 		dev_err(obj->dev->dev, "could not get pages: %ld\n", PTR_ERR(pages));
 		return PTR_ERR(pages);

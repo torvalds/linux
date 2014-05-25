@@ -73,7 +73,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		int npages = obj->size >> PAGE_SHIFT;
 
 		if (iommu_present(&platform_bus_type))
-			p = drm_gem_get_pages(obj, 0);
+			p = drm_gem_get_pages(obj);
 		else
 			p = get_pages_vram(obj, npages);
 
