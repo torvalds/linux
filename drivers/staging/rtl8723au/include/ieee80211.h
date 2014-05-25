@@ -330,20 +330,10 @@ join_res:
 > 0: TID
 */
 
-#define DEFAULT_MAX_SCAN_AGE (15 * HZ)
-#define DEFAULT_FTS 2346
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
-#define CFG_IEEE80211_RESERVE_FCS (1<<0)
-#define CFG_IEEE80211_COMPUTE_FCS (1<<1)
-
 #define MAXTID	16
-
-#define IEEE_A            (1<<0)
-#define IEEE_B            (1<<1)
-#define IEEE_G            (1<<2)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
 
 enum _PUBLIC_ACTION{
 	ACT_PUBLIC_BSSCOEXIST = 0, /*  20/40 BSS Coexistence */
