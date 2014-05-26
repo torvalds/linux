@@ -416,13 +416,15 @@ static void acm_read_bulk_callback(struct urb *urb)
 		dev_dbg(&acm->data->dev, "%s - disconnected\n", __func__);
 		return;
 	}
-	usb_mark_last_busy(acm->dev);
 
 	if (urb->status) {
 		dev_dbg(&acm->data->dev, "%s - non-zero urb status: %d\n",
 							__func__, urb->status);
 		return;
 	}
+
+	usb_mark_last_busy(acm->dev);
+
 	acm_process_read_urb(acm, urb);
 
 	/* throttle device if requested by tty */
