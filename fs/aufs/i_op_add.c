@@ -527,8 +527,10 @@ int aufs_link(struct dentry *src_dentry, struct inode *dir,
 		a->bsrc = au_dbstart(src_dentry);
 		h_src_dentry = au_h_d_alias(src_dentry, a->bsrc);
 		AuDebugOn(!h_src_dentry);
-	} else if (IS_ERR(h_src_dentry))
+	} else if (IS_ERR(h_src_dentry)) {
+		err = PTR_ERR(h_src_dentry);
 		goto out_parent;
+	}
 
 	if (au_opt_test(au_mntflags(sb), PLINK)) {
 		if (a->bdst < a->bsrc
