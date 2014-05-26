@@ -769,8 +769,6 @@ static void sierra_close(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	usb_autopm_get_interface_no_resume(serial->interface);
-
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 0;
 	if (--intfdata->open_ports == 0)
@@ -796,6 +794,8 @@ static void sierra_close(struct usb_serial_port *port)
 		sierra_release_urb(portdata->in_urbs[i]);
 		portdata->in_urbs[i] = NULL;
 	}
+
+	usb_autopm_get_interface_no_resume(serial->interface);
 }
 
 static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
