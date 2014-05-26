@@ -408,6 +408,14 @@ int usb_wwan_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	dbg("%s", __func__);
 
+	if (port->interrupt_in_urb) {
+		err = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
+		if (err) {
+			dev_dbg(&port->dev, "%s: submit int urb failed: %d\n",
+				__func__, err);
+		}
+	}
+
 	/* Start reading from the IN endpoint */
 	for (i = 0; i < N_IN_URB; i++) {
 		urb = portdata->in_urbs[i];
@@ -476,6 +484,7 @@ void usb_wwan_close(struct usb_serial_port *port)
 			usb_kill_urb(portdata->in_urbs[i]);
 		for (i = 0; i < N_OUT_URB; i++)
 			usb_kill_urb(portdata->out_urbs[i]);
+		usb_kill_urb(port->interrupt_in_urb);
 		/* balancing - important as an error cannot be handled*/
 		usb_autopm_get_interface_no_resume(serial->interface);
 		serial->interface->needs_remote_wakeup = 0;
@@ -551,7 +560,7 @@ static void usb_wwan_setup_urbs(struct usb_serial *serial)
 
 int usb_wwan_startup(struct usb_serial *serial)
 {
-	int i, j, err;
+	int i, j;
 	struct usb_serial_port *port;
 	struct usb_wwan_port_private *portdata;
 	u8 *buffer;
@@ -584,12 +593,6 @@ int usb_wwan_startup(struct usb_serial *serial)
 		}
 
 		usb_set_serial_port_data(port, portdata);
-
-		if (!port->interrupt_in_urb)
-			continue;
-		err = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
-		if (err)
-			dbg("%s: submit irq_in urb failed %d", __func__, err);
 	}
 	usb_wwan_setup_urbs(serial);
 	return 0;
@@ -723,21 +726,6 @@ int usb_wwan_resume(struct usb_serial *serial)
 	int err = 0;
 
 	dbg("%s entered", __func__);
-	/* get the interrupt URBs resubmitted unconditionally */
-	for (i = 0; i < serial->num_ports; i++) {
-		port = serial->port[i];
-		if (!port->interrupt_in_urb) {
-			dbg("%s: No interrupt URB for port %d", __func__, i);
-			continue;
-		}
-		err = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);
-		dbg("Submitted interrupt URB for port %d (result %d)", i, err);
-		if (err < 0) {
-			err("%s: Error %d for interrupt URB of port%d",
-			    __func__, err, i);
-			goto err_out;
-		}
-	}
 
 	spin_lock_irq(&intfdata->susp_lock);
 	for (i = 0; i < serial->num_ports; i++) {
@@ -748,6 +736,16 @@ int usb_wwan_resume(struct usb_serial *serial)
 		/* skip closed ports */
 		if (!portdata || !portdata->opened)
 			continue;
+
+		if (port->interrupt_in_urb) {
+			err = usb_submit_urb(port->interrupt_in_urb,
+					GFP_ATOMIC);
+			if (err) {
+				dev_err(&port->dev,
+					"%s: submit int urb failed: %d\n",
+					__func__, err);
+			}
+		}
 
 		for (j = 0; j < N_IN_URB; j++) {
 			urb = portdata->in_urbs[j];
