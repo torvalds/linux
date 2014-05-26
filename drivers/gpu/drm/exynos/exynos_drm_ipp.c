@@ -796,7 +796,9 @@ static int ipp_get_event(struct drm_device *drm_dev,
 	e->base.event = &e->event.base;
 	e->base.file_priv = file;
 	e->base.destroy = ipp_free_event;
+	mutex_lock(&c_node->event_lock);
 	list_add_tail(&e->base.link, &c_node->event_list);
+	mutex_unlock(&c_node->event_lock);
 
 	return 0;
 }
@@ -807,6 +809,7 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 	struct drm_exynos_ipp_send_event *e, *te;
 	int count = 0;
 
+	mutex_lock(&c_node->event_lock);
 	list_for_each_entry_safe(e, te, &c_node->event_list, base.link) {
 		DRM_DEBUG_KMS("count[%d]e[0x%x]\n", count++, (int)e);
 
@@ -827,9 +830,13 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 			/* delete list */
 			list_del(&e->base.link);
 			kfree(e);
-			return;
+			goto out_unlock;
 		}
 	}
+
+out_unlock:
+	mutex_unlock(&c_node->event_lock);
+	return;
 }
 
 static void ipp_handle_cmd_work(struct device *dev,
@@ -1515,9 +1522,11 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 		return -EINVAL;
 	}
 
+	mutex_lock(&c_node->event_lock);
 	if (list_empty(&c_node->event_list)) {
 		DRM_DEBUG_KMS("event list is empty.\n");
-		return 0;
+		ret = 0;
+		goto err_event_unlock;
 	}
 
 	mutex_lock(&c_node->mem_lock);
@@ -1609,11 +1618,6 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	e = list_first_entry(&c_node->event_list,
 		struct drm_exynos_ipp_send_event, base.link);
 
-	if (!e) {
-		DRM_ERROR("empty event.\n");
-		return -EINVAL;
-	}
-
 	do_gettimeofday(&now);
 	DRM_DEBUG_KMS("tv_sec[%ld]tv_usec[%ld]\n", now.tv_sec, now.tv_usec);
 	e->event.tv_sec = now.tv_sec;
@@ -1628,6 +1632,7 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	list_move_tail(&e->base.link, &e->base.file_priv->event_list);
 	wake_up_interruptible(&e->base.file_priv->event_wait);
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
+	mutex_unlock(&c_node->event_lock);
 
 	DRM_DEBUG_KMS("done cmd[%d]prop_id[%d]buf_id[%d]\n",
 		property->cmd, property->prop_id, tbuf_id[EXYNOS_DRM_OPS_DST]);
@@ -1636,6 +1641,8 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 
 err_mem_unlock:
 	mutex_unlock(&c_node->mem_lock);
+err_event_unlock:
+	mutex_unlock(&c_node->event_lock);
 	return ret;
 }
 
@@ -1678,8 +1685,6 @@ void ipp_sched_event(struct work_struct *work)
 		goto err_completion;
 	}
 
-	mutex_lock(&c_node->event_lock);
-
 	ret = ipp_send_event(ippdrv, c_node, event_work->buf_id);
 	if (ret) {
 		DRM_ERROR("failed to send event.\n");
@@ -1689,8 +1694,6 @@ void ipp_sched_event(struct work_struct *work)
 err_completion:
 	if (ipp_is_m2m_cmd(c_node->property.cmd))
 		complete(&c_node->start_complete);
-
-	mutex_unlock(&c_node->event_lock);
 }
 
 static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
