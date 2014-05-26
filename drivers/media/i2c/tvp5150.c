@@ -1148,10 +1148,10 @@ static int tvp5150_probe(struct i2c_client *c,
 		/* Is TVP5150A */
 		if (tvp5150_id[2] == 3 || tvp5150_id[3] == 0x21) {
 			v4l2_info(sd, "tvp%02x%02xa detected.\n",
-				  tvp5150_id[2], tvp5150_id[3]);
+				  tvp5150_id[0], tvp5150_id[1]);
 		} else {
 			v4l2_info(sd, "*** unknown tvp%02x%02x chip detected.\n",
-				  tvp5150_id[2], tvp5150_id[3]);
+				  tvp5150_id[0], tvp5150_id[1]);
 			v4l2_info(sd, "*** Rom ver is %d.%d\n",
 				  tvp5150_id[2], tvp5150_id[3]);
 		}
