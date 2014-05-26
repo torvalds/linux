@@ -1503,8 +1503,6 @@ static void dgap_tty_uninit(struct board_t *brd)
 			tty_unregister_device(brd->serial_driver, i);
 		}
 		tty_unregister_driver(brd->serial_driver);
-		kfree(brd->serial_driver->ttys);
-		brd->serial_driver->ttys = NULL;
 		put_tty_driver(brd->serial_driver);
 		kfree(brd->serial_ports);
 		brd->dgap_major_serial_registered = FALSE;
@@ -1520,8 +1518,6 @@ static void dgap_tty_uninit(struct board_t *brd)
 			tty_unregister_device(brd->print_driver, i);
 		}
 		tty_unregister_driver(brd->print_driver);
-		kfree(brd->print_driver->ttys);
-		brd->print_driver->ttys = NULL;
 		put_tty_driver(brd->print_driver);
 		kfree(brd->printer_ports);
 		brd->dgap_major_transparent_print_registered = FALSE;
