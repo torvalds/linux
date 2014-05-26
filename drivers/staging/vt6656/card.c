@@ -111,7 +111,7 @@ void CARDbSetMediaChannel(struct vnt_private *priv, u32 connection_channel)
 			priv->abyCCKPwrTbl[connection_channel-1], RATE_1M);
 	}
 
-	ControlvWriteByte(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
+	vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
 		(u8)(connection_channel|0x80));
 }
 
@@ -844,11 +844,11 @@ void CARDvSetBSSMode(struct vnt_private *priv)
 	priv->byPacketType = CARDbyGetPktType(priv);
 
 	if (priv->byBBType == BB_TYPE_11A)
-		ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x03);
+		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x03);
 	else if (priv->byBBType == BB_TYPE_11B)
-		ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x02);
+		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x02);
 	else if (priv->byBBType == BB_TYPE_11G)
-		ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x08);
+		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x08);
 
 	vUpdateIFS(priv);
 	CARDvSetRSPINF(priv, (u8)priv->byBBType);
@@ -857,7 +857,7 @@ void CARDvSetBSSMode(struct vnt_private *priv)
 		if (priv->byRFType == RF_AIROHA7230) {
 			priv->abyBBVGA[0] = 0x20;
 
-			ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG,
+			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
 						0xe7, priv->abyBBVGA[0]);
 		}
 
@@ -867,7 +867,7 @@ void CARDvSetBSSMode(struct vnt_private *priv)
 		if (priv->byRFType == RF_AIROHA7230) {
 			priv->abyBBVGA[0] = 0x1c;
 
-			ControlvWriteByte(priv, MESSAGE_REQUEST_BBREG,
+			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
 						0xe7, priv->abyBBVGA[0]);
 		}
 

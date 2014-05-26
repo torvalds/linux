@@ -468,28 +468,28 @@ static int device_init_registers(struct vnt_private *pDevice)
 			byCalibRXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_RX_IQ];
 			if (byCalibTXIQ || byCalibTXDC || byCalibRXIQ) {
 			/* CR255, enable TX/RX IQ and DC compensation mode */
-				ControlvWriteByte(pDevice,
+				vnt_control_out_u8(pDevice,
 					MESSAGE_REQUEST_BBREG,
 					0xff,
 					0x03);
 			/* CR251, TX I/Q Imbalance Calibration */
-				ControlvWriteByte(pDevice,
+				vnt_control_out_u8(pDevice,
 					MESSAGE_REQUEST_BBREG,
 					0xfb,
 					byCalibTXIQ);
 			/* CR252, TX DC-Offset Calibration */
-				ControlvWriteByte(pDevice,
+				vnt_control_out_u8(pDevice,
 					MESSAGE_REQUEST_BBREG,
 					0xfC,
 					byCalibTXDC);
 			/* CR253, RX I/Q Imbalance Calibration */
-				ControlvWriteByte(pDevice,
+				vnt_control_out_u8(pDevice,
 					MESSAGE_REQUEST_BBREG,
 					0xfd,
 					byCalibRXIQ);
 			} else {
 			/* CR255, turn off BB Calibration compensation */
-				ControlvWriteByte(pDevice,
+				vnt_control_out_u8(pDevice,
 					MESSAGE_REQUEST_BBREG,
 					0xff,
 					0x0);
@@ -1310,7 +1310,7 @@ void vnt_configure_filter(struct vnt_private *priv)
 		priv->byRxMode &= ~(RCR_UNICAST);
 	}
 
-	ControlvWriteByte(priv, MESSAGE_REQUEST_MACREG,
+	vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG,
 					MAC_REG_RCR, priv->byRxMode);
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO

@@ -33,9 +33,6 @@
 #include "device.h"
 #include "usbpipe.h"
 
-void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
-			u8 data);
-
 void ControlvReadByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
 			u8 *data);
 

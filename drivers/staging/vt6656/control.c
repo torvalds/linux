@@ -27,7 +27,6 @@
  *
  * Functions:
  *      vnt_control_out - Write variable length bytes to MEM/BB/MAC/EEPROM
- *      ControlvWriteByte - Write one byte to MEM/BB/MAC/EEPROM
  *      ControlvReadByte - Read one byte from MEM/BB/MAC/EEPROM
  *      ControlvMaskByte - Read one byte from MEM/BB/MAC/EEPROM and clear/set
  *				some bits in the same address
@@ -43,16 +42,6 @@
 
 /* static int          msglevel                =MSG_LEVEL_INFO;  */
 /* static int          msglevel                =MSG_LEVEL_DEBUG; */
-
-void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
-			u8 data)
-{
-
-	vnt_control_out(pDevice, MESSAGE_TYPE_WRITE, reg_off, reg,
-		sizeof(u8), &data);
-
-	return;
-}
 
 void ControlvReadByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
 			u8 *data)
