@@ -1037,6 +1037,10 @@ static int sierra_resume(struct usb_serial *serial)
 			intfdata->in_flight++;
 			err = usb_submit_urb(urb, GFP_ATOMIC);
 			if (err < 0) {
+				dev_err(&port->dev,
+					"%s - submit urb failed: %d",
+					__func__, err);
+				ec++;
 				intfdata->in_flight--;
 				usb_unanchor_urb(urb);
 				kfree(urb->transfer_buffer);
