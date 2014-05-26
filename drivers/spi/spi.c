@@ -1247,11 +1247,10 @@ static void of_register_spi_devices(struct spi_master *master)
 				spi->mode |= SPI_TX_QUAD;
 				break;
 			default:
-				dev_err(&master->dev,
-					"spi-tx-bus-width %d not supported\n",
-					value);
-				spi_dev_put(spi);
-				continue;
+				dev_warn(&master->dev,
+					 "spi-tx-bus-width %d not supported\n",
+					 value);
+				break;
 			}
 		}
 
@@ -1266,11 +1265,10 @@ static void of_register_spi_devices(struct spi_master *master)
 				spi->mode |= SPI_RX_QUAD;
 				break;
 			default:
-				dev_err(&master->dev,
-					"spi-rx-bus-width %d not supported\n",
-					value);
-				spi_dev_put(spi);
-				continue;
+				dev_warn(&master->dev,
+					 "spi-rx-bus-width %d not supported\n",
+					 value);
+				break;
 			}
 		}
 
