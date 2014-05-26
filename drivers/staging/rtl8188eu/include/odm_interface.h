@@ -21,10 +21,4 @@
 #ifndef	__ODM_INTERFACE_H__
 #define __ODM_INTERFACE_H__
 
-enum odm_h2c_cmd {
-	ODM_H2C_RSSI_REPORT = 0,
-	ODM_H2C_PSD_RESULT = 1,
-	ODM_H2C_PathDiv = 2,
-	ODM_MAX_H2CCMD
-};
 #endif	/*  __ODM_INTERFACE_H__ */
