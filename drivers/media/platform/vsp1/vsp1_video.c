@@ -51,11 +51,11 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  VI6_FMT_RGB_332, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 8, 0, 0 }, false, false, 1, 1 },
-	{ V4L2_PIX_FMT_RGB444, V4L2_MBUS_FMT_ARGB8888_1X32,
+	{ V4L2_PIX_FMT_XRGB444, V4L2_MBUS_FMT_ARGB8888_1X32,
 	  VI6_FMT_XRGB_4444, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS,
 	  1, { 16, 0, 0 }, false, false, 1, 1 },
-	{ V4L2_PIX_FMT_RGB555, V4L2_MBUS_FMT_ARGB8888_1X32,
+	{ V4L2_PIX_FMT_XRGB555, V4L2_MBUS_FMT_ARGB8888_1X32,
 	  VI6_FMT_XRGB_1555, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS,
 	  1, { 16, 0, 0 }, false, false, 1, 1 },
@@ -71,10 +71,10 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  VI6_FMT_RGB_888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 24, 0, 0 }, false, false, 1, 1 },
-	{ V4L2_PIX_FMT_BGR32, V4L2_MBUS_FMT_ARGB8888_1X32,
+	{ V4L2_PIX_FMT_XBGR32, V4L2_MBUS_FMT_ARGB8888_1X32,
 	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS,
 	  1, { 32, 0, 0 }, false, false, 1, 1 },
-	{ V4L2_PIX_FMT_RGB32, V4L2_MBUS_FMT_ARGB8888_1X32,
+	{ V4L2_PIX_FMT_XRGB32, V4L2_MBUS_FMT_ARGB8888_1X32,
 	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 32, 0, 0 }, false, false, 1, 1 },
@@ -181,10 +181,28 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 				   struct v4l2_pix_format_mplane *pix,
 				   const struct vsp1_format_info **fmtinfo)
 {
+	static const u32 xrgb_formats[][2] = {
+		{ V4L2_PIX_FMT_RGB444, V4L2_PIX_FMT_XRGB444 },
+		{ V4L2_PIX_FMT_RGB555, V4L2_PIX_FMT_XRGB555 },
+		{ V4L2_PIX_FMT_BGR32, V4L2_PIX_FMT_XBGR32 },
+		{ V4L2_PIX_FMT_RGB32, V4L2_PIX_FMT_XRGB32 },
+	};
+
 	const struct vsp1_format_info *info;
 	unsigned int width = pix->width;
 	unsigned int height = pix->height;
 	unsigned int i;
+
+	/* Backward compatibility: replace deprecated RGB formats by their XRGB
+	 * equivalent. This selects the format older userspace applications want
+	 * while still exposing the new format.
+	 */
+	for (i = 0; i < ARRAY_SIZE(xrgb_formats); ++i) {
+		if (xrgb_formats[i][0] == pix->pixelformat) {
+			pix->pixelformat = xrgb_formats[i][1];
+			break;
+		}
+	}
 
 	/* Retrieve format information and select the default format if the
 	 * requested format isn't supported.
