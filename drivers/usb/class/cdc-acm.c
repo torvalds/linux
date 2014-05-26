@@ -528,18 +528,14 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 	if (usb_submit_urb(acm->ctrlurb, GFP_KERNEL)) {
 		dev_err(&acm->control->dev,
 			"%s - usb_submit_urb(ctrl irq) failed\n", __func__);
-		usb_autopm_put_interface(acm->control);
 		goto error_submit_urb;
 	}
 
 	acm->ctrlout = ACM_CTRL_DTR | ACM_CTRL_RTS;
 	if (acm_set_control(acm, acm->ctrlout) < 0 &&
 	    (acm->ctrl_caps & USB_CDC_CAP_LINE)) {
-		usb_autopm_put_interface(acm->control);
 		goto error_set_control;
 	}
-
-	usb_autopm_put_interface(acm->control);
 
 	/*
 	 * Unthrottle device in case the TTY was closed while throttled.
@@ -552,6 +548,8 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 	if (acm_submit_read_urbs(acm, GFP_KERNEL))
 		goto error_submit_read_urbs;
 
+	usb_autopm_put_interface(acm->control);
+
 	mutex_unlock(&acm->mutex);
 
 	return 0;
@@ -562,6 +560,7 @@ error_submit_read_urbs:
 error_set_control:
 	usb_kill_urb(acm->ctrlurb);
 error_submit_urb:
+	usb_autopm_put_interface(acm->control);
 error_get_interface:
 disconnected:
 	mutex_unlock(&acm->mutex);
