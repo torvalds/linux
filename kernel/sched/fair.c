@@ -1026,10 +1026,10 @@ struct numa_stats {
 	unsigned long load;
 
 	/* Total compute capacity of CPUs on a node */
-	unsigned long power;
+	unsigned long compute_capacity;
 
 	/* Approximate capacity in terms of runnable tasks on a node */
-	unsigned long capacity;
+	unsigned long task_capacity;
 	int has_capacity;
 };
 
@@ -1046,7 +1046,7 @@ static void update_numa_stats(struct numa_stats *ns, int nid)
 
 		ns->nr_running += rq->nr_running;
 		ns->load += weighted_cpuload(cpu);
-		ns->power += power_of(cpu);
+		ns->compute_capacity += power_of(cpu);
 
 		cpus++;
 	}
@@ -1062,9 +1062,10 @@ static void update_numa_stats(struct numa_stats *ns, int nid)
 	if (!cpus)
 		return;
 
-	ns->load = (ns->load * SCHED_POWER_SCALE) / ns->power;
-	ns->capacity = DIV_ROUND_CLOSEST(ns->power, SCHED_POWER_SCALE);
-	ns->has_capacity = (ns->nr_running < ns->capacity);
+	ns->load = (ns->load * SCHED_POWER_SCALE) / ns->compute_capacity;
+	ns->task_capacity =
+		DIV_ROUND_CLOSEST(ns->compute_capacity, SCHED_POWER_SCALE);
+	ns->has_capacity = (ns->nr_running < ns->task_capacity);
 }
 
 struct task_numa_env {
