@@ -125,6 +125,9 @@ static struct regulator_ops pfuze100_ldo_regulator_ops = {
 };
 
 static struct regulator_ops pfuze100_fixed_regulator_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_linear,
 };
 
