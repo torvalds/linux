@@ -23,6 +23,7 @@
 #include <linux/msi.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
+#include <mach/irqs.h>
 
 /* IMIPR0 CP6 R8 Page 1
  */
