@@ -166,7 +166,6 @@ struct hal_ops {
 	void	(*DeInitSwLeds)(struct adapter *padapter);
 
 	void	(*dm_init)(struct adapter *padapter);
-	void	(*dm_deinit)(struct adapter *padapter);
 	void	(*read_chip_version)(struct adapter *padapter);
 
 	void	(*init_default_value)(struct adapter *padapter);
