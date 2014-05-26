@@ -584,8 +584,6 @@ static int ipp_check_mem_list(struct drm_exynos_ipp_cmd_node *c_node)
 	struct list_head *head;
 	int ret, i, count[EXYNOS_DRM_OPS_MAX] = { 0, };
 
-	mutex_lock(&c_node->mem_lock);
-
 	for_each_ipp_ops(i) {
 		/* source/destination memory list */
 		head = &c_node->mem_list[i];
@@ -613,8 +611,6 @@ static int ipp_check_mem_list(struct drm_exynos_ipp_cmd_node *c_node)
 	else
 		ret = max(count[EXYNOS_DRM_OPS_SRC],
 			count[EXYNOS_DRM_OPS_DST]);
-
-	mutex_unlock(&c_node->mem_lock);
 
 	return ret;
 }
@@ -658,16 +654,13 @@ static int ipp_set_mem_node(struct exynos_drm_ippdrv *ippdrv,
 		return -EFAULT;
 	}
 
-	mutex_lock(&c_node->mem_lock);
-
 	DRM_DEBUG_KMS("ops_id[%d]\n", m_node->ops_id);
 
 	/* get operations callback */
 	ops = ippdrv->ops[m_node->ops_id];
 	if (!ops) {
 		DRM_ERROR("not support ops.\n");
-		ret = -EFAULT;
-		goto err_unlock;
+		return -EFAULT;
 	}
 
 	/* set address and enable irq */
@@ -676,12 +669,10 @@ static int ipp_set_mem_node(struct exynos_drm_ippdrv *ippdrv,
 			m_node->buf_id, IPP_BUF_ENQUEUE);
 		if (ret) {
 			DRM_ERROR("failed to set addr.\n");
-			goto err_unlock;
+			return ret;
 		}
 	}
 
-err_unlock:
-	mutex_unlock(&c_node->mem_lock);
 	return ret;
 }
 
@@ -696,11 +687,9 @@ static struct drm_exynos_ipp_mem_node
 	void *addr;
 	int i;
 
-	mutex_lock(&c_node->mem_lock);
-
 	m_node = kzalloc(sizeof(*m_node), GFP_KERNEL);
 	if (!m_node)
-		goto err_unlock;
+		return ERR_PTR(-ENOMEM);
 
 	/* clear base address for error handling */
 	memset(&buf_info, 0x0, sizeof(buf_info));
@@ -734,15 +723,14 @@ static struct drm_exynos_ipp_mem_node
 
 	m_node->filp = file;
 	m_node->buf_info = buf_info;
+	mutex_lock(&c_node->mem_lock);
 	list_add_tail(&m_node->list, &c_node->mem_list[qbuf->ops_id]);
-
 	mutex_unlock(&c_node->mem_lock);
+
 	return m_node;
 
 err_clear:
 	kfree(m_node);
-err_unlock:
-	mutex_unlock(&c_node->mem_lock);
 	return ERR_PTR(-EFAULT);
 }
 
@@ -759,13 +747,6 @@ static int ipp_put_mem_node(struct drm_device *drm_dev,
 		return -EFAULT;
 	}
 
-	if (list_empty(&m_node->list)) {
-		DRM_ERROR("empty memory node.\n");
-		return -ENOMEM;
-	}
-
-	mutex_lock(&c_node->mem_lock);
-
 	DRM_DEBUG_KMS("ops_id[%d]\n", m_node->ops_id);
 
 	/* put gem buffer */
@@ -779,8 +760,6 @@ static int ipp_put_mem_node(struct drm_device *drm_dev,
 	/* delete list in queue */
 	list_del(&m_node->list);
 	kfree(m_node);
-
-	mutex_unlock(&c_node->mem_lock);
 
 	return 0;
 }
@@ -894,7 +873,9 @@ static int ipp_queue_buf_with_run(struct device *dev,
 		return 0;
 	}
 
+	mutex_lock(&c_node->mem_lock);
 	if (!ipp_check_mem_list(c_node)) {
+		mutex_unlock(&c_node->mem_lock);
 		DRM_DEBUG_KMS("empty memory.\n");
 		return 0;
 	}
@@ -911,10 +892,12 @@ static int ipp_queue_buf_with_run(struct device *dev,
 	} else {
 		ret = ipp_set_mem_node(ippdrv, c_node, m_node);
 		if (ret) {
+			mutex_unlock(&c_node->mem_lock);
 			DRM_ERROR("failed to set m node.\n");
 			return ret;
 		}
 	}
+	mutex_unlock(&c_node->mem_lock);
 
 	return 0;
 }
@@ -926,12 +909,14 @@ static void ipp_clean_queue_buf(struct drm_device *drm_dev,
 	struct drm_exynos_ipp_mem_node *m_node, *tm_node;
 
 	/* delete list */
+	mutex_lock(&c_node->mem_lock);
 	list_for_each_entry_safe(m_node, tm_node,
 		&c_node->mem_list[qbuf->ops_id], list) {
 		if (m_node->buf_id == qbuf->buf_id &&
 		    m_node->ops_id == qbuf->ops_id)
 			ipp_put_mem_node(drm_dev, c_node, m_node);
 	}
+	mutex_unlock(&c_node->mem_lock);
 }
 
 int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
@@ -1267,9 +1252,11 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	/* store command info in ippdrv */
 	ippdrv->c_node = c_node;
 
+	mutex_lock(&c_node->mem_lock);
 	if (!ipp_check_mem_list(c_node)) {
 		DRM_DEBUG_KMS("empty memory.\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_unlock;
 	}
 
 	/* set current property in ippdrv */
@@ -1277,7 +1264,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	if (ret) {
 		DRM_ERROR("failed to set property.\n");
 		ippdrv->c_node = NULL;
-		return ret;
+		goto err_unlock;
 	}
 
 	/* check command */
@@ -1292,7 +1279,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 			if (!m_node) {
 				DRM_ERROR("failed to get node.\n");
 				ret = -EFAULT;
-				return ret;
+				goto err_unlock;
 			}
 
 			DRM_DEBUG_KMS("m_node[0x%x]\n", (int)m_node);
@@ -1300,7 +1287,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 			ret = ipp_set_mem_node(ippdrv, c_node, m_node);
 			if (ret) {
 				DRM_ERROR("failed to set m node.\n");
-				return ret;
+				goto err_unlock;
 			}
 		}
 		break;
@@ -1312,7 +1299,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 			ret = ipp_set_mem_node(ippdrv, c_node, m_node);
 			if (ret) {
 				DRM_ERROR("failed to set m node.\n");
-				return ret;
+				goto err_unlock;
 			}
 		}
 		break;
@@ -1324,14 +1311,16 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 			ret = ipp_set_mem_node(ippdrv, c_node, m_node);
 			if (ret) {
 				DRM_ERROR("failed to set m node.\n");
-				return ret;
+				goto err_unlock;
 			}
 		}
 		break;
 	default:
 		DRM_ERROR("invalid operations.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_unlock;
 	}
+	mutex_unlock(&c_node->mem_lock);
 
 	DRM_DEBUG_KMS("cmd[%d]\n", property->cmd);
 
@@ -1340,11 +1329,17 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 		ret = ippdrv->start(ippdrv->dev, property->cmd);
 		if (ret) {
 			DRM_ERROR("failed to start ops.\n");
+			ippdrv->c_node = NULL;
 			return ret;
 		}
 	}
 
 	return 0;
+
+err_unlock:
+	mutex_unlock(&c_node->mem_lock);
+	ippdrv->c_node = NULL;
+	return ret;
 }
 
 static int ipp_stop_property(struct drm_device *drm_dev,
@@ -1360,6 +1355,8 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 
 	/* put event */
 	ipp_put_event(c_node, NULL);
+
+	mutex_lock(&c_node->mem_lock);
 
 	/* check command */
 	switch (property->cmd) {
@@ -1410,6 +1407,8 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 	}
 
 err_clear:
+	mutex_unlock(&c_node->mem_lock);
+
 	/* stop operations */
 	if (ippdrv->stop)
 		ippdrv->stop(ippdrv->dev, property->cmd);
@@ -1521,9 +1520,11 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 		return 0;
 	}
 
+	mutex_lock(&c_node->mem_lock);
 	if (!ipp_check_mem_list(c_node)) {
 		DRM_DEBUG_KMS("empty memory.\n");
-		return 0;
+		ret = 0;
+		goto err_mem_unlock;
 	}
 
 	/* check command */
@@ -1537,7 +1538,8 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 				struct drm_exynos_ipp_mem_node, list);
 			if (!m_node) {
 				DRM_ERROR("empty memory node.\n");
-				return -ENOMEM;
+				ret = -ENOMEM;
+				goto err_mem_unlock;
 			}
 
 			tbuf_id[i] = m_node->buf_id;
@@ -1559,7 +1561,8 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 		m_node = ipp_find_mem_node(c_node, &qbuf);
 		if (!m_node) {
 			DRM_ERROR("empty memory node.\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_mem_unlock;
 		}
 
 		tbuf_id[EXYNOS_DRM_OPS_DST] = m_node->buf_id;
@@ -1576,7 +1579,8 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 			struct drm_exynos_ipp_mem_node, list);
 		if (!m_node) {
 			DRM_ERROR("empty memory node.\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_mem_unlock;
 		}
 
 		tbuf_id[EXYNOS_DRM_OPS_SRC] = m_node->buf_id;
@@ -1587,8 +1591,10 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 		break;
 	default:
 		DRM_ERROR("invalid operations.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_mem_unlock;
 	}
+	mutex_unlock(&c_node->mem_lock);
 
 	if (tbuf_id[EXYNOS_DRM_OPS_DST] != buf_id[EXYNOS_DRM_OPS_DST])
 		DRM_ERROR("failed to match buf_id[%d %d]prop_id[%d]\n",
@@ -1627,6 +1633,10 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 		property->cmd, property->prop_id, tbuf_id[EXYNOS_DRM_OPS_DST]);
 
 	return 0;
+
+err_mem_unlock:
+	mutex_unlock(&c_node->mem_lock);
+	return ret;
 }
 
 void ipp_sched_event(struct work_struct *work)
