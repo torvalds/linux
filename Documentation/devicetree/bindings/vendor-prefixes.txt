@@ -121,6 +121,7 @@ sii	Seiko Instruments, Inc.
 sirf	SiRF Technology, Inc.
 smsc	Standard Microsystems Corporation
 snps 	Synopsys, Inc.
+solidrun	SolidRun
 spansion	Spansion Inc.
 st	STMicroelectronics
 ste	ST-Ericsson
