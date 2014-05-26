@@ -37,9 +37,6 @@
 #include "80211hdr.h"
 #include "control.h"
 
-//static int          msglevel                =MSG_LEVEL_DEBUG;
-static int          msglevel                =MSG_LEVEL_INFO;
-
 /*
  * Description:
  *      Write MAC Multicast Address Mask
@@ -143,8 +140,7 @@ void MACvSetKeyEntry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
 
 	memcpy(set_key.key, key, WLAN_KEY_LEN_CCMP);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-		"offset %d key ctl %d set key %24ph\n",
+	dev_dbg(&priv->usb->dev, "offset %d key ctl %d set key %24ph\n",
 				offset, key_ctl, (u8 *)&set_key);
 
 	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SETKEY, offset,
