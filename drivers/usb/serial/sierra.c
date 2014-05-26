@@ -1013,7 +1013,7 @@ static int sierra_resume(struct usb_serial *serial)
 		port = serial->port[i];
 		portdata = usb_get_serial_port_data(port);
 
-		if (!portdata)
+		if (!portdata || !portdata->opened)
 			continue;
 
 		while ((urb = usb_get_from_anchor(&portdata->delayed))) {
@@ -1036,11 +1036,9 @@ static int sierra_resume(struct usb_serial *serial)
 			}
 		}
 
-		if (portdata->opened) {
-			err = sierra_submit_rx_urbs(port, GFP_ATOMIC);
-			if (err)
-				ec++;
-		}
+		err = sierra_submit_rx_urbs(port, GFP_ATOMIC);
+		if (err)
+			ec++;
 	}
 	intfdata->suspended = 0;
 	spin_unlock_irq(&intfdata->susp_lock);
