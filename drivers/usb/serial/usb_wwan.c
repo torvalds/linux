@@ -408,9 +408,6 @@ int usb_wwan_open(struct tty_struct *tty, struct usb_serial_port *port)
 		}
 	}
 
-	if (intfdata->send_setup)
-		intfdata->send_setup(port);
-
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 1;
 	if (++intfdata->open_ports == 1)
