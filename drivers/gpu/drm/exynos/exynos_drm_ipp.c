@@ -1090,12 +1090,12 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 	case IPP_CTRL_PLAY:
 		if (pm_runtime_suspended(ippdrv->dev))
 			pm_runtime_get_sync(ippdrv->dev);
+
 		c_node->state = IPP_STATE_START;
 
 		cmd_work = c_node->start_work;
 		cmd_work->ctrl = cmd_ctrl->ctrl;
 		ipp_handle_cmd_work(dev, ippdrv, cmd_work, c_node);
-		c_node->state = IPP_STATE_START;
 		break;
 	case IPP_CTRL_STOP:
 		cmd_work = c_node->stop_work;
