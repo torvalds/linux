@@ -55,12 +55,12 @@
 /* Power/reset management domain register get/set */
 static inline u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
 {
-	return __raw_readl(prm_base + module + idx);
+	return readl_relaxed(prm_base + module + idx);
 }
 
 static inline void omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
-	__raw_writel(val, prm_base + module + idx);
+	writel_relaxed(val, prm_base + module + idx);
 }
 
 /* Read-modify-write a register in a PRM module. Caller must lock */

@@ -52,12 +52,12 @@
 
 static inline u32 omap2_cm_read_mod_reg(s16 module, u16 idx)
 {
-	return __raw_readl(cm_base + module + idx);
+	return readl_relaxed(cm_base + module + idx);
 }
 
 static inline void omap2_cm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
-	__raw_writel(val, cm_base + module + idx);
+	writel_relaxed(val, cm_base + module + idx);
 }
 
 /* Read-modify-write a register in a CM module. Caller must lock */
