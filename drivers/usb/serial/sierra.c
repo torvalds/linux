@@ -316,7 +316,6 @@ struct sierra_port_private {
 	int dsr_state;
 	int dcd_state;
 	int ri_state;
-	unsigned int opened:1;
 };
 
 static int sierra_send_setup(struct usb_serial_port *port)
@@ -769,8 +768,11 @@ static void sierra_close(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
+	/*
+	 * Need to take susp_lock to make sure port is not already being
+	 * resumed, but no need to hold it due to ASYNC_INITIALIZED.
+	 */
 	spin_lock_irq(&intfdata->susp_lock);
-	portdata->opened = 0;
 	if (--intfdata->open_ports == 0)
 		serial->interface->needs_remote_wakeup = 0;
 	spin_unlock_irq(&intfdata->susp_lock);
@@ -826,7 +828,6 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto err_submit;
 
 	spin_lock_irq(&intfdata->susp_lock);
-	portdata->opened = 1;
 	if (++intfdata->open_ports == 1)
 		serial->interface->needs_remote_wakeup = 1;
 	spin_unlock_irq(&intfdata->susp_lock);
@@ -1025,16 +1026,14 @@ static int sierra_resume(struct usb_serial *serial)
 {
 	struct usb_serial_port *port;
 	struct sierra_intf_private *intfdata = usb_get_serial_data(serial);
-	struct sierra_port_private *portdata;
 	int ec = 0;
 	int i, err;
 
 	spin_lock_irq(&intfdata->susp_lock);
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		portdata = usb_get_serial_port_data(port);
 
-		if (!portdata || !portdata->opened)
+		if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
 			continue;
 
 		err = sierra_submit_delayed_urbs(port);
