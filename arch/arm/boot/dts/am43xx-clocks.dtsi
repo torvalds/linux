@@ -653,4 +653,36 @@
 		clocks = <&clk_32768_ck>, <&clk_32k_tpm_ck>;
 		reg = <0x4260>;
 	};
+
+	usb_phy0_always_on_clk32k: usb_phy0_always_on_clk32k {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&usbphy_32khz_clkmux>;
+		ti,bit-shift = <8>;
+		reg = <0x2a40>;
+	};
+
+	usb_phy1_always_on_clk32k: usb_phy1_always_on_clk32k {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&usbphy_32khz_clkmux>;
+		ti,bit-shift = <8>;
+		reg = <0x2a48>;
+	};
+
+	usb_otg_ss0_refclk960m: usb_otg_ss0_refclk960m {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_clkdcoldo>;
+		ti,bit-shift = <8>;
+		reg = <0x8a60>;
+	};
+
+	usb_otg_ss1_refclk960m: usb_otg_ss1_refclk960m {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_clkdcoldo>;
+		ti,bit-shift = <8>;
+		reg = <0x8a68>;
+	};
 };

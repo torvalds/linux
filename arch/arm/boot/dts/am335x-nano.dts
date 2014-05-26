@@ -344,6 +344,11 @@
 
 &mac {
 	dual_emac = <1>;
+	status = "okay";
+};
+
+&davinci_mdio {
+	status = "okay";
 };
 
 &cpsw_emac0 {

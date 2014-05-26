@@ -239,65 +239,69 @@ dtb-$(CONFIG_ARCH_NOMADIK) += ste-nomadik-s8815.dtb
 dtb-$(CONFIG_ARCH_NSPIRE) += nspire-cx.dtb \
 	nspire-tp.dtb \
 	nspire-clp.dtb
-dtb-$(CONFIG_ARCH_OMAP2PLUS) += omap2420-h4.dtb \
-	omap2430-sdp.dtb \
+dtb-$(CONFIG_ARCH_OMAP2) += omap2420-h4.dtb \
 	omap2420-n800.dtb \
 	omap2420-n810.dtb \
 	omap2420-n810-wimax.dtb \
+	omap2430-sdp.dtb
+dtb-$(CONFIG_ARCH_OMAP3) += am3517-craneboard.dtb \
+	am3517-evm.dtb \
+	am3517_mt_ventoux.dtb \
 	omap3430-sdp.dtb \
 	omap3-beagle.dtb \
-	omap3-cm-t3517.dtb \
-	omap3-sbc-t3517.dtb \
-	omap3-cm-t3530.dtb \
-	omap3-sbc-t3530.dtb \
-	omap3-cm-t3730.dtb \
-	omap3-sbc-t3730.dtb \
-	omap3-devkit8000.dtb \
 	omap3-beagle-xm.dtb \
 	omap3-beagle-xm-ab.dtb \
+	omap3-cm-t3517.dtb \
+	omap3-cm-t3530.dtb \
+	omap3-cm-t3730.dtb \
+	omap3-devkit8000.dtb \
 	omap3-evm.dtb \
 	omap3-evm-37xx.dtb \
+	omap3-gta04.dtb \
+	omap3-igep0020.dtb \
+	omap3-igep0030.dtb \
 	omap3-ldp.dtb \
+	omap3-lilly-dbb056.dtb \
 	omap3-n900.dtb \
 	omap3-n9.dtb \
 	omap3-n950.dtb \
 	omap3-overo-alto35.dtb \
-	omap3-overo-storm-alto35.dtb \
 	omap3-overo-chestnut43.dtb \
-	omap3-overo-storm-chestnut43.dtb \
 	omap3-overo-gallop43.dtb \
-	omap3-overo-storm-gallop43.dtb \
 	omap3-overo-palo43.dtb \
+	omap3-overo-storm-alto35.dtb \
+	omap3-overo-storm-chestnut43.dtb \
+	omap3-overo-storm-gallop43.dtb \
 	omap3-overo-storm-palo43.dtb \
-	omap3-overo-summit.dtb \
 	omap3-overo-storm-summit.dtb \
-	omap3-overo-tobi.dtb \
 	omap3-overo-storm-tobi.dtb \
-	omap3-gta04.dtb \
-	omap3-igep0020.dtb \
-	omap3-igep0030.dtb \
-	omap3-lilly-dbb056.dtb \
-	omap3-zoom3.dtb \
-	omap4-duovero-parlor.dtb \
+	omap3-overo-summit.dtb \
+	omap3-overo-tobi.dtb \
+	omap3-sbc-t3517.dtb \
+	omap3-sbc-t3530.dtb \
+	omap3-sbc-t3730.dtb \
+	omap3-zoom3.dtb
+dtb-$(CONFIG_SOC_AM33XX) += am335x-base0033.dtb \
+	am335x-bone.dtb \
+	am335x-boneblack.dtb \
+	am335x-evm.dtb \
+	am335x-evmsk.dtb \
+	am335x-nano.dtb
+dtb-$(CONFIG_ARCH_OMAP4) += omap4-duovero-parlor.dtb \
 	omap4-panda.dtb \
 	omap4-panda-a4.dtb \
 	omap4-panda-es.dtb \
-	omap4-var-som.dtb \
 	omap4-sdp.dtb \
 	omap4-sdp-es23plus.dtb \
-	omap5-uevm.dtb \
-	am335x-evm.dtb \
-	am335x-evmsk.dtb \
-	am335x-bone.dtb \
-	am335x-boneblack.dtb \
-	am335x-nano.dtb \
-	am335x-base0033.dtb \
-	am3517-craneboard.dtb \
-	am3517-evm.dtb \
-	am3517_mt_ventoux.dtb \
-	am43x-epos-evm.dtb \
-	am437x-gp-evm.dtb \
-	dra7-evm.dtb
+	omap4-var-dvk-om44.dtb \
+	omap4-var-stk-om44.dtb
+dtb-$(CONFIG_SOC_AM43XX) += am43x-epos-evm.dtb \
+	am437x-gp-evm.dtb
+dtb-$(CONFIG_SOC_OMAP5) += omap5-cm-t54.dtb \
+	omap5-sbc-t54.dtb \
+	omap5-uevm.dtb
+dtb-$(CONFIG_SOC_DRA7XX) += dra7-evm.dtb \
+	dra72-evm.dtb
 dtb-$(CONFIG_ARCH_ORION5X) += orion5x-lacie-d2-network.dtb \
 	orion5x-lacie-ethernet-disk-mini-v2.dtb \
 	orion5x-maxtor-shared-storage-2.dtb \

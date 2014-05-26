@@ -1386,6 +1386,14 @@
 		ti,dividers = <1>, <8>;
 	};
 
+	l3init_960m_gfclk: l3init_960m_gfclk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_usb_clkdcoldo>;
+		ti,bit-shift = <8>;
+		reg = <0x06c0>;
+	};
+
 	dss_32khz_clk: dss_32khz_clk {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
@@ -1533,7 +1541,7 @@
 	usb_otg_ss1_refclk960m: usb_otg_ss1_refclk960m {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_usb_clkdcoldo>;
+		clocks = <&l3init_960m_gfclk>;
 		ti,bit-shift = <8>;
 		reg = <0x13f0>;
 	};
@@ -1541,7 +1549,7 @@
 	usb_otg_ss2_refclk960m: usb_otg_ss2_refclk960m {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_usb_clkdcoldo>;
+		clocks = <&l3init_960m_gfclk>;
 		ti,bit-shift = <8>;
 		reg = <0x1340>;
 	};

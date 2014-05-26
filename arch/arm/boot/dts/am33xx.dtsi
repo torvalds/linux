@@ -688,6 +688,7 @@
 			 */
 			interrupts = <40 41 42 43>;
 			ranges;
+			status = "disabled";
 
 			davinci_mdio: mdio@4a101000 {
 				compatible = "ti,davinci_mdio";
@@ -696,6 +697,7 @@
 				ti,hwmods = "davinci_mdio";
 				bus_freq = <1000000>;
 				reg = <0x4a101000 0x100>;
+				status = "disabled";
 			};
 
 			cpsw_emac0: slave@4a100200 {
