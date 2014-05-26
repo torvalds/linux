@@ -169,6 +169,14 @@ Description:
 		"unknown", "notpresent", "down", "lowerlayerdown", "testing",
 		"dormant", "up".
 
+What:		/sys/class/net/<iface>/phys_port_id
+Date:		July 2013
+KernelVersion:	3.12
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates the interface unique physical port identifier within
+		the NIC, as a string.
+
 What:		/sys/class/net/<iface>/speed
 Date:		October 2009
 KernelVersion:	2.6.33
