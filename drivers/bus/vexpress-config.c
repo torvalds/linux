@@ -118,7 +118,7 @@ struct regmap *devm_regmap_init_vexpress_config(struct device *dev)
 
 	return regmap;
 }
-
+EXPORT_SYMBOL_GPL(devm_regmap_init_vexpress_config);
 
 struct device *vexpress_config_bridge_register(struct device *parent,
 		struct vexpress_config_bridge_ops *ops, void *context)
