@@ -1,3 +1,4 @@
+#include <linux/export.h>
 #include <net/ip.h>
 #include <net/tso.h>
 
@@ -7,6 +8,7 @@ int tso_count_descs(struct sk_buff *skb)
 	/* The Marvell Way */
 	return skb_shinfo(skb)->gso_segs * 2 + skb_shinfo(skb)->nr_frags;
 }
+EXPORT_SYMBOL(tso_count_descs);
 
 void tso_build_hdr(struct sk_buff *skb, char *hdr, struct tso_t *tso,
 		   int size, bool is_last)
@@ -31,6 +33,7 @@ void tso_build_hdr(struct sk_buff *skb, char *hdr, struct tso_t *tso,
 		tcph->rst = 0;
 	}
 }
+EXPORT_SYMBOL(tso_build_hdr);
 
 void tso_build_data(struct sk_buff *skb, struct tso_t *tso, int size)
 {
@@ -48,6 +51,7 @@ void tso_build_data(struct sk_buff *skb, struct tso_t *tso, int size)
 		tso->next_frag_idx++;
 	}
 }
+EXPORT_SYMBOL(tso_build_data);
 
 void tso_start(struct sk_buff *skb, struct tso_t *tso)
 {
@@ -70,3 +74,4 @@ void tso_start(struct sk_buff *skb, struct tso_t *tso)
 		tso->next_frag_idx++;
 	}
 }
+EXPORT_SYMBOL(tso_start);
