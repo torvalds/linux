@@ -621,28 +621,33 @@ EXPORT_SYMBOL(usb_wwan_suspend);
 
 static int play_delayed(struct usb_serial_port *port)
 {
+	struct usb_serial *serial = port->serial;
 	struct usb_wwan_intf_private *data;
 	struct usb_wwan_port_private *portdata;
 	struct urb *urb;
-	int err = 0;
+	int err_count = 0;
+	int err;
 
 	portdata = usb_get_serial_port_data(port);
 	data = port->serial->private;
 	while ((urb = usb_get_from_anchor(&portdata->delayed))) {
 		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (!err) {
-			data->in_flight++;
-		} else {
-			/* we have to throw away the rest */
-			do {
-				unbusy_queued_urb(urb, portdata);
-				usb_autopm_put_interface_no_suspend(port->serial->interface);
-			} while ((urb = usb_get_from_anchor(&portdata->delayed)));
-			break;
+		if (err) {
+			dev_err(&port->dev,
+					"%s: submit write urb failed: %d\n",
+					__func__, err);
+			err_count++;
+			unbusy_queued_urb(urb, portdata);
+			usb_autopm_put_interface_async(serial->interface);
+			continue;
 		}
+		data->in_flight++;
 	}
 
-	return err;
+	if (err_count)
+		return -EIO;
+
+	return 0;
 }
 
 int usb_wwan_resume(struct usb_serial *serial)
