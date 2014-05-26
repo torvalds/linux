@@ -551,7 +551,11 @@ static void dsps_musb_reset(struct musb *musb)
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 
 	dsps_writel(musb->ctrl_base, wrp->control, (1 << wrp->reset));
-	udelay(100);
+	usleep_range(100, 200);
+	usb_phy_shutdown(musb->xceiv);
+	usleep_range(100, 200);
+	usb_phy_init(musb->xceiv);
+
 }
 
 static struct musb_platform_ops dsps_ops = {
