@@ -772,16 +772,12 @@ static void sierra_close(struct usb_serial_port *port)
 	portdata->rts_state = 0;
 	portdata->dtr_state = 0;
 
-	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected) {
-		/* odd error handling due to pm counters */
-		if (!usb_autopm_get_interface(serial->interface))
-			sierra_send_setup(port);
-		else
-			usb_autopm_get_interface_no_resume(serial->interface);
+	/* odd error handling due to pm counters */
+	if (!usb_autopm_get_interface(serial->interface))
+		sierra_send_setup(port);
+	else
+		usb_autopm_get_interface_no_resume(serial->interface);
 
-	}
-	mutex_unlock(&serial->disc_mutex);
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 0;
 	if (--intfdata->open_ports == 0)
