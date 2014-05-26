@@ -97,10 +97,6 @@ double __extendsfdf2(float a)
 #include <linux/seq_file.h>
 // FIXME: check if 2.6.7 is ok
 
-#ifdef CONFIG_RTL8192_PM
-#include "r8192_pm.h"
-#endif
-
 #include "dot11d.h"
 //set here to open your trace code. //WB
 u32 rt_global_debug_component = COMP_DOWN	|
@@ -159,13 +155,8 @@ static struct usb_driver rtl8192_usb_driver = {
 	.id_table	= rtl8192_usb_id_tbl,		  /* PCI_ID table  */
 	.probe		= rtl8192_usb_probe,		  /* probe fn      */
 	.disconnect	= rtl8192_usb_disconnect,	  /* remove fn     */
-#ifdef CONFIG_RTL8192_PM
-	.suspend	= rtl8192_suspend,		  /* PM suspend fn */
-	.resume		= rtl8192_resume,                 /* PM resume fn  */
-#else
 	.suspend	= NULL,				  /* PM suspend fn */
 	.resume		= NULL,				  /* PM resume fn  */
-#endif
 };
 
 
