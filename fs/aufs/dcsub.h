@@ -76,5 +76,11 @@ static inline int au_alive_dir(struct dentry *d)
 	return err;
 }
 
+static inline int au_qstreq(struct qstr *a, struct qstr *b)
+{
+	return a->len == b->len
+		&& !memcmp(a->name, b->name, a->len);
+}
+
 #endif /* __KERNEL__ */
 #endif /* __AUFS_DCSUB_H__ */
