@@ -1729,7 +1729,6 @@ static struct usb_serial_driver option_1port_device = {
 	.write             = usb_wwan_write,
 	.write_room        = usb_wwan_write_room,
 	.chars_in_buffer   = usb_wwan_chars_in_buffer,
-	.set_termios       = usb_wwan_set_termios,
 	.tiocmget          = usb_wwan_tiocmget,
 	.tiocmset          = usb_wwan_tiocmset,
 	.ioctl             = usb_wwan_ioctl,
