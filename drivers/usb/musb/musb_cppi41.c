@@ -74,15 +74,18 @@ static void save_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
 
 static void update_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
 {
+	struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
+	struct musb *musb = hw_ep->musb;
 	u16 csr;
 	u8 toggle;
 
 	if (cppi41_channel->is_tx)
 		return;
-	if (!is_host_active(cppi41_channel->controller->musb))
+	if (!is_host_active(musb))
 		return;
 
-	csr = musb_readw(cppi41_channel->hw_ep->regs, MUSB_RXCSR);
+	musb_ep_select(musb->mregs, hw_ep->epnum);
+	csr = musb_readw(hw_ep->regs, MUSB_RXCSR);
 	toggle = csr & MUSB_RXCSR_H_DATATOGGLE ? 1 : 0;
 
 	/*
@@ -107,6 +110,7 @@ static bool musb_is_tx_fifo_empty(struct musb_hw_ep *hw_ep)
 	void __iomem	*epio = musb->endpoints[epnum].regs;
 	u16		csr;
 
+	musb_ep_select(musb->mregs, hw_ep->epnum);
 	csr = musb_readw(epio, MUSB_TXCSR);
 	if (csr & MUSB_TXCSR_TXPKTRDY)
 		return false;
@@ -173,6 +177,7 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 		dma_async_issue_pending(dc);
 
 		if (!cppi41_channel->is_tx) {
+			musb_ep_select(musb->mregs, hw_ep->epnum);
 			csr = musb_readw(epio, MUSB_RXCSR);
 			csr |= MUSB_RXCSR_H_REQPKT;
 			musb_writew(epio, MUSB_RXCSR, csr);
