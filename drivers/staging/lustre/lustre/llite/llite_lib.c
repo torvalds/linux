@@ -591,8 +591,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	return err;
 out_root:
-	if (root)
-		iput(root);
+	iput(root);
 out_lock_cn_cb:
 	obd_fid_fini(sbi->ll_dt_exp->exp_obd);
 out_dt:
