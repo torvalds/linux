@@ -77,10 +77,14 @@ struct hda_tegra {
 	void __iomem *regs;
 };
 
+#ifdef CONFIG_PM
 static int power_save = CONFIG_SND_HDA_POWER_SAVE_DEFAULT;
 module_param(power_save, bint, 0644);
 MODULE_PARM_DESC(power_save,
 		 "Automatic power-saving timeout (in seconds, 0 = disable).");
+#else
+static int power_save = 0;
+#endif
 
 /*
  * DMA page allocation ops.
