@@ -116,7 +116,7 @@ int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
 {
 	int ntStatus;
 
-	ntStatus = CONTROLnsRequestIn(pDevice,
+	ntStatus = vnt_control_in(pDevice,
 					MESSAGE_TYPE_READ,
 					0,
 					MESSAGE_REQUEST_VERSION,

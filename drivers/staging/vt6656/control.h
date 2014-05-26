@@ -33,9 +33,6 @@
 #include "device.h"
 #include "usbpipe.h"
 
-#define CONTROLnsRequestIn(Device, Request, Value, Index, Length, Buffer) \
-	PIPEnsControlIn(Device, Request, Value, Index, Length, Buffer)
-
 void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
 			u8 data);
 

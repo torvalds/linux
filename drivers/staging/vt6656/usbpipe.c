@@ -27,7 +27,7 @@
  *
  * Functions:
  *	vnt_control_out - Write variable length bytes to MEM/BB/MAC/EEPROM
- *      CONTROLnsRequestIn - Read variable length bytes from MEM/BB/MAC/EEPROM
+ *	vnt_control_in - Read variable length bytes from MEM/BB/MAC/EEPROM
  *      ControlvWriteByte - Write one byte to MEM/BB/MAC/EEPROM
  *      ControlvReadByte - Read one byte from MEM/BB/MAC/EEPROM
  *      ControlvMaskByte - Read one byte from MEM/BB/MAC/EEPROM and clear/set some bits in the same address
@@ -83,7 +83,7 @@ int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
 	return STATUS_SUCCESS;
 }
 
-int PIPEnsControlIn(struct vnt_private *priv, u8 request, u16 value,
+int vnt_control_in(struct vnt_private *priv, u8 request, u16 value,
 		u16 index, u16 length, u8 *buffer)
 {
 	int status;

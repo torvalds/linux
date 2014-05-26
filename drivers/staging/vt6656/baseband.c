@@ -893,7 +893,7 @@ int BBbVT3184Init(struct vnt_private *priv)
 	u8 array[256];
 	u8 data;
 
-	status = CONTROLnsRequestIn(priv, MESSAGE_TYPE_READ, 0,
+	status = vnt_control_in(priv, MESSAGE_TYPE_READ, 0,
 		MESSAGE_REQUEST_EEPROM, EEP_MAX_CONTEXT_SIZE,
 						priv->abyEEPROM);
 	if (status != STATUS_SUCCESS)
@@ -1044,7 +1044,7 @@ int BBbVT3184Init(struct vnt_private *priv)
 
 
 	/* Fix for TX USB resets from vendors driver */
-	CONTROLnsRequestIn(priv, MESSAGE_TYPE_READ, USB_REG4,
+	vnt_control_in(priv, MESSAGE_TYPE_READ, USB_REG4,
 		MESSAGE_REQUEST_MEM, sizeof(data), &data);
 
 	data |= 0x2;

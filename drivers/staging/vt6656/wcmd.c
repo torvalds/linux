@@ -725,7 +725,7 @@ void vRunCommand(struct work_struct *work)
 			int ntStatus = STATUS_SUCCESS;
 			u8            byTmp;
 
-			ntStatus = CONTROLnsRequestIn(pDevice,
+			ntStatus = vnt_control_in(pDevice,
 					MESSAGE_TYPE_READ,
 					MAC_REG_GPIOCTL1,
 					MESSAGE_REQUEST_MACREG,

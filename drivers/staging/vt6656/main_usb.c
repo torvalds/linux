@@ -322,7 +322,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 		return false;
 	}
 
-	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_INIT_RSP, 0, 0,
+	ntStatus = vnt_control_in(pDevice, MESSAGE_TYPE_INIT_RSP, 0, 0,
 		sizeof(struct vnt_rsp_card_init), (u8 *)init_rsp);
 	if (ntStatus != STATUS_SUCCESS) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
@@ -331,7 +331,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 	}
 
 	/* local ID for AES functions */
-	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
+	ntStatus = vnt_control_in(pDevice, MESSAGE_TYPE_READ,
 		MAC_REG_LOCALID, MESSAGE_REQUEST_MACREG, 1,
 			&pDevice->byLocalID);
 	if (ntStatus != STATUS_SUCCESS)
@@ -535,7 +535,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 	pDevice->bHWRadioOff = false;
 
 	if ((pDevice->byRadioCtl & EEP_RADIOCTL_ENABLE) != 0) {
-		ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
+		ntStatus = vnt_control_in(pDevice, MESSAGE_TYPE_READ,
 			MAC_REG_GPIOCTL1, MESSAGE_REQUEST_MACREG, 1, &byTmp);
 
 		if (ntStatus != STATUS_SUCCESS)
@@ -1269,7 +1269,7 @@ void vnt_configure_filter(struct vnt_private *priv)
 	u8 tmp = 0;
 	int rc;
 
-	rc = CONTROLnsRequestIn(priv, MESSAGE_TYPE_READ,
+	rc = vnt_control_in(priv, MESSAGE_TYPE_READ,
 		MAC_REG_RCR, MESSAGE_REQUEST_MACREG, 1, &tmp);
 	if (rc == 0)
 		priv->byRxMode = tmp;
