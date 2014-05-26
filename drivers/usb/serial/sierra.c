@@ -372,13 +372,6 @@ static int sierra_send_setup(struct usb_serial_port *port)
 	return retval;
 }
 
-static void sierra_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
-{
-	tty_termios_copy_hw(&tty->termios, old_termios);
-	sierra_send_setup(port);
-}
-
 static int sierra_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1079,7 +1072,6 @@ static struct usb_serial_driver sierra_device = {
 	.write             = sierra_write,
 	.write_room        = sierra_write_room,
 	.chars_in_buffer   = sierra_chars_in_buffer,
-	.set_termios       = sierra_set_termios,
 	.tiocmget          = sierra_tiocmget,
 	.tiocmset          = sierra_tiocmset,
 	.attach            = sierra_startup,
