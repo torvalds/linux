@@ -769,14 +769,7 @@ static void sierra_close(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	portdata->rts_state = 0;
-	portdata->dtr_state = 0;
-
-	/* odd error handling due to pm counters */
-	if (!usb_autopm_get_interface(serial->interface))
-		sierra_send_setup(port);
-	else
-		usb_autopm_get_interface_no_resume(serial->interface);
+	usb_autopm_get_interface_no_resume(serial->interface);
 
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 0;
@@ -817,11 +810,6 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	/* Set some sane defaults */
-	portdata->rts_state = 1;
-	portdata->dtr_state = 1;
-
-
 	endpoint = port->bulk_in_endpointAddress;
 	for (i = 0; i < portdata->num_in_urbs; i++) {
 		urb = sierra_setup_urb(serial, endpoint, USB_DIR_IN, port,
@@ -836,8 +824,6 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 	err = sierra_submit_rx_urbs(port, GFP_KERNEL);
 	if (err)
 		goto err_submit;
-
-	sierra_send_setup(port);
 
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 1;
