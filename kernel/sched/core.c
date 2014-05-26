@@ -5764,7 +5764,7 @@ static int get_group(int cpu, struct sd_data *sdd, struct sched_group **sg)
 /*
  * build_sched_groups will build a circular linked list of the groups
  * covered by the given span, and will set each group's ->cpumask correctly,
- * and ->cpu_power to 0.
+ * and ->cpu_capacity to 0.
  *
  * Assumes the sched_domain tree is fully constructed
  */
@@ -6471,7 +6471,7 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 		}
 	}
 
-	/* Calculate CPU power for physical packages and nodes */
+	/* Calculate CPU capacity for physical packages and nodes */
 	for (i = nr_cpumask_bits-1; i >= 0; i--) {
 		if (!cpumask_test_cpu(i, cpu_map))
 			continue;
@@ -6921,7 +6921,7 @@ void __init sched_init(void)
 #ifdef CONFIG_SMP
 		rq->sd = NULL;
 		rq->rd = NULL;
-		rq->cpu_power = SCHED_POWER_SCALE;
+		rq->cpu_capacity = SCHED_POWER_SCALE;
 		rq->post_schedule = 0;
 		rq->active_balance = 0;
 		rq->next_balance = jiffies;

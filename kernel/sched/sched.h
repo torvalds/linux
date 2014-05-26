@@ -567,7 +567,7 @@ struct rq {
 	struct root_domain *rd;
 	struct sched_domain *sd;
 
-	unsigned long cpu_power;
+	unsigned long cpu_capacity;
 
 	unsigned char idle_balance;
 	/* For active balancing */
