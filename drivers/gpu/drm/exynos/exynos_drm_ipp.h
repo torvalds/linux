@@ -142,7 +142,6 @@ struct exynos_drm_ipp_ops {
  * @parent_dev: parent device information.
  * @dev: platform device.
  * @drm_dev: drm device.
- * @ipp_id: id of ipp driver.
  * @dedicated: dedicated ipp device.
  * @ops: source, destination operations.
  * @event_workq: event work queue.
