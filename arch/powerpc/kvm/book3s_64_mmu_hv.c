@@ -585,6 +585,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	struct kvm *kvm = vcpu->kvm;
 	unsigned long *hptep, hpte[3], r;
 	unsigned long mmu_seq, psize, pte_size;
+	unsigned long gpa_base, gfn_base;
 	unsigned long gpa, gfn, hva, pfn;
 	struct kvm_memory_slot *memslot;
 	unsigned long *rmap;
@@ -623,7 +624,9 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	/* Translate the logical address and get the page */
 	psize = hpte_page_size(hpte[0], r);
-	gpa = (r & HPTE_R_RPN & ~(psize - 1)) | (ea & (psize - 1));
+	gpa_base = r & HPTE_R_RPN & ~(psize - 1);
+	gfn_base = gpa_base >> PAGE_SHIFT;
+	gpa = gpa_base | (ea & (psize - 1));
 	gfn = gpa >> PAGE_SHIFT;
 	memslot = gfn_to_memslot(kvm, gfn);
 
@@ -634,6 +637,13 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	if (!kvm->arch.using_mmu_notifiers)
 		return -EFAULT;		/* should never get here */
+
+	/*
+	 * This should never happen, because of the slot_is_aligned()
+	 * check in kvmppc_do_h_enter().
+	 */
+	if (gfn_base < memslot->base_gfn)
+		return -EFAULT;
 
 	/* used to check for invalidations in progress */
 	mmu_seq = kvm->mmu_notifier_seq;
@@ -727,7 +737,8 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		goto out_unlock;
 	hpte[0] = (hpte[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
 
-	rmap = &memslot->arch.rmap[gfn - memslot->base_gfn];
+	/* Always put the HPTE in the rmap chain for the page base address */
+	rmap = &memslot->arch.rmap[gfn_base - memslot->base_gfn];
 	lock_rmap(rmap);
 
 	/* Check if we might have been invalidated; let the guest retry if so */
