@@ -4725,8 +4725,6 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x061f, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0629, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x062c, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x1028, 0x062e, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x1028, 0x0632, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0638, "Dell Inspiron 5439", ALC290_FIXUP_MONO_SPEAKERS_HSJACK),
 	SND_PCI_QUIRK(0x1028, 0x063e, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x063f, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
@@ -4921,6 +4919,50 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{}
 };
 
+static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
+	{
+		.codec = 0x10ec0293,
+		.subvendor = 0x1028,
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+		.name = "Dell",
+#endif
+		.pins = (const struct hda_pintbl[]) {
+			{0x12, 0x40000000},
+			{0x13, 0x90a60140},
+			{0x14, 0x90170110},
+			{0x15, 0x0221401f},
+			{0x16, 0x21014020},
+			{0x18, 0x411111f0},
+			{0x19, 0x21a19030},
+			{0x1a, 0x411111f0},
+			{0x1b, 0x411111f0},
+			{0x1d, 0x40700001},
+			{0x1e, 0x411111f0},
+		},
+		.value = ALC269_FIXUP_DELL1_MIC_NO_PRESENCE,
+	},
+	{
+		.codec = 0x10ec0255,
+		.subvendor = 0x1028,
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+		.name = "Dell",
+#endif
+		.pins = (const struct hda_pintbl[]) {
+			{0x12, 0x90a60140},
+			{0x14, 0x90170110},
+			{0x17, 0x40000000},
+			{0x18, 0x411111f0},
+			{0x19, 0x411111f0},
+			{0x1a, 0x411111f0},
+			{0x1b, 0x411111f0},
+			{0x1d, 0x40700001},
+			{0x1e, 0x411111f0},
+			{0x21, 0x02211020},
+		},
+		.value = ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
+	},
+	{}
+};
 
 static void alc269_fill_coef(struct hda_codec *codec)
 {
@@ -4982,6 +5024,7 @@ static int patch_alc269(struct hda_codec *codec)
 
 	snd_hda_pick_fixup(codec, alc269_fixup_models,
 		       alc269_fixup_tbl, alc269_fixups);
+	snd_hda_pick_pin_fixup(codec, alc269_pin_fixup_tbl, alc269_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	alc_auto_parse_customize_define(codec);
