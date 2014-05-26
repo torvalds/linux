@@ -849,13 +849,11 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 
 			domain_flush_cache(domain, tmp_page, VTD_PAGE_SIZE);
 			pteval = ((uint64_t)virt_to_dma_pfn(tmp_page) << VTD_PAGE_SHIFT) | DMA_PTE_READ | DMA_PTE_WRITE;
-			if (cmpxchg64(&pte->val, 0ULL, pteval)) {
+			if (cmpxchg64(&pte->val, 0ULL, pteval))
 				/* Someone else set it while we were thinking; use theirs. */
 				free_pgtable_page(tmp_page);
-			} else {
-				dma_pte_addr(pte);
+			else
 				domain_flush_cache(domain, pte, sizeof(*pte));
-			}
 		}
 		if (level == 1)
 			break;
