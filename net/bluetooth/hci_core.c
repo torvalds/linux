@@ -1734,9 +1734,7 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
 
 	/* Enable Secure Connections if supported and configured */
-	if ((lmp_sc_capable(hdev) ||
-	     test_bit(HCI_FORCE_SC, &hdev->dbg_flags)) &&
-	    test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+	if (bredr_sc_enabled(hdev)) {
 		u8 support = 0x01;
 		hci_req_add(req, HCI_OP_WRITE_SC_SUPPORT,
 			    sizeof(support), &support);

@@ -4027,7 +4027,7 @@ static void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 
 	data = hci_find_remote_oob_data(hdev, &ev->bdaddr);
 	if (data) {
-		if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+		if (bredr_sc_enabled(hdev)) {
 			struct hci_cp_remote_oob_ext_data_reply cp;
 
 			bacpy(&cp.bdaddr, &ev->bdaddr);

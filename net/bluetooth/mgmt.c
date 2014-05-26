@@ -3562,7 +3562,7 @@ static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags))
+	if (bredr_sc_enabled(hdev))
 		err = hci_send_cmd(hdev, HCI_OP_READ_LOCAL_OOB_EXT_DATA,
 				   0, NULL);
 	else
@@ -6803,8 +6803,7 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 		cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
 			   mgmt_status(status));
 	} else {
-		if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags) &&
-		    hash256 && rand256) {
+		if (bredr_sc_enabled(hdev) && hash256 && rand256) {
 			struct mgmt_rp_read_local_oob_ext_data rp;
 
 			memcpy(rp.hash192, hash192, sizeof(rp.hash192));
