@@ -234,6 +234,10 @@
 	};
 };
 
+&uart3 {
+	interrupts-extended = <&intc 74 &omap3_pmx_core OMAP3_UART3_RX>;
+};
+
 &usb_otg_hs {
 	pinctrl-names = "default";
 	pinctrl-0 = <&musb_pins>;

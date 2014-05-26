@@ -21,6 +21,17 @@
 		};
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		heartbeat {
+			label = "debug::sleep";
+			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;  /* gpio162 */
+			linux,default-trigger = "default-on";
+			pinctrl-names = "default";
+			pinctrl-0 = <&debug_leds>;
+		};
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
@@ -127,6 +138,12 @@
 		pinctrl-single,pins = <
 			0x192 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_scl */
 			0x194 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_sda */
+		>;
+	};
+
+	debug_leds: pinmux_debug_led_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2198, PIN_OUTPUT | MUX_MODE4)	/* mcbsp1_clkx.gpio_162 */
 		>;
 	};
 
@@ -618,11 +635,13 @@
 };
 
 &uart2 {
+	interrupts-extended = <&intc 73 &omap3_pmx_core OMAP3_UART2_RX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
 };
 
 &uart3 {
+	interrupts-extended = <&intc 74 &omap3_pmx_core OMAP3_UART3_RX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
 };

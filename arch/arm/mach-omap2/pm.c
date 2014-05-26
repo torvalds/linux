@@ -298,25 +298,21 @@ omap_postcore_initcall(omap2_common_pm_init);
 
 int __init omap2_common_pm_late_init(void)
 {
-	/*
-	 * In the case of DT, the PMIC and SR initialization will be done using
-	 * a completely different mechanism.
-	 * Disable this part if a DT blob is available.
-	 */
-	if (!of_have_populated_dt()) {
-
-		/* Init the voltage layer */
-		omap_pmic_late_init();
-		omap_voltage_late_init();
-
-		/* Initialize the voltages */
-		omap3_init_voltages();
-		omap4_init_voltages();
-
-		/* Smartreflex device init */
-		omap_devinit_smartreflex();
-
+	if (of_have_populated_dt()) {
+		omap3_twl_init();
+		omap4_twl_init();
 	}
+
+	/* Init the voltage layer */
+	omap_pmic_late_init();
+	omap_voltage_late_init();
+
+	/* Initialize the voltages */
+	omap3_init_voltages();
+	omap4_init_voltages();
+
+	/* Smartreflex device init */
+	omap_devinit_smartreflex();
 
 	/* cpufreq dummy device instantiation */
 	omap_init_cpufreq();
