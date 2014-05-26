@@ -48,7 +48,6 @@ struct usb_wwan_port_private {
 	struct urb *out_urbs[N_OUT_URB];
 	u8 *out_buffer[N_OUT_URB];
 	unsigned long out_busy;	/* Bit vector of URBs in use */
-	int opened;
 	struct usb_anchor delayed;
 
 	/* Settings for the port */
