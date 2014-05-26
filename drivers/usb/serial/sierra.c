@@ -964,22 +964,18 @@ static void stop_read_write_urbs(struct usb_serial *serial)
 
 static int sierra_suspend(struct usb_serial *serial, pm_message_t message)
 {
-	struct sierra_intf_private *intfdata;
-	int b;
+	struct sierra_intf_private *intfdata = usb_get_serial_data(serial);
 
+	spin_lock_irq(&intfdata->susp_lock);
 	if (PMSG_IS_AUTO(message)) {
-		intfdata = usb_get_serial_data(serial);
-		spin_lock_irq(&intfdata->susp_lock);
-		b = intfdata->in_flight;
-
-		if (b) {
+		if (intfdata->in_flight) {
 			spin_unlock_irq(&intfdata->susp_lock);
 			return -EBUSY;
-		} else {
-			intfdata->suspended = 1;
-			spin_unlock_irq(&intfdata->susp_lock);
 		}
 	}
+	intfdata->suspended = 1;
+	spin_unlock_irq(&intfdata->susp_lock);
+
 	stop_read_write_urbs(serial);
 
 	return 0;
