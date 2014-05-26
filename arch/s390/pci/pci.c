@@ -530,11 +530,6 @@ static void zpci_unmap_resources(struct zpci_dev *zdev)
 	}
 }
 
-int pcibios_add_platform_entries(struct pci_dev *pdev)
-{
-	return zpci_sysfs_add_device(&pdev->dev);
-}
-
 static int __init zpci_irq_init(void)
 {
 	int rc;
@@ -671,6 +666,7 @@ int pcibios_add_device(struct pci_dev *pdev)
 	int i;
 
 	zdev->pdev = pdev;
+	pdev->dev.groups = zpci_attr_groups;
 	zpci_map_resources(zdev);
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {

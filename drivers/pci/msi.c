@@ -878,50 +878,6 @@ int pci_msi_vec_count(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_msi_vec_count);
 
-/**
- * pci_enable_msi_block - configure device's MSI capability structure
- * @dev: device to configure
- * @nvec: number of interrupts to configure
- *
- * Allocate IRQs for a device with the MSI capability.
- * This function returns a negative errno if an error occurs.  If it
- * is unable to allocate the number of interrupts requested, it returns
- * the number of interrupts it might be able to allocate.  If it successfully
- * allocates at least the number of interrupts requested, it returns 0 and
- * updates the @dev's irq member to the lowest new interrupt number; the
- * other interrupt numbers allocated to this device are consecutive.
- */
-int pci_enable_msi_block(struct pci_dev *dev, int nvec)
-{
-	int status, maxvec;
-
-	if (dev->current_state != PCI_D0)
-		return -EINVAL;
-
-	maxvec = pci_msi_vec_count(dev);
-	if (maxvec < 0)
-		return maxvec;
-	if (nvec > maxvec)
-		return maxvec;
-
-	status = pci_msi_check_device(dev, nvec, PCI_CAP_ID_MSI);
-	if (status)
-		return status;
-
-	WARN_ON(!!dev->msi_enabled);
-
-	/* Check whether driver already requested MSI-X irqs */
-	if (dev->msix_enabled) {
-		dev_info(&dev->dev, "can't enable MSI "
-			 "(MSI-X already enabled)\n");
-		return -EINVAL;
-	}
-
-	status = msi_capability_init(dev, nvec);
-	return status;
-}
-EXPORT_SYMBOL(pci_enable_msi_block);
-
 void pci_msi_shutdown(struct pci_dev *dev)
 {
 	struct msi_desc *desc;
@@ -1127,14 +1083,45 @@ void pci_msi_init_pci_dev(struct pci_dev *dev)
  **/
 int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 {
-	int nvec = maxvec;
+	int nvec;
 	int rc;
+
+	if (dev->current_state != PCI_D0)
+		return -EINVAL;
+
+	WARN_ON(!!dev->msi_enabled);
+
+	/* Check whether driver already requested MSI-X irqs */
+	if (dev->msix_enabled) {
+		dev_info(&dev->dev,
+			 "can't enable MSI (MSI-X already enabled)\n");
+		return -EINVAL;
+	}
 
 	if (maxvec < minvec)
 		return -ERANGE;
 
+	nvec = pci_msi_vec_count(dev);
+	if (nvec < 0)
+		return nvec;
+	else if (nvec < minvec)
+		return -EINVAL;
+	else if (nvec > maxvec)
+		nvec = maxvec;
+
 	do {
-		rc = pci_enable_msi_block(dev, nvec);
+		rc = pci_msi_check_device(dev, nvec, PCI_CAP_ID_MSI);
+		if (rc < 0) {
+			return rc;
+		} else if (rc > 0) {
+			if (rc < minvec)
+				return -ENOSPC;
+			nvec = rc;
+		}
+	} while (rc);
+
+	do {
+		rc = msi_capability_init(dev, nvec);
 		if (rc < 0) {
 			return rc;
 		} else if (rc > 0) {
