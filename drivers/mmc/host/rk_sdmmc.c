@@ -1203,7 +1203,7 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 EXIT_POWER:
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
-		set_bit(DW_MMC_CARD_NEED_INIT, &slot->flags);
+	        set_bit(DW_MMC_CARD_NEED_INIT, &slot->flags);
 		/* Power up slot */
 		if (slot->host->pdata->setpower)
 			slot->host->pdata->setpower(slot->id, mmc->ocr_avail);
@@ -1218,6 +1218,11 @@ EXIT_POWER:
 		regs = mci_readl(slot->host, PWREN);
 		regs &= ~(1 << slot->id);
 		mci_writel(slot->host, PWREN, regs);
+		/* SD card should wake clk system for CD int */
+		if(!(mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)){
+		        clk_disable_unprepare(slot->host->clk_mmc);
+		        clk_disable_unprepare(slot->host->hclk_mmc);
+		}
 		break;
 	default:
 		break;
@@ -1256,11 +1261,13 @@ static int dw_mci_set_sdio_status(struct mmc_host *mmc, int val)
         return 0;
         
     spin_lock_bh(&host->lock);
-    if(val)
+    if(val){
         set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-    else
+        clk_prepare_enable(host->hclk_mmc);
+        clk_prepare_enable(host->clk_mmc);
+    }else{
         clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-    
+    }
     spin_unlock_bh(&host->lock);
     
     mmc_detect_change(slot->mmc, 20);    
@@ -3201,6 +3208,7 @@ int dw_mci_probe(struct dw_mci *host)
                 ret = PTR_ERR(host->hclk_mmc);
                 goto err_hclk_mmc;
         }
+
         clk_prepare_enable(host->hclk_mmc);
 
         //mmc clk enable
