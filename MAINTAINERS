@@ -2933,6 +2933,7 @@ L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~airlied/linux
 S:	Maintained
 F:	drivers/gpu/drm/
+F:	drivers/gpu/vga/
 F:	include/drm/
 F:	include/uapi/drm/
 
