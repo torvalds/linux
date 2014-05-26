@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/kthread.h>
 #include <linux/firmware.h>
