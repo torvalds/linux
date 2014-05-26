@@ -391,7 +391,8 @@ restore:
 
 	return ret;
 }
-
+#else
+#define omap3_pm_suspend NULL
 #endif /* CONFIG_SUSPEND */
 
 
@@ -705,9 +706,7 @@ int __init omap3_pm_init(void)
 	per_clkdm = clkdm_lookup("per_clkdm");
 	wkup_clkdm = clkdm_lookup("wkup_clkdm");
 
-#ifdef CONFIG_SUSPEND
-	omap_pm_suspend = omap3_pm_suspend;
-#endif
+	omap_common_suspend_init(omap3_pm_suspend);
 
 	arm_pm_idle = omap3_pm_idle;
 	omap3_idle_init();
