@@ -3045,11 +3045,10 @@ static int __init lpc32xx_udc_probe(struct platform_device *pdev)
 	dma_addr_t dma_handle;
 	struct device_node *isp1301_node;
 
-	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
+	udc = kmemdup(&controller_template, sizeof(*udc), GFP_KERNEL);
 	if (!udc)
 		return -ENOMEM;
 
-	memcpy(udc, &controller_template, sizeof(*udc));
 	for (i = 0; i <= 15; i++)
 		udc->ep[i].udc = udc;
 	udc->gadget.ep0 = &udc->ep[0].ep;
