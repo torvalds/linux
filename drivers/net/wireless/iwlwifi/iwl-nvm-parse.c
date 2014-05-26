@@ -272,9 +272,14 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 		if (ch_idx >= num_2ghz_channels &&
 		    !data->sku_cap_band_52GHz_enable)
-			ch_flags &= ~NVM_CHANNEL_VALID;
+			continue;
 
 		if (!lar_supported && !(ch_flags & NVM_CHANNEL_VALID)) {
+			/*
+			 * Channels might become valid later if lar is
+			 * supported, hence we still want to add them to
+			 * the list of supported channels to cfg80211.
+			 */
 			IWL_DEBUG_EEPROM(dev,
 					 "Ch. %d Flags %x [%sGHz] - No traffic\n",
 					 nvm_chan[ch_idx],
