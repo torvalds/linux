@@ -933,6 +933,7 @@ static int sierra_port_remove(struct usb_serial_port *port)
 	struct sierra_port_private *portdata;
 
 	portdata = usb_get_serial_port_data(port);
+	usb_set_serial_port_data(port, NULL);
 	kfree(portdata);
 
 	return 0;
@@ -949,6 +950,8 @@ static void stop_read_write_urbs(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		portdata = usb_get_serial_port_data(port);
+		if (!portdata)
+			continue;
 		sierra_stop_rx_urbs(port);
 		usb_kill_anchored_urbs(&portdata->active);
 	}
@@ -990,6 +993,9 @@ static int sierra_resume(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
 		portdata = usb_get_serial_port_data(port);
+
+		if (!portdata)
+			continue;
 
 		while ((urb = usb_get_from_anchor(&portdata->delayed))) {
 			usb_anchor_urb(urb, &portdata->active);
