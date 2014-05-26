@@ -546,20 +546,17 @@ int usb_wwan_port_remove(struct usb_serial_port *port)
 	portdata = usb_get_serial_port_data(port);
 	usb_set_serial_port_data(port, NULL);
 
-	/* Stop reading/writing urbs and free them */
 	for (i = 0; i < N_IN_URB; i++) {
-		usb_kill_urb(portdata->in_urbs[i]);
 		usb_free_urb(portdata->in_urbs[i]);
 		free_page((unsigned long)portdata->in_buffer[i]);
 	}
 	for (i = 0; i < N_OUT_URB; i++) {
-		usb_kill_urb(portdata->out_urbs[i]);
 		usb_free_urb(portdata->out_urbs[i]);
 		kfree(portdata->out_buffer[i]);
 	}
 
-	/* Now free port private data */
 	kfree(portdata);
+
 	return 0;
 }
 EXPORT_SYMBOL(usb_wwan_port_remove);
