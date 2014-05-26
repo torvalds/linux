@@ -2351,14 +2351,6 @@ static int comedi_open(struct inode *inode, struct file *file)
 	if (capable(CAP_NET_ADMIN) && dev->in_request_module)
 		goto ok;
 
-	dev->in_request_module = true;
-
-#ifdef CONFIG_KMOD
-	mutex_unlock(&dev->mutex);
-	request_module("char-major-%i-%i", COMEDI_MAJOR, dev->minor);
-	mutex_lock(&dev->mutex);
-#endif
-
 	dev->in_request_module = false;
 
 	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
