@@ -69,6 +69,7 @@ int
 nv94_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 {
 	struct nv50_disp_priv *priv = (void *)nouveau_disp(outp);
+	const u32 soff = nv94_sor_soff(outp);
 	const u32 loff = nv94_sor_loff(outp);
 	u32 mask = 0, i;
 
@@ -76,6 +77,8 @@ nv94_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 		mask |= 1 << (nv94_sor_dp_lane_map(priv, i) >> 3);
 
 	nv_mask(priv, 0x61c130 + loff, 0x0000000f, mask);
+	nv_mask(priv, 0x61c034 + soff, 0x80000000, 0x80000000);
+	nv_wait(priv, 0x61c034 + soff, 0x80000000, 0x00000000);
 	return 0;
 }
 
