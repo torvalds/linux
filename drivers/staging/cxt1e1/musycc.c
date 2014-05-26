@@ -918,9 +918,6 @@ musycc_bh_tx_eom(mpi_t *pi, int gchan)
 
 		md->data = 0;
 		if (md->mem_token) {
-#ifdef CONFIG_SBE_WAN256T3_NCOMM
-			int hdlcnum = 0;
-#endif
 			/* upcount channel */
 			atomic_sub(OS_mem_token_tlen(md->mem_token),
 				   &ch->tx_pending);
@@ -931,18 +928,6 @@ musycc_bh_tx_eom(mpi_t *pi, int gchan)
 			if (!atomic_read(&pi->up->tx_pending))
 				wan256t3_led(pi->up, LED_TX, 0);
 #endif
-
-#ifdef CONFIG_SBE_WAN256T3_NCOMM
-			/* callback that our packet was sent */
-			hdlcnum = (pi->portnum * 32 + gchan);
-
-			if (hdlcnum >= 228) {
-				if (nciProcess_TX_complete)
-					(*nciProcess_TX_complete) (hdlcnum,
-							getuserbychan(gchan));
-			}
-#endif /* CONFIG_SBE_WAN256T3_NCOMM */
-
 			OS_mem_token_free_irq(md->mem_token);
 			md->mem_token = NULL;
 		}
@@ -1039,21 +1024,6 @@ musycc_bh_rx_eom(mpi_t *pi, int gchan)
 		m = md->mem_token;
 		error = (status >> 16) & 0xf;
 		if (error == 0) {
-#ifdef CONFIG_SBE_WAN256T3_NCOMM
-			int         hdlcnum = (pi->portnum * 32 + gchan);
-
-			/*
-			 * if the packet number belongs to NCOMM, then send it to the TMS
-			 * driver
-			 */
-			if (hdlcnum >= 228) {
-				if (nciProcess_RX_packet)
-					(*nciProcess_RX_packet)(hdlcnum,
-								status & 0x3fff,
-								m, ch->user);
-			} else
-#endif                              /*** CONFIG_SBE_WAN256T3_NCOMM ***/
-
 			{
 				m2 = OS_mem_token_alloc(cxt1e1_max_mru);
 				if (m2) {
