@@ -111,6 +111,11 @@ config SOC_EXYNOS5260
 	default y
 	depends on ARCH_EXYNOS5
 
+config SOC_EXYNOS5410
+	bool "SAMSUNG EXYNOS5410"
+	default y
+	depends on ARCH_EXYNOS5
+
 config SOC_EXYNOS5420
 	bool "SAMSUNG EXYNOS5420"
 	default y
