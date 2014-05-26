@@ -178,7 +178,6 @@ int usb_wwan_ioctl(struct tty_struct *tty,
 }
 EXPORT_SYMBOL(usb_wwan_ioctl);
 
-/* Write */
 int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,
 		   const unsigned char *buf, int count)
 {
@@ -429,7 +428,6 @@ void usb_wwan_close(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	/* Stop reading/writing urbs */
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 0;
 	if (--intfdata->open_ports == 0)
@@ -454,7 +452,6 @@ void usb_wwan_close(struct usb_serial_port *port)
 }
 EXPORT_SYMBOL(usb_wwan_close);
 
-/* Helper functions used by usb_wwan_setup_urbs */
 static struct urb *usb_wwan_setup_urb(struct usb_serial_port *port,
 				      int endpoint,
 				      int dir, void *ctx, char *buf, int len,
@@ -467,7 +464,6 @@ static struct urb *usb_wwan_setup_urb(struct usb_serial_port *port,
 	if (!urb)
 		return NULL;
 
-	/* Fill URB using supplied data. */
 	usb_fill_bulk_urb(urb, serial->dev,
 			  usb_sndbulkpipe(serial->dev, endpoint) | dir,
 			  buf, len, callback, ctx);
@@ -567,7 +563,6 @@ static void stop_urbs(struct usb_serial *serial)
 	struct usb_serial_port *port;
 	struct usb_wwan_port_private *portdata;
 
-	/* Stop reading/writing urbs */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		portdata = usb_get_serial_port_data(port);
@@ -648,11 +643,9 @@ int usb_wwan_resume(struct usb_serial *serial)
 
 	spin_lock_irq(&intfdata->susp_lock);
 	for (i = 0; i < serial->num_ports; i++) {
-		/* walk all ports */
 		port = serial->port[i];
 		portdata = usb_get_serial_port_data(port);
 
-		/* skip closed ports */
 		if (!portdata || !portdata->opened)
 			continue;
 
