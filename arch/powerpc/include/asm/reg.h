@@ -670,18 +670,20 @@
 #define   MMCR0_PROBLEM_DISABLE MMCR0_FCP
 #define   MMCR0_FCM1	0x10000000UL /* freeze counters while MSR mark = 1 */
 #define   MMCR0_FCM0	0x08000000UL /* freeze counters while MSR mark = 0 */
-#define   MMCR0_PMXE	0x04000000UL /* performance monitor exception enable */
-#define   MMCR0_FCECE	0x02000000UL /* freeze ctrs on enabled cond or event */
+#define   MMCR0_PMXE	ASM_CONST(0x04000000) /* perf mon exception enable */
+#define   MMCR0_FCECE	ASM_CONST(0x02000000) /* freeze ctrs on enabled cond or event */
 #define   MMCR0_TBEE	0x00400000UL /* time base exception enable */
 #define   MMCR0_BHRBA	0x00200000UL /* BHRB Access allowed in userspace */
 #define   MMCR0_EBE	0x00100000UL /* Event based branch enable */
 #define   MMCR0_PMCC	0x000c0000UL /* PMC control */
 #define   MMCR0_PMCC_U6	0x00080000UL /* PMC1-6 are R/W by user (PR) */
 #define   MMCR0_PMC1CE	0x00008000UL /* PMC1 count enable*/
-#define   MMCR0_PMCjCE	0x00004000UL /* PMCj count enable*/
+#define   MMCR0_PMCjCE	ASM_CONST(0x00004000) /* PMCj count enable*/
 #define   MMCR0_TRIGGER	0x00002000UL /* TRIGGER enable */
-#define   MMCR0_PMAO_SYNC 0x00000800UL /* PMU interrupt is synchronous */
-#define   MMCR0_PMAO	0x00000080UL /* performance monitor alert has occurred, set to 0 after handling exception */
+#define   MMCR0_PMAO_SYNC ASM_CONST(0x00000800) /* PMU intr is synchronous */
+#define   MMCR0_C56RUN	ASM_CONST(0x00000100) /* PMC5/6 count when RUN=0 */
+/* performance monitor alert has occurred, set to 0 after handling exception */
+#define   MMCR0_PMAO	ASM_CONST(0x00000080)
 #define   MMCR0_SHRFC	0x00000040UL /* SHRre freeze conditions between threads */
 #define   MMCR0_FC56	0x00000010UL /* freeze counters 5 and 6 */
 #define   MMCR0_FCTI	0x00000008UL /* freeze counters in tags inactive mode */
