@@ -747,9 +747,6 @@ static struct urb *sierra_setup_urb(struct usb_serial *serial, int endpoint,
 	struct urb	*urb;
 	u8		*buf;
 
-	if (endpoint == -1)
-		return NULL;
-
 	urb = usb_alloc_urb(0, mem_flags);
 	if (!urb)
 		return NULL;
