@@ -143,7 +143,7 @@ static const char *clkout1_s3c2410_p[] = { "mpll", "upll", "fclk", "hclk", "pclk
 
 static const char *clkout0_s3c2412_p[] = { "mpll", "upll", "rtc_clkout",
 			     "hclk", "pclk", "gate_dclk0" };
-static const char *clkout1_s3c2412_p) = { "xti", "upll", "fclk", "hclk", "pclk",
+static const char *clkout1_s3c2412_p[] = { "xti", "upll", "fclk", "hclk", "pclk",
 			     "gate_dclk1" };
 
 static const char *clkout0_s3c2440_p[] = { "xti", "upll", "fclk", "hclk", "pclk",
