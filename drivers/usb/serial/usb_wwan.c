@@ -602,7 +602,8 @@ int usb_wwan_suspend(struct usb_serial *serial, pm_message_t message)
 }
 EXPORT_SYMBOL(usb_wwan_suspend);
 
-static int play_delayed(struct usb_serial_port *port)
+/* Caller must hold susp_lock. */
+static int usb_wwan_submit_delayed_urbs(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct usb_wwan_intf_private *data = usb_get_serial_data(serial);
@@ -613,11 +614,14 @@ static int play_delayed(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	while ((urb = usb_get_from_anchor(&portdata->delayed))) {
+	for (;;) {
+		urb = usb_get_from_anchor(&portdata->delayed);
+		if (!urb)
+			break;
+
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err) {
-			dev_err(&port->dev,
-					"%s: submit write urb failed: %d\n",
+			dev_err(&port->dev, "%s: submit urb failed: %d\n",
 					__func__, err);
 			err_count++;
 			unbusy_queued_urb(urb, portdata);
@@ -664,7 +668,7 @@ int usb_wwan_resume(struct usb_serial *serial)
 			}
 		}
 
-		err = play_delayed(port);
+		err = usb_wwan_submit_delayed_urbs(port);
 		if (err)
 			err_count++;
 
