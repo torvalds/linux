@@ -1326,6 +1326,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 	}
 
 	/* FIXME: implement signal strength */
+	rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	hdr = (struct ieee80211_hdr *)msdu_head->data;
 	rxd = (void *)msdu_head->data - sizeof(*rxd);
