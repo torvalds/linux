@@ -651,7 +651,8 @@ static void ath10k_core_restart(struct work_struct *work)
 	switch (ar->state) {
 	case ATH10K_STATE_ON:
 		ar->state = ATH10K_STATE_RESTARTING;
-		ath10k_halt(ar);
+		del_timer_sync(&ar->scan.timeout);
+		ath10k_reset_scan((unsigned long)ar);
 		ieee80211_restart_hw(ar->hw);
 		break;
 	case ATH10K_STATE_OFF:
@@ -660,6 +661,8 @@ static void ath10k_core_restart(struct work_struct *work)
 		ath10k_warn("cannot restart a device that hasn't been started\n");
 		break;
 	case ATH10K_STATE_RESTARTING:
+		/* hw restart might be requested from multiple places */
+		break;
 	case ATH10K_STATE_RESTARTED:
 		ar->state = ATH10K_STATE_WEDGED;
 		/* fall through */
