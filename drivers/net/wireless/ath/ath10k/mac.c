@@ -1891,8 +1891,13 @@ static void ath10k_tx_wep_key_work(struct work_struct *work)
 						wep_key_work);
 	int ret, keyidx = arvif->def_wep_key_newidx;
 
+	mutex_lock(&arvif->ar->conf_mutex);
+
+	if (arvif->ar->state != ATH10K_STATE_ON)
+		goto unlock;
+
 	if (arvif->def_wep_key_idx == keyidx)
-		return;
+		goto unlock;
 
 	ath10k_dbg(ATH10K_DBG_MAC, "mac vdev %d set keyidx %d\n",
 		   arvif->vdev_id, keyidx);
@@ -1905,10 +1910,13 @@ static void ath10k_tx_wep_key_work(struct work_struct *work)
 		ath10k_warn("failed to update wep key index for vdev %d: %d\n",
 			    arvif->vdev_id,
 			    ret);
-		return;
+		goto unlock;
 	}
 
 	arvif->def_wep_key_idx = keyidx;
+
+unlock:
+	mutex_unlock(&arvif->ar->conf_mutex);
 }
 
 static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
