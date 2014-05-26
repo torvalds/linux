@@ -296,7 +296,6 @@ void rtw_hal_def_value_init(struct adapter *padapter);
 void	rtw_hal_free_data(struct adapter *padapter);
 
 void rtw_hal_dm_init(struct adapter *padapter);
-void rtw_hal_dm_deinit(struct adapter *padapter);
 void rtw_hal_sw_led_init(struct adapter *padapter);
 void rtw_hal_sw_led_deinit(struct adapter *padapter);
 

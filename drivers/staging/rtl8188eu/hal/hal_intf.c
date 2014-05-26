@@ -60,13 +60,6 @@ void rtw_hal_dm_init(struct adapter *adapt)
 		adapt->HalFunc.dm_init(adapt);
 }
 
-void rtw_hal_dm_deinit(struct adapter *adapt)
-{
-	/*  cancel dm  timer */
-	if (adapt->HalFunc.dm_deinit)
-		adapt->HalFunc.dm_deinit(adapt);
-}
-
 void rtw_hal_sw_led_init(struct adapter *adapt)
 {
 	if (adapt->HalFunc.InitSwLeds)
