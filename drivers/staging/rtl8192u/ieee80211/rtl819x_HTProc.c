@@ -415,8 +415,7 @@ static void HTIOTPeerDetermine(struct ieee80211_device *ieee)
   * *****************************************************************************************************************/
 static u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
 {
-	u8 ret = 0;
-	return ret;
+	return 0;
  }
 
 

@@ -1564,7 +1564,7 @@ int pulse_set_fn(struct bpctl_dev *pbpctl_dev, unsigned int counter)
 
 int zero_set_fn(struct bpctl_dev *pbpctl_dev)
 {
-	uint32_t ctrl_ext = 0, ctrl_value = 0;
+	uint32_t ctrl_ext = 0;
 
 	if (!pbpctl_dev)
 		return -1;
@@ -1585,7 +1585,7 @@ int zero_set_fn(struct bpctl_dev *pbpctl_dev)
 							   BPCTLI_CTRL_EXT_MDIO_DATA)));
 
 	}
-	return ctrl_value;
+	return 0;
 }
 
 int pulse_get2_fn(struct bpctl_dev *pbpctl_dev)

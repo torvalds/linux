@@ -1849,7 +1849,6 @@ static int bcm_char_ioctl_flash2x_section_bitmap(void __user *argp,
 {
 	struct bcm_flash2x_bitmap *psFlash2xBitMap;
 	struct bcm_ioctl_buffer IoBuffer;
-	INT Status = STATUS_FAILURE;
 
 BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 	"IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP Called");
@@ -1892,7 +1891,7 @@ BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 	}
 
 	kfree(psFlash2xBitMap);
-	return Status;
+	return STATUS_FAILURE;
 }
 
 static int bcm_char_ioctl_set_active_section(void __user *argp,

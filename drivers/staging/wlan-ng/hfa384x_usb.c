@@ -2642,7 +2642,6 @@ done:
 ----------------------------------------------------------------*/
 int hfa384x_drvr_stop(hfa384x_t *hw)
 {
-	int result = 0;
 	int i;
 
 	might_sleep();
@@ -2667,7 +2666,7 @@ int hfa384x_drvr_stop(hfa384x_t *hw)
 	for (i = 0; i < HFA384x_NUMPORTS_MAX; i++)
 		hw->port_enabled[i] = 0;
 
-	return result;
+	return 0;
 }
 
 /*----------------------------------------------------------------

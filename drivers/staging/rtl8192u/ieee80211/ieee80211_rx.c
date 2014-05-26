@@ -1477,7 +1477,6 @@ static int ieee80211_qos_convert_ac_to_parameters(struct
 						  ieee80211_qos_parameters
 						  *qos_param)
 {
-	int rc = 0;
 	int i;
 	struct ieee80211_qos_ac_parameter *ac_params;
 	u8 aci;
@@ -1504,7 +1503,7 @@ static int ieee80211_qos_convert_ac_to_parameters(struct
 		    (ac_params->aci_aifsn & 0x10) ? 0x01 : 0x00;
 		qos_param->tx_op_limit[aci] = le16_to_cpu(ac_params->tx_op_limit);
 	}
-	return rc;
+	return 0;
 }
 
 /*
