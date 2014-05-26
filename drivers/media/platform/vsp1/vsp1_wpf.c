@@ -99,6 +99,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 		outfmt = fmtinfo->hwfmt << VI6_WPF_OUTFMT_WRFMT_SHIFT;
 
+		if (fmtinfo->alpha)
+			outfmt |= VI6_WPF_OUTFMT_PXA;
 		if (fmtinfo->swap_yc)
 			outfmt |= VI6_WPF_OUTFMT_SPYCS;
 		if (fmtinfo->swap_uv)

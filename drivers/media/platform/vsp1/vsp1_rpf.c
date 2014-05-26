@@ -101,10 +101,12 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		       (rpf->location.left << VI6_RPF_LOC_HCOORD_SHIFT) |
 		       (rpf->location.top << VI6_RPF_LOC_VCOORD_SHIFT));
 
-	/* Disable alpha, mask and color key. Set the alpha channel to a fixed
-	 * value of 255.
+	/* Use the alpha channel (extended to 8 bits) when available or a
+	 * hardcoded 255 value otherwise. Disable color keying.
 	 */
-	vsp1_rpf_write(rpf, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_ASEL_FIXED);
+	vsp1_rpf_write(rpf, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
+		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
+				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
 	vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
 		       255 << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
 	vsp1_rpf_write(rpf, VI6_RPF_MSK_CTRL, 0);

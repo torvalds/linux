@@ -33,6 +33,7 @@ struct vsp1_video;
  * @swap_uv: the U and V components are swapped (V comes before U)
  * @hsub: horizontal subsampling factor
  * @vsub: vertical subsampling factor
+ * @alpha: has an alpha channel
  */
 struct vsp1_format_info {
 	u32 fourcc;
@@ -45,6 +46,7 @@ struct vsp1_format_info {
 	bool swap_uv;
 	unsigned int hsub;
 	unsigned int vsub;
+	bool alpha;
 };
 
 enum vsp1_pipeline_state {
