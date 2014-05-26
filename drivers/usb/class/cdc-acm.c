@@ -428,7 +428,7 @@ static void acm_read_bulk_callback(struct urb *urb)
 	/* throttle device if requested by tty */
 	spin_lock_irqsave(&acm->read_lock, flags);
 	acm->throttled = acm->throttle_req;
-	if (!acm->throttled && !acm->susp_count) {
+	if (!acm->throttled) {
 		spin_unlock_irqrestore(&acm->read_lock, flags);
 		acm_submit_read_urb(acm, rb->index, GFP_ATOMIC);
 	} else {
@@ -1546,18 +1546,15 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 	struct acm *acm = usb_get_intfdata(intf);
 	int cnt;
 
-	spin_lock_irq(&acm->read_lock);
-	spin_lock(&acm->write_lock);
+	spin_lock_irq(&acm->write_lock);
 	if (PMSG_IS_AUTO(message)) {
 		if (acm->transmitting) {
-			spin_unlock(&acm->write_lock);
-			spin_unlock_irq(&acm->read_lock);
+			spin_unlock_irq(&acm->write_lock);
 			return -EBUSY;
 		}
 	}
 	cnt = acm->susp_count++;
-	spin_unlock(&acm->write_lock);
-	spin_unlock_irq(&acm->read_lock);
+	spin_unlock_irq(&acm->write_lock);
 
 	if (cnt)
 		return 0;
@@ -1573,8 +1570,7 @@ static int acm_resume(struct usb_interface *intf)
 	struct urb *urb;
 	int rv = 0;
 
-	spin_lock_irq(&acm->read_lock);
-	spin_lock(&acm->write_lock);
+	spin_lock_irq(&acm->write_lock);
 
 	if (--acm->susp_count)
 		goto out;
@@ -1600,8 +1596,7 @@ static int acm_resume(struct usb_interface *intf)
 		rv = acm_submit_read_urbs(acm, GFP_ATOMIC);
 	}
 out:
-	spin_unlock(&acm->write_lock);
-	spin_unlock_irq(&acm->read_lock);
+	spin_unlock_irq(&acm->write_lock);
 
 	return rv;
 }
