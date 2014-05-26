@@ -4147,10 +4147,9 @@ static int dgap_tty_register_ports(struct board_t *brd)
 
 	brd->printer_ports = kcalloc(brd->nasync, sizeof(*brd->printer_ports),
 					GFP_KERNEL);
-	if (brd->printer_ports == NULL) {
-		kfree(brd->serial_ports);
+	if (brd->printer_ports == NULL)
 		return -ENOMEM;
-	}
+
 	for (i = 0; i < brd->nasync; i++)
 		tty_port_init(&brd->printer_ports[i]);
 
