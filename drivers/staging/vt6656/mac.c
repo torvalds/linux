@@ -123,10 +123,9 @@ void MACvDisableKeyEntry(struct vnt_private *priv, u8 entry_idx)
  *
  */
 void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
-	u32 uKeyIdx, u8 *pbyAddr, u32 *pdwKey)
+	u32 uKeyIdx, u8 *pbyAddr, u8 *key)
 {
 	struct vnt_mac_set_key set_key;
-	u8 *pbyKey = (u8 *)pdwKey;
 	u16 wOffset;
 
 	if (pDevice->byLocalID <= MAC_REVISION_A1)
@@ -142,7 +141,7 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
 	/* swap over swap[0] and swap[1] to get correct write order */
 	swap(set_key.u.swap[0], set_key.u.swap[1]);
 
-	memcpy(set_key.key, pbyKey, WLAN_KEY_LEN_CCMP);
+	memcpy(set_key.key, key, WLAN_KEY_LEN_CCMP);
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 		"offset %d key ctl %d set key %24ph\n",
