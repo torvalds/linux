@@ -198,6 +198,8 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 		break;
 	}
 
+	irq_setup_alt_chip(d, type);
+
 	writel(level, gpio->regs + GPIO_INTTYPE_LEVEL);
 	writel(polarity, gpio->regs + GPIO_INT_POLARITY);
 	spin_unlock_irqrestore(&bgc->lock, flags);
@@ -213,7 +215,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	struct irq_chip_generic	*irq_gc;
 	unsigned int hwirq, ngpio = gc->ngpio;
 	struct irq_chip_type *ct;
-	int err, irq;
+	int err, irq, i;
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (!irq) {
@@ -227,7 +229,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	if (!gpio->domain)
 		return;
 
-	err = irq_alloc_domain_generic_chips(gpio->domain, ngpio, 1,
+	err = irq_alloc_domain_generic_chips(gpio->domain, ngpio, 2,
 					     "gpio-dwapb", handle_level_irq,
 					     IRQ_NOREQUEST, 0,
 					     IRQ_GC_INIT_NESTED_LOCK);
@@ -248,17 +250,24 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	irq_gc->reg_base = gpio->regs;
 	irq_gc->private = gpio;
 
-	ct = irq_gc->chip_types;
-	ct->chip.irq_ack = irq_gc_ack_set_bit;
-	ct->chip.irq_mask = irq_gc_mask_set_bit;
-	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
-	ct->chip.irq_set_type = dwapb_irq_set_type;
-	ct->chip.irq_enable = dwapb_irq_enable;
-	ct->chip.irq_disable = dwapb_irq_disable;
-	ct->chip.irq_request_resources = dwapb_irq_reqres;
-	ct->chip.irq_release_resources = dwapb_irq_relres;
-	ct->regs.ack = GPIO_PORTA_EOI;
-	ct->regs.mask = GPIO_INTMASK;
+	for (i = 0; i < 2; i++) {
+		ct = &irq_gc->chip_types[i];
+		ct->chip.irq_ack = irq_gc_ack_set_bit;
+		ct->chip.irq_mask = irq_gc_mask_set_bit;
+		ct->chip.irq_unmask = irq_gc_mask_clr_bit;
+		ct->chip.irq_set_type = dwapb_irq_set_type;
+		ct->chip.irq_enable = dwapb_irq_enable;
+		ct->chip.irq_disable = dwapb_irq_disable;
+		ct->chip.irq_request_resources = dwapb_irq_reqres;
+		ct->chip.irq_release_resources = dwapb_irq_relres;
+		ct->regs.ack = GPIO_PORTA_EOI;
+		ct->regs.mask = GPIO_INTMASK;
+		ct->type = IRQ_TYPE_LEVEL_MASK;
+	}
+
+	irq_gc->chip_types[0].type = IRQ_TYPE_LEVEL_MASK;
+	irq_gc->chip_types[1].type = IRQ_TYPE_EDGE_BOTH;
+	irq_gc->chip_types[1].handler = handle_edge_irq;
 
 	irq_set_chained_handler(irq, dwapb_irq_handler);
 	irq_set_handler_data(irq, gpio);
