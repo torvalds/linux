@@ -630,11 +630,9 @@ int set_registers(struct r8152 *tp, u16 value, u16 index, u16 size, void *data)
 	int ret;
 	void *tmp;
 
-	tmp = kmalloc(size, GFP_KERNEL);
+	tmp = kmemdup(data, size, GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
-
-	memcpy(tmp, data, size);
 
 	ret = usb_control_msg(tp->udev, usb_sndctrlpipe(tp->udev, 0),
 			       RTL8152_REQ_SET_REGS, RTL8152_REQT_WRITE,
