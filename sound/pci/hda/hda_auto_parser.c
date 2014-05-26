@@ -860,7 +860,7 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 		return;
 
 	for (pq = pin_quirk; pq->subvendor; pq++) {
-		if (codec->bus->pci->subsystem_vendor != pq->subvendor)
+		if ((codec->subsystem_id & 0xffff0000) != (pq->subvendor << 16))
 			continue;
 		if (codec->vendor_id != pq->codec)
 			continue;
