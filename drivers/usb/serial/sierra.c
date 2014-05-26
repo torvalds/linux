@@ -419,9 +419,7 @@ static int sierra_tiocmset(struct tty_struct *tty,
 
 static void sierra_release_urb(struct urb *urb)
 {
-	struct usb_serial_port *port;
 	if (urb) {
-		port = urb->context;
 		kfree(urb->transfer_buffer);
 		usb_free_urb(urb);
 	}
