@@ -2404,22 +2404,19 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	if (ar->state != ATH10K_STATE_OFF &&
 	    ar->state != ATH10K_STATE_RESTARTING) {
 		ret = -EINVAL;
-		goto exit;
+		goto err;
 	}
 
 	ret = ath10k_hif_power_up(ar);
 	if (ret) {
 		ath10k_err("Could not init hif: %d\n", ret);
-		ar->state = ATH10K_STATE_OFF;
-		goto exit;
+		goto err_off;
 	}
 
 	ret = ath10k_core_start(ar);
 	if (ret) {
 		ath10k_err("Could not init core: %d\n", ret);
-		ath10k_hif_power_down(ar);
-		ar->state = ATH10K_STATE_OFF;
-		goto exit;
+		goto err_power_down;
 	}
 
 	if (ar->state == ATH10K_STATE_OFF)
@@ -2428,12 +2425,16 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		ar->state = ATH10K_STATE_RESTARTED;
 
 	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->pmf_qos, 1);
-	if (ret)
+	if (ret) {
 		ath10k_warn("failed to enable PMF QOS: %d\n", ret);
+		goto err_core_stop;
+	}
 
 	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->dynamic_bw, 1);
-	if (ret)
+	if (ret) {
 		ath10k_warn("failed to enable dynamic BW: %d\n", ret);
+		goto err_core_stop;
+	}
 
 	if (ar->cfg_tx_chainmask)
 		__ath10k_set_antenna(ar, ar->cfg_tx_chainmask,
@@ -2453,14 +2454,25 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	if (ret) {
 		ath10k_warn("failed to set arp ac override parameter: %d\n",
 			    ret);
-		goto exit;
+		goto err_core_stop;
 	}
 
 	ar->num_started_vdevs = 0;
 	ath10k_regd_update(ar);
-	ret = 0;
 
-exit:
+	mutex_unlock(&ar->conf_mutex);
+	return 0;
+
+err_core_stop:
+	ath10k_core_stop(ar);
+
+err_power_down:
+	ath10k_hif_power_down(ar);
+
+err_off:
+	ar->state = ATH10K_STATE_OFF;
+
+err:
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
