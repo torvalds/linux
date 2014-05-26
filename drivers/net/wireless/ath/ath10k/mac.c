@@ -2289,9 +2289,19 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	ath10k_tx_htt(ar, skb);
 }
 
-/*
- * Initialize various parameters with default vaules.
- */
+/* Must not be called with conf_mutex held as workers can use that also. */
+static void ath10k_drain_tx(struct ath10k *ar)
+{
+	/* make sure rcu-protected mac80211 tx path itself is drained */
+	synchronize_net();
+
+	ath10k_offchan_tx_purge(ar);
+	ath10k_mgmt_over_wmi_tx_purge(ar);
+
+	cancel_work_sync(&ar->offchan_tx_work);
+	cancel_work_sync(&ar->wmi_mgmt_tx_work);
+}
+
 void ath10k_halt(struct ath10k *ar)
 {
 	struct ath10k_vif *arvif;
@@ -2307,8 +2317,6 @@ void ath10k_halt(struct ath10k *ar)
 
 	del_timer_sync(&ar->scan.timeout);
 	ath10k_reset_scan((unsigned long)ar);
-	ath10k_offchan_tx_purge(ar);
-	ath10k_mgmt_over_wmi_tx_purge(ar);
 	ath10k_peer_cleanup_all(ar);
 	ath10k_core_stop(ar);
 	ath10k_hif_power_down(ar);
@@ -2393,6 +2401,13 @@ static int ath10k_start(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
 	int ret = 0;
+
+	/*
+	 * This makes sense only when restarting hw. It is harmless to call
+	 * uncoditionally. This is necessary to make sure no HTT/WMI tx
+	 * commands will be submitted while restarting.
+	 */
+	ath10k_drain_tx(ar);
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -2481,6 +2496,8 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
 
+	ath10k_drain_tx(ar);
+
 	mutex_lock(&ar->conf_mutex);
 	if (ar->state != ATH10K_STATE_OFF) {
 		ath10k_halt(ar);
@@ -2488,10 +2505,6 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 	}
 	mutex_unlock(&ar->conf_mutex);
 
-	ath10k_mgmt_over_wmi_tx_purge(ar);
-
-	cancel_work_sync(&ar->offchan_tx_work);
-	cancel_work_sync(&ar->wmi_mgmt_tx_work);
 	cancel_work_sync(&ar->restart_work);
 }
 
