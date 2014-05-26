@@ -135,6 +135,7 @@ static int doit(int cmd, int if_index, int *data)
 static int is_dev_sd(int if_index)
 {
 	int ret = 0;
+
 	SET_BPLIB_INT_FN(is_bypass, int, if_index, ret);
 	return ret >= 0 ? 1 : 0;
 }
@@ -186,6 +187,7 @@ static int is_bypass_dev(int if_index)
 static int is_bypass(int if_index)
 {
 	int ret = 0;
+
 	SET_BPLIB_INT_FN(is_bypass, int, if_index, ret);
 
 	if (ret < 0)
