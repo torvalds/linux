@@ -2695,6 +2695,12 @@ static int ufshcd_host_reset(struct scsi_cmnd *cmd)
  * ufshcd_abort - abort a specific command
  * @cmd: SCSI command pointer
  *
+ * Abort the pending command in device by sending UFS_ABORT_TASK task management
+ * command, and in host controller by clearing the door-bell register. There can
+ * be race between controller sending the command to the device while abort is
+ * issued. To avoid that, first issue UFS_QUERY_TASK to check if the command is
+ * really issued and then try to abort it.
+ *
  * Returns SUCCESS/FAILED
  */
 static int ufshcd_abort(struct scsi_cmnd *cmd)
@@ -2703,7 +2709,8 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	struct ufs_hba *hba;
 	unsigned long flags;
 	unsigned int tag;
-	int err;
+	int err = 0;
+	int poll_cnt;
 	u8 resp = 0xF;
 	struct ufshcd_lrb *lrbp;
 
@@ -2711,33 +2718,59 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	hba = shost_priv(host);
 	tag = cmd->request->tag;
 
-	spin_lock_irqsave(host->host_lock, flags);
-
-	/* check if command is still pending */
-	if (!(test_bit(tag, &hba->outstanding_reqs))) {
-		err = FAILED;
-		spin_unlock_irqrestore(host->host_lock, flags);
+	/* If command is already aborted/completed, return SUCCESS */
+	if (!(test_bit(tag, &hba->outstanding_reqs)))
 		goto out;
-	}
-	spin_unlock_irqrestore(host->host_lock, flags);
 
 	lrbp = &hba->lrb[tag];
+	for (poll_cnt = 100; poll_cnt; poll_cnt--) {
+		err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
+				UFS_QUERY_TASK, &resp);
+		if (!err && resp == UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED) {
+			/* cmd pending in the device */
+			break;
+		} else if (!err && resp == UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
+			u32 reg;
+
+			/*
+			 * cmd not pending in the device, check if it is
+			 * in transition.
+			 */
+			reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
+			if (reg & (1 << tag)) {
+				/* sleep for max. 200us to stabilize */
+				usleep_range(100, 200);
+				continue;
+			}
+			/* command completed already */
+			goto out;
+		} else {
+			if (!err)
+				err = resp; /* service response error */
+			goto out;
+		}
+	}
+
+	if (!poll_cnt) {
+		err = -EBUSY;
+		goto out;
+	}
+
 	err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
 			UFS_ABORT_TASK, &resp);
 	if (err || resp != UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
-		err = FAILED;
+		if (!err)
+			err = resp; /* service response error */
 		goto out;
-	} else {
-		err = SUCCESS;
 	}
+
+	err = ufshcd_clear_cmd(hba, tag);
+	if (err)
+		goto out;
 
 	scsi_dma_unmap(cmd);
 
 	spin_lock_irqsave(host->host_lock, flags);
-
-	/* clear the respective UTRLCLR register bit */
-	ufshcd_utrl_clear(hba, tag);
-
 	__clear_bit(tag, &hba->outstanding_reqs);
 	hba->lrb[tag].cmd = NULL;
 	spin_unlock_irqrestore(host->host_lock, flags);
@@ -2745,6 +2778,13 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	clear_bit_unlock(tag, &hba->lrb_in_use);
 	wake_up(&hba->dev_cmd.tag_wq);
 out:
+	if (!err) {
+		err = SUCCESS;
+	} else {
+		dev_err(hba->dev, "%s: failed with err %d\n", __func__, err);
+		err = FAILED;
+	}
+
 	return err;
 }
 
