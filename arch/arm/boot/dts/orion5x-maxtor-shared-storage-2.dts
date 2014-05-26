@@ -1,16 +1,10 @@
 /*
- * Copyright (C) 2012 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * Copyright (C) 2014 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * Copyright (C) Sylver Bruneau <sylver.bruneau@googlemail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
- */
-
-/*
- * TODO: add Orion USB device port init when kernel.org support is added.
- * TODO: add flash write support: see below.
- * TODO: add power-off support.
- * TODO: add I2C EEPROM support.
  */
 
 /dts-v1/;
@@ -21,8 +15,8 @@
 #include "orion5x-mv88f5182.dtsi"
 
 / {
-	model = "LaCie Ethernet Disk mini V2";
-	compatible = "lacie,ethernet-disk-mini-v2", "marvell,orion5x-88f5182", "marvell,orion5x";
+	model = "Maxtor Shared Storage II";
+	compatible = "maxtor,shared-storage-2", "marvell,orion5x-88f5182", "marvell,orion5x";
 
 	memory {
 		reg = <0x00000000 0x4000000>; /* 64 MB */
@@ -36,30 +30,25 @@
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
 			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>,
-			 <MBUS_ID(0x01, 0x0f) 0 0xfff80000 0x80000>;
+			 <MBUS_ID(0x01, 0x0f) 0 0xff800000 0x40000>;
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		pinctrl-0 = <&pmx_power_button>;
+		pinctrl-0 = <&pmx_buttons>;
 		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		button@1 {
-			label = "Power-on Switch";
+		power {
+			label = "Power";
 			linux,code = <KEY_POWER>;
-			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
 		};
-	};
 
-	gpio-leds {
-		compatible = "gpio-leds";
-		pinctrl-0 = <&pmx_power_led>;
-		pinctrl-names = "default";
-
-		led@1 {
-			label = "power:blue";
-			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
+		reset {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -67,17 +56,7 @@
 &devbus_bootcs {
 	status = "okay";
 
-	/* Read parameters */
-	devbus,bus-width    = <8>;
-	devbus,turn-off-ps  = <90000>;
-	devbus,badr-skew-ps = <0>;
-	devbus,acc-first-ps = <186000>;
-	devbus,acc-next-ps  = <186000>;
-
-	/* Write parameters */
-	devbus,wr-high-ps  = <90000>;
-	devbus,wr-low-ps   = <90000>;
-	devbus,ale-wr-ps   = <90000>;
+	devbus,keep-config;
 
 	/*
 	 * Currently the MTD code does not recognize the MX29LV400CBCT
@@ -91,16 +70,18 @@
 	 */
 	flash@0 {
 		compatible = "cfi-flash";
-		reg = <0 0x80000>;
+		reg = <0 0x40000>;
 		bank-width = <1>;
-		#address-cells = <1>;
+                #address-cells = <1>;
 		#size-cells = <1>;
+	};
+};
 
-		partition@0 {
-			label = "Full512Kb";
-			reg = <0 0x80000>;
-			read-only;
-		};
+&mdio {
+	status = "okay";
+
+	ethphy: ethernet-phy {
+		reg = <8>;
 	};
 };
 
@@ -121,38 +102,43 @@
 	clock-frequency = <100000>;
 	#address-cells = <1>;
 
-	rtc@32 {
-		compatible = "ricoh,rs5c372a";
-		reg = <0x32>;
+	rtc@68 {
+		compatible = "st,m41t81";
+		reg = <0x68>;
+		pinctrl-0 = <&pmx_rtc>;
+		pinctrl-names = "default";
 		interrupt-parent = <&gpio0>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
-&mdio {
-	status = "okay";
-
-	ethphy: ethernet-phy {
-		reg = <8>;
-	};
-};
-
 &pinctrl {
-	pinctrl-0 = <&pmx_rtc &pmx_power_led_ctrl>;
+	pinctrl-0 = <&pmx_leds &pmx_misc>;
 	pinctrl-names = "default";
 
-	pmx_power_button: pmx-power-button {
-		marvell,pins = "mpp18";
+	pmx_buttons: pmx-buttons {
+		marvell,pins = "mpp11", "mpp12";
 		marvell,function = "gpio";
 	};
 
-	pmx_power_led: pmx-power-led {
-		marvell,pins = "mpp16";
+	/*
+	 * MPP0: Power LED
+	 * MPP1: Error LED
+	 */
+	pmx_leds: pmx-leds {
+		marvell,pins = "mpp0", "mpp1";
 		marvell,function = "gpio";
 	};
 
-	pmx_power_led_ctrl: pmx-power-led-ctrl {
-		marvell,pins = "mpp17";
+	/*
+	 * MPP4: HDD ind. (Single/Dual)
+	 * MPP5: HD0 5V control
+	 * MPP6: HD0 12V control
+	 * MPP7: HD1 5V control
+	 * MPP8: HD1 12V control
+	 */
+	pmx_misc: pmx-misc {
+		marvell,pins = "mpp4", "mpp5", "mpp6", "mpp7", "mpp8", "mpp10";
 		marvell,function = "gpio";
 	};
 
@@ -160,10 +146,28 @@
 		marvell,pins = "mpp3";
 		marvell,function = "gpio";
 	};
+
+	pmx_sata0_led_active: pmx-sata0-led-active {
+		marvell,pins = "mpp14";
+		marvell,function = "sata0";
+	};
+
+	pmx_sata1_led_active: pmx-sata1-led-active {
+		marvell,pins = "mpp15";
+		marvell,function = "sata1";
+	};
+
+	/*
+	 * Non MPP GPIOs:
+	 *  GPIO 22: USB port 1 fuse (0 = Fail, 1 = Ok)
+	 *  GPIO 23: Blue front LED off
+	 *  GPIO 24: Inhibit board power off (0 = Disabled, 1 = Enabled)
+	 */
 };
 
 &sata {
-	pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+	pinctrl-0 = <&pmx_sata0_led_active
+		     &pmx_sata1_led_active>;
 	pinctrl-names = "default";
 	status = "okay";
 	nr-ports = <2>;
