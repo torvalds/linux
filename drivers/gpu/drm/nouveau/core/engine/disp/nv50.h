@@ -203,6 +203,7 @@ extern struct nvkm_output_dp_impl nv50_pior_dp_impl;
 extern struct nouveau_oclass *nv50_disp_outp_sclass[];
 
 extern struct nvkm_output_dp_impl nv94_sor_dp_impl;
+int nv94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
 extern struct nouveau_oclass *nv94_disp_outp_sclass[];
 
 extern struct nvkm_output_dp_impl nvd0_sor_dp_impl;

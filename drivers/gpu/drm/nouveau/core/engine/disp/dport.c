@@ -94,6 +94,8 @@ dp_set_link_config(struct dp_state *dp)
 		return ret;
 	}
 
+	impl->lnk_pwr(outp, dp->link_nr);
+
 	/* set desired link configuration on the sink */
 	sink[0] = dp->link_bw / 27000;
 	sink[1] = dp->link_nr;

@@ -29,6 +29,7 @@
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/dp.h>
 #include <subdev/bios/init.h>
+#include <subdev/timer.h>
 
 #include "nv50.h"
 
@@ -68,20 +69,14 @@ nvd0_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 	const u32 loff = nvd0_sor_loff(outp);
 	u32 dpctrl = 0x00000000;
 	u32 clksor = 0x00000000;
-	u32 lane = 0;
-	int i;
 
 	clksor |= bw << 18;
 	dpctrl |= ((1 << nr) - 1) << 16;
 	if (ef)
 		dpctrl |= 0x00004000;
 
-	for (i = 0; i < nr; i++)
-		lane |= 1 << (nvd0_sor_dp_lane_map(priv, i) >> 3);
-
 	nv_mask(priv, 0x612300 + soff, 0x007c0000, clksor);
 	nv_mask(priv, 0x61c10c + loff, 0x001f4000, dpctrl);
-	nv_mask(priv, 0x61c130 + loff, 0x0000000f, lane);
 	return 0;
 }
 
@@ -128,6 +123,7 @@ nvd0_sor_dp_impl = {
 		.fini = _nvkm_output_dp_fini,
 	},
 	.pattern = nvd0_sor_dp_pattern,
+	.lnk_pwr = nv94_sor_dp_lnk_pwr,
 	.lnk_ctl = nvd0_sor_dp_lnk_ctl,
 	.drv_ctl = nvd0_sor_dp_drv_ctl,
 };

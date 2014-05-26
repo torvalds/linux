@@ -80,6 +80,12 @@ nv50_pior_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 }
 
 static int
+nv50_pior_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
+{
+	return 0;
+}
+
+static int
 nv50_pior_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
 	struct nouveau_i2c_port *port = outp->base.edid;
@@ -127,6 +133,7 @@ nv50_pior_dp_impl = {
 		.fini = _nvkm_output_dp_fini,
 	},
 	.pattern = nv50_pior_dp_pattern,
+	.lnk_pwr = nv50_pior_dp_lnk_pwr,
 	.lnk_ctl = nv50_pior_dp_lnk_ctl,
 	.drv_ctl = nv50_pior_dp_drv_ctl,
 };
