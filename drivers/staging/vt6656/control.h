@@ -33,9 +33,6 @@
 #include "device.h"
 #include "usbpipe.h"
 
-#define CONTROLnsRequestOut(Device, Request, Value, Index, Length, Buffer) \
-	PIPEnsControlOut(Device, Request, Value, Index, Length, Buffer)
-
 #define CONTROLnsRequestIn(Device, Request, Value, Index, Length, Buffer) \
 	PIPEnsControlIn(Device, Request, Value, Index, Length, Buffer)
 

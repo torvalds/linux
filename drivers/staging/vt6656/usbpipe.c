@@ -26,7 +26,7 @@
  * Date: Mar. 29, 2005
  *
  * Functions:
- *      CONTROLnsRequestOut - Write variable length bytes to MEM/BB/MAC/EEPROM
+ *	vnt_control_out - Write variable length bytes to MEM/BB/MAC/EEPROM
  *      CONTROLnsRequestIn - Read variable length bytes from MEM/BB/MAC/EEPROM
  *      ControlvWriteByte - Write one byte to MEM/BB/MAC/EEPROM
  *      ControlvReadByte - Read one byte from MEM/BB/MAC/EEPROM
@@ -61,7 +61,7 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb);
 
-int PIPEnsControlOut(struct vnt_private *priv, u8 request, u16 value,
+int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
 		u16 index, u16 length, u8 *buffer)
 {
 	int status = 0;

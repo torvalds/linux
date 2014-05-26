@@ -54,7 +54,7 @@ void MACvWriteMultiAddr(struct vnt_private *priv, u64 mc_filter)
 {
 	__le64 le_mc = cpu_to_le64(mc_filter);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, MAC_REG_MAR0,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_MAR0,
 		MESSAGE_REQUEST_MACREG, sizeof(le_mc), (u8 *)&le_mc);
 }
 
@@ -71,7 +71,7 @@ void MACvWriteMultiAddr(struct vnt_private *priv, u64 mc_filter)
  */
 void MACbShutdown(struct vnt_private *priv)
 {
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_MACSHUTDOWN, 0, 0, 0, NULL);
+	vnt_control_out(priv, MESSAGE_TYPE_MACSHUTDOWN, 0, 0, 0, NULL);
 }
 
 void MACvSetBBType(struct vnt_private *priv, u8 type)
@@ -81,7 +81,7 @@ void MACvSetBBType(struct vnt_private *priv, u8 type)
 	data[0] = type;
 	data[1] = EnCFG_BBType_MASK;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_ENCFG0,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_ENCFG0,
 		MESSAGE_REQUEST_MACREG,	ARRAY_SIZE(data), data);
 }
 
@@ -101,7 +101,7 @@ void MACvSetBBType(struct vnt_private *priv, u8 type)
  */
 void MACvDisableKeyEntry(struct vnt_private *priv, u8 entry_idx)
 {
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_CLRKEYENTRY, 0, 0,
+	vnt_control_out(priv, MESSAGE_TYPE_CLRKEYENTRY, 0, 0,
 		sizeof(entry_idx), &entry_idx);
 }
 
@@ -143,7 +143,7 @@ void MACvSetKeyEntry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
 	dev_dbg(&priv->usb->dev, "offset %d key ctl %d set key %24ph\n",
 				offset, key_ctl, (u8 *)&set_key);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SETKEY, offset,
+	vnt_control_out(priv, MESSAGE_TYPE_SETKEY, offset,
 		(u16)key_idx, sizeof(struct vnt_mac_set_key), (u8 *)&set_key);
 }
 
@@ -154,7 +154,7 @@ void MACvRegBitsOff(struct vnt_private *priv, u8 reg_ofs, u8 bits)
 	data[0] = 0;
 	data[1] = bits;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK,
 		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
@@ -165,7 +165,7 @@ void MACvRegBitsOn(struct vnt_private *priv, u8 reg_ofs, u8 bits)
 	data[0] = bits;
 	data[1] = bits;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK,
 		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
@@ -176,13 +176,13 @@ void MACvWriteWord(struct vnt_private *priv, u8 reg_ofs, u16 word)
 	data[0] = (u8)(word & 0xff);
 	data[1] = (u8)(word >> 8);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
 void MACvWriteBSSIDAddress(struct vnt_private *priv, u8 *addr)
 {
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, MAC_REG_BSSID0,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_BSSID0,
 		MESSAGE_REQUEST_MACREG, ETH_ALEN, addr);
 }
 
@@ -193,7 +193,7 @@ void MACvEnableProtectMD(struct vnt_private *priv)
 	data[0] = EnCFG_ProtectMd;
 	data[1] = EnCFG_ProtectMd;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK,
 		MAC_REG_ENCFG0, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
@@ -204,7 +204,7 @@ void MACvDisableProtectMD(struct vnt_private *priv)
 	data[0] = 0;
 	data[1] = EnCFG_ProtectMd;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK,
 		MAC_REG_ENCFG0, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
@@ -215,7 +215,7 @@ void MACvEnableBarkerPreambleMd(struct vnt_private *priv)
 	data[0] = EnCFG_BarkerPream;
 	data[1] = EnCFG_BarkerPream;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK,
 		MAC_REG_ENCFG2, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
@@ -226,7 +226,7 @@ void MACvDisableBarkerPreambleMd(struct vnt_private *priv)
 	data[0] = 0;
 	data[1] = EnCFG_BarkerPream;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE_MASK,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK,
 		MAC_REG_ENCFG2, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
@@ -237,6 +237,6 @@ void MACvWriteBeaconInterval(struct vnt_private *priv, u16 interval)
 	data[0] = (u8)(interval & 0xff);
 	data[1] = (u8)(interval >> 8);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 		MAC_REG_BI, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }

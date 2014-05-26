@@ -314,7 +314,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 	init_cmd->long_retry_limit = pDevice->byLongRetryLimit;
 
 	/* issue card_init command to device */
-	ntStatus = CONTROLnsRequestOut(pDevice,
+	ntStatus = vnt_control_out(pDevice,
 		MESSAGE_TYPE_CARDINIT, 0, 0,
 		sizeof(struct vnt_cmd_card_init), (u8 *)init_cmd);
 	if (ntStatus != STATUS_SUCCESS) {

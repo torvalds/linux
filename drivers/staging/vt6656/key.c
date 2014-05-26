@@ -67,15 +67,10 @@ static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
             //MACvDisableKeyEntry(pDevice, i);
         }
     }
-    if ( wLength != 0 ) {
-        CONTROLnsRequestOut(pDevice,
-                            MESSAGE_TYPE_CLRKEYENTRY,
-                            0,
-                            0,
-                            wLength,
-                            pbyData
-                            );
-    }
+
+	if (wLength != 0)
+		vnt_control_out(pDevice, MESSAGE_TYPE_CLRKEYENTRY,
+			0, 0, wLength, pbyData);
 
 }
 
@@ -112,13 +107,9 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
         pbyData[i] = (u8) i;
     }
     pbyData[i] = (u8) i;
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_CLRKEYENTRY,
-                        0,
-                        0,
-                        11,
-                        pbyData
-                        );
+
+	vnt_control_out(pDevice, MESSAGE_TYPE_CLRKEYENTRY,
+			0, 0, 11, pbyData);
 
     return;
 }

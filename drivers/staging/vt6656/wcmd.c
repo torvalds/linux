@@ -852,7 +852,7 @@ void vRunCommand(struct work_struct *work)
 		ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
 		if ((byData & PSCTL_PS) != 0) {
 			// disable power saving hw function
-			CONTROLnsRequestOut(pDevice,
+			vnt_control_out(pDevice,
 					MESSAGE_TYPE_DISABLE_PS,
 					0,
 					0,

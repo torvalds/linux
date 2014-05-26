@@ -94,7 +94,7 @@ void CARDbSetMediaChannel(struct vnt_private *priv, u32 connection_channel)
 	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
 	MACvRegBitsOff(priv, MAC_REG_CHANNEL, 0xb0);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SELECT_CHANNLE,
+	vnt_control_out(priv, MESSAGE_TYPE_SELECT_CHANNLE,
 					connection_channel, 0, 0, NULL);
 
 	if (priv->byBBType == BB_TYPE_11A) {
@@ -373,7 +373,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 		data[16 + i * 2 + 1] = rsv_time[i];
 	}
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 		MAC_REG_RSPINF_B_1, MESSAGE_REQUEST_MACREG, 34, &data[0]);
 }
 
@@ -461,12 +461,12 @@ void vUpdateIFS(struct vnt_private *priv)
 	data[2] = (u8)priv->uEIFS;
 	data[3] = (u8)priv->uSlot;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, MAC_REG_SIFS,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_SIFS,
 		MESSAGE_REQUEST_MACREG, 4, &data[0]);
 
 	max_min |= 0xa0;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, MAC_REG_CWMAXMIN0,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_CWMAXMIN0,
 		MESSAGE_REQUEST_MACREG, 1, &max_min);
 }
 
@@ -603,7 +603,7 @@ void CARDvAdjustTSF(struct vnt_private *priv, u8 rx_rate,
 	data[6] = (u8)(tsf_offset >> 48);
 	data[7] = (u8)(tsf_offset >> 56);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SET_TSFTBTT,
+	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
 		MESSAGE_REQUEST_TSF, 0, 8, data);
 }
 /*
@@ -712,7 +712,7 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv, u16 beacon_interval)
 	data[6] = (u8)(next_tbtt >> 48);
 	data[7] = (u8)(next_tbtt >> 56);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SET_TSFTBTT,
+	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
 		MESSAGE_REQUEST_TBTT, 0, 8, data);
 
 	return;
@@ -749,7 +749,7 @@ void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 tsf,
 	data[6] = (u8)(tsf >> 48);
 	data[7] = (u8)(tsf >> 56);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SET_TSFTBTT,
+	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
 		MESSAGE_REQUEST_TBTT, 0, 8, data);
 
 	dev_dbg(&priv->usb->dev, "%s TBTT: %8llx\n", __func__, tsf);

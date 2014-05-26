@@ -70,7 +70,7 @@ int FIRMWAREbDownload(struct vnt_private *pDevice)
 		wLength = min_t(int, fw->size - ii, FIRMWARE_CHUNK_SIZE);
 		memcpy(pBuffer, fw->data + ii, wLength);
 
-		NdisStatus = CONTROLnsRequestOut(pDevice,
+		NdisStatus = vnt_control_out(pDevice,
 						0,
 						0x1200+ii,
 						0x0000,
@@ -100,7 +100,7 @@ int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Branch to Sram\n");
 
-	NdisStatus = CONTROLnsRequestOut(pDevice,
+	NdisStatus = vnt_control_out(pDevice,
 					1,
 					0x1200,
 					0x0000,

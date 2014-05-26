@@ -26,7 +26,7 @@
  * Date: Apr. 5, 2004
  *
  * Functions:
- *      CONTROLnsRequestOut - Write variable length bytes to MEM/BB/MAC/EEPROM
+ *      vnt_control_out - Write variable length bytes to MEM/BB/MAC/EEPROM
  *      CONTROLnsRequestIn - Read variable length bytes from MEM/BB/MAC/EEPROM
  *      ControlvWriteByte - Write one byte to MEM/BB/MAC/EEPROM
  *      ControlvReadByte - Read one byte from MEM/BB/MAC/EEPROM
@@ -49,7 +49,7 @@ void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
 			u8 data)
 {
 
-	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_WRITE, reg_off, reg,
+	vnt_control_out(pDevice, MESSAGE_TYPE_WRITE, reg_off, reg,
 		sizeof(u8), &data);
 
 	return;
@@ -71,7 +71,7 @@ void ControlvMaskByte(struct vnt_private *pDevice, u8 reg_type, u8 reg_off,
 	reg_data[0] = data;
 	reg_data[1] = reg_mask;
 
-	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_WRITE_MASK, reg_off,
+	vnt_control_out(pDevice, MESSAGE_TYPE_WRITE_MASK, reg_off,
 			reg_type, ARRAY_SIZE(reg_data), reg_data);
 
 	return;

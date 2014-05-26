@@ -129,7 +129,7 @@ void PSvDisablePowerSaving(struct vnt_private *pDevice)
 {
 
 	/* disable power saving hw function */
-	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_DISABLE_PS, 0,
+	vnt_control_out(pDevice, MESSAGE_TYPE_DISABLE_PS, 0,
 						0, 0, NULL);
 
 	/* clear AutoSleep */

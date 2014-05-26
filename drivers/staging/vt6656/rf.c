@@ -715,7 +715,7 @@ int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
 	pbyData[2] = (u8)(dwData >> 16);
 	pbyData[3] = (u8)(dwData >> 24);
 
-	CONTROLnsRequestOut(pDevice,
+	vnt_control_out(pDevice,
 		MESSAGE_TYPE_WRITE_IFRF, 0, 0, 4, pbyData);
 
 	return true;
@@ -1046,7 +1046,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 	/* Init Table */
 	memcpy(array, addr1, length1);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, 0,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
 		MESSAGE_REQUEST_RF_INIT, length1, array);
 
 	/* Channel Table 0 */
@@ -1059,7 +1059,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 
 		memcpy(array, addr2, length);
 
-		CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 			value, MESSAGE_REQUEST_RF_CH0, length, array);
 
 		length2 -= length;
@@ -1077,7 +1077,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 
 		memcpy(array, addr3, length);
 
-		CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 			value, MESSAGE_REQUEST_RF_CH1, length, array);
 
 		length3 -= length;
@@ -1094,7 +1094,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 		memcpy(array, addr1, length1);
 
 		/* Init Table 2 */
-		CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 			0, MESSAGE_REQUEST_RF_INIT2, length1, array);
 
 		/* Channel Table 0 */
@@ -1107,7 +1107,7 @@ void RFbRFTableDownload(struct vnt_private *priv)
 
 			memcpy(array, addr2, length);
 
-			CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE,
+			vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 				value, MESSAGE_REQUEST_RF_CH2, length, array);
 
 			length2 -= length;

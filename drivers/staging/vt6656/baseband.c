@@ -865,7 +865,7 @@ void BBvSetAntennaMode(struct vnt_private *priv, u8 antenna_mode)
 		break;
 	}
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SET_ANTMD,
+	vnt_control_out(priv, MESSAGE_TYPE_SET_ANTMD,
 		(u16)antenna_mode, 0, 0, NULL);
 }
 
@@ -1018,12 +1018,12 @@ int BBbVT3184Init(struct vnt_private *priv)
 
 	memcpy(array, addr, length);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, 0,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
 		MESSAGE_REQUEST_BBREG, length, array);
 
 	memcpy(array, agc, length_agc);
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, 0,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
 		MESSAGE_REQUEST_BBAGC, length_agc, array);
 
 	if ((priv->byRFType == RF_VT3226) ||
@@ -1049,7 +1049,7 @@ int BBbVT3184Init(struct vnt_private *priv)
 
 	data |= 0x2;
 
-	CONTROLnsRequestOut(priv, MESSAGE_TYPE_WRITE, USB_REG4,
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, USB_REG4,
 		MESSAGE_REQUEST_MEM, sizeof(data), &data);
 
 	return true;
