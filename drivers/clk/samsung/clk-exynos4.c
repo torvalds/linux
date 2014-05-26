@@ -324,7 +324,7 @@ static struct syscore_ops exynos4_clk_syscore_ops = {
 	.resume = exynos4_clk_resume,
 };
 
-static void exynos4_clk_sleep_init(void)
+static void __init exynos4_clk_sleep_init(void)
 {
 	exynos4_save_common = samsung_clk_alloc_reg_dump(exynos4_clk_regs,
 					ARRAY_SIZE(exynos4_clk_regs));
@@ -359,7 +359,7 @@ err_warn:
 		__func__);
 }
 #else
-static void exynos4_clk_sleep_init(void) {}
+static void __init exynos4_clk_sleep_init(void) {}
 #endif
 
 /* list of all parent clock list */
