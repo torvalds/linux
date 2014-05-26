@@ -425,7 +425,7 @@ static void sierra_outdat_callback(struct urb *urb)
 	struct sierra_intf_private *intfdata;
 	int status = urb->status;
 
-	intfdata = port->serial->private;
+	intfdata = usb_get_serial_data(port->serial);
 
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree(urb->transfer_buffer);
@@ -462,7 +462,7 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return 0;
 
 	portdata = usb_get_serial_port_data(port);
-	intfdata = serial->private;
+	intfdata = usb_get_serial_data(serial);
 
 	dev_dbg(&port->dev, "%s: write (%zd bytes)\n", __func__, writesize);
 	spin_lock_irqsave(&portdata->lock, flags);
@@ -764,7 +764,7 @@ static void sierra_close(struct usb_serial_port *port)
 	int i;
 	struct usb_serial *serial = port->serial;
 	struct sierra_port_private *portdata;
-	struct sierra_intf_private *intfdata = port->serial->private;
+	struct sierra_intf_private *intfdata = usb_get_serial_data(serial);
 	struct urb *urb;
 
 	portdata = usb_get_serial_port_data(port);
@@ -802,7 +802,7 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct sierra_port_private *portdata;
 	struct usb_serial *serial = port->serial;
-	struct sierra_intf_private *intfdata = serial->private;
+	struct sierra_intf_private *intfdata = usb_get_serial_data(serial);
 	int i;
 	int err;
 	int endpoint;
@@ -968,7 +968,7 @@ static int sierra_suspend(struct usb_serial *serial, pm_message_t message)
 	int b;
 
 	if (PMSG_IS_AUTO(message)) {
-		intfdata = serial->private;
+		intfdata = usb_get_serial_data(serial);
 		spin_lock_irq(&intfdata->susp_lock);
 		b = intfdata->in_flight;
 
@@ -988,7 +988,7 @@ static int sierra_suspend(struct usb_serial *serial, pm_message_t message)
 static int sierra_resume(struct usb_serial *serial)
 {
 	struct usb_serial_port *port;
-	struct sierra_intf_private *intfdata = serial->private;
+	struct sierra_intf_private *intfdata = usb_get_serial_data(serial);
 	struct sierra_port_private *portdata;
 	struct urb *urb;
 	int ec = 0;
