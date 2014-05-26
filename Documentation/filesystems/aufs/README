@@ -247,9 +247,9 @@ optional. When you meet some problems, they will help you.
 - tmpfs-ibitmap.patch
   Keeps the tmpfs inode number as the lowest value. Effective to reduce
   the size of aufs XINO files for tmpfs branch. Also it prevents the
-  duplication of inode number, which is important for NFS-exporting,
-  backup tools, or other utilities. When you find aufs XINO files for
-  tmpfs branch growing too much, try this patch.
+  duplication of inode number, which is important for backup tools and
+  other utilities. When you find aufs XINO files for tmpfs branch
+  growing too much, try this patch.
 
 
 4. Usage
