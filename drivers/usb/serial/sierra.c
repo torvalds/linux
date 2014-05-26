@@ -824,14 +824,9 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 			usb_sndbulkpipe(serial->dev, endpoint) | USB_DIR_IN);
 
 	err = sierra_submit_rx_urbs(port, GFP_KERNEL);
-	if (err) {
-		/* get rid of everything as in close */
-		sierra_close(port);
-		/* restore balance for autopm */
-		if (!serial->disconnected)
-			usb_autopm_put_interface(serial->interface);
-		return err;
-	}
+	if (err)
+		goto err_submit;
+
 	sierra_send_setup(port);
 
 	serial->interface->needs_remote_wakeup = 1;
@@ -841,6 +836,16 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 	usb_autopm_put_interface(serial->interface);
 
 	return 0;
+
+err_submit:
+	sierra_stop_rx_urbs(port);
+
+	for (i = 0; i < portdata->num_in_urbs; i++) {
+		sierra_release_urb(portdata->in_urbs[i]);
+		portdata->in_urbs[i] = NULL;
+	}
+
+	return err;
 }
 
 
