@@ -299,6 +299,7 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init arm64_device_init(void)
 {
+	of_clk_init(NULL);
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }
