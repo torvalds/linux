@@ -830,18 +830,19 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 			     && !is_root
 			     && ((!h_nfs
 				  && (unhashed != !!d_unhashed(h_dentry)
-				      || name->len != h_name->len
-				      || memcmp(name->name, h_name->name,
-						name->len)))
+				      || !au_qstreq(name, h_name)))
 				 || (h_nfs
 				     && !(flags & LOOKUP_OPEN)
 				     && (h_dentry->d_flags
 					 & DCACHE_NFSFS_RENAMED)))
 			    )) {
-			AuDbg("unhash 0x%x 0x%x, %.*s %.*s\n",
-				  unhashed, d_unhashed(h_dentry),
-				  AuDLNPair(dentry), AuDLNPair(h_dentry));
+			int h_unhashed;
+
+			h_unhashed = d_unhashed(h_dentry);
 			spin_unlock(&h_dentry->d_lock);
+			AuDbg("unhash 0x%x 0x%x, %.*s %.*s\n",
+			      unhashed, h_unhashed,
+			      AuDLNPair(dentry), AuDLNPair(h_dentry));
 			goto err;
 		}
 		spin_unlock(&h_dentry->d_lock);
