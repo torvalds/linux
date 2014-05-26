@@ -672,8 +672,9 @@ int usb_wwan_resume(struct usb_serial *serial)
 			urb = portdata->in_urbs[j];
 			err = usb_submit_urb(urb, GFP_ATOMIC);
 			if (err < 0) {
-				dev_err(&port->dev, "%s: Error %d for bulk URB %d\n",
-					__func__, err, i);
+				dev_err(&port->dev,
+					"%s: submit read urb %d failed: %d\n",
+					__func__, i, err);
 				err_count++;
 			}
 		}
