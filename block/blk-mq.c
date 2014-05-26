@@ -1844,6 +1844,7 @@ void blk_mq_free_queue(struct request_queue *q)
 	blk_mq_del_queue_tag_set(q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
+		blk_mq_tag_idle(hctx);
 		kfree(hctx->ctxs);
 		blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
 		if (q->mq_ops->exit_hctx)
