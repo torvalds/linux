@@ -671,7 +671,7 @@ static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devf
 	struct intel_iommu *iommu;
 	struct device *tmp;
 	struct pci_dev *ptmp, *pdev = NULL;
-	u16 segment;
+	u16 segment = 0;
 	int i;
 
 	if (dev_is_pci(dev)) {
@@ -2213,7 +2213,8 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	struct device_domain_info *info;
 	struct pci_dev *dev_tmp = NULL;
 	unsigned long flags;
-	u8 bus, devfn, bridge_bus, bridge_devfn;
+	u8 bus, devfn;
+	u8 bridge_bus = 0, bridge_devfn = 0;
 
 	domain = find_domain(dev);
 	if (domain)
