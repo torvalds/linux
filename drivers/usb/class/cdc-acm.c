@@ -504,6 +504,25 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	return tty_port_open(&acm->port, tty, filp);
 }
 
+static void acm_port_dtr_rts(struct tty_port *port, int raise)
+{
+	struct acm *acm = container_of(port, struct acm, port);
+	int val;
+	int res;
+
+	if (raise)
+		val = ACM_CTRL_DTR | ACM_CTRL_RTS;
+	else
+		val = 0;
+
+	/* FIXME: add missing ctrlout locking throughout driver */
+	acm->ctrlout = val;
+
+	res = acm_set_control(acm, val);
+	if (res && (acm->ctrl_caps & USB_CDC_CAP_LINE))
+		dev_err(&acm->control->dev, "failed to set dtr/rts\n");
+}
+
 static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	struct acm *acm = container_of(port, struct acm, port);
@@ -535,11 +554,6 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 		goto error_submit_urb;
 	}
 
-	acm->ctrlout = ACM_CTRL_DTR | ACM_CTRL_RTS;
-	retval = acm_set_control(acm, acm->ctrlout);
-	if (retval < 0 && (acm->ctrl_caps & USB_CDC_CAP_LINE))
-		goto error_set_control;
-
 	/*
 	 * Unthrottle device in case the TTY was closed while throttled.
 	 */
@@ -561,9 +575,6 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 error_submit_read_urbs:
 	for (i = 0; i < acm->rx_buflimit; i++)
 		usb_kill_urb(acm->read_urbs[i]);
-	acm->ctrlout = 0;
-	acm_set_control(acm, acm->ctrlout);
-error_set_control:
 	usb_kill_urb(acm->ctrlurb);
 error_submit_urb:
 	usb_autopm_put_interface(acm->control);
@@ -594,8 +605,6 @@ static void acm_port_shutdown(struct tty_port *port)
 	int i;
 
 	dev_dbg(&acm->control->dev, "%s\n", __func__);
-
-	acm_set_control(acm, acm->ctrlout = 0);
 
 	/*
 	 * Need to grab write_lock to prevent race with resume, but no need to
@@ -992,6 +1001,7 @@ static void acm_tty_set_termios(struct tty_struct *tty,
 }
 
 static const struct tty_port_operations acm_port_ops = {
+	.dtr_rts = acm_port_dtr_rts,
 	.shutdown = acm_port_shutdown,
 	.activate = acm_port_activate,
 	.destruct = acm_port_destruct,
@@ -1428,8 +1438,6 @@ skip_countries:
 	acm->ctrlurb->transfer_dma = acm->ctrl_dma;
 
 	dev_info(&intf->dev, "ttyACM%d: USB ACM device\n", minor);
-
-	acm_set_control(acm, acm->ctrlout);
 
 	acm->line.dwDTERate = cpu_to_le32(9600);
 	acm->line.bDataBits = 8;
