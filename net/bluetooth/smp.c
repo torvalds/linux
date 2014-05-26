@@ -35,8 +35,9 @@
 
 #define SMP_TIMEOUT	msecs_to_jiffies(30000)
 
-#define AUTH_REQ_MASK   0x07
-#define KEY_DIST_MASK	0x07
+#define AUTH_REQ_MASK(dev)	(test_bit(HCI_SC_ENABLED, &(dev)->dev_flags) ? \
+				 0x1f : 0x07)
+#define KEY_DIST_MASK		0x07
 
 enum {
 	SMP_FLAG_TK_VALID,
@@ -332,7 +333,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 		req->max_key_size = SMP_MAX_ENC_KEY_SIZE;
 		req->init_key_dist = local_dist;
 		req->resp_key_dist = remote_dist;
-		req->auth_req = (authreq & AUTH_REQ_MASK);
+		req->auth_req = (authreq & AUTH_REQ_MASK(hdev));
 
 		smp->remote_key_dist = remote_dist;
 		return;
@@ -343,7 +344,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 	rsp->max_key_size = SMP_MAX_ENC_KEY_SIZE;
 	rsp->init_key_dist = req->init_key_dist & remote_dist;
 	rsp->resp_key_dist = req->resp_key_dist & local_dist;
-	rsp->auth_req = (authreq & AUTH_REQ_MASK);
+	rsp->auth_req = (authreq & AUTH_REQ_MASK(hdev));
 
 	smp->remote_key_dist = rsp->init_key_dist;
 }
@@ -942,7 +943,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		return SMP_UNSPECIFIED;
 
 	/* We didn't start the pairing, so match remote */
-	auth = req->auth_req & AUTH_REQ_MASK;
+	auth = req->auth_req & AUTH_REQ_MASK(hdev);
 
 	if (!test_bit(HCI_BONDABLE, &hdev->dev_flags) &&
 	    (auth & SMP_AUTH_BONDING))
@@ -997,6 +998,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_cmd_pairing *req, *rsp = (void *) skb->data;
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp = chan->data;
+	struct hci_dev *hdev = conn->hcon->hdev;
 	u8 key_size, auth;
 	int ret;
 
@@ -1016,7 +1018,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (check_enc_key_size(conn, key_size))
 		return SMP_ENC_KEY_SIZE;
 
-	auth = rsp->auth_req & AUTH_REQ_MASK;
+	auth = rsp->auth_req & AUTH_REQ_MASK(hdev);
 
 	/* If we need MITM check that it can be achieved */
 	if (conn->hcon->pending_sec_level >= BT_SECURITY_HIGH) {
@@ -1151,6 +1153,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_cmd_security_req *rp = (void *) skb->data;
 	struct smp_cmd_pairing cp;
 	struct hci_conn *hcon = conn->hcon;
+	struct hci_dev *hdev = hcon->hdev;
 	struct smp_chan *smp;
 	u8 sec_level, auth;
 
@@ -1162,7 +1165,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (hcon->role != HCI_ROLE_MASTER)
 		return SMP_CMD_NOTSUPP;
 
-	auth = rp->auth_req & AUTH_REQ_MASK;
+	auth = rp->auth_req & AUTH_REQ_MASK(hdev);
 
 	if (hcon->io_capability == HCI_IO_NO_INPUT_OUTPUT)
 		sec_level = BT_SECURITY_MEDIUM;
