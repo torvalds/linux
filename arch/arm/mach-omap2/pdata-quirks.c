@@ -226,6 +226,14 @@ static void __init am3517_evm_legacy_init(void)
 	am35xx_emac_reset();
 }
 
+static struct platform_device omap3_rom_rng_device = {
+	.name		= "omap3-rom-rng",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= rx51_secure_rng_call,
+	},
+};
+
 static void __init nokia_n900_legacy_init(void)
 {
 	hsmmc2_internal_input_clk();
@@ -239,6 +247,10 @@ static void __init nokia_n900_legacy_init(void)
 			pr_warning("RX-51: Not enabling ARM errata 430973 workaround\n");
 			pr_warning("Thumb binaries may crash randomly without this workaround\n");
 		}
+
+		pr_info("RX-51: Registring OMAP3 HWRNG device\n");
+		platform_device_register(&omap3_rom_rng_device);
+
 	}
 }
 #endif /* CONFIG_ARCH_OMAP3 */
