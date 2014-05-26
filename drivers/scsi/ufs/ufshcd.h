@@ -183,9 +183,12 @@ struct ufs_dev_cmd {
  * @eh_flags: Error handling flags
  * @intr_mask: Interrupt Mask Bits
  * @ee_ctrl_mask: Exception event control mask
- * @feh_workq: Work queue for fatal controller error handling
+ * @eh_work: Worker to handle UFS errors that require s/w attention
  * @eeh_work: Worker to handle exception events
  * @errors: HBA errors
+ * @uic_error: UFS interconnect layer error status
+ * @saved_err: sticky error mask
+ * @saved_uic_err: sticky UIC error mask
  * @dev_cmd: ufs device management command information
  * @auto_bkops_enabled: to track whether bkops is enabled in device
  */
@@ -233,11 +236,14 @@ struct ufs_hba {
 	u16 ee_ctrl_mask;
 
 	/* Work Queues */
-	struct work_struct feh_workq;
+	struct work_struct eh_work;
 	struct work_struct eeh_work;
 
 	/* HBA Errors */
 	u32 errors;
+	u32 uic_error;
+	u32 saved_err;
+	u32 saved_uic_err;
 
 	/* Device management request data */
 	struct ufs_dev_cmd dev_cmd;
