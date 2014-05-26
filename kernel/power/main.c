@@ -279,14 +279,14 @@ static inline void pm_print_times_init(void) {}
 struct kobject *power_kobj;
 
 /**
- *	state - control system power state.
+ * state - control system sleep states.
  *
- *	show() returns what states are supported, which is hard-coded to
- *	'freeze' (Low-Power Idle), 'standby' (Power-On Suspend),
- *	'mem' (Suspend-to-RAM), and 'disk' (Suspend-to-Disk).
+ * show() returns available sleep state labels, which may be "mem", "standby",
+ * "freeze" and "disk" (hibernation).  See Documentation/power/states.txt for a
+ * description of what they mean.
  *
- *	store() accepts one of those strings, translates it into the
- *	proper enumerated value, and initiates a suspend transition.
+ * store() accepts one of those strings, translates it into the proper
+ * enumerated value, and initiates a suspend transition.
  */
 static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 			  char *buf)

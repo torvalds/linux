@@ -78,6 +78,26 @@ static bool valid_state(suspend_state_t state)
 	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state);
 }
 
+/*
+ * If this is set, the "mem" label always corresponds to the deepest sleep state
+ * available, the "standby" label corresponds to the second deepest sleep state
+ * available (if any), and the "freeze" label corresponds to the remaining
+ * available sleep state (if there is one).
+ */
+static bool relative_states;
+
+static int __init sleep_states_setup(char *str)
+{
+	relative_states = !strncmp(str, "1", 1);
+	if (relative_states) {
+		pm_states[PM_SUSPEND_MEM].state = PM_SUSPEND_FREEZE;
+		pm_states[PM_SUSPEND_FREEZE].state = 0;
+	}
+	return 1;
+}
+
+__setup("relative_sleep_states=", sleep_states_setup);
+
 /**
  * suspend_set_ops - Set the global suspend method table.
  * @ops: Suspend operations to use.
@@ -85,12 +105,20 @@ static bool valid_state(suspend_state_t state)
 void suspend_set_ops(const struct platform_suspend_ops *ops)
 {
 	suspend_state_t i;
+	int j = PM_SUSPEND_MAX - 1;
 
 	lock_system_sleep();
 
 	suspend_ops = ops;
-	for (i = PM_SUSPEND_STANDBY; i <= PM_SUSPEND_MEM; i++)
-		pm_states[i].state = valid_state(i) ? i : 0;
+	for (i = PM_SUSPEND_MEM; i >= PM_SUSPEND_STANDBY; i--)
+		if (valid_state(i))
+			pm_states[j--].state = i;
+		else if (!relative_states)
+			pm_states[j--].state = 0;
+
+	pm_states[j--].state = PM_SUSPEND_FREEZE;
+	while (j >= PM_SUSPEND_MIN)
+		pm_states[j--].state = 0;
 
 	unlock_system_sleep();
 }
