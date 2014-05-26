@@ -83,7 +83,7 @@ struct drm_exynos_ipp_cmd_node {
 /*
  * A structure of buffer information.
  *
- * @gem_objs: Y, Cb, Cr each gem object.
+ * @handles: Y, Cb, Cr each gem object handle.
  * @base: Y, Cb, Cr each planar address.
  */
 struct drm_exynos_ipp_buf_info {
