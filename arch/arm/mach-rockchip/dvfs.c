@@ -895,9 +895,9 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 
 	/* scale rate */
 	if (clk_dvfs_node->clk_dvfs_target) {
-		ret = clk_dvfs_node->clk_dvfs_target(clk, new_rate);
+		ret = clk_dvfs_node->clk_dvfs_target(clk, rate);
 	} else {
-		ret = clk_set_rate(clk, new_rate);
+		ret = clk_set_rate(clk, rate);
 	}
 
 	if (ret) {
