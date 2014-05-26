@@ -813,6 +813,8 @@ static void sierra_close(struct usb_serial_port *port)
 	}
 
 	sierra_stop_rx_urbs(port);
+	usb_kill_anchored_urbs(&portdata->active);
+
 	for (i = 0; i < portdata->num_in_urbs; i++) {
 		sierra_release_urb(portdata->in_urbs[i]);
 		portdata->in_urbs[i] = NULL;
