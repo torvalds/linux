@@ -92,13 +92,13 @@ static void __init test_wakealarm(struct rtc_device *rtc, suspend_state_t state)
 	}
 
 	if (state == PM_SUSPEND_MEM) {
-		printk(info_test, pm_states[state]);
+		printk(info_test, pm_states[state].label);
 		status = pm_suspend(state);
 		if (status == -ENODEV)
 			state = PM_SUSPEND_STANDBY;
 	}
 	if (state == PM_SUSPEND_STANDBY) {
-		printk(info_test, pm_states[state]);
+		printk(info_test, pm_states[state].label);
 		status = pm_suspend(state);
 	}
 	if (status < 0)
@@ -136,18 +136,16 @@ static char warn_bad_state[] __initdata =
 
 static int __init setup_test_suspend(char *value)
 {
-	unsigned i;
+	suspend_state_t i;
 
 	/* "=mem" ==> "mem" */
 	value++;
-	for (i = 0; i < PM_SUSPEND_MAX; i++) {
-		if (!pm_states[i])
-			continue;
-		if (strcmp(pm_states[i], value) != 0)
-			continue;
-		test_state = (__force suspend_state_t) i;
-		return 0;
-	}
+	for (i = PM_SUSPEND_MIN; i < PM_SUSPEND_MAX; i++)
+		if (!strcmp(pm_states[i].label, value)) {
+			test_state = pm_states[i].state;
+			return 0;
+		}
+
 	printk(warn_bad_state, value);
 	return 0;
 }
@@ -165,7 +163,7 @@ static int __init test_suspend(void)
 	if (test_state == PM_SUSPEND_ON)
 		goto done;
 	if (!valid_state(test_state)) {
-		printk(warn_bad_state, pm_states[test_state]);
+		printk(warn_bad_state, pm_states[test_state].label);
 		goto done;
 	}
 
