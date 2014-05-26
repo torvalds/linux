@@ -525,8 +525,6 @@ static int sunxi_pinctrl_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	if (!desc)
 		return -EINVAL;
 
-	pctl->irq_array[desc->irqnum] = offset;
-
 	dev_dbg(chip->dev, "%s: request IRQ for GPIO %d, return %d\n",
 		chip->label, offset + chip->base, desc->irqnum);
 
@@ -727,6 +725,9 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 		struct sunxi_desc_function *func = pin->functions;
 
 		while (func->name) {
+			/* Create interrupt mapping while we're at it */
+			if (!strcmp(func->name, "irq"))
+				pctl->irq_array[func->irqnum] = pin->pin.number;
 			sunxi_pinctrl_add_function(pctl, func->name);
 			func++;
 		}
