@@ -1524,6 +1524,7 @@ struct max98090_priv {
 	struct snd_soc_codec *codec;
 	enum max98090_type devtype;
 	struct max98090_pdata *pdata;
+	struct clk *mclk;
 	unsigned int sysclk;
 	unsigned int bclk;
 	unsigned int lrclk;
