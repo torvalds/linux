@@ -36,7 +36,4 @@
 void ControlvReadByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
 			u8 *data);
 
-void ControlvMaskByte(struct vnt_private *pDevice, u8 reg_type, u8 reg_off,
-			u8 reg_mask, u8 data);
-
 #endif /* __CONTROL_H__ */
