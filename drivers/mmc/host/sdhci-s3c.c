@@ -374,82 +374,12 @@ static struct sdhci_ops sdhci_s3c_ops = {
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 };
 
-static void sdhci_s3c_notify_change(struct platform_device *dev, int state)
-{
-	struct sdhci_host *host = platform_get_drvdata(dev);
-#ifdef CONFIG_PM_RUNTIME
-	struct sdhci_s3c *sc = sdhci_priv(host);
-#endif
-	unsigned long flags;
-
-	if (host) {
-		spin_lock_irqsave(&host->lock, flags);
-		if (state) {
-			dev_dbg(&dev->dev, "card inserted.\n");
-#ifdef CONFIG_PM_RUNTIME
-			clk_prepare_enable(sc->clk_io);
-#endif
-			host->flags &= ~SDHCI_DEVICE_DEAD;
-			host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
-		} else {
-			dev_dbg(&dev->dev, "card removed.\n");
-			host->flags |= SDHCI_DEVICE_DEAD;
-			host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
-#ifdef CONFIG_PM_RUNTIME
-			clk_disable_unprepare(sc->clk_io);
-#endif
-		}
-		tasklet_schedule(&host->card_tasklet);
-		spin_unlock_irqrestore(&host->lock, flags);
-	}
-}
-
-static irqreturn_t sdhci_s3c_gpio_card_detect_thread(int irq, void *dev_id)
-{
-	struct sdhci_s3c *sc = dev_id;
-	int status = gpio_get_value(sc->ext_cd_gpio);
-	if (sc->pdata->ext_cd_gpio_invert)
-		status = !status;
-	sdhci_s3c_notify_change(sc->pdev, status);
-	return IRQ_HANDLED;
-}
-
-static void sdhci_s3c_setup_card_detect_gpio(struct sdhci_s3c *sc)
-{
-	struct s3c_sdhci_platdata *pdata = sc->pdata;
-	struct device *dev = &sc->pdev->dev;
-
-	if (devm_gpio_request(dev, pdata->ext_cd_gpio, "SDHCI EXT CD") == 0) {
-		sc->ext_cd_gpio = pdata->ext_cd_gpio;
-		sc->ext_cd_irq = gpio_to_irq(pdata->ext_cd_gpio);
-		if (sc->ext_cd_irq &&
-		    request_threaded_irq(sc->ext_cd_irq, NULL,
-					 sdhci_s3c_gpio_card_detect_thread,
-					 IRQF_TRIGGER_RISING |
-					 IRQF_TRIGGER_FALLING |
-					 IRQF_ONESHOT,
-					 dev_name(dev), sc) == 0) {
-			int status = gpio_get_value(sc->ext_cd_gpio);
-			if (pdata->ext_cd_gpio_invert)
-				status = !status;
-			sdhci_s3c_notify_change(sc->pdev, status);
-		} else {
-			dev_warn(dev, "cannot request irq for card detect\n");
-			sc->ext_cd_irq = 0;
-		}
-	} else {
-		dev_err(dev, "cannot request gpio for card detect\n");
-	}
-}
-
 #ifdef CONFIG_OF
 static int sdhci_s3c_parse_dt(struct device *dev,
 		struct sdhci_host *host, struct s3c_sdhci_platdata *pdata)
 {
 	struct device_node *node = dev->of_node;
-	struct sdhci_s3c *ourhost = to_s3c(host);
 	u32 max_width;
-	int gpio;
 
 	/* if the bus-width property is not specified, assume width as 1 */
 	if (of_property_read_u32(node, "bus-width", &max_width))
@@ -467,18 +397,8 @@ static int sdhci_s3c_parse_dt(struct device *dev,
 		return 0;
 	}
 
-	gpio = of_get_named_gpio(node, "cd-gpios", 0);
-	if (gpio_is_valid(gpio)) {
-		pdata->cd_type = S3C_SDHCI_CD_GPIO;
-		pdata->ext_cd_gpio = gpio;
-		ourhost->ext_cd_gpio = -1;
-		if (of_get_property(node, "cd-inverted", NULL))
-			pdata->ext_cd_gpio_invert = 1;
+	if (of_get_named_gpio(node, "cd-gpios", 0))
 		return 0;
-	} else if (gpio != -ENOENT) {
-		dev_err(dev, "invalid card detect gpio specified\n");
-		return -EINVAL;
-	}
 
 	/* assuming internal card detect that will be configured by pinctrl */
 	pdata->cd_type = S3C_SDHCI_CD_INTERNAL;
@@ -681,6 +601,8 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_suspend_ignore_children(&pdev->dev, 1);
 
+	mmc_of_parse(host->mmc);
+
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(dev, "sdhci_add_host() failed\n");
@@ -688,15 +610,6 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 		pm_runtime_get_noresume(&pdev->dev);
 		goto err_req_regs;
 	}
-
-	/* The following two methods of card detection might call
-	   sdhci_s3c_notify_change() immediately, so they can be called
-	   only after sdhci_add_host(). Setup errors are ignored. */
-	if (pdata->cd_type == S3C_SDHCI_CD_EXTERNAL && pdata->ext_cd_init)
-		pdata->ext_cd_init(&sdhci_s3c_notify_change);
-	if (pdata->cd_type == S3C_SDHCI_CD_GPIO &&
-	    gpio_is_valid(pdata->ext_cd_gpio))
-		sdhci_s3c_setup_card_detect_gpio(sc);
 
 #ifdef CONFIG_PM_RUNTIME
 	if (pdata->cd_type != S3C_SDHCI_CD_INTERNAL)
@@ -718,16 +631,12 @@ static int sdhci_s3c_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host =  platform_get_drvdata(pdev);
 	struct sdhci_s3c *sc = sdhci_priv(host);
-	struct s3c_sdhci_platdata *pdata = sc->pdata;
-
-	if (pdata->cd_type == S3C_SDHCI_CD_EXTERNAL && pdata->ext_cd_cleanup)
-		pdata->ext_cd_cleanup(&sdhci_s3c_notify_change);
 
 	if (sc->ext_cd_irq)
 		free_irq(sc->ext_cd_irq, sc);
 
 #ifdef CONFIG_PM_RUNTIME
-	if (pdata->cd_type != S3C_SDHCI_CD_INTERNAL)
+	if (sc->pdata->cd_type != S3C_SDHCI_CD_INTERNAL)
 		clk_prepare_enable(sc->clk_io);
 #endif
 	sdhci_remove_host(host, 1);
