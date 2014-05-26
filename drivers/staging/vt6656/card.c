@@ -197,7 +197,7 @@ static u16 swGetOFDMControlRate(struct vnt_private *priv, u16 rate_idx)
  * Return Value: none
  *
  */
-void CARDvCalculateOFDMRParameter(u16 rate, u8 bb_type,
+static void CARDvCalculateOFDMRParameter(u16 rate, u8 bb_type,
 					u8 *tx_rate, u8 *rsv_time)
 {
 
