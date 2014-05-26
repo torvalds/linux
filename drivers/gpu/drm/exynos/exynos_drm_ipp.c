@@ -276,11 +276,6 @@ static struct exynos_drm_ippdrv *ipp_find_drv_by_handle(u32 prop_id)
 
 	DRM_DEBUG_KMS("prop_id[%d]\n", prop_id);
 
-	if (list_empty(&exynos_drm_ippdrv_list)) {
-		DRM_DEBUG_KMS("ippdrv_list is empty.\n");
-		return ERR_PTR(-ENODEV);
-	}
-
 	/*
 	 * This case is search ipp driver by prop_id handle.
 	 * sometimes, ipp subsystem find driver by prop_id.
@@ -289,11 +284,9 @@ static struct exynos_drm_ippdrv *ipp_find_drv_by_handle(u32 prop_id)
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
 		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n", count++, (int)ippdrv);
 
-		if (!list_empty(&ippdrv->cmd_list)) {
-			list_for_each_entry(c_node, &ippdrv->cmd_list, list)
-				if (c_node->property.prop_id == prop_id)
-					return ippdrv;
-		}
+		list_for_each_entry(c_node, &ippdrv->cmd_list, list)
+			if (c_node->property.prop_id == prop_id)
+				return ippdrv;
 	}
 
 	return ERR_PTR(-ENODEV);
@@ -573,11 +566,6 @@ static int ipp_check_mem_list(struct drm_exynos_ipp_cmd_node *c_node)
 		/* source/destination memory list */
 		head = &c_node->mem_list[i];
 
-		if (list_empty(head)) {
-			DRM_DEBUG_KMS("%s memory empty.\n", i ? "dst" : "src");
-			continue;
-		}
-
 		/* find memory node entry */
 		list_for_each_entry(m_node, head, list) {
 			DRM_DEBUG_KMS("%s,count[%d]m_node[0x%x]\n",
@@ -816,11 +804,6 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 	struct drm_exynos_ipp_send_event *e, *te;
 	int count = 0;
 
-	if (list_empty(&c_node->event_list)) {
-		DRM_DEBUG_KMS("event_list is empty.\n");
-		return;
-	}
-
 	list_for_each_entry_safe(e, te, &c_node->event_list, base.link) {
 		DRM_DEBUG_KMS("count[%d]e[0x%x]\n", count++, (int)e);
 
@@ -918,14 +901,12 @@ static void ipp_clean_queue_buf(struct drm_device *drm_dev,
 {
 	struct drm_exynos_ipp_mem_node *m_node, *tm_node;
 
-	if (!list_empty(&c_node->mem_list[qbuf->ops_id])) {
-		/* delete list */
-		list_for_each_entry_safe(m_node, tm_node,
-			&c_node->mem_list[qbuf->ops_id], list) {
-			if (m_node->buf_id == qbuf->buf_id &&
-			    m_node->ops_id == qbuf->ops_id)
-				ipp_put_mem_node(drm_dev, c_node, m_node);
-		}
+	/* delete list */
+	list_for_each_entry_safe(m_node, tm_node,
+		&c_node->mem_list[qbuf->ops_id], list) {
+		if (m_node->buf_id == qbuf->buf_id &&
+		    m_node->ops_id == qbuf->ops_id)
+			ipp_put_mem_node(drm_dev, c_node, m_node);
 	}
 }
 
@@ -1361,11 +1342,6 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 			/* source/destination memory list */
 			head = &c_node->mem_list[i];
 
-			if (list_empty(head)) {
-				DRM_DEBUG_KMS("mem_list is empty.\n");
-				break;
-			}
-
 			list_for_each_entry_safe(m_node, tm_node,
 				head, list) {
 				ret = ipp_put_mem_node(drm_dev, c_node,
@@ -1381,11 +1357,6 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 		/* destination memory list */
 		head = &c_node->mem_list[EXYNOS_DRM_OPS_DST];
 
-		if (list_empty(head)) {
-			DRM_DEBUG_KMS("mem_list is empty.\n");
-			break;
-		}
-
 		list_for_each_entry_safe(m_node, tm_node, head, list) {
 			ret = ipp_put_mem_node(drm_dev, c_node, m_node);
 			if (ret) {
@@ -1397,11 +1368,6 @@ static int ipp_stop_property(struct drm_device *drm_dev,
 	case IPP_CMD_OUTPUT:
 		/* source memory list */
 		head = &c_node->mem_list[EXYNOS_DRM_OPS_SRC];
-
-		if (list_empty(head)) {
-			DRM_DEBUG_KMS("mem_list is empty.\n");
-			break;
-		}
 
 		list_for_each_entry_safe(m_node, tm_node, head, list) {
 			ret = ipp_put_mem_node(drm_dev, c_node, m_node);
@@ -1790,15 +1756,7 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 
 	DRM_DEBUG_KMS("for priv[0x%x]\n", (int)priv);
 
-	if (list_empty(&exynos_drm_ippdrv_list)) {
-		DRM_DEBUG_KMS("ippdrv_list is empty.\n");
-		goto err_clear;
-	}
-
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
-		if (list_empty(&ippdrv->cmd_list))
-			continue;
-
 		list_for_each_entry_safe(c_node, tc_node,
 			&ippdrv->cmd_list, list) {
 			DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n",
@@ -1825,7 +1783,6 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 		}
 	}
 
-err_clear:
 	kfree(priv);
 	return;
 }
