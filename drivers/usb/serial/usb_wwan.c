@@ -231,9 +231,9 @@ int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,
 			spin_unlock_irqrestore(&intfdata->susp_lock, flags);
 			err = usb_submit_urb(this_urb, GFP_ATOMIC);
 			if (err) {
-				dev_dbg(&port->dev,
-					"usb_submit_urb %p (write bulk) failed (%d)\n",
-					this_urb, err);
+				dev_err(&port->dev,
+					"%s: submit urb %d failed: %d\n",
+					__func__, i, err);
 				clear_bit(i, &portdata->out_busy);
 				spin_lock_irqsave(&intfdata->susp_lock, flags);
 				intfdata->in_flight--;
@@ -376,7 +376,7 @@ int usb_wwan_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (port->interrupt_in_urb) {
 		err = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (err) {
-			dev_dbg(&port->dev, "%s: submit int urb failed: %d\n",
+			dev_err(&port->dev, "%s: submit int urb failed: %d\n",
 				__func__, err);
 		}
 	}
@@ -388,8 +388,9 @@ int usb_wwan_open(struct tty_struct *tty, struct usb_serial_port *port)
 			continue;
 		err = usb_submit_urb(urb, GFP_KERNEL);
 		if (err) {
-			dev_dbg(&port->dev, "%s: submit urb %d failed (%d) %d\n",
-				__func__, i, err, urb->transfer_buffer_length);
+			dev_err(&port->dev,
+				"%s: submit read urb %d failed: %d\n",
+				__func__, i, err);
 		}
 	}
 
