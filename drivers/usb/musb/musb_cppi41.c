@@ -139,6 +139,7 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 		cppi41_channel->channel.actual_len =
 			cppi41_channel->transferred;
 		cppi41_channel->channel.status = MUSB_DMA_STATUS_FREE;
+		cppi41_channel->channel.rx_packet_done = true;
 		musb_dma_completion(musb, hw_ep->epnum, cppi41_channel->is_tx);
 	} else {
 		/* next iteration, reload */
@@ -450,6 +451,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 	dma_desc->callback = cppi41_dma_callback;
 	dma_desc->callback_param = channel;
 	cppi41_channel->cookie = dma_desc->tx_submit(dma_desc);
+	cppi41_channel->channel.rx_packet_done = false;
 
 	save_rx_toggle(cppi41_channel);
 	dma_async_issue_pending(dc);
