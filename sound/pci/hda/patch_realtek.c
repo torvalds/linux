@@ -3986,6 +3986,29 @@ static void alc_fixup_disable_aamix(struct hda_codec *codec,
 	}
 }
 
+static unsigned int alc_power_filter_xps13(struct hda_codec *codec,
+				hda_nid_t nid,
+				unsigned int power_state)
+{
+	struct alc_spec *spec = codec->spec;
+
+	/* Avoid pop noises when headphones are plugged in */
+	if (spec->gen.hp_jack_present)
+		if (nid == codec->afg || nid == 0x02)
+			return AC_PWRST_D0;
+	return power_state;
+}
+
+static void alc_fixup_dell_xps13(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PROBE) {
+		struct alc_spec *spec = codec->spec;
+		spec->shutup = alc_no_shutup;
+		codec->power_filter = alc_power_filter_xps13;
+	}
+}
+
 static void alc_fixup_headset_mode_alc668(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
@@ -5482,6 +5505,7 @@ enum {
 	ALC662_FIXUP_BASS_CHMAP,
 	ALC668_FIXUP_AUTO_MUTE,
 	ALC668_FIXUP_DELL_DISABLE_AAMIX,
+	ALC668_FIXUP_DELL_XPS13,
 };
 
 static const struct hda_fixup alc662_fixups[] = {
@@ -5648,6 +5672,12 @@ static const struct hda_fixup alc662_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_inv_dmic_0x12,
 	},
+	[ALC668_FIXUP_DELL_XPS13] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_dell_xps13,
+		.chained = true,
+		.chain_id = ALC668_FIXUP_DELL_DISABLE_AAMIX
+	},
 	[ALC668_FIXUP_DELL_DISABLE_AAMIX] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_disable_aamix,
@@ -5714,7 +5744,7 @@ static const struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
 	SND_PCI_QUIRK(0x1028, 0x05d8, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x05db, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x1028, 0x060a, "Dell XPS 13", ALC668_FIXUP_DELL_DISABLE_AAMIX),
+	SND_PCI_QUIRK(0x1028, 0x060a, "Dell XPS 13", ALC668_FIXUP_DELL_XPS13),
 	SND_PCI_QUIRK(0x1028, 0x0623, "Dell", ALC668_FIXUP_AUTO_MUTE),
 	SND_PCI_QUIRK(0x1028, 0x0624, "Dell", ALC668_FIXUP_AUTO_MUTE),
 	SND_PCI_QUIRK(0x1028, 0x0625, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
