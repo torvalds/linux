@@ -450,7 +450,6 @@ void usb_wwan_close(struct usb_serial_port *port)
 		usb_kill_urb(portdata->out_urbs[i]);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	/* balancing - important as an error cannot be handled*/
 	usb_autopm_get_interface_no_resume(serial->interface);
 }
 EXPORT_SYMBOL(usb_wwan_close);
