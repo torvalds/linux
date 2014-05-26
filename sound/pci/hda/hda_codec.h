@@ -402,6 +402,7 @@ struct hda_codec {
 
 	/* fix-up list */
 	int fixup_id;
+	unsigned int fixup_forced:1; /* fixup explicitly set by user */
 	const struct hda_fixup *fixup_list;
 	const char *fixup_name;
 
