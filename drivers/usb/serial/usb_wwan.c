@@ -411,9 +411,10 @@ int usb_wwan_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (intfdata->send_setup)
 		intfdata->send_setup(port);
 
-	serial->interface->needs_remote_wakeup = 1;
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 1;
+	if (++intfdata->open_ports == 1)
+		serial->interface->needs_remote_wakeup = 1;
 	spin_unlock_irq(&intfdata->susp_lock);
 	/* this balances a get in the generic USB serial code */
 	usb_autopm_put_interface(serial->interface);
@@ -448,6 +449,8 @@ void usb_wwan_close(struct usb_serial_port *port)
 	/* Stop reading/writing urbs */
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 0;
+	if (--intfdata->open_ports == 0)
+		serial->interface->needs_remote_wakeup = 0;
 	spin_unlock_irq(&intfdata->susp_lock);
 
 	for (;;) {
@@ -466,7 +469,6 @@ void usb_wwan_close(struct usb_serial_port *port)
 
 	/* balancing - important as an error cannot be handled*/
 	usb_autopm_get_interface_no_resume(serial->interface);
-	serial->interface->needs_remote_wakeup = 0;
 }
 EXPORT_SYMBOL(usb_wwan_close);
 
