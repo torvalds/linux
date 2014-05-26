@@ -895,8 +895,13 @@ static int mcp23s08_probe(struct spi_device *spi)
 			return -ENODEV;
 		}
 
-		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++)
+		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
 			pullups[addr] = 0;
+			if (spi_present_mask & (1 << addr))
+				chips++;
+		}
+		if (!chips)
+			return -ENODEV;
 	} else {
 		type = spi_get_device_id(spi)->driver_data;
 		pdata = dev_get_platdata(&spi->dev);
@@ -935,6 +940,10 @@ static int mcp23s08_probe(struct spi_device *spi)
 		if (!(spi_present_mask & (1 << addr)))
 			continue;
 		chips--;
+		if (chips < 0) {
+			dev_err(&spi->dev, "FATAL: invalid negative chip id\n");
+			goto fail;
+		}
 		data->mcp[addr] = &data->chip[chips];
 		status = mcp23s08_probe_one(data->mcp[addr], &spi->dev, spi,
 					    0x40 | (addr << 1), type, base,
