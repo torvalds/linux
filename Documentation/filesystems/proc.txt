@@ -1245,8 +1245,9 @@ second).  The meanings of the columns are as follows, from left to right:
 
 The "intr" line gives counts of interrupts  serviced since boot time, for each
 of the  possible system interrupts.   The first  column  is the  total of  all
-interrupts serviced; each  subsequent column is the  total for that particular
-interrupt.
+interrupts serviced  including  unnumbered  architecture specific  interrupts;
+each  subsequent column is the  total for that particular numbered interrupt.
+Unnumbered interrupts are not shown, only summed into the total.
 
 The "ctxt" line gives the total number of context switches across all CPUs.
 
