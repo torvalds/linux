@@ -507,7 +507,7 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 		goto err_free_stop;
 	}
 
-	mutex_init(&c_node->cmd_lock);
+	mutex_init(&c_node->lock);
 	mutex_init(&c_node->mem_lock);
 	mutex_init(&c_node->event_lock);
 
@@ -542,7 +542,7 @@ static void ipp_clean_cmd_node(struct drm_exynos_ipp_cmd_node *c_node)
 	list_del(&c_node->list);
 
 	/* destroy mutex */
-	mutex_destroy(&c_node->cmd_lock);
+	mutex_destroy(&c_node->lock);
 	mutex_destroy(&c_node->mem_lock);
 	mutex_destroy(&c_node->event_lock);
 
@@ -979,7 +979,7 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 		}
 		break;
 	case IPP_BUF_DEQUEUE:
-		mutex_lock(&c_node->cmd_lock);
+		mutex_lock(&c_node->lock);
 
 		/* put event for destination buffer */
 		if (qbuf->ops_id == EXYNOS_DRM_OPS_DST)
@@ -987,7 +987,7 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 
 		ipp_clean_queue_buf(drm_dev, c_node, qbuf);
 
-		mutex_unlock(&c_node->cmd_lock);
+		mutex_unlock(&c_node->lock);
 		break;
 	default:
 		DRM_ERROR("invalid buffer control.\n");
@@ -1412,7 +1412,7 @@ void ipp_sched_cmd(struct work_struct *work)
 		return;
 	}
 
-	mutex_lock(&c_node->cmd_lock);
+	mutex_lock(&c_node->lock);
 
 	property = &c_node->property;
 
@@ -1460,7 +1460,7 @@ void ipp_sched_cmd(struct work_struct *work)
 	DRM_DEBUG_KMS("ctrl[%d] done.\n", cmd_work->ctrl);
 
 err_unlock:
-	mutex_unlock(&c_node->cmd_lock);
+	mutex_unlock(&c_node->lock);
 }
 
 static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,

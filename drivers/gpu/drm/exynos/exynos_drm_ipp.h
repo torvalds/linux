@@ -52,7 +52,7 @@ struct drm_exynos_ipp_cmd_work {
  * @list: list head to command queue information.
  * @event_list: list head of event.
  * @mem_list: list head to source,destination memory queue information.
- * @cmd_lock: lock for synchronization of access to ioctl.
+ * @lock: lock for synchronization of access to ioctl.
  * @mem_lock: lock for synchronization of access to memory nodes.
  * @event_lock: lock for synchronization of access to scheduled event.
  * @start_complete: completion of start of command.
@@ -68,7 +68,7 @@ struct drm_exynos_ipp_cmd_node {
 	struct list_head	list;
 	struct list_head	event_list;
 	struct list_head	mem_list[EXYNOS_DRM_OPS_MAX];
-	struct mutex	cmd_lock;
+	struct mutex	lock;
 	struct mutex	mem_lock;
 	struct mutex	event_lock;
 	struct completion	start_complete;
