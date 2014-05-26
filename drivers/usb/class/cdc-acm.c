@@ -594,30 +594,27 @@ static void acm_port_shutdown(struct tty_port *port)
 
 	dev_dbg(&acm->control->dev, "%s\n", __func__);
 
-	mutex_lock(&acm->mutex);
-	if (!acm->disconnected) {
-		pm_err = usb_autopm_get_interface(acm->control);
-		acm_set_control(acm, acm->ctrlout = 0);
+	pm_err = usb_autopm_get_interface(acm->control);
+	acm_set_control(acm, acm->ctrlout = 0);
 
-		for (;;) {
-			urb = usb_get_from_anchor(&acm->delayed);
-			if (!urb)
-				break;
-			wb = urb->context;
-			wb->use = 0;
-			usb_autopm_put_interface_async(acm->control);
-		}
-
-		usb_kill_urb(acm->ctrlurb);
-		for (i = 0; i < ACM_NW; i++)
-			usb_kill_urb(acm->wb[i].urb);
-		for (i = 0; i < acm->rx_buflimit; i++)
-			usb_kill_urb(acm->read_urbs[i]);
-		acm->control->needs_remote_wakeup = 0;
-		if (!pm_err)
-			usb_autopm_put_interface(acm->control);
+	for (;;) {
+		urb = usb_get_from_anchor(&acm->delayed);
+		if (!urb)
+			break;
+		wb = urb->context;
+		wb->use = 0;
+		usb_autopm_put_interface_async(acm->control);
 	}
-	mutex_unlock(&acm->mutex);
+
+	usb_kill_urb(acm->ctrlurb);
+	for (i = 0; i < ACM_NW; i++)
+		usb_kill_urb(acm->wb[i].urb);
+	for (i = 0; i < acm->rx_buflimit; i++)
+		usb_kill_urb(acm->read_urbs[i]);
+
+	acm->control->needs_remote_wakeup = 0;
+	if (!pm_err)
+		usb_autopm_put_interface(acm->control);
 }
 
 static void acm_tty_cleanup(struct tty_struct *tty)
