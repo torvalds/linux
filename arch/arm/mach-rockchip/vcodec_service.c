@@ -871,11 +871,13 @@ static void reg_deinit(struct vpu_service_info *pservice, vpu_reg *reg)
 
 #if defined(CONFIG_VCODEC_MMU)
 	// release memory region attach to this registers table.
-	list_for_each_entry_safe(mem_region, n, &reg->mem_region_list, reg_lnk) {
-		ion_unmap_iommu(pservice->dev, pservice->ion_client, mem_region->hdl);
-		ion_free(pservice->ion_client, mem_region->hdl);
-		list_del_init(&mem_region->reg_lnk);
-		kfree(mem_region);
+	if (pservice->mmu_dev) {
+		list_for_each_entry_safe(mem_region, n, &reg->mem_region_list, reg_lnk) {
+			ion_unmap_iommu(pservice->dev, pservice->ion_client, mem_region->hdl);
+			ion_free(pservice->ion_client, mem_region->hdl);
+			list_del_init(&mem_region->reg_lnk);
+			kfree(mem_region);
+		}
 	}
 #endif
 
