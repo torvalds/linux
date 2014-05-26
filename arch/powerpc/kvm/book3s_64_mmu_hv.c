@@ -1060,22 +1060,27 @@ void kvm_set_spte_hva_hv(struct kvm *kvm, unsigned long hva, pte_t pte)
 	kvm_handle_hva(kvm, hva, kvm_unmap_rmapp);
 }
 
-static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
+/*
+ * Returns the number of system pages that are dirty.
+ * This can be more than 1 if we find a huge-page HPTE.
+ */
+static int kvm_test_clear_dirty_npages(struct kvm *kvm, unsigned long *rmapp)
 {
 	struct revmap_entry *rev = kvm->arch.revmap;
 	unsigned long head, i, j;
+	unsigned long n;
 	unsigned long *hptep;
-	int ret = 0;
+	int npages_dirty = 0;
 
  retry:
 	lock_rmap(rmapp);
 	if (*rmapp & KVMPPC_RMAP_CHANGED) {
 		*rmapp &= ~KVMPPC_RMAP_CHANGED;
-		ret = 1;
+		npages_dirty = 1;
 	}
 	if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
 		unlock_rmap(rmapp);
-		return ret;
+		return npages_dirty;
 	}
 
 	i = head = *rmapp & KVMPPC_RMAP_INDEX;
@@ -1106,13 +1111,16 @@ static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
 				rev[i].guest_rpte |= HPTE_R_C;
 				note_hpte_modification(kvm, &rev[i]);
 			}
-			ret = 1;
+			n = hpte_page_size(hptep[0], hptep[1]);
+			n = (n + PAGE_SIZE - 1) >> PAGE_SHIFT;
+			if (n > npages_dirty)
+				npages_dirty = n;
 		}
 		hptep[0] &= ~HPTE_V_HVLOCK;
 	} while ((i = j) != head);
 
 	unlock_rmap(rmapp);
-	return ret;
+	return npages_dirty;
 }
 
 static void harvest_vpa_dirty(struct kvmppc_vpa *vpa,
@@ -1136,15 +1144,22 @@ static void harvest_vpa_dirty(struct kvmppc_vpa *vpa,
 long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			     unsigned long *map)
 {
-	unsigned long i;
+	unsigned long i, j;
 	unsigned long *rmapp;
 	struct kvm_vcpu *vcpu;
 
 	preempt_disable();
 	rmapp = memslot->arch.rmap;
 	for (i = 0; i < memslot->npages; ++i) {
-		if (kvm_test_clear_dirty(kvm, rmapp) && map)
-			__set_bit_le(i, map);
+		int npages = kvm_test_clear_dirty_npages(kvm, rmapp);
+		/*
+		 * Note that if npages > 0 then i must be a multiple of npages,
+		 * since we always put huge-page HPTEs in the rmap chain
+		 * corresponding to their page base address.
+		 */
+		if (npages && map)
+			for (j = i; npages; ++j, --npages)
+				__set_bit_le(j, map);
 		++rmapp;
 	}
 
