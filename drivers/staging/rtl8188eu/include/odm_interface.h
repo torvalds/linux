@@ -27,10 +27,4 @@ enum odm_h2c_cmd {
 	ODM_H2C_PathDiv = 2,
 	ODM_MAX_H2CCMD
 };
-
-/*  ODM FW relative API. */
-u32 ODM_FillH2CCmd(u8 *pH2CBuffer, u32 H2CBufferLen, u32 CmdNum,
-		   u32 *pElementID, u32 *pCmdLen, u8 **pCmbBuffer,
-		   u8 *CmdStartSeq);
-
 #endif	/*  __ODM_INTERFACE_H__ */
