@@ -1217,7 +1217,7 @@ static void enic_calc_int_moderation(struct enic *enic, struct vnic_rq *rq)
 	 */
 
 	traffic <<= 3;
-	traffic /= delta;
+	traffic = delta > UINT_MAX ? 0 : traffic / (u32)delta;
 
 	for (index = 0; index < ENIC_MAX_COALESCE_TIMERS; index++)
 		if (traffic < mod_table[index].rx_rate)
