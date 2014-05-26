@@ -1423,55 +1423,38 @@ EXPORT_SYMBOL(edma_clear_event);
 
 #if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_DMADEVICES)
 
-static int edma_of_read_u32_to_s16_array(const struct device_node *np,
-					 const char *propname, s16 *out_values,
-					 size_t sz)
+static int edma_xbar_event_map(struct device *dev, struct device_node *node,
+			       struct edma_soc_info *pdata, size_t sz)
 {
-	int ret;
-
-	ret = of_property_read_u16_array(np, propname, out_values, sz);
-	if (ret)
-		return ret;
-
-	/* Terminate it */
-	*out_values++ = -1;
-	*out_values++ = -1;
-
-	return 0;
-}
-
-static int edma_xbar_event_map(struct device *dev,
-			       struct device_node *node,
-			       struct edma_soc_info *pdata, int len)
-{
-	int ret, i;
+	const char pname[] = "ti,edma-xbar-event-map";
 	struct resource res;
 	void __iomem *xbar;
-	const s16 (*xbar_chans)[2];
+	s16 (*xbar_chans)[2];
+	size_t nelm = sz / sizeof(s16);
 	u32 shift, offset, mux;
+	int ret, i;
 
-	xbar_chans = devm_kzalloc(dev,
-				  len/sizeof(s16) + 2*sizeof(s16),
-				  GFP_KERNEL);
+	xbar_chans = devm_kzalloc(dev, (nelm + 2) * sizeof(s16), GFP_KERNEL);
 	if (!xbar_chans)
 		return -ENOMEM;
 
 	ret = of_address_to_resource(node, 1, &res);
 	if (ret)
-		return -EIO;
+		return -ENOMEM;
 
 	xbar = devm_ioremap(dev, res.start, resource_size(&res));
 	if (!xbar)
 		return -ENOMEM;
 
-	ret = edma_of_read_u32_to_s16_array(node,
-					    "ti,edma-xbar-event-map",
-					    (s16 *)xbar_chans,
-					    len/sizeof(u32));
+	ret = of_property_read_u16_array(node, pname, (u16 *)xbar_chans, nelm);
 	if (ret)
 		return -EIO;
 
-	for (i = 0; xbar_chans[i][0] != -1; i++) {
+	/* Invalidate last entry for the other user of this mess */
+	nelm >>= 1;
+	xbar_chans[nelm][0] = xbar_chans[nelm][1] = -1;
+
+	for (i = 0; i < nelm; i++) {
 		shift = (xbar_chans[i][1] & 0x03) << 3;
 		offset = xbar_chans[i][1] & 0xfffffffc;
 		mux = readl(xbar + offset);
@@ -1480,8 +1463,7 @@ static int edma_xbar_event_map(struct device *dev,
 		writel(mux, (xbar + offset));
 	}
 
-	pdata->xbar_chans = xbar_chans;
-
+	pdata->xbar_chans = (const s16 (*)[2]) xbar_chans;
 	return 0;
 }
 
