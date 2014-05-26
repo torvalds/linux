@@ -1,0 +1,30 @@
+/*
+ * Device Tree file for LaCie 2Big Network v2
+ *
+ * Copyright (C) 2014
+ *
+ * Andrew Lunn <andrew@lunn.ch>
+ *
+ * Based on netxbig_v2-setup.c,
+ * Copyright (C) 2010 Simon Guinot <sguinot@lacie.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+*/
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include "kirkwood-netxbig.dtsi"
+
+/ {
+	model = "LaCie 2Big Network v2";
+	compatible = "lacie,net2big_v2", "lacie,netxbig", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+};
