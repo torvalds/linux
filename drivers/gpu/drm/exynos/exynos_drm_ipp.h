@@ -148,6 +148,7 @@ struct exynos_drm_ipp_ops {
  * @event_workq: event work queue.
  * @c_node: current command information.
  * @cmd_list: list head for command information.
+ * @cmd_lock: lock for synchronization of access to cmd_list.
  * @prop_list: property informations of current ipp driver.
  * @check_property: check property about format, size, buffer.
  * @reset: reset ipp block.
@@ -165,6 +166,7 @@ struct exynos_drm_ippdrv {
 	struct workqueue_struct	*event_workq;
 	struct drm_exynos_ipp_cmd_node *c_node;
 	struct list_head	cmd_list;
+	struct mutex	cmd_lock;
 	struct drm_exynos_ipp_prop_list prop_list;
 
 	int (*check_property)(struct device *dev,

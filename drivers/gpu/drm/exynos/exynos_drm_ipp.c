@@ -284,9 +284,14 @@ static struct exynos_drm_ippdrv *ipp_find_drv_by_handle(u32 prop_id)
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
 		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n", count++, (int)ippdrv);
 
-		list_for_each_entry(c_node, &ippdrv->cmd_list, list)
-			if (c_node->property.prop_id == prop_id)
+		mutex_lock(&ippdrv->cmd_lock);
+		list_for_each_entry(c_node, &ippdrv->cmd_list, list) {
+			if (c_node->property.prop_id == prop_id) {
+				mutex_unlock(&ippdrv->cmd_lock);
 				return ippdrv;
+			}
+		}
+		mutex_unlock(&ippdrv->cmd_lock);
 	}
 
 	return ERR_PTR(-ENODEV);
@@ -318,6 +323,7 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 	if (!prop_list->ipp_id) {
 		list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list)
 			count++;
+
 		/*
 		 * Supports ippdrv list count for user application.
 		 * First step user application getting ippdrv count.
@@ -379,9 +385,11 @@ static int ipp_find_and_set_property(struct drm_exynos_ipp_property *property)
 	 * when we find this command no using prop_id.
 	 * return property information set in this command node.
 	 */
+	mutex_lock(&ippdrv->cmd_lock);
 	list_for_each_entry(c_node, &ippdrv->cmd_list, list) {
 		if ((c_node->property.prop_id == prop_id) &&
 		    (c_node->state == IPP_STATE_STOP)) {
+			mutex_unlock(&ippdrv->cmd_lock);
 			DRM_DEBUG_KMS("found cmd[%d]ippdrv[0x%x]\n",
 				property->cmd, (int)ippdrv);
 
@@ -389,6 +397,7 @@ static int ipp_find_and_set_property(struct drm_exynos_ipp_property *property)
 			return 0;
 		}
 	}
+	mutex_unlock(&ippdrv->cmd_lock);
 
 	DRM_ERROR("failed to search property.\n");
 
@@ -519,7 +528,9 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 
 	INIT_LIST_HEAD(&c_node->event_list);
 	list_splice_init(&priv->event_list, &c_node->event_list);
+	mutex_lock(&ippdrv->cmd_lock);
 	list_add_tail(&c_node->list, &ippdrv->cmd_list);
+	mutex_unlock(&ippdrv->cmd_lock);
 
 	/* make dedicated state without m2m */
 	if (!ipp_is_m2m_cmd(property->cmd))
@@ -1110,10 +1121,12 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 
 		c_node->state = IPP_STATE_STOP;
 		ippdrv->dedicated = false;
+		mutex_lock(&ippdrv->cmd_lock);
 		ipp_clean_cmd_node(c_node);
 
 		if (list_empty(&ippdrv->cmd_list))
 			pm_runtime_put_sync(ippdrv->dev);
+		mutex_unlock(&ippdrv->cmd_lock);
 		break;
 	case IPP_CTRL_PAUSE:
 		cmd_work = c_node->stop_work;
@@ -1688,6 +1701,7 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 		ippdrv->event_workq = ctx->event_workq;
 		ippdrv->sched_event = ipp_sched_event;
 		INIT_LIST_HEAD(&ippdrv->cmd_list);
+		mutex_init(&ippdrv->cmd_lock);
 
 		if (is_drm_iommu_supported(drm_dev)) {
 			ret = drm_iommu_attach_device(drm_dev, ippdrv->dev);
@@ -1757,6 +1771,7 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 	DRM_DEBUG_KMS("for priv[0x%x]\n", (int)priv);
 
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
+		mutex_lock(&ippdrv->cmd_lock);
 		list_for_each_entry_safe(c_node, tc_node,
 			&ippdrv->cmd_list, list) {
 			DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n",
@@ -1781,6 +1796,7 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 					pm_runtime_put_sync(ippdrv->dev);
 			}
 		}
+		mutex_unlock(&ippdrv->cmd_lock);
 	}
 
 	kfree(priv);
