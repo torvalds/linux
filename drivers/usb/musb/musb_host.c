@@ -1295,7 +1295,7 @@ done:
 	if (status) {
 		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
 			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
-			(void) musb->dma_controller->channel_abort(dma);
+			musb->dma_controller->channel_abort(dma);
 		}
 
 		/* do the proper sequence to abort the transfer in the
@@ -1640,7 +1640,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		/* clean up dma and collect transfer count */
 		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
 			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
-			(void) musb->dma_controller->channel_abort(dma);
+			musb->dma_controller->channel_abort(dma);
 			xfer_len = dma->actual_len;
 		}
 		musb_h_flush_rxfifo(hw_ep, MUSB_RXCSR_CLRDATATOG);
@@ -1671,7 +1671,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		 */
 		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
 			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
-			(void) musb->dma_controller->channel_abort(dma);
+			musb->dma_controller->channel_abort(dma);
 			xfer_len = dma->actual_len;
 			done = true;
 		}
