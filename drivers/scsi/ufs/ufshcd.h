@@ -180,6 +180,7 @@ struct ufs_dev_cmd {
  * @pwr_done: completion for power mode change
  * @tm_condition: condition variable for task management
  * @ufshcd_state: UFSHCD states
+ * @eh_flags: Error handling flags
  * @intr_mask: Interrupt Mask Bits
  * @ee_ctrl_mask: Exception event control mask
  * @feh_workq: Work queue for fatal controller error handling
@@ -227,6 +228,7 @@ struct ufs_hba {
 	struct completion *pwr_done;
 
 	u32 ufshcd_state;
+	u32 eh_flags;
 	u32 intr_mask;
 	u16 ee_ctrl_mask;
 
