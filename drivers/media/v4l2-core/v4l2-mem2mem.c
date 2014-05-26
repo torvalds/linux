@@ -568,8 +568,12 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 
 	if (m2m_ctx->m2m_dev->m2m_ops->lock)
 		m2m_ctx->m2m_dev->m2m_ops->lock(m2m_ctx->priv);
-	else if (m2m_ctx->q_lock)
-		mutex_lock(m2m_ctx->q_lock);
+	else if (m2m_ctx->q_lock) {
+		if (mutex_lock_interruptible(m2m_ctx->q_lock)) {
+			rc |= POLLERR;
+			goto end;
+		}
+	}
 
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
