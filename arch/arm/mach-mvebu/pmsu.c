@@ -148,7 +148,7 @@ static void armada_370_xp_cpu_resume(void)
 }
 
 /* No locking is needed because we only access per-CPU registers */
-void armada_370_xp_pmsu_idle_prepare(bool deepidle)
+static void armada_370_xp_pmsu_idle_prepare(bool deepidle)
 {
 	unsigned int hw_cpu = cpu_logical_map(smp_processor_id());
 	u32 reg;
