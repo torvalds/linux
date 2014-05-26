@@ -137,6 +137,8 @@ static struct regulator_ops pfuze100_sw_regulator_ops = {
 };
 
 static struct regulator_ops pfuze100_swb_regulator_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -189,6 +191,8 @@ static struct regulator_ops pfuze100_swb_regulator_ops = {
 			.volt_table = voltages,	\
 			.vsel_reg = (base),	\
 			.vsel_mask = (mask),	\
+			.enable_reg = (base),	\
+			.enable_mask = 0x48,	\
 		},	\
 	}
 
