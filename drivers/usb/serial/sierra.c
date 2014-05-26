@@ -675,6 +675,23 @@ static int sierra_write_room(struct tty_struct *tty)
 	return 2048;
 }
 
+static int sierra_chars_in_buffer(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
+	unsigned long flags;
+	int chars;
+
+	/* NOTE: This overcounts somewhat. */
+	spin_lock_irqsave(&portdata->lock, flags);
+	chars = portdata->outstanding_urbs * MAX_TRANSFER;
+	spin_unlock_irqrestore(&portdata->lock, flags);
+
+	dev_dbg(&port->dev, "%s - %d\n", __func__, chars);
+
+	return chars;
+}
+
 static void sierra_stop_rx_urbs(struct usb_serial_port *port)
 {
 	int i;
@@ -1060,6 +1077,7 @@ static struct usb_serial_driver sierra_device = {
 	.dtr_rts	   = sierra_dtr_rts,
 	.write             = sierra_write,
 	.write_room        = sierra_write_room,
+	.chars_in_buffer   = sierra_chars_in_buffer,
 	.set_termios       = sierra_set_termios,
 	.tiocmget          = sierra_tiocmget,
 	.tiocmset          = sierra_tiocmset,
