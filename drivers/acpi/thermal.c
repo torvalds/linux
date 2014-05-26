@@ -1278,8 +1278,8 @@ static int __init acpi_thermal_init(void)
 
 static void __exit acpi_thermal_exit(void)
 {
-	destroy_workqueue(acpi_thermal_pm_queue);
 	acpi_bus_unregister_driver(&acpi_thermal_driver);
+	destroy_workqueue(acpi_thermal_pm_queue);
 
 	return;
 }
