@@ -1013,7 +1013,7 @@ typedef const int (*sched_domain_flags_f)(void);
 struct sd_data {
 	struct sched_domain **__percpu sd;
 	struct sched_group **__percpu sg;
-	struct sched_group_power **__percpu sgp;
+	struct sched_group_capacity **__percpu sgc;
 };
 
 struct sched_domain_topology_level {
