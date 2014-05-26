@@ -222,7 +222,6 @@ extern void audit_copy_inode(struct audit_names *name,
 			     const struct inode *inode);
 extern void audit_log_cap(struct audit_buffer *ab, char *prefix,
 			  kernel_cap_t *cap);
-extern void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name);
 extern void audit_log_name(struct audit_context *context,
 			   struct audit_names *n, struct path *path,
 			   int record_num, int *call_panic);
