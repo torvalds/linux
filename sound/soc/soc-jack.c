@@ -14,6 +14,7 @@
 #include <sound/jack.h>
 #include <sound/soc.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
@@ -240,7 +241,7 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 	int enable;
 	int report;
 
-	enable = gpio_get_value_cansleep(gpio->gpio);
+	enable = gpiod_get_value_cansleep(gpio->desc);
 	if (gpio->invert)
 		enable = !enable;
 
@@ -314,14 +315,16 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 		if (ret)
 			goto undo;
 
-		ret = gpio_direction_input(gpios[i].gpio);
+		gpios[i].desc = gpio_to_desc(gpios[i].gpio);
+
+		ret = gpiod_direction_input(gpios[i].desc);
 		if (ret)
 			goto err;
 
 		INIT_DELAYED_WORK(&gpios[i].work, gpio_work);
 		gpios[i].jack = jack;
 
-		ret = request_any_context_irq(gpio_to_irq(gpios[i].gpio),
+		ret = request_any_context_irq(gpiod_to_irq(gpios[i].desc),
 					      gpio_handler,
 					      IRQF_TRIGGER_RISING |
 					      IRQF_TRIGGER_FALLING,
@@ -331,7 +334,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			goto err;
 
 		if (gpios[i].wake) {
-			ret = irq_set_irq_wake(gpio_to_irq(gpios[i].gpio), 1);
+			ret = irq_set_irq_wake(gpiod_to_irq(gpios[i].desc), 1);
 			if (ret != 0)
 				dev_err(jack->codec->dev, "ASoC: "
 				  "Failed to mark GPIO %d as wake source: %d\n",
@@ -339,7 +342,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 		}
 
 		/* Expose GPIO value over sysfs for diagnostic purposes */
-		gpio_export(gpios[i].gpio, false);
+		gpiod_export(gpios[i].desc, false);
 
 		/* Update initial jack status */
 		schedule_delayed_work(&gpios[i].work,
@@ -372,10 +375,10 @@ void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		gpio_unexport(gpios[i].gpio);
-		free_irq(gpio_to_irq(gpios[i].gpio), &gpios[i]);
+		gpiod_unexport(gpios[i].desc);
+		free_irq(gpiod_to_irq(gpios[i].desc), &gpios[i]);
 		cancel_delayed_work_sync(&gpios[i].work);
-		gpio_free(gpios[i].gpio);
+		gpiod_put(gpios[i].desc);
 		gpios[i].jack = NULL;
 	}
 }
