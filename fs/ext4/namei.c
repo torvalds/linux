@@ -2551,13 +2551,14 @@ static int empty_dir(struct inode *inode)
 int ext4_orphan_add(handle_t *handle, struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_iloc iloc;
 	int err = 0, rc;
 
-	if (!EXT4_SB(sb)->s_journal)
+	if (!sbi->s_journal)
 		return 0;
 
-	mutex_lock(&EXT4_SB(sb)->s_orphan_lock);
+	mutex_lock(&sbi->s_orphan_lock);
 	if (!list_empty(&EXT4_I(inode)->i_orphan))
 		goto out_unlock;
 
@@ -2570,8 +2571,8 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	J_ASSERT((S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		  S_ISLNK(inode->i_mode)) || inode->i_nlink == 0);
 
-	BUFFER_TRACE(EXT4_SB(sb)->s_sbh, "get_write_access");
-	err = ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh);
+	BUFFER_TRACE(sbi->s_sbh, "get_write_access");
+	err = ext4_journal_get_write_access(handle, sbi->s_sbh);
 	if (err)
 		goto out_unlock;
 
@@ -2583,12 +2584,12 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	 * orphan list. If so skip on-disk list modification.
 	 */
 	if (NEXT_ORPHAN(inode) && NEXT_ORPHAN(inode) <=
-		(le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count)))
+		(le32_to_cpu(sbi->s_es->s_inodes_count)))
 			goto mem_insert;
 
 	/* Insert this inode at the head of the on-disk orphan list... */
-	NEXT_ORPHAN(inode) = le32_to_cpu(EXT4_SB(sb)->s_es->s_last_orphan);
-	EXT4_SB(sb)->s_es->s_last_orphan = cpu_to_le32(inode->i_ino);
+	NEXT_ORPHAN(inode) = le32_to_cpu(sbi->s_es->s_last_orphan);
+	sbi->s_es->s_last_orphan = cpu_to_le32(inode->i_ino);
 	err = ext4_handle_dirty_super(handle, sb);
 	rc = ext4_mark_iloc_dirty(handle, inode, &iloc);
 	if (!err)
@@ -2604,14 +2605,14 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	 * anyway on the next recovery. */
 mem_insert:
 	if (!err)
-		list_add(&EXT4_I(inode)->i_orphan, &EXT4_SB(sb)->s_orphan);
+		list_add(&EXT4_I(inode)->i_orphan, &sbi->s_orphan);
 
 	jbd_debug(4, "superblock will point to %lu\n", inode->i_ino);
 	jbd_debug(4, "orphan inode %lu will point to %d\n",
 			inode->i_ino, NEXT_ORPHAN(inode));
 out_unlock:
-	mutex_unlock(&EXT4_SB(sb)->s_orphan_lock);
-	ext4_std_error(inode->i_sb, err);
+	mutex_unlock(&sbi->s_orphan_lock);
+	ext4_std_error(sb, err);
 	return err;
 }
 
@@ -2623,22 +2624,20 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 {
 	struct list_head *prev;
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_sb_info *sbi;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	__u32 ino_next;
 	struct ext4_iloc iloc;
 	int err = 0;
 
-	if ((!EXT4_SB(inode->i_sb)->s_journal) &&
-	    !(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_ORPHAN_FS))
+	if (!sbi->s_journal && !(sbi->s_mount_state & EXT4_ORPHAN_FS))
 		return 0;
 
-	mutex_lock(&EXT4_SB(inode->i_sb)->s_orphan_lock);
+	mutex_lock(&sbi->s_orphan_lock);
 	if (list_empty(&ei->i_orphan))
 		goto out;
 
 	ino_next = NEXT_ORPHAN(inode);
 	prev = ei->i_orphan.prev;
-	sbi = EXT4_SB(inode->i_sb);
 
 	jbd_debug(4, "remove inode %lu from orphan list\n", inode->i_ino);
 
@@ -2684,7 +2683,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 out_err:
 	ext4_std_error(inode->i_sb, err);
 out:
-	mutex_unlock(&EXT4_SB(inode->i_sb)->s_orphan_lock);
+	mutex_unlock(&sbi->s_orphan_lock);
 	return err;
 
 out_brelse:
