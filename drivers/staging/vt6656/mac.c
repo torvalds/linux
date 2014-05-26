@@ -122,21 +122,21 @@ void MACvDisableKeyEntry(struct vnt_private *priv, u8 entry_idx)
  * Return Value: none
  *
  */
-void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
-	u32 uKeyIdx, u8 *pbyAddr, u8 *key)
+void MACvSetKeyEntry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
+	u32 key_idx, u8 *addr, u8 *key)
 {
 	struct vnt_mac_set_key set_key;
-	u16 wOffset;
+	u16 offset;
 
-	if (pDevice->byLocalID <= MAC_REVISION_A1)
-		if (pDevice->vnt_mgmt.byCSSPK == KEY_CTL_CCMP)
+	if (priv->byLocalID <= MAC_REVISION_A1)
+		if (priv->vnt_mgmt.byCSSPK == KEY_CTL_CCMP)
 			return;
 
-	wOffset = MISCFIFO_KEYETRY0;
-	wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
+	offset = MISCFIFO_KEYETRY0;
+	offset += (entry_idx * MISCFIFO_KEYENTRYSIZE);
 
-	set_key.u.write.key_ctl = cpu_to_le16(wKeyCtl);
-	memcpy(set_key.u.write.addr, pbyAddr, ETH_ALEN);
+	set_key.u.write.key_ctl = cpu_to_le16(key_ctl);
+	memcpy(set_key.u.write.addr, addr, ETH_ALEN);
 
 	/* swap over swap[0] and swap[1] to get correct write order */
 	swap(set_key.u.swap[0], set_key.u.swap[1]);
@@ -145,10 +145,10 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 		"offset %d key ctl %d set key %24ph\n",
-				wOffset, wKeyCtl, (u8 *)&set_key);
+				offset, key_ctl, (u8 *)&set_key);
 
-	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_SETKEY, wOffset,
-		(u16)uKeyIdx, sizeof(struct vnt_mac_set_key), (u8 *)&set_key);
+	CONTROLnsRequestOut(priv, MESSAGE_TYPE_SETKEY, offset,
+		(u16)key_idx, sizeof(struct vnt_mac_set_key), (u8 *)&set_key);
 }
 
 void MACvRegBitsOff(struct vnt_private *priv, u8 reg_ofs, u8 bits)
