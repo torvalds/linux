@@ -43,7 +43,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regmap.h>
-
+#include <linux/delay.h>
 
 struct ricoh619 *g_ricoh619;
 struct sleep_control_data {
@@ -181,11 +181,11 @@ int ricoh619_write(struct device *dev, u8 reg, uint8_t val)
 	struct ricoh619 *ricoh619 = dev_get_drvdata(dev);
 	int ret = 0;
 
-//	mutex_lock(&ricoh619->io_lock);
+	mutex_lock(&ricoh619->io_lock);
 	ret = set_bank_ricoh619(dev, 0);
 	if( !ret )
 		ret = __ricoh619_write(to_i2c_client(dev), reg, val);
-//	mutex_unlock(&ricoh619->io_lock);
+	mutex_unlock(&ricoh619->io_lock);
 
 	return ret;
 }
@@ -424,38 +424,42 @@ static int ricoh619_device_shutdown(struct i2c_client *client)
 	ret = ricoh619_clr_bits(ricoh619->dev, 0xae, (0x1 <<6)); //disable alam_d
        ret = ricoh619_write(ricoh619->dev, RICOH619_INTC_INTEN, 0); 
 	ret = ricoh619_clr_bits(ricoh619->dev,RICOH619_PWR_REP_CNT,(0x1<<0));//Not repeat power ON after power off(Power Off/N_OE)
+	mutex_lock(&ricoh619->io_lock);
+	msleep(100);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ricoh619_device_shutdown);
 static int ricoh619_power_off(void)
 {
-	int ret;
+	int ret,i=0;
 	uint8_t val,charge_state;
 	struct i2c_client *client = ricoh619_i2c_client;
-	printk("%s,line=%d\n", __func__,__LINE__);
-#ifdef CONFIG_BATTERY_RICOH619
-	ret = __ricoh619_read(client, 0xBD, &val);
-	if(ret < 0)
-		goto erro;
-	charge_state = (val & 0x1F);
-	if(( charge_state == CHG_STATE_CHG_TRICKLE)||( charge_state == CHG_STATE_CHG_RAPID) ||(charge_state == CHG_STATE_CHG_COMPLETE)){
-		 ret = __ricoh619_read(client, RICOH619_PWR_REP_CNT,&val);//Power OFF
-		 if(ret < 0)
-			goto erro;
-		 ret = __ricoh619_write(client, RICOH619_PWR_REP_CNT,(val |(0x1<<0)));//Power OFF
-		 if(ret < 0)
-			goto erro;
+
+	for(i=0;i < 10;i++){
+		printk("%s,line=%d\n", __func__,__LINE__);
+		#ifdef CONFIG_BATTERY_RICOH619
+			ret = __ricoh619_read(client, 0xBD, &val);
+			if(ret < 0)
+				continue;
+			charge_state = (val & 0x1F);
+			if(( charge_state == CHG_STATE_CHG_TRICKLE)||( charge_state == CHG_STATE_CHG_RAPID) ||(charge_state == CHG_STATE_CHG_COMPLETE)){
+			 ret = __ricoh619_read(client, RICOH619_PWR_REP_CNT,&val);//Power OFF
+			 if(ret < 0)
+				continue;
+		 	ret = __ricoh619_write(client, RICOH619_PWR_REP_CNT,(val |(0x1<<0)));//Power OFF
+		 	if(ret < 0)
+				continue;
+		}
+		#endif  
+		ret = __ricoh619_read(client, RICOH619_PWR_SLP_CNT,&val);//Power OFF
+		if(ret < 0)
+			continue;
+		ret = __ricoh619_write(client, RICOH619_PWR_SLP_CNT,(val |(0x1<<0)));//Power OFF
+		if (ret < 0) {
+			printk("ricoh619 power off error!\n");
+			continue;
+		}
 	}
-#endif  
-	ret = __ricoh619_read(client, RICOH619_PWR_SLP_CNT,&val);//Power OFF
-	 if(ret < 0)
-		goto erro;
-	ret = __ricoh619_write(client, RICOH619_PWR_SLP_CNT,(val |(0x1<<0)));//Power OFF
-	if (ret < 0) {
-		printk("ricoh619 power off error!\n");
-		goto erro;
-	}
-erro:
 	while(1)wfi();
 }
 EXPORT_SYMBOL_GPL(ricoh619_power_off);

@@ -1462,6 +1462,11 @@ static void ricoh619_displayed_work(struct work_struct *work)
 						  }
 					}
 				} else {
+					if(info->soca->displayed_soc >= 9850)
+					{
+						info->soca->displayed_soc = 10000;
+						info->chg_complete_tm_ov_flag = 1;
+					}
 					info->soca->status = RICOH619_SOCA_UNSTABLE;
 				}
 			}
@@ -3206,7 +3211,7 @@ static void charger_irq_work(struct work_struct *work)
 				power_supply_changed(&info->battery);
 				power_supply_changed(&powerac);
 				power_supply_changed(&powerusb);
-				mdelay(100);
+				msleep(100);
 				}
 			#else //support adp and usb chag
 			if (gpio_is_valid(g_ricoh619->dc_det)){
