@@ -1076,7 +1076,7 @@ void BBvSetShortSlotTime(struct vnt_private *priv)
 	else
 		priv->byBBRxConf |= 0x20;
 
-	ControlvReadByte(priv, MESSAGE_REQUEST_BBREG, 0xe7, &bb_vga);
+	vnt_control_in_u8(priv, MESSAGE_REQUEST_BBREG, 0xe7, &bb_vga);
 
 	if (bb_vga == priv->abyBBVGA[0])
 		priv->byBBRxConf |= 0x20;

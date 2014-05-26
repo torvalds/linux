@@ -861,7 +861,7 @@ void vRunCommand(struct work_struct *work)
 		break;
 
 	case WLAN_CMD_MAC_DISPOWERSAVING_START:
-		ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
+		vnt_control_in_u8(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
 		if ((byData & PSCTL_PS) != 0) {
 			// disable power saving hw function
 			vnt_control_out(pDevice,

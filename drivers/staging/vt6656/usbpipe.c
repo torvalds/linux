@@ -29,7 +29,7 @@
  *	vnt_control_out - Write variable length bytes to MEM/BB/MAC/EEPROM
  *	vnt_control_in - Read variable length bytes from MEM/BB/MAC/EEPROM
  *	vnt_control_out_u8 - Write one byte to MEM/BB/MAC/EEPROM
- *      ControlvReadByte - Read one byte from MEM/BB/MAC/EEPROM
+ *	vnt_control_in_u8 - Read one byte from MEM/BB/MAC/EEPROM
  *      ControlvMaskByte - Read one byte from MEM/BB/MAC/EEPROM and clear/set some bits in the same address
  *
  * Revision History:
@@ -41,7 +41,6 @@
 #include "int.h"
 #include "rxtx.h"
 #include "dpc.h"
-#include "control.h"
 #include "desc.h"
 #include "device.h"
 
@@ -109,6 +108,12 @@ int vnt_control_in(struct vnt_private *priv, u8 request, u16 value,
 		return STATUS_FAILURE;
 
 	return STATUS_SUCCESS;
+}
+
+void vnt_control_in_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 *data)
+{
+	vnt_control_in(priv, MESSAGE_TYPE_READ,
+			reg_off, reg, sizeof(u8), data);
 }
 
 /*

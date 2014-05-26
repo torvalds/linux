@@ -36,6 +36,7 @@ int vnt_control_out(struct vnt_private *, u8, u16, u16, u16, u8 *);
 int vnt_control_in(struct vnt_private *, u8, u16, u16, u16,  u8 *);
 
 void vnt_control_out_u8(struct vnt_private *, u8, u8, u8);
+void vnt_control_in_u8(struct vnt_private *, u8, u8, u8 *);
 
 int PIPEnsInterruptRead(struct vnt_private *);
 int PIPEnsBulkInUsbRead(struct vnt_private *, struct vnt_rcb *pRCB);
