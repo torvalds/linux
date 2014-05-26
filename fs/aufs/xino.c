@@ -1184,9 +1184,7 @@ int au_xino_set(struct super_block *sb, struct au_opt_xino *xino, int remount)
 			cur_parent = dget_parent(cur_xino->f_dentry);
 			cur_name = &cur_xino->f_dentry->d_name;
 			skip = (cur_parent == parent
-				&& dname->len == cur_name->len
-				&& !memcmp(dname->name, cur_name->name,
-					   dname->len));
+				&& au_qstreq(dname, cur_name));
 			dput(cur_parent);
 		}
 		if (skip)
