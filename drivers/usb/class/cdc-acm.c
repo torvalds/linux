@@ -690,7 +690,6 @@ static int acm_tty_write(struct tty_struct *tty,
 		spin_unlock_irqrestore(&acm->write_lock, flags);
 		return count;
 	}
-	usb_mark_last_busy(acm->dev);
 
 	stat = acm_start_wb(acm, wb);
 	spin_unlock_irqrestore(&acm->write_lock, flags);
