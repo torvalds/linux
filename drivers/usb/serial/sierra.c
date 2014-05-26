@@ -365,7 +365,7 @@ static int sierra_send_setup(struct usb_serial_port *port)
 	if (retval < 0)
 		return retval;
 
-	retval = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+	retval = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 		0x22, 0x21, val, interface, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	usb_autopm_put_interface(serial->interface);
 
