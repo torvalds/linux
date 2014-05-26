@@ -163,7 +163,7 @@ static inline int ufshcd_is_device_present(u32 reg_hcs)
  */
 static inline int ufshcd_get_tr_ocs(struct ufshcd_lrb *lrbp)
 {
-	return lrbp->utr_descriptor_ptr->header.dword_2 & MASK_OCS;
+	return le32_to_cpu(lrbp->utr_descriptor_ptr->header.dword_2) & MASK_OCS;
 }
 
 /**
@@ -176,7 +176,7 @@ static inline int ufshcd_get_tr_ocs(struct ufshcd_lrb *lrbp)
 static inline int
 ufshcd_get_tmr_ocs(struct utp_task_req_desc *task_req_descp)
 {
-	return task_req_descp->header.dword_2 & MASK_OCS;
+	return le32_to_cpu(task_req_descp->header.dword_2) & MASK_OCS;
 }
 
 /**
@@ -390,26 +390,6 @@ static inline void ufshcd_copy_sense_data(struct ufshcd_lrb *lrbp)
 }
 
 /**
- * ufshcd_query_to_cpu() - formats the buffer to native cpu endian
- * @response: upiu query response to convert
- */
-static inline void ufshcd_query_to_cpu(struct utp_upiu_query *response)
-{
-	response->length = be16_to_cpu(response->length);
-	response->value = be32_to_cpu(response->value);
-}
-
-/**
- * ufshcd_query_to_be() - formats the buffer to big endian
- * @request: upiu query request to convert
- */
-static inline void ufshcd_query_to_be(struct utp_upiu_query *request)
-{
-	request->length = cpu_to_be16(request->length);
-	request->value = cpu_to_be32(request->value);
-}
-
-/**
  * ufshcd_copy_query_response() - Copy the Query Response and the data
  * descriptor
  * @hba: per adapter instance
@@ -425,7 +405,6 @@ void ufshcd_copy_query_response(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 			UPIU_RSP_CODE_OFFSET;
 
 	memcpy(&query_res->upiu_res, &lrbp->ucd_rsp_ptr->qr, QUERY_OSF_SIZE);
-	ufshcd_query_to_cpu(&query_res->upiu_res);
 
 
 	/* Get the descriptor */
@@ -749,7 +728,7 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 {
 	struct utp_upiu_req *ucd_req_ptr = lrbp->ucd_req_ptr;
 	struct ufs_query *query = &hba->dev_cmd.query;
-	u16 len = query->request.upiu_req.length;
+	u16 len = be16_to_cpu(query->request.upiu_req.length);
 	u8 *descp = (u8 *)lrbp->ucd_req_ptr + GENERAL_UPIU_REQUEST_SIZE;
 
 	/* Query request header */
@@ -766,7 +745,6 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 	/* Copy the Query Request buffer as is */
 	memcpy(&ucd_req_ptr->qr, &query->request.upiu_req,
 			QUERY_OSF_SIZE);
-	ufshcd_query_to_be(&ucd_req_ptr->qr);
 
 	/* Copy the Descriptor */
 	if ((len > 0) && (query->request.upiu_req.opcode ==
@@ -1151,7 +1129,7 @@ static int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 	}
 
 	if (flag_res)
-		*flag_res = (response->upiu_res.value &
+		*flag_res = (be32_to_cpu(response->upiu_res.value) &
 				MASK_QUERY_UPIU_FLAG_LOC) & 0x1;
 
 out_unlock:
@@ -1195,7 +1173,7 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 	switch (opcode) {
 	case UPIU_QUERY_OPCODE_WRITE_ATTR:
 		request->query_func = UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST;
-		request->upiu_req.value = *attr_val;
+		request->upiu_req.value = cpu_to_be32(*attr_val);
 		break;
 	case UPIU_QUERY_OPCODE_READ_ATTR:
 		request->query_func = UPIU_QUERY_FUNC_STANDARD_READ_REQUEST;
@@ -1222,7 +1200,7 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 		goto out_unlock;
 	}
 
-	*attr_val = response->upiu_res.value;
+	*attr_val = be32_to_cpu(response->upiu_res.value);
 
 out_unlock:
 	mutex_unlock(&hba->dev_cmd.lock);
@@ -2568,12 +2546,8 @@ ufshcd_issue_tm_cmd(struct ufs_hba *hba,
 	task_req_upiup->header.dword_1 =
 		UPIU_HEADER_DWORD(0, tm_function, 0, 0);
 
-	task_req_upiup->input_param1 = lrbp->lun;
-	task_req_upiup->input_param1 =
-		cpu_to_be32(task_req_upiup->input_param1);
-	task_req_upiup->input_param2 = lrbp->task_tag;
-	task_req_upiup->input_param2 =
-		cpu_to_be32(task_req_upiup->input_param2);
+	task_req_upiup->input_param1 = cpu_to_be32(lrbp->lun);
+	task_req_upiup->input_param2 = cpu_to_be32(lrbp->task_tag);
 
 	/* send command to the controller */
 	__set_bit(free_slot, &hba->outstanding_tasks);
