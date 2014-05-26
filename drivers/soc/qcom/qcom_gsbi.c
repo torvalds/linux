@@ -64,6 +64,7 @@ static int gsbi_probe(struct platform_device *pdev)
 
 static const struct of_device_id gsbi_dt_match[] = {
 	{ .compatible = "qcom,gsbi-v1.0.0", },
+	{ },
 };
 
 MODULE_DEVICE_TABLE(of, gsbi_dt_match);
