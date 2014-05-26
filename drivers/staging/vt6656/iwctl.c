@@ -38,7 +38,7 @@
 #include "rf.h"
 #include "iowpa.h"
 #include "wpactl.h"
-#include "control.h"
+#include "usbpipe.h"
 #include "baseband.h"
 
 static const long frequency_list[] = {

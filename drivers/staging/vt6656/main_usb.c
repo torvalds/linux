@@ -65,7 +65,7 @@
 #include "datarate.h"
 #include "rf.h"
 #include "firmware.h"
-#include "control.h"
+#include "usbpipe.h"
 #include "channel.h"
 #include "int.h"
 #include "iowpa.h"

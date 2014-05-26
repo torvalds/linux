@@ -53,7 +53,7 @@
 #include "card.h"
 #include "mac.h"
 #include "wpa2.h"
-#include "control.h"
+#include "usbpipe.h"
 #include "iowpa.h"
 #include "power.h"
 

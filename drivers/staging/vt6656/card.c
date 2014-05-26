@@ -57,7 +57,7 @@
 #include "rc4.h"
 #include "country.h"
 #include "datarate.h"
-#include "control.h"
+#include "usbpipe.h"
 
 //const u16 cwRXBCNTSFOff[MAX_RATE] =
 //{17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3};

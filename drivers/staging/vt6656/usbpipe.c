@@ -43,6 +43,7 @@
 #include "dpc.h"
 #include "desc.h"
 #include "device.h"
+#include "usbpipe.h"
 
 //endpoint def
 //endpoint 0: control

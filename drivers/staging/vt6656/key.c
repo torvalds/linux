@@ -39,7 +39,7 @@
 #include "mac.h"
 #include "tmacro.h"
 #include "key.h"
-#include "control.h"
+#include "usbpipe.h"
 
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;

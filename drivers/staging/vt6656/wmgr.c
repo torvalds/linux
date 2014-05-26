@@ -78,7 +78,7 @@
 #include "wpa.h"
 #include "rf.h"
 #include "iowpa.h"
-#include "control.h"
+#include "usbpipe.h"
 
 static int msglevel = MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;

@@ -38,7 +38,7 @@
 #include "wmgr.h"
 #include "iocmd.h"
 #include "iowpa.h"
-#include "control.h"
+#include "usbpipe.h"
 #include "rf.h"
 
 static int msglevel = MSG_LEVEL_INFO;

@@ -44,7 +44,7 @@
 #include "wcmd.h"
 #include "rxtx.h"
 #include "card.h"
-#include "control.h"
+#include "usbpipe.h"
 
 static int msglevel = MSG_LEVEL_INFO;
 

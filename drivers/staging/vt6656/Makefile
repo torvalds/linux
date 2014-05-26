@@ -27,7 +27,6 @@ vt6656_stage-y +=	main_usb.o \
 			wpactl.o \
 			usbpipe.o \
 			channel.o \
-			control.o \
 			firmware.o \
 			int.o
 

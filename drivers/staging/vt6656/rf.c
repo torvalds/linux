@@ -38,7 +38,7 @@
 #include "mac.h"
 #include "rf.h"
 #include "baseband.h"
-#include "control.h"
+#include "usbpipe.h"
 #include "datarate.h"
 
 static int          msglevel                =MSG_LEVEL_INFO;

@@ -48,7 +48,7 @@
 #include "power.h"
 #include "wctl.h"
 #include "baseband.h"
-#include "control.h"
+#include "usbpipe.h"
 #include "rxtx.h"
 #include "rf.h"
 #include "channel.h"
