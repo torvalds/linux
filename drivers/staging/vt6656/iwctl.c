@@ -442,9 +442,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 				memset(pMgmt->abyCurrBSSID, 0, 6);
 			}
 
-			ControlvMaskByte(pDevice,
-				MESSAGE_REQUEST_MACREG,	MAC_REG_PAPEDELAY,
-					LEDSTS_STS, LEDSTS_SLOW);
+			vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
 
 			netif_stop_queue(pDevice->dev);
 

@@ -240,3 +240,16 @@ void MACvWriteBeaconInterval(struct vnt_private *priv, u16 interval)
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE,
 		MAC_REG_BI, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
+
+void vnt_mac_set_led(struct vnt_private *priv, u8 state, u8 led)
+{
+	u8 data[2];
+
+	data[0] = led;
+	data[1] = state;
+
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_PAPEDELAY,
+			MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
+
+	return;
+}

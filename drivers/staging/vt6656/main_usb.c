@@ -551,11 +551,9 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	}
 
-	ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG,
-				MAC_REG_PAPEDELAY, LEDSTS_TMLEN, 0x38);
+	vnt_mac_set_led(pDevice, LEDSTS_TMLEN, 0x38);
 
-	ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG,
-				MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_SLOW);
+	vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
 
 	MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL0, 0x01);
 

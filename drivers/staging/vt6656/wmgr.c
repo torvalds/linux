@@ -756,7 +756,8 @@ static void s_vMgrRxAssocResponse(struct vnt_private *pDevice,
             pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
             DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Link with AP(SSID): %s\n", pItemSSID->abySSID);
             pDevice->bLinkPass = true;
-            ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+	    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
 
 	//if(pDevice->bWPASuppWextEnabled == true)
 	   {
@@ -1398,7 +1399,8 @@ static void s_vMgrRxDeauthentication(struct vnt_private *pDevice,
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     netif_stop_queue(pDevice->dev);
                     pDevice->bLinkPass = false;
-                    ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
+
+		    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
                 }
             }
 
@@ -1883,7 +1885,9 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Current IBSS State: [Started]........to: [Jointed] \n");
                 pMgmt->eCurrState = WMAC_STATE_JOINTED;
                 pDevice->bLinkPass = true;
-                ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+		vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
                 if (netif_queue_stopped(pDevice->dev)){
                     netif_wake_queue(pDevice->dev);
                 }
@@ -2488,7 +2492,9 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
             // Adopt BSS state in Adapter Device Object
 	    pDevice->op_mode = NL80211_IFTYPE_ADHOC;
             pDevice->bLinkPass = true;
-            ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+	    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
             memcpy(pDevice->abyBSSID, pCurr->abyBSSID, WLAN_BSSID_LEN);
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Join IBSS ok:%pM\n",

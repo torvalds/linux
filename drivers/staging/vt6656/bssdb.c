@@ -1015,10 +1015,10 @@ void BSSvSecondCallBack(struct work_struct *work)
 				pMgmt->eCurrState = WMAC_STATE_IDLE;
 				netif_stop_queue(pDevice->dev);
 				pDevice->bLinkPass = false;
-				ControlvMaskByte(pDevice,
-						 MESSAGE_REQUEST_MACREG,
-						 MAC_REG_PAPEDELAY, LEDSTS_STS,
-						 LEDSTS_SLOW);
+
+				vnt_mac_set_led(pDevice, LEDSTS_STS,
+								LEDSTS_SLOW);
+
 				pDevice->bRoaming = true;
 				pDevice->bIsRoaming = false;
 
@@ -1126,10 +1126,8 @@ void BSSvSecondCallBack(struct work_struct *work)
 				pMgmt->eCurrState = WMAC_STATE_STARTED;
 				netif_stop_queue(pDevice->dev);
 				pDevice->bLinkPass = false;
-				ControlvMaskByte(pDevice,
-						 MESSAGE_REQUEST_MACREG,
-						 MAC_REG_PAPEDELAY, LEDSTS_STS,
-						 LEDSTS_SLOW);
+				vnt_mac_set_led(pDevice, LEDSTS_STS,
+								LEDSTS_SLOW);
 			}
 		}
 	}
