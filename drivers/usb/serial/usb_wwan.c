@@ -562,7 +562,7 @@ int usb_wwan_port_remove(struct usb_serial_port *port)
 EXPORT_SYMBOL(usb_wwan_port_remove);
 
 #ifdef CONFIG_PM
-static void stop_read_write_urbs(struct usb_serial *serial)
+static void stop_urbs(struct usb_serial *serial)
 {
 	int i, j;
 	struct usb_serial_port *port;
@@ -578,6 +578,7 @@ static void stop_read_write_urbs(struct usb_serial *serial)
 			usb_kill_urb(portdata->in_urbs[j]);
 		for (j = 0; j < N_OUT_URB; j++)
 			usb_kill_urb(portdata->out_urbs[j]);
+		usb_kill_urb(port->interrupt_in_urb);
 	}
 }
 
@@ -595,7 +596,7 @@ int usb_wwan_suspend(struct usb_serial *serial, pm_message_t message)
 	intfdata->suspended = 1;
 	spin_unlock_irq(&intfdata->susp_lock);
 
-	stop_read_write_urbs(serial);
+	stop_urbs(serial);
 
 	return 0;
 }
