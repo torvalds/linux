@@ -98,6 +98,9 @@ static void *vb2_dc_vaddr(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 
+	if (!buf->vaddr && buf->db_attach)
+		buf->vaddr = dma_buf_vmap(buf->db_attach->dmabuf);
+
 	return buf->vaddr;
 }
 
@@ -735,6 +738,7 @@ static int vb2_dc_map_dmabuf(void *mem_priv)
 
 	buf->dma_addr = sg_dma_address(sgt->sgl);
 	buf->dma_sgt = sgt;
+	buf->vaddr = NULL;
 
 	return 0;
 }
@@ -754,6 +758,10 @@ static void vb2_dc_unmap_dmabuf(void *mem_priv)
 		return;
 	}
 
+	if (buf->vaddr) {
+		dma_buf_vunmap(buf->db_attach->dmabuf, buf->vaddr);
+		buf->vaddr = NULL;
+	}
 	dma_buf_unmap_attachment(buf->db_attach, sgt, buf->dma_dir);
 
 	buf->dma_addr = 0;
