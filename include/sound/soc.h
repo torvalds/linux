@@ -453,11 +453,21 @@ int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage);
 #ifdef CONFIG_GPIOLIB
 int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
+int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
+			    struct snd_soc_jack *jack,
+			    int count, struct snd_soc_jack_gpio *gpios);
 void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
 #else
 static inline int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 					 struct snd_soc_jack_gpio *gpios)
+{
+	return 0;
+}
+
+int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
+			    struct snd_soc_jack *jack,
+			    int count, struct snd_soc_jack_gpio *gpios)
 {
 	return 0;
 }
@@ -586,7 +596,9 @@ struct snd_soc_jack_zone {
 /**
  * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
  *
- * @gpio:         gpio number
+ * @gpio:         legacy gpio number
+ * @idx:          gpio descriptor index within the GPIO consumer device
+ * @gpiod_dev     GPIO consumer device
  * @name:         gpio name
  * @report:       value to report when jack detected
  * @invert:       report presence in low state
@@ -598,6 +610,8 @@ struct snd_soc_jack_zone {
  */
 struct snd_soc_jack_gpio {
 	unsigned int gpio;
+	unsigned int idx;
+	struct device *gpiod_dev;
 	const char *name;
 	int report;
 	int invert;
