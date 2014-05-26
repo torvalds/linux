@@ -86,6 +86,9 @@
 
 #define USBSS_IRQ_PD_COMP	(1 <<  2)
 
+/* Packet Descriptor */
+#define PD2_ZERO_LENGTH		(1 << 19)
+
 struct cppi41_channel {
 	struct dma_chan chan;
 	struct dma_async_tx_descriptor txd;
@@ -307,7 +310,7 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 			__iormb();
 
 		while (val) {
-			u32 desc;
+			u32 desc, len;
 
 			q_num = __fls(val);
 			val &= ~(1 << q_num);
@@ -319,9 +322,13 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 						q_num, desc);
 				continue;
 			}
-			c->residue = pd_trans_len(c->desc->pd6) -
-				pd_trans_len(c->desc->pd0);
 
+			if (c->desc->pd2 & PD2_ZERO_LENGTH)
+				len = 0;
+			else
+				len = pd_trans_len(c->desc->pd0);
+
+			c->residue = pd_trans_len(c->desc->pd6) - len;
 			dma_cookie_complete(&c->txd);
 			c->txd.callback(c->txd.callback_param);
 		}
