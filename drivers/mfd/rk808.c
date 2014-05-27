@@ -157,14 +157,25 @@ static int rk808_ldo_is_enabled(struct regulator_dev *dev)
 	struct rk808 *rk808 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - RK808_LDO1;	
 	u16 val;
-	
-	val = rk808_reg_read(rk808, RK808_LDO_EN_REG);
-	if (val < 0)
-		return val;
-	if (val & (1 << ldo))
-		return 1;
-	else
-		return 0; 		
+
+	 if ((ldo ==8) ||(ldo ==9)){
+               val = rk808_reg_read(rk808, RK808_DCDC_EN_REG);
+               if (val < 0)
+                       return val;
+               if (val & (1 <<( ldo -3)))
+                       return 1;
+               else
+               return 0; 
+       }
+       else{
+		val = rk808_reg_read(rk808, RK808_LDO_EN_REG);
+		if (val < 0)
+			return val;
+		if (val & (1 << ldo))
+			return 1;
+		else
+			return 0; 	
+       }
 }
 static int rk808_ldo_enable(struct regulator_dev *dev)
 {
@@ -1144,51 +1155,54 @@ static int rk808_shutdown(struct i2c_client *i2c)
 	/*****************************************************/
 	ret = rk808_set_bits(rk808, RK808_INT_STS_MSK_REG1,(0x3<<5),(0x3<<5)); //close rtc int when power off
 	ret = rk808_clear_bits(rk808, RK808_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
-
+	mutex_lock(&rk808->io_lock);
+	msleep(100);
 	return 0;	
 }
 EXPORT_SYMBOL_GPL(rk808_shutdown);
 
-static int rk808_device_shutdown(void)
+static void rk808_device_shutdown(void)
 {
 	int ret,i,val;
 	int err = -1;
 	u8 reg = 0;
 	struct rk808 *rk808 = g_rk808;
-	
-	printk("%s\n",__func__);
-
-	ret = rk808_i2c_read(rk808,RK808_DEVCTRL_REG,1,&reg);
-	ret = rk808_i2c_write(rk808, RK808_DEVCTRL_REG, 1,(reg |(0x1 <<3)));
-	if (ret < 0) {
-		printk("rk808 power off error!\n");
-		return err;
+	for(i=0;i < 10;i++){
+		printk("%s\n",__func__);
+		ret = rk808_i2c_read(rk808,RK808_DEVCTRL_REG,1,&reg);
+		if(ret < 0)
+			continue;
+		ret = rk808_i2c_write(rk808, RK808_DEVCTRL_REG, 1,(reg |(0x1 <<3)));
+		if (ret < 0) {
+			printk("rk808 power off error!\n");
+			continue;
+		}
 	}
-	return 0;	
+	while(1)wfi();	
 }
 EXPORT_SYMBOL_GPL(rk808_device_shutdown);
 
 __weak void  rk808_device_suspend(void) {}
 __weak void  rk808_device_resume(void) {}
 #ifdef CONFIG_PM
-static int rk808_suspend(struct i2c_client *i2c, pm_message_t mesg)
+static int rk808_suspend(struct device *dev)
 {		
 	rk808_device_suspend();
 	return 0;
 }
 
-static int rk808_resume(struct i2c_client *i2c)
+static int rk808_resume(struct device *dev)
 {
 	rk808_device_resume();
 	return 0;
 }
 #else
-static int rk808_suspend(struct i2c_client *i2c, pm_message_t mesg)
+static int rk808_suspend(struct device *dev)
 {		
 	return 0;
 }
 
-static int rk808_resume(struct i2c_client *i2c)
+static int rk808_resume(struct device *dev)
 {
 	return 0;
 }
@@ -1513,6 +1527,11 @@ static int rk808_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static const struct dev_pm_ops rk808_pm_ops = {
+	.suspend = rk808_suspend,
+	.resume =  rk808_resume,
+};
+
 static const struct i2c_device_id rk808_i2c_id[] = {
        { "rk808", 0 },
        { }
@@ -1524,16 +1543,15 @@ static struct i2c_driver rk808_i2c_driver = {
 	.driver = {
 		.name = "rk808",
 		.owner = THIS_MODULE,
+		#ifdef CONFIG_PM
+		.pm = &rk808_pm_ops,
+		#endif
 		.of_match_table =of_match_ptr(rk808_of_match),
 	},
 	.probe    = rk808_i2c_probe,
 	.remove   = rk808_i2c_remove,
 	.id_table = rk808_i2c_id,
 	.shutdown = rk808_shutdown,
-	#ifdef CONFIG_PM
-	.suspend	= rk808_suspend,
-	.resume		= rk808_resume,
-	#endif
 };
 
 static int __init rk808_module_init(void)

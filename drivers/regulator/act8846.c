@@ -819,24 +819,24 @@ EXPORT_SYMBOL_GPL(act8846_device_shutdown);
 __weak void  act8846_device_suspend(void) {}
 __weak void  act8846_device_resume(void) {}
 #ifdef CONFIG_PM
-static int act8846_suspend(struct i2c_client *i2c, pm_message_t mesg)
-{		
+static int act8846_suspend(struct device *dev)
+{	
 	act8846_device_suspend();
 	return 0;
 }
 
-static int act8846_resume(struct i2c_client *i2c)
+static int act8846_resume(struct device *dev)
 {
 	act8846_device_resume();
 	return 0;
 }
 #else
-static int act8846_suspend(struct i2c_client *i2c, pm_message_t mesg)
+static int act8846_suspend(struct device *dev)
 {		
 	return 0;
 }
 
-static int act8846_resume(struct i2c_client *i2c)
+static int act8846_resume(struct device *dev)
 {
 	return 0;
 }
@@ -1017,6 +1017,11 @@ static int  act8846_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static const struct dev_pm_ops act8846_pm_ops = {
+	.suspend = act8846_suspend,
+	.resume =  act8846_resume,
+};
+
 static const struct i2c_device_id act8846_i2c_id[] = {
        { "act8846", 0 },
        { }
@@ -1028,15 +1033,14 @@ static struct i2c_driver act8846_i2c_driver = {
 	.driver = {
 		.name = "act8846",
 		.owner = THIS_MODULE,
+		#ifdef CONFIG_PM
+		.pm = &act8846_pm_ops,
+		#endif
 		.of_match_table =of_match_ptr(act8846_of_match),
 	},
 	.probe    = act8846_i2c_probe,
 	.remove   = act8846_i2c_remove,
 	.id_table = act8846_i2c_id,
-	#ifdef CONFIG_PM
-	.suspend	= act8846_suspend,
-	.resume		= act8846_resume,
-	#endif
 };
 
 static int __init act8846_module_init(void)
