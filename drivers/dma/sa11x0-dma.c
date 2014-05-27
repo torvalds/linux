@@ -113,11 +113,9 @@ struct sa11x0_dma_phy {
 	struct sa11x0_dma_desc	*txd_load;
 	unsigned		sg_done;
 	struct sa11x0_dma_desc	*txd_done;
-#ifdef CONFIG_PM_SLEEP
 	u32			dbs[2];
 	u32			dbt[2];
 	u32			dcsr;
-#endif
 };
 
 struct sa11x0_dma_dev {
@@ -984,7 +982,6 @@ static int sa11x0_dma_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sa11x0_dma_suspend(struct device *dev)
 {
 	struct sa11x0_dma_dev *d = dev_get_drvdata(dev);
@@ -1054,7 +1051,6 @@ static int sa11x0_dma_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sa11x0_dma_pm_ops = {
 	.suspend_noirq = sa11x0_dma_suspend,
