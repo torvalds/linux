@@ -987,7 +987,7 @@ pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	const struct pci224_board *thisboard = comedi_board(dev);
 	struct pci224_private *devpriv = dev->private;
-	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
 	unsigned int offset;
@@ -997,7 +997,7 @@ pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* The hardware expects 16-bit numbers. */
 	shift = 16 - thisboard->ao_bits;
 	/* Channels will be all bipolar or all unipolar. */
-	if ((devpriv->hwrange[CR_RANGE(async->cmd.chanlist[0])] &
+	if ((devpriv->hwrange[CR_RANGE(cmd->chanlist[0])] &
 	     PCI224_DACCON_POLAR_MASK) == PCI224_DACCON_POLAR_UNI) {
 		/* Unipolar */
 		offset = 0;
