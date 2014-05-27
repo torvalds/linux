@@ -49,12 +49,6 @@
 #error wrong architecture for the MC68x328 frame buffer device
 #endif
 
-#if defined(CONFIG_FB_68328_INVERT)
-#define MC68X328FB_MONO_VISUAL FB_VISUAL_MONO01
-#else
-#define MC68X328FB_MONO_VISUAL FB_VISUAL_MONO10
-#endif
-
 static u_long videomemory;
 static u_long videomemorysize;
 
@@ -462,7 +456,7 @@ int __init mc68x328fb_init(void)
 	fb_info.fix.line_length =
 		get_line_length(mc68x328fb_default.xres_virtual, mc68x328fb_default.bits_per_pixel);
 	fb_info.fix.visual = (mc68x328fb_default.bits_per_pixel) == 1 ?
-		MC68X328FB_MONO_VISUAL : FB_VISUAL_PSEUDOCOLOR;
+		FB_VISUAL_MONO10 : FB_VISUAL_PSEUDOCOLOR;
 	if (fb_info.var.bits_per_pixel == 1) {
 		fb_info.var.red.length = fb_info.var.green.length = fb_info.var.blue.length = 1;
 		fb_info.var.red.offset = fb_info.var.green.offset = fb_info.var.blue.offset = 0;
