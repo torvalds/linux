@@ -1661,5 +1661,3 @@ void beacon_timing_control(struct adapter *padapter)
 {
 	rtw_hal_bcn_related_reg_setting(padapter);
 }
-
-static struct adapter *pbuddy_padapter;
