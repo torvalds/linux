@@ -87,4 +87,23 @@ struct adau1761_platform_data {
 	enum adau17x1_micbias_voltage micbias_voltage;
 };
 
+/**
+ * struct adau1781_platform_data - ADAU1781 Codec driver platform data
+ * @left_input_differential: If true configure the left input as
+ * differential input.
+ * @right_input_differential: If true configure the right input as differntial
+ *  input.
+ * @use_dmic: If true configure the MIC pins as digital microphone pins instead
+ *  of analog microphone pins.
+ * @micbias_voltage: Microphone voltage bias
+ */
+struct adau1781_platform_data {
+	bool left_input_differential;
+	bool right_input_differential;
+
+	bool use_dmic;
+
+	enum adau17x1_micbias_voltage micbias_voltage;
+};
+
 #endif
