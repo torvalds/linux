@@ -331,6 +331,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	int err = 0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -376,15 +377,12 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		int tmp = cmd->convert_arg;
-
-		/* calculate counter values that give desired timing */
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_1MHZ,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		if (tmp != cmd->convert_arg)
-			err++;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
