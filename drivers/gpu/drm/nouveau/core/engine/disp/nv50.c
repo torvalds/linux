@@ -1457,10 +1457,17 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 	if (!outp)
 		return;
 
-	if (outp->info.location == 0 && outp->info.type == DCB_OUTPUT_DP) {
+	if (outp->info.type == DCB_OUTPUT_DP) {
 		u32 soff = (ffs(outp->info.or) - 1) * 0x08;
-		u32 ctrl = nv_rd32(priv, 0x610794 + soff);
-		u32 datarate;
+		u32 ctrl, datarate;
+
+		if (outp->info.location == 0) {
+			ctrl = nv_rd32(priv, 0x610794 + soff);
+			soff = 1;
+		} else {
+			ctrl = nv_rd32(priv, 0x610b80 + soff);
+			soff = 2;
+		}
 
 		switch ((ctrl & 0x000f0000) >> 16) {
 		case 6: datarate = pclk * 30 / 8; break;
@@ -1471,7 +1478,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 			break;
 		}
 
-		nouveau_dp_train((void *)outp, datarate);
+		nouveau_dp_train((void *)outp, datarate / soff);
 	}
 
 	exec_clkcmp(priv, head, 0, pclk, &conf);
@@ -1535,23 +1542,6 @@ nv50_disp_intr_unk40_0(struct nv50_disp_priv *priv, int head)
 
 	if (outp->info.location == 0 && outp->info.type == DCB_OUTPUT_TMDS)
 		nv50_disp_intr_unk40_0_tmds(priv, &outp->info);
-	else
-	if (outp->info.location == 1 && outp->info.type == DCB_OUTPUT_DP) {
-		u32 soff = (ffs(outp->info.or) - 1) * 0x08;
-		u32 ctrl = nv_rd32(priv, 0x610b84 + soff);
-		u32 datarate;
-
-		switch ((ctrl & 0x000f0000) >> 16) {
-		case 6: datarate = pclk * 30 / 8; break;
-		case 5: datarate = pclk * 24 / 8; break;
-		case 2:
-		default:
-			datarate = pclk * 18 / 8;
-			break;
-		}
-
-		nouveau_dp_train((void *)outp, datarate);
-	}
 }
 
 void
