@@ -2211,7 +2211,6 @@ static void tile_net_dev_init(const char *name, const uint8_t *mac)
 
 	/* Initialize "priv". */
 	priv = netdev_priv(dev);
-	memset(priv, 0, sizeof(*priv));
 	priv->dev = dev;
 	priv->channel = -1;
 	priv->loopify_channel = -1;
