@@ -354,7 +354,7 @@ static u8 al7230_channel_table2[CB_MAX_CHANNEL][3] = {
     };
 
 ///{{RobertYu:20051111
-static u8 at3226_init_table[CB_VT3226_INIT_SEQ][3] = {
+static u8 vt3226_init_table[CB_VT3226_INIT_SEQ][3] = {
     {0x03, 0xFF, 0x80},
     {0x02, 0x82, 0xA1},
     {0x03, 0xC6, 0xA2},
@@ -368,7 +368,7 @@ static u8 at3226_init_table[CB_VT3226_INIT_SEQ][3] = {
     {0x02, 0x00, 0x2A}
     };
 
-static u8 at3226d0_init_table[CB_VT3226_INIT_SEQ][3] = {
+static u8 vt3226d0_init_table[CB_VT3226_INIT_SEQ][3] = {
     {0x03, 0xFF, 0x80},
     {0x03, 0x02, 0x21}, //RobertYu:20060327
     {0x03, 0xC6, 0xA2},
@@ -1021,7 +1021,7 @@ void vnt_rf_table_download(struct vnt_private *priv)
 		length1 = CB_VT3226_INIT_SEQ * 3;
 		length2 = CB_MAX_CHANNEL_24G * 3;
 		length3 = CB_MAX_CHANNEL_24G * 3;
-		addr1 = &at3226_init_table[0][0];
+		addr1 = &vt3226_init_table[0][0];
 		addr2 = &vt3226_channel_table0[0][0];
 		addr3 = &vt3226_channel_table1[0][0];
 		break;
@@ -1029,7 +1029,7 @@ void vnt_rf_table_download(struct vnt_private *priv)
 		length1 = CB_VT3226_INIT_SEQ * 3;
 		length2 = CB_MAX_CHANNEL_24G * 3;
 		length3 = CB_MAX_CHANNEL_24G * 3;
-		addr1 = &at3226d0_init_table[0][0];
+		addr1 = &vt3226d0_init_table[0][0];
 		addr2 = &vt3226_channel_table0[0][0];
 		addr3 = &vt3226_channel_table1[0][0];
 		break;
