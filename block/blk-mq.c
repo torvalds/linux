@@ -264,46 +264,30 @@ __blk_mq_alloc_request(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
 	return NULL;
 }
 
-static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
-						   int rw, gfp_t gfp,
-						   bool reserved)
-{
-	bool gfp_mask = gfp & ~__GFP_WAIT;
-	struct request *rq;
-
-	do {
-		struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
-		struct blk_mq_hw_ctx *hctx = q->mq_ops->map_queue(q, ctx->cpu);
-
-		rq = __blk_mq_alloc_request(q, hctx, ctx, rw, gfp_mask,
-						reserved);
-		if (rq)
-			break;
-
-		if (!(gfp & __GFP_WAIT)) {
-			blk_mq_put_ctx(ctx);
-			break;
-		}
-
-		__blk_mq_run_hw_queue(hctx);
-		blk_mq_put_ctx(ctx);
-		gfp_mask = gfp;
-	} while (1);
-
-	return rq;
-}
-
 struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
 		bool reserved)
 {
+	struct blk_mq_ctx *ctx;
+	struct blk_mq_hw_ctx *hctx;
 	struct request *rq;
 
 	if (blk_mq_queue_enter(q))
 		return NULL;
 
-	rq = blk_mq_alloc_request_pinned(q, rw, gfp, reserved);
-	if (rq)
-		blk_mq_put_ctx(rq->mq_ctx);
+	ctx = blk_mq_get_ctx(q);
+	hctx = q->mq_ops->map_queue(q, ctx->cpu);
+
+	rq = __blk_mq_alloc_request(q, hctx, ctx, rw, gfp & ~__GFP_WAIT,
+				    reserved);
+	if (!rq && (gfp & __GFP_WAIT)) {
+		__blk_mq_run_hw_queue(hctx);
+		blk_mq_put_ctx(ctx);
+
+		ctx = blk_mq_get_ctx(q);
+		hctx = q->mq_ops->map_queue(q, ctx->cpu);
+		rq =  __blk_mq_alloc_request(q, hctx, ctx, rw, gfp, reserved);
+	}
+	blk_mq_put_ctx(ctx);
 	return rq;
 }
 EXPORT_SYMBOL(blk_mq_alloc_request);
