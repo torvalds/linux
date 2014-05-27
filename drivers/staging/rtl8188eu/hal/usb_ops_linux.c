@@ -682,9 +682,3 @@ void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
 	pops->_read_port_cancel = &usb_read_port_cancel;
 	pops->_write_port_cancel = &usb_write_port_cancel;
 }
-
-void rtl8188eu_set_hw_type(struct adapter *adapt)
-{
-	adapt->chip_type = RTL8188E;
-	DBG_88E("CHIP TYPE: RTL8188E\n");
-}
