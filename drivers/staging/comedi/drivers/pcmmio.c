@@ -192,7 +192,6 @@ struct pcmmio_private {
 	unsigned int enabled_mask;
 	unsigned int stop_count;
 	unsigned int active:1;
-	unsigned int continuous:1;
 
 	unsigned int ao_readback[8];
 };
@@ -371,15 +370,12 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 	}
 
 	/* Check for end of acquisition. */
-	if (!devpriv->continuous) {
-		/* stop_src == TRIG_COUNT */
-		if (devpriv->stop_count > 0) {
-			devpriv->stop_count--;
-			if (devpriv->stop_count == 0) {
-				s->async->events |= COMEDI_CB_EOA;
-				/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-				pcmmio_stop_intr(dev, s);
-			}
+	if (cmd->stop_src == TRIG_COUNT && devpriv->stop_count > 0) {
+		devpriv->stop_count--;
+		if (devpriv->stop_count == 0) {
+			s->async->events |= COMEDI_CB_EOA;
+			/* TODO: STOP_ACQUISITION_CALL_HERE!! */
+			pcmmio_stop_intr(dev, s);
 		}
 	}
 
@@ -421,7 +417,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 	unsigned int pol_bits = 0;
 	int i;
 
-	if (!devpriv->continuous && devpriv->stop_count == 0) {
+	if (cmd->stop_src == TRIG_COUNT && devpriv->stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
 		devpriv->active = 0;
@@ -502,17 +498,10 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->active = 1;
 
 	/* Set up end of acquisition. */
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		devpriv->continuous = 0;
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->stop_count = cmd->stop_arg;
-		break;
-	default:
-		/* TRIG_NONE */
-		devpriv->continuous = 1;
+	else	/* TRIG_NONE */
 		devpriv->stop_count = 0;
-		break;
-	}
 
 	/* Set up start of acquisition. */
 	if (cmd->start_src == TRIG_INT)
