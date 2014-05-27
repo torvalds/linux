@@ -208,7 +208,6 @@ struct usbdux_private {
 	unsigned int high_speed:1;
 	unsigned int ai_cmd_running:1;
 	unsigned int ao_cmd_running:1;
-	unsigned int ao_continous:1;
 	unsigned int pwm_cmd_running:1;
 
 	/* number of samples to acquire */
@@ -414,6 +413,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct usbdux_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	uint8_t *datap;
 	int len;
 	int ret;
@@ -463,7 +463,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 		devpriv->ao_counter = devpriv->ao_timer;
 
 		/* handle non continous acquisition */
-		if (!devpriv->ao_continous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			/* fixed number of samples */
 			devpriv->ao_sample_count--;
 			if (devpriv->ao_sample_count < 0) {
@@ -1074,10 +1074,8 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			/* data arrives as one packet */
 			devpriv->ao_sample_count = cmd->stop_arg;
 		}
-		devpriv->ao_continous = 0;
 	} else {
 		/* continous acquisition */
-		devpriv->ao_continous = 1;
 		devpriv->ao_sample_count = 0;
 	}
 
