@@ -99,15 +99,15 @@ void CARDbSetMediaChannel(struct vnt_private *priv, u32 connection_channel)
 
 	if (priv->byBBType == BB_TYPE_11A) {
 		priv->byCurPwr = 0xff;
-		RFbRawSetPower(priv,
+		vnt_rf_set_txpower(priv,
 			priv->abyOFDMAPwrTbl[connection_channel-15], RATE_54M);
 	} else if (priv->byBBType == BB_TYPE_11G) {
 		priv->byCurPwr = 0xff;
-		RFbRawSetPower(priv,
+		vnt_rf_set_txpower(priv,
 			priv->abyOFDMPwrTbl[connection_channel-1], RATE_54M);
 	} else {
 		priv->byCurPwr = 0xff;
-		RFbRawSetPower(priv,
+		vnt_rf_set_txpower(priv,
 			priv->abyCCKPwrTbl[connection_channel-1], RATE_1M);
 	}
 

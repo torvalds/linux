@@ -763,7 +763,7 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 		break;
 	}
 
-	ret = RFbRawSetPower(priv, power, rate);
+	ret = vnt_rf_set_txpower(priv, power, rate);
 
 	return ret;
 }
@@ -808,7 +808,7 @@ static u8 vnt_rf_addpower(struct vnt_private *priv)
  *
  */
 
-int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
+int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 {
 	u32 power_setting = 0;
 	int ret = true;
@@ -903,14 +903,14 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
 
 			if (priv->vnt_mgmt.eScanState != WMAC_NO_SCANNING) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				"RFbRawSetPower> 11B mode uCurrChannel[%d]\n",
+				"vnt_rf_set_txpower> 11B mode uCurrChannel[%d]\n",
 						priv->vnt_mgmt.uScanChannel);
 				ret &= vnt_rf_write_embedded(priv,
 					vt3226d0_lo_current_table[priv->
 						vnt_mgmt.uScanChannel - 1]);
 			} else {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-				"RFbRawSetPower> 11B mode uCurrChannel[%d]\n",
+				"vnt_rf_set_txpower> 11B mode uCurrChannel[%d]\n",
 						priv->vnt_mgmt.uCurrChannel);
 				ret &= vnt_rf_write_embedded(priv,
 					vt3226d0_lo_current_table[priv->
@@ -921,7 +921,7 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
 				(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
 		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-					"@@@@ RFbRawSetPower> 11G mode\n");
+					"@@@@ vnt_rf_set_txpower> 11G mode\n");
 
 			power_setting = ((0x3f-priv->byCurPwr) << 20) |
 				(0x7 << 8) | (BY_VT3226_REG_LEN << 3) |
