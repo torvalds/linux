@@ -716,7 +716,7 @@ int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
 	pbyData[3] = (u8)(dwData >> 24);
 
 	vnt_control_out(pDevice,
-		MESSAGE_TYPE_WRITE_IFRF, 0, 0, 4, pbyData);
+		MESSAGE_TYPE_WRITE_IFRF, 0, 0, ARRAY_SIZE(pbyData), pbyData);
 
 	return true;
 }
