@@ -1,4 +1,4 @@
-#include <dt-bindings/clock/ddr.h>
+#include <dt-bindings/clock/rk_system_status.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/rkfb/rk_fb.h>
 #include <dt-bindings/rkmipi/mipi_dsi.h>

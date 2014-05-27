@@ -44,24 +44,4 @@
 
 #define PAUSE_CPU_STACK_SZIE	16
 
-#define SYS_STATUS_NORMAL	(1<<0)
-#define SYS_STATUS_SUSPEND	(1<<1)
-#define SYS_STATUS_IDLE		(1<<2)
-#define SYS_STATUS_REBOOT	(1<<3)
-#define SYS_STATUS_VIDEO_4K	(1<<4)
-#define SYS_STATUS_VIDEO_1080P	(1<<5)
-#define SYS_STATUS_GPU		(1<<6)
-#define SYS_STATUS_RGA		(1<<7)
-#define SYS_STATUS_CIF0		(1<<8)
-#define SYS_STATUS_CIF1		(1<<9)
-#define SYS_STATUS_LCDC0	(1<<10)
-#define SYS_STATUS_LCDC1	(1<<11)
-#define SYS_STATUS_BOOST	(1<<12)
-#define SYS_STATUS_PERFORMANCE	(1<<13)
-#define SYS_STATUS_ISP		(1<<14)
-
-
-
-#define SYS_STATUS_DUALVIEW	(SYS_STATUS_LCDC0|SYS_STATUS_LCDC1)
-
 #endif

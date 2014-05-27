@@ -23,6 +23,7 @@
 #include <linux/rockchip/common.h>
 #include <linux/rockchip/dvfs.h>
 #include <dt-bindings/clock/ddr.h>
+#include <dt-bindings/clock/rk_system_status.h>
 #include <asm/io.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
@@ -30,6 +31,9 @@
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 
 extern int rockchip_cpufreq_reboot_limit_freq(void);
+
+static DECLARE_COMPLETION(ddrfreq_completion);
+static DEFINE_MUTEX(ddrfreq_mutex);
 
 static struct dvfs_node *clk_cpu_dvfs_node = NULL;
 static int reboot_config_done = 0;
@@ -93,6 +97,7 @@ struct ddr {
 	unsigned long video_4k_rate;
 	unsigned long performance_rate;
 	unsigned long dualview_rate;
+	unsigned long hdmi_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
 	unsigned long reboot_rate;
@@ -142,20 +147,7 @@ static unsigned long get_index_from_table(unsigned long freq)
 	return i-1;
 }
 
-
-static noinline void ddrfreq_set_sys_status(int status)
-{
-	ddr.sys_status |= status;
-	wake_up(&ddr.wait);
-}
-
-static noinline void ddrfreq_clear_sys_status(int status)
-{
-	ddr.sys_status &= ~status;
-	wake_up(&ddr.wait);
-}
-
-static void ddrfreq_mode(bool auto_self_refresh, unsigned long *target_rate, char *name)
+static void ddrfreq_mode(bool auto_self_refresh, unsigned long target_rate, char *name)
 {
 	unsigned int min_rate, max_rate;
 	int freq_limit_en;
@@ -167,15 +159,15 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long *target_rate, cha
 		dprintk(DEBUG_DDR, "change auto self refresh to %d when %s\n", auto_self_refresh, name);
 	}
 
-	cur_freq_index = get_index_from_table(*target_rate);
+	cur_freq_index = get_index_from_table(target_rate);
 
-	if (*target_rate != dvfs_clk_get_rate(ddr.clk_dvfs_node)) {
+	if (target_rate != dvfs_clk_get_last_set_rate(ddr.clk_dvfs_node)) {
 		freq_limit_en = dvfs_clk_get_limit(clk_cpu_dvfs_node, &min_rate, &max_rate);
 
 		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 600000000, -1);
-		if (dvfs_clk_set_rate(ddr.clk_dvfs_node, *target_rate) == 0) {
-			*target_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
-			dprintk(DEBUG_DDR, "change freq to %lu MHz when %s\n", *target_rate / MHZ, name);
+		if (dvfs_clk_set_rate(ddr.clk_dvfs_node, target_rate) == 0) {
+			target_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
+			dprintk(DEBUG_DDR, "change freq to %lu MHz when %s\n", target_rate / MHZ, name);
 		}
 
 		if (freq_limit_en) {
@@ -211,7 +203,7 @@ void ddr_bandwidth_get(u32 *ch0_eff, u32 *ch1_eff)
 
 static void ddr_auto_freq(void)
 {
-	unsigned long freq;
+	unsigned long freq, new_freq;
 	u32 ch0_eff, ch1_eff, max_eff;
 	static u32 high_load_last = 0, low_load_last = 0;
 
@@ -235,25 +227,29 @@ static void ddr_auto_freq(void)
 		ddr_boost = 0;
 		if (freq < ddr.boost_rate) {
 			low_load_last = low_load_last_ms/auto_freq_interval_ms;
-			freq = ddr.boost_rate;
-			ddrfreq_mode(false, &freq, "boost");
+			ddrfreq_mode(false, ddr.boost_rate, "boost");
 		}
 	} else if(max_eff > high_load){
 		low_load_last = low_load_last_ms/auto_freq_interval_ms;
+
 		if (!high_load_last) {
 			if (cur_freq_index < auto_freq_table_size-1) {
-				freq = auto_freq_table[cur_freq_index+1];
-				ddrfreq_mode(false, &freq, "high load");
+				new_freq = auto_freq_table[cur_freq_index+1];
+				ddrfreq_mode(false, new_freq, "high load");
 			}
 		} else {
 			high_load_last--;
 		}
 	} else if (max_eff < low_load){
 		high_load_last = high_load_last_ms/auto_freq_interval_ms;
-		if (!low_load_last) {
-			freq = max_eff*(freq/low_load);
-			freq = get_freq_from_table(freq);
-			ddrfreq_mode(false, &freq, "low load");
+
+		new_freq = max_eff*(freq/low_load);
+		new_freq = get_freq_from_table(new_freq);
+		if (new_freq > freq) {
+			low_load_last = 0;
+			ddrfreq_mode(false, new_freq, "low load");
+		} else if (!low_load_last) {
+			ddrfreq_mode(false, new_freq, "low load");
 		} else {
 			low_load_last--;
 		}
@@ -264,18 +260,87 @@ static void ddr_auto_freq(void)
 
 static noinline long ddrfreq_work(unsigned long sys_status)
 {
-	static struct clk *cpu = NULL;
-	static struct clk *gpu = NULL;
 	long timeout = MAX_SCHEDULE_TIMEOUT;
+	unsigned long target_rate = 0;
 	unsigned long s = sys_status;
+	char *mode = NULL;
 
-	if (!cpu)
-		cpu = clk_get(NULL, "cpu");
-	if (!gpu)
-		gpu = clk_get(NULL, "gpu");
-	
 	dprintk(DEBUG_VERBOSE, "sys_status %02lx\n", sys_status);
-	
+
+	if (ddr.reboot_rate && (s & SYS_STATUS_REBOOT)) {
+		ddrfreq_mode(false, ddr.reboot_rate, "shutdown/reboot");
+		rockchip_cpufreq_reboot_limit_freq();
+		reboot_config_done = 1;
+
+		return timeout;
+	}
+
+	if (ddr.suspend_rate && (s & SYS_STATUS_SUSPEND)) {
+		if (ddr.suspend_rate > target_rate) {
+			target_rate = ddr.suspend_rate;
+			mode = "suspend";
+		}
+	}
+
+	if (ddr.performance_rate && (s & SYS_STATUS_PERFORMANCE)) {
+		if (ddr.performance_rate > target_rate) {
+			target_rate = ddr.performance_rate;
+			mode = "performance";
+		}
+	}
+
+	 if (ddr.dualview_rate &&
+		(s & SYS_STATUS_LCDC0) && (s & SYS_STATUS_LCDC1)) {
+		 if (ddr.dualview_rate > target_rate) {
+			 target_rate = ddr.dualview_rate;
+			 mode = "dual-view";
+		 }
+	 }
+
+	 if (ddr.hdmi_rate &&
+		(s & SYS_STATUS_HDMI)) {
+		 if (ddr.hdmi_rate > target_rate) {
+			 target_rate = ddr.hdmi_rate;
+			 mode = "hdmi";
+		 }
+	 }
+
+	if (ddr.video_4k_rate && (s & SYS_STATUS_VIDEO_4K)) {
+		if (ddr.video_4k_rate > target_rate) {
+			target_rate = ddr.video_4k_rate;
+			mode = "video_4k";
+		}
+	}
+
+	if (ddr.video_1080p_rate && (s & SYS_STATUS_VIDEO_1080P)) {
+		if (ddr.video_1080p_rate > target_rate) {
+			target_rate = ddr.video_1080p_rate;
+			mode = "video_1080p";
+		}
+	}
+
+	if (ddr.isp_rate && (s & SYS_STATUS_ISP)) {
+		if (ddr.isp_rate > target_rate) {
+			target_rate = ddr.isp_rate;
+			mode = "isp";
+		}
+	}
+
+	if (target_rate > 0) {
+		ddrfreq_mode(false, target_rate, mode);
+	} else {
+		if (ddr.auto_freq) {
+			ddr_auto_freq();
+			timeout = auto_freq_interval_ms;
+		}
+		else {
+			ddrfreq_mode(false, ddr.normal_rate, "normal");
+		}
+	}
+
+	return timeout;
+#if 0
+
 	if (ddr.reboot_rate && (s & SYS_STATUS_REBOOT)) {
 		ddrfreq_mode(false, &ddr.reboot_rate, "shutdown/reboot");
 		rockchip_cpufreq_reboot_limit_freq();
@@ -312,20 +377,28 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 		}
 	}
 
+
+
 	return timeout;
+#endif
 }
 
 static int ddrfreq_task(void *data)
 {
 	long timeout;
+	unsigned long status=ddr.sys_status, old_status=ddr.sys_status;
 
 	set_freezable();
 
 	do {
-		unsigned long status = ddr.sys_status;
+		status = ddr.sys_status;
 		timeout = ddrfreq_work(status);
+		if (old_status != status) {
+			complete(&ddrfreq_completion);
+		}
 		wait_event_freezable_timeout(ddr.wait, (status != ddr.sys_status) || kthread_should_stop(), timeout);
-	} while (!kthread_should_stop());
+		old_status = status;
+	} while (!kthread_should_stop() && !reboot_config_done);
 
 	return 0;
 }
@@ -381,10 +454,9 @@ void update_video_info(void)
 	int max_res=0, res=0;
 
 	if (list_empty(&ddr.video_info_list)) {
-		ddrfreq_clear_sys_status(SYS_STATUS_VIDEO_1080P | SYS_STATUS_VIDEO_4K);
+		rockchip_clear_system_status(SYS_STATUS_VIDEO_1080P|SYS_STATUS_VIDEO_4K);
 		return;
 	}
-
 
 	list_for_each_entry(video_info, &ddr.video_info_list, node) {
 		res = video_info->width * video_info->height;
@@ -395,10 +467,9 @@ void update_video_info(void)
 	}
 
 	if (max_res <= 1920*1080)
-		ddrfreq_set_sys_status(SYS_STATUS_VIDEO_1080P);
+		rockchip_set_system_status(SYS_STATUS_VIDEO_1080P);
 	else
-		ddrfreq_set_sys_status(SYS_STATUS_VIDEO_4K);
-
+		rockchip_set_system_status(SYS_STATUS_VIDEO_4K);
 
 	return;
 }
@@ -462,7 +533,6 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 			video_info->streamBitrate);
 
 	}
-
 	switch (state) {
 	case '0':
 		del_video_info(find_video_info(video_info));
@@ -474,10 +544,10 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 		update_video_info();
 		break;
 	case 'p'://performance
-		ddrfreq_set_sys_status(SYS_STATUS_PERFORMANCE);
+		rockchip_set_system_status(SYS_STATUS_PERFORMANCE);
 		break;
 	case 'n'://normal
-		ddrfreq_clear_sys_status(SYS_STATUS_PERFORMANCE);
+		rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
 		break;
 	default:
 		vfree(buf);
@@ -584,7 +654,7 @@ static struct input_handler ddr_freq_input_handler = {
 	.name		= "ddr_freq",
 	.id_table	= ddr_freq_ids,
 };
-
+#if 0
 static int ddrfreq_clk_event(int status, unsigned long event)
 {
 	switch (event) {
@@ -622,11 +692,12 @@ do { \
 CLK_NOTIFIER(pd_isp, ISP)
 CLK_NOTIFIER(pd_vop0, LCDC0)
 CLK_NOTIFIER(pd_vop1, LCDC1)
+#endif
 
 static int ddrfreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	u32 timeout = 1000; // 10s
-	ddrfreq_set_sys_status(SYS_STATUS_REBOOT);
+	rockchip_set_system_status(SYS_STATUS_REBOOT);
 	while (!reboot_config_done && --timeout) {
 		msleep(10);
 	}
@@ -649,7 +720,7 @@ static int ddr_freq_suspend_notifier_call(struct notifier_block *self,
 	if (action == FB_EARLY_EVENT_BLANK) {
 		switch (blank_mode) {
 		case FB_BLANK_UNBLANK:
-			ddrfreq_clear_sys_status(SYS_STATUS_SUSPEND);
+			rockchip_clear_system_status(SYS_STATUS_SUSPEND);
 			break;
 		default:
 			break;
@@ -658,7 +729,7 @@ static int ddr_freq_suspend_notifier_call(struct notifier_block *self,
 	else if (action == FB_EVENT_BLANK) {
 		switch (blank_mode) {
 		case FB_BLANK_POWERDOWN:
-			ddrfreq_set_sys_status(SYS_STATUS_SUSPEND);
+			rockchip_set_system_status(SYS_STATUS_SUSPEND);
 			break;
 		default:
 			break;
@@ -671,6 +742,23 @@ static int ddr_freq_suspend_notifier_call(struct notifier_block *self,
 static struct notifier_block ddr_freq_suspend_notifier = {
 		.notifier_call = ddr_freq_suspend_notifier_call,
 };
+
+static int ddrfreq_system_status_notifier_call(struct notifier_block *nb,
+				unsigned long val, void *data)
+{
+	mutex_lock(&ddrfreq_mutex);
+	ddr.sys_status = val;
+	wake_up(&ddr.wait);
+	wait_for_completion(&ddrfreq_completion);
+	mutex_unlock(&ddrfreq_mutex);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block ddrfreq_system_status_notifier = {
+		.notifier_call = ddrfreq_system_status_notifier_call,
+};
+
 
 int of_init_ddr_freq_table(void)
 {
@@ -695,7 +783,8 @@ int of_init_ddr_freq_table(void)
 		auto_freq_table = kzalloc((sizeof(u32) *(nr+1)), GFP_KERNEL);
 		val = prop->value;
 		while (nr) {
-			auto_freq_table[i++] = 1000 * be32_to_cpup(val++);
+			auto_freq_table[i++] =
+				dvfs_clk_round_rate(ddr.clk_dvfs_node, 1000 * be32_to_cpup(val++));
 			nr--;
 		}
 		cur_freq_index = 0;
@@ -717,7 +806,8 @@ int of_init_ddr_freq_table(void)
 	val = prop->value;
 	while (nr) {
 		unsigned long status = be32_to_cpup(val++);
-		unsigned long rate = be32_to_cpup(val++) * 1000;
+		unsigned long rate =
+			dvfs_clk_round_rate(ddr.clk_dvfs_node, be32_to_cpup(val++) * 1000);
 
 		if (status & SYS_STATUS_NORMAL)
 			ddr.normal_rate = rate;
@@ -731,6 +821,8 @@ int of_init_ddr_freq_table(void)
 			ddr.performance_rate= rate;
 		if ((status & SYS_STATUS_LCDC0)&&(status & SYS_STATUS_LCDC1))
 			ddr.dualview_rate = rate;
+		if (status & SYS_STATUS_HDMI)
+			ddr.hdmi_rate = rate;
 		if (status & SYS_STATUS_IDLE)
 			ddr.idle_rate= rate;
 		if (status & SYS_STATUS_REBOOT)
@@ -766,7 +858,7 @@ static void ddrfreq_tst_init(void);
 
 static int ddrfreq_init(void)
 {
-	int ret;
+	int ret, i;
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 
 #if defined(CONFIG_RK_PM_TESTS)
@@ -791,18 +883,20 @@ static int ddrfreq_init(void)
 	INIT_LIST_HEAD(&ddr.video_info_list);
 	ddr.mode = "normal";
 	ddr.normal_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
-	ddr.suspend_rate = ddr.normal_rate;
-	ddr.reboot_rate = ddr.normal_rate;
+	ddr.sys_status = rockchip_get_system_status();
 
 	of_init_ddr_freq_table();
+
+	if (!ddr.reboot_rate)
+		ddr.reboot_rate = ddr.normal_rate;
 
 	ret = input_register_handler(&ddr_freq_input_handler);
 	if (ret)
 		ddr.auto_freq = false;
 
-	REGISTER_CLK_NOTIFIER(pd_isp);
-	REGISTER_CLK_NOTIFIER(pd_vop0);
-	REGISTER_CLK_NOTIFIER(pd_vop1);
+	//REGISTER_CLK_NOTIFIER(pd_isp);
+	//REGISTER_CLK_NOTIFIER(pd_vop0);
+	//REGISTER_CLK_NOTIFIER(pd_vop1);
 
 	ret = misc_register(&video_state_dev);
 	if (unlikely(ret)) {
@@ -822,13 +916,28 @@ static int ddrfreq_init(void)
 	kthread_bind(ddr.task, 0);
 	wake_up_process(ddr.task);
 
+	rockchip_register_system_status_notifier(&ddrfreq_system_status_notifier);
 	fb_register_client(&ddr_freq_suspend_notifier);
 	register_reboot_notifier(&ddrfreq_reboot_notifier);
 
-	pr_info("verion 1.1 20140509\n");
-	dprintk(DEBUG_DDR, "normal %luMHz video_1080p %luMHz video_4k %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
-		ddr.normal_rate / MHZ, ddr.video_1080p_rate / MHZ, ddr.video_1080p_rate / MHZ, ddr.dualview_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
+	pr_info("verion 1.2 20140526\n");
+	pr_info("normal %luMHz video_1080p %luMHz video_4k %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
+		ddr.normal_rate / MHZ,
+		ddr.video_1080p_rate / MHZ,
+		ddr.video_4k_rate / MHZ,
+		ddr.dualview_rate / MHZ,
+		ddr.idle_rate / MHZ,
+		ddr.suspend_rate / MHZ,
+		ddr.reboot_rate / MHZ);
 
+	pr_info("auto-freq=%d\n", ddr.auto_freq);
+	if (auto_freq_table) {
+		for (i = 0; i < auto_freq_table_size; i++) {
+			pr_info("auto-freq-table[%d] %luMHz\n", i, auto_freq_table[i] / MHZ);
+		}
+	} else {
+		pr_info("auto-freq-table epmty!\n");
+	}
 	return 0;
 
 err1:

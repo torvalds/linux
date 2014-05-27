@@ -924,11 +924,30 @@ out:
 	return ret;
 }
 
+unsigned long dvfs_clk_round_rate(struct dvfs_node *clk_dvfs_node, unsigned long rate)
+{
+	return __clk_round_rate(clk_dvfs_node->clk, rate);
+}
+EXPORT_SYMBOL_GPL(dvfs_clk_round_rate);
+
 unsigned long dvfs_clk_get_rate(struct dvfs_node *clk_dvfs_node)
 {
 	return __clk_get_rate(clk_dvfs_node->clk);
 }
 EXPORT_SYMBOL_GPL(dvfs_clk_get_rate);
+
+unsigned long dvfs_clk_get_last_set_rate(struct dvfs_node *clk_dvfs_node)
+{
+	unsigned long last_set_rate;
+
+	mutex_lock(&clk_dvfs_node->vd->mutex);
+	last_set_rate = clk_dvfs_node->last_set_rate;
+	mutex_unlock(&clk_dvfs_node->vd->mutex);
+
+	return last_set_rate;
+}
+EXPORT_SYMBOL_GPL(dvfs_clk_get_last_set_rate);
+
 
 int dvfs_clk_enable(struct dvfs_node *clk_dvfs_node)
 {
