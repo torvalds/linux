@@ -230,6 +230,24 @@
 #define CLK_MOUT_G3D		394
 #define CLK_ACLK400_MCUISP	395 /* Exynos4x12 only */
 
+/* gate clocks - ppmu */
+#define CLK_PPMULEFT		400
+#define CLK_PPMURIGHT		401
+#define CLK_PPMUCAMIF		402
+#define CLK_PPMUTV		403
+#define CLK_PPMUMFC_L		404
+#define CLK_PPMUMFC_R		405
+#define CLK_PPMUG3D		406
+#define CLK_PPMUIMAGE		407
+#define CLK_PPMULCD0		408
+#define CLK_PPMULCD1		409 /* Exynos4210 only */
+#define CLK_PPMUFILE		410
+#define CLK_PPMUGPS		411
+#define CLK_PPMUDMC0		412
+#define CLK_PPMUDMC1		413
+#define CLK_PPMUCPU		414
+#define CLK_PPMUACP		415
+
 /* div clocks */
 #define CLK_DIV_ISP0		450 /* Exynos4x12 only */
 #define CLK_DIV_ISP1		451 /* Exynos4x12 only */
