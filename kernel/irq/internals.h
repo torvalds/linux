@@ -33,7 +33,7 @@ enum {
 };
 
 /*
- * Bit masks for desc->state
+ * Bit masks for desc->core_internal_state__do_not_mess_with_it
  *
  * IRQS_AUTODETECT		- autodetection in progress
  * IRQS_SPURIOUS_DISABLED	- was disabled due to spurious interrupt
