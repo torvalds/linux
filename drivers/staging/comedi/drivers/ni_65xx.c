@@ -491,7 +491,6 @@ static int ni_65xx_intr_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	struct ni_65xx_private *devpriv = dev->private;
-	/* struct comedi_cmd *cmd = &s->async->cmd; */
 
 	writeb(ClrEdge | ClrOverflow,
 	       devpriv->mite->daq_io_addr + Clear_Register);
