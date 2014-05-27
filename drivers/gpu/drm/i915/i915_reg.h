@@ -529,6 +529,16 @@ enum punit_power_well {
 #define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */
 #define PUNIT_FUSE_BUS1				0xf5 /* bits 55:48 */
 
+#define PUNIT_GPU_STATUS_REG			0xdb
+#define PUNIT_GPU_STATUS_MAX_FREQ_SHIFT	16
+#define PUNIT_GPU_STATUS_MAX_FREQ_MASK		0xff
+#define PUNIT_GPU_STATIS_GFX_MIN_FREQ_SHIFT	8
+#define PUNIT_GPU_STATUS_GFX_MIN_FREQ_MASK	0xff
+
+#define PUNIT_GPU_DUTYCYCLE_REG		0xdf
+#define PUNIT_GPU_DUTYCYCLE_RPE_FREQ_SHIFT	8
+#define PUNIT_GPU_DUTYCYCLE_RPE_FREQ_MASK	0xff
+
 #define IOSF_NC_FB_GFX_FREQ_FUSE		0x1c
 #define   FB_GFX_MAX_FREQ_FUSE_SHIFT		3
 #define   FB_GFX_MAX_FREQ_FUSE_MASK		0x000007f8
@@ -932,6 +942,7 @@ enum punit_power_well {
 #define FENCE_REG_SANDYBRIDGE_0		0x100000
 #define   SANDYBRIDGE_FENCE_PITCH_SHIFT	32
 #define   GEN7_FENCE_MAX_PITCH_VAL	0x0800
+
 
 /* control register for cpu gtt access */
 #define TILECTL				0x101000

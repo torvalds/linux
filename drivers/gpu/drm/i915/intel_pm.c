@@ -3731,6 +3731,35 @@ void gen6_update_ring_freq(struct drm_device *dev)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
+int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
+{
+	u32 val, rp0;
+
+	val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
+	rp0 = (val >> PUNIT_GPU_STATUS_MAX_FREQ_SHIFT) & PUNIT_GPU_STATUS_MAX_FREQ_MASK;
+
+	return rp0;
+}
+
+static int cherryview_rps_rpe_freq(struct drm_i915_private *dev_priv)
+{
+	u32 val, rpe;
+
+	val = vlv_punit_read(dev_priv, PUNIT_GPU_DUTYCYCLE_REG);
+	rpe = (val >> PUNIT_GPU_DUTYCYCLE_RPE_FREQ_SHIFT) & PUNIT_GPU_DUTYCYCLE_RPE_FREQ_MASK;
+
+	return rpe;
+}
+
+int cherryview_rps_min_freq(struct drm_i915_private *dev_priv)
+{
+	u32 val, rpn;
+
+	val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
+	rpn = (val >> PUNIT_GPU_STATIS_GFX_MIN_FREQ_SHIFT) & PUNIT_GPU_STATUS_GFX_MIN_FREQ_MASK;
+	return rpn;
+}
+
 int valleyview_rps_max_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rp0;
@@ -3890,7 +3919,36 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 
 static void cherryview_init_gt_powersave(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	cherryview_setup_pctx(dev);
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	dev_priv->rps.max_freq = cherryview_rps_max_freq(dev_priv);
+	dev_priv->rps.rp0_freq = dev_priv->rps.max_freq;
+	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq),
+			 dev_priv->rps.max_freq);
+
+	dev_priv->rps.efficient_freq = cherryview_rps_rpe_freq(dev_priv);
+	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+			 dev_priv->rps.efficient_freq);
+
+	dev_priv->rps.min_freq = cherryview_rps_min_freq(dev_priv);
+	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq),
+			 dev_priv->rps.min_freq);
+
+	/* Preserve min/max settings in case of re-init */
+	if (dev_priv->rps.max_freq_softlimit == 0)
+		dev_priv->rps.max_freq_softlimit = dev_priv->rps.max_freq;
+
+	if (dev_priv->rps.min_freq_softlimit == 0)
+		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void valleyview_cleanup_gt_powersave(struct drm_device *dev)
@@ -3902,7 +3960,7 @@ static void cherryview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	u32 gtfifodbg, rc6_mode = 0, pcbr;
+	u32 gtfifodbg, val, rc6_mode = 0, pcbr;
 	int i;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
@@ -3948,6 +4006,38 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		rc6_mode = GEN6_RC_CTL_EI_MODE(1);
 
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
+
+	/* 4 Program defaults and thresholds for RPS*/
+	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
+	I915_WRITE(GEN6_RP_UP_EI, 66000);
+	I915_WRITE(GEN6_RP_DOWN_EI, 350000);
+
+	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
+
+	/* 5: Enable RPS */
+	I915_WRITE(GEN6_RP_CONTROL,
+		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
+		   GEN6_RP_MEDIA_IS_GFX |
+		   GEN6_RP_ENABLE |
+		   GEN6_RP_UP_BUSY_AVG |
+		   GEN6_RP_DOWN_IDLE_AVG);
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+
+	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & 0x10 ? "yes" : "no");
+	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
+
+	dev_priv->rps.cur_freq = (val >> 8) & 0xff;
+	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
+			 dev_priv->rps.cur_freq);
+
+	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+			 dev_priv->rps.efficient_freq);
+
+	valleyview_set_rps(dev_priv->dev, dev_priv->rps.efficient_freq);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
