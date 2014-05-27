@@ -562,21 +562,19 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 			 struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
-	int count;
+	struct comedi_cmd *cmd = &async->cmd;
+	u32 stop_count = cmd->stop_arg * cfc_bytes_per_scan(s);
+	unsigned int old_alloc_count = async->buf_read_alloc_count;
 	u32 nbytes_ub, nbytes_lb;
-	unsigned int old_alloc_count;
-	u32 stop_count = async->cmd.stop_arg * cfc_bytes_per_scan(s);
+	int count;
 
-	old_alloc_count = async->buf_read_alloc_count;
 	/*  read alloc as much as we can */
 	comedi_buf_read_alloc(s, async->prealloc_bufsz);
 	nbytes_lb = mite_bytes_read_from_memory_lb(mite_chan);
-	if (async->cmd.stop_src == TRIG_COUNT &&
-	    (int)(nbytes_lb - stop_count) > 0)
+	if (cmd->stop_src == TRIG_COUNT && (int)(nbytes_lb - stop_count) > 0)
 		nbytes_lb = stop_count;
 	nbytes_ub = mite_bytes_read_from_memory_ub(mite_chan);
-	if (async->cmd.stop_src == TRIG_COUNT &&
-	    (int)(nbytes_ub - stop_count) > 0)
+	if (cmd->stop_src == TRIG_COUNT && (int)(nbytes_ub - stop_count) > 0)
 		nbytes_ub = stop_count;
 	if ((int)(nbytes_ub - old_alloc_count) > 0) {
 		dev_warn(s->device->class_dev, "mite: DMA underrun\n");
