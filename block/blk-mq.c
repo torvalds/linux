@@ -1297,10 +1297,10 @@ struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q, const int cpu)
 EXPORT_SYMBOL(blk_mq_map_queue);
 
 struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *set,
-						   unsigned int hctx_index)
+						   unsigned int hctx_index,
+						   int node)
 {
-	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL,
-				set->numa_node);
+	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL, node);
 }
 EXPORT_SYMBOL(blk_mq_alloc_single_hw_queue);
 
@@ -1752,6 +1752,7 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	struct blk_mq_hw_ctx **hctxs;
 	struct blk_mq_ctx *ctx;
 	struct request_queue *q;
+	unsigned int *map;
 	int i;
 
 	ctx = alloc_percpu(struct blk_mq_ctx);
@@ -1764,8 +1765,14 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	if (!hctxs)
 		goto err_percpu;
 
+	map = blk_mq_make_queue_map(set);
+	if (!map)
+		goto err_map;
+
 	for (i = 0; i < set->nr_hw_queues; i++) {
-		hctxs[i] = set->ops->alloc_hctx(set, i);
+		int node = blk_mq_hw_queue_to_node(map, i);
+
+		hctxs[i] = set->ops->alloc_hctx(set, i, node);
 		if (!hctxs[i])
 			goto err_hctxs;
 
@@ -1773,7 +1780,7 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 			goto err_hctxs;
 
 		atomic_set(&hctxs[i]->nr_active, 0);
-		hctxs[i]->numa_node = NUMA_NO_NODE;
+		hctxs[i]->numa_node = node;
 		hctxs[i]->queue_num = i;
 	}
 
@@ -1784,15 +1791,12 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	if (percpu_counter_init(&q->mq_usage_counter, 0))
 		goto err_map;
 
-	q->mq_map = blk_mq_make_queue_map(set);
-	if (!q->mq_map)
-		goto err_map;
-
 	setup_timer(&q->timeout, blk_mq_rq_timer, (unsigned long) q);
 	blk_queue_rq_timeout(q, 30000);
 
 	q->nr_queues = nr_cpu_ids;
 	q->nr_hw_queues = set->nr_hw_queues;
+	q->mq_map = map;
 
 	q->queue_ctx = ctx;
 	q->queue_hw_ctx = hctxs;
@@ -1844,16 +1848,16 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 err_flush_rq:
 	kfree(q->flush_rq);
 err_hw:
-	kfree(q->mq_map);
-err_map:
 	blk_cleanup_queue(q);
 err_hctxs:
+	kfree(map);
 	for (i = 0; i < set->nr_hw_queues; i++) {
 		if (!hctxs[i])
 			break;
 		free_cpumask_var(hctxs[i]->cpumask);
 		set->ops->free_hctx(hctxs[i], i);
 	}
+err_map:
 	kfree(hctxs);
 err_percpu:
 	free_percpu(ctx);

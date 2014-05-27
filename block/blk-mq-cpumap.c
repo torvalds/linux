@@ -96,3 +96,19 @@ unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set)
 	kfree(map);
 	return NULL;
 }
+
+/*
+ * We have no quick way of doing reverse lookups. This is only used at
+ * queue init time, so runtime isn't important.
+ */
+int blk_mq_hw_queue_to_node(unsigned int *mq_map, unsigned int index)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		if (index == mq_map[i])
+			return cpu_to_node(i);
+	}
+
+	return NUMA_NO_NODE;
+}
