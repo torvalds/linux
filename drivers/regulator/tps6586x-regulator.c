@@ -63,11 +63,6 @@ struct tps6586x_regulator {
 	int enable_reg[2];
 };
 
-static inline struct device *to_tps6586x_dev(struct regulator_dev *rdev)
-{
-	return rdev_get_dev(rdev)->parent;
-}
-
 static struct regulator_ops tps6586x_rw_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_ascend,
