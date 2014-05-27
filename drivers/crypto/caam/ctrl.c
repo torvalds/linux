@@ -5,6 +5,7 @@
  * Copyright 2008-2012 Freescale Semiconductor, Inc.
  */
 
+#include <linux/device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
@@ -295,9 +296,6 @@ static int caam_remove(struct platform_device *pdev)
 	/* Unmap controller region */
 	iounmap(&topregs->ctrl);
 
-	kfree(ctrlpriv->jrpdev);
-	kfree(ctrlpriv);
-
 	return ret;
 }
 
@@ -382,7 +380,8 @@ static int caam_probe(struct platform_device *pdev)
 #endif
 	u64 cha_vid;
 
-	ctrlpriv = kzalloc(sizeof(struct caam_drv_private), GFP_KERNEL);
+	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(struct caam_drv_private),
+				GFP_KERNEL);
 	if (!ctrlpriv)
 		return -ENOMEM;
 
@@ -432,8 +431,9 @@ static int caam_probe(struct platform_device *pdev)
 		    of_device_is_compatible(np, "fsl,sec4.0-job-ring"))
 			rspec++;
 
-	ctrlpriv->jrpdev = kzalloc(sizeof(struct platform_device *) * rspec,
-								GFP_KERNEL);
+	ctrlpriv->jrpdev = devm_kzalloc(&pdev->dev,
+					sizeof(struct platform_device *) * rspec,
+					GFP_KERNEL);
 	if (ctrlpriv->jrpdev == NULL) {
 		iounmap(&topregs->ctrl);
 		return -ENOMEM;
