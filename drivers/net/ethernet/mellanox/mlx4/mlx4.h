@@ -695,6 +695,17 @@ struct mlx4_mac_table {
 	int			max;
 };
 
+#define MLX4_ROCE_GID_ENTRY_SIZE	16
+
+struct mlx4_roce_gid_entry {
+	u8 raw[MLX4_ROCE_GID_ENTRY_SIZE];
+};
+
+struct mlx4_roce_gid_table {
+	struct mlx4_roce_gid_entry	roce_gids[MLX4_ROCE_MAX_GIDS];
+	struct mutex			mutex;
+};
+
 #define MLX4_MAX_VLAN_NUM	128
 #define MLX4_VLAN_TABLE_SIZE	(MLX4_MAX_VLAN_NUM << 2)
 
@@ -758,6 +769,7 @@ struct mlx4_port_info {
 	struct device_attribute port_mtu_attr;
 	struct mlx4_mac_table	mac_table;
 	struct mlx4_vlan_table	vlan_table;
+	struct mlx4_roce_gid_table gid_table;
 	int			base_qpn;
 };
 
@@ -786,10 +798,6 @@ enum {
 enum {
 	MLX4_NO_RR	= 0,
 	MLX4_USE_RR	= 1,
-};
-
-struct mlx4_roce_gid_entry {
-	u8 raw[16];
 };
 
 struct mlx4_priv {
@@ -839,7 +847,6 @@ struct mlx4_priv {
 	int			fs_hash_mode;
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
 	__be64			slave_node_guids[MLX4_MFUNC_MAX];
-	struct mlx4_roce_gid_entry roce_gids[MLX4_MAX_PORTS][MLX4_ROCE_MAX_GIDS];
 
 	atomic_t		opreq_count;
 	struct work_struct	opreq_task;
@@ -1140,6 +1147,8 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
+void mlx4_init_roce_gid_table(struct mlx4_dev *dev,
+			      struct mlx4_roce_gid_table *table);
 void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan);
 int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
 
@@ -1149,6 +1158,7 @@ int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource resource_type,
 				    u64 resource_id, int *slave);
 void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave_id);
+void mlx4_reset_roce_gids(struct mlx4_dev *dev, int slave);
 int mlx4_init_resource_tracker(struct mlx4_dev *dev);
 
 void mlx4_free_resource_tracker(struct mlx4_dev *dev,

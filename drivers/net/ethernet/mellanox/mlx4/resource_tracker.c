@@ -586,6 +586,7 @@ void mlx4_free_resource_tracker(struct mlx4_dev *dev,
 			}
 			/* free master's vlans */
 			i = dev->caps.function;
+			mlx4_reset_roce_gids(dev, i);
 			mutex_lock(&priv->mfunc.master.res_tracker.slave_list[i].mutex);
 			rem_slave_vlans(dev, i);
 			mutex_unlock(&priv->mfunc.master.res_tracker.slave_list[i].mutex);
@@ -4681,7 +4682,7 @@ static void rem_slave_xrcdns(struct mlx4_dev *dev, int slave)
 void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-
+	mlx4_reset_roce_gids(dev, slave);
 	mutex_lock(&priv->mfunc.master.res_tracker.slave_list[slave].mutex);
 	rem_slave_vlans(dev, slave);
 	rem_slave_macs(dev, slave);
