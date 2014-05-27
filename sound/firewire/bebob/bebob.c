@@ -69,7 +69,7 @@ name_device(struct snd_bebob *bebob, unsigned int vendor_id)
 	struct fw_device *fw_dev = fw_parent_device(bebob->unit);
 	char vendor[24] = {0};
 	char model[32] = {0};
-	u32 id;
+	u32 hw_id;
 	u32 data[2] = {0};
 	u32 revision;
 	int err;
@@ -88,7 +88,7 @@ name_device(struct snd_bebob *bebob, unsigned int vendor_id)
 
 	/* get hardware id */
 	err = snd_bebob_read_quad(bebob->unit, INFO_OFFSET_HW_MODEL_ID,
-				  &id);
+				  &hw_id);
 	if (err < 0)
 		goto end;
 
@@ -109,7 +109,7 @@ name_device(struct snd_bebob *bebob, unsigned int vendor_id)
 	strcpy(bebob->card->mixername, model);
 	snprintf(bebob->card->longname, sizeof(bebob->card->longname),
 		 "%s %s (id:%d, rev:%d), GUID %08x%08x at %s, S%d",
-		 vendor, model, id, revision,
+		 vendor, model, hw_id, revision,
 		 data[0], data[1], dev_name(&bebob->unit->device),
 		 100 << fw_dev->max_speed);
 end:
