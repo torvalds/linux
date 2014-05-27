@@ -21,7 +21,6 @@
 #define BRCMF_FW_REQ_FLAGS		0x00F0
 #define  BRCMF_FW_REQ_NV_OPTIONAL	0x0010
 
-void *brcmf_fw_nvram_strip(const struct firmware *nv, u32 *new_length);
 void brcmf_fw_nvram_free(void *nvram);
 /*
  * Request firmware(s) asynchronously. When the asynchronous request

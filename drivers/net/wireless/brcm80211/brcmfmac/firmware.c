@@ -188,7 +188,7 @@ static int brcmf_init_nvram_parser(struct nvram_parser *nvp,
  * and converts newlines to NULs. Shortens buffer as needed and pads with NULs.
  * End of buffer is completed with token identifying length of buffer.
  */
-void *brcmf_fw_nvram_strip(const struct firmware *nv, u32 *new_length)
+static void *brcmf_fw_nvram_strip(const struct firmware *nv, u32 *new_length)
 {
 	struct nvram_parser nvp;
 	u32 pad;
