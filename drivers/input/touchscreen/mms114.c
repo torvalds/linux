@@ -456,7 +456,7 @@ static int mms114_probe(struct i2c_client *client,
 	data->input_dev = input_dev;
 	data->pdata = pdata;
 
-	input_dev->name = "MELPAS MMS114 Touchscreen";
+	input_dev->name = "MELFAS MMS114 Touchscreen";
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 	input_dev->open = mms114_input_open;
