@@ -3166,56 +3166,53 @@ static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv,int mode)
 	return 0;
 }
 /*
-	Sin0=*0.000???????? Cos0=*1.000
-	Sin5=*0.087???????C  Cos5=*0.996
-	Sin10=*0.174                     Cos10=*0.985
-	Sin15=*0.259 ???????CCos15=*0.966
-	Sin20=*0.342????????Cos20=*0.940
-	Sin25=*0.422????????Cos25=*0.906
-	Sin30=*0.500????????Cos30=*0.866
+	a:[-30~0]:
+	    sin_hue = sin(a)*256 +0x100;
+	    cos_hue = cos(a)*256;
+	a:[0~30]
+	    sin_hue = sin(a)*256;
+	    cos_hue = cos(a)*256;
 */
-static int rk3288_lcdc_set_hue(struct rk_lcdc_driver *dev_drv,int hue)
+static int rk3288_lcdc_get_bcsh_hue(struct rk_lcdc_driver *dev_drv,bcsh_hue_mode mode)
 {
 
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	int sin_hue_val,cos_hue_val;
+	u32 val;
+			
+	spin_lock(&lcdc_dev->reg_lock);
+	if (lcdc_dev->clk_on) {
+		val = lcdc_readl(lcdc_dev, BCSH_H);
+		switch(mode){
+		case H_SIN:
+			val &= m_BCSH_SIN_HUE;
+			break;
+		case H_COS:
+			val &= m_BCSH_COS_HUE;
+			val >>= 16;
+			break;
+		default:
+			break;
+		}
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+
+	return val;
+}
+
+
+static int rk3288_lcdc_set_bcsh_hue(struct rk_lcdc_driver *dev_drv,int sin_hue, int cos_hue)
+{
+
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
 	u32 mask, val;
 
-	int sin_hue[7]={0,22, 44, 66, 87, 108, 128};
-	int cos_hue[7]={256,254,252,247,240,231,221};
-
-	if((hue > 0)&&(hue <= 30)){
-		/*sin_hue_val = (int)sin_hue[hue] * 256;
-		   cos_hue_val = (int)cos_hue[hue] * 256;*/
-		hue /= 5;
-		sin_hue_val = sin_hue[hue];
-		cos_hue_val = cos_hue[hue];
-	}else if((hue > 30)&&(hue <= 60)){
-		hue -= 30;
-		hue /= 5;
-		/*sin_hue_val = (int)sin_hue[hue] * 256 + 0x100;
-		   cos_hue_val = (int)cos_hue[hue] * 256 + 0x100;*/
-		sin_hue_val = sin_hue[hue] + 0x100;
-		cos_hue_val = cos_hue[hue] + 0x100;
-	}else{
-		dev_warn(lcdc_dev->dev,"hue=%d should be [0:60]\n",hue);
-	}
-		
-	spin_lock(&lcdc_dev->reg_lock);	
-	if(lcdc_dev->clk_on){
-			
-		mask = m_BCSH_OUT_MODE;
-		val = v_BCSH_OUT_MODE(3);	
-		lcdc_msk_reg(lcdc_dev, BCSH_BCS, mask, val);
-
+	spin_lock(&lcdc_dev->reg_lock);
+	if (lcdc_dev->clk_on) {
 		mask = m_BCSH_SIN_HUE | m_BCSH_COS_HUE;
-		val = v_BCSH_SIN_HUE(sin_hue_val) | v_BCSH_COS_HUE(cos_hue_val);
+		val = v_BCSH_SIN_HUE(sin_hue) | v_BCSH_COS_HUE(cos_hue);
 		lcdc_msk_reg(lcdc_dev, BCSH_H, mask, val);
-
-		mask = m_BCSH_EN;
-		val = v_BCSH_EN(1);
-		lcdc_msk_reg(lcdc_dev, BCSH_COLOR_BAR, mask, val);
 		lcdc_cfg_done(lcdc_dev);
 	}	
 	spin_unlock(&lcdc_dev->reg_lock);
@@ -3223,29 +3220,100 @@ static int rk3288_lcdc_set_hue(struct rk_lcdc_driver *dev_drv,int hue)
 	return 0;
 }
 
-static int rk3288_lcdc_set_bcsh_bcs(struct rk_lcdc_driver *dev_drv,int bri,int con,int sat)
+static int rk3288_lcdc_set_bcsh_bcs(struct rk_lcdc_driver *dev_drv,bcsh_bcs_mode mode,int value)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	u32 mask, val;
 	
 	spin_lock(&lcdc_dev->reg_lock);
-	if(lcdc_dev->clk_on){
-		mask = m_BCSH_OUT_MODE | m_BCSH_BRIGHTNESS |
-			m_BCSH_CONTRAST | m_BCSH_SAT_CON;
-		val = v_BCSH_OUT_MODE(3) | v_BCSH_BRIGHTNESS(bri) |
-			v_BCSH_CONTRAST(con) | v_BCSH_SAT_CON(sat);
+	if(lcdc_dev->clk_on) {
+		switch (mode) {
+		case BRIGHTNESS:
+		/*from 0 to 255,typical is 128*/
+			if (value < 0x80)
+				value += 0x80;
+			else if (value >= 0x80)
+				value = value - 0x80;
+			mask =  m_BCSH_BRIGHTNESS;
+			val = v_BCSH_BRIGHTNESS(value);
+			break;
+		case CONTRAST:
+		/*from 0 to 510,typical is 256*/
+			mask =  m_BCSH_CONTRAST;
+			val =  v_BCSH_CONTRAST(value);
+			break;
+		case SAT_CON:
+		/*from 0 to 1015,typical is 256*/
+			mask = m_BCSH_SAT_CON;
+			val = v_BCSH_SAT_CON(value);
+			break;
+		default:
+			break;
+		}
 		lcdc_msk_reg(lcdc_dev, BCSH_BCS, mask, val);
+		lcdc_cfg_done(lcdc_dev);
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+	return val;
+}
 
-		mask = m_BCSH_EN;
-		val = v_BCSH_EN(1);
-		lcdc_msk_reg(lcdc_dev, BCSH_COLOR_BAR, mask, val);
+static int rk3288_lcdc_get_bcsh_bcs(struct rk_lcdc_driver *dev_drv,bcsh_bcs_mode mode)
+{
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+	u32 val;
+
+	spin_lock(&lcdc_dev->reg_lock);
+	if(lcdc_dev->clk_on) {
+		val = lcdc_readl(lcdc_dev, BCSH_BCS);
+		switch (mode) {
+		case BRIGHTNESS:
+			val &= m_BCSH_BRIGHTNESS;
+			if(val > 0x80)
+				val -= 0x80;
+			else
+				val += 0x80;
+			break;
+		case CONTRAST:
+			val &= m_BCSH_CONTRAST;
+			val >>= 8;
+			break;
+		case SAT_CON:
+			val &= m_BCSH_SAT_CON;
+			val >>= 20;
+			break;
+		default:
+			break;
+		}
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+	return val;
+}
+
+
+static int rk3288_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
+{
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+	u32 mask, val;
+
+	spin_lock(&lcdc_dev->reg_lock);
+	if (lcdc_dev->clk_on) {
+		if (open) {
+			lcdc_writel(lcdc_dev,BCSH_COLOR_BAR,0x1);
+			lcdc_writel(lcdc_dev,BCSH_BCS,0xd0010000);
+			lcdc_writel(lcdc_dev,BCSH_H,0x01000000);
+		} else {
+			mask = m_BCSH_EN;
+			val = v_BCSH_EN(0);
+			lcdc_msk_reg(lcdc_dev, BCSH_COLOR_BAR, mask, val);
+		}
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
 }
-
 
 static struct rk_lcdc_win lcdc_win[] = {
 	[0] = {
@@ -3295,8 +3363,11 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dpi_status 		= rk3288_lcdc_dpi_status,
 	.get_dsp_addr 		= rk3288_lcdc_get_dsp_addr,
 	.set_dsp_cabc 		= rk3288_lcdc_set_dsp_cabc,
-	.set_dsp_hue 		= rk3288_lcdc_set_hue,
+	.set_dsp_bcsh_hue 	= rk3288_lcdc_set_bcsh_hue,
 	.set_dsp_bcsh_bcs 	= rk3288_lcdc_set_bcsh_bcs,
+	.get_dsp_bcsh_hue 	= rk3288_lcdc_get_bcsh_hue,
+	.get_dsp_bcsh_bcs 	= rk3288_lcdc_get_bcsh_bcs,
+	.open_bcsh		= rk3288_lcdc_open_bcsh,
 	.dump_reg 		= rk3288_lcdc_reg_dump,
 	.cfg_done		= rk3288_lcdc_config_done,
 	.set_irq_to_cpu  	= rk3288_lcdc_set_irq_to_cpu,

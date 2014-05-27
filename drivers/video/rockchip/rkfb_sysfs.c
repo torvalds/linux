@@ -318,53 +318,68 @@ static ssize_t set_dsp_cabc(struct device *dev, struct device_attribute *attr,
 
 	
 }
-
-static ssize_t show_hue(struct device *dev,
+static ssize_t show_dsp_bcsh(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_driver *dev_drv =
+	    (struct rk_lcdc_driver *)fbi->par;
+	int brightness, contrast, sat_con, sin_hue, cos_hue;
 
+	brightness = dev_drv->ops->get_dsp_bcsh_bcs(dev_drv, BRIGHTNESS);
+	contrast = dev_drv->ops->get_dsp_bcsh_bcs(dev_drv, CONTRAST);
+	sat_con = dev_drv->ops->get_dsp_bcsh_bcs(dev_drv, SAT_CON);
+	sin_hue = dev_drv->ops->get_dsp_bcsh_hue(dev_drv,H_SIN);
+	cos_hue = dev_drv->ops->get_dsp_bcsh_hue(dev_drv,H_COS);
+
+	snprintf(buf, PAGE_SIZE, "brightness:%4d,contrast:%4d,sat_con:%4d,"
+				 "sin_hue:%4d,cos_hue:%4d\n",
+				 brightness, contrast,sat_con,sin_hue,cos_hue);
 	return 0;
 }
 
-static ssize_t set_hue(struct device *dev, struct device_attribute *attr,
+static ssize_t set_dsp_bcsh(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int ret,hue;
-	
-	ret = kstrtoint(buf, 0, &hue);
-	if (ret)
-		return ret;
+	int brightness, contrast, sat_con, hue, ret, open, sin_hue, cos_hue;
+	if (!strncmp(buf, "open", 4)) {
+		ret = dev_drv->ops->open_bcsh(dev_drv, 1);
+	} else if (!strncmp(buf, "close", 5)) {
+		ret = dev_drv->ops->open_bcsh(dev_drv, 0);
+	} else if (!strncmp(buf, "brightness", 10)) {
+		sscanf(buf, "brightness %d", &brightness);
+		if (unlikely(brightness > 255)) {
+			dev_err(fbi->dev,"brightness should be [0:255],now=%d\n\n",brightness);
+			brightness = 255;
+		}
+		ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv, BRIGHTNESS,brightness);
+	} else if (!strncmp(buf, "contrast", 8)) {
+		sscanf(buf, "contrast %d", &contrast);
+		if (unlikely(contrast > 510)) {
+			dev_err(fbi->dev,"contrast should be [0:510],now=%d\n",contrast);
+			contrast = 510;
+		}
+		ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv, CONTRAST,contrast);
+	} else if (!strncmp(buf, "sat_con", 7)) {
+		sscanf(buf, "sat_con %d", &sat_con);
+		if (unlikely(sat_con > 1015)) {
+			dev_err(fbi->dev,"sat_con should be [0:1015],now=%d\n",sat_con);
+			sat_con = 1015;
+		}
+		ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv, SAT_CON,sat_con);
+	} else if (!strncmp(buf, "hue", 3)) {
+		sscanf(buf, "hue %d %d", &sin_hue,&cos_hue);
+		if (unlikely(sin_hue > 511 || cos_hue > 511)) {
+			dev_err(fbi->dev,"sin_hue=%d,cos_hue=%d\n",sin_hue,cos_hue);
+		}
+		ret = dev_drv->ops->set_dsp_bcsh_hue(dev_drv,sin_hue,cos_hue);
+	} else {
+		printk("format error\n");
+	}
 
-	ret = dev_drv->ops->set_dsp_hue(dev_drv, hue);
-	if(ret < 0)
-		return ret;
-	
-	return count;
-}
-
-static ssize_t show_dsp_bcs(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-
-	return 0;
-}
-
-static ssize_t set_dsp_bcs(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	struct rk_lcdc_driver *dev_drv =
-	    (struct rk_lcdc_driver *)fbi->par;
-	int ret,bri,con,sat;
-	
-	ret = kstrtoint(buf, 0, &bri);
-	if (ret)
-		return ret;
-
-	ret = dev_drv->ops->set_dsp_bcsh_bcs(dev_drv, bri,con,sat);
 	if(ret < 0)
 		return ret;
 	
@@ -459,8 +474,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(map, S_IRUGO | S_IWUSR, show_fb_win_map, set_fb_win_map),
 	__ATTR(dsp_lut, S_IRUGO | S_IWUSR, show_dsp_lut, set_dsp_lut),
 	__ATTR(cabc, S_IRUGO | S_IWUSR, show_dsp_cabc, set_dsp_cabc),
-	__ATTR(hue, S_IRUGO | S_IWUSR, show_hue, set_hue),
-	__ATTR(bcs, S_IRUGO | S_IWUSR, show_dsp_bcs, set_dsp_bcs),
+	__ATTR(bcsh, S_IRUGO | S_IWUSR, show_dsp_bcsh, set_dsp_bcsh),
 	__ATTR(scale, S_IRUGO | S_IWUSR, show_scale, set_scale),
 };
 

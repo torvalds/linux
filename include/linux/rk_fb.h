@@ -223,6 +223,17 @@ enum
     SCALE_DOWN = 0x2
 };
 
+typedef enum {
+	BRIGHTNESS	= 0x0,
+	CONTRAST        = 0x1,
+	SAT_CON		= 0x2
+} bcsh_bcs_mode;
+
+typedef enum {
+	H_SIN		= 0x0,
+	H_COS       	= 0x1
+} bcsh_hue_mode;
+
 
 struct rk_fb_rgb {
 	struct fb_bitfield red;
@@ -396,8 +407,11 @@ struct rk_lcdc_drv_ops {
 	int (*dpi_status) (struct rk_lcdc_driver * dev_drv);
 	int (*get_dsp_addr)(struct rk_lcdc_driver * dev_drv,unsigned int *dsp_addr);
 	int (*set_dsp_cabc) (struct rk_lcdc_driver * dev_drv, int mode);
-	int (*set_dsp_hue) (struct rk_lcdc_driver *dev_drv,int hue);
-	int (*set_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,int bri,int con,int sat);
+	int (*set_dsp_bcsh_hue) (struct rk_lcdc_driver *dev_drv,int sin_hue, int cos_hue);
+	int (*set_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,bcsh_bcs_mode mode,int value);
+	int (*get_dsp_bcsh_hue) (struct rk_lcdc_driver *dev_drv,bcsh_hue_mode mode);
+	int (*get_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,bcsh_bcs_mode mode);
+	int (*open_bcsh)(struct rk_lcdc_driver *dev_drv, bool open);
 	int (*dump_reg) (struct rk_lcdc_driver * dev_drv);
 	int (*mmu_en) (struct rk_lcdc_driver * dev_drv);
 	int (*cfg_done) (struct rk_lcdc_driver * dev_drv);
