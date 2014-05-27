@@ -1227,6 +1227,31 @@ static struct brcmf_bus_ops brcmf_usb_bus_ops = {
 	.rxctl = brcmf_usb_rx_ctlpkt,
 };
 
+static int brcmf_usb_bus_setup(struct brcmf_usbdev_info *devinfo)
+{
+	int ret;
+
+	/* Attach to the common driver interface */
+	ret = brcmf_attach(devinfo->dev);
+	if (ret) {
+		brcmf_err("brcmf_attach failed\n");
+		return ret;
+	}
+
+	ret = brcmf_usb_up(devinfo->dev);
+	if (ret)
+		goto fail;
+
+	ret = brcmf_bus_start(devinfo->dev);
+	if (ret)
+		goto fail;
+
+	return 0;
+fail:
+	brcmf_detach(devinfo->dev);
+	return ret;
+}
+
 static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 {
 	struct brcmf_bus *bus = NULL;
@@ -1255,23 +1280,9 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	bus->proto_type = BRCMF_PROTO_BCDC;
 	bus->always_use_fws_queue = true;
 
-	/* Attach to the common driver interface */
-	ret = brcmf_attach(dev);
-	if (ret) {
-		brcmf_err("brcmf_attach failed\n");
-		goto fail;
-	}
-
-	ret = brcmf_usb_up(dev);
-	if (ret) {
-		brcmf_detach(dev);
-		goto fail;
-	}
-
-	ret = brcmf_bus_start(dev);
+	ret = brcmf_usb_bus_setup(devinfo);
 	if (ret) {
 		brcmf_err("dongle is not responding\n");
-		brcmf_detach(dev);
 		goto fail;
 	}
 
@@ -1461,10 +1472,7 @@ static int brcmf_usb_resume(struct usb_interface *intf)
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(&usb->dev);
 
 	brcmf_dbg(USB, "Enter\n");
-	if (!brcmf_attach(devinfo->dev))
-		return brcmf_bus_start(&usb->dev);
-
-	return 0;
+	return brcmf_usb_bus_setup(devinfo);
 }
 
 static int brcmf_usb_reset_resume(struct usb_interface *intf)
@@ -1475,7 +1483,7 @@ static int brcmf_usb_reset_resume(struct usb_interface *intf)
 	brcmf_dbg(USB, "Enter\n");
 
 	if (!brcmf_usb_fw_download(devinfo))
-		return brcmf_usb_resume(intf);
+		return brcmf_usb_bus_setup(devinfo);
 
 	return -EIO;
 }
