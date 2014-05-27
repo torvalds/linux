@@ -2723,6 +2723,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_async *async = dev->read_subdev->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
@@ -2744,7 +2745,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	      DMA_BUFFER_SIZE) && j < ai_dma_ring_count(thisboard); j++) {
 		/*  transfer data from dma buffer to comedi buffer */
 		num_samples = dma_transfer_size(dev);
-		if (async->cmd.stop_src == TRIG_COUNT) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			if (num_samples > devpriv->ai_count)
 				num_samples = devpriv->ai_count;
 			devpriv->ai_count -= num_samples;
