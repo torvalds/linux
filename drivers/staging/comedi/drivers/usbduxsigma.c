@@ -161,7 +161,6 @@ struct usbduxsigma_private {
 	/* input buffer for single insn */
 	uint8_t *insn_buf;
 
-	uint8_t ao_chanlist[USBDUXSIGMA_NUM_AO_CHAN];
 	unsigned int ao_readback[USBDUXSIGMA_NUM_AO_CHAN];
 
 	unsigned high_speed:1;
@@ -361,7 +360,6 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	uint8_t *datap;
-	int len;
 	int ret;
 	int i;
 
@@ -417,10 +415,9 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 
 		/* transmit data to the USB bus */
 		datap = urb->transfer_buffer;
-		len = s->async->cmd.chanlist_len;
-		*datap++ = len;
-		for (i = 0; i < len; i++) {
-			unsigned int chan = devpriv->ao_chanlist[i];
+		*datap++ = cmd->chanlist_len;
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 			unsigned short val;
 
 			ret = comedi_buf_get(s, &val);
@@ -1001,14 +998,11 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
-	int i;
 
 	down(&devpriv->sem);
 
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
-	for (i = 0; i < cmd->chanlist_len; ++i)
-		devpriv->ao_chanlist[i] = CR_CHAN(cmd->chanlist[i]);
 
 	devpriv->ao_counter = devpriv->ao_timer;
 
