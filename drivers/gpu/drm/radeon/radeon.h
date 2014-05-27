@@ -855,6 +855,10 @@ struct radeon_mec {
 #define R600_PTE_FRAG_64KB	(4 << 7)
 #define R600_PTE_FRAG_256KB	(6 << 7)
 
+/* flags used for GART page table entries on R600+ */
+#define R600_PTE_GART	( R600_PTE_VALID | R600_PTE_SYSTEM | R600_PTE_SNOOPED \
+			| R600_PTE_READABLE | R600_PTE_WRITEABLE)
+
 struct radeon_vm_pt {
 	struct radeon_bo		*bo;
 	uint64_t			addr;
