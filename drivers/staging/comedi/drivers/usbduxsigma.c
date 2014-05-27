@@ -312,7 +312,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	}
 
 	/* get the data from the USB bus and hand it over to comedi */
-	for (i = 0; i < s->async->cmd.chanlist_len; i++) {
+	for (i = 0; i < cmd->chanlist_len; i++) {
 		/* transfer data, note first byte is the DIO state */
 		val = be32_to_cpu(devpriv->in_buf[i+1]);
 		val &= 0x00ffffff;	/* strip status byte */
