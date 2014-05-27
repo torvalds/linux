@@ -290,13 +290,19 @@ static void __naked exynos_pm_power_up_setup(unsigned int affinity_level)
 	"b	cci_enable_port_for_self");
 }
 
+static const struct of_device_id exynos_dt_mcpm_match[] = {
+	{ .compatible = "samsung,exynos5420" },
+	{ .compatible = "samsung,exynos5800" },
+	{},
+};
+
 static int __init exynos_mcpm_init(void)
 {
 	struct device_node *node;
 	void __iomem *ns_sram_base_addr;
 	int ret;
 
-	node = of_find_compatible_node(NULL, NULL, "samsung,exynos5420");
+	node = of_find_matching_node(NULL, exynos_dt_mcpm_match);
 	if (!node)
 		return -ENODEV;
 	of_node_put(node);
