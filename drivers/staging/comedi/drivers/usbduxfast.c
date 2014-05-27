@@ -154,7 +154,6 @@ struct usbduxfast_private {
 	uint8_t *duxbuf;
 	int8_t *inbuf;
 	short int ai_cmd_running;	/* asynchronous command is running */
-	short int ai_continous;	/* continous acquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
 	int ignore;		/* counter which ignores the first
 				   buffers */
@@ -239,6 +238,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv = dev->private;
 	int n, err;
@@ -285,7 +285,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	}
 
 	if (!devpriv->ignore) {
-		if (!devpriv->ai_continous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			/* not continuous, fixed number of samples */
 			n = urb->actual_length / sizeof(uint16_t);
 			if (unlikely(devpriv->ai_sample_count < n)) {
@@ -817,10 +817,8 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			up(&devpriv->sem);
 			return -EFAULT;
 		}
-		devpriv->ai_continous = 0;
 	} else {
 		/* continous acquisition */
-		devpriv->ai_continous = 1;
 		devpriv->ai_sample_count = 0;
 	}
 
