@@ -23,6 +23,8 @@
 
 #include "ksyms.h"
 
+EXPORT_SYMBOL(find_first_bit);
+EXPORT_SYMBOL(find_first_zero_bit);
 EXPORT_SYMBOL(find_next_zero_bit);
 EXPORT_SYMBOL(find_next_bit);
 
