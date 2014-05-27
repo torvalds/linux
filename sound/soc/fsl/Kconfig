@@ -4,6 +4,7 @@ config SND_SOC_FSL_SAI
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_SOC_FSL_SSI
+	select REGMAP_MMIO
 	tristate
 
 config SND_SOC_FSL_SPDIF
