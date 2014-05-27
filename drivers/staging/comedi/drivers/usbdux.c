@@ -202,7 +202,6 @@ struct usbdux_private {
 	/* input buffer for single insn */
 	uint16_t *insn_buf;
 
-	uint8_t ao_chanlist[USBDUX_NUM_AO_CHAN];
 	unsigned int ao_readback[USBDUX_NUM_AO_CHAN];
 
 	unsigned int high_speed:1;
@@ -415,7 +414,6 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	struct usbdux_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	uint8_t *datap;
-	int len;
 	int ret;
 	int i;
 
@@ -478,10 +476,9 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 
 		/* transmit data to the USB bus */
 		datap = urb->transfer_buffer;
-		len = s->async->cmd.chanlist_len;
-		*datap++ = len;
-		for (i = 0; i < s->async->cmd.chanlist_len; i++) {
-			unsigned int chan = devpriv->ao_chanlist[i];
+		*datap++ = cmd->chanlist_len;
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 			unsigned short val;
 
 			ret = comedi_buf_get(s, &val);
@@ -1030,7 +1027,6 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct usbdux_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret = -EBUSY;
-	int i;
 
 	down(&devpriv->sem);
 
@@ -1039,9 +1035,6 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
-
-	for (i = 0; i < cmd->chanlist_len; ++i)
-		devpriv->ao_chanlist[i] = CR_CHAN(cmd->chanlist[i]);
 
 	/* we count in steps of 1ms (125us) */
 	/* 125us mode not used yet */
