@@ -992,7 +992,7 @@ void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm)
 	*dbm = -1 * (a + b * 2);
 }
 
-void RFbRFTableDownload(struct vnt_private *priv)
+void vnt_rf_table_download(struct vnt_private *priv)
 {
 	u16 length1 = 0, length2 = 0, length3 = 0;
 	u8 *addr1 = NULL, *addr2 = NULL, *addr3 = NULL;

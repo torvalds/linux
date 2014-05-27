@@ -61,6 +61,6 @@ int vnt_rf_write_embedded(struct vnt_private *, u32);
 int vnt_rf_setpower(struct vnt_private *, u32, u32);
 int vnt_rf_set_txpower(struct vnt_private *, u8, u32);
 void vnt_rf_rssi_to_dbm(struct vnt_private *, u8, long *);
-void RFbRFTableDownload(struct vnt_private *pDevice);
+void vnt_rf_table_download(struct vnt_private *);
 
 #endif /* __RF_H__ */
