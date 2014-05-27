@@ -242,18 +242,6 @@ struct intel_ddi_plls {
 #define WATCH_LISTS	0
 #define WATCH_GTT	0
 
-#define I915_GEM_PHYS_CURSOR_0 1
-#define I915_GEM_PHYS_CURSOR_1 2
-#define I915_GEM_PHYS_OVERLAY_REGS 3
-#define I915_MAX_PHYS_OBJECT (I915_GEM_PHYS_OVERLAY_REGS)
-
-struct drm_i915_gem_phys_object {
-	int id;
-	struct page **page_list;
-	drm_dma_handle_t *handle;
-	struct drm_i915_gem_object *cur_obj;
-};
-
 struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
@@ -1187,9 +1175,6 @@ struct i915_gem_mm {
 	/** Bit 6 swizzling required for Y tiling */
 	uint32_t bit_6_swizzle_y;
 
-	/* storage for physical objects */
-	struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
-
 	/* accounting, useful for userland debugging */
 	spinlock_t object_stat_lock;
 	size_t object_memory;
@@ -1769,7 +1754,7 @@ struct drm_i915_gem_object {
 	struct drm_file *pin_filp;
 
 	/** for phy allocated objects */
-	struct drm_i915_gem_phys_object *phys_obj;
+	drm_dma_handle_t *phys_handle;
 };
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
@@ -2204,10 +2189,12 @@ void i915_gem_vma_destroy(struct i915_vma *vma);
 #define PIN_MAPPABLE 0x1
 #define PIN_NONBLOCK 0x2
 #define PIN_GLOBAL 0x4
+#define PIN_OFFSET_BIAS 0x8
+#define PIN_OFFSET_MASK (~4095)
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     struct i915_address_space *vm,
 				     uint32_t alignment,
-				     unsigned flags);
+				     uint64_t flags);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
@@ -2334,13 +2321,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     struct intel_ring_buffer *pipelined);
 void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj);
-int i915_gem_attach_phys_object(struct drm_device *dev,
-				struct drm_i915_gem_object *obj,
-				int id,
+int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 				int align);
-void i915_gem_detach_phys_object(struct drm_device *dev,
-				 struct drm_i915_gem_object *obj);
-void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
@@ -2465,6 +2447,8 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  int min_size,
 					  unsigned alignment,
 					  unsigned cache_level,
+					  unsigned long start,
+					  unsigned long end,
 					  unsigned flags);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 int i915_gem_evict_everything(struct drm_device *dev);
