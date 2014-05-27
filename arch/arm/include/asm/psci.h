@@ -41,7 +41,7 @@ extern struct smp_operations psci_smp_ops;
 int psci_init(void);
 bool psci_smp_available(void);
 #else
-static inline int psci_init(void) { }
+static inline int psci_init(void) { return 0; }
 static inline bool psci_smp_available(void) { return false; }
 #endif
 
