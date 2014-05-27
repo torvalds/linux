@@ -404,9 +404,10 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
-	unsigned int gain = CR_RANGE(async->cmd.chanlist[0]);
-	unsigned int start_chan = CR_CHAN(async->cmd.chanlist[0]);
-	unsigned int end_chan = (start_chan + async->cmd.chanlist_len - 1) % 8;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int gain = CR_RANGE(cmd->chanlist[0]);
+	unsigned int start_chan = CR_CHAN(cmd->chanlist[0]);
+	unsigned int end_chan = (start_chan + cmd->chanlist_len - 1) % 8;
 	unsigned int scan_chans = (end_chan << 3) | start_chan;
 	int conv_bits;
 	unsigned long irq_flags;
@@ -424,8 +425,8 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	gain &= 0xf;
 	outb(gain, dev->iobase + DAS800_GAIN);
 
-	if (async->cmd.stop_src == TRIG_COUNT) {
-		devpriv->count = async->cmd.stop_arg * async->cmd.chanlist_len;
+	if (cmd->stop_src == TRIG_COUNT) {
+		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
 		devpriv->forever = false;
 	} else {	/* TRIG_NONE */
 		devpriv->forever = true;
@@ -437,9 +438,9 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	 */
 	conv_bits = 0;
 	conv_bits |= EACS | IEOC;
-	if (async->cmd.start_src == TRIG_EXT)
+	if (cmd->start_src == TRIG_EXT)
 		conv_bits |= DTEN;
-	if (async->cmd.convert_src == TRIG_TIMER) {
+	if (cmd->convert_src == TRIG_TIMER) {
 		conv_bits |= CASC | ITE;
 		/* set conversion frequency */
 		das800_set_frequency(dev);
