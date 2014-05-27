@@ -161,12 +161,30 @@ static void wil_fw_error_worker(struct work_struct *work)
 	if (no_fw_recovery)
 		return;
 
+	/* increment @recovery_count if less then WIL6210_FW_RECOVERY_TO
+	 * passed since last recovery attempt
+	 */
+	if (time_is_after_jiffies(wil->last_fw_recovery +
+				  WIL6210_FW_RECOVERY_TO))
+		wil->recovery_count++;
+	else
+		wil->recovery_count = 1; /* fw was alive for a long time */
+
+	if (wil->recovery_count > WIL6210_FW_RECOVERY_RETRIES) {
+		wil_err(wil, "too many recovery attempts (%d), giving up\n",
+			wil->recovery_count);
+		return;
+	}
+
+	wil->last_fw_recovery = jiffies;
+
 	mutex_lock(&wil->mutex);
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_MONITOR:
-		wil_info(wil, "fw error recovery started...\n");
+		wil_info(wil, "fw error recovery started (try %d)...\n",
+			 wil->recovery_count);
 		wil_reset(wil);
 
 		/* need to re-allocate Rx ring after reset */
@@ -248,6 +266,8 @@ int wil_priv_init(struct wil6210_priv *wil)
 		destroy_workqueue(wil->wmi_wq);
 		return -EAGAIN;
 	}
+
+	wil->last_fw_recovery = jiffies;
 
 	return 0;
 }
