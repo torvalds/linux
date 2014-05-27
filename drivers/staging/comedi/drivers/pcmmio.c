@@ -339,8 +339,8 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 				   unsigned int triggered)
 {
 	struct pcmmio_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int oldevents = s->async->events;
-	unsigned int len = s->async->cmd.chanlist_len;
 	unsigned int val = 0;
 	unsigned long flags;
 	int i;
@@ -353,8 +353,8 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 	if (!(triggered & devpriv->enabled_mask))
 		goto done;
 
-	for (i = 0; i < len; i++) {
-		unsigned int chan = CR_CHAN(s->async->cmd.chanlist[i]);
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 
 		if (triggered & (1 << chan))
 			val |= (1 << i);
