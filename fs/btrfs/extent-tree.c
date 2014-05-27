@@ -3497,10 +3497,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 		return ret;
 	}
 
-	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
+	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++)
 		INIT_LIST_HEAD(&found->block_groups[i]);
-		kobject_init(&found->block_group_kobjs[i], &btrfs_raid_ktype);
-	}
 	init_rwsem(&found->groups_sem);
 	spin_lock_init(&found->lock);
 	found->flags = flags & BTRFS_BLOCK_GROUP_TYPE_MASK;
@@ -8586,8 +8584,9 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		list_del(&space_info->list);
 		for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
 			struct kobject *kobj;
-			kobj = &space_info->block_group_kobjs[i];
-			if (kobj->parent) {
+			kobj = space_info->block_group_kobjs[i];
+			space_info->block_group_kobjs[i] = NULL;
+			if (kobj) {
 				kobject_del(kobj);
 				kobject_put(kobj);
 			}
@@ -8611,17 +8610,26 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 	up_write(&space_info->groups_sem);
 
 	if (first) {
-		struct kobject *kobj = &space_info->block_group_kobjs[index];
+		struct raid_kobject *rkobj;
 		int ret;
 
-		kobject_get(&space_info->kobj); /* put in release */
-		ret = kobject_add(kobj, &space_info->kobj, "%s",
-				  get_raid_name(index));
+		rkobj = kzalloc(sizeof(*rkobj), GFP_NOFS);
+		if (!rkobj)
+			goto out_err;
+		rkobj->raid_type = index;
+		kobject_init(&rkobj->kobj, &btrfs_raid_ktype);
+		ret = kobject_add(&rkobj->kobj, &space_info->kobj,
+				  "%s", get_raid_name(index));
 		if (ret) {
-			pr_warn("BTRFS: failed to add kobject for block cache. ignoring.\n");
-			kobject_put(&space_info->kobj);
+			kobject_put(&rkobj->kobj);
+			goto out_err;
 		}
+		space_info->block_group_kobjs[index] = &rkobj->kobj;
 	}
+
+	return;
+out_err:
+	pr_warn("BTRFS: failed to add kobject for block cache. ignoring.\n");
 }
 
 static struct btrfs_block_group_cache *
@@ -8956,6 +8964,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	struct btrfs_root *tree_root = root->fs_info->tree_root;
 	struct btrfs_key key;
 	struct inode *inode;
+	struct kobject *kobj = NULL;
 	int ret;
 	int index;
 	int factor;
@@ -9055,11 +9064,15 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 */
 	list_del_init(&block_group->list);
 	if (list_empty(&block_group->space_info->block_groups[index])) {
-		kobject_del(&block_group->space_info->block_group_kobjs[index]);
-		kobject_put(&block_group->space_info->block_group_kobjs[index]);
+		kobj = block_group->space_info->block_group_kobjs[index];
+		block_group->space_info->block_group_kobjs[index] = NULL;
 		clear_avail_alloc_bits(root->fs_info, block_group->flags);
 	}
 	up_write(&block_group->space_info->groups_sem);
+	if (kobj) {
+		kobject_del(kobj);
+		kobject_put(kobj);
+	}
 
 	if (block_group->cached == BTRFS_CACHE_STARTED)
 		wait_block_group_cache_done(block_group);

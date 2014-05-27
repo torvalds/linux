@@ -254,6 +254,7 @@ static ssize_t global_rsv_reserved_show(struct kobject *kobj,
 BTRFS_ATTR(global_rsv_reserved, 0444, global_rsv_reserved_show);
 
 #define to_space_info(_kobj) container_of(_kobj, struct btrfs_space_info, kobj)
+#define to_raid_kobj(_kobj) container_of(_kobj, struct raid_kobject, kobj)
 
 static ssize_t raid_bytes_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf);
@@ -266,7 +267,7 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 {
 	struct btrfs_space_info *sinfo = to_space_info(kobj->parent);
 	struct btrfs_block_group_cache *block_group;
-	int index = kobj - sinfo->block_group_kobjs;
+	int index = to_raid_kobj(kobj)->raid_type;
 	u64 val = 0;
 
 	down_read(&sinfo->groups_sem);
@@ -288,7 +289,7 @@ static struct attribute *raid_attributes[] = {
 
 static void release_raid_kobj(struct kobject *kobj)
 {
-	kobject_put(kobj->parent);
+	kfree(to_raid_kobj(kobj));
 }
 
 struct kobj_type btrfs_raid_ktype = {

@@ -1123,6 +1123,12 @@ struct btrfs_qgroup_limit_item {
 	__le64 rsv_excl;
 } __attribute__ ((__packed__));
 
+/* For raid type sysfs entries */
+struct raid_kobject {
+	int raid_type;
+	struct kobject kobj;
+};
+
 struct btrfs_space_info {
 	spinlock_t lock;
 
@@ -1173,7 +1179,7 @@ struct btrfs_space_info {
 	wait_queue_head_t wait;
 
 	struct kobject kobj;
-	struct kobject block_group_kobjs[BTRFS_NR_RAID_TYPES];
+	struct kobject *block_group_kobjs[BTRFS_NR_RAID_TYPES];
 };
 
 #define	BTRFS_BLOCK_RSV_GLOBAL		1
