@@ -12,9 +12,6 @@ config SND_OMAP_SOC_MCBSP
 config SND_OMAP_SOC_MCPDM
 	tristate
 
-config SND_OMAP_SOC_HDMI
-	tristate
-
 config SND_OMAP_SOC_HDMI_AUDIO
 	tristate "HDMI audio support for OMAP4+ based SoCs"
 	depends on SND_OMAP_SOC
@@ -114,16 +111,6 @@ config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	  - SDP4430/Blaze boards
 	  - PandaBoard (4430)
 	  - PandaBoardES (4460)
-
-config SND_OMAP_SOC_OMAP_HDMI
-	tristate "SoC Audio support for Texas Instruments OMAP HDMI"
-	depends on SND_OMAP_SOC && OMAP4_DSS_HDMI && OMAP2_DSS
-	select SND_OMAP_SOC_HDMI
-	select SND_SOC_HDMI_CODEC
-	select OMAP4_DSS_HDMI_AUDIO
-	help
-	  Say Y if you want to add support for SoC HDMI audio on Texas Instruments
-	  OMAP4 chips
 
 config SND_OMAP_SOC_OMAP3_PANDORA
 	tristate "SoC Audio support for OMAP3 Pandora"
