@@ -248,9 +248,7 @@ static struct radeon_asic r100_asic = {
 		.set_clock_gating = &radeon_legacy_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &r100_pre_page_flip,
 		.page_flip = &r100_page_flip,
-		.post_page_flip = &r100_post_page_flip,
 	},
 };
 
@@ -315,9 +313,7 @@ static struct radeon_asic r200_asic = {
 		.set_clock_gating = &radeon_legacy_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &r100_pre_page_flip,
 		.page_flip = &r100_page_flip,
-		.post_page_flip = &r100_post_page_flip,
 	},
 };
 
@@ -396,9 +392,7 @@ static struct radeon_asic r300_asic = {
 		.set_clock_gating = &radeon_legacy_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &r100_pre_page_flip,
 		.page_flip = &r100_page_flip,
-		.post_page_flip = &r100_post_page_flip,
 	},
 };
 
@@ -463,9 +457,7 @@ static struct radeon_asic r300_asic_pcie = {
 		.set_clock_gating = &radeon_legacy_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &r100_pre_page_flip,
 		.page_flip = &r100_page_flip,
-		.post_page_flip = &r100_post_page_flip,
 	},
 };
 
@@ -530,9 +522,7 @@ static struct radeon_asic r420_asic = {
 		.set_clock_gating = &radeon_atom_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &r100_pre_page_flip,
 		.page_flip = &r100_page_flip,
-		.post_page_flip = &r100_post_page_flip,
 	},
 };
 
@@ -597,9 +587,7 @@ static struct radeon_asic rs400_asic = {
 		.set_clock_gating = &radeon_legacy_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &r100_pre_page_flip,
 		.page_flip = &r100_page_flip,
-		.post_page_flip = &r100_post_page_flip,
 	},
 };
 
@@ -666,9 +654,7 @@ static struct radeon_asic rs600_asic = {
 		.set_clock_gating = &radeon_atom_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,
-		.post_page_flip = &rs600_post_page_flip,
 	},
 };
 
@@ -735,9 +721,7 @@ static struct radeon_asic rs690_asic = {
 		.set_clock_gating = &radeon_atom_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,
-		.post_page_flip = &rs600_post_page_flip,
 	},
 };
 
@@ -802,9 +786,7 @@ static struct radeon_asic rv515_asic = {
 		.set_clock_gating = &radeon_atom_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,
-		.post_page_flip = &rs600_post_page_flip,
 	},
 };
 
@@ -869,9 +851,7 @@ static struct radeon_asic r520_asic = {
 		.set_clock_gating = &radeon_atom_set_clock_gating,
 	},
 	.pflip = {
-		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,
-		.post_page_flip = &rs600_post_page_flip,
 	},
 };
 
@@ -968,9 +948,7 @@ static struct radeon_asic r600_asic = {
 		.get_temperature = &rv6xx_get_temp,
 	},
 	.pflip = {
-		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,
-		.post_page_flip = &rs600_post_page_flip,
 	},
 };
 
@@ -1059,9 +1037,7 @@ static struct radeon_asic rv6xx_asic = {
 		.force_performance_level = &rv6xx_dpm_force_performance_level,
 	},
 	.pflip = {
-		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,
-		.post_page_flip = &rs600_post_page_flip,
 	},
 };
 
@@ -1150,9 +1126,7 @@ static struct radeon_asic rs780_asic = {
 		.force_performance_level = &rs780_dpm_force_performance_level,
 	},
 	.pflip = {
-		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,
-		.post_page_flip = &rs600_post_page_flip,
 	},
 };
 
@@ -1256,9 +1230,7 @@ static struct radeon_asic rv770_asic = {
 		.vblank_too_short = &rv770_dpm_vblank_too_short,
 	},
 	.pflip = {
-		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rv770_page_flip,
-		.post_page_flip = &rs600_post_page_flip,
 	},
 };
 
@@ -1375,9 +1347,7 @@ static struct radeon_asic evergreen_asic = {
 		.vblank_too_short = &cypress_dpm_vblank_too_short,
 	},
 	.pflip = {
-		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
-		.post_page_flip = &evergreen_post_page_flip,
 	},
 };
 
@@ -1467,9 +1437,7 @@ static struct radeon_asic sumo_asic = {
 		.force_performance_level = &sumo_dpm_force_performance_level,
 	},
 	.pflip = {
-		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
-		.post_page_flip = &evergreen_post_page_flip,
 	},
 };
 
@@ -1560,9 +1528,7 @@ static struct radeon_asic btc_asic = {
 		.vblank_too_short = &btc_dpm_vblank_too_short,
 	},
 	.pflip = {
-		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
-		.post_page_flip = &evergreen_post_page_flip,
 	},
 };
 
@@ -1704,9 +1670,7 @@ static struct radeon_asic cayman_asic = {
 		.vblank_too_short = &ni_dpm_vblank_too_short,
 	},
 	.pflip = {
-		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
-		.post_page_flip = &evergreen_post_page_flip,
 	},
 };
 
@@ -1805,9 +1769,7 @@ static struct radeon_asic trinity_asic = {
 		.enable_bapm = &trinity_dpm_enable_bapm,
 	},
 	.pflip = {
-		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
-		.post_page_flip = &evergreen_post_page_flip,
 	},
 };
 
@@ -1936,9 +1898,7 @@ static struct radeon_asic si_asic = {
 		.vblank_too_short = &ni_dpm_vblank_too_short,
 	},
 	.pflip = {
-		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
-		.post_page_flip = &evergreen_post_page_flip,
 	},
 };
 
@@ -2099,9 +2059,7 @@ static struct radeon_asic ci_asic = {
 		.powergate_uvd = &ci_dpm_powergate_uvd,
 	},
 	.pflip = {
-		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
-		.post_page_flip = &evergreen_post_page_flip,
 	},
 };
 
@@ -2204,9 +2162,7 @@ static struct radeon_asic kv_asic = {
 		.enable_bapm = &kv_dpm_enable_bapm,
 	},
 	.pflip = {
-		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
-		.post_page_flip = &evergreen_post_page_flip,
 	},
 };
 

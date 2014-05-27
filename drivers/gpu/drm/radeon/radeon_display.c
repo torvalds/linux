@@ -342,7 +342,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 
 	drm_vblank_put(rdev->ddev, radeon_crtc->crtc_id);
 	radeon_fence_unref(&work->fence);
-	radeon_post_page_flip(work->rdev, work->crtc_id);
+	radeon_irq_kms_pflip_irq_get(rdev, work->crtc_id);
 	schedule_work(&work->work);
 }
 
@@ -471,7 +471,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	}
 
 	/* set the proper interrupt */
-	radeon_pre_page_flip(rdev, radeon_crtc->crtc_id);
+	radeon_irq_kms_pflip_irq_get(rdev, radeon_crtc->crtc_id);
 
 	return 0;
 

@@ -1301,36 +1301,6 @@ void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
 }
 
 /**
- * radeon_irq_kms_pflip_irq_get - pre-pageflip callback.
- *
- * @rdev: radeon_device pointer
- * @crtc: crtc to prepare for pageflip on
- *
- * Pre-pageflip callback (evergreen+).
- * Enables the pageflip irq (vblank irq).
- */
-void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc)
-{
-	/* enable the pflip int */
-	radeon_irq_kms_pflip_irq_get(rdev, crtc);
-}
-
-/**
- * evergreen_post_page_flip - pos-pageflip callback.
- *
- * @rdev: radeon_device pointer
- * @crtc: crtc to cleanup pageflip on
- *
- * Post-pageflip callback (evergreen+).
- * Disables the pageflip irq (vblank irq).
- */
-void evergreen_post_page_flip(struct radeon_device *rdev, int crtc)
-{
-	/* disable the pflip int */
-	radeon_irq_kms_pflip_irq_put(rdev, crtc);
-}
-
-/**
  * evergreen_page_flip - pageflip callback.
  *
  * @rdev: radeon_device pointer
