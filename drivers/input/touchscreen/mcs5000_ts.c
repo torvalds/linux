@@ -208,7 +208,7 @@ static int mcs5000_ts_probe(struct i2c_client *client,
 	data->input_dev = input_dev;
 	data->platform_data = dev_get_platdata(&client->dev);
 
-	input_dev->name = "MELPAS MCS-5000 Touchscreen";
+	input_dev->name = "MELFAS MCS-5000 Touchscreen";
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 
