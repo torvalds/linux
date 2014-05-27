@@ -808,13 +808,11 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	befs_debug(sb, "---> befs_fill_super()");
 
-#ifndef CONFIG_BEFS_RW
 	if (!(sb->s_flags & MS_RDONLY)) {
 		befs_warning(sb,
 			     "No write support. Marking filesystem read-only");
 		sb->s_flags |= MS_RDONLY;
 	}
-#endif				/* CONFIG_BEFS_RW */
 
 	/*
 	 * Set dummy blocksize to read super block.
