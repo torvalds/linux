@@ -317,7 +317,7 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	struct pcmuio_private *devpriv = dev->private;
 	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
-	unsigned int len = s->async->cmd.chanlist_len;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned oldevents = s->async->events;
 	unsigned int val = 0;
 	unsigned long flags;
@@ -331,8 +331,8 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	if (!(triggered & chip->enabled_mask))
 		goto done;
 
-	for (i = 0; i < len; i++) {
-		unsigned int chan = CR_CHAN(s->async->cmd.chanlist[i]);
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 		if (triggered & (1 << chan))
 			val |= (1 << i);
 	}
