@@ -676,14 +676,16 @@ void radeon_doorbell_free(struct radeon_device *rdev, u32 doorbell);
  * IRQS.
  */
 
-struct radeon_unpin_work {
-	struct work_struct work;
-	struct radeon_device *rdev;
-	int crtc_id;
-	struct radeon_fence *fence;
+struct radeon_flip_work {
+	struct work_struct		flip_work;
+	struct work_struct		unpin_work;
+	struct radeon_device		*rdev;
+	int				crtc_id;
+	struct drm_framebuffer		*fb;
 	struct drm_pending_vblank_event *event;
-	struct radeon_bo *old_rbo;
-	u64 new_crtc_base;
+	struct radeon_bo		*old_rbo;
+	struct radeon_bo		*new_rbo;
+	struct radeon_fence		*fence;
 };
 
 struct r500_irq_stat_regs {
