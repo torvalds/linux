@@ -809,18 +809,11 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return result;
 	}
-	if (cmd->stop_src == TRIG_COUNT) {
+
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_sample_count = cmd->stop_arg * cmd->scan_end_arg;
-		if (devpriv->ai_sample_count < 1) {
-			dev_err(dev->class_dev,
-				"(cmd->stop_arg)*(cmd->scan_end_arg)<1, aborting\n");
-			up(&devpriv->sem);
-			return -EFAULT;
-		}
-	} else {
-		/* continous acquisition */
+	else	/* TRIG_NONE */
 		devpriv->ai_sample_count = 0;
-	}
 
 	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */
