@@ -5707,10 +5707,12 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 		}
 	} else {
 		if (dev->phy.rev >= 7) {
-			b43_radio_2057_init(dev);
+			if (!dev->phy.radio_on)
+				b43_radio_2057_init(dev);
 			b43_switch_channel(dev, dev->phy.channel);
 		} else if (dev->phy.rev >= 3) {
-			b43_radio_init2056(dev);
+			if (!dev->phy.radio_on)
+				b43_radio_init2056(dev);
 			b43_switch_channel(dev, dev->phy.channel);
 		} else {
 			b43_radio_init2055(dev);

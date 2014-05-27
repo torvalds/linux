@@ -3742,7 +3742,9 @@ static int b43_switch_band(struct b43_wldev *dev,
 	b43dbg(dev->wl, "Switching to %s GHz band\n",
 	       band_to_string(chan->band));
 
-	b43_software_rfkill(dev, true);
+	/* Some new devices don't need disabling radio for band switching */
+	if (!(phy->type == B43_PHYTYPE_N && phy->rev >= 3))
+		b43_software_rfkill(dev, true);
 
 	phy->gmode = gmode;
 	b43_phy_put_into_reset(dev);
