@@ -167,6 +167,7 @@ static void  inline uart_printch(char byte)
         
         rkpm_udelay(1);
         
+write_uart:
 	writel_relaxed(byte, RK_DEBUG_UART_VIRT);
 	dsb();
 
@@ -174,11 +175,13 @@ static void  inline uart_printch(char byte)
 	while (!(readl_relaxed(RK_DEBUG_UART_VIRT + 0x14) & 0x40))
 		barrier();
     
+	if (byte == '\n') {
+		byte = '\r';
+		goto write_uart;
+	}
+
          cru_writel(reg_save[0]|0x1<<((u_pclk_id%16)+16),RK3188_CRU_GATEID_CONS(u_clk_id));         
          cru_writel(reg_save[1]|0x1<<((u_pclk_id%16)+16),RK3188_CRU_GATEID_CONS(u_pclk_id));
-        
-	if (byte == '\n')
-		uart_printch('\r');
 }
 
 void PIE_FUNC(sram_printch)(char byte)
