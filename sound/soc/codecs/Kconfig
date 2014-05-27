@@ -23,6 +23,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
 	select SND_SOC_AD73311
 	select SND_SOC_ADAU1373 if I2C
+	select SND_SOC_ADAU1761_I2C if I2C
+	select SND_SOC_ADAU1761_SPI if SPI
 	select SND_SOC_ADAV801 if SPI_MASTER
 	select SND_SOC_ADAV803 if I2C
 	select SND_SOC_ADAU1977_SPI if SPI_MASTER
@@ -221,6 +223,20 @@ config SND_SOC_ADAU1701
 config SND_SOC_ADAU17X1
 	tristate
 	select SND_SOC_SIGMADSP
+
+config SND_SOC_ADAU1761
+	tristate
+	select SND_SOC_ADAU17X1
+
+config SND_SOC_ADAU1761_I2C
+	tristate
+	select SND_SOC_ADAU1761
+	select REGMAP_I2C
+
+config SND_SOC_ADAU1761_SPI
+	tristate
+	select SND_SOC_ADAU1761
+	select REGMAP_SPI
 
 config SND_SOC_ADAU1977
 	tristate
