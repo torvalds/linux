@@ -43,8 +43,10 @@ static inline void vsp1_bru_write(struct vsp1_bru *bru, u32 reg, u32 data)
 
 static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 {
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
 	struct vsp1_bru *bru = to_bru(subdev);
 	struct v4l2_mbus_framefmt *format;
+	unsigned int flags;
 	unsigned int i;
 
 	if (!enable)
@@ -58,8 +60,13 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 	 * to sane default values for now.
 	 */
 
-	/* Disable both color data normalization and dithering. */
-	vsp1_bru_write(bru, VI6_BRU_INCTRL, 0);
+	/* Disable dithering and enable color data normalization unless the
+	 * format at the pipeline output is premultiplied.
+	 */
+	flags = pipe->output ? pipe->output->video.format.flags : 0;
+	vsp1_bru_write(bru, VI6_BRU_INCTRL,
+		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
+		       0 : VI6_BRU_INCTRL_NRM);
 
 	/* Set the background position to cover the whole output image and
 	 * set its color to opaque black.
