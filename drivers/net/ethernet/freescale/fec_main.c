@@ -1816,6 +1816,7 @@ fec_enet_open(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	int ret;
 
+	pinctrl_pm_select_default_state(&fep->pdev->dev);
 	ret = fec_enet_clk_enable(ndev, true);
 	if (ret)
 		return ret;
@@ -1859,6 +1860,7 @@ fec_enet_close(struct net_device *ndev)
 	}
 
 	fec_enet_clk_enable(ndev, false);
+	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 	fec_enet_free_buffers(ndev);
 
 	return 0;
@@ -2162,6 +2164,9 @@ fec_probe(struct platform_device *pdev)
 		fep->pause_flag |= FEC_PAUSE_FLAG_AUTONEG;
 #endif
 
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(&pdev->dev);
+
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	fep->hwp = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(fep->hwp)) {
@@ -2258,6 +2263,7 @@ fec_probe(struct platform_device *pdev)
 	/* Carrier starts down, phylib will bring it up */
 	netif_carrier_off(ndev);
 	fec_enet_clk_enable(ndev, false);
+	pinctrl_pm_select_sleep_state(&pdev->dev);
 
 	ret = register_netdev(ndev);
 	if (ret)
@@ -2317,6 +2323,7 @@ fec_suspend(struct device *dev)
 		netif_device_detach(ndev);
 	}
 	fec_enet_clk_enable(ndev, false);
+	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
@@ -2337,6 +2344,7 @@ fec_resume(struct device *dev)
 			return ret;
 	}
 
+	pinctrl_pm_select_default_state(&fep->pdev->dev);
 	ret = fec_enet_clk_enable(ndev, true);
 	if (ret)
 		goto failed_clk;
