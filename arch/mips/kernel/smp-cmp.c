@@ -72,11 +72,6 @@ static void cmp_smp_finish(void)
 	local_irq_enable();
 }
 
-static void cmp_cpus_done(void)
-{
-	pr_debug("SMPCMP: CPU%d: %s\n", smp_processor_id(), __func__);
-}
-
 /*
  * Setup the PC, SP, and GP of a secondary processor and start it running
  * smp_bootstrap is the place to resume from
@@ -158,7 +153,6 @@ struct plat_smp_ops cmp_smp_ops = {
 	.send_ipi_mask		= gic_send_ipi_mask,
 	.init_secondary		= cmp_init_secondary,
 	.smp_finish		= cmp_smp_finish,
-	.cpus_done		= cmp_cpus_done,
 	.boot_secondary		= cmp_boot_secondary,
 	.smp_setup		= cmp_smp_setup,
 	.prepare_cpus		= cmp_prepare_cpus,

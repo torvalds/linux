@@ -225,13 +225,6 @@ static void octeon_smp_finish(void)
 	local_irq_enable();
 }
 
-/**
- * Hook for after all CPUs are online
- */
-static void octeon_cpus_done(void)
-{
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 
 /* State of each CPU. */
@@ -388,7 +381,6 @@ struct plat_smp_ops octeon_smp_ops = {
 	.send_ipi_mask		= octeon_send_ipi_mask,
 	.init_secondary		= octeon_init_secondary,
 	.smp_finish		= octeon_smp_finish,
-	.cpus_done		= octeon_cpus_done,
 	.boot_secondary		= octeon_boot_secondary,
 	.smp_setup		= octeon_smp_setup,
 	.prepare_cpus		= octeon_prepare_cpus,

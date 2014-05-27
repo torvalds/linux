@@ -135,10 +135,6 @@ void nlm_smp_finish(void)
 	local_irq_enable();
 }
 
-void nlm_cpus_done(void)
-{
-}
-
 /*
  * Boot all other cpus in the system, initialize them, and bring them into
  * the boot function
@@ -277,7 +273,6 @@ struct plat_smp_ops nlm_smp_ops = {
 	.send_ipi_mask		= nlm_send_ipi_mask,
 	.init_secondary		= nlm_init_secondary,
 	.smp_finish		= nlm_smp_finish,
-	.cpus_done		= nlm_cpus_done,
 	.boot_secondary		= nlm_boot_secondary,
 	.smp_setup		= nlm_smp_setup,
 	.prepare_cpus		= nlm_prepare_cpus,

@@ -302,10 +302,6 @@ static void cps_smp_finish(void)
 	local_irq_enable();
 }
 
-static void cps_cpus_done(void)
-{
-}
-
 static struct plat_smp_ops cps_smp_ops = {
 	.smp_setup		= cps_smp_setup,
 	.prepare_cpus		= cps_prepare_cpus,
@@ -314,7 +310,6 @@ static struct plat_smp_ops cps_smp_ops = {
 	.smp_finish		= cps_smp_finish,
 	.send_ipi_single	= gic_send_ipi_single,
 	.send_ipi_mask		= gic_send_ipi_mask,
-	.cpus_done		= cps_cpus_done,
 };
 
 int register_cps_smp_ops(void)

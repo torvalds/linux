@@ -163,7 +163,6 @@ void smp_send_stop(void)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	mp_ops->cpus_done();
 }
 
 /* called from main before smp_init() */
