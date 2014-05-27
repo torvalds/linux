@@ -465,9 +465,10 @@ static inline int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 	return 0;
 }
 
-int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
-			    struct snd_soc_jack *jack,
-			    int count, struct snd_soc_jack_gpio *gpios)
+static inline int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
+					  struct snd_soc_jack *jack,
+					  int count,
+					  struct snd_soc_jack_gpio *gpios)
 {
 	return 0;
 }
