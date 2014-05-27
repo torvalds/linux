@@ -660,6 +660,10 @@ bool intel_dsi_init(struct drm_device *dev)
 
 	DRM_DEBUG_KMS("\n");
 
+	/* There is no detection method for MIPI so rely on VBT */
+	if (!dev_priv->vbt.has_mipi)
+		return false;
+
 	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
 	if (!intel_dsi)
 		return false;
