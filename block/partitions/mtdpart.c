@@ -73,7 +73,7 @@ static struct mtd_partition * newpart(char *s,
 	else
 	{
 		size = memparse(s, &s);
-		if (size < PAGE_SIZE)
+		if (size < (PAGE_SIZE)>>9)
 		{
 			printk(KERN_ERR ERRP "partition size too small (%llx)\n", size);
 			return NULL;
