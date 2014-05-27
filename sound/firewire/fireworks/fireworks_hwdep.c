@@ -135,7 +135,7 @@ hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 
 	buf = memdup_user(data, count);
 	if (IS_ERR(buf))
-		return PTR_ERR(data);
+		return PTR_ERR(buf);
 
 	/* check seqnum is not for kernel-land */
 	seqnum = be32_to_cpu(((struct snd_efw_transaction *)buf)->seqnum);
