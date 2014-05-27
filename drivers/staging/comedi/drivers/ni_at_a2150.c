@@ -334,7 +334,7 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 {
 	const struct a2150_board *thisboard = comedi_board(dev);
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -379,10 +379,9 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		a2150_get_timing(dev, &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
