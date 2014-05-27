@@ -266,7 +266,7 @@ static inline pmd_t pte_pmd(pte_t pte)
 
 #define pmd_page(pmd)           pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
 
-#define set_pmd_at(mm, addr, pmdp, pmd)	set_pmd(pmdp, pmd)
+#define set_pmd_at(mm, addr, pmdp, pmd)	set_pte_at(mm, addr, (pte_t *)pmdp, pmd_pte(pmd))
 
 static inline int has_transparent_hugepage(void)
 {
