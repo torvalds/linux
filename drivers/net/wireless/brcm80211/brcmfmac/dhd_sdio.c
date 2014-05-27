@@ -4176,9 +4176,7 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 		/* De-register interrupt handler */
 		brcmf_sdiod_intr_unregister(bus->sdiodev);
 
-		if (bus->sdiodev->bus_if->drvr) {
-			brcmf_detach(bus->sdiodev->dev);
-		}
+		brcmf_detach(bus->sdiodev->dev);
 
 		cancel_work_sync(&bus->datawork);
 		if (bus->brcmf_wq)
