@@ -542,12 +542,9 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	padapter->hw_init_mutex = &usb_drv->hw_init_mutex;
 	padapter->chip_type = RTL8188E;
 
-	if (rtw_handle_dualmac(padapter, 1) != _SUCCESS)
-		goto free_adapter;
-
 	pnetdev = rtw_init_netdev(padapter);
 	if (pnetdev == NULL)
-		goto handle_dualmac;
+		goto free_adapter;
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
 
@@ -621,9 +618,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 free_hal_data:
 	if (status != _SUCCESS)
 		kfree(padapter->HalData);
-handle_dualmac:
-	if (status != _SUCCESS)
-		rtw_handle_dualmac(padapter, 0);
 free_adapter:
 	if (status != _SUCCESS) {
 		if (pnetdev)
