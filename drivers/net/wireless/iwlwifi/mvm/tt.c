@@ -409,7 +409,6 @@ void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff)
 		.id = REPLY_THERMAL_MNG_BACKOFF,
 		.len = { sizeof(u32), },
 		.data = { &backoff, },
-		.flags = CMD_SYNC,
 	};
 
 	backoff = max(backoff, mvm->thermal_throttle.min_backoff);

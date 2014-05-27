@@ -2291,6 +2291,8 @@ static void ath10k_tx(struct ieee80211_hw *hw,
  */
 void ath10k_halt(struct ath10k *ar)
 {
+	struct ath10k_vif *arvif;
+
 	lockdep_assert_held(&ar->conf_mutex);
 
 	if (ath10k_monitor_is_enabled(ar)) {
@@ -2312,6 +2314,17 @@ void ath10k_halt(struct ath10k *ar)
 		del_timer(&ar->scan.timeout);
 		ar->scan.in_progress = false;
 		ieee80211_scan_completed(ar->hw, true);
+	}
+
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (!arvif->beacon)
+			continue;
+
+		dma_unmap_single(arvif->ar->dev,
+				 ATH10K_SKB_CB(arvif->beacon)->paddr,
+				 arvif->beacon->len, DMA_TO_DEVICE);
+		dev_kfree_skb_any(arvif->beacon);
+		arvif->beacon = NULL;
 	}
 	spin_unlock_bh(&ar->data_lock);
 }
@@ -2771,6 +2784,9 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 
 	spin_lock_bh(&ar->data_lock);
 	if (arvif->beacon) {
+		dma_unmap_single(arvif->ar->dev,
+				 ATH10K_SKB_CB(arvif->beacon)->paddr,
+				 arvif->beacon->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(arvif->beacon);
 		arvif->beacon = NULL;
 	}

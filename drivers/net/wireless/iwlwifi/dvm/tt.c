@@ -236,7 +236,7 @@ static void iwl_prepare_ct_kill_task(struct iwl_priv *priv)
 {
 	IWL_DEBUG_TEMP(priv, "Prepare to enter IWL_TI_CT_KILL\n");
 	/* make request to retrieve statistics information */
-	iwl_send_statistics_request(priv, CMD_SYNC, false);
+	iwl_send_statistics_request(priv, 0, false);
 	/* Reschedule the ct_kill wait timer */
 	mod_timer(&priv->thermal_throttle.ct_kill_waiting_tm,
 		 jiffies + msecs_to_jiffies(CT_KILL_WAITING_DURATION));

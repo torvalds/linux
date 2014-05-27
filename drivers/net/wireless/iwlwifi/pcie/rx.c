@@ -850,7 +850,7 @@ static u32 iwl_pcie_int_cause_ict(struct iwl_trans *trans)
 				trans_pcie->ict_index, read);
 		trans_pcie->ict_tbl[trans_pcie->ict_index] = 0;
 		trans_pcie->ict_index =
-			iwl_queue_inc_wrap(trans_pcie->ict_index, ICT_COUNT);
+			((trans_pcie->ict_index + 1) & (ICT_COUNT - 1));
 
 		read = le32_to_cpu(trans_pcie->ict_tbl[trans_pcie->ict_index]);
 		trace_iwlwifi_dev_ict_read(trans->dev, trans_pcie->ict_index,

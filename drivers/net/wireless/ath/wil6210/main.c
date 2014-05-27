@@ -81,7 +81,7 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 	memset(&sta->stats, 0, sizeof(sta->stats));
 }
 
-static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
+static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
 {
 	int cid = -ENOENT;
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -252,7 +252,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	return 0;
 }
 
-void wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
+void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
 {
 	del_timer_sync(&wil->connect_timer);
 	_wil6210_disconnect(wil, bssid);

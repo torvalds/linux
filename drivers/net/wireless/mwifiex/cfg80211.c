@@ -994,7 +994,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
  */
 static int
 mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
-			     u8 *mac, struct station_info *sinfo)
+			     const u8 *mac, struct station_info *sinfo)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
@@ -1270,7 +1270,7 @@ static int mwifiex_cfg80211_change_beacon(struct wiphy *wiphy,
  */
 static int
 mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
-			     u8 *mac)
+			     const u8 *mac)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct mwifiex_sta_node *sta_node;
@@ -2629,7 +2629,7 @@ static int mwifiex_cfg80211_set_coalesce(struct wiphy *wiphy,
  */
 static int
 mwifiex_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-			   u8 *peer, u8 action_code, u8 dialog_token,
+			   const u8 *peer, u8 action_code, u8 dialog_token,
 			   u16 status_code, u32 peer_capability,
 			   const u8 *extra_ies, size_t extra_ies_len)
 {
@@ -2701,7 +2701,7 @@ mwifiex_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 static int
 mwifiex_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
-			   u8 *peer, enum nl80211_tdls_operation action)
+			   const u8 *peer, enum nl80211_tdls_operation action)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
@@ -2748,9 +2748,8 @@ mwifiex_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int
-mwifiex_cfg80211_add_station(struct wiphy *wiphy,
-			     struct net_device *dev,
-			     u8 *mac, struct station_parameters *params)
+mwifiex_cfg80211_add_station(struct wiphy *wiphy, struct net_device *dev,
+			     const u8 *mac, struct station_parameters *params)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
@@ -2765,9 +2764,9 @@ mwifiex_cfg80211_add_station(struct wiphy *wiphy,
 }
 
 static int
-mwifiex_cfg80211_change_station(struct wiphy *wiphy,
-				struct net_device *dev,
-				u8 *mac, struct station_parameters *params)
+mwifiex_cfg80211_change_station(struct wiphy *wiphy, struct net_device *dev,
+				const u8 *mac,
+				struct station_parameters *params)
 {
 	int ret;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);

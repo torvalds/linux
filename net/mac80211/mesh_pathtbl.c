@@ -287,8 +287,10 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 	struct sk_buff_head failq;
 	unsigned long flags;
 
-	BUG_ON(gate_mpath == from_mpath);
-	BUG_ON(!gate_mpath->next_hop);
+	if (WARN_ON(gate_mpath == from_mpath))
+		return;
+	if (WARN_ON(!gate_mpath->next_hop))
+		return;
 
 	__skb_queue_head_init(&failq);
 

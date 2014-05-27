@@ -156,6 +156,18 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 	idle_cnt = chains_static;
 	active_cnt = chains_dynamic;
 
+	/* In scenarios where we only ever use a single-stream rates,
+	 * i.e. legacy 11b/g/a associations, single-stream APs or even
+	 * static SMPS, enable both chains to get diversity, improving
+	 * the case where we're far enough from the AP that attenuation
+	 * between the two antennas is sufficiently different to impact
+	 * performance.
+	 */
+	if (active_cnt == 1 && iwl_mvm_rx_diversity_allowed(mvm)) {
+		idle_cnt = 2;
+		active_cnt = 2;
+	}
+
 	cmd->rxchain_info = cpu_to_le32(mvm->fw->valid_rx_ant <<
 					PHY_RX_CHAIN_VALID_POS);
 	cmd->rxchain_info |= cpu_to_le32(idle_cnt << PHY_RX_CHAIN_CNT_POS);
@@ -187,7 +199,7 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 	iwl_mvm_phy_ctxt_cmd_data(mvm, &cmd, chandef,
 				  chains_static, chains_dynamic);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, CMD_SYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, 0,
 				   sizeof(struct iwl_phy_context_cmd),
 				   &cmd);
 	if (ret)
@@ -202,18 +214,15 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 			 struct cfg80211_chan_def *chandef,
 			 u8 chains_static, u8 chains_dynamic)
 {
-	int ret;
-
 	WARN_ON(!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 		ctxt->ref);
 	lockdep_assert_held(&mvm->mutex);
 
 	ctxt->channel = chandef->chan;
-	ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
-				     chains_static, chains_dynamic,
-				     FW_CTXT_ACTION_ADD, 0);
 
-	return ret;
+	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
+				      chains_static, chains_dynamic,
+				      FW_CTXT_ACTION_ADD, 0);
 }
 
 /*

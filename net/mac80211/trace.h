@@ -184,6 +184,20 @@ TRACE_EVENT(drv_return_bool,
 		  "true" : "false")
 );
 
+TRACE_EVENT(drv_return_u32,
+	TP_PROTO(struct ieee80211_local *local, u32 ret),
+	TP_ARGS(local, ret),
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u32, ret)
+	),
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->ret = ret;
+	),
+	TP_printk(LOCAL_PR_FMT " - %u", LOCAL_PR_ARG, __entry->ret)
+);
+
 TRACE_EVENT(drv_return_u64,
 	TP_PROTO(struct ieee80211_local *local, u64 ret),
 	TP_ARGS(local, ret),
@@ -1497,6 +1511,24 @@ DEFINE_EVENT(local_sdata_evt, drv_leave_ibss,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata),
 	TP_ARGS(local, sdata)
+);
+
+TRACE_EVENT(drv_get_expected_throughput,
+	TP_PROTO(struct ieee80211_sta *sta),
+
+	TP_ARGS(sta),
+
+	TP_STRUCT__entry(
+		STA_ENTRY
+	),
+
+	TP_fast_assign(
+		STA_ASSIGN;
+	),
+
+	TP_printk(
+		STA_PR_FMT, STA_PR_ARG
+	)
 );
 
 /*

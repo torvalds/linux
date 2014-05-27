@@ -273,11 +273,19 @@ struct sockaddr_nfc_llcp {
  * First byte is the adapter index
  * Second byte contains flags
  *  - 0x01 - Direction (0=RX, 1=TX)
- *  - 0x02-0x80 - Reserved
+ *  - 0x02-0x04 - Payload type (000=LLCP, 001=NCI, 010=HCI, 011=Digital,
+ *                              100=Proprietary)
+ *  - 0x05-0x80 - Reserved
  **/
-#define NFC_LLCP_RAW_HEADER_SIZE	2
-#define NFC_LLCP_DIRECTION_RX		0x00
-#define NFC_LLCP_DIRECTION_TX		0x01
+#define NFC_RAW_HEADER_SIZE	2
+#define NFC_DIRECTION_RX		0x00
+#define NFC_DIRECTION_TX		0x01
+
+#define RAW_PAYLOAD_LLCP 0
+#define RAW_PAYLOAD_NCI	1
+#define RAW_PAYLOAD_HCI	2
+#define RAW_PAYLOAD_DIGITAL	3
+#define RAW_PAYLOAD_PROPRIETARY	4
 
 /* socket option names */
 #define NFC_LLCP_RW		0

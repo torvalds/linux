@@ -448,7 +448,6 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 {
 	struct scratch		*data = host->data;
 	u8			*cp = data->status;
-	u32			arg = cmd->arg;
 	int			status;
 	struct spi_transfer	*t;
 
@@ -465,14 +464,12 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	 * We init the whole buffer to all-ones, which is what we need
 	 * to write while we're reading (later) response data.
 	 */
-	memset(cp++, 0xff, sizeof(data->status));
+	memset(cp, 0xff, sizeof(data->status));
 
-	*cp++ = 0x40 | cmd->opcode;
-	*cp++ = (u8)(arg >> 24);
-	*cp++ = (u8)(arg >> 16);
-	*cp++ = (u8)(arg >> 8);
-	*cp++ = (u8)arg;
-	*cp++ = (crc7(0, &data->status[1], 5) << 1) | 0x01;
+	cp[1] = 0x40 | cmd->opcode;
+	put_unaligned_be32(cmd->arg, cp+2);
+	cp[6] = crc7_be(0, cp+1, 5) | 0x01;
+	cp += 7;
 
 	/* Then, read up to 13 bytes (while writing all-ones):
 	 *  - N(CR) (== 1..8) bytes of all-ones
@@ -711,10 +708,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	 * so we have to cope with this situation and check the response
 	 * bit-by-bit. Arggh!!!
 	 */
-	pattern  = scratch->status[0] << 24;
-	pattern |= scratch->status[1] << 16;
-	pattern |= scratch->status[2] << 8;
-	pattern |= scratch->status[3];
+	pattern = get_unaligned_be32(scratch->status);
 
 	/* First 3 bit of pattern are undefined */
 	pattern |= 0xE0000000;

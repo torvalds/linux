@@ -366,7 +366,6 @@ static int nci_extract_activation_params_nfc_dep(struct nci_dev *ndev,
 			struct nci_rf_intf_activated_ntf *ntf, __u8 *data)
 {
 	struct activation_params_poll_nfc_dep *poll;
-	int i;
 
 	switch (ntf->activation_rf_tech_and_mode) {
 	case NCI_NFC_A_PASSIVE_POLL_MODE:
@@ -374,10 +373,8 @@ static int nci_extract_activation_params_nfc_dep(struct nci_dev *ndev,
 		poll = &ntf->activation_params.poll_nfc_dep;
 		poll->atr_res_len = min_t(__u8, *data++, 63);
 		pr_debug("atr_res_len %d\n", poll->atr_res_len);
-		if (poll->atr_res_len > 0) {
-			for (i = 0; i < poll->atr_res_len; i++)
-				poll->atr_res[poll->atr_res_len-1-i] = data[i];
-		}
+		if (poll->atr_res_len > 0)
+			memcpy(poll->atr_res, data, poll->atr_res_len);
 		break;
 
 	default:

@@ -23,8 +23,8 @@
 #include <linux/leds.h>
 #include <linux/completion.h>
 
-#include "debug.h"
 #include "common.h"
+#include "debug.h"
 #include "mci.h"
 #include "dfs.h"
 #include "spectral.h"
@@ -274,6 +274,7 @@ struct ath_node {
 #ifdef CONFIG_ATH9K_STATION_STATISTICS
 	struct ath_rx_rate_stats rx_rate_stats;
 #endif
+	u8 key_idx[4];
 };
 
 struct ath_tx_control {

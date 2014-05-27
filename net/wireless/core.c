@@ -210,15 +210,12 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	}
 }
 
-static int cfg80211_rfkill_set_block(void *data, bool blocked)
+void cfg80211_shutdown_all_interfaces(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev = data;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct wireless_dev *wdev;
 
-	if (!blocked)
-		return 0;
-
-	rtnl_lock();
+	ASSERT_RTNL();
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		if (wdev->netdev) {
@@ -234,7 +231,18 @@ static int cfg80211_rfkill_set_block(void *data, bool blocked)
 			break;
 		}
 	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_shutdown_all_interfaces);
 
+static int cfg80211_rfkill_set_block(void *data, bool blocked)
+{
+	struct cfg80211_registered_device *rdev = data;
+
+	if (!blocked)
+		return 0;
+
+	rtnl_lock();
+	cfg80211_shutdown_all_interfaces(&rdev->wiphy);
 	rtnl_unlock();
 
 	return 0;
@@ -393,6 +401,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy.frag_threshold = (u32) -1;
 	rdev->wiphy.rts_threshold = (u32) -1;
 	rdev->wiphy.coverage_class = 0;
+
+	rdev->wiphy.max_num_csa_counters = 1;
 
 	return &rdev->wiphy;
 }
@@ -690,7 +700,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	rtnl_lock();
 	rdev->wiphy.registered = false;
 
-	BUG_ON(!list_empty(&rdev->wdev_list));
+	WARN_ON(!list_empty(&rdev->wdev_list));
 
 	/*
 	 * First remove the hardware from everywhere, this makes
@@ -792,23 +802,23 @@ void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 		rdev->num_running_monitor_ifaces += num;
 }
 
-void cfg80211_leave(struct cfg80211_registered_device *rdev,
-		    struct wireless_dev *wdev)
+void __cfg80211_leave(struct cfg80211_registered_device *rdev,
+		      struct wireless_dev *wdev)
 {
 	struct net_device *dev = wdev->netdev;
 
 	ASSERT_RTNL();
+	ASSERT_WDEV_LOCK(wdev);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_ADHOC:
-		cfg80211_leave_ibss(rdev, dev, true);
+		__cfg80211_leave_ibss(rdev, dev, true);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
 		if (rdev->sched_scan_req && dev == rdev->sched_scan_req->dev)
 			__cfg80211_stop_sched_scan(rdev, false);
 
-		wdev_lock(wdev);
 #ifdef CONFIG_CFG80211_WEXT
 		kfree(wdev->wext.ie);
 		wdev->wext.ie = NULL;
@@ -817,19 +827,48 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 #endif
 		cfg80211_disconnect(rdev, dev,
 				    WLAN_REASON_DEAUTH_LEAVING, true);
-		wdev_unlock(wdev);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
-		cfg80211_leave_mesh(rdev, dev);
+		__cfg80211_leave_mesh(rdev, dev);
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		cfg80211_stop_ap(rdev, dev, true);
+		__cfg80211_stop_ap(rdev, dev, true);
 		break;
 	default:
 		break;
 	}
 }
+
+void cfg80211_leave(struct cfg80211_registered_device *rdev,
+		    struct wireless_dev *wdev)
+{
+	wdev_lock(wdev);
+	__cfg80211_leave(rdev, wdev);
+	wdev_unlock(wdev);
+}
+
+void cfg80211_stop_iface(struct wiphy *wiphy, struct wireless_dev *wdev,
+			 gfp_t gfp)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct cfg80211_event *ev;
+	unsigned long flags;
+
+	trace_cfg80211_stop_iface(wiphy, wdev);
+
+	ev = kzalloc(sizeof(*ev), gfp);
+	if (!ev)
+		return;
+
+	ev->type = EVENT_STOPPED;
+
+	spin_lock_irqsave(&wdev->event_lock, flags);
+	list_add_tail(&ev->list, &wdev->event_list);
+	spin_unlock_irqrestore(&wdev->event_lock, flags);
+	queue_work(cfg80211_wq, &rdev->event_work);
+}
+EXPORT_SYMBOL(cfg80211_stop_iface);
 
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 					 unsigned long state, void *ptr)

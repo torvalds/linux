@@ -264,4 +264,7 @@ int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
 struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx);
 
+void nfc_send_to_raw_sock(struct nfc_dev *dev, struct sk_buff *skb,
+			  u8 payload_type, u8 direction);
+
 #endif /* __NET_NFC_H */
