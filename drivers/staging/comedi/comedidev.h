@@ -180,7 +180,6 @@ struct comedi_device {
 	const char *board_name;
 	const void *board_ptr;
 	bool attached:1;
-	bool in_request_module:1;
 	bool ioenabled:1;
 	spinlock_t spinlock;
 	struct mutex mutex;

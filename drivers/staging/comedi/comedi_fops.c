@@ -2327,38 +2327,12 @@ static int comedi_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	/* This is slightly hacky, but we want module autoloading
-	 * to work for root.
-	 * case: user opens device, attached -> ok
-	 * case: user opens device, unattached, !in_request_module -> autoload
-	 * case: user opens device, unattached, in_request_module -> fail
-	 * case: root opens device, attached -> ok
-	 * case: root opens device, unattached, in_request_module -> ok
-	 *   (typically called from modprobe)
-	 * case: root opens device, unattached, !in_request_module -> autoload
-	 *
-	 * The last could be changed to "-> ok", which would deny root
-	 * autoloading.
-	 */
 	mutex_lock(&dev->mutex);
-	if (dev->attached)
-		goto ok;
-	if (!capable(CAP_NET_ADMIN) && dev->in_request_module) {
-		dev_dbg(dev->class_dev, "in request module\n");
-		rc = -ENODEV;
-		goto out;
-	}
-	if (capable(CAP_NET_ADMIN) && dev->in_request_module)
-		goto ok;
-
-	dev->in_request_module = false;
-
 	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
 		dev_dbg(dev->class_dev, "not attached and not CAP_NET_ADMIN\n");
 		rc = -ENODEV;
 		goto out;
 	}
-ok:
 	if (dev->attached && dev->use_count == 0) {
 		if (!try_module_get(dev->driver->module)) {
 			rc = -ENOSYS;
