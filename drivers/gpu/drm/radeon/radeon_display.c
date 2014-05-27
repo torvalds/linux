@@ -276,7 +276,7 @@ static void radeon_unpin_work_func(struct work_struct *__work)
 	kfree(work);
 }
 
-void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
+void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 	struct radeon_unpin_work *work;
@@ -302,7 +302,6 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 		 * completion routine.
 		 */
 		update_pending = 0;
-		radeon_crtc->deferred_flip_completion = 0;
 	}
 
 	/* Has the pageflip already completed in crtc, or is it certain
@@ -330,10 +329,40 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 		radeon_crtc->deferred_flip_completion = 1;
 		spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
 		return;
+	} else {
+		spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
+		radeon_crtc_handle_flip(rdev, crtc_id);
+	}
+}
+
+/**
+ * radeon_crtc_handle_flip - page flip completed
+ *
+ * @rdev: radeon device pointer
+ * @crtc_id: crtc number this event is for
+ *
+ * Called when we are sure that a page flip for this crtc is completed.
+ */
+void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
+{
+	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
+	struct radeon_unpin_work *work;
+	unsigned long flags;
+
+	/* this can happen at init */
+	if (radeon_crtc == NULL)
+		return;
+
+	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
+	work = radeon_crtc->unpin_work;
+	if (work == NULL) {
+		spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
+		return;
 	}
 
 	/* Pageflip (will be) certainly completed in this vblank. Clean up. */
 	radeon_crtc->unpin_work = NULL;
+	radeon_crtc->deferred_flip_completion = 0;
 
 	/* wakeup userspace */
 	if (work->event)

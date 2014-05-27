@@ -779,7 +779,7 @@ int r100_irq_process(struct radeon_device *rdev)
 				wake_up(&rdev->irq.vblank_queue);
 			}
 			if (atomic_read(&rdev->irq.pflip[0]))
-				radeon_crtc_handle_flip(rdev, 0);
+				radeon_crtc_handle_vblank(rdev, 0);
 		}
 		if (status & RADEON_CRTC2_VBLANK_STAT) {
 			if (rdev->irq.crtc_vblank_int[1]) {
@@ -788,7 +788,7 @@ int r100_irq_process(struct radeon_device *rdev)
 				wake_up(&rdev->irq.vblank_queue);
 			}
 			if (atomic_read(&rdev->irq.pflip[1]))
-				radeon_crtc_handle_flip(rdev, 1);
+				radeon_crtc_handle_vblank(rdev, 1);
 		}
 		if (status & RADEON_FP_DETECT_STAT) {
 			queue_hotplug = true;
