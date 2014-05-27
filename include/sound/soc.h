@@ -597,9 +597,11 @@ struct snd_soc_jack_zone {
  * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
  *
  * @gpio:         legacy gpio number
- * @idx:          gpio descriptor index within the GPIO consumer device
+ * @idx:          gpio descriptor index within the function of the GPIO
+ *                consumer device
  * @gpiod_dev     GPIO consumer device
- * @name:         gpio name
+ * @name:         gpio name. Also as connection ID for the GPIO consumer
+ *                device function name lookup
  * @report:       value to report when jack detected
  * @invert:       report presence in low state
  * @debouce_time: debouce time in ms
