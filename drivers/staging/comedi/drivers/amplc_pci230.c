@@ -1197,15 +1197,13 @@ static int pci230_handle_ao_fifo(struct comedi_device *dev,
 	unsigned int room;
 	unsigned short dacstat;
 	unsigned int i, n;
-	unsigned int bytes_per_scan;
 	unsigned int events = 0;
 	int running;
 
 	/* Get DAC FIFO status. */
 	dacstat = inw(dev->iobase + PCI230_DACCON);
 	/* Determine number of scans available in buffer. */
-	bytes_per_scan = cmd->chanlist_len * sizeof(short);
-	num_scans = comedi_buf_read_n_available(s) / bytes_per_scan;
+	num_scans = comedi_buf_read_n_available(s) / cfc_bytes_per_scan(s);
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_scan_count)
