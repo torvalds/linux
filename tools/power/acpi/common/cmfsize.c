@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acgcc.h - GCC specific defines, etc.
+ * Module Name: cfsize - Common get file size function
  *
  *****************************************************************************/
 
@@ -41,38 +41,61 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACGCC_H__
-#define __ACGCC_H__
+#include <acpi/acpi.h>
+#include "accommon.h"
+#include "acapps.h"
+#include <stdio.h>
 
-#define ACPI_INLINE             __inline__
+#define _COMPONENT          ACPI_TOOLS
+ACPI_MODULE_NAME("cmfsize")
 
-/* Function name is used for debug output. Non-ANSI, compiler-dependent */
-
-#define ACPI_GET_FUNCTION_NAME          __func__
-
-/*
- * This macro is used to tag functions as "printf-like" because
- * some compilers (like GCC) can catch printf format string problems.
- */
-#define ACPI_PRINTF_LIKE(c) __attribute__ ((__format__ (__printf__, c, c+1)))
-
-/*
- * Some compilers complain about unused variables. Sometimes we don't want to
- * use all the variables (for example, _acpi_module_name). This allows us
- * to tell the compiler warning in a per-variable manner that a variable
- * is unused.
- */
-#define ACPI_UNUSED_VAR __attribute__ ((unused))
-
-/*
- * Some versions of gcc implement strchr() with a buggy macro. So,
- * undef it here. Prevents error messages of this form (usually from the
- * file getopt.c):
+/*******************************************************************************
  *
- * error: logical '&&' with non-zero constant will always evaluate as true
- */
-#ifdef strchr
-#undef strchr
-#endif
+ * FUNCTION:    cm_get_file_size
+ *
+ * PARAMETERS:  file                    - Open file descriptor
+ *
+ * RETURN:      File Size. On error, -1 (ACPI_UINT32_MAX)
+ *
+ * DESCRIPTION: Get the size of a file. Uses seek-to-EOF. File must be open.
+ *              Does not disturb the current file pointer. Uses perror for
+ *              error messages.
+ *
+ ******************************************************************************/
+u32 cm_get_file_size(FILE * file)
+{
+	long file_size;
+	long current_offset;
 
-#endif				/* __ACGCC_H__ */
+	/* Save the current file pointer, seek to EOF to obtain file size */
+
+	current_offset = ftell(file);
+	if (current_offset < 0) {
+		goto offset_error;
+	}
+
+	if (fseek(file, 0, SEEK_END)) {
+		goto seek_error;
+	}
+
+	file_size = ftell(file);
+	if (file_size < 0) {
+		goto offset_error;
+	}
+
+	/* Restore original file pointer */
+
+	if (fseek(file, current_offset, SEEK_SET)) {
+		goto seek_error;
+	}
+
+	return ((u32)file_size);
+
+offset_error:
+	perror("Could not get file offset");
+	return (ACPI_UINT32_MAX);
+
+seek_error:
+	perror("Could not seek file");
+	return (ACPI_UINT32_MAX);
+}
