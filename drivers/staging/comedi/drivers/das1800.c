@@ -547,7 +547,7 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 
 	munge_data(dev, buffer, num_samples);
 	cfc_write_array_to_buffer(s, buffer, num_bytes);
-	if (s->async->cmd.stop_src == TRIG_COUNT)
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= num_samples;
 
 	return;
