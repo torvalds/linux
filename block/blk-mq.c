@@ -264,31 +264,30 @@ __blk_mq_alloc_request(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
 	return NULL;
 }
 
-
 static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 						   int rw, gfp_t gfp,
 						   bool reserved)
 {
+	bool gfp_mask = gfp & ~__GFP_WAIT;
 	struct request *rq;
 
 	do {
 		struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
 		struct blk_mq_hw_ctx *hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
-		rq = __blk_mq_alloc_request(q, hctx, ctx, rw, gfp & ~__GFP_WAIT,
+		rq = __blk_mq_alloc_request(q, hctx, ctx, rw, gfp_mask,
 						reserved);
 		if (rq)
 			break;
 
-		if (gfp & __GFP_WAIT) {
-			__blk_mq_run_hw_queue(hctx);
-			blk_mq_put_ctx(ctx);
-		} else {
+		if (!(gfp & __GFP_WAIT)) {
 			blk_mq_put_ctx(ctx);
 			break;
 		}
 
-		blk_mq_wait_for_tags(hctx, reserved);
+		__blk_mq_run_hw_queue(hctx);
+		blk_mq_put_ctx(ctx);
+		gfp_mask = gfp;
 	} while (1);
 
 	return rq;

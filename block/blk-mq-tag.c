@@ -7,14 +7,6 @@
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
 
-void blk_mq_wait_for_tags(struct blk_mq_hw_ctx *hctx, bool reserved)
-{
-	int tag, zero = 0;
-
-	tag = blk_mq_get_tag(hctx, &zero, __GFP_WAIT, reserved);
-	blk_mq_put_tag(hctx, tag, &zero);
-}
-
 static bool bt_has_free_tags(struct blk_mq_bitmap_tags *bt)
 {
 	int i;
