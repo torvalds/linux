@@ -546,11 +546,8 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	dvobj->if1 = padapter;
 
 	padapter->bDriverStopped = true;
-
 	padapter->hw_init_mutex = &usb_drv->hw_init_mutex;
-
-	/* step 1-1., decide the chip_type via vid/pid */
-	chip_by_usb_id(padapter, pdid);
+	padapter->chip_type = RTL8188E;
 
 	if (rtw_handle_dualmac(padapter, 1) != _SUCCESS)
 		goto free_adapter;
