@@ -29,7 +29,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/firmware.h>
-#include <linux/version.h>
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
 #include "debug.h"
