@@ -457,8 +457,9 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 
 	/* Monitor if RSSI is too strong. */
 	pBSSList->byRSSIStatCnt = 0;
-	RFvRSSITodBm(pDevice, (u8) (pRxPacket->uRSSI),
-			     &pBSSList->ldBmMAX);
+
+	vnt_rf_rssi_to_dbm(pDevice, (u8)pRxPacket->uRSSI, &pBSSList->ldBmMAX);
+
 	pBSSList->ldBmAverage[0] = pBSSList->ldBmMAX;
 	pBSSList->ldBmAverRange = pBSSList->ldBmMAX;
 	for (ii = 1; ii < RSSI_STAT_COUNT; ii++)
@@ -578,7 +579,7 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
 	}
 
 	if (pRxPacket->uRSSI != 0) {
-		RFvRSSITodBm(pDevice, (u8) (pRxPacket->uRSSI), &ldBm);
+		vnt_rf_rssi_to_dbm(pDevice, (u8)pRxPacket->uRSSI, &ldBm);
 		/* Monitor if RSSI is too strong. */
 		pBSSList->byRSSIStatCnt++;
 		pBSSList->byRSSIStatCnt %= RSSI_STAT_COUNT;
@@ -1417,7 +1418,7 @@ static void s_uCalculateLinkQual(struct vnt_private *pDevice)
 	if (pDevice->bLinkPass != true) {
 		pDevice->wstats.qual.qual = 0;
 	} else {
-		RFvRSSITodBm(pDevice, (u8) (pDevice->uCurrRSSI), &ldBm);
+		vnt_rf_rssi_to_dbm(pDevice, (u8) (pDevice->uCurrRSSI), &ldBm);
 		if (-ldBm < 50)
 			RssiRatio = 4000;
 		else if (-ldBm > 90)

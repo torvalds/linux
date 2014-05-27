@@ -60,7 +60,7 @@ extern const u8 RFaby11aChannelIndex[200];
 int vnt_rf_write_embedded(struct vnt_private *, u32);
 int vnt_rf_setpower(struct vnt_private *, u32, u32);
 int vnt_rf_set_txpower(struct vnt_private *, u8, u32);
-void RFvRSSITodBm(struct vnt_private *, u8 byCurrRSSI, long *pldBm);
+void vnt_rf_rssi_to_dbm(struct vnt_private *, u8, long *);
 void RFbRFTableDownload(struct vnt_private *pDevice);
 
 #endif /* __RF_H__ */

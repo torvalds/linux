@@ -969,7 +969,7 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
  * Return Value: none
  *
 -*/
-void RFvRSSITodBm(struct vnt_private *priv, u8 rssi, long *dbm)
+void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm)
 {
 	u8 idx = (((rssi & 0xc0) >> 6) & 0x03);
 	long b = (rssi & 0x3f);
