@@ -114,8 +114,8 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 		_d->dma.status = TX_DMA_STATUS_DU;
 	}
 
-	wil_dbg_misc(wil, "vring[%d] 0x%p:0x%016llx 0x%p\n", vring->size,
-		     vring->va, (unsigned long long)vring->pa, vring->ctx);
+	wil_dbg_misc(wil, "vring[%d] 0x%p:%pad 0x%p\n", vring->size,
+		     vring->va, &vring->pa, vring->ctx);
 
 	return 0;
 }
@@ -896,8 +896,8 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	pa = dma_map_single(dev, skb->data,
 			skb_headlen(skb), DMA_TO_DEVICE);
 
-	wil_dbg_txrx(wil, "Tx skb %d bytes %p -> %#08llx\n", skb_headlen(skb),
-		     skb->data, (unsigned long long)pa);
+	wil_dbg_txrx(wil, "Tx skb %d bytes 0x%p -> %pad\n", skb_headlen(skb),
+		     skb->data, &pa);
 	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_OFFSET, 16, 1,
 			  skb->data, skb_headlen(skb), false);
 
