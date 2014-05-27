@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/device.h>
 #include <linux/firmware.h>
 
 #include "dhd_dbg.h"
@@ -224,3 +225,108 @@ void brcmf_fw_nvram_free(void *nvram)
 	kfree(nvram);
 }
 
+struct brcmf_fw {
+	struct device *dev;
+	u16 flags;
+	const struct firmware *code;
+	const char *nvram_name;
+	void (*done)(struct device *dev, const struct firmware *fw,
+		     void *nvram_image, u32 nvram_len);
+};
+
+static void brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
+{
+	struct brcmf_fw *fwctx = ctx;
+	u32 nvram_length = 0;
+	void *nvram = NULL;
+
+	brcmf_dbg(TRACE, "enter: dev=%s\n", dev_name(fwctx->dev));
+	if (!fw && !(fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL))
+		goto fail;
+
+	if (fw) {
+		nvram = brcmf_fw_nvram_strip(fw, &nvram_length);
+		release_firmware(fw);
+		if (!nvram && !(fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL))
+			goto fail;
+	}
+
+	fwctx->done(fwctx->dev, fwctx->code, nvram, nvram_length);
+	kfree(fwctx);
+	return;
+
+fail:
+	brcmf_dbg(TRACE, "failed: dev=%s\n", dev_name(fwctx->dev));
+	if (fwctx->code)
+		release_firmware(fwctx->code);
+	device_release_driver(fwctx->dev);
+	kfree(fwctx);
+}
+
+static void brcmf_fw_request_code_done(const struct firmware *fw, void *ctx)
+{
+	struct brcmf_fw *fwctx = ctx;
+	int ret;
+
+	brcmf_dbg(TRACE, "enter: dev=%s\n", dev_name(fwctx->dev));
+	if (!fw)
+		goto fail;
+
+	/* only requested code so done here */
+	if (!(fwctx->flags & BRCMF_FW_REQUEST_NVRAM)) {
+		fwctx->done(fwctx->dev, fw, NULL, 0);
+		kfree(fwctx);
+		return;
+	}
+	fwctx->code = fw;
+	ret = request_firmware_nowait(THIS_MODULE, true, fwctx->nvram_name,
+				      fwctx->dev, GFP_KERNEL, fwctx,
+				      brcmf_fw_request_nvram_done);
+
+	if (!ret)
+		return;
+
+	/* when nvram is optional call .done() callback here */
+	if (fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL) {
+		fwctx->done(fwctx->dev, fw, NULL, 0);
+		kfree(fwctx);
+		return;
+	}
+
+	/* failed nvram request */
+	release_firmware(fw);
+fail:
+	brcmf_dbg(TRACE, "failed: dev=%s\n", dev_name(fwctx->dev));
+	device_release_driver(fwctx->dev);
+	kfree(fwctx);
+}
+
+int brcmf_fw_get_firmwares(struct device *dev, u16 flags,
+			   const char *code, const char *nvram,
+			   void (*fw_cb)(struct device *dev,
+					 const struct firmware *fw,
+					 void *nvram_image, u32 nvram_len))
+{
+	struct brcmf_fw *fwctx;
+
+	brcmf_dbg(TRACE, "enter: dev=%s\n", dev_name(dev));
+	if (!fw_cb || !code)
+		return -EINVAL;
+
+	if ((flags & BRCMF_FW_REQUEST_NVRAM) && !nvram)
+		return -EINVAL;
+
+	fwctx = kzalloc(sizeof(*fwctx), GFP_KERNEL);
+	if (!fwctx)
+		return -ENOMEM;
+
+	fwctx->dev = dev;
+	fwctx->flags = flags;
+	fwctx->done = fw_cb;
+	if (flags & BRCMF_FW_REQUEST_NVRAM)
+		fwctx->nvram_name = nvram;
+
+	return request_firmware_nowait(THIS_MODULE, true, code, dev,
+				       GFP_KERNEL, fwctx,
+				       brcmf_fw_request_code_done);
+}
