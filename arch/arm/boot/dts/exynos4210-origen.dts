@@ -48,6 +48,14 @@
 		};
 	};
 
+	watchdog@10060000 {
+		status = "okay";
+	};
+
+	rtc@10070000 {
+		status = "okay";
+	};
+
 	tmu@100C0000 {
 		status = "okay";
 	};

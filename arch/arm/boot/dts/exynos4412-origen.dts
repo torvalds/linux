@@ -48,6 +48,14 @@
 		};
 	};
 
+	watchdog@10060000 {
+		status = "okay";
+	};
+
+	rtc@10070000 {
+		status = "okay";
+	};
+
 	pinctrl@11000000 {
 		keypad_rows: keypad-rows {
 			samsung,pins = "gpx2-0", "gpx2-1", "gpx2-2";
