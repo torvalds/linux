@@ -313,7 +313,7 @@ static void bebob_remove(struct fw_unit *unit)
 	snd_card_free_when_closed(bebob->card);
 }
 
-struct snd_bebob_rate_spec normal_rate_spec = {
+static struct snd_bebob_rate_spec normal_rate_spec = {
 	.get	= &snd_bebob_stream_get_rate,
 	.set	= &snd_bebob_stream_set_rate
 };

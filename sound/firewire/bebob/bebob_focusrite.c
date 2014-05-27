@@ -256,7 +256,7 @@ static struct snd_bebob_clock_spec saffire_both_clk_spec = {
 	.get	= &saffire_both_clk_src_get,
 };
 /* Saffire LE */
-struct snd_bebob_meter_spec saffire_le_meter_spec = {
+static struct snd_bebob_meter_spec saffire_le_meter_spec = {
 	.num	= ARRAY_SIZE(saffire_le_meter_labels),
 	.labels	= saffire_le_meter_labels,
 	.get	= &saffire_meter_get,
@@ -267,7 +267,7 @@ struct snd_bebob_spec saffire_le_spec = {
 	.meter	= &saffire_le_meter_spec
 };
 /* Saffire */
-struct snd_bebob_meter_spec saffire_meter_spec = {
+static struct snd_bebob_meter_spec saffire_meter_spec = {
 	.num	= ARRAY_SIZE(saffire_meter_labels),
 	.labels	= saffire_meter_labels,
 	.get	= &saffire_meter_get,
