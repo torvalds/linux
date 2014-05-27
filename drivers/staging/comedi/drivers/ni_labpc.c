@@ -874,8 +874,9 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int labpc_drain_fifo(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	unsigned short data;
 	struct comedi_async *async = dev->read_subdev->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned short data;
 	const int timeout = 10000;
 	unsigned int i;
 
@@ -884,7 +885,7 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 	for (i = 0; (devpriv->stat1 & STAT1_DAVAIL) && i < timeout;
 	     i++) {
 		/*  quit if we have all the data we want */
-		if (async->cmd.stop_src == TRIG_COUNT) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			if (devpriv->count == 0)
 				break;
 			devpriv->count--;
