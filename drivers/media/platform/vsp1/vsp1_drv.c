@@ -440,19 +440,19 @@ static int vsp1_validate_platform_data(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	if (pdata->rpf_count <= 0 || pdata->rpf_count > VPS1_MAX_RPF) {
+	if (pdata->rpf_count <= 0 || pdata->rpf_count > VSP1_MAX_RPF) {
 		dev_err(&pdev->dev, "invalid number of RPF (%u)\n",
 			pdata->rpf_count);
 		return -EINVAL;
 	}
 
-	if (pdata->uds_count <= 0 || pdata->uds_count > VPS1_MAX_UDS) {
+	if (pdata->uds_count <= 0 || pdata->uds_count > VSP1_MAX_UDS) {
 		dev_err(&pdev->dev, "invalid number of UDS (%u)\n",
 			pdata->uds_count);
 		return -EINVAL;
 	}
 
-	if (pdata->wpf_count <= 0 || pdata->wpf_count > VPS1_MAX_WPF) {
+	if (pdata->wpf_count <= 0 || pdata->wpf_count > VSP1_MAX_WPF) {
 		dev_err(&pdev->dev, "invalid number of WPF (%u)\n",
 			pdata->wpf_count);
 		return -EINVAL;
