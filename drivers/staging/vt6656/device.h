@@ -340,9 +340,9 @@ typedef struct tagSPMKIDCandidateEvent {
 
 /* The receive duplicate detection cache entry */
 typedef struct tagSCacheEntry{
-    u16        wFmSequence;
-    u8        abyAddr2[ETH_ALEN];
-    u16        wFrameCtl;
+	__le16 wFmSequence;
+	u8 abyAddr2[ETH_ALEN];
+	__le16 wFrameCtl;
 } SCacheEntry, *PSCacheEntry;
 
 typedef struct tagSCache{
