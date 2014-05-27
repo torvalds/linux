@@ -741,7 +741,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct pcl818_board *board = comedi_board(dev);
 	struct pcl818_private *devpriv = dev->private;
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -788,15 +788,12 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		if (cmd->convert_arg < board->ns_min)
-			cmd->convert_arg = board->ns_min;
-		if (tmp != cmd->convert_arg)
-			err++;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
