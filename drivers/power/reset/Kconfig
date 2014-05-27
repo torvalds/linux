@@ -64,3 +64,11 @@ config POWER_RESET_XGENE
 	depends on POWER_RESET
 	help
 	  Reboot support for the APM SoC X-Gene Eval boards.
+
+config POWER_RESET_KEYSTONE
+	bool "Keystone reset driver"
+	depends on ARCH_KEYSTONE
+	select MFD_SYSCON
+	help
+	  Reboot support for the KEYSTONE SoCs.
+
