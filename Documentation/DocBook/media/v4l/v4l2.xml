@@ -155,7 +155,7 @@ applications. -->
 	<revnumber>3.16</revnumber>
 	<date>2014-05-27</date>
 	<authorinitials>lp</authorinitials>
-	<revremark>Extended &v4l2-pix-format;.
+	<revremark>Extended &v4l2-pix-format;. Added format flags.
 	</revremark>
       </revision>
 

@@ -256,7 +256,8 @@ static void v4l_print_format(const void *arg, bool write_only)
 		pix = &p->fmt.pix;
 		pr_cont(", width=%u, height=%u, "
 			"pixelformat=%c%c%c%c, field=%s, "
-			"bytesperline=%u, sizeimage=%u, colorspace=%d\n",
+			"bytesperline=%u, sizeimage=%u, colorspace=%d, "
+			"flags %u\n",
 			pix->width, pix->height,
 			(pix->pixelformat & 0xff),
 			(pix->pixelformat >>  8) & 0xff,
@@ -264,7 +265,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 			(pix->pixelformat >> 24) & 0xff,
 			prt_names(pix->field, v4l2_field_names),
 			pix->bytesperline, pix->sizeimage,
-			pix->colorspace);
+			pix->colorspace, pix->flags);
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:

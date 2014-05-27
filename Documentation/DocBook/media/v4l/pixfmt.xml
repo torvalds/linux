@@ -135,6 +135,12 @@ extended fields were set to zero. On return drivers must set the
 <constant>V4L2_PIX_FMT_PRIV_MAGIC</constant> and all the extended fields to
 applicable values.</para></entry>
 	</row>
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>flags</structfield></entry>
+	    <entry>Flags set by the application or driver, see <xref
+linkend="format-flags" />.</entry>
+	</row>
       </tbody>
     </tgroup>
   </table>
@@ -220,9 +226,15 @@ codes can be used.</entry>
           and the number of valid entries in the
           <structfield>plane_fmt</structfield> array.</entry>
         </row>
+	<row>
+	  <entry>__u8</entry>
+	  <entry><structfield>flags</structfield></entry>
+	  <entry>Flags set by the application or driver, see <xref
+linkend="format-flags" />.</entry>
+	</row>
         <row>
           <entry>__u8</entry>
-          <entry><structfield>reserved[11]</structfield></entry>
+          <entry><structfield>reserved[10]</structfield></entry>
           <entry>Reserved for future extensions. Should be zeroed by the
            application.</entry>
         </row>
@@ -1075,6 +1087,23 @@ should be repeated for each line, i.e. the number of entries in the pointer
 array. Anything what's in between the UYVY lines is JPEG data and should be
 concatenated to form the JPEG stream. </para>
 </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="format-flags">
+      <title>Format Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_PIX_FMT_FLAG_PREMUL_ALPHA</constant></entry>
+	    <entry>0x00000001</entry>
+	    <entry>The color values are premultiplied by the alpha channel
+value. For example, if a light blue pixel with 50% transparency was described by
+RGBA values (128, 192, 255, 128), the same pixel described with premultiplied
+colors would be described by RGBA values (64, 96, 128, 128) </entry>
 	  </row>
 	</tbody>
       </tgroup>
