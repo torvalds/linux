@@ -350,7 +350,7 @@ u8 r8712_setfwdig_cmd(struct _adapter *padapter, u8 type)
 	ph2c = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (ph2c == NULL)
 		return _FAIL;
-	pwriteptmparm = kmalloc(sizeof(struct setdig_parm), GFP_ATOMIC);
+	pwriteptmparm = kmalloc(sizeof(struct writePTM_parm), GFP_ATOMIC);
 	if (pwriteptmparm == NULL) {
 		kfree((u8 *) ph2c);
 		return _FAIL;
@@ -370,7 +370,7 @@ u8 r8712_setfwra_cmd(struct _adapter *padapter, u8 type)
 	ph2c = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (ph2c == NULL)
 		return _FAIL;
-	pwriteptmparm = kmalloc(sizeof(struct setra_parm), GFP_ATOMIC);
+	pwriteptmparm = kmalloc(sizeof(struct writePTM_parm), GFP_ATOMIC);
 	if (pwriteptmparm == NULL) {
 		kfree((u8 *) ph2c);
 		return _FAIL;
