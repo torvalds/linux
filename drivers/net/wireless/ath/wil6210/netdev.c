@@ -32,12 +32,26 @@ static int wil_stop(struct net_device *ndev)
 	return wil_down(wil);
 }
 
+static int wil_change_mtu(struct net_device *ndev, int new_mtu)
+{
+	struct wil6210_priv *wil = ndev_to_wil(ndev);
+
+	if (new_mtu < 68 || new_mtu > IEEE80211_MAX_DATA_LEN_DMG)
+		return -EINVAL;
+
+	wil_dbg_misc(wil, "change MTU %d -> %d\n", ndev->mtu, new_mtu);
+	ndev->mtu = new_mtu;
+
+	return 0;
+}
+
 static const struct net_device_ops wil_netdev_ops = {
 	.ndo_open		= wil_open,
 	.ndo_stop		= wil_stop,
 	.ndo_start_xmit		= wil_start_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= wil_change_mtu,
 };
 
 static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
