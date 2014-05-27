@@ -100,8 +100,6 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 #undef EVENT_PRIO_ANT
 
-#define BT_ENABLE_REDUCED_TXPOWER_THRESHOLD	(-62)
-#define BT_DISABLE_REDUCED_TXPOWER_THRESHOLD	(-65)
 #define BT_ANTENNA_COUPLING_THRESHOLD		(30)
 
 static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
@@ -807,9 +805,9 @@ void iwl_mvm_bt_coex_enable_rssi_event(struct iwl_mvm *mvm,
 
 	mvmvif->bf_data.last_bt_coex_event = rssi;
 	mvmvif->bf_data.bt_coex_max_thold =
-		enable ? BT_ENABLE_REDUCED_TXPOWER_THRESHOLD : 0;
+		enable ? -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH : 0;
 	mvmvif->bf_data.bt_coex_min_thold =
-		enable ? BT_DISABLE_REDUCED_TXPOWER_THRESHOLD : 0;
+		enable ? -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH : 0;
 }
 
 /* must be called under rcu_read_lock */
@@ -946,7 +944,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	/* if the RSSI isn't valid, fake it is very low */
 	if (!ave_rssi)
 		ave_rssi = -100;
-	if (ave_rssi > BT_ENABLE_REDUCED_TXPOWER_THRESHOLD) {
+	if (ave_rssi > -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH) {
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, true))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
 
@@ -957,7 +955,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		 * the iteration, if one interface's rssi isn't good enough,
 		 * bt_kill_msk will be set to default values.
 		 */
-	} else if (ave_rssi < BT_DISABLE_REDUCED_TXPOWER_THRESHOLD) {
+	} else if (ave_rssi < -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH) {
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
 
