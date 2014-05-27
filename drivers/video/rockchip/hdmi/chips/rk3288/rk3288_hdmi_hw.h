@@ -2,9 +2,9 @@
 #define _RK3288_HDMI_HW_H
 #include "../../rk_hdmi.h"
 
-#define HDMI_INT_USE_POLL 1	//TODO Daisen wait to modify
+#define HDMI_INT_USE_POLL 1	/* TODO Daisen wait to modify */
 
-enum PWR_MODE{
+enum PWR_MODE {
 	NORMAL,
 	LOWER_PWR,
 };
@@ -12,26 +12,26 @@ enum {
 	OUTPUT_DVI = 0,
 	OUTPUT_HDMI,
 };
-enum{
+enum {
 	INPUT_IIS,
 	INPUT_SPDIF
 };
 
 /* Color Space Convertion Mode */
 enum {
-	CSC_RGB_0_255_TO_RGB_16_235_8BIT,	//RGB 0-255 input to RGB 16-235 output that is 8bit clolor depth
-	CSC_RGB_0_255_TO_RGB_16_235_10BIT,	//RGB 0-255 input to RGB 16-235 output that is 8bit clolor depth
-	CSC_RGB_0_255_TO_ITU601_16_235_8BIT,	//RGB 0-255 input to YCbCr 16-235 output according BT601 that is 8bit clolor depth
-	CSC_RGB_0_255_TO_ITU601_16_235_10BIT,	//RGB 0-255 input to YCbCr 16-235 output according BT601 that is 10bit clolor depth
-	CSC_RGB_0_255_TO_ITU709_16_235_8BIT,	//RGB 0-255 input to YCbCr 16-235 output accroding BT709 that is 8bit clolor depth
-	CSC_RGB_0_255_TO_ITU709_16_235_10BIT,	//RGB 0-255 input to YCbCr 16-235 output accroding BT709 that is 10bit clolor depth
-	CSC_ITU601_16_235_TO_RGB_16_235_8BIT,	//YCbCr 16-235 input to RGB 16-235 output according BT601 that is 8bit clolor depth
-	CSC_ITU709_16_235_TO_RGB_16_235_8BIT,	//YCbCr 16-235 input to RGB 16-235 output according BT709 that is 8bit clolor depth
-	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,	//YCbCr 16-235 input to RGB 0-255 output according BT601 that is 8bit clolor depth
-	CSC_ITU709_16_235_TO_RGB_0_255_8BIT	//YCbCr 16-235 input to RGB 0-255 output according BT709 that is 8bit clolor depth
+	CSC_RGB_0_255_TO_RGB_16_235_8BIT,	/* RGB 0-255 input to RGB 16-235 output that is 8bit clolor depth */
+	CSC_RGB_0_255_TO_RGB_16_235_10BIT,	/* RGB 0-255 input to RGB 16-235 output that is 8bit clolor depth */
+	CSC_RGB_0_255_TO_ITU601_16_235_8BIT,	/* RGB 0-255 input to YCbCr 16-235 output according BT601 that is 8bit clolor depth */
+	CSC_RGB_0_255_TO_ITU601_16_235_10BIT,	/* RGB 0-255 input to YCbCr 16-235 output according BT601 that is 10bit clolor depth */
+	CSC_RGB_0_255_TO_ITU709_16_235_8BIT,	/* RGB 0-255 input to YCbCr 16-235 output accroding BT709 that is 8bit clolor depth */
+	CSC_RGB_0_255_TO_ITU709_16_235_10BIT,	/* RGB 0-255 input to YCbCr 16-235 output accroding BT709 that is 10bit clolor depth */
+	CSC_ITU601_16_235_TO_RGB_16_235_8BIT,	/* YCbCr 16-235 input to RGB 16-235 output according BT601 that is 8bit clolor depth */
+	CSC_ITU709_16_235_TO_RGB_16_235_8BIT,	/* YCbCr 16-235 input to RGB 16-235 output according BT709 that is 8bit clolor depth */
+	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,	/* YCbCr 16-235 input to RGB 0-255 output according BT601 that is 8bit clolor depth */
+	CSC_ITU709_16_235_TO_RGB_0_255_8BIT	/* YCbCr 16-235 input to RGB 0-255 output according BT709 that is 8bit clolor depth */
 };
 
-/*VIC VIDEO FORMAT*/
+/* VIC VIDEO FORMAT */
 enum {
 	HDMI_VIDEO_FORMAT_NORMAL = 0,
 	HDMI_VIDEO_FORMAT_4Kx2K,
@@ -39,14 +39,14 @@ enum {
 };
 
 #define HDMI_SCL_RATE		(100*1000)
-#define DDC_I2C_EDID_ADDR	0x50	// 0xA0/2 = 0x50
-#define DDC_I2C_SEG_ADDR	0x30	// 0x60/2 = 0x30
+#define DDC_I2C_EDID_ADDR	0x50	/* 0xA0/2 = 0x50 */
+#define DDC_I2C_SEG_ADDR	0x30	/* 0x60/2 = 0x30 */
 
-/*Register and Field Descriptions*/
-/*Identification Registers*/
+/* Register and Field Descriptions */
+/* Identification Registers */
 #define IDENTIFICATION_BASE		0x0000
 
-#define	DESIGN_ID 			0x0000
+#define DESIGN_ID			0x0000
 #define REVISION_ID			0x0001
 #define PRODUCT_ID0			0x0002
 #define PRODUCT_ID1			0x0003
@@ -77,8 +77,7 @@ enum PHYTYPE {
 #define m_AHB_AUD_DMA		(1 << 1)
 #define m_GP_AUD		(1 << 0)
 
-
-/*Interrupt Registers*/
+/* Interrupt Registers */
 #define INTERRUPT_BASE                  0x0100
 
 #define IH_FC_STAT0			0x0100
@@ -112,7 +111,7 @@ enum PHYTYPE {
 #define IH_PHY_STAT0			0x0104
 #define m_RX_SENSE3		(1 << 5)
 #define m_RX_SENSE2		(1 << 4)
-#define m_RX_SENSE1 		(1 << 3)
+#define m_RX_SENSE1		(1 << 3)
 #define m_RX_SENSE0		(1 << 2)
 #define m_TX_PHY_LOCK		(1 << 1)
 #define m_HPD			(1 << 0)
@@ -235,21 +234,21 @@ enum PHYTYPE {
 #define IH_MUTE_AHBDMAAUD_STAT0		0x0189
 #define IH_MUTE				0x01ff
 
-/*Video Sampler Registers*/
+/* Video Sampler Registers */
 #define VIDEO_SAMPLER_BASE		0x0200
 
 #define TX_INVID0			0x0200
 #define m_INTERNAL_DE_GEN	(1 << 7)
 #define v_INTERNAL_DE_GEN(n)	(((n)&0x01) << 7)
-enum VIDEO_MODE{
+enum VIDEO_MODE {
 	VIDEO_RGB444_8BIT = 0x01,
 	VIDEO_RGB444_10BIT = 0x03,
 	VIDEO_RGB444_12BIT = 0x05,
 	VIDEO_RGB444_16BIT = 0x07,
-	VIDEO_YCBCR444_8BIT = 0x09,	//or YCbCr420
-	VIDEO_YCBCR444_10BIT = 0x0b,	//or YCbCr420
-	VIDEO_YCBCR444_12BIT = 0x0d,	//or YCbCr420
-	VIDEO_YCBCR444_16BIT = 0x0f,	//or YCbCr420
+	VIDEO_YCBCR444_8BIT = 0x09,	/* or YCbCr420 */
+	VIDEO_YCBCR444_10BIT = 0x0b,	/* or YCbCr420 */
+	VIDEO_YCBCR444_12BIT = 0x0d,	/* or YCbCr420 */
+	VIDEO_YCBCR444_16BIT = 0x0f,	/* or YCbCr420 */
 	VIDEO_YCBCR422_12BIT = 0x12,
 	VIDEO_YCBCR422_10BIT = 0x14,
 	VIDEO_YCBCR422_8BIT = 0x16
@@ -272,8 +271,7 @@ enum VIDEO_MODE{
 #define TX_BCBDATA0			0x0206
 #define TX_BCBDATA1			0x0207
 
-
-/*Video Packetizer Registers*/
+/* Video Packetizer Registers */
 #define VIDEO_PACKETIZER_BASE		0x0800
 
 #define VP_STATUS			0x0800
@@ -295,11 +293,11 @@ enum PIXEL_REPET {
 	PIXEL_SENT_3TIMES,
 	PIXEL_SENT_4TIMES,
 	PIXEL_SENT_5TIMES,
-        PIXEL_SENT_6TIMES,
-        PIXEL_SENT_7TIMES,
+	PIXEL_SENT_6TIMES,
+	PIXEL_SENT_7TIMES,
 	PIXEL_SENT_8TIMES,
-        PIXEL_SENT_9TIMES,
-        PIXEL_SENT_10TIMES
+	PIXEL_SENT_9TIMES,
+	PIXEL_SENT_10TIMES
 };
 #define m_DESIRED_PR_FACTOR	(0x0f << 0)
 #define v_DESIRED_PR_FACTOR(n)	(((n)&0x0f) << 0)
@@ -321,7 +319,7 @@ enum {
 #define v_PR_STUFFING(n)	(((n)&0x01) << 0)
 
 #define VP_REMAP			0x0803
-enum YCC422_SIZE{
+enum YCC422_SIZE {
 	YCC422_16BIT = 0,
 	YCC422_20BIT,
 	YCC422_24BIT
@@ -358,8 +356,7 @@ enum {
 #define m_OINTFULL_BYPASS	(1 << 1)
 #define m_OINTEMPTY_BYPASS	(1 << 0)
 
-
-/*Frame Composer Registers*/
+/* Frame Composer Registers */
 #define FRAME_COMPOSER_BASE		0x1000
 
 #define	FC_INVIDCONF			0x1000
@@ -493,7 +490,7 @@ enum {
 };
 
 #define	FC_AVICONF0			0x1019
-#define m_FC_RGC_YCC_2		(1 << 7)	//use for HDMI2.0 TX
+#define m_FC_RGC_YCC_2		(1 << 7)	/* use for HDMI2.0 TX */
 #define v_FC_RGC_YCC_2(n)	(((n)&0x01) << 7)
 #define m_FC_ACTIV_FORMAT	(1 << 6)
 #define v_FC_ACTIV_FORMAT(n)	(((n)&0x01) << 6)
@@ -523,7 +520,7 @@ enum {
 #define v_FC_NUN_PIC_SCALE(n)	(((n)&0x03) << 0)
 
 #define	FC_AVIVID			0x101c
-#define m_FC_AVIVID_H		(1 << 7)	//use for HDMI2.0 TX
+#define m_FC_AVIVID_H		(1 << 7)	/* use for HDMI2.0 TX */
 #define v_FC_AVIVID_H(n)	(((n)&0x01) << 7)
 #define m_FC_AVIVID		(0x7f << 0)
 #define v_FC_AVIVID(n)		(((n)&0x7f) << 0)
@@ -552,7 +549,7 @@ enum {
 #define	FC_AUDICONF2			0x1027
 
 #define	FC_AUDICONF3			0x1028
-#define m_FC_LFE_PBL		(0x03 << 5)	//only use for HDMI1.4 TX
+#define m_FC_LFE_PBL		(0x03 << 5)	/* only use for HDMI1.4 TX */
 #define v_FC_LFE_PBL(n)		(((n)&0x03) << 5)
 #define m_FC_DM_INH		(1 << 4)
 #define v_FC_DM_INH(n)		(((n)&0x01) << 4)
@@ -563,9 +560,9 @@ enum {
 #define	FC_VSDSIZE			0x102a
 #define	FC_VSDIEEEID1			0x1030
 #define	FC_VSDIEEEID0			0x1031
-#define	FC_VSDPAYLOAD0 			0x1032	//0~23
-#define	FC_SPDVENDORNAME0 		0x104a	//0~7
-#define	FC_SPDPRODUCTNAME0 		0x1052	//0~15
+#define	FC_VSDPAYLOAD0			0x1032	/* 0~23 */
+#define	FC_SPDVENDORNAME0		0x104a	/* 0~7 */
+#define	FC_SPDPRODUCTNAME0		0x1052	/* 0~15 */
 #define	FC_SPDDEVICEINF			0x1062
 
 #define	FC_AUDSCONF			0x1063
@@ -577,16 +574,16 @@ enum {
 #define	FC_AUDSSTAT			0x1064
 #define	FC_AUDSV			0x1065
 #define	FC_AUDSU			0x1066
-#define	FC_AUDSCHNLS0			0x1067	//0~8
-#define	FC_CTRLQHIGH 			0x1073
+#define	FC_AUDSCHNLS0			0x1067	/* 0~8 */
+#define	FC_CTRLQHIGH			0x1073
 #define	FC_CTRLQLOW			0x1074
 #define	FC_ACP0				0x1075
-#define	FC_ACP16 			0x1082	//16~1
-#define	FC_ISCR1_0 			0x1092
-#define	FC_ISCR1_16			0x1093	//16~1
-#define	FC_ISCR2_15 			0x10a3	//15~0
+#define	FC_ACP16			0x1082	/* 16~1 */
+#define	FC_ISCR1_0			0x1092
+#define	FC_ISCR1_16			0x1093	/* 16~1 */
+#define	FC_ISCR2_15			0x10a3	/* 15~0 */
 
-#define	FC_DATAUTO0 			0x10b3
+#define	FC_DATAUTO0			0x10b3
 #define m_SPD_AUTO		(1 << 4)
 #define v_SPD_AUTO(n)		(((n)&0x01) << 4)
 #define m_VSD_AUTO		(1 << 3)
@@ -622,11 +619,11 @@ enum {
 #define	FC_RDRB5			0x10bd
 #define	FC_RDRB6			0x10be
 #define	FC_RDRB7			0x10bf
-#define	FC_MASK0 			0x10d2
-#define	FC_MASK1 			0x10d6
-#define	FC_MASK2 			0x10da
+#define	FC_MASK0			0x10d2
+#define	FC_MASK1			0x10d6
+#define	FC_MASK2			0x10da
 
-#define	FC_PRCONF 			0x10e0
+#define	FC_PRCONF			0x10e0
 #define m_FC_PR_FACTOR		(0x0f << 4)
 #define v_FC_PR_FACTOR(n)	(((n)&0x0f) << 4)
 
@@ -641,42 +638,41 @@ enum {
 #define	FC_GMD_UP			0x1102
 #define	FC_GMD_CONF			0x1103
 #define	FC_GMD_HB			0x1104
-#define	FC_GMD_PB0			0x1105	//0~27
+#define	FC_GMD_PB0			0x1105	/* 0~27 */
 
-#define	FC_DBGFORCE 			0x1200
+#define FC_DBGFORCE			0x1200
 #define m_FC_FORCEAUDIO		(1 << 4)
 #define v_FC_FORCEAUDIO(n)	(((n)&0x01) << 4)
 #define m_FC_FORCEVIDEO		(1 << 0)
 #define v_FC_FORCEVIDEO(n)	(((n)&0x01) << 0)
 
-#define	FC_DBGAUD0CH0			0x1201	//aud0~aud2 ch0
-#define	FC_DBGAUD0CH1 			0x1204	//aud0~aud2 ch1
-#define	FC_DBGAUD0CH2 			0x1207	//aud0~aud2 ch2
-#define	FC_DBGAUD0CH3 			0x120a	//aud0~aud2 ch3
-#define	FC_DBGAUD0CH4 			0x120d	//aud0~aud2 ch4
-#define	FC_DBGAUD0CH5 			0x1210	//aud0~aud2 ch5
-#define	FC_DBGAUD0CH6 			0x1213	//aud0~aud2 ch6
-#define	FC_DBGAUD0CH7 			0x1216	//aud0~aud2 ch7
-#define	FC_DBGTMDS0 			0x1219
+#define	FC_DBGAUD0CH0			0x1201	/* aud0~aud2 ch0 */
+#define	FC_DBGAUD0CH1			0x1204	/* aud0~aud2 ch1 */
+#define	FC_DBGAUD0CH2			0x1207	/* aud0~aud2 ch2 */
+#define	FC_DBGAUD0CH3			0x120a	/* aud0~aud2 ch3 */
+#define	FC_DBGAUD0CH4			0x120d	/* aud0~aud2 ch4 */
+#define	FC_DBGAUD0CH5			0x1210	/* aud0~aud2 ch5 */
+#define	FC_DBGAUD0CH6			0x1213	/* aud0~aud2 ch6 */
+#define	FC_DBGAUD0CH7			0x1216	/* aud0~aud2 ch7 */
+#define	FC_DBGTMDS0			0x1219
 #define	FC_DBGTMDS1			0x121a
 #define	FC_DBGTMDS2			0x121b
 
-
-/*HDMI Source PHY Registers*/
+/* HDMI Source PHY Registers */
 #define HDMI_SOURCE_PHY_BASE		0x3000
 
 #define PHY_CONF0			0x3000
-#define m_POWER_DOWN_EN		(1 << 7)		//enable depend on PHY_GEN2=0 and PHY_EXTERNAL=0
+#define m_POWER_DOWN_EN		(1 << 7)	/* enable depend on PHY_GEN2=0 and PHY_EXTERNAL=0 */
 #define v_POWER_DOWN_EN(n)	(((n)&0x01) << 7)
-#define m_TMDS_EN		(1 << 6)		//enable depend on PHY_GEN2=0 and PHY_EXTERNAL=0
+#define m_TMDS_EN		(1 << 6)	/* enable depend on PHY_GEN2=0 and PHY_EXTERNAL=0 */
 #define v_TMDS_EN(n)		(((n)&0x01) << 6)
-#define	m_SVSRET_SIG		(1 << 5)		//depend on PHY_MHL_COMB0=1
+#define	m_SVSRET_SIG		(1 << 5)	/* depend on PHY_MHL_COMB0=1 */
 #define v_SVSRET_SIG(n)		(((n)&0x01) << 5)
-#define m_PDDQ_SIG		(1 << 4)		//depend on PHY_GEN2=1 or PHY_EXTERNAL=1
+#define m_PDDQ_SIG		(1 << 4)	/* depend on PHY_GEN2=1 or PHY_EXTERNAL=1 */
 #define v_PDDQ_SIG(n)		(((n)&0x01) << 4)
-#define m_TXPWRON_SIG		(1 << 3)		//depend on PHY_GEN2=1 or PHY_EXTERNAL=1
+#define m_TXPWRON_SIG		(1 << 3)	/* depend on PHY_GEN2=1 or PHY_EXTERNAL=1 */
 #define v_TXPWRON_SIG(n)	(((n)&0x01) << 3)
-#define m_ENHPD_RXSENSE_SIG	(1 << 2)		//depend on PHY_GEN2=1 or PHY_EXTERNAL=1
+#define m_ENHPD_RXSENSE_SIG	(1 << 2)	/* depend on PHY_GEN2=1 or PHY_EXTERNAL=1 */
 #define v_ENHPD_RXSENSE_SIG(n)	(((n)&0x01) << 2)
 #define m_SEL_DATAEN_POL	(1 << 1)
 #define v_SEL_DATAEN_POL(n)	(((n)&0x01) << 1)
@@ -713,8 +709,7 @@ enum {
 #define PHY_PLLCFGFREQ1			0x300b
 #define PHY_PLLCFGFREQ2			0x300c
 
-
-/*I2C Master PHY Registers*/
+/* I2C Master PHY Registers */
 #define I2C_MASTER_PHY_BASE		0x3020
 
 #define	PHY_I2CM_SLAVE			0x3020
@@ -772,8 +767,7 @@ enum {
 #define	PHY_I2CM_FS_SCL_LCNT_0_ADDR	0x3032
 #define	PHY_I2CM_SDA_HOLD		0x3033
 
-
-/*Audio Sampler Registers*/
+/* Audio Sampler Registers */
 #define AUDIO_SAMPLER_BASE		0x3100
 
 #define AUD_CONF0			0x3100
@@ -811,9 +805,9 @@ enum I2S_WIDTH {
 	I2S_19BIT_SAMPLE,
 	I2S_20BIT_SAMPLE,
 	I2S_21BIT_SAMPLE,
-        I2S_22BIT_SAMPLE,
-        I2S_23BIT_SAMPLE,
-        I2S_24BIT_SAMPLE,
+	I2S_22BIT_SAMPLE,
+	I2S_23BIT_SAMPLE,
+	I2S_24BIT_SAMPLE,
 };
 #define m_I2S_WIDTH		(0x1f << 0)
 #define v_I2S_WIDTH(n)		(((n)&0x1f) << 0)
@@ -838,31 +832,31 @@ enum I2S_WIDTH {
 
 /***************N-CTS Table**************/
 /*	TMDS LOWCLK:	<=148.5M	*/
-/*	TMDS MIDCLK: 	297M		*/
-/*	TMDS HIGHCLK: 	594M		*/
-#define N_32K_LOWCLK 		0x1000
+/*	TMDS MIDCLK:	297M		*/
+/*	TMDS HIGHCLK:	594M		*/
+#define N_32K_LOWCLK		0x1000
 #define N_32K_MIDCLK		0x0c00
 #define N_32K_HIGHCLK		0x0c00
-#define N_441K_LOWCLK 		0x1880
+#define N_441K_LOWCLK		0x1880
 #define N_441K_MIDCLK		0x1260
 #define N_441K_HIGHCLK		0x24c0
-#define N_48K_LOWCLK 		0x1800
-#define N_48K_MIDCLK 		0x1400
-#define N_48K_HIGHCLK 		0x1800
-#define N_882K_LOWCLK 		0x3100
-#define N_882K_MIDCLK 		0x24c0
-#define N_882K_HIGHCLK 		0x4980
+#define N_48K_LOWCLK		0x1800
+#define N_48K_MIDCLK		0x1400
+#define N_48K_HIGHCLK		0x1800
+#define N_882K_LOWCLK		0x3100
+#define N_882K_MIDCLK		0x24c0
+#define N_882K_HIGHCLK		0x4980
 #define N_96K_LOWCLK		0x3000
 #define N_96K_MIDCLK		0x2800
 #define N_96K_HIGHCLK		0x3000
-#define N_1764K_LOWCLK 		0x6200
-#define N_1764K_MIDCLK 		0x4980
-#define N_1764K_HIGHCLK 	0x9300
-#define N_192K_LOWCLK 		0x6000
-#define N_192K_MIDCLK 		0x5000
-#define N_192K_HIGHCLK 		0x6000
+#define N_1764K_LOWCLK		0x6200
+#define N_1764K_MIDCLK		0x4980
+#define N_1764K_HIGHCLK		0x9300
+#define N_192K_LOWCLK		0x6000
+#define N_192K_MIDCLK		0x5000
+#define N_192K_HIGHCLK		0x6000
 
-#define CALC_CTS(N, TMDSCLK, FS)	((N) / 32) * (TMDSCLK) / ((FS) * 4)
+#define CALC_CTS(N, TMDSCLK, FS)	(((N) / 32) * (TMDSCLK) / ((FS) * 4))
 /****************************************/
 
 #define AUD_N1				0x3200
@@ -921,8 +915,7 @@ enum {
 #define m_SPDIF_WIDTH		(0x1f << 0)
 #define v_SPDIF_WIDTH(n)	(((n)&0x1f) << 0)
 
-
-/*Generic Parallel Audio Interface Registers*/
+/* Generic Parallel Audio Interface Registers */
 #define GP_AUDIO_INTERFACE_BASE		0x3500
 
 #define	GP_CONF0			0x3500
@@ -930,29 +923,27 @@ enum {
 #define	GP_CONF2			0x3502
 #define	GP_MASK				0x3506
 
-
-/*Audio DMA Registers*/
+/* Audio DMA Registers */
 #define AUDIO_DMA_BASE			0x3600
 
 #define	AHB_DMA_CONF0			0x3600
 #define	AHB_DMA_START			0x3601
 #define	AHB_DMA_STOP			0x3602
 #define	AHB_DMA_THRSLD			0x3603
-#define	AHB_DMA_STRADDR_SET0_0		0x3604	//0~3
-#define	AHB_DMA_STPADDR_SET0_0 		0x3608	//0~3
-#define	AHB_DMA_BSTADDR0 		0x360c	//0~3
-#define	AHB_DMA_MBLENGTH0 		0x3610	//0~3,
-#define	AHB_DMA_MASK 			0x3614
-#define	AHB_DMA_CONF1 			0x3616
-#define	AHB_DMA_BUFFMASK 		0x3619
-#define	AHB_DMA_MASK1 			0x361b
+#define	AHB_DMA_STRADDR_SET0_0		0x3604	/* 0~3 */
+#define	AHB_DMA_STPADDR_SET0_0		0x3608	/* 0~3 */
+#define	AHB_DMA_BSTADDR0		0x360c	/* 0~3 */
+#define	AHB_DMA_MBLENGTH0		0x3610	/* 0~3 */
+#define	AHB_DMA_MASK			0x3614
+#define	AHB_DMA_CONF1			0x3616
+#define	AHB_DMA_BUFFMASK		0x3619
+#define	AHB_DMA_MASK1			0x361b
 #define	AHB_DMA_STATUS			0x361c
 #define	AHB_DMA_CONF2			0x361d
-#define	AHB_DMA_STRADDR_SET1_0 		0x3620	//0~3
-#define	AHB_DMA_STPADDR_SET1_0 		0x3624 	//0~3
+#define	AHB_DMA_STRADDR_SET1_0		0x3620	/* 0~3 */
+#define	AHB_DMA_STPADDR_SET1_0		0x3624	/* 0~3 */
 
-
-/*Main Controller Registers*/
+/* Main Controller Registers */
 #define MAIN_CONTROLLER_BASE		0x4000
 
 #define MC_CLKDIS			0x4001
@@ -982,8 +973,8 @@ enum {
 #define v_II2S_SWRST(n)         (((n)&0x01) << 3)
 #define m_PREP_SWRST            (1 << 2)
 #define v_PREP_SWRST(n)         (((n)&0x01) << 2)
-#define m_TMDS_SWRST          	(1 << 1)
-#define v_TMDS_SWRST(n)       	(((n)&0x01) << 1)
+#define m_TMDS_SWRST		(1 << 1)
+#define v_TMDS_SWRST(n)		(((n)&0x01) << 1)
 #define m_PIXEL_SWRST           (1 << 0)
 #define v_PIXEL_SWRST(n)        (((n)&0x01) << 0)
 
@@ -1008,12 +999,12 @@ enum {
 #define v_TMDSCLK_ON(n)         (((n)&0x01) << 5)
 #define m_PREPCLK_ON            (1 << 4)
 #define v_PREPCLK_ON(n)         (((n)&0x01) << 4)
-#define m_I2SCLK_ON            	(1 << 3)
-#define v_I2SCLK_ON(n)         	(((n)&0x01) << 3)
+#define m_I2SCLK_ON		(1 << 3)
+#define v_I2SCLK_ON(n)		(((n)&0x01) << 3)
 #define m_SPDIFCLK_ON           (1 << 2)
-#define v_SPDIFCLK_ON(n)       	(((n)&0x01) << 2)
-#define m_CECCLK_ON            	(1 << 0)
-#define v_CECCLK_ON(n)         	(((n)&0x01) << 0)
+#define v_SPDIFCLK_ON(n)	(((n)&0x01) << 2)
+#define m_CECCLK_ON		(1 << 0)
+#define v_CECCLK_ON(n)		(((n)&0x01) << 0)
 
 #define MC_HEACPHY_RST			0x4007
 #define m_HEAC_PHY_RST		(1 << 0)
@@ -1027,8 +1018,7 @@ enum {
 #define m_AHB_AUD_DMA_RST       (1 << 7)
 #define v_AHB_AUD_DMA_RST(n)    (((n)&0x01) << 7)
 
-
-/*Color Space Converter Registers*/
+/* Color Space Converter Registers */
 #define COLOR_SPACE_CONVERTER_BASE	0x4100
 
 #define	CSC_CFG				0x4100
@@ -1040,8 +1030,8 @@ enum {
 #define	CSC_SCALE			0x4101
 #define m_CSC_COLOR_DEPTH	(0x0f << 4)
 #define v_CSC_COLOR_DEPTH(n)	(((n)&0x0f) << 4)
-#define m_CSC_SCALE       	(0x03 << 0)
-#define v_CSC_SCALE(n)       	(((n)&0x03) << 0)
+#define m_CSC_SCALE		(0x03 << 0)
+#define v_CSC_SCALE(n)		(((n)&0x03) << 0)
 
 #define	CSC_COEF_A1_MSB			0x4102
 #define	CSC_COEF_A1_LSB			0x4103
@@ -1070,11 +1060,10 @@ enum {
 #define	CSC_SPARE_1			0x411a
 #define	CSC_SPARE_2			0x411b
 
-
-/*HDCP Encryption Engine Registers*/
+/* HDCP Encryption Engine Registers */
 #define HDCP_ENCRYPTION_ENGINE_BASE	0x5000
 
-#define	A_HDCPCFG0 			0x5000
+#define	A_HDCPCFG0			0x5000
 #define m_HDCP_ENHANCE_LIKE	(1 << 7)
 #define v_HDCP_ENHANCE_LIKE(n)	(((n)&0x01) << 7)
 #define m_I2C_FAST_MODE		(1 << 6)
@@ -1153,7 +1142,7 @@ enum {
 #define v_HSYNC_POL(n)		(((n)&0x01) << 1)
 
 #define	A_OESSWCFG			0x500a
-#define	A_COREVERLSB 			0x5014
+#define	A_COREVERLSB			0x5014
 #define	A_COREVERMSB			0x5015
 
 #define	A_KSVMEMCTRL			0x5016
@@ -1165,7 +1154,7 @@ enum {
 #define m_KSV_MEM_REQ		(1 << 0)
 #define v_KSV_MEM_REQ(n)	(((n)&0x01) << 0)
 
-#define	HDCP_BSTATUS_0 			0x5020
+#define	HDCP_BSTATUS_0			0x5020
 #define m_MAX_DEVS_EXCEEDED	(1 << 7)
 #define m_DEVICE_COUNT		(0x7f << 0)
 
@@ -1178,14 +1167,13 @@ enum {
 #define	HDCP_M0_5			0x5027
 #define	HDCP_M0_6			0x5028
 #define	HDCP_M0_7			0x5029
-#define	HDCP_KSV			0x502a	//0~634
-#define	HDCP_VH 			0x52a5	//0~19
-#define	HDCP_REVOC_SIZE_0 		0x52b9
+#define	HDCP_KSV			0x502a	/* 0~634 */
+#define	HDCP_VH				0x52a5	/* 0~19 */
+#define	HDCP_REVOC_SIZE_0		0x52b9
 #define	HDCP_REVOC_SIZE_1		0x52ba
-#define	HDCP_REVOC_LIST			0x52bb	//0~5059
+#define	HDCP_REVOC_LIST			0x52bb	/* 0~5059 */
 
-
-/*HDCP BKSV Registers*/
+/* HDCP BKSV Registers */
 #define HDCP_BKSV_BASE			0x7800
 
 #define	HDCPREG_BKSV0			0x7800
@@ -1194,8 +1182,7 @@ enum {
 #define	HDCPREG_BKSV3			0x7803
 #define	HDCPREG_BKSV4			0x7804
 
-
-/*HDCP AN Registers*/
+/* HDCP AN Registers */
 #define HDCP_AN_BASE			0x7805
 
 #define	HDCPREG_ANCONF			0x7805
@@ -1211,13 +1198,12 @@ enum {
 #define	HDCPREG_AN6			0x780c
 #define	HDCPREG_AN7			0x780d
 
-
-/*Encrypted DPK Embedded Storage Registers*/
+/* Encrypted DPK Embedded Storage Registers */
 #define ENCRYPTED_DPK_EMBEDDED_BASE	0x780e
 
-#define	HDCPREG_RMCTL 			0x780e
+#define	HDCPREG_RMCTL			0x780e
 #define m_DPK_DECRYPT_EN	(1 << 0)
-#define v_DPK_DECRYPT_EN(n)	(((n)&0x01) <<0)
+#define v_DPK_DECRYPT_EN(n)	(((n)&0x01) << 0)
 
 #define	HDCPREG_RMSTS			0x780f
 #define m_DPK_WR_OK_STS		(1 << 6)
@@ -1233,26 +1219,24 @@ enum {
 #define	HDCPREG_DPK5			0x7817
 #define	HDCPREG_DPK6			0x7818
 
-
-/*CEC Engine Registers*/
+/* CEC Engine Registers */
 #define CEC_ENGINE_BASE			0x7d00
 
-#define	CEC_CTRL 			0x7d00
-#define	CEC_MASK 			0x7d02
-#define	CEC_ADDR_L 			0x7d05
+#define	CEC_CTRL			0x7d00
+#define	CEC_MASK			0x7d02
+#define	CEC_ADDR_L			0x7d05
 #define	CEC_ADDR_H			0x7d06
 #define	CEC_TX_CNT			0x7d07
 #define	CEC_RX_CNT			0x7d08
-#define	CEC_TX_DATA0 			0x7d10	//txdata0~txdata15
-#define	CEC_RX_DATA0 			0x7d20	//rxdata0~rxdata15
-#define	CEC_LOCK 			0x7d30
+#define	CEC_TX_DATA0			0x7d10	/* txdata0~txdata15 */
+#define	CEC_RX_DATA0			0x7d20	/* rxdata0~rxdata15 */
+#define CEC_LOCK			0x7d30
 #define	CEC_WKUPCTRL			0x7d31
 
-
-/*I2C Master Registers*/
+/* I2C Master Registers */
 #define I2C_MASTER_BASE			0x7e00
 
-#define	I2CM_SLAVE 			0x7e00
+#define	I2CM_SLAVE			0x7e00
 #define	I2CM_ADDRESS			0x7e01
 #define	I2CM_DATAO			0x7e02
 #define	I2CM_DATAI			0x7e03
@@ -1316,19 +1300,19 @@ enum {
 #define m_I2CM_READ_UPDATE	(1 << 0)
 #define v_I2CM_READ_UPDATE(n)	(((n)&0x01) << 0)
 
-#define	I2CM_READ_BUFF0 		0x7e20	//buff0~buff7
-#define	I2CM_SCDC_UPDATE0 		0x7e30
+#define	I2CM_READ_BUFF0			0x7e20	/* buff0~buff7 */
+#define	I2CM_SCDC_UPDATE0		0x7e30
 #define	I2CM_SCDC_UPDATE1		0x7e31
 
-
-
-/*********************************************HDMI TX PHY Define Start*********************************************/
+/*
+* HDMI TX PHY Define Start
+*/
 #define PHYTX_OPMODE_PLLCFG		0x06
 enum {
-	PREP_DIV_BY_2 = 0,	//16 bits
-	PREP_DIV_BY_15,		//12 bits
-	PREP_DIV_BY_125,	//10 bits
-	PREP_DIV_BY_1,		//8 bits
+	PREP_DIV_BY_2 = 0,	/* 16 bits */
+	PREP_DIV_BY_15,		/* 12 bits */
+	PREP_DIV_BY_125,	/* 10 bits */
+	PREP_DIV_BY_1,		/* 8 bits */
 };
 #define m_PREP_DIV		(0x03 << 13)
 #define v_PREP_DIV(n)		(((n)&0x03) << 13)
@@ -1340,7 +1324,7 @@ enum {
 };
 #define m_TMDS_CNTRL		(0x03 << 11)
 #define v_TMDS_CNTRL(n)		(((n)&0x03) << 11)
-enum OPMODE{
+enum OPMODE {
 	OP_HDMI_14 = 0,
 	OP_HDMI_20,
 };
@@ -1404,7 +1388,7 @@ enum {
 #define m_MPLL_GMP_CNTRL	(0x03 << 0)
 #define v_MPLL_GMP_CNTRL(n)	(((n)&0x03) << 0)
 
-enum TERM_RESIS{
+enum TERM_RESIS {
 	R50_Ohms = 0,
 	R5714_Ohms,
 	R6667_Ohms,
@@ -1417,7 +1401,6 @@ enum TERM_RESIS{
 #define PHYTX_TERM_RESIS		0x19
 #define m_TX_TERM		(0x07 << 0)
 #define v_TX_TERM(n)		(((n)&0x07) << 0)
-
 
 struct phy_mpll_config_tab {
 	u32 pix_clock;
@@ -1435,9 +1418,9 @@ struct phy_mpll_config_tab {
 	u16 gmp_cntrl;
 };
 
-/********************************************* HDMI TX PHY Define End *********************************************/
-
-
+/*
+* HDMI TX PHY Define End
+*/
 
 struct rk3288_hdmi_reg_table {
 	int reg_base;
@@ -1445,52 +1428,54 @@ struct rk3288_hdmi_reg_table {
 };
 
 struct rk3288_hdmi_device {
-	int			irq;
-	void __iomem  		*regbase;
-	int			regbase_phy;
-	int			regsize_phy;
-	int 			lcdc_id;
-	int			i2cm_int;
-	int 			phy_i2cm_int;
-	unsigned char		clk_on;
-	struct mutex 		int_mutex;
-	struct device 		*dev;
-	struct clk		*pd;
-	struct clk		*pclk;				//HDMI AHP clk
-	struct clk		*hdcp_clk;
-	struct hdmi 		driver;
-        struct dentry           *debugfs_dir;
+	int irq;
+	void __iomem *regbase;
+	int regbase_phy;
+	int regsize_phy;
+	int lcdc_id;
+	int i2cm_int;
+	int phy_i2cm_int;
+	unsigned char clk_on;
+	struct mutex int_mutex;
+	struct device *dev;
+	struct clk *pd;
+	struct clk *pclk;	/* HDMI AHP clk */
+	struct clk *hdcp_clk;
+	struct hdmi driver;
+	struct dentry *debugfs_dir;
 #ifdef HDMI_INT_USE_POLL
-	struct delayed_work	delay_work;
+	struct delayed_work delay_work;
 #endif
 };
-
 
 static inline u32 hdmi_readl(struct rk3288_hdmi_device *hdmi_dev, u16 offset)
 {
 	return readl_relaxed(hdmi_dev->regbase + (offset) * 0x04);
 }
 
-static inline int hdmi_writel(struct rk3288_hdmi_device *hdmi_dev, u16 offset, u32 val)
+static inline int hdmi_writel(struct rk3288_hdmi_device *hdmi_dev, u16 offset,
+			      u32 val)
 {
-        int ret = 0;
-        writel_relaxed(val, hdmi_dev->regbase + (offset) * 0x04);
-        return ret;
+	int ret = 0;
+	writel_relaxed(val, hdmi_dev->regbase + (offset) * 0x04);
+	return ret;
 }
 
-static inline int hdmi_msk_reg(struct rk3288_hdmi_device *hdmi_dev, u16 offset, u32 msk, u32 val)
+static inline int hdmi_msk_reg(struct rk3288_hdmi_device *hdmi_dev, u16 offset,
+			       u32 msk, u32 val)
 {
-        int ret = 0;
-        u32 temp;
-        temp = readl_relaxed(hdmi_dev->regbase + (offset) * 0x04) & (0xFF - (msk));
-        writel_relaxed(temp | ( (val) & (msk) ),  hdmi_dev->regbase + (offset) * 0x04);
-        return ret;
+	int ret = 0;
+	u32 temp;
+	temp =
+	    readl_relaxed(hdmi_dev->regbase + (offset) * 0x04) & (0xFF - (msk));
+	writel_relaxed(temp | ((val) & (msk)),
+		       hdmi_dev->regbase + (offset) * 0x04);
+	return ret;
 }
-
 
 int rk3288_hdmi_initial(struct hdmi *hdmi_drv);
 void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable);
-int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv, unsigned char pixel_repet, unsigned char color_depth);
-
+int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv, unsigned char pixel_repet,
+			   unsigned char color_depth);
 
 #endif
