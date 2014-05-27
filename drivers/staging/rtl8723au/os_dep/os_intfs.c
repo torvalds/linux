@@ -23,8 +23,6 @@
 
 #include <rtl8723a_hal.h>
 
-#include <linux/version.h>
-
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
 MODULE_AUTHOR("Realtek Semiconductor Corp.");
