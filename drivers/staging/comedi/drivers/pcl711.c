@@ -202,6 +202,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl711_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int data;
 
 	if (!dev->attached) {
@@ -217,8 +218,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 		s->async->events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 	} else {
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-		if (s->async->cmd.stop_src == TRIG_COUNT &&
-		    !(--devpriv->ntrig)) {
+		if (cmd->stop_src == TRIG_COUNT && !(--devpriv->ntrig)) {
 			pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 			s->async->events |= COMEDI_CB_EOA;
 		}
