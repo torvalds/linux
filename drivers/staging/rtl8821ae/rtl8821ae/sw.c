@@ -415,19 +415,11 @@ static struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] =  DESC_RATEMCS15,
 };
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
 static struct pci_device_id rtl8821ae_pci_ids[] = {
         {RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8812, rtl8821ae_hal_cfg)},
         {RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8821, rtl8821ae_hal_cfg)},
         {},
 };
-#else
-static struct pci_device_id rtl8821ae_pci_ids[] __devinitdata = {
-	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8812, rtl8821ae_hal_cfg)},
-	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8821, rtl8821ae_hal_cfg)},
-	{},
-};
-#endif
 
 MODULE_DEVICE_TABLE(pci, rtl8821ae_pci_ids);
 
@@ -445,14 +437,7 @@ MODULE_PARM_DESC(swenc, "using hardware crypto (default 0 [hardware])\n");
 MODULE_PARM_DESC(ips, "using no link power save (default 1 is open)\n");
 MODULE_PARM_DESC(fwlps, "using linked fw control power save (default 1 is open)\n");
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
 static SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29))
-compat_pci_suspend(rtl_pci_suspend)
-compat_pci_resume(rtl_pci_resume)
-#endif
 
 static struct pci_driver rtl8821ae_driver = {
 	.name = KBUILD_MODNAME,
@@ -460,13 +445,7 @@ static struct pci_driver rtl8821ae_driver = {
 	.probe = rtl_pci_probe,
 	.remove = rtl_pci_disconnect,
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
 	.driver.pm = &rtlwifi_pm_ops,
-#elif defined(CONFIG_PM)
-	.suspend = rtl_pci_suspend_compat,
-	.resume = rtl_pci_resume_compat,
-#endif
-
 };
 
 
