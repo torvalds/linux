@@ -54,6 +54,7 @@ static void brcmu_d11n_encchspec(struct brcmu_chan *ch)
 	if (ch->bw == BRCMU_CHAN_BW_20)
 		ch->sb = BRCMU_CHAN_SB_NONE;
 
+	ch->chspec = 0;
 	brcmu_maskset16(&ch->chspec, BRCMU_CHSPEC_CH_MASK,
 			BRCMU_CHSPEC_CH_SHIFT, ch->chnum);
 	brcmu_maskset16(&ch->chspec, BRCMU_CHSPEC_D11N_SB_MASK,
@@ -61,7 +62,6 @@ static void brcmu_d11n_encchspec(struct brcmu_chan *ch)
 	brcmu_maskset16(&ch->chspec, BRCMU_CHSPEC_D11N_BW_MASK,
 			0, d11n_bw(ch->bw));
 
-	ch->chspec &= ~BRCMU_CHSPEC_D11N_BND_MASK;
 	if (ch->chnum <= CH_MAX_2G_CHANNEL)
 		ch->chspec |= BRCMU_CHSPEC_D11N_BND_2G;
 	else
