@@ -706,17 +706,17 @@ const u8 RFaby11aChannelIndex[200] = {
  * Return Value: true if succeeded; false if failed.
  *
  */
-int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
+int IFRFbWriteEmbedded(struct vnt_private *priv, u32 data)
 {
-	u8 pbyData[4];
+	u8 reg_data[4];
 
-	pbyData[0] = (u8)dwData;
-	pbyData[1] = (u8)(dwData >> 8);
-	pbyData[2] = (u8)(dwData >> 16);
-	pbyData[3] = (u8)(dwData >> 24);
+	reg_data[0] = (u8)data;
+	reg_data[1] = (u8)(data >> 8);
+	reg_data[2] = (u8)(data >> 16);
+	reg_data[3] = (u8)(data >> 24);
 
-	vnt_control_out(pDevice,
-		MESSAGE_TYPE_WRITE_IFRF, 0, 0, ARRAY_SIZE(pbyData), pbyData);
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE_IFRF,
+				0, 0, ARRAY_SIZE(reg_data), reg_data);
 
 	return true;
 }
