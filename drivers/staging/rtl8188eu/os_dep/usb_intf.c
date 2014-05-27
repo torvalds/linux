@@ -654,7 +654,6 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 	rtw_dev_unload(if1);
 	DBG_88E("+r871xu_dev_remove, hw_init_completed=%d\n",
 		if1->hw_init_completed);
-	rtw_handle_dualmac(if1, 0);
 	rtw_free_drv_sw(if1);
 	if (pnetdev)
 		rtw_free_netdev(pnetdev);
