@@ -531,6 +531,64 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 		array[i] = ((array[i] >> shift) & maxdata) ^ invert;
 }
 
+static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
+					  struct comedi_subdevice *s)
+{
+	struct pci9111_private_data *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int total = 0;
+	unsigned int samples;
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    PCI9111_FIFO_HALF_SIZE > devpriv->stop_counter)
+		samples = devpriv->stop_counter;
+	else
+		samples = PCI9111_FIFO_HALF_SIZE;
+
+	insw(dev->iobase + PCI9111_AI_FIFO_REG,
+	     devpriv->ai_bounce_buffer, samples);
+
+	if (devpriv->scan_delay < 1) {
+		total = cfc_write_array_to_buffer(s,
+						  devpriv->ai_bounce_buffer,
+						  samples * sizeof(short));
+	} else {
+		unsigned int pos = 0;
+		unsigned int to_read;
+
+		while (pos < samples) {
+			if (devpriv->chunk_counter < cmd->chanlist_len) {
+				to_read = cmd->chanlist_len -
+					  devpriv->chunk_counter;
+
+				if (to_read > samples - pos)
+					to_read = samples - pos;
+
+				total += cfc_write_array_to_buffer(s,
+						devpriv->ai_bounce_buffer + pos,
+						to_read * sizeof(short));
+			} else {
+				to_read = devpriv->chunk_num_samples -
+					  devpriv->chunk_counter;
+
+				if (to_read > samples - pos)
+					to_read = samples - pos;
+
+				total += to_read * sizeof(short);
+			}
+
+			pos += to_read;
+			devpriv->chunk_counter += to_read;
+
+			if (devpriv->chunk_counter >=
+			    devpriv->chunk_num_samples)
+				devpriv->chunk_counter = 0;
+		}
+	}
+
+	devpriv->stop_counter -= total / sizeof(short);
+}
+
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 {
 	struct comedi_device *dev = p_device;
@@ -581,74 +639,8 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		}
 
 		/* '0' means FIFO is half-full */
-		if (!(status & PCI9111_AI_STAT_FF_HF)) {
-			unsigned int num_samples;
-			unsigned int bytes_written = 0;
-
-			if (cmd->stop_src == TRIG_COUNT &&
-			    PCI9111_FIFO_HALF_SIZE > dev_private->stop_counter)
-				num_samples = dev_private->stop_counter;
-			else
-				num_samples = PCI9111_FIFO_HALF_SIZE;
-			insw(dev->iobase + PCI9111_AI_FIFO_REG,
-			     dev_private->ai_bounce_buffer, num_samples);
-
-			if (dev_private->scan_delay < 1) {
-				bytes_written =
-				    cfc_write_array_to_buffer(s,
-							      dev_private->
-							      ai_bounce_buffer,
-							      num_samples *
-							      sizeof(short));
-			} else {
-				int position = 0;
-				int to_read;
-
-				while (position < num_samples) {
-					if (dev_private->chunk_counter <
-					    cmd->chanlist_len) {
-						to_read = cmd->chanlist_len -
-						    dev_private->chunk_counter;
-
-						if (to_read >
-						    num_samples - position)
-							to_read =
-							    num_samples -
-							    position;
-
-						bytes_written +=
-						    cfc_write_array_to_buffer
-						    (s,
-						     dev_private->ai_bounce_buffer
-						     + position,
-						     to_read * sizeof(short));
-					} else {
-						to_read =
-						    dev_private->chunk_num_samples
-						    -
-						    dev_private->chunk_counter;
-						if (to_read >
-						    num_samples - position)
-							to_read =
-							    num_samples -
-							    position;
-
-						bytes_written +=
-						    sizeof(short) * to_read;
-					}
-
-					position += to_read;
-					dev_private->chunk_counter += to_read;
-
-					if (dev_private->chunk_counter >=
-					    dev_private->chunk_num_samples)
-						dev_private->chunk_counter = 0;
-				}
-			}
-
-			dev_private->stop_counter -=
-			    bytes_written / sizeof(short);
-		}
+		if (!(status & PCI9111_AI_STAT_FF_HF))
+			pci9111_handle_fifo_half_full(dev, s);
 	}
 
 	if (cmd->stop_src == TRIG_COUNT && dev_private->stop_counter == 0)
