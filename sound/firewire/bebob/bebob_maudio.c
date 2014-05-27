@@ -49,7 +49,7 @@
 /* padding */
 #define MAUDIO_BOOTLOADER_CUE3	0x00000000
 
-#define MAUDIO_SPECIFIC_ADDRESS	0xffc700000000
+#define MAUDIO_SPECIFIC_ADDRESS	0xffc700000000ULL
 
 #define METER_OFFSET		0x00600000
 
@@ -111,7 +111,7 @@ int snd_bebob_maudio_load_firmware(struct fw_unit *unit)
 	 * firmware version 5058 or later has date later than "20070401", but
 	 * 'date' is not null-terminated.
 	 */
-	if (date < 0x3230303730343031) {
+	if (date < 0x3230303730343031LL) {
 		dev_err(&unit->device,
 			"Use firmware version 5058 or later\n");
 		err = -ENOSYS;

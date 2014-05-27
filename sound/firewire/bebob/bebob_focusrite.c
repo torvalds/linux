@@ -14,15 +14,15 @@
 #define DIG_OUT	"Digital Out"
 #define STM_IN	"Stream In"
 
-#define SAFFIRE_ADDRESS_BASE			0x000100000000
+#define SAFFIRE_ADDRESS_BASE			0x000100000000ULL
 
-#define SAFFIRE_OFFSET_CLOCK_SOURCE		0x0000000000f8
-#define SAFFIREPRO_OFFSET_CLOCK_SOURCE		0x000000000174
+#define SAFFIRE_OFFSET_CLOCK_SOURCE		0x00f8
+#define SAFFIREPRO_OFFSET_CLOCK_SOURCE		0x0174
 
 /* whether sync to external device or not */
-#define SAFFIRE_OFFSET_CLOCK_SYNC_EXT		0x00000000013c
-#define SAFFIRE_LE_OFFSET_CLOCK_SYNC_EXT	0x000000000432
-#define SAFFIREPRO_OFFSET_CLOCK_SYNC_EXT	0x000000000164
+#define SAFFIRE_OFFSET_CLOCK_SYNC_EXT		0x013c
+#define SAFFIRE_LE_OFFSET_CLOCK_SYNC_EXT	0x0432
+#define SAFFIREPRO_OFFSET_CLOCK_SYNC_EXT	0x0164
 
 #define SAFFIRE_CLOCK_SOURCE_INTERNAL		0
 #define SAFFIRE_CLOCK_SOURCE_SPDIF		1
@@ -35,10 +35,10 @@
 #define SAFFIREPRO_CLOCK_SOURCE_WORDCLOCK	5
 
 /* S/PDIF, ADAT1, ADAT2 is enabled or not. three quadlets */
-#define SAFFIREPRO_ENABLE_DIG_IFACES		0x0000000001a4
+#define SAFFIREPRO_ENABLE_DIG_IFACES		0x01a4
 
 /* saffirepro has its own parameter for sampling frequency */
-#define SAFFIREPRO_RATE_NOREBOOT		0x0000000001cc
+#define SAFFIREPRO_RATE_NOREBOOT		0x01cc
 /* index is the value for this register */
 static const unsigned int rates[] = {
 	[0] = 0,
@@ -51,8 +51,8 @@ static const unsigned int rates[] = {
 };
 
 /* saffire(no label)/saffire LE has metering */
-#define SAFFIRE_OFFSET_METER			0x000000000100
-#define SAFFIRE_LE_OFFSET_METER			0x000000000168
+#define SAFFIRE_OFFSET_METER			0x0100
+#define SAFFIRE_LE_OFFSET_METER			0x0168
 
 static inline int
 saffire_read_block(struct snd_bebob *bebob, u64 offset,
