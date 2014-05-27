@@ -760,7 +760,7 @@ parse_stream_formation(u8 *buf, unsigned int len,
 		format = buf[6 + e * 2];
 
 		switch (format) {
-		/* IEC 60958-3, currently handle as MBLA */
+		/* IEC 60958 Conformant, currently handled as MBLA */
 		case 0x00:
 		/* Multi bit linear audio */
 		case 0x06:	/* Raw */
