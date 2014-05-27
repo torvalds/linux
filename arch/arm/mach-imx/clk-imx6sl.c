@@ -357,9 +357,6 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 	clk_data.clk_num = ARRAY_SIZE(clks);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
-	clk_register_clkdev(clks[IMX6SL_CLK_GPT], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clks[IMX6SL_CLK_GPT_SERIAL], "per", "imx-gpt.0");
-
 	/* Ensure the AHB clk is at 132MHz. */
 	ret = clk_set_rate(clks[IMX6SL_CLK_AHB], 132000000);
 	if (ret)

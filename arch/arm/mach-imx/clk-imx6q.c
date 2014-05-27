@@ -442,8 +442,6 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
-	clk_register_clkdev(clk[gpt_ipg], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[enet_ref], "enet_ref", NULL);
 
 	if ((imx_get_soc_revision() != IMX_CHIP_REVISION_1_0) ||

@@ -76,9 +76,6 @@ static void __init _mx1_clocks_init(unsigned long fref)
 		if (IS_ERR(clk[i]))
 			pr_err("imx1 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
-
-	clk_register_clkdev(clk[IMX1_CLK_PER1], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[IMX1_CLK_HCLK], "ipg", "imx-gpt.0");
 }
 
 int __init mx1_clocks_init(unsigned long fref)
@@ -87,6 +84,8 @@ int __init mx1_clocks_init(unsigned long fref)
 
 	_mx1_clocks_init(fref);
 
+	clk_register_clkdev(clk[IMX1_CLK_PER1], "per", "imx-gpt.0");
+	clk_register_clkdev(clk[IMX1_CLK_HCLK], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[IMX1_CLK_DMA_GATE], "ahb", "imx1-dma");
 	clk_register_clkdev(clk[IMX1_CLK_HCLK], "ipg", "imx1-dma");
 	clk_register_clkdev(clk[IMX1_CLK_PER1], "per", "imx1-uart.0");

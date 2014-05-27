@@ -290,23 +290,20 @@ static int __init mxc_clockevent_init(struct clk *timer_clk)
 	return 0;
 }
 
-void __init mxc_timer_init(void __iomem *base, int irq)
+static void __init _mxc_timer_init(void __iomem *base, int irq,
+				   struct clk *clk_per, struct clk *clk_ipg)
 {
 	uint32_t tctl_val;
-	struct clk *timer_clk;
-	struct clk *timer_ipg_clk;
 
-	timer_clk = clk_get_sys("imx-gpt.0", "per");
-	if (IS_ERR(timer_clk)) {
+	if (IS_ERR(clk_per)) {
 		pr_err("i.MX timer: unable to get clk\n");
 		return;
 	}
 
-	timer_ipg_clk = clk_get_sys("imx-gpt.0", "ipg");
-	if (!IS_ERR(timer_ipg_clk))
-		clk_prepare_enable(timer_ipg_clk);
+	if (!IS_ERR(clk_ipg))
+		clk_prepare_enable(clk_ipg);
 
-	clk_prepare_enable(timer_clk);
+	clk_prepare_enable(clk_per);
 
 	timer_base = base;
 
@@ -325,15 +322,24 @@ void __init mxc_timer_init(void __iomem *base, int irq)
 	__raw_writel(tctl_val, timer_base + MXC_TCTL);
 
 	/* init and register the timer to the framework */
-	mxc_clocksource_init(timer_clk);
-	mxc_clockevent_init(timer_clk);
+	mxc_clocksource_init(clk_per);
+	mxc_clockevent_init(clk_per);
 
 	/* Make irqs happen */
 	setup_irq(irq, &mxc_timer_irq);
 }
 
+void __init mxc_timer_init(void __iomem *base, int irq)
+{
+	struct clk *clk_per = clk_get_sys("imx-gpt.0", "per");
+	struct clk *clk_ipg = clk_get_sys("imx-gpt.0", "ipg");
+
+	_mxc_timer_init(base, irq, clk_per, clk_ipg);
+}
+
 void __init mxc_timer_init_dt(struct device_node *np)
 {
+	struct clk *clk_per, *clk_ipg;
 	void __iomem *base;
 	int irq;
 
@@ -341,5 +347,8 @@ void __init mxc_timer_init_dt(struct device_node *np)
 	WARN_ON(!base);
 	irq = irq_of_parse_and_map(np, 0);
 
-	mxc_timer_init(base, irq);
+	clk_per = of_clk_get_by_name(np, "per");
+	clk_ipg = of_clk_get_by_name(np, "ipg");
+
+	_mxc_timer_init(base, irq, clk_per, clk_ipg);
 }

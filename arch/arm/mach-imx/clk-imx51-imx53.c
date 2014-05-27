@@ -292,8 +292,6 @@ static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 			pr_err("i.MX5 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
-	clk_register_clkdev(clk[IMX5_CLK_GPT_HF_GATE], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[IMX5_CLK_GPT_IPG_GATE], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[IMX5_CLK_UART1_PER_GATE], "per", "imx21-uart.0");
 	clk_register_clkdev(clk[IMX5_CLK_UART1_IPG_GATE], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[IMX5_CLK_UART2_PER_GATE], "per", "imx21-uart.1");

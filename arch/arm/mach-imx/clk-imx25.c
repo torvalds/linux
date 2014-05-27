@@ -234,9 +234,6 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 	/* Clock source for gpt must be derived from AHB */
 	clk_set_parent(clk[per5_sel], clk[ahb]);
 
-	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
-
 	/*
 	 * Let's initially set up CLKO parent as ipg, since this configuration
 	 * is used on some imx25 board designs to clock the audio codec.
@@ -250,6 +247,8 @@ int __init mx25_clocks_init(void)
 {
 	__mx25_clocks_init(24000000);
 
+	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
+	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 	/* i.mx25 has the i.mx21 type uart */
 	clk_register_clkdev(clk[uart1_ipg], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.0");
