@@ -557,10 +557,8 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 
 	/*  we use EOS, so adapt DMA buffer to one scan */
 	if (devpriv->ai_eos) {
-		devpriv->dmabytestomove[0] =
-			cmd->chanlist_len * sizeof(short);
-		devpriv->dmabytestomove[1] =
-			cmd->chanlist_len * sizeof(short);
+		devpriv->dmabytestomove[0] = cfc_bytes_per_scan(s);
+		devpriv->dmabytestomove[1] = cfc_bytes_per_scan(s);
 		devpriv->dma_runs_to_end = 1;
 	} else {
 		devpriv->dmabytestomove[0] = devpriv->hwdmasize;
@@ -575,8 +573,7 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 			devpriv->dma_runs_to_end = 1;
 		} else {
 			/*  how many samples we must transfer? */
-			bytes = cmd->chanlist_len *
-				cmd->stop_arg * sizeof(short);
+			bytes = cmd->stop_arg * cfc_bytes_per_scan(s);
 
 			/*  how many DMA pages we must fill */
 			devpriv->dma_runs_to_end =
