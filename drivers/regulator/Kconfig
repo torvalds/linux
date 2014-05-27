@@ -266,7 +266,9 @@ config REGULATOR_LP8788
 	  This driver supports LP8788 voltage regulator chip.
 
 config REGULATOR_LTC3589
-	bool "LTC3589 8-output voltage regulator"
+	tristate "LTC3589 8-output voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
 	help
 	  This enables support for the LTC3589, LTC3589-1, and LTC3589-2
 	  8-output regulators controlled via I2C.
