@@ -20,7 +20,6 @@
 #include <xmit_osdep.h>
 
 #include "ioctl_cfg80211.h"
-#include <linux/version.h>
 
 #define RTW_MAX_MGMT_TX_CNT 8
 
