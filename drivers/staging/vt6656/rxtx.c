@@ -1386,9 +1386,9 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	}
 
 	if (pMgmt->eScanState != WMAC_NO_SCANNING)
-		RFbSetPower(pDevice, wCurrentRate, pDevice->byCurrentCh);
+		vnt_rf_setpower(pDevice, wCurrentRate, pDevice->byCurrentCh);
 	else
-		RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
+		vnt_rf_setpower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
 
 	pDevice->wCurrentRate = wCurrentRate;
 

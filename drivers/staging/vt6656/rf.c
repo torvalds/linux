@@ -734,7 +734,7 @@ int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
  * Return Value: true if succeeded; false if failed.
  *
  */
-int RFbSetPower(struct vnt_private *priv, u32 rate, u32 channel)
+int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 {
 	int ret = true;
 	u8 power = priv->byCCKPwr;

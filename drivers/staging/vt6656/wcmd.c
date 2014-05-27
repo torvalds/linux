@@ -835,7 +835,8 @@ void vRunCommand(struct work_struct *work)
 
 	case WLAN_CMD_SETPOWER_START:
 
-		RFbSetPower(pDevice, pDevice->wCurrentRate, pMgmt->uCurrChannel);
+		vnt_rf_setpower(pDevice, pDevice->wCurrentRate,
+							pMgmt->uCurrChannel);
 
 		break;
 
