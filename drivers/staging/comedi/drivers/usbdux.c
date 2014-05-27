@@ -264,7 +264,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct usbdux_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int i, err, n;
+	int i, err;
 
 	/* first we test if something unusual has just happened */
 	switch (urb->status) {
@@ -361,9 +361,8 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 		}
 	}
 	/* get the data from the USB bus and hand it over to comedi */
-	n = s->async->cmd.chanlist_len;
-	for (i = 0; i < n; i++) {
-		unsigned int range = CR_RANGE(s->async->cmd.chanlist[i]);
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
 		uint16_t val = le16_to_cpu(devpriv->in_buf[i]);
 
 		/* bipolar data is two's-complement */
