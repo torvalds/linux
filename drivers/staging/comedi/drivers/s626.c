@@ -2098,7 +2098,7 @@ static int s626_ai_inttrig(struct comedi_device *dev,
  * Also, it should adjust ns so that it cooresponds to the actual time
  * that the device will use.
  */
-static int s626_ns_to_timer(int *nanosec, int round_mode)
+static int s626_ns_to_timer(unsigned int *nanosec, int round_mode)
 {
 	int divider, base;
 
@@ -2206,7 +2206,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * interval
 		 */
 		k = &s626_enc_chan_info[5];
-		tick = s626_ns_to_timer((int *)&cmd->scan_begin_arg,
+		tick = s626_ns_to_timer(&cmd->scan_begin_arg,
 					cmd->flags & TRIG_ROUND_MASK);
 
 		/* load timer value and enable interrupt */
@@ -2229,7 +2229,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * interval
 		 */
 		k = &s626_enc_chan_info[4];
-		tick = s626_ns_to_timer((int *)&cmd->convert_arg,
+		tick = s626_ns_to_timer(&cmd->convert_arg,
 					cmd->flags & TRIG_ROUND_MASK);
 
 		/* load timer value and enable interrupt */
@@ -2288,7 +2288,7 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -2371,24 +2371,20 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		s626_ns_to_timer((int *)&cmd->scan_begin_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		s626_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
+
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
-		s626_ns_to_timer((int *)&cmd->convert_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg < cmd->convert_arg *
-					  cmd->scan_end_arg) {
-			cmd->scan_begin_arg = cmd->convert_arg *
-					      cmd->scan_end_arg;
-			err++;
+		arg = cmd->convert_arg;
+		s626_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			arg = cmd->convert_arg * cmd->scan_end_arg;
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 arg);
 		}
 	}
 
