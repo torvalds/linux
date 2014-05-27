@@ -234,6 +234,9 @@ struct b43_phy {
 	/* Is GMODE (2 GHz mode) bit enabled? */
 	bool gmode;
 
+	/* After power reset full init has to be performed */
+	bool do_full_init;
+
 	/* Analog Type */
 	u8 analog;
 	/* B43_PHYTYPE_ */

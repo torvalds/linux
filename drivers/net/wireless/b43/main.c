@@ -5164,6 +5164,7 @@ static void b43_supported_bands(struct b43_wldev *dev, bool *have_2ghz_phy,
 static int b43_wireless_core_attach(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
+	struct b43_phy *phy = &dev->phy;
 	int err;
 	u32 tmp;
 	bool have_2ghz_phy = false, have_5ghz_phy = false;
@@ -5180,6 +5181,8 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		b43err(wl, "Bus powerup failed\n");
 		goto out;
 	}
+
+	phy->do_full_init = true;
 
 	/* Try to guess supported bands for the first init needs */
 	switch (dev->dev->bus_type) {
