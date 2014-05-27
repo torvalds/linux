@@ -243,9 +243,9 @@ static int berlin2_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base)
-		return -EADDRNOTAVAIL;
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	rmconfig->reg_bits = 32,
 	rmconfig->val_bits = 32,
