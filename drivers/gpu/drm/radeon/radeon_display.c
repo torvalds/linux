@@ -294,7 +294,8 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	/* New pageflip, or just completion of a previous one? */
 	if (!radeon_crtc->deferred_flip_completion) {
 		/* do the flip (mmio) */
-		update_pending = radeon_page_flip(rdev, crtc_id, work->new_crtc_base);
+		radeon_page_flip(rdev, crtc_id, work->new_crtc_base);
+		update_pending = radeon_page_flip_pending(rdev, crtc_id);
 	} else {
 		/* This is just a completion of a flip queued in crtc
 		 * at last invocation. Make sure we go directly to

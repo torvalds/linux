@@ -249,6 +249,7 @@ static struct radeon_asic r100_asic = {
 	},
 	.pflip = {
 		.page_flip = &r100_page_flip,
+		.page_flip_pending = &r100_page_flip_pending,
 	},
 };
 
@@ -314,6 +315,7 @@ static struct radeon_asic r200_asic = {
 	},
 	.pflip = {
 		.page_flip = &r100_page_flip,
+		.page_flip_pending = &r100_page_flip_pending,
 	},
 };
 
@@ -393,6 +395,7 @@ static struct radeon_asic r300_asic = {
 	},
 	.pflip = {
 		.page_flip = &r100_page_flip,
+		.page_flip_pending = &r100_page_flip_pending,
 	},
 };
 
@@ -458,6 +461,7 @@ static struct radeon_asic r300_asic_pcie = {
 	},
 	.pflip = {
 		.page_flip = &r100_page_flip,
+		.page_flip_pending = &r100_page_flip_pending,
 	},
 };
 
@@ -523,6 +527,7 @@ static struct radeon_asic r420_asic = {
 	},
 	.pflip = {
 		.page_flip = &r100_page_flip,
+		.page_flip_pending = &r100_page_flip_pending,
 	},
 };
 
@@ -588,6 +593,7 @@ static struct radeon_asic rs400_asic = {
 	},
 	.pflip = {
 		.page_flip = &r100_page_flip,
+		.page_flip_pending = &r100_page_flip_pending,
 	},
 };
 
@@ -655,6 +661,7 @@ static struct radeon_asic rs600_asic = {
 	},
 	.pflip = {
 		.page_flip = &rs600_page_flip,
+		.page_flip_pending = &rs600_page_flip_pending,
 	},
 };
 
@@ -722,6 +729,7 @@ static struct radeon_asic rs690_asic = {
 	},
 	.pflip = {
 		.page_flip = &rs600_page_flip,
+		.page_flip_pending = &rs600_page_flip_pending,
 	},
 };
 
@@ -787,6 +795,7 @@ static struct radeon_asic rv515_asic = {
 	},
 	.pflip = {
 		.page_flip = &rs600_page_flip,
+		.page_flip_pending = &rs600_page_flip_pending,
 	},
 };
 
@@ -852,6 +861,7 @@ static struct radeon_asic r520_asic = {
 	},
 	.pflip = {
 		.page_flip = &rs600_page_flip,
+		.page_flip_pending = &rs600_page_flip_pending,
 	},
 };
 
@@ -949,6 +959,7 @@ static struct radeon_asic r600_asic = {
 	},
 	.pflip = {
 		.page_flip = &rs600_page_flip,
+		.page_flip_pending = &rs600_page_flip_pending,
 	},
 };
 
@@ -1038,6 +1049,7 @@ static struct radeon_asic rv6xx_asic = {
 	},
 	.pflip = {
 		.page_flip = &rs600_page_flip,
+		.page_flip_pending = &rs600_page_flip_pending,
 	},
 };
 
@@ -1127,6 +1139,7 @@ static struct radeon_asic rs780_asic = {
 	},
 	.pflip = {
 		.page_flip = &rs600_page_flip,
+		.page_flip_pending = &rs600_page_flip_pending,
 	},
 };
 
@@ -1231,6 +1244,7 @@ static struct radeon_asic rv770_asic = {
 	},
 	.pflip = {
 		.page_flip = &rv770_page_flip,
+		.page_flip_pending = &rv770_page_flip_pending,
 	},
 };
 
@@ -1348,6 +1362,7 @@ static struct radeon_asic evergreen_asic = {
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
+		.page_flip_pending = &evergreen_page_flip_pending,
 	},
 };
 
@@ -1438,6 +1453,7 @@ static struct radeon_asic sumo_asic = {
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
+		.page_flip_pending = &evergreen_page_flip_pending,
 	},
 };
 
@@ -1529,6 +1545,7 @@ static struct radeon_asic btc_asic = {
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
+		.page_flip_pending = &evergreen_page_flip_pending,
 	},
 };
 
@@ -1671,6 +1688,7 @@ static struct radeon_asic cayman_asic = {
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
+		.page_flip_pending = &evergreen_page_flip_pending,
 	},
 };
 
@@ -1770,6 +1788,7 @@ static struct radeon_asic trinity_asic = {
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
+		.page_flip_pending = &evergreen_page_flip_pending,
 	},
 };
 
@@ -1899,6 +1918,7 @@ static struct radeon_asic si_asic = {
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
+		.page_flip_pending = &evergreen_page_flip_pending,
 	},
 };
 
@@ -2060,6 +2080,7 @@ static struct radeon_asic ci_asic = {
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
+		.page_flip_pending = &evergreen_page_flip_pending,
 	},
 };
 
@@ -2163,6 +2184,7 @@ static struct radeon_asic kv_asic = {
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
+		.page_flip_pending = &evergreen_page_flip_pending,
 	},
 };
 

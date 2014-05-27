@@ -135,7 +135,9 @@ extern void r100_pm_prepare(struct radeon_device *rdev);
 extern void r100_pm_finish(struct radeon_device *rdev);
 extern void r100_pm_init_profile(struct radeon_device *rdev);
 extern void r100_pm_get_dynpm_state(struct radeon_device *rdev);
-extern u32 r100_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
+extern void r100_page_flip(struct radeon_device *rdev, int crtc,
+			   u64 crtc_base);
+extern bool r100_page_flip_pending(struct radeon_device *rdev, int crtc);
 extern void r100_wait_for_vblank(struct radeon_device *rdev, int crtc);
 extern int r100_mc_wait_for_idle(struct radeon_device *rdev);
 
@@ -239,7 +241,9 @@ void rs600_hpd_set_polarity(struct radeon_device *rdev,
 extern void rs600_pm_misc(struct radeon_device *rdev);
 extern void rs600_pm_prepare(struct radeon_device *rdev);
 extern void rs600_pm_finish(struct radeon_device *rdev);
-extern u32 rs600_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
+extern void rs600_page_flip(struct radeon_device *rdev, int crtc,
+			    u64 crtc_base);
+extern bool rs600_page_flip_pending(struct radeon_device *rdev, int crtc);
 void rs600_set_safe_registers(struct radeon_device *rdev);
 extern void avivo_wait_for_vblank(struct radeon_device *rdev, int crtc);
 extern int rs600_mc_wait_for_idle(struct radeon_device *rdev);
@@ -448,7 +452,8 @@ void rv770_fini(struct radeon_device *rdev);
 int rv770_suspend(struct radeon_device *rdev);
 int rv770_resume(struct radeon_device *rdev);
 void rv770_pm_misc(struct radeon_device *rdev);
-u32 rv770_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
+void rv770_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
+bool rv770_page_flip_pending(struct radeon_device *rdev, int crtc);
 void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 void r700_cp_stop(struct radeon_device *rdev);
 void r700_cp_fini(struct radeon_device *rdev);
@@ -516,7 +521,9 @@ extern void sumo_pm_init_profile(struct radeon_device *rdev);
 extern void btc_pm_init_profile(struct radeon_device *rdev);
 int sumo_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
-extern u32 evergreen_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
+extern void evergreen_page_flip(struct radeon_device *rdev, int crtc,
+				u64 crtc_base);
+extern bool evergreen_page_flip_pending(struct radeon_device *rdev, int crtc);
 extern void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc);
 void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
