@@ -19,7 +19,7 @@
 #include <linux/firmware.h>
 
 #include "dhd_dbg.h"
-#include "nvram.h"
+#include "firmware.h"
 
 enum nvram_parser_state {
 	IDLE,
@@ -187,7 +187,7 @@ static int brcmf_init_nvram_parser(struct nvram_parser *nvp,
  * and converts newlines to NULs. Shortens buffer as needed and pads with NULs.
  * End of buffer is completed with token identifying length of buffer.
  */
-void *brcmf_nvram_strip(const struct firmware *nv, u32 *new_length)
+void *brcmf_fw_nvram_strip(const struct firmware *nv, u32 *new_length)
 {
 	struct nvram_parser nvp;
 	u32 pad;
@@ -219,7 +219,7 @@ void *brcmf_nvram_strip(const struct firmware *nv, u32 *new_length)
 	return nvp.nvram;
 }
 
-void brcmf_nvram_free(void *nvram)
+void brcmf_fw_nvram_free(void *nvram)
 {
 	kfree(nvram);
 }

@@ -42,7 +42,7 @@
 #include <soc.h>
 #include "sdio_host.h"
 #include "chip.h"
-#include "nvram.h"
+#include "firmware.h"
 
 #define DCMD_RESP_TIMEOUT  2000	/* In milli second */
 
@@ -3287,7 +3287,7 @@ static int brcmf_sdio_download_nvram(struct brcmf_sdio *bus,
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	vars = brcmf_nvram_strip(nv, &varsz);
+	vars = brcmf_fw_nvram_strip(nv, &varsz);
 
 	if (vars == NULL)
 		return -EINVAL;
@@ -3300,7 +3300,7 @@ static int brcmf_sdio_download_nvram(struct brcmf_sdio *bus,
 	else if (!brcmf_sdio_verifymemory(bus->sdiodev, address, vars, varsz))
 		err = -EIO;
 
-	brcmf_nvram_free(vars);
+	brcmf_fw_nvram_free(vars);
 
 	return err;
 }

@@ -13,12 +13,12 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef BRCMFMAC_NVRAM_H
-#define BRCMFMAC_NVRAM_H
+#ifndef BRCMFMAC_FIRMWARE_H
+#define BRCMFMAC_FIRMWARE_H
 
 
-void *brcmf_nvram_strip(const struct firmware *nv, u32 *new_length);
-void brcmf_nvram_free(void *nvram);
+void *brcmf_fw_nvram_strip(const struct firmware *nv, u32 *new_length);
+void brcmf_fw_nvram_free(void *nvram);
 
 
-#endif /* BRCMFMAC_NVRAM_H */
+#endif /* BRCMFMAC_FIRMWARE_H */
