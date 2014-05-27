@@ -219,13 +219,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 
 }
 
-static void chip_by_usb_id(struct adapter *padapter,
-			   const struct usb_device_id *pdid)
-{
-	padapter->chip_type = NULL_CHIP_TYPE;
-	hal_set_hw_type(padapter);
-}
-
 static void usb_intf_start(struct adapter *padapter)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_start\n"));
