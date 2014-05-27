@@ -224,7 +224,6 @@ struct das800_private {
 	unsigned int divisor1;	/* counter 1 value for timed conversions */
 	unsigned int divisor2;	/* counter 2 value for timed conversions */
 	unsigned int do_bits;	/* digital output bits */
-	bool forever;		/* flag that we should take data forever */
 };
 
 static void das800_ind_write(struct comedi_device *dev,
@@ -290,7 +289,6 @@ static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct das800_private *devpriv = dev->private;
 
-	devpriv->forever = false;
 	devpriv->count = 0;
 	das800_disable(dev);
 	return 0;
@@ -425,13 +423,10 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	gain &= 0xf;
 	outb(gain, dev->iobase + DAS800_GAIN);
 
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
-		devpriv->forever = false;
-	} else {	/* TRIG_NONE */
-		devpriv->forever = true;
+	else	/* TRIG_NONE */
 		devpriv->count = 0;
-	}
 
 	/* enable auto channel scan, send interrupts on end of conversion
 	 * and set clock source to internal or external
@@ -467,7 +462,8 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct das800_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s ? s->async : NULL;
+	struct comedi_async *async;
+	struct comedi_cmd *cmd;
 	unsigned long irq_flags;
 	unsigned int status;
 	unsigned int val;
@@ -480,6 +476,9 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		return IRQ_NONE;
 	if (!dev->attached)
 		return IRQ_HANDLED;
+
+	async = s->async;
+	cmd = &async->cmd;
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	status = das800_ind_read(dev, CONTROL1) & STATUS2_HCEN;
@@ -512,7 +511,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 			val >>= 4;	/* 12-bit sample */
 
 		/* if there are more data points to collect */
-		if (devpriv->count > 0 || devpriv->forever) {
+		if (cmd->stop_src == TRIG_NONE || devpriv->count > 0) {
 			/* write data point to buffer */
 			cfc_write_to_buffer(s, val & s->maxdata);
 			devpriv->count--;
@@ -527,7 +526,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	if (devpriv->count > 0 || devpriv->forever) {
+	if (cmd->stop_src == TRIG_NONE || devpriv->count > 0) {
 		/* Re-enable card's interrupt.
 		 * We already have spinlock, so indirect addressing is safe */
 		das800_ind_write(dev, CONTROL1_INTE | devpriv->do_bits,
