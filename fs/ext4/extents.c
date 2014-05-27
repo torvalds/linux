@@ -4741,6 +4741,13 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
 
+	/* Call ext4_force_commit to flush all data in case of data=journal. */
+	if (ext4_should_journal_data(inode)) {
+		ret = ext4_force_commit(inode->i_sb);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * Write out all dirty pages to avoid race conditions
 	 * Then release them.
