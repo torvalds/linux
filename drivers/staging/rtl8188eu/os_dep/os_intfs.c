@@ -1084,7 +1084,7 @@ int _netdev_open(struct net_device *pnetdev)
 	if (!rtw_netif_queue_stopped(pnetdev))
 		rtw_netif_start_queue(pnetdev);
 	else
-		rtw_netif_wake_queue(pnetdev);
+		netif_tx_wake_all_queues(pnetdev);
 
 	netdev_br_init(pnetdev);
 
