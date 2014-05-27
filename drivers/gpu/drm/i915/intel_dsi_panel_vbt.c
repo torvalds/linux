@@ -143,7 +143,7 @@ static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 	case MIPI_DSI_DCS_LONG_WRITE:
 		dsi_vc_dcs_write(intel_dsi, vc, data, len);
 		break;
-	};
+	}
 
 	data += len;
 
@@ -294,7 +294,8 @@ static bool generic_init(struct intel_dsi_device *dsi)
 	intel_dsi->rst_timer_val = mipi_config->device_reset_timer;
 	intel_dsi->init_count = mipi_config->master_init_timer;
 	intel_dsi->bw_timer = mipi_config->dbi_bw_timer;
-	intel_dsi->video_frmt_cfg_bits = mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
+	intel_dsi->video_frmt_cfg_bits =
+		mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
 
 	switch (intel_dsi->escape_clk_div) {
 	case 0:
@@ -351,7 +352,8 @@ static bool generic_init(struct intel_dsi_device *dsi)
 	 *
 	 * prepare count
 	 */
-	ths_prepare_ns = max(mipi_config->ths_prepare, mipi_config->tclk_prepare);
+	ths_prepare_ns = max(mipi_config->ths_prepare,
+			     mipi_config->tclk_prepare);
 	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * ui_den, ui_num * 2);
 
 	/* exit zero count */
