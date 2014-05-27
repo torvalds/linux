@@ -1,6 +1,8 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/rockchip/common.h>
+#include <dt-bindings/clock/rk_system_status.h>
 #include "rk_hdmi.h"
 
 #define HDMI_MAX_TRY_TIMES	1
@@ -90,6 +92,7 @@ void hdmi_sys_remove(struct hdmi *hdmi)
 	if(audio_need)
 		switch_set_state(&(hdmi->switch_hdmi), 0);
 	#endif
+	rockchip_clear_system_status(SYS_STATUS_HDMI);
 }
 
 static void hdmi_sys_sleep(struct hdmi *hdmi)
@@ -233,6 +236,7 @@ void hdmi_work(struct work_struct *work)
 					if(hdmi->edid.base_audio_support == 1 &&  hdmi->edid.sink_hdmi == 1)
 						switch_set_state(&(hdmi->switch_hdmi), 1);
 					#endif
+					rockchip_set_system_status(SYS_STATUS_HDMI);
 				}
 				break;
 			case SYSTEM_CONFIG:

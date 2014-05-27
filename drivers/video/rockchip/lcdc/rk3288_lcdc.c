@@ -31,6 +31,8 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
+#include <linux/rockchip/common.h>
+#include <dt-bindings/clock/rk_system_status.h>
 
 #include "rk3288_lcdc.h"
 
@@ -1288,9 +1290,12 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 					struct lcdc_device, driver);
+	int sys_status = (dev_drv->id == 0) ?
+			SYS_STATUS_LCDC0 : SYS_STATUS_LCDC1;
 
 	/*enable clk,when first layer open */
 	if ((open) && (!lcdc_dev->atv_layer_cnt)) {
+		rockchip_set_system_status(sys_status);
 		rk3288_lcdc_pre_init(dev_drv);
 		rk3288_lcdc_clk_enable(lcdc_dev);
 		rk3288_lcdc_reg_restore(lcdc_dev);
@@ -1324,6 +1329,7 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		rk3288_lcdc_disable_irq(lcdc_dev);
 		rk3288_lcdc_reg_update(dev_drv);
 		rk3288_lcdc_clk_disable(lcdc_dev);
+		rockchip_clear_system_status(sys_status);
 	}
 
 	return 0;
