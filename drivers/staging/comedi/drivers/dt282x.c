@@ -578,7 +578,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 {
 	const struct dt282x_board *board = comedi_board(dev);
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -633,10 +633,9 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	tmp = cmd->convert_arg;
-	dt282x_ns_to_timer(&cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
-	if (tmp != cmd->convert_arg)
-		err++;
+	arg = cmd->convert_arg;
+	dt282x_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 	if (err)
 		return 4;
@@ -825,7 +824,7 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -865,10 +864,9 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	tmp = cmd->scan_begin_arg;
-	dt282x_ns_to_timer(&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
-	if (tmp != cmd->scan_begin_arg)
-		err++;
+	arg = cmd->scan_begin_arg;
+	dt282x_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 
 	if (err)
 		return 4;
