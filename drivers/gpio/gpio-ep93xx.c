@@ -352,7 +352,7 @@ static int ep93xx_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ep93xx_gpio->mmio_base = devm_request_and_ioremap(dev, res);
+	ep93xx_gpio->mmio_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ep93xx_gpio->mmio_base))
 		return PTR_ERR(ep93xx_gpio->mmio_base);
 
