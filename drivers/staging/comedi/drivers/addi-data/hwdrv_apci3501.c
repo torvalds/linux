@@ -102,11 +102,7 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
 			/* Enable the Watchdog */
 			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
-
-		else if (data[1] == 0)	/* Stop The Watchdog */
-		{
-			/* Stop The Watchdog */
+		} else if (data[1] == 0) { /* Stop The Watchdog */
 			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
 			ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
 			outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
