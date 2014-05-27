@@ -2151,14 +2151,14 @@ static void pci230_handle_ai(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pci230_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int scanlen = cmd->scan_end_arg;
 	unsigned int events = 0;
 	unsigned int status_fifo;
 	unsigned int i;
 	unsigned int todo;
 	unsigned int fifoamount;
-	struct comedi_async *async = s->async;
-	unsigned int scanlen = async->cmd.scan_end_arg;
 
 	/* Determine number of samples to read. */
 	if (cmd->stop_src != TRIG_COUNT) {
