@@ -160,8 +160,8 @@ void blk_mq_insert_request(struct request *, bool, bool, bool);
 void blk_mq_run_queues(struct request_queue *q, bool async);
 void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
-struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp);
-struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw, gfp_t gfp);
+struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
+		gfp_t gfp, bool reserved);
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 
 struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_index);

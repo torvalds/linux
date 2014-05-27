@@ -294,34 +294,20 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 	return rq;
 }
 
-struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp)
+struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
+		bool reserved)
 {
 	struct request *rq;
 
 	if (blk_mq_queue_enter(q))
 		return NULL;
 
-	rq = blk_mq_alloc_request_pinned(q, rw, gfp, false);
+	rq = blk_mq_alloc_request_pinned(q, rw, gfp, reserved);
 	if (rq)
 		blk_mq_put_ctx(rq->mq_ctx);
 	return rq;
 }
 EXPORT_SYMBOL(blk_mq_alloc_request);
-
-struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw,
-					      gfp_t gfp)
-{
-	struct request *rq;
-
-	if (blk_mq_queue_enter(q))
-		return NULL;
-
-	rq = blk_mq_alloc_request_pinned(q, rw, gfp, true);
-	if (rq)
-		blk_mq_put_ctx(rq->mq_ctx);
-	return rq;
-}
-EXPORT_SYMBOL(blk_mq_alloc_reserved_request);
 
 static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 				  struct blk_mq_ctx *ctx, struct request *rq)
