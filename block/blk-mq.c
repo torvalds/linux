@@ -1179,12 +1179,14 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	trace_block_getrq(q, bio, rw);
 	rq = __blk_mq_alloc_request(q, hctx, ctx, rw, GFP_ATOMIC, false);
 	if (unlikely(!rq)) {
+		__blk_mq_run_hw_queue(hctx);
 		blk_mq_put_ctx(ctx);
 		trace_block_sleeprq(q, bio, rw);
-		rq = blk_mq_alloc_request_pinned(q, rw, __GFP_WAIT|GFP_ATOMIC,
-							false);
-		ctx = rq->mq_ctx;
+
+		ctx = blk_mq_get_ctx(q);
 		hctx = q->mq_ops->map_queue(q, ctx->cpu);
+		rq = __blk_mq_alloc_request(q, hctx, ctx, rw,
+					    __GFP_WAIT|GFP_ATOMIC, false);
 	}
 
 	hctx->queued++;
