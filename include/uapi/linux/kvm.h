@@ -171,6 +171,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_WATCHDOG         21
 #define KVM_EXIT_S390_TSCH        22
 #define KVM_EXIT_EPR              23
+#define KVM_EXIT_SYSTEM_EVENT     24
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -301,6 +302,13 @@ struct kvm_run {
 		struct {
 			__u32 epr;
 		} epr;
+		/* KVM_EXIT_SYSTEM_EVENT */
+		struct {
+#define KVM_SYSTEM_EVENT_SHUTDOWN       1
+#define KVM_SYSTEM_EVENT_RESET          2
+			__u32 type;
+			__u64 flags;
+		} system_event;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -748,6 +756,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_S390_IRQCHIP 99
 #define KVM_CAP_IOEVENTFD_NO_LENGTH 100
 #define KVM_CAP_VM_ATTRIBUTES 101
+#define KVM_CAP_ARM_PSCI_0_2 102
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
