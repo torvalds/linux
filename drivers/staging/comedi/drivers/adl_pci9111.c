@@ -418,9 +418,8 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
 					  &dev_private->div1,
 					  &dev_private->div2,
-					  &cmd->convert_arg, cmd->flags);
-		if (cmd->convert_arg != arg)
-			err |= -EINVAL;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	/*
@@ -433,10 +432,7 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 		if (arg < cmd->scan_begin_arg)
 			arg *= (cmd->scan_begin_arg / arg);
 
-		if (cmd->scan_begin_arg != arg) {
-			cmd->scan_begin_arg = arg;
-			err |= -EINVAL;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
