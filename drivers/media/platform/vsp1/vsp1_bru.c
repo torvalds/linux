@@ -18,6 +18,7 @@
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
+#include "vsp1_rwpf.h"
 
 #define BRU_MIN_SIZE				4U
 #define BRU_MAX_SIZE				8190U
@@ -39,11 +40,6 @@ static inline void vsp1_bru_write(struct vsp1_bru *bru, u32 reg, u32 data)
 /* -----------------------------------------------------------------------------
  * V4L2 Subdevice Core Operations
  */
-
-static bool bru_is_input_enabled(struct vsp1_bru *bru, unsigned int input)
-{
-	return media_entity_remote_pad(&bru->entity.pads[input]) != NULL;
-}
 
 static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 {
@@ -84,6 +80,7 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 		       VI6_BRU_ROP_AROP(VI6_ROP_NOP));
 
 	for (i = 0; i < 4; ++i) {
+		bool premultiplied = false;
 		u32 ctrl = 0;
 
 		/* Configure all Blend/ROP units corresponding to an enabled BRU
@@ -91,11 +88,15 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 		 * disabled BRU inputs are used in ROP NOP mode to ignore the
 		 * SRC input.
 		 */
-		if (bru_is_input_enabled(bru, i))
+		if (bru->inputs[i].rpf) {
 			ctrl |= VI6_BRU_CTRL_RBC;
-		else
+
+			premultiplied = bru->inputs[i].rpf->video.format.flags
+				      & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA;
+		} else {
 			ctrl |= VI6_BRU_CTRL_CROP(VI6_ROP_NOP)
 			     |  VI6_BRU_CTRL_AROP(VI6_ROP_NOP);
+		}
 
 		/* Select the virtual RPF as the Blend/ROP unit A DST input to
 		 * serve as a background color.
@@ -117,10 +118,18 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 		 *
 		 *	DSTc = DSTc * (1 - SRCa) + SRCc * SRCa
 		 *	DSTa = DSTa * (1 - SRCa) + SRCa
+		 *
+		 * when the SRC input isn't premultiplied, and to
+		 *
+		 *	DSTc = DSTc * (1 - SRCa) + SRCc
+		 *	DSTa = DSTa * (1 - SRCa) + SRCa
+		 *
+		 * otherwise.
 		 */
 		vsp1_bru_write(bru, VI6_BRU_BLD(i),
 			       VI6_BRU_BLD_CCMDX_255_SRC_A |
-			       VI6_BRU_BLD_CCMDY_SRC_A |
+			       (premultiplied ? VI6_BRU_BLD_CCMDY_COEFY :
+						VI6_BRU_BLD_CCMDY_SRC_A) |
 			       VI6_BRU_BLD_ACMDX_255_SRC_A |
 			       VI6_BRU_BLD_ACMDY_COEFY |
 			       (0xff << VI6_BRU_BLD_COEFY_SHIFT));
@@ -192,7 +201,7 @@ static struct v4l2_rect *bru_get_compose(struct vsp1_bru *bru,
 	case V4L2_SUBDEV_FORMAT_TRY:
 		return v4l2_subdev_get_try_crop(fh, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
-		return &bru->compose[pad];
+		return &bru->inputs[pad].compose;
 	default:
 		return NULL;
 	}
