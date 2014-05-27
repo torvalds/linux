@@ -312,12 +312,11 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 	struct dio200_subdev_intr *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short val;
-	unsigned int n, ch, len;
+	unsigned int n, ch;
 
 	val = 0;
-	len = s->async->cmd.chanlist_len;
-	for (n = 0; n < len; n++) {
-		ch = CR_CHAN(s->async->cmd.chanlist[n]);
+	for (n = 0; n < cmd->chanlist_len; n++) {
+		ch = CR_CHAN(cmd->chanlist[n]);
 		if (triggered & (1U << ch))
 			val |= (1U << n);
 	}
