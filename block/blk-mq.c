@@ -1781,6 +1781,9 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	if (!q)
 		goto err_hctxs;
 
+	if (percpu_counter_init(&q->mq_usage_counter, 0))
+		goto err_map;
+
 	q->mq_map = blk_mq_make_queue_map(set);
 	if (!q->mq_map)
 		goto err_map;
@@ -1866,6 +1869,8 @@ void blk_mq_free_queue(struct request_queue *q)
 
 	blk_mq_exit_hw_queues(q, set, set->nr_hw_queues);
 	blk_mq_free_hw_queues(q, set);
+
+	percpu_counter_destroy(&q->mq_usage_counter);
 
 	free_percpu(q->queue_ctx);
 	kfree(q->queue_hw_ctx);

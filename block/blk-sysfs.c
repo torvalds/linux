@@ -517,8 +517,6 @@ static void blk_release_queue(struct kobject *kobj)
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
 
-	percpu_counter_destroy(&q->mq_usage_counter);
-
 	if (q->mq_ops)
 		blk_mq_free_queue(q);
 
