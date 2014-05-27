@@ -195,7 +195,7 @@ end:
 	return err;
 }
 
-int snd_efw_stream_start_duplex(struct snd_efw *efw, int rate)
+int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
 {
 	struct amdtp_stream *master, *slave;
 	atomic_t *slave_substreams;

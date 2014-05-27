@@ -483,7 +483,7 @@ end:
 	return err;
 }
 
-int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate)
+int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 {
 	struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
 	struct amdtp_stream *master, *slave;
