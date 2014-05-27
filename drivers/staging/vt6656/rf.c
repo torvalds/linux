@@ -41,8 +41,6 @@
 #include "usbpipe.h"
 #include "datarate.h"
 
-static int          msglevel                =MSG_LEVEL_INFO;
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 #define BY_AL2230_REG_LEN     23 //24bit
 #define CB_AL2230_INIT_SEQ    15
 #define AL2230_PWR_IDX_LEN    64
@@ -902,14 +900,14 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 					(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
 
 			if (priv->vnt_mgmt.eScanState != WMAC_NO_SCANNING) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				dev_dbg(&priv->usb->dev,
 				"vnt_rf_set_txpower> 11B mode uCurrChannel[%d]\n",
 						priv->vnt_mgmt.uScanChannel);
 				ret &= vnt_rf_write_embedded(priv,
 					vt3226d0_lo_current_table[priv->
 						vnt_mgmt.uScanChannel - 1]);
 			} else {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				dev_dbg(&priv->usb->dev,
 				"vnt_rf_set_txpower> 11B mode uCurrChannel[%d]\n",
 						priv->vnt_mgmt.uCurrChannel);
 				ret &= vnt_rf_write_embedded(priv,
@@ -920,7 +918,7 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			ret &= vnt_rf_write_embedded(priv, 0x015C0800 +
 				(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
 		} else {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			dev_dbg(&priv->usb->dev,
 					"@@@@ vnt_rf_set_txpower> 11G mode\n");
 
 			power_setting = ((0x3f-priv->byCurPwr) << 20) |
