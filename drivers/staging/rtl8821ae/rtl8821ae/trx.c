@@ -77,11 +77,7 @@ static int _rtl8821ae_rate_mapping(struct ieee80211_hw *hw,
 	int rate_idx;
 
 	if (false == isht) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 		if (IEEE80211_BAND_2GHZ == hw->conf.chandef.chan->band) {
-#else
-		if (IEEE80211_BAND_2GHZ == hw->conf.channel->band) {
-#endif
 			switch (desc_rate) {
 			case DESC_RATE1M:
 				rate_idx = 0;
@@ -579,13 +575,8 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 	if (status->wake_match)
 		RT_TRACE(COMP_RXDESC,DBG_LOUD,
 		("GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch=%d\n",status->wake_match ));
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
-#else
-	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->band = hw->conf.channel->band;
-#endif
 
 	hdr = (struct ieee80211_hdr *)(skb->data + status->rx_drvinfo_size
 			+ status->rx_bufshift);
@@ -650,33 +641,17 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 	return true;
 }
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
-			  struct ieee80211_hdr *hdr, u8 *pdesc_tx, u8 *txbd,
-			  struct ieee80211_tx_info *info, struct sk_buff *skb,
-			  u8 hw_queue, struct rtl_tcb_desc *ptcb_desc)
-#else
-/*<delete in kernel end>*/
 void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 			  struct ieee80211_hdr *hdr, u8 *pdesc_tx, u8 *txbd,
 			  struct ieee80211_tx_info *info,
 			  struct ieee80211_sta *sta,
 			  struct sk_buff *skb,
 			  u8 hw_queue, struct rtl_tcb_desc *ptcb_desc)
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-	struct ieee80211_sta *sta = info->control.sta;
-#endif
-/*<delete in kernel end>*/
 	u8 *pdesc = (u8 *) pdesc_tx;
 	u16 seq_number;
 	u16 fc = le16_to_cpu(hdr->frame_control);
@@ -783,9 +758,6 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 		}
 		if (info->control.hw_key) {
 			struct ieee80211_key_conf *keyconf = info->control.hw_key;
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-/*<delete in kernel end>*/
 			switch (keyconf->cipher) {
 			case WLAN_CIPHER_SUITE_WEP40:
 			case WLAN_CIPHER_SUITE_WEP104:
@@ -800,23 +772,6 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 				break;
 
 			}
-/*<delete in kernel start>*/
-#else
-			switch (keyconf->alg) {
-			case ALG_WEP:
-			case ALG_TKIP:
-				SET_TX_DESC_SEC_TYPE(pdesc, 0x1);
-				break;
-			case ALG_CCMP:
-				SET_TX_DESC_SEC_TYPE(pdesc, 0x3);
-				break;
-			default:
-				SET_TX_DESC_SEC_TYPE(pdesc, 0x0);
-				break;
-
-			}
-#endif
-/*<delete in kernel end>*/
 		}
 
 		SET_TX_DESC_QUEUE_SEL(pdesc, fw_qsel);
