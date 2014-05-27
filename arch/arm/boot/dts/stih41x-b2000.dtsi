@@ -35,7 +35,7 @@
 			fp_led {
 				#gpio-cells = <1>;
 				label	= "Front Panel LED";
-				gpios	= <&PIO105 7>;
+				gpios	= <&pio105 7>;
 				linux,default-trigger	= "heartbeat";
 			};
 		};
@@ -55,7 +55,7 @@
 			phy-mode		= "mii";
 			pinctrl-0		= <&pinctrl_mii0>;
 
-			snps,reset-gpio 	= <&PIO106 2>;
+			snps,reset-gpio 	= <&pio106 2>;
 			snps,reset-active-low;
 			snps,reset-delays-us 	= <0 10000 10000>;
 		};
@@ -65,7 +65,7 @@
 			phy-mode		= "mii";
 			st,tx-retime-src	= "txclk";
 
-			snps,reset-gpio 	= <&PIO4 7>;
+			snps,reset-gpio 	= <&pio4 7>;
 			snps,reset-active-low;
 			snps,reset-delays-us 	= <0 10000 10000>;
 		};
