@@ -195,8 +195,8 @@ end:
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
-	int sampling_rate;
-	unsigned int clock_source;
+	unsigned int sampling_rate;
+	enum snd_efw_clock_source clock_source;
 	int err;
 
 	err = snd_efw_stream_lock_try(efw);

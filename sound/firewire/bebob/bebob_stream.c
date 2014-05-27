@@ -852,7 +852,8 @@ static int
 seek_msu_sync_input_plug(struct snd_bebob *bebob)
 {
 	u8 plugs[AVC_PLUG_INFO_BUF_BYTES], addr[AVC_BRIDGECO_ADDR_BYTES];
-	unsigned int i, type;
+	unsigned int i;
+	enum avc_bridgeco_plug_type type;
 	int err;
 
 	/* Get the number of Music Sub Unit for both direction. */
