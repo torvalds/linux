@@ -1563,7 +1563,6 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.width = dev->ts1.width;
 	f->fmt.pix.height = dev->ts1.height;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
-	f->fmt.pix.priv = 0;
 	dprintk(1, "VIDIOC_G_FMT: w: %d, h: %d\n",
 		dev->ts1.width, dev->ts1.height);
 	dprintk(3, "exit vidioc_g_fmt_vid_cap()\n");
@@ -1582,7 +1581,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.sizeimage = mpeglines * mpeglinesize;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.priv = 0;
 	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d\n",
 		dev->ts1.width, dev->ts1.height);
 	dprintk(3, "exit vidioc_try_fmt_vid_cap()\n");

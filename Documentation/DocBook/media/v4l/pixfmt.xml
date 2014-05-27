@@ -112,9 +112,28 @@ see <xref linkend="colorspaces" />.</entry>
 	<row>
 	  <entry>__u32</entry>
 	  <entry><structfield>priv</structfield></entry>
-	  <entry>Reserved for custom (driver defined) additional
-information about formats. When not used drivers and applications must
-set this field to zero.</entry>
+	  <entry><para>This field indicates whether the remaining fields of the
+<structname>v4l2_pix_format</structname> structure, also called the extended
+fields, are valid. When set to <constant>V4L2_PIX_FMT_PRIV_MAGIC</constant>, it
+indicates that the extended fields have been correctly initialized. When set to
+any other value it indicates that the extended fields contain undefined values.
+</para>
+<para>Applications that wish to use the pixel format extended fields must first
+ensure that the feature is supported by querying the device for the
+<link linkend="querycap"><constant>V4L2_CAP_EXT_PIX_FORMAT</constant></link>
+capability. If the capability isn't set the pixel format extended fields are not
+supported and using the extended fields will lead to undefined results.</para>
+<para>To use the extended fields, applications must set the
+<structfield>priv</structfield> field to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant>, initialize all the extended fields
+and zero the unused bytes of the <structname>v4l2_format</structname>
+<structfield>raw_data</structfield> field.</para>
+<para>When the <structfield>priv</structfield> field isn't set to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant> drivers must act as if all the
+extended fields were set to zero. On return drivers must set the
+<structfield>priv</structfield> field to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant> and all the extended fields to
+applicable values.</para></entry>
 	</row>
       </tbody>
     </tgroup>

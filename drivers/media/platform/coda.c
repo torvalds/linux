@@ -613,8 +613,6 @@ static int coda_try_fmt(struct coda_ctx *ctx, struct coda_codec *codec,
 		BUG();
 	}
 
-	f->fmt.pix.priv = 0;
-
 	return 0;
 }
 

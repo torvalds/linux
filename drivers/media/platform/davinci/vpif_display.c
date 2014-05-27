@@ -648,7 +648,6 @@ static int vpif_try_fmt_vid_out(struct file *file, void *priv,
 	pixfmt->width = common->fmt.fmt.pix.width;
 	pixfmt->height = common->fmt.fmt.pix.height;
 	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height * 2;
-	pixfmt->priv = 0;
 
 	return 0;
 }

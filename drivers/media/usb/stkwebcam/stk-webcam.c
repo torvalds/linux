@@ -923,7 +923,6 @@ static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 		pix_format->bytesperline = 2 * pix_format->width;
 	pix_format->sizeimage = pix_format->bytesperline
 				* pix_format->height;
-	pix_format->priv = 0;
 	return 0;
 }
 
@@ -967,7 +966,6 @@ static int stk_try_fmt_vid_cap(struct file *filp,
 		fmtd->fmt.pix.bytesperline = 2 * fmtd->fmt.pix.width;
 	fmtd->fmt.pix.sizeimage = fmtd->fmt.pix.bytesperline
 		* fmtd->fmt.pix.height;
-	fmtd->fmt.pix.priv = 0;
 	return 0;
 }
 

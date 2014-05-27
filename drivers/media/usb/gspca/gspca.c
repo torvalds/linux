@@ -1109,8 +1109,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
 	fmt->fmt.pix = gspca_dev->pixfmt;
-	/* some drivers use priv internally, zero it before giving it to
-	   userspace */
+	/* some drivers use priv internally, zero it before giving it back to
+	   the core */
 	fmt->fmt.pix.priv = 0;
 	return 0;
 }
@@ -1146,8 +1146,8 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 		fmt->fmt.pix.height = h;
 		gspca_dev->sd_desc->try_fmt(gspca_dev, fmt);
 	}
-	/* some drivers use priv internally, zero it before giving it to
-	   userspace */
+	/* some drivers use priv internally, zero it before giving it back to
+	   the core */
 	fmt->fmt.pix.priv = 0;
 	return mode;			/* used when s_fmt */
 }
