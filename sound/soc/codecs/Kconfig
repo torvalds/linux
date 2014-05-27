@@ -210,13 +210,17 @@ config SND_SOC_AD1980
 config SND_SOC_AD73311
 	tristate
 
+config SND_SOC_ADAU1373
+	tristate
+
 config SND_SOC_ADAU1701
 	tristate "Analog Devices ADAU1701 CODEC"
 	depends on I2C
 	select SND_SOC_SIGMADSP
 
-config SND_SOC_ADAU1373
+config SND_SOC_ADAU17X1
 	tristate
+	select SND_SOC_SIGMADSP
 
 config SND_SOC_ADAU1977
 	tristate
