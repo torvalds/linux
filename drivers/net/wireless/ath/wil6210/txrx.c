@@ -64,6 +64,22 @@ static inline int wil_vring_avail_tx(struct vring *vring)
 	return vring->size - used - 1;
 }
 
+/**
+ * wil_vring_wmark_low - low watermark for available descriptor space
+ */
+static inline int wil_vring_wmark_low(struct vring *vring)
+{
+	return vring->size/8;
+}
+
+/**
+ * wil_vring_wmark_high - high watermark for available descriptor space
+ */
+static inline int wil_vring_wmark_high(struct vring *vring)
+{
+	return vring->size/4;
+}
+
 static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 {
 	struct device *dev = wil_to_dev(wil);
@@ -1007,7 +1023,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	rc = wil_tx_vring(wil, vring, skb);
 
 	/* do we still have enough room in the vring? */
-	if (wil_vring_avail_tx(vring) < vring->size/8)
+	if (wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring))
 		netif_tx_stop_all_queues(wil_to_ndev(wil));
 
 	switch (rc) {
@@ -1116,7 +1132,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 			done++;
 		}
 	}
-	if (wil_vring_avail_tx(vring) > vring->size/4)
+	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring))
 		netif_tx_wake_all_queues(wil_to_ndev(wil));
 
 	return done;
