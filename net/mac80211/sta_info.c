@@ -100,7 +100,8 @@ static void __cleanup_single_sta(struct sta_info *sta)
 	struct ps_data *ps;
 
 	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
-	    test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
+	    test_sta_flag(sta, WLAN_STA_PS_DRIVER) ||
+	    test_sta_flag(sta, WLAN_STA_PS_DELIVER)) {
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
 		    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			ps = &sdata->bss->ps;
@@ -111,6 +112,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 
 		clear_sta_flag(sta, WLAN_STA_PS_STA);
 		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		clear_sta_flag(sta, WLAN_STA_PS_DELIVER);
 
 		atomic_dec(&ps->num_sta_ps);
 		sta_info_recalc_tim(sta);
@@ -125,7 +127,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_sta_cleanup(sta);
 
-	cancel_work_sync(&sta->drv_unblock_wk);
+	cancel_work_sync(&sta->drv_deliver_wk);
 
 	/*
 	 * Destroy aggregation state here. It would be nice to wait for the
@@ -253,33 +255,23 @@ static void sta_info_hash_add(struct ieee80211_local *local,
 	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
 }
 
-static void sta_unblock(struct work_struct *wk)
+static void sta_deliver_ps_frames(struct work_struct *wk)
 {
 	struct sta_info *sta;
 
-	sta = container_of(wk, struct sta_info, drv_unblock_wk);
+	sta = container_of(wk, struct sta_info, drv_deliver_wk);
 
 	if (sta->dead)
 		return;
 
-	if (!test_sta_flag(sta, WLAN_STA_PS_STA)) {
-		local_bh_disable();
+	local_bh_disable();
+	if (!test_sta_flag(sta, WLAN_STA_PS_STA))
 		ieee80211_sta_ps_deliver_wakeup(sta);
-		local_bh_enable();
-	} else if (test_and_clear_sta_flag(sta, WLAN_STA_PSPOLL)) {
-		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-
-		local_bh_disable();
+	else if (test_and_clear_sta_flag(sta, WLAN_STA_PSPOLL))
 		ieee80211_sta_ps_deliver_poll_response(sta);
-		local_bh_enable();
-	} else if (test_and_clear_sta_flag(sta, WLAN_STA_UAPSD)) {
-		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-
-		local_bh_disable();
+	else if (test_and_clear_sta_flag(sta, WLAN_STA_UAPSD))
 		ieee80211_sta_ps_deliver_uapsd(sta);
-		local_bh_enable();
-	} else
-		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+	local_bh_enable();
 }
 
 static int sta_prepare_rate_control(struct ieee80211_local *local,
@@ -341,7 +333,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->ps_lock);
-	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
+	INIT_WORK(&sta->drv_deliver_wk, sta_deliver_ps_frames);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
 #ifdef CONFIG_MAC80211_MESH
@@ -1141,8 +1133,15 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	}
 
 	ieee80211_add_pending_skbs(local, &pending);
-	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-	clear_sta_flag(sta, WLAN_STA_PS_STA);
+
+	/* now we're no longer in the deliver code */
+	clear_sta_flag(sta, WLAN_STA_PS_DELIVER);
+
+	/* The station might have polled and then woken up before we responded,
+	 * so clear these flags now to avoid them sticking around.
+	 */
+	clear_sta_flag(sta, WLAN_STA_PSPOLL);
+	clear_sta_flag(sta, WLAN_STA_UAPSD);
 	spin_unlock(&sta->ps_lock);
 
 	atomic_dec(&ps->num_sta_ps);
@@ -1543,10 +1542,26 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 
 	trace_api_sta_block_awake(sta->local, pubsta, block);
 
-	if (block)
+	if (block) {
 		set_sta_flag(sta, WLAN_STA_PS_DRIVER);
-	else if (test_sta_flag(sta, WLAN_STA_PS_DRIVER))
-		ieee80211_queue_work(hw, &sta->drv_unblock_wk);
+		return;
+	}
+
+	if (!test_sta_flag(sta, WLAN_STA_PS_DRIVER))
+		return;
+
+	if (!test_sta_flag(sta, WLAN_STA_PS_STA)) {
+		set_sta_flag(sta, WLAN_STA_PS_DELIVER);
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_queue_work(hw, &sta->drv_deliver_wk);
+	} else if (test_sta_flag(sta, WLAN_STA_PSPOLL) ||
+		   test_sta_flag(sta, WLAN_STA_UAPSD)) {
+		/* must be asleep in this case */
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_queue_work(hw, &sta->drv_deliver_wk);
+	} else {
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+	}
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
 

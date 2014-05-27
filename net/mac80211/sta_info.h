@@ -58,6 +58,8 @@
  * @WLAN_STA_TOFFSET_KNOWN: toffset calculated for this station is valid.
  * @WLAN_STA_MPSP_OWNER: local STA is owner of a mesh Peer Service Period.
  * @WLAN_STA_MPSP_RECIPIENT: local STA is recipient of a MPSP.
+ * @WLAN_STA_PS_DELIVER: station woke up, but we're still blocking TX
+ *	until pending frames are delivered
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH,
@@ -82,6 +84,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_TOFFSET_KNOWN,
 	WLAN_STA_MPSP_OWNER,
 	WLAN_STA_MPSP_RECIPIENT,
+	WLAN_STA_PS_DELIVER,
 };
 
 #define ADDBA_RESP_INTERVAL HZ
@@ -265,7 +268,7 @@ struct ieee80211_tx_latency_stat {
  * @last_rx_rate_vht_nss: rx status nss of last data packet
  * @lock: used for locking all fields that require locking, see comments
  *	in the header file.
- * @drv_unblock_wk: used for driver PS unblocking
+ * @drv_deliver_wk: used for delivering frames after driver PS unblocking
  * @listen_interval: listen interval of this station, when we're acting as AP
  * @_flags: STA flags, see &enum ieee80211_sta_info_flags, do not use directly
  * @ps_lock: used for powersave (when mac80211 is the AP) related locking
@@ -345,7 +348,7 @@ struct sta_info {
 	void *rate_ctrl_priv;
 	spinlock_t lock;
 
-	struct work_struct drv_unblock_wk;
+	struct work_struct drv_deliver_wk;
 
 	u16 listen_interval;
 

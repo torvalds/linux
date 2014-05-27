@@ -469,7 +469,8 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		return TX_CONTINUE;
 
 	if (unlikely((test_sta_flag(sta, WLAN_STA_PS_STA) ||
-		      test_sta_flag(sta, WLAN_STA_PS_DRIVER)) &&
+		      test_sta_flag(sta, WLAN_STA_PS_DRIVER) ||
+		      test_sta_flag(sta, WLAN_STA_PS_DELIVER)) &&
 		     !(info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER))) {
 		int ac = skb_get_queue_mapping(tx->skb);
 
@@ -486,7 +487,8 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		 * ahead and Tx the packet.
 		 */
 		if (!test_sta_flag(sta, WLAN_STA_PS_STA) &&
-		    !test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
+		    !test_sta_flag(sta, WLAN_STA_PS_DRIVER) &&
+		    !test_sta_flag(sta, WLAN_STA_PS_DELIVER)) {
 			spin_unlock(&sta->ps_lock);
 			return TX_CONTINUE;
 		}
