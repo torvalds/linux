@@ -220,7 +220,7 @@
 };
 
 &spi0 {
-	status = "okay";
+	status = "disabled";
 	max-freq = <48000000>;	
 	/*
 	spi_test@00 {
@@ -267,7 +267,7 @@
 };
 
 &spi2 {
-	status = "okay";
+	status = "disabled";
 	max-freq = <48000000>;
 	/*
 	spi_test@20 {
@@ -475,7 +475,7 @@
 };
 
 &i2c3 {
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c4 {
