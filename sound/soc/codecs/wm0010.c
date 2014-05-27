@@ -144,7 +144,7 @@ static const struct snd_soc_dapm_route wm0010_dapm_routes[] = {
 
 static const char *wm0010_state_to_str(enum wm0010_state state)
 {
-	const char *state_to_str[] = {
+	static const char * const state_to_str[] = {
 		"Power off",
 		"Out of reset",
 		"Boot ROM",
