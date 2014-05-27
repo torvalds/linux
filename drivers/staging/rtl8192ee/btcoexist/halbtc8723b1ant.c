@@ -1384,7 +1384,7 @@ static bool halbtc8723b1ant_is_common_action(struct btc_coexist *btcoexist)
 		   (BT_8723B_1ANT_BT_STATUS_CONNECTED_IDLE !=
 		    coex_dm->bt_status)) {
 		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE,
-			  ("[BTCoex], Wifi non connected-idle + BT Busy!!\n"));
+			  "[BTCoex], Wifi non connected-idle + BT Busy!!\n");
 		halbtc8723b1ant_sw_mechanism(btcoexist, false);
 		commom = true;
 	} else {
