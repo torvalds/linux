@@ -24,7 +24,7 @@
 
 unsigned int cfc_bytes_per_scan(struct comedi_subdevice *s)
 {
-	unsigned int chanlist_len = s->async->cmd.chanlist_len;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int num_samples;
 	unsigned int bits_per_sample;
 
@@ -33,11 +33,11 @@ unsigned int cfc_bytes_per_scan(struct comedi_subdevice *s)
 	case COMEDI_SUBD_DO:
 	case COMEDI_SUBD_DIO:
 		bits_per_sample = 8 * bytes_per_sample(s);
-		num_samples = (chanlist_len + bits_per_sample - 1) /
+		num_samples = (cmd->chanlist_len + bits_per_sample - 1) /
 				bits_per_sample;
 		break;
 	default:
-		num_samples = chanlist_len;
+		num_samples = cmd->chanlist_len;
 		break;
 	}
 	return num_samples * bytes_per_sample(s);
