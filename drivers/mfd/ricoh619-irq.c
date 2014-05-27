@@ -326,7 +326,7 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 	int i;
 	int ret;
 	unsigned int rtc_int_sts = 0;
-	int cur_irq;
+	int cur_irq = 0;
 
 	ret = ricoh619_read(ricoh619->dev, RICOH619_INT_IR_SYS, &ricoh619_pwr_key_reg);
 
@@ -426,10 +426,11 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 
 	for (i = 0; i <RICOH619_NR_IRQS; ++i) {
 		const struct ricoh619_irq_data *data = &ricoh619_irqs[i];
-		if ((int_sts[data->mask_reg_index] & (1 << data->int_en_bit)) &&(ricoh619->group_irq_en[data->master_bit] & (1 << data->grp_index)))
+		if ((int_sts[data->mask_reg_index] & (1 << data->int_en_bit)) &&(ricoh619->group_irq_en[data->master_bit] & (1 << data->grp_index))){
 			cur_irq = irq_find_mapping(ricoh619->irq_domain, i);
-		if (cur_irq)
-			handle_nested_irq(cur_irq);
+			if (cur_irq)
+				handle_nested_irq(cur_irq);
+		}
 	}
 
 //	printk(KERN_INFO "PMU: %s: out\n", __func__);

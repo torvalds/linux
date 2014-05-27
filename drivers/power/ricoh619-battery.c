@@ -3450,7 +3450,7 @@ static void vadp_drop_irq_work(struct work_struct *work)
 		 struct ricoh619_battery_info, vadp_drop_work.work);
 
 	int ret = 0;
-	uint8_t data[5];
+	uint8_t data[6];
 	u16 reg[2];
 
 	RICOH_FG_DBG("PMU vadp_drop_work:%s In\n", __func__);
@@ -4063,7 +4063,8 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 
 	/* this setting is same as battery driver of 584 */
 	case POWER_SUPPLY_PROP_PRESENT:
-		val->intval = info->present;
+	//	val->intval = info->present;
+		val->intval = 1;
 		break;
 
 	/* current voltage is get from fuel gauge */
@@ -4867,7 +4868,7 @@ static int ricoh619_battery_resume(struct device *dev)
 
 	if(info->chg_complete_sleep_flag == 1)
 	{
-		info->chg_complete_tm_ov_flag == 1;
+		info->chg_complete_tm_ov_flag = 1;
 		info->chg_complete_sleep_flag = 0;
 	}
 
