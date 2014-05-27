@@ -881,6 +881,16 @@ enum punit_power_well {
 #define   DPIO_CHV_PROP_COEFF_SHIFT	0
 #define CHV_PLL_DW6(ch) _PIPE(ch, _CHV_PLL_DW6_CH0, _CHV_PLL_DW6_CH1)
 
+#define _CHV_CMN_DW5_CH0               0x8114
+#define   CHV_BUFRIGHTENA1_DISABLE	(0 << 20)
+#define   CHV_BUFRIGHTENA1_NORMAL	(1 << 20)
+#define   CHV_BUFRIGHTENA1_FORCE	(3 << 20)
+#define   CHV_BUFRIGHTENA1_MASK		(3 << 20)
+#define   CHV_BUFLEFTENA1_DISABLE	(0 << 22)
+#define   CHV_BUFLEFTENA1_NORMAL	(1 << 22)
+#define   CHV_BUFLEFTENA1_FORCE		(3 << 22)
+#define   CHV_BUFLEFTENA1_MASK		(3 << 22)
+
 #define _CHV_CMN_DW13_CH0		0x8134
 #define _CHV_CMN_DW0_CH1		0x8080
 #define   DPIO_CHV_S1_DIV_SHIFT		21
@@ -895,6 +905,14 @@ enum punit_power_well {
 #define _CHV_CMN_DW1_CH1		0x8084
 #define   DPIO_AFC_RECAL		(1 << 14)
 #define   DPIO_DCLKP_EN			(1 << 13)
+#define   CHV_BUFLEFTENA2_DISABLE	(0 << 17) /* CL2 DW1 only */
+#define   CHV_BUFLEFTENA2_NORMAL	(1 << 17) /* CL2 DW1 only */
+#define   CHV_BUFLEFTENA2_FORCE		(3 << 17) /* CL2 DW1 only */
+#define   CHV_BUFLEFTENA2_MASK		(3 << 17) /* CL2 DW1 only */
+#define   CHV_BUFRIGHTENA2_DISABLE	(0 << 19) /* CL2 DW1 only */
+#define   CHV_BUFRIGHTENA2_NORMAL	(1 << 19) /* CL2 DW1 only */
+#define   CHV_BUFRIGHTENA2_FORCE	(3 << 19) /* CL2 DW1 only */
+#define   CHV_BUFRIGHTENA2_MASK		(3 << 19) /* CL2 DW1 only */
 #define CHV_CMN_DW14(ch) _PIPE(ch, _CHV_CMN_DW14_CH0, _CHV_CMN_DW1_CH1)
 
 #define _CHV_CMN_DW19_CH0		0x814c

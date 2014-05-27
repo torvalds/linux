@@ -1242,6 +1242,25 @@ static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 
 	mutex_lock(&dev_priv->dpio_lock);
 
+	/* program left/right clock distribution */
+	if (pipe != PIPE_B) {
+		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW5_CH0);
+		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
+		if (ch == DPIO_CH0)
+			val |= CHV_BUFLEFTENA1_FORCE;
+		if (ch == DPIO_CH1)
+			val |= CHV_BUFRIGHTENA1_FORCE;
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW5_CH0, val);
+	} else {
+		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW1_CH1);
+		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
+		if (ch == DPIO_CH0)
+			val |= CHV_BUFLEFTENA2_FORCE;
+		if (ch == DPIO_CH1)
+			val |= CHV_BUFRIGHTENA2_FORCE;
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
+	}
+
 	/* program clock channel usage */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(ch));
 	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
