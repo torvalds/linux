@@ -62,7 +62,6 @@ struct brcmf_usb_image {
 	u8 *image;
 	int image_len;
 };
-static struct list_head fw_image_list;
 
 struct brcmf_usbdev_info {
 	struct brcmf_usbdev bus_pub; /* MUST BE FIRST */
@@ -1033,69 +1032,6 @@ static const char *brcmf_usb_get_fwname(struct brcmf_usbdev_info *devinfo)
 		return NULL;
 	}
 }
-static __used int brcmf_usb_get_fw(struct brcmf_usbdev_info *devinfo)
-{
-	s8 *fwname;
-	const struct firmware *fw;
-	struct brcmf_usb_image *fw_image;
-	int err;
-
-	brcmf_dbg(USB, "Enter\n");
-	switch (devinfo->bus_pub.devid) {
-	case 43143:
-		fwname = BRCMF_USB_43143_FW_NAME;
-		break;
-	case 43235:
-	case 43236:
-	case 43238:
-		fwname = BRCMF_USB_43236_FW_NAME;
-		break;
-	case 43242:
-		fwname = BRCMF_USB_43242_FW_NAME;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-	brcmf_dbg(USB, "Loading FW %s\n", fwname);
-	list_for_each_entry(fw_image, &fw_image_list, list) {
-		if (fw_image->fwname == fwname) {
-			devinfo->image = fw_image->image;
-			devinfo->image_len = fw_image->image_len;
-			return 0;
-		}
-	}
-	/* fw image not yet loaded. Load it now and add to list */
-	err = request_firmware(&fw, fwname, devinfo->dev);
-	if (!fw) {
-		brcmf_err("fail to request firmware %s\n", fwname);
-		return err;
-	}
-	if (check_file(fw->data) < 0) {
-		brcmf_err("invalid firmware %s\n", fwname);
-		return -EINVAL;
-	}
-
-	fw_image = kzalloc(sizeof(*fw_image), GFP_ATOMIC);
-	if (!fw_image)
-		return -ENOMEM;
-	INIT_LIST_HEAD(&fw_image->list);
-	list_add_tail(&fw_image->list, &fw_image_list);
-	fw_image->fwname = fwname;
-	fw_image->image = vmalloc(fw->size);
-	if (!fw_image->image)
-		return -ENOMEM;
-
-	memcpy(fw_image->image, fw->data, fw->size);
-	fw_image->image_len = fw->size;
-
-	release_firmware(fw);
-
-	devinfo->image = fw_image->image;
-	devinfo->image_len = fw_image->image_len;
-
-	return 0;
-}
 
 
 static
@@ -1484,16 +1420,6 @@ static struct usb_driver brcmf_usbdrvr = {
 	.disable_hub_initiated_lpm = 1,
 };
 
-static void brcmf_release_fw(struct list_head *q)
-{
-	struct brcmf_usb_image *fw_image, *next;
-
-	list_for_each_entry_safe(fw_image, next, q, list) {
-		vfree(fw_image->image);
-		list_del_init(&fw_image->list);
-	}
-}
-
 static int brcmf_usb_reset_device(struct device *dev, void *notused)
 {
 	/* device past is the usb interface so we
@@ -1512,12 +1438,10 @@ void brcmf_usb_exit(void)
 	ret = driver_for_each_device(drv, NULL, NULL,
 				     brcmf_usb_reset_device);
 	usb_deregister(&brcmf_usbdrvr);
-	brcmf_release_fw(&fw_image_list);
 }
 
 void brcmf_usb_register(void)
 {
 	brcmf_dbg(USB, "Enter\n");
-	INIT_LIST_HEAD(&fw_image_list);
 	usb_register(&brcmf_usbdrvr);
 }
