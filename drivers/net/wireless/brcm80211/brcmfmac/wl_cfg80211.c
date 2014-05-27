@@ -3178,7 +3178,7 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	}
 
 	if (!request->n_ssids || !request->n_match_sets) {
-		brcmf_err("Invalid sched scan req!! n_ssids:%d\n",
+		brcmf_dbg(SCAN, "Invalid sched scan req!! n_ssids:%d\n",
 			  request->n_ssids);
 		return -EINVAL;
 	}
