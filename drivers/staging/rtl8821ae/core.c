@@ -88,42 +88,9 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39))
-static int rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_tcb_desc tcb_desc;
-	memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
-
-	if (unlikely(is_hal_stop(rtlhal) || ppsc->rfpwr_state != ERFON))
-		goto err_free;
-
-	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
-		goto err_free;
-
-	if (!rtlpriv->intf_ops->waitq_insert(hw, skb))
-		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
-
-	return NETDEV_TX_OK;
-
-err_free:
-	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
-}
-#else
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-static void rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
-#else
-/*<delete in kernel end>*/
 static void rtl_op_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_control *control,
 		      struct sk_buff *skb)
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -137,26 +104,14 @@ static void rtl_op_tx(struct ieee80211_hw *hw,
 	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
 		goto err_free;
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0))
-	if (!rtlpriv->intf_ops->waitq_insert(hw, skb))
-		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
-#else
-/*<delete in kernel end>*/
 	if (!rtlpriv->intf_ops->waitq_insert(hw, control->sta, skb))
 	        rtlpriv->intf_ops->adapter_tx(hw, control->sta, skb, &tcb_desc);
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 	return;
 
 err_free:
 	dev_kfree_skb_any(skb);
 	return;
 }
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 
 static int rtl_op_add_interface(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif)
@@ -171,26 +126,15 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 		return -EOPNOTSUPP;
 	}
 
-/*This flag is not defined before kernel 3.4*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-#endif
 
 	rtl_ips_nic_on(hw);
 
 	mutex_lock(&rtlpriv->locks.conf_mutex);
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_P2P_CLIENT:
 		mac->p2p = P2P_ROLE_CLIENT;
 		/*fall through*/
-#else
-/*<delete in kernel end>*/
-	switch (vif->type) {
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 	case NL80211_IFTYPE_STATION:
 		if (mac->beacon_enabled == 1) {
 			RT_TRACE(COMP_MAC80211, DBG_LOUD,
@@ -214,13 +158,9 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 				(u8 *) (&mac->basic_rates));
 
 		break;
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 	case NL80211_IFTYPE_P2P_GO:
 		mac->p2p = P2P_ROLE_GO;
 		/*fall through*/
-#endif
-/*<delete in kernel end>*/
 	case NL80211_IFTYPE_AP:
 		RT_TRACE(COMP_MAC80211, DBG_LOUD,
 			 ("NL80211_IFTYPE_AP \n"));
@@ -310,9 +250,7 @@ static void rtl_op_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-/*<delete in kernel end>*/
+
 static int rtl_op_change_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   enum nl80211_iftype new_type, bool p2p)
@@ -328,9 +266,7 @@ static int rtl_op_change_interface(struct ieee80211_hw *hw,
 		 (" p2p  %x\n",p2p));
 	return ret;
 }
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
+
 static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -398,14 +334,9 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 		struct ieee80211_channel *channel = hw->conf.chandef.chan;
 		enum nl80211_channel_type channel_type =
 				cfg80211_get_chandef_type(&(hw->conf.chandef));
-#else
-		struct ieee80211_channel *channel = hw->conf.channel;
-		enum nl80211_channel_type channel_type = hw->conf.channel_type;
-#endif
 		u8 wide_chan = (u8) channel->hw_value;
 
 		if (mac->act_scanning)
@@ -661,14 +592,9 @@ static int _rtl_get_hal_qnum(u16 queue)
  *for mac80211 VO=0, VI=1, BE=2, BK=3
  *for rtl819x  BE=0, BK=1, VI=2, VO=3
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 static int rtl_op_conf_tx(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif, u16 queue,
 			  const struct ieee80211_tx_queue_params *param)
-#else
-static int rtl_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
-			  const struct ieee80211_tx_queue_params *param)
-#endif
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -964,11 +890,7 @@ out:
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 static u64 rtl_op_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-#else
-static u64 rtl_op_get_tsf(struct ieee80211_hw *hw)
-#endif
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u64 tsf;
@@ -977,12 +899,8 @@ static u64 rtl_op_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 static void rtl_op_set_tsf(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif, u64 tsf)
-#else
-static void rtl_op_set_tsf(struct ieee80211_hw *hw, u64 tsf)
-#endif
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -992,11 +910,7 @@ static void rtl_op_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_CORRECT_TSF, (u8 *) (&bibss));
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 static void rtl_op_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-#else
-static void rtl_op_reset_tsf(struct ieee80211_hw *hw)
-#endif
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 tmp = 0;
@@ -1023,13 +937,7 @@ static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       enum ieee80211_ampdu_mlme_action action,
 			       struct ieee80211_sta *sta, u16 tid, u16 * ssn
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39))
-/*<delete in kernel end>*/
 			       ,u8 buf_size
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 			       )
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1040,13 +948,9 @@ static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 			 ("IEEE80211_AMPDU_TX_START: TID:%d\n", tid));
 		return rtl_tx_agg_start(hw, vif, sta, tid, ssn);
 		break;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
-#else
-	case IEEE80211_AMPDU_TX_STOP:
-#endif
 		RT_TRACE(COMP_MAC80211, DBG_TRACE,
 			 ("IEEE80211_AMPDU_TX_STOP: TID:%d\n", tid));
 		return rtl_tx_agg_stop(hw, vif, sta, tid);
@@ -1174,9 +1078,6 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	mutex_lock(&rtlpriv->locks.conf_mutex);
 	/* <1> get encryption alg */
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-/*<delete in kernel end>*/
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 		key_type = WEP40_ENCRYPTION;
@@ -1209,43 +1110,6 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			 ("alg_err:%x!!!!:\n", key->cipher));
 		goto out_unlock;
 	}
-/*<delete in kernel start>*/
-#else
-	switch (key->alg) {
-	case ALG_WEP:
-		if (key->keylen == WLAN_KEY_LEN_WEP40) {
-			key_type = WEP40_ENCRYPTION;
-			RT_TRACE(COMP_SEC, DBG_DMESG, ("alg:WEP40\n"));
-		} else {
-			RT_TRACE(COMP_SEC, DBG_DMESG,
-				 ("alg:WEP104\n"));
-			key_type = WEP104_ENCRYPTION;
-		}
-		break;
-	case ALG_TKIP:
-		key_type = TKIP_ENCRYPTION;
-		RT_TRACE(COMP_SEC, DBG_DMESG, ("alg:TKIP\n"));
-		break;
-	case ALG_CCMP:
-		key_type = AESCCMP_ENCRYPTION;
-		RT_TRACE(COMP_SEC, DBG_DMESG, ("alg:CCMP\n"));
-		break;
-	case ALG_AES_CMAC:
-		/*HW don't support CMAC encryption, use software CMAC encryption */
-		key_type = AESCMAC_ENCRYPTION;
-		RT_TRACE(COMP_SEC, DBG_DMESG, ("alg:CMAC\n"));
-		RT_TRACE(COMP_SEC, DBG_DMESG,
-			 ("HW don't support CMAC encryption, "
-			  "use software CMAC encryption\n"));
-		err = -EOPNOTSUPP;
-		goto out_unlock;
-	default:
-		RT_TRACE(COMP_ERR, DBG_EMERG,
-			 ("alg_err:%x!!!!:\n", key->alg));
-		goto out_unlock;
-	}
-#endif
-/*<delete in kernel end>*/
 	if(key_type == WEP40_ENCRYPTION ||
 			key_type == WEP104_ENCRYPTION ||
 			vif->type == NL80211_IFTYPE_ADHOC)
@@ -1414,7 +1278,6 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
  * before switch channel or power save, or tx buffer packet
  * maybe send after offchannel or rf sleep, this may cause
  * dis-association by AP */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 static void rtl_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1422,15 +1285,6 @@ static void rtl_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	if (rtlpriv->intf_ops->flush)
 		rtlpriv->intf_ops->flush(hw, queues, drop);
 }
-#else
-static void rtl_op_flush(struct ieee80211_hw *hw, bool drop)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	if (rtlpriv->intf_ops->flush)
-		rtlpriv->intf_ops->flush(hw, drop);
-}
-#endif
 
 const struct ieee80211_ops rtl_ops = {
 	.start = rtl_op_start,
@@ -1438,13 +1292,7 @@ const struct ieee80211_ops rtl_ops = {
 	.tx = rtl_op_tx,
 	.add_interface = rtl_op_add_interface,
 	.remove_interface = rtl_op_remove_interface,
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-/*<delete in kernel end>*/
 	.change_interface = rtl_op_change_interface,
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 	.config = rtl_op_config,
 	.configure_filter = rtl_op_configure_filter,
 	.set_key = rtl_op_set_key,
