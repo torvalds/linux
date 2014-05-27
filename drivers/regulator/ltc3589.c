@@ -160,15 +160,6 @@ static int ltc3589_set_suspend_mode(struct regulator_dev *rdev,
 	return regmap_update_bits(ltc3589->regmap, LTC3589_VCCR, mask, bit);
 }
 
-static int ltc3589_list_voltage_fixed(struct regulator_dev *rdev,
-				      unsigned int selector)
-{
-	if (selector)
-		return -EINVAL;
-
-	return rdev->desc->fixed_uV;
-}
-
 /* SW1, SW2, SW3, LDO2 */
 static struct regulator_ops ltc3589_linear_regulator_ops = {
 	.enable = regulator_enable_regmap,
@@ -188,12 +179,10 @@ static struct regulator_ops ltc3589_fixed_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
-	.list_voltage = ltc3589_list_voltage_fixed,
 };
 
 /* LDO1 */
-static struct regulator_ops ltc3589_standby_regulator_ops = {
-	.list_voltage = ltc3589_list_voltage_fixed,
+static struct regulator_ops ltc3589_fixed_standby_regulator_ops = {
 };
 
 /* LDO4 */
@@ -242,7 +231,7 @@ static struct ltc3589_regulator ltc3589_regulators[LTC3589_NUM_REGULATORS] = {
 	LTC3589_LINEAR_REG(SW2, B2DTV1),
 	LTC3589_LINEAR_REG(SW3, B3DTV1),
 	LTC3589_FIXED_REG(BB_OUT),
-	LTC3589_REG(LDO1, standby, 0, 0, 0, 0),
+	LTC3589_REG(LDO1, fixed_standby, 0, 0, 0, 0),
 	LTC3589_LINEAR_REG(LDO2, L2DTV1),
 	LTC3589_FIXED_REG(LDO3),
 	LTC3589_REG(LDO4, table, LTC3589_OVEN_LDO4, LTC3589_L2DTV2, 0x60, 0),
