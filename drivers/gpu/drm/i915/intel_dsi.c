@@ -206,6 +206,19 @@ static void intel_dsi_enable_nop(struct intel_encoder *encoder)
 	 */
 }
 
+static void intel_dsi_pre_disable(struct intel_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
+	DRM_DEBUG_KMS("\n");
+
+	if (is_vid_mode(intel_dsi)) {
+		/* Send Shutdown command to the panel in LP mode */
+		dpi_send_cmd(intel_dsi, SHUTDOWN, DPI_LP_MODE_EN);
+		msleep(10);
+	}
+}
+
 static void intel_dsi_disable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -218,10 +231,6 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	if (is_vid_mode(intel_dsi)) {
-		/* Send Shutdown command to the panel in LP mode */
-		dpi_send_cmd(intel_dsi, SHUTDOWN, DPI_LP_MODE_EN);
-		msleep(10);
-
 		/* de-assert ip_tg_enable signal */
 		temp = I915_READ(MIPI_PORT_CTRL(pipe));
 		I915_WRITE(MIPI_PORT_CTRL(pipe), temp & ~DPI_ENABLE);
@@ -292,6 +301,8 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
+
+	intel_dsi_disable(encoder);
 
 	intel_dsi_clear_device_ready(encoder);
 
@@ -695,7 +706,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	intel_encoder->pre_pll_enable = intel_dsi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
 	intel_encoder->enable = intel_dsi_enable_nop;
-	intel_encoder->disable = intel_dsi_disable;
+	intel_encoder->disable = intel_dsi_pre_disable;
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
 	intel_encoder->get_config = intel_dsi_get_config;
