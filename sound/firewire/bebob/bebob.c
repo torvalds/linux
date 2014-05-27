@@ -465,7 +465,6 @@ static void __exit
 snd_bebob_exit(void)
 {
 	driver_unregister(&bebob_driver.driver);
-	mutex_destroy(&devices_mutex);
 }
 
 module_init(snd_bebob_init);
