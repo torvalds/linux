@@ -905,7 +905,7 @@ static int do_writepage(struct page *page, int len)
 #ifdef UBIFS_DEBUG
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	spin_lock(&ui->ui_lock);
-	ubifs_assert(page->index <= ui->synced_i_size << PAGE_CACHE_SIZE);
+	ubifs_assert(page->index <= ui->synced_i_size >> PAGE_CACHE_SHIFT);
 	spin_unlock(&ui->ui_lock);
 #endif
 
