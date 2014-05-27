@@ -633,23 +633,23 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	const struct das16_board *board = comedi_board(dev);
 	struct das16_private_struct *devpriv = dev->private;
-	int err = 0, tmp;
-	int mask;
+	int err = 0;
+	unsigned int trig_mask;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
 
-	mask = TRIG_FOLLOW;
+	trig_mask = TRIG_FOLLOW;
 	if (devpriv->can_burst)
-		mask |= TRIG_TIMER | TRIG_EXT;
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, mask);
+		trig_mask |= TRIG_TIMER | TRIG_EXT;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, trig_mask);
 
-	tmp = cmd->convert_src;
-	mask = TRIG_TIMER | TRIG_EXT;
+	trig_mask = TRIG_TIMER | TRIG_EXT;
 	if (devpriv->can_burst)
-		mask |= TRIG_NOW;
-	err |= cfc_check_trigger_src(&cmd->convert_src, mask);
+		trig_mask |= TRIG_NOW;
+	err |= cfc_check_trigger_src(&cmd->convert_src, trig_mask);
 
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
@@ -700,22 +700,20 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/*  step 4: fix up arguments */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		unsigned int tmp = cmd->scan_begin_arg;
-		/*  set divisors, correct timing arguments */
+		arg = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer(devpriv->clockbase,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->scan_begin_arg, cmd->flags);
-		err += (tmp != cmd->scan_begin_arg);
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		unsigned int tmp = cmd->convert_arg;
-		/*  set divisors, correct timing arguments */
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->clockbase,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		err += (tmp != cmd->convert_arg);
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 	if (err)
 		return 4;
