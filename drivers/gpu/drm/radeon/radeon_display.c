@@ -340,7 +340,6 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 
 	spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
 
-	drm_vblank_put(rdev->ddev, radeon_crtc->crtc_id);
 	radeon_fence_unref(&work->fence);
 	radeon_irq_kms_pflip_irq_get(rdev, work->crtc_id);
 	schedule_work(&work->work);
@@ -464,26 +463,10 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	/* update crtc fb */
 	crtc->primary->fb = fb;
 
-	r = drm_vblank_get(dev, radeon_crtc->crtc_id);
-	if (r) {
-		DRM_ERROR("failed to get vblank before flip\n");
-		goto pflip_cleanup1;
-	}
-
 	/* set the proper interrupt */
 	radeon_irq_kms_pflip_irq_get(rdev, radeon_crtc->crtc_id);
 
 	return 0;
-
-pflip_cleanup1:
-	if (unlikely(radeon_bo_reserve(rbo, false) != 0)) {
-		DRM_ERROR("failed to reserve new rbo in error path\n");
-		goto pflip_cleanup;
-	}
-	if (unlikely(radeon_bo_unpin(rbo) != 0)) {
-		DRM_ERROR("failed to unpin new rbo in error path\n");
-	}
-	radeon_bo_unreserve(rbo);
 
 pflip_cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
