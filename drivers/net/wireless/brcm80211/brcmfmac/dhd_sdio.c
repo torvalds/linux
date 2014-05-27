@@ -4020,7 +4020,6 @@ brcmf_sdio_watchdog(unsigned long data)
 static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.stop = brcmf_sdio_bus_stop,
 	.preinit = brcmf_sdio_bus_preinit,
-	.init = brcmf_sdio_bus_init,
 	.txdata = brcmf_sdio_bus_txdata,
 	.txctl = brcmf_sdio_bus_txctl,
 	.rxctl = brcmf_sdio_bus_rxctl,
@@ -4149,6 +4148,10 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 
 	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
+
+	ret = brcmf_sdio_bus_init(sdiodev->dev);
+	if (ret)
+		goto fail;
 
 	/* if firmware path present try to download and bring up bus */
 	ret = brcmf_bus_start(bus->sdiodev->dev);

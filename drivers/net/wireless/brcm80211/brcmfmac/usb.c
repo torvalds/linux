@@ -1222,7 +1222,6 @@ error:
 
 static struct brcmf_bus_ops brcmf_usb_bus_ops = {
 	.txdata = brcmf_usb_tx,
-	.init = brcmf_usb_up,
 	.stop = brcmf_usb_down,
 	.txctl = brcmf_usb_tx_ctlpkt,
 	.rxctl = brcmf_usb_rx_ctlpkt,
@@ -1260,6 +1259,12 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	ret = brcmf_attach(dev);
 	if (ret) {
 		brcmf_err("brcmf_attach failed\n");
+		goto fail;
+	}
+
+	ret = brcmf_usb_up(dev);
+	if (ret) {
+		brcmf_detach(dev);
 		goto fail;
 	}
 
