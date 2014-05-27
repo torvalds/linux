@@ -714,42 +714,66 @@ int iwctl_giwaplist(struct net_device *dev,
 		    char *extra)
 {
 	int ii, jj, rc = 0;
-	struct sockaddr sock[IW_MAX_AP];
-	struct iw_quality qual[IW_MAX_AP];
+	struct sockaddr *sock	= NULL;
+	struct sockaddr *s	= NULL;
+	struct iw_quality *qual	= NULL;
+	struct iw_quality *q	= NULL;
+	PKnownBSS pBSS		= NULL;
+
 	PSDevice pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWAPLIST \n");
-	// Only super-user can see AP list
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWAPLIST\n");
 
 	if (!capable(CAP_NET_ADMIN)) {
 		rc = -EPERM;
-		return rc;
+		goto exit;
 	}
 
-	if (wrq->pointer) {
-		PKnownBSS pBSS = &(pMgmt->sBSSList[0]);
+	if (!wrq->pointer)
+		goto exit;
 
-		for (ii = 0, jj = 0; ii < MAX_BSS_NUM; ii++) {
-			pBSS = &(pMgmt->sBSSList[ii]);
-			if (!pBSS->bActive)
-				continue;
-			if (jj >= IW_MAX_AP)
-				break;
-			memcpy(sock[jj].sa_data, pBSS->abyBSSID, 6);
-			sock[jj].sa_family = ARPHRD_ETHER;
-			qual[jj].level = pBSS->uRSSI;
-			qual[jj].qual = qual[jj].noise = 0;
-			qual[jj].updated = 2;
-			jj++;
-		}
-
-		wrq->flags = 1; // Should be define'd
-		wrq->length = jj;
-		memcpy(extra, sock, sizeof(struct sockaddr)*jj);
-		memcpy(extra + sizeof(struct sockaddr)*jj, qual, sizeof(struct iw_quality)*jj);
+	sock = kmalloc_array(IW_MAX_AP, sizeof(struct sockaddr), GFP_KERNEL);
+	if (!sock) {
+		rc = -ENOMEM;
+		goto exit;
 	}
 
+	qual = kmalloc_array(IW_MAX_AP, sizeof(struct iw_quality), GFP_KERNEL);
+	if (!qual) {
+		rc = -ENOMEM;
+		goto exit;
+	}
+
+	for (ii = 0, jj = 0; ii < MAX_BSS_NUM; ii++) {
+		pBSS = &(pMgmt->sBSSList[ii]);
+
+		if (!pBSS->bActive)
+			continue;
+		if (jj >= IW_MAX_AP)
+			break;
+
+		s = &sock[jj];
+		q = &qual[jj];
+
+		memcpy(s->sa_data, pBSS->abyBSSID, 6);
+		s->sa_family	= ARPHRD_ETHER;
+		q->level	= pBSS->uRSSI;
+		q->qual		= 0;
+		q->noise	= 0;
+		q->updated	= 2;
+		jj++;
+	}
+
+	wrq->flags = 1; /* Should be define'd */
+	wrq->length = jj;
+	memcpy(extra, sock, sizeof(struct sockaddr) * jj);
+	memcpy(extra + sizeof(struct sockaddr) * jj,
+		qual,
+		sizeof(struct iw_quality) * jj);
+exit:
+	kfree(sock);
+	kfree(qual);
 	return rc;
 }
 
