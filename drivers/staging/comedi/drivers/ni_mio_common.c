@@ -1468,10 +1468,11 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct ni_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
-	unsigned int i;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int length = num_bytes / bytes_per_sample(s);
 	unsigned short *array = data;
 	unsigned int *larray = data;
+	unsigned int i;
 
 	for (i = 0; i < length; i++) {
 #ifdef PCIDMA
@@ -1485,7 +1486,7 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 		else
 			array[i] += devpriv->ai_offset[chan_index];
 		chan_index++;
-		chan_index %= async->cmd.chanlist_len;
+		chan_index %= cmd->chanlist_len;
 	}
 }
 
@@ -2710,22 +2711,22 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int length = num_bytes / sizeof(short);
+	unsigned int offset = 1 << (board->aobits - 1);
+	unsigned short *array = data;
 	unsigned int range;
 	unsigned int i;
-	unsigned int offset;
-	unsigned int length = num_bytes / sizeof(short);
-	unsigned short *array = data;
 
-	offset = 1 << (board->aobits - 1);
 	for (i = 0; i < length; i++) {
-		range = CR_RANGE(async->cmd.chanlist[chan_index]);
+		range = CR_RANGE(cmd->chanlist[chan_index]);
 		if (board->ao_unipolar == 0 || (range & 1) == 0)
 			array[i] -= offset;
 #ifdef PCIDMA
 		array[i] = cpu_to_le16(array[i]);
 #endif
 		chan_index++;
-		chan_index %= async->cmd.chanlist_len;
+		chan_index %= cmd->chanlist_len;
 	}
 }
 
