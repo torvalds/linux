@@ -341,8 +341,8 @@ static u8 brcmf_mw_to_qdbm(u16 mw)
 	return qdbm;
 }
 
-u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
-			struct cfg80211_chan_def *ch)
+static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
+			       struct cfg80211_chan_def *ch)
 {
 	struct brcmu_chan ch_inf;
 	s32 primary_offset;
