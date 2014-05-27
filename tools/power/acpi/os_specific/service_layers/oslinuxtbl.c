@@ -783,6 +783,10 @@ osl_get_bios_table(char *signature,
 	    ACPI_COMPARE_NAME(signature, ACPI_SIG_XSDT) ||
 	    ACPI_COMPARE_NAME(signature, ACPI_SIG_DSDT) ||
 	    ACPI_COMPARE_NAME(signature, ACPI_SIG_FACS)) {
+		if (instance > 0) {
+			return (AE_LIMIT);
+		}
+
 		/*
 		 * Get the appropriate address, either 32-bit or 64-bit. Be very
 		 * careful about the FADT length and validate table addresses.
