@@ -545,18 +545,12 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 {
 	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int bytes_per_scan = cfc_bytes_per_scan(s);
 	unsigned int num_scans;
 	unsigned int room;
 	unsigned short dacstat;
 	unsigned int i, n;
-	unsigned int bytes_per_scan;
 
-	if (cmd->chanlist_len) {
-		bytes_per_scan = cmd->chanlist_len * sizeof(short);
-	} else {
-		/* Shouldn't get here! */
-		bytes_per_scan = sizeof(short);
-	}
 	/* Determine number of scans available in buffer. */
 	num_scans = comedi_buf_read_n_available(s) / bytes_per_scan;
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -597,8 +591,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		}
 	}
 	/* Determine how many new scans can be put in the FIFO. */
-	if (cmd->chanlist_len)
-		room /= cmd->chanlist_len;
+	room /= cmd->chanlist_len;
 
 	/* Determine how many scans to process. */
 	if (num_scans > room)
