@@ -434,10 +434,16 @@ void __blk_mq_complete_request(struct request *rq)
  **/
 void blk_mq_complete_request(struct request *rq)
 {
-	if (unlikely(blk_should_fake_timeout(rq->q)))
+	struct request_queue *q = rq->q;
+
+	if (unlikely(blk_should_fake_timeout(q)))
 		return;
-	if (!blk_mark_rq_complete(rq))
-		__blk_mq_complete_request(rq);
+	if (!blk_mark_rq_complete(rq)) {
+		if (q->softirq_done_fn)
+			__blk_mq_complete_request(rq);
+		else
+			blk_mq_end_io(rq, rq->errors);
+	}
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
