@@ -212,6 +212,9 @@ void synth_start(void)
 
 void spk_do_flush(void)
 {
+	if (!synth)
+		return;
+
 	speakup_info.flushing = 1;
 	synth_buffer_clear();
 	if (synth->alive) {
