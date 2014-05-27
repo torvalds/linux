@@ -167,7 +167,6 @@ struct usbduxsigma_private {
 	unsigned high_speed:1;
 	unsigned ai_cmd_running:1;
 	unsigned ao_cmd_running:1;
-	unsigned ao_continuous:1;
 	unsigned pwm_cmd_running:1;
 
 	/* number of samples to acquire */
@@ -360,6 +359,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->write_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	uint8_t *datap;
 	int len;
 	int ret;
@@ -403,7 +403,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 		/* timer zero, transfer from comedi */
 		devpriv->ao_counter = devpriv->ao_timer;
 
-		if (!devpriv->ao_continuous) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			/* not continuous, fixed number of samples */
 			devpriv->ao_sample_count--;
 			if (devpriv->ao_sample_count < 0) {
@@ -984,10 +984,8 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 			 */
 			devpriv->ao_sample_count = cmd->stop_arg;
 		}
-		devpriv->ao_continuous = 0;
 	} else {
 		/* continuous acquisition */
-		devpriv->ao_continuous = 1;
 		devpriv->ao_sample_count = 0;
 	}
 
