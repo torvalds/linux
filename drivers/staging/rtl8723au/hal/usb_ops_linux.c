@@ -382,8 +382,7 @@ static void usb_read_interrupt_complete(struct urb *purb)
 				struct evt_work *c2w;
 				int res;
 
-				c2w = (struct evt_work *)
-					kmalloc(sizeof(struct evt_work),
+				c2w = kmalloc(sizeof(struct evt_work),
 						GFP_ATOMIC);
 
 				if (!c2w) {
