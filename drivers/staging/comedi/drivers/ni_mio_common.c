@@ -221,15 +221,6 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 				   unsigned char data_out,
 				   unsigned char *data_in);
 
-static int ni_pfi_insn_bits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
-static int ni_pfi_insn_config(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
-static unsigned ni_old_get_pfi_routing(struct comedi_device *dev,
-				       unsigned chan);
-
 static void ni_rtsi_init(struct comedi_device *dev);
 static int ni_rtsi_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
@@ -4510,6 +4501,185 @@ static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
+static unsigned ni_old_get_pfi_routing(struct comedi_device *dev,
+				       unsigned chan)
+{
+	/*  pre-m-series boards have fixed signals on pfi pins */
+	switch (chan) {
+	case 0:
+		return NI_PFI_OUTPUT_AI_START1;
+		break;
+	case 1:
+		return NI_PFI_OUTPUT_AI_START2;
+		break;
+	case 2:
+		return NI_PFI_OUTPUT_AI_CONVERT;
+		break;
+	case 3:
+		return NI_PFI_OUTPUT_G_SRC1;
+		break;
+	case 4:
+		return NI_PFI_OUTPUT_G_GATE1;
+		break;
+	case 5:
+		return NI_PFI_OUTPUT_AO_UPDATE_N;
+		break;
+	case 6:
+		return NI_PFI_OUTPUT_AO_START1;
+		break;
+	case 7:
+		return NI_PFI_OUTPUT_AI_START_PULSE;
+		break;
+	case 8:
+		return NI_PFI_OUTPUT_G_SRC0;
+		break;
+	case 9:
+		return NI_PFI_OUTPUT_G_GATE0;
+		break;
+	default:
+		printk("%s: bug, unhandled case in switch.\n", __func__);
+		break;
+	}
+	return 0;
+}
+
+static int ni_old_set_pfi_routing(struct comedi_device *dev,
+				  unsigned chan, unsigned source)
+{
+	/*  pre-m-series boards have fixed signals on pfi pins */
+	if (source != ni_old_get_pfi_routing(dev, chan))
+		return -EINVAL;
+	return 2;
+}
+
+static unsigned ni_m_series_get_pfi_routing(struct comedi_device *dev,
+					    unsigned chan)
+{
+	struct ni_private *devpriv = dev->private;
+	const unsigned array_offset = chan / 3;
+
+	return MSeries_PFI_Output_Select_Source(chan,
+				devpriv->pfi_output_select_reg[array_offset]);
+}
+
+static int ni_m_series_set_pfi_routing(struct comedi_device *dev,
+				       unsigned chan, unsigned source)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned pfi_reg_index;
+	unsigned array_offset;
+
+	if ((source & 0x1f) != source)
+		return -EINVAL;
+	pfi_reg_index = 1 + chan / 3;
+	array_offset = pfi_reg_index - 1;
+	devpriv->pfi_output_select_reg[array_offset] &=
+	    ~MSeries_PFI_Output_Select_Mask(chan);
+	devpriv->pfi_output_select_reg[array_offset] |=
+	    MSeries_PFI_Output_Select_Bits(chan, source);
+	ni_writew(devpriv->pfi_output_select_reg[array_offset],
+		  M_Offset_PFI_Output_Select(pfi_reg_index));
+	return 2;
+}
+
+static unsigned ni_get_pfi_routing(struct comedi_device *dev, unsigned chan)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+
+	if (board->reg_type & ni_reg_m_series_mask)
+		return ni_m_series_get_pfi_routing(dev, chan);
+	else
+		return ni_old_get_pfi_routing(dev, chan);
+}
+
+static int ni_set_pfi_routing(struct comedi_device *dev, unsigned chan,
+			      unsigned source)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+
+	if (board->reg_type & ni_reg_m_series_mask)
+		return ni_m_series_set_pfi_routing(dev, chan, source);
+	else
+		return ni_old_set_pfi_routing(dev, chan, source);
+}
+
+static int ni_config_filter(struct comedi_device *dev,
+			    unsigned pfi_channel,
+			    enum ni_pfi_filter_select filter)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv __maybe_unused = dev->private;
+	unsigned bits;
+
+	if ((board->reg_type & ni_reg_m_series_mask) == 0)
+		return -ENOTSUPP;
+	bits = ni_readl(M_Offset_PFI_Filter);
+	bits &= ~MSeries_PFI_Filter_Select_Mask(pfi_channel);
+	bits |= MSeries_PFI_Filter_Select_Bits(pfi_channel, filter);
+	ni_writel(bits, M_Offset_PFI_Filter);
+	return 0;
+}
+
+static int ni_pfi_insn_config(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned int chan;
+
+	if (insn->n < 1)
+		return -EINVAL;
+
+	chan = CR_CHAN(insn->chanspec);
+
+	switch (data[0]) {
+	case COMEDI_OUTPUT:
+		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1 << chan, 1);
+		break;
+	case COMEDI_INPUT:
+		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1 << chan, 0);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] =
+		    (devpriv->io_bidirection_pin_reg & (1 << chan)) ?
+		    COMEDI_OUTPUT : COMEDI_INPUT;
+		return 0;
+		break;
+	case INSN_CONFIG_SET_ROUTING:
+		return ni_set_pfi_routing(dev, chan, data[1]);
+		break;
+	case INSN_CONFIG_GET_ROUTING:
+		data[1] = ni_get_pfi_routing(dev, chan);
+		break;
+	case INSN_CONFIG_FILTER:
+		return ni_config_filter(dev, chan, data[1]);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int ni_pfi_insn_bits(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn,
+			    unsigned int *data)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv __maybe_unused = dev->private;
+
+	if (!(board->reg_type & ni_reg_m_series_mask))
+		return -ENOTSUPP;
+
+	if (comedi_dio_update_state(s, data))
+		ni_writew(s->state, M_Offset_PFI_DO);
+
+	data[1] = ni_readw(M_Offset_PFI_DI);
+
+	return insn->n;
+}
+
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -4959,190 +5129,6 @@ static void GPCT_Reset(struct comedi_device *dev, int chan)
 }
 
 #endif
-
-/*
- *
- *  Programmable Function Inputs
- *
- */
-
-static int ni_m_series_set_pfi_routing(struct comedi_device *dev, unsigned chan,
-				       unsigned source)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned pfi_reg_index;
-	unsigned array_offset;
-
-	if ((source & 0x1f) != source)
-		return -EINVAL;
-	pfi_reg_index = 1 + chan / 3;
-	array_offset = pfi_reg_index - 1;
-	devpriv->pfi_output_select_reg[array_offset] &=
-	    ~MSeries_PFI_Output_Select_Mask(chan);
-	devpriv->pfi_output_select_reg[array_offset] |=
-	    MSeries_PFI_Output_Select_Bits(chan, source);
-	ni_writew(devpriv->pfi_output_select_reg[array_offset],
-		  M_Offset_PFI_Output_Select(pfi_reg_index));
-	return 2;
-}
-
-static int ni_old_set_pfi_routing(struct comedi_device *dev, unsigned chan,
-				  unsigned source)
-{
-	/*  pre-m-series boards have fixed signals on pfi pins */
-	if (source != ni_old_get_pfi_routing(dev, chan))
-		return -EINVAL;
-	return 2;
-}
-
-static int ni_set_pfi_routing(struct comedi_device *dev, unsigned chan,
-			      unsigned source)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-
-	if (board->reg_type & ni_reg_m_series_mask)
-		return ni_m_series_set_pfi_routing(dev, chan, source);
-	else
-		return ni_old_set_pfi_routing(dev, chan, source);
-}
-
-static unsigned ni_m_series_get_pfi_routing(struct comedi_device *dev,
-					    unsigned chan)
-{
-	struct ni_private *devpriv = dev->private;
-	const unsigned array_offset = chan / 3;
-
-	return MSeries_PFI_Output_Select_Source(chan,
-						devpriv->
-						pfi_output_select_reg
-						[array_offset]);
-}
-
-static unsigned ni_old_get_pfi_routing(struct comedi_device *dev, unsigned chan)
-{
-	/*  pre-m-series boards have fixed signals on pfi pins */
-	switch (chan) {
-	case 0:
-		return NI_PFI_OUTPUT_AI_START1;
-		break;
-	case 1:
-		return NI_PFI_OUTPUT_AI_START2;
-		break;
-	case 2:
-		return NI_PFI_OUTPUT_AI_CONVERT;
-		break;
-	case 3:
-		return NI_PFI_OUTPUT_G_SRC1;
-		break;
-	case 4:
-		return NI_PFI_OUTPUT_G_GATE1;
-		break;
-	case 5:
-		return NI_PFI_OUTPUT_AO_UPDATE_N;
-		break;
-	case 6:
-		return NI_PFI_OUTPUT_AO_START1;
-		break;
-	case 7:
-		return NI_PFI_OUTPUT_AI_START_PULSE;
-		break;
-	case 8:
-		return NI_PFI_OUTPUT_G_SRC0;
-		break;
-	case 9:
-		return NI_PFI_OUTPUT_G_GATE0;
-		break;
-	default:
-		printk("%s: bug, unhandled case in switch.\n", __func__);
-		break;
-	}
-	return 0;
-}
-
-static unsigned ni_get_pfi_routing(struct comedi_device *dev, unsigned chan)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-
-	if (board->reg_type & ni_reg_m_series_mask)
-		return ni_m_series_get_pfi_routing(dev, chan);
-	else
-		return ni_old_get_pfi_routing(dev, chan);
-}
-
-static int ni_config_filter(struct comedi_device *dev, unsigned pfi_channel,
-			    enum ni_pfi_filter_select filter)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv __maybe_unused = dev->private;
-	unsigned bits;
-
-	if ((board->reg_type & ni_reg_m_series_mask) == 0)
-		return -ENOTSUPP;
-	bits = ni_readl(M_Offset_PFI_Filter);
-	bits &= ~MSeries_PFI_Filter_Select_Mask(pfi_channel);
-	bits |= MSeries_PFI_Filter_Select_Bits(pfi_channel, filter);
-	ni_writel(bits, M_Offset_PFI_Filter);
-	return 0;
-}
-
-static int ni_pfi_insn_bits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn,
-			    unsigned int *data)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv __maybe_unused = dev->private;
-
-	if (!(board->reg_type & ni_reg_m_series_mask))
-		return -ENOTSUPP;
-
-	if (comedi_dio_update_state(s, data))
-		ni_writew(s->state, M_Offset_PFI_DO);
-
-	data[1] = ni_readw(M_Offset_PFI_DI);
-
-	return insn->n;
-}
-
-static int ni_pfi_insn_config(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned int chan;
-
-	if (insn->n < 1)
-		return -EINVAL;
-
-	chan = CR_CHAN(insn->chanspec);
-
-	switch (data[0]) {
-	case COMEDI_OUTPUT:
-		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1 << chan, 1);
-		break;
-	case COMEDI_INPUT:
-		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1 << chan, 0);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (devpriv->io_bidirection_pin_reg & (1 << chan)) ?
-		    COMEDI_OUTPUT : COMEDI_INPUT;
-		return 0;
-		break;
-	case INSN_CONFIG_SET_ROUTING:
-		return ni_set_pfi_routing(dev, chan, data[1]);
-		break;
-	case INSN_CONFIG_GET_ROUTING:
-		data[1] = ni_get_pfi_routing(dev, chan);
-		break;
-	case INSN_CONFIG_FILTER:
-		return ni_config_filter(dev, chan, data[1]);
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
 
 /*
  *
