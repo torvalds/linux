@@ -539,6 +539,11 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 				__func__);
 			memreg = RPCRDMA_REGISTER;
 #endif
+		} else {
+			/* Mind the ia limit on FRMR page list depth */
+			ia->ri_max_frmr_depth = min_t(unsigned int,
+				RPCRDMA_MAX_DATA_SEGS,
+				devattr.max_fast_reg_page_list_len);
 		}
 		break;
 	}
@@ -659,24 +664,42 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	ep->rep_attr.srq = NULL;
 	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
 	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR:
+	case RPCRDMA_FRMR: {
+		int depth = 7;
+
 		/* Add room for frmr register and invalidate WRs.
 		 * 1. FRMR reg WR for head
 		 * 2. FRMR invalidate WR for head
-		 * 3. FRMR reg WR for pagelist
-		 * 4. FRMR invalidate WR for pagelist
+		 * 3. N FRMR reg WRs for pagelist
+		 * 4. N FRMR invalidate WRs for pagelist
 		 * 5. FRMR reg WR for tail
 		 * 6. FRMR invalidate WR for tail
 		 * 7. The RDMA_SEND WR
 		 */
-		ep->rep_attr.cap.max_send_wr *= 7;
+
+		/* Calculate N if the device max FRMR depth is smaller than
+		 * RPCRDMA_MAX_DATA_SEGS.
+		 */
+		if (ia->ri_max_frmr_depth < RPCRDMA_MAX_DATA_SEGS) {
+			int delta = RPCRDMA_MAX_DATA_SEGS -
+				    ia->ri_max_frmr_depth;
+
+			do {
+				depth += 2; /* FRMR reg + invalidate */
+				delta -= ia->ri_max_frmr_depth;
+			} while (delta > 0);
+
+		}
+		ep->rep_attr.cap.max_send_wr *= depth;
 		if (ep->rep_attr.cap.max_send_wr > devattr.max_qp_wr) {
-			cdata->max_requests = devattr.max_qp_wr / 7;
+			cdata->max_requests = devattr.max_qp_wr / depth;
 			if (!cdata->max_requests)
 				return -EINVAL;
-			ep->rep_attr.cap.max_send_wr = cdata->max_requests * 7;
+			ep->rep_attr.cap.max_send_wr = cdata->max_requests *
+						       depth;
 		}
 		break;
+	}
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
 		/* Add room for mw_binds+unbinds - overkill! */
@@ -1043,16 +1066,16 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	case RPCRDMA_FRMR:
 		for (i = buf->rb_max_requests * RPCRDMA_MAX_SEGS; i; i--) {
 			r->r.frmr.fr_mr = ib_alloc_fast_reg_mr(ia->ri_pd,
-							 RPCRDMA_MAX_SEGS);
+						ia->ri_max_frmr_depth);
 			if (IS_ERR(r->r.frmr.fr_mr)) {
 				rc = PTR_ERR(r->r.frmr.fr_mr);
 				dprintk("RPC:       %s: ib_alloc_fast_reg_mr"
 					" failed %i\n", __func__, rc);
 				goto out;
 			}
-			r->r.frmr.fr_pgl =
-				ib_alloc_fast_reg_page_list(ia->ri_id->device,
-							    RPCRDMA_MAX_SEGS);
+			r->r.frmr.fr_pgl = ib_alloc_fast_reg_page_list(
+						ia->ri_id->device,
+						ia->ri_max_frmr_depth);
 			if (IS_ERR(r->r.frmr.fr_pgl)) {
 				rc = PTR_ERR(r->r.frmr.fr_pgl);
 				dprintk("RPC:       %s: "
@@ -1498,8 +1521,8 @@ rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
 	seg1->mr_offset -= pageoff;	/* start of page */
 	seg1->mr_len += pageoff;
 	len = -pageoff;
-	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
-		*nsegs = RPCRDMA_MAX_DATA_SEGS;
+	if (*nsegs > ia->ri_max_frmr_depth)
+		*nsegs = ia->ri_max_frmr_depth;
 	for (page_no = i = 0; i < *nsegs;) {
 		rpcrdma_map_one(ia, seg, writing);
 		pa = seg->mr_dma;
