@@ -5120,6 +5120,94 @@ static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 #endif
 
+#if 0
+/*
+ *	Read the GPCTs current value.
+ */
+static int GPCT_G_Watch(struct comedi_device *dev, int chan)
+{
+	unsigned int hi1, hi2, lo;
+
+	devpriv->gpct_command[chan] &= ~G_Save_Trace;
+	devpriv->stc_writew(dev, devpriv->gpct_command[chan],
+			    G_Command_Register(chan));
+
+	devpriv->gpct_command[chan] |= G_Save_Trace;
+	devpriv->stc_writew(dev, devpriv->gpct_command[chan],
+			    G_Command_Register(chan));
+
+	/* This procedure is used because the two registers cannot
+	 * be read atomically. */
+	do {
+		hi1 = devpriv->stc_readw(dev, G_Save_Register_High(chan));
+		lo = devpriv->stc_readw(dev, G_Save_Register_Low(chan));
+		hi2 = devpriv->stc_readw(dev, G_Save_Register_High(chan));
+	} while (hi1 != hi2);
+
+	return (hi1 << 16) | lo;
+}
+
+static void GPCT_Reset(struct comedi_device *dev, int chan)
+{
+	int temp_ack_reg = 0;
+
+	/* printk("GPCT_Reset..."); */
+	devpriv->gpct_cur_operation[chan] = GPCT_RESET;
+
+	switch (chan) {
+	case 0:
+		devpriv->stc_writew(dev, G0_Reset, Joint_Reset_Register);
+		ni_set_bits(dev, Interrupt_A_Enable_Register,
+			    G0_TC_Interrupt_Enable, 0);
+		ni_set_bits(dev, Interrupt_A_Enable_Register,
+			    G0_Gate_Interrupt_Enable, 0);
+		temp_ack_reg |= G0_Gate_Error_Confirm;
+		temp_ack_reg |= G0_TC_Error_Confirm;
+		temp_ack_reg |= G0_TC_Interrupt_Ack;
+		temp_ack_reg |= G0_Gate_Interrupt_Ack;
+		devpriv->stc_writew(dev, temp_ack_reg,
+				    Interrupt_A_Ack_Register);
+
+		/* problem...this interferes with the other ctr... */
+		devpriv->an_trig_etc_reg |= GPFO_0_Output_Enable;
+		devpriv->stc_writew(dev, devpriv->an_trig_etc_reg,
+				    Analog_Trigger_Etc_Register);
+		break;
+	case 1:
+		devpriv->stc_writew(dev, G1_Reset, Joint_Reset_Register);
+		ni_set_bits(dev, Interrupt_B_Enable_Register,
+			    G1_TC_Interrupt_Enable, 0);
+		ni_set_bits(dev, Interrupt_B_Enable_Register,
+			    G0_Gate_Interrupt_Enable, 0);
+		temp_ack_reg |= G1_Gate_Error_Confirm;
+		temp_ack_reg |= G1_TC_Error_Confirm;
+		temp_ack_reg |= G1_TC_Interrupt_Ack;
+		temp_ack_reg |= G1_Gate_Interrupt_Ack;
+		devpriv->stc_writew(dev, temp_ack_reg,
+				    Interrupt_B_Ack_Register);
+
+		devpriv->an_trig_etc_reg |= GPFO_1_Output_Enable;
+		devpriv->stc_writew(dev, devpriv->an_trig_etc_reg,
+				    Analog_Trigger_Etc_Register);
+		break;
+	}
+
+	devpriv->gpct_mode[chan] = 0;
+	devpriv->gpct_input_select[chan] = 0;
+	devpriv->gpct_command[chan] = 0;
+
+	devpriv->gpct_command[chan] |= G_Synchronized_Gate;
+
+	devpriv->stc_writew(dev, devpriv->gpct_mode[chan],
+			    G_Mode_Register(chan));
+	devpriv->stc_writew(dev, devpriv->gpct_input_select[chan],
+			    G_Input_Select_Register(chan));
+	devpriv->stc_writew(dev, 0, G_Autoincrement_Register(chan));
+
+	/* printk("exit GPCT_Reset\n"); */
+}
+#endif
+
 static irqreturn_t ni_E_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -5508,92 +5596,3 @@ static int ni_E_init(struct comedi_device *dev)
 
 	return 0;
 }
-
-#if 0
-/*
- *	Read the GPCTs current value.
- */
-static int GPCT_G_Watch(struct comedi_device *dev, int chan)
-{
-	unsigned int hi1, hi2, lo;
-
-	devpriv->gpct_command[chan] &= ~G_Save_Trace;
-	devpriv->stc_writew(dev, devpriv->gpct_command[chan],
-			    G_Command_Register(chan));
-
-	devpriv->gpct_command[chan] |= G_Save_Trace;
-	devpriv->stc_writew(dev, devpriv->gpct_command[chan],
-			    G_Command_Register(chan));
-
-	/* This procedure is used because the two registers cannot
-	 * be read atomically. */
-	do {
-		hi1 = devpriv->stc_readw(dev, G_Save_Register_High(chan));
-		lo = devpriv->stc_readw(dev, G_Save_Register_Low(chan));
-		hi2 = devpriv->stc_readw(dev, G_Save_Register_High(chan));
-	} while (hi1 != hi2);
-
-	return (hi1 << 16) | lo;
-}
-
-static void GPCT_Reset(struct comedi_device *dev, int chan)
-{
-	int temp_ack_reg = 0;
-
-	/* printk("GPCT_Reset..."); */
-	devpriv->gpct_cur_operation[chan] = GPCT_RESET;
-
-	switch (chan) {
-	case 0:
-		devpriv->stc_writew(dev, G0_Reset, Joint_Reset_Register);
-		ni_set_bits(dev, Interrupt_A_Enable_Register,
-			    G0_TC_Interrupt_Enable, 0);
-		ni_set_bits(dev, Interrupt_A_Enable_Register,
-			    G0_Gate_Interrupt_Enable, 0);
-		temp_ack_reg |= G0_Gate_Error_Confirm;
-		temp_ack_reg |= G0_TC_Error_Confirm;
-		temp_ack_reg |= G0_TC_Interrupt_Ack;
-		temp_ack_reg |= G0_Gate_Interrupt_Ack;
-		devpriv->stc_writew(dev, temp_ack_reg,
-				    Interrupt_A_Ack_Register);
-
-		/* problem...this interferes with the other ctr... */
-		devpriv->an_trig_etc_reg |= GPFO_0_Output_Enable;
-		devpriv->stc_writew(dev, devpriv->an_trig_etc_reg,
-				    Analog_Trigger_Etc_Register);
-		break;
-	case 1:
-		devpriv->stc_writew(dev, G1_Reset, Joint_Reset_Register);
-		ni_set_bits(dev, Interrupt_B_Enable_Register,
-			    G1_TC_Interrupt_Enable, 0);
-		ni_set_bits(dev, Interrupt_B_Enable_Register,
-			    G0_Gate_Interrupt_Enable, 0);
-		temp_ack_reg |= G1_Gate_Error_Confirm;
-		temp_ack_reg |= G1_TC_Error_Confirm;
-		temp_ack_reg |= G1_TC_Interrupt_Ack;
-		temp_ack_reg |= G1_Gate_Interrupt_Ack;
-		devpriv->stc_writew(dev, temp_ack_reg,
-				    Interrupt_B_Ack_Register);
-
-		devpriv->an_trig_etc_reg |= GPFO_1_Output_Enable;
-		devpriv->stc_writew(dev, devpriv->an_trig_etc_reg,
-				    Analog_Trigger_Etc_Register);
-		break;
-	}
-
-	devpriv->gpct_mode[chan] = 0;
-	devpriv->gpct_input_select[chan] = 0;
-	devpriv->gpct_command[chan] = 0;
-
-	devpriv->gpct_command[chan] |= G_Synchronized_Gate;
-
-	devpriv->stc_writew(dev, devpriv->gpct_mode[chan],
-			    G_Mode_Register(chan));
-	devpriv->stc_writew(dev, devpriv->gpct_input_select[chan],
-			    G_Input_Select_Register(chan));
-	devpriv->stc_writew(dev, 0, G_Autoincrement_Register(chan));
-
-	/* printk("exit GPCT_Reset\n"); */
-}
-
-#endif
