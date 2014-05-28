@@ -194,24 +194,12 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 	[ai_gain_6143] = &range_bipolar5
 };
 
-static int ni_dio_insn_config(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
-static int ni_dio_insn_bits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
-static int ni_cdio_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd);
-static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ni_cdio_cancel(struct comedi_device *dev,
 			  struct comedi_subdevice *s);
 static void handle_cdio_interrupt(struct comedi_device *dev);
 static int ni_cdo_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 			  unsigned int trignum);
 
-static int ni_serial_insn_config(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data);
 static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned char data_out,
@@ -237,9 +225,6 @@ static int ni_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 static void ni_load_channelgain_list(struct comedi_device *dev,
 				     unsigned int n_chan, unsigned int *list);
 static void shutdown_ai_command(struct comedi_device *dev);
-
-static int ni_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			 unsigned int trignum);
 
 static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index);
