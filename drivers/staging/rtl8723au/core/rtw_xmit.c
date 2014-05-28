@@ -77,8 +77,7 @@ int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 	_rtw_init_queue23a(&pxmitpriv->free_xmit_queue);
 
 	for (i = 0; i < NR_XMITFRAME; i++) {
-		pxframe = (struct xmit_frame *)
-			kzalloc(sizeof(struct xmit_frame), GFP_KERNEL);
+		pxframe = kzalloc(sizeof(struct xmit_frame), GFP_KERNEL);
 		if (!pxframe)
 			break;
 		INIT_LIST_HEAD(&pxframe->list);
@@ -127,8 +126,7 @@ int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 	_rtw_init_queue23a(&pxmitpriv->free_xframe_ext_queue);
 
 	for (i = 0; i < num_xmit_extbuf; i++) {
-		pxframe = (struct xmit_frame *)
-			kzalloc(sizeof(struct xmit_frame), GFP_KERNEL);
+		pxframe = kzalloc(sizeof(struct xmit_frame), GFP_KERNEL);
 		if (!pxframe)
 			break;
 		INIT_LIST_HEAD(&pxframe->list);
