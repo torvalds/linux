@@ -2318,7 +2318,7 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 	ulong lock_flags = 0;
 	ulong lock_flags2 = 0;
 
-	if (tty == NULL)
+	if (!tty)
 		return 0;
 
 	un = tty->driver_data;
@@ -2464,7 +2464,7 @@ static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 	struct channel_t *ch;
 	struct un_t *un;
 
-	if (tty == NULL)
+	if (!tty)
 		return bytes_available;
 
 	un = tty->driver_data;
@@ -4140,12 +4140,12 @@ static int dgap_tty_register_ports(struct board_t *brd)
 
 	brd->serial_ports = kcalloc(brd->nasync, sizeof(*brd->serial_ports),
 					GFP_KERNEL);
-	if (brd->serial_ports == NULL)
+	if (!brd->serial_ports)
 		return -ENOMEM;
 
 	brd->printer_ports = kcalloc(brd->nasync, sizeof(*brd->printer_ports),
 					GFP_KERNEL);
-	if (brd->printer_ports == NULL)
+	if (!brd->printer_ports)
 		return -ENOMEM;
 
 	for (i = 0; i < brd->nasync; i++) {
@@ -6524,7 +6524,7 @@ static int dgap_parsefile(char **in, int remove)
 				return -1;
 			}
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6542,7 +6542,7 @@ static int dgap_parsefile(char **in, int remove)
 				return -1;
 			}
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6560,7 +6560,7 @@ static int dgap_parsefile(char **in, int remove)
 				return -1;
 			}
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6571,7 +6571,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p->u.board.v_pcibus = 1;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6589,7 +6589,7 @@ static int dgap_parsefile(char **in, int remove)
 				return -1;
 			}
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6603,7 +6603,7 @@ static int dgap_parsefile(char **in, int remove)
 				return -1;
 			}
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6613,7 +6613,7 @@ static int dgap_parsefile(char **in, int remove)
 		case NPORTS:	/* number of ports */
 			if (p->type == BNODE) {
 				s = dgap_getword(in);
-				if (s == NULL) {
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -6624,7 +6624,7 @@ static int dgap_parsefile(char **in, int remove)
 				p->u.board.v_nport = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
-				if (s == NULL) {
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -6635,7 +6635,7 @@ static int dgap_parsefile(char **in, int remove)
 				p->u.conc.v_nport = 1;
 			} else if (p->type == MNODE) {
 				s = dgap_getword(in);
-				if (s == NULL) {
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -6652,7 +6652,7 @@ static int dgap_parsefile(char **in, int remove)
 
 		case ID:	/* letter ID used in tty name */
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6674,7 +6674,7 @@ static int dgap_parsefile(char **in, int remove)
 		case STARTO:	/* start offset of ID */
 			if (p->type == BNODE) {
 				s = dgap_getword(in);
-				if (s == NULL) {
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -6685,7 +6685,7 @@ static int dgap_parsefile(char **in, int remove)
 				p->u.board.v_start = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
-				if (s == NULL) {
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -6696,7 +6696,7 @@ static int dgap_parsefile(char **in, int remove)
 				p->u.conc.v_start = 1;
 			} else if (p->type == MNODE) {
 				s = dgap_getword(in);
-				if (s == NULL) {
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -6756,7 +6756,7 @@ static int dgap_parsefile(char **in, int remove)
 		case LINE:	/* line information */
 			if (dgap_checknode(p))
 				return -1;
-			if (brd == NULL) {
+			if (!brd) {
 				dgap_err("must specify board before line info");
 				return -1;
 			}
@@ -6779,7 +6779,7 @@ static int dgap_parsefile(char **in, int remove)
 		case CONC:	/* concentrator information */
 			if (dgap_checknode(p))
 				return -1;
-			if (line == NULL) {
+			if (!line) {
 				dgap_err("must specify line info before concentrator");
 				return -1;
 			}
@@ -6818,7 +6818,7 @@ static int dgap_parsefile(char **in, int remove)
 		case MOD:	/* EBI module */
 			if (dgap_checknode(p))
 				return -1;
-			if (brd == NULL) {
+			if (!brd) {
 				dgap_err("must specify board info before EBI modules");
 				return -1;
 			}
@@ -6827,7 +6827,7 @@ static int dgap_parsefile(char **in, int remove)
 				linecnt = 0;
 				break;
 			default:
-				if (conc == NULL) {
+				if (!conc) {
 					dgap_err("must specify concentrator info before EBI module");
 					return -1;
 				}
@@ -6878,7 +6878,7 @@ static int dgap_parsefile(char **in, int remove)
 		case SPEED:	/* sync line speed indication */
 			if (p->type == LNODE) {
 				s = dgap_getword(in);
-				if (s == NULL) {
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -6889,7 +6889,7 @@ static int dgap_parsefile(char **in, int remove)
 				p->u.line.v_speed = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
-				if (s == NULL) {
+				if (!s) {
 					dgap_err("unexpected end of file");
 					return -1;
 				}
@@ -6946,7 +6946,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6966,7 +6966,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -6986,7 +6986,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -7006,7 +7006,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -7026,7 +7026,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -7046,7 +7046,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -7066,7 +7066,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -7086,7 +7086,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
@@ -7106,7 +7106,7 @@ static int dgap_parsefile(char **in, int remove)
 			}
 			p = p->next;
 			s = dgap_getword(in);
-			if (s == NULL) {
+			if (!s) {
 				dgap_err("unexpected end of file");
 				return -1;
 			}
