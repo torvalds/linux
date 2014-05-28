@@ -709,7 +709,8 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 				temp = temp->next;
 			}
 
-			temp->next = max->next;
+			if (temp)
+				temp->next = max->next;
 		}
 
 		max->next = NULL;

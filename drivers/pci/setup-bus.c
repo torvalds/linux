@@ -1716,9 +1716,7 @@ void pci_assign_unassigned_bus_resources(struct pci_bus *bus)
 
 	down_read(&pci_bus_sem);
 	list_for_each_entry(dev, &bus->devices, bus_list)
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
-		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
-			if (dev->subordinate)
+		if (pci_is_bridge(dev) && pci_has_subordinate(dev))
 				__pci_bus_size_bridges(dev->subordinate,
 							 &add_list);
 	up_read(&pci_bus_sem);

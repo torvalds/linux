@@ -62,8 +62,7 @@ int pciehp_configure_device(struct slot *p_slot)
 	}
 
 	list_for_each_entry(dev, &parent->devices, bus_list)
-		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
-				(dev->hdr_type == PCI_HEADER_TYPE_CARDBUS))
+		if (pci_is_bridge(dev))
 			pci_hp_add_bridge(dev);
 
 	pci_assign_unassigned_bridge_resources(bridge);
