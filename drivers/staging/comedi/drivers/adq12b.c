@@ -79,8 +79,6 @@ If you do not specify any options, they will default to
 #include "../comedidev.h"
 
 /* address scheme (page 2.17 of the manual) */
-#define ADQ12B_SIZE     16
-
 #define ADQ12B_CTREG    0x00
 #define ADQ12B_STINR    0x00
 #define ADQ12B_OUTBR    0x04
@@ -208,7 +206,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], ADQ12B_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
