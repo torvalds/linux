@@ -2457,7 +2457,43 @@ static void wake_up_klogd_work_func(struct irq_work *irq_work)
 	if (pending & PRINTK_PENDING_WAKEUP)
 		wake_up_interruptible(&log_wait);
 }
+int type_printk(int type, const char *fmt, ...)
+{
+	unsigned long flags;
+	va_list args;
+	char *buf;
+	int r;
+	switch(type){
+		case 0:
+			/* normal type , we will print an output like the one that printk print */
+			local_irq_save(flags);
+			buf = __get_cpu_var(printk_sched_buf);
+	
+			va_start(args, fmt);
+			r = vsnprintf(buf, PRINTK_BUF_SIZE, fmt, args);
+			va_end(args);
 
+			__this_cpu_or(printk_pending, PRINTK_PENDING_SCHED);
+			irq_work_queue(&__get_cpu_var(wake_up_klogd_work));
+			local_irq_restore(flags);
+		case 1:
+			/* error type , we we will print the fmt and adding [error] */
+			const char *all_fmt;
+			sprintf(all_fmt,"[Error] : %s",fmt);
+			local_irq_save(flags);
+			buf = __get_cpu_var(printk_sched_buf);
+
+			va_start(args, all_fmt);
+			r = vsnprintf(buf, PRINTK_BUF_SIZE, all_fmt, args);
+			va_end(args);
+			__this_cpu_or(printk_pending, PRINTK_PENDING_SCHED);
+			irq_work_queue(&__get_cpu_var(wake_up_klogd_work));
+			local_irq_restore(flags);
+			break;
+			
+	}
+	return r;
+}
 static DEFINE_PER_CPU(struct irq_work, wake_up_klogd_work) = {
 	.func = wake_up_klogd_work_func,
 	.flags = IRQ_WORK_LAZY,
