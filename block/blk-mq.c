@@ -516,9 +516,67 @@ void blk_mq_requeue_request(struct request *rq)
 	blk_clear_rq_complete(rq);
 
 	BUG_ON(blk_queued_rq(rq));
-	blk_mq_insert_request(rq, true, true, false);
+	blk_mq_add_to_requeue_list(rq, true);
 }
 EXPORT_SYMBOL(blk_mq_requeue_request);
+
+static void blk_mq_requeue_work(struct work_struct *work)
+{
+	struct request_queue *q =
+		container_of(work, struct request_queue, requeue_work);
+	LIST_HEAD(rq_list);
+	struct request *rq, *next;
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->requeue_lock, flags);
+	list_splice_init(&q->requeue_list, &rq_list);
+	spin_unlock_irqrestore(&q->requeue_lock, flags);
+
+	list_for_each_entry_safe(rq, next, &rq_list, queuelist) {
+		if (!(rq->cmd_flags & REQ_SOFTBARRIER))
+			continue;
+
+		rq->cmd_flags &= ~REQ_SOFTBARRIER;
+		list_del_init(&rq->queuelist);
+		blk_mq_insert_request(rq, true, false, false);
+	}
+
+	while (!list_empty(&rq_list)) {
+		rq = list_entry(rq_list.next, struct request, queuelist);
+		list_del_init(&rq->queuelist);
+		blk_mq_insert_request(rq, false, false, false);
+	}
+
+	blk_mq_run_queues(q, false);
+}
+
+void blk_mq_add_to_requeue_list(struct request *rq, bool at_head)
+{
+	struct request_queue *q = rq->q;
+	unsigned long flags;
+
+	/*
+	 * We abuse this flag that is otherwise used by the I/O scheduler to
+	 * request head insertation from the workqueue.
+	 */
+	BUG_ON(rq->cmd_flags & REQ_SOFTBARRIER);
+
+	spin_lock_irqsave(&q->requeue_lock, flags);
+	if (at_head) {
+		rq->cmd_flags |= REQ_SOFTBARRIER;
+		list_add(&rq->queuelist, &q->requeue_list);
+	} else {
+		list_add_tail(&rq->queuelist, &q->requeue_list);
+	}
+	spin_unlock_irqrestore(&q->requeue_lock, flags);
+}
+EXPORT_SYMBOL(blk_mq_add_to_requeue_list);
+
+void blk_mq_kick_requeue_list(struct request_queue *q)
+{
+	kblockd_schedule_work(&q->requeue_work);
+}
+EXPORT_SYMBOL(blk_mq_kick_requeue_list);
 
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 {
@@ -1811,6 +1869,10 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	q->queue_flags |= QUEUE_FLAG_MQ_DEFAULT;
 
 	q->sg_reserved_size = INT_MAX;
+
+	INIT_WORK(&q->requeue_work, blk_mq_requeue_work);
+	INIT_LIST_HEAD(&q->requeue_list);
+	spin_lock_init(&q->requeue_lock);
 
 	if (q->nr_hw_queues > 1)
 		blk_queue_make_request(q, blk_mq_make_request);

@@ -172,6 +172,8 @@ void blk_mq_end_io(struct request *rq, int error);
 void __blk_mq_end_io(struct request *rq, int error);
 
 void blk_mq_requeue_request(struct request *rq);
+void blk_mq_add_to_requeue_list(struct request *rq, bool at_head);
+void blk_mq_kick_requeue_list(struct request_queue *q);
 void blk_mq_complete_request(struct request *rq);
 
 void blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx);
