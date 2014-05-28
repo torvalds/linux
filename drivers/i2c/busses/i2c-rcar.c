@@ -83,12 +83,9 @@
 #define RCAR_BUS_PHASE_DATA	(MDBS | MIE)
 #define RCAR_BUS_PHASE_STOP	(MDBS | MIE | FSB)
 
-enum {
-	RCAR_IRQ_CLOSE,
-	RCAR_IRQ_OPEN_FOR_SEND,
-	RCAR_IRQ_OPEN_FOR_RECV,
-	RCAR_IRQ_OPEN_FOR_STOP,
-};
+#define RCAR_IRQ_SEND	(MNRE | MALE | MSTE | MATE | MDEE)
+#define RCAR_IRQ_RECV	(MNRE | MALE | MSTE | MATE | MDRE)
+#define RCAR_IRQ_STOP	(MSTE)
 
 /*
  * flags
@@ -156,28 +153,6 @@ static void rcar_i2c_init(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICMCR, 0);
 	rcar_i2c_write(priv, ICMSR, 0);
 	rcar_i2c_write(priv, ICMAR, 0);
-}
-
-static void rcar_i2c_irq_mask(struct rcar_i2c_priv *priv, int open)
-{
-	u32 val = MNRE | MALE | MSTE | MATE; /* default */
-
-	switch (open) {
-	case RCAR_IRQ_OPEN_FOR_SEND:
-		val |= MDEE; /* default + send */
-		break;
-	case RCAR_IRQ_OPEN_FOR_RECV:
-		val |= MDRE; /* default + read */
-		break;
-	case RCAR_IRQ_OPEN_FOR_STOP:
-		val = MSTE; /* stop irq only */
-		break;
-	case RCAR_IRQ_CLOSE:
-	default:
-		val = 0; /* all close */
-		break;
-	}
-	rcar_i2c_write(priv, ICMIER, val);
 }
 
 static void rcar_i2c_set_addr(struct rcar_i2c_priv *priv, u32 recv)
@@ -312,7 +287,7 @@ static int rcar_i2c_recv(struct rcar_i2c_priv *priv)
 	rcar_i2c_set_addr(priv, 1);
 	rcar_i2c_status_clear(priv);
 	rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
-	rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_RECV);
+	rcar_i2c_write(priv, ICMIER, RCAR_IRQ_RECV);
 
 	return 0;
 }
@@ -331,7 +306,7 @@ static int rcar_i2c_send(struct rcar_i2c_priv *priv)
 	rcar_i2c_set_addr(priv, 0);
 	rcar_i2c_status_clear(priv);
 	rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
-	rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_SEND);
+	rcar_i2c_write(priv, ICMIER, RCAR_IRQ_SEND);
 
 	return 0;
 }
@@ -486,7 +461,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 
 		/* go to stop phase */
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
-		rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_STOP);
+		rcar_i2c_write(priv, ICMIER, RCAR_IRQ_STOP);
 		rcar_i2c_flags_set(priv, ID_NACK);
 		goto out;
 	}
@@ -501,7 +476,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 
 out:
 	if (rcar_i2c_flags_has(priv, ID_DONE)) {
-		rcar_i2c_irq_mask(priv, RCAR_IRQ_CLOSE);
+		rcar_i2c_write(priv, ICMIER, 0);
 		rcar_i2c_status_clear(priv);
 		wake_up(&priv->wait);
 	}
