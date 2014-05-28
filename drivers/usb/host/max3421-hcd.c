@@ -1545,8 +1545,10 @@ max3421_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	if (!max3421_ep) {
 		/* gets freed in max3421_endpoint_disable: */
 		max3421_ep = kzalloc(sizeof(struct max3421_ep), mem_flags);
-		if (!max3421_ep)
-			return -ENOMEM;
+		if (!max3421_ep) {
+			retval = -ENOMEM;
+			goto out;
+		}
 		max3421_ep->ep = urb->ep;
 		max3421_ep->last_active = max3421_hcd->frame_number;
 		urb->ep->hcpriv = max3421_ep;
@@ -1561,6 +1563,7 @@ max3421_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		wake_up_process(max3421_hcd->spi_thread);
 	}
 
+out:
 	spin_unlock_irqrestore(&max3421_hcd->lock, flags);
 	return retval;
 }
