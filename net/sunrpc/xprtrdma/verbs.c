@@ -742,6 +742,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	INIT_CQCOUNT(ep);
 	ep->rep_ia = ia;
 	init_waitqueue_head(&ep->rep_connect_wait);
+	INIT_DELAYED_WORK(&ep->rep_connect_worker, rpcrdma_connect_worker);
 
 	/*
 	 * Create a single cq for receive dto and mw_bind (only ever
@@ -816,6 +817,8 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 
 	dprintk("RPC:       %s: entering, connected is %d\n",
 		__func__, ep->rep_connected);
+
+	cancel_delayed_work_sync(&ep->rep_connect_worker);
 
 	if (ia->ri_id->qp) {
 		rc = rpcrdma_ep_disconnect(ep, ia);

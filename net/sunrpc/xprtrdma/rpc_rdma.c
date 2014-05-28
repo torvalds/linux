@@ -676,15 +676,11 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 	rqst->rq_private_buf = rqst->rq_rcv_buf;
 }
 
-/*
- * This function is called when an async event is posted to
- * the connection which changes the connection state. All it
- * does at this point is mark the connection up/down, the rpc
- * timers do the rest.
- */
 void
-rpcrdma_conn_func(struct rpcrdma_ep *ep)
+rpcrdma_connect_worker(struct work_struct *work)
 {
+	struct rpcrdma_ep *ep =
+		container_of(work, struct rpcrdma_ep, rep_connect_worker.work);
 	struct rpc_xprt *xprt = ep->rep_xprt;
 
 	spin_lock_bh(&xprt->transport_lock);
@@ -698,6 +694,18 @@ rpcrdma_conn_func(struct rpcrdma_ep *ep)
 			xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	}
 	spin_unlock_bh(&xprt->transport_lock);
+}
+
+/*
+ * This function is called when an async event is posted to
+ * the connection which changes the connection state. All it
+ * does at this point is mark the connection up/down, the rpc
+ * timers do the rest.
+ */
+void
+rpcrdma_conn_func(struct rpcrdma_ep *ep)
+{
+	schedule_delayed_work(&ep->rep_connect_worker, 0);
 }
 
 /*
