@@ -622,7 +622,8 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 	battery->bat.type = POWER_SUPPLY_TYPE_BATTERY;
 	battery->bat.get_property = acpi_battery_get_property;
 
-	result = power_supply_register(&battery->device->dev, &battery->bat);
+	result = power_supply_register_no_ws(&battery->device->dev, &battery->bat);
+
 	if (result)
 		return result;
 	return device_create_file(battery->bat.dev, &alarm_attr);
@@ -741,7 +742,19 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 			return result;
 	}
 	result = acpi_battery_get_state(battery);
+	if (result)
+		return result;
 	acpi_battery_quirks(battery);
+
+	/*
+	 * Wakeup the system if battery is critical low
+	 * or lower than the alarm level
+	 */
+	if ((battery->state & ACPI_BATTERY_STATE_CRITICAL) ||
+	    (test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags) &&
+            (battery->capacity_now <= battery->alarm)))
+		pm_wakeup_event(&battery->device->dev, 0);
+
 	return result;
 }
 
@@ -1142,6 +1155,8 @@ static int acpi_battery_add(struct acpi_device *device)
 	battery->pm_nb.notifier_call = battery_notify;
 	register_pm_notifier(&battery->pm_nb);
 
+	device_init_wakeup(&device->dev, 1);
+
 	return result;
 
 fail:
@@ -1158,6 +1173,7 @@ static int acpi_battery_remove(struct acpi_device *device)
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
+	device_init_wakeup(&device->dev, 0);
 	battery = acpi_driver_data(device);
 	unregister_pm_notifier(&battery->pm_nb);
 #ifdef CONFIG_ACPI_PROCFS_POWER
