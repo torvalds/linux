@@ -61,21 +61,25 @@
 			device_type = "cpu";
 			reg = <0 1>;
 			next-level-cache = <&L2>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu1: PowerPC,e6500@2 {
 			device_type = "cpu";
 			reg = <2 3>;
 			next-level-cache = <&L2>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu2: PowerPC,e6500@4 {
 			device_type = "cpu";
 			reg = <4 5>;
 			next-level-cache = <&L2>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu3: PowerPC,e6500@6 {
 			device_type = "cpu";
 			reg = <6 7>;
 			next-level-cache = <&L2>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 	};
 };
@@ -157,7 +161,7 @@
 	};
 
 	corenet-cf@18000 {
-		compatible = "fsl,b4-corenet-cf";
+		compatible = "fsl,corenet2-cf", "fsl,corenet-cf";
 		reg = <0x18000 0x1000>;
 		interrupts = <16 2 1 0>;
 		fsl,ccf-num-csdids = <32>;
@@ -167,6 +171,7 @@
 	iommu@20000 {
 		compatible = "fsl,pamu-v1.0", "fsl,pamu";
 		reg = <0x20000 0x4000>;
+		fsl,portid-mapping = <0x8000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		interrupts = <

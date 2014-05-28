@@ -7,6 +7,14 @@ which can then be passed to a variety of internal logic, including
 cores and peripheral IP blocks.
 Please refer to the Reference Manual for details.
 
+All references to "1.0" and "2.0" refer to the QorIQ chassis version to
+which the chip complies.
+
+Chassis Version		Example Chips
+---------------		-------------
+1.0			p4080, p5020, p5040
+2.0			t4240, b4860, t1040
+
 1. Clock Block Binding
 
 Required properties:
@@ -85,7 +93,7 @@ Example for clock block and clock provider:
 			#clock-cells = <0>;
 			compatible = "fsl,qoriq-sysclk-1.0";
 			clock-output-names = "sysclk";
-		}
+		};
 
 		pll0: pll0@800 {
 			#clock-cells = <1>;

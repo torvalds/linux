@@ -1,7 +1,7 @@
 /*
- * B4860 Silicon/SoC Device Tree Source (pre include)
+ * T1042 Silicon/SoC Device Tree Source (post include)
  *
- * Copyright 2012 Freescale Semiconductor Inc.
+ * Copyright 2013 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,62 +32,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/dts-v1/;
+/include/ "t1040si-post.dtsi"
 
-/include/ "e6500_power_isa.dtsi"
-
-/ {
-	compatible = "fsl,B4860";
-	#address-cells = <2>;
-	#size-cells = <2>;
-	interrupt-parent = <&mpic>;
-
-	aliases {
-		ccsr = &soc;
-		dcsr = &dcsr;
-
-		serial0 = &serial0;
-		serial1 = &serial1;
-		serial2 = &serial2;
-		serial3 = &serial3;
-		pci0 = &pci0;
-		dma0 = &dma0;
-		dma1 = &dma1;
-		sdhc = &sdhc;
-	};
-
-
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cpu0: PowerPC,e6500@0 {
-			device_type = "cpu";
-			reg = <0 1>;
-			clocks = <&mux0>;
-			next-level-cache = <&L2>;
-			fsl,portid-mapping = <0x80000000>;
-		};
-		cpu1: PowerPC,e6500@2 {
-			device_type = "cpu";
-			reg = <2 3>;
-			clocks = <&mux0>;
-			next-level-cache = <&L2>;
-			fsl,portid-mapping = <0x80000000>;
-		};
-		cpu2: PowerPC,e6500@4 {
-			device_type = "cpu";
-			reg = <4 5>;
-			clocks = <&mux0>;
-			next-level-cache = <&L2>;
-			fsl,portid-mapping = <0x80000000>;
-		};
-		cpu3: PowerPC,e6500@6 {
-			device_type = "cpu";
-			reg = <6 7>;
-			clocks = <&mux0>;
-			next-level-cache = <&L2>;
-			fsl,portid-mapping = <0x80000000>;
-		};
-	};
-};
+/* Place holder for ethernet related device tree nodes */

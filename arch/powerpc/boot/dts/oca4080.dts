@@ -1,7 +1,11 @@
 /*
- * B4860 Silicon/SoC Device Tree Source (pre include)
+ * OCA4080 Device Tree Source
  *
- * Copyright 2012 Freescale Semiconductor Inc.
+ * Copyright 2014 Prodrive Technologies B.V.
+ *
+ * Based on:
+ * P4080DS Device Tree Source
+ * Copyright 2009-2011 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,62 +36,83 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/dts-v1/;
-
-/include/ "e6500_power_isa.dtsi"
+/include/ "fsl/p4080si-pre.dtsi"
 
 / {
-	compatible = "fsl,B4860";
+	model = "fsl,OCA4080";
+	compatible = "fsl,OCA4080";
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
 
-	aliases {
-		ccsr = &soc;
-		dcsr = &dcsr;
-
-		serial0 = &serial0;
-		serial1 = &serial1;
-		serial2 = &serial2;
-		serial3 = &serial3;
-		pci0 = &pci0;
-		dma0 = &dma0;
-		dma1 = &dma1;
-		sdhc = &sdhc;
+	memory {
+		device_type = "memory";
 	};
 
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01008000>;
+	};
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	soc: soc@ffe000000 {
+		ranges = <0x00000000 0xf 0xfe000000 0x1000000>;
+		reg = <0xf 0xfe000000 0 0x00001000>;
 
-		cpu0: PowerPC,e6500@0 {
-			device_type = "cpu";
-			reg = <0 1>;
-			clocks = <&mux0>;
-			next-level-cache = <&L2>;
-			fsl,portid-mapping = <0x80000000>;
+		i2c@118000 {
+			status = "disabled";
 		};
-		cpu1: PowerPC,e6500@2 {
-			device_type = "cpu";
-			reg = <2 3>;
-			clocks = <&mux0>;
-			next-level-cache = <&L2>;
-			fsl,portid-mapping = <0x80000000>;
+
+		i2c@118100 {
+			status = "disabled";
 		};
-		cpu2: PowerPC,e6500@4 {
-			device_type = "cpu";
-			reg = <4 5>;
-			clocks = <&mux0>;
-			next-level-cache = <&L2>;
-			fsl,portid-mapping = <0x80000000>;
+
+		i2c@119000 {
+			status = "disabled";
 		};
-		cpu3: PowerPC,e6500@6 {
-			device_type = "cpu";
-			reg = <6 7>;
-			clocks = <&mux0>;
-			next-level-cache = <&L2>;
-			fsl,portid-mapping = <0x80000000>;
+
+		i2c@119100 {
+			status = "disabled";
 		};
+
+		usb0: usb@210000 {
+			status = "disabled";
+		};
+
+		usb1: usb@211000 {
+			status = "disabled";
+		};
+	};
+
+	rio: rapidio@ffe0c0000 {
+		reg = <0xf 0xfe0c0000 0 0x11000>;
+
+		port1 {
+			ranges = <0 0 0xc 0x20000000 0 0x10000000>;
+		};
+	};
+
+	lbc: localbus@ffe124000 {
+		reg = <0xf 0xfe124000 0 0x1000>;
+		ranges = <0 0 0xf 0xef800000 0x800000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x00800000>;
+			bank-width = <2>;
+			device-width = <2>;
+		};
+	};
+
+	pci0: pcie@ffe200000 {
+		status = "disabled";
+	};
+
+	pci1: pcie@ffe201000 {
+		status = "disabled";
+	};
+
+	pci2: pcie@ffe202000 {
+		status = "disabled";
 	};
 };
+
+/include/ "fsl/p4080si-post.dtsi"

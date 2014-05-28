@@ -4,7 +4,7 @@
  * Author: Roy Zang <tie-fei.zang@freescale.com>
  *
  * Description:
- * P1023 RDS Board Setup
+ * P1023 RDB Board Setup
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -41,12 +41,12 @@
  * Setup the architecture
  *
  */
-static void __init mpc85xx_rds_setup_arch(void)
+static void __init mpc85xx_rdb_setup_arch(void)
 {
 	struct device_node *np;
 
 	if (ppc_md.progress)
-		ppc_md.progress("p1023_rds_setup_arch()", 0);
+		ppc_md.progress("p1023_rdb_setup_arch()", 0);
 
 	/* Map BCSR area */
 	np = of_find_node_by_name(NULL, "bcsr");
@@ -85,10 +85,9 @@ static void __init mpc85xx_rds_setup_arch(void)
 	fsl_pci_assign_primary();
 }
 
-machine_arch_initcall(p1023_rds, mpc85xx_common_publish_devices);
 machine_arch_initcall(p1023_rdb, mpc85xx_common_publish_devices);
 
-static void __init mpc85xx_rds_pic_init(void)
+static void __init mpc85xx_rdb_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 		MPIC_SINGLE_DEST_CPU,
@@ -99,14 +98,6 @@ static void __init mpc85xx_rds_pic_init(void)
 	mpic_init(mpic);
 }
 
-static int __init p1023_rds_probe(void)
-{
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "fsl,P1023RDS");
-
-}
-
 static int __init p1023_rdb_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
@@ -115,26 +106,11 @@ static int __init p1023_rdb_probe(void)
 
 }
 
-define_machine(p1023_rds) {
-	.name			= "P1023 RDS",
-	.probe			= p1023_rds_probe,
-	.setup_arch		= mpc85xx_rds_setup_arch,
-	.init_IRQ		= mpc85xx_rds_pic_init,
-	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
-	.calibrate_decr		= generic_calibrate_decr,
-	.progress		= udbg_progress,
-#ifdef CONFIG_PCI
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
-	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
-#endif
-};
-
 define_machine(p1023_rdb) {
 	.name			= "P1023 RDB",
 	.probe			= p1023_rdb_probe,
-	.setup_arch		= mpc85xx_rds_setup_arch,
-	.init_IRQ		= mpc85xx_rds_pic_init,
+	.setup_arch		= mpc85xx_rdb_setup_arch,
+	.init_IRQ		= mpc85xx_rdb_pic_init,
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,

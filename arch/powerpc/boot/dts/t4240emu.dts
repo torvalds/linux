@@ -60,63 +60,75 @@
 			device_type = "cpu";
 			reg = <0 1>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu1: PowerPC,e6500@2 {
 			device_type = "cpu";
 			reg = <2 3>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu2: PowerPC,e6500@4 {
 			device_type = "cpu";
 			reg = <4 5>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 		cpu3: PowerPC,e6500@6 {
 			device_type = "cpu";
 			reg = <6 7>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
 		};
 
 		cpu4: PowerPC,e6500@8 {
 			device_type = "cpu";
 			reg = <8 9>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
 		};
 		cpu5: PowerPC,e6500@10 {
 			device_type = "cpu";
 			reg = <10 11>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
 		};
 		cpu6: PowerPC,e6500@12 {
 			device_type = "cpu";
 			reg = <12 13>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
 		};
 		cpu7: PowerPC,e6500@14 {
 			device_type = "cpu";
 			reg = <14 15>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
 		};
 
 		cpu8: PowerPC,e6500@16 {
 			device_type = "cpu";
 			reg = <16 17>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
 		};
 		cpu9: PowerPC,e6500@18 {
 			device_type = "cpu";
 			reg = <18 19>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
 		};
 		cpu10: PowerPC,e6500@20 {
 			device_type = "cpu";
 			reg = <20 21>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
 		};
 		cpu11: PowerPC,e6500@22 {
 			device_type = "cpu";
 			reg = <22 23>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
 		};
 	};
 };
@@ -213,7 +225,7 @@
 	};
 
 	corenet-cf@18000 {
-		compatible = "fsl,corenet-cf";
+		compatible = "fsl,corenet2-cf", "fsl,corenet-cf";
 		reg = <0x18000 0x1000>;
 		interrupts = <16 2 1 31>;
 		fsl,ccf-num-csdids = <32>;
@@ -223,6 +235,7 @@
 	iommu@20000 {
 		compatible = "fsl,pamu-v1.0", "fsl,pamu";
 		reg = <0x20000 0x6000>;
+		fsl,portid-mapping = <0x8000>;
 		interrupts = <
 			24 2 0 0
 			16 2 1 30>;
