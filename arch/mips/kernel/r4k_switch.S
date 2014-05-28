@@ -28,6 +28,7 @@
  */
 #define ST_OFF (_THREAD_SIZE - 32 - PT_SIZE + PT_STATUS)
 
+#ifndef USE_ALTERNATE_RESUME_IMPL
 /*
  * task_struct *resume(task_struct *prev, task_struct *next,
  *		       struct thread_info *next_ti, s32 fp_save)
@@ -98,6 +99,8 @@
 	move	v0, a0
 	jr	ra
 	END(resume)
+
+#endif /* USE_ALTERNATE_RESUME_IMPL */
 
 /*
  * Save a thread's fp context.
