@@ -593,6 +593,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 {
 	struct vhost_memory mem, *newmem, *oldmem;
 	unsigned long size = offsetof(struct vhost_memory, regions);
+	int i;
 
 	if (copy_from_user(&mem, m, size))
 		return -EFAULT;
@@ -619,7 +620,14 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 	oldmem = rcu_dereference_protected(d->memory,
 					   lockdep_is_held(&d->mutex));
 	rcu_assign_pointer(d->memory, newmem);
-	synchronize_rcu();
+
+	/* All memory accesses are done under some VQ mutex.
+	 * So below is a faster equivalent of synchronize_rcu()
+	 */
+	for (i = 0; i < d->nvqs; ++i) {
+		mutex_lock(&d->vqs[i]->mutex);
+		mutex_unlock(&d->vqs[i]->mutex);
+	}
 	kfree(oldmem);
 	return 0;
 }
