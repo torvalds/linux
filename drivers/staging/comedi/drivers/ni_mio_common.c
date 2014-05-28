@@ -194,13 +194,6 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 	[ai_gain_6143] = &range_bipolar5
 };
 
-#ifndef PCIDMA
-static void ni_handle_fifo_half_full(struct comedi_device *dev);
-static int ni_ao_fifo_half_empty(struct comedi_device *dev,
-				 struct comedi_subdevice *s);
-#endif
-static void ni_handle_fifo_dregs(struct comedi_device *dev);
-
 enum aimodes {
 	AIMODE_NONE = 0,
 	AIMODE_HALF_FULL = 1,
@@ -771,6 +764,259 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 }
 #endif /* PCIDMA */
 
+#ifndef PCIDMA
+
+static void ni_ao_fifo_load(struct comedi_device *dev,
+			    struct comedi_subdevice *s, int n)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	int chan;
+	int i;
+	unsigned short d;
+	u32 packed_data;
+	int range;
+	int err = 1;
+
+	chan = async->cur_chan;
+	for (i = 0; i < n; i++) {
+		err &= comedi_buf_get(s, &d);
+		if (err == 0)
+			break;
+
+		range = CR_RANGE(cmd->chanlist[chan]);
+
+		if (board->reg_type & ni_reg_6xxx_mask) {
+			packed_data = d & 0xffff;
+			/* 6711 only has 16 bit wide ao fifo */
+			if (board->reg_type != ni_reg_6711) {
+				err &= comedi_buf_get(s, &d);
+				if (err == 0)
+					break;
+				chan++;
+				i++;
+				packed_data |= (d << 16) & 0xffff0000;
+			}
+			ni_writel(packed_data, DAC_FIFO_Data_611x);
+		} else {
+			ni_writew(d, DAC_FIFO_Data);
+		}
+		chan++;
+		chan %= cmd->chanlist_len;
+	}
+	async->cur_chan = chan;
+	if (err == 0)
+		async->events |= COMEDI_CB_OVERFLOW;
+}
+
+/*
+ *  There's a small problem if the FIFO gets really low and we
+ *  don't have the data to fill it.  Basically, if after we fill
+ *  the FIFO with all the data available, the FIFO is _still_
+ *  less than half full, we never clear the interrupt.  If the
+ *  IRQ is in edge mode, we never get another interrupt, because
+ *  this one wasn't cleared.  If in level mode, we get flooded
+ *  with interrupts that we can't fulfill, because nothing ever
+ *  gets put into the buffer.
+ *
+ *  This kind of situation is recoverable, but it is easier to
+ *  just pretend we had a FIFO underrun, since there is a good
+ *  chance it will happen anyway.  This is _not_ the case for
+ *  RT code, as RT code might purposely be running close to the
+ *  metal.  Needs to be fixed eventually.
+ */
+static int ni_ao_fifo_half_empty(struct comedi_device *dev,
+				 struct comedi_subdevice *s)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	int n;
+
+	n = comedi_buf_read_n_available(s);
+	if (n == 0) {
+		s->async->events |= COMEDI_CB_OVERFLOW;
+		return 0;
+	}
+
+	n /= sizeof(short);
+	if (n > board->ao_fifo_depth / 2)
+		n = board->ao_fifo_depth / 2;
+
+	ni_ao_fifo_load(dev, s, n);
+
+	s->async->events |= COMEDI_CB_BLOCK;
+
+	return 1;
+}
+
+static int ni_ao_prep_fifo(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+	int n;
+
+	/* reset fifo */
+	devpriv->stc_writew(dev, 1, DAC_FIFO_Clear);
+	if (board->reg_type & ni_reg_6xxx_mask)
+		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
+
+	/* load some data */
+	n = comedi_buf_read_n_available(s);
+	if (n == 0)
+		return 0;
+
+	n /= sizeof(short);
+	if (n > board->ao_fifo_depth)
+		n = board->ao_fifo_depth;
+
+	ni_ao_fifo_load(dev, s, n);
+
+	return n;
+}
+
+static void ni_ai_fifo_read(struct comedi_device *dev,
+			    struct comedi_subdevice *s, int n)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+	struct comedi_async *async = s->async;
+	int i;
+
+	if (board->reg_type == ni_reg_611x) {
+		unsigned short data[2];
+		u32 dl;
+
+		for (i = 0; i < n / 2; i++) {
+			dl = ni_readl(ADC_FIFO_Data_611x);
+			/* This may get the hi/lo data in the wrong order */
+			data[0] = (dl >> 16) & 0xffff;
+			data[1] = dl & 0xffff;
+			cfc_write_array_to_buffer(s, data, sizeof(data));
+		}
+		/* Check if there's a single sample stuck in the FIFO */
+		if (n % 2) {
+			dl = ni_readl(ADC_FIFO_Data_611x);
+			data[0] = dl & 0xffff;
+			cfc_write_to_buffer(s, data[0]);
+		}
+	} else if (board->reg_type == ni_reg_6143) {
+		unsigned short data[2];
+		u32 dl;
+
+		/*  This just reads the FIFO assuming the data is present, no checks on the FIFO status are performed */
+		for (i = 0; i < n / 2; i++) {
+			dl = ni_readl(AIFIFO_Data_6143);
+
+			data[0] = (dl >> 16) & 0xffff;
+			data[1] = dl & 0xffff;
+			cfc_write_array_to_buffer(s, data, sizeof(data));
+		}
+		if (n % 2) {
+			/* Assume there is a single sample stuck in the FIFO */
+			ni_writel(0x01, AIFIFO_Control_6143);	/*  Get stranded sample into FIFO */
+			dl = ni_readl(AIFIFO_Data_6143);
+			data[0] = (dl >> 16) & 0xffff;
+			cfc_write_to_buffer(s, data[0]);
+		}
+	} else {
+		if (n > sizeof(devpriv->ai_fifo_buffer) /
+		    sizeof(devpriv->ai_fifo_buffer[0])) {
+			comedi_error(dev, "bug! ai_fifo_buffer too small");
+			async->events |= COMEDI_CB_ERROR;
+			return;
+		}
+		for (i = 0; i < n; i++) {
+			devpriv->ai_fifo_buffer[i] =
+			    ni_readw(ADC_FIFO_Data_Register);
+		}
+		cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
+					  n *
+					  sizeof(devpriv->ai_fifo_buffer[0]));
+	}
+}
+
+static void ni_handle_fifo_half_full(struct comedi_device *dev)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	int n;
+
+	n = board->ai_fifo_depth / 2;
+
+	ni_ai_fifo_read(dev, s, n);
+}
+#endif
+
+/*
+   Empties the AI fifo
+*/
+static void ni_handle_fifo_dregs(struct comedi_device *dev)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	unsigned short data[2];
+	u32 dl;
+	unsigned short fifo_empty;
+	int i;
+
+	if (board->reg_type == ni_reg_611x) {
+		while ((devpriv->stc_readw(dev,
+					   AI_Status_1_Register) &
+			AI_FIFO_Empty_St) == 0) {
+			dl = ni_readl(ADC_FIFO_Data_611x);
+
+			/* This may get the hi/lo data in the wrong order */
+			data[0] = (dl >> 16);
+			data[1] = (dl & 0xffff);
+			cfc_write_array_to_buffer(s, data, sizeof(data));
+		}
+	} else if (board->reg_type == ni_reg_6143) {
+		i = 0;
+		while (ni_readl(AIFIFO_Status_6143) & 0x04) {
+			dl = ni_readl(AIFIFO_Data_6143);
+
+			/* This may get the hi/lo data in the wrong order */
+			data[0] = (dl >> 16);
+			data[1] = (dl & 0xffff);
+			cfc_write_array_to_buffer(s, data, sizeof(data));
+			i += 2;
+		}
+		/*  Check if stranded sample is present */
+		if (ni_readl(AIFIFO_Status_6143) & 0x01) {
+			ni_writel(0x01, AIFIFO_Control_6143);	/*  Get stranded sample into FIFO */
+			dl = ni_readl(AIFIFO_Data_6143);
+			data[0] = (dl >> 16) & 0xffff;
+			cfc_write_to_buffer(s, data[0]);
+		}
+
+	} else {
+		fifo_empty =
+		    devpriv->stc_readw(dev,
+				       AI_Status_1_Register) & AI_FIFO_Empty_St;
+		while (fifo_empty == 0) {
+			for (i = 0;
+			     i <
+			     sizeof(devpriv->ai_fifo_buffer) /
+			     sizeof(devpriv->ai_fifo_buffer[0]); i++) {
+				fifo_empty =
+				    devpriv->stc_readw(dev,
+						       AI_Status_1_Register) &
+				    AI_FIFO_Empty_St;
+				if (fifo_empty)
+					break;
+				devpriv->ai_fifo_buffer[i] =
+				    ni_readw(ADC_FIFO_Data_Register);
+			}
+			cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
+						  i *
+						  sizeof(devpriv->
+							 ai_fifo_buffer[0]));
+		}
+	}
+}
+
 static void get_last_sample_611x(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
@@ -1038,259 +1284,6 @@ static void handle_b_interrupt(struct comedi_device *dev,
 #endif
 
 	cfc_handle_events(dev, s);
-}
-
-#ifndef PCIDMA
-
-static void ni_ao_fifo_load(struct comedi_device *dev,
-			    struct comedi_subdevice *s, int n)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	int chan;
-	int i;
-	unsigned short d;
-	u32 packed_data;
-	int range;
-	int err = 1;
-
-	chan = async->cur_chan;
-	for (i = 0; i < n; i++) {
-		err &= comedi_buf_get(s, &d);
-		if (err == 0)
-			break;
-
-		range = CR_RANGE(cmd->chanlist[chan]);
-
-		if (board->reg_type & ni_reg_6xxx_mask) {
-			packed_data = d & 0xffff;
-			/* 6711 only has 16 bit wide ao fifo */
-			if (board->reg_type != ni_reg_6711) {
-				err &= comedi_buf_get(s, &d);
-				if (err == 0)
-					break;
-				chan++;
-				i++;
-				packed_data |= (d << 16) & 0xffff0000;
-			}
-			ni_writel(packed_data, DAC_FIFO_Data_611x);
-		} else {
-			ni_writew(d, DAC_FIFO_Data);
-		}
-		chan++;
-		chan %= cmd->chanlist_len;
-	}
-	async->cur_chan = chan;
-	if (err == 0)
-		async->events |= COMEDI_CB_OVERFLOW;
-}
-
-/*
- *  There's a small problem if the FIFO gets really low and we
- *  don't have the data to fill it.  Basically, if after we fill
- *  the FIFO with all the data available, the FIFO is _still_
- *  less than half full, we never clear the interrupt.  If the
- *  IRQ is in edge mode, we never get another interrupt, because
- *  this one wasn't cleared.  If in level mode, we get flooded
- *  with interrupts that we can't fulfill, because nothing ever
- *  gets put into the buffer.
- *
- *  This kind of situation is recoverable, but it is easier to
- *  just pretend we had a FIFO underrun, since there is a good
- *  chance it will happen anyway.  This is _not_ the case for
- *  RT code, as RT code might purposely be running close to the
- *  metal.  Needs to be fixed eventually.
- */
-static int ni_ao_fifo_half_empty(struct comedi_device *dev,
-				 struct comedi_subdevice *s)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	int n;
-
-	n = comedi_buf_read_n_available(s);
-	if (n == 0) {
-		s->async->events |= COMEDI_CB_OVERFLOW;
-		return 0;
-	}
-
-	n /= sizeof(short);
-	if (n > board->ao_fifo_depth / 2)
-		n = board->ao_fifo_depth / 2;
-
-	ni_ao_fifo_load(dev, s, n);
-
-	s->async->events |= COMEDI_CB_BLOCK;
-
-	return 1;
-}
-
-static int ni_ao_prep_fifo(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-	int n;
-
-	/* reset fifo */
-	devpriv->stc_writew(dev, 1, DAC_FIFO_Clear);
-	if (board->reg_type & ni_reg_6xxx_mask)
-		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
-
-	/* load some data */
-	n = comedi_buf_read_n_available(s);
-	if (n == 0)
-		return 0;
-
-	n /= sizeof(short);
-	if (n > board->ao_fifo_depth)
-		n = board->ao_fifo_depth;
-
-	ni_ao_fifo_load(dev, s, n);
-
-	return n;
-}
-
-static void ni_ai_fifo_read(struct comedi_device *dev,
-			    struct comedi_subdevice *s, int n)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-	struct comedi_async *async = s->async;
-	int i;
-
-	if (board->reg_type == ni_reg_611x) {
-		unsigned short data[2];
-		u32 dl;
-
-		for (i = 0; i < n / 2; i++) {
-			dl = ni_readl(ADC_FIFO_Data_611x);
-			/* This may get the hi/lo data in the wrong order */
-			data[0] = (dl >> 16) & 0xffff;
-			data[1] = dl & 0xffff;
-			cfc_write_array_to_buffer(s, data, sizeof(data));
-		}
-		/* Check if there's a single sample stuck in the FIFO */
-		if (n % 2) {
-			dl = ni_readl(ADC_FIFO_Data_611x);
-			data[0] = dl & 0xffff;
-			cfc_write_to_buffer(s, data[0]);
-		}
-	} else if (board->reg_type == ni_reg_6143) {
-		unsigned short data[2];
-		u32 dl;
-
-		/*  This just reads the FIFO assuming the data is present, no checks on the FIFO status are performed */
-		for (i = 0; i < n / 2; i++) {
-			dl = ni_readl(AIFIFO_Data_6143);
-
-			data[0] = (dl >> 16) & 0xffff;
-			data[1] = dl & 0xffff;
-			cfc_write_array_to_buffer(s, data, sizeof(data));
-		}
-		if (n % 2) {
-			/* Assume there is a single sample stuck in the FIFO */
-			ni_writel(0x01, AIFIFO_Control_6143);	/*  Get stranded sample into FIFO */
-			dl = ni_readl(AIFIFO_Data_6143);
-			data[0] = (dl >> 16) & 0xffff;
-			cfc_write_to_buffer(s, data[0]);
-		}
-	} else {
-		if (n > sizeof(devpriv->ai_fifo_buffer) /
-		    sizeof(devpriv->ai_fifo_buffer[0])) {
-			comedi_error(dev, "bug! ai_fifo_buffer too small");
-			async->events |= COMEDI_CB_ERROR;
-			return;
-		}
-		for (i = 0; i < n; i++) {
-			devpriv->ai_fifo_buffer[i] =
-			    ni_readw(ADC_FIFO_Data_Register);
-		}
-		cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
-					  n *
-					  sizeof(devpriv->ai_fifo_buffer[0]));
-	}
-}
-
-static void ni_handle_fifo_half_full(struct comedi_device *dev)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
-	int n;
-
-	n = board->ai_fifo_depth / 2;
-
-	ni_ai_fifo_read(dev, s, n);
-}
-#endif
-
-/*
-   Empties the AI fifo
-*/
-static void ni_handle_fifo_dregs(struct comedi_device *dev)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
-	unsigned short data[2];
-	u32 dl;
-	unsigned short fifo_empty;
-	int i;
-
-	if (board->reg_type == ni_reg_611x) {
-		while ((devpriv->stc_readw(dev,
-					   AI_Status_1_Register) &
-			AI_FIFO_Empty_St) == 0) {
-			dl = ni_readl(ADC_FIFO_Data_611x);
-
-			/* This may get the hi/lo data in the wrong order */
-			data[0] = (dl >> 16);
-			data[1] = (dl & 0xffff);
-			cfc_write_array_to_buffer(s, data, sizeof(data));
-		}
-	} else if (board->reg_type == ni_reg_6143) {
-		i = 0;
-		while (ni_readl(AIFIFO_Status_6143) & 0x04) {
-			dl = ni_readl(AIFIFO_Data_6143);
-
-			/* This may get the hi/lo data in the wrong order */
-			data[0] = (dl >> 16);
-			data[1] = (dl & 0xffff);
-			cfc_write_array_to_buffer(s, data, sizeof(data));
-			i += 2;
-		}
-		/*  Check if stranded sample is present */
-		if (ni_readl(AIFIFO_Status_6143) & 0x01) {
-			ni_writel(0x01, AIFIFO_Control_6143);	/*  Get stranded sample into FIFO */
-			dl = ni_readl(AIFIFO_Data_6143);
-			data[0] = (dl >> 16) & 0xffff;
-			cfc_write_to_buffer(s, data[0]);
-		}
-
-	} else {
-		fifo_empty =
-		    devpriv->stc_readw(dev,
-				       AI_Status_1_Register) & AI_FIFO_Empty_St;
-		while (fifo_empty == 0) {
-			for (i = 0;
-			     i <
-			     sizeof(devpriv->ai_fifo_buffer) /
-			     sizeof(devpriv->ai_fifo_buffer[0]); i++) {
-				fifo_empty =
-				    devpriv->stc_readw(dev,
-						       AI_Status_1_Register) &
-				    AI_FIFO_Empty_St;
-				if (fifo_empty)
-					break;
-				devpriv->ai_fifo_buffer[i] =
-				    ni_readw(ADC_FIFO_Data_Register);
-			}
-			cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
-						  i *
-						  sizeof(devpriv->
-							 ai_fifo_buffer[0]));
-		}
-	}
 }
 
 static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
