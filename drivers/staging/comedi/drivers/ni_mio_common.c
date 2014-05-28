@@ -196,15 +196,6 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 
 static void handle_cdio_interrupt(struct comedi_device *dev);
 
-static int ni_serial_hw_readwrite8(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   unsigned char data_out,
-				   unsigned char *data_in);
-static int ni_serial_sw_readwrite8(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   unsigned char data_out,
-				   unsigned char *data_in);
-
 static void ni_rtsi_init(struct comedi_device *dev);
 static int ni_rtsi_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
@@ -3590,97 +3581,6 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 	cfc_handle_events(dev, s);
 }
 
-static int ni_serial_insn_config(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-	int err = insn->n;
-	unsigned char byte_out, byte_in = 0;
-
-	if (insn->n != 2)
-		return -EINVAL;
-
-	switch (data[0]) {
-	case INSN_CONFIG_SERIAL_CLOCK:
-		devpriv->serial_hw_mode = 1;
-		devpriv->dio_control |= DIO_HW_Serial_Enable;
-
-		if (data[1] == SERIAL_DISABLED) {
-			devpriv->serial_hw_mode = 0;
-			devpriv->dio_control &= ~(DIO_HW_Serial_Enable |
-						  DIO_Software_Serial_Control);
-			data[1] = SERIAL_DISABLED;
-			devpriv->serial_interval_ns = data[1];
-		} else if (data[1] <= SERIAL_600NS) {
-			/* Warning: this clock speed is too fast to reliably
-			   control SCXI. */
-			devpriv->dio_control &= ~DIO_HW_Serial_Timebase;
-			devpriv->clock_and_fout |= Slow_Internal_Timebase;
-			devpriv->clock_and_fout &= ~DIO_Serial_Out_Divide_By_2;
-			data[1] = SERIAL_600NS;
-			devpriv->serial_interval_ns = data[1];
-		} else if (data[1] <= SERIAL_1_2US) {
-			devpriv->dio_control &= ~DIO_HW_Serial_Timebase;
-			devpriv->clock_and_fout |= Slow_Internal_Timebase |
-			    DIO_Serial_Out_Divide_By_2;
-			data[1] = SERIAL_1_2US;
-			devpriv->serial_interval_ns = data[1];
-		} else if (data[1] <= SERIAL_10US) {
-			devpriv->dio_control |= DIO_HW_Serial_Timebase;
-			devpriv->clock_and_fout |= Slow_Internal_Timebase |
-			    DIO_Serial_Out_Divide_By_2;
-			/* Note: DIO_Serial_Out_Divide_By_2 only affects
-			   600ns/1.2us. If you turn divide_by_2 off with the
-			   slow clock, you will still get 10us, except then
-			   all your delays are wrong. */
-			data[1] = SERIAL_10US;
-			devpriv->serial_interval_ns = data[1];
-		} else {
-			devpriv->dio_control &= ~(DIO_HW_Serial_Enable |
-						  DIO_Software_Serial_Control);
-			devpriv->serial_hw_mode = 0;
-			data[1] = (data[1] / 1000) * 1000;
-			devpriv->serial_interval_ns = data[1];
-		}
-
-		devpriv->stc_writew(dev, devpriv->dio_control,
-				    DIO_Control_Register);
-		devpriv->stc_writew(dev, devpriv->clock_and_fout,
-				    Clock_and_FOUT_Register);
-		return 1;
-
-		break;
-
-	case INSN_CONFIG_BIDIRECTIONAL_DATA:
-
-		if (devpriv->serial_interval_ns == 0)
-			return -EINVAL;
-
-		byte_out = data[1] & 0xFF;
-
-		if (devpriv->serial_hw_mode) {
-			err = ni_serial_hw_readwrite8(dev, s, byte_out,
-						      &byte_in);
-		} else if (devpriv->serial_interval_ns > 0) {
-			err = ni_serial_sw_readwrite8(dev, s, byte_out,
-						      &byte_in);
-		} else {
-			printk("ni_serial_insn_config: serial disabled!\n");
-			return -EINVAL;
-		}
-		if (err < 0)
-			return err;
-		data[1] = byte_in & 0xFF;
-		return insn->n;
-
-		break;
-	default:
-		return -EINVAL;
-	}
-
-}
-
 static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned char data_out,
@@ -3779,6 +3679,98 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 		*data_in = input;
 
 	return 0;
+}
+
+static int ni_serial_insn_config(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	struct ni_private *devpriv = dev->private;
+	int err = insn->n;
+	unsigned char byte_out, byte_in = 0;
+
+	if (insn->n != 2)
+		return -EINVAL;
+
+	switch (data[0]) {
+	case INSN_CONFIG_SERIAL_CLOCK:
+		devpriv->serial_hw_mode = 1;
+		devpriv->dio_control |= DIO_HW_Serial_Enable;
+
+		if (data[1] == SERIAL_DISABLED) {
+			devpriv->serial_hw_mode = 0;
+			devpriv->dio_control &= ~(DIO_HW_Serial_Enable |
+						  DIO_Software_Serial_Control);
+			data[1] = SERIAL_DISABLED;
+			devpriv->serial_interval_ns = data[1];
+		} else if (data[1] <= SERIAL_600NS) {
+			/* Warning: this clock speed is too fast to reliably
+			   control SCXI. */
+			devpriv->dio_control &= ~DIO_HW_Serial_Timebase;
+			devpriv->clock_and_fout |= Slow_Internal_Timebase;
+			devpriv->clock_and_fout &= ~DIO_Serial_Out_Divide_By_2;
+			data[1] = SERIAL_600NS;
+			devpriv->serial_interval_ns = data[1];
+		} else if (data[1] <= SERIAL_1_2US) {
+			devpriv->dio_control &= ~DIO_HW_Serial_Timebase;
+			devpriv->clock_and_fout |= Slow_Internal_Timebase |
+			    DIO_Serial_Out_Divide_By_2;
+			data[1] = SERIAL_1_2US;
+			devpriv->serial_interval_ns = data[1];
+		} else if (data[1] <= SERIAL_10US) {
+			devpriv->dio_control |= DIO_HW_Serial_Timebase;
+			devpriv->clock_and_fout |= Slow_Internal_Timebase |
+			    DIO_Serial_Out_Divide_By_2;
+			/* Note: DIO_Serial_Out_Divide_By_2 only affects
+			   600ns/1.2us. If you turn divide_by_2 off with the
+			   slow clock, you will still get 10us, except then
+			   all your delays are wrong. */
+			data[1] = SERIAL_10US;
+			devpriv->serial_interval_ns = data[1];
+		} else {
+			devpriv->dio_control &= ~(DIO_HW_Serial_Enable |
+						  DIO_Software_Serial_Control);
+			devpriv->serial_hw_mode = 0;
+			data[1] = (data[1] / 1000) * 1000;
+			devpriv->serial_interval_ns = data[1];
+		}
+
+		devpriv->stc_writew(dev, devpriv->dio_control,
+				    DIO_Control_Register);
+		devpriv->stc_writew(dev, devpriv->clock_and_fout,
+				    Clock_and_FOUT_Register);
+		return 1;
+
+		break;
+
+	case INSN_CONFIG_BIDIRECTIONAL_DATA:
+
+		if (devpriv->serial_interval_ns == 0)
+			return -EINVAL;
+
+		byte_out = data[1] & 0xFF;
+
+		if (devpriv->serial_hw_mode) {
+			err = ni_serial_hw_readwrite8(dev, s, byte_out,
+						      &byte_in);
+		} else if (devpriv->serial_interval_ns > 0) {
+			err = ni_serial_sw_readwrite8(dev, s, byte_out,
+						      &byte_in);
+		} else {
+			printk("ni_serial_insn_config: serial disabled!\n");
+			return -EINVAL;
+		}
+		if (err < 0)
+			return err;
+		data[1] = byte_in & 0xFF;
+		return insn->n;
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
 }
 
 static void mio_common_detach(struct comedi_device *dev)
