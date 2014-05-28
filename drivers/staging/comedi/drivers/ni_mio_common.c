@@ -278,13 +278,6 @@ static int cs5529_ai_insn_read(struct comedi_device *dev,
 static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
 				unsigned int reg_select_bits);
 
-static int ni_m_series_pwm_config(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data);
-static int ni_6143_pwm_config(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
-
 static int ni_set_master_clock(struct comedi_device *dev, unsigned source,
 			       unsigned period_ns);
 static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status);
@@ -4161,6 +4154,151 @@ static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
 	}
 }
 
+static int ni_get_pwm_config(struct comedi_device *dev, unsigned int *data)
+{
+	struct ni_private *devpriv = dev->private;
+
+	data[1] = devpriv->pwm_up_count * devpriv->clock_ns;
+	data[2] = devpriv->pwm_down_count * devpriv->clock_ns;
+	return 3;
+}
+
+static int ni_m_series_pwm_config(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned up_count, down_count;
+
+	switch (data[0]) {
+	case INSN_CONFIG_PWM_OUTPUT:
+		switch (data[1]) {
+		case TRIG_ROUND_NEAREST:
+			up_count =
+			    (data[2] +
+			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			break;
+		case TRIG_ROUND_DOWN:
+			up_count = data[2] / devpriv->clock_ns;
+			break;
+		case TRIG_ROUND_UP:
+			up_count =
+			    (data[2] + devpriv->clock_ns -
+			     1) / devpriv->clock_ns;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+		switch (data[3]) {
+		case TRIG_ROUND_NEAREST:
+			down_count =
+			    (data[4] +
+			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			break;
+		case TRIG_ROUND_DOWN:
+			down_count = data[4] / devpriv->clock_ns;
+			break;
+		case TRIG_ROUND_UP:
+			down_count =
+			    (data[4] + devpriv->clock_ns -
+			     1) / devpriv->clock_ns;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+		if (up_count * devpriv->clock_ns != data[2] ||
+		    down_count * devpriv->clock_ns != data[4]) {
+			data[2] = up_count * devpriv->clock_ns;
+			data[4] = down_count * devpriv->clock_ns;
+			return -EAGAIN;
+		}
+		ni_writel(MSeries_Cal_PWM_High_Time_Bits(up_count) |
+			  MSeries_Cal_PWM_Low_Time_Bits(down_count),
+			  M_Offset_Cal_PWM);
+		devpriv->pwm_up_count = up_count;
+		devpriv->pwm_down_count = down_count;
+		return 5;
+		break;
+	case INSN_CONFIG_GET_PWM_OUTPUT:
+		return ni_get_pwm_config(dev, data);
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	return 0;
+}
+
+static int ni_6143_pwm_config(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned up_count, down_count;
+
+	switch (data[0]) {
+	case INSN_CONFIG_PWM_OUTPUT:
+		switch (data[1]) {
+		case TRIG_ROUND_NEAREST:
+			up_count =
+			    (data[2] +
+			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			break;
+		case TRIG_ROUND_DOWN:
+			up_count = data[2] / devpriv->clock_ns;
+			break;
+		case TRIG_ROUND_UP:
+			up_count =
+			    (data[2] + devpriv->clock_ns -
+			     1) / devpriv->clock_ns;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+		switch (data[3]) {
+		case TRIG_ROUND_NEAREST:
+			down_count =
+			    (data[4] +
+			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			break;
+		case TRIG_ROUND_DOWN:
+			down_count = data[4] / devpriv->clock_ns;
+			break;
+		case TRIG_ROUND_UP:
+			down_count =
+			    (data[4] + devpriv->clock_ns -
+			     1) / devpriv->clock_ns;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+		if (up_count * devpriv->clock_ns != data[2] ||
+		    down_count * devpriv->clock_ns != data[4]) {
+			data[2] = up_count * devpriv->clock_ns;
+			data[4] = down_count * devpriv->clock_ns;
+			return -EAGAIN;
+		}
+		ni_writel(up_count, Calibration_HighTime_6143);
+		devpriv->pwm_up_count = up_count;
+		ni_writel(down_count, Calibration_LowTime_6143);
+		devpriv->pwm_down_count = down_count;
+		return 5;
+		break;
+	case INSN_CONFIG_GET_PWM_OUTPUT:
+		return ni_get_pwm_config(dev, data);
+	default:
+		return -EINVAL;
+		break;
+	}
+	return 0;
+}
+
 static int ni_read_eeprom(struct comedi_device *dev, int addr)
 {
 	struct ni_private *devpriv __maybe_unused = dev->private;
@@ -4535,149 +4673,6 @@ static int ni_E_init(struct comedi_device *dev)
 		ni_writeb(0x0, M_Offset_AO_Calibration);
 	}
 
-	return 0;
-}
-
-static int ni_get_pwm_config(struct comedi_device *dev, unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-
-	data[1] = devpriv->pwm_up_count * devpriv->clock_ns;
-	data[2] = devpriv->pwm_down_count * devpriv->clock_ns;
-	return 3;
-}
-
-static int ni_m_series_pwm_config(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned up_count, down_count;
-
-	switch (data[0]) {
-	case INSN_CONFIG_PWM_OUTPUT:
-		switch (data[1]) {
-		case TRIG_ROUND_NEAREST:
-			up_count =
-			    (data[2] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
-			break;
-		case TRIG_ROUND_DOWN:
-			up_count = data[2] / devpriv->clock_ns;
-			break;
-		case TRIG_ROUND_UP:
-			up_count =
-			    (data[2] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
-			break;
-		default:
-			return -EINVAL;
-			break;
-		}
-		switch (data[3]) {
-		case TRIG_ROUND_NEAREST:
-			down_count =
-			    (data[4] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
-			break;
-		case TRIG_ROUND_DOWN:
-			down_count = data[4] / devpriv->clock_ns;
-			break;
-		case TRIG_ROUND_UP:
-			down_count =
-			    (data[4] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
-			break;
-		default:
-			return -EINVAL;
-			break;
-		}
-		if (up_count * devpriv->clock_ns != data[2] ||
-		    down_count * devpriv->clock_ns != data[4]) {
-			data[2] = up_count * devpriv->clock_ns;
-			data[4] = down_count * devpriv->clock_ns;
-			return -EAGAIN;
-		}
-		ni_writel(MSeries_Cal_PWM_High_Time_Bits(up_count) |
-			  MSeries_Cal_PWM_Low_Time_Bits(down_count),
-			  M_Offset_Cal_PWM);
-		devpriv->pwm_up_count = up_count;
-		devpriv->pwm_down_count = down_count;
-		return 5;
-		break;
-	case INSN_CONFIG_GET_PWM_OUTPUT:
-		return ni_get_pwm_config(dev, data);
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-	return 0;
-}
-
-static int ni_6143_pwm_config(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned up_count, down_count;
-
-	switch (data[0]) {
-	case INSN_CONFIG_PWM_OUTPUT:
-		switch (data[1]) {
-		case TRIG_ROUND_NEAREST:
-			up_count =
-			    (data[2] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
-			break;
-		case TRIG_ROUND_DOWN:
-			up_count = data[2] / devpriv->clock_ns;
-			break;
-		case TRIG_ROUND_UP:
-			up_count =
-			    (data[2] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
-			break;
-		default:
-			return -EINVAL;
-			break;
-		}
-		switch (data[3]) {
-		case TRIG_ROUND_NEAREST:
-			down_count =
-			    (data[4] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
-			break;
-		case TRIG_ROUND_DOWN:
-			down_count = data[4] / devpriv->clock_ns;
-			break;
-		case TRIG_ROUND_UP:
-			down_count =
-			    (data[4] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
-			break;
-		default:
-			return -EINVAL;
-			break;
-		}
-		if (up_count * devpriv->clock_ns != data[2] ||
-		    down_count * devpriv->clock_ns != data[4]) {
-			data[2] = up_count * devpriv->clock_ns;
-			data[4] = down_count * devpriv->clock_ns;
-			return -EAGAIN;
-		}
-		ni_writel(up_count, Calibration_HighTime_6143);
-		devpriv->pwm_up_count = up_count;
-		ni_writel(down_count, Calibration_LowTime_6143);
-		devpriv->pwm_down_count = down_count;
-		return 5;
-		break;
-	case INSN_CONFIG_GET_PWM_OUTPUT:
-		return ni_get_pwm_config(dev, data);
-	default:
-		return -EINVAL;
-		break;
-	}
 	return 0;
 }
 
