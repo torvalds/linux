@@ -595,13 +595,12 @@ xprt_rdma_send_request(struct rpc_task *task)
 	struct rpc_xprt *xprt = rqst->rq_xprt;
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	int rc;
 
-	/* marshal the send itself */
-	if (req->rl_niovs == 0 && rpcrdma_marshal_req(rqst) != 0) {
-		r_xprt->rx_stats.failed_marshal_count++;
-		dprintk("RPC:       %s: rpcrdma_marshal_req failed\n",
-			__func__);
-		return -EIO;
+	if (req->rl_niovs == 0) {
+		rc = rpcrdma_marshal_req(rqst);
+		if (rc < 0)
+			goto failed_marshal;
 	}
 
 	if (req->rl_reply == NULL) 		/* e.g. reconnection */
@@ -625,6 +624,12 @@ xprt_rdma_send_request(struct rpc_task *task)
 	rqst->rq_bytes_sent = 0;
 	return 0;
 
+failed_marshal:
+	r_xprt->rx_stats.failed_marshal_count++;
+	dprintk("RPC:       %s: rpcrdma_marshal_req failed, status %i\n",
+		__func__, rc);
+	if (rc == -EIO)
+		return -EIO;
 drop_connection:
 	xprt_disconnect_done(xprt);
 	return -ENOTCONN;	/* implies disconnect */
