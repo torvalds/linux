@@ -3872,7 +3872,7 @@ F:	Documentation/fault-injection/
 F:	lib/fault-inject.c
 
 FCOE SUBSYSTEM (libfc, libfcoe, fcoe)
-M:	Robert Love <robert.w.love@intel.com>
+M:	Vasu Dev <vasu.dev@intel.com>
 L:	fcoe-devel@open-fcoe.org
 W:	www.Open-FCoE.org
 S:	Supported
