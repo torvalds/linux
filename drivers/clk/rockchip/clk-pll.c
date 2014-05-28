@@ -1135,7 +1135,7 @@ static int clk_pll_set_rate_3288_apll(struct clk_hw *hw, unsigned long rate,
 	struct clk_pll *pll = to_clk_pll(hw);
 	struct clk *clk = hw->clk;
 	struct clk *arm_gpll = __clk_lookup("clk_arm_gpll");
-	unsigned long arm_gpll_rate;
+	unsigned long arm_gpll_rate, temp_rate, old_rate;
 	const struct apll_clk_set *ps;
 //	u32 old_aclk_div = 0, new_aclk_div = 0;
 	u32 temp_div;
@@ -1168,8 +1168,11 @@ static int clk_pll_set_rate_3288_apll(struct clk_hw *hw, unsigned long rate,
 	}
 
 	arm_gpll_rate = __clk_get_rate(arm_gpll);
-	temp_div = DIV_ROUND_UP(arm_gpll_rate, __clk_get_rate(clk));
-	temp_div = (temp_div == 0) ? 1 : temp_div;
+	old_rate = __clk_get_rate(clk);
+
+	temp_rate = (old_rate > rate) ? old_rate : rate;
+	temp_div = DIV_ROUND_UP(arm_gpll_rate, temp_rate);
+
 	if (temp_div > RK3288_CORE_CLK_MAX_DIV) {
 		clk_debug("temp_div %d > max_div %d\n", temp_div,
 				RK3288_CORE_CLK_MAX_DIV);
@@ -1195,10 +1198,30 @@ static int clk_pll_set_rate_3288_apll(struct clk_hw *hw, unsigned long rate,
 
 	local_irq_save(flags);
 
-	/* firstly set div, then select arm_gpll path */
-	cru_writel(RK3288_CORE_CLK_DIV(temp_div), RK3288_CRU_CLKSELS_CON(0));
-	cru_writel(RK3288_CORE_SEL_PLL_W_MSK|RK3288_CORE_SEL_GPLL,
-			RK3288_CRU_CLKSELS_CON(0));
+	/* select gpll */
+	if (temp_div == 1) {
+		/* when old_rate/2 < (old_rate-arm_gpll_rate),
+		   we can set div to make rate change more gently */
+		if (old_rate > (2*arm_gpll_rate)) {
+			cru_writel(RK3288_CORE_CLK_DIV(2), RK3288_CRU_CLKSELS_CON(0));
+			udelay(10);
+			cru_writel(RK3288_CORE_CLK_DIV(3), RK3288_CRU_CLKSELS_CON(0));
+			udelay(10);
+			cru_writel(RK3288_CORE_SEL_PLL_W_MSK|RK3288_CORE_SEL_GPLL,
+				RK3288_CRU_CLKSELS_CON(0));
+			udelay(10);
+			cru_writel(RK3288_CORE_CLK_DIV(2), RK3288_CRU_CLKSELS_CON(0));
+			udelay(10);
+			cru_writel(RK3288_CORE_CLK_DIV(1), RK3288_CRU_CLKSELS_CON(0));
+		} else {
+			cru_writel(RK3288_CORE_SEL_PLL_W_MSK|RK3288_CORE_SEL_GPLL,
+				RK3288_CRU_CLKSELS_CON(0));
+		}
+	} else {
+		cru_writel(RK3288_CORE_CLK_DIV(temp_div), RK3288_CRU_CLKSELS_CON(0));
+		cru_writel(RK3288_CORE_SEL_PLL_W_MSK|RK3288_CORE_SEL_GPLL,
+				RK3288_CRU_CLKSELS_CON(0));
+	}
 
 	sel_gpll = 1;
 	//loops_per_jiffy = CLK_LOOPS_RECALC(arm_gpll_rate) / temp_div;
@@ -1255,9 +1278,29 @@ CHANGE_APLL:
 
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {
-		cru_writel(RK3288_CORE_SEL_PLL_W_MSK|RK3288_CORE_SEL_APLL,
-			RK3288_CRU_CLKSELS_CON(0));
-		cru_writel(RK3288_CORE_CLK_DIV(1), RK3288_CRU_CLKSELS_CON(0));
+		if (temp_div == 1) {
+			/* when rate/2 < (old_rate-arm_gpll_rate),
+		           we can set div to make rate change more gently */
+			if (rate > (2*arm_gpll_rate)) {
+				cru_writel(RK3288_CORE_CLK_DIV(2), RK3288_CRU_CLKSELS_CON(0));
+				udelay(10);
+				cru_writel(RK3288_CORE_CLK_DIV(3), RK3288_CRU_CLKSELS_CON(0));
+				udelay(10);
+				cru_writel(RK3288_CORE_SEL_PLL_W_MSK|RK3288_CORE_SEL_APLL,
+					RK3288_CRU_CLKSELS_CON(0));
+				udelay(10);
+				cru_writel(RK3288_CORE_CLK_DIV(2), RK3288_CRU_CLKSELS_CON(0));
+				udelay(10);
+				cru_writel(RK3288_CORE_CLK_DIV(1), RK3288_CRU_CLKSELS_CON(0));
+			} else {
+				cru_writel(RK3288_CORE_SEL_PLL_W_MSK|RK3288_CORE_SEL_APLL,
+						RK3288_CRU_CLKSELS_CON(0));
+			}
+		} else {
+			cru_writel(RK3288_CORE_SEL_PLL_W_MSK|RK3288_CORE_SEL_APLL,
+				RK3288_CRU_CLKSELS_CON(0));
+			cru_writel(RK3288_CORE_CLK_DIV(1), RK3288_CRU_CLKSELS_CON(0));
+		}
 	}
 
 	if (rate < __clk_get_rate(hw->clk)) {
