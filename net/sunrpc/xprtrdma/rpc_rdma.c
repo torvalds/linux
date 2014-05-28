@@ -199,7 +199,6 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 		return 0;
 
 	do {
-		/* bind/register the memory, then build chunk from result. */
 		int n = rpcrdma_register_external(seg, nsegs,
 						cur_wchunk != NULL, r_xprt);
 		if (n <= 0)
@@ -698,16 +697,6 @@ rpcrdma_conn_func(struct rpcrdma_ep *ep)
 }
 
 /*
- * This function is called when memory window unbind which we are waiting
- * for completes. Just use rr_func (zeroed by upcall) to signal completion.
- */
-static void
-rpcrdma_unbind_func(struct rpcrdma_rep *rep)
-{
-	wake_up(&rep->rr_unbind);
-}
-
-/*
  * Called as a tasklet to do req/reply match and complete a request
  * Errors must result in the RPC task either being awakened, or
  * allowed to timeout, to discover the errors at that time.
@@ -721,7 +710,7 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpc_xprt *xprt = rep->rr_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	__be32 *iptr;
-	int i, rdmalen, status;
+	int rdmalen, status;
 
 	/* Check status. If bad, signal disconnect and return rep to pool */
 	if (rep->rr_len == ~0U) {
@@ -847,27 +836,6 @@ badheader:
 				req->rl_nchunks);
 		status = -EIO;
 		r_xprt->rx_stats.bad_reply_count++;
-		break;
-	}
-
-	/* If using mw bind, start the deregister process now. */
-	/* (Note: if mr_free(), cannot perform it here, in tasklet context) */
-	if (req->rl_nchunks) switch (r_xprt->rx_ia.ri_memreg_strategy) {
-	case RPCRDMA_MEMWINDOWS:
-		for (i = 0; req->rl_nchunks-- > 1;)
-			i += rpcrdma_deregister_external(
-				&req->rl_segments[i], r_xprt, NULL);
-		/* Optionally wait (not here) for unbinds to complete */
-		rep->rr_func = rpcrdma_unbind_func;
-		(void) rpcrdma_deregister_external(&req->rl_segments[i],
-						   r_xprt, rep);
-		break;
-	case RPCRDMA_MEMWINDOWS_ASYNC:
-		for (i = 0; req->rl_nchunks--;)
-			i += rpcrdma_deregister_external(&req->rl_segments[i],
-							 r_xprt, NULL);
-		break;
-	default:
 		break;
 	}
 

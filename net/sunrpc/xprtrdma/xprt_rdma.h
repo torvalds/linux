@@ -127,7 +127,6 @@ struct rpcrdma_rep {
 	struct rpc_xprt	*rr_xprt;	/* needed for request/reply matching */
 	void (*rr_func)(struct rpcrdma_rep *);/* called by tasklet in softint */
 	struct list_head rr_list;	/* tasklet list */
-	wait_queue_head_t rr_unbind;	/* optional unbind wait */
 	struct ib_sge	rr_iov;		/* for posting */
 	struct ib_mr	*rr_handle;	/* handle for mem in rr_iov */
 	char	rr_base[MAX_RPCRDMAHDR]; /* minimal inline receive buffer */
@@ -162,7 +161,6 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 		struct ib_mr	*rl_mr;		/* if registered directly */
 		struct rpcrdma_mw {		/* if registered from region */
 			union {
-				struct ib_mw	*mw;
 				struct ib_fmr	*fmr;
 				struct {
 					struct ib_fast_reg_page_list *fr_pgl;

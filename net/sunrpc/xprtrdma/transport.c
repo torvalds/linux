@@ -566,9 +566,7 @@ xprt_rdma_free(void *buffer)
 		__func__, rep, (rep && rep->rr_func) ? " (with waiter)" : "");
 
 	/*
-	 * Finish the deregistration. When using mw bind, this was
-	 * begun in rpcrdma_reply_handler(). In all other modes, we
-	 * do it here, in thread context. The process is considered
+	 * Finish the deregistration.  The process is considered
 	 * complete when the rr_func vector becomes NULL - this
 	 * was put in place during rpcrdma_reply_handler() - the wait
 	 * call below will not block if the dereg is "done". If
@@ -578,11 +576,6 @@ xprt_rdma_free(void *buffer)
 		--req->rl_nchunks;
 		i += rpcrdma_deregister_external(
 			&req->rl_segments[i], r_xprt, NULL);
-	}
-
-	if (rep && wait_event_interruptible(rep->rr_unbind, !rep->rr_func)) {
-		rep->rr_func = NULL;	/* abandon the callback */
-		req->rl_reply = NULL;
 	}
 
 	if (req->rl_iov.length == 0) {	/* see allocate above */
