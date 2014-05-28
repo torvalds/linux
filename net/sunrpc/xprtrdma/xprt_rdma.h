@@ -74,6 +74,7 @@ struct rpcrdma_ia {
  * RDMA Endpoint -- one per transport instance
  */
 
+#define RPCRDMA_WC_BUDGET	(128)
 #define RPCRDMA_POLLSIZE	(16)
 
 struct rpcrdma_ep {
