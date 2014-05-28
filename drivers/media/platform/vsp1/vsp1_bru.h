@@ -14,6 +14,7 @@
 #define __VSP1_BRU_H__
 
 #include <media/media-entity.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
 #include "vsp1_entity.h"
@@ -26,6 +27,8 @@ struct vsp1_rwpf;
 
 struct vsp1_bru {
 	struct vsp1_entity entity;
+
+	struct v4l2_ctrl_handler ctrls;
 
 	struct {
 		struct vsp1_rwpf *rpf;
