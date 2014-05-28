@@ -1,6 +1,12 @@
 #include "camsys_marvin.h"
 #include "camsys_soc_priv.h"
 
+#include <linux/rockchip/common.h> 
+#include <dt-bindings/clock/rk_system_status.h>
+
+extern int rockchip_set_system_status(unsigned long status);
+extern int rockchip_clear_system_status(unsigned long status);
+
 static const char miscdev_name[] = CAMSYS_MARVIN_DEVNAME;
 
 static int camsys_mrv_iomux_cb(camsys_extdev_t *extdev,void *ptr)
@@ -129,6 +135,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
     camsys_mrv_clk_t *clk = (camsys_mrv_clk_t*)camsys_dev->clk;
 	
     if (on && !clk->in_on) {
+		rockchip_set_system_status(SYS_STATUS_ISP);
 
         clk_prepare_enable(clk->aclk_isp);
         clk_prepare_enable(clk->hclk_isp);
@@ -156,6 +163,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
         clk_disable_unprepare(clk->pclkin_isp); 
 		clk_disable_unprepare(clk->pd_isp);
 
+		rockchip_clear_system_status(SYS_STATUS_ISP);
         clk->in_on = false;
         camsys_trace(1, "%s clock in turn off",dev_name(camsys_dev->miscdev.this_device));
     }

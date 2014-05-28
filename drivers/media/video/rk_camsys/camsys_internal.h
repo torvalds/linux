@@ -74,8 +74,10 @@
 *v0.9.0: 1) set isp freq to 210M
 *v0.a.0: 
 *        1) fix camsys_i2c_write and camsys_i2c_write can't support reg_size=0;
+*v0.b.0:
+		 1) control ddr freq by marvin self other than by clk unit. 
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0xa,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0xb,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
