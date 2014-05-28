@@ -1081,6 +1081,8 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 				dprintk("RPC:       %s: "
 					"ib_alloc_fast_reg_page_list "
 					"failed %i\n", __func__, rc);
+
+				ib_dereg_mr(r->r.frmr.fr_mr);
 				goto out;
 			}
 			list_add(&r->mw_list, &buf->rb_mws);
@@ -1217,45 +1219,46 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 			kfree(buf->rb_recv_bufs[i]);
 		}
 		if (buf->rb_send_bufs && buf->rb_send_bufs[i]) {
-			while (!list_empty(&buf->rb_mws)) {
-				r = list_entry(buf->rb_mws.next,
-					struct rpcrdma_mw, mw_list);
-				list_del(&r->mw_list);
-				switch (ia->ri_memreg_strategy) {
-				case RPCRDMA_FRMR:
-					rc = ib_dereg_mr(r->r.frmr.fr_mr);
-					if (rc)
-						dprintk("RPC:       %s:"
-							" ib_dereg_mr"
-							" failed %i\n",
-							__func__, rc);
-					ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
-					break;
-				case RPCRDMA_MTHCAFMR:
-					rc = ib_dealloc_fmr(r->r.fmr);
-					if (rc)
-						dprintk("RPC:       %s:"
-							" ib_dealloc_fmr"
-							" failed %i\n",
-							__func__, rc);
-					break;
-				case RPCRDMA_MEMWINDOWS_ASYNC:
-				case RPCRDMA_MEMWINDOWS:
-					rc = ib_dealloc_mw(r->r.mw);
-					if (rc)
-						dprintk("RPC:       %s:"
-							" ib_dealloc_mw"
-							" failed %i\n",
-							__func__, rc);
-					break;
-				default:
-					break;
-				}
-			}
 			rpcrdma_deregister_internal(ia,
 					buf->rb_send_bufs[i]->rl_handle,
 					&buf->rb_send_bufs[i]->rl_iov);
 			kfree(buf->rb_send_bufs[i]);
+		}
+	}
+
+	while (!list_empty(&buf->rb_mws)) {
+		r = list_entry(buf->rb_mws.next,
+			struct rpcrdma_mw, mw_list);
+		list_del(&r->mw_list);
+		switch (ia->ri_memreg_strategy) {
+		case RPCRDMA_FRMR:
+			rc = ib_dereg_mr(r->r.frmr.fr_mr);
+			if (rc)
+				dprintk("RPC:       %s:"
+					" ib_dereg_mr"
+					" failed %i\n",
+					__func__, rc);
+			ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
+			break;
+		case RPCRDMA_MTHCAFMR:
+			rc = ib_dealloc_fmr(r->r.fmr);
+			if (rc)
+				dprintk("RPC:       %s:"
+					" ib_dealloc_fmr"
+					" failed %i\n",
+					__func__, rc);
+			break;
+		case RPCRDMA_MEMWINDOWS_ASYNC:
+		case RPCRDMA_MEMWINDOWS:
+			rc = ib_dealloc_mw(r->r.mw);
+			if (rc)
+				dprintk("RPC:       %s:"
+					" ib_dealloc_mw"
+					" failed %i\n",
+					__func__, rc);
+			break;
+		default:
+			break;
 		}
 	}
 
