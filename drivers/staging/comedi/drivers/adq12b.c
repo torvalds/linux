@@ -116,8 +116,7 @@ static const struct comedi_lrange range_adq12b_ai_unipolar = {
 struct adq12b_private {
 	int unipolar;		/* option 2 of comedi_config (1 is iobase) */
 	int differential;	/* option 3 of comedi_config */
-	int last_channel;
-	int last_range;
+	unsigned int last_ctreg;
 };
 
 static int adq12b_ai_eoc(struct comedi_device *dev,
@@ -134,20 +133,23 @@ static int adq12b_ai_eoc(struct comedi_device *dev,
 }
 
 static int adq12b_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
 	struct adq12b_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val;
 	int n;
-	int range, channel;
 	unsigned char hi, lo, status;
 	int ret;
 
 	/* change channel and range only if it is different from the previous */
-	range = CR_RANGE(insn->chanspec);
-	channel = CR_CHAN(insn->chanspec);
-	if (channel != devpriv->last_channel || range != devpriv->last_range) {
-		outb((range << 4) | channel, dev->iobase + ADQ12B_CTREG);
+	val = (range << 4) | chan;
+	if (val != devpriv->last_ctreg) {
+		outb(val, dev->iobase + ADQ12B_CTREG);
+		devpriv->last_ctreg = val;
 		udelay(50);	/* wait for the mux to settle */
 	}
 
@@ -226,12 +228,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv->unipolar = it->options[1];
 	devpriv->differential = it->options[2];
-	/*
-	 * initialize channel and range to -1 so we make sure we
-	 * always write at least once to the CTREG in the instruction
-	 */
-	devpriv->last_channel = -1;
-	devpriv->last_range = -1;
+	devpriv->last_ctreg = -1;	/* force ctreg update */
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
