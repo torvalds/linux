@@ -6,7 +6,7 @@
 #include "clk-pll.h"
 
 
-static const struct pll_clk_set pll_com_table[] = {
+static const struct pll_clk_set rk3188_pll_com_table[] = {
 	_RK3188_PLL_SET_CLKS(1250000,	12,	625,	1),
 	_RK3188_PLL_SET_CLKS(1200000,	1,	50,	1),
 	_RK3188_PLL_SET_CLKS(1188000,	2,	99,	1),
@@ -22,6 +22,24 @@ static const struct pll_clk_set pll_com_table[] = {
 	_RK3188_PLL_SET_CLKS(297000,	2,	198,	8),
 	_RK3188_PLL_SET_CLKS(148500,	2,	99,	8),
 	_RK3188_PLL_SET_CLKS(0,		0,	0,	0),
+};
+
+static const struct pll_clk_set rk3188plus_pll_com_table[] = {
+	_RK3188PLUS_PLL_SET_CLKS(1250000,	12,	625,	1),
+	_RK3188PLUS_PLL_SET_CLKS(1200000,	1,	50,	1),
+	_RK3188PLUS_PLL_SET_CLKS(1188000,	2,	99,	1),
+	_RK3188PLUS_PLL_SET_CLKS(891000,	8,	594,	2),
+	_RK3188PLUS_PLL_SET_CLKS(768000,	1,	64,	2),
+	_RK3188PLUS_PLL_SET_CLKS(594000,	2,	198,	4),
+	_RK3188PLUS_PLL_SET_CLKS(500000,	3,	250,	4),
+	_RK3188PLUS_PLL_SET_CLKS(408000,	1,	68,	4),
+	_RK3188PLUS_PLL_SET_CLKS(396000,	1,	66,	4),
+	_RK3188PLUS_PLL_SET_CLKS(384000,	2,	128,	4),
+	_RK3188PLUS_PLL_SET_CLKS(360000,	1,	60,	4),
+	_RK3188PLUS_PLL_SET_CLKS(300000,	1,	50,	4),
+	_RK3188PLUS_PLL_SET_CLKS(297000,	2,	198,	8),
+	_RK3188PLUS_PLL_SET_CLKS(148500,	2,	99,	8),
+	_RK3188PLUS_PLL_SET_CLKS(0,		0,	0,	0),
 };
 
 static const struct apll_clk_set rk3188_apll_table[] = {
@@ -265,7 +283,7 @@ static long clk_pll_round_rate_3188(struct clk_hw *hw, unsigned long rate,
 		return rate;
 	}
 
-	return (pll_com_get_best_set(rate, pll_com_table)->rate);
+	return (pll_com_get_best_set(rate, rk3188_pll_com_table)->rate);
 }
 
 static int _pll_clk_set_rate_3188(struct pll_clk_set *clk_set,
@@ -321,7 +339,7 @@ static int clk_pll_set_rate_3188(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
-	struct pll_clk_set *clk_set = (struct pll_clk_set *)(pll_com_table);
+	struct pll_clk_set *clk_set = (struct pll_clk_set *)(rk3188_pll_com_table);
 	int ret = 0;
 
 
@@ -600,7 +618,15 @@ static unsigned long clk_pll_recalc_rate_3188plus(struct clk_hw *hw,
 static long clk_pll_round_rate_3188plus(struct clk_hw *hw, unsigned long rate,
 		unsigned long *prate)
 {
-	return clk_pll_round_rate_3188(hw, rate, prate);
+	struct clk *parent = __clk_get_parent(hw->clk);
+
+	if (parent && (rate==__clk_get_rate(parent))) {
+		clk_debug("pll %s round rate=%lu equal to parent rate\n",
+				__clk_get_name(hw->clk), rate);
+		return rate;
+	}
+
+	return (pll_com_get_best_set(rate, rk3188plus_pll_com_table)->rate);
 }
 
 static int _pll_clk_set_rate_3188plus(struct pll_clk_set *clk_set,
@@ -656,7 +682,7 @@ static int clk_pll_set_rate_3188plus(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
 	//struct clk_pll *pll = to_clk_pll(hw);
-	struct pll_clk_set *clk_set = (struct pll_clk_set *)(pll_com_table);
+	struct pll_clk_set *clk_set = (struct pll_clk_set *)(rk3188plus_pll_com_table);
 	int ret = 0;
 
 #if 0
@@ -865,10 +891,10 @@ static int clk_pll_set_rate_3188plus_auto(struct clk_hw *hw, unsigned long rate,
 
 	/* prepare clk_set */
 	clk_set.rate = best;
-	clk_set.pllcon0 = RK3188_PLL_CLKR_SET(nr)|RK3188_PLL_CLKOD_SET(no), \
-	clk_set.pllcon1 = RK3188_PLL_CLKF_SET(nf),\
-	clk_set.pllcon2 = RK3188_PLL_CLK_BWADJ_SET(nf >> 1),\
-	clk_set.rst_dly = ((nr*500)/24+1),\
+	clk_set.pllcon0 = RK3188PLUS_PLL_CLKR_SET(nr)|RK3188PLUS_PLL_CLKOD_SET(no);
+	clk_set.pllcon1 = RK3188PLUS_PLL_CLKF_SET(nf);
+	clk_set.pllcon2 = RK3188PLUS_PLL_CLK_BWADJ_SET(nf >> 1);
+	clk_set.rst_dly = ((nr*500)/24+1);
 
 	ret = _pll_clk_set_rate_3188plus(&clk_set, hw);
 	clk_debug("pll %s set rate=%lu OK!\n", __clk_get_name(hw->clk), best);
