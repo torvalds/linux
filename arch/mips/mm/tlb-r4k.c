@@ -8,6 +8,7 @@
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2002 MIPS Technologies, Inc.  All rights reserved.
  */
+#include <linux/cpu_pm.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -399,7 +400,10 @@ static int __init set_ntlb(char *str)
 
 __setup("ntlb=", set_ntlb);
 
-void tlb_init(void)
+/*
+ * Configure TLB (for init or after a CPU has been powered off).
+ */
+static void r4k_tlb_configure(void)
 {
 	/*
 	 * You should never change this register:
@@ -431,6 +435,11 @@ void tlb_init(void)
 	local_flush_tlb_all();
 
 	/* Did I tell you that ARC SUCKS?  */
+}
+
+void tlb_init(void)
+{
+	r4k_tlb_configure();
 
 	if (ntlb) {
 		if (ntlb > 1 && ntlb <= current_cpu_data.tlbsize) {
@@ -444,3 +453,26 @@ void tlb_init(void)
 
 	build_tlb_refill_handler();
 }
+
+static int r4k_tlb_pm_notifier(struct notifier_block *self, unsigned long cmd,
+			       void *v)
+{
+	switch (cmd) {
+	case CPU_PM_ENTER_FAILED:
+	case CPU_PM_EXIT:
+		r4k_tlb_configure();
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block r4k_tlb_pm_notifier_block = {
+	.notifier_call = r4k_tlb_pm_notifier,
+};
+
+static int __init r4k_tlb_init_pm(void)
+{
+	return cpu_pm_register_notifier(&r4k_tlb_pm_notifier_block);
+}
+arch_initcall(r4k_tlb_init_pm);

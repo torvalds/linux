@@ -62,9 +62,6 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 		/* Clear Count/Compare Interrupt */
 		write_c0_compare(read_c0_compare());
 		cd = &per_cpu(mips_clockevent_device, cpu);
-#ifdef CONFIG_CEVT_GIC
-		if (!gic_present)
-#endif
 		cd->event_handler(cd);
 	}
 
@@ -182,7 +179,9 @@ int r4k_clockevent_init(void)
 	cd = &per_cpu(mips_clockevent_device, cpu);
 
 	cd->name		= "MIPS";
-	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_C3STOP |
+				  CLOCK_EVT_FEAT_PERCPU;
 
 	clockevent_set_clock(cd, mips_hpt_frequency);
 
@@ -197,9 +196,6 @@ int r4k_clockevent_init(void)
 	cd->set_mode		= mips_set_clock_mode;
 	cd->event_handler	= mips_event_handler;
 
-#ifdef CONFIG_CEVT_GIC
-	if (!gic_present)
-#endif
 	clockevents_register_device(cd);
 
 	if (cp0_timer_irq_installed)

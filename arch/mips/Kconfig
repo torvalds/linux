@@ -50,6 +50,8 @@ config MIPS
 	select CLONE_BACKWARDS
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_CC_STACKPROTECTOR
+	select CPU_PM if CPU_IDLE
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 
 menu "Machine selection"
 
@@ -2012,9 +2014,11 @@ config MIPS_CPS
 	depends on SYS_SUPPORTS_MIPS_CPS
 	select MIPS_CM
 	select MIPS_CPC
+	select MIPS_CPS_PM if HOTPLUG_CPU
 	select MIPS_GIC_IPI
 	select SMP
 	select SYNC_R4K if (CEVT_R4K || CSRC_R4K)
+	select SYS_SUPPORTS_HOTPLUG_CPU
 	select SYS_SUPPORTS_SMP
 	select WEAK_ORDERING
 	help
@@ -2023,6 +2027,9 @@ config MIPS_CPS
 	  enabled the kernel will probe for other cores and boot them with
 	  no external assistance. It is safe to enable this when hardware
 	  support is unavailable.
+
+config MIPS_CPS_PM
+	bool
 
 config MIPS_GIC_IPI
 	bool
@@ -2633,11 +2640,15 @@ endmenu
 config MIPS_EXTERNAL_TIMER
 	bool
 
-if CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
 menu "CPU Power Management"
+
+if CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
 source "drivers/cpufreq/Kconfig"
-endmenu
 endif
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu
 
 source "net/Kconfig"
 

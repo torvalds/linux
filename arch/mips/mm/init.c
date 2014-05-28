@@ -79,7 +79,7 @@ void setup_zero_pages(void)
 	zero_page_mask = ((PAGE_SIZE << order) - 1) & PAGE_MASK;
 }
 
-void *kmap_coherent(struct page *page, unsigned long addr)
+static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr, flags, entrylo;
@@ -93,7 +93,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
 	idx += in_interrupt() ? FIX_N_COLOURS : 0;
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
-	pte = mk_pte(page, PAGE_KERNEL);
+	pte = mk_pte(page, prot);
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 	entrylo = pte.pte_high;
 #else
@@ -115,6 +115,16 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 	local_irq_restore(flags);
 
 	return (void*) vaddr;
+}
+
+void *kmap_coherent(struct page *page, unsigned long addr)
+{
+	return __kmap_pgprot(page, addr, PAGE_KERNEL);
+}
+
+void *kmap_noncoherent(struct page *page, unsigned long addr)
+{
+	return __kmap_pgprot(page, addr, PAGE_KERNEL_NC);
 }
 
 void kunmap_coherent(void)
