@@ -684,7 +684,7 @@ static inline void ni_set_bits(struct comedi_device *dev, int reg,
 static void ni_sync_ai_dma(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -939,7 +939,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 static void ni_handle_fifo_half_full(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int n;
 
 	n = board->ai_fifo_depth / 2;
@@ -955,7 +955,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data[2];
 	u32 dl;
 	unsigned short fifo_empty;
@@ -1021,7 +1021,7 @@ static void get_last_sample_611x(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv __maybe_unused = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data;
 	u32 dl;
 
@@ -1040,7 +1040,7 @@ static void get_last_sample_6143(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv __maybe_unused = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data;
 	u32 dl;
 
@@ -1060,7 +1060,7 @@ static void get_last_sample_6143(struct comedi_device *dev)
 
 static void shutdown_ai_command(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	struct comedi_subdevice *s = dev->read_subdev;
 
 #ifdef PCIDMA
 	ni_ai_drain_dma(dev);
@@ -1134,7 +1134,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			       unsigned ai_mite_status)
 {
 	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	struct comedi_subdevice *s = dev->read_subdev;
 
 	/* 67xx boards don't have ai subdevice, but their gpct0 might generate an a interrupt */
 	if (s->type == COMEDI_SUBD_UNUSED)
@@ -1320,7 +1320,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	struct comedi_subdevice *s = dev->read_subdev;
 	int retval;
 	unsigned long flags;
 
