@@ -99,6 +99,12 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 	page_base = xdrbuf->page_base & ~PAGE_MASK;
 	p = 0;
 	while (len && n < nsegs) {
+		if (!ppages[p]) {
+			/* alloc the pagelist for receiving buffer */
+			ppages[p] = alloc_page(GFP_ATOMIC);
+			if (!ppages[p])
+				return 0;
+		}
 		seg[n].mr_page = ppages[p];
 		seg[n].mr_offset = (void *)(unsigned long) page_base;
 		seg[n].mr_len = min_t(u32, PAGE_SIZE - page_base, len);
