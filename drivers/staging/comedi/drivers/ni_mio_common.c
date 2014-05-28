@@ -194,10 +194,6 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 	[ai_gain_6143] = &range_bipolar5
 };
 
-static int ni_rtsi_insn_config(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-
 #ifndef PCIDMA
 static void ni_handle_fifo_half_full(struct comedi_device *dev);
 static int ni_ao_fifo_half_empty(struct comedi_device *dev,
@@ -4691,6 +4687,171 @@ static int init_cs5529(struct comedi_device *dev)
 	return 0;
 }
 
+static unsigned num_configurable_rtsi_channels(struct comedi_device *dev)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+
+	if (board->reg_type & ni_reg_m_series_mask)
+		return 8;
+	else
+		return 7;
+}
+
+static int ni_valid_rtsi_output_source(struct comedi_device *dev,
+				       unsigned chan, unsigned source)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+
+	if (chan >= num_configurable_rtsi_channels(dev)) {
+		if (chan == old_RTSI_clock_channel) {
+			if (source == NI_RTSI_OUTPUT_RTSI_OSC)
+				return 1;
+			else {
+				printk
+				    ("%s: invalid source for channel=%i, channel %i is always the RTSI clock for pre-m-series boards.\n",
+				     __func__, chan, old_RTSI_clock_channel);
+				return 0;
+			}
+		}
+		return 0;
+	}
+	switch (source) {
+	case NI_RTSI_OUTPUT_ADR_START1:
+	case NI_RTSI_OUTPUT_ADR_START2:
+	case NI_RTSI_OUTPUT_SCLKG:
+	case NI_RTSI_OUTPUT_DACUPDN:
+	case NI_RTSI_OUTPUT_DA_START1:
+	case NI_RTSI_OUTPUT_G_SRC0:
+	case NI_RTSI_OUTPUT_G_GATE0:
+	case NI_RTSI_OUTPUT_RGOUT0:
+	case NI_RTSI_OUTPUT_RTSI_BRD_0:
+		return 1;
+		break;
+	case NI_RTSI_OUTPUT_RTSI_OSC:
+		if (board->reg_type & ni_reg_m_series_mask)
+			return 1;
+		else
+			return 0;
+		break;
+	default:
+		return 0;
+		break;
+	}
+}
+
+static int ni_set_rtsi_routing(struct comedi_device *dev,
+			       unsigned chan, unsigned source)
+{
+	struct ni_private *devpriv = dev->private;
+
+	if (ni_valid_rtsi_output_source(dev, chan, source) == 0)
+		return -EINVAL;
+	if (chan < 4) {
+		devpriv->rtsi_trig_a_output_reg &= ~RTSI_Trig_Output_Mask(chan);
+		devpriv->rtsi_trig_a_output_reg |=
+		    RTSI_Trig_Output_Bits(chan, source);
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
+				    RTSI_Trig_A_Output_Register);
+	} else if (chan < 8) {
+		devpriv->rtsi_trig_b_output_reg &= ~RTSI_Trig_Output_Mask(chan);
+		devpriv->rtsi_trig_b_output_reg |=
+		    RTSI_Trig_Output_Bits(chan, source);
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
+				    RTSI_Trig_B_Output_Register);
+	}
+	return 2;
+}
+
+static unsigned ni_get_rtsi_routing(struct comedi_device *dev, unsigned chan)
+{
+	struct ni_private *devpriv = dev->private;
+
+	if (chan < 4) {
+		return RTSI_Trig_Output_Source(chan,
+					       devpriv->rtsi_trig_a_output_reg);
+	} else if (chan < num_configurable_rtsi_channels(dev)) {
+		return RTSI_Trig_Output_Source(chan,
+					       devpriv->rtsi_trig_b_output_reg);
+	} else {
+		if (chan == old_RTSI_clock_channel)
+			return NI_RTSI_OUTPUT_RTSI_OSC;
+		printk("%s: bug! should never get here?\n", __func__);
+		return 0;
+	}
+}
+
+static int ni_rtsi_insn_config(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_OUTPUT:
+		if (chan < num_configurable_rtsi_channels(dev)) {
+			devpriv->rtsi_trig_direction_reg |=
+			    RTSI_Output_Bit(chan,
+				(board->reg_type & ni_reg_m_series_mask) != 0);
+		} else if (chan == old_RTSI_clock_channel) {
+			devpriv->rtsi_trig_direction_reg |=
+			    Drive_RTSI_Clock_Bit;
+		}
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
+				    RTSI_Trig_Direction_Register);
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		if (chan < num_configurable_rtsi_channels(dev)) {
+			devpriv->rtsi_trig_direction_reg &=
+			    ~RTSI_Output_Bit(chan,
+				(board->reg_type & ni_reg_m_series_mask) != 0);
+		} else if (chan == old_RTSI_clock_channel) {
+			devpriv->rtsi_trig_direction_reg &=
+			    ~Drive_RTSI_Clock_Bit;
+		}
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
+				    RTSI_Trig_Direction_Register);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		if (chan < num_configurable_rtsi_channels(dev)) {
+			data[1] =
+			    (devpriv->rtsi_trig_direction_reg &
+			     RTSI_Output_Bit(chan,
+				(board->reg_type & ni_reg_m_series_mask) != 0))
+				? INSN_CONFIG_DIO_OUTPUT
+				: INSN_CONFIG_DIO_INPUT;
+		} else if (chan == old_RTSI_clock_channel) {
+			data[1] =
+			    (devpriv->rtsi_trig_direction_reg &
+			     Drive_RTSI_Clock_Bit)
+			    ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
+		}
+		return 2;
+		break;
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		return ni_set_master_clock(dev, data[1], data[2]);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		data[1] = devpriv->clock_source;
+		data[2] = devpriv->clock_ns;
+		return 3;
+		break;
+	case INSN_CONFIG_SET_ROUTING:
+		return ni_set_rtsi_routing(dev, chan, data[1]);
+		break;
+	case INSN_CONFIG_GET_ROUTING:
+		data[1] = ni_get_rtsi_routing(dev, chan);
+		return 2;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	return 1;
+}
+
 static int ni_rtsi_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn,
@@ -5295,16 +5456,6 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 	return 0;
 }
 
-static inline unsigned num_configurable_rtsi_channels(struct comedi_device *dev)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-
-	if (board->reg_type & ni_reg_m_series_mask)
-		return 8;
-	else
-		return 7;
-}
-
 static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 					   unsigned source, unsigned period_ns)
 {
@@ -5453,158 +5604,4 @@ static int ni_set_master_clock(struct comedi_device *dev, unsigned source,
 		}
 	}
 	return 3;
-}
-
-static int ni_valid_rtsi_output_source(struct comedi_device *dev, unsigned chan,
-				       unsigned source)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-
-	if (chan >= num_configurable_rtsi_channels(dev)) {
-		if (chan == old_RTSI_clock_channel) {
-			if (source == NI_RTSI_OUTPUT_RTSI_OSC)
-				return 1;
-			else {
-				printk
-				    ("%s: invalid source for channel=%i, channel %i is always the RTSI clock for pre-m-series boards.\n",
-				     __func__, chan, old_RTSI_clock_channel);
-				return 0;
-			}
-		}
-		return 0;
-	}
-	switch (source) {
-	case NI_RTSI_OUTPUT_ADR_START1:
-	case NI_RTSI_OUTPUT_ADR_START2:
-	case NI_RTSI_OUTPUT_SCLKG:
-	case NI_RTSI_OUTPUT_DACUPDN:
-	case NI_RTSI_OUTPUT_DA_START1:
-	case NI_RTSI_OUTPUT_G_SRC0:
-	case NI_RTSI_OUTPUT_G_GATE0:
-	case NI_RTSI_OUTPUT_RGOUT0:
-	case NI_RTSI_OUTPUT_RTSI_BRD_0:
-		return 1;
-		break;
-	case NI_RTSI_OUTPUT_RTSI_OSC:
-		if (board->reg_type & ni_reg_m_series_mask)
-			return 1;
-		else
-			return 0;
-		break;
-	default:
-		return 0;
-		break;
-	}
-}
-
-static int ni_set_rtsi_routing(struct comedi_device *dev, unsigned chan,
-			       unsigned source)
-{
-	struct ni_private *devpriv = dev->private;
-
-	if (ni_valid_rtsi_output_source(dev, chan, source) == 0)
-		return -EINVAL;
-	if (chan < 4) {
-		devpriv->rtsi_trig_a_output_reg &= ~RTSI_Trig_Output_Mask(chan);
-		devpriv->rtsi_trig_a_output_reg |=
-		    RTSI_Trig_Output_Bits(chan, source);
-		devpriv->stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
-				    RTSI_Trig_A_Output_Register);
-	} else if (chan < 8) {
-		devpriv->rtsi_trig_b_output_reg &= ~RTSI_Trig_Output_Mask(chan);
-		devpriv->rtsi_trig_b_output_reg |=
-		    RTSI_Trig_Output_Bits(chan, source);
-		devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
-				    RTSI_Trig_B_Output_Register);
-	}
-	return 2;
-}
-
-static unsigned ni_get_rtsi_routing(struct comedi_device *dev, unsigned chan)
-{
-	struct ni_private *devpriv = dev->private;
-
-	if (chan < 4) {
-		return RTSI_Trig_Output_Source(chan,
-					       devpriv->rtsi_trig_a_output_reg);
-	} else if (chan < num_configurable_rtsi_channels(dev)) {
-		return RTSI_Trig_Output_Source(chan,
-					       devpriv->rtsi_trig_b_output_reg);
-	} else {
-		if (chan == old_RTSI_clock_channel)
-			return NI_RTSI_OUTPUT_RTSI_OSC;
-		printk("%s: bug! should never get here?\n", __func__);
-		return 0;
-	}
-}
-
-static int ni_rtsi_insn_config(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		if (chan < num_configurable_rtsi_channels(dev)) {
-			devpriv->rtsi_trig_direction_reg |=
-			    RTSI_Output_Bit(chan,
-				(board->reg_type & ni_reg_m_series_mask) != 0);
-		} else if (chan == old_RTSI_clock_channel) {
-			devpriv->rtsi_trig_direction_reg |=
-			    Drive_RTSI_Clock_Bit;
-		}
-		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-				    RTSI_Trig_Direction_Register);
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		if (chan < num_configurable_rtsi_channels(dev)) {
-			devpriv->rtsi_trig_direction_reg &=
-			    ~RTSI_Output_Bit(chan,
-				(board->reg_type & ni_reg_m_series_mask) != 0);
-		} else if (chan == old_RTSI_clock_channel) {
-			devpriv->rtsi_trig_direction_reg &=
-			    ~Drive_RTSI_Clock_Bit;
-		}
-		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-				    RTSI_Trig_Direction_Register);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		if (chan < num_configurable_rtsi_channels(dev)) {
-			data[1] =
-			    (devpriv->rtsi_trig_direction_reg &
-			     RTSI_Output_Bit(chan,
-				(board->reg_type & ni_reg_m_series_mask) != 0))
-				? INSN_CONFIG_DIO_OUTPUT
-				: INSN_CONFIG_DIO_INPUT;
-		} else if (chan == old_RTSI_clock_channel) {
-			data[1] =
-			    (devpriv->rtsi_trig_direction_reg &
-			     Drive_RTSI_Clock_Bit)
-			    ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
-		}
-		return 2;
-		break;
-	case INSN_CONFIG_SET_CLOCK_SRC:
-		return ni_set_master_clock(dev, data[1], data[2]);
-		break;
-	case INSN_CONFIG_GET_CLOCK_SRC:
-		data[1] = devpriv->clock_source;
-		data[2] = devpriv->clock_ns;
-		return 3;
-		break;
-	case INSN_CONFIG_SET_ROUTING:
-		return ni_set_rtsi_routing(dev, chan, data[1]);
-		break;
-	case INSN_CONFIG_GET_ROUTING:
-		data[1] = ni_get_rtsi_routing(dev, chan);
-		return 2;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-	return 1;
 }
