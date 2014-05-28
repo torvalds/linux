@@ -89,8 +89,6 @@ get_hardware_info(struct snd_efw *efw)
 	snprintf(version, sizeof(version), "%u.%u",
 		 (hwinfo->arm_version >> 24) & 0xff,
 		 (hwinfo->arm_version >> 16) & 0xff);
-	if (err < 0)
-		goto end;
 	efw->firmware_version = hwinfo->arm_version;
 
 	strcpy(efw->card->driver, "Fireworks");
@@ -101,8 +99,6 @@ get_hardware_info(struct snd_efw *efw)
 		 hwinfo->vendor_name, hwinfo->model_name, version,
 		 hwinfo->guid_hi, hwinfo->guid_lo,
 		 dev_name(&efw->unit->device), 100 << fw_dev->max_speed);
-	if (err < 0)
-		goto end;
 
 	if (hwinfo->flags & BIT(FLAG_RESP_ADDR_CHANGABLE))
 		efw->resp_addr_changable = true;
