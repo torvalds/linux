@@ -37,6 +37,11 @@ static int xhci_plat_setup(struct usb_hcd *hcd)
 	return xhci_gen_setup(hcd, xhci_plat_quirks);
 }
 
+static int xhci_plat_start(struct usb_hcd *hcd)
+{
+	return xhci_run(hcd);
+}
+
 static const struct hc_driver xhci_plat_xhci_driver = {
 	.description =		"xhci-hcd",
 	.product_desc =		"xHCI Host Controller",
@@ -52,7 +57,7 @@ static const struct hc_driver xhci_plat_xhci_driver = {
 	 * basic lifecycle operations
 	 */
 	.reset =		xhci_plat_setup,
-	.start =		xhci_run,
+	.start =		xhci_plat_start,
 	.stop =			xhci_stop,
 	.shutdown =		xhci_shutdown,
 
