@@ -513,7 +513,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 #if RPCRDMA_PERSISTENT_REGISTRATION
 			memreg = RPCRDMA_ALLPHYSICAL;
 #else
-			rc = -EINVAL;
+			rc = -ENOMEM;
 			goto out2;
 #endif
 		}
@@ -554,9 +554,9 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		}
 		break;
 	default:
-		printk(KERN_ERR "%s: invalid memory registration mode %d\n",
-				__func__, memreg);
-		rc = -EINVAL;
+		printk(KERN_ERR "RPC: Unsupported memory "
+				"registration mode: %d\n", memreg);
+		rc = -ENOMEM;
 		goto out2;
 	}
 	dprintk("RPC:       %s: memory registration strategy is %d\n",
