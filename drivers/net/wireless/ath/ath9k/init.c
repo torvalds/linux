@@ -783,6 +783,9 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 	common = ath9k_hw_common(ah);
 	ath9k_set_hw_capab(sc, hw);
 
+	/* Will be cleared in ath9k_start() */
+	set_bit(ATH_OP_INVALID, &common->op_flags);
+
 	/* Initialize regulatory */
 	error = ath_regd_init(&common->regulatory, sc->hw->wiphy,
 			      ath9k_reg_notifier);

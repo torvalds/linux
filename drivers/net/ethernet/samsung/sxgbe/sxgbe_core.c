@@ -165,6 +165,26 @@ static void sxgbe_core_set_speed(void __iomem *ioaddr, unsigned char speed)
 	writel(tx_cfg, ioaddr + SXGBE_CORE_TX_CONFIG_REG);
 }
 
+static void sxgbe_core_enable_rxqueue(void __iomem *ioaddr, int queue_num)
+{
+	u32 reg_val;
+
+	reg_val = readl(ioaddr + SXGBE_CORE_RX_CTL0_REG);
+	reg_val &= ~(SXGBE_CORE_RXQ_ENABLE_MASK << queue_num);
+	reg_val |= SXGBE_CORE_RXQ_ENABLE;
+	writel(reg_val, ioaddr + SXGBE_CORE_RX_CTL0_REG);
+}
+
+static void sxgbe_core_disable_rxqueue(void __iomem *ioaddr, int queue_num)
+{
+	u32 reg_val;
+
+	reg_val = readl(ioaddr + SXGBE_CORE_RX_CTL0_REG);
+	reg_val &= ~(SXGBE_CORE_RXQ_ENABLE_MASK << queue_num);
+	reg_val |= SXGBE_CORE_RXQ_DISABLE;
+	writel(reg_val, ioaddr + SXGBE_CORE_RX_CTL0_REG);
+}
+
 static void  sxgbe_set_eee_mode(void __iomem *ioaddr)
 {
 	u32 ctrl;
@@ -254,6 +274,8 @@ static const struct sxgbe_core_ops core_ops = {
 	.set_eee_pls		= sxgbe_set_eee_pls,
 	.enable_rx_csum		= sxgbe_enable_rx_csum,
 	.disable_rx_csum	= sxgbe_disable_rx_csum,
+	.enable_rxqueue		= sxgbe_core_enable_rxqueue,
+	.disable_rxqueue	= sxgbe_core_disable_rxqueue,
 };
 
 const struct sxgbe_core_ops *sxgbe_get_core_ops(void)

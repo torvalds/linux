@@ -31,7 +31,7 @@ static char temp_stack[4096];
  *
  * Wrapper around acpi_enter_sleep_state() to be called by assmebly.
  */
-acpi_status asmlinkage x86_acpi_enter_sleep_state(u8 state)
+acpi_status asmlinkage __visible x86_acpi_enter_sleep_state(u8 state)
 {
 	return acpi_enter_sleep_state(state);
 }

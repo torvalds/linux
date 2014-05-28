@@ -96,6 +96,11 @@
  *
  * 7.23
  *  - add FUSE_WRITEBACK_CACHE
+ *  - add time_gran to fuse_init_out
+ *  - add reserved space to fuse_init_out
+ *  - add FATTR_CTIME
+ *  - add ctime and ctimensec to fuse_setattr_in
+ *  - add FUSE_RENAME2 request
  */
 
 #ifndef _LINUX_FUSE_H
@@ -191,6 +196,7 @@ struct fuse_file_lock {
 #define FATTR_ATIME_NOW	(1 << 7)
 #define FATTR_MTIME_NOW	(1 << 8)
 #define FATTR_LOCKOWNER	(1 << 9)
+#define FATTR_CTIME	(1 << 10)
 
 /**
  * Flags returned by the OPEN request
@@ -348,6 +354,7 @@ enum fuse_opcode {
 	FUSE_BATCH_FORGET  = 42,
 	FUSE_FALLOCATE     = 43,
 	FUSE_READDIRPLUS   = 44,
+	FUSE_RENAME2       = 45,
 
 	/* CUSE specific operations */
 	CUSE_INIT          = 4096,
@@ -426,6 +433,12 @@ struct fuse_rename_in {
 	uint64_t	newdir;
 };
 
+struct fuse_rename2_in {
+	uint64_t	newdir;
+	uint32_t	flags;
+	uint32_t	padding;
+};
+
 struct fuse_link_in {
 	uint64_t	oldnodeid;
 };
@@ -438,10 +451,10 @@ struct fuse_setattr_in {
 	uint64_t	lock_owner;
 	uint64_t	atime;
 	uint64_t	mtime;
-	uint64_t	unused2;
+	uint64_t	ctime;
 	uint32_t	atimensec;
 	uint32_t	mtimensec;
-	uint32_t	unused3;
+	uint32_t	ctimensec;
 	uint32_t	mode;
 	uint32_t	unused4;
 	uint32_t	uid;
@@ -559,6 +572,9 @@ struct fuse_init_in {
 	uint32_t	flags;
 };
 
+#define FUSE_COMPAT_INIT_OUT_SIZE 8
+#define FUSE_COMPAT_22_INIT_OUT_SIZE 24
+
 struct fuse_init_out {
 	uint32_t	major;
 	uint32_t	minor;
@@ -567,6 +583,8 @@ struct fuse_init_out {
 	uint16_t	max_background;
 	uint16_t	congestion_threshold;
 	uint32_t	max_write;
+	uint32_t	time_gran;
+	uint32_t	unused[9];
 };
 
 #define CUSE_INIT_INFO_MAX 4096

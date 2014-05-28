@@ -14,6 +14,7 @@ config XTENSA
 	select GENERIC_PCI_IOMAP
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select IRQ_DOMAIN
 	select HAVE_OPROFILE
@@ -189,6 +190,24 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 
 	  If in doubt, say Y.
 
+config HIGHMEM
+	bool "High Memory Support"
+	help
+	  Linux can use the full amount of RAM in the system by
+	  default. However, the default MMUv2 setup only maps the
+	  lowermost 128 MB of memory linearly to the areas starting
+	  at 0xd0000000 (cached) and 0xd8000000 (uncached).
+	  When there are more than 128 MB memory in the system not
+	  all of it can be "permanently mapped" by the kernel.
+	  The physical memory that's not permanently mapped is called
+	  "high memory".
+
+	  If you are compiling a kernel which will never run on a
+	  machine with more than 128 MB total physical RAM, answer
+	  N here.
+
+	  If unsure, say Y.
+
 endmenu
 
 config XTENSA_CALIBRATE_CCOUNT
@@ -224,7 +243,6 @@ choice
 
 config XTENSA_PLATFORM_ISS
 	bool "ISS"
-	depends on TTY
 	select XTENSA_CALIBRATE_CCOUNT
 	select SERIAL_CONSOLE
 	help

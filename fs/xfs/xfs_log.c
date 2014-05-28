@@ -616,11 +616,13 @@ xfs_log_mount(
 	int		error = 0;
 	int		min_logfsbs;
 
-	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY))
-		xfs_notice(mp, "Mounting Filesystem");
-	else {
+	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
+		xfs_notice(mp, "Mounting V%d Filesystem",
+			   XFS_SB_VERSION_NUM(&mp->m_sb));
+	} else {
 		xfs_notice(mp,
-"Mounting filesystem in no-recovery mode.  Filesystem will be inconsistent.");
+"Mounting V%d filesystem in no-recovery mode. Filesystem will be inconsistent.",
+			   XFS_SB_VERSION_NUM(&mp->m_sb));
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 	}
 

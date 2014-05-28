@@ -536,7 +536,7 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 
 	if (time_out == max_time_out) {
 		status = IXGBE_ERR_LINK_SETUP;
-		hw_dbg(hw, "ixgbe_setup_phy_link_generic: time out");
+		hw_dbg(hw, "ixgbe_setup_phy_link_generic: time out\n");
 	}
 
 	return status;
@@ -745,7 +745,7 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 
 	if (time_out == max_time_out) {
 		status = IXGBE_ERR_LINK_SETUP;
-		hw_dbg(hw, "ixgbe_setup_phy_link_tnx: time out");
+		hw_dbg(hw, "ixgbe_setup_phy_link_tnx: time out\n");
 	}
 
 	return status;
@@ -1175,7 +1175,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				status = 0;
 			} else {
 				if (hw->allow_unsupported_sfp) {
-					e_warn(drv, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics.  Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter.  Intel Corporation is not responsible for any harm caused by using untested modules.");
+					e_warn(drv, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics.  Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter.  Intel Corporation is not responsible for any harm caused by using untested modules.\n");
 					status = 0;
 				} else {
 					hw_dbg(hw,

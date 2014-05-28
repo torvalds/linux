@@ -2839,6 +2839,7 @@ int r600_copy_cpdma(struct radeon_device *rdev,
 	r = radeon_fence_emit(rdev, fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
+		radeon_semaphore_free(rdev, &sem, NULL);
 		return r;
 	}
 
@@ -3505,7 +3506,6 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
 	u32 grbm_int_cntl = 0;
 	u32 hdmi0, hdmi1;
-	u32 d1grph = 0, d2grph = 0;
 	u32 dma_cntl;
 	u32 thermal_int = 0;
 
@@ -3614,8 +3614,8 @@ int r600_irq_set(struct radeon_device *rdev)
 	WREG32(CP_INT_CNTL, cp_int_cntl);
 	WREG32(DMA_CNTL, dma_cntl);
 	WREG32(DxMODE_INT_MASK, mode_int);
-	WREG32(D1GRPH_INTERRUPT_CONTROL, d1grph);
-	WREG32(D2GRPH_INTERRUPT_CONTROL, d2grph);
+	WREG32(D1GRPH_INTERRUPT_CONTROL, DxGRPH_PFLIP_INT_MASK);
+	WREG32(D2GRPH_INTERRUPT_CONTROL, DxGRPH_PFLIP_INT_MASK);
 	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
 	if (ASIC_IS_DCE3(rdev)) {
 		WREG32(DC_HPD1_INT_CONTROL, hpd1);
@@ -3917,6 +3917,14 @@ restart_ih:
 				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
+			break;
+		case 9: /* D1 pflip */
+			DRM_DEBUG("IH: D1 flip\n");
+			radeon_crtc_handle_flip(rdev, 0);
+			break;
+		case 11: /* D2 pflip */
+			DRM_DEBUG("IH: D2 flip\n");
+			radeon_crtc_handle_flip(rdev, 1);
 			break;
 		case 19: /* HPD/DAC hotplug */
 			switch (src_data) {

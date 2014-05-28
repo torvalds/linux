@@ -418,7 +418,7 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 		}
 		break;
 	default:
-		dev_info(&pf->pdev->dev, "Could not specify spec type %d",
+		dev_info(&pf->pdev->dev, "Could not specify spec type %d\n",
 			 input->flow_type);
 		ret = -EINVAL;
 	}
@@ -478,7 +478,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 				pf->flags |= I40E_FLAG_FDIR_REQUIRES_REINIT;
 			}
 		} else {
-			dev_info(&pdev->dev, "FD filter programming error");
+			dev_info(&pdev->dev, "FD filter programming error\n");
 		}
 	} else if (error ==
 			  (0x1 << I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
@@ -1713,9 +1713,11 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 				I40E_TX_FLAGS_VLAN_PRIO_SHIFT;
 		if (tx_flags & I40E_TX_FLAGS_SW_VLAN) {
 			struct vlan_ethhdr *vhdr;
-			if (skb_header_cloned(skb) &&
-			    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
-				return -ENOMEM;
+			int rc;
+
+			rc = skb_cow_head(skb, 0);
+			if (rc < 0)
+				return rc;
 			vhdr = (struct vlan_ethhdr *)skb->data;
 			vhdr->h_vlan_TCI = htons(tx_flags >>
 						 I40E_TX_FLAGS_VLAN_SHIFT);
@@ -1743,20 +1745,18 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		    u64 *cd_type_cmd_tso_mss, u32 *cd_tunneling)
 {
 	u32 cd_cmd, cd_tso_len, cd_mss;
+	struct ipv6hdr *ipv6h;
 	struct tcphdr *tcph;
 	struct iphdr *iph;
 	u32 l4len;
 	int err;
-	struct ipv6hdr *ipv6h;
 
 	if (!skb_is_gso(skb))
 		return 0;
 
-	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-		if (err)
-			return err;
-	}
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
 
 	if (protocol == htons(ETH_P_IP)) {
 		iph = skb->encapsulation ? inner_ip_hdr(skb) : ip_hdr(skb);

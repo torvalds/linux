@@ -1954,6 +1954,9 @@ struct drm_i915_cmd_table {
 #define IS_ULT(dev)		(IS_HSW_ULT(dev) || IS_BDW_ULT(dev))
 #define IS_HSW_GT3(dev)		(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0x00F0) == 0x0020)
+/* ULX machines are also considered ULT. */
+#define IS_HSW_ULX(dev)		((dev)->pdev->device == 0x0A0E || \
+				 (dev)->pdev->device == 0x0A1E)
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
 
 /*

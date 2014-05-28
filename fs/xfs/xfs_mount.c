@@ -743,8 +743,6 @@ xfs_mountfs(
 		new_size *= mp->m_sb.sb_inodesize / XFS_DINODE_MIN_SIZE;
 		if (mp->m_sb.sb_inoalignmt >= XFS_B_TO_FSBT(mp, new_size))
 			mp->m_inode_cluster_size = new_size;
-		xfs_info(mp, "Using inode cluster size of %d bytes",
-			 mp->m_inode_cluster_size);
 	}
 
 	/*

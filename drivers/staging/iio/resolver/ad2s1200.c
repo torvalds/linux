@@ -107,7 +107,7 @@ static int ad2s1200_probe(struct spi_device *spi)
 	int pn, ret = 0;
 	unsigned short *pins = spi->dev.platform_data;
 
-	for (pn = 0; pn < AD2S1200_PN; pn++)
+	for (pn = 0; pn < AD2S1200_PN; pn++) {
 		ret = devm_gpio_request_one(&spi->dev, pins[pn], GPIOF_DIR_OUT,
 					    DRV_NAME);
 		if (ret) {
@@ -115,6 +115,7 @@ static int ad2s1200_probe(struct spi_device *spi)
 							pins[pn]);
 			return ret;
 		}
+	}
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
