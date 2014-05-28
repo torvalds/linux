@@ -703,19 +703,6 @@ static void fimd_win_disable(struct exynos_drm_manager *mgr, int zpos)
 	win_data->enabled = false;
 }
 
-static void fimd_clear_win(struct fimd_context *ctx, int win)
-{
-	writel(0, ctx->regs + WINCON(win));
-	writel(0, ctx->regs + VIDOSD_A(win));
-	writel(0, ctx->regs + VIDOSD_B(win));
-	writel(0, ctx->regs + VIDOSD_C(win));
-
-	if (win == 1 || win == 2)
-		writel(0, ctx->regs + VIDOSD_D(win));
-
-	fimd_shadow_protect_win(ctx, win, false);
-}
-
 static void fimd_window_suspend(struct exynos_drm_manager *mgr)
 {
 	struct fimd_context *ctx = mgr->ctx;
@@ -898,15 +885,11 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct fimd_context *ctx = fimd_manager.ctx;
 	struct drm_device *drm_dev = data;
-	int win;
 
 	fimd_mgr_initialize(&fimd_manager, drm_dev);
 	exynos_drm_crtc_create(&fimd_manager);
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
-
-	for (win = 0; win < WINDOWS_NR; win++)
-		fimd_clear_win(ctx, win);
 
 	return 0;
 
