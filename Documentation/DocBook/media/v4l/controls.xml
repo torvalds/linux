@@ -4790,6 +4790,40 @@ interface and may change in the future.</para>
 	    conversion.
 	    </entry>
 	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN_RED</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Test pattern red colour component.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN_GREENR</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Test pattern green (next to red)
+	    colour component.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN_BLUE</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Test pattern blue colour component.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN_GREENB</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Test pattern green (next to blue)
+	    colour component.
+	    </entry>
+	  </row>
 	  <row><entry></entry></row>
 	</tbody>
       </tgroup>
