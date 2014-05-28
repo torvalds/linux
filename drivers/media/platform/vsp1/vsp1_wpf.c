@@ -54,6 +54,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	if (!enable) {
 		vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
+		vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, 0);
 		return 0;
 	}
 
