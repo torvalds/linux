@@ -271,8 +271,6 @@ static void shutdown_ai_command(struct comedi_device *dev);
 static int ni_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 			 unsigned int trignum);
 
-static int ni_8255_callback(int dir, int port, int data, unsigned long arg);
-
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
@@ -4159,6 +4157,19 @@ static int ni_alloc_private(struct comedi_device *dev)
 	return 0;
 };
 
+static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
+{
+	struct comedi_device *dev = (struct comedi_device *)arg;
+	struct ni_private *devpriv __maybe_unused = dev->private;
+
+	if (dir) {
+		ni_writeb(data, Port_A + 2 * port);
+		return 0;
+	} else {
+		return ni_readb(Port_A + 2 * port);
+	}
+}
+
 static int ni_E_init(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
@@ -4487,19 +4498,6 @@ static int ni_E_init(struct comedi_device *dev)
 	}
 
 	return 0;
-}
-
-static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
-{
-	struct comedi_device *dev = (struct comedi_device *)arg;
-	struct ni_private *devpriv __maybe_unused = dev->private;
-
-	if (dir) {
-		ni_writeb(data, Port_A + 2 * port);
-		return 0;
-	} else {
-		return ni_readb(Port_A + 2 * port);
-	}
 }
 
 /*
