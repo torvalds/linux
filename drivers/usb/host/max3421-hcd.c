@@ -588,11 +588,13 @@ max3421_next_transfer(struct usb_hcd *hcd, int fast_retransmit)
 {
 	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct urb *urb = max3421_hcd->curr_urb;
-	struct max3421_ep *max3421_ep = urb->ep->hcpriv;
+	struct max3421_ep *max3421_ep;
 	int cmd = -EINVAL;
 
 	if (!urb)
 		return;	/* nothing to do */
+
+	max3421_ep = urb->ep->hcpriv;
 
 	switch (max3421_ep->pkt_state) {
 	case PKT_STATE_SETUP:
