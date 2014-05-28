@@ -331,7 +331,7 @@ int rpcrdma_deregister_internal(struct rpcrdma_ia *,
 int rpcrdma_register_external(struct rpcrdma_mr_seg *,
 				int, int, struct rpcrdma_xprt *);
 int rpcrdma_deregister_external(struct rpcrdma_mr_seg *,
-				struct rpcrdma_xprt *, void *);
+				struct rpcrdma_xprt *);
 
 /*
  * RPC/RDMA connection management calls - xprtrdma/rpc_rdma.c

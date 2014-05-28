@@ -270,7 +270,7 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 out:
 	for (pos = 0; nchunks--;)
 		pos += rpcrdma_deregister_external(
-				&req->rl_segments[pos], r_xprt, NULL);
+				&req->rl_segments[pos], r_xprt);
 	return 0;
 }
 
