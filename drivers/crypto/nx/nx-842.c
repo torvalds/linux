@@ -1197,12 +1197,7 @@ static int __init nx842_probe(struct vio_dev *viodev,
 	}
 
 	rcu_read_lock();
-	if (dev_set_drvdata(&viodev->dev, rcu_dereference(devdata))) {
-		rcu_read_unlock();
-		dev_err(&viodev->dev, "failed to set driver data for device\n");
-		ret = -1;
-		goto error;
-	}
+	dev_set_drvdata(&viodev->dev, rcu_dereference(devdata));
 	rcu_read_unlock();
 
 	if (sysfs_create_group(&viodev->dev.kobj, &nx842_attribute_group)) {
