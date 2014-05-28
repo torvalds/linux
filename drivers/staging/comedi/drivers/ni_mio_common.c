@@ -3888,18 +3888,24 @@ static int ni_freq_out_insn_read(struct comedi_device *dev,
 
 static int ni_freq_out_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
 
-	devpriv->clock_and_fout &= ~FOUT_Enable;
-	devpriv->stc_writew(dev, devpriv->clock_and_fout,
-			    Clock_and_FOUT_Register);
-	devpriv->clock_and_fout &= ~FOUT_Divider_mask;
-	devpriv->clock_and_fout |= FOUT_Divider(data[0]);
-	devpriv->clock_and_fout |= FOUT_Enable;
-	devpriv->stc_writew(dev, devpriv->clock_and_fout,
-			    Clock_and_FOUT_Register);
+	if (insn->n) {
+		devpriv->clock_and_fout &= ~FOUT_Enable;
+		devpriv->stc_writew(dev, devpriv->clock_and_fout,
+				    Clock_and_FOUT_Register);
+		devpriv->clock_and_fout &= ~FOUT_Divider_mask;
+
+		/* use the last data value to set the fout divider */
+		devpriv->clock_and_fout |= FOUT_Divider(data[insn->n - 1]);
+
+		devpriv->clock_and_fout |= FOUT_Enable;
+		devpriv->stc_writew(dev, devpriv->clock_and_fout,
+				    Clock_and_FOUT_Register);
+	}
 	return insn->n;
 }
 
