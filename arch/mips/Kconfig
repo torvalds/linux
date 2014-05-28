@@ -732,6 +732,11 @@ config CAVIUM_OCTEON_SOC
 	select ZONE_DMA32
 	select HOLES_IN_ZONE
 	select ARCH_REQUIRE_GPIOLIB
+	select LIBFDT
+	select USE_OF
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_SMP
+	select NR_CPUS_DEFAULT_16
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
@@ -1410,16 +1415,11 @@ config CPU_SB1
 config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
 	depends on SYS_HAS_CPU_CAVIUM_OCTEON
-	select ARCH_SPARSEMEM_ENABLE
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_SMP
-	select NR_CPUS_DEFAULT_16
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
-	select LIBFDT
-	select USE_OF
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	select MIPS_L1_CACHE_SHIFT_7
 	help
