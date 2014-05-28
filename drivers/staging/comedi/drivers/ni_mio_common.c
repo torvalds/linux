@@ -274,8 +274,6 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			       unsigned ai_mite_status);
 static void handle_b_interrupt(struct comedi_device *dev, unsigned short status,
 			       unsigned ao_mite_status);
-static void get_last_sample_611x(struct comedi_device *dev);
-static void get_last_sample_6143(struct comedi_device *dev);
 
 static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 				   unsigned bit_mask, unsigned bit_values)
@@ -821,6 +819,47 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 }
 #endif /* PCIDMA */
 
+static void get_last_sample_611x(struct comedi_device *dev)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv __maybe_unused = dev->private;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	unsigned short data;
+	u32 dl;
+
+	if (board->reg_type != ni_reg_611x)
+		return;
+
+	/* Check if there's a single sample stuck in the FIFO */
+	if (ni_readb(XXX_Status) & 0x80) {
+		dl = ni_readl(ADC_FIFO_Data_611x);
+		data = (dl & 0xffff);
+		cfc_write_to_buffer(s, data);
+	}
+}
+
+static void get_last_sample_6143(struct comedi_device *dev)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv __maybe_unused = dev->private;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+	unsigned short data;
+	u32 dl;
+
+	if (board->reg_type != ni_reg_6143)
+		return;
+
+	/* Check if there's a single sample stuck in the FIFO */
+	if (ni_readl(AIFIFO_Status_6143) & 0x01) {
+		ni_writel(0x01, AIFIFO_Control_6143);	/*  Get stranded sample into FIFO */
+		dl = ni_readl(AIFIFO_Data_6143);
+
+		/* This may get the hi/lo data in the wrong order */
+		data = (dl >> 16) & 0xffff;
+		cfc_write_to_buffer(s, data);
+	}
+}
+
 static void shutdown_ai_command(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
@@ -1335,47 +1374,6 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 						  sizeof(devpriv->
 							 ai_fifo_buffer[0]));
 		}
-	}
-}
-
-static void get_last_sample_611x(struct comedi_device *dev)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv __maybe_unused = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
-	unsigned short data;
-	u32 dl;
-
-	if (board->reg_type != ni_reg_611x)
-		return;
-
-	/* Check if there's a single sample stuck in the FIFO */
-	if (ni_readb(XXX_Status) & 0x80) {
-		dl = ni_readl(ADC_FIFO_Data_611x);
-		data = (dl & 0xffff);
-		cfc_write_to_buffer(s, data);
-	}
-}
-
-static void get_last_sample_6143(struct comedi_device *dev)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv __maybe_unused = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
-	unsigned short data;
-	u32 dl;
-
-	if (board->reg_type != ni_reg_6143)
-		return;
-
-	/* Check if there's a single sample stuck in the FIFO */
-	if (ni_readl(AIFIFO_Status_6143) & 0x01) {
-		ni_writel(0x01, AIFIFO_Control_6143);	/*  Get stranded sample into FIFO */
-		dl = ni_readl(AIFIFO_Data_6143);
-
-		/* This may get the hi/lo data in the wrong order */
-		data = (dl >> 16) & 0xffff;
-		cfc_write_to_buffer(s, data);
 	}
 }
 
