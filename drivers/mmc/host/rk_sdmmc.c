@@ -40,6 +40,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
+#include <linux/clk-private.h>
 
 #include "rk_sdmmc.h"
 #include "rk_sdmmc_of.h"
@@ -1217,12 +1218,7 @@ EXIT_POWER:
 			slot->host->pdata->setpower(slot->id, 0);
 		regs = mci_readl(slot->host, PWREN);
 		regs &= ~(1 << slot->id);
-		mci_writel(slot->host, PWREN, regs);
-		/* SD card should wake clk system for CD int */
-		if(!(mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)){
-		        clk_disable_unprepare(slot->host->clk_mmc);
-		        clk_disable_unprepare(slot->host->hclk_mmc);
-		}
+		mci_writel(slot->host, PWREN, regs);		
 		break;
 	default:
 		break;
@@ -1254,25 +1250,30 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 
 static int dw_mci_set_sdio_status(struct mmc_host *mmc, int val)
 {
-    struct dw_mci_slot *slot = mmc_priv(mmc);
-	struct dw_mci_board *brd = slot->host->pdata;
+        struct dw_mci_slot *slot = mmc_priv(mmc);
+        struct dw_mci_board *brd = slot->host->pdata;
 	struct dw_mci *host = slot->host;
-    if (!(mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
-        return 0;
-        
-    spin_lock_bh(&host->lock);
-    if(val){
-        set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-        clk_prepare_enable(host->hclk_mmc);
-        clk_prepare_enable(host->clk_mmc);
-    }else{
-        clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-    }
-    spin_unlock_bh(&host->lock);
-    
-    mmc_detect_change(slot->mmc, 20);    
+	if (!(mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
+                return 0;
+                
+        spin_lock_bh(&host->lock);
+        if(val){
+                set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
+                if(host->hclk_mmc->enable_count == 0)
+                        clk_prepare_enable(host->hclk_mmc);
+                if(host->clk_mmc->enable_count == 0)      
+                        clk_prepare_enable(host->clk_mmc);
+        }else{
+                clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
+                if(host->clk_mmc->enable_count != 0) 
+                        clk_disable_unprepare(slot->host->clk_mmc);
+                if(host->hclk_mmc->enable_count != 0)
+                        clk_disable_unprepare(slot->host->hclk_mmc);
+        }
+        spin_unlock_bh(&host->lock);
+        mmc_detect_change(slot->mmc, 20);    
 
-    return 0;
+        return 0;
 }
 
 
