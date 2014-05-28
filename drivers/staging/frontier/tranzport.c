@@ -475,6 +475,7 @@ static unsigned int usb_tranzport_poll(struct file *file, poll_table *wait)
 {
 	struct usb_tranzport *dev;
 	unsigned int mask = 0;
+
 	dev = file->private_data;
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
@@ -937,6 +938,7 @@ static void usb_tranzport_disconnect(struct usb_interface *intf)
 {
 	struct usb_tranzport *dev;
 	int minor;
+
 	mutex_lock(&disconnect_mutex);
 	dev = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
