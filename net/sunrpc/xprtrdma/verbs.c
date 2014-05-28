@@ -162,14 +162,23 @@ rpcrdma_sendcq_process_wc(struct ib_wc *wc)
 }
 
 static int
-rpcrdma_sendcq_poll(struct ib_cq *cq)
+rpcrdma_sendcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 {
-	struct ib_wc wc;
-	int rc;
+	struct ib_wc *wcs;
+	int count, rc;
 
-	while ((rc = ib_poll_cq(cq, 1, &wc)) == 1)
-		rpcrdma_sendcq_process_wc(&wc);
-	return rc;
+	do {
+		wcs = ep->rep_send_wcs;
+
+		rc = ib_poll_cq(cq, RPCRDMA_POLLSIZE, wcs);
+		if (rc <= 0)
+			return rc;
+
+		count = rc;
+		while (count-- > 0)
+			rpcrdma_sendcq_process_wc(wcs++);
+	} while (rc == RPCRDMA_POLLSIZE);
+	return 0;
 }
 
 /*
@@ -183,9 +192,10 @@ rpcrdma_sendcq_poll(struct ib_cq *cq)
 static void
 rpcrdma_sendcq_upcall(struct ib_cq *cq, void *cq_context)
 {
+	struct rpcrdma_ep *ep = (struct rpcrdma_ep *)cq_context;
 	int rc;
 
-	rc = rpcrdma_sendcq_poll(cq);
+	rc = rpcrdma_sendcq_poll(cq, ep);
 	if (rc) {
 		dprintk("RPC:       %s: ib_poll_cq failed: %i\n",
 			__func__, rc);
@@ -202,7 +212,7 @@ rpcrdma_sendcq_upcall(struct ib_cq *cq, void *cq_context)
 		return;
 	}
 
-	rpcrdma_sendcq_poll(cq);
+	rpcrdma_sendcq_poll(cq, ep);
 }
 
 static void
@@ -241,14 +251,23 @@ out_schedule:
 }
 
 static int
-rpcrdma_recvcq_poll(struct ib_cq *cq)
+rpcrdma_recvcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 {
-	struct ib_wc wc;
-	int rc;
+	struct ib_wc *wcs;
+	int count, rc;
 
-	while ((rc = ib_poll_cq(cq, 1, &wc)) == 1)
-		rpcrdma_recvcq_process_wc(&wc);
-	return rc;
+	do {
+		wcs = ep->rep_recv_wcs;
+
+		rc = ib_poll_cq(cq, RPCRDMA_POLLSIZE, wcs);
+		if (rc <= 0)
+			return rc;
+
+		count = rc;
+		while (count-- > 0)
+			rpcrdma_recvcq_process_wc(wcs++);
+	} while (rc == RPCRDMA_POLLSIZE);
+	return 0;
 }
 
 /*
@@ -266,9 +285,10 @@ rpcrdma_recvcq_poll(struct ib_cq *cq)
 static void
 rpcrdma_recvcq_upcall(struct ib_cq *cq, void *cq_context)
 {
+	struct rpcrdma_ep *ep = (struct rpcrdma_ep *)cq_context;
 	int rc;
 
-	rc = rpcrdma_recvcq_poll(cq);
+	rc = rpcrdma_recvcq_poll(cq, ep);
 	if (rc) {
 		dprintk("RPC:       %s: ib_poll_cq failed: %i\n",
 			__func__, rc);
@@ -285,7 +305,7 @@ rpcrdma_recvcq_upcall(struct ib_cq *cq, void *cq_context)
 		return;
 	}
 
-	rpcrdma_recvcq_poll(cq);
+	rpcrdma_recvcq_poll(cq, ep);
 }
 
 #ifdef RPC_DEBUG
@@ -721,7 +741,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	INIT_DELAYED_WORK(&ep->rep_connect_worker, rpcrdma_connect_worker);
 
 	sendcq = ib_create_cq(ia->ri_id->device, rpcrdma_sendcq_upcall,
-				  rpcrdma_cq_async_error_upcall, NULL,
+				  rpcrdma_cq_async_error_upcall, ep,
 				  ep->rep_attr.cap.max_send_wr + 1, 0);
 	if (IS_ERR(sendcq)) {
 		rc = PTR_ERR(sendcq);
@@ -738,7 +758,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	}
 
 	recvcq = ib_create_cq(ia->ri_id->device, rpcrdma_recvcq_upcall,
-				  rpcrdma_cq_async_error_upcall, NULL,
+				  rpcrdma_cq_async_error_upcall, ep,
 				  ep->rep_attr.cap.max_recv_wr + 1, 0);
 	if (IS_ERR(recvcq)) {
 		rc = PTR_ERR(recvcq);
