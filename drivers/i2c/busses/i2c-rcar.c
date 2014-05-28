@@ -294,15 +294,6 @@ static int rcar_i2c_recv(struct rcar_i2c_priv *priv)
 
 static int rcar_i2c_send(struct rcar_i2c_priv *priv)
 {
-	int ret;
-
-	/*
-	 * It should check bus status when send case
-	 */
-	ret = rcar_i2c_bus_barrier(priv);
-	if (ret < 0)
-		return ret;
-
 	rcar_i2c_set_addr(priv, 0);
 	rcar_i2c_status_clear(priv);
 	rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
@@ -508,7 +499,10 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	spin_unlock_irqrestore(&priv->lock, flags);
 	/*-------------- spin unlock -----------------*/
 
-	ret = -EINVAL;
+	ret = rcar_i2c_bus_barrier(priv);
+	if (ret < 0)
+		goto out;
+
 	for (i = 0; i < num; i++) {
 		/* This HW can't send STOP after address phase */
 		if (msgs[i].len == 0) {
@@ -569,7 +563,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 		ret = i + 1; /* The number of transfer */
 	}
-
+out:
 	pm_runtime_put(dev);
 
 	if (ret < 0 && ret != -ENXIO)
