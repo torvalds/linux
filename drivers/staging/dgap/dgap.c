@@ -7354,51 +7354,53 @@ static struct cnode *dgap_find_config(int type, int bus, int slot)
 		prev = p;
 		p = p->next;
 
-		if (p->type == BNODE) {
+		if (p->type != BNODE)
+			continue;
 
-			if (p->u.board.type == type) {
+		if (p->u.board.type != type)
+			continue;
 
-				if (p->u.board.v_pcibus &&
-				    p->u.board.pcibus != bus)
-					continue;
-				if (p->u.board.v_pcislot &&
-				    p->u.board.pcislot != slot)
-					continue;
+		if (p->u.board.v_pcibus &&
+		    p->u.board.pcibus != bus)
+			continue;
 
-				found = p;
-				/*
-				 * Keep walking thru the list till we
-				 * find the next board.
-				 */
-				while (p->next) {
-					prev2 = p;
-					p = p->next;
-					if (p->type == BNODE) {
+		if (p->u.board.v_pcislot &&
+		    p->u.board.pcislot != slot)
+			continue;
 
-						/*
-						 * Mark the end of our 1 board
-						 * chain of configs.
-						 */
-						prev2->next = NULL;
+		found = p;
+		/*
+		 * Keep walking thru the list till we
+		 * find the next board.
+		 */
+		while (p->next) {
+			prev2 = p;
+			p = p->next;
 
-						/*
-						 * Link the "next" board to the
-						 * previous board, effectively
-						 * "unlinking" our board from
-						 * the main config.
-						 */
-						prev->next = p;
+			if (p->type != BNODE)
+				continue;
 
-						return found;
-					}
-				}
-				/*
-				 * It must be the last board in the list.
-				 */
-				prev->next = NULL;
-				return found;
-			}
+			/*
+			 * Mark the end of our 1 board
+			 * chain of configs.
+			 */
+			prev2->next = NULL;
+
+			/*
+			 * Link the "next" board to the
+			 * previous board, effectively
+			 * "unlinking" our board from
+			 * the main config.
+			 */
+			prev->next = p;
+
+			return found;
 		}
+		/*
+		 * It must be the last board in the list.
+		 */
+		prev->next = NULL;
+		return found;
 	}
 	return NULL;
 }
