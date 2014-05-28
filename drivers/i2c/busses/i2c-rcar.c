@@ -59,7 +59,7 @@
 #define FSB	(1 << 1)	/* force stop bit */
 #define ESG	(1 << 0)	/* en startbit gen */
 
-/* ICMSR */
+/* ICMSR (also for ICMIE) */
 #define MNR	(1 << 6)	/* nack received */
 #define MAL	(1 << 5)	/* arbitration lost */
 #define MST	(1 << 4)	/* sent a stop */
@@ -68,23 +68,14 @@
 #define MDR	(1 << 1)
 #define MAT	(1 << 0)	/* slave addr xfer done */
 
-/* ICMIE */
-#define MNRE	(1 << 6)	/* nack irq en */
-#define MALE	(1 << 5)	/* arblos irq en */
-#define MSTE	(1 << 4)	/* stop irq en */
-#define MDEE	(1 << 3)
-#define MDTE	(1 << 2)
-#define MDRE	(1 << 1)
-#define MATE	(1 << 0)	/* address sent irq en */
-
 
 #define RCAR_BUS_PHASE_START	(MDBS | MIE | ESG)
 #define RCAR_BUS_PHASE_DATA	(MDBS | MIE)
 #define RCAR_BUS_PHASE_STOP	(MDBS | MIE | FSB)
 
-#define RCAR_IRQ_SEND	(MNRE | MALE | MSTE | MATE | MDEE)
-#define RCAR_IRQ_RECV	(MNRE | MALE | MSTE | MATE | MDRE)
-#define RCAR_IRQ_STOP	(MSTE)
+#define RCAR_IRQ_SEND	(MNR | MAL | MST | MAT | MDE)
+#define RCAR_IRQ_RECV	(MNR | MAL | MST | MAT | MDR)
+#define RCAR_IRQ_STOP	(MST)
 
 #define RCAR_IRQ_ACK_SEND	(~(MAT | MDE))
 #define RCAR_IRQ_ACK_RECV	(~(MAT | MDR))
