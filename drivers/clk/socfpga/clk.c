@@ -26,6 +26,7 @@
 /* Clock Manager offsets */
 #define CLKMGR_CTRL	0x0
 #define CLKMGR_BYPASS	0x4
+#define CLKMGR_DBCTRL	0x10
 #define CLKMGR_L4SRC	0x70
 #define CLKMGR_PERIP_VCO	0x80
 #define CLKMGR_PERPLL_SRC	0xAC
@@ -140,8 +141,17 @@ static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,
 	return parent_rate / div;
 }
 
+static u8 clk_periclk_get_parent(struct clk_hw *hwclk)
+{
+	u32 clk_src;
+
+	clk_src = readl(clk_mgr_base_addr + CLKMGR_DBCTRL);
+	return clk_src & 0x1;
+}
+
 static const struct clk_ops periclk_ops = {
 	.recalc_rate = clk_periclk_recalc_rate,
+	.get_parent = clk_periclk_get_parent,
 };
 
 static __init struct clk *socfpga_clk_init(struct device_node *node,
