@@ -46,6 +46,7 @@
 #define HIX5HD2_SFC_MUX			64
 #define HIX5HD2_MMC_MUX			65
 #define HIX5HD2_FEPHY_MUX		66
+#define HIX5HD2_SD_MUX			67
 
 /* gate clocks */
 #define HIX5HD2_SFC_RST			128
@@ -56,6 +57,9 @@
 #define HIX5HD2_FWD_BUS_CLK		133
 #define HIX5HD2_FWD_SYS_CLK		134
 #define HIX5HD2_MAC0_PHY_CLK		135
+#define HIX5HD2_SD_CIU_CLK		136
+#define HIX5HD2_SD_BIU_CLK		137
+#define HIX5HD2_SD_CIU_RST		138
 
 /* complex */
 #define HIX5HD2_MAC0_CLK		192
