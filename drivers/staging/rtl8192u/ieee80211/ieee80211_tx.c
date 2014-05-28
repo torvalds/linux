@@ -191,7 +191,7 @@ int ieee80211_encrypt_fragment(
 		printk("=========>%s(), crypt is null\n", __func__);
 		return -1;
 	}
-#ifdef CONFIG_LIB80211_CRYPT_TKIP
+#ifdef CONFIG_IEEE80211_CRYPT_TKIP
 	struct ieee80211_hdr *header;
 
 	if (ieee->tkip_countermeasures &&

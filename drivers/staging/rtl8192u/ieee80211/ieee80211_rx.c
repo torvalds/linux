@@ -352,7 +352,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	hdrlen = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 
-#ifdef CONFIG_LIB80211_CRYPT_TKIP
+#ifdef CONFIG_IEEE80211_CRYPT_TKIP
 	if (ieee->tkip_countermeasures &&
 	    strcmp(crypt->ops->name, "TKIP") == 0) {
 		if (net_ratelimit()) {
