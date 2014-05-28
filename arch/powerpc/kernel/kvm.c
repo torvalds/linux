@@ -74,7 +74,7 @@
 #define KVM_INST_MTSRIN		0x7c0001e4
 
 static bool kvm_patching_worked = true;
-static char kvm_tmp[1024 * 1024];
+char kvm_tmp[1024 * 1024];
 static int kvm_tmp_index;
 
 static inline void kvm_patch_ins(u32 *inst, u32 new_inst)
