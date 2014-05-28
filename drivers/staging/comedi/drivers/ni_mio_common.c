@@ -194,7 +194,6 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 	[ai_gain_6143] = &range_bipolar5
 };
 
-static void ni_rtsi_init(struct comedi_device *dev);
 static int ni_rtsi_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
@@ -4702,6 +4701,46 @@ static int ni_rtsi_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void ni_rtsi_init(struct comedi_device *dev)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+
+	/*  Initialises the RTSI bus signal switch to a default state */
+
+	/*  Set clock mode to internal */
+	devpriv->clock_and_fout2 = MSeries_RTSI_10MHz_Bit;
+	if (ni_set_master_clock(dev, NI_MIO_INTERNAL_CLOCK, 0) < 0)
+		printk("ni_set_master_clock failed, bug?");
+	/*  default internal lines routing to RTSI bus lines */
+	devpriv->rtsi_trig_a_output_reg =
+	    RTSI_Trig_Output_Bits(0,
+				  NI_RTSI_OUTPUT_ADR_START1) |
+	    RTSI_Trig_Output_Bits(1,
+				  NI_RTSI_OUTPUT_ADR_START2) |
+	    RTSI_Trig_Output_Bits(2,
+				  NI_RTSI_OUTPUT_SCLKG) |
+	    RTSI_Trig_Output_Bits(3, NI_RTSI_OUTPUT_DACUPDN);
+	devpriv->stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
+			    RTSI_Trig_A_Output_Register);
+	devpriv->rtsi_trig_b_output_reg =
+	    RTSI_Trig_Output_Bits(4,
+				  NI_RTSI_OUTPUT_DA_START1) |
+	    RTSI_Trig_Output_Bits(5,
+				  NI_RTSI_OUTPUT_G_SRC0) |
+	    RTSI_Trig_Output_Bits(6, NI_RTSI_OUTPUT_G_GATE0);
+	if (board->reg_type & ni_reg_m_series_mask)
+		devpriv->rtsi_trig_b_output_reg |=
+		    RTSI_Trig_Output_Bits(7, NI_RTSI_OUTPUT_RTSI_OSC);
+	devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
+			    RTSI_Trig_B_Output_Register);
+
+/*
+* Sets the source and direction of the 4 on board lines
+* devpriv->stc_writew(dev, 0x0000, RTSI_Board_Register);
+*/
+}
+
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -5210,51 +5249,6 @@ static void GPCT_Reset(struct comedi_device *dev, int chan)
 }
 
 #endif
-
-/*
- *
- *  NI RTSI Bus Functions
- *
- */
-static void ni_rtsi_init(struct comedi_device *dev)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-
-	/*  Initialises the RTSI bus signal switch to a default state */
-
-	/*  Set clock mode to internal */
-	devpriv->clock_and_fout2 = MSeries_RTSI_10MHz_Bit;
-	if (ni_set_master_clock(dev, NI_MIO_INTERNAL_CLOCK, 0) < 0)
-		printk("ni_set_master_clock failed, bug?");
-	/*  default internal lines routing to RTSI bus lines */
-	devpriv->rtsi_trig_a_output_reg =
-	    RTSI_Trig_Output_Bits(0,
-				  NI_RTSI_OUTPUT_ADR_START1) |
-	    RTSI_Trig_Output_Bits(1,
-				  NI_RTSI_OUTPUT_ADR_START2) |
-	    RTSI_Trig_Output_Bits(2,
-				  NI_RTSI_OUTPUT_SCLKG) |
-	    RTSI_Trig_Output_Bits(3, NI_RTSI_OUTPUT_DACUPDN);
-	devpriv->stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
-			    RTSI_Trig_A_Output_Register);
-	devpriv->rtsi_trig_b_output_reg =
-	    RTSI_Trig_Output_Bits(4,
-				  NI_RTSI_OUTPUT_DA_START1) |
-	    RTSI_Trig_Output_Bits(5,
-				  NI_RTSI_OUTPUT_G_SRC0) |
-	    RTSI_Trig_Output_Bits(6, NI_RTSI_OUTPUT_G_GATE0);
-	if (board->reg_type & ni_reg_m_series_mask)
-		devpriv->rtsi_trig_b_output_reg |=
-		    RTSI_Trig_Output_Bits(7, NI_RTSI_OUTPUT_RTSI_OSC);
-	devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
-			    RTSI_Trig_B_Output_Register);
-
-/*
-* Sets the source and direction of the 4 on board lines
-* devpriv->stc_writew(dev, 0x0000, RTSI_Board_Register);
-*/
-}
 
 /* Find best multiplier/divider to try and get the PLL running at 80 MHz
  * given an arbitrary frequency input clock */
