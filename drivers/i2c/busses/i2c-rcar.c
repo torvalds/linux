@@ -116,7 +116,6 @@ struct rcar_i2c_priv {
 	wait_queue_head_t wait;
 
 	int pos;
-	int irq;
 	u32 icccr;
 	u32 flags;
 	enum rcar_i2c_type	devtype;
@@ -653,7 +652,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *dev = &pdev->dev;
 	u32 bus_speed;
-	int ret;
+	int irq, ret;
 
 	priv = devm_kzalloc(dev, sizeof(struct rcar_i2c_priv), GFP_KERNEL);
 	if (!priv) {
@@ -687,7 +686,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->io))
 		return PTR_ERR(priv->io);
 
-	priv->irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&priv->wait);
 	spin_lock_init(&priv->lock);
 
@@ -701,10 +700,10 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adap, priv);
 	strlcpy(adap->name, pdev->name, sizeof(adap->name));
 
-	ret = devm_request_irq(dev, priv->irq, rcar_i2c_irq, 0,
+	ret = devm_request_irq(dev, irq, rcar_i2c_irq, 0,
 			       dev_name(dev), priv);
 	if (ret < 0) {
-		dev_err(dev, "cannot get irq %d\n", priv->irq);
+		dev_err(dev, "cannot get irq %d\n", irq);
 		return ret;
 	}
 
