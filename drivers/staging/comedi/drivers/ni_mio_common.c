@@ -222,9 +222,6 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 				   unsigned char *data_in);
 
 static void ni_rtsi_init(struct comedi_device *dev);
-static int ni_rtsi_insn_bits(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data);
 static int ni_rtsi_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
@@ -4807,6 +4804,16 @@ static int init_cs5529(struct comedi_device *dev)
 	return 0;
 }
 
+static int ni_rtsi_insn_bits(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
+{
+	data[1] = 0;
+
+	return insn->n;
+}
+
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -5300,15 +5307,6 @@ static void ni_rtsi_init(struct comedi_device *dev)
 * Sets the source and direction of the 4 on board lines
 * devpriv->stc_writew(dev, 0x0000, RTSI_Board_Register);
 */
-}
-
-static int ni_rtsi_insn_bits(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
-{
-	data[1] = 0;
-
-	return insn->n;
 }
 
 /* Find best multiplier/divider to try and get the PLL running at 80 MHz
