@@ -1494,7 +1494,7 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 		return;
 
 	intel_stop_ring_buffer(ring);
-	WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+	WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);
 
 	iounmap(ringbuf->virtual_start);
 
