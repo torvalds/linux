@@ -576,12 +576,9 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	if (!q)
 		return NULL;
 
-	if (percpu_counter_init(&q->mq_usage_counter, 0))
-		goto fail_q;
-
 	q->id = ida_simple_get(&blk_queue_ida, 0, 0, gfp_mask);
 	if (q->id < 0)
-		goto fail_c;
+		goto fail_q;
 
 	q->backing_dev_info.ra_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
@@ -639,8 +636,6 @@ fail_bdi:
 	bdi_destroy(&q->backing_dev_info);
 fail_id:
 	ida_simple_remove(&blk_queue_ida, q->id);
-fail_c:
-	percpu_counter_destroy(&q->mq_usage_counter);
 fail_q:
 	kmem_cache_free(blk_requestq_cachep, q);
 	return NULL;
@@ -846,6 +841,47 @@ static void freed_request(struct request_list *rl, unsigned int flags)
 
 	if (unlikely(rl->starved[sync ^ 1]))
 		__freed_request(rl, sync ^ 1);
+}
+
+int blk_update_nr_requests(struct request_queue *q, unsigned int nr)
+{
+	struct request_list *rl;
+
+	spin_lock_irq(q->queue_lock);
+	q->nr_requests = nr;
+	blk_queue_congestion_threshold(q);
+
+	/* congestion isn't cgroup aware and follows root blkcg for now */
+	rl = &q->root_rl;
+
+	if (rl->count[BLK_RW_SYNC] >= queue_congestion_on_threshold(q))
+		blk_set_queue_congested(q, BLK_RW_SYNC);
+	else if (rl->count[BLK_RW_SYNC] < queue_congestion_off_threshold(q))
+		blk_clear_queue_congested(q, BLK_RW_SYNC);
+
+	if (rl->count[BLK_RW_ASYNC] >= queue_congestion_on_threshold(q))
+		blk_set_queue_congested(q, BLK_RW_ASYNC);
+	else if (rl->count[BLK_RW_ASYNC] < queue_congestion_off_threshold(q))
+		blk_clear_queue_congested(q, BLK_RW_ASYNC);
+
+	blk_queue_for_each_rl(rl, q) {
+		if (rl->count[BLK_RW_SYNC] >= q->nr_requests) {
+			blk_set_rl_full(rl, BLK_RW_SYNC);
+		} else {
+			blk_clear_rl_full(rl, BLK_RW_SYNC);
+			wake_up(&rl->wait[BLK_RW_SYNC]);
+		}
+
+		if (rl->count[BLK_RW_ASYNC] >= q->nr_requests) {
+			blk_set_rl_full(rl, BLK_RW_ASYNC);
+		} else {
+			blk_clear_rl_full(rl, BLK_RW_ASYNC);
+			wake_up(&rl->wait[BLK_RW_ASYNC]);
+		}
+	}
+
+	spin_unlock_irq(q->queue_lock);
+	return 0;
 }
 
 /*
@@ -1137,7 +1173,7 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	if (q->mq_ops)
-		return blk_mq_alloc_request(q, rw, gfp_mask);
+		return blk_mq_alloc_request(q, rw, gfp_mask, false);
 	else
 		return blk_old_get_request(q, rw, gfp_mask);
 }
@@ -1233,12 +1269,15 @@ static void add_acct_request(struct request_queue *q, struct request *rq,
 static void part_round_stats_single(int cpu, struct hd_struct *part,
 				    unsigned long now)
 {
+	int inflight;
+
 	if (now == part->stamp)
 		return;
 
-	if (part_in_flight(part)) {
+	inflight = part_in_flight(part);
+	if (inflight) {
 		__part_stat_add(cpu, part, time_in_queue,
-				part_in_flight(part) * (now - part->stamp));
+				inflight * (now - part->stamp));
 		__part_stat_add(cpu, part, io_ticks, (now - part->stamp));
 	}
 	part->stamp = now;
@@ -1427,6 +1466,8 @@ bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
  * added on the elevator at this point.  In addition, we don't have
  * reliable access to the elevator outside queue lock.  Only check basic
  * merging parameters without querying the elevator.
+ *
+ * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 			    unsigned int *request_count)
@@ -1435,9 +1476,6 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	struct request *rq;
 	bool ret = false;
 	struct list_head *plug_list;
-
-	if (blk_queue_nomerges(q))
-		goto out;
 
 	plug = current->plug;
 	if (!plug)
@@ -1517,7 +1555,8 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (blk_attempt_plug_merge(q, bio, &request_count))
+	if (!blk_queue_nomerges(q) &&
+	    blk_attempt_plug_merge(q, bio, &request_count))
 		return;
 
 	spin_lock_irq(q->queue_lock);

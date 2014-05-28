@@ -90,15 +90,15 @@ enum rq_cmd_type_bits {
 #define BLK_MAX_CDB	16
 
 /*
- * try to put the fields that are referenced together in the same cacheline.
- * if you modify this structure, be sure to check block/blk-core.c:blk_rq_init()
- * as well!
+ * Try to put the fields that are referenced together in the same cacheline.
+ *
+ * If you modify this structure, make sure to update blk_rq_init() and
+ * especially blk_mq_rq_ctx_init() to take care of the added fields.
  */
 struct request {
 	struct list_head queuelist;
 	union {
 		struct call_single_data csd;
-		struct work_struct requeue_work;
 		unsigned long fifo_time;
 	};
 
@@ -462,6 +462,10 @@ struct request_queue {
 	struct request		*flush_rq;
 	spinlock_t		mq_flush_lock;
 
+	struct list_head	requeue_list;
+	spinlock_t		requeue_lock;
+	struct work_struct	requeue_work;
+
 	struct mutex		sysfs_lock;
 
 	int			bypass_depth;
@@ -480,6 +484,9 @@ struct request_queue {
 	wait_queue_head_t	mq_freeze_wq;
 	struct percpu_counter	mq_usage_counter;
 	struct list_head	all_q_node;
+
+	struct blk_mq_tag_set	*tag_set;
+	struct list_head	tag_set_list;
 };
 
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */

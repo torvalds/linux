@@ -322,39 +322,10 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
 }
 
 static struct blk_mq_hw_ctx *null_alloc_hctx(struct blk_mq_tag_set *set,
-		unsigned int hctx_index)
+					     unsigned int hctx_index,
+					     int node)
 {
-	int b_size = DIV_ROUND_UP(set->nr_hw_queues, nr_online_nodes);
-	int tip = (set->nr_hw_queues % nr_online_nodes);
-	int node = 0, i, n;
-
-	/*
-	 * Split submit queues evenly wrt to the number of nodes. If uneven,
-	 * fill the first buckets with one extra, until the rest is filled with
-	 * no extra.
-	 */
-	for (i = 0, n = 1; i < hctx_index; i++, n++) {
-		if (n % b_size == 0) {
-			n = 0;
-			node++;
-
-			tip--;
-			if (!tip)
-				b_size = set->nr_hw_queues / nr_online_nodes;
-		}
-	}
-
-	/*
-	 * A node might not be online, therefore map the relative node id to the
-	 * real node id.
-	 */
-	for_each_online_node(n) {
-		if (!node)
-			break;
-		node--;
-	}
-
-	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL, n);
+	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL, node);
 }
 
 static void null_free_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_index)

@@ -743,6 +743,7 @@ static void skd_request_fn(struct request_queue *q)
 				break;
 			}
 			skreq->discard_page = 1;
+			req->completion_data = page;
 			skd_prep_discard_cdb(scsi_req, skreq, page, lba, count);
 
 		} else if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
@@ -855,10 +856,9 @@ static void skd_end_request(struct skd_device *skdev,
 
 	if ((io_flags & REQ_DISCARD) &&
 		(skreq->discard_page == 1)) {
-		struct bio *bio = req->bio;
 		pr_debug("%s:%s:%d, free the page!",
 			 skdev->name, __func__, __LINE__);
-		__free_page(bio->bi_io_vec->bv_page);
+		__free_page(req->completion_data);
 	}
 
 	if (unlikely(error)) {

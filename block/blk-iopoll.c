@@ -64,12 +64,12 @@ EXPORT_SYMBOL(__blk_iopoll_complete);
  *     iopoll handler will not be invoked again before blk_iopoll_sched_prep()
  *     is called.
  **/
-void blk_iopoll_complete(struct blk_iopoll *iopoll)
+void blk_iopoll_complete(struct blk_iopoll *iop)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__blk_iopoll_complete(iopoll);
+	__blk_iopoll_complete(iop);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(blk_iopoll_complete);

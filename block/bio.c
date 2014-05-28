@@ -305,6 +305,8 @@ static void bio_chain_endio(struct bio *bio, int error)
 
 /**
  * bio_chain - chain bio completions
+ * @bio: the target bio
+ * @parent: the @bio's parent bio
  *
  * The caller won't have a bi_end_io called when @bio completes - instead,
  * @parent's bi_end_io won't be called until both @parent and @bio have
@@ -1011,8 +1013,7 @@ static void bio_set_map_data(struct bio_map_data *bmd, struct bio *bio,
 	bio->bi_private = bmd;
 }
 
-static struct bio_map_data *bio_alloc_map_data(int nr_segs,
-					       unsigned int iov_count,
+static struct bio_map_data *bio_alloc_map_data(unsigned int iov_count,
 					       gfp_t gfp_mask)
 {
 	if (iov_count > UIO_MAXIOV)
@@ -1154,7 +1155,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	if (offset)
 		nr_pages++;
 
-	bmd = bio_alloc_map_data(nr_pages, iov_count, gfp_mask);
+	bmd = bio_alloc_map_data(iov_count, gfp_mask);
 	if (!bmd)
 		return ERR_PTR(-ENOMEM);
 
@@ -1859,7 +1860,7 @@ EXPORT_SYMBOL_GPL(bio_trim);
  * create memory pools for biovec's in a bio_set.
  * use the global biovec slabs created for general use.
  */
-mempool_t *biovec_create_pool(struct bio_set *bs, int pool_entries)
+mempool_t *biovec_create_pool(int pool_entries)
 {
 	struct biovec_slab *bp = bvec_slabs + BIOVEC_MAX_IDX;
 
@@ -1922,7 +1923,7 @@ struct bio_set *bioset_create(unsigned int pool_size, unsigned int front_pad)
 	if (!bs->bio_pool)
 		goto bad;
 
-	bs->bvec_pool = biovec_create_pool(bs, pool_size);
+	bs->bvec_pool = biovec_create_pool(pool_size);
 	if (!bs->bvec_pool)
 		goto bad;
 

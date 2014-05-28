@@ -8,7 +8,13 @@ struct blk_mq_tags;
 struct blk_mq_cpu_notifier {
 	struct list_head list;
 	void *data;
-	void (*notify)(void *data, unsigned long action, unsigned int cpu);
+	int (*notify)(void *data, unsigned long action, unsigned int cpu);
+};
+
+struct blk_mq_ctxmap {
+	unsigned int map_size;
+	unsigned int bits_per_word;
+	struct blk_align_bitmap *map;
 };
 
 struct blk_mq_hw_ctx {
@@ -21,6 +27,8 @@ struct blk_mq_hw_ctx {
 	struct delayed_work	run_work;
 	struct delayed_work	delay_work;
 	cpumask_var_t		cpumask;
+	int			next_cpu;
+	int			next_cpu_batch;
 
 	unsigned long		flags;		/* BLK_MQ_F_* flags */
 
@@ -29,10 +37,12 @@ struct blk_mq_hw_ctx {
 
 	void			*driver_data;
 
+	struct blk_mq_ctxmap	ctx_map;
+
 	unsigned int		nr_ctx;
 	struct blk_mq_ctx	**ctxs;
-	unsigned int 		nr_ctx_map;
-	unsigned long		*ctx_map;
+
+	unsigned int		wait_index;
 
 	struct blk_mq_tags	*tags;
 
@@ -44,6 +54,8 @@ struct blk_mq_hw_ctx {
 	unsigned int		numa_node;
 	unsigned int		cmd_size;	/* per-request extra data */
 
+	atomic_t		nr_active;
+
 	struct blk_mq_cpu_notifier	cpu_notifier;
 	struct kobject		kobj;
 };
@@ -51,7 +63,7 @@ struct blk_mq_hw_ctx {
 struct blk_mq_tag_set {
 	struct blk_mq_ops	*ops;
 	unsigned int		nr_hw_queues;
-	unsigned int		queue_depth;
+	unsigned int		queue_depth;	/* max hw supported */
 	unsigned int		reserved_tags;
 	unsigned int		cmd_size;	/* per-request extra data */
 	int			numa_node;
@@ -60,12 +72,15 @@ struct blk_mq_tag_set {
 	void			*driver_data;
 
 	struct blk_mq_tags	**tags;
+
+	struct mutex		tag_list_lock;
+	struct list_head	tag_list;
 };
 
 typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, struct request *);
 typedef struct blk_mq_hw_ctx *(map_queue_fn)(struct request_queue *, const int);
 typedef struct blk_mq_hw_ctx *(alloc_hctx_fn)(struct blk_mq_tag_set *,
-		unsigned int);
+		unsigned int, int);
 typedef void (free_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
@@ -122,11 +137,14 @@ enum {
 
 	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
 	BLK_MQ_F_SHOULD_SORT	= 1 << 1,
-	BLK_MQ_F_SHOULD_IPI	= 1 << 2,
+	BLK_MQ_F_TAG_SHARED	= 1 << 2,
 
 	BLK_MQ_S_STOPPED	= 0,
+	BLK_MQ_S_TAG_ACTIVE	= 1,
 
 	BLK_MQ_MAX_DEPTH	= 2048,
+
+	BLK_MQ_CPU_WORK_BATCH	= 8,
 };
 
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *);
@@ -142,19 +160,20 @@ void blk_mq_insert_request(struct request *, bool, bool, bool);
 void blk_mq_run_queues(struct request_queue *q, bool async);
 void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
-struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp);
-struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw, gfp_t gfp);
+struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
+		gfp_t gfp, bool reserved);
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 
 struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_index);
-struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *, unsigned int);
+struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *, unsigned int, int);
 void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *, unsigned int);
 
 void blk_mq_end_io(struct request *rq, int error);
 void __blk_mq_end_io(struct request *rq, int error);
 
 void blk_mq_requeue_request(struct request *rq);
-
+void blk_mq_add_to_requeue_list(struct request *rq, bool at_head);
+void blk_mq_kick_requeue_list(struct request_queue *q);
 void blk_mq_complete_request(struct request *rq);
 
 void blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx);
@@ -163,6 +182,7 @@ void blk_mq_stop_hw_queues(struct request_queue *q);
 void blk_mq_start_hw_queues(struct request_queue *q);
 void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async);
 void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
+void blk_mq_tag_busy_iter(struct blk_mq_tags *tags, void (*fn)(void *data, unsigned long *), void *data);
 
 /*
  * Driver command data is immediately after the request. So subtract request
