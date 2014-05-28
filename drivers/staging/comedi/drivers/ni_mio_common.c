@@ -194,8 +194,6 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 	[ai_gain_6143] = &range_bipolar5
 };
 
-static int ni_cdio_cancel(struct comedi_device *dev,
-			  struct comedi_subdevice *s);
 static void handle_cdio_interrupt(struct comedi_device *dev);
 
 static int ni_serial_hw_readwrite8(struct comedi_device *dev,
@@ -3485,7 +3483,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 	}
 	if (i == timeout) {
 		comedi_error(dev, "dma failed to fill cdo fifo!");
-		ni_cdio_cancel(dev, s);
+		s->cancel(dev, s);
 		return -EIO;
 	}
 	ni_writel(CDO_Arm_Bit | CDO_Error_Interrupt_Enable_Set_Bit |
