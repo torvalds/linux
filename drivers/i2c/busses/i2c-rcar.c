@@ -312,18 +312,9 @@ scgd_find:
 	return 0;
 }
 
-static void rcar_i2c_clock_start(struct rcar_i2c_priv *priv)
-{
-	rcar_i2c_write(priv, ICCCR, priv->icccr);
-}
-
 /*
  *		status functions
  */
-static u32 rcar_i2c_status_get(struct rcar_i2c_priv *priv)
-{
-	return rcar_i2c_read(priv, ICMSR);
-}
 
 #define rcar_i2c_status_clear(priv) rcar_i2c_status_bit_clear(priv, 0xffffffff)
 static void rcar_i2c_status_bit_clear(struct rcar_i2c_priv *priv, u32 bit)
@@ -480,7 +471,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 	/*-------------- spin lock -----------------*/
 	spin_lock(&priv->lock);
 
-	msr = rcar_i2c_status_get(priv);
+	msr = rcar_i2c_read(priv, ICMSR);
 
 	/*
 	 * Arbitration lost
@@ -554,7 +545,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	spin_lock_irqsave(&priv->lock, flags);
 
 	rcar_i2c_init(priv);
-	rcar_i2c_clock_start(priv);
+	/* start clock */
+	rcar_i2c_write(priv, ICCCR, priv->icccr);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 	/*-------------- spin unlock -----------------*/
