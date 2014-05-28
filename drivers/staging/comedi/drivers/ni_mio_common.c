@@ -247,15 +247,6 @@ static int ni_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index);
 
-static int init_cs5529(struct comedi_device *dev);
-static int cs5529_do_conversion(struct comedi_device *dev,
-				unsigned short *data);
-static int cs5529_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
-				unsigned int reg_select_bits);
-
 static int ni_set_master_clock(struct comedi_device *dev, unsigned source,
 			       unsigned period_ns);
 static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status);
@@ -4680,6 +4671,142 @@ static int ni_pfi_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int cs5529_wait_for_idle(struct comedi_device *dev)
+{
+	unsigned short status;
+	const int timeout = HZ;
+	int i;
+
+	for (i = 0; i < timeout; i++) {
+		status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
+		if ((status & CSS_ADC_BUSY) == 0)
+			break;
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (schedule_timeout(1))
+			return -EIO;
+	}
+/* printk("looped %i times waiting for idle\n", i); */
+	if (i == timeout) {
+		printk("%s: %s: timeout\n", __FILE__, __func__);
+		return -ETIME;
+	}
+	return 0;
+}
+
+static void cs5529_command(struct comedi_device *dev, unsigned short value)
+{
+	static const int timeout = 100;
+	int i;
+
+	ni_ao_win_outw(dev, value, CAL_ADC_Command_67xx);
+	/* give time for command to start being serially clocked into cs5529.
+	 * this insures that the CSS_ADC_BUSY bit will get properly
+	 * set before we exit this function.
+	 */
+	for (i = 0; i < timeout; i++) {
+		if ((ni_ao_win_inw(dev, CAL_ADC_Status_67xx) & CSS_ADC_BUSY))
+			break;
+		udelay(1);
+	}
+/* printk("looped %i times writing command to cs5529\n", i); */
+	if (i == timeout)
+		comedi_error(dev, "possible problem - never saw adc go busy?");
+}
+
+static int cs5529_do_conversion(struct comedi_device *dev,
+				unsigned short *data)
+{
+	int retval;
+	unsigned short status;
+
+	cs5529_command(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION);
+	retval = cs5529_wait_for_idle(dev);
+	if (retval) {
+		comedi_error(dev,
+			     "timeout or signal in cs5529_do_conversion()");
+		return -ETIME;
+	}
+	status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
+	if (status & CSS_OSC_DETECT) {
+		printk
+		    ("ni_mio_common: cs5529 conversion error, status CSS_OSC_DETECT\n");
+		return -EIO;
+	}
+	if (status & CSS_OVERRANGE) {
+		printk
+		    ("ni_mio_common: cs5529 conversion error, overrange (ignoring)\n");
+	}
+	if (data) {
+		*data = ni_ao_win_inw(dev, CAL_ADC_Data_67xx);
+		/* cs5529 returns 16 bit signed data in bipolar mode */
+		*data ^= (1 << 15);
+	}
+	return 0;
+}
+
+static int cs5529_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	int n, retval;
+	unsigned short sample;
+	unsigned int channel_select;
+	const unsigned int INTERNAL_REF = 0x1000;
+
+	/* Set calibration adc source.  Docs lie, reference select bits 8 to 11
+	 * do nothing. bit 12 seems to chooses internal reference voltage, bit
+	 * 13 causes the adc input to go overrange (maybe reads external reference?) */
+	if (insn->chanspec & CR_ALT_SOURCE)
+		channel_select = INTERNAL_REF;
+	else
+		channel_select = CR_CHAN(insn->chanspec);
+	ni_ao_win_outw(dev, channel_select, AO_Calibration_Channel_Select_67xx);
+
+	for (n = 0; n < insn->n; n++) {
+		retval = cs5529_do_conversion(dev, &sample);
+		if (retval < 0)
+			return retval;
+		data[n] = sample;
+	}
+	return insn->n;
+}
+
+static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
+				unsigned int reg_select_bits)
+{
+	ni_ao_win_outw(dev, ((value >> 16) & 0xff),
+		       CAL_ADC_Config_Data_High_Word_67xx);
+	ni_ao_win_outw(dev, (value & 0xffff),
+		       CAL_ADC_Config_Data_Low_Word_67xx);
+	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
+	cs5529_command(dev, CSCMD_COMMAND | reg_select_bits);
+	if (cs5529_wait_for_idle(dev))
+		comedi_error(dev, "time or signal in cs5529_config_write()");
+}
+
+static int init_cs5529(struct comedi_device *dev)
+{
+	unsigned int config_bits =
+	    CSCFG_PORT_MODE | CSCFG_WORD_RATE_2180_CYCLES;
+
+#if 1
+	/* do self-calibration */
+	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET_GAIN,
+			    CSCMD_CONFIG_REGISTER);
+	/* need to force a conversion for calibration to run */
+	cs5529_do_conversion(dev, NULL);
+#else
+	/* force gain calibration to 1 */
+	cs5529_config_write(dev, 0x400000, CSCMD_GAIN_REGISTER);
+	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET,
+			    CSCMD_CONFIG_REGISTER);
+	if (cs5529_wait_for_idle(dev))
+		comedi_error(dev, "timeout or signal in init_cs5529()\n");
+#endif
+	return 0;
+}
+
 #ifdef PCIDMA
 static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -5541,139 +5668,4 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 		break;
 	}
 	return 1;
-}
-
-static int cs5529_wait_for_idle(struct comedi_device *dev)
-{
-	unsigned short status;
-	const int timeout = HZ;
-	int i;
-
-	for (i = 0; i < timeout; i++) {
-		status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
-		if ((status & CSS_ADC_BUSY) == 0)
-			break;
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (schedule_timeout(1))
-			return -EIO;
-	}
-/* printk("looped %i times waiting for idle\n", i); */
-	if (i == timeout) {
-		printk("%s: %s: timeout\n", __FILE__, __func__);
-		return -ETIME;
-	}
-	return 0;
-}
-
-static void cs5529_command(struct comedi_device *dev, unsigned short value)
-{
-	static const int timeout = 100;
-	int i;
-
-	ni_ao_win_outw(dev, value, CAL_ADC_Command_67xx);
-	/* give time for command to start being serially clocked into cs5529.
-	 * this insures that the CSS_ADC_BUSY bit will get properly
-	 * set before we exit this function.
-	 */
-	for (i = 0; i < timeout; i++) {
-		if ((ni_ao_win_inw(dev, CAL_ADC_Status_67xx) & CSS_ADC_BUSY))
-			break;
-		udelay(1);
-	}
-/* printk("looped %i times writing command to cs5529\n", i); */
-	if (i == timeout)
-		comedi_error(dev, "possible problem - never saw adc go busy?");
-}
-
-/* write to cs5529 register */
-static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
-				unsigned int reg_select_bits)
-{
-	ni_ao_win_outw(dev, ((value >> 16) & 0xff),
-		       CAL_ADC_Config_Data_High_Word_67xx);
-	ni_ao_win_outw(dev, (value & 0xffff),
-		       CAL_ADC_Config_Data_Low_Word_67xx);
-	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
-	cs5529_command(dev, CSCMD_COMMAND | reg_select_bits);
-	if (cs5529_wait_for_idle(dev))
-		comedi_error(dev, "time or signal in cs5529_config_write()");
-}
-
-static int cs5529_do_conversion(struct comedi_device *dev, unsigned short *data)
-{
-	int retval;
-	unsigned short status;
-
-	cs5529_command(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION);
-	retval = cs5529_wait_for_idle(dev);
-	if (retval) {
-		comedi_error(dev,
-			     "timeout or signal in cs5529_do_conversion()");
-		return -ETIME;
-	}
-	status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
-	if (status & CSS_OSC_DETECT) {
-		printk
-		    ("ni_mio_common: cs5529 conversion error, status CSS_OSC_DETECT\n");
-		return -EIO;
-	}
-	if (status & CSS_OVERRANGE) {
-		printk
-		    ("ni_mio_common: cs5529 conversion error, overrange (ignoring)\n");
-	}
-	if (data) {
-		*data = ni_ao_win_inw(dev, CAL_ADC_Data_67xx);
-		/* cs5529 returns 16 bit signed data in bipolar mode */
-		*data ^= (1 << 15);
-	}
-	return 0;
-}
-
-static int cs5529_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	int n, retval;
-	unsigned short sample;
-	unsigned int channel_select;
-	const unsigned int INTERNAL_REF = 0x1000;
-
-	/* Set calibration adc source.  Docs lie, reference select bits 8 to 11
-	 * do nothing. bit 12 seems to chooses internal reference voltage, bit
-	 * 13 causes the adc input to go overrange (maybe reads external reference?) */
-	if (insn->chanspec & CR_ALT_SOURCE)
-		channel_select = INTERNAL_REF;
-	else
-		channel_select = CR_CHAN(insn->chanspec);
-	ni_ao_win_outw(dev, channel_select, AO_Calibration_Channel_Select_67xx);
-
-	for (n = 0; n < insn->n; n++) {
-		retval = cs5529_do_conversion(dev, &sample);
-		if (retval < 0)
-			return retval;
-		data[n] = sample;
-	}
-	return insn->n;
-}
-
-static int init_cs5529(struct comedi_device *dev)
-{
-	unsigned int config_bits =
-	    CSCFG_PORT_MODE | CSCFG_WORD_RATE_2180_CYCLES;
-
-#if 1
-	/* do self-calibration */
-	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET_GAIN,
-			    CSCMD_CONFIG_REGISTER);
-	/* need to force a conversion for calibration to run */
-	cs5529_do_conversion(dev, NULL);
-#else
-	/* force gain calibration to 1 */
-	cs5529_config_write(dev, 0x400000, CSCMD_GAIN_REGISTER);
-	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET,
-			    CSCMD_CONFIG_REGISTER);
-	if (cs5529_wait_for_idle(dev))
-		comedi_error(dev, "timeout or signal in init_cs5529()\n");
-#endif
-	return 0;
 }
