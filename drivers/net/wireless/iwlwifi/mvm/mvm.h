@@ -235,6 +235,15 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_COUNT,
 };
 
+enum iwl_bt_force_ant_mode {
+	BT_FORCE_ANT_DIS = 0,
+	BT_FORCE_ANT_AUTO,
+	BT_FORCE_ANT_BT,
+	BT_FORCE_ANT_WIFI,
+
+	BT_FORCE_ANT_MAX,
+};
+
 /**
 * struct iwl_mvm_vif_bf_data - beacon filtering related data
 * @bf_enabled: indicates if beacon filtering is enabled
@@ -629,6 +638,7 @@ struct iwl_mvm {
 	u32 last_ant_isol;
 	u8 last_corun_lut;
 	u8 bt_tx_prio;
+	enum iwl_bt_force_ant_mode bt_force_ant_mode;
 
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;

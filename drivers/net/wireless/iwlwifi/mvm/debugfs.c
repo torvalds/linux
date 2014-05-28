@@ -455,6 +455,43 @@ iwl_dbgfs_bt_tx_prio_write(struct iwl_mvm *mvm, char *buf,
 	return count;
 }
 
+static ssize_t
+iwl_dbgfs_bt_force_ant_write(struct iwl_mvm *mvm, char *buf,
+			     size_t count, loff_t *ppos)
+{
+	static const char * const modes_str[BT_FORCE_ANT_MAX] = {
+		[BT_FORCE_ANT_DIS] = "dis",
+		[BT_FORCE_ANT_AUTO] = "auto",
+		[BT_FORCE_ANT_BT] = "bt",
+		[BT_FORCE_ANT_WIFI] = "wifi",
+	};
+	int ret, bt_force_ant_mode;
+
+	for (bt_force_ant_mode = 0;
+	     bt_force_ant_mode < ARRAY_SIZE(modes_str);
+	     bt_force_ant_mode++) {
+		if (!strcmp(buf, modes_str[bt_force_ant_mode]))
+			break;
+	}
+
+	if (bt_force_ant_mode >= ARRAY_SIZE(modes_str))
+		return -EINVAL;
+
+	ret = 0;
+	mutex_lock(&mvm->mutex);
+	if (mvm->bt_force_ant_mode == bt_force_ant_mode)
+		goto out;
+
+	mvm->bt_force_ant_mode = bt_force_ant_mode;
+	IWL_DEBUG_COEX(mvm, "Force mode: %s\n",
+		       modes_str[mvm->bt_force_ant_mode]);
+	ret = iwl_send_bt_init_conf(mvm);
+
+out:
+	mutex_unlock(&mvm->mutex);
+	return ret ?: count;
+}
+
 #define PRINT_STATS_LE32(_str, _val)					\
 			 pos += scnprintf(buf + pos, bufsz - pos,	\
 					  fmt_table, _str,		\
@@ -1101,6 +1138,7 @@ MVM_DEBUGFS_READ_FILE_OPS(drv_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(bt_tx_prio, 10);
+MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 
@@ -1142,6 +1180,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_tx_prio, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(bt_force_ant, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,
 			     S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
