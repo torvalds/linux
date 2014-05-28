@@ -773,6 +773,12 @@ static int iscsi_target_handle_csg_zero(
 		}
 
 		goto do_auth;
+	} else if (!payload_length) {
+		pr_err("Initiator sent zero length security payload,"
+		       " login failed\n");
+		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
+				    ISCSI_LOGIN_STATUS_AUTH_FAILED);
+		return -1;
 	}
 
 	if (login->first_request)
