@@ -867,6 +867,7 @@ rpcrdma_ep_connect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	if (ep->rep_connected != 0) {
 		struct rpcrdma_xprt *xprt;
 retry:
+		dprintk("RPC:       %s: reconnecting...\n", __func__);
 		rc = rpcrdma_ep_disconnect(ep, ia);
 		if (rc && rc != -ENOTCONN)
 			dprintk("RPC:       %s: rpcrdma_ep_disconnect"
@@ -879,7 +880,7 @@ retry:
 		id = rpcrdma_create_id(xprt, ia,
 				(struct sockaddr *)&xprt->rx_data.addr);
 		if (IS_ERR(id)) {
-			rc = PTR_ERR(id);
+			rc = -EHOSTUNREACH;
 			goto out;
 		}
 		/* TEMP TEMP TEMP - fail if new device:
@@ -893,20 +894,30 @@ retry:
 			printk("RPC:       %s: can't reconnect on "
 				"different device!\n", __func__);
 			rdma_destroy_id(id);
-			rc = -ENETDOWN;
+			rc = -ENETUNREACH;
 			goto out;
 		}
 		/* END TEMP */
+		rc = rdma_create_qp(id, ia->ri_pd, &ep->rep_attr);
+		if (rc) {
+			dprintk("RPC:       %s: rdma_create_qp failed %i\n",
+				__func__, rc);
+			rdma_destroy_id(id);
+			rc = -ENETUNREACH;
+			goto out;
+		}
 		rdma_destroy_qp(ia->ri_id);
 		rdma_destroy_id(ia->ri_id);
 		ia->ri_id = id;
-	}
-
-	rc = rdma_create_qp(ia->ri_id, ia->ri_pd, &ep->rep_attr);
-	if (rc) {
-		dprintk("RPC:       %s: rdma_create_qp failed %i\n",
-			__func__, rc);
-		goto out;
+	} else {
+		dprintk("RPC:       %s: connecting...\n", __func__);
+		rc = rdma_create_qp(ia->ri_id, ia->ri_pd, &ep->rep_attr);
+		if (rc) {
+			dprintk("RPC:       %s: rdma_create_qp failed %i\n",
+				__func__, rc);
+			/* do not update ep->rep_connected */
+			return -ENETUNREACH;
+		}
 	}
 
 /* XXX Tavor device performs badly with 2K MTU! */
