@@ -207,8 +207,6 @@ static int ni_ao_fifo_half_empty(struct comedi_device *dev,
 				 struct comedi_subdevice *s);
 #endif
 static void ni_handle_fifo_dregs(struct comedi_device *dev);
-static int ni_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			 unsigned int trignum);
 static void ni_load_channelgain_list(struct comedi_device *dev,
 				     unsigned int n_chan, unsigned int *list);
 
@@ -2151,6 +2149,23 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
+static int ni_ai_inttrig(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 unsigned int trig_num)
+{
+	struct ni_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (trig_num != cmd->start_arg)
+		return -EINVAL;
+
+	devpriv->stc_writew(dev, AI_START1_Pulse | devpriv->ai_cmd2,
+			    AI_Command_2_Register);
+	s->async->inttrig = NULL;
+
+	return 1;
+}
+
 static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
@@ -2444,23 +2459,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	return 0;
-}
-
-static int ni_ai_inttrig(struct comedi_device *dev,
-			 struct comedi_subdevice *s,
-			 unsigned int trig_num)
-{
-	struct ni_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-
-	if (trig_num != cmd->start_arg)
-		return -EINVAL;
-
-	devpriv->stc_writew(dev, AI_START1_Pulse | devpriv->ai_cmd2,
-			    AI_Command_2_Register);
-	s->async->inttrig = NULL;
-
-	return 1;
 }
 
 static int ni_ai_config_analog_trig(struct comedi_device *dev,
