@@ -1824,8 +1824,7 @@ int rtw_set_auth23a(struct rtw_adapter * adapter,
 		goto exit;
 	}
 
-	psetauthparm = (struct setauth_parm*)
-		kzalloc(sizeof(struct setauth_parm), GFP_KERNEL);
+	psetauthparm = kzalloc(sizeof(struct setauth_parm), GFP_KERNEL);
 	if (!psetauthparm) {
 		kfree(pcmd);
 		res = _FAIL;
@@ -1866,7 +1865,7 @@ int rtw_set_key23a(struct rtw_adapter *adapter,
 		goto exit;
 	}
 
-	pcmd = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
 	if (!pcmd) {
 		res = _FAIL;  /* try again */
 		goto exit;
