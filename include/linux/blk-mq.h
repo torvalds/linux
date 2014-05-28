@@ -79,9 +79,6 @@ struct blk_mq_tag_set {
 
 typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, struct request *);
 typedef struct blk_mq_hw_ctx *(map_queue_fn)(struct request_queue *, const int);
-typedef struct blk_mq_hw_ctx *(alloc_hctx_fn)(struct blk_mq_tag_set *,
-		unsigned int, int);
-typedef void (free_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (init_request_fn)(void *, struct request *, unsigned int,
@@ -106,12 +103,6 @@ struct blk_mq_ops {
 	rq_timed_out_fn		*timeout;
 
 	softirq_done_fn		*complete;
-
-	/*
-	 * Override for hctx allocations (should probably go)
-	 */
-	alloc_hctx_fn		*alloc_hctx;
-	free_hctx_fn		*free_hctx;
 
 	/*
 	 * Called when the block layer side of a hardware queue has been
@@ -166,7 +157,6 @@ struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 
 struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_index);
 struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *, unsigned int, int);
-void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *, unsigned int);
 
 void blk_mq_end_io(struct request *rq, int error);
 void __blk_mq_end_io(struct request *rq, int error);

@@ -3832,8 +3832,6 @@ static int mtip_init_cmd(void *data, struct request *rq, unsigned int hctx_idx,
 static struct blk_mq_ops mtip_mq_ops = {
 	.queue_rq	= mtip_queue_rq,
 	.map_queue	= blk_mq_map_queue,
-	.alloc_hctx	= blk_mq_alloc_single_hw_queue,
-	.free_hctx	= blk_mq_free_single_hw_queue,
 	.init_request	= mtip_init_cmd,
 	.exit_request	= mtip_free_cmd,
 };

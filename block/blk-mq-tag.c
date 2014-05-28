@@ -1,3 +1,15 @@
+/*
+ * Fast and scalable bitmap tagging variant. Uses sparser bitmaps spread
+ * over multiple cachelines to avoid ping-pong between multiple submitters
+ * or submitter and completer. Uses rolling wakeups to avoid falling of
+ * the scaling cliff when we run out of tags and have to start putting
+ * submitters to sleep.
+ *
+ * Uses active queue tracking to support fairer distribution of tags
+ * between multiple submitters when a shared tag map is used.
+ *
+ * Copyright (C) 2013-2014 Jens Axboe
+ */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/random.h>
