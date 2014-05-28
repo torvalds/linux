@@ -212,7 +212,6 @@ struct rpcrdma_req {
 struct rpcrdma_buffer {
 	spinlock_t	rb_lock;	/* protects indexes */
 	atomic_t	rb_credits;	/* most recent server credits */
-	unsigned long	rb_cwndscale;	/* cached framework rpc_cwndscale */
 	int		rb_max_requests;/* client max requests */
 	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
 	int		rb_send_index;

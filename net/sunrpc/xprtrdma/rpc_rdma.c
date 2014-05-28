@@ -716,6 +716,7 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	__be32 *iptr;
 	int rdmalen, status;
+	unsigned long cwnd;
 
 	/* Check status. If bad, signal disconnect and return rep to pool */
 	if (rep->rr_len == ~0U) {
@@ -844,6 +845,11 @@ badheader:
 		r_xprt->rx_stats.bad_reply_count++;
 		break;
 	}
+
+	cwnd = xprt->cwnd;
+	xprt->cwnd = atomic_read(&r_xprt->rx_buf.rb_credits) << RPC_CWNDSHIFT;
+	if (xprt->cwnd > cwnd)
+		xprt_release_rqst_cong(rqst->rq_task);
 
 	dprintk("RPC:       %s: xprt_complete_rqst(0x%p, 0x%p, %d)\n",
 			__func__, xprt, rqst, status);
