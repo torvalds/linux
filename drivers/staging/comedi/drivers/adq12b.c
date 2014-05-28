@@ -235,9 +235,6 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 					: &range_adq12b_ai_bipolar;
 
 	s->maxdata = 0xfff;
-
-	s->len_chanlist = 4;	/* This is the maximum chanlist length that
-				   the board can handle */
 	s->insn_read = adq12b_ai_insn_read;
 
 	s = &dev->subdevices[1];
