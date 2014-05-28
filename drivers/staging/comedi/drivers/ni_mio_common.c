@@ -228,14 +228,6 @@ static int ni_calib_insn_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
 
-static int ni_eeprom_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data);
-
 static int ni_pfi_insn_bits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data);
@@ -254,7 +246,6 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data);
 
 static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s);
-static int ni_read_eeprom(struct comedi_device *dev, int addr);
 
 #ifndef PCIDMA
 static void ni_handle_fifo_half_full(struct comedi_device *dev);
@@ -4170,6 +4161,53 @@ static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
 	}
 }
 
+static int ni_read_eeprom(struct comedi_device *dev, int addr)
+{
+	struct ni_private *devpriv __maybe_unused = dev->private;
+	int bit;
+	int bitstring;
+
+	bitstring = 0x0300 | ((addr & 0x100) << 3) | (addr & 0xff);
+	ni_writeb(0x04, Serial_Command);
+	for (bit = 0x8000; bit; bit >>= 1) {
+		ni_writeb(0x04 | ((bit & bitstring) ? 0x02 : 0),
+			  Serial_Command);
+		ni_writeb(0x05 | ((bit & bitstring) ? 0x02 : 0),
+			  Serial_Command);
+	}
+	bitstring = 0;
+	for (bit = 0x80; bit; bit >>= 1) {
+		ni_writeb(0x04, Serial_Command);
+		ni_writeb(0x05, Serial_Command);
+		bitstring |= ((ni_readb(XXX_Status) & PROMOUT) ? bit : 0);
+	}
+	ni_writeb(0x00, Serial_Command);
+
+	return bitstring;
+}
+
+static int ni_eeprom_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	data[0] = ni_read_eeprom(dev, CR_CHAN(insn->chanspec));
+
+	return 1;
+}
+
+static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
+{
+	struct ni_private *devpriv = dev->private;
+
+	data[0] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
 static int ni_E_init(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
@@ -4498,60 +4536,6 @@ static int ni_E_init(struct comedi_device *dev)
 	}
 
 	return 0;
-}
-
-/*
-	presents the EEPROM as a subdevice
-*/
-
-static int ni_eeprom_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	data[0] = ni_read_eeprom(dev, CR_CHAN(insn->chanspec));
-
-	return 1;
-}
-
-/*
-	reads bytes out of eeprom
-*/
-
-static int ni_read_eeprom(struct comedi_device *dev, int addr)
-{
-	struct ni_private *devpriv __maybe_unused = dev->private;
-	int bit;
-	int bitstring;
-
-	bitstring = 0x0300 | ((addr & 0x100) << 3) | (addr & 0xff);
-	ni_writeb(0x04, Serial_Command);
-	for (bit = 0x8000; bit; bit >>= 1) {
-		ni_writeb(0x04 | ((bit & bitstring) ? 0x02 : 0),
-			  Serial_Command);
-		ni_writeb(0x05 | ((bit & bitstring) ? 0x02 : 0),
-			  Serial_Command);
-	}
-	bitstring = 0;
-	for (bit = 0x80; bit; bit >>= 1) {
-		ni_writeb(0x04, Serial_Command);
-		ni_writeb(0x05, Serial_Command);
-		bitstring |= ((ni_readb(XXX_Status) & PROMOUT) ? bit : 0);
-	}
-	ni_writeb(0x00, Serial_Command);
-
-	return bitstring;
-}
-
-static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-
-	data[0] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
-
-	return 1;
 }
 
 static int ni_get_pwm_config(struct comedi_device *dev, unsigned int *data)
