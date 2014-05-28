@@ -79,7 +79,6 @@ struct rpcrdma_ep {
 	int			rep_cqinit;
 	int			rep_connected;
 	struct rpcrdma_ia	*rep_ia;
-	struct ib_cq		*rep_cq;
 	struct ib_qp_init_attr	rep_attr;
 	wait_queue_head_t 	rep_connect_wait;
 	struct ib_sge		rep_pad;	/* holds zeroed pad */
