@@ -532,7 +532,7 @@ static inline int pcibios_err_to_errno(int err)
 	case PCIBIOS_FUNC_NOT_SUPPORTED:
 		return -ENOENT;
 	case PCIBIOS_BAD_VENDOR_ID:
-		return -EINVAL;
+		return -ENOTTY;
 	case PCIBIOS_DEVICE_NOT_FOUND:
 		return -ENODEV;
 	case PCIBIOS_BAD_REGISTER_NUMBER:
@@ -543,7 +543,7 @@ static inline int pcibios_err_to_errno(int err)
 		return -ENOSPC;
 	}
 
-	return -ENOTTY;
+	return -ERANGE;
 }
 
 /* Low-level architecture-dependent routines */
@@ -1592,6 +1592,7 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev,
 				 enum pcie_reset_state state);
 int pcibios_add_device(struct pci_dev *dev);
 void pcibios_release_device(struct pci_dev *dev);
+void pcibios_penalize_isa_irq(int irq, int active);
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 extern struct dev_pm_ops pcibios_pm_ops;
