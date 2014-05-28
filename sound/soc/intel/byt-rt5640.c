@@ -152,25 +152,13 @@ static const struct dev_pm_ops byt_rt5640_pm_ops = {
 static int byt_rt5640_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &byt_rt5640_card;
-	struct device *dev = &pdev->dev;
 
 	card->dev = &pdev->dev;
-	dev_set_drvdata(dev, card);
-	return snd_soc_register_card(card);
-}
-
-static int byt_rt5640_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-
-	return 0;
+	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
 static struct platform_driver byt_rt5640_audio = {
 	.probe = byt_rt5640_probe,
-	.remove = byt_rt5640_remove,
 	.driver = {
 		.name = "byt-rt5640",
 		.owner = THIS_MODULE,
