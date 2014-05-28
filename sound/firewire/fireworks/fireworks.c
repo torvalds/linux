@@ -157,7 +157,7 @@ get_hardware_info(struct snd_efw *efw)
 	/* Hardware metering. */
 	if (hwinfo->phys_in_grp_count  > HWINFO_MAX_CAPS_GROUPS ||
 	    hwinfo->phys_out_grp_count > HWINFO_MAX_CAPS_GROUPS) {
-		return -EIO;
+		err = -EIO;
 		goto end;
 	}
 	efw->phys_in = hwinfo->phys_in;
