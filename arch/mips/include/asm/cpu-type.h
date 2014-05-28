@@ -163,6 +163,7 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_CAVIUM_OCTEON:
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
+	case CPU_CAVIUM_OCTEON3:
 #endif
 
 #if defined(CONFIG_SYS_HAS_CPU_BMIPS32_3300) || \
