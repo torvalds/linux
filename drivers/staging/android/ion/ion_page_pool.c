@@ -119,12 +119,12 @@ void ion_page_pool_free(struct ion_page_pool *pool, struct page *page)
 
 static int ion_page_pool_total(struct ion_page_pool *pool, bool high)
 {
-	int total = 0;
+	int count = pool->low_count;
 
-	total += high ? (pool->high_count + pool->low_count) *
-		(1 << pool->order) :
-			pool->low_count * (1 << pool->order);
-	return total;
+	if (high)
+		count += pool->high_count;
+
+	return count << pool->order;
 }
 
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
