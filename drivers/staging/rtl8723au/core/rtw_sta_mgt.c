@@ -116,7 +116,7 @@ rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, gfp_t gfp)
 	int i = 0;
 	u16  wRxSeqInitialValue = 0xffff;
 
-	psta = (struct sta_info *)kmalloc(sizeof(struct sta_info), gfp);
+	psta = kmalloc(sizeof(struct sta_info), gfp);
 	if (!psta)
 		return NULL;
 
