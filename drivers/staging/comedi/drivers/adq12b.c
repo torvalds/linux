@@ -114,7 +114,6 @@ static const struct comedi_lrange range_adq12b_ai_unipolar = {
 };
 
 struct adq12b_private {
-	int unipolar;		/* option 2 of comedi_config (1 is iobase) */
 	int differential;	/* option 3 of comedi_config */
 	unsigned int last_ctreg;
 };
@@ -218,7 +217,6 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	devpriv->unipolar = it->options[1];
 	devpriv->differential = it->options[2];
 	devpriv->last_ctreg = -1;	/* force ctreg update */
 
@@ -237,10 +235,8 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->n_chan = 16;
 	}
 
-	if (devpriv->unipolar)
-		s->range_table = &range_adq12b_ai_unipolar;
-	else
-		s->range_table = &range_adq12b_ai_bipolar;
+	s->range_table = it->options[1] ? &range_adq12b_ai_unipolar
+					: &range_adq12b_ai_bipolar;
 
 	s->maxdata = 0xfff;
 
