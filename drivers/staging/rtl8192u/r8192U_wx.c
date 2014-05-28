@@ -616,7 +616,8 @@ static int r8192_wx_set_enc(struct net_device *dev,
 
 
 static int r8192_wx_set_scan_type(struct net_device *dev, struct iw_request_info *aa,
-					union iwreq_data *wrqu, char *p){
+					union iwreq_data *wrqu, char *p)
+{
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int *parms = (int *)p;
