@@ -700,6 +700,9 @@ static struct device_node *__of_get_next_child(const struct device_node *node,
 {
 	struct device_node *next;
 
+	if (!node)
+		return NULL;
+
 	next = prev ? prev->sibling : node->child;
 	for (; next; next = next->sibling)
 		if (of_node_get(next))
@@ -745,6 +748,9 @@ struct device_node *of_get_next_available_child(const struct device_node *node,
 {
 	struct device_node *next;
 	unsigned long flags;
+
+	if (!node)
+		return NULL;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	next = prev ? prev->sibling : node->child;
