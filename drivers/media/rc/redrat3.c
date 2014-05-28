@@ -60,22 +60,6 @@
 #define DRIVER_DESC "RedRat3 USB IR Transceiver Driver"
 #define DRIVER_NAME "redrat3"
 
-/* module parameters */
-#ifdef CONFIG_USB_DEBUG
-static int debug = 1;
-#else
-static int debug;
-#endif
-
-#define RR3_DEBUG_STANDARD		0x1
-#define RR3_DEBUG_FUNCTION_TRACE	0x2
-
-#define rr3_dbg(dev, fmt, ...)					\
-	do {							\
-		if (debug & RR3_DEBUG_STANDARD)			\
-			dev_info(dev, fmt, ## __VA_ARGS__);	\
-	} while (0)
-
 /* bulk data transfer types */
 #define RR3_ERROR		0x01
 #define RR3_MOD_SIGNAL_IN	0x20
@@ -233,9 +217,9 @@ static void redrat3_issue_async(struct redrat3_dev *rr3)
 
 	res = usb_submit_urb(rr3->read_urb, GFP_ATOMIC);
 	if (res)
-		rr3_dbg(rr3->dev, "%s: receive request FAILED! "
-			"(res %d, len %d)\n", __func__, res,
-			rr3->read_urb->transfer_buffer_length);
+		dev_dbg(rr3->dev,
+			"%s: receive request FAILED! (res %d, len %d)\n",
+			__func__, res, rr3->read_urb->transfer_buffer_length);
 }
 
 static void redrat3_dump_fw_error(struct redrat3_dev *rr3, int code)
@@ -351,7 +335,7 @@ static void redrat3_rx_timeout(unsigned long data)
 {
 	struct redrat3_dev *rr3 = (struct redrat3_dev *)data;
 
-	rr3_dbg(rr3->dev, "calling ir_raw_event_reset\n");
+	dev_dbg(rr3->dev, "calling ir_raw_event_reset\n");
 	ir_raw_event_reset(rr3->rc);
 }
 
@@ -376,7 +360,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	mod_timer(&rr3->rx_timeout, jiffies + delay);
 
 	mod_freq = redrat3_val_to_mod_freq(&rr3->irdata);
-	rr3_dbg(dev, "Got mod_freq of %u\n", mod_freq);
+	dev_dbg(dev, "Got mod_freq of %u\n", mod_freq);
 
 	/* process each rr3 encoded byte into an int */
 	sig_size = be16_to_cpu(rr3->irdata.sig_size);
@@ -398,7 +382,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 		/* cap the value to IR_MAX_DURATION */
 		rawir.duration &= IR_MAX_DURATION;
 
-		rr3_dbg(dev, "storing %s with duration %d (i: %d)\n",
+		dev_dbg(dev, "storing %s with duration %d (i: %d)\n",
 			rawir.pulse ? "pulse" : "space", rawir.duration, i);
 		ir_raw_event_store_with_filter(rr3->rc, &rawir);
 	}
@@ -411,12 +395,12 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 			rawir.duration = US_TO_NS(2800);
 		else
 			rawir.duration = trailer;
-		rr3_dbg(dev, "storing trailing space with duration %d\n",
+		dev_dbg(dev, "storing trailing space with duration %d\n",
 			rawir.duration);
 		ir_raw_event_store_with_filter(rr3->rc, &rawir);
 	}
 
-	rr3_dbg(dev, "calling ir_raw_event_handle\n");
+	dev_dbg(dev, "calling ir_raw_event_handle\n");
 	ir_raw_event_handle(rr3->rc);
 }
 
@@ -506,7 +490,7 @@ static u32 redrat3_get_timeout(struct redrat3_dev *rr3)
 	else {
 		timeout = redrat3_len_to_us(be32_to_cpup(tmp));
 
-		rr3_dbg(rr3->dev, "Got timeout of %d ms\n", timeout / 1000);
+		dev_dbg(rr3->dev, "Got timeout of %d ms\n", timeout / 1000);
 	}
 
 	kfree(tmp);
@@ -535,19 +519,19 @@ static void redrat3_reset(struct redrat3_dev *rr3)
 	rc = usb_control_msg(udev, rxpipe, RR3_RESET,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			     RR3_CPUCS_REG_ADDR, 0, val, len, HZ * 25);
-	rr3_dbg(dev, "reset returned 0x%02x\n", rc);
+	dev_dbg(dev, "reset returned 0x%02x\n", rc);
 
 	*val = 5;
 	rc = usb_control_msg(udev, txpipe, RR3_SET_IR_PARAM,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			     RR3_IR_IO_LENGTH_FUZZ, 0, val, len, HZ * 25);
-	rr3_dbg(dev, "set ir parm len fuzz %d rc 0x%02x\n", *val, rc);
+	dev_dbg(dev, "set ir parm len fuzz %d rc 0x%02x\n", *val, rc);
 
 	*val = RR3_DRIVER_MAXLENS;
 	rc = usb_control_msg(udev, txpipe, RR3_SET_IR_PARAM,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			     RR3_IR_IO_MAX_LENGTHS, 0, val, len, HZ * 25);
-	rr3_dbg(dev, "set ir parm max lens %d rc 0x%02x\n", *val, rc);
+	dev_dbg(dev, "set ir parm max lens %d rc 0x%02x\n", *val, rc);
 
 	kfree(val);
 }
@@ -602,12 +586,12 @@ static void redrat3_read_packet_start(struct redrat3_dev *rr3, unsigned len)
 	case RR3_MOD_SIGNAL_IN:
 		memcpy(&rr3->irdata, rr3->bulk_in_buf, len);
 		rr3->bytes_read = len;
-		rr3_dbg(rr3->dev, "bytes_read %d, pktlen %d\n",
+		dev_dbg(rr3->dev, "bytes_read %d, pktlen %d\n",
 			rr3->bytes_read, pktlen);
 		break;
 
 	default:
-		rr3_dbg(rr3->dev, "ignoring packet with type 0x%02x, len of %d, 0x%02x\n",
+		dev_dbg(rr3->dev, "ignoring packet with type 0x%02x, len of %d, 0x%02x\n",
 						pkttype, len, pktlen);
 		break;
 	}
@@ -626,7 +610,7 @@ static void redrat3_read_packet_continue(struct redrat3_dev *rr3, unsigned len)
 	memcpy(irdata + rr3->bytes_read, rr3->bulk_in_buf, len);
 
 	rr3->bytes_read += len;
-	rr3_dbg(rr3->dev, "bytes_read %d, pktlen %d\n", rr3->bytes_read,
+	dev_dbg(rr3->dev, "bytes_read %d, pktlen %d\n", rr3->bytes_read,
 				 be16_to_cpu(rr3->irdata.header.length));
 }
 
@@ -657,7 +641,7 @@ static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 	if (pkttype == RR3_MOD_SIGNAL_IN)
 		redrat3_process_ir_data(rr3);
 	else
-		rr3_dbg(dev, "discarding non-signal data packet (type 0x%02x)\n",
+		dev_dbg(dev, "discarding non-signal data packet (type 0x%02x)\n",
 								pkttype);
 
 out:
@@ -717,7 +701,7 @@ static int redrat3_set_tx_carrier(struct rc_dev *rcdev, u32 carrier)
 	struct redrat3_dev *rr3 = rcdev->priv;
 	struct device *dev = rr3->dev;
 
-	rr3_dbg(dev, "Setting modulation frequency to %u", carrier);
+	dev_dbg(dev, "Setting modulation frequency to %u", carrier);
 	if (carrier == 0)
 		return -EINVAL;
 
@@ -773,7 +757,7 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 				break;
 		}
 		if (lencheck == curlencheck) {
-			rr3_dbg(dev, "txbuf[%d]=%u, pos %d, enc %u\n",
+			dev_dbg(dev, "txbuf[%d]=%u, pos %d, enc %u\n",
 				i, txbuf[i], curlencheck, cur_sample_len);
 			if (curlencheck < RR3_DRIVER_MAXLENS) {
 				/* now convert the value to a proper
@@ -807,7 +791,7 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 	pipe = usb_sndbulkpipe(rr3->udev, rr3->ep_out->bEndpointAddress);
 	ret = usb_bulk_msg(rr3->udev, pipe, irdata,
 			    sendbuf_len, &ret_len, 10 * HZ);
-	rr3_dbg(dev, "sent %d bytes, (ret %d)\n", ret_len, ret);
+	dev_dbg(dev, "sent %d bytes, (ret %d)\n", ret_len, ret);
 
 	/* now tell the hardware to transmit what we sent it */
 	pipe = usb_rcvctrlpipe(rr3->udev, 0);
@@ -941,7 +925,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 		    ((addr & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) &&
 		    ((attrs & USB_ENDPOINT_XFERTYPE_MASK) ==
 		     USB_ENDPOINT_XFER_BULK)) {
-			rr3_dbg(dev, "found bulk-in endpoint at 0x%02x\n",
+			dev_dbg(dev, "found bulk-in endpoint at 0x%02x\n",
 				ep->bEndpointAddress);
 			/* data comes in on 0x82, 0x81 is for other data... */
 			if (ep->bEndpointAddress == RR3_BULK_IN_EP_ADDR)
@@ -952,7 +936,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 		    ((addr & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) &&
 		    ((attrs & USB_ENDPOINT_XFERTYPE_MASK) ==
 		     USB_ENDPOINT_XFER_BULK)) {
-			rr3_dbg(dev, "found bulk-out endpoint at 0x%02x\n",
+			dev_dbg(dev, "found bulk-out endpoint at 0x%02x\n",
 				ep->bEndpointAddress);
 			ep_out = ep;
 		}
@@ -1109,8 +1093,3 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_AUTHOR(DRIVER_AUTHOR2);
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(usb, redrat3_dev_table);
-
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable module debug spew. 0 = no debugging (default) "
-		 "0x1 = standard debug messages, 0x2 = function tracing debug. "
-		 "Flag bits are addative (i.e., 0x3 for both debug types).");
