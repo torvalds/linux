@@ -557,7 +557,6 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	 * adapter.
 	 */
 	switch (memreg) {
-	case RPCRDMA_BOUNCEBUFFERS:
 	case RPCRDMA_REGISTER:
 	case RPCRDMA_FRMR:
 		break;
@@ -778,9 +777,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	/* Client offers RDMA Read but does not initiate */
 	ep->rep_remote_cma.initiator_depth = 0;
-	if (ia->ri_memreg_strategy == RPCRDMA_BOUNCEBUFFERS)
-		ep->rep_remote_cma.responder_resources = 0;
-	else if (devattr.max_qp_rd_atom > 32)	/* arbitrary but <= 255 */
+	if (devattr.max_qp_rd_atom > 32)	/* arbitrary but <= 255 */
 		ep->rep_remote_cma.responder_resources = 32;
 	else
 		ep->rep_remote_cma.responder_resources = devattr.max_qp_rd_atom;

@@ -503,18 +503,6 @@ xprt_rdma_allocate(struct rpc_task *task, size_t size)
 		 * If the allocation or registration fails, the RPC framework
 		 * will (doggedly) retry.
 		 */
-		if (rpcx_to_rdmax(xprt)->rx_ia.ri_memreg_strategy ==
-				RPCRDMA_BOUNCEBUFFERS) {
-			/* forced to "pure inline" */
-			dprintk("RPC:       %s: too much data (%zd) for inline "
-					"(r/w max %d/%d)\n", __func__, size,
-					rpcx_to_rdmad(xprt).inline_rsize,
-					rpcx_to_rdmad(xprt).inline_wsize);
-			size = req->rl_size;
-			rpc_exit(task, -EIO);		/* fail the operation */
-			rpcx_to_rdmax(xprt)->rx_stats.failed_marshal_count++;
-			goto out;
-		}
 		if (task->tk_flags & RPC_TASK_SWAPPER)
 			nreq = kmalloc(sizeof *req + size, GFP_ATOMIC);
 		else
@@ -543,7 +531,6 @@ xprt_rdma_allocate(struct rpc_task *task, size_t size)
 		req = nreq;
 	}
 	dprintk("RPC:       %s: size %zd, request 0x%p\n", __func__, size, req);
-out:
 	req->rl_connect_cookie = 0;	/* our reserved value */
 	return req->rl_xdr_buf;
 

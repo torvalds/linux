@@ -77,9 +77,6 @@ static const char transfertypes[][12] = {
  * Prepare the passed-in xdr_buf into representation as RPC/RDMA chunk
  * elements. Segments are then coalesced when registered, if possible
  * within the selected memreg mode.
- *
- * Note, this routine is never called if the connection's memory
- * registration strategy is 0 (bounce buffers).
  */
 
 static int
@@ -438,14 +435,6 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	if (rtype != rpcrdma_noch && wtype == rpcrdma_replych)
 		wtype = rpcrdma_noch;
 	BUG_ON(rtype != rpcrdma_noch && wtype != rpcrdma_noch);
-
-	if (r_xprt->rx_ia.ri_memreg_strategy == RPCRDMA_BOUNCEBUFFERS &&
-	    (rtype != rpcrdma_noch || wtype != rpcrdma_noch)) {
-		/* forced to "pure inline"? */
-		dprintk("RPC:       %s: too much data (%d/%d) for inline\n",
-			__func__, rqst->rq_rcv_buf.len, rqst->rq_snd_buf.len);
-		return -1;
-	}
 
 	hdrlen = 28; /*sizeof *headerp;*/
 	padlen = 0;
