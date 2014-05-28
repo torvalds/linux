@@ -805,6 +805,25 @@ config NLM_XLP_BOARD
 	  This board is based on Netlogic XLP Processor.
 	  Say Y here if you have a XLP based board.
 
+config MIPS_PARAVIRT
+	bool "Para-Virtualized guest system"
+	select CEVT_R4K
+	select CSRC_R4K
+	select DMA_COHERENT
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_SMP
+	select NR_CPUS_DEFAULT_4
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_CPU_MIPS64_R2
+	select SYS_HAS_CPU_CAVIUM_OCTEON
+	select HW_HAS_PCI
+	select SWAP_IO_SPACE
+	help
+	  This option supports guest running under ????
+
 endchoice
 
 source "arch/mips/alchemy/Kconfig"
