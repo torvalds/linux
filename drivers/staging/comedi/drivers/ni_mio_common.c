@@ -4700,12 +4700,53 @@ static int ni_calib_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-static int pack_mb88341(int addr, int val, int *bitstring);
-static int pack_dac8800(int addr, int val, int *bitstring);
-static int pack_dac8043(int addr, int val, int *bitstring);
-static int pack_ad8522(int addr, int val, int *bitstring);
-static int pack_ad8804(int addr, int val, int *bitstring);
-static int pack_ad8842(int addr, int val, int *bitstring);
+static int pack_mb88341(int addr, int val, int *bitstring)
+{
+	/*
+	   Fujitsu MB 88341
+	   Note that address bits are reversed.  Thanks to
+	   Ingo Keen for noticing this.
+
+	   Note also that the 88341 expects address values from
+	   1-12, whereas we use channel numbers 0-11.  The NI
+	   docs use 1-12, also, so be careful here.
+	 */
+	addr++;
+	*bitstring = ((addr & 0x1) << 11) |
+	    ((addr & 0x2) << 9) |
+	    ((addr & 0x4) << 7) | ((addr & 0x8) << 5) | (val & 0xff);
+	return 12;
+}
+
+static int pack_dac8800(int addr, int val, int *bitstring)
+{
+	*bitstring = ((addr & 0x7) << 8) | (val & 0xff);
+	return 11;
+}
+
+static int pack_dac8043(int addr, int val, int *bitstring)
+{
+	*bitstring = val & 0xfff;
+	return 12;
+}
+
+static int pack_ad8522(int addr, int val, int *bitstring)
+{
+	*bitstring = (val & 0xfff) | (addr ? 0xc000 : 0xa000);
+	return 16;
+}
+
+static int pack_ad8804(int addr, int val, int *bitstring)
+{
+	*bitstring = ((addr & 0xf) << 8) | (val & 0xff);
+	return 12;
+}
+
+static int pack_ad8842(int addr, int val, int *bitstring)
+{
+	*bitstring = ((addr + 1) << 8) | (val & 0xff);
+	return 12;
+}
 
 struct caldac_struct {
 	int n_chans;
@@ -4812,54 +4853,6 @@ static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
 	ni_writeb(loadbit, Serial_Command);
 	udelay(1);
 	ni_writeb(0, Serial_Command);
-}
-
-static int pack_mb88341(int addr, int val, int *bitstring)
-{
-	/*
-	   Fujitsu MB 88341
-	   Note that address bits are reversed.  Thanks to
-	   Ingo Keen for noticing this.
-
-	   Note also that the 88341 expects address values from
-	   1-12, whereas we use channel numbers 0-11.  The NI
-	   docs use 1-12, also, so be careful here.
-	 */
-	addr++;
-	*bitstring = ((addr & 0x1) << 11) |
-	    ((addr & 0x2) << 9) |
-	    ((addr & 0x4) << 7) | ((addr & 0x8) << 5) | (val & 0xff);
-	return 12;
-}
-
-static int pack_dac8800(int addr, int val, int *bitstring)
-{
-	*bitstring = ((addr & 0x7) << 8) | (val & 0xff);
-	return 11;
-}
-
-static int pack_dac8043(int addr, int val, int *bitstring)
-{
-	*bitstring = val & 0xfff;
-	return 12;
-}
-
-static int pack_ad8522(int addr, int val, int *bitstring)
-{
-	*bitstring = (val & 0xfff) | (addr ? 0xc000 : 0xa000);
-	return 16;
-}
-
-static int pack_ad8804(int addr, int val, int *bitstring)
-{
-	*bitstring = ((addr & 0xf) << 8) | (val & 0xff);
-	return 12;
-}
-
-static int pack_ad8842(int addr, int val, int *bitstring)
-{
-	*bitstring = ((addr + 1) << 8) | (val & 0xff);
-	return 12;
 }
 
 #if 0
