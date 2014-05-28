@@ -28,6 +28,8 @@
 #include <linux/extcon.h>
 #include <linux/extcon/sm5502.h>
 
+#define	DELAY_MS_DEFAULT		17000	/* unit: millisecond */
+
 struct muic_irq {
 	unsigned int irq;
 	const char *name;
@@ -59,6 +61,14 @@ struct sm5502_muic_info {
 	unsigned int num_reg_data;
 
 	struct mutex mutex;
+
+	/*
+	 * Use delayed workqueue to detect cable state and then
+	 * notify cable state to notifiee/platform through uevent.
+	 * After completing the booting of platform, the extcon provider
+	 * driver should notify cable state to upper layer.
+	 */
+	struct delayed_work wq_detcable;
 };
 
 /* Default value of SM5502 register to bring up MUIC device. */
@@ -341,6 +351,8 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 	case SM5502_MUIC_ADC_OPEN_USB_OTG:
 		idx = EXTCON_CABLE_USB_HOST;
 		break;
+	case SM5502_MUIC_ADC_GROUND:
+		break;
 	default:
 		dev_dbg(info->dev,
 			"cannot handle this cable_type (0x%x)\n", cable_type);
@@ -431,6 +443,18 @@ static irqreturn_t sm5502_muic_irq_handler(int irq, void *data)
 	schedule_work(&info->irq_work);
 
 	return IRQ_HANDLED;
+}
+
+static void sm5502_muic_detect_cable_wq(struct work_struct *work)
+{
+	struct sm5502_muic_info *info = container_of(to_delayed_work(work),
+				struct sm5502_muic_info, wq_detcable);
+	int ret;
+
+	/* Notify the state of connector cable or not  */
+	ret = sm5502_muic_cable_handler(info, true);
+	if (ret < 0)
+		dev_warn(info->dev, "failed to detect cable state\n");
 }
 
 static void sm5502_init_dev_type(struct sm5502_muic_info *info)
@@ -545,6 +569,18 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 		dev_err(info->dev, "failed to register extcon device\n");
 		return ret;
 	}
+
+	/*
+	 * Detect accessory after completing the initialization of platform
+	 *
+	 * - Use delayed workqueue to detect cable state and then
+	 * notify cable state to notifiee/platform through uevent.
+	 * After completing the booting of platform, the extcon provider
+	 * driver should notify cable state to upper layer.
+	 */
+	INIT_DELAYED_WORK(&info->wq_detcable, sm5502_muic_detect_cable_wq);
+	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,
+			msecs_to_jiffies(DELAY_MS_DEFAULT));
 
 	/* Initialize SM5502 device and print vendor id and version id */
 	sm5502_init_dev_type(info);
