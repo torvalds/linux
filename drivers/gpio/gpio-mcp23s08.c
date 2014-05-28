@@ -867,7 +867,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 {
 	struct mcp23s08_platform_data	*pdata;
 	unsigned			addr;
-	unsigned			chips = 0;
+	int				chips = 0;
 	struct mcp23s08_driver_data	*data;
 	int				status, type;
 	unsigned			base = -1,
