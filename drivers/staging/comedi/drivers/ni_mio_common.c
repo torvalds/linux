@@ -2464,66 +2464,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int ni_ai_config_analog_trig(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
-				    unsigned int *data);
-
-static int ni_ai_insn_config(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-
-	if (insn->n < 1)
-		return -EINVAL;
-
-	switch (data[0]) {
-	case INSN_CONFIG_ANALOG_TRIG:
-		return ni_ai_config_analog_trig(dev, s, insn, data);
-	case INSN_CONFIG_ALT_SOURCE:
-		if (board->reg_type & ni_reg_m_series_mask) {
-			if (data[1] & ~(MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
-					MSeries_AI_Bypass_Cal_Sel_Neg_Mask |
-					MSeries_AI_Bypass_Mode_Mux_Mask |
-					MSeries_AO_Bypass_AO_Cal_Sel_Mask)) {
-				return -EINVAL;
-			}
-			devpriv->ai_calib_source = data[1];
-		} else if (board->reg_type == ni_reg_6143) {
-			unsigned int calib_source;
-
-			calib_source = data[1] & 0xf;
-
-			if (calib_source > 0xF)
-				return -EINVAL;
-
-			devpriv->ai_calib_source = calib_source;
-			ni_writew(calib_source, Calibration_Channel_6143);
-		} else {
-			unsigned int calib_source;
-			unsigned int calib_source_adjust;
-
-			calib_source = data[1] & 0xf;
-			calib_source_adjust = (data[1] >> 4) & 0xff;
-
-			if (calib_source >= 8)
-				return -EINVAL;
-			devpriv->ai_calib_source = calib_source;
-			if (board->reg_type == ni_reg_611x) {
-				ni_writeb(calib_source_adjust,
-					  Cal_Gain_Select_611x);
-			}
-		}
-		return 2;
-	default:
-		break;
-	}
-
-	return -EINVAL;
-}
-
-static int ni_ai_config_analog_trig(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
@@ -2619,6 +2559,61 @@ static int ni_ai_config_analog_trig(struct comedi_device *dev,
 	if (err)
 		return -EAGAIN;
 	return 5;
+}
+
+static int ni_ai_insn_config(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+
+	if (insn->n < 1)
+		return -EINVAL;
+
+	switch (data[0]) {
+	case INSN_CONFIG_ANALOG_TRIG:
+		return ni_ai_config_analog_trig(dev, s, insn, data);
+	case INSN_CONFIG_ALT_SOURCE:
+		if (board->reg_type & ni_reg_m_series_mask) {
+			if (data[1] & ~(MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
+					MSeries_AI_Bypass_Cal_Sel_Neg_Mask |
+					MSeries_AI_Bypass_Mode_Mux_Mask |
+					MSeries_AO_Bypass_AO_Cal_Sel_Mask)) {
+				return -EINVAL;
+			}
+			devpriv->ai_calib_source = data[1];
+		} else if (board->reg_type == ni_reg_6143) {
+			unsigned int calib_source;
+
+			calib_source = data[1] & 0xf;
+
+			if (calib_source > 0xF)
+				return -EINVAL;
+
+			devpriv->ai_calib_source = calib_source;
+			ni_writew(calib_source, Calibration_Channel_6143);
+		} else {
+			unsigned int calib_source;
+			unsigned int calib_source_adjust;
+
+			calib_source = data[1] & 0xf;
+			calib_source_adjust = (data[1] >> 4) & 0xff;
+
+			if (calib_source >= 8)
+				return -EINVAL;
+			devpriv->ai_calib_source = calib_source;
+			if (board->reg_type == ni_reg_611x) {
+				ni_writeb(calib_source_adjust,
+					  Cal_Gain_Select_611x);
+			}
+		}
+		return 2;
+	default:
+		break;
+	}
+
+	return -EINVAL;
 }
 
 /* munge data from unsigned to 2's complement for analog output bipolar modes */
