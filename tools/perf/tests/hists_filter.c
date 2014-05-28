@@ -85,9 +85,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			fake_samples[i].map = al.map;
 			fake_samples[i].sym = al.sym;
 
-			hists__inc_nr_events(he->hists, PERF_RECORD_SAMPLE);
-			if (!he->filtered)
-				he->hists->stats.nr_non_filtered_samples++;
+			hists__inc_nr_samples(he->hists, he->filtered);
 		}
 	}
 

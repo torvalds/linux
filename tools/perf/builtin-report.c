@@ -92,9 +92,7 @@ static void report__inc_stats(struct report *rep, struct hist_entry *he)
 	 * counted in perf_session_deliver_event().  The dump_trace
 	 * requires this info is ready before going to the output tree.
 	 */
-	hists__inc_nr_events(he->hists, PERF_RECORD_SAMPLE);
-	if (!he->filtered)
-		he->hists->stats.nr_non_filtered_samples++;
+	hists__inc_nr_samples(he->hists, he->filtered);
 }
 
 static int report__add_mem_hist_entry(struct report *rep, struct addr_location *al,
