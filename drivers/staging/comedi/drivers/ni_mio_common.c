@@ -201,9 +201,6 @@ static int ni_ao_fifo_half_empty(struct comedi_device *dev,
 #endif
 static void ni_handle_fifo_dregs(struct comedi_device *dev);
 
-static int ni_set_master_clock(struct comedi_device *dev, unsigned source,
-			       unsigned period_ns);
-
 enum aimodes {
 	AIMODE_NONE = 0,
 	AIMODE_HALF_FULL = 1,
@@ -4687,6 +4684,203 @@ static int init_cs5529(struct comedi_device *dev)
 	return 0;
 }
 
+/*
+ * Find best multiplier/divider to try and get the PLL running at 80 MHz
+ * given an arbitrary frequency input clock.
+ */
+static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
+					 unsigned *freq_divider,
+					 unsigned *freq_multiplier,
+					 unsigned *actual_period_ns)
+{
+	unsigned div;
+	unsigned best_div = 1;
+	static const unsigned max_div = 0x10;
+	unsigned mult;
+	unsigned best_mult = 1;
+	static const unsigned max_mult = 0x100;
+	static const unsigned pico_per_nano = 1000;
+
+	const unsigned reference_picosec = reference_period_ns * pico_per_nano;
+	/* m-series wants the phased-locked loop to output 80MHz, which is divided by 4 to
+	 * 20 MHz for most timing clocks */
+	static const unsigned target_picosec = 12500;
+	static const unsigned fudge_factor_80_to_20Mhz = 4;
+	int best_period_picosec = 0;
+	for (div = 1; div <= max_div; ++div) {
+		for (mult = 1; mult <= max_mult; ++mult) {
+			unsigned new_period_ps =
+			    (reference_picosec * div) / mult;
+			if (abs(new_period_ps - target_picosec) <
+			    abs(best_period_picosec - target_picosec)) {
+				best_period_picosec = new_period_ps;
+				best_div = div;
+				best_mult = mult;
+			}
+		}
+	}
+	if (best_period_picosec == 0) {
+		printk("%s: bug, failed to find pll parameters\n", __func__);
+		return -EIO;
+	}
+	*freq_divider = best_div;
+	*freq_multiplier = best_mult;
+	*actual_period_ns =
+	    (best_period_picosec * fudge_factor_80_to_20Mhz +
+	     (pico_per_nano / 2)) / pico_per_nano;
+	return 0;
+}
+
+static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
+					   unsigned source, unsigned period_ns)
+{
+	struct ni_private *devpriv = dev->private;
+	static const unsigned min_period_ns = 50;
+	static const unsigned max_period_ns = 1000;
+	static const unsigned timeout = 1000;
+	unsigned pll_control_bits;
+	unsigned freq_divider;
+	unsigned freq_multiplier;
+	unsigned i;
+	int retval;
+
+	if (source == NI_MIO_PLL_PXI10_CLOCK)
+		period_ns = 100;
+	/*  these limits are somewhat arbitrary, but NI advertises 1 to 20MHz range so we'll use that */
+	if (period_ns < min_period_ns || period_ns > max_period_ns) {
+		printk
+		    ("%s: you must specify an input clock frequency between %i and %i nanosec "
+		     "for the phased-lock loop.\n", __func__,
+		     min_period_ns, max_period_ns);
+		return -EINVAL;
+	}
+	devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
+	devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
+			    RTSI_Trig_Direction_Register);
+	pll_control_bits =
+	    MSeries_PLL_Enable_Bit | MSeries_PLL_VCO_Mode_75_150MHz_Bits;
+	devpriv->clock_and_fout2 |=
+	    MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit;
+	devpriv->clock_and_fout2 &= ~MSeries_PLL_In_Source_Select_Mask;
+	switch (source) {
+	case NI_MIO_PLL_PXI_STAR_TRIGGER_CLOCK:
+		devpriv->clock_and_fout2 |=
+		    MSeries_PLL_In_Source_Select_Star_Trigger_Bits;
+		retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
+						       &freq_multiplier,
+						       &devpriv->clock_ns);
+		if (retval < 0)
+			return retval;
+		break;
+	case NI_MIO_PLL_PXI10_CLOCK:
+		/* pxi clock is 10MHz */
+		devpriv->clock_and_fout2 |=
+		    MSeries_PLL_In_Source_Select_PXI_Clock10;
+		retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
+						       &freq_multiplier,
+						       &devpriv->clock_ns);
+		if (retval < 0)
+			return retval;
+		break;
+	default:
+		{
+			unsigned rtsi_channel;
+			static const unsigned max_rtsi_channel = 7;
+			for (rtsi_channel = 0; rtsi_channel <= max_rtsi_channel;
+			     ++rtsi_channel) {
+				if (source ==
+				    NI_MIO_PLL_RTSI_CLOCK(rtsi_channel)) {
+					devpriv->clock_and_fout2 |=
+					    MSeries_PLL_In_Source_Select_RTSI_Bits
+					    (rtsi_channel);
+					break;
+				}
+			}
+			if (rtsi_channel > max_rtsi_channel)
+				return -EINVAL;
+			retval = ni_mseries_get_pll_parameters(period_ns,
+							       &freq_divider,
+							       &freq_multiplier,
+							       &devpriv->
+							       clock_ns);
+			if (retval < 0)
+				return retval;
+		}
+		break;
+	}
+	ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
+	pll_control_bits |=
+	    MSeries_PLL_Divisor_Bits(freq_divider) |
+	    MSeries_PLL_Multiplier_Bits(freq_multiplier);
+
+	/* printk("using divider=%i, multiplier=%i for PLL. pll_control_bits = 0x%x\n",
+	 * freq_divider, freq_multiplier, pll_control_bits); */
+	/* printk("clock_ns=%d\n", devpriv->clock_ns); */
+	ni_writew(pll_control_bits, M_Offset_PLL_Control);
+	devpriv->clock_source = source;
+	/* it seems to typically take a few hundred microseconds for PLL to lock */
+	for (i = 0; i < timeout; ++i) {
+		if (ni_readw(M_Offset_PLL_Status) & MSeries_PLL_Locked_Bit)
+			break;
+		udelay(1);
+	}
+	if (i == timeout) {
+		printk
+		    ("%s: timed out waiting for PLL to lock to reference clock source %i with period %i ns.\n",
+		     __func__, source, period_ns);
+		return -ETIMEDOUT;
+	}
+	return 3;
+}
+
+static int ni_set_master_clock(struct comedi_device *dev,
+			       unsigned source, unsigned period_ns)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+
+	if (source == NI_MIO_INTERNAL_CLOCK) {
+		devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
+				    RTSI_Trig_Direction_Register);
+		devpriv->clock_ns = TIMEBASE_1_NS;
+		if (board->reg_type & ni_reg_m_series_mask) {
+			devpriv->clock_and_fout2 &=
+			    ~(MSeries_Timebase1_Select_Bit |
+			      MSeries_Timebase3_Select_Bit);
+			ni_writew(devpriv->clock_and_fout2,
+				  M_Offset_Clock_and_Fout2);
+			ni_writew(0, M_Offset_PLL_Control);
+		}
+		devpriv->clock_source = source;
+	} else {
+		if (board->reg_type & ni_reg_m_series_mask) {
+			return ni_mseries_set_pll_master_clock(dev, source,
+							       period_ns);
+		} else {
+			if (source == NI_MIO_RTSI_CLOCK) {
+				devpriv->rtsi_trig_direction_reg |=
+				    Use_RTSI_Clock_Bit;
+				devpriv->stc_writew(dev,
+						    devpriv->
+						    rtsi_trig_direction_reg,
+						    RTSI_Trig_Direction_Register);
+				if (period_ns == 0) {
+					printk
+					    ("%s: we don't handle an unspecified clock period correctly yet, returning error.\n",
+					     __func__);
+					return -EINVAL;
+				} else {
+					devpriv->clock_ns = period_ns;
+				}
+				devpriv->clock_source = source;
+			} else
+				return -EINVAL;
+		}
+	}
+	return 3;
+}
+
 static unsigned num_configurable_rtsi_channels(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
@@ -5410,198 +5604,3 @@ static void GPCT_Reset(struct comedi_device *dev, int chan)
 }
 
 #endif
-
-/* Find best multiplier/divider to try and get the PLL running at 80 MHz
- * given an arbitrary frequency input clock */
-static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
-					 unsigned *freq_divider,
-					 unsigned *freq_multiplier,
-					 unsigned *actual_period_ns)
-{
-	unsigned div;
-	unsigned best_div = 1;
-	static const unsigned max_div = 0x10;
-	unsigned mult;
-	unsigned best_mult = 1;
-	static const unsigned max_mult = 0x100;
-	static const unsigned pico_per_nano = 1000;
-
-	const unsigned reference_picosec = reference_period_ns * pico_per_nano;
-	/* m-series wants the phased-locked loop to output 80MHz, which is divided by 4 to
-	 * 20 MHz for most timing clocks */
-	static const unsigned target_picosec = 12500;
-	static const unsigned fudge_factor_80_to_20Mhz = 4;
-	int best_period_picosec = 0;
-	for (div = 1; div <= max_div; ++div) {
-		for (mult = 1; mult <= max_mult; ++mult) {
-			unsigned new_period_ps =
-			    (reference_picosec * div) / mult;
-			if (abs(new_period_ps - target_picosec) <
-			    abs(best_period_picosec - target_picosec)) {
-				best_period_picosec = new_period_ps;
-				best_div = div;
-				best_mult = mult;
-			}
-		}
-	}
-	if (best_period_picosec == 0) {
-		printk("%s: bug, failed to find pll parameters\n", __func__);
-		return -EIO;
-	}
-	*freq_divider = best_div;
-	*freq_multiplier = best_mult;
-	*actual_period_ns =
-	    (best_period_picosec * fudge_factor_80_to_20Mhz +
-	     (pico_per_nano / 2)) / pico_per_nano;
-	return 0;
-}
-
-static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
-					   unsigned source, unsigned period_ns)
-{
-	struct ni_private *devpriv = dev->private;
-	static const unsigned min_period_ns = 50;
-	static const unsigned max_period_ns = 1000;
-	static const unsigned timeout = 1000;
-	unsigned pll_control_bits;
-	unsigned freq_divider;
-	unsigned freq_multiplier;
-	unsigned i;
-	int retval;
-
-	if (source == NI_MIO_PLL_PXI10_CLOCK)
-		period_ns = 100;
-	/*  these limits are somewhat arbitrary, but NI advertises 1 to 20MHz range so we'll use that */
-	if (period_ns < min_period_ns || period_ns > max_period_ns) {
-		printk
-		    ("%s: you must specify an input clock frequency between %i and %i nanosec "
-		     "for the phased-lock loop.\n", __func__,
-		     min_period_ns, max_period_ns);
-		return -EINVAL;
-	}
-	devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
-	devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-			    RTSI_Trig_Direction_Register);
-	pll_control_bits =
-	    MSeries_PLL_Enable_Bit | MSeries_PLL_VCO_Mode_75_150MHz_Bits;
-	devpriv->clock_and_fout2 |=
-	    MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit;
-	devpriv->clock_and_fout2 &= ~MSeries_PLL_In_Source_Select_Mask;
-	switch (source) {
-	case NI_MIO_PLL_PXI_STAR_TRIGGER_CLOCK:
-		devpriv->clock_and_fout2 |=
-		    MSeries_PLL_In_Source_Select_Star_Trigger_Bits;
-		retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
-						       &freq_multiplier,
-						       &devpriv->clock_ns);
-		if (retval < 0)
-			return retval;
-		break;
-	case NI_MIO_PLL_PXI10_CLOCK:
-		/* pxi clock is 10MHz */
-		devpriv->clock_and_fout2 |=
-		    MSeries_PLL_In_Source_Select_PXI_Clock10;
-		retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
-						       &freq_multiplier,
-						       &devpriv->clock_ns);
-		if (retval < 0)
-			return retval;
-		break;
-	default:
-		{
-			unsigned rtsi_channel;
-			static const unsigned max_rtsi_channel = 7;
-			for (rtsi_channel = 0; rtsi_channel <= max_rtsi_channel;
-			     ++rtsi_channel) {
-				if (source ==
-				    NI_MIO_PLL_RTSI_CLOCK(rtsi_channel)) {
-					devpriv->clock_and_fout2 |=
-					    MSeries_PLL_In_Source_Select_RTSI_Bits
-					    (rtsi_channel);
-					break;
-				}
-			}
-			if (rtsi_channel > max_rtsi_channel)
-				return -EINVAL;
-			retval = ni_mseries_get_pll_parameters(period_ns,
-							       &freq_divider,
-							       &freq_multiplier,
-							       &devpriv->
-							       clock_ns);
-			if (retval < 0)
-				return retval;
-		}
-		break;
-	}
-	ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
-	pll_control_bits |=
-	    MSeries_PLL_Divisor_Bits(freq_divider) |
-	    MSeries_PLL_Multiplier_Bits(freq_multiplier);
-
-	/* printk("using divider=%i, multiplier=%i for PLL. pll_control_bits = 0x%x\n",
-	 * freq_divider, freq_multiplier, pll_control_bits); */
-	/* printk("clock_ns=%d\n", devpriv->clock_ns); */
-	ni_writew(pll_control_bits, M_Offset_PLL_Control);
-	devpriv->clock_source = source;
-	/* it seems to typically take a few hundred microseconds for PLL to lock */
-	for (i = 0; i < timeout; ++i) {
-		if (ni_readw(M_Offset_PLL_Status) & MSeries_PLL_Locked_Bit)
-			break;
-		udelay(1);
-	}
-	if (i == timeout) {
-		printk
-		    ("%s: timed out waiting for PLL to lock to reference clock source %i with period %i ns.\n",
-		     __func__, source, period_ns);
-		return -ETIMEDOUT;
-	}
-	return 3;
-}
-
-static int ni_set_master_clock(struct comedi_device *dev, unsigned source,
-			       unsigned period_ns)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-
-	if (source == NI_MIO_INTERNAL_CLOCK) {
-		devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
-		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-				    RTSI_Trig_Direction_Register);
-		devpriv->clock_ns = TIMEBASE_1_NS;
-		if (board->reg_type & ni_reg_m_series_mask) {
-			devpriv->clock_and_fout2 &=
-			    ~(MSeries_Timebase1_Select_Bit |
-			      MSeries_Timebase3_Select_Bit);
-			ni_writew(devpriv->clock_and_fout2,
-				  M_Offset_Clock_and_Fout2);
-			ni_writew(0, M_Offset_PLL_Control);
-		}
-		devpriv->clock_source = source;
-	} else {
-		if (board->reg_type & ni_reg_m_series_mask) {
-			return ni_mseries_set_pll_master_clock(dev, source,
-							       period_ns);
-		} else {
-			if (source == NI_MIO_RTSI_CLOCK) {
-				devpriv->rtsi_trig_direction_reg |=
-				    Use_RTSI_Clock_Bit;
-				devpriv->stc_writew(dev,
-						    devpriv->
-						    rtsi_trig_direction_reg,
-						    RTSI_Trig_Direction_Register);
-				if (period_ns == 0) {
-					printk
-					    ("%s: we don't handle an unspecified clock period correctly yet, returning error.\n",
-					     __func__);
-					return -EINVAL;
-				} else {
-					devpriv->clock_ns = period_ns;
-				}
-				devpriv->clock_source = source;
-			} else
-				return -EINVAL;
-		}
-	}
-	return 3;
-}
