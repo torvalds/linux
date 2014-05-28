@@ -511,7 +511,8 @@ static struct pcie_host_ops exynos_pcie_host_ops = {
 	.host_init = exynos_pcie_host_init,
 };
 
-static int add_pcie_port(struct pcie_port *pp, struct platform_device *pdev)
+static int __init add_pcie_port(struct pcie_port *pp,
+				struct platform_device *pdev)
 {
 	int ret;
 
