@@ -3903,56 +3903,41 @@ static int ni_freq_out_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ni_set_freq_out_clock(struct comedi_device *dev,
-				 unsigned int clock_source)
+static int ni_freq_out_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
 
-	switch (clock_source) {
-	case NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC:
-		devpriv->clock_and_fout &= ~FOUT_Timebase_Select;
+	switch (data[0]) {
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		switch (data[1]) {
+		case NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC:
+			devpriv->clock_and_fout &= ~FOUT_Timebase_Select;
+			break;
+		case NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC:
+			devpriv->clock_and_fout |= FOUT_Timebase_Select;
+			break;
+		default:
+			return -EINVAL;
+		}
+		devpriv->stc_writew(dev, devpriv->clock_and_fout,
+				    Clock_and_FOUT_Register);
 		break;
-	case NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC:
-		devpriv->clock_and_fout |= FOUT_Timebase_Select;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		if (devpriv->clock_and_fout & FOUT_Timebase_Select) {
+			data[1] = NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC;
+			data[2] = TIMEBASE_2_NS;
+		} else {
+			data[1] = NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC;
+			data[2] = TIMEBASE_1_NS * 2;
+		}
 		break;
 	default:
 		return -EINVAL;
 	}
-	devpriv->stc_writew(dev, devpriv->clock_and_fout,
-			    Clock_and_FOUT_Register);
-	return 3;
-}
-
-static void ni_get_freq_out_clock(struct comedi_device *dev,
-				  unsigned int *clock_source,
-				  unsigned int *clock_period_ns)
-{
-	struct ni_private *devpriv = dev->private;
-
-	if (devpriv->clock_and_fout & FOUT_Timebase_Select) {
-		*clock_source = NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC;
-		*clock_period_ns = TIMEBASE_2_NS;
-	} else {
-		*clock_source = NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC;
-		*clock_period_ns = TIMEBASE_1_NS * 2;
-	}
-}
-
-static int ni_freq_out_insn_config(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
-{
-	switch (data[0]) {
-	case INSN_CONFIG_SET_CLOCK_SRC:
-		return ni_set_freq_out_clock(dev, data[1]);
-		break;
-	case INSN_CONFIG_GET_CLOCK_SRC:
-		ni_get_freq_out_clock(dev, &data[1], &data[2]);
-		return 3;
-	default:
-		break;
-	}
-	return -EINVAL;
+	return insn->n;
 }
 
 static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
