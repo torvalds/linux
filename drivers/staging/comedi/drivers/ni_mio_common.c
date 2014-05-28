@@ -732,7 +732,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite,
 				struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AO_SUBDEV];
+	struct comedi_subdevice *s = dev->write_subdev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -1238,7 +1238,7 @@ static void handle_b_interrupt(struct comedi_device *dev,
 			       unsigned short b_status, unsigned ao_mite_status)
 {
 	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AO_SUBDEV];
+	struct comedi_subdevice *s = dev->write_subdev;
 	/* unsigned short ack=0; */
 
 #ifdef PCIDMA
@@ -1361,7 +1361,7 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[NI_AO_SUBDEV];
+	struct comedi_subdevice *s = dev->write_subdev;
 	int retval;
 	unsigned long flags;
 
