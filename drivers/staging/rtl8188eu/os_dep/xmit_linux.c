@@ -19,7 +19,6 @@
  ******************************************************************************/
 #define _XMIT_OSDEP_C_
 
-#include <linux/version.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 
