@@ -124,6 +124,36 @@ static const struct e1000_reg_info e1000_reg_info_tbl[] = {
 };
 
 /**
+ * __ew32_prepare - prepare to write to MAC CSR register on certain parts
+ * @hw: pointer to the HW structure
+ *
+ * When updating the MAC CSR registers, the Manageability Engine (ME) could
+ * be accessing the registers at the same time.  Normally, this is handled in
+ * h/w by an arbiter but on some parts there is a bug that acknowledges Host
+ * accesses later than it should which could result in the register to have
+ * an incorrect value.  Workaround this by checking the FWSM register which
+ * has bit 24 set while ME is accessing MAC CSR registers, wait if it is set
+ * and try again a number of times.
+ **/
+s32 __ew32_prepare(struct e1000_hw *hw)
+{
+	s32 i = E1000_ICH_FWSM_PCIM2PCI_COUNT;
+
+	while ((er32(FWSM) & E1000_ICH_FWSM_PCIM2PCI) && --i)
+		udelay(50);
+
+	return i;
+}
+
+void __ew32(struct e1000_hw *hw, unsigned long reg, u32 val)
+{
+	if (hw->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+		__ew32_prepare(hw);
+
+	writel(val, hw->hw_addr + reg);
+}
+
+/**
  * e1000_regdump - register printout routine
  * @hw: pointer to the HW structure
  * @reginfo: pointer to the register info table
@@ -3311,8 +3341,10 @@ static int e1000e_write_uc_addr_list(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	unsigned int rar_entries = hw->mac.rar_entry_count;
+	unsigned int rar_entries;
 	int count = 0;
+
+	rar_entries = hw->mac.ops.rar_get_count(hw);
 
 	/* save a rar entry for our hardware address */
 	rar_entries--;
@@ -3332,9 +3364,13 @@ static int e1000e_write_uc_addr_list(struct net_device *netdev)
 		 * combining
 		 */
 		netdev_for_each_uc_addr(ha, netdev) {
+			int rval;
+
 			if (!rar_entries)
 				break;
-			hw->mac.ops.rar_set(hw, ha->addr, rar_entries--);
+			rval = hw->mac.ops.rar_set(hw, ha->addr, rar_entries--);
+			if (rval < 0)
+				return -ENOMEM;
 			count++;
 		}
 	}
@@ -4093,12 +4129,37 @@ static cycle_t e1000e_cyclecounter_read(const struct cyclecounter *cc)
 	struct e1000_adapter *adapter = container_of(cc, struct e1000_adapter,
 						     cc);
 	struct e1000_hw *hw = &adapter->hw;
-	cycle_t systim;
+	cycle_t systim, systim_next;
 
 	/* latch SYSTIMH on read of SYSTIML */
 	systim = (cycle_t)er32(SYSTIML);
 	systim |= (cycle_t)er32(SYSTIMH) << 32;
 
+	if ((hw->mac.type == e1000_82574) || (hw->mac.type == e1000_82583)) {
+		u64 incvalue, time_delta, rem, temp;
+		int i;
+
+		/* errata for 82574/82583 possible bad bits read from SYSTIMH/L
+		 * check to see that the time is incrementing at a reasonable
+		 * rate and is a multiple of incvalue
+		 */
+		incvalue = er32(TIMINCA) & E1000_TIMINCA_INCVALUE_MASK;
+		for (i = 0; i < E1000_MAX_82574_SYSTIM_REREADS; i++) {
+			/* latch SYSTIMH on read of SYSTIML */
+			systim_next = (cycle_t)er32(SYSTIML);
+			systim_next |= (cycle_t)er32(SYSTIMH) << 32;
+
+			time_delta = systim_next - systim;
+			temp = time_delta;
+			rem = do_div(temp, incvalue);
+
+			systim = systim_next;
+
+			if ((time_delta < E1000_82574_SYSTIM_EPSILON) &&
+			    (rem == 0))
+				break;
+		}
+	}
 	return systim;
 }
 
@@ -4499,7 +4560,7 @@ static void e1000e_update_phy_task(struct work_struct *work)
 	e1000_get_phy_info(hw);
 
 	/* Enable EEE on 82579 after link up */
-	if (hw->phy.type == e1000_phy_82579)
+	if (hw->phy.type >= e1000_phy_82579)
 		e1000_set_eee_pchlan(hw);
 }
 

@@ -845,7 +845,7 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
 		bool found = false;
 
-		if (f->macaddr[0] & 0x01) {
+		if (is_multicast_ether_addr(f->macaddr)) {
 			netdev_for_each_mc_addr(mca, netdev) {
 				if (ether_addr_equal(mca->addr, f->macaddr)) {
 					found = true;
