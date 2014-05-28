@@ -1760,6 +1760,9 @@ static void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 
+	if (WARN_ON(pll == NULL))
+		return;
+
 	WARN_ON(!pll->refcount);
 	if (pll->active == 0) {
 		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
