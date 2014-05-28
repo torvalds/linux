@@ -298,6 +298,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
 	ssize_t err;
+	uint32_t val;
 	int bpc = 8;
 
 	if (!dig || !dig->afmt)
@@ -329,6 +330,35 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	       HDMI_NULL_SEND); /* send null packets when required */
 
 	WREG32(AFMT_AUDIO_CRC_CONTROL + offset, 0x1000);
+
+	val = RREG32(HDMI_CONTROL + offset);
+	val &= ~HDMI_DEEP_COLOR_ENABLE;
+	val &= ~HDMI_DEEP_COLOR_DEPTH_MASK;
+
+	switch (bpc) {
+		case 0:
+		case 6:
+		case 8:
+		case 16:
+		default:
+			DRM_DEBUG("%s: Disabling hdmi deep color for %d bpc.\n",
+					 drm_get_connector_name(connector), bpc);
+			break;
+		case 10:
+			val |= HDMI_DEEP_COLOR_ENABLE;
+			val |= HDMI_DEEP_COLOR_DEPTH(HDMI_30BIT_DEEP_COLOR);
+			DRM_DEBUG("%s: Enabling hdmi deep color 30 for 10 bpc.\n",
+					 drm_get_connector_name(connector));
+			break;
+		case 12:
+			val |= HDMI_DEEP_COLOR_ENABLE;
+			val |= HDMI_DEEP_COLOR_DEPTH(HDMI_36BIT_DEEP_COLOR);
+			DRM_DEBUG("%s: Enabling hdmi deep color 36 for 12 bpc.\n",
+					 drm_get_connector_name(connector));
+			break;
+	}
+
+	WREG32(HDMI_CONTROL + offset, val);
 
 	WREG32(HDMI_VBI_PACKET_CONTROL + offset,
 	       HDMI_NULL_SEND | /* send null packets when required */

@@ -517,10 +517,11 @@
 #       define HDMI_ERROR_ACK                (1 << 8)
 #       define HDMI_ERROR_MASK               (1 << 9)
 #       define HDMI_DEEP_COLOR_ENABLE        (1 << 24)
-#       define HDMI_DEEP_COLOR_DEPTH         (((x) & 3) << 28)
+#       define HDMI_DEEP_COLOR_DEPTH(x)      (((x) & 3) << 28)
 #       define HDMI_24BIT_DEEP_COLOR         0
 #       define HDMI_30BIT_DEEP_COLOR         1
 #       define HDMI_36BIT_DEEP_COLOR         2
+#       define HDMI_DEEP_COLOR_DEPTH_MASK    (3 << 28)
 #define HDMI_STATUS                          0x7034
 #       define HDMI_ACTIVE_AVMUTE            (1 << 0)
 #       define HDMI_AUDIO_PACKET_ERROR       (1 << 16)
