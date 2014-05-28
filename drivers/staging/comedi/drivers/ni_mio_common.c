@@ -3673,16 +3673,6 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 
 }
 
-static void mio_common_detach(struct comedi_device *dev)
-{
-	struct ni_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (devpriv->counter_dev)
-			ni_gpct_device_destroy(devpriv->counter_dev);
-	}
-}
-
 static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int i;
@@ -3964,21 +3954,6 @@ static int ni_freq_out_insn_config(struct comedi_device *dev,
 	}
 	return -EINVAL;
 }
-
-static int ni_alloc_private(struct comedi_device *dev)
-{
-	struct ni_private *devpriv;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
-
-	spin_lock_init(&devpriv->window_lock);
-	spin_lock_init(&devpriv->soft_reg_copy_lock);
-	spin_lock_init(&devpriv->mite_channel_lock);
-
-	return 0;
-};
 
 static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
 {
@@ -5267,6 +5242,21 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+static int ni_alloc_private(struct comedi_device *dev)
+{
+	struct ni_private *devpriv;
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
+
+	spin_lock_init(&devpriv->window_lock);
+	spin_lock_init(&devpriv->soft_reg_copy_lock);
+	spin_lock_init(&devpriv->mite_channel_lock);
+
+	return 0;
+}
+
 static int ni_E_init(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
@@ -5595,4 +5585,14 @@ static int ni_E_init(struct comedi_device *dev)
 	}
 
 	return 0;
+}
+
+static void mio_common_detach(struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+
+	if (devpriv) {
+		if (devpriv->counter_dev)
+			ni_gpct_device_destroy(devpriv->counter_dev);
+	}
 }
