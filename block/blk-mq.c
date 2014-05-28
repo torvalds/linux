@@ -1335,21 +1335,6 @@ struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q, const int cpu)
 }
 EXPORT_SYMBOL(blk_mq_map_queue);
 
-struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *set,
-						   unsigned int hctx_index,
-						   int node)
-{
-	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL, node);
-}
-EXPORT_SYMBOL(blk_mq_alloc_single_hw_queue);
-
-void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *hctx,
-				 unsigned int hctx_index)
-{
-	kfree(hctx);
-}
-EXPORT_SYMBOL(blk_mq_free_single_hw_queue);
-
 static void blk_mq_free_rq_map(struct blk_mq_tag_set *set,
 		struct blk_mq_tags *tags, unsigned int hctx_idx)
 {
@@ -1590,7 +1575,7 @@ static void blk_mq_free_hw_queues(struct request_queue *q,
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		free_cpumask_var(hctx->cpumask);
-		set->ops->free_hctx(hctx, i);
+		kfree(hctx);
 	}
 }
 
@@ -1811,7 +1796,8 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	for (i = 0; i < set->nr_hw_queues; i++) {
 		int node = blk_mq_hw_queue_to_node(map, i);
 
-		hctxs[i] = set->ops->alloc_hctx(set, i, node);
+		hctxs[i] = kzalloc_node(sizeof(struct blk_mq_hw_ctx),
+					GFP_KERNEL, node);
 		if (!hctxs[i])
 			goto err_hctxs;
 
@@ -1898,7 +1884,7 @@ err_hctxs:
 		if (!hctxs[i])
 			break;
 		free_cpumask_var(hctxs[i]->cpumask);
-		set->ops->free_hctx(hctxs[i], i);
+		kfree(hctxs[i]);
 	}
 err_map:
 	kfree(hctxs);
@@ -1983,9 +1969,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	if (set->queue_depth < set->reserved_tags + BLK_MQ_TAG_MIN)
 		return -EINVAL;
 
-	if (!set->nr_hw_queues ||
-	    !set->ops->queue_rq || !set->ops->map_queue ||
-	    !set->ops->alloc_hctx || !set->ops->free_hctx)
+	if (!set->nr_hw_queues || !set->ops->queue_rq || !set->ops->map_queue)
 		return -EINVAL;
 
 

@@ -321,18 +321,6 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	return BLK_MQ_RQ_QUEUE_OK;
 }
 
-static struct blk_mq_hw_ctx *null_alloc_hctx(struct blk_mq_tag_set *set,
-					     unsigned int hctx_index,
-					     int node)
-{
-	return kzalloc_node(sizeof(struct blk_mq_hw_ctx), GFP_KERNEL, node);
-}
-
-static void null_free_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_index)
-{
-	kfree(hctx);
-}
-
 static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
 {
 	BUG_ON(!nullb);
@@ -360,17 +348,6 @@ static struct blk_mq_ops null_mq_ops = {
 	.map_queue      = blk_mq_map_queue,
 	.init_hctx	= null_init_hctx,
 	.complete	= null_softirq_done_fn,
-	.alloc_hctx	= blk_mq_alloc_single_hw_queue,
-	.free_hctx	= blk_mq_free_single_hw_queue,
-};
-
-static struct blk_mq_ops null_mq_ops_pernode = {
-	.queue_rq       = null_queue_rq,
-	.map_queue      = blk_mq_map_queue,
-	.init_hctx	= null_init_hctx,
-	.complete	= null_softirq_done_fn,
-	.alloc_hctx	= null_alloc_hctx,
-	.free_hctx	= null_free_hctx,
 };
 
 static void null_del_dev(struct nullb *nullb)
@@ -496,10 +473,7 @@ static int null_add_dev(void)
 		goto out_free_nullb;
 
 	if (queue_mode == NULL_Q_MQ) {
-		if (use_per_node_hctx)
-			nullb->tag_set.ops = &null_mq_ops_pernode;
-		else
-			nullb->tag_set.ops = &null_mq_ops;
+		nullb->tag_set.ops = &null_mq_ops;
 		nullb->tag_set.nr_hw_queues = submit_queues;
 		nullb->tag_set.queue_depth = hw_queue_depth;
 		nullb->tag_set.numa_node = home_node;
