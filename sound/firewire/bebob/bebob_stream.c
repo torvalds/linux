@@ -749,7 +749,7 @@ parse_stream_formation(u8 *buf, unsigned int len,
 		if (buf[2] == bridgeco_freq_table[i])
 			break;
 	}
-	if (i == sizeof(bridgeco_freq_table))
+	if (i == ARRAY_SIZE(bridgeco_freq_table))
 		return -ENOSYS;
 
 	/* Avoid double count by different entries for the same rate. */
