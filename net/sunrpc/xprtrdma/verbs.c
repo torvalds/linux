@@ -494,19 +494,11 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	switch (memreg) {
 	case RPCRDMA_MTHCAFMR:
 		if (!ia->ri_id->device->alloc_fmr) {
-#if RPCRDMA_PERSISTENT_REGISTRATION
 			dprintk("RPC:       %s: MTHCAFMR registration "
 				"specified but not supported by adapter, "
 				"using riskier RPCRDMA_ALLPHYSICAL\n",
 				__func__);
 			memreg = RPCRDMA_ALLPHYSICAL;
-#else
-			dprintk("RPC:       %s: MTHCAFMR registration "
-				"specified but not supported by adapter, "
-				"using slower RPCRDMA_REGISTER\n",
-				__func__);
-			memreg = RPCRDMA_REGISTER;
-#endif
 		}
 		break;
 	case RPCRDMA_FRMR:
@@ -514,19 +506,11 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		if ((devattr.device_cap_flags &
 		     (IB_DEVICE_MEM_MGT_EXTENSIONS|IB_DEVICE_LOCAL_DMA_LKEY)) !=
 		    (IB_DEVICE_MEM_MGT_EXTENSIONS|IB_DEVICE_LOCAL_DMA_LKEY)) {
-#if RPCRDMA_PERSISTENT_REGISTRATION
 			dprintk("RPC:       %s: FRMR registration "
 				"specified but not supported by adapter, "
 				"using riskier RPCRDMA_ALLPHYSICAL\n",
 				__func__);
 			memreg = RPCRDMA_ALLPHYSICAL;
-#else
-			dprintk("RPC:       %s: FRMR registration "
-				"specified but not supported by adapter, "
-				"using slower RPCRDMA_REGISTER\n",
-				__func__);
-			memreg = RPCRDMA_REGISTER;
-#endif
 		} else {
 			/* Mind the ia limit on FRMR page list depth */
 			ia->ri_max_frmr_depth = min_t(unsigned int,
@@ -545,7 +529,6 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	 * adapter.
 	 */
 	switch (memreg) {
-	case RPCRDMA_REGISTER:
 	case RPCRDMA_FRMR:
 		break;
 #if RPCRDMA_PERSISTENT_REGISTRATION
@@ -565,11 +548,10 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		ia->ri_bind_mem = ib_get_dma_mr(ia->ri_pd, mem_priv);
 		if (IS_ERR(ia->ri_bind_mem)) {
 			printk(KERN_ALERT "%s: ib_get_dma_mr for "
-				"phys register failed with %lX\n\t"
-				"Will continue with degraded performance\n",
+				"phys register failed with %lX\n",
 				__func__, PTR_ERR(ia->ri_bind_mem));
-			memreg = RPCRDMA_REGISTER;
-			ia->ri_bind_mem = NULL;
+			rc = -ENOMEM;
+			goto out2;
 		}
 		break;
 	default:
@@ -1611,67 +1593,6 @@ rpcrdma_deregister_fmr_external(struct rpcrdma_mr_seg *seg,
 	return rc;
 }
 
-static int
-rpcrdma_register_default_external(struct rpcrdma_mr_seg *seg,
-			int *nsegs, int writing, struct rpcrdma_ia *ia)
-{
-	int mem_priv = (writing ? IB_ACCESS_REMOTE_WRITE :
-				  IB_ACCESS_REMOTE_READ);
-	struct rpcrdma_mr_seg *seg1 = seg;
-	struct ib_phys_buf ipb[RPCRDMA_MAX_DATA_SEGS];
-	int len, i, rc = 0;
-
-	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
-		*nsegs = RPCRDMA_MAX_DATA_SEGS;
-	for (len = 0, i = 0; i < *nsegs;) {
-		rpcrdma_map_one(ia, seg, writing);
-		ipb[i].addr = seg->mr_dma;
-		ipb[i].size = seg->mr_len;
-		len += seg->mr_len;
-		++seg;
-		++i;
-		/* Check for holes */
-		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
-		    offset_in_page((seg-1)->mr_offset+(seg-1)->mr_len))
-			break;
-	}
-	seg1->mr_base = seg1->mr_dma;
-	seg1->mr_chunk.rl_mr = ib_reg_phys_mr(ia->ri_pd,
-				ipb, i, mem_priv, &seg1->mr_base);
-	if (IS_ERR(seg1->mr_chunk.rl_mr)) {
-		rc = PTR_ERR(seg1->mr_chunk.rl_mr);
-		dprintk("RPC:       %s: failed ib_reg_phys_mr "
-			"%u@0x%llx (%d)... status %i\n",
-			__func__, len,
-			(unsigned long long)seg1->mr_dma, i, rc);
-		while (i--)
-			rpcrdma_unmap_one(ia, --seg);
-	} else {
-		seg1->mr_rkey = seg1->mr_chunk.rl_mr->rkey;
-		seg1->mr_nsegs = i;
-		seg1->mr_len = len;
-	}
-	*nsegs = i;
-	return rc;
-}
-
-static int
-rpcrdma_deregister_default_external(struct rpcrdma_mr_seg *seg,
-			struct rpcrdma_ia *ia)
-{
-	struct rpcrdma_mr_seg *seg1 = seg;
-	int rc;
-
-	rc = ib_dereg_mr(seg1->mr_chunk.rl_mr);
-	seg1->mr_chunk.rl_mr = NULL;
-	while (seg1->mr_nsegs--)
-		rpcrdma_unmap_one(ia, seg++);
-	if (rc)
-		dprintk("RPC:       %s: failed ib_dereg_mr,"
-			" status %i\n", __func__, rc);
-	return rc;
-}
-
 int
 rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 			int nsegs, int writing, struct rpcrdma_xprt *r_xprt)
@@ -1701,10 +1622,8 @@ rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 		rc = rpcrdma_register_fmr_external(seg, &nsegs, writing, ia);
 		break;
 
-	/* Default registration each time */
 	default:
-		rc = rpcrdma_register_default_external(seg, &nsegs, writing, ia);
-		break;
+		return -1;
 	}
 	if (rc)
 		return -1;
@@ -1738,7 +1657,6 @@ rpcrdma_deregister_external(struct rpcrdma_mr_seg *seg,
 		break;
 
 	default:
-		rc = rpcrdma_deregister_default_external(seg, ia);
 		break;
 	}
 	if (r) {

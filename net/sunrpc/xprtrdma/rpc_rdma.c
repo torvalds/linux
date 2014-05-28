@@ -476,8 +476,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 			 * on receive. Therefore, we request a reply chunk
 			 * for non-writes wherever feasible and efficient.
 			 */
-			if (wtype == rpcrdma_noch &&
-			    r_xprt->rx_ia.ri_memreg_strategy > RPCRDMA_REGISTER)
+			if (wtype == rpcrdma_noch)
 				wtype = rpcrdma_replych;
 		}
 	}
