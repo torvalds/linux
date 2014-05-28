@@ -197,8 +197,6 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 static int ni_cdio_cancel(struct comedi_device *dev,
 			  struct comedi_subdevice *s);
 static void handle_cdio_interrupt(struct comedi_device *dev);
-static int ni_cdo_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			  unsigned int trignum);
 
 static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
@@ -3441,45 +3439,6 @@ static int ni_cdio_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct ni_private *devpriv __maybe_unused = dev->private;
-	const struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned cdo_mode_bits = CDO_FIFO_Mode_Bit | CDO_Halt_On_Error_Bit;
-	int retval;
-
-	ni_writel(CDO_Reset_Bit, M_Offset_CDIO_Command);
-	switch (cmd->scan_begin_src) {
-	case TRIG_EXT:
-		cdo_mode_bits |=
-		    CR_CHAN(cmd->scan_begin_arg) &
-		    CDO_Sample_Source_Select_Mask;
-		break;
-	default:
-		BUG();
-		break;
-	}
-	if (cmd->scan_begin_arg & CR_INVERT)
-		cdo_mode_bits |= CDO_Polarity_Bit;
-	ni_writel(cdo_mode_bits, M_Offset_CDO_Mode);
-	if (s->io_bits) {
-		ni_writel(s->state, M_Offset_CDO_FIFO_Data);
-		ni_writel(CDO_SW_Update_Bit, M_Offset_CDIO_Command);
-		ni_writel(s->io_bits, M_Offset_CDO_Mask_Enable);
-	} else {
-		comedi_error(dev,
-			     "attempted to run digital output command with no lines configured as outputs");
-		return -EIO;
-	}
-	retval = ni_request_cdo_mite_channel(dev);
-	if (retval < 0)
-		return retval;
-
-	s->async->inttrig = ni_cdo_inttrig;
-
-	return 0;
-}
-
 static int ni_cdo_inttrig(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  unsigned int trig_num)
@@ -3533,6 +3492,45 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 		  CDO_Empty_FIFO_Interrupt_Enable_Set_Bit,
 		  M_Offset_CDIO_Command);
 	return retval;
+}
+
+static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct ni_private *devpriv __maybe_unused = dev->private;
+	const struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned cdo_mode_bits = CDO_FIFO_Mode_Bit | CDO_Halt_On_Error_Bit;
+	int retval;
+
+	ni_writel(CDO_Reset_Bit, M_Offset_CDIO_Command);
+	switch (cmd->scan_begin_src) {
+	case TRIG_EXT:
+		cdo_mode_bits |=
+		    CR_CHAN(cmd->scan_begin_arg) &
+		    CDO_Sample_Source_Select_Mask;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	if (cmd->scan_begin_arg & CR_INVERT)
+		cdo_mode_bits |= CDO_Polarity_Bit;
+	ni_writel(cdo_mode_bits, M_Offset_CDO_Mode);
+	if (s->io_bits) {
+		ni_writel(s->state, M_Offset_CDO_FIFO_Data);
+		ni_writel(CDO_SW_Update_Bit, M_Offset_CDIO_Command);
+		ni_writel(s->io_bits, M_Offset_CDO_Mask_Enable);
+	} else {
+		comedi_error(dev,
+			     "attempted to run digital output command with no lines configured as outputs");
+		return -EIO;
+	}
+	retval = ni_request_cdo_mite_channel(dev);
+	if (retval < 0)
+		return retval;
+
+	s->async->inttrig = ni_cdo_inttrig;
+
+	return 0;
 }
 
 static int ni_cdio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
