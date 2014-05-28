@@ -194,8 +194,6 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 	[ai_gain_6143] = &range_bipolar5
 };
 
-static void handle_cdio_interrupt(struct comedi_device *dev);
-
 static void ni_rtsi_init(struct comedi_device *dev);
 static int ni_rtsi_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
@@ -210,13 +208,8 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev);
 static void ni_load_channelgain_list(struct comedi_device *dev,
 				     unsigned int n_chan, unsigned int *list);
 
-static void handle_gpct_interrupt(struct comedi_device *dev,
-				  unsigned short counter_index);
-
 static int ni_set_master_clock(struct comedi_device *dev, unsigned source,
 			       unsigned period_ns);
-static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status);
-static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status);
 
 enum aimodes {
 	AIMODE_NONE = 0,
@@ -269,11 +262,6 @@ enum timebase_nanoseconds {
 #define SERIAL_10US			10000
 
 static const int num_adc_stages_611x = 3;
-
-static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
-			       unsigned ai_mite_status);
-static void handle_b_interrupt(struct comedi_device *dev, unsigned short status,
-			       unsigned ao_mite_status);
 
 static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 				   unsigned bit_mask, unsigned bit_values)
@@ -707,65 +695,6 @@ static inline void ni_set_bits(struct comedi_device *dev, int reg,
 	else
 		bit_values = 0;
 	ni_set_bitfield(dev, reg, bits, bit_values);
-}
-
-static irqreturn_t ni_E_interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	struct ni_private *devpriv = dev->private;
-	unsigned short a_status;
-	unsigned short b_status;
-	unsigned int ai_mite_status = 0;
-	unsigned int ao_mite_status = 0;
-	unsigned long flags;
-#ifdef PCIDMA
-	struct mite_struct *mite = devpriv->mite;
-#endif
-
-	if (!dev->attached)
-		return IRQ_NONE;
-	smp_mb();		/*  make sure dev->attached is checked before handler does anything else. */
-
-	/*  lock to avoid race with comedi_poll */
-	spin_lock_irqsave(&dev->spinlock, flags);
-	a_status = devpriv->stc_readw(dev, AI_Status_1_Register);
-	b_status = devpriv->stc_readw(dev, AO_Status_1_Register);
-#ifdef PCIDMA
-	if (mite) {
-		unsigned long flags_too;
-
-		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
-		if (devpriv->ai_mite_chan) {
-			ai_mite_status = mite_get_status(devpriv->ai_mite_chan);
-			if (ai_mite_status & CHSR_LINKC)
-				writel(CHOR_CLRLC,
-				       devpriv->mite->mite_io_addr +
-				       MITE_CHOR(devpriv->
-						 ai_mite_chan->channel));
-		}
-		if (devpriv->ao_mite_chan) {
-			ao_mite_status = mite_get_status(devpriv->ao_mite_chan);
-			if (ao_mite_status & CHSR_LINKC)
-				writel(CHOR_CLRLC,
-				       mite->mite_io_addr +
-				       MITE_CHOR(devpriv->
-						 ao_mite_chan->channel));
-		}
-		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
-	}
-#endif
-	ack_a_interrupt(dev, a_status);
-	ack_b_interrupt(dev, b_status);
-	if ((a_status & Interrupt_A_St) || (ai_mite_status & CHSR_INT))
-		handle_a_interrupt(dev, a_status, ai_mite_status);
-	if ((b_status & Interrupt_B_St) || (ao_mite_status & CHSR_INT))
-		handle_b_interrupt(dev, b_status, ao_mite_status);
-	handle_gpct_interrupt(dev, 0);
-	handle_gpct_interrupt(dev, 1);
-	handle_cdio_interrupt(dev);
-
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-	return IRQ_HANDLED;
 }
 
 #ifdef PCIDMA
@@ -4804,6 +4733,65 @@ static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return retval;
 }
 #endif
+
+static irqreturn_t ni_E_interrupt(int irq, void *d)
+{
+	struct comedi_device *dev = d;
+	struct ni_private *devpriv = dev->private;
+	unsigned short a_status;
+	unsigned short b_status;
+	unsigned int ai_mite_status = 0;
+	unsigned int ao_mite_status = 0;
+	unsigned long flags;
+#ifdef PCIDMA
+	struct mite_struct *mite = devpriv->mite;
+#endif
+
+	if (!dev->attached)
+		return IRQ_NONE;
+	smp_mb();		/*  make sure dev->attached is checked before handler does anything else. */
+
+	/*  lock to avoid race with comedi_poll */
+	spin_lock_irqsave(&dev->spinlock, flags);
+	a_status = devpriv->stc_readw(dev, AI_Status_1_Register);
+	b_status = devpriv->stc_readw(dev, AO_Status_1_Register);
+#ifdef PCIDMA
+	if (mite) {
+		unsigned long flags_too;
+
+		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
+		if (devpriv->ai_mite_chan) {
+			ai_mite_status = mite_get_status(devpriv->ai_mite_chan);
+			if (ai_mite_status & CHSR_LINKC)
+				writel(CHOR_CLRLC,
+				       devpriv->mite->mite_io_addr +
+				       MITE_CHOR(devpriv->
+						 ai_mite_chan->channel));
+		}
+		if (devpriv->ao_mite_chan) {
+			ao_mite_status = mite_get_status(devpriv->ao_mite_chan);
+			if (ao_mite_status & CHSR_LINKC)
+				writel(CHOR_CLRLC,
+				       mite->mite_io_addr +
+				       MITE_CHOR(devpriv->
+						 ao_mite_chan->channel));
+		}
+		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
+	}
+#endif
+	ack_a_interrupt(dev, a_status);
+	ack_b_interrupt(dev, b_status);
+	if ((a_status & Interrupt_A_St) || (ai_mite_status & CHSR_INT))
+		handle_a_interrupt(dev, a_status, ai_mite_status);
+	if ((b_status & Interrupt_B_St) || (ao_mite_status & CHSR_INT))
+		handle_b_interrupt(dev, b_status, ao_mite_status);
+	handle_gpct_interrupt(dev, 0);
+	handle_gpct_interrupt(dev, 1);
+	handle_cdio_interrupt(dev);
+
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+	return IRQ_HANDLED;
+}
 
 static int ni_E_init(struct comedi_device *dev)
 {
