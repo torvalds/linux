@@ -321,8 +321,6 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 }
 
 #ifdef PCIDMA
-static int ni_ai_drain_dma(struct comedi_device *dev);
-
 /* DMA channel setup */
 
 /* negative channel means no channel */
@@ -781,6 +779,41 @@ static void ni_sync_ai_dma(struct comedi_device *dev)
 	if (devpriv->ai_mite_chan)
 		mite_sync_input_dma(devpriv->ai_mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+}
+
+static int ni_ai_drain_dma(struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	int i;
+	static const int timeout = 10000;
+	unsigned long flags;
+	int retval = 0;
+
+	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if (devpriv->ai_mite_chan) {
+		for (i = 0; i < timeout; i++) {
+			if ((devpriv->stc_readw(dev,
+						AI_Status_1_Register) &
+			     AI_FIFO_Empty_St)
+			    && mite_bytes_in_transit(devpriv->ai_mite_chan) ==
+			    0)
+				break;
+			udelay(5);
+		}
+		if (i == timeout) {
+			printk("ni_mio_common: wait for dma drain timed out\n");
+			printk
+			    ("mite_bytes_in_transit=%i, AI_Status1_Register=0x%x\n",
+			     mite_bytes_in_transit(devpriv->ai_mite_chan),
+			     devpriv->stc_readw(dev, AI_Status_1_Register));
+			retval = -1;
+		}
+	}
+	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+
+	ni_sync_ai_dma(dev);
+
+	return retval;
 }
 
 static void mite_handle_b_linkc(struct mite_struct *mite,
@@ -1272,42 +1305,6 @@ static void ni_handle_fifo_half_full(struct comedi_device *dev)
 }
 #endif
 
-#ifdef PCIDMA
-static int ni_ai_drain_dma(struct comedi_device *dev)
-{
-	struct ni_private *devpriv = dev->private;
-	int i;
-	static const int timeout = 10000;
-	unsigned long flags;
-	int retval = 0;
-
-	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	if (devpriv->ai_mite_chan) {
-		for (i = 0; i < timeout; i++) {
-			if ((devpriv->stc_readw(dev,
-						AI_Status_1_Register) &
-			     AI_FIFO_Empty_St)
-			    && mite_bytes_in_transit(devpriv->ai_mite_chan) ==
-			    0)
-				break;
-			udelay(5);
-		}
-		if (i == timeout) {
-			printk("ni_mio_common: wait for dma drain timed out\n");
-			printk
-			    ("mite_bytes_in_transit=%i, AI_Status1_Register=0x%x\n",
-			     mite_bytes_in_transit(devpriv->ai_mite_chan),
-			     devpriv->stc_readw(dev, AI_Status_1_Register));
-			retval = -1;
-		}
-	}
-	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-
-	ni_sync_ai_dma(dev);
-
-	return retval;
-}
-#endif
 /*
    Empties the AI fifo
 */
