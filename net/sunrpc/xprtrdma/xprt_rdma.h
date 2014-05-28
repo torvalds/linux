@@ -301,7 +301,7 @@ void rpcrdma_ia_close(struct rpcrdma_ia *);
  */
 int rpcrdma_ep_create(struct rpcrdma_ep *, struct rpcrdma_ia *,
 				struct rpcrdma_create_data_internal *);
-int rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
+void rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
 int rpcrdma_ep_connect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 int rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 

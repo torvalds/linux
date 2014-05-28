@@ -748,11 +748,8 @@ out1:
  * Disconnect and destroy endpoint. After this, the only
  * valid operations on the ep are to free it (if dynamically
  * allocated) or re-create it.
- *
- * The caller's error handling must be sure to not leak the endpoint
- * if this function fails.
  */
-int
+void
 rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
 	int rc;
@@ -782,8 +779,6 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	if (rc)
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
 			__func__, rc);
-
-	return rc;
 }
 
 /*
