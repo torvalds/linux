@@ -51,6 +51,14 @@ nv04_disp_scanoutpos(struct nouveau_object *object, u32 mthd,
 	args->htotal  = nv_rd32(priv, 0x680824 + (head * 0x2000)) & 0xffff;
 	args->hblanke = args->htotal - 1;
 
+	/*
+	 * If output is vga instead of digital then vtotal/htotal is invalid
+	 * so we have to give up and trigger the timestamping fallback in the
+	 * drm core.
+	 */
+	if (!args->vtotal || !args->htotal)
+		return -ENOTSUPP;
+
 	args->time[0] = ktime_to_ns(ktime_get());
 	line = nv_rd32(priv, 0x600868 + (head * 0x2000));
 	args->time[1] = ktime_to_ns(ktime_get());
