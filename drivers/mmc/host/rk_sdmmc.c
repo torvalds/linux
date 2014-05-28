@@ -1259,15 +1259,15 @@ static int dw_mci_set_sdio_status(struct mmc_host *mmc, int val)
         spin_lock_bh(&host->lock);
         if(val){
                 set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-                if(host->hclk_mmc->enable_count == 0)
+                if(__clk_is_enabled(host->hclk_mmc) == false)
                         clk_prepare_enable(host->hclk_mmc);
-                if(host->clk_mmc->enable_count == 0)      
+                if(__clk_is_enabled(host->clk_mmc) == false)
                         clk_prepare_enable(host->clk_mmc);
         }else{
                 clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-                if(host->clk_mmc->enable_count != 0) 
+                if(__clk_is_enabled(host->clk_mmc) == true)
                         clk_disable_unprepare(slot->host->clk_mmc);
-                if(host->hclk_mmc->enable_count != 0)
+                if(__clk_is_enabled(host->hclk_mmc) == true)
                         clk_disable_unprepare(slot->host->hclk_mmc);
         }
         spin_unlock_bh(&host->lock);
