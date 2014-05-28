@@ -87,6 +87,9 @@
 #define RCAR_IRQ_RECV	(MNRE | MALE | MSTE | MATE | MDRE)
 #define RCAR_IRQ_STOP	(MSTE)
 
+#define RCAR_IRQ_ACK_SEND	(~(MAT | MDE))
+#define RCAR_IRQ_ACK_RECV	(~(MAT | MDR))
+
 /*
  * flags
  */
@@ -268,26 +271,17 @@ scgd_find:
  *		status functions
  */
 
-#define rcar_i2c_status_clear(priv) rcar_i2c_status_bit_clear(priv, 0xffffffff)
-static void rcar_i2c_status_bit_clear(struct rcar_i2c_priv *priv, u32 bit)
-{
-	rcar_i2c_write(priv, ICMSR, ~bit);
-}
-
 static int rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 {
 	int read = !!rcar_i2c_is_recv(priv);
 
 	rcar_i2c_write(priv, ICMAR, (priv->msg->addr << 1) | read);
-	rcar_i2c_status_clear(priv);
+	rcar_i2c_write(priv, ICMSR, 0);
 	rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
 	rcar_i2c_write(priv, ICMIER, read ? RCAR_IRQ_RECV : RCAR_IRQ_SEND);
 
 	return 0;
 }
-
-#define rcar_i2c_send_restart(priv) rcar_i2c_status_bit_clear(priv, (MAT | MDE))
-#define rcar_i2c_recv_restart(priv) rcar_i2c_status_bit_clear(priv, (MAT | MDR))
 
 /*
  *		interrupt functions
@@ -348,7 +342,7 @@ static int rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 			return ID_DONE;
 	}
 
-	rcar_i2c_send_restart(priv);
+	rcar_i2c_write(priv, ICMSR, RCAR_IRQ_ACK_SEND);
 
 	return 0;
 }
@@ -389,7 +383,7 @@ static int rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 	else
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_DATA);
 
-	rcar_i2c_recv_restart(priv);
+	rcar_i2c_write(priv, ICMSR, RCAR_IRQ_ACK_RECV);
 
 	return 0;
 }
@@ -452,7 +446,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 out:
 	if (rcar_i2c_flags_has(priv, ID_DONE)) {
 		rcar_i2c_write(priv, ICMIER, 0);
-		rcar_i2c_status_clear(priv);
+		rcar_i2c_write(priv, ICMSR, 0);
 		wake_up(&priv->wait);
 	}
 
