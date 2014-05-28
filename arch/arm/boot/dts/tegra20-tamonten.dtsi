@@ -478,10 +478,6 @@
 		avdd-pex-pll-supply = <&pci_vdd_reg>;
 		avdd-plle-supply = <&pci_vdd_reg>;
 		vddio-pex-clk-supply = <&pci_clk_reg>;
-
-		/* deprecated */
-		pex-clk-supply = <&pci_clk_reg>;
-		vdd-supply = <&pci_vdd_reg>;
 	};
 
 	usb@c5008000 {

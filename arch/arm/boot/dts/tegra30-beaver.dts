@@ -27,11 +27,6 @@
 		vddio-pex-ctl-supply = <&sys_3v3_reg>;
 		hvdd-pex-supply = <&sys_3v3_pexs_reg>;
 
-		/* deprecated */
-		pex-clk-supply = <&sys_3v3_pexs_reg>;
-		vdd-supply = <&ldo1_reg>;
-		avdd-supply = <&ldo2_reg>;
-
 		pci@1,0 {
 			status = "okay";
 			nvidia,num-lanes = <2>;

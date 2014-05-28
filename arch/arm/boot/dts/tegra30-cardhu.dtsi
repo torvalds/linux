@@ -47,11 +47,6 @@
 		vddio-pex-ctl-supply = <&sys_3v3_reg>;
 		avdd-plle-supply = <&ldo2_reg>;
 
-		/* deprecated */
-		pex-clk-supply = <&pex_hvdd_3v3_reg>;
-		vdd-supply = <&ldo1_reg>;
-		avdd-supply = <&ldo2_reg>;
-
 		pci@1,0 {
 			nvidia,num-lanes = <4>;
 		};
