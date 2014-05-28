@@ -205,7 +205,9 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	ret = vsp1_video_init(video, &rpf->entity);
 	if (ret < 0)
-		goto error_video;
+		goto error;
+
+	rpf->entity.video = video;
 
 	/* Connect the video device to the RPF. */
 	ret = media_entity_create_link(&rpf->video.video.entity, 0,
@@ -214,13 +216,11 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 				       MEDIA_LNK_FL_ENABLED |
 				       MEDIA_LNK_FL_IMMUTABLE);
 	if (ret < 0)
-		goto error_link;
+		goto error;
 
 	return rpf;
 
-error_link:
-	vsp1_video_cleanup(video);
-error_video:
-	media_entity_cleanup(&rpf->entity.subdev.entity);
+error:
+	vsp1_entity_destroy(&rpf->entity);
 	return ERR_PTR(ret);
 }

@@ -216,7 +216,9 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	ret = vsp1_video_init(video, &wpf->entity);
 	if (ret < 0)
-		goto error_video;
+		goto error;
+
+	wpf->entity.video = video;
 
 	/* Connect the video device to the WPF. All connections are immutable
 	 * except for the WPF0 source link if a LIF is present.
@@ -229,15 +231,13 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 				       RWPF_PAD_SOURCE,
 				       &wpf->video.video.entity, 0, flags);
 	if (ret < 0)
-		goto error_link;
+		goto error;
 
 	wpf->entity.sink = &wpf->video.video.entity;
 
 	return wpf;
 
-error_link:
-	vsp1_video_cleanup(video);
-error_video:
-	media_entity_cleanup(&wpf->entity.subdev.entity);
+error:
+	vsp1_entity_destroy(&wpf->entity);
 	return ERR_PTR(ret);
 }

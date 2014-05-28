@@ -18,6 +18,7 @@
 #include <media/v4l2-subdev.h>
 
 struct vsp1_device;
+struct vsp1_video;
 
 enum vsp1_entity_type {
 	VSP1_ENTITY_BRU,
@@ -68,6 +69,8 @@ struct vsp1_entity {
 
 	struct v4l2_subdev subdev;
 	struct v4l2_mbus_framefmt *formats;
+
+	struct vsp1_video *video;
 };
 
 static inline struct vsp1_entity *to_vsp1_entity(struct v4l2_subdev *subdev)
