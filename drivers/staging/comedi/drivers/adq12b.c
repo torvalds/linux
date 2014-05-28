@@ -132,18 +132,17 @@ static int adq12b_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int adq12b_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn,
-			   unsigned int *data)
+static int adq12b_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct adq12b_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int val;
-	int n;
-	unsigned char hi, lo, status;
 	int ret;
+	int i;
 
 	/* change channel and range only if it is different from the previous */
 	val = (range << 4) | chan;
@@ -153,27 +152,20 @@ static int adq12b_ai_rinsn(struct comedi_device *dev,
 		udelay(50);	/* wait for the mux to settle */
 	}
 
-	/* trigger conversion */
-	status = inb(dev->iobase + ADQ12B_ADLOW);
+	val = inb(dev->iobase + ADQ12B_ADLOW);	/* trigger A/D */
 
-	/* convert n samples */
-	for (n = 0; n < insn->n; n++) {
-
-		/* wait for end of conversion */
+	for (i = 0; i < insn->n; i++) {
 		ret = comedi_timeout(dev, s, insn, adq12b_ai_eoc, 0);
 		if (ret)
 			return ret;
 
-		/* read data */
-		hi = inb(dev->iobase + ADQ12B_ADHIG);
-		lo = inb(dev->iobase + ADQ12B_ADLOW);
+		val = inb(dev->iobase + ADQ12B_ADHIG) << 8;
+		val |= inb(dev->iobase + ADQ12B_ADLOW);	/* retriggers A/D */
 
-		data[n] = (hi << 8) | lo;
-
+		data[i] = val;
 	}
 
-	/* return the number of samples read/written */
-	return n;
+	return insn->n;
 }
 
 static int adq12b_di_insn_bits(struct comedi_device *dev,
@@ -254,7 +246,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s->len_chanlist = 4;	/* This is the maximum chanlist length that
 				   the board can handle */
-	s->insn_read = adq12b_ai_rinsn;
+	s->insn_read = adq12b_ai_insn_read;
 
 	s = &dev->subdevices[1];
 	/* digital input subdevice */
