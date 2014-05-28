@@ -3878,12 +3878,17 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 
 static int ni_freq_out_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned int val = devpriv->clock_and_fout & FOUT_Divider_mask;
+	int i;
 
-	data[0] = devpriv->clock_and_fout & FOUT_Divider_mask;
-	return 1;
+	for (i = 0; i < insn->n; i++)
+		data[i] = val;
+
+	return insn->n;
 }
 
 static int ni_freq_out_insn_write(struct comedi_device *dev,
