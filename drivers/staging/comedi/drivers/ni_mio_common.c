@@ -205,8 +205,6 @@ static int ni_ao_fifo_half_empty(struct comedi_device *dev,
 				 struct comedi_subdevice *s);
 #endif
 static void ni_handle_fifo_dregs(struct comedi_device *dev);
-static void ni_load_channelgain_list(struct comedi_device *dev,
-				     unsigned int n_chan, unsigned int *list);
 
 static int ni_set_master_clock(struct comedi_device *dev, unsigned source,
 			       unsigned period_ns);
@@ -1525,105 +1523,6 @@ static int ni_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	return count;
 }
 
-static int ni_ai_insn_read(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-	int i, n;
-	const unsigned int mask = (1 << board->adbits) - 1;
-	unsigned signbits;
-	unsigned short d;
-	unsigned long dl;
-
-	ni_load_channelgain_list(dev, 1, &insn->chanspec);
-
-	ni_clear_ai_fifo(dev);
-
-	signbits = devpriv->ai_offset[0];
-	if (board->reg_type == ni_reg_611x) {
-		for (n = 0; n < num_adc_stages_611x; n++) {
-			devpriv->stc_writew(dev, AI_CONVERT_Pulse,
-					    AI_Command_1_Register);
-			udelay(1);
-		}
-		for (n = 0; n < insn->n; n++) {
-			devpriv->stc_writew(dev, AI_CONVERT_Pulse,
-					    AI_Command_1_Register);
-			/* The 611x has screwy 32-bit FIFOs. */
-			d = 0;
-			for (i = 0; i < NI_TIMEOUT; i++) {
-				if (ni_readb(XXX_Status) & 0x80) {
-					d = (ni_readl(ADC_FIFO_Data_611x) >> 16)
-					    & 0xffff;
-					break;
-				}
-				if (!(devpriv->stc_readw(dev,
-							 AI_Status_1_Register) &
-				      AI_FIFO_Empty_St)) {
-					d = ni_readl(ADC_FIFO_Data_611x) &
-					    0xffff;
-					break;
-				}
-			}
-			if (i == NI_TIMEOUT) {
-				printk
-				    ("ni_mio_common: timeout in 611x ni_ai_insn_read\n");
-				return -ETIME;
-			}
-			d += signbits;
-			data[n] = d;
-		}
-	} else if (board->reg_type == ni_reg_6143) {
-		for (n = 0; n < insn->n; n++) {
-			devpriv->stc_writew(dev, AI_CONVERT_Pulse,
-					    AI_Command_1_Register);
-
-			/* The 6143 has 32-bit FIFOs. You need to strobe a bit to move a single 16bit stranded sample into the FIFO */
-			dl = 0;
-			for (i = 0; i < NI_TIMEOUT; i++) {
-				if (ni_readl(AIFIFO_Status_6143) & 0x01) {
-					ni_writel(0x01, AIFIFO_Control_6143);	/*  Get stranded sample into FIFO */
-					dl = ni_readl(AIFIFO_Data_6143);
-					break;
-				}
-			}
-			if (i == NI_TIMEOUT) {
-				printk
-				    ("ni_mio_common: timeout in 6143 ni_ai_insn_read\n");
-				return -ETIME;
-			}
-			data[n] = (((dl >> 16) & 0xFFFF) + signbits) & 0xFFFF;
-		}
-	} else {
-		for (n = 0; n < insn->n; n++) {
-			devpriv->stc_writew(dev, AI_CONVERT_Pulse,
-					    AI_Command_1_Register);
-			for (i = 0; i < NI_TIMEOUT; i++) {
-				if (!(devpriv->stc_readw(dev,
-							 AI_Status_1_Register) &
-				      AI_FIFO_Empty_St))
-					break;
-			}
-			if (i == NI_TIMEOUT) {
-				printk
-				    ("ni_mio_common: timeout in ni_ai_insn_read\n");
-				return -ETIME;
-			}
-			if (board->reg_type & ni_reg_m_series_mask) {
-				data[n] =
-				    ni_readl(M_Offset_AI_FIFO_Data) & mask;
-			} else {
-				d = ni_readw(ADC_FIFO_Data_Register);
-				d += signbits;	/* subtle: needs to be short addition */
-				data[n] = d;
-			}
-		}
-	}
-	return insn->n;
-}
-
 static void ni_prime_channelgain_list(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
@@ -1868,6 +1767,106 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 	    && (board->reg_type != ni_reg_6143)) {
 		ni_prime_channelgain_list(dev);
 	}
+}
+
+static int ni_ai_insn_read(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned int *data)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+	int i, n;
+	const unsigned int mask = (1 << board->adbits) - 1;
+	unsigned signbits;
+	unsigned short d;
+	unsigned long dl;
+
+	ni_load_channelgain_list(dev, 1, &insn->chanspec);
+
+	ni_clear_ai_fifo(dev);
+
+	signbits = devpriv->ai_offset[0];
+	if (board->reg_type == ni_reg_611x) {
+		for (n = 0; n < num_adc_stages_611x; n++) {
+			devpriv->stc_writew(dev, AI_CONVERT_Pulse,
+					    AI_Command_1_Register);
+			udelay(1);
+		}
+		for (n = 0; n < insn->n; n++) {
+			devpriv->stc_writew(dev, AI_CONVERT_Pulse,
+					    AI_Command_1_Register);
+			/* The 611x has screwy 32-bit FIFOs. */
+			d = 0;
+			for (i = 0; i < NI_TIMEOUT; i++) {
+				if (ni_readb(XXX_Status) & 0x80) {
+					d = (ni_readl(ADC_FIFO_Data_611x) >> 16)
+					    & 0xffff;
+					break;
+				}
+				if (!(devpriv->stc_readw(dev,
+							 AI_Status_1_Register) &
+				      AI_FIFO_Empty_St)) {
+					d = ni_readl(ADC_FIFO_Data_611x) &
+					    0xffff;
+					break;
+				}
+			}
+			if (i == NI_TIMEOUT) {
+				printk
+				    ("ni_mio_common: timeout in 611x ni_ai_insn_read\n");
+				return -ETIME;
+			}
+			d += signbits;
+			data[n] = d;
+		}
+	} else if (board->reg_type == ni_reg_6143) {
+		for (n = 0; n < insn->n; n++) {
+			devpriv->stc_writew(dev, AI_CONVERT_Pulse,
+					    AI_Command_1_Register);
+
+			/* The 6143 has 32-bit FIFOs. You need to strobe a bit to move a single 16bit stranded sample into the FIFO */
+			dl = 0;
+			for (i = 0; i < NI_TIMEOUT; i++) {
+				if (ni_readl(AIFIFO_Status_6143) & 0x01) {
+					ni_writel(0x01, AIFIFO_Control_6143);	/*  Get stranded sample into FIFO */
+					dl = ni_readl(AIFIFO_Data_6143);
+					break;
+				}
+			}
+			if (i == NI_TIMEOUT) {
+				printk
+				    ("ni_mio_common: timeout in 6143 ni_ai_insn_read\n");
+				return -ETIME;
+			}
+			data[n] = (((dl >> 16) & 0xFFFF) + signbits) & 0xFFFF;
+		}
+	} else {
+		for (n = 0; n < insn->n; n++) {
+			devpriv->stc_writew(dev, AI_CONVERT_Pulse,
+					    AI_Command_1_Register);
+			for (i = 0; i < NI_TIMEOUT; i++) {
+				if (!(devpriv->stc_readw(dev,
+							 AI_Status_1_Register) &
+				      AI_FIFO_Empty_St))
+					break;
+			}
+			if (i == NI_TIMEOUT) {
+				printk
+				    ("ni_mio_common: timeout in ni_ai_insn_read\n");
+				return -ETIME;
+			}
+			if (board->reg_type & ni_reg_m_series_mask) {
+				data[n] =
+				    ni_readl(M_Offset_AI_FIFO_Data) & mask;
+			} else {
+				d = ni_readw(ADC_FIFO_Data_Register);
+				d += signbits;	/* subtle: needs to be short addition */
+				data[n] = d;
+			}
+		}
+	}
+	return insn->n;
 }
 
 static int ni_ns_to_timer(const struct comedi_device *dev, unsigned nanosec,
