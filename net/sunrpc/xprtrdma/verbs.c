@@ -50,6 +50,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>	/* for Tavor hack below */
 #include <linux/slab.h>
+#include <asm/bitops.h>
 
 #include "xprt_rdma.h"
 
@@ -1005,7 +1006,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	struct rpcrdma_ia *ia, struct rpcrdma_create_data_internal *cdata)
 {
 	char *p;
-	size_t len;
+	size_t len, rlen, wlen;
 	int i, rc;
 	struct rpcrdma_mw *r;
 
@@ -1120,16 +1121,16 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	 * Allocate/init the request/reply buffers. Doing this
 	 * using kmalloc for now -- one for each buf.
 	 */
+	wlen = 1 << fls(cdata->inline_wsize + sizeof(struct rpcrdma_req));
+	rlen = 1 << fls(cdata->inline_rsize + sizeof(struct rpcrdma_rep));
+	dprintk("RPC:       %s: wlen = %zu, rlen = %zu\n",
+		__func__, wlen, rlen);
+
 	for (i = 0; i < buf->rb_max_requests; i++) {
 		struct rpcrdma_req *req;
 		struct rpcrdma_rep *rep;
 
-		len = cdata->inline_wsize + sizeof(struct rpcrdma_req);
-		/* RPC layer requests *double* size + 1K RPC_SLACK_SPACE! */
-		/* Typical ~2400b, so rounding up saves work later */
-		if (len < 4096)
-			len = 4096;
-		req = kmalloc(len, GFP_KERNEL);
+		req = kmalloc(wlen, GFP_KERNEL);
 		if (req == NULL) {
 			dprintk("RPC:       %s: request buffer %d alloc"
 				" failed\n", __func__, i);
@@ -1141,16 +1142,16 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 		buf->rb_send_bufs[i]->rl_buffer = buf;
 
 		rc = rpcrdma_register_internal(ia, req->rl_base,
-				len - offsetof(struct rpcrdma_req, rl_base),
+				wlen - offsetof(struct rpcrdma_req, rl_base),
 				&buf->rb_send_bufs[i]->rl_handle,
 				&buf->rb_send_bufs[i]->rl_iov);
 		if (rc)
 			goto out;
 
-		buf->rb_send_bufs[i]->rl_size = len-sizeof(struct rpcrdma_req);
+		buf->rb_send_bufs[i]->rl_size = wlen -
+						sizeof(struct rpcrdma_req);
 
-		len = cdata->inline_rsize + sizeof(struct rpcrdma_rep);
-		rep = kmalloc(len, GFP_KERNEL);
+		rep = kmalloc(rlen, GFP_KERNEL);
 		if (rep == NULL) {
 			dprintk("RPC:       %s: reply buffer %d alloc failed\n",
 				__func__, i);
@@ -1162,7 +1163,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 		buf->rb_recv_bufs[i]->rr_buffer = buf;
 
 		rc = rpcrdma_register_internal(ia, rep->rr_base,
-				len - offsetof(struct rpcrdma_rep, rr_base),
+				rlen - offsetof(struct rpcrdma_rep, rr_base),
 				&buf->rb_recv_bufs[i]->rr_handle,
 				&buf->rb_recv_bufs[i]->rr_iov);
 		if (rc)
