@@ -423,7 +423,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 #ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2) {
-		c->core = read_c0_ebase() & 0x3ff;
+		c->core = get_ebase_cpunum();
 		if (cpu_has_mipsmt)
 			c->core >>= fls(core_nvpes()) - 1;
 	}

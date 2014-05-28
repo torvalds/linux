@@ -1792,6 +1792,15 @@ __BUILD_SET_C0(brcm_cmt_ctrl)
 __BUILD_SET_C0(brcm_config)
 __BUILD_SET_C0(brcm_mode)
 
+/*
+ * Return low 10 bits of ebase.
+ * Note that under KVM (MIPSVZ) this returns vcpu id.
+ */
+static inline unsigned int get_ebase_cpunum(void)
+{
+	return read_c0_ebase() & 0x3ff;
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_MIPSREGS_H */
