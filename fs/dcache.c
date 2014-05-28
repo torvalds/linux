@@ -801,6 +801,7 @@ static void shrink_dentry_list(struct list_head *list)
 	struct dentry *dentry, *parent;
 
 	while (!list_empty(list)) {
+		struct inode *inode;
 		dentry = list_entry(list->prev, struct dentry, d_lru);
 		spin_lock(&dentry->d_lock);
 		/*
@@ -828,23 +829,26 @@ static void shrink_dentry_list(struct list_head *list)
 			continue;
 		}
 
-		parent = dentry_kill(dentry, 0);
-		/*
-		 * If dentry_kill returns NULL, we have nothing more to do.
-		 */
-		if (!parent)
-			continue;
-
-		if (unlikely(parent == dentry)) {
-			/*
-			 * trylocks have failed and d_lock has been held the
-			 * whole time, so it could not have been added to any
-			 * other lists. Just add it back to the shrink list.
-			 */
+		inode = dentry->d_inode;
+		if (inode && unlikely(!spin_trylock(&inode->i_lock))) {
 			d_shrink_add(dentry, list);
 			spin_unlock(&dentry->d_lock);
 			continue;
 		}
+
+		parent = NULL;
+		if (!IS_ROOT(dentry)) {
+			parent = dentry->d_parent;
+			if (unlikely(!spin_trylock(&parent->d_lock))) {
+				if (inode)
+					spin_unlock(&inode->i_lock);
+				d_shrink_add(dentry, list);
+				spin_unlock(&dentry->d_lock);
+				continue;
+			}
+		}
+
+		__dentry_kill(dentry);
 		/*
 		 * We need to prune ancestors too. This is necessary to prevent
 		 * quadratic behavior of shrink_dcache_parent(), but is also
