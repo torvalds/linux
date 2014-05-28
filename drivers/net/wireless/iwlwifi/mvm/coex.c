@@ -1246,6 +1246,11 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	return lut_type != BT_COEX_LOOSE_LUT;
 }
 
+bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm)
+{
+	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF;
+}
+
 bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 				    enum ieee80211_band band)
 {
