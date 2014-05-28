@@ -221,13 +221,6 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 				   unsigned char data_out,
 				   unsigned char *data_in);
 
-static int ni_calib_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
-static int ni_calib_insn_write(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-
 static int ni_pfi_insn_bits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data);
@@ -244,8 +237,6 @@ static int ni_rtsi_insn_bits(struct comedi_device *dev,
 static int ni_rtsi_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
-
-static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s);
 
 #ifndef PCIDMA
 static void ni_handle_fifo_half_full(struct comedi_device *dev);
@@ -4299,6 +4290,183 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 	return 0;
 }
 
+static int pack_mb88341(int addr, int val, int *bitstring)
+{
+	/*
+	   Fujitsu MB 88341
+	   Note that address bits are reversed.  Thanks to
+	   Ingo Keen for noticing this.
+
+	   Note also that the 88341 expects address values from
+	   1-12, whereas we use channel numbers 0-11.  The NI
+	   docs use 1-12, also, so be careful here.
+	 */
+	addr++;
+	*bitstring = ((addr & 0x1) << 11) |
+	    ((addr & 0x2) << 9) |
+	    ((addr & 0x4) << 7) | ((addr & 0x8) << 5) | (val & 0xff);
+	return 12;
+}
+
+static int pack_dac8800(int addr, int val, int *bitstring)
+{
+	*bitstring = ((addr & 0x7) << 8) | (val & 0xff);
+	return 11;
+}
+
+static int pack_dac8043(int addr, int val, int *bitstring)
+{
+	*bitstring = val & 0xfff;
+	return 12;
+}
+
+static int pack_ad8522(int addr, int val, int *bitstring)
+{
+	*bitstring = (val & 0xfff) | (addr ? 0xc000 : 0xa000);
+	return 16;
+}
+
+static int pack_ad8804(int addr, int val, int *bitstring)
+{
+	*bitstring = ((addr & 0xf) << 8) | (val & 0xff);
+	return 12;
+}
+
+static int pack_ad8842(int addr, int val, int *bitstring)
+{
+	*bitstring = ((addr + 1) << 8) | (val & 0xff);
+	return 12;
+}
+
+struct caldac_struct {
+	int n_chans;
+	int n_bits;
+	int (*packbits)(int, int, int *);
+};
+
+static struct caldac_struct caldacs[] = {
+	[mb88341] = {12, 8, pack_mb88341},
+	[dac8800] = {8, 8, pack_dac8800},
+	[dac8043] = {1, 12, pack_dac8043},
+	[ad8522] = {2, 12, pack_ad8522},
+	[ad8804] = {12, 8, pack_ad8804},
+	[ad8842] = {8, 8, pack_ad8842},
+	[ad8804_debug] = {16, 8, pack_ad8804},
+};
+
+static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+	unsigned int loadbit = 0, bits = 0, bit, bitstring = 0;
+	int i;
+	int type;
+
+	/* printk("ni_write_caldac: chan=%d val=%d\n",addr,val); */
+	if (devpriv->caldacs[addr] == val)
+		return;
+	devpriv->caldacs[addr] = val;
+
+	for (i = 0; i < 3; i++) {
+		type = board->caldac[i];
+		if (type == caldac_none)
+			break;
+		if (addr < caldacs[type].n_chans) {
+			bits = caldacs[type].packbits(addr, val, &bitstring);
+			loadbit = SerDacLd(i);
+			/* printk("caldac: using i=%d addr=%d %x\n",i,addr,bitstring); */
+			break;
+		}
+		addr -= caldacs[type].n_chans;
+	}
+
+	for (bit = 1 << (bits - 1); bit; bit >>= 1) {
+		ni_writeb(((bit & bitstring) ? 0x02 : 0), Serial_Command);
+		udelay(1);
+		ni_writeb(1 | ((bit & bitstring) ? 0x02 : 0), Serial_Command);
+		udelay(1);
+	}
+	ni_writeb(loadbit, Serial_Command);
+	udelay(1);
+	ni_writeb(0, Serial_Command);
+}
+
+static int ni_calib_insn_write(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	ni_write_caldac(dev, CR_CHAN(insn->chanspec), data[0]);
+
+	return 1;
+}
+
+static int ni_calib_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
+{
+	struct ni_private *devpriv = dev->private;
+
+	data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
+static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
+	int i, j;
+	int n_dacs;
+	int n_chans = 0;
+	int n_bits;
+	int diffbits = 0;
+	int type;
+	int chan;
+
+	type = board->caldac[0];
+	if (type == caldac_none)
+		return;
+	n_bits = caldacs[type].n_bits;
+	for (i = 0; i < 3; i++) {
+		type = board->caldac[i];
+		if (type == caldac_none)
+			break;
+		if (caldacs[type].n_bits != n_bits)
+			diffbits = 1;
+		n_chans += caldacs[type].n_chans;
+	}
+	n_dacs = i;
+	s->n_chan = n_chans;
+
+	if (diffbits) {
+		unsigned int *maxdata_list;
+
+		if (n_chans > MAX_N_CALDACS)
+			printk("BUG! MAX_N_CALDACS too small\n");
+		s->maxdata_list = maxdata_list = devpriv->caldac_maxdata_list;
+		chan = 0;
+		for (i = 0; i < n_dacs; i++) {
+			type = board->caldac[i];
+			for (j = 0; j < caldacs[type].n_chans; j++) {
+				maxdata_list[chan] =
+				    (1 << caldacs[type].n_bits) - 1;
+				chan++;
+			}
+		}
+
+		for (chan = 0; chan < s->n_chan; chan++)
+			ni_write_caldac(dev, i, s->maxdata_list[i] / 2);
+	} else {
+		type = board->caldac[0];
+		s->maxdata = (1 << caldacs[type].n_bits) - 1;
+
+		for (chan = 0; chan < s->n_chan; chan++)
+			ni_write_caldac(dev, i, s->maxdata / 2);
+	}
+}
+
 static int ni_read_eeprom(struct comedi_device *dev, int addr)
 {
 	struct ni_private *devpriv __maybe_unused = dev->private;
@@ -4674,185 +4842,6 @@ static int ni_E_init(struct comedi_device *dev)
 	}
 
 	return 0;
-}
-
-static void ni_write_caldac(struct comedi_device *dev, int addr, int val);
-/*
-	calibration subdevice
-*/
-static int ni_calib_insn_write(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	ni_write_caldac(dev, CR_CHAN(insn->chanspec), data[0]);
-
-	return 1;
-}
-
-static int ni_calib_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
-{
-	struct ni_private *devpriv = dev->private;
-
-	data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
-
-	return 1;
-}
-
-static int pack_mb88341(int addr, int val, int *bitstring)
-{
-	/*
-	   Fujitsu MB 88341
-	   Note that address bits are reversed.  Thanks to
-	   Ingo Keen for noticing this.
-
-	   Note also that the 88341 expects address values from
-	   1-12, whereas we use channel numbers 0-11.  The NI
-	   docs use 1-12, also, so be careful here.
-	 */
-	addr++;
-	*bitstring = ((addr & 0x1) << 11) |
-	    ((addr & 0x2) << 9) |
-	    ((addr & 0x4) << 7) | ((addr & 0x8) << 5) | (val & 0xff);
-	return 12;
-}
-
-static int pack_dac8800(int addr, int val, int *bitstring)
-{
-	*bitstring = ((addr & 0x7) << 8) | (val & 0xff);
-	return 11;
-}
-
-static int pack_dac8043(int addr, int val, int *bitstring)
-{
-	*bitstring = val & 0xfff;
-	return 12;
-}
-
-static int pack_ad8522(int addr, int val, int *bitstring)
-{
-	*bitstring = (val & 0xfff) | (addr ? 0xc000 : 0xa000);
-	return 16;
-}
-
-static int pack_ad8804(int addr, int val, int *bitstring)
-{
-	*bitstring = ((addr & 0xf) << 8) | (val & 0xff);
-	return 12;
-}
-
-static int pack_ad8842(int addr, int val, int *bitstring)
-{
-	*bitstring = ((addr + 1) << 8) | (val & 0xff);
-	return 12;
-}
-
-struct caldac_struct {
-	int n_chans;
-	int n_bits;
-	int (*packbits)(int, int, int *);
-};
-
-static struct caldac_struct caldacs[] = {
-	[mb88341] = {12, 8, pack_mb88341},
-	[dac8800] = {8, 8, pack_dac8800},
-	[dac8043] = {1, 12, pack_dac8043},
-	[ad8522] = {2, 12, pack_ad8522},
-	[ad8804] = {12, 8, pack_ad8804},
-	[ad8842] = {8, 8, pack_ad8842},
-	[ad8804_debug] = {16, 8, pack_ad8804},
-};
-
-static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-	int i, j;
-	int n_dacs;
-	int n_chans = 0;
-	int n_bits;
-	int diffbits = 0;
-	int type;
-	int chan;
-
-	type = board->caldac[0];
-	if (type == caldac_none)
-		return;
-	n_bits = caldacs[type].n_bits;
-	for (i = 0; i < 3; i++) {
-		type = board->caldac[i];
-		if (type == caldac_none)
-			break;
-		if (caldacs[type].n_bits != n_bits)
-			diffbits = 1;
-		n_chans += caldacs[type].n_chans;
-	}
-	n_dacs = i;
-	s->n_chan = n_chans;
-
-	if (diffbits) {
-		unsigned int *maxdata_list;
-
-		if (n_chans > MAX_N_CALDACS)
-			printk("BUG! MAX_N_CALDACS too small\n");
-		s->maxdata_list = maxdata_list = devpriv->caldac_maxdata_list;
-		chan = 0;
-		for (i = 0; i < n_dacs; i++) {
-			type = board->caldac[i];
-			for (j = 0; j < caldacs[type].n_chans; j++) {
-				maxdata_list[chan] =
-				    (1 << caldacs[type].n_bits) - 1;
-				chan++;
-			}
-		}
-
-		for (chan = 0; chan < s->n_chan; chan++)
-			ni_write_caldac(dev, i, s->maxdata_list[i] / 2);
-	} else {
-		type = board->caldac[0];
-		s->maxdata = (1 << caldacs[type].n_bits) - 1;
-
-		for (chan = 0; chan < s->n_chan; chan++)
-			ni_write_caldac(dev, i, s->maxdata / 2);
-	}
-}
-
-static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
-{
-	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
-	unsigned int loadbit = 0, bits = 0, bit, bitstring = 0;
-	int i;
-	int type;
-
-	/* printk("ni_write_caldac: chan=%d val=%d\n",addr,val); */
-	if (devpriv->caldacs[addr] == val)
-		return;
-	devpriv->caldacs[addr] = val;
-
-	for (i = 0; i < 3; i++) {
-		type = board->caldac[i];
-		if (type == caldac_none)
-			break;
-		if (addr < caldacs[type].n_chans) {
-			bits = caldacs[type].packbits(addr, val, &bitstring);
-			loadbit = SerDacLd(i);
-			/* printk("caldac: using i=%d addr=%d %x\n",i,addr,bitstring); */
-			break;
-		}
-		addr -= caldacs[type].n_chans;
-	}
-
-	for (bit = 1 << (bits - 1); bit; bit >>= 1) {
-		ni_writeb(((bit & bitstring) ? 0x02 : 0), Serial_Command);
-		udelay(1);
-		ni_writeb(1 | ((bit & bitstring) ? 0x02 : 0), Serial_Command);
-		udelay(1);
-	}
-	ni_writeb(loadbit, Serial_Command);
-	udelay(1);
-	ni_writeb(0, Serial_Command);
 }
 
 #if 0
