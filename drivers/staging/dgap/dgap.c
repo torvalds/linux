@@ -975,7 +975,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 static int dgap_do_remap(struct board_t *brd)
 {
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	if (!request_mem_region(brd->membase, 0x200000, "dgap"))
 		return -ENOMEM;
@@ -1329,7 +1329,7 @@ static int dgap_tty_init(struct board_t *brd)
 	struct cm_t __iomem *cm;
 
 	if (!brd)
-		return -ENXIO;
+		return -EIO;
 
 	/*
 	 * Initialize board structure elements.
@@ -1367,7 +1367,7 @@ static int dgap_tty_init(struct board_t *brd)
 		if (!brd->nasync) {
 			brd->state = BOARD_FAILED;
 			brd->dpastatus = BD_NOFEP;
-			return -ENXIO;
+			return -EIO;
 		}
 	}
 
@@ -1873,12 +1873,12 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	minor = MINOR(tty_devnum(tty));
 
 	if (major > 255)
-		return -ENXIO;
+		return -EIO;
 
 	/* Get board pointer from our array of majors we have allocated */
 	brd = dgap_boards_by_major[major];
 	if (!brd)
-		return -ENXIO;
+		return -EIO;
 
 	/*
 	 * If board is not yet up to a state of READY, go to
@@ -1895,19 +1895,19 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	/* The wait above should guarantee this cannot happen */
 	if (brd->state != BOARD_READY) {
 		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
-		return -ENXIO;
+		return -EIO;
 	}
 
 	/* If opened device is greater than our number of ports, bail. */
 	if (MINOR(tty_devnum(tty)) > brd->nasync) {
 		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
-		return -ENXIO;
+		return -EIO;
 	}
 
 	ch = brd->channels[minor];
 	if (!ch) {
 		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
-		return -ENXIO;
+		return -EIO;
 	}
 
 	/* Grab channel lock */
@@ -1923,7 +1923,7 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	} else {
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
-		return -ENXIO;
+		return -EIO;
 	}
 
 	/* Store our unit into driver_data, so we always have it available. */
@@ -1936,7 +1936,7 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	if (!bs) {
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&brd->bd_lock, lock_flags);
-		return -ENXIO;
+		return -EIO;
 	}
 
 	/*
@@ -2021,11 +2021,11 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 
 	if (!tty || tty->magic != TTY_MAGIC || !file || !ch ||
 		ch->magic != DGAP_CHANNEL_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
@@ -2041,7 +2041,7 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 		 * bail with error.
 		 */
 		if (ch->ch_bd->state == BOARD_FAILED) {
-			retval = -ENXIO;
+			retval = -EIO;
 			break;
 		}
 
@@ -3029,7 +3029,7 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	int rc;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
@@ -5007,23 +5007,23 @@ static int dgap_param(struct tty_struct *tty)
 	u8 hflow;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	un = (struct un_t *) tty->driver_data;
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	bs = ch->ch_bs;
 	if (!bs)
-		return -ENXIO;
+		return -EIO;
 
 	ts = &tty->termios;
 
@@ -5462,7 +5462,7 @@ static int dgap_event(struct board_t *bd)
 	int b1;
 
 	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
-		return -ENXIO;
+		return -EIO;
 
 	spin_lock_irqsave(&bd->bd_lock, lock_flags);
 
@@ -5470,7 +5470,7 @@ static int dgap_event(struct board_t *bd)
 
 	if (!vaddr) {
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-		return -ENXIO;
+		return -EIO;
 	}
 
 	eaddr = (struct ev_t __iomem *) (vaddr + EVBUF);
@@ -5487,7 +5487,7 @@ static int dgap_event(struct board_t *bd)
 	    (head | tail) & 03) {
 		/* Let go of board lock */
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
-		return -ENXIO;
+		return -EIO;
 	}
 
 	/*
