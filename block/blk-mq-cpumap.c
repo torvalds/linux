@@ -1,3 +1,8 @@
+/*
+ * CPU <-> hardware queue mapping helpers
+ *
+ * Copyright (C) 2013-2014 Jens Axboe
+ */
 #include <linux/kernel.h>
 #include <linux/threads.h>
 #include <linux/module.h>
