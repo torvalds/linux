@@ -80,9 +80,6 @@
 #define RCAR_IRQ_ACK_SEND	(~(MAT | MDE))
 #define RCAR_IRQ_ACK_RECV	(~(MAT | MDR))
 
-/*
- * flags
- */
 #define ID_LAST_MSG	(1 << 0)
 #define ID_IOERROR	(1 << 1)
 #define ID_DONE		(1 << 2)
@@ -105,7 +102,7 @@ struct rcar_i2c_priv {
 	int pos;
 	u32 icccr;
 	u32 flags;
-	enum rcar_i2c_type	devtype;
+	enum rcar_i2c_type devtype;
 };
 
 #define rcar_i2c_priv_to_dev(p)		((p)->adap.dev.parent)
@@ -116,9 +113,7 @@ struct rcar_i2c_priv {
 
 #define LOOP_TIMEOUT	1024
 
-/*
- *		basic functions
- */
+
 static void rcar_i2c_write(struct rcar_i2c_priv *priv, int reg, u32 val)
 {
 	writel(val, priv->io + reg);
@@ -147,9 +142,6 @@ static void rcar_i2c_init(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICMAR, 0);
 }
 
-/*
- *		bus control functions
- */
 static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
 {
 	int i;
@@ -164,9 +156,6 @@ static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
 	return -EBUSY;
 }
 
-/*
- *		clock function
- */
 static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 				    u32 bus_speed,
 				    struct device *dev)
@@ -255,10 +244,6 @@ scgd_find:
 
 	return 0;
 }
-
-/*
- *		status functions
- */
 
 static int rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 {
@@ -380,40 +365,24 @@ static int rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 {
 	struct rcar_i2c_priv *priv = ptr;
-	struct device *dev = rcar_i2c_priv_to_dev(priv);
 	u32 msr;
 
 	msr = rcar_i2c_read(priv, ICMSR);
 
-	/*
-	 * Arbitration lost
-	 */
+	/* Arbitration lost */
 	if (msr & MAL) {
-		/*
-		 * CAUTION
-		 *
-		 * When arbitration lost, device become _slave_ mode.
-		 */
-		dev_dbg(dev, "Arbitration Lost\n");
 		rcar_i2c_flags_set(priv, (ID_DONE | ID_ARBLOST));
 		goto out;
 	}
 
-	/*
-	 * Stop
-	 */
+	/* Stop */
 	if (msr & MST) {
-		dev_dbg(dev, "Stop\n");
 		rcar_i2c_flags_set(priv, ID_DONE);
 		goto out;
 	}
 
-	/*
-	 * Nack
-	 */
+	/* Nack */
 	if (msr & MNR) {
-		dev_dbg(dev, "Nack\n");
-
 		/* go to stop phase */
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
 		rcar_i2c_write(priv, ICMIER, RCAR_IRQ_STOP);
@@ -421,9 +390,6 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 		goto out;
 	}
 
-	/*
-	 * recv/send
-	 */
 	if (rcar_i2c_is_recv(priv))
 		rcar_i2c_flags_set(priv, rcar_i2c_irq_recv(priv, msr));
 	else
@@ -476,9 +442,6 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		if (ret < 0)
 			break;
 
-		/*
-		 * wait result
-		 */
 		timeout = wait_event_timeout(priv->wait,
 					     rcar_i2c_flags_has(priv, ID_DONE),
 					     5 * HZ);
@@ -487,9 +450,6 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 			break;
 		}
 
-		/*
-		 * error handling
-		 */
 		if (rcar_i2c_flags_has(priv, ID_NACK)) {
 			ret = -ENXIO;
 			break;
