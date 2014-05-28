@@ -181,11 +181,9 @@ static int parse_name(char **pname, const char *token)
 	if (len > 64)
 		return -ENOSPC;
 
-	name = kmalloc(len, GFP_KERNEL);
+	name = kstrdup(token, GFP_KERNEL);
 	if (!name)
 		return -ENOMEM;
-
-	strcpy(name, token);
 
 	*pname = name;
 	return 0;
