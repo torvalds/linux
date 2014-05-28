@@ -211,7 +211,6 @@ static int ni_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 			 unsigned int trignum);
 static void ni_load_channelgain_list(struct comedi_device *dev,
 				     unsigned int n_chan, unsigned int *list);
-static void shutdown_ai_command(struct comedi_device *dev);
 
 static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index);
@@ -822,8 +821,22 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 	}
 	return 0;
 }
-
 #endif /* PCIDMA */
+
+static void shutdown_ai_command(struct comedi_device *dev)
+{
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
+
+#ifdef PCIDMA
+	ni_ai_drain_dma(dev);
+#endif
+	ni_handle_fifo_dregs(dev);
+	get_last_sample_611x(dev);
+	get_last_sample_6143(dev);
+
+	s->async->events |= COMEDI_CB_EOA;
+}
+
 static void ni_handle_eos(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
@@ -847,20 +860,6 @@ static void ni_handle_eos(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* handle special case of single scan using AI_End_On_End_Of_Scan */
 	if ((devpriv->ai_cmd2 & AI_End_On_End_Of_Scan))
 		shutdown_ai_command(dev);
-}
-
-static void shutdown_ai_command(struct comedi_device *dev)
-{
-	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
-
-#ifdef PCIDMA
-	ni_ai_drain_dma(dev);
-#endif
-	ni_handle_fifo_dregs(dev);
-	get_last_sample_611x(dev);
-	get_last_sample_6143(dev);
-
-	s->async->events |= COMEDI_CB_EOA;
 }
 
 static void handle_gpct_interrupt(struct comedi_device *dev,
