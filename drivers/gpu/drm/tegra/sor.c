@@ -1007,12 +1007,13 @@ static const struct file_operations tegra_sor_crc_fops = {
 	.release = tegra_sor_crc_release,
 };
 
-static int tegra_sor_debugfs_init(struct tegra_sor *sor, struct dentry *root)
+static int tegra_sor_debugfs_init(struct tegra_sor *sor,
+				  struct drm_minor *minor)
 {
 	struct dentry *entry;
 	int err = 0;
 
-	sor->debugfs = debugfs_create_dir("sor", root);
+	sor->debugfs = debugfs_create_dir("sor", minor->debugfs_root);
 	if (!sor->debugfs)
 		return -ENOMEM;
 
@@ -1021,7 +1022,7 @@ static int tegra_sor_debugfs_init(struct tegra_sor *sor, struct dentry *root)
 	if (!entry) {
 		dev_err(sor->dev,
 			"cannot create /sys/kernel/debug/dri/%s/sor/crc\n",
-			root->d_name.name);
+			minor->debugfs_root->d_name.name);
 		err = -ENOMEM;
 		goto remove;
 	}
@@ -1063,9 +1064,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	}
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		struct dentry *root = drm->primary->debugfs_root;
-
-		err = tegra_sor_debugfs_init(sor, root);
+		err = tegra_sor_debugfs_init(sor, drm->primary);
 		if (err < 0)
 			dev_err(sor->dev, "debugfs setup failed: %d\n", err);
 	}
