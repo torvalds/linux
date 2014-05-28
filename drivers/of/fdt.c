@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/libfdt.h>
 #include <linux/debugfs.h>
+#include <linux/serial_core.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
@@ -695,6 +696,61 @@ static inline void early_init_dt_check_for_initrd(unsigned long node)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
+
+#ifdef CONFIG_SERIAL_EARLYCON
+extern struct of_device_id __earlycon_of_table[];
+
+int __init early_init_dt_scan_chosen_serial(void)
+{
+	int offset;
+	const char *p;
+	int l;
+	const struct of_device_id *match = __earlycon_of_table;
+	const void *fdt = initial_boot_params;
+
+	offset = fdt_path_offset(fdt, "/chosen");
+	if (offset < 0)
+		offset = fdt_path_offset(fdt, "/chosen@0");
+	if (offset < 0)
+		return -ENOENT;
+
+	p = fdt_getprop(fdt, offset, "stdout-path", &l);
+	if (!p)
+		p = fdt_getprop(fdt, offset, "linux,stdout-path", &l);
+	if (!p || !l)
+		return -ENOENT;
+
+	/* Get the node specified by stdout-path */
+	offset = fdt_path_offset(fdt, p);
+	if (offset < 0)
+		return -ENODEV;
+
+	while (match->compatible) {
+		unsigned long addr;
+		if (fdt_node_check_compatible(fdt, offset, match->compatible)) {
+			match++;
+			continue;
+		}
+
+		addr = fdt_translate_address(fdt, offset);
+		if (!addr)
+			return -ENXIO;
+
+		of_setup_earlycon(addr, match->data);
+		return 0;
+	}
+	return -ENODEV;
+}
+
+static int __init setup_of_earlycon(char *buf)
+{
+	if (buf)
+		return 0;
+
+	return early_init_dt_scan_chosen_serial();
+}
+early_param("earlycon", setup_of_earlycon);
+#endif
 
 /**
  * early_init_dt_scan_root - fetch the top level address and size cells

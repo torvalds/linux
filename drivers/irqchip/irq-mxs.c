@@ -96,7 +96,7 @@ static struct irq_domain_ops icoll_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static void __init icoll_of_init(struct device_node *np,
+static int __init icoll_of_init(struct device_node *np,
 			  struct device_node *interrupt_parent)
 {
 	icoll_base = of_iomap(np, 0);
@@ -110,6 +110,6 @@ static void __init icoll_of_init(struct device_node *np,
 
 	icoll_domain = irq_domain_add_linear(np, ICOLL_NUM_IRQS,
 					     &icoll_irq_domain_ops, NULL);
-	WARN_ON(!icoll_domain);
+	return icoll_domain ? 0 : -ENODEV;
 }
 IRQCHIP_DECLARE(mxs, "fsl,icoll", icoll_of_init);

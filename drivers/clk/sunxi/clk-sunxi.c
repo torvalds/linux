@@ -1278,8 +1278,7 @@ static void __init of_sunxi_table_clock_setup(const struct of_device_id *clk_mat
 	const struct of_device_id *match;
 	void (*setup_function)(struct device_node *, const void *) = function;
 
-	for_each_matching_node(np, clk_match) {
-		match = of_match_node(clk_match, np);
+	for_each_matching_node_and_match(np, clk_match, &match) {
 		data = match->data;
 		setup_function(np, data);
 	}
@@ -1310,7 +1309,7 @@ static void __init sunxi_clock_protect(void)
 	}
 }
 
-static void __init sunxi_init_clocks(void)
+static void __init sunxi_init_clocks(struct device_node *np)
 {
 	/* Register factor clocks */
 	of_sunxi_table_clock_setup(clk_factors_match, sunxi_factors_clk_setup);

@@ -7,6 +7,13 @@ if TTY
 menu "Serial drivers"
 	depends on HAS_IOMEM
 
+config SERIAL_EARLYCON
+	bool
+	help
+	  Support for early consoles with the earlycon parameter. This enables
+	  the console before standard serial driver is probed. The console is
+	  enabled when early_param is processed.
+
 source "drivers/tty/serial/8250/Kconfig"
 
 comment "Non-8250 serial port support"
@@ -53,6 +60,7 @@ config SERIAL_AMBA_PL011_CONSOLE
 	bool "Support for console on AMBA serial port"
 	depends on SERIAL_AMBA_PL011=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	---help---
 	  Say Y here if you wish to use an AMBA PrimeCell UART as the system
 	  console (the system console is the device which receives all kernel
@@ -64,6 +72,16 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  "console=ttyAMA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
+
+config SERIAL_EARLYCON_ARM_SEMIHOST
+	bool "Early console using ARM semihosting"
+	depends on ARM64 || ARM
+	select SERIAL_EARLYCON
+	help
+	  Support for early debug console using ARM semihosting. This enables
+	  the console before standard serial driver is probed. This is enabled
+	  with "earlycon=smh" on the kernel command line. The console is
+	  enabled when early_param is processed.
 
 config SERIAL_SB1250_DUART
 	tristate "BCM1xxx on-chip DUART serial support"
@@ -1160,6 +1178,16 @@ config SERIAL_SCCNXP_CONSOLE
 	help
 	  Support for console on SCCNXP serial ports.
 
+config SERIAL_SC16IS7XX
+	tristate "SC16IS7xx serial support"
+	depends on I2C
+	select SERIAL_CORE
+	select REGMAP_I2C if I2C
+	help
+	  This selects support for SC16IS7xx serial ports.
+	  Supported ICs are SC16IS740, SC16IS741, SC16IS750, SC16IS752,
+	  SC16IS760 and SC16IS762.
+
 config SERIAL_BFIN_SPORT
 	tristate "Blackfin SPORT emulate UART"
 	depends on BLACKFIN
@@ -1369,18 +1397,19 @@ config SERIAL_MXS_AUART_CONSOLE
 	  Enable a MXS AUART port to be the system console.
 
 config SERIAL_XILINX_PS_UART
-	tristate "Xilinx PS UART support"
+	tristate "Cadence (Xilinx Zynq) UART support"
 	depends on OF
 	select SERIAL_CORE
 	help
-	  This driver supports the Xilinx PS UART port.
+	  This driver supports the Cadence UART. It is found e.g. in Xilinx
+	  Zynq.
 
 config SERIAL_XILINX_PS_UART_CONSOLE
-	bool "Xilinx PS UART console support"
+	bool "Cadence UART console support"
 	depends on SERIAL_XILINX_PS_UART=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Enable a Xilinx PS UART port to be the system console.
+	  Enable a Cadence UART port to be the system console.
 
 config SERIAL_AR933X
 	tristate "AR933X serial port support"
@@ -1507,6 +1536,16 @@ config SERIAL_ST_ASC_CONSOLE
 	bool "Support for console on ST ASC"
 	depends on SERIAL_ST_ASC=y
 	select SERIAL_CORE_CONSOLE
+
+config SERIAL_MEN_Z135
+	tristate "MEN 16z135 Support"
+	depends on MCB
+	help
+	  Say yes here to enable support for the MEN 16z135 High Speed UART IP-Core
+	  on a MCB carrier.
+
+	  This driver can also be build as a module. If so, the module will be called
+	  men_z135_uart.ko
 
 endmenu
 
