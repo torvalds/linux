@@ -1006,12 +1006,8 @@ static void NCR5380_main (struct work_struct *bl)
 	    for (tmp = (struct scsi_cmnd *) hostdata->issue_queue,
 		 prev = NULL; tmp; prev = tmp, tmp = NEXT(tmp) ) {
 
-#if (NDEBUG & NDEBUG_LISTS)
 		if (prev != tmp)
-		    printk("MAIN tmp=%p   target=%d   busy=%d lun=%d\n",
-			   tmp, tmp->target, hostdata->busy[tmp->target],
-			   tmp->lun);
-#endif
+			dprintk(NDEBUG_LISTS, "MAIN tmp=%p   target=%d   busy=%d lun=%d\n", tmp, tmp->device->id, hostdata->busy[tmp->device->id], tmp->device->lun);
 		/*  When we find one, remove it from the issue queue. */
 		/* ++guenther: possible race with Falcon locking */
 		if (

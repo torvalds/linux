@@ -295,9 +295,10 @@ struct NCR5380_hostdata {
 #define NDEBUG (0)
 #endif
 
+#define dprintk(flg, fmt, ...) \
+	do { if ((NDEBUG) & (flg)) pr_debug(fmt, ## __VA_ARGS__); } while (0)
+
 #if NDEBUG
-#define dprintk(flg, fmt, args...) \
-	do { if ((NDEBUG) & (flg)) pr_debug(fmt, ## args); } while (0)
 #define NCR5380_dprint(flg, arg) \
 	do { if ((NDEBUG) & (flg)) NCR5380_print(arg); } while (0)
 #define NCR5380_dprint_phase(flg, arg) \
@@ -305,7 +306,6 @@ struct NCR5380_hostdata {
 static void NCR5380_print_phase(struct Scsi_Host *instance);
 static void NCR5380_print(struct Scsi_Host *instance);
 #else
-#define dprintk(flg, fmt, args...)     do {} while (0)
 #define NCR5380_dprint(flg, arg)       do {} while (0)
 #define NCR5380_dprint_phase(flg, arg) do {} while (0)
 #endif
