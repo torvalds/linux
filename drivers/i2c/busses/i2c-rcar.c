@@ -155,11 +155,6 @@ static void rcar_i2c_init(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICMAR, 0);
 }
 
-static void rcar_i2c_set_addr(struct rcar_i2c_priv *priv, u32 recv)
-{
-	rcar_i2c_write(priv, ICMAR, (priv->msg->addr << 1) | recv);
-}
-
 /*
  *		bus control functions
  */
@@ -279,25 +274,14 @@ static void rcar_i2c_status_bit_clear(struct rcar_i2c_priv *priv, u32 bit)
 	rcar_i2c_write(priv, ICMSR, ~bit);
 }
 
-/*
- *		recv/send functions
- */
-static int rcar_i2c_recv(struct rcar_i2c_priv *priv)
+static int rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 {
-	rcar_i2c_set_addr(priv, 1);
+	int read = !!rcar_i2c_is_recv(priv);
+
+	rcar_i2c_write(priv, ICMAR, (priv->msg->addr << 1) | read);
 	rcar_i2c_status_clear(priv);
 	rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
-	rcar_i2c_write(priv, ICMIER, RCAR_IRQ_RECV);
-
-	return 0;
-}
-
-static int rcar_i2c_send(struct rcar_i2c_priv *priv)
-{
-	rcar_i2c_set_addr(priv, 0);
-	rcar_i2c_status_clear(priv);
-	rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
-	rcar_i2c_write(priv, ICMIER, RCAR_IRQ_SEND);
+	rcar_i2c_write(priv, ICMIER, read ? RCAR_IRQ_RECV : RCAR_IRQ_SEND);
 
 	return 0;
 }
@@ -520,11 +504,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		if (priv->msg == &msgs[num - 1])
 			rcar_i2c_flags_set(priv, ID_LAST_MSG);
 
-		/* start send/recv */
-		if (rcar_i2c_is_recv(priv))
-			ret = rcar_i2c_recv(priv);
-		else
-			ret = rcar_i2c_send(priv);
+		ret = rcar_i2c_prepare_msg(priv);
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 		/*-------------- spin unlock -----------------*/
