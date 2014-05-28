@@ -114,7 +114,6 @@ static const struct comedi_lrange range_adq12b_ai_unipolar = {
 };
 
 struct adq12b_private {
-	int differential;	/* option 3 of comedi_config */
 	unsigned int last_ctreg;
 };
 
@@ -217,7 +216,6 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	devpriv->differential = it->options[2];
 	devpriv->last_ctreg = -1;	/* force ctreg update */
 
 	ret = comedi_alloc_subdevices(dev, 3);
@@ -227,8 +225,8 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
-	if (devpriv->differential) {
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
+	if (it->options[2]) {
+		s->subdev_flags = SDF_READABLE | SDF_DIFF;
 		s->n_chan = 8;
 	} else {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND;
