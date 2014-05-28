@@ -3809,7 +3809,7 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
 	bio.bi_iter.bi_size = size;
 	bio.bi_bdev = bdev;
 	bio.bi_iter.bi_sector = 0;
-	bio.bi_flags = (1 << BIO_QUIET);
+	bio.bi_flags |= (1 << BIO_QUIET);
 	bio.bi_private = &cbdata;
 	bio.bi_end_io = floppy_rb0_cb;
 
