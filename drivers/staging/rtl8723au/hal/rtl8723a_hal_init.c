@@ -489,7 +489,7 @@ hal_ReadEFuse_WiFi(struct rtw_adapter *padapter,
 		return;
 	}
 
-	efuseTbl = (u8 *) kmalloc(EFUSE_MAP_LEN_8723A, GFP_KERNEL);
+	efuseTbl = kmalloc(EFUSE_MAP_LEN_8723A, GFP_KERNEL);
 	if (efuseTbl == NULL) {
 		DBG_8723A("%s: alloc efuseTbl fail!\n", __func__);
 		return;
