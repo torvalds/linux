@@ -220,40 +220,38 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
+	s->type		= COMEDI_SUBD_AI;
 	if (it->options[2]) {
-		s->subdev_flags = SDF_READABLE | SDF_DIFF;
-		s->n_chan = 8;
+		s->subdev_flags	= SDF_READABLE | SDF_DIFF;
+		s->n_chan	= 8;
 	} else {
-		s->subdev_flags = SDF_READABLE | SDF_GROUND;
-		s->n_chan = 16;
+		s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+		s->n_chan	= 16;
 	}
+	s->maxdata	= 0xfff;
+	s->range_table	= it->options[1] ? &range_adq12b_ai_unipolar
+					 : &range_adq12b_ai_bipolar;
+	s->insn_read	= adq12b_ai_insn_read;
 
-	s->range_table = it->options[1] ? &range_adq12b_ai_unipolar
-					: &range_adq12b_ai_bipolar;
-
-	s->maxdata = 0xfff;
-	s->insn_read = adq12b_ai_insn_read;
-
+	/* Digital Input subdevice */
 	s = &dev->subdevices[1];
-	/* digital input subdevice */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 5;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = adq12b_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 5;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= adq12b_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[2];
-	/* digital output subdevice */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = adq12b_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= adq12b_do_insn_bits;
 
 	return 0;
 }
