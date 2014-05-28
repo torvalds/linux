@@ -228,6 +228,61 @@ static const struct regmap_config sm5502_muic_regmap_config = {
 	.max_register	= SM5502_REG_END,
 };
 
+/* Change DM_CON/DP_CON/VBUSIN switch according to cable type */
+static int sm5502_muic_set_path(struct sm5502_muic_info *info,
+				unsigned int con_sw, unsigned int vbus_sw,
+				bool attached)
+{
+	int ret;
+
+	if (!attached) {
+		con_sw	= DM_DP_SWITCH_OPEN;
+		vbus_sw	= VBUSIN_SWITCH_OPEN;
+	}
+
+	switch (con_sw) {
+	case DM_DP_SWITCH_OPEN:
+	case DM_DP_SWITCH_USB:
+	case DM_DP_SWITCH_AUDIO:
+	case DM_DP_SWITCH_UART:
+		ret = regmap_update_bits(info->regmap, SM5502_REG_MANUAL_SW1,
+					 SM5502_REG_MANUAL_SW1_DP_MASK |
+					 SM5502_REG_MANUAL_SW1_DM_MASK,
+					 con_sw);
+		if (ret < 0) {
+			dev_err(info->dev,
+				"cannot update DM_CON/DP_CON switch\n");
+			return ret;
+		}
+		break;
+	default:
+		dev_err(info->dev, "Unknown DM_CON/DP_CON switch type (%d)\n",
+				con_sw);
+		return -EINVAL;
+	};
+
+	switch (vbus_sw) {
+	case VBUSIN_SWITCH_OPEN:
+	case VBUSIN_SWITCH_VBUSOUT:
+	case VBUSIN_SWITCH_MIC:
+	case VBUSIN_SWITCH_VBUSOUT_WITH_USB:
+		ret = regmap_update_bits(info->regmap, SM5502_REG_MANUAL_SW1,
+					 SM5502_REG_MANUAL_SW1_VBUSIN_MASK,
+					 vbus_sw);
+		if (ret < 0) {
+			dev_err(info->dev,
+				"cannot update VBUSIN switch\n");
+			return ret;
+		}
+		break;
+	default:
+		dev_err(info->dev, "Unknown VBUS switch type (%d)\n", vbus_sw);
+		return -EINVAL;
+	};
+
+	return 0;
+}
+
 /* Return cable type of attached or detached accessories */
 static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 {
@@ -329,7 +384,10 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 	static unsigned int prev_cable_type = SM5502_MUIC_ADC_GROUND;
 	const char **cable_names = info->edev->supported_cable;
 	unsigned int cable_type = SM5502_MUIC_ADC_GROUND;
+	unsigned int con_sw = DM_DP_SWITCH_OPEN;
+	unsigned int vbus_sw = VBUSIN_SWITCH_OPEN;
 	unsigned int idx = 0;
+	int ret;
 
 	if (!cable_names)
 		return 0;
@@ -343,15 +401,19 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 
 	switch (cable_type) {
 	case SM5502_MUIC_ADC_OPEN_USB:
-		idx = EXTCON_CABLE_USB;
+		idx	= EXTCON_CABLE_USB;
+		con_sw	= DM_DP_SWITCH_USB;
+		vbus_sw	= VBUSIN_SWITCH_VBUSOUT_WITH_USB;
 		break;
 	case SM5502_MUIC_ADC_OPEN_TA:
-		idx = EXTCON_CABLE_TA;
+		idx	= EXTCON_CABLE_TA;
+		con_sw	= DM_DP_SWITCH_OPEN;
+		vbus_sw	= VBUSIN_SWITCH_VBUSOUT;
 		break;
 	case SM5502_MUIC_ADC_OPEN_USB_OTG:
-		idx = EXTCON_CABLE_USB_HOST;
-		break;
-	case SM5502_MUIC_ADC_GROUND:
+		idx	= EXTCON_CABLE_USB_HOST;
+		con_sw	= DM_DP_SWITCH_USB;
+		vbus_sw	= VBUSIN_SWITCH_OPEN;
 		break;
 	default:
 		dev_dbg(info->dev,
@@ -359,6 +421,12 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		return 0;
 	};
 
+	/* Change internal hardware path(DM_CON/DP_CON, VBUSIN) */
+	ret = sm5502_muic_set_path(info, con_sw, vbus_sw, attached);
+	if (ret < 0)
+		return ret;
+
+	/* Change the state of external accessory */
 	extcon_set_cable_state(info->edev, cable_names[idx], attached);
 
 	return 0;
