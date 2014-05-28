@@ -975,6 +975,22 @@ void hash_failure_debug(unsigned long ea, unsigned long access,
 		trap, vsid, ssize, psize, lpsize, pte);
 }
 
+static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
+			     int psize, bool user_region)
+{
+	if (user_region) {
+		if (psize != get_paca_psize(ea)) {
+			get_paca()->context = mm->context;
+			slb_flush_and_rebolt();
+		}
+	} else if (get_paca()->vmalloc_sllp !=
+		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
+		get_paca()->vmalloc_sllp =
+			mmu_psize_defs[mmu_vmalloc_psize].sllp;
+		slb_vmalloc_update();
+	}
+}
+
 /* Result code is:
  *  0 - handled
  *  1 - normal page fault
@@ -1096,6 +1112,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			WARN_ON(1);
 		}
 #endif
+		check_paca_psize(ea, mm, psize, user_region);
+
 		goto bail;
 	}
 
@@ -1136,17 +1154,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 #endif
 		}
 	}
-	if (user_region) {
-		if (psize != get_paca_psize(ea)) {
-			get_paca()->context = mm->context;
-			slb_flush_and_rebolt();
-		}
-	} else if (get_paca()->vmalloc_sllp !=
-		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
-		get_paca()->vmalloc_sllp =
-			mmu_psize_defs[mmu_vmalloc_psize].sllp;
-		slb_vmalloc_update();
-	}
+
+	check_paca_psize(ea, mm, psize, user_region);
 #endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_PPC_HAS_HASH_64K
