@@ -919,8 +919,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		return true;
 	}
 
-	bssid = (struct wlan_bssid_ex *)kzalloc(sizeof(struct wlan_bssid_ex),
-						GFP_ATOMIC);
+	bssid = kzalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
 	if (!bssid)
 		return _FAIL;
 
