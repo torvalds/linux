@@ -253,10 +253,6 @@ static void shutdown_ai_command(struct comedi_device *dev);
 static int ni_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 			 unsigned int trignum);
 
-#ifdef PCIDMA
-static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-#endif
 static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index);
 
@@ -4514,6 +4510,37 @@ static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
+#ifdef PCIDMA
+static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct ni_gpct *counter = s->private;
+	int retval;
+
+	retval = ni_request_gpct_mite_channel(dev, counter->counter_index,
+					      COMEDI_INPUT);
+	if (retval) {
+		comedi_error(dev,
+			     "no dma channel available for use by counter");
+		return retval;
+	}
+	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
+	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
+
+	return ni_tio_cmd(dev, s);
+}
+
+static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct ni_gpct *counter = s->private;
+	int retval;
+
+	retval = ni_tio_cancel(counter);
+	ni_e_series_enable_second_irq(dev, counter->counter_index, 0);
+	ni_release_gpct_mite_channel(dev, counter->counter_index);
+	return retval;
+}
+#endif
+
 static int ni_E_init(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
@@ -4931,39 +4958,6 @@ static void GPCT_Reset(struct comedi_device *dev, int chan)
 	/* printk("exit GPCT_Reset\n"); */
 }
 
-#endif
-
-#ifdef PCIDMA
-static int ni_gpct_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct ni_gpct *counter = s->private;
-	int retval;
-
-	retval = ni_request_gpct_mite_channel(dev, counter->counter_index,
-					      COMEDI_INPUT);
-	if (retval) {
-		comedi_error(dev,
-			     "no dma channel available for use by counter");
-		return retval;
-	}
-	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
-	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
-
-	return ni_tio_cmd(dev, s);
-}
-#endif
-
-#ifdef PCIDMA
-static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct ni_gpct *counter = s->private;
-	int retval;
-
-	retval = ni_tio_cancel(counter);
-	ni_e_series_enable_second_irq(dev, counter->counter_index, 0);
-	ni_release_gpct_mite_channel(dev, counter->counter_index);
-	return retval;
-}
 #endif
 
 /*
