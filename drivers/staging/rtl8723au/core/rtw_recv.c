@@ -58,8 +58,7 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 	precvpriv->adapter = padapter;
 
 	for (i = 0; i < NR_RECVFRAME ; i++) {
-		precvframe = (struct recv_frame *)
-			kzalloc(sizeof(struct recv_frame), GFP_KERNEL);
+		precvframe = kzalloc(sizeof(struct recv_frame), GFP_KERNEL);
 		if (!precvframe)
 			break;
 		INIT_LIST_HEAD(&precvframe->list);
