@@ -529,6 +529,7 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_USERLOCAL,
 	KVM_REG_MIPS_CP0_PAGEMASK,
 	KVM_REG_MIPS_CP0_WIRED,
+	KVM_REG_MIPS_CP0_HWRENA,
 	KVM_REG_MIPS_CP0_BADVADDR,
 	KVM_REG_MIPS_CP0_COUNT,
 	KVM_REG_MIPS_CP0_ENTRYHI,
@@ -579,6 +580,9 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_WIRED:
 		v = (long)kvm_read_c0_guest_wired(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_HWRENA:
+		v = (long)kvm_read_c0_guest_hwrena(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_BADVADDR:
 		v = (long)kvm_read_c0_guest_badvaddr(cop0);
@@ -690,6 +694,9 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_WIRED:
 		kvm_write_c0_guest_wired(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_HWRENA:
+		kvm_write_c0_guest_hwrena(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_BADVADDR:
 		kvm_write_c0_guest_badvaddr(cop0, v);
