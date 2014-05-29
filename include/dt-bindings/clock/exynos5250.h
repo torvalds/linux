@@ -150,11 +150,14 @@
 #define CLK_G2D			345
 #define CLK_MDMA0		346
 #define CLK_SMMU_MDMA0		347
+#define CLK_SSS			348
+#define CLK_G3D			349
 
 /* mux clocks */
 #define CLK_MOUT_HDMI		1024
+#define CLK_MOUT_GPLL		1025
 
 /* must be greater than maximal clock id */
-#define CLK_NR_CLKS		1025
+#define CLK_NR_CLKS		1026
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_5250_H */

@@ -13,6 +13,8 @@
 #define __SAMSUNG_CLK_PLL_H
 
 enum samsung_pll_type {
+	pll_2126,
+	pll_3000,
 	pll_35xx,
 	pll_36xx,
 	pll_2550,
@@ -24,7 +26,13 @@ enum samsung_pll_type {
 	pll_4650,
 	pll_4650c,
 	pll_6552,
+	pll_6552_s3c2416,
 	pll_6553,
+	pll_s3c2410_mpll,
+	pll_s3c2410_upll,
+	pll_s3c2440_mpll,
+	pll_2550xx,
+	pll_2650xx,
 };
 
 #define PLL_35XX_RATE(_rate, _m, _p, _s)			\
