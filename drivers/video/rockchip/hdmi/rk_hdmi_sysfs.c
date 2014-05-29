@@ -8,43 +8,43 @@ static int hdmi_get_enable(struct rk_display_device *device)
 {
 	struct hdmi *hdmi = device->priv_data;
 	int enable;
-	
+
 	mutex_lock(&hdmi->enable_mutex);
 	enable = hdmi->enable;
 	mutex_unlock(&hdmi->enable_mutex);
-	
+
 	return enable;
 }
 
 static int hdmi_set_enable(struct rk_display_device *device, int enable)
 {
 	struct hdmi *hdmi = device->priv_data;
-	
+
 	mutex_lock(&hdmi->enable_mutex);
-	if(hdmi->enable == enable) {
+	if (hdmi->enable == enable) {
 		mutex_unlock(&hdmi->enable_mutex);
 		return 0;
 	}
 	hdmi->enable = enable;
-	
-	if(hdmi->suspend ) {
+
+	if (hdmi->suspend) {
 		mutex_unlock(&hdmi->enable_mutex);
 		return 0;
 	}
-	
-	if(enable == 0) {
-		if(hdmi->irq)
+
+	if (enable == 0) {
+		if (hdmi->irq)
 			disable_irq(hdmi->irq);
 		mutex_unlock(&hdmi->enable_mutex);
 		hdmi->command = HDMI_CONFIG_ENABLE;
 		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
-	}
-	else {
-		if(hdmi->irq)
+	} else {
+		if (hdmi->irq)
 			enable_irq(hdmi->irq);
-		#if defined(CONFIG_HDMI_RK610) || defined(CONFIG_HDMI_RK2928) || defined(CONFIG_HDMI_CAT66121) || defined(CONFIG_HDMI_RK616)
-			queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
-		#endif
+#if defined(CONFIG_HDMI_RK610) || defined(CONFIG_HDMI_RK2928)
+	|| defined(CONFIG_HDMI_CAT66121) || defined(CONFIG_HDMI_RK616)
+		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
+#endif
 		mutex_unlock(&hdmi->enable_mutex);
 	}
 	return 0;
@@ -53,70 +53,74 @@ static int hdmi_set_enable(struct rk_display_device *device, int enable)
 static int hdmi_get_status(struct rk_display_device *device)
 {
 	struct hdmi *hdmi = device->priv_data;
-	if(hdmi->hotplug == HDMI_HPD_ACTIVED)
+	if (hdmi->hotplug == HDMI_HPD_ACTIVED)
 		return 1;
 	else
 		return 0;
 }
 
-static int hdmi_get_modelist(struct rk_display_device *device, struct list_head **modelist)
+static int hdmi_get_modelist(struct rk_display_device *device,
+			     struct list_head **modelist)
 {
 	struct hdmi *hdmi = device->priv_data;
-	if(!hdmi->hotplug)
+	if (!hdmi->hotplug)
 		return -1;
 	*modelist = &hdmi->edid.modelist;
 	return 0;
 }
 
-static int hdmi_set_mode(struct rk_display_device *device, struct fb_videomode *mode)
+static int hdmi_set_mode(struct rk_display_device *device,
+			 struct fb_videomode *mode)
 {
 	struct hdmi *hdmi = device->priv_data;
 	int vic = hdmi_videomode_to_vic(mode);
-	
+
 	hdmi->autoconfig = HDMI_DISABLE;
-	if(vic && hdmi->vic != vic)
-	{
+	if (vic && hdmi->vic != vic) {
 		hdmi->vic = vic;
-		if(!hdmi->hotplug)
+		if (!hdmi->hotplug)
 			return 0;
 		hdmi->command = HDMI_CONFIG_VIDEO;
 		init_completion(&hdmi->complete);
 		hdmi->wait = 1;
 		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
 		wait_for_completion_interruptible_timeout(&hdmi->complete,
-								msecs_to_jiffies(10000));
+							  msecs_to_jiffies
+							  (10000));
 	}
 	return 0;
 }
 
-static int hdmi_get_mode(struct rk_display_device *device, struct fb_videomode *mode)
+static int hdmi_get_mode(struct rk_display_device *device,
+			 struct fb_videomode *mode)
 {
 	struct hdmi *hdmi = device->priv_data;
 	struct fb_videomode *vmode;
-	
-	if(!hdmi->hotplug)
+
+	if (!hdmi->hotplug)
 		return -1;
-		
-	vmode = (struct fb_videomode*) hdmi_vic_to_videomode(hdmi->vic);
-	if(unlikely(vmode == NULL))
+
+	vmode = (struct fb_videomode *)hdmi_vic_to_videomode(hdmi->vic);
+	if (unlikely(vmode == NULL))
 		return -1;
 	*mode = *vmode;
 	return 0;
 }
 
-static int hdmi_set_scale(struct rk_display_device *device, int direction, int value)
+static int hdmi_set_scale(struct rk_display_device *device, int direction,
+			  int value)
 {
 	struct hdmi *hdmi = device->priv_data;
-	
-	if(!hdmi || value < 0 || value > 100)
+
+	if (!hdmi || value < 0 || value > 100)
 		return -1;
 
-	if(!hdmi->hotplug)
-               return 0;
-		
-	if(direction == DISPLAY_SCALE_X)
+	if (!hdmi->hotplug)
+		return 0;
+
+	if (direction == DISPLAY_SCALE_X)
 		hdmi->xscale = value;
-	else if(direction == DISPLAY_SCALE_Y)
+	else if (direction == DISPLAY_SCALE_Y)
 		hdmi->yscale = value;
 	else
 		return -1;
@@ -127,13 +131,13 @@ static int hdmi_set_scale(struct rk_display_device *device, int direction, int v
 static int hdmi_get_scale(struct rk_display_device *device, int direction)
 {
 	struct hdmi *hdmi = device->priv_data;
-	
-	if(!hdmi)
+
+	if (!hdmi)
 		return -1;
-		
-	if(direction == DISPLAY_SCALE_X)
+
+	if (direction == DISPLAY_SCALE_X)
 		return hdmi->xscale;
-	else if(direction == DISPLAY_SCALE_Y)
+	else if (direction == DISPLAY_SCALE_Y)
 		return hdmi->yscale;
 	else
 		return -1;
@@ -156,11 +160,11 @@ static int hdmi_display_probe(struct rk_display_device *device, void *devdata)
 	device->owner = THIS_MODULE;
 	strcpy(device->type, "HDMI");
 	device->priority = DISPLAY_PRIORITY_HDMI;
-//	device->name = kmalloc(strlen(name), GFP_KERNEL);
-//	if(device->name)
-//	{
-//		strcpy(device->name, name);
-//	}
+/*
+	device->name = kmalloc(strlen(name), GFP_KERNEL);
+	if(device->name)
+		strcpy(device->name, name);
+*/
 	device->priv_data = devdata;
 	device->ops = &hdmi_display_ops;
 	return 1;
@@ -170,22 +174,24 @@ static struct rk_display_driver display_hdmi = {
 	.probe = hdmi_display_probe,
 };
 
-static struct rk_display_device *display_device_hdmi = NULL;
+static struct rk_display_device *display_device_hdmi;
 #ifdef CONFIG_DRM_ROCKCHIP
-extern void rk_drm_display_register(struct rk_display_ops *extend_ops, void *displaydata,int type);
+extern void rk_drm_display_register(struct rk_display_ops *extend_ops,
+				    void *displaydata, int type);
 #endif
 
 void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent)
 {
-	display_device_hdmi = rk_display_device_register(&display_hdmi, parent, hdmi);
+	display_device_hdmi =
+	    rk_display_device_register(&display_hdmi, parent, hdmi);
 #ifdef CONFIG_DRM_ROCKCHIP
-       rk_drm_display_register(&hdmi_display_ops,hdmi,SCREEN_HDMI);
+	rk_drm_display_register(&hdmi_display_ops, hdmi, SCREEN_HDMI);
 #endif
 }
 
 void hdmi_unregister_display_sysfs(struct hdmi *hdmi)
 {
-	if(display_device_hdmi)
+	if (display_device_hdmi)
 		rk_display_device_unregister(display_device_hdmi);
 }
 #endif
