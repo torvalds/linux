@@ -18,9 +18,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#define LOWORD(W)	(unsigned short)((W) & 0xFFFF)
-#define HIWORD(W)	(unsigned short)(((W) >> 16) & 0xFFFF)
-
 #define ADDIDATA_EEPROM		1
 #define ADDIDATA_NO_EEPROM	0
 #define ADDIDATA_93C76		"93C76"

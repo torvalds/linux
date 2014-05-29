@@ -1051,7 +1051,7 @@ static int apci3120_cyclic_ai(int mode,
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_LOW_WORD;
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-			outw(LOWORD(ui_TimerValue2),
+			outw(ui_TimerValue2 & 0xffff,
 				dev->iobase + APCI3120_TIMER_VALUE);
 
 			/* Writing HIGH unsigned short */
@@ -1059,7 +1059,7 @@ static int apci3120_cyclic_ai(int mode,
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_HIGH_WORD;
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-			outw(HIWORD(ui_TimerValue2),
+			outw((ui_TimerValue2 >> 16) & 0xffff,
 				dev->iobase + APCI3120_TIMER_VALUE);
 
 			/* (2) Reset FC_TIMER BIT  Clearing timer status register */
@@ -1805,7 +1805,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
-		outw(LOWORD(ui_Timervalue2),
+		outw(ui_Timervalue2 & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
@@ -1813,7 +1813,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
-		outw(HIWORD(ui_Timervalue2),
+		outw((ui_Timervalue2 >> 16) & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 		/*  timer2 in Timer mode enabled */
 		devpriv->b_Timer2Mode = APCI3120_TIMER;
@@ -1841,7 +1841,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
-		outw(LOWORD(ui_Timervalue2),
+		outw(ui_Timervalue2 & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
@@ -1850,7 +1850,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-		outw(HIWORD(ui_Timervalue2),
+		outw((ui_Timervalue2 >> 16) & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 		/* watchdog enabled */
 		devpriv->b_Timer2Mode = APCI3120_WATCHDOG;
@@ -2017,7 +2017,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-		outw(LOWORD(ui_Timervalue2),
+		outw(ui_Timervalue2 & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
@@ -2026,7 +2026,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-		outw(HIWORD(ui_Timervalue2),
+		outw((ui_Timervalue2 >> 16) & 0xffff,
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
 		break;
