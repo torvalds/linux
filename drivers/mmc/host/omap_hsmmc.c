@@ -1754,15 +1754,33 @@ static int omap_hsmmc_configure_wake_irq(struct omap_hsmmc_host *host)
 	 * and need to remux SDIO DAT1 to GPIO for wake-up from idle.
 	 */
 	if (host->pdata->controller_flags & OMAP_HSMMC_SWAKEUP_MISSING) {
-		ret = -ENODEV;
-		devm_free_irq(host->dev, host->wake_irq, host);
-		goto err;
+		struct pinctrl *p = devm_pinctrl_get(host->dev);
+		if (!p) {
+			ret = -ENODEV;
+			goto err_free_irq;
+		}
+		if (IS_ERR(pinctrl_lookup_state(p, PINCTRL_STATE_DEFAULT))) {
+			dev_info(host->dev, "missing default pinctrl state\n");
+			devm_pinctrl_put(p);
+			ret = -EINVAL;
+			goto err_free_irq;
+		}
+
+		if (IS_ERR(pinctrl_lookup_state(p, PINCTRL_STATE_IDLE))) {
+			dev_info(host->dev, "missing idle pinctrl state\n");
+			devm_pinctrl_put(p);
+			ret = -EINVAL;
+			goto err_free_irq;
+		}
+		devm_pinctrl_put(p);
 	}
 
 	OMAP_HSMMC_WRITE(host->base, HCTL,
 			 OMAP_HSMMC_READ(host->base, HCTL) | IWE);
 	return 0;
 
+err_free_irq:
+	devm_free_irq(host->dev, host->wake_irq, host);
 err:
 	dev_warn(host->dev, "no SDIO IRQ support, falling back to polling\n");
 	host->wake_irq = 0;
