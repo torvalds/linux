@@ -67,6 +67,7 @@
 
 	local-timer@48240600 {
 		compatible = "arm,cortex-a9-twd-timer";
+		clocks = <&mpu_periphclk>;
 		reg = <0x48240600 0x20>;
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_RAW(3) | IRQ_TYPE_LEVEL_HIGH)>;
 	};

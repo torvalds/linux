@@ -46,7 +46,7 @@ static struct platform_device gpmc_nand_device = {
 static bool gpmc_hwecc_bch_capable(enum omap_ecc ecc_opt)
 {
 	/* platforms which support all ECC schemes */
-	if (soc_is_am33xx() || cpu_is_omap44xx() ||
+	if (soc_is_am33xx() || soc_is_am43xx() || cpu_is_omap44xx() ||
 		 soc_is_omap54xx() || soc_is_dra7xx())
 		return 1;
 

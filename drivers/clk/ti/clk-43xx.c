@@ -105,6 +105,12 @@ static struct ti_dt_clk am43xx_clks[] = {
 	DT_CLK(NULL, "func_12m_clk", "func_12m_clk"),
 	DT_CLK(NULL, "vtp_clk_div", "vtp_clk_div"),
 	DT_CLK(NULL, "usbphy_32khz_clkmux", "usbphy_32khz_clkmux"),
+	DT_CLK("48300200.ehrpwm", "tbclk", "ehrpwm0_tbclk"),
+	DT_CLK("48302200.ehrpwm", "tbclk", "ehrpwm1_tbclk"),
+	DT_CLK("48304200.ehrpwm", "tbclk", "ehrpwm2_tbclk"),
+	DT_CLK("48306200.ehrpwm", "tbclk", "ehrpwm3_tbclk"),
+	DT_CLK("48308200.ehrpwm", "tbclk", "ehrpwm4_tbclk"),
+	DT_CLK("4830a200.ehrpwm", "tbclk", "ehrpwm5_tbclk"),
 	{ .node_name = NULL },
 };
 
