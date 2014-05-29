@@ -345,7 +345,8 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	       mips32_GuestExceptionEnd - mips32_GuestException);
 
 	/* Invalidate the icache for these ranges */
-	mips32_SyncICache((unsigned long) gebase, ALIGN(size, PAGE_SIZE));
+	local_flush_icache_range((unsigned long)gebase,
+				(unsigned long)gebase + ALIGN(size, PAGE_SIZE));
 
 	/* Allocate comm page for guest kernel, a TLB will be reserved for mapping GVA @ 0xFFFF8000 to this page */
 	vcpu->arch.kseg0_commpage = kzalloc(PAGE_SIZE << 1, GFP_KERNEL);

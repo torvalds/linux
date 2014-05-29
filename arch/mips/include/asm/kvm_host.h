@@ -646,7 +646,6 @@ extern int kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc,
 			       struct kvm_vcpu *vcpu);
 
 /* Misc */
-extern void mips32_SyncICache(unsigned long addr, unsigned long size);
 extern int kvm_mips_dump_stats(struct kvm_vcpu *vcpu);
 extern unsigned long kvm_mips_get_ramsize(struct kvm *kvm);
 

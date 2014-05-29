@@ -887,7 +887,7 @@ int kvm_mips_sync_icache(unsigned long va, struct kvm_vcpu *vcpu)
 
 	printk("%s: va: %#lx, unmapped: %#x\n", __func__, va, CKSEG0ADDR(pa));
 
-	mips32_SyncICache(CKSEG0ADDR(pa), 32);
+	local_flush_icache_range(CKSEG0ADDR(pa), 32);
 	return 0;
 }
 
