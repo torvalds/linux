@@ -1831,8 +1831,12 @@ kvm_mips_handle_tlbmod(unsigned long cause, uint32_t *opc,
 		       struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	enum emulation_result er = EMULATE_DONE;
-
 #ifdef DEBUG
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
+				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+	int index;
+
 	/*
 	 * If address not in the guest TLB, then we are in trouble
 	 */

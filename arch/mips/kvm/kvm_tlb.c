@@ -233,12 +233,9 @@ kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 	tlbw_use_hazard();
 
 #ifdef DEBUG
-	if (debug) {
-		kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] "
-			  "entrylo0(R): 0x%08lx, entrylo1(R): 0x%08lx\n",
-			  vcpu->arch.pc, idx, read_c0_entryhi(),
-			  read_c0_entrylo0(), read_c0_entrylo1());
-	}
+	kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0(R): 0x%08lx, entrylo1(R): 0x%08lx\n",
+		  vcpu->arch.pc, idx, read_c0_entryhi(),
+		  read_c0_entrylo0(), read_c0_entrylo1());
 #endif
 
 	/* Flush D-cache */
@@ -507,10 +504,9 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 	local_irq_restore(flags);
 
 #ifdef DEBUG
-	if (idx > 0) {
+	if (idx > 0)
 		kvm_debug("%s: Invalidated entryhi %#lx @ idx %d\n", __func__,
-			  (va & VPN2_MASK) | (vcpu->arch.asid_map[va & ASID_MASK] & ASID_MASK), idx);
-	}
+			  (va & VPN2_MASK) | kvm_mips_get_user_asid(vcpu), idx);
 #endif
 
 	return 0;
