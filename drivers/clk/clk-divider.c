@@ -147,7 +147,7 @@ static bool _is_valid_div(struct clk_divider *divider, unsigned int div)
 static int _round_up_table(const struct clk_div_table *table, int div)
 {
 	const struct clk_div_table *clkt;
-	int up = _get_table_maxdiv(table);
+	int up = INT_MAX;
 
 	for (clkt = table; clkt->div; clkt++) {
 		if (clkt->div == div)
