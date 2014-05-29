@@ -39,8 +39,6 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-#define VBLANK_OFF_DELAY	50000
-
 static struct platform_device *exynos_drm_pdev;
 
 static DEFINE_MUTEX(drm_component_lock);
@@ -102,8 +100,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	/* setup possible_clones. */
 	exynos_drm_encoder_setup(dev);
-
-	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
 	platform_set_drvdata(dev->platformdev, dev);
 
