@@ -2516,27 +2516,21 @@ static int hpsa_get_volume_status(struct ctlr_info *h,
 		return HPSA_VPD_LV_STATUS_UNSUPPORTED;
 
 	/* Does controller have VPD for logical volume status? */
-	if (!hpsa_vpd_page_supported(h, scsi3addr, HPSA_VPD_LV_STATUS)) {
-		dev_warn(&h->pdev->dev, "Logical volume status VPD page is unsupported.\n");
+	if (!hpsa_vpd_page_supported(h, scsi3addr, HPSA_VPD_LV_STATUS))
 		goto exit_failed;
-	}
 
 	/* Get the size of the VPD return buffer */
 	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE | HPSA_VPD_LV_STATUS,
 					buf, HPSA_VPD_HEADER_SZ);
-	if (rc != 0) {
-		dev_warn(&h->pdev->dev, "Logical volume status VPD inquiry failed.\n");
+	if (rc != 0)
 		goto exit_failed;
-	}
 	size = buf[3];
 
 	/* Now get the whole VPD buffer */
 	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE | HPSA_VPD_LV_STATUS,
 					buf, size + HPSA_VPD_HEADER_SZ);
-	if (rc != 0) {
-		dev_warn(&h->pdev->dev, "Logical volume status VPD inquiry failed.\n");
+	if (rc != 0)
 		goto exit_failed;
-	}
 	status = buf[4]; /* status byte */
 
 	kfree(buf);
