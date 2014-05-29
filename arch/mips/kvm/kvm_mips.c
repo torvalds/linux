@@ -923,7 +923,7 @@ int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
 		return -1;
 
 	printk("VCPU Register Dump:\n");
-	printk("\tpc = 0x%08lx\n", vcpu->arch.pc);;
+	printk("\tpc = 0x%08lx\n", vcpu->arch.pc);
 	printk("\texceptions: %08lx\n", vcpu->arch.pending_exceptions);
 
 	for (i = 0; i < 32; i += 4) {
