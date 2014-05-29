@@ -222,16 +222,14 @@ kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 		return -1;
 	}
 
-	if (idx < 0) {
-		idx = read_c0_random() % current_cpu_data.tlbsize;
-		write_c0_index(idx);
-		mtc0_tlbw_hazard();
-	}
 	write_c0_entrylo0(entrylo0);
 	write_c0_entrylo1(entrylo1);
 	mtc0_tlbw_hazard();
 
-	tlb_write_indexed();
+	if (idx < 0)
+		tlb_write_random();
+	else
+		tlb_write_indexed();
 	tlbw_use_hazard();
 
 #ifdef DEBUG
