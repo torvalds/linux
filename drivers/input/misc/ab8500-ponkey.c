@@ -7,6 +7,7 @@
  * AB8500 Power-On Key handler
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -65,12 +66,14 @@ static int ab8500_ponkey_probe(struct platform_device *pdev)
 		return irq_dbr;
 	}
 
-	ponkey = kzalloc(sizeof(struct ab8500_ponkey), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!ponkey || !input) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	ponkey = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_ponkey),
+			      GFP_KERNEL);
+	if (!ponkey)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input)
+		return -ENOMEM;
 
 	ponkey->idev = input;
 	ponkey->ab8500 = ab8500;
@@ -82,51 +85,31 @@ static int ab8500_ponkey_probe(struct platform_device *pdev)
 
 	input_set_capability(input, EV_KEY, KEY_POWER);
 
-	error = request_any_context_irq(ponkey->irq_dbf, ab8500_ponkey_handler,
-					0, "ab8500-ponkey-dbf", ponkey);
+	error = devm_request_any_context_irq(&pdev->dev, ponkey->irq_dbf,
+					     ab8500_ponkey_handler, 0,
+					     "ab8500-ponkey-dbf", ponkey);
 	if (error < 0) {
 		dev_err(ab8500->dev, "Failed to request dbf IRQ#%d: %d\n",
 			ponkey->irq_dbf, error);
-		goto err_free_mem;
+		return error;
 	}
 
-	error = request_any_context_irq(ponkey->irq_dbr, ab8500_ponkey_handler,
-					0, "ab8500-ponkey-dbr", ponkey);
+	error = devm_request_any_context_irq(&pdev->dev, ponkey->irq_dbr,
+					     ab8500_ponkey_handler, 0,
+					     "ab8500-ponkey-dbr", ponkey);
 	if (error < 0) {
 		dev_err(ab8500->dev, "Failed to request dbr IRQ#%d: %d\n",
 			ponkey->irq_dbr, error);
-		goto err_free_dbf_irq;
+		return error;
 	}
 
 	error = input_register_device(ponkey->idev);
 	if (error) {
 		dev_err(ab8500->dev, "Can't register input device: %d\n", error);
-		goto err_free_dbr_irq;
+		return error;
 	}
 
 	platform_set_drvdata(pdev, ponkey);
-	return 0;
-
-err_free_dbr_irq:
-	free_irq(ponkey->irq_dbr, ponkey);
-err_free_dbf_irq:
-	free_irq(ponkey->irq_dbf, ponkey);
-err_free_mem:
-	input_free_device(input);
-	kfree(ponkey);
-
-	return error;
-}
-
-static int ab8500_ponkey_remove(struct platform_device *pdev)
-{
-	struct ab8500_ponkey *ponkey = platform_get_drvdata(pdev);
-
-	free_irq(ponkey->irq_dbf, ponkey);
-	free_irq(ponkey->irq_dbr, ponkey);
-	input_unregister_device(ponkey->idev);
-	kfree(ponkey);
-
 	return 0;
 }
 
@@ -144,7 +127,6 @@ static struct platform_driver ab8500_ponkey_driver = {
 		.of_match_table = of_match_ptr(ab8500_ponkey_match),
 	},
 	.probe		= ab8500_ponkey_probe,
-	.remove		= ab8500_ponkey_remove,
 };
 module_platform_driver(ab8500_ponkey_driver);
 
