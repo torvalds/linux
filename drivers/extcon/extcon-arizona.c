@@ -823,7 +823,7 @@ static void arizona_micd_detect(struct work_struct *work)
 				ret);
 
 		/* Don't need to regulate for button detection */
-		ret = regulator_allow_bypass(info->micvdd, false);
+		ret = regulator_allow_bypass(info->micvdd, true);
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to bypass MICVDD: %d\n",
 				ret);
