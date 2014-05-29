@@ -679,17 +679,17 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		    vcpu->arch.guest_user_mm.context.asid[cpu];
 		newasid++;
 
-		kvm_info("[%d]: cpu_context: %#lx\n", cpu,
-			 cpu_context(cpu, current->mm));
-		kvm_info("[%d]: Allocated new ASID for Guest Kernel: %#x\n",
-			 cpu, vcpu->arch.guest_kernel_asid[cpu]);
-		kvm_info("[%d]: Allocated new ASID for Guest User: %#x\n", cpu,
-			 vcpu->arch.guest_user_asid[cpu]);
+		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
+			  cpu_context(cpu, current->mm));
+		kvm_debug("[%d]: Allocated new ASID for Guest Kernel: %#x\n",
+			  cpu, vcpu->arch.guest_kernel_asid[cpu]);
+		kvm_debug("[%d]: Allocated new ASID for Guest User: %#x\n", cpu,
+			  vcpu->arch.guest_user_asid[cpu]);
 	}
 
 	if (vcpu->arch.last_sched_cpu != cpu) {
-		kvm_info("[%d->%d]KVM VCPU[%d] switch\n",
-			 vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
+		kvm_debug("[%d->%d]KVM VCPU[%d] switch\n",
+			  vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
 		/*
 		 * Migrate the timer interrupt to the current CPU so that it
 		 * always interrupts the guest and synchronously triggers a
