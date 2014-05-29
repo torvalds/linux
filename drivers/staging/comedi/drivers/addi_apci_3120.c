@@ -125,13 +125,10 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->subdev_flags =
 		SDF_READABLE | SDF_COMMON | SDF_GROUND
 		| SDF_DIFF;
-	if (this_board->i_NbrAiChannel) {
+	if (this_board->i_NbrAiChannel)
 		s->n_chan = this_board->i_NbrAiChannel;
-		devpriv->b_SingelDiff = 0;
-	} else {
+	else
 		s->n_chan = this_board->i_NbrAiChannelDiff;
-		devpriv->b_SingelDiff = 1;
-	}
 	s->maxdata = this_board->i_AiMaxdata;
 	s->len_chanlist = this_board->i_AiChannelList;
 	s->range_table = &range_apci3120_ai;
