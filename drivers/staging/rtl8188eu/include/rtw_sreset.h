@@ -25,7 +25,6 @@
 
 struct sreset_priv {
 	u8	Wifi_Error_Status;
-	unsigned long last_tx_complete_time;
 };
 
 #include <rtl8188e_hal.h>
