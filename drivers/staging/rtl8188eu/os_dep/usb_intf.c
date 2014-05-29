@@ -29,7 +29,6 @@
 #include <linux/vmalloc.h>
 #include <osdep_intf.h>
 
-#include <usb_vendor_req.h>
 #include <usb_ops.h>
 #include <usb_osintf.h>
 #include <usb_hal.h>
