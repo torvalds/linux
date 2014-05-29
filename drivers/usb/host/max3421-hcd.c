@@ -1950,20 +1950,7 @@ static struct spi_driver max3421_driver = {
 	},
 };
 
-static int __init
-max3421_mod_init(void)
-{
-	return spi_register_driver(&max3421_driver);
-}
-
-static void __exit
-max3421_mod_exit(void)
-{
-	spi_unregister_driver(&max3421_driver);
-}
-
-module_init(max3421_mod_init);
-module_exit(max3421_mod_exit);
+module_spi_driver(max3421_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("David Mosberger <davidm@egauge.net>");
