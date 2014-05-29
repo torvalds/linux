@@ -76,56 +76,211 @@ enum {
 /* BPF program can access up to 512 bytes of stack space. */
 #define MAX_BPF_STACK	512
 
-/* bpf_add|sub|...: a += x, bpf_mov: a = x */
-#define BPF_ALU64_REG(op, a, x) \
-	((struct sock_filter_int) {BPF_ALU64|BPF_OP(op)|BPF_X, a, x, 0, 0})
-#define BPF_ALU32_REG(op, a, x) \
-	((struct sock_filter_int) {BPF_ALU|BPF_OP(op)|BPF_X, a, x, 0, 0})
+/* Helper macros for filter block array initializers. */
 
-/* bpf_add|sub|...: a += imm, bpf_mov: a = imm */
-#define BPF_ALU64_IMM(op, a, imm) \
-	((struct sock_filter_int) {BPF_ALU64|BPF_OP(op)|BPF_K, a, 0, 0, imm})
-#define BPF_ALU32_IMM(op, a, imm) \
-	((struct sock_filter_int) {BPF_ALU|BPF_OP(op)|BPF_K, a, 0, 0, imm})
+/* ALU ops on registers, bpf_add|sub|...: A += X */
 
-/* R0 = *(uint *) (skb->data + off) */
-#define BPF_LD_ABS(size, off) \
-	((struct sock_filter_int) {BPF_LD|BPF_SIZE(size)|BPF_ABS, 0, 0, 0, off})
+#define BPF_ALU64_REG(OP, A, X)					\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU64 | BPF_OP(OP) | BPF_X,	\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = 0,					\
+		.imm   = 0 })
 
-/* R0 = *(uint *) (skb->data + x + off) */
-#define BPF_LD_IND(size, x, off) \
-	((struct sock_filter_int) {BPF_LD|BPF_SIZE(size)|BPF_IND, 0, x, 0, off})
+#define BPF_ALU32_REG(OP, A, X)					\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU | BPF_OP(OP) | BPF_X,		\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = 0,					\
+		.imm   = 0 })
 
-/* a = *(uint *) (x + off) */
-#define BPF_LDX_MEM(sz, a, x, off) \
-	((struct sock_filter_int) {BPF_LDX|BPF_SIZE(sz)|BPF_MEM, a, x, off, 0})
+/* ALU ops on immediates, bpf_add|sub|...: A += IMM */
 
-/* if (a 'op' x) goto pc+off */
-#define BPF_JMP_REG(op, a, x, off) \
-	((struct sock_filter_int) {BPF_JMP|BPF_OP(op)|BPF_X, a, x, off, 0})
+#define BPF_ALU64_IMM(OP, A, IMM)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU64 | BPF_OP(OP) | BPF_K,	\
+		.a_reg = A,					\
+		.x_reg = 0,					\
+		.off   = 0,					\
+		.imm   = IMM })
 
-/* if (a 'op' imm) goto pc+off */
-#define BPF_JMP_IMM(op, a, imm, off) \
-	((struct sock_filter_int) {BPF_JMP|BPF_OP(op)|BPF_K, a, 0, off, imm})
+#define BPF_ALU32_IMM(OP, A, IMM)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU | BPF_OP(OP) | BPF_K,		\
+		.a_reg = A,					\
+		.x_reg = 0,					\
+		.off   = 0,					\
+		.imm   = IMM })
 
-#define BPF_EXIT_INSN() \
-	((struct sock_filter_int) {BPF_JMP|BPF_EXIT, 0, 0, 0, 0})
+/* Endianess conversion, cpu_to_{l,b}e(), {l,b}e_to_cpu() */
 
-static inline int size_to_bpf(int size)
-{
-	switch (size) {
-	case 1:
-		return BPF_B;
-	case 2:
-		return BPF_H;
-	case 4:
-		return BPF_W;
-	case 8:
-		return BPF_DW;
-	default:
-		return -EINVAL;
-	}
-}
+#define BPF_ENDIAN(TYPE, A, LEN)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU | BPF_END | BPF_SRC(TYPE),	\
+		.a_reg = A,					\
+		.x_reg = 0,					\
+		.off   = 0,					\
+		.imm   = LEN })
+
+/* Short form of mov, A = X */
+
+#define BPF_MOV64_REG(A, X)					\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU64 | BPF_MOV | BPF_X,		\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = 0,					\
+		.imm   = 0 })
+
+#define BPF_MOV32_REG(A, X)					\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU | BPF_MOV | BPF_X,		\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = 0,					\
+		.imm   = 0 })
+
+/* Short form of mov, A = IMM */
+
+#define BPF_MOV64_IMM(A, IMM)					\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU64 | BPF_MOV | BPF_K,		\
+		.a_reg = A,					\
+		.x_reg = 0,					\
+		.off   = 0,					\
+		.imm   = IMM })
+
+#define BPF_MOV32_IMM(A, IMM)					\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU | BPF_MOV | BPF_K,		\
+		.a_reg = A,					\
+		.x_reg = 0,					\
+		.off   = 0,					\
+		.imm   = IMM })
+
+/* Short form of mov based on type, BPF_X: A = X,  BPF_K: A = IMM */
+
+#define BPF_MOV64_RAW(TYPE, A, X, IMM)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU64 | BPF_MOV | BPF_SRC(TYPE),	\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = 0,					\
+		.imm   = IMM })
+
+#define BPF_MOV32_RAW(TYPE, A, X, IMM)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_ALU | BPF_MOV | BPF_SRC(TYPE),	\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = 0,					\
+		.imm   = IMM })
+
+/* Direct packet access, R0 = *(uint *) (skb->data + OFF) */
+
+#define BPF_LD_ABS(SIZE, OFF)					\
+	((struct sock_filter_int) {				\
+		.code  = BPF_LD | BPF_SIZE(SIZE) | BPF_ABS,	\
+		.a_reg = 0,					\
+		.x_reg = 0,					\
+		.off   = 0,					\
+		.imm   = OFF })
+
+/* Indirect packet access, R0 = *(uint *) (skb->data + X + OFF) */
+
+#define BPF_LD_IND(SIZE, X, OFF)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_LD | BPF_SIZE(SIZE) | BPF_IND,	\
+		.a_reg = 0,					\
+		.x_reg = X,					\
+		.off   = 0,					\
+		.imm   = OFF })
+
+/* Memory store, A = *(uint *) (X + OFF), and vice versa */
+
+#define BPF_LDX_MEM(SIZE, A, X, OFF)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_LDX | BPF_SIZE(SIZE) | BPF_MEM,	\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = OFF,					\
+		.imm   = 0 })
+
+#define BPF_STX_MEM(SIZE, A, X, OFF)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_STX | BPF_SIZE(SIZE) | BPF_MEM,	\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = OFF,					\
+		.imm   = 0 })
+
+/* Conditional jumps against registers, if (A 'op' X) goto pc + OFF */
+
+#define BPF_JMP_REG(OP, A, X, OFF)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_JMP | BPF_OP(OP) | BPF_X,		\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = OFF,					\
+		.imm   = 0 })
+
+/* Conditional jumps against immediates, if (A 'op' IMM) goto pc + OFF */
+
+#define BPF_JMP_IMM(OP, A, IMM, OFF)				\
+	((struct sock_filter_int) {				\
+		.code  = BPF_JMP | BPF_OP(OP) | BPF_K,		\
+		.a_reg = A,					\
+		.x_reg = 0,					\
+		.off   = OFF,					\
+		.imm   = IMM })
+
+/* Function call */
+
+#define BPF_EMIT_CALL(FUNC)					\
+	((struct sock_filter_int) {				\
+		.code  = BPF_JMP | BPF_CALL,			\
+		.a_reg = 0,					\
+		.x_reg = 0,					\
+		.off   = 0,					\
+		.imm   = ((FUNC) - __bpf_call_base) })
+
+/* Raw code statement block */
+
+#define BPF_RAW_INSN(CODE, A, X, OFF, IMM)			\
+	((struct sock_filter_int) {				\
+		.code  = CODE,					\
+		.a_reg = A,					\
+		.x_reg = X,					\
+		.off   = OFF,					\
+		.imm   = IMM })
+
+/* Program exit */
+
+#define BPF_EXIT_INSN()						\
+	((struct sock_filter_int) {				\
+		.code  = BPF_JMP | BPF_EXIT,			\
+		.a_reg = 0,					\
+		.x_reg = 0,					\
+		.off   = 0,					\
+		.imm   = 0 })
+
+#define bytes_to_bpf_size(bytes)				\
+({								\
+	int bpf_size = -EINVAL;					\
+								\
+	if (bytes == sizeof(u8))				\
+		bpf_size = BPF_B;				\
+	else if (bytes == sizeof(u16))				\
+		bpf_size = BPF_H;				\
+	else if (bytes == sizeof(u32))				\
+		bpf_size = BPF_W;				\
+	else if (bytes == sizeof(u64))				\
+		bpf_size = BPF_DW;				\
+								\
+	bpf_size;						\
+})
 
 /* Macro to invoke filter function. */
 #define SK_RUN_FILTER(filter, ctx)  (*filter->bpf_func)(ctx, filter->insnsi)
