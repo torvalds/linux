@@ -4873,8 +4873,7 @@ void report_survey_event23a(struct rtw_adapter *padapter,
 	pmlmeext = &padapter->mlmeextpriv;
 	pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
-					     GFP_ATOMIC);
+	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -4925,8 +4924,7 @@ void report_surveydone_event23a(struct rtw_adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
-					     GFP_ATOMIC);
+	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -4970,8 +4968,7 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
-					     GFP_ATOMIC);
+	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -5021,8 +5018,7 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
-					     GFP_ATOMIC);
+	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -5076,8 +5072,7 @@ void report_add_sta_event23a(struct rtw_adapter *padapter,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
-					     GFP_ATOMIC);
+	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -5493,13 +5488,12 @@ static void survey_timer_hdl(unsigned long data)
 			pmlmeext->scan_abort = false;/* reset */
 		}
 
-		ph2c = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
-			GFP_ATOMIC);
+		ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 		if (!ph2c)
 			goto exit_survey_timer_hdl;
 
-		psurveyPara = (struct sitesurvey_parm*)
-			kzalloc(sizeof(struct sitesurvey_parm), GFP_ATOMIC);
+		psurveyPara = kzalloc(sizeof(struct sitesurvey_parm),
+					GFP_ATOMIC);
 		if (!psurveyPara) {
 			kfree(ph2c);
 			goto exit_survey_timer_hdl;
@@ -6173,14 +6167,13 @@ int set_tx_beacon_cmd23a(struct rtw_adapter* padapter)
 	u8 res = _SUCCESS;
 	int len_diff = 0;
 
-	ph2c = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
+	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!ph2c) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	ptxBeacon_parm = (struct Tx_Beacon_param *)
-		kzalloc(sizeof(struct Tx_Beacon_param), GFP_ATOMIC);
+	ptxBeacon_parm = kzalloc(sizeof(struct Tx_Beacon_param), GFP_ATOMIC);
 	if (!ptxBeacon_parm) {
 		kfree(ph2c);
 		res = _FAIL;
