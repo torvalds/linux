@@ -659,21 +659,27 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 	u8 *cmd;
 	void __iomem *src;
 	ulong flags;
+	unsigned n;
 
 	if (!test_bit(wil_status_reset_done, &wil->status)) {
 		wil_err(wil, "Reset not completed\n");
 		return;
 	}
 
-	for (;;) {
+	for (n = 0;; n++) {
 		u16 len;
 
 		r->head = ioread32(wil->csr + HOST_MBOX +
 				   offsetof(struct wil6210_mbox_ctl, rx.head));
-		if (r->tail == r->head)
+		if (r->tail == r->head) {
+			if (n == 0)
+				wil_dbg_wmi(wil, "No events?\n");
 			return;
+		}
 
-		/* read cmd from tail */
+		wil_dbg_wmi(wil, "Mbox head %08x tail %08x\n",
+			    r->head, r->tail);
+		/* read cmd descriptor from tail */
 		wil_memcpy_fromio_32(&d_tail, wil->csr + HOSTADDR(r->tail),
 				     sizeof(struct wil6210_mbox_ring_desc));
 		if (d_tail.sync == 0) {
@@ -681,13 +687,18 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 			return;
 		}
 
+		/* read cmd header from descriptor */
 		if (0 != wmi_read_hdr(wil, d_tail.addr, &hdr)) {
 			wil_err(wil, "Mbox evt at 0x%08x?\n",
 				le32_to_cpu(d_tail.addr));
 			return;
 		}
-
 		len = le16_to_cpu(hdr.len);
+		wil_dbg_wmi(wil, "Mbox evt %04x %04x %04x %02x\n",
+			    le16_to_cpu(hdr.seq), len, le16_to_cpu(hdr.type),
+			    hdr.flags);
+
+		/* read cmd buffer from descriptor */
 		src = wmi_buffer(wil, d_tail.addr) +
 		      sizeof(struct wil6210_mbox_hdr);
 		evt = kmalloc(ALIGN(offsetof(struct pending_wmi_event,
@@ -703,9 +714,6 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		iowrite32(0, wil->csr + HOSTADDR(r->tail) +
 			  offsetof(struct wil6210_mbox_ring_desc, sync));
 		/* indicate */
-		wil_dbg_wmi(wil, "Mbox evt %04x %04x %04x %02x\n",
-			    le16_to_cpu(hdr.seq), len, le16_to_cpu(hdr.type),
-			    hdr.flags);
 		if ((hdr.type == WIL_MBOX_HDR_TYPE_WMI) &&
 		    (len >= sizeof(struct wil6210_mbox_hdr_wmi))) {
 			struct wil6210_mbox_hdr_wmi *wmi = &evt->event.wmi;
@@ -735,6 +743,8 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 			wil_dbg_wmi(wil, "queue_work -> %d\n", q);
 		}
 	}
+	if (n > 1)
+		wil_dbg_wmi(wil, "%s -> %d events processed\n", __func__, n);
 }
 
 int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,
