@@ -527,7 +527,7 @@
 			#interrupt-cells = <2>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			clocks = <&per_base_clk>;
+			clocks = <&l4_mp_clk>;
 		};
 
 		gpio1: gpio@ff709000 {
@@ -540,7 +540,7 @@
 			#interrupt-cells = <2>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			clocks = <&per_base_clk>;
+			clocks = <&l4_mp_clk>;
 		};
 
 		gpio2: gpio@ff70a000 {
@@ -553,7 +553,7 @@
 			#interrupt-cells = <2>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			clocks = <&per_base_clk>;
+			clocks = <&l4_mp_clk>;
 		};
 
 		hps_0_fpgamgr: fpgamgr@0xff706000 {
