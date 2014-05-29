@@ -526,6 +526,7 @@ static u64 kvm_mips_get_one_regs[] = {
 
 	KVM_REG_MIPS_CP0_INDEX,
 	KVM_REG_MIPS_CP0_CONTEXT,
+	KVM_REG_MIPS_CP0_USERLOCAL,
 	KVM_REG_MIPS_CP0_PAGEMASK,
 	KVM_REG_MIPS_CP0_WIRED,
 	KVM_REG_MIPS_CP0_BADVADDR,
@@ -569,6 +570,9 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		v = (long)kvm_read_c0_guest_context(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_USERLOCAL:
+		v = (long)kvm_read_c0_guest_userlocal(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_PAGEMASK:
 		v = (long)kvm_read_c0_guest_pagemask(cop0);
@@ -677,6 +681,9 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		kvm_write_c0_guest_context(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_USERLOCAL:
+		kvm_write_c0_guest_userlocal(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_PAGEMASK:
 		kvm_write_c0_guest_pagemask(cop0, v);
