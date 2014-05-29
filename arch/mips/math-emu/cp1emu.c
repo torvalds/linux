@@ -1234,14 +1234,22 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			SPTOREG(fd, MIPSInst_FD(ir));
 
 		      copcsr:
-			if (ieee754_cxtest(IEEE754_INEXACT))
+			if (ieee754_cxtest(IEEE754_INEXACT)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_inexact);
 				rcsr |= FPU_CSR_INE_X | FPU_CSR_INE_S;
-			if (ieee754_cxtest(IEEE754_UNDERFLOW))
+			}
+			if (ieee754_cxtest(IEEE754_UNDERFLOW)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_underflow);
 				rcsr |= FPU_CSR_UDF_X | FPU_CSR_UDF_S;
-			if (ieee754_cxtest(IEEE754_OVERFLOW))
+			}
+			if (ieee754_cxtest(IEEE754_OVERFLOW)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_overflow);
 				rcsr |= FPU_CSR_OVF_X | FPU_CSR_OVF_S;
-			if (ieee754_cxtest(IEEE754_INVALID_OPERATION))
+			}
+			if (ieee754_cxtest(IEEE754_INVALID_OPERATION)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_invalidop);
 				rcsr |= FPU_CSR_INV_X | FPU_CSR_INV_S;
+			}
 
 			ctx->fcr31 = (ctx->fcr31 & ~FPU_CSR_ALL_X) | rcsr;
 			if ((ctx->fcr31 >> 5) & ctx->fcr31 & FPU_CSR_ALL_E) {
@@ -1468,16 +1476,26 @@ scopuop:
 			rv.s = (*handler.u) (fs);
 			goto copcsr;
 copcsr:
-			if (ieee754_cxtest(IEEE754_INEXACT))
+			if (ieee754_cxtest(IEEE754_INEXACT)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_inexact);
 				rcsr |= FPU_CSR_INE_X | FPU_CSR_INE_S;
-			if (ieee754_cxtest(IEEE754_UNDERFLOW))
+			}
+			if (ieee754_cxtest(IEEE754_UNDERFLOW)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_underflow);
 				rcsr |= FPU_CSR_UDF_X | FPU_CSR_UDF_S;
-			if (ieee754_cxtest(IEEE754_OVERFLOW))
+			}
+			if (ieee754_cxtest(IEEE754_OVERFLOW)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_overflow);
 				rcsr |= FPU_CSR_OVF_X | FPU_CSR_OVF_S;
-			if (ieee754_cxtest(IEEE754_ZERO_DIVIDE))
+			}
+			if (ieee754_cxtest(IEEE754_ZERO_DIVIDE)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_zerodiv);
 				rcsr |= FPU_CSR_DIV_X | FPU_CSR_DIV_S;
-			if (ieee754_cxtest(IEEE754_INVALID_OPERATION))
+			}
+			if (ieee754_cxtest(IEEE754_INVALID_OPERATION)) {
+				MIPS_FPU_EMU_INC_STATS(ieee754_invalidop);
 				rcsr |= FPU_CSR_INV_X | FPU_CSR_INV_S;
+			}
 			break;
 
 			/* unary conv ops */

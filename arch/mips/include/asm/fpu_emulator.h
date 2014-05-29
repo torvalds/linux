@@ -39,6 +39,11 @@ struct mips_fpu_emulator_stats {
 	local_t cp1ops;
 	local_t cp1xops;
 	local_t errors;
+	local_t ieee754_inexact;
+	local_t ieee754_underflow;
+	local_t ieee754_overflow;
+	local_t ieee754_zerodiv;
+	local_t ieee754_invalidop;
 };
 
 DECLARE_PER_CPU(struct mips_fpu_emulator_stats, fpuemustats);

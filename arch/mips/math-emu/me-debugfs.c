@@ -56,6 +56,11 @@ do {									\
 	FPU_STAT_CREATE(cp1ops);
 	FPU_STAT_CREATE(cp1xops);
 	FPU_STAT_CREATE(errors);
+	FPU_STAT_CREATE(ieee754_inexact);
+	FPU_STAT_CREATE(ieee754_underflow);
+	FPU_STAT_CREATE(ieee754_overflow);
+	FPU_STAT_CREATE(ieee754_zerodiv);
+	FPU_STAT_CREATE(ieee754_invalidop);
 
 	return 0;
 }
