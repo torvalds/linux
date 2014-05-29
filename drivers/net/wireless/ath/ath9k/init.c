@@ -61,6 +61,10 @@ static int ath9k_ps_enable;
 module_param_named(ps_enable, ath9k_ps_enable, int, 0444);
 MODULE_PARM_DESC(ps_enable, "Enable WLAN PowerSave");
 
+static int ath9k_use_chanctx;
+module_param_named(use_chanctx, ath9k_use_chanctx, int, 0444);
+MODULE_PARM_DESC(use_chanctx, "Enable channel context for concurrency");
+
 bool is_ath9k_unloaded;
 
 #ifdef CONFIG_MAC80211_LEDS
@@ -646,8 +650,7 @@ static void ath9k_init_txpower_limits(struct ath_softc *sc)
 }
 
 static const struct ieee80211_iface_limit if_limits[] = {
-	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_STATION) |
-				 BIT(NL80211_IFTYPE_WDS) },
+	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_STATION) },
 	{ .max = 8,	.types =
 #ifdef CONFIG_MAC80211_MESH
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
@@ -655,6 +658,10 @@ static const struct ieee80211_iface_limit if_limits[] = {
 				 BIT(NL80211_IFTYPE_AP) },
 	{ .max = 1,	.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
+};
+
+static const struct ieee80211_iface_limit wds_limits[] = {
+	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_WDS) },
 };
 
 static const struct ieee80211_iface_limit if_dfs_limits[] = {
@@ -669,6 +676,13 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	{
 		.limits = if_limits,
 		.n_limits = ARRAY_SIZE(if_limits),
+		.max_interfaces = 2048,
+		.num_different_channels = 1,
+		.beacon_int_infra_match = true,
+	},
+	{
+		.limits = wds_limits,
+		.n_limits = ARRAY_SIZE(wds_limits),
 		.max_interfaces = 2048,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
@@ -722,12 +736,15 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			BIT(NL80211_IFTYPE_P2P_GO) |
 			BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			BIT(NL80211_IFTYPE_AP) |
-			BIT(NL80211_IFTYPE_WDS) |
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_ADHOC) |
 			BIT(NL80211_IFTYPE_MESH_POINT);
 		hw->wiphy->iface_combinations = if_comb;
-		hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+		if (!ath9k_use_chanctx) {
+			hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+			hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_WDS);
+		} else
+			hw->wiphy->n_iface_combinations = 1;
 	}
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
