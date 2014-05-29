@@ -2476,6 +2476,7 @@ int type_printk(int type, const char *fmt, ...)
 			__this_cpu_or(printk_pending, PRINTK_PENDING_SCHED);
 			irq_work_queue(&__get_cpu_var(wake_up_klogd_work));
 			local_irq_restore(flags);
+			break;
 		case 1:
 			/* error type , we we will print the fmt and adding [error] */
 			const char *all_fmt;
