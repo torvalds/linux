@@ -138,6 +138,12 @@ nfs_iocounter_wait(struct nfs_io_counter *c)
 	return __nfs_iocounter_wait(c);
 }
 
+static int nfs_wait_bit_uninterruptible(void *word)
+{
+	io_schedule();
+	return 0;
+}
+
 /*
  * nfs_page_group_lock - lock the head of the page group
  * @req - request in group that is to be locked
@@ -148,13 +154,12 @@ void
 nfs_page_group_lock(struct nfs_page *req)
 {
 	struct nfs_page *head = req->wb_head;
-	int err = -EAGAIN;
 
 	WARN_ON_ONCE(head != head->wb_head);
 
-	while (err)
-		err = wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
-			nfs_wait_bit_killable, TASK_KILLABLE);
+	wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
+			nfs_wait_bit_uninterruptible,
+			TASK_UNINTERRUPTIBLE);
 }
 
 /*
@@ -408,12 +413,6 @@ static void nfs_free_request(struct nfs_page *req)
 void nfs_release_request(struct nfs_page *req)
 {
 	kref_put(&req->wb_kref, nfs_page_group_destroy);
-}
-
-static int nfs_wait_bit_uninterruptible(void *word)
-{
-	io_schedule();
-	return 0;
 }
 
 /**
