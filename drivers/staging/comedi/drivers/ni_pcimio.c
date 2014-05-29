@@ -1044,12 +1044,47 @@ static const struct ni_board_struct ni_boards[] = {
 
 /* How we access registers */
 
-#define ni_writel(a, b)	(writel((a), devpriv->mite->daq_io_addr + (b)))
-#define ni_readl(a)	(readl(devpriv->mite->daq_io_addr + (a)))
-#define ni_writew(a, b)	(writew((a), devpriv->mite->daq_io_addr + (b)))
-#define ni_readw(a)	(readw(devpriv->mite->daq_io_addr + (a)))
-#define ni_writeb(a, b)	(writeb((a), devpriv->mite->daq_io_addr + (b)))
-#define ni_readb(a)	(readb(devpriv->mite->daq_io_addr + (a)))
+static uint8_t pcimio_readb(struct comedi_device *dev, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	return readb(devpriv->mite->daq_io_addr + reg);
+}
+
+static uint16_t pcimio_readw(struct comedi_device *dev, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	return readw(devpriv->mite->daq_io_addr + reg);
+}
+
+static uint32_t pcimio_readl(struct comedi_device *dev, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	return readl(devpriv->mite->daq_io_addr + reg);
+}
+
+static void pcimio_writeb(struct comedi_device *dev, uint8_t val, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	writeb(val, devpriv->mite->daq_io_addr + reg);
+}
+
+static void pcimio_writew(struct comedi_device *dev, uint16_t val, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	writew(val, devpriv->mite->daq_io_addr + reg);
+}
+
+static void pcimio_writel(struct comedi_device *dev, uint32_t val, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	writel(val, devpriv->mite->daq_io_addr + reg);
+}
 
 /* How we access STC registers */
 
@@ -1067,8 +1102,8 @@ static void e_series_win_out(struct comedi_device *dev, uint16_t data, int reg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
-	ni_writew(reg, Window_Address);
-	ni_writew(data, Window_Data);
+	devpriv->writew(dev, reg, Window_Address);
+	devpriv->writew(dev, data, Window_Data);
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
@@ -1079,8 +1114,8 @@ static uint16_t e_series_win_in(struct comedi_device *dev, int reg)
 	uint16_t ret;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
-	ni_writew(reg, Window_Address);
-	ret = ni_readw(Window_Data);
+	devpriv->writew(dev, reg, Window_Address);
+	ret = devpriv->readw(dev, Window_Data);
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 
 	return ret;
@@ -1119,12 +1154,12 @@ static void m_series_stc_writew(struct comedi_device *dev, uint16_t data,
 		break;
 	case AI_SI2_Load_A_Register:
 		/*  this is actually a 32 bit register on m series boards */
-		ni_writel(data, M_Offset_AI_SI2_Load_A);
+		devpriv->writel(dev, data, M_Offset_AI_SI2_Load_A);
 		return;
 		break;
 	case AI_SI2_Load_B_Register:
 		/*  this is actually a 32 bit register on m series boards */
-		ni_writel(data, M_Offset_AI_SI2_Load_B);
+		devpriv->writel(dev, data, M_Offset_AI_SI2_Load_B);
 		return;
 		break;
 	case AI_START_STOP_Select_Register:
@@ -1242,7 +1277,7 @@ static void m_series_stc_writew(struct comedi_device *dev, uint16_t data,
 		return;
 		break;
 	}
-	ni_writew(data, offset);
+	devpriv->writew(dev, data, offset);
 }
 
 static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
@@ -1261,7 +1296,7 @@ static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 		offset = M_Offset_AO_Status_2;
 		break;
 	case DIO_Serial_Input_Register:
-		return ni_readb(M_Offset_SCXI_Serial_Data_In);
+		return devpriv->readb(dev, M_Offset_SCXI_Serial_Data_In);
 		break;
 	case Joint_Status_1_Register:
 		offset = M_Offset_Joint_Status_1;
@@ -1280,7 +1315,7 @@ static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 		return 0;
 		break;
 	}
-	return ni_readw(offset);
+	return devpriv->readw(dev, offset);
 }
 
 static void m_series_stc_writel(struct comedi_device *dev, uint32_t data,
@@ -1325,7 +1360,7 @@ static void m_series_stc_writel(struct comedi_device *dev, uint32_t data,
 		return;
 		break;
 	}
-	ni_writel(data, offset);
+	devpriv->writel(dev, data, offset);
 }
 
 static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
@@ -1354,7 +1389,7 @@ static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
 		return 0;
 		break;
 	}
-	return ni_readl(offset);
+	return devpriv->readl(dev, offset);
 }
 
 #define interrupt_pin(a)	0
@@ -1403,12 +1438,14 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	BUG_ON(serial_number_eeprom_length > sizeof(devpriv->serial_number));
 	for (i = 0; i < serial_number_eeprom_length; ++i) {
 		char *byte_ptr = (char *)&devpriv->serial_number + i;
-		*byte_ptr = ni_readb(serial_number_eeprom_offset + i);
+		*byte_ptr = devpriv->readb(dev,
+					   serial_number_eeprom_offset + i);
 	}
 	devpriv->serial_number = be32_to_cpu(devpriv->serial_number);
 
 	for (i = 0; i < M_SERIES_EEPROM_SIZE; ++i)
-		devpriv->eeprom_buffer[i] = ni_readb(Start_Cal_EEPROM + i);
+		devpriv->eeprom_buffer[i] = devpriv->readb(dev,
+							Start_Cal_EEPROM + i);
 
 	writel(old_iodwbsr1_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
 	writel(old_iodwbsr_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR);
@@ -1425,18 +1462,24 @@ static void init_6143(struct comedi_device *dev)
 	devpriv->stc_writew(dev, 0, Interrupt_Control_Register);
 
 	/*  Initialise 6143 AI specific bits */
-	ni_writeb(0x00, Magic_6143);	/*  Set G0,G1 DMA mode to E series version */
-	ni_writeb(0x80, PipelineDelay_6143);	/*  Set EOCMode, ADCMode and pipelinedelay */
-	ni_writeb(0x00, EOC_Set_6143);	/*  Set EOC Delay */
+
+	/* Set G0,G1 DMA mode to E series version */
+	devpriv->writeb(dev, 0x00, Magic_6143);
+	/* Set EOCMode, ADCMode and pipelinedelay */
+	devpriv->writeb(dev, 0x80, PipelineDelay_6143);
+	/* Set EOC Delay */
+	devpriv->writeb(dev, 0x00, EOC_Set_6143);
 
 	/* Set the FIFO half full level */
-	ni_writel(board->ai_fifo_depth / 2, AIFIFO_Flag_6143);
+	devpriv->writel(dev, board->ai_fifo_depth / 2, AIFIFO_Flag_6143);
 
 	/*  Strobe Relay disable bit */
 	devpriv->ai_calib_source_enabled = 0;
-	ni_writew(devpriv->ai_calib_source | Calibration_Channel_6143_RelayOff,
-		  Calibration_Channel_6143);
-	ni_writew(devpriv->ai_calib_source, Calibration_Channel_6143);
+	devpriv->writew(dev, devpriv->ai_calib_source |
+			     Calibration_Channel_6143_RelayOff,
+			Calibration_Channel_6143);
+	devpriv->writew(dev, devpriv->ai_calib_source,
+			Calibration_Channel_6143);
 }
 
 static void pcimio_detach(struct comedi_device *dev)
@@ -1489,16 +1532,23 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	if (!devpriv->mite)
 		return -ENOMEM;
 
+	devpriv->readb		= pcimio_readb;
+	devpriv->readw		= pcimio_readw;
+	devpriv->readl		= pcimio_readl;
+	devpriv->writeb		= pcimio_writeb;
+	devpriv->writew		= pcimio_writew;
+	devpriv->writel		= pcimio_writel;
+
 	if (board->reg_type & ni_reg_m_series_mask) {
-		devpriv->stc_writew = &m_series_stc_writew;
-		devpriv->stc_readw = &m_series_stc_readw;
-		devpriv->stc_writel = &m_series_stc_writel;
-		devpriv->stc_readl = &m_series_stc_readl;
+		devpriv->stc_writew	= m_series_stc_writew;
+		devpriv->stc_readw	= m_series_stc_readw;
+		devpriv->stc_writel	= m_series_stc_writel;
+		devpriv->stc_readl	= m_series_stc_readl;
 	} else {
-		devpriv->stc_writew = &e_series_win_out;
-		devpriv->stc_readw = &e_series_win_in;
-		devpriv->stc_writel = &win_out2;
-		devpriv->stc_readl = &win_in2;
+		devpriv->stc_writew	= e_series_win_out;
+		devpriv->stc_readw	= e_series_win_in;
+		devpriv->stc_writel	= win_out2;
+		devpriv->stc_readl	= win_in2;
 	}
 
 	ret = mite_setup(devpriv->mite);

@@ -1421,6 +1421,13 @@ struct ni_board_struct {
 #define NUM_GPCT	2
 
 struct ni_private {
+	uint8_t (*readb)(struct comedi_device *, int reg);
+	uint16_t (*readw)(struct comedi_device *, int reg);
+	uint32_t (*readl)(struct comedi_device *, int reg);
+	void (*writeb)(struct comedi_device *, uint8_t value, int reg);
+	void (*writew)(struct comedi_device *, uint16_t value, int reg);
+	void (*writel)(struct comedi_device *, uint32_t value, int reg);
+
 	uint16_t (*stc_readw)(struct comedi_device *, int reg);
 	uint32_t (*stc_readl)(struct comedi_device *, int reg);
 	void (*stc_writew)(struct comedi_device *, uint16_t value, int reg);
