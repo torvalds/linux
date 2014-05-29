@@ -26,13 +26,6 @@
 #define ADDIDATA_93C76		"93C76"
 #define ADDIDATA_S5920		"S5920"
 
-/* ADDIDATA Enable Disable */
-#define ADDIDATA_ENABLE		1
-#define ADDIDATA_DISABLE	0
-
-/* Structures */
-
-/* structure for the boardtype */
 struct addi_board {
 	const char *pc_DriverName;	/*  driver name */
 	int i_IorangeBase1;

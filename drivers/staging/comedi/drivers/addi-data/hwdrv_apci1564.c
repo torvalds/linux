@@ -111,7 +111,7 @@ static int apci1564_di_config(struct comedi_device *dev,
 	devpriv->tsk_Current = current;
 
 	/* Set the digital input logic */
-	if (data[0] == ADDIDATA_ENABLE) {
+	if (data[0] == 1) {
 		data[2] = data[2] << 4;
 		data[3] = data[3] << 4;
 		outl(data[2], devpriv->i_IobaseAmcc + APCI1564_DI_INT_MODE1_REG);
@@ -150,16 +150,16 @@ static int apci1564_do_config(struct comedi_device *dev,
 	}
 
 	if (data[0])
-		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
+		devpriv->b_OutputMemoryStatus = 1;
 	else
-		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
+		devpriv->b_OutputMemoryStatus = 0;
 
-	if (data[1] == ADDIDATA_ENABLE)
+	if (data[1] == 1)
 		ul_Command = ul_Command | 0x1;
 	else
 		ul_Command = ul_Command & 0xFFFFFFFE;
 
-	if (data[2] == ADDIDATA_ENABLE)
+	if (data[2] == 1)
 		ul_Command = ul_Command | 0x2;
 	else
 		ul_Command = ul_Command & 0xFFFFFFFD;

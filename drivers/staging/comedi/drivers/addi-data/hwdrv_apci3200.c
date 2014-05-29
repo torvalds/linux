@@ -689,17 +689,11 @@ static int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 
 	ui_CommandRegister = ui_ChannelNo | (ui_ChannelNo << 8) | 0x80000;
 
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /************************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/* Enable the interrupt */
-      /************************/
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
+	}
 
   /******************************/
 	/* Write the command register */
@@ -712,11 +706,8 @@ static int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
 
-  /*****************************/
 	/*Test if interrupt is enable */
-  /*****************************/
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 	  /*************************/
 			/*Read the EOC Status bit */
@@ -738,7 +729,7 @@ static int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 			s_BoardInfos[dev->minor].i_Offset + 28);
 		/* END JK 06.07.04: Management of sevrals boards */
 
-	}			/*  if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -800,20 +791,11 @@ static int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev,
 
 	ui_CommandRegister = 0;
 
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
-
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
+	}
 
   /**********************/
 	/*Start the conversion */
@@ -830,13 +812,8 @@ static int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev,
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
 
-  /*****************************/
 	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 	  /*******************/
 			/*Read the EOC flag */
@@ -856,7 +833,7 @@ static int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev,
 		data[0] =
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -915,20 +892,11 @@ static int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev,
 
 	ui_CommandRegister = 0;
 
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
-
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
+	}
 
   /**********************/
 	/*Start the conversion */
@@ -945,13 +913,8 @@ static int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev,
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
 
-  /*****************************/
 	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 
 	  /*******************/
@@ -973,7 +936,7 @@ static int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev,
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
 
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -1020,14 +983,9 @@ static int i_APCI3200_ReadCJCValue(struct comedi_device *dev,
 	/*Initialise dw_CommandRegister */
   /*******************************/
 	ui_CommandRegister = 0;
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
 	}
 
@@ -1047,12 +1005,8 @@ static int i_APCI3200_ReadCJCValue(struct comedi_device *dev,
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
 
-  /*****************************/
 	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 
 	  /*******************/
@@ -1073,8 +1027,7 @@ static int i_APCI3200_ReadCJCValue(struct comedi_device *dev,
 		data[0] =
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
-
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -1128,17 +1081,10 @@ static int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev,
 	/*Initialise ui_CommandRegister */
   /*******************************/
 	ui_CommandRegister = 0;
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
 	}
 
   /**********************/
@@ -1154,8 +1100,7 @@ static int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev,
 	/* outl(ui_CommandRegister,devpriv->iobase+i_Offset + 8); */
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 	  /*******************/
 			/*Read the EOC flag */
@@ -1172,7 +1117,7 @@ static int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev,
 		data[0] =
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -1224,14 +1169,9 @@ static int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev,
 	/*Initialise dw_CommandRegister */
   /*******************************/
 	ui_CommandRegister = 0;
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
 	}
   /**********************/
@@ -1247,8 +1187,7 @@ static int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev,
 	/* outl(ui_CommandRegister ,devpriv->iobase+i_Offset + 8); */
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 	  /*******************/
 			/*Read the EOC flag */
@@ -1264,7 +1203,7 @@ static int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev,
 		data[0] =
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -2136,8 +2075,7 @@ static int apci3200_ai_bits_test(struct comedi_device *dev,
 		   i_ADDIDATAConversionTimeUnit= 1; */
 		/* i_Temp= i_InterruptFlag ; */
 		i_Temp = s_BoardInfos[dev->minor].i_InterruptFlag;
-		/* i_InterruptFlag = ADDIDATA_DISABLE; */
-		s_BoardInfos[dev->minor].i_InterruptFlag = ADDIDATA_DISABLE;
+		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
 		i_APCI3200_Read1AnalogInputChannel(dev, s, insn, data);
 		/* if(i_AutoCalibration == FALSE) */
 		if (s_BoardInfos[dev->minor].i_AutoCalibration == FALSE) {
@@ -2176,8 +2114,7 @@ static int apci3200_ai_bits_test(struct comedi_device *dev,
 		   i_ADDIDATAConversionTimeUnit= 1; */
 		/* i_Temp= i_InterruptFlag ; */
 		i_Temp = s_BoardInfos[dev->minor].i_InterruptFlag;
-		/* i_InterruptFlag = ADDIDATA_DISABLE; */
-		s_BoardInfos[dev->minor].i_InterruptFlag = ADDIDATA_DISABLE;
+		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
 		i_APCI3200_Read1AnalogInputChannel(dev, s, insn, data);
 		/* if(i_AutoCalibration == FALSE) */
 		if (s_BoardInfos[dev->minor].i_AutoCalibration == FALSE) {
