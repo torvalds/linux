@@ -3195,11 +3195,18 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
 		if (k->ediv != ediv || k->rand != rand)
 			continue;
 
-		if (ltk_role(k->type) != role)
-			continue;
+		if (smp_ltk_is_sc(k)) {
+			if (k->type == SMP_LTK_P256_DEBUG &&
+			    !test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags))
+				continue;
+			rcu_read_unlock();
+			return k;
+		}
 
-		rcu_read_unlock();
-		return k;
+		if (ltk_role(k->type) == role) {
+			rcu_read_unlock();
+			return k;
+		}
 	}
 	rcu_read_unlock();
 
@@ -3213,9 +3220,18 @@ struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(k, &hdev->long_term_keys, list) {
-		if (addr_type == k->bdaddr_type &&
-		    bacmp(bdaddr, &k->bdaddr) == 0 &&
-		    ltk_role(k->type) == role) {
+		if (addr_type != k->bdaddr_type || bacmp(bdaddr, &k->bdaddr))
+			continue;
+
+		if (smp_ltk_is_sc(k)) {
+			if (k->type == SMP_LTK_P256_DEBUG &&
+			    !test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags))
+				continue;
+			rcu_read_unlock();
+			return k;
+		}
+
+		if (ltk_role(k->type) == role) {
 			rcu_read_unlock();
 			return k;
 		}

@@ -4590,9 +4590,20 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn == NULL)
 		goto not_found;
 
-	ltk = hci_find_ltk(hdev, ev->ediv, ev->rand, conn->role);
-	if (ltk == NULL)
+	ltk = hci_find_ltk_by_addr(hdev, &conn->dst, conn->dst_type,
+				   conn->role);
+	if (!ltk)
 		goto not_found;
+
+	if (smp_ltk_is_sc(ltk)) {
+		/* With SC both EDiv and Rand are set to zero */
+		if (ev->ediv || ev->rand)
+			goto not_found;
+	} else {
+		/* For non-SC keys check that EDiv and Rand match */
+		if (ev->ediv != ltk->ediv || ev->rand != ltk->rand)
+			goto not_found;
+	}
 
 	memcpy(cp.ltk, ltk->val, sizeof(ltk->val));
 	cp.handle = cpu_to_le16(conn->handle);
