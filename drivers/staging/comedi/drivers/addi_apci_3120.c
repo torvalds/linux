@@ -88,7 +88,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	devpriv->us_UseDma = ADDI_ENABLE;
+	devpriv->us_UseDma = 1;
 
 	/* Allocate DMA buffers */
 	devpriv->b_DmaDoubleBuffer = 0;
@@ -109,7 +109,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		}
 	}
 	if (!devpriv->ul_DmaBufferVirtual[0])
-		devpriv->us_UseDma = ADDI_DISABLE;
+		devpriv->us_UseDma = 0;
 
 	if (devpriv->ul_DmaBufferVirtual[1])
 		devpriv->b_DmaDoubleBuffer = 1;
