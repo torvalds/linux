@@ -533,11 +533,11 @@ include $(srctree)/arch/$(SRCARCH)/Makefile
 export KBUILD_DEFCONFIG KBUILD_KCONFIG
 
 config: scripts_basic outputmakefile FORCE
-	$(Q)mkdir -p include/linux include/config
+	$(Q)mkdir -p include/config
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 
 %config: scripts_basic outputmakefile FORCE
-	$(Q)mkdir -p include/linux include/config
+	$(Q)mkdir -p include/config
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 
 else
