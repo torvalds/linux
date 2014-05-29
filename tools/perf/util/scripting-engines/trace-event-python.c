@@ -623,6 +623,7 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 			fprintf(ofp, "%s=", f->name);
 			if (f->flags & FIELD_IS_STRING ||
 			    f->flags & FIELD_IS_FLAG ||
+			    f->flags & FIELD_IS_ARRAY ||
 			    f->flags & FIELD_IS_SYMBOLIC)
 				fprintf(ofp, "%%s");
 			else if (f->flags & FIELD_IS_SIGNED)
