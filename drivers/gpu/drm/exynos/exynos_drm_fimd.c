@@ -924,12 +924,21 @@ static int fimd_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = -EINVAL;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
+					fimd_manager.type);
+	if (ret)
+		return ret;
+
+	if (!dev->of_node) {
+		ret = -ENODEV;
+		goto err_del_component;
+	}
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	if (!ctx) {
+		ret = -ENOMEM;
+		goto err_del_component;
+	}
 
 	ctx->dev = dev;
 	ctx->suspended = true;
@@ -942,32 +951,37 @@ static int fimd_probe(struct platform_device *pdev)
 	ctx->bus_clk = devm_clk_get(dev, "fimd");
 	if (IS_ERR(ctx->bus_clk)) {
 		dev_err(dev, "failed to get bus clock\n");
-		return PTR_ERR(ctx->bus_clk);
+		ret = PTR_ERR(ctx->bus_clk);
+		goto err_del_component;
 	}
 
 	ctx->lcd_clk = devm_clk_get(dev, "sclk_fimd");
 	if (IS_ERR(ctx->lcd_clk)) {
 		dev_err(dev, "failed to get lcd clock\n");
-		return PTR_ERR(ctx->lcd_clk);
+		ret = PTR_ERR(ctx->lcd_clk);
+		goto err_del_component;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	ctx->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ctx->regs))
-		return PTR_ERR(ctx->regs);
+	if (IS_ERR(ctx->regs)) {
+		ret = PTR_ERR(ctx->regs);
+		goto err_del_component;
+	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
 	if (!res) {
 		dev_err(dev, "irq request failed.\n");
-		return -ENXIO;
+		ret = -ENXIO;
+		goto err_del_component;
 	}
 
 	ret = devm_request_irq(dev, res->start, fimd_irq_handler,
 							0, "drm_fimd", ctx);
 	if (ret) {
 		dev_err(dev, "irq request failed.\n");
-		return ret;
+		goto err_del_component;
 	}
 
 	ctx->driver_data = drm_fimd_get_driver_data(pdev);
@@ -984,14 +998,27 @@ static int fimd_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	return exynos_drm_component_add(&pdev->dev, &fimd_component_ops);
+	ret = component_add(&pdev->dev, &fimd_component_ops);
+	if (ret)
+		goto err_disable_pm_runtime;
+
+	return ret;
+
+err_disable_pm_runtime:
+	pm_runtime_disable(&pdev->dev);
+
+err_del_component:
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
+	return ret;
 }
 
 static int fimd_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
-	exynos_drm_component_del(&pdev->dev, &fimd_component_ops);
+	component_del(&pdev->dev, &fimd_component_ops);
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
+
 	return 0;
 }
 

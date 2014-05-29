@@ -1325,12 +1325,26 @@ static const struct component_ops exynos_dp_ops = {
 
 static int exynos_dp_probe(struct platform_device *pdev)
 {
-	return exynos_drm_component_add(&pdev->dev, &exynos_dp_ops);
+	int ret;
+
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
+					exynos_dp_display.type);
+	if (ret)
+		return ret;
+
+	ret = component_add(&pdev->dev, &exynos_dp_ops);
+	if (ret)
+		exynos_drm_component_del(&pdev->dev,
+						EXYNOS_DEVICE_TYPE_CONNECTOR);
+
+	return ret;
 }
 
 static int exynos_dp_remove(struct platform_device *pdev)
 {
-	exynos_drm_component_del(&pdev->dev, &exynos_dp_ops);
+	component_del(&pdev->dev, &exynos_dp_ops);
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+
 	return 0;
 }
 

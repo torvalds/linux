@@ -1423,10 +1423,16 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	struct exynos_dsi *dsi;
 	int ret;
 
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
+					exynos_dsi_display.type);
+	if (ret)
+		return ret;
+
 	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi) {
 		dev_err(&pdev->dev, "failed to allocate dsi object.\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_del_component;
 	}
 
 	init_completion(&dsi->completed);
@@ -1440,7 +1446,7 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 
 	ret = exynos_dsi_parse_dt(dsi);
 	if (ret)
-		return ret;
+		goto err_del_component;
 
 	dsi->supplies[0].supply = "vddcore";
 	dsi->supplies[1].supply = "vddio";
@@ -1454,32 +1460,37 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	dsi->pll_clk = devm_clk_get(&pdev->dev, "pll_clk");
 	if (IS_ERR(dsi->pll_clk)) {
 		dev_info(&pdev->dev, "failed to get dsi pll input clock\n");
-		return -EPROBE_DEFER;
+		ret = PTR_ERR(dsi->pll_clk);
+		goto err_del_component;
 	}
 
 	dsi->bus_clk = devm_clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(dsi->bus_clk)) {
 		dev_info(&pdev->dev, "failed to get dsi bus clock\n");
-		return -EPROBE_DEFER;
+		ret = PTR_ERR(dsi->bus_clk);
+		goto err_del_component;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dsi->reg_base)) {
 		dev_err(&pdev->dev, "failed to remap io region\n");
-		return PTR_ERR(dsi->reg_base);
+		ret = PTR_ERR(dsi->reg_base);
+		goto err_del_component;
 	}
 
 	dsi->phy = devm_phy_get(&pdev->dev, "dsim");
 	if (IS_ERR(dsi->phy)) {
 		dev_info(&pdev->dev, "failed to get dsim phy\n");
-		return -EPROBE_DEFER;
+		ret = PTR_ERR(dsi->phy);
+		goto err_del_component;
 	}
 
 	dsi->irq = platform_get_irq(pdev, 0);
 	if (dsi->irq < 0) {
 		dev_err(&pdev->dev, "failed to request dsi irq resource\n");
-		return dsi->irq;
+		ret = dsi->irq;
+		goto err_del_component;
 	}
 
 	irq_set_status_flags(dsi->irq, IRQ_NOAUTOEN);
@@ -1488,19 +1499,29 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev), dsi);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request dsi irq\n");
-		return ret;
+		goto err_del_component;
 	}
 
 	exynos_dsi_display.ctx = dsi;
 
 	platform_set_drvdata(pdev, &exynos_dsi_display);
 
-	return exynos_drm_component_add(&pdev->dev, &exynos_dsi_component_ops);
+	ret = component_add(&pdev->dev, &exynos_dsi_component_ops);
+	if (ret)
+		goto err_del_component;
+
+	return ret;
+
+err_del_component:
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+	return ret;
 }
 
 static int exynos_dsi_remove(struct platform_device *pdev)
 {
-	exynos_drm_component_del(&pdev->dev, &exynos_dsi_component_ops);
+	component_del(&pdev->dev, &exynos_dsi_component_ops);
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+
 	return 0;
 }
 

@@ -295,9 +295,15 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 	struct exynos_dpi *ctx;
 	int ret;
 
+	ret = exynos_drm_component_add(dev,
+					EXYNOS_DEVICE_TYPE_CONNECTOR,
+					exynos_dpi_display.type);
+	if (ret)
+		return ERR_PTR(ret);
+
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return NULL;
+		goto err_del_component;
 
 	ctx->dev = dev;
 	exynos_dpi_display.ctx = ctx;
@@ -306,16 +312,24 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 	ret = exynos_dpi_parse_dt(ctx);
 	if (ret < 0) {
 		devm_kfree(dev, ctx);
-		return NULL;
+		goto err_del_component;
 	}
 
 	if (ctx->panel_node) {
 		ctx->panel = of_drm_find_panel(ctx->panel_node);
-		if (!ctx->panel)
+		if (!ctx->panel) {
+			exynos_drm_component_del(dev,
+						EXYNOS_DEVICE_TYPE_CONNECTOR);
 			return ERR_PTR(-EPROBE_DEFER);
+		}
 	}
 
 	return &exynos_dpi_display;
+
+err_del_component:
+	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+
+	return NULL;
 }
 
 int exynos_dpi_remove(struct device *dev)
@@ -326,6 +340,8 @@ int exynos_dpi_remove(struct device *dev)
 	exynos_dpi_dpms(&exynos_dpi_display, DRM_MODE_DPMS_OFF);
 	encoder->funcs->destroy(encoder);
 	drm_connector_cleanup(&ctx->connector);
+
+	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 
 	return 0;
 }

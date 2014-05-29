@@ -1273,12 +1273,25 @@ static const struct component_ops mixer_component_ops = {
 
 static int mixer_probe(struct platform_device *pdev)
 {
-	return exynos_drm_component_add(&pdev->dev, &mixer_component_ops);
+	int ret;
+
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
+					mixer_manager.type);
+	if (ret)
+		return ret;
+
+	ret = component_add(&pdev->dev, &mixer_component_ops);
+	if (ret)
+		exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
+
+	return ret;
 }
 
 static int mixer_remove(struct platform_device *pdev)
 {
-	exynos_drm_component_del(&pdev->dev, &mixer_component_ops);
+	component_del(&pdev->dev, &mixer_component_ops);
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
+
 	return 0;
 }
 

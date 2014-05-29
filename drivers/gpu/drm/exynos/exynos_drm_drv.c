@@ -48,7 +48,10 @@ static LIST_HEAD(drm_component_list);
 
 struct component_dev {
 	struct list_head list;
-	struct device *dev;
+	struct device *crtc_dev;
+	struct device *conn_dev;
+	enum exynos_drm_output_type out_type;
+	unsigned int dev_type_flag;
 };
 
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
@@ -382,22 +385,65 @@ static const struct dev_pm_ops exynos_drm_pm_ops = {
 };
 
 int exynos_drm_component_add(struct device *dev,
-				const struct component_ops *ops)
+				enum exynos_drm_device_type dev_type,
+				enum exynos_drm_output_type out_type)
 {
 	struct component_dev *cdev;
-	int ret;
+
+	if (dev_type != EXYNOS_DEVICE_TYPE_CRTC &&
+			dev_type != EXYNOS_DEVICE_TYPE_CONNECTOR) {
+		DRM_ERROR("invalid device type.\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&drm_component_lock);
+
+	/*
+	 * Make sure to check if there is a component which has two device
+	 * objects, for connector and for encoder/connector.
+	 * It should make sure that crtc and encoder/connector drivers are
+	 * ready before exynos drm core binds them.
+	 */
+	list_for_each_entry(cdev, &drm_component_list, list) {
+		if (cdev->out_type == out_type) {
+			/*
+			 * If crtc and encoder/connector device objects are
+			 * added already just return.
+			 */
+			if (cdev->dev_type_flag == (EXYNOS_DEVICE_TYPE_CRTC |
+						EXYNOS_DEVICE_TYPE_CONNECTOR)) {
+				mutex_unlock(&drm_component_lock);
+				return 0;
+			}
+
+			if (dev_type == EXYNOS_DEVICE_TYPE_CRTC) {
+				cdev->crtc_dev = dev;
+				cdev->dev_type_flag |= dev_type;
+			}
+
+			if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR) {
+				cdev->conn_dev = dev;
+				cdev->dev_type_flag |= dev_type;
+			}
+
+			mutex_unlock(&drm_component_lock);
+			return 0;
+		}
+	}
+
+	mutex_unlock(&drm_component_lock);
 
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
 		return -ENOMEM;
 
-	ret = component_add(dev, ops);
-	if (ret) {
-		kfree(cdev);
-		return ret;
-	}
+	if (dev_type == EXYNOS_DEVICE_TYPE_CRTC)
+		cdev->crtc_dev = dev;
+	if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR)
+		cdev->conn_dev = dev;
 
-	cdev->dev = dev;
+	cdev->out_type = out_type;
+	cdev->dev_type_flag = dev_type;
 
 	mutex_lock(&drm_component_lock);
 	list_add_tail(&cdev->list, &drm_component_list);
@@ -407,23 +453,40 @@ int exynos_drm_component_add(struct device *dev,
 }
 
 void exynos_drm_component_del(struct device *dev,
-				const struct component_ops *ops)
+				enum exynos_drm_device_type dev_type)
 {
 	struct component_dev *cdev, *next;
 
 	mutex_lock(&drm_component_lock);
 
 	list_for_each_entry_safe(cdev, next, &drm_component_list, list) {
-		if (dev == cdev->dev) {
+		if (dev_type == EXYNOS_DEVICE_TYPE_CRTC) {
+			if (cdev->crtc_dev == dev) {
+				cdev->crtc_dev = NULL;
+				cdev->dev_type_flag &= ~dev_type;
+			}
+		}
+
+		if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR) {
+			if (cdev->conn_dev == dev) {
+				cdev->conn_dev = NULL;
+				cdev->dev_type_flag &= ~dev_type;
+			}
+		}
+
+		/*
+		 * Release cdev object only in case that both of crtc and
+		 * encoder/connector device objects are NULL.
+		 */
+		if (!cdev->crtc_dev && !cdev->conn_dev) {
 			list_del(&cdev->list);
 			kfree(cdev);
-			break;
 		}
+
+		break;
 	}
 
 	mutex_unlock(&drm_component_lock);
-
-	component_del(dev, ops);
 }
 
 static int compare_of(struct device *dev, void *data)
@@ -433,29 +496,60 @@ static int compare_of(struct device *dev, void *data)
 
 static int exynos_drm_add_components(struct device *dev, struct master *m)
 {
-	unsigned int attached_cnt = 0;
 	struct component_dev *cdev;
+	unsigned int attach_cnt = 0;
 
 	mutex_lock(&drm_component_lock);
 
 	list_for_each_entry(cdev, &drm_component_list, list) {
 		int ret;
 
+		/*
+		 * Add components to master only in case that crtc and
+		 * encoder/connector device objects exist.
+		 */
+		if (!cdev->crtc_dev || !cdev->conn_dev)
+			continue;
+
+		attach_cnt++;
+
 		mutex_unlock(&drm_component_lock);
 
-		ret = component_master_add_child(m, compare_of, cdev->dev);
-		if (!ret)
-			attached_cnt++;
+		/*
+		 * fimd and dpi modules have same device object so add
+		 * only crtc device object in this case.
+		 *
+		 * TODO. if dpi module follows driver-model driver then
+		 * below codes can be removed.
+		 */
+		if (cdev->crtc_dev == cdev->conn_dev) {
+			ret = component_master_add_child(m, compare_of,
+					cdev->crtc_dev);
+			if (ret < 0)
+				return ret;
 
+			goto out_lock;
+		}
+
+		/*
+		 * Do not chage below call order.
+		 * crtc device first should be added to master because
+		 * connector/encoder need pipe number of crtc when they
+		 * are created.
+		 */
+		ret = component_master_add_child(m, compare_of, cdev->crtc_dev);
+		ret |= component_master_add_child(m, compare_of,
+							cdev->conn_dev);
+		if (ret < 0)
+			return ret;
+
+out_lock:
 		mutex_lock(&drm_component_lock);
 	}
 
 	mutex_unlock(&drm_component_lock);
 
-	if (!attached_cnt)
-		return -ENXIO;
-
-	return 0;
+	return attach_cnt ? 0 : -ENODEV;
 }
 
 static int exynos_drm_bind(struct device *dev)

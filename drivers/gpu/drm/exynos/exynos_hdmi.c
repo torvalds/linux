@@ -2162,26 +2162,31 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	res->hdmi = devm_clk_get(dev, "hdmi");
 	if (IS_ERR(res->hdmi)) {
 		DRM_ERROR("failed to get clock 'hdmi'\n");
+		ret = PTR_ERR(res->hdmi);
 		goto fail;
 	}
 	res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
 	if (IS_ERR(res->sclk_hdmi)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmi'\n");
+		ret = PTR_ERR(res->sclk_hdmi);
 		goto fail;
 	}
 	res->sclk_pixel = devm_clk_get(dev, "sclk_pixel");
 	if (IS_ERR(res->sclk_pixel)) {
 		DRM_ERROR("failed to get clock 'sclk_pixel'\n");
+		ret = PTR_ERR(res->sclk_pixel);
 		goto fail;
 	}
 	res->sclk_hdmiphy = devm_clk_get(dev, "sclk_hdmiphy");
 	if (IS_ERR(res->sclk_hdmiphy)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmiphy'\n");
+		ret = PTR_ERR(res->sclk_hdmiphy);
 		goto fail;
 	}
 	res->mout_hdmi = devm_clk_get(dev, "mout_hdmi");
 	if (IS_ERR(res->mout_hdmi)) {
 		DRM_ERROR("failed to get clock 'mout_hdmi'\n");
+		ret = PTR_ERR(res->mout_hdmi);
 		goto fail;
 	}
 
@@ -2189,8 +2194,10 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	res->regul_bulk = devm_kzalloc(dev, ARRAY_SIZE(supply) *
 		sizeof(res->regul_bulk[0]), GFP_KERNEL);
-	if (!res->regul_bulk)
+	if (!res->regul_bulk) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 	for (i = 0; i < ARRAY_SIZE(supply); ++i) {
 		res->regul_bulk[i].supply = supply[i];
 		res->regul_bulk[i].consumer = NULL;
@@ -2198,14 +2205,14 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(supply), res->regul_bulk);
 	if (ret) {
 		DRM_ERROR("failed to get regulators\n");
-		goto fail;
+		return ret;
 	}
 	res->regul_count = ARRAY_SIZE(supply);
 
-	return 0;
+	return ret;
 fail:
 	DRM_ERROR("HDMI resource init - failed\n");
-	return -ENODEV;
+	return ret;
 }
 
 static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
@@ -2303,24 +2310,37 @@ static int hdmi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
+					hdmi_display.type);
+	if (ret)
+		return ret;
+
+	if (!dev->of_node) {
+		ret = -ENODEV;
+		goto err_del_component;
+	}
 
 	pdata = drm_hdmi_dt_parse_pdata(dev);
-	if (!pdata)
-		return -EINVAL;
+	if (!pdata) {
+		ret = -EINVAL;
+		goto err_del_component;
+	}
 
 	hdata = devm_kzalloc(dev, sizeof(struct hdmi_context), GFP_KERNEL);
-	if (!hdata)
-		return -ENOMEM;
+	if (!hdata) {
+		ret = -ENOMEM;
+		goto err_del_component;
+	}
 
 	mutex_init(&hdata->hdmi_mutex);
 
 	platform_set_drvdata(pdev, &hdmi_display);
 
 	match = of_match_node(hdmi_match_types, dev->of_node);
-	if (!match)
-		return -ENODEV;
+	if (!match) {
+		ret = -ENODEV;
+		goto err_del_component;
+	}
 
 	drv_data = (struct hdmi_driver_data *)match->data;
 	hdata->type = drv_data->type;
@@ -2333,18 +2353,20 @@ static int hdmi_probe(struct platform_device *pdev)
 	ret = hdmi_resources_init(hdata);
 	if (ret) {
 		DRM_ERROR("hdmi_resources_init failed\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hdata->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(hdata->regs))
-		return PTR_ERR(hdata->regs);
+	if (IS_ERR(hdata->regs)) {
+		ret = PTR_ERR(hdata->regs);
+		goto err_del_component;
+	}
 
 	ret = devm_gpio_request(dev, hdata->hpd_gpio, "HPD");
 	if (ret) {
 		DRM_ERROR("failed to request HPD gpio\n");
-		return ret;
+		goto err_del_component;
 	}
 
 	ddc_node = hdmi_legacy_ddc_dt_binding(dev);
@@ -2355,14 +2377,15 @@ static int hdmi_probe(struct platform_device *pdev)
 	ddc_node = of_parse_phandle(dev->of_node, "ddc", 0);
 	if (!ddc_node) {
 		DRM_ERROR("Failed to find ddc node in device tree\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_del_component;
 	}
 
 out_get_ddc_adpt:
 	hdata->ddc_adpt = of_find_i2c_adapter_by_node(ddc_node);
 	if (!hdata->ddc_adpt) {
 		DRM_ERROR("Failed to get ddc i2c adapter by node\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 
 	phy_node = hdmi_legacy_phy_dt_binding(dev);
@@ -2389,7 +2412,7 @@ out_get_phy_port:
 		hdata->hdmiphy_port = of_find_i2c_device_by_node(phy_node);
 		if (!hdata->hdmiphy_port) {
 			DRM_ERROR("Failed to get hdmi phy i2c client\n");
-			ret = -ENODEV;
+			ret = -EPROBE_DEFER;
 			goto err_ddc;
 		}
 	}
@@ -2418,19 +2441,31 @@ out_get_phy_port:
 			"samsung,syscon-phandle");
 	if (IS_ERR(hdata->pmureg)) {
 		DRM_ERROR("syscon regmap lookup failed.\n");
+		ret = -EPROBE_DEFER;
 		goto err_hdmiphy;
 	}
 
 	pm_runtime_enable(dev);
 	hdmi_display.ctx = hdata;
 
-	return exynos_drm_component_add(&pdev->dev, &hdmi_component_ops);
+	ret = component_add(&pdev->dev, &hdmi_component_ops);
+	if (ret)
+		goto err_disable_pm_runtime;
+
+	return ret;
+
+err_disable_pm_runtime:
+	pm_runtime_disable(dev);
 
 err_hdmiphy:
 	if (hdata->hdmiphy_port)
 		put_device(&hdata->hdmiphy_port->dev);
 err_ddc:
 	put_device(&hdata->ddc_adpt->dev);
+
+err_del_component:
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+
 	return ret;
 }
 
@@ -2444,8 +2479,9 @@ static int hdmi_remove(struct platform_device *pdev)
 	put_device(&hdata->ddc_adpt->dev);
 
 	pm_runtime_disable(&pdev->dev);
+	component_del(&pdev->dev, &hdmi_component_ops);
 
-	exynos_drm_component_del(&pdev->dev, &hdmi_component_ops);
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 	return 0;
 }
 

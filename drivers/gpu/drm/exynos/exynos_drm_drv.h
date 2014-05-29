@@ -42,6 +42,13 @@ struct drm_connector;
 
 extern unsigned int drm_vblank_offdelay;
 
+/* This enumerates device type. */
+enum exynos_drm_device_type {
+	EXYNOS_DEVICE_TYPE_NONE,
+	EXYNOS_DEVICE_TYPE_CRTC,
+	EXYNOS_DEVICE_TYPE_CONNECTOR,
+};
+
 /* this enumerates display type. */
 enum exynos_drm_output_type {
 	EXYNOS_DISPLAY_TYPE_NONE,
@@ -354,12 +361,12 @@ void exynos_drm_remove_vidi(void);
 int exynos_drm_create_enc_conn(struct drm_device *dev,
 				struct exynos_drm_display *display);
 
-struct component_ops;
 int exynos_drm_component_add(struct device *dev,
-				const struct component_ops *ops);
+				enum exynos_drm_device_type dev_type,
+				enum exynos_drm_output_type out_type);
 
 void exynos_drm_component_del(struct device *dev,
-				const struct component_ops *ops);
+				enum exynos_drm_device_type dev_type);
 
 extern struct platform_driver fimd_driver;
 extern struct platform_driver dp_driver;
