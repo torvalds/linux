@@ -253,7 +253,6 @@ struct hal_ops {
 
 	void (*sreset_init_value)(struct adapter *padapter);
 	void (*silentreset)(struct adapter *padapter);
-	void (*sreset_xmit_status_check)(struct adapter *padapter);
 	void (*sreset_linked_status_check) (struct adapter *padapter);
 	u8 (*sreset_get_wifi_status)(struct adapter *padapter);
 
