@@ -40,7 +40,7 @@ struct dib8000_config {
 #define DEFAULT_DIB8000_I2C_ADDRESS 18
 
 #if IS_ENABLED(CONFIG_DVB_DIB8000)
-extern struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg);
+extern struct dvb_frontend *dib8000_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg);
 extern struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 
 extern int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
@@ -65,7 +65,7 @@ extern int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_fronte
 extern int dib8000_remove_slave_frontend(struct dvb_frontend *fe);
 extern struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index);
 #else
-static inline struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg)
+static inline struct dvb_frontend *dib8000_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

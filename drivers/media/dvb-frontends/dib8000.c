@@ -4405,12 +4405,12 @@ static const struct dvb_frontend_ops dib8000_ops = {
 	.read_ucblocks = dib8000_read_unc_blocks,
 };
 
-struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg)
+struct dvb_frontend *dib8000_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg)
 {
 	struct dvb_frontend *fe;
 	struct dib8000_state *state;
 
-	dprintk("dib8000_attach");
+	dprintk("dib8000_init");
 
 	state = kzalloc(sizeof(struct dib8000_state), GFP_KERNEL);
 	if (state == NULL)
@@ -4467,7 +4467,7 @@ error:
 	return NULL;
 }
 
-EXPORT_SYMBOL(dib8000_attach);
+EXPORT_SYMBOL(dib8000_init);
 
 MODULE_AUTHOR("Olivier Grenie <Olivier.Grenie@dibcom.fr, " "Patrick Boettcher <pboettcher@dibcom.fr>");
 MODULE_DESCRIPTION("Driver for the DiBcom 8000 ISDB-T demodulator");
