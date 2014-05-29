@@ -65,6 +65,70 @@ extern int init_fpu(struct task_struct *child);
 			_ASM_EXTABLE(1b, 3b)		\
 			: [err] "=r" (err)
 
+/*
+ * Save processor xstate to xsave area.
+ */
+static inline int xsave_state(struct xsave_struct *fx, u64 mask)
+{
+	u32 lmask = mask;
+	u32 hmask = mask >> 32;
+	int err = 0;
+
+	/*
+	 * If xsaves is enabled, xsaves replaces xsaveopt because
+	 * it supports compact format and supervisor states in addition to
+	 * modified optimization in xsaveopt.
+	 *
+	 * Otherwise, if xsaveopt is enabled, xsaveopt replaces xsave
+	 * because xsaveopt supports modified optimization which is not
+	 * supported by xsave.
+	 *
+	 * If none of xsaves and xsaveopt is enabled, use xsave.
+	 */
+	alternative_input_2(
+		"1:"XSAVE,
+		"1:"XSAVEOPT,
+		X86_FEATURE_XSAVEOPT,
+		"1:"XSAVES,
+		X86_FEATURE_XSAVES,
+		[fx] "D" (fx), "a" (lmask), "d" (hmask) :
+		"memory");
+	asm volatile("2:\n\t"
+		     xstate_fault
+		     : "0" (0)
+		     : "memory");
+
+	return err;
+}
+
+/*
+ * Restore processor xstate from xsave area.
+ */
+static inline int xrstor_state(struct xsave_struct *fx, u64 mask)
+{
+	int err = 0;
+	u32 lmask = mask;
+	u32 hmask = mask >> 32;
+
+	/*
+	 * Use xrstors to restore context if it is enabled. xrstors supports
+	 * compacted format of xsave area which is not supported by xrstor.
+	 */
+	alternative_input(
+		"1: " XRSTOR,
+		"1: " XRSTORS,
+		X86_FEATURE_XSAVES,
+		"D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+		: "memory");
+
+	asm volatile("2:\n"
+		     xstate_fault
+		     : "0" (0)
+		     : "memory");
+
+	return err;
+}
+
 static inline int fpu_xrstor_checking(struct xsave_struct *fx)
 {
 	int err;
@@ -128,26 +192,6 @@ static inline int xrestore_user(struct xsave_struct __user *buf, u64 mask)
 			     : "D" (xstate), "a" (lmask), "d" (hmask), "0" (0)
 			     : "memory");	/* memory required? */
 	return err;
-}
-
-static inline void xrstor_state(struct xsave_struct *fx, u64 mask)
-{
-	u32 lmask = mask;
-	u32 hmask = mask >> 32;
-
-	asm volatile(".byte " REX_PREFIX "0x0f,0xae,0x2f\n\t"
-		     : : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
-		     :   "memory");
-}
-
-static inline void xsave_state(struct xsave_struct *fx, u64 mask)
-{
-	u32 lmask = mask;
-	u32 hmask = mask >> 32;
-
-	asm volatile(".byte " REX_PREFIX "0x0f,0xae,0x27\n\t"
-		     : : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
-		     :   "memory");
 }
 
 static inline void fpu_xsave(struct fpu *fpu)
