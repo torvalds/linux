@@ -3067,7 +3067,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		ndev_allocated++;
 	}
 
-	if (unlikely(is_scsi_rev_5(h)))
+	if (is_scsi_rev_5(h))
 		raid_ctlr_position = 0;
 	else
 		raid_ctlr_position = nphysicals + nlogicals;
