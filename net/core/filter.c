@@ -536,11 +536,13 @@ load_word:
 		 * Output:
 		 *   BPF_R0 - 8/16/32-bit skb data converted to cpu endianness
 		 */
+
 		ptr = load_pointer((struct sk_buff *) ctx, off, 4, &tmp);
 		if (likely(ptr != NULL)) {
 			BPF_R0 = get_unaligned_be32(ptr);
 			CONT;
 		}
+
 		return 0;
 	LD_ABS_H: /* BPF_R0 = ntohs(*(u16 *) (skb->data + K)) */
 		off = K;
@@ -550,6 +552,7 @@ load_half:
 			BPF_R0 = get_unaligned_be16(ptr);
 			CONT;
 		}
+
 		return 0;
 	LD_ABS_B: /* BPF_R0 = *(u8 *) (ctx + K) */
 		off = K;
@@ -559,6 +562,7 @@ load_byte:
 			BPF_R0 = *(u8 *)ptr;
 			CONT;
 		}
+
 		return 0;
 	LD_IND_W: /* BPF_R0 = ntohl(*(u32 *) (skb->data + X + K)) */
 		off = K + X;
@@ -1136,44 +1140,46 @@ err:
  */
 static int check_load_and_stores(struct sock_filter *filter, int flen)
 {
-	u16 *masks, memvalid = 0; /* one bit per cell, 16 cells */
+	u16 *masks, memvalid = 0; /* One bit per cell, 16 cells */
 	int pc, ret = 0;
 
 	BUILD_BUG_ON(BPF_MEMWORDS > 16);
+
 	masks = kmalloc(flen * sizeof(*masks), GFP_KERNEL);
 	if (!masks)
 		return -ENOMEM;
+
 	memset(masks, 0xff, flen * sizeof(*masks));
 
 	for (pc = 0; pc < flen; pc++) {
 		memvalid &= masks[pc];
 
 		switch (filter[pc].code) {
-		case BPF_S_ST:
-		case BPF_S_STX:
+		case BPF_ST:
+		case BPF_STX:
 			memvalid |= (1 << filter[pc].k);
 			break;
-		case BPF_S_LD_MEM:
-		case BPF_S_LDX_MEM:
+		case BPF_LD | BPF_MEM:
+		case BPF_LDX | BPF_MEM:
 			if (!(memvalid & (1 << filter[pc].k))) {
 				ret = -EINVAL;
 				goto error;
 			}
 			break;
-		case BPF_S_JMP_JA:
-			/* a jump must set masks on target */
+		case BPF_JMP | BPF_JA:
+			/* A jump must set masks on target */
 			masks[pc + 1 + filter[pc].k] &= memvalid;
 			memvalid = ~0;
 			break;
-		case BPF_S_JMP_JEQ_K:
-		case BPF_S_JMP_JEQ_X:
-		case BPF_S_JMP_JGE_K:
-		case BPF_S_JMP_JGE_X:
-		case BPF_S_JMP_JGT_K:
-		case BPF_S_JMP_JGT_X:
-		case BPF_S_JMP_JSET_X:
-		case BPF_S_JMP_JSET_K:
-			/* a jump must set masks on targets */
+		case BPF_JMP | BPF_JEQ | BPF_K:
+		case BPF_JMP | BPF_JEQ | BPF_X:
+		case BPF_JMP | BPF_JGE | BPF_K:
+		case BPF_JMP | BPF_JGE | BPF_X:
+		case BPF_JMP | BPF_JGT | BPF_K:
+		case BPF_JMP | BPF_JGT | BPF_X:
+		case BPF_JMP | BPF_JSET | BPF_K:
+		case BPF_JMP | BPF_JSET | BPF_X:
+			/* A jump must set masks on targets */
 			masks[pc + 1 + filter[pc].jt] &= memvalid;
 			masks[pc + 1 + filter[pc].jf] &= memvalid;
 			memvalid = ~0;
@@ -1183,6 +1189,72 @@ static int check_load_and_stores(struct sock_filter *filter, int flen)
 error:
 	kfree(masks);
 	return ret;
+}
+
+static bool chk_code_allowed(u16 code_to_probe)
+{
+	static const bool codes[] = {
+		/* 32 bit ALU operations */
+		[BPF_ALU | BPF_ADD | BPF_K] = true,
+		[BPF_ALU | BPF_ADD | BPF_X] = true,
+		[BPF_ALU | BPF_SUB | BPF_K] = true,
+		[BPF_ALU | BPF_SUB | BPF_X] = true,
+		[BPF_ALU | BPF_MUL | BPF_K] = true,
+		[BPF_ALU | BPF_MUL | BPF_X] = true,
+		[BPF_ALU | BPF_DIV | BPF_K] = true,
+		[BPF_ALU | BPF_DIV | BPF_X] = true,
+		[BPF_ALU | BPF_MOD | BPF_K] = true,
+		[BPF_ALU | BPF_MOD | BPF_X] = true,
+		[BPF_ALU | BPF_AND | BPF_K] = true,
+		[BPF_ALU | BPF_AND | BPF_X] = true,
+		[BPF_ALU | BPF_OR | BPF_K] = true,
+		[BPF_ALU | BPF_OR | BPF_X] = true,
+		[BPF_ALU | BPF_XOR | BPF_K] = true,
+		[BPF_ALU | BPF_XOR | BPF_X] = true,
+		[BPF_ALU | BPF_LSH | BPF_K] = true,
+		[BPF_ALU | BPF_LSH | BPF_X] = true,
+		[BPF_ALU | BPF_RSH | BPF_K] = true,
+		[BPF_ALU | BPF_RSH | BPF_X] = true,
+		[BPF_ALU | BPF_NEG] = true,
+		/* Load instructions */
+		[BPF_LD | BPF_W | BPF_ABS] = true,
+		[BPF_LD | BPF_H | BPF_ABS] = true,
+		[BPF_LD | BPF_B | BPF_ABS] = true,
+		[BPF_LD | BPF_W | BPF_LEN] = true,
+		[BPF_LD | BPF_W | BPF_IND] = true,
+		[BPF_LD | BPF_H | BPF_IND] = true,
+		[BPF_LD | BPF_B | BPF_IND] = true,
+		[BPF_LD | BPF_IMM] = true,
+		[BPF_LD | BPF_MEM] = true,
+		[BPF_LDX | BPF_W | BPF_LEN] = true,
+		[BPF_LDX | BPF_B | BPF_MSH] = true,
+		[BPF_LDX | BPF_IMM] = true,
+		[BPF_LDX | BPF_MEM] = true,
+		/* Store instructions */
+		[BPF_ST] = true,
+		[BPF_STX] = true,
+		/* Misc instructions */
+		[BPF_MISC | BPF_TAX] = true,
+		[BPF_MISC | BPF_TXA] = true,
+		/* Return instructions */
+		[BPF_RET | BPF_K] = true,
+		[BPF_RET | BPF_A] = true,
+		/* Jump instructions */
+		[BPF_JMP | BPF_JA] = true,
+		[BPF_JMP | BPF_JEQ | BPF_K] = true,
+		[BPF_JMP | BPF_JEQ | BPF_X] = true,
+		[BPF_JMP | BPF_JGE | BPF_K] = true,
+		[BPF_JMP | BPF_JGE | BPF_X] = true,
+		[BPF_JMP | BPF_JGT | BPF_K] = true,
+		[BPF_JMP | BPF_JGT | BPF_X] = true,
+		[BPF_JMP | BPF_JSET | BPF_K] = true,
+		[BPF_JMP | BPF_JSET | BPF_X] = true,
+	};
+
+	if (code_to_probe >= ARRAY_SIZE(codes))
+		return false;
+
+	return codes[code_to_probe];
 }
 
 /**
@@ -1201,154 +1273,76 @@ error:
  */
 int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 {
-	/*
-	 * Valid instructions are initialized to non-0.
-	 * Invalid instructions are initialized to 0.
-	 */
-	static const u8 codes[] = {
-		[BPF_ALU|BPF_ADD|BPF_K]  = BPF_S_ALU_ADD_K,
-		[BPF_ALU|BPF_ADD|BPF_X]  = BPF_S_ALU_ADD_X,
-		[BPF_ALU|BPF_SUB|BPF_K]  = BPF_S_ALU_SUB_K,
-		[BPF_ALU|BPF_SUB|BPF_X]  = BPF_S_ALU_SUB_X,
-		[BPF_ALU|BPF_MUL|BPF_K]  = BPF_S_ALU_MUL_K,
-		[BPF_ALU|BPF_MUL|BPF_X]  = BPF_S_ALU_MUL_X,
-		[BPF_ALU|BPF_DIV|BPF_X]  = BPF_S_ALU_DIV_X,
-		[BPF_ALU|BPF_MOD|BPF_K]  = BPF_S_ALU_MOD_K,
-		[BPF_ALU|BPF_MOD|BPF_X]  = BPF_S_ALU_MOD_X,
-		[BPF_ALU|BPF_AND|BPF_K]  = BPF_S_ALU_AND_K,
-		[BPF_ALU|BPF_AND|BPF_X]  = BPF_S_ALU_AND_X,
-		[BPF_ALU|BPF_OR|BPF_K]   = BPF_S_ALU_OR_K,
-		[BPF_ALU|BPF_OR|BPF_X]   = BPF_S_ALU_OR_X,
-		[BPF_ALU|BPF_XOR|BPF_K]  = BPF_S_ALU_XOR_K,
-		[BPF_ALU|BPF_XOR|BPF_X]  = BPF_S_ALU_XOR_X,
-		[BPF_ALU|BPF_LSH|BPF_K]  = BPF_S_ALU_LSH_K,
-		[BPF_ALU|BPF_LSH|BPF_X]  = BPF_S_ALU_LSH_X,
-		[BPF_ALU|BPF_RSH|BPF_K]  = BPF_S_ALU_RSH_K,
-		[BPF_ALU|BPF_RSH|BPF_X]  = BPF_S_ALU_RSH_X,
-		[BPF_ALU|BPF_NEG]        = BPF_S_ALU_NEG,
-		[BPF_LD|BPF_W|BPF_ABS]   = BPF_S_LD_W_ABS,
-		[BPF_LD|BPF_H|BPF_ABS]   = BPF_S_LD_H_ABS,
-		[BPF_LD|BPF_B|BPF_ABS]   = BPF_S_LD_B_ABS,
-		[BPF_LD|BPF_W|BPF_LEN]   = BPF_S_LD_W_LEN,
-		[BPF_LD|BPF_W|BPF_IND]   = BPF_S_LD_W_IND,
-		[BPF_LD|BPF_H|BPF_IND]   = BPF_S_LD_H_IND,
-		[BPF_LD|BPF_B|BPF_IND]   = BPF_S_LD_B_IND,
-		[BPF_LD|BPF_IMM]         = BPF_S_LD_IMM,
-		[BPF_LDX|BPF_W|BPF_LEN]  = BPF_S_LDX_W_LEN,
-		[BPF_LDX|BPF_B|BPF_MSH]  = BPF_S_LDX_B_MSH,
-		[BPF_LDX|BPF_IMM]        = BPF_S_LDX_IMM,
-		[BPF_MISC|BPF_TAX]       = BPF_S_MISC_TAX,
-		[BPF_MISC|BPF_TXA]       = BPF_S_MISC_TXA,
-		[BPF_RET|BPF_K]          = BPF_S_RET_K,
-		[BPF_RET|BPF_A]          = BPF_S_RET_A,
-		[BPF_ALU|BPF_DIV|BPF_K]  = BPF_S_ALU_DIV_K,
-		[BPF_LD|BPF_MEM]         = BPF_S_LD_MEM,
-		[BPF_LDX|BPF_MEM]        = BPF_S_LDX_MEM,
-		[BPF_ST]                 = BPF_S_ST,
-		[BPF_STX]                = BPF_S_STX,
-		[BPF_JMP|BPF_JA]         = BPF_S_JMP_JA,
-		[BPF_JMP|BPF_JEQ|BPF_K]  = BPF_S_JMP_JEQ_K,
-		[BPF_JMP|BPF_JEQ|BPF_X]  = BPF_S_JMP_JEQ_X,
-		[BPF_JMP|BPF_JGE|BPF_K]  = BPF_S_JMP_JGE_K,
-		[BPF_JMP|BPF_JGE|BPF_X]  = BPF_S_JMP_JGE_X,
-		[BPF_JMP|BPF_JGT|BPF_K]  = BPF_S_JMP_JGT_K,
-		[BPF_JMP|BPF_JGT|BPF_X]  = BPF_S_JMP_JGT_X,
-		[BPF_JMP|BPF_JSET|BPF_K] = BPF_S_JMP_JSET_K,
-		[BPF_JMP|BPF_JSET|BPF_X] = BPF_S_JMP_JSET_X,
-	};
-	int pc;
 	bool anc_found;
+	int pc;
 
 	if (flen == 0 || flen > BPF_MAXINSNS)
 		return -EINVAL;
 
-	/* check the filter code now */
+	/* Check the filter code now */
 	for (pc = 0; pc < flen; pc++) {
 		struct sock_filter *ftest = &filter[pc];
-		u16 code = ftest->code;
 
-		if (code >= ARRAY_SIZE(codes))
+		/* May we actually operate on this code? */
+		if (!chk_code_allowed(ftest->code))
 			return -EINVAL;
-		code = codes[code];
-		if (!code)
-			return -EINVAL;
+
 		/* Some instructions need special checks */
-		switch (code) {
-		case BPF_S_ALU_DIV_K:
-		case BPF_S_ALU_MOD_K:
-			/* check for division by zero */
+		switch (ftest->code) {
+		case BPF_ALU | BPF_DIV | BPF_K:
+		case BPF_ALU | BPF_MOD | BPF_K:
+			/* Check for division by zero */
 			if (ftest->k == 0)
 				return -EINVAL;
 			break;
-		case BPF_S_LD_MEM:
-		case BPF_S_LDX_MEM:
-		case BPF_S_ST:
-		case BPF_S_STX:
-			/* check for invalid memory addresses */
+		case BPF_LD | BPF_MEM:
+		case BPF_LDX | BPF_MEM:
+		case BPF_ST:
+		case BPF_STX:
+			/* Check for invalid memory addresses */
 			if (ftest->k >= BPF_MEMWORDS)
 				return -EINVAL;
 			break;
-		case BPF_S_JMP_JA:
-			/*
-			 * Note, the large ftest->k might cause loops.
+		case BPF_JMP | BPF_JA:
+			/* Note, the large ftest->k might cause loops.
 			 * Compare this with conditional jumps below,
 			 * where offsets are limited. --ANK (981016)
 			 */
-			if (ftest->k >= (unsigned int)(flen-pc-1))
+			if (ftest->k >= (unsigned int)(flen - pc - 1))
 				return -EINVAL;
 			break;
-		case BPF_S_JMP_JEQ_K:
-		case BPF_S_JMP_JEQ_X:
-		case BPF_S_JMP_JGE_K:
-		case BPF_S_JMP_JGE_X:
-		case BPF_S_JMP_JGT_K:
-		case BPF_S_JMP_JGT_X:
-		case BPF_S_JMP_JSET_X:
-		case BPF_S_JMP_JSET_K:
-			/* for conditionals both must be safe */
+		case BPF_JMP | BPF_JEQ | BPF_K:
+		case BPF_JMP | BPF_JEQ | BPF_X:
+		case BPF_JMP | BPF_JGE | BPF_K:
+		case BPF_JMP | BPF_JGE | BPF_X:
+		case BPF_JMP | BPF_JGT | BPF_K:
+		case BPF_JMP | BPF_JGT | BPF_X:
+		case BPF_JMP | BPF_JSET | BPF_K:
+		case BPF_JMP | BPF_JSET | BPF_X:
+			/* Both conditionals must be safe */
 			if (pc + ftest->jt + 1 >= flen ||
 			    pc + ftest->jf + 1 >= flen)
 				return -EINVAL;
 			break;
-		case BPF_S_LD_W_ABS:
-		case BPF_S_LD_H_ABS:
-		case BPF_S_LD_B_ABS:
+		case BPF_LD | BPF_W | BPF_ABS:
+		case BPF_LD | BPF_H | BPF_ABS:
+		case BPF_LD | BPF_B | BPF_ABS:
 			anc_found = false;
-#define ANCILLARY(CODE) case SKF_AD_OFF + SKF_AD_##CODE:	\
-				code = BPF_S_ANC_##CODE;	\
-				anc_found = true;		\
-				break
-			switch (ftest->k) {
-			ANCILLARY(PROTOCOL);
-			ANCILLARY(PKTTYPE);
-			ANCILLARY(IFINDEX);
-			ANCILLARY(NLATTR);
-			ANCILLARY(NLATTR_NEST);
-			ANCILLARY(MARK);
-			ANCILLARY(QUEUE);
-			ANCILLARY(HATYPE);
-			ANCILLARY(RXHASH);
-			ANCILLARY(CPU);
-			ANCILLARY(ALU_XOR_X);
-			ANCILLARY(VLAN_TAG);
-			ANCILLARY(VLAN_TAG_PRESENT);
-			ANCILLARY(PAY_OFFSET);
-			ANCILLARY(RANDOM);
-			}
-
-			/* ancillary operation unknown or unsupported */
+			if (bpf_anc_helper(ftest) & BPF_ANC)
+				anc_found = true;
+			/* Ancillary operation unknown or unsupported */
 			if (anc_found == false && ftest->k >= SKF_AD_OFF)
 				return -EINVAL;
 		}
-		ftest->code = code;
 	}
 
-	/* last instruction must be a RET code */
+	/* Last instruction must be a RET code */
 	switch (filter[flen - 1].code) {
-	case BPF_S_RET_K:
-	case BPF_S_RET_A:
+	case BPF_RET | BPF_K:
+	case BPF_RET | BPF_A:
 		return check_load_and_stores(filter, flen);
 	}
+
 	return -EINVAL;
 }
 EXPORT_SYMBOL(sk_chk_filter);
@@ -1448,7 +1442,7 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp,
 {
 	struct sock_filter *old_prog;
 	struct sk_filter *old_fp;
-	int i, err, new_len, old_len = fp->len;
+	int err, new_len, old_len = fp->len;
 
 	/* We are free to overwrite insns et al right here as it
 	 * won't be used at this point in time anymore internally
@@ -1457,13 +1451,6 @@ static struct sk_filter *__sk_migrate_filter(struct sk_filter *fp,
 	 */
 	BUILD_BUG_ON(sizeof(struct sock_filter) !=
 		     sizeof(struct sock_filter_int));
-
-	/* For now, we need to unfiddle BPF_S_* identifiers in place.
-	 * This can sooner or later on be subject to removal, e.g. when
-	 * JITs have been converted.
-	 */
-	for (i = 0; i < fp->len; i++)
-		sk_decode_filter(&fp->insns[i], &fp->insns[i]);
 
 	/* Conversion cannot happen on overlapping memory areas,
 	 * so we need to keep the user BPF around until the 2nd
@@ -1705,84 +1692,6 @@ int sk_detach_filter(struct sock *sk)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sk_detach_filter);
-
-void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to)
-{
-	static const u16 decodes[] = {
-		[BPF_S_ALU_ADD_K]	= BPF_ALU|BPF_ADD|BPF_K,
-		[BPF_S_ALU_ADD_X]	= BPF_ALU|BPF_ADD|BPF_X,
-		[BPF_S_ALU_SUB_K]	= BPF_ALU|BPF_SUB|BPF_K,
-		[BPF_S_ALU_SUB_X]	= BPF_ALU|BPF_SUB|BPF_X,
-		[BPF_S_ALU_MUL_K]	= BPF_ALU|BPF_MUL|BPF_K,
-		[BPF_S_ALU_MUL_X]	= BPF_ALU|BPF_MUL|BPF_X,
-		[BPF_S_ALU_DIV_X]	= BPF_ALU|BPF_DIV|BPF_X,
-		[BPF_S_ALU_MOD_K]	= BPF_ALU|BPF_MOD|BPF_K,
-		[BPF_S_ALU_MOD_X]	= BPF_ALU|BPF_MOD|BPF_X,
-		[BPF_S_ALU_AND_K]	= BPF_ALU|BPF_AND|BPF_K,
-		[BPF_S_ALU_AND_X]	= BPF_ALU|BPF_AND|BPF_X,
-		[BPF_S_ALU_OR_K]	= BPF_ALU|BPF_OR|BPF_K,
-		[BPF_S_ALU_OR_X]	= BPF_ALU|BPF_OR|BPF_X,
-		[BPF_S_ALU_XOR_K]	= BPF_ALU|BPF_XOR|BPF_K,
-		[BPF_S_ALU_XOR_X]	= BPF_ALU|BPF_XOR|BPF_X,
-		[BPF_S_ALU_LSH_K]	= BPF_ALU|BPF_LSH|BPF_K,
-		[BPF_S_ALU_LSH_X]	= BPF_ALU|BPF_LSH|BPF_X,
-		[BPF_S_ALU_RSH_K]	= BPF_ALU|BPF_RSH|BPF_K,
-		[BPF_S_ALU_RSH_X]	= BPF_ALU|BPF_RSH|BPF_X,
-		[BPF_S_ALU_NEG]		= BPF_ALU|BPF_NEG,
-		[BPF_S_LD_W_ABS]	= BPF_LD|BPF_W|BPF_ABS,
-		[BPF_S_LD_H_ABS]	= BPF_LD|BPF_H|BPF_ABS,
-		[BPF_S_LD_B_ABS]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_PROTOCOL]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_PKTTYPE]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_IFINDEX]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_NLATTR]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_NLATTR_NEST]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_MARK]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_QUEUE]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_HATYPE]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_RXHASH]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_CPU]		= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_ALU_XOR_X]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_VLAN_TAG]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_VLAN_TAG_PRESENT] = BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_PAY_OFFSET]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_RANDOM]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_LD_W_LEN]	= BPF_LD|BPF_W|BPF_LEN,
-		[BPF_S_LD_W_IND]	= BPF_LD|BPF_W|BPF_IND,
-		[BPF_S_LD_H_IND]	= BPF_LD|BPF_H|BPF_IND,
-		[BPF_S_LD_B_IND]	= BPF_LD|BPF_B|BPF_IND,
-		[BPF_S_LD_IMM]		= BPF_LD|BPF_IMM,
-		[BPF_S_LDX_W_LEN]	= BPF_LDX|BPF_W|BPF_LEN,
-		[BPF_S_LDX_B_MSH]	= BPF_LDX|BPF_B|BPF_MSH,
-		[BPF_S_LDX_IMM]		= BPF_LDX|BPF_IMM,
-		[BPF_S_MISC_TAX]	= BPF_MISC|BPF_TAX,
-		[BPF_S_MISC_TXA]	= BPF_MISC|BPF_TXA,
-		[BPF_S_RET_K]		= BPF_RET|BPF_K,
-		[BPF_S_RET_A]		= BPF_RET|BPF_A,
-		[BPF_S_ALU_DIV_K]	= BPF_ALU|BPF_DIV|BPF_K,
-		[BPF_S_LD_MEM]		= BPF_LD|BPF_MEM,
-		[BPF_S_LDX_MEM]		= BPF_LDX|BPF_MEM,
-		[BPF_S_ST]		= BPF_ST,
-		[BPF_S_STX]		= BPF_STX,
-		[BPF_S_JMP_JA]		= BPF_JMP|BPF_JA,
-		[BPF_S_JMP_JEQ_K]	= BPF_JMP|BPF_JEQ|BPF_K,
-		[BPF_S_JMP_JEQ_X]	= BPF_JMP|BPF_JEQ|BPF_X,
-		[BPF_S_JMP_JGE_K]	= BPF_JMP|BPF_JGE|BPF_K,
-		[BPF_S_JMP_JGE_X]	= BPF_JMP|BPF_JGE|BPF_X,
-		[BPF_S_JMP_JGT_K]	= BPF_JMP|BPF_JGT|BPF_K,
-		[BPF_S_JMP_JGT_X]	= BPF_JMP|BPF_JGT|BPF_X,
-		[BPF_S_JMP_JSET_K]	= BPF_JMP|BPF_JSET|BPF_K,
-		[BPF_S_JMP_JSET_X]	= BPF_JMP|BPF_JSET|BPF_X,
-	};
-	u16 code;
-
-	code = filt->code;
-
-	to->code = decodes[code];
-	to->jt = filt->jt;
-	to->jf = filt->jf;
-	to->k = filt->k;
-}
 
 int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 		  unsigned int len)

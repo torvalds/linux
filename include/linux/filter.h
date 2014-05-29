@@ -197,13 +197,47 @@ int sk_detach_filter(struct sock *sk);
 int sk_chk_filter(struct sock_filter *filter, unsigned int flen);
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);
-void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to);
 
 void sk_filter_charge(struct sock *sk, struct sk_filter *fp);
 void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp);
 
 u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 void bpf_int_jit_compile(struct sk_filter *fp);
+
+#define BPF_ANC		BIT(15)
+
+static inline u16 bpf_anc_helper(const struct sock_filter *ftest)
+{
+	BUG_ON(ftest->code & BPF_ANC);
+
+	switch (ftest->code) {
+	case BPF_LD | BPF_W | BPF_ABS:
+	case BPF_LD | BPF_H | BPF_ABS:
+	case BPF_LD | BPF_B | BPF_ABS:
+#define BPF_ANCILLARY(CODE)	case SKF_AD_OFF + SKF_AD_##CODE:	\
+				return BPF_ANC | SKF_AD_##CODE
+		switch (ftest->k) {
+		BPF_ANCILLARY(PROTOCOL);
+		BPF_ANCILLARY(PKTTYPE);
+		BPF_ANCILLARY(IFINDEX);
+		BPF_ANCILLARY(NLATTR);
+		BPF_ANCILLARY(NLATTR_NEST);
+		BPF_ANCILLARY(MARK);
+		BPF_ANCILLARY(QUEUE);
+		BPF_ANCILLARY(HATYPE);
+		BPF_ANCILLARY(RXHASH);
+		BPF_ANCILLARY(CPU);
+		BPF_ANCILLARY(ALU_XOR_X);
+		BPF_ANCILLARY(VLAN_TAG);
+		BPF_ANCILLARY(VLAN_TAG_PRESENT);
+		BPF_ANCILLARY(PAY_OFFSET);
+		BPF_ANCILLARY(RANDOM);
+		}
+		/* Fallthrough. */
+	default:
+		return ftest->code;
+	}
+}
 
 #ifdef CONFIG_BPF_JIT
 #include <stdarg.h>
@@ -224,86 +258,20 @@ static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 }
 #else
 #include <linux/slab.h>
+
 static inline void bpf_jit_compile(struct sk_filter *fp)
 {
 }
+
 static inline void bpf_jit_free(struct sk_filter *fp)
 {
 	kfree(fp);
 }
-#endif
+#endif /* CONFIG_BPF_JIT */
 
 static inline int bpf_tell_extensions(void)
 {
 	return SKF_AD_MAX;
 }
-
-enum {
-	BPF_S_RET_K = 1,
-	BPF_S_RET_A,
-	BPF_S_ALU_ADD_K,
-	BPF_S_ALU_ADD_X,
-	BPF_S_ALU_SUB_K,
-	BPF_S_ALU_SUB_X,
-	BPF_S_ALU_MUL_K,
-	BPF_S_ALU_MUL_X,
-	BPF_S_ALU_DIV_X,
-	BPF_S_ALU_MOD_K,
-	BPF_S_ALU_MOD_X,
-	BPF_S_ALU_AND_K,
-	BPF_S_ALU_AND_X,
-	BPF_S_ALU_OR_K,
-	BPF_S_ALU_OR_X,
-	BPF_S_ALU_XOR_K,
-	BPF_S_ALU_XOR_X,
-	BPF_S_ALU_LSH_K,
-	BPF_S_ALU_LSH_X,
-	BPF_S_ALU_RSH_K,
-	BPF_S_ALU_RSH_X,
-	BPF_S_ALU_NEG,
-	BPF_S_LD_W_ABS,
-	BPF_S_LD_H_ABS,
-	BPF_S_LD_B_ABS,
-	BPF_S_LD_W_LEN,
-	BPF_S_LD_W_IND,
-	BPF_S_LD_H_IND,
-	BPF_S_LD_B_IND,
-	BPF_S_LD_IMM,
-	BPF_S_LDX_W_LEN,
-	BPF_S_LDX_B_MSH,
-	BPF_S_LDX_IMM,
-	BPF_S_MISC_TAX,
-	BPF_S_MISC_TXA,
-	BPF_S_ALU_DIV_K,
-	BPF_S_LD_MEM,
-	BPF_S_LDX_MEM,
-	BPF_S_ST,
-	BPF_S_STX,
-	BPF_S_JMP_JA,
-	BPF_S_JMP_JEQ_K,
-	BPF_S_JMP_JEQ_X,
-	BPF_S_JMP_JGE_K,
-	BPF_S_JMP_JGE_X,
-	BPF_S_JMP_JGT_K,
-	BPF_S_JMP_JGT_X,
-	BPF_S_JMP_JSET_K,
-	BPF_S_JMP_JSET_X,
-	/* Ancillary data */
-	BPF_S_ANC_PROTOCOL,
-	BPF_S_ANC_PKTTYPE,
-	BPF_S_ANC_IFINDEX,
-	BPF_S_ANC_NLATTR,
-	BPF_S_ANC_NLATTR_NEST,
-	BPF_S_ANC_MARK,
-	BPF_S_ANC_QUEUE,
-	BPF_S_ANC_HATYPE,
-	BPF_S_ANC_RXHASH,
-	BPF_S_ANC_CPU,
-	BPF_S_ANC_ALU_XOR_X,
-	BPF_S_ANC_VLAN_TAG,
-	BPF_S_ANC_VLAN_TAG_PRESENT,
-	BPF_S_ANC_PAY_OFFSET,
-	BPF_S_ANC_RANDOM,
-};
 
 #endif /* __LINUX_FILTER_H__ */
