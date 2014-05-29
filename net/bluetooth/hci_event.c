@@ -4590,8 +4590,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn == NULL)
 		goto not_found;
 
-	ltk = hci_find_ltk_by_addr(hdev, &conn->dst, conn->dst_type,
-				   conn->role);
+	ltk = hci_find_ltk(hdev, &conn->dst, conn->dst_type, conn->role);
 	if (!ltk)
 		goto not_found;
 

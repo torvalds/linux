@@ -3185,8 +3185,8 @@ static u8 ltk_role(u8 type)
 	return HCI_ROLE_SLAVE;
 }
 
-struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 addr_type, u8 role)
+struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			     u8 addr_type, u8 role)
 {
 	struct smp_ltk *k;
 
@@ -3313,7 +3313,7 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	struct smp_ltk *key, *old_key;
 	u8 role = ltk_role(type);
 
-	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type, role);
+	old_key = hci_find_ltk(hdev, bdaddr, addr_type, role);
 	if (old_key)
 		key = old_key;
 	else {
