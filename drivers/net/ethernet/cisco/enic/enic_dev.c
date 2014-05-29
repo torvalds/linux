@@ -88,7 +88,7 @@ int enic_dev_packet_filter(struct enic *enic, int directed, int multicast,
 	return err;
 }
 
-int enic_dev_add_addr(struct enic *enic, u8 *addr)
+int enic_dev_add_addr(struct enic *enic, const u8 *addr)
 {
 	int err;
 
@@ -99,7 +99,7 @@ int enic_dev_add_addr(struct enic *enic, u8 *addr)
 	return err;
 }
 
-int enic_dev_del_addr(struct enic *enic, u8 *addr)
+int enic_dev_del_addr(struct enic *enic, const u8 *addr)
 {
 	int err;
 

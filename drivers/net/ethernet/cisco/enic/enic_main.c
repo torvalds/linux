@@ -616,8 +616,71 @@ static struct rtnl_link_stats64 *enic_get_stats(struct net_device *netdev,
 	return net_stats;
 }
 
+static int enic_mc_sync(struct net_device *netdev, const u8 *mc_addr)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	if (enic->mc_count == ENIC_MULTICAST_PERFECT_FILTERS) {
+		unsigned int mc_count = netdev_mc_count(netdev);
+
+		netdev_warn(netdev, "Registering only %d out of %d multicast addresses\n",
+			    ENIC_MULTICAST_PERFECT_FILTERS, mc_count);
+
+		return -ENOSPC;
+	}
+
+	enic_dev_add_addr(enic, mc_addr);
+	enic->mc_count++;
+
+	return 0;
+}
+
+static int enic_mc_unsync(struct net_device *netdev, const u8 *mc_addr)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	enic_dev_del_addr(enic, mc_addr);
+	enic->mc_count--;
+
+	return 0;
+}
+
+static int enic_uc_sync(struct net_device *netdev, const u8 *uc_addr)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	if (enic->uc_count == ENIC_UNICAST_PERFECT_FILTERS) {
+		unsigned int uc_count = netdev_uc_count(netdev);
+
+		netdev_warn(netdev, "Registering only %d out of %d unicast addresses\n",
+			    ENIC_UNICAST_PERFECT_FILTERS, uc_count);
+
+		return -ENOSPC;
+	}
+
+	enic_dev_add_addr(enic, uc_addr);
+	enic->uc_count++;
+
+	return 0;
+}
+
+static int enic_uc_unsync(struct net_device *netdev, const u8 *uc_addr)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	enic_dev_del_addr(enic, uc_addr);
+	enic->uc_count--;
+
+	return 0;
+}
+
 void enic_reset_addr_lists(struct enic *enic)
 {
+	struct net_device *netdev = enic->netdev;
+
+	__dev_uc_unsync(netdev, NULL);
+	__dev_mc_unsync(netdev, NULL);
+
 	enic->mc_count = 0;
 	enic->uc_count = 0;
 	enic->flags = 0;
@@ -684,112 +747,6 @@ static int enic_set_mac_address(struct net_device *netdev, void *p)
 	return enic_dev_add_station_addr(enic);
 }
 
-static void enic_update_multicast_addr_list(struct enic *enic)
-{
-	struct net_device *netdev = enic->netdev;
-	struct netdev_hw_addr *ha;
-	unsigned int mc_count = netdev_mc_count(netdev);
-	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
-	unsigned int i, j;
-
-	if (mc_count > ENIC_MULTICAST_PERFECT_FILTERS) {
-		netdev_warn(netdev, "Registering only %d out of %d "
-			"multicast addresses\n",
-			ENIC_MULTICAST_PERFECT_FILTERS, mc_count);
-		mc_count = ENIC_MULTICAST_PERFECT_FILTERS;
-	}
-
-	/* Is there an easier way?  Trying to minimize to
-	 * calls to add/del multicast addrs.  We keep the
-	 * addrs from the last call in enic->mc_addr and
-	 * look for changes to add/del.
-	 */
-
-	i = 0;
-	netdev_for_each_mc_addr(ha, netdev) {
-		if (i == mc_count)
-			break;
-		memcpy(mc_addr[i++], ha->addr, ETH_ALEN);
-	}
-
-	for (i = 0; i < enic->mc_count; i++) {
-		for (j = 0; j < mc_count; j++)
-			if (ether_addr_equal(enic->mc_addr[i], mc_addr[j]))
-				break;
-		if (j == mc_count)
-			enic_dev_del_addr(enic, enic->mc_addr[i]);
-	}
-
-	for (i = 0; i < mc_count; i++) {
-		for (j = 0; j < enic->mc_count; j++)
-			if (ether_addr_equal(mc_addr[i], enic->mc_addr[j]))
-				break;
-		if (j == enic->mc_count)
-			enic_dev_add_addr(enic, mc_addr[i]);
-	}
-
-	/* Save the list to compare against next time
-	 */
-
-	for (i = 0; i < mc_count; i++)
-		memcpy(enic->mc_addr[i], mc_addr[i], ETH_ALEN);
-
-	enic->mc_count = mc_count;
-}
-
-static void enic_update_unicast_addr_list(struct enic *enic)
-{
-	struct net_device *netdev = enic->netdev;
-	struct netdev_hw_addr *ha;
-	unsigned int uc_count = netdev_uc_count(netdev);
-	u8 uc_addr[ENIC_UNICAST_PERFECT_FILTERS][ETH_ALEN];
-	unsigned int i, j;
-
-	if (uc_count > ENIC_UNICAST_PERFECT_FILTERS) {
-		netdev_warn(netdev, "Registering only %d out of %d "
-			"unicast addresses\n",
-			ENIC_UNICAST_PERFECT_FILTERS, uc_count);
-		uc_count = ENIC_UNICAST_PERFECT_FILTERS;
-	}
-
-	/* Is there an easier way?  Trying to minimize to
-	 * calls to add/del unicast addrs.  We keep the
-	 * addrs from the last call in enic->uc_addr and
-	 * look for changes to add/del.
-	 */
-
-	i = 0;
-	netdev_for_each_uc_addr(ha, netdev) {
-		if (i == uc_count)
-			break;
-		memcpy(uc_addr[i++], ha->addr, ETH_ALEN);
-	}
-
-	for (i = 0; i < enic->uc_count; i++) {
-		for (j = 0; j < uc_count; j++)
-			if (ether_addr_equal(enic->uc_addr[i], uc_addr[j]))
-				break;
-		if (j == uc_count)
-			enic_dev_del_addr(enic, enic->uc_addr[i]);
-	}
-
-	for (i = 0; i < uc_count; i++) {
-		for (j = 0; j < enic->uc_count; j++)
-			if (ether_addr_equal(uc_addr[i], enic->uc_addr[j]))
-				break;
-		if (j == enic->uc_count)
-			enic_dev_add_addr(enic, uc_addr[i]);
-	}
-
-	/* Save the list to compare against next time
-	 */
-
-	for (i = 0; i < uc_count; i++)
-		memcpy(enic->uc_addr[i], uc_addr[i], ETH_ALEN);
-
-	enic->uc_count = uc_count;
-}
-
 /* netif_tx_lock held, BHs disabled */
 static void enic_set_rx_mode(struct net_device *netdev)
 {
@@ -812,9 +769,9 @@ static void enic_set_rx_mode(struct net_device *netdev)
 	}
 
 	if (!promisc) {
-		enic_update_unicast_addr_list(enic);
+		__dev_uc_sync(netdev, enic_uc_sync, enic_uc_unsync);
 		if (!allmulti)
-			enic_update_multicast_addr_list(enic);
+			__dev_mc_sync(netdev, enic_mc_sync, enic_mc_unsync);
 	}
 }
 
