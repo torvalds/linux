@@ -1820,7 +1820,7 @@ int rtw_set_auth23a(struct rtw_adapter * adapter,
 	struct cmd_priv *pcmdpriv = &adapter->cmdpriv;
 	int res = _SUCCESS;
 
-	pcmd = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
 	if (!pcmd) {
 		res = _FAIL;  /* try again */
 		goto exit;
