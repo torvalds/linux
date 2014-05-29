@@ -2869,26 +2869,20 @@ static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
 	nphysicals = be32_to_cpu(*((__be32 *)physicals->LUNListLength)) /
 							responsesize;
 
-
 	/* find ioaccel2 handle in list of physicals: */
 	for (i = 0; i < nphysicals; i++) {
+		struct ext_report_lun_entry *entry = &physicals->LUN[i];
+
 		/* handle is in bytes 28-31 of each lun */
-		if (memcmp(&((struct ReportExtendedLUNdata *)
-				physicals)->LUN[i][20], &find, 4) != 0) {
+		if (entry->ioaccel_handle != find)
 			continue; /* didn't match */
-		}
 		found = 1;
-		memcpy(scsi3addr, &((struct ReportExtendedLUNdata *)
-					physicals)->LUN[i][0], 8);
+		memcpy(scsi3addr, entry->lunid, 8);
 		if (h->raid_offload_debug > 0)
 			dev_info(&h->pdev->dev,
-				"%s: Searched h=0x%08x, Found h=0x%08x, scsiaddr 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				"%s: Searched h=0x%08x, Found h=0x%08x, scsiaddr 0x%8phN\n",
 				__func__, find,
-				((struct ReportExtendedLUNdata *)
-					physicals)->LUN[i][20],
-				scsi3addr[0], scsi3addr[1], scsi3addr[2],
-				scsi3addr[3], scsi3addr[4], scsi3addr[5],
-				scsi3addr[6], scsi3addr[7]);
+				entry->ioaccel_handle, scsi3addr);
 		break; /* found it */
 	}
 
@@ -2973,7 +2967,8 @@ u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position, int i,
 		return RAID_CTLR_LUNID;
 
 	if (i < logicals_start)
-		return &physdev_list->LUN[i - (raid_ctlr_position == 0)][0];
+		return &physdev_list->LUN[i -
+				(raid_ctlr_position == 0)].lunid[0];
 
 	if (i < last_device)
 		return &logdev_list->LUN[i - nphysicals -

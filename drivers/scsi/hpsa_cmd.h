@@ -238,11 +238,21 @@ struct ReportLUNdata {
 	u8 LUN[HPSA_MAX_LUN][8];
 };
 
+struct ext_report_lun_entry {
+	u8 lunid[8];
+	u8 wwid[8];
+	u8 device_type;
+	u8 device_flags;
+	u8 lun_count; /* multi-lun device, how many luns */
+	u8 redundant_paths;
+	u32 ioaccel_handle; /* ioaccel1 only uses lower 16 bits */
+};
+
 struct ReportExtendedLUNdata {
 	u8 LUNListLength[4];
 	u8 extended_response_flag;
 	u8 reserved[3];
-	u8 LUN[HPSA_MAX_LUN][24];
+	struct ext_report_lun_entry LUN[HPSA_MAX_LUN];
 };
 
 struct SenseSubsystem_info {
