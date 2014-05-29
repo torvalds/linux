@@ -44,12 +44,21 @@ MODULE_PARM_DESC(magic, "magic sequence to enter NMI debugger (default $3#33)");
 
 static bool kgdb_nmi_tty_enabled;
 
+static int kgdb_nmi_console_setup(struct console *co, char *options)
+{
+	/* The NMI console uses the dbg_io_ops to issue console messages. To
+	 * avoid duplicate messages during kdb sessions we must inform kdb's
+	 * I/O utilities that messages sent to the console will automatically
+	 * be displayed on the dbg_io.
+	 */
+	dbg_io_ops->is_console = true;
+
+	return 0;
+}
+
 static void kgdb_nmi_console_write(struct console *co, const char *s, uint c)
 {
 	int i;
-
-	if (!kgdb_nmi_tty_enabled || atomic_read(&kgdb_active) >= 0)
-		return;
 
 	for (i = 0; i < c; i++)
 		dbg_io_ops->write_char(s[i]);
@@ -65,6 +74,7 @@ static struct tty_driver *kgdb_nmi_console_device(struct console *co, int *idx)
 
 static struct console kgdb_nmi_console = {
 	.name	= "ttyNMI",
+	.setup  = kgdb_nmi_console_setup,
 	.write	= kgdb_nmi_console_write,
 	.device	= kgdb_nmi_console_device,
 	.flags	= CON_PRINTBUFFER | CON_ANYTIME | CON_ENABLED,
