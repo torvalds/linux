@@ -2370,7 +2370,8 @@ static void set_datagram_seg(struct mlx4_wqe_datagram_seg *dseg,
 
 static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 				    struct mlx4_wqe_datagram_seg *dseg,
-				    struct ib_send_wr *wr, enum ib_qp_type qpt)
+				    struct ib_send_wr *wr,
+				    enum mlx4_ib_qp_type qpt)
 {
 	union mlx4_ext_av *av = &to_mah(wr->wr.ud.ah)->av;
 	struct mlx4_av sqp_av = {0};
@@ -2383,8 +2384,10 @@ static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 			cpu_to_be32(0xf0000000);
 
 	memcpy(dseg->av, &sqp_av, sizeof (struct mlx4_av));
-	/* This function used only for sending on QP1 proxies */
-	dseg->dqpn = cpu_to_be32(dev->dev->caps.qp1_tunnel[port - 1]);
+	if (qpt == MLX4_IB_QPT_PROXY_GSI)
+		dseg->dqpn = cpu_to_be32(dev->dev->caps.qp1_tunnel[port - 1]);
+	else
+		dseg->dqpn = cpu_to_be32(dev->dev->caps.qp0_tunnel[port - 1]);
 	/* Use QKEY from the QP context, which is set by master */
 	dseg->qkey = cpu_to_be32(IB_QP_SET_QKEY);
 }
@@ -2700,16 +2703,13 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			size += seglen / 16;
 			break;
 		case MLX4_IB_QPT_PROXY_SMI:
-			/* don't allow QP0 sends on guests */
-			err = -ENOSYS;
-			*bad_wr = wr;
-			goto out;
 		case MLX4_IB_QPT_PROXY_GSI:
 			/* If we are tunneling special qps, this is a UD qp.
 			 * In this case we first add a UD segment targeting
 			 * the tunnel qp, and then add a header with address
 			 * information */
-			set_tunnel_datagram_seg(to_mdev(ibqp->device), wqe, wr, ibqp->qp_type);
+			set_tunnel_datagram_seg(to_mdev(ibqp->device), wqe, wr,
+						qp->mlx4_ib_qp_type);
 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
 			build_tunnel_header(wr, wqe, &seglen);
