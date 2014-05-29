@@ -2867,7 +2867,60 @@ static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 	return 0;
 }
 
-static int ivb_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
+static void hsw_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc =
+		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_A]);
+
+	drm_modeset_lock_all(dev);
+	/*
+	 * If we use the eDP transcoder we need to make sure that we don't
+	 * bypass the pfit, since otherwise the pipe CRC source won't work. Only
+	 * relevant on hsw with pipe A when using the always-on power well
+	 * routing.
+	 */
+	if (crtc->config.cpu_transcoder == TRANSCODER_EDP &&
+	    !crtc->config.pch_pfit.enabled) {
+		crtc->config.pch_pfit.force_thru = true;
+
+		intel_display_power_get(dev_priv,
+					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
+
+		dev_priv->display.crtc_disable(&crtc->base);
+		dev_priv->display.crtc_enable(&crtc->base);
+	}
+	drm_modeset_unlock_all(dev);
+}
+
+static void hsw_undo_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc =
+		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_A]);
+
+	drm_modeset_lock_all(dev);
+	/*
+	 * If we use the eDP transcoder we need to make sure that we don't
+	 * bypass the pfit, since otherwise the pipe CRC source won't work. Only
+	 * relevant on hsw with pipe A when using the always-on power well
+	 * routing.
+	 */
+	if (crtc->config.pch_pfit.force_thru) {
+		crtc->config.pch_pfit.force_thru = false;
+
+		dev_priv->display.crtc_disable(&crtc->base);
+		dev_priv->display.crtc_enable(&crtc->base);
+
+		intel_display_power_put(dev_priv,
+					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
+	}
+	drm_modeset_unlock_all(dev);
+}
+
+static int ivb_pipe_crc_ctl_reg(struct drm_device *dev,
+				enum pipe pipe,
+				enum intel_pipe_crc_source *source,
 				uint32_t *val)
 {
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
@@ -2881,6 +2934,9 @@ static int ivb_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_IVB;
 		break;
 	case INTEL_PIPE_CRC_SOURCE_PF:
+		if (IS_HASWELL(dev) && pipe == PIPE_A)
+			hsw_trans_edp_pipe_A_crc_wa(dev);
+
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
 		break;
 	case INTEL_PIPE_CRC_SOURCE_NONE:
@@ -2913,11 +2969,11 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	else if (INTEL_INFO(dev)->gen < 5)
 		ret = i9xx_pipe_crc_ctl_reg(dev, pipe, &source, &val);
 	else if (IS_VALLEYVIEW(dev))
-		ret = vlv_pipe_crc_ctl_reg(dev,pipe, &source, &val);
+		ret = vlv_pipe_crc_ctl_reg(dev, pipe, &source, &val);
 	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ret = ilk_pipe_crc_ctl_reg(&source, &val);
 	else
-		ret = ivb_pipe_crc_ctl_reg(&source, &val);
+		ret = ivb_pipe_crc_ctl_reg(dev, pipe, &source, &val);
 
 	if (ret != 0)
 		return ret;
@@ -2969,6 +3025,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 			g4x_undo_pipe_scramble_reset(dev, pipe);
 		else if (IS_VALLEYVIEW(dev))
 			vlv_undo_pipe_scramble_reset(dev, pipe);
+		else if (IS_HASWELL(dev) && pipe == PIPE_A)
+			hsw_undo_trans_edp_pipe_A_crc_wa(dev);
 	}
 
 	return 0;

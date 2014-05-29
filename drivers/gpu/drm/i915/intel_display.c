@@ -4350,7 +4350,6 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc)
 	struct intel_encoder *intel_encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	bool pfit_enabled = intel_crtc->config.pch_pfit.enabled;
 	unsigned long mask;
 	enum transcoder transcoder;
 
@@ -4358,7 +4357,8 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc)
 
 	mask = BIT(POWER_DOMAIN_PIPE(pipe));
 	mask |= BIT(POWER_DOMAIN_TRANSCODER(transcoder));
-	if (pfit_enabled)
+	if (intel_crtc->config.pch_pfit.enabled ||
+	    intel_crtc->config.pch_pfit.force_thru)
 		mask |= BIT(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
 
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
