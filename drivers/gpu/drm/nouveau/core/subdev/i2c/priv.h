@@ -3,6 +3,9 @@
 
 #include <subdev/i2c.h>
 
+extern struct nouveau_oclass nv04_i2c_pad_oclass;
+extern struct nouveau_oclass nv94_i2c_pad_oclass;
+
 #define nouveau_i2c_port_create(p,e,o,i,a,f,d)                                 \
 	nouveau_i2c_port_create_((p), (e), (o), (i), (a), (f),                 \
 				 sizeof(**d), (void **)d)
@@ -22,7 +25,7 @@ int nouveau_i2c_port_create_(struct nouveau_object *, struct nouveau_object *,
 			     int, void **);
 void _nouveau_i2c_port_dtor(struct nouveau_object *);
 #define _nouveau_i2c_port_init nouveau_object_init
-#define _nouveau_i2c_port_fini nouveau_object_fini
+int  _nouveau_i2c_port_fini(struct nouveau_object *, bool);
 
 #define nouveau_i2c_create(p,e,o,d)                                            \
 	nouveau_i2c_create_((p), (e), (o), sizeof(**d), (void **)d)
@@ -59,6 +62,8 @@ struct nouveau_i2c_impl {
 
 	/* supported i2c port classes */
 	struct nouveau_oclass *sclass;
+	struct nouveau_oclass *pad_x;
+	struct nouveau_oclass *pad_s;
 
 	/* number of native dp aux channels present */
 	int aux;

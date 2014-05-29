@@ -31,6 +31,7 @@
 #include <subdev/vga.h>
 
 #include "priv.h"
+#include "pad.h"
 
 /******************************************************************************
  * interface to linux i2c bit-banging algorithm
@@ -90,6 +91,15 @@ nouveau_i2c_getsda(void *data)
  * base i2c "port" class implementation
  *****************************************************************************/
 
+int
+_nouveau_i2c_port_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nouveau_i2c_port *port = (void *)object;
+	struct nvkm_i2c_pad *pad = nvkm_i2c_pad(port);
+	nv_ofuncs(pad)->fini(nv_object(pad), suspend);
+	return nouveau_object_fini(&port->base, suspend);
+}
+
 void
 _nouveau_i2c_port_dtor(struct nouveau_object *object)
 {
@@ -106,7 +116,7 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 			 const struct nouveau_i2c_func *func,
 			 int size, void **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
+	struct nouveau_device *device = nv_device(engine);
 	struct nouveau_i2c *i2c = (void *)engine;
 	struct nouveau_i2c_port *port;
 	int ret;
@@ -123,6 +133,7 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 	port->index = index;
 	port->aux = -1;
 	port->func = func;
+	mutex_init(&port->mutex);
 
 	if ( algo == &nouveau_i2c_bit_algo &&
 	    !nouveau_boolopt(device->cfgopt, "NvI2C", CSTMSEL)) {
@@ -202,18 +213,72 @@ nouveau_i2c_find_type(struct nouveau_i2c *i2c, u16 type)
 }
 
 static void
-nouveau_i2c_release(struct nouveau_i2c_port *port)
+nouveau_i2c_release_pad(struct nouveau_i2c_port *port)
 {
-	if (port->func->release)
-		port->func->release(port);
+	struct nvkm_i2c_pad *pad = nvkm_i2c_pad(port);
+	struct nouveau_i2c *i2c = nouveau_i2c(port);
+
+	if (atomic_dec_and_test(&nv_object(pad)->usecount)) {
+		nv_ofuncs(pad)->fini(nv_object(pad), false);
+		wake_up_all(&i2c->wait);
+	}
+}
+
+static int
+nouveau_i2c_try_acquire_pad(struct nouveau_i2c_port *port)
+{
+	struct nvkm_i2c_pad *pad = nvkm_i2c_pad(port);
+
+	if (atomic_add_return(1, &nv_object(pad)->usecount) != 1) {
+		struct nouveau_object *owner = (void *)pad->port;
+		do {
+			if (owner == (void *)port)
+				return 0;
+			owner = owner->parent;
+		} while(owner);
+		nouveau_i2c_release_pad(port);
+		return -EBUSY;
+	}
+
+	pad->next = port;
+	nv_ofuncs(pad)->init(nv_object(pad));
+	return 0;
+}
+
+static int
+nouveau_i2c_acquire_pad(struct nouveau_i2c_port *port, unsigned long timeout)
+{
+	struct nouveau_i2c *i2c = nouveau_i2c(port);
+
+	if (timeout) {
+		if (wait_event_timeout(i2c->wait,
+				       nouveau_i2c_try_acquire_pad(port) == 0,
+				       timeout) == 0)
+			return -EBUSY;
+	} else {
+		wait_event(i2c->wait, nouveau_i2c_try_acquire_pad(port) == 0);
+	}
+
+	return 0;
+}
+
+static void
+nouveau_i2c_release(struct nouveau_i2c_port *port)
+__releases(pad->mutex)
+{
+	nouveau_i2c(port)->release_pad(port);
+	mutex_unlock(&port->mutex);
 }
 
 static int
 nouveau_i2c_acquire(struct nouveau_i2c_port *port, unsigned long timeout)
+__acquires(pad->mutex)
 {
-	if (port->func->acquire)
-		port->func->acquire(port);
-	return 0;
+	int ret;
+	mutex_lock(&port->mutex);
+	if ((ret = nouveau_i2c(port)->acquire_pad(port, timeout)))
+		mutex_unlock(&port->mutex);
+	return ret;
 }
 
 static int
@@ -391,7 +456,7 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 	struct nouveau_i2c *i2c;
 	struct nouveau_object *object;
 	struct dcb_i2c_entry info;
-	int ret, i, j, index = -1;
+	int ret, i, j, index = -1, pad;
 	struct dcb_output outp;
 	u8  ver, hdr;
 	u32 data;
@@ -405,24 +470,45 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 	nv_subdev(i2c)->intr = nouveau_i2c_intr;
 	i2c->find = nouveau_i2c_find;
 	i2c->find_type = nouveau_i2c_find_type;
+	i2c->acquire_pad = nouveau_i2c_acquire_pad;
+	i2c->release_pad = nouveau_i2c_release_pad;
 	i2c->acquire = nouveau_i2c_acquire;
 	i2c->release = nouveau_i2c_release;
 	i2c->identify = nouveau_i2c_identify;
+	init_waitqueue_head(&i2c->wait);
 	INIT_LIST_HEAD(&i2c->ports);
 
 	while (!dcb_i2c_parse(bios, ++index, &info)) {
 		if (info.type == DCB_I2C_UNUSED)
 			continue;
 
+		if (info.share != DCB_I2C_UNUSED) {
+			if (info.type == DCB_I2C_NVIO_AUX)
+				pad = info.drive;
+			else
+				pad = info.share;
+			oclass = impl->pad_s;
+		} else {
+			pad = 0x100 + info.drive;
+			oclass = impl->pad_x;
+		}
+
+		ret = nouveau_object_ctor(NULL, *pobject, oclass,
+					  NULL, pad, &parent);
+		if (ret < 0)
+			continue;
+
 		oclass = impl->sclass;
 		do {
 			ret = -EINVAL;
 			if (oclass->handle == info.type) {
-				ret = nouveau_object_ctor(*pobject, *pobject,
+				ret = nouveau_object_ctor(parent, *pobject,
 							  oclass, &info,
 							  index, &object);
 			}
 		} while (ret && (++oclass)->handle);
+
+		nouveau_object_ref(NULL, &parent);
 	}
 
 	/* in addition to the busses specified in the i2c table, there

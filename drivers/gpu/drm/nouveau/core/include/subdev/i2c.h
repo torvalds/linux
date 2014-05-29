@@ -28,6 +28,7 @@ enum nvkm_i2c_event {
 struct nouveau_i2c_port {
 	struct nouveau_object base;
 	struct i2c_adapter adapter;
+	struct mutex mutex;
 
 	struct list_head head;
 	u8  index;
@@ -37,9 +38,6 @@ struct nouveau_i2c_port {
 };
 
 struct nouveau_i2c_func {
-	void (*acquire)(struct nouveau_i2c_port *);
-	void (*release)(struct nouveau_i2c_port *);
-
 	void (*drive_scl)(struct nouveau_i2c_port *, int);
 	void (*drive_sda)(struct nouveau_i2c_port *, int);
 	int  (*sense_scl)(struct nouveau_i2c_port *);
@@ -62,12 +60,16 @@ struct nouveau_i2c {
 
 	struct nouveau_i2c_port *(*find)(struct nouveau_i2c *, u8 index);
 	struct nouveau_i2c_port *(*find_type)(struct nouveau_i2c *, u16 type);
+	int  (*acquire_pad)(struct nouveau_i2c_port *, unsigned long timeout);
+	void (*release_pad)(struct nouveau_i2c_port *);
 	int  (*acquire)(struct nouveau_i2c_port *, unsigned long timeout);
 	void (*release)(struct nouveau_i2c_port *);
 	int (*identify)(struct nouveau_i2c *, int index,
 			const char *what, struct nouveau_i2c_board_info *,
 			bool (*match)(struct nouveau_i2c_port *,
 				      struct i2c_board_info *, void *), void *);
+
+	wait_queue_head_t wait;
 	struct list_head ports;
 };
 

@@ -42,8 +42,6 @@ nvd0_i2c_sense_sda(struct nouveau_i2c_port *base)
 
 static const struct nouveau_i2c_func
 nvd0_i2c_func = {
-	.acquire   = nv94_i2c_acquire,
-	.release   = nv94_i2c_release,
 	.drive_scl = nv50_i2c_drive_scl,
 	.drive_sda = nv50_i2c_drive_sda,
 	.sense_scl = nvd0_i2c_sense_scl,
@@ -106,6 +104,8 @@ nvd0_i2c_oclass = &(struct nouveau_i2c_impl) {
 		.fini = _nouveau_i2c_fini,
 	},
 	.sclass = nvd0_i2c_sclass,
+	.pad_x = &nv04_i2c_pad_oclass,
+	.pad_s = &nv94_i2c_pad_oclass,
 	.aux = 4,
 	.aux_stat = nv94_aux_stat,
 	.aux_mask = nv94_aux_mask,

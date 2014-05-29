@@ -185,26 +185,8 @@ out:
 	return ret < 0 ? ret : (stat & 0x000f0000) >> 16;
 }
 
-void
-nv94_i2c_acquire(struct nouveau_i2c_port *base)
-{
-	struct nv50_i2c_priv *priv = (void *)nv_object(base)->engine;
-	struct nv50_i2c_port *port = (void *)base;
-	if (port->ctrl) {
-		nv_mask(priv, port->ctrl + 0x0c, 0x00000001, 0x00000000);
-		nv_mask(priv, port->ctrl + 0x00, 0x0000f003, port->data);
-	}
-}
-
-void
-nv94_i2c_release(struct nouveau_i2c_port *base)
-{
-}
-
 static const struct nouveau_i2c_func
 nv94_i2c_func = {
-	.acquire   = nv94_i2c_acquire,
-	.release   = nv94_i2c_release,
 	.drive_scl = nv50_i2c_drive_scl,
 	.drive_sda = nv50_i2c_drive_sda,
 	.sense_scl = nv50_i2c_sense_scl,
@@ -241,8 +223,6 @@ nv94_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 static const struct nouveau_i2c_func
 nv94_aux_func = {
-	.acquire   = nv94_i2c_acquire,
-	.release   = nv94_i2c_release,
 	.aux       = nv94_aux,
 };
 
@@ -303,6 +283,8 @@ nv94_i2c_oclass = &(struct nouveau_i2c_impl) {
 		.fini = _nouveau_i2c_fini,
 	},
 	.sclass = nv94_i2c_sclass,
+	.pad_x = &nv04_i2c_pad_oclass,
+	.pad_s = &nv94_i2c_pad_oclass,
 	.aux = 4,
 	.aux_stat = nv94_aux_stat,
 	.aux_mask = nv94_aux_mask,

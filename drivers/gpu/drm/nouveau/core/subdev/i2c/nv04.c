@@ -126,4 +126,5 @@ nv04_i2c_oclass = &(struct nouveau_i2c_impl) {
 		.fini = _nouveau_i2c_fini,
 	},
 	.sclass = nv04_i2c_sclass,
+	.pad_x = &nv04_i2c_pad_oclass,
 }.base;
