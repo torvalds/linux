@@ -7431,7 +7431,7 @@ __perf_event_exit_task(struct perf_event *child_event,
 
 static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 {
-	struct perf_event *child_event;
+	struct perf_event *child_event, *next;
 	struct perf_event_context *child_ctx;
 	unsigned long flags;
 
@@ -7485,7 +7485,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 */
 	mutex_lock(&child_ctx->mutex);
 
-	list_for_each_entry_rcu(child_event, &child_ctx->event_list, event_entry)
+	list_for_each_entry_safe(child_event, next, &child_ctx->event_list, event_entry)
 		__perf_event_exit_task(child_event, child_ctx, child);
 
 	mutex_unlock(&child_ctx->mutex);
