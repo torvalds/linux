@@ -1696,6 +1696,13 @@ unmap_bf:
 	unmap_internal_clock(dev);
 	unmap_bf_area(dev);
 
+	if (mlx4_is_slave(dev)) {
+		kfree(dev->caps.qp0_tunnel);
+		kfree(dev->caps.qp0_proxy);
+		kfree(dev->caps.qp1_tunnel);
+		kfree(dev->caps.qp1_proxy);
+	}
+
 err_close:
 	if (mlx4_is_slave(dev))
 		mlx4_slave_exit(dev);
@@ -2564,6 +2571,13 @@ err_free_eq:
 err_master_mfunc:
 	if (mlx4_is_master(dev))
 		mlx4_multi_func_cleanup(dev);
+
+	if (mlx4_is_slave(dev)) {
+		kfree(dev->caps.qp0_tunnel);
+		kfree(dev->caps.qp0_proxy);
+		kfree(dev->caps.qp1_tunnel);
+		kfree(dev->caps.qp1_proxy);
+	}
 
 err_close:
 	if (dev->flags & MLX4_FLAG_MSI_X)
