@@ -22,6 +22,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -306,10 +307,8 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, data);
 	phy_provider = devm_of_phy_provider_register(dev, sun4i_usb_phy_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static const struct of_device_id sun4i_usb_phy_of_match[] = {
