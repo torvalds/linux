@@ -507,6 +507,7 @@ kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 #define KVM_REG_MIPS_CP0_COMPARE	MIPS_CP0_32(11, 0)
 #define KVM_REG_MIPS_CP0_STATUS		MIPS_CP0_32(12, 0)
 #define KVM_REG_MIPS_CP0_CAUSE		MIPS_CP0_32(13, 0)
+#define KVM_REG_MIPS_CP0_EPC		MIPS_CP0_64(14, 0)
 #define KVM_REG_MIPS_CP0_EBASE		MIPS_CP0_64(15, 1)
 #define KVM_REG_MIPS_CP0_CONFIG		MIPS_CP0_32(16, 0)
 #define KVM_REG_MIPS_CP0_CONFIG1	MIPS_CP0_32(16, 1)
@@ -562,7 +563,7 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_ENTRYHI,
 	KVM_REG_MIPS_CP0_STATUS,
 	KVM_REG_MIPS_CP0_CAUSE,
-	/* EPC set via kvm_regs, et al. */
+	KVM_REG_MIPS_CP0_EPC,
 	KVM_REG_MIPS_CP0_CONFIG,
 	KVM_REG_MIPS_CP0_CONFIG1,
 	KVM_REG_MIPS_CP0_CONFIG2,
@@ -614,6 +615,9 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_CAUSE:
 		v = (long)kvm_read_c0_guest_cause(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_EPC:
+		v = (long)kvm_read_c0_guest_epc(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		v = (long)kvm_read_c0_guest_errorepc(cop0);
@@ -710,6 +714,9 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_CAUSE:
 		kvm_write_c0_guest_cause(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_EPC:
+		kvm_write_c0_guest_epc(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		kvm_write_c0_guest_errorepc(cop0, v);
