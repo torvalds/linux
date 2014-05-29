@@ -135,13 +135,14 @@ config COMEDI_PCL724
 	  support driver.
 
 	  Supported boards include:
-	    Advantech PCL-724    24 channels
-	    Advantech PCL-722    144 (or 96) channels
-	    Advantech PCL-731    48 channels
-	    ADlink ACL-7122      144 (or 96) channels
-	    ADlink ACL-7124      24 channels
-	    ADlink PET-48DIO     48 channels
-	    WinSystems PCM-IO48  48 channels (PC/104)
+	    Advantech PCL-724            24 channels
+	    Advantech PCL-722            144 (or 96) channels
+	    Advantech PCL-731            48 channels
+	    ADlink ACL-7122              144 (or 96) channels
+	    ADlink ACL-7124              24 channels
+	    ADlink PET-48DIO             48 channels
+	    WinSystems PCM-IO48          48 channels (PC/104)
+	    Diamond Systems ONYX-MM-DIO  48 channels (PC/104)
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl724.
