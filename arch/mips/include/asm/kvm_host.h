@@ -523,6 +523,10 @@ struct kvm_mips_callbacks {
 			    uint32_t cause);
 	int (*irq_clear) (struct kvm_vcpu *vcpu, unsigned int priority,
 			  uint32_t cause);
+	int (*get_one_reg)(struct kvm_vcpu *vcpu,
+			   const struct kvm_one_reg *reg, s64 *v);
+	int (*set_one_reg)(struct kvm_vcpu *vcpu,
+			   const struct kvm_one_reg *reg, s64 v);
 };
 extern struct kvm_mips_callbacks *kvm_mips_callbacks;
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks);

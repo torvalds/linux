@@ -401,6 +401,40 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
+				     const struct kvm_one_reg *reg,
+				     s64 *v)
+{
+	switch (reg->id) {
+	case KVM_REG_MIPS_CP0_COUNT:
+		/* XXXKYMA: Run the Guest count register @ 1/4 the rate of the host */
+		*v = (read_c0_count() >> 2);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
+				     const struct kvm_one_reg *reg,
+				     s64 v)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+
+	switch (reg->id) {
+	case KVM_REG_MIPS_CP0_COUNT:
+		/* Not supported yet */
+		break;
+	case KVM_REG_MIPS_CP0_COMPARE:
+		kvm_write_c0_guest_compare(cop0, v);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	/* exit handlers */
 	.handle_cop_unusable = kvm_trap_emul_handle_cop_unusable,
@@ -423,6 +457,8 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.dequeue_io_int = kvm_mips_dequeue_io_int_cb,
 	.irq_deliver = kvm_mips_irq_deliver_cb,
 	.irq_clear = kvm_mips_irq_clear_cb,
+	.get_one_reg = kvm_trap_emul_get_one_reg,
+	.set_one_reg = kvm_trap_emul_set_one_reg,
 };
 
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks)

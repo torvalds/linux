@@ -529,7 +529,9 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_PAGEMASK,
 	KVM_REG_MIPS_CP0_WIRED,
 	KVM_REG_MIPS_CP0_BADVADDR,
+	KVM_REG_MIPS_CP0_COUNT,
 	KVM_REG_MIPS_CP0_ENTRYHI,
+	KVM_REG_MIPS_CP0_COMPARE,
 	KVM_REG_MIPS_CP0_STATUS,
 	KVM_REG_MIPS_CP0_CAUSE,
 	KVM_REG_MIPS_CP0_EPC,
@@ -545,6 +547,7 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int ret;
 	s64 v;
 
 	switch (reg->id) {
@@ -579,6 +582,9 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_ENTRYHI:
 		v = (long)kvm_read_c0_guest_entryhi(cop0);
 		break;
+	case KVM_REG_MIPS_CP0_COMPARE:
+		v = (long)kvm_read_c0_guest_compare(cop0);
+		break;
 	case KVM_REG_MIPS_CP0_STATUS:
 		v = (long)kvm_read_c0_guest_status(cop0);
 		break;
@@ -605,6 +611,12 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_CONFIG7:
 		v = (long)kvm_read_c0_guest_config7(cop0);
+		break;
+	/* registers to be handled specially */
+	case KVM_REG_MIPS_CP0_COUNT:
+		ret = kvm_mips_callbacks->get_one_reg(vcpu, reg, &v);
+		if (ret)
+			return ret;
 		break;
 	default:
 		return -EINVAL;
@@ -690,6 +702,10 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		kvm_write_c0_guest_errorepc(cop0, v);
 		break;
+	/* registers to be handled specially */
+	case KVM_REG_MIPS_CP0_COUNT:
+	case KVM_REG_MIPS_CP0_COMPARE:
+		return kvm_mips_callbacks->set_one_reg(vcpu, reg, v);
 	default:
 		return -EINVAL;
 	}
