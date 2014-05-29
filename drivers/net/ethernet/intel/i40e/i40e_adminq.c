@@ -587,8 +587,7 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_HI, &eetrack_hi);
 	hw->nvm.eetrack = (eetrack_hi << 16) | eetrack_lo;
 
-	if (hw->aq.api_maj_ver != I40E_FW_API_VERSION_MAJOR ||
-	    hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR) {
+	if (hw->aq.api_maj_ver > I40E_FW_API_VERSION_MAJOR) {
 		ret_code = I40E_ERR_FIRMWARE_API_VERSION;
 		goto init_adminq_free_arq;
 	}
