@@ -48,7 +48,7 @@ exynos_dpi_detect(struct drm_connector *connector, bool force)
 
 static void exynos_dpi_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
@@ -117,7 +117,7 @@ static int exynos_dpi_create_connector(struct exynos_drm_display *display,
 	}
 
 	drm_connector_helper_add(connector, &exynos_dpi_connector_helper_funcs);
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;

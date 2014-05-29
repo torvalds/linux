@@ -2431,7 +2431,7 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	connector->base.unregister = intel_sdvo_connector_unregister;
 
 	intel_connector_attach_encoder(&connector->base, &encoder->base);
-	ret = drm_sysfs_connector_add(drm_connector);
+	ret = drm_connector_register(drm_connector);
 	if (ret < 0)
 		goto err1;
 
@@ -2444,7 +2444,7 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	return 0;
 
 err2:
-	drm_sysfs_connector_remove(drm_connector);
+	drm_connector_unregister(drm_connector);
 err1:
 	drm_connector_cleanup(drm_connector);
 
@@ -2557,7 +2557,7 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 	return true;
 
 err:
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	intel_sdvo_destroy(connector);
 	return false;
 }
@@ -2636,7 +2636,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	return true;
 
 err:
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	intel_sdvo_destroy(connector);
 	return false;
 }
@@ -2709,7 +2709,7 @@ static void intel_sdvo_output_cleanup(struct intel_sdvo *intel_sdvo)
 	list_for_each_entry_safe(connector, tmp,
 				 &dev->mode_config.connector_list, head) {
 		if (intel_attached_encoder(connector) == &intel_sdvo->base) {
-			drm_sysfs_connector_remove(connector);
+			drm_connector_unregister(connector);
 			intel_sdvo_destroy(connector);
 		}
 	}

@@ -298,7 +298,7 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 
 	hdp_disable(hdmi_connector);
 
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 
 	hdmi_unreference(hdmi_connector->hdmi);
@@ -408,7 +408,7 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	ret = hpd_enable(hdmi_connector);
 	if (ret) {

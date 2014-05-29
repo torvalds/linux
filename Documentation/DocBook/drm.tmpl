@@ -1610,7 +1610,7 @@ int max_width, max_height;</synopsis>
           The connector is then registered with a call to
           <function>drm_connector_init</function> with a pointer to the connector
           functions and a connector type, and exposed through sysfs with a call to
-          <function>drm_sysfs_connector_add</function>.
+          <function>drm_connector_register</function>.
         </para>
         <para>
           Supported connector types are
@@ -1768,7 +1768,7 @@ int max_width, max_height;</synopsis>
 	(<function>drm_encoder_cleanup</function>) and connectors
 	(<function>drm_connector_cleanup</function>). Furthermore, connectors
 	that have been added to sysfs must be removed by a call to
-	<function>drm_sysfs_connector_remove</function> before calling
+	<function>drm_connector_unregister</function> before calling
 	<function>drm_connector_cleanup</function>.
       </para>
       <para>
@@ -1813,7 +1813,7 @@ void intel_crt_init(struct drm_device *dev)
 	drm_encoder_helper_add(&intel_output->enc, &intel_crt_helper_funcs);
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 }]]></programlisting>
       <para>
         In the example above (taken from the i915 driver), a CRTC, connector and
