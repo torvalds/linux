@@ -1186,7 +1186,6 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 
 	info->input->name = "Headset";
 	info->input->phys = "arizona/extcon";
-	info->input->dev.parent = &pdev->dev;
 
 	if (pdata->num_micd_configs) {
 		info->micd_modes = pdata->micd_configs;
