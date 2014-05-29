@@ -93,6 +93,58 @@ static int ke_counter_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void ke_counter_reset(struct comedi_device *dev)
+{
+	unsigned int chan;
+
+	for (chan = 0; chan < 3; chan++)
+		outb(0, dev->iobase + KE_RESET_REG(chan));
+}
+
+static int ke_counter_insn_config(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	switch (data[0]) {
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		switch (data[1]) {
+		case KE_OSC_SEL_EXT:	/* Pin 21 on D-sub */
+		case KE_OSC_SEL_4MHZ:	/* option */
+		case KE_OSC_SEL_20MHZ:	/* default */
+			break;
+		default:
+			return -EINVAL;
+		}
+		outb(data[1], dev->iobase + KE_OSC_SEL_REG);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		data[1] = inb(dev->iobase + KE_OSC_SEL_REG);
+		switch (data[1]) {
+		case KE_OSC_SEL_EXT:
+			data[2] = 0;	/* Unknown */
+			break;
+		case KE_OSC_SEL_4MHZ:
+			data[2] = 250;	/* 250ns */
+			break;
+		case KE_OSC_SEL_20MHZ:
+			data[2] = 50;	/* 50ns */
+			break;
+		default:
+			data[2] = 0;	/* Invalid? */
+			break;
+		}
+		break;
+	case INSN_CONFIG_RESET:
+		ke_counter_reset(dev);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
 static int ke_counter_do_insn_bits(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
@@ -130,6 +182,7 @@ static int ke_counter_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_unknown;
 	s->insn_read	= ke_counter_insn_read;
 	s->insn_write	= ke_counter_insn_write;
+	s->insn_config	= ke_counter_insn_config;
 
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
@@ -141,9 +194,7 @@ static int ke_counter_auto_attach(struct comedi_device *dev,
 
 	outb(KE_OSC_SEL_20MHZ, dev->iobase + KE_OSC_SEL_REG);
 
-	outb(0, dev->iobase + KE_RESET_REG(0));
-	outb(0, dev->iobase + KE_RESET_REG(1));
-	outb(0, dev->iobase + KE_RESET_REG(2));
+	ke_counter_reset(dev);
 
 	return 0;
 }
