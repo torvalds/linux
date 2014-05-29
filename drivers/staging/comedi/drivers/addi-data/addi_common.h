@@ -18,11 +18,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#define ADDIDATA_EEPROM		1
-#define ADDIDATA_NO_EEPROM	0
-#define ADDIDATA_93C76		"93C76"
-#define ADDIDATA_S5920		"S5920"
-
 struct addi_board {
 	const char *pc_DriverName;	/*  driver name */
 	int i_IorangeBase1;

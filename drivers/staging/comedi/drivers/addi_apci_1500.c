@@ -15,7 +15,7 @@ static const struct addi_board apci1500_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci1500",
 		.i_IorangeBase1		= APCI1500_ADDRESS_RANGE,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
+		.i_PCIEeprom		= 0,
 		.i_NbrDiChannel		= 16,
 		.i_NbrDoChannel		= 16,
 		.i_DoMaxdata		= 0xffff,
