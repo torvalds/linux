@@ -482,15 +482,74 @@ struct kvm_vcpu_arch {
 #define kvm_read_c0_guest_errorepc(cop0)	(cop0->reg[MIPS_CP0_ERROR_PC][0])
 #define kvm_write_c0_guest_errorepc(cop0, val)	(cop0->reg[MIPS_CP0_ERROR_PC][0] = (val))
 
+/*
+ * Some of the guest registers may be modified asynchronously (e.g. from a
+ * hrtimer callback in hard irq context) and therefore need stronger atomicity
+ * guarantees than other registers.
+ */
+
+static inline void _kvm_atomic_set_c0_guest_reg(unsigned long *reg,
+						unsigned long val)
+{
+	unsigned long temp;
+	do {
+		__asm__ __volatile__(
+		"	.set	mips3				\n"
+		"	" __LL "%0, %1				\n"
+		"	or	%0, %2				\n"
+		"	" __SC	"%0, %1				\n"
+		"	.set	mips0				\n"
+		: "=&r" (temp), "+m" (*reg)
+		: "r" (val));
+	} while (unlikely(!temp));
+}
+
+static inline void _kvm_atomic_clear_c0_guest_reg(unsigned long *reg,
+						  unsigned long val)
+{
+	unsigned long temp;
+	do {
+		__asm__ __volatile__(
+		"	.set	mips3				\n"
+		"	" __LL "%0, %1				\n"
+		"	and	%0, %2				\n"
+		"	" __SC	"%0, %1				\n"
+		"	.set	mips0				\n"
+		: "=&r" (temp), "+m" (*reg)
+		: "r" (~val));
+	} while (unlikely(!temp));
+}
+
+static inline void _kvm_atomic_change_c0_guest_reg(unsigned long *reg,
+						   unsigned long change,
+						   unsigned long val)
+{
+	unsigned long temp;
+	do {
+		__asm__ __volatile__(
+		"	.set	mips3				\n"
+		"	" __LL "%0, %1				\n"
+		"	and	%0, %2				\n"
+		"	or	%0, %3				\n"
+		"	" __SC	"%0, %1				\n"
+		"	.set	mips0				\n"
+		: "=&r" (temp), "+m" (*reg)
+		: "r" (~change), "r" (val & change));
+	} while (unlikely(!temp));
+}
+
 #define kvm_set_c0_guest_status(cop0, val)	(cop0->reg[MIPS_CP0_STATUS][0] |= (val))
 #define kvm_clear_c0_guest_status(cop0, val)	(cop0->reg[MIPS_CP0_STATUS][0] &= ~(val))
-#define kvm_set_c0_guest_cause(cop0, val)	(cop0->reg[MIPS_CP0_CAUSE][0] |= (val))
-#define kvm_clear_c0_guest_cause(cop0, val)	(cop0->reg[MIPS_CP0_CAUSE][0] &= ~(val))
+
+/* Cause can be modified asynchronously from hardirq hrtimer callback */
+#define kvm_set_c0_guest_cause(cop0, val)				\
+	_kvm_atomic_set_c0_guest_reg(&cop0->reg[MIPS_CP0_CAUSE][0], val)
+#define kvm_clear_c0_guest_cause(cop0, val)				\
+	_kvm_atomic_clear_c0_guest_reg(&cop0->reg[MIPS_CP0_CAUSE][0], val)
 #define kvm_change_c0_guest_cause(cop0, change, val)			\
-{									\
-	kvm_clear_c0_guest_cause(cop0, change);				\
-	kvm_set_c0_guest_cause(cop0, ((val) & (change)));		\
-}
+	_kvm_atomic_change_c0_guest_reg(&cop0->reg[MIPS_CP0_CAUSE][0],	\
+					change, val)
+
 #define kvm_set_c0_guest_ebase(cop0, val)	(cop0->reg[MIPS_CP0_PRID][1] |= (val))
 #define kvm_clear_c0_guest_ebase(cop0, val)	(cop0->reg[MIPS_CP0_PRID][1] &= ~(val))
 #define kvm_change_c0_guest_ebase(cop0, change, val)			\
