@@ -346,6 +346,12 @@ static void SA5_submit_command(struct ctlr_info *h,
 	(void) readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
 }
 
+static void SA5_submit_command_no_read(struct ctlr_info *h,
+	struct CommandList *c)
+{
+	writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
+}
+
 static void SA5_submit_command_ioaccel2(struct ctlr_info *h,
 	struct CommandList *c)
 {
@@ -353,7 +359,6 @@ static void SA5_submit_command_ioaccel2(struct ctlr_info *h,
 		writel(c->busaddr, h->vaddr + IOACCEL2_INBOUND_POSTQ_32);
 	else
 		writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
-	(void) readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
 }
 
 /*
@@ -558,6 +563,14 @@ static struct access_method SA5_ioaccel_mode2_access = {
 
 static struct access_method SA5_performant_access = {
 	SA5_submit_command,
+	SA5_performant_intr_mask,
+	SA5_fifo_full,
+	SA5_performant_intr_pending,
+	SA5_performant_completed,
+};
+
+static struct access_method SA5_performant_access_no_read = {
+	SA5_submit_command_no_read,
 	SA5_performant_intr_mask,
 	SA5_fifo_full,
 	SA5_performant_intr_pending,
