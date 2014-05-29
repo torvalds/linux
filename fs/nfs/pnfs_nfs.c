@@ -553,7 +553,8 @@ static void nfs4_clear_ds_conn_bit(struct nfs4_pnfs_ds *ds)
 static int _nfs4_pnfs_ds_connect(struct nfs_server *mds_srv,
 				 struct nfs4_pnfs_ds *ds,
 				 unsigned int timeo,
-				 unsigned int retrans)
+				 unsigned int retrans,
+				 rpc_authflavor_t au_flavor)
 {
 	struct nfs_client *clp = ERR_PTR(-EIO);
 	struct nfs4_pnfs_ds_addr *da;
@@ -569,7 +570,7 @@ static int _nfs4_pnfs_ds_connect(struct nfs_server *mds_srv,
 		clp = nfs4_set_ds_client(mds_srv->nfs_client,
 					(struct sockaddr *)&da->da_addr,
 					da->da_addrlen, IPPROTO_TCP,
-					timeo, retrans);
+					timeo, retrans, au_flavor);
 		if (!IS_ERR(clp))
 			break;
 	}
@@ -600,12 +601,13 @@ out_put:
  */
 void nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 			  struct nfs4_deviceid_node *devid, unsigned int timeo,
-			  unsigned int retrans)
+			  unsigned int retrans, rpc_authflavor_t au_flavor)
 {
 	if (test_and_set_bit(NFS4DS_CONNECTING, &ds->ds_state) == 0) {
 		int err = 0;
 
-		err = _nfs4_pnfs_ds_connect(mds_srv, ds, timeo, retrans);
+		err = _nfs4_pnfs_ds_connect(mds_srv, ds, timeo,
+					    retrans, au_flavor);
 		if (err)
 			nfs4_mark_deviceid_unavailable(devid);
 		nfs4_clear_ds_conn_bit(ds);

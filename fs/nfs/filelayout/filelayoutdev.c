@@ -278,7 +278,8 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 		goto out_test_devid;
 
 	nfs4_pnfs_ds_connect(s, ds, devid, dataserver_timeo,
-			     dataserver_retrans);
+			     dataserver_retrans,
+			     s->nfs_client->cl_rpcclient->cl_auth->au_flavor);
 
 out_test_devid:
 	if (filelayout_test_devid_unavailable(devid))
