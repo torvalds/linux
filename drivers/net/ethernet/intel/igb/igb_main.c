@@ -2433,6 +2433,12 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* get firmware version for ethtool -i */
 	igb_set_fw_version(adapter);
 
+	/* configure RXPBSIZE and TXPBSIZE */
+	if (hw->mac.type == e1000_i210) {
+		wr32(E1000_RXPBS, I210_RXPBSIZE_DEFAULT);
+		wr32(E1000_TXPBS, I210_TXPBSIZE_DEFAULT);
+	}
+
 	setup_timer(&adapter->watchdog_timer, igb_watchdog,
 		    (unsigned long) adapter);
 	setup_timer(&adapter->phy_info_timer, igb_update_phy_info,

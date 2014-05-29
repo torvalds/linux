@@ -192,6 +192,10 @@
 				    : (0x0E038 + ((_n) * 0x40)))
 #define E1000_TDWBAH(_n)  ((_n) < 4 ? (0x0383C + ((_n) * 0x100)) \
 				    : (0x0E03C + ((_n) * 0x40)))
+
+#define E1000_RXPBS	0x02404  /* Rx Packet Buffer Size - RW */
+#define E1000_TXPBS	0x03404  /* Tx Packet Buffer Size - RW */
+
 #define E1000_TDFH     0x03410  /* TX Data FIFO Head - RW */
 #define E1000_TDFT     0x03418  /* TX Data FIFO Tail - RW */
 #define E1000_TDFHS    0x03420  /* TX Data FIFO Head Saved - RW */
