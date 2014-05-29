@@ -14,6 +14,8 @@
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
 
+#include "irqchip.h"
+
 #define IRQ_STATUS		0x00
 #define IRQ_RAW_STATUS		0x04
 #define IRQ_ENABLE_SET		0x08
@@ -201,8 +203,10 @@ int __init fpga_irq_of_init(struct device_node *node,
 
 	/* Some chips are cascaded from a parent IRQ */
 	parent_irq = irq_of_parse_and_map(node, 0);
-	if (!parent_irq)
+	if (!parent_irq) {
+		set_handle_irq(fpga_handle_irq);
 		parent_irq = -1;
+	}
 
 	fpga_irq_init(base, node->name, 0, parent_irq, valid_mask, node);
 
@@ -211,4 +215,5 @@ int __init fpga_irq_of_init(struct device_node *node,
 
 	return 0;
 }
+IRQCHIP_DECLARE(arm_fpga, "arm,versatile-fpga-irq", fpga_irq_of_init);
 #endif
