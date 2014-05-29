@@ -187,6 +187,7 @@ static int __find_i2c_adap(struct device *dev, void *data)
 	struct i2c_lookup *lookup = data;
 	static const char *prefix = "i2c-";
 	struct i2c_adapter *adapter;
+
 	if (strncmp(dev_name(dev), prefix, strlen(prefix)) != 0)
 		return 0;
 	adapter = to_i2c_adapter(dev);
@@ -248,6 +249,7 @@ static struct i2c_client *add_i2c_device(const char *name,
 						struct i2c_board_info *info)
 {
 	const unsigned short addr_list[] = { info->addr, I2C_CLIENT_END };
+
 	return __add_probed_i2c_device(name,
 				       find_i2c_adapter_num(type),
 				       info,
@@ -542,6 +544,7 @@ static struct platform_driver cros_platform_driver = {
 static int __init chromeos_laptop_init(void)
 {
 	int ret;
+
 	if (!dmi_check_system(chromeos_laptop_dmi_table)) {
 		pr_debug("%s unsupported system.\n", __func__);
 		return -ENODEV;
