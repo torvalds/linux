@@ -59,7 +59,6 @@ struct sample {
 	int32_t core_pct_busy;
 	u64 aperf;
 	u64 mperf;
-	unsigned long long tsc;
 	int freq;
 };
 
@@ -100,7 +99,6 @@ struct cpudata {
 
 	u64	prev_aperf;
 	u64	prev_mperf;
-	unsigned long long prev_tsc;
 	struct sample sample;
 };
 
@@ -561,46 +559,37 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu,
 					struct sample *sample)
 {
 	int32_t core_pct;
-	int32_t c0_pct;
 
 	core_pct = div_fp(int_tofp((sample->aperf)),
 			int_tofp((sample->mperf)));
 	core_pct = mul_fp(core_pct, int_tofp(100));
 	FP_ROUNDUP(core_pct);
 
-	c0_pct = div_fp(int_tofp(sample->mperf), int_tofp(sample->tsc));
-
 	sample->freq = fp_toint(
 		mul_fp(int_tofp(cpu->pstate.max_pstate * 1000), core_pct));
 
-	sample->core_pct_busy = mul_fp(core_pct, c0_pct);
+	sample->core_pct_busy = core_pct;
 }
 
 static inline void intel_pstate_sample(struct cpudata *cpu)
 {
 	u64 aperf, mperf;
-	unsigned long long tsc;
 
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
-	tsc = native_read_tsc();
 
 	aperf = aperf >> FRAC_BITS;
 	mperf = mperf >> FRAC_BITS;
-	tsc = tsc >> FRAC_BITS;
 
 	cpu->sample.aperf = aperf;
 	cpu->sample.mperf = mperf;
-	cpu->sample.tsc = tsc;
 	cpu->sample.aperf -= cpu->prev_aperf;
 	cpu->sample.mperf -= cpu->prev_mperf;
-	cpu->sample.tsc -= cpu->prev_tsc;
 
 	intel_pstate_calc_busy(cpu, &cpu->sample);
 
 	cpu->prev_aperf = aperf;
 	cpu->prev_mperf = mperf;
-	cpu->prev_tsc = tsc;
 }
 
 static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
