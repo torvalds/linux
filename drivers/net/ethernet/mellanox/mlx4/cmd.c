@@ -1666,6 +1666,8 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 	for (port = min_port; port <= max_port; port++) {
 		if (!test_bit(port - 1, actv_ports.ports))
 			continue;
+		priv->mfunc.master.vf_oper[slave].smi_enabled[port] =
+			priv->mfunc.master.vf_admin[slave].enable_smi[port];
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		vp_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
 		vp_oper->state = *vp_admin;
@@ -1717,6 +1719,8 @@ static void mlx4_master_deactivate_admin_state(struct mlx4_priv *priv, int slave
 	for (port = min_port; port <= max_port; port++) {
 		if (!test_bit(port - 1, actv_ports.ports))
 			continue;
+		priv->mfunc.master.vf_oper[slave].smi_enabled[port] =
+			MLX4_VF_SMI_DISABLED;
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		if (NO_INDX != vp_oper->vlan_idx) {
 			__mlx4_unregister_vlan(&priv->dev,
@@ -2553,6 +2557,13 @@ EXPORT_SYMBOL_GPL(mlx4_set_vf_link_state);
 
 int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port)
 {
-	return 0;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS)
+		return 0;
+
+	return priv->mfunc.master.vf_oper[slave].smi_enabled[port] ==
+		MLX4_VF_SMI_ENABLED;
 }
 EXPORT_SYMBOL_GPL(mlx4_vf_smi_enabled);

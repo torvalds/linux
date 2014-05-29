@@ -133,6 +133,11 @@ enum {
 	MLX4_COMM_CMD_FLR = 254
 };
 
+enum {
+	MLX4_VF_SMI_DISABLED,
+	MLX4_VF_SMI_ENABLED
+};
+
 /*The flag indicates that the slave should delay the RESET cmd*/
 #define MLX4_DELAY_RESET_SLAVE 0xbbbbbbb
 /*indicates how many retries will be done if we are in the middle of FLR*/
@@ -488,6 +493,7 @@ struct mlx4_vport_state {
 
 struct mlx4_vf_admin_state {
 	struct mlx4_vport_state vport[MLX4_MAX_PORTS + 1];
+	u8 enable_smi[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_vport_oper_state {
@@ -495,8 +501,10 @@ struct mlx4_vport_oper_state {
 	int mac_idx;
 	int vlan_idx;
 };
+
 struct mlx4_vf_oper_state {
 	struct mlx4_vport_oper_state vport[MLX4_MAX_PORTS + 1];
+	u8 smi_enabled[MLX4_MAX_PORTS + 1];
 };
 
 struct slave_list {

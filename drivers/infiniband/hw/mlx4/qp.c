@@ -608,6 +608,16 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 	return !attr->srq;
 }
 
+static int qp0_enabled_vf(struct mlx4_dev *dev, int qpn)
+{
+	int i;
+	for (i = 0; i < dev->caps.num_ports; i++) {
+		if (qpn == dev->caps.qp0_proxy[i])
+			return !!dev->caps.qp0_qkey[i];
+	}
+	return 0;
+}
+
 static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata, int sqpn, struct mlx4_ib_qp **caller_qp)
@@ -625,10 +635,13 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		     !(init_attr->create_flags & MLX4_IB_SRIOV_SQP))) {
 			if (init_attr->qp_type == IB_QPT_GSI)
 				qp_type = MLX4_IB_QPT_PROXY_GSI;
-			else if (mlx4_is_master(dev->dev))
-				qp_type = MLX4_IB_QPT_PROXY_SMI_OWNER;
-			else
-				qp_type = MLX4_IB_QPT_PROXY_SMI;
+			else {
+				if (mlx4_is_master(dev->dev) ||
+				    qp0_enabled_vf(dev->dev, sqpn))
+					qp_type = MLX4_IB_QPT_PROXY_SMI_OWNER;
+				else
+					qp_type = MLX4_IB_QPT_PROXY_SMI;
+			}
 		}
 		qpn = sqpn;
 		/* add extra sg entry for tunneling */
@@ -643,7 +656,9 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			return -EINVAL;
 		if (tnl_init->proxy_qp_type == IB_QPT_GSI)
 			qp_type = MLX4_IB_QPT_TUN_GSI;
-		else if (tnl_init->slave == mlx4_master_func_num(dev->dev))
+		else if (tnl_init->slave == mlx4_master_func_num(dev->dev) ||
+			 mlx4_vf_smi_enabled(dev->dev, tnl_init->slave,
+					     tnl_init->port))
 			qp_type = MLX4_IB_QPT_TUN_SMI_OWNER;
 		else
 			qp_type = MLX4_IB_QPT_TUN_SMI;
@@ -1930,6 +1945,19 @@ out:
 	return err;
 }
 
+static int vf_get_qp0_qkey(struct mlx4_dev *dev, int qpn, u32 *qkey)
+{
+	int i;
+	for (i = 0; i < dev->caps.num_ports; i++) {
+		if (qpn == dev->caps.qp0_proxy[i] ||
+		    qpn == dev->caps.qp0_tunnel[i]) {
+			*qkey = dev->caps.qp0_qkey[i];
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
 static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 				  struct ib_send_wr *wr,
 				  void *wqe, unsigned *mlx_seg_len)
@@ -1987,8 +2015,13 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 			cpu_to_be32(mdev->dev->caps.qp0_tunnel[sqp->qp.port - 1]);
 
 	sqp->ud_header.bth.psn = cpu_to_be32((sqp->send_psn++) & ((1 << 24) - 1));
-	if (mlx4_get_parav_qkey(mdev->dev, sqp->qp.mqp.qpn, &qkey))
-		return -EINVAL;
+	if (mlx4_is_master(mdev->dev)) {
+		if (mlx4_get_parav_qkey(mdev->dev, sqp->qp.mqp.qpn, &qkey))
+			return -EINVAL;
+	} else {
+		if (vf_get_qp0_qkey(mdev->dev, sqp->qp.mqp.qpn, &qkey))
+			return -EINVAL;
+	}
 	sqp->ud_header.deth.qkey = cpu_to_be32(qkey);
 	sqp->ud_header.deth.source_qpn = cpu_to_be32(sqp->qp.mqp.qpn);
 
@@ -2682,11 +2715,6 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case MLX4_IB_QPT_PROXY_SMI_OWNER:
-			if (unlikely(!mlx4_is_master(to_mdev(ibqp->device)->dev))) {
-				err = -ENOSYS;
-				*bad_wr = wr;
-				goto out;
-			}
 			err = build_sriov_qp0_header(to_msqp(qp), wr, ctrl, &seglen);
 			if (unlikely(err)) {
 				*bad_wr = wr;
