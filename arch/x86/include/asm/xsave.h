@@ -145,6 +145,16 @@ static inline int fpu_xrstor_checking(struct xsave_struct *fx)
 	return xrstor_state(fx, -1);
 }
 
+/*
+ * Save xstate to user space xsave area.
+ *
+ * We don't use modified optimization because xrstor/xrstors might track
+ * a different application.
+ *
+ * We don't use compacted format xsave area for
+ * backward compatibility for old applications which don't understand
+ * compacted format of xsave area.
+ */
 static inline int xsave_user(struct xsave_struct __user *buf)
 {
 	int err;
@@ -158,35 +168,28 @@ static inline int xsave_user(struct xsave_struct __user *buf)
 		return -EFAULT;
 
 	__asm__ __volatile__(ASM_STAC "\n"
-			     "1: .byte " REX_PREFIX "0x0f,0xae,0x27\n"
+			     "1:"XSAVE"\n"
 			     "2: " ASM_CLAC "\n"
-			     ".section .fixup,\"ax\"\n"
-			     "3:  movl $-1,%[err]\n"
-			     "    jmp  2b\n"
-			     ".previous\n"
-			     _ASM_EXTABLE(1b,3b)
-			     : [err] "=r" (err)
+			     xstate_fault
 			     : "D" (buf), "a" (-1), "d" (-1), "0" (0)
 			     : "memory");
 	return err;
 }
 
+/*
+ * Restore xstate from user space xsave area.
+ */
 static inline int xrestore_user(struct xsave_struct __user *buf, u64 mask)
 {
-	int err;
+	int err = 0;
 	struct xsave_struct *xstate = ((__force struct xsave_struct *)buf);
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 
 	__asm__ __volatile__(ASM_STAC "\n"
-			     "1: .byte " REX_PREFIX "0x0f,0xae,0x2f\n"
+			     "1:"XRSTOR"\n"
 			     "2: " ASM_CLAC "\n"
-			     ".section .fixup,\"ax\"\n"
-			     "3:  movl $-1,%[err]\n"
-			     "    jmp  2b\n"
-			     ".previous\n"
-			     _ASM_EXTABLE(1b,3b)
-			     : [err] "=r" (err)
+			     xstate_fault
 			     : "D" (xstate), "a" (lmask), "d" (hmask), "0" (0)
 			     : "memory");	/* memory required? */
 	return err;
