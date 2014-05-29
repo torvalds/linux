@@ -5488,8 +5488,6 @@ static void start_io(struct ctlr_info *h)
 		 * condition.
 		 */
 		h->commands_outstanding++;
-		if (h->commands_outstanding > h->max_outstanding)
-			h->max_outstanding = h->commands_outstanding;
 
 		/* Tell the controller execute command */
 		spin_unlock_irqrestore(&h->lock, flags);
