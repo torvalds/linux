@@ -656,7 +656,7 @@ static int dib8000_sad_calib(struct dib8000_state *state)
 	return 0;
 }
 
-int dib8000_set_wbd_ref(struct dvb_frontend *fe, u16 value)
+static int dib8000_set_wbd_ref(struct dvb_frontend *fe, u16 value)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	if (value > 4095)
@@ -664,7 +664,6 @@ int dib8000_set_wbd_ref(struct dvb_frontend *fe, u16 value)
 	state->wbd_ref = value;
 	return dib8000_write_word(state, 106, value);
 }
-EXPORT_SYMBOL(dib8000_set_wbd_ref);
 
 static void dib8000_reset_pll_common(struct dib8000_state *state, const struct dibx000_bandwidth_config *bw)
 {
@@ -739,7 +738,7 @@ static void dib8000_reset_pll(struct dib8000_state *state)
 	dib8000_reset_pll_common(state, pll);
 }
 
-int dib8000_update_pll(struct dvb_frontend *fe,
+static int dib8000_update_pll(struct dvb_frontend *fe,
 		struct dibx000_bandwidth_config *pll, u32 bw, u8 ratio)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
@@ -815,8 +814,6 @@ int dib8000_update_pll(struct dvb_frontend *fe,
 
 	return 0;
 }
-EXPORT_SYMBOL(dib8000_update_pll);
-
 
 static int dib8000_reset_gpio(struct dib8000_state *st)
 {
@@ -849,13 +846,12 @@ static int dib8000_cfg_gpio(struct dib8000_state *st, u8 num, u8 dir, u8 val)
 	return 0;
 }
 
-int dib8000_set_gpio(struct dvb_frontend *fe, u8 num, u8 dir, u8 val)
+static int dib8000_set_gpio(struct dvb_frontend *fe, u8 num, u8 dir, u8 val)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	return dib8000_cfg_gpio(state, num, dir, val);
 }
 
-EXPORT_SYMBOL(dib8000_set_gpio);
 static const u16 dib8000_defaults[] = {
 	/* auto search configuration - lock0 by default waiting
 	 * for cpil_lock; lock1 cpil_lock; lock2 tmcc_sync_lock */
@@ -1228,13 +1224,12 @@ static int dib8000_set_agc_config(struct dib8000_state *state, u8 band)
 	return 0;
 }
 
-void dib8000_pwm_agc_reset(struct dvb_frontend *fe)
+static void dib8000_pwm_agc_reset(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	dib8000_set_adc_state(state, DIBX000_ADC_ON);
 	dib8000_set_agc_config(state, (unsigned char)(BAND_OF_FREQUENCY(fe->dtv_property_cache.frequency / 1000)));
 }
-EXPORT_SYMBOL(dib8000_pwm_agc_reset);
 
 static int dib8000_agc_soft_split(struct dib8000_state *state)
 {
@@ -1881,14 +1876,13 @@ static struct i2c_algorithm dib8096p_tuner_xfer_algo = {
 	.functionality = dib8096p_i2c_func,
 };
 
-struct i2c_adapter *dib8096p_get_i2c_tuner(struct dvb_frontend *fe)
+static struct i2c_adapter *dib8096p_get_i2c_tuner(struct dvb_frontend *fe)
 {
 	struct dib8000_state *st = fe->demodulator_priv;
 	return &st->dib8096p_tuner_adap;
 }
-EXPORT_SYMBOL(dib8096p_get_i2c_tuner);
 
-int dib8096p_tuner_sleep(struct dvb_frontend *fe, int onoff)
+static int dib8096p_tuner_sleep(struct dvb_frontend *fe, int onoff)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u16 en_cur_state;
@@ -1912,14 +1906,13 @@ int dib8096p_tuner_sleep(struct dvb_frontend *fe, int onoff)
 
 	return 0;
 }
-EXPORT_SYMBOL(dib8096p_tuner_sleep);
 
 static const s32 lut_1000ln_mant[] =
 {
 	908, 7003, 7090, 7170, 7244, 7313, 7377, 7438, 7495, 7549, 7600
 };
 
-s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode)
+static s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u32 ix = 0, tmp_val = 0, exp = 0, mant = 0;
@@ -1937,9 +1930,8 @@ s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode)
 	}
 	return val;
 }
-EXPORT_SYMBOL(dib8000_get_adc_power);
 
-int dib8090p_get_dc_power(struct dvb_frontend *fe, u8 IQ)
+static int dib8090p_get_dc_power(struct dvb_frontend *fe, u8 IQ)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	int val = 0;
@@ -1957,7 +1949,6 @@ int dib8090p_get_dc_power(struct dvb_frontend *fe, u8 IQ)
 
 	return val;
 }
-EXPORT_SYMBOL(dib8090p_get_dc_power);
 
 static void dib8000_update_timf(struct dib8000_state *state)
 {
@@ -1968,7 +1959,7 @@ static void dib8000_update_timf(struct dib8000_state *state)
 	dprintk("Updated timing frequency: %d (default: %d)", state->timf, state->timf_default);
 }
 
-u32 dib8000_ctrl_timf(struct dvb_frontend *fe, uint8_t op, uint32_t timf)
+static u32 dib8000_ctrl_timf(struct dvb_frontend *fe, uint8_t op, uint32_t timf)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 
@@ -1986,7 +1977,6 @@ u32 dib8000_ctrl_timf(struct dvb_frontend *fe, uint8_t op, uint32_t timf)
 
 	return state->timf;
 }
-EXPORT_SYMBOL(dib8000_ctrl_timf);
 
 static const u16 adc_target_16dB[11] = {
 	(1 << 13) - 825 - 117,
@@ -2870,21 +2860,19 @@ static s32 dib8000_get_status(struct dvb_frontend *fe)
 	return state->status;
 }
 
-enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe)
+static enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	return state->tune_state;
 }
-EXPORT_SYMBOL(dib8000_get_tune_state);
 
-int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state)
+static int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 
 	state->tune_state = tune_state;
 	return 0;
 }
-EXPORT_SYMBOL(dib8000_set_tune_state);
 
 static int dib8000_tune_restart_from_demod(struct dvb_frontend *fe)
 {
@@ -4201,7 +4189,7 @@ static int dib8000_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 	return 0;
 }
 
-int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave)
+static int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u8 index_frontend = 1;
@@ -4217,9 +4205,8 @@ int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_
 	dprintk("too many slave frontend");
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(dib8000_set_slave_frontend);
 
-int dib8000_remove_slave_frontend(struct dvb_frontend *fe)
+static int dib8000_remove_slave_frontend(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u8 index_frontend = 1;
@@ -4235,9 +4222,8 @@ int dib8000_remove_slave_frontend(struct dvb_frontend *fe)
 	dprintk("no frontend to be removed");
 	return -ENODEV;
 }
-EXPORT_SYMBOL(dib8000_remove_slave_frontend);
 
-struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
+static struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 
@@ -4245,10 +4231,8 @@ struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int sla
 		return NULL;
 	return state->fe[slave_index];
 }
-EXPORT_SYMBOL(dib8000_get_slave_frontend);
 
-
-int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
+static int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
 		u8 default_addr, u8 first_addr, u8 is_dib8096p)
 {
 	int k = 0, ret = 0;
@@ -4325,7 +4309,6 @@ error_memory_read:
 	return ret;
 }
 
-EXPORT_SYMBOL(dib8000_i2c_enumeration);
 static int dib8000_fe_get_tune_settings(struct dvb_frontend *fe, struct dvb_frontend_tune_settings *tune)
 {
 	tune->min_delay_ms = 1000;
@@ -4348,15 +4331,13 @@ static void dib8000_release(struct dvb_frontend *fe)
 	kfree(st);
 }
 
-struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *fe, enum dibx000_i2c_interface intf, int gating)
+static struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *fe, enum dibx000_i2c_interface intf, int gating)
 {
 	struct dib8000_state *st = fe->demodulator_priv;
 	return dibx000_get_i2c_adapter(&st->i2c_master, intf, gating);
 }
 
-EXPORT_SYMBOL(dib8000_get_i2c_master);
-
-int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+static int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 {
 	struct dib8000_state *st = fe->demodulator_priv;
 	u16 val = dib8000_read_word(st, 299) & 0xffef;
@@ -4365,15 +4346,13 @@ int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 	dprintk("pid filter enabled %d", onoff);
 	return dib8000_write_word(st, 299, val);
 }
-EXPORT_SYMBOL(dib8000_pid_filter_ctrl);
 
-int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+static int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
 {
 	struct dib8000_state *st = fe->demodulator_priv;
 	dprintk("Index %x, PID %d, OnOff %d", id, pid, onoff);
 	return dib8000_write_word(st, 305 + id, onoff ? (1 << 13) | pid : 0);
 }
-EXPORT_SYMBOL(dib8000_pid_filter);
 
 static const struct dvb_frontend_ops dib8000_ops = {
 	.delsys = { SYS_ISDBT },
@@ -4405,7 +4384,7 @@ static const struct dvb_frontend_ops dib8000_ops = {
 	.read_ucblocks = dib8000_read_unc_blocks,
 };
 
-struct dvb_frontend *dib8000_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg)
+static struct dvb_frontend *dib8000_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg)
 {
 	struct dvb_frontend *fe;
 	struct dib8000_state *state;
@@ -4467,7 +4446,34 @@ error:
 	return NULL;
 }
 
-EXPORT_SYMBOL(dib8000_init);
+void *dib8000_attach(struct dib8000_ops *ops)
+{
+	if (!ops)
+		return NULL;
+
+	ops->pwm_agc_reset = dib8000_pwm_agc_reset;
+	ops->get_dc_power = dib8090p_get_dc_power;
+	ops->set_gpio = dib8000_set_gpio;
+	ops->get_slave_frontend = dib8000_get_slave_frontend;
+	ops->set_tune_state = dib8000_set_tune_state;
+	ops->pid_filter_ctrl = dib8000_pid_filter_ctrl;
+	ops->remove_slave_frontend = dib8000_remove_slave_frontend;
+	ops->get_adc_power = dib8000_get_adc_power;
+	ops->update_pll = dib8000_update_pll;
+	ops->tuner_sleep = dib8096p_tuner_sleep;
+	ops->get_tune_state = dib8000_get_tune_state;
+	ops->get_i2c_tuner = dib8096p_get_i2c_tuner;
+	ops->set_slave_frontend = dib8000_set_slave_frontend;
+	ops->pid_filter = dib8000_pid_filter;
+	ops->ctrl_timf = dib8000_ctrl_timf;
+	ops->init = dib8000_init;
+	ops->get_i2c_master = dib8000_get_i2c_master;
+	ops->i2c_enumeration = dib8000_i2c_enumeration;
+	ops->set_wbd_ref = dib8000_set_wbd_ref;
+
+	return ops;
+}
+EXPORT_SYMBOL(dib8000_attach);
 
 MODULE_AUTHOR("Olivier Grenie <Olivier.Grenie@dibcom.fr, " "Patrick Boettcher <pboettcher@dibcom.fr>");
 MODULE_DESCRIPTION("Driver for the DiBcom 8000 ISDB-T demodulator");
