@@ -58,6 +58,13 @@ extern int init_fpu(struct task_struct *child);
 #define XRSTOR		".byte " REX_PREFIX "0x0f,0xae,0x2f"
 #define XRSTORS		".byte " REX_PREFIX "0x0f,0xc7,0x1f"
 
+#define xstate_fault	".section .fixup,\"ax\"\n"	\
+			"3:  movl $-1,%[err]\n"		\
+			"    jmp  2b\n"			\
+			".previous\n"			\
+			_ASM_EXTABLE(1b, 3b)		\
+			: [err] "=r" (err)
+
 static inline int fpu_xrstor_checking(struct xsave_struct *fx)
 {
 	int err;
