@@ -80,23 +80,9 @@ static struct console kgdb_nmi_console = {
 
 struct kgdb_nmi_tty_priv {
 	struct tty_port port;
-	struct tasklet_struct tlet;
+	struct timer_list timer;
 	STRUCT_KFIFO(char, KGDB_NMI_FIFO_SIZE) fifo;
 };
-
-/*
- * Our debugging console is polled in a tasklet, so we'll check for input
- * every tick. In HZ-less mode, we should program the next tick.  We have
- * to use the lowlevel stuff as no locks should be grabbed.
- */
-#ifdef CONFIG_HIGH_RES_TIMERS
-static void kgdb_tty_poke(void)
-{
-	tick_program_event(ktime_get(), 0);
-}
-#else
-static inline void kgdb_tty_poke(void) {}
-#endif
 
 static struct tty_port *kgdb_nmi_port;
 
@@ -108,14 +94,13 @@ static void kgdb_tty_recv(int ch)
 	if (!kgdb_nmi_port || ch < 0)
 		return;
 	/*
-	 * Can't use port->tty->driver_data as tty might be not there. Tasklet
+	 * Can't use port->tty->driver_data as tty might be not there. Timer
 	 * will check for tty and will get the ref, but here we don't have to
 	 * do that, and actually, we can't: we're in NMI context, no locks are
 	 * possible.
 	 */
 	priv = container_of(kgdb_nmi_port, struct kgdb_nmi_tty_priv, port);
 	kfifo_in(&priv->fifo, &c, 1);
-	kgdb_tty_poke();
 }
 
 static int kgdb_nmi_poll_one_knock(void)
@@ -199,7 +184,8 @@ static void kgdb_nmi_tty_receiver(unsigned long data)
 	struct kgdb_nmi_tty_priv *priv = (void *)data;
 	char ch;
 
-	tasklet_schedule(&priv->tlet);
+	priv->timer.expires = jiffies + (HZ/100);
+	add_timer(&priv->timer);
 
 	if (likely(!kgdb_nmi_tty_enabled || !kfifo_len(&priv->fifo)))
 		return;
@@ -215,7 +201,9 @@ static int kgdb_nmi_tty_activate(struct tty_port *port, struct tty_struct *tty)
 	    container_of(port, struct kgdb_nmi_tty_priv, port);
 
 	kgdb_nmi_port = port;
-	tasklet_schedule(&priv->tlet);
+	priv->timer.expires = jiffies + (HZ/100);
+	add_timer(&priv->timer);
+
 	return 0;
 }
 
@@ -224,7 +212,7 @@ static void kgdb_nmi_tty_shutdown(struct tty_port *port)
 	struct kgdb_nmi_tty_priv *priv =
 	    container_of(port, struct kgdb_nmi_tty_priv, port);
 
-	tasklet_kill(&priv->tlet);
+	del_timer(&priv->timer);
 	kgdb_nmi_port = NULL;
 }
 
@@ -243,7 +231,7 @@ static int kgdb_nmi_tty_install(struct tty_driver *drv, struct tty_struct *tty)
 		return -ENOMEM;
 
 	INIT_KFIFO(priv->fifo);
-	tasklet_init(&priv->tlet, kgdb_nmi_tty_receiver, (unsigned long)priv);
+	setup_timer(&priv->timer, kgdb_nmi_tty_receiver, (unsigned long)priv);
 	tty_port_init(&priv->port);
 	priv->port.ops = &kgdb_nmi_tty_port_ops;
 	tty->driver_data = priv;
