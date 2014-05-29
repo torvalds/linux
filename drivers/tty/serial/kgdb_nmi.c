@@ -84,11 +84,6 @@ struct kgdb_nmi_tty_priv {
 	STRUCT_KFIFO(char, KGDB_NMI_FIFO_SIZE) fifo;
 };
 
-static struct kgdb_nmi_tty_priv *kgdb_nmi_port_to_priv(struct tty_port *port)
-{
-	return container_of(port, struct kgdb_nmi_tty_priv, port);
-}
-
 /*
  * Our debugging console is polled in a tasklet, so we'll check for input
  * every tick. In HZ-less mode, we should program the next tick.  We have
@@ -118,7 +113,7 @@ static void kgdb_tty_recv(int ch)
 	 * do that, and actually, we can't: we're in NMI context, no locks are
 	 * possible.
 	 */
-	priv = kgdb_nmi_port_to_priv(kgdb_nmi_port);
+	priv = container_of(kgdb_nmi_port, struct kgdb_nmi_tty_priv, port);
 	kfifo_in(&priv->fifo, &c, 1);
 	kgdb_tty_poke();
 }
@@ -216,7 +211,8 @@ static void kgdb_nmi_tty_receiver(unsigned long data)
 
 static int kgdb_nmi_tty_activate(struct tty_port *port, struct tty_struct *tty)
 {
-	struct kgdb_nmi_tty_priv *priv = tty->driver_data;
+	struct kgdb_nmi_tty_priv *priv =
+	    container_of(port, struct kgdb_nmi_tty_priv, port);
 
 	kgdb_nmi_port = port;
 	tasklet_schedule(&priv->tlet);
@@ -225,7 +221,8 @@ static int kgdb_nmi_tty_activate(struct tty_port *port, struct tty_struct *tty)
 
 static void kgdb_nmi_tty_shutdown(struct tty_port *port)
 {
-	struct kgdb_nmi_tty_priv *priv = port->tty->driver_data;
+	struct kgdb_nmi_tty_priv *priv =
+	    container_of(port, struct kgdb_nmi_tty_priv, port);
 
 	tasklet_kill(&priv->tlet);
 	kgdb_nmi_port = NULL;
