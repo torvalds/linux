@@ -343,8 +343,6 @@ struct offline_device_entry {
 static void SA5_submit_command(struct ctlr_info *h,
 	struct CommandList *c)
 {
-	dev_dbg(&h->pdev->dev, "Sending %x, tag = %x\n", c->busaddr,
-		c->Header.Tag.lower);
 	writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
 	(void) readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
 }
@@ -352,8 +350,6 @@ static void SA5_submit_command(struct ctlr_info *h,
 static void SA5_submit_command_ioaccel2(struct ctlr_info *h,
 	struct CommandList *c)
 {
-	dev_dbg(&h->pdev->dev, "Sending %x, tag = %x\n", c->busaddr,
-		c->Header.Tag.lower);
 	if (c->cmd_type == CMD_IOACCEL2)
 		writel(c->busaddr, h->vaddr + IOACCEL2_INBOUND_POSTQ_32);
 	else
@@ -475,7 +471,6 @@ static bool SA5_intr_pending(struct ctlr_info *h)
 {
 	unsigned long register_value  =
 		readl(h->vaddr + SA5_INTR_STATUS);
-	dev_dbg(&h->pdev->dev, "intr_pending %lx\n", register_value);
 	return register_value & SA5_INTR_PENDING;
 }
 
