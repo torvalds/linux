@@ -250,6 +250,28 @@ static void iscsi_login_set_conn_values(
 	mutex_unlock(&auth_id_lock);
 }
 
+static __printf(2, 3) int iscsi_change_param_sprintf(
+	struct iscsi_conn *conn,
+	const char *fmt, ...)
+{
+	va_list args;
+	unsigned char buf[64];
+
+	memset(buf, 0, sizeof buf);
+
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof buf, fmt, args);
+	va_end(args);
+
+	if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
+		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  *	This is the leading connection of a new session,
  *	or session reinstatement.
@@ -339,7 +361,6 @@ static int iscsi_login_zero_tsih_s2(
 {
 	struct iscsi_node_attrib *na;
 	struct iscsi_session *sess = conn->sess;
-	unsigned char buf[32];
 	bool iser = false;
 
 	sess->tpg = conn->tpg;
@@ -380,26 +401,16 @@ static int iscsi_login_zero_tsih_s2(
 	 *
 	 * In our case, we have already located the struct iscsi_tiqn at this point.
 	 */
-	memset(buf, 0, 32);
-	sprintf(buf, "TargetPortalGroupTag=%hu", ISCSI_TPG_S(sess)->tpgt);
-	if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
-		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+	if (iscsi_change_param_sprintf(conn, "TargetPortalGroupTag=%hu", sess->tpg->tpgt))
 		return -1;
-	}
 
 	/*
 	 * Workaround for Initiators that have broken connection recovery logic.
 	 *
 	 * "We would really like to get rid of this." Linux-iSCSI.org team
 	 */
-	memset(buf, 0, 32);
-	sprintf(buf, "ErrorRecoveryLevel=%d", na->default_erl);
-	if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
-		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+	if (iscsi_change_param_sprintf(conn, "ErrorRecoveryLevel=%d", na->default_erl))
 		return -1;
-	}
 
 	if (iscsi_login_disable_FIM_keys(conn->param_list, conn) < 0)
 		return -1;
@@ -411,12 +422,9 @@ static int iscsi_login_zero_tsih_s2(
 		unsigned long mrdsl, off;
 		int rc;
 
-		sprintf(buf, "RDMAExtensions=Yes");
-		if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
-			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+		if (iscsi_change_param_sprintf(conn, "RDMAExtensions=Yes"))
 			return -1;
-		}
+
 		/*
 		 * Make MaxRecvDataSegmentLength PAGE_SIZE aligned for
 		 * Immediate Data + Unsolicitied Data-OUT if necessary..
@@ -446,12 +454,8 @@ static int iscsi_login_zero_tsih_s2(
 		pr_warn("Aligning ISER MaxRecvDataSegmentLength: %lu down"
 			" to PAGE_SIZE\n", mrdsl);
 
-		sprintf(buf, "MaxRecvDataSegmentLength=%lu\n", mrdsl);
-		if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
-			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+		if (iscsi_change_param_sprintf(conn, "MaxRecvDataSegmentLength=%lu\n", mrdsl))
 			return -1;
-		}
 	}
 
 	return 0;
