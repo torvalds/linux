@@ -528,7 +528,7 @@ err2:
 	kobject_put(&p->kobj);
 	p = NULL; /* kobject_put frees */
 err1:
-	dev_set_promiscuity(dev, -1);
+	dev_set_allmulti(dev, -1);
 put_back:
 	dev_put(dev);
 	kfree(p);
