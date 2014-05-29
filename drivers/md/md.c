@@ -7826,6 +7826,7 @@ void md_check_recovery(struct mddev *mddev)
 			/* There is no thread, but we need to call
 			 * ->spare_active and clear saved_raid_disk
 			 */
+			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			md_reap_sync_thread(mddev);
 			clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 			goto unlock;
