@@ -11,6 +11,7 @@
 #include <linux/nfs_page.h>
 #include <linux/sunrpc/addr.h>
 
+#include "nfs4session.h"
 #include "internal.h"
 #include "pnfs.h"
 
@@ -533,6 +534,86 @@ out:
 	return ds;
 }
 EXPORT_SYMBOL_GPL(nfs4_pnfs_ds_add);
+
+static void nfs4_wait_ds_connect(struct nfs4_pnfs_ds *ds)
+{
+	might_sleep();
+	wait_on_bit(&ds->ds_state, NFS4DS_CONNECTING,
+			TASK_KILLABLE);
+}
+
+static void nfs4_clear_ds_conn_bit(struct nfs4_pnfs_ds *ds)
+{
+	smp_mb__before_atomic();
+	clear_bit(NFS4DS_CONNECTING, &ds->ds_state);
+	smp_mb__after_atomic();
+	wake_up_bit(&ds->ds_state, NFS4DS_CONNECTING);
+}
+
+static int _nfs4_pnfs_ds_connect(struct nfs_server *mds_srv,
+				 struct nfs4_pnfs_ds *ds,
+				 unsigned int timeo,
+				 unsigned int retrans)
+{
+	struct nfs_client *clp = ERR_PTR(-EIO);
+	struct nfs4_pnfs_ds_addr *da;
+	int status = 0;
+
+	dprintk("--> %s DS %s au_flavor %d\n", __func__, ds->ds_remotestr,
+		mds_srv->nfs_client->cl_rpcclient->cl_auth->au_flavor);
+
+	list_for_each_entry(da, &ds->ds_addrs, da_node) {
+		dprintk("%s: DS %s: trying address %s\n",
+			__func__, ds->ds_remotestr, da->da_remotestr);
+
+		clp = nfs4_set_ds_client(mds_srv->nfs_client,
+					(struct sockaddr *)&da->da_addr,
+					da->da_addrlen, IPPROTO_TCP,
+					timeo, retrans);
+		if (!IS_ERR(clp))
+			break;
+	}
+
+	if (IS_ERR(clp)) {
+		status = PTR_ERR(clp);
+		goto out;
+	}
+
+	status = nfs4_init_ds_session(clp, mds_srv->nfs_client->cl_lease_time);
+	if (status)
+		goto out_put;
+
+	smp_wmb();
+	ds->ds_clp = clp;
+	dprintk("%s [new] addr: %s\n", __func__, ds->ds_remotestr);
+out:
+	return status;
+out_put:
+	nfs_put_client(clp);
+	goto out;
+}
+
+/*
+ * Create an rpc connection to the nfs4_pnfs_ds data server.
+ * Currently only supports IPv4 and IPv6 addresses.
+ * If connection fails, make devid unavailable.
+ */
+void nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
+			  struct nfs4_deviceid_node *devid, unsigned int timeo,
+			  unsigned int retrans)
+{
+	if (test_and_set_bit(NFS4DS_CONNECTING, &ds->ds_state) == 0) {
+		int err = 0;
+
+		err = _nfs4_pnfs_ds_connect(mds_srv, ds, timeo, retrans);
+		if (err)
+			nfs4_mark_deviceid_unavailable(devid);
+		nfs4_clear_ds_conn_bit(ds);
+	} else {
+		nfs4_wait_ds_connect(ds);
+	}
+}
+EXPORT_SYMBOL_GPL(nfs4_pnfs_ds_connect);
 
 /*
  * Currently only supports ipv4, ipv6 and one multi-path address.
