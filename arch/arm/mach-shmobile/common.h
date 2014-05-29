@@ -35,8 +35,10 @@ extern void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv);
 
 #ifdef CONFIG_SUSPEND
 int shmobile_suspend_init(void);
+void shmobile_smp_apmu_suspend_init(void);
 #else
 static inline int shmobile_suspend_init(void) { return 0; }
+static inline void shmobile_smp_apmu_suspend_init(void) { return 0; }
 #endif
 
 #ifdef CONFIG_CPU_IDLE
