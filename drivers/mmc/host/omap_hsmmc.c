@@ -1998,7 +1998,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	dma_cap_mask_t mask;
 	unsigned tx_req, rx_req;
-	struct pinctrl *pinctrl;
 	const struct omap_mmc_of_data *data;
 	void __iomem *base;
 
@@ -2212,11 +2211,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	omap_hsmmc_disable_irq(host);
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev,
-			"pins are not configured from the driver\n");
-
 	/*
 	 * For now, only support SDIO interrupt if we have a separate
 	 * wake-up interrupt configured from device tree. This is because
@@ -2418,10 +2412,15 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 			goto abort;
 		}
 
+		pinctrl_pm_select_idle_state(dev);
+
 		WARN_ON(host->flags & HSMMC_WAKE_IRQ_ENABLED);
 		enable_irq(host->wake_irq);
 		host->flags |= HSMMC_WAKE_IRQ_ENABLED;
+	} else {
+		pinctrl_pm_select_idle_state(dev);
 	}
+
 abort:
 	spin_unlock_irqrestore(&host->irq_lock, flags);
 	return ret;
@@ -2445,9 +2444,14 @@ static int omap_hsmmc_runtime_resume(struct device *dev)
 			host->flags &= ~HSMMC_WAKE_IRQ_ENABLED;
 		}
 
+		pinctrl_pm_select_default_state(host->dev);
+
+		/* irq lost, if pinmux incorrect */
 		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
 		OMAP_HSMMC_WRITE(host->base, ISE, CIRQ_EN);
 		OMAP_HSMMC_WRITE(host->base, IE, CIRQ_EN);
+	} else {
+		pinctrl_pm_select_default_state(host->dev);
 	}
 	spin_unlock_irqrestore(&host->irq_lock, flags);
 	return 0;
