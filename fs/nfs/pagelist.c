@@ -947,6 +947,8 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			subreq = nfs_create_request(req->wb_context,
 					req->wb_page,
 					subreq, pgbase, bytes_left);
+			if (IS_ERR(subreq))
+				goto err_ptr;
 			nfs_lock_request(subreq);
 			subreq->wb_offset  = offset;
 			subreq->wb_index = req->wb_index;
@@ -955,6 +957,10 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 
 	nfs_page_group_unlock(req);
 	return 1;
+err_ptr:
+	desc->pg_error = PTR_ERR(subreq);
+	nfs_page_group_unlock(req);
+	return 0;
 }
 
 static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
