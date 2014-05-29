@@ -39,10 +39,37 @@
 #include "i915_trace.h"
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_rect.h>
 #include <linux/dma_remapping.h>
 
+/* Primary plane formats supported by all gen */
+#define COMMON_PRIMARY_FORMATS \
+	DRM_FORMAT_C8, \
+	DRM_FORMAT_RGB565, \
+	DRM_FORMAT_XRGB8888, \
+	DRM_FORMAT_ARGB8888
+
+/* Primary plane formats for gen <= 3 */
+static const uint32_t intel_primary_formats_gen2[] = {
+	COMMON_PRIMARY_FORMATS,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB1555,
+};
+
+/* Primary plane formats for gen >= 4 */
+static const uint32_t intel_primary_formats_gen4[] = {
+	COMMON_PRIMARY_FORMATS, \
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_ARGB2101010,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_ABGR2101010,
+};
+
 #define DIV_ROUND_CLOSEST_ULL(ll, d)	\
-	({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
+({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
 
 static void intel_increase_pllclock(struct drm_crtc *crtc);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
@@ -10977,17 +11004,216 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
 }
 
+static int
+intel_primary_plane_disable(struct drm_plane *plane)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct intel_crtc *intel_crtc;
+
+	if (!plane->fb)
+		return 0;
+
+	BUG_ON(!plane->crtc);
+
+	intel_crtc = to_intel_crtc(plane->crtc);
+
+	/*
+	 * Even though we checked plane->fb above, it's still possible that
+	 * the primary plane has been implicitly disabled because the crtc
+	 * coordinates given weren't visible, or because we detected
+	 * that it was 100% covered by a sprite plane.  Or, the CRTC may be
+	 * off and we've set a fb, but haven't actually turned on the CRTC yet.
+	 * In either case, we need to unpin the FB and let the fb pointer get
+	 * updated, but otherwise we don't need to touch the hardware.
+	 */
+	if (!intel_crtc->primary_enabled)
+		goto disable_unpin;
+
+	intel_crtc_wait_for_pending_flips(plane->crtc);
+	intel_disable_primary_hw_plane(dev_priv, intel_plane->plane,
+				       intel_plane->pipe);
+
+disable_unpin:
+	intel_unpin_fb_obj(to_intel_framebuffer(plane->fb)->obj);
+	plane->fb = NULL;
+
+	return 0;
+}
+
+static int
+intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+			     unsigned int crtc_w, unsigned int crtc_h,
+			     uint32_t src_x, uint32_t src_y,
+			     uint32_t src_w, uint32_t src_h)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct drm_rect dest = {
+		/* integer pixels */
+		.x1 = crtc_x,
+		.y1 = crtc_y,
+		.x2 = crtc_x + crtc_w,
+		.y2 = crtc_y + crtc_h,
+	};
+	struct drm_rect src = {
+		/* 16.16 fixed point */
+		.x1 = src_x,
+		.y1 = src_y,
+		.x2 = src_x + src_w,
+		.y2 = src_y + src_h,
+	};
+	const struct drm_rect clip = {
+		/* integer pixels */
+		.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0,
+		.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0,
+	};
+	bool visible;
+	int ret;
+
+	ret = drm_plane_helper_check_update(plane, crtc, fb,
+					    &src, &dest, &clip,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    false, true, &visible);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * If the CRTC isn't enabled, we're just pinning the framebuffer,
+	 * updating the fb pointer, and returning without touching the
+	 * hardware.  This allows us to later do a drmModeSetCrtc with fb=-1 to
+	 * turn on the display with all planes setup as desired.
+	 */
+	if (!crtc->enabled) {
+		/*
+		 * If we already called setplane while the crtc was disabled,
+		 * we may have an fb pinned; unpin it.
+		 */
+		if (plane->fb)
+			intel_unpin_fb_obj(to_intel_framebuffer(plane->fb)->obj);
+
+		/* Pin and return without programming hardware */
+		return intel_pin_and_fence_fb_obj(dev,
+						  to_intel_framebuffer(fb)->obj,
+						  NULL);
+	}
+
+	intel_crtc_wait_for_pending_flips(crtc);
+
+	/*
+	 * If clipping results in a non-visible primary plane, we'll disable
+	 * the primary plane.  Note that this is a bit different than what
+	 * happens if userspace explicitly disables the plane by passing fb=0
+	 * because plane->fb still gets set and pinned.
+	 */
+	if (!visible) {
+		/*
+		 * Try to pin the new fb first so that we can bail out if we
+		 * fail.
+		 */
+		if (plane->fb != fb) {
+			ret = intel_pin_and_fence_fb_obj(dev,
+							 to_intel_framebuffer(fb)->obj,
+							 NULL);
+			if (ret)
+				return ret;
+		}
+
+		if (intel_crtc->primary_enabled)
+			intel_disable_primary_hw_plane(dev_priv,
+						       intel_plane->plane,
+						       intel_plane->pipe);
+
+
+		if (plane->fb != fb)
+			if (plane->fb)
+				intel_unpin_fb_obj(to_intel_framebuffer(plane->fb)->obj);
+
+		return 0;
+	}
+
+	ret = intel_pipe_set_base(crtc, src.x1, src.y1, fb);
+	if (ret)
+		return ret;
+
+	if (!intel_crtc->primary_enabled)
+		intel_enable_primary_hw_plane(dev_priv, intel_crtc->plane,
+					      intel_crtc->pipe);
+
+	return 0;
+}
+
+static void intel_primary_plane_destroy(struct drm_plane *plane)
+{
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	drm_plane_cleanup(plane);
+	kfree(intel_plane);
+}
+
+static const struct drm_plane_funcs intel_primary_plane_funcs = {
+	.update_plane = intel_primary_plane_setplane,
+	.disable_plane = intel_primary_plane_disable,
+	.destroy = intel_primary_plane_destroy,
+};
+
+static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
+						    int pipe)
+{
+	struct intel_plane *primary;
+	const uint32_t *intel_primary_formats;
+	int num_formats;
+
+	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
+	if (primary == NULL)
+		return NULL;
+
+	primary->can_scale = false;
+	primary->max_downscale = 1;
+	primary->pipe = pipe;
+	primary->plane = pipe;
+	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
+		primary->plane = !pipe;
+
+	if (INTEL_INFO(dev)->gen <= 3) {
+		intel_primary_formats = intel_primary_formats_gen2;
+		num_formats = ARRAY_SIZE(intel_primary_formats_gen2);
+	} else {
+		intel_primary_formats = intel_primary_formats_gen4;
+		num_formats = ARRAY_SIZE(intel_primary_formats_gen4);
+	}
+
+	drm_universal_plane_init(dev, &primary->base, 0,
+				 &intel_primary_plane_funcs,
+				 intel_primary_formats, num_formats,
+				 DRM_PLANE_TYPE_PRIMARY);
+	return &primary->base;
+}
+
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc;
-	int i;
+	struct drm_plane *primary;
+	int i, ret;
 
 	intel_crtc = kzalloc(sizeof(*intel_crtc), GFP_KERNEL);
 	if (intel_crtc == NULL)
 		return;
 
-	drm_crtc_init(dev, &intel_crtc->base, &intel_crtc_funcs);
+	primary = intel_primary_plane_create(dev, pipe);
+	ret = drm_crtc_init_with_planes(dev, &intel_crtc->base, primary,
+					NULL, &intel_crtc_funcs);
+	if (ret) {
+		drm_plane_cleanup(primary);
+		kfree(intel_crtc);
+		return;
+	}
 
 	drm_mode_crtc_set_gamma_size(&intel_crtc->base, 256);
 	for (i = 0; i < 256; i++) {
