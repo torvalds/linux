@@ -225,6 +225,91 @@ void __hw_addr_unsync(struct netdev_hw_addr_list *to_list,
 }
 EXPORT_SYMBOL(__hw_addr_unsync);
 
+/**
+ *  __hw_addr_sync_dev - Synchonize device's multicast list
+ *  @list: address list to syncronize
+ *  @dev:  device to sync
+ *  @sync: function to call if address should be added
+ *  @unsync: function to call if address should be removed
+ *
+ *  This funciton is intended to be called from the ndo_set_rx_mode
+ *  function of devices that require explicit address add/remove
+ *  notifications.  The unsync function may be NULL in which case
+ *  the addresses requiring removal will simply be removed without
+ *  any notification to the device.
+ **/
+int __hw_addr_sync_dev(struct netdev_hw_addr_list *list,
+		       struct net_device *dev,
+		       int (*sync)(struct net_device *, const unsigned char *),
+		       int (*unsync)(struct net_device *,
+				     const unsigned char *))
+{
+	struct netdev_hw_addr *ha, *tmp;
+	int err;
+
+	/* first go through and flush out any stale entries */
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		if (!ha->sync_cnt || ha->refcount != 1)
+			continue;
+
+		/* if unsync is defined and fails defer unsyncing address */
+		if (unsync && unsync(dev, ha->addr))
+			continue;
+
+		ha->sync_cnt--;
+		__hw_addr_del_entry(list, ha, false, false);
+	}
+
+	/* go through and sync new entries to the list */
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		if (ha->sync_cnt)
+			continue;
+
+		err = sync(dev, ha->addr);
+		if (err)
+			return err;
+
+		ha->sync_cnt++;
+		ha->refcount++;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(__hw_addr_sync_dev);
+
+/**
+ *  __hw_addr_unsync_dev - Remove synchonized addresses from device
+ *  @list: address list to remove syncronized addresses from
+ *  @dev:  device to sync
+ *  @unsync: function to call if address should be removed
+ *
+ *  Remove all addresses that were added to the device by __hw_addr_sync_dev().
+ *  This function is intended to be called from the ndo_stop or ndo_open
+ *  functions on devices that require explicit address add/remove
+ *  notifications.  If the unsync function pointer is NULL then this function
+ *  can be used to just reset the sync_cnt for the addresses in the list.
+ **/
+void __hw_addr_unsync_dev(struct netdev_hw_addr_list *list,
+			  struct net_device *dev,
+			  int (*unsync)(struct net_device *,
+					const unsigned char *))
+{
+	struct netdev_hw_addr *ha, *tmp;
+
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		if (!ha->sync_cnt)
+			continue;
+
+		/* if unsync is defined and fails defer unsyncing address */
+		if (unsync && unsync(dev, ha->addr))
+			continue;
+
+		ha->sync_cnt--;
+		__hw_addr_del_entry(list, ha, false, false);
+	}
+}
+EXPORT_SYMBOL(__hw_addr_unsync_dev);
+
 static void __hw_addr_flush(struct netdev_hw_addr_list *list)
 {
 	struct netdev_hw_addr *ha, *tmp;
