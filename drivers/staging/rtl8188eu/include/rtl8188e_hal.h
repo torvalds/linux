@@ -31,9 +31,8 @@
 #include "rtl8188e_xmit.h"
 #include "rtl8188e_cmd.h"
 #include "Hal8188EPwrSeq.h"
-#include "rtl8188e_sreset.h"
 #include "rtw_efuse.h"
-
+#include "rtw_sreset.h"
 #include "odm_precomp.h"
 
 /*  Fw Array */
