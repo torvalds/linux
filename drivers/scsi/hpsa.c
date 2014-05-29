@@ -6932,7 +6932,6 @@ reinit_after_soft_reset:
 	 * the 5 lower bits of the address are used by the hardware. and by
 	 * the driver.  See comments in hpsa.h for more info.
 	 */
-#define COMMANDLIST_ALIGNMENT 128
 	BUILD_BUG_ON(sizeof(struct CommandList) % COMMANDLIST_ALIGNMENT);
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
@@ -7405,7 +7404,6 @@ static int hpsa_alloc_ioaccel_cmd_and_bft(struct ctlr_info *h)
 	 * because the 7 lower bits of the address are used by the
 	 * hardware.
 	 */
-#define IOACCEL1_COMMANDLIST_ALIGNMENT 128
 	BUILD_BUG_ON(sizeof(struct io_accel1_cmd) %
 			IOACCEL1_COMMANDLIST_ALIGNMENT);
 	h->ioaccel_cmd_pool =
@@ -7443,7 +7441,6 @@ static int ioaccel2_alloc_cmds_and_bft(struct ctlr_info *h)
 	if (h->ioaccel_maxsg > IOACCEL2_MAXSGENTRIES)
 		h->ioaccel_maxsg = IOACCEL2_MAXSGENTRIES;
 
-#define IOACCEL2_COMMANDLIST_ALIGNMENT 128
 	BUILD_BUG_ON(sizeof(struct io_accel2_cmd) %
 			IOACCEL2_COMMANDLIST_ALIGNMENT);
 	h->ioaccel2_cmd_pool =
