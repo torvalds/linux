@@ -216,11 +216,7 @@ u32 usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 			  pxmitbuf);/* context is pxmitbuf */
 
 	status = usb_submit_urb(purb, GFP_ATOMIC);
-	if (!status) {
-		struct hal_data_8188e	*haldata = GET_HAL_DATA(padapter);
-
-		haldata->srestpriv.last_tx_time = jiffies;
-	} else {
+	if (status) {
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
 		DBG_88E("usb_write_port, status =%d\n", status);
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_write_port(): usb_submit_urb, status =%x\n", status));
