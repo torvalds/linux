@@ -192,7 +192,7 @@ struct ctlr_info {
 	u64 last_heartbeat_timestamp;
 	u32 heartbeat_sample_interval;
 	atomic_t firmware_flash_in_progress;
-	u32 lockup_detected;
+	u32 *lockup_detected;
 	struct delayed_work monitor_ctlr_work;
 	int remove_in_progress;
 	u32 fifo_recently_full;
