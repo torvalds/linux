@@ -673,6 +673,7 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	struct board_t *brd;
 	unsigned int pci_irq;
 	int i;
+	int ret;
 
 	/* get the board structure and prep it */
 	brd = kzalloc(sizeof(struct board_t), GFP_KERNEL);
@@ -728,8 +729,10 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 		brd->membase_end = pci_resource_end(pdev, 0);
 	}
 
-	if (!brd->membase)
-		return -ENODEV;
+	if (!brd->membase) {
+		ret = -ENODEV;
+		goto free_brd;
+	}
 
 	if (brd->membase & 1)
 		brd->membase &= ~3;
@@ -770,14 +773,20 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	tasklet_init(&brd->helper_tasklet, dgap_poll_tasklet,
 			(unsigned long) brd);
 
-	i = dgap_do_remap(brd);
-	if (i)
-		brd->state = BOARD_FAILED;
+	ret = dgap_do_remap(brd);
+	if (ret)
+		goto free_brd;
 
 	pr_info("dgap: board %d: %s (rev %d), irq %ld\n",
 		dgap_numboards, brd->name, brd->rev, brd->irq);
 
 	return 0;
+
+free_brd:
+	kfree(brd);
+	dgap_board[dgap_numboards] = NULL;
+
+	return ret;
 }
 
 
