@@ -1675,9 +1675,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 
 #ifdef CONFIG_DRM_I915_FBDEV
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (ret)
-		return ret;
 
 	ifbdev = dev_priv->fbdev;
 	fb = to_intel_framebuffer(ifbdev->helper.fb);
@@ -1690,7 +1687,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		   atomic_read(&fb->base.refcount.refcount));
 	describe_obj(m, fb->obj);
 	seq_putc(m, '\n');
-	mutex_unlock(&dev->mode_config.mutex);
 #endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
