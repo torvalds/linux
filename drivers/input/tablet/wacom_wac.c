@@ -484,6 +484,8 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		input_report_key(input, BTN_TOUCH, 0);
 		input_report_abs(input, ABS_PRESSURE, 0);
 		input_report_abs(input, ABS_DISTANCE, wacom->features.distance_max);
+		if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
+			wacom->shared->stylus_in_proximity = true;
 	}
 
 	/* Exit report */
