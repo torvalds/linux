@@ -252,7 +252,6 @@ struct hal_ops {
 					  u8 word_en, u8 *data, bool test);
 
 	void (*sreset_init_value)(struct adapter *padapter);
-	void (*sreset_reset_value)(struct adapter *padapter);
 	void (*silentreset)(struct adapter *padapter);
 	void (*sreset_xmit_status_check)(struct adapter *padapter);
 	void (*sreset_linked_status_check) (struct adapter *padapter);
