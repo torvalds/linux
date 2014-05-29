@@ -29,15 +29,6 @@ void sreset_init_value(struct adapter *padapter)
 	psrtpriv->last_tx_time = 0;
 	psrtpriv->last_tx_complete_time = 0;
 }
-void sreset_reset_value(struct adapter *padapter)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-	psrtpriv->last_tx_time = 0;
-	psrtpriv->last_tx_complete_time = 0;
-}
 
 u8 sreset_get_wifi_status(struct adapter *padapter)
 {
