@@ -401,7 +401,7 @@ static int dib7000p_sad_calib(struct dib7000p_state *state)
 	return 0;
 }
 
-int dib7000p_set_wbd_ref(struct dvb_frontend *demod, u16 value)
+static int dib7000p_set_wbd_ref(struct dvb_frontend *demod, u16 value)
 {
 	struct dib7000p_state *state = demod->demodulator_priv;
 	if (value > 4095)
@@ -409,9 +409,8 @@ int dib7000p_set_wbd_ref(struct dvb_frontend *demod, u16 value)
 	state->wbd_ref = value;
 	return dib7000p_write_word(state, 105, (dib7000p_read_word(state, 105) & 0xf000) | value);
 }
-EXPORT_SYMBOL(dib7000p_set_wbd_ref);
 
-int dib7000p_get_agc_values(struct dvb_frontend *fe,
+static int dib7000p_get_agc_values(struct dvb_frontend *fe,
 		u16 *agc_global, u16 *agc1, u16 *agc2, u16 *wbd)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
@@ -427,14 +426,12 @@ int dib7000p_get_agc_values(struct dvb_frontend *fe,
 
 	return 0;
 }
-EXPORT_SYMBOL(dib7000p_get_agc_values);
 
-int dib7000p_set_agc1_min(struct dvb_frontend *fe, u16 v)
+static int dib7000p_set_agc1_min(struct dvb_frontend *fe, u16 v)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	return dib7000p_write_word(state, 108,  v);
 }
-EXPORT_SYMBOL(dib7000p_set_agc1_min);
 
 static void dib7000p_reset_pll(struct dib7000p_state *state)
 {
@@ -478,7 +475,7 @@ static u32 dib7000p_get_internal_freq(struct dib7000p_state *state)
 	return internal;
 }
 
-int dib7000p_update_pll(struct dvb_frontend *fe, struct dibx000_bandwidth_config *bw)
+static int dib7000p_update_pll(struct dvb_frontend *fe, struct dibx000_bandwidth_config *bw)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 reg_1857, reg_1856 = dib7000p_read_word(state, 1856);
@@ -513,7 +510,6 @@ int dib7000p_update_pll(struct dvb_frontend *fe, struct dibx000_bandwidth_config
 	}
 	return -EIO;
 }
-EXPORT_SYMBOL(dib7000p_update_pll);
 
 static int dib7000p_reset_gpio(struct dib7000p_state *st)
 {
@@ -546,12 +542,11 @@ static int dib7000p_cfg_gpio(struct dib7000p_state *st, u8 num, u8 dir, u8 val)
 	return 0;
 }
 
-int dib7000p_set_gpio(struct dvb_frontend *demod, u8 num, u8 dir, u8 val)
+static int dib7000p_set_gpio(struct dvb_frontend *demod, u8 num, u8 dir, u8 val)
 {
 	struct dib7000p_state *state = demod->demodulator_priv;
 	return dib7000p_cfg_gpio(state, num, dir, val);
 }
-EXPORT_SYMBOL(dib7000p_set_gpio);
 
 static u16 dib7000p_defaults[] = {
 	// auto search configuration
@@ -934,7 +929,7 @@ static void dib7000p_update_timf(struct dib7000p_state *state)
 
 }
 
-u32 dib7000p_ctrl_timf(struct dvb_frontend *fe, u8 op, u32 timf)
+static u32 dib7000p_ctrl_timf(struct dvb_frontend *fe, u8 op, u32 timf)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	switch (op) {
@@ -950,7 +945,6 @@ u32 dib7000p_ctrl_timf(struct dvb_frontend *fe, u8 op, u32 timf)
 	dib7000p_set_bandwidth(state, state->current_bandwidth);
 	return state->timf;
 }
-EXPORT_SYMBOL(dib7000p_ctrl_timf);
 
 static void dib7000p_set_channel(struct dib7000p_state *state,
 				 struct dtv_frontend_properties *ch, u8 seq)
@@ -1643,7 +1637,7 @@ static void dib7000p_release(struct dvb_frontend *demod)
 	kfree(st);
 }
 
-int dib7000pc_detection(struct i2c_adapter *i2c_adap)
+static int dib7000pc_detection(struct i2c_adapter *i2c_adap)
 {
 	u8 *tx, *rx;
 	struct i2c_msg msg[2] = {
@@ -1688,16 +1682,14 @@ rx_memory_error:
 	kfree(tx);
 	return ret;
 }
-EXPORT_SYMBOL(dib7000pc_detection);
 
-struct i2c_adapter *dib7000p_get_i2c_master(struct dvb_frontend *demod, enum dibx000_i2c_interface intf, int gating)
+static struct i2c_adapter *dib7000p_get_i2c_master(struct dvb_frontend *demod, enum dibx000_i2c_interface intf, int gating)
 {
 	struct dib7000p_state *st = demod->demodulator_priv;
 	return dibx000_get_i2c_adapter(&st->i2c_master, intf, gating);
 }
-EXPORT_SYMBOL(dib7000p_get_i2c_master);
 
-int dib7000p_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+static int dib7000p_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 val = dib7000p_read_word(state, 235) & 0xffef;
@@ -1705,17 +1697,15 @@ int dib7000p_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 	dprintk("PID filter enabled %d", onoff);
 	return dib7000p_write_word(state, 235, val);
 }
-EXPORT_SYMBOL(dib7000p_pid_filter_ctrl);
 
-int dib7000p_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+static int dib7000p_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	dprintk("PID filter: index %x, PID %d, OnOff %d", id, pid, onoff);
 	return dib7000p_write_word(state, 241 + id, onoff ? (1 << 13) | pid : 0);
 }
-EXPORT_SYMBOL(dib7000p_pid_filter);
 
-int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[])
+static int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[])
 {
 	struct dib7000p_state *dpst;
 	int k = 0;
@@ -1774,7 +1764,6 @@ int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defau
 	kfree(dpst);
 	return 0;
 }
-EXPORT_SYMBOL(dib7000p_i2c_enumeration);
 
 static const s32 lut_1000ln_mant[] = {
 	6908, 6956, 7003, 7047, 7090, 7131, 7170, 7208, 7244, 7279, 7313, 7346, 7377, 7408, 7438, 7467, 7495, 7523, 7549, 7575, 7600
@@ -2032,12 +2021,11 @@ static struct i2c_algorithm dib7090_tuner_xfer_algo = {
 	.functionality = dib7000p_i2c_func,
 };
 
-struct i2c_adapter *dib7090_get_i2c_tuner(struct dvb_frontend *fe)
+static struct i2c_adapter *dib7090_get_i2c_tuner(struct dvb_frontend *fe)
 {
 	struct dib7000p_state *st = fe->demodulator_priv;
 	return &st->dib7090_tuner_adap;
 }
-EXPORT_SYMBOL(dib7090_get_i2c_tuner);
 
 static int dib7090_host_bus_drive(struct dib7000p_state *state, u8 drive)
 {
@@ -2329,7 +2317,7 @@ static int dib7090_set_output_mode(struct dvb_frontend *fe, int mode)
 	return ret;
 }
 
-int dib7090_tuner_sleep(struct dvb_frontend *fe, int onoff)
+static int dib7090_tuner_sleep(struct dvb_frontend *fe, int onoff)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 en_cur_state;
@@ -2352,15 +2340,13 @@ int dib7090_tuner_sleep(struct dvb_frontend *fe, int onoff)
 
 	return 0;
 }
-EXPORT_SYMBOL(dib7090_tuner_sleep);
 
-int dib7090_get_adc_power(struct dvb_frontend *fe)
+static int dib7090_get_adc_power(struct dvb_frontend *fe)
 {
 	return dib7000p_get_adc_power(fe);
 }
-EXPORT_SYMBOL(dib7090_get_adc_power);
 
-int dib7090_slave_reset(struct dvb_frontend *fe)
+static int dib7090_slave_reset(struct dvb_frontend *fe)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 reg;
@@ -2371,10 +2357,9 @@ int dib7090_slave_reset(struct dvb_frontend *fe)
 	dib7000p_write_word(state, 1032, 0xffff);
 	return 0;
 }
-EXPORT_SYMBOL(dib7090_slave_reset);
 
 static struct dvb_frontend_ops dib7000p_ops;
-struct dvb_frontend *dib7000p_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg)
+static struct dvb_frontend *dib7000p_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg)
 {
 	struct dvb_frontend *demod;
 	struct dib7000p_state *st;
@@ -2434,7 +2419,32 @@ error:
 	kfree(st);
 	return NULL;
 }
-EXPORT_SYMBOL(dib7000p_init);
+
+void *dib7000p_attach(struct dib7000p_ops *ops)
+{
+	if (!ops)
+		return NULL;
+
+	ops->slave_reset = dib7090_slave_reset;
+	ops->get_adc_power = dib7090_get_adc_power;
+	ops->dib7000pc_detection = dib7000pc_detection;
+	ops->get_i2c_tuner = dib7090_get_i2c_tuner;
+	ops->tuner_sleep = dib7090_tuner_sleep;
+	ops->init = dib7000p_init;
+	ops->set_agc1_min = dib7000p_set_agc1_min;
+	ops->set_gpio = dib7000p_set_gpio;
+	ops->i2c_enumeration = dib7000p_i2c_enumeration;
+	ops->pid_filter = dib7000p_pid_filter;
+	ops->pid_filter_ctrl = dib7000p_pid_filter_ctrl;
+	ops->get_i2c_master = dib7000p_get_i2c_master;
+	ops->update_pll = dib7000p_update_pll;
+	ops->ctrl_timf = dib7000p_ctrl_timf;
+	ops->get_agc_values = dib7000p_get_agc_values;
+	ops->set_wbd_ref = dib7000p_set_wbd_ref;
+
+	return ops;
+}
+EXPORT_SYMBOL(dib7000p_attach);
 
 static struct dvb_frontend_ops dib7000p_ops = {
 	.delsys = { SYS_DVBT },

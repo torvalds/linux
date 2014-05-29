@@ -748,6 +748,7 @@ static int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 
 static int dvb_register(struct cx23885_tsport *port)
 {
+	struct dib7000p_ops dib7000p_ops;
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_i2c *i2c_bus = NULL, *i2c_bus2 = NULL;
 	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
@@ -925,8 +926,11 @@ static int dvb_register(struct cx23885_tsport *port)
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
 		i2c_bus = &dev->i2c_bus[0];
-		fe0->dvb.frontend = dvb_attach(dib7000p_init,
-			&i2c_bus->i2c_adap,
+
+		if (!dvb_attach(dib7000p_attach, &dib7000p_ops))
+			return -ENODEV;
+
+		fe0->dvb.frontend = dib7000p_ops.init(&i2c_bus->i2c_adap,
 			0x12, &hauppauge_hvr1400_dib7000_config);
 		if (fe0->dvb.frontend != NULL) {
 			struct dvb_frontend *fe;
