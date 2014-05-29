@@ -10562,12 +10562,17 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 	if (is_crtc_connector_off(set)) {
 		config->mode_changed = true;
 	} else if (set->crtc->primary->fb != set->fb) {
-		/* If we have no fb then treat it as a full mode set */
+		/*
+		 * If we have no fb, we can only flip as long as the crtc is
+		 * active, otherwise we need a full mode set.  The crtc may
+		 * be active if we've only disabled the primary plane, or
+		 * in fastboot situations.
+		 */
 		if (set->crtc->primary->fb == NULL) {
 			struct intel_crtc *intel_crtc =
 				to_intel_crtc(set->crtc);
 
-			if (intel_crtc->active && i915.fastboot) {
+			if (intel_crtc->active) {
 				DRM_DEBUG_KMS("crtc has no fb, will flip\n");
 				config->fb_changed = true;
 			} else {
@@ -10805,10 +10810,24 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		ret = intel_set_mode(set->crtc, set->mode,
 				     set->x, set->y, set->fb);
 	} else if (config->fb_changed) {
+		struct drm_i915_private *dev_priv = dev->dev_private;
+		struct intel_crtc *intel_crtc = to_intel_crtc(set->crtc);
+
 		intel_crtc_wait_for_pending_flips(set->crtc);
 
 		ret = intel_pipe_set_base(set->crtc,
 					  set->x, set->y, set->fb);
+
+		/*
+		 * We need to make sure the primary plane is re-enabled if it
+		 * has previously been turned off.
+		 */
+		if (!intel_crtc->primary_enabled && ret == 0) {
+			WARN_ON(!intel_crtc->active);
+			intel_enable_primary_hw_plane(dev_priv, intel_crtc->plane,
+						      intel_crtc->pipe);
+		}
+
 		/*
 		 * In the fastboot case this may be our only check of the
 		 * state after boot.  It would be better to only do it on
