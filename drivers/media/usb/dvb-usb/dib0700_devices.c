@@ -281,7 +281,7 @@ static int stk7700P2_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	adap->fe_adap[0].fe =
-		dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,
+		dvb_attach(dib7000p_init, &adap->dev->i2c_adap,
 			   0x80 + (adap->id << 1),
 			   &stk7700d_dib7000p_mt2266_config[adap->id]);
 
@@ -310,7 +310,7 @@ static int stk7700d_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	adap->fe_adap[0].fe =
-		dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,
+		dvb_attach(dib7000p_init, &adap->dev->i2c_adap,
 			   0x80 + (adap->id << 1),
 			   &stk7700d_dib7000p_mt2266_config[adap->id]);
 
@@ -452,7 +452,7 @@ static int stk7700ph_frontend_attach(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x80,
 		&stk7700ph_dib7700_xc3028_config);
 
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
@@ -690,7 +690,7 @@ static int stk7700p_frontend_attach(struct dvb_usb_adapter *adap)
 	st->mt2060_if1[0] = 1220;
 
 	if (dib7000pc_detection(&adap->dev->i2c_adap)) {
-		adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 18, &stk7700p_dib7000p_config);
+		adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 18, &stk7700p_dib7000p_config);
 		st->is_dib7000pc = 1;
 	} else
 		adap->fe_adap[0].fe = dvb_attach(dib7000m_attach, &adap->dev->i2c_adap, 18, &stk7700p_dib7000m_config);
@@ -961,7 +961,7 @@ static int stk7070p_frontend_attach(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x80,
 		&dib7070p_dib7000p_config);
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
@@ -1013,7 +1013,7 @@ static int stk7770p_frontend_attach(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x80,
 		&dib7770p_dib7000p_config);
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
@@ -2899,7 +2899,7 @@ static int nim7090_frontend_attach(struct dvb_usb_adapter *adap)
 		err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n", __func__);
 		return -ENODEV;
 	}
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80, &nim7090_dib7000p_config);
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x80, &nim7090_dib7000p_config);
 
 	return adap->fe_adap[0].fe == NULL ?  -ENODEV : 0;
 }
@@ -2945,7 +2945,7 @@ static int tfe7090pvr_frontend0_attach(struct dvb_usb_adapter *adap)
 	}
 
 	dib0700_set_i2c_speed(adap->dev, 340);
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x90, &tfe7090pvr_dib7000p_config[0]);
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x90, &tfe7090pvr_dib7000p_config[0]);
 	if (adap->fe_adap[0].fe == NULL)
 		return -ENODEV;
 
@@ -2969,7 +2969,7 @@ static int tfe7090pvr_frontend1_attach(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, i2c, 0x92, &tfe7090pvr_dib7000p_config[1]);
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, i2c, 0x92, &tfe7090pvr_dib7000p_config[1]);
 	dib0700_set_i2c_speed(adap->dev, 200);
 
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
@@ -3030,7 +3030,7 @@ static int tfe7790p_frontend_attach(struct dvb_usb_adapter *adap)
 				__func__);
 		return -ENODEV;
 	}
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap,
 			0x80, &tfe7790p_dib7000p_config);
 
 	return adap->fe_adap[0].fe == NULL ?  -ENODEV : 0;
@@ -3115,13 +3115,13 @@ static int stk7070pd_frontend_attach0(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80, &stk7070pd_dib7000p_config[0]);
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x80, &stk7070pd_dib7000p_config[0]);
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
 
 static int stk7070pd_frontend_attach1(struct dvb_usb_adapter *adap)
 {
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x82, &stk7070pd_dib7000p_config[1]);
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x82, &stk7070pd_dib7000p_config[1]);
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
 
@@ -3181,7 +3181,7 @@ static int novatd_frontend_attach(struct dvb_usb_adapter *adap)
 		}
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &dev->i2c_adap,
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &dev->i2c_adap,
 			adap->id == 0 ? 0x80 : 0x82,
 			&stk7070pd_dib7000p_config[adap->id]);
 
@@ -3402,7 +3402,7 @@ static int pctv340e_frontend_attach(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x12,
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x12,
 			      &pctv_340e_config);
 	st->is_dib7000pc = 1;
 

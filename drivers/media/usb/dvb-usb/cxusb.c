@@ -1085,7 +1085,7 @@ static int cxusb_dualdig4_rev2_frontend_attach(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_init, &adap->dev->i2c_adap, 0x80,
 			      &cxusb_dualdig4_rev2_config);
 	if (adap->fe_adap[0].fe == NULL)
 		return -EIO;

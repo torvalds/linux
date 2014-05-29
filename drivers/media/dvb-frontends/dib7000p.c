@@ -2374,7 +2374,7 @@ int dib7090_slave_reset(struct dvb_frontend *fe)
 EXPORT_SYMBOL(dib7090_slave_reset);
 
 static struct dvb_frontend_ops dib7000p_ops;
-struct dvb_frontend *dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg)
+struct dvb_frontend *dib7000p_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg)
 {
 	struct dvb_frontend *demod;
 	struct dib7000p_state *st;
@@ -2434,7 +2434,7 @@ error:
 	kfree(st);
 	return NULL;
 }
-EXPORT_SYMBOL(dib7000p_attach);
+EXPORT_SYMBOL(dib7000p_init);
 
 static struct dvb_frontend_ops dib7000p_ops = {
 	.delsys = { SYS_DVBT },

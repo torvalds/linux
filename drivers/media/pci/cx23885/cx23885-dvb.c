@@ -925,7 +925,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
 		i2c_bus = &dev->i2c_bus[0];
-		fe0->dvb.frontend = dvb_attach(dib7000p_attach,
+		fe0->dvb.frontend = dvb_attach(dib7000p_init,
 			&i2c_bus->i2c_adap,
 			0x12, &hauppauge_hvr1400_dib7000_config);
 		if (fe0->dvb.frontend != NULL) {
