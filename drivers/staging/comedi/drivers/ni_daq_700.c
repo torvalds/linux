@@ -18,32 +18,31 @@
  */
 
 /*
-Driver: ni_daq_700
-Description: National Instruments PCMCIA DAQCard-700 DIO only
-Author: Fred Brooks <nsaspook@nsaspook.com>,
-  based on ni_daq_dio24 by Daniel Vecino Castel <dvecino@able.es>
-Devices: [National Instruments] PCMCIA DAQ-Card-700 (ni_daq_700)
-Status: works
-Updated: Wed, 19 Sep 2012 12:07:20 +0000
-
-The daqcard-700 appears in Comedi as a  digital I/O subdevice (0) with
-16 channels and a analog input subdevice (1) with 16 single-ended channels.
-
-Digital:  The channel 0 corresponds to the daqcard-700's output
-port, bit 0; channel 8 corresponds to the input port, bit 0.
-
-Digital direction configuration: channels 0-7 output, 8-15 input (8225 device
-emu as port A output, port B input, port C N/A).
-
-Analog: The input  range is 0 to 4095 for -10 to +10 volts
-IRQ is assigned but not used.
-
-Version 0.1	Original DIO only driver
-Version 0.2	DIO and basic AI analog input support on 16 se channels
-
-Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
-		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
-*/
+ * Driver: ni_daq_700
+ * Description: National Instruments PCMCIA DAQCard-700
+ * Author: Fred Brooks <nsaspook@nsaspook.com>,
+ *   based on ni_daq_dio24 by Daniel Vecino Castel <dvecino@able.es>
+ * Devices: [National Instruments] PCMCIA DAQ-Card-700 (ni_daq_700)
+ * Status: works
+ * Updated: Wed, 19 Sep 2012 12:07:20 +0000
+ *
+ * The daqcard-700 appears in Comedi as a  digital I/O subdevice (0) with
+ * 16 channels and a analog input subdevice (1) with 16 single-ended channels.
+ *
+ * Digital:  The channel 0 corresponds to the daqcard-700's output
+ * port, bit 0; channel 8 corresponds to the input port, bit 0.
+ *
+ * Digital direction configuration: channels 0-7 output, 8-15 input.
+ *
+ * Analog: The input  range is 0 to 4095 for -10 to +10 volts
+ * IRQ is assigned but not used.
+ *
+ * Version 0.1	Original DIO only driver
+ * Version 0.2	DIO and basic AI analog input support on 16 se channels
+ *
+ * Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
+ *		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
