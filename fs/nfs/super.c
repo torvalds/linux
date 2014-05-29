@@ -2180,11 +2180,23 @@ out_no_address:
 	return -EINVAL;
 }
 
+#define NFS_MOUNT_CMP_FLAGMASK ~(NFS_MOUNT_INTR \
+		| NFS_MOUNT_SECURE \
+		| NFS_MOUNT_TCP \
+		| NFS_MOUNT_VER3 \
+		| NFS_MOUNT_KERBEROS \
+		| NFS_MOUNT_NONLM \
+		| NFS_MOUNT_BROKEN_SUID \
+		| NFS_MOUNT_STRICTLOCK \
+		| NFS_MOUNT_UNSHARED \
+		| NFS_MOUNT_NORESVPORT \
+		| NFS_MOUNT_LEGACY_INTERFACE)
+
 static int
 nfs_compare_remount_data(struct nfs_server *nfss,
 			 struct nfs_parsed_mount_data *data)
 {
-	if (data->flags != nfss->flags ||
+	if ((data->flags ^ nfss->flags) & NFS_MOUNT_CMP_FLAGMASK ||
 	    data->rsize != nfss->rsize ||
 	    data->wsize != nfss->wsize ||
 	    data->version != nfss->nfs_client->rpc_ops->version ||
@@ -2346,18 +2358,6 @@ void nfs_clone_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 
  	nfs_initialise_sb(sb);
 }
-
-#define NFS_MOUNT_CMP_FLAGMASK ~(NFS_MOUNT_INTR \
-		| NFS_MOUNT_SECURE \
-		| NFS_MOUNT_TCP \
-		| NFS_MOUNT_VER3 \
-		| NFS_MOUNT_KERBEROS \
-		| NFS_MOUNT_NONLM \
-		| NFS_MOUNT_BROKEN_SUID \
-		| NFS_MOUNT_STRICTLOCK \
-		| NFS_MOUNT_UNSHARED \
-		| NFS_MOUNT_NORESVPORT \
-		| NFS_MOUNT_LEGACY_INTERFACE)
 
 static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
 {
