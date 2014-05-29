@@ -2178,6 +2178,13 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	/* Check whether this plane is usable on this CRTC */
+	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
+		DRM_DEBUG_KMS("Invalid crtc for plane\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
 	fb = drm_framebuffer_lookup(dev, plane_req->fb_id);
 	if (!fb) {
 		DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",

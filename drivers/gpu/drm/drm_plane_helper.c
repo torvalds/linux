@@ -145,12 +145,6 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	/* Primary planes are locked to their owning CRTC */
-	if (plane->possible_crtcs != drm_crtc_mask(crtc)) {
-		DRM_DEBUG_KMS("Cannot change primary plane CRTC\n");
-		return -EINVAL;
-	}
-
 	/* Disallow scaling */
 	src_w >>= 16;
 	src_h >>= 16;
