@@ -1885,9 +1885,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
 			if (reg_win_data->reg_area_data[j].acq_fence) {
 				/* printk("acq_fence wait!!!!!\n"); */
-				rk_fd_fence_wait(dev_drv,
-						 reg_win_data->reg_area_data[j].
-						 acq_fence);
+				rk_fd_fence_wait(dev_drv, reg_win_data->reg_area_data[j].acq_fence);
 			}
 		}
 	}
@@ -1898,7 +1896,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		printk(KERN_INFO "suspend_flag = 1\n");
 		goto err;
 	}
-	mutex_lock(&dev_drv->update_regs_list_lock);
+
 	dev_drv->timeline_max++;
 #ifdef H_USE_FENCE
 	for (i = 0; i < RK_MAX_BUF_NUM; i++) {
@@ -1908,7 +1906,8 @@ static int rk_fb_set_win_config(struct fb_info *info,
 			if (win_data->rel_fence_fd[i] < 0) {
 				printk(KERN_INFO "rel_fence_fd=%d\n",
 				       win_data->rel_fence_fd[i]);
-				return -EFAULT;
+				ret = -EFAULT;
+				goto err;
 			}
 			release_sync_pt[i] =
 			    sw_sync_pt_create(dev_drv->timeline,
@@ -1925,7 +1924,8 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	win_data->ret_fence_fd = get_unused_fd();
 	if (win_data->ret_fence_fd < 0) {
 		printk("ret_fence_fd=%d\n", win_data->ret_fence_fd);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto err;
 	}
 	retire_sync_pt =
 	    sw_sync_pt_create(dev_drv->timeline, dev_drv->timeline_max);
@@ -1938,12 +1938,12 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	win_data->ret_fence_fd = -1;
 #endif
 	if (dev_drv->wait_fs == 0) {
+		mutex_lock(&dev_drv->update_regs_list_lock);
 		list_add_tail(&regs->list, &dev_drv->update_regs_list);
 		mutex_unlock(&dev_drv->update_regs_list_lock);
 		queue_kthread_work(&dev_drv->update_regs_worker,
 				   &dev_drv->update_regs_work);
 	} else {
-		mutex_unlock(&dev_drv->update_regs_list_lock);
 		rk_fb_update_reg(dev_drv, regs);
 	}
 
