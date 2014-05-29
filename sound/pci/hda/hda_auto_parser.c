@@ -844,8 +844,7 @@ static bool pin_config_match(struct hda_codec *codec,
 {
 	for (; pins->nid; pins++) {
 		u32 def_conf = snd_hda_codec_get_pincfg(codec, pins->nid);
-		u32 mask = 0xffffff00;
-		if ((pins->val & mask) != (def_conf & mask))
+		if (pins->val != def_conf)
 			return false;
 	}
 	return true;
