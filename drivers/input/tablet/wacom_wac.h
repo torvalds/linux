@@ -122,6 +122,8 @@ struct wacom_features {
 	int type;
 	int x_resolution;
 	int y_resolution;
+	int x_min;
+	int y_min;
 	int device_type;
 	int x_phy;
 	int y_phy;
