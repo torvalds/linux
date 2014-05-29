@@ -88,6 +88,27 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	return 0;
 }
 
+static int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
+{
+	u32 addr;
+	int ret;
+
+	ret = of_property_read_u32(np, "reg", &addr);
+	if (ret < 0) {
+		dev_err(dev, "%s has invalid PHY address\n", np->full_name);
+		return ret;
+	}
+
+	/* A PHY must have a reg property in the range [0-31] */
+	if (addr >= PHY_MAX_ADDR) {
+		dev_err(dev, "%s PHY address %i is too large\n",
+			np->full_name, addr);
+		return -EINVAL;
+	}
+
+	return addr;
+}
+
 /**
  * of_mdiobus_register - Register mii_bus and create PHYs from the device tree
  * @mdio: pointer to mii_bus structure
@@ -102,7 +123,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	const __be32 *paddr;
 	u32 addr;
 	bool scanphys = false;
-	int rc, i, len;
+	int rc, i;
 
 	/* Mask out all PHYs from auto probing.  Instead the PHYs listed in
 	 * the device tree are populated after the bus has been registered */
@@ -122,19 +143,9 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 
 	/* Loop over the child nodes and register a phy_device for each one */
 	for_each_available_child_of_node(np, child) {
-		/* A PHY must have a reg property in the range [0-31] */
-		paddr = of_get_property(child, "reg", &len);
-		if (!paddr || len < sizeof(*paddr)) {
+		addr = of_mdio_parse_addr(&mdio->dev, child);
+		if (addr < 0) {
 			scanphys = true;
-			dev_err(&mdio->dev, "%s has invalid PHY address\n",
-				child->full_name);
-			continue;
-		}
-
-		addr = be32_to_cpup(paddr);
-		if (addr >= PHY_MAX_ADDR) {
-			dev_err(&mdio->dev, "%s PHY address %i is too large\n",
-				child->full_name, addr);
 			continue;
 		}
 
@@ -149,7 +160,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	/* auto scan for PHYs with empty reg property */
 	for_each_available_child_of_node(np, child) {
 		/* Skip PHYs with reg property set */
-		paddr = of_get_property(child, "reg", &len);
+		paddr = of_get_property(child, "reg", NULL);
 		if (paddr)
 			continue;
 
@@ -171,6 +182,39 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	return 0;
 }
 EXPORT_SYMBOL(of_mdiobus_register);
+
+/**
+ * of_mdiobus_link_phydev - Find a device node for a phy
+ * @mdio: pointer to mii_bus structure
+ * @phydev: phydev for which the of_node pointer should be set
+ *
+ * Walk the list of subnodes of a mdio bus and look for a node that matches the
+ * phy's address with its 'reg' property. If found, set the of_node pointer for
+ * the phy. This allows auto-probed pyh devices to be supplied with information
+ * passed in via DT.
+ */
+void of_mdiobus_link_phydev(struct mii_bus *mdio,
+			    struct phy_device *phydev)
+{
+	struct device *dev = &phydev->dev;
+	struct device_node *child;
+
+	if (dev->of_node || !mdio->dev.of_node)
+		return;
+
+	for_each_available_child_of_node(mdio->dev.of_node, child) {
+		int addr;
+
+		addr = of_mdio_parse_addr(&mdio->dev, child);
+		if (addr < 0)
+			continue;
+
+		if (addr == phydev->addr) {
+			dev->of_node = child;
+			return;
+		}
+	}
+}
 
 /* Helper function for of_phy_find_device */
 static int of_phy_match(struct device *dev, void *phy_np)
