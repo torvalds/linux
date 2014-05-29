@@ -76,7 +76,6 @@ static void dgap_poll_handler(ulong dummy);
 static int dgap_init_pci(void);
 static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void dgap_remove_one(struct pci_dev *dev);
-static int dgap_probe1(struct pci_dev *pdev, int card_type);
 static int dgap_do_remap(struct board_t *brd);
 static irqreturn_t dgap_intr(int irq, void *voidbrd);
 
@@ -577,17 +576,12 @@ static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return -EIO;
 
-	rc = dgap_probe1(pdev, ent->driver_data);
+	rc = dgap_found_board(pdev, ent->driver_data);
 	if (rc)
 		return rc;
 
 	dgap_numboards++;
 	return dgap_firmware_load(pdev, ent->driver_data);
-}
-
-static int dgap_probe1(struct pci_dev *pdev, int card_type)
-{
-	return dgap_found_board(pdev, card_type);
 }
 
 static void dgap_remove_one(struct pci_dev *dev)
