@@ -61,11 +61,6 @@ static int kvm_mips_reset_vcpu(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
-{
-	return gfn;
-}
-
 /* XXXKYMA: We are simulatoring a processor that has the WII bit set in Config7, so we
  * are "runnable" if interrupts are pending
  */
