@@ -482,6 +482,47 @@ static void __init setup_xstate_features(void)
 }
 
 /*
+ * This function sets up offsets and sizes of all extended states in
+ * xsave area. This supports both standard format and compacted format
+ * of the xsave aread.
+ *
+ * Input: void
+ * Output: void
+ */
+void setup_xstate_comp(void)
+{
+	int i;
+
+	xstate_comp_offsets = kmalloc(xstate_features * sizeof(int),
+				      GFP_KERNEL);
+	xstate_comp_sizes = kmalloc(xstate_features * sizeof(int), GFP_KERNEL);
+
+	if (!cpu_has_xsaves) {
+		for (i = 2; i < xstate_features; i++) {
+			if (test_bit(i, (unsigned long *)&pcntxt_mask)) {
+				xstate_comp_offsets[i] = xstate_offsets[i];
+				xstate_comp_sizes[i] = xstate_sizes[i];
+			}
+		}
+		return;
+	}
+
+	xstate_comp_offsets[2] = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+
+	for (i = 2; i < xstate_features; i++) {
+		if (test_bit(i, (unsigned long *)&pcntxt_mask))
+			xstate_comp_sizes[i] = xstate_sizes[i];
+		else
+			xstate_comp_sizes[i] = 0;
+
+		if (i > 2)
+			xstate_comp_offsets[i] = xstate_comp_offsets[i-1]
+					+ xstate_comp_sizes[i-1];
+
+	}
+}
+
+/*
  * setup the xstate image representing the init state
  */
 static void __init setup_init_fpu_buf(void)
@@ -667,4 +708,27 @@ void eager_fpu_init(void)
 		xrstor_state(init_xstate_buf, -1);
 	else
 		fxrstor_checking(&init_xstate_buf->i387);
+}
+
+/*
+ * Given the xsave area and a state inside, this function returns the
+ * address of the state.
+ *
+ * This is the API that is called to get xstate address in either
+ * standard format or compacted format of xsave area.
+ *
+ * Inputs:
+ *	xsave: base address of the xsave area;
+ *	xstate: state which is defined in xsave.h (e.g. XSTATE_FP, XSTATE_SSE,
+ *	etc.)
+ * Output:
+ *	address of the state in the xsave area.
+ */
+void *get_xsave_addr(struct xsave_struct *xsave, int xstate)
+{
+	int feature = fls64(xstate) - 1;
+	if (!test_bit(feature, (unsigned long *)&pcntxt_mask))
+		return NULL;
+
+	return (void *)xsave + xstate_comp_offsets[feature];
 }
