@@ -363,7 +363,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu->arch.last_sched_cpu = -1;
 
 	/* Start off the timer */
-	kvm_mips_emulate_count(vcpu);
+	kvm_mips_init_count(vcpu);
 
 	return vcpu;
 
@@ -707,9 +707,6 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_STATUS:
 		kvm_write_c0_guest_status(cop0, v);
 		break;
-	case KVM_REG_MIPS_CP0_CAUSE:
-		kvm_write_c0_guest_cause(cop0, v);
-		break;
 	case KVM_REG_MIPS_CP0_EPC:
 		kvm_write_c0_guest_epc(cop0, v);
 		break;
@@ -719,6 +716,7 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	/* registers to be handled specially */
 	case KVM_REG_MIPS_CP0_COUNT:
 	case KVM_REG_MIPS_CP0_COMPARE:
+	case KVM_REG_MIPS_CP0_CAUSE:
 		return kvm_mips_callbacks->set_one_reg(vcpu, reg, v);
 	default:
 		return -EINVAL;
@@ -992,9 +990,7 @@ enum hrtimer_restart kvm_mips_comparecount_wakeup(struct hrtimer *timer)
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.comparecount_timer);
 	kvm_mips_comparecount_func((unsigned long) vcpu);
-	hrtimer_forward_now(&vcpu->arch.comparecount_timer,
-			    ktime_set(0, MS_TO_NS(10)));
-	return HRTIMER_RESTART;
+	return kvm_mips_count_timeout(vcpu);
 }
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)

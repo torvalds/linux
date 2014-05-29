@@ -407,8 +407,7 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 {
 	switch (reg->id) {
 	case KVM_REG_MIPS_CP0_COUNT:
-		/* XXXKYMA: Run the Guest count register @ 1/4 the rate of the host */
-		*v = (read_c0_count() >> 2);
+		*v = kvm_mips_read_count(vcpu);
 		break;
 	default:
 		return -EINVAL;
@@ -424,10 +423,30 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 
 	switch (reg->id) {
 	case KVM_REG_MIPS_CP0_COUNT:
-		/* Not supported yet */
+		kvm_mips_write_count(vcpu, v);
 		break;
 	case KVM_REG_MIPS_CP0_COMPARE:
-		kvm_write_c0_guest_compare(cop0, v);
+		kvm_mips_write_compare(vcpu, v);
+		break;
+	case KVM_REG_MIPS_CP0_CAUSE:
+		/*
+		 * If the timer is stopped or started (DC bit) it must look
+		 * atomic with changes to the interrupt pending bits (TI, IRQ5).
+		 * A timer interrupt should not happen in between.
+		 */
+		if ((kvm_read_c0_guest_cause(cop0) ^ v) & CAUSEF_DC) {
+			if (v & CAUSEF_DC) {
+				/* disable timer first */
+				kvm_mips_count_disable_cause(vcpu);
+				kvm_change_c0_guest_cause(cop0, ~CAUSEF_DC, v);
+			} else {
+				/* enable timer last */
+				kvm_change_c0_guest_cause(cop0, ~CAUSEF_DC, v);
+				kvm_mips_count_enable_cause(vcpu);
+			}
+		} else {
+			kvm_write_c0_guest_cause(cop0, v);
+		}
 		break;
 	default:
 		return -EINVAL;

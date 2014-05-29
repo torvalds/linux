@@ -404,8 +404,15 @@ struct kvm_vcpu_arch {
 
 	u32 io_gpr;		/* GPR used as IO source/target */
 
-	/* Used to calibrate the virutal count register for the guest */
-	int32_t host_cp0_count;
+	struct hrtimer comparecount_timer;
+	/* Count bias from the raw time */
+	uint32_t count_bias;
+	/* Frequency of timer in Hz */
+	uint32_t count_hz;
+	/* Dynamic nanosecond bias (multiple of count_period) to avoid overflow */
+	s64 count_dyn_bias;
+	/* Period of timer tick in ns */
+	u64 count_period;
 
 	/* Bitmask of exceptions that are pending */
 	unsigned long pending_exceptions;
@@ -425,8 +432,6 @@ struct kvm_vcpu_arch {
 	uint32_t guest_user_asid[NR_CPUS];
 	uint32_t guest_kernel_asid[NR_CPUS];
 	struct mm_struct guest_kernel_mm, guest_user_mm;
-
-	struct hrtimer comparecount_timer;
 
 	int last_sched_cpu;
 
@@ -705,7 +710,13 @@ extern enum emulation_result kvm_mips_emulate_bp_exc(unsigned long cause,
 extern enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu,
 							 struct kvm_run *run);
 
-enum emulation_result kvm_mips_emulate_count(struct kvm_vcpu *vcpu);
+uint32_t kvm_mips_read_count(struct kvm_vcpu *vcpu);
+void kvm_mips_write_count(struct kvm_vcpu *vcpu, uint32_t count);
+void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare);
+void kvm_mips_init_count(struct kvm_vcpu *vcpu);
+void kvm_mips_count_enable_cause(struct kvm_vcpu *vcpu);
+void kvm_mips_count_disable_cause(struct kvm_vcpu *vcpu);
+enum hrtimer_restart kvm_mips_count_timeout(struct kvm_vcpu *vcpu);
 
 enum emulation_result kvm_mips_check_privilege(unsigned long cause,
 					       uint32_t *opc,
