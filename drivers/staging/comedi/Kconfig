@@ -172,6 +172,7 @@ config COMEDI_PCL730
 	  Advantech PCL-734             iso - 32 out
 	  Diamond Systems OPMM-1616-XT  iso - 16 in/16 out
 	  Diamond Systems PEARL-MM-P    iso - 16 out
+	  Diamond Systems IR104-PBF     iso - 20 in/20 out
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl730.

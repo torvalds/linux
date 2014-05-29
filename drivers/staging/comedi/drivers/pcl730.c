@@ -19,6 +19,7 @@
  *	    (Advantech) PCL-734 [pcl734]
  *	    (Diamond Systems) OPMM-1616-XT [opmm-1616-xt]
  *	    (Diamond Systems) PEARL-MM-P [prearl-mm-p]
+ *	    (Diamond Systems) IR104-PBF [ir104-pbf]
  * Author: José Luis Sánchez (jsanchezv@teleline.es)
  * Status: untested
  *
@@ -93,6 +94,15 @@
  *
  *     BASE+0  Isolated outputs 0-7 (write)
  *     BASE+1  Isolated outputs 8-15 (write)
+ *
+ * The ir104-pbf board has this register mapping:
+ *
+ *     BASE+0  Isolated outputs 0-7 (write) (read back)
+ *     BASE+1  Isolated outputs 8-15 (write) (read back)
+ *     BASE+2  Isolated outputs 16-19 (write) (read back)
+ *     BASE+4  Isolated inputs 0-7 (read)
+ *     BASE+5  Isolated inputs 8-15 (read)
+ *     BASE+6  Isolated inputs 16-19 (read)
  */
 
 struct pcl730_board {
@@ -100,6 +110,7 @@ struct pcl730_board {
 	unsigned int io_range;
 	unsigned is_pcl725:1;
 	unsigned is_acl7225b:1;
+	unsigned is_ir104:1;
 	unsigned has_readback:1;
 	unsigned has_ttl_io:1;
 	int n_subdevs;
@@ -194,6 +205,13 @@ static const struct pcl730_board pcl730_boards[] = {
 		.io_range	= 0x02,
 		.n_subdevs	= 1,
 		.n_iso_out_chan	= 16,
+	}, {
+		.name		= "ir104-pbf",
+		.io_range	= 0x08,
+		.is_ir104	= 1,
+		.has_readback	= 1,
+		.n_iso_out_chan	= 20,
+		.n_iso_in_chan	= 20,
 	},
 };
 
@@ -292,7 +310,8 @@ static int pcl730_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl730_di_insn_bits;
-		s->private	= board->is_acl7225b ? (void *)2 :
+		s->private	= board->is_ir104 ? (void*)4 :
+				  board->is_acl7225b ? (void *)2 :
 				  board->is_pcl725 ? (void *)1 : (void *)0;
 	}
 
