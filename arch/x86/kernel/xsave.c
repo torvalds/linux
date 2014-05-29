@@ -496,15 +496,21 @@ static void __init setup_init_fpu_buf(void)
 
 	setup_xstate_features();
 
+	if (cpu_has_xsaves) {
+		init_xstate_buf->xsave_hdr.xcomp_bv =
+						(u64)1 << 63 | pcntxt_mask;
+		init_xstate_buf->xsave_hdr.xstate_bv = pcntxt_mask;
+	}
+
 	/*
 	 * Init all the features state with header_bv being 0x0
 	 */
-	xrstor_state(init_xstate_buf, -1);
+	xrstor_state_booting(init_xstate_buf, -1);
 	/*
 	 * Dump the init state again. This is to identify the init state
 	 * of any feature which is not represented by all zero's.
 	 */
-	xsave_state(init_xstate_buf, -1);
+	xsave_state_booting(init_xstate_buf, -1);
 }
 
 static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
