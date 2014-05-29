@@ -669,9 +669,8 @@ err:
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
 	/* Just report headphone */
-	ret = extcon_update_state(info->edev,
-				  1 << ARIZONA_CABLE_HEADPHONE,
-				  1 << ARIZONA_CABLE_HEADPHONE);
+	ret = extcon_set_cable_state_(info->edev,
+				      ARIZONA_CABLE_HEADPHONE, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report headphone: %d\n", ret);
 
@@ -728,9 +727,8 @@ err:
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
 	/* Just report headphone */
-	ret = extcon_update_state(info->edev,
-				  1 << ARIZONA_CABLE_HEADPHONE,
-				  1 << ARIZONA_CABLE_HEADPHONE);
+	ret = extcon_set_cable_state_(info->edev,
+				      ARIZONA_CABLE_HEADPHONE, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report headphone: %d\n", ret);
 
@@ -817,9 +815,8 @@ static void arizona_micd_detect(struct work_struct *work)
 	if (info->detecting && (val & ARIZONA_MICD_LVL_8)) {
 		arizona_identify_headphone(info);
 
-		ret = extcon_update_state(info->edev,
-					  1 << ARIZONA_CABLE_MICROPHONE,
-					  1 << ARIZONA_CABLE_MICROPHONE);
+		ret = extcon_set_cable_state_(info->edev,
+					      ARIZONA_CABLE_MICROPHONE, true);
 
 		if (ret != 0)
 			dev_err(arizona->dev, "Headset report failed: %d\n",
