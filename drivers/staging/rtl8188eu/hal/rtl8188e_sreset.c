@@ -22,7 +22,4 @@
 #include <rtl8188e_sreset.h>
 #include <rtl8188e_hal.h>
 
-void rtl8188e_silentreset_for_specific_platform(struct adapter *padapter)
-{
-}
 

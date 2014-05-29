@@ -24,6 +24,5 @@
 #include <drv_types.h>
 #include <rtw_sreset.h>
 
-void rtl8188e_silentreset_for_specific_platform(struct adapter *padapter);
 
 #endif
