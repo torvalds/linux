@@ -49,7 +49,6 @@
 #include "HalHWImg8188E_MAC.h"
 #include "HalHWImg8188E_RF.h"
 #include "HalHWImg8188E_BB.h"
-#include "Hal8188EReg.h"
 
 #include "odm_RegConfig8188E.h"
 #include "odm_RTL8188E.h"
