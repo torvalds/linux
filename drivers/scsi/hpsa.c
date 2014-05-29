@@ -6164,6 +6164,8 @@ static void hpsa_interrupt_mode(struct ctlr_info *h)
 	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSIX)) {
 		dev_info(&h->pdev->dev, "MSIX\n");
 		h->msix_vector = MAX_REPLY_QUEUES;
+		if (h->msix_vector > num_online_cpus())
+			h->msix_vector = num_online_cpus();
 		err = pci_enable_msix(h->pdev, hpsa_msix_entries,
 				      h->msix_vector);
 		if (err > 0) {
