@@ -88,9 +88,8 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 	/* Check if the request originated from a secure port. */
 	if (!rqstp->rq_secure && !(flags & NFSEXP_INSECURE_PORT)) {
 		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
-		dprintk(KERN_WARNING
-		       "nfsd: request from insecure port %s!\n",
-		       svc_print_addr(rqstp, buf, sizeof(buf)));
+		dprintk("nfsd: request from insecure port %s!\n",
+		        svc_print_addr(rqstp, buf, sizeof(buf)));
 		return nfserr_perm;
 	}
 

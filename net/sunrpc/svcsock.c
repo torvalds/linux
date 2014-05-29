@@ -849,8 +849,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	 * tell us anything.  For now just warn about unpriv connections.
 	 */
 	if (!svc_port_is_privileged(sin)) {
-		dprintk(KERN_WARNING
-			"%s: connect from unprivileged port: %s\n",
+		dprintk("%s: connect from unprivileged port: %s\n",
 			serv->sv_name,
 			__svc_print_addr(sin, buf, sizeof(buf)));
 	}
