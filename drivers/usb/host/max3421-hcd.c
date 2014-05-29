@@ -1717,7 +1717,8 @@ max3421_hub_control(struct usb_hcd *hcd, u16 type_req, u16 value, u16 index,
 			break;
 		case USB_PORT_FEAT_POWER:
 			dev_dbg(hcd->self.controller, "power-off\n");
-			max3421_gpout_set_value(hcd, pdata->vbus_gpout, 0);
+			max3421_gpout_set_value(hcd, pdata->vbus_gpout,
+						!pdata->vbus_active_level);
 			/* FALLS THROUGH */
 		default:
 			max3421_hcd->port_status &= ~(1 << value);
@@ -1766,7 +1767,8 @@ max3421_hub_control(struct usb_hcd *hcd, u16 type_req, u16 value, u16 index,
 		case USB_PORT_FEAT_POWER:
 			dev_dbg(hcd->self.controller, "power-on\n");
 			max3421_hcd->port_status |= USB_PORT_STAT_POWER;
-			max3421_gpout_set_value(hcd, pdata->vbus_gpout, 1);
+			max3421_gpout_set_value(hcd, pdata->vbus_gpout,
+						pdata->vbus_active_level);
 			break;
 		case USB_PORT_FEAT_RESET:
 			max3421_reset_port(hcd);

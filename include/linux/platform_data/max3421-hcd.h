@@ -18,6 +18,7 @@
  */
 struct max3421_hcd_platform_data {
 	u8 vbus_gpout;			/* pin controlling Vbus */
+	u8 vbus_active_level;		/* level that turns on power */
 };
 
 #endif /* MAX3421_HCD_PLAT_H_INCLUDED */
