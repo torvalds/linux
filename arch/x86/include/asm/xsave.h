@@ -129,22 +129,20 @@ static inline int xrstor_state(struct xsave_struct *fx, u64 mask)
 	return err;
 }
 
+/*
+ * Save xstate context for old process during context switch.
+ */
+static inline void fpu_xsave(struct fpu *fpu)
+{
+	xsave_state(&fpu->state->xsave, -1);
+}
+
+/*
+ * Restore xstate context for new process during context switch.
+ */
 static inline int fpu_xrstor_checking(struct xsave_struct *fx)
 {
-	int err;
-
-	asm volatile("1: .byte " REX_PREFIX "0x0f,0xae,0x2f\n\t"
-		     "2:\n"
-		     ".section .fixup,\"ax\"\n"
-		     "3:  movl $-1,%[err]\n"
-		     "    jmp  2b\n"
-		     ".previous\n"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [err] "=r" (err)
-		     : "D" (fx), "m" (*fx), "a" (-1), "d" (-1), "0" (0)
-		     : "memory");
-
-	return err;
+	return xrstor_state(fx, -1);
 }
 
 static inline int xsave_user(struct xsave_struct __user *buf)
@@ -194,15 +192,4 @@ static inline int xrestore_user(struct xsave_struct __user *buf, u64 mask)
 	return err;
 }
 
-static inline void fpu_xsave(struct fpu *fpu)
-{
-	/* This, however, we can work around by forcing the compiler to select
-	   an addressing mode that doesn't require extended registers. */
-	alternative_input(
-		".byte " REX_PREFIX "0x0f,0xae,0x27",
-		".byte " REX_PREFIX "0x0f,0xae,0x37",
-		X86_FEATURE_XSAVEOPT,
-		[fx] "D" (&fpu->state->xsave), "a" (-1), "d" (-1) :
-		"memory");
-}
 #endif
