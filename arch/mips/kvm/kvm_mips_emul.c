@@ -233,14 +233,15 @@ enum emulation_result update_pc(struct kvm_vcpu *vcpu, uint32_t cause)
  * kvm_mips_count_disabled() - Find whether the CP0_Count timer is disabled.
  * @vcpu:	Virtual CPU.
  *
- * Returns:	1 if the CP0_Count timer is disabled by the guest CP0_Cause.DC
- *		bit.
+ * Returns:	1 if the CP0_Count timer is disabled by either the guest
+ *		CP0_Cause.DC bit or the count_ctl.DC bit.
  *		0 otherwise (in which case CP0_Count timer is running).
  */
 static inline int kvm_mips_count_disabled(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	return kvm_read_c0_guest_cause(cop0) & CAUSEF_DC;
+	return	(vcpu->arch.count_ctl & KVM_REG_MIPS_COUNT_CTL_DC) ||
+		(kvm_read_c0_guest_cause(cop0) & CAUSEF_DC);
 }
 
 /**
@@ -277,6 +278,24 @@ static uint32_t kvm_mips_ktime_to_count(struct kvm_vcpu *vcpu, ktime_t now)
 	 *   delta * count_hz = NSEC_PER_SEC * 2^32
 	 */
 	return div_u64(delta * vcpu->arch.count_hz, NSEC_PER_SEC);
+}
+
+/**
+ * kvm_mips_count_time() - Get effective current time.
+ * @vcpu:	Virtual CPU.
+ *
+ * Get effective monotonic ktime. This is usually a straightforward ktime_get(),
+ * except when the master disable bit is set in count_ctl, in which case it is
+ * count_resume, i.e. the time that the count was disabled.
+ *
+ * Returns:	Effective monotonic ktime for CP0_Count.
+ */
+static inline ktime_t kvm_mips_count_time(struct kvm_vcpu *vcpu)
+{
+	if (unlikely(vcpu->arch.count_ctl & KVM_REG_MIPS_COUNT_CTL_DC))
+		return vcpu->arch.count_resume;
+
+	return ktime_get();
 }
 
 /**
@@ -448,7 +467,7 @@ void kvm_mips_write_count(struct kvm_vcpu *vcpu, uint32_t count)
 	ktime_t now;
 
 	/* Calculate bias */
-	now = ktime_get();
+	now = kvm_mips_count_time(vcpu);
 	vcpu->arch.count_bias = count - kvm_mips_ktime_to_count(vcpu, now);
 
 	if (kvm_mips_count_disabled(vcpu))
@@ -508,8 +527,8 @@ void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare)
  * Disable the CP0_Count timer. A timer interrupt on or before the final stop
  * time will be handled but not after.
  *
- * Assumes CP0_Count was previously enabled but now Guest.CP0_Cause.DC has been
- * set (count disabled).
+ * Assumes CP0_Count was previously enabled but now Guest.CP0_Cause.DC or
+ * count_ctl.DC has been set (count disabled).
  *
  * Returns:	The time that the timer was stopped.
  */
@@ -535,7 +554,8 @@ static ktime_t kvm_mips_count_disable(struct kvm_vcpu *vcpu)
  * @vcpu:	Virtual CPU.
  *
  * Disable the CP0_Count timer and set CP0_Cause.DC. A timer interrupt on or
- * before the final stop time will be handled, but not after.
+ * before the final stop time will be handled if the timer isn't disabled by
+ * count_ctl.DC, but not after.
  *
  * Assumes CP0_Cause.DC is clear (count enabled).
  */
@@ -544,7 +564,8 @@ void kvm_mips_count_disable_cause(struct kvm_vcpu *vcpu)
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 
 	kvm_set_c0_guest_cause(cop0, CAUSEF_DC);
-	kvm_mips_count_disable(vcpu);
+	if (!(vcpu->arch.count_ctl & KVM_REG_MIPS_COUNT_CTL_DC))
+		kvm_mips_count_disable(vcpu);
 }
 
 /**
@@ -552,9 +573,9 @@ void kvm_mips_count_disable_cause(struct kvm_vcpu *vcpu)
  * @vcpu:	Virtual CPU.
  *
  * Enable the CP0_Count timer and clear CP0_Cause.DC. A timer interrupt after
- * the start time will be handled, potentially before even returning, so the
- * caller should be careful with ordering of CP0_Cause modifications so as not
- * to lose it.
+ * the start time will be handled if the timer isn't disabled by count_ctl.DC,
+ * potentially before even returning, so the caller should be careful with
+ * ordering of CP0_Cause modifications so as not to lose it.
  *
  * Assumes CP0_Cause.DC is set (count disabled).
  */
@@ -567,10 +588,97 @@ void kvm_mips_count_enable_cause(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Set the dynamic count to match the static count.
-	 * This starts the hrtimer.
+	 * This starts the hrtimer if count_ctl.DC allows it.
+	 * Otherwise it conveniently updates the biases.
 	 */
 	count = kvm_read_c0_guest_count(cop0);
 	kvm_mips_write_count(vcpu, count);
+}
+
+/**
+ * kvm_mips_set_count_ctl() - Update the count control KVM register.
+ * @vcpu:	Virtual CPU.
+ * @count_ctl:	Count control register new value.
+ *
+ * Set the count control KVM register. The timer is updated accordingly.
+ *
+ * Returns:	-EINVAL if reserved bits are set.
+ *		0 on success.
+ */
+int kvm_mips_set_count_ctl(struct kvm_vcpu *vcpu, s64 count_ctl)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	s64 changed = count_ctl ^ vcpu->arch.count_ctl;
+	s64 delta;
+	ktime_t expire, now;
+	uint32_t count, compare;
+
+	/* Only allow defined bits to be changed */
+	if (changed & ~(s64)(KVM_REG_MIPS_COUNT_CTL_DC))
+		return -EINVAL;
+
+	/* Apply new value */
+	vcpu->arch.count_ctl = count_ctl;
+
+	/* Master CP0_Count disable */
+	if (changed & KVM_REG_MIPS_COUNT_CTL_DC) {
+		/* Is CP0_Cause.DC already disabling CP0_Count? */
+		if (kvm_read_c0_guest_cause(cop0) & CAUSEF_DC) {
+			if (count_ctl & KVM_REG_MIPS_COUNT_CTL_DC)
+				/* Just record the current time */
+				vcpu->arch.count_resume = ktime_get();
+		} else if (count_ctl & KVM_REG_MIPS_COUNT_CTL_DC) {
+			/* disable timer and record current time */
+			vcpu->arch.count_resume = kvm_mips_count_disable(vcpu);
+		} else {
+			/*
+			 * Calculate timeout relative to static count at resume
+			 * time (wrap 0 to 2^32).
+			 */
+			count = kvm_read_c0_guest_count(cop0);
+			compare = kvm_read_c0_guest_compare(cop0);
+			delta = (u64)(uint32_t)(compare - count - 1) + 1;
+			delta = div_u64(delta * NSEC_PER_SEC,
+					vcpu->arch.count_hz);
+			expire = ktime_add_ns(vcpu->arch.count_resume, delta);
+
+			/* Handle pending interrupt */
+			now = ktime_get();
+			if (ktime_compare(now, expire) >= 0)
+				/* Nothing should be waiting on the timeout */
+				kvm_mips_callbacks->queue_timer_int(vcpu);
+
+			/* Resume hrtimer without changing bias */
+			count = kvm_mips_read_count_running(vcpu, now);
+			kvm_mips_resume_hrtimer(vcpu, now, count);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * kvm_mips_set_count_resume() - Update the count resume KVM register.
+ * @vcpu:		Virtual CPU.
+ * @count_resume:	Count resume register new value.
+ *
+ * Set the count resume KVM register.
+ *
+ * Returns:	-EINVAL if out of valid range (0..now).
+ *		0 on success.
+ */
+int kvm_mips_set_count_resume(struct kvm_vcpu *vcpu, s64 count_resume)
+{
+	/*
+	 * It doesn't make sense for the resume time to be in the future, as it
+	 * would be possible for the next interrupt to be more than a full
+	 * period in the future.
+	 */
+	if (count_resume < 0 || count_resume > ktime_to_ns(ktime_get()))
+		return -EINVAL;
+
+	vcpu->arch.count_resume = ns_to_ktime(count_resume);
+	return 0;
 }
 
 /**

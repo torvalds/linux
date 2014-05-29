@@ -409,6 +409,12 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_COUNT:
 		*v = kvm_mips_read_count(vcpu);
 		break;
+	case KVM_REG_MIPS_COUNT_CTL:
+		*v = vcpu->arch.count_ctl;
+		break;
+	case KVM_REG_MIPS_COUNT_RESUME:
+		*v = ktime_to_ns(vcpu->arch.count_resume);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -420,6 +426,7 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 				     s64 v)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int ret = 0;
 
 	switch (reg->id) {
 	case KVM_REG_MIPS_CP0_COUNT:
@@ -448,10 +455,16 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 			kvm_write_c0_guest_cause(cop0, v);
 		}
 		break;
+	case KVM_REG_MIPS_COUNT_CTL:
+		ret = kvm_mips_set_count_ctl(vcpu, v);
+		break;
+	case KVM_REG_MIPS_COUNT_RESUME:
+		ret = kvm_mips_set_count_resume(vcpu, v);
+		break;
 	default:
 		return -EINVAL;
 	}
-	return 0;
+	return ret;
 }
 
 static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {

@@ -405,12 +405,16 @@ struct kvm_vcpu_arch {
 	u32 io_gpr;		/* GPR used as IO source/target */
 
 	struct hrtimer comparecount_timer;
+	/* Count timer control KVM register */
+	uint32_t count_ctl;
 	/* Count bias from the raw time */
 	uint32_t count_bias;
 	/* Frequency of timer in Hz */
 	uint32_t count_hz;
 	/* Dynamic nanosecond bias (multiple of count_period) to avoid overflow */
 	s64 count_dyn_bias;
+	/* Resume time */
+	ktime_t count_resume;
 	/* Period of timer tick in ns */
 	u64 count_period;
 
@@ -714,6 +718,8 @@ uint32_t kvm_mips_read_count(struct kvm_vcpu *vcpu);
 void kvm_mips_write_count(struct kvm_vcpu *vcpu, uint32_t count);
 void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare);
 void kvm_mips_init_count(struct kvm_vcpu *vcpu);
+int kvm_mips_set_count_ctl(struct kvm_vcpu *vcpu, s64 count_ctl);
+int kvm_mips_set_count_resume(struct kvm_vcpu *vcpu, s64 count_resume);
 void kvm_mips_count_enable_cause(struct kvm_vcpu *vcpu);
 void kvm_mips_count_disable_cause(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_mips_count_timeout(struct kvm_vcpu *vcpu);
