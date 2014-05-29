@@ -472,11 +472,15 @@ bail:
 
 void dlm_destroy_master_caches(void)
 {
-	if (dlm_lockname_cache)
+	if (dlm_lockname_cache) {
 		kmem_cache_destroy(dlm_lockname_cache);
+		dlm_lockname_cache = NULL;
+	}
 
-	if (dlm_lockres_cache)
+	if (dlm_lockres_cache) {
 		kmem_cache_destroy(dlm_lockres_cache);
+		dlm_lockres_cache = NULL;
+	}
 }
 
 static void dlm_lockres_release(struct kref *kref)

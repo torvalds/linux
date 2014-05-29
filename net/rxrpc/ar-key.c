@@ -99,7 +99,7 @@ static int rxrpc_instantiate_xdr_rxkad(struct key *key, const __be32 *xdr,
 	_debug("tktlen: %x", tktlen);
 	if (tktlen > AFSTOKEN_RK_TIX_MAX)
 		return -EKEYREJECTED;
-	if (8 * 4 + tktlen != toklen)
+	if (toklen < 8 * 4 + tktlen)
 		return -EKEYREJECTED;
 
 	plen = sizeof(*token) + sizeof(*token->kad) + tktlen;

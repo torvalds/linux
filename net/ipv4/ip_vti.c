@@ -239,6 +239,7 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 static int vti4_err(struct sk_buff *skb, u32 info)
 {
 	__be32 spi;
+	__u32 mark;
 	struct xfrm_state *x;
 	struct ip_tunnel *tunnel;
 	struct ip_esp_hdr *esph;
@@ -253,6 +254,8 @@ static int vti4_err(struct sk_buff *skb, u32 info)
 				  iph->daddr, iph->saddr, 0);
 	if (!tunnel)
 		return -1;
+
+	mark = be32_to_cpu(tunnel->parms.o_key);
 
 	switch (protocol) {
 	case IPPROTO_ESP:
@@ -281,7 +284,7 @@ static int vti4_err(struct sk_buff *skb, u32 info)
 		return 0;
 	}
 
-	x = xfrm_state_lookup(net, skb->mark, (const xfrm_address_t *)&iph->daddr,
+	x = xfrm_state_lookup(net, mark, (const xfrm_address_t *)&iph->daddr,
 			      spi, protocol, AF_INET);
 	if (!x)
 		return 0;

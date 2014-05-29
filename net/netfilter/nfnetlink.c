@@ -256,15 +256,15 @@ replay:
 #endif
 		{
 			nfnl_unlock(subsys_id);
-			kfree_skb(nskb);
-			return netlink_ack(skb, nlh, -EOPNOTSUPP);
+			netlink_ack(skb, nlh, -EOPNOTSUPP);
+			return kfree_skb(nskb);
 		}
 	}
 
 	if (!ss->commit || !ss->abort) {
 		nfnl_unlock(subsys_id);
-		kfree_skb(nskb);
-		return netlink_ack(skb, nlh, -EOPNOTSUPP);
+		netlink_ack(skb, nlh, -EOPNOTSUPP);
+		return kfree_skb(skb);
 	}
 
 	while (skb->len >= nlmsg_total_size(0)) {

@@ -226,7 +226,7 @@ int xenvif_map_frontend_rings(struct xenvif *vif,
 			      grant_ref_t rx_ring_ref);
 
 /* Check for SKBs from frontend and schedule backend processing */
-void xenvif_check_rx_xenvif(struct xenvif *vif);
+void xenvif_napi_schedule_or_enable_events(struct xenvif *vif);
 
 /* Prevent the device from generating any further traffic. */
 void xenvif_carrier_off(struct xenvif *vif);

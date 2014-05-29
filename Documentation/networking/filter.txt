@@ -277,7 +277,7 @@ Possible BPF extensions are shown in the following table:
   mark                                  skb->mark
   queue                                 skb->queue_mapping
   hatype                                skb->dev->type
-  rxhash                                skb->rxhash
+  rxhash                                skb->hash
   cpu                                   raw_smp_processor_id()
   vlan_tci                              vlan_tx_tag_get(skb)
   vlan_pr                               vlan_tx_tag_present(skb)
