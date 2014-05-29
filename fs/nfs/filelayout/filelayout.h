@@ -56,24 +56,6 @@ enum stripetype4 {
 	STRIPE_DENSE = 2
 };
 
-/* Individual ip address */
-struct nfs4_pnfs_ds_addr {
-	struct sockaddr_storage	da_addr;
-	size_t			da_addrlen;
-	struct list_head	da_node;  /* nfs4_pnfs_dev_hlist dev_dslist */
-	char			*da_remotestr;	/* human readable addr+port */
-};
-
-struct nfs4_pnfs_ds {
-	struct list_head	ds_node;  /* nfs4_pnfs_dev_hlist dev_dslist */
-	char			*ds_remotestr;	/* comma sep list of addrs */
-	struct list_head	ds_addrs;
-	struct nfs_client	*ds_clp;
-	atomic_t		ds_count;
-	unsigned long		ds_state;
-#define NFS4DS_CONNECTING	0	/* ds is establishing connection */
-};
-
 struct nfs4_file_layout_dsaddr {
 	struct nfs4_deviceid_node	id_node;
 	u32				stripe_count;
@@ -131,7 +113,6 @@ filelayout_test_devid_unavailable(struct nfs4_deviceid_node *node);
 extern struct nfs_fh *
 nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j);
 
-extern void print_ds(struct nfs4_pnfs_ds *ds);
 u32 nfs4_fl_calc_j_index(struct pnfs_layout_segment *lseg, loff_t offset);
 u32 nfs4_fl_calc_ds_index(struct pnfs_layout_segment *lseg, u32 j);
 struct nfs4_pnfs_ds *nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg,
