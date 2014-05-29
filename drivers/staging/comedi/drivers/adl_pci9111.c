@@ -75,8 +75,6 @@ TODO:
 #include "plx9052.h"
 #include "comedi_fc.h"
 
-#define PCI9111_HR_DEVICE_ID	0x9111
-
 #define PCI9111_FIFO_HALF_SIZE	512
 
 #define PCI9111_AI_ACQUISITION_PERIOD_MIN_NS	10000
@@ -883,7 +881,7 @@ static int pci9111_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id pci9111_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HR_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x9111) },
 	/* { PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HG_DEVICE_ID) }, */
 	{ 0 }
 };
