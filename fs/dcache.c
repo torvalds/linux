@@ -885,8 +885,26 @@ static void shrink_dentry_list(struct list_head *list)
 		 * fragmentation.
 		 */
 		dentry = parent;
-		while (dentry && !lockref_put_or_lock(&dentry->d_lockref))
-			dentry = dentry_kill(dentry, 1);
+		while (dentry && !lockref_put_or_lock(&dentry->d_lockref)) {
+			parent = lock_parent(dentry);
+			if (dentry->d_lockref.count != 1) {
+				dentry->d_lockref.count--;
+				spin_unlock(&dentry->d_lock);
+				if (parent)
+					spin_unlock(&parent->d_lock);
+				break;
+			}
+			inode = dentry->d_inode;	/* can't be NULL */
+			if (unlikely(!spin_trylock(&inode->i_lock))) {
+				spin_unlock(&dentry->d_lock);
+				if (parent)
+					spin_unlock(&parent->d_lock);
+				cpu_relax();
+				continue;
+			}
+			__dentry_kill(dentry);
+			dentry = parent;
+		}
 	}
 }
 
