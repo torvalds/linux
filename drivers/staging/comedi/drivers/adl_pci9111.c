@@ -75,7 +75,6 @@ TODO:
 #include "plx9052.h"
 #include "comedi_fc.h"
 
-#define PCI9111_DRIVER_NAME	"adl_pci9111"
 #define PCI9111_HR_DEVICE_ID	0x9111
 
 #define PCI9111_FIFO_HALF_SIZE	512
@@ -630,7 +629,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		/* '0' means FIFO is full, data may have been lost */
 		if (!(status & PCI9111_AI_STAT_FF_FF)) {
 			spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-			comedi_error(dev, PCI9111_DRIVER_NAME " fifo overflow");
+			dev_dbg(dev->class_dev, "fifo overflow\n");
 			outb(0, dev->iobase + PCI9111_INT_CLR_REG);
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 			cfc_handle_events(dev, s);
