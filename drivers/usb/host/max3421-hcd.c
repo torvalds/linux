@@ -102,6 +102,10 @@ enum scheduling_pass {
 	SCHED_PASS_DONE
 };
 
+struct max3421_dma_buf {
+	u8 data[2];
+};
+
 struct max3421_hcd {
 	spinlock_t lock;
 
@@ -123,6 +127,12 @@ struct max3421_hcd {
 	 */
 	u8 rev;				/* chip revision */
 	u16 frame_number;
+	/*
+	 * kmalloc'd buffers guaranteed to be in separate (DMA)
+	 * cache-lines:
+	 */
+	struct max3421_dma_buf *tx;
+	struct max3421_dma_buf *rx;
 	/*
 	 * URB we're currently processing.  Must not be reset to NULL
 	 * unless MAX3421E chip is idle:
@@ -332,51 +342,47 @@ max3421_to_hcd(struct max3421_hcd *max3421_hcd)
 static u8
 spi_rd8(struct usb_hcd *hcd, unsigned int reg)
 {
+	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct spi_device *spi = to_spi_device(hcd->self.controller);
 	struct spi_transfer transfer;
-	u8 tx_data[1];
-	/*
-	 * RX data must be in its own cache-line so it stays flushed
-	 * from the cache until the transfer is complete.  Otherwise,
-	 * we get stale data from the cache.
-	 */
-	u8 rx_data[SMP_CACHE_BYTES] ____cacheline_aligned;
 	struct spi_message msg;
 
 	memset(&transfer, 0, sizeof(transfer));
 
 	spi_message_init(&msg);
 
-	tx_data[0] = (field(reg, MAX3421_SPI_REG_SHIFT) |
-		      field(MAX3421_SPI_DIR_RD, MAX3421_SPI_DIR_SHIFT));
+	max3421_hcd->tx->data[0] =
+		(field(reg, MAX3421_SPI_REG_SHIFT) |
+		 field(MAX3421_SPI_DIR_RD, MAX3421_SPI_DIR_SHIFT));
 
-	transfer.tx_buf = tx_data;
-	transfer.rx_buf = rx_data;
+	transfer.tx_buf = max3421_hcd->tx->data;
+	transfer.rx_buf = max3421_hcd->rx->data;
 	transfer.len = 2;
 
 	spi_message_add_tail(&transfer, &msg);
 	spi_sync(spi, &msg);
 
-	return rx_data[1];
+	return max3421_hcd->rx->data[1];
 }
 
 static void
 spi_wr8(struct usb_hcd *hcd, unsigned int reg, u8 val)
 {
 	struct spi_device *spi = to_spi_device(hcd->self.controller);
+	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct spi_transfer transfer;
 	struct spi_message msg;
-	u8 tx_data[2];
 
 	memset(&transfer, 0, sizeof(transfer));
 
 	spi_message_init(&msg);
 
-	tx_data[0] = (field(reg, MAX3421_SPI_REG_SHIFT) |
-		      field(MAX3421_SPI_DIR_WR, MAX3421_SPI_DIR_SHIFT));
-	tx_data[1] = val;
+	max3421_hcd->tx->data[0] =
+		(field(reg, MAX3421_SPI_REG_SHIFT) |
+		 field(MAX3421_SPI_DIR_WR, MAX3421_SPI_DIR_SHIFT));
+	max3421_hcd->tx->data[1] = val;
 
-	transfer.tx_buf = tx_data;
+	transfer.tx_buf = max3421_hcd->tx->data;
 	transfer.len = 2;
 
 	spi_message_add_tail(&transfer, &msg);
@@ -387,18 +393,18 @@ static void
 spi_rd_buf(struct usb_hcd *hcd, unsigned int reg, void *buf, size_t len)
 {
 	struct spi_device *spi = to_spi_device(hcd->self.controller);
+	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct spi_transfer transfer[2];
 	struct spi_message msg;
-	u8 cmd;
 
 	memset(transfer, 0, sizeof(transfer));
 
 	spi_message_init(&msg);
 
-	cmd = (field(reg, MAX3421_SPI_REG_SHIFT) |
-	       field(MAX3421_SPI_DIR_RD, MAX3421_SPI_DIR_SHIFT));
-
-	transfer[0].tx_buf = &cmd;
+	max3421_hcd->tx->data[0] =
+		(field(reg, MAX3421_SPI_REG_SHIFT) |
+		 field(MAX3421_SPI_DIR_RD, MAX3421_SPI_DIR_SHIFT));
+	transfer[0].tx_buf = max3421_hcd->tx->data;
 	transfer[0].len = 1;
 
 	transfer[1].rx_buf = buf;
@@ -413,18 +419,19 @@ static void
 spi_wr_buf(struct usb_hcd *hcd, unsigned int reg, void *buf, size_t len)
 {
 	struct spi_device *spi = to_spi_device(hcd->self.controller);
+	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct spi_transfer transfer[2];
 	struct spi_message msg;
-	u8 cmd;
 
 	memset(transfer, 0, sizeof(transfer));
 
 	spi_message_init(&msg);
 
-	cmd = (field(reg, MAX3421_SPI_REG_SHIFT) |
-	       field(MAX3421_SPI_DIR_WR, MAX3421_SPI_DIR_SHIFT));
+	max3421_hcd->tx->data[0] =
+		(field(reg, MAX3421_SPI_REG_SHIFT) |
+		 field(MAX3421_SPI_DIR_WR, MAX3421_SPI_DIR_SHIFT));
 
-	transfer[0].tx_buf = &cmd;
+	transfer[0].tx_buf = max3421_hcd->tx->data;
 	transfer[0].len = 1;
 
 	transfer[1].tx_buf = buf;
@@ -1834,8 +1841,8 @@ static int
 max3421_probe(struct spi_device *spi)
 {
 	struct max3421_hcd *max3421_hcd;
-	struct usb_hcd *hcd;
-	int retval;
+	struct usb_hcd *hcd = NULL;
+	int retval = -ENOMEM;
 
 	if (spi_setup(spi) < 0) {
 		dev_err(&spi->dev, "Unable to setup SPI bus");
@@ -1846,7 +1853,7 @@ max3421_probe(struct spi_device *spi)
 			     dev_name(&spi->dev));
 	if (!hcd) {
 		dev_err(&spi->dev, "failed to create HCD structure\n");
-		return -ENOMEM;
+		goto error;
 	}
 	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	max3421_hcd = hcd_to_max3421(hcd);
@@ -1854,29 +1861,48 @@ max3421_probe(struct spi_device *spi)
 	max3421_hcd_list = max3421_hcd;
 	INIT_LIST_HEAD(&max3421_hcd->ep_list);
 
+	max3421_hcd->tx = kmalloc(sizeof(*max3421_hcd->tx), GFP_KERNEL);
+	if (!max3421_hcd->tx) {
+		dev_err(&spi->dev, "failed to kmalloc tx buffer\n");
+		goto error;
+	}
+	max3421_hcd->rx = kmalloc(sizeof(*max3421_hcd->rx), GFP_KERNEL);
+	if (!max3421_hcd->rx) {
+		dev_err(&spi->dev, "failed to kmalloc rx buffer\n");
+		goto error;
+	}
+
 	max3421_hcd->spi_thread = kthread_run(max3421_spi_thread, hcd,
 					      "max3421_spi_thread");
 	if (max3421_hcd->spi_thread == ERR_PTR(-ENOMEM)) {
 		dev_err(&spi->dev,
 			"failed to create SPI thread (out of memory)\n");
-		return -ENOMEM;
+		goto error;
 	}
 
 	retval = usb_add_hcd(hcd, 0, 0);
 	if (retval) {
 		dev_err(&spi->dev, "failed to add HCD\n");
-		usb_put_hcd(hcd);
-		return retval;
+		goto error;
 	}
 
 	retval = request_irq(spi->irq, max3421_irq_handler,
 			     IRQF_TRIGGER_LOW, "max3421", hcd);
 	if (retval < 0) {
-		usb_put_hcd(hcd);
 		dev_err(&spi->dev, "failed to request irq %d\n", spi->irq);
-		return retval;
+		goto error;
 	}
 	return 0;
+
+error:
+	if (hcd) {
+		kfree(max3421_hcd->tx);
+		kfree(max3421_hcd->rx);
+		if (max3421_hcd->spi_thread)
+			kthread_stop(max3421_hcd->spi_thread);
+		usb_put_hcd(hcd);
+	}
+	return retval;
 }
 
 static int
