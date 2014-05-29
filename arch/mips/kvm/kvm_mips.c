@@ -546,6 +546,7 @@ static u64 kvm_mips_get_one_regs[] = {
 
 	KVM_REG_MIPS_COUNT_CTL,
 	KVM_REG_MIPS_COUNT_RESUME,
+	KVM_REG_MIPS_COUNT_HZ,
 };
 
 static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
@@ -627,6 +628,7 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_COUNT:
 	case KVM_REG_MIPS_COUNT_CTL:
 	case KVM_REG_MIPS_COUNT_RESUME:
+	case KVM_REG_MIPS_COUNT_HZ:
 		ret = kvm_mips_callbacks->get_one_reg(vcpu, reg, &v);
 		if (ret)
 			return ret;
@@ -724,6 +726,7 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_CAUSE:
 	case KVM_REG_MIPS_COUNT_CTL:
 	case KVM_REG_MIPS_COUNT_RESUME:
+	case KVM_REG_MIPS_COUNT_HZ:
 		return kvm_mips_callbacks->set_one_reg(vcpu, reg, v);
 	default:
 		return -EINVAL;

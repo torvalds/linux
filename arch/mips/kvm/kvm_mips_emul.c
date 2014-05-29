@@ -498,6 +498,54 @@ void kvm_mips_init_count(struct kvm_vcpu *vcpu)
 }
 
 /**
+ * kvm_mips_set_count_hz() - Update the frequency of the timer.
+ * @vcpu:	Virtual CPU.
+ * @count_hz:	Frequency of CP0_Count timer in Hz.
+ *
+ * Change the frequency of the CP0_Count timer. This is done atomically so that
+ * CP0_Count is continuous and no timer interrupt is lost.
+ *
+ * Returns:	-EINVAL if @count_hz is out of range.
+ *		0 on success.
+ */
+int kvm_mips_set_count_hz(struct kvm_vcpu *vcpu, s64 count_hz)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int dc;
+	ktime_t now;
+	u32 count;
+
+	/* ensure the frequency is in a sensible range... */
+	if (count_hz <= 0 || count_hz > NSEC_PER_SEC)
+		return -EINVAL;
+	/* ... and has actually changed */
+	if (vcpu->arch.count_hz == count_hz)
+		return 0;
+
+	/* Safely freeze timer so we can keep it continuous */
+	dc = kvm_mips_count_disabled(vcpu);
+	if (dc) {
+		now = kvm_mips_count_time(vcpu);
+		count = kvm_read_c0_guest_count(cop0);
+	} else {
+		now = kvm_mips_freeze_hrtimer(vcpu, &count);
+	}
+
+	/* Update the frequency */
+	vcpu->arch.count_hz = count_hz;
+	vcpu->arch.count_period = div_u64((u64)NSEC_PER_SEC << 32, count_hz);
+	vcpu->arch.count_dyn_bias = 0;
+
+	/* Calculate adjusted bias so dynamic count is unchanged */
+	vcpu->arch.count_bias = count - kvm_mips_ktime_to_count(vcpu, now);
+
+	/* Update and resume hrtimer */
+	if (!dc)
+		kvm_mips_resume_hrtimer(vcpu, now, count);
+	return 0;
+}
+
+/**
  * kvm_mips_write_compare() - Modify compare and update timer.
  * @vcpu:	Virtual CPU.
  * @compare:	New CP0_Compare value.

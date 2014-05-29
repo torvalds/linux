@@ -415,6 +415,9 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_COUNT_RESUME:
 		*v = ktime_to_ns(vcpu->arch.count_resume);
 		break;
+	case KVM_REG_MIPS_COUNT_HZ:
+		*v = vcpu->arch.count_hz;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -460,6 +463,9 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_COUNT_RESUME:
 		ret = kvm_mips_set_count_resume(vcpu, v);
+		break;
+	case KVM_REG_MIPS_COUNT_HZ:
+		ret = kvm_mips_set_count_hz(vcpu, v);
 		break;
 	default:
 		return -EINVAL;

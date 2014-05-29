@@ -133,6 +133,13 @@ struct kvm_fpu {
  */
 #define KVM_REG_MIPS_COUNT_RESUME	(KVM_REG_MIPS | KVM_REG_SIZE_U64 | \
 					 0x20000 | 1)
+/*
+ * CP0_Count rate in Hz
+ * Specifies the rate of the CP0_Count timer in Hz. Modifications occur without
+ * discontinuities in CP0_Count.
+ */
+#define KVM_REG_MIPS_COUNT_HZ		(KVM_REG_MIPS | KVM_REG_SIZE_U64 | \
+					 0x20000 | 2)
 
 /*
  * KVM MIPS specific structures and definitions
