@@ -1829,6 +1829,9 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	q->mq_ops = set->ops;
 	q->queue_flags |= QUEUE_FLAG_MQ_DEFAULT;
 
+	if (!(set->flags & BLK_MQ_F_SG_MERGE))
+		q->queue_flags |= 1 << QUEUE_FLAG_NO_SG_MERGE;
+
 	q->sg_reserved_size = INT_MAX;
 
 	INIT_WORK(&q->requeue_work, blk_mq_requeue_work);
