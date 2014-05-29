@@ -57,11 +57,12 @@ struct hpsa_scsi_dev_t {
 
 };
 
-struct reply_pool {
+struct reply_queue_buffer {
 	u64 *head;
 	size_t size;
 	u8 wraparound;
 	u32 current_entry;
+	dma_addr_t busaddr;
 };
 
 #pragma pack(1)
@@ -174,11 +175,9 @@ struct ctlr_info {
 	/*
 	 * Performant mode completion buffers
 	 */
-	u64 *reply_pool;
-	size_t reply_pool_size;
-	struct reply_pool reply_queue[MAX_REPLY_QUEUES];
+	size_t reply_queue_size;
+	struct reply_queue_buffer reply_queue[MAX_REPLY_QUEUES];
 	u8 nreply_queues;
-	dma_addr_t reply_pool_dhandle;
 	u32 *blockFetchTable;
 	u32 *ioaccel1_blockFetchTable;
 	u32 *ioaccel2_blockFetchTable;
@@ -392,7 +391,7 @@ static void SA5_performant_intr_mask(struct ctlr_info *h, unsigned long val)
 
 static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 {
-	struct reply_pool *rq = &h->reply_queue[q];
+	struct reply_queue_buffer *rq = &h->reply_queue[q];
 	unsigned long flags, register_value = FIFO_EMPTY;
 
 	/* msi auto clears the interrupt pending bit. */
@@ -507,7 +506,7 @@ static bool SA5_ioaccel_mode1_intr_pending(struct ctlr_info *h)
 static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h, u8 q)
 {
 	u64 register_value;
-	struct reply_pool *rq = &h->reply_queue[q];
+	struct reply_queue_buffer *rq = &h->reply_queue[q];
 	unsigned long flags;
 
 	BUG_ON(q >= h->nreply_queues);

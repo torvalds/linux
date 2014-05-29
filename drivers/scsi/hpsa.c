@@ -695,7 +695,7 @@ static inline void addQ(struct list_head *list, struct CommandList *c)
 static inline u32 next_command(struct ctlr_info *h, u8 q)
 {
 	u32 a;
-	struct reply_pool *rq = &h->reply_queue[q];
+	struct reply_queue_buffer *rq = &h->reply_queue[q];
 	unsigned long flags;
 
 	if (h->transMethod & CFGTBL_Trans_io_accel1)
@@ -6707,6 +6707,20 @@ static void hpsa_free_irqs_and_disable_msix(struct ctlr_info *h)
 #endif /* CONFIG_PCI_MSI */
 }
 
+static void hpsa_free_reply_queues(struct ctlr_info *h)
+{
+	int i;
+
+	for (i = 0; i < h->nreply_queues; i++) {
+		if (!h->reply_queue[i].head)
+			continue;
+		pci_free_consistent(h->pdev, h->reply_queue_size,
+			h->reply_queue[i].head, h->reply_queue[i].busaddr);
+		h->reply_queue[i].head = NULL;
+		h->reply_queue[i].busaddr = 0;
+	}
+}
+
 static void hpsa_undo_allocations_after_kdump_soft_reset(struct ctlr_info *h)
 {
 	hpsa_free_irqs_and_disable_msix(h);
@@ -6714,8 +6728,7 @@ static void hpsa_undo_allocations_after_kdump_soft_reset(struct ctlr_info *h)
 	hpsa_free_cmd_pool(h);
 	kfree(h->ioaccel1_blockFetchTable);
 	kfree(h->blockFetchTable);
-	pci_free_consistent(h->pdev, h->reply_pool_size,
-		h->reply_pool, h->reply_pool_dhandle);
+	hpsa_free_reply_queues(h);
 	if (h->vaddr)
 		iounmap(h->vaddr);
 	if (h->transtable)
@@ -7164,8 +7177,7 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 	pci_free_consistent(h->pdev,
 		h->nr_cmds * sizeof(struct ErrorInfo),
 		h->errinfo_pool, h->errinfo_pool_dhandle);
-	pci_free_consistent(h->pdev, h->reply_pool_size,
-		h->reply_pool, h->reply_pool_dhandle);
+	hpsa_free_reply_queues(h);
 	kfree(h->cmd_pool_bits);
 	kfree(h->blockFetchTable);
 	kfree(h->ioaccel1_blockFetchTable);
@@ -7278,7 +7290,8 @@ static void hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 	 */
 
 	/* Controller spec: zero out this buffer. */
-	memset(h->reply_pool, 0, h->reply_pool_size);
+	for (i = 0; i < h->nreply_queues; i++)
+		memset(h->reply_queue[i].head, 0, h->reply_queue_size);
 
 	bft[7] = SG_ENTRIES_IN_CMD + 4;
 	calc_bucket_map(bft, ARRAY_SIZE(bft),
@@ -7294,8 +7307,7 @@ static void hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 
 	for (i = 0; i < h->nreply_queues; i++) {
 		writel(0, &h->transtable->RepQAddr[i].upper);
-		writel(h->reply_pool_dhandle +
-			(h->max_commands * sizeof(u64) * i),
+		writel(h->reply_queue[i].busaddr,
 			&h->transtable->RepQAddr[i].lower);
 	}
 
@@ -7343,8 +7355,10 @@ static void hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 				h->ioaccel1_blockFetchTable);
 
 		/* initialize all reply queue entries to unused */
-		memset(h->reply_pool, (u8) IOACCEL_MODE1_REPLY_UNUSED,
-				h->reply_pool_size);
+		for (i = 0; i < h->nreply_queues; i++)
+			memset(h->reply_queue[i].head,
+				(u8) IOACCEL_MODE1_REPLY_UNUSED,
+				h->reply_queue_size);
 
 		/* set all the constant fields in the accelerator command
 		 * frames once at init time to save CPU cycles later.
@@ -7500,16 +7514,17 @@ static void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 		}
 	}
 
-	/* TODO, check that this next line h->nreply_queues is correct */
 	h->nreply_queues = h->msix_vector > 0 ? h->msix_vector : 1;
 	hpsa_get_max_perf_mode_cmds(h);
 	/* Performant mode ring buffer and supporting data structures */
-	h->reply_pool_size = h->max_commands * sizeof(u64) * h->nreply_queues;
-	h->reply_pool = pci_alloc_consistent(h->pdev, h->reply_pool_size,
-				&(h->reply_pool_dhandle));
+	h->reply_queue_size = h->max_commands * sizeof(u64);
 
 	for (i = 0; i < h->nreply_queues; i++) {
-		h->reply_queue[i].head = &h->reply_pool[h->max_commands * i];
+		h->reply_queue[i].head = pci_alloc_consistent(h->pdev,
+						h->reply_queue_size,
+						&(h->reply_queue[i].busaddr));
+		if (!h->reply_queue[i].head)
+			goto clean_up;
 		h->reply_queue[i].size = h->max_commands;
 		h->reply_queue[i].wraparound = 1;  /* spec: init to 1 */
 		h->reply_queue[i].current_entry = 0;
@@ -7518,18 +7533,14 @@ static void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 	/* Need a block fetch table for performant mode */
 	h->blockFetchTable = kmalloc(((SG_ENTRIES_IN_CMD + 1) *
 				sizeof(u32)), GFP_KERNEL);
-
-	if ((h->reply_pool == NULL)
-		|| (h->blockFetchTable == NULL))
+	if (!h->blockFetchTable)
 		goto clean_up;
 
 	hpsa_enter_performant_mode(h, trans_support);
 	return;
 
 clean_up:
-	if (h->reply_pool)
-		pci_free_consistent(h->pdev, h->reply_pool_size,
-			h->reply_pool, h->reply_pool_dhandle);
+	hpsa_free_reply_queues(h);
 	kfree(h->blockFetchTable);
 }
 
