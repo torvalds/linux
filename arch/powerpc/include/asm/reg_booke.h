@@ -260,7 +260,7 @@
 
 /* e500mc */
 #define MCSR_DCPERR_MC	0x20000000UL /* D-Cache Parity Error */
-#define MCSR_L2MMU_MHIT	0x04000000UL /* Hit on multiple TLB entries */
+#define MCSR_L2MMU_MHIT	0x08000000UL /* Hit on multiple TLB entries */
 #define MCSR_NMI	0x00100000UL /* Non-Maskable Interrupt */
 #define MCSR_MAV	0x00080000UL /* MCAR address valid */
 #define MCSR_MEA	0x00040000UL /* MCAR is effective address */
