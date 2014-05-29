@@ -66,6 +66,66 @@ extern int init_fpu(struct task_struct *child);
 			: [err] "=r" (err)
 
 /*
+ * This function is called only during boot time when x86 caps are not set
+ * up and alternative can not be used yet.
+ */
+static int xsave_state_booting(struct xsave_struct *fx, u64 mask)
+{
+	u32 lmask = mask;
+	u32 hmask = mask >> 32;
+	int err = 0;
+
+	WARN_ON(system_state != SYSTEM_BOOTING);
+
+	if (boot_cpu_has(X86_FEATURE_XSAVES))
+		asm volatile("1:"XSAVES"\n\t"
+			"2:\n\t"
+			: : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			:   "memory");
+	else
+		asm volatile("1:"XSAVE"\n\t"
+			"2:\n\t"
+			: : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			:   "memory");
+
+	asm volatile(xstate_fault
+		     : "0" (0)
+		     : "memory");
+
+	return err;
+}
+
+/*
+ * This function is called only during boot time when x86 caps are not set
+ * up and alternative can not be used yet.
+ */
+static inline int xrstor_state_booting(struct xsave_struct *fx, u64 mask)
+{
+	u32 lmask = mask;
+	u32 hmask = mask >> 32;
+	int err = 0;
+
+	WARN_ON(system_state != SYSTEM_BOOTING);
+
+	if (boot_cpu_has(X86_FEATURE_XSAVES))
+		asm volatile("1:"XRSTORS"\n\t"
+			"2:\n\t"
+			: : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			:   "memory");
+	else
+		asm volatile("1:"XRSTOR"\n\t"
+			"2:\n\t"
+			: : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			:   "memory");
+
+	asm volatile(xstate_fault
+		     : "0" (0)
+		     : "memory");
+
+	return err;
+}
+
+/*
  * Save processor xstate to xsave area.
  */
 static inline int xsave_state(struct xsave_struct *fx, u64 mask)
