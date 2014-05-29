@@ -3716,7 +3716,7 @@ static int pci_probe(struct pci_dev *dev,
 		    version >> 16, version & 0xff, ohci->card.index,
 		    ohci->n_ir, ohci->n_it, ohci->quirks,
 		    reg_read(ohci, OHCI1394_PhyUpperBound) ?
-			", >4 GB phys DMA" : "");
+			", physUB" : "");
 
 	return 0;
 
