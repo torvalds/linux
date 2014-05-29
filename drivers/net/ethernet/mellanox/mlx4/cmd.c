@@ -2567,3 +2567,37 @@ int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port)
 		MLX4_VF_SMI_ENABLED;
 }
 EXPORT_SYMBOL_GPL(mlx4_vf_smi_enabled);
+
+int mlx4_vf_get_enable_smi_admin(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave == mlx4_master_func_num(dev))
+		return 1;
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS)
+		return 0;
+
+	return priv->mfunc.master.vf_admin[slave].enable_smi[port] ==
+		MLX4_VF_SMI_ENABLED;
+}
+EXPORT_SYMBOL_GPL(mlx4_vf_get_enable_smi_admin);
+
+int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
+				 int enabled)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave == mlx4_master_func_num(dev))
+		return 0;
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS ||
+	    enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	priv->mfunc.master.vf_admin[slave].enable_smi[port] = enabled;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_vf_set_enable_smi_admin);
