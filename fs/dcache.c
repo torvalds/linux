@@ -500,8 +500,7 @@ static void __dentry_kill(struct dentry *dentry)
  * If ref is non-zero, then decrement the refcount too.
  * Returns dentry requiring refcount drop, or NULL if we're done.
  */
-static struct dentry *
-dentry_kill(struct dentry *dentry, int unlock_on_failure)
+static struct dentry *dentry_kill(struct dentry *dentry)
 	__releases(dentry->d_lock)
 {
 	struct inode *inode = dentry->d_inode;
@@ -523,10 +522,8 @@ dentry_kill(struct dentry *dentry, int unlock_on_failure)
 	return parent;
 
 failed:
-	if (unlock_on_failure) {
-		spin_unlock(&dentry->d_lock);
-		cpu_relax();
-	}
+	spin_unlock(&dentry->d_lock);
+	cpu_relax();
 	return dentry; /* try again with same dentry */
 }
 
@@ -615,7 +612,7 @@ repeat:
 	return;
 
 kill_it:
-	dentry = dentry_kill(dentry, 1);
+	dentry = dentry_kill(dentry);
 	if (dentry)
 		goto repeat;
 }
