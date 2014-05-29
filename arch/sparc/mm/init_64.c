@@ -588,7 +588,7 @@ static void __init remap_kernel(void)
 	int i, tlb_ent = sparc64_highest_locked_tlbent();
 
 	tte_vaddr = (unsigned long) KERNBASE;
-	phys_page = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	phys_page = (prom_boot_mapping_phys_low >> ILOG2_4MB) << ILOG2_4MB;
 	tte_data = kern_large_tte(phys_page);
 
 	kern_locked_tte_data = tte_data;
@@ -1881,7 +1881,7 @@ void __init paging_init(void)
 
 	BUILD_BUG_ON(NR_CPUS > 4096);
 
-	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	kern_base = (prom_boot_mapping_phys_low >> ILOG2_4MB) << ILOG2_4MB;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	/* Invalidate both kernel TSBs.  */
@@ -1937,7 +1937,7 @@ void __init paging_init(void)
 	shift = kern_base + PAGE_OFFSET - ((unsigned long)KERNBASE);
 
 	real_end = (unsigned long)_end;
-	num_kernel_image_mappings = DIV_ROUND_UP(real_end - KERNBASE, 1 << 22);
+	num_kernel_image_mappings = DIV_ROUND_UP(real_end - KERNBASE, 1 << ILOG2_4MB);
 	printk("Kernel: Using %d locked TLB entries for main kernel image.\n",
 	       num_kernel_image_mappings);
 
@@ -2094,7 +2094,7 @@ static void __init setup_valid_addr_bitmap_from_pavail(unsigned long *bitmap)
 
 				if (new_start <= old_start &&
 				    new_end >= (old_start + PAGE_SIZE)) {
-					set_bit(old_start >> 22, bitmap);
+					set_bit(old_start >> ILOG2_4MB, bitmap);
 					goto do_next_page;
 				}
 			}
@@ -2143,7 +2143,7 @@ void __init mem_init(void)
 	addr = PAGE_OFFSET + kern_base;
 	last = PAGE_ALIGN(kern_size) + addr;
 	while (addr < last) {
-		set_bit(__pa(addr) >> 22, sparc64_valid_addr_bitmap);
+		set_bit(__pa(addr) >> ILOG2_4MB, sparc64_valid_addr_bitmap);
 		addr += PAGE_SIZE;
 	}
 
@@ -2267,7 +2267,7 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
 		void *block;
 
 		if (!(*vmem_pp & _PAGE_VALID)) {
-			block = vmemmap_alloc_block(1UL << 22, node);
+			block = vmemmap_alloc_block(1UL << ILOG2_4MB, node);
 			if (!block)
 				return -ENOMEM;
 

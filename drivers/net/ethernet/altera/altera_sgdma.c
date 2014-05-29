@@ -20,15 +20,15 @@
 #include "altera_sgdmahw.h"
 #include "altera_sgdma.h"
 
-static void sgdma_descrip(struct sgdma_descrip *desc,
-			  struct sgdma_descrip *ndesc,
-			  dma_addr_t ndesc_phys,
-			  dma_addr_t raddr,
-			  dma_addr_t waddr,
-			  u16 length,
-			  int generate_eop,
-			  int rfixed,
-			  int wfixed);
+static void sgdma_setup_descrip(struct sgdma_descrip *desc,
+				struct sgdma_descrip *ndesc,
+				dma_addr_t ndesc_phys,
+				dma_addr_t raddr,
+				dma_addr_t waddr,
+				u16 length,
+				int generate_eop,
+				int rfixed,
+				int wfixed);
 
 static int sgdma_async_write(struct altera_tse_private *priv,
 			      struct sgdma_descrip *desc);
@@ -64,10 +64,14 @@ queue_rx_peekhead(struct altera_tse_private *priv);
 
 int sgdma_initialize(struct altera_tse_private *priv)
 {
-	priv->txctrlreg = SGDMA_CTRLREG_ILASTD;
+	priv->txctrlreg = SGDMA_CTRLREG_ILASTD |
+		      SGDMA_CTRLREG_INTEN;
 
 	priv->rxctrlreg = SGDMA_CTRLREG_IDESCRIP |
+		      SGDMA_CTRLREG_INTEN |
 		      SGDMA_CTRLREG_ILASTD;
+
+	priv->sgdmadesclen = sizeof(struct sgdma_descrip);
 
 	INIT_LIST_HEAD(&priv->txlisthd);
 	INIT_LIST_HEAD(&priv->rxlisthd);
@@ -92,6 +96,16 @@ int sgdma_initialize(struct altera_tse_private *priv)
 		netdev_err(priv->dev, "error mapping tx descriptor memory\n");
 		return -EINVAL;
 	}
+
+	/* Initialize descriptor memory to all 0's, sync memory to cache */
+	memset(priv->tx_dma_desc, 0, priv->txdescmem);
+	memset(priv->rx_dma_desc, 0, priv->rxdescmem);
+
+	dma_sync_single_for_device(priv->device, priv->txdescphys,
+				   priv->txdescmem, DMA_TO_DEVICE);
+
+	dma_sync_single_for_device(priv->device, priv->rxdescphys,
+				   priv->rxdescmem, DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -130,26 +144,23 @@ void sgdma_reset(struct altera_tse_private *priv)
 	iowrite32(0, &prxsgdma->control);
 }
 
+/* For SGDMA, interrupts remain enabled after initially enabling,
+ * so no need to provide implementations for abstract enable
+ * and disable
+ */
+
 void sgdma_enable_rxirq(struct altera_tse_private *priv)
 {
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->rx_dma_csr;
-	priv->rxctrlreg |= SGDMA_CTRLREG_INTEN;
-	tse_set_bit(&csr->control, SGDMA_CTRLREG_INTEN);
 }
 
 void sgdma_enable_txirq(struct altera_tse_private *priv)
 {
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->tx_dma_csr;
-	priv->txctrlreg |= SGDMA_CTRLREG_INTEN;
-	tse_set_bit(&csr->control, SGDMA_CTRLREG_INTEN);
 }
 
-/* for SGDMA, RX interrupts remain enabled after enabling */
 void sgdma_disable_rxirq(struct altera_tse_private *priv)
 {
 }
 
-/* for SGDMA, TX interrupts remain enabled after enabling */
 void sgdma_disable_txirq(struct altera_tse_private *priv)
 {
 }
@@ -184,15 +195,15 @@ int sgdma_tx_buffer(struct altera_tse_private *priv, struct tse_buffer *buffer)
 	if (sgdma_txbusy(priv))
 		return 0;
 
-	sgdma_descrip(cdesc,			/* current descriptor */
-		      ndesc,			/* next descriptor */
-		      sgdma_txphysaddr(priv, ndesc),
-		      buffer->dma_addr,		/* address of packet to xmit */
-		      0,			/* write addr 0 for tx dma */
-		      buffer->len,		/* length of packet */
-		      SGDMA_CONTROL_EOP,	/* Generate EOP */
-		      0,			/* read fixed */
-		      SGDMA_CONTROL_WR_FIXED);	/* Generate SOP */
+	sgdma_setup_descrip(cdesc,			/* current descriptor */
+			    ndesc,			/* next descriptor */
+			    sgdma_txphysaddr(priv, ndesc),
+			    buffer->dma_addr,		/* address of packet to xmit */
+			    0,				/* write addr 0 for tx dma */
+			    buffer->len,		/* length of packet */
+			    SGDMA_CONTROL_EOP,		/* Generate EOP */
+			    0,				/* read fixed */
+			    SGDMA_CONTROL_WR_FIXED);	/* Generate SOP */
 
 	pktstx = sgdma_async_write(priv, cdesc);
 
@@ -219,11 +230,15 @@ u32 sgdma_tx_completions(struct altera_tse_private *priv)
 	return ready;
 }
 
-int sgdma_add_rx_desc(struct altera_tse_private *priv,
-		      struct tse_buffer *rxbuffer)
+void sgdma_start_rxdma(struct altera_tse_private *priv)
+{
+	sgdma_async_read(priv);
+}
+
+void sgdma_add_rx_desc(struct altera_tse_private *priv,
+		       struct tse_buffer *rxbuffer)
 {
 	queue_rx(priv, rxbuffer);
-	return sgdma_async_read(priv);
 }
 
 /* status is returned on upper 16 bits,
@@ -240,28 +255,52 @@ u32 sgdma_rx_status(struct altera_tse_private *priv)
 	unsigned int pktstatus = 0;
 	struct tse_buffer *rxbuffer = NULL;
 
-	dma_sync_single_for_cpu(priv->device,
-				priv->rxdescphys,
-				priv->rxdescmem,
-				DMA_BIDIRECTIONAL);
+	u32 sts = ioread32(&csr->status);
 
 	desc = &base[0];
-	if ((ioread32(&csr->status) & SGDMA_STSREG_EOP) ||
-	    (desc->status & SGDMA_STATUS_EOP)) {
+	if (sts & SGDMA_STSREG_EOP) {
+		dma_sync_single_for_cpu(priv->device,
+					priv->rxdescphys,
+					priv->sgdmadesclen,
+					DMA_FROM_DEVICE);
+
 		pktlength = desc->bytes_xferred;
 		pktstatus = desc->status & 0x3f;
 		rxstatus = pktstatus;
 		rxstatus = rxstatus << 16;
 		rxstatus |= (pktlength & 0xffff);
 
-		desc->status = 0;
+		if (rxstatus) {
+			desc->status = 0;
 
-		rxbuffer = dequeue_rx(priv);
-		if (rxbuffer == NULL)
+			rxbuffer = dequeue_rx(priv);
+			if (rxbuffer == NULL)
+				netdev_info(priv->dev,
+					    "sgdma rx and rx queue empty!\n");
+
+			/* Clear control */
+			iowrite32(0, &csr->control);
+			/* clear status */
+			iowrite32(0xf, &csr->status);
+
+			/* kick the rx sgdma after reaping this descriptor */
+			pktsrx = sgdma_async_read(priv);
+
+		} else {
+			/* If the SGDMA indicated an end of packet on recv,
+			 * then it's expected that the rxstatus from the
+			 * descriptor is non-zero - meaning a valid packet
+			 * with a nonzero length, or an error has been
+			 * indicated. if not, then all we can do is signal
+			 * an error and return no packet received. Most likely
+			 * there is a system design error, or an error in the
+			 * underlying kernel (cache or cache management problem)
+			 */
 			netdev_err(priv->dev,
-				   "sgdma rx and rx queue empty!\n");
-
-		/* kick the rx sgdma after reaping this descriptor */
+				   "SGDMA RX Error Info: %x, %x, %x\n",
+				   sts, desc->status, rxstatus);
+		}
+	} else if (sts == 0) {
 		pktsrx = sgdma_async_read(priv);
 	}
 
@@ -270,15 +309,15 @@ u32 sgdma_rx_status(struct altera_tse_private *priv)
 
 
 /* Private functions */
-static void sgdma_descrip(struct sgdma_descrip *desc,
-			  struct sgdma_descrip *ndesc,
-			  dma_addr_t ndesc_phys,
-			  dma_addr_t raddr,
-			  dma_addr_t waddr,
-			  u16 length,
-			  int generate_eop,
-			  int rfixed,
-			  int wfixed)
+static void sgdma_setup_descrip(struct sgdma_descrip *desc,
+				struct sgdma_descrip *ndesc,
+				dma_addr_t ndesc_phys,
+				dma_addr_t raddr,
+				dma_addr_t waddr,
+				u16 length,
+				int generate_eop,
+				int rfixed,
+				int wfixed)
 {
 	/* Clear the next descriptor as not owned by hardware */
 	u32 ctrl = ndesc->control;
@@ -319,35 +358,29 @@ static int sgdma_async_read(struct altera_tse_private *priv)
 	struct sgdma_descrip *cdesc = &descbase[0];
 	struct sgdma_descrip *ndesc = &descbase[1];
 
-	unsigned int sts = ioread32(&csr->status);
 	struct tse_buffer *rxbuffer = NULL;
 
 	if (!sgdma_rxbusy(priv)) {
 		rxbuffer = queue_rx_peekhead(priv);
-		if (rxbuffer == NULL)
+		if (rxbuffer == NULL) {
+			netdev_err(priv->dev, "no rx buffers available\n");
 			return 0;
+		}
 
-		sgdma_descrip(cdesc,		/* current descriptor */
-			      ndesc,		/* next descriptor */
-			      sgdma_rxphysaddr(priv, ndesc),
-			      0,		/* read addr 0 for rx dma */
-			      rxbuffer->dma_addr, /* write addr for rx dma */
-			      0,		/* read 'til EOP */
-			      0,		/* EOP: NA for rx dma */
-			      0,		/* read fixed: NA for rx dma */
-			      0);		/* SOP: NA for rx DMA */
-
-		/* clear control and status */
-		iowrite32(0, &csr->control);
-
-		/* If status available, clear those bits */
-		if (sts & 0xf)
-			iowrite32(0xf, &csr->status);
+		sgdma_setup_descrip(cdesc,		/* current descriptor */
+				    ndesc,		/* next descriptor */
+				    sgdma_rxphysaddr(priv, ndesc),
+				    0,			/* read addr 0 for rx dma */
+				    rxbuffer->dma_addr, /* write addr for rx dma */
+				    0,			/* read 'til EOP */
+				    0,			/* EOP: NA for rx dma */
+				    0,			/* read fixed: NA for rx dma */
+				    0);			/* SOP: NA for rx DMA */
 
 		dma_sync_single_for_device(priv->device,
 					   priv->rxdescphys,
-					   priv->rxdescmem,
-					   DMA_BIDIRECTIONAL);
+					   priv->sgdmadesclen,
+					   DMA_TO_DEVICE);
 
 		iowrite32(lower_32_bits(sgdma_rxphysaddr(priv, cdesc)),
 			  &csr->next_descrip);
@@ -374,7 +407,7 @@ static int sgdma_async_write(struct altera_tse_private *priv,
 	iowrite32(0x1f, &csr->status);
 
 	dma_sync_single_for_device(priv->device, priv->txdescphys,
-				   priv->txdescmem, DMA_TO_DEVICE);
+				   priv->sgdmadesclen, DMA_TO_DEVICE);
 
 	iowrite32(lower_32_bits(sgdma_txphysaddr(priv, desc)),
 		  &csr->next_descrip);

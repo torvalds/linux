@@ -1076,6 +1076,9 @@ static int sxgbe_open(struct net_device *dev)
 
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->ioaddr);
+	SXGBE_FOR_EACH_QUEUE(SXGBE_RX_QUEUES, queue_num) {
+		priv->hw->mac->enable_rxqueue(priv->ioaddr, queue_num);
+	}
 
 	/* Request the IRQ lines */
 	ret = devm_request_irq(priv->device, priv->irq, sxgbe_common_interrupt,
@@ -1453,6 +1456,7 @@ static void sxgbe_rx_refill(struct sxgbe_priv_data *priv)
 		/* Added memory barrier for RX descriptor modification */
 		wmb();
 		priv->hw->desc->set_rx_owner(p);
+		priv->hw->desc->set_rx_int_on_com(p);
 		/* Added memory barrier for RX descriptor modification */
 		wmb();
 	}
@@ -2070,6 +2074,24 @@ static int sxgbe_hw_init(struct sxgbe_priv_data * const priv)
 	return 0;
 }
 
+static int sxgbe_sw_reset(void __iomem *addr)
+{
+	int retry_count = 10;
+
+	writel(SXGBE_DMA_SOFT_RESET, addr + SXGBE_DMA_MODE_REG);
+	while (retry_count--) {
+		if (!(readl(addr + SXGBE_DMA_MODE_REG) &
+		      SXGBE_DMA_SOFT_RESET))
+			break;
+		mdelay(10);
+	}
+
+	if (retry_count < 0)
+		return -EBUSY;
+
+	return 0;
+}
+
 /**
  * sxgbe_drv_probe
  * @device: device pointer
@@ -2101,6 +2123,10 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 	sxgbe_set_ethtool_ops(ndev);
 	priv->plat = plat_dat;
 	priv->ioaddr = addr;
+
+	ret = sxgbe_sw_reset(priv->ioaddr);
+	if (ret)
+		goto error_free_netdev;
 
 	/* Verify driver arguments */
 	sxgbe_verify_args();
@@ -2218,8 +2244,13 @@ error_free_netdev:
 int sxgbe_drv_remove(struct net_device *ndev)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(ndev);
+	u8 queue_num;
 
 	netdev_info(ndev, "%s: removing driver\n", __func__);
+
+	SXGBE_FOR_EACH_QUEUE(SXGBE_RX_QUEUES, queue_num) {
+		priv->hw->mac->disable_rxqueue(priv->ioaddr, queue_num);
+	}
 
 	priv->hw->dma->stop_rx(priv->ioaddr, SXGBE_RX_QUEUES);
 	priv->hw->dma->stop_tx(priv->ioaddr, SXGBE_TX_QUEUES);

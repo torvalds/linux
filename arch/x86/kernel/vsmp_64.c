@@ -36,7 +36,7 @@ static int irq_routing_comply = 1;
  * and vice versa.
  */
 
-asmlinkage unsigned long vsmp_save_fl(void)
+asmlinkage __visible unsigned long vsmp_save_fl(void)
 {
 	unsigned long flags = native_save_fl();
 
@@ -56,7 +56,7 @@ __visible void vsmp_restore_fl(unsigned long flags)
 }
 PV_CALLEE_SAVE_REGS_THUNK(vsmp_restore_fl);
 
-asmlinkage void vsmp_irq_disable(void)
+asmlinkage __visible void vsmp_irq_disable(void)
 {
 	unsigned long flags = native_save_fl();
 
@@ -64,7 +64,7 @@ asmlinkage void vsmp_irq_disable(void)
 }
 PV_CALLEE_SAVE_REGS_THUNK(vsmp_irq_disable);
 
-asmlinkage void vsmp_irq_enable(void)
+asmlinkage __visible void vsmp_irq_enable(void)
 {
 	unsigned long flags = native_save_fl();
 

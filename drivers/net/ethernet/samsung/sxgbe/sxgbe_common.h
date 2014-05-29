@@ -358,6 +358,8 @@ struct sxgbe_core_ops {
 	/* Enable disable checksum offload operations */
 	void (*enable_rx_csum)(void __iomem *ioaddr);
 	void (*disable_rx_csum)(void __iomem *ioaddr);
+	void (*enable_rxqueue)(void __iomem *ioaddr, int queue_num);
+	void (*disable_rxqueue)(void __iomem *ioaddr, int queue_num);
 };
 
 const struct sxgbe_core_ops *sxgbe_get_core_ops(void);

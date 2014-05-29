@@ -246,16 +246,8 @@ static void __d_free(struct rcu_head *head)
 	kmem_cache_free(dentry_cache, dentry); 
 }
 
-/*
- * no locks, please.
- */
-static void d_free(struct dentry *dentry)
+static void dentry_free(struct dentry *dentry)
 {
-	BUG_ON((int)dentry->d_lockref.count > 0);
-	this_cpu_dec(nr_dentry);
-	if (dentry->d_op && dentry->d_op->d_release)
-		dentry->d_op->d_release(dentry);
-
 	/* if dentry was never visible to RCU, immediate free is OK */
 	if (!(dentry->d_flags & DCACHE_RCUACCESS))
 		__d_free(&dentry->d_u.d_rcu);
@@ -403,56 +395,6 @@ static void dentry_lru_add(struct dentry *dentry)
 		d_lru_add(dentry);
 }
 
-/*
- * Remove a dentry with references from the LRU.
- *
- * If we are on the shrink list, then we can get to try_prune_one_dentry() and
- * lose our last reference through the parent walk. In this case, we need to
- * remove ourselves from the shrink list, not the LRU.
- */
-static void dentry_lru_del(struct dentry *dentry)
-{
-	if (dentry->d_flags & DCACHE_LRU_LIST) {
-		if (dentry->d_flags & DCACHE_SHRINK_LIST)
-			return d_shrink_del(dentry);
-		d_lru_del(dentry);
-	}
-}
-
-/**
- * d_kill - kill dentry and return parent
- * @dentry: dentry to kill
- * @parent: parent dentry
- *
- * The dentry must already be unhashed and removed from the LRU.
- *
- * If this is the root of the dentry tree, return NULL.
- *
- * dentry->d_lock and parent->d_lock must be held by caller, and are dropped by
- * d_kill.
- */
-static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
-	__releases(dentry->d_lock)
-	__releases(parent->d_lock)
-	__releases(dentry->d_inode->i_lock)
-{
-	list_del(&dentry->d_u.d_child);
-	/*
-	 * Inform d_walk() that we are no longer attached to the
-	 * dentry tree
-	 */
-	dentry->d_flags |= DCACHE_DENTRY_KILLED;
-	if (parent)
-		spin_unlock(&parent->d_lock);
-	dentry_iput(dentry);
-	/*
-	 * dentry_iput drops the locks, at which point nobody (except
-	 * transient RCU lookups) can reach this dentry.
-	 */
-	d_free(dentry);
-	return parent;
-}
-
 /**
  * d_drop - drop a dentry
  * @dentry: dentry to drop
@@ -510,7 +452,14 @@ dentry_kill(struct dentry *dentry, int unlock_on_failure)
 	__releases(dentry->d_lock)
 {
 	struct inode *inode;
-	struct dentry *parent;
+	struct dentry *parent = NULL;
+	bool can_free = true;
+
+	if (unlikely(dentry->d_flags & DCACHE_DENTRY_KILLED)) {
+		can_free = dentry->d_flags & DCACHE_MAY_FREE;
+		spin_unlock(&dentry->d_lock);
+		goto out;
+	}
 
 	inode = dentry->d_inode;
 	if (inode && !spin_trylock(&inode->i_lock)) {
@@ -521,9 +470,7 @@ relock:
 		}
 		return dentry; /* try again with same dentry */
 	}
-	if (IS_ROOT(dentry))
-		parent = NULL;
-	else
+	if (!IS_ROOT(dentry))
 		parent = dentry->d_parent;
 	if (parent && !spin_trylock(&parent->d_lock)) {
 		if (inode)
@@ -543,10 +490,40 @@ relock:
 	if ((dentry->d_flags & DCACHE_OP_PRUNE) && !d_unhashed(dentry))
 		dentry->d_op->d_prune(dentry);
 
-	dentry_lru_del(dentry);
+	if (dentry->d_flags & DCACHE_LRU_LIST) {
+		if (!(dentry->d_flags & DCACHE_SHRINK_LIST))
+			d_lru_del(dentry);
+	}
 	/* if it was on the hash then remove it */
 	__d_drop(dentry);
-	return d_kill(dentry, parent);
+	list_del(&dentry->d_u.d_child);
+	/*
+	 * Inform d_walk() that we are no longer attached to the
+	 * dentry tree
+	 */
+	dentry->d_flags |= DCACHE_DENTRY_KILLED;
+	if (parent)
+		spin_unlock(&parent->d_lock);
+	dentry_iput(dentry);
+	/*
+	 * dentry_iput drops the locks, at which point nobody (except
+	 * transient RCU lookups) can reach this dentry.
+	 */
+	BUG_ON((int)dentry->d_lockref.count > 0);
+	this_cpu_dec(nr_dentry);
+	if (dentry->d_op && dentry->d_op->d_release)
+		dentry->d_op->d_release(dentry);
+
+	spin_lock(&dentry->d_lock);
+	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
+		dentry->d_flags |= DCACHE_MAY_FREE;
+		can_free = false;
+	}
+	spin_unlock(&dentry->d_lock);
+out:
+	if (likely(can_free))
+		dentry_free(dentry);
+	return parent;
 }
 
 /* 
@@ -815,65 +792,13 @@ restart:
 }
 EXPORT_SYMBOL(d_prune_aliases);
 
-/*
- * Try to throw away a dentry - free the inode, dput the parent.
- * Requires dentry->d_lock is held, and dentry->d_count == 0.
- * Releases dentry->d_lock.
- *
- * This may fail if locks cannot be acquired no problem, just try again.
- */
-static struct dentry * try_prune_one_dentry(struct dentry *dentry)
-	__releases(dentry->d_lock)
-{
-	struct dentry *parent;
-
-	parent = dentry_kill(dentry, 0);
-	/*
-	 * If dentry_kill returns NULL, we have nothing more to do.
-	 * if it returns the same dentry, trylocks failed. In either
-	 * case, just loop again.
-	 *
-	 * Otherwise, we need to prune ancestors too. This is necessary
-	 * to prevent quadratic behavior of shrink_dcache_parent(), but
-	 * is also expected to be beneficial in reducing dentry cache
-	 * fragmentation.
-	 */
-	if (!parent)
-		return NULL;
-	if (parent == dentry)
-		return dentry;
-
-	/* Prune ancestors. */
-	dentry = parent;
-	while (dentry) {
-		if (lockref_put_or_lock(&dentry->d_lockref))
-			return NULL;
-		dentry = dentry_kill(dentry, 1);
-	}
-	return NULL;
-}
-
 static void shrink_dentry_list(struct list_head *list)
 {
-	struct dentry *dentry;
+	struct dentry *dentry, *parent;
 
-	rcu_read_lock();
-	for (;;) {
-		dentry = list_entry_rcu(list->prev, struct dentry, d_lru);
-		if (&dentry->d_lru == list)
-			break; /* empty */
-
-		/*
-		 * Get the dentry lock, and re-verify that the dentry is
-		 * this on the shrinking list. If it is, we know that
-		 * DCACHE_SHRINK_LIST and DCACHE_LRU_LIST are set.
-		 */
+	while (!list_empty(list)) {
+		dentry = list_entry(list->prev, struct dentry, d_lru);
 		spin_lock(&dentry->d_lock);
-		if (dentry != list_entry(list->prev, struct dentry, d_lru)) {
-			spin_unlock(&dentry->d_lock);
-			continue;
-		}
-
 		/*
 		 * The dispose list is isolated and dentries are not accounted
 		 * to the LRU here, so we can simply remove it from the list
@@ -885,30 +810,38 @@ static void shrink_dentry_list(struct list_head *list)
 		 * We found an inuse dentry which was not removed from
 		 * the LRU because of laziness during lookup. Do not free it.
 		 */
-		if (dentry->d_lockref.count) {
+		if ((int)dentry->d_lockref.count > 0) {
 			spin_unlock(&dentry->d_lock);
 			continue;
 		}
-		rcu_read_unlock();
 
+		parent = dentry_kill(dentry, 0);
 		/*
-		 * If 'try_to_prune()' returns a dentry, it will
-		 * be the same one we passed in, and d_lock will
-		 * have been held the whole time, so it will not
-		 * have been added to any other lists. We failed
-		 * to get the inode lock.
-		 *
-		 * We just add it back to the shrink list.
+		 * If dentry_kill returns NULL, we have nothing more to do.
 		 */
-		dentry = try_prune_one_dentry(dentry);
+		if (!parent)
+			continue;
 
-		rcu_read_lock();
-		if (dentry) {
+		if (unlikely(parent == dentry)) {
+			/*
+			 * trylocks have failed and d_lock has been held the
+			 * whole time, so it could not have been added to any
+			 * other lists. Just add it back to the shrink list.
+			 */
 			d_shrink_add(dentry, list);
 			spin_unlock(&dentry->d_lock);
+			continue;
 		}
+		/*
+		 * We need to prune ancestors too. This is necessary to prevent
+		 * quadratic behavior of shrink_dcache_parent(), but is also
+		 * expected to be beneficial in reducing dentry cache
+		 * fragmentation.
+		 */
+		dentry = parent;
+		while (dentry && !lockref_put_or_lock(&dentry->d_lockref))
+			dentry = dentry_kill(dentry, 1);
 	}
-	rcu_read_unlock();
 }
 
 static enum lru_status
@@ -1261,34 +1194,23 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
 	if (data->start == dentry)
 		goto out;
 
-	/*
-	 * move only zero ref count dentries to the dispose list.
-	 *
-	 * Those which are presently on the shrink list, being processed
-	 * by shrink_dentry_list(), shouldn't be moved.  Otherwise the
-	 * loop in shrink_dcache_parent() might not make any progress
-	 * and loop forever.
-	 */
-	if (dentry->d_lockref.count) {
-		dentry_lru_del(dentry);
-	} else if (!(dentry->d_flags & DCACHE_SHRINK_LIST)) {
-		/*
-		 * We can't use d_lru_shrink_move() because we
-		 * need to get the global LRU lock and do the
-		 * LRU accounting.
-		 */
-		d_lru_del(dentry);
-		d_shrink_add(dentry, &data->dispose);
+	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
 		data->found++;
-		ret = D_WALK_NORETRY;
+	} else {
+		if (dentry->d_flags & DCACHE_LRU_LIST)
+			d_lru_del(dentry);
+		if (!dentry->d_lockref.count) {
+			d_shrink_add(dentry, &data->dispose);
+			data->found++;
+		}
 	}
 	/*
 	 * We can return to the caller if we have found some (this
 	 * ensures forward progress). We'll be coming back to find
 	 * the rest.
 	 */
-	if (data->found && need_resched())
-		ret = D_WALK_QUIT;
+	if (!list_empty(&data->dispose))
+		ret = need_resched() ? D_WALK_QUIT : D_WALK_NORETRY;
 out:
 	return ret;
 }
@@ -1318,45 +1240,35 @@ void shrink_dcache_parent(struct dentry *parent)
 }
 EXPORT_SYMBOL(shrink_dcache_parent);
 
-static enum d_walk_ret umount_collect(void *_data, struct dentry *dentry)
+static enum d_walk_ret umount_check(void *_data, struct dentry *dentry)
 {
-	struct select_data *data = _data;
-	enum d_walk_ret ret = D_WALK_CONTINUE;
+	/* it has busy descendents; complain about those instead */
+	if (!list_empty(&dentry->d_subdirs))
+		return D_WALK_CONTINUE;
 
-	if (dentry->d_lockref.count) {
-		dentry_lru_del(dentry);
-		if (likely(!list_empty(&dentry->d_subdirs)))
-			goto out;
-		if (dentry == data->start && dentry->d_lockref.count == 1)
-			goto out;
-		printk(KERN_ERR
-		       "BUG: Dentry %p{i=%lx,n=%s}"
-		       " still in use (%d)"
-		       " [unmount of %s %s]\n",
+	/* root with refcount 1 is fine */
+	if (dentry == _data && dentry->d_lockref.count == 1)
+		return D_WALK_CONTINUE;
+
+	printk(KERN_ERR "BUG: Dentry %p{i=%lx,n=%pd} "
+			" still in use (%d) [unmount of %s %s]\n",
 		       dentry,
 		       dentry->d_inode ?
 		       dentry->d_inode->i_ino : 0UL,
-		       dentry->d_name.name,
+		       dentry,
 		       dentry->d_lockref.count,
 		       dentry->d_sb->s_type->name,
 		       dentry->d_sb->s_id);
-		BUG();
-	} else if (!(dentry->d_flags & DCACHE_SHRINK_LIST)) {
-		/*
-		 * We can't use d_lru_shrink_move() because we
-		 * need to get the global LRU lock and do the
-		 * LRU accounting.
-		 */
-		if (dentry->d_flags & DCACHE_LRU_LIST)
-			d_lru_del(dentry);
-		d_shrink_add(dentry, &data->dispose);
-		data->found++;
-		ret = D_WALK_NORETRY;
-	}
-out:
-	if (data->found && need_resched())
-		ret = D_WALK_QUIT;
-	return ret;
+	WARN_ON(1);
+	return D_WALK_CONTINUE;
+}
+
+static void do_one_tree(struct dentry *dentry)
+{
+	shrink_dcache_parent(dentry);
+	d_walk(dentry, dentry, umount_check, NULL);
+	d_drop(dentry);
+	dput(dentry);
 }
 
 /*
@@ -1366,40 +1278,15 @@ void shrink_dcache_for_umount(struct super_block *sb)
 {
 	struct dentry *dentry;
 
-	if (down_read_trylock(&sb->s_umount))
-		BUG();
+	WARN(down_read_trylock(&sb->s_umount), "s_umount should've been locked");
 
 	dentry = sb->s_root;
 	sb->s_root = NULL;
-	for (;;) {
-		struct select_data data;
-
-		INIT_LIST_HEAD(&data.dispose);
-		data.start = dentry;
-		data.found = 0;
-
-		d_walk(dentry, &data, umount_collect, NULL);
-		if (!data.found)
-			break;
-
-		shrink_dentry_list(&data.dispose);
-		cond_resched();
-	}
-	d_drop(dentry);
-	dput(dentry);
+	do_one_tree(dentry);
 
 	while (!hlist_bl_empty(&sb->s_anon)) {
-		struct select_data data;
-		dentry = hlist_bl_entry(hlist_bl_first(&sb->s_anon), struct dentry, d_hash);
-
-		INIT_LIST_HEAD(&data.dispose);
-		data.start = NULL;
-		data.found = 0;
-
-		d_walk(dentry, &data, umount_collect, NULL);
-		if (data.found)
-			shrink_dentry_list(&data.dispose);
-		cond_resched();
+		dentry = dget(hlist_bl_entry(hlist_bl_first(&sb->s_anon), struct dentry, d_hash));
+		do_one_tree(dentry);
 	}
 }
 
@@ -1647,8 +1534,7 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 	unsigned add_flags = d_flags_for_inode(inode);
 
 	spin_lock(&dentry->d_lock);
-	dentry->d_flags &= ~DCACHE_ENTRY_TYPE;
-	dentry->d_flags |= add_flags;
+	__d_set_type(dentry, add_flags);
 	if (inode)
 		hlist_add_head(&dentry->d_alias, &inode->i_dentry);
 	dentry->d_inode = inode;

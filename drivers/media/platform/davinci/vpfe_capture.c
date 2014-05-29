@@ -734,6 +734,8 @@ static int vpfe_release(struct file *file)
 		}
 		vpfe_dev->io_usrs = 0;
 		vpfe_dev->numbuffers = config_params.numbuffers;
+		videobuf_stop(&vpfe_dev->buffer_queue);
+		videobuf_mmap_free(&vpfe_dev->buffer_queue);
 	}
 
 	/* Decrement device usrs counter */

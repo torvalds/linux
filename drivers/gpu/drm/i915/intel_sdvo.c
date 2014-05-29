@@ -2424,8 +2424,8 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	if (ret < 0)
 		goto err1;
 
-	ret = sysfs_create_link(&encoder->ddc.dev.kobj,
-				&drm_connector->kdev->kobj,
+	ret = sysfs_create_link(&drm_connector->kdev->kobj,
+				&encoder->ddc.dev.kobj,
 				encoder->ddc.dev.kobj.name);
 	if (ret < 0)
 		goto err2;

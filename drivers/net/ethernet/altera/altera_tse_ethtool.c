@@ -77,7 +77,7 @@ static void tse_get_drvinfo(struct net_device *dev,
 	struct altera_tse_private *priv = netdev_priv(dev);
 	u32 rev = ioread32(&priv->mac_dev->megacore_revision);
 
-	strcpy(info->driver, "Altera TSE MAC IP Driver");
+	strcpy(info->driver, "altera_tse");
 	strcpy(info->version, "v8.0");
 	snprintf(info->fw_version, ETHTOOL_FWVERS_LEN, "v%d.%d",
 		 rev & 0xFFFF, (rev & 0xFFFF0000) >> 16);
@@ -185,6 +185,12 @@ static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	 * how to do any special formatting of this data.
 	 * This version number will need to change if and
 	 * when this register table is changed.
+	 *
+	 * version[31:0] = 1: Dump the first 128 TSE Registers
+	 *      Upper bits are all 0 by default
+	 *
+	 * Upper 16-bits will indicate feature presence for
+	 * Ethtool register decoding in future version.
 	 */
 
 	regs->version = 1;
