@@ -48,6 +48,7 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 	radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 
 	/* if the connector is already off, don't turn it back on */
+	/* FIXME: This access isn't protected by any locks. */
 	if (connector->dpms != DRM_MODE_DPMS_ON)
 		return;
 

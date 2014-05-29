@@ -2609,7 +2609,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_device *dev, enum pipe pipe,
 
 	*source = INTEL_PIPE_CRC_SOURCE_PIPE;
 
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
 			    base.head) {
 		if (!encoder->base.crtc)
@@ -2645,7 +2645,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_device *dev, enum pipe pipe,
 			break;
 		}
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
 	return ret;
 }

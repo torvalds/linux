@@ -8323,6 +8323,8 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		      connector->base.id, connector->name,
 		      encoder->base.id, encoder->name);
 
+	mutex_lock(&dev->mode_config.connection_mutex);
+
 	/*
 	 * Algorithm gets a little messy:
 	 *
@@ -8365,7 +8367,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	 */
 	if (!crtc) {
 		DRM_DEBUG_KMS("no pipe available for load-detect\n");
-		return false;
+		goto fail_unlock_connector;
 	}
 
 	mutex_lock(&crtc->mutex);
@@ -8419,6 +8421,9 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	else
 		intel_crtc->new_config = NULL;
 	mutex_unlock(&crtc->mutex);
+fail_unlock_connector:
+	mutex_unlock(&dev->mode_config.connection_mutex);
+
 	return false;
 }
 
@@ -8448,6 +8453,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		}
 
 		mutex_unlock(&crtc->mutex);
+		mutex_unlock(&connector->dev->mode_config.connection_mutex);
 		return;
 	}
 
@@ -8456,6 +8462,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		connector->funcs->dpms(connector, old->dpms_mode);
 
 	mutex_unlock(&crtc->mutex);
+	mutex_unlock(&connector->dev->mode_config.connection_mutex);
 }
 
 static int i9xx_pll_refclk(struct drm_device *dev,
@@ -10986,8 +10993,9 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
 {
 	struct drm_encoder *encoder = connector->base.encoder;
+	struct drm_device *dev = connector->base.dev;
 
-	WARN_ON(!mutex_is_locked(&connector->base.dev->mode_config.mutex));
+	WARN_ON(!mutex_is_locked(&dev->mode_config.connection_mutex));
 
 	if (!encoder)
 		return INVALID_PIPE;
@@ -11756,9 +11764,9 @@ void intel_modeset_init(struct drm_device *dev)
 	/* Just in case the BIOS is doing something questionable. */
 	intel_disable_fbc(dev);
 
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(dev, false);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
 	for_each_intel_crtc(dev, crtc) {
 		if (!crtc->active)

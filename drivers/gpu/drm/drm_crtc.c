@@ -54,6 +54,8 @@ void drm_modeset_lock_all(struct drm_device *dev)
 
 	mutex_lock(&dev->mode_config.mutex);
 
+	mutex_lock(&dev->mode_config.connection_mutex);
+
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		mutex_lock_nest_lock(&crtc->mutex, &dev->mode_config.mutex);
 }
@@ -71,6 +73,8 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		mutex_unlock(&crtc->mutex);
+
+	mutex_unlock(&dev->mode_config.connection_mutex);
 
 	mutex_unlock(&dev->mode_config.mutex);
 }
@@ -93,6 +97,7 @@ void drm_warn_on_modeset_not_all_locked(struct drm_device *dev)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		WARN_ON(!mutex_is_locked(&crtc->mutex));
 
+	WARN_ON(!mutex_is_locked(&dev->mode_config.connection_mutex));
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 }
 EXPORT_SYMBOL(drm_warn_on_modeset_not_all_locked);
@@ -1793,6 +1798,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	DRM_DEBUG_KMS("[CONNECTOR:%d:?]\n", out_resp->connector_id);
 
 	mutex_lock(&dev->mode_config.mutex);
+	mutex_lock(&dev->mode_config.connection_mutex);
 
 	connector = drm_connector_find(dev, out_resp->connector_id);
 	if (!connector) {
@@ -1891,6 +1897,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	out_resp->count_encoders = encoders_count;
 
 out:
+	mutex_unlock(&dev->mode_config.connection_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
@@ -4640,6 +4647,7 @@ EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
 void drm_mode_config_init(struct drm_device *dev)
 {
 	mutex_init(&dev->mode_config.mutex);
+	mutex_init(&dev->mode_config.connection_mutex);
 	mutex_init(&dev->mode_config.idr_mutex);
 	mutex_init(&dev->mode_config.fb_lock);
 	INIT_LIST_HEAD(&dev->mode_config.fb_list);

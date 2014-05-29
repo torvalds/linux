@@ -54,6 +54,13 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	int count = 0;
 
+	/*
+	 * Note: Once we change the plane hooks to more fine-grained locking we
+	 * need to grab the connection_mutex here to be able to make these
+	 * checks.
+	 */
+	WARN_ON(!mutex_is_locked(&dev->mode_config.connection_mutex));
+
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		if (connector->encoder && connector->encoder->crtc == crtc) {
 			if (connector_list != NULL && count < num_connectors)
