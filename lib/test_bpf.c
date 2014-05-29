@@ -1655,6 +1655,28 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 0x2a5a5e5 } },
 	},
+	{
+		"check: SKF_AD_MAX",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+				 SKF_AD_OFF + SKF_AD_MAX),
+			BPF_STMT(BPF_RET | BPF_A, 0),
+		},
+		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
+		{ },
+		{ },
+	},
+	{	/* Passes checker but fails during runtime. */
+		"LD [SKF_AD_OFF-1]",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+				 SKF_AD_OFF - 1),
+			BPF_STMT(BPF_RET | BPF_K, 1),
+		},
+		CLASSIC,
+		{ },
+		{ { 1, 0 } },
+	},
 };
 
 static struct net_device dev;
