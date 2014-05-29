@@ -3136,12 +3136,6 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 
-	/* devpriv->ao0p=0x0000; */
-	/* ni_writew(devpriv->ao0p,AO_Configuration); */
-
-	/* devpriv->ao1p=AO_Channel(1); */
-	/* ni_writew(devpriv->ao1p,AO_Configuration); */
-
 	ni_release_ao_mite_channel(dev);
 
 	devpriv->stc_writew(dev, AO_Configuration_Start, Joint_Reset_Register);

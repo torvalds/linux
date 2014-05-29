@@ -1428,15 +1428,8 @@ struct ni_private {
 
 	unsigned short dio_output;
 	unsigned short dio_control;
-	int ao0p, ao1p;
-	int lastchan;
-	int last_do;
-	int rt_irq;
-	int irqmask;
 	int aimode;
 	int ai_continuous;
-	int blocksize;
-	int n_left;
 	unsigned int ai_calib_source;
 	unsigned int ai_calib_source_enabled;
 	spinlock_t window_lock;
@@ -1458,7 +1451,6 @@ struct ni_private {
 	unsigned short ao_mode3;
 	unsigned short ao_cmd1;
 	unsigned short ao_cmd2;
-	unsigned short ao_cmd3;
 	unsigned short ao_trigger_select;
 
 	struct ni_gpct_device *counter_dev;
