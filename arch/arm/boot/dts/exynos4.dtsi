@@ -129,11 +129,9 @@
 		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		#clock-cells = <1>;
+		clock-output-names = "cam_a_clkout", "cam_b_clkout";
 		ranges;
-
-		clock_cam: clock-controller {
-			 #clock-cells = <1>;
-		};
 
 		fimc_0: fimc@11800000 {
 			compatible = "samsung,exynos4210-fimc";
@@ -371,6 +369,8 @@
 		interrupts = <0 60 0>;
 		clocks = <&clock CLK_I2C2>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_bus>;
 		status = "disabled";
 	};
 
@@ -382,6 +382,8 @@
 		interrupts = <0 61 0>;
 		clocks = <&clock CLK_I2C3>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c3_bus>;
 		status = "disabled";
 	};
 
@@ -393,6 +395,8 @@
 		interrupts = <0 62 0>;
 		clocks = <&clock CLK_I2C4>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c4_bus>;
 		status = "disabled";
 	};
 
@@ -404,6 +408,8 @@
 		interrupts = <0 63 0>;
 		clocks = <&clock CLK_I2C5>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c5_bus>;
 		status = "disabled";
 	};
 
@@ -415,6 +421,8 @@
 		interrupts = <0 64 0>;
 		clocks = <&clock CLK_I2C6>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c6_bus>;
 		status = "disabled";
 	};
 
@@ -426,6 +434,8 @@
 		interrupts = <0 65 0>;
 		clocks = <&clock CLK_I2C7>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c7_bus>;
 		status = "disabled";
 	};
 

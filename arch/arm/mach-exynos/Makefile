@@ -29,3 +29,5 @@ obj-$(CONFIG_ARCH_EXYNOS)	+= firmware.o
 
 plus_sec := $(call as-instr,.arch_extension sec,+sec)
 AFLAGS_exynos-smc.o		:=-Wa,-march=armv7-a$(plus_sec)
+
+obj-$(CONFIG_EXYNOS5420_MCPM)	+= mcpm-exynos.o
