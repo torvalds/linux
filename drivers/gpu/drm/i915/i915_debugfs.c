@@ -1721,7 +1721,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct intel_context *ctx;
 	int ret, i;
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -1751,7 +1751,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_putc(m, '\n');
 	}
 
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
