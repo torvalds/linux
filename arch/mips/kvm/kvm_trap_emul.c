@@ -32,9 +32,7 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 		gpa = KVM_INVALID_ADDR;
 	}
 
-#ifdef DEBUG
 	kvm_debug("%s: gva %#lx, gpa: %#llx\n", __func__, gva, gpa);
-#endif
 
 	return gpa;
 }
@@ -85,11 +83,9 @@ static int kvm_trap_emul_handle_tlb_mod(struct kvm_vcpu *vcpu)
 
 	if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 	    || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-#ifdef DEBUG
 		kvm_debug
 		    ("USER/KSEG23 ADDR TLB MOD fault: cause %#lx, PC: %p, BadVaddr: %#lx\n",
 		     cause, opc, badvaddr);
-#endif
 		er = kvm_mips_handle_tlbmod(cause, opc, run, vcpu);
 
 		if (er == EMULATE_DONE)
@@ -138,11 +134,9 @@ static int kvm_trap_emul_handle_tlb_st_miss(struct kvm_vcpu *vcpu)
 		}
 	} else if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 		   || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-#ifdef DEBUG
 		kvm_debug
 		    ("USER ADDR TLB LD fault: cause %#lx, PC: %p, BadVaddr: %#lx\n",
 		     cause, opc, badvaddr);
-#endif
 		er = kvm_mips_handle_tlbmiss(cause, opc, run, vcpu);
 		if (er == EMULATE_DONE)
 			ret = RESUME_GUEST;
@@ -188,10 +182,8 @@ static int kvm_trap_emul_handle_tlb_ld_miss(struct kvm_vcpu *vcpu)
 		}
 	} else if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 		   || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-#ifdef DEBUG
 		kvm_debug("USER ADDR TLB ST fault: PC: %#lx, BadVaddr: %#lx\n",
 			  vcpu->arch.pc, badvaddr);
-#endif
 
 		/* User Address (UA) fault, this could happen if
 		 * (1) TLB entry not present/valid in both Guest and shadow host TLBs, in this
@@ -236,9 +228,7 @@ static int kvm_trap_emul_handle_addr_err_st(struct kvm_vcpu *vcpu)
 
 	if (KVM_GUEST_KERNEL_MODE(vcpu)
 	    && (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1)) {
-#ifdef DEBUG
 		kvm_debug("Emulate Store to MMIO space\n");
-#endif
 		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
 		if (er == EMULATE_FAIL) {
 			printk("Emulate Store to MMIO space failed\n");
@@ -268,9 +258,7 @@ static int kvm_trap_emul_handle_addr_err_ld(struct kvm_vcpu *vcpu)
 	int ret = RESUME_GUEST;
 
 	if (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1) {
-#ifdef DEBUG
 		kvm_debug("Emulate Load from MMIO space @ %#lx\n", badvaddr);
-#endif
 		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
 		if (er == EMULATE_FAIL) {
 			printk("Emulate Load from MMIO space failed\n");

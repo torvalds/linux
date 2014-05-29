@@ -2319,11 +2319,9 @@ kvm_mips_handle_tlbmiss(unsigned long cause, uint32_t *opc,
 				er = EMULATE_FAIL;
 			}
 		} else {
-#ifdef DEBUG
 			kvm_debug
 			    ("Injecting hi: %#lx, lo0: %#lx, lo1: %#lx into shadow host TLB\n",
 			     tlb->tlb_hi, tlb->tlb_lo0, tlb->tlb_lo1);
-#endif
 			/* OK we have a Guest TLB entry, now inject it into the shadow host TLB */
 			kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, NULL,
 							     NULL);

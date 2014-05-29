@@ -232,11 +232,9 @@ kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 		tlb_write_indexed();
 	tlbw_use_hazard();
 
-#ifdef DEBUG
 	kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0(R): 0x%08lx, entrylo1(R): 0x%08lx\n",
 		  vcpu->arch.pc, idx, read_c0_entryhi(),
 		  read_c0_entrylo0(), read_c0_entrylo1());
-#endif
 
 	/* Flush D-cache */
 	if (flush_dcache_mask) {
@@ -343,11 +341,9 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	mtc0_tlbw_hazard();
 	tlbw_use_hazard();
 
-#ifdef DEBUG
 	kvm_debug ("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0 (R): 0x%08lx, entrylo1(R): 0x%08lx\n",
 	     vcpu->arch.pc, read_c0_index(), read_c0_entryhi(),
 	     read_c0_entrylo0(), read_c0_entrylo1());
-#endif
 
 	/* Restore old ASID */
 	write_c0_entryhi(old_entryhi);
@@ -395,10 +391,8 @@ kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) | (0x3 << 3) |
 			(tlb->tlb_lo1 & MIPS3_PG_D) | (tlb->tlb_lo1 & MIPS3_PG_V);
 
-#ifdef DEBUG
 	kvm_debug("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
 		  tlb->tlb_lo0, tlb->tlb_lo1);
-#endif
 
 	return kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
 				       tlb->tlb_mask);
@@ -419,10 +413,8 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 		}
 	}
 
-#ifdef DEBUG
 	kvm_debug("%s: entryhi: %#lx, index: %d lo0: %#lx, lo1: %#lx\n",
 		  __func__, entryhi, index, tlb[i].tlb_lo0, tlb[i].tlb_lo1);
-#endif
 
 	return index;
 }
@@ -456,9 +448,7 @@ int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
 
 	local_irq_restore(flags);
 
-#ifdef DEBUG
 	kvm_debug("Host TLB lookup, %#lx, idx: %2d\n", vaddr, idx);
-#endif
 
 	return idx;
 }
@@ -503,11 +493,9 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 
 	local_irq_restore(flags);
 
-#ifdef DEBUG
 	if (idx > 0)
 		kvm_debug("%s: Invalidated entryhi %#lx @ idx %d\n", __func__,
 			  (va & VPN2_MASK) | kvm_mips_get_user_asid(vcpu), idx);
-#endif
 
 	return 0;
 }
@@ -675,9 +663,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	unsigned long flags;
 	int newasid = 0;
 
-#ifdef DEBUG
 	kvm_debug("%s: vcpu %p, cpu: %d\n", __func__, vcpu, cpu);
-#endif
 
 	/* Alocate new kernel and user ASIDs if needed */
 
