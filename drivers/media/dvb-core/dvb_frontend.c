@@ -2666,20 +2666,20 @@ void dvb_frontend_detach(struct dvb_frontend* fe)
 
 	if (fe->ops.release_sec) {
 		fe->ops.release_sec(fe);
-		symbol_put_addr(fe->ops.release_sec);
+		dvb_detach(fe->ops.release_sec);
 	}
 	if (fe->ops.tuner_ops.release) {
 		fe->ops.tuner_ops.release(fe);
-		symbol_put_addr(fe->ops.tuner_ops.release);
+		dvb_detach(fe->ops.tuner_ops.release);
 	}
 	if (fe->ops.analog_ops.release) {
 		fe->ops.analog_ops.release(fe);
-		symbol_put_addr(fe->ops.analog_ops.release);
+		dvb_detach(fe->ops.analog_ops.release);
 	}
 	ptr = (void*)fe->ops.release;
 	if (ptr) {
 		fe->ops.release(fe);
-		symbol_put_addr(ptr);
+		dvb_detach(ptr);
 	}
 }
 #else

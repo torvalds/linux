@@ -136,10 +136,14 @@ extern int dvb_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	__r; \
 })
 
+#define dvb_detach(FUNC)	symbol_put_addr(FUNC)
+
 #else
 #define dvb_attach(FUNCTION, ARGS...) ({ \
 	FUNCTION(ARGS); \
 })
+
+#define dvb_detach(FUNC)	{}
 
 #endif
 
