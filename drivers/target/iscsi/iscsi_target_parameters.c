@@ -1605,7 +1605,7 @@ int iscsi_decode_text_input(
 
 	tmpbuf = kzalloc(length + 1, GFP_KERNEL);
 	if (!tmpbuf) {
-		pr_err("Unable to allocate memory for tmpbuf.\n");
+		pr_err("Unable to allocate %u + 1 bytes for tmpbuf.\n", length);
 		return -1;
 	}
 
