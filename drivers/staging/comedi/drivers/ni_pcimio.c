@@ -121,8 +121,6 @@ Bugs:
 #define PCIMIO 1
 #undef ATMIO
 
-#define MAX_N_CALDACS (16+16+2)
-
 #define DRV_NAME "ni_pcimio"
 
 /* These are not all the possible ao ranges for 628x boards.
@@ -1043,9 +1041,6 @@ static const struct ni_board_struct ni_boards[] = {
 		.caldac		= { ad8804_debug, ad8804_debug },
 	},
 };
-
-struct ni_private {
-NI_PRIVATE_COMMON};
 
 /* How we access registers */
 

@@ -107,8 +107,6 @@ are not supported.
 
 #define NI_SIZE 0x20
 
-#define MAX_N_CALDACS 32
-
 static const struct ni_board_struct ni_boards[] = {
 	{.device_id = 44,
 	 .isapnp_id = 0x0000,	/* XXX unknown */
@@ -272,12 +270,6 @@ static const int ni_irqpin[] = {
 
 #define NI_E_IRQ_FLAGS		0
 
-struct ni_private {
-	struct pnp_dev *isapnp_dev;
-	NI_PRIVATE_COMMON
-
-};
-
 /* How we access registers */
 
 #define ni_writel(a, b)		(outl((a), (b)+dev->iobase))
@@ -428,7 +420,7 @@ static int ni_atmio_attach(struct comedi_device *dev,
 
 		iobase = pnp_port_start(isapnp_dev, 0);
 		irq = pnp_irq(isapnp_dev, 0);
-		devpriv->isapnp_dev = isapnp_dev;
+		comedi_set_hw_dev(dev, &isapnp_dev->dev);
 	}
 
 	ret = comedi_request_region(dev, iobase, NI_SIZE);
@@ -477,12 +469,14 @@ static int ni_atmio_attach(struct comedi_device *dev,
 
 static void ni_atmio_detach(struct comedi_device *dev)
 {
-	struct ni_private *devpriv = dev->private;
+	struct pnp_dev *isapnp_dev;
 
 	mio_common_detach(dev);
 	comedi_legacy_detach(dev);
-	if (devpriv->isapnp_dev)
-		pnp_device_detach(devpriv->isapnp_dev);
+
+	isapnp_dev = dev->hw_dev ? to_pnp_dev(dev->hw_dev) : NULL;
+	if (isapnp_dev)
+		pnp_device_detach(isapnp_dev);
 }
 
 static struct comedi_driver ni_atmio_driver = {

@@ -56,8 +56,6 @@ See the notes in the ni_atmio.o driver.
 
 #define NI_SIZE 0x20
 
-#define MAX_N_CALDACS 32
-
 static const struct ni_board_struct ni_boards[] = {
 	{
 		.device_id	= 0x010d,
@@ -142,12 +140,6 @@ static const struct ni_board_struct ni_boards[] = {
 #define interrupt_pin(a)	0
 
 #define IRQ_POLARITY 1
-
-struct ni_private {
-
-	struct pcmcia_device *link;
-
-NI_PRIVATE_COMMON};
 
 /* How we access registers */
 
