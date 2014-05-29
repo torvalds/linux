@@ -62,6 +62,8 @@ struct nouveau_i2c {
 
 	struct nouveau_i2c_port *(*find)(struct nouveau_i2c *, u8 index);
 	struct nouveau_i2c_port *(*find_type)(struct nouveau_i2c *, u16 type);
+	int  (*acquire)(struct nouveau_i2c_port *, unsigned long timeout);
+	void (*release)(struct nouveau_i2c_port *);
 	int (*identify)(struct nouveau_i2c *, int index,
 			const char *what, struct nouveau_i2c_board_info *,
 			bool (*match)(struct nouveau_i2c_port *,

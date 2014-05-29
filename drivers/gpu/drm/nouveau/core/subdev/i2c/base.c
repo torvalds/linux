@@ -47,9 +47,15 @@ nouveau_i2c_pre_xfer(struct i2c_adapter *adap)
 {
 	struct i2c_algo_bit_data *bit = adap->algo_data;
 	struct nouveau_i2c_port *port = bit->data;
-	if (port->func->acquire)
-		port->func->acquire(port);
-	return 0;
+	return nouveau_i2c(port)->acquire(port, bit->timeout);
+}
+
+static void
+nouveau_i2c_post_xfer(struct i2c_adapter *adap)
+{
+	struct i2c_algo_bit_data *bit = adap->algo_data;
+	struct nouveau_i2c_port *port = bit->data;
+	return nouveau_i2c(port)->release(port);
 }
 
 static void
@@ -130,6 +136,7 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 		bit->timeout = usecs_to_jiffies(2200);
 		bit->data = port;
 		bit->pre_xfer = nouveau_i2c_pre_xfer;
+		bit->post_xfer = nouveau_i2c_post_xfer;
 		bit->setsda = nouveau_i2c_setsda;
 		bit->setscl = nouveau_i2c_setscl;
 		bit->getsda = nouveau_i2c_getsda;
@@ -192,6 +199,21 @@ nouveau_i2c_find_type(struct nouveau_i2c *i2c, u16 type)
 	}
 
 	return NULL;
+}
+
+static void
+nouveau_i2c_release(struct nouveau_i2c_port *port)
+{
+	if (port->func->release)
+		port->func->release(port);
+}
+
+static int
+nouveau_i2c_acquire(struct nouveau_i2c_port *port, unsigned long timeout)
+{
+	if (port->func->acquire)
+		port->func->acquire(port);
+	return 0;
 }
 
 static int
@@ -383,6 +405,8 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 	nv_subdev(i2c)->intr = nouveau_i2c_intr;
 	i2c->find = nouveau_i2c_find;
 	i2c->find_type = nouveau_i2c_find_type;
+	i2c->acquire = nouveau_i2c_acquire;
+	i2c->release = nouveau_i2c_release;
 	i2c->identify = nouveau_i2c_identify;
 	INIT_LIST_HEAD(&i2c->ports);
 
