@@ -4449,10 +4449,6 @@ static int rtw_dbg_port(struct net_device *dev,
 			}
 			break;
 		case 0x0f:
-			if (extra_arg == 0) {
-				DBG_88E("###### silent reset test.......#####\n");
-				rtw_hal_sreset_reset(padapter);
-			}
 			break;
 		case 0x15:
 			{

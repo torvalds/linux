@@ -804,8 +804,6 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 	rtw_os_xmit_schedule(adapter);
 
 	pmlmeext = &adapter->mlmeextpriv;
-	if (pmlmeext->sitesurvey_res.bss_cnt == 0)
-		rtw_hal_sreset_reset(adapter);
 }
 
 void rtw_dummy_event_callback(struct adapter *adapter , u8 *pbuf)

@@ -374,12 +374,6 @@ void rtw_hal_sreset_init(struct adapter *adapt)
 		adapt->HalFunc.sreset_init_value(adapt);
 }
 
-void rtw_hal_sreset_reset(struct adapter *adapt)
-{
-	if (adapt->HalFunc.silentreset)
-		adapt->HalFunc.silentreset(adapt);
-}
-
 u8   rtw_hal_sreset_get_wifi_status(struct adapter *adapt)
 {
 	u8 status = 0;
