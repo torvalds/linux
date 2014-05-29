@@ -625,6 +625,7 @@ choice
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
+		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		bool "Use S3C UART 0 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -637,6 +638,7 @@ choice
 	config DEBUG_S3C_UART1
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
+		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		bool "Use S3C UART 1 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -649,6 +651,7 @@ choice
 	config DEBUG_S3C_UART2
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
+		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		bool "Use S3C UART 2 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -669,6 +672,33 @@ choice
 
 		  The uncompressor code port configuration is now handled
 		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
+	config DEBUG_S3C2410_UART0
+		depends on ARCH_S3C24XX
+		select DEBUG_S3C2410_UART
+		bool "Use S3C2410/S3C2412 UART 0 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 0. The port must have been initialised
+		  by the boot-loader before use.
+
+	config DEBUG_S3C2410_UART1
+		depends on ARCH_S3C24XX
+		select DEBUG_S3C2410_UART
+		bool "Use S3C2410/S3C2412 UART 1 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 1. The port must have been initialised
+		  by the boot-loader before use.
+
+	config DEBUG_S3C2410_UART2
+		depends on ARCH_S3C24XX
+		select DEBUG_S3C2410_UART
+		bool "Use S3C2410/S3C2412 UART 2 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 2. The port must have been initialised
+		  by the boot-loader before use.
 
 	config DEBUG_SOCFPGA_UART
 		depends on ARCH_SOCFPGA
@@ -921,6 +951,13 @@ endchoice
 config DEBUG_EXYNOS_UART
 	bool
 
+config DEBUG_S3C2410_UART
+	bool
+	select DEBUG_S3C24XX_UART
+
+config DEBUG_S3C24XX_UART
+	bool
+
 config DEBUG_OMAP2PLUS_UART
 	bool
 	depends on ARCH_OMAP2PLUS
@@ -973,6 +1010,7 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX6SL_UART
 	default "debug/msm.S" if DEBUG_MSM_UART
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
+	default "debug/s3c24xx.S" if DEBUG_S3C24XX_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
 	default "debug/sti.S" if DEBUG_STI_UART
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
@@ -1029,6 +1067,12 @@ config DEBUG_UART_PHYS
 	default 0x40090000 if ARCH_LPC32XX
 	default 0x40100000 if DEBUG_PXA_UART1
 	default 0x42000000 if ARCH_GEMINI
+	default 0x50000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
+				DEBUG_S3C2410_UART0)
+	default 0x50004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
+				DEBUG_S3C2410_UART1)
+	default 0x50008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
+				DEBUG_S3C2410_UART2)
 	default 0x7c0003f8 if FOOTBRIDGE
 	default 0x80070000 if DEBUG_IMX23_UART
 	default 0x80074000 if DEBUG_IMX28_UART
@@ -1058,7 +1102,7 @@ config DEBUG_UART_PHYS
 	default 0xfffff700 if ARCH_IOP33X
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_LL_UART_EFM32 || \
-		DEBUG_UART_8250 || DEBUG_UART_PL01X
+		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_S3C24XX_UART
 
 config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
@@ -1075,6 +1119,12 @@ config DEBUG_UART_VIRT
 	default 0xf2100000 if DEBUG_PXA_UART1
 	default 0xf4090000 if ARCH_LPC32XX
 	default 0xf4200000 if ARCH_GEMINI
+	default 0xf7000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
+				DEBUG_S3C2410_UART0)
+	default 0xf7004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
+				DEBUG_S3C2410_UART1)
+	default 0xf7008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
+				DEBUG_S3C2410_UART2)
 	default 0xf7fc9000 if DEBUG_BERLIN_UART
 	default 0xf8009000 if DEBUG_VEXPRESS_UART0_CA9
 	default 0xf8090000 if DEBUG_VEXPRESS_UART0_RS1
@@ -1116,7 +1166,7 @@ config DEBUG_UART_VIRT
 	default 0xff003000 if DEBUG_U300_UART
 	default DEBUG_UART_PHYS if !MMU
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
-		DEBUG_UART_8250 || DEBUG_UART_PL01X
+		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_S3C24XX_UART
 
 config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"

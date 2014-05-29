@@ -39,7 +39,6 @@ config CPU_S3C2410
 	default y
 	select COMMON_CLK
 	select CPU_ARM920T
-	select CPU_LLSERIAL_S3C2410
 	select S3C2410_COMMON_CLK
 	select S3C2410_DMA if S3C24XX_DMA
 	select ARM_S3C2410_CPUFREQ if ARM_S3C24XX_CPUFREQ
@@ -53,7 +52,6 @@ config CPU_S3C2412
 	bool "SAMSUNG S3C2412"
 	select COMMON_CLK
 	select CPU_ARM926T
-	select CPU_LLSERIAL_S3C2440
 	select S3C2412_COMMON_CLK
 	select S3C2412_DMA if S3C24XX_DMA
 	select S3C2412_PM if PM
@@ -64,7 +62,6 @@ config CPU_S3C2416
 	bool "SAMSUNG S3C2416/S3C2450"
 	select COMMON_CLK
 	select CPU_ARM926T
-	select CPU_LLSERIAL_S3C2440
 	select S3C2416_PM if PM
 	select S3C2443_COMMON_CLK
 	select S3C2443_DMA if S3C24XX_DMA
@@ -75,7 +72,6 @@ config CPU_S3C2440
 	bool "SAMSUNG S3C2440"
 	select COMMON_CLK
 	select CPU_ARM920T
-	select CPU_LLSERIAL_S3C2440
 	select S3C2410_COMMON_CLK
 	select S3C2410_PM if PM
 	select S3C2440_DMA if S3C24XX_DMA
@@ -86,7 +82,6 @@ config CPU_S3C2442
 	bool "SAMSUNG S3C2442"
 	select COMMON_CLK
 	select CPU_ARM920T
-	select CPU_LLSERIAL_S3C2440
 	select S3C2410_COMMON_CLK
 	select S3C2410_DMA if S3C24XX_DMA
 	select S3C2410_PM if PM
@@ -102,7 +97,6 @@ config CPU_S3C2443
 	bool "SAMSUNG S3C2443"
 	select COMMON_CLK
 	select CPU_ARM920T
-	select CPU_LLSERIAL_S3C2440
 	select S3C2443_COMMON_CLK
 	select S3C2443_DMA if S3C24XX_DMA
 	help
@@ -163,28 +157,6 @@ config S3C2410_PM
 	bool
 	help
 	  Power Management code common to S3C2410 and better
-
-# low-level serial option nodes
-
-config CPU_LLSERIAL_S3C2410_ONLY
-	bool
-	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
-
-config CPU_LLSERIAL_S3C2440_ONLY
-	bool
-	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
-
-config CPU_LLSERIAL_S3C2410
-	bool
-	help
-	  Selected if there is an S3C2410 (or register compatible) serial
-	  low-level implementation needed
-
-config CPU_LLSERIAL_S3C2440
-	bool
-	help
-	  Selected if there is an S3C2440 (or register compatible) serial
-	  low-level implementation needed
 
 config S3C24XX_PLL
 	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"

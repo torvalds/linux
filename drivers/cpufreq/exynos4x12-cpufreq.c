@@ -100,7 +100,6 @@ static struct apll_freq apll_freq_4412[] = {
 static void exynos4x12_set_clkdiv(unsigned int div_index)
 {
 	unsigned int tmp;
-	unsigned int stat_cpu1;
 
 	/* Change Divider - CPU0 */
 
@@ -115,13 +114,11 @@ static void exynos4x12_set_clkdiv(unsigned int div_index)
 	tmp = apll_freq_4x12[div_index].clk_div_cpu1;
 
 	__raw_writel(tmp, EXYNOS4_CLKDIV_CPU1);
-	if (soc_is_exynos4212())
-		stat_cpu1 = 0x11;
-	else
-		stat_cpu1 = 0x111;
 
-	while (__raw_readl(EXYNOS4_CLKDIV_STATCPU1) & stat_cpu1)
+	do {
 		cpu_relax();
+		tmp = __raw_readl(EXYNOS4_CLKDIV_STATCPU1);
+	} while (tmp != 0x0);
 }
 
 static void exynos4x12_set_apll(unsigned int index)
@@ -184,7 +181,7 @@ int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 	if (IS_ERR(mout_apll))
 		goto err_mout_apll;
 
-	if (soc_is_exynos4212())
+	if (info->type == EXYNOS_SOC_4212)
 		apll_freq_4x12 = apll_freq_4212;
 	else
 		apll_freq_4x12 = apll_freq_4412;
