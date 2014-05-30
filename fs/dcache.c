@@ -770,20 +770,13 @@ restart:
 	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (!dentry->d_lockref.count) {
-			/*
-			 * inform the fs via d_prune that this dentry
-			 * is about to be unhashed and destroyed.
-			 */
-			if ((dentry->d_flags & DCACHE_OP_PRUNE) &&
-			    !d_unhashed(dentry))
-				dentry->d_op->d_prune(dentry);
-
-			__dget_dlock(dentry);
-			__d_drop(dentry);
-			spin_unlock(&dentry->d_lock);
-			spin_unlock(&inode->i_lock);
-			dput(dentry);
-			goto restart;
+			struct dentry *parent = lock_parent(dentry);
+			if (likely(!dentry->d_lockref.count)) {
+				__dentry_kill(dentry);
+				goto restart;
+			}
+			if (parent)
+				spin_unlock(&parent->d_lock);
 		}
 		spin_unlock(&dentry->d_lock);
 	}
