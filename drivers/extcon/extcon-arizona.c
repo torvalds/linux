@@ -1170,7 +1170,6 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	info->edev->name = "Headset Jack";
-	info->edev->dev.parent = arizona->dev;
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret < 0) {
