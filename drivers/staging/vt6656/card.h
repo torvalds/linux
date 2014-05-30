@@ -58,7 +58,7 @@ void vnt_reset_next_tbtt(struct vnt_private *, u16);
 void vnt_update_next_tbtt(struct vnt_private *, u64, u16);
 u64 vnt_get_next_tbtt(u64, u16);
 u64 vnt_get_tsf_offset(u8 byRxRate, u64 qwTSF1, u64 qwTSF2);
-int CARDbRadioPowerOff(struct vnt_private *pDevice);
+int vnt_radio_power_off(struct vnt_private *);
 int CARDbRadioPowerOn(struct vnt_private *pDevice);
 u8 vnt_get_pkt_type(struct vnt_private *);
 void CARDvSetBSSMode(struct vnt_private *pDevice);

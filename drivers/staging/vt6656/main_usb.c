@@ -560,7 +560,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	if ((pDevice->bHWRadioOff == true) ||
 				(pDevice->bRadioControlOff == true)) {
-		CARDbRadioPowerOff(pDevice);
+		vnt_radio_power_off(pDevice);
 	} else {
 		CARDbRadioPowerOn(pDevice);
 	}

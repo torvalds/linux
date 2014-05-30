@@ -439,7 +439,7 @@ void vRunCommand(struct work_struct *work)
 		}
 		netif_stop_queue(pDevice->dev);
 		if (pDevice->bNeedRadioOFF == true)
-			CARDbRadioPowerOff(pDevice);
+			vnt_radio_power_off(pDevice);
 
 		break;
 
@@ -798,7 +798,7 @@ void vRunCommand(struct work_struct *work)
 				memset(pItemSSID->abySSID, 0, WLAN_SSID_MAXLEN);
 
 				netif_stop_queue(pDevice->dev);
-				CARDbRadioPowerOff(pDevice);
+				vnt_radio_power_off(pDevice);
 				MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
 
 				vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_OFF);

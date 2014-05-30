@@ -33,7 +33,7 @@
  *      vnt_get_next_tbtt - Calculate Next Beacon TSF counter
  *      vnt_reset_next_tbtt - Set NIC Beacon time
  *      vnt_update_next_tbtt - Sync. NIC Beacon time
- *      CARDbRadioPowerOff - Turn Off NIC Radio Power
+ *      vnt_radio_power_off - Turn Off NIC Radio Power
  *      CARDbRadioPowerOn - Turn On NIC Radio Power
  *      CARDbSetWEPMode - Set NIC Wep mode
  *      CARDbSetTxPower - Set NIC tx power
@@ -764,7 +764,7 @@ void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
  * Return Value: true if success; otherwise false
  *
  */
-int CARDbRadioPowerOff(struct vnt_private *priv)
+int vnt_radio_power_off(struct vnt_private *priv)
 {
 	int ret = true;
 
