@@ -996,8 +996,6 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		if (txq->tx_desc_count >= txq->tx_stop_threshold)
 			netif_tx_stop_queue(nq);
-	} else if (ret == -EBUSY) {
-		return NETDEV_TX_BUSY;
 	} else {
 		txq->tx_dropped++;
 		dev_kfree_skb_any(skb);
