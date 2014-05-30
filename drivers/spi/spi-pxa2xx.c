@@ -1202,6 +1202,11 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	tasklet_init(&drv_data->pump_transfers, pump_transfers,
 		     (unsigned long)drv_data);
 
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	/* Register with the SPI framework */
 	platform_set_drvdata(pdev, drv_data);
 	status = devm_spi_register_master(&pdev->dev, master);
@@ -1209,11 +1214,6 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "problem registering spi master\n");
 		goto out_error_clock_enabled;
 	}
-
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
 
 	return status;
 
