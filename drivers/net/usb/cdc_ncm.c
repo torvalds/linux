@@ -260,10 +260,40 @@ static DEVICE_ATTR(rx_max, S_IRUGO | S_IWUSR, cdc_ncm_show_rx_max, cdc_ncm_store
 static DEVICE_ATTR(tx_max, S_IRUGO | S_IWUSR, cdc_ncm_show_tx_max, cdc_ncm_store_tx_max);
 static DEVICE_ATTR(tx_timer_usecs, S_IRUGO | S_IWUSR, cdc_ncm_show_tx_timer_usecs, cdc_ncm_store_tx_timer_usecs);
 
+#define NCM_PARM_ATTR(name, format, tocpu)				\
+static ssize_t cdc_ncm_show_##name(struct device *d, struct device_attribute *attr, char *buf) \
+{ \
+	struct usbnet *dev = netdev_priv(to_net_dev(d)); \
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0]; \
+	return sprintf(buf, format "\n", tocpu(ctx->ncm_parm.name));	\
+} \
+static DEVICE_ATTR(name, S_IRUGO, cdc_ncm_show_##name, NULL)
+
+NCM_PARM_ATTR(bmNtbFormatsSupported, "0x%04x", le16_to_cpu);
+NCM_PARM_ATTR(dwNtbInMaxSize, "%u", le32_to_cpu);
+NCM_PARM_ATTR(wNdpInDivisor, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNdpInPayloadRemainder, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNdpInAlignment, "%u", le16_to_cpu);
+NCM_PARM_ATTR(dwNtbOutMaxSize, "%u", le32_to_cpu);
+NCM_PARM_ATTR(wNdpOutDivisor, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNdpOutPayloadRemainder, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNdpOutAlignment, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNtbOutMaxDatagrams, "%u", le16_to_cpu);
+
 static struct attribute *cdc_ncm_sysfs_attrs[] = {
 	&dev_attr_rx_max.attr,
 	&dev_attr_tx_max.attr,
 	&dev_attr_tx_timer_usecs.attr,
+	&dev_attr_bmNtbFormatsSupported.attr,
+	&dev_attr_dwNtbInMaxSize.attr,
+	&dev_attr_wNdpInDivisor.attr,
+	&dev_attr_wNdpInPayloadRemainder.attr,
+	&dev_attr_wNdpInAlignment.attr,
+	&dev_attr_dwNtbOutMaxSize.attr,
+	&dev_attr_wNdpOutDivisor.attr,
+	&dev_attr_wNdpOutPayloadRemainder.attr,
+	&dev_attr_wNdpOutAlignment.attr,
+	&dev_attr_wNtbOutMaxDatagrams.attr,
 	NULL,
 };
 
