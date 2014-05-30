@@ -1104,7 +1104,6 @@ static void radeon_pm_resume_dpm(struct radeon_device *rdev)
 	if (ret)
 		goto dpm_resume_fail;
 	rdev->pm.dpm_enabled = true;
-	radeon_pm_compute_clocks(rdev);
 	return;
 
 dpm_resume_fail:
