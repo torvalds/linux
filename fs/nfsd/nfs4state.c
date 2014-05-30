@@ -3397,8 +3397,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 	struct nfs4_delegation *dp;
 	struct list_head *pos, *next, reaplist;
 	time_t cutoff = get_seconds() - nn->nfsd4_lease;
-	time_t t, clientid_val = nn->nfsd4_lease;
-	time_t u, test_val = nn->nfsd4_lease;
+	time_t t, new_timeo = nn->nfsd4_lease;
 
 	nfs4_lock_state();
 
@@ -3410,8 +3409,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
 		if (time_after((unsigned long)clp->cl_time, (unsigned long)cutoff)) {
 			t = clp->cl_time - cutoff;
-			if (clientid_val > t)
-				clientid_val = t;
+			new_timeo = min(new_timeo, t);
 			break;
 		}
 		if (mark_client_expired_locked(clp)) {
@@ -3434,9 +3432,8 @@ nfs4_laundromat(struct nfsd_net *nn)
 		if (net_generic(dp->dl_stid.sc_client->net, nfsd_net_id) != nn)
 			continue;
 		if (time_after((unsigned long)dp->dl_time, (unsigned long)cutoff)) {
-			u = dp->dl_time - cutoff;
-			if (test_val > u)
-				test_val = u;
+			t = dp->dl_time - cutoff;
+			new_timeo = min(new_timeo, t);
 			break;
 		}
 		list_move(&dp->dl_recall_lru, &reaplist);
@@ -3446,21 +3443,18 @@ nfs4_laundromat(struct nfsd_net *nn)
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		revoke_delegation(dp);
 	}
-	test_val = nn->nfsd4_lease;
 	list_for_each_safe(pos, next, &nn->close_lru) {
 		oo = container_of(pos, struct nfs4_openowner, oo_close_lru);
 		if (time_after((unsigned long)oo->oo_time, (unsigned long)cutoff)) {
-			u = oo->oo_time - cutoff;
-			if (test_val > u)
-				test_val = u;
+			t = oo->oo_time - cutoff;
+			new_timeo = min(new_timeo, t);
 			break;
 		}
 		release_openowner(oo);
 	}
-	if (clientid_val < NFSD_LAUNDROMAT_MINTIMEOUT)
-		clientid_val = NFSD_LAUNDROMAT_MINTIMEOUT;
+	new_timeo = max_t(time_t, new_timeo, NFSD_LAUNDROMAT_MINTIMEOUT);
 	nfs4_unlock_state();
-	return clientid_val;
+	return new_timeo;
 }
 
 static struct workqueue_struct *laundry_wq;
