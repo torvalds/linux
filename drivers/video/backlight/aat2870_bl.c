@@ -67,11 +67,6 @@ static inline int aat2870_bl_disable(struct aat2870_bl_driver_data *aat2870_bl)
 	return aat2870->write(aat2870, AAT2870_BL_CH_EN, 0x0);
 }
 
-static int aat2870_bl_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static int aat2870_bl_update_status(struct backlight_device *bd)
 {
 	struct aat2870_bl_driver_data *aat2870_bl = bl_get_data(bd);
@@ -120,7 +115,6 @@ static int aat2870_bl_check_fb(struct backlight_device *bd, struct fb_info *fi)
 
 static const struct backlight_ops aat2870_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
-	.get_brightness = aat2870_bl_get_brightness,
 	.update_status = aat2870_bl_update_status,
 	.check_fb = aat2870_bl_check_fb,
 };

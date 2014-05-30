@@ -410,11 +410,6 @@ static int ams369fg06_set_power(struct lcd_device *ld, int power)
 	return ams369fg06_power(lcd, power);
 }
 
-static int ams369fg06_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static int ams369fg06_set_brightness(struct backlight_device *bd)
 {
 	int ret = 0;
@@ -443,7 +438,6 @@ static struct lcd_ops ams369fg06_lcd_ops = {
 };
 
 static const struct backlight_ops ams369fg06_backlight_ops = {
-	.get_brightness = ams369fg06_get_brightness,
 	.update_status = ams369fg06_set_brightness,
 };
 

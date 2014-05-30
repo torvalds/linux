@@ -109,15 +109,9 @@ static int tps65217_bl_update_status(struct backlight_device *bl)
 	return rc;
 }
 
-static int tps65217_bl_get_brightness(struct backlight_device *bl)
-{
-	return bl->props.brightness;
-}
-
 static const struct backlight_ops tps65217_bl_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= tps65217_bl_update_status,
-	.get_brightness	= tps65217_bl_get_brightness
 };
 
 static int tps65217_bl_hw_init(struct tps65217_bl *tps65217_bl,
