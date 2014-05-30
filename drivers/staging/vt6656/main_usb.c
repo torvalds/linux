@@ -500,7 +500,8 @@ static int device_init_registers(struct vnt_private *pDevice)
 	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
 	pMgmt->uCurrChannel = pDevice->uChannel;
 	pMgmt->uIBSSChannel = pDevice->uChannel;
-	CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
+
+	vnt_set_channel(pDevice, pMgmt->uCurrChannel);
 
 	/* get permanent network address */
 	memcpy(pDevice->abyPermanentNetAddr, init_rsp->net_addr, 6);

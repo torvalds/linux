@@ -341,7 +341,7 @@ void vRunCommand(struct work_struct *work)
 			}
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Scanning....  channel: [%d]\n", pMgmt->uScanChannel);
 			// Set channel
-			CARDbSetMediaChannel(pDevice, pMgmt->uScanChannel);
+			vnt_set_channel(pDevice, pMgmt->uScanChannel);
 			// Set Baseband to be more sensitive.
 
 			BBvSetShortSlotTime(pDevice);
@@ -387,7 +387,7 @@ void vRunCommand(struct work_struct *work)
 		// Set channel back
 		vAdHocBeaconRestart(pDevice);
 		// Set channel back
-		CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
+		vnt_set_channel(pDevice, pMgmt->uCurrChannel);
 		// Set Filter
 		if (pMgmt->bCurrBSSIDFilterOn) {
 			MACvRegBitsOn(pDevice, MAC_REG_RCR, RCR_BSSID);
@@ -876,7 +876,7 @@ void vRunCommand(struct work_struct *work)
 		break;
 
 	case WLAN_CMD_11H_CHSW_START:
-		CARDbSetMediaChannel(pDevice, pDevice->byNewChannel);
+		vnt_set_channel(pDevice, pDevice->byNewChannel);
 		pDevice->bChannelSwitch = false;
 		pMgmt->uCurrChannel = pDevice->byNewChannel;
 		pDevice->bStopDataPkt = false;

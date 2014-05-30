@@ -75,7 +75,7 @@ static const u16 cwRXBCNTSFOff[MAX_RATE] =
  *  Out:
  *      none
  */
-void CARDbSetMediaChannel(struct vnt_private *priv, u32 connection_channel)
+void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 {
 
 	if (priv->byBBType == BB_TYPE_11A) {

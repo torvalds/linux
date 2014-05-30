@@ -2059,7 +2059,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
         pMgmt->uIBSSChannel = DEFAULT_IBSS_CHANNEL;
 
     // set channel and clear NAV
-    CARDbSetMediaChannel(pDevice, pMgmt->uIBSSChannel);
+    vnt_set_channel(pDevice, pMgmt->uIBSSChannel);
     pMgmt->uCurrChannel = pMgmt->uIBSSChannel;
 
     pDevice->byPreambleType = pDevice->byShortPreamble;
@@ -2642,7 +2642,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     }
 
     // set channel and clear NAV
-    CARDbSetMediaChannel(pDevice, pCurr->uChannel);
+    vnt_set_channel(pDevice, pCurr->uChannel);
     pMgmt->uCurrChannel = pCurr->uChannel;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "<----s_bSynchBSS Set Channel [%d]\n", pCurr->uChannel);
 

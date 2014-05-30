@@ -45,7 +45,7 @@ typedef enum _CARD_PHY_TYPE {
 
 struct vnt_private;
 
-void CARDbSetMediaChannel(struct vnt_private *pDevice, u32 uConnectionChannel);
+void vnt_set_channel(struct vnt_private *, u32);
 void CARDvSetRSPINF(struct vnt_private *, u8);
 void vUpdateIFS(struct vnt_private *);
 void CARDvUpdateBasicTopRate(struct vnt_private *);
