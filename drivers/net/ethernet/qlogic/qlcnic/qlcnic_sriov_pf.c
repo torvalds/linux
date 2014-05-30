@@ -461,6 +461,16 @@ static int qlcnic_pci_sriov_disable(struct qlcnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
+	if (pci_vfs_assigned(adapter->pdev)) {
+		netdev_err(adapter->netdev,
+			   "SR-IOV VFs belonging to port %d are assigned to VMs. SR-IOV can not be disabled on this port\n",
+			   adapter->portnum);
+		netdev_info(adapter->netdev,
+			    "Please detach SR-IOV VFs belonging to port %d from VMs, and then try to disable SR-IOV on this port\n",
+			    adapter->portnum);
+		return -EPERM;
+	}
+
 	rtnl_lock();
 	if (netif_running(netdev))
 		__qlcnic_down(adapter, netdev);

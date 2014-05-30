@@ -8,7 +8,7 @@
 
 #include "skeleton.dtsi"
 #include <dt-bindings/pinctrl/at91.h>
-#include <dt-bindings/clk/at91.h>
+#include <dt-bindings/clock/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
 

@@ -249,7 +249,8 @@ enum {
 /* quirks for Nvidia */
 #define AZX_DCAPS_PRESET_NVIDIA \
 	(AZX_DCAPS_NVIDIA_SNOOP | AZX_DCAPS_RIRB_DELAY | AZX_DCAPS_NO_MSI |\
-	 AZX_DCAPS_ALIGN_BUFSIZE | AZX_DCAPS_NO_64BIT)
+	 AZX_DCAPS_ALIGN_BUFSIZE | AZX_DCAPS_NO_64BIT |\
+	 AZX_DCAPS_CORBRP_SELF_CLEAR)
 
 #define AZX_DCAPS_PRESET_CTHDA \
 	(AZX_DCAPS_NO_MSI | AZX_DCAPS_POSFIX_LPIB | AZX_DCAPS_4K_BDLE_BOUNDARY)
@@ -1365,6 +1366,12 @@ static int azx_first_init(struct azx *chip)
 
 	/* initialize streams */
 	azx_init_stream(chip);
+
+	/* workaround for Broadwell HDMI: the first stream is broken,
+	 * so mask it by keeping it as if opened
+	 */
+	if (pci->vendor == 0x8086 && pci->device == 0x160c)
+		chip->azx_dev[0].opened = 1;
 
 	/* initialize chip */
 	azx_init_pci(chip);

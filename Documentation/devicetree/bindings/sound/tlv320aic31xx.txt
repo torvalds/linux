@@ -13,6 +13,9 @@ Required properties:
     "ti,tlv320aic3111" - TLV320AIC3111 (stereo speaker amp, MiniDSP)
 
 - reg - <int> -  I2C slave address
+- HPVDD-supply, SPRVDD-supply, SPLVDD-supply, AVDD-supply, IOVDD-supply,
+  DVDD-supply : power supplies for the device as covered in
+  Documentation/devicetree/bindings/regulator/regulator.txt
 
 
 Optional properties:
@@ -24,9 +27,6 @@ Optional properties:
         3 or MICBIAS_AVDD - MICBIAS output is connected to AVDD
 	If this node is not mentioned or if the value is unknown, then
 	micbias	is set to 2.0V.
-- HPVDD-supply, SPRVDD-supply, SPLVDD-supply, AVDD-supply, IOVDD-supply,
-  DVDD-supply : power supplies for the device as covered in
-  Documentation/devicetree/bindings/regulator/regulator.txt
 
 CODEC output pins:
   * HPL

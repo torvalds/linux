@@ -807,6 +807,15 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	spin_lock_init(&qp->sq.lock);
 	spin_lock_init(&qp->rq.lock);
 
+	if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
+		if (!(dev->mdev.caps.flags & MLX5_DEV_CAP_FLAG_BLOCK_MCAST)) {
+			mlx5_ib_dbg(dev, "block multicast loopback isn't supported\n");
+			return -EINVAL;
+		} else {
+			qp->flags |= MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK;
+		}
+	}
+
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = MLX5_WQE_CTRL_CQ_UPDATE;
 
@@ -877,6 +886,9 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	if (qp->wq_sig)
 		in->ctx.flags_pd |= cpu_to_be32(MLX5_QP_ENABLE_SIG);
+
+	if (qp->flags & MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK)
+		in->ctx.flags_pd |= cpu_to_be32(MLX5_QP_BLOCK_MCAST);
 
 	if (qp->scat_cqe && is_connected(init_attr->qp_type)) {
 		int rcqe_sz;

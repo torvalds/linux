@@ -114,8 +114,8 @@ EXPORT_SYMBOL(machine_real_restart);
  */
 static int __init set_pci_reboot(const struct dmi_system_id *d)
 {
-	if (reboot_type != BOOT_CF9) {
-		reboot_type = BOOT_CF9;
+	if (reboot_type != BOOT_CF9_FORCE) {
+		reboot_type = BOOT_CF9_FORCE;
 		pr_info("%s series board detected. Selecting %s-method for reboots.\n",
 			d->ident, "PCI");
 	}
@@ -188,6 +188,16 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
 			DMI_MATCH(DMI_BOARD_NAME, "P4S800"),
+		},
+	},
+
+	/* Certec */
+	{       /* Handle problems with rebooting on Certec BPC600 */
+		.callback = set_pci_reboot,
+		.ident = "Certec BPC600",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Certec"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "BPC600"),
 		},
 	},
 
@@ -458,20 +468,23 @@ void __attribute__((weak)) mach_reboot_fixups(void)
 }
 
 /*
- * Windows compatible x86 hardware expects the following on reboot:
+ * To the best of our knowledge Windows compatible x86 hardware expects
+ * the following on reboot:
  *
  * 1) If the FADT has the ACPI reboot register flag set, try it
  * 2) If still alive, write to the keyboard controller
  * 3) If still alive, write to the ACPI reboot register again
  * 4) If still alive, write to the keyboard controller again
  * 5) If still alive, call the EFI runtime service to reboot
- * 6) If still alive, write to the PCI IO port 0xCF9 to reboot
- * 7) If still alive, inform BIOS to do a proper reboot
+ * 6) If no EFI runtime service, call the BIOS to do a reboot
  *
- * If the machine is still alive at this stage, it gives up. We default to
- * following the same pattern, except that if we're still alive after (7) we'll
- * try to force a triple fault and then cycle between hitting the keyboard
- * controller and doing that
+ * We default to following the same pattern. We also have
+ * two other reboot methods: 'triple fault' and 'PCI', which
+ * can be triggered via the reboot= kernel boot option or
+ * via quirks.
+ *
+ * This means that this function can never return, it can misbehave
+ * by not rebooting properly and hanging.
  */
 static void native_machine_emergency_restart(void)
 {
@@ -492,6 +505,11 @@ static void native_machine_emergency_restart(void)
 	for (;;) {
 		/* Could also try the reset bit in the Hammer NB */
 		switch (reboot_type) {
+		case BOOT_ACPI:
+			acpi_reboot();
+			reboot_type = BOOT_KBD;
+			break;
+
 		case BOOT_KBD:
 			mach_reboot_fixups(); /* For board specific fixups */
 
@@ -509,43 +527,29 @@ static void native_machine_emergency_restart(void)
 			}
 			break;
 
-		case BOOT_TRIPLE:
-			load_idt(&no_idt);
-			__asm__ __volatile__("int3");
-
-			/* We're probably dead after this, but... */
-			reboot_type = BOOT_KBD;
-			break;
-
-		case BOOT_BIOS:
-			machine_real_restart(MRR_BIOS);
-
-			/* We're probably dead after this, but... */
-			reboot_type = BOOT_TRIPLE;
-			break;
-
-		case BOOT_ACPI:
-			acpi_reboot();
-			reboot_type = BOOT_KBD;
-			break;
-
 		case BOOT_EFI:
 			if (efi_enabled(EFI_RUNTIME_SERVICES))
 				efi.reset_system(reboot_mode == REBOOT_WARM ?
 						 EFI_RESET_WARM :
 						 EFI_RESET_COLD,
 						 EFI_SUCCESS, 0, NULL);
-			reboot_type = BOOT_CF9_COND;
+			reboot_type = BOOT_BIOS;
 			break;
 
-		case BOOT_CF9:
+		case BOOT_BIOS:
+			machine_real_restart(MRR_BIOS);
+
+			/* We're probably dead after this, but... */
+			reboot_type = BOOT_CF9_SAFE;
+			break;
+
+		case BOOT_CF9_FORCE:
 			port_cf9_safe = true;
 			/* Fall through */
 
-		case BOOT_CF9_COND:
+		case BOOT_CF9_SAFE:
 			if (port_cf9_safe) {
-				u8 reboot_code = reboot_mode == REBOOT_WARM ?
-					0x06 : 0x0E;
+				u8 reboot_code = reboot_mode == REBOOT_WARM ?  0x06 : 0x0E;
 				u8 cf9 = inb(0xcf9) & ~reboot_code;
 				outb(cf9|2, 0xcf9); /* Request hard reset */
 				udelay(50);
@@ -553,7 +557,15 @@ static void native_machine_emergency_restart(void)
 				outb(cf9|reboot_code, 0xcf9);
 				udelay(50);
 			}
-			reboot_type = BOOT_BIOS;
+			reboot_type = BOOT_TRIPLE;
+			break;
+
+		case BOOT_TRIPLE:
+			load_idt(&no_idt);
+			__asm__ __volatile__("int3");
+
+			/* We're probably dead after this, but... */
+			reboot_type = BOOT_KBD;
 			break;
 		}
 	}

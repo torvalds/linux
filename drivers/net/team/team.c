@@ -2834,8 +2834,10 @@ static int team_device_event(struct notifier_block *unused,
 	case NETDEV_UP:
 		if (netif_carrier_ok(dev))
 			team_port_change_check(port, true);
+		break;
 	case NETDEV_DOWN:
 		team_port_change_check(port, false);
+		break;
 	case NETDEV_CHANGE:
 		if (netif_running(port->dev))
 			team_port_change_check(port,

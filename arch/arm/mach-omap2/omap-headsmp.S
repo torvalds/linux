@@ -1,7 +1,7 @@
 /*
  * Secondary CPU startup routine source file.
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ * Copyright (C) 2009-2014 Texas Instruments, Inc.
  *
  * Author:
  *      Santosh Shilimkar <santosh.shilimkar@ti.com>
@@ -28,9 +28,13 @@
  * code.  This routine also provides a holding flag into which
  * secondary core is held until we're ready for it to initialise.
  * The primary core will update this flag using a hardware
-+ * register AuxCoreBoot0.
+ * register AuxCoreBoot0.
  */
 ENTRY(omap5_secondary_startup)
+.arm
+THUMB( adr     r9, BSYM(wait)  )       @ CPU may be entered in ARM mode.
+THUMB( bx      r9              )       @ If this is a Thumb-2 kernel,
+THUMB( .thumb                  )       @ switch to Thumb now.
 wait:	ldr	r2, =AUX_CORE_BOOT0_PA	@ read from AuxCoreBoot0
 	ldr	r0, [r2]
 	mov	r0, r0, lsr #5

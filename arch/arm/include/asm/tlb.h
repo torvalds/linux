@@ -98,13 +98,23 @@ static inline void __tlb_alloc_page(struct mmu_gather *tlb)
 	}
 }
 
-static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
 {
 	tlb_flush(tlb);
+}
+
+static inline void tlb_flush_mmu_free(struct mmu_gather *tlb)
+{
 	free_pages_and_swap_cache(tlb->pages, tlb->nr);
 	tlb->nr = 0;
 	if (tlb->pages == tlb->local)
 		__tlb_alloc_page(tlb);
+}
+
+static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+{
+	tlb_flush_mmu_tlbonly(tlb);
+	tlb_flush_mmu_free(tlb);
 }
 
 static inline void

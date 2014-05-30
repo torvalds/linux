@@ -62,7 +62,7 @@ Required properties for PMC node:
 - interrupt-controller : tell that the PMC is an interrupt controller.
 - #interrupt-cells : must be set to 1. The first cell encodes the interrupt id,
 	and reflect the bit position in the PMC_ER/DR/SR registers.
-	You can use the dt macros defined in dt-bindings/clk/at91.h.
+	You can use the dt macros defined in dt-bindings/clock/at91.h.
 	0 (AT91_PMC_MOSCS) -> main oscillator ready
 	1 (AT91_PMC_LOCKA) -> PLL A ready
 	2 (AT91_PMC_LOCKB) -> PLL B ready

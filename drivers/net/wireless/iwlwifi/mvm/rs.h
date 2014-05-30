@@ -156,6 +156,7 @@ enum {
 #define IWL_RATE_HIGH_TH		10880	/*  85% */
 #define IWL_RATE_INCREASE_TH		6400	/*  50% */
 #define RS_SR_FORCE_DECREASE		1920	/*  15% */
+#define RS_SR_NO_DECREASE		10880	/*  85% */
 
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
 #define LINK_QUAL_AGG_TIME_LIMIT_MAX	(8000)
@@ -310,13 +311,20 @@ struct iwl_lq_sta {
 	u32 visited_columns;    /* Bitmask marking which Tx columns were
 				 * explored during a search cycle
 				 */
+	u64 last_tx;
 	bool is_vht;
 	enum ieee80211_band band;
 
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
-	u16 active_legacy_rate;
-	u16 active_siso_rate;
-	u16 active_mimo2_rate;
+	unsigned long active_legacy_rate;
+	unsigned long active_siso_rate;
+	unsigned long active_mimo2_rate;
+
+	/* Highest rate per Tx mode */
+	u8 max_legacy_rate_idx;
+	u8 max_siso_rate_idx;
+	u8 max_mimo2_rate_idx;
+
 	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 

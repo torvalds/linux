@@ -1521,11 +1521,7 @@ static int cosa_reset_and_read_id(struct cosa_data *cosa, char *idstring)
 	cosa_putstatus(cosa, 0);
 	cosa_getdata8(cosa);
 	cosa_putstatus(cosa, SR_RST);
-#ifdef MODULE
 	msleep(500);
-#else
-	udelay(5*100000);
-#endif
 	/* Disable all IRQs from the card */
 	cosa_putstatus(cosa, 0);
 

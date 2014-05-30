@@ -230,17 +230,17 @@
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,gpios = "sdhi0_data4", "sdhi0_ctrl";
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl";
 		renesas,function = "sdhi0";
 	};
 
 	sdhi1_pins: sd1 {
-		renesas,gpios = "sdhi1_data4", "sdhi1_ctrl";
+		renesas,groups = "sdhi1_data4", "sdhi1_ctrl";
 		renesas,function = "sdhi1";
 	};
 
 	sdhi2_pins: sd2 {
-		renesas,gpios = "sdhi2_data4", "sdhi2_ctrl";
+		renesas,groups = "sdhi2_data4", "sdhi2_ctrl";
 		renesas,function = "sdhi2";
 	};
 

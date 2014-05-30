@@ -314,10 +314,9 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 	    !is_multicast_ether_addr(hdr->addr1))
 		txflags |= IEEE80211_RADIOTAP_F_TX_FAIL;
 
-	if ((info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
-	    (info->status.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT))
+	if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		txflags |= IEEE80211_RADIOTAP_F_TX_CTS;
-	else if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
+	if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
 		txflags |= IEEE80211_RADIOTAP_F_TX_RTS;
 
 	put_unaligned_le16(txflags, pos);
@@ -618,6 +617,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 					sta, true, acked);
 
 		if ((local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL) &&
+		    (ieee80211_is_data(hdr->frame_control)) &&
 		    (rates_idx != -1))
 			sta->last_tx_rate = info->status.rates[rates_idx];
 

@@ -78,7 +78,7 @@ static ssize_t kernel_version_show(struct device *dev,
 	return sprintf(page, "0x%x\n", COUNTER_INFO_VERSION_CURRENT);
 }
 
-DEVICE_ATTR_RO(kernel_version);
+static DEVICE_ATTR_RO(kernel_version);
 HV_CAPS_ATTR(version, "0x%x\n");
 HV_CAPS_ATTR(ga, "%d\n");
 HV_CAPS_ATTR(expanded, "%d\n");
@@ -273,13 +273,13 @@ static int hv_gpci_init(void)
 	struct hv_perf_caps caps;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		pr_info("not a virtualized system, not enabling\n");
+		pr_debug("not a virtualized system, not enabling\n");
 		return -ENODEV;
 	}
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_info("could not obtain capabilities, error 0x%80lx, not enabling\n",
+		pr_debug("could not obtain capabilities, not enabling, rc=%ld\n",
 				hret);
 		return -ENODEV;
 	}

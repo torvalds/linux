@@ -32,6 +32,7 @@
 #define DPAUX_DP_AUXCTL_CMD_I2C_RQ (2 << 12)
 #define DPAUX_DP_AUXCTL_CMD_I2C_RD (1 << 12)
 #define DPAUX_DP_AUXCTL_CMD_I2C_WR (0 << 12)
+#define DPAUX_DP_AUXCTL_CMD_ADDRESS_ONLY (1 << 8)
 #define DPAUX_DP_AUXCTL_CMDLEN(x) ((x) & 0xff)
 
 #define DPAUX_DP_AUXSTAT 0x31

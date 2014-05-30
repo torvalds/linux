@@ -457,9 +457,9 @@ COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 	case F_GETLK64:
 	case F_SETLK64:
 	case F_SETLKW64:
-	case F_GETLKP:
-	case F_SETLKP:
-	case F_SETLKPW:
+	case F_OFD_GETLK:
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
 		ret = get_compat_flock64(&f, compat_ptr(arg));
 		if (ret != 0)
 			break;
@@ -468,7 +468,7 @@ COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		conv_cmd = convert_fcntl_cmd(cmd);
 		ret = sys_fcntl(fd, conv_cmd, (unsigned long)&f);
 		set_fs(old_fs);
-		if ((conv_cmd == F_GETLK || conv_cmd == F_GETLKP) && ret == 0) {
+		if ((conv_cmd == F_GETLK || conv_cmd == F_OFD_GETLK) && ret == 0) {
 			/* need to return lock information - see above for commentary */
 			if (f.l_start > COMPAT_LOFF_T_MAX)
 				ret = -EOVERFLOW;
@@ -493,9 +493,9 @@ COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
 	case F_GETLK64:
 	case F_SETLK64:
 	case F_SETLKW64:
-	case F_GETLKP:
-	case F_SETLKP:
-	case F_SETLKPW:
+	case F_OFD_GETLK:
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
 		return -EINVAL;
 	}
 	return compat_sys_fcntl64(fd, cmd, arg);

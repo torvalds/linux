@@ -349,7 +349,7 @@ int of_device_is_stdout_path(struct device_node *dn);
 
 #else /* CONFIG_OF */
 
-static inline const char* of_node_full_name(struct device_node *np)
+static inline const char* of_node_full_name(const struct device_node *np)
 {
 	return "<no-node>";
 }
@@ -370,6 +370,11 @@ static inline struct device_node *of_find_matching_node_and_match(
 	struct device_node *from,
 	const struct of_device_id *matches,
 	const struct of_device_id **match)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_find_node_by_path(const char *path)
 {
 	return NULL;
 }

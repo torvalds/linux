@@ -52,14 +52,20 @@
 #define BONAIRE_RLC_UCODE_SIZE       2048
 #define KB_RLC_UCODE_SIZE            2560
 #define KV_RLC_UCODE_SIZE            2560
+#define ML_RLC_UCODE_SIZE            2560
 
 /* MC */
 #define BTC_MC_UCODE_SIZE            6024
 #define CAYMAN_MC_UCODE_SIZE         6037
 #define SI_MC_UCODE_SIZE             7769
+#define TAHITI_MC_UCODE_SIZE         7808
+#define PITCAIRN_MC_UCODE_SIZE       7775
+#define VERDE_MC_UCODE_SIZE          7875
 #define OLAND_MC_UCODE_SIZE          7863
-#define CIK_MC_UCODE_SIZE            7866
+#define BONAIRE_MC_UCODE_SIZE        7866
+#define BONAIRE_MC2_UCODE_SIZE       7948
 #define HAWAII_MC_UCODE_SIZE         7933
+#define HAWAII_MC2_UCODE_SIZE        8091
 
 /* SDMA */
 #define CIK_SDMA_UCODE_SIZE          1050

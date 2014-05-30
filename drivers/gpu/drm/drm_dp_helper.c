@@ -577,7 +577,9 @@ static u32 drm_dp_i2c_functionality(struct i2c_adapter *adapter)
 
 /*
  * Transfer a single I2C-over-AUX message and handle various error conditions,
- * retrying the transaction as appropriate.
+ * retrying the transaction as appropriate.  It is assumed that the
+ * aux->transfer function does not modify anything in the msg other than the
+ * reply field.
  */
 static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
@@ -665,11 +667,26 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 {
 	struct drm_dp_aux *aux = adapter->algo_data;
 	unsigned int i, j;
+	struct drm_dp_aux_msg msg;
+	int err = 0;
+
+	memset(&msg, 0, sizeof(msg));
 
 	for (i = 0; i < num; i++) {
-		struct drm_dp_aux_msg msg;
-		int err;
-
+		msg.address = msgs[i].addr;
+		msg.request = (msgs[i].flags & I2C_M_RD) ?
+			DP_AUX_I2C_READ :
+			DP_AUX_I2C_WRITE;
+		msg.request |= DP_AUX_I2C_MOT;
+		/* Send a bare address packet to start the transaction.
+		 * Zero sized messages specify an address only (bare
+		 * address) transaction.
+		 */
+		msg.buffer = NULL;
+		msg.size = 0;
+		err = drm_dp_i2c_do_msg(aux, &msg);
+		if (err < 0)
+			break;
 		/*
 		 * Many hardware implementations support FIFOs larger than a
 		 * single byte, but it has been empirically determined that
@@ -678,30 +695,28 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 		 * transferred byte-by-byte.
 		 */
 		for (j = 0; j < msgs[i].len; j++) {
-			memset(&msg, 0, sizeof(msg));
-			msg.address = msgs[i].addr;
-
-			msg.request = (msgs[i].flags & I2C_M_RD) ?
-					DP_AUX_I2C_READ :
-					DP_AUX_I2C_WRITE;
-
-			/*
-			 * All messages except the last one are middle-of-
-			 * transfer messages.
-			 */
-			if ((i < num - 1) || (j < msgs[i].len - 1))
-				msg.request |= DP_AUX_I2C_MOT;
-
 			msg.buffer = msgs[i].buf + j;
 			msg.size = 1;
 
 			err = drm_dp_i2c_do_msg(aux, &msg);
 			if (err < 0)
-				return err;
+				break;
 		}
+		if (err < 0)
+			break;
 	}
+	if (err >= 0)
+		err = num;
+	/* Send a bare address packet to close out the transaction.
+	 * Zero sized messages specify an address only (bare
+	 * address) transaction.
+	 */
+	msg.request &= ~DP_AUX_I2C_MOT;
+	msg.buffer = NULL;
+	msg.size = 0;
+	(void)drm_dp_i2c_do_msg(aux, &msg);
 
-	return num;
+	return err;
 }
 
 static const struct i2c_algorithm drm_dp_i2c_algo = {

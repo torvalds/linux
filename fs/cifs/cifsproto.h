@@ -127,6 +127,9 @@ extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
 extern void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
+extern int cifs_get_writer(struct cifsInodeInfo *cinode);
+extern void cifs_put_writer(struct cifsInodeInfo *cinode);
+extern void cifs_done_oplock_break(struct cifsInodeInfo *cinode);
 extern int cifs_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
 extern int cifs_push_mandatory_locks(struct cifsFileInfo *cfile);

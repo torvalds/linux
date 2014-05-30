@@ -578,7 +578,7 @@ processes. This also works in combination with mmap(2) on packet sockets.
 
 Currently implemented fanout policies are:
 
-  - PACKET_FANOUT_HASH: schedule to socket by skb's rxhash
+  - PACKET_FANOUT_HASH: schedule to socket by skb's packet hash
   - PACKET_FANOUT_LB: schedule to socket by round-robin
   - PACKET_FANOUT_CPU: schedule to socket by CPU packet arrives on
   - PACKET_FANOUT_RND: schedule to socket by random selection

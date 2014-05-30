@@ -29,6 +29,7 @@
 
 #include <asm/cputhreads.h>
 #include <asm/reg.h>
+#include <asm/smp.h> /* Required for cpu_sibling_mask() in UP configs */
 
 #define POWERNV_MAX_PSTATES	256
 

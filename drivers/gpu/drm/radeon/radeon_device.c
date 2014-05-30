@@ -99,14 +99,18 @@ static const char radeon_family_name[][16] = {
 	"KAVERI",
 	"KABINI",
 	"HAWAII",
+	"MULLINS",
 	"LAST",
 };
 
-#if defined(CONFIG_VGA_SWITCHEROO)
-bool radeon_is_px(void);
-#else
-static inline bool radeon_is_px(void) { return false; }
-#endif
+bool radeon_is_px(struct drm_device *dev)
+{
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (rdev->flags & RADEON_IS_PX)
+		return true;
+	return false;
+}
 
 /**
  * radeon_program_register_sequence - program an array of registers.
@@ -1082,7 +1086,7 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	if (radeon_is_px() && state == VGA_SWITCHEROO_OFF)
+	if (radeon_is_px(dev) && state == VGA_SWITCHEROO_OFF)
 		return;
 
 	if (state == VGA_SWITCHEROO_ON) {
@@ -1301,9 +1305,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	 * ignore it */
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
 
-	if (radeon_runtime_pm == 1)
-		runtime = true;
-	if ((radeon_runtime_pm == -1) && radeon_is_px())
+	if (rdev->flags & RADEON_IS_PX)
 		runtime = true;
 	vga_switcheroo_register_client(rdev->pdev, &radeon_switcheroo_ops, runtime);
 	if (runtime)

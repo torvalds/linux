@@ -461,6 +461,7 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	u32 table_count;
 	struct acpi_table_header *table;
 	acpi_physical_address address;
+	acpi_physical_address rsdt_address;
 	u32 length;
 	u8 *table_entry;
 	acpi_status status;
@@ -488,11 +489,14 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 		 * as per the ACPI specification.
 		 */
 		address = (acpi_physical_address) rsdp->xsdt_physical_address;
+		rsdt_address =
+		    (acpi_physical_address) rsdp->rsdt_physical_address;
 		table_entry_size = ACPI_XSDT_ENTRY_SIZE;
 	} else {
 		/* Root table is an RSDT (32-bit physical addresses) */
 
 		address = (acpi_physical_address) rsdp->rsdt_physical_address;
+		rsdt_address = address;
 		table_entry_size = ACPI_RSDT_ENTRY_SIZE;
 	}
 
@@ -515,8 +519,7 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 
 			/* Fall back to the RSDT */
 
-			address =
-			    (acpi_physical_address) rsdp->rsdt_physical_address;
+			address = rsdt_address;
 			table_entry_size = ACPI_RSDT_ENTRY_SIZE;
 		}
 	}

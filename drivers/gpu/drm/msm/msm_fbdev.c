@@ -62,11 +62,8 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	dma_addr_t paddr;
 	int ret, size;
 
-	/* only doing ARGB32 since this is what is needed to alpha-blend
-	 * with video overlays:
-	 */
 	sizes->surface_bpp = 32;
-	sizes->surface_depth = 32;
+	sizes->surface_depth = 24;
 
 	DBG("create fbdev: %dx%d@%d (%dx%d)", sizes->surface_width,
 			sizes->surface_height, sizes->surface_bpp,

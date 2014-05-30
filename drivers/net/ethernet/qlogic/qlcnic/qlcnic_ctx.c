@@ -883,8 +883,6 @@ int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *adapter,
 		npar_info->max_rx_ques = le16_to_cpu(nic_info->max_rx_ques);
 		npar_info->capabilities = le32_to_cpu(nic_info->capabilities);
 		npar_info->max_mtu = le16_to_cpu(nic_info->max_mtu);
-		adapter->max_tx_rings = npar_info->max_tx_ques;
-		adapter->max_sds_rings = npar_info->max_rx_ques;
 	}
 
 	qlcnic_free_mbx_args(&cmd);
@@ -1356,6 +1354,7 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 			arg2 &= ~BIT_3;
 		break;
 	case QLCNIC_ADD_VLAN:
+			arg1 &= ~(0x0ffff << 16);
 			arg1 |= (BIT_2 | BIT_5);
 			arg1 |= (esw_cfg->vlan_id << 16);
 			break;

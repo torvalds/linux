@@ -1167,7 +1167,7 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 	for (i = 0; i < master->num_streamids; ++i) {
 		u32 idx, s2cr;
 		idx = master->smrs ? master->smrs[i].idx : master->streamids[i];
-		s2cr = (S2CR_TYPE_TRANS << S2CR_TYPE_SHIFT) |
+		s2cr = S2CR_TYPE_TRANS |
 		       (smmu_domain->root_cfg.cbndx << S2CR_CBNDX_SHIFT);
 		writel_relaxed(s2cr, gr0_base + ARM_SMMU_GR0_S2CR(idx));
 	}
@@ -1381,7 +1381,7 @@ static int arm_smmu_alloc_init_pmd(struct arm_smmu_device *smmu, pud_t *pud,
 
 	do {
 		next = pmd_addr_end(addr, end);
-		ret = arm_smmu_alloc_init_pte(smmu, pmd, addr, end, pfn,
+		ret = arm_smmu_alloc_init_pte(smmu, pmd, addr, next, pfn,
 					      prot, stage);
 		phys += next - addr;
 	} while (pmd++, addr = next, addr < end);
@@ -1499,7 +1499,7 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 
 	ret = arm_smmu_handle_mapping(smmu_domain, iova, 0, size, 0);
 	arm_smmu_tlb_inv_context(&smmu_domain->root_cfg);
-	return ret ? ret : size;
+	return ret ? 0 : size;
 }
 
 static phys_addr_t arm_smmu_iova_to_phys(struct iommu_domain *domain,
@@ -1804,7 +1804,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	 * allocation (PTRS_PER_PGD).
 	 */
 #ifdef CONFIG_64BIT
-	smmu->s1_output_size = min(39UL, size);
+	smmu->s1_output_size = min((unsigned long)VA_BITS, size);
 #else
 	smmu->s1_output_size = min(32UL, size);
 #endif

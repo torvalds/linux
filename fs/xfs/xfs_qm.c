@@ -843,22 +843,17 @@ xfs_qm_init_quotainfo(
 
 	qinf = mp->m_quotainfo = kmem_zalloc(sizeof(xfs_quotainfo_t), KM_SLEEP);
 
-	if ((error = list_lru_init(&qinf->qi_lru))) {
-		kmem_free(qinf);
-		mp->m_quotainfo = NULL;
-		return error;
-	}
+	error = -list_lru_init(&qinf->qi_lru);
+	if (error)
+		goto out_free_qinf;
 
 	/*
 	 * See if quotainodes are setup, and if not, allocate them,
 	 * and change the superblock accordingly.
 	 */
-	if ((error = xfs_qm_init_quotainos(mp))) {
-		list_lru_destroy(&qinf->qi_lru);
-		kmem_free(qinf);
-		mp->m_quotainfo = NULL;
-		return error;
-	}
+	error = xfs_qm_init_quotainos(mp);
+	if (error)
+		goto out_free_lru;
 
 	INIT_RADIX_TREE(&qinf->qi_uquota_tree, GFP_NOFS);
 	INIT_RADIX_TREE(&qinf->qi_gquota_tree, GFP_NOFS);
@@ -918,7 +913,7 @@ xfs_qm_init_quotainfo(
 		qinf->qi_isoftlimit = be64_to_cpu(ddqp->d_ino_softlimit);
 		qinf->qi_rtbhardlimit = be64_to_cpu(ddqp->d_rtb_hardlimit);
 		qinf->qi_rtbsoftlimit = be64_to_cpu(ddqp->d_rtb_softlimit);
- 
+
 		xfs_qm_dqdestroy(dqp);
 	} else {
 		qinf->qi_btimelimit = XFS_QM_BTIMELIMIT;
@@ -935,6 +930,13 @@ xfs_qm_init_quotainfo(
 	qinf->qi_shrinker.flags = SHRINKER_NUMA_AWARE;
 	register_shrinker(&qinf->qi_shrinker);
 	return 0;
+
+out_free_lru:
+	list_lru_destroy(&qinf->qi_lru);
+out_free_qinf:
+	kmem_free(qinf);
+	mp->m_quotainfo = NULL;
+	return error;
 }
 
 

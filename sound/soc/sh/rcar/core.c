@@ -197,13 +197,12 @@ static void rsnd_dma_complete(void *data)
 	 * rsnd_dai_pointer_update() will be called twice,
 	 * ant it will breaks io->byte_pos
 	 */
-
-	rsnd_dai_pointer_update(io, io->byte_per_period);
-
 	if (dma->submit_loop)
 		rsnd_dma_continue(dma);
 
 	rsnd_unlock(priv, flags);
+
+	rsnd_dai_pointer_update(io, io->byte_per_period);
 }
 
 static void __rsnd_dma_start(struct rsnd_dma *dma)

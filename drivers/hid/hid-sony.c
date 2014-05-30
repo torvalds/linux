@@ -1721,8 +1721,6 @@ static void sony_remove(struct hid_device *hdev)
 	if (sc->quirks & SONY_LED_SUPPORT)
 		sony_leds_remove(hdev);
 
-	if (sc->worker_initialized)
-		cancel_work_sync(&sc->state_worker);
 	if (sc->quirks & SONY_BATTERY_SUPPORT) {
 		hid_hw_close(hdev);
 		sony_battery_remove(sc);

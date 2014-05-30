@@ -54,6 +54,13 @@ void mcpm_set_early_poke(unsigned cpu, unsigned cluster,
  */
 
 /**
+ * mcpm_is_available - returns whether MCPM is initialized and available
+ *
+ * This returns true or false accordingly.
+ */
+bool mcpm_is_available(void);
+
+/**
  * mcpm_cpu_power_up - make given CPU in given cluster runable
  *
  * @cpu: CPU number within given cluster

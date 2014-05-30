@@ -82,21 +82,6 @@ DEFINE_MUTEX(smp_cpu_state_mutex);
 /*
  * Signal processor helper functions.
  */
-static inline int __pcpu_sigp(u16 addr, u8 order, u32 parm, u32 *status)
-{
-	register unsigned int reg1 asm ("1") = parm;
-	int cc;
-
-	asm volatile(
-		"	sigp	%1,%2,0(%3)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc), "+d" (reg1) : "d" (addr), "a" (order) : "cc");
-	if (status && cc == 1)
-		*status = reg1;
-	return cc;
-}
-
 static inline int __pcpu_sigp_relax(u16 addr, u8 order, u32 parm, u32 *status)
 {
 	int cc;

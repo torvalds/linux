@@ -203,9 +203,9 @@ EXPORT_SYMBOL(drm_primary_helper_update);
  *
  * Provides a default plane disable handler for primary planes.  This is handler
  * is called in response to a userspace SetPlane operation on the plane with a
- * NULL framebuffer parameter.  We call the driver's modeset handler with a NULL
- * framebuffer to disable the CRTC if no other planes are currently enabled.
- * If other planes are still enabled on the same CRTC, we return -EBUSY.
+ * NULL framebuffer parameter.  It unconditionally fails the disable call with
+ * -EINVAL the only way to disable the primary plane without driver support is
+ * to disable the entier CRTC. Which does not match the plane ->disable hook.
  *
  * Note that some hardware may be able to disable the primary plane without
  * disabling the whole CRTC.  Drivers for such hardware should provide their
@@ -214,34 +214,11 @@ EXPORT_SYMBOL(drm_primary_helper_update);
  * disabled primary plane).
  *
  * RETURNS:
- * Zero on success, error code on failure
+ * Unconditionally returns -EINVAL.
  */
 int drm_primary_helper_disable(struct drm_plane *plane)
 {
-	struct drm_plane *p;
-	struct drm_mode_set set = {
-		.crtc = plane->crtc,
-		.fb = NULL,
-	};
-
-	if (plane->crtc == NULL || plane->fb == NULL)
-		/* Already disabled */
-		return 0;
-
-	list_for_each_entry(p, &plane->dev->mode_config.plane_list, head)
-		if (p != plane && p->fb) {
-			DRM_DEBUG_KMS("Cannot disable primary plane while other planes are still active on CRTC.\n");
-			return -EBUSY;
-		}
-
-	/*
-	 * N.B.  We call set_config() directly here rather than
-	 * drm_mode_set_config_internal() since drm_mode_setplane() already
-	 * handles the basic refcounting and we don't need the special
-	 * cross-CRTC refcounting (no chance of stealing connectors from
-	 * other CRTC's with this update).
-	 */
-	return plane->crtc->funcs->set_config(&set);
+	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_primary_helper_disable);
 

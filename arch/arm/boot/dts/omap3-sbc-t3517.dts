@@ -8,6 +8,19 @@
 / {
 	model = "CompuLab SBC-T3517 with CM-T3517";
 	compatible = "compulab,omap3-sbc-t3517", "compulab,omap3-cm-t3517", "ti,am3517", "ti,omap3";
+
+	/* Only one GPMC smsc9220 on SBC-T3517, CM-T3517 uses am35x Ethernet */
+	vddvario: regulator-vddvario-sb-t35 {
+		compatible = "regulator-fixed";
+		regulator-name = "vddvario";
+		regulator-always-on;
+	};
+
+	vdd33a: regulator-vdd33a-sb-t35 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd33a";
+		regulator-always-on;
+	};
 };
 
 &omap3_pmx_core {

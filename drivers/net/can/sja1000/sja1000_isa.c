@@ -46,6 +46,7 @@ static int clk[MAXDEV];
 static unsigned char cdr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
 static unsigned char ocr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
 static int indirect[MAXDEV] = {[0 ... (MAXDEV - 1)] = -1};
+static spinlock_t indirect_lock[MAXDEV];  /* lock for indirect access mode */
 
 module_param_array(port, ulong, NULL, S_IRUGO);
 MODULE_PARM_DESC(port, "I/O port number");
@@ -101,19 +102,26 @@ static void sja1000_isa_port_write_reg(const struct sja1000_priv *priv,
 static u8 sja1000_isa_port_read_reg_indirect(const struct sja1000_priv *priv,
 					     int reg)
 {
-	unsigned long base = (unsigned long)priv->reg_base;
+	unsigned long flags, base = (unsigned long)priv->reg_base;
+	u8 readval;
 
+	spin_lock_irqsave(&indirect_lock[priv->dev->dev_id], flags);
 	outb(reg, base);
-	return inb(base + 1);
+	readval = inb(base + 1);
+	spin_unlock_irqrestore(&indirect_lock[priv->dev->dev_id], flags);
+
+	return readval;
 }
 
 static void sja1000_isa_port_write_reg_indirect(const struct sja1000_priv *priv,
 						int reg, u8 val)
 {
-	unsigned long base = (unsigned long)priv->reg_base;
+	unsigned long flags, base = (unsigned long)priv->reg_base;
 
+	spin_lock_irqsave(&indirect_lock[priv->dev->dev_id], flags);
 	outb(reg, base);
 	outb(val, base + 1);
+	spin_unlock_irqrestore(&indirect_lock[priv->dev->dev_id], flags);
 }
 
 static int sja1000_isa_probe(struct platform_device *pdev)
@@ -169,6 +177,7 @@ static int sja1000_isa_probe(struct platform_device *pdev)
 		if (iosize == SJA1000_IOSIZE_INDIRECT) {
 			priv->read_reg = sja1000_isa_port_read_reg_indirect;
 			priv->write_reg = sja1000_isa_port_write_reg_indirect;
+			spin_lock_init(&indirect_lock[idx]);
 		} else {
 			priv->read_reg = sja1000_isa_port_read_reg;
 			priv->write_reg = sja1000_isa_port_write_reg;
@@ -198,6 +207,7 @@ static int sja1000_isa_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
+	dev->dev_id = idx;
 
 	err = register_sja1000dev(dev);
 	if (err) {

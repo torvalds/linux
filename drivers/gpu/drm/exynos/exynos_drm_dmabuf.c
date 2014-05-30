@@ -263,7 +263,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	buffer->sgt = sgt;
 	exynos_gem_obj->base.import_attach = attach;
 
-	DRM_DEBUG_PRIME("dma_addr = 0x%x, size = 0x%lx\n", buffer->dma_addr,
+	DRM_DEBUG_PRIME("dma_addr = %pad, size = 0x%lx\n", &buffer->dma_addr,
 								buffer->size);
 
 	return &exynos_gem_obj->base;

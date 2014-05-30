@@ -1281,7 +1281,7 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	u8 p2p_status_code = P2P_STATUS_SUCCESS;
 	u8 *p2pie;
 	u32 p2pielen = 0;
-	u8	wfd_ie[ 128 ] = { 0x00 };
+	u8	wfd_ie[MAX_WFD_IE_LEN] = { 0x00 };
 	u32	wfd_ielen = 0;
 #endif /* CONFIG_8723AU_P2P */
 

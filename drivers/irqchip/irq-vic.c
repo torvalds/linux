@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -228,12 +229,17 @@ static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
 static void vic_handle_irq_cascaded(unsigned int irq, struct irq_desc *desc)
 {
 	u32 stat, hwirq;
+	struct irq_chip *host_chip = irq_desc_get_chip(desc);
 	struct vic_device *vic = irq_desc_get_handler_data(desc);
+
+	chained_irq_enter(host_chip, desc);
 
 	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
 		hwirq = ffs(stat) - 1;
 		generic_handle_irq(irq_find_mapping(vic->domain, hwirq));
 	}
+
+	chained_irq_exit(host_chip, desc);
 }
 
 /*

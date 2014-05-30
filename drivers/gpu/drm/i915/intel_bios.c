@@ -287,6 +287,9 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
 
+	/* Err to enabling backlight if no backlight block. */
+	dev_priv->vbt.backlight.present = true;
+
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
 		return;
@@ -298,6 +301,13 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	}
 
 	entry = &backlight_data->data[panel_type];
+
+	dev_priv->vbt.backlight.present = entry->type == BDB_BACKLIGHT_TYPE_PWM;
+	if (!dev_priv->vbt.backlight.present) {
+		DRM_DEBUG_KMS("PWM backlight not present in VBT (type %u)\n",
+			      entry->type);
+		return;
+	}
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
@@ -550,46 +560,70 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 
 	dev_priv->vbt.edp_pps = *edp_pps;
 
-	dev_priv->vbt.edp_rate = edp_link_params->rate ? DP_LINK_BW_2_7 :
-		DP_LINK_BW_1_62;
+	switch (edp_link_params->rate) {
+	case EDP_RATE_1_62:
+		dev_priv->vbt.edp_rate = DP_LINK_BW_1_62;
+		break;
+	case EDP_RATE_2_7:
+		dev_priv->vbt.edp_rate = DP_LINK_BW_2_7;
+		break;
+	default:
+		DRM_DEBUG_KMS("VBT has unknown eDP link rate value %u\n",
+			      edp_link_params->rate);
+		break;
+	}
+
 	switch (edp_link_params->lanes) {
-	case 0:
+	case EDP_LANE_1:
 		dev_priv->vbt.edp_lanes = 1;
 		break;
-	case 1:
+	case EDP_LANE_2:
 		dev_priv->vbt.edp_lanes = 2;
 		break;
-	case 3:
-	default:
+	case EDP_LANE_4:
 		dev_priv->vbt.edp_lanes = 4;
 		break;
+	default:
+		DRM_DEBUG_KMS("VBT has unknown eDP lane count value %u\n",
+			      edp_link_params->lanes);
+		break;
 	}
+
 	switch (edp_link_params->preemphasis) {
-	case 0:
+	case EDP_PREEMPHASIS_NONE:
 		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_0;
 		break;
-	case 1:
+	case EDP_PREEMPHASIS_3_5dB:
 		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_3_5;
 		break;
-	case 2:
+	case EDP_PREEMPHASIS_6dB:
 		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_6;
 		break;
-	case 3:
+	case EDP_PREEMPHASIS_9_5dB:
 		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_9_5;
 		break;
+	default:
+		DRM_DEBUG_KMS("VBT has unknown eDP pre-emphasis value %u\n",
+			      edp_link_params->preemphasis);
+		break;
 	}
+
 	switch (edp_link_params->vswing) {
-	case 0:
+	case EDP_VSWING_0_4V:
 		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_400;
 		break;
-	case 1:
+	case EDP_VSWING_0_6V:
 		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_600;
 		break;
-	case 2:
+	case EDP_VSWING_0_8V:
 		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_800;
 		break;
-	case 3:
+	case EDP_VSWING_1_2V:
 		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_1200;
+		break;
+	default:
+		DRM_DEBUG_KMS("VBT has unknown eDP voltage swing value %u\n",
+			      edp_link_params->vswing);
 		break;
 	}
 }

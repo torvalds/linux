@@ -120,6 +120,7 @@ EXPORT_SYMBOL(giveup_spe);
 EXPORT_SYMBOL(flush_instruction_cache);
 #endif
 EXPORT_SYMBOL(flush_dcache_range);
+EXPORT_SYMBOL(flush_icache_range);
 
 #ifdef CONFIG_SMP
 #ifdef CONFIG_PPC32

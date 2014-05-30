@@ -99,55 +99,73 @@ static void tegra_dpaux_read_fifo(struct tegra_dpaux *dpaux, u8 *buffer,
 static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 				    struct drm_dp_aux_msg *msg)
 {
-	unsigned long value = DPAUX_DP_AUXCTL_TRANSACTREQ;
 	unsigned long timeout = msecs_to_jiffies(250);
 	struct tegra_dpaux *dpaux = to_dpaux(aux);
 	unsigned long status;
 	ssize_t ret = 0;
+	u32 value;
 
-	if (msg->size < 1 || msg->size > 16)
+	/* Tegra has 4x4 byte DP AUX transmit and receive FIFOs. */
+	if (msg->size > 16)
 		return -EINVAL;
 
-	tegra_dpaux_writel(dpaux, msg->address, DPAUX_DP_AUXADDR);
+	/*
+	 * Allow zero-sized messages only for I2C, in which case they specify
+	 * address-only transactions.
+	 */
+	if (msg->size < 1) {
+		switch (msg->request & ~DP_AUX_I2C_MOT) {
+		case DP_AUX_I2C_WRITE:
+		case DP_AUX_I2C_READ:
+			value = DPAUX_DP_AUXCTL_CMD_ADDRESS_ONLY;
+			break;
+
+		default:
+			return -EINVAL;
+		}
+	} else {
+		/* For non-zero-sized messages, set the CMDLEN field. */
+		value = DPAUX_DP_AUXCTL_CMDLEN(msg->size - 1);
+	}
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_I2C_WRITE:
 		if (msg->request & DP_AUX_I2C_MOT)
-			value = DPAUX_DP_AUXCTL_CMD_MOT_WR;
+			value |= DPAUX_DP_AUXCTL_CMD_MOT_WR;
 		else
-			value = DPAUX_DP_AUXCTL_CMD_I2C_WR;
+			value |= DPAUX_DP_AUXCTL_CMD_I2C_WR;
 
 		break;
 
 	case DP_AUX_I2C_READ:
 		if (msg->request & DP_AUX_I2C_MOT)
-			value = DPAUX_DP_AUXCTL_CMD_MOT_RD;
+			value |= DPAUX_DP_AUXCTL_CMD_MOT_RD;
 		else
-			value = DPAUX_DP_AUXCTL_CMD_I2C_RD;
+			value |= DPAUX_DP_AUXCTL_CMD_I2C_RD;
 
 		break;
 
 	case DP_AUX_I2C_STATUS:
 		if (msg->request & DP_AUX_I2C_MOT)
-			value = DPAUX_DP_AUXCTL_CMD_MOT_RQ;
+			value |= DPAUX_DP_AUXCTL_CMD_MOT_RQ;
 		else
-			value = DPAUX_DP_AUXCTL_CMD_I2C_RQ;
+			value |= DPAUX_DP_AUXCTL_CMD_I2C_RQ;
 
 		break;
 
 	case DP_AUX_NATIVE_WRITE:
-		value = DPAUX_DP_AUXCTL_CMD_AUX_WR;
+		value |= DPAUX_DP_AUXCTL_CMD_AUX_WR;
 		break;
 
 	case DP_AUX_NATIVE_READ:
-		value = DPAUX_DP_AUXCTL_CMD_AUX_RD;
+		value |= DPAUX_DP_AUXCTL_CMD_AUX_RD;
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	value |= DPAUX_DP_AUXCTL_CMDLEN(msg->size - 1);
+	tegra_dpaux_writel(dpaux, msg->address, DPAUX_DP_AUXADDR);
 	tegra_dpaux_writel(dpaux, value, DPAUX_DP_AUXCTL);
 
 	if ((msg->request & DP_AUX_I2C_READ) == 0) {
@@ -198,7 +216,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 		break;
 	}
 
-	if (msg->reply == DP_AUX_NATIVE_REPLY_ACK) {
+	if ((msg->size > 0) && (msg->reply == DP_AUX_NATIVE_REPLY_ACK)) {
 		if (msg->request & DP_AUX_I2C_READ) {
 			size_t count = value & DPAUX_DP_AUXSTAT_REPLY_MASK;
 

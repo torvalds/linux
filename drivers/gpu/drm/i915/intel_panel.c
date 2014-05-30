@@ -492,6 +492,7 @@ void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 freq;
 	unsigned long flags;
+	u64 n;
 
 	if (!panel->backlight.present || pipe == INVALID_PIPE)
 		return;
@@ -502,10 +503,9 @@ void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
 
 	/* scale to hardware max, but be careful to not overflow */
 	freq = panel->backlight.max;
-	if (freq < max)
-		level = level * freq / max;
-	else
-		level = freq / max * level;
+	n = (u64)level * freq;
+	do_div(n, max);
+	level = n;
 
 	panel->backlight.level = level;
 	if (panel->backlight.device)
@@ -1064,6 +1064,11 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	struct intel_panel *panel = &intel_connector->panel;
 	unsigned long flags;
 	int ret;
+
+	if (!dev_priv->vbt.backlight.present) {
+		DRM_DEBUG_KMS("native backlight control not available per VBT\n");
+		return 0;
+	}
 
 	/* set level and max in panel struct */
 	spin_lock_irqsave(&dev_priv->backlight_lock, flags);

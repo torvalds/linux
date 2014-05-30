@@ -2043,6 +2043,7 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 		return -ESRCH;
 
 	/* fake probe to determine $CHIP */
+	CHIP = NULL;
 	usb_gadget_probe_driver(&probe_driver);
 	if (!CHIP)
 		return -ENODEV;

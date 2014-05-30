@@ -389,8 +389,8 @@ static inline size_t vxlan_nlmsg_size(void)
 		+ nla_total_size(sizeof(struct nda_cacheinfo));
 }
 
-static void vxlan_fdb_notify(struct vxlan_dev *vxlan,
-			     struct vxlan_fdb *fdb, int type)
+static void vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
+			     struct vxlan_rdst *rd, int type)
 {
 	struct net *net = dev_net(vxlan->dev);
 	struct sk_buff *skb;
@@ -400,8 +400,7 @@ static void vxlan_fdb_notify(struct vxlan_dev *vxlan,
 	if (skb == NULL)
 		goto errout;
 
-	err = vxlan_fdb_info(skb, vxlan, fdb, 0, 0, type, 0,
-			     first_remote_rtnl(fdb));
+	err = vxlan_fdb_info(skb, vxlan, fdb, 0, 0, type, 0, rd);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in vxlan_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -427,10 +426,7 @@ static void vxlan_ip_miss(struct net_device *dev, union vxlan_addr *ipa)
 		.remote_vni = VXLAN_N_VID,
 	};
 
-	INIT_LIST_HEAD(&f.remotes);
-	list_add_rcu(&remote.list, &f.remotes);
-
-	vxlan_fdb_notify(vxlan, &f, RTM_GETNEIGH);
+	vxlan_fdb_notify(vxlan, &f, &remote, RTM_GETNEIGH);
 }
 
 static void vxlan_fdb_miss(struct vxlan_dev *vxlan, const u8 eth_addr[ETH_ALEN])
@@ -438,11 +434,11 @@ static void vxlan_fdb_miss(struct vxlan_dev *vxlan, const u8 eth_addr[ETH_ALEN])
 	struct vxlan_fdb f = {
 		.state = NUD_STALE,
 	};
+	struct vxlan_rdst remote = { };
 
-	INIT_LIST_HEAD(&f.remotes);
 	memcpy(f.eth_addr, eth_addr, ETH_ALEN);
 
-	vxlan_fdb_notify(vxlan, &f, RTM_GETNEIGH);
+	vxlan_fdb_notify(vxlan, &f, &remote, RTM_GETNEIGH);
 }
 
 /* Hash Ethernet address */
@@ -533,7 +529,8 @@ static int vxlan_fdb_replace(struct vxlan_fdb *f,
 
 /* Add/update destinations for multicast */
 static int vxlan_fdb_append(struct vxlan_fdb *f,
-			    union vxlan_addr *ip, __be16 port, __u32 vni, __u32 ifindex)
+			    union vxlan_addr *ip, __be16 port, __u32 vni,
+			    __u32 ifindex, struct vxlan_rdst **rdp)
 {
 	struct vxlan_rdst *rd;
 
@@ -551,6 +548,7 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 
 	list_add_tail_rcu(&rd->list, &f->remotes);
 
+	*rdp = rd;
 	return 1;
 }
 
@@ -690,6 +688,7 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			    __be16 port, __u32 vni, __u32 ifindex,
 			    __u8 ndm_flags)
 {
+	struct vxlan_rdst *rd = NULL;
 	struct vxlan_fdb *f;
 	int notify = 0;
 
@@ -726,7 +725,8 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 		if ((flags & NLM_F_APPEND) &&
 		    (is_multicast_ether_addr(f->eth_addr) ||
 		     is_zero_ether_addr(f->eth_addr))) {
-			int rc = vxlan_fdb_append(f, ip, port, vni, ifindex);
+			int rc = vxlan_fdb_append(f, ip, port, vni, ifindex,
+						  &rd);
 
 			if (rc < 0)
 				return rc;
@@ -756,15 +756,18 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 		INIT_LIST_HEAD(&f->remotes);
 		memcpy(f->eth_addr, mac, ETH_ALEN);
 
-		vxlan_fdb_append(f, ip, port, vni, ifindex);
+		vxlan_fdb_append(f, ip, port, vni, ifindex, &rd);
 
 		++vxlan->addrcnt;
 		hlist_add_head_rcu(&f->hlist,
 				   vxlan_fdb_head(vxlan, mac));
 	}
 
-	if (notify)
-		vxlan_fdb_notify(vxlan, f, RTM_NEWNEIGH);
+	if (notify) {
+		if (rd == NULL)
+			rd = first_remote_rtnl(f);
+		vxlan_fdb_notify(vxlan, f, rd, RTM_NEWNEIGH);
+	}
 
 	return 0;
 }
@@ -785,7 +788,7 @@ static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f)
 		    "delete %pM\n", f->eth_addr);
 
 	--vxlan->addrcnt;
-	vxlan_fdb_notify(vxlan, f, RTM_DELNEIGH);
+	vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_DELNEIGH);
 
 	hlist_del_rcu(&f->hlist);
 	call_rcu(&f->rcu, vxlan_fdb_free);
@@ -919,6 +922,7 @@ static int vxlan_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 	 */
 	if (rd && !list_is_singular(&f->remotes)) {
 		list_del_rcu(&rd->list);
+		vxlan_fdb_notify(vxlan, f, rd, RTM_DELNEIGH);
 		kfree_rcu(rd, rcu);
 		goto out;
 	}
@@ -993,7 +997,7 @@ static bool vxlan_snoop(struct net_device *dev,
 
 		rdst->remote_ip = *src_ip;
 		f->updated = jiffies;
-		vxlan_fdb_notify(vxlan, f, RTM_NEWNEIGH);
+		vxlan_fdb_notify(vxlan, f, rdst, RTM_NEWNEIGH);
 	} else {
 		/* learned new entry */
 		spin_lock(&vxlan->hash_lock);
@@ -1755,8 +1759,8 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 	if (err)
 		return err;
 
-	return iptunnel_xmit(rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df,
-			     false);
+	return iptunnel_xmit(vs->sock->sk, rt, skb, src, dst, IPPROTO_UDP,
+			     tos, ttl, df, false);
 }
 EXPORT_SYMBOL_GPL(vxlan_xmit_skb);
 

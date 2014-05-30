@@ -1115,8 +1115,11 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 			atmel_spi_next_xfer_pio(master, xfer);
 		}
 
+		/* interrupts are disabled, so free the lock for schedule */
+		atmel_spi_unlock(as);
 		ret = wait_for_completion_timeout(&as->xfer_completion,
 							SPI_DMA_TIMEOUT);
+		atmel_spi_lock(as);
 		if (WARN_ON(ret == 0)) {
 			dev_err(&spi->dev,
 				"spi trasfer timeout, err %d\n", ret);
