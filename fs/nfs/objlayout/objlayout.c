@@ -53,10 +53,10 @@ objlayout_alloc_layout_hdr(struct inode *inode, gfp_t gfp_flags)
 	struct objlayout *objlay;
 
 	objlay = kzalloc(sizeof(struct objlayout), gfp_flags);
-	if (objlay) {
-		spin_lock_init(&objlay->lock);
-		INIT_LIST_HEAD(&objlay->err_list);
-	}
+	if (!objlay)
+		return NULL;
+	spin_lock_init(&objlay->lock);
+	INIT_LIST_HEAD(&objlay->err_list);
 	dprintk("%s: Return %p\n", __func__, objlay);
 	return &objlay->pnfs_layout;
 }
