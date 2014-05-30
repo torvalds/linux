@@ -56,6 +56,7 @@ struct msm_kms;
 struct msm_gpu;
 struct msm_mmu;
 struct msm_rd_state;
+struct msm_perf_state;
 struct msm_gem_submit;
 
 #define NUM_DOMAINS 2    /* one for KMS, then one per gpu core (?) */
@@ -85,6 +86,7 @@ struct msm_drm_private {
 	wait_queue_head_t fence_event;
 
 	struct msm_rd_state *rd;
+	struct msm_perf_state *perf;
 
 	/* list of GEM objects: */
 	struct list_head inactive_list;
@@ -212,6 +214,8 @@ int msm_debugfs_late_init(struct drm_device *dev);
 int msm_rd_debugfs_init(struct drm_minor *minor);
 void msm_rd_debugfs_cleanup(struct drm_minor *minor);
 void msm_rd_dump_submit(struct msm_gem_submit *submit);
+int msm_perf_debugfs_init(struct drm_minor *minor);
+void msm_perf_debugfs_cleanup(struct drm_minor *minor);
 #else
 static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
 static inline void msm_rd_dump_submit(struct msm_gem_submit *submit) {}

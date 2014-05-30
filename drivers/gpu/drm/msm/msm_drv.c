@@ -548,6 +548,12 @@ static int late_init_minor(struct drm_minor *minor)
 		return ret;
 	}
 
+	ret = msm_perf_debugfs_init(minor);
+	if (ret) {
+		dev_err(minor->dev->dev, "could not install perf debugfs\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -588,6 +594,7 @@ static void msm_debugfs_cleanup(struct drm_minor *minor)
 	if (!minor->dev->dev_private)
 		return;
 	msm_rd_debugfs_cleanup(minor);
+	msm_perf_debugfs_cleanup(minor);
 }
 #endif
 
