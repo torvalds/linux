@@ -91,9 +91,6 @@ static int __cpuinit mvebu_cortex_a9_boot_secondary(unsigned int cpu,
 
 static struct smp_operations mvebu_cortex_a9_smp_ops __initdata = {
 	.smp_boot_secondary	= mvebu_cortex_a9_boot_secondary,
-#ifdef CONFIG_HOTPLUG_CPU
-	.cpu_die		= armada_xp_cpu_die,
-#endif
 };
 
 CPU_METHOD_OF_DECLARE(mvebu_armada_375_smp, "marvell,armada-375-smp",
