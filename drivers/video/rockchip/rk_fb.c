@@ -1408,6 +1408,18 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	int count = 100;
 	unsigned int dsp_addr[4];
 	long timeout;
+
+	/* acq_fence wait */
+	for (i = 0; i < regs->win_num; i++) {
+		win_data = &regs->reg_win_data[i];
+		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+			if (win_data->reg_area_data[j].acq_fence) {
+				/* printk("acq_fence wait!!!!!\n"); */
+				rk_fd_fence_wait(dev_drv, win_data->reg_area_data[j].acq_fence);
+			}
+		}
+	}
+
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		win = dev_drv->win[i];
 		win_data = rk_fb_get_win_data(regs, i);
@@ -1824,7 +1836,6 @@ static int rk_fb_set_win_config(struct fb_info *info,
 {
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
 	struct rk_fb_reg_data *regs;
-	struct rk_fb_reg_win_data *reg_win_data;
 #ifdef H_USE_FENCE
 	struct sync_fence *release_fence[RK_MAX_BUF_NUM];
 	struct sync_fence *retire_fence;
@@ -1862,15 +1873,6 @@ static int rk_fb_set_win_config(struct fb_info *info,
 			printk(KERN_INFO "error:win_id bigger than lcdc_win_num\n");
 			printk(KERN_INFO "i=%d,win_id=%d\n", i,
 			       win_data->win_par[i].win_id);
-		}
-	}
-	for (i = 0; i < regs->win_num; i++) {
-		reg_win_data = &regs->reg_win_data[i];
-		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
-			if (reg_win_data->reg_area_data[j].acq_fence) {
-				/* printk("acq_fence wait!!!!!\n"); */
-				rk_fd_fence_wait(dev_drv, reg_win_data->reg_area_data[j].acq_fence);
-			}
 		}
 	}
 
