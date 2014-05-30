@@ -563,16 +563,19 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 static inline void intel_pstate_calc_busy(struct cpudata *cpu,
 					struct sample *sample)
 {
-	int32_t core_pct;
+	int64_t core_pct;
+	int32_t rem;
 
-	core_pct = div_fp(int_tofp((sample->aperf)),
-			int_tofp((sample->mperf)));
-	core_pct = mul_fp(core_pct, int_tofp(100));
+	core_pct = int_tofp(sample->aperf) * int_tofp(100);
+	core_pct = div_u64_rem(core_pct, int_tofp(sample->mperf), &rem);
+
+	if ((rem << 1) >= int_tofp(sample->mperf))
+		core_pct += 1;
 
 	sample->freq = fp_toint(
 		mul_fp(int_tofp(cpu->pstate.max_pstate * 1000), core_pct));
 
-	sample->core_pct_busy = core_pct;
+	sample->core_pct_busy = (int32_t)core_pct;
 }
 
 static inline void intel_pstate_sample(struct cpudata *cpu)
