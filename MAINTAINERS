@@ -7405,6 +7405,9 @@ F:	kernel/rcu/torture.c
 
 RCUTORTURE TEST FRAMEWORK
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+R:	Steven Rostedt <rostedt@goodmis.org>
+R:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+R:	Lai Jiangshan <laijs@cn.fujitsu.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
@@ -7429,6 +7432,9 @@ F:	net/rds/
 READ-COPY UPDATE (RCU)
 M:	Dipankar Sarma <dipankar@in.ibm.com>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+R:	Steven Rostedt <rostedt@goodmis.org>
+R:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+R:	Lai Jiangshan <laijs@cn.fujitsu.com>
 L:	linux-kernel@vger.kernel.org
 W:	http://www.rdrop.com/users/paulmck/RCU/
 S:	Supported
@@ -8208,6 +8214,8 @@ F:	mm/sl?b.c
 SLEEPABLE READ-COPY UPDATE (SRCU)
 M:	Lai Jiangshan <laijs@cn.fujitsu.com>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+R:	Steven Rostedt <rostedt@goodmis.org>
+R:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 L:	linux-kernel@vger.kernel.org
 W:	http://www.rdrop.com/users/paulmck/RCU/
 S:	Supported
