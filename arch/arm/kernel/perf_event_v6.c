@@ -65,13 +65,11 @@ enum armv6_counters {
  * accesses/misses in hardware.
  */
 static const unsigned armv6_perf_map[PERF_COUNT_HW_MAX] = {
+	PERF_MAP_ALL_UNSUPPORTED,
 	[PERF_COUNT_HW_CPU_CYCLES]		= ARMV6_PERFCTR_CPU_CYCLES,
 	[PERF_COUNT_HW_INSTRUCTIONS]		= ARMV6_PERFCTR_INSTR_EXEC,
-	[PERF_COUNT_HW_CACHE_REFERENCES]	= HW_OP_UNSUPPORTED,
-	[PERF_COUNT_HW_CACHE_MISSES]		= HW_OP_UNSUPPORTED,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= ARMV6_PERFCTR_BR_EXEC,
 	[PERF_COUNT_HW_BRANCH_MISSES]		= ARMV6_PERFCTR_BR_MISPREDICT,
-	[PERF_COUNT_HW_BUS_CYCLES]		= HW_OP_UNSUPPORTED,
 	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND]	= ARMV6_PERFCTR_IBUF_STALL,
 	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND]	= ARMV6_PERFCTR_LSU_FULL_STALL,
 };
@@ -79,116 +77,31 @@ static const unsigned armv6_perf_map[PERF_COUNT_HW_MAX] = {
 static const unsigned armv6_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 					  [PERF_COUNT_HW_CACHE_OP_MAX]
 					  [PERF_COUNT_HW_CACHE_RESULT_MAX] = {
-	[C(L1D)] = {
-		/*
-		 * The performance counters don't differentiate between read
-		 * and write accesses/misses so this isn't strictly correct,
-		 * but it's the best we can do. Writes and reads get
-		 * combined.
-		 */
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= ARMV6_PERFCTR_DCACHE_ACCESS,
-			[C(RESULT_MISS)]	= ARMV6_PERFCTR_DCACHE_MISS,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= ARMV6_PERFCTR_DCACHE_ACCESS,
-			[C(RESULT_MISS)]	= ARMV6_PERFCTR_DCACHE_MISS,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(L1I)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= ARMV6_PERFCTR_ICACHE_MISS,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(LL)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(DTLB)] = {
-		/*
-		 * The ARM performance counters can count micro DTLB misses,
-		 * micro ITLB misses and main TLB misses. There isn't an event
-		 * for TLB misses, so use the micro misses here and if users
-		 * want the main TLB misses they can use a raw counter.
-		 */
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= ARMV6_PERFCTR_DTLB_MISS,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= ARMV6_PERFCTR_DTLB_MISS,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(ITLB)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= ARMV6_PERFCTR_ITLB_MISS,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= ARMV6_PERFCTR_ITLB_MISS,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(BPU)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(NODE)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
-		},
-	},
+	PERF_CACHE_MAP_ALL_UNSUPPORTED,
+
+	/*
+	 * The performance counters don't differentiate between read and write
+	 * accesses/misses so this isn't strictly correct, but it's the best we
+	 * can do. Writes and reads get combined.
+	 */
+	[C(L1D)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV6_PERFCTR_DCACHE_ACCESS,
+	[C(L1D)][C(OP_READ)][C(RESULT_MISS)]	= ARMV6_PERFCTR_DCACHE_MISS,
+	[C(L1D)][C(OP_WRITE)][C(RESULT_ACCESS)]	= ARMV6_PERFCTR_DCACHE_ACCESS,
+	[C(L1D)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV6_PERFCTR_DCACHE_MISS,
+
+	[C(L1I)][C(OP_READ)][C(RESULT_MISS)]	= ARMV6_PERFCTR_ICACHE_MISS,
+
+	/*
+	 * The ARM performance counters can count micro DTLB misses, micro ITLB
+	 * misses and main TLB misses. There isn't an event for TLB misses, so
+	 * use the micro misses here and if users want the main TLB misses they
+	 * can use a raw counter.
+	 */
+	[C(DTLB)][C(OP_READ)][C(RESULT_MISS)]	= ARMV6_PERFCTR_DTLB_MISS,
+	[C(DTLB)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV6_PERFCTR_DTLB_MISS,
+
+	[C(ITLB)][C(OP_READ)][C(RESULT_MISS)]	= ARMV6_PERFCTR_ITLB_MISS,
+	[C(ITLB)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV6_PERFCTR_ITLB_MISS,
 };
 
 enum armv6mpcore_perf_types {
@@ -220,13 +133,11 @@ enum armv6mpcore_perf_types {
  * accesses/misses in hardware.
  */
 static const unsigned armv6mpcore_perf_map[PERF_COUNT_HW_MAX] = {
+	PERF_MAP_ALL_UNSUPPORTED,
 	[PERF_COUNT_HW_CPU_CYCLES]		= ARMV6MPCORE_PERFCTR_CPU_CYCLES,
 	[PERF_COUNT_HW_INSTRUCTIONS]		= ARMV6MPCORE_PERFCTR_INSTR_EXEC,
-	[PERF_COUNT_HW_CACHE_REFERENCES]	= HW_OP_UNSUPPORTED,
-	[PERF_COUNT_HW_CACHE_MISSES]		= HW_OP_UNSUPPORTED,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= ARMV6MPCORE_PERFCTR_BR_EXEC,
 	[PERF_COUNT_HW_BRANCH_MISSES]		= ARMV6MPCORE_PERFCTR_BR_MISPREDICT,
-	[PERF_COUNT_HW_BUS_CYCLES]		= HW_OP_UNSUPPORTED,
 	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND]	= ARMV6MPCORE_PERFCTR_IBUF_STALL,
 	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND]	= ARMV6MPCORE_PERFCTR_LSU_FULL_STALL,
 };
@@ -234,114 +145,26 @@ static const unsigned armv6mpcore_perf_map[PERF_COUNT_HW_MAX] = {
 static const unsigned armv6mpcore_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 					[PERF_COUNT_HW_CACHE_OP_MAX]
 					[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
-	[C(L1D)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]  =
-				ARMV6MPCORE_PERFCTR_DCACHE_RDACCESS,
-			[C(RESULT_MISS)]    =
-				ARMV6MPCORE_PERFCTR_DCACHE_RDMISS,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]  =
-				ARMV6MPCORE_PERFCTR_DCACHE_WRACCESS,
-			[C(RESULT_MISS)]    =
-				ARMV6MPCORE_PERFCTR_DCACHE_WRMISS,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(L1I)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = ARMV6MPCORE_PERFCTR_ICACHE_MISS,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(LL)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(DTLB)] = {
-		/*
-		 * The ARM performance counters can count micro DTLB misses,
-		 * micro ITLB misses and main TLB misses. There isn't an event
-		 * for TLB misses, so use the micro misses here and if users
-		 * want the main TLB misses they can use a raw counter.
-		 */
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = ARMV6MPCORE_PERFCTR_DTLB_MISS,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = ARMV6MPCORE_PERFCTR_DTLB_MISS,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(ITLB)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = ARMV6MPCORE_PERFCTR_ITLB_MISS,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = ARMV6MPCORE_PERFCTR_ITLB_MISS,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(BPU)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-	},
-	[C(NODE)] = {
-		[C(OP_READ)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_WRITE)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-		[C(OP_PREFETCH)] = {
-			[C(RESULT_ACCESS)]  = CACHE_OP_UNSUPPORTED,
-			[C(RESULT_MISS)]    = CACHE_OP_UNSUPPORTED,
-		},
-	},
+	PERF_CACHE_MAP_ALL_UNSUPPORTED,
+
+	[C(L1D)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV6MPCORE_PERFCTR_DCACHE_RDACCESS,
+	[C(L1D)][C(OP_READ)][C(RESULT_MISS)]	= ARMV6MPCORE_PERFCTR_DCACHE_RDMISS,
+	[C(L1D)][C(OP_WRITE)][C(RESULT_ACCESS)]	= ARMV6MPCORE_PERFCTR_DCACHE_WRACCESS,
+	[C(L1D)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV6MPCORE_PERFCTR_DCACHE_WRMISS,
+
+	[C(L1I)][C(OP_READ)][C(RESULT_MISS)]	= ARMV6MPCORE_PERFCTR_ICACHE_MISS,
+
+	/*
+	 * The ARM performance counters can count micro DTLB misses, micro ITLB
+	 * misses and main TLB misses. There isn't an event for TLB misses, so
+	 * use the micro misses here and if users want the main TLB misses they
+	 * can use a raw counter.
+	 */
+	[C(DTLB)][C(OP_READ)][C(RESULT_MISS)]	= ARMV6MPCORE_PERFCTR_DTLB_MISS,
+	[C(DTLB)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV6MPCORE_PERFCTR_DTLB_MISS,
+
+	[C(ITLB)][C(OP_READ)][C(RESULT_MISS)]	= ARMV6MPCORE_PERFCTR_ITLB_MISS,
+	[C(ITLB)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV6MPCORE_PERFCTR_ITLB_MISS,
 };
 
 static inline unsigned long
