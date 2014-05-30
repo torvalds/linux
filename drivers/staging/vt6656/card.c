@@ -526,7 +526,7 @@ int vnt_ofdm_min_rate(struct vnt_private *priv)
 	return false;
 }
 
-u8 CARDbyGetPktType(struct vnt_private *priv)
+u8 vnt_get_pkt_type(struct vnt_private *priv)
 {
 
 	if (priv->byBBType == BB_TYPE_11A || priv->byBBType == BB_TYPE_11B)
@@ -836,7 +836,7 @@ void CARDvSetBSSMode(struct vnt_private *priv)
 	else
 		MACvSetBBType(priv, priv->byBBType);
 
-	priv->byPacketType = CARDbyGetPktType(priv);
+	priv->byPacketType = vnt_get_pkt_type(priv);
 
 	if (priv->byBBType == BB_TYPE_11A)
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x03);
