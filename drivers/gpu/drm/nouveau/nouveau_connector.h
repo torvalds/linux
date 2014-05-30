@@ -33,7 +33,6 @@
 #include <core/event.h>
 
 #include <subdev/bios.h>
-#include <subdev/bios/gpio.h>
 
 struct nouveau_i2c_port;
 
@@ -67,9 +66,9 @@ struct nouveau_connector {
 	u8 index;
 	u8 *dcb;
 
-	struct dcb_gpio_func hpd;
-	struct work_struct hpd_work;
-	struct nouveau_eventh *hpd_func;
+	struct nouveau_eventh *hpd;
+	u32 status;
+	struct work_struct work;
 
 	int dithering_mode;
 	int dithering_depth;

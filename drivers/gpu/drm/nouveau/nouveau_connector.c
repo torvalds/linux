@@ -44,6 +44,7 @@
 
 #include <subdev/i2c.h>
 #include <subdev/gpio.h>
+#include <engine/disp.h>
 
 MODULE_PARM_DESC(tv_disable, "Disable TV-out detection");
 static int nouveau_tv_disable = 0;
@@ -100,7 +101,7 @@ static void
 nouveau_connector_destroy(struct drm_connector *connector)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
-	nouveau_event_ref(NULL, &nv_connector->hpd_func);
+	nouveau_event_ref(NULL, &nv_connector->hpd);
 	kfree(nv_connector->edid);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
@@ -915,30 +916,34 @@ static void
 nouveau_connector_hotplug_work(struct work_struct *work)
 {
 	struct nouveau_connector *nv_connector =
-		container_of(work, struct nouveau_connector, hpd_work);
+		container_of(work, typeof(*nv_connector), work);
 	struct drm_connector *connector = &nv_connector->base;
-	struct drm_device *dev = connector->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
-	bool plugged = gpio->get(gpio, 0, nv_connector->hpd.func, 0xff);
+	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	const char *name = connector->name;
 
-	NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un",
-		 connector->name);
+	if (nv_connector->status & NVKM_HPD_IRQ) {
+	} else {
+		bool plugged = (nv_connector->status != NVKM_HPD_UNPLUG);
 
-	if (plugged)
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
-	else
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+		NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", name);
 
-	drm_helper_hpd_irq_event(dev);
+		if (plugged)
+			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+		else
+			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+		drm_helper_hpd_irq_event(connector->dev);
+	}
+
+	nouveau_event_get(nv_connector->hpd);
 }
 
 static int
 nouveau_connector_hotplug(void *data, u32 type, int index)
 {
 	struct nouveau_connector *nv_connector = data;
-	schedule_work(&nv_connector->hpd_work);
-	return NVKM_EVENT_KEEP;
+	nv_connector->status = type;
+	schedule_work(&nv_connector->work);
+	return NVKM_EVENT_DROP;
 }
 
 static int
@@ -974,9 +979,9 @@ nouveau_connector_create(struct drm_device *dev, int index)
 {
 	const struct drm_connector_funcs *funcs = &nouveau_connector_funcs;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_connector *nv_connector = NULL;
+	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
 	struct drm_connector *connector;
 	int type, ret = 0;
 	bool dummy;
@@ -992,33 +997,14 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		return ERR_PTR(-ENOMEM);
 
 	connector = &nv_connector->base;
-	INIT_WORK(&nv_connector->hpd_work, nouveau_connector_hotplug_work);
 	nv_connector->index = index;
 
 	/* attempt to parse vbios connector type and hotplug gpio */
 	nv_connector->dcb = olddcb_conn(dev, index);
 	if (nv_connector->dcb) {
-		static const u8 hpd[16] = {
-			0xff, 0x07, 0x08, 0xff, 0xff, 0x51, 0x52, 0xff,
-			0xff, 0xff, 0xff, 0xff, 0xff, 0x5e, 0x5f, 0x60,
-		};
-
 		u32 entry = ROM16(nv_connector->dcb[0]);
 		if (olddcb_conntab(dev)[3] >= 4)
 			entry |= (u32)ROM16(nv_connector->dcb[2]) << 16;
-
-		ret = gpio->find(gpio, 0, hpd[ffs((entry & 0x07033000) >> 12)],
-				 DCB_GPIO_UNUSED, &nv_connector->hpd);
-		if (ret)
-			nv_connector->hpd.func = DCB_GPIO_UNUSED;
-
-		if (nv_connector->hpd.func != DCB_GPIO_UNUSED) {
-			nouveau_event_new(gpio->events, NVKM_GPIO_TOGGLED,
-					  nv_connector->hpd.line,
-					  nouveau_connector_hotplug,
-					  nv_connector,
-					 &nv_connector->hpd_func);
-		}
 
 		nv_connector->type = nv_connector->dcb[0];
 		if (drm_conntype_from_dcb(nv_connector->type) ==
@@ -1041,7 +1027,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		}
 	} else {
 		nv_connector->type = DCB_CONNECTOR_NONE;
-		nv_connector->hpd.func = DCB_GPIO_UNUSED;
 	}
 
 	/* no vbios data, or an unknown dcb connector type - attempt to
@@ -1167,9 +1152,15 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-	if (nv_connector->hpd.func != DCB_GPIO_UNUSED)
+	ret = nouveau_event_new(pdisp->hpd, NVKM_HPD, index,
+				nouveau_connector_hotplug,
+				nv_connector, &nv_connector->hpd);
+	if (ret)
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	else
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
+
+	INIT_WORK(&nv_connector->work, nouveau_connector_hotplug_work);
 
 	drm_sysfs_connector_add(connector);
 	return connector;
