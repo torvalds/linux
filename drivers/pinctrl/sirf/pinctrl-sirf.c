@@ -575,7 +575,7 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	int i;
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
-		bank = &sgpio_chip.sgpio_bank[i];
+		bank = &sgpio->sgpio_bank[i];
 		if (bank->parent_irq == irq)
 			break;
 	}
