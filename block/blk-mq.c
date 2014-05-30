@@ -199,19 +199,12 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	rq->q = q;
 	rq->mq_ctx = ctx;
 	rq->cmd_flags |= rw_flags;
-	rq->cmd_type = 0;
 	/* do not touch atomic flags, it needs atomic ops against the timer */
 	rq->cpu = -1;
-	rq->__data_len = 0;
-	rq->__sector = (sector_t) -1;
-	rq->bio = NULL;
-	rq->biotail = NULL;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
-	memset(&rq->flush, 0, max(sizeof(rq->flush), sizeof(rq->elv)));
 	rq->rq_disk = NULL;
 	rq->part = NULL;
-	rq->start_time = jiffies;
 #ifdef CONFIG_BLK_CGROUP
 	rq->rl = NULL;
 	set_start_time_ns(rq);
@@ -221,23 +214,16 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	rq->nr_integrity_segments = 0;
 #endif
-	rq->ioprio = 0;
 	rq->special = NULL;
 	/* tag was already set */
 	rq->errors = 0;
-	memset(rq->__cmd, 0, sizeof(rq->__cmd));
-	rq->cmd = rq->__cmd;
-	rq->cmd_len = BLK_MAX_CDB;
 
 	rq->extra_len = 0;
 	rq->sense_len = 0;
 	rq->resid_len = 0;
 	rq->sense = NULL;
 
-	rq->deadline = 0;
 	INIT_LIST_HEAD(&rq->timeout_list);
-	rq->timeout = 0;
-	rq->retries = 0;
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
 	rq->next_rq = NULL;
@@ -449,8 +435,10 @@ static void blk_mq_start_request(struct request *rq, bool last)
 	 * complete. So be sure to clear complete again when we start
 	 * the request, otherwise we'll ignore the completion event.
 	 */
-	set_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
-	clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+		set_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
+	if (test_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags))
+		clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
 
 	if (q->dma_drain_size && blk_rq_bytes(rq)) {
 		/*
@@ -553,9 +541,15 @@ void blk_mq_kick_requeue_list(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_mq_kick_requeue_list);
 
-struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
+struct request *blk_mq_tag_to_rq(struct blk_mq_hw_ctx *hctx, unsigned int tag)
 {
-	return tags->rqs[tag];
+	struct request_queue *q = hctx->queue;
+
+	if ((q->flush_rq->cmd_flags & REQ_FLUSH_SEQ) &&
+	    q->flush_rq->tag == tag)
+		return q->flush_rq;
+
+	return hctx->tags->rqs[tag];
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
@@ -584,7 +578,7 @@ static void blk_mq_timeout_check(void *__data, unsigned long *free_tags)
 		if (tag >= hctx->tags->nr_tags)
 			break;
 
-		rq = blk_mq_tag_to_rq(hctx->tags, tag++);
+		rq = blk_mq_tag_to_rq(hctx, tag++);
 		if (rq->q != hctx->queue)
 			continue;
 		if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
@@ -1112,7 +1106,11 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 {
 	init_request_from_bio(rq, bio);
-	blk_account_io_start(rq, 1);
+
+	if (blk_do_io_stat(rq)) {
+		rq->start_time = jiffies;
+		blk_account_io_start(rq, 1);
+	}
 }
 
 static inline bool blk_mq_merge_queue_io(struct blk_mq_hw_ctx *hctx,
@@ -1828,6 +1826,9 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 
 	q->mq_ops = set->ops;
 	q->queue_flags |= QUEUE_FLAG_MQ_DEFAULT;
+
+	if (!(set->flags & BLK_MQ_F_SG_MERGE))
+		q->queue_flags |= 1 << QUEUE_FLAG_NO_SG_MERGE;
 
 	q->sg_reserved_size = INT_MAX;
 
