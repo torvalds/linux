@@ -185,6 +185,14 @@ static u32 cdc_ncm_check_tx_max(struct usbnet *dev, u32 new_tx)
 	return val;
 }
 
+static ssize_t cdc_ncm_show_min_tx_pkt(struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+
+	return sprintf(buf, "%u\n", ctx->min_tx_pkt);
+}
+
 static ssize_t cdc_ncm_show_rx_max(struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
@@ -207,6 +215,20 @@ static ssize_t cdc_ncm_show_tx_timer_usecs(struct device *d, struct device_attri
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 
 	return sprintf(buf, "%u\n", ctx->timer_interval / (u32)NSEC_PER_USEC);
+}
+
+static ssize_t cdc_ncm_store_min_tx_pkt(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	unsigned long val;
+
+	/* no need to restrict values - anything from 0 to infinity is OK */
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	ctx->min_tx_pkt = val;
+	return len;
 }
 
 static ssize_t cdc_ncm_store_rx_max(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
@@ -256,6 +278,7 @@ static ssize_t cdc_ncm_store_tx_timer_usecs(struct device *d,  struct device_att
 	return len;
 }
 
+static DEVICE_ATTR(min_tx_pkt, S_IRUGO | S_IWUSR, cdc_ncm_show_min_tx_pkt, cdc_ncm_store_min_tx_pkt);
 static DEVICE_ATTR(rx_max, S_IRUGO | S_IWUSR, cdc_ncm_show_rx_max, cdc_ncm_store_rx_max);
 static DEVICE_ATTR(tx_max, S_IRUGO | S_IWUSR, cdc_ncm_show_tx_max, cdc_ncm_store_tx_max);
 static DEVICE_ATTR(tx_timer_usecs, S_IRUGO | S_IWUSR, cdc_ncm_show_tx_timer_usecs, cdc_ncm_store_tx_timer_usecs);
@@ -281,6 +304,7 @@ NCM_PARM_ATTR(wNdpOutAlignment, "%u", le16_to_cpu);
 NCM_PARM_ATTR(wNtbOutMaxDatagrams, "%u", le16_to_cpu);
 
 static struct attribute *cdc_ncm_sysfs_attrs[] = {
+	&dev_attr_min_tx_pkt.attr,
 	&dev_attr_rx_max.attr,
 	&dev_attr_tx_max.attr,
 	&dev_attr_tx_timer_usecs.attr,
