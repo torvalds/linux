@@ -1352,7 +1352,10 @@ static int be_set_vf_tx_rate(struct net_device *netdev, int vf,
 			     int min_tx_rate, int max_tx_rate)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	int status = 0;
+	struct device *dev = &adapter->pdev->dev;
+	int percent_rate, status = 0;
+	u16 link_speed = 0;
+	u8 link_status;
 
 	if (!sriov_enabled(adapter))
 		return -EPERM;
@@ -1363,18 +1366,47 @@ static int be_set_vf_tx_rate(struct net_device *netdev, int vf,
 	if (min_tx_rate)
 		return -EINVAL;
 
-	if (max_tx_rate < 100 || max_tx_rate > 10000) {
-		dev_err(&adapter->pdev->dev,
-			"max tx rate must be between 100 and 10000 Mbps\n");
-		return -EINVAL;
+	if (!max_tx_rate)
+		goto config_qos;
+
+	status = be_cmd_link_status_query(adapter, &link_speed,
+					  &link_status, 0);
+	if (status)
+		goto err;
+
+	if (!link_status) {
+		dev_err(dev, "TX-rate setting not allowed when link is down\n");
+		status = -EPERM;
+		goto err;
 	}
 
-	status = be_cmd_config_qos(adapter, max_tx_rate / 10, vf + 1);
+	if (max_tx_rate < 100 || max_tx_rate > link_speed) {
+		dev_err(dev, "TX-rate must be between 100 and %d Mbps\n",
+			link_speed);
+		status = -EINVAL;
+		goto err;
+	}
+
+	/* On Skyhawk the QOS setting must be done only as a % value */
+	percent_rate = link_speed / 100;
+	if (skyhawk_chip(adapter) && (max_tx_rate % percent_rate)) {
+		dev_err(dev, "TX-rate must be a multiple of %d Mbps\n",
+			percent_rate);
+		status = -EINVAL;
+		goto err;
+	}
+
+config_qos:
+	status = be_cmd_config_qos(adapter, max_tx_rate, link_speed, vf + 1);
 	if (status)
-		dev_err(&adapter->pdev->dev,
-			"max tx rate %d on VF %d failed\n", max_tx_rate, vf);
-	else
-		adapter->vf_cfg[vf].tx_rate = max_tx_rate;
+		goto err;
+
+	adapter->vf_cfg[vf].tx_rate = max_tx_rate;
+	return 0;
+
+err:
+	dev_err(dev, "TX-rate setting of %dMbps on VF%d failed\n",
+		max_tx_rate, vf);
 	return status;
 }
 static int be_set_vf_link_state(struct net_device *netdev, int vf,
@@ -3135,7 +3167,6 @@ static int be_vf_setup(struct be_adapter *adapter)
 	struct be_vf_cfg *vf_cfg;
 	int status, old_vfs, vf;
 	u32 privileges;
-	u16 lnk_speed;
 
 	old_vfs = pci_num_vf(adapter->pdev);
 	if (old_vfs) {
@@ -3191,16 +3222,9 @@ static int be_vf_setup(struct be_adapter *adapter)
 					 vf);
 		}
 
-		/* BE3 FW, by default, caps VF TX-rate to 100mbps.
-		 * Allow full available bandwidth
-		 */
-		if (BE3_chip(adapter) && !old_vfs)
-			be_cmd_config_qos(adapter, 1000, vf + 1);
-
-		status = be_cmd_link_status_query(adapter, &lnk_speed,
-						  NULL, vf + 1);
-		if (!status)
-			vf_cfg->tx_rate = lnk_speed;
+		/* Allow full available bandwidth */
+		if (!old_vfs)
+			be_cmd_config_qos(adapter, 0, 0, vf + 1);
 
 		if (!old_vfs) {
 			be_cmd_enable_vf(adapter, vf + 1);

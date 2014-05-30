@@ -3562,33 +3562,47 @@ void be_reset_nic_desc(struct be_nic_res_desc *nic)
 	nic->cq_count = 0xFFFF;
 	nic->toe_conn_count = 0xFFFF;
 	nic->eq_count = 0xFFFF;
+	nic->iface_count = 0xFFFF;
 	nic->link_param = 0xFF;
+	nic->channel_id_param = cpu_to_le16(0xF000);
 	nic->acpi_params = 0xFF;
 	nic->wol_param = 0x0F;
-	nic->bw_min = 0xFFFFFFFF;
+	nic->tunnel_iface_count = 0xFFFF;
+	nic->direct_tenant_iface_count = 0xFFFF;
 	nic->bw_max = 0xFFFFFFFF;
 }
 
-int be_cmd_config_qos(struct be_adapter *adapter, u32 bps, u8 domain)
+int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
+		      u8 domain)
 {
-	if (lancer_chip(adapter)) {
-		struct be_nic_res_desc nic_desc;
+	struct be_nic_res_desc nic_desc;
+	u32 bw_percent;
+	u16 version = 0;
 
-		be_reset_nic_desc(&nic_desc);
+	if (BE3_chip(adapter))
+		return be_cmd_set_qos(adapter, max_rate / 10, domain);
+
+	be_reset_nic_desc(&nic_desc);
+	nic_desc.pf_num = adapter->pf_number;
+	nic_desc.vf_num = domain;
+	if (lancer_chip(adapter)) {
 		nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
 		nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V0;
 		nic_desc.flags = (1 << QUN_SHIFT) | (1 << IMM_SHIFT) |
 					(1 << NOSV_SHIFT);
-		nic_desc.pf_num = adapter->pf_number;
-		nic_desc.vf_num = domain;
-		nic_desc.bw_max = cpu_to_le32(bps);
-
-		return be_cmd_set_profile_config(adapter, &nic_desc,
-						 RESOURCE_DESC_SIZE_V0,
-						 0, domain);
+		nic_desc.bw_max = cpu_to_le32(max_rate / 10);
 	} else {
-		return be_cmd_set_qos(adapter, bps, domain);
+		version = 1;
+		nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V1;
+		nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
+		nic_desc.flags = (1 << IMM_SHIFT) | (1 << NOSV_SHIFT);
+		bw_percent = max_rate ? (max_rate * 100) / link_speed : 100;
+		nic_desc.bw_max = cpu_to_le32(bw_percent);
 	}
+
+	return be_cmd_set_profile_config(adapter, &nic_desc,
+					 nic_desc.hdr.desc_len,
+					 version, domain);
 }
 
 int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op)

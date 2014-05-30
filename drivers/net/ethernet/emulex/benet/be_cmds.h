@@ -1891,16 +1891,20 @@ struct be_nic_res_desc {
 	u16 cq_count;
 	u16 toe_conn_count;
 	u16 eq_count;
-	u32 rsvd5;
+	u16 vlan_id;
+	u16 iface_count;
 	u32 cap_flags;
 	u8 link_param;
-	u8 rsvd6[3];
+	u8 rsvd6;
+	u16 channel_id_param;
 	u32 bw_min;
 	u32 bw_max;
 	u8 acpi_params;
 	u8 wol_param;
 	u16 rsvd7;
-	u32 rsvd8[7];
+	u16 tunnel_iface_count;
+	u16 direct_tenant_iface_count;
+	u32 rsvd8[6];
 } __packed;
 
 /************ Multi-Channel type ***********/
@@ -2101,7 +2105,8 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 			u8 loopback_type, u8 enable);
 int be_cmd_get_phy_info(struct be_adapter *adapter);
-int be_cmd_config_qos(struct be_adapter *adapter, u32 bps, u8 domain);
+int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate,
+		      u16 link_speed, u8 domain);
 void be_detect_error(struct be_adapter *adapter);
 int be_cmd_get_die_temperature(struct be_adapter *adapter);
 int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
