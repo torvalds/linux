@@ -84,7 +84,7 @@ EXPORT_SYMBOL_GPL(acpi_initialize_hp_context);
 
 int acpi_scan_add_handler(struct acpi_scan_handler *handler)
 {
-	if (!handler || !handler->attach)
+	if (!handler)
 		return -EINVAL;
 
 	list_add_tail(&handler->list_node, &acpi_scan_handlers_list);
@@ -2081,6 +2081,10 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 
 		handler = acpi_scan_match_handler(hwid->id, &devid);
 		if (handler) {
+			if (!handler->attach) {
+				device->pnp.type.platform_id = 0;
+				continue;
+			}
 			device->handler = handler;
 			ret = handler->attach(device, devid);
 			if (ret > 0)
