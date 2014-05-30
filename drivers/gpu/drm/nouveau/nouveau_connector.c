@@ -105,6 +105,8 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	kfree(nv_connector->edid);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
+	if (nv_connector->aux.transfer)
+		drm_dp_aux_unregister(&nv_connector->aux);
 	kfree(connector);
 }
 
@@ -946,6 +948,38 @@ nouveau_connector_hotplug(void *data, u32 type, int index)
 	return NVKM_EVENT_DROP;
 }
 
+static ssize_t
+nouveau_connector_aux_xfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
+{
+	struct nouveau_connector *nv_connector =
+		container_of(aux, typeof(*nv_connector), aux);
+	struct nouveau_encoder *nv_encoder;
+	struct nouveau_i2c_port *port;
+	int ret;
+
+	nv_encoder = find_encoder(&nv_connector->base, DCB_OUTPUT_DP);
+	if (!nv_encoder || !(port = nv_encoder->i2c))
+		return -ENODEV;
+	if (WARN_ON(msg->size > 16))
+		return -E2BIG;
+	if (msg->size == 0)
+		return msg->size;
+
+	ret = nouveau_i2c(port)->acquire(port, 0);
+	if (ret)
+		return ret;
+
+	ret = port->func->aux(port, false, msg->request, msg->address,
+			      msg->buffer, msg->size);
+	nouveau_i2c(port)->release(port);
+	if (ret >= 0) {
+		msg->reply = ret;
+		return msg->size;
+	}
+
+	return ret;
+}
+
 static int
 drm_conntype_from_dcb(enum dcb_connector_type dcb)
 {
@@ -1066,8 +1100,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		}
 	}
 
-	type = drm_conntype_from_dcb(nv_connector->type);
-	if (type == DRM_MODE_CONNECTOR_LVDS) {
+	switch ((type = drm_conntype_from_dcb(nv_connector->type))) {
+	case DRM_MODE_CONNECTOR_LVDS:
 		ret = nouveau_bios_parse_lvds_table(dev, 0, &dummy, &dummy);
 		if (ret) {
 			NV_ERROR(drm, "Error parsing LVDS table, disabling\n");
@@ -1076,8 +1110,23 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		}
 
 		funcs = &nouveau_connector_funcs_lvds;
-	} else {
+		break;
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_eDP:
+		nv_connector->aux.dev = dev->dev;
+		nv_connector->aux.transfer = nouveau_connector_aux_xfer;
+		ret = drm_dp_aux_register(&nv_connector->aux);
+		if (ret) {
+			NV_ERROR(drm, "failed to register aux channel\n");
+			kfree(nv_connector);
+			return ERR_PTR(ret);
+		}
+
 		funcs = &nouveau_connector_funcs;
+		break;
+	default:
+		funcs = &nouveau_connector_funcs;
+		break;
 	}
 
 	/* defaults, will get overridden in detect() */

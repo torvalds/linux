@@ -28,6 +28,7 @@
 #define __NOUVEAU_CONNECTOR_H__
 
 #include <drm/drm_edid.h>
+#include <drm/drm_dp_helper.h>
 #include "nouveau_crtc.h"
 
 #include <core/event.h>
@@ -69,6 +70,8 @@ struct nouveau_connector {
 	struct nouveau_eventh *hpd;
 	u32 status;
 	struct work_struct work;
+
+	struct drm_dp_aux aux;
 
 	int dithering_mode;
 	int dithering_depth;
