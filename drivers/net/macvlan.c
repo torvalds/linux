@@ -33,6 +33,7 @@
 #include <linux/workqueue.h>
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
+#include <linux/netpoll.h>
 
 #define MACVLAN_HASH_SIZE	(1 << BITS_PER_BYTE)
 
@@ -357,12 +358,26 @@ xmit_world:
 	return dev_queue_xmit(skb);
 }
 
+static inline netdev_tx_t macvlan_netpoll_send_skb(struct macvlan_dev *vlan, struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	if (vlan->netpoll)
+		netpoll_send_skb(vlan->netpoll, skb);
+#else
+	BUG();
+#endif
+	return NETDEV_TX_OK;
+}
+
 static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
 	unsigned int len = skb->len;
 	int ret;
-	const struct macvlan_dev *vlan = netdev_priv(dev);
+	struct macvlan_dev *vlan = netdev_priv(dev);
+
+	if (unlikely(netpoll_tx_running(dev)))
+		return macvlan_netpoll_send_skb(vlan, skb);
 
 	if (vlan->fwd_priv) {
 		skb->dev = vlan->lowerdev;
@@ -788,6 +803,50 @@ static netdev_features_t macvlan_fix_features(struct net_device *dev,
 	return features;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void macvlan_dev_poll_controller(struct net_device *dev)
+{
+	return;
+}
+
+static int macvlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo)
+{
+	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct net_device *real_dev = vlan->lowerdev;
+	struct netpoll *netpoll;
+	int err = 0;
+
+	netpoll = kzalloc(sizeof(*netpoll), GFP_KERNEL);
+	err = -ENOMEM;
+	if (!netpoll)
+		goto out;
+
+	err = __netpoll_setup(netpoll, real_dev);
+	if (err) {
+		kfree(netpoll);
+		goto out;
+	}
+
+	vlan->netpoll = netpoll;
+
+out:
+	return err;
+}
+
+static void macvlan_dev_netpoll_cleanup(struct net_device *dev)
+{
+	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct netpoll *netpoll = vlan->netpoll;
+
+	if (!netpoll)
+		return;
+
+	vlan->netpoll = NULL;
+
+	__netpoll_free_async(netpoll);
+}
+#endif	/* CONFIG_NET_POLL_CONTROLLER */
+
 static const struct ethtool_ops macvlan_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_settings		= macvlan_ethtool_get_settings,
@@ -813,6 +872,11 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_fdb_del		= macvlan_fdb_del,
 	.ndo_fdb_dump		= ndo_dflt_fdb_dump,
 	.ndo_get_lock_subclass  = macvlan_get_nest_level,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= macvlan_dev_poll_controller,
+	.ndo_netpoll_setup	= macvlan_dev_netpoll_setup,
+	.ndo_netpoll_cleanup	= macvlan_dev_netpoll_cleanup,
+#endif
 };
 
 void macvlan_common_setup(struct net_device *dev)
