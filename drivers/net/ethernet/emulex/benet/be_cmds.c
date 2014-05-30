@@ -119,10 +119,24 @@ static struct be_cmd_resp_hdr *be_decode_resp_hdr(u32 tag0, u32 tag1)
 	return (void *)addr;
 }
 
+static bool be_skip_err_log(u8 opcode, u16 base_status, u16 addl_status)
+{
+	if (base_status == MCC_STATUS_NOT_SUPPORTED ||
+	    base_status == MCC_STATUS_ILLEGAL_REQUEST ||
+	    addl_status == MCC_ADDL_STATUS_TOO_MANY_INTERFACES ||
+	    (opcode == OPCODE_COMMON_WRITE_FLASHROM &&
+	    (base_status == MCC_STATUS_ILLEGAL_FIELD ||
+	     addl_status == MCC_ADDL_STATUS_FLASH_IMAGE_CRC_MISMATCH)))
+		return true;
+	else
+		return false;
+}
+
 static int be_mcc_compl_process(struct be_adapter *adapter,
 				struct be_mcc_compl *compl)
 {
-	u16 compl_status, extd_status;
+	enum mcc_base_status base_status;
+	enum mcc_addl_status addl_status;
 	struct be_cmd_resp_hdr *resp_hdr;
 	u8 opcode = 0, subsystem = 0;
 
@@ -130,11 +144,8 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	 * from mcc_wrb */
 	be_dws_le_to_cpu(compl, 4);
 
-	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
-				CQE_STATUS_COMPL_MASK;
-
-	extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
-				CQE_STATUS_EXTD_MASK;
+	base_status = base_status(compl->status);
+	addl_status = addl_status(compl->status);
 
 	resp_hdr = be_decode_resp_hdr(compl->tag0, compl->tag1);
 
@@ -152,11 +163,11 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	if (((opcode == OPCODE_COMMON_WRITE_FLASHROM) ||
 	     (opcode == OPCODE_COMMON_WRITE_OBJECT)) &&
 	    (subsystem == CMD_SUBSYSTEM_COMMON)) {
-		adapter->flash_status = compl_status;
+		adapter->flash_status = compl->status;
 		complete(&adapter->et_cmd_compl);
 	}
 
-	if (compl_status == MCC_STATUS_SUCCESS) {
+	if (base_status == MCC_STATUS_SUCCESS) {
 		if (((opcode == OPCODE_ETH_GET_STATISTICS) ||
 		     (opcode == OPCODE_ETH_GET_PPORT_STATS)) &&
 		    (subsystem == CMD_SUBSYSTEM_ETH)) {
@@ -174,35 +185,20 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 		if (opcode == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES)
 			adapter->be_get_temp_freq = 0;
 
-		if (compl_status == MCC_STATUS_NOT_SUPPORTED ||
-		    compl_status == MCC_STATUS_ILLEGAL_REQUEST)
-			return compl_status;
+		if (be_skip_err_log(opcode, base_status, addl_status))
+			return compl->status;
 
-		/* Ignore CRC mismatch error during FW download with old FW */
-		if (opcode == OPCODE_COMMON_WRITE_FLASHROM &&
-		    compl_status == MCC_STATUS_FAILED &&
-		    extd_status == MCC_ADDL_STS_FLASH_IMAGE_CRC_MISMATCH)
-			return compl_status;
-
-		/* Ignore illegal field error during FW download with old FW */
-		if (opcode == OPCODE_COMMON_WRITE_FLASHROM &&
-		    compl_status == MCC_STATUS_ILLEGAL_FIELD)
-			return compl_status;
-
-		if (compl_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
+		if (base_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
 			dev_warn(&adapter->pdev->dev,
 				 "VF is not privileged to issue opcode %d-%d\n",
 				 opcode, subsystem);
 		} else {
 			dev_err(&adapter->pdev->dev,
 				"opcode %d-%d failed:status %d-%d\n",
-				opcode, subsystem, compl_status, extd_status);
-
-			if (extd_status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
-				return extd_status;
+				opcode, subsystem, base_status, addl_status);
 		}
 	}
-	return compl_status;
+	return compl->status;
 }
 
 /* Link state evt is a string of bytes; no need for endian swapping */
@@ -452,7 +448,9 @@ static int be_mcc_notify_wait(struct be_adapter *adapter)
 	if (status == -EIO)
 		goto out;
 
-	status = resp->status;
+	status = (resp->base_status |
+		  ((resp->addl_status & CQE_ADDL_STATUS_MASK) <<
+		   CQE_ADDL_STATUS_SHIFT));
 out:
 	return status;
 }

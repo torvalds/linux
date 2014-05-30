@@ -50,7 +50,7 @@ struct be_mcc_wrb {
 #define CQE_FLAGS_CONSUMED_MASK 	(1 << 27)
 
 /* Completion Status */
-enum {
+enum mcc_base_status {
 	MCC_STATUS_SUCCESS = 0,
 	MCC_STATUS_FAILED = 1,
 	MCC_STATUS_ILLEGAL_REQUEST = 2,
@@ -60,13 +60,25 @@ enum {
 	MCC_STATUS_NOT_SUPPORTED = 66
 };
 
-#define MCC_ADDL_STS_INSUFFICIENT_RESOURCES	0x16
-#define MCC_ADDL_STS_FLASH_IMAGE_CRC_MISMATCH	0x4d
+/* Additional status */
+enum mcc_addl_status {
+	MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES = 0x16,
+	MCC_ADDL_STATUS_FLASH_IMAGE_CRC_MISMATCH = 0x4d,
+	MCC_ADDL_STATUS_TOO_MANY_INTERFACES = 0x4a
+};
 
-#define CQE_STATUS_COMPL_MASK		0xFFFF
-#define CQE_STATUS_COMPL_SHIFT		0	/* bits 0 - 15 */
-#define CQE_STATUS_EXTD_MASK		0xFFFF
-#define CQE_STATUS_EXTD_SHIFT		16	/* bits 16 - 31 */
+#define CQE_BASE_STATUS_MASK		0xFFFF
+#define CQE_BASE_STATUS_SHIFT		0	/* bits 0 - 15 */
+#define CQE_ADDL_STATUS_MASK		0xFF
+#define CQE_ADDL_STATUS_SHIFT		16	/* bits 16 - 31 */
+
+#define base_status(status)		\
+		((enum mcc_base_status)	\
+			(status > 0 ? (status & CQE_BASE_STATUS_MASK) : 0))
+#define addl_status(status)		\
+		((enum mcc_addl_status)	\
+			(status > 0 ? (status >> CQE_ADDL_STATUS_SHIFT) & \
+					CQE_ADDL_STATUS_MASK : 0))
 
 struct be_mcc_compl {
 	u32 status;		/* dword 0 */
@@ -259,8 +271,8 @@ struct be_cmd_resp_hdr {
 	u8 opcode;		/* dword 0 */
 	u8 subsystem;		/* dword 0 */
 	u8 rsvd[2];		/* dword 0 */
-	u8 status;		/* dword 1 */
-	u8 add_status;		/* dword 1 */
+	u8 base_status;		/* dword 1 */
+	u8 addl_status;		/* dword 1 */
 	u8 rsvd1[2];		/* dword 1 */
 	u32 response_length;	/* dword 2 */
 	u32 actual_resp_len;	/* dword 3 */

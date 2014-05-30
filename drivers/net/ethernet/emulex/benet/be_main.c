@@ -1111,7 +1111,8 @@ static int be_vid_config(struct be_adapter *adapter)
 	status = be_cmd_vlan_config(adapter, adapter->if_handle, vids, num);
 	if (status) {
 		/* Set to VLAN promisc mode as setting VLAN filter failed */
-		if (status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
+		if (addl_status(status) ==
+				MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES)
 			goto set_vlan_promisc;
 		dev_err(&adapter->pdev->dev,
 			"Setting HW VLAN filtering failed.\n");
@@ -3729,7 +3730,7 @@ static int be_flash(struct be_adapter *adapter, const u8 *img,
 		img += num_bytes;
 		status = be_cmd_write_flashrom(adapter, flash_cmd, optype,
 					       flash_op, num_bytes);
-		if (status == MCC_STATUS_ILLEGAL_REQUEST &&
+		if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST &&
 		    optype == OPTYPE_PHY_FW)
 			break;
 		else if (status)
@@ -3952,8 +3953,8 @@ static int be_flash_skyhawk(struct be_adapter *adapter,
 		 * new FLASH op_type. To complete the remaining process,
 		 * download the same FW again after the reboot.
 		 */
-		if (status == MCC_STATUS_ILLEGAL_REQUEST ||
-		    status == MCC_STATUS_ILLEGAL_FIELD) {
+		if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST ||
+		    base_status(status) == MCC_STATUS_ILLEGAL_FIELD) {
 			dev_err(dev, "Flash incomplete. Reset the server\n");
 			dev_err(dev, "Download FW image again after reset\n");
 			return -EAGAIN;
@@ -3975,9 +3976,10 @@ flash:
 		/* For old FW images ignore ILLEGAL_FIELD error or errors on
 		 * UFI_DIR region
 		 */
-		if (old_fw_img && (status == MCC_STATUS_ILLEGAL_FIELD ||
-				   (img_optype == OPTYPE_UFI_DIR &&
-				    status == MCC_STATUS_FAILED))) {
+		if (old_fw_img &&
+		    (base_status(status) == MCC_STATUS_ILLEGAL_FIELD ||
+		     (img_optype == OPTYPE_UFI_DIR &&
+		      base_status(status) == MCC_STATUS_FAILED))) {
 			continue;
 		} else if (status) {
 			dev_err(dev, "Flashing section type 0x%x failed\n",
