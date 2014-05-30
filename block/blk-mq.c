@@ -1217,6 +1217,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_start_request(rq, true);
+		blk_add_timer(rq);
 
 		/*
 		 * For OK queue, we are done. For error, kill it. Any other
