@@ -92,7 +92,7 @@ enum { none, prepare, done, } __init_state;
 static void init_preload(void);
 static void try_init_preload(void)
 {
-	if (!__init_state != done)
+	if (__init_state != done)
 		init_preload();
 }
 
