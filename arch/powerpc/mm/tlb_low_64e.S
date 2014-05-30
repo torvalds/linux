@@ -299,6 +299,7 @@ itlb_miss_fault_bolted:
  * r10 = crap (free to use)
  */
 tlb_miss_common_e6500:
+BEGIN_FTR_SECTION
 	/*
 	 * Search if we already have an indirect entry for that virtual
 	 * address, and if we do, bail out.
@@ -333,6 +334,7 @@ tlb_miss_common_e6500:
 
 	andis.	r10,r10,MAS1_VALID@h
 	bne	tlb_miss_done_e6500
+END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 
 	/* Now, we need to walk the page tables. First check if we are in
 	 * range.
@@ -393,11 +395,13 @@ tlb_miss_common_e6500:
 
 tlb_miss_done_e6500:
 	.macro	tlb_unlock_e6500
+BEGIN_FTR_SECTION
 	beq	cr1,1f		/* no unlock if lock was recursively grabbed */
 	li	r15,0
 	isync
 	stb	r15,0(r11)
 1:
+END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 	.endm
 
 	tlb_unlock_e6500
