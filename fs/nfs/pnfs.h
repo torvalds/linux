@@ -77,6 +77,17 @@ enum pnfs_try_status {
 
 #define LAYOUT_NFSV4_1_MODULE_PREFIX "nfs-layouttype4"
 
+/*
+ * Default data server connection timeout and retrans vaules.
+ * Set by module parameters dataserver_timeo and dataserver_retrans.
+ */
+#define NFS4_DEF_DS_TIMEO   600 /* in tenths of a second */
+#define NFS4_DEF_DS_RETRANS 5
+
+/* error codes for internal use */
+#define NFS4ERR_RESET_TO_MDS   12001
+#define NFS4ERR_RESET_TO_PNFS  12002
+
 enum {
 	NFS_LAYOUT_RO_FAILED = 0,	/* get ro layout failed stop trying */
 	NFS_LAYOUT_RW_FAILED,		/* get rw layout failed stop trying */
