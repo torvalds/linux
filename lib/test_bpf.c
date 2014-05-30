@@ -158,6 +158,18 @@ static struct bpf_test tests[] = {
 		{ { 0, 0x800000ff }, { 1, 0x800000ff } },
 	},
 	{
+		"LD_IMM_0",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_IMM, 0), /* ld #0 */
+			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 1, 0),
+			BPF_STMT(BPF_RET | BPF_K, 0),
+			BPF_STMT(BPF_RET | BPF_K, 1),
+		},
+		CLASSIC,
+		{ },
+		{ { 1, 1 } },
+	},
+	{
 		"LD_IND",
 		.u.insns = {
 			BPF_STMT(BPF_LDX | BPF_LEN, 0),
@@ -1734,12 +1746,11 @@ static int probe_filter_length(struct sock_filter *fp)
 {
 	int len = 0;
 
-	while (fp->code != 0 || fp->k != 0) {
-		fp++;
-		len++;
-	}
+	for (len = MAX_INSNS - 1; len > 0; --len)
+		if (fp[len].code != 0 || fp[len].k != 0)
+			break;
 
-	return len;
+	return len + 1;
 }
 
 static struct sk_filter *generate_filter(int which, int *err)
