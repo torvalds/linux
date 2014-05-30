@@ -386,11 +386,8 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 static void msm_lastclose(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	if (priv->fbdev) {
-		drm_modeset_lock_all(dev);
-		drm_fb_helper_restore_fbdev_mode(priv->fbdev);
-		drm_modeset_unlock_all(dev);
-	}
+	if (priv->fbdev)
+		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
 }
 
 static irqreturn_t msm_irq(int irq, void *arg)

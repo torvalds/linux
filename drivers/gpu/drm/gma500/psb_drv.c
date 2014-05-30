@@ -112,11 +112,9 @@ static void psb_driver_lastclose(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_fbdev *fbdev = dev_priv->fbdev;
 
-	drm_modeset_lock_all(dev);
-	ret = drm_fb_helper_restore_fbdev_mode(&fbdev->psb_fb_helper);
+	ret = drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->psb_fb_helper);
 	if (ret)
 		DRM_DEBUG("failed to restore crtc mode\n");
-	drm_modeset_unlock_all(dev);
 
 	return;
 }

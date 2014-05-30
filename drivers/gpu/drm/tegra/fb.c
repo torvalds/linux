@@ -346,11 +346,8 @@ static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
 
 void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
 {
-	if (fbdev) {
-		drm_modeset_lock_all(fbdev->base.dev);
-		drm_fb_helper_restore_fbdev_mode(&fbdev->base);
-		drm_modeset_unlock_all(fbdev->base.dev);
-	}
+	if (fbdev)
+		drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->base);
 }
 
 static void tegra_fb_output_poll_changed(struct drm_device *drm)
