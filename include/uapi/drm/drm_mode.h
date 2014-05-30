@@ -252,6 +252,19 @@ struct drm_mode_get_connector {
 #define DRM_MODE_PROP_BLOB	(1<<4)
 #define DRM_MODE_PROP_BITMASK	(1<<5) /* bitmask of enumerated types */
 
+/* non-extended types: legacy bitmask, one bit per type: */
+#define DRM_MODE_PROP_LEGACY_TYPE  ( \
+		DRM_MODE_PROP_RANGE | \
+		DRM_MODE_PROP_ENUM | \
+		DRM_MODE_PROP_BLOB | \
+		DRM_MODE_PROP_BITMASK)
+
+/* extended-types: rather than continue to consume a bit per type,
+ * grab a chunk of the bits to use as integer type id.
+ */
+#define DRM_MODE_PROP_EXTENDED_TYPE	0x0000ffc0
+#define DRM_MODE_PROP_TYPE(n)		((n) << 6)
+
 struct drm_mode_property_enum {
 	__u64 value;
 	char name[DRM_PROP_NAME_LEN];

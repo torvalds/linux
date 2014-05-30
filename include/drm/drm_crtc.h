@@ -930,6 +930,23 @@ extern void drm_mode_config_cleanup(struct drm_device *dev);
 
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						struct edid *edid);
+
+static inline bool drm_property_type_is(struct drm_property *property,
+		uint32_t type)
+{
+	/* instanceof for props.. handles extended type vs original types: */
+	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
+		return (property->flags & DRM_MODE_PROP_EXTENDED_TYPE) == type;
+	return property->flags & type;
+}
+
+static inline bool drm_property_type_valid(struct drm_property *property)
+{
+	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
+		return !(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
+	return !!(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
+}
+
 extern int drm_object_property_set_value(struct drm_mode_object *obj,
 					 struct drm_property *property,
 					 uint64_t val);

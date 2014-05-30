@@ -3094,6 +3094,9 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	}
 
 	list_add_tail(&property->head, &dev->mode_config.property_list);
+
+	WARN_ON(!drm_property_type_valid(property));
+
 	return property;
 fail:
 	kfree(property->values);
@@ -3251,14 +3254,16 @@ int drm_property_add_enum(struct drm_property *property, int index,
 {
 	struct drm_property_enum *prop_enum;
 
-	if (!(property->flags & (DRM_MODE_PROP_ENUM | DRM_MODE_PROP_BITMASK)))
+	if (!(drm_property_type_is(property, DRM_MODE_PROP_ENUM) ||
+			drm_property_type_is(property, DRM_MODE_PROP_BITMASK)))
 		return -EINVAL;
 
 	/*
 	 * Bitmask enum properties have the additional constraint of values
 	 * from 0 to 63
 	 */
-	if ((property->flags & DRM_MODE_PROP_BITMASK) && (value > 63))
+	if (drm_property_type_is(property, DRM_MODE_PROP_BITMASK) &&
+			(value > 63))
 		return -EINVAL;
 
 	if (!list_empty(&property->enum_blob_list)) {
@@ -3439,10 +3444,11 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 		goto done;
 	}
 
-	if (property->flags & (DRM_MODE_PROP_ENUM | DRM_MODE_PROP_BITMASK)) {
+	if (drm_property_type_is(property, DRM_MODE_PROP_ENUM) ||
+			drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
 		list_for_each_entry(prop_enum, &property->enum_blob_list, head)
 			enum_count++;
-	} else if (property->flags & DRM_MODE_PROP_BLOB) {
+	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB)) {
 		list_for_each_entry(prop_blob, &property->enum_blob_list, head)
 			blob_count++;
 	}
@@ -3464,7 +3470,8 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	}
 	out_resp->count_values = value_count;
 
-	if (property->flags & (DRM_MODE_PROP_ENUM | DRM_MODE_PROP_BITMASK)) {
+	if (drm_property_type_is(property, DRM_MODE_PROP_ENUM) ||
+			drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
 		if ((out_resp->count_enum_blobs >= enum_count) && enum_count) {
 			copied = 0;
 			enum_ptr = (struct drm_mode_property_enum __user *)(unsigned long)out_resp->enum_blob_ptr;
@@ -3486,7 +3493,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 		out_resp->count_enum_blobs = enum_count;
 	}
 
-	if (property->flags & DRM_MODE_PROP_BLOB) {
+	if (drm_property_type_is(property, DRM_MODE_PROP_BLOB)) {
 		if ((out_resp->count_enum_blobs >= blob_count) && blob_count) {
 			copied = 0;
 			blob_id_ptr = (uint32_t __user *)(unsigned long)out_resp->enum_blob_ptr;
@@ -3640,17 +3647,18 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 {
 	if (property->flags & DRM_MODE_PROP_IMMUTABLE)
 		return false;
-	if (property->flags & DRM_MODE_PROP_RANGE) {
+
+	if (drm_property_type_is(property, DRM_MODE_PROP_RANGE)) {
 		if (value < property->values[0] || value > property->values[1])
 			return false;
 		return true;
-	} else if (property->flags & DRM_MODE_PROP_BITMASK) {
+	} else if (drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
 		int i;
 		uint64_t valid_mask = 0;
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
 		return !(value & ~valid_mask);
-	} else if (property->flags & DRM_MODE_PROP_BLOB) {
+	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB)) {
 		/* Only the driver knows */
 		return true;
 	} else {
