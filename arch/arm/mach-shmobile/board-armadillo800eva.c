@@ -1017,7 +1017,7 @@ static struct asoc_simple_card_info fsi2_hdmi_info = {
 	.platform	= "sh_fsi2",
 	.cpu_dai = {
 		.name	= "fsib-dai",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
 	},
 	.codec_dai = {
 		.name = "sh_mobile_hdmi-hifi",
