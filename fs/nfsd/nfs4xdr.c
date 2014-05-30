@@ -2000,7 +2000,7 @@ static int get_parent_attributes(struct svc_export *exp, struct kstat *stat)
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
  */
-__be32
+static __be32
 nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		struct svc_export *exp,
 		struct dentry *dentry, u32 *bmval,
