@@ -2496,6 +2496,7 @@ int type_printk(int type, const char *fmt, ...)
 	local_irq_restore(flags);
 	return r;
 }
+EXPORT_SYMBOL(type_printk);
 static DEFINE_PER_CPU(struct irq_work, wake_up_klogd_work) = {
 	.func = wake_up_klogd_work_func,
 	.flags = IRQ_WORK_LAZY,
