@@ -329,13 +329,16 @@ static void arizona_stop_mic(struct arizona_extcon_info *info)
 }
 
 static struct {
+	unsigned int threshold;
 	unsigned int factor_a;
 	unsigned int factor_b;
 } arizona_hpdet_b_ranges[] = {
-	{  5528,   362464 },
-	{ 11084,  6186851 },
-	{ 11065, 65460395 },
+	{ 100,  5528,   362464 },
+	{ 169, 11084,  6186851 },
+	{ 169, 11065, 65460395 },
 };
+
+#define ARIZONA_HPDET_B_RANGE_MAX 0x3fb
 
 static struct {
 	int min;
@@ -391,7 +394,8 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 			   >> ARIZONA_HP_IMPEDANCE_RANGE_SHIFT;
 
 		if (range < ARRAY_SIZE(arizona_hpdet_b_ranges) - 1 &&
-		    (val < 100 || val >= 0x3fb)) {
+		    (val < arizona_hpdet_b_ranges[range].threshold ||
+		     val >= ARIZONA_HPDET_B_RANGE_MAX)) {
 			range++;
 			dev_dbg(arizona->dev, "Moving to HPDET range %d\n",
 				range);
@@ -404,7 +408,8 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 
 		/* If we go out of range report top of range */
-		if (val < 100 || val >= 0x3fb) {
+		if (val < arizona_hpdet_b_ranges[range].threshold ||
+		    val >= ARIZONA_HPDET_B_RANGE_MAX) {
 			dev_dbg(arizona->dev, "Measurement out of range\n");
 			return ARIZONA_HPDET_MAX;
 		}
