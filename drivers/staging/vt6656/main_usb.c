@@ -562,7 +562,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 				(pDevice->bRadioControlOff == true)) {
 		vnt_radio_power_off(pDevice);
 	} else {
-		CARDbRadioPowerOn(pDevice);
+		vnt_radio_power_on(pDevice);
 	}
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----INIbInitAdapter Exit\n");

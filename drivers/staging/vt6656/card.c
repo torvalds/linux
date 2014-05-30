@@ -34,7 +34,7 @@
  *      vnt_reset_next_tbtt - Set NIC Beacon time
  *      vnt_update_next_tbtt - Sync. NIC Beacon time
  *      vnt_radio_power_off - Turn Off NIC Radio Power
- *      CARDbRadioPowerOn - Turn On NIC Radio Power
+ *      vnt_radio_power_on - Turn On NIC Radio Power
  *      CARDbSetWEPMode - Set NIC Wep mode
  *      CARDbSetTxPower - Set NIC tx power
  *
@@ -801,7 +801,7 @@ int vnt_radio_power_off(struct vnt_private *priv)
  * Return Value: true if success; otherwise false
  *
  */
-int CARDbRadioPowerOn(struct vnt_private *priv)
+int vnt_radio_power_on(struct vnt_private *priv)
 {
 	int ret = true;
 

@@ -807,7 +807,7 @@ void vRunCommand(struct work_struct *work)
 			} else {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" WLAN_CMD_RADIO_START_ON........................\n");
 				pDevice->bHWRadioOff = false;
-				CARDbRadioPowerOn(pDevice);
+				vnt_radio_power_on(pDevice);
 				MACvRegBitsOff(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
 
 				vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_ON);
