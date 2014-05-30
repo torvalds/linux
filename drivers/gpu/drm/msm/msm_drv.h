@@ -55,6 +55,8 @@ static inline struct device *msm_iommu_get_ctx(const char *ctx_name)
 struct msm_kms;
 struct msm_gpu;
 struct msm_mmu;
+struct msm_rd_state;
+struct msm_gem_submit;
 
 #define NUM_DOMAINS 2    /* one for KMS, then one per gpu core (?) */
 
@@ -81,6 +83,8 @@ struct msm_drm_private {
 
 	uint32_t next_fence, completed_fence;
 	wait_queue_head_t fence_event;
+
+	struct msm_rd_state *rd;
 
 	/* list of GEM objects: */
 	struct list_head inactive_list;
@@ -204,6 +208,13 @@ void __exit hdmi_unregister(void);
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m);
 void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
+int msm_debugfs_late_init(struct drm_device *dev);
+int msm_rd_debugfs_init(struct drm_minor *minor);
+void msm_rd_debugfs_cleanup(struct drm_minor *minor);
+void msm_rd_dump_submit(struct msm_gem_submit *submit);
+#else
+static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
+static inline void msm_rd_dump_submit(struct msm_gem_submit *submit) {}
 #endif
 
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
