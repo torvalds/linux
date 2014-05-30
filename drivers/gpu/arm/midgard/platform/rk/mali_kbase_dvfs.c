@@ -121,8 +121,9 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	fps = rk_get_real_fps(0);
 
 	dvfs_status->temperature_time++;
+	/*
 	temp_tmp += rockchip_tsadc_get_temp(2);
-
+	*/
 	if(dvfs_status->temperature_time >= gpu_temp_statis_time)
 	{
 		dvfs_status->temperature_time = 0;
