@@ -235,11 +235,11 @@
 	ddc = <&i2c_2>;
 };
 
-&usbdrd3_0 {
+&usbdrd_phy0 {
 	vbus-supply = <&usb300_vbus_reg>;
 };
 
-&usbdrd3_1 {
+&usbdrd_phy1 {
 	vbus-supply = <&usb301_vbus_reg>;
 };
 
