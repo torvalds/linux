@@ -197,8 +197,7 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 		if (pos) {
 			pci_read_config_word(vdev->pdev,
 					     pos + PCI_MSI_FLAGS, &flags);
-
-			return 1 << (flags & PCI_MSI_FLAGS_QMASK);
+			return 1 << ((flags & PCI_MSI_FLAGS_QMASK) >> 1);
 		}
 	} else if (irq_type == VFIO_PCI_MSIX_IRQ_INDEX) {
 		u8 pos;
