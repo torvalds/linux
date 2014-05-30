@@ -197,7 +197,7 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
  * Return Value: none
  *
  */
-static void CARDvCalculateOFDMRParameter(u16 rate, u8 bb_type,
+static void vnt_calculate_ofdm_rate(u16 rate, u8 bb_type,
 					u8 *tx_rate, u8 *rsv_time)
 {
 
@@ -317,39 +317,34 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 
 
 	/*RSPINF_a_6*/
-	CARDvCalculateOFDMRParameter(RATE_6M, bb_type,
-						&tx_rate[0], &rsv_time[0]);
+	vnt_calculate_ofdm_rate(RATE_6M, bb_type, &tx_rate[0], &rsv_time[0]);
 
 	/*RSPINF_a_9*/
-	CARDvCalculateOFDMRParameter(RATE_9M, bb_type,
-						&tx_rate[1], &rsv_time[1]);
+	vnt_calculate_ofdm_rate(RATE_9M, bb_type, &tx_rate[1], &rsv_time[1]);
 
 	/*RSPINF_a_12*/
-	CARDvCalculateOFDMRParameter(RATE_12M, bb_type,
-						&tx_rate[2], &rsv_time[2]);
+	vnt_calculate_ofdm_rate(RATE_12M, bb_type, &tx_rate[2], &rsv_time[2]);
 
 	/*RSPINF_a_18*/
-	CARDvCalculateOFDMRParameter(RATE_18M, bb_type,
-						&tx_rate[3], &rsv_time[3]);
+	vnt_calculate_ofdm_rate(RATE_18M, bb_type, &tx_rate[3], &rsv_time[3]);
 
 	/*RSPINF_a_24*/
-	CARDvCalculateOFDMRParameter(RATE_24M, bb_type,
-						&tx_rate[4], &rsv_time[4]);
+	vnt_calculate_ofdm_rate(RATE_24M, bb_type, &tx_rate[4], &rsv_time[4]);
 
 	/*RSPINF_a_36*/
-	CARDvCalculateOFDMRParameter(vnt_get_ofdm_rate(priv, RATE_36M),
+	vnt_calculate_ofdm_rate(vnt_get_ofdm_rate(priv, RATE_36M),
 					bb_type, &tx_rate[5], &rsv_time[5]);
 
 	/*RSPINF_a_48*/
-	CARDvCalculateOFDMRParameter(vnt_get_ofdm_rate(priv, RATE_48M),
+	vnt_calculate_ofdm_rate(vnt_get_ofdm_rate(priv, RATE_48M),
 					bb_type, &tx_rate[6], &rsv_time[6]);
 
 	/*RSPINF_a_54*/
-	CARDvCalculateOFDMRParameter(vnt_get_ofdm_rate(priv, RATE_54M),
+	vnt_calculate_ofdm_rate(vnt_get_ofdm_rate(priv, RATE_54M),
 					bb_type, &tx_rate[7], &rsv_time[7]);
 
 	/*RSPINF_a_72*/
-	CARDvCalculateOFDMRParameter(vnt_get_ofdm_rate(priv, RATE_54M),
+	vnt_calculate_ofdm_rate(vnt_get_ofdm_rate(priv, RATE_54M),
 					bb_type, &tx_rate[8], &rsv_time[8]);
 
 	put_unaligned(phy[0].len, (u16 *)&data[0]);
