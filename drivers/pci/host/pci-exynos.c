@@ -415,9 +415,7 @@ static irqreturn_t exynos_pcie_msi_irq_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
 
-	dw_handle_msi_irq(pp);
-
-	return IRQ_HANDLED;
+	return dw_handle_msi_irq(pp);
 }
 
 static void exynos_pcie_msi_init(struct pcie_port *pp)
@@ -511,7 +509,8 @@ static struct pcie_host_ops exynos_pcie_host_ops = {
 	.host_init = exynos_pcie_host_init,
 };
 
-static int add_pcie_port(struct pcie_port *pp, struct platform_device *pdev)
+static int __init add_pcie_port(struct pcie_port *pp,
+				struct platform_device *pdev)
 {
 	int ret;
 
