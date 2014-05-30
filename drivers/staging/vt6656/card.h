@@ -52,7 +52,7 @@ void vnt_update_top_rates(struct vnt_private *);
 void vnt_add_basic_rate(struct vnt_private *, u16);
 int vnt_ofdm_min_rate(struct vnt_private *);
 void vnt_adjust_tsf(struct vnt_private *, u8, u64, u64);
-bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF);
+bool vnt_get_current_tsf(struct vnt_private *, u64 *);
 bool CARDbClearCurrentTSF(struct vnt_private *pDevice);
 void CARDvSetFirstNextTBTT(struct vnt_private *pDevice, u16 wBeaconInterval);
 void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,

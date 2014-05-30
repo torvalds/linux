@@ -1944,9 +1944,9 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
     // endian issue ???
     // Update TSF
     if (bUpdateTSF) {
-        CARDbGetCurrentTSF(pDevice, &qwCurrTSF);
+	vnt_get_current_tsf(pDevice, &qwCurrTSF);
 	vnt_adjust_tsf(pDevice, pRxPacket->byRxRate, qwTimestamp , pRxPacket->qwLocalTSF);
-        CARDbGetCurrentTSF(pDevice, &qwCurrTSF);
+	vnt_get_current_tsf(pDevice, &qwCurrTSF);
         CARDvUpdateNextTBTT(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
     }
 
@@ -2044,7 +2044,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
         pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
     MACvWriteBeaconInterval(pDevice, pMgmt->wIBSSBeaconPeriod);
 
-    CARDbGetCurrentTSF(pDevice, &qwCurrTSF);
+    vnt_get_current_tsf(pDevice, &qwCurrTSF);
     // clear TSF counter
     CARDbClearCurrentTSF(pDevice);
 

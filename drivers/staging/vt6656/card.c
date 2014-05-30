@@ -29,7 +29,7 @@
  *      CARDvSetLoopbackMode - Set Loopback mode
  *      CARDbSoftwareReset - Sortware reset NIC
  *      vnt_get_tsf_offset - Calculate TSFOffset
- *      CARDbGetCurrentTSF - Read Current NIC TSF counter
+ *      vnt_get_current_tsf - Read Current NIC TSF counter
  *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
@@ -614,7 +614,7 @@ void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
  * Return Value: true if success; otherwise false
  *
  */
-bool CARDbGetCurrentTSF(struct vnt_private *priv, u64 *current_tsf)
+bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf)
 {
 
 	*current_tsf = priv->qwCurrTSF;
