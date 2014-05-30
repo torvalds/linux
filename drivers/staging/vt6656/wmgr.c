@@ -1916,7 +1916,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rejoining to Other Adhoc group with same SSID........\n");
 
                      MACvWriteBeaconInterval(pDevice, pMgmt->wCurrBeaconPeriod);
-                     CARDvAdjustTSF(pDevice, pRxPacket->byRxRate, qwTimestamp, pRxPacket->qwLocalTSF);
+		     vnt_adjust_tsf(pDevice, pRxPacket->byRxRate, qwTimestamp, pRxPacket->qwLocalTSF);
                      CARDvUpdateNextTBTT(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
 
                      // Turn off bssid filter to avoid filter others adhoc station which bssid is different.
@@ -1945,7 +1945,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
     // Update TSF
     if (bUpdateTSF) {
         CARDbGetCurrentTSF(pDevice, &qwCurrTSF);
-        CARDvAdjustTSF(pDevice, pRxPacket->byRxRate, qwTimestamp , pRxPacket->qwLocalTSF);
+	vnt_adjust_tsf(pDevice, pRxPacket->byRxRate, qwTimestamp , pRxPacket->qwLocalTSF);
         CARDbGetCurrentTSF(pDevice, &qwCurrTSF);
         CARDvUpdateNextTBTT(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
     }
@@ -2577,7 +2577,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
 
     // calculate TSF offset
     // TSF Offset = Received Timestamp TSF - Marked Local's TSF
-    CARDvAdjustTSF(pDevice, pCurr->byRxRate, pCurr->qwBSSTimestamp, pCurr->qwLocalTSF);
+    vnt_adjust_tsf(pDevice, pCurr->byRxRate, pCurr->qwBSSTimestamp, pCurr->qwLocalTSF);
 
     // set HW beacon interval
     MACvWriteBeaconInterval(pDevice, pCurr->wBeaconInterval);

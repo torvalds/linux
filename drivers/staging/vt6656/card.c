@@ -581,7 +581,7 @@ u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
  * Return Value: none
  *
  */
-void CARDvAdjustTSF(struct vnt_private *priv, u8 rx_rate,
+void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
 		u64 time_stamp, u64 local_tsf)
 {
 	u64 tsf_offset = 0;
