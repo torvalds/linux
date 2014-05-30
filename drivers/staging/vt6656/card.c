@@ -32,7 +32,7 @@
  *      vnt_get_current_tsf - Read Current NIC TSF counter
  *      vnt_get_next_tbtt - Calculate Next Beacon TSF counter
  *      vnt_reset_next_tbtt - Set NIC Beacon time
- *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
+ *      vnt_update_next_tbtt - Sync. NIC Beacon time
  *      CARDbRadioPowerOff - Turn Off NIC Radio Power
  *      CARDbRadioPowerOn - Turn On NIC Radio Power
  *      CARDbSetWEPMode - Set NIC Wep mode
@@ -728,7 +728,7 @@ void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
  * Return Value: none
  *
  */
-void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 tsf,
+void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
 			u16 beacon_interval)
 {
 	u8 data[8];

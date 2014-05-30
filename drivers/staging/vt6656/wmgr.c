@@ -1917,7 +1917,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
 
                      MACvWriteBeaconInterval(pDevice, pMgmt->wCurrBeaconPeriod);
 		     vnt_adjust_tsf(pDevice, pRxPacket->byRxRate, qwTimestamp, pRxPacket->qwLocalTSF);
-                     CARDvUpdateNextTBTT(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
+		     vnt_update_next_tbtt(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
 
                      // Turn off bssid filter to avoid filter others adhoc station which bssid is different.
                      MACvWriteBSSIDAddress(pDevice, pMgmt->abyCurrBSSID);
@@ -1947,7 +1947,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
 	vnt_get_current_tsf(pDevice, &qwCurrTSF);
 	vnt_adjust_tsf(pDevice, pRxPacket->byRxRate, qwTimestamp , pRxPacket->qwLocalTSF);
 	vnt_get_current_tsf(pDevice, &qwCurrTSF);
-        CARDvUpdateNextTBTT(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
+	vnt_update_next_tbtt(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
     }
 
     return;
