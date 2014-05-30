@@ -224,7 +224,7 @@ void blk_add_timer(struct request *req)
 		 * modifying the timer because expires for value X
 		 * will be X + something.
 		 */
-		if (diff >= HZ / 2)
+		if (!timer_pending(&q->timeout) || (diff >= HZ / 2))
 			mod_timer(&q->timeout, expiry);
 	}
 
