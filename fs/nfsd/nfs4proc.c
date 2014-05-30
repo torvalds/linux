@@ -430,12 +430,12 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				goto out;
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
-			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 			status = nfs4_check_open_reclaim(&open->op_clientid,
 							 cstate->minorversion,
 							 nn);
 			if (status)
 				goto out;
+			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 		case NFS4_OPEN_CLAIM_FH:
 		case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
 			status = do_open_fhandle(rqstp, cstate, open);
@@ -445,7 +445,6 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			break;
 		case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
-			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 			dprintk("NFSD: unsupported OPEN claim type %d\n",
 				open->op_claim_type);
 			status = nfserr_notsupp;
