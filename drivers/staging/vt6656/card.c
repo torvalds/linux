@@ -25,7 +25,7 @@
  *      vnt_update_top_rates - Update BasicTopRate
  *      vnt_add_basic_rate - Add to BasicRateSet
  *      CARDbSetBasicRate - Set Basic Tx Rate
- *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
+ *      vnt_ofdm_min_rate - Check if any OFDM rate is in BasicRateSet
  *      CARDvSetLoopbackMode - Set Loopback mode
  *      CARDbSoftwareReset - Sortware reset NIC
  *      CARDqGetTSFOffset - Calculate TSFOffset
@@ -161,7 +161,7 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
 	dev_dbg(&priv->usb->dev, "%s basic rate: %d\n",
 					__func__,  priv->wBasicRate);
 
-	if (!CARDbIsOFDMinBasicRate(priv)) {
+	if (!vnt_ofdm_min_rate(priv)) {
 		dev_dbg(&priv->usb->dev, "%s (NO OFDM) %d\n",
 						__func__, rate_idx);
 		if (rate_idx > RATE_24M)
@@ -514,7 +514,7 @@ void vnt_add_basic_rate(struct vnt_private *priv, u16 rate_idx)
 	vnt_update_top_rates(priv);
 }
 
-int CARDbIsOFDMinBasicRate(struct vnt_private *priv)
+int vnt_ofdm_min_rate(struct vnt_private *priv)
 {
 	int ii;
 
@@ -531,7 +531,7 @@ u8 CARDbyGetPktType(struct vnt_private *priv)
 
 	if (priv->byBBType == BB_TYPE_11A || priv->byBBType == BB_TYPE_11B)
 		return (u8)priv->byBBType;
-	else if (CARDbIsOFDMinBasicRate(priv))
+	else if (vnt_ofdm_min_rate(priv))
 		return PK_TYPE_11GA;
 	else
 		return PK_TYPE_11GB;

@@ -210,7 +210,7 @@ void RATEvParseMaxRate(struct vnt_private *pDevice,
 	}
 
 	if ((pDevice->byPacketType == PK_TYPE_11GB)
-			&& CARDbIsOFDMinBasicRate((void *)pDevice)) {
+			&& vnt_ofdm_min_rate(pDevice)) {
 		pDevice->byPacketType = PK_TYPE_11GA;
 	}
 
