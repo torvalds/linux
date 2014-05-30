@@ -327,7 +327,7 @@ static struct kobj_type blk_mq_hw_ktype = {
 	.release	= blk_mq_sysfs_release,
 };
 
-void blk_mq_unregister_hctx(struct blk_mq_hw_ctx *hctx)
+static void blk_mq_unregister_hctx(struct blk_mq_hw_ctx *hctx)
 {
 	struct blk_mq_ctx *ctx;
 	int i;
@@ -341,7 +341,7 @@ void blk_mq_unregister_hctx(struct blk_mq_hw_ctx *hctx)
 	kobject_del(&hctx->kobj);
 }
 
-int blk_mq_register_hctx(struct blk_mq_hw_ctx *hctx)
+static int blk_mq_register_hctx(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
 	struct blk_mq_ctx *ctx;
