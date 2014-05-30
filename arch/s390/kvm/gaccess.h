@@ -155,6 +155,9 @@ int read_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 	return kvm_read_guest(vcpu->kvm, gpa, data, len);
 }
 
+int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
+			    unsigned long *gpa, int write);
+
 int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
 		 unsigned long len, int write);
 
@@ -324,6 +327,8 @@ int read_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 	return access_guest_real(vcpu, gra, data, len, 0);
 }
 
+void ipte_lock(struct kvm_vcpu *vcpu);
+void ipte_unlock(struct kvm_vcpu *vcpu);
 int ipte_lock_held(struct kvm_vcpu *vcpu);
 int kvm_s390_check_low_addr_protection(struct kvm_vcpu *vcpu, unsigned long ga);
 

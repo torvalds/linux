@@ -637,7 +637,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	if (sclp_has_siif())
 		vcpu->arch.sie_block->eca |= 1;
 	vcpu->arch.sie_block->fac   = (int) (long) vfacilities;
-	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
+	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE |
+				      ICTL_TPROT;
+
 	if (kvm_s390_cmma_enabled(vcpu->kvm)) {
 		rc = kvm_s390_vcpu_setup_cmma(vcpu);
 		if (rc)
@@ -950,7 +952,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	vcpu->guest_debug = 0;
 	kvm_s390_clear_bp_data(vcpu);
 
-	if (vcpu->guest_debug & ~VALID_GUESTDBG_FLAGS)
+	if (dbg->control & ~VALID_GUESTDBG_FLAGS)
 		return -EINVAL;
 
 	if (dbg->control & KVM_GUESTDBG_ENABLE) {

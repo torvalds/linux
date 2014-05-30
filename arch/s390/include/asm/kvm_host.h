@@ -110,6 +110,7 @@ struct kvm_s390_sie_block {
 #define ICTL_ISKE	0x00004000
 #define ICTL_SSKE	0x00002000
 #define ICTL_RRBE	0x00001000
+#define ICTL_TPROT	0x00000200
 	__u32	ictl;			/* 0x0048 */
 	__u32	eca;			/* 0x004c */
 #define ICPT_INST	0x04

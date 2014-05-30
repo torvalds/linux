@@ -442,7 +442,6 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		rc |= read_guest_lc(vcpu, offsetof(struct _lowcore, restart_psw),
 				    &vcpu->arch.sie_block->gpsw,
 				    sizeof(psw_t));
-		kvm_s390_vcpu_start(vcpu);
 		break;
 	case KVM_S390_PROGRAM_INT:
 		VCPU_EVENT(vcpu, 4, "interrupt: pgm check code:%x, ilc:%x",

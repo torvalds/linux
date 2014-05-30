@@ -54,33 +54,23 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 
 static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 {
-	struct kvm_s390_local_interrupt *li;
-	struct kvm_s390_interrupt_info *inti;
+	struct kvm_s390_interrupt s390int = {
+		.type = KVM_S390_INT_EMERGENCY,
+		.parm = vcpu->vcpu_id,
+	};
 	struct kvm_vcpu *dst_vcpu = NULL;
+	int rc = 0;
 
 	if (cpu_addr < KVM_MAX_VCPUS)
 		dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
 	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
 
-	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
-	if (!inti)
-		return -ENOMEM;
+	rc = kvm_s390_inject_vcpu(dst_vcpu, &s390int);
+	if (!rc)
+		VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x", cpu_addr);
 
-	inti->type = KVM_S390_INT_EMERGENCY;
-	inti->emerg.code = vcpu->vcpu_id;
-
-	li = &dst_vcpu->arch.local_int;
-	spin_lock_bh(&li->lock);
-	list_add_tail(&inti->list, &li->list);
-	atomic_set(&li->active, 1);
-	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(li->wq))
-		wake_up_interruptible(li->wq);
-	spin_unlock_bh(&li->lock);
-	VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x", cpu_addr);
-
-	return SIGP_CC_ORDER_CODE_ACCEPTED;
+	return rc ? rc : SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
 static int __sigp_conditional_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr,
@@ -116,33 +106,23 @@ static int __sigp_conditional_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr,
 
 static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 {
-	struct kvm_s390_local_interrupt *li;
-	struct kvm_s390_interrupt_info *inti;
+	struct kvm_s390_interrupt s390int = {
+		.type = KVM_S390_INT_EXTERNAL_CALL,
+		.parm = vcpu->vcpu_id,
+	};
 	struct kvm_vcpu *dst_vcpu = NULL;
+	int rc;
 
 	if (cpu_addr < KVM_MAX_VCPUS)
 		dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
 	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
 
-	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
-	if (!inti)
-		return -ENOMEM;
+	rc = kvm_s390_inject_vcpu(dst_vcpu, &s390int);
+	if (!rc)
+		VCPU_EVENT(vcpu, 4, "sent sigp ext call to cpu %x", cpu_addr);
 
-	inti->type = KVM_S390_INT_EXTERNAL_CALL;
-	inti->extcall.code = vcpu->vcpu_id;
-
-	li = &dst_vcpu->arch.local_int;
-	spin_lock_bh(&li->lock);
-	list_add_tail(&inti->list, &li->list);
-	atomic_set(&li->active, 1);
-	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(li->wq))
-		wake_up_interruptible(li->wq);
-	spin_unlock_bh(&li->lock);
-	VCPU_EVENT(vcpu, 4, "sent sigp ext call to cpu %x", cpu_addr);
-
-	return SIGP_CC_ORDER_CODE_ACCEPTED;
+	return rc ? rc : SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
 static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
