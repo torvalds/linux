@@ -18,25 +18,27 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	const char *secstrings;
 	uint64_t syms[NSYMS] = {};
 
-	Elf_Phdr *pt = (Elf_Phdr *)(addr + hdr->e_phoff);
+	Elf_Phdr *pt = (Elf_Phdr *)(addr + GET(hdr->e_phoff));
 
 	/* Walk the segment table. */
-	for (i = 0; i < hdr->e_phnum; i++) {
-		if (pt[i].p_type == PT_LOAD) {
+	for (i = 0; i < GET(hdr->e_phnum); i++) {
+		if (GET(pt[i].p_type) == PT_LOAD) {
 			if (found_load)
 				fail("multiple PT_LOAD segs\n");
 
-			if (pt[i].p_offset != 0 || pt[i].p_vaddr != 0)
+			if (GET(pt[i].p_offset) != 0 ||
+			    GET(pt[i].p_vaddr) != 0)
 				fail("PT_LOAD in wrong place\n");
 
-			if (pt[i].p_memsz != pt[i].p_filesz)
+			if (GET(pt[i].p_memsz) != GET(pt[i].p_filesz))
 				fail("cannot handle memsz != filesz\n");
 
-			load_size = pt[i].p_memsz;
+			load_size = GET(pt[i].p_memsz);
 			found_load = 1;
-		} else if (pt[i].p_type == PT_DYNAMIC) {
-			dyn = addr + pt[i].p_offset;
-			dyn_end = addr + pt[i].p_offset + pt[i].p_memsz;
+		} else if (GET(pt[i].p_type) == PT_DYNAMIC) {
+			dyn = addr + GET(pt[i].p_offset);
+			dyn_end = addr + GET(pt[i].p_offset) +
+				GET(pt[i].p_memsz);
 		}
 	}
 	if (!found_load)
@@ -44,43 +46,48 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	data_size = (load_size + 4095) / 4096 * 4096;
 
 	/* Walk the dynamic table */
-	for (i = 0; dyn + i < dyn_end && dyn[i].d_tag != DT_NULL; i++) {
-		if (dyn[i].d_tag == DT_REL || dyn[i].d_tag == DT_RELSZ ||
-		    dyn[i].d_tag == DT_RELENT || dyn[i].d_tag == DT_TEXTREL)
+	for (i = 0; dyn + i < dyn_end && GET(dyn[i].d_tag) != DT_NULL; i++) {
+		typeof(dyn[i].d_tag) tag = GET(dyn[i].d_tag);
+		if (tag == DT_REL || tag == DT_RELSZ ||
+		    tag == DT_RELENT || tag == DT_TEXTREL)
 			fail("vdso image contains dynamic relocations\n");
 	}
 
 	/* Walk the section table */
-	secstrings_hdr = addr + hdr->e_shoff + hdr->e_shentsize*hdr->e_shstrndx;
-	secstrings = addr + secstrings_hdr->sh_offset;
-	for (i = 0; i < hdr->e_shnum; i++) {
-		Elf_Shdr *sh = addr + hdr->e_shoff + hdr->e_shentsize * i;
-		if (sh->sh_type == SHT_SYMTAB)
+	secstrings_hdr = addr + GET(hdr->e_shoff) +
+		GET(hdr->e_shentsize)*GET(hdr->e_shstrndx);
+	secstrings = addr + GET(secstrings_hdr->sh_offset);
+	for (i = 0; i < GET(hdr->e_shnum); i++) {
+		Elf_Shdr *sh = addr + GET(hdr->e_shoff) +
+			GET(hdr->e_shentsize) * i;
+		if (GET(sh->sh_type) == SHT_SYMTAB)
 			symtab_hdr = sh;
 
-		if (!strcmp(secstrings + sh->sh_name, ".altinstructions"))
+		if (!strcmp(secstrings + GET(sh->sh_name), ".altinstructions"))
 			alt_sec = sh;
 	}
 
 	if (!symtab_hdr)
 		fail("no symbol table\n");
 
-	strtab_hdr = addr + hdr->e_shoff +
-		hdr->e_shentsize * symtab_hdr->sh_link;
+	strtab_hdr = addr + GET(hdr->e_shoff) +
+		GET(hdr->e_shentsize) * GET(symtab_hdr->sh_link);
 
 	/* Walk the symbol table */
-	for (i = 0; i < symtab_hdr->sh_size / symtab_hdr->sh_entsize; i++) {
+	for (i = 0; i < GET(symtab_hdr->sh_size) / GET(symtab_hdr->sh_entsize);
+	     i++) {
 		int k;
-		Elf_Sym *sym = addr + symtab_hdr->sh_offset +
-			symtab_hdr->sh_entsize * i;
-		const char *name = addr + strtab_hdr->sh_offset + sym->st_name;
+		Elf_Sym *sym = addr + GET(symtab_hdr->sh_offset) +
+			GET(symtab_hdr->sh_entsize) * i;
+		const char *name = addr + GET(strtab_hdr->sh_offset) +
+			GET(sym->st_name);
 		for (k = 0; k < NSYMS; k++) {
 			if (!strcmp(name, required_syms[k])) {
 				if (syms[k]) {
 					fail("duplicate symbol %s\n",
 					     required_syms[k]);
 				}
-				syms[k] = sym->st_value;
+				syms[k] = GET(sym->st_value);
 			}
 		}
 	}
@@ -106,7 +113,7 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	hdr->e_shoff = 0;
 	hdr->e_shentsize = 0;
 	hdr->e_shnum = 0;
-	hdr->e_shstrndx = SHN_UNDEF;
+	hdr->e_shstrndx = htole16(SHN_UNDEF);
 
 	if (!name) {
 		fwrite(addr, load_size, 1, outfile);
@@ -140,9 +147,9 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	fprintf(outfile, "\t},\n");
 	if (alt_sec) {
 		fprintf(outfile, "\t.alt = %lu,\n",
-			(unsigned long)alt_sec->sh_offset);
+			(unsigned long)GET(alt_sec->sh_offset));
 		fprintf(outfile, "\t.alt_len = %lu,\n",
-			(unsigned long)alt_sec->sh_size);
+			(unsigned long)GET(alt_sec->sh_size));
 	}
 	for (i = 0; i < NSYMS; i++) {
 		if (syms[i])

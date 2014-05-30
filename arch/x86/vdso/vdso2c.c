@@ -51,6 +51,21 @@ static void fail(const char *format, ...)
 	va_end(ap);
 }
 
+/*
+ * Evil macros to do a little-endian read.
+ */
+#define __GET_TYPE(x, type, bits, ifnot)				\
+	__builtin_choose_expr(						\
+		__builtin_types_compatible_p(typeof(x), type),		\
+		le##bits##toh((x)), ifnot)
+
+extern void bad_get(uint64_t);
+
+#define GET(x)								\
+	__GET_TYPE((x), __u32, 32, __GET_TYPE((x), __u64, 64,		\
+	__GET_TYPE((x), __s32, 32, __GET_TYPE((x), __s64, 64,		\
+	__GET_TYPE((x), __u16, 16, bad_get(x))))))
+
 #define NSYMS (sizeof(required_syms) / sizeof(required_syms[0]))
 
 #define BITS 64
