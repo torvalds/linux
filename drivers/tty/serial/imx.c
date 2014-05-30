@@ -225,6 +225,7 @@ struct imx_port {
 	void			*rx_buf;
 	unsigned int		tx_bytes;
 	unsigned int		dma_tx_nents;
+	wait_queue_head_t	dma_wait;
 };
 
 struct imx_port_ucrs {
@@ -415,10 +416,12 @@ static void imx_stop_tx(struct uart_port *port)
 		return;
 	}
 
-	if (sport->dma_is_enabled && sport->dma_is_txing) {
-		dmaengine_terminate_all(sport->dma_chan_tx);
-		sport->dma_is_txing = 0;
-	}
+	/*
+	 * We are maybe in the SMP context, so if the DMA TX thread is running
+	 * on other cpu, we have to wait for it to finish.
+	 */
+	if (sport->dma_is_enabled && sport->dma_is_txing)
+		return;
 
 	temp = readl(sport->port.membase + UCR1);
 	writel(temp & ~UCR1_TXMPTYEN, sport->port.membase + UCR1);
@@ -432,10 +435,12 @@ static void imx_stop_rx(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long temp;
 
-	if (sport->dma_is_enabled && sport->dma_is_rxing) {
-		dmaengine_terminate_all(sport->dma_chan_rx);
-		sport->dma_is_rxing = 0;
-	}
+	/*
+	 * We are maybe in the SMP context, so if the DMA TX thread is running
+	 * on other cpu, we have to wait for it to finish.
+	 */
+	if (sport->dma_is_enabled && sport->dma_is_rxing)
+		return;
 
 	temp = readl(sport->port.membase + UCR2);
 	writel(temp & ~UCR2_RXEN, sport->port.membase + UCR2);
@@ -496,6 +501,12 @@ static void dma_tx_callback(void *data)
 	dev_dbg(sport->port.dev, "we finish the TX DMA.\n");
 
 	uart_write_wakeup(&sport->port);
+
+	if (waitqueue_active(&sport->dma_wait)) {
+		wake_up(&sport->dma_wait);
+		dev_dbg(sport->port.dev, "exit in %s.\n", __func__);
+		return;
+	}
 }
 
 static void imx_dma_tx(struct imx_port *sport)
@@ -868,6 +879,10 @@ static void imx_rx_dma_done(struct imx_port *sport)
 	writel(temp, sport->port.membase + UCR1);
 
 	sport->dma_is_rxing = 0;
+
+	/* Is the shutdown waiting for us? */
+	if (waitqueue_active(&sport->dma_wait))
+		wake_up(&sport->dma_wait);
 }
 
 /*
@@ -1013,6 +1028,8 @@ err:
 static void imx_enable_dma(struct imx_port *sport)
 {
 	unsigned long temp;
+
+	init_waitqueue_head(&sport->dma_wait);
 
 	/* set UCR1 */
 	temp = readl(sport->port.membase + UCR1);
@@ -1205,13 +1222,10 @@ static void imx_shutdown(struct uart_port *port)
 	unsigned long flags;
 
 	if (sport->dma_is_enabled) {
-		/*
-		 * The upper layer may does not call the @->stop_tx and
-		 * @->stop_rx, so we call them ourselves.
-		 */
-		imx_stop_tx(port);
+		/* We have to wait for the DMA to finish. */
+		wait_event(sport->dma_wait,
+			!sport->dma_is_rxing && !sport->dma_is_txing);
 		imx_stop_rx(port);
-
 		imx_disable_dma(sport);
 		imx_uart_dma_exit(sport);
 	}
