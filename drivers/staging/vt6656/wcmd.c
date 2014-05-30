@@ -333,11 +333,11 @@ void vRunCommand(struct work_struct *work)
 			if ((pDevice->byBBType != BB_TYPE_11A) &&
 			    (pMgmt->uScanChannel > CB_MAX_CHANNEL_24G)) {
 				pDevice->byBBType = BB_TYPE_11A;
-				CARDvSetBSSMode(pDevice);
+				vnt_set_bss_mode(pDevice);
 			} else if ((pDevice->byBBType == BB_TYPE_11A) &&
 				   (pMgmt->uScanChannel <= CB_MAX_CHANNEL_24G)) {
 				pDevice->byBBType = BB_TYPE_11G;
-				CARDvSetBSSMode(pDevice);
+				vnt_set_bss_mode(pDevice);
 			}
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Scanning....  channel: [%d]\n", pMgmt->uScanChannel);
 			// Set channel
@@ -377,7 +377,7 @@ void vRunCommand(struct work_struct *work)
 		// Set Baseband's sensitivity back.
 		if (pDevice->byBBType != pDevice->byScanBBType) {
 			pDevice->byBBType = pDevice->byScanBBType;
-			CARDvSetBSSMode(pDevice);
+			vnt_set_bss_mode(pDevice);
 		}
 
 		BBvSetShortSlotTime(pDevice);

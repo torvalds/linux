@@ -2081,7 +2081,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     // vUpdateIFS() use pDevice->bShortSlotTime as parameter so it must be called
     // after setting ShortSlotTime.
     // CARDvSetBSSMode call vUpdateIFS()
-    CARDvSetBSSMode(pDevice);
+    vnt_set_bss_mode(pDevice);
 
     if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
         MACvRegBitsOn(pDevice, MAC_REG_HOSTCR, HOSTCR_AP);
@@ -2601,7 +2601,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
             pMgmt->eCurrentPHYMode = PHY_TYPE_11A;
             pDevice->bShortSlotTime = true;
             BBvSetShortSlotTime(pDevice);
-            CARDvSetBSSMode(pDevice);
+	    vnt_set_bss_mode(pDevice);
         } else {
             return;
         }
@@ -2613,7 +2613,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
             pMgmt->eCurrentPHYMode = PHY_TYPE_11B;
             pDevice->bShortSlotTime = false;
             BBvSetShortSlotTime(pDevice);
-            CARDvSetBSSMode(pDevice);
+	    vnt_set_bss_mode(pDevice);
         } else {
             return;
         }
@@ -2624,12 +2624,12 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
             pMgmt->eCurrentPHYMode = PHY_TYPE_11G;
             pDevice->bShortSlotTime = true;
             BBvSetShortSlotTime(pDevice);
-            CARDvSetBSSMode(pDevice);
+	    vnt_set_bss_mode(pDevice);
         } else if (pDevice->eConfigPHYMode == PHY_TYPE_11B) {
             pDevice->byBBType = BB_TYPE_11B;
             pDevice->bShortSlotTime = false;
             BBvSetShortSlotTime(pDevice);
-            CARDvSetBSSMode(pDevice);
+	    vnt_set_bss_mode(pDevice);
         } else {
             return;
         }

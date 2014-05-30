@@ -61,6 +61,6 @@ u64 vnt_get_tsf_offset(u8 byRxRate, u64 qwTSF1, u64 qwTSF2);
 int vnt_radio_power_off(struct vnt_private *);
 int vnt_radio_power_on(struct vnt_private *);
 u8 vnt_get_pkt_type(struct vnt_private *);
-void CARDvSetBSSMode(struct vnt_private *pDevice);
+void vnt_set_bss_mode(struct vnt_private *);
 
 #endif /* __CARD_H__ */

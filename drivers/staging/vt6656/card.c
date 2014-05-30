@@ -829,7 +829,7 @@ int vnt_radio_power_on(struct vnt_private *priv)
 	return ret;
 }
 
-void CARDvSetBSSMode(struct vnt_private *priv)
+void vnt_set_bss_mode(struct vnt_private *priv)
 {
 	if (priv->byRFType == RF_AIROHA7230 && priv->byBBType == BB_TYPE_11A)
 		MACvSetBBType(priv, BB_TYPE_11G);

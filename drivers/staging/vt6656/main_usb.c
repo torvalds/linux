@@ -525,7 +525,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 	}
 
 	BBvSetShortSlotTime(pDevice);
-	CARDvSetBSSMode(pDevice);
+	vnt_set_bss_mode(pDevice);
 
 	pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
 	pDevice->byBBVGANew = pDevice->byBBVGACurrent;
