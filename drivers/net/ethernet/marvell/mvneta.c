@@ -264,6 +264,10 @@
 	      ETH_HLEN + ETH_FCS_LEN,			     \
 	      MVNETA_CPU_D_CACHE_LINE_SIZE)
 
+#define IS_TSO_HEADER(txq, addr) \
+	((addr >= txq->tso_hdrs_phys) && \
+	 (addr < txq->tso_hdrs_phys + txq->size * TSO_HEADER_SIZE))
+
 #define MVNETA_RX_BUF_SIZE(pkt_size)   ((pkt_size) + NET_SKB_PAD)
 
 struct mvneta_pcpu_stats {
@@ -1291,8 +1295,10 @@ static void mvneta_txq_bufs_free(struct mvneta_port *pp,
 
 		mvneta_txq_inc_get(txq);
 
-		dma_unmap_single(pp->dev->dev.parent, tx_desc->buf_phys_addr,
-				 tx_desc->data_size, DMA_TO_DEVICE);
+		if (!IS_TSO_HEADER(txq, tx_desc->buf_phys_addr))
+			dma_unmap_single(pp->dev->dev.parent,
+					 tx_desc->buf_phys_addr,
+					 tx_desc->data_size, DMA_TO_DEVICE);
 		if (!skb)
 			continue;
 		dev_kfree_skb_any(skb);
@@ -1642,7 +1648,7 @@ err_release:
 	 */
 	for (i = desc_count - 1; i >= 0; i--) {
 		struct mvneta_tx_desc *tx_desc = txq->descs + i;
-		if (!(tx_desc->command & MVNETA_TXD_F_DESC))
+		if (!IS_TSO_HEADER(txq, tx_desc->buf_phys_addr))
 			dma_unmap_single(pp->dev->dev.parent,
 					 tx_desc->buf_phys_addr,
 					 tx_desc->data_size,
