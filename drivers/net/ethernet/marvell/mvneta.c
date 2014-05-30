@@ -219,9 +219,6 @@
 #define MVNETA_RX_COAL_PKTS		32
 #define MVNETA_RX_COAL_USEC		100
 
-/* Napi polling weight */
-#define MVNETA_RX_POLL_WEIGHT		64
-
 /* The two bytes Marvell header. Either contains a special value used
  * by Marvell switches when a specific hardware mode is enabled (not
  * supported by this driver) or is filled automatically by zeroes on
@@ -3025,7 +3022,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (dram_target_info)
 		mvneta_conf_mbus_windows(pp, dram_target_info);
 
-	netif_napi_add(dev, &pp->napi, mvneta_poll, MVNETA_RX_POLL_WEIGHT);
+	netif_napi_add(dev, &pp->napi, mvneta_poll, NAPI_POLL_WEIGHT);
 
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 	dev->hw_features |= dev->features;
