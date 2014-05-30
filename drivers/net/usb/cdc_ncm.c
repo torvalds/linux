@@ -268,6 +268,11 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 	if (netif_running(dev->net) && val > ctx->tx_max) {
 		netif_tx_lock_bh(dev->net);
 		usbnet_start_xmit(NULL, dev->net);
+		/* make sure tx_curr_skb is reallocated if it was empty */
+		if (ctx->tx_curr_skb) {
+			dev_kfree_skb_any(ctx->tx_curr_skb);
+			ctx->tx_curr_skb = NULL;
+		}
 		ctx->tx_max = val;
 		netif_tx_unlock_bh(dev->net);
 	} else {
