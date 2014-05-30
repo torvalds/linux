@@ -1190,7 +1190,7 @@ ret:
 static void be_clear_promisc(struct be_adapter *adapter)
 {
 	adapter->promiscuous = false;
-	adapter->flags &= ~BE_FLAGS_VLAN_PROMISC;
+	adapter->flags &= ~(BE_FLAGS_VLAN_PROMISC | BE_FLAGS_MCAST_PROMISC);
 
 	be_cmd_rx_filter(adapter, IFF_PROMISC, OFF);
 }
@@ -1215,10 +1215,8 @@ static void be_set_rx_mode(struct net_device *netdev)
 
 	/* Enable multicast promisc if num configured exceeds what we support */
 	if (netdev->flags & IFF_ALLMULTI ||
-	    netdev_mc_count(netdev) > be_max_mc(adapter)) {
-		be_cmd_rx_filter(adapter, IFF_ALLMULTI, ON);
-		goto done;
-	}
+	    netdev_mc_count(netdev) > be_max_mc(adapter))
+		goto set_mcast_promisc;
 
 	if (netdev_uc_count(netdev) != adapter->uc_macs) {
 		struct netdev_hw_addr *ha;
@@ -1244,15 +1242,22 @@ static void be_set_rx_mode(struct net_device *netdev)
 	}
 
 	status = be_cmd_rx_filter(adapter, IFF_MULTICAST, ON);
-
-	/* Set to MCAST promisc mode if setting MULTICAST address fails */
-	if (status) {
-		dev_info(&adapter->pdev->dev,
-			 "Exhausted multicast HW filters.\n");
-		dev_info(&adapter->pdev->dev,
-			 "Disabling HW multicast filtering.\n");
-		be_cmd_rx_filter(adapter, IFF_ALLMULTI, ON);
+	if (!status) {
+		if (adapter->flags & BE_FLAGS_MCAST_PROMISC)
+			adapter->flags &= ~BE_FLAGS_MCAST_PROMISC;
+		goto done;
 	}
+
+set_mcast_promisc:
+	if (adapter->flags & BE_FLAGS_MCAST_PROMISC)
+		return;
+
+	/* Set to MCAST promisc mode if setting MULTICAST address fails
+	 * or if num configured exceeds what we support
+	 */
+	status = be_cmd_rx_filter(adapter, IFF_ALLMULTI, ON);
+	if (!status)
+		adapter->flags |= BE_FLAGS_MCAST_PROMISC;
 done:
 	return;
 }
