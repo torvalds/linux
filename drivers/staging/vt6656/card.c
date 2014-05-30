@@ -28,7 +28,7 @@
  *      vnt_ofdm_min_rate - Check if any OFDM rate is in BasicRateSet
  *      CARDvSetLoopbackMode - Set Loopback mode
  *      CARDbSoftwareReset - Sortware reset NIC
- *      CARDqGetTSFOffset - Calculate TSFOffset
+ *      vnt_get_tsf_offset - Calculate TSFOffset
  *      CARDbGetCurrentTSF - Read Current NIC TSF counter
  *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
@@ -552,7 +552,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
  * Return Value: TSF Offset value
  *
  */
-u64 CARDqGetTSFOffset(u8 rx_rate, u64 tsf1, u64 tsf2)
+u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
 {
 	u64 tsf_offset = 0;
 	u16 rx_bcn_offset = 0;
@@ -587,7 +587,7 @@ void CARDvAdjustTSF(struct vnt_private *priv, u8 rx_rate,
 	u64 tsf_offset = 0;
 	u8 data[8];
 
-	tsf_offset = CARDqGetTSFOffset(rx_rate, time_stamp, local_tsf);
+	tsf_offset = vnt_get_tsf_offset(rx_rate, time_stamp, local_tsf);
 
 	data[0] = (u8)tsf_offset;
 	data[1] = (u8)(tsf_offset >> 8);

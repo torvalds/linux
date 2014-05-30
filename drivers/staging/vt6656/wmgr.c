@@ -1750,10 +1750,10 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
 		bTSFOffsetPostive = false;
 
     if (bTSFOffsetPostive) {
-        qwTSFOffset = CARDqGetTSFOffset(pRxPacket->byRxRate, (qwTimestamp), (qwLocalTSF));
+	qwTSFOffset = vnt_get_tsf_offset(pRxPacket->byRxRate, (qwTimestamp), (qwLocalTSF));
     }
     else {
-        qwTSFOffset = CARDqGetTSFOffset(pRxPacket->byRxRate, (qwLocalTSF), (qwTimestamp));
+	qwTSFOffset = vnt_get_tsf_offset(pRxPacket->byRxRate, (qwLocalTSF), (qwTimestamp));
     }
 
 	if (qwTSFOffset > TRIVIAL_SYNC_DIFFERENCE)
