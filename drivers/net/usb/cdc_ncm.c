@@ -215,18 +215,11 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 			min, max, val);
 	}
 
-	/* usbnet use these values for sizing rx queues */
-	dev->rx_urb_size = val;
-
 	/* inform device about NTB input size changes */
 	if (val != ctx->rx_max) {
 		__le32 dwNtbInMaxSize = cpu_to_le32(val);
 
 		dev_info(&dev->intf->dev, "setting rx_max = %u\n", val);
-
-		/* need to unlink rx urbs before increasing buffer size */
-		if (netif_running(dev->net) && dev->rx_urb_size > ctx->rx_max)
-			usbnet_unlink_rx_urbs(dev);
 
 		/* tell device to use new size */
 		if (usbnet_write_cmd(dev, USB_CDC_SET_NTB_INPUT_SIZE,
@@ -236,6 +229,13 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 			dev_dbg(&dev->intf->dev, "Setting NTB Input Size failed\n");
 		else
 			ctx->rx_max = val;
+	}
+
+	/* usbnet use these values for sizing rx queues */
+	if (dev->rx_urb_size != ctx->rx_max) {
+		dev->rx_urb_size = ctx->rx_max;
+		if (netif_running(dev->net))
+			usbnet_unlink_rx_urbs(dev);
 	}
 
 	/* clamp new_tx to sane values */
