@@ -26,7 +26,7 @@ struct xsave_struct *init_xstate_buf;
 
 static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
 static unsigned int *xstate_offsets, *xstate_sizes;
-static unsigned int *xstate_comp_offsets, *xstate_comp_sizes;
+static unsigned int xstate_comp_offsets[sizeof(pcntxt_mask)*8];
 static unsigned int xstate_features;
 
 /*
@@ -491,11 +491,16 @@ static void __init setup_xstate_features(void)
  */
 void setup_xstate_comp(void)
 {
+	unsigned int xstate_comp_sizes[sizeof(pcntxt_mask)*8];
 	int i;
 
-	xstate_comp_offsets = kmalloc(xstate_features * sizeof(int),
-				      GFP_KERNEL);
-	xstate_comp_sizes = kmalloc(xstate_features * sizeof(int), GFP_KERNEL);
+	/*
+	 * The FP xstates and SSE xstates are legacy states. They are always
+	 * in the fixed offsets in the xsave area in either compacted form
+	 * or standard form.
+	 */
+	xstate_comp_offsets[0] = 0;
+	xstate_comp_offsets[1] = offsetof(struct i387_fxsave_struct, xmm_space);
 
 	if (!cpu_has_xsaves) {
 		for (i = 2; i < xstate_features; i++) {
