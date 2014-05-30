@@ -7866,29 +7866,33 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	bool visible = base != 0;
-	u32 cntl;
+	uint32_t cntl;
 
-	if (intel_crtc->cursor_visible == visible)
-		return;
-
-	cntl = I915_READ(_CURACNTR);
-	if (visible) {
+	if (base != intel_crtc->cursor_base) {
 		/* On these chipsets we can only modify the base whilst
 		 * the cursor is disabled.
 		 */
+		if (intel_crtc->cursor_cntl) {
+			I915_WRITE(_CURACNTR, 0);
+			POSTING_READ(_CURACNTR);
+			intel_crtc->cursor_cntl = 0;
+		}
+
 		I915_WRITE(_CURABASE, base);
+		POSTING_READ(_CURABASE);
+	}
 
-		cntl &= ~(CURSOR_FORMAT_MASK);
-		/* XXX width must be 64, stride 256 => 0x00 << 28 */
-		cntl |= CURSOR_ENABLE |
+	/* XXX width must be 64, stride 256 => 0x00 << 28 */
+	cntl = 0;
+	if (base)
+		cntl = (CURSOR_ENABLE |
 			CURSOR_GAMMA_ENABLE |
-			CURSOR_FORMAT_ARGB;
-	} else
-		cntl &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
-	I915_WRITE(_CURACNTR, cntl);
-
-	intel_crtc->cursor_visible = visible;
+			CURSOR_FORMAT_ARGB);
+	if (intel_crtc->cursor_cntl != cntl) {
+		I915_WRITE(_CURACNTR, cntl);
+		POSTING_READ(_CURACNTR);
+		intel_crtc->cursor_cntl = cntl;
+	}
 }
 
 static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
@@ -7897,16 +7901,12 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	bool visible = base != 0;
+	uint32_t cntl;
 
-	if (intel_crtc->cursor_visible != visible) {
-		int16_t width = intel_crtc->cursor_width;
-		uint32_t cntl = I915_READ(CURCNTR(pipe));
-		if (base) {
-			cntl &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
-			cntl |= MCURSOR_GAMMA_ENABLE;
-
-			switch (width) {
+	cntl = 0;
+	if (base) {
+		cntl = MCURSOR_GAMMA_ENABLE;
+		switch (intel_crtc->cursor_width) {
 			case 64:
 				cntl |= CURSOR_MODE_64_ARGB_AX;
 				break;
@@ -7919,18 +7919,16 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 			default:
 				WARN_ON(1);
 				return;
-			}
-			cntl |= pipe << 28; /* Connect to correct pipe */
-		} else {
-			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
-			cntl |= CURSOR_MODE_DISABLE;
 		}
-		I915_WRITE(CURCNTR(pipe), cntl);
-
-		intel_crtc->cursor_visible = visible;
+		cntl |= pipe << 28; /* Connect to correct pipe */
 	}
+	if (intel_crtc->cursor_cntl != cntl) {
+		I915_WRITE(CURCNTR(pipe), cntl);
+		POSTING_READ(CURCNTR(pipe));
+		intel_crtc->cursor_cntl = cntl;
+	}
+
 	/* and commit changes on next vblank */
-	POSTING_READ(CURCNTR(pipe));
 	I915_WRITE(CURBASE(pipe), base);
 	POSTING_READ(CURBASE(pipe));
 }
@@ -7941,15 +7939,12 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	bool visible = base != 0;
+	uint32_t cntl;
 
-	if (intel_crtc->cursor_visible != visible) {
-		int16_t width = intel_crtc->cursor_width;
-		uint32_t cntl = I915_READ(CURCNTR(pipe));
-		if (base) {
-			cntl &= ~CURSOR_MODE;
-			cntl |= MCURSOR_GAMMA_ENABLE;
-			switch (width) {
+	cntl = 0;
+	if (base) {
+		cntl = MCURSOR_GAMMA_ENABLE;
+		switch (intel_crtc->cursor_width) {
 			case 64:
 				cntl |= CURSOR_MODE_64_ARGB_AX;
 				break;
@@ -7962,21 +7957,18 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			default:
 				WARN_ON(1);
 				return;
-			}
-		} else {
-			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
-			cntl |= CURSOR_MODE_DISABLE;
 		}
-		if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
-			cntl |= CURSOR_PIPE_CSC_ENABLE;
-			cntl &= ~CURSOR_TRICKLE_FEED_DISABLE;
-		}
-		I915_WRITE(CURCNTR(pipe), cntl);
-
-		intel_crtc->cursor_visible = visible;
 	}
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		cntl |= CURSOR_PIPE_CSC_ENABLE;
+
+	if (intel_crtc->cursor_cntl != cntl) {
+		I915_WRITE(CURCNTR(pipe), cntl);
+		POSTING_READ(CURCNTR(pipe));
+		intel_crtc->cursor_cntl = cntl;
+	}
+
 	/* and commit changes on next vblank */
-	POSTING_READ(CURCNTR(pipe));
 	I915_WRITE(CURBASE(pipe), base);
 	POSTING_READ(CURBASE(pipe));
 }
@@ -7992,7 +7984,6 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	int x = intel_crtc->cursor_x;
 	int y = intel_crtc->cursor_y;
 	u32 base = 0, pos = 0;
-	bool visible;
 
 	if (on)
 		base = intel_crtc->cursor_addr;
@@ -8021,8 +8012,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	}
 	pos |= y << CURSOR_Y_SHIFT;
 
-	visible = base != 0;
-	if (!visible && !intel_crtc->cursor_visible)
+	if (base == 0 && intel_crtc->cursor_base == 0)
 		return;
 
 	I915_WRITE(CURPOS(pipe), pos);
@@ -8033,6 +8023,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		i845_update_cursor(crtc, base);
 	else
 		i9xx_update_cursor(crtc, base);
+	intel_crtc->cursor_base = base;
 }
 
 static int intel_crtc_cursor_set(struct drm_crtc *crtc,
@@ -10992,6 +10983,9 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = !pipe;
 	}
+
+	intel_crtc->cursor_base = ~0;
+	intel_crtc->cursor_cntl = ~0;
 
 	init_waitqueue_head(&intel_crtc->vbl_wait);
 

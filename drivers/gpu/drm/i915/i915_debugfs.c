@@ -2353,7 +2353,7 @@ static int i915_display_info(struct seq_file *m, void *unused)
 
 			active = cursor_position(dev, crtc->pipe, &x, &y);
 			seq_printf(m, "\tcursor visible? %s, position (%d, %d), addr 0x%08x, active? %s\n",
-				   yesno(crtc->cursor_visible),
+				   yesno(crtc->cursor_base),
 				   x, y, crtc->cursor_addr,
 				   yesno(active));
 		}
