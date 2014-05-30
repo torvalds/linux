@@ -55,6 +55,12 @@ extern int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues);
 extern int blk_mq_hw_queue_to_node(unsigned int *map, unsigned int);
 
 /*
+ * sysfs helpers
+ */
+extern int blk_mq_sysfs_register(struct request_queue *q);
+extern void blk_mq_sysfs_unregister(struct request_queue *q);
+
+/*
  * Basic implementation of sparser bitmap, allowing the user to spread
  * the bits over more cachelines.
  */
