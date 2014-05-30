@@ -1,0 +1,13 @@
+#
+# ARM64 CPU Idle drivers
+#
+
+config ARM64_CPUIDLE
+	bool "Generic ARM64 CPU idle Driver"
+	select OF_IDLE_STATES
+	help
+	  Select this to enable generic cpuidle driver for ARM v8.
+	  It provides a generic idle driver whose idle states are configured
+	  at run-time through DT nodes. The CPUidle suspend backend is
+	  initialized by the device tree parsing code on matching the entry
+	  method to the respective CPU operations.
