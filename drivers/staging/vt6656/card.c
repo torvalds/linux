@@ -22,7 +22,7 @@
  *      s_vSafeResetTx - Rest Tx
  *      CARDvSetRSPINF - Set RSPINF
  *      vnt_update_ifs - Update slotTime,SIFS,DIFS, and EIFS
- *      CARDvUpdateBasicTopRate - Update BasicTopRate
+ *      vnt_update_top_rates - Update BasicTopRate
  *      CARDbAddBasicRate - Add to BasicRateSet
  *      CARDbSetBasicRate - Set Basic Tx Rate
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
@@ -465,7 +465,7 @@ void vnt_update_ifs(struct vnt_private *priv)
 		MESSAGE_REQUEST_MACREG, 1, &max_min);
 }
 
-void CARDvUpdateBasicTopRate(struct vnt_private *priv)
+void vnt_update_top_rates(struct vnt_private *priv)
 {
 	u8 top_ofdm = RATE_24M, top_cck = RATE_1M;
 	u8 i;
@@ -511,7 +511,7 @@ void CARDbAddBasicRate(struct vnt_private *priv, u16 rate_idx)
 	priv->wBasicRate |= (1 << rate_idx);
 
 	/*Determines the highest basic rate.*/
-	CARDvUpdateBasicTopRate(priv);
+	vnt_update_top_rates(priv);
 }
 
 int CARDbIsOFDMinBasicRate(struct vnt_private *priv)
