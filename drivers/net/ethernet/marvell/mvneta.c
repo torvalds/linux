@@ -251,6 +251,11 @@
 /* Max number of Tx descriptors */
 #define MVNETA_MAX_TXD 532
 
+/* Max number of allowed TCP segments for software TSO */
+#define MVNETA_MAX_TSO_SEGS 100
+
+#define MVNETA_MAX_SKB_DESCS (MVNETA_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
+
 /* descriptor aligned size */
 #define MVNETA_DESC_ALIGNED_SIZE	32
 
@@ -388,6 +393,8 @@ struct mvneta_tx_queue {
 	 * descriptor ring
 	 */
 	int count;
+	int tx_stop_threshold;
+	int tx_wake_threshold;
 
 	/* Array of transmitted skb */
 	struct sk_buff **tx_skb;
@@ -1309,7 +1316,7 @@ static void mvneta_txq_done(struct mvneta_port *pp,
 	txq->count -= tx_done;
 
 	if (netif_tx_queue_stopped(nq)) {
-		if (txq->size - txq->count >= MAX_SKB_FRAGS + 1)
+		if (txq->count <= txq->tx_wake_threshold)
 			netif_tx_wake_queue(nq);
 	}
 }
@@ -1769,7 +1776,7 @@ out:
 		txq->count += frags;
 		mvneta_txq_pend_desc_add(pp, txq, frags);
 
-		if (txq->size - txq->count < MAX_SKB_FRAGS + 1)
+		if (txq->count >= txq->tx_stop_threshold)
 			netif_tx_stop_queue(nq);
 
 		u64_stats_update_begin(&stats->syncp);
@@ -2207,6 +2214,14 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 			   struct mvneta_tx_queue *txq)
 {
 	txq->size = pp->tx_ring_size;
+
+	/* A queue must always have room for at least one skb.
+	 * Therefore, stop the queue when the free entries reaches
+	 * the maximum number of descriptors per skb.
+	 */
+	txq->tx_stop_threshold = txq->size - MVNETA_MAX_SKB_DESCS;
+	txq->tx_wake_threshold = txq->tx_stop_threshold / 2;
+
 
 	/* Allocate memory for TX descriptors */
 	txq->descs = dma_alloc_coherent(pp->dev->dev.parent,
@@ -2742,8 +2757,12 @@ static int mvneta_ethtool_set_ringparam(struct net_device *dev,
 		return -EINVAL;
 	pp->rx_ring_size = ring->rx_pending < MVNETA_MAX_RXD ?
 		ring->rx_pending : MVNETA_MAX_RXD;
-	pp->tx_ring_size = ring->tx_pending < MVNETA_MAX_TXD ?
-		ring->tx_pending : MVNETA_MAX_TXD;
+
+	pp->tx_ring_size = clamp_t(u16, ring->tx_pending,
+				   MVNETA_MAX_SKB_DESCS * 2, MVNETA_MAX_TXD);
+	if (pp->tx_ring_size != ring->tx_pending)
+		netdev_warn(dev, "TX queue size set to %u (requested %u)\n",
+			    pp->tx_ring_size, ring->tx_pending);
 
 	if (netif_running(dev)) {
 		mvneta_stop(dev);
@@ -3028,6 +3047,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
 	dev->priv_flags |= IFF_UNICAST_FLT;
+	dev->gso_max_segs = MVNETA_MAX_TSO_SEGS;
 
 	err = register_netdev(dev);
 	if (err < 0) {
