@@ -14,6 +14,8 @@
 #include <linux/elf.h>
 #include <linux/types.h>
 
+const char *outfilename;
+
 /* Symbols that we need in vdso2c. */
 enum {
 	sym_vvar_page,
@@ -44,6 +46,7 @@ static void fail(const char *format, ...)
 	va_start(ap, format);
 	fprintf(stderr, "Error: ");
 	vfprintf(stderr, format, ap);
+	unlink(outfilename);
 	exit(1);
 	va_end(ap);
 }
@@ -82,17 +85,16 @@ static void fail(const char *format, ...)
 #undef Elf_Sym
 #undef Elf_Dyn
 
-static int go(void *addr, size_t len, FILE *outfile, const char *name)
+static void go(void *addr, size_t len, FILE *outfile, const char *name)
 {
 	Elf64_Ehdr *hdr = (Elf64_Ehdr *)addr;
 
 	if (hdr->e_ident[EI_CLASS] == ELFCLASS64) {
-		return go64(addr, len, outfile, name);
+		go64(addr, len, outfile, name);
 	} else if (hdr->e_ident[EI_CLASS] == ELFCLASS32) {
-		return go32(addr, len, outfile, name);
+		go32(addr, len, outfile, name);
 	} else {
-		fprintf(stderr, "Error: unknown ELF class\n");
-		return 1;
+		fail("unknown ELF class\n");
 	}
 }
 
@@ -102,7 +104,6 @@ int main(int argc, char **argv)
 	off_t len;
 	void *addr;
 	FILE *outfile;
-	int ret;
 	char *name, *tmp;
 	int namelen;
 
@@ -143,14 +144,15 @@ int main(int argc, char **argv)
 	if (addr == MAP_FAILED)
 		err(1, "mmap");
 
-	outfile = fopen(argv[2], "w");
+	outfilename = argv[2];
+	outfile = fopen(outfilename, "w");
 	if (!outfile)
 		err(1, "%s", argv[2]);
 
-	ret = go(addr, (size_t)len, outfile, name);
+	go(addr, (size_t)len, outfile, name);
 
 	munmap(addr, len);
 	fclose(outfile);
 
-	return ret;
+	return 0;
 }

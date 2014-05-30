@@ -4,7 +4,7 @@
  * are built for 32-bit userspace.
  */
 
-static int GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
+static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 {
 	int found_load = 0;
 	unsigned long load_size = -1;  /* Work around bogus warning */
@@ -62,10 +62,8 @@ static int GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 			alt_sec = sh;
 	}
 
-	if (!symtab_hdr) {
+	if (!symtab_hdr)
 		fail("no symbol table\n");
-		return 1;
-	}
 
 	strtab_hdr = addr + hdr->e_shoff +
 		hdr->e_shentsize * symtab_hdr->sh_link;
@@ -112,7 +110,7 @@ static int GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 
 	if (!name) {
 		fwrite(addr, load_size, 1, outfile);
-		return 0;
+		return;
 	}
 
 	fprintf(outfile, "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n\n");
@@ -152,6 +150,4 @@ static int GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 				required_syms[i], syms[i]);
 	}
 	fprintf(outfile, "};\n");
-
-	return 0;
 }
