@@ -457,7 +457,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 	struct sk_buff *skb;
 	unsigned int p_index;
 	u16 len, status;
-	struct rsb *rsb;
+	struct bcm_rsb *rsb;
 
 	/* Determine how much we should process since last call */
 	p_index = rdma_readl(priv, RDMA_PROD_INDEX);
@@ -482,7 +482,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 				RX_BUF_LENGTH, DMA_FROM_DEVICE);
 
 		/* Extract the Receive Status Block prepended */
-		rsb = (struct rsb *)skb->data;
+		rsb = (struct bcm_rsb *)skb->data;
 		len = (rsb->rx_status_len >> DESC_LEN_SHIFT) & DESC_LEN_MASK;
 		status = (rsb->rx_status_len >> DESC_STATUS_SHIFT) &
 			DESC_STATUS_MASK;
@@ -759,7 +759,7 @@ static irqreturn_t bcm_sysport_tx_isr(int irq, void *dev_id)
 static int bcm_sysport_insert_tsb(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sk_buff *nskb;
-	struct tsb *tsb;
+	struct bcm_tsb *tsb;
 	u32 csum_info;
 	u8 ip_proto;
 	u16 csum_start;
@@ -777,7 +777,7 @@ static int bcm_sysport_insert_tsb(struct sk_buff *skb, struct net_device *dev)
 		skb = nskb;
 	}
 
-	tsb = (struct tsb *)skb_push(skb, sizeof(*tsb));
+	tsb = (struct bcm_tsb *)skb_push(skb, sizeof(*tsb));
 	/* Zero-out TSB by default */
 	memset(tsb, 0, sizeof(*tsb));
 
@@ -1584,8 +1584,8 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 				NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 
 	/* Set the needed headroom once and for all */
-	BUILD_BUG_ON(sizeof(struct tsb) != 8);
-	dev->needed_headroom += sizeof(struct tsb);
+	BUILD_BUG_ON(sizeof(struct bcm_tsb) != 8);
+	dev->needed_headroom += sizeof(struct bcm_tsb);
 
 	/* We are interfaced to a switch which handles the multicast
 	 * filtering for us, so we do not support programming any

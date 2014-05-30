@@ -38,7 +38,7 @@
 				 ENET_BRCM_TAG_LEN + ETH_FCS_LEN + ENET_PAD)
 
 /* Transmit status block */
-struct tsb {
+struct bcm_tsb {
 	u32 pcp_dei_vid;
 #define PCP_DEI_MASK		0xf
 #define VID_SHIFT		4
@@ -56,7 +56,7 @@ struct tsb {
 /* Receive status block uses the same
  * definitions as the DMA descriptor
  */
-struct rsb {
+struct bcm_rsb {
 	u32 rx_status_len;
 	u32 brcm_egress_tag;
 };
