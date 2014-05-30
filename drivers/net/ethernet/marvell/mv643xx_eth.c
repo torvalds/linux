@@ -189,6 +189,9 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define MV643XX_MAX_TSO_SEGS 100
 #define MV643XX_MAX_SKB_DESCS (MV643XX_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
 
+#define IS_TSO_HEADER(txq, addr) \
+	((addr >= txq->tso_hdrs_dma) && \
+	 (addr < txq->tso_hdrs_dma + txq->tx_ring_size * TSO_HEADER_SIZE))
 /*
  * RX/TX descriptors.
  */
@@ -1072,8 +1075,9 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 			mp->dev->stats.tx_errors++;
 		}
 
-		dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
-				 desc->byte_cnt, DMA_TO_DEVICE);
+		if (!IS_TSO_HEADER(txq, desc->buf_ptr))
+			dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
+					 desc->byte_cnt, DMA_TO_DEVICE);
 		dev_kfree_skb(skb);
 	}
 
