@@ -1977,6 +1977,9 @@ static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
 {
 	const struct acpi_device_id *devid;
 
+	if (handler->match)
+		return handler->match(idstr, matchid);
+
 	for (devid = handler->ids; devid->id[0]; devid++)
 		if (!strcmp((char *)devid->id, idstr)) {
 			if (matchid)
