@@ -9,12 +9,12 @@ if SND_FIREWIRE && FIREWIRE
 
 config SND_FIREWIRE_LIB
 	tristate
-	depends on SND_PCM
+	select SND_PCM
+	select SND_RAWMIDI
 
 config SND_DICE
 	tristate "DICE-based DACs (EXPERIMENTAL)"
 	select SND_HWDEP
-	select SND_PCM
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for many DACs based on the DICE
@@ -28,7 +28,6 @@ config SND_DICE
 
 config SND_FIREWIRE_SPEAKERS
 	tristate "FireWire speakers"
-	select SND_PCM
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for the Griffin FireWave Surround
@@ -39,7 +38,6 @@ config SND_FIREWIRE_SPEAKERS
 
 config SND_ISIGHT
 	tristate "Apple iSight microphone"
-	select SND_PCM
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for the front and rear microphones
@@ -50,8 +48,6 @@ config SND_ISIGHT
 
 config SND_SCS1X
 	tristate "Stanton Control System 1 MIDI"
-	select SND_PCM
-	select SND_RAWMIDI
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for the MIDI ports of the Stanton
@@ -64,8 +60,6 @@ config SND_SCS1X
 config SND_FIREWORKS
 	tristate "Echo Fireworks board module support"
 	select SND_FIREWIRE_LIB
-	select SND_RAWMIDI
-	select SND_PCM
 	select SND_HWDEP
 	help
 	  Say Y here to include support for FireWire devices based
@@ -82,8 +76,6 @@ config SND_FIREWORKS
 config SND_BEBOB
 	tristate "BridgeCo DM1000/DM1100/DM1500 with BeBoB firmware"
 	select SND_FIREWIRE_LIB
-	select SND_RAWMIDI
-	select SND_PCM
 	select SND_HWDEP
         help
 	 Say Y here to include support for FireWire devices based
