@@ -154,7 +154,7 @@ static u16 vnt_get_cck_rate(struct vnt_private *priv, u16 rate_idx)
  * Return Value: response Control frame rate
  *
  */
-static u16 swGetOFDMControlRate(struct vnt_private *priv, u16 rate_idx)
+static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
 {
 	u16 ui = rate_idx;
 
@@ -337,19 +337,19 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 						&tx_rate[4], &rsv_time[4]);
 
 	/*RSPINF_a_36*/
-	CARDvCalculateOFDMRParameter(swGetOFDMControlRate(priv, RATE_36M),
+	CARDvCalculateOFDMRParameter(vnt_get_ofdm_rate(priv, RATE_36M),
 					bb_type, &tx_rate[5], &rsv_time[5]);
 
 	/*RSPINF_a_48*/
-	CARDvCalculateOFDMRParameter(swGetOFDMControlRate(priv, RATE_48M),
+	CARDvCalculateOFDMRParameter(vnt_get_ofdm_rate(priv, RATE_48M),
 					bb_type, &tx_rate[6], &rsv_time[6]);
 
 	/*RSPINF_a_54*/
-	CARDvCalculateOFDMRParameter(swGetOFDMControlRate(priv, RATE_54M),
+	CARDvCalculateOFDMRParameter(vnt_get_ofdm_rate(priv, RATE_54M),
 					bb_type, &tx_rate[7], &rsv_time[7]);
 
 	/*RSPINF_a_72*/
-	CARDvCalculateOFDMRParameter(swGetOFDMControlRate(priv, RATE_54M),
+	CARDvCalculateOFDMRParameter(vnt_get_ofdm_rate(priv, RATE_54M),
 					bb_type, &tx_rate[8], &rsv_time[8]);
 
 	put_unaligned(phy[0].len, (u16 *)&data[0]);
