@@ -61,6 +61,7 @@ enum {
 };
 
 #define MCC_ADDL_STS_INSUFFICIENT_RESOURCES	0x16
+#define MCC_ADDL_STS_FLASH_IMAGE_CRC_MISMATCH	0x4d
 
 #define CQE_STATUS_COMPL_MASK		0xFFFF
 #define CQE_STATUS_COMPL_SHIFT		0	/* bits 0 - 15 */
@@ -1186,7 +1187,8 @@ struct be_cmd_read_flash_crc {
 	struct flashrom_params params;
 	u8 crc[4];
 	u8 rsvd[4];
-};
+} __packed;
+
 /**************** Lancer Firmware Flash ************/
 struct amap_lancer_write_obj_context {
 	u8 write_length[24];
@@ -2088,7 +2090,7 @@ int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			   u32 data_size, u32 data_offset, const char *obj_name,
 			   u32 *data_read, u32 *eof, u8 *addn_status);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			 int offset);
+			  u16 optype, int offset);
 int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 			    struct be_dma_mem *nonemb_cmd);
 int be_cmd_fw_init(struct be_adapter *adapter);

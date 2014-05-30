@@ -3630,34 +3630,7 @@ static void be_netpoll(struct net_device *netdev)
 }
 #endif
 
-#define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
-static char flash_cookie[2][16] =      {"*** SE FLAS", "H DIRECTORY *** "};
-
-static bool be_flash_redboot(struct be_adapter *adapter,
-			     const u8 *p, u32 img_start, int image_size,
-			     int hdr_size)
-{
-	u32 crc_offset;
-	u8 flashed_crc[4];
-	int status;
-
-	crc_offset = hdr_size + img_start + image_size - 4;
-
-	p += crc_offset;
-
-	status = be_cmd_get_flash_crc(adapter, flashed_crc, (image_size - 4));
-	if (status) {
-		dev_err(&adapter->pdev->dev,
-			"could not get crc from flash, not flashing redboot\n");
-		return false;
-	}
-
-	/*update redboot only if crc does not match*/
-	if (!memcmp(flashed_crc, p, 4))
-		return false;
-	else
-		return true;
-}
+static char flash_cookie[2][16] = {"*** SE FLAS", "H DIRECTORY *** "};
 
 static bool phy_flashing_required(struct be_adapter *adapter)
 {
@@ -3704,12 +3677,35 @@ static struct flash_section_info *get_fsec_info(struct be_adapter *adapter,
 	return NULL;
 }
 
+static int be_check_flash_crc(struct be_adapter *adapter, const u8 *p,
+			      u32 img_offset, u32 img_size, int hdr_size,
+			      u16 img_optype, bool *crc_match)
+{
+	u32 crc_offset;
+	int status;
+	u8 crc[4];
+
+	status = be_cmd_get_flash_crc(adapter, crc, img_optype, img_size - 4);
+	if (status)
+		return status;
+
+	crc_offset = hdr_size + img_offset + img_size - 4;
+
+	/* Skip flashing, if crc of flashed region matches */
+	if (!memcmp(crc, p + crc_offset, 4))
+		*crc_match = true;
+	else
+		*crc_match = false;
+
+	return status;
+}
+
 static int be_flash(struct be_adapter *adapter, const u8 *img,
 		    struct be_dma_mem *flash_cmd, int optype, int img_size)
 {
-	u32 total_bytes = 0, flash_op, num_bytes = 0;
-	int status = 0;
 	struct be_cmd_write_flashrom *req = flash_cmd->va;
+	u32 total_bytes, flash_op, num_bytes;
+	int status;
 
 	total_bytes = img_size;
 	while (total_bytes) {
@@ -3733,14 +3729,11 @@ static int be_flash(struct be_adapter *adapter, const u8 *img,
 		img += num_bytes;
 		status = be_cmd_write_flashrom(adapter, flash_cmd, optype,
 					       flash_op, num_bytes);
-		if (status) {
-			if (status == ILLEGAL_IOCTL_REQ &&
-			    optype == OPTYPE_PHY_FW)
-				break;
-			dev_err(&adapter->pdev->dev,
-				"cmd to write to flash rom failed.\n");
+		if (status == MCC_STATUS_ILLEGAL_REQUEST &&
+		    optype == OPTYPE_PHY_FW)
+			break;
+		else if (status)
 			return status;
-		}
 	}
 	return 0;
 }
@@ -3750,12 +3743,13 @@ static int be_flash_BEx(struct be_adapter *adapter,
 			const struct firmware *fw,
 			struct be_dma_mem *flash_cmd, int num_of_images)
 {
-	int status = 0, i, filehdr_size = 0;
 	int img_hdrs_size = (num_of_images * sizeof(struct image_hdr));
-	const u8 *p = fw->data;
-	const struct flash_comp *pflashcomp;
-	int num_comp, redboot;
+	struct device *dev = &adapter->pdev->dev;
 	struct flash_section_info *fsec = NULL;
+	int status, i, filehdr_size, num_comp;
+	const struct flash_comp *pflashcomp;
+	bool crc_match;
+	const u8 *p;
 
 	struct flash_comp gen3_flash_types[] = {
 		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g3, OPTYPE_ISCSI_ACTIVE,
@@ -3812,8 +3806,7 @@ static int be_flash_BEx(struct be_adapter *adapter,
 	/* Get flash section info*/
 	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
 	if (!fsec) {
-		dev_err(&adapter->pdev->dev,
-			"Invalid Cookie. UFI corrupted ?\n");
+		dev_err(dev, "Invalid Cookie. FW image may be corrupted\n");
 		return -1;
 	}
 	for (i = 0; i < num_comp; i++) {
@@ -3829,25 +3822,32 @@ static int be_flash_BEx(struct be_adapter *adapter,
 				continue;
 
 		if (pflashcomp[i].optype == OPTYPE_REDBOOT) {
-			redboot = be_flash_redboot(adapter, fw->data,
-						   pflashcomp[i].offset,
-						   pflashcomp[i].size,
-						   filehdr_size +
-						   img_hdrs_size);
-			if (!redboot)
+			status = be_check_flash_crc(adapter, fw->data,
+						    pflashcomp[i].offset,
+						    pflashcomp[i].size,
+						    filehdr_size +
+						    img_hdrs_size,
+						    OPTYPE_REDBOOT, &crc_match);
+			if (status) {
+				dev_err(dev,
+					"Could not get CRC for 0x%x region\n",
+					pflashcomp[i].optype);
+				continue;
+			}
+
+			if (crc_match)
 				continue;
 		}
 
-		p = fw->data;
-		p += filehdr_size + pflashcomp[i].offset + img_hdrs_size;
+		p = fw->data + filehdr_size + pflashcomp[i].offset +
+			img_hdrs_size;
 		if (p + pflashcomp[i].size > fw->data + fw->size)
 			return -1;
 
 		status = be_flash(adapter, p, flash_cmd, pflashcomp[i].optype,
 				  pflashcomp[i].size);
 		if (status) {
-			dev_err(&adapter->pdev->dev,
-				"Flashing section type %d failed.\n",
+			dev_err(dev, "Flashing section type 0x%x failed\n",
 				pflashcomp[i].img_type);
 			return status;
 		}
@@ -3855,74 +3855,134 @@ static int be_flash_BEx(struct be_adapter *adapter,
 	return 0;
 }
 
+static u16 be_get_img_optype(struct flash_section_entry fsec_entry)
+{
+	u32 img_type = le32_to_cpu(fsec_entry.type);
+	u16 img_optype = le16_to_cpu(fsec_entry.optype);
+
+	if (img_optype != 0xFFFF)
+		return img_optype;
+
+	switch (img_type) {
+	case IMAGE_FIRMWARE_iSCSI:
+		img_optype = OPTYPE_ISCSI_ACTIVE;
+		break;
+	case IMAGE_BOOT_CODE:
+		img_optype = OPTYPE_REDBOOT;
+		break;
+	case IMAGE_OPTION_ROM_ISCSI:
+		img_optype = OPTYPE_BIOS;
+		break;
+	case IMAGE_OPTION_ROM_PXE:
+		img_optype = OPTYPE_PXE_BIOS;
+		break;
+	case IMAGE_OPTION_ROM_FCoE:
+		img_optype = OPTYPE_FCOE_BIOS;
+		break;
+	case IMAGE_FIRMWARE_BACKUP_iSCSI:
+		img_optype = OPTYPE_ISCSI_BACKUP;
+		break;
+	case IMAGE_NCSI:
+		img_optype = OPTYPE_NCSI_FW;
+		break;
+	case IMAGE_FLASHISM_JUMPVECTOR:
+		img_optype = OPTYPE_FLASHISM_JUMPVECTOR;
+		break;
+	case IMAGE_FIRMWARE_PHY:
+		img_optype = OPTYPE_SH_PHY_FW;
+		break;
+	case IMAGE_REDBOOT_DIR:
+		img_optype = OPTYPE_REDBOOT_DIR;
+		break;
+	case IMAGE_REDBOOT_CONFIG:
+		img_optype = OPTYPE_REDBOOT_CONFIG;
+		break;
+	case IMAGE_UFI_DIR:
+		img_optype = OPTYPE_UFI_DIR;
+		break;
+	default:
+		break;
+	}
+
+	return img_optype;
+}
+
 static int be_flash_skyhawk(struct be_adapter *adapter,
 			    const struct firmware *fw,
 			    struct be_dma_mem *flash_cmd, int num_of_images)
 {
-	int status = 0, i, filehdr_size = 0;
-	int img_offset, img_size, img_optype, redboot;
 	int img_hdrs_size = num_of_images * sizeof(struct image_hdr);
-	const u8 *p = fw->data;
+	struct device *dev = &adapter->pdev->dev;
 	struct flash_section_info *fsec = NULL;
+	u32 img_offset, img_size, img_type;
+	int status, i, filehdr_size;
+	bool crc_match, old_fw_img;
+	u16 img_optype;
+	const u8 *p;
 
 	filehdr_size = sizeof(struct flash_file_hdr_g3);
 	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
 	if (!fsec) {
-		dev_err(&adapter->pdev->dev,
-			"Invalid Cookie. UFI corrupted ?\n");
+		dev_err(dev, "Invalid Cookie. FW image may be corrupted\n");
 		return -1;
 	}
 
 	for (i = 0; i < le32_to_cpu(fsec->fsec_hdr.num_images); i++) {
 		img_offset = le32_to_cpu(fsec->fsec_entry[i].offset);
 		img_size   = le32_to_cpu(fsec->fsec_entry[i].pad_size);
+		img_type   = le32_to_cpu(fsec->fsec_entry[i].type);
+		img_optype = be_get_img_optype(fsec->fsec_entry[i]);
+		old_fw_img = fsec->fsec_entry[i].optype == 0xFFFF;
 
-		switch (le32_to_cpu(fsec->fsec_entry[i].type)) {
-		case IMAGE_FIRMWARE_iSCSI:
-			img_optype = OPTYPE_ISCSI_ACTIVE;
-			break;
-		case IMAGE_BOOT_CODE:
-			img_optype = OPTYPE_REDBOOT;
-			break;
-		case IMAGE_OPTION_ROM_ISCSI:
-			img_optype = OPTYPE_BIOS;
-			break;
-		case IMAGE_OPTION_ROM_PXE:
-			img_optype = OPTYPE_PXE_BIOS;
-			break;
-		case IMAGE_OPTION_ROM_FCoE:
-			img_optype = OPTYPE_FCOE_BIOS;
-			break;
-		case IMAGE_FIRMWARE_BACKUP_iSCSI:
-			img_optype = OPTYPE_ISCSI_BACKUP;
-			break;
-		case IMAGE_NCSI:
-			img_optype = OPTYPE_NCSI_FW;
-			break;
-		default:
+		if (img_optype == 0xFFFF)
 			continue;
+		/* Don't bother verifying CRC if an old FW image is being
+		 * flashed
+		 */
+		if (old_fw_img)
+			goto flash;
+
+		status = be_check_flash_crc(adapter, fw->data, img_offset,
+					    img_size, filehdr_size +
+					    img_hdrs_size, img_optype,
+					    &crc_match);
+		/* The current FW image on the card does not recognize the new
+		 * FLASH op_type. The FW download is partially complete.
+		 * Reboot the server now to enable FW image to recognize the
+		 * new FLASH op_type. To complete the remaining process,
+		 * download the same FW again after the reboot.
+		 */
+		if (status == MCC_STATUS_ILLEGAL_REQUEST ||
+		    status == MCC_STATUS_ILLEGAL_FIELD) {
+			dev_err(dev, "Flash incomplete. Reset the server\n");
+			dev_err(dev, "Download FW image again after reset\n");
+			return -EAGAIN;
+		} else if (status) {
+			dev_err(dev, "Could not get CRC for 0x%x region\n",
+				img_optype);
+			return -EFAULT;
 		}
 
-		if (img_optype == OPTYPE_REDBOOT) {
-			redboot = be_flash_redboot(adapter, fw->data,
-						   img_offset, img_size,
-						   filehdr_size +
-						   img_hdrs_size);
-			if (!redboot)
-				continue;
-		}
+		if (crc_match)
+			continue;
 
-		p = fw->data;
-		p += filehdr_size + img_offset + img_hdrs_size;
+flash:
+		p = fw->data + filehdr_size + img_offset + img_hdrs_size;
 		if (p + img_size > fw->data + fw->size)
 			return -1;
 
 		status = be_flash(adapter, p, flash_cmd, img_optype, img_size);
-		if (status) {
-			dev_err(&adapter->pdev->dev,
-				"Flashing section type %d failed.\n",
-				fsec->fsec_entry[i].type);
-			return status;
+		/* For old FW images ignore ILLEGAL_FIELD error or errors on
+		 * UFI_DIR region
+		 */
+		if (old_fw_img && (status == MCC_STATUS_ILLEGAL_FIELD ||
+				   (img_optype == OPTYPE_UFI_DIR &&
+				    status == MCC_STATUS_FAILED))) {
+			continue;
+		} else if (status) {
+			dev_err(dev, "Flashing section type 0x%x failed\n",
+				img_type);
+			return -EFAULT;
 		}
 	}
 	return 0;

@@ -133,6 +133,9 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
 				CQE_STATUS_COMPL_MASK;
 
+	extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
+				CQE_STATUS_EXTD_MASK;
+
 	resp_hdr = be_decode_resp_hdr(compl->tag0, compl->tag1);
 
 	if (resp_hdr) {
@@ -172,16 +175,25 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			adapter->be_get_temp_freq = 0;
 
 		if (compl_status == MCC_STATUS_NOT_SUPPORTED ||
-			compl_status == MCC_STATUS_ILLEGAL_REQUEST)
-			goto done;
+		    compl_status == MCC_STATUS_ILLEGAL_REQUEST)
+			return compl_status;
+
+		/* Ignore CRC mismatch error during FW download with old FW */
+		if (opcode == OPCODE_COMMON_WRITE_FLASHROM &&
+		    compl_status == MCC_STATUS_FAILED &&
+		    extd_status == MCC_ADDL_STS_FLASH_IMAGE_CRC_MISMATCH)
+			return compl_status;
+
+		/* Ignore illegal field error during FW download with old FW */
+		if (opcode == OPCODE_COMMON_WRITE_FLASHROM &&
+		    compl_status == MCC_STATUS_ILLEGAL_FIELD)
+			return compl_status;
 
 		if (compl_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
 			dev_warn(&adapter->pdev->dev,
 				 "VF is not privileged to issue opcode %d-%d\n",
 				 opcode, subsystem);
 		} else {
-			extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
-					CQE_STATUS_EXTD_MASK;
 			dev_err(&adapter->pdev->dev,
 				"opcode %d-%d failed:status %d-%d\n",
 				opcode, subsystem, compl_status, extd_status);
@@ -190,7 +202,6 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 				return extd_status;
 		}
 	}
-done:
 	return compl_status;
 }
 
@@ -2300,7 +2311,7 @@ err_unlock:
 }
 
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			 int offset)
+			  u16 optype, int offset)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_read_flash_crc *req;
@@ -2319,7 +2330,7 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 			       OPCODE_COMMON_READ_FLASHROM, sizeof(*req),
 			       wrb, NULL);
 
-	req->params.op_type = cpu_to_le32(OPTYPE_REDBOOT);
+	req->params.op_type = cpu_to_le32(optype);
 	req->params.op_code = cpu_to_le32(FLASHROM_OPER_REPORT);
 	req->params.offset = cpu_to_le32(offset);
 	req->params.data_buf_size = cpu_to_le32(0x4);
