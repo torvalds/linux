@@ -125,6 +125,11 @@
 			reg = <0x10010000 0x400>;
 		};
 
+		pmu_system_controller: system-controller@10020000 {
+			compatible = "samsung,exynos3250-pmu", "syscon";
+			reg = <0x10020000 0x4000>;
+		};
+
 		pd_cam: cam-power-domain@10023C00 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C00 0x20>;
