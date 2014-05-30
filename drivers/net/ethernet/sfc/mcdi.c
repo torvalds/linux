@@ -52,12 +52,7 @@ static void efx_mcdi_timeout_async(unsigned long context);
 static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			       bool *was_attached_out);
 static bool efx_mcdi_poll_once(struct efx_nic *efx);
-
-static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
-{
-	EFX_BUG_ON_PARANOID(!efx->mcdi);
-	return &efx->mcdi->iface;
-}
+static void efx_mcdi_abandon(struct efx_nic *efx);
 
 int efx_mcdi_init(struct efx_nic *efx)
 {
@@ -558,6 +553,8 @@ static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			rc = 0;
 		}
 
+		efx_mcdi_abandon(efx);
+
 		/* Close the race with efx_mcdi_ev_cpl() executing just too late
 		 * and completing a request we've just cancelled, by ensuring
 		 * that the seqno check therein fails.
@@ -670,6 +667,9 @@ int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
 		return rc;
 
 	if (efx->mc_bist_for_other_fn)
+		return -ENETDOWN;
+
+	if (mcdi->mode == MCDI_MODE_FAIL)
 		return -ENETDOWN;
 
 	efx_mcdi_acquire_sync(mcdi);
@@ -812,7 +812,11 @@ void efx_mcdi_mode_poll(struct efx_nic *efx)
 		return;
 
 	mcdi = efx_mcdi(efx);
-	if (mcdi->mode == MCDI_MODE_POLL)
+	/* If already in polling mode, nothing to do.
+	 * If in fail-fast state, don't switch to polled completion.
+	 * FLR recovery will do that later.
+	 */
+	if (mcdi->mode == MCDI_MODE_POLL || mcdi->mode == MCDI_MODE_FAIL)
 		return;
 
 	/* We can switch from event completion to polled completion, because
@@ -841,8 +845,8 @@ void efx_mcdi_flush_async(struct efx_nic *efx)
 
 	mcdi = efx_mcdi(efx);
 
-	/* We must be in polling mode so no more requests can be queued */
-	BUG_ON(mcdi->mode != MCDI_MODE_POLL);
+	/* We must be in poll or fail mode so no more requests can be queued */
+	BUG_ON(mcdi->mode == MCDI_MODE_EVENTS);
 
 	del_timer_sync(&mcdi->async_timer);
 
@@ -875,8 +879,11 @@ void efx_mcdi_mode_event(struct efx_nic *efx)
 		return;
 
 	mcdi = efx_mcdi(efx);
-
-	if (mcdi->mode == MCDI_MODE_EVENTS)
+	/* If already in event completion mode, nothing to do.
+	 * If in fail-fast state, don't switch to event completion.  FLR
+	 * recovery will do that later.
+	 */
+	if (mcdi->mode == MCDI_MODE_EVENTS || mcdi->mode == MCDI_MODE_FAIL)
 		return;
 
 	/* We can't switch from polled to event completion in the middle of a
@@ -964,6 +971,19 @@ static void efx_mcdi_ev_bist(struct efx_nic *efx)
 	mcdi->new_epoch = true;
 	efx_schedule_reset(efx, RESET_TYPE_MC_BIST);
 	spin_unlock(&mcdi->iface_lock);
+}
+
+/* MCDI timeouts seen, so make all MCDI calls fail-fast and issue an FLR to try
+ * to recover.
+ */
+static void efx_mcdi_abandon(struct efx_nic *efx)
+{
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+
+	if (xchg(&mcdi->mode, MCDI_MODE_FAIL) == MCDI_MODE_FAIL)
+		return; /* it had already been done */
+	netif_dbg(efx, hw, efx->net_dev, "MCDI is timing out; trying to recover\n");
+	efx_schedule_reset(efx, RESET_TYPE_MCDI_TIMEOUT);
 }
 
 /* Called from  falcon_process_eventq for MCDI events */
@@ -1511,6 +1531,19 @@ enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason)
 int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method)
 {
 	int rc;
+
+	/* If MCDI is down, we can't handle_assertion */
+	if (method == RESET_TYPE_MCDI_TIMEOUT) {
+		rc = pci_reset_function(efx->pci_dev);
+		if (rc)
+			return rc;
+		/* Re-enable polled MCDI completion */
+		if (efx->mcdi) {
+			struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+			mcdi->mode = MCDI_MODE_POLL;
+		}
+		return 0;
+	}
 
 	/* Recover from a failed assertion pre-reset */
 	rc = efx_mcdi_handle_assertion(efx);

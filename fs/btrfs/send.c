@@ -349,6 +349,11 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 	if (p->buf_len >= len)
 		return 0;
 
+	if (len > PATH_MAX) {
+		WARN_ON(1);
+		return -ENOMEM;
+	}
+
 	path_len = p->end - p->start;
 	old_buf_len = p->buf_len;
 

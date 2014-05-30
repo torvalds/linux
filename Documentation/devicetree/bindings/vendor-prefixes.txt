@@ -22,6 +22,7 @@ auo	AU Optronics Corporation
 avago	Avago Technologies
 bosch	Bosch Sensortec GmbH
 brcm	Broadcom Corporation
+buffalo	Buffalo, Inc.
 calxeda	Calxeda
 capella	Capella Microsystems, Inc
 cavium	Cavium, Inc.
@@ -33,15 +34,18 @@ cortina	Cortina Systems, Inc.
 crystalfontz	Crystalfontz America, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 davicom	DAVICOM Semiconductor, Inc.
-dlink	D-Link Systems, Inc.
 denx	Denx Software Engineering
+digi	Digi International Inc.
+dlink	D-Link Corporation
 dmo	Data Modul AG
+ebv	EBV Elektronik
 edt	Emerging Display Technologies
 emmicro	EM Microelectronic
 epfl	Ecole Polytechnique Fédérale de Lausanne
 epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
 eukrea  Eukréa Electromatique
+excito	Excito
 fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
@@ -53,13 +57,17 @@ haoyu	Haoyu Microelectronic Co. Ltd.
 hisilicon	Hisilicon Limited.
 honeywell	Honeywell
 hp	Hewlett Packard
+i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
+iom	Iomega Corporation
 img	Imagination Technologies Ltd.
 intel	Intel Corporation
 intercontrol	Inter Control Group
+isee	ISEE 2007 S.L.
 isl	Intersil
 karo	Ka-Ro electronics GmbH
+keymile	Keymile GmbH
 lacie	LaCie
 lantiq	Lantiq Semiconductor
 lg	LG Corporation
@@ -70,9 +78,12 @@ maxim	Maxim Integrated Products
 microchip	Microchip Technology Inc.
 mosaixtech	Mosaix Technologies, Inc.
 moxa	Moxa
+mpl	MPL AG
+mxicy	Macronix International Co., Ltd.
 national	National Semiconductor
 neonode		Neonode Inc.
 netgear	NETGEAR
+newhaven	Newhaven Display International
 nintendo	Nintendo
 nokia	Nokia
 nvidia	NVIDIA
@@ -82,10 +93,12 @@ opencores	OpenCores.org
 panasonic	Panasonic Corporation
 phytec	PHYTEC Messtechnik GmbH
 picochip	Picochip Ltd
+plathome	Plat'Home Co., Ltd.
 powervr	PowerVR (deprecated, use img)
 qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm Technologies, Inc
 qnap	QNAP Systems, Inc.
+raidsonic	RaidSonic Technology GmbH
 ralink	Mediatek/Ralink Technology Corp.
 ramtron	Ramtron International
 realtek Realtek Semiconductor Corp.
@@ -95,6 +108,7 @@ rockchip	Fuzhou Rockchip Electronics Co., Ltd
 samsung	Samsung Semiconductor
 sbs	Smart Battery System
 schindler	Schindler
+seagate	Seagate Technology PLC
 sil	Silicon Image
 silabs	Silicon Laboratories
 simtek
@@ -111,6 +125,7 @@ ti	Texas Instruments
 tlm	Trusted Logic Mobility
 toshiba	Toshiba Corporation
 toumaz	Toumaz
+usi	Universal Scientifc Industrial Co., Ltd.
 v3	V3 Semiconductor
 via	VIA Technologies, Inc.
 voipac	Voipac Technologies s.r.o.
@@ -119,3 +134,4 @@ wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
 xes	Extreme Engineering Solutions (X-ES)
 xlnx	Xilinx
+zyxel	ZyXEL Communications Corp.

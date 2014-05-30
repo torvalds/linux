@@ -386,14 +386,13 @@ nomem:
  */
 int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 {
-	struct net *net = sock_net(asoc->base.sk);
 	struct sctp_auth_bytes	*secret;
 	struct sctp_shared_key *ep_key;
 
 	/* If we don't support AUTH, or peer is not capable
 	 * we don't need to do anything.
 	 */
-	if (!net->sctp.auth_enable || !asoc->peer.auth_capable)
+	if (!asoc->ep->auth_enable || !asoc->peer.auth_capable)
 		return 0;
 
 	/* If the key_id is non-zero and we couldn't find an
@@ -440,16 +439,16 @@ struct sctp_shared_key *sctp_auth_get_shkey(
  */
 int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 {
-	struct net *net = sock_net(ep->base.sk);
 	struct crypto_hash *tfm = NULL;
 	__u16   id;
 
-	/* if the transforms are already allocted, we are done */
-	if (!net->sctp.auth_enable) {
+	/* If AUTH extension is disabled, we are done */
+	if (!ep->auth_enable) {
 		ep->auth_hmacs = NULL;
 		return 0;
 	}
 
+	/* If the transforms are already allocated, we are done */
 	if (ep->auth_hmacs)
 		return 0;
 
@@ -665,12 +664,10 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 /* Check if peer requested that this chunk is authenticated */
 int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 {
-	struct net  *net;
 	if (!asoc)
 		return 0;
 
-	net = sock_net(asoc->base.sk);
-	if (!net->sctp.auth_enable || !asoc->peer.auth_capable)
+	if (!asoc->ep->auth_enable || !asoc->peer.auth_capable)
 		return 0;
 
 	return __sctp_auth_cid(chunk, asoc->peer.peer_chunks);
@@ -679,12 +676,10 @@ int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 /* Check if we requested that peer authenticate this chunk. */
 int sctp_auth_recv_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 {
-	struct net *net;
 	if (!asoc)
 		return 0;
 
-	net = sock_net(asoc->base.sk);
-	if (!net->sctp.auth_enable)
+	if (!asoc->ep->auth_enable)
 		return 0;
 
 	return __sctp_auth_cid(chunk,

@@ -94,7 +94,7 @@
 			status = "okay";
 
 			lm85: lm85@2e {
-				compatible = "lm85";
+				compatible = "national,lm85";
 				reg = <0x2e>;
 			};
 		};

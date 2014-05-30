@@ -89,15 +89,6 @@ else
 	STRIPCMD = $(STRIP) -s --remove-section=.note --remove-section=.comment
 endif
 
-# if DEBUG is enabled, then we do not strip or optimize
-ifeq ($(strip $(DEBUG)),true)
-	CFLAGS += -O1 -g -DDEBUG
-	STRIPCMD = /bin/true -Since_we_are_debugging
-else
-	CFLAGS += $(OPTIMIZATION) -fomit-frame-pointer
-	STRIPCMD = $(STRIP) -s --remove-section=.note --remove-section=.comment
-endif
-
 # --- ACPIDUMP BEGIN ---
 
 vpath %.c \
@@ -128,7 +119,7 @@ clean:
 	-rm -f $(OUTPUT)acpidump
 
 install-tools:
-	$(INSTALL) -d $(DESTDIR)${bindir}
+	$(INSTALL) -d $(DESTDIR)${sbindir}
 	$(INSTALL_PROGRAM) $(OUTPUT)acpidump $(DESTDIR)${sbindir}
 
 install-man:

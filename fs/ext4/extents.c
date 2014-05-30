@@ -3313,6 +3313,11 @@ static int ext4_split_extent(handle_t *handle,
 		return PTR_ERR(path);
 	depth = ext_depth(inode);
 	ex = path[depth].p_ext;
+	if (!ex) {
+		EXT4_ERROR_INODE(inode, "unexpected hole at %lu",
+				 (unsigned long) map->m_lblk);
+		return -EIO;
+	}
 	uninitialized = ext4_ext_is_uninitialized(ex);
 	split_flag1 = 0;
 
@@ -3694,6 +3699,12 @@ static int ext4_convert_initialized_extents(handle_t *handle,
 		}
 		depth = ext_depth(inode);
 		ex = path[depth].p_ext;
+		if (!ex) {
+			EXT4_ERROR_INODE(inode, "unexpected hole at %lu",
+					 (unsigned long) map->m_lblk);
+			err = -EIO;
+			goto out;
+		}
 	}
 
 	err = ext4_ext_get_access(handle, inode, path + depth);
@@ -4730,6 +4741,9 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 
 	trace_ext4_zero_range(inode, offset, len, mode);
 
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+
 	/*
 	 * Write out all dirty pages to avoid race conditions
 	 * Then release them.
@@ -4878,9 +4892,6 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (mode & FALLOC_FL_PUNCH_HOLE)
 		return ext4_punch_hole(inode, offset, len);
 
-	if (mode & FALLOC_FL_COLLAPSE_RANGE)
-		return ext4_collapse_range(inode, offset, len);
-
 	ret = ext4_convert_inline_data(inode);
 	if (ret)
 		return ret;
@@ -4891,6 +4902,9 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	 */
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EOPNOTSUPP;
+
+	if (mode & FALLOC_FL_COLLAPSE_RANGE)
+		return ext4_collapse_range(inode, offset, len);
 
 	if (mode & FALLOC_FL_ZERO_RANGE)
 		return ext4_zero_range(file, offset, len, mode);
@@ -5229,18 +5243,19 @@ ext4_ext_shift_path_extents(struct ext4_ext_path *path, ext4_lblk_t shift,
 			if (ex_start == EXT_FIRST_EXTENT(path[depth].p_hdr))
 				update = 1;
 
-			*start = ex_last->ee_block +
+			*start = le32_to_cpu(ex_last->ee_block) +
 				ext4_ext_get_actual_len(ex_last);
 
 			while (ex_start <= ex_last) {
-				ex_start->ee_block -= shift;
-				if (ex_start >
-					EXT_FIRST_EXTENT(path[depth].p_hdr)) {
-					if (ext4_ext_try_to_merge_right(inode,
-						path, ex_start - 1))
-						ex_last--;
-				}
-				ex_start++;
+				le32_add_cpu(&ex_start->ee_block, -shift);
+				/* Try to merge to the left. */
+				if ((ex_start >
+				     EXT_FIRST_EXTENT(path[depth].p_hdr)) &&
+				    ext4_ext_try_to_merge_right(inode,
+							path, ex_start - 1))
+					ex_last--;
+				else
+					ex_start++;
 			}
 			err = ext4_ext_dirty(handle, inode, path + depth);
 			if (err)
@@ -5255,7 +5270,7 @@ ext4_ext_shift_path_extents(struct ext4_ext_path *path, ext4_lblk_t shift,
 		if (err)
 			goto out;
 
-		path[depth].p_idx->ei_block -= shift;
+		le32_add_cpu(&path[depth].p_idx->ei_block, -shift);
 		err = ext4_ext_dirty(handle, inode, path + depth);
 		if (err)
 			goto out;
@@ -5300,7 +5315,8 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 		return ret;
 	}
 
-	stop_block = extent->ee_block + ext4_ext_get_actual_len(extent);
+	stop_block = le32_to_cpu(extent->ee_block) +
+			ext4_ext_get_actual_len(extent);
 	ext4_ext_drop_refs(path);
 	kfree(path);
 
@@ -5313,10 +5329,18 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	 * enough to accomodate the shift.
 	 */
 	path = ext4_ext_find_extent(inode, start - 1, NULL, 0);
+	if (IS_ERR(path))
+		return PTR_ERR(path);
 	depth = path->p_depth;
 	extent =  path[depth].p_ext;
-	ex_start = extent->ee_block;
-	ex_end = extent->ee_block + ext4_ext_get_actual_len(extent);
+	if (extent) {
+		ex_start = le32_to_cpu(extent->ee_block);
+		ex_end = le32_to_cpu(extent->ee_block) +
+			ext4_ext_get_actual_len(extent);
+	} else {
+		ex_start = 0;
+		ex_end = 0;
+	}
 	ext4_ext_drop_refs(path);
 	kfree(path);
 
@@ -5331,7 +5355,13 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 			return PTR_ERR(path);
 		depth = path->p_depth;
 		extent = path[depth].p_ext;
-		current_block = extent->ee_block;
+		if (!extent) {
+			EXT4_ERROR_INODE(inode, "unexpected hole at %lu",
+					 (unsigned long) start);
+			return -EIO;
+		}
+
+		current_block = le32_to_cpu(extent->ee_block);
 		if (start > current_block) {
 			/* Hole, move to the next extent */
 			ret = mext_next_extent(inode, path, &extent);
@@ -5365,10 +5395,8 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	ext4_lblk_t punch_start, punch_stop;
 	handle_t *handle;
 	unsigned int credits;
-	loff_t new_size;
+	loff_t new_size, ioffset;
 	int ret;
-
-	BUG_ON(offset + len > i_size_read(inode));
 
 	/* Collapse range works only on fs block size aligned offsets. */
 	if (offset & (EXT4_BLOCK_SIZE(sb) - 1) ||
@@ -5376,6 +5404,9 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 		return -EINVAL;
 
 	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+
+	if (EXT4_SB(inode->i_sb)->s_cluster_ratio > 1)
 		return -EOPNOTSUPP;
 
 	trace_ext4_collapse_range(inode, offset, len);
@@ -5383,22 +5414,34 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	punch_start = offset >> EXT4_BLOCK_SIZE_BITS(sb);
 	punch_stop = (offset + len) >> EXT4_BLOCK_SIZE_BITS(sb);
 
+	/* Call ext4_force_commit to flush all data in case of data=journal. */
+	if (ext4_should_journal_data(inode)) {
+		ret = ext4_force_commit(inode->i_sb);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * Need to round down offset to be aligned with page size boundary
+	 * for page size > block size.
+	 */
+	ioffset = round_down(offset, PAGE_SIZE);
+
 	/* Write out all dirty pages */
-	ret = filemap_write_and_wait_range(inode->i_mapping, offset, -1);
+	ret = filemap_write_and_wait_range(inode->i_mapping, ioffset,
+					   LLONG_MAX);
 	if (ret)
 		return ret;
 
 	/* Take mutex lock */
 	mutex_lock(&inode->i_mutex);
 
-	/* It's not possible punch hole on append only file */
-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode)) {
-		ret = -EPERM;
-		goto out_mutex;
-	}
-
-	if (IS_SWAPFILE(inode)) {
-		ret = -ETXTBSY;
+	/*
+	 * There is no need to overlap collapse range with EOF, in which case
+	 * it is effectively a truncate operation
+	 */
+	if (offset + len >= i_size_read(inode)) {
+		ret = -EINVAL;
 		goto out_mutex;
 	}
 
@@ -5408,7 +5451,7 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 		goto out_mutex;
 	}
 
-	truncate_pagecache_range(inode, offset, -1);
+	truncate_pagecache(inode, ioffset);
 
 	/* Wait for existing dio to complete */
 	ext4_inode_block_unlocked_dio(inode);
@@ -5425,7 +5468,7 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	ext4_discard_preallocations(inode);
 
 	ret = ext4_es_remove_extent(inode, punch_start,
-				    EXT_MAX_BLOCKS - punch_start - 1);
+				    EXT_MAX_BLOCKS - punch_start);
 	if (ret) {
 		up_write(&EXT4_I(inode)->i_data_sem);
 		goto out_stop;
@@ -5436,6 +5479,7 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 		up_write(&EXT4_I(inode)->i_data_sem);
 		goto out_stop;
 	}
+	ext4_discard_preallocations(inode);
 
 	ret = ext4_ext_shift_extents(inode, handle, punch_stop,
 				     punch_stop - punch_start);
@@ -5445,10 +5489,9 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	}
 
 	new_size = i_size_read(inode) - len;
-	truncate_setsize(inode, new_size);
+	i_size_write(inode, new_size);
 	EXT4_I(inode)->i_disksize = new_size;
 
-	ext4_discard_preallocations(inode);
 	up_write(&EXT4_I(inode)->i_data_sem);
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);

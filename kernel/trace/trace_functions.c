@@ -58,12 +58,16 @@ int ftrace_create_function_files(struct trace_array *tr,
 {
 	int ret;
 
-	/* The top level array uses the "global_ops". */
-	if (!(tr->flags & TRACE_ARRAY_FL_GLOBAL)) {
-		ret = allocate_ftrace_ops(tr);
-		if (ret)
-			return ret;
-	}
+	/*
+	 * The top level array uses the "global_ops", and the files are
+	 * created on boot up.
+	 */
+	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
+		return 0;
+
+	ret = allocate_ftrace_ops(tr);
+	if (ret)
+		return ret;
 
 	ftrace_create_filter_files(tr->ops, parent);
 

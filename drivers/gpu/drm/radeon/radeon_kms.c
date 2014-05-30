@@ -35,9 +35,9 @@
 #include <linux/pm_runtime.h>
 
 #if defined(CONFIG_VGA_SWITCHEROO)
-bool radeon_is_px(void);
+bool radeon_has_atpx(void);
 #else
-static inline bool radeon_is_px(void) { return false; }
+static inline bool radeon_has_atpx(void) { return false; }
 #endif
 
 /**
@@ -107,6 +107,11 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		flags |= RADEON_IS_PCI;
 	}
 
+	if ((radeon_runtime_pm != 0) &&
+	    radeon_has_atpx() &&
+	    ((flags & RADEON_IS_IGP) == 0))
+		flags |= RADEON_IS_PX;
+
 	/* radeon_device_init should report only fatal error
 	 * like memory allocation failure or iomapping failure,
 	 * or memory manager initialization failure, it must
@@ -137,8 +142,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 				"Error during ACPI methods call\n");
 	}
 
-	if ((radeon_runtime_pm == 1) ||
-	    ((radeon_runtime_pm == -1) && radeon_is_px())) {
+	if (radeon_is_px(dev)) {
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
@@ -568,12 +572,17 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		}
 
 		r = radeon_vm_init(rdev, &fpriv->vm);
-		if (r)
+		if (r) {
+			kfree(fpriv);
 			return r;
+		}
 
 		r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
-		if (r)
+		if (r) {
+			radeon_vm_fini(rdev, &fpriv->vm);
+			kfree(fpriv);
 			return r;
+		}
 
 		/* map the ib pool buffer read only into
 		 * virtual address space */

@@ -374,6 +374,9 @@ struct bdb_lvds_lfp_data {
 	struct bdb_lvds_lfp_data_entry data[16];
 } __packed;
 
+#define BDB_BACKLIGHT_TYPE_NONE	0
+#define BDB_BACKLIGHT_TYPE_PWM	2
+
 struct bdb_lfp_backlight_data_entry {
 	u8 type:2;
 	u8 active_low_pwm:1;

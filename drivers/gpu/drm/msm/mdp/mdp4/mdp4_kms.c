@@ -144,6 +144,10 @@ static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
 static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	if (mdp4_kms->blank_cursor_iova)
+		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
+	if (mdp4_kms->blank_cursor_bo)
+		drm_gem_object_unreference(mdp4_kms->blank_cursor_bo);
 	kfree(mdp4_kms);
 }
 
@@ -369,6 +373,23 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	ret = modeset_init(mdp4_kms);
 	if (ret) {
 		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
+		goto fail;
+	}
+
+	mutex_lock(&dev->struct_mutex);
+	mdp4_kms->blank_cursor_bo = msm_gem_new(dev, SZ_16K, MSM_BO_WC);
+	mutex_unlock(&dev->struct_mutex);
+	if (IS_ERR(mdp4_kms->blank_cursor_bo)) {
+		ret = PTR_ERR(mdp4_kms->blank_cursor_bo);
+		dev_err(dev->dev, "could not allocate blank-cursor bo: %d\n", ret);
+		mdp4_kms->blank_cursor_bo = NULL;
+		goto fail;
+	}
+
+	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id,
+			&mdp4_kms->blank_cursor_iova);
+	if (ret) {
+		dev_err(dev->dev, "could not pin blank-cursor bo: %d\n", ret);
 		goto fail;
 	}
 

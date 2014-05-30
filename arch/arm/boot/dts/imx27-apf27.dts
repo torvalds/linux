@@ -29,6 +29,7 @@
 
 		osc26m {
 			compatible = "fsl,imx-osc26m", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 	};

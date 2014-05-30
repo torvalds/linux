@@ -218,6 +218,20 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		info->rotation_type = OMAP_DSS_ROT_TILER;
 		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
 	} else {
+		switch (win->rotation & 0xf) {
+		case 0:
+		case BIT(DRM_ROTATE_0):
+			/* OK */
+			break;
+
+		default:
+			dev_warn(fb->dev->dev,
+				"rotation '%d' ignored for non-tiled fb\n",
+				win->rotation);
+			win->rotation = 0;
+			break;
+		}
+
 		info->paddr         = get_linear_addr(plane, format, 0, x, y);
 		info->rotation_type = OMAP_DSS_ROT_DMA;
 		info->screen_width  = plane->pitch;

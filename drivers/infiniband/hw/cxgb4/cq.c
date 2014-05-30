@@ -235,27 +235,21 @@ int c4iw_flush_sq(struct c4iw_qp *qhp)
 	struct t4_cq *cq = &chp->cq;
 	int idx;
 	struct t4_swsqe *swsqe;
-	int error = (qhp->attr.state != C4IW_QP_STATE_CLOSING &&
-			qhp->attr.state != C4IW_QP_STATE_IDLE);
 
 	if (wq->sq.flush_cidx == -1)
 		wq->sq.flush_cidx = wq->sq.cidx;
 	idx = wq->sq.flush_cidx;
 	BUG_ON(idx >= wq->sq.size);
 	while (idx != wq->sq.pidx) {
-		if (error) {
-			swsqe = &wq->sq.sw_sq[idx];
-			BUG_ON(swsqe->flushed);
-			swsqe->flushed = 1;
-			insert_sq_cqe(wq, cq, swsqe);
-			if (wq->sq.oldest_read == swsqe) {
-				BUG_ON(swsqe->opcode != FW_RI_READ_REQ);
-				advance_oldest_read(wq);
-			}
-			flushed++;
-		} else {
-			t4_sq_consume(wq);
+		swsqe = &wq->sq.sw_sq[idx];
+		BUG_ON(swsqe->flushed);
+		swsqe->flushed = 1;
+		insert_sq_cqe(wq, cq, swsqe);
+		if (wq->sq.oldest_read == swsqe) {
+			BUG_ON(swsqe->opcode != FW_RI_READ_REQ);
+			advance_oldest_read(wq);
 		}
+		flushed++;
 		if (++idx == wq->sq.size)
 			idx = 0;
 	}
@@ -678,7 +672,7 @@ skip_cqe:
 static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 {
 	struct c4iw_qp *qhp = NULL;
-	struct t4_cqe cqe = {0, 0}, *rd_cqe;
+	struct t4_cqe uninitialized_var(cqe), *rd_cqe;
 	struct t4_wq *wq;
 	u32 credit = 0;
 	u8 cqe_flushed;
