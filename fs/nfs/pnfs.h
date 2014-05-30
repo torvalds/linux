@@ -323,9 +323,10 @@ void pnfs_generic_write_commit_done(struct rpc_task *task, void *data);
 void nfs4_pnfs_ds_put(struct nfs4_pnfs_ds *ds);
 struct nfs4_pnfs_ds *nfs4_pnfs_ds_add(struct list_head *dsaddrs,
 				      gfp_t gfp_flags);
+void nfs4_pnfs_v3_ds_connect_unload(void);
 void nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 			  struct nfs4_deviceid_node *devid, unsigned int timeo,
-			  unsigned int retrans, u32 versoin, u32 minor_version,
+			  unsigned int retrans, u32 version, u32 minor_version,
 			  rpc_authflavor_t au_flavor);
 struct nfs4_pnfs_ds_addr *nfs4_decode_mp_ds_addr(struct net *net,
 						 struct xdr_stream *xdr,
@@ -613,6 +614,10 @@ pnfs_layoutcommit_outstanding(struct inode *inode)
 static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {
 	return NULL;
+}
+
+static inline void nfs4_pnfs_v3_ds_connect_unload(void)
+{
 }
 
 #endif /* CONFIG_NFS_V4_1 */
