@@ -1290,11 +1290,8 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	xdr_reserve_space(&resp->xdr, 8 + args->taglen);
 	resp->taglen = args->taglen;
 	resp->tag = args->tag;
-	resp->opcnt = 0;
 	resp->rqstp = rqstp;
 	cstate->minorversion = args->minorversion;
-	cstate->replay_owner = NULL;
-	cstate->session = NULL;
 	fh_init(current_fh, NFS4_FHSIZE);
 	fh_init(save_fh, NFS4_FHSIZE);
 	/*
