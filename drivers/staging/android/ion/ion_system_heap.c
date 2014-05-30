@@ -54,7 +54,6 @@ struct ion_system_heap {
 
 struct page_info {
 	struct page *page;
-	unsigned int order;
 	struct list_head list;
 };
 
@@ -123,7 +122,6 @@ static struct page_info *alloc_largest_available(struct ion_system_heap *heap,
 			continue;
 
 		info->page = page;
-		info->order = orders[i];
 		return info;
 	}
 	kfree(info);
@@ -160,8 +158,8 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		if (!info)
 			goto free_pages;
 		list_add_tail(&info->list, &pages);
-		size_remaining -= PAGE_SIZE << info->order;
-		max_order = info->order;
+		size_remaining -= PAGE_SIZE << compound_order(info->page);
+		max_order = compound_order(info->page);
 		i++;
 	}
 	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
@@ -174,7 +172,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	sg = table->sgl;
 	list_for_each_entry_safe(info, tmp_info, &pages, list) {
 		struct page *page = info->page;
-		sg_set_page(sg, page, PAGE_SIZE << info->order, 0);
+		sg_set_page(sg, page, PAGE_SIZE << compound_order(page), 0);
 		sg = sg_next(sg);
 		list_del(&info->list);
 		kfree(info);
@@ -187,7 +185,8 @@ free_table:
 	kfree(table);
 free_pages:
 	list_for_each_entry_safe(info, tmp_info, &pages, list) {
-		free_buffer_page(sys_heap, buffer, info->page, info->order);
+		free_buffer_page(sys_heap, buffer, info->page,
+						compound_order(info->page));
 		kfree(info);
 	}
 	return -ENOMEM;
