@@ -959,12 +959,12 @@ void BSSvSecondCallBack(struct work_struct *work)
 			if (pDevice->bShortSlotTime) {
 				pDevice->bShortSlotTime = false;
 				BBvSetShortSlotTime(pDevice);
-				vUpdateIFS((void *) pDevice);
+				vnt_update_ifs(pDevice);
 			}
 		} else if (!pDevice->bShortSlotTime) {
 				pDevice->bShortSlotTime = true;
 				BBvSetShortSlotTime(pDevice);
-				vUpdateIFS((void *) pDevice);
+				vnt_update_ifs(pDevice);
 		}
 
 		/* on/off barker long preamble mode */

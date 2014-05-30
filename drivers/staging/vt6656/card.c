@@ -21,7 +21,7 @@
  * Functions:
  *      s_vSafeResetTx - Rest Tx
  *      CARDvSetRSPINF - Set RSPINF
- *      vUpdateIFS - Update slotTime,SIFS,DIFS, and EIFS
+ *      vnt_update_ifs - Update slotTime,SIFS,DIFS, and EIFS
  *      CARDvUpdateBasicTopRate - Update BasicTopRate
  *      CARDbAddBasicRate - Add to BasicRateSet
  *      CARDbSetBasicRate - Set Basic Tx Rate
@@ -41,7 +41,7 @@
  * Revision History:
  *      06-10-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
  *      08-26-2003 Kyle Hsu:      Modify the definition type of dwIoBase.
- *      09-01-2003 Bryan YC Fan:  Add vUpdateIFS().
+ *      09-01-2003 Bryan YC Fan:  Add vnt_update_ifs().
  *
  */
 
@@ -384,7 +384,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
  * Return Value: None.
  *
  */
-void vUpdateIFS(struct vnt_private *priv)
+void vnt_update_ifs(struct vnt_private *priv)
 {
 	u8 max_min = 0;
 	u8 data[4];
@@ -845,7 +845,7 @@ void CARDvSetBSSMode(struct vnt_private *priv)
 	else if (priv->byBBType == BB_TYPE_11G)
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x08);
 
-	vUpdateIFS(priv);
+	vnt_update_ifs(priv);
 	CARDvSetRSPINF(priv, (u8)priv->byBBType);
 
 	if (priv->byBBType == BB_TYPE_11A) {

@@ -1659,7 +1659,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                         } else {
                             MACvDisableProtectMD(pDevice);
                         }
-                        vUpdateIFS(pDevice);
+			vnt_update_ifs(pDevice);
                     }
                     if ((pBSSList->sERP.byERP & WLAN_EID_ERP_NONERP_PRESENT) != pDevice->bNonERPPresent) {//0000 0001
                         pDevice->bNonERPPresent = (pBSSList->sERP.byERP & WLAN_EID_ERP_USE_PROTECTION);
@@ -1690,7 +1690,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                     if (bShortSlotTime != pDevice->bShortSlotTime) {
                         pDevice->bShortSlotTime = bShortSlotTime;
                         BBvSetShortSlotTime(pDevice);
-                        vUpdateIFS(pDevice);
+			vnt_update_ifs(pDevice);
                     }
                 }
 
@@ -2337,7 +2337,8 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 	    RATEvParseMaxRate((void *)pDevice, pItemRates, pItemExtRates, true,
                               &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                               &byTopCCKBasicRate, &byTopOFDMBasicRate);
-            vUpdateIFS(pDevice);
+
+	    vnt_update_ifs(pDevice);
             // TODO: deal with if wCapInfo the privacy is on, but station WEP is off
             // TODO: deal with if wCapInfo the PS-Pollable is on.
             pMgmt->wCurrBeaconPeriod = pCurr->wBeaconInterval;
@@ -2391,7 +2392,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
                     } else {
                         MACvDisableProtectMD(pDevice);
                     }
-                    vUpdateIFS(pDevice);
+		    vnt_update_ifs(pDevice);
                 }
                 if ((pCurr->sERP.byERP & WLAN_EID_ERP_NONERP_PRESENT) != pDevice->bNonERPPresent) {//0000 0001
                     pDevice->bNonERPPresent = (pCurr->sERP.byERP & WLAN_EID_ERP_USE_PROTECTION);
@@ -2421,7 +2422,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
                 if (bShortSlotTime != pDevice->bShortSlotTime) {
                     pDevice->bShortSlotTime = bShortSlotTime;
                     BBvSetShortSlotTime(pDevice);
-                    vUpdateIFS(pDevice);
+		    vnt_update_ifs(pDevice);
                 }
             }
 
@@ -2480,7 +2481,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 			      (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                               NULL, true, &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                               &byTopCCKBasicRate, &byTopOFDMBasicRate);
-            vUpdateIFS(pDevice);
+	    vnt_update_ifs(pDevice);
             pMgmt->wCurrCapInfo = pCurr->wCapInfo;
             pMgmt->wCurrBeaconPeriod = pCurr->wBeaconInterval;
             memset(pMgmt->abyCurrSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN);
