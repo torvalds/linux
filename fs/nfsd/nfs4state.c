@@ -81,7 +81,7 @@ static DEFINE_MUTEX(client_mutex);
  * effort to decrease the scope of the client_mutex, this spinlock may
  * eventually cover more:
  */
-static DEFINE_SPINLOCK(recall_lock);
+static DEFINE_SPINLOCK(state_lock);
 
 static struct kmem_cache *openowner_slab;
 static struct kmem_cache *lockowner_slab;
@@ -235,9 +235,9 @@ static void nfsd4_free_file(struct nfs4_file *f)
 static inline void
 put_nfs4_file(struct nfs4_file *fi)
 {
-	if (atomic_dec_and_lock(&fi->fi_ref, &recall_lock)) {
+	if (atomic_dec_and_lock(&fi->fi_ref, &state_lock)) {
 		hlist_del(&fi->fi_hash);
-		spin_unlock(&recall_lock);
+		spin_unlock(&state_lock);
 		iput(fi->fi_inode);
 		nfsd4_free_file(fi);
 	}
@@ -436,7 +436,7 @@ static void unhash_stid(struct nfs4_stid *s)
 static void
 hash_delegation_locked(struct nfs4_delegation *dp, struct nfs4_file *fp)
 {
-	lockdep_assert_held(&recall_lock);
+	lockdep_assert_held(&state_lock);
 
 	list_add(&dp->dl_perfile, &fp->fi_delegations);
 	list_add(&dp->dl_perclnt, &dp->dl_stid.sc_client->cl_delegations);
@@ -446,11 +446,11 @@ hash_delegation_locked(struct nfs4_delegation *dp, struct nfs4_file *fp)
 static void
 unhash_delegation(struct nfs4_delegation *dp)
 {
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	list_del_init(&dp->dl_perclnt);
 	list_del_init(&dp->dl_perfile);
 	list_del_init(&dp->dl_recall_lru);
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 	if (dp->dl_file) {
 		nfs4_put_deleg_lease(dp->dl_file);
 		put_nfs4_file(dp->dl_file);
@@ -1161,13 +1161,13 @@ destroy_client(struct nfs4_client *clp)
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
 	INIT_LIST_HEAD(&reaplist);
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	while (!list_empty(&clp->cl_delegations)) {
 		dp = list_entry(clp->cl_delegations.next, struct nfs4_delegation, dl_perclnt);
 		list_del_init(&dp->dl_perclnt);
 		list_move(&dp->dl_recall_lru, &reaplist);
 	}
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 	while (!list_empty(&reaplist)) {
 		dp = list_entry(reaplist.next, struct nfs4_delegation, dl_recall_lru);
 		destroy_delegation(dp);
@@ -2539,9 +2539,9 @@ static void nfsd4_init_file(struct nfs4_file *fp, struct inode *ino)
 	fp->fi_lease = NULL;
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
 	memset(fp->fi_access, 0, sizeof(fp->fi_access));
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	hlist_add_head(&fp->fi_hash, &file_hashtbl[hashval]);
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 }
 
 void
@@ -2712,15 +2712,15 @@ find_file(struct inode *ino)
 	unsigned int hashval = file_hashval(ino);
 	struct nfs4_file *fp;
 
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	hlist_for_each_entry(fp, &file_hashtbl[hashval], fi_hash) {
 		if (fp->fi_inode == ino) {
 			get_nfs4_file(fp);
-			spin_unlock(&recall_lock);
+			spin_unlock(&state_lock);
 			return fp;
 		}
 	}
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 	return NULL;
 }
 
@@ -2757,6 +2757,7 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 	struct nfs4_client *clp = dp->dl_stid.sc_client;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
+	lockdep_assert_held(&state_lock);
 	/* We're assuming the state code never drops its reference
 	 * without first removing the lease.  Since we're in this lease
 	 * callback (and since the lease code is serialized by the kernel
@@ -2793,11 +2794,11 @@ static void nfsd_break_deleg_cb(struct file_lock *fl)
 	 */
 	fl->fl_break_time = 0;
 
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	fp->fi_had_conflict = true;
 	list_for_each_entry(dp, &fp->fi_delegations, dl_perfile)
 		nfsd_break_one_deleg(dp);
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 }
 
 static
@@ -3077,9 +3078,9 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 	fp->fi_lease = fl;
 	fp->fi_deleg_file = get_file(fl->fl_file);
 	atomic_set(&fp->fi_delegees, 1);
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	hash_delegation_locked(dp, fp);
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 	return 0;
 out_free:
 	locks_free_lock(fl);
@@ -3094,14 +3095,14 @@ static int nfs4_set_delegation(struct nfs4_delegation *dp, struct nfs4_file *fp)
 	dp->dl_file = fp;
 	if (!fp->fi_lease)
 		return nfs4_setlease(dp);
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	atomic_inc(&fp->fi_delegees);
 	if (fp->fi_had_conflict) {
-		spin_unlock(&recall_lock);
+		spin_unlock(&state_lock);
 		return -EAGAIN;
 	}
 	hash_delegation_locked(dp, fp);
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 	return 0;
 }
 
@@ -3435,7 +3436,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 			clp->cl_clientid.cl_id);
 		expire_client(clp);
 	}
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	list_for_each_safe(pos, next, &nn->del_recall_lru) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		if (net_generic(dp->dl_stid.sc_client->net, nfsd_net_id) != nn)
@@ -3447,7 +3448,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 		}
 		list_move(&dp->dl_recall_lru, &reaplist);
 	}
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 	list_for_each_safe(pos, next, &reaplist) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		revoke_delegation(dp);
@@ -4912,7 +4913,7 @@ static u64 nfsd_find_all_delegations(struct nfs4_client *clp, u64 max,
 	struct nfs4_delegation *dp, *next;
 	u64 count = 0;
 
-	lockdep_assert_held(&recall_lock);
+	lockdep_assert_held(&state_lock);
 	list_for_each_entry_safe(dp, next, &clp->cl_delegations, dl_perclnt) {
 		if (victims)
 			list_move(&dp->dl_recall_lru, victims);
@@ -4928,9 +4929,9 @@ u64 nfsd_forget_client_delegations(struct nfs4_client *clp, u64 max)
 	LIST_HEAD(victims);
 	u64 count;
 
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	count = nfsd_find_all_delegations(clp, max, &victims);
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 
 	list_for_each_entry_safe(dp, next, &victims, dl_recall_lru)
 		revoke_delegation(dp);
@@ -4944,11 +4945,11 @@ u64 nfsd_recall_client_delegations(struct nfs4_client *clp, u64 max)
 	LIST_HEAD(victims);
 	u64 count;
 
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	count = nfsd_find_all_delegations(clp, max, &victims);
 	list_for_each_entry_safe(dp, next, &victims, dl_recall_lru)
 		nfsd_break_one_deleg(dp);
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 
 	return count;
 }
@@ -4957,9 +4958,9 @@ u64 nfsd_print_client_delegations(struct nfs4_client *clp, u64 max)
 {
 	u64 count = 0;
 
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	count = nfsd_find_all_delegations(clp, max, NULL);
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 
 	nfsd_print_count(clp, count, "delegations");
 	return count;
@@ -5170,12 +5171,12 @@ nfs4_state_shutdown_net(struct net *net)
 
 	nfs4_lock_state();
 	INIT_LIST_HEAD(&reaplist);
-	spin_lock(&recall_lock);
+	spin_lock(&state_lock);
 	list_for_each_safe(pos, next, &nn->del_recall_lru) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		list_move(&dp->dl_recall_lru, &reaplist);
 	}
-	spin_unlock(&recall_lock);
+	spin_unlock(&state_lock);
 	list_for_each_safe(pos, next, &reaplist) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		destroy_delegation(dp);
