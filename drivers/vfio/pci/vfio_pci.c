@@ -57,7 +57,8 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 
 	ret = vfio_config_init(vdev);
 	if (ret) {
-		pci_load_and_free_saved_state(pdev, &vdev->pci_saved_state);
+		kfree(vdev->pci_saved_state);
+		vdev->pci_saved_state = NULL;
 		pci_disable_device(pdev);
 		return ret;
 	}
