@@ -49,7 +49,7 @@ void vnt_set_channel(struct vnt_private *, u32);
 void vnt_set_rspinf(struct vnt_private *, u8);
 void vnt_update_ifs(struct vnt_private *);
 void vnt_update_top_rates(struct vnt_private *);
-void CARDbAddBasicRate(struct vnt_private *, u16);
+void vnt_add_basic_rate(struct vnt_private *, u16);
 int CARDbIsOFDMinBasicRate(struct vnt_private *pDevice);
 void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
 		u64 qwBSSTimestamp, u64 qwLocalTSF);

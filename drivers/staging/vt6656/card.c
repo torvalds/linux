@@ -23,7 +23,7 @@
  *      vnt_set_rspinf - Set RSPINF
  *      vnt_update_ifs - Update slotTime,SIFS,DIFS, and EIFS
  *      vnt_update_top_rates - Update BasicTopRate
- *      CARDbAddBasicRate - Add to BasicRateSet
+ *      vnt_add_basic_rate - Add to BasicRateSet
  *      CARDbSetBasicRate - Set Basic Tx Rate
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
  *      CARDvSetLoopbackMode - Set Loopback mode
@@ -505,7 +505,7 @@ void vnt_update_top_rates(struct vnt_private *priv)
  * Return Value: true if succeeded; false if failed.
  *
  */
-void CARDbAddBasicRate(struct vnt_private *priv, u16 rate_idx)
+void vnt_add_basic_rate(struct vnt_private *priv, u16 rate_idx)
 {
 
 	priv->wBasicRate |= (1 << rate_idx);

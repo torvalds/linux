@@ -517,10 +517,10 @@ static int device_init_registers(struct vnt_private *pDevice)
 	* set Short Slot Time, xIFS, and RSPINF
 	*/
 	if (pDevice->byBBType == BB_TYPE_11A) {
-		CARDbAddBasicRate(pDevice, RATE_6M);
+		vnt_add_basic_rate(pDevice, RATE_6M);
 		pDevice->bShortSlotTime = true;
 	} else {
-		CARDbAddBasicRate(pDevice, RATE_1M);
+		vnt_add_basic_rate(pDevice, RATE_1M);
 		pDevice->bShortSlotTime = false;
 	}
 

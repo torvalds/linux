@@ -2573,7 +2573,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     pDevice->byPreambleType = 0;
     pDevice->wBasicRate = 0;
     // Set Basic Rate
-    CARDbAddBasicRate((void *)pDevice, RATE_1M);
+    vnt_add_basic_rate(pDevice, RATE_1M);
 
     // calculate TSF offset
     // TSF Offset = Received Timestamp TSF - Marked Local's TSF
