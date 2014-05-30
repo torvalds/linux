@@ -222,7 +222,7 @@ void RATEvParseMaxRate(struct vnt_private *pDevice,
 	else
 		*pwMaxBasicRate = pDevice->byTopOFDMBasicRate;
 	if (wOldBasicRate != pDevice->wBasicRate)
-		CARDvSetRSPINF((void *)pDevice, pDevice->byBBType);
+		vnt_set_rspinf(pDevice, pDevice->byBBType);
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Exit ParseMaxRate\n");
 }

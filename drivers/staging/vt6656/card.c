@@ -20,7 +20,7 @@
  * Purpose: Provide functions to setup NIC operation mode
  * Functions:
  *      s_vSafeResetTx - Rest Tx
- *      CARDvSetRSPINF - Set RSPINF
+ *      vnt_set_rspinf - Set RSPINF
  *      vnt_update_ifs - Update slotTime,SIFS,DIFS, and EIFS
  *      vnt_update_top_rates - Update BasicTopRate
  *      CARDbAddBasicRate - Add to BasicRateSet
@@ -291,7 +291,7 @@ static void vnt_calculate_ofdm_rate(u16 rate, u8 bb_type,
  *
  */
 
-void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
+void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 {
 	struct vnt_phy_field phy[4];
 	u8 tx_rate[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0}; /* For OFDM */
@@ -846,7 +846,7 @@ void CARDvSetBSSMode(struct vnt_private *priv)
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x88, 0x08);
 
 	vnt_update_ifs(priv);
-	CARDvSetRSPINF(priv, (u8)priv->byBBType);
+	vnt_set_rspinf(priv, (u8)priv->byBBType);
 
 	if (priv->byBBType == BB_TYPE_11A) {
 		if (priv->byRFType == RF_AIROHA7230) {
