@@ -1289,12 +1289,11 @@ next_ndp:
 			break;
 
 		} else {
-			skb = skb_clone(skb_in, GFP_ATOMIC);
+			/* create a fresh copy to reduce truesize */
+			skb = netdev_alloc_skb_ip_align(dev->net,  len);
 			if (!skb)
 				goto error;
-			skb->len = len;
-			skb->data = ((u8 *)skb_in->data) + offset;
-			skb_set_tail_pointer(skb, len);
+			memcpy(skb_put(skb, len), skb_in->data + offset, len);
 			usbnet_skb_return(dev, skb);
 			payload += len;	/* count payload bytes in this NTB */
 		}
