@@ -26,6 +26,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_dp_helper.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -1722,7 +1723,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct drm_encoder *partner;
-	int or = nv_encoder->or;
+	u32 mthd;
 
 	nv_encoder->last_dpms = mode;
 
@@ -1740,7 +1741,17 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		}
 	}
 
-	nv_call(disp->core, NV50_DISP_SOR_PWR + or, (mode == DRM_MODE_DPMS_ON));
+	mthd  = (ffs(nv_encoder->dcb->sorconf.link) - 1) << 2;
+	mthd |= nv_encoder->or;
+
+	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
+		nv_call(disp->core, NV50_DISP_SOR_PWR | mthd, 1);
+		mthd |= NV94_DISP_SOR_DP_PWR;
+	} else {
+		mthd |= NV50_DISP_SOR_PWR;
+	}
+
+	nv_call(disp->core, mthd, (mode == DRM_MODE_DPMS_ON));
 }
 
 static bool

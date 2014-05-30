@@ -76,7 +76,8 @@ find_encoder(struct drm_connector *connector, int type)
 			continue;
 		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
 
-		if (type == DCB_OUTPUT_ANY || nv_encoder->dcb->type == type)
+		if (type == DCB_OUTPUT_ANY ||
+		    (nv_encoder->dcb && nv_encoder->dcb->type == type))
 			return nv_encoder;
 	}
 
@@ -915,6 +916,40 @@ nouveau_connector_funcs_lvds = {
 };
 
 static void
+nouveau_connector_dp_dpms(struct drm_connector *connector, int mode)
+{
+	struct nouveau_encoder *nv_encoder = NULL;
+
+	if (connector->encoder)
+		nv_encoder = nouveau_encoder(connector->encoder);
+	if (nv_encoder && nv_encoder->dcb &&
+	    nv_encoder->dcb->type == DCB_OUTPUT_DP) {
+		if (mode == DRM_MODE_DPMS_ON) {
+			u8 data = DP_SET_POWER_D0;
+			nv_wraux(nv_encoder->i2c, DP_SET_POWER, &data, 1);
+			usleep_range(1000, 2000);
+		} else {
+			u8 data = DP_SET_POWER_D3;
+			nv_wraux(nv_encoder->i2c, DP_SET_POWER, &data, 1);
+		}
+	}
+
+	drm_helper_connector_dpms(connector, mode);
+}
+
+static const struct drm_connector_funcs
+nouveau_connector_funcs_dp = {
+	.dpms = nouveau_connector_dp_dpms,
+	.save = NULL,
+	.restore = NULL,
+	.detect = nouveau_connector_detect,
+	.destroy = nouveau_connector_destroy,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.set_property = nouveau_connector_set_property,
+	.force = nouveau_connector_force
+};
+
+static void
 nouveau_connector_hotplug_work(struct work_struct *work)
 {
 	struct nouveau_connector *nv_connector =
@@ -1122,7 +1157,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 			return ERR_PTR(ret);
 		}
 
-		funcs = &nouveau_connector_funcs;
+		funcs = &nouveau_connector_funcs_dp;
 		break;
 	default:
 		funcs = &nouveau_connector_funcs;
