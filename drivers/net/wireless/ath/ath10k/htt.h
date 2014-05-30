@@ -1328,14 +1328,16 @@ struct htt_rx_desc {
 #define HTT_LOG2_MAX_CACHE_LINE_SIZE 7	/* 2^7 = 128 */
 #define HTT_MAX_CACHE_LINE_SIZE_MASK ((1 << HTT_LOG2_MAX_CACHE_LINE_SIZE) - 1)
 
-int ath10k_htt_attach(struct ath10k *ar);
-int ath10k_htt_attach_target(struct ath10k_htt *htt);
-void ath10k_htt_detach(struct ath10k_htt *htt);
+int ath10k_htt_connect(struct ath10k_htt *htt);
+int ath10k_htt_init(struct ath10k *ar);
+int ath10k_htt_setup(struct ath10k_htt *htt);
 
-int ath10k_htt_tx_attach(struct ath10k_htt *htt);
-void ath10k_htt_tx_detach(struct ath10k_htt *htt);
-int ath10k_htt_rx_attach(struct ath10k_htt *htt);
-void ath10k_htt_rx_detach(struct ath10k_htt *htt);
+int ath10k_htt_tx_alloc(struct ath10k_htt *htt);
+void ath10k_htt_tx_free(struct ath10k_htt *htt);
+
+int ath10k_htt_rx_alloc(struct ath10k_htt *htt);
+void ath10k_htt_rx_free(struct ath10k_htt *htt);
+
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);

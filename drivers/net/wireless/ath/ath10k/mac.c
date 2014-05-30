@@ -54,7 +54,10 @@ static int ath10k_send_key(struct ath10k_vif *arvif,
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
 		arg.key_cipher = WMI_CIPHER_AES_CCM;
-		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+		if (arvif->vdev_type == WMI_VDEV_TYPE_AP)
+			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV_MGMT;
+		else
+			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		arg.key_cipher = WMI_CIPHER_TKIP;
@@ -1888,8 +1891,13 @@ static void ath10k_tx_wep_key_work(struct work_struct *work)
 						wep_key_work);
 	int ret, keyidx = arvif->def_wep_key_newidx;
 
+	mutex_lock(&arvif->ar->conf_mutex);
+
+	if (arvif->ar->state != ATH10K_STATE_ON)
+		goto unlock;
+
 	if (arvif->def_wep_key_idx == keyidx)
-		return;
+		goto unlock;
 
 	ath10k_dbg(ATH10K_DBG_MAC, "mac vdev %d set keyidx %d\n",
 		   arvif->vdev_id, keyidx);
@@ -1902,10 +1910,13 @@ static void ath10k_tx_wep_key_work(struct work_struct *work)
 		ath10k_warn("failed to update wep key index for vdev %d: %d\n",
 			    arvif->vdev_id,
 			    ret);
-		return;
+		goto unlock;
 	}
 
 	arvif->def_wep_key_idx = keyidx;
+
+unlock:
+	mutex_unlock(&arvif->ar->conf_mutex);
 }
 
 static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
@@ -2286,9 +2297,19 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	ath10k_tx_htt(ar, skb);
 }
 
-/*
- * Initialize various parameters with default vaules.
- */
+/* Must not be called with conf_mutex held as workers can use that also. */
+static void ath10k_drain_tx(struct ath10k *ar)
+{
+	/* make sure rcu-protected mac80211 tx path itself is drained */
+	synchronize_net();
+
+	ath10k_offchan_tx_purge(ar);
+	ath10k_mgmt_over_wmi_tx_purge(ar);
+
+	cancel_work_sync(&ar->offchan_tx_work);
+	cancel_work_sync(&ar->wmi_mgmt_tx_work);
+}
+
 void ath10k_halt(struct ath10k *ar)
 {
 	struct ath10k_vif *arvif;
@@ -2303,19 +2324,12 @@ void ath10k_halt(struct ath10k *ar)
 	}
 
 	del_timer_sync(&ar->scan.timeout);
-	ath10k_offchan_tx_purge(ar);
-	ath10k_mgmt_over_wmi_tx_purge(ar);
+	ath10k_reset_scan((unsigned long)ar);
 	ath10k_peer_cleanup_all(ar);
 	ath10k_core_stop(ar);
 	ath10k_hif_power_down(ar);
 
 	spin_lock_bh(&ar->data_lock);
-	if (ar->scan.in_progress) {
-		del_timer(&ar->scan.timeout);
-		ar->scan.in_progress = false;
-		ieee80211_scan_completed(ar->hw, true);
-	}
-
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		if (!arvif->beacon)
 			continue;
@@ -2329,46 +2343,125 @@ void ath10k_halt(struct ath10k *ar)
 	spin_unlock_bh(&ar->data_lock);
 }
 
+static int ath10k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+{
+	struct ath10k *ar = hw->priv;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->cfg_tx_chainmask) {
+		*tx_ant = ar->cfg_tx_chainmask;
+		*rx_ant = ar->cfg_rx_chainmask;
+	} else {
+		*tx_ant = ar->supp_tx_chainmask;
+		*rx_ant = ar->supp_rx_chainmask;
+	}
+
+	mutex_unlock(&ar->conf_mutex);
+
+	return 0;
+}
+
+static int __ath10k_set_antenna(struct ath10k *ar, u32 tx_ant, u32 rx_ant)
+{
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	ar->cfg_tx_chainmask = tx_ant;
+	ar->cfg_rx_chainmask = rx_ant;
+
+	if ((ar->state != ATH10K_STATE_ON) &&
+	    (ar->state != ATH10K_STATE_RESTARTED))
+		return 0;
+
+	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->tx_chain_mask,
+					tx_ant);
+	if (ret) {
+		ath10k_warn("failed to set tx-chainmask: %d, req 0x%x\n",
+			    ret, tx_ant);
+		return ret;
+	}
+
+	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->rx_chain_mask,
+					rx_ant);
+	if (ret) {
+		ath10k_warn("failed to set rx-chainmask: %d, req 0x%x\n",
+			    ret, rx_ant);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ath10k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+{
+	struct ath10k *ar = hw->priv;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+	ret = __ath10k_set_antenna(ar, tx_ant, rx_ant);
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
 static int ath10k_start(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
 	int ret = 0;
 
+	/*
+	 * This makes sense only when restarting hw. It is harmless to call
+	 * uncoditionally. This is necessary to make sure no HTT/WMI tx
+	 * commands will be submitted while restarting.
+	 */
+	ath10k_drain_tx(ar);
+
 	mutex_lock(&ar->conf_mutex);
 
-	if (ar->state != ATH10K_STATE_OFF &&
-	    ar->state != ATH10K_STATE_RESTARTING) {
+	switch (ar->state) {
+	case ATH10K_STATE_OFF:
+		ar->state = ATH10K_STATE_ON;
+		break;
+	case ATH10K_STATE_RESTARTING:
+		ath10k_halt(ar);
+		ar->state = ATH10K_STATE_RESTARTED;
+		break;
+	case ATH10K_STATE_ON:
+	case ATH10K_STATE_RESTARTED:
+	case ATH10K_STATE_WEDGED:
+		WARN_ON(1);
 		ret = -EINVAL;
-		goto exit;
+		goto err;
 	}
 
 	ret = ath10k_hif_power_up(ar);
 	if (ret) {
 		ath10k_err("Could not init hif: %d\n", ret);
-		ar->state = ATH10K_STATE_OFF;
-		goto exit;
+		goto err_off;
 	}
 
 	ret = ath10k_core_start(ar);
 	if (ret) {
 		ath10k_err("Could not init core: %d\n", ret);
-		ath10k_hif_power_down(ar);
-		ar->state = ATH10K_STATE_OFF;
-		goto exit;
+		goto err_power_down;
 	}
 
-	if (ar->state == ATH10K_STATE_OFF)
-		ar->state = ATH10K_STATE_ON;
-	else if (ar->state == ATH10K_STATE_RESTARTING)
-		ar->state = ATH10K_STATE_RESTARTED;
-
 	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->pmf_qos, 1);
-	if (ret)
+	if (ret) {
 		ath10k_warn("failed to enable PMF QOS: %d\n", ret);
+		goto err_core_stop;
+	}
 
 	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->dynamic_bw, 1);
-	if (ret)
+	if (ret) {
 		ath10k_warn("failed to enable dynamic BW: %d\n", ret);
+		goto err_core_stop;
+	}
+
+	if (ar->cfg_tx_chainmask)
+		__ath10k_set_antenna(ar, ar->cfg_tx_chainmask,
+				     ar->cfg_rx_chainmask);
 
 	/*
 	 * By default FW set ARP frames ac to voice (6). In that case ARP
@@ -2384,14 +2477,25 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	if (ret) {
 		ath10k_warn("failed to set arp ac override parameter: %d\n",
 			    ret);
-		goto exit;
+		goto err_core_stop;
 	}
 
 	ar->num_started_vdevs = 0;
 	ath10k_regd_update(ar);
-	ret = 0;
 
-exit:
+	mutex_unlock(&ar->conf_mutex);
+	return 0;
+
+err_core_stop:
+	ath10k_core_stop(ar);
+
+err_power_down:
+	ath10k_hif_power_down(ar);
+
+err_off:
+	ar->state = ATH10K_STATE_OFF;
+
+err:
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
@@ -2400,19 +2504,15 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
 
-	mutex_lock(&ar->conf_mutex);
-	if (ar->state == ATH10K_STATE_ON ||
-	    ar->state == ATH10K_STATE_RESTARTED ||
-	    ar->state == ATH10K_STATE_WEDGED)
-		ath10k_halt(ar);
+	ath10k_drain_tx(ar);
 
-	ar->state = ATH10K_STATE_OFF;
+	mutex_lock(&ar->conf_mutex);
+	if (ar->state != ATH10K_STATE_OFF) {
+		ath10k_halt(ar);
+		ar->state = ATH10K_STATE_OFF;
+	}
 	mutex_unlock(&ar->conf_mutex);
 
-	ath10k_mgmt_over_wmi_tx_purge(ar);
-
-	cancel_work_sync(&ar->offchan_tx_work);
-	cancel_work_sync(&ar->wmi_mgmt_tx_work);
 	cancel_work_sync(&ar->restart_work);
 }
 
@@ -2925,7 +3025,12 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 		arvif->u.ap.hidden_ssid = info->hidden_ssid;
 	}
 
-	if (changed & BSS_CHANGED_BSSID) {
+	/*
+	 * Firmware manages AP self-peer internally so make sure to not create
+	 * it in driver. Otherwise AP self-peer deletion may timeout later.
+	 */
+	if (changed & BSS_CHANGED_BSSID &&
+	    vif->type != NL80211_IFTYPE_AP) {
 		if (!is_zero_ether_addr(info->bssid)) {
 			ath10k_dbg(ATH10K_DBG_MAC,
 				   "mac vdev %d create peer %pM\n",
@@ -4142,14 +4247,6 @@ static int ath10k_set_bitrate_mask(struct ieee80211_hw *hw,
 					   fixed_nss, force_sgi);
 }
 
-static void ath10k_channel_switch_beacon(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif,
-					 struct cfg80211_chan_def *chandef)
-{
-	/* there's no need to do anything here. vif->csa_active is enough */
-	return;
-}
-
 static void ath10k_sta_rc_update(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -4253,10 +4350,11 @@ static const struct ieee80211_ops ath10k_ops = {
 	.set_frag_threshold		= ath10k_set_frag_threshold,
 	.flush				= ath10k_flush,
 	.tx_last_beacon			= ath10k_tx_last_beacon,
+	.set_antenna			= ath10k_set_antenna,
+	.get_antenna			= ath10k_get_antenna,
 	.restart_complete		= ath10k_restart_complete,
 	.get_survey			= ath10k_get_survey,
 	.set_bitrate_mask		= ath10k_set_bitrate_mask,
-	.channel_switch_beacon		= ath10k_channel_switch_beacon,
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.get_tsf			= ath10k_get_tsf,
 #ifdef CONFIG_PM
@@ -4601,6 +4699,18 @@ int ath10k_mac_register(struct ath10k *ar)
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_AP);
+
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+		/* TODO:  Have to deal with 2x2 chips if/when the come out. */
+		ar->supp_tx_chainmask = TARGET_10X_TX_CHAIN_MASK;
+		ar->supp_rx_chainmask = TARGET_10X_RX_CHAIN_MASK;
+	} else {
+		ar->supp_tx_chainmask = TARGET_TX_CHAIN_MASK;
+		ar->supp_rx_chainmask = TARGET_RX_CHAIN_MASK;
+	}
+
+	ar->hw->wiphy->available_antennas_rx = ar->supp_rx_chainmask;
+	ar->hw->wiphy->available_antennas_tx = ar->supp_tx_chainmask;
 
 	if (!test_bit(ATH10K_FW_FEATURE_NO_P2P, ar->fw_features))
 		ar->hw->wiphy->interface_modes |=

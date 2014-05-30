@@ -83,7 +83,7 @@ void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id)
 	__clear_bit(msdu_id, htt->used_msdu_ids);
 }
 
-int ath10k_htt_tx_attach(struct ath10k_htt *htt)
+int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 {
 	spin_lock_init(&htt->tx_lock);
 	init_waitqueue_head(&htt->empty_tx_wq);
@@ -120,7 +120,7 @@ int ath10k_htt_tx_attach(struct ath10k_htt *htt)
 	return 0;
 }
 
-static void ath10k_htt_tx_cleanup_pending(struct ath10k_htt *htt)
+static void ath10k_htt_tx_free_pending(struct ath10k_htt *htt)
 {
 	struct htt_tx_done tx_done = {0};
 	int msdu_id;
@@ -141,9 +141,9 @@ static void ath10k_htt_tx_cleanup_pending(struct ath10k_htt *htt)
 	spin_unlock_bh(&htt->tx_lock);
 }
 
-void ath10k_htt_tx_detach(struct ath10k_htt *htt)
+void ath10k_htt_tx_free(struct ath10k_htt *htt)
 {
-	ath10k_htt_tx_cleanup_pending(htt);
+	ath10k_htt_tx_free_pending(htt);
 	kfree(htt->pending_tx);
 	kfree(htt->used_msdu_ids);
 	dma_pool_destroy(htt->tx_pool);

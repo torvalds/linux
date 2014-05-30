@@ -830,17 +830,11 @@ int ath10k_htc_start(struct ath10k_htc *htc)
 	return 0;
 }
 
-/*
- * stop HTC communications, i.e. stop interrupt reception, and flush all
- * queued buffers
- */
 void ath10k_htc_stop(struct ath10k_htc *htc)
 {
 	spin_lock_bh(&htc->tx_lock);
 	htc->stopped = true;
 	spin_unlock_bh(&htc->tx_lock);
-
-	ath10k_hif_stop(htc->ar);
 }
 
 /* registered target arrival callback from the HIF layer */
