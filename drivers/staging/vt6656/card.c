@@ -128,7 +128,7 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
  * Return Value: response Control frame rate
  *
  */
-static u16 swGetCCKControlRate(struct vnt_private *priv, u16 rate_idx)
+static u16 vnt_get_cck_rate(struct vnt_private *priv, u16 rate_idx)
 {
 	u16 ui = rate_idx;
 
@@ -301,19 +301,19 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 
 	/*RSPINF_b_1*/
 	BBvCalculateParameter(priv, 14,
-		swGetCCKControlRate(priv, RATE_1M), PK_TYPE_11B, &phy[0]);
+		vnt_get_cck_rate(priv, RATE_1M), PK_TYPE_11B, &phy[0]);
 
 	/*RSPINF_b_2*/
 	BBvCalculateParameter(priv, 14,
-		swGetCCKControlRate(priv, RATE_2M), PK_TYPE_11B, &phy[1]);
+		vnt_get_cck_rate(priv, RATE_2M), PK_TYPE_11B, &phy[1]);
 
 	/*RSPINF_b_5*/
 	BBvCalculateParameter(priv, 14,
-		swGetCCKControlRate(priv, RATE_5M), PK_TYPE_11B, &phy[2]);
+		vnt_get_cck_rate(priv, RATE_5M), PK_TYPE_11B, &phy[2]);
 
 	/*RSPINF_b_11*/
 	BBvCalculateParameter(priv, 14,
-		swGetCCKControlRate(priv, RATE_11M), PK_TYPE_11B, &phy[3]);
+		vnt_get_cck_rate(priv, RATE_11M), PK_TYPE_11B, &phy[3]);
 
 
 	/*RSPINF_a_6*/
