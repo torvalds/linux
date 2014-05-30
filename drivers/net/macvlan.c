@@ -494,33 +494,47 @@ hash_del:
 	return 0;
 }
 
-static int macvlan_set_mac_address(struct net_device *dev, void *p)
+static int macvlan_sync_address(struct net_device *dev, unsigned char *addr)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
-	struct sockaddr *addr = p;
 	int err;
+
+	if (!(dev->flags & IFF_UP)) {
+		/* Just copy in the new address */
+		ether_addr_copy(dev->dev_addr, addr);
+	} else {
+		/* Rehash and update the device filters */
+		if (macvlan_addr_busy(vlan->port, addr))
+			return -EBUSY;
+
+		if (!vlan->port->passthru) {
+			err = dev_uc_add(lowerdev, addr);
+			if (err)
+				return err;
+
+			dev_uc_del(lowerdev, dev->dev_addr);
+		}
+
+		macvlan_hash_change_addr(vlan, addr);
+	}
+	return 0;
+}
+
+static int macvlan_set_mac_address(struct net_device *dev, void *p)
+{
+	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	if (!(dev->flags & IFF_UP)) {
-		/* Just copy in the new address */
-		memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	} else {
-		/* Rehash and update the device filters */
-		if (macvlan_addr_busy(vlan->port, addr->sa_data))
-			return -EBUSY;
-
-		err = dev_uc_add(lowerdev, addr->sa_data);
-		if (err)
-			return err;
-
-		dev_uc_del(lowerdev, dev->dev_addr);
-
-		macvlan_hash_change_addr(vlan, addr->sa_data);
+	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
+		dev_set_mac_address(vlan->lowerdev, addr);
+		return 0;
 	}
-	return 0;
+
+	return macvlan_sync_address(dev, addr->sa_data);
 }
 
 static void macvlan_change_rx_flags(struct net_device *dev, int change)
@@ -1105,6 +1119,18 @@ static int macvlan_device_event(struct notifier_block *unused,
 				continue;
 			dev_set_mtu(vlan->dev, dev->mtu);
 		}
+		break;
+	case NETDEV_CHANGEADDR:
+		if (!port->passthru)
+			return NOTIFY_DONE;
+
+		vlan = list_first_entry_or_null(&port->vlans,
+						struct macvlan_dev,
+						list);
+
+		if (macvlan_sync_address(vlan->dev, dev->dev_addr))
+			return NOTIFY_BAD;
+
 		break;
 	case NETDEV_UNREGISTER:
 		/* twiddle thumbs on netns device moves */
