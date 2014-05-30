@@ -2872,25 +2872,25 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 						return -EINVAL;
 				}
 			break;
-		case MLX4_QP_ST_MLX:
-			qpn = vhcr->in_modifier & 0x7fffff;
-			port = (qp_ctx->pri_path.sched_queue >> 6 & 1) + 1;
-			if (transition == QP_TRANS_INIT2RTR &&
-			    slave != mlx4_master_func_num(dev) &&
-			    mlx4_is_qp_reserved(dev, qpn) &&
-			    !mlx4_vf_smi_enabled(dev, slave, port)) {
-				/* only enabled VFs may create MLX proxy QPs */
-				mlx4_err(dev, "%s: unprivileged slave %d attempting to create an MLX proxy special QP on port %d\n",
-					 __func__, slave, port);
-				return -EPERM;
-			}
-			break;
-
 		default:
 			break;
 		}
-
 		break;
+
+	case MLX4_QP_ST_MLX:
+		qpn = vhcr->in_modifier & 0x7fffff;
+		port = (qp_ctx->pri_path.sched_queue >> 6 & 1) + 1;
+		if (transition == QP_TRANS_INIT2RTR &&
+		    slave != mlx4_master_func_num(dev) &&
+		    mlx4_is_qp_reserved(dev, qpn) &&
+		    !mlx4_vf_smi_enabled(dev, slave, port)) {
+			/* only enabled VFs may create MLX proxy QPs */
+			mlx4_err(dev, "%s: unprivileged slave %d attempting to create an MLX proxy special QP on port %d\n",
+				 __func__, slave, port);
+			return -EPERM;
+		}
+		break;
+
 	default:
 		break;
 	}
