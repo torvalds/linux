@@ -30,7 +30,7 @@
  *      CARDbSoftwareReset - Sortware reset NIC
  *      vnt_get_tsf_offset - Calculate TSFOffset
  *      vnt_get_current_tsf - Read Current NIC TSF counter
- *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
+ *      vnt_get_next_tbtt - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
  *      CARDbRadioPowerOff - Turn Off NIC Radio Power
@@ -657,7 +657,7 @@ bool vnt_clear_current_tsf(struct vnt_private *priv)
  * Return Value: TSF value of next Beacon
  *
  */
-u64 CARDqGetNextTBTT(u64 tsf, u16 beacon_interval)
+u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
 {
 	u32 beacon_int;
 
@@ -696,7 +696,7 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv, u16 beacon_interval)
 
 	vnt_clear_current_tsf(priv);
 
-	next_tbtt = CARDqGetNextTBTT(next_tbtt, beacon_interval);
+	next_tbtt = vnt_get_next_tbtt(next_tbtt, beacon_interval);
 
 	data[0] = (u8)next_tbtt;
 	data[1] = (u8)(next_tbtt >> 8);
@@ -733,7 +733,7 @@ void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 tsf,
 {
 	u8 data[8];
 
-	tsf = CARDqGetNextTBTT(tsf, beacon_interval);
+	tsf = vnt_get_next_tbtt(tsf, beacon_interval);
 
 	data[0] = (u8)tsf;
 	data[1] = (u8)(tsf >> 8);

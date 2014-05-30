@@ -57,7 +57,7 @@ bool vnt_clear_current_tsf(struct vnt_private *);
 void CARDvSetFirstNextTBTT(struct vnt_private *pDevice, u16 wBeaconInterval);
 void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,
 			 u16 wBeaconInterval);
-u64 CARDqGetNextTBTT(u64 qwTSF, u16 wBeaconInterval);
+u64 vnt_get_next_tbtt(u64, u16);
 u64 vnt_get_tsf_offset(u8 byRxRate, u64 qwTSF1, u64 qwTSF2);
 int CARDbRadioPowerOff(struct vnt_private *pDevice);
 int CARDbRadioPowerOn(struct vnt_private *pDevice);
