@@ -225,8 +225,11 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 
 /* Link state evt is a string of bytes; no need for endian swapping */
 static void be_async_link_state_process(struct be_adapter *adapter,
-					struct be_async_event_link_state *evt)
+					struct be_mcc_compl *compl)
 {
+	struct be_async_event_link_state *evt =
+			(struct be_async_event_link_state *)compl;
+
 	/* When link status changes, link speed must be re-queried from FW */
 	adapter->phy.link_speed = -1;
 
@@ -249,10 +252,11 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 
 /* Grp5 CoS Priority evt */
 static void be_async_grp5_cos_priority_process(struct be_adapter *adapter,
-					       struct
-					       be_async_event_grp5_cos_priority
-					       *evt)
+					       struct be_mcc_compl *compl)
 {
+	struct be_async_event_grp5_cos_priority *evt =
+			(struct be_async_event_grp5_cos_priority *)compl;
+
 	if (evt->valid) {
 		adapter->vlan_prio_bmap = evt->available_priority_bmap;
 		adapter->recommended_prio &= ~VLAN_PRIO_MASK;
@@ -263,10 +267,11 @@ static void be_async_grp5_cos_priority_process(struct be_adapter *adapter,
 
 /* Grp5 QOS Speed evt: qos_link_speed is in units of 10 Mbps */
 static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
-					    struct
-					    be_async_event_grp5_qos_link_speed
-					    *evt)
+					    struct be_mcc_compl *compl)
 {
+	struct be_async_event_grp5_qos_link_speed *evt =
+			(struct be_async_event_grp5_qos_link_speed *)compl;
+
 	if (adapter->phy.link_speed >= 0 &&
 	    evt->physical_port == adapter->port_num)
 		adapter->phy.link_speed = le16_to_cpu(evt->qos_link_speed) * 10;
@@ -274,10 +279,11 @@ static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
 
 /*Grp5 PVID evt*/
 static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
-					     struct
-					     be_async_event_grp5_pvid_state
-					     *evt)
+					     struct be_mcc_compl *compl)
 {
+	struct be_async_event_grp5_pvid_state *evt =
+			(struct be_async_event_grp5_pvid_state *)compl;
+
 	if (evt->enabled) {
 		adapter->pvid = le16_to_cpu(evt->tag) & VLAN_VID_MASK;
 		dev_info(&adapter->pdev->dev, "LPVID: %d\n", adapter->pvid);
@@ -287,26 +293,21 @@ static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
 }
 
 static void be_async_grp5_evt_process(struct be_adapter *adapter,
-				      u32 trailer, struct be_mcc_compl *evt)
+				      struct be_mcc_compl *compl)
 {
-	u8 event_type = 0;
-
-	event_type = (trailer >> ASYNC_TRAILER_EVENT_TYPE_SHIFT) &
-		ASYNC_TRAILER_EVENT_TYPE_MASK;
+	u8 event_type = (compl->flags >> ASYNC_EVENT_TYPE_SHIFT) &
+				ASYNC_EVENT_TYPE_MASK;
 
 	switch (event_type) {
 	case ASYNC_EVENT_COS_PRIORITY:
-		be_async_grp5_cos_priority_process(adapter,
-		(struct be_async_event_grp5_cos_priority *)evt);
-	break;
+		be_async_grp5_cos_priority_process(adapter, compl);
+		break;
 	case ASYNC_EVENT_QOS_SPEED:
-		be_async_grp5_qos_speed_process(adapter,
-		(struct be_async_event_grp5_qos_link_speed *)evt);
-	break;
+		be_async_grp5_qos_speed_process(adapter, compl);
+		break;
 	case ASYNC_EVENT_PVID_STATE:
-		be_async_grp5_pvid_state_process(adapter,
-		(struct be_async_event_grp5_pvid_state *)evt);
-	break;
+		be_async_grp5_pvid_state_process(adapter, compl);
+		break;
 	default:
 		dev_warn(&adapter->pdev->dev, "Unknown grp5 event 0x%x!\n",
 			 event_type);
@@ -315,13 +316,13 @@ static void be_async_grp5_evt_process(struct be_adapter *adapter,
 }
 
 static void be_async_dbg_evt_process(struct be_adapter *adapter,
-				     u32 trailer, struct be_mcc_compl *cmp)
+				     struct be_mcc_compl *cmp)
 {
 	u8 event_type = 0;
 	struct be_async_event_qnq *evt = (struct be_async_event_qnq *) cmp;
 
-	event_type = (trailer >> ASYNC_TRAILER_EVENT_TYPE_SHIFT) &
-		ASYNC_TRAILER_EVENT_TYPE_MASK;
+	event_type = (cmp->flags >> ASYNC_EVENT_TYPE_SHIFT) &
+			ASYNC_EVENT_TYPE_MASK;
 
 	switch (event_type) {
 	case ASYNC_DEBUG_EVENT_TYPE_QNQ:
@@ -336,25 +337,33 @@ static void be_async_dbg_evt_process(struct be_adapter *adapter,
 	}
 }
 
-static inline bool is_link_state_evt(u32 trailer)
+static inline bool is_link_state_evt(u32 flags)
 {
-	return ((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		ASYNC_TRAILER_EVENT_CODE_MASK) ==
-				ASYNC_EVENT_CODE_LINK_STATE;
+	return ((flags >> ASYNC_EVENT_CODE_SHIFT) & ASYNC_EVENT_CODE_MASK) ==
+			ASYNC_EVENT_CODE_LINK_STATE;
 }
 
-static inline bool is_grp5_evt(u32 trailer)
+static inline bool is_grp5_evt(u32 flags)
 {
-	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		ASYNC_TRAILER_EVENT_CODE_MASK) ==
-				ASYNC_EVENT_CODE_GRP_5);
+	return ((flags >> ASYNC_EVENT_CODE_SHIFT) & ASYNC_EVENT_CODE_MASK) ==
+			ASYNC_EVENT_CODE_GRP_5;
 }
 
-static inline bool is_dbg_evt(u32 trailer)
+static inline bool is_dbg_evt(u32 flags)
 {
-	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		ASYNC_TRAILER_EVENT_CODE_MASK) ==
-				ASYNC_EVENT_CODE_QNQ);
+	return ((flags >> ASYNC_EVENT_CODE_SHIFT) & ASYNC_EVENT_CODE_MASK) ==
+			ASYNC_EVENT_CODE_QNQ;
+}
+
+static void be_mcc_event_process(struct be_adapter *adapter,
+				 struct be_mcc_compl *compl)
+{
+	if (is_link_state_evt(compl->flags))
+		be_async_link_state_process(adapter, compl);
+	else if (is_grp5_evt(compl->flags))
+		be_async_grp5_evt_process(adapter, compl);
+	else if (is_dbg_evt(compl->flags))
+		be_async_dbg_evt_process(adapter, compl);
 }
 
 static struct be_mcc_compl *be_mcc_compl_get(struct be_adapter *adapter)
@@ -396,21 +405,13 @@ int be_process_mcc(struct be_adapter *adapter)
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
 	spin_lock(&adapter->mcc_cq_lock);
+
 	while ((compl = be_mcc_compl_get(adapter))) {
 		if (compl->flags & CQE_FLAGS_ASYNC_MASK) {
-			/* Interpret flags as an async trailer */
-			if (is_link_state_evt(compl->flags))
-				be_async_link_state_process(adapter,
-				(struct be_async_event_link_state *) compl);
-			else if (is_grp5_evt(compl->flags))
-				be_async_grp5_evt_process(adapter,
-							  compl->flags, compl);
-			else if (is_dbg_evt(compl->flags))
-				be_async_dbg_evt_process(adapter,
-							 compl->flags, compl);
+			be_mcc_event_process(adapter, compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
-				status = be_mcc_compl_process(adapter, compl);
-				atomic_dec(&mcc_obj->q.used);
+			status = be_mcc_compl_process(adapter, compl);
+			atomic_dec(&mcc_obj->q.used);
 		}
 		be_mcc_compl_use(compl);
 		num++;

@@ -87,13 +87,13 @@ struct be_mcc_compl {
 	u32 flags;		/* dword 3 */
 };
 
-/* When the async bit of mcc_compl is set, the last 4 bytes of
- * mcc_compl is interpreted as follows:
+/* When the async bit of mcc_compl flags is set, flags
+ * is interpreted as follows:
  */
-#define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
-#define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
-#define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16
-#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xFF
+#define ASYNC_EVENT_CODE_SHIFT		8	/* bits 8 - 15 */
+#define ASYNC_EVENT_CODE_MASK		0xFF
+#define ASYNC_EVENT_TYPE_SHIFT		16
+#define ASYNC_EVENT_TYPE_MASK		0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
 #define ASYNC_EVENT_CODE_GRP_5		0x5
 #define ASYNC_EVENT_QOS_SPEED		0x1
@@ -102,10 +102,6 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_CODE_QNQ		0x6
 #define ASYNC_DEBUG_EVENT_TYPE_QNQ	1
 
-struct be_async_event_trailer {
-	u32 code;
-};
-
 enum {
 	LINK_DOWN	= 0x0,
 	LINK_UP		= 0x1
@@ -113,7 +109,7 @@ enum {
 #define LINK_STATUS_MASK			0x1
 #define LOGICAL_LINK_STATUS_MASK		0x2
 
-/* When the event code of an async trailer is link-state, the mcc_compl
+/* When the event code of compl->flags is link-state, the mcc_compl
  * must be interpreted as follows
  */
 struct be_async_event_link_state {
@@ -123,10 +119,10 @@ struct be_async_event_link_state {
 	u8 port_speed;
 	u8 port_fault;
 	u8 rsvd0[7];
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
-/* When the event code of an async trailer is GRP-5 and event_type is QOS_SPEED
+/* When the event code of compl->flags is GRP-5 and event_type is QOS_SPEED
  * the mcc_compl must be interpreted as follows
  */
 struct be_async_event_grp5_qos_link_speed {
@@ -134,10 +130,10 @@ struct be_async_event_grp5_qos_link_speed {
 	u8 rsvd[5];
 	u16 qos_link_speed;
 	u32 event_tag;
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
-/* When the event code of an async trailer is GRP5 and event type is
+/* When the event code of compl->flags is GRP5 and event type is
  * CoS-Priority, the mcc_compl must be interpreted as follows
  */
 struct be_async_event_grp5_cos_priority {
@@ -147,10 +143,10 @@ struct be_async_event_grp5_cos_priority {
 	u8 valid;
 	u8 rsvd0;
 	u8 event_tag;
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
-/* When the event code of an async trailer is GRP5 and event type is
+/* When the event code of compl->flags is GRP5 and event type is
  * PVID state, the mcc_compl must be interpreted as follows
  */
 struct be_async_event_grp5_pvid_state {
@@ -159,7 +155,7 @@ struct be_async_event_grp5_pvid_state {
 	u16 tag;
 	u32 event_tag;
 	u32 rsvd1;
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
 /* async event indicating outer VLAN tag in QnQ */
@@ -169,7 +165,7 @@ struct be_async_event_qnq {
 	u16 vlan_tag;
 	u32 event_tag;
 	u8 rsvd1[4];
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
 struct be_mcc_mailbox {
