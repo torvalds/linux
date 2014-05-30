@@ -967,7 +967,6 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	nq = netdev_get_tx_queue(dev, queue);
 
 	if (has_tiny_unaligned_frags(skb) && __skb_linearize(skb)) {
-		txq->tx_dropped++;
 		netdev_printk(KERN_DEBUG, dev,
 			      "failed to linearize skb with tiny unaligned fragment\n");
 		return NETDEV_TX_BUSY;
@@ -976,6 +975,7 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (txq->tx_ring_size - txq->tx_desc_count < MAX_SKB_FRAGS + 1) {
 		if (net_ratelimit())
 			netdev_err(dev, "tx queue full?!\n");
+		txq->tx_dropped++;
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -997,6 +997,9 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_stop_queue(nq);
 	} else if (ret == -EBUSY) {
 		return NETDEV_TX_BUSY;
+	} else {
+		txq->tx_dropped++;
+		dev_kfree_skb_any(skb);
 	}
 
 	return NETDEV_TX_OK;
