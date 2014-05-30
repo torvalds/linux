@@ -22,25 +22,11 @@
 
 ACPI_MODULE_NAME("platform");
 
-/*
- * The following ACPI IDs are known to be suitable for representing as
- * platform devices.
- */
-static const struct acpi_device_id acpi_platform_device_ids[] = {
-
-	{ "PNP0D40" },
-	{ "VPC2004" },
-	{ "BCM4752" },
-	{ "LNV4752" },
-	{ "BCM2E1A" },
-	{ "BCM2E39" },
-	{ "BCM2E3D" },
-
-	/* Intel Smart Sound Technology */
-	{ "INT33C8" },
-	{ "80860F28" },
-
-	{ }
+static const struct acpi_device_id forbidden_id_list[] = {
+	{"PNP0000", 0},	/* PIC */
+	{"PNP0100", 0},	/* Timer */
+	{"PNP0200", 0},	/* AT DMA Controller */
+	{"", 0},
 };
 
 /**
@@ -66,6 +52,9 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	/* If the ACPI node already has a physical device attached, skip it. */
 	if (adev->physical_node_count)
 		return NULL;
+
+	if (!acpi_match_device_ids(adev, forbidden_id_list))
+		return ERR_PTR(-EINVAL);
 
 	INIT_LIST_HEAD(&resource_list);
 	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
@@ -123,21 +112,4 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 
 	kfree(resources);
 	return pdev;
-}
-
-static int acpi_platform_attach(struct acpi_device *adev,
-				const struct acpi_device_id *id)
-{
-	acpi_create_platform_device(adev);
-	return 1;
-}
-
-static struct acpi_scan_handler platform_handler = {
-	.ids = acpi_platform_device_ids,
-	.attach = acpi_platform_attach,
-};
-
-void __init acpi_platform_init(void)
-{
-	acpi_scan_add_handler(&platform_handler);
 }
