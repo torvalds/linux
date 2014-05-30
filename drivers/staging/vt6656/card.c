@@ -31,7 +31,7 @@
  *      vnt_get_tsf_offset - Calculate TSFOffset
  *      vnt_get_current_tsf - Read Current NIC TSF counter
  *      vnt_get_next_tbtt - Calculate Next Beacon TSF counter
- *      CARDvSetFirstNextTBTT - Set NIC Beacon time
+ *      vnt_reset_next_tbtt - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
  *      CARDbRadioPowerOff - Turn Off NIC Radio Power
  *      CARDbRadioPowerOn - Turn On NIC Radio Power
@@ -689,7 +689,7 @@ u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
  * Return Value: none
  *
  */
-void CARDvSetFirstNextTBTT(struct vnt_private *priv, u16 beacon_interval)
+void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
 {
 	u64 next_tbtt = 0;
 	u8 data[8];

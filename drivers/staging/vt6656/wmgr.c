@@ -2051,7 +2051,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     // enable TSF counter
     MACvRegBitsOn(pDevice,MAC_REG_TFTCTL,TFTCTL_TSFCNTREN);
     // set Next TBTT
-    CARDvSetFirstNextTBTT(pDevice, pMgmt->wIBSSBeaconPeriod);
+    vnt_reset_next_tbtt(pDevice, pMgmt->wIBSSBeaconPeriod);
 
     pMgmt->uIBSSChannel = pDevice->uChannel;
 
@@ -2584,7 +2584,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
 
     // set Next TBTT
     // Next TBTT = ((local_current_TSF / beacon_interval) + 1 ) * beacon_interval
-    CARDvSetFirstNextTBTT(pDevice, pCurr->wBeaconInterval);
+    vnt_reset_next_tbtt(pDevice, pCurr->wBeaconInterval);
 
     // set BSSID
     MACvWriteBSSIDAddress(pDevice, pCurr->abyBSSID);
