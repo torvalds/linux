@@ -2046,7 +2046,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 
     vnt_get_current_tsf(pDevice, &qwCurrTSF);
     // clear TSF counter
-    CARDbClearCurrentTSF(pDevice);
+    vnt_clear_current_tsf(pDevice);
 
     // enable TSF counter
     MACvRegBitsOn(pDevice,MAC_REG_TFTCTL,TFTCTL_TSFCNTREN);

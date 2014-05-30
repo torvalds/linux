@@ -633,7 +633,7 @@ bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf)
  * Return Value: true if success; otherwise false
  *
  */
-bool CARDbClearCurrentTSF(struct vnt_private *priv)
+bool vnt_clear_current_tsf(struct vnt_private *priv)
 {
 
 	MACvRegBitsOn(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
@@ -694,7 +694,7 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv, u16 beacon_interval)
 	u64 next_tbtt = 0;
 	u8 data[8];
 
-	CARDbClearCurrentTSF(priv);
+	vnt_clear_current_tsf(priv);
 
 	next_tbtt = CARDqGetNextTBTT(next_tbtt, beacon_interval);
 
