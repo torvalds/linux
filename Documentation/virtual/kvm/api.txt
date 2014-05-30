@@ -1794,6 +1794,11 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_MMCR0     | 64
   PPC   | KVM_REG_PPC_MMCR1     | 64
   PPC   | KVM_REG_PPC_MMCRA     | 64
+  PPC   | KVM_REG_PPC_MMCR2     | 64
+  PPC   | KVM_REG_PPC_MMCRS     | 64
+  PPC   | KVM_REG_PPC_SIAR      | 64
+  PPC   | KVM_REG_PPC_SDAR      | 64
+  PPC   | KVM_REG_PPC_SIER      | 64
   PPC   | KVM_REG_PPC_PMC1      | 32
   PPC   | KVM_REG_PPC_PMC2      | 32
   PPC   | KVM_REG_PPC_PMC3      | 32
@@ -1868,6 +1873,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_PPR	| 64
   PPC   | KVM_REG_PPC_ARCH_COMPAT 32
   PPC   | KVM_REG_PPC_DABRX     | 32
+  PPC   | KVM_REG_PPC_WORT      | 64
   PPC   | KVM_REG_PPC_TM_GPR0	| 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31	| 64

@@ -97,7 +97,7 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 static void __slb_flush_and_rebolt(void)
 {
 	/* If you change this make sure you change SLB_NUM_BOLTED
-	 * appropriately too. */
+	 * and PR KVM appropriately too. */
 	unsigned long linear_llp, vmalloc_llp, lflags, vflags;
 	unsigned long ksp_esid_data, ksp_vsid_data;
 

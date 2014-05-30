@@ -449,7 +449,9 @@ struct kvm_vcpu_arch {
 	ulong pc;
 	ulong ctr;
 	ulong lr;
+#ifdef CONFIG_PPC_BOOK3S
 	ulong tar;
+#endif
 
 	ulong xer;
 	u32 cr;
@@ -475,6 +477,7 @@ struct kvm_vcpu_arch {
 	ulong ppr;
 	ulong pspb;
 	ulong fscr;
+	ulong shadow_fscr;
 	ulong ebbhr;
 	ulong ebbrr;
 	ulong bescr;
@@ -562,6 +565,7 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_PPC_BOOK3S
 	ulong fault_dar;
 	u32 fault_dsisr;
+	unsigned long intr_msr;
 #endif
 
 #ifdef CONFIG_BOOKE
@@ -622,8 +626,12 @@ struct kvm_vcpu_arch {
 	wait_queue_head_t cpu_run;
 
 	struct kvm_vcpu_arch_shared *shared;
+#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
+	bool shared_big_endian;
+#endif
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
 	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
+	bool disable_kernel_nx;
 
 	int irq_type;		/* one of KVM_IRQ_* */
 	int irq_cpu_id;
@@ -654,7 +662,6 @@ struct kvm_vcpu_arch {
 	spinlock_t tbacct_lock;
 	u64 busy_stolen;
 	u64 busy_preempt;
-	unsigned long intr_msr;
 #endif
 };
 
