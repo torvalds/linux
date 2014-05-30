@@ -264,6 +264,7 @@ struct drm_mode_get_connector {
  */
 #define DRM_MODE_PROP_EXTENDED_TYPE	0x0000ffc0
 #define DRM_MODE_PROP_TYPE(n)		((n) << 6)
+#define DRM_MODE_PROP_OBJECT		DRM_MODE_PROP_TYPE(1)
 
 struct drm_mode_property_enum {
 	__u64 value;

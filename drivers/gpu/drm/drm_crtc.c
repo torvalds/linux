@@ -370,6 +370,21 @@ void drm_mode_object_put(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
+static struct drm_mode_object *_object_find(struct drm_device *dev,
+		uint32_t id, uint32_t type)
+{
+	struct drm_mode_object *obj = NULL;
+
+	mutex_lock(&dev->mode_config.idr_mutex);
+	obj = idr_find(&dev->mode_config.crtc_idr, id);
+	if (!obj || (type != DRM_MODE_OBJECT_ANY && obj->type != type) ||
+	    (obj->id != id))
+		obj = NULL;
+	mutex_unlock(&dev->mode_config.idr_mutex);
+
+	return obj;
+}
+
 /**
  * drm_mode_object_find - look up a drm object with static lifetime
  * @dev: drm device
@@ -377,7 +392,9 @@ void drm_mode_object_put(struct drm_device *dev,
  * @type: type of the mode object
  *
  * Note that framebuffers cannot be looked up with this functions - since those
- * are reference counted, they need special treatment.
+ * are reference counted, they need special treatment.  Even with
+ * DRM_MODE_OBJECT_ANY (although that will simply return NULL
+ * rather than WARN_ON()).
  */
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type)
@@ -387,13 +404,10 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 	/* Framebuffers are reference counted and need their own lookup
 	 * function.*/
 	WARN_ON(type == DRM_MODE_OBJECT_FB);
-
-	mutex_lock(&dev->mode_config.idr_mutex);
-	obj = idr_find(&dev->mode_config.crtc_idr, id);
-	if (!obj || (obj->type != type) || (obj->id != id))
+	obj = _object_find(dev, id, type);
+	/* don't leak out unref'd fb's */
+	if (obj && (obj->type == DRM_MODE_OBJECT_FB))
 		obj = NULL;
-	mutex_unlock(&dev->mode_config.idr_mutex);
-
 	return obj;
 }
 EXPORT_SYMBOL(drm_mode_object_find);
@@ -3074,6 +3088,8 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	if (!property)
 		return NULL;
 
+	property->dev = dev;
+
 	if (num_values) {
 		property->values = kzalloc(sizeof(uint64_t)*num_values, GFP_KERNEL);
 		if (!property->values)
@@ -3233,6 +3249,23 @@ struct drm_property *drm_property_create_range(struct drm_device *dev, int flags
 	return property;
 }
 EXPORT_SYMBOL(drm_property_create_range);
+
+struct drm_property *drm_property_create_object(struct drm_device *dev,
+					 int flags, const char *name, uint32_t type)
+{
+	struct drm_property *property;
+
+	flags |= DRM_MODE_PROP_OBJECT;
+
+	property = drm_property_create(dev, flags, name, 1);
+	if (!property)
+		return NULL;
+
+	property->values[0] = type;
+
+	return property;
+}
+EXPORT_SYMBOL(drm_property_create_object);
 
 /**
  * drm_property_add_enum - add a possible value to an enumeration property
@@ -3661,6 +3694,20 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB)) {
 		/* Only the driver knows */
 		return true;
+	} else if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
+		struct drm_mode_object *obj;
+		/* a zero value for an object property translates to null: */
+		if (value == 0)
+			return true;
+		/*
+		 * NOTE: use _object_find() directly to bypass restriction on
+		 * looking up refcnt'd objects (ie. fb's).  For a refcnt'd
+		 * object this could race against object finalization, so it
+		 * simply tells us that the object *was* valid.  Which is good
+		 * enough.
+		 */
+		obj = _object_find(property->dev, value, property->values[0]);
+		return obj != NULL;
 	} else {
 		int i;
 		for (i = 0; i < property->num_values; i++)

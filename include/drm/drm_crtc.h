@@ -50,6 +50,7 @@ struct drm_clip_rect;
 #define DRM_MODE_OBJECT_BLOB 0xbbbbbbbb
 #define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
 #define DRM_MODE_OBJECT_BRIDGE 0xbdbdbdbd
+#define DRM_MODE_OBJECT_ANY 0
 
 struct drm_mode_object {
 	uint32_t id;
@@ -190,6 +191,7 @@ struct drm_property {
 	char name[DRM_PROP_NAME_LEN];
 	uint32_t num_values;
 	uint64_t *values;
+	struct drm_device *dev;
 
 	struct list_head enum_blob_list;
 };
@@ -980,6 +982,8 @@ struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
 struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
 					 const char *name,
 					 uint64_t min, uint64_t max);
+struct drm_property *drm_property_create_object(struct drm_device *dev,
+					 int flags, const char *name, uint32_t type);
 extern void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 extern int drm_property_add_enum(struct drm_property *property, int index,
 				 uint64_t value, const char *name);
@@ -995,6 +999,7 @@ extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
 extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type);
+
 /* IOCTLs */
 extern int drm_mode_getresources(struct drm_device *dev,
 				 void *data, struct drm_file *file_priv);
