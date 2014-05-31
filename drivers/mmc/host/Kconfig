@@ -697,6 +697,12 @@ config MMC_WMT
 	  To compile this driver as a module, choose M here: the
 	  module will be called wmt-sdmmc.
 
+config MMC_USDHI6ROL0
+	tristate "Renesas USDHI6ROL0 SD/SDIO Host Controller support"
+	help
+	  This selects support for the Renesas USDHI6ROL0 SD/SDIO
+	  Host Controller
+
 config MMC_REALTEK_PCI
 	tristate "Realtek PCI-E SD/MMC Card Interface Driver"
 	depends on MFD_RTSX_PCI
