@@ -26,7 +26,6 @@ int
 bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 {
 	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	int	rc = 0;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
@@ -34,7 +33,7 @@ bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 	if (!bfa_ioc_is_disabled(&bfad->bfa.ioc)) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		iocmd->status = BFA_STATUS_OK;
-		return rc;
+		return 0;
 	}
 
 	init_completion(&bfad->enable_comp);
@@ -43,21 +42,20 @@ bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	wait_for_completion(&bfad->enable_comp);
 
-	return rc;
+	return 0;
 }
 
 int
 bfad_iocmd_ioc_disable(struct bfad_s *bfad, void *cmd)
 {
 	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	int	rc = 0;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	if (bfa_ioc_is_disabled(&bfad->bfa.ioc)) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		iocmd->status = BFA_STATUS_OK;
-		return rc;
+		return 0;
 	}
 
 	if (bfad->disable_active) {
@@ -74,7 +72,7 @@ bfad_iocmd_ioc_disable(struct bfad_s *bfad, void *cmd)
 	bfad->disable_active = BFA_FALSE;
 	iocmd->status = BFA_STATUS_OK;
 
-	return rc;
+	return 0;
 }
 
 static int
