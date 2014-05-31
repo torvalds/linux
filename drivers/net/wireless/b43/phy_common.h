@@ -269,7 +269,6 @@ struct b43_phy {
 	/* Current channel */
 	struct cfg80211_chan_def *chandef;
 	unsigned int channel;
-	u16 channel_freq;
 	enum nl80211_channel_type channel_type;
 
 	/* PHY TX errors counter. */
