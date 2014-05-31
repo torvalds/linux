@@ -359,7 +359,7 @@ static void __blk_mq_complete_request_remote(void *data)
 	rq->q->softirq_done_fn(rq);
 }
 
-void __blk_mq_complete_request(struct request *rq)
+static void blk_mq_ipi_complete_request(struct request *rq)
 {
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	bool shared = false;
@@ -385,6 +385,16 @@ void __blk_mq_complete_request(struct request *rq)
 	put_cpu();
 }
 
+void __blk_mq_complete_request(struct request *rq)
+{
+	struct request_queue *q = rq->q;
+
+	if (!q->softirq_done_fn)
+		blk_mq_end_io(rq, rq->errors);
+	else
+		blk_mq_ipi_complete_request(rq);
+}
+
 /**
  * blk_mq_complete_request - end I/O on a request
  * @rq:		the request being processed
@@ -399,12 +409,8 @@ void blk_mq_complete_request(struct request *rq)
 
 	if (unlikely(blk_should_fake_timeout(q)))
 		return;
-	if (!blk_mark_rq_complete(rq)) {
-		if (q->softirq_done_fn)
-			__blk_mq_complete_request(rq);
-		else
-			blk_mq_end_io(rq, rq->errors);
-	}
+	if (!blk_mark_rq_complete(rq))
+		__blk_mq_complete_request(rq);
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
