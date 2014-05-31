@@ -1644,28 +1644,3 @@ void process_addba_req23a(struct rtw_adapter *padapter,
 			true : false;
 	}
 }
-
-static struct rtw_adapter *pbuddy_padapter;
-
-int rtw_handle_dualmac23a(struct rtw_adapter *adapter, bool init)
-{
-	int status = _SUCCESS;
-
-	if (init) {
-		if (pbuddy_padapter == NULL) {
-			pbuddy_padapter = adapter;
-			DBG_8723A("%s(): pbuddy_padapter == NULL, "
-				  "Set pbuddy_padapter\n", __func__);
-		} else {
-			adapter->pbuddy_adapter = pbuddy_padapter;
-			pbuddy_padapter->pbuddy_adapter = adapter;
-			/*  clear global value */
-			pbuddy_padapter = NULL;
-			DBG_8723A("%s(): pbuddy_padapter exist, "
-				  "Exchange Information\n", __func__);
-		}
-	} else
-		pbuddy_padapter = NULL;
-
-	return status;
-}

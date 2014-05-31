@@ -259,7 +259,6 @@ struct rtw_adapter {
 	u8 bWritePortCancel;
 	/* The driver will show the desired chan nor when this flag is 1. */
 	u8 bNotifyChannelChange;
-	struct rtw_adapter *pbuddy_adapter;
 
 	/* extend to support multi interface */
 	/* IFACE_ID0 is equals to PRIMARY_ADAPTER */
@@ -268,8 +267,6 @@ struct rtw_adapter {
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
-
-int rtw_handle_dualmac23a(struct rtw_adapter *adapter, bool init);
 
 static inline u8 *myid(struct eeprom_priv *peepriv)
 {

@@ -114,7 +114,6 @@ int ips_leave23a(struct rtw_adapter * padapter)
 
 static bool rtw_pwr_unassociated_idle(struct rtw_adapter *adapter)
 {
-	struct rtw_adapter *buddy = adapter->pbuddy_adapter;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct xmit_priv *pxmit_priv = &adapter->xmitpriv;
 
@@ -128,21 +127,6 @@ static bool rtw_pwr_unassociated_idle(struct rtw_adapter *adapter)
 	    check_fwstate(pmlmepriv, WIFI_AP_STATE) ||
 	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)){
 		goto exit;
-	}
-
-	/* consider buddy, if exist */
-	if (buddy) {
-		struct mlme_priv *b_pmlmepriv = &buddy->mlmepriv;
-
-		if (check_fwstate(b_pmlmepriv,
-				  WIFI_ASOC_STATE|WIFI_SITE_MONITOR) ||
-		    check_fwstate(b_pmlmepriv,
-				  WIFI_UNDER_LINKING|WIFI_UNDER_WPS) ||
-		    check_fwstate(b_pmlmepriv, WIFI_AP_STATE) ||
-		    check_fwstate(b_pmlmepriv,
-				  WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)) {
-			goto exit;
-		}
 	}
 
 	if (pxmit_priv->free_xmitbuf_cnt != NR_XMITBUFF ||
