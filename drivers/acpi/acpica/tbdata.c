@@ -322,7 +322,39 @@ void acpi_tb_invalidate_table(struct acpi_table_desc *table_desc)
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_tb_verify_table
+ * FUNCTION:    acpi_tb_validate_temp_table
+ *
+ * PARAMETERS:  table_desc          - Table descriptor
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This function is called to validate the table, the returned
+ *              table descriptor is in "VALIDATED" state.
+ *
+ *****************************************************************************/
+
+acpi_status acpi_tb_validate_temp_table(struct acpi_table_desc *table_desc)
+{
+
+	if (!table_desc->pointer && !acpi_gbl_verify_table_checksum) {
+		/*
+		 * Only validates the header of the table.
+		 * Note that Length contains the size of the mapping after invoking
+		 * this work around, this value is required by
+		 * acpi_tb_release_temp_table().
+		 * We can do this because in acpi_init_table_descriptor(), the Length
+		 * field of the installed descriptor is filled with the actual
+		 * table length obtaining from the table header.
+		 */
+		table_desc->length = sizeof(struct acpi_table_header);
+	}
+
+	return (acpi_tb_validate_table(table_desc));
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_verify_temp_table
  *
  * PARAMETERS:  table_desc          - Table descriptor
  *              signature           - Table signature to verify
@@ -335,15 +367,15 @@ void acpi_tb_invalidate_table(struct acpi_table_desc *table_desc)
  *****************************************************************************/
 
 acpi_status
-acpi_tb_verify_table(struct acpi_table_desc *table_desc, char *signature)
+acpi_tb_verify_temp_table(struct acpi_table_desc * table_desc, char *signature)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE(tb_verify_table);
+	ACPI_FUNCTION_TRACE(tb_verify_temp_table);
 
 	/* Validate the table */
 
-	status = acpi_tb_validate_table(table_desc);
+	status = acpi_tb_validate_temp_table(table_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -360,17 +392,22 @@ acpi_tb_verify_table(struct acpi_table_desc *table_desc, char *signature)
 
 	/* Verify the checksum */
 
-	status =
-	    acpi_tb_verify_checksum(table_desc->pointer, table_desc->length);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,
-				"%4.4s " ACPI_PRINTF_UINT
-				" Attempted table install failed",
-				acpi_ut_valid_acpi_name(table_desc->signature.
-							ascii) ? table_desc->
-				signature.ascii : "????",
-				ACPI_FORMAT_TO_UINT(table_desc->address)));
-		goto invalidate_and_exit;
+	if (acpi_gbl_verify_table_checksum) {
+		status =
+		    acpi_tb_verify_checksum(table_desc->pointer,
+					    table_desc->length);
+		if (ACPI_FAILURE(status)) {
+			ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,
+					"%4.4s " ACPI_PRINTF_UINT
+					" Attempted table install failed",
+					acpi_ut_valid_acpi_name(table_desc->
+								signature.
+								ascii) ?
+					table_desc->signature.ascii : "????",
+					ACPI_FORMAT_TO_UINT(table_desc->
+							    address)));
+			goto invalidate_and_exit;
+		}
 	}
 
 	return_ACPI_STATUS(AE_OK);

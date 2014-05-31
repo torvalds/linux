@@ -395,10 +395,6 @@ next_table:
 		table_entry += table_entry_size;
 	}
 
-	/*
-	 * It is not possible to map more than one entry in some environments,
-	 * so unmap the root table here before mapping other tables
-	 */
 	acpi_os_unmap_memory(table, length);
 
 	return_ACPI_STATUS(AE_OK);

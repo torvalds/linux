@@ -69,6 +69,11 @@ acpi_tb_acquire_temp_table(struct acpi_table_desc *table_desc,
 
 void acpi_tb_release_temp_table(struct acpi_table_desc *table_desc);
 
+acpi_status acpi_tb_validate_temp_table(struct acpi_table_desc *table_desc);
+
+acpi_status
+acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc, char *signature);
+
 u8 acpi_tb_is_table_loaded(u32 table_index);
 
 void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded);
@@ -95,9 +100,6 @@ acpi_status acpi_tb_resize_root_table_list(void);
 acpi_status acpi_tb_validate_table(struct acpi_table_desc *table_desc);
 
 void acpi_tb_invalidate_table(struct acpi_table_desc *table_desc);
-
-acpi_status
-acpi_tb_verify_table(struct acpi_table_desc *table_desc, char *signature);
 
 void acpi_tb_override_table(struct acpi_table_desc *old_table_desc);
 
