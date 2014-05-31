@@ -995,7 +995,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	/* check encryption info */
 	val16 = rtw_get_capability23a(bssid);
 
-	if (val16 & BIT(4))
+	if (val16 & WLAN_CAPABILITY_PRIVACY)
 		bssid->Privacy = 1;
 	else
 		bssid->Privacy = 0;
