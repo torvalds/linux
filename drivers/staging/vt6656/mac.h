@@ -423,7 +423,7 @@ void vnt_mac_reg_bits_off(struct vnt_private *, u8, u8);
 void vnt_mac_reg_bits_on(struct vnt_private *, u8, u8);
 void vnt_mac_write_word(struct vnt_private *, u8, u16);
 void vnt_mac_set_bssid_addr(struct vnt_private *, u8 *);
-void MACvEnableProtectMD(struct vnt_private *);
+void vnt_mac_enable_protect_mode(struct vnt_private *);
 void MACvDisableProtectMD(struct vnt_private *);
 void MACvEnableBarkerPreambleMd(struct vnt_private *);
 void MACvDisableBarkerPreambleMd(struct vnt_private *);

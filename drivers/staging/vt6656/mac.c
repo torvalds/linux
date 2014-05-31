@@ -186,7 +186,7 @@ void vnt_mac_set_bssid_addr(struct vnt_private *priv, u8 *addr)
 		MESSAGE_REQUEST_MACREG, ETH_ALEN, addr);
 }
 
-void MACvEnableProtectMD(struct vnt_private *priv)
+void vnt_mac_enable_protect_mode(struct vnt_private *priv)
 {
 	u8 data[2];
 

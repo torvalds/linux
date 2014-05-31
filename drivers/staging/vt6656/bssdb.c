@@ -946,7 +946,7 @@ void BSSvSecondCallBack(struct work_struct *work)
 		/* on/off protect mode */
 		if (WLAN_GET_ERP_USE_PROTECTION(pDevice->byERPFlag)) {
 			if (!pDevice->bProtectMode) {
-				MACvEnableProtectMD(pDevice);
+				vnt_mac_enable_protect_mode(pDevice);
 				pDevice->bProtectMode = true;
 			}
 		} else if (pDevice->bProtectMode) {

@@ -1655,7 +1655,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                     if ((pBSSList->sERP.byERP & WLAN_EID_ERP_USE_PROTECTION) != pDevice->bProtectMode) {//0000 0010
                         pDevice->bProtectMode = (pBSSList->sERP.byERP & WLAN_EID_ERP_USE_PROTECTION);
                         if (pDevice->bProtectMode) {
-                            MACvEnableProtectMD(pDevice);
+			    vnt_mac_enable_protect_mode(pDevice);
                         } else {
                             MACvDisableProtectMD(pDevice);
                         }
@@ -2387,7 +2387,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
                 if ((pCurr->sERP.byERP & WLAN_EID_ERP_USE_PROTECTION) != pDevice->bProtectMode) {//0000 0010
                     pDevice->bProtectMode = (pCurr->sERP.byERP & WLAN_EID_ERP_USE_PROTECTION);
                     if (pDevice->bProtectMode) {
-                        MACvEnableProtectMD(pDevice);
+			vnt_mac_enable_protect_mode(pDevice);
                     } else {
                         MACvDisableProtectMD(pDevice);
                     }
