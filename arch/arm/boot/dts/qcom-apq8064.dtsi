@@ -1,19 +1,17 @@
 /dts-v1/;
 
-/include/ "skeleton.dtsi"
-
+#include "skeleton.dtsi"
 #include <dt-bindings/clock/qcom,gcc-msm8960.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
 
 / {
-	model = "Qualcomm MSM8960";
-	compatible = "qcom,msm8960";
+	model = "Qualcomm APQ8064";
+	compatible = "qcom,apq8064";
 	interrupt-parent = <&intc>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		interrupts = <1 14 0x304>;
 
 		cpu@0 {
 			compatible = "qcom,krait";
@@ -35,6 +33,26 @@
 			qcom,saw = <&saw1>;
 		};
 
+		cpu@2 {
+			compatible = "qcom,krait";
+			enable-method = "qcom,kpss-acc-v1";
+			device_type = "cpu";
+			reg = <2>;
+			next-level-cache = <&L2>;
+			qcom,acc = <&acc2>;
+			qcom,saw = <&saw2>;
+		};
+
+		cpu@3 {
+			compatible = "qcom,krait";
+			enable-method = "qcom,kpss-acc-v1";
+			device_type = "cpu";
+			reg = <3>;
+			next-level-cache = <&L2>;
+			qcom,acc = <&acc3>;
+			qcom,saw = <&saw3>;
+		};
+
 		L2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
@@ -44,7 +62,6 @@
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
 		interrupts = <1 10 0x304>;
-		qcom,no-pc-write;
 	};
 
 	soc: soc {
@@ -72,31 +89,6 @@
 			cpu-offset = <0x80000>;
 		};
 
-		msmgpio: gpio@800000 {
-			compatible = "qcom,msm-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			ngpio = <150>;
-			interrupts = <0 16 0x4>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			reg = <0x800000 0x4000>;
-		};
-
-		gcc: clock-controller@900000 {
-			compatible = "qcom,gcc-msm8960";
-			#clock-cells = <1>;
-			#reset-cells = <1>;
-			reg = <0x900000 0x4000>;
-		};
-
-		clock-controller@4000000 {
-			compatible = "qcom,mmcc-msm8960";
-			reg = <0x4000000 0x1000>;
-			#clock-cells = <1>;
-			#reset-cells = <1>;
-		};
-
 		acc0: clock-controller@2088000 {
 			compatible = "qcom,kpss-acc-v1";
 			reg = <0x02088000 0x1000>, <0x02008000 0x1000>;
@@ -105,6 +97,16 @@
 		acc1: clock-controller@2098000 {
 			compatible = "qcom,kpss-acc-v1";
 			reg = <0x02098000 0x1000>, <0x02008000 0x1000>;
+		};
+
+		acc2: clock-controller@20a8000 {
+			compatible = "qcom,kpss-acc-v1";
+			reg = <0x020a8000 0x1000>, <0x02008000 0x1000>;
+		};
+
+		acc3: clock-controller@20b8000 {
+			compatible = "qcom,kpss-acc-v1";
+			reg = <0x020b8000 0x1000>, <0x02008000 0x1000>;
 		};
 
 		saw0: regulator@2089000 {
@@ -119,21 +121,34 @@
 			regulator;
 		};
 
-		gsbi5: gsbi@16400000 {
+		saw2: regulator@20a9000 {
+			compatible = "qcom,saw2";
+			reg = <0x020a9000 0x1000>, <0x02009000 0x1000>;
+			regulator;
+		};
+
+		saw3: regulator@20b9000 {
+			compatible = "qcom,saw2";
+			reg = <0x020b9000 0x1000>, <0x02009000 0x1000>;
+			regulator;
+		};
+
+		gsbi7: gsbi@16600000 {
+			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
-			reg = <0x16400000 0x100>;
-			clocks = <&gcc GSBI5_H_CLK>;
+			reg = <0x16600000 0x100>;
+			clocks = <&gcc GSBI7_H_CLK>;
 			clock-names = "iface";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
 
-			serial@16440000 {
+			serial@16640000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
-				reg = <0x16440000 0x1000>,
-				      <0x16400000 0x1000>;
-				interrupts = <0 154 0x0>;
-				clocks = <&gcc GSBI5_UART_CLK>, <&gcc GSBI5_H_CLK>;
+				reg = <0x16640000 0x1000>,
+				      <0x16600000 0x1000>;
+				interrupts = <0 158 0x0>;
+				clocks = <&gcc GSBI7_UART_CLK>, <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
 			};
@@ -141,15 +156,15 @@
 
 		qcom,ssbi@500000 {
 			compatible = "qcom,ssbi";
-			reg = <0x500000 0x1000>;
+			reg = <0x00500000 0x1000>;
 			qcom,controller-type = "pmic-arbiter";
 		};
 
-		rng@1a500000 {
-			compatible = "qcom,prng";
-			reg = <0x1a500000 0x200>;
-			clocks = <&gcc PRNG_CLK>;
-			clock-names = "core";
+		gcc: clock-controller@900000 {
+			compatible = "qcom,gcc-apq8064";
+			reg = <0x00900000 0x4000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 	};
 };

@@ -1,0 +1,16 @@
+#include "qcom-apq8064-v2.0.dtsi"
+
+/ {
+	model = "Qualcomm APQ8064/IFC6410";
+	compatible = "qcom,apq8064-ifc6410", "qcom,apq8064";
+
+	soc {
+		gsbi@16600000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+			serial@16640000 {
+				status = "ok";
+			};
+		};
+	};
+};

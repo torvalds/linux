@@ -1,0 +1,6 @@
+#include "qcom-apq8084.dtsi"
+
+/ {
+	model = "Qualcomm APQ 8084-MTP";
+	compatible = "qcom,apq8084-mtp", "qcom,apq8084";
+};
