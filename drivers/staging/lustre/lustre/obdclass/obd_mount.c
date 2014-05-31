@@ -383,7 +383,7 @@ int lustre_start_mgc(struct super_block *sb)
 	/* Start the MGC */
 	rc = lustre_start_simple(mgcname, LUSTRE_MGC_NAME,
 				 (char *)uuid->uuid, LUSTRE_MGS_OBDNAME,
-				 niduuid, 0, 0);
+				 niduuid, NULL, NULL);
 	OBD_FREE_PTR(uuid);
 	if (rc)
 		GOTO(out_free, rc);
@@ -482,7 +482,7 @@ static int lustre_stop_mgc(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct obd_device *obd;
-	char *niduuid = 0, *ptr = 0;
+	char *niduuid = NULL, *ptr = NULL;
 	int i, rc = 0, len = 0;
 
 	if (!lsi)

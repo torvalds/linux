@@ -645,7 +645,7 @@ int ptlrpc_connect_import(struct obd_import *imp)
 	if (rc)
 		GOTO(out, rc);
 
-	rc = sptlrpc_import_sec_adapt(imp, NULL, 0);
+	rc = sptlrpc_import_sec_adapt(imp, NULL, NULL);
 	if (rc)
 		GOTO(out, rc);
 

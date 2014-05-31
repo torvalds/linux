@@ -193,7 +193,7 @@ static int osc_device_init(const struct lu_env *env, struct lu_device *d,
 static struct lu_device *osc_device_fini(const struct lu_env *env,
 					 struct lu_device *d)
 {
-	return 0;
+	return NULL;
 }
 
 static struct lu_device *osc_device_free(const struct lu_env *env,
