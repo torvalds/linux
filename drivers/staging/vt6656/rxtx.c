@@ -182,7 +182,7 @@ static void s_vFillTxKey(struct vnt_usb_send_context *tx_context,
 {
 	struct vnt_private *pDevice = tx_context->priv;
 	struct ieee80211_hdr *pMACHeader = tx_context->hdr;
-	u8 *pbyBuf = (u8 *)&fifo_head->adwTxKey[0];
+	u8 *pbyBuf = fifo_head->tx_key;
 	__le32 *pdwIV = (__le32 *)pbyIVHead;
 	__le32 *pdwExtIV = (__le32 *)((u8 *)pbyIVHead + 4);
 	__le32 rev_iv_counter;
@@ -1404,7 +1404,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->data[0];
     cbFrameBodySize = pPacket->cbPayloadLen;
 	pTxBufHead = &pTX_Buffer->fifo_head;
-	pbyTxBufferAddr = (u8 *)&pTxBufHead->adwTxKey[0];
+	pbyTxBufferAddr = (u8 *)pTxBufHead;
 	wTxBufSize = sizeof(struct vnt_tx_fifo_head);
 
 

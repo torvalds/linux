@@ -219,7 +219,7 @@ union vnt_tx_head {
 };
 
 struct vnt_tx_fifo_head {
-	u32 adwTxKey[4];
+	u8 tx_key[WLAN_KEY_LEN_CCMP];
 	u16 wFIFOCtl;
 	__le16 time_stamp;
 	u16 wFragCtl;
