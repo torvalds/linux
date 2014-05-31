@@ -91,17 +91,9 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops,
 	if (nf_ct_is_untracked(ct))
 		return NF_ACCEPT;
 
-	nat = nfct_nat(ct);
-	if (!nat) {
-		/* NAT module was loaded late. */
-		if (nf_ct_is_confirmed(ct))
-			return NF_ACCEPT;
-		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
-		if (nat == NULL) {
-			pr_debug("failed to add NAT extension\n");
-			return NF_ACCEPT;
-		}
-	}
+	nat = nf_ct_nat_ext_add(ct);
+	if (nat == NULL)
+		return NF_ACCEPT;
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
