@@ -130,10 +130,10 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 					  struct list_head *head)
 {
 	struct radeon_cs_reloc *list;
-	unsigned i, idx, size;
+	unsigned i, idx;
 
-	size = (radeon_vm_num_pdes(rdev) + 1) * sizeof(struct radeon_cs_reloc);
-	list = kmalloc(size, GFP_KERNEL);
+	list = kmalloc_array(vm->max_pde_used + 1,
+			     sizeof(struct radeon_cs_reloc), GFP_KERNEL);
 	if (!list)
 		return NULL;
 
