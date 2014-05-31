@@ -267,6 +267,7 @@ struct b43_phy {
 	unsigned long next_txpwr_check_time;
 
 	/* Current channel */
+	struct cfg80211_chan_def *chandef;
 	unsigned int channel;
 	u16 channel_freq;
 	enum nl80211_channel_type channel_type;

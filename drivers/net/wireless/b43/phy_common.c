@@ -94,8 +94,13 @@ int b43_phy_init(struct b43_wldev *dev)
 	const struct b43_phy_operations *ops = phy->ops;
 	int err;
 
-	if (!phy->channel)
-		phy->channel = ops->get_default_chan(dev);
+	/* During PHY init we need to use some channel. On the first init this
+	 * function is called *before* b43_op_config, so our pointer is NULL.
+	 */
+	if (!phy->chandef) {
+		phy->chandef = &dev->wl->hw->conf.chandef;
+		phy->channel = phy->chandef->chan->hw_value;
+	}
 
 	phy->ops->switch_analog(dev, true);
 	b43_software_rfkill(dev, false);
