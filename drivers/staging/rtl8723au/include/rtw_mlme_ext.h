@@ -514,14 +514,15 @@ int WMM_param_handler23a(struct rtw_adapter *padapter, u8 *p);
 void WMMOnAssocRsp23a(struct rtw_adapter *padapter);
 
 void HT_caps_handler23a(struct rtw_adapter *padapter, u8 *p);
-void HT_info_handler23a(struct rtw_adapter *padapter, u8 *p);
+void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p);
 void HTOnAssocRsp23a(struct rtw_adapter *padapter);
 
-void ERP_IE_handler23a(struct rtw_adapter *padapter, u8 *p);
+void ERP_IE_handler23a(struct rtw_adapter *padapter, const u8 *p);
 void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta);
 
-void update_beacon23a_info(struct rtw_adapter *padapter, u8 *pframe, uint len,
-			struct sta_info *psta);
+void update_beacon23a_info(struct rtw_adapter *padapter,
+			   struct ieee80211_mgmt *mgmt, uint len,
+			   struct sta_info *psta);
 int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 			  struct ieee80211_mgmt *mgmt, u32 packet_len);
 void update_IOT_info23a(struct rtw_adapter *padapter);

@@ -789,7 +789,6 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct sta_priv	*pstapriv = &padapter->stapriv;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
-	u8 *pframe = skb->data;
 	int pkt_len = skb->len;
 	struct wlan_bssid_ex *pbss;
 	int ret = _SUCCESS;
@@ -869,7 +868,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			   the number of the beacon received */
 			if ((sta_rx_pkts(psta) & 0xf) == 0) {
 				/* DBG_8723A("update_bcn_info\n"); */
-				update_beacon23a_info(padapter, pframe,
+				update_beacon23a_info(padapter, mgmt,
 						      pkt_len, psta);
 			}
 		}
@@ -881,7 +880,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			   number of the beacon received */
 			if ((sta_rx_pkts(psta) & 0xf) == 0) {
 				/* DBG_8723A("update_bcn_info\n"); */
-				update_beacon23a_info(padapter, pframe,
+				update_beacon23a_info(padapter, mgmt,
 						      pkt_len, psta);
 			}
 		} else {

@@ -633,7 +633,7 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 	return;
 }
 
-static void bwmode_update_check(struct rtw_adapter *padapter, u8 *p)
+static void bwmode_update_check(struct rtw_adapter *padapter, const u8 *p)
 {
 	struct ieee80211_ht_operation *pHT_info;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -774,7 +774,7 @@ void HT_caps_handler23a(struct rtw_adapter *padapter, u8 *p)
 	return;
 }
 
-void HT_info_handler23a(struct rtw_adapter *padapter, u8 *p)
+void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -830,7 +830,7 @@ void HTOnAssocRsp23a(struct rtw_adapter *padapter)
 	rtl8723a_set_ampdu_factor(padapter, max_AMPDU_len);
 }
 
-void ERP_IE_handler23a(struct rtw_adapter *padapter, u8 *p)
+void ERP_IE_handler23a(struct rtw_adapter *padapter, const u8 *p)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -1091,32 +1091,24 @@ _mismatch:
 	return _FAIL;
 }
 
-void update_beacon23a_info(struct rtw_adapter *padapter, u8 *pframe,
+void update_beacon23a_info(struct rtw_adapter *padapter,
+			   struct ieee80211_mgmt *mgmt,
 			   uint pkt_len, struct sta_info *psta)
 {
-	unsigned int i;
 	unsigned int len;
-	u8 *p;
+	const u8 *p;
 
-	len = pkt_len -
-		(_BEACON_IE_OFFSET_ + sizeof(struct ieee80211_hdr_3addr));
+	len = pkt_len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
 
-	for (i = 0; i < len;) {
-		p = (u8 *)(pframe + (_BEACON_IE_OFFSET_ + sizeof(struct ieee80211_hdr_3addr)) + i);
+	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, mgmt->u.beacon.variable,
+			     len);
+	if (p)
+		bwmode_update_check(padapter, p);
 
-		switch (p[0]) {
-		case WLAN_EID_HT_OPERATION:	/* HT info */
-			/* HT_info_handler23a(padapter, pIE); */
-			bwmode_update_check(padapter, p);
-			break;
-		case WLAN_EID_ERP_INFO:
-			ERP_IE_handler23a(padapter, p);
-			VCS_update23a(padapter, psta);
-			break;
-		default:
-			break;
-		}
-		i += (p[1] + 2);
+	p = cfg80211_find_ie(WLAN_EID_ERP_INFO, mgmt->u.beacon.variable, len);
+	if (p) {
+		ERP_IE_handler23a(padapter, p);
+		VCS_update23a(padapter, psta);
 	}
 }
 
