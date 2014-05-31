@@ -955,8 +955,8 @@ static int vsp1_video_open(struct file *file)
 
 	file->private_data = vfh;
 
-	if (!vsp1_device_get(video->vsp1)) {
-		ret = -EBUSY;
+	ret = vsp1_device_get(video->vsp1);
+	if (ret < 0) {
 		v4l2_fh_del(vfh);
 		kfree(vfh);
 	}

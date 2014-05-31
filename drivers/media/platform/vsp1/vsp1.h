@@ -66,7 +66,7 @@ struct vsp1_device {
 	struct media_device media_dev;
 };
 
-struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1);
+int vsp1_device_get(struct vsp1_device *vsp1);
 void vsp1_device_put(struct vsp1_device *vsp1);
 
 static inline u32 vsp1_read(struct vsp1_device *vsp1, u32 reg)

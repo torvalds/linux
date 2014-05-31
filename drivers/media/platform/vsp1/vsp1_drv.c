@@ -345,36 +345,32 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
  * Increment the VSP1 reference count and initialize the device if the first
  * reference is taken.
  *
- * Return a pointer to the VSP1 device or NULL if an error occurred.
+ * Return 0 on success or a negative error code otherwise.
  */
-struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1)
+int vsp1_device_get(struct vsp1_device *vsp1)
 {
-	struct vsp1_device *__vsp1 = vsp1;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&vsp1->lock);
 	if (vsp1->ref_count > 0)
 		goto done;
 
 	ret = clk_prepare_enable(vsp1->clock);
-	if (ret < 0) {
-		__vsp1 = NULL;
+	if (ret < 0)
 		goto done;
-	}
 
 	ret = vsp1_device_init(vsp1);
 	if (ret < 0) {
 		clk_disable_unprepare(vsp1->clock);
-		__vsp1 = NULL;
 		goto done;
 	}
 
 done:
-	if (__vsp1)
+	if (!ret)
 		vsp1->ref_count++;
 
 	mutex_unlock(&vsp1->lock);
-	return __vsp1;
+	return ret;
 }
 
 /*
