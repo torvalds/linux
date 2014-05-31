@@ -996,8 +996,6 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 		goto rx_next;
 	}
 
-	ath9k_htc_err_stat_rx(priv, rxstatus);
-
 	/* Get the RX status information */
 
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
@@ -1005,6 +1003,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	/* Copy everything from ath_htc_rx_status (HTC_RX_FRAME_HEADER).
 	 * After this, we can drop this part of skb. */
 	rx_status_htc_to_ath(&rx_stats, rxstatus);
+	ath9k_htc_err_stat_rx(priv, &rx_stats);
 	rx_status->mactime = be64_to_cpu(rxstatus->rs_tstamp);
 	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
 

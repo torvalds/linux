@@ -63,6 +63,7 @@ int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 				int cmd_action,
 				struct mwifiex_ds_11n_amsdu_aggr_ctrl *aa_ctrl);
 void mwifiex_del_tx_ba_stream_tbl_by_ra(struct mwifiex_private *priv, u8 *ra);
+u8 mwifiex_get_sec_chan_offset(int chan);
 
 static inline u8
 mwifiex_is_station_ampdu_allowed(struct mwifiex_private *priv,
@@ -199,7 +200,7 @@ static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
 }
 
 static inline u8
-mwifiex_tdls_peer_11n_enabled(struct mwifiex_private *priv, u8 *ra)
+mwifiex_tdls_peer_11n_enabled(struct mwifiex_private *priv, const u8 *ra)
 {
 	struct mwifiex_sta_node *node = mwifiex_get_sta_entry(priv, ra);
 	if (node)

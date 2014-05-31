@@ -1678,8 +1678,12 @@ static int mwifiex_sdio_host_to_card(struct mwifiex_adapter *adapter,
 	if (ret) {
 		if (type == MWIFIEX_TYPE_CMD)
 			adapter->cmd_sent = false;
-		if (type == MWIFIEX_TYPE_DATA)
+		if (type == MWIFIEX_TYPE_DATA) {
 			adapter->data_sent = false;
+			/* restore curr_wr_port in error cases */
+			card->curr_wr_port = port;
+			card->mp_wr_bitmap |= (u32)(1 << card->curr_wr_port);
+		}
 	} else {
 		if (type == MWIFIEX_TYPE_DATA) {
 			if (!(card->mp_wr_bitmap & (1 << card->curr_wr_port)))

@@ -345,7 +345,6 @@ static int iwl_send_phy_db_cmd(struct iwl_phy_db *phy_db, u16 type,
 	struct iwl_phy_db_cmd phy_db_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = PHY_DB_CMD,
-		.flags = CMD_SYNC,
 	};
 
 	IWL_DEBUG_INFO(phy_db->trans,
@@ -393,13 +392,13 @@ static int iwl_phy_db_send_all_channel_groups(
 					  entry->data);
 		if (err) {
 			IWL_ERR(phy_db->trans,
-				"Can't SEND phy_db section %d (%d), err %d",
+				"Can't SEND phy_db section %d (%d), err %d\n",
 				type, i, err);
 			return err;
 		}
 
 		IWL_DEBUG_INFO(phy_db->trans,
-			       "Sent PHY_DB HCMD, type = %d num = %d",
+			       "Sent PHY_DB HCMD, type = %d num = %d\n",
 			       type, i);
 	}
 
@@ -451,7 +450,7 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 						 IWL_NUM_PAPD_CH_GROUPS);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot send channel specific PAPD groups");
+			"Cannot send channel specific PAPD groups\n");
 		return err;
 	}
 
@@ -461,7 +460,7 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 						 IWL_NUM_TXP_CH_GROUPS);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot send channel specific TX power groups");
+			"Cannot send channel specific TX power groups\n");
 		return err;
 	}
 

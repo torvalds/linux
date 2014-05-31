@@ -76,7 +76,5 @@ void rtl8192ce_bt_reg_init(struct ieee80211_hw *hw);
 void rtl8192ce_bt_hw_init(struct ieee80211_hw *hw);
 void rtl92ce_suspend(struct ieee80211_hw *hw);
 void rtl92ce_resume(struct ieee80211_hw *hw);
-void rtl92ce_allow_all_destaddr(struct ieee80211_hw *hw,
-				bool allow_all_da, bool write_into_reg);
 
 #endif

@@ -958,7 +958,7 @@ int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, bool sync)
 		.flush_ctl = cpu_to_le16(DUMP_TX_FIFO_FLUSH),
 	};
 
-	u32 flags = sync ? CMD_SYNC : CMD_ASYNC;
+	u32 flags = sync ? 0 : CMD_ASYNC;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, TXPATH_FLUSH, flags,
 				   sizeof(flush_cmd), &flush_cmd);

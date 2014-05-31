@@ -503,6 +503,9 @@
  *	TX status event pertaining to the TX request.
  *	%NL80211_ATTR_TX_NO_CCK_RATE is used to decide whether to send the
  *	management frames at CCK rate or not in 2GHz band.
+ *	%NL80211_ATTR_CSA_C_OFFSETS_TX is an array of offsets to CSA
+ *	counters which will be updated to the current value. This attribute
+ *	is used during CSA period.
  * @NL80211_CMD_FRAME_WAIT_CANCEL: When an off-channel TX was requested, this
  *	command may be used with the corresponding cookie to cancel the wait
  *	time if it is known that it is no longer necessary.
@@ -1525,10 +1528,10 @@ enum nl80211_commands {
  *	operation).
  * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
  *	for the time while performing a channel switch.
- * @NL80211_ATTR_CSA_C_OFF_BEACON: Offset of the channel switch counter
- *	field in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
- * @NL80211_ATTR_CSA_C_OFF_PRESP: Offset of the channel switch counter
- *	field in the probe response (%NL80211_ATTR_PROBE_RESP).
+ * @NL80211_ATTR_CSA_C_OFF_BEACON: An array of offsets (u16) to the channel
+ *	switch counters in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
+ * @NL80211_ATTR_CSA_C_OFF_PRESP: An array of offsets (u16) to the channel
+ *	switch counters in the probe response (%NL80211_ATTR_PROBE_RESP).
  *
  * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
  *	As specified in the &enum nl80211_rxmgmt_flags.
@@ -1575,6 +1578,11 @@ enum nl80211_commands {
  *	other concurrent operations may affect this), drivers are allowed to
  *	advertise values that cannot always be met. In such cases, an attempt
  *	to add a new station entry with @NL80211_CMD_NEW_STATION may fail.
+ *
+ * @NL80211_ATTR_CSA_C_OFFSETS_TX: An array of csa counter offsets (u16) which
+ *	should be updated when the frame is transmitted.
+ * @NL80211_ATTR_MAX_CSA_COUNTERS: U8 attribute used to advertise the maximum
+ *	supported number of csa counters.
  *
  * @NL80211_ATTR_TDLS_PEER_CAPABILITY: flags for TDLS peer capabilities, u32.
  *	As specified in the &enum nl80211_tdls_peer_capability.
@@ -1920,6 +1928,9 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_IFACE_SOCKET_OWNER,
 
+	NL80211_ATTR_CSA_C_OFFSETS_TX,
+	NL80211_ATTR_MAX_CSA_COUNTERS,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -2188,6 +2199,8 @@ enum nl80211_sta_bss_param {
  *	Contains a nested array of signal strength attributes (u8, dBm)
  * @NL80211_STA_INFO_CHAIN_SIGNAL_AVG: per-chain signal strength average
  *	Same format as NL80211_STA_INFO_CHAIN_SIGNAL.
+ * @NL80211_STA_EXPECTED_THROUGHPUT: expected throughput considering also the
+ *	802.11 header (u32, kbps)
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -2219,6 +2232,7 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_TX_BYTES64,
 	NL80211_STA_INFO_CHAIN_SIGNAL,
 	NL80211_STA_INFO_CHAIN_SIGNAL_AVG,
+	NL80211_STA_INFO_EXPECTED_THROUGHPUT,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
@@ -3688,6 +3702,8 @@ enum nl80211_iface_limit_attrs {
  *	different channels may be used within this group.
  * @NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS: u32 attribute containing the bitmap
  *	of supported channel widths for radar detection.
+ * @NL80211_IFACE_COMB_RADAR_DETECT_REGIONS: u32 attribute containing the bitmap
+ *	of supported regulatory regions for radar detection.
  * @NUM_NL80211_IFACE_COMB: number of attributes
  * @MAX_NL80211_IFACE_COMB: highest attribute number
  *
@@ -3721,6 +3737,7 @@ enum nl80211_if_combination_attrs {
 	NL80211_IFACE_COMB_STA_AP_BI_MATCH,
 	NL80211_IFACE_COMB_NUM_CHANNELS,
 	NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS,
+	NL80211_IFACE_COMB_RADAR_DETECT_REGIONS,
 
 	/* keep last */
 	NUM_NL80211_IFACE_COMB,
