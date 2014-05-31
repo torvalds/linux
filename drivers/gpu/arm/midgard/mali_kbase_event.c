@@ -70,7 +70,7 @@ int kbase_event_dequeue(kbase_context *ctx, base_jd_event_v2 *uevent)
 			mutex_unlock(&ctx->event_mutex);
 			uevent->event_code = BASE_JD_EVENT_DRV_TERMINATED;
 			memset(&uevent->udata, 0, sizeof(uevent->udata));
-			KBASE_LOG(2, ctx->kbdev->dev,
+			dev_dbg(ctx->kbdev->dev,
 				"event system closed, returning BASE_JD_EVENT_DRV_TERMINATED(0x%X)\n",
 				BASE_JD_EVENT_DRV_TERMINATED);
 			return 0;
@@ -86,7 +86,7 @@ int kbase_event_dequeue(kbase_context *ctx, base_jd_event_v2 *uevent)
 
 	mutex_unlock(&ctx->event_mutex);
 
-	KBASE_LOG(2, ctx->kbdev->dev, "event dequeuing %p\n", (void *)atom);
+	dev_dbg(ctx->kbdev->dev, "event dequeuing %p\n", (void *)atom);
 	uevent->event_code = atom->event_code;
 	uevent->atom_number = (atom - ctx->jctx.atoms);
 	uevent->udata = kbase_event_process(ctx, atom);

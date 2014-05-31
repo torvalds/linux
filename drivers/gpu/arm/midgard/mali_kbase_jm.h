@@ -115,7 +115,7 @@ static INLINE kbase_jd_atom *kbasep_jm_dequeue_submit_slot(kbase_jm_slot *slot)
 	slot->submitted_head = (slot->submitted_head + 1) & BASE_JM_SUBMIT_SLOTS_MASK;
 	slot->submitted_nr--;
 
-	KBASE_LOG(2, katom->kctx->kbdev->dev, "katom %p new head %u", (void *)katom, (unsigned int)slot->submitted_head);
+	dev_dbg(katom->kctx->kbdev->dev, "katom %p new head %u", (void *)katom, (unsigned int)slot->submitted_head);
 
 	return katom;
 }

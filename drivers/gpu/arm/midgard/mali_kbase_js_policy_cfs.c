@@ -75,7 +75,8 @@
 static const kbasep_atom_req core_req_variants[] = {
 	{
 	 /* 0: Fragment variant */
-	 (JS_CORE_REQ_ALL_OTHERS | BASE_JD_REQ_FS | BASE_JD_REQ_COHERENT_GROUP),
+	 (JS_CORE_REQ_ALL_OTHERS | BASE_JD_REQ_FS | BASE_JD_REQ_FS_AFBC |
+						BASE_JD_REQ_COHERENT_GROUP),
 	 (JS_CTX_REQ_ALL_OTHERS),
 	 0},
 	{
@@ -732,7 +733,7 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 					/* Job has been scheduled for at least js_devdata->soft_stop_ticks ticks.
 					 * Soft stop the slot so we can run other jobs.
 					 */
-					KBASE_LOG(1, kbdev->dev, "Soft-stop");
+					dev_dbg(kbdev->dev, "Soft-stop");
 
 #if KBASE_DISABLE_SCHEDULING_SOFT_STOPS == 0
 					kbase_job_slot_softstop(kbdev, s, atom);
@@ -759,7 +760,7 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 					/* Job has been scheduled for at least js_devdata->soft_stop_ticks.
 					 * We do not soft-stop during CINSTR_DUMPING_ENABLED, however.
 					 */
-					KBASE_LOG(1, kbdev->dev, "Soft-stop");
+					dev_dbg(kbdev->dev, "Soft-stop");
 				} else if (ticks == js_devdata->hard_stop_ticks_nss) {
 					/* Job has been scheduled for at least js_devdata->hard_stop_ticks_nss ticks.
 					 * Hard stop the slot.

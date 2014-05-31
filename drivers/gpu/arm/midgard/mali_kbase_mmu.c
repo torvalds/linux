@@ -28,7 +28,7 @@
 #include <mali_kbase_gator.h>
 #include <mali_kbase_debug.h>
 
-#define beenthere(kctx, f, a...)  KBASE_LOG(1, kctx->kbdev->dev, "%s:" f, __func__, ##a)
+#define beenthere(kctx, f, a...)  dev_dbg(kctx->kbdev->dev, "%s:" f, __func__, ##a)
 
 #include <mali_kbase_defs.h>
 #include <mali_kbase_hw.h>

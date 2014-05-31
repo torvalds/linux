@@ -224,6 +224,7 @@ typedef struct kbase_uk_get_ddk_version {
 	char version_buffer[KBASE_GET_VERSION_BUFFER_SIZE];
 	u32 version_string_size;
 	u32 padding;
+	u32 rk_version;
 } kbase_uk_get_ddk_version;
 
 typedef struct kbase_uk_set_flags {

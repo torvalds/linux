@@ -177,7 +177,7 @@ STATIC mali_error kbase_instr_hwcnt_enable_internal(kbase_device *kbdev, kbase_c
 
 	err = MALI_ERROR_NONE;
 
-	KBASE_LOG(1, kbdev->dev, "HW counters dumping set-up for context %p", kctx);
+	dev_dbg(kbdev->dev, "HW counters dumping set-up for context %p", kctx);
 	return err;
  out_unrequest_cores:
 	kbase_pm_unrequest_cores(kbdev, MALI_TRUE, shader_cores_needed);
@@ -275,7 +275,7 @@ mali_error kbase_instr_hwcnt_disable(kbase_context *kctx)
 	/* Also release our Power Manager Active reference */
 	kbase_pm_context_idle(kbdev);
 
-	KBASE_LOG(1, kbdev->dev, "HW counters dumping disabled for context %p", kctx);
+	dev_dbg(kbdev->dev, "HW counters dumping disabled for context %p", kctx);
 
 	err = MALI_ERROR_NONE;
 
@@ -355,7 +355,7 @@ mali_error kbase_instr_hwcnt_dump_irq(kbase_context *kctx)
 	KBASE_TRACE_ADD(kbdev, CORE_GPU_PRFCNT_SAMPLE, NULL, NULL, kbdev->hwcnt.addr, 0);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND), GPU_COMMAND_PRFCNT_SAMPLE, kctx);
 
-	KBASE_LOG(1, kbdev->dev, "HW counters dumping done for context %p", kctx);
+	dev_dbg(kbdev->dev, "HW counters dumping done for context %p", kctx);
 
 	err = MALI_ERROR_NONE;
 

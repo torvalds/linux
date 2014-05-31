@@ -1100,7 +1100,7 @@ static int kbase_trace_buffer_mmap(kbase_context *kctx, struct vm_area_struct *v
 	u32 *tb;
 	int owns_tb = 1;
 
-	KBASE_LOG(1, kctx->kbdev->dev, "in %s\n", __func__);
+	dev_dbg(kctx->kbdev->dev, "in %s\n", __func__);
 	size = (vma->vm_end - vma->vm_start);
 	nr_pages = size >> PAGE_SHIFT;
 
@@ -1155,7 +1155,7 @@ static int kbase_trace_buffer_mmap(kbase_context *kctx, struct vm_area_struct *v
 	vma->vm_flags &= ~(VM_WRITE | VM_MAYWRITE | VM_EXEC | VM_MAYEXEC);
 	/* the rest of the flags is added by the cpu_mmap handler */
 
-	KBASE_LOG(1, kctx->kbdev->dev, "%s done\n", __func__);
+	dev_dbg(kctx->kbdev->dev, "%s done\n", __func__);
 	return 0;
 
 out_no_va_region:
@@ -1179,7 +1179,7 @@ static int kbase_mmu_dump_mmap(kbase_context *kctx, struct vm_area_struct *vma, 
 	size_t size;
 	int err = 0;
 
-	KBASE_LOG(1, kctx->kbdev->dev, "in kbase_mmu_dump_mmap\n");
+	dev_dbg(kctx->kbdev->dev, "in kbase_mmu_dump_mmap\n");
 	size = (vma->vm_end - vma->vm_start);
 	nr_pages = size >> PAGE_SHIFT;
 
@@ -1216,7 +1216,7 @@ static int kbase_mmu_dump_mmap(kbase_context *kctx, struct vm_area_struct *vma, 
 	*kmap_addr = kaddr;
 	*reg = new_reg;
 
-	KBASE_LOG(1, kctx->kbdev->dev, "kbase_mmu_dump_mmap done\n");
+	dev_dbg(kctx->kbdev->dev, "kbase_mmu_dump_mmap done\n");
 	return 0;
 
 out_no_alloc:
@@ -1251,7 +1251,7 @@ int kbase_mmap(struct file *file, struct vm_area_struct *vma)
 	int free_on_close = 0;
 	struct device *dev = kctx->kbdev->dev;
 
-	KBASE_LOG(1, dev, "kbase_mmap\n");
+	dev_dbg(dev, "kbase_mmap\n");
 	nr_pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 
 	/* strip away corresponding VM_MAY% flags to the VM_% flags requested */
@@ -1296,7 +1296,7 @@ int kbase_mmap(struct file *file, struct vm_area_struct *vma)
 		err = kbase_trace_buffer_mmap(kctx, vma, &reg, &kaddr);
 		if (0 != err)
 			goto out_unlock;
-		KBASE_LOG(1, dev, "kbase_trace_buffer_mmap ok\n");
+		dev_dbg(dev, "kbase_trace_buffer_mmap ok\n");
 		/* free the region on munmap */
 		free_on_close = 1;
 		goto map;

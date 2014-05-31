@@ -140,6 +140,9 @@ typedef enum base_hw_issue {
 	/* (Note that PRLAM-9049 also uses this work-around) */
 	BASE_HW_ISSUE_8564,
 
+	/* Fragments are clamped instead of discarded when fragment depth bound op is discard and depth datum source is shader. */
+	BASE_HW_ISSUE_8634,
+
 	/* Livelock issue using atomic instructions (particularly when using atomic_cmpxchg as a spinlock) */
 	BASE_HW_ISSUE_8791,
 
@@ -296,11 +299,14 @@ typedef enum base_hw_issue {
 	/* AFBC is not supported for T76X beta. */
 	BASE_HW_ISSUE_T76X_2906,
 
+	/* RTD doesn't specify the row stride for AFBC surfaces. */
+	BASE_HW_ISSUE_T76X_3086,
+
 	/* Prevent MMU deadlock for T76X beta. */
 	BASE_HW_ISSUE_T76X_3285,
 
 	/* Clear encoder state for a hard stopped fragment job which is AFBC
-	 * encoded by soft resetting the GPU. Only for T76X r0p0 and r0p1
+	 * encoded by soft resetting the GPU. Only for T76X r0p0, r0p1 and r0p1_50rel0
 	 */
 	BASE_HW_ISSUE_T76X_3542,
 
@@ -351,6 +357,7 @@ static const base_hw_issue base_hw_issues_t60x_r0p0_15dev0[] = {
 	BASE_HW_ISSUE_8443,
 	BASE_HW_ISSUE_8456,
 	BASE_HW_ISSUE_8564,
+	BASE_HW_ISSUE_8634,
 	BASE_HW_ISSUE_8791,
 	BASE_HW_ISSUE_8803,
 	BASE_HW_ISSUE_8833,
@@ -567,6 +574,7 @@ static const base_hw_issue base_hw_issues_t76x_r0p0[] = {
 	BASE_HW_ISSUE_11020,
 	BASE_HW_ISSUE_11024,
 	BASE_HW_ISSUE_T76X_26,
+	BASE_HW_ISSUE_T76X_3086,
 	BASE_HW_ISSUE_T76X_3542,
 	BASE_HW_ISSUE_T76X_3556,
 	BASE_HW_ISSUE_T76X_3700,
@@ -585,6 +593,24 @@ static const base_hw_issue base_hw_issues_t76x_r0p1[] = {
 	BASE_HW_ISSUE_10946,
 	BASE_HW_ISSUE_11020,
 	BASE_HW_ISSUE_11024,
+	BASE_HW_ISSUE_T76X_26,
+	BASE_HW_ISSUE_T76X_3086,
+	BASE_HW_ISSUE_T76X_3542,
+	BASE_HW_ISSUE_T76X_3556,
+	BASE_HW_ISSUE_T76X_3700,
+	BASE_HW_ISSUE_T76X_3793,
+	/* List of hardware issues must end with BASE_HW_ISSUE_END */
+	BASE_HW_ISSUE_END
+};
+
+/* Mali T76x r0p1_50rel0 */
+static const base_hw_issue base_hw_issues_t76x_r0p1_50rel0[] = {
+	BASE_HW_ISSUE_8803,
+	BASE_HW_ISSUE_9435,
+	BASE_HW_ISSUE_10649,
+	BASE_HW_ISSUE_10821,
+	BASE_HW_ISSUE_10883,
+	BASE_HW_ISSUE_10946,
 	BASE_HW_ISSUE_T76X_26,
 	BASE_HW_ISSUE_T76X_3542,
 	BASE_HW_ISSUE_T76X_3556,
@@ -605,6 +631,24 @@ static const base_hw_issue base_hw_issues_t76x_r0p2[] = {
 	BASE_HW_ISSUE_11020,
 	BASE_HW_ISSUE_11024,
 	BASE_HW_ISSUE_T76X_26,
+	BASE_HW_ISSUE_T76X_3086,
+	BASE_HW_ISSUE_T76X_3542,
+	BASE_HW_ISSUE_T76X_3556,
+	BASE_HW_ISSUE_T76X_3700,
+	BASE_HW_ISSUE_T76X_3793,
+	/* List of hardware issues must end with BASE_HW_ISSUE_END */
+	BASE_HW_ISSUE_END
+};
+
+/* Mali T76x r0p3 */
+static const base_hw_issue base_hw_issues_t76x_r0p3[] = {
+	BASE_HW_ISSUE_8803,
+	BASE_HW_ISSUE_9435,
+	BASE_HW_ISSUE_10649,
+	BASE_HW_ISSUE_10821,
+	BASE_HW_ISSUE_10883,
+	BASE_HW_ISSUE_10946,
+	BASE_HW_ISSUE_T76X_26,
 	BASE_HW_ISSUE_T76X_3542,
 	BASE_HW_ISSUE_T76X_3556,
 	BASE_HW_ISSUE_T76X_3700,
@@ -621,6 +665,7 @@ static const base_hw_issue base_hw_issues_t76x_r1p0[] = {
 	BASE_HW_ISSUE_10821,
 	BASE_HW_ISSUE_10883,
 	BASE_HW_ISSUE_10946,
+	BASE_HW_ISSUE_T76X_3086,
 	BASE_HW_ISSUE_T76X_3700,
 	BASE_HW_ISSUE_T76X_3793,
 	/* List of hardware issues must end with BASE_HW_ISSUE_END */
@@ -682,9 +727,9 @@ static const base_hw_issue base_hw_issues_model_t7xx[] =
 	BASE_HW_ISSUE_5736,
 	BASE_HW_ISSUE_9275,
 	BASE_HW_ISSUE_9435,
-	BASE_HW_ISSUE_10931,
 	BASE_HW_ISSUE_11020,
 	BASE_HW_ISSUE_11024,
+	BASE_HW_ISSUE_T76X_3086,
 	BASE_HW_ISSUE_T76X_3700,
 	BASE_HW_ISSUE_T76X_3793,
 	/* List of hardware issues must end with BASE_HW_ISSUE_END */

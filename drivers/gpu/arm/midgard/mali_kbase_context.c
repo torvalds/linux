@@ -134,7 +134,7 @@ KBASE_EXPORT_SYMBOL(kbase_create_context)
 
 static void kbase_reg_pending_dtor(struct kbase_va_region *reg)
 {
-	KBASE_LOG(2, reg->kctx->kbdev->dev, "Freeing pending unmapped region\n");
+	dev_dbg(reg->kctx->kbdev->dev, "Freeing pending unmapped region\n");
 	kbase_mem_phy_alloc_put(reg->alloc);
 	kfree(reg);
 }

@@ -32,7 +32,7 @@
 #endif				/* CONFIG_UMP */
 #include <linux/random.h>
 
-#define beenthere(kctx,f, a...)  KBASE_LOG(1, kctx->kbdev->dev, "%s:" f, __func__, ##a)
+#define beenthere(kctx,f, a...)  dev_dbg(kctx->kbdev->dev, "%s:" f, __func__, ##a)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)
 /* random32 was renamed to prandom_u32 in 3.8 */
@@ -1167,7 +1167,7 @@ static void jd_done_worker(struct work_struct *data)
 		if (kbdev->gpu_props.num_core_groups > 1 && 
 		    !(katom->affinity & kbdev->gpu_props.props.coherency_info.group[0].core_mask) &&
 		    (katom->affinity & kbdev->gpu_props.props.coherency_info.group[1].core_mask)) {
-			KBASE_LOG(2, kbdev->dev, "JD: Flushing cache due to PRLAM-10676\n");
+			dev_dbg(kbdev->dev, "JD: Flushing cache due to PRLAM-10676\n");
 			kbasep_jd_cacheclean(kbdev);
 		}
 	}
@@ -1177,7 +1177,7 @@ static void jd_done_worker(struct work_struct *data)
 	    katom->event_code == BASE_JD_EVENT_TILE_RANGE_FAULT       &&
 	    (katom->atom_flags & KBASE_KATOM_FLAG_BEEN_SOFT_STOPPPED) &&
 	    !(katom->atom_flags & KBASE_KATOM_FLAGS_RERUN)){
-		KBASE_LOG(2, kbdev->dev,
+		dev_dbg(kbdev->dev,
 				       "Soft-stopped fragment shader job got a TILE_RANGE_FAULT." \
 				       "Possible HW issue, trying SW workaround\n" );
 		if (kbasep_10969_workaround_clamp_coordinates(katom)){
@@ -1185,7 +1185,7 @@ static void jd_done_worker(struct work_struct *data)
 			 * Due to an HW issue we try to execute the job
 			 * again.
 			 */
-			KBASE_LOG(2, kbdev->dev, "Clamping has been executed, try to rerun the job\n" );
+			dev_dbg(kbdev->dev, "Clamping has been executed, try to rerun the job\n" );
 			katom->event_code = BASE_JD_EVENT_STOPPED;
 			katom->atom_flags |= KBASE_KATOM_FLAGS_RERUN;
 
@@ -1221,7 +1221,7 @@ static void jd_done_worker(struct work_struct *data)
 	if (!kbasep_js_has_atom_finished(&katom_retained_state)) {
 		unsigned long flags;
 		/* Requeue the atom on soft-stop / removed from NEXT registers */
-		KBASE_LOG(2, kbdev->dev, "JS: Soft Stopped/Removed from next on Ctx %p; Requeuing", kctx);
+		dev_dbg(kbdev->dev, "JS: Soft Stopped/Removed from next on Ctx %p; Requeuing", kctx);
 
 		mutex_lock(&js_devdata->runpool_mutex);
 		kbasep_js_clear_job_retry_submit(katom);
@@ -1518,7 +1518,7 @@ void kbase_jd_zap_context(kbase_context *kctx)
 	}
 	destroy_hrtimer_on_stack(&reset_data.timer);
 
-	KBASE_LOG(1, kbdev->dev, "Zap: Finished Context %p", kctx);
+	dev_dbg(kbdev->dev, "Zap: Finished Context %p", kctx);
 
 	/* Ensure that the signallers of the waitqs have finished */
 	mutex_lock(&kctx->jctx.lock);

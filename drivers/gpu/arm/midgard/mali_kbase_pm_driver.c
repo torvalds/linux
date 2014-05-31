@@ -655,15 +655,15 @@ void kbase_pm_clock_on(kbase_device *kbdev, mali_bool is_resume)
 			reset_required = MALI_TRUE;
 	}
 
+	spin_lock_irqsave(&kbdev->pm.gpu_powered_lock, flags);
+	kbdev->pm.gpu_powered = MALI_TRUE;
+	spin_unlock_irqrestore(&kbdev->pm.gpu_powered_lock, flags);
+
 	if (reset_required) {
 		/* GPU state was lost, reset GPU to ensure it is in a
 		 * consistent state */
 		kbase_pm_init_hw(kbdev, MALI_TRUE);
 	}
-
-	spin_lock_irqsave(&kbdev->pm.gpu_powered_lock, flags);
-	kbdev->pm.gpu_powered = MALI_TRUE;
-	spin_unlock_irqrestore(&kbdev->pm.gpu_powered_lock, flags);
 
 	/* Lastly, enable the interrupts */
 	kbase_pm_enable_interrupts(kbdev);

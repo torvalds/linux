@@ -94,15 +94,13 @@ mali_error kbase_hw_set_issues_mask(kbase_device *kbdev)
 			issues = base_hw_issues_t76x_r0p1;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T76X, 0, 1, 9):
-			/* TODO: MIDBASE-3084 - confirm hw issue list */
-			issues = base_hw_issues_t76x_r0p1;
+			issues = base_hw_issues_t76x_r0p1_50rel0;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T76X, 0, 2, 1):
 			issues = base_hw_issues_t76x_r0p2;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T76X, 0, 3, 1):
-			/* TODO: MIDBASE-3086 - confirm hw issue list */
-			issues = base_hw_issues_t76x_r0p2;
+			issues = base_hw_issues_t76x_r0p3;
 			break;
 		case GPU_ID_MAKE(GPU_ID_PI_T76X, 1, 0, 0):
 			issues = base_hw_issues_t76x_r1p0;
