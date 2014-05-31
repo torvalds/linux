@@ -33,28 +33,6 @@ static LIST_HEAD(all_q_list);
 
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx);
 
-static struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
-					   unsigned int cpu)
-{
-	return per_cpu_ptr(q->queue_ctx, cpu);
-}
-
-/*
- * This assumes per-cpu software queueing queues. They could be per-node
- * as well, for instance. For now this is hardcoded as-is. Note that we don't
- * care about preemption, since we know the ctx's are persistent. This does
- * mean that we can't rely on ctx always matching the currently running CPU.
- */
-static struct blk_mq_ctx *blk_mq_get_ctx(struct request_queue *q)
-{
-	return __blk_mq_get_ctx(q, get_cpu());
-}
-
-static void blk_mq_put_ctx(struct blk_mq_ctx *ctx)
-{
-	put_cpu();
-}
-
 /*
  * Check if any of the ctx's have pending work in this hardware queue
  */
