@@ -29,7 +29,7 @@
 
 static void rtw_init_mlme_timer(struct rtw_adapter *padapter)
 {
-	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	setup_timer(&pmlmepriv->assoc_timer, rtw23a_join_to_handler,
 		    (unsigned long)padapter);
@@ -369,11 +369,10 @@ int is_same_network23a(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 	return ((src->Ssid.ssid_len == dst->Ssid.ssid_len) &&
 		/*	(src->DSConfig == dst->DSConfig) && */
 		ether_addr_equal(src->MacAddress, dst->MacAddress) &&
-		((!memcmp(src->Ssid.ssid, dst->Ssid.ssid, src->Ssid.ssid_len))) &&
-		((s_cap & WLAN_CAPABILITY_IBSS) ==
-		 (d_cap & WLAN_CAPABILITY_IBSS)) &&
-		((s_cap & WLAN_CAPABILITY_ESS) ==
-		 (d_cap & WLAN_CAPABILITY_ESS)));
+		!memcmp(src->Ssid.ssid, dst->Ssid.ssid, src->Ssid.ssid_len) &&
+		(s_cap & WLAN_CAPABILITY_IBSS) ==
+		(d_cap & WLAN_CAPABILITY_IBSS) &&
+		(s_cap & WLAN_CAPABILITY_ESS) == (d_cap & WLAN_CAPABILITY_ESS));
 }
 
 struct wlan_network *
@@ -611,8 +610,7 @@ static int rtw_is_desired_network(struct rtw_adapter *adapter,
 	            bselected = false;
 	}
 
-	if (desired_encmode != Ndis802_11EncryptionDisabled &&
-	    privacy == 0) {
+	if (desired_encmode != Ndis802_11EncryptionDisabled && privacy == 0) {
 		DBG_8723A("desired_encmode: %d, privacy: %d\n",
 			  desired_encmode, privacy);
 		bselected = false;
@@ -639,7 +637,7 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	u32 len;
 	struct wlan_bssid_ex *pnetwork;
-	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	pnetwork = (struct wlan_bssid_ex *)pbuf;
 
@@ -698,7 +696,7 @@ exit:
 void
 rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
-	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
 	struct wlan_bssid_ex *pdev_network;
 	u8 *pibss;
@@ -937,7 +935,7 @@ void rtw_indicate_connect23a(struct rtw_adapter *padapter)
  */
 void rtw_indicate_disconnect23a(struct rtw_adapter *padapter)
 {
-	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 		 ("+rtw_indicate_disconnect23a\n"));
@@ -1538,12 +1536,12 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 void rtw23a_join_to_handler (unsigned long data)
 {
 	struct rtw_adapter *adapter = (struct rtw_adapter *)data;
-	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	int do_join_r;
 
 	DBG_8723A("%s, fw_state=%x\n", __func__, get_fwstate(pmlmepriv));
 
-	if (adapter->bDriverStopped ||adapter->bSurpriseRemoved)
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 		return;
 
 	spin_lock_bh(&pmlmepriv->lock);
@@ -1589,7 +1587,7 @@ void rtw23a_join_to_handler (unsigned long data)
 void rtw_scan_timeout_handler23a(unsigned long data)
 {
 	struct rtw_adapter *adapter = (struct rtw_adapter *)data;
-	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	DBG_8723A("%s(%s): fw_state =%x\n", __func__, adapter->pnetdev->name,
 		  get_fwstate(pmlmepriv));
