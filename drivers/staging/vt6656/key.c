@@ -238,8 +238,8 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
                     pKey->abyKey[15] |= 0x80;
             }
 
-	    MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx,
-			pbyBSSID, pKey->abyKey);
+	    vnt_mac_set_keyentry(pDevice, pTable->KeyTable[i].wKeyCtl, i,
+					uKeyIdx, pbyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */
@@ -308,7 +308,7 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
                 pKey->abyKey[15] |= 0x80;
         }
 
-	MACvSetKeyEntry(pDevice, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx,
+	vnt_mac_set_keyentry(pDevice, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx,
 					pbyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
@@ -604,7 +604,7 @@ int KeybSetDefaultKey(struct vnt_private *pDevice, PSKeyManagement pTable,
             pKey->abyKey[15] |= 0x80;
     }
 
-	MACvSetKeyEntry(pDevice, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl,
+	vnt_mac_set_keyentry(pDevice, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl,
 		MAX_KEY_TABLE-1, uKeyIdx,
 		pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, pKey->abyKey);
 
@@ -700,8 +700,8 @@ int KeybSetAllGroupKey(struct vnt_private *pDevice, PSKeyManagement pTable,
                     pKey->abyKey[15] |= 0x80;
             }
 
-	    MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx,
-			pTable->KeyTable[i].abyBSSID, pKey->abyKey);
+	    vnt_mac_set_keyentry(pDevice, pTable->KeyTable[i].wKeyCtl, i,
+			uKeyIdx, pTable->KeyTable[i].abyBSSID, pKey->abyKey);
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0)
 			pKey->KeyRSC = 0; /* RSC set by NIC */

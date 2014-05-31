@@ -119,7 +119,7 @@ void vnt_mac_disable_keyentry(struct vnt_private *priv, u8 entry_idx)
  * Return Value: none
  *
  */
-void MACvSetKeyEntry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
+void vnt_mac_set_keyentry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
 	u32 key_idx, u8 *addr, u8 *key)
 {
 	struct vnt_mac_set_key set_key;
