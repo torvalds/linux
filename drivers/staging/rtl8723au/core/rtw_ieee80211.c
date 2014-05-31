@@ -859,9 +859,6 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	u8 bencrypt = 0;
 	/* u8 wpa_ie[255], rsn_ie[255]; */
 	u16 wpa_len = 0, rsn_len = 0;
-	struct ieee80211_ht_operation *pht_info;
-	struct ieee80211_ht_cap *pht_cap;
-	const u8 *p;
 
 	cap = get_unaligned_le16(
 		rtw_get_capability23a_from_ie(pnetwork->network.IEs));
@@ -901,25 +898,6 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	rtw_get_cipher_info(pnetwork);
 
 	/* get bwmode and ch_offset */
-	/* parsing HT_CAP_IE */
-	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
-			     pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-			     pnetwork->network.IELength - _FIXED_IE_LENGTH_);
-	if (p && p[1] > 0) {
-		pht_cap = (struct ieee80211_ht_cap *)(p + 2);
-		pnetwork->BcnInfo.ht_cap_info = pht_cap->cap_info;
-	} else
-		pnetwork->BcnInfo.ht_cap_info = 0;
-
-	/* parsing HT_INFO_IE */
-	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
-			     pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-		       pnetwork->network.IELength - _FIXED_IE_LENGTH_);
-	if (p && p[1] > 0) {
-		pht_info = (struct ieee80211_ht_operation *)(p + 2);
-		pnetwork->BcnInfo.ht_info_infos_0 = pht_info->ht_param;
-	} else
-		pnetwork->BcnInfo.ht_info_infos_0 = 0;
 }
 
 /* show MCS rate, unit: 100Kbps */

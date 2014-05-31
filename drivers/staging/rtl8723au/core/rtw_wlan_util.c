@@ -885,15 +885,12 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 {
 	struct wlan_network *cur_network = &Adapter->mlmepriv.cur_network;
 	struct ieee80211_ht_operation *pht_info;
-	struct ieee80211_ht_cap *pht_cap;
 	struct wlan_bssid_ex *bssid;
 	unsigned short val16;
 	u16 wpa_len = 0, rsn_len = 0;
 	u8 encryp_protocol;
 	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0, r;
 	u32 bcn_channel;
-	unsigned short ht_cap_info;
-	unsigned char ht_info_infos_0;
 	int len, pie_len, ie_offset;
 	const u8 *p;
 	u8 *pie;
@@ -941,41 +938,6 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	pie = bssid->IEs + ie_offset;
 	pie_len = pkt_len - ie_offset;
 
-	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, pie, pie_len);
-	if (p && p[1] > 0) {
-		pht_cap = (struct ieee80211_ht_cap *)(p + 2);
-		ht_cap_info = pht_cap->cap_info;
-	} else {
-		pht_cap = NULL;
-		ht_cap_info = 0;
-	}
-
-	/* parsing HT_INFO_IE */
-	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, pie_len);
-	if (p && p[1] > 0) {
-		pht_info = (struct ieee80211_ht_operation *)(p + 2);
-		ht_info_infos_0 = pht_info->ht_param;
-	} else {
-		pht_info = NULL;
-		ht_info_infos_0 = 0;
-	}
-
-	if (ht_cap_info != cur_network->BcnInfo.ht_cap_info ||
-	    ((ht_info_infos_0 & 0x03) !=
-	     (cur_network->BcnInfo.ht_info_infos_0 & 0x03))) {
-		DBG_8723A("%s bcn now: ht_cap_info:%x ht_info_infos_0:%x\n",
-			  __func__, ht_cap_info, ht_info_infos_0);
-		DBG_8723A("%s bcn link: ht_cap_info:%x ht_info_infos_0:%x\n",
-			  __func__, cur_network->BcnInfo.ht_cap_info,
-			  cur_network->BcnInfo.ht_info_infos_0);
-		DBG_8723A("%s bw mode change, disconnect\n", __func__);
-		/* bcn_info_update */
-		cur_network->BcnInfo.ht_cap_info = ht_cap_info;
-		cur_network->BcnInfo.ht_info_infos_0 = ht_info_infos_0;
-		/* to do : need to check that whether modify related
-		   register of BB or not */
-	}
-
 	/* Checking for channel */
 	p = cfg80211_find_ie(WLAN_EID_DS_PARAMS, pie, pie_len);
 	if (p)
@@ -985,9 +947,10 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		   info for channel */
 		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, pie_len);
 
-		if (pht_info)
+		if (p && p[1] > 0) {
+			pht_info = (struct ieee80211_ht_operation *)(p + 2);
 			bcn_channel = pht_info->primary_chan;
-		else { /* we don't find channel IE, so don't check it */
+		} else { /* we don't find channel IE, so don't check it */
 			DBG_8723A("Oops: %s we don't find channel IE, so don't "
 				  "check it\n", __func__);
 			bcn_channel = Adapter->mlmeextpriv.cur_channel;

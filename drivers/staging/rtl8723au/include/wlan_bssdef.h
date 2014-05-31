@@ -83,8 +83,6 @@ struct wlan_bcn_info {
 	int is_8021x;
 
 	/* bwmode 20/40 and ch_offset UP/LOW */
-	unsigned short	ht_cap_info;
-	unsigned char	ht_info_infos_0;
 };
 
 struct wlan_bssid_ex {
