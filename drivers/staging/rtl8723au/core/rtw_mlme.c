@@ -2328,11 +2328,11 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 		rf_type = rtl8723a_get_rf_type(padapter);
 
 		/* update the MCS rates */
-		for (i = 0; i < 16; i++) {
+		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++) {
 			if (rf_type == RF_1T1R || rf_type == RF_1T2R)
-				pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate[i] &= MCS_rate_1R23A[i];
+				pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info.rx_mask[i] &= MCS_rate_1R23A[i];
 			else
-				pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate[i] &= MCS_rate_2R23A[i];
+				pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info.rx_mask[i] &= MCS_rate_2R23A[i];
 		}
 		/* switch to the 40M Hz mode accoring to the AP */
 		pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_40;

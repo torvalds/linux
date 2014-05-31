@@ -762,13 +762,11 @@ void HT_caps_handler23a(struct rtw_adapter *padapter, u8 *p)
 	rf_type = rtl8723a_get_rf_type(padapter);
 
 	/* update the MCS rates */
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++) {
 		if (rf_type == RF_1T1R || rf_type == RF_1T2R)
-			pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate[i] &=
-				MCS_rate_1R23A[i];
+			pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info.rx_mask[i] &= MCS_rate_1R23A[i];
 		else
-			pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate[i] &=
-				MCS_rate_2R23A[i];
+			pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info.rx_mask[i] &= MCS_rate_2R23A[i];
 	}
 	return;
 }
@@ -1344,8 +1342,8 @@ unsigned int update_MSC_rate23a(struct HT_caps_element *pHT_caps)
 {
 	unsigned int mask = 0;
 
-	mask = pHT_caps->u.HT_cap_element.MCS_rate[0] << 12 |
-		pHT_caps->u.HT_cap_element.MCS_rate[1] << 20;
+	mask = pHT_caps->u.HT_cap_element.mcs_info.rx_mask[0] << 12 |
+		pHT_caps->u.HT_cap_element.mcs_info.rx_mask[1] << 20;
 
 	return mask;
 }

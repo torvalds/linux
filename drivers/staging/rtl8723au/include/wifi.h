@@ -81,7 +81,7 @@ struct HT_caps_element {
 		struct {
 			unsigned short	HT_caps_info;
 			unsigned char	AMPDU_para;
-			unsigned char	MCS_rate[16];
+			struct ieee80211_mcs_info mcs_info;
 			unsigned short	HT_ext_caps;
 			unsigned int	Beamforming_caps;
 			unsigned char	ASEL_caps;

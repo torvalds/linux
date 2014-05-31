@@ -3498,7 +3498,7 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 				if (pregpriv->rx_stbc)
 					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0100);
 
-				memcpy(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_rate_1R23A, 16);
+				memcpy(&pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info, MCS_rate_1R23A, 16);
 				break;
 
 			case RF_2T2R:
@@ -3519,7 +3519,7 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 						  "STBC\n");
 					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0200);/* RX STBC two spatial stream */
 				}
-				memcpy(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_rate_2R23A, 16);
+				memcpy(&pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info, MCS_rate_2R23A, 16);
 				break;
 			}
 			pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info =

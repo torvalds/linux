@@ -406,7 +406,7 @@ u16 rtw_get_cur_max_rate23a(struct rtw_adapter *adapter)
 			max_rate = rtw_mcs_rate23a(rf_type, bw_40MHz &
 						pregistrypriv->cbw40_enable,
 						short_GI_20, short_GI_40,
-						pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate
+						&pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info
 			);
 		}
 	} else {
