@@ -80,7 +80,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 		pDevice->byKeyIndex = 0;
 		pDevice->bTransmitKey = false;
 		for (uu=0; uu<MAX_KEY_TABLE; uu++) {
-			MACvDisableKeyEntry(pDevice, uu);
+			vnt_mac_disable_keyentry(pDevice, uu);
 		}
 		return ret;
 	}

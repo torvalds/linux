@@ -1224,7 +1224,7 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 		pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 		if (pDevice->flags & DEVICE_FLAGS_OPENED) {
 			for (uu = 0; uu < MAX_KEY_TABLE; uu++)
-				MACvDisableKeyEntry(pDevice, uu);
+				vnt_mac_disable_keyentry(pDevice, uu);
 		}
 	}
 	if (wrq->flags & IW_ENCODE_RESTRICTED) {

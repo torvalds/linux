@@ -99,7 +99,7 @@ void vnt_mac_set_bb_type(struct vnt_private *priv, u8 type)
  * Return Value: none
  *
  */
-void MACvDisableKeyEntry(struct vnt_private *priv, u8 entry_idx)
+void vnt_mac_disable_keyentry(struct vnt_private *priv, u8 entry_idx)
 {
 	vnt_control_out(priv, MESSAGE_TYPE_CLRKEYENTRY, 0, 0,
 		sizeof(entry_idx), &entry_idx);

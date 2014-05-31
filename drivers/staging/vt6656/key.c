@@ -64,7 +64,6 @@ static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
             pTable->KeyTable[i].wKeyCtl = 0;
             pTable->KeyTable[i].bSoftWEP = false;
             pbyData[wLength++] = (u8) i;
-            //MACvDisableKeyEntry(pDevice, i);
         }
     }
 

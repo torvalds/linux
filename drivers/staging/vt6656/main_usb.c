@@ -1000,7 +1000,7 @@ static int device_close(struct net_device *dev)
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
 	for (uu = 0; uu < MAX_KEY_TABLE; uu++)
-                MACvDisableKeyEntry(pDevice,uu);
+		vnt_mac_disable_keyentry(pDevice, uu);
 
 	if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == false)
 		vnt_mac_shutdown(pDevice);
