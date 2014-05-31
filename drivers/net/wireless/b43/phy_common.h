@@ -400,10 +400,6 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev);
  * b43_switch_channel - Switch to another channel
  */
 int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel);
-/**
- * B43_DEFAULT_CHANNEL - Switch to the default channel.
- */
-#define B43_DEFAULT_CHANNEL	UINT_MAX
 
 /**
  * b43_software_rfkill - Turn the radio ON or OFF in software.
