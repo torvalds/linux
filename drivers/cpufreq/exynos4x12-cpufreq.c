@@ -16,6 +16,8 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "exynos-cpufreq.h"
 
@@ -23,6 +25,7 @@ static struct clk *cpu_clk;
 static struct clk *moutcore;
 static struct clk *mout_mpll;
 static struct clk *mout_apll;
+static struct exynos_dvfs_info *cpufreq;
 
 static unsigned int exynos4x12_volt_table[] = {
 	1350000, 1287500, 1250000, 1187500, 1137500, 1087500, 1037500,
@@ -100,28 +103,26 @@ static struct apll_freq apll_freq_4412[] = {
 static void exynos4x12_set_clkdiv(unsigned int div_index)
 {
 	unsigned int tmp;
-	unsigned int stat_cpu1;
 
 	/* Change Divider - CPU0 */
 
 	tmp = apll_freq_4x12[div_index].clk_div_cpu0;
 
-	__raw_writel(tmp, EXYNOS4_CLKDIV_CPU);
+	__raw_writel(tmp, cpufreq->cmu_regs + EXYNOS4_CLKDIV_CPU);
 
-	while (__raw_readl(EXYNOS4_CLKDIV_STATCPU) & 0x11111111)
+	while (__raw_readl(cpufreq->cmu_regs + EXYNOS4_CLKDIV_STATCPU)
+	       & 0x11111111)
 		cpu_relax();
 
 	/* Change Divider - CPU1 */
 	tmp = apll_freq_4x12[div_index].clk_div_cpu1;
 
-	__raw_writel(tmp, EXYNOS4_CLKDIV_CPU1);
-	if (soc_is_exynos4212())
-		stat_cpu1 = 0x11;
-	else
-		stat_cpu1 = 0x111;
+	__raw_writel(tmp, cpufreq->cmu_regs + EXYNOS4_CLKDIV_CPU1);
 
-	while (__raw_readl(EXYNOS4_CLKDIV_STATCPU1) & stat_cpu1)
+	do {
 		cpu_relax();
+		tmp = __raw_readl(cpufreq->cmu_regs + EXYNOS4_CLKDIV_STATCPU1);
+	} while (tmp != 0x0);
 }
 
 static void exynos4x12_set_apll(unsigned int index)
@@ -133,7 +134,7 @@ static void exynos4x12_set_apll(unsigned int index)
 
 	do {
 		cpu_relax();
-		tmp = (__raw_readl(EXYNOS4_CLKMUX_STATCPU)
+		tmp = (__raw_readl(cpufreq->cmu_regs + EXYNOS4_CLKMUX_STATCPU)
 			>> EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT);
 		tmp &= 0x7;
 	} while (tmp != 0x2);
@@ -145,7 +146,7 @@ static void exynos4x12_set_apll(unsigned int index)
 
 	do {
 		cpu_relax();
-		tmp = __raw_readl(EXYNOS4_CLKMUX_STATCPU);
+		tmp = __raw_readl(cpufreq->cmu_regs + EXYNOS4_CLKMUX_STATCPU);
 		tmp &= EXYNOS4_CLKMUX_STATCPU_MUXCORE_MASK;
 	} while (tmp != (0x1 << EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT));
 }
@@ -164,7 +165,29 @@ static void exynos4x12_set_frequency(unsigned int old_index,
 
 int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 {
+	struct device_node *np;
 	unsigned long rate;
+
+	/*
+	 * HACK: This is a temporary workaround to get access to clock
+	 * controller registers directly and remove static mappings and
+	 * dependencies on platform headers. It is necessary to enable
+	 * Exynos multi-platform support and will be removed together with
+	 * this whole driver as soon as Exynos gets migrated to use
+	 * cpufreq-cpu0 driver.
+	 */
+	np = of_find_compatible_node(NULL, NULL, "samsung,exynos4412-clock");
+	if (!np) {
+		pr_err("%s: failed to find clock controller DT node\n",
+			__func__);
+		return -ENODEV;
+	}
+
+	info->cmu_regs = of_iomap(np, 0);
+	if (!info->cmu_regs) {
+		pr_err("%s: failed to map CMU registers\n", __func__);
+		return -EFAULT;
+	}
 
 	cpu_clk = clk_get(NULL, "armclk");
 	if (IS_ERR(cpu_clk))
@@ -184,7 +207,7 @@ int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 	if (IS_ERR(mout_apll))
 		goto err_mout_apll;
 
-	if (soc_is_exynos4212())
+	if (info->type == EXYNOS_SOC_4212)
 		apll_freq_4x12 = apll_freq_4212;
 	else
 		apll_freq_4x12 = apll_freq_4412;
@@ -196,6 +219,8 @@ int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 	info->volt_table = exynos4x12_volt_table;
 	info->freq_table = exynos4x12_freq_table;
 	info->set_freq = exynos4x12_set_frequency;
+
+	cpufreq = info;
 
 	return 0;
 
