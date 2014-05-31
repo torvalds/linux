@@ -222,12 +222,20 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			struct rtl8187se_rx_desc *desc = entry;
 
 			flags = le32_to_cpu(desc->flags);
+			/* if ownership flag is set, then we can trust the
+			 * HW has written other fields. We must not trust
+			 * other descriptor data read before we checked (read)
+			 * the ownership flag
+			 */
+			rmb();
 			flags2 = le32_to_cpu(desc->flags2);
 			tsft = le64_to_cpu(desc->tsft);
 		} else {
 			struct rtl8180_rx_desc *desc = entry;
 
 			flags = le32_to_cpu(desc->flags);
+			/* same as above */
+			rmb();
 			flags2 = le32_to_cpu(desc->flags2);
 			tsft = le64_to_cpu(desc->tsft);
 		}
