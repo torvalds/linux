@@ -1657,7 +1657,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                         if (pDevice->bProtectMode) {
 			    vnt_mac_enable_protect_mode(pDevice);
                         } else {
-                            MACvDisableProtectMD(pDevice);
+			    vnt_mac_disable_protect_mode(pDevice);
                         }
 			vnt_update_ifs(pDevice);
                     }
@@ -2031,7 +2031,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 
     // Disable Protect Mode
     pDevice->bProtectMode = 0;
-    MACvDisableProtectMD(pDevice);
+    vnt_mac_disable_protect_mode(pDevice);
 
     pDevice->bBarkerPreambleMd = 0;
     MACvDisableBarkerPreambleMd(pDevice);
@@ -2389,7 +2389,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
                     if (pDevice->bProtectMode) {
 			vnt_mac_enable_protect_mode(pDevice);
                     } else {
-                        MACvDisableProtectMD(pDevice);
+			vnt_mac_disable_protect_mode(pDevice);
                     }
 		    vnt_update_ifs(pDevice);
                 }
@@ -2565,7 +2565,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
 
     // Init the BSS informations
     pDevice->bProtectMode = false;
-    MACvDisableProtectMD(pDevice);
+    vnt_mac_disable_protect_mode(pDevice);
     pDevice->bBarkerPreambleMd = false;
     MACvDisableBarkerPreambleMd(pDevice);
     pDevice->bNonERPPresent = false;

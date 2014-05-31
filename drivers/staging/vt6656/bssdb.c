@@ -950,7 +950,7 @@ void BSSvSecondCallBack(struct work_struct *work)
 				pDevice->bProtectMode = true;
 			}
 		} else if (pDevice->bProtectMode) {
-			MACvDisableProtectMD(pDevice);
+			vnt_mac_disable_protect_mode(pDevice);
 			pDevice->bProtectMode = false;
 		}
 		/* on/off short slot time */
