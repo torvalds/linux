@@ -1670,7 +1670,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                         if (pDevice->bBarkerPreambleMd) {
 			    vnt_mac_enable_barker_preamble_mode(pDevice);
                         } else {
-                            MACvDisableBarkerPreambleMd(pDevice);
+			    vnt_mac_disable_barker_preamble_mode(pDevice);
                         }
                     }
                 }
@@ -2034,7 +2034,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     vnt_mac_disable_protect_mode(pDevice);
 
     pDevice->bBarkerPreambleMd = 0;
-    MACvDisableBarkerPreambleMd(pDevice);
+    vnt_mac_disable_barker_preamble_mode(pDevice);
 
     // Kyle Test 2003.11.04
 
@@ -2402,7 +2402,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
                     if (pDevice->bBarkerPreambleMd) {
 			vnt_mac_enable_barker_preamble_mode(pDevice);
                     } else {
-                        MACvDisableBarkerPreambleMd(pDevice);
+			vnt_mac_disable_barker_preamble_mode(pDevice);
                     }
                 }
             }
@@ -2567,7 +2567,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     pDevice->bProtectMode = false;
     vnt_mac_disable_protect_mode(pDevice);
     pDevice->bBarkerPreambleMd = false;
-    MACvDisableBarkerPreambleMd(pDevice);
+    vnt_mac_disable_barker_preamble_mode(pDevice);
     pDevice->bNonERPPresent = false;
     pDevice->byPreambleType = 0;
     pDevice->wBasicRate = 0;

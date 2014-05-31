@@ -426,7 +426,7 @@ void vnt_mac_set_bssid_addr(struct vnt_private *, u8 *);
 void vnt_mac_enable_protect_mode(struct vnt_private *);
 void vnt_mac_disable_protect_mode(struct vnt_private *);
 void vnt_mac_enable_barker_preamble_mode(struct vnt_private *);
-void MACvDisableBarkerPreambleMd(struct vnt_private *);
+void vnt_mac_disable_barker_preamble_mode(struct vnt_private *);
 void MACvWriteBeaconInterval(struct vnt_private *, u16);
 void vnt_mac_set_led(struct vnt_private *priv, u8, u8);
 

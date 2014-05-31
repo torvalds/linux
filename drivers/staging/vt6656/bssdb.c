@@ -975,7 +975,7 @@ void BSSvSecondCallBack(struct work_struct *work)
 				pDevice->bBarkerPreambleMd = true;
 			}
 		} else if (pDevice->bBarkerPreambleMd) {
-				MACvDisableBarkerPreambleMd(pDevice);
+				vnt_mac_disable_barker_preamble_mode(pDevice);
 				pDevice->bBarkerPreambleMd = false;
 		}
 
