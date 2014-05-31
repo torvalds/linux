@@ -2249,7 +2249,7 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, in_ie + 12,
 				     in_len -12);
-		if (p && (p[1] == sizeof(struct ieee80211_ht_addt_info))) {
+		if (p && (p[1] == sizeof(struct ieee80211_ht_operation))) {
 			out_len = *pout_len;
 			pframe = rtw_set_ie23a(out_ie + out_len,
 					       WLAN_EID_HT_OPERATION,
@@ -2266,7 +2266,7 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 	u8 max_ampdu_sz;
 	const u8 *p;
 	struct ieee80211_ht_cap *pht_capie;
-	struct ieee80211_ht_addt_info *pht_addtinfo;
+	struct ieee80211_ht_operation *pht_addtinfo;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
@@ -2314,7 +2314,7 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 
 	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, ie_len);
 	if (p && p[1] > 0) {
-		pht_addtinfo = (struct ieee80211_ht_addt_info *)(p + 2);
+		pht_addtinfo = (struct ieee80211_ht_operation *)(p + 2);
 		/* todo: */
 	}
 

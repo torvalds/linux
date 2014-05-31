@@ -68,14 +68,6 @@
  * This structure refers to "HT information element" as
  * described in 802.11n draft section 7.3.2.53
  */
-struct ieee80211_ht_addt_info {
-	unsigned char	control_chan;
-	unsigned char	ht_param;
-	unsigned short	operation_mode;
-	unsigned short	stbc_param;
-	unsigned char	basic_set[16];
-} __packed;
-
 struct HT_info_element {
 	unsigned char	primary_channel;
 	unsigned char	infos[5];
