@@ -63,7 +63,7 @@ void qeth_l3_ipaddr4_to_string(const __u8 *addr, char *buf)
 int qeth_l3_string_to_ipaddr4(const char *buf, __u8 *addr)
 {
 	int count = 0, rc = 0;
-	int in[4];
+	unsigned int in[4];
 	char c;
 
 	rc = sscanf(buf, "%u.%u.%u.%u%c",

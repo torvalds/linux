@@ -1013,7 +1013,7 @@ static long __qeth_check_irb_error(struct ccw_device *cdev,
 
 	card = CARD_FROM_CDEV(cdev);
 
-	if (!IS_ERR(irb))
+	if (!card || !IS_ERR(irb))
 		return 0;
 
 	switch (PTR_ERR(irb)) {
@@ -1029,7 +1029,7 @@ static long __qeth_check_irb_error(struct ccw_device *cdev,
 		QETH_CARD_TEXT(card, 2, "ckirberr");
 		QETH_CARD_TEXT_(card, 2, "  rc%d", -ETIMEDOUT);
 		if (intparm == QETH_RCD_PARM) {
-			if (card && (card->data.ccwdev == cdev)) {
+			if (card->data.ccwdev == cdev) {
 				card->data.state = CH_STATE_DOWN;
 				wake_up(&card->wait_q);
 			}
