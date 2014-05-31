@@ -269,9 +269,9 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			switch (priv->chip_family) {
 			case RTL818X_CHIP_FAMILY_RTL8185:
 				if (rx_status.rate_idx > 3)
-					signal = 90 - clamp_t(u8, agc, 25, 90);
+					signal = -clamp_t(u8, agc, 25, 90) - 9;
 				else
-					signal = 95 - clamp_t(u8, agc, 30, 95);
+					signal = -clamp_t(u8, agc, 30, 95);
 				break;
 			case RTL818X_CHIP_FAMILY_RTL8180:
 				sq = flags2 & 0xff;
@@ -1754,8 +1754,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		     IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_SIGNAL_UNSPEC;
+		IEEE80211_HW_RX_INCLUDES_FCS;
 	dev->vif_data_size = sizeof(struct rtl8180_vif);
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_ADHOC);
@@ -1811,6 +1810,11 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		priv->band.n_bitrates = ARRAY_SIZE(rtl818x_rates);
 		pci_try_set_mwi(pdev);
 	}
+
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185)
+		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
+	else
+		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
 
 	rtl8180_eeprom_read(priv);
 
