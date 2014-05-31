@@ -62,8 +62,6 @@ static void klsi_105_close(struct usb_serial_port *port);
 static void klsi_105_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  klsi_105_tiocmget(struct tty_struct *tty);
-static int  klsi_105_tiocmset(struct tty_struct *tty,
-			unsigned int set, unsigned int clear);
 static void klsi_105_process_read_urb(struct urb *urb);
 static int klsi_105_prepare_write_buffer(struct usb_serial_port *port,
 						void *dest, size_t size);
@@ -93,7 +91,6 @@ static struct usb_serial_driver kl5kusb105d_device = {
 	.set_termios =		klsi_105_set_termios,
 	/*.break_ctl =		klsi_105_break_ctl,*/
 	.tiocmget =		klsi_105_tiocmget,
-	.tiocmset =		klsi_105_tiocmset,
 	.port_probe =		klsi_105_port_probe,
 	.port_remove =		klsi_105_port_remove,
 	.throttle =		usb_serial_generic_throttle,
@@ -600,33 +597,6 @@ static int klsi_105_tiocmget(struct tty_struct *tty)
 	spin_unlock_irqrestore(&priv->lock, flags);
 	dev_dbg(&port->dev, "%s - read line state 0x%lx\n", __func__, line_state);
 	return (int)line_state;
-}
-
-static int klsi_105_tiocmset(struct tty_struct *tty,
-			     unsigned int set, unsigned int clear)
-{
-	int retval = -EINVAL;
-
-/* if this ever gets implemented, it should be done something like this:
-	struct usb_serial *serial = port->serial;
-	struct klsi_105_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	int control;
-
-	spin_lock_irqsave (&priv->lock, flags);
-	if (set & TIOCM_RTS)
-		priv->control_state |= TIOCM_RTS;
-	if (set & TIOCM_DTR)
-		priv->control_state |= TIOCM_DTR;
-	if (clear & TIOCM_RTS)
-		priv->control_state &= ~TIOCM_RTS;
-	if (clear & TIOCM_DTR)
-		priv->control_state &= ~TIOCM_DTR;
-	control = priv->control_state;
-	spin_unlock_irqrestore (&priv->lock, flags);
-	retval = mct_u232_set_modem_ctrl(serial, control);
-*/
-	return retval;
 }
 
 module_usb_serial_driver(serial_drivers, id_table);
