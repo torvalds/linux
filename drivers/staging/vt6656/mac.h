@@ -419,7 +419,7 @@ void vnt_mac_shutdown(struct vnt_private *);
 void vnt_mac_set_bb_type(struct vnt_private *, u8);
 void vnt_mac_disable_keyentry(struct vnt_private *, u8);
 void vnt_mac_set_keyentry(struct vnt_private *, u16, u32, u32, u8 *, u8 *);
-void MACvRegBitsOff(struct vnt_private *, u8, u8);
+void vnt_mac_reg_bits_off(struct vnt_private *, u8, u8);
 void MACvRegBitsOn(struct vnt_private *, u8, u8);
 void MACvWriteWord(struct vnt_private *, u8, u16);
 void MACvWriteBSSIDAddress(struct vnt_private *, u8 *);

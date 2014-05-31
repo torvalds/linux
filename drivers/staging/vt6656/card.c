@@ -92,7 +92,7 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 	MACvRegBitsOn(priv, MAC_REG_MACCR, MACCR_CLRNAV);
 
 	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
-	MACvRegBitsOff(priv, MAC_REG_CHANNEL, 0xb0);
+	vnt_mac_reg_bits_off(priv, MAC_REG_CHANNEL, 0xb0);
 
 	vnt_control_out(priv, MESSAGE_TYPE_SELECT_CHANNLE,
 					connection_channel, 0, 0, NULL);
@@ -777,12 +777,12 @@ int vnt_radio_power_off(struct vnt_private *priv)
 	case RF_VT3226:
 	case RF_VT3226D0:
 	case RF_VT3342A0:
-		MACvRegBitsOff(priv, MAC_REG_SOFTPWRCTL,
+		vnt_mac_reg_bits_off(priv, MAC_REG_SOFTPWRCTL,
 				(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
 		break;
 	}
 
-	MACvRegBitsOff(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
+	vnt_mac_reg_bits_off(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
 
 	BBvSetDeepSleep(priv);
 

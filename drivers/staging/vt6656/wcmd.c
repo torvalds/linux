@@ -111,7 +111,7 @@ static void vAdHocBeaconStop(struct vnt_private *pDevice)
 	if (bStop) {
 		//PMESG(("STOP_BEACON: IBSSChannel = %u, ScanChannel = %u\n",
 		//        pMgmt->uIBSSChannel, pMgmt->uScanChannel));
-		MACvRegBitsOff(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
+		vnt_mac_reg_bits_off(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
 	}
 
 } /* vAdHocBeaconStop */
@@ -325,7 +325,7 @@ void vRunCommand(struct work_struct *work)
 				pDevice->byScanBBType = pDevice->byBBType;  //lucas
 				pDevice->bStopDataPkt = true;
 				// Turn off RCR_BSSID filter every time
-				MACvRegBitsOff(pDevice, MAC_REG_RCR, RCR_BSSID);
+				vnt_mac_reg_bits_off(pDevice, MAC_REG_RCR, RCR_BSSID);
 				pDevice->byRxMode &= ~RCR_BSSID;
 			}
 			//lucas
@@ -647,7 +647,7 @@ void vRunCommand(struct work_struct *work)
 					KERN_INFO "vMgrCreateOwnIBSS fail!\n");
 			}
 			// always turn off unicast bit
-			MACvRegBitsOff(pDevice, MAC_REG_RCR, RCR_UNICAST);
+			vnt_mac_reg_bits_off(pDevice, MAC_REG_RCR, RCR_UNICAST);
 			pDevice->byRxMode &= ~RCR_UNICAST;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wcmd: rx_mode = %x\n", pDevice->byRxMode);
 			BSSvAddMulticastNode(pDevice);
@@ -808,7 +808,7 @@ void vRunCommand(struct work_struct *work)
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" WLAN_CMD_RADIO_START_ON........................\n");
 				pDevice->bHWRadioOff = false;
 				vnt_radio_power_on(pDevice);
-				MACvRegBitsOff(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+				vnt_mac_reg_bits_off(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
 
 				vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_ON);
 			}

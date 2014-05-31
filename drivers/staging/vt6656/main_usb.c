@@ -546,7 +546,8 @@ static int device_init_registers(struct vnt_private *pDevice)
 			pDevice->bHWRadioOff = true;
 			MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
 		} else {
-			MACvRegBitsOff(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+			vnt_mac_reg_bits_off(pDevice, MAC_REG_GPIOCTL1,
+								GPIO3_INTMD);
 			pDevice->bHWRadioOff = false;
 		}
 

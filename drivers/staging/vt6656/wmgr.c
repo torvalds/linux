@@ -1932,7 +1932,6 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                     if (pDevice->byPreambleType != byOldPreambleType)
 			vnt_set_rspinf(pDevice, (u8)pDevice->byBBType);
 
-                     // MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
                      // set highest basic rate
                      // s_vSetHighestBasicRate(pDevice, (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates);
                      // Prepare beacon frame
@@ -2561,7 +2560,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
 
     // if previous mode is IBSS.
     if(pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
-        MACvRegBitsOff(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
+	vnt_mac_reg_bits_off(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
     }
 
     // Init the BSS informations
@@ -2636,7 +2635,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     }
 
     if (uBSSMode == WMAC_MODE_ESS_STA) {
-        MACvRegBitsOff(pDevice, MAC_REG_HOSTCR, HOSTCR_ADHOC);
+	vnt_mac_reg_bits_off(pDevice, MAC_REG_HOSTCR, HOSTCR_ADHOC);
         MACvRegBitsOn(pDevice, MAC_REG_RCR, RCR_BSSID);
         pDevice->byRxMode |= RCR_BSSID;
         pMgmt->bCurrBSSIDFilterOn = true;

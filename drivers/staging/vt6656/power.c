@@ -88,7 +88,7 @@ void PSvEnablePowerSaving(struct vnt_private *pDevice, u16 wListenInterval)
 	if (wListenInterval >= 2) {
 
 		/* clear always listen beacon */
-		MACvRegBitsOff(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
+		vnt_mac_reg_bits_off(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 
 		/* first time set listen next beacon */
 		MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
@@ -133,7 +133,7 @@ void PSvDisablePowerSaving(struct vnt_private *pDevice)
 						0, 0, NULL);
 
 	/* clear AutoSleep */
-	MACvRegBitsOff(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
+	vnt_mac_reg_bits_off(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
 	/* set always listen beacon */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
