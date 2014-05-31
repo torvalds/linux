@@ -228,9 +228,6 @@ struct b43_phy {
 	bool supports_2ghz;
 	bool supports_5ghz;
 
-	/* HT info */
-	bool is_40mhz;
-
 	/* Is GMODE (2 GHz mode) bit enabled? */
 	bool gmode;
 
@@ -451,6 +448,8 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
 void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on);
 
 bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type);
+
+bool b43_is_40mhz(struct b43_wldev *dev);
 
 void b43_phy_force_clock(struct b43_wldev *dev, bool force);
 

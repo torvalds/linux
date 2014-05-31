@@ -3810,11 +3810,6 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		phy->chandef = &conf->chandef;
 		phy->channel = conf->chandef.chan->hw_value;
-		if (conf_is_ht(conf))
-			phy->is_40mhz = conf_is_ht40_minus(conf) ||
-					conf_is_ht40_plus(conf);
-		else
-			phy->is_40mhz = false;
 
 		/* Switch the band (if necessary). */
 		err = b43_switch_band(dev, conf->chandef.chan);
