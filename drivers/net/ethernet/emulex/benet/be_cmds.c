@@ -119,21 +119,28 @@ static struct be_cmd_resp_hdr *be_decode_resp_hdr(u32 tag0, u32 tag1)
 	return (void *)addr;
 }
 
-static int be_mcc_compl_process(struct be_adapter *adapter,
-				struct be_mcc_compl *compl)
+static bool be_skip_err_log(u8 opcode, u16 base_status, u16 addl_status)
 {
-	u16 compl_status, extd_status;
-	struct be_cmd_resp_hdr *resp_hdr;
+	if (base_status == MCC_STATUS_NOT_SUPPORTED ||
+	    base_status == MCC_STATUS_ILLEGAL_REQUEST ||
+	    addl_status == MCC_ADDL_STATUS_TOO_MANY_INTERFACES ||
+	    (opcode == OPCODE_COMMON_WRITE_FLASHROM &&
+	    (base_status == MCC_STATUS_ILLEGAL_FIELD ||
+	     addl_status == MCC_ADDL_STATUS_FLASH_IMAGE_CRC_MISMATCH)))
+		return true;
+	else
+		return false;
+}
+
+/* Place holder for all the async MCC cmds wherein the caller is not in a busy
+ * loop (has not issued be_mcc_notify_wait())
+ */
+static void be_async_cmd_process(struct be_adapter *adapter,
+				 struct be_mcc_compl *compl,
+				 struct be_cmd_resp_hdr *resp_hdr)
+{
+	enum mcc_base_status base_status = base_status(compl->status);
 	u8 opcode = 0, subsystem = 0;
-
-	/* Just swap the status to host endian; mcc tag is opaquely copied
-	 * from mcc_wrb */
-	be_dws_le_to_cpu(compl, 4);
-
-	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
-				CQE_STATUS_COMPL_MASK;
-
-	resp_hdr = be_decode_resp_hdr(compl->tag0, compl->tag1);
 
 	if (resp_hdr) {
 		opcode = resp_hdr->opcode;
@@ -143,61 +150,86 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	if (opcode == OPCODE_LOWLEVEL_LOOPBACK_TEST &&
 	    subsystem == CMD_SUBSYSTEM_LOWLEVEL) {
 		complete(&adapter->et_cmd_compl);
-		return 0;
+		return;
 	}
 
-	if (((opcode == OPCODE_COMMON_WRITE_FLASHROM) ||
-	     (opcode == OPCODE_COMMON_WRITE_OBJECT)) &&
-	    (subsystem == CMD_SUBSYSTEM_COMMON)) {
-		adapter->flash_status = compl_status;
+	if ((opcode == OPCODE_COMMON_WRITE_FLASHROM ||
+	     opcode == OPCODE_COMMON_WRITE_OBJECT) &&
+	    subsystem == CMD_SUBSYSTEM_COMMON) {
+		adapter->flash_status = compl->status;
 		complete(&adapter->et_cmd_compl);
+		return;
 	}
 
-	if (compl_status == MCC_STATUS_SUCCESS) {
-		if (((opcode == OPCODE_ETH_GET_STATISTICS) ||
-		     (opcode == OPCODE_ETH_GET_PPORT_STATS)) &&
-		    (subsystem == CMD_SUBSYSTEM_ETH)) {
-			be_parse_stats(adapter);
-			adapter->stats_cmd_sent = false;
-		}
-		if (opcode == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES &&
-		    subsystem == CMD_SUBSYSTEM_COMMON) {
+	if ((opcode == OPCODE_ETH_GET_STATISTICS ||
+	     opcode == OPCODE_ETH_GET_PPORT_STATS) &&
+	    subsystem == CMD_SUBSYSTEM_ETH &&
+	    base_status == MCC_STATUS_SUCCESS) {
+		be_parse_stats(adapter);
+		adapter->stats_cmd_sent = false;
+		return;
+	}
+
+	if (opcode == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES &&
+	    subsystem == CMD_SUBSYSTEM_COMMON) {
+		if (base_status == MCC_STATUS_SUCCESS) {
 			struct be_cmd_resp_get_cntl_addnl_attribs *resp =
-				(void *)resp_hdr;
+							(void *)resp_hdr;
 			adapter->drv_stats.be_on_die_temperature =
-				resp->on_die_temperature;
-		}
-	} else {
-		if (opcode == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES)
+						resp->on_die_temperature;
+		} else {
 			adapter->be_get_temp_freq = 0;
+		}
+		return;
+	}
+}
 
-		if (compl_status == MCC_STATUS_NOT_SUPPORTED ||
-			compl_status == MCC_STATUS_ILLEGAL_REQUEST)
-			goto done;
+static int be_mcc_compl_process(struct be_adapter *adapter,
+				struct be_mcc_compl *compl)
+{
+	enum mcc_base_status base_status;
+	enum mcc_addl_status addl_status;
+	struct be_cmd_resp_hdr *resp_hdr;
+	u8 opcode = 0, subsystem = 0;
 
-		if (compl_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
+	/* Just swap the status to host endian; mcc tag is opaquely copied
+	 * from mcc_wrb */
+	be_dws_le_to_cpu(compl, 4);
+
+	base_status = base_status(compl->status);
+	addl_status = addl_status(compl->status);
+
+	resp_hdr = be_decode_resp_hdr(compl->tag0, compl->tag1);
+	if (resp_hdr) {
+		opcode = resp_hdr->opcode;
+		subsystem = resp_hdr->subsystem;
+	}
+
+	be_async_cmd_process(adapter, compl, resp_hdr);
+
+	if (base_status != MCC_STATUS_SUCCESS &&
+	    !be_skip_err_log(opcode, base_status, addl_status)) {
+
+		if (base_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
 			dev_warn(&adapter->pdev->dev,
 				 "VF is not privileged to issue opcode %d-%d\n",
 				 opcode, subsystem);
 		} else {
-			extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
-					CQE_STATUS_EXTD_MASK;
 			dev_err(&adapter->pdev->dev,
 				"opcode %d-%d failed:status %d-%d\n",
-				opcode, subsystem, compl_status, extd_status);
-
-			if (extd_status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
-				return extd_status;
+				opcode, subsystem, base_status, addl_status);
 		}
 	}
-done:
-	return compl_status;
+	return compl->status;
 }
 
 /* Link state evt is a string of bytes; no need for endian swapping */
 static void be_async_link_state_process(struct be_adapter *adapter,
-					struct be_async_event_link_state *evt)
+					struct be_mcc_compl *compl)
 {
+	struct be_async_event_link_state *evt =
+			(struct be_async_event_link_state *)compl;
+
 	/* When link status changes, link speed must be re-queried from FW */
 	adapter->phy.link_speed = -1;
 
@@ -220,10 +252,11 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 
 /* Grp5 CoS Priority evt */
 static void be_async_grp5_cos_priority_process(struct be_adapter *adapter,
-					       struct
-					       be_async_event_grp5_cos_priority
-					       *evt)
+					       struct be_mcc_compl *compl)
 {
+	struct be_async_event_grp5_cos_priority *evt =
+			(struct be_async_event_grp5_cos_priority *)compl;
+
 	if (evt->valid) {
 		adapter->vlan_prio_bmap = evt->available_priority_bmap;
 		adapter->recommended_prio &= ~VLAN_PRIO_MASK;
@@ -234,10 +267,11 @@ static void be_async_grp5_cos_priority_process(struct be_adapter *adapter,
 
 /* Grp5 QOS Speed evt: qos_link_speed is in units of 10 Mbps */
 static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
-					    struct
-					    be_async_event_grp5_qos_link_speed
-					    *evt)
+					    struct be_mcc_compl *compl)
 {
+	struct be_async_event_grp5_qos_link_speed *evt =
+			(struct be_async_event_grp5_qos_link_speed *)compl;
+
 	if (adapter->phy.link_speed >= 0 &&
 	    evt->physical_port == adapter->port_num)
 		adapter->phy.link_speed = le16_to_cpu(evt->qos_link_speed) * 10;
@@ -245,10 +279,11 @@ static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
 
 /*Grp5 PVID evt*/
 static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
-					     struct
-					     be_async_event_grp5_pvid_state
-					     *evt)
+					     struct be_mcc_compl *compl)
 {
+	struct be_async_event_grp5_pvid_state *evt =
+			(struct be_async_event_grp5_pvid_state *)compl;
+
 	if (evt->enabled) {
 		adapter->pvid = le16_to_cpu(evt->tag) & VLAN_VID_MASK;
 		dev_info(&adapter->pdev->dev, "LPVID: %d\n", adapter->pvid);
@@ -258,26 +293,21 @@ static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
 }
 
 static void be_async_grp5_evt_process(struct be_adapter *adapter,
-				      u32 trailer, struct be_mcc_compl *evt)
+				      struct be_mcc_compl *compl)
 {
-	u8 event_type = 0;
-
-	event_type = (trailer >> ASYNC_TRAILER_EVENT_TYPE_SHIFT) &
-		ASYNC_TRAILER_EVENT_TYPE_MASK;
+	u8 event_type = (compl->flags >> ASYNC_EVENT_TYPE_SHIFT) &
+				ASYNC_EVENT_TYPE_MASK;
 
 	switch (event_type) {
 	case ASYNC_EVENT_COS_PRIORITY:
-		be_async_grp5_cos_priority_process(adapter,
-		(struct be_async_event_grp5_cos_priority *)evt);
-	break;
+		be_async_grp5_cos_priority_process(adapter, compl);
+		break;
 	case ASYNC_EVENT_QOS_SPEED:
-		be_async_grp5_qos_speed_process(adapter,
-		(struct be_async_event_grp5_qos_link_speed *)evt);
-	break;
+		be_async_grp5_qos_speed_process(adapter, compl);
+		break;
 	case ASYNC_EVENT_PVID_STATE:
-		be_async_grp5_pvid_state_process(adapter,
-		(struct be_async_event_grp5_pvid_state *)evt);
-	break;
+		be_async_grp5_pvid_state_process(adapter, compl);
+		break;
 	default:
 		dev_warn(&adapter->pdev->dev, "Unknown grp5 event 0x%x!\n",
 			 event_type);
@@ -286,13 +316,13 @@ static void be_async_grp5_evt_process(struct be_adapter *adapter,
 }
 
 static void be_async_dbg_evt_process(struct be_adapter *adapter,
-				     u32 trailer, struct be_mcc_compl *cmp)
+				     struct be_mcc_compl *cmp)
 {
 	u8 event_type = 0;
 	struct be_async_event_qnq *evt = (struct be_async_event_qnq *) cmp;
 
-	event_type = (trailer >> ASYNC_TRAILER_EVENT_TYPE_SHIFT) &
-		ASYNC_TRAILER_EVENT_TYPE_MASK;
+	event_type = (cmp->flags >> ASYNC_EVENT_TYPE_SHIFT) &
+			ASYNC_EVENT_TYPE_MASK;
 
 	switch (event_type) {
 	case ASYNC_DEBUG_EVENT_TYPE_QNQ:
@@ -307,25 +337,33 @@ static void be_async_dbg_evt_process(struct be_adapter *adapter,
 	}
 }
 
-static inline bool is_link_state_evt(u32 trailer)
+static inline bool is_link_state_evt(u32 flags)
 {
-	return ((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		ASYNC_TRAILER_EVENT_CODE_MASK) ==
-				ASYNC_EVENT_CODE_LINK_STATE;
+	return ((flags >> ASYNC_EVENT_CODE_SHIFT) & ASYNC_EVENT_CODE_MASK) ==
+			ASYNC_EVENT_CODE_LINK_STATE;
 }
 
-static inline bool is_grp5_evt(u32 trailer)
+static inline bool is_grp5_evt(u32 flags)
 {
-	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		ASYNC_TRAILER_EVENT_CODE_MASK) ==
-				ASYNC_EVENT_CODE_GRP_5);
+	return ((flags >> ASYNC_EVENT_CODE_SHIFT) & ASYNC_EVENT_CODE_MASK) ==
+			ASYNC_EVENT_CODE_GRP_5;
 }
 
-static inline bool is_dbg_evt(u32 trailer)
+static inline bool is_dbg_evt(u32 flags)
 {
-	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		ASYNC_TRAILER_EVENT_CODE_MASK) ==
-				ASYNC_EVENT_CODE_QNQ);
+	return ((flags >> ASYNC_EVENT_CODE_SHIFT) & ASYNC_EVENT_CODE_MASK) ==
+			ASYNC_EVENT_CODE_QNQ;
+}
+
+static void be_mcc_event_process(struct be_adapter *adapter,
+				 struct be_mcc_compl *compl)
+{
+	if (is_link_state_evt(compl->flags))
+		be_async_link_state_process(adapter, compl);
+	else if (is_grp5_evt(compl->flags))
+		be_async_grp5_evt_process(adapter, compl);
+	else if (is_dbg_evt(compl->flags))
+		be_async_dbg_evt_process(adapter, compl);
 }
 
 static struct be_mcc_compl *be_mcc_compl_get(struct be_adapter *adapter)
@@ -367,21 +405,13 @@ int be_process_mcc(struct be_adapter *adapter)
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
 	spin_lock(&adapter->mcc_cq_lock);
+
 	while ((compl = be_mcc_compl_get(adapter))) {
 		if (compl->flags & CQE_FLAGS_ASYNC_MASK) {
-			/* Interpret flags as an async trailer */
-			if (is_link_state_evt(compl->flags))
-				be_async_link_state_process(adapter,
-				(struct be_async_event_link_state *) compl);
-			else if (is_grp5_evt(compl->flags))
-				be_async_grp5_evt_process(adapter,
-							  compl->flags, compl);
-			else if (is_dbg_evt(compl->flags))
-				be_async_dbg_evt_process(adapter,
-							 compl->flags, compl);
+			be_mcc_event_process(adapter, compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
-				status = be_mcc_compl_process(adapter, compl);
-				atomic_dec(&mcc_obj->q.used);
+			status = be_mcc_compl_process(adapter, compl);
+			atomic_dec(&mcc_obj->q.used);
 		}
 		be_mcc_compl_use(compl);
 		num++;
@@ -441,7 +471,9 @@ static int be_mcc_notify_wait(struct be_adapter *adapter)
 	if (status == -EIO)
 		goto out;
 
-	status = resp->status;
+	status = (resp->base_status |
+		  ((resp->addl_status & CQE_ADDL_STATUS_MASK) <<
+		   CQE_ADDL_STATUS_SHIFT));
 out:
 	return status;
 }
@@ -2300,7 +2332,7 @@ err_unlock:
 }
 
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			 int offset)
+			  u16 optype, int offset)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_read_flash_crc *req;
@@ -2319,7 +2351,7 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 			       OPCODE_COMMON_READ_FLASHROM, sizeof(*req),
 			       wrb, NULL);
 
-	req->params.op_type = cpu_to_le32(OPTYPE_REDBOOT);
+	req->params.op_type = cpu_to_le32(optype);
 	req->params.op_code = cpu_to_le32(FLASHROM_OPER_REPORT);
 	req->params.offset = cpu_to_le32(offset);
 	req->params.data_buf_size = cpu_to_le32(0x4);
@@ -3562,33 +3594,47 @@ void be_reset_nic_desc(struct be_nic_res_desc *nic)
 	nic->cq_count = 0xFFFF;
 	nic->toe_conn_count = 0xFFFF;
 	nic->eq_count = 0xFFFF;
+	nic->iface_count = 0xFFFF;
 	nic->link_param = 0xFF;
+	nic->channel_id_param = cpu_to_le16(0xF000);
 	nic->acpi_params = 0xFF;
 	nic->wol_param = 0x0F;
-	nic->bw_min = 0xFFFFFFFF;
+	nic->tunnel_iface_count = 0xFFFF;
+	nic->direct_tenant_iface_count = 0xFFFF;
 	nic->bw_max = 0xFFFFFFFF;
 }
 
-int be_cmd_config_qos(struct be_adapter *adapter, u32 bps, u8 domain)
+int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
+		      u8 domain)
 {
-	if (lancer_chip(adapter)) {
-		struct be_nic_res_desc nic_desc;
+	struct be_nic_res_desc nic_desc;
+	u32 bw_percent;
+	u16 version = 0;
 
-		be_reset_nic_desc(&nic_desc);
+	if (BE3_chip(adapter))
+		return be_cmd_set_qos(adapter, max_rate / 10, domain);
+
+	be_reset_nic_desc(&nic_desc);
+	nic_desc.pf_num = adapter->pf_number;
+	nic_desc.vf_num = domain;
+	if (lancer_chip(adapter)) {
 		nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
 		nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V0;
 		nic_desc.flags = (1 << QUN_SHIFT) | (1 << IMM_SHIFT) |
 					(1 << NOSV_SHIFT);
-		nic_desc.pf_num = adapter->pf_number;
-		nic_desc.vf_num = domain;
-		nic_desc.bw_max = cpu_to_le32(bps);
-
-		return be_cmd_set_profile_config(adapter, &nic_desc,
-						 RESOURCE_DESC_SIZE_V0,
-						 0, domain);
+		nic_desc.bw_max = cpu_to_le32(max_rate / 10);
 	} else {
-		return be_cmd_set_qos(adapter, bps, domain);
+		version = 1;
+		nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V1;
+		nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
+		nic_desc.flags = (1 << IMM_SHIFT) | (1 << NOSV_SHIFT);
+		bw_percent = max_rate ? (max_rate * 100) / link_speed : 100;
+		nic_desc.bw_max = cpu_to_le32(bw_percent);
 	}
+
+	return be_cmd_set_profile_config(adapter, &nic_desc,
+					 nic_desc.hdr.desc_len,
+					 version, domain);
 }
 
 int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op)

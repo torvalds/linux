@@ -374,6 +374,7 @@ enum vf_state {
 #define BE_FLAGS_LINK_STATUS_INIT		1
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_FLAGS_VLAN_PROMISC			(1 << 4)
+#define BE_FLAGS_MCAST_PROMISC			(1 << 5)
 #define BE_FLAGS_NAPI_ENABLED			(1 << 9)
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
 #define BE_FLAGS_VXLAN_OFFLOADS			(1 << 12)

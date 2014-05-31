@@ -188,10 +188,14 @@
 #define OPTYPE_FCOE_FW_ACTIVE		10
 #define OPTYPE_FCOE_FW_BACKUP		11
 #define OPTYPE_NCSI_FW			13
+#define OPTYPE_REDBOOT_DIR		18
+#define OPTYPE_REDBOOT_CONFIG		19
+#define OPTYPE_SH_PHY_FW		21
+#define OPTYPE_FLASHISM_JUMPVECTOR	22
+#define OPTYPE_UFI_DIR			23
 #define OPTYPE_PHY_FW			99
 #define TN_8022				13
 
-#define ILLEGAL_IOCTL_REQ		2
 #define FLASHROM_OPER_PHY_FLASH		9
 #define FLASHROM_OPER_PHY_SAVE		10
 #define FLASHROM_OPER_FLASH		1
@@ -250,6 +254,9 @@
 #define IMAGE_FIRMWARE_BACKUP_FCoE	178
 #define IMAGE_FIRMWARE_BACKUP_COMP_FCoE 179
 #define IMAGE_FIRMWARE_PHY		192
+#define IMAGE_REDBOOT_DIR		208
+#define IMAGE_REDBOOT_CONFIG		209
+#define IMAGE_UFI_DIR			210
 #define IMAGE_BOOT_CODE			224
 
 /************* Rx Packet Type Encoding **************/
@@ -534,7 +541,8 @@ struct flash_section_entry {
 	u32 image_size;
 	u32 cksum;
 	u32 entry_point;
-	u32 rsvd0;
+	u16 optype;
+	u16 rsvd0;
 	u32 rsvd1;
 	u8 ver_data[32];
 } __packed;
