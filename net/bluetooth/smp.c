@@ -2060,6 +2060,7 @@ static int smp_cmd_dhkey_check(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_chan *smp = chan->data;
 	u8 a[7], b[7], *local_addr, *remote_addr;
 	u8 io_cap[3], r[16], e[16];
+	u8 key_type, auth;
 	int err;
 
 	BT_DBG("conn %p", conn);
@@ -2092,8 +2093,18 @@ static int smp_cmd_dhkey_check(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (memcmp(check->e, e, 16))
 		return SMP_DHKEY_CHECK_FAILED;
 
+	if (test_bit(SMP_FLAG_DEBUG_KEY, &smp->flags))
+		key_type = SMP_LTK_P256_DEBUG;
+	else
+		key_type = SMP_LTK_P256;
+
+	if (hcon->pending_sec_level == BT_SECURITY_FIPS)
+		auth = 1;
+	else
+		auth = 0;
+
 	smp->ltk = hci_add_ltk(hcon->hdev, &hcon->dst, hcon->dst_type,
-			       SMP_LTK_P256, 0, smp->tk, smp->enc_key_size,
+			       key_type, auth, smp->tk, smp->enc_key_size,
 			       0, 0);
 
 	if (hcon->out) {
