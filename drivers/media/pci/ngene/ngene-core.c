@@ -910,7 +910,6 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 {
 	dma_addr_t tmp;
 	u32 i, j;
-	int status = 0;
 	u32 SCListMemSize = pRingBuffer->NumBuffers
 		* ((Buffer2Length != 0) ? (NUM_SCATTER_GATHER_ENTRIES * 2) :
 		    NUM_SCATTER_GATHER_ENTRIES)
@@ -1010,14 +1009,12 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 
 	}
 
-	return status;
+	return 0;
 }
 
 static int FillTSIdleBuffer(struct SRingBufferDescriptor *pIdleBuffer,
 			    struct SRingBufferDescriptor *pRingBuffer)
 {
-	int status = 0;
-
 	/* Copy pointer to scatter gather list in TSRingbuffer
 	   structure for buffer 2
 	   Load number of buffer
@@ -1038,7 +1035,7 @@ static int FillTSIdleBuffer(struct SRingBufferDescriptor *pIdleBuffer,
 			pIdleBuffer->Head->ngeneBuffer.Number_of_entries_1;
 		Cur = Cur->Next;
 	}
-	return status;
+	return 0;
 }
 
 static u32 RingBufferSizes[MAX_STREAM] = {

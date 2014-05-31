@@ -208,7 +208,7 @@ static inline void get_next_buf(struct cx231xx_dmaqueue *dma_q,
 static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 {
 	struct cx231xx_dmaqueue *dma_q = urb->context;
-	int i, rc = 1;
+	int i;
 	unsigned char *p_buffer;
 	u32 bytes_parsed = 0, buffer_size = 0;
 	u8 sav_eav = 0;
@@ -299,13 +299,12 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 		bytes_parsed = 0;
 
 	}
-	return rc;
+	return 1;
 }
 
 static inline int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 {
 	struct cx231xx_dmaqueue *dma_q = urb->context;
-	int rc = 1;
 	unsigned char *p_buffer;
 	u32 bytes_parsed = 0, buffer_size = 0;
 	u8 sav_eav = 0;
@@ -379,7 +378,7 @@ static inline int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 		bytes_parsed = 0;
 
 	}
-	return rc;
+	return 1;
 }
 
 
@@ -1620,7 +1619,7 @@ static int radio_s_tuner(struct file *file, void *priv, const struct v4l2_tuner 
  */
 static int cx231xx_v4l2_open(struct file *filp)
 {
-	int errCode = 0, radio = 0;
+	int radio = 0;
 	struct video_device *vdev = video_devdata(filp);
 	struct cx231xx *dev = video_drvdata(filp);
 	struct cx231xx_fh *fh;
@@ -1718,7 +1717,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 	mutex_unlock(&dev->lock);
 	v4l2_fh_add(&fh->fh);
 
-	return errCode;
+	return 0;
 }
 
 /*
