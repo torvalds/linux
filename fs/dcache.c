@@ -553,7 +553,7 @@ again:
 	}
 	rcu_read_unlock();
 	if (parent != dentry)
-		spin_lock(&dentry->d_lock);
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 	else
 		parent = NULL;
 	return parent;
