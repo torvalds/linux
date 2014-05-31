@@ -661,6 +661,7 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason)
 #define REQ_PASSKEY	0x02
 #define CFM_PASSKEY	0x03
 #define REQ_OOB		0x04
+#define DSP_PASSKEY	0x05
 #define OVERLAP		0xFF
 
 static const u8 gen_method[5][5] = {
@@ -671,6 +672,14 @@ static const u8 gen_method[5][5] = {
 	{ CFM_PASSKEY, CFM_PASSKEY, REQ_PASSKEY, JUST_WORKS, OVERLAP     },
 };
 
+static const u8 sc_method[5][5] = {
+	{ JUST_WORKS,  JUST_CFM,    REQ_PASSKEY, JUST_WORKS, REQ_PASSKEY },
+	{ JUST_WORKS,  CFM_PASSKEY, REQ_PASSKEY, JUST_WORKS, CFM_PASSKEY },
+	{ DSP_PASSKEY, DSP_PASSKEY, REQ_PASSKEY, JUST_WORKS, DSP_PASSKEY },
+	{ JUST_WORKS,  JUST_CFM,    JUST_WORKS,  JUST_WORKS, JUST_CFM    },
+	{ DSP_PASSKEY, CFM_PASSKEY, REQ_PASSKEY, JUST_WORKS, CFM_PASSKEY },
+};
+
 static u8 get_auth_method(struct smp_chan *smp, u8 local_io, u8 remote_io)
 {
 	/* If either side has unknown io_caps, use JUST_CFM (which gets
@@ -679,6 +688,9 @@ static u8 get_auth_method(struct smp_chan *smp, u8 local_io, u8 remote_io)
 	if (local_io > SMP_IO_KEYBOARD_DISPLAY ||
 	    remote_io > SMP_IO_KEYBOARD_DISPLAY)
 		return JUST_CFM;
+
+	if (test_bit(SMP_FLAG_SC, &smp->flags))
+		return sc_method[remote_io][local_io];
 
 	return gen_method[remote_io][local_io];
 }
@@ -1305,6 +1317,11 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	memcpy(&smp->preq[1], req, sizeof(*req));
 	skb_pull(skb, sizeof(*req));
 
+	build_pairing_cmd(conn, req, &rsp, auth);
+
+	if (rsp.auth_req & SMP_AUTH_SC)
+		set_bit(SMP_FLAG_SC, &smp->flags);
+
 	if (conn->hcon->io_capability == HCI_IO_NO_INPUT_OUTPUT)
 		sec_level = BT_SECURITY_MEDIUM;
 	else
@@ -1322,11 +1339,6 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		if (method == JUST_WORKS || method == JUST_CFM)
 			return SMP_AUTH_REQUIREMENTS;
 	}
-
-	build_pairing_cmd(conn, req, &rsp, auth);
-
-	if (rsp.auth_req & SMP_AUTH_SC)
-		set_bit(SMP_FLAG_SC, &smp->flags);
 
 	key_size = min(req->max_key_size, rsp.max_key_size);
 	if (check_enc_key_size(conn, key_size))
@@ -1901,12 +1913,54 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
+static u8 sc_select_method(struct smp_chan *smp)
+{
+	struct l2cap_conn *conn = smp->conn;
+	struct hci_conn *hcon = conn->hcon;
+	struct smp_cmd_pairing *local, *remote;
+	u8 local_mitm, remote_mitm, local_io, remote_io, method;
+
+	/* The preq/prsp contain the raw Pairing Request/Response PDUs
+	 * which are needed as inputs to some crypto functions. To get
+	 * the "struct smp_cmd_pairing" from them we need to skip the
+	 * first byte which contains the opcode.
+	 */
+	if (hcon->out) {
+		local = (void *) &smp->preq[1];
+		remote = (void *) &smp->prsp[1];
+	} else {
+		local = (void *) &smp->prsp[1];
+		remote = (void *) &smp->preq[1];
+	}
+
+	local_io = local->io_capability;
+	remote_io = remote->io_capability;
+
+	local_mitm = (local->auth_req & SMP_AUTH_MITM);
+	remote_mitm = (remote->auth_req & SMP_AUTH_MITM);
+
+	/* If either side wants MITM, look up the method from the table,
+	 * otherwise use JUST WORKS.
+	 */
+	if (local_mitm || remote_mitm)
+		method = get_auth_method(smp, local_io, remote_io);
+	else
+		method = JUST_WORKS;
+
+	/* Don't confirm locally initiated pairing attempts */
+	if (method == JUST_CFM && test_bit(SMP_FLAG_INITIATOR, &smp->flags))
+		method = JUST_WORKS;
+
+	return method;
+}
+
 static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_public_key *key = (void *) skb->data;
 	struct hci_conn *hcon = conn->hcon;
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp = chan->data;
+	struct hci_dev *hdev = hcon->hdev;
 	struct smp_cmd_pairing_confirm cfm;
 	int err;
 
@@ -1935,6 +1989,16 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 	BT_DBG("DHKey %32phN", smp->dhkey);
 
 	set_bit(SMP_FLAG_REMOTE_PK, &smp->flags);
+
+	smp->method = sc_select_method(smp);
+
+	BT_DBG("%s selected method 0x%02x", hdev->name, smp->method);
+
+	/* JUST_WORKS and JUST_CFM result in an unauthenticated key */
+	if (smp->method == JUST_WORKS || smp->method == JUST_CFM)
+		hcon->pending_sec_level = BT_SECURITY_MEDIUM;
+	else
+		hcon->pending_sec_level = BT_SECURITY_FIPS;
 
 	/* The Initiating device waits for the non-initiating device to
 	 * send the confirm value.
