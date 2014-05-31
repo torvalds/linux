@@ -3807,16 +3807,23 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&wl->mutex);
 	b43_mac_suspend(dev);
 
-	/* Switch the band (if necessary). This might change the active core. */
-	err = b43_switch_band(dev, conf->chandef.chan);
-	if (err)
-		goto out_unlock_mutex;
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		if (conf_is_ht(conf))
+			phy->is_40mhz = conf_is_ht40_minus(conf) ||
+					conf_is_ht40_plus(conf);
+		else
+			phy->is_40mhz = false;
 
-	if (conf_is_ht(conf))
-		phy->is_40mhz =
-			(conf_is_ht40_minus(conf) || conf_is_ht40_plus(conf));
-	else
-		phy->is_40mhz = false;
+		/* Switch the band (if necessary). */
+		err = b43_switch_band(dev, conf->chandef.chan);
+		if (err)
+			goto out_mac_enable;
+
+		/* Switch to the requested channel.
+		 * The firmware takes care of races with the TX handler.
+		 */
+		b43_switch_channel(dev, conf->chandef.chan->hw_value);
+	}
 
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		b43_set_retry_limits(dev, conf->short_frame_max_tx_count,
@@ -3824,11 +3831,6 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	changed &= ~IEEE80211_CONF_CHANGE_RETRY_LIMITS;
 	if (!changed)
 		goto out_mac_enable;
-
-	/* Switch to the requested channel.
-	 * The firmware takes care of races with the TX handler. */
-	if (conf->chandef.chan->hw_value != phy->channel)
-		b43_switch_channel(dev, conf->chandef.chan->hw_value);
 
 	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_MONITOR);
 
@@ -3865,7 +3867,6 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 
 out_mac_enable:
 	b43_mac_enable(dev);
-out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
 
 	return err;
