@@ -3808,6 +3808,7 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	b43_mac_suspend(dev);
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		phy->channel = conf->chandef.chan->hw_value;
 		if (conf_is_ht(conf))
 			phy->is_40mhz = conf_is_ht40_minus(conf) ||
 					conf_is_ht40_plus(conf);
@@ -3822,7 +3823,7 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 		/* Switch to the requested channel.
 		 * The firmware takes care of races with the TX handler.
 		 */
-		b43_switch_channel(dev, conf->chandef.chan->hw_value);
+		b43_switch_channel(dev, phy->channel);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)

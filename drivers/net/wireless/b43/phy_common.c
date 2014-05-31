@@ -424,7 +424,6 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 	if (err)
 		goto err_restore_cookie;
 
-	dev->phy.channel = new_channel;
 	/* Wait for the radio to tune to the channel and stabilize. */
 	msleep(8);
 
