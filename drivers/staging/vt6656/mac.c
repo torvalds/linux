@@ -69,7 +69,7 @@ void vnt_mac_set_filter(struct vnt_private *priv, u64 mc_filter)
  *
  *
  */
-void MACbShutdown(struct vnt_private *priv)
+void vnt_mac_shutdown(struct vnt_private *priv)
 {
 	vnt_control_out(priv, MESSAGE_TYPE_MACSHUTDOWN, 0, 0, 0, NULL);
 }

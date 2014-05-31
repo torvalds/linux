@@ -415,7 +415,7 @@ struct vnt_mac_set_key {
 } __packed;
 
 void vnt_mac_set_filter(struct vnt_private *, u64);
-void MACbShutdown(struct vnt_private *);
+void vnt_mac_shutdown(struct vnt_private *);
 void MACvSetBBType(struct vnt_private *, u8);
 void MACvDisableKeyEntry(struct vnt_private *, u8);
 void MACvSetKeyEntry(struct vnt_private *, u16, u32, u32, u8 *, u8 *);

@@ -1002,9 +1002,9 @@ static int device_close(struct net_device *dev)
 	for (uu = 0; uu < MAX_KEY_TABLE; uu++)
                 MACvDisableKeyEntry(pDevice,uu);
 
-    if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == false) {
-        MACbShutdown(pDevice);
-    }
+	if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == false)
+		vnt_mac_shutdown(pDevice);
+
     netif_stop_queue(pDevice->dev);
     MP_SET_FLAG(pDevice, fMP_DISCONNECTED);
     MP_CLEAR_FLAG(pDevice, fMP_POST_WRITES);
