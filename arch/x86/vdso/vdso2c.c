@@ -54,17 +54,17 @@ static void fail(const char *format, ...)
 /*
  * Evil macros to do a little-endian read.
  */
-#define __GET_TYPE(x, type, bits, ifnot)				\
+#define GLE(x, bits, ifnot)						\
 	__builtin_choose_expr(						\
-		__builtin_types_compatible_p(typeof(x), type),		\
-		le##bits##toh((x)), ifnot)
+		(sizeof(x) == bits/8),					\
+		(__typeof__(x))le##bits##toh(x), ifnot)
 
-extern void bad_get(uint64_t);
+extern void bad_get_le(uint64_t);
+#define LAST_LE(x)							\
+	__builtin_choose_expr(sizeof(x) == 1, (x), bad_get_le(x))
 
-#define GET(x)								\
-	__GET_TYPE((x), __u32, 32, __GET_TYPE((x), __u64, 64,		\
-	__GET_TYPE((x), __s32, 32, __GET_TYPE((x), __s64, 64,		\
-	__GET_TYPE((x), __u16, 16, bad_get(x))))))
+#define GET_LE(x)							\
+	GLE(x, 64, GLE(x, 32, GLE(x, 16, LAST_LE(x))))
 
 #define NSYMS (sizeof(required_syms) / sizeof(required_syms[0]))
 
