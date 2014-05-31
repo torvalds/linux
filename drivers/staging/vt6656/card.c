@@ -89,7 +89,7 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 	}
 
 	/* clear NAV */
-	MACvRegBitsOn(priv, MAC_REG_MACCR, MACCR_CLRNAV);
+	vnt_mac_reg_bits_on(priv, MAC_REG_MACCR, MACCR_CLRNAV);
 
 	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
 	vnt_mac_reg_bits_off(priv, MAC_REG_CHANNEL, 0xb0);
@@ -636,7 +636,7 @@ bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf)
 bool vnt_clear_current_tsf(struct vnt_private *priv)
 {
 
-	MACvRegBitsOn(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
+	vnt_mac_reg_bits_on(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
 
 	priv->qwCurrTSF = 0;
 
@@ -812,7 +812,7 @@ int vnt_radio_power_on(struct vnt_private *priv)
 
 	BBvExitDeepSleep(priv);
 
-	MACvRegBitsOn(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
+	vnt_mac_reg_bits_on(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
 
 	switch (priv->byRFType) {
 	case RF_AL2230:
@@ -821,7 +821,7 @@ int vnt_radio_power_on(struct vnt_private *priv)
 	case RF_VT3226:
 	case RF_VT3226D0:
 	case RF_VT3342A0:
-		MACvRegBitsOn(priv, MAC_REG_SOFTPWRCTL,
+		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL,
 			(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
 		break;
 	}

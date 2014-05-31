@@ -142,7 +142,7 @@ static void vAdHocBeaconRestart(struct vnt_private *pDevice)
 	if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
 	    (pMgmt->eCurrState >= WMAC_STATE_STARTED)) {
 		//PMESG(("RESTART_BEACON\n"));
-		MACvRegBitsOn(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
+		vnt_mac_reg_bits_on(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
 	}
 
 }
@@ -390,7 +390,7 @@ void vRunCommand(struct work_struct *work)
 		vnt_set_channel(pDevice, pMgmt->uCurrChannel);
 		// Set Filter
 		if (pMgmt->bCurrBSSIDFilterOn) {
-			MACvRegBitsOn(pDevice, MAC_REG_RCR, RCR_BSSID);
+			vnt_mac_reg_bits_on(pDevice, MAC_REG_RCR, RCR_BSSID);
 			pDevice->byRxMode |= RCR_BSSID;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Scanning, set back to channel: [%d]\n", pMgmt->uCurrChannel);
@@ -799,7 +799,7 @@ void vRunCommand(struct work_struct *work)
 
 				netif_stop_queue(pDevice->dev);
 				vnt_radio_power_off(pDevice);
-				MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+				vnt_mac_reg_bits_on(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
 
 				vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_OFF);
 

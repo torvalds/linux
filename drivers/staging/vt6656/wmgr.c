@@ -2048,7 +2048,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     vnt_clear_current_tsf(pDevice);
 
     // enable TSF counter
-    MACvRegBitsOn(pDevice,MAC_REG_TFTCTL,TFTCTL_TSFCNTREN);
+    vnt_mac_reg_bits_on(pDevice, MAC_REG_TFTCTL, TFTCTL_TSFCNTREN);
     // set Next TBTT
     vnt_reset_next_tbtt(pDevice, pMgmt->wIBSSBeaconPeriod);
 
@@ -2083,12 +2083,12 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     vnt_set_bss_mode(pDevice);
 
     if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
-        MACvRegBitsOn(pDevice, MAC_REG_HOSTCR, HOSTCR_AP);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_HOSTCR, HOSTCR_AP);
         pMgmt->eCurrMode = WMAC_MODE_ESS_AP;
     }
 
     if (pMgmt->eConfigMode == WMAC_CONFIG_IBSS_STA) {
-        MACvRegBitsOn(pDevice, MAC_REG_HOSTCR, HOSTCR_ADHOC);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_HOSTCR, HOSTCR_ADHOC);
         pMgmt->eCurrMode = WMAC_MODE_IBSS_STA;
     }
 
@@ -2142,7 +2142,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     MACvWriteBSSIDAddress(pDevice, pMgmt->abyCurrBSSID);
     memcpy(pDevice->abyBSSID, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
 
-    MACvRegBitsOn(pDevice, MAC_REG_RCR, RCR_BSSID);
+    vnt_mac_reg_bits_on(pDevice, MAC_REG_RCR, RCR_BSSID);
     pDevice->byRxMode |= RCR_BSSID;
     pMgmt->bCurrBSSIDFilterOn = true;
 
@@ -2636,7 +2636,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
 
     if (uBSSMode == WMAC_MODE_ESS_STA) {
 	vnt_mac_reg_bits_off(pDevice, MAC_REG_HOSTCR, HOSTCR_ADHOC);
-        MACvRegBitsOn(pDevice, MAC_REG_RCR, RCR_BSSID);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_RCR, RCR_BSSID);
         pDevice->byRxMode |= RCR_BSSID;
         pMgmt->bCurrBSSIDFilterOn = true;
     }
@@ -2658,8 +2658,8 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     // 2. In Infra mode : Supposed we already synchronized with AP right now.
 
     if (uBSSMode == WMAC_MODE_IBSS_STA) {
-        MACvRegBitsOn(pDevice, MAC_REG_HOSTCR, HOSTCR_ADHOC);
-        MACvRegBitsOn(pDevice, MAC_REG_RCR, RCR_BSSID);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_HOSTCR, HOSTCR_ADHOC);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_RCR, RCR_BSSID);
         pDevice->byRxMode |= RCR_BSSID;
         pMgmt->bCurrBSSIDFilterOn = true;
     }
@@ -4059,7 +4059,7 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
 
 	spin_unlock_irqrestore(&pDevice->lock, flags);
 
-	MACvRegBitsOn(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
 
     return true;
 }

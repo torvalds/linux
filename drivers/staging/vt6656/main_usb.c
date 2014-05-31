@@ -544,7 +544,8 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 		if ((byTmp & GPIO3_DATA) == 0) {
 			pDevice->bHWRadioOff = true;
-			MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+			vnt_mac_reg_bits_on(pDevice, MAC_REG_GPIOCTL1,
+								GPIO3_INTMD);
 		} else {
 			vnt_mac_reg_bits_off(pDevice, MAC_REG_GPIOCTL1,
 								GPIO3_INTMD);
@@ -557,7 +558,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
 
-	MACvRegBitsOn(pDevice, MAC_REG_GPIOCTL0, 0x01);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_GPIOCTL0, 0x01);
 
 	if ((pDevice->bHWRadioOff == true) ||
 				(pDevice->bRadioControlOff == true)) {

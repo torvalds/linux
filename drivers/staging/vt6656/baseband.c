@@ -994,7 +994,7 @@ int BBbVT3184Init(struct vnt_private *priv)
 		priv->ldBmThreshold[2] = 0;
 		priv->ldBmThreshold[3] = 0;
 		/* Fix VT3226 DFC system timing issue */
-		MACvRegBitsOn(priv, MAC_REG_SOFTPWRCTL2, SOFTPWRCTL_RFLEOPT);
+		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL2, SOFTPWRCTL_RFLEOPT);
 	} else if ((priv->byRFType == RF_VT3342A0)) {
 		priv->byBBRxConf = abyVT3184_VT3226D0[10];
 		length = sizeof(abyVT3184_VT3226D0);
@@ -1011,7 +1011,7 @@ int BBbVT3184Init(struct vnt_private *priv)
 		priv->ldBmThreshold[2] = 0;
 		priv->ldBmThreshold[3] = 0;
 		/* Fix VT3226 DFC system timing issue */
-		MACvRegBitsOn(priv, MAC_REG_SOFTPWRCTL2, SOFTPWRCTL_RFLEOPT);
+		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL2, SOFTPWRCTL_RFLEOPT);
 	} else {
 		return true;
 	}
@@ -1030,11 +1030,11 @@ int BBbVT3184Init(struct vnt_private *priv)
 		(priv->byRFType == RF_VT3342A0)) {
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG,
 						MAC_REG_ITRTMSET, 0x23);
-		MACvRegBitsOn(priv, MAC_REG_PAPEDELAY, 0x01);
+		vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, 0x01);
 	} else if (priv->byRFType == RF_VT3226D0) {
 		vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG,
 						MAC_REG_ITRTMSET, 0x11);
-		MACvRegBitsOn(priv, MAC_REG_PAPEDELAY, 0x01);
+		vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, 0x01);
 	}
 
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0x04, 0x7f);

@@ -75,15 +75,15 @@ void PSvEnablePowerSaving(struct vnt_private *pDevice, u16 wListenInterval)
 	 * PSEN->AUTOSLEEP->GO2DOZE
 	 */
 	/* enable power saving hw function */
-	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
 
 	/* Set AutoSleep */
-	MACvRegBitsOn(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
 	/* Warren:MUST turn on this once before turn on AUTOSLEEP ,or the
 	 * AUTOSLEEP doesn't work
 	 */
-	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
 
 	if (wListenInterval >= 2) {
 
@@ -91,14 +91,14 @@ void PSvEnablePowerSaving(struct vnt_private *pDevice, u16 wListenInterval)
 		vnt_mac_reg_bits_off(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 
 		/* first time set listen next beacon */
-		MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
+		vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 
 		pMgmt->wCountToWakeUp = wListenInterval;
 
 	} else {
 
 		/* always listen beacon */
-		MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
+		vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 
 		pMgmt->wCountToWakeUp = 0;
 	}
@@ -136,7 +136,7 @@ void PSvDisablePowerSaving(struct vnt_private *pDevice)
 	vnt_mac_reg_bits_off(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
 	/* set always listen beacon */
-	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 	pDevice->bEnablePSMode = false;
 
 	if (pDevice->op_mode == NL80211_IFTYPE_STATION)
@@ -183,7 +183,7 @@ int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
 		return false;
 
 	/* Froce PSEN on */
-	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
 
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
 		if (bCheckCountToWakeUp && (pMgmt->wCountToWakeUp == 0
@@ -195,7 +195,7 @@ int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
 	pDevice->bPSRxBeacon = true;
 
 	/* no Tx, no Rx isr, now go to Doze */
-	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
+	vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
 	return true;
 }
@@ -325,12 +325,12 @@ int PSbIsNextTBTTWakeUp(struct vnt_private *pDevice)
 
 		if (pMgmt->wCountToWakeUp == 1) {
 			/* Turn on wake up to listen next beacon */
-			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
+			vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 			pDevice->bPSRxBeacon = false;
 			bWakeUp = true;
 		} else if (!pDevice->bPSRxBeacon) {
 			/* Listen until RxBeacon */
-			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
+			vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 		}
 	}
 	return bWakeUp;
