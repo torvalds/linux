@@ -3476,19 +3476,22 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, pie, pie_len);
 
 		if (p && !is_ap_in_tkip23a(padapter)) {
-			memcpy(&pmlmeinfo->HT_caps, p + 2,
-			       sizeof(struct HT_caps_element));
+			struct ieee80211_ht_cap *cap = &pmlmeinfo->ht_cap;
+
+			memcpy(cap, p + 2, sizeof(struct ieee80211_ht_cap));
 
 			/* to disable 40M Hz support while gd_bw_40MHz_en = 0 */
 			if (pregpriv->cbw40_enable == 0) {
-				pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info &= (~(BIT(6) | BIT(1)));
+				cap->cap_info &= ~cpu_to_le16(
+					IEEE80211_HT_CAP_SGI_40 |
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 			} else {
-				pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= BIT(1);
+				cap->cap_info |= cpu_to_le16(
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 			}
 
 			/* todo: disable SM power save mode */
-			pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |=
-				0x000c;
+			cap->cap_info |= cpu_to_le16(IEEE80211_HT_CAP_SM_PS);
 
 			rf_type = rtl8723a_get_rf_type(padapter);
 			/* switch (pregpriv->rf_config) */
@@ -3496,9 +3499,9 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 			case RF_1T1R:
 				/* RX STBC One spatial stream */
 				if (pregpriv->rx_stbc)
-					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0100);
+					cap->cap_info |= cpu_to_le16(1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
 
-				memcpy(&pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info, MCS_rate_1R23A, 16);
+				memcpy(&cap->mcs, MCS_rate_1R23A, 16);
 				break;
 
 			case RF_2T2R:
@@ -3517,23 +3520,23 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 				    pregpriv->wifi_spec == 1) {
 					DBG_8723A("declare supporting RX "
 						  "STBC\n");
-					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0200);/* RX STBC two spatial stream */
+					/* RX STBC two spatial stream */
+					cap->cap_info |= cpu_to_le16(2 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
 				}
-				memcpy(&pmlmeinfo->HT_caps.u.HT_cap_element.mcs_info, MCS_rate_2R23A, 16);
+				memcpy(&cap->mcs, MCS_rate_2R23A, 16);
 				break;
 			}
-			pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info =
-				cpu_to_le16(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info);
 
 			if (rtl8723a_BT_coexist(padapter) &&
 			    rtl8723a_BT_using_antenna_1(padapter)) {
 				/*  set to 8K */
-				pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para &= (u8)~IEEE80211_HT_AMPDU_PARM_FACTOR;
-/*				pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para |= MAX_AMPDU_FACTOR_8K */
+				cap->ampdu_params_info &=
+					~IEEE80211_HT_AMPDU_PARM_FACTOR;
+/*				cap->ampdu_params_info |= MAX_AMPDU_FACTOR_8K */
 			}
 
 			pframe = rtw_set_ie23a(pframe, WLAN_EID_HT_CAPABILITY,
-					       p[1], (u8 *)&pmlmeinfo->HT_caps,
+					       p[1], (u8 *)&pmlmeinfo->ht_cap,
 					       &pattrib->pktlen);
 		}
 	}
@@ -4679,10 +4682,11 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 				     bssid->IEs + ie_offset,
 				     bssid->IELength - ie_offset);
 		if (p && p[1] > 0) {
-			struct HT_caps_element *pHT_caps;
-			pHT_caps = (struct HT_caps_element *)(p + 2);
+			struct ieee80211_ht_cap *pHT_caps;
+			pHT_caps = (struct ieee80211_ht_cap *)(p + 2);
 
-			if (pHT_caps->u.HT_cap_element.HT_caps_info & BIT(14))
+			if (pHT_caps->cap_info &
+			    cpu_to_le16(IEEE80211_HT_CAP_40MHZ_INTOLERANT))
 				pmlmepriv->num_FortyMHzIntolerant++;
 		} else
 			pmlmepriv->num_sta_no_ht++;
@@ -5392,7 +5396,7 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 
 		psta->htpriv.ampdu_enable = pmlmepriv->htpriv.ampdu_enable;
 
-		if (support_short_GI23a(padapter, &pmlmeinfo->HT_caps))
+		if (support_short_GI23a(padapter, &pmlmeinfo->ht_cap))
 			psta->htpriv.sgi = true;
 
 		psta->qos_option = true;

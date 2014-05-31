@@ -76,20 +76,6 @@ struct ieee80211_ht_addt_info {
 	unsigned char	basic_set[16];
 } __packed;
 
-struct HT_caps_element {
-	union {
-		struct {
-			unsigned short	HT_caps_info;
-			unsigned char	AMPDU_para;
-			struct ieee80211_mcs_info mcs_info;
-			unsigned short	HT_ext_caps;
-			unsigned int	Beamforming_caps;
-			unsigned char	ASEL_caps;
-		} HT_cap_element;
-		unsigned char HT_cap[26];
-	} u;
-} __packed;
-
 struct HT_info_element {
 	unsigned char	primary_channel;
 	unsigned char	infos[5];

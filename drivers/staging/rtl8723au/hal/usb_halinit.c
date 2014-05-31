@@ -1532,9 +1532,9 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		mask = update_supported_rate23a(cur_network->SupportedRates,
 					     supportRateNum);
 		mask |= (pmlmeinfo->HT_enable) ?
-			update_MSC_rate23a(&pmlmeinfo->HT_caps) : 0;
+			update_MSC_rate23a(&pmlmeinfo->ht_cap) : 0;
 
-		if (support_short_GI23a(padapter, &pmlmeinfo->HT_caps))
+		if (support_short_GI23a(padapter, &pmlmeinfo->ht_cap))
 			shortGIrate = true;
 		break;
 
