@@ -4547,20 +4547,28 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		bssid->reserved = 1;
 		ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 		capab_info = mgmt->u.beacon.capab_info;
+		bssid->BeaconPeriod =
+			get_unaligned_le16(&mgmt->u.beacon.beacon_int);
 	} else  if (ieee80211_is_probe_req(mgmt->frame_control)) {
 		ie_offset = offsetof(struct ieee80211_mgmt,
 				     u.probe_req.variable);
 		bssid->reserved = 2;
 		capab_info = 0;
+		bssid->BeaconPeriod =
+			padapter->registrypriv.dev_network.BeaconPeriod;
 	} else if (ieee80211_is_probe_resp(mgmt->frame_control)) {
 		ie_offset = offsetof(struct ieee80211_mgmt,
 				     u.probe_resp.variable);
 		bssid->reserved = 3;
 		capab_info = mgmt->u.probe_resp.capab_info;
+		bssid->BeaconPeriod =
+			get_unaligned_le16(&mgmt->u.probe_resp.beacon_int);
 	} else {
 		bssid->reserved = 0;
 		ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 		capab_info = mgmt->u.beacon.capab_info;
+		bssid->BeaconPeriod =
+			padapter->registrypriv.dev_network.BeaconPeriod;
 	}
 	ie_offset -= offsetof(struct ieee80211_mgmt, u);
 
@@ -4653,9 +4661,6 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		bssid->Privacy = 1;
 		return _SUCCESS;
 	}
-
-	bssid->BeaconPeriod = get_unaligned_le16(
-		rtw_get_beacon_interval23a_from_ie(bssid->IEs));
 
 	if (capab_info & BIT(0)) {
 		bssid->ifmode = NL80211_IFTYPE_STATION;
