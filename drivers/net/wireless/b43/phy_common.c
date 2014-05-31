@@ -94,7 +94,8 @@ int b43_phy_init(struct b43_wldev *dev)
 	const struct b43_phy_operations *ops = phy->ops;
 	int err;
 
-	phy->channel = ops->get_default_chan(dev);
+	if (!phy->channel)
+		phy->channel = ops->get_default_chan(dev);
 
 	phy->ops->switch_analog(dev, true);
 	b43_software_rfkill(dev, false);
@@ -106,9 +107,7 @@ int b43_phy_init(struct b43_wldev *dev)
 	}
 	phy->do_full_init = false;
 
-	/* Make sure to switch hardware and firmware (SHM) to
-	 * the default channel. */
-	err = b43_switch_channel(dev, ops->get_default_chan(dev));
+	err = b43_switch_channel(dev, phy->channel);
 	if (err) {
 		b43err(dev->wl, "PHY init: Channel switch to default failed\n");
 		goto err_phy_exit;
