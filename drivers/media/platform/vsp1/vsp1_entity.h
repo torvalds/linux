@@ -14,6 +14,7 @@
 #define __VSP1_ENTITY_H__
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 
 #include <media/v4l2-subdev.h>
 
@@ -71,6 +72,9 @@ struct vsp1_entity {
 	struct v4l2_mbus_framefmt *formats;
 
 	struct vsp1_video *video;
+
+	struct mutex lock;		/* Protects the streaming field */
+	bool streaming;
 };
 
 static inline struct vsp1_entity *to_vsp1_entity(struct v4l2_subdev *subdev)
@@ -91,5 +95,8 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 			   unsigned int pad, u32 which);
 void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_fh *fh);
+
+bool vsp1_entity_is_streaming(struct vsp1_entity *entity);
+int vsp1_entity_set_streaming(struct vsp1_entity *entity, bool streaming);
 
 #endif /* __VSP1_ENTITY_H__ */
