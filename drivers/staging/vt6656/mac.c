@@ -180,7 +180,7 @@ void vnt_mac_write_word(struct vnt_private *priv, u8 reg_ofs, u16 word)
 		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
-void MACvWriteBSSIDAddress(struct vnt_private *priv, u8 *addr)
+void vnt_mac_set_bssid_addr(struct vnt_private *priv, u8 *addr)
 {
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_BSSID0,
 		MESSAGE_REQUEST_MACREG, ETH_ALEN, addr);

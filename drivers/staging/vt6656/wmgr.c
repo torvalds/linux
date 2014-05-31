@@ -1920,7 +1920,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
 		     vnt_update_next_tbtt(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
 
                      // Turn off bssid filter to avoid filter others adhoc station which bssid is different.
-                     MACvWriteBSSIDAddress(pDevice, pMgmt->abyCurrBSSID);
+		    vnt_mac_set_bssid_addr(pDevice, pMgmt->abyCurrBSSID);
 
                     byOldPreambleType = pDevice->byPreambleType;
                     if (WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo)) {
@@ -2139,7 +2139,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     }
 
     // set BSSID filter
-    MACvWriteBSSIDAddress(pDevice, pMgmt->abyCurrBSSID);
+    vnt_mac_set_bssid_addr(pDevice, pMgmt->abyCurrBSSID);
     memcpy(pDevice->abyBSSID, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
 
     vnt_mac_reg_bits_on(pDevice, MAC_REG_RCR, RCR_BSSID);
@@ -2586,7 +2586,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     vnt_reset_next_tbtt(pDevice, pCurr->wBeaconInterval);
 
     // set BSSID
-    MACvWriteBSSIDAddress(pDevice, pCurr->abyBSSID);
+    vnt_mac_set_bssid_addr(pDevice, pCurr->abyBSSID);
 
     memcpy(pMgmt->abyCurrBSSID, pCurr->abyBSSID, 6);
 
