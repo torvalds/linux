@@ -246,6 +246,9 @@ static int __init exynos4_l2x0_cache_init(void)
 {
 	int ret;
 
+	if (!soc_is_exynos4())
+		return 0;
+
 	ret = l2x0_of_init(L2_AUX_VAL, L2_AUX_MASK);
 	if (ret)
 		return ret;
