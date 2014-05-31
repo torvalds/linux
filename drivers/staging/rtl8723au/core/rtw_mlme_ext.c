@@ -107,12 +107,12 @@ static u8	null_addr[ETH_ALEN]= {0, 0, 0, 0, 0, 0};
 OUI definitions for the vendor specific IE
 ***************************************************/
 unsigned char WMM_OUI23A[] = {0x00, 0x50, 0xf2, 0x02};
-unsigned char	WPS_OUI23A[] = {0x00, 0x50, 0xf2, 0x04};
-unsigned char	P2P_OUI23A[] = {0x50, 0x6F, 0x9A, 0x09};
-unsigned char	WFD_OUI23A[] = {0x50, 0x6F, 0x9A, 0x0A};
+unsigned char WPS_OUI23A[] = {0x00, 0x50, 0xf2, 0x04};
+unsigned char P2P_OUI23A[] = {0x50, 0x6F, 0x9A, 0x09};
+unsigned char WFD_OUI23A[] = {0x50, 0x6F, 0x9A, 0x0A};
 
-unsigned char	WMM_INFO_OUI23A[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
-unsigned char	WMM_PARA_OUI23A[] = {0x00, 0x50, 0xf2, 0x02, 0x01, 0x01};
+unsigned char WMM_INFO_OUI23A[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
+unsigned char WMM_PARA_OUI23A[] = {0x00, 0x50, 0xf2, 0x02, 0x01, 0x01};
 
 static unsigned char REALTEK_96B_IE[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
 
@@ -120,49 +120,87 @@ static unsigned char REALTEK_96B_IE[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
 MCS rate definitions
 *********************************************************/
 unsigned char MCS_rate_2R23A[16] = {
-	0xff, 0xff, 0x0, 0x0, 0x01, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	0xff, 0xff, 0x0, 0x0, 0x01, 0x0, 0x0, 0x0,
+	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 unsigned char MCS_rate_1R23A[16] = {
-	0xff, 0x00, 0x0, 0x0, 0x01, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+	0xff, 0x00, 0x0, 0x0, 0x01, 0x0, 0x0, 0x0,
+	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
 /********************************************************
 ChannelPlan definitions
 *********************************************************/
 
-static struct rt_channel_plan_2g	RTW_ChannelPlan2G[RT_CHANNEL_DOMAIN_2G_MAX] = {
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},		/*  0x00, RT_CHANNEL_DOMAIN_2G_WORLD , Passive scan CH 12, 13 */
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},		/*  0x01, RT_CHANNEL_DOMAIN_2G_ETSI1 */
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 11},			/*  0x02, RT_CHANNEL_DOMAIN_2G_FCC1 */
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, 14},	/*  0x03, RT_CHANNEL_DOMAIN_2G_MIKK1 */
-	{{10, 11, 12, 13}, 4},					/*  0x04, RT_CHANNEL_DOMAIN_2G_ETSI2 */
-	{{}, 0},									/*  0x05, RT_CHANNEL_DOMAIN_2G_NULL */
+static struct rt_channel_plan_2g RTW_ChannelPlan2G[RT_CHANNEL_DOMAIN_2G_MAX] = {
+	/*  0x00, RT_CHANNEL_DOMAIN_2G_WORLD , Passive scan CH 12, 13 */
+	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},
+	/*  0x01, RT_CHANNEL_DOMAIN_2G_ETSI1 */
+	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},
+	/*  0x02, RT_CHANNEL_DOMAIN_2G_FCC1 */
+	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 11},
+	/*  0x03, RT_CHANNEL_DOMAIN_2G_MIKK1 */
+	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, 14},
+	/*  0x04, RT_CHANNEL_DOMAIN_2G_ETSI2 */
+	{{10, 11, 12, 13}, 4},
+	/*  0x05, RT_CHANNEL_DOMAIN_2G_NULL */
+	{{}, 0},
 };
 
-static struct rt_channel_plan_5g	RTW_ChannelPlan5G[RT_CHANNEL_DOMAIN_5G_MAX] = {
-	{{}, 0},																					/*  0x00, RT_CHANNEL_DOMAIN_5G_NULL */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 19},						/*  0x01, RT_CHANNEL_DOMAIN_5G_ETSI1 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165}, 24},	/*  0x02, RT_CHANNEL_DOMAIN_5G_ETSI2 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 149, 153, 157, 161, 165}, 22},			/*  0x03, RT_CHANNEL_DOMAIN_5G_ETSI3 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165}, 24},	/*  0x04, RT_CHANNEL_DOMAIN_5G_FCC1 */
-	{{36, 40, 44, 48, 149, 153, 157, 161, 165}, 9},														/*  0x05, RT_CHANNEL_DOMAIN_5G_FCC2 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165}, 13},											/*  0x06, RT_CHANNEL_DOMAIN_5G_FCC3 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161}, 12},												/*  0x07, RT_CHANNEL_DOMAIN_5G_FCC4 */
-	{{149, 153, 157, 161, 165}, 5},																	/*  0x08, RT_CHANNEL_DOMAIN_5G_FCC5 */
-	{{36, 40, 44, 48, 52, 56, 60, 64}, 8},																/*  0x09, RT_CHANNEL_DOMAIN_5G_FCC6 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165}, 20},					/*  0x0A, RT_CHANNEL_DOMAIN_5G_FCC7_IC1 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 149, 153, 157, 161, 165}, 20},					/*  0x0B, RT_CHANNEL_DOMAIN_5G_KCC1 */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 19},						/*  0x0C, RT_CHANNEL_DOMAIN_5G_MKK1 */
-	{{36, 40, 44, 48, 52, 56, 60, 64}, 8},																/*  0x0D, RT_CHANNEL_DOMAIN_5G_MKK2 */
-	{{100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 11},											/*  0x0E, RT_CHANNEL_DOMAIN_5G_MKK3 */
-	{{56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165}, 15},								/*  0x0F, RT_CHANNEL_DOMAIN_5G_NCC1 */
-	{{56, 60, 64, 149, 153, 157, 161, 165}, 8},															/*  0x10, RT_CHANNEL_DOMAIN_5G_NCC2 */
+static struct rt_channel_plan_5g RTW_ChannelPlan5G[RT_CHANNEL_DOMAIN_5G_MAX] = {
+	/*  0x00, RT_CHANNEL_DOMAIN_5G_NULL */
+	{{}, 0},
+	/*  0x01, RT_CHANNEL_DOMAIN_5G_ETSI1 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+	  116, 120, 124, 128, 132, 136, 140}, 19},
+	/*  0x02, RT_CHANNEL_DOMAIN_5G_ETSI2 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+	  116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165}, 24},
+	/*  0x03, RT_CHANNEL_DOMAIN_5G_ETSI3 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+	  116, 120, 124, 128, 132, 149, 153, 157, 161, 165}, 22},
+	/*  0x04, RT_CHANNEL_DOMAIN_5G_FCC1 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+	  116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165}, 24},
+	/*  0x05, RT_CHANNEL_DOMAIN_5G_FCC2 */
+	{{36, 40, 44, 48, 149, 153, 157, 161, 165}, 9},
+	/*  0x06, RT_CHANNEL_DOMAIN_5G_FCC3 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165}, 13},
+	/*  0x07, RT_CHANNEL_DOMAIN_5G_FCC4 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161}, 12},
+	/*  0x08, RT_CHANNEL_DOMAIN_5G_FCC5 */
+	{{149, 153, 157, 161, 165}, 5},
+	/*  0x09, RT_CHANNEL_DOMAIN_5G_FCC6 */
+	{{36, 40, 44, 48, 52, 56, 60, 64}, 8},
+	/*  0x0A, RT_CHANNEL_DOMAIN_5G_FCC7_IC1 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+	  116, 136, 140, 149, 153, 157, 161, 165}, 20},
+	/*  0x0B, RT_CHANNEL_DOMAIN_5G_KCC1 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+	  116, 120, 124, 149, 153, 157, 161, 165}, 20},
+	/*  0x0C, RT_CHANNEL_DOMAIN_5G_MKK1 */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+	  116, 120, 124, 128, 132, 136, 140}, 19},
+	/*  0x0D, RT_CHANNEL_DOMAIN_5G_MKK2 */
+	{{36, 40, 44, 48, 52, 56, 60, 64}, 8},
+	/*  0x0E, RT_CHANNEL_DOMAIN_5G_MKK3 */
+	{{100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 11},
+	/*  0x0F, RT_CHANNEL_DOMAIN_5G_NCC1 */
+	{{56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149,
+	  153, 157, 161, 165}, 15},
+	/*  0x10, RT_CHANNEL_DOMAIN_5G_NCC2 */
+	{{56, 60, 64, 149, 153, 157, 161, 165}, 8},
 
-	/*  Driver self defined for old channel plan Compatible , Remember to modify if have new channel plan definition ===== */
-	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165}, 21},				/*  0x11, RT_CHANNEL_DOMAIN_5G_FCC */
-	{{36, 40, 44, 48}, 4},																			/*  0x12, RT_CHANNEL_DOMAIN_5G_JAPAN_NO_DFS */
-	{{36, 40, 44, 48, 149, 153, 157, 161}, 8},																/*  0x13, RT_CHANNEL_DOMAIN_5G_FCC4_NO_DFS */
+	/*  Driver self defined for old channel plan Compatible,
+	    Remember to modify if have new channel plan definition ===== */
+	/*  0x11, RT_CHANNEL_DOMAIN_5G_FCC */
+	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112,
+	  116, 132, 136, 140, 149, 153, 157, 161, 165}, 21},
+	/*  0x12, RT_CHANNEL_DOMAIN_5G_JAPAN_NO_DFS */
+	{{36, 40, 44, 48}, 4},
+	/*  0x13, RT_CHANNEL_DOMAIN_5G_FCC4_NO_DFS */
+	{{36, 40, 44, 48, 149, 153, 157, 161}, 8},
 };
 
-static struct rt_channel_plan_map	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
+static struct rt_channel_plan_map RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
 	/*  0x00 ~ 0x1F , Old Define ===== */
 	{0x02, 0x11},	/* 0x00, RT_CHANNEL_DOMAIN_FCC */
 	{0x02, 0x0A},	/* 0x01, RT_CHANNEL_DOMAIN_IC */
@@ -233,7 +271,8 @@ static struct rt_channel_plan_map	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
 	{0x03, 0x00},	/* 0x41, RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN_2G */
 };
 
-static struct rt_channel_plan_map	RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02}; /* use the conbination for max channel numbers */
+static struct rt_channel_plan_map RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE =
+{0x03, 0x02}; /* use the conbination for max channel numbers */
 
 static void dummy_event_callback(struct rtw_adapter *adapter, const u8 *pbuf)
 {
@@ -250,8 +289,7 @@ static struct fwevent wlanevents[] =
 	{0, NULL},
 	{0, NULL},
 	{0, &rtw_survey_event_cb23a},		/*8*/
-	{sizeof (struct surveydone_event), &rtw_surveydone_event_callback23a},	/*9*/
-
+	{sizeof (struct surveydone_event), &rtw_surveydone_event_callback23a},
 	{0, &rtw23a_joinbss_event_cb},		/*10*/
 	{sizeof(struct stassoc_event), &rtw_stassoc_event_callback23a},
 	{sizeof(struct stadel_event), &rtw_stadel_event_callback23a},
@@ -309,7 +347,7 @@ Following are the initialization functions for WiFi MLME
 
 int init_hw_mlme_ext23a(struct rtw_adapter *padapter)
 {
-	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
 	set_channel_bwmode23a(padapter, pmlmeext->cur_channel,
 			      pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
@@ -318,7 +356,7 @@ int init_hw_mlme_ext23a(struct rtw_adapter *padapter)
 
 static void init_mlme_ext_priv23a_value(struct rtw_adapter* padapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	unsigned char	mixed_datarate[NumRates] = {
 		_1M_RATE_, _2M_RATE_, _5M_RATE_, _11M_RATE_, _6M_RATE_,
@@ -391,8 +429,8 @@ static int has_channel(struct rt_channel_info *channel_set,
 static void init_channel_list(struct rtw_adapter *padapter,
 			      struct rt_channel_info *channel_set,
 			      u8 chanset_size,
-			      struct p2p_channels *channel_list) {
-
+			      struct p2p_channels *channel_list)
+{
 	struct p2p_oper_class_map op_class[] = {
 		{ IEEE80211G,  81,   1,  13,  1, BW20 },
 		{ IEEE80211G,  82,  14,  14,  1, BW20 },
@@ -526,7 +564,7 @@ static u8 init_channel_set(struct rtw_adapter* padapter, u8 cplan,
 
 int init_mlme_ext_priv23a(struct rtw_adapter* padapter)
 {
-	int	res = _SUCCESS;
+	int res = _SUCCESS;
 	struct registry_priv* pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1920,7 +1958,7 @@ OnDeAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 static int
 OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 {
-	unsigned short	reason;
+	unsigned short reason;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -2835,17 +2873,17 @@ static int _issue_probereq(struct rtw_adapter *padapter,
 			   struct cfg80211_ssid *pssid, u8 *da, int wait_ack)
 {
 	int ret = _FAIL;
-	struct xmit_frame		*pmgntframe;
-	struct pkt_attrib		*pattrib;
-	unsigned char			*pframe;
-	struct ieee80211_hdr	*pwlanhdr;
-	unsigned char			*mac;
-	unsigned char			bssrate[NumRates];
+	struct xmit_frame *pmgntframe;
+	struct pkt_attrib *pattrib;
+	unsigned char *pframe;
+	struct ieee80211_hdr *pwlanhdr;
+	unsigned char *mac;
+	unsigned char bssrate[NumRates];
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	int	bssrate_len = 0;
-	u8	bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	int bssrate_len = 0;
+	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
 		 ("+%s\n", __func__));
@@ -4297,7 +4335,7 @@ int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *psta = NULL;
 	/* struct recv_reorder_ctrl *preorder_ctrl; */
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u16 tid;
 
@@ -4334,8 +4372,8 @@ int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr)
 
 int send_beacon23a(struct rtw_adapter *padapter)
 {
-	bool	bxmitok;
-	int	issue = 0;
+	bool bxmitok;
+	int issue = 0;
 	int poll = 0;
 	unsigned long start = jiffies;
 	unsigned int passing_time;
@@ -4383,9 +4421,10 @@ bool IsLegal5GChannel(struct rtw_adapter *Adapter, u8 channel)
 
 	int i = 0;
 	u8 Channel_5G[45] = {36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58,
-		60, 62, 64, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122,
-		124, 126, 128, 130, 132, 134, 136, 138, 140, 149, 151, 153, 155, 157, 159,
-		161, 163, 165};
+			     60, 62, 64, 100, 102, 104, 106, 108, 110, 112,
+			     114, 116, 118, 120, 122, 124, 126, 128, 130, 132,
+			     134, 136, 138, 140, 149, 151, 153, 155, 157, 159,
+			     161, 163, 165};
 	for (i = 0; i < sizeof(Channel_5G); i++)
 		if (channel == Channel_5G[i])
 			return true;
@@ -4396,7 +4435,7 @@ static void rtw_site_survey(struct rtw_adapter *padapter)
 {
 	unsigned char survey_channel = 0;
 	enum rt_scan_type ScanType = SCAN_PASSIVE;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct rtw_ieee80211_channel *ch;
 
@@ -4659,8 +4698,8 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 
 static void start_create_ibss(struct rtw_adapter* padapter)
 {
-	unsigned short	caps;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	unsigned short caps;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	pmlmeext->cur_channel = (u8)pnetwork->DSConfig;
@@ -4711,9 +4750,9 @@ static void start_create_ibss(struct rtw_adapter* padapter)
 
 static void start_clnt_join(struct rtw_adapter* padapter)
 {
-	unsigned short	caps;
-	u8	val8;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	unsigned short caps;
+	u8 val8;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	int beacon_timeout;
@@ -4771,7 +4810,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 
 static void start_clnt_auth(struct rtw_adapter* padapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	del_timer_sync(&pmlmeext->link_timer);
@@ -4789,8 +4828,10 @@ static void start_clnt_auth(struct rtw_adapter* padapter)
 	/*  AP may: 1)not response auth or 2)deauth us after link is complete */
 	/*  issue deauth before issuing auth to deal with the situation */
 	/*	Commented by Albert 2012/07/21 */
-	/*	For the Win8 P2P connection, it will be hard to have a successful connection if this Wi-Fi doesn't connect to it. */
-	issue_deauth23a(padapter, (&pmlmeinfo->network)->MacAddress, WLAN_REASON_DEAUTH_LEAVING);
+	/*	For the Win8 P2P connection, it will be hard to have a
+		successful connection if this Wi-Fi doesn't connect to it. */
+	issue_deauth23a(padapter, (&pmlmeinfo->network)->MacAddress,
+			WLAN_REASON_DEAUTH_LEAVING);
 
 	DBG_8723A_LEVEL(_drv_always_, "start auth\n");
 	issue_auth(padapter, NULL, 0);
@@ -4800,7 +4841,7 @@ static void start_clnt_auth(struct rtw_adapter* padapter)
 
 static void start_clnt_assoc(struct rtw_adapter* padapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	del_timer_sync(&pmlmeext->link_timer);
@@ -4816,7 +4857,7 @@ static void start_clnt_assoc(struct rtw_adapter* padapter)
 int receive_disconnect23a(struct rtw_adapter *padapter,
 			  unsigned char *MacAddr, unsigned short reason)
 {
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	/* check A3 */
@@ -5074,12 +5115,13 @@ Following are the functions to report events
 
 *****************************************************************************/
 
-void report_survey_event23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
+void report_survey_event23a(struct rtw_adapter *padapter,
+			    struct recv_frame *precv_frame)
 {
 	struct cmd_obj *pcmd_obj;
-	u8	*pevtcmd;
+	u8 *pevtcmd;
 	u32 cmdsz;
-	struct survey_event	*psurvey_evt;
+	struct survey_event *psurvey_evt;
 	struct C2HEvent_Header *pc2h_evt_hdr;
 	struct mlme_ext_priv *pmlmeext;
 	struct cmd_priv *pcmdpriv;
@@ -5134,11 +5176,11 @@ void report_survey_event23a(struct rtw_adapter *padapter, struct recv_frame *pre
 void report_surveydone_event23a(struct rtw_adapter *padapter)
 {
 	struct cmd_obj *pcmd_obj;
-	u8	*pevtcmd;
+	u8 *pevtcmd;
 	u32 cmdsz;
 	struct surveydone_event *psurveydone_evt;
-	struct C2HEvent_Header	*pc2h_evt_hdr;
-	struct mlme_ext_priv		*pmlmeext = &padapter->mlmeextpriv;
+	struct C2HEvent_Header *pc2h_evt_hdr;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	pcmd_obj = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
@@ -5178,7 +5220,7 @@ void report_surveydone_event23a(struct rtw_adapter *padapter)
 void report_join_res23a(struct rtw_adapter *padapter, int res)
 {
 	struct cmd_obj *pcmd_obj;
-	u8	*pevtcmd;
+	u8 *pevtcmd;
 	u32 cmdsz;
 	struct joinbss_event		*pjoinbss_evt;
 	struct C2HEvent_Header	*pc2h_evt_hdr;
@@ -5224,16 +5266,17 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	return;
 }
 
-void report_del_sta_event23a(struct rtw_adapter *padapter, unsigned char* MacAddr, unsigned short reason)
+void report_del_sta_event23a(struct rtw_adapter *padapter,
+			     unsigned char* MacAddr, unsigned short reason)
 {
 	struct cmd_obj *pcmd_obj;
-	u8	*pevtcmd;
+	u8 *pevtcmd;
 	u32 cmdsz;
 	struct sta_info *psta;
-	int	mac_id;
-	struct stadel_event			*pdel_sta_evt;
-	struct C2HEvent_Header	*pc2h_evt_hdr;
-	struct mlme_ext_priv		*pmlmeext = &padapter->mlmeextpriv;
+	int mac_id;
+	struct stadel_event *pdel_sta_evt;
+	struct C2HEvent_Header *pc2h_evt_hdr;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	pcmd_obj = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
@@ -5280,14 +5323,15 @@ void report_del_sta_event23a(struct rtw_adapter *padapter, unsigned char* MacAdd
 	return;
 }
 
-void report_add_sta_event23a(struct rtw_adapter *padapter, unsigned char* MacAddr, int cam_idx)
+void report_add_sta_event23a(struct rtw_adapter *padapter,
+			     unsigned char* MacAddr, int cam_idx)
 {
 	struct cmd_obj *pcmd_obj;
-	u8	*pevtcmd;
+	u8 *pevtcmd;
 	u32 cmdsz;
-	struct stassoc_event		*padd_sta_evt;
-	struct C2HEvent_Header	*pc2h_evt_hdr;
-	struct mlme_ext_priv		*pmlmeext = &padapter->mlmeextpriv;
+	struct stassoc_event *padd_sta_evt;
+	struct C2HEvent_Header *pc2h_evt_hdr;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	pcmd_obj = (struct cmd_obj *)kzalloc(sizeof(struct cmd_obj),
@@ -5335,8 +5379,8 @@ Following are the event callback functions
 void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	/* ERP */
 	VCS_update23a(padapter, psta);
@@ -5377,13 +5421,14 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	psta->state = _FW_LINKED;
 }
 
-void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_res)
+void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
+				       int join_res)
 {
-	struct sta_info		*psta, *psta_bmc;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct sta_info *psta, *psta_bmc;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
-	struct sta_priv		*pstapriv = &padapter->stapriv;
+	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	if (join_res < 0) {
 		hw_var_set_mlme_join(padapter, 1);
@@ -5459,7 +5504,8 @@ exit_mlmeext_joinbss_event_callback23a:
 	DBG_8723A("=>%s\n", __func__);
 }
 
-void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_info *psta)
+void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter,
+				       struct sta_info *psta)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -5732,7 +5778,7 @@ static void link_timer_hdl(unsigned long data)
 	/* static unsigned int		rx_pkt = 0; */
 	/* static u64				tx_cnt = 0; */
 	/* struct xmit_priv *pxmitpriv = &padapter->xmitpriv; */
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	/* struct sta_priv		*pstapriv = &padapter->stapriv; */
 
@@ -5779,7 +5825,7 @@ static void link_timer_hdl(unsigned long data)
 static void addba_timer_hdl(unsigned long data)
 {
 	struct sta_info *psta = (struct sta_info *)data;
-	struct ht_priv	*phtpriv;
+	struct ht_priv *phtpriv;
 
 	if (!psta)
 		return;
@@ -5800,7 +5846,7 @@ void init_addba_retry_timer23a(struct sta_info *psta)
 
 void init_mlme_ext_timer23a(struct rtw_adapter *padapter)
 {
-	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
 	setup_timer(&pmlmeext->survey_timer, survey_timer_hdl,
 		    (unsigned long)padapter);
@@ -5851,7 +5897,7 @@ int setopmode_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 int createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	const struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
@@ -6069,7 +6115,7 @@ int disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	rtw_free_uc_swdec_pending_queue23a(padapter);
 
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 static int
@@ -6080,7 +6126,7 @@ rtw_scan_ch_decision(struct rtw_adapter *padapter,
 	int i, j;
 	int scan_ch_num = 0;
 	int set_idx;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
 	/* clear out first */
 	memset(out, 0, sizeof(struct rtw_ieee80211_channel)*out_num);
@@ -6233,7 +6279,7 @@ int setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	if (pparm->mode < 4)
 		pmlmeinfo->auth_algo = pparm->mode;
 
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 int setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
@@ -6358,7 +6404,7 @@ int add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	psta = rtw_get_stainfo23a(&padapter->stapriv, pparm->addr);
 
 	if (!psta)
-		return	H2C_SUCCESS;
+		return H2C_SUCCESS;
 
 	if (((pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) &&
 	     pmlmeinfo->HT_enable) ||
@@ -6370,15 +6416,15 @@ int add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	} else
 		psta->htpriv.candidate_tid_bitmap &= ~BIT(pparm->tid);
 
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 int set_tx_beacon_cmd23a(struct rtw_adapter* padapter)
 {
 	struct cmd_obj *ph2c;
-	struct Tx_Beacon_param	*ptxBeacon_parm;
+	struct Tx_Beacon_param *ptxBeacon_parm;
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u8 res = _SUCCESS;
 	int len_diff = 0;
@@ -6518,7 +6564,7 @@ int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 int set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	const struct set_ch_parm *set_ch_parm;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
 	if (!pbuf)
 		return H2C_PARAMETERS_ERROR;
@@ -6536,13 +6582,13 @@ int set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	set_channel_bwmode23a(padapter, set_ch_parm->ch,
 			      set_ch_parm->ch_offset, set_ch_parm->bw);
 
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 int set_chplan_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	const struct SetChannelPlan_param *setChannelPlan_param;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
 	if (!pbuf)
 		return H2C_PARAMETERS_ERROR;
@@ -6555,7 +6601,7 @@ int set_chplan_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	init_channel_list(padapter, pmlmeext->channel_set,
 			  pmlmeext->max_chan_nums, &pmlmeext->channel_list);
 
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 int led_blink_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
@@ -6567,12 +6613,12 @@ int led_blink_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	ledBlink_param = (struct LedBlink_param *)pbuf;
 
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 int set_csa_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	return	H2C_REJECTED;
+	return H2C_REJECTED;
 }
 
 /*  TDLS_WRCR		: write RCR DATA BIT */
