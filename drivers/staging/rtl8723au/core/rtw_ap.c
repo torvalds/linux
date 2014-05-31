@@ -652,7 +652,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork_mlmeext = &pmlmeinfo->network;
-	struct HT_info_element *pht_info = NULL;
+	struct ieee80211_ht_operation *pht_info = NULL;
 	int bcn_fixed_size;
 
 	bcn_interval = (u16)pnetwork->BeaconPeriod;
@@ -736,18 +736,20 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 			     pnetwork->IEs + bcn_fixed_size,
 			     pnetwork->IELength - bcn_fixed_size);
 	if (p && p[1]) {
-		pht_info = (struct HT_info_element *)(p + 2);
+		pht_info = (struct ieee80211_ht_operation *)(p + 2);
 
-		if (pregpriv->cbw40_enable && pht_info->infos[0] & BIT(2)) {
+		if (pregpriv->cbw40_enable && pht_info->ht_param &
+		    IEEE80211_HT_PARAM_CHAN_WIDTH_ANY) {
 			/* switch to the 40M Hz mode */
 			cur_bwmode = HT_CHANNEL_WIDTH_40;
-			switch (pht_info->infos[0] & 0x3) {
-			case 1:
+			switch (pht_info->ht_param &
+				IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 				/* pmlmeext->cur_ch_offset =
 				   HAL_PRIME_CHNL_OFFSET_LOWER; */
 				cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
 				break;
-			case 3:
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
 				cur_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
 				break;
 			default:

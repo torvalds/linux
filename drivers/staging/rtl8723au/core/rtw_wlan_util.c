@@ -635,7 +635,7 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 
 static void bwmode_update_check(struct rtw_adapter *padapter, u8 *p)
 {
-	struct HT_info_element *pHT_info;
+	struct ieee80211_ht_operation *pHT_info;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -648,19 +648,20 @@ static void bwmode_update_check(struct rtw_adapter *padapter, u8 *p)
 		return;
 	if (!phtpriv->ht_option)
 		return;
-	if (p[1] > sizeof(struct HT_info_element))
+	if (p[1] != sizeof(struct ieee80211_ht_operation))
 		return;
 
-	pHT_info = (struct HT_info_element *)(p + 2);
+	pHT_info = (struct ieee80211_ht_operation *)(p + 2);
 
-	if ((pHT_info->infos[0] & BIT(2)) && pregistrypriv->cbw40_enable) {
+	if ((pHT_info->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY) &&
+	    pregistrypriv->cbw40_enable) {
 		new_bwmode = HT_CHANNEL_WIDTH_40;
 
-		switch (pHT_info->infos[0] & 0x3) {
-		case 1:
+		switch (pHT_info->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET){
+		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 			new_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
 			break;
-		case 3:
+		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
 			new_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
 			break;
 		default:
@@ -786,7 +787,7 @@ void HT_info_handler23a(struct rtw_adapter *padapter, u8 *p)
 	if (phtpriv->ht_option == false)
 		return;
 
-	if (p[1] > sizeof(struct HT_info_element))
+	if (p[1] != sizeof(struct ieee80211_ht_operation))
 		return;
 
 	pmlmeinfo->HT_info_enable = 1;
@@ -883,7 +884,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 			  struct ieee80211_mgmt *mgmt, u32 pkt_len)
 {
 	struct wlan_network *cur_network = &Adapter->mlmepriv.cur_network;
-	struct HT_info_element *pht_info;
+	struct ieee80211_ht_operation *pht_info;
 	struct ieee80211_ht_cap *pht_cap;
 	struct wlan_bssid_ex *bssid;
 	unsigned short val16;
@@ -952,8 +953,8 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	/* parsing HT_INFO_IE */
 	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, pie_len);
 	if (p && p[1] > 0) {
-		pht_info = (struct HT_info_element *)(p + 2);
-		ht_info_infos_0 = pht_info->infos[0];
+		pht_info = (struct ieee80211_ht_operation *)(p + 2);
+		ht_info_infos_0 = pht_info->ht_param;
 	} else {
 		pht_info = NULL;
 		ht_info_infos_0 = 0;
@@ -985,7 +986,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, pie_len);
 
 		if (pht_info)
-			bcn_channel = pht_info->primary_channel;
+			bcn_channel = pht_info->primary_chan;
 		else { /* we don't find channel IE, so don't check it */
 			DBG_8723A("Oops: %s we don't find channel IE, so don't "
 				  "check it\n", __func__);

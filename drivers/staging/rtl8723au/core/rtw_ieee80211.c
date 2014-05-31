@@ -859,7 +859,7 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	u8 bencrypt = 0;
 	/* u8 wpa_ie[255], rsn_ie[255]; */
 	u16 wpa_len = 0, rsn_len = 0;
-	struct HT_info_element *pht_info;
+	struct ieee80211_ht_operation *pht_info;
 	struct ieee80211_ht_cap *pht_cap;
 	const u8 *p;
 
@@ -916,8 +916,8 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 			     pnetwork->network.IEs + _FIXED_IE_LENGTH_,
 		       pnetwork->network.IELength - _FIXED_IE_LENGTH_);
 	if (p && p[1] > 0) {
-		pht_info = (struct HT_info_element *)(p + 2);
-		pnetwork->BcnInfo.ht_info_infos_0 = pht_info->infos[0];
+		pht_info = (struct ieee80211_ht_operation *)(p + 2);
+		pnetwork->BcnInfo.ht_info_infos_0 = pht_info->ht_param;
 	} else
 		pnetwork->BcnInfo.ht_info_infos_0 = 0;
 }

@@ -2322,7 +2322,7 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 	if (pregistrypriv->cbw40_enable &&
 	    pmlmeinfo->ht_cap.cap_info &
 	    cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40) &&
-	    pmlmeinfo->HT_info.infos[0] & BIT(2)) {
+	    pmlmeinfo->HT_info.ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY) {
 		int i;
 		u8 rf_type;
 
@@ -2339,13 +2339,13 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 		}
 		/* switch to the 40M Hz mode accoring to the AP */
 		pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_40;
-		switch ((pmlmeinfo->HT_info.infos[0] & 0x3))
-		{
-		case HT_EXTCHNL_OFFSET_UPPER:
+		switch (pmlmeinfo->HT_info.ht_param &
+			IEEE80211_HT_PARAM_CHAN_WIDTH_ANY) {
+		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 			pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
 			break;
 
-		case HT_EXTCHNL_OFFSET_LOWER:
+		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
 			pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
 			break;
 
@@ -2368,7 +2368,9 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 	/*  */
 	/*  Config current HT Protection mode. */
 	/*  */
-	pmlmeinfo->HT_protection = pmlmeinfo->HT_info.infos[1] & 0x3;
+	pmlmeinfo->HT_protection =
+		le16_to_cpu(pmlmeinfo->HT_info.operation_mode) &
+		IEEE80211_HT_OP_MODE_PROTECTION;
 }
 
 void rtw_issue_addbareq_cmd23a(struct rtw_adapter *padapter,

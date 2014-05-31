@@ -367,7 +367,7 @@ struct mlme_ext_info
 	struct ADDBA_request		ADDBA_req;
 	struct WMM_para_element	WMM_param;
 	struct ieee80211_ht_cap ht_cap;
-	struct HT_info_element		HT_info;
+	struct ieee80211_ht_operation HT_info;
 	struct wlan_bssid_ex			network;/* join network or bss_network, if in ap mode, it is the same to cur_network.network */
 	struct FW_Sta_Info		FW_sta_info[NUM_STA];
 };

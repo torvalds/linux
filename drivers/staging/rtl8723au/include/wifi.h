@@ -63,17 +63,6 @@
 				Below is the definition for 802.11n
 ------------------------------------------------------------------------------*/
 
-/* struct rtw_ieee80211_ht_cap - HT additional information
- *
- * This structure refers to "HT information element" as
- * described in 802.11n draft section 7.3.2.53
- */
-struct HT_info_element {
-	unsigned char	primary_channel;
-	unsigned char	infos[5];
-	unsigned char	MCS_rate[16];
-}  __packed;
-
 struct AC_param {
 	unsigned char		ACI_AIFSN;
 	unsigned char		CW;
