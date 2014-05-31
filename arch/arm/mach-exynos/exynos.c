@@ -26,8 +26,6 @@
 #include <asm/mach/map.h>
 #include <asm/memory.h>
 
-#include <plat/cpu.h>
-
 #include "common.h"
 #include "mfc.h"
 #include "regs-pmu.h"
@@ -244,17 +242,6 @@ void __init exynos_init_io(void)
 	exynos_map_io();
 }
 
-struct bus_type exynos_subsys = {
-	.name		= "exynos-core",
-	.dev_name	= "exynos-core",
-};
-
-static int __init exynos_core_init(void)
-{
-	return subsys_system_register(&exynos_subsys, NULL);
-}
-core_initcall(exynos_core_init);
-
 static int __init exynos4_l2x0_cache_init(void)
 {
 	int ret;
@@ -306,12 +293,15 @@ static void __init exynos_dt_machine_init(void)
 }
 
 static char const *exynos_dt_compat[] __initconst = {
+	"samsung,exynos3",
+	"samsung,exynos3250",
 	"samsung,exynos4",
 	"samsung,exynos4210",
 	"samsung,exynos4212",
 	"samsung,exynos4412",
 	"samsung,exynos5",
 	"samsung,exynos5250",
+	"samsung,exynos5260",
 	"samsung,exynos5420",
 	"samsung,exynos5440",
 	NULL

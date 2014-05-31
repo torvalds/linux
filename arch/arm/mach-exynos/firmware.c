@@ -29,6 +29,21 @@ static int exynos_do_idle(void)
 
 static int exynos_cpu_boot(int cpu)
 {
+	/*
+	 * Exynos3250 doesn't need to send smc command for secondary CPU boot
+	 * because Exynos3250 removes WFE in secure mode.
+	 */
+	if (soc_is_exynos3250())
+		return 0;
+
+	/*
+	 * The second parameter of SMC_CMD_CPU1BOOT command means CPU id.
+	 * But, Exynos4212 has only one secondary CPU so second parameter
+	 * isn't used for informing secure firmware about CPU id.
+	 */
+	if (soc_is_exynos4212())
+		cpu = 0;
+
 	exynos_smc(SMC_CMD_CPU1BOOT, cpu, 0, 0);
 	return 0;
 }
@@ -40,7 +55,10 @@ static int exynos_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 	if (!sysram_ns_base_addr)
 		return -ENODEV;
 
-	boot_reg = sysram_ns_base_addr + 0x1c + 4*cpu;
+	boot_reg = sysram_ns_base_addr + 0x1c;
+
+	if (!soc_is_exynos4212() && !soc_is_exynos3250())
+		boot_reg += 4*cpu;
 
 	__raw_writel(boot_addr, boot_reg);
 	return 0;
