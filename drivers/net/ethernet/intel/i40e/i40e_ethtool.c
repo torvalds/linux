@@ -633,6 +633,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 				   struct ethtool_stats *stats, u64 *data)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	int i = 0;
@@ -650,8 +651,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	}
 	rcu_read_lock();
 	for (j = 0; j < vsi->num_queue_pairs; j++) {
-		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
-		struct i40e_ring *rx_ring;
+		tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
 
 		if (!tx_ring)
 			continue;
@@ -1131,8 +1131,7 @@ static int i40e_get_ethtool_fdir_all(struct i40e_pf *pf,
 	int cnt = 0;
 
 	/* report total rule count */
-	cmd->data = pf->hw.fdir_shared_filter_count +
-		    pf->fdir_pf_filter_count;
+	cmd->data = i40e_get_fd_cnt_all(pf);
 
 	hlist_for_each_entry_safe(rule, node2,
 				  &pf->fdir_filter_list, fdir_node) {
@@ -1165,10 +1164,6 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 			(struct ethtool_rx_flow_spec *)&cmd->fs;
 	struct i40e_fdir_filter *rule = NULL;
 	struct hlist_node *node2;
-
-	/* report total rule count */
-	cmd->data = pf->hw.fdir_shared_filter_count +
-		    pf->fdir_pf_filter_count;
 
 	hlist_for_each_entry_safe(rule, node2,
 				  &pf->fdir_filter_list, fdir_node) {
@@ -1220,6 +1215,8 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = pf->fdir_pf_active_filters;
+		/* report total rule count */
+		cmd->data = i40e_get_fd_cnt_all(pf);
 		ret = 0;
 		break;
 	case ETHTOOL_GRXCLSRULE:
@@ -1288,16 +1285,12 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	case UDP_V4_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &=
-			~(((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
+			hena &= ~(((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
+				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |=
-			(((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP)  |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
+			hena |= (((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
+				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
 			break;
 		default:
 			return -EINVAL;
@@ -1306,16 +1299,12 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	case UDP_V6_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &=
-			~(((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
+			hena &= ~(((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
+				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |=
-			(((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP)  |
-			((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
+			hena |= (((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
+				 ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
 			break;
 		default:
 			return -EINVAL;

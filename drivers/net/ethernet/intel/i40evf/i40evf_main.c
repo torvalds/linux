@@ -1844,8 +1844,6 @@ void i40evf_reinit_locked(struct i40evf_adapter *adapter)
 
 	WARN_ON(in_interrupt());
 
-	adapter->state = __I40EVF_RESETTING;
-
 	i40evf_down(adapter);
 
 	/* allocate transmit descriptors */

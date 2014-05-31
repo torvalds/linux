@@ -133,7 +133,11 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
  **/
 bool i40e_check_asq_alive(struct i40e_hw *hw)
 {
-	return !!(rd32(hw, hw->aq.asq.len) & I40E_PF_ATQLEN_ATQENABLE_MASK);
+	if (hw->aq.asq.len)
+		return !!(rd32(hw, hw->aq.asq.len) &
+			  I40E_PF_ATQLEN_ATQENABLE_MASK);
+	else
+		return false;
 }
 
 /**
@@ -789,6 +793,9 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw)
 {
 	u32 reg;
 
+	if (i40e_check_asq_alive(hw))
+		i40e_aq_clear_pxe_mode(hw, NULL);
+
 	/* Clear single descriptor fetch/write-back mode */
 	reg = rd32(hw, I40E_GLLAN_RCTL_0);
 
@@ -905,6 +912,33 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 }
 
 /* Admin command wrappers */
+
+/**
+ * i40e_aq_clear_pxe_mode
+ * @hw: pointer to the hw struct
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Tell the firmware that the driver is taking over from PXE
+ **/
+i40e_status i40e_aq_clear_pxe_mode(struct i40e_hw *hw,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	i40e_status status;
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_clear_pxe *cmd =
+		(struct i40e_aqc_clear_pxe *)&desc.params.raw;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_clear_pxe_mode);
+
+	cmd->rx_cnt = 0x2;
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	wr32(hw, I40E_GLLAN_RCTL_0, 0x1);
+
+	return status;
+}
 
 /**
  * i40e_aq_set_link_restart_an
@@ -1914,6 +1948,12 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			break;
 		}
 	}
+
+	/* Software override ensuring FCoE is disabled if npar or mfp
+	 * mode because it is not supported in these modes.
+	 */
+	if (p->npar_enable || p->mfp_mode_1)
+		p->fcoe = false;
 
 	/* additional HW specific goodies that might
 	 * someday be HW version specific
