@@ -241,7 +241,9 @@ struct vnt_usb_send_context {
 	void *priv;
 	struct sk_buff *skb;
 	struct urb *urb;
+	struct ieee80211_hdr *hdr;
 	unsigned int buf_len;
+	u16 tx_hdr_size;
 	u8 type;
 	bool in_use;
 	unsigned char data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];

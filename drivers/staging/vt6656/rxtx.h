@@ -81,6 +81,7 @@ struct vnt_tx_datahead_g {
 	__le16 duration_a;
 	__le16 time_stamp_off_b;
 	__le16 time_stamp_off_a;
+	struct ieee80211_hdr hdr;
 } __packed;
 
 struct vnt_tx_datahead_g_fb {
@@ -92,12 +93,14 @@ struct vnt_tx_datahead_g_fb {
 	__le16 duration_a_f1;
 	__le16 time_stamp_off_b;
 	__le16 time_stamp_off_a;
+	struct ieee80211_hdr hdr;
 } __packed;
 
 struct vnt_tx_datahead_ab {
 	struct vnt_phy_field ab;
 	__le16 duration;
 	__le16 time_stamp_off;
+	struct ieee80211_hdr hdr;
 } __packed;
 
 struct vnt_tx_datahead_a_fb {
@@ -106,6 +109,7 @@ struct vnt_tx_datahead_a_fb {
 	__le16 time_stamp_off;
 	__le16 duration_f0;
 	__le16 duration_f1;
+	struct ieee80211_hdr hdr;
 } __packed;
 
 /* RTS buffer header */
