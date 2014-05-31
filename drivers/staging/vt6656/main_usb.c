@@ -1284,7 +1284,7 @@ void vnt_configure_filter(struct vnt_private *priv)
 	} else if ((netdev_mc_count(dev) > priv->multicast_limit) ||
 			(dev->flags & IFF_ALLMULTI)) {
 		mc_filter = ~0x0;
-		MACvWriteMultiAddr(priv, mc_filter);
+		vnt_mac_set_filter(priv, mc_filter);
 
 		priv->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
 	} else {
@@ -1294,7 +1294,7 @@ void vnt_configure_filter(struct vnt_private *priv)
 			mc_filter |= 1ULL << (bit_nr & 0x3f);
 		}
 
-		MACvWriteMultiAddr(priv, mc_filter);
+		vnt_mac_set_filter(priv, mc_filter);
 
 		priv->byRxMode &= ~(RCR_UNICAST);
 		priv->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);

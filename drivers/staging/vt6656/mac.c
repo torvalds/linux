@@ -50,7 +50,7 @@
  * Return Value: none
  *
  */
-void MACvWriteMultiAddr(struct vnt_private *priv, u64 mc_filter)
+void vnt_mac_set_filter(struct vnt_private *priv, u64 mc_filter)
 {
 	__le64 le_mc = cpu_to_le64(mc_filter);
 

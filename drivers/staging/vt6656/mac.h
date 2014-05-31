@@ -414,7 +414,7 @@ struct vnt_mac_set_key {
 	u8 key[WLAN_KEY_LEN_CCMP];
 } __packed;
 
-void MACvWriteMultiAddr(struct vnt_private *, u64);
+void vnt_mac_set_filter(struct vnt_private *, u64);
 void MACbShutdown(struct vnt_private *);
 void MACvSetBBType(struct vnt_private *, u8);
 void MACvDisableKeyEntry(struct vnt_private *, u8);
