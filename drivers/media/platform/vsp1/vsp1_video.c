@@ -31,6 +31,7 @@
 #include "vsp1_bru.h"
 #include "vsp1_entity.h"
 #include "vsp1_rwpf.h"
+#include "vsp1_uds.h"
 #include "vsp1_video.h"
 
 #define VSP1_VIDEO_DEF_FORMAT		V4L2_PIX_FMT_YUYV
@@ -306,13 +307,14 @@ vsp1_video_format_adjust(struct vsp1_video *video,
  * Pipeline Management
  */
 
-static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
+static int vsp1_pipeline_validate_branch(struct vsp1_pipeline *pipe,
+					 struct vsp1_rwpf *input,
 					 struct vsp1_rwpf *output)
 {
 	struct vsp1_entity *entity;
 	unsigned int entities = 0;
 	struct media_pad *pad;
-	bool uds_found = false;
+	bool bru_found = false;
 
 	input->location.left = 0;
 	input->location.top = 0;
@@ -341,6 +343,8 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 
 			input->location.left = rect->left;
 			input->location.top = rect->top;
+
+			bru_found = true;
 		}
 
 		/* We've reached the WPF, we're done. */
@@ -355,9 +359,12 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 
 		/* UDS can't be chained. */
 		if (entity->type == VSP1_ENTITY_UDS) {
-			if (uds_found)
+			if (pipe->uds)
 				return -EPIPE;
-			uds_found = true;
+
+			pipe->uds = entity;
+			pipe->uds_input = bru_found ? pipe->bru
+					: &input->entity;
 		}
 
 		/* Follow the source link. The link setup operations ensure
@@ -394,6 +401,7 @@ static void __vsp1_pipeline_cleanup(struct vsp1_pipeline *pipe)
 	pipe->output = NULL;
 	pipe->bru = NULL;
 	pipe->lif = NULL;
+	pipe->uds = NULL;
 }
 
 static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
@@ -451,7 +459,7 @@ static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
 	 * contains no loop and that all branches end at the output WPF.
 	 */
 	for (i = 0; i < pipe->num_inputs; ++i) {
-		ret = vsp1_pipeline_validate_branch(pipe->inputs[i],
+		ret = vsp1_pipeline_validate_branch(pipe, pipe->inputs[i],
 						    pipe->output);
 		if (ret < 0)
 			goto error;
@@ -654,6 +662,47 @@ done:
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 }
 
+/*
+ * Propagate the alpha value through the pipeline.
+ *
+ * As the UDS has restricted scaling capabilities when the alpha component needs
+ * to be scaled, we disable alpha scaling when the UDS input has a fixed alpha
+ * value. The UDS then outputs a fixed alpha value which needs to be programmed
+ * from the input RPF alpha.
+ */
+void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
+				   struct vsp1_entity *input,
+				   unsigned int alpha)
+{
+	struct vsp1_entity *entity;
+	struct media_pad *pad;
+
+	pad = media_entity_remote_pad(&input->pads[RWPF_PAD_SOURCE]);
+
+	while (pad) {
+		if (media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+			break;
+
+		entity = to_vsp1_entity(media_entity_to_v4l2_subdev(pad->entity));
+
+		/* The BRU background color has a fixed alpha value set to 255,
+		 * the output alpha value is thus always equal to 255.
+		 */
+		if (entity->type == VSP1_ENTITY_BRU)
+			alpha = 255;
+
+		if (entity->type == VSP1_ENTITY_UDS) {
+			struct vsp1_uds *uds = to_uds(&entity->subdev);
+
+			vsp1_uds_set_alpha(uds, alpha);
+			break;
+		}
+
+		pad = &entity->pads[entity->source_pad];
+		pad = media_entity_remote_pad(pad);
+	}
+}
+
 /* -----------------------------------------------------------------------------
  * videobuf2 Queue Operations
  */
@@ -761,6 +810,25 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	mutex_lock(&pipe->lock);
 	if (pipe->stream_count == pipe->num_video - 1) {
+		if (pipe->uds) {
+			struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
+
+			/* If a BRU is present in the pipeline before the UDS,
+			 * the alpha component doesn't need to be scaled as the
+			 * BRU output alpha value is fixed to 255. Otherwise we
+			 * need to scale the alpha component only when available
+			 * at the input RPF.
+			 */
+			if (pipe->uds_input->type == VSP1_ENTITY_BRU) {
+				uds->scale_alpha = false;
+			} else {
+				struct vsp1_rwpf *rpf =
+					to_rwpf(&pipe->uds_input->subdev);
+
+				uds->scale_alpha = rpf->video.fmtinfo->alpha;
+			}
+		}
+
 		list_for_each_entry(entity, &pipe->entities, list_pipe) {
 			vsp1_entity_route_setup(entity);
 
