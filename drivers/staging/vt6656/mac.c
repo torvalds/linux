@@ -74,7 +74,7 @@ void vnt_mac_shutdown(struct vnt_private *priv)
 	vnt_control_out(priv, MESSAGE_TYPE_MACSHUTDOWN, 0, 0, 0, NULL);
 }
 
-void MACvSetBBType(struct vnt_private *priv, u8 type)
+void vnt_mac_set_bb_type(struct vnt_private *priv, u8 type)
 {
 	u8 data[2];
 

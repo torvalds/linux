@@ -832,9 +832,9 @@ int vnt_radio_power_on(struct vnt_private *priv)
 void vnt_set_bss_mode(struct vnt_private *priv)
 {
 	if (priv->byRFType == RF_AIROHA7230 && priv->byBBType == BB_TYPE_11A)
-		MACvSetBBType(priv, BB_TYPE_11G);
+		vnt_mac_set_bb_type(priv, BB_TYPE_11G);
 	else
-		MACvSetBBType(priv, priv->byBBType);
+		vnt_mac_set_bb_type(priv, priv->byBBType);
 
 	priv->byPacketType = vnt_get_pkt_type(priv);
 
