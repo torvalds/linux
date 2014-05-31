@@ -1915,7 +1915,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                      // set HW beacon interval and re-synchronizing....
                      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rejoining to Other Adhoc group with same SSID........\n");
 
-                     MACvWriteBeaconInterval(pDevice, pMgmt->wCurrBeaconPeriod);
+		     vnt_mac_set_beacon_interval(pDevice, pMgmt->wCurrBeaconPeriod);
 		     vnt_adjust_tsf(pDevice, pRxPacket->byRxRate, qwTimestamp, pRxPacket->qwLocalTSF);
 		     vnt_update_next_tbtt(pDevice, qwTimestamp, pMgmt->wCurrBeaconPeriod);
 
@@ -2041,7 +2041,7 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
     // set HW beacon interval
     if (pMgmt->wIBSSBeaconPeriod == 0)
         pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
-    MACvWriteBeaconInterval(pDevice, pMgmt->wIBSSBeaconPeriod);
+    vnt_mac_set_beacon_interval(pDevice, pMgmt->wIBSSBeaconPeriod);
 
     vnt_get_current_tsf(pDevice, &qwCurrTSF);
     // clear TSF counter
@@ -2579,7 +2579,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     vnt_adjust_tsf(pDevice, pCurr->byRxRate, pCurr->qwBSSTimestamp, pCurr->qwLocalTSF);
 
     // set HW beacon interval
-    MACvWriteBeaconInterval(pDevice, pCurr->wBeaconInterval);
+    vnt_mac_set_beacon_interval(pDevice, pCurr->wBeaconInterval);
 
     // set Next TBTT
     // Next TBTT = ((local_current_TSF / beacon_interval) + 1 ) * beacon_interval
