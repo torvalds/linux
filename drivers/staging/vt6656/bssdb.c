@@ -971,7 +971,7 @@ void BSSvSecondCallBack(struct work_struct *work)
 
 		if (uLongPreambleSTACnt > 0) {
 			if (!pDevice->bBarkerPreambleMd) {
-				MACvEnableBarkerPreambleMd(pDevice);
+				vnt_mac_enable_barker_preamble_mode(pDevice);
 				pDevice->bBarkerPreambleMd = true;
 			}
 		} else if (pDevice->bBarkerPreambleMd) {

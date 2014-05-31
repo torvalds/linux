@@ -208,7 +208,7 @@ void vnt_mac_disable_protect_mode(struct vnt_private *priv)
 		MAC_REG_ENCFG0, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
-void MACvEnableBarkerPreambleMd(struct vnt_private *priv)
+void vnt_mac_enable_barker_preamble_mode(struct vnt_private *priv)
 {
 	u8 data[2];
 

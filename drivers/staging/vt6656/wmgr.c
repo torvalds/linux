@@ -1668,7 +1668,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                         pDevice->bBarkerPreambleMd = (pBSSList->sERP.byERP & WLAN_EID_ERP_BARKER_MODE);
                         //BarkerPreambleMd has higher priority than shortPreamble bit in Cap
                         if (pDevice->bBarkerPreambleMd) {
-                            MACvEnableBarkerPreambleMd(pDevice);
+			    vnt_mac_enable_barker_preamble_mode(pDevice);
                         } else {
                             MACvDisableBarkerPreambleMd(pDevice);
                         }
@@ -2400,7 +2400,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
                     pDevice->bBarkerPreambleMd = (pCurr->sERP.byERP & WLAN_EID_ERP_BARKER_MODE);
                     //BarkerPreambleMd has higher priority than shortPreamble bit in Cap
                     if (pDevice->bBarkerPreambleMd) {
-                        MACvEnableBarkerPreambleMd(pDevice);
+			vnt_mac_enable_barker_preamble_mode(pDevice);
                     } else {
                         MACvDisableBarkerPreambleMd(pDevice);
                     }
