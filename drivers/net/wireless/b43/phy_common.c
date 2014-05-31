@@ -547,12 +547,6 @@ void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on)
 }
 
 
-bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type)
-{
-	return (channel_type == NL80211_CHAN_HT40MINUS ||
-		channel_type == NL80211_CHAN_HT40PLUS);
-}
-
 bool b43_is_40mhz(struct b43_wldev *dev)
 {
 	return dev->phy.chandef->width == NL80211_CHAN_WIDTH_40;

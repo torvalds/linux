@@ -4504,7 +4504,8 @@ static void b43_nphy_save_cal(struct b43_wldev *dev)
 		txcal_radio_regs[3] = b43_radio_read(dev, 0xBC);
 	}
 	iqcal_chanspec->center_freq = dev->phy.chandef->chan->center_freq;
-	iqcal_chanspec->channel_type = dev->phy.channel_type;
+	iqcal_chanspec->channel_type =
+				cfg80211_get_chandef_type(dev->phy.chandef);
 	b43_ntab_read_bulk(dev, B43_NTAB16(15, 80), 8, table);
 
 	if (nphy->hang_avoid)
@@ -4779,7 +4780,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 			nphy->txiqlocal_chanspec.center_freq =
 						phy->chandef->chan->center_freq;
 			nphy->txiqlocal_chanspec.channel_type =
-							dev->phy.channel_type;
+					cfg80211_get_chandef_type(phy->chandef);
 		} else {
 			length = 11;
 			if (dev->phy.rev < 3)
@@ -4816,7 +4817,7 @@ static void b43_nphy_reapply_tx_cal_coeffs(struct b43_wldev *dev)
 
 	if (!nphy->txiqlocal_coeffsvalid ||
 	    nphy->txiqlocal_chanspec.center_freq != dev->phy.chandef->chan->center_freq ||
-	    nphy->txiqlocal_chanspec.channel_type != dev->phy.channel_type)
+	    nphy->txiqlocal_chanspec.channel_type != cfg80211_get_chandef_type(dev->phy.chandef))
 		return;
 
 	b43_ntab_read_bulk(dev, B43_NTAB16(15, 80), 7, buffer);
@@ -5441,7 +5442,7 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 		bool avoid = false;
 		if (dev->phy.n->spur_avoid == B43_SPUR_AVOID_FORCE) {
 			avoid = true;
-		} else if (!b43_channel_type_is_40mhz(phy->channel_type)) {
+		} else if (!b43_is_40mhz(dev)) {
 			if ((ch >= 5 && ch <= 8) || ch == 13 || ch == 14)
 				avoid = true;
 		} else { /* 40MHz */
@@ -5507,9 +5508,11 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 	   own to let this function's subcalls work properly. */
 	phy->channel = channel->hw_value;
 
+#if 0
 	if (b43_channel_type_is_40mhz(phy->channel_type) !=
 		b43_channel_type_is_40mhz(channel_type))
 		; /* TODO: BMAC BW Set (channel_type) */
+#endif
 
 	if (channel_type == NL80211_CHAN_HT40PLUS)
 		b43_phy_set(dev, B43_NPHY_RXCTL,

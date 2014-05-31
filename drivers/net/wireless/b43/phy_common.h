@@ -266,7 +266,6 @@ struct b43_phy {
 	/* Current channel */
 	struct cfg80211_chan_def *chandef;
 	unsigned int channel;
-	enum nl80211_channel_type channel_type;
 
 	/* PHY TX errors counter. */
 	atomic_t txerr_cnt;
@@ -446,8 +445,6 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
  * for struct b43_phy_operations.
  */
 void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on);
-
-bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type);
 
 bool b43_is_40mhz(struct b43_wldev *dev);
 

@@ -3191,7 +3191,7 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 	/* Some workarounds to the workarounds... */
 	if (ghz5 && dev->phy.rev >= 6) {
 		if (dev->phy.radio_rev == 11 &&
-		    !b43_channel_type_is_40mhz(dev->phy.channel_type))
+		    !b43_is_40mhz(dev))
 			e->cliplo_gain = 0x2d;
 	} else if (!ghz5 && dev->phy.rev >= 5) {
 		static const int gain_data[] = {0x0062, 0x0064, 0x006a, 0x106a,
