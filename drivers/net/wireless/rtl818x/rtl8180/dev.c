@@ -209,7 +209,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl818x_rx_cmd_desc *cmd_desc;
 	unsigned int count = 32;
-	u8 signal, agc, sq;
+	u8 agc, sq, signal = 1;
 	dma_addr_t mapping;
 
 	while (count--) {
@@ -266,18 +266,21 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.rate_idx = (flags >> 20) & 0xF;
 			agc = (flags2 >> 17) & 0x7F;
 
-			if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185) {
+			switch (priv->chip_family) {
+			case RTL818X_CHIP_FAMILY_RTL8185:
 				if (rx_status.rate_idx > 3)
 					signal = 90 - clamp_t(u8, agc, 25, 90);
 				else
 					signal = 95 - clamp_t(u8, agc, 30, 95);
-			} else if (priv->chip_family ==
-				   RTL818X_CHIP_FAMILY_RTL8180) {
+				break;
+			case RTL818X_CHIP_FAMILY_RTL8180:
 				sq = flags2 & 0xff;
 				signal = priv->rf->calc_rssi(agc, sq);
-			} else {
+				break;
+			case RTL818X_CHIP_FAMILY_RTL8187SE:
 				/* TODO: rtl8187se rssi */
 				signal = 10;
+				break;
 			}
 			rx_status.signal = signal;
 			rx_status.freq = dev->conf.chandef.chan->center_freq;
