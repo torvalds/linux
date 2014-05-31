@@ -122,6 +122,7 @@ static void ion_iommu_force_unmap(struct ion_buffer *buffer);
 #ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
 extern char *rockchip_ion_snapshot_get(unsigned *size);
 extern int rockchip_ion_snapshot_debugfs(struct dentry* root);
+static int ion_snapshot_save(struct ion_device *idev);
 #endif
 
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
@@ -519,8 +520,12 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	if (buffer == NULL)
 		return ERR_PTR(-ENODEV);
 
-	if (IS_ERR(buffer))
+	if (IS_ERR(buffer)) {
+#ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
+		ion_snapshot_save(client->dev);
+#endif
 		return ERR_PTR(PTR_ERR(buffer));
+	}
 
 	handle = ion_handle_create(client, buffer);
 
@@ -901,12 +906,14 @@ EXPORT_SYMBOL(ion_unmap_iommu);
 static int ion_debug_client_show_buffer_map(struct seq_file *s, struct ion_buffer *buffer)
 {
 	struct ion_iommu_map *iommu_map;
-	const struct rb_root *rb = &(buffer->iommu_maps);
-	struct rb_node *node = rb_first(rb);
+	const struct rb_root *rb;
+	struct rb_node *node;
 
 	pr_debug("%s: buffer(%p)\n", __func__, buffer);
 
 	mutex_lock(&buffer->lock);
+	rb = &(buffer->iommu_maps);
+	node = rb_first(rb);
 
 	while (node != NULL) {
 		iommu_map = rb_entry(node, struct ion_iommu_map, node);
@@ -937,12 +944,18 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 		struct ion_buffer *buffer = handle->buffer;
 		ion_phys_addr_t pa = 0;
 		size_t len = buffer->size;
+
+		mutex_lock(&buffer->lock);
+
 		if (buffer->heap->ops->phys)
 			buffer->heap->ops->phys(buffer->heap, buffer, &pa, &len);
 
 		seq_printf(s, "%16.16s:   0x%08lx   0x%08lx %8zuKB %4d %4d %4d\n",
 			buffer->heap->name, (unsigned long)buffer->vaddr, pa, len>>10, buffer->handle_count,
 			atomic_read(&buffer->ref.refcount), atomic_read(&handle->ref.refcount));
+
+		mutex_unlock(&buffer->lock);
+
 #ifdef CONFIG_ROCKCHIP_IOMMU
 		ion_debug_client_show_buffer_map(s, buffer);
 #endif
@@ -2016,7 +2029,7 @@ static unsigned long ion_find_max_zero_area(unsigned long *map, unsigned long si
 	return max_zero_sz;
 }
 
-int ion_snapshot_save(struct ion_device *idev)
+static int ion_snapshot_save(struct ion_device *idev)
 {
 	static struct seq_file seqf;
 	struct ion_heap *heap;
@@ -2029,7 +2042,7 @@ int ion_snapshot_save(struct ion_device *idev)
 	}
 	memset(seqf.buf, 0, seqf.size);
 	seqf.count = 0;
-	pr_info("%s: save snapshot 0x%x@0x%lx\n", __func__, seqf.size,
+	pr_debug("%s: save snapshot 0x%x@0x%lx\n", __func__, seqf.size,
 		__pa(seqf.buf));
 
 	down_read(&idev->lock);
@@ -2051,31 +2064,8 @@ int ion_snapshot_save(struct ion_device *idev)
 		}
 	}
 
-	for (n = rb_first(&idev->clients); n; n = rb_next(n)) {
-		struct ion_client *client = rb_entry(n, struct ion_client, node);
-		seqf.private = (void*)client;
-		if (client->task) {
-			char task_comm[TASK_COMM_LEN];
-
-			get_task_comm(task_comm, client->task);
-			seq_printf(&seqf, "++++++++++++++++ CLIENT: %s(PID-%d) ++++++++++++++++\n",
-				task_comm, client->pid);
-		} else {
-			seq_printf(&seqf, "++++++++++++++++ CLIENT: %s(PID-%d) ++++++++++++++++\n",
-				client->display_name, client->pid);
-		}
-
-		ion_debug_client_show(&seqf, NULL);
-		seq_printf(&seqf, "\n");
-	}
-
 	up_read(&idev->lock);
 
-	return 0;
-}
-#else
-int ion_snapshot_save(struct ion_device *idev)
-{
 	return 0;
 }
 #endif
