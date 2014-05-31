@@ -169,7 +169,7 @@ void vnt_mac_reg_bits_on(struct vnt_private *priv, u8 reg_ofs, u8 bits)
 		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
-void MACvWriteWord(struct vnt_private *priv, u8 reg_ofs, u16 word)
+void vnt_mac_write_word(struct vnt_private *priv, u8 reg_ofs, u16 word)
 {
 	u8 data[2];
 

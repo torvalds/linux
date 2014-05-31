@@ -64,11 +64,11 @@ void PSvEnablePowerSaving(struct vnt_private *pDevice, u16 wListenInterval)
 	u16 wAID = pMgmt->wCurrAID | BIT14 | BIT15;
 
 	/* set period of power up before TBTT */
-	MACvWriteWord(pDevice, MAC_REG_PWBT, C_PWBT);
+	vnt_mac_write_word(pDevice, MAC_REG_PWBT, C_PWBT);
 
 	if (pDevice->op_mode != NL80211_IFTYPE_ADHOC) {
 		/* set AID */
-		MACvWriteWord(pDevice, MAC_REG_AIDATIM, wAID);
+		vnt_mac_write_word(pDevice, MAC_REG_AIDATIM, wAID);
 	}
 
 	/* Warren:06-18-2004,the sequence must follow
