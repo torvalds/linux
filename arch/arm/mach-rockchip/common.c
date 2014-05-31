@@ -246,7 +246,7 @@ void __init rockchip_boot_mode_init(u32 flag, u32 mode)
 
 void rockchip_restart_get_boot_mode(const char *cmd, u32 *flag, u32 *mode)
 {
-	*flag = 0;
+	*flag = SYS_LOADER_REBOOT_FLAG + BOOT_NORMAL;
 	*mode = BOOT_MODE_REBOOT;
 
 	if (cmd) {
