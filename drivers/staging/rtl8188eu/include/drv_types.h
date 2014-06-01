@@ -68,12 +68,6 @@ enum _NIC_VERSION {
 #define SPEC_DEV_ID_RF_CONFIG_2T2R	BIT(4)
 #define SPEC_DEV_ID_ASSIGN_IFNAME	BIT(5)
 
-struct specific_device_id {
-	u32		flags;
-	u16		idVendor;
-	u16		idProduct;
-};
-
 struct registry_priv {
 	u8	chip_version;
 	u8	rfintfs;
