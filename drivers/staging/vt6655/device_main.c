@@ -302,7 +302,7 @@ static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
 //2008-0714<Add>by Mike Liu
 static bool device_release_WPADEV(PSDevice pDevice);
 
-static int  ethtool_ioctl(struct net_device *dev, void *useraddr);
+static int  ethtool_ioctl(struct net_device *dev, void __user *useraddr);
 static int  device_rx_srv(PSDevice pDevice, unsigned int uIdx);
 static int  device_tx_srv(PSDevice pDevice, unsigned int uIdx);
 static bool device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pDesc);
@@ -3067,7 +3067,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		break;
 
 	case SIOCETHTOOL:
-		return ethtool_ioctl(dev, (void *)rq->ifr_data);
+		return ethtool_ioctl(dev, rq->ifr_data);
 		// All other calls are currently unsupported
 
 	default:
@@ -3103,7 +3103,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 	return rc;
 }
 
-static int ethtool_ioctl(struct net_device *dev, void *useraddr)
+static int ethtool_ioctl(struct net_device *dev, void __user *useraddr)
 {
 	u32 ethcmd;
 
