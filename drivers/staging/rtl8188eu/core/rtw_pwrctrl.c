@@ -160,7 +160,6 @@ void rtw_ps_processor(struct adapter *padapter)
 			if (rfpwrstate == rf_off) {
 				pwrpriv->change_rfpwrstate = rf_off;
 				pwrpriv->brfoffbyhw = true;
-				padapter->bCardDisableWOHSM = true;
 				rtw_hw_suspend(padapter);
 			} else {
 				pwrpriv->change_rfpwrstate = rf_on;
