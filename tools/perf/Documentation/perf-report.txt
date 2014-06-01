@@ -119,7 +119,7 @@ OPTIONS
 
 	If --mem-mode option is used, following sort keys are also available
 	(incompatible with --branch-stack):
-	symbol_daddr, dso_daddr, locked, tlb, mem, snoop.
+	symbol_daddr, dso_daddr, locked, tlb, mem, snoop, dcacheline.
 
 	- symbol_daddr: name of data symbol being executed on at the time of sample
 	- dso_daddr: name of library or module containing the data being executed
@@ -128,6 +128,7 @@ OPTIONS
 	- tlb: type of tlb access for the data at the time of sample
 	- mem: type of memory access for the data at the time of sample
 	- snoop: type of snoop (if any) for the data at the time of sample
+	- dcacheline: the cacheline the data address is on at the time of sample
 
 	And default sort keys are changed to local_weight, mem, sym, dso,
 	symbol_daddr, dso_daddr, snoop, tlb, locked, see '--mem-mode'.
