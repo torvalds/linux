@@ -62,7 +62,6 @@ MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
 
 struct rtw_usb_drv {
 	struct usb_driver usbdrv;
-	int drv_registered;
 };
 
 static struct rtw_usb_drv rtl8188e_usb_drv = {
@@ -731,7 +730,6 @@ static int __init rtw_drv_entry(void)
 
 	DBG_88E(DRV_NAME " driver version=%s\n", DRIVERVERSION);
 
-	usb_drv->drv_registered = true;
 	return usb_register(&usb_drv->usbdrv);
 }
 
@@ -740,7 +738,6 @@ static void __exit rtw_drv_halt(void)
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_halt\n"));
 	DBG_88E("+rtw_drv_halt\n");
 
-	usb_drv->drv_registered = false;
 	usb_deregister(&usb_drv->usbdrv);
 
 	DBG_88E("-rtw_drv_halt\n");
