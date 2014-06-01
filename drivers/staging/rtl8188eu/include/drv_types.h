@@ -307,7 +307,7 @@ struct adapter {
 #endif
 	struct adapter *pbuddy_adapter;
 
-	struct mutex *hw_init_mutex;
+	struct mutex hw_init_mutex;
 
 	spinlock_t br_ext_lock;
 	struct nat25_network_db_entry	*nethash[NAT25_HASH_SIZE];

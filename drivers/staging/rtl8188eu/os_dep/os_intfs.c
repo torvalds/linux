@@ -997,6 +997,8 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	if (padapter->pbuddy_adapter != NULL)
 		padapter->pbuddy_adapter->pbuddy_adapter = NULL;
 
+	mutex_destroy(&padapter->hw_init_mutex);
+
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_free_drv_sw\n"));
 
 	return _SUCCESS;
@@ -1105,9 +1107,9 @@ int netdev_open(struct net_device *pnetdev)
 	int ret;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
 
-	_enter_critical_mutex(padapter->hw_init_mutex, NULL);
+	_enter_critical_mutex(&padapter->hw_init_mutex, NULL);
 	ret = _netdev_open(pnetdev);
-	mutex_unlock(padapter->hw_init_mutex);
+	mutex_unlock(&padapter->hw_init_mutex);
 	return ret;
 }
 

@@ -63,7 +63,6 @@ MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
 struct rtw_usb_drv {
 	struct usb_driver usbdrv;
 	int drv_registered;
-	struct mutex hw_init_mutex;
 };
 
 static struct rtw_usb_drv rtl8188e_usb_drv = {
@@ -537,7 +536,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	dvobj->if1 = padapter;
 
 	padapter->bDriverStopped = true;
-	padapter->hw_init_mutex = &usb_drv->hw_init_mutex;
+	mutex_init(&padapter->hw_init_mutex);
 	padapter->chip_type = RTL8188E;
 
 	pnetdev = rtw_init_netdev(padapter);
@@ -732,8 +731,6 @@ static int __init rtw_drv_entry(void)
 
 	DBG_88E(DRV_NAME " driver version=%s\n", DRIVERVERSION);
 
-	mutex_init(&usb_drv->hw_init_mutex);
-
 	usb_drv->drv_registered = true;
 	return usb_register(&usb_drv->usbdrv);
 }
@@ -746,7 +743,6 @@ static void __exit rtw_drv_halt(void)
 	usb_drv->drv_registered = false;
 	usb_deregister(&usb_drv->usbdrv);
 
-	mutex_destroy(&usb_drv->hw_init_mutex);
 	DBG_88E("-rtw_drv_halt\n");
 }
 
