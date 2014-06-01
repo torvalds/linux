@@ -722,7 +722,7 @@ config IBM_RTL
 
 config XO1_RFKILL
 	tristate "OLPC XO-1 software RF kill switch"
-	depends on OLPC
+	depends on OLPC || COMPILE_TEST
 	depends on RFKILL
 	---help---
 	  Support for enabling/disabling the WLAN interface on the OLPC XO-1
@@ -730,6 +730,7 @@ config XO1_RFKILL
 
 config XO15_EBOOK
 	tristate "OLPC XO-1.5 ebook switch"
+	depends on OLPC || COMPILE_TEST
 	depends on ACPI && INPUT
 	---help---
 	  Support for the ebook switch on the OLPC XO-1.5 laptop.
