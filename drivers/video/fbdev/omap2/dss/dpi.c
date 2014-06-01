@@ -54,7 +54,15 @@ struct dpi_data {
 	bool port_initialized;
 };
 
-static struct dpi_data dpi_data;
+static struct dpi_data *dpi_get_data_from_dssdev(struct omap_dss_device *dssdev)
+{
+	return container_of(dssdev, struct dpi_data, output);
+}
+
+static struct dpi_data *dpi_get_data_from_pdev(struct platform_device *pdev)
+{
+	return dev_get_drvdata(&pdev->dev);
+}
 
 static struct platform_device *dpi_get_dsidev(enum omap_channel channel)
 {
@@ -359,7 +367,7 @@ static void dpi_config_lcd_manager(struct dpi_data *dpi)
 
 static int dpi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_dss_device *out = &dpi->output;
 	int r;
 
@@ -439,7 +447,7 @@ err_no_reg:
 
 static void dpi_display_disable(struct omap_dss_device *dssdev)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_overlay_manager *mgr = dpi->output.manager;
 
 	mutex_lock(&dpi->lock);
@@ -463,7 +471,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 static void dpi_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
 	DSSDBG("dpi_set_timings\n");
 
@@ -477,7 +485,7 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 static void dpi_get_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
 	mutex_lock(&dpi->lock);
 
@@ -489,7 +497,7 @@ static void dpi_get_timings(struct omap_dss_device *dssdev,
 static int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_overlay_manager *mgr = dpi->output.manager;
 	int lck_div, pck_div;
 	unsigned long fck;
@@ -529,7 +537,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 
 static void dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
 	mutex_lock(&dpi->lock);
 
@@ -635,7 +643,7 @@ static enum omap_channel dpi_get_channel(void)
 static int dpi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_overlay_manager *mgr;
 	int r;
 
@@ -694,7 +702,7 @@ static const struct omapdss_dpi_ops dpi_ops = {
 
 static void dpi_init_output(struct platform_device *pdev)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_pdev(pdev);
 	struct omap_dss_device *out = &dpi->output;
 
 	out->dev = &pdev->dev;
@@ -710,7 +718,7 @@ static void dpi_init_output(struct platform_device *pdev)
 
 static void __exit dpi_uninit_output(struct platform_device *pdev)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_pdev(pdev);
 	struct omap_dss_device *out = &dpi->output;
 
 	omapdss_unregister_output(out);
@@ -718,7 +726,11 @@ static void __exit dpi_uninit_output(struct platform_device *pdev)
 
 static int omap_dpi_probe(struct platform_device *pdev)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi;
+
+	dpi = devm_kzalloc(&pdev->dev, sizeof(*dpi), GFP_KERNEL);
+	if (!dpi)
+		return -ENOMEM;
 
 	dpi->pdev = pdev;
 
@@ -760,10 +772,14 @@ void __exit dpi_uninit_platform_driver(void)
 
 int __init dpi_init_port(struct platform_device *pdev, struct device_node *port)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi;
 	struct device_node *ep;
 	u32 datalines;
 	int r;
+
+	dpi = devm_kzalloc(&pdev->dev, sizeof(*dpi), GFP_KERNEL);
+	if (!dpi)
+		return -ENOMEM;
 
 	ep = omapdss_of_get_next_endpoint(port, NULL);
 	if (!ep)
@@ -787,6 +803,8 @@ int __init dpi_init_port(struct platform_device *pdev, struct device_node *port)
 
 	dpi->port_initialized = true;
 
+	dev_set_drvdata(&pdev->dev, dpi);
+
 	return 0;
 
 err_datalines:
@@ -795,9 +813,9 @@ err_datalines:
 	return r;
 }
 
-void __exit dpi_uninit_port(void)
+void __exit dpi_uninit_port(struct platform_device *pdev)
 {
-	struct dpi_data *dpi = &dpi_data;
+	struct dpi_data *dpi = dpi_get_data_from_pdev(pdev);
 
 	if (!dpi->port_initialized)
 		return;

@@ -820,10 +820,10 @@ static int __init dss_init_ports(struct platform_device *pdev)
 	return 0;
 }
 
-static void __exit dss_uninit_ports(void)
+static void __exit dss_uninit_ports(struct platform_device *pdev)
 {
 #ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_uninit_port();
+	dpi_uninit_port(pdev);
 #endif
 
 #ifdef CONFIG_OMAP2_DSS_SDI
@@ -910,7 +910,7 @@ err_setup_clocks:
 
 static int __exit omap_dsshw_remove(struct platform_device *pdev)
 {
-	dss_uninit_ports();
+	dss_uninit_ports(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 
