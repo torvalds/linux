@@ -2457,43 +2457,42 @@ static void wake_up_klogd_work_func(struct irq_work *irq_work)
 	if (pending & PRINTK_PENDING_WAKEUP)
 		wake_up_interruptible(&log_wait);
 }
-int type_printk(int type, const char *fmt, ...)
+/* type_printk : printing output width types */
+asmlinkage __visible int type_printk(int type, const char *fmt, ...)
 {
-	unsigned long flags;
 	va_list args;
-	char *buf;
-	const char *all_fmt;
 	int r;
-	ocal_irq_save(flags);
-	buf = __get_cpu_var(printk_sched_buf);
+	char *all_fmt;
+
 	switch(type){
 		case 0:
-			/* normal type , we will print an output like the one that printk print */
+			/* normal type , we will print an output like the one that printk prints */
 			va_start(args, fmt);
-        		r = vsnprintf(buf, PRINTK_BUF_SIZE, fmt, args);
+        		r = vprintk_emit(0, -1, NULL, 0, fmt, args);
 			break;
 		case 1:
 			/* error type , we we will print the fmt and adding [error] */
+			all_fmt = kmalloc(sizeof(fmt)+10*sizeof(char), GFP_KERNEL);
         		sprintf(all_fmt, "[Error] : %s", fmt);
-        		va_start(args, all_fmt)
-        		r = vsnprintf(buf, PRINTK_BUF_SIZE, all_fmt, args);
+        		va_start(args, all_fmt);
+        		r = vprintk_emit(0, -1, NULL, 0, all_fmt, args);
+			kfree(all_fmt);
 			break;
 		case 2:
 			/* Action type , we we will print the fmt and adding [action] */
+			all_fmt = kmalloc(sizeof(fmt)+11*sizeof(char), GFP_KERNEL);
         		sprintf(all_fmt, "[Action] : %s", fmt);
-        		va_start(args, all_fmt)
-        		r = vsnprintf(buf, PRINTK_BUF_SIZE, all_fmt, args);
+        		va_start(args, all_fmt);
+        		r = vprintk_emit(0, -1, NULL, 0, all_fmt, args);
+			kfree(all_fmt);
 			break;
 		default:
 			/* no type , printing normaly */
 			va_start(args, fmt);
-        		r = vsnprintf(buf, PRINTK_BUF_SIZE, fmt, args);
+        		r = vprintk_emit(0, -1, NULL, 0, fmt, args);
 			break;
 	}
 	va_end(args);
-	__this_cpu_or(printk_pending, PRINTK_PENDING_SCHED);
-	irq_work_queue(&__get_cpu_var(wake_up_klogd_work));
-	local_irq_restore(flags);
 	return r;
 }
 EXPORT_SYMBOL(type_printk);
