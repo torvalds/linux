@@ -254,7 +254,6 @@ struct adapter {
 	 * upper application reads it. */
 	u8 bShowGetP2PState;
 #endif
-	struct adapter *pbuddy_adapter;
 
 	struct mutex hw_init_mutex;
 

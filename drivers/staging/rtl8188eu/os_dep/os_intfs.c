@@ -993,10 +993,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 		padapter->rereg_nd_name_priv.old_pnetdev = NULL;
 	}
 
-	/*  clear pbuddystruct adapter to avoid access wrong pointer. */
-	if (padapter->pbuddy_adapter != NULL)
-		padapter->pbuddy_adapter->pbuddy_adapter = NULL;
-
 	mutex_destroy(&padapter->hw_init_mutex);
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_free_drv_sw\n"));
