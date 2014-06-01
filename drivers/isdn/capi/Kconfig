@@ -9,7 +9,7 @@ config CAPI_TRACE
 	  If unsure, say Y.
 
 config ISDN_CAPI_CAPI20
-	tristate "CAPI2.0 /dev/capi support"
+	tristate "CAPI2.0 /dev/capi20 support"
 	help
 	  This option will provide the CAPI 2.0 interface to userspace
 	  applications via /dev/capi20. Applications should use the
