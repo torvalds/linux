@@ -187,12 +187,6 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 	return &dvobj->pusbintf->dev;
 };
 
-enum driver_state {
-	DRIVER_NORMAL = 0,
-	DRIVER_DISAPPEAR = 1,
-	DRIVER_REPLACE_DONGLE = 2,
-};
-
 struct adapter {
 	int	DriverState;/* for disable driver using module, use dongle toi
 			     * replace module. */
