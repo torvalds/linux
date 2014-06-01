@@ -39,7 +39,6 @@
 #include "odm_RegDefine11AC.h"
 #include "odm_RegDefine11N.h"
 
-#include "HalPhyRf.h"
 #include "HalPhyRf_8188e.h"/* for IQK,LCK,Power-tracking */
 #include "Hal8188ERateAdaptive.h"/* for  RA,Power training */
 #include "rtl8188e_hal.h"

@@ -25,7 +25,6 @@ r8188eu-y :=				\
 		hal/HalHWImg8188E_MAC.o	\
 		hal/HalHWImg8188E_BB.o	\
 		hal/HalHWImg8188E_RF.o	\
-		hal/HalPhyRf.o		\
 		hal/HalPhyRf_8188e.o	\
 		hal/HalPwrSeqCmd.o	\
 		hal/Hal8188EPwrSeq.o	\
