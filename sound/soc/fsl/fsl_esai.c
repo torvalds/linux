@@ -209,8 +209,9 @@ static int fsl_esai_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	struct clk *clksrc = esai_priv->extalclk;
 	bool tx = clk_id <= ESAI_HCKT_EXTAL;
 	bool in = dir == SND_SOC_CLOCK_IN;
-	u32 ret, ratio, ecr = 0;
+	u32 ratio, ecr = 0;
 	unsigned long clk_rate;
+	int ret;
 
 	/* sck_div can be only bypassed if ETO/ERO=0 and SNC_SOC_CLOCK_OUT */
 	esai_priv->sck_div[tx] = true;
@@ -432,8 +433,8 @@ static int fsl_esai_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int fsl_esai_startup(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
-	int ret;
 	struct fsl_esai *esai_priv = snd_soc_dai_get_drvdata(dai);
+	int ret;
 
 	/*
 	 * Some platforms might use the same bit to gate all three or two of
@@ -491,7 +492,8 @@ static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	u32 width = snd_pcm_format_width(params_format(params));
 	u32 channels = params_channels(params);
-	u32 bclk, mask, val, ret;
+	u32 bclk, mask, val;
+	int ret;
 
 	bclk = params_rate(params) * esai_priv->slot_width * 2;
 
@@ -816,6 +818,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 
 static const struct of_device_id fsl_esai_dt_ids[] = {
 	{ .compatible = "fsl,imx35-esai", },
+	{ .compatible = "fsl,vf610-esai", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_esai_dt_ids);
