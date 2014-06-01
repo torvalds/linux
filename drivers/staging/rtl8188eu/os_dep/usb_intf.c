@@ -35,14 +35,6 @@
 
 int ui_pid[3] = {0, 0, 0};
 
-static int rtw_suspend(struct usb_interface *intf, pm_message_t message);
-static int rtw_resume(struct usb_interface *intf);
-
-
-static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device_id *pdid);
-static void rtw_dev_remove(struct usb_interface *pusb_intf);
-
-
 #define USB_VENDER_ID_REALTEK		0x0bda
 
 /* DID_USB_v916_20130116 */
@@ -59,16 +51,6 @@ static struct usb_device_id rtw_usb_id_tbl[] = {
 };
 
 MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
-
-static struct usb_driver rtl8188e_usb_drv = {
-	.name = "r8188eu",
-	.probe = rtw_drv_init,
-	.disconnect = rtw_dev_remove,
-	.id_table = rtw_usb_id_tbl,
-	.suspend =  rtw_suspend,
-	.resume = rtw_resume,
-	.reset_resume = rtw_resume,
-};
 
 static u8 rtw_init_intf_priv(struct dvobj_priv *dvobj)
 {
@@ -717,5 +699,15 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf)
 
 	return;
 }
+
+static struct usb_driver rtl8188e_usb_drv = {
+	.name = "r8188eu",
+	.probe = rtw_drv_init,
+	.disconnect = rtw_dev_remove,
+	.id_table = rtw_usb_id_tbl,
+	.suspend =  rtw_suspend,
+	.resume = rtw_resume,
+	.reset_resume = rtw_resume,
+};
 
 module_usb_driver(rtl8188e_usb_drv)
