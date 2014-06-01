@@ -707,7 +707,7 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf)
 	DBG_88E("+rtw_dev_remove\n");
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+dev_remove()\n"));
 
-	if (usb_drv->drv_registered)
+	if (!pusb_intf->unregistering)
 		padapter->bSurpriseRemoved = true;
 
 	rtw_pm_set_ips(padapter, IPS_NONE);
