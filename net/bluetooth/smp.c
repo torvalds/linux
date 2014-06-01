@@ -909,10 +909,11 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 
 	authreq = seclevel_to_authreq(sec_level);
 
-	/* hcon->auth_type is set by pair_device in mgmt.c. If the MITM
-	 * flag is set we should also set it for the SMP request.
+	/* Require MITM if IO Capability allows or the security level
+	 * requires it.
 	 */
-	if ((hcon->auth_type & 0x01))
+	if (hcon->io_capability != HCI_IO_NO_INPUT_OUTPUT ||
+	    sec_level > BT_SECURITY_MEDIUM)
 		authreq |= SMP_AUTH_MITM;
 
 	if (hcon->link_mode & HCI_LM_MASTER) {
