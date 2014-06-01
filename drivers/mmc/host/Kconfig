@@ -440,6 +440,7 @@ config MMC_SPI
 config MMC_S3C
 	tristate "Samsung S3C SD/MMC Card Interface support"
 	depends on ARCH_S3C24XX
+	depends on S3C24XX_DMAC
 	help
 	  This selects a driver for the MCI interface found in
           Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
@@ -476,15 +477,6 @@ config MMC_S3C_DMA
 	  Currently, the DMA support in this driver seems to not be
 	  working properly and needs to be debugged before this
 	  option is useful.
-
-config MMC_S3C_PIODMA
-	bool "Support for both PIO and DMA"
-	help
-	  Compile both the PIO and DMA transfer routines into the
-	  driver and let the platform select at run-time which one
-	  is best.
-
-	  See notes for the DMA option.
 
 endchoice
 
