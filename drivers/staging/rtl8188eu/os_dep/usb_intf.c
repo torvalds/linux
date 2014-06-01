@@ -54,26 +54,19 @@ MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
 
 static u8 rtw_init_intf_priv(struct dvobj_priv *dvobj)
 {
-	u8 rst = _SUCCESS;
-
 	mutex_init(&dvobj->usb_vendor_req_mutex);
+	dvobj->usb_vendor_req_buf = rtw_zmalloc(MAX_USB_IO_CTL_SIZE);
+	if (!dvobj->usb_vendor_req_buf)
+		return _FAIL;
 
-	dvobj->usb_alloc_vendor_req_buf = rtw_zmalloc(MAX_USB_IO_CTL_SIZE);
-	if (dvobj->usb_alloc_vendor_req_buf == NULL) {
-		DBG_88E("alloc usb_vendor_req_buf failed...\n");
-		rst = _FAIL;
-		goto exit;
-	}
-	dvobj->usb_vendor_req_buf = (u8 *)N_BYTE_ALIGMENT((size_t)(dvobj->usb_alloc_vendor_req_buf), ALIGNMENT_UNIT);
-exit:
-	return rst;
+	return _SUCCESS;
 }
 
 static u8 rtw_deinit_intf_priv(struct dvobj_priv *dvobj)
 {
 	u8 rst = _SUCCESS;
 
-	kfree(dvobj->usb_alloc_vendor_req_buf);
+	kfree(dvobj->usb_vendor_req_buf);
 	mutex_destroy(&dvobj->usb_vendor_req_mutex);
 	return rst;
 }
