@@ -156,10 +156,6 @@ static int f2fs_xattr_advise_set(struct dentry *dentry, const char *name,
 }
 
 #ifdef CONFIG_F2FS_FS_SECURITY
-static int __f2fs_setxattr(struct inode *inode, int index,
-			const char *name, const void *value, size_t size,
-			struct page *ipage, int);
-
 static int f2fs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 		void *page)
 {
@@ -167,7 +163,7 @@ static int f2fs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 	int err = 0;
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
-		err = __f2fs_setxattr(inode, F2FS_XATTR_INDEX_SECURITY,
+		err = f2fs_setxattr(inode, F2FS_XATTR_INDEX_SECURITY,
 				xattr->name, xattr->value,
 				xattr->value_len, (struct page *)page, 0);
 		if (err < 0)
@@ -603,6 +599,10 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	int err;
 
+	/* this case is only from init_inode_metadata */
+	if (ipage)
+		return __f2fs_setxattr(inode, index, name, value,
+						size, ipage, flags);
 	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
