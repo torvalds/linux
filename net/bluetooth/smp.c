@@ -1198,21 +1198,12 @@ static int sc_mackey_and_ltk(struct smp_chan *smp, u8 mackey[16], u8 ltk[16])
 	return smp_f5(smp->tfm_cmac, smp->dhkey, na, nb, a, b, mackey, ltk);
 }
 
-static int sc_user_reply(struct smp_chan *smp, u16 mgmt_op, __le32 passkey)
+static void sc_dhkey_check(struct smp_chan *smp, __le32 passkey)
 {
 	struct hci_conn *hcon = smp->conn->hcon;
 	struct smp_cmd_dhkey_check check;
 	u8 a[7], b[7], *local_addr, *remote_addr;
 	u8 io_cap[3], r[16];
-
-	switch (mgmt_op) {
-	case MGMT_OP_USER_PASSKEY_NEG_REPLY:
-		smp_failure(smp->conn, SMP_PASSKEY_ENTRY_FAILED);
-		return 0;
-	case MGMT_OP_USER_CONFIRM_NEG_REPLY:
-		smp_failure(smp->conn, SMP_NUMERIC_COMP_FAILED);
-		return 0;
-	}
 
 	memcpy(a, &hcon->init_addr, 6);
 	memcpy(b, &hcon->resp_addr, 6);
@@ -1229,13 +1220,29 @@ static int sc_user_reply(struct smp_chan *smp, u16 mgmt_op, __le32 passkey)
 		memcpy(io_cap, &smp->prsp[1], 3);
 	}
 
-	memcpy(r, &passkey, sizeof(passkey));
-	memset(r + sizeof(passkey), 0, sizeof(r) - sizeof(passkey));
+	memset(r, 0, sizeof(r));
+
+	if (smp->method == REQ_PASSKEY || smp->method == DSP_PASSKEY)
+		memcpy(r, &passkey, sizeof(passkey));
 
 	smp_f6(smp->tfm_cmac, smp->mackey, smp->prnd, smp->rrnd, r, io_cap,
 	       local_addr, remote_addr, check.e);
 
 	smp_send_cmd(smp->conn, SMP_CMD_DHKEY_CHECK, sizeof(check), &check);
+}
+
+static int sc_user_reply(struct smp_chan *smp, u16 mgmt_op, __le32 passkey)
+{
+	switch (mgmt_op) {
+	case MGMT_OP_USER_PASSKEY_NEG_REPLY:
+		smp_failure(smp->conn, SMP_PASSKEY_ENTRY_FAILED);
+		return 0;
+	case MGMT_OP_USER_CONFIRM_NEG_REPLY:
+		smp_failure(smp->conn, SMP_NUMERIC_COMP_FAILED);
+		return 0;
+	}
+
+	sc_dhkey_check(smp, passkey);
 
 	return 0;
 }
@@ -1598,6 +1605,14 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	err = smp_g2(smp->tfm_cmac, pkax, pkbx, na, nb, &passkey);
 	if (err)
 		return SMP_UNSPECIFIED;
+
+	if (smp->method == JUST_WORKS) {
+		if (hcon->out) {
+			sc_dhkey_check(smp, passkey);
+			SMP_ALLOW_CMD(smp, SMP_CMD_DHKEY_CHECK);
+		}
+		return 0;
+	}
 
 	err = mgmt_user_confirm_request(hcon->hdev, &hcon->dst,
 					hcon->type, hcon->dst_type,
