@@ -76,6 +76,7 @@
  *	&struct iwl_fw_error_dump_txcmd packets
  * @IWL_FW_ERROR_DUMP_DEV_FW_INFO:  struct %iwl_fw_error_dump_info
  *	info on the device / firmware.
+ * @IWL_FW_ERROR_DUMP_FW_MONITOR: firmware monitor
  */
 enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_SRAM = 0,
@@ -83,6 +84,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_RXF = 2,
 	IWL_FW_ERROR_DUMP_TXCMD = 3,
 	IWL_FW_ERROR_DUMP_DEV_FW_INFO = 4,
+	IWL_FW_ERROR_DUMP_FW_MONITOR = 5,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -142,6 +144,22 @@ struct iwl_fw_error_dump_info {
 	u8 fw_human_readable[FW_VER_HUMAN_READABLE_SZ];
 	u8 dev_human_readable[64];
 	u8 bus_human_readable[8];
+} __packed;
+
+/**
+ * struct iwl_fw_error_fw_mon - FW monitor data
+ * @fw_mon_wr_ptr: the position of the write pointer in the cyclic buffer
+ * @fw_mon_base_ptr: base pointer of the data
+ * @fw_mon_cycle_cnt: number of wrap arounds
+ * @reserved: for future use
+ * @data: captured data
+ */
+struct iwl_fw_error_fw_mon {
+	__le32 fw_mon_wr_ptr;
+	__le32 fw_mon_base_ptr;
+	__le32 fw_mon_cycle_cnt;
+	__le32 reserved[3];
+	u8 data[];
 } __packed;
 
 /**
