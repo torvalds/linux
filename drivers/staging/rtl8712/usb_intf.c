@@ -613,8 +613,7 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 		struct _adapter *padapter = netdev_priv(pnetdev);
 
 		usb_set_intfdata(pusb_intf, NULL);
-		if (padapter->fw_found)
-			release_firmware(padapter->fw);
+		release_firmware(padapter->fw);
 		/* never exit with a firmware callback pending */
 		wait_for_completion(&padapter->rtl8712_fw_ready);
 		if (drvpriv.drv_registered == true)
@@ -623,8 +622,7 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 		flush_scheduled_work();
 		udelay(1);
 		/* Stop driver mlme relation timer */
-		if (padapter->fw_found)
-			r8712_stop_drv_timers(padapter);
+		r8712_stop_drv_timers(padapter);
 		r871x_dev_unload(padapter);
 		r8712_free_drv_sw(padapter);
 
