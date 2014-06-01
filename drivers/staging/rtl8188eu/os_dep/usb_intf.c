@@ -60,21 +60,15 @@ static struct usb_device_id rtw_usb_id_tbl[] = {
 
 MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
 
-struct rtw_usb_drv {
-	struct usb_driver usbdrv;
+static struct usb_driver rtl8188e_usb_drv = {
+	.name = "r8188eu",
+	.probe = rtw_drv_init,
+	.disconnect = rtw_dev_remove,
+	.id_table = rtw_usb_id_tbl,
+	.suspend =  rtw_suspend,
+	.resume = rtw_resume,
+	.reset_resume = rtw_resume,
 };
-
-static struct rtw_usb_drv rtl8188e_usb_drv = {
-	.usbdrv.name = "r8188eu",
-	.usbdrv.probe = rtw_drv_init,
-	.usbdrv.disconnect = rtw_dev_remove,
-	.usbdrv.id_table = rtw_usb_id_tbl,
-	.usbdrv.suspend =  rtw_suspend,
-	.usbdrv.resume = rtw_resume,
-	.usbdrv.reset_resume   = rtw_resume,
-};
-
-static struct rtw_usb_drv *usb_drv = &rtl8188e_usb_drv;
 
 static u8 rtw_init_intf_priv(struct dvobj_priv *dvobj)
 {
@@ -730,7 +724,7 @@ static int __init rtw_drv_entry(void)
 
 	DBG_88E(DRV_NAME " driver version=%s\n", DRIVERVERSION);
 
-	return usb_register(&usb_drv->usbdrv);
+	return usb_register(&rtl8188e_usb_drv);
 }
 
 static void __exit rtw_drv_halt(void)
@@ -738,7 +732,7 @@ static void __exit rtw_drv_halt(void)
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_halt\n"));
 	DBG_88E("+rtw_drv_halt\n");
 
-	usb_deregister(&usb_drv->usbdrv);
+	usb_deregister(&rtl8188e_usb_drv);
 
 	DBG_88E("-rtw_drv_halt\n");
 }
