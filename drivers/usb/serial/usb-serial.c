@@ -1367,10 +1367,12 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 static void usb_serial_deregister(struct usb_serial_driver *device)
 {
 	pr_info("USB Serial deregistering driver %s\n", device->description);
+
 	mutex_lock(&table_lock);
 	list_del(&device->driver_list);
-	usb_serial_bus_deregister(device);
 	mutex_unlock(&table_lock);
+
+	usb_serial_bus_deregister(device);
 }
 
 /**
