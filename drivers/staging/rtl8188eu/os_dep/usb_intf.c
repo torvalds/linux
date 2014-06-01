@@ -718,24 +718,4 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf)
 	return;
 }
 
-static int __init rtw_drv_entry(void)
-{
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_entry\n"));
-
-	DBG_88E(DRV_NAME " driver version=%s\n", DRIVERVERSION);
-
-	return usb_register(&rtl8188e_usb_drv);
-}
-
-static void __exit rtw_drv_halt(void)
-{
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_halt\n"));
-	DBG_88E("+rtw_drv_halt\n");
-
-	usb_deregister(&rtl8188e_usb_drv);
-
-	DBG_88E("-rtw_drv_halt\n");
-}
-
-module_init(rtw_drv_entry);
-module_exit(rtw_drv_halt);
+module_usb_driver(rtl8188e_usb_drv)
