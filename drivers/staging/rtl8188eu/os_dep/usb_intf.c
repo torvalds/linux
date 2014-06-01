@@ -144,7 +144,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	if (rtw_init_intf_priv(pdvobjpriv) == _FAIL)
 		goto free_dvobj;
 
-	sema_init(&(pdvobjpriv->usb_suspend_sema), 0);
 	rtw_reset_continual_urb_error(pdvobjpriv);
 
 	usb_get_dev(pusbd);
