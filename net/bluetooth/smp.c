@@ -965,9 +965,30 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	}
 
 	if (smp->link_key) {
-		hci_add_link_key(hdev, smp->conn->hcon, &hcon->dst,
-				 smp->link_key, HCI_LK_AUTH_COMBINATION_P256,
-				 0, NULL);
+		struct link_key *key;
+		u8 type;
+
+		if (test_bit(SMP_FLAG_DEBUG_KEY, &smp->flags))
+			type = HCI_LK_DEBUG_COMBINATION;
+		else if (hcon->sec_level == BT_SECURITY_FIPS)
+			type = HCI_LK_AUTH_COMBINATION_P256;
+		else
+			type = HCI_LK_UNAUTH_COMBINATION_P256;
+
+		key = hci_add_link_key(hdev, smp->conn->hcon, &hcon->dst,
+				       smp->link_key, type, 0, &persistent);
+		if (key) {
+			mgmt_new_link_key(hdev, key, persistent);
+
+			/* Don't keep debug keys around if the relevant
+			 * flag is not set.
+			 */
+			if (!test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags) &&
+			    key->type == HCI_LK_DEBUG_COMBINATION) {
+				list_del_rcu(&key->list);
+				kfree_rcu(key, rcu);
+			}
+		}
 	}
 }
 

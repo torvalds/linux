@@ -3160,6 +3160,10 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	if (!conn)
 		return true;
 
+	/* BR/EDR key derived using SC from an LE link */
+	if (conn->type == LE_LINK)
+		return true;
+
 	/* Neither local nor remote side had no-bonding as requirement */
 	if (conn->auth_type > 0x01 && conn->remote_auth > 0x01)
 		return true;
