@@ -41,7 +41,7 @@ MODULE_AUTHOR("Anna Lukin, annal@silicom.co.il");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(BP_MOD_DESCR);
 MODULE_VERSION(BP_MOD_VER);
-spinlock_t bpvm_lock;
+static spinlock_t bpvm_lock;
 
 #define unlock_bpctl()					\
 	up(&bpctl_sema);
