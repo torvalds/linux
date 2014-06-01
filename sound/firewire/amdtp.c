@@ -418,7 +418,7 @@ static void amdtp_write_s16(struct amdtp_stream *s,
 	for (i = 0; i < frames; ++i) {
 		for (c = 0; c < channels; ++c) {
 			buffer[s->pcm_positions[c]] =
-					cpu_to_be32((*src << 8) | 0x40000000);
+					cpu_to_be32((*src << 8) | 0x42000000);
 			src++;
 		}
 		buffer += s->data_block_quadlets;
