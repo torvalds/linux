@@ -765,7 +765,7 @@ static inline int new_bchan(capidrv_contr *card)
 /* ------------------------------------------------------------------- */
 static char *capi_info2str(u16 reason)
 {
-#ifndef CONFIG_ISDN_DRV_AVMB1_VERBOSE_REASON
+#ifndef CONFIG_ISDN_CAPI_CAPIDRV_VERBOSE
 	return "..";
 #else
 	switch (reason) {
