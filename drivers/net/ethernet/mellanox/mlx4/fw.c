@@ -136,7 +136,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[7] = "FSM (MAC anti-spoofing) support",
 		[8] = "Dynamic QP updates support",
 		[9] = "Device managed flow steering IPoIB support",
-		[10] = "TCP/IP offloads/flow-steering for VXLAN support"
+		[10] = "TCP/IP offloads/flow-steering for VXLAN support",
+		[11] = "MAD DEMUX (Secure-Host) support"
 	};
 	int i;
 
@@ -571,6 +572,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
 #define QUERY_DEV_CAP_FW_REASSIGN_MAC		0x9d
 #define QUERY_DEV_CAP_VXLAN			0x9e
+#define QUERY_DEV_CAP_MAD_DEMUX_OFFSET		0xb0
 
 	dev_cap->flags2 = 0;
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -747,6 +749,11 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	if (dev_cap->flags & MLX4_DEV_CAP_FLAG_COUNTERS)
 		MLX4_GET(dev_cap->max_counters, outbox,
 			 QUERY_DEV_CAP_MAX_COUNTERS_OFFSET);
+
+	MLX4_GET(field32, outbox,
+		 QUERY_DEV_CAP_MAD_DEMUX_OFFSET);
+	if (field32 & (1 << 0))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_MAD_DEMUX;
 
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
 	if (field32 & (1 << 16))
@@ -2015,4 +2022,86 @@ void mlx4_opreq_action(struct work_struct *work)
 
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
+}
+
+static int mlx4_check_smp_firewall_active(struct mlx4_dev *dev,
+					  struct mlx4_cmd_mailbox *mailbox)
+{
+#define MLX4_CMD_MAD_DEMUX_SET_ATTR_OFFSET		0x10
+#define MLX4_CMD_MAD_DEMUX_GETRESP_ATTR_OFFSET		0x20
+#define MLX4_CMD_MAD_DEMUX_TRAP_ATTR_OFFSET		0x40
+#define MLX4_CMD_MAD_DEMUX_TRAP_REPRESS_ATTR_OFFSET	0x70
+
+	u32 set_attr_mask, getresp_attr_mask;
+	u32 trap_attr_mask, traprepress_attr_mask;
+
+	MLX4_GET(set_attr_mask, mailbox->buf,
+		 MLX4_CMD_MAD_DEMUX_SET_ATTR_OFFSET);
+	mlx4_dbg(dev, "SMP firewall set_attribute_mask = 0x%x\n",
+		 set_attr_mask);
+
+	MLX4_GET(getresp_attr_mask, mailbox->buf,
+		 MLX4_CMD_MAD_DEMUX_GETRESP_ATTR_OFFSET);
+	mlx4_dbg(dev, "SMP firewall getresp_attribute_mask = 0x%x\n",
+		 getresp_attr_mask);
+
+	MLX4_GET(trap_attr_mask, mailbox->buf,
+		 MLX4_CMD_MAD_DEMUX_TRAP_ATTR_OFFSET);
+	mlx4_dbg(dev, "SMP firewall trap_attribute_mask = 0x%x\n",
+		 trap_attr_mask);
+
+	MLX4_GET(traprepress_attr_mask, mailbox->buf,
+		 MLX4_CMD_MAD_DEMUX_TRAP_REPRESS_ATTR_OFFSET);
+	mlx4_dbg(dev, "SMP firewall traprepress_attribute_mask = 0x%x\n",
+		 traprepress_attr_mask);
+
+	if (set_attr_mask && getresp_attr_mask && trap_attr_mask &&
+	    traprepress_attr_mask)
+		return 1;
+
+	return 0;
+}
+
+int mlx4_config_mad_demux(struct mlx4_dev *dev)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	int secure_host_active;
+	int err;
+
+	/* Check if mad_demux is supported */
+	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_MAD_DEMUX))
+		return 0;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox)) {
+		mlx4_warn(dev, "Failed to allocate mailbox for cmd MAD_DEMUX");
+		return -ENOMEM;
+	}
+
+	/* Query mad_demux to find out which MADs are handled by internal sma */
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0x01 /* subn mgmt class */,
+			   MLX4_CMD_MAD_DEMUX_QUERY_RESTR, MLX4_CMD_MAD_DEMUX,
+			   MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+	if (err) {
+		mlx4_warn(dev, "MLX4_CMD_MAD_DEMUX: query restrictions failed (%d)\n",
+			  err);
+		goto out;
+	}
+
+	secure_host_active = mlx4_check_smp_firewall_active(dev, mailbox);
+
+	/* Config mad_demux to handle all MADs returned by the query above */
+	err = mlx4_cmd(dev, mailbox->dma, 0x01 /* subn mgmt class */,
+		       MLX4_CMD_MAD_DEMUX_CONFIG, MLX4_CMD_MAD_DEMUX,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+	if (err) {
+		mlx4_warn(dev, "MLX4_CMD_MAD_DEMUX: configure failed (%d)\n", err);
+		goto out;
+	}
+
+	if (secure_host_active)
+		mlx4_warn(dev, "HCA operating in secure-host mode. SMP firewall activated.\n");
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
 }
