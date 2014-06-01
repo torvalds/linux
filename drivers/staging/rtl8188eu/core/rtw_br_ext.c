@@ -431,10 +431,6 @@ static void __nat25_db_network_insert(struct adapter *priv,
 	spin_unlock_bh(&priv->br_ext_lock);
 }
 
-static void __nat25_db_print(struct adapter *priv)
-{
-}
-
 /*
  *	NAT2.5 interface
  */
@@ -534,7 +530,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			/* record source IP address and , source mac address into db */
 			__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
 
-			__nat25_db_print(priv);
 			return 0;
 		case NAT25_LOOKUP:
 			DEBUG_INFO("NAT25: Lookup IP, SA =%08x, DA =%08x\n", iph->saddr, iph->daddr);
@@ -587,7 +582,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			sender = (unsigned int *)arp_ptr;
 			__nat25_generate_ipv4_network_addr(networkAddr, sender);
 			__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
-			__nat25_db_print(priv);
 			return 0;
 		case NAT25_LOOKUP:
 			DEBUG_INFO("NAT25: Lookup ARP\n");
@@ -707,7 +701,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 					__nat25_generate_ipx_network_addr_with_node(networkAddr, &ipx->ipx_source.net, ipx->ipx_source.node);
 				}
 				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
-				__nat25_db_print(priv);
 				return 0;
 			case NAT25_LOOKUP:
 				if (!memcmp(GET_MY_HWADDR(priv), ipx->ipx_dest.node, ETH_ALEN)) {
@@ -752,7 +745,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 
 				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
 
-				__nat25_db_print(priv);
 				return 0;
 			case NAT25_LOOKUP:
 				DEBUG_INFO("NAT25: Lookup AARP, Source =%d,%d Destination =%d,%d\n",
@@ -786,7 +778,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 
 				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
 
-				__nat25_db_print(priv);
 				return 0;
 			case NAT25_LOOKUP:
 				DEBUG_INFO("NAT25: Lookup DDP, Source =%d,%d Destination =%d,%d\n",
@@ -879,7 +870,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 
 				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
 
-				__nat25_db_print(priv);
 
 				if (!priv->ethBrExtInfo.addPPPoETag &&
 				    priv->pppoe_connection_in_progress &&
@@ -945,7 +935,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 					DEBUG_INFO("NAT25: Lookup PPPoE, lookup session packet from %s\n", skb->dev->name);
 					__nat25_generate_pppoe_network_addr(networkAddr, skb->data+ETH_ALEN, &(ph->sid));
 					__nat25_db_network_lookup_and_replace(priv, skb, networkAddr);
-					__nat25_db_print(priv);
 				} else {
 					return -1;
 				}
@@ -1009,7 +998,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			if (memcmp(&iph->saddr, "\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0", 16)) {
 				__nat25_generate_ipv6_network_addr(networkAddr, (__be32 *)&iph->saddr);
 				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
-				__nat25_db_print(priv);
 
 				if (iph->nexthdr == IPPROTO_ICMPV6 &&
 						skb->len > (ETH_HLEN +  sizeof(*iph) + 4)) {
