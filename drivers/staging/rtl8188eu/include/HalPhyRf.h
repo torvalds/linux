@@ -23,8 +23,6 @@
 
 #define ODM_TARGET_CHNL_NUM_2G_5G	59
 
-void ODM_ResetIQKResult(struct odm_dm_struct *pDM_Odm);
-
 u8 ODM_GetRightChnlPlaceforIQK(u8 chnl);
 
 #endif	/*  #ifndef __HAL_PHY_RF_H__ */

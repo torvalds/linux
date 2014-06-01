@@ -455,8 +455,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 		}
 
 		if (delta_IQK >= 8) { /*  Delta temperature is equal to or larger than 20 centigrade. */
-			ODM_ResetIQKResult(dm_odm);
-
 			dm_odm->RFCalibrateInfo.ThermalValue_IQK = ThermalValue;
 			PHY_IQCalibrate_8188E(Adapter, false);
 		}
