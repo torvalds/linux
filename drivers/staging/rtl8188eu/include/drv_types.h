@@ -54,13 +54,6 @@
 #include <rtw_mp.h>
 #include <rtw_br_ext.h>
 
-enum _NIC_VERSION {
-	RTL8711_NIC,
-	RTL8712_NIC,
-	RTL8713_NIC,
-	RTL8716_NIC
-};
-
 #define SPEC_DEV_ID_NONE		BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT		BIT(1)
 #define SPEC_DEV_ID_ENABLE_PS		BIT(2)
