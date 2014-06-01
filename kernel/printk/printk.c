@@ -1694,7 +1694,7 @@ asmlinkage __visible int printk(const char *fmt, ...)
 	return r;
 }
 EXPORT_SYMBOL(printk);
-/* type_printk : printing output width types */
+/* type_printk : printing output with types */
 asmlinkage __visible int type_printk(int type, const char *fmt, ...)
 {
 	va_list args;
