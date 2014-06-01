@@ -1203,9 +1203,6 @@ static int _ReadAdapterInfo8188EU(struct adapter *Adapter)
 
 static void ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
-	/*  Read EEPROM size before call any EEPROM function */
-	Adapter->EepromAddressSize = GetEEPROMSize8188E(Adapter);
-
 	_ReadAdapterInfo8188EU(Adapter);
 }
 

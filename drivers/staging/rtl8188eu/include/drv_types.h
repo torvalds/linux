@@ -220,7 +220,6 @@ struct adapter {
 	s32	bSurpriseRemoved;
 	s32	bCardDisableWOHSM;
 
-	u8	EepromAddressSize;
 	u8	hw_init_completed;
 
 	void *cmdThread;
