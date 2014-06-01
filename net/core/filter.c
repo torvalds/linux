@@ -1559,8 +1559,13 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
 	fp->jited = 0;
 
 	err = sk_chk_filter(fp->insns, fp->len);
-	if (err)
+	if (err) {
+		if (sk != NULL)
+			sk_filter_uncharge(sk, fp);
+		else
+			kfree(fp);
 		return ERR_PTR(err);
+	}
 
 	/* Probe if we can JIT compile the filter and if so, do
 	 * the compilation of the filter.
