@@ -152,7 +152,6 @@ struct rt_firmware {
 
 struct dvobj_priv {
 	struct adapter *if1;
-	struct adapter *if2;
 	struct rt_firmware firmware;
 
 	/* For 92D, DMDP have 2 interface. */
@@ -164,8 +163,6 @@ struct dvobj_priv {
 	int	RtOutPipe[3];
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];/* for out pipe mapping */
 
-	u8	irq_alloc;
-
 /*-------- below is for USB INTERFACE --------*/
 
 	u8	nr_endpoint;
@@ -173,7 +170,6 @@ struct dvobj_priv {
 	u8	RtNumInPipes;
 	u8	RtNumOutPipes;
 	int	ep_num[5]; /* endpoint number */
-	int	RegUsbSS;
 	struct semaphore usb_suspend_sema;
 	struct mutex  usb_vendor_req_mutex;
 
