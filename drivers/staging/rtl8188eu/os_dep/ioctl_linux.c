@@ -30,7 +30,6 @@
 #include <rtw_ioctl_set.h>
 #include <rtw_mp_ioctl.h>
 #include <usb_ops.h>
-#include <rtw_version.h>
 #include <rtl8188e_hal.h>
 
 #include <rtw_mp.h>

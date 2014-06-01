@@ -20,7 +20,6 @@
 #define _RTW_DEBUG_C_
 
 #include <rtw_debug.h>
-#include <rtw_version.h>
 
 int proc_get_drv_version(char *page, char **start,
 			  off_t offset, int count,
