@@ -279,8 +279,6 @@ static const u32 correrrthrsld[] = {
 
 #define IB_RANK_CFG_A		0x0320
 
-#define IS_RDIMM_ENABLED(reg)		GET_BITFIELD(reg, 11, 11)
-
 /*
  * sbridge structs
  */
@@ -305,6 +303,7 @@ struct sbridge_info {
 	const struct interleave_pkg *interleave_pkg;
 	u8		max_sad;
 	u8		max_interleave;
+	enum mem_type	(*get_memory_type)(struct sbridge_pvt *pvt);
 };
 
 struct sbridge_channel {
@@ -588,6 +587,25 @@ static u64 ibridge_get_tohm(struct sbridge_pvt *pvt)
 	return GET_TOHM(reg);
 }
 
+static enum mem_type get_memory_type(struct sbridge_pvt *pvt)
+{
+	u32 reg;
+	enum mem_type mtype;
+
+	if (pvt->pci_ddrio) {
+		pci_read_config_dword(pvt->pci_ddrio, pvt->info.rankcfgr,
+				      &reg);
+		if (GET_BITFIELD(reg, 11, 11))
+			/* FIXME: Can also be LRDIMM */
+			mtype = MEM_RDDR3;
+		else
+			mtype = MEM_DDR3;
+	} else
+		mtype = MEM_UNKNOWN;
+
+	return mtype;
+}
+
 static inline u8 sad_pkg_socket(u8 pkg)
 {
 	/* on Ivy Bridge, nodeID is SASS, where A is HA and S is node id */
@@ -698,21 +716,13 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pvt->is_close_pg = false;
 	}
 
-	if (pvt->pci_ddrio) {
-		pci_read_config_dword(pvt->pci_ddrio, pvt->info.rankcfgr,
-				      &reg);
-		if (IS_RDIMM_ENABLED(reg)) {
-			/* FIXME: Can also be LRDIMM */
-			edac_dbg(0, "Memory is registered\n");
-			mtype = MEM_RDDR3;
-		} else {
-			edac_dbg(0, "Memory is unregistered\n");
-			mtype = MEM_DDR3;
-		}
-	} else {
+	mtype = pvt->info.get_memory_type(pvt);
+	if (mtype == MEM_RDDR3)
+		edac_dbg(0, "Memory is registered\n");
+	else if (mtype == MEM_UNKNOWN)
 		edac_dbg(0, "Cannot determine memory type\n");
-		mtype = MEM_UNKNOWN;
-	}
+	else
+		edac_dbg(0, "Memory is unregistered\n");
 
 	/* On all supported DDR3 DIMM types, there are 8 banks available */
 	banks = 8;
@@ -1976,6 +1986,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tolm = ibridge_get_tolm;
 		pvt->info.get_tohm = ibridge_get_tohm;
 		pvt->info.dram_rule = ibridge_dram_rule;
+		pvt->info.get_memory_type = get_memory_type;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
@@ -1991,6 +2002,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tolm = sbridge_get_tolm;
 		pvt->info.get_tohm = sbridge_get_tohm;
 		pvt->info.dram_rule = sbridge_dram_rule;
+		pvt->info.get_memory_type = get_memory_type;
 		pvt->info.max_sad = ARRAY_SIZE(sbridge_dram_rule);
 		pvt->info.interleave_list = sbridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
