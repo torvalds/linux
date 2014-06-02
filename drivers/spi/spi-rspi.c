@@ -616,9 +616,11 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 	return 0;
 }
 
-static int rspi_rz_transfer_out_in(struct rspi_data *rspi,
-				   struct spi_transfer *xfer)
+static int rspi_rz_transfer_one(struct spi_master *master,
+				struct spi_device *spi,
+				struct spi_transfer *xfer)
 {
+	struct rspi_data *rspi = spi_master_get_devdata(master);
 	int ret;
 
 	rspi_rz_receive_init(rspi);
@@ -631,15 +633,6 @@ static int rspi_rz_transfer_out_in(struct rspi_data *rspi,
 	rspi_wait_for_tx_empty(rspi);
 
 	return 0;
-}
-
-static int rspi_rz_transfer_one(struct spi_master *master,
-				struct spi_device *spi,
-				struct spi_transfer *xfer)
-{
-	struct rspi_data *rspi = spi_master_get_devdata(master);
-
-	return rspi_rz_transfer_out_in(rspi, xfer);
 }
 
 static int qspi_transfer_out_in(struct rspi_data *rspi,
