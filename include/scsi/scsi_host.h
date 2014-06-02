@@ -408,7 +408,7 @@ struct scsi_host_template {
 	/*
 	 * Set this if the host adapter has limitations beside segment count.
 	 */
-	unsigned short max_sectors;
+	unsigned int max_sectors;
 
 	/*
 	 * DMA scatter gather segment boundary limit. A segment crossing this
@@ -652,7 +652,7 @@ struct Scsi_Host {
 	short cmd_per_lun;
 	short unsigned int sg_tablesize;
 	short unsigned int sg_prot_tablesize;
-	short unsigned int max_sectors;
+	unsigned int max_sectors;
 	unsigned long dma_boundary;
 	/* 
 	 * Used to assign serial numbers to the cmds.
