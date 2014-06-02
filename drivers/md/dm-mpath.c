@@ -1242,17 +1242,8 @@ static int do_end_io(struct multipath *m, struct request *clone,
 	if (!error && !clone->errors)
 		return 0;	/* I/O complete */
 
-	if (noretry_error(error)) {
-		if ((clone->cmd_flags & REQ_WRITE_SAME) &&
-		    !clone->q->limits.max_write_same_sectors) {
-			struct queue_limits *limits;
-
-			/* device doesn't really support WRITE SAME, disable it */
-			limits = dm_get_queue_limits(dm_table_get_md(m->ti->table));
-			limits->max_write_same_sectors = 0;
-		}
+	if (noretry_error(error))
 		return error;
-	}
 
 	if (mpio->pgpath)
 		fail_path(mpio->pgpath);

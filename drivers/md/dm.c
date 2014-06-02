@@ -755,6 +755,14 @@ static void dec_pending(struct dm_io *io, int error)
 	}
 }
 
+static void disable_write_same(struct mapped_device *md)
+{
+	struct queue_limits *limits = dm_get_queue_limits(md);
+
+	/* device doesn't really support WRITE SAME, disable it */
+	limits->max_write_same_sectors = 0;
+}
+
 static void clone_endio(struct bio *bio, int error)
 {
 	int r = 0;
@@ -782,6 +790,10 @@ static void clone_endio(struct bio *bio, int error)
 			BUG();
 		}
 	}
+
+	if (unlikely(r == -EREMOTEIO && (bio->bi_rw & REQ_WRITE_SAME) &&
+		     !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors))
+		disable_write_same(md);
 
 	free_tio(md, tio);
 	dec_pending(io, error);
@@ -976,6 +988,10 @@ static void dm_done(struct request *clone, int error, bool mapped)
 		if (mapped && rq_end_io)
 			r = rq_end_io(tio->ti, clone, error, &tio->info);
 	}
+
+	if (unlikely(r == -EREMOTEIO && (clone->cmd_flags & REQ_WRITE_SAME) &&
+		     !clone->q->limits.max_write_same_sectors))
+		disable_write_same(tio->md);
 
 	if (r <= 0)
 		/* The target wants to complete the I/O */
