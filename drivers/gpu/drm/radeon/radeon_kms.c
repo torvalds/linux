@@ -513,6 +513,22 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		value_size = sizeof(uint64_t);
 		value64 = atomic64_read(&rdev->gtt_usage);
 		break;
+	case RADEON_INFO_ACTIVE_CU_COUNT:
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.active_cus;
+		else if (rdev->family >= CHIP_TAHITI)
+			*value = rdev->config.si.active_cus;
+		else if (rdev->family >= CHIP_CAYMAN)
+			*value = rdev->config.cayman.active_simds;
+		else if (rdev->family >= CHIP_CEDAR)
+			*value = rdev->config.evergreen.active_simds;
+		else if (rdev->family >= CHIP_RV770)
+			*value = rdev->config.rv770.active_simds;
+		else if (rdev->family >= CHIP_R600)
+			*value = rdev->config.r600.active_simds;
+		else
+			*value = 1;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;

@@ -1327,6 +1327,9 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	if (tmp < rdev->config.rv770.max_simds) {
 		rdev->config.rv770.max_simds = tmp;
 	}
+	tmp = rdev->config.rv770.max_simds -
+		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 16) & R7XX_MAX_SIMDS_MASK);
+	rdev->config.rv770.active_simds = tmp;
 
 	switch (rdev->config.rv770.max_tile_pipes) {
 	case 1:

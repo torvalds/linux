@@ -81,9 +81,10 @@
  *   2.37.0 - allow GS ring setup on r6xx/r7xx
  *   2.38.0 - RADEON_GEM_OP (GET_INITIAL_DOMAIN, SET_INITIAL_DOMAIN),
  *            CIK: 1D and linear tiling modes contain valid PIPE_CONFIG
+ *   2.39.0 - Add INFO query for number of active CUs
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	38
+#define KMS_DRIVER_MINOR	39
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);

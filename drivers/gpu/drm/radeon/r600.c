@@ -1958,6 +1958,9 @@ static void r600_gpu_init(struct radeon_device *rdev)
 	if (tmp < rdev->config.r600.max_simds) {
 		rdev->config.r600.max_simds = tmp;
 	}
+	tmp = rdev->config.r600.max_simds -
+		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 16) & R6XX_MAX_SIMDS_MASK);
+	rdev->config.r600.active_simds = tmp;
 
 	disabled_rb_mask = (RREG32(CC_RB_BACKEND_DISABLE) >> 16) & R6XX_MAX_BACKENDS_MASK;
 	tmp = (tiling_config & PIPE_TILING__MASK) >> PIPE_TILING__SHIFT;
