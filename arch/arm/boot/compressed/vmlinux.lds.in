@@ -7,6 +7,16 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#ifdef CONFIG_CPU_ENDIAN_BE8
+#define ZIMAGE_MAGIC(x) ( (((x) >> 24) & 0x000000ff) | \
+			  (((x) >>  8) & 0x0000ff00) | \
+			  (((x) <<  8) & 0x00ff0000) | \
+			  (((x) << 24) & 0xff000000) )
+#else
+#define ZIMAGE_MAGIC(x) (x)
+#endif
+
 OUTPUT_ARCH(arm)
 ENTRY(_start)
 SECTIONS
@@ -56,6 +66,10 @@ SECTIONS
   /* (without a dummy byte, ld just ignores the empty section) */
   .pad			: { BYTE(0); . = ALIGN(8); }
   _edata = .;
+
+  _magic_sig = ZIMAGE_MAGIC(0x016f2818);
+  _magic_start = ZIMAGE_MAGIC(_start);
+  _magic_end = ZIMAGE_MAGIC(_edata);
 
   . = BSS_START;
   __bss_start = .;

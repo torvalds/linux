@@ -10,6 +10,7 @@ piggy.xzkern
 piggy.lz4
 vmlinux
 vmlinux.lds
+vmlinux.lds.S
 
 # borrowed libfdt files
 fdt.c
