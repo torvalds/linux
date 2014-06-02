@@ -401,6 +401,12 @@ static inline int regulator_set_voltage(struct regulator *regulator,
 	return 0;
 }
 
+static inline int regulator_set_voltage_time(struct regulator *regulator,
+					     int old_uV, int new_uV)
+{
+	return 0;
+}
+
 static inline int regulator_get_voltage(struct regulator *regulator)
 {
 	return -EINVAL;
