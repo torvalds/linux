@@ -183,8 +183,6 @@
 #define SPBFCR_TXTRG_MASK	0x30	/* Transmit Buffer Data Triggering Number */
 #define SPBFCR_RXTRG_MASK	0x07	/* Receive Buffer Data Triggering Number */
 
-#define DUMMY_DATA		0x00
-
 struct rspi_data {
 	void __iomem *addr;
 	u32 max_speed_hz;
@@ -252,6 +250,7 @@ struct spi_ops {
 	int (*transfer_one)(struct spi_master *master, struct spi_device *spi,
 			    struct spi_transfer *xfer);
 	u16 mode_bits;
+	u16 flags;
 };
 
 /*
@@ -552,42 +551,38 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 	rspi_write8(rspi, 0, QSPI_SPBFCR);
 }
 
-static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
+static int rspi_send_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
-	struct scatterlist sg, sg_dummy;
-	void *dummy = NULL, *rx_buf = t->rx_buf;
-	struct dma_async_tx_descriptor *desc, *desc_dummy;
+	struct scatterlist sg_rx, sg_tx;
+	const void *tx_buf = t->tx_buf;
+	void *rx_buf = t->rx_buf;
+	struct dma_async_tx_descriptor *desc_tx, *desc_rx;
 	unsigned int len = t->len;
 	int ret = 0;
 
-	/* prepare dummy transfer to generate SPI clocks */
-	dummy = kzalloc(len, GFP_KERNEL);
-	if (!dummy) {
-		ret = -ENOMEM;
-		goto end_nomap;
-	}
-	if (!rspi_dma_map_sg(&sg_dummy, dummy, len, rspi->chan_tx,
-			     DMA_TO_DEVICE)) {
-		ret = -EFAULT;
-		goto end_nomap;
-	}
-	desc_dummy = dmaengine_prep_slave_sg(rspi->chan_tx, &sg_dummy, 1,
+	/* prepare transmit transfer */
+	if (!rspi_dma_map_sg(&sg_tx, tx_buf, len, rspi->chan_tx,
+			     DMA_TO_DEVICE))
+		return -EFAULT;
+
+	desc_tx = dmaengine_prep_slave_sg(rspi->chan_tx, &sg_tx, 1,
 			DMA_TO_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc_dummy) {
+	if (!desc_tx) {
 		ret = -EIO;
-		goto end_dummy_mapped;
+		goto end_tx_mapped;
 	}
 
 	/* prepare receive transfer */
-	if (!rspi_dma_map_sg(&sg, rx_buf, len, rspi->chan_rx,
+	if (!rspi_dma_map_sg(&sg_rx, rx_buf, len, rspi->chan_rx,
 			     DMA_FROM_DEVICE)) {
 		ret = -EFAULT;
-		goto end_dummy_mapped;
+		goto end_tx_mapped;
 
 	}
-	desc = dmaengine_prep_slave_sg(rspi->chan_rx, &sg, 1, DMA_FROM_DEVICE,
-				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc) {
+	desc_rx = dmaengine_prep_slave_sg(rspi->chan_rx, &sg_rx, 1,
+					  DMA_FROM_DEVICE,
+					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc_rx) {
 		ret = -EIO;
 		goto end;
 	}
@@ -606,13 +601,13 @@ static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	rspi_enable_irq(rspi, SPCR_SPTIE | SPCR_SPRIE);
 	rspi->dma_callbacked = 0;
 
-	desc->callback = rspi_dma_complete;
-	desc->callback_param = rspi;
-	dmaengine_submit(desc);
+	desc_rx->callback = rspi_dma_complete;
+	desc_rx->callback_param = rspi;
+	dmaengine_submit(desc_rx);
 	dma_async_issue_pending(rspi->chan_rx);
 
-	desc_dummy->callback = NULL;	/* No callback */
-	dmaengine_submit(desc_dummy);
+	desc_tx->callback = NULL;	/* No callback */
+	dmaengine_submit(desc_tx);
 	dma_async_issue_pending(rspi->chan_tx);
 
 	ret = wait_event_interruptible_timeout(rspi->wait,
@@ -628,21 +623,19 @@ static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 		enable_irq(rspi->rx_irq);
 
 end:
-	rspi_dma_unmap_sg(&sg, rspi->chan_rx, DMA_FROM_DEVICE);
-end_dummy_mapped:
-	rspi_dma_unmap_sg(&sg_dummy, rspi->chan_tx, DMA_TO_DEVICE);
-end_nomap:
-	kfree(dummy);
-
+	rspi_dma_unmap_sg(&sg_rx, rspi->chan_rx, DMA_FROM_DEVICE);
+end_tx_mapped:
+	rspi_dma_unmap_sg(&sg_tx, rspi->chan_tx, DMA_TO_DEVICE);
 	return ret;
 }
 
 static int rspi_is_dma(const struct rspi_data *rspi, struct spi_transfer *t)
 {
-	if (t->tx_buf && rspi->chan_tx)
-		return 1;
 	/* If the module receives data by DMAC, it also needs TX DMAC */
-	if (t->rx_buf && rspi->chan_tx && rspi->chan_rx)
+	if (t->rx_buf)
+		return rspi->chan_tx && rspi->chan_rx;
+
+	if (rspi->chan_tx)
 		return 1;
 
 	return 0;
@@ -654,7 +647,7 @@ static int rspi_transfer_out_in(struct rspi_data *rspi,
 	int remain = xfer->len, ret;
 	const u8 *tx_buf = xfer->tx_buf;
 	u8 *rx_buf = xfer->rx_buf;
-	u8 spcr, data;
+	u8 spcr;
 
 	spcr = rspi_read8(rspi, RSPI_SPCR);
 	if (rx_buf) {
@@ -666,8 +659,7 @@ static int rspi_transfer_out_in(struct rspi_data *rspi,
 	rspi_write8(rspi, spcr, RSPI_SPCR);
 
 	while (remain > 0) {
-		data = tx_buf ? *tx_buf++ : DUMMY_DATA;
-		ret = rspi_data_out(rspi, data);
+		ret = rspi_data_out(rspi, *tx_buf++);
 		if (ret < 0)
 			return ret;
 		if (rx_buf) {
@@ -689,20 +681,14 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 			     struct spi_transfer *xfer)
 {
 	struct rspi_data *rspi = spi_master_get_devdata(master);
-	int ret;
 
 	if (!rspi_is_dma(rspi, xfer))
 		return rspi_transfer_out_in(rspi, xfer);
 
-	if (xfer->tx_buf) {
-		ret = rspi_send_dma(rspi, xfer);
-		if (ret < 0)
-			return ret;
-	}
 	if (xfer->rx_buf)
-		return rspi_receive_dma(rspi, xfer);
-
-	return 0;
+		return rspi_send_receive_dma(rspi, xfer);
+	else
+		return rspi_send_dma(rspi, xfer);
 }
 
 static int rspi_rz_transfer_out_in(struct rspi_data *rspi,
@@ -711,17 +697,14 @@ static int rspi_rz_transfer_out_in(struct rspi_data *rspi,
 	int remain = xfer->len, ret;
 	const u8 *tx_buf = xfer->tx_buf;
 	u8 *rx_buf = xfer->rx_buf;
-	u8 data;
 
 	rspi_rz_receive_init(rspi);
 
 	while (remain > 0) {
-		data = tx_buf ? *tx_buf++ : DUMMY_DATA;
-		ret = rspi_data_out_in(rspi, data);
+		ret = rspi_data_out_in(rspi, *tx_buf++);
 		if (ret < 0)
 			return ret;
-		if (rx_buf)
-			*rx_buf++ = ret;
+		*rx_buf++ = ret;
 		remain--;
 	}
 
@@ -746,17 +729,14 @@ static int qspi_transfer_out_in(struct rspi_data *rspi,
 	int remain = xfer->len, ret;
 	const u8 *tx_buf = xfer->tx_buf;
 	u8 *rx_buf = xfer->rx_buf;
-	u8 data;
 
 	qspi_receive_init(rspi);
 
 	while (remain > 0) {
-		data = tx_buf ? *tx_buf++ : DUMMY_DATA;
-		ret = rspi_data_out_in(rspi, data);
+		ret = rspi_data_out_in(rspi, *tx_buf++);
 		if (ret < 0)
 			return ret;
-		if (rx_buf)
-			*rx_buf++ = ret;
+		*rx_buf++ = ret;
 		remain--;
 	}
 
@@ -807,10 +787,10 @@ static int qspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 
 	if (spi->mode & SPI_LOOP) {
 		return qspi_transfer_out_in(rspi, xfer);
-	} else if (xfer->tx_buf && xfer->tx_nbits > SPI_NBITS_SINGLE) {
+	} else if (xfer->tx_nbits > SPI_NBITS_SINGLE) {
 		/* Quad or Dual SPI Write */
 		return qspi_transfer_out(rspi, xfer);
-	} else if (xfer->rx_buf && xfer->rx_nbits > SPI_NBITS_SINGLE) {
+	} else if (xfer->rx_nbits > SPI_NBITS_SINGLE) {
 		/* Quad or Dual SPI Read */
 		return qspi_transfer_in(rspi, xfer);
 	} else {
@@ -1061,23 +1041,26 @@ static int rspi_remove(struct platform_device *pdev)
 }
 
 static const struct spi_ops rspi_ops = {
-	.set_config_register =		rspi_set_config_register,
-	.transfer_one =			rspi_transfer_one,
-	.mode_bits =			SPI_CPHA | SPI_CPOL | SPI_LOOP,
+	.set_config_register =	rspi_set_config_register,
+	.transfer_one =		rspi_transfer_one,
+	.mode_bits =		SPI_CPHA | SPI_CPOL | SPI_LOOP,
+	.flags =		SPI_MASTER_MUST_TX,
 };
 
 static const struct spi_ops rspi_rz_ops = {
-	.set_config_register =		rspi_rz_set_config_register,
-	.transfer_one =			rspi_rz_transfer_one,
-	.mode_bits =			SPI_CPHA | SPI_CPOL | SPI_LOOP,
+	.set_config_register =	rspi_rz_set_config_register,
+	.transfer_one =		rspi_rz_transfer_one,
+	.mode_bits =		SPI_CPHA | SPI_CPOL | SPI_LOOP,
+	.flags =		SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX,
 };
 
 static const struct spi_ops qspi_ops = {
-	.set_config_register =		qspi_set_config_register,
-	.transfer_one =			qspi_transfer_one,
-	.mode_bits =			SPI_CPHA | SPI_CPOL | SPI_LOOP |
-					SPI_TX_DUAL | SPI_TX_QUAD |
-					SPI_RX_DUAL | SPI_RX_QUAD,
+	.set_config_register =	qspi_set_config_register,
+	.transfer_one =		qspi_transfer_one,
+	.mode_bits =		SPI_CPHA | SPI_CPOL | SPI_LOOP |
+				SPI_TX_DUAL | SPI_TX_QUAD |
+				SPI_RX_DUAL | SPI_RX_QUAD,
+	.flags =		SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX,
 };
 
 #ifdef CONFIG_OF
@@ -1197,6 +1180,7 @@ static int rspi_probe(struct platform_device *pdev)
 	master->prepare_message = rspi_prepare_message;
 	master->unprepare_message = rspi_unprepare_message;
 	master->mode_bits = ops->mode_bits;
+	master->flags = ops->flags;
 	master->dev.of_node = pdev->dev.of_node;
 
 	ret = platform_get_irq_byname(pdev, "rx");
