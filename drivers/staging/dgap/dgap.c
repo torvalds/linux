@@ -211,7 +211,6 @@ static const struct file_operations dgap_board_fops = {
 static uint dgap_numboards;
 static struct board_t *dgap_board[MAXBOARDS];
 static ulong dgap_poll_counter;
-static char *dgap_config_buf;
 static int dgap_driver_state = DRIVER_INITIALIZED;
 static wait_queue_head_t dgap_dl_wait;
 static int dgap_poll_tick = 20;	/* Poll interval - 20 ms */
@@ -823,11 +822,12 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 	const struct firmware *fw;
 	char *tmp_ptr;
 	int ret;
+	char *dgap_config_buf;
 
 	dgap_get_vpd(brd);
 	dgap_do_reset_board(brd);
 
-	if ((fw_info[card_type].conf_name) && !dgap_config_buf) {
+	if (fw_info[card_type].conf_name) {
 		ret = request_firmware(&fw, fw_info[card_type].conf_name,
 					 &pdev->dev);
 		if (ret) {
