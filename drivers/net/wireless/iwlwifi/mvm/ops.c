@@ -827,6 +827,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 {
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
+	struct iwl_fw_error_dump_info *dump_info;
 	u32 file_len;
 	u32 trans_len;
 
@@ -835,10 +836,11 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (mvm->fw_error_dump)
 		return;
 
-	file_len = mvm->fw_error_sram_len +
+	file_len = sizeof(*dump_file) +
+		   sizeof(*dump_data) * 3 +
+		   mvm->fw_error_sram_len +
 		   mvm->fw_error_rxf_len +
-		   sizeof(*dump_file) +
-		   sizeof(*dump_data) * 2;
+		   sizeof(*dump_info);
 
 	trans_len = iwl_trans_dump_data(mvm->trans, NULL, 0);
 	if (trans_len)
@@ -853,6 +855,22 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
 	dump_file->file_len = cpu_to_le32(file_len);
 	dump_data = (void *)dump_file->data;
+
+	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
+	dump_data->len = cpu_to_le32(sizeof(*dump_info));
+	dump_info = (void *) dump_data->data;
+	dump_info->device_family =
+		mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000 ?
+			cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_7) :
+			cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_8);
+	memcpy(dump_info->fw_human_readable, mvm->fw->human_readable,
+	       sizeof(dump_info->fw_human_readable));
+	strncpy(dump_info->dev_human_readable, mvm->cfg->name,
+		sizeof(dump_info->dev_human_readable));
+	strncpy(dump_info->bus_human_readable, mvm->dev->bus->name,
+		sizeof(dump_info->bus_human_readable));
+
+	dump_data = iwl_mvm_fw_error_next_data(dump_data);
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
 	dump_data->len = cpu_to_le32(mvm->fw_error_rxf_len);
 	memcpy(dump_data->data, mvm->fw_error_rxf, mvm->fw_error_rxf_len);

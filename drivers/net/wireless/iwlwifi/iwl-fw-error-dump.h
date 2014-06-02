@@ -74,12 +74,15 @@
  * @IWL_FW_ERROR_DUMP_RXF:
  * @IWL_FW_ERROR_DUMP_TXCMD: last TX command data, structured as
  *	&struct iwl_fw_error_dump_txcmd packets
+ * @IWL_FW_ERROR_DUMP_DEV_FW_INFO:  struct %iwl_fw_error_dump_info
+ *	info on the device / firmware.
  */
 enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_SRAM = 0,
 	IWL_FW_ERROR_DUMP_REG = 1,
 	IWL_FW_ERROR_DUMP_RXF = 2,
 	IWL_FW_ERROR_DUMP_TXCMD = 3,
+	IWL_FW_ERROR_DUMP_DEV_FW_INFO = 4,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -118,6 +121,27 @@ struct iwl_fw_error_dump_txcmd {
 	__le32 cmdlen;
 	__le32 caplen;
 	u8 data[];
+} __packed;
+
+enum iwl_fw_error_dump_family {
+	IWL_FW_ERROR_DUMP_FAMILY_7 = 7,
+	IWL_FW_ERROR_DUMP_FAMILY_8 = 8,
+};
+
+/**
+ * struct iwl_fw_error_dump_info - info on the device / firmware
+ * @device_family: the family of the device (7 / 8)
+ * @hw_step: the step of the device
+ * @fw_human_readable: human readable FW version
+ * @dev_human_readable: name of the device
+ * @bus_human_readable: name of the bus used
+ */
+struct iwl_fw_error_dump_info {
+	__le32 device_family;
+	__le32 hw_step;
+	u8 fw_human_readable[FW_VER_HUMAN_READABLE_SZ];
+	u8 dev_human_readable[64];
+	u8 bus_human_readable[8];
 } __packed;
 
 /**

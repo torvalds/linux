@@ -567,6 +567,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	}
 
 	drv->fw.ucode_ver = le32_to_cpu(ucode->ver);
+	memcpy(drv->fw.human_readable, ucode->human_readable,
+	       sizeof(drv->fw.human_readable));
 	build = le32_to_cpu(ucode->build);
 
 	if (build)
