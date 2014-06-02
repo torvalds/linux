@@ -1,0 +1,5 @@
+menu "SOC (System On Chip) specific Drivers"
+
+source "drivers/soc/qcom/Kconfig"
+
+endmenu

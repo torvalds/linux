@@ -32,7 +32,7 @@
 
 extern void exynos4_secondary_startup(void);
 
-static void __iomem *sysram_base_addr;
+void __iomem *sysram_base_addr;
 void __iomem *sysram_ns_base_addr;
 
 static void __init exynos_smp_prepare_sysram(void)

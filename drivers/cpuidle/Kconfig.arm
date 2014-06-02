@@ -49,3 +49,9 @@ config ARM_AT91_CPUIDLE
 	depends on ARCH_AT91
 	help
 	  Select this to enable cpuidle for AT91 processors
+
+config ARM_EXYNOS_CPUIDLE
+	bool "Cpu Idle Driver for the Exynos processors"
+	depends on ARCH_EXYNOS
+	help
+	  Select this to enable cpuidle for Exynos processors

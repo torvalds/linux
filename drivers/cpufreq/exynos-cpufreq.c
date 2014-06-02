@@ -19,8 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
-#include <plat/cpu.h>
-
 #include "exynos-cpufreq.h"
 
 static struct exynos_dvfs_info *exynos_info;
