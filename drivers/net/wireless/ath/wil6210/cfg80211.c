@@ -288,6 +288,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	}
 
 	wil->scan_request = request;
+	mod_timer(&wil->scan_timer, jiffies + WIL6210_SCAN_TO);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd.num_channels = 0;

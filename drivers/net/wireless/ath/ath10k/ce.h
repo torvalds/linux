@@ -160,6 +160,8 @@ int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 			  unsigned int transfer_id,
 			  unsigned int flags);
 
+void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe);
+
 void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
 				void (*send_cb)(struct ath10k_ce_pipe *),
 				int disable_interrupts);

@@ -130,7 +130,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			    newname))
 		pr_err("failed to rename debugfs dir to %s!\n", newname);
 
-	nl80211_notify_dev_rename(rdev);
+	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 
 	return 0;
 }
@@ -660,6 +660,8 @@ int wiphy_register(struct wiphy *wiphy)
 		return res;
 	}
 
+	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
+
 	return 0;
 }
 EXPORT_SYMBOL(wiphy_register);
@@ -698,6 +700,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 		rfkill_unregister(rdev->rfkill);
 
 	rtnl_lock();
+	nl80211_notify_wiphy(rdev, NL80211_CMD_DEL_WIPHY);
 	rdev->wiphy.registered = false;
 
 	WARN_ON(!list_empty(&rdev->wdev_list));

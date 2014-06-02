@@ -31,14 +31,14 @@ static struct nfc_sock_list raw_sk_list = {
 	.lock = __RW_LOCK_UNLOCKED(raw_sk_list.lock)
 };
 
-void nfc_sock_link(struct nfc_sock_list *l, struct sock *sk)
+static void nfc_sock_link(struct nfc_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
 	sk_add_node(sk, &l->head);
 	write_unlock(&l->lock);
 }
 
-void nfc_sock_unlink(struct nfc_sock_list *l, struct sock *sk)
+static void nfc_sock_unlink(struct nfc_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
 	sk_del_node_init(sk);

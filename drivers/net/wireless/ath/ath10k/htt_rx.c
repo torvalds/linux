@@ -225,10 +225,26 @@ static void ath10k_htt_rx_ring_refill_retry(unsigned long arg)
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
 
-void ath10k_htt_rx_detach(struct ath10k_htt *htt)
+static void ath10k_htt_rx_ring_clean_up(struct ath10k_htt *htt)
 {
-	int sw_rd_idx = htt->rx_ring.sw_rd_idx.msdu_payld;
+	struct sk_buff *skb;
+	int i;
 
+	for (i = 0; i < htt->rx_ring.size; i++) {
+		skb = htt->rx_ring.netbufs_ring[i];
+		if (!skb)
+			continue;
+
+		dma_unmap_single(htt->ar->dev, ATH10K_SKB_CB(skb)->paddr,
+				 skb->len + skb_tailroom(skb),
+				 DMA_FROM_DEVICE);
+		dev_kfree_skb_any(skb);
+		htt->rx_ring.netbufs_ring[i] = NULL;
+	}
+}
+
+void ath10k_htt_rx_free(struct ath10k_htt *htt)
+{
 	del_timer_sync(&htt->rx_ring.refill_retry_timer);
 	tasklet_kill(&htt->rx_replenish_task);
 	tasklet_kill(&htt->txrx_compl_task);
@@ -236,18 +252,7 @@ void ath10k_htt_rx_detach(struct ath10k_htt *htt)
 	skb_queue_purge(&htt->tx_compl_q);
 	skb_queue_purge(&htt->rx_compl_q);
 
-	while (sw_rd_idx != __le32_to_cpu(*(htt->rx_ring.alloc_idx.vaddr))) {
-		struct sk_buff *skb =
-				htt->rx_ring.netbufs_ring[sw_rd_idx];
-		struct ath10k_skb_cb *cb = ATH10K_SKB_CB(skb);
-
-		dma_unmap_single(htt->ar->dev, cb->paddr,
-				 skb->len + skb_tailroom(skb),
-				 DMA_FROM_DEVICE);
-		dev_kfree_skb_any(htt->rx_ring.netbufs_ring[sw_rd_idx]);
-		sw_rd_idx++;
-		sw_rd_idx &= htt->rx_ring.size_mask;
-	}
+	ath10k_htt_rx_ring_clean_up(htt);
 
 	dma_free_coherent(htt->ar->dev,
 			  (htt->rx_ring.size *
@@ -277,6 +282,7 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 
 	idx = htt->rx_ring.sw_rd_idx.msdu_payld;
 	msdu = htt->rx_ring.netbufs_ring[idx];
+	htt->rx_ring.netbufs_ring[idx] = NULL;
 
 	idx++;
 	idx &= htt->rx_ring.size_mask;
@@ -306,6 +312,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	int msdu_len, msdu_chaining = 0;
 	struct sk_buff *msdu;
 	struct htt_rx_desc *rx_desc;
+	bool corrupted = false;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
@@ -399,7 +406,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		msdu_len = MS(__le32_to_cpu(rx_desc->msdu_start.info0),
 			      RX_MSDU_START_INFO0_MSDU_LENGTH);
 		msdu_chained = rx_desc->frag_info.ring2_more_count;
-		msdu_chaining = msdu_chained;
 
 		if (msdu_len_invalid)
 			msdu_len = 0;
@@ -427,10 +433,14 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 
 			msdu->next = next;
 			msdu = next;
+			msdu_chaining = 1;
 		}
 
 		last_msdu = __le32_to_cpu(rx_desc->msdu_end.info0) &
 				RX_MSDU_END_INFO0_LAST_MSDU;
+
+		if (msdu_chaining && !last_msdu)
+			corrupted = true;
 
 		if (last_msdu) {
 			msdu->next = NULL;
@@ -445,6 +455,20 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 
 	if (*head_msdu == NULL)
 		msdu_chaining = -1;
+
+	/*
+	 * Apparently FW sometimes reports weird chained MSDU sequences with
+	 * more than one rx descriptor. This seems like a bug but needs more
+	 * analyzing. For the time being fix it by dropping such sequences to
+	 * avoid blowing up the host system.
+	 */
+	if (corrupted) {
+		ath10k_warn("failed to pop chained msdus, dropping\n");
+		ath10k_htt_rx_free_msdu_chain(*head_msdu);
+		*head_msdu = NULL;
+		*tail_msdu = NULL;
+		msdu_chaining = -EINVAL;
+	}
 
 	/*
 	 * Don't refill the ring yet.
@@ -468,7 +492,7 @@ static void ath10k_htt_rx_replenish_task(unsigned long ptr)
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
 
-int ath10k_htt_rx_attach(struct ath10k_htt *htt)
+int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 {
 	dma_addr_t paddr;
 	void *vaddr;
@@ -494,7 +518,7 @@ int ath10k_htt_rx_attach(struct ath10k_htt *htt)
 	htt->rx_ring.fill_level = ath10k_htt_rx_ring_fill_level(htt);
 
 	htt->rx_ring.netbufs_ring =
-		kmalloc(htt->rx_ring.size * sizeof(struct sk_buff *),
+		kzalloc(htt->rx_ring.size * sizeof(struct sk_buff *),
 			GFP_KERNEL);
 	if (!htt->rx_ring.netbufs_ring)
 		goto err_netbuf;
@@ -754,17 +778,30 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 static void ath10k_htt_rx_h_protected(struct ath10k_htt *htt,
 				      struct ieee80211_rx_status *rx_status,
 				      struct sk_buff *skb,
-				      enum htt_rx_mpdu_encrypt_type enctype)
+				      enum htt_rx_mpdu_encrypt_type enctype,
+				      enum rx_msdu_decap_format fmt,
+				      bool dot11frag)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
+	rx_status->flag &= ~(RX_FLAG_DECRYPTED |
+			     RX_FLAG_IV_STRIPPED |
+			     RX_FLAG_MMIC_STRIPPED);
 
-	if (enctype == HTT_RX_MPDU_ENCRYPT_NONE) {
-		rx_status->flag &= ~(RX_FLAG_DECRYPTED |
-				     RX_FLAG_IV_STRIPPED |
-				     RX_FLAG_MMIC_STRIPPED);
+	if (enctype == HTT_RX_MPDU_ENCRYPT_NONE)
 		return;
-	}
+
+	/*
+	 * There's no explicit rx descriptor flag to indicate whether a given
+	 * frame has been decrypted or not. We're forced to use the decap
+	 * format as an implicit indication. However fragmentation rx is always
+	 * raw and it probably never reports undecrypted raws.
+	 *
+	 * This makes sure sniffed frames are reported as-is without stripping
+	 * the protected flag.
+	 */
+	if (fmt == RX_MSDU_DECAP_RAW && !dot11frag)
+		return;
 
 	rx_status->flag |= RX_FLAG_DECRYPTED |
 			   RX_FLAG_IV_STRIPPED |
@@ -918,7 +955,8 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 		}
 
 		skb_in = skb;
-		ath10k_htt_rx_h_protected(htt, rx_status, skb_in, enctype);
+		ath10k_htt_rx_h_protected(htt, rx_status, skb_in, enctype, fmt,
+					  false);
 		skb = skb->next;
 		skb_in->next = NULL;
 
@@ -1000,7 +1038,7 @@ static void ath10k_htt_rx_msdu(struct ath10k_htt *htt,
 		break;
 	}
 
-	ath10k_htt_rx_h_protected(htt, rx_status, skb, enctype);
+	ath10k_htt_rx_h_protected(htt, rx_status, skb, enctype, fmt, false);
 
 	ath10k_process_rx(htt->ar, rx_status, skb);
 }
@@ -1288,6 +1326,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 	}
 
 	/* FIXME: implement signal strength */
+	rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	hdr = (struct ieee80211_hdr *)msdu_head->data;
 	rxd = (void *)msdu_head->data - sizeof(*rxd);
@@ -1306,7 +1345,8 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 
 	enctype = MS(__le32_to_cpu(rxd->mpdu_start.info0),
 		     RX_MPDU_START_INFO0_ENCRYPT_TYPE);
-	ath10k_htt_rx_h_protected(htt, rx_status, msdu_head, enctype);
+	ath10k_htt_rx_h_protected(htt, rx_status, msdu_head, enctype, fmt,
+				  true);
 	msdu_head->ip_summed = ath10k_htt_rx_get_csum_state(msdu_head);
 
 	if (tkip_mic_err)

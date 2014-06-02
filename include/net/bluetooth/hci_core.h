@@ -145,6 +145,10 @@ struct oob_data {
 /* Default LE RPA expiry time, 15 minutes */
 #define HCI_DEFAULT_RPA_TIMEOUT		(15 * 60)
 
+/* Default min/max age of connection information (1s/3s) */
+#define DEFAULT_CONN_INFO_MIN_AGE	1000
+#define DEFAULT_CONN_INFO_MAX_AGE	3000
+
 struct amp_assoc {
 	__u16	len;
 	__u16	offset;
@@ -200,6 +204,8 @@ struct hci_dev {
 	__u16		le_conn_min_interval;
 	__u16		le_conn_max_interval;
 	__u16		discov_interleaved_timeout;
+	__u16		conn_info_min_age;
+	__u16		conn_info_max_age;
 	__u8		ssp_debug_mode;
 
 	__u16		devid_source;
@@ -374,7 +380,12 @@ struct hci_conn {
 	__u16		setting;
 	__u16		le_conn_min_interval;
 	__u16		le_conn_max_interval;
+	__s8		rssi;
+	__s8		tx_power;
+	__s8		max_tx_power;
 	unsigned long	flags;
+
+	unsigned long	conn_info_timestamp;
 
 	__u8		remote_cap;
 	__u8		remote_auth;

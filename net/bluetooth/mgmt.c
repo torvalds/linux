@@ -29,12 +29,13 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/mgmt.h>
 
 #include "smp.h"
 
 #define MGMT_VERSION	1
-#define MGMT_REVISION	5
+#define MGMT_REVISION	6
 
 static const u16 mgmt_commands[] = {
 	MGMT_OP_READ_INDEX_LIST,
@@ -83,6 +84,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_DEBUG_KEYS,
 	MGMT_OP_SET_PRIVACY,
 	MGMT_OP_LOAD_IRKS,
+	MGMT_OP_GET_CONN_INFO,
 };
 
 static const u16 mgmt_events[] = {
@@ -4532,7 +4534,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_ltk_info *key = &cp->keys[i];
-		u8 type, addr_type;
+		u8 type, addr_type, authenticated;
 
 		if (key->addr.type == BDADDR_LE_PUBLIC)
 			addr_type = ADDR_LE_DEV_PUBLIC;
@@ -4544,8 +4546,13 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 		else
 			type = HCI_SMP_LTK_SLAVE;
 
+		if (key->type == MGMT_LTK_UNAUTHENTICATED)
+			authenticated = 0x00;
+		else
+			authenticated = 0x01;
+
 		hci_add_ltk(hdev, &key->addr.bdaddr, addr_type, type,
-			    key->type, key->val, key->enc_size, key->ediv,
+			    authenticated, key->val, key->enc_size, key->ediv,
 			    key->rand);
 	}
 
@@ -4554,6 +4561,218 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 
 	hci_dev_unlock(hdev);
 
+	return err;
+}
+
+struct cmd_conn_lookup {
+	struct hci_conn *conn;
+	bool valid_tx_power;
+	u8 mgmt_status;
+};
+
+static void get_conn_info_complete(struct pending_cmd *cmd, void *data)
+{
+	struct cmd_conn_lookup *match = data;
+	struct mgmt_cp_get_conn_info *cp;
+	struct mgmt_rp_get_conn_info rp;
+	struct hci_conn *conn = cmd->user_data;
+
+	if (conn != match->conn)
+		return;
+
+	cp = (struct mgmt_cp_get_conn_info *) cmd->param;
+
+	memset(&rp, 0, sizeof(rp));
+	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
+	rp.addr.type = cp->addr.type;
+
+	if (!match->mgmt_status) {
+		rp.rssi = conn->rssi;
+
+		if (match->valid_tx_power) {
+			rp.tx_power = conn->tx_power;
+			rp.max_tx_power = conn->max_tx_power;
+		} else {
+			rp.tx_power = HCI_TX_POWER_INVALID;
+			rp.max_tx_power = HCI_TX_POWER_INVALID;
+		}
+	}
+
+	cmd_complete(cmd->sk, cmd->index, MGMT_OP_GET_CONN_INFO,
+		     match->mgmt_status, &rp, sizeof(rp));
+
+	hci_conn_drop(conn);
+
+	mgmt_pending_remove(cmd);
+}
+
+static void conn_info_refresh_complete(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_read_rssi *cp;
+	struct hci_conn *conn;
+	struct cmd_conn_lookup match;
+	u16 handle;
+
+	BT_DBG("status 0x%02x", status);
+
+	hci_dev_lock(hdev);
+
+	/* TX power data is valid in case request completed successfully,
+	 * otherwise we assume it's not valid. At the moment we assume that
+	 * either both or none of current and max values are valid to keep code
+	 * simple.
+	 */
+	match.valid_tx_power = !status;
+
+	/* Commands sent in request are either Read RSSI or Read Transmit Power
+	 * Level so we check which one was last sent to retrieve connection
+	 * handle.  Both commands have handle as first parameter so it's safe to
+	 * cast data on the same command struct.
+	 *
+	 * First command sent is always Read RSSI and we fail only if it fails.
+	 * In other case we simply override error to indicate success as we
+	 * already remembered if TX power value is actually valid.
+	 */
+	cp = hci_sent_cmd_data(hdev, HCI_OP_READ_RSSI);
+	if (!cp) {
+		cp = hci_sent_cmd_data(hdev, HCI_OP_READ_TX_POWER);
+		status = 0;
+	}
+
+	if (!cp) {
+		BT_ERR("invalid sent_cmd in response");
+		goto unlock;
+	}
+
+	handle = __le16_to_cpu(cp->handle);
+	conn = hci_conn_hash_lookup_handle(hdev, handle);
+	if (!conn) {
+		BT_ERR("unknown handle (%d) in response", handle);
+		goto unlock;
+	}
+
+	match.conn = conn;
+	match.mgmt_status = mgmt_status(status);
+
+	/* Cache refresh is complete, now reply for mgmt request for given
+	 * connection only.
+	 */
+	mgmt_pending_foreach(MGMT_OP_GET_CONN_INFO, hdev,
+			     get_conn_info_complete, &match);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
+static int get_conn_info(struct sock *sk, struct hci_dev *hdev, void *data,
+			 u16 len)
+{
+	struct mgmt_cp_get_conn_info *cp = data;
+	struct mgmt_rp_get_conn_info rp;
+	struct hci_conn *conn;
+	unsigned long conn_info_age;
+	int err = 0;
+
+	BT_DBG("%s", hdev->name);
+
+	memset(&rp, 0, sizeof(rp));
+	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
+	rp.addr.type = cp->addr.type;
+
+	if (!bdaddr_type_is_valid(cp->addr.type))
+		return cmd_complete(sk, hdev->id, MGMT_OP_GET_CONN_INFO,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &rp, sizeof(rp));
+
+	hci_dev_lock(hdev);
+
+	if (!hdev_is_powered(hdev)) {
+		err = cmd_complete(sk, hdev->id, MGMT_OP_GET_CONN_INFO,
+				   MGMT_STATUS_NOT_POWERED, &rp, sizeof(rp));
+		goto unlock;
+	}
+
+	if (cp->addr.type == BDADDR_BREDR)
+		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK,
+					       &cp->addr.bdaddr);
+	else
+		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->addr.bdaddr);
+
+	if (!conn || conn->state != BT_CONNECTED) {
+		err = cmd_complete(sk, hdev->id, MGMT_OP_GET_CONN_INFO,
+				   MGMT_STATUS_NOT_CONNECTED, &rp, sizeof(rp));
+		goto unlock;
+	}
+
+	/* To avoid client trying to guess when to poll again for information we
+	 * calculate conn info age as random value between min/max set in hdev.
+	 */
+	conn_info_age = hdev->conn_info_min_age +
+			prandom_u32_max(hdev->conn_info_max_age -
+					hdev->conn_info_min_age);
+
+	/* Query controller to refresh cached values if they are too old or were
+	 * never read.
+	 */
+	if (time_after(jiffies, conn->conn_info_timestamp +
+		       msecs_to_jiffies(conn_info_age)) ||
+	    !conn->conn_info_timestamp) {
+		struct hci_request req;
+		struct hci_cp_read_tx_power req_txp_cp;
+		struct hci_cp_read_rssi req_rssi_cp;
+		struct pending_cmd *cmd;
+
+		hci_req_init(&req, hdev);
+		req_rssi_cp.handle = cpu_to_le16(conn->handle);
+		hci_req_add(&req, HCI_OP_READ_RSSI, sizeof(req_rssi_cp),
+			    &req_rssi_cp);
+
+		/* For LE links TX power does not change thus we don't need to
+		 * query for it once value is known.
+		 */
+		if (!bdaddr_type_is_le(cp->addr.type) ||
+		    conn->tx_power == HCI_TX_POWER_INVALID) {
+			req_txp_cp.handle = cpu_to_le16(conn->handle);
+			req_txp_cp.type = 0x00;
+			hci_req_add(&req, HCI_OP_READ_TX_POWER,
+				    sizeof(req_txp_cp), &req_txp_cp);
+		}
+
+		/* Max TX power needs to be read only once per connection */
+		if (conn->max_tx_power == HCI_TX_POWER_INVALID) {
+			req_txp_cp.handle = cpu_to_le16(conn->handle);
+			req_txp_cp.type = 0x01;
+			hci_req_add(&req, HCI_OP_READ_TX_POWER,
+				    sizeof(req_txp_cp), &req_txp_cp);
+		}
+
+		err = hci_req_run(&req, conn_info_refresh_complete);
+		if (err < 0)
+			goto unlock;
+
+		cmd = mgmt_pending_add(sk, MGMT_OP_GET_CONN_INFO, hdev,
+				       data, len);
+		if (!cmd) {
+			err = -ENOMEM;
+			goto unlock;
+		}
+
+		hci_conn_hold(conn);
+		cmd->user_data = conn;
+
+		conn->conn_info_timestamp = jiffies;
+	} else {
+		/* Cache is valid, just reply with values cached in hci_conn */
+		rp.rssi = conn->rssi;
+		rp.tx_power = conn->tx_power;
+		rp.max_tx_power = conn->max_tx_power;
+
+		err = cmd_complete(sk, hdev->id, MGMT_OP_GET_CONN_INFO,
+				   MGMT_STATUS_SUCCESS, &rp, sizeof(rp));
+	}
+
+unlock:
+	hci_dev_unlock(hdev);
 	return err;
 }
 
@@ -4612,6 +4831,7 @@ static const struct mgmt_handler {
 	{ set_debug_keys,         false, MGMT_SETTING_SIZE },
 	{ set_privacy,            false, MGMT_SET_PRIVACY_SIZE },
 	{ load_irks,              true,  MGMT_LOAD_IRKS_SIZE },
+	{ get_conn_info,          false, MGMT_GET_CONN_INFO_SIZE },
 };
 
 
@@ -5007,6 +5227,14 @@ void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 	mgmt_event(MGMT_EV_NEW_LINK_KEY, hdev, &ev, sizeof(ev), NULL);
 }
 
+static u8 mgmt_ltk_type(struct smp_ltk *ltk)
+{
+	if (ltk->authenticated)
+		return MGMT_LTK_AUTHENTICATED;
+
+	return MGMT_LTK_UNAUTHENTICATED;
+}
+
 void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 {
 	struct mgmt_ev_new_long_term_key ev;
@@ -5032,7 +5260,7 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 
 	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
 	ev.key.addr.type = link_to_bdaddr(LE_LINK, key->bdaddr_type);
-	ev.key.type = key->authenticated;
+	ev.key.type = mgmt_ltk_type(key);
 	ev.key.enc_size = key->enc_size;
 	ev.key.ediv = key->ediv;
 	ev.key.rand = key->rand;

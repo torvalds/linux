@@ -1738,6 +1738,19 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 	return 0;
 }
 
+static void mwifiex_complete_scan(struct mwifiex_private *priv)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	if (adapter->curr_cmd->wait_q_enabled) {
+		adapter->cmd_wait_q.status = 0;
+		if (!priv->scan_request) {
+			dev_dbg(adapter->dev, "complete internal scan\n");
+			mwifiex_complete_cmd(adapter, adapter->curr_cmd);
+		}
+	}
+}
+
 static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -1751,16 +1764,9 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 		adapter->scan_processing = false;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 
-		/* Need to indicate IOCTL complete */
-		if (adapter->curr_cmd->wait_q_enabled) {
-			adapter->cmd_wait_q.status = 0;
-			if (!priv->scan_request) {
-				dev_dbg(adapter->dev,
-					"complete internal scan\n");
-				mwifiex_complete_cmd(adapter,
-						     adapter->curr_cmd);
-			}
-		}
+		if (!adapter->ext_scan)
+			mwifiex_complete_scan(priv);
+
 		if (priv->report_scan_result)
 			priv->report_scan_result = false;
 
@@ -1965,6 +1971,9 @@ int mwifiex_cmd_802_11_scan_ext(struct mwifiex_private *priv,
 int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv)
 {
 	dev_dbg(priv->adapter->dev, "info: EXT scan returns successfully\n");
+
+	mwifiex_complete_scan(priv);
+
 	return 0;
 }
 

@@ -1099,7 +1099,7 @@ mwifiex_11h_get_csa_closed_channel(struct mwifiex_private *priv)
 		return 0;
 
 	/* Clear csa channel, if DFS channel move time has passed */
-	if (jiffies > priv->csa_expire_time) {
+	if (time_after(jiffies, priv->csa_expire_time)) {
 		priv->csa_chan = 0;
 		priv->csa_expire_time = 0;
 	}

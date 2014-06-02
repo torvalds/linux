@@ -916,13 +916,6 @@ int brcmf_bus_start(struct device *dev)
 
 	brcmf_dbg(TRACE, "\n");
 
-	/* Bring up the bus */
-	ret = brcmf_bus_init(bus_if);
-	if (ret != 0) {
-		brcmf_err("brcmf_sdbrcm_bus_init failed %d\n", ret);
-		return ret;
-	}
-
 	/* add primary networking interface */
 	ifp = brcmf_add_if(drvr, 0, 0, "wlan%d", NULL);
 	if (IS_ERR(ifp))

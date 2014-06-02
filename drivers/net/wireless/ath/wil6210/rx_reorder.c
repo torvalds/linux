@@ -49,10 +49,17 @@ static void wil_release_reorder_frames(struct wil6210_priv *wil,
 {
 	int index;
 
-	while (seq_less(r->head_seq_num, hseq)) {
+	/* note: this function is never called with
+	 * hseq preceding r->head_seq_num, i.e it is always true
+	 * !seq_less(hseq, r->head_seq_num)
+	 * and thus on loop exit it should be
+	 * r->head_seq_num == hseq
+	 */
+	while (seq_less(r->head_seq_num, hseq) && r->stored_mpdu_num) {
 		index = reorder_index(r, r->head_seq_num);
 		wil_release_reorder_frame(wil, r, index);
 	}
+	r->head_seq_num = hseq;
 }
 
 static void wil_reorder_release(struct wil6210_priv *wil,

@@ -181,6 +181,9 @@ struct mgmt_cp_load_link_keys {
 } __packed;
 #define MGMT_LOAD_LINK_KEYS_SIZE	3
 
+#define MGMT_LTK_UNAUTHENTICATED	0x00
+#define MGMT_LTK_AUTHENTICATED		0x01
+
 struct mgmt_ltk_info {
 	struct mgmt_addr_info addr;
 	__u8	type;
@@ -408,6 +411,18 @@ struct mgmt_cp_load_irks {
 	struct mgmt_irk_info irks[0];
 } __packed;
 #define MGMT_LOAD_IRKS_SIZE		2
+
+#define MGMT_OP_GET_CONN_INFO		0x0031
+struct mgmt_cp_get_conn_info {
+	struct mgmt_addr_info addr;
+} __packed;
+#define MGMT_GET_CONN_INFO_SIZE		MGMT_ADDR_INFO_SIZE
+struct mgmt_rp_get_conn_info {
+	struct mgmt_addr_info addr;
+	__s8	rssi;
+	__s8	tx_power;
+	__s8	max_tx_power;
+} __packed;
 
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {

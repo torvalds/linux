@@ -335,6 +335,7 @@ enum ath10k_dev_flags {
 	/* Indicates that ath10k device is during CAC phase of DFS */
 	ATH10K_CAC_RUNNING,
 	ATH10K_FLAG_FIRST_BOOT_DONE,
+	ATH10K_FLAG_CORE_REGISTERED,
 };
 
 struct ath10k {
@@ -440,6 +441,12 @@ struct ath10k {
 	bool radar_enabled;
 	int num_started_vdevs;
 
+	/* Protected by conf-mutex */
+	u8 supp_tx_chainmask;
+	u8 supp_rx_chainmask;
+	u8 cfg_tx_chainmask;
+	u8 cfg_rx_chainmask;
+
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
 
@@ -470,6 +477,7 @@ struct ath10k {
 
 	enum ath10k_state state;
 
+	struct work_struct register_work;
 	struct work_struct restart_work;
 
 	/* cycle count is reported twice for each visited channel during scan.
