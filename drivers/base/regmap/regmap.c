@@ -35,10 +35,14 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 			       unsigned int mask, unsigned int val,
 			       bool *change);
 
+static int _regmap_bus_reg_read(void *context, unsigned int reg,
+				unsigned int *val);
 static int _regmap_bus_read(void *context, unsigned int reg,
 			    unsigned int *val);
 static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 				       unsigned int val);
+static int _regmap_bus_reg_write(void *context, unsigned int reg,
+				 unsigned int val);
 static int _regmap_bus_raw_write(void *context, unsigned int reg,
 				 unsigned int val);
 
@@ -534,6 +538,12 @@ struct regmap *regmap_init(struct device *dev,
 	if (!bus) {
 		map->reg_read  = config->reg_read;
 		map->reg_write = config->reg_write;
+
+		map->defer_caching = false;
+		goto skip_format_initialization;
+	} else if (!bus->read || !bus->write) {
+		map->reg_read = _regmap_bus_reg_read;
+		map->reg_write = _regmap_bus_reg_write;
 
 		map->defer_caching = false;
 		goto skip_format_initialization;
@@ -1336,6 +1346,14 @@ static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 	return ret;
 }
 
+static int _regmap_bus_reg_write(void *context, unsigned int reg,
+				 unsigned int val)
+{
+	struct regmap *map = context;
+
+	return map->bus->reg_write(map->bus_context, reg, val);
+}
+
 static int _regmap_bus_raw_write(void *context, unsigned int reg,
 				 unsigned int val)
 {
@@ -1978,6 +1996,14 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 				  val_len / map->format.val_bytes);
 
 	return ret;
+}
+
+static int _regmap_bus_reg_read(void *context, unsigned int reg,
+				unsigned int *val)
+{
+	struct regmap *map = context;
+
+	return map->bus->reg_read(map->bus_context, reg, val);
 }
 
 static int _regmap_bus_read(void *context, unsigned int reg,
