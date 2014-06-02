@@ -33,6 +33,7 @@
 #define VGIC_V2_MAX_LRS		(1 << 6)
 #define VGIC_V3_MAX_LRS		16
 #define VGIC_MAX_IRQS		1024
+#define VGIC_V2_MAX_CPUS	8
 
 /* Sanity checks... */
 #if (KVM_MAX_VCPUS > 8)
@@ -132,6 +133,7 @@ struct vgic_params {
 	unsigned int	maint_irq;
 	/* Virtual control interface base address */
 	void __iomem	*vctrl_base;
+	int		max_gic_vcpus;
 };
 
 struct vgic_vm_ops {
@@ -289,6 +291,7 @@ struct kvm_exit_mmio;
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 int kvm_vgic_hyp_init(void);
 int kvm_vgic_map_resources(struct kvm *kvm);
+int kvm_vgic_get_max_vcpus(void);
 int kvm_vgic_create(struct kvm *kvm, u32 type);
 void kvm_vgic_destroy(struct kvm *kvm);
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
@@ -392,6 +395,11 @@ static inline bool vgic_initialized(struct kvm *kvm)
 static inline bool vgic_ready(struct kvm *kvm)
 {
 	return true;
+}
+
+static inline int kvm_vgic_get_max_vcpus(void)
+{
+	return KVM_MAX_VCPUS;
 }
 #endif
 

@@ -59,6 +59,9 @@ struct kvm_arch {
 	/* VTTBR value associated with above pgd and vmid */
 	u64    vttbr;
 
+	/* The maximum number of vCPUs depends on the used GIC model */
+	int max_vcpus;
+
 	/* Interrupt controller */
 	struct vgic_dist	vgic;
 

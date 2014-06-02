@@ -132,6 +132,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	/* Mark the initial VMID generation invalid */
 	kvm->arch.vmid_gen = 0;
 
+	/* The maximum number of VCPUs is limited by the host's GIC model */
+	kvm->arch.max_vcpus = kvm_vgic_get_max_vcpus();
+
 	return ret;
 out_free_stage2_pgd:
 	kvm_free_stage2_pgd(kvm);
@@ -215,6 +218,11 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	if (irqchip_in_kernel(kvm) && vgic_initialized(kvm)) {
 		err = -EBUSY;
+		goto out;
+	}
+
+	if (id >= kvm->arch.max_vcpus) {
+		err = -EINVAL;
 		goto out;
 	}
 
