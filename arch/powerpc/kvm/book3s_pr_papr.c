@@ -267,6 +267,10 @@ static int kvmppc_h_pr_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 
 int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 {
+	if (cmd <= MAX_HCALL_OPCODE &&
+	    !test_bit(cmd/4, vcpu->kvm->arch.enabled_hcalls))
+		return EMULATE_FAIL;
+
 	switch (cmd) {
 	case H_ENTER:
 		return kvmppc_h_pr_enter(vcpu);
@@ -303,4 +307,37 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 	}
 
 	return EMULATE_FAIL;
+}
+
+
+/*
+ * List of hcall numbers to enable by default.
+ * For compatibility with old userspace, we enable by default
+ * all hcalls that were implemented before the hcall-enabling
+ * facility was added.  Note this list should not include H_RTAS.
+ */
+static unsigned int default_hcall_list[] = {
+	H_ENTER,
+	H_REMOVE,
+	H_PROTECT,
+	H_BULK_REMOVE,
+	H_PUT_TCE,
+	H_CEDE,
+#ifdef CONFIG_KVM_XICS
+	H_XIRR,
+	H_CPPR,
+	H_EOI,
+	H_IPI,
+	H_IPOLL,
+	H_XIRR_X,
+#endif
+	0
+};
+
+void kvmppc_pr_init_default_hcalls(struct kvm *kvm)
+{
+	int i;
+
+	for (i = 0; default_hcall_list[i]; ++i)
+		__set_bit(default_hcall_list[i] / 4, kvm->arch.enabled_hcalls);
 }

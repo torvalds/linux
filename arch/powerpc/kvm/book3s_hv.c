@@ -67,6 +67,8 @@
 /* Used as a "null" value for timebase values */
 #define TB_NIL	(~(u64)0)
 
+static DECLARE_BITMAP(default_enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
+
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
@@ -561,6 +563,10 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	unsigned long target, ret = H_SUCCESS;
 	struct kvm_vcpu *tvcpu;
 	int idx, rc;
+
+	if (req <= MAX_HCALL_OPCODE &&
+	    !test_bit(req/4, vcpu->kvm->arch.enabled_hcalls))
+		return RESUME_HOST;
 
 	switch (req) {
 	case H_ENTER:
@@ -2269,6 +2275,10 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	 */
 	cpumask_setall(&kvm->arch.need_tlb_flush);
 
+	/* Start out with the default set of hcalls enabled */
+	memcpy(kvm->arch.enabled_hcalls, default_enabled_hcalls,
+	       sizeof(kvm->arch.enabled_hcalls));
+
 	kvm->arch.rma = NULL;
 
 	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
@@ -2407,6 +2417,45 @@ static long kvm_arch_vm_ioctl_hv(struct file *filp,
 	return r;
 }
 
+/*
+ * List of hcall numbers to enable by default.
+ * For compatibility with old userspace, we enable by default
+ * all hcalls that were implemented before the hcall-enabling
+ * facility was added.  Note this list should not include H_RTAS.
+ */
+static unsigned int default_hcall_list[] = {
+	H_REMOVE,
+	H_ENTER,
+	H_READ,
+	H_PROTECT,
+	H_BULK_REMOVE,
+	H_GET_TCE,
+	H_PUT_TCE,
+	H_SET_DABR,
+	H_SET_XDABR,
+	H_CEDE,
+	H_PROD,
+	H_CONFER,
+	H_REGISTER_VPA,
+#ifdef CONFIG_KVM_XICS
+	H_EOI,
+	H_CPPR,
+	H_IPI,
+	H_IPOLL,
+	H_XIRR,
+	H_XIRR_X,
+#endif
+	0
+};
+
+static void init_default_hcalls(void)
+{
+	int i;
+
+	for (i = 0; default_hcall_list[i]; ++i)
+		__set_bit(default_hcall_list[i] / 4, default_enabled_hcalls);
+}
+
 static struct kvmppc_ops kvm_ops_hv = {
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_hv,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_hv,
@@ -2453,6 +2502,8 @@ static int kvmppc_book3s_init_hv(void)
 
 	kvm_ops_hv.owner = THIS_MODULE;
 	kvmppc_hv_ops = &kvm_ops_hv;
+
+	init_default_hcalls();
 
 	r = kvmppc_mmu_hv_init();
 	return r;

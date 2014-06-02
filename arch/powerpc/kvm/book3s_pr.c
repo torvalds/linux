@@ -1597,6 +1597,11 @@ static int kvmppc_core_init_vm_pr(struct kvm *kvm)
 {
 	mutex_init(&kvm->arch.hpt_mutex);
 
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* Start out with the default set of hcalls enabled */
+	kvmppc_pr_init_default_hcalls(kvm);
+#endif
+
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		spin_lock(&kvm_global_user_count_lock);
 		if (++kvm_global_user_count == 1)

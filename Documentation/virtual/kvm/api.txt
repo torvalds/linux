@@ -2863,8 +2863,8 @@ The fields in each entry are defined as follows:
          this function/index combination
 
 
-6. Capabilities that can be enabled
------------------------------------
+6. Capabilities that can be enabled on vCPUs
+--------------------------------------------
 
 There are certain capabilities that change the behavior of the virtual CPU when
 enabled. To enable them, please see section 4.37. Below you can find a list of
@@ -3002,3 +3002,40 @@ Parameters: args[0] is the XICS device fd
             args[1] is the XICS CPU number (server ID) for this vcpu
 
 This capability connects the vcpu to an in-kernel XICS device.
+
+
+7. Capabilities that can be enabled on VMs
+------------------------------------------
+
+There are certain capabilities that change the behavior of the virtual
+machine when enabled. To enable them, please see section 4.37. Below
+you can find a list of capabilities and what their effect on the VM
+is when enabling them.
+
+The following information is provided along with the description:
+
+  Architectures: which instruction set architectures provide this ioctl.
+      x86 includes both i386 and x86_64.
+
+  Parameters: what parameters are accepted by the capability.
+
+  Returns: the return value.  General error numbers (EBADF, ENOMEM, EINVAL)
+      are not detailed, but errors with specific meanings are.
+
+
+7.1 KVM_CAP_PPC_ENABLE_HCALL
+
+Architectures: ppc
+Parameters: args[0] is the sPAPR hcall number
+	    args[1] is 0 to disable, 1 to enable in-kernel handling
+
+This capability controls whether individual sPAPR hypercalls (hcalls)
+get handled by the kernel or not.  Enabling or disabling in-kernel
+handling of an hcall is effective across the VM.  On creation, an
+initial set of hcalls are enabled for in-kernel handling, which
+consists of those hcalls for which in-kernel handlers were implemented
+before this capability was implemented.  If disabled, the kernel will
+not to attempt to handle the hcall, but will always exit to userspace
+to handle it.  Note that it may not make sense to enable some and
+disable others of a group of related hcalls, but KVM does not prevent
+userspace from doing that.

@@ -387,6 +387,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_UNSET_IRQ:
 	case KVM_CAP_PPC_IRQ_LEVEL:
 	case KVM_CAP_ENABLE_CAP:
+	case KVM_CAP_ENABLE_CAP_VM:
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
@@ -417,6 +418,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_ALLOC_HTAB:
 	case KVM_CAP_PPC_RTAS:
 	case KVM_CAP_PPC_FIXUP_HCALL:
+	case KVM_CAP_PPC_ENABLE_HCALL:
 #ifdef CONFIG_KVM_XICS
 	case KVM_CAP_IRQ_XICS:
 #endif
@@ -1099,6 +1101,40 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_event,
 	return 0;
 }
 
+
+static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
+				   struct kvm_enable_cap *cap)
+{
+	int r;
+
+	if (cap->flags)
+		return -EINVAL;
+
+	switch (cap->cap) {
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+	case KVM_CAP_PPC_ENABLE_HCALL: {
+		unsigned long hcall = cap->args[0];
+
+		r = -EINVAL;
+		if (hcall > MAX_HCALL_OPCODE || (hcall & 3) ||
+		    cap->args[1] > 1)
+			break;
+		if (cap->args[1])
+			set_bit(hcall / 4, kvm->arch.enabled_hcalls);
+		else
+			clear_bit(hcall / 4, kvm->arch.enabled_hcalls);
+		r = 0;
+		break;
+	}
+#endif
+	default:
+		r = -EINVAL;
+		break;
+	}
+
+	return r;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
                        unsigned int ioctl, unsigned long arg)
 {
@@ -1116,6 +1152,15 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		}
 
+		break;
+	}
+	case KVM_ENABLE_CAP:
+	{
+		struct kvm_enable_cap cap;
+		r = -EFAULT;
+		if (copy_from_user(&cap, argp, sizeof(cap)))
+			goto out;
+		r = kvm_vm_ioctl_enable_cap(kvm, &cap);
 		break;
 	}
 #ifdef CONFIG_PPC_BOOK3S_64

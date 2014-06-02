@@ -1909,6 +1909,17 @@ hcall_try_real_mode:
 	clrrdi	r3,r3,2
 	cmpldi	r3,hcall_real_table_end - hcall_real_table
 	bge	guest_exit_cont
+	/* See if this hcall is enabled for in-kernel handling */
+	ld	r4, VCPU_KVM(r9)
+	srdi	r0, r3, 8	/* r0 = (r3 / 4) >> 6 */
+	sldi	r0, r0, 3	/* index into kvm->arch.enabled_hcalls[] */
+	add	r4, r4, r0
+	ld	r0, KVM_ENABLED_HCALLS(r4)
+	rlwinm	r4, r3, 32-2, 0x3f	/* r4 = (r3 / 4) & 0x3f */
+	srd	r0, r0, r4
+	andi.	r0, r0, 1
+	beq	guest_exit_cont
+	/* Get pointer to handler, if any, and call it */
 	LOAD_REG_ADDR(r4, hcall_real_table)
 	lwax	r3,r3,r4
 	cmpwi	r3,0

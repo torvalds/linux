@@ -34,6 +34,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
+#include <asm/hvcall.h>
 
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
@@ -263,6 +264,7 @@ struct kvm_arch {
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct list_head spapr_tce_tables;
 	struct list_head rtas_tokens;
+	DECLARE_BITMAP(enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
 #endif
 #ifdef CONFIG_KVM_MPIC
 	struct openpic *mpic;
