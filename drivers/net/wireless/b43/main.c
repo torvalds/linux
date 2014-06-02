@@ -3742,7 +3742,9 @@ static int b43_switch_band(struct b43_wldev *dev,
 	b43dbg(dev->wl, "Switching to %s GHz band\n",
 	       band_to_string(chan->band));
 
-	b43_software_rfkill(dev, true);
+	/* Some new devices don't need disabling radio for band switching */
+	if (!(phy->type == B43_PHYTYPE_N && phy->rev >= 3))
+		b43_software_rfkill(dev, true);
 
 	phy->gmode = gmode;
 	b43_phy_put_into_reset(dev);
@@ -5164,6 +5166,7 @@ static void b43_supported_bands(struct b43_wldev *dev, bool *have_2ghz_phy,
 static int b43_wireless_core_attach(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
+	struct b43_phy *phy = &dev->phy;
 	int err;
 	u32 tmp;
 	bool have_2ghz_phy = false, have_5ghz_phy = false;
@@ -5180,6 +5183,8 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		b43err(wl, "Bus powerup failed\n");
 		goto out;
 	}
+
+	phy->do_full_init = true;
 
 	/* Try to guess supported bands for the first init needs */
 	switch (dev->dev->bus_type) {

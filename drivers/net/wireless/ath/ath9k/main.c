@@ -1757,7 +1757,6 @@ out:
 void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
 	struct ath_vif *avp = (void *)vif->drv_priv;
-	unsigned long flags;
 	u32 tsf;
 
 	if (!sc->p2p_ps_timer)
@@ -1767,14 +1766,9 @@ void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
 		return;
 
 	sc->p2p_ps_vif = avp;
-
-	spin_lock_irqsave(&sc->sc_pm_lock, flags);
-	if (!(sc->ps_flags & PS_BEACON_SYNC)) {
-		tsf = ath9k_hw_gettsf32(sc->sc_ah);
-		ieee80211_parse_p2p_noa(&vif->bss_conf.p2p_noa_attr, &avp->noa, tsf);
-		ath9k_update_p2p_ps_timer(sc, avp);
-	}
-	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+	tsf = ath9k_hw_gettsf32(sc->sc_ah);
+	ieee80211_parse_p2p_noa(&vif->bss_conf.p2p_noa_attr, &avp->noa, tsf);
+	ath9k_update_p2p_ps_timer(sc, avp);
 }
 
 static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
@@ -1791,6 +1785,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
+	unsigned long flags;
 	int slottime;
 
 	ath9k_ps_wakeup(sc);
@@ -1853,7 +1848,10 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_P2P_PS) {
 		spin_lock_bh(&sc->sc_pcu_lock);
-		ath9k_update_p2p_ps(sc, vif);
+		spin_lock_irqsave(&sc->sc_pm_lock, flags);
+		if (!(sc->ps_flags & PS_BEACON_SYNC))
+			ath9k_update_p2p_ps(sc, vif);
+		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 		spin_unlock_bh(&sc->sc_pcu_lock);
 	}
 
@@ -2232,14 +2230,6 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 }
 
-static void ath9k_channel_switch_beacon(struct ieee80211_hw *hw,
-					struct ieee80211_vif *vif,
-					struct cfg80211_chan_def *chandef)
-{
-	/* depend on vif->csa_active only */
-	return;
-}
-
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2287,5 +2277,4 @@ struct ieee80211_ops ath9k_ops = {
 #endif
 	.sw_scan_start	    = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,
-	.channel_switch_beacon     = ath9k_channel_switch_beacon,
 };

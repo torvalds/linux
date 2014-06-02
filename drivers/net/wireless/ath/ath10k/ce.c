@@ -329,6 +329,33 @@ exit:
 	return ret;
 }
 
+void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe)
+{
+	struct ath10k *ar = pipe->ar;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_ce_ring *src_ring = pipe->src_ring;
+	u32 ctrl_addr = pipe->ctrl_addr;
+
+	lockdep_assert_held(&ar_pci->ce_lock);
+
+	/*
+	 * This function must be called only if there is an incomplete
+	 * scatter-gather transfer (before index register is updated)
+	 * that needs to be cleaned up.
+	 */
+	if (WARN_ON_ONCE(src_ring->write_index == src_ring->sw_index))
+		return;
+
+	if (WARN_ON_ONCE(src_ring->write_index ==
+			 ath10k_ce_src_ring_write_index_get(ar, ctrl_addr)))
+		return;
+
+	src_ring->write_index--;
+	src_ring->write_index &= src_ring->nentries_mask;
+
+	src_ring->per_transfer_context[src_ring->write_index] = NULL;
+}
+
 int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_context,
 		   u32 buffer,

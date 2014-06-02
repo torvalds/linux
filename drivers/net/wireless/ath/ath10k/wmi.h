@@ -2323,9 +2323,9 @@ struct wmi_pdev_param_map {
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
 
 enum wmi_pdev_param {
-	/* TX chian mask */
+	/* TX chain mask */
 	WMI_PDEV_PARAM_TX_CHAIN_MASK = 0x1,
-	/* RX chian mask */
+	/* RX chain mask */
 	WMI_PDEV_PARAM_RX_CHAIN_MASK,
 	/* TX power limit for 2G Radio */
 	WMI_PDEV_PARAM_TXPOWER_LIMIT2G,
@@ -4259,7 +4259,7 @@ void ath10k_wmi_detach(struct ath10k *ar);
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar);
 int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
 
-int ath10k_wmi_connect_htc_service(struct ath10k *ar);
+int ath10k_wmi_connect(struct ath10k *ar);
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 				const struct wmi_channel_arg *);
 int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);

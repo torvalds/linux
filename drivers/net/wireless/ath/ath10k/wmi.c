@@ -639,6 +639,7 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 	struct sk_buff *wmi_skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int len;
+	u32 buf_len = skb->len;
 	u16 fc;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -648,6 +649,15 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 		return -EINVAL;
 
 	len = sizeof(cmd->hdr) + skb->len;
+
+	if ((ieee80211_is_action(hdr->frame_control) ||
+	     ieee80211_is_deauth(hdr->frame_control) ||
+	     ieee80211_is_disassoc(hdr->frame_control)) &&
+	     ieee80211_has_protected(hdr->frame_control)) {
+		len += IEEE80211_CCMP_MIC_LEN;
+		buf_len += IEEE80211_CCMP_MIC_LEN;
+	}
+
 	len = round_up(len, 4);
 
 	wmi_skb = ath10k_wmi_alloc_skb(len);
@@ -659,7 +669,7 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 	cmd->hdr.vdev_id = __cpu_to_le32(ATH10K_SKB_CB(skb)->vdev_id);
 	cmd->hdr.tx_rate = 0;
 	cmd->hdr.tx_power = 0;
-	cmd->hdr.buf_len = __cpu_to_le32((u32)(skb->len));
+	cmd->hdr.buf_len = __cpu_to_le32(buf_len);
 
 	memcpy(cmd->hdr.peer_macaddr.addr, ieee80211_get_DA(hdr), ETH_ALEN);
 	memcpy(cmd->buf, skb->data, skb->len);
@@ -957,10 +967,16 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	 * frames with Protected Bit set. */
 	if (ieee80211_has_protected(hdr->frame_control) &&
 	    !ieee80211_is_auth(hdr->frame_control)) {
-		status->flag |= RX_FLAG_DECRYPTED | RX_FLAG_IV_STRIPPED |
-				RX_FLAG_MMIC_STRIPPED;
-		hdr->frame_control = __cpu_to_le16(fc &
+		status->flag |= RX_FLAG_DECRYPTED;
+
+		if (!ieee80211_is_action(hdr->frame_control) &&
+		    !ieee80211_is_deauth(hdr->frame_control) &&
+		    !ieee80211_is_disassoc(hdr->frame_control)) {
+			status->flag |= RX_FLAG_IV_STRIPPED |
+					RX_FLAG_MMIC_STRIPPED;
+			hdr->frame_control = __cpu_to_le16(fc &
 					~IEEE80211_FCTL_PROTECTED);
+		}
 	}
 
 	ath10k_dbg(ATH10K_DBG_MGMT,
@@ -2359,7 +2375,7 @@ void ath10k_wmi_detach(struct ath10k *ar)
 	ar->wmi.num_mem_chunks = 0;
 }
 
-int ath10k_wmi_connect_htc_service(struct ath10k *ar)
+int ath10k_wmi_connect(struct ath10k *ar)
 {
 	int status;
 	struct ath10k_htc_svc_conn_req conn_req;

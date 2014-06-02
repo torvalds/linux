@@ -51,7 +51,6 @@ struct ath_dfs_stats {
 	/* pattern detection stats */
 	u32 pulses_processed;
 	u32 radar_detected;
-	u64 last_ts;
 };
 
 #if defined(CONFIG_ATH9K_DFS_DEBUGFS)

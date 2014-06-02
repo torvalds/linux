@@ -40,6 +40,9 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_MAX_CID		(8) /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 #define WIL6210_ITR_TRSH	(10000) /* arbitrary - about 15 IRQs/msec */
+#define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
+#define WIL6210_FW_RECOVERY_TO	msecs_to_jiffies(5000)
+#define WIL6210_SCAN_TO		msecs_to_jiffies(10000)
 
 /* Hardware definitions begin */
 
@@ -361,6 +364,8 @@ struct wil6210_priv {
 	u32 fw_version;
 	u32 hw_version;
 	u8 n_mids; /* number of additional MIDs as reported by FW */
+	int recovery_count; /* num of FW recovery attempts in a short time */
+	unsigned long last_fw_recovery; /* jiffies of last fw recovery */
 	/* profile */
 	u32 monitor_flags;
 	u32 secure_pcp; /* create secure PCP? */
@@ -382,6 +387,7 @@ struct wil6210_priv {
 	struct work_struct disconnect_worker;
 	struct work_struct fw_error_worker;	/* for FW error recovery */
 	struct timer_list connect_timer;
+	struct timer_list scan_timer; /* detect scan timeout */
 	int pending_connect_cid;
 	struct list_head pending_wmi_ev;
 	/*
