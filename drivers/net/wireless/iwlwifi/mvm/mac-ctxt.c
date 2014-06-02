@@ -904,7 +904,7 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 	struct iwl_mac_beacon_cmd beacon_cmd = {};
 	struct ieee80211_tx_info *info;
 	u32 beacon_skb_len;
-	u32 rate;
+	u32 rate, tx_flags;
 
 	if (WARN_ON(!beacon))
 		return -EINVAL;
@@ -914,14 +914,17 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 	/* TODO: for now the beacon template id is set to be the mac context id.
 	 * Might be better to handle it as another resource ... */
 	beacon_cmd.template_id = cpu_to_le32((u32)mvmvif->id);
+	info = IEEE80211_SKB_CB(beacon);
 
 	/* Set up TX command fields */
 	beacon_cmd.tx.len = cpu_to_le16((u16)beacon_skb_len);
 	beacon_cmd.tx.sta_id = mvmvif->bcast_sta.sta_id;
 	beacon_cmd.tx.life_time = cpu_to_le32(TX_CMD_LIFE_TIME_INFINITE);
-	beacon_cmd.tx.tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
-					     TX_CMD_FLG_BT_DIS  |
-					     TX_CMD_FLG_TSF);
+	tx_flags = TX_CMD_FLG_SEQ_CTL | TX_CMD_FLG_TSF;
+	tx_flags |=
+		iwl_mvm_bt_coex_tx_prio(mvm, (void *)beacon->data, info, 0) <<
+						TX_CMD_FLG_BT_PRIO_POS;
+	beacon_cmd.tx.tx_flags = cpu_to_le32(tx_flags);
 
 	mvm->mgmt_last_antenna_idx =
 		iwl_mvm_next_antenna(mvm, mvm->fw->valid_tx_ant,
@@ -930,8 +933,6 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 	beacon_cmd.tx.rate_n_flags =
 		cpu_to_le32(BIT(mvm->mgmt_last_antenna_idx) <<
 			    RATE_MCS_ANT_POS);
-
-	info = IEEE80211_SKB_CB(beacon);
 
 	if (info->band == IEEE80211_BAND_5GHZ || vif->p2p) {
 		rate = IWL_FIRST_OFDM_RATE;
