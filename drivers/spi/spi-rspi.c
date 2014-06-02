@@ -480,7 +480,6 @@ static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	 */
 	disable_irq(rspi->tx_irq);
 
-	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_TXMD, RSPI_SPCR);
 	rspi_enable_irq(rspi, SPCR_SPTIE);
 	rspi->dma_callbacked = 0;
 
@@ -550,8 +549,6 @@ static int rspi_send_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	if (!desc_rx)
 		return -EIO;
 
-	rspi_receive_init(rspi);
-
 	/*
 	 * DMAC needs SPTIE, but if SPTIE is set, this IRQ routine will be
 	 * called. So, this driver disables the IRQ while DMA transfer.
@@ -560,7 +557,6 @@ static int rspi_send_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	if (rspi->rx_irq != rspi->tx_irq)
 		disable_irq(rspi->rx_irq);
 
-	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) & ~SPCR_TXMD, RSPI_SPCR);
 	rspi_enable_irq(rspi, SPCR_SPTIE | SPCR_SPRIE);
 	rspi->dma_callbacked = 0;
 
@@ -602,9 +598,10 @@ static bool rspi_can_dma(struct spi_master *master, struct spi_device *spi,
 	return __rspi_can_dma(rspi, xfer);
 }
 
-static int rspi_transfer_out_in(struct rspi_data *rspi,
-				struct spi_transfer *xfer)
+static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
+			     struct spi_transfer *xfer)
 {
+	struct rspi_data *rspi = spi_master_get_devdata(master);
 	u8 spcr;
 	int ret;
 
@@ -617,6 +614,13 @@ static int rspi_transfer_out_in(struct rspi_data *rspi,
 	}
 	rspi_write8(rspi, spcr, RSPI_SPCR);
 
+	if (master->can_dma && __rspi_can_dma(rspi, xfer)) {
+		if (xfer->rx_buf)
+			return rspi_send_receive_dma(rspi, xfer);
+		else
+			return rspi_send_dma(rspi, xfer);
+	}
+
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, xfer->rx_buf, xfer->len);
 	if (ret < 0)
 		return ret;
@@ -625,20 +629,6 @@ static int rspi_transfer_out_in(struct rspi_data *rspi,
 	rspi_wait_for_tx_empty(rspi);
 
 	return 0;
-}
-
-static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
-			     struct spi_transfer *xfer)
-{
-	struct rspi_data *rspi = spi_master_get_devdata(master);
-
-	if (!master->can_dma || !__rspi_can_dma(rspi, xfer))
-		return rspi_transfer_out_in(rspi, xfer);
-
-	if (xfer->rx_buf)
-		return rspi_send_receive_dma(rspi, xfer);
-	else
-		return rspi_send_dma(rspi, xfer);
 }
 
 static int rspi_rz_transfer_out_in(struct rspi_data *rspi,
