@@ -616,7 +616,7 @@ static u8 get_node_id(struct sbridge_pvt *pvt)
 static inline u8 sad_pkg_socket(u8 pkg)
 {
 	/* on Ivy Bridge, nodeID is SASS, where A is HA and S is node id */
-	return (pkg >> 3) | (pkg & 0x3);
+	return ((pkg >> 3) << 2) | (pkg & 0x3);
 }
 
 static inline u8 sad_pkg_ha(u8 pkg)
