@@ -463,13 +463,13 @@ static void rspi_dma_complete(void *arg)
 	wake_up_interruptible(&rspi->wait);
 }
 
-static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
+static int rspi_send_dma(struct rspi_data *rspi, struct sg_table *tx)
 {
 	struct dma_async_tx_descriptor *desc;
 	int ret;
 
-	desc = dmaengine_prep_slave_sg(rspi->master->dma_tx, t->tx_sg.sgl,
-				       t->tx_sg.nents, DMA_TO_DEVICE,
+	desc = dmaengine_prep_slave_sg(rspi->master->dma_tx, tx->sgl,
+				       tx->nents, DMA_TO_DEVICE,
 				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		return -EIO;
@@ -530,21 +530,22 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 	rspi_write8(rspi, 0, QSPI_SPBFCR);
 }
 
-static int rspi_send_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
+static int rspi_send_receive_dma(struct rspi_data *rspi, struct sg_table *tx,
+				 struct sg_table *rx)
 {
 	struct dma_async_tx_descriptor *desc_tx, *desc_rx;
 	int ret;
 
 	/* prepare transmit transfer */
-	desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx, t->tx_sg.sgl,
-					  t->tx_sg.nents, DMA_TO_DEVICE,
+	desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx, tx->sgl,
+					  tx->nents, DMA_TO_DEVICE,
 					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_tx)
 		return -EIO;
 
 	/* prepare receive transfer */
-	desc_rx = dmaengine_prep_slave_sg(rspi->master->dma_rx, t->rx_sg.sgl,
-					  t->rx_sg.nents, DMA_FROM_DEVICE,
+	desc_rx = dmaengine_prep_slave_sg(rspi->master->dma_rx, rx->sgl,
+					  rx->nents, DMA_FROM_DEVICE,
 					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_rx)
 		return -EIO;
@@ -616,9 +617,10 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 
 	if (master->can_dma && __rspi_can_dma(rspi, xfer)) {
 		if (xfer->rx_buf)
-			return rspi_send_receive_dma(rspi, xfer);
+			return rspi_send_receive_dma(rspi, &xfer->tx_sg,
+						     &xfer->rx_sg);
 		else
-			return rspi_send_dma(rspi, xfer);
+			return rspi_send_dma(rspi, &xfer->tx_sg);
 	}
 
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, xfer->rx_buf, xfer->len);
