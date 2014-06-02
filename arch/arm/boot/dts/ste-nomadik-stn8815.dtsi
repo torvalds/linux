@@ -840,8 +840,8 @@
 			interrupts = <22>;
 			max-frequency = <48000000>;
 			bus-width = <4>;
-			mmc-cap-mmc-highspeed;
-			mmc-cap-sd-highspeed;
+			cap-mmc-highspeed;
+			cap-sd-highspeed;
 			cd-gpios = <&gpio3 15 0x1>;
 			cd-inverted;
 			pinctrl-names = "default";

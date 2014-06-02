@@ -4,12 +4,58 @@ The ARM PrimeCell MMCI PL180 and PL181 provides an interface for
 reading and writing to MultiMedia and SD cards alike.
 
 This file documents differences between the core properties described
-by mmc.txt and the properties used by the mmci driver.
+by mmc.txt and the properties used by the mmci driver. Using "st" as
+the prefix for a property, indicates support by the ST Micro variant.
 
 Required properties:
 - compatible             : contains "arm,pl18x", "arm,primecell".
-- arm,primecell-periphid : contains the PrimeCell Peripheral ID.
+- vmmc-supply            : phandle to the regulator device tree node, mentioned
+                           as the VCC/VDD supply in the eMMC/SD specs.
 
 Optional properties:
-- mmc-cap-mmc-highspeed  : indicates whether MMC is high speed capable
-- mmc-cap-sd-highspeed   : indicates whether SD is high speed capable
+- arm,primecell-periphid : contains the PrimeCell Peripheral ID, it overrides
+                           the ID provided by the HW
+- vqmmc-supply           : phandle to the regulator device tree node, mentioned
+                           as the VCCQ/VDD_IO supply in the eMMC/SD specs.
+- st,sig-dir-dat0        : bus signal direction pin used for DAT[0].
+- st,sig-dir-dat2        : bus signal direction pin used for DAT[2].
+- st,sig-dir-dat31       : bus signal direction pin used for DAT[3] and DAT[1].
+- st,sig-dir-dat74       : bus signal direction pin used for DAT[4] to DAT[7].
+- st,sig-dir-cmd         : cmd signal direction pin used for CMD.
+- st,sig-pin-fbclk       : feedback clock signal pin used.
+
+Deprecated properties:
+- mmc-cap-mmc-highspeed  : indicates whether MMC is high speed capable.
+- mmc-cap-sd-highspeed   : indicates whether SD is high speed capable.
+
+Example:
+
+sdi0_per1@80126000 {
+	compatible = "arm,pl18x", "arm,primecell";
+	reg = <0x80126000 0x1000>;
+	interrupts = <0 60 IRQ_TYPE_LEVEL_HIGH>;
+
+	dmas = <&dma 29 0 0x2>, /* Logical - DevToMem */
+	       <&dma 29 0 0x0>; /* Logical - MemToDev */
+	dma-names = "rx", "tx";
+
+	clocks = <&prcc_kclk 1 5>, <&prcc_pclk 1 5>;
+	clock-names = "sdi", "apb_pclk";
+
+	max-frequency = <100000000>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-mmc-highspeed;
+	cd-gpios  = <&gpio2 31 0x4>; // 95
+	st,sig-dir-dat0;
+	st,sig-dir-dat2;
+	st,sig-dir-cmd;
+	st,sig-pin-fbclk;
+
+	vmmc-supply = <&ab8500_ldo_aux3_reg>;
+	vqmmc-supply = <&vmmci>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdi0_default_mode>;
+	pinctrl-1 = <&sdi0_sleep_mode>;
+};
