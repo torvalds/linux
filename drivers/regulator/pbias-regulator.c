@@ -122,10 +122,8 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct pbias_regulator_data)
 			       * count, GFP_KERNEL);
-	if (drvdata == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate device data\n");
+	if (!drvdata)
 		return -ENOMEM;
-	}
 
 	syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(syscon))
