@@ -1678,6 +1678,9 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	 * EDAC core should be handling the channel mask, in order to point
 	 * to the group of dimm's where the error may be happening.
 	 */
+	if (!pvt->is_lockstep && !pvt->is_mirrored && !pvt->is_close_pg)
+		channel = first_channel;
+
 	snprintf(msg, sizeof(msg),
 		 "%s%s area:%s err_code:%04x:%04x socket:%d channel_mask:%ld rank:%d",
 		 overflow ? " OVERFLOW" : "",
