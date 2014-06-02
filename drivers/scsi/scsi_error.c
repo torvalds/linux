@@ -193,7 +193,7 @@ scsi_abort_command(struct scsi_cmnd *scmd)
 		SCSI_LOG_ERROR_RECOVERY(3,
 			scmd_printk(KERN_INFO, scmd,
 				    "scmd %p previous abort failed\n", scmd));
-		cancel_delayed_work(&scmd->abort_work);
+		BUG_ON(delayed_work_pending(&scmd->abort_work));
 		return FAILED;
 	}
 
