@@ -844,13 +844,22 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 	/* do we need to apply the constraint voltage */
 	if (rdev->constraints->apply_uV &&
 	    rdev->constraints->min_uV == rdev->constraints->max_uV) {
-		ret = _regulator_do_set_voltage(rdev,
-						rdev->constraints->min_uV,
-						rdev->constraints->max_uV);
-		if (ret < 0) {
-			rdev_err(rdev, "failed to apply %duV constraint\n",
-				 rdev->constraints->min_uV);
-			return ret;
+		int current_uV = _regulator_get_voltage(rdev);
+		if (current_uV < 0) {
+			rdev_err(rdev, "failed to get the current voltage\n");
+			return current_uV;
+		}
+		if (current_uV < rdev->constraints->min_uV ||
+		    current_uV > rdev->constraints->max_uV) {
+			ret = _regulator_do_set_voltage(
+				rdev, rdev->constraints->min_uV,
+				rdev->constraints->max_uV);
+			if (ret < 0) {
+				rdev_err(rdev,
+					"failed to apply %duV constraint\n",
+					rdev->constraints->min_uV);
+				return ret;
+			}
 		}
 	}
 
@@ -3819,14 +3828,18 @@ static int __init regulator_init_complete(void)
 	mutex_lock(&regulator_list_mutex);
 
 	/* If we have a full configuration then disable any regulators
-	 * which are not in use or always_on.  This will become the
-	 * default behaviour in the future.
+	 * we have permission to change the status for and which are
+	 * not in use or always_on.  This is effectively the default
+	 * for DT and ACPI as they have full constraints.
 	 */
 	list_for_each_entry(rdev, &regulator_list, list) {
 		ops = rdev->desc->ops;
 		c = rdev->constraints;
 
 		if (c && c->always_on)
+			continue;
+
+		if (c && !(c->valid_ops_mask & REGULATOR_CHANGE_STATUS))
 			continue;
 
 		mutex_lock(&rdev->mutex);
@@ -3867,4 +3880,4 @@ unlock:
 
 	return 0;
 }
-late_initcall(regulator_init_complete);
+late_initcall_sync(regulator_init_complete);
