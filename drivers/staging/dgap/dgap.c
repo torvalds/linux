@@ -1379,12 +1379,10 @@ static int dgap_tty_init(struct board_t *brd)
 	 * when the driver was first loaded.
 	 */
 	for (i = 0; i < brd->nasync; i++) {
-		if (!brd->channels[i]) {
-			brd->channels[i] =
-				kzalloc(sizeof(struct channel_t), GFP_KERNEL);
-			if (!brd->channels[i])
-				return -ENOMEM;
-		}
+		brd->channels[i] =
+			kzalloc(sizeof(struct channel_t), GFP_KERNEL);
+		if (!brd->channels[i])
+			return -ENOMEM;
 	}
 
 	ch = brd->channels[0];
@@ -1397,9 +1395,6 @@ static int dgap_tty_init(struct board_t *brd)
 
 	/* Set up channel variables */
 	for (i = 0; i < brd->nasync; i++, ch = brd->channels[i], bs++) {
-
-		if (!brd->channels[i])
-			continue;
 
 		spin_lock_init(&ch->ch_lock);
 
