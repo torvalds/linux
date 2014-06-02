@@ -312,7 +312,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *dev,
 	frag_hdr[0] |= LOWPAN_DISPATCH_FRAGN;
 	frag_cap = round_down(payload_cap - LOWPAN_FRAGN_HEAD_SIZE, 8);
 
-	while (skb_unprocessed >= frag_cap) {
+	do {
 		dgram_offset += frag_len;
 		skb_offset += frag_len;
 		skb_unprocessed -= frag_len;
@@ -328,7 +328,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *dev,
 				 __func__, frag_tag, skb_offset);
 			goto err;
 		}
-	}
+	} while (skb_unprocessed >= frag_cap);
 
 	consume_skb(skb);
 	return NET_XMIT_SUCCESS;
