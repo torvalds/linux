@@ -642,6 +642,9 @@ static int qspi_transfer_out_in(struct rspi_data *rspi,
 
 	qspi_receive_init(rspi);
 
+	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer))
+		return rspi_dma_transfer(rspi, &xfer->tx_sg, &xfer->rx_sg);
+
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, xfer->rx_buf, xfer->len);
 	if (ret < 0)
 		return ret;
@@ -656,6 +659,9 @@ static int qspi_transfer_out(struct rspi_data *rspi, struct spi_transfer *xfer)
 {
 	int ret;
 
+	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer))
+		return rspi_dma_transfer(rspi, &xfer->tx_sg, NULL);
+
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, NULL, xfer->len);
 	if (ret < 0)
 		return ret;
@@ -668,6 +674,9 @@ static int qspi_transfer_out(struct rspi_data *rspi, struct spi_transfer *xfer)
 
 static int qspi_transfer_in(struct rspi_data *rspi, struct spi_transfer *xfer)
 {
+	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer))
+		return rspi_dma_transfer(rspi, NULL, &xfer->rx_sg);
+
 	return rspi_pio_transfer(rspi, NULL, xfer->rx_buf, xfer->len);
 }
 
