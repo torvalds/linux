@@ -728,6 +728,8 @@ struct gfs2_sbd {
 	struct gfs2_holder sd_sc_gh;
 	struct gfs2_holder sd_qc_gh;
 
+	struct completion sd_journal_ready;
+
 	/* Daemon stuff */
 
 	struct task_struct *sd_logd_process;

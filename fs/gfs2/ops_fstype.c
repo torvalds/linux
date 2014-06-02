@@ -94,6 +94,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_jindex_list);
 	spin_lock_init(&sdp->sd_jindex_spin);
 	mutex_init(&sdp->sd_jindex_mutex);
+	init_completion(&sdp->sd_journal_ready);
 
 	INIT_LIST_HEAD(&sdp->sd_quota_list);
 	mutex_init(&sdp->sd_quota_mutex);
@@ -796,6 +797,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		goto fail_qinode;
 
 	error = init_journal(sdp, undo);
+	complete_all(&sdp->sd_journal_ready);
 	if (error)
 		goto fail;
 
@@ -1212,6 +1214,7 @@ fail_sb:
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
+	complete_all(&sdp->sd_journal_ready);
 	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
 fail_debug:

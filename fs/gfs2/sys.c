@@ -407,6 +407,9 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 	struct gfs2_jdesc *jd;
 	int rv;
 
+	/* Wait for our primary journal to be initialized */
+	wait_for_completion(&sdp->sd_journal_ready);
+
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
 	if (sdp->sd_jdesc->jd_jid == jid)
