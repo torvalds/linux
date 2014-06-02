@@ -208,6 +208,8 @@ struct mmci_host {
 	spinlock_t		lock;
 
 	unsigned int		mclk;
+	/* cached value of requested clk in set_ios */
+	unsigned int		clock_cache;
 	unsigned int		cclk;
 	u32			pwr_reg;
 	u32			pwr_reg_add;
