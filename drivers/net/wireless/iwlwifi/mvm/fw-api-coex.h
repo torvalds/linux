@@ -305,6 +305,7 @@ enum iwl_bt_activity_grading {
  * @bt_traffic_load: load of BT traffic
  * @bt_agg_traffic_load: aggregated load of BT traffic
  * @bt_ci_compliance: 0 - no CI compliance, 1 - CI compliant
+ * @ttc_enabled: true if ttc has been enabled by the firmware
  * @primary_ch_lut: LUT used for primary channel
  * @secondary_ch_lut: LUT used for secondary channel
  * @bt_activity_grading: the activity of BT enum %iwl_bt_activity_grading
@@ -317,7 +318,8 @@ struct iwl_bt_coex_profile_notif {
 	u8 bt_traffic_load;
 	u8 bt_agg_traffic_load;
 	u8 bt_ci_compliance;
-	u8 reserved[3];
+	u8 ttc_enabled;
+	__le16 reserved;
 
 	__le32 primary_ch_lut;
 	__le32 secondary_ch_lut;

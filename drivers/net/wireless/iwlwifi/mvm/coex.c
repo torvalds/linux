@@ -1212,6 +1212,9 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 	    BT_HIGH_TRAFFIC)
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
+	if (mvm->last_bt_notif.ttc_enabled)
+		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
+
 	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
 
 	if (lut_type == BT_COEX_LOOSE_LUT || lut_type == BT_COEX_INVALID_LUT)
@@ -1226,6 +1229,9 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	enum iwl_bt_coex_lut_type lut_type;
+
+	if (mvm->last_bt_notif.ttc_enabled)
+		return true;
 
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
