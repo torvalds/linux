@@ -625,6 +625,9 @@ static int rspi_rz_transfer_one(struct spi_master *master,
 
 	rspi_rz_receive_init(rspi);
 
+	if (master->can_dma && __rspi_can_dma(rspi, xfer))
+		return rspi_dma_transfer(rspi, &xfer->tx_sg, &xfer->rx_sg);
+
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, xfer->rx_buf, xfer->len);
 	if (ret < 0)
 		return ret;
