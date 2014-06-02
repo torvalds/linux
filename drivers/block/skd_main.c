@@ -563,7 +563,6 @@ skd_prep_discard_cdb(struct skd_scsi_request *scsi_req,
 
 	req = skreq->req;
 	blk_add_request_payload(req, page, len);
-	req->buffer = buf;
 }
 
 static void skd_request_fn_not_online(struct request_queue *q);
@@ -744,6 +743,7 @@ static void skd_request_fn(struct request_queue *q)
 				break;
 			}
 			skreq->discard_page = 1;
+			req->completion_data = page;
 			skd_prep_discard_cdb(scsi_req, skreq, page, lba, count);
 
 		} else if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
@@ -858,8 +858,7 @@ static void skd_end_request(struct skd_device *skdev,
 		(skreq->discard_page == 1)) {
 		pr_debug("%s:%s:%d, free the page!",
 			 skdev->name, __func__, __LINE__);
-		free_page((unsigned long)req->buffer);
-		req->buffer = NULL;
+		__free_page(req->completion_data);
 	}
 
 	if (unlikely(error)) {

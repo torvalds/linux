@@ -454,7 +454,7 @@ static enum action do_pd_io_start(void)
 		if (pd_block + pd_count > get_capacity(pd_req->rq_disk))
 			return Fail;
 		pd_run = blk_rq_sectors(pd_req);
-		pd_buf = pd_req->buffer;
+		pd_buf = bio_data(pd_req->bio);
 		pd_retries = 0;
 		if (pd_cmd == READ)
 			return do_pd_read_start();
@@ -485,7 +485,7 @@ static int pd_next_buf(void)
 	spin_lock_irqsave(&pd_lock, saved_flags);
 	__blk_end_request_cur(pd_req, 0);
 	pd_count = blk_rq_cur_sectors(pd_req);
-	pd_buf = pd_req->buffer;
+	pd_buf = bio_data(pd_req->bio);
 	spin_unlock_irqrestore(&pd_lock, saved_flags);
 	return 0;
 }

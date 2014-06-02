@@ -1484,7 +1484,7 @@ repeat:
 	ReqCnt = 0;
 	ReqCmd = rq_data_dir(fd_request);
 	ReqBlock = blk_rq_pos(fd_request);
-	ReqBuffer = fd_request->buffer;
+	ReqBuffer = bio_data(fd_request->bio);
 	setup_req_params( drive );
 	do_fd_action( drive );
 

@@ -612,10 +612,10 @@ static void do_blkif_request(struct request_queue *rq)
 		}
 
 		pr_debug("do_blk_req %p: cmd %p, sec %lx, "
-			 "(%u/%u) buffer:%p [%s]\n",
+			 "(%u/%u) [%s]\n",
 			 req, req->cmd, (unsigned long)blk_rq_pos(req),
 			 blk_rq_cur_sectors(req), blk_rq_sectors(req),
-			 req->buffer, rq_data_dir(req) ? "write" : "read");
+			 rq_data_dir(req) ? "write" : "read");
 
 		if (blkif_queue_request(req)) {
 			blk_requeue_request(rq, req);

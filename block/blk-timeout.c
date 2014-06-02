@@ -96,11 +96,7 @@ static void blk_rq_timed_out(struct request *req)
 			__blk_complete_request(req);
 		break;
 	case BLK_EH_RESET_TIMER:
-		if (q->mq_ops)
-			blk_mq_add_timer(req);
-		else
-			blk_add_timer(req);
-
+		blk_add_timer(req);
 		blk_clear_rq_complete(req);
 		break;
 	case BLK_EH_NOT_HANDLED:
@@ -170,7 +166,26 @@ void blk_abort_request(struct request *req)
 }
 EXPORT_SYMBOL_GPL(blk_abort_request);
 
-void __blk_add_timer(struct request *req, struct list_head *timeout_list)
+unsigned long blk_rq_timeout(unsigned long timeout)
+{
+	unsigned long maxt;
+
+	maxt = round_jiffies_up(jiffies + BLK_MAX_TIMEOUT);
+	if (time_after(timeout, maxt))
+		timeout = maxt;
+
+	return timeout;
+}
+
+/**
+ * blk_add_timer - Start timeout timer for a single request
+ * @req:	request that is about to start running.
+ *
+ * Notes:
+ *    Each request has its own timer, and as it is added to the queue, we
+ *    set up the timer. When the request completes, we cancel the timer.
+ */
+void blk_add_timer(struct request *req)
 {
 	struct request_queue *q = req->q;
 	unsigned long expiry;
@@ -188,32 +203,29 @@ void __blk_add_timer(struct request *req, struct list_head *timeout_list)
 		req->timeout = q->rq_timeout;
 
 	req->deadline = jiffies + req->timeout;
-	if (timeout_list)
-		list_add_tail(&req->timeout_list, timeout_list);
+	if (!q->mq_ops)
+		list_add_tail(&req->timeout_list, &req->q->timeout_list);
 
 	/*
 	 * If the timer isn't already pending or this timeout is earlier
 	 * than an existing one, modify the timer. Round up to next nearest
 	 * second.
 	 */
-	expiry = round_jiffies_up(req->deadline);
+	expiry = blk_rq_timeout(round_jiffies_up(req->deadline));
 
 	if (!timer_pending(&q->timeout) ||
-	    time_before(expiry, q->timeout.expires))
-		mod_timer(&q->timeout, expiry);
+	    time_before(expiry, q->timeout.expires)) {
+		unsigned long diff = q->timeout.expires - expiry;
+
+		/*
+		 * Due to added timer slack to group timers, the timer
+		 * will often be a little in front of what we asked for.
+		 * So apply some tolerance here too, otherwise we keep
+		 * modifying the timer because expires for value X
+		 * will be X + something.
+		 */
+		if (!timer_pending(&q->timeout) || (diff >= HZ / 2))
+			mod_timer(&q->timeout, expiry);
+	}
 
 }
-
-/**
- * blk_add_timer - Start timeout timer for a single request
- * @req:	request that is about to start running.
- *
- * Notes:
- *    Each request has its own timer, and as it is added to the queue, we
- *    set up the timer. When the request completes, we cancel the timer.
- */
-void blk_add_timer(struct request *req)
-{
-	__blk_add_timer(req, &req->q->timeout_list);
-}
-

@@ -9,6 +9,9 @@
 /* Number of requests a "batching" process may submit */
 #define BLK_BATCH_REQ	32
 
+/* Max future timer expiry for timeouts */
+#define BLK_MAX_TIMEOUT		(5 * HZ)
+
 extern struct kmem_cache *blk_requestq_cachep;
 extern struct kmem_cache *request_cachep;
 extern struct kobj_type blk_queue_ktype;
@@ -37,9 +40,9 @@ bool __blk_end_bidi_request(struct request *rq, int error,
 void blk_rq_timed_out_timer(unsigned long data);
 void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout,
 			  unsigned int *next_set);
-void __blk_add_timer(struct request *req, struct list_head *timeout_list);
+unsigned long blk_rq_timeout(unsigned long timeout);
+void blk_add_timer(struct request *req);
 void blk_delete_timer(struct request *);
-void blk_add_timer(struct request *);
 
 
 bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
@@ -184,6 +187,8 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 {
 	return q->nr_congestion_off;
 }
+
+extern int blk_update_nr_requests(struct request_queue *, unsigned int);
 
 /*
  * Contribute to IO statistics IFF:
