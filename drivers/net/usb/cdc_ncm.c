@@ -127,53 +127,7 @@ static void cdc_ncm_get_strings(struct net_device __always_unused *netdev, u32 s
 	}
 }
 
-static int cdc_ncm_get_coalesce(struct net_device *netdev,
-				struct ethtool_coalesce *ec)
-{
-	struct usbnet *dev = netdev_priv(netdev);
-	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
-
-	/* assuming maximum sized dgrams and ignoring NDPs */
-	ec->rx_max_coalesced_frames = ctx->rx_max / ctx->max_datagram_size;
-	ec->tx_max_coalesced_frames = ctx->tx_max / ctx->max_datagram_size;
-
-	/* the timer will fire CDC_NCM_TIMER_PENDING_CNT times in a row */
-	ec->tx_coalesce_usecs = ctx->timer_interval / (NSEC_PER_USEC / CDC_NCM_TIMER_PENDING_CNT);
-	return 0;
-}
-
 static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx);
-
-static int cdc_ncm_set_coalesce(struct net_device *netdev,
-				struct ethtool_coalesce *ec)
-{
-	struct usbnet *dev = netdev_priv(netdev);
-	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
-	u32 new_rx_max = ctx->rx_max;
-	u32 new_tx_max = ctx->tx_max;
-
-	/* assuming maximum sized dgrams and a single NDP */
-	if (ec->rx_max_coalesced_frames)
-		new_rx_max = ec->rx_max_coalesced_frames * ctx->max_datagram_size;
-	if (ec->tx_max_coalesced_frames)
-		new_tx_max = ec->tx_max_coalesced_frames * ctx->max_datagram_size;
-
-	if (ec->tx_coalesce_usecs &&
-	    (ec->tx_coalesce_usecs < CDC_NCM_TIMER_INTERVAL_MIN * CDC_NCM_TIMER_PENDING_CNT ||
-	     ec->tx_coalesce_usecs > CDC_NCM_TIMER_INTERVAL_MAX * CDC_NCM_TIMER_PENDING_CNT))
-		return -EINVAL;
-
-	spin_lock_bh(&ctx->mtx);
-	ctx->timer_interval = ec->tx_coalesce_usecs * (NSEC_PER_USEC / CDC_NCM_TIMER_PENDING_CNT);
-	if (!ctx->timer_interval)
-		ctx->tx_timer_pending = 0;
-	spin_unlock_bh(&ctx->mtx);
-
-	/* inform device of new values */
-	if (new_rx_max != ctx->rx_max || new_tx_max != ctx->tx_max)
-		cdc_ncm_update_rxtx_max(dev, new_rx_max, new_tx_max);
-	return 0;
-}
 
 static const struct ethtool_ops cdc_ncm_ethtool_ops = {
 	.get_settings      = usbnet_get_settings,
@@ -187,15 +141,11 @@ static const struct ethtool_ops cdc_ncm_ethtool_ops = {
 	.get_sset_count    = cdc_ncm_get_sset_count,
 	.get_strings       = cdc_ncm_get_strings,
 	.get_ethtool_stats = cdc_ncm_get_ethtool_stats,
-	.get_coalesce      = cdc_ncm_get_coalesce,
-	.set_coalesce      = cdc_ncm_set_coalesce,
 };
 
-/* handle rx_max and tx_max changes */
-static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
+static u32 cdc_ncm_check_rx_max(struct usbnet *dev, u32 new_rx)
 {
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
-	u8 iface_no = ctx->control->cur_altsetting->desc.bInterfaceNumber;
 	u32 val, max, min;
 
 	/* clamp new_rx to sane values */
@@ -210,23 +160,186 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 	}
 
 	val = clamp_t(u32, new_rx, min, max);
-	if (val != new_rx) {
-		dev_dbg(&dev->intf->dev, "rx_max must be in the [%u, %u] range. Using %u\n",
-			min, max, val);
-	}
+	if (val != new_rx)
+		dev_dbg(&dev->intf->dev, "rx_max must be in the [%u, %u] range\n", min, max);
 
-	/* usbnet use these values for sizing rx queues */
-	dev->rx_urb_size = val;
+	return val;
+}
+
+static u32 cdc_ncm_check_tx_max(struct usbnet *dev, u32 new_tx)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	u32 val, max, min;
+
+	/* clamp new_tx to sane values */
+	min = ctx->max_datagram_size + ctx->max_ndp_size + sizeof(struct usb_cdc_ncm_nth16);
+	max = min_t(u32, CDC_NCM_NTB_MAX_SIZE_TX, le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize));
+
+	/* some devices set dwNtbOutMaxSize too low for the above default */
+	min = min(min, max);
+
+	val = clamp_t(u32, new_tx, min, max);
+	if (val != new_tx)
+		dev_dbg(&dev->intf->dev, "tx_max must be in the [%u, %u] range\n", min, max);
+
+	return val;
+}
+
+static ssize_t cdc_ncm_show_min_tx_pkt(struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+
+	return sprintf(buf, "%u\n", ctx->min_tx_pkt);
+}
+
+static ssize_t cdc_ncm_show_rx_max(struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+
+	return sprintf(buf, "%u\n", ctx->rx_max);
+}
+
+static ssize_t cdc_ncm_show_tx_max(struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+
+	return sprintf(buf, "%u\n", ctx->tx_max);
+}
+
+static ssize_t cdc_ncm_show_tx_timer_usecs(struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+
+	return sprintf(buf, "%u\n", ctx->timer_interval / (u32)NSEC_PER_USEC);
+}
+
+static ssize_t cdc_ncm_store_min_tx_pkt(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	unsigned long val;
+
+	/* no need to restrict values - anything from 0 to infinity is OK */
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	ctx->min_tx_pkt = val;
+	return len;
+}
+
+static ssize_t cdc_ncm_store_rx_max(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) || cdc_ncm_check_rx_max(dev, val) != val)
+		return -EINVAL;
+
+	cdc_ncm_update_rxtx_max(dev, val, ctx->tx_max);
+	return len;
+}
+
+static ssize_t cdc_ncm_store_tx_max(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) || cdc_ncm_check_tx_max(dev, val) != val)
+		return -EINVAL;
+
+	cdc_ncm_update_rxtx_max(dev, ctx->rx_max, val);
+	return len;
+}
+
+static ssize_t cdc_ncm_store_tx_timer_usecs(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	ssize_t ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return ret;
+	if (val && (val < CDC_NCM_TIMER_INTERVAL_MIN || val > CDC_NCM_TIMER_INTERVAL_MAX))
+		return -EINVAL;
+
+	spin_lock_bh(&ctx->mtx);
+	ctx->timer_interval = val * NSEC_PER_USEC;
+	if (!ctx->timer_interval)
+		ctx->tx_timer_pending = 0;
+	spin_unlock_bh(&ctx->mtx);
+	return len;
+}
+
+static DEVICE_ATTR(min_tx_pkt, S_IRUGO | S_IWUSR, cdc_ncm_show_min_tx_pkt, cdc_ncm_store_min_tx_pkt);
+static DEVICE_ATTR(rx_max, S_IRUGO | S_IWUSR, cdc_ncm_show_rx_max, cdc_ncm_store_rx_max);
+static DEVICE_ATTR(tx_max, S_IRUGO | S_IWUSR, cdc_ncm_show_tx_max, cdc_ncm_store_tx_max);
+static DEVICE_ATTR(tx_timer_usecs, S_IRUGO | S_IWUSR, cdc_ncm_show_tx_timer_usecs, cdc_ncm_store_tx_timer_usecs);
+
+#define NCM_PARM_ATTR(name, format, tocpu)				\
+static ssize_t cdc_ncm_show_##name(struct device *d, struct device_attribute *attr, char *buf) \
+{ \
+	struct usbnet *dev = netdev_priv(to_net_dev(d)); \
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0]; \
+	return sprintf(buf, format "\n", tocpu(ctx->ncm_parm.name));	\
+} \
+static DEVICE_ATTR(name, S_IRUGO, cdc_ncm_show_##name, NULL)
+
+NCM_PARM_ATTR(bmNtbFormatsSupported, "0x%04x", le16_to_cpu);
+NCM_PARM_ATTR(dwNtbInMaxSize, "%u", le32_to_cpu);
+NCM_PARM_ATTR(wNdpInDivisor, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNdpInPayloadRemainder, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNdpInAlignment, "%u", le16_to_cpu);
+NCM_PARM_ATTR(dwNtbOutMaxSize, "%u", le32_to_cpu);
+NCM_PARM_ATTR(wNdpOutDivisor, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNdpOutPayloadRemainder, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNdpOutAlignment, "%u", le16_to_cpu);
+NCM_PARM_ATTR(wNtbOutMaxDatagrams, "%u", le16_to_cpu);
+
+static struct attribute *cdc_ncm_sysfs_attrs[] = {
+	&dev_attr_min_tx_pkt.attr,
+	&dev_attr_rx_max.attr,
+	&dev_attr_tx_max.attr,
+	&dev_attr_tx_timer_usecs.attr,
+	&dev_attr_bmNtbFormatsSupported.attr,
+	&dev_attr_dwNtbInMaxSize.attr,
+	&dev_attr_wNdpInDivisor.attr,
+	&dev_attr_wNdpInPayloadRemainder.attr,
+	&dev_attr_wNdpInAlignment.attr,
+	&dev_attr_dwNtbOutMaxSize.attr,
+	&dev_attr_wNdpOutDivisor.attr,
+	&dev_attr_wNdpOutPayloadRemainder.attr,
+	&dev_attr_wNdpOutAlignment.attr,
+	&dev_attr_wNtbOutMaxDatagrams.attr,
+	NULL,
+};
+
+static struct attribute_group cdc_ncm_sysfs_attr_group = {
+	.name = "cdc_ncm",
+	.attrs = cdc_ncm_sysfs_attrs,
+};
+
+/* handle rx_max and tx_max changes */
+static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	u8 iface_no = ctx->control->cur_altsetting->desc.bInterfaceNumber;
+	u32 val;
+
+	val = cdc_ncm_check_rx_max(dev, new_rx);
 
 	/* inform device about NTB input size changes */
 	if (val != ctx->rx_max) {
 		__le32 dwNtbInMaxSize = cpu_to_le32(val);
 
 		dev_info(&dev->intf->dev, "setting rx_max = %u\n", val);
-
-		/* need to unlink rx urbs before increasing buffer size */
-		if (netif_running(dev->net) && dev->rx_urb_size > ctx->rx_max)
-			usbnet_unlink_rx_urbs(dev);
 
 		/* tell device to use new size */
 		if (usbnet_write_cmd(dev, USB_CDC_SET_NTB_INPUT_SIZE,
@@ -238,18 +351,14 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 			ctx->rx_max = val;
 	}
 
-	/* clamp new_tx to sane values */
-	min = ctx->max_datagram_size + ctx->max_ndp_size + sizeof(struct usb_cdc_ncm_nth16);
-	max = min_t(u32, CDC_NCM_NTB_MAX_SIZE_TX, le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize));
-
-	/* some devices set dwNtbOutMaxSize too low for the above default */
-	min = min(min, max);
-
-	val = clamp_t(u32, new_tx, min, max);
-	if (val != new_tx) {
-		dev_dbg(&dev->intf->dev, "tx_max must be in the [%u, %u] range. Using %u\n",
-			min, max, val);
+	/* usbnet use these values for sizing rx queues */
+	if (dev->rx_urb_size != ctx->rx_max) {
+		dev->rx_urb_size = ctx->rx_max;
+		if (netif_running(dev->net))
+			usbnet_unlink_rx_urbs(dev);
 	}
+
+	val = cdc_ncm_check_tx_max(dev, new_tx);
 	if (val != ctx->tx_max)
 		dev_info(&dev->intf->dev, "setting tx_max = %u\n", val);
 
@@ -268,6 +377,11 @@ static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx)
 	if (netif_running(dev->net) && val > ctx->tx_max) {
 		netif_tx_lock_bh(dev->net);
 		usbnet_start_xmit(NULL, dev->net);
+		/* make sure tx_curr_skb is reallocated if it was empty */
+		if (ctx->tx_curr_skb) {
+			dev_kfree_skb_any(ctx->tx_curr_skb);
+			ctx->tx_curr_skb = NULL;
+		}
 		ctx->tx_max = val;
 		netif_tx_unlock_bh(dev->net);
 	} else {
@@ -743,6 +857,9 @@ advance:
 
 	/* override ethtool_ops */
 	dev->net->ethtool_ops = &cdc_ncm_ethtool_ops;
+
+	/* add our sysfs attrs */
+	dev->net->sysfs_groups[0] = &cdc_ncm_sysfs_attr_group;
 
 	return 0;
 
@@ -1289,12 +1406,11 @@ next_ndp:
 			break;
 
 		} else {
-			skb = skb_clone(skb_in, GFP_ATOMIC);
+			/* create a fresh copy to reduce truesize */
+			skb = netdev_alloc_skb_ip_align(dev->net,  len);
 			if (!skb)
 				goto error;
-			skb->len = len;
-			skb->data = ((u8 *)skb_in->data) + offset;
-			skb_set_tail_pointer(skb, len);
+			memcpy(skb_put(skb, len), skb_in->data + offset, len);
 			usbnet_skb_return(dev, skb);
 			payload += len;	/* count payload bytes in this NTB */
 		}
