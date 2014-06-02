@@ -141,17 +141,15 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	rdc321x_gpio_dev = kzalloc(sizeof(struct rdc321x_gpio), GFP_KERNEL);
-	if (!rdc321x_gpio_dev) {
-		dev_err(&pdev->dev, "failed to allocate private data\n");
+	rdc321x_gpio_dev = devm_kzalloc(&pdev->dev, sizeof(struct rdc321x_gpio),
+					GFP_KERNEL);
+	if (!rdc321x_gpio_dev)
 		return -ENOMEM;
-	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg1");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get gpio-reg1 resource\n");
-		err = -ENODEV;
-		goto out_free;
+		return -ENODEV;
 	}
 
 	spin_lock_init(&rdc321x_gpio_dev->lock);
@@ -162,8 +160,7 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg2");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get gpio-reg2 resource\n");
-		err = -ENODEV;
-		goto out_free;
+		return -ENODEV;
 	}
 
 	rdc321x_gpio_dev->reg2_ctrl_base = r->start;
@@ -187,21 +184,17 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 					rdc321x_gpio_dev->reg1_data_base,
 					&rdc321x_gpio_dev->data_reg[0]);
 	if (err)
-		goto out_free;
+		return err;
 
 	err = pci_read_config_dword(rdc321x_gpio_dev->sb_pdev,
 					rdc321x_gpio_dev->reg2_data_base,
 					&rdc321x_gpio_dev->data_reg[1]);
 	if (err)
-		goto out_free;
+		return err;
 
 	dev_info(&pdev->dev, "registering %d GPIOs\n",
 					rdc321x_gpio_dev->chip.ngpio);
 	return gpiochip_add(&rdc321x_gpio_dev->chip);
-
-out_free:
-	kfree(rdc321x_gpio_dev);
-	return err;
 }
 
 static int rdc321x_gpio_remove(struct platform_device *pdev)
@@ -212,8 +205,6 @@ static int rdc321x_gpio_remove(struct platform_device *pdev)
 	ret = gpiochip_remove(&rdc321x_gpio_dev->chip);
 	if (ret)
 		dev_err(&pdev->dev, "failed to unregister chip\n");
-
-	kfree(rdc321x_gpio_dev);
 
 	return ret;
 }

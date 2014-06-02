@@ -15,6 +15,8 @@
 #include <linux/err.h>
 #include <linux/device.h>
 
+enum of_gpio_flags;
+
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
@@ -45,5 +47,8 @@ acpi_get_gpiod_by_index(struct device *dev, int index,
 
 int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
+
+struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
+		   const char *list_name, int index, enum of_gpio_flags *flags);
 
 #endif /* GPIOLIB_H */

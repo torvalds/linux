@@ -48,7 +48,7 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 	if (ret < 0)
 		return false;
 
-	gg_data->out_gpio = gpio_to_desc(ret + gc->base);
+	gg_data->out_gpio = gpiochip_get_desc(gc, ret);
 	return true;
 }
 
@@ -95,6 +95,20 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	return gg_data.out_gpio;
 }
 EXPORT_SYMBOL(of_get_named_gpiod_flags);
+
+int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
+			    int index, enum of_gpio_flags *flags)
+{
+	struct gpio_desc *desc;
+
+	desc = of_get_named_gpiod_flags(np, list_name, index, flags);
+
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+	else
+		return desc_to_gpio(desc);
+}
+EXPORT_SYMBOL(of_get_named_gpio_flags);
 
 /**
  * of_gpio_simple_xlate - translate gpio_spec to the GPIO number and flags
