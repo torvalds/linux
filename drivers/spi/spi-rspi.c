@@ -463,30 +463,67 @@ static void rspi_dma_complete(void *arg)
 	wake_up_interruptible(&rspi->wait);
 }
 
-static int rspi_send_dma(struct rspi_data *rspi, struct sg_table *tx)
+static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
+			     struct sg_table *rx)
 {
-	struct dma_async_tx_descriptor *desc;
+	struct dma_async_tx_descriptor *desc_tx = NULL, *desc_rx = NULL;
+	u8 irq_mask = 0;
+	unsigned int other_irq = 0;
+	dma_cookie_t cookie;
 	int ret;
 
-	desc = dmaengine_prep_slave_sg(rspi->master->dma_tx, tx->sgl,
-				       tx->nents, DMA_TO_DEVICE,
-				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc)
-		return -EIO;
+	if (tx) {
+		desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx,
+					tx->sgl, tx->nents, DMA_TO_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_tx)
+			return -EIO;
+
+		irq_mask |= SPCR_SPTIE;
+	}
+	if (rx) {
+		desc_rx = dmaengine_prep_slave_sg(rspi->master->dma_rx,
+					rx->sgl, rx->nents, DMA_FROM_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_rx)
+			return -EIO;
+
+		irq_mask |= SPCR_SPRIE;
+	}
 
 	/*
-	 * DMAC needs SPTIE, but if SPTIE is set, this IRQ routine will be
+	 * DMAC needs SPxIE, but if SPxIE is set, the IRQ routine will be
 	 * called. So, this driver disables the IRQ while DMA transfer.
 	 */
-	disable_irq(rspi->tx_irq);
+	if (tx)
+		disable_irq(other_irq = rspi->tx_irq);
+	if (rx && rspi->rx_irq != other_irq)
+		disable_irq(rspi->rx_irq);
 
-	rspi_enable_irq(rspi, SPCR_SPTIE);
+	rspi_enable_irq(rspi, irq_mask);
 	rspi->dma_callbacked = 0;
 
-	desc->callback = rspi_dma_complete;
-	desc->callback_param = rspi;
-	dmaengine_submit(desc);
-	dma_async_issue_pending(rspi->master->dma_tx);
+	if (rx) {
+		desc_rx->callback = rspi_dma_complete;
+		desc_rx->callback_param = rspi;
+		cookie = dmaengine_submit(desc_rx);
+		if (dma_submit_error(cookie))
+			return cookie;
+		dma_async_issue_pending(rspi->master->dma_rx);
+	}
+	if (tx) {
+		if (rx) {
+			/* No callback */
+			desc_tx->callback = NULL;
+		} else {
+			desc_tx->callback = rspi_dma_complete;
+			desc_tx->callback_param = rspi;
+		}
+		cookie = dmaengine_submit(desc_tx);
+		if (dma_submit_error(cookie))
+			return cookie;
+		dma_async_issue_pending(rspi->master->dma_tx);
+	}
 
 	ret = wait_event_interruptible_timeout(rspi->wait,
 					       rspi->dma_callbacked, HZ);
@@ -494,9 +531,14 @@ static int rspi_send_dma(struct rspi_data *rspi, struct sg_table *tx)
 		ret = 0;
 	else if (!ret)
 		ret = -ETIMEDOUT;
-	rspi_disable_irq(rspi, SPCR_SPTIE);
 
-	enable_irq(rspi->tx_irq);
+	rspi_disable_irq(rspi, irq_mask);
+
+	if (tx)
+		enable_irq(rspi->tx_irq);
+	if (rx && rspi->rx_irq != other_irq)
+		enable_irq(rspi->rx_irq);
+
 	return ret;
 }
 
@@ -530,61 +572,6 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 	rspi_write8(rspi, 0, QSPI_SPBFCR);
 }
 
-static int rspi_send_receive_dma(struct rspi_data *rspi, struct sg_table *tx,
-				 struct sg_table *rx)
-{
-	struct dma_async_tx_descriptor *desc_tx, *desc_rx;
-	int ret;
-
-	/* prepare transmit transfer */
-	desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx, tx->sgl,
-					  tx->nents, DMA_TO_DEVICE,
-					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc_tx)
-		return -EIO;
-
-	/* prepare receive transfer */
-	desc_rx = dmaengine_prep_slave_sg(rspi->master->dma_rx, rx->sgl,
-					  rx->nents, DMA_FROM_DEVICE,
-					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc_rx)
-		return -EIO;
-
-	/*
-	 * DMAC needs SPTIE, but if SPTIE is set, this IRQ routine will be
-	 * called. So, this driver disables the IRQ while DMA transfer.
-	 */
-	disable_irq(rspi->tx_irq);
-	if (rspi->rx_irq != rspi->tx_irq)
-		disable_irq(rspi->rx_irq);
-
-	rspi_enable_irq(rspi, SPCR_SPTIE | SPCR_SPRIE);
-	rspi->dma_callbacked = 0;
-
-	desc_rx->callback = rspi_dma_complete;
-	desc_rx->callback_param = rspi;
-	dmaengine_submit(desc_rx);
-	dma_async_issue_pending(rspi->master->dma_rx);
-
-	desc_tx->callback = NULL;	/* No callback */
-	dmaengine_submit(desc_tx);
-	dma_async_issue_pending(rspi->master->dma_tx);
-
-	ret = wait_event_interruptible_timeout(rspi->wait,
-					       rspi->dma_callbacked, HZ);
-	if (ret > 0 && rspi->dma_callbacked)
-		ret = 0;
-	else if (!ret)
-		ret = -ETIMEDOUT;
-	rspi_disable_irq(rspi, SPCR_SPTIE | SPCR_SPRIE);
-
-	enable_irq(rspi->tx_irq);
-	if (rspi->rx_irq != rspi->tx_irq)
-		enable_irq(rspi->rx_irq);
-
-	return ret;
-}
-
 static bool __rspi_can_dma(const struct rspi_data *rspi,
 			   const struct spi_transfer *xfer)
 {
@@ -615,13 +602,9 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 	}
 	rspi_write8(rspi, spcr, RSPI_SPCR);
 
-	if (master->can_dma && __rspi_can_dma(rspi, xfer)) {
-		if (xfer->rx_buf)
-			return rspi_send_receive_dma(rspi, &xfer->tx_sg,
-						     &xfer->rx_sg);
-		else
-			return rspi_send_dma(rspi, &xfer->tx_sg);
-	}
+	if (master->can_dma && __rspi_can_dma(rspi, xfer))
+		return rspi_dma_transfer(rspi, &xfer->tx_sg,
+					 xfer->rx_buf ? &xfer->rx_sg : NULL);
 
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, xfer->rx_buf, xfer->len);
 	if (ret < 0)
