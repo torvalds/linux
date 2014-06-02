@@ -6,7 +6,6 @@
 static struct amd_decoder_ops *fam_ops;
 
 static u8 xec_mask	 = 0xf;
-static u8 nb_err_cpumask = 0xf;
 
 static bool report_gart_errors;
 static void (*nb_bus_decoder)(int node_id, struct mce *m);
@@ -852,7 +851,6 @@ static int __init mce_amd_init(void)
 		break;
 
 	case 0x14:
-		nb_err_cpumask  = 0x3;
 		fam_ops->mc0_mce = cat_mc0_mce;
 		fam_ops->mc1_mce = cat_mc1_mce;
 		fam_ops->mc2_mce = k8_mc2_mce;
