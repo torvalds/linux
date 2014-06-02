@@ -1422,6 +1422,7 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	ulong desc_addr;
 	int ret;
 	u16 dummy;
+	u32 base3 = 0;
 
 	memset(&seg_desc, 0, sizeof seg_desc);
 
@@ -1538,9 +1539,14 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		ret = write_segment_descriptor(ctxt, selector, &seg_desc);
 		if (ret != X86EMUL_CONTINUE)
 			return ret;
+	} else if (ctxt->mode == X86EMUL_MODE_PROT64) {
+		ret = ctxt->ops->read_std(ctxt, desc_addr+8, &base3,
+				sizeof(base3), &ctxt->exception);
+		if (ret != X86EMUL_CONTINUE)
+			return ret;
 	}
 load:
-	ctxt->ops->set_segment(ctxt, selector, &seg_desc, 0, seg);
+	ctxt->ops->set_segment(ctxt, selector, &seg_desc, base3, seg);
 	return X86EMUL_CONTINUE;
 exception:
 	emulate_exception(ctxt, err_vec, err_code, true);
