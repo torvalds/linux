@@ -201,7 +201,6 @@ struct rspi_data {
 	struct dma_chan *chan_tx;
 	struct dma_chan *chan_rx;
 
-	unsigned dma_width_16bit:1;
 	unsigned dma_callbacked:1;
 	unsigned byte_access:1;
 };
@@ -475,60 +474,17 @@ static void rspi_dma_unmap_sg(struct scatterlist *sg, struct dma_chan *chan,
 	dma_unmap_sg(chan->device->dev, sg, 1, dir);
 }
 
-static void rspi_memory_to_8bit(void *buf, const void *data, unsigned len)
-{
-	u16 *dst = buf;
-	const u8 *src = data;
-
-	while (len) {
-		*dst++ = (u16)(*src++);
-		len--;
-	}
-}
-
-static void rspi_memory_from_8bit(void *buf, const void *data, unsigned len)
-{
-	u8 *dst = buf;
-	const u16 *src = data;
-
-	while (len) {
-		*dst++ = (u8)*src++;
-		len--;
-	}
-}
-
 static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	struct scatterlist sg;
-	const void *buf = NULL;
+	const void *buf = t->tx_buf;
 	struct dma_async_tx_descriptor *desc;
-	unsigned int len;
+	unsigned int len = t->len;
 	int ret = 0;
 
-	if (rspi->dma_width_16bit) {
-		void *tmp;
-		/*
-		 * If DMAC bus width is 16-bit, the driver allocates a dummy
-		 * buffer. And, the driver converts original data into the
-		 * DMAC data as the following format:
-		 *  original data: 1st byte, 2nd byte ...
-		 *  DMAC data:     1st byte, dummy, 2nd byte, dummy ...
-		 */
-		len = t->len * 2;
-		tmp = kmalloc(len, GFP_KERNEL);
-		if (!tmp)
-			return -ENOMEM;
-		rspi_memory_to_8bit(tmp, t->tx_buf, t->len);
-		buf = tmp;
-	} else {
-		len = t->len;
-		buf = t->tx_buf;
-	}
+	if (!rspi_dma_map_sg(&sg, buf, len, rspi->chan_tx, DMA_TO_DEVICE))
+		return -EFAULT;
 
-	if (!rspi_dma_map_sg(&sg, buf, len, rspi->chan_tx, DMA_TO_DEVICE)) {
-		ret = -EFAULT;
-		goto end_nomap;
-	}
 	desc = dmaengine_prep_slave_sg(rspi->chan_tx, &sg, 1, DMA_TO_DEVICE,
 				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
@@ -563,10 +519,6 @@ static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 
 end:
 	rspi_dma_unmap_sg(&sg, rspi->chan_tx, DMA_TO_DEVICE);
-end_nomap:
-	if (rspi->dma_width_16bit)
-		kfree(buf);
-
 	return ret;
 }
 
@@ -603,27 +555,10 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	struct scatterlist sg, sg_dummy;
-	void *dummy = NULL, *rx_buf = NULL;
+	void *dummy = NULL, *rx_buf = t->rx_buf;
 	struct dma_async_tx_descriptor *desc, *desc_dummy;
-	unsigned int len;
+	unsigned int len = t->len;
 	int ret = 0;
-
-	if (rspi->dma_width_16bit) {
-		/*
-		 * If DMAC bus width is 16-bit, the driver allocates a dummy
-		 * buffer. And, finally the driver converts the DMAC data into
-		 * actual data as the following format:
-		 *  DMAC data:   1st byte, dummy, 2nd byte, dummy ...
-		 *  actual data: 1st byte, 2nd byte ...
-		 */
-		len = t->len * 2;
-		rx_buf = kmalloc(len, GFP_KERNEL);
-		if (!rx_buf)
-			return -ENOMEM;
-	 } else {
-		len = t->len;
-		rx_buf = t->rx_buf;
-	}
 
 	/* prepare dummy transfer to generate SPI clocks */
 	dummy = kzalloc(len, GFP_KERNEL);
@@ -697,11 +632,6 @@ end:
 end_dummy_mapped:
 	rspi_dma_unmap_sg(&sg_dummy, rspi->chan_tx, DMA_TO_DEVICE);
 end_nomap:
-	if (rspi->dma_width_16bit) {
-		if (!ret)
-			rspi_memory_from_8bit(t->rx_buf, rx_buf, t->len);
-		kfree(rx_buf);
-	}
 	kfree(dummy);
 
 	return ret;
@@ -1072,8 +1002,6 @@ static int rspi_request_dma(struct rspi_data *rspi,
 
 	if (!res || !rspi_pd)
 		return 0;	/* The driver assumes no error. */
-
-	rspi->dma_width_16bit = rspi_pd->dma_width_16bit;
 
 	/* If the module receives data by DMAC, it also needs TX DMAC */
 	if (rspi_pd->dma_rx_id && rspi_pd->dma_tx_id) {
