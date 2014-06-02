@@ -1023,11 +1023,12 @@ EXPORT_SYMBOL_GPL(arizona_dev_init);
 
 int arizona_dev_exit(struct arizona *arizona)
 {
+	pm_runtime_disable(arizona->dev);
+
 	mfd_remove_devices(arizona->dev);
 	arizona_free_irq(arizona, ARIZONA_IRQ_UNDERCLOCKED, arizona);
 	arizona_free_irq(arizona, ARIZONA_IRQ_OVERCLOCKED, arizona);
 	arizona_free_irq(arizona, ARIZONA_IRQ_CLKGEN_ERR, arizona);
-	pm_runtime_disable(arizona->dev);
 	arizona_irq_exit(arizona);
 	if (arizona->pdata.reset)
 		gpio_set_value_cansleep(arizona->pdata.reset, 0);
