@@ -3944,15 +3944,14 @@ static int skd_acquire_msix(struct skd_device *skdev)
 	for (i = 0; i < SKD_MAX_MSIX_COUNT; i++)
 		entries[i].entry = i;
 
-	rc = pci_enable_msix_range(pdev, entries,
-				   SKD_MIN_MSIX_COUNT, SKD_MAX_MSIX_COUNT);
-	if (rc < 0) {
+	rc = pci_enable_msix_exact(pdev, entries, SKD_MAX_MSIX_COUNT);
+	if (rc) {
 		pr_err("(%s): failed to enable MSI-X %d\n",
 		       skd_name(skdev), rc);
 		goto msix_out;
 	}
 
-	skdev->msix_count = rc;
+	skdev->msix_count = SKD_MAX_MSIX_COUNT;
 	skdev->msix_entries = kzalloc(sizeof(struct skd_msix_entry) *
 				      skdev->msix_count, GFP_KERNEL);
 	if (!skdev->msix_entries) {

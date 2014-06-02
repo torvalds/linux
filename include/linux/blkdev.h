@@ -620,6 +620,15 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 
 #define rq_data_dir(rq)		(((rq)->cmd_flags & 1) != 0)
 
+/*
+ * Driver can handle struct request, if it either has an old style
+ * request_fn defined, or is blk-mq based.
+ */
+static inline bool queue_is_rq_based(struct request_queue *q)
+{
+	return q->request_fn || q->mq_ops;
+}
+
 static inline unsigned int blk_queue_cluster(struct request_queue *q)
 {
 	return q->limits.cluster;

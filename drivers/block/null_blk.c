@@ -203,8 +203,8 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 		entry = llist_reverse_order(entry);
 		do {
 			cmd = container_of(entry, struct nullb_cmd, ll_list);
-			end_cmd(cmd);
 			entry = entry->next;
+			end_cmd(cmd);
 		} while (entry);
 	}
 

@@ -1008,7 +1008,7 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 	/*
 	 * we need a proper transport to send commands, not a stacked device
 	 */
-	if (!q->request_fn)
+	if (!queue_is_rq_based(q))
 		return 0;
 
 	bcd = &q->bsg_dev;
