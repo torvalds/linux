@@ -518,6 +518,35 @@ char * __init xen_memory_setup(void)
 }
 
 /*
+ * Machine specific memory setup for auto-translated guests.
+ */
+char * __init xen_auto_xlated_memory_setup(void)
+{
+	static struct e820entry map[E820MAX] __initdata;
+
+	struct xen_memory_map memmap;
+	int i;
+	int rc;
+
+	memmap.nr_entries = E820MAX;
+	set_xen_guest_handle(memmap.buffer, map);
+
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc < 0)
+		panic("No memory map (%d)\n", rc);
+
+	sanitize_e820_map(map, ARRAY_SIZE(map), &memmap.nr_entries);
+
+	for (i = 0; i < memmap.nr_entries; i++)
+		e820_add_region(map[i].addr, map[i].size, map[i].type);
+
+	memblock_reserve(__pa(xen_start_info->mfn_list),
+			 xen_start_info->pt_base - xen_start_info->mfn_list);
+
+	return "Xen";
+}
+
+/*
  * Set the bit indicating "nosegneg" library variants should be used.
  * We only need to bother in pure 32-bit mode; compat 32-bit processes
  * can have un-truncated segments, so wrapping around is allowed.
