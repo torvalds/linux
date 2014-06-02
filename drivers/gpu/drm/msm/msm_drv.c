@@ -220,7 +220,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		 * is bogus, but non-null if allocation succeeded:
 		 */
 		p = dma_alloc_attrs(dev->dev, size,
-				&priv->vram.paddr, 0, &attrs);
+				&priv->vram.paddr, GFP_KERNEL, &attrs);
 		if (!p) {
 			dev_err(dev->dev, "failed to allocate VRAM\n");
 			priv->vram.paddr = 0;
