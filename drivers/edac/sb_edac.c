@@ -176,8 +176,6 @@ static inline int sad_pkg(const struct interleave_pkg *table, u32 reg,
 
 #define SAD_CONTROL	0xf4
 
-#define NODE_ID(reg)		GET_BITFIELD(reg, 0, 2)
-
 /* Device 14 function 0 */
 
 static const u32 tad_dram_rule[] = {
@@ -303,6 +301,7 @@ struct sbridge_info {
 	const struct interleave_pkg *interleave_pkg;
 	u8		max_sad;
 	u8		max_interleave;
+	u8		(*get_node_id)(struct sbridge_pvt *pvt);
 	enum mem_type	(*get_memory_type)(struct sbridge_pvt *pvt);
 };
 
@@ -606,6 +605,13 @@ static enum mem_type get_memory_type(struct sbridge_pvt *pvt)
 	return mtype;
 }
 
+static u8 get_node_id(struct sbridge_pvt *pvt)
+{
+	u32 reg;
+	pci_read_config_dword(pvt->pci_br0, SAD_CONTROL, &reg);
+	return GET_BITFIELD(reg, 0, 2);
+}
+
 static inline u8 sad_pkg_socket(u8 pkg)
 {
 	/* on Ivy Bridge, nodeID is SASS, where A is HA and S is node id */
@@ -682,8 +688,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	pci_read_config_dword(pvt->pci_br0, SAD_TARGET, &reg);
 	pvt->sbridge_dev->source_id = SOURCE_ID(reg);
 
-	pci_read_config_dword(pvt->pci_br0, SAD_CONTROL, &reg);
-	pvt->sbridge_dev->node_id = NODE_ID(reg);
+	pvt->sbridge_dev->node_id = pvt->info.get_node_id(pvt);
 	edac_dbg(0, "mc#%d: Node ID: %d, source ID: %d\n",
 		 pvt->sbridge_dev->mc,
 		 pvt->sbridge_dev->node_id,
@@ -1987,6 +1992,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tohm = ibridge_get_tohm;
 		pvt->info.dram_rule = ibridge_dram_rule;
 		pvt->info.get_memory_type = get_memory_type;
+		pvt->info.get_node_id = get_node_id;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
@@ -2003,6 +2009,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_tohm = sbridge_get_tohm;
 		pvt->info.dram_rule = sbridge_dram_rule;
 		pvt->info.get_memory_type = get_memory_type;
+		pvt->info.get_node_id = get_node_id;
 		pvt->info.max_sad = ARRAY_SIZE(sbridge_dram_rule);
 		pvt->info.interleave_list = sbridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
