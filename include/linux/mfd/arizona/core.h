@@ -18,7 +18,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/arizona/pdata.h>
 
-#define ARIZONA_MAX_CORE_SUPPLIES 3
+#define ARIZONA_MAX_CORE_SUPPLIES 2
 
 enum arizona_type {
 	WM5102 = 1,
