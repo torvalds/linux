@@ -54,6 +54,7 @@
 #include <linux/of_net.h>
 #include <linux/regulator/consumer.h>
 #include <linux/if_vlan.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/cacheflush.h>
 
