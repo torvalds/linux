@@ -140,10 +140,10 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
 		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev))) {
 			/* TODO: is this still needed for NI+ ? */
-			p->relocs[i].domain =
+			p->relocs[i].prefered_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
-			p->relocs[i].alt_domain =
+			p->relocs[i].allowed_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
 			/* prioritize this over any other relocation */
@@ -158,10 +158,10 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 				return -EINVAL;
 			}
 
-			p->relocs[i].domain = domain;
+			p->relocs[i].prefered_domains = domain;
 			if (domain == RADEON_GEM_DOMAIN_VRAM)
 				domain |= RADEON_GEM_DOMAIN_GTT;
-			p->relocs[i].alt_domain = domain;
+			p->relocs[i].allowed_domains = domain;
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;

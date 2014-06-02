@@ -997,8 +997,8 @@ struct radeon_cs_reloc {
 	struct radeon_bo		*robj;
 	struct ttm_validate_buffer	tv;
 	uint64_t			gpu_offset;
-	unsigned			domain;
-	unsigned			alt_domain;
+	unsigned			prefered_domains;
+	unsigned			allowed_domains;
 	uint32_t			tiling_flags;
 	uint32_t			handle;
 };
