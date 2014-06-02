@@ -7,7 +7,6 @@
  *	Copyright (C) 2003 -- 2004 Greg Kroah-Hartman <greg@kroah.com>
  */
 
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/module.h>

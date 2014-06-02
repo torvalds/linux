@@ -250,7 +250,7 @@ int cpci_led_off(struct slot* slot)
  * Device configuration functions
  */
 
-int __ref cpci_configure_slot(struct slot *slot)
+int cpci_configure_slot(struct slot *slot)
 {
 	struct pci_dev *dev;
 	struct pci_bus *parent;
@@ -289,8 +289,7 @@ int __ref cpci_configure_slot(struct slot *slot)
 	list_for_each_entry(dev, &parent->devices, bus_list)
 		if (PCI_SLOT(dev->devfn) != PCI_SLOT(slot->devfn))
 			continue;
-		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
-		    (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS))
+		if (pci_is_bridge(dev))
 			pci_hp_add_bridge(dev);
 
 

@@ -156,15 +156,17 @@ static struct irq_chip dw_msi_irq_chip = {
 };
 
 /* MSI int handler */
-void dw_handle_msi_irq(struct pcie_port *pp)
+irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 {
 	unsigned long val;
 	int i, pos, irq;
+	irqreturn_t ret = IRQ_NONE;
 
 	for (i = 0; i < MAX_MSI_CTRLS; i++) {
 		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12, 4,
 				(u32 *)&val);
 		if (val) {
+			ret = IRQ_HANDLED;
 			pos = 0;
 			while ((pos = find_next_bit(&val, 32, pos)) != 32) {
 				irq = irq_find_mapping(pp->irq_domain,
@@ -177,6 +179,8 @@ void dw_handle_msi_irq(struct pcie_port *pp)
 			}
 		}
 	}
+
+	return ret;
 }
 
 void dw_pcie_msi_init(struct pcie_port *pp)

@@ -1288,13 +1288,10 @@ int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
 		if (p->flags & IORESOURCE_BUSY)
 			continue;
 
-		printk(KERN_WARNING "resource map sanity check conflict: "
-		       "0x%llx 0x%llx 0x%llx 0x%llx %s\n",
+		printk(KERN_WARNING "resource sanity check: requesting [mem %#010llx-%#010llx], which spans more than %s %pR\n",
 		       (unsigned long long)addr,
 		       (unsigned long long)(addr + size - 1),
-		       (unsigned long long)p->start,
-		       (unsigned long long)p->end,
-		       p->name);
+		       p->name, p);
 		err = -1;
 		break;
 	}

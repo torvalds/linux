@@ -1468,6 +1468,17 @@ void __weak pcibios_release_device(struct pci_dev *dev) {}
  */
 void __weak pcibios_disable_device (struct pci_dev *dev) {}
 
+/**
+ * pcibios_penalize_isa_irq - penalize an ISA IRQ
+ * @irq: ISA IRQ to penalize
+ * @active: IRQ active or not
+ *
+ * Permits the platform to provide architecture-specific functionality when
+ * penalizing ISA IRQs. This is the default implementation. Architecture
+ * implementations can override this.
+ */
+void __weak pcibios_penalize_isa_irq(int irq, int active) {}
+
 static void do_pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
@@ -3306,8 +3317,27 @@ static void pci_dev_unlock(struct pci_dev *dev)
 	pci_cfg_access_unlock(dev);
 }
 
+/**
+ * pci_reset_notify - notify device driver of reset
+ * @dev: device to be notified of reset
+ * @prepare: 'true' if device is about to be reset; 'false' if reset attempt
+ *           completed
+ *
+ * Must be called prior to device access being disabled and after device
+ * access is restored.
+ */
+static void pci_reset_notify(struct pci_dev *dev, bool prepare)
+{
+	const struct pci_error_handlers *err_handler =
+			dev->driver ? dev->driver->err_handler : NULL;
+	if (err_handler && err_handler->reset_notify)
+		err_handler->reset_notify(dev, prepare);
+}
+
 static void pci_dev_save_and_disable(struct pci_dev *dev)
 {
+	pci_reset_notify(dev, true);
+
 	/*
 	 * Wake-up device prior to save.  PM registers default to D0 after
 	 * reset and a simple register restore doesn't reliably return
@@ -3329,6 +3359,7 @@ static void pci_dev_save_and_disable(struct pci_dev *dev)
 static void pci_dev_restore(struct pci_dev *dev)
 {
 	pci_restore_state(dev);
+	pci_reset_notify(dev, false);
 }
 
 static int pci_dev_reset(struct pci_dev *dev, int probe)
@@ -3345,6 +3376,7 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 
 	return rc;
 }
+
 /**
  * __pci_reset_function - reset a PCI device function
  * @dev: PCI device to reset
@@ -4126,7 +4158,7 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
 	u16 cmd;
 	int rc;
 
-	WARN_ON((flags & PCI_VGA_STATE_CHANGE_DECODES) & (command_bits & ~(PCI_COMMAND_IO|PCI_COMMAND_MEMORY)));
+	WARN_ON((flags & PCI_VGA_STATE_CHANGE_DECODES) && (command_bits & ~(PCI_COMMAND_IO|PCI_COMMAND_MEMORY)));
 
 	/* ARCH specific VGA enables */
 	rc = pci_set_vga_state_arch(dev, decode, command_bits, flags);

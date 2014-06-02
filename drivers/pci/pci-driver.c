@@ -107,13 +107,33 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		subdevice=PCI_ANY_ID, class=0, class_mask=0;
 	unsigned long driver_data=0;
 	int fields=0;
-	int retval;
+	int retval = 0;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x %lx",
 			&vendor, &device, &subvendor, &subdevice,
 			&class, &class_mask, &driver_data);
 	if (fields < 2)
 		return -EINVAL;
+
+	if (fields != 7) {
+		struct pci_dev *pdev = kzalloc(sizeof(*pdev), GFP_KERNEL);
+		if (!pdev)
+			return -ENOMEM;
+
+		pdev->vendor = vendor;
+		pdev->device = device;
+		pdev->subsystem_vendor = subvendor;
+		pdev->subsystem_device = subdevice;
+		pdev->class = class;
+
+		if (pci_match_id(pdrv->id_table, pdev))
+			retval = -EEXIST;
+
+		kfree(pdev);
+
+		if (retval)
+			return retval;
+	}
 
 	/* Only accept driver_data values that match an existing id_table
 	   entry */
@@ -216,6 +236,13 @@ const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
 	return NULL;
 }
 
+static const struct pci_device_id pci_device_id_any = {
+	.vendor = PCI_ANY_ID,
+	.device = PCI_ANY_ID,
+	.subvendor = PCI_ANY_ID,
+	.subdevice = PCI_ANY_ID,
+};
+
 /**
  * pci_match_device - Tell if a PCI device structure has a matching PCI device id structure
  * @drv: the PCI driver to match against
@@ -229,18 +256,30 @@ static const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 						    struct pci_dev *dev)
 {
 	struct pci_dynid *dynid;
+	const struct pci_device_id *found_id = NULL;
+
+	/* When driver_override is set, only bind to the matching driver */
+	if (dev->driver_override && strcmp(dev->driver_override, drv->name))
+		return NULL;
 
 	/* Look at the dynamic ids first, before the static ones */
 	spin_lock(&drv->dynids.lock);
 	list_for_each_entry(dynid, &drv->dynids.list, node) {
 		if (pci_match_one_device(&dynid->id, dev)) {
-			spin_unlock(&drv->dynids.lock);
-			return &dynid->id;
+			found_id = &dynid->id;
+			break;
 		}
 	}
 	spin_unlock(&drv->dynids.lock);
 
-	return pci_match_id(drv->id_table, dev);
+	if (!found_id)
+		found_id = pci_match_id(drv->id_table, dev);
+
+	/* driver_override will always match, send a dummy id */
+	if (!found_id && dev->driver_override)
+		found_id = &pci_device_id_any;
+
+	return found_id;
 }
 
 struct drv_dev_and_id {
@@ -580,14 +619,14 @@ static void pci_pm_default_resume(struct pci_dev *pci_dev)
 {
 	pci_fixup_device(pci_fixup_resume, pci_dev);
 
-	if (!pci_is_bridge(pci_dev))
+	if (!pci_has_subordinate(pci_dev))
 		pci_enable_wake(pci_dev, PCI_D0, false);
 }
 
 static void pci_pm_default_suspend(struct pci_dev *pci_dev)
 {
 	/* Disable non-bridge devices without PM support */
-	if (!pci_is_bridge(pci_dev))
+	if (!pci_has_subordinate(pci_dev))
 		pci_disable_enabled_device(pci_dev);
 }
 
@@ -717,7 +756,7 @@ static int pci_pm_suspend_noirq(struct device *dev)
 
 	if (!pci_dev->state_saved) {
 		pci_save_state(pci_dev);
-		if (!pci_is_bridge(pci_dev))
+		if (!pci_has_subordinate(pci_dev))
 			pci_prepare_to_sleep(pci_dev);
 	}
 
@@ -971,7 +1010,7 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 			return error;
 	}
 
-	if (!pci_dev->state_saved && !pci_is_bridge(pci_dev))
+	if (!pci_dev->state_saved && !pci_has_subordinate(pci_dev))
 		pci_prepare_to_sleep(pci_dev);
 
 	/*
@@ -1325,8 +1364,6 @@ static int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return -ENODEV;
 
 	pdev = to_pci_dev(dev);
-	if (!pdev)
-		return -ENODEV;
 
 	if (add_uevent_var(env, "PCI_CLASS=%04X", pdev->class))
 		return -ENOMEM;
@@ -1347,6 +1384,7 @@ static int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
 			   (u8)(pdev->class >> 16), (u8)(pdev->class >> 8),
 			   (u8)(pdev->class)))
 		return -ENOMEM;
+
 	return 0;
 }
 

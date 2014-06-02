@@ -9,16 +9,76 @@ This is a guide to device driver writers on how to use the DMA API
 with example pseudo-code.  For a concise description of the API, see
 DMA-API.txt.
 
-Most of the 64bit platforms have special hardware that translates bus
-addresses (DMA addresses) into physical addresses.  This is similar to
-how page tables and/or a TLB translates virtual addresses to physical
-addresses on a CPU.  This is needed so that e.g. PCI devices can
-access with a Single Address Cycle (32bit DMA address) any page in the
-64bit physical address space.  Previously in Linux those 64bit
-platforms had to set artificial limits on the maximum RAM size in the
-system, so that the virt_to_bus() static scheme works (the DMA address
-translation tables were simply filled on bootup to map each bus
-address to the physical page __pa(bus_to_virt())).
+                       CPU and DMA addresses
+
+There are several kinds of addresses involved in the DMA API, and it's
+important to understand the differences.
+
+The kernel normally uses virtual addresses.  Any address returned by
+kmalloc(), vmalloc(), and similar interfaces is a virtual address and can
+be stored in a "void *".
+
+The virtual memory system (TLB, page tables, etc.) translates virtual
+addresses to CPU physical addresses, which are stored as "phys_addr_t" or
+"resource_size_t".  The kernel manages device resources like registers as
+physical addresses.  These are the addresses in /proc/iomem.  The physical
+address is not directly useful to a driver; it must use ioremap() to map
+the space and produce a virtual address.
+
+I/O devices use a third kind of address: a "bus address" or "DMA address".
+If a device has registers at an MMIO address, or if it performs DMA to read
+or write system memory, the addresses used by the device are bus addresses.
+In some systems, bus addresses are identical to CPU physical addresses, but
+in general they are not.  IOMMUs and host bridges can produce arbitrary
+mappings between physical and bus addresses.
+
+Here's a picture and some examples:
+
+               CPU                  CPU                  Bus
+             Virtual              Physical             Address
+             Address              Address               Space
+              Space                Space
+
+            +-------+             +------+             +------+
+            |       |             |MMIO  |   Offset    |      |
+            |       |  Virtual    |Space |   applied   |      |
+          C +-------+ --------> B +------+ ----------> +------+ A
+            |       |  mapping    |      |   by host   |      |
+  +-----+   |       |             |      |   bridge    |      |   +--------+
+  |     |   |       |             +------+             |      |   |        |
+  | CPU |   |       |             | RAM  |             |      |   | Device |
+  |     |   |       |             |      |             |      |   |        |
+  +-----+   +-------+             +------+             +------+   +--------+
+            |       |  Virtual    |Buffer|   Mapping   |      |
+          X +-------+ --------> Y +------+ <---------- +------+ Z
+            |       |  mapping    | RAM  |   by IOMMU
+            |       |             |      |
+            |       |             |      |
+            +-------+             +------+
+
+During the enumeration process, the kernel learns about I/O devices and
+their MMIO space and the host bridges that connect them to the system.  For
+example, if a PCI device has a BAR, the kernel reads the bus address (A)
+from the BAR and converts it to a CPU physical address (B).  The address B
+is stored in a struct resource and usually exposed via /proc/iomem.  When a
+driver claims a device, it typically uses ioremap() to map physical address
+B at a virtual address (C).  It can then use, e.g., ioread32(C), to access
+the device registers at bus address A.
+
+If the device supports DMA, the driver sets up a buffer using kmalloc() or
+a similar interface, which returns a virtual address (X).  The virtual
+memory system maps X to a physical address (Y) in system RAM.  The driver
+can use virtual address X to access the buffer, but the device itself
+cannot because DMA doesn't go through the CPU virtual memory system.
+
+In some simple systems, the device can do DMA directly to physical address
+Y.  But in many others, there is IOMMU hardware that translates bus
+addresses to physical addresses, e.g., it translates Z to Y.  This is part
+of the reason for the DMA API: the driver can give a virtual address X to
+an interface like dma_map_single(), which sets up any required IOMMU
+mapping and returns the bus address Z.  The driver then tells the device to
+do DMA to Z, and the IOMMU maps it to the buffer at address Y in system
+RAM.
 
 So that Linux can use the dynamic DMA mapping, it needs some help from the
 drivers, namely it has to take into account that DMA addresses should be
@@ -29,17 +89,17 @@ The following API will work of course even on platforms where no such
 hardware exists.
 
 Note that the DMA API works with any bus independent of the underlying
-microprocessor architecture. You should use the DMA API rather than
-the bus specific DMA API (e.g. pci_dma_*).
+microprocessor architecture. You should use the DMA API rather than the
+bus-specific DMA API, i.e., use the dma_map_*() interfaces rather than the
+pci_map_*() interfaces.
 
 First of all, you should make sure
 
 #include <linux/dma-mapping.h>
 
-is in your driver. This file will obtain for you the definition of the
-dma_addr_t (which can hold any valid DMA address for the platform)
-type which should be used everywhere you hold a DMA (bus) address
-returned from the DMA mapping functions.
+is in your driver, which provides the definition of dma_addr_t.  This type
+can hold any valid DMA or bus address for the platform and should be used
+everywhere you hold a DMA address returned from the DMA mapping functions.
 
 			 What memory is DMA'able?
 
@@ -123,9 +183,9 @@ Here, dev is a pointer to the device struct of your device, and mask
 is a bit mask describing which bits of an address your device
 supports.  It returns zero if your card can perform DMA properly on
 the machine given the address mask you provided.  In general, the
-device struct of your device is embedded in the bus specific device
-struct of your device.  For example, a pointer to the device struct of
-your PCI device is pdev->dev (pdev is a pointer to the PCI device
+device struct of your device is embedded in the bus-specific device
+struct of your device.  For example, &pdev->dev is a pointer to the
+device struct of a PCI device (pdev is a pointer to the PCI device
 struct of your device).
 
 If it returns non-zero, your device cannot perform DMA properly on
@@ -147,8 +207,7 @@ exactly why.
 The standard 32-bit addressing device would do something like this:
 
 	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32))) {
-		printk(KERN_WARNING
-		       "mydev: No suitable DMA available.\n");
+		dev_warn(dev, "mydev: No suitable DMA available\n");
 		goto ignore_this_device;
 	}
 
@@ -170,8 +229,7 @@ all 64-bits when accessing streaming DMA:
 	} else if (!dma_set_mask(dev, DMA_BIT_MASK(32))) {
 		using_dac = 0;
 	} else {
-		printk(KERN_WARNING
-		       "mydev: No suitable DMA available.\n");
+		dev_warn(dev, "mydev: No suitable DMA available\n");
 		goto ignore_this_device;
 	}
 
@@ -187,22 +245,20 @@ the case would look like this:
 		using_dac = 0;
 		consistent_using_dac = 0;
 	} else {
-		printk(KERN_WARNING
-		       "mydev: No suitable DMA available.\n");
+		dev_warn(dev, "mydev: No suitable DMA available\n");
 		goto ignore_this_device;
 	}
 
-The coherent coherent mask will always be able to set the same or a
-smaller mask as the streaming mask. However for the rare case that a
-device driver only uses consistent allocations, one would have to
-check the return value from dma_set_coherent_mask().
+The coherent mask will always be able to set the same or a smaller mask as
+the streaming mask. However for the rare case that a device driver only
+uses consistent allocations, one would have to check the return value from
+dma_set_coherent_mask().
 
 Finally, if your device can only drive the low 24-bits of
 address you might do something like:
 
 	if (dma_set_mask(dev, DMA_BIT_MASK(24))) {
-		printk(KERN_WARNING
-		       "mydev: 24-bit DMA addressing not available.\n");
+		dev_warn(dev, "mydev: 24-bit DMA addressing not available\n");
 		goto ignore_this_device;
 	}
 
@@ -232,14 +288,14 @@ Here is pseudo-code showing how this might be done:
 		card->playback_enabled = 1;
 	} else {
 		card->playback_enabled = 0;
-		printk(KERN_WARNING "%s: Playback disabled due to DMA limitations.\n",
+		dev_warn(dev, "%s: Playback disabled due to DMA limitations\n",
 		       card->name);
 	}
 	if (!dma_set_mask(dev, RECORD_ADDRESS_BITS)) {
 		card->record_enabled = 1;
 	} else {
 		card->record_enabled = 0;
-		printk(KERN_WARNING "%s: Record disabled due to DMA limitations.\n",
+		dev_warn(dev, "%s: Record disabled due to DMA limitations\n",
 		       card->name);
 	}
 
@@ -331,7 +387,7 @@ context with the GFP_ATOMIC flag.
 Size is the length of the region you want to allocate, in bytes.
 
 This routine will allocate RAM for that region, so it acts similarly to
-__get_free_pages (but takes size instead of a page order).  If your
+__get_free_pages() (but takes size instead of a page order).  If your
 driver needs regions sized smaller than a page, you may prefer using
 the dma_pool interface, described below.
 
@@ -343,11 +399,11 @@ the consistent DMA mask has been explicitly changed via
 dma_set_coherent_mask().  This is true of the dma_pool interface as
 well.
 
-dma_alloc_coherent returns two values: the virtual address which you
+dma_alloc_coherent() returns two values: the virtual address which you
 can use to access it from the CPU and dma_handle which you pass to the
 card.
 
-The cpu return address and the DMA bus master address are both
+The CPU virtual address and the DMA bus address are both
 guaranteed to be aligned to the smallest PAGE_SIZE order which
 is greater than or equal to the requested size.  This invariant
 exists (for example) to guarantee that if you allocate a chunk
@@ -359,13 +415,13 @@ To unmap and free such a DMA region, you call:
 	dma_free_coherent(dev, size, cpu_addr, dma_handle);
 
 where dev, size are the same as in the above call and cpu_addr and
-dma_handle are the values dma_alloc_coherent returned to you.
+dma_handle are the values dma_alloc_coherent() returned to you.
 This function may not be called in interrupt context.
 
 If your driver needs lots of smaller memory regions, you can write
-custom code to subdivide pages returned by dma_alloc_coherent,
+custom code to subdivide pages returned by dma_alloc_coherent(),
 or you can use the dma_pool API to do that.  A dma_pool is like
-a kmem_cache, but it uses dma_alloc_coherent not __get_free_pages.
+a kmem_cache, but it uses dma_alloc_coherent(), not __get_free_pages().
 Also, it understands common hardware constraints for alignment,
 like queue heads needing to be aligned on N byte boundaries.
 
@@ -373,37 +429,37 @@ Create a dma_pool like this:
 
 	struct dma_pool *pool;
 
-	pool = dma_pool_create(name, dev, size, align, alloc);
+	pool = dma_pool_create(name, dev, size, align, boundary);
 
 The "name" is for diagnostics (like a kmem_cache name); dev and size
 are as above.  The device's hardware alignment requirement for this
 type of data is "align" (which is expressed in bytes, and must be a
 power of two).  If your device has no boundary crossing restrictions,
-pass 0 for alloc; passing 4096 says memory allocated from this pool
+pass 0 for boundary; passing 4096 says memory allocated from this pool
 must not cross 4KByte boundaries (but at that time it may be better to
-go for dma_alloc_coherent directly instead).
+use dma_alloc_coherent() directly instead).
 
-Allocate memory from a dma pool like this:
+Allocate memory from a DMA pool like this:
 
 	cpu_addr = dma_pool_alloc(pool, flags, &dma_handle);
 
-flags are SLAB_KERNEL if blocking is permitted (not in_interrupt nor
-holding SMP locks), SLAB_ATOMIC otherwise.  Like dma_alloc_coherent,
+flags are GFP_KERNEL if blocking is permitted (not in_interrupt nor
+holding SMP locks), GFP_ATOMIC otherwise.  Like dma_alloc_coherent(),
 this returns two values, cpu_addr and dma_handle.
 
 Free memory that was allocated from a dma_pool like this:
 
 	dma_pool_free(pool, cpu_addr, dma_handle);
 
-where pool is what you passed to dma_pool_alloc, and cpu_addr and
-dma_handle are the values dma_pool_alloc returned. This function
+where pool is what you passed to dma_pool_alloc(), and cpu_addr and
+dma_handle are the values dma_pool_alloc() returned. This function
 may be called in interrupt context.
 
 Destroy a dma_pool by calling:
 
 	dma_pool_destroy(pool);
 
-Make sure you've called dma_pool_free for all memory allocated
+Make sure you've called dma_pool_free() for all memory allocated
 from a pool before you destroy the pool. This function may not
 be called in interrupt context.
 
@@ -418,7 +474,7 @@ one of the following values:
  DMA_FROM_DEVICE
  DMA_NONE
 
-One should provide the exact DMA direction if you know it.
+You should provide the exact DMA direction if you know it.
 
 DMA_TO_DEVICE means "from main memory to the device"
 DMA_FROM_DEVICE means "from the device to main memory"
@@ -489,14 +545,14 @@ and to unmap it:
 	dma_unmap_single(dev, dma_handle, size, direction);
 
 You should call dma_mapping_error() as dma_map_single() could fail and return
-error. Not all dma implementations support dma_mapping_error() interface.
+error. Not all DMA implementations support the dma_mapping_error() interface.
 However, it is a good practice to call dma_mapping_error() interface, which
 will invoke the generic mapping error check interface. Doing so will ensure
-that the mapping code will work correctly on all dma implementations without
+that the mapping code will work correctly on all DMA implementations without
 any dependency on the specifics of the underlying implementation. Using the
 returned address without checking for errors could result in failures ranging
 from panics to silent data corruption. A couple of examples of incorrect ways
-to check for errors that make assumptions about the underlying dma
+to check for errors that make assumptions about the underlying DMA
 implementation are as follows and these are applicable to dma_map_page() as
 well.
 
@@ -516,13 +572,13 @@ Incorrect example 2:
 		goto map_error;
 	}
 
-You should call dma_unmap_single when the DMA activity is finished, e.g.
+You should call dma_unmap_single() when the DMA activity is finished, e.g.,
 from the interrupt which told you that the DMA transfer is done.
 
-Using cpu pointers like this for single mappings has a disadvantage,
+Using CPU pointers like this for single mappings has a disadvantage:
 you cannot reference HIGHMEM memory in this way.  Thus, there is a
-map/unmap interface pair akin to dma_{map,unmap}_single.  These
-interfaces deal with page/offset pairs instead of cpu pointers.
+map/unmap interface pair akin to dma_{map,unmap}_single().  These
+interfaces deal with page/offset pairs instead of CPU pointers.
 Specifically:
 
 	struct device *dev = &my_dev->dev;
@@ -550,7 +606,7 @@ Here, "offset" means byte offset within the given page.
 You should call dma_mapping_error() as dma_map_page() could fail and return
 error as outlined under the dma_map_single() discussion.
 
-You should call dma_unmap_page when the DMA activity is finished, e.g.
+You should call dma_unmap_page() when the DMA activity is finished, e.g.,
 from the interrupt which told you that the DMA transfer is done.
 
 With scatterlists, you map a region gathered from several regions by:
@@ -588,18 +644,16 @@ PLEASE NOTE:  The 'nents' argument to the dma_unmap_sg call must be
 	      it should _NOT_ be the 'count' value _returned_ from the
               dma_map_sg call.
 
-Every dma_map_{single,sg} call should have its dma_unmap_{single,sg}
-counterpart, because the bus address space is a shared resource (although
-in some ports the mapping is per each BUS so less devices contend for the
-same bus address space) and you could render the machine unusable by eating
-all bus addresses.
+Every dma_map_{single,sg}() call should have its dma_unmap_{single,sg}()
+counterpart, because the bus address space is a shared resource and
+you could render the machine unusable by consuming all bus addresses.
 
 If you need to use the same streaming DMA region multiple times and touch
 the data in between the DMA transfers, the buffer needs to be synced
-properly in order for the cpu and device to see the most uptodate and
+properly in order for the CPU and device to see the most up-to-date and
 correct copy of the DMA buffer.
 
-So, firstly, just map it with dma_map_{single,sg}, and after each DMA
+So, firstly, just map it with dma_map_{single,sg}(), and after each DMA
 transfer call either:
 
 	dma_sync_single_for_cpu(dev, dma_handle, size, direction);
@@ -611,7 +665,7 @@ or:
 as appropriate.
 
 Then, if you wish to let the device get at the DMA area again,
-finish accessing the data with the cpu, and then before actually
+finish accessing the data with the CPU, and then before actually
 giving the buffer to the hardware call either:
 
 	dma_sync_single_for_device(dev, dma_handle, size, direction);
@@ -623,9 +677,9 @@ or:
 as appropriate.
 
 After the last DMA transfer call one of the DMA unmap routines
-dma_unmap_{single,sg}. If you don't touch the data from the first dma_map_*
-call till dma_unmap_*, then you don't have to call the dma_sync_*
-routines at all.
+dma_unmap_{single,sg}(). If you don't touch the data from the first
+dma_map_*() call till dma_unmap_*(), then you don't have to call the
+dma_sync_*() routines at all.
 
 Here is pseudo code which shows a situation in which you would need
 to use the dma_sync_*() interfaces.
@@ -690,12 +744,12 @@ to use the dma_sync_*() interfaces.
 		}
 	}
 
-Drivers converted fully to this interface should not use virt_to_bus any
-longer, nor should they use bus_to_virt. Some drivers have to be changed a
-little bit, because there is no longer an equivalent to bus_to_virt in the
+Drivers converted fully to this interface should not use virt_to_bus() any
+longer, nor should they use bus_to_virt(). Some drivers have to be changed a
+little bit, because there is no longer an equivalent to bus_to_virt() in the
 dynamic DMA mapping scheme - you have to always store the DMA addresses
-returned by the dma_alloc_coherent, dma_pool_alloc, and dma_map_single
-calls (dma_map_sg stores them in the scatterlist itself if the platform
+returned by the dma_alloc_coherent(), dma_pool_alloc(), and dma_map_single()
+calls (dma_map_sg() stores them in the scatterlist itself if the platform
 supports dynamic DMA mapping in hardware) in your driver structures and/or
 in the card registers.
 
@@ -709,9 +763,9 @@ as it is impossible to correctly support them.
 DMA address space is limited on some architectures and an allocation
 failure can be determined by:
 
-- checking if dma_alloc_coherent returns NULL or dma_map_sg returns 0
+- checking if dma_alloc_coherent() returns NULL or dma_map_sg returns 0
 
-- checking the returned dma_addr_t of dma_map_single and dma_map_page
+- checking the dma_addr_t returned from dma_map_single() and dma_map_page()
   by using dma_mapping_error():
 
 	dma_addr_t dma_handle;
@@ -794,7 +848,7 @@ Example 2: (if buffers are allocated in a loop, unmap all mapped buffers when
 		dma_unmap_single(array[i].dma_addr);
 	}
 
-Networking drivers must call dev_kfree_skb to free the socket buffer
+Networking drivers must call dev_kfree_skb() to free the socket buffer
 and return NETDEV_TX_OK if the DMA mapping fails on the transmit hook
 (ndo_start_xmit). This means that the socket buffer is just dropped in
 the failure case.
@@ -831,7 +885,7 @@ transform some example code.
 		DEFINE_DMA_UNMAP_LEN(len);
 	};
 
-2) Use dma_unmap_{addr,len}_set to set these values.
+2) Use dma_unmap_{addr,len}_set() to set these values.
    Example, before:
 
 	ringp->mapping = FOO;
@@ -842,7 +896,7 @@ transform some example code.
 	dma_unmap_addr_set(ringp, mapping, FOO);
 	dma_unmap_len_set(ringp, len, BAR);
 
-3) Use dma_unmap_{addr,len} to access these values.
+3) Use dma_unmap_{addr,len}() to access these values.
    Example, before:
 
 	dma_unmap_single(dev, ringp->mapping, ringp->len,

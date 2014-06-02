@@ -34,7 +34,6 @@
 #include <linux/workqueue.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <linux/init.h>
 #include <asm/uaccess.h>
 #include "cpqphp.h"
 #include "cpqphp_nvram.h"
