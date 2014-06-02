@@ -726,13 +726,13 @@ static int rspi_transfer_out_in(struct rspi_data *rspi,
 	u8 *rx_buf = xfer->rx_buf;
 	u8 spcr, data;
 
-	rspi_receive_init(rspi);
-
 	spcr = rspi_read8(rspi, RSPI_SPCR);
-	if (rx_buf)
+	if (rx_buf) {
+		rspi_receive_init(rspi);
 		spcr &= ~SPCR_TXMD;
-	else
+	} else {
 		spcr |= SPCR_TXMD;
+	}
 	rspi_write8(rspi, spcr, RSPI_SPCR);
 
 	while (remain > 0) {
