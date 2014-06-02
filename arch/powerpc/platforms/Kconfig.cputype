@@ -148,10 +148,6 @@ config POWER4
 	depends on PPC64 && PPC_BOOK3S
 	def_bool y
 
-config PPC_A2
-	bool
-	depends on PPC_BOOK3E_64
-
 config TUNE_CELL
 	bool "Optimize for Cell Broadband Engine"
 	depends on PPC64 && PPC_BOOK3S
@@ -280,7 +276,7 @@ config VSX
 
 config PPC_ICSWX
 	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on POWER4 || PPC_A2
+	depends on POWER4
 	default n
 	---help---
 

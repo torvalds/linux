@@ -1467,22 +1467,6 @@ a2_tlbinit_after_linear_map:
 	.globl  a2_tlbinit_after_iprot_flush
 a2_tlbinit_after_iprot_flush:
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_WSP
-	/* Now establish early debug mappings if applicable */
-	/* Restore the MAS0 we used for linear mapping load */
-	mtspr	SPRN_MAS0,r11
-
-	lis	r3,(MAS1_VALID | MAS1_IPROT)@h
-	ori	r3,r3,(BOOK3E_PAGESZ_4K << MAS1_TSIZE_SHIFT)
-	mtspr	SPRN_MAS1,r3
-	LOAD_REG_IMMEDIATE(r3, WSP_UART_VIRT | MAS2_I | MAS2_G)
-	mtspr	SPRN_MAS2,r3
-	LOAD_REG_IMMEDIATE(r3, WSP_UART_PHYS | MAS3_SR | MAS3_SW)
-	mtspr	SPRN_MAS7_MAS3,r3
-	/* re-use the MAS8 value from the linear mapping */
-	tlbwe
-#endif /* CONFIG_PPC_EARLY_DEBUG_WSP */
-
 	PPC_TLBILX(0,0,R0)
 	sync
 	isync

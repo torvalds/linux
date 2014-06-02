@@ -2149,44 +2149,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 	}
 #endif /* CONFIG_PPC32 */
 #endif /* CONFIG_E500 */
-
-#ifdef CONFIG_PPC_A2
-	{	/* Standard A2 (>= DD2) + FPU core */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00480000,
-		.cpu_name		= "A2 (>= DD2)",
-		.cpu_features		= CPU_FTRS_A2,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTRS_A2,
-		.icache_bsize		= 64,
-		.dcache_bsize		= 64,
-		.num_pmcs		= 0,
-		.cpu_setup		= __setup_cpu_a2,
-		.cpu_restore		= __restore_cpu_a2,
-		.machine_check		= machine_check_generic,
-		.platform		= "ppca2",
-	},
-	{	/* This is a default entry to get going, to be replaced by
-		 * a real one at some stage
-		 */
-#define CPU_FTRS_BASE_BOOK3E	(CPU_FTR_USE_TB | \
-	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_SMT | \
-	    CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
-		.pvr_mask		= 0x00000000,
-		.pvr_value		= 0x00000000,
-		.cpu_name		= "Book3E",
-		.cpu_features		= CPU_FTRS_BASE_BOOK3E,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_TYPE_3E | MMU_FTR_USE_TLBILX |
-					  MMU_FTR_USE_TLBIVAX_BCAST |
-					  MMU_FTR_LOCK_BCAST_INVAL,
-		.icache_bsize		= 64,
-		.dcache_bsize		= 64,
-		.num_pmcs		= 0,
-		.machine_check		= machine_check_generic,
-		.platform		= "power6",
-	},
-#endif /* CONFIG_PPC_A2 */
 };
 
 static struct cpu_spec the_cpu_spec;
