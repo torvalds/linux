@@ -4836,8 +4836,8 @@ twobyte_insn:
 		break;
 	case 0xc3:		/* movnti */
 		ctxt->dst.bytes = ctxt->op_bytes;
-		ctxt->dst.val = (ctxt->op_bytes == 4) ? (u32) ctxt->src.val :
-							(u64) ctxt->src.val;
+		ctxt->dst.val = (ctxt->op_bytes == 8) ? (u64) ctxt->src.val :
+							(u32) ctxt->src.val;
 		break;
 	default:
 		goto cannot_emulate;
