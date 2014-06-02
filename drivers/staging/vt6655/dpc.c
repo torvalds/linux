@@ -54,6 +54,7 @@
 #include "rf.h"
 #include "iowpa.h"
 #include "aes_ccmp.h"
+#include "dpc.h"
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -62,7 +63,7 @@
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
 
-const unsigned char acbyRxRate[MAX_RATE] =
+static const unsigned char acbyRxRate[MAX_RATE] =
 {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 
 /*---------------------  Static Functions  --------------------------*/
