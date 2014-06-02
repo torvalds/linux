@@ -1161,11 +1161,19 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 		ath6kl_bmi_write_hi32(ar, hi_board_data,
 				      board_address);
 	} else {
-		ath6kl_bmi_read_hi32(ar, hi_board_data, &board_address);
+		ret = ath6kl_bmi_read_hi32(ar, hi_board_data, &board_address);
+		if (ret) {
+			ath6kl_err("Failed to get board file target address.\n");
+			return ret;
+		}
 	}
 
 	/* determine where in target ram to write extended board data */
-	ath6kl_bmi_read_hi32(ar, hi_board_ext_data, &board_ext_address);
+	ret = ath6kl_bmi_read_hi32(ar, hi_board_ext_data, &board_ext_address);
+	if (ret) {
+		ath6kl_err("Failed to get extended board file target address.\n");
+		return ret;
+	}
 
 	if (ar->target_type == TARGET_TYPE_AR6003 &&
 	    board_ext_address == 0) {
