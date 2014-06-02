@@ -980,35 +980,32 @@ static struct dma_chan *rspi_request_dma_chan(struct device *dev,
 	return chan;
 }
 
-static int rspi_request_dma(struct rspi_data *rspi,
-			    struct platform_device *pdev)
+static int rspi_request_dma(struct device *dev, struct rspi_data *rspi,
+			    const struct resource *res)
 {
-	const struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	const struct rspi_plat_data *rspi_pd = dev_get_platdata(dev);
 
-	if (!res || !rspi_pd)
+	if (!rspi_pd)
 		return 0;	/* The driver assumes no error. */
 
 	/* If the module receives data by DMAC, it also needs TX DMAC */
 	if (rspi_pd->dma_rx_id && rspi_pd->dma_tx_id) {
-		rspi->chan_rx = rspi_request_dma_chan(&pdev->dev,
-						      DMA_DEV_TO_MEM,
+		rspi->chan_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM,
 						      rspi_pd->dma_rx_id,
 						      res->start + RSPI_SPDR);
 		if (!rspi->chan_rx)
 			return -ENODEV;
 
-		dev_info(&pdev->dev, "Use DMA when rx.\n");
+		dev_info(dev, "Use DMA when rx.\n");
 	}
 	if (rspi_pd->dma_tx_id) {
-		rspi->chan_tx = rspi_request_dma_chan(&pdev->dev,
-						      DMA_MEM_TO_DEV,
+		rspi->chan_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV,
 						      rspi_pd->dma_tx_id,
 						      res->start + RSPI_SPDR);
 		if (!rspi->chan_tx)
 			return -ENODEV;
 
-		dev_info(&pdev->dev, "Use DMA when tx\n");
+		dev_info(dev, "Use DMA when tx\n");
 	}
 
 	return 0;
@@ -1210,7 +1207,7 @@ static int rspi_probe(struct platform_device *pdev)
 		goto error2;
 	}
 
-	ret = rspi_request_dma(rspi, pdev);
+	ret = rspi_request_dma(&pdev->dev, rspi, res);
 	if (ret < 0)
 		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
 
