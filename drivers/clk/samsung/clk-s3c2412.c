@@ -214,23 +214,25 @@ struct samsung_fixed_rate_clock s3c2412_common_frate_clks[] __initdata = {
 	FRATE(0, "ext", NULL, CLK_IS_ROOT, 0),
 };
 
-static void __init s3c2412_common_clk_register_fixed_ext(unsigned long xti_f,
-							 unsigned long ext_f)
+static void __init s3c2412_common_clk_register_fixed_ext(
+		struct samsung_clk_provider *ctx,
+		unsigned long xti_f, unsigned long ext_f)
 {
 	/* xtal alias is necessary for the current cpufreq driver */
 	struct samsung_clock_alias xti_alias = ALIAS(XTI, NULL, "xtal");
 
 	s3c2412_common_frate_clks[0].fixed_rate = xti_f;
 	s3c2412_common_frate_clks[1].fixed_rate = ext_f;
-	samsung_clk_register_fixed_rate(s3c2412_common_frate_clks,
+	samsung_clk_register_fixed_rate(ctx, s3c2412_common_frate_clks,
 				ARRAY_SIZE(s3c2412_common_frate_clks));
 
-	samsung_clk_register_alias(&xti_alias, 1);
+	samsung_clk_register_alias(ctx, &xti_alias, 1);
 }
 
 void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
 				    unsigned long ext_f, void __iomem *base)
 {
+	struct samsung_clk_provider *ctx;
 	reg_base = base;
 
 	if (np) {
@@ -239,24 +241,27 @@ void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
 			panic("%s: failed to map registers\n", __func__);
 	}
 
-	samsung_clk_init(np, reg_base, NR_CLKS);
+	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
+	if (!ctx)
+		panic("%s: unable to allocate context.\n", __func__);
 
 	/* Register external clocks only in non-dt cases */
 	if (!np)
-		s3c2412_common_clk_register_fixed_ext(xti_f, ext_f);
+		s3c2412_common_clk_register_fixed_ext(ctx, xti_f, ext_f);
 
 	/* Register PLLs. */
-	samsung_clk_register_pll(s3c2412_plls, ARRAY_SIZE(s3c2412_plls),
+	samsung_clk_register_pll(ctx, s3c2412_plls, ARRAY_SIZE(s3c2412_plls),
 				 reg_base);
 
 	/* Register common internal clocks. */
-	samsung_clk_register_mux(s3c2412_muxes, ARRAY_SIZE(s3c2412_muxes));
-	samsung_clk_register_div(s3c2412_dividers,
+	samsung_clk_register_mux(ctx, s3c2412_muxes, ARRAY_SIZE(s3c2412_muxes));
+	samsung_clk_register_div(ctx, s3c2412_dividers,
 					  ARRAY_SIZE(s3c2412_dividers));
-	samsung_clk_register_gate(s3c2412_gates, ARRAY_SIZE(s3c2412_gates));
-	samsung_clk_register_fixed_factor(s3c2412_ffactor,
+	samsung_clk_register_gate(ctx, s3c2412_gates,
+					ARRAY_SIZE(s3c2412_gates));
+	samsung_clk_register_fixed_factor(ctx, s3c2412_ffactor,
 					  ARRAY_SIZE(s3c2412_ffactor));
-	samsung_clk_register_alias(s3c2412_aliases,
+	samsung_clk_register_alias(ctx, s3c2412_aliases,
 				   ARRAY_SIZE(s3c2412_aliases));
 
 	s3c2412_clk_sleep_init();

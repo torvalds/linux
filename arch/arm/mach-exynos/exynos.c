@@ -112,51 +112,6 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 	},
 };
 
-static struct map_desc exynos4_iodesc0[] __initdata = {
-	{
-		.virtual	= (unsigned long)S5P_VA_SYSRAM,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_SYSRAM0),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	},
-};
-
-static struct map_desc exynos4_iodesc1[] __initdata = {
-	{
-		.virtual	= (unsigned long)S5P_VA_SYSRAM,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_SYSRAM1),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	},
-};
-
-static struct map_desc exynos4210_iodesc[] __initdata = {
-	{
-		.virtual	= (unsigned long)S5P_VA_SYSRAM_NS,
-		.pfn		= __phys_to_pfn(EXYNOS4210_PA_SYSRAM_NS),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	},
-};
-
-static struct map_desc exynos4x12_iodesc[] __initdata = {
-	{
-		.virtual	= (unsigned long)S5P_VA_SYSRAM_NS,
-		.pfn		= __phys_to_pfn(EXYNOS4x12_PA_SYSRAM_NS),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	},
-};
-
-static struct map_desc exynos5250_iodesc[] __initdata = {
-	{
-		.virtual	= (unsigned long)S5P_VA_SYSRAM_NS,
-		.pfn		= __phys_to_pfn(EXYNOS5250_PA_SYSRAM_NS),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	},
-};
-
 static struct map_desc exynos5_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S3C_VA_SYS,
@@ -176,11 +131,6 @@ static struct map_desc exynos5_iodesc[] __initdata = {
 	}, {
 		.virtual	= (unsigned long)S5P_VA_SROMC,
 		.pfn		= __phys_to_pfn(EXYNOS5_PA_SROMC),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S5P_VA_SYSRAM,
-		.pfn		= __phys_to_pfn(EXYNOS5_PA_SYSRAM),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
@@ -278,20 +228,6 @@ static void __init exynos_map_io(void)
 
 	if (soc_is_exynos5())
 		iotable_init(exynos5_iodesc, ARRAY_SIZE(exynos5_iodesc));
-
-	if (soc_is_exynos4210()) {
-		if (samsung_rev() == EXYNOS4210_REV_0)
-			iotable_init(exynos4_iodesc0,
-						ARRAY_SIZE(exynos4_iodesc0));
-		else
-			iotable_init(exynos4_iodesc1,
-						ARRAY_SIZE(exynos4_iodesc1));
-		iotable_init(exynos4210_iodesc, ARRAY_SIZE(exynos4210_iodesc));
-	}
-	if (soc_is_exynos4212() || soc_is_exynos4412())
-		iotable_init(exynos4x12_iodesc, ARRAY_SIZE(exynos4x12_iodesc));
-	if (soc_is_exynos5250())
-		iotable_init(exynos5250_iodesc, ARRAY_SIZE(exynos5250_iodesc));
 }
 
 void __init exynos_init_io(void)
@@ -309,6 +245,9 @@ void __init exynos_init_io(void)
 static int __init exynos4_l2x0_cache_init(void)
 {
 	int ret;
+
+	if (!soc_is_exynos4())
+		return 0;
 
 	ret = l2x0_of_init(L2_AUX_VAL, L2_AUX_MASK);
 	if (ret)
@@ -357,12 +296,15 @@ static void __init exynos_dt_machine_init(void)
 }
 
 static char const *exynos_dt_compat[] __initconst = {
+	"samsung,exynos3",
+	"samsung,exynos3250",
 	"samsung,exynos4",
 	"samsung,exynos4210",
 	"samsung,exynos4212",
 	"samsung,exynos4412",
 	"samsung,exynos5",
 	"samsung,exynos5250",
+	"samsung,exynos5260",
 	"samsung,exynos5420",
 	"samsung,exynos5440",
 	NULL

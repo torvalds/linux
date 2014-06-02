@@ -26,10 +26,13 @@
 #define SLCR_PS_RST_CTRL_OFFSET		0x200 /* PS Software Reset Control */
 #define SLCR_A9_CPU_RST_CTRL_OFFSET	0x244 /* CPU Software Reset Control */
 #define SLCR_REBOOT_STATUS_OFFSET	0x258 /* PS Reboot Status */
+#define SLCR_PSS_IDCODE			0x530 /* PS IDCODE */
 
 #define SLCR_UNLOCK_MAGIC		0xDF0D
 #define SLCR_A9_CPU_CLKSTOP		0x10
 #define SLCR_A9_CPU_RST			0x1
+#define SLCR_PSS_IDCODE_DEVICE_SHIFT	12
+#define SLCR_PSS_IDCODE_DEVICE_MASK	0x1F
 
 static void __iomem *zynq_slcr_base;
 static struct regmap *zynq_slcr_regmap;
@@ -80,6 +83,22 @@ static inline int zynq_slcr_unlock(void)
 	zynq_slcr_write(SLCR_UNLOCK_MAGIC, SLCR_UNLOCK_OFFSET);
 
 	return 0;
+}
+
+/**
+ * zynq_slcr_get_device_id - Read device code id
+ *
+ * Return:	Device code id
+ */
+u32 zynq_slcr_get_device_id(void)
+{
+	u32 val;
+
+	zynq_slcr_read(&val, SLCR_PSS_IDCODE);
+	val >>= SLCR_PSS_IDCODE_DEVICE_SHIFT;
+	val &= SLCR_PSS_IDCODE_DEVICE_MASK;
+
+	return val;
 }
 
 /**

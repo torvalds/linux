@@ -308,7 +308,6 @@ MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
 	.init_time	= mx31lilly_timer_init,
 	.init_machine = mx31lilly_board_init,
 	.restart	= mxc_restart,

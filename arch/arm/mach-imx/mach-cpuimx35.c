@@ -199,7 +199,6 @@ MACHINE_START(EUKREA_CPUIMX35SD, "Eukrea CPUIMX35")
 	.map_io = mx35_map_io,
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
-	.handle_irq = imx35_handle_irq,
 	.init_time	= eukrea_cpuimx35_timer_init,
 	.init_machine = eukrea_cpuimx35_init,
 	.restart	= mxc_restart,

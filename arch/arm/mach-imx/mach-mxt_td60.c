@@ -267,7 +267,6 @@ MACHINE_START(MXT_TD60, "Maxtrack i-MXT TD60")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
 	.init_time	= mxt_td60_timer_init,
 	.init_machine = mxt_td60_board_init,
 	.restart	= mxc_restart,

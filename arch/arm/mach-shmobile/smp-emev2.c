@@ -24,7 +24,6 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <mach/common.h>
-#include <mach/emev2.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 

@@ -125,7 +125,7 @@ static __init void tzic_init_gc(int idx, unsigned int irq_start)
 	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, IRQ_NOREQUEST, 0);
 }
 
-asmlinkage void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
 {
 	u32 stat;
 	int i, irqofs, handled;
@@ -188,6 +188,8 @@ void __init tzic_init_irq(void __iomem *irqbase)
 
 	for (i = 0; i < 4; i++, irq_base += 32)
 		tzic_init_gc(i, irq_base);
+
+	set_handle_irq(tzic_handle_irq);
 
 #ifdef CONFIG_FIQ
 	/* Initialize FIQ */

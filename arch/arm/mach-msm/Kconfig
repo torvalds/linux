@@ -42,9 +42,6 @@ config ARCH_QSD8X50
 
 endchoice
 
-config MSM_HAS_DEBUG_UART_HS
-	bool
-
 config MSM_SOC_REV_A
 	bool
 

@@ -22,6 +22,7 @@
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			reg = <0x0>;
+			clock-frequency = <800000000>;
 		};
 	};
 

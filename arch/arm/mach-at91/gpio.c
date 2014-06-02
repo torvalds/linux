@@ -29,6 +29,7 @@
 #include <mach/at91_pio.h>
 
 #include "generic.h"
+#include "gpio.h"
 
 #define MAX_NB_GPIO_PER_BANK	32
 

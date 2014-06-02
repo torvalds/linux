@@ -182,7 +182,7 @@ static struct clk vdec_clk = {
 static struct clk adc_op_clk = {
 	.name		= "adc_op_clk",
 	.type		= CLK_TYPE_PERIPHERAL,
-	.rate_hz	= 13200000,
+	.rate_hz	= 300000,
 };
 
 /* AES/TDES/SHA clock - Only for sam9m11/sam9g56 */

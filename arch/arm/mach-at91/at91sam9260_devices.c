@@ -24,12 +24,11 @@
 #include <mach/at91sam9260_matrix.h>
 #include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at91_adc.h>
 #include <mach/hardware.h>
 
 #include "board.h"
 #include "generic.h"
-
+#include "gpio.h"
 
 /* --------------------------------------------------------------------
  *  USB Host
@@ -1325,13 +1324,6 @@ static struct at91_adc_trigger at91_adc_triggers[] = {
 	},
 };
 
-static struct at91_adc_reg_desc at91_adc_register_g20 = {
-	.channel_base = AT91_ADC_CHR(0),
-	.drdy_mask = AT91_ADC_DRDY,
-	.status_register = AT91_ADC_SR,
-	.trigger_register = AT91_ADC_MR,
-};
-
 void __init at91_add_device_adc(struct at91_adc_data *data)
 {
 	if (!data)
@@ -1349,9 +1341,7 @@ void __init at91_add_device_adc(struct at91_adc_data *data)
 	if (data->use_external_triggers)
 		at91_set_A_periph(AT91_PIN_PA22, 0);
 
-	data->num_channels = 4;
 	data->startup_time = 10;
-	data->registers = &at91_adc_register_g20;
 	data->trigger_number = 4;
 	data->trigger_list = at91_adc_triggers;
 

@@ -98,7 +98,12 @@ clocks and IDs.
 	fpm                  83
 	mpll_osc_sel         84
 	mpll_sel             85
-	spll_gate	     86
+	spll_gate            86
+	mshc_div             87
+	rtic_ipg_gate        88
+	mshc_ipg_gate        89
+	rtic_ahb_gate        90
+	mshc_baud_gate       91
 
 Examples:
 

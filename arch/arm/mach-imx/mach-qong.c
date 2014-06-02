@@ -266,7 +266,6 @@ MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
 	.init_time	= qong_timer_init,
 	.init_machine = qong_init,
 	.restart	= mxc_restart,
