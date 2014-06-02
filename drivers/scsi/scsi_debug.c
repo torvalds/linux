@@ -2484,7 +2484,7 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 	if (sdp->host->cmd_per_lun)
 		scsi_adjust_queue_depth(sdp, SDEBUG_TAGGED_QUEUING,
 					sdp->host->cmd_per_lun);
-	blk_queue_max_segment_size(sdp->request_queue, 256 * 1024);
+	blk_queue_max_segment_size(sdp->request_queue, -1U);
 	if (scsi_debug_no_uld)
 		sdp->no_uld_attach = 1;
 	return 0;
@@ -3946,9 +3946,9 @@ static struct scsi_host_template sdebug_driver_template = {
 	.bios_param =		scsi_debug_biosparam,
 	.can_queue =		SCSI_DEBUG_CANQUEUE,
 	.this_id =		7,
-	.sg_tablesize =		256,
+	.sg_tablesize =		SCSI_MAX_SG_CHAIN_SEGMENTS,
 	.cmd_per_lun =		16,
-	.max_sectors =		0xffff,
+	.max_sectors =		-1U,
 	.use_clustering = 	DISABLE_CLUSTERING,
 	.module =		THIS_MODULE,
 };
