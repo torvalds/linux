@@ -1583,6 +1583,7 @@ static int __init i915_init(void)
 		driver.get_vblank_timestamp = NULL;
 #ifndef CONFIG_DRM_I915_UMS
 		/* Silently fail loading to not upset userspace. */
+		DRM_DEBUG_DRIVER("KMS and UMS disabled.\n");
 		return 0;
 #endif
 	}
