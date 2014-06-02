@@ -640,10 +640,6 @@ end_tx_mapped:
 
 static int rspi_is_dma(const struct rspi_data *rspi, struct spi_transfer *t)
 {
-	/* If the module receives data by DMAC, it also needs TX DMAC */
-	if (t->rx_buf)
-		return rspi->chan_tx && rspi->chan_rx;
-
 	if (rspi->chan_tx)
 		return 1;
 
@@ -985,29 +981,25 @@ static int rspi_request_dma(struct device *dev, struct rspi_data *rspi,
 {
 	const struct rspi_plat_data *rspi_pd = dev_get_platdata(dev);
 
-	if (!rspi_pd)
+	if (!rspi_pd || !rspi_pd->dma_rx_id || !rspi_pd->dma_tx_id)
 		return 0;	/* The driver assumes no error. */
 
-	/* If the module receives data by DMAC, it also needs TX DMAC */
-	if (rspi_pd->dma_rx_id && rspi_pd->dma_tx_id) {
-		rspi->chan_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM,
-						      rspi_pd->dma_rx_id,
-						      res->start + RSPI_SPDR);
-		if (!rspi->chan_rx)
-			return -ENODEV;
+	rspi->chan_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM,
+					      rspi_pd->dma_rx_id,
+					      res->start + RSPI_SPDR);
+	if (!rspi->chan_rx)
+		return -ENODEV;
 
-		dev_info(dev, "Use DMA when rx.\n");
-	}
-	if (rspi_pd->dma_tx_id) {
-		rspi->chan_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV,
-						      rspi_pd->dma_tx_id,
-						      res->start + RSPI_SPDR);
-		if (!rspi->chan_tx)
-			return -ENODEV;
-
-		dev_info(dev, "Use DMA when tx\n");
+	rspi->chan_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV,
+					      rspi_pd->dma_tx_id,
+					      res->start + RSPI_SPDR);
+	if (!rspi->chan_tx) {
+		dma_release_channel(rspi->chan_rx);
+		rspi->chan_rx = NULL;
+		return -ENODEV;
 	}
 
+	dev_info(dev, "DMA available");
 	return 0;
 }
 
