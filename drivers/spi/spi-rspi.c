@@ -195,10 +195,6 @@ struct rspi_data {
 	int rx_irq, tx_irq;
 	const struct spi_ops *ops;
 
-	/* for dmaengine */
-	struct dma_chan *chan_tx;
-	struct dma_chan *chan_rx;
-
 	unsigned dma_callbacked:1;
 	unsigned byte_access:1;
 };
@@ -251,6 +247,7 @@ struct spi_ops {
 			    struct spi_transfer *xfer);
 	u16 mode_bits;
 	u16 flags;
+	u16 fifo_size;
 };
 
 /*
@@ -466,39 +463,16 @@ static void rspi_dma_complete(void *arg)
 	wake_up_interruptible(&rspi->wait);
 }
 
-static int rspi_dma_map_sg(struct scatterlist *sg, const void *buf,
-			   unsigned len, struct dma_chan *chan,
-			   enum dma_transfer_direction dir)
-{
-	sg_init_table(sg, 1);
-	sg_set_buf(sg, buf, len);
-	sg_dma_len(sg) = len;
-	return dma_map_sg(chan->device->dev, sg, 1, dir);
-}
-
-static void rspi_dma_unmap_sg(struct scatterlist *sg, struct dma_chan *chan,
-			      enum dma_transfer_direction dir)
-{
-	dma_unmap_sg(chan->device->dev, sg, 1, dir);
-}
-
 static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
-	struct scatterlist sg;
-	const void *buf = t->tx_buf;
 	struct dma_async_tx_descriptor *desc;
-	unsigned int len = t->len;
-	int ret = 0;
+	int ret;
 
-	if (!rspi_dma_map_sg(&sg, buf, len, rspi->chan_tx, DMA_TO_DEVICE))
-		return -EFAULT;
-
-	desc = dmaengine_prep_slave_sg(rspi->chan_tx, &sg, 1, DMA_TO_DEVICE,
+	desc = dmaengine_prep_slave_sg(rspi->master->dma_tx, t->tx_sg.sgl,
+				       t->tx_sg.nents, DMA_TO_DEVICE,
 				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc) {
-		ret = -EIO;
-		goto end;
-	}
+	if (!desc)
+		return -EIO;
 
 	/*
 	 * DMAC needs SPTIE, but if SPTIE is set, this IRQ routine will be
@@ -513,7 +487,7 @@ static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	desc->callback = rspi_dma_complete;
 	desc->callback_param = rspi;
 	dmaengine_submit(desc);
-	dma_async_issue_pending(rspi->chan_tx);
+	dma_async_issue_pending(rspi->master->dma_tx);
 
 	ret = wait_event_interruptible_timeout(rspi->wait,
 					       rspi->dma_callbacked, HZ);
@@ -524,9 +498,6 @@ static int rspi_send_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	rspi_disable_irq(rspi, SPCR_SPTIE);
 
 	enable_irq(rspi->tx_irq);
-
-end:
-	rspi_dma_unmap_sg(&sg, rspi->chan_tx, DMA_TO_DEVICE);
 	return ret;
 }
 
@@ -562,39 +533,22 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 
 static int rspi_send_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
-	struct scatterlist sg_rx, sg_tx;
-	const void *tx_buf = t->tx_buf;
-	void *rx_buf = t->rx_buf;
 	struct dma_async_tx_descriptor *desc_tx, *desc_rx;
-	unsigned int len = t->len;
-	int ret = 0;
+	int ret;
 
 	/* prepare transmit transfer */
-	if (!rspi_dma_map_sg(&sg_tx, tx_buf, len, rspi->chan_tx,
-			     DMA_TO_DEVICE))
-		return -EFAULT;
-
-	desc_tx = dmaengine_prep_slave_sg(rspi->chan_tx, &sg_tx, 1,
-			DMA_TO_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc_tx) {
-		ret = -EIO;
-		goto end_tx_mapped;
-	}
+	desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx, t->tx_sg.sgl,
+					  t->tx_sg.nents, DMA_TO_DEVICE,
+					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc_tx)
+		return -EIO;
 
 	/* prepare receive transfer */
-	if (!rspi_dma_map_sg(&sg_rx, rx_buf, len, rspi->chan_rx,
-			     DMA_FROM_DEVICE)) {
-		ret = -EFAULT;
-		goto end_tx_mapped;
-
-	}
-	desc_rx = dmaengine_prep_slave_sg(rspi->chan_rx, &sg_rx, 1,
-					  DMA_FROM_DEVICE,
+	desc_rx = dmaengine_prep_slave_sg(rspi->master->dma_rx, t->rx_sg.sgl,
+					  t->rx_sg.nents, DMA_FROM_DEVICE,
 					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc_rx) {
-		ret = -EIO;
-		goto end;
-	}
+	if (!desc_rx)
+		return -EIO;
 
 	rspi_receive_init(rspi);
 
@@ -613,11 +567,11 @@ static int rspi_send_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	desc_rx->callback = rspi_dma_complete;
 	desc_rx->callback_param = rspi;
 	dmaengine_submit(desc_rx);
-	dma_async_issue_pending(rspi->chan_rx);
+	dma_async_issue_pending(rspi->master->dma_rx);
 
 	desc_tx->callback = NULL;	/* No callback */
 	dmaengine_submit(desc_tx);
-	dma_async_issue_pending(rspi->chan_tx);
+	dma_async_issue_pending(rspi->master->dma_tx);
 
 	ret = wait_event_interruptible_timeout(rspi->wait,
 					       rspi->dma_callbacked, HZ);
@@ -631,19 +585,21 @@ static int rspi_send_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 	if (rspi->rx_irq != rspi->tx_irq)
 		enable_irq(rspi->rx_irq);
 
-end:
-	rspi_dma_unmap_sg(&sg_rx, rspi->chan_rx, DMA_FROM_DEVICE);
-end_tx_mapped:
-	rspi_dma_unmap_sg(&sg_tx, rspi->chan_tx, DMA_TO_DEVICE);
 	return ret;
 }
 
-static int rspi_is_dma(const struct rspi_data *rspi, struct spi_transfer *t)
+static bool __rspi_can_dma(const struct rspi_data *rspi,
+			   const struct spi_transfer *xfer)
 {
-	if (rspi->chan_tx)
-		return 1;
+	return xfer->len > rspi->ops->fifo_size;
+}
 
-	return 0;
+static bool rspi_can_dma(struct spi_master *master, struct spi_device *spi,
+			 struct spi_transfer *xfer)
+{
+	struct rspi_data *rspi = spi_master_get_devdata(master);
+
+	return __rspi_can_dma(rspi, xfer);
 }
 
 static int rspi_transfer_out_in(struct rspi_data *rspi,
@@ -676,7 +632,7 @@ static int rspi_transfer_one(struct spi_master *master, struct spi_device *spi,
 {
 	struct rspi_data *rspi = spi_master_get_devdata(master);
 
-	if (!rspi_is_dma(rspi, xfer))
+	if (!master->can_dma || !__rspi_can_dma(rspi, xfer))
 		return rspi_transfer_out_in(rspi, xfer);
 
 	if (xfer->rx_buf)
@@ -976,7 +932,7 @@ static struct dma_chan *rspi_request_dma_chan(struct device *dev,
 	return chan;
 }
 
-static int rspi_request_dma(struct device *dev, struct rspi_data *rspi,
+static int rspi_request_dma(struct device *dev, struct spi_master *master,
 			    const struct resource *res)
 {
 	const struct rspi_plat_data *rspi_pd = dev_get_platdata(dev);
@@ -984,31 +940,32 @@ static int rspi_request_dma(struct device *dev, struct rspi_data *rspi,
 	if (!rspi_pd || !rspi_pd->dma_rx_id || !rspi_pd->dma_tx_id)
 		return 0;	/* The driver assumes no error. */
 
-	rspi->chan_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM,
-					      rspi_pd->dma_rx_id,
-					      res->start + RSPI_SPDR);
-	if (!rspi->chan_rx)
+	master->dma_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM,
+					       rspi_pd->dma_rx_id,
+					       res->start + RSPI_SPDR);
+	if (!master->dma_rx)
 		return -ENODEV;
 
-	rspi->chan_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV,
-					      rspi_pd->dma_tx_id,
-					      res->start + RSPI_SPDR);
-	if (!rspi->chan_tx) {
-		dma_release_channel(rspi->chan_rx);
-		rspi->chan_rx = NULL;
+	master->dma_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV,
+					       rspi_pd->dma_tx_id,
+					       res->start + RSPI_SPDR);
+	if (!master->dma_tx) {
+		dma_release_channel(master->dma_rx);
+		master->dma_rx = NULL;
 		return -ENODEV;
 	}
 
+	master->can_dma = rspi_can_dma;
 	dev_info(dev, "DMA available");
 	return 0;
 }
 
 static void rspi_release_dma(struct rspi_data *rspi)
 {
-	if (rspi->chan_tx)
-		dma_release_channel(rspi->chan_tx);
-	if (rspi->chan_rx)
-		dma_release_channel(rspi->chan_rx);
+	if (rspi->master->dma_tx)
+		dma_release_channel(rspi->master->dma_tx);
+	if (rspi->master->dma_rx)
+		dma_release_channel(rspi->master->dma_rx);
 }
 
 static int rspi_remove(struct platform_device *pdev)
@@ -1026,6 +983,7 @@ static const struct spi_ops rspi_ops = {
 	.transfer_one =		rspi_transfer_one,
 	.mode_bits =		SPI_CPHA | SPI_CPOL | SPI_LOOP,
 	.flags =		SPI_MASTER_MUST_TX,
+	.fifo_size =		8,
 };
 
 static const struct spi_ops rspi_rz_ops = {
@@ -1033,6 +991,7 @@ static const struct spi_ops rspi_rz_ops = {
 	.transfer_one =		rspi_rz_transfer_one,
 	.mode_bits =		SPI_CPHA | SPI_CPOL | SPI_LOOP,
 	.flags =		SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX,
+	.fifo_size =		8,	/* 8 for TX, 32 for RX */
 };
 
 static const struct spi_ops qspi_ops = {
@@ -1042,6 +1001,7 @@ static const struct spi_ops qspi_ops = {
 				SPI_TX_DUAL | SPI_TX_QUAD |
 				SPI_RX_DUAL | SPI_RX_QUAD,
 	.flags =		SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX,
+	.fifo_size =		32,
 };
 
 #ifdef CONFIG_OF
@@ -1199,7 +1159,7 @@ static int rspi_probe(struct platform_device *pdev)
 		goto error2;
 	}
 
-	ret = rspi_request_dma(&pdev->dev, rspi, res);
+	ret = rspi_request_dma(&pdev->dev, master, res);
 	if (ret < 0)
 		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
 
