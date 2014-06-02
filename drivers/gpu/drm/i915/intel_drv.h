@@ -358,6 +358,11 @@ struct intel_pipe_wm {
 	bool sprites_scaled;
 };
 
+struct intel_mmio_flip {
+	u32 seqno;
+	u32 ring_id;
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -411,6 +416,7 @@ struct intel_crtc {
 	wait_queue_head_t vbl_wait;
 
 	int scanline_offset;
+	struct intel_mmio_flip mmio_flip;
 };
 
 struct intel_plane_wm_parameters {

@@ -1095,7 +1095,7 @@ i915_gem_check_wedge(struct i915_gpu_error *error,
  * Compare seqno against outstanding lazy request. Emit a request if they are
  * equal.
  */
-static int
+int
 i915_gem_check_olr(struct intel_engine_cs *ring, u32 seqno)
 {
 	int ret;
