@@ -1190,10 +1190,8 @@ static int rspi_probe(struct platform_device *pdev)
 	}
 
 	ret = rspi_request_dma(rspi, pdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "rspi_request_dma failed.\n");
-		goto error3;
-	}
+	if (ret < 0)
+		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
