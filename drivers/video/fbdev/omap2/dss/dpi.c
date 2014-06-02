@@ -59,6 +59,7 @@ static struct dpi_data *dpi_get_data_from_dssdev(struct omap_dss_device *dssdev)
 	return container_of(dssdev, struct dpi_data, output);
 }
 
+/* only used in non-DT mode */
 static struct dpi_data *dpi_get_data_from_pdev(struct platform_device *pdev)
 {
 	return dev_get_drvdata(&pdev->dev);
@@ -724,6 +725,30 @@ static void __exit dpi_uninit_output(struct platform_device *pdev)
 	omapdss_unregister_output(out);
 }
 
+static void dpi_init_output_port(struct platform_device *pdev,
+	struct device_node *port)
+{
+	struct dpi_data *dpi = port->data;
+	struct omap_dss_device *out = &dpi->output;
+
+	out->dev = &pdev->dev;
+	out->id = OMAP_DSS_OUTPUT_DPI;
+	out->output_type = OMAP_DISPLAY_TYPE_DPI;
+	out->dispc_channel = dpi_get_channel();
+	out->ops.dpi = &dpi_ops;
+	out->owner = THIS_MODULE;
+
+	omapdss_register_output(out);
+}
+
+static void __exit dpi_uninit_output_port(struct device_node *port)
+{
+	struct dpi_data *dpi = port->data;
+	struct omap_dss_device *out = &dpi->output;
+
+	omapdss_unregister_output(out);
+}
+
 static int omap_dpi_probe(struct platform_device *pdev)
 {
 	struct dpi_data *dpi;
@@ -796,14 +821,13 @@ int __init dpi_init_port(struct platform_device *pdev, struct device_node *port)
 	of_node_put(ep);
 
 	dpi->pdev = pdev;
+	port->data = dpi;
 
 	mutex_init(&dpi->lock);
 
-	dpi_init_output(pdev);
+	dpi_init_output_port(pdev, port);
 
 	dpi->port_initialized = true;
-
-	dev_set_drvdata(&pdev->dev, dpi);
 
 	return 0;
 
@@ -813,12 +837,12 @@ err_datalines:
 	return r;
 }
 
-void __exit dpi_uninit_port(struct platform_device *pdev)
+void __exit dpi_uninit_port(struct device_node *port)
 {
-	struct dpi_data *dpi = dpi_get_data_from_pdev(pdev);
+	struct dpi_data *dpi = port->data;
 
 	if (!dpi->port_initialized)
 		return;
 
-	dpi_uninit_output(dpi->pdev);
+	dpi_uninit_output_port(port);
 }

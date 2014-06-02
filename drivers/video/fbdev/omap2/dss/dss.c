@@ -822,8 +822,18 @@ static int __init dss_init_ports(struct platform_device *pdev)
 
 static void __exit dss_uninit_ports(struct platform_device *pdev)
 {
+	struct device_node *parent = pdev->dev.of_node;
+	struct device_node *port;
+
+	if (parent == NULL)
+		return;
+
+	port = omapdss_of_get_next_port(parent, NULL);
+	if (!port)
+		return;
+
 #ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_uninit_port(pdev);
+	dpi_uninit_port(port);
 #endif
 
 #ifdef CONFIG_OMAP2_DSS_SDI
