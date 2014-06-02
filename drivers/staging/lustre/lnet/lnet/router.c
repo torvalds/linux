@@ -135,7 +135,7 @@ lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, cfs_time_t when)
 	CDEBUG(D_NET, "set %s %d\n", libcfs_nid2str(lp->lp_nid), alive);
 }
 
-void
+static void
 lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 {
 	int	alive;
@@ -273,7 +273,7 @@ static void lnet_shuffle_seed(void)
 }
 
 /* NB expects LNET_LOCK held */
-void
+static void
 lnet_add_route_to_rnet (lnet_remotenet_t *rnet, lnet_route_t *route)
 {
 	unsigned int      len = 0;
