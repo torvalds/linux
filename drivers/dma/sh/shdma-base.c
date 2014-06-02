@@ -679,7 +679,7 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	/* Someone calling slave DMA on a generic channel? */
 	if (slave_id < 0 || (buf_len < period_len)) {
 		dev_warn(schan->dev,
-			"%s: bad parameter: buf_len=%d, period_len=%d, id=%d\n",
+			"%s: bad parameter: buf_len=%zu, period_len=%zu, id=%d\n",
 			__func__, buf_len, period_len, slave_id);
 		return NULL;
 	}
