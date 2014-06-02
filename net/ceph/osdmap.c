@@ -329,6 +329,11 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	dout("crush decode tunable chooseleaf_descend_once = %d",
 	     c->chooseleaf_descend_once);
 
+	ceph_decode_need(p, end, sizeof(u8), done);
+	c->chooseleaf_vary_r = ceph_decode_8(p);
+	dout("crush decode tunable chooseleaf_vary_r = %d",
+	     c->chooseleaf_vary_r);
+
 done:
 	dout("crush_decode success\n");
 	return c;
@@ -1548,8 +1553,10 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap, u32 pps,
 		return;
 
 	for (i = 0; i < len; i++) {
-		if (osds[i] != CRUSH_ITEM_NONE &&
-		    osdmap->osd_primary_affinity[i] !=
+		int osd = osds[i];
+
+		if (osd != CRUSH_ITEM_NONE &&
+		    osdmap->osd_primary_affinity[osd] !=
 					CEPH_OSD_DEFAULT_PRIMARY_AFFINITY) {
 			break;
 		}
@@ -1563,10 +1570,9 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap, u32 pps,
 	 * osd's pgs get rejected as primary.
 	 */
 	for (i = 0; i < len; i++) {
-		int osd;
+		int osd = osds[i];
 		u32 aff;
 
-		osd = osds[i];
 		if (osd == CRUSH_ITEM_NONE)
 			continue;
 

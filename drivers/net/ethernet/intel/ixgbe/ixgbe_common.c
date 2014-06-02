@@ -1195,7 +1195,7 @@ static s32 ixgbe_detect_eeprom_page_size_generic(struct ixgbe_hw *hw,
 	 */
 	hw->eeprom.word_page_size = IXGBE_EEPROM_PAGE_SIZE_MAX - data[0];
 
-	hw_dbg(hw, "Detected EEPROM page size = %d words.",
+	hw_dbg(hw, "Detected EEPROM page size = %d words.\n",
 	       hw->eeprom.word_page_size);
 out:
 	return status;

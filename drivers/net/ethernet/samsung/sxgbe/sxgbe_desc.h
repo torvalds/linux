@@ -39,22 +39,22 @@ struct sxgbe_tx_norm_desc {
 			u32 int_on_com:1;
 			/* TDES3 */
 			union {
-				u32 tcp_payload_len:18;
+				u16 tcp_payload_len;
 				struct {
 					u32 total_pkt_len:15;
 					u32 reserved1:1;
-					u32 cksum_ctl:2;
-				} cksum_pktlen;
+				} pkt_len;
 			} tx_pkt_len;
 
-			u32 tse_bit:1;
-			u32 tcp_hdr_len:4;
-			u32 sa_insert_ctl:3;
-			u32 crc_pad_ctl:2;
-			u32 last_desc:1;
-			u32 first_desc:1;
-			u32 ctxt_bit:1;
-			u32 own_bit:1;
+			u16 cksum_ctl:2;
+			u16 tse_bit:1;
+			u16 tcp_hdr_len:4;
+			u16 sa_insert_ctl:3;
+			u16 crc_pad_ctl:2;
+			u16 last_desc:1;
+			u16 first_desc:1;
+			u16 ctxt_bit:1;
+			u16 own_bit:1;
 		} tx_rd_des23;
 
 		/* tx write back Desc 2,3 */
@@ -70,25 +70,20 @@ struct sxgbe_tx_norm_desc {
 
 struct sxgbe_rx_norm_desc {
 	union {
-		u32 rdes0; /* buf1 address */
-		struct {
+		u64 rdes01; /* buf1 address */
+		union {
 			u32 out_vlan_tag:16;
 			u32 in_vlan_tag:16;
-		} wb_rx_des0;
-	} rd_wb_des0;
-
-	union {
-		u32 rdes1;	/* buf2 address or buf1[63:32] */
-		u32 rss_hash;	/* Write-back RX */
-	} rd_wb_des1;
+			u32 rss_hash;
+		} rx_wb_des01;
+	} rdes01;
 
 	union {
 		/* RX Read format Desc 2,3 */
 		struct{
 			/* RDES2 */
-			u32 buf2_addr;
+			u64 buf2_addr:62;
 			/* RDES3 */
-			u32 buf2_hi_addr:30;
 			u32 int_on_com:1;
 			u32 own_bit:1;
 		} rx_rd_des23;
@@ -262,6 +257,9 @@ struct sxgbe_desc_ops {
 
 	/* Set own bit */
 	void (*set_rx_owner)(struct sxgbe_rx_norm_desc *p);
+
+	/* Set Interrupt on completion bit */
+	void (*set_rx_int_on_com)(struct sxgbe_rx_norm_desc *p);
 
 	/* Get the receive frame size */
 	int (*get_rx_frame_len)(struct sxgbe_rx_norm_desc *p);

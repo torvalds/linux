@@ -117,6 +117,31 @@ void synaptics_reset(struct psmouse *psmouse)
 }
 
 #ifdef CONFIG_MOUSE_PS2_SYNAPTICS
+struct min_max_quirk {
+	const char * const *pnp_ids;
+	int x_min, x_max, y_min, y_max;
+};
+
+static const struct min_max_quirk min_max_pnpid_table[] = {
+	{
+		(const char * const []){"LEN0033", NULL},
+		1024, 5052, 2258, 4832
+	},
+	{
+		(const char * const []){"LEN0035", "LEN0042", NULL},
+		1232, 5710, 1156, 4696
+	},
+	{
+		(const char * const []){"LEN0034", "LEN0036", "LEN2004", NULL},
+		1024, 5112, 2024, 4832
+	},
+	{
+		(const char * const []){"LEN2001", NULL},
+		1024, 5022, 2508, 4832
+	},
+	{ }
+};
+
 /* This list has been kindly provided by Synaptics. */
 static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN0017",
@@ -129,7 +154,7 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN002D",
 	"LEN002E",
 	"LEN0033", /* Helix */
-	"LEN0034", /* T431s, T540, X1 Carbon 2nd */
+	"LEN0034", /* T431s, L440, L540, T540, W540, X1 Carbon 2nd */
 	"LEN0035", /* X240 */
 	"LEN0036", /* T440 */
 	"LEN0037",
@@ -142,7 +167,7 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN0048",
 	"LEN0049",
 	"LEN2000",
-	"LEN2001",
+	"LEN2001", /* Edge E431 */
 	"LEN2002",
 	"LEN2003",
 	"LEN2004", /* L440 */
@@ -155,6 +180,18 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN200B",
 	NULL
 };
+
+static bool matches_pnp_id(struct psmouse *psmouse, const char * const ids[])
+{
+	int i;
+
+	if (!strncmp(psmouse->ps2dev.serio->firmware_id, "PNP:", 4))
+		for (i = 0; ids[i]; i++)
+			if (strstr(psmouse->ps2dev.serio->firmware_id, ids[i]))
+				return true;
+
+	return false;
+}
 
 /*****************************************************************************
  *	Synaptics communications functions
@@ -304,20 +341,20 @@ static int synaptics_identify(struct psmouse *psmouse)
  * Resolution is left zero if touchpad does not support the query
  */
 
-static const int *quirk_min_max;
-
 static int synaptics_resolution(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	unsigned char resp[3];
+	int i;
 
-	if (quirk_min_max) {
-		priv->x_min = quirk_min_max[0];
-		priv->x_max = quirk_min_max[1];
-		priv->y_min = quirk_min_max[2];
-		priv->y_max = quirk_min_max[3];
-		return 0;
-	}
+	for (i = 0; min_max_pnpid_table[i].pnp_ids; i++)
+		if (matches_pnp_id(psmouse, min_max_pnpid_table[i].pnp_ids)) {
+			priv->x_min = min_max_pnpid_table[i].x_min;
+			priv->x_max = min_max_pnpid_table[i].x_max;
+			priv->y_min = min_max_pnpid_table[i].y_min;
+			priv->y_max = min_max_pnpid_table[i].y_max;
+			return 0;
+		}
 
 	if (SYN_ID_MAJOR(priv->identity) < 4)
 		return 0;
@@ -1365,17 +1402,8 @@ static void set_input_params(struct psmouse *psmouse,
 
 	if (SYN_CAP_CLICKPAD(priv->ext_cap_0c)) {
 		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
-		/* See if this buttonpad has a top button area */
-		if (!strncmp(psmouse->ps2dev.serio->firmware_id, "PNP:", 4)) {
-			for (i = 0; topbuttonpad_pnp_ids[i]; i++) {
-				if (strstr(psmouse->ps2dev.serio->firmware_id,
-					   topbuttonpad_pnp_ids[i])) {
-					__set_bit(INPUT_PROP_TOPBUTTONPAD,
-						  dev->propbit);
-					break;
-				}
-			}
-		}
+		if (matches_pnp_id(psmouse, topbuttonpad_pnp_ids))
+			__set_bit(INPUT_PROP_TOPBUTTONPAD, dev->propbit);
 		/* Clickpads report only left button */
 		__clear_bit(BTN_RIGHT, dev->keybit);
 		__clear_bit(BTN_MIDDLE, dev->keybit);
@@ -1547,96 +1575,10 @@ static const struct dmi_system_id olpc_dmi_table[] __initconst = {
 	{ }
 };
 
-static const struct dmi_system_id min_max_dmi_table[] __initconst = {
-#if defined(CONFIG_DMI)
-	{
-		/* Lenovo ThinkPad Helix */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Helix"),
-		},
-		.driver_data = (int []){1024, 5052, 2258, 4832},
-	},
-	{
-		/* Lenovo ThinkPad X240 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X240"),
-		},
-		.driver_data = (int []){1232, 5710, 1156, 4696},
-	},
-	{
-		/* Lenovo ThinkPad T431s */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T431"),
-		},
-		.driver_data = (int []){1024, 5112, 2024, 4832},
-	},
-	{
-		/* Lenovo ThinkPad T440s */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T440"),
-		},
-		.driver_data = (int []){1024, 5112, 2024, 4832},
-	},
-	{
-		/* Lenovo ThinkPad L440 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L440"),
-		},
-		.driver_data = (int []){1024, 5112, 2024, 4832},
-	},
-	{
-		/* Lenovo ThinkPad T540p */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T540"),
-		},
-		.driver_data = (int []){1024, 5056, 2058, 4832},
-	},
-	{
-		/* Lenovo ThinkPad L540 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L540"),
-		},
-		.driver_data = (int []){1024, 5112, 2024, 4832},
-	},
-	{
-		/* Lenovo Yoga S1 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION,
-					"ThinkPad S1 Yoga"),
-		},
-		.driver_data = (int []){1232, 5710, 1156, 4696},
-	},
-	{
-		/* Lenovo ThinkPad X1 Carbon Haswell (3rd generation) */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION,
-					"ThinkPad X1 Carbon 2nd"),
-		},
-		.driver_data = (int []){1024, 5112, 2024, 4832},
-	},
-#endif
-	{ }
-};
-
 void __init synaptics_module_init(void)
 {
-	const struct dmi_system_id *min_max_dmi;
-
 	impaired_toshiba_kbc = dmi_check_system(toshiba_dmi_table);
 	broken_olpc_ec = dmi_check_system(olpc_dmi_table);
-
-	min_max_dmi = dmi_first_match(min_max_dmi_table);
-	if (min_max_dmi)
-		quirk_min_max = min_max_dmi->driver_data;
 }
 
 static int __synaptics_init(struct psmouse *psmouse, bool absolute_mode)

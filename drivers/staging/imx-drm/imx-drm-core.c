@@ -517,7 +517,7 @@ int imx_drm_encoder_get_mux_id(struct device_node *node,
 		of_node_put(port);
 		if (port == imx_crtc->port) {
 			ret = of_graph_parse_endpoint(ep, &endpoint);
-			return ret ? ret : endpoint.id;
+			return ret ? ret : endpoint.port;
 		}
 	} while (ep);
 
@@ -673,6 +673,11 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 		for_each_child_of_node(port, ep) {
 			remote = of_graph_get_remote_port_parent(ep);
 			if (!remote || !of_device_is_available(remote)) {
+				of_node_put(remote);
+				continue;
+			} else if (!of_device_is_available(remote->parent)) {
+				dev_warn(&pdev->dev, "parent device of %s is not available\n",
+					 remote->full_name);
 				of_node_put(remote);
 				continue;
 			}

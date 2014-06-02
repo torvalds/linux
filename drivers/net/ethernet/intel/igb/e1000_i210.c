@@ -365,7 +365,7 @@ static s32 igb_read_invm_word_i210(struct e1000_hw *hw, u8 address, u16 *data)
 			word_address = INVM_DWORD_TO_WORD_ADDRESS(invm_dword);
 			if (word_address == address) {
 				*data = INVM_DWORD_TO_WORD_DATA(invm_dword);
-				hw_dbg("Read INVM Word 0x%02x = %x",
+				hw_dbg("Read INVM Word 0x%02x = %x\n",
 					  address, *data);
 				status = E1000_SUCCESS;
 				break;

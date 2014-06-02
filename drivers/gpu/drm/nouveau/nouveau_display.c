@@ -764,9 +764,9 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	}
 
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
-	mutex_unlock(&chan->cli->mutex);
 	if (ret)
 		goto fail_unreserve;
+	mutex_unlock(&chan->cli->mutex);
 
 	/* Update the crtc struct and cleanup */
 	crtc->primary->fb = fb;

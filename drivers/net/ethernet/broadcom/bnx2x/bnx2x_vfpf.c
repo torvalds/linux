@@ -747,7 +747,7 @@ int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 out:
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
 
-	return 0;
+	return rc;
 }
 
 /* request pf to config rss table for vf queues*/
@@ -1163,7 +1163,7 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			bnx2x_vf_max_queue_cnt(bp, vf);
 		resc->num_sbs = vf_sb_count(vf);
 		resc->num_mac_filters = vf_mac_rules_cnt(vf);
-		resc->num_vlan_filters = vf_vlan_rules_cnt(vf);
+		resc->num_vlan_filters = vf_vlan_rules_visible_cnt(vf);
 		resc->num_mc_filters = 0;
 
 		if (status == PFVF_STATUS_SUCCESS) {

@@ -389,18 +389,6 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 	fl->fl_ops = NULL;
 	fl->fl_lmops = NULL;
 
-	/* Ensure that fl->fl_filp has compatible f_mode */
-	switch (l->l_type) {
-	case F_RDLCK:
-		if (!(filp->f_mode & FMODE_READ))
-			return -EBADF;
-		break;
-	case F_WRLCK:
-		if (!(filp->f_mode & FMODE_WRITE))
-			return -EBADF;
-		break;
-	}
-
 	return assign_type(fl, l->l_type);
 }
 
@@ -2034,6 +2022,22 @@ static int do_lock_file_wait(struct file *filp, unsigned int cmd,
 	return error;
 }
 
+/* Ensure that fl->fl_filp has compatible f_mode for F_SETLK calls */
+static int
+check_fmode_for_setlk(struct file_lock *fl)
+{
+	switch (fl->fl_type) {
+	case F_RDLCK:
+		if (!(fl->fl_file->f_mode & FMODE_READ))
+			return -EBADF;
+		break;
+	case F_WRLCK:
+		if (!(fl->fl_file->f_mode & FMODE_WRITE))
+			return -EBADF;
+	}
+	return 0;
+}
+
 /* Apply the lock described by l to an open file descriptor.
  * This implements both the F_SETLK and F_SETLKW commands of fcntl().
  */
@@ -2068,6 +2072,10 @@ int fcntl_setlk(unsigned int fd, struct file *filp, unsigned int cmd,
 
 again:
 	error = flock_to_posix_lock(filp, file_lock, &flock);
+	if (error)
+		goto out;
+
+	error = check_fmode_for_setlk(file_lock);
 	if (error)
 		goto out;
 
@@ -2203,6 +2211,10 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 
 again:
 	error = flock64_to_posix_lock(filp, file_lock, &flock);
+	if (error)
+		goto out;
+
+	error = check_fmode_for_setlk(file_lock);
 	if (error)
 		goto out;
 

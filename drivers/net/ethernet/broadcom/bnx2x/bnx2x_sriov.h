@@ -159,6 +159,8 @@ struct bnx2x_virtf {
 #define vf_mac_rules_cnt(vf)		((vf)->alloc_resc.num_mac_filters)
 #define vf_vlan_rules_cnt(vf)		((vf)->alloc_resc.num_vlan_filters)
 #define vf_mc_rules_cnt(vf)		((vf)->alloc_resc.num_mc_filters)
+	/* Hide a single vlan filter credit for the hypervisor */
+#define vf_vlan_rules_visible_cnt(vf)	(vf_vlan_rules_cnt(vf) - 1)
 
 	u8 sb_count;	/* actual number of SBs */
 	u8 igu_base_id;	/* base igu status block id */
@@ -502,6 +504,7 @@ static inline int bnx2x_vf_ustorm_prods_offset(struct bnx2x *bp,
 enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp);
 void bnx2x_timer_sriov(struct bnx2x *bp);
 void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp);
+void bnx2x_vf_pci_dealloc(struct bnx2x *bp);
 int bnx2x_vf_pci_alloc(struct bnx2x *bp);
 int bnx2x_enable_sriov(struct bnx2x *bp);
 void bnx2x_disable_sriov(struct bnx2x *bp);
@@ -568,6 +571,7 @@ static inline void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
 	return NULL;
 }
 
+static inline void bnx2x_vf_pci_dealloc(struct bnx2 *bp) {return 0; }
 static inline int bnx2x_vf_pci_alloc(struct bnx2x *bp) {return 0; }
 static inline void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp) {}
 static inline int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs) {return 0; }

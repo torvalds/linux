@@ -1077,9 +1077,18 @@ static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
 
 	rcu_read_lock();
 	do {
-		memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-		if (unlikely(!memcg))
+		/*
+		 * Page cache insertions can happen withou an
+		 * actual mm context, e.g. during disk probing
+		 * on boot, loopback IO, acct() writes etc.
+		 */
+		if (unlikely(!mm))
 			memcg = root_mem_cgroup;
+		else {
+			memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+			if (unlikely(!memcg))
+				memcg = root_mem_cgroup;
+		}
 	} while (!css_tryget(&memcg->css));
 	rcu_read_unlock();
 	return memcg;
@@ -3958,17 +3967,9 @@ int mem_cgroup_charge_file(struct page *page, struct mm_struct *mm,
 		return 0;
 	}
 
-	/*
-	 * Page cache insertions can happen without an actual mm
-	 * context, e.g. during disk probing on boot.
-	 */
-	if (unlikely(!mm))
-		memcg = root_mem_cgroup;
-	else {
-		memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, 1, true);
-		if (!memcg)
-			return -ENOMEM;
-	}
+	memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, 1, true);
+	if (!memcg)
+		return -ENOMEM;
 	__mem_cgroup_commit_charge(memcg, page, 1, type, false);
 	return 0;
 }
@@ -6686,16 +6687,20 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
 		pgoff = pte_to_pgoff(ptent);
 
 	/* page is moved even if it's not RSS of this task(page-faulted). */
-	page = find_get_page(mapping, pgoff);
-
 #ifdef CONFIG_SWAP
 	/* shmem/tmpfs may report page out on swap: account for that too. */
-	if (radix_tree_exceptional_entry(page)) {
-		swp_entry_t swap = radix_to_swp_entry(page);
-		if (do_swap_account)
-			*entry = swap;
-		page = find_get_page(swap_address_space(swap), swap.val);
-	}
+	if (shmem_mapping(mapping)) {
+		page = find_get_entry(mapping, pgoff);
+		if (radix_tree_exceptional_entry(page)) {
+			swp_entry_t swp = radix_to_swp_entry(page);
+			if (do_swap_account)
+				*entry = swp;
+			page = find_get_page(swap_address_space(swp), swp.val);
+		}
+	} else
+		page = find_get_page(mapping, pgoff);
+#else
+	page = find_get_page(mapping, pgoff);
 #endif
 	return page;
 }

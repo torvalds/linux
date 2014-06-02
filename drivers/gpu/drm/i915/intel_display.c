@@ -7825,14 +7825,12 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		addr = i915_gem_obj_ggtt_offset(obj);
 	} else {
 		int align = IS_I830(dev) ? 16 * 1024 : 256;
-		ret = i915_gem_attach_phys_object(dev, obj,
-						  (intel_crtc->pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1,
-						  align);
+		ret = i915_gem_object_attach_phys(obj, align);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to attach phys object\n");
 			goto fail_locked;
 		}
-		addr = obj->phys_obj->handle->busaddr;
+		addr = obj->phys_handle->busaddr;
 	}
 
 	if (IS_GEN2(dev))
@@ -7840,10 +7838,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
  finish:
 	if (intel_crtc->cursor_bo) {
-		if (INTEL_INFO(dev)->cursor_needs_physical) {
-			if (intel_crtc->cursor_bo != obj)
-				i915_gem_detach_phys_object(dev, intel_crtc->cursor_bo);
-		} else
+		if (!INTEL_INFO(dev)->cursor_needs_physical)
 			i915_gem_object_unpin_from_display_plane(intel_crtc->cursor_bo);
 		drm_gem_object_unreference(&intel_crtc->cursor_bo->base);
 	}
@@ -11395,15 +11390,6 @@ void intel_modeset_init(struct drm_device *dev)
 	}
 }
 
-static void
-intel_connector_break_all_links(struct intel_connector *connector)
-{
-	connector->base.dpms = DRM_MODE_DPMS_OFF;
-	connector->base.encoder = NULL;
-	connector->encoder->connectors_active = false;
-	connector->encoder->base.crtc = NULL;
-}
-
 static void intel_enable_pipe_a(struct drm_device *dev)
 {
 	struct intel_connector *connector;
@@ -11485,8 +11471,17 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			if (connector->encoder->base.crtc != &crtc->base)
 				continue;
 
-			intel_connector_break_all_links(connector);
+			connector->base.dpms = DRM_MODE_DPMS_OFF;
+			connector->base.encoder = NULL;
 		}
+		/* multiple connectors may have the same encoder:
+		 *  handle them and break crtc link separately */
+		list_for_each_entry(connector, &dev->mode_config.connector_list,
+				    base.head)
+			if (connector->encoder->base.crtc == &crtc->base) {
+				connector->encoder->base.crtc = NULL;
+				connector->encoder->connectors_active = false;
+			}
 
 		WARN_ON(crtc->active);
 		crtc->base.enabled = false;
@@ -11568,6 +11563,8 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 				      drm_get_encoder_name(&encoder->base));
 			encoder->disable(encoder);
 		}
+		encoder->base.crtc = NULL;
+		encoder->connectors_active = false;
 
 		/* Inconsistent output/port/pipe state happens presumably due to
 		 * a bug in one of the get_hw_state functions. Or someplace else
@@ -11578,8 +11575,8 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 				    base.head) {
 			if (connector->encoder != encoder)
 				continue;
-
-			intel_connector_break_all_links(connector);
+			connector->base.dpms = DRM_MODE_DPMS_OFF;
+			connector->base.encoder = NULL;
 		}
 	}
 	/* Enabled encoders without active connectors will be fixed in
