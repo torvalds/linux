@@ -18,7 +18,6 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
-#include <linux/workqueue.h>
 #include <linux/mutex.h>
 
 #define HSSPI_GLOBAL_CTRL_REG			0x0
