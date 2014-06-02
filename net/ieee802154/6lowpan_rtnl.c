@@ -328,7 +328,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *dev,
 				 __func__, frag_tag, skb_offset);
 			goto err;
 		}
-	} while (skb_unprocessed >= frag_cap);
+	} while (skb_unprocessed > frag_cap);
 
 	consume_skb(skb);
 	return NET_XMIT_SUCCESS;
