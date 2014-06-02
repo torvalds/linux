@@ -1615,6 +1615,9 @@ static int _regmap_raw_multi_reg_write(struct regmap *map,
 	size_t pair_size = reg_bytes + pad_bytes + val_bytes;
 	size_t len = pair_size * num_regs;
 
+	if (!len)
+		return -EINVAL;
+
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -1662,7 +1665,7 @@ static int _regmap_range_multi_paged_reg_write(struct regmap *map,
 	int ret;
 	int i, n;
 	struct reg_default *base;
-	unsigned int this_page;
+	unsigned int this_page = 0;
 	/*
 	 * the set of registers are not neccessarily in order, but
 	 * since the order of write must be preserved this algorithm
