@@ -190,9 +190,12 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 			if (read_bucket(l))
 				goto bsearch;
 
-		if (list_empty(list))
+		/* no journal entries on this device? */
+		if (l == ca->sb.njournal_buckets)
 			continue;
 bsearch:
+		BUG_ON(list_empty(list));
+
 		/* Binary search */
 		m = l;
 		r = find_next_bit(bitmap, ca->sb.njournal_buckets, l + 1);
