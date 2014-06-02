@@ -405,11 +405,22 @@ static int rspi_wait_for_interrupt(struct rspi_data *rspi, u8 wait_mask,
 	return 0;
 }
 
+static inline int rspi_wait_for_tx_empty(struct rspi_data *rspi)
+{
+	return rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+}
+
+static inline int rspi_wait_for_rx_full(struct rspi_data *rspi)
+{
+	return rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE);
+}
+
 static int rspi_data_out(struct rspi_data *rspi, u8 data)
 {
-	if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
+	int error = rspi_wait_for_tx_empty(rspi);
+	if (error < 0) {
 		dev_err(&rspi->master->dev, "transmit timeout\n");
-		return -ETIMEDOUT;
+		return error;
 	}
 	rspi_write_data(rspi, data);
 	return 0;
@@ -417,11 +428,13 @@ static int rspi_data_out(struct rspi_data *rspi, u8 data)
 
 static int rspi_data_in(struct rspi_data *rspi)
 {
+	int error;
 	u8 data;
 
-	if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
+	error = rspi_wait_for_rx_full(rspi);
+	if (error < 0) {
 		dev_err(&rspi->master->dev, "receive timeout\n");
-		return -ETIMEDOUT;
+		return error;
 	}
 	data = rspi_read_data(rspi);
 	return data;
@@ -737,7 +750,7 @@ static int rspi_transfer_out_in(struct rspi_data *rspi,
 	}
 
 	/* Wait for the last transmission */
-	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+	rspi_wait_for_tx_empty(rspi);
 
 	return 0;
 }
@@ -783,7 +796,7 @@ static int rspi_rz_transfer_out_in(struct rspi_data *rspi,
 	}
 
 	/* Wait for the last transmission */
-	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+	rspi_wait_for_tx_empty(rspi);
 
 	return 0;
 }
@@ -818,7 +831,7 @@ static int qspi_transfer_out_in(struct rspi_data *rspi,
 	}
 
 	/* Wait for the last transmission */
-	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+	rspi_wait_for_tx_empty(rspi);
 
 	return 0;
 }
@@ -836,7 +849,7 @@ static int qspi_transfer_out(struct rspi_data *rspi, struct spi_transfer *xfer)
 	}
 
 	/* Wait for the last transmission */
-	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+	rspi_wait_for_tx_empty(rspi);
 
 	return 0;
 }
