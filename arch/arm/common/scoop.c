@@ -182,7 +182,6 @@ static int scoop_probe(struct platform_device *pdev)
 	struct scoop_config *inf;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int ret;
-	int temp;
 
 	if (!mem)
 		return -EINVAL;
