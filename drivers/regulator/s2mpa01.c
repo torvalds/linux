@@ -116,7 +116,6 @@ static int s2mpa01_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 			ramp_delay = s2mpa01->ramp_delay16;
 
 		ramp_shift = S2MPA01_BUCK16_RAMP_SHIFT;
-		ramp_reg = S2MPA01_REG_RAMP1;
 		break;
 	case S2MPA01_BUCK2:
 		enable_shift = S2MPA01_BUCK2_RAMP_EN_SHIFT;
