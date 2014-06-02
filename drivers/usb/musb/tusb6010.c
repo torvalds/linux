@@ -22,6 +22,7 @@
 #include <linux/usb.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/usb_phy_generic.h>
@@ -1160,12 +1161,12 @@ static int tusb_probe(struct platform_device *pdev)
 	struct platform_device		*musb;
 	struct tusb6010_glue		*glue;
 	struct platform_device_info	pinfo;
-	int				ret = -ENOMEM;
+	int				ret;
 
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&pdev->dev, "failed to allocate glue context\n");
-		goto err0;
+		return -ENOMEM;
 	}
 
 	glue->dev			= &pdev->dev;
@@ -1204,16 +1205,10 @@ static int tusb_probe(struct platform_device *pdev)
 	if (IS_ERR(musb)) {
 		ret = PTR_ERR(musb);
 		dev_err(&pdev->dev, "failed to register musb device: %d\n", ret);
-		goto err3;
+		return ret;
 	}
 
 	return 0;
-
-err3:
-	kfree(glue);
-
-err0:
-	return ret;
 }
 
 static int tusb_remove(struct platform_device *pdev)
@@ -1222,7 +1217,6 @@ static int tusb_remove(struct platform_device *pdev)
 
 	platform_device_unregister(glue->musb);
 	usb_phy_generic_unregister(glue->phy);
-	kfree(glue);
 
 	return 0;
 }
