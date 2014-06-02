@@ -214,6 +214,7 @@ void of_mdiobus_link_phydev(struct mii_bus *mdio,
 		}
 	}
 }
+EXPORT_SYMBOL(of_mdiobus_link_phydev);
 
 /* Helper function for of_phy_find_device */
 static int of_phy_match(struct device *dev, void *phy_np)
