@@ -1376,7 +1376,7 @@ int mlx4_test_interrupts(struct mlx4_dev *dev)
 EXPORT_SYMBOL(mlx4_test_interrupts);
 
 int mlx4_assign_eq(struct mlx4_dev *dev, char *name, struct cpu_rmap *rmap,
-		   int *vector, cpumask_var_t cpu_hint_mask)
+		   int *vector)
 {
 
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1411,15 +1411,6 @@ int mlx4_assign_eq(struct mlx4_dev *dev, char *name, struct cpu_rmap *rmap,
 			}
 			mlx4_assign_irq_notifier(priv, dev,
 						 priv->eq_table.eq[vec].irq);
-			if (cpu_hint_mask) {
-				err = irq_set_affinity_hint(
-						priv->eq_table.eq[vec].irq,
-						cpu_hint_mask);
-				if (err) {
-					mlx4_warn(dev, "Failed setting affinity hint\n");
-					/*we dont want to break here*/
-				}
-			}
 
 			eq_set_ci(&priv->eq_table.eq[vec], 1);
 		}
@@ -1450,8 +1441,6 @@ void mlx4_release_eq(struct mlx4_dev *dev, int vec)
 			irq_set_affinity_notifier(
 				priv->eq_table.eq[vec].irq,
 				NULL);
-			irq_set_affinity_hint(priv->eq_table.eq[vec].irq,
-					      NULL);
 			free_irq(priv->eq_table.eq[vec].irq,
 				 &priv->eq_table.eq[vec]);
 			priv->msix_ctl.pool_bm &= ~(1ULL << i);

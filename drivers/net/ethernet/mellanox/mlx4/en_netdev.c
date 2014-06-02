@@ -1526,32 +1526,6 @@ static void mlx4_en_linkstate(struct work_struct *work)
 	mutex_unlock(&mdev->state_lock);
 }
 
-static void mlx4_en_init_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
-{
-	struct mlx4_en_rx_ring *ring = priv->rx_ring[ring_idx];
-	int numa_node = priv->mdev->dev->numa_node;
-
-	if (numa_node == -1)
-		return;
-
-	if (!zalloc_cpumask_var(&ring->affinity_mask, GFP_KERNEL)) {
-		en_err(priv, "Failed to allocate core mask\n");
-		return;
-	}
-
-	if (cpumask_set_cpu_local_first(ring_idx, numa_node,
-					ring->affinity_mask)) {
-		en_err(priv, "Failed setting affinity hint\n");
-		free_cpumask_var(ring->affinity_mask);
-		ring->affinity_mask = NULL;
-	}
-}
-
-static void mlx4_en_free_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
-{
-	free_cpumask_var(priv->rx_ring[ring_idx]->affinity_mask);
-	priv->rx_ring[ring_idx]->affinity_mask = NULL;
-}
 
 int mlx4_en_start_port(struct net_device *dev)
 {
@@ -1592,8 +1566,6 @@ int mlx4_en_start_port(struct net_device *dev)
 		cq = priv->rx_cq[i];
 
 		mlx4_en_cq_init_lock(cq);
-
-		mlx4_en_init_affinity_hint(priv, i);
 
 		err = mlx4_en_activate_cq(priv, cq, i);
 		if (err) {
@@ -1875,8 +1847,6 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 			msleep(1);
 		mlx4_en_deactivate_rx_ring(priv, priv->rx_ring[i]);
 		mlx4_en_deactivate_cq(priv, cq);
-
-		mlx4_en_free_affinity_hint(priv, i);
 	}
 }
 
