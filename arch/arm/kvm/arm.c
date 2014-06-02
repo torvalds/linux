@@ -1075,6 +1075,19 @@ static void check_kvm_target_cpu(void *ret)
 	*(int *)ret = kvm_target_cpu();
 }
 
+struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	mpidr &= MPIDR_HWID_BITMASK;
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (mpidr == kvm_vcpu_get_mpidr_aff(vcpu))
+			return vcpu;
+	}
+	return NULL;
+}
+
 /**
  * Initialize Hyp-mode and memory mappings on all CPUs.
  */

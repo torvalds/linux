@@ -27,6 +27,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/ptrace.h>
+#include <asm/cputype.h>
 
 unsigned long *vcpu_reg32(const struct kvm_vcpu *vcpu, u8 reg_num);
 unsigned long *vcpu_spsr32(const struct kvm_vcpu *vcpu);
@@ -192,9 +193,9 @@ static inline u8 kvm_vcpu_trap_get_fault_type(const struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & ESR_EL2_FSC_TYPE;
 }
 
-static inline unsigned long kvm_vcpu_get_mpidr(struct kvm_vcpu *vcpu)
+static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 {
-	return vcpu_sys_reg(vcpu, MPIDR_EL1);
+	return vcpu_sys_reg(vcpu, MPIDR_EL1) & MPIDR_HWID_BITMASK;
 }
 
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
