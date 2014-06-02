@@ -1999,6 +1999,9 @@ static int em_cmpxchg8b(struct x86_emulate_ctxt *ctxt)
 {
 	u64 old = ctxt->dst.orig_val64;
 
+	if (ctxt->dst.bytes == 16)
+		return X86EMUL_UNHANDLEABLE;
+
 	if (((u32) (old >> 0) != (u32) reg_read(ctxt, VCPU_REGS_RAX)) ||
 	    ((u32) (old >> 32) != (u32) reg_read(ctxt, VCPU_REGS_RDX))) {
 		*reg_write(ctxt, VCPU_REGS_RAX) = (u32) (old >> 0);
@@ -4077,7 +4080,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->orig_val = op->val;
 		break;
 	case OpMem64:
-		ctxt->memop.bytes = 8;
+		ctxt->memop.bytes = (ctxt->op_bytes == 8) ? 16 : 8;
 		goto mem_common;
 	case OpAcc:
 		op->type = OP_REG;
