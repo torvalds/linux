@@ -3642,8 +3642,8 @@ static const struct opcode group6[] = {
 };
 
 static const struct group_dual group7 = { {
-	II(Mov | DstMem | Priv,			em_sgdt, sgdt),
-	II(Mov | DstMem | Priv,			em_sidt, sidt),
+	II(Mov | DstMem,			em_sgdt, sgdt),
+	II(Mov | DstMem,			em_sidt, sidt),
 	II(SrcMem | Priv,			em_lgdt, lgdt),
 	II(SrcMem | Priv,			em_lidt, lidt),
 	II(SrcNone | DstMem | Mov,		em_smsw, smsw), N,
